@@ -125,8 +125,16 @@ func extractSpecContextTargets(specDir string) []string {
 func extractSourcePaths(markdown string) []string {
 	var paths []string
 	for _, line := range strings.Split(markdown, "\n") {
-		for _, match := range sourcePathPattern.FindAllString(line, -1) {
-			if path := normalizeSourcePath(match); path != "" {
+		for _, location := range sourcePathPattern.FindAllStringIndex(line, -1) {
+			// The pattern accepts `/` but not `:`, so a cited URL arrives here
+			// with its scheme cut off: `https://example.com/docs/guide.go`
+			// matches from the slashes on, and normalizeSourcePath's own "://"
+			// guard can no longer recognise it. Judge the match by what
+			// precedes it: a colon before the leading slashes means a scheme.
+			if strings.HasSuffix(strings.TrimRight(line[:location[0]], "/"), ":") {
+				continue
+			}
+			if path := normalizeSourcePath(line[location[0]:location[1]]); path != "" {
 				paths = append(paths, path)
 			}
 		}
