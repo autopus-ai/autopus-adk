@@ -94,7 +94,14 @@ func (p *ompNativeProvider) handle(w http.ResponseWriter, r *http.Request) {
 		p.reject(w, "invalid_request_shape")
 		return
 	}
-	if _, parent := ompNativeToolParameters(request.Tools, "task"); parent {
+	// The parent conversation is the one carrying the smoke prompt; a child
+	// only ever receives the shared context plus its own assignment. Tool
+	// shape is no longer a discriminator: the bundled `reviewer` declares
+	// `spawns: [scout]`, so its request carries a `task` tool too, and
+	// "has task tool ⇒ parent" misrouted that child into the parent staging
+	// sequence. That rule held only while the project shipped its own
+	// non-spawning agent definitions.
+	if strings.Contains(string(body), ompNativeSmokeToken) {
 		p.handleParent(w, r, request, body)
 		return
 	}
@@ -225,7 +232,7 @@ func (p *ompNativeProvider) handleChild(
 		p.reject(w, "unknown_child_assignment")
 		return
 	}
-	if err := validateOMPNativeChildTools(request.Tools); err != nil {
+	if err := validateOMPNativeChildTools(id, request.Tools); err != nil {
 		p.reject(w, "child_schema:"+err.Error())
 		return
 	}

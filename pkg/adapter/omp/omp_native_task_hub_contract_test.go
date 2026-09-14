@@ -135,16 +135,46 @@ func validateOMPNativeParentTools(tools []json.RawMessage) error {
 	return nil
 }
 
-func validateOMPNativeChildTools(tools []json.RawMessage) error {
+// ompNativeChildToolContract is the toolset a spawned child must present, per
+// bundled agent. Before the native cutover the project shipped its own
+// `.omp/agents/<role>.md`, so every child carried one ADK-authored toolset
+// (bash/glob/grep/read). Children are now OMP's bundled agents, whose
+// capabilities differ by agent and are OMP's to declare: `scout` investigates
+// without a shell, `reviewer` gets bash, lsp, and ast_grep. `hub` is injected
+// by the runtime for background children and belongs to neither definition.
+//
+// Measured against omp/17.2.7 `omp agents unpack`.
+var ompNativeChildToolContract = map[string]struct {
+	required  []string
+	forbidden []string
+}{
+	ompNativeAlphaID: {
+		required:  []string{"glob", "grep", "hub", "read", "web_search", "yield"},
+		forbidden: []string{"bash", "edit", "task", "write"},
+	},
+	ompNativeBetaID: {
+		// `lsp` and `ast_grep` sit in the bundled definition but are runtime
+		// gated (a language server, an installed ast-grep), so they are not
+		// required here. A superset still passes; the write set never may.
+		required:  []string{"bash", "glob", "grep", "hub", "read", "task", "web_search", "yield"},
+		forbidden: []string{"edit", "write"},
+	},
+}
+
+func validateOMPNativeChildTools(child string, tools []json.RawMessage) error {
+	contract, known := ompNativeChildToolContract[child]
+	if !known {
+		return fmt.Errorf("no tool contract for child %s", child)
+	}
 	names := ompNativeToolNames(tools)
-	for _, required := range []string{"bash", "glob", "grep", "hub", "read", "yield"} {
+	for _, required := range contract.required {
 		if !names[required] {
-			return fmt.Errorf("read-only child tool %s missing", required)
+			return fmt.Errorf("%s child tool %s missing", child, required)
 		}
 	}
-	for _, forbidden := range []string{"edit", "task", "web_search", "write"} {
+	for _, forbidden := range contract.forbidden {
 		if names[forbidden] {
-			return fmt.Errorf("read-only child exposed %s", forbidden)
+			return fmt.Errorf("%s child exposed %s", child, forbidden)
 		}
 	}
 	yieldParameters, ok := ompNativeToolParameters(tools, "yield")

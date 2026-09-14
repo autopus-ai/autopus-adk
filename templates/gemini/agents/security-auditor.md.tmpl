@@ -41,7 +41,7 @@ OWASP Top 10 기준으로 보안 취약점을 탐지하고 수정하는 에이�
 
 ## 자동화 스캔
 
-Detect the project stack and run appropriate security scanning tools:
+Detect the project stack and run appropriate security scanning tools when the runtime grants a shell. On a shell-less read-only runtime (for example OMP `security-reviewer`) read the dependency manifests, lockfiles, and any committed scan reports instead, and report which scans still need an agent that can execute them:
 
 | Check | Go | Python | TypeScript | Rust |
 |-------|-----|--------|------------|------|
