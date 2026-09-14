@@ -156,7 +156,7 @@ func TestObserveRunCanonicalPrimary_RefusesUnboundAndClosedDrivers(t *testing.T)
 	closed := observeCallTestDriver(t)
 	require.NoError(t, bindWorkflowContextObserveDriver(context.Background(), closed, "task-02"))
 	require.NoError(t, closed.Cleanup(context.Background()))
-	_, usage, err := closed.runCanonicalPrimary(nil, "prompt")
+	_, usage, err := closed.runCanonicalPrimary(context.TODO(), "prompt")
 	require.ErrorContains(t, err, "driver is not ready")
 	assert.Zero(t, usage.TotalTokens)
 }

@@ -24,12 +24,21 @@ func observeCallPrepareOptions(t *testing.T) workflowContextObserveCallOptions {
 	}
 }
 
+// The managed observe runtime requires the darwin-only network sandbox
+// (workflow_context_runtime_managed_rpc_sandbox_darwin.go); elsewhere
+// configureWorkflowContextManagedRPCSandbox refuses by design, so these cases
+// would assert a sandbox the platform does not have.
+func requireManagedObserveSandbox(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS != "darwin" {
+		t.Skip("managed OMP network sandbox is darwin-only")
+	}
+}
+
 // The observe-call task root must be a fully isolated runtime: the child may not
 // see the user's HOME, caches, or the real project directory.
 func TestPrepareWorkflowContextObserveCall_IsolatesRuntimeAndProvesInstalledIdentity(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("fixture executable uses a POSIX launcher")
-	}
+	requireManagedObserveSandbox(t)
 	options := observeCallPrepareOptions(t)
 	t.Setenv(options.CredentialLocator, "observe-prepare-secret-token")
 
@@ -120,9 +129,7 @@ func TestPrepareWorkflowContextObserveCall_RefusesSymlinkedCanonicalDocument(t *
 
 // A runtime whose identity probe fails must not leave its task root on disk.
 func TestPrepareWorkflowContextObserveCall_RemovesTaskRootWhenIdentityProbeFails(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("fixture executable uses a POSIX launcher")
-	}
+	requireManagedObserveSandbox(t)
 	options := observeCallPrepareOptions(t)
 	options.Executable = "/usr/bin/true"
 	t.Setenv(options.CredentialLocator, "observe-prepare-secret-token")
@@ -138,9 +145,7 @@ func TestPrepareWorkflowContextObserveCall_RemovesTaskRootWhenIdentityProbeFails
 }
 
 func TestProbeWorkflowContextObserveVersion_RejectsExecutableWithoutInstalledVersionOutput(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("fixture executable uses a POSIX launcher")
-	}
+	requireManagedObserveSandbox(t)
 	workspace := t.TempDir()
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
