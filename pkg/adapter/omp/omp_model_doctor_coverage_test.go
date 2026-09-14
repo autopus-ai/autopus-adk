@@ -26,9 +26,10 @@ func TestCompileOMPModelDoctorActivationExpectation_IsDeterministicAndConcrete(t
 	require.NotEmpty(t, want.ConfigBytes)
 	assert.Equal(t, OMPModelSHA256(want.ConfigBytes), want.ConfigHash)
 	assert.Equal(t, true, want.ExpectedValues["retry.modelFallback"])
-	roles := want.ExpectedValues["modelRoles"].(map[string]string)
-	assert.Equal(t, "anthropic/alpha-reasoner:xhigh", roles["autopus_planner"])
-	assert.Contains(t, string(want.ConfigBytes), "autopus_planner: anthropic/alpha-reasoner:xhigh")
+	overrides := want.ExpectedValues[config.OMPNativeAgentModelOverridesKey].(map[string]string)
+	assert.Equal(t, "anthropic/alpha-reasoner:xhigh", overrides["task"])
+	assert.Contains(t, string(want.ConfigBytes), "task: anthropic/alpha-reasoner:xhigh")
+	assert.NotContains(t, string(want.ConfigBytes), "autopus_")
 	assert.NotContains(t, strings.ToLower(string(want.ConfigBytes)), "api_key")
 
 	for iteration := 0; iteration < 40; iteration++ {
@@ -38,17 +39,14 @@ func TestCompileOMPModelDoctorActivationExpectation_IsDeterministicAndConcrete(t
 		assert.Equal(t, want.ConfigBytes, got.ConfigBytes, "iteration=%d", iteration)
 		assert.True(t, reflect.DeepEqual(want.ExpectedValues, got.ExpectedValues), "iteration=%d", iteration)
 	}
-
-	names := make([]string, 0, len(roles))
-	for role := range roles {
-		names = append(names, role)
+	names := make([]string, 0, len(overrides))
+	for agent := range overrides {
+		names = append(names, agent)
 	}
 	sort.Strings(names)
-	wantRoles := make([]string, 0, len(config.CanonicalAgentNames()))
-	for _, agent := range config.CanonicalAgentNames() {
-		wantRoles = append(wantRoles, config.OMPAgentRoleName(agent))
-	}
-	assert.Equal(t, wantRoles, names)
+	wantAgents := append([]string(nil), config.OMPNativeAgentNames()...)
+	sort.Strings(wantAgents)
+	assert.Equal(t, wantAgents, names)
 }
 
 func TestCompileOMPModelDoctorActivationExpectation_FailsClosedOnInvalidInputs(t *testing.T) {
@@ -80,7 +78,7 @@ func TestCompileOMPModelDoctorActivationExpectation_FailsClosedOnInvalidInputs(t
 		{
 			name: "capability omitted", want: "capability_missing",
 			edit: func(profile *config.RoleModelProfileConf, _ *OMPModelCatalog) {
-				delete(profile.Capabilities, config.CapabilityVisionDesign)
+				delete(profile.Capabilities, config.CapabilityDeterministicTransform)
 			},
 		},
 		{
@@ -123,8 +121,8 @@ func TestOMPModelDoctorReceiptConfigSource_ValidatesOverlayAndProjectOwnership(t
 
 	projectRoot := t.TempDir()
 	ownership, ownershipData, err := newOMPModelProjectOwnership(
-		[]byte("user: original\n"), false, []byte("modelRoles: {}\n"),
-		map[string]string{"modelRoles": OMPModelSHA256([]byte("{}"))},
+		[]byte("user: original\n"), false, []byte("task:\n  agentModelOverrides: {}\n"),
+		map[string]string{config.OMPNativeAgentModelOverridesKey: OMPModelSHA256([]byte("{}"))},
 	)
 	require.NoError(t, err)
 	writeOMPDoctorOwnedFile(t, projectRoot, OMPModelProjectOwnershipRelativePath, ownershipData, 0o600)
@@ -171,7 +169,7 @@ func TestRootedOMPModelDoctorReaders_RejectNonCanonicalEvidence(t *testing.T) {
 
 	ownership, ownershipData, err := newOMPModelProjectOwnership(
 		[]byte("original"), false, []byte("emitted"),
-		map[string]string{"modelRoles": OMPModelSHA256([]byte("value"))},
+		map[string]string{config.OMPNativeAgentModelOverridesKey: OMPModelSHA256([]byte("value"))},
 	)
 	require.NoError(t, err)
 	writeOMPDoctorOwnedFile(t, root, OMPModelProjectOwnershipRelativePath, ownershipData, 0o600)

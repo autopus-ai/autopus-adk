@@ -15,7 +15,6 @@ import (
 type platformAdapterOptions struct {
 	codexModelCatalog      []byte
 	codexModelCatalogFixed bool
-	disablePluginInstall   bool
 }
 
 type platformAdapterFactory func(string, platformAdapterOptions) adapter.PlatformAdapter
@@ -69,15 +68,10 @@ var lifecyclePlatformCatalog = [...]platformDescriptor{
 	},
 	{
 		name: "antigravity-cli",
-		newAdapter: func(root string, options platformAdapterOptions) adapter.PlatformAdapter {
-			if options.disablePluginInstall {
-				return antigravity.NewWithRoot(root, antigravity.WithoutPluginInstall())
-			}
+		newAdapter: func(root string, _ platformAdapterOptions) adapter.PlatformAdapter {
 			return antigravity.NewWithRoot(root)
 		},
-		driftOptions: func([]byte, bool) platformAdapterOptions {
-			return platformAdapterOptions{disablePluginInstall: true}
-		},
+		pruneRoots: func(*config.HarnessConfig) []string { return antigravity.PruneRoots() },
 	},
 	{
 		name: "opencode",

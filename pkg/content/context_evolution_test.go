@@ -1,7 +1,6 @@
 package content_test
 
 import (
-	"regexp"
 	"strings"
 	"testing"
 
@@ -45,31 +44,34 @@ func TestTransformAgentForGemini_ProjectsKnownNativeToolsAndOmitsUnsupported(t *
 	assert.NotContains(t, rendered, "Codex native enforcement")
 }
 
-func TestContextEvolutionExamples_CoverThreeFailureBoundariesWithoutSensitiveData(t *testing.T) {
+// Shipped prompt content is injected verbatim into every provider session, so a
+// credential or a developer's absolute home path baked into it leaks on every
+// run. The narrative "Context Evolution Examples" section this check used to be
+// scoped to no longer exists; the leak sweep is the part that defended
+// behaviour, so it now covers every shipped skill body and resource.
+func TestShippedSkillContent_CarriesNoCredentialsOrHostPaths(t *testing.T) {
 	t.Parallel()
 
-	data, err := contentfs.FS.ReadFile("skills/agent-pipeline.md")
-	require.NoError(t, err)
-	section := markdownSection(string(data), "## Context Evolution Examples")
-	require.NotEmpty(t, section, "canonical context evolution examples section is required")
-
-	itemPattern := regexp.MustCompile(`(?m)^\d+\.\s+`)
-	assert.Len(t, itemPattern.FindAllStringIndex(section, -1), 3)
-	for _, required := range []string{
-		"raw-body replay",
-		"malformed receipt evidence",
-		"unsupported tool enforcement",
-	} {
-		assert.Contains(t, section, required)
-	}
-	for _, forbidden := range []string{
-		"sk-proj-",
-		"AKIA",
-		"/Users/",
-		"/home/",
-		"C:\\",
-	} {
-		assert.NotContains(t, section, forbidden)
+	forbidden := []string{"sk-proj-", "AKIA", "/Users/", "/home/", "C:\\"}
+	for _, dir := range []string{"skills", "skills/references/agent-pipeline"} {
+		entries, err := contentfs.FS.ReadDir(dir)
+		require.NoError(t, err)
+		require.NotEmpty(t, entries)
+		for _, entry := range entries {
+			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+				continue
+			}
+			path := dir + "/" + entry.Name()
+			t.Run(path, func(t *testing.T) {
+				t.Parallel()
+				data, readErr := contentfs.FS.ReadFile(path)
+				require.NoError(t, readErr)
+				for _, token := range forbidden {
+					assert.NotContains(t, string(data), token,
+						"%s leaks sensitive data into every session", path)
+				}
+			})
+		}
 	}
 }
 
@@ -86,16 +88,4 @@ func decodeGeminiAgent(t *testing.T, rendered string) (geminiAgentFrontmatter, s
 	var frontmatter geminiAgentFrontmatter
 	require.NoError(t, yaml.Unmarshal([]byte(parts[1]), &frontmatter))
 	return frontmatter, parts[2]
-}
-
-func markdownSection(body, heading string) string {
-	start := strings.Index(body, heading)
-	if start < 0 {
-		return ""
-	}
-	section := body[start+len(heading):]
-	if end := strings.Index(section, "\n## "); end >= 0 {
-		section = section[:end]
-	}
-	return strings.TrimSpace(section)
 }

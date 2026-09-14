@@ -130,7 +130,7 @@ func TestOMPGenerate_TransactionRollsBackLateWriteAndConfigReadFailure(t *testin
 		require.Error(t, err)
 		assert.Equal(t, []byte("user blocker\n"), mustReadOMPReviewFile(t, blocker))
 		assert.NoDirExists(t, filepath.Join(root, ".omp", "rules"))
-		assert.NoDirExists(t, filepath.Join(root, ".omp", "agents"))
+		assert.NoDirExists(t, filepath.Join(root, ".omp", "commands"))
 		assert.NoFileExists(t, filepath.Join(root, ".autopus", "omp-manifest.json"))
 	})
 

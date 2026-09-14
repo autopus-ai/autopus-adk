@@ -52,7 +52,7 @@ func TestUpdateReportsOMPBeforeCompletionAlongsideOpenCode(t *testing.T) {
 func TestUpdateNamesOMPWhenItsUpdateFails(t *testing.T) {
 	root := updateVisibilityProject(t, "omp")
 	require.NoError(t, os.MkdirAll(filepath.Join(root, ".omp"), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(root, ".omp", "agents"), []byte("user file"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".omp", "commands"), []byte("user file"), 0o600))
 	out, err := runVisibilityUpdate(root)
 	require.Error(t, err)
 	assert.Contains(t, out, "OMP (Oh My Pi)")

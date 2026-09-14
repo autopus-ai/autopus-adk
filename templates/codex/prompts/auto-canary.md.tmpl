@@ -48,4 +48,4 @@ description: "배포 후 건강 검진 — 빌드 검증, E2E 시나리오, 브�
 
 - 빌드 실패 시 나머지 단계 스킵
 - canary.md 없으면 설정 부재 보고 + `/auto setup` 안내
-- 파일 크기 제한: 소스 코드 파일 300줄 이하 (SPEC Markdown은 제외)
+- 파일 크기 제한: `architecture.max_file_lines`가 양수일 때만 강제하고, 없거나 `0`이면 권고입니다. 소스 코드 파일에만 적용하며 SPEC Markdown은 제외합니다

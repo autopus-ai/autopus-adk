@@ -27,12 +27,6 @@ func TestRouterBudget_FullGenerate_RootIsThinAndAllDetailsExist(t *testing.T) {
 	router := readGeneratedAntigravitySurface(t, root, filepath.Join(".gemini", "skills", "auto", "SKILL.md"))
 	t.Logf("generated Gemini root router: %d bytes", len([]byte(router)))
 	assert.LessOrEqual(t, len([]byte(router)), 8192, "root router must stay within the byte budget")
-	for _, token := range []string{
-		"Language Policy", "Source Ownership", "Subagent Delegation", "Review Convergence",
-		"Generated Surface Safety", ".autopus/project/workspace.md",
-	} {
-		assert.Contains(t, router, token)
-	}
 	for _, route := range frozenAntigravityAutoRoutes {
 		rel := filepath.Join(".gemini", "skills", "autopus", "auto-"+route, "SKILL.md")
 		assert.Equal(t, 1, strings.Count(router, rel), "route %q must resolve exactly one detail", route)
@@ -150,6 +144,9 @@ func TestWorkflowSkills_GenerateAndUpdate_DoNotDuplicateCanonicalRouteTargets(t 
 func TestWorkflowSkills_GenerateAndUpdate_RespectRouteAndSharedSkillOwnership(t *testing.T) {
 	t.Parallel()
 	cfg := config.DefaultFullConfig("skill-ownership")
+	// adaptive-quality is a long-tail catalog skill; the ownership contract
+	// under test only has something to say when the full catalog is opted in.
+	cfg.Skills.Compiler.Mode = config.SkillCompilerModeFull
 	operations := []struct {
 		name string
 		run  func(string) (*adapter.PlatformFiles, error)

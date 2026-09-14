@@ -42,7 +42,7 @@ func integrationHarnessConfig(mode string) *config.HarnessConfig {
 		profile := cfg.RoleModelPolicy.Profiles["p1"]
 		missing := OMPMissingManagedValueFingerprint()
 		profile.ManagedKeys = map[string]config.RoleManagedKeyClaimConf{
-			"modelRoles": {PriorFingerprint: missing, Complete: true},
+			config.OMPNativeAgentModelOverridesKey: {PriorFingerprint: missing, Complete: true},
 			"retry.fallbackChains": {
 				PriorFingerprint: missing, Complete: true, FullArrayOwnership: true,
 			},

@@ -20,7 +20,21 @@ type PhaseContext struct {
 	ContextResult *memindex.ContextResult
 	// FrozenRequiredDocuments requires one immutable snapshot of all required SPEC documents.
 	FrozenRequiredDocuments bool
+	// Route is the phase route this run dispatches. The compact route drops
+	// the separate scaffold dispatch, so the implementation phase has to
+	// carry the test-first contract itself.
+	Route PhaseRoute
 }
+
+// compactImplementDirective keeps test-first work inside the implementation
+// phase when the compact route drops the dedicated scaffold dispatch. Without
+// it, removing a phase would quietly remove the behaviour it carried.
+const compactImplementDirective = "## Compact Route\n" +
+	"This run dispatches implement, validate, and review only; no separate " +
+	"test-scaffold phase runs. Write the failing test for each referenced " +
+	"acceptance criterion first, observe it fail, then implement until it " +
+	"passes. Report the test files you added or changed alongside the " +
+	"implementation."
 
 // PhasePromptBuilder builds prompts for each pipeline phase by reading files
 // from a spec directory and injecting previous phase results.
@@ -99,6 +113,14 @@ func (b *PhasePromptBuilder) BuildPromptWithManifest(phaseID PhaseID, ctx PhaseC
 		}
 		b.injectPriorLayer(&layers, ctx, PhasePlan, "Plan Output")
 		b.injectPriorLayer(&layers, ctx, PhaseTestScaffold, "Test Scaffold Output")
+		if ctx.Route == RouteCompact {
+			layers = append(layers, promptlayer.Layer{
+				ID: "phase:route:compact-implement", Kind: promptlayer.KindEphemeral,
+				Group: promptlayer.GroupTaskContext, SourceRef: "route:compact",
+				Content: compactImplementDirective, CacheEligible: false,
+				RedactionStatus: promptlayer.RedactionPassed, InvalidationReason: promptlayer.InvalidationNone,
+			})
+		}
 
 	case PhaseValidate:
 		if !frozenMode {

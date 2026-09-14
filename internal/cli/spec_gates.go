@@ -17,13 +17,14 @@ import (
 // records gate evidence for exact-input reuse.
 func newSpecGatesCmd() *cobra.Command {
 	var (
-		changed          string
-		base             string
-		changeClass      string
-		newContract      bool
-		jsonOutput       bool
-		maxAge           time.Duration
-		referenceMissing bool
+		changed             string
+		base                string
+		changeClass         string
+		newContract         bool
+		jsonOutput          bool
+		maxAge              time.Duration
+		annotationRequested bool
+		referenceMissing    bool
 	)
 
 	cmd := &cobra.Command{
@@ -38,7 +39,13 @@ only when its exact input closure still matches the current tree.
 The declared change class decides the risk tier. Without --change-class the
 class is derived from the change set, so it can never be understated. Low-risk
 classes leave spec_authoring and risk_first_probe not_applicable; high-risk
-classes require both.`,
+classes require both.
+
+The @AX annotation gate is opt-in: without --annotation it stays
+not_applicable, so ordinary code work is never held behind an annotation pass
+nobody asked for. With --annotation it is required for a code change set, and
+blocked when --annotation-reference-missing reports the reference source
+absent.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			target, err := resolveGatesTarget(args[0])
@@ -66,6 +73,7 @@ classes require both.`,
 				SpecID:                     target.SpecID,
 				Classification:             classification,
 				Change:                     gates.AssessChange(declared, classification, newContract),
+				AnnotationRequested:        annotationRequested,
 				AnnotationReferenceMissing: referenceMissing,
 				Prior:                      prior,
 				Now:                        time.Now(),
@@ -89,7 +97,8 @@ classes require both.`,
 	cmd.Flags().BoolVar(&newContract, "new-contract", false, "the change introduces a new exported API or contract (always escalates)")
 	cmd.Flags().BoolVar(&jsonOutput, "json", false, "print the applicability receipt as JSON")
 	cmd.Flags().DurationVar(&maxAge, "max-age", gates.DefaultMaxAge, "maximum age of evidence eligible for reuse")
-	cmd.Flags().BoolVar(&referenceMissing, "annotation-reference-missing", false, "mark the annotation gate blocked because the @AX reference source is absent")
+	cmd.Flags().BoolVar(&annotationRequested, "annotation", false, "evaluate the @AX annotation gate for this change set (default: not_applicable)")
+	cmd.Flags().BoolVar(&referenceMissing, "annotation-reference-missing", false, "with --annotation, mark the annotation gate blocked because the @AX reference source is absent")
 
 	cmd.AddCommand(newSpecGatesRecordCmd())
 	return cmd

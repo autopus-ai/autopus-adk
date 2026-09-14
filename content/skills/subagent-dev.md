@@ -91,35 +91,13 @@ skills:
 
 ## 오케스트레이션 패턴
 
-### Fan-Out / Fan-In
-```
-조율자 → [에이전트 A, 에이전트 B, 에이전트 C] (병렬)
-         → 결과 통합 → 조율자
-```
+- **Fan-out/fan-in**: 독립 슬라이스를 병렬로 띄우고 결과를 통합한다. 쓰기 소유권이 겹치면 순차로 바꾼다.
+- **Pipeline**: 앞 단계 산출물이 다음 단계 입력이 될 때만 순차로 연결한다.
+- **Supervisor**: 메인 세션이 단계, 재시도 한도, 통합 게이트를 소유한다.
 
-### Pipeline
-```
-에이전트 A → 결과 → 에이전트 B → 결과 → 에이전트 C
-```
+파이프라인 단계 정의와 게이트 계약은 agent-pipeline skill이, 플랫폼 native persistent-team lifecycle은 해당 플랫폼의 team skill이 소유한다. 이 문서에서 다시 정의하지 않는다.
 
-### Supervisor
-```
-감독자 에이전트 → 실행자 에이전트 모니터링
-               → 실패 시 재시도 또는 대안 전략
-```
-
-## 에이전트 간 통신
-
-### 서브에이전트 방식 (기본)
-- `Agent()` 호출로 생성, 결과 반환 후 종료
-- 서브에이전트는 다른 서브에이전트를 생성할 수 없음
-- 중단된 worker 재개 방식은 현재 플랫폼의 native subagent 계약을 따름
-
-### Persistent team 방식
-- 플랫폼이 native persistent-team lifecycle을 지원할 때만 전용 team skill을 로드
-- 메인 세션이 lifecycle, disjoint ownership, dispatch evidence, integration gate를 소유
-- 미지원 플랫폼은 foreign primitive를 흉내 내지 않고 기본 subagent pipeline을 안내
-- 종료 시 플랫폼 전용 teardown receipt를 남김
+서브에이전트는 다른 서브에이전트를 띄울 수 없으므로 필요한 컨텍스트는 spawn prompt에 모두 담고, 결과는 구조화된 형식으로 돌려받는다. 미지원 플랫폼에서 foreign primitive를 흉내 내지 말고 기본 subagent 파이프라인으로 안내한다.
 
 ## 완료 기준
 

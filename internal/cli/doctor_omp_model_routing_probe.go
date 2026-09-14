@@ -45,8 +45,8 @@ func (runner ompModelDoctorExecRunner) RunWithInput(
 	args ...string,
 ) ([]byte, error) {
 	if executable != "omp" || !bytes.Equal(input, []byte(`{"id":"autopus-model-state","type":"get_state"}`+"\n")) ||
-		!omp.SafeOMPModelRoleRPCArgs(args) {
-		return nil, errors.New("unsafe OMP model doctor role command")
+		!omp.SafeOMPModelSelectorRPCArgs(args) {
+		return nil, errors.New("unsafe OMP model doctor selector command")
 	}
 	if runner.pinErr != nil {
 		return nil, runner.pinErr
@@ -70,8 +70,11 @@ func safeOMPModelDoctorProbeArgs(args []string) bool {
 		return false
 	}
 	allowed := map[string]bool{
-		"modelRoles": true, "retry.fallbackChains": true, "retry.modelFallback": true,
-		"tools.approvalMode": true, "task.isolation.mode": true,
+		config.OMPNativeAgentModelOverridesKey: true,
+		"retry.fallbackChains":                 true,
+		"retry.modelFallback":                  true,
+		"tools.approvalMode":                   true,
+		"task.isolation.mode":                  true,
 	}
 	return allowed[args[keyIndex]]
 }
@@ -121,8 +124,10 @@ func buildOMPModelDoctorInput(
 }
 
 // compileOMPModelDoctorRouting mirrors the generation bridge for doctor rows:
-// one agent-keyed route per canonical agent, skipping agents whose capability
-// route the profile does not declare so partial profiles still report.
+// one route per bundled native OMP agent, keyed by the native name, carrying
+// the semantic role and capability of the logical role that supplied it. A
+// native agent whose governing role the profile does not declare is skipped so
+// a partial profile still reports.
 func compileOMPModelDoctorRouting(
 	profile config.RoleModelProfileConf,
 	catalog omp.OMPModelCatalog,
@@ -134,22 +139,14 @@ func compileOMPModelDoctorRouting(
 			diverseRoles[role] = struct{}{}
 		}
 	}
-	for _, agent := range config.CanonicalAgentNames() {
-		role, err := config.OMPAgentRole(agent)
+	for _, native := range config.OMPNativeAgentNames() {
+		policy, route, err := profile.OMPNativeAgentRoute(native)
 		if err != nil {
 			continue
 		}
-		capability, err := config.OMPAgentCapability(agent)
-		if err != nil {
-			continue
-		}
-		route, err := profile.AgentRoute(agent)
-		if err != nil {
-			continue
-		}
-		_, preferDistinctFamily := diverseRoles[role]
+		_, preferDistinctFamily := diverseRoles[policy.Role]
 		request := omp.OMPModelRouteRequest{
-			Agent: agent, Role: role, Capability: capability,
+			Agent: native, Role: policy.Role, Capability: policy.Capability,
 			Required: route.Required, DegradedAction: route.DegradedAction,
 			PreferDistinctExecutorFamily: preferDistinctFamily,
 		}
@@ -158,7 +155,7 @@ func compileOMPModelDoctorRouting(
 				Selector: candidate.Selector, Thinking: candidate.Thinking, Family: candidate.Family,
 			})
 		}
-		routes[agent] = request
+		routes[native] = request
 	}
 	return omp.CompileOMPModelRouting(omp.OMPModelRoutingInput{
 		Catalog: catalog, CatalogReason: "catalog_ready", Routes: routes,
@@ -179,7 +176,7 @@ func readOMPModelDoctorActivation(
 		return omp.OMPModelActivationEvidence{}
 	}
 	readback, err := runner.Run(ctx, "omp", "--config", omp.DefaultOMPModelOverlayPath,
-		"config", "get", "modelRoles")
+		"config", "get", config.OMPNativeAgentModelOverridesKey)
 	if err != nil || len(readback) > ompModelDoctorProbeOutput {
 		return omp.OMPModelActivationEvidence{ConfigHash: omp.OMPModelSHA256(data)}
 	}

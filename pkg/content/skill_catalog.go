@@ -121,20 +121,14 @@ func buildCatalogSkill(path string, data []byte) (CatalogSkill, error) {
 	}, nil
 }
 
+// dependenciesFromBody lists every canonical skill the body links to, sorted so
+// catalog output stays deterministic. It sees both the legacy flat form and the
+// installed <name>/SKILL.md directory form, because a compacted default surface
+// must pin whichever one an always-installed body actually uses.
 func dependenciesFromBody(body string) []string {
-	matches := canonicalSkillRefRe.FindAllStringSubmatch(body, -1)
-	if len(matches) == 0 {
+	deps := skillReferencesFromBody(body)
+	if len(deps) == 0 {
 		return nil
-	}
-
-	seen := make(map[string]bool, len(matches))
-	deps := make([]string, 0, len(matches))
-	for _, match := range matches {
-		if len(match) < 2 || seen[match[1]] {
-			continue
-		}
-		seen[match[1]] = true
-		deps = append(deps, match[1])
 	}
 	sort.Strings(deps)
 	return deps

@@ -20,6 +20,9 @@ func TestClaudeSkillCompiler_FullSplitFullPrunesOnlyOwnedLongTail(t *testing.T) 
 	claudeAdapter := claude.NewWithRoot(root)
 	cfg := config.DefaultFullConfig("claude-compiler")
 	cfg.Platforms = []string{"claude-code"}
+	// This fixture is about the full -> split -> full transition, so the first
+	// leg selects the full library explicitly instead of riding the default.
+	cfg.Skills.Compiler.Mode = config.SkillCompilerModeFull
 
 	_, err := claudeAdapter.Generate(context.Background(), cfg)
 	require.NoError(t, err)
@@ -69,6 +72,9 @@ func TestClaudeSkillCompiler_RejectsSymlinkedManagedRootDuringPrune(t *testing.T
 	claudeAdapter := claude.NewWithRoot(root)
 	cfg := config.DefaultFullConfig("claude-symlink-prune")
 	cfg.Platforms = []string{"claude-code"}
+	// The prune under test only happens because metrics was installed first,
+	// which the full library selection guarantees.
+	cfg.Skills.Compiler.Mode = config.SkillCompilerModeFull
 	_, err := claudeAdapter.Generate(context.Background(), cfg)
 	require.NoError(t, err)
 

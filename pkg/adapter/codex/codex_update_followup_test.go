@@ -63,7 +63,7 @@ func TestUpdate_DeletedManagedFile_PreservesManifestClaimAcrossUpdates(t *testin
 	_, err := a.Generate(context.Background(), cfg)
 	require.NoError(t, err)
 
-	relativeSkillPath := codexProjectSkillPath("adaptive-quality")
+	relativeSkillPath := codexProjectSkillPath("planning")
 	skillPath := filepath.Join(dir, relativeSkillPath)
 	originalManifest, err := adapter.LoadManifest(dir, adapterName)
 	require.NoError(t, err)

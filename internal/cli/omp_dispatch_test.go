@@ -44,7 +44,7 @@ func TestGeneratePreviewMappings_OMPResolvesToAdapter(t *testing.T) {
 		}
 	}
 	assert.Equal(t, 14, surfaces["rules"], "omp preview must plan 14 rules")
-	assert.Equal(t, 16, surfaces["agents"], "omp preview must plan 16 agents")
+	assert.Equal(t, 0, surfaces["agents"], "omp reuses its bundled agents, so none are planned")
 	assert.Equal(t, 20, surfaces["commands"], "omp preview must plan 20 commands")
 
 	_, unknownErr := generatePreviewMappings(context.Background(), t.TempDir(), ompDispatchConfig("omp"), "not-a-platform")

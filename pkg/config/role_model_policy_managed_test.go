@@ -25,8 +25,8 @@ func TestRoleModelPolicy_ProjectManaged_RequiresExplicitCompleteClaims(t *testin
 	}{
 		{"missing", nil, "managed_key_claim_required"},
 		{"unknown", map[string]RoleManagedKeyClaimConf{"unknown.key": validManagedClaim(false)}, "managed_key_claim_invalid"},
-		{"incomplete", map[string]RoleManagedKeyClaimConf{"modelRoles": {PriorFingerprint: missingManagedFingerprintFixture}}, "managed_key_claim_invalid"},
-		{"invalid fingerprint", map[string]RoleManagedKeyClaimConf{"modelRoles": {PriorFingerprint: "sha256:bad", Complete: true}}, "managed_key_claim_invalid"},
+		{"incomplete", map[string]RoleManagedKeyClaimConf{OMPNativeAgentModelOverridesKey: {PriorFingerprint: missingManagedFingerprintFixture}}, "managed_key_claim_invalid"},
+		{"invalid fingerprint", map[string]RoleManagedKeyClaimConf{OMPNativeAgentModelOverridesKey: {PriorFingerprint: "sha256:bad", Complete: true}}, "managed_key_claim_invalid"},
 		{"array incomplete", map[string]RoleManagedKeyClaimConf{"retry.fallbackChains": validManagedClaim(false)}, "array_ownership_required"},
 	}
 	for _, tt := range tests {
@@ -50,9 +50,9 @@ func TestRoleModelPolicy_ProjectManaged_AcceptsExactClaims(t *testing.T) {
 	profile := policy.Profiles["p1"]
 	profile.ConfigMode = RoleModelConfigModeProjectManaged
 	profile.ManagedKeys = map[string]RoleManagedKeyClaimConf{
-		"modelRoles":           validManagedClaim(false),
-		"retry.fallbackChains": validManagedClaim(true),
-		"retry.modelFallback":  validManagedClaim(false),
+		OMPNativeAgentModelOverridesKey: validManagedClaim(false),
+		"retry.fallbackChains":          validManagedClaim(true),
+		"retry.modelFallback":           validManagedClaim(false),
 	}
 	policy.Profiles["p1"] = profile
 	if err := policy.Validate(); err != nil {

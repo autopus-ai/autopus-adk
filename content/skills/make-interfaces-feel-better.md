@@ -20,7 +20,6 @@ triggers:
   - UI 디테일
 category: methodology
 bundles:
-  - core
   - frontend
 level1_metadata: "UI detail pass: typography wrapping, tabular numbers, concentric radius, optical alignment, shadows, image outlines, hit areas, explicit transitions, restrained micro-interactions"
 ---

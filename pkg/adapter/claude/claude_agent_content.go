@@ -22,6 +22,7 @@ func normalizeClaudeContent(cfg *config.HarnessConfig, subDir, filename string, 
 		return []byte(normalizeClaudeSkillFrontmatter(content))
 	case "agents":
 		normalized := pkgcontent.NormalizeAgentReferences(content, "claude-code")
+		normalized = pkgcontent.FilterDeclaredSkills(normalized, "claude", cfg)
 		return []byte(applyClaudeAgentProfile(cfg, filename, rewriteClaudeSkillReferences(normalized)))
 	default:
 		return []byte(content)

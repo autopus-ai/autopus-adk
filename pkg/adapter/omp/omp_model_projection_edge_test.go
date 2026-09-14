@@ -20,7 +20,7 @@ func TestCompileOMPModelProjection_InvalidContractsFailClosed(t *testing.T) {
 			edit: func(input *OMPModelProjectionInput) { input.Agents[0].Capability = "unknown" },
 		},
 		{
-			name: "role mismatch", code: "role_capability_mismatch",
+			name: "native role as provenance", code: "agent_role_unmapped",
 			edit: func(input *OMPModelProjectionInput) { input.Agents[0].Role = "smol" },
 		},
 		{
@@ -32,7 +32,8 @@ func TestCompileOMPModelProjection_InvalidContractsFailClosed(t *testing.T) {
 		{
 			name: "invalid fallback", code: "selector_invalid",
 			edit: func(input *OMPModelProjectionInput) {
-				input.Agents[1].Fallbacks[0].Selector = "sonnet"
+				// task carries the only fixture fallback chain.
+				input.Agents[3].Fallbacks[0].Selector = "sonnet"
 			},
 		},
 		{
@@ -67,14 +68,18 @@ func TestOMPModelOverlayFromProjection_InvalidCompiledShapeFailsClosed(t *testin
 		edit func(*OMPModelProjection)
 	}{
 		{
-			name: "role order", code: "model_role_order_mismatch",
+			name: "agent is not bundled", code: "unknown native OMP agent",
+			edit: func(projection *OMPModelProjection) { projection.Agents[0].Agent = "explorer" },
+		},
+		{
+			name: "duplicate agent override", code: "agent_duplicate",
 			edit: func(projection *OMPModelProjection) {
-				projection.ModelRoles[0], projection.ModelRoles[1] = projection.ModelRoles[1], projection.ModelRoles[0]
+				projection.Agents = append(projection.Agents, projection.Agents[0])
 			},
 		},
 		{
-			name: "role selector", code: "selector_invalid",
-			edit: func(projection *OMPModelProjection) { projection.ModelRoles[0].Selector = "sonnet" },
+			name: "agent selector", code: "selector_invalid",
+			edit: func(projection *OMPModelProjection) { projection.Agents[0].EffectiveSelector = "sonnet:high" },
 		},
 		{
 			name: "fallback selector", code: "selector_invalid",
@@ -98,46 +103,6 @@ func TestOMPModelOverlayFromProjection_InvalidCompiledShapeFailsClosed(t *testin
 			require.NoError(t, err)
 			tc.edit(&projection)
 			_, err = OMPModelOverlayFromProjection(projection)
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), tc.code)
-		})
-	}
-}
-
-func TestPrepareAgentMappingsWithProjection_InvalidAgentShapeFailsClosed(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name string
-		code string
-		edit func(*OMPModelProjection)
-	}{
-		{
-			name: "duplicate", code: "agent_duplicate",
-			edit: func(projection *OMPModelProjection) {
-				projection.Agents = append(projection.Agents, projection.Agents[0])
-			},
-		},
-		{
-			name: "unknown", code: "agent_role_unmapped",
-			edit: func(projection *OMPModelProjection) { projection.Agents[0].Agent = "future-agent" },
-		},
-		{
-			name: "wrong role", code: "role_capability_mismatch",
-			edit: func(projection *OMPModelProjection) { projection.Agents[0].Role = "autopus_executor" },
-		},
-		{
-			name: "missing", code: "agent_role_set_mismatch",
-			edit: func(projection *OMPModelProjection) { projection.Agents = projection.Agents[1:] },
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			projection, err := CompileOMPModelProjection(ompProjectionFixture(t))
-			require.NoError(t, err)
-			tc.edit(&projection)
-			_, err = NewWithRoot(t.TempDir()).prepareAgentMappingsWithProjection(projection)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tc.code)
 		})

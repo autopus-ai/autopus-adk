@@ -18,8 +18,8 @@ import (
 const (
 	// warnLineLimit is the line count that triggers a warning.
 	warnLineLimit = 200
-	// hardLineLimit is the line count that triggers an error.
-	hardLineLimit = 300
+	// advisoryLineLimit reports large source files without imposing a project policy.
+	advisoryLineLimit = 300
 )
 
 // loreValidTypes defines allowed Lore commit type prefixes.
@@ -38,18 +38,23 @@ var skipDirs = map[string]bool{
 	"node_modules": true,
 }
 
-// checkArch verifies file size limits (300-line hard limit for source files).
-// When stagedOnly is true, only git-staged source files are checked.
-// Returns false if any file exceeds the hard limit.
+// checkArch reports source size and enforces only an explicit project ceiling.
+// Read/count/configuration errors remain blocking even when size is advisory.
 func checkArch(dir string, out io.Writer, quiet, stagedOnly bool) bool {
 	if !quiet {
 		tui.SectionHeader(out, "arch: file size (code lines)")
 	}
+	cfg, err := config.LoadPreview(dir)
+	if err != nil {
+		tui.Error(out, fmt.Sprintf("arch policy: %v", err))
+		return false
+	}
+	limit := cfg.Architecture.MaxFileLines
 
 	if stagedOnly {
-		return checkArchStaged(dir, out, quiet)
+		return checkArchStaged(dir, out, quiet, limit)
 	}
-	return checkArchWalk(dir, out, quiet)
+	return checkArchWalk(dir, out, quiet, limit)
 }
 
 // isGeneratedGoFile reports whether a file name matches generated file patterns.

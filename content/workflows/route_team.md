@@ -9,7 +9,7 @@ The generated adapter lives at
 `templates/claude/workflows/route_team.workflow.js.tmpl` and installs as
 `.claude/workflows/route_team.workflow.js`. Generation remains parity-gated.
 Route Team reuses Route A's deterministic gate and release-hygiene bridges while
-adding test scaffolding, annotation, testing, and review phases.
+adding test scaffolding, testing, and review phases. Annotation requires an explicit request.
 
 A parity gate compares the phase-id, retry, budget, result-type, and per-phase
 model/effort/depth tokens across this markdown, `route_team.schema.json`, and the
@@ -18,7 +18,7 @@ element.
 
 ## Phases (in execution order)
 
-The deterministic team workflow runs exactly eight ordered phases. The phase-ids
+The deterministic team workflow runs exactly seven ordered phases. The phase-ids
 below are authoritative and must match `route_team.schema.json` exactly.
 
 ### planning
@@ -56,11 +56,6 @@ and re-runs the failed segment, bounded by the schema gate retry budget (capped 
 The loop circuit-breaks and aborts early (Aborted=true, AbortReason="circuit_break_no_progress")
 if two consecutive gate evaluations produce the same build/test exit-code signature.
 
-### annotation
-
-The annotation phase runs the `annotator` agent to apply `@AX` tags and other
-structured annotations to the implemented changes.
-
 ### testing
 
 The testing phase runs the `tester` agent to round out coverage beyond the
@@ -91,8 +86,8 @@ The `release_hygiene` terminal phase enforces release safety before sync:
 - **Generated-surface drift gate**: blocks the run when generated surfaces are
   staged without a matching source-of-truth change, and always blocks runtime
   artifacts. The Go runtime executes `auto check --hygiene` outside the JS.
-- **300-line source limit**: enforces the staged source limit through the Go
-  runtime execution: `auto check --hygiene --arch --quiet --staged`.
+- **Project source limit**: enforces a configured `architecture.max_file_lines`
+  through `auto check --hygiene --arch --quiet --staged`; otherwise size is advisory.
 
 ## External Go Execution
 

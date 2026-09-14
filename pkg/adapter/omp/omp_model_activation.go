@@ -8,14 +8,18 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/insajin/autopus-adk/pkg/config"
 	"gopkg.in/yaml.v3"
 )
 
 const DefaultOMPModelOverlayPath = ".autopus/runtime/omp-model-routing-v1.yml"
 
+// OMPModelOverlayProjection is the flat, YAML-shaped view of a compiled
+// projection. AgentModelOverrides maps a bundled OMP agent name to a concrete
+// model selector, which is the only binding OMP consults for a task spawn.
 type OMPModelOverlayProjection struct {
-	ModelRoles     map[string]string
-	FallbackChains map[string][]string
+	AgentModelOverrides map[string]string
+	FallbackChains      map[string][]string
 }
 
 type OMPModelOverlayWriteInput struct {
@@ -51,23 +55,24 @@ type OMPModelActivationEvidence struct {
 }
 
 func CompileOMPModelOverlay(projection OMPModelOverlayProjection) ([]byte, error) {
-	if len(projection.ModelRoles) == 0 {
-		return nil, fmt.Errorf("modelRoles must not be empty")
+	if len(projection.AgentModelOverrides) == 0 {
+		return nil, fmt.Errorf("%s must not be empty", config.OMPNativeAgentModelOverridesKey)
 	}
 	root := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
-	roles := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
-	roleKeys := sortedOMPModelKeys(projection.ModelRoles)
-	for _, role := range roleKeys {
-		selector := projection.ModelRoles[role]
-		if err := validateOMPModelOverlayToken("role", role); err != nil {
+	overrides := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+	for _, agent := range sortedOMPModelKeys(projection.AgentModelOverrides) {
+		selector := projection.AgentModelOverrides[agent]
+		if err := validateOMPModelOverlayToken("agent", agent); err != nil {
 			return nil, err
 		}
 		if err := validateOMPModelOverlayToken("selector", selector); err != nil {
 			return nil, err
 		}
-		appendOMPModelYAMLPair(roles, role, scalarOMPModelYAML(selector))
+		appendOMPModelYAMLPair(overrides, agent, scalarOMPModelYAML(selector))
 	}
-	appendOMPModelYAMLPair(root, "modelRoles", roles)
+	task := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+	appendOMPModelYAMLPair(task, "agentModelOverrides", overrides)
+	appendOMPModelYAMLPair(root, "task", task)
 
 	fallbacks := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
 	fallbackKeys := sortedOMPModelSliceKeys(projection.FallbackChains)

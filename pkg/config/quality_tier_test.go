@@ -18,7 +18,7 @@ func TestQualityPresetsCoverEveryCanonicalAgent(t *testing.T) {
 		require.True(t, ok, "%s preset must exist", mode)
 		assert.Len(t, preset.Agents, len(CanonicalAgentNames()), "%s preset size", mode)
 		for _, agent := range CanonicalAgentNames() {
-			_, valid := normalizeCodexTier(preset.Agents[agent])
+			_, valid := NormalizeQualityTier(preset.Agents[agent])
 			assert.True(t, valid, "%s preset must assign a tier to %q", mode, agent)
 		}
 	}

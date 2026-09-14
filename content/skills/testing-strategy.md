@@ -122,18 +122,10 @@ func TestConsumer_ExpectedResponse(t *testing.T) {
 
 ## 커버리지 전략
 
-```bash
-# 전체 커버리지
-go test -coverprofile=coverage.out ./...
+커버리지는 프로젝트 표준 명령으로 측정하고(예: Go `go test -coverprofile`, Python `pytest --cov`, TS `vitest --coverage`), 총합보다 미커버 함수·분기 목록을 먼저 봅니다.
 
-# 패키지별 커버리지 확인
-go tool cover -func=coverage.out
+커버리지 게이트가 설정된 경우의 목표(없으면 수치 대신 변경 동작 커버 여부로 판단):
 
-# 미커버 라인 시각화
-go tool cover -html=coverage.out
-```
-
-목표:
 - 전체: 85%+
 - 핵심 비즈니스 로직: 95%+
 - 유틸리티/헬퍼: 80%+
@@ -146,4 +138,4 @@ go tool cover -html=coverage.out
 - [ ] E2E는 핵심 플로우만 (10개 이하)
 - [ ] 테스트 데이터 격리
 - [ ] CI에서 전체 스위트 실행
-- [ ] 커버리지 85%+ 달성
+- [ ] 커버리지 게이트가 설정된 경우 그 임계값 충족

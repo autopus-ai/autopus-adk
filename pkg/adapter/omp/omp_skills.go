@@ -147,6 +147,36 @@ func (a *Adapter) prepareExtendedSkillMappings(cfg *config.HarnessConfig) ([]ada
 			Checksum:        adapter.Checksum(content),
 			Content:         []byte(content),
 		})
+		resources, resErr := skillResourceMappings(skill.Name, state.TargetPath, cfg)
+		if resErr != nil {
+			return nil, resErr
+		}
+		files = append(files, resources...)
+	}
+	return files, nil
+}
+
+// skillResourceMappings returns the reference bodies installed beside a
+// generated skill. The OMP body may come from a native template instead of the
+// canonical skill file, but resources are keyed on the skill name, so the
+// substitution never drops them.
+func skillResourceMappings(name, targetPath string, cfg *config.HarnessConfig) ([]adapter.FileMapping, error) {
+	resources, err := pkgcontent.RenderSkillResources(name, "omp", cfg)
+	if err != nil {
+		return nil, fmt.Errorf("omp skill resource render %s: %w", name, err)
+	}
+
+	names := pkgcontent.SkillResourceNames(resources)
+	skillDir := filepath.Dir(filepath.FromSlash(targetPath))
+	files := make([]adapter.FileMapping, 0, len(names))
+	for _, rel := range names {
+		data := resources[rel]
+		files = append(files, adapter.FileMapping{
+			TargetPath:      filepath.Join(skillDir, filepath.FromSlash(rel)),
+			OverwritePolicy: adapter.OverwriteAlways,
+			Checksum:        adapter.Checksum(string(data)),
+			Content:         data,
+		})
 	}
 	return files, nil
 }

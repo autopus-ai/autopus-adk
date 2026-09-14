@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 
 	"github.com/insajin/autopus-adk/pkg/adapter"
@@ -17,20 +16,9 @@ import (
 
 // generateSettings renders settings.json.tmpl and returns a file mapping.
 func (a *Adapter) generateSettings(cfg *config.HarnessConfig) ([]adapter.FileMapping, error) {
-	tmplContent, err := templates.FS.ReadFile("gemini/settings/settings.json.tmpl")
+	newSettings, err := a.renderAuthoredSettings(cfg)
 	if err != nil {
-		return nil, fmt.Errorf("gemini settings 템플릿 읽기 실패: %w", err)
-	}
-
-	rendered, err := a.engine.RenderString(string(tmplContent), cfg)
-	if err != nil {
-		return nil, fmt.Errorf("gemini settings 템플릿 렌더링 실패: %w", err)
-	}
-
-	// Parse rendered JSON and merge with existing settings
-	var newSettings map[string]any
-	if err := json.Unmarshal([]byte(rendered), &newSettings); err != nil {
-		return nil, fmt.Errorf("gemini settings JSON 파싱 실패: %w", err)
+		return nil, err
 	}
 
 	settingsPath := filepath.Join(a.root, ".gemini", "settings.json")
@@ -55,6 +43,22 @@ func (a *Adapter) generateSettings(cfg *config.HarnessConfig) ([]adapter.FileMap
 	}}, nil
 }
 
+func (a *Adapter) renderAuthoredSettings(cfg *config.HarnessConfig) (map[string]any, error) {
+	raw, err := templates.FS.ReadFile("gemini/settings/settings.json.tmpl")
+	if err != nil {
+		return nil, err
+	}
+	rendered, err := a.engine.RenderString(string(raw), cfg)
+	if err != nil {
+		return nil, err
+	}
+	var settings map[string]any
+	if err := json.Unmarshal([]byte(rendered), &settings); err != nil {
+		return nil, err
+	}
+	return settings, nil
+}
+
 func (a *Adapter) generateSettingsWithHooks(cfg *config.HarnessConfig) ([]adapter.FileMapping, error) {
 	files, err := a.generateSettings(cfg)
 	if err != nil || len(files) == 0 {
@@ -68,17 +72,6 @@ func (a *Adapter) generateSettingsWithHooks(cfg *config.HarnessConfig) ([]adapte
 	perms := filterUnsupportedAntigravityPermissions(content.DetectPermissions(a.root, cfg.Hooks.Permissions))
 	applyAntigravityHooksAndPermissions(settings, a.configuredLegacyGeminiHooks(cfg), perms)
 	return buildAntigravitySettingsMapping(settings)
-}
-
-func (a *Adapter) installAntigravityPluginIfAvailable(ctx context.Context) {
-	if a.skipPluginInstall {
-		return
-	}
-	if _, lookErr := exec.LookPath(cliBinary); lookErr == nil {
-		pluginPath := filepath.Join(a.root, antigravityPluginDir)
-		cmd := exec.CommandContext(ctx, cliBinary, "plugin", "install", pluginPath)
-		_ = cmd.Run()
-	}
 }
 
 // InstallHooks merges hooks and permissions into .gemini/settings.json.
@@ -124,33 +117,16 @@ func filterUnsupportedAntigravityPermissions(perms *adapter.PermissionSet) *adap
 
 func applyAntigravityHooksAndPermissions(settings map[string]any, hooks []adapter.HookConfig, perms *adapter.PermissionSet) {
 	if len(hooks) > 0 {
-		existingHooks, _ := settings["hooks"].(map[string]any)
-		hooksMap := make(map[string]any)
-
-		// Purge both Antigravity and legacy Gemini event names so stale entries
-		// from prior installs are removed when regenerating hook settings.
-		managedEvents := map[string]bool{
-			"PreToolUse":  true,
-			"PostToolUse": true,
-			"BeforeTool":  true,
-			"AfterTool":   true,
-			"AfterAgent":  true,
-			"Stop":        true,
-		}
-		for _, h := range hooks {
-			managedEvents[h.Event] = true
-		}
-
-		for k, v := range existingHooks {
-			if !managedEvents[k] {
-				hooksMap[k] = v
-			}
+		removeAuthoredLegacyHooks(settings, append(defaultLegacyHookConfigs(), hooks...))
+		hooksMap, _ := settings["hooks"].(map[string]any)
+		if hooksMap == nil {
+			hooksMap = make(map[string]any)
 		}
 
 		for _, h := range hooks {
 			entry := map[string]any{
 				"matcher": h.Matcher,
-				"hooks": []map[string]any{{
+				"hooks": []any{map[string]any{
 					"type":    h.Type,
 					"command": h.Command,
 					"timeout": h.Timeout,

@@ -13,7 +13,11 @@ import (
 	"github.com/insajin/autopus-adk/pkg/config"
 )
 
-func chooseQualityTarget(cmd *cobra.Command) (string, error) {
+// chooseQualityTarget asks which surface to configure: the shared quality mode
+// or one coding tool's agent models. Only tools whose generated agents carry a
+// model are listed; the rest are named in a note so their absence is a stated
+// fact rather than an omission.
+func chooseQualityTarget(cmd *cobra.Command, cfg *config.HarnessConfig) (string, error) {
 	input := cmd.InOrStdin()
 	if file, ok := input.(*os.File); ok && file == os.Stdin && !isStdinTTY() {
 		return "", fmt.Errorf("interactive quality selection requires a TTY; use an explicit quality or profile command")
@@ -21,35 +25,63 @@ func chooseQualityTarget(cmd *cobra.Command) (string, error) {
 	// Reuse one reader across every menu; creating independent buffered
 	// readers would discard later answers when input arrives in one batch.
 	cmd.SetIn(bufio.NewReader(input))
-	fmt.Fprintln(cmd.OutOrStdout(), "What would you like to configure?\n  1) All platforms (quality mode)\n  2) OMP (agent models)")
-	fmt.Fprint(cmd.OutOrStdout(), "Choose: ")
-	return readQualityChoice(cmd, []string{"global", "omp"})
+	out := cmd.OutOrStdout()
+	tools := configuredQualityModelTools(cfg)
+	options := make([]string, 0, len(tools)+1)
+	options = append(options, "global")
+	fmt.Fprintln(out, "What would you like to configure?")
+	fmt.Fprintln(out, "  1) All platforms (quality mode)")
+	for index, tool := range tools {
+		fmt.Fprintf(out, "  %d) %s (agent models)\n", index+2, tool.label)
+		options = append(options, tool.platform)
+	}
+	if inherited := inheritOnlyQualityToolLabels(cfg); len(inherited) > 0 {
+		fmt.Fprintf(out, "%s inherit the session model and have no per-agent model to set.\n",
+			strings.Join(inherited, " and "))
+	}
+	fmt.Fprint(out, "Choose: ")
+	return readQualityChoice(cmd, options)
 }
 
 func runOMPQualityInteractive(cmd *cobra.Command, root string, cfg *config.HarnessConfig, deps ompPlatformDependencies) error {
 	out := cmd.OutOrStdout()
-	fmt.Fprintln(out, "Choose OMP quality:\n  1) balanced\n  2) ultra")
+	fmt.Fprintln(out, "Choose OMP quality:\n  1) balanced\n  2) ultra\n  3) custom (pick a model per agent)")
 	fmt.Fprint(out, "Choose: ")
-	mode, err := readQualityChoice(cmd, []string{"balanced", "ultra"})
-	if err != nil {
-		return err
-	}
-	family := ""
-	if _, custom := cfg.RoleModelPolicy.Profiles[mode]; custom {
-		fmt.Fprintln(out, "Keeping the models in your custom profile.")
-	} else {
-		fmt.Fprintln(out, "Choose model family:\n  1) GPT\n  2) Claude")
-		fmt.Fprint(out, "Choose: ")
-		family, err = readQualityChoice(cmd, []string{"gpt", "claude"})
-		if err != nil {
-			return err
-		}
-	}
-	opts, err := newOMPProfileApplyOptions(mode, family, nil, false, false)
+	mode, err := readQualityChoice(cmd, []string{"balanced", "ultra", "custom"})
 	if err != nil {
 		return err
 	}
 	runner := deps.newRunner()
+	family, pins := "", []string(nil)
+	switch {
+	case mode == "custom":
+		// Pins govern the agents the operator names; every other bundled agent
+		// still resolves through the base profile, and that derivation needs an
+		// anchor family.
+		mode = ompCustomBaseProfile
+		if family, err = readOMPQualityFamily(cmd); err != nil {
+			return err
+		}
+		if pins, err = readOMPCustomAgentPins(cmd.Context(), cmd, runner); err != nil {
+			return err
+		}
+		if len(pins) == 0 {
+			fmt.Fprintln(out, "No agent was pinned; nothing changed.")
+			return nil
+		}
+	default:
+		if _, custom := cfg.RoleModelPolicy.Profiles[mode]; custom {
+			fmt.Fprintln(out, "Keeping the models in your custom profile.")
+			break
+		}
+		if family, err = readOMPQualityFamily(cmd); err != nil {
+			return err
+		}
+	}
+	opts, err := newOMPProfileApplyOptions(mode, family, pins, false, false)
+	if err != nil {
+		return err
+	}
 	preview, err := planOMPProfile(cmd.Context(), root, opts, runner)
 	if err != nil {
 		return err
@@ -75,6 +107,15 @@ func runOMPQualityInteractive(cmd *cobra.Command, root string, cfg *config.Harne
 	}
 	fmt.Fprintln(out, "OMP models applied. Start a new OMP session to use them.")
 	return nil
+}
+
+// readOMPQualityFamily asks which family anchors a built-in derivation. The
+// stored value is canonical; the menu shows the CLI spellings operators use.
+func readOMPQualityFamily(cmd *cobra.Command) (string, error) {
+	out := cmd.OutOrStdout()
+	fmt.Fprintln(out, "Choose model family:\n  1) GPT\n  2) Claude")
+	fmt.Fprint(out, "Choose: ")
+	return readQualityChoice(cmd, []string{"gpt", "claude"})
 }
 
 func renderOMPQualitySummary(out io.Writer, preview ompProfileApplyPreviewPayload) {

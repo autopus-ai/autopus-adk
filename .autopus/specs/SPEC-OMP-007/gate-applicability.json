@@ -1,0 +1,106 @@
+{
+  "schema": "autopus.gate-applicability.v1",
+  "spec_id": "SPEC-OMP-007",
+  "change_class": "security_or_data",
+  "change_risk": {
+    "declared_class": "security_or_data",
+    "effective_class": "security_or_data",
+    "risk_tier": "high",
+    "decision": "escalate_to_full_spec",
+    "reasons": [
+      "multi_domain_change_set"
+    ]
+  },
+  "changed_paths": [
+    "internal/cli/workflow_context_runtime_observe_session_run.go",
+    "pkg/ompprobe/schema.go",
+    "scripts/companion-release/prepare-release-runtime-lib.sh"
+  ],
+  "generated_at": "2026-09-09T05:01:24Z",
+  "decisions": [
+    {
+      "gate": "spec_authoring",
+      "applicability": "required",
+      "reason": "high-risk security_or_data change requires the full SPEC set: multi_domain_change_set; no prior evidence",
+      "mandatory": false
+    },
+    {
+      "gate": "risk_first_probe",
+      "applicability": "required",
+      "reason": "integration boundary in change set; no prior evidence",
+      "mandatory": false
+    },
+    {
+      "gate": "build",
+      "applicability": "required",
+      "reason": "code change set; no prior evidence",
+      "mandatory": false
+    },
+    {
+      "gate": "unit_tests",
+      "applicability": "required",
+      "reason": "code change set; no prior evidence",
+      "mandatory": false
+    },
+    {
+      "gate": "integration",
+      "applicability": "required",
+      "reason": "security_or_data change set crosses an integration boundary; no prior evidence",
+      "mandatory": false
+    },
+    {
+      "gate": "security",
+      "applicability": "required",
+      "reason": "mandatory safety gate; no prior evidence",
+      "mandatory": true
+    },
+    {
+      "gate": "validation",
+      "applicability": "required",
+      "reason": "mandatory safety gate; no prior evidence",
+      "mandatory": true
+    },
+    {
+      "gate": "data_loss",
+      "applicability": "required",
+      "reason": "mandatory safety gate; no prior evidence",
+      "mandatory": true
+    },
+    {
+      "gate": "deterministic_oracle",
+      "applicability": "required",
+      "reason": "mandatory safety gate; no prior evidence",
+      "mandatory": true
+    },
+    {
+      "gate": "accessibility",
+      "applicability": "not_applicable",
+      "reason": "no UI surface in change set",
+      "mandatory": false
+    },
+    {
+      "gate": "ux_verification",
+      "applicability": "not_applicable",
+      "reason": "no UI surface in change set",
+      "mandatory": false
+    },
+    {
+      "gate": "annotation",
+      "applicability": "required",
+      "reason": "code change set; no prior evidence",
+      "mandatory": false
+    },
+    {
+      "gate": "provider_review",
+      "applicability": "required",
+      "reason": "security_or_data change set requires provider review; no prior evidence",
+      "mandatory": false
+    },
+    {
+      "gate": "doc_sync",
+      "applicability": "required",
+      "reason": "always required; no prior evidence",
+      "mandatory": false
+    }
+  ]
+}

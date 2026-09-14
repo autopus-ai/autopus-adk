@@ -82,9 +82,11 @@ func TestOMPModelDoctor_S7_EmitsOneRoleCheckPerAgent(t *testing.T) {
 	report := omp.CheckOMPModelRoutingDoctor(input)
 	require.Equal(t, "supported", report.Status)
 	require.Equal(t, "fresh", report.Reason)
-	require.Len(t, report.Roles, len(config.CanonicalAgentNames()))
+	require.Len(t, report.Roles, len(config.OMPNativeAgentNames()))
 	for _, row := range report.Roles {
-		assert.Equal(t, config.OMPAgentRoleName(row.Agent), row.Role, row.Agent)
+		policy, resolveErr := config.ResolveOMPPolicyAgent(row.Agent)
+		require.NoError(t, resolveErr, row.Agent)
+		assert.Equal(t, policy.Role, row.Role, row.Agent)
 		assert.Equal(t, "operator_attested", row.EvidenceClass, row.Agent)
 	}
 
@@ -94,13 +96,14 @@ func TestOMPModelDoctor_S7_EmitsOneRoleCheckPerAgent(t *testing.T) {
 			details = append(details, check.Detail)
 		}
 	}
-	assert.Len(t, details, 16)
+	assert.Len(t, details, 5)
 	joined := strings.Join(details, "\n")
-	assert.Contains(t, joined, "agent=executor role=autopus_executor capability=coding_tool_use status=supported")
-	assert.Contains(t, joined, "agent=debugger role=autopus_debugger capability=coding_tool_use status=supported")
+	assert.Contains(t, joined, "agent=task role=autopus_planner capability=deep_reasoning status=supported")
+	assert.Contains(t, joined, "agent=scout role=autopus_explorer capability=fast_validation status=supported")
 	assert.Contains(t, joined, "agent=reviewer role=autopus_reviewer capability=independent_dissent status=supported reason=selected family_diversity=satisfied")
-	for _, native := range []string{"role=task ", "role=advisor ", "role=plan ", "role=tiny "} {
-		assert.NotContains(t, joined, native)
+	// No row may name an agent OMP does not register.
+	for _, retired := range []string{"agent=executor ", "agent=debugger ", "agent=planner ", "agent=validator "} {
+		assert.NotContains(t, joined, retired)
 	}
 }
 
@@ -177,7 +180,7 @@ func ompModelDoctorE2EConfig(mode string) *config.HarnessConfig {
 	if mode == config.RoleModelConfigModeProjectManaged {
 		missing := omp.OMPMissingManagedValueFingerprint()
 		profile.ManagedKeys = map[string]config.RoleManagedKeyClaimConf{
-			"modelRoles": {PriorFingerprint: missing, Complete: true},
+			config.OMPNativeAgentModelOverridesKey: {PriorFingerprint: missing, Complete: true},
 			"retry.fallbackChains": {
 				PriorFingerprint: missing, Complete: true, FullArrayOwnership: true,
 			},

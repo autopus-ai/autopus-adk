@@ -18,8 +18,10 @@ func TestOMPValidate_ModelIntegrationGeneratedSurfaceIsClean(t *testing.T) {
 	root, adapterUnderTest := generateOMPModelValidationSurface(t, nil)
 	findings, err := adapterUnderTest.Validate(context.Background())
 	require.NoError(t, err)
-	assert.Empty(t, findings, "Validate must use the same projected agents as Generate")
+	assert.Empty(t, findings, "Validate must expect exactly what Generate emitted")
 	assert.FileExists(t, filepath.Join(root, OMPModelReceiptRelativePath))
+	assert.NoDirExists(t, filepath.Join(root, ".omp", "agents"),
+		"model routing must not create a project agent registry")
 }
 
 func TestOMPValidate_AllowsUnmanifestedUserExtensions(t *testing.T) {
@@ -47,7 +49,7 @@ func TestOMPValidate_RejectsManifestOwnedDrift(t *testing.T) {
 
 	t.Run("missing", func(t *testing.T) {
 		root, adapterUnderTest := generateOMPModelValidationSurface(t, nil)
-		path := filepath.Join(".omp", "agents", "executor.md")
+		path := filepath.Join(".omp", "skills", "auto", "SKILL.md")
 		require.NoError(t, os.Remove(filepath.Join(root, path)))
 
 		requireOMPValidationFinding(t, adapterUnderTest, path, "regular file")

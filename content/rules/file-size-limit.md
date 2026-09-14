@@ -1,6 +1,6 @@
 ---
 name: file-size-limit
-description: Hard limit of 300 lines per source code file
+description: Project-specific source size policy and cohesion review
 category: structure
 globs:
   - "**/*.go"
@@ -12,39 +12,19 @@ globs:
   - "**/*.rs"
 ---
 
-# File Size Limit
+# Source Size Policy
 
-IMPORTANT: No single source code file may exceed 300 lines. This is a HARD limit.
+Honor an explicitly configured `architecture.max_file_lines` ceiling. A positive
+value is enforced by `auto check --arch`; absent or `0` leaves source size advisory.
+Do not split cohesive code merely to satisfy an undeclared universal threshold.
 
-## Thresholds
+When a file grows, review its responsibilities and interfaces. Split by a real
+independent concern, not by arbitrary line ranges or boilerplate categories.
 
-- Target: Under 200 lines per source code file
-- Warning: 200-300 lines (consider splitting)
-- Hard limit: 300 lines (MUST split before committing)
+The checker counts code lines, including blank lines, imports, and trailing
+comments, but excludes comment-only lines. Strings containing comment markers
+remain code. Tests follow the same policy; generated code, documentation, and
+configuration files are not source-size gate inputs.
 
-## Splitting Strategies
-
-- By type: Move struct definitions and methods to separate files
-- By concern: Group related functions (validation, serialization)
-- By layer: Separate handler, service, and repository logic
-
-## Exclusions
-
-This limit applies to source code files only. The following are excluded:
-- SPEC Markdown files under `.autopus/specs/**`: `prd.md`, `spec.md`, `plan.md`, `acceptance.md`, `research.md`, `review.md`
-- Documentation files: `*.md`
-- Documentation files: `*.txt`
-- Documentation files: `*.rst`
-- Configuration files: `*.yaml`
-- Configuration files: `*.yml`
-- Configuration files: `*.json`
-- Configuration files: `*.toml`
-
-## Counting
-
-Count code lines: blank lines and imports count, comment-only lines do not.
-A line that carries code beside a trailing comment still counts. Comment
-markers inside strings, template literals, regex literals, or heredocs are
-content and count. `auto check --gate` and `go run ./cmd/source-lines`
-apply the same rule.
-Test files follow the same limit.
+Repository-specific CI commands may declare stricter limits. Those explicit
+limits remain authoritative; an advisory harness check does not waive them.

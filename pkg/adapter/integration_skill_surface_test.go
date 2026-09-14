@@ -17,6 +17,12 @@ import (
 	"github.com/insajin/autopus-adk/pkg/config"
 )
 
+// polishSkillName is long-tail: the default surface leaves it uninstalled, so
+// this fixture opts it in explicitly. That is the path a user takes to get it,
+// and it keeps the subject here where it belongs — the per-platform native path
+// and body projection of one reusable skill.
+const polishSkillName = "make-interfaces-feel-better"
+
 func TestE2EInitMakeInterfacesFeelBetterSkill_AllPlatforms(t *testing.T) {
 	t.Parallel()
 
@@ -30,6 +36,7 @@ func TestE2EInitMakeInterfacesFeelBetterSkill_AllPlatforms(t *testing.T) {
 			generate: func(ctx context.Context, dir string) error {
 				cfg := config.DefaultFullConfig("polish-claude")
 				cfg.Platforms = []string{"claude-code"}
+				cfg.Skills.Compiler.ExplicitSkills = []string{polishSkillName}
 				_, err := claude.NewWithRoot(dir).Generate(ctx, cfg)
 				return err
 			},
@@ -40,6 +47,8 @@ func TestE2EInitMakeInterfacesFeelBetterSkill_AllPlatforms(t *testing.T) {
 			generate: func(ctx context.Context, dir string) error {
 				cfg := config.DefaultFullConfig("polish-codex")
 				cfg.Platforms = []string{"codex"}
+				cfg.Skills.Compiler.ExplicitSkills = []string{polishSkillName}
+				cfg.Skills.Compiler.CodexLongTailTarget = config.SkillLongTailTargetRepo
 				_, err := codex.NewWithRoot(dir).Generate(ctx, cfg)
 				return err
 			},
@@ -50,6 +59,7 @@ func TestE2EInitMakeInterfacesFeelBetterSkill_AllPlatforms(t *testing.T) {
 			generate: func(ctx context.Context, dir string) error {
 				cfg := config.DefaultFullConfig("polish-gemini")
 				cfg.Platforms = []string{"gemini-cli"}
+				cfg.Skills.Compiler.ExplicitSkills = []string{polishSkillName}
 				_, err := antigravity.NewWithRoot(dir).Generate(ctx, cfg)
 				return err
 			},
@@ -60,6 +70,8 @@ func TestE2EInitMakeInterfacesFeelBetterSkill_AllPlatforms(t *testing.T) {
 			generate: func(ctx context.Context, dir string) error {
 				cfg := config.DefaultFullConfig("polish-opencode")
 				cfg.Platforms = []string{"opencode"}
+				cfg.Skills.Compiler.ExplicitSkills = []string{polishSkillName}
+				cfg.Skills.Compiler.OpenCodeLongTailTarget = config.SkillLongTailTargetShared
 				_, err := opencode.NewWithRoot(dir).Generate(ctx, cfg)
 				return err
 			},
@@ -70,6 +82,7 @@ func TestE2EInitMakeInterfacesFeelBetterSkill_AllPlatforms(t *testing.T) {
 			generate: func(ctx context.Context, dir string) error {
 				cfg := config.DefaultFullConfig("polish-omp")
 				cfg.Platforms = []string{"omp"}
+				cfg.Skills.Compiler.ExplicitSkills = []string{polishSkillName}
 				_, err := omp.NewWithRoot(dir).Generate(ctx, cfg)
 				return err
 			},

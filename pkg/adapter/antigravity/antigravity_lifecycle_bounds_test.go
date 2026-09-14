@@ -13,8 +13,13 @@ import (
 // 실제로 필요해진 실행에서 프로브가 상한에 걸려 실패한다. 실패는 조용하다 -
 // best-effort 저하가 경고를 삼켜서, 경고를 기대하는 테스트가 "경고 없음"으로
 // 뒤집힌다. 값 하나를 옮길 때 다른 하나를 잊는 것을 이 테스트가 막는다.
-func TestPluginListCeilingDominatesTheDrainGrace(t *testing.T) {
-	assert.Greater(t, antigravityPluginListTimeout, processprobe.DefaultWaitDelay,
-		"plugin-probe ceiling must exceed processprobe.DefaultWaitDelay; "+
+func TestReadinessCeilingDominatesTheDrainGrace(t *testing.T) {
+	assert.Greater(t, antigravityProbeTimeout, processprobe.DefaultWaitDelay,
+		"readiness ceiling must exceed processprobe.DefaultWaitDelay; "+
 			"equal or smaller makes the inherited-pipe bound unreachable inside the ceiling")
+
+	// ProbeAntigravityReadiness applies the same ordering when no explicit
+	// ceiling is injected, so both defaults move together.
+	defaults := normalizeAntigravityReadinessOptions(AntigravityReadinessOptions{})
+	assert.Greater(t, defaults.Timeout, processprobe.DefaultWaitDelay)
 }

@@ -27,7 +27,23 @@ func shouldEmitCodexRepoSkillTemplate(skillFile string, cfg *config.HarnessConfi
 	if !ok {
 		return true, nil
 	}
+	// A catalog entry scoped away from Codex never compiles here and has no
+	// long-tail sink either, so this repo template is the only Codex-native
+	// source for it. Gating it on catalog placement would delete the file the
+	// generated route bodies point at.
+	if !codexIsCompileTarget(entry) {
+		return true, nil
+	}
 
 	state := pkgcontent.ResolveCatalogSkillState(entry, "codex", cfg)
 	return filepath.ToSlash(state.TargetPath) == filepath.ToSlash(codexProjectSkillPath(name)), nil
+}
+
+func codexIsCompileTarget(entry pkgcontent.CatalogSkill) bool {
+	for _, target := range entry.CompileTargets {
+		if target == "codex" {
+			return true
+		}
+	}
+	return false
 }

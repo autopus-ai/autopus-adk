@@ -4,6 +4,8 @@ import (
 	"io/fs"
 	"strings"
 	"testing"
+
+	"github.com/insajin/autopus-adk/pkg/config"
 )
 
 func TestMergeOMPProjectManagedConfig_PreservesUnmanagedBytesAndMode(t *testing.T) {
@@ -70,15 +72,15 @@ func TestMergeOMPProjectManagedConfig_FailuresReturnOriginalBytes(t *testing.T) 
 		},
 		{
 			name:  "duplicate key",
-			input: []byte("modelRoles: {}\nmodelRoles: {}\n"),
-			claims: []OMPManagedKeyClaim{{Path: "modelRoles", Value: map[string]any{"task": "p/m"}, Complete: true,
-				PriorFingerprint: validPrior}},
+			input: []byte("task: {}\ntask: {}\n"),
+			claims: []OMPManagedKeyClaim{{Path: config.OMPNativeAgentModelOverridesKey,
+				Value: map[string]any{"task": "p/m"}, Complete: true, PriorFingerprint: validPrior}},
 		},
 		{
 			name:  "incomplete claim",
-			input: []byte("modelRoles: {}\n"),
-			claims: []OMPManagedKeyClaim{{Path: "modelRoles", Value: map[string]any{"task": "p/m"},
-				PriorFingerprint: validPrior}},
+			input: []byte("task: {}\n"),
+			claims: []OMPManagedKeyClaim{{Path: config.OMPNativeAgentModelOverridesKey,
+				Value: map[string]any{"task": "p/m"}, PriorFingerprint: validPrior}},
 		},
 	}
 	for _, tc := range cases {
@@ -101,8 +103,8 @@ func TestMergeOMPProjectManagedConfig_InsertsClaimWithMissingFingerprint(t *test
 		Existing: existing,
 		Mode:     0o600,
 		Claims: []OMPManagedKeyClaim{{
-			Path:             "modelRoles",
-			Value:            map[string]any{"task": "p/m", "plan": "q/n"},
+			Path:             config.OMPNativeAgentModelOverridesKey,
+			Value:            map[string]any{"task": "p/m", "sonic": "q/n"},
 			Complete:         true,
 			PriorFingerprint: OMPMissingManagedValueFingerprint(),
 		}},
@@ -113,7 +115,7 @@ func TestMergeOMPProjectManagedConfig_InsertsClaimWithMissingFingerprint(t *test
 	if !strings.HasPrefix(string(result.Bytes), string(existing)) {
 		t.Fatalf("existing bytes changed:\n%s", result.Bytes)
 	}
-	if !strings.Contains(string(result.Bytes), "modelRoles:\n  plan: q/n\n  task: p/m\n") {
+	if !strings.Contains(string(result.Bytes), "task:\n  agentModelOverrides:\n    sonic: q/n\n    task: p/m\n") {
 		t.Fatalf("inserted mapping is not canonical:\n%s", result.Bytes)
 	}
 }

@@ -149,7 +149,7 @@ IMPORTANT: This project uses this directory's Autopus-ADK instructions ONLY. You
 
 ## Language Policy
 
-IMPORTANT: Follow these language settings for all work in this project. They are prompt instructions, not a mechanical gate: no hook, linter, or CI step inspects the language of a comment, commit message, or response, and the pre-commit Lore check validates only the commit type prefix and sign-off trailers. A violation surfaces as a review finding.
+These language settings are instructions, not mechanically enforced checks.
 
 - **Code comments**: Write all code comments, docstrings, and inline documentation in {{langName .Language.Comments}} ({{.Language.Comments}})
 - **Commit messages**: Write all git commit messages in {{langName .Language.Commits}} ({{.Language.Commits}})
@@ -160,17 +160,15 @@ IMPORTANT: Follow these language settings for all work in this project. They are
 
 ### Subagent Delegation
 
-IMPORTANT: Use subagents for complex tasks that modify 3+ files, span multiple domains, or exceed 200 lines of new code. Define clear scope, provide full context, review output before integrating.
+Work inline unless independent tasks, specialist review, or context isolation justify delegation. Give workers bounded ownership and acceptance criteria; verify their results before integration.
 
 ### File Size Limit
 
-IMPORTANT: No source code file may exceed 300 lines. Target under 200 lines. Split source code by type, concern, or layer when approaching the limit. SPEC Markdown files under .autopus/specs/** are documentation and exempt from the 300-line source code limit. Excluded: generated files (*_generated.go, *.pb.go), documentation (*.md), and config files (*.yaml, *.json).
+Honor an explicit architecture.max_file_lines ceiling. Absent or zero is advisory: review cohesion before splitting. Documentation and generated files are not source-size inputs.
 
 ### Code Review
 
-During review, verify:
-- No source code file exceeds 300 lines (REQUIRED)
-- SPEC Markdown files under .autopus/specs/** are not split or rejected for line count alone
-- Complex changes use subagent delegation (SUGGESTED)
-- See .claude/rules/autopus/ for detailed guidelines
+Verify the requested behavior with relevant execution evidence. Preserve user files,
+permissions, and explicit project quality thresholds. Load detailed workflows only
+when needed from .claude/skills/auto/SKILL.md.
 `

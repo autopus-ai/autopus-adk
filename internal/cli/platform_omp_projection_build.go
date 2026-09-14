@@ -15,7 +15,7 @@ func buildOMPPlatformProjection(
 	now time.Time,
 ) ompPlatformProjection {
 	projection := defaultOMPPlatformProjection()
-	rows, agentCatalog := buildOMPAgentCatalog(ctx, root, runner)
+	rows, agentCatalog := buildOMPAgentCatalog(root)
 	projection.Models = newOMPModelOperatorProjection(rows, agentCatalog)
 	if now.IsZero() {
 		now = time.Now().UTC()
@@ -135,7 +135,10 @@ func buildOMPContextOperatorProjection(
 
 func collectOMPOperatorBlockers(projection ompPlatformProjection) []string {
 	var blockers []string
-	if projection.Models.AgentCatalogStatus != "ready" {
+	// OMP owns the bundled agent registry, so a missing local definition is the
+	// expected state and never blocks. A project file that shadows a bundled
+	// agent is a real degradation the operator has to see.
+	if projection.Models.AgentCatalogStatus == "degraded" {
 		blockers = appendUniqueOMPBlocker(blockers, "agents:"+projection.Models.AgentCatalogReason)
 	}
 	if projection.Models.Enabled {
@@ -158,15 +161,15 @@ func collectOMPOperatorBlockers(projection ompPlatformProjection) []string {
 }
 
 func summarizeOMPOperatorStatus(projection ompPlatformProjection) (string, string) {
-	if projection.Models.AgentCatalogStatus == "blocked" ||
-		projection.Models.Enabled && projection.Models.Status == "blocked" ||
+	if projection.Models.Enabled && projection.Models.Status == "blocked" ||
 		projection.Context.Enabled && projection.Context.Status == "blocked" {
 		if len(projection.Blockers) != 0 {
 			return "blocked", projection.Blockers[0]
 		}
 		return "blocked", "operator_check_blocked"
 	}
-	if projection.Models.Enabled && projection.Models.Status == "degraded" ||
+	if projection.Models.AgentCatalogStatus == "degraded" ||
+		projection.Models.Enabled && projection.Models.Status == "degraded" ||
 		projection.Context.Enabled && projection.Context.Status == "degraded" {
 		if len(projection.Blockers) != 0 {
 			return "degraded", projection.Blockers[0]

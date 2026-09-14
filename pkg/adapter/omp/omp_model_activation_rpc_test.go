@@ -13,20 +13,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type modelRoleRPCFakeRunner struct {
-	roles    map[string]string
-	rpcCalls atomic.Int64
+// modelSelectorRPCFakeRunner answers a get_state probe for the concrete
+// selector the session was started with, the way a live OMP session reports
+// the model it settled on.
+type modelSelectorRPCFakeRunner struct {
+	selectors map[string]string
+	rpcCalls  atomic.Int64
 }
 
-func (runner *modelRoleRPCFakeRunner) Run(
+func (runner *modelSelectorRPCFakeRunner) Run(
 	context.Context,
 	string,
 	...string,
 ) ([]byte, error) {
-	return nil, fmt.Errorf("config get must not read modelRoles when RPC is available")
+	return nil, fmt.Errorf("config get must not read the override map when RPC is available")
 }
 
-func (runner *modelRoleRPCFakeRunner) RunWithInput(
+func (runner *modelSelectorRPCFakeRunner) RunWithInput(
 	_ context.Context,
 	executable string,
 	input []byte,
@@ -35,17 +38,16 @@ func (runner *modelRoleRPCFakeRunner) RunWithInput(
 	if executable != cliBinary || string(input) != `{"id":"autopus-model-state","type":"get_state"}`+"\n" {
 		return nil, fmt.Errorf("unexpected RPC request")
 	}
-	role := ""
+	requested := ""
 	for index, arg := range args {
 		if arg == "--model" && index+1 < len(args) {
-			role = strings.TrimPrefix(args[index+1], "@")
+			requested = args[index+1]
 		}
 	}
-	selector, ok := runner.roles[role]
-	if !ok {
-		return nil, fmt.Errorf("unknown role %q", role)
+	if !ompFakeRPCSelectorConfigured(runner.selectors, requested) {
+		return nil, fmt.Errorf("unconfigured selector %q", requested)
 	}
-	modelSelector, thinking, err := splitOMPProjectedSelector(selector)
+	modelSelector, thinking, err := splitOMPProjectedSelector(requested)
 	if err != nil {
 		return nil, err
 	}
@@ -65,33 +67,45 @@ func (runner *modelRoleRPCFakeRunner) RunWithInput(
 	return append(encoded, '\n'), err
 }
 
-func TestReadOMPModelExpectedValues_UsesProviderFreeRPCForEveryRole(t *testing.T) {
-	t.Parallel()
-	roles := map[string]string{
-		"autopus_reviewer": "anthropic/claude-opus-5:max",
-		"autopus_planner":  "openai-codex/gpt-5.6-sol:max",
-		"autopus_executor": "openai-codex/gpt-5.6-terra:high",
+func ompFakeRPCSelectorConfigured(selectors map[string]string, requested string) bool {
+	for _, selector := range selectors {
+		if selector == requested {
+			return true
+		}
 	}
-	runner := &modelRoleRPCFakeRunner{roles: roles}
+	return false
+}
+
+// The readback must address bundled agents, never an autopus_* role alias:
+// after the cutover Autopus owns no OMP model role to resolve through.
+func TestReadOMPModelExpectedValues_ResolvesEveryNativeAgentSelectorOverRPC(t *testing.T) {
+	t.Parallel()
+	overrides := map[string]string{
+		"reviewer":          "anthropic/claude-opus-5:max",
+		"task":              "openai-codex/gpt-5.6-sol:max",
+		"security-reviewer": "openai-codex/gpt-5.6-terra:high",
+	}
+	runner := &modelSelectorRPCFakeRunner{selectors: overrides}
 
 	readback, err := ReadOMPModelExpectedValues(
-		context.Background(), runner, "/tmp/config.yml", map[string]any{"modelRoles": roles},
+		context.Background(), runner, "/tmp/config.yml",
+		map[string]any{config.OMPNativeAgentModelOverridesKey: overrides},
 	)
 
 	require.NoError(t, err)
-	require.Equal(t, int64(len(roles)), runner.rpcCalls.Load())
+	require.Equal(t, int64(len(overrides)), runner.rpcCalls.Load())
 	var decoded map[string]map[string]string
 	require.NoError(t, json.Unmarshal(readback, &decoded))
-	require.Equal(t, roles, decoded["modelRoles"])
+	require.Equal(t, overrides, decoded[config.OMPNativeAgentModelOverridesKey])
 }
 
-// The role readback spawns one omp process per role, so the argv shape is a
-// trust boundary: only the provider-free rpc session form may reach the pin.
-func TestSafeOMPModelRoleRPCArgs_AcceptsOnlyProviderFreeRoleSessions(t *testing.T) {
+// The readback spawns one omp process per bundled agent, so the argv shape is
+// a trust boundary: only the provider-free rpc session form may reach the pin.
+func TestSafeOMPModelSelectorRPCArgs_AcceptsOnlyProviderFreeSelectorSessions(t *testing.T) {
 	t.Parallel()
-	good := []string{"--config", "/tmp/routing.yml", "--model", "@autopus_executor", "--mode", "rpc",
-		"--no-tools", "--no-skills", "--no-extensions"}
-	require.True(t, SafeOMPModelRoleRPCArgs(good))
+	good := []string{"--config", "/tmp/routing.yml", "--model", "anthropic/claude-opus-5:xhigh",
+		"--mode", "rpc", "--no-tools", "--no-skills", "--no-extensions"}
+	require.True(t, SafeOMPModelSelectorRPCArgs(good))
 
 	mutate := func(index int, value string) []string {
 		bad := append([]string(nil), good...)
@@ -99,23 +113,28 @@ func TestSafeOMPModelRoleRPCArgs_AcceptsOnlyProviderFreeRoleSessions(t *testing.
 		return bad
 	}
 	for name, args := range map[string][]string{
-		"relative config":   mutate(1, "routing.yml"),
-		"newline in config": mutate(1, "/tmp/a\nb.yml"),
-		"selector model":    mutate(3, "anthropic/claude-opus-5"),
-		"unsafe role":       mutate(3, "@role;rm"),
-		"non-rpc mode":      mutate(5, "cli"),
-		"tools enabled":     mutate(6, "--tools"),
-		"missing flag":      good[:8],
-		"extra flag":        append(append([]string(nil), good...), "--yolo"),
+		"relative config":    mutate(1, "routing.yml"),
+		"newline in config":  mutate(1, "/tmp/a\nb.yml"),
+		"role alias":         mutate(3, "@autopus_executor"),
+		"bare model id":      mutate(3, "claude-opus-5"),
+		"selector no effort": mutate(3, "anthropic/claude-opus-5"),
+		"unsupported effort": mutate(3, "anthropic/claude-opus-5:turbo"),
+		"injection attempt":  mutate(3, "anthropic/claude-opus-5:xhigh --yolo"),
+		"unsafe model":       mutate(3, "anthropic/claude;rm:xhigh"),
+		"non-rpc mode":       mutate(5, "cli"),
+		"tools enabled":      mutate(6, "--tools"),
+		"missing flag":       good[:8],
+		"extra flag":         append(append([]string(nil), good...), "--yolo"),
+		"empty":              {},
 	} {
-		require.False(t, SafeOMPModelRoleRPCArgs(args), name)
+		require.False(t, SafeOMPModelSelectorRPCArgs(args), name)
 	}
 }
 
-// concurrencyProbeRunner records how many role sessions overlap so the
-// worker bound is observable, and can corrupt one role's answer.
+// concurrencyProbeRunner records how many sessions overlap so the worker
+// bound is observable, and can corrupt one agent's answer.
 type concurrencyProbeRunner struct {
-	modelRoleRPCFakeRunner
+	modelSelectorRPCFakeRunner
 	inFlight atomic.Int64
 	peak     atomic.Int64
 	corrupt  string
@@ -133,44 +152,55 @@ func (runner *concurrencyProbeRunner) RunWithInput(
 		}
 	}
 	time.Sleep(20 * time.Millisecond)
-	output, err := runner.modelRoleRPCFakeRunner.RunWithInput(ctx, executable, input, args...)
-	if err == nil && runner.corrupt != "" && strings.Contains(strings.Join(args, " "), "@"+runner.corrupt+" ") {
+	output, err := runner.modelSelectorRPCFakeRunner.RunWithInput(ctx, executable, input, args...)
+	if err == nil && runner.corrupt != "" &&
+		strings.Contains(strings.Join(args, " "), runner.corrupt) {
 		output = []byte(strings.Replace(string(output), `"thinkingLevel":"xhigh"`, `"thinkingLevel":"low"`, 1))
 	}
 	return output, err
 }
 
-func sixteenAgentRoles() map[string]string {
-	roles := make(map[string]string, len(config.CanonicalAgentNames()))
-	for _, agent := range config.CanonicalAgentNames() {
-		roles[config.OMPAgentRoleName(agent)] = "anthropic/claude-opus-5:xhigh"
+// One distinct selector per bundled agent, so the readback cannot pass by
+// resolving a single shared selector.
+func nativeAgentSelectors() map[string]string {
+	models := []string{"claude-opus-5", "claude-fable-5-1", "claude-sonnet-5", "claude-haiku-5", "claude-astra-5"}
+	selectors := make(map[string]string, len(models))
+	for index, agent := range config.OMPNativeAgentNames() {
+		selectors[agent] = "anthropic/" + models[index] + ":xhigh"
 	}
-	return roles
+	return selectors
 }
 
-func TestReadOMPModelRolesViaRPC_BoundsInFlightSessionsToWorkerCount(t *testing.T) {
+func TestReadOMPModelAgentSelectorsViaRPC_BoundsInFlightSessionsToWorkerCount(t *testing.T) {
 	t.Parallel()
-	roles := sixteenAgentRoles()
-	runner := &concurrencyProbeRunner{modelRoleRPCFakeRunner: modelRoleRPCFakeRunner{roles: roles}}
+	selectors := nativeAgentSelectors()
+	runner := &concurrencyProbeRunner{
+		modelSelectorRPCFakeRunner: modelSelectorRPCFakeRunner{selectors: selectors},
+	}
 
-	resolved, err := readOMPModelRolesViaRPC(context.Background(), runner, "/tmp/config.yml", roles)
+	resolved, err := readOMPModelAgentSelectorsViaRPC(
+		context.Background(), runner, "/tmp/config.yml", selectors,
+	)
 
 	require.NoError(t, err)
-	require.Equal(t, roles, resolved)
-	require.Equal(t, int64(len(roles)), runner.rpcCalls.Load())
-	require.LessOrEqual(t, runner.peak.Load(), int64(ompModelRoleRPCWorkers))
+	require.Equal(t, selectors, resolved)
+	require.Equal(t, int64(len(selectors)), runner.rpcCalls.Load())
+	require.LessOrEqual(t, runner.peak.Load(), int64(ompModelSelectorRPCWorkers))
 	require.Greater(t, runner.peak.Load(), int64(1), "readback must actually overlap sessions")
 }
 
-func TestReadOMPModelRolesViaRPC_FailsWholeReadbackOnOneMismatchedRole(t *testing.T) {
+func TestReadOMPModelAgentSelectorsViaRPC_FailsWholeReadbackOnOneMismatch(t *testing.T) {
 	t.Parallel()
-	roles := sixteenAgentRoles()
+	selectors := nativeAgentSelectors()
 	runner := &concurrencyProbeRunner{
-		modelRoleRPCFakeRunner: modelRoleRPCFakeRunner{roles: roles}, corrupt: "autopus_tester",
+		modelSelectorRPCFakeRunner: modelSelectorRPCFakeRunner{selectors: selectors},
+		corrupt:                    selectors["sonic"],
 	}
 
-	resolved, err := readOMPModelRolesViaRPC(context.Background(), runner, "/tmp/config.yml", roles)
+	resolved, err := readOMPModelAgentSelectorsViaRPC(
+		context.Background(), runner, "/tmp/config.yml", selectors,
+	)
 
 	require.Nil(t, resolved)
-	require.ErrorContains(t, err, "activation role readback mismatch: autopus_tester")
+	require.ErrorContains(t, err, "activation agent readback mismatch: sonic")
 }

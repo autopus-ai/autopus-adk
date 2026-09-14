@@ -205,8 +205,12 @@ func (e *SubprocessEngine) runDry(state *engineRunState) (*PipelineResult, error
 }
 
 func (e *SubprocessEngine) newRunState(requested, effective Strategy, restoreCheckpoint bool) *engineRunState {
-	phases := DefaultPhases()
-	receipt := newRunReceipt(e.cfg.SpecID, requested, effective, phases)
+	route := e.cfg.Route
+	if route == "" {
+		route = RouteFull
+	}
+	phases := PhasesForRoute(route)
+	receipt := newRunReceipt(e.cfg.SpecID, requested, effective, route, phases)
 	receipt.configureProvider(e.cfg.Platform)
 	result := &PipelineResult{PhaseResults: make([]PhaseResult, len(phases)), Receipt: receipt}
 	statuses := make(map[PhaseID]CheckpointStatus, len(phases))
@@ -272,6 +276,12 @@ func ValidateStrategy(strategy Strategy) error {
 	return err
 }
 
+// validateCheckpoint admits a resume only when the saved run matches this
+// one in identity, snapshot, dependency closure, and the phase route it was
+// authorized to dispatch.
 func (e *SubprocessEngine) validateCheckpoint() error {
-	return e.cfg.Checkpoint.ValidateResume(e.cfg.SpecID, PipelineRouteVersion, e.cfg.SnapshotHash)
+	if err := e.cfg.Checkpoint.ValidateResume(e.cfg.SpecID, PipelineRouteVersion, e.cfg.SnapshotHash); err != nil {
+		return err
+	}
+	return e.cfg.Checkpoint.ValidateResumeRoute(e.cfg.Route)
 }

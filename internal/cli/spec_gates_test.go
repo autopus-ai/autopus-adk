@@ -150,9 +150,27 @@ func TestSpecGatesCmd_RecordRejectsInvalidInputs(t *testing.T) {
 	}
 }
 
-func TestSpecGatesCmd_AnnotationBlockedFlag(t *testing.T) {
+// The @AX annotation gate is opt-in at the CLI boundary: a code change set is
+// not held behind it unless --annotation asks for it, and only then can a
+// missing reference source block.
+func TestSpecGatesCmd_AnnotationIsOptIn(t *testing.T) {
 	_, specDir := specGatesProject(t)
-	out, err := runSpecGates(t, specDir, "--changed", "pkg/a/x.go", "--annotation-reference-missing")
+
+	defaultRun, err := runSpecGates(t, specDir, "--changed", "pkg/a/x.go")
 	require.NoError(t, err)
-	assert.Contains(t, out, "annotation: blocked — reference source missing")
+	assert.Contains(t, defaultRun, "annotation: not_applicable — @AX annotation not requested")
+
+	unrequestedMissing, err := runSpecGates(t, specDir, "--changed", "pkg/a/x.go",
+		"--annotation-reference-missing")
+	require.NoError(t, err)
+	assert.Contains(t, unrequestedMissing, "annotation: not_applicable — @AX annotation not requested")
+
+	requested, err := runSpecGates(t, specDir, "--changed", "pkg/a/x.go", "--annotation")
+	require.NoError(t, err)
+	assert.Contains(t, requested, "annotation: required — code change set")
+
+	blocked, err := runSpecGates(t, specDir, "--changed", "pkg/a/x.go",
+		"--annotation", "--annotation-reference-missing")
+	require.NoError(t, err)
+	assert.Contains(t, blocked, "annotation: blocked — reference source missing")
 }

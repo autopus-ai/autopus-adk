@@ -173,6 +173,9 @@ func runCoverageGate(
 func TestParityCoverage(t *testing.T) {
 	ctx := context.Background()
 	cfg := config.DefaultFullConfig("parity-test")
+	// The gate's subject is per-platform parity over the whole source set, so it
+	// selects the full library rather than the compact default surface.
+	cfg.Skills.Compiler.Mode = config.SkillCompilerModeFull
 	platforms := []string{"claude", "codex", "gemini", "opencode", "omp"}
 
 	findings, err := runCoverageGate(ctx, t.TempDir(), cfg, platforms, platformRuleExclusions, platformSkillExclusions, nil)
@@ -189,6 +192,7 @@ func TestParityCoverage(t *testing.T) {
 func TestParityCoverage_GateProbe(t *testing.T) {
 	ctx := context.Background()
 	cfg := config.DefaultFullConfig("parity-test")
+	cfg.Skills.Compiler.Mode = config.SkillCompilerModeFull
 	platforms := []string{"gemini"}
 
 	// 1. When probe is not excluded, it should fail

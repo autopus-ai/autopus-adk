@@ -86,7 +86,7 @@ assert_current_surface() {
     assert_contains "$PROJECT/.codex/config.toml" '[features.multi_agent_v2]'
     assert_file "$PROJECT/.omp/skills/auto/SKILL.md"
     assert_file "$PROJECT/.omp/commands/auto.md"
-    assert_file "$PROJECT/.omp/agents/executor.md"
+    assert_absent "$PROJECT/.omp/agents/executor.md"
 
     assert_absent "$PROJECT/.claude/skills/autopus/auto-go.md"
     assert_absent "$PROJECT/.codex/prompts/auto.md"

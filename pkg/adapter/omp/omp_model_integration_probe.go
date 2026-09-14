@@ -12,7 +12,9 @@ func (a *Adapter) probeIntegratedModelCatalog(
 	ctx context.Context,
 	profile config.RoleModelProfileConf,
 ) (OMPModelCatalogProbeResult, error) {
-	settings := []string{"modelRoles", "retry.fallbackChains", "retry.modelFallback"}
+	settings := []string{
+		config.OMPNativeAgentModelOverridesKey, "retry.fallbackChains", "retry.modelFallback",
+	}
 	if profile.Safety.ApprovalMode != "" {
 		settings = append(settings, "tools.approvalMode")
 	}

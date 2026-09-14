@@ -33,7 +33,8 @@ func TestOMPProfilePlanAcceptsAgentPinOnNativeCatalogWithoutSemanticMetadata(t *
 
 	assert.Empty(t, payload.Blockers)
 	assert.Empty(t, payload.Writes)
-	row := agentPreviewRow(t, payload, "executor")
+	row := agentPreviewRow(t, payload, "task")
+	assert.Equal(t, "executor", row.PolicyKey)
 	assert.Equal(t, ompProfileSourceAgent, row.Source)
 	assert.Equal(t, "openai-codex/gpt-6-astra", row.EffectiveSelector)
 	assert.Equal(t, "max", row.EffectiveThinking)
@@ -79,7 +80,8 @@ func TestOMPProfilePlanBlocksNativeAgentPinWhenThinkingUnsupported(t *testing.T)
 		t, newPlatformOMPProfileApplyCmd(&dir, ompBalancedDeps(runner, nil)),
 		"balanced", "--family", "gpt", "--agent", "executor=openai-codex/gpt-6-astra:max", "--plan",
 	)
-	assert.Contains(t, text, "agent=executor")
+	assert.Contains(t, text, "agent=task")
+	assert.Contains(t, text, "policy_key=executor")
 	assert.Contains(t, text, "reason=thinking_unsupported")
 	assert.Contains(t, err.Error(), "omp_profile_candidate_unavailable")
 }
@@ -142,7 +144,8 @@ func TestOMPProfilePlanAttestsPinFromExplicitProfileDeclaration(t *testing.T) {
 
 	assert.Equal(t, ompProfileSourceCustom, payload.Source)
 	assert.Empty(t, payload.Blockers)
-	row := agentPreviewRow(t, payload, "validator")
+	row := agentPreviewRow(t, payload, "task")
+	assert.Equal(t, "validator", row.PolicyKey)
 	assert.Equal(t, "anthropic/claude-sonnet-5", row.EffectiveSelector)
 	assert.Equal(t, "anthropic", row.EffectiveFamily)
 }

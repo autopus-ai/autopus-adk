@@ -18,10 +18,11 @@ ARGUMENTS: $ARGUMENTS
 - Read `.autopus/project/workspace.md` first when present. It defines the root role, nested git repo boundaries, generated/runtime paths, tracking/commit policy, source-of-truth locations, and QA target routing such as `auto qa init --project-dir <repo>`.
 - Resolve a SPEC as `.autopus/specs/{SPEC-ID}/spec.md`, then recursively under module roots while excluding generated and dependency directories. Stop on zero or duplicate matches.
 
-## Subagent Delegation
+## Delegation Policy
 
-- Preserve the harness subagent-first contract. `--auto` authorizes the configured pipeline; `--solo` explicitly selects a single session.
-- If runtime policy prevents implicit delegation, report the constraint and request subagent opt-in or `--solo`; never silently downgrade.
+- Default to doing ordinary work in this session. Delegate only for a genuinely independent slice — disjoint owned paths, no dependency edge on unfinished work, enough context to finish alone — or when the step needs an isolated context or a specialist role this session is not running. File count, line count, and package count never decide this.
+- `--auto` authorizes the configured pipeline; `--solo` explicitly selects a single session; `--team` and `--multi` are honored and reported as requested.
+- If runtime policy prevents implicit delegation, report the constraint and request subagent opt-in or `--solo`; never silently downgrade, and never report main-session work as delegated work.
 
 ## Review Convergence
 

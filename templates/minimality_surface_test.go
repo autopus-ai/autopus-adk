@@ -79,19 +79,16 @@ func TestMinimalityDisciplineSourceSurfaceParity(t *testing.T) {
 			tokens: []string{"Minimality Decision Matrix", "new dependency", "new abstraction", "minimum sufficient verification"},
 		},
 		{
+			// The entrypoint states the principle; the ladder is retrievable
+			// beside it and is asserted on the resources below.
 			name:   "agent-pipeline-content",
 			path:   filepath.Join(root, "..", "content", "skills", "agent-pipeline.md"),
-			tokens: []string{"minimality ladder", "existing code/helper/pattern", "minimum sufficient verification", "receipt"},
-		},
-		{
-			name:   "codex-agent-pipeline-native-source",
-			path:   filepath.Join(root, "..", "pkg", "adapter", "codex", "codex_extended_skill_rewrites_pipeline_completion.go"),
-			tokens: []string{"minimality ladder", "existing code/helper/pattern", "minimum sufficient verification", "receipt"},
+			tokens: []string{"Minimality", "smallest change", "receipt", "references/delegation.md"},
 		},
 		{
 			name:   "gemini-agent-pipeline-template",
 			path:   filepath.Join(root, "gemini", "skills", "agent-pipeline", "SKILL.md.tmpl"),
-			tokens: []string{"minimality ladder", "existing code/helper/pattern", "minimum sufficient verification", "receipt"},
+			tokens: []string{"Minimality", "smallest change", "receipt", "references/delegation.md"},
 		},
 		{
 			name:   "codex-go-skill",
@@ -215,5 +212,23 @@ func TestMinimalityDisciplineSourceSurfaceParity(t *testing.T) {
 				assert.Contains(t, text, token, "%s should contain %q", tc.path, token)
 			}
 		})
+	}
+}
+
+// The ladder is the enforceable part of minimality discipline. It moved out of
+// the pipeline entrypoint into the resource a worker actually opens, so it is
+// checked there rather than duplicated back into every body.
+func TestMinimalityLadderLivesInThePipelineResources(t *testing.T) {
+	t.Parallel()
+
+	surface := pipelineResourceSurface(t)
+	for _, token := range []string{
+		"minimality ladder",
+		"existing code/helper/pattern",
+		"minimum sufficient verification",
+		"stdlib/native",
+	} {
+		assert.Contains(t, surface, token,
+			"the pipeline resources should contain the minimality token %q", token)
 	}
 }

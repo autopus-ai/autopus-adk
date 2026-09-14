@@ -13,6 +13,18 @@ import (
 	"github.com/insajin/autopus-adk/pkg/config"
 )
 
+// The root marker no longer restates a per-platform file inventory. What it
+// does carry, and what a platform transition must move, is the discovery path
+// for each installed platform plus that platform's invocation policy. Both
+// markers (codex-owned and opencode-owned) share these substrings, so the
+// assertions below hold regardless of which adapter owns AGENTS.md.
+const (
+	codexDiscoveryEntry      = "- Codex: .codex/"
+	openCodeDiscoveryEntry   = "- OpenCode: .opencode/"
+	codexInvocationPolicy    = "$codex-auto"
+	openCodeInvocationPolicy = "/auto-<route>"
+)
+
 func TestPlatformAddCodexRefreshesOpenCodeOwnedSharedSurface(t *testing.T) {
 	t.Parallel()
 
@@ -22,18 +34,21 @@ func TestPlatformAddCodexRefreshesOpenCodeOwnedSharedSurface(t *testing.T) {
 	seedPlatformTransitionSurface(t, root, cfg)
 
 	before := readPlatformTransitionFile(t, root, "AGENTS.md")
-	require.NotContains(t, before, "Codex Native Skills")
+	require.NotContains(t, before, codexDiscoveryEntry)
 
 	dirFlag := root
 	cmd := newPlatformAddCmd(&dirFlag)
 	cmd.SetArgs([]string{"codex"})
 	require.NoError(t, cmd.Execute())
 
+	// The root marker is a discovery surface, not a file inventory: the
+	// transition is observable as the newly owned platform appearing in the
+	// installed-component paths and its invocation policy.
 	after := readPlatformTransitionFile(t, root, "AGENTS.md")
-	assert.Contains(t, after, "Codex Native Skills: .codex/skills/codex-<name>/SKILL.md")
-	assert.Contains(t, after, "OpenCode Rules: .opencode/rules/autopus/")
-	assert.Contains(t, after, "Codex V2")
-	assert.Contains(t, after, "OpenCode Invocation")
+	assert.Contains(t, after, codexDiscoveryEntry)
+	assert.Contains(t, after, openCodeDiscoveryEntry)
+	assert.Contains(t, after, codexInvocationPolicy)
+	assert.Contains(t, after, openCodeInvocationPolicy)
 }
 
 func TestPlatformAddOpenCodeRelinquishesPreviousCodexRootClaim(t *testing.T) {
@@ -58,8 +73,8 @@ func TestPlatformAddOpenCodeRelinquishesPreviousCodexRootClaim(t *testing.T) {
 	assert.NotContains(t, codexManifest.Files, "AGENTS.md")
 	assert.Contains(t, opencodeManifest.Files, "AGENTS.md")
 	agents := readPlatformTransitionFile(t, root, "AGENTS.md")
-	assert.Contains(t, agents, "Codex Native Skills")
-	assert.Contains(t, agents, "OpenCode Invocation")
+	assert.Contains(t, agents, codexDiscoveryEntry)
+	assert.Contains(t, agents, openCodeDiscoveryEntry)
 }
 
 func TestPlatformAddOpenCodeOwnerFailureRollsBackBothPlatforms(t *testing.T) {
@@ -101,11 +116,10 @@ func TestPlatformRemoveOpenCodeRegeneratesCodexOwnedAgents(t *testing.T) {
 	require.NoError(t, cmd.Execute())
 
 	after := readPlatformTransitionFile(t, root, "AGENTS.md")
-	assert.Contains(t, after, "Codex Invocation")
-	assert.Contains(t, after, "Codex V2")
-	assert.Contains(t, after, "Codex Shared Workspace")
-	assert.NotContains(t, after, "OpenCode Invocation")
-	assert.NotContains(t, after, "OpenCode Rules: .opencode/rules/autopus/")
+	assert.Contains(t, after, codexDiscoveryEntry)
+	assert.Contains(t, after, codexInvocationPolicy)
+	assert.NotContains(t, after, openCodeDiscoveryEntry)
+	assert.NotContains(t, after, openCodeInvocationPolicy)
 }
 
 func TestPlatformRemoveCodexRefreshesOpenCodeOnlySurface(t *testing.T) {
@@ -122,11 +136,10 @@ func TestPlatformRemoveCodexRefreshesOpenCodeOnlySurface(t *testing.T) {
 	require.NoError(t, cmd.Execute())
 
 	after := readPlatformTransitionFile(t, root, "AGENTS.md")
-	assert.Contains(t, after, "OpenCode Invocation")
-	assert.Contains(t, after, "task(...) 기반 subagent-first")
-	assert.NotContains(t, after, "Codex Native Skills")
-	assert.NotContains(t, after, "Codex V2")
-	assert.NotContains(t, after, ".codex/skills/")
+	assert.Contains(t, after, openCodeDiscoveryEntry)
+	assert.Contains(t, after, openCodeInvocationPolicy)
+	assert.NotContains(t, after, codexDiscoveryEntry)
+	assert.NotContains(t, after, codexInvocationPolicy)
 
 	autoSkill := readPlatformTransitionFile(t, root, ".agents", "skills", "auto", "SKILL.md")
 	assert.NotContains(t, autoSkill, "[OpenCode-only]")

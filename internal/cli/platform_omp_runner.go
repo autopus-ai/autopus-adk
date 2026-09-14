@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/insajin/autopus-adk/pkg/adapter/omp"
+	"github.com/insajin/autopus-adk/pkg/config"
 )
 
 type ompOperatorExecRunner struct {
@@ -41,8 +42,8 @@ func (runner ompOperatorExecRunner) RunWithInput(
 	args ...string,
 ) ([]byte, error) {
 	if executable != "omp" || !bytes.Equal(input, []byte(`{"id":"autopus-model-state","type":"get_state"}`+"\n")) ||
-		!omp.SafeOMPModelRoleRPCArgs(args) {
-		return nil, errors.New("unsafe OMP operator role command")
+		!omp.SafeOMPModelSelectorRPCArgs(args) {
+		return nil, errors.New("unsafe OMP operator selector command")
 	}
 	if runner.pinErr != nil {
 		return nil, runner.pinErr
@@ -66,8 +67,11 @@ func safeOMPOperatorProbeArgs(args []string) bool {
 		return false
 	}
 	allowed := map[string]bool{
-		"modelRoles": true, "retry.fallbackChains": true, "retry.modelFallback": true,
-		"tools.approvalMode": true, "task.isolation.mode": true,
+		config.OMPNativeAgentModelOverridesKey: true,
+		"retry.fallbackChains":                 true,
+		"retry.modelFallback":                  true,
+		"tools.approvalMode":                   true,
+		"task.isolation.mode":                  true,
 	}
 	return allowed[args[keyIndex]]
 }

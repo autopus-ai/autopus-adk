@@ -6,9 +6,12 @@ import (
 	"github.com/insajin/autopus-adk/pkg/config"
 )
 
-// cfgFull returns a HarnessConfig in full compiler mode for the given platforms.
+// cfgFull returns a HarnessConfig in full compiler mode for the given
+// platforms. Full is now an explicit opt-in, so the mode is written out.
 func cfgFull(platforms ...string) *config.HarnessConfig {
-	return &config.HarnessConfig{Platforms: platforms}
+	cfg := &config.HarnessConfig{Platforms: platforms}
+	cfg.Skills.Compiler.Mode = config.SkillCompilerModeFull
+	return cfg
 }
 
 // cfgSplit returns a HarnessConfig in split compiler mode with the given bundles.

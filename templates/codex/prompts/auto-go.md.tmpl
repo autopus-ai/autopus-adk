@@ -138,7 +138,7 @@ Phase 1.8 이후, Phase 2 fan-out 전에 메인 세션에서 실행합니다. �
 - `sync_ready`: Outcome Lock 만족, mandatory requirements 전부 충족, Must acceptance 전부 충족, Completion Debt `none`일 때만 `yes`.
 - `sync_blockers`: `none` 또는 `implemented` 상태 전환을 막는 blocker 목록.
 - `spec_status_after_go`: 성공 시 `implemented`. `done`/`completed`를 사용하지 않습니다. `completed`는 sync 전용 상태입니다.
-- `sync_evidence_refs`: 변경 파일, 검증 명령, Phase 4 verdict, @AX annotation 결과 또는 `@AX: no-op`.
+- `sync_evidence_refs`: 변경 파일, 검증 명령, Phase 4 verdict, @AX annotation 결과 또는 `@AX: not requested`. annotation은 opt-in이며, `auto spec gates {SPEC_ID} --annotation`이나 사용자의 명시 요청이 없으면 `annotation: not_applicable — @AX annotation not requested for this change set`입니다.
 - `decision_receipt`: reused existing code/helper/pattern, skipped dependency or abstraction, accepted expansion with evidence, and minimum sufficient verification summary.
 
 `sync_ready != yes`이면 workflow lifecycle bar와 sync handoff를 출력하지 말고 blocker를 먼저 해결합니다.
@@ -175,7 +175,7 @@ Phase 1.8 이후, Phase 2 fan-out 전에 메인 세션에서 실행합니다. �
 - 테스트 커버리지: {{if .IsFullMode}}85{{else}}80{{end}}%+
 - LSP 에러: 0
 - 린트 에러: 0
-- 파일 크기 제한: 소스 코드 파일 300줄 이하 (SPEC Markdown은 제외)
+- 파일 크기 제한: `architecture.max_file_lines`가 양수일 때만 강제하고, 없거나 `0`이면 권고입니다. 소스 코드 파일에만 적용하며 SPEC Markdown은 제외합니다
 
 ## QAMESH Scope Budget
 

@@ -84,14 +84,26 @@ func TestAntigravityRulesContent(t *testing.T) {
 	assert.Contains(t, content, "platform: antigravity-cli",
 		"should have antigravity-cli platform in frontmatter")
 
-	// Verify file-size-limit rule exists and has key content
+	// The rendered source-size rule must report the project's declared
+	// ceiling, not a universal number the harness never enforces.
 	fsPath := filepath.Join(dir, ".gemini", "rules", "autopus", "file-size-limit.md")
 	fsData, err := os.ReadFile(fsPath)
 	require.NoError(t, err)
-	assert.Contains(t, string(fsData), "300 lines",
-		"file-size-limit should reference 300 lines")
+	assert.Contains(t, string(fsData), "architecture.max_file_lines",
+		"file-size-limit should name the configured ceiling key")
+	assert.Contains(t, string(fsData), "not declared",
+		"an unset ceiling must render as advisory, not as a hard number")
 	assert.Contains(t, string(fsData), "SPEC Markdown files under `.autopus/specs/**`",
 		"file-size-limit should explicitly exempt generated SPEC Markdown")
+
+	cfg.Architecture.MaxFileLines = 420
+	declaredDir := t.TempDir()
+	_, err = antigravity.NewWithRoot(declaredDir).Generate(context.Background(), cfg)
+	require.NoError(t, err)
+	declared, err := os.ReadFile(
+		filepath.Join(declaredDir, ".gemini", "rules", "autopus", "file-size-limit.md"))
+	require.NoError(t, err)
+	assert.Contains(t, string(declared), "420")
 
 	techstackPath := filepath.Join(dir, ".gemini", "rules", "autopus", "techstack-freshness.md")
 	techstackData, err := os.ReadFile(techstackPath)

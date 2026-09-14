@@ -88,7 +88,11 @@ func TestAntigravityAdapter_Generate_CreatesSkillsWithFrontmatter(t *testing.T) 
 	}
 }
 
-func TestAntigravityAdapter_Generate_CreatesAgentsAliases(t *testing.T) {
+// The Antigravity surface is the workspace plugin: `agy` discovers
+// `.agents/plugins/<name>/`, converts each bundled skill into a slash command,
+// and never reads a `.gemini/` tree. The shared `.agents/skills` root belongs
+// to the Codex and OpenCode adapters, so this adapter creates nothing there.
+func TestAntigravityAdapter_Generate_InstallsWorkspacePlugin(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	a := antigravity.NewWithRoot(dir)
@@ -97,11 +101,11 @@ func TestAntigravityAdapter_Generate_CreatesAgentsAliases(t *testing.T) {
 	_, err := a.Generate(context.Background(), cfg)
 	require.NoError(t, err)
 
-	// .agents/skills/ 크로스플랫폼 앨리어스 디렉터리 확인
-	agentsSkillsDir := filepath.Join(dir, ".agents", "skills")
-	info, statErr := os.Stat(agentsSkillsDir)
-	require.NoError(t, statErr, ".agents/skills 디렉터리가 존재해야 함")
-	assert.True(t, info.IsDir())
+	assert.FileExists(t, filepath.Join(dir, ".agents", "plugins", "autopus", "plugin.json"))
+	assert.FileExists(t,
+		filepath.Join(dir, ".agents", "plugins", "autopus", "skills", "auto-plan", "SKILL.md"))
+	_, statErr := os.Stat(filepath.Join(dir, ".agents", "skills"))
+	assert.True(t, os.IsNotExist(statErr), "the shared skills root is not this adapter's to create")
 }
 
 func TestAntigravityAdapter_Generate_PreservesUserContent(t *testing.T) {

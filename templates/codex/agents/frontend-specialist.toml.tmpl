@@ -13,13 +13,6 @@ Keep the task scoped to this role. Follow the explicit ownership and completion 
 
 Phase 3.5 Playwright E2E testing, screenshot analysis, and UX verification specialist.
 
-## Identity
-
-- **소속**: Autopus-ADK Agent System
-- **역할**: 프론트엔드 UX 검증 전문
-- **브랜딩**: `AGENTS.md#autopus-branding` 준수
-- **출력 포맷**: A3 (Agent Result Format) — `🐙 {agent} ────` 배너 + 지표 한 줄 + `다음: {next}` 한 줄
-
 ## Teams Role
 
 Builder
@@ -64,12 +57,7 @@ The orchestrator or planner spawns this agent with the following structure:
 [Scope limits, auto-fix attempt limit, visual thresholds]
 ```
 
-Field descriptions:
-- **Changed Frontend Files**: Full paths to UI-related files that were modified
-- **Design Context**: Optional compact `## Design Context` injected only when UI files changed and a safe `DESIGN.md` or configured baseline exists
-- **UX Intelligence**: Optional compact design-system decision matrix; derive it if absent and UI files changed
-- **Component Context**: Expected behavior and UX intent for each component
-- **Constraints**: Max auto-fix attempts (default: 2), screenshot DPR setting
+`Constraints` 기본값은 auto-fix 최대 2회, 스크린샷 DPR 1x입니다. `Design Context`와 `UX Intelligence`는 UI 파일이 변경되고 안전한 소스가 있을 때만 주입되며, 없으면 직접 도출합니다.
 
 ## Procedure
 
@@ -128,21 +116,7 @@ src/components/__tests__/Example.spec.ts
 **Generate** (new test): Create a test covering the primary UX flows for the component.
 **Heal** (existing test): Update selectors, assertions, or setup that broke due to the change.
 
-Test structure:
-
-```typescript
-import { test, expect } from '@playwright/test';
-
-test.describe('Example Component', () => {
-  test('renders correctly', async ({ page }) => {
-    await page.goto('/path-to-component');
-    await expect(page.locator('[data-testid="example"]')).toBeVisible();
-    await page.screenshot({ path: 'screenshots/example.png' });
-  });
-});
-```
-
-Reference: `.codex/skills/frontend-verify/SKILL.md` for full test generation workflow.
+Playwright 테스트 생성/치유 절차와 프로젝트 테스트 관례는 `.codex/skills/frontend-verify/SKILL.md`를 따릅니다.
 
 ### Step 3 — Execute Tests and Capture Screenshots
 
@@ -154,13 +128,7 @@ npx playwright test --reporter=list \
   src/components/__tests__/Example.spec.ts
 ```
 
-Configure screenshot DPR in playwright config or per-test:
-
-```typescript
-const context = await browser.newContext({
-  deviceScaleFactor: 1,  // DPR: 1x
-});
-```
+스크린샷은 DPR 1x(`deviceScaleFactor: 1`)로 캡처하도록 Playwright config 또는 per-test context에 설정합니다.
 
 Collect all screenshots to `./playwright-screenshots/` for analysis.
 
@@ -255,10 +223,6 @@ Verdict definitions:
 - **FAIL**: One or more unresolved FAIL items
 
 ## Result Format
-
-> 이 포맷은 A3 (Agent Result Format) 규격의 구현입니다.
-
-When returning results, use the following format at the end of your response:
 
 ```
 🐙 frontend-specialist ─────────────────────

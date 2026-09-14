@@ -71,7 +71,6 @@ func TestResolveTeamQualityBindingPreservesUltraAndUsesBalancedPlacement(t *test
 		"planning":       {"claude-fable-5-1", "max"},
 		"implementation": {"claude-sonnet-5", "max"},
 		"test_scaffold":  {"claude-sonnet-5", "max"},
-		"annotation":     {"claude-sonnet-5", "high"},
 		"testing":        {"claude-sonnet-5", "max"},
 		"review":         {"claude-fable-5-1", "max"},
 	} {

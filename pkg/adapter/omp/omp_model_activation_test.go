@@ -50,14 +50,14 @@ func TestVerifyOMPModelActivation_RejectsAncestorSwapWithoutReadingOutside(t *te
 	require.NoError(t, os.Mkdir(root, 0o700))
 	evidence, err := WriteOMPModelOverlay(OMPModelOverlayWriteInput{
 		WorkspaceRoot: root,
-		Projection:    OMPModelOverlayProjection{ModelRoles: map[string]string{"task": "p/m"}},
+		Projection:    OMPModelOverlayProjection{AgentModelOverrides: map[string]string{"task": "p/m"}},
 	})
 	require.NoError(t, err)
 	moved := filepath.Join(container, "moved")
 	outside := t.TempDir()
 	external := []byte("external sentinel\n")
 	mustWriteOMPTestFile(t, filepath.Join(outside, DefaultOMPModelOverlayPath), external, 0o600)
-	readback := []byte(`{"modelRoles":{"task":"p/m"}}`)
+	readback := []byte(`{"task.agentModelOverrides":{"task":"p/m"}}`)
 	runner := &modelActivationFakeRunner{output: readback, readConfig: true, beforeRun: func() {
 		require.NoError(t, os.Rename(root, moved))
 		require.NoError(t, os.Symlink(outside, root))
@@ -66,7 +66,7 @@ func TestVerifyOMPModelActivation_RejectsAncestorSwapWithoutReadingOutside(t *te
 	request := OMPModelActivationRequest{
 		WorkspaceRoot: root, OverlayRelativePath: DefaultOMPModelOverlayPath,
 		InvocationArgv:     []string{"--config", overlayPath, "prompt"},
-		ReadbackArgv:       []string{"--config", overlayPath, "config", "get", "modelRoles"},
+		ReadbackArgv:       []string{"--config", overlayPath, "config", "get", "task.agentModelOverrides"},
 		ExpectedConfigHash: evidence.ConfigHash, ExpectedReadbackHash: OMPModelSHA256(readback),
 	}
 
@@ -81,7 +81,7 @@ func TestVerifyOMPModelActivation_RejectsAncestorSwapWithoutReadingOutside(t *te
 func TestCompileOMPModelOverlay_MapOrderIsDeterministic(t *testing.T) {
 	t.Parallel()
 	projection := OMPModelOverlayProjection{
-		ModelRoles: map[string]string{"task": "p/z", "plan": "p/a"},
+		AgentModelOverrides: map[string]string{"task": "p/z", "sonic": "p/a"},
 		FallbackChains: map[string][]string{
 			"p/z": {"q/b", "r/c"},
 			"p/a": {"q/a"},
@@ -101,7 +101,8 @@ func TestCompileOMPModelOverlay_MapOrderIsDeterministic(t *testing.T) {
 			t.Fatalf("overlay changed at iteration %d\nfirst:\n%s\ngot:\n%s", i, first, got)
 		}
 	}
-	want := "modelRoles:\n  plan: p/a\n  task: p/z\nretry:\n  fallbackChains:\n    p/a:\n      - q/a\n    p/z:\n      - q/b\n      - r/c\n"
+	want := "task:\n  agentModelOverrides:\n    sonic: p/a\n    task: p/z\n" +
+		"retry:\n  fallbackChains:\n    p/a:\n      - q/a\n    p/z:\n      - q/b\n      - r/c\n"
 	if string(first) != want {
 		t.Fatalf("canonical overlay mismatch\nwant:\n%s\ngot:\n%s", want, first)
 	}
@@ -123,8 +124,8 @@ func TestWriteOMPModelOverlay_PreservesProjectConfigAndUses0600(t *testing.T) {
 		WorkspaceRoot: root,
 		RelativePath:  DefaultOMPModelOverlayPath,
 		Projection: OMPModelOverlayProjection{
-			ModelRoles:     map[string]string{"task": "p/m"},
-			FallbackChains: map[string][]string{"p/m": {"q/f"}},
+			AgentModelOverrides: map[string]string{"task": "p/m"},
+			FallbackChains:      map[string][]string{"p/m": {"q/f"}},
 		},
 	})
 	if err != nil {
@@ -166,7 +167,7 @@ func TestWriteOMPModelOverlay_RejectsSymlinkedParent(t *testing.T) {
 	_, err := WriteOMPModelOverlay(OMPModelOverlayWriteInput{
 		WorkspaceRoot: root,
 		RelativePath:  DefaultOMPModelOverlayPath,
-		Projection:    OMPModelOverlayProjection{ModelRoles: map[string]string{"task": "p/m"}},
+		Projection:    OMPModelOverlayProjection{AgentModelOverrides: map[string]string{"task": "p/m"}},
 	})
 	if err == nil {
 		t.Fatal("expected symlink containment failure")
@@ -182,19 +183,19 @@ func TestVerifyOMPModelActivation_RequiresExactOverlayAndReadback(t *testing.T) 
 	evidence, err := WriteOMPModelOverlay(OMPModelOverlayWriteInput{
 		WorkspaceRoot: root,
 		RelativePath:  DefaultOMPModelOverlayPath,
-		Projection:    OMPModelOverlayProjection{ModelRoles: map[string]string{"task": "p/m"}},
+		Projection:    OMPModelOverlayProjection{AgentModelOverrides: map[string]string{"task": "p/m"}},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	overlay := filepath.Join(root, DefaultOMPModelOverlayPath)
-	readback := []byte(`{"modelRoles":{"task":"p/m"},"retry":{"fallbackChains":{}}}`)
+	readback := []byte(`{"task.agentModelOverrides":{"task":"p/m"},"retry":{"fallbackChains":{}}}`)
 	runner := &modelActivationFakeRunner{output: readback}
 	request := OMPModelActivationRequest{
 		WorkspaceRoot:        root,
 		OverlayRelativePath:  DefaultOMPModelOverlayPath,
 		InvocationArgv:       []string{"--config", overlay, "prompt"},
-		ReadbackArgv:         []string{"--config", overlay, "config", "get", "modelRoles"},
+		ReadbackArgv:         []string{"--config", overlay, "config", "get", "task.agentModelOverrides"},
 		ExpectedConfigHash:   evidence.ConfigHash,
 		ExpectedReadbackHash: OMPModelSHA256(readback),
 	}

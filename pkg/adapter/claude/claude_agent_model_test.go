@@ -28,11 +28,34 @@ func generateClaudeAgents(t *testing.T, cfg *config.HarnessConfig) string {
 
 // generateClaudeAgentsForMode renders the claude surface under one quality
 // preset and returns the installed agent directory.
+//
+// The full skill library is selected on purpose: these fixtures compare the
+// emitted agent frontmatter against the authored source line for line, and the
+// compact default legitimately drops declared skills that it does not install.
+// TestClaudeAgentDeclaredSkillsFollowTheInstalledSurface owns that behavior.
 func generateClaudeAgentsForMode(t *testing.T, mode string) string {
 	t.Helper()
 	cfg := config.DefaultFullConfig("agent-model")
 	cfg.Quality.Providers = map[string]string{config.QualityProviderClaude: mode}
+	cfg.Skills.Compiler.Mode = config.SkillCompilerModeFull
 	return generateClaudeAgents(t, cfg)
+}
+
+// TestClaudeAgentDeclaredSkillsFollowTheInstalledSurface pins the projection
+// rule that keeps a compacted install honest: an agent may only declare skills
+// the installer actually wrote, and an opt-in brings the declaration back.
+func TestClaudeAgentDeclaredSkillsFollowTheInstalledSurface(t *testing.T) {
+	t.Parallel()
+
+	compact := config.DefaultFullConfig("agent-declared-skills")
+	compactLines := agentFrontmatterLines(t, generateClaudeAgents(t, compact), "executor.md")
+	assert.Contains(t, compactLines, "  - tdd", "tdd is core and must survive compaction")
+	assert.NotContains(t, compactLines, "  - ddd", "ddd is not installed by default, so the agent must not claim it")
+
+	optIn := config.DefaultFullConfig("agent-declared-skills")
+	optIn.Skills.Compiler.ExplicitSkills = []string{"ddd"}
+	optInLines := agentFrontmatterLines(t, generateClaudeAgents(t, optIn), "executor.md")
+	assert.Contains(t, optInLines, "  - ddd", "opting the skill in must restore the declaration")
 }
 
 // agentFrontmatterLines returns the frontmatter lines of one installed agent.

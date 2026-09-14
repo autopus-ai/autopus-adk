@@ -29,7 +29,7 @@ func TestOMPModelIntegration_FamilyDiversityDisabledStillActivates(t *testing.T)
 	var receipt OMPModelResolutionReceipt
 	require.NoError(t, json.Unmarshal(
 		integrationMappingsByPath(files)[OMPModelReceiptRelativePath].Content, &receipt))
-	require.Len(t, receipt.Roles, len(config.CanonicalAgentNames()))
+	require.Len(t, receipt.Roles, len(config.OMPNativeAgentNames()))
 	for _, role := range receipt.Roles {
 		assert.Equal(t, "not_applicable", role.FamilyDiversity.Status, role.Agent)
 	}

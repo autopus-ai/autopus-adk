@@ -6,6 +6,17 @@ import (
 	"github.com/insajin/autopus-adk/pkg/config"
 )
 
+const codexPipelineNativeGuidance = `
+## Codex Execution
+
+Use native spawn_agent, send_message, followup_task, wait_agent(),
+interrupt_agent, and list_agents when delegation is justified. Read their
+current schemas (including task_name and message) before invoking them.
+Workers share the same cwd and filesystem: parallel work requires disjoint
+write ownership, not an assumption that conversation forks isolate files.
+Keep the configured model, effort, sandbox, and user permissions.
+`
+
 // normalizeCodexExtendedSkill replaces a shared skill body with the Codex
 // native rewrite. cfg supplies the project's own settings so the installed
 // skill states the configured worker ceiling instead of a literal default.
@@ -14,7 +25,7 @@ func normalizeCodexExtendedSkill(name, body string, cfg *config.HarnessConfig) s
 	case "agent-teams":
 		return strings.TrimSpace(codexAgentTeamsSkillBody(cfg.CodexAgentConcurrency())) + "\n"
 	case "agent-pipeline":
-		return strings.TrimSpace(codexAgentPipelineSkillBody()) + "\n"
+		return strings.TrimSpace(body) + "\n\n" + strings.TrimSpace(codexPipelineNativeGuidance) + "\n"
 	case "worktree-isolation":
 		return strings.TrimSpace(codexWorktreeIsolationSkillBody()) + "\n"
 	case "subagent-dev":

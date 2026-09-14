@@ -185,7 +185,8 @@ func removeAutopusCodexConfig(content string) string {
 			continue
 		}
 		key, _, assignment := parseCodexConfigAssignment(trimmed)
-		if assignment && (codexManagedConfigKeys[section][key] || codexObsoleteConfigKeys[section][key]) {
+		if assignment &&
+			(codexManagedConfigKeys[section][key] || codexObsoleteConfigKeys[section][key]) {
 			continue
 		}
 		if section == "" && (trimmed == codexGeneratedConfigHeader || strings.HasPrefix(trimmed, "# Project:")) {

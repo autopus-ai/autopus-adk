@@ -8,18 +8,10 @@ import (
 	"strings"
 
 	ompadapter "github.com/insajin/autopus-adk/pkg/adapter/omp"
+	"github.com/insajin/autopus-adk/pkg/config"
 	"github.com/insajin/autopus-adk/pkg/orcarun"
 	"github.com/insajin/autopus-adk/pkg/pipeline"
 )
-
-// pipelineOrcaPhaseRoles maps canonical model-receipt role names onto pipeline
-// phases. It mirrors loadPipelineOMPPhaseModelsWithAuthority so both execution
-// owners route the same role to the same phase.
-var pipelineOrcaPhaseRoles = map[string]pipeline.PhaseID{
-	"planner": pipeline.PhasePlan, "tester": pipeline.PhaseTestScaffold,
-	"executor": pipeline.PhaseImplement, "validator": pipeline.PhaseValidate,
-	"reviewer": pipeline.PhaseReview,
-}
 
 // pipelineOrcaProviderAgents maps receipt provider identifiers onto orca agent
 // names. Unknown providers fail closed: running a phase under the wrong agent
@@ -34,7 +26,7 @@ var pipelineOrcaProviderAgents = map[string]string{
 // pipelineOrcaPhaseRole returns the receipt role a phase is routed from, used
 // as the PhaseResponse role so orca receipts read like OMP receipts.
 func pipelineOrcaPhaseRole(phase pipeline.PhaseID) string {
-	for role, routed := range pipelineOrcaPhaseRoles {
+	for role, routed := range ompPipelinePhaseRoles {
 		if routed == phase {
 			return role
 		}
@@ -64,26 +56,33 @@ func loadPipelineOrcaPhaseLaunch(projectDir string) (map[pipeline.PhaseID]orcaru
 		}
 		return nil, err
 	}
-	launches := make(map[pipeline.PhaseID]orcarun.Launch, len(pipelineOrcaPhaseRoles))
-	for _, role := range receipt.Roles {
-		phase, wanted := pipelineOrcaPhaseRoles[role.Agent]
-		if !wanted {
-			continue
+	rows := make(map[string]ompadapter.OMPModelRoleReceipt, len(receipt.Roles))
+	for _, row := range receipt.Roles {
+		if previous, duplicate := rows[row.Agent]; duplicate && previous.Selector != row.Selector {
+			return nil, fmt.Errorf("conflicting orca model routes for native agent %s", row.Agent)
 		}
-		if _, duplicate := launches[phase]; duplicate {
-			return nil, fmt.Errorf("duplicate orca model route for phase %s", phase)
+		rows[row.Agent] = row
+	}
+	launches := make(map[pipeline.PhaseID]orcarun.Launch, len(ompPipelinePhaseRoles))
+	for role, phase := range ompPipelinePhaseRoles {
+		native, err := config.OMPNativeAgentForRole(role)
+		if err != nil {
+			return nil, err
 		}
-		agent, known := pipelineOrcaProviderAgents[role.Provider]
+		row, resolved := rows[native]
+		if !resolved {
+			return nil, fmt.Errorf(
+				"OMP model receipt has no route for native agent %s required by phase %s", native, phase,
+			)
+		}
+		agent, known := pipelineOrcaProviderAgents[row.Provider]
 		if !known {
-			return nil, fmt.Errorf("no orca agent is defined for provider %q (role %s)", role.Provider, role.Agent)
+			return nil, fmt.Errorf("no orca agent is defined for provider %q (agent %s)", row.Provider, native)
 		}
-		if strings.TrimSpace(role.Model) == "" {
+		if strings.TrimSpace(row.Model) == "" {
 			return nil, fmt.Errorf("orca model route for phase %s has no provider model id", phase)
 		}
-		launches[phase] = orcarun.Launch{Agent: agent, Model: role.Model, Effort: role.Thinking}
-	}
-	if len(launches) != len(pipelineOrcaPhaseRoles) {
-		return nil, errors.New("OMP model receipt does not define all canonical pipeline phases")
+		launches[phase] = orcarun.Launch{Agent: agent, Model: row.Model, Effort: row.Thinking}
 	}
 	return launches, nil
 }

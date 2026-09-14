@@ -90,14 +90,14 @@ func TestOMPClean_DoesNotDeleteThroughParentDirectorySymlink(t *testing.T) {
 	dir := generateOMPOnly(t)
 
 	outside := t.TempDir()
-	victim := filepath.Join(outside, "executor.md")
+	victim := filepath.Join(outside, "auto.md")
 	require.NoError(t, os.WriteFile(victim, []byte("OUTSIDE-WORKSPACE\n"), 0o600))
 
-	// Replace the managed agents directory with a link to the outside directory,
-	// so every .omp/agents/<name>.md manifest path resolves out of the workspace.
-	agentsDir := filepath.Join(dir, ".omp", "agents")
-	require.NoError(t, os.RemoveAll(agentsDir))
-	require.NoError(t, os.Symlink(outside, agentsDir))
+	// Replace the managed commands directory with a link to the outside directory,
+	// so every .omp/commands/<name>.md manifest path resolves out of the workspace.
+	commandsDir := filepath.Join(dir, ".omp", "commands")
+	require.NoError(t, os.RemoveAll(commandsDir))
+	require.NoError(t, os.Symlink(outside, commandsDir))
 
 	require.Error(t, NewWithRoot(dir).Clean(context.Background()),
 		"a parent symlink must fail the whole destructive preflight")
@@ -107,7 +107,8 @@ func TestOMPClean_DoesNotDeleteThroughParentDirectorySymlink(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "OUTSIDE-WORKSPACE\n", string(data))
 	assert.DirExists(t, outside, "the linked-to directory must survive too")
-	assert.FileExists(t, filepath.Join(dir, ".omp", "commands", "auto.md"), "preflight failure must precede every mutation")
+	assert.FileExists(t, filepath.Join(dir, ompRuleDir, ompRuleFilePrefix+"branding.md"),
+		"preflight failure must precede every mutation")
 }
 
 // TestOMPClean_SkipsSymlinkedEntryWithoutUnlinking pins the containment choice:

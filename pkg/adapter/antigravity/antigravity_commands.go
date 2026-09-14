@@ -136,7 +136,7 @@ func (a *Adapter) prepareCommandMappings(cfg *config.HarnessConfig) ([]adapter.F
 		})
 	}
 
-	pluginMirrors := mirrorAntigravityPluginMappings(files)
-	globalMirrors := mirrorAntigravityGlobalCommandMappings(files)
-	return append(append(files, pluginMirrors...), globalMirrors...), nil
+	// Only the plugin copy is discoverable: `.agents/commands` is not one of
+	// the customization components agy loads from a workspace root.
+	return append(files, mirrorAntigravityPluginMappings(files)...), nil
 }

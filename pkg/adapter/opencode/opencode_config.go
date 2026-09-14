@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"slices"
 
 	"github.com/insajin/autopus-adk/pkg/adapter"
 )
@@ -27,12 +28,19 @@ func (a *Adapter) renderConfigDocument(extraPlugins []string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("%s 파싱 실패: %w", configFile, err)
 	}
-	rulePaths, err := managedRulePaths()
+	rulePaths, deferred, err := managedRulePaths()
 	if err != nil {
 		return "", fmt.Errorf("rule 경로 생성 실패: %w", err)
 	}
 	doc["$schema"] = "https://opencode.ai/config.json"
-	doc["instructions"] = uniqueStrings(jsonStringSlice(doc["instructions"]), rulePaths)
+	existing := jsonStringSlice(doc["instructions"])
+	kept := existing[:0]
+	for _, path := range existing {
+		if !slices.Contains(deferred, filepath.ToSlash(filepath.Clean(path))) {
+			kept = append(kept, path)
+		}
+	}
+	doc["instructions"] = uniqueStrings(kept, rulePaths)
 	plugins := managedPluginPaths(extraPlugins)
 	if len(plugins) > 0 {
 		doc["plugin"] = uniqueStrings(jsonPluginSlice(doc["plugin"]), plugins)

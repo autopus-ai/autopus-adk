@@ -20,7 +20,7 @@ func (a *Adapter) validateNativeCodexSurface(errs *[]adapter.ValidationError) {
 		}
 	}
 	for _, path := range expectedSkills {
-		validateNativeCodexSkill(a.root, path, errs)
+		validateNativeCodexSkillPath(a.root, path, errs)
 	}
 
 	for _, path := range []string{
@@ -35,6 +35,40 @@ func (a *Adapter) validateNativeCodexSurface(errs *[]adapter.ValidationError) {
 		}
 	}
 	validateObsoleteCodexSurface(a.root, a.openCodeOwnsRootDoc(), errs)
+}
+
+// validateNativeCodexSkillPath routes a manifest path under .codex/skills to
+// the check that matches its role. An entrypoint must obey the native
+// codex-*/SKILL.md contract; a reference body installed beside one is a
+// legitimate resource, not a malformed entrypoint, and gets its own check.
+func validateNativeCodexSkillPath(root, path string, errs *[]adapter.ValidationError) {
+	parts := strings.Split(filepath.ToSlash(path), "/")
+	if len(parts) == 5 && parts[0] == ".codex" && parts[1] == "skills" &&
+		strings.HasPrefix(parts[2], codexSkillDirPrefix) &&
+		parts[3] == codexSkillResourceDir && strings.HasSuffix(parts[4], ".md") {
+		validateNativeCodexSkillResource(root, parts[2], path, errs)
+		return
+	}
+	validateNativeCodexSkill(root, path, errs)
+}
+
+// validateNativeCodexSkillResource keeps a resource honest without applying the
+// entrypoint naming rule to it: the body must be readable, and the skill it
+// belongs to must actually have an installed entrypoint, so a pruned skill can
+// never leave its references behind as an orphaned surface.
+func validateNativeCodexSkillResource(root, skillDir, path string, errs *[]adapter.ValidationError) {
+	entrypoint := filepath.Join(".codex", "skills", skillDir, "SKILL.md")
+	if info, err := os.Stat(filepath.Join(root, entrypoint)); err != nil || !info.Mode().IsRegular() {
+		*errs = append(*errs, adapter.ValidationError{
+			File: path, Message: "Codex skill reference에 대응하는 native SKILL.md entrypoint가 없음", Level: "error",
+		})
+		return
+	}
+	if info, err := os.Stat(filepath.Join(root, path)); err != nil || !info.Mode().IsRegular() {
+		*errs = append(*errs, adapter.ValidationError{
+			File: path, Message: "Codex skill reference를 읽을 수 없음", Level: "error",
+		})
+	}
 }
 
 func validateNativeCodexSkill(root, path string, errs *[]adapter.ValidationError) {

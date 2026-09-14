@@ -116,8 +116,8 @@ description: "SPEC 작성 — 코드베이스 분석 후 EARS 요구사항, 구�
 
 ## 규칙
 
-- 파일 크기 제한: 소스 코드 파일 300줄 이하 (SPEC Markdown은 제외)
-- 테스트 커버리지 목표: {{if .IsFullMode}}85{{else}}80{{end}}%+
+- 파일 크기 제한: `architecture.max_file_lines`가 양수일 때만 강제하고, 없거나 `0`이면 권고입니다. 소스 코드 파일에만 적용하며 SPEC Markdown은 제외합니다
+- 테스트 커버리지: 프로젝트가 선언한 threshold를 목표로 하고, 선언이 없으면 측정값만 기록
 - Completion Debt를 `Out of Scope`나 `Evolution Ideas`로 숨기지 않습니다
 - Evolution Ideas는 자동 follow-up SPEC 또는 sibling SPEC으로 승격하지 않습니다
 - `Q-CORR-04`, `Q-COMP-05`, `Q-COMP-06`을 적용해 reference discipline, semantic invariant traceability, reviewer scope가 닫혔는지 확인합니다

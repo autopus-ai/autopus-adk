@@ -14,7 +14,7 @@ import (
 func TestUpdate_RejectsSymlinkedCompletionHookParentWithoutExternalMutation(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
-	adapter := NewWithRoot(root, WithoutPluginInstall())
+	adapter := NewWithRoot(root)
 	cfg := config.DefaultFullConfig("gemini-only")
 	_, err := adapter.Generate(context.Background(), cfg)
 	require.NoError(t, err)
@@ -49,7 +49,7 @@ func TestUpdate_RejectsSymlinkedCompletionHookParentWithoutExternalMutation(t *t
 func TestUpdate_RestoresManagedHooksWhenTransactionFails(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
-	antigravityAdapter := NewWithRoot(root, WithoutPluginInstall())
+	antigravityAdapter := NewWithRoot(root)
 	cfg := config.DefaultFullConfig("gemini-only")
 	_, err := antigravityAdapter.Generate(context.Background(), cfg)
 	require.NoError(t, err)

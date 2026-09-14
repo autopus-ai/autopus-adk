@@ -22,9 +22,10 @@ SPEC 문서를 기반으로 코드를 구현합니다.
 
 ## Context Profile
 
-- Supervisor Required: core,resolved_spec,plan,acceptance,available_architecture
+- Supervisor Required: core,resolved_spec,plan,acceptance
 - Worker Optional: signature,learning,task_declared_extra
 - Excluded: test,canary
+- Select architecture explicitly with `--conditional-profile architecture` or `--required-document`.
 
 ## 사용법
 
@@ -96,7 +97,7 @@ Run in the main session after Phase 1.8 and before the Phase 2 fan-out. This gat
 
 ## 품질 기준
 
-- 커버리지: {{if .IsFullMode}}85{{else}}80{{end}}%+
+- 커버리지: 측정값을 증거로 보고합니다. 수치 게이트는 프로젝트가 선언했을 때만 적용하며, `workflow.coverage_threshold` 기본값 `0`은 수치 게이트 없음을 뜻합니다. 프로젝트/라우트가 명시한 threshold는 선언된 그대로 강제하고 route가 global보다 우선합니다. 선언되지 않은 수치를 만들어 내지 않습니다.
 - LSP 에러: 0 / 타입 에러: 0 / 린트: 0
 
 ## QAMESH Scope Budget
@@ -107,7 +108,7 @@ Run in the main session after Phase 1.8 and before the Phase 2 fan-out. This gat
 
 ## Subagent Delegation
 
-When a task modifies 3+ files, exceeds 200 lines, or spans multiple domains, delegate to specialized agents using `@agent`.
+기본값은 메인 세션 인라인 실행입니다. 위임은 리스크 기준이며 크기 기준이 아닙니다. 소유 경로가 분리되고 미완료 작업에 의존하지 않으며 단독으로 끝낼 수 있는 독립 슬라이스이거나, 격리된 컨텍스트 또는 현재 세션이 수행하지 않는 전문 역할이 필요할 때만 `@agent`로 위임합니다. 파일 수, 줄 수, 패키지 수는 위임 근거가 아닙니다. 저위험 compact contract 작업(`test_only`, `docs_only`, `small_ui`, `bugfix_existing_contract`)은 planner나 전용 scaffold/validator 에이전트 없이 인라인으로 진행하되 실제 검증은 동일하게 수행합니다.
 
 ### Workflow Authenticity Evidence
 
@@ -134,7 +135,7 @@ When a task modifies 3+ files, exceeds 200 lines, or spans multiple domains, del
 ```
 @tester Write tests for {scope}
   Context: .autopus/specs/{SPEC-ID}/acceptance.md
-  Coverage target: {{if .IsFullMode}}85{{else}}80{{end}}%+
+  Coverage: report the measured value; enforce a numeric bar only when the project declares one
 ```
 
 ### Reviewer Agent
@@ -168,7 +169,7 @@ Before showing the successful `go` workflow lifecycle or handing off to `/auto s
 - `sync_ready`: `yes` only when Outcome Lock is satisfied, all mandatory requirements and Must acceptance are met, and Completion Debt is `none`.
 - `sync_blockers`: `none` or concrete blockers that prevent setting the SPEC to `implemented`.
 - `spec_status_after_go`: `implemented` on success. Do not use `done` or `completed`; `completed` is reserved for `/auto sync`.
-- `sync_evidence_refs`: changed files, verification commands, Phase 4 verdict, @AX annotation result or `@AX: no-op`.
+- `sync_evidence_refs`: changed files, verification commands, Phase 4 verdict, and the @AX annotation result or `@AX: not requested`. Annotation is opt-in: without `auto spec gates {SPEC_ID} --annotation` or a direct request, the decision is `annotation: not_applicable — @AX annotation not requested for this change set`.
 - `decision_receipt`: reused existing code/helper/pattern, skipped dependency or abstraction, accepted expansion with evidence, and minimum sufficient verification summary.
 - `lead_time_report`: `auto telemetry leadtime [--run {SPEC_ID}] [--baseline <SPEC-ID|dir>]` output — first-slice/completion lead time, `critical_path`, and confirmation that `escaped_defects` and `unresolved_safety_gates` did not increase.
 
@@ -208,7 +209,7 @@ Status symbols: `✓` completed, `→` active, `○` pending. Replace `[N/M task
 current_gate: go completed, sync pending
 phase_4_review_verdict: APPROVE
 subagent_dispatch_count: {N}
-subagent_roles_dispatched: {planner,tester,executor,validator,reviewer,security-auditor}
+subagent_roles_dispatched: {roles actually dispatched, or "none (inline)"}
 degraded-mode: none | solo | blocker
 degraded_mode: none | solo | blocker
 delegation_depth: {N}

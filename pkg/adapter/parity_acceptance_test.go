@@ -117,22 +117,10 @@ func TestAcceptance_TechstackFreshnessSemanticContractParity(t *testing.T) {
 			}
 		})
 	}
-	t.Run("codex native skill policy", func(t *testing.T) {
-		root := t.TempDir()
-		files, err := codex.NewWithRoot(root).Generate(context.Background(), config.DefaultFullConfig("parity-test"))
-		require.NoError(t, err)
-		var policy string
-		for _, file := range files.Files {
-			if file.TargetPath == ".codex/skills/codex-agent-pipeline/SKILL.md" {
-				policy = string(file.Content)
-				break
-			}
-		}
-		require.NotEmpty(t, policy)
-		for _, phrase := range expected {
-			assert.Contains(t, policy, phrase)
-		}
-	})
+	// The Codex pipeline skill no longer restates this rule: Codex consumes the
+	// canonical slim pipeline body, and its policy carrier is AGENTS.md rather
+	// than a duplicated copy inside the skill. Asserting the duplication here
+	// only pinned the deleted override helper's output.
 }
 
 // S5: platform frontmatter 값이 어댑터 식별자와 일치 (Should, REQ-003).
@@ -177,6 +165,13 @@ func TestAcceptance_S6_ExistingPlatformsBackwardCompatible(t *testing.T) {
 func TestAcceptance_S9_ParityGateCoversOMP(t *testing.T) {
 	ctx := context.Background()
 	cfg := config.DefaultFullConfig("parity-test")
+	// The parity gate compares platform coverage of the same surface. The
+	// default compiler now installs the core surface only, so every platform
+	// legitimately omits the long tail; comparing that against the full source
+	// list would report identical findings for all five platforms and say
+	// nothing about omp. Full mode is the documented opt-in that publishes the
+	// whole library, which is the surface this parity claim is about.
+	cfg.Skills.Compiler.Mode = config.SkillCompilerModeFull
 
 	// REQ-012: omp claims no intended rule or skill gap.
 	assert.Empty(t, platformRuleExclusions["omp"], "omp rule exclusion set must be empty")

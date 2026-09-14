@@ -47,12 +47,11 @@ func writePipelineOrcaModelReceipt(t *testing.T, root string, roles []ompadapter
 	require.NoError(t, err)
 }
 
+// orcaCanonicalModelRoles keys the receipt by bundled agent. Four phases share
+// `task`, so they legitimately launch the same agent, model, and effort.
 func orcaCanonicalModelRoles() []ompadapter.OMPModelRoleReceipt {
 	return []ompadapter.OMPModelRoleReceipt{
-		orcaModelRole("planner", "anthropic", "claude-opus-5", "xhigh"),
-		orcaModelRole("tester", "openai-codex", "gpt-5.6-sol", "max"),
-		orcaModelRole("executor", "openai-codex", "gpt-5.6-sol", "high"),
-		orcaModelRole("validator", "anthropic", "claude-sonnet-5", "medium"),
+		orcaModelRole("task", "anthropic", "claude-opus-5", "xhigh"),
 		orcaModelRole("reviewer", "google", "gemini-3.5-pro", "low"),
 	}
 }
@@ -68,9 +67,9 @@ func TestLoadPipelineOrcaPhaseLaunch_UsesModelAndEffortNotSelector(t *testing.T)
 	require.NoError(t, err)
 	require.Equal(t, map[pipeline.PhaseID]orcarun.Launch{
 		pipeline.PhasePlan:         {Agent: "claude", Model: "claude-opus-5", Effort: "xhigh"},
-		pipeline.PhaseTestScaffold: {Agent: "codex", Model: "gpt-5.6-sol", Effort: "max"},
-		pipeline.PhaseImplement:    {Agent: "codex", Model: "gpt-5.6-sol", Effort: "high"},
-		pipeline.PhaseValidate:     {Agent: "claude", Model: "claude-sonnet-5", Effort: "medium"},
+		pipeline.PhaseTestScaffold: {Agent: "claude", Model: "claude-opus-5", Effort: "xhigh"},
+		pipeline.PhaseImplement:    {Agent: "claude", Model: "claude-opus-5", Effort: "xhigh"},
+		pipeline.PhaseValidate:     {Agent: "claude", Model: "claude-opus-5", Effort: "xhigh"},
 		pipeline.PhaseReview:       {Agent: "gemini", Model: "gemini-3.5-pro", Effort: "low"},
 	}, launches)
 	for _, launch := range launches {
@@ -85,7 +84,7 @@ func TestLoadPipelineOrcaPhaseLaunch_FailsClosed(t *testing.T) {
 	t.Run("unknown provider", func(t *testing.T) {
 		root := t.TempDir()
 		roles := orcaCanonicalModelRoles()
-		roles[2] = orcaModelRole("executor", "mystery-vendor", "mystery-1", "high")
+		roles[0] = orcaModelRole("task", "mystery-vendor", "mystery-1", "high")
 		writePipelineOrcaModelReceipt(t, root, roles)
 
 		_, err := loadPipelineOrcaPhaseLaunch(root)
@@ -94,10 +93,10 @@ func TestLoadPipelineOrcaPhaseLaunch_FailsClosed(t *testing.T) {
 
 	t.Run("incomplete phase coverage", func(t *testing.T) {
 		root := t.TempDir()
-		writePipelineOrcaModelReceipt(t, root, orcaCanonicalModelRoles()[:4])
+		writePipelineOrcaModelReceipt(t, root, orcaCanonicalModelRoles()[:1])
 
 		_, err := loadPipelineOrcaPhaseLaunch(root)
-		require.ErrorContains(t, err, "all canonical pipeline phases")
+		require.ErrorContains(t, err, "no route for native agent reviewer")
 	})
 }
 

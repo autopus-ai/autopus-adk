@@ -18,14 +18,15 @@ const (
 )
 
 var ompRoutingSettingAllowlist = map[string]struct{}{
-	"cycleOrder":           {},
-	"disabledProviders":    {},
-	"enabledModels":        {},
-	"modelRoles":           {},
-	"retry.fallbackChains": {},
-	"retry.modelFallback":  {},
-	"task.isolation.mode":  {},
-	"tools.approvalMode":   {},
+	"cycleOrder":                           {},
+	"disabledProviders":                    {},
+	"enabledModels":                        {},
+	"modelRoles":                           {},
+	config.OMPNativeAgentModelOverridesKey: {},
+	"retry.fallbackChains":                 {},
+	"retry.modelFallback":                  {},
+	"task.isolation.mode":                  {},
+	"tools.approvalMode":                   {},
 }
 
 // OMPModelCatalogRunner constrains identity, setting, and model metadata discovery.

@@ -68,7 +68,7 @@ var archSkipDirs = map[string]bool{
 }
 
 // checkArchStaged checks only git-staged source files for size limits.
-func checkArchStaged(dir string, out io.Writer, quiet bool) bool {
+func checkArchStaged(dir string, out io.Writer, quiet bool, limit int) bool {
 	cmd := exec.Command("git", "diff", "--cached", "--name-only", "--diff-filter=ACM")
 	cmd.Dir = dir
 	var buf bytes.Buffer
@@ -100,18 +100,8 @@ func checkArchStaged(dir string, out io.Writer, quiet bool) bool {
 			continue
 		}
 
-		switch {
-		case lines > hardLineLimit:
-			tui.FAIL(out, fmt.Sprintf("%s (%d lines — exceeds %d hard limit)", rel, lines, hardLineLimit))
+		if !reportSourceSize(out, rel, lines, limit, quiet) {
 			passed = false
-		case lines > warnLineLimit:
-			if !quiet {
-				tui.SKIP(out, fmt.Sprintf("%s (%d lines — consider splitting)", rel, lines))
-			}
-		default:
-			if !quiet {
-				tui.OK(out, fmt.Sprintf("%s (%d lines)", rel, lines))
-			}
 		}
 	}
 	return passed
@@ -119,7 +109,7 @@ func checkArchStaged(dir string, out io.Writer, quiet bool) bool {
 
 // checkArchWalk walks the directory tree checking all source files.
 // Skips nested repositories, submodules, generated harness dirs, and worktree dirs.
-func checkArchWalk(dir string, out io.Writer, quiet bool) bool {
+func checkArchWalk(dir string, out io.Writer, quiet bool, limit int) bool {
 	passed := true
 	root := filepath.Clean(dir)
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
@@ -153,18 +143,8 @@ func checkArchWalk(dir string, out io.Writer, quiet bool) bool {
 		}
 
 		rel, _ := filepath.Rel(dir, path)
-		switch {
-		case lines > hardLineLimit:
-			tui.FAIL(out, fmt.Sprintf("%s (%d lines — exceeds %d hard limit)", rel, lines, hardLineLimit))
+		if !reportSourceSize(out, rel, lines, limit, quiet) {
 			passed = false
-		case lines > warnLineLimit:
-			if !quiet {
-				tui.SKIP(out, fmt.Sprintf("%s (%d lines — consider splitting)", rel, lines))
-			}
-		default:
-			if !quiet {
-				tui.OK(out, fmt.Sprintf("%s (%d lines)", rel, lines))
-			}
 		}
 		return nil
 	})
@@ -174,6 +154,24 @@ func checkArchWalk(dir string, out io.Writer, quiet bool) bool {
 		return false
 	}
 	return passed
+}
+
+func reportSourceSize(out io.Writer, path string, lines, limit int, quiet bool) bool {
+	if limit > 0 && lines > limit {
+		tui.FAIL(out, fmt.Sprintf("%s (%d code lines — exceeds project limit %d)", path, lines, limit))
+		return false
+	}
+	if !quiet {
+		switch {
+		case lines > advisoryLineLimit:
+			tui.Warn(out, fmt.Sprintf("%s (%d code lines — advisory; review cohesion before splitting)", path, lines))
+		case lines > warnLineLimit:
+			tui.SKIP(out, fmt.Sprintf("%s (%d lines — consider splitting)", path, lines))
+		default:
+			tui.OK(out, fmt.Sprintf("%s (%d lines)", path, lines))
+		}
+	}
+	return true
 }
 
 func isArchSourceFile(path string) bool {

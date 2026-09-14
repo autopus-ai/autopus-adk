@@ -197,21 +197,24 @@ func TestResolveOMPModelRoute_WithSameFamilyOnly_EmitsDegradedDiversity(t *testi
 func TestCompileOMPModelRouting_FamilyDiversityAppliesOnlyToConfiguredRoles(t *testing.T) {
 	t.Parallel()
 	catalog := routingCatalogC1(t)
+	// task is the implementation anchor: dissent routes that ask for a
+	// distinct family are asking to differ from whatever task settles on.
 	routes := map[string]OMPModelRouteRequest{
-		"executor": {
-			Agent: "executor", Role: "autopus_executor", Capability: "coding_tool_use", Required: true,
+		"task": {
+			Agent: "task", Role: "autopus_planner", Capability: "deep_reasoning", Required: true,
 			Candidates: []OMPRoutingCandidate{{Selector: "openai/beta-coder", Thinking: "high"}},
 		},
-		"planner": {
-			Agent: "planner", Role: "autopus_planner", Capability: "deep_reasoning", Required: true,
+		"reviewer": {
+			Agent: "reviewer", Role: "autopus_reviewer", Capability: "independent_dissent", Required: true,
 			PreferDistinctExecutorFamily: true,
 			Candidates: []OMPRoutingCandidate{
 				{Selector: "openai/beta-coder", Thinking: "high"},
 				{Selector: "anthropic/alpha-reasoner", Thinking: "high"},
 			},
 		},
-		"reviewer": {
-			Agent: "reviewer", Role: "autopus_reviewer", Capability: "independent_dissent", Required: true,
+		"security-reviewer": {
+			Agent: "security-reviewer", Role: "autopus_security_auditor",
+			Capability: "independent_dissent", Required: true,
 			Candidates: []OMPRoutingCandidate{
 				{Selector: "openai/beta-coder", Thinking: "high"},
 				{Selector: "anthropic/alpha-reasoner", Thinking: "high"},
@@ -225,10 +228,11 @@ func TestCompileOMPModelRouting_FamilyDiversityAppliesOnlyToConfiguredRoles(t *t
 	for _, resolution := range got.Resolutions {
 		byRoute[resolution.RouteID] = resolution
 	}
-	require.Equal(t, "anthropic/alpha-reasoner:high", byRoute["planner"].EffectiveSelector)
-	require.Equal(t, "satisfied", byRoute["planner"].FamilyDiversity.Status)
-	require.Equal(t, "openai/beta-coder:high", byRoute["reviewer"].EffectiveSelector)
-	require.Empty(t, byRoute["reviewer"].FamilyDiversity.Status)
+	require.Equal(t, "openai/beta-coder:high", byRoute["task"].EffectiveSelector)
+	require.Equal(t, "anthropic/alpha-reasoner:high", byRoute["reviewer"].EffectiveSelector)
+	require.Equal(t, "satisfied", byRoute["reviewer"].FamilyDiversity.Status)
+	require.Equal(t, "openai/beta-coder:high", byRoute["security-reviewer"].EffectiveSelector)
+	require.Empty(t, byRoute["security-reviewer"].FamilyDiversity.Status)
 }
 
 func TestCompileOMPModelRouting_WithMapInsertionVariance_ReturnsStableOrderAndDigest(t *testing.T) {
@@ -236,22 +240,24 @@ func TestCompileOMPModelRouting_WithMapInsertionVariance_ReturnsStableOrderAndDi
 	catalog := routingCatalogC1(t)
 	base := map[string]OMPModelRouteRequest{
 		"reviewer": {Agent: "reviewer", Role: "autopus_reviewer", Capability: "independent_dissent", Required: true, PreferDistinctExecutorFamily: true, Candidates: []OMPRoutingCandidate{{Selector: "openai/beta-coder", Thinking: "high"}, {Selector: "anthropic/alpha-reasoner", Thinking: "high"}}},
-		"planner":  {Agent: "planner", Role: "autopus_planner", Capability: "deep_reasoning", Required: true, Candidates: []OMPRoutingCandidate{{Selector: "anthropic/alpha-reasoner", Thinking: "xhigh"}}},
-		"executor": {Agent: "executor", Role: "autopus_executor", Capability: "coding_tool_use", Required: true, Candidates: []OMPRoutingCandidate{{Selector: "openai/beta-coder", Thinking: "high"}}},
+		"task":     {Agent: "task", Role: "autopus_planner", Capability: "deep_reasoning", Required: true, Candidates: []OMPRoutingCandidate{{Selector: "anthropic/alpha-reasoner", Thinking: "xhigh"}}},
+		"sonic":    {Agent: "sonic", Role: "autopus_validator", Capability: "deterministic_transform", Required: true, Candidates: []OMPRoutingCandidate{{Selector: "openai/beta-coder", Thinking: "high"}}},
 	}
 	var wantDigest string
 	for iteration := 0; iteration < 100; iteration++ {
-		keys := []string{"reviewer", "planner", "executor"}
+		keys := []string{"reviewer", "task", "sonic"}
 		rand.New(rand.NewPCG(uint64(iteration), 0)).Shuffle(len(keys), func(i, j int) { keys[i], keys[j] = keys[j], keys[i] }) // #nosec G404 -- deterministic test permutation only.
 		routes := make(map[string]OMPModelRouteRequest, len(keys))
 		for _, key := range keys {
 			routes[key] = base[key]
 		}
 		got := CompileOMPModelRouting(OMPModelRoutingInput{Catalog: catalog, CatalogReason: "catalog_ready", Routes: routes})
-		require.Equal(t, []string{"executor", "planner", "reviewer"}, []string{
+		// Bundled registry order, independent of which ADK role supplied the
+		// candidates and independent of map insertion order.
+		require.Equal(t, []string{"reviewer", "task", "sonic"}, []string{
 			got.Resolutions[0].RouteID, got.Resolutions[1].RouteID, got.Resolutions[2].RouteID,
 		})
-		require.Equal(t, "anthropic", got.Resolutions[2].FamilyDiversity.Reviewer)
+		require.Equal(t, "openai", got.Resolutions[0].FamilyDiversity.Reviewer)
 		if iteration == 0 {
 			wantDigest = got.ResolutionDigest
 		}

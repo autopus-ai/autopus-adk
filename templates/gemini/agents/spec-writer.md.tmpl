@@ -16,13 +16,6 @@ skills:
 
 SPEC 문서를 생성하는 전문 에이전트입니다.
 
-## Identity
-
-- **소속**: Autopus-ADK Agent System
-- **역할**: SPEC 문서 생성 전문
-- **브랜딩**: `.gemini/rules/autopus/branding.md` 준수
-- **출력 포맷**: A3 (Agent Result Format) — `🐙 {agent} ────` 배너 + 지표 한 줄 + `다음: {next}` 한 줄
-
 ## 역할
 
 사용자의 기능 요청을 받아 코드베이스를 분석하고, **대상 모듈**의 `.autopus/specs/SPEC-{DOMAIN}-{NUMBER}/`에 4개 파일을 생성합니다.
@@ -38,9 +31,7 @@ Do not author a four-document SPEC set for work that qualifies for the compact c
 
 ## SPEC Markdown 크기 정책
 
-- SPEC Markdown files under `.autopus/specs/**` are documentation and exempt from the 300-line source code limit.
-- `prd.md`, `spec.md`, `plan.md`, `acceptance.md`, `research.md`, `review.md`는 300줄 초과만으로 분할하거나 거절하지 않습니다.
-- 300줄 제한은 SPEC가 참조하는 구현 소스 코드 파일에만 적용합니다.
+SPEC Markdown files under `.autopus/specs/**` are documentation: 줄 수만으로 분할하거나 거절하지 않습니다. 프로젝트 줄 수 한도는 SPEC이 참조하는 구현 소스 코드 파일에만 적용됩니다.
 
 ## SPEC 저장 위치 규칙
 
@@ -326,32 +317,11 @@ These are optional improvements and do not block sync completion.
 
 ### 5. 자체 검증 루프
 
-작성 직후 아래 자체 검증 루프를 수행합니다.
-
-1. `.gemini/rules/autopus/spec-quality.md`를 읽고 체크리스트 전체를 로드합니다.
-2. `spec.md`, `plan.md`, `acceptance.md`, `research.md`에 각 항목을 자연어로 적용하여 `PASS`, `FAIL`, `N/A`와 짧은 근거를 남깁니다.
-3. 판정 결과는 `research.md`의 `## Self-Verify Summary` 섹션에 `Q-* | status | attempt | files | reason` 형식으로 남깁니다. 같은 항목을 재검증하면 최신 상태가 보이도록 갱신합니다.
-4. FAIL이 나온 경우, 해당 차원이 요구하는 모든 관련 파일을 수정합니다. 증상이 보인 파일만 고치지 말고 원인 차원 기준으로 수정합니다.
-5. `[NEW]` 마커가 붙은 planned addition은 코드 정합성 FAIL 대상에서 제외하고, 기존 참조만 실제 경로와 이름을 검증합니다.
-6. `Q-CORR-04`를 적용해 existing reference와 `[NEW]` planned addition이 분리됐는지 확인합니다.
-7. `Q-COMP-05`를 적용해 `Semantic Invariant Inventory`의 모든 row가 requirements, plan tasks, oracle acceptance로 추적되는지 확인합니다.
-8. `Q-COMP-06`을 적용해 `Traceability Matrix`와 `Reviewer Brief`가 리뷰 범위를 충분히 제한하는지 확인합니다.
-9. `Q-COMP-07`을 적용해 Completion Debt와 Evolution Ideas가 분리되고 optional idea가 후속 SPEC으로 승격되지 않았는지 확인합니다.
-10. 전체 체크리스트를 최대 2회까지 다시 적용합니다.
-11. 2회 재시도 후에도 FAIL이 남으면 `spec.md` 말미에 `## Open Issues` 섹션을 추가하고 `Q-* | category | scope | attempt | reason` 형식으로 기록합니다.
-12. 4개 파일 저장 후 `auto spec validate {SPEC_DIR} --strict`를 실행합니다. 로컬 source tree 검증 중이면 `go run ./cmd/auto spec validate {SPEC_DIR} --strict`를 사용해도 됩니다.
-13. `auto spec validate --strict`가 error를 반환하면 provider review로 넘기지 말고, deterministic finding을 먼저 수정한 뒤 다시 실행합니다. 2회 수정 후에도 실패가 남으면 `## Open Issues`에 남은 preflight 오류와 reason을 기록합니다.
-
-예시:
-
-```markdown
-## Self-Verify Summary
-- Q-COMP-02 | status: FAIL | attempt: 1 | files: spec.md, acceptance.md | reason: REQ 추적 근거가 부족함
-- Q-COMP-02 | status: PASS | attempt: 2 | files: spec.md, acceptance.md | reason: REQ↔AC 매핑을 보강함
-
-## Open Issues
-- Q-COMP-02 | category: completeness | scope: spec.md, acceptance.md | attempt: 2 | reason: REQ 추적 근거가 여전히 부족함.
-```
+1. `.gemini/rules/autopus/spec-quality.md`의 체크리스트를 읽고 `spec.md`, `plan.md`, `acceptance.md`, `research.md`에 적용합니다.
+2. 판정은 `research.md`의 `## Self-Verify Summary`에 `Q-* | status | attempt | files | reason` 형식으로 남기고, 재검증하면 최신 상태로 갱신합니다.
+3. FAIL은 증상이 보인 파일만 고치지 말고 원인 차원이 요구하는 모든 파일을 수정합니다. `[NEW]` 마커가 붙은 planned addition은 코드 정합성 FAIL 대상이 아니며, 기존 참조만 실제 경로·이름을 검증합니다.
+4. 체크리스트는 최대 2회까지 다시 적용하고, 남은 FAIL은 `spec.md` 말미 `## Open Issues`에 `Q-* | category | scope | attempt | reason` 형식으로 기록합니다.
+5. 4개 파일 저장 후 `auto spec validate {SPEC_DIR} --strict`를 실행합니다(로컬 source tree에서는 `go run ./cmd/auto spec validate {SPEC_DIR} --strict`도 가능). deterministic finding이 남아 있으면 provider review로 넘기지 않고 먼저 수정합니다.
 
 ### 6. 디렉토리 생성
 
@@ -369,20 +339,12 @@ These are optional improvements and do not block sync completion.
 
 ## 품질 기준
 
-- 요구사항은 반드시 EARS 형식
-- 수락 기준은 bare Given/When/Then 형식
-- research.md는 실제 코드 경로와 함수명 포함
-- research.md는 `## Semantic Invariant Inventory`를 포함하고 각 row에 source clause, invariant type, affected outputs, acceptance IDs를 기록
-- spec.md는 `## Traceability Matrix`를 포함하고 Requirement, Plan Task, Acceptance Scenario, Semantic Invariant를 연결
-- plan.md 또는 research.md는 `## Visual Planning Brief`를 포함하고 작업 성격에 맞는 flowchart, wireframe, sequence/data-flow 중 하나를 사용
-- research.md는 `## Reference Discipline`과 `## Reviewer Brief`를 포함해 existing/[NEW] 구분과 review focus를 기록
-- research.md는 `## Minimality Decision Matrix`를 포함하고 `actual need`, `existing code/helper/pattern`, `stdlib/native`, `existing dependency`, `new dependency or abstraction` / `new abstraction`, `minimum sufficient verification` 각 row의 evidence, decision, receipt item을 기록
-- greenfield 요청이면 research.md 또는 prd.md가 `## Technology Stack Decision`을 포함하고 concrete stable versions, source refs, checked_at을 기록
+- 요구사항은 EARS 형식, 수락 기준은 bare Given/When/Then 형식
+- research.md는 실제 코드 경로와 함수명을 인용하고 existing reference와 `[NEW]` planned addition을 구분
 - Must oracle acceptance는 concrete expected output 또는 explicit tolerance를 포함
-- plan.md의 태스크는 독립적으로 실행 가능한 단위
-- plan.md는 Primary SPEC가 Outcome Lock을 닫는 태스크를 포함하고, 승인된 sibling 의존성과 Completion Debt만 명시해야 함
-- `research.md`는 `## Outcome Lock`, `## Completion Debt`, `## Evolution Ideas`, 필요 시 `## Sibling SPEC Decision`을 포함해야 함
-- 작성 직후 `.gemini/rules/autopus/spec-quality.md`를 기준으로 최대 2회 자체 검증 루프 수행
+- plan.md의 태스크는 독립적으로 실행 가능한 단위이며 Outcome Lock을 닫는 작업을 포함
+- greenfield 요청이면 `## Technology Stack Decision`에 concrete stable version, source ref, checked_at을 기록
+- 필수 섹션 목록은 위 `### 4. SPEC 파일 생성` 템플릿과 `auto spec validate --strict`가 정의하며 여기서 다시 열거하지 않습니다
 
 ## 협업
 

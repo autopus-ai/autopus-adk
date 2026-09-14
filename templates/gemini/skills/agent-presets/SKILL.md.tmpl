@@ -77,15 +77,17 @@ When a preset is active, phases referencing inactive agents are **skipped**:
 
 | Phase | Skipped When |
 |-------|-------------|
-| Phase 2.5 (Annotation) | `annotator` not in preset |
 | Phase 3.5 (UX Verify) | `frontend-specialist` not in preset |
 | Security audit step | `security-auditor` not in preset |
 | Performance check | `perf-engineer` not in preset |
 
+@AX annotation is not a preset-driven phase. It is an explicit opt-in gate whose
+default is `annotation: not_applicable — @AX annotation not requested for this change set`,
+so `annotator` runs only when the gate is requested, regardless of preset membership.
+
 Skipped phases are logged:
 
 ```
-[SKIP] Phase 2.5 (Annotation): annotator not in preset cli-tool
 [SKIP] Phase 3.5 (UX Verify): frontend-specialist not in preset cli-tool
 ```
 

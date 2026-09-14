@@ -97,6 +97,35 @@ func (a *Adapter) prepareExtendedSkillMappings(cfg *config.HarnessConfig) ([]ada
 			Checksum:        adapter.Checksum(content),
 			Content:         []byte(content),
 		})
+		resources, resErr := skillResourceMappings(skill.Name, state.TargetPath, cfg)
+		if resErr != nil {
+			return nil, resErr
+		}
+		files = append(files, resources...)
+	}
+	return files, nil
+}
+
+// skillResourceMappings returns the reference bodies installed beside a
+// generated skill, so the relative references/<file>.md links inside a
+// compacted skill body resolve on the OpenCode surface.
+func skillResourceMappings(name, targetPath string, cfg *config.HarnessConfig) ([]adapter.FileMapping, error) {
+	resources, err := pkgcontent.RenderSkillResources(name, "opencode", cfg)
+	if err != nil {
+		return nil, fmt.Errorf("opencode skill resource render %s: %w", name, err)
+	}
+
+	names := pkgcontent.SkillResourceNames(resources)
+	skillDir := filepath.Dir(filepath.FromSlash(targetPath))
+	files := make([]adapter.FileMapping, 0, len(names))
+	for _, rel := range names {
+		data := resources[rel]
+		files = append(files, adapter.FileMapping{
+			TargetPath:      filepath.Join(skillDir, filepath.FromSlash(rel)),
+			OverwritePolicy: adapter.OverwriteAlways,
+			Checksum:        adapter.Checksum(string(data)),
+			Content:         data,
+		})
 	}
 	return files, nil
 }

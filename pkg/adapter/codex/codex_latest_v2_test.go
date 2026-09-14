@@ -29,10 +29,21 @@ func TestPrepareFiles_UsesNativeUniqueSkillsAndV2Contracts(t *testing.T) {
 		assert.False(t, strings.HasPrefix(path, ".agents/skills/"), path)
 		if strings.HasPrefix(path, ".codex/skills/") {
 			parts := strings.Split(path, "/")
-			require.Len(t, parts, 4, path)
-			assert.Equal(t, "SKILL.md", parts[3])
-			assert.True(t, strings.HasPrefix(parts[2], "codex-"), path)
-			assert.Contains(t, string(file.Content), "name: "+parts[2])
+			if len(parts) == 5 && parts[3] == "references" {
+				// A reference body is a resource of the skill above it, not a
+				// second entrypoint, so the codex-*/SKILL.md contract does not
+				// apply to its own name.
+				assert.True(t, strings.HasPrefix(parts[2], "codex-"), path)
+				assert.True(t, strings.HasSuffix(parts[4], ".md"), path)
+				assert.True(t, seen[".codex/skills/"+parts[2]+"/SKILL.md"] || pendingCodexEntrypoint(files, parts[2]),
+					"resource %s has no skill entrypoint beside it", path)
+			} else {
+				require.Len(t, parts, 4, path)
+				assert.Equal(t, "SKILL.md", parts[3])
+				assert.True(t, strings.HasPrefix(parts[2], "codex-"), path)
+				assert.Contains(t, string(file.Content), "name: "+parts[2])
+				assertCodexNativeFrontmatter(t, path, string(file.Content))
+			}
 		}
 		if path == ".agents/plugins/marketplace.json" {
 			assert.Equal(t, adapter.OverwriteMerge, file.OverwritePolicy)
@@ -58,6 +69,36 @@ func TestPrepareFiles_UsesNativeUniqueSkillsAndV2Contracts(t *testing.T) {
 	}
 	assert.Contains(t, contracts, "shared cwd")
 	assert.Contains(t, contracts, "disjoint write ownership")
+}
+
+// pendingCodexEntrypoint reports whether the mapping set contains the SKILL.md
+// entrypoint for a skill directory, regardless of emission order.
+func pendingCodexEntrypoint(files []adapter.FileMapping, skillDir string) bool {
+	want := ".codex/skills/" + skillDir + "/SKILL.md"
+	for _, file := range files {
+		if filepath.ToSlash(file.TargetPath) == want {
+			return true
+		}
+	}
+	return false
+}
+
+// assertCodexNativeFrontmatter pins the projection boundary between the
+// canonical catalog file and the Codex surface: the emitted entrypoint opens
+// with exactly one closed frontmatter block, and that block carries native
+// keys only. Catalog-authoring metadata such as triggers or level3_resources
+// belongs to the source, and leaking it here would ship a second, conflicting
+// description of the skill to the runtime.
+func assertCodexNativeFrontmatter(t *testing.T, path, content string) {
+	t.Helper()
+	require.True(t, strings.HasPrefix(content, "---\n"), "%s must open with frontmatter", path)
+	head, body, found := strings.Cut(strings.TrimPrefix(content, "---\n"), "\n---")
+	require.True(t, found, "%s must close its frontmatter block", path)
+	assert.NotContains(t, body, "\n---\nname:", "%s must not carry a second frontmatter block", path)
+	for _, sourceOnly := range []string{"triggers:", "category:", "level1_metadata:", "level3_resources:"} {
+		assert.NotContains(t, head, sourceOnly,
+			"%s must project native frontmatter only, not canonical catalog metadata", path)
+	}
 }
 
 func TestPrepareConfig_PreservesUnknownUserTOMLAndFailsClosed(t *testing.T) {
@@ -90,7 +131,10 @@ model = "user-model"
 		assert.Contains(t, body, preserved)
 	}
 	assert.Contains(t, body, `approval_policy = "on-request" # old value`)
-	assert.NotContains(t, body, "multi_agent = true")
+	// A key the user wrote under [features] is user content, even when the
+	// harness itself has migrated to the v2 feature block. Preservation is the
+	// contract; the harness only adds its own managed [features.multi_agent_v2].
+	assert.Contains(t, body, "multi_agent = true")
 	assert.Contains(t, body, "[features.multi_agent_v2]")
 
 	require.NoError(t, os.WriteFile(filepath.Join(dir, codexConfigRelPath), []byte("[features\ngoals = true\n"), 0o644))

@@ -22,13 +22,13 @@ func readGeneratedTeamJS(t *testing.T, templateDir string) string {
 }
 
 var teamCanonicalPhases = []string{
-	"annotation", "gate_build_test", "implementation", "planning",
+	"gate_build_test", "implementation", "planning",
 	"release_hygiene", "review", "test_scaffold", "testing",
 } // sorted
 
 // TestS1S19_TeamDeterministicGeneration verifies route_team generation from the
 // real content dir is deterministic (byte-identical across runs), carries the
-// generated warning, exposes the eight team phases, and emits the per-phase
+// generated warning, exposes the declared team phases, and emits the per-phase
 // structure the dispatch layer relies on.
 func TestS1S19_TeamDeterministicGeneration(t *testing.T) {
 	t.Parallel()

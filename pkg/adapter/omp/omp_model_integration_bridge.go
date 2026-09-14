@@ -7,56 +7,46 @@ import (
 )
 
 // validateOMPIntegrationOverrides re-checks the optional role/capability pins
-// on agent overrides. config.Validate already rejects unmapped agents and
-// candidate shape; only agreement with the agent matrix is confirmed here.
+// on agent overrides. config.Validate already rejects unroutable agents and
+// candidate shape; only agreement with the resolved identity is confirmed
+// here, for the 16 ADK keys and the five native keys alike.
 func validateOMPIntegrationOverrides(profile config.RoleModelProfileConf) error {
 	for agent, override := range profile.Agents {
-		role, err := config.OMPAgentRole(agent)
+		resolved, err := config.ResolveOMPPolicyAgent(agent)
 		if err != nil {
 			return err
 		}
-		capability, err := config.OMPAgentCapability(agent)
-		if err != nil {
-			return err
-		}
-		if override.Role != "" && override.Role != role ||
-			override.Capability != "" && override.Capability != capability {
+		if override.Role != "" && override.Role != resolved.Role ||
+			override.Capability != "" && override.Capability != resolved.Capability {
 			return fmt.Errorf("role_capability_mismatch: agent=%s", agent)
 		}
 	}
 	return nil
 }
 
-// bridgeOMPIntegrationRoutes builds one route request per canonical agent,
-// keyed by agent name. Candidates come from the agent override when present
-// and otherwise from the agent's capability route.
+// bridgeOMPIntegrationRoutes builds one route request per native OMP agent,
+// keyed by native agent name. The governing route is the single
+// operator-written override that collapses onto that agent, or the
+// representative ADK role's route when the operator wrote none.
 func bridgeOMPIntegrationRoutes(
 	profile config.RoleModelProfileConf,
 ) (map[string]OMPModelRouteRequest, error) {
-	agents := config.CanonicalAgentNames()
-	routes := make(map[string]OMPModelRouteRequest, len(agents))
+	natives := config.OMPNativeAgentNames()
+	routes := make(map[string]OMPModelRouteRequest, len(natives))
 	diverseRoles := make(map[string]struct{}, len(profile.FamilyDiversity.Roles))
 	if profile.FamilyDiversity.Enabled {
 		for _, role := range profile.FamilyDiversity.Roles {
 			diverseRoles[role] = struct{}{}
 		}
 	}
-	for _, agent := range agents {
-		role, err := config.OMPAgentRole(agent)
+	for _, native := range natives {
+		resolved, route, err := profile.OMPNativeAgentRoute(native)
 		if err != nil {
 			return nil, err
 		}
-		capability, err := config.OMPAgentCapability(agent)
-		if err != nil {
-			return nil, err
-		}
-		route, err := profile.AgentRoute(agent)
-		if err != nil {
-			return nil, err
-		}
-		_, preferDistinctFamily := diverseRoles[role]
+		_, preferDistinctFamily := diverseRoles[resolved.Role]
 		request := OMPModelRouteRequest{
-			Agent: agent, Role: role, Capability: capability,
+			Agent: native, Role: resolved.Role, Capability: resolved.Capability,
 			Required: route.Required, DegradedAction: route.DegradedAction,
 			PreferDistinctExecutorFamily: preferDistinctFamily,
 			Candidates:                   make([]OMPRoutingCandidate, 0, len(route.Candidates)),
@@ -66,7 +56,7 @@ func bridgeOMPIntegrationRoutes(
 				Selector: candidate.Selector, Thinking: candidate.Thinking, Family: candidate.Family,
 			})
 		}
-		routes[agent] = request
+		routes[native] = request
 	}
 	return routes, nil
 }
@@ -93,17 +83,17 @@ func projectOMPIntegrationAgents(
 		}
 	}
 	result := make([]OMPProjectionAgent, 0, len(resolved))
-	for _, agent := range config.CanonicalAgentNames() {
-		resolution, ok := resolved[agent]
+	for _, native := range config.OMPNativeAgentNames() {
+		resolution, ok := resolved[native]
 		if !ok {
 			continue
 		}
 		projection := OMPProjectionAgent{
-			Agent: agent, Role: resolution.RequestedRole, Capability: resolution.Capability,
+			Agent: native, Role: resolution.RequestedRole, Capability: resolution.Capability,
 			Selector: resolution.EffectiveProvider + "/" + resolution.EffectiveModel,
 			Thinking: resolution.Thinking,
 		}
-		for _, candidate := range routes[agent].Candidates {
+		for _, candidate := range routes[native].Candidates {
 			if formatOMPRoutingSelector(candidate) == resolution.EffectiveSelector {
 				continue
 			}

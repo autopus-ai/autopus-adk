@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
-	"sort"
 	"strings"
 	"testing"
 
@@ -38,8 +37,8 @@ func TestOMP002_S10_DoctorCLIProjectsStableOMPChecksInTextAndJSON(t *testing.T) 
 	require.NoError(t, config.Save(root, cfg))
 	_, err := omp.NewWithRoot(root).Generate(context.Background(), cfg)
 	require.NoError(t, err)
-	assert.Empty(t, generatedOMPDoctorSelectors(t, root),
-		"default OMP agents inherit the parent session model without forced selectors")
+	assert.NoDirExists(t, filepath.Join(root, ".omp", "agents"),
+		"OMP registers its own agents; a generated file there would shadow one")
 
 	logPath := installHermeticOMPDoctorCLI(t)
 	healthyText, healthyEnvelope := runOMPDoctorEntrypoints(t, root)
@@ -222,35 +221,4 @@ func runOMPDoctorBehaviorRPC(logPath string) int {
 	_, _ = fmt.Fprintf(log, "provider-requests=0 emitted-frames=%d\n", len(frames))
 	_ = log.Close()
 	return 0
-}
-
-func generatedOMPDoctorSelectors(t *testing.T, root string) []string {
-	t.Helper()
-	entries, err := os.ReadDir(filepath.Join(root, ".omp", "agents"))
-	require.NoError(t, err)
-	seen := make(map[string]bool)
-	for _, entry := range entries {
-		data, readErr := os.ReadFile(filepath.Join(root, ".omp", "agents", entry.Name()))
-		require.NoError(t, readErr)
-		frontmatterDelimiters := 0
-		for _, line := range strings.Split(string(data), "\n") {
-			trimmed := strings.TrimSpace(line)
-			if trimmed == "---" {
-				frontmatterDelimiters++
-				if frontmatterDelimiters == 2 {
-					break
-				}
-				continue
-			}
-			if selector := strings.TrimSpace(strings.TrimPrefix(trimmed, "model:")); frontmatterDelimiters == 1 && strings.HasPrefix(trimmed, "model:") && selector != "" {
-				seen[selector] = true
-			}
-		}
-	}
-	selectors := make([]string, 0, len(seen))
-	for selector := range seen {
-		selectors = append(selectors, selector)
-	}
-	sort.Strings(selectors)
-	return selectors
 }

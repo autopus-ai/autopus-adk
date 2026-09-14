@@ -40,43 +40,6 @@ description: "Empty"
 	assert.Error(t, err) // empty body throws error
 }
 
-func TestOMP_S3_E2_AgentTransformation(t *testing.T) {
-	// S3, E2
-	src := pkgcontent.AgentSource{
-		Meta: pkgcontent.AgentSourceMeta{
-			Name:        "executor",
-			Description: "Run code",
-			Model:       "sonnet",
-			Tools:       "Read, Write, Edit, Grep, Glob, Bash, TodoWrite",
-		},
-		Body: "Agent body with .claude/skills/autopus/ax-annotation.md reference",
-	}
-
-	transformed := pkgcontent.TransformAgentForOMP(src)
-	assert.Contains(t, transformed, "name: executor")
-	assert.NotContains(t, transformed, "model:")
-	assert.Contains(t, transformed, "tools:")
-	assert.Contains(t, transformed, "- bash")
-	assert.Contains(t, transformed, "- edit")
-	assert.NotContains(t, transformed, "- todo")
-	assert.Contains(t, transformed, "- lsp")
-	assert.Contains(t, transformed, "- write")
-	assert.Contains(t, transformed, ".omp/skills/ax-annotation/SKILL.md")
-	assert.NotContains(t, transformed, "yield")
-	assert.NotContains(t, transformed, "spawns")
-
-	srcNoTools := pkgcontent.AgentSource{
-		Meta: pkgcontent.AgentSourceMeta{
-			Name:        "executor",
-			Description: "No tools",
-		},
-		Body: "Body",
-	}
-	transformedNoTools := pkgcontent.TransformAgentForOMP(srcNoTools)
-	assert.Contains(t, transformedNoTools, "tools:")
-	assert.Contains(t, transformedNoTools, "- lsp")
-}
-
 func TestOMP_S4_S5_S6_Lifecycle(t *testing.T) {
 	// S4, S5, S6
 	dir := t.TempDir()
@@ -91,7 +54,7 @@ func TestOMP_S4_S5_S6_Lifecycle(t *testing.T) {
 
 	// Check S6: generated native files without an unnecessary base config.
 	assert.NoFileExists(t, filepath.Join(dir, configFile))
-	assert.FileExists(t, filepath.Join(dir, ".omp", "agents", "executor.md"))
+	assert.NoDirExists(t, filepath.Join(dir, ".omp", "agents"))
 	assert.FileExists(t, filepath.Join(dir, ".omp", "skills", "auto", "SKILL.md"))
 	assert.FileExists(t, filepath.Join(dir, ".omp", "commands", "auto.md"))
 	assert.FileExists(t, filepath.Join(dir, ompRuleDir, ompRuleFilePrefix+"branding.md"))

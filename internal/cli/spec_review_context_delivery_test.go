@@ -43,7 +43,7 @@ func TestRunSpecReview_GPTPromptConsumesVerifiedContextExactlyOnce(t *testing.T)
 	defer func() { specReviewRunOrchestra = originalRunner }()
 
 	err := runSpecReviewWithOptions(context.Background(), specID, "consensus", 10, specReviewOptions{
-		requiredDocuments: []string{extraRef},
+		requiredDocuments: []string{extraRef, "ARCHITECTURE.md"},
 	})
 
 	require.NoError(t, err)

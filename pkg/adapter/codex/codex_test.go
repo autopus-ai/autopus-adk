@@ -58,11 +58,14 @@ func TestCodexAdapter_Generate_CreatesAgentsMD(t *testing.T) {
 	assert.Contains(t, content, "test-project")
 	assert.Contains(t, content, "<!-- AUTOPUS:BEGIN -->")
 	assert.Contains(t, content, "<!-- AUTOPUS:END -->")
-	assert.Contains(t, content, "## Execution Model")
-	assert.Contains(t, content, "spawn_agent")
-	assert.Contains(t, content, "Codex --auto")
+	// The marker is a discovery + policy surface now: identity, where each
+	// installed platform lives, how to invoke it, and the shared guidelines.
+	assert.Contains(t, content, "## Installed Components")
+	assert.Contains(t, content, "- Codex: .codex/")
+	assert.Contains(t, content, "## Native Execution")
+	assert.Contains(t, content, "$codex-auto")
 	assert.Contains(t, content, "## Core Guidelines")
-	assert.Contains(t, content, "### Worker Contracts")
+	assert.Contains(t, content, "### Worker Results")
 }
 
 func TestCodexAdapter_Generate_CreatesSkillsDirectory(t *testing.T) {

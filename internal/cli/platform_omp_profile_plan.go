@@ -201,6 +201,9 @@ func profilePlanPayload(
 
 func writeOMPProfilePlanFailure(cmd *cobra.Command, jsonMode bool, err error) error {
 	if !jsonMode {
+		// The caller may silence cobra's own error rendering, and an operator
+		// who cannot read which entry to delete has nothing to act on.
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "OMP profile plan refused: %s\n", err)
 		return err
 	}
 	return writeJSONResultAndExit(

@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sort"
 
@@ -238,16 +237,13 @@ func sortedOMPProfileOverriddenAgents(overrides map[string]struct{}) []string {
 	return names
 }
 
-// validateOMPProfilePolicy validates the resolved profile as a standalone
-// policy document so a preview reports the same rejection apply would.
+// validateOMPProfilePolicy validates the resolved profile so a preview reports
+// the same rejection apply would. The reason travels with the error: a
+// native-agent conflict names the entries the operator has to reconcile, and
+// replacing that with a bare code would leave them nothing to act on.
 func validateOMPProfilePolicy(name string, profile config.RoleModelProfileConf) error {
-	policy := config.RoleModelPolicyConf{
-		Version:  config.RoleModelPolicyVersionV1,
-		Profile:  name,
-		Profiles: map[string]config.RoleModelProfileConf{name: profile},
-	}
-	if err := policy.Validate(); err != nil {
-		return errors.New("omp_profile_validation_failed")
+	if err := config.ValidateResolvedRoleModelProfile(name, profile); err != nil {
+		return fmt.Errorf("omp_profile_validation_failed: %w", err)
 	}
 	return nil
 }

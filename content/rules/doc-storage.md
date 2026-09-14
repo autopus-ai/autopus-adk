@@ -48,11 +48,9 @@ WHEN `/auto sync` runs:
 
 Both phases run in sequence. Phase B is skipped if no root files changed.
 
-Before committing, run `auto sync verify` (read-only, zero git mutations). It inventories NUL-delimited Git status plus tracked-but-ignored files with optional locks disabled, partitions every path into a commit candidate, blocked generated/runtime path, or unclassified path, and renders only shell-safe candidates as `git -C <repo> add -- <paths>`. Generated/runtime, tracked-but-ignored, unsafe, and unclassified paths never enter a copy-ready command.
+커밋 전에 `auto sync verify`(read-only, git 변경 없음)를 실행합니다. dirty 경로를 commit 후보 / 차단된 generated·runtime 경로 / 미분류로 분할하고, 안전한 후보만 `git -C <repo> add -- <paths>` 형태로 출력합니다. 멀티 repo 워크스페이스는 Phase A(module)와 Phase B(meta)로 나뉘고, `autopus.yaml`을 가진 단일 repo는 module phase 없이 한 그룹이 됩니다. 지원하지 않는 배치에서는 `unsupported topology:` 진단으로 멈추며, 이는 분류 결과가 아닙니다. `auto check --hygiene --staged`는 generated/runtime 위생만 보므로 대체물이 아닙니다.
 
-The command prints the topology it resolved. A multi-repo workspace splits its candidates into Phase A (module) and Phase B (meta); a single Git repository holding `autopus.yaml` — including a linked worktree — yields one commit group with no module phase. Where neither layout applies the command stops with an `unsupported topology:` diagnostic and its own exit code, which is not a classification result. `auto check --hygiene --staged` is not an equivalent substitute: it checks generated/runtime hygiene only and never partitions the full dirty path set.
-
-Use `auto sync verify --spec SPEC-ID` to locate exactly one regular, non-symlink SPEC host across the whole workspace, plan only workspace-relative dirty paths owned by that SPEC, and report every unrelated path. Use `--strict` in hooks or CI to exit non-zero for any boundary, ownership, blocked, or unclassified warning.
+`auto sync verify --spec SPEC-ID`는 워크스페이스 전체에서 해당 SPEC의 host 하나를 찾아 그 SPEC이 소유한 dirty 경로만 계획하고 나머지를 보고합니다. hook이나 CI에서는 `--strict`로 경계·소유권·차단·미분류 경고를 exit code로 승격합니다.
 
 ## Context Document Rotation
 
@@ -101,18 +99,9 @@ WHEN `/auto sync` records a changelog entry:
 1. Keep only the most recent half-year in `CHANGELOG.md`. Move older entries into `CHANGELOG-<year>H<half>.md` without discarding any entry.
 2. Take each entry's half-year from its heading ISO date (`completed|implemented|in progress YYYY-MM-DD`); an undated entry inherits the half-year of the nearest dated entry above it.
 
-### Weight Guard
+### Advisory Guards
 
-`auto doctor` measures the present context catalog documents and emits a non-blocking warning when the combined size exceeds 120000 bytes or any single document exceeds 20000 bytes. The warning is advisory — it never fails harness health — and signals that rotation is overdue.
-
-### Drift Guard
-
-`auto doctor` also runs an advisory drift gate that reports installed-surface content drift, orphan platform manifests, and — in the ADK source repo — un-regenerated templates and a stale binary commit. Like the weight guard it is non-blocking and only hints at `auto update`, `rm`, or `generate-templates` rather than repairing anything.
-
-### Evidence Freshness Guard
-
-`auto doctor` runs an advisory evidence freshness guard that reports the age of learnings, canary, and memindex loops. Like the other guards, it is non-blocking and warns when the age exceeds 30 days, suggesting `auto learn record`, `auto canary`, or `auto mem rebuild` to refresh the evidence.
-Additionally, the `--spec` query filter can be used with `auto learn query` to restrict results strictly to entries matching a specific SPEC ID.
+`auto doctor`는 context 카탈로그 문서 무게(합계 120000 바이트 또는 단일 문서 20000 바이트 초과), 설치 표면 드리프트와 orphan manifest, learnings/canary/memindex evidence 신선도(30일 초과)를 비차단 경고로 보고합니다. 모두 advisory이며 하네스 상태를 실패시키지 않고, rotation이나 `auto update`, `generate-templates`, `auto learn record`, `auto canary`, `auto mem rebuild` 같은 후속 조치를 힌트로만 제시합니다. `auto learn query --spec SPEC-ID`로 특정 SPEC의 항목만 조회할 수 있습니다.
 
 ## Anti-Patterns
 

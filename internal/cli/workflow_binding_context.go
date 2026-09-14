@@ -61,8 +61,9 @@ func verifyWorkflowContextManifest(opts workflowBindingContextOptions) string {
 	}
 	if promptlayer.VerifyContextDeliveryForOptions(promptlayer.ContextDeliveryOptions{
 		Root: root, Command: expectedCommand, SpecDir: expectedSpecDir,
-		RequiredReferences:  opts.requiredDocuments,
-		ConditionalProfiles: contextProfileNames(opts.conditionalProfiles),
+		RequiredReferences:   opts.requiredDocuments,
+		ConditionalProfiles:  contextProfileNames(opts.conditionalProfiles),
+		ExplicitArchitecture: true,
 	}, receipt) != nil {
 		return contextIntegrityFailed
 	}

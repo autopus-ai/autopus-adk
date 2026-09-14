@@ -6,7 +6,7 @@
 
 AI 코딩 도구(Claude Code, Codex, Antigravity CLI, OpenCode, Oh My Pi)가 진짜 개발팀처럼 일하게 만듭니다 — 기획, 테스트, 코드 리뷰, 보안 감사까지 자동으로.
 
-**16개 에이전트. 53개 스킬. 하나의 설정. 모든 플랫폼.**
+**16개 에이전트. 53개 스킬 라이브러리와 작은 기본 목록. 여러 플랫폼을 하나의 설정으로 관리합니다.**
 
 [![GitHub Stars](https://img.shields.io/github/stars/Insajin/autopus-adk?style=social)](https://github.com/Insajin/autopus-adk/stargazers)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -58,7 +58,6 @@ powershell -c "irm https://raw.githubusercontent.com/Insajin/autopus-adk/main/in
   ✓ Phase 1:   Planning         planner가 5개 태스크 분해
   ✓ Phase 1.5: Test Scaffold    12개 실패 테스트 생성 (RED)
   ✓ Phase 2:   Implementation   3개 executor가 병렬 워크트리에서 구현
-  ✓ Phase 2.5: Annotation       8개 파일에 @AX 태그 적용
   ✓ Phase 3:   Testing          커버리지: 62% → 91%
   ✓ Phase 4:   Review           TRUST 5: APPROVE | 보안: PASS
   ───────────────────────────────────────────────────────
@@ -130,7 +129,7 @@ flowchart TB
     subgraph FOR ["🎯 에이전트를 위해 설계된 (For)"]
         direction TB
         F1["모든 파일, 규칙, 문서가\n에이전트가 파싱하도록 설계"]
-        F2["300줄 제한 · @AX 태그\n구조화된 Lore · SPEC 형식"]
+        F2["프로젝트별 한도 · 선택적 @AX\n구조화된 Lore · SPEC 형식"]
     end
 
     OF --> BY --> FOR
@@ -155,7 +154,7 @@ flowchart TB
 
 ### 📏 에이전트가 읽을 수 있는 코드
 
-대부분의 코드베이스는 AI를 위해 작성되지 않았습니다. 1,200줄짜리 파일은 컨텍스트 윈도우를 압도합니다. 뒤엉킨 책임은 의도를 혼란스럽게 합니다. Autopus는 모든 소스 파일에 **300줄 하드 리밋**을 강제합니다 — 미관이 아닌, **각 파일이 하나의 역할을 하고 한 번에 읽힐 때 에이전트가 더 잘 일하기 때문입니다.**
+파일 길이만으로 응집도나 정확성을 판단할 수는 없습니다. Autopus는 큰 소스 파일을 알리되, 프로젝트가 `architecture.max_file_lines`에 양수를 지정했을 때만 한도를 강제합니다. 생략하거나 `0`이면 권고만 표시합니다. 한 역할을 맡은 코드는 함께 두고, 실제 책임이 나뉠 때 분리하세요. 저장소 CI가 별도로 정한 한도는 계속 적용됩니다.
 
 ```
 ❌ 기존 방식:
@@ -175,7 +174,7 @@ flowchart TB
 | **규칙** | IMPORTANT 마커가 포함된 구조화된 마크다운 — 에이전트가 파싱합니다 |
 | **스킬** | 트리거가 있는 YAML 프론트매터 — 에이전트가 적절한 스킬을 자동 활성화 |
 | **문서** | 문단 대신 표, 산문 대신 체크리스트 — 읽히는 게 아니라 파싱됩니다 |
-| **코드** | ≤ 300줄, 단일 책임, 관심사별 분리 — 하나의 컨텍스트에 담깁니다 |
+| **코드** | 명확한 책임과 프로젝트가 정한 한도 — 모든 파일에 같은 줄 수를 강제하지 않습니다 |
 
 > 🐙 **사람이 읽기 좋은 것은 보너스입니다. 에이전트가 읽을 수 있는 것이 요구사항입니다.**
 
@@ -423,11 +422,17 @@ auto init   # 지원되는 설치된 AI 코딩 CLI 자동 감지
 |--------|-------------|
 | **Claude Code** | `.claude/rules/`, `.claude/skills/<name>/SKILL.md`, `.claude/agents/`, `.claude/workflows/`, `.claude/settings.json`, `CLAUDE.md` |
 | **Codex** | `.codex/skills/codex-<name>/SKILL.md`, `.codex/agents/`, `.codex/hooks.json`, `.codex/config.toml`, `.agents/plugins/marketplace.json`, `.autopus/plugins/auto/`, `AGENTS.md` |
-| **Antigravity CLI** | `.gemini/`, `GEMINI.md` |
+| **Antigravity CLI** | `.agents/plugins/autopus/`, `.agents/hooks.json`, 기존 호환성을 위한 `.gemini/` / `GEMINI.md` |
 | **OpenCode** | `.opencode/rules/`, `.opencode/agents/`, `.opencode/commands/`, `.opencode/plugins/`, `.agents/skills/`, `AGENTS.md`, `opencode.json` |
-| **Oh My Pi (OMP)** | `.omp/rules/autopus-*.md`, `.omp/agents/`, `.omp/skills/<name>/SKILL.md`, `.omp/commands/`, 선택형 `.omp/extensions/` |
+| **Oh My Pi (OMP)** | `.omp/rules/autopus-*.md`, `.omp/skills/<name>/SKILL.md`, `.omp/commands/`, 선택형 `.omp/extensions/` |
 
-현재 네이티브 기준 버전은 [Claude Code 2.1.246](https://github.com/anthropics/claude-code/releases/tag/v2.1.246), [Codex CLI 0.149.1](https://github.com/openai/codex/releases/tag/rust-v0.149.1), [OMP 18.0.5](https://github.com/can1357/oh-my-pi/releases/tag/v18.0.5)입니다. 규칙과 워크플로 의미는 플랫폼 간에 맞추되, 각 플랫폼이 실제로 발견하는 형식만 생성합니다.
+Antigravity는 워크스페이스 플러그인을 직접 발견합니다. `auto init`과 `auto update`는
+프로젝트별 내용을 전역 플러그인으로 설치하지 않으며, 사용하지 않는 `.agents/commands/`
+복제본도 생성하지 않습니다. `agy plugin validate .agents/plugins/autopus`로 생성된
+구조를 확인할 수 있습니다. 이 결과는 권한이나 훅이 실제 실행됐다는 증거는 아니며,
+네이티브 사용자 권한 설정은 보존합니다.
+
+2026-09-13 호환성 점검에는 Claude Code 2.1.263, Codex CLI 0.153.4, Antigravity CLI 1.1.26, OpenCode 1.18.7, OMP 18.1.19를 사용했습니다. 이는 관측한 점검 버전이며, 이후 릴리스의 모든 기능을 검증했다는 뜻은 아닙니다. [Codex 0.154.0의 worktree 지원](https://github.com/openai/codex/releases/tag/rust-v0.154.0)은 아직 실험적 기능입니다. 하네스는 실험적 토폴로지를 자동 활성화하거나 사용자 권한 설정을 대체하지 않습니다.
 
 Codex 참고:
 - `auto init` 또는 `auto update` 직후 `$codex-auto-plan ...`, `$codex-auto-go ...` 등 `$codex-auto-<route>` 스킬을 바로 사용할 수 있습니다
@@ -437,11 +442,12 @@ Codex 참고:
 - 요청할 작업 에이전트 수는 `autopus.yaml`의 `codex.agents.max_concurrent_threads`로 설정합니다(기본 4, 범위 1–64). 주 에이전트는 포함하지 않습니다. `auto update`가 이 값을 `.codex/config.toml`에 반영하며, 명시한 값은 재생성 후에도 유지됩니다. CLI 호환성을 확인하지 못한 버전에는 문서화된 `[agents] max_concurrent_threads_per_session`을 사용하고 그 가정을 표시합니다. 실제 실행에서는 호스트와 계정의 제한이 우선합니다.
 - `auto doctor`는 요청한 수, 디스크에서 확인한 설정, 실행 중인 세션이 읽은 값, 실제 적용 한도를 구분합니다. 설정 파일을 읽었다고 활성 세션이 그 값을 적용했다고 간주하지 않으며, 관측할 수 없는 세션 값은 이유와 함께 `unknown`으로 표시합니다. 설정을 바꾼 뒤에는 새 세션을 시작해야 합니다. 활성 에이전트를 자동으로 중단하지 않으며, 이 값으로 로컬 빌드·테스트 동시 실행 수를 제어하지 않습니다.
 - `.codex/hooks.json`은 기본으로 생성하고, `.codex/config.toml`은 관련 없는 사용자 설정을 보존하도록 구조적으로 병합합니다
+- `features.multi_agent`는 현재도 유효한 네이티브 설정입니다. 명시한 `true`와 `false`, 사용자 주석을 재생성과 정리 후에도 보존합니다. 현재 기본값과 같다는 이유만으로 하네스가 소유한 값으로 간주하지 않습니다.
 
 OpenCode 참고:
 - `/auto ...`와 `/auto-plan ...` 같은 직접 alias가 `.opencode/commands/`에 생성됩니다
 - 네이티브 규칙/에이전트/플러그인은 `.opencode/` 아래에, 재사용 스킬은 `.agents/skills/` 아래에 생성됩니다
-- `skills.compiler.mode: split`을 켜면 shared/core skill은 `.agents/skills/`에 남고, OpenCode long-tail skill은 `.opencode/skills/`로 이동합니다
+- 기본 `skills.compiler.mode: split`은 핵심 스킬과 필수 참조를 배포합니다. 추가로 선택한 스킬 묶음은 `.opencode/skills/`에 놓으며, 워크플로 전용 규칙은 파일로 유지하되 매 세션 시작 시 읽지 않습니다.
 - `/auto status`, `/auto map`, `/auto why`, `/auto verify`, `/auto secure`, `/auto test`, `/auto dev`, `/auto doctor` 같은 helper workflow도 OpenCode 명령 래퍼로 함께 생성됩니다
 - `opencode.json`이 관리형 hook plugin을 자동 등록하므로 `auto init` 또는 `auto update` 직후 `.opencode/plugins/autopus-hooks.js`가 바로 활성화됩니다
 
@@ -460,8 +466,12 @@ Oh My Pi 참고:
 auto quality
 ```
 
-OMP가 설정된 프로젝트에서 **OMP → balanced/ultra → GPT/Claude**를 고르면 됩니다.
-마지막 역할·모델·추론 강도 표를 확인하고 `y`를 입력하면 적용합니다.
+`auto quality`는 먼저 무엇을 설정할지 묻습니다. 공용 품질 모드 또는 한 코딩 도구의 에이전트 모델입니다. 생성 에이전트가 모델을 갖는 도구만 목록에 올립니다 — Claude Code, Codex, OMP. Antigravity CLI와 OpenCode는 세션 모델을 상속하므로 조용히 빼는 대신 그렇게 표시합니다.
+
+**Claude Code / Codex**: 에이전트별 상대 티어와 그 티어가 해당 도구에서 어떤 구체 모델이 되는지 함께 보여 주고, `agent=tier`(`fable`, `opus`, `sonnet`, `haiku`) 형식으로 수정합니다. 미리보기를 확인하고 `y`를 입력하면 `quality.presets.<name>`으로 저장하고 `quality.providers.<tool>`로 연결합니다. 도구별로 preset이 따로 있으므로 Claude Code의 executor를 `fable`로 올려도 Codex는 그대로입니다. `quality.default`는 바뀌지 않습니다. 생성 파일에 반영하려면 `auto update`(또는 `auto quality --apply`)를 실행하세요.
+
+**OMP**: **balanced/ultra → GPT/Claude**를 고르거나, **custom**으로 기본 에이전트별 설치 모델을 직접 지정합니다. custom도 지정하지 않은 에이전트를 위해 기준 계열을 먼저 고르고, 설치된 카탈로그와 각 모델의 thinking 단계를 보여 주며, 각 질문에 그 에이전트 경로가 요구하는 capability를 함께 표시합니다. 카탈로그가 해당 capability를 선언하지 않은 모델은 그 자리에서 거절하고 가능한 모델을 알려 줍니다. 마지막 역할·모델·추론 강도 표를 확인하고 `y`를 입력하면 적용합니다.
+
 확인 단계에서 Enter, `n`, EOF로 취소하면 아무것도 바꾸지 않습니다. `--apply`도 필요 없습니다.
 기존 에이전트별 지정값과 멀티프로바이더 리뷰 설정은 유지합니다.
 명시적인 사용자 프로필은 그 프로필의 계열을 그대로 사용합니다.
@@ -481,21 +491,22 @@ auto status --platform omp
 
 활성화 단계에서는 생성한 overlay를 로드한 OMP RPC `get_state` 세션으로 모든 `@role`을 확인합니다. prompt나 모델 프로바이더 요청은 보내지 않습니다. 확인한 provider/model/thinking map은 receipt에 결속하며 `explain`과 doctor가 독립적으로 다시 검증합니다.
 
-`auto init`은 관리 대상 OMP 에이전트 정의 16개를 항상 생성합니다. 역할 프로필을 선택하지 않으면 모든 에이전트가 부모 세션 모델을 상속합니다. `auto platform omp explain`과 `auto status --platform omp`는 16개 agent→role→capability 행과 manifest/checksum 설치 무결성을 함께 표시합니다. 생성 파일이 없거나 수정되면 readiness를 차단합니다.
+`auto init`은 OMP용 에이전트 정의를 만들지 않습니다. OMP는 자체 기본 에이전트(`task`, `scout`, `reviewer`, `security-reviewer`, `sonic`)를 등록하고 이름으로 정확히 찾으므로, 생성한 `.omp/agents/<name>.md`는 기본 에이전트를 가리기만 합니다. 역할 프로필은 대신 `task.agentModelOverrides`로 모델을 지정하며 16개 ADK 역할은 이 다섯 에이전트로 모입니다. `auto platform omp explain`과 `auto status --platform omp`는 기본 에이전트별로 역할·capability 출처와 실제 selector를 한 행씩 표시하고, `.omp/agents/<기본 이름>.md` 파일이 있으면 `native_agent_shadowed`로 보고합니다.
+
+여러 역할 키가 한 기본 에이전트로 모일 수 있습니다. 이때는 대표 역할이 결정합니다 — `task`는 planner, `scout`는 explorer, `sonic`은 validator를 따릅니다. plan·explain·receipt의 각 행이 적용된 키를 표시하므로 16개 역할을 모두 적은 기존 설정도 그대로 동작하고 어떤 항목이 적용됐는지 확인할 수 있습니다. 대표 역할이 없는 조합은 우선순위를 정할 근거가 없어 `omp_native_agent_conflict`로 거절하며 정리할 항목을 함께 알립니다.
 
 #### OMP balanced: GPT형과 Claude형 선택
 
 `profile apply balanced --family gpt|claude`로 OMP 모드와 계열을 함께 선택합니다.
 설정에는 각각 `openai`, `anthropic`으로 저장하며 이 이름으로도 선택할 수 있습니다.
-`--plan`은 16개 에이전트의 요청·실제 모델, 추론 강도, 후보 순서, fallback 시도와
+`--plan`은 기본 에이전트의 요청·실제 모델, 추론 강도, 후보 순서, fallback 시도와
 차단 사유를 보여 줍니다. 설정을 쓰거나 프로필을 활성화하지 않습니다.
 적용할 때는 같은 경로를 설치된 OMP 카탈로그와 provider-free RPC로 검증합니다.
 
-| 에이전트 그룹 | GPT형 balanced | Claude형 balanced |
+| 기본 에이전트 (대표 역할) | GPT형 balanced | Claude형 balanced |
 |---|---|---|
-| planner, architect, spec-writer, reviewer, security-auditor, **debugger, deep-worker** | GPT-6 Astra `max` | Claude Fable 5.1 `max` |
-| executor, tester, devops, frontend-specialist, perf-engineer | GPT-5.6 Luna `max` | Claude Sonnet 5 `max` |
-| explorer, annotator, validator, ux-validator | GPT-5.6 Luna `max` | Claude Sonnet 5 `high` |
+| `task` (planner), `reviewer`, `security-reviewer` (security-auditor) | GPT-6 Astra `max` | Claude Fable 5.1 `max` |
+| `scout` (explorer), `sonic` (validator) | GPT-5.6 Luna `max` | Claude Sonnet 5 `high` |
 
 일반 reviewer도 선택한 계열을 따릅니다. 멀티프로바이더 리뷰는 별도의
 `orchestra.providers` 정책이며, 이 프로필을 바꿔도 리뷰 모델과 judge는 유지합니다.
@@ -627,8 +638,22 @@ omp_context_policy:
 | Worker 표면 | `spawn_agent`, `send_message`, `followup_task`, 대상 없는 `wait_agent`, `interrupt_agent`, `list_agents` | OpenCode `task(...)` worker |
 
 split compiler 참고:
-- `skills.compiler.mode: split`은 opt-in입니다. 기본 `full`은 모든 Codex 네이티브 스킬을 고유한 `.codex/skills/codex-*` 이름으로 유지하고, 혼합 설치에서는 `.agents/skills/`를 OpenCode가 소유합니다.
-- split mode에서는 `.agents/skills/`에 OpenCode shared/core 스킬, `.opencode/skills/`에 OpenCode long-tail 스킬, `.autopus/plugins/auto/skills/`에 Codex plugin-scoped long-tail 스킬을 둡니다.
+- `skills.compiler.mode: split`이 기본입니다. 핵심·참조 스킬과 모든 `/auto` 경로를 배포합니다. 나머지 지침은 `auto skill list`, `auto skill info <name>`으로 필요할 때 확인할 수 있습니다.
+- 호환되는 전체 스킬을 배포하려면 `skills.compiler.mode: full`을, 일부만 추가하려면 `bundles` 또는 `explicit_skills`를 지정합니다. split 모드의 추가 스킬은 `.opencode/skills/` 또는 `.autopus/plugins/auto/skills/`에 놓입니다. 네이티브 목록에 노출하려면 `opencode_long_tail_target: shared`, `codex_long_tail_target: repo`를 사용합니다.
+
+파이프라인 진입 스킬은 필요한 단계의 `references/` 문서만 읽습니다. 일반 작업은
+현재 세션에서 처리하고, 독립 작업·전문 검토·컨텍스트 격리가 필요할 때 위임합니다.
+`auto pipeline run`은 단일 변경 계약과 실제 변경 경로를 재검증해 저위험으로
+판정한 경우에만 `implement → validate → review` 세 단계를 실행합니다.
+계약이 없거나 중복·손상·불일치하면 다섯 단계를 유지합니다. 재개할 때도 저장된
+route와 현재 승인된 route가 같아야 합니다. 어노테이션은 `auto spec gates --annotation`으로
+명시적으로 요청하며, 검증·보안·데이터 손실·결정적 오라클 게이트는 유지합니다.
+
+`workflow.coverage_threshold`의 기본값은 `0`으로, 모든 작업에 같은 커버리지 하한을
+강제하지 않습니다. 프로젝트나 명시적으로 선택한 워크플로의 한도는 계속 적용합니다.
+일반 `auto workflow context`에서 아키텍처 문서는 `--conditional-profile architecture`
+또는 `--required-document`로 선택합니다. 필수 core·SPEC 본문은 완전성과 해시를
+검증하며, 서명된 OMP canonical context와 릴리스 증거 경로는 바꾸지 않습니다.
 
 ---
 
@@ -709,7 +734,7 @@ Claude Code statusline 참고:
 ✓ 생성됨: .codex/skills/, .codex/agents/, .codex/hooks.json, .codex/config.toml, AGENTS.md
 ✓ 생성됨: .gemini/, GEMINI.md
 ✓ 생성됨: .opencode/, .agents/skills/, AGENTS.md, opencode.json
-✓ 생성됨: .omp/rules/, .omp/agents/, .omp/skills/, .omp/commands/, 선택형 .omp/extensions/
+✓ 생성됨: .omp/rules/, .omp/skills/, .omp/commands/, 선택형 .omp/extensions/
 ✓ 생성됨: autopus.yaml
 ```
 
@@ -975,9 +1000,10 @@ v0.50.71 이하에서 macOS self-update로 이행할 때는 위의 **업데이�
 
 ## 🤖 파이프라인
 
-### 7단계 멀티 에이전트 파이프라인
+### 위험도에 맞춘 실행
 
-모든 `/auto go`가 이 파이프라인을 실행합니다:
+일반 작업은 현재 세션에서 처리하고, 검증된 compact 계약은 런타임의 세 단계 경로를 사용합니다.
+아래 그림은 전체 작업의 역할을 보여주는 예시이며, 단계마다 별도 에이전트를 강제하지 않습니다.
 
 ```mermaid
 sequenceDiagram
@@ -997,9 +1023,12 @@ sequenceDiagram
         T->>E: T1, T2, T3 ... (병렬)
     end
 
-    E->>A: Phase 2.5: @AX 태그 적용
-    A->>V: Gate 2: 빌드 + 린트 + vet
-    V->>T: Phase 3: 커버리지 → 85%+
+    opt 명시적인 어노테이션 요청
+        E->>A: 요청한 @AX 태그 적용
+        A-->>E: 어노테이션 결과
+    end
+    E->>V: Gate 2: 빌드 + 린트 + vet
+    V->>T: Phase 3: 관련 테스트 + 명시한 커버리지 기준
     T->>R: Phase 4: TRUST 5 리뷰 + OWASP 감사
     R-->>S: ✅ APPROVE
 ```
@@ -1011,8 +1040,8 @@ sequenceDiagram
 | **Planner** | SPEC 분해, 태스크 할당, 복잡도 평가 | Phase 1 |
 | **Spec Writer** | spec.md, plan.md, acceptance.md, research.md 생성 | `/auto plan` |
 | **Tester** | 테스트 스캐폴드 (RED) + 커버리지 부스트 (GREEN) | Phase 1.5, 3 |
-| **Executor** | 병렬 워크트리에서 TDD 구현 | Phase 2 |
-| **Annotator** | @AX 태그 라이프사이클 관리 | Phase 2.5 |
+| **Executor** | 구현; 지원되고 필요한 경우 네이티브 격리 사용 | 위임할 때 |
+| **Annotator** | @AX 태그 라이프사이클 관리 | 명시적으로 요청할 때만 |
 | **Validator** | 빌드, vet, 린트, 파일 크기 검사 | Gate 2 |
 | **Reviewer** | TRUST 5 코드 리뷰 | Phase 4 |
 | **Security Auditor** | OWASP Top 10 취약점 스캔 | Phase 4 |
@@ -1104,7 +1133,7 @@ Ultra에서 Astra/ultra, Balanced에서 Astra/xhigh를 사용합니다.
 
 | 플래그 | 모드 | 설명 |
 |--------|------|------|
-| *(기본)* | 서브에이전트 파이프라인 | 메인 세션이 플랫폼 네이티브 서브에이전트 표면을 조율 |
+| *(기본)* | 현재 세션 우선 | 독립 작업이나 전문 검토·컨텍스트 격리가 필요한 작업만 위임 |
 | `--team` | 팀 토폴로지 | 플랫폼 네이티브 Lead / Builder / Guardian 책임 프로필 |
 | `--solo` | 단일 세션 | 서브에이전트 없이 직접 TDD |
 | `--auto --loop` | 완전 자율 | RALF 자가 치유, 사용자 승인 없음 |
@@ -1186,9 +1215,9 @@ SPEC을 **16개 에이전트**에 전달합니다. 기획, 테스트 스캐폴�
 Phase 1    │ 🧠 Planner         │ SPEC → 태스크 + 에이전트 할당
 Phase 1.5  │ 🧪 Tester          │ 실패하는 테스트 스켈레톤 (RED)
 Phase 2    │ ⚡ Executor ×N      │ 병렬 워크트리에서 TDD
-Phase 2.5  │ 📝 Annotator       │ @AX 문서화 태그
+Optional   │ 📝 Annotator       │ 명시적으로 요청한 @AX 태그만 적용
 Gate  2    │ ✅ Validator        │ 빌드 + 린트 + vet
-Phase 3    │ 🧪 Tester          │ 커버리지 → 85%+
+Phase 3    │ 🧪 Tester          │ 관련 테스트 + 명시한 커버리지 기준
 Phase 4    │ 🔍 Reviewer + 🛡️    │ TRUST 5 + OWASP 감사
 ```
 
@@ -1224,8 +1253,8 @@ auto sync verify --spec SPEC-HOOK-001 --strict
 
 | | 차원 | 검사 항목 |
 |---|------|----------|
-| **T** | Tested (테스트) | 85%+ 커버리지, 엣지 케이스, `go test -race` |
-| **R** | Readable (가독성) | 명확한 네이밍, 단일 책임, ≤ 300 LOC |
+| **T** | Tested (테스트) | 관련 동작, 경계 조건, race 검사, 명시한 커버리지 기준 |
+| **R** | Readable (가독성) | 명확한 이름, 응집된 책임, 프로젝트가 정한 한도 |
 | **U** | Unified (일관성) | gofmt, goimports, golangci-lint, 일관된 패턴 |
 | **S** | Secured (보안) | OWASP Top 10, 인젝션 없음, 하드코딩된 시크릿 없음 |
 | **T** | Trackable (추적성) | 의미 있는 로그, 에러 컨텍스트, SPEC/Lore 참조 |
@@ -1445,8 +1474,8 @@ security:
 
 **하네스가 강제하는 모범 사례:**
 - **버전 고정** — 모든 의존성을 정확한 버전으로 잠금 (`go.sum`, `package-lock.json`, `requirements.txt`)
-- **의존성 최소화** — 300줄 파일 제한과 단일 책임 원칙이 자연스럽게 불필요한 임포트를 줄임
-- **격리** — 병렬 executor가 격리된 git 워크트리에서 실행; 태스크 간 교차 오염 없음
+- **의존성 최소화** — 기존 코드와 네이티브 기능을 먼저 활용하고, 필요한 의존성이나 추상화만 추가합니다
+- **격리** — 지원되는 네이티브 격리를 사용합니다. 작업 디렉터리를 공유할 때는 쓰기 소유권을 분리하며, 대화 분기만으로 파일이 격리되지는 않습니다.
 - **맹목적 설치 금지** — Security Auditor 에이전트가 미확인/미검증 패키지를 코드베이스 진입 전 차단
 
 ### 바이너리 배포 안전성

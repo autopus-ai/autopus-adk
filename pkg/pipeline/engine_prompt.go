@@ -9,7 +9,7 @@ func (e *SubprocessEngine) buildPhasePrompt(phase Phase, previous map[PhaseID]st
 	prompt := buildPrompt(e.cfg.SpecID, phase.ID, legacyPrevious)
 	if e.promptBuilder != nil {
 		built, err := e.promptBuilder.BuildPrompt(phase.ID, PhaseContext{
-			PreviousResults: previous, FrozenRequiredDocuments: true,
+			PreviousResults: previous, FrozenRequiredDocuments: true, Route: e.cfg.Route,
 		})
 		if err != nil {
 			return "", err
@@ -23,7 +23,7 @@ func (e *SubprocessEngine) buildOMPActivePhasePrompt(phase Phase) (string, error
 	prompt := buildPrompt(e.cfg.SpecID, phase.ID, "")
 	if e.promptBuilder != nil {
 		built, err := e.promptBuilder.BuildPrompt(phase.ID, PhaseContext{
-			FrozenRequiredDocuments: true,
+			FrozenRequiredDocuments: true, Route: e.cfg.Route,
 		})
 		if err != nil {
 			return "", err

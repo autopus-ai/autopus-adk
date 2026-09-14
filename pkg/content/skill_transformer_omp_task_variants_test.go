@@ -11,11 +11,17 @@ import (
 	"github.com/insajin/autopus-adk/pkg/content"
 )
 
+// The renderer has two legitimate output forms for a legacy dispatch: a fenced
+// or bare call becomes a native `task` batch payload, and an inline code span
+// becomes a native prose reference. Both must produce a valid native
+// invocation, and neither may invent the conditional `isolated`/`effort`
+// fields that only a live schema can authorize.
 func TestOMPStaticTaskRenderer_UsesIntentBatchCoreAcrossDynamicVariants(t *testing.T) {
 	for _, test := range []struct {
 		name, source string
+		inlineProse  bool
 	}{
-		{name: "batch off", source: "`Agent(subagent_type=\"executor\", prompt=\"Implement\")`"},
+		{name: "inline code span", source: "`Agent(subagent_type=\"executor\", prompt=\"Implement\")`", inlineProse: true},
 		{name: "batch on", source: "```text\nAgent(subagent_type=\"executor\", prompt=\"Implement\")\nAgent(subagent_type=\"reviewer\", prompt=\"Review\")\n```"},
 		{name: "isolation none", source: "Agent(subagent_type=\"executor\", prompt=\"Implement\")"},
 		{name: "isolation on", source: "Agent(subagent_type=\"executor\", prompt=\"Implement\", isolated=true)"},
@@ -24,6 +30,20 @@ func TestOMPStaticTaskRenderer_UsesIntentBatchCoreAcrossDynamicVariants(t *testi
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			rendered := content.ReplacePlatformReferences(test.source, "omp")
+			for _, token := range ompLegacyCoordinationTokens {
+				assert.NotContains(t, rendered, token)
+			}
+			assert.NotContains(t, rendered, `"isolated"`)
+			assert.NotContains(t, rendered, `"effort"`)
+
+			if test.inlineProse {
+				assert.Contains(t, rendered, "`task` batch",
+					"an inline dispatch must still name the native task batch")
+				assert.NotContains(t, rendered, "```json",
+					"an inline code span must not expand into a full payload example")
+				return
+			}
+
 			payload := firstOMPJSONExample(t, rendered)
 			assert.Equal(t, []string{"context", "i", "tasks"}, sortedOMPJSONKeys(payload))
 			assert.NotEmpty(t, payload["i"])
@@ -31,8 +51,6 @@ func TestOMPStaticTaskRenderer_UsesIntentBatchCoreAcrossDynamicVariants(t *testi
 			require.NoError(t, err)
 			assert.NotContains(t, string(encoded), `"isolated"`)
 			assert.NotContains(t, string(encoded), `"effort"`)
-			assert.Contains(t, rendered, "current dynamic `task` schema")
-			assert.Contains(t, rendered, "Add `isolated` or `effort` only after")
 		})
 	}
 }

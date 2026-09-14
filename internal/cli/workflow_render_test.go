@@ -26,7 +26,7 @@ func findLine(lines []string, prefix string) string {
 	return ""
 }
 
-// S18: --route team lists the 8 team phases in order; no --route lists the 4
+// S18: --route team lists the declared phases in order; no --route lists the four
 // route_a phases in order.
 func TestWorkflowRender_RouteSelectsPhaseOrder(t *testing.T) {
 	t.Parallel()
@@ -34,7 +34,7 @@ func TestWorkflowRender_RouteSelectsPhaseOrder(t *testing.T) {
 	teamOrder := findLine(renderLines(t, "--route", "team", "--dry-run"), "phase order:")
 	wantTeam := []string{
 		"planning", "test_scaffold", "implementation", "gate_build_test",
-		"annotation", "testing", "review", "release_hygiene",
+		"testing", "review", "release_hygiene",
 	}
 	prev := -1
 	for _, ph := range wantTeam {

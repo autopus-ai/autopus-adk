@@ -24,7 +24,7 @@ func TestOMPModelIntegrationCatalog_MetadataRunnerRejectsUnownedReads(t *testing
 	accepted := [][]string{
 		{"models", "--json", "--no-extensions"},
 		{"config", "get", "retry.modelFallback", "--json"},
-		{"--config", "/tmp/owned.yml", "config", "get", "modelRoles", "--json"},
+		{"--config", "/tmp/owned.yml", "config", "get", "task.agentModelOverrides", "--json"},
 	}
 	for _, args := range accepted {
 		if !safeOMPModelIntegrationArgs(args) {
@@ -35,8 +35,8 @@ func TestOMPModelIntegrationCatalog_MetadataRunnerRejectsUnownedReads(t *testing
 		{"models", "--json"},
 		{"models", "--json", "--extensions"},
 		{"config", "get", "provider.apiKey", "--json"},
-		{"--other", "value", "config", "get", "modelRoles", "--json"},
-		{"--config", "bad\npath", "config", "get", "modelRoles", "--json"},
+		{"--other", "value", "config", "get", "task.agentModelOverrides", "--json"},
+		{"--config", "bad\npath", "config", "get", "task.agentModelOverrides", "--json"},
 	}
 	for _, args := range rejected {
 		if safeOMPModelIntegrationArgs(args) {

@@ -56,7 +56,8 @@ func TestMakeInterfacesFeelBetterCatalogMetadata(t *testing.T) {
 	skill, ok := catalog.Get("make-interfaces-feel-better")
 	require.True(t, ok)
 	assert.Equal(t, "methodology", skill.Category)
-	assert.Contains(t, skill.Bundles, "core")
+	assert.NotContains(t, skill.Bundles, "core",
+		"UI polish is opt-in guidance; claiming the core bundle would put it on every default surface")
 	assert.Contains(t, skill.Bundles, "frontend")
 	assert.Contains(t, skill.CompileTargets, "codex")
 	assert.Contains(t, skill.CompileTargets, "opencode")

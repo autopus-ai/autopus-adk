@@ -1,10 +1,14 @@
 package content_test
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
 
+	contentfs "github.com/insajin/autopus-adk/content"
 	"github.com/insajin/autopus-adk/pkg/content"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestReplacePlatformReferencesOMP_S12_EmittedBodies sweeps the real rule and
@@ -37,19 +41,39 @@ func TestReplacePlatformReferencesOMP_S12_EmittedBodies(t *testing.T) {
 				"%s must reference .omp/rules/autopus-<name>.md", name)
 			assert.NotContains(t, out, `isolation: "worktree"`)
 			assert.NotContains(t, out, `isolation = "worktree"`)
-			if name == "skills/agent-pipeline.md" || name == "skills/worktree-isolation.md" {
-				for _, field := range []string{
-					`"i"`, `"context"`, `"tasks"`, `"agent"`, `"task"`, `"outputSchema"`,
-					`"schemaMode"`, `"owned_paths"`, `"changed_files"`,
-					`"verification"`, `"blockers"`, `"next_required_step"`,
-				} {
-					assert.Contains(t, out, field, "%s missing OMP field %s", name, field)
-				}
-				assert.NotContains(t, out, `"isolated"`, "%s must not emit a conditional field statically", name)
-				assert.Contains(t, out, "`isolated`", "%s must document dynamic isolation", name)
-				assert.Contains(t, out, "single DAG owner invariant")
-				assert.Contains(t, out, "orca skills get orchestration --full")
-			}
 		})
+	}
+}
+
+// The on-demand receipt schema remains usable without embedding tool tutorials.
+func TestReplacePlatformReferencesOMP_CoordinationResourceCarriesReceiptSchema(t *testing.T) {
+	t.Parallel()
+	raw, err := contentfs.FS.ReadFile("skills/references/agent-pipeline/coordination.md")
+	require.NoError(t, err)
+	out := content.ReplacePlatformReferences(string(raw), "omp")
+	_, rest, found := strings.Cut(out, "```json\n")
+	require.True(t, found)
+	block, _, closed := strings.Cut(rest, "\n```")
+	require.True(t, closed)
+	var schema struct {
+		Type                 string   `json:"type"`
+		AdditionalProperties *bool    `json:"additionalProperties"`
+		Required             []string `json:"required"`
+		Properties           map[string]struct {
+			Type string `json:"type"`
+		} `json:"properties"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(block), &schema))
+	require.Equal(t, "object", schema.Type)
+	require.NotNil(t, schema.AdditionalProperties)
+	assert.False(t, *schema.AdditionalProperties)
+	assert.ElementsMatch(t, []string{"owned_paths", "changed_files", "verification", "blockers", "next_required_step"}, schema.Required)
+	require.Len(t, schema.Properties, len(schema.Required))
+	for _, field := range schema.Required {
+		kind := "array"
+		if field == "next_required_step" {
+			kind = "string"
+		}
+		assert.Equal(t, kind, schema.Properties[field].Type)
 	}
 }

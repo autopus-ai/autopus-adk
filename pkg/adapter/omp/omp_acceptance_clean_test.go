@@ -62,11 +62,11 @@ func TestOMPAcceptance_S13_UserOwnedOMPSurfacePreserved(t *testing.T) {
 	managedRule := filepath.Join(dir, ompRuleDir, ompRuleFilePrefix+"branding.md")
 	require.FileExists(t, managedRule, "the managed rule must exist before Clean")
 
-	// User edits one managed agent; another stays untouched.
-	editedAgent := filepath.Join(dir, ".omp", "agents", "executor.md")
-	require.NoError(t, os.WriteFile(editedAgent, []byte("# hand edited\n"), 0o644))
-	untouchedAgent := filepath.Join(dir, ".omp", "agents", "planner.md")
-	require.FileExists(t, untouchedAgent)
+	// User edits one managed command; another stays untouched.
+	editedCommand := filepath.Join(dir, ".omp", "commands", "auto.md")
+	require.NoError(t, os.WriteFile(editedCommand, []byte("# hand edited\n"), 0o644))
+	untouchedCommand := filepath.Join(dir, ".omp", "commands", "auto-plan.md")
+	require.FileExists(t, untouchedCommand)
 
 	// `auto platform remove omp` drops omp from the platform list before Clean.
 	remaining := config.DefaultFullConfig("omp-acceptance")
@@ -89,13 +89,13 @@ func TestOMPAcceptance_S13_UserOwnedOMPSurfacePreserved(t *testing.T) {
 		".omp/rules/ survives while it still holds a user file")
 
 	backups := backupCopies(t, dir)
-	assert.True(t, backups[".omp/agents/executor.md"],
+	assert.True(t, backups[".omp/commands/auto.md"],
 		"a user-edited managed file must be backed up before removal, found backups: %v", backups)
-	assert.False(t, backups[".omp/agents/planner.md"],
+	assert.False(t, backups[".omp/commands/auto-plan.md"],
 		"an unmodified managed file must be removed without a backup")
 
-	assert.NoFileExists(t, editedAgent)
-	assert.NoFileExists(t, untouchedAgent)
+	assert.NoFileExists(t, editedCommand)
+	assert.NoFileExists(t, untouchedCommand)
 }
 
 func TestOMPAcceptance_UserBaseConfigSurvivesUpdateUnchanged(t *testing.T) {

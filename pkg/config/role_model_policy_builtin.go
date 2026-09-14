@@ -190,7 +190,7 @@ func builtinRoleModelManagedKeys(mode string) map[string]RoleManagedKeyClaimConf
 	}
 	missing := OMPMissingManagedValueFingerprint()
 	return map[string]RoleManagedKeyClaimConf{
-		"modelRoles": {
+		OMPNativeAgentModelOverridesKey: {
 			PriorFingerprint: missing, Complete: true,
 		},
 		"retry.fallbackChains": {

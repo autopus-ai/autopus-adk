@@ -45,7 +45,7 @@ func runQualityOMPWizard(t *testing.T, dir, input string, deps ompPlatformDepend
 
 func TestQualityOMPWizardAppliesChosenFamilyWithoutGlobalQualityChange(t *testing.T) {
 	dir, runner := qualityOMPWizardFixture(t)
-	out, err := runQualityOMPWizard(t, dir, "2\n1\n1\ny\n", ompPlatformDependencies{
+	out, err := runQualityOMPWizard(t, dir, "omp\n1\n1\ny\n", ompPlatformDependencies{
 		newRunner: func() omp.OMPModelCatalogRunner { return runner },
 		activate:  func(context.Context, string, *config.HarnessConfig) error { return nil },
 	})
@@ -58,7 +58,7 @@ func TestQualityOMPWizardAppliesChosenFamilyWithoutGlobalQualityChange(t *testin
 	assert.Empty(t, cfg.RoleModelPolicy.Profiles)
 	assert.Contains(t, out, "openai-codex/gpt-5.6-luna")
 	assert.Contains(t, out, "openai-codex/gpt-6-astra")
-	assert.Contains(t, out, "debugger")
+	assert.Contains(t, out, "task")
 }
 
 func TestQualityOMPWizardCancellationNeverWritesOrActivates(t *testing.T) {
@@ -66,7 +66,7 @@ func TestQualityOMPWizardCancellationNeverWritesOrActivates(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			dir, runner := qualityOMPWizardFixture(t)
 			before := readAutopusConfigTree(t, dir)
-			out, err := runQualityOMPWizard(t, dir, "2\n1\n2\n"+confirmation, ompPlatformDependencies{
+			out, err := runQualityOMPWizard(t, dir, "omp\n1\n2\n"+confirmation, ompPlatformDependencies{
 				newRunner: func() omp.OMPModelCatalogRunner { return runner },
 				activate: func(context.Context, string, *config.HarnessConfig) error {
 					t.Fatal("cancellation must not activate a profile")
@@ -84,7 +84,7 @@ func TestQualityOMPWizardBlocksUnavailableModelsBeforeConfirmation(t *testing.T)
 	dir, runner := qualityOMPWizardFixture(t)
 	runner.catalog = ompCLIBalancedCatalogWithout(t, "openai-codex/gpt-6-astra")
 	before := readAutopusConfigTree(t, dir)
-	out, err := runQualityOMPWizard(t, dir, "2\n1\n1\ny\n", ompPlatformDependencies{
+	out, err := runQualityOMPWizard(t, dir, "omp\n1\n1\ny\n", ompPlatformDependencies{
 		newRunner: func() omp.OMPModelCatalogRunner { return runner },
 		activate: func(context.Context, string, *config.HarnessConfig) error {
 			t.Fatal("unavailable models must not activate")
@@ -93,7 +93,7 @@ func TestQualityOMPWizardBlocksUnavailableModelsBeforeConfirmation(t *testing.T)
 	})
 	require.Error(t, err)
 	assert.Equal(t, before, readAutopusConfigTree(t, dir))
-	assert.Contains(t, out, "planner")
+	assert.Contains(t, out, "task")
 	assert.NotContains(t, out, "Apply these models?")
 }
 
@@ -118,7 +118,7 @@ func TestQualityOMPWizardRespectsExplicitBalancedDefinition(t *testing.T) {
 	require.True(t, ok)
 	cfg.RoleModelPolicy.Profiles = map[string]config.RoleModelProfileConf{"balanced": profile}
 	require.NoError(t, config.Save(dir, cfg))
-	out, err := runQualityOMPWizard(t, dir, "2\n1\ny\n", ompPlatformDependencies{
+	out, err := runQualityOMPWizard(t, dir, "omp\n1\ny\n", ompPlatformDependencies{
 		newRunner: func() omp.OMPModelCatalogRunner { return runner },
 		activate:  func(context.Context, string, *config.HarnessConfig) error { return nil },
 	})
@@ -134,7 +134,7 @@ func TestQualityOMPWizardAbortBeforeModeLeavesConfigUntouched(t *testing.T) {
 	path := filepath.Join(dir, "autopus.yaml")
 	before, err := os.ReadFile(path)
 	require.NoError(t, err)
-	_, err = runQualityOMPWizard(t, dir, "2\n", ompPlatformDependencies{
+	_, err = runQualityOMPWizard(t, dir, "omp\n", ompPlatformDependencies{
 		newRunner: func() omp.OMPModelCatalogRunner { return runner },
 	})
 	require.Error(t, err)

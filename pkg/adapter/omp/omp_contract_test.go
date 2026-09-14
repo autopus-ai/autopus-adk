@@ -86,12 +86,6 @@ func TestOMPAdapter_Validate_NamesEachMissingSurface(t *testing.T) {
 			wantMessage: "omp command 디렉터리가 없음",
 		},
 		{
-			name:        "agent directory removed",
-			remove:      filepath.Join(".omp", "agents"),
-			wantFile:    filepath.Join(".omp", "agents"),
-			wantMessage: "omp agent 디렉터리가 없음",
-		},
-		{
 			name:        "rule directory removed",
 			remove:      filepath.FromSlash(ompRuleDir),
 			wantFile:    filepath.FromSlash(ompRuleDir),
@@ -121,7 +115,7 @@ func TestOMPAdapter_Validate_NamesEachMissingSurface(t *testing.T) {
 func TestOMPAdapter_Validate_EmptyWorkspaceReportsAllSurfaces(t *testing.T) {
 	errs, err := NewWithRoot(t.TempDir()).Validate(context.Background())
 	require.NoError(t, err)
-	require.Len(t, errs, 4)
+	require.Len(t, errs, 3)
 
 	files := make([]string, 0, len(errs))
 	for _, e := range errs {
@@ -132,7 +126,6 @@ func TestOMPAdapter_Validate_EmptyWorkspaceReportsAllSurfaces(t *testing.T) {
 	assert.ElementsMatch(t, []string{
 		filepath.Join(".omp", "skills"),
 		filepath.Join(".omp", "commands"),
-		filepath.Join(".omp", "agents"),
 		filepath.FromSlash(ompRuleDir),
 	}, files)
 }

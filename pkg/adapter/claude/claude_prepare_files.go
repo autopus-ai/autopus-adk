@@ -177,7 +177,13 @@ func (a *Adapter) prepareContentFilesForConfig(
 		if subDir == "skills" {
 			name := strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name()))
 			outputName := pkgcontent.ResolveCatalogSkillOutputName(name, "claude")
-			targetPath = filepath.Join(targetRelDir, outputName, "SKILL.md")
+			skillDir := filepath.Join(targetRelDir, outputName)
+			targetPath = filepath.Join(skillDir, "SKILL.md")
+			resources, err := claudeSkillResourceMappings(name, skillDir, cfg)
+			if err != nil {
+				return nil, err
+			}
+			files = append(files, resources...)
 		}
 		files = append(files, adapter.FileMapping{
 			TargetPath:      targetPath,

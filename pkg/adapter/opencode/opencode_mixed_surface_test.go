@@ -18,6 +18,9 @@ func TestAdapter_Generate_MixedMode_DefaultsToFullSharedSurface(t *testing.T) {
 	a := NewWithRoot(dir)
 	cfg := config.DefaultFullConfig("demo")
 	cfg.Platforms = []string{"codex", "opencode"}
+	// This fixture is about shared-surface ownership under the full library, so
+	// it selects that library explicitly instead of riding the default.
+	cfg.Skills.Compiler.Mode = config.SkillCompilerModeFull
 
 	_, err := a.Generate(context.Background(), cfg)
 	require.NoError(t, err)
@@ -79,6 +82,8 @@ func TestAdapter_Update_AutoSharedSurfacePrunesLegacyExtendedSkills(t *testing.T
 	a := NewWithRoot(dir)
 	fullCfg := config.DefaultFullConfig("demo")
 	fullCfg.Platforms = []string{"opencode"}
+	// The prune under test needs metrics installed on the shared surface first.
+	fullCfg.Skills.Compiler.Mode = config.SkillCompilerModeFull
 
 	_, err := a.Generate(context.Background(), fullCfg)
 	require.NoError(t, err)
@@ -103,13 +108,16 @@ func TestAdapter_Generate_AutoSharedSurfaceUsesCoreSharedSkillSetInMixedMode(t *
 	cfg := config.DefaultFullConfig("demo")
 	cfg.Platforms = []string{"codex", "opencode"}
 	cfg.Skills.SharedSurface = config.SharedSurfaceAuto
+	// shared_surface is only consulted for the full library; without this the
+	// fixture would pass on the compact default without exercising it at all.
+	cfg.Skills.Compiler.Mode = config.SkillCompilerModeFull
 
 	_, err := a.Generate(context.Background(), cfg)
 	require.NoError(t, err)
 
 	assert.FileExists(t, filepath.Join(dir, ".agents", "skills", "planning", "SKILL.md"))
 	assert.FileExists(t, filepath.Join(dir, ".agents", "skills", "agent-pipeline", "SKILL.md"))
-	assert.FileExists(t, filepath.Join(dir, ".agents", "skills", "make-interfaces-feel-better", "SKILL.md"))
+	assert.FileExists(t, filepath.Join(dir, ".agents", "skills", "verification", "SKILL.md"))
 	assert.NoFileExists(t, filepath.Join(dir, ".agents", "skills", "metrics", "SKILL.md"))
 	assert.NoFileExists(t, filepath.Join(dir, ".agents", "skills", "product-discovery", "SKILL.md"))
 }

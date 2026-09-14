@@ -71,32 +71,41 @@ func marshalAutopusConfig(original []byte, cfg *config.HarnessConfig) ([]byte, e
 	if cfg == nil || cfg.Validate() != nil {
 		return nil, errors.New("autopus_config_invalid")
 	}
+	return replaceAutopusConfigSection(original, "role_model_policy", cfg.RoleModelPolicy)
+}
+
+// replaceAutopusConfigSection rewrites exactly one top-level key of an existing
+// autopus.yaml and leaves every sibling node untouched, so a caller that owns
+// one section never reformats the rest of a user's file. Comments inside the
+// replaced section do not survive: the section is re-encoded from the typed
+// value, which is the only representation the harness validates against.
+func replaceAutopusConfigSection(original []byte, key string, section any) ([]byte, error) {
 	document, _, err := parseAutopusConfigDocument(original)
 	if err != nil {
 		return nil, err
 	}
-	policyData, err := yaml.Marshal(cfg.RoleModelPolicy)
+	sectionData, err := yaml.Marshal(section)
 	if err != nil {
 		return nil, errors.New("autopus_config_marshal_failed")
 	}
-	var policyDocument yaml.Node
-	if yaml.Unmarshal(policyData, &policyDocument) != nil || len(policyDocument.Content) != 1 {
+	var sectionDocument yaml.Node
+	if yaml.Unmarshal(sectionData, &sectionDocument) != nil || len(sectionDocument.Content) != 1 {
 		return nil, errors.New("autopus_config_marshal_failed")
 	}
 	mapping := document.Content[0]
-	policyIndex := -1
+	sectionIndex := -1
 	for index := 0; index < len(mapping.Content); index += 2 {
-		if mapping.Content[index].Value == "role_model_policy" {
-			policyIndex = index + 1
+		if mapping.Content[index].Value == key {
+			sectionIndex = index + 1
 			break
 		}
 	}
-	if policyIndex >= 0 {
-		mapping.Content[policyIndex] = policyDocument.Content[0]
+	if sectionIndex >= 0 {
+		mapping.Content[sectionIndex] = sectionDocument.Content[0]
 	} else {
 		mapping.Content = append(mapping.Content,
-			&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "role_model_policy"},
-			policyDocument.Content[0],
+			&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: key},
+			sectionDocument.Content[0],
 		)
 	}
 	encoded, err := yaml.Marshal(document)

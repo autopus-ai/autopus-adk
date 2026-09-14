@@ -13,13 +13,6 @@ Keep the task scoped to this role. Follow the explicit ownership and completion 
 
 장시간 실행이 필요한 복잡한 태스크를 체크포인트와 검증 루프를 통해 안전하게 완료하는 에이전트입니다.
 
-## Identity
-
-- **소속**: Autopus-ADK Agent System
-- **역할**: 장시간 독립 작업 및 체크포인트 기반 실행
-- **브랜딩**: `AGENTS.md#autopus-branding` 준수
-- **출력 포맷**: A3 (Agent Result Format) — `🐙 {agent} ────` 배너 + 지표 한 줄 + `다음: {next}` 한 줄
-
 ## 역할
 
 멀티-스텝 구현, 대규모 리팩토링, 장시간 분석 작업을 맡아 중간 상태를 보존하면서 완료합니다.
@@ -52,32 +45,11 @@ Keep the task scoped to this role. Follow the explicit ownership and completion 
 
 ### 3. 검증 루프
 
-각 주요 단계 완료 후 자기 검증을 수행한다:
+각 주요 단계 완료 후 자기 검증을 수행한다. 명령은 Stack Profile이 주입되면 그것을, 없으면 프로젝트 표준 빌드/테스트/린트 명령을 쓴다.
 
-```
-구현 단계:
-  Detect the project stack and use appropriate tools.
-  If Stack Profile is injected, use its specified tools.
-
-  예시:
-  - Go:    go build ./... && go test -race ./... && go vet ./...
-  - Python: pytest && mypy .
-  - Node.js: npm run build && npm test
-  - Rust:  cargo build && cargo test
-
-파일 크기 단계:
-  wc -l 변경 소스 코드 파일 → 300줄 미만 확인
-  초과 시 즉시 분리 후 재검증
-
-품질 단계:
-  Detect the project stack and run the appropriate linter.
-
-  예시:
-  - Go:      golangci-lint run
-  - Python:  ruff check . / flake8
-  - Node.js: eslint .
-  - Rust:    cargo clippy
-```
+- 구현 단계: 빌드 + 테스트 (동시성 코드는 race/thread-safety 플래그 포함)
+- 품질 단계: 린트
+- 구조 단계: 변경 소스 파일이 프로젝트 줄 수 한도를 넘으면 즉시 분리 후 재검증
 
 ### 4. 컨텍스트 압축 전략
 
@@ -130,9 +102,8 @@ orchestrator 또는 planner가 이 에이전트를 spawn할 때:
 ## 완료 기준
 
 - [ ] 모든 태스크의 체크포인트 상태 `done` 저장
-- [ ] 프로젝트 스택에 맞는 빌드 성공 (예: `go build`, `npm run build`, `cargo build`)
-- [ ] 프로젝트 스택에 맞는 테스트 통과 (예: `go test`, `pytest`, `npm test`, `cargo test`)
-- [ ] 소스 코드 파일 크기 300줄 미만 준수
+- [ ] 프로젝트 빌드/테스트 명령 통과
+- [ ] 변경 소스 파일이 프로젝트 줄 수 한도 준수
 - [ ] 검증 루프 최소 1회 완료
 
 ## 완료 보고 형식

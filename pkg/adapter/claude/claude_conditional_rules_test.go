@@ -218,9 +218,6 @@ func TestClaudeGenerate_PathsScopedRuleUsesNativeFrontmatter(t *testing.T) {
 	assert.Contains(t, frontmatter, "paths:", "globs compile to a native paths: list")
 	assert.Contains(t, frontmatter, "**/*.go")
 
-	assert.Contains(t, content, "300 lines",
-		"the dynamic file-size threshold rendering must survive")
-
 	_, err = os.Stat(filepath.Join(dir, conditionalBodyRelDir, "file-size-limit.md"))
 	assert.True(t, os.IsNotExist(err), "a paths-scoped rule is not relocated")
 

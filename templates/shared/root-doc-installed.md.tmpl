@@ -1,37 +1,14 @@
 ## Installed Components
 
-{{if contains (join ", " .Platforms) "claude-code"}}- Claude Skills: .claude/skills/<name>/SKILL.md
-- Claude Agents: .claude/agents/autopus/
-- Claude Rules: .claude/rules/autopus/
-- Claude Hooks: .claude/hooks/autopus/
-- Claude Settings: .claude/settings.json
-- Claude Statusline: .claude/statusline.sh
-- Claude Root Doc: CLAUDE.md
-{{end}}{{if contains (join ", " .Platforms) "codex"}}- Codex Native Skills: .codex/skills/codex-<name>/SKILL.md
-- Codex Agents: .codex/agents/
-- Codex Hook Scripts: .codex/hooks/
-- Codex Hook Registry: .codex/hooks.json
-- Codex Config: .codex/config.toml
-- Codex Plugin Router: @auto ... / $codex-auto-<route>
-{{end}}{{if contains (join ", " .Platforms) "antigravity-cli"}}- Gemini Skills: .gemini/skills/autopus/<name>/SKILL.md
-- Gemini Agents: .gemini/agents/autopus/
-- Gemini Rules: .gemini/rules/autopus/
-- Gemini Commands: .gemini/commands/
-- Gemini Hooks: .gemini/hooks/
-- Gemini Settings: .gemini/settings.json
-- Gemini Statusline: .gemini/statusline.sh
-- Gemini Hook Registry: .agents/hooks.json
-- Gemini Root Doc: GEMINI.md
-- Gemini Plugin Bundle: .agents/plugins/autopus/
-- Shared Commands: .agents/commands/
-{{end}}{{if contains (join ", " .Platforms) "opencode"}}- OpenCode Rules: .opencode/rules/autopus/
-- OpenCode Commands: .opencode/commands/
-- OpenCode Agents: .opencode/agents/
-- OpenCode Plugins: .opencode/plugins/
-- OpenCode-owned Shared Skills: .agents/skills/
-{{end}}{{if contains (join ", " .Platforms) "omp"}}- OMP Skills: .omp/skills/
-- OMP Agents: .omp/agents/
-- OMP Rules: .omp/rules/
-- OMP Commands: .omp/commands/
-{{end}}{{if contains (join ", " .Platforms) "codex"}}- Plugin Marketplace: .agents/plugins/marketplace.json
+Use the current tool's native skill and agent catalog. Load the requested workflow,
+not every installed instruction. `auto skill list` and `auto skill info <name>`
+provide optional built-in guidance without enlarging the default catalog.
+
+{{if contains (join ", " .Platforms) "claude-code"}}- Claude: .claude/
+{{end}}{{if contains (join ", " .Platforms) "codex"}}- Codex: .codex/
+{{end}}{{if contains (join ", " .Platforms) "antigravity-cli"}}- Antigravity: .agents/plugins/autopus/
+{{end}}{{if contains (join ", " .Platforms) "opencode"}}- OpenCode: .opencode/
+- Shared skills: .agents/skills/
+{{end}}{{if contains (join ", " .Platforms) "omp"}}- OMP: .omp/
 {{end}}
+Detailed generated-file ownership is recorded in `.autopus/<platform>-manifest.json`.

@@ -24,7 +24,7 @@ const (
 func TestGenerate_InstallsAntigravityOwnedCompletionHookContract(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
-	generated, err := NewWithRoot(root, WithoutPluginInstall()).Generate(
+	generated, err := NewWithRoot(root).Generate(
 		context.Background(), config.DefaultFullConfig("gemini-only"),
 	)
 	require.NoError(t, err)
@@ -43,7 +43,7 @@ func TestGenerate_InstallsAntigravityOwnedCompletionHookContract(t *testing.T) {
 func TestUpdate_RestoresCompletionHookAndPreservesUserConfig(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
-	a := NewWithRoot(root, WithoutPluginInstall())
+	a := NewWithRoot(root)
 	cfg := config.DefaultFullConfig("gemini-only")
 	_, err := a.Generate(context.Background(), cfg)
 	require.NoError(t, err)
@@ -91,7 +91,7 @@ func TestGenerate_RejectsSymlinkedCompletionHookParent(t *testing.T) {
 		t.Skipf("symlink unavailable: %v", err)
 	}
 
-	_, err := NewWithRoot(root, WithoutPluginInstall()).Generate(
+	_, err := NewWithRoot(root).Generate(
 		context.Background(), config.DefaultFullConfig("gemini-only"),
 	)
 	require.Error(t, err)
@@ -102,7 +102,7 @@ func TestGenerate_RejectsSymlinkedCompletionHookParent(t *testing.T) {
 func TestClean_RemovesAntigravityCompletionHookAsset(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
-	a := NewWithRoot(root, WithoutPluginInstall())
+	a := NewWithRoot(root)
 	_, err := a.Generate(context.Background(), config.DefaultFullConfig("gemini-only"))
 	require.NoError(t, err)
 	assert.FileExists(t, filepath.Join(root, filepath.FromSlash(testAntigravityCompletionHookTarget)))
@@ -123,7 +123,7 @@ func TestGenerate_AntigravityStopCommandUsesConfigParentInsideOuterGit(t *testin
 	require.NoError(t, exec.Command(gitPath, "init", "--quiet", outer).Run())
 	root := filepath.Join(outer, "nested-project")
 	require.NoError(t, os.MkdirAll(root, 0o755))
-	_, err = NewWithRoot(root, WithoutPluginInstall()).Generate(
+	_, err = NewWithRoot(root).Generate(
 		context.Background(), config.DefaultFullConfig("nested-project"),
 	)
 	require.NoError(t, err)

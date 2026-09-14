@@ -62,7 +62,7 @@ func TestPrepareAntigravityHooksJSON_UsesOfficialSchema(t *testing.T) {
 func TestGenerate_WritesProviderSpecificCompletionHookEvents(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	_, err := NewWithRoot(dir, WithoutPluginInstall()).Generate(
+	_, err := NewWithRoot(dir).Generate(
 		context.Background(), config.DefaultFullConfig("test-project"),
 	)
 	require.NoError(t, err)
@@ -83,7 +83,7 @@ func TestGenerate_WritesProviderSpecificCompletionHookEvents(t *testing.T) {
 func TestGenerate_AntigravityStopCommandRunsOutsideGit(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	_, err := NewWithRoot(dir, WithoutPluginInstall()).Generate(
+	_, err := NewWithRoot(dir).Generate(
 		context.Background(), config.DefaultFullConfig("test-project"),
 	)
 	require.NoError(t, err)
@@ -98,35 +98,6 @@ func TestGenerate_AntigravityStopCommandRunsOutsideGit(t *testing.T) {
 	stdout, err := cmd.Output()
 	require.NoError(t, err)
 	assert.Equal(t, `{"decision":"stop"}`, string(bytes.TrimSpace(stdout)))
-}
-
-func TestApplyAntigravityHooks_RemovesStaleManagedCompletionEvents(t *testing.T) {
-	settings := map[string]any{"hooks": map[string]any{
-		"AfterAgent": []any{"stale legacy"},
-		"Stop":       []any{"stale antigravity"},
-		"UserEvent":  []any{"preserve"},
-	}}
-	applyAntigravityHooksAndPermissions(settings, []adapter.HookConfig{{
-		Event: "AfterAgent", Type: "command", Command: "legacy-hook", Timeout: 300,
-	}}, nil)
-
-	hooks := settings["hooks"].(map[string]any)
-	assert.Contains(t, hooks, "AfterAgent")
-	assert.NotContains(t, hooks, "Stop")
-	assert.Equal(t, []any{"preserve"}, hooks["UserEvent"])
-}
-
-func TestPrepareAntigravityPluginJSON(t *testing.T) {
-	t.Parallel()
-
-	files, err := prepareAntigravityPluginJSON()
-	require.NoError(t, err)
-	require.Len(t, files, 1)
-	assert.Equal(t, ".agents/plugins/autopus/plugin.json", files[0].TargetPath)
-
-	var parsed map[string]string
-	require.NoError(t, json.Unmarshal(files[0].Content, &parsed))
-	assert.Equal(t, "autopus", parsed["name"])
 }
 
 func TestMirrorAntigravityPluginMappings(t *testing.T) {
@@ -146,25 +117,6 @@ func TestMirrorAntigravityPluginMappings(t *testing.T) {
 
 	assert.Equal(t, ".agents/plugins/autopus/commands/auto.toml", files[1].TargetPath)
 	assert.Contains(t, string(files[1].Content), ".agents/plugins/autopus/skills/auto/SKILL.md")
-}
-
-func TestMirrorAntigravityGlobalCommandMappings(t *testing.T) {
-	t.Parallel()
-
-	files := mirrorAntigravityGlobalCommandMappings([]adapter.FileMapping{{
-		TargetPath: ".gemini/commands/auto/plan.toml",
-		Content:    []byte("Load .gemini/skills/autopus/auto-plan/SKILL.md"),
-	}, {
-		TargetPath: ".gemini/commands/auto.toml",
-		Content:    []byte("Load .gemini/skills/auto/SKILL.md"),
-	}})
-
-	require.Len(t, files, 2)
-	assert.Equal(t, ".agents/commands/auto/plan.toml", files[0].TargetPath)
-	assert.Contains(t, string(files[0].Content), ".agents/skills/auto-plan/SKILL.md")
-
-	assert.Equal(t, ".agents/commands/auto.toml", files[1].TargetPath)
-	assert.Contains(t, string(files[1].Content), ".agents/skills/auto/SKILL.md")
 }
 
 func TestGenerate_CreatesAntigravityHooksJSON(t *testing.T) {
@@ -208,17 +160,9 @@ func TestGenerate_CreatesAntigravityPluginSurface(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(autoCommandData), ".agents/plugins/autopus/skills/auto/SKILL.md")
 
-	// Verify global surface (/auto shortcuts)
-	assert.FileExists(t, filepath.Join(dir, ".agents", "commands", "auto.toml"))
-	assert.FileExists(t, filepath.Join(dir, ".agents", "commands", "auto", "plan.toml"))
-
-	globalCmdData, err := os.ReadFile(filepath.Join(dir, ".agents", "commands", "auto", "plan.toml"))
-	require.NoError(t, err)
-	assert.Contains(t, string(globalCmdData), ".agents/skills/auto-plan/SKILL.md")
-
-	globalAutoCmdData, err := os.ReadFile(filepath.Join(dir, ".agents", "commands", "auto.toml"))
-	require.NoError(t, err)
-	assert.Contains(t, string(globalAutoCmdData), ".agents/skills/auto/SKILL.md")
+	// Skill directories are what `agy` converts into slash commands, so the
+	// route inventory must be reachable from the plugin alone.
+	assert.FileExists(t, filepath.Join(dir, ".agents", "plugins", "autopus", "skills", "auto", "SKILL.md"))
 }
 
 func TestRemoveAntigravityHooksJSON_PreservesUserHooks(t *testing.T) {

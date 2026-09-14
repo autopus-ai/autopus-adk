@@ -335,7 +335,7 @@ Then  [예상 결과]
 - 엣지 케이스 및 경계 조건
 - 에러 시나리오
 - Must oracle acceptance: concrete output rows, JSON fields, stdout/file content, matching rules, or numeric tolerances
-- 품질 게이트 기준 (커버리지 목표: 85%+)
+- 품질 게이트 기준 (커버리지: 프로젝트가 선언한 threshold만 강제하며, 선언이 없으면 측정값만 증거로 기록)
 
 ### Step {{if .IsFullMode}}7{{else}}5{{end}}: 리서치 결과 저장 (research.md)
 
@@ -352,7 +352,7 @@ Steps 1{{if .IsFullMode}}-3{{end}}에서 발견한 모든 내용을 저장합니
 - 아키텍처 레이어 영향 분석
 - 방법론({{.Methodology.Mode}}) 기반 구현 계획
 - Lore 의사결정 이력 연계
-- 예상 테스트 커버리지 목표: 85%+
+- 테스트 커버리지: 프로젝트가 선언한 threshold를 목표로 하고, 선언이 없으면 측정값만 기록
 {{end}}
 
 ## Branding Formats

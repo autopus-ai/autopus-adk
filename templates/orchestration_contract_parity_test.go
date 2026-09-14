@@ -119,7 +119,7 @@ func TestOrchestrationSemanticContract_CodexSourceContainsNoClaudeTeamPrimitives
 
 	root := templateRoot()
 	codexTeam := readRepoSurface(t, filepath.Join("pkg", "adapter", "codex", "codex_extended_skill_rewrites_agents.go"))
-	codexPipeline := readRepoSurface(t, filepath.Join("pkg", "adapter", "codex", "codex_extended_skill_rewrites_pipeline.go"))
+	codexPipeline := readRepoSurface(t, filepath.Join("pkg", "adapter", "codex", "codex_extended_skill_rewrites.go"))
 	surface := codexTeam + codexPipeline
 
 	for _, forbidden := range []string{"TeamCreate(", "TeamDelete(", "SendMessage(", "bypassPermissions", "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS"} {

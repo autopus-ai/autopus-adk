@@ -11,7 +11,6 @@ export const meta = {
     {title:'test_scaffold'},
     {title:'implementation'},
     {title:'gate_build_test'},
-    {title:'annotation'},
     {title:'testing'},
     {title:'review'},
     {title:'release_hygiene'},
@@ -77,10 +76,6 @@ log('gate', 'gate_build_test');
 }
 
 if (SEGMENT === 'B') {
-await phase('annotation');
-// route_team baseline annotation: model=claude-sonnet-5 effort=medium retry: 0 budget: 40000
-await agent(`Scan and apply @AX annotations for SPEC ${ctx.spec || ''} in ${ctx.workingDir || ''}`, { agentType: 'annotator', model: (RT.annotation && RT.annotation.model) || 'claude-sonnet-5', effort: (RT.annotation && RT.annotation.effort) || 'medium' });
-
 await phase('testing');
 // route_team baseline testing: model=claude-sonnet-5 effort=medium retry: 0 budget: 60000 coverage_threshold=85
 await agent(`Run and verify tests for SPEC ${ctx.spec || ''} in ${ctx.workingDir || ''}`, { agentType: 'tester', model: (RT.testing && RT.testing.model) || 'claude-sonnet-5', effort: (RT.testing && RT.testing.effort) || 'medium' });

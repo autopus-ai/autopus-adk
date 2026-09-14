@@ -31,8 +31,9 @@ func newWorkflowContextCmd() *cobra.Command {
 			}
 			deliveryOpts := promptlayer.ContextDeliveryOptions{
 				Root: opts.projectDir, Command: opts.command, SpecDir: opts.specDir,
-				RequiredReferences:  opts.requiredDocuments,
-				ConditionalProfiles: contextProfileNames(opts.conditionalProfiles),
+				RequiredReferences:   opts.requiredDocuments,
+				ConditionalProfiles:  contextProfileNames(opts.conditionalProfiles),
+				ExplicitArchitecture: true,
 			}
 			result, err := promptlayer.BuildContextDelivery(deliveryOpts)
 			if err != nil {

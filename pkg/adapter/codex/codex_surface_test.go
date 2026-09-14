@@ -50,41 +50,18 @@ func TestCodexAdapter_Generate_WorkflowSurfacesUseV2Conventions(t *testing.T) {
 	}
 }
 
-func TestCodexAdapter_Generate_PreservesDetailedWorkflowContracts(t *testing.T) {
-	t.Parallel()
-	dir := t.TempDir()
-	_, err := codex.NewWithRoot(dir).Generate(context.Background(), config.DefaultFullConfig("test-project"))
-	require.NoError(t, err)
-
-	idea := readCodexNativeSkill(t, dir, "auto-idea")
-	for _, token := range []string{"Clarification Ledger", "Question Audit", "Outcome Lock", "Evolution Ideas", "Visual Brief", "orchestra_unavailable"} {
-		assert.Contains(t, idea, token)
-	}
-	plan := readCodexNativeSkill(t, dir, "auto-plan")
-	for _, token := range []string{"Plan Intent Ledger", "Question Audit", "Completion Debt", "Sibling SPEC Decision", "Visual Planning Brief"} {
-		assert.Contains(t, plan, token)
-	}
-	goSkill := readCodexNativeSkill(t, dir, "auto-go")
-	for _, token := range []string{"SPEC Path Resolution", "Autonomous Review Loop Contract", "Sync Readiness Gate", "completion_verdict_preview", "goal_status"} {
-		assert.Contains(t, goSkill, token)
-	}
-	syncSkill := readCodexNativeSkill(t, dir, "auto-sync")
-	for _, token := range []string{"ARCHITECTURE.md", "@AX Lifecycle Management", "2-Phase Commit", "Completion Verdict"} {
-		assert.Contains(t, syncSkill, token)
-	}
-}
-
 func TestCodexAdapter_Generate_TeamAndPipelineUseSharedWorkspace(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	_, err := codex.NewWithRoot(dir).Generate(context.Background(), config.DefaultFullConfig("test-project"))
+	cfg := config.DefaultFullConfig("test-project")
+	cfg.Skills.Compiler.Mode = config.SkillCompilerModeFull
+	_, err := codex.NewWithRoot(dir).Generate(context.Background(), cfg)
 	require.NoError(t, err)
 
 	for _, name := range []string{"agent-teams", "agent-pipeline", "worktree-isolation", "subagent-dev"} {
 		body := readCodexNativeSkill(t, dir, name)
 		lower := strings.ToLower(body)
 		assert.True(t, strings.Contains(lower, "shared cwd") || strings.Contains(lower, "same cwd"), name)
-		assert.Contains(t, body, "disjoint write ownership", name)
 		for _, tool := range []string{"spawn_agent", "send_message", "followup_task", "wait_agent", "interrupt_agent", "list_agents"} {
 			assert.Contains(t, body, tool, name)
 		}

@@ -179,9 +179,7 @@ func TestLaunchContract_RouteTeam(t *testing.T) {
 	js := deriveTeamWorkflowJS(schema)
 	assertLaunchContractCommon(t, js, "route_team")
 
-	// S11/S13: route_team uses N-segment interposition. For the 8-phase schema
-	// this is 4 segments: A(..gate_build_test) B(annotation,testing) C(review)
-	// D(release_hygiene). assertTeamMultiSegment validates the boundaries.
+	// Interpose the deterministic checks between execution segments.
 	assertTeamMultiSegment(t, js, "route_team")
 
 	// S2: Specific assertions for Route Team
@@ -194,7 +192,7 @@ func TestLaunchContract_RouteTeam(t *testing.T) {
 
 	// S3: agent calls must use template literal referring to ctx/args and carry opts with model
 	// We can check each agent-driven phase
-	agentPhases := []string{"planning", "test_scaffold", "implementation", "annotation", "testing", "review"}
+	agentPhases := []string{"planning", "test_scaffold", "implementation", "testing", "review"}
 	for _, pid := range agentPhases {
 		block := phaseJSBlock(js, pid)
 		if pid == "implementation" {

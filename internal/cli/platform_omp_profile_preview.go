@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 	"io"
-	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -17,11 +16,14 @@ const (
 	ompProfileAvailabilityUnavailable = "unavailable"
 )
 
-// ompProfileAgentPreviewPayload is one canonical agent's route as the operator
-// would receive it: what was requested, what resolves, in which order the
-// declared candidates were attempted, and why an attempt failed.
+// ompProfileAgentPreviewPayload is one bundled native OMP agent's route as the
+// operator would receive it: what was requested, what resolves, in which order
+// the declared candidates were attempted, and why an attempt failed. Agent is
+// always a native OMP name; PolicyKey, Role, and Capability record which
+// logical role supplied the route.
 type ompProfileAgentPreviewPayload struct {
 	Agent             string                       `json:"agent" yaml:"agent"`
+	PolicyKey         string                       `json:"policy_key" yaml:"policy_key"`
 	Role              string                       `json:"role" yaml:"role"`
 	Capability        string                       `json:"capability" yaml:"capability"`
 	Source            string                       `json:"source" yaml:"source"`
@@ -73,8 +75,10 @@ func (e ompProfileUnavailableError) Error() string {
 }
 
 // buildOMPProfileAgentPreview projects one compiled routing resolution per
-// canonical agent in stable order, together with the blockers that must stop
-// an apply before it writes anything.
+// bundled native OMP agent in registry order, together with the blockers that
+// must stop an apply before it writes anything. OMP registers five agents, so
+// several logical roles collapse onto one row; the policy owns that collapse
+// and rejects two operator-written routes that land on the same agent.
 func buildOMPProfileAgentPreview(
 	effective ompProfileEffectiveConfig,
 	catalog omp.OMPModelCatalog,
@@ -83,26 +87,26 @@ func buildOMPProfileAgentPreview(
 	for _, resolution := range compileOMPModelDoctorRouting(effective.profile, catalog).Resolutions {
 		resolved[resolution.Agent] = resolution
 	}
-	agents := config.CanonicalAgentNames()
-	sort.Strings(agents)
-	rows := make([]ompProfileAgentPreviewPayload, 0, len(agents))
+	natives := config.OMPNativeAgentNames()
+	rows := make([]ompProfileAgentPreviewPayload, 0, len(natives))
 	blockers := make([]string, 0)
-	for _, agent := range agents {
-		role, err := config.OMPAgentRole(agent)
+	for _, native := range natives {
+		policy, route, err := effective.profile.OMPNativeAgentRoute(native)
 		if err != nil {
+			blockers = append(blockers, err.Error())
 			continue
 		}
-		row := newOMPProfileAgentPreviewRow(effective, agent, role)
-		resolution, ok := resolved[agent]
+		row := newOMPProfileAgentPreviewRow(effective, native, policy, route)
+		resolution, ok := resolved[native]
 		if !ok {
 			row.Reason = "route_missing"
-			blockers = append(blockers, ompProfileBlocker(agent, row.Reason))
+			blockers = append(blockers, ompProfileBlocker(native, row.Reason))
 			rows = append(rows, row)
 			continue
 		}
 		applyOMPProfileResolutionToRow(&row, resolution)
 		if row.Availability == ompProfileAvailabilityUnavailable {
-			blockers = append(blockers, ompProfileBlocker(agent, row.Reason))
+			blockers = append(blockers, ompProfileBlocker(native, row.Reason))
 		}
 		rows = append(rows, row)
 	}
@@ -111,23 +115,17 @@ func buildOMPProfileAgentPreview(
 
 func newOMPProfileAgentPreviewRow(
 	effective ompProfileEffectiveConfig,
-	agent string,
-	role string,
+	native string,
+	policy config.OMPPolicyAgentRoute,
+	route config.RoleCapabilityRouteConf,
 ) ompProfileAgentPreviewPayload {
 	row := ompProfileAgentPreviewPayload{
-		Agent: agent, Role: role, Source: effective.source,
-		Availability: ompProfileAvailabilityUnavailable, Status: "blocked",
+		Agent: native, PolicyKey: policy.Key, Role: policy.Role, Capability: policy.Capability,
+		Source: effective.source, Availability: ompProfileAvailabilityUnavailable, Status: "blocked",
 		Candidates: []ompProfileCandidatePayload{}, FallbackAttempts: []ompFallbackProjection{},
 	}
-	if _, overridden := effective.overrides[agent]; overridden {
+	if _, overridden := effective.overrides[policy.Key]; overridden {
 		row.Source = ompProfileSourceAgent
-	}
-	if capability, err := config.OMPAgentCapability(agent); err == nil {
-		row.Capability = capability
-	}
-	route, err := effective.profile.AgentRoute(agent)
-	if err != nil {
-		return row
 	}
 	for _, candidate := range route.Candidates {
 		row.Candidates = append(row.Candidates, ompProfileCandidatePayload(candidate))
@@ -218,8 +216,9 @@ func renderOMPProfileApplyPreviewText(cmd *cobra.Command, payload ompProfileAppl
 
 func renderOMPProfileAgentPreviewRow(out io.Writer, row ompProfileAgentPreviewPayload) {
 	_, _ = fmt.Fprintf(
-		out, "agent=%s role=%s capability=%s source=%s availability=%s status=%s reason=%s\n",
-		row.Agent, row.Role, row.Capability, row.Source, row.Availability, row.Status, row.Reason,
+		out, "agent=%s policy_key=%s role=%s capability=%s source=%s availability=%s status=%s reason=%s\n",
+		row.Agent, row.PolicyKey, row.Role, row.Capability,
+		row.Source, row.Availability, row.Status, row.Reason,
 	)
 	selectors := make([]string, 0, len(row.Candidates))
 	for _, candidate := range row.Candidates {

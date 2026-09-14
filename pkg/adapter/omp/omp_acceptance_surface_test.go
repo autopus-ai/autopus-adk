@@ -49,8 +49,8 @@ func TestOMPAcceptance_S6_RuleAndAgentCounts(t *testing.T) {
 
 	assert.Equal(t, 14, countPathsWithPrefix(paths, ompRuleDir+"/"+ompRuleFilePrefix),
 		"manifest must record 14 rules as .omp/rules/autopus-*.md")
-	assert.Equal(t, 16, countPathsWithPrefix(paths, ".omp/agents/"),
-		"manifest must record 16 agents")
+	assert.Equal(t, 0, countPathsWithPrefix(paths, ".omp/agents/"),
+		"agent definitions are OMP's own; a managed file there would shadow a bundled agent")
 	assert.Equal(t, len(workflowSpecs), countPathsWithPrefix(paths, ".omp/commands/"))
 	assert.Greater(t, countPathsWithPrefix(paths, ".omp/skills/"), len(workflowSpecs))
 	assert.NotContains(t, paths, configFile)
@@ -148,7 +148,7 @@ func TestOMPAcceptance_S4_OwnershipBoundaryAndManifestScope(t *testing.T) {
 
 	paths := manifestPaths(t, dir)
 	assert.Equal(t, 14, countPathsWithPrefix(paths, ompRuleDir+"/"+ompRuleFilePrefix))
-	assert.Equal(t, 16, countPathsWithPrefix(paths, ".omp/agents/"))
+	assert.Equal(t, 0, countPathsWithPrefix(paths, ".omp/agents/"))
 	assert.Equal(t, len(workflowSpecs), countPathsWithPrefix(paths, ".omp/commands/"))
 	assert.Greater(t, countPathsWithPrefix(paths, ".omp/skills/"), len(workflowSpecs))
 	assert.NotContains(t, paths, configFile)

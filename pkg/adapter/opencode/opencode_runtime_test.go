@@ -42,9 +42,8 @@ func TestAdapter_Generate_RegistersManagedPlugin(t *testing.T) {
 	assert.Contains(t, content, "`dev`")
 	assert.Contains(t, content, "`doctor`")
 
-	assert.FileExists(t, filepath.Join(dir, ".agents", "skills", "product-discovery", "SKILL.md"))
-	assert.FileExists(t, filepath.Join(dir, ".agents", "skills", "competitive-analysis", "SKILL.md"))
-	assert.FileExists(t, filepath.Join(dir, ".agents", "skills", "metrics", "SKILL.md"))
+	// The reusable (non-workflow) surface is emitted alongside the routes.
+	assert.FileExists(t, filepath.Join(dir, ".agents", "skills", "planning", "SKILL.md"))
 }
 
 func TestAdapter_Validate_ReportsMissingPluginRegistration(t *testing.T) {

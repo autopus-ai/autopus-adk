@@ -273,25 +273,3 @@ func TestClaudeAdapter_Generate_InstallsRules(t *testing.T) {
 	require.NoError(t, err, "techstack-freshness.md가 존재해야 함")
 	assert.Contains(t, string(techstackData), "Technology Stack Decision")
 }
-
-func TestClaudeAdapter_Generate_CLAUDEMDContainsGuidelines(t *testing.T) {
-	t.Parallel()
-	dir := t.TempDir()
-	a := claude.NewWithRoot(dir)
-	cfg := config.DefaultFullConfig("test-project")
-	cfg.Platforms = []string{"claude-code"}
-
-	_, err := a.Generate(context.Background(), cfg)
-	require.NoError(t, err)
-
-	data, err := os.ReadFile(filepath.Join(dir, "CLAUDE.md"))
-	require.NoError(t, err)
-	content := string(data)
-
-	// CLAUDE.md에 Core Guidelines 섹션 포함 확인
-	assert.Contains(t, content, "Subagent Delegation")
-	assert.Contains(t, content, "File Size Limit")
-	assert.Contains(t, content, "300 lines")
-	assert.Contains(t, content, "SPEC Markdown files under .autopus/specs/**")
-	assert.Contains(t, content, "Core Guidelines")
-}

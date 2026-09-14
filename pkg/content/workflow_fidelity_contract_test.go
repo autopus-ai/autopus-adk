@@ -39,7 +39,6 @@ func assertFidelityContract(js string) error {
 		"planning":       "planner",
 		"test_scaffold":  "tester",
 		"implementation": "executor",
-		"annotation":     "annotator",
 		"testing":        "tester",
 	}
 	for phase, agentType := range agentPhases {

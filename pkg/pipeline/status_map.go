@@ -59,7 +59,12 @@ func mapCanonicalCheckpoint(cp *Checkpoint) DashboardData {
 		Agents: make(map[string]string),
 	}
 	for _, phase := range DefaultPhases() {
-		status := cp.TaskStatus[string(phase.ID)]
+		status, recorded := cp.TaskStatus[string(phase.ID)]
+		if !recorded && len(cp.TaskStatus) > 0 {
+			// A route that never dispatched this phase has no status to
+			// render; showing it as pending would claim work is still owed.
+			continue
+		}
 		switch status {
 		case CheckpointStatusDone:
 			result.Phases[string(phase.ID)] = PhaseDone

@@ -18,7 +18,7 @@ func (q QualityConf) NativeBalancedAgentCandidate(provider, agent string) (RoleM
 	}
 	agents := q.Presets["balanced"].Agents
 	if raw, explicit := agents[agent]; explicit {
-		tier, valid := normalizeCodexTier(raw)
+		tier, valid := NormalizeQualityTier(raw)
 		if !valid || (tier != balancedTierForRung(rung) && !isHistoricalBalancedDefault(agents)) {
 			return RoleModelCandidateConf{}, false
 		}

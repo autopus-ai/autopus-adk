@@ -79,39 +79,6 @@ func TestPrepareGitHookFiles_NoDiskWrite(t *testing.T) {
 	assert.True(t, os.IsNotExist(err))
 }
 
-func TestStripFrontmatter(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name  string
-		input string
-		want  string
-	}{
-		{
-			name:  "with frontmatter",
-			input: "---\nname: test\ncategory: workflow\n---\n\n# Content\n\nBody here.",
-			want:  "\n# Content\n\nBody here.",
-		},
-		{
-			name:  "no frontmatter",
-			input: "# Just Content\n\nNo frontmatter.",
-			want:  "# Just Content\n\nNo frontmatter.",
-		},
-		{
-			name:  "incomplete frontmatter",
-			input: "---\nname: test\nno closing",
-			want:  "---\nname: test\nno closing",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			got := stripFrontmatter(tt.input)
-			assert.Equal(t, tt.want, got)
-		})
-	}
-}
-
 func TestInjectMarkerSection_EmptyFile(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
@@ -204,11 +171,13 @@ func TestNativeSkillRoutingInAgentsMD(t *testing.T) {
 	content := string(data)
 
 	assert.Contains(t, content, "## Core Guidelines")
-	assert.Contains(t, content, "### Subagent Delegation")
-	assert.Contains(t, content, "### Review Convergence")
-	assert.Contains(t, content, "### Mandatory Compact Policy")
-	assert.Contains(t, content, "$codex-auto-<route>")
-	assert.Contains(t, content, "$codex-<skill>")
+	assert.Contains(t, content, "### Execution")
+	assert.Contains(t, content, "### Review and Completion")
+	// Native routing is advertised as the discovery path plus the invocation
+	// the runtime actually accepts; the per-route enumeration lives in the
+	// generated route skills, not in the root document.
+	assert.Contains(t, content, "- Codex: .codex/")
+	assert.Contains(t, content, "$codex-auto")
 	assert.NotContains(t, content, ".codex/rules/autopus/")
 	// Asserting only that the old prefix disappeared accepted the prefix-only
 	// rewrite that produced AGENTS.mdbranding.md. The rewrite must land on a

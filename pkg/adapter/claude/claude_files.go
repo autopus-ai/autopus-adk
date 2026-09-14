@@ -97,6 +97,30 @@ func claudeSkillCatalog(subDir string, cfg *config.HarnessConfig) (*pkgcontent.S
 	return catalog, nil
 }
 
+// claudeSkillResourceMappings returns the reference bodies installed beside a
+// generated skill. A compacted SKILL.md links to them with the relative
+// references/<file>.md form, so they have to land in the skill's own directory
+// or the link points at nothing.
+func claudeSkillResourceMappings(name, skillDir string, cfg *config.HarnessConfig) ([]adapter.FileMapping, error) {
+	resources, err := pkgcontent.RenderSkillResources(name, "claude", cfg)
+	if err != nil {
+		return nil, fmt.Errorf("Claude skill resource render %s: %w", name, err)
+	}
+
+	names := pkgcontent.SkillResourceNames(resources)
+	files := make([]adapter.FileMapping, 0, len(names))
+	for _, rel := range names {
+		data := resources[rel]
+		files = append(files, adapter.FileMapping{
+			TargetPath:      filepath.Join(skillDir, filepath.FromSlash(rel)),
+			OverwritePolicy: adapter.OverwriteAlways,
+			Checksum:        checksum(string(data)),
+			Content:         data,
+		})
+	}
+	return files, nil
+}
+
 // @AX:NOTE [AUTO]: Unknown embedded skills remain compiled for backward compatibility; catalog entries obey bundle state.
 func claudeSkillCompiled(catalog *pkgcontent.SkillCatalog, filename string, cfg *config.HarnessConfig) bool {
 	if catalog == nil {

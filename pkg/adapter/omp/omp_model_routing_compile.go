@@ -26,7 +26,14 @@ type ompRoutingWorkItem struct {
 	request OMPModelRouteRequest
 }
 
-// CompileOMPModelRouting returns canonical role order independent of map order.
+// ompRoutingExecutorFamilyAnchor is the native agent whose resolved family
+// anchors family-diversity comparisons: it is the bundled agent that carries
+// implementation work, so a dissent route asking for a distinct family is
+// asking to differ from this one.
+const ompRoutingExecutorFamilyAnchor = "task"
+
+// CompileOMPModelRouting returns canonical native agent order independent of
+// map order.
 // @AX:ANCHOR [AUTO] @AX:SPEC: SPEC-OMP-004: canonical routing compilation has three production callers.
 // @AX:REASON [AUTO]: model integration, doctor projection, and CLI probing require identical ordering and resolution digests.
 func CompileOMPModelRouting(input OMPModelRoutingInput) OMPModelRoutingCompilation {
@@ -37,7 +44,8 @@ func CompileOMPModelRouting(input OMPModelRoutingInput) OMPModelRoutingCompilati
 
 	if executorFamily == "" {
 		for _, item := range items {
-			if item.request.Agent != "executor" && item.routeID != "executor" {
+			if item.request.Agent != ompRoutingExecutorFamilyAnchor &&
+				item.routeID != ompRoutingExecutorFamilyAnchor {
 				continue
 			}
 			resolved := ResolveOMPModelRoute(input.Catalog, input.CatalogReason, item.request)
@@ -64,7 +72,7 @@ func CompileOMPModelRouting(input OMPModelRoutingInput) OMPModelRoutingCompilati
 		resolutions = append(resolutions, resolved)
 	}
 	sort.SliceStable(resolutions, func(i, j int) bool {
-		left, right := ompRoutingRoleRank(resolutions[i].RequestedRole), ompRoutingRoleRank(resolutions[j].RequestedRole)
+		left, right := ompRoutingAgentRank(resolutions[i].Agent), ompRoutingAgentRank(resolutions[j].Agent)
 		if left != right {
 			return left < right
 		}
@@ -82,7 +90,7 @@ func canonicalOMPRoutingWorkItems(routes map[string]OMPModelRouteRequest) []ompR
 		items = append(items, ompRoutingWorkItem{routeID: routeID, request: request})
 	}
 	sort.Slice(items, func(i, j int) bool {
-		left, right := ompRoutingRoleRank(items[i].request.Role), ompRoutingRoleRank(items[j].request.Role)
+		left, right := ompRoutingAgentRank(items[i].request.Agent), ompRoutingAgentRank(items[j].request.Agent)
 		if left != right {
 			return left < right
 		}
@@ -91,22 +99,23 @@ func canonicalOMPRoutingWorkItems(routes map[string]OMPModelRouteRequest) []ompR
 	return items
 }
 
-// ompRoutingRoleRanks orders agent roles by canonical agent position so the
-// compiled resolution list is stable regardless of route map insertion order.
-var ompRoutingRoleRanks = func() map[string]int {
-	agents := config.CanonicalAgentNames()
+// ompRoutingAgentRanks orders routes by bundled OMP agent position so the
+// compiled resolution list is stable regardless of route map insertion order
+// and independent of which ADK role supplied a route's candidates.
+var ompRoutingAgentRanks = func() map[string]int {
+	agents := config.OMPNativeAgentNames()
 	ranks := make(map[string]int, len(agents))
 	for index, agent := range agents {
-		ranks[config.OMPAgentRoleName(agent)] = index
+		ranks[agent] = index
 	}
 	return ranks
 }()
 
-func ompRoutingRoleRank(role string) int {
-	if rank, ok := ompRoutingRoleRanks[role]; ok {
+func ompRoutingAgentRank(agent string) int {
+	if rank, ok := ompRoutingAgentRanks[agent]; ok {
 		return rank
 	}
-	return len(ompRoutingRoleRanks)
+	return len(ompRoutingAgentRanks)
 }
 
 func digestOMPModelRouting(resolutions []OMPModelRouteResolution) string {

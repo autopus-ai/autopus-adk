@@ -40,7 +40,7 @@ TRUST 5 dimensions: Tested, Readable, Unified, Secured, Trackable.
 
 ## 추가 검증
 
-- 파일 크기 제한: 소스 코드 파일 300줄 이하 (SPEC Markdown은 제외)
+- 파일 크기 제한: `architecture.max_file_lines`가 양수일 때만 강제하고, 없거나 `0`이면 권고입니다. 소스 코드 파일에만 적용하며 SPEC Markdown은 제외합니다
 - 복잡한 변경은 서브에이전트 위임 여부 확인
 - UI 디자인 컨텍스트: source path, palette-role drift, typography hierarchy, component guardrail, layout/responsive, source-of-truth mismatch, invented component props/imports
 - Output sections: `Correctness/Security Findings`, `Complexity Findings`, `Decision Receipt`

@@ -4,7 +4,6 @@
     { "id": "test_scaffold", "retry": 0, "budget": 60000, "model": "claude-sonnet-5", "effort": "medium" },
     { "id": "implementation", "retry": 2, "budget": 120000, "model": "claude-opus-5", "effort": "high", "fan_out_cap": 5 },
     { "id": "gate_build_test", "retry": 2, "budget": 40000, "verdict_source": "exit_code" },
-    { "id": "annotation", "retry": 0, "budget": 40000, "model": "claude-sonnet-5", "effort": "medium" },
     { "id": "testing", "retry": 0, "budget": 60000, "model": "claude-sonnet-5", "effort": "medium", "coverage_threshold": 85 },
     { "id": "review", "retry": 2, "budget": 60000, "model": "claude-opus-5", "effort": "high", "verify_votes": 1, "synthesis": false },
     { "id": "release_hygiene", "retry": 0, "budget": 30000 }

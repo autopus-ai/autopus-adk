@@ -214,7 +214,6 @@ func TestWorkflowAuthenticityTemplateContracts(t *testing.T) {
 		filepath.Join(root, "codex", "skills", "auto-go.md.tmpl"),
 		filepath.Join(root, "gemini", "commands", "auto-router.md.tmpl"),
 		filepath.Join(root, "gemini", "skills", "auto-go", "SKILL.md.tmpl"),
-		filepath.Join(root, "gemini", "skills", "agent-pipeline", "SKILL.md.tmpl"),
 	}
 
 	for _, path := range templatePaths {
@@ -231,6 +230,27 @@ func TestWorkflowAuthenticityTemplateContracts(t *testing.T) {
 			assert.Contains(t, result, "delegation_depth_cap")
 		})
 	}
+
+	// The pipeline entrypoint owns the dispatch counters it initializes and the
+	// rule that main-session work is never reported as delegated; the delegation
+	// depth rails live in the resource that governs dispatch.
+	t.Run("agent-pipeline-entrypoint", func(t *testing.T) {
+		t.Parallel()
+		result, err := semanticContractSurface(e,
+			filepath.Join(root, "gemini", "skills", "agent-pipeline", "SKILL.md.tmpl"), cfg)
+		require.NoError(t, err)
+		assert.Contains(t, result, "subagent_dispatch_count")
+		assert.Contains(t, result, "subagent_roles_dispatched")
+		assert.Contains(t, result, "degraded_mode")
+		assert.Contains(t, result, "do not report main-session work as delegated work")
+	})
+	t.Run("pipeline-resources", func(t *testing.T) {
+		t.Parallel()
+		surface := pipelineResourceSurface(t)
+		assert.Contains(t, surface, "delegation_depth")
+		assert.Contains(t, surface, "delegation_depth_cap")
+		assert.Contains(t, surface, "delegation_depth_exceeded")
+	})
 }
 
 func TestSemanticInvariantPlatformTemplateContracts(t *testing.T) {

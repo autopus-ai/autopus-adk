@@ -13,13 +13,6 @@ Keep the task scoped to this role. Follow the explicit ownership and completion 
 
 코드 품질을 빠르게 검증하는 경량 에이전트입니다.
 
-## Identity
-
-- **소속**: Autopus-ADK Agent System
-- **역할**: 품질 검증 전문 (빌드/린트/파일 크기)
-- **브랜딩**: `AGENTS.md#autopus-branding` 준수
-- **출력 포맷**: A3 (Agent Result Format) — `🐙 {agent} ────` 배너 + 지표 한 줄 + `다음: {next}` 한 줄
-
 ## 역할
 
 변경 후 코드가 품질 기준을 충족하는지 자동화된 검사를 실행하고 결과를 보고합니다.
@@ -28,20 +21,16 @@ Keep the task scoped to this role. Follow the explicit ownership and completion 
 
 ### Stack-Aware Verification
 
-Detect the project stack from project context (`.autopus/project/tech.md`, `go.mod`, `package.json`, `pyproject.toml`, `Cargo.toml`) and run appropriate tools:
+Stack Profile이 주입되면 그 명령을 사용하고, 없으면 project context(`.autopus/project/tech.md`, `go.mod`, `package.json`, `pyproject.toml`, `Cargo.toml`)에서 스택을 감지해 프로젝트 표준 명령을 찾는다.
 
-| Check | Go | Python | TypeScript | Rust |
-|-------|-----|--------|------------|------|
-| 1. 빌드 | `go build ./...` | N/A | `npm run build` | `cargo build` |
-| 2. 테스트 | `go test -race -count=1 ./...` | `pytest` | `vitest run` | `cargo test` |
-| 3. 린트 | `golangci-lint run && go vet ./...` | `ruff check .` | `eslint .` | `cargo clippy` |
-| 4. 커버리지 | `go test -coverprofile=coverage.out ./... && go tool cover -func=coverage.out` | `pytest --cov --cov-report=term` | `vitest run --coverage` | `cargo tarpaulin` |
-
-If Stack Profile is injected in the prompt, use its specified tools instead.
+1. 빌드
+2. 테스트 (동시성 코드는 race/thread-safety 플래그 포함)
+3. 린트
+4. 커버리지 — 프로젝트 게이트가 커버리지를 요구할 때만
 
 ### 5. 구조 검증
-- 소스 코드 파일 300줄 초과 여부
-- 200줄 초과 파일 목록
+- 프로젝트가 명시한 소스 파일 줄 수 한도(`file-size-limit` 규칙) 초과 파일
+- 한도에 근접한 파일 목록
 
 ### 6. Seam Verification (통합 검증)
 
@@ -81,19 +70,12 @@ grep -rn 'TODO\|FIXME\|stub\|placeholder\|NotImplemented\|todo!\|unimplemented!'
 **FAIL 기준**: exported 함수 중 1개라도 behavioral stub이면 FAIL.
 **Recommended Agent**: executor — "스텁 함수를 실제 비즈니스 로직으로 교체. 해당 함수: {stub 함수 목록}"
 
-#### 6b. Smoke Test (스택별)
+#### 6b. Smoke Test
 
-CLI 프로젝트의 경우, 빌드된 바이너리가 실제로 실행 가능한지 확인합니다:
+CLI/API 프로젝트는 빌드 산출물을 실제로 실행해 확인합니다. entry point는 `.autopus/project/scenarios.md`의 Binary/Build 필드 또는 프로젝트 manifest의 main에서 추출합니다.
 
-| Stack | Smoke Test Command | Pass Criteria |
-|-------|-------------------|---------------|
-| Go CLI | `go run ./cmd/{entry} --help` | exit 0, stdout non-empty |
-| Go API | `go run ./cmd/{entry} &; curl localhost:{port}/health; kill %1` | HTTP 200 |
-| Python CLI | `python -m {module} --help` | exit 0 |
-| Node CLI | `node {entry} --help` | exit 0 |
-| Node API | `node {entry} &; curl localhost:{port}/health; kill %1` | HTTP 200 |
-
-Entry point는 `.autopus/project/scenarios.md`의 Binary/Build 필드 또는 `go.mod`/`package.json`의 main에서 추출합니다.
+- CLI: `--help` 실행 — exit 0, stdout non-empty
+- API: 서버 기동 후 health 엔드포인트 호출 — HTTP 200
 
 **Skip condition**: 라이브러리 프로젝트(CLI/API entry point 없음)는 스킵합니다.
 
@@ -101,13 +83,7 @@ Entry point는 `.autopus/project/scenarios.md`의 Binary/Build 필드 또는 `go
 
 WHEN 변경된 코드에 API 호출(클라이언트)과 라우트 등록(서버)이 모두 포함된 경우, 엔드포인트 경로와 요청 형식이 일치하는지 **반드시** 확인합니다.
 
-**Detection method** (스택별):
-
-| Stack | Client Pattern | Server Pattern |
-|-------|---------------|----------------|
-| Go | `http.Post(url, ...)`, `http.Get(url)`, `http.NewRequest(method, url, ...)` | `app.Post("/path", ...)`, `r.HandleFunc("/path", ...)`, `e.GET("/path", ...)` |
-| Python | `requests.post(url)`, `httpx.post(url)` | `@app.post("/path")`, `path("/path", ...)` |
-| TypeScript | `fetch(url)`, `axios.post(url)` | `app.post("/path", ...)`, `router.post("/path", ...)` |
+**Detection method**: 변경 파일에서 클라이언트 호출(`fetch`, `axios`, `http.Get/Post`, `requests.post` 등)과 서버 라우트 등록(`app.post`, `HandleFunc`, `@app.post` 등)을 각각 추출합니다.
 
 **Verification steps**:
 1. 클라이언트 코드에서 endpoint URL 상수/문자열 추출
@@ -201,14 +177,7 @@ WHEN changed files include SQL migration files under any project migration direc
 **수행 항목**:
 - 프론트매터 유효성 검증 (YAML 형식, 필수 키 존재 여부)
 - Markdown 섹션 구조 검증
-- 300줄 제한은 소스 코드 파일에만 적용하므로 `.md` 문서에는 적용하지 않음
-- SPEC Markdown files under `.autopus/specs/**` are documentation and exempt from the 300-line source code limit.
-- `prd.md`, `spec.md`, `plan.md`, `acceptance.md`, `research.md`, `review.md`는 300줄 초과만으로 실패 처리하지 않음
-
-```bash
-# List changed Markdown files for frontmatter and structure checks
-git diff --name-only | grep '\.md$'
-```
+- 줄 수 한도는 소스 코드 파일에만 적용하므로 SPEC/agent Markdown 문서에는 적용하지 않음
 
 ## 출력 형식
 
@@ -220,7 +189,7 @@ git diff --name-only | grep '\.md$'
 | 컴파일 | PASS/FAIL | [에러 목록] |
 | 테스트 | PASS/FAIL | [실패 테스트] |
 | 린트 | PASS/FAIL | [경고 수] |
-| 커버리지 | XX% | [목표: 85%] |
+| 커버리지 | XX% / SKIP | [프로젝트 게이트가 요구할 때만] |
 | 파일 크기 | PASS/FAIL | [초과 파일] |
 | 스텁 검사 | PASS/FAIL | [스텁 함수 목록] |
 | Smoke test | PASS/FAIL/SKIP | [entry point 실행 결과] |
@@ -250,7 +219,7 @@ git diff --name-only | grep '\.md$'
 | 테스트 실패 | debugger | 버그 원인 분석 후 수정 |
 | 린트 경고 | executor | 스타일 및 코드 품질 수정 |
 | 파일 크기 초과 | executor | 파일 분할 (by type/concern/layer) |
-| 커버리지 부족 | tester | 미커버 경로에 테스트 추가 |
+| 커버리지 게이트 미달 | tester | 미커버 경로에 테스트 추가 |
 | 스텁 함수 발견 | executor | 실제 비즈니스 로직으로 교체 |
 | 인수 기준 미충족 | executor | 미충족 acceptance criteria 구현 |
 | Smoke test 실패 | executor | CLI/API entry point 수정 |
@@ -262,25 +231,14 @@ git diff --name-only | grep '\.md$'
 
 ## Model Escalation
 
-WHEN checks 6a Layer 2 (behavioral stub) or 7 (acceptance coverage) are active, THE SYSTEM SHOULD use the validator's higher-judgment profile instead of the default path. These checks require reading and understanding function bodies and SPEC scenarios — judgment tasks that benefit from stronger reasoning.
+Check 6a Layer 2(behavioral stub)와 Check 7(acceptance coverage)은 함수 body와 SPEC 시나리오를 읽고 판단해야 하므로, 파이프라인 orchestrator가 프로젝트 quality preset의 상위 추론 프로파일로 이 체크를 실행합니다. 실제 모델/플랫폼 매핑은 quality preset 설정과 플랫폼 어댑터가 소유하며 이 프롬프트에 복제하지 않습니다.
 
-Current workspace policy:
-- The shared hierarchy is `fable` > `opus` > `sonnet` > `haiku`. Ultra assigns the seven-agent reasoning core to `fable` and all remaining agents, including validator, to `opus`
-- Balanced assigns HIGH planner/architect/security-auditor work to `fable`, MEDIUM implementation/review work to `opus`, and LOW/default validation work to `sonnet`; its default preset does not use `haiku`
-- Claude projects those tiers to Claude Fable 5.1, Opus 5, Sonnet 5, and Haiku 4.5; higher-judgment checks may increase reasoning without lowering the tier
-- Codex maps `fable` to Astra/`max`, `opus` to Sol/`xhigh`, `sonnet` to Terra, and `haiku` to Luna; quality-managed supervisors and orchestras use Astra
-- Gemini maps `fable`/`opus`/`sonnet` to `gemini-3.1-pro` and `haiku` to `gemini-3.8-flash`
-- OpenCode keeps the configured platform default model and treats Layer 2 / Check 7 as higher-reasoning validation passes
-
-The pipeline orchestrator controls this escalation:
-- Checks 1-5, 6a Layer 1, 6b, 6c → default reasoning profile
-- Check 6a Layer 2, Check 7 → higher reasoning profile
+- Checks 1-5, 6a Layer 1, 6b, 6c → 기본 프로파일
+- Check 6a Layer 2, Check 7 → 상위 추론 프로파일
 
 ## Multi-Model Validation (--multi)
 
-WHEN `--multi` flag is active, Gate 2 spawns **two validators in parallel** with different reasoning profiles (default + elevated). Verdicts are merged with **strict-union** strategy: any FAIL from either validator → FAIL. This prevents a single pass's blind spot from letting stubs through.
-
-Each validator independently runs all 7 checks. The pipeline merges issue lists, deduplicates by function name / acceptance criteria ID, and uses the stricter verdict.
+`--multi`이면 Gate 2가 서로 다른 추론 프로파일로 validator 둘을 병렬 스폰하고, verdict는 strict-union(어느 쪽이든 FAIL이면 FAIL)으로 합칩니다. 각 validator는 모든 체크를 독립 수행하고, 이슈 목록은 함수명/acceptance ID로 중복 제거합니다.
 
 ## 제약
 

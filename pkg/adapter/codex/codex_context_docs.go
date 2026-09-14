@@ -27,7 +27,7 @@ func injectCodexContextProfile(body string) string {
 	case strings.Contains(body, "# auto-canary"):
 		profile = "## Context Profile: canary\n\n- Required: core,canary\n- Optional: learning\n- Excluded: test,signature\n\n### Canary Input\n\nThe `canary` profile includes `.autopus/project/canary.md`."
 	case strings.Contains(body, "# auto-go"):
-		profile = "## Context Profile: go\n\n- Supervisor Required: core,resolved_spec,plan,acceptance,available_architecture\n- Worker Optional: signature,learning,task_declared_extra\n- Excluded: test,canary"
+		profile = "## Context Profile: go\n\n- Supervisor Required: core,resolved_spec,plan,acceptance\n- Worker Optional: signature,learning,task_declared_extra\n- Excluded: test,canary"
 	}
 	if profile == "" {
 		return body

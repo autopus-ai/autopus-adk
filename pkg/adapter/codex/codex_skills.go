@@ -64,27 +64,17 @@ var agentsMDTemplate = `# Autopus-ADK Harness
 
 ` + templates.RootDocPolicy() + `
 
-## Execution Model
+## Native Execution
 
-{{if contains (join ", " .Platforms) "codex"}}- **Codex Invocation**: use ` + "`@auto <route> ...`" + ` or ` + "`$codex-auto <route> ...`" + `; load detailed ` + "`$codex-auto-<route>`" + ` and ` + "`$codex-<skill>`" + ` skills.
-- **Codex V2**: use only spawn_agent, send_message, followup_task, target-less wait_agent, interrupt_agent, and list_agents.
-- **Codex Concurrency**: the spawned-worker ceiling is ` + "`codex.agents.max_concurrent_threads`" + ` in ` + "`autopus.yaml`" + `; it counts spawned agents only, never the coordinator. It is a request: provider/account/host limits win, a change applies to a new session, and a successful config write is not proof of added capacity. Run ` + "`auto doctor`" + ` for requested/loaded/effective. Heavy local test and build concurrency is not governed by this value.
-- **Codex Shared Workspace**: every worker uses the same cwd/filesystem. Parallel writers require disjoint write ownership; overlapping writers run sequentially.
-- **Codex --auto**: ` + "`@auto ... --auto`" + ` explicitly approves the default subagent pipeline.
-- **Codex /goal**: use the native Codex goals feature; ` + "`@auto goal`" + ` is only a thin wrapper.
-- **Codex --team**: use the Multi-Agent V2 Lead/Builder/Guardian profile.
-{{end}}{{if contains (join ", " .Platforms) "opencode"}}- **OpenCode**: 기본 실행 모델은 task(...) 기반 subagent-first 입니다.
-- **OpenCode Invocation**: /auto <subcommand> ... 또는 /auto-<subcommand> ... alias를 사용합니다.
+Use the current runtime's native tool schemas and preserve its permissions.
+{{if contains (join ", " .Platforms) "codex"}}Invoke @auto or $codex-auto; load only the selected route.
+Workers share cwd/filesystem unless actual isolation is established. The worker
+ceiling is codex.agents.max_concurrent_threads; auto doctor distinguishes requested
+from observed capacity. Keep the user's configured model and effort.
+{{end}}{{if contains (join ", " .Platforms) "opencode"}}OpenCode uses /auto <route> or /auto-<route>. Work inline by default.
 {{end}}
 
 ## Core Guidelines
 
 ` + templates.RootDocGuidelines() + `
-{{if contains (join ", " .Platforms) "codex"}}
-### Native Skill Routing
-
-Use ` + "`@auto`" + ` or ` + "`$codex-auto`" + ` for routing. Load detailed ` + "`$codex-auto-<route>`" + ` and ` + "`$codex-<skill>`" + ` contracts before execution. Agent definitions live in ` + "`.codex/agents/`" + `.
-{{end}}{{if contains (join ", " .Platforms) "opencode"}}
-See .opencode/rules/autopus/ for OpenCode rule definitions.
-{{end}}
 `

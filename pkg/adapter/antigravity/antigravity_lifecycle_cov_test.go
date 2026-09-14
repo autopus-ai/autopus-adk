@@ -27,23 +27,23 @@ func TestValidate_MissingGeminiMD(t *testing.T) {
 	assert.True(t, found, "missing GEMINI.md must produce a read error")
 }
 
-func TestValidate_MissingMarkerAndSkills(t *testing.T) {
+func TestValidate_MissingMarkerAndNativeSurface(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	a := NewWithRoot(dir)
-	// GEMINI.md exists but has no AUTOPUS marker, and no skill dirs exist.
+	// GEMINI.md exists but has no AUTOPUS marker, and nothing is installed.
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "GEMINI.md"), []byte("# plain\n"), 0o644))
 
 	errs, err := a.Validate(context.Background())
 	require.NoError(t, err)
 
-	var markerWarn, skillErr, agentsWarn bool
+	var markerWarn, skillErr, manifestErr bool
 	for _, e := range errs {
-		switch {
-		case e.Message == "AUTOPUS 마커 섹션이 없음":
+		if e.Message == "AUTOPUS 마커 섹션이 없음" {
 			markerWarn = true
-		case e.Message == ".agents/skills 디렉터리가 없음":
-			agentsWarn = true
+		}
+		if e.Level == "error" && e.File == antigravityPluginDir+"/plugin.json" {
+			manifestErr = true
 		}
 		if e.Level == "error" && strings.Contains(e.Message, "SKILL.md가 없음") {
 			skillErr = true
@@ -51,7 +51,7 @@ func TestValidate_MissingMarkerAndSkills(t *testing.T) {
 	}
 	assert.True(t, markerWarn, "missing marker must warn")
 	assert.True(t, skillErr, "missing skill dirs must error")
-	assert.True(t, agentsWarn, "missing .agents/skills must warn")
+	assert.True(t, manifestErr, "a missing workspace plugin manifest must error")
 }
 
 func TestGenerateSettings_MergesInvalidExistingJSON(t *testing.T) {

@@ -111,8 +111,12 @@ func ompOperatorAttestedDeclarations(
 		if len(override.Candidates) == 0 {
 			continue
 		}
-		capability, err := config.OMPAgentCapability(agent)
-		if err != nil || !declareOMPOperatorAttestedCandidates(declarations, capability, override.Candidates) {
+		// A route may be keyed by an ADK role or by the bundled agent it
+		// collapses onto, so the capability comes from the shared resolver.
+		// Reading only the role matrix here rejected every native-keyed pin.
+		resolved, err := config.ResolveOMPPolicyAgent(agent)
+		if err != nil ||
+			!declareOMPOperatorAttestedCandidates(declarations, resolved.Capability, override.Candidates) {
 			return nil, false
 		}
 	}

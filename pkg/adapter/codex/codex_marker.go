@@ -32,13 +32,6 @@ func (a *Adapter) injectMarkerSection(cfg *config.HarnessConfig) (string, error)
 		return "", fmt.Errorf("AGENTS.md 템플릿 렌더링 실패: %w", err)
 	}
 
-	// Append inline agents section.
-	agentsSection, err := renderAgentsSection()
-	if err != nil {
-		return "", fmt.Errorf("agents 섹션 렌더링 실패: %w", err)
-	}
-	sectionContent += agentsSection
-
 	newSection := markerBegin + "\n" + sectionContent + "\n" + markerEnd
 
 	if strings.Contains(existing, markerBegin) && strings.Contains(existing, markerEnd) {

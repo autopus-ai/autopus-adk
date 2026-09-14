@@ -182,6 +182,24 @@ auto skill info tdd
 auto skill list --category methodology
 ```
 
+### 설치되지 않은 스킬 가져오기
+
+기본 설치는 core 스킬과 `/auto` 라우트만 네이티브 표면에 올립니다. 나머지 스킬은
+레지스트리에 등록된 상태로 남아 있고 `auto skill list`로 계속 보이므로, 필요할 때
+아래 중 하나를 `autopus.yaml`에 적고 `auto update`를 실행하면 됩니다.
+
+```yaml
+skills:
+  compiler:
+    explicit_skills:      # 특정 스킬만 추가
+      - playwright-cli
+    bundles:              # 그룹 단위 추가
+      - frontend          # ops | product | research | frontend | quality | agentic
+    mode: full            # 전체 라이브러리 컴파일 (기본값은 split)
+```
+
+`auto skill info <name>`으로 설치 여부와 상관없이 스킬 내용을 확인할 수 있습니다.
+
 ## 트러블슈팅
 
 ```bash

@@ -123,7 +123,10 @@ func parseOMPProfileAgentAssignment(raw string) (ompProfileAgentAssignment, erro
 			safeOMPOperatorToken(raw), ompProfileAgentInheritToken,
 		)
 	}
-	if _, err := config.OMPAgentCapability(agent); err != nil {
+	// A native OMP agent name and any logical role that collapses onto it are
+	// both valid keys: the operator sees native names in the preview and may
+	// still pin a single logical role.
+	if _, err := config.ResolveOMPPolicyAgent(agent); err != nil {
 		return ompProfileAgentAssignment{}, fmt.Errorf(
 			"agent_override_unknown_agent: %s", safeOMPOperatorToken(agent),
 		)

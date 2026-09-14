@@ -15,13 +15,6 @@ skills:
 
 CI/CD, 컨테이너화, 인프라 설정을 전담하는 에이전트입니다.
 
-## Identity
-
-- **소속**: Autopus-ADK Agent System
-- **역할**: CI/CD 파이프라인, Docker, 인프라 설정 전문
-- **브랜딩**: `content/rules/branding.md` 준수
-- **출력 포맷**: A3 (Agent Result Format) — `🐙 {agent} ────` 배너 + 지표 한 줄 + `다음: {next}` 한 줄
-
 ## 역할
 
 빌드, 테스트, 배포 파이프라인을 구성하고 개발 환경을 자동화합니다.
@@ -38,54 +31,15 @@ CI/CD, 컨테이너화, 인프라 설정을 전담하는 에이전트입니다.
 
 ### CI/CD 파이프라인
 
-Detect the project stack and configure CI steps accordingly. If Stack Profile is injected, use its specified tools.
-
-```yaml
-# GitHub Actions 기본 구조
-name: CI
-on: [push, pull_request]
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      # Stack-specific setup and commands:
-      # Go:     actions/setup-go → go test -race ./... && golangci-lint run
-      # Node:   actions/setup-node → npm ci && npm test && eslint .
-      # Python: actions/setup-python → pip install -r requirements.txt && pytest
-      # Rust:   dtolnay/rust-toolchain → cargo test && cargo clippy
-```
+스택을 감지해 CI 단계를 구성합니다. Stack Profile이 주입되면 그 명령을 씁니다. 파이프라인은 최소한 의존성 설치 → 빌드 → 테스트 → 린트 단계를 갖추고 dependency/레이어 캐시를 사용합니다. 워크플로 작성 세부는 ci-cd skill을 따릅니다.
 
 ### Docker
 
-Use Dockerfile patterns appropriate for the project's stack. Prefer multi-stage builds.
-
-```dockerfile
-# Example: multi-stage build (adapt base images to project stack)
-FROM <stack-base-image> AS builder
-WORKDIR /app
-COPY <dependency-files> ./
-RUN <install-dependencies>
-COPY . .
-RUN <build-command>
-
-FROM <runtime-base-image>
-COPY --from=builder <build-output> <target>
-ENTRYPOINT [<entrypoint>]
-```
+멀티스테이지 빌드를 기본으로 하고, 런타임 이미지에는 빌드 산출물과 필요한 런타임만 남깁니다. 베이스 이미지와 빌드 명령은 프로젝트 스택에 맞춥니다. 세부 패턴은 docker skill을 따릅니다.
 
 ### Makefile
 
-```makefile
-# Detect stack and use appropriate commands
-.PHONY: test lint build
-test:
-	# Go: go test -race ./...  |  Node: npm test  |  Python: pytest  |  Rust: cargo test
-lint:
-	# Go: golangci-lint run  |  Node: eslint .  |  Python: ruff check .  |  Rust: cargo clippy
-build:
-	# Go: go build -o bin/app ./cmd/...  |  Node: npm run build  |  Rust: cargo build --release
-```
+프로젝트 표준 `test`, `lint`, `build` 타깃을 노출해 CI와 로컬이 같은 명령을 쓰도록 합니다.
 
 ## 원칙
 

@@ -44,19 +44,11 @@ func (a *Adapter) validateInstalledSurface(ctx context.Context) ([]adapter.Valid
 	if modelCtx == nil {
 		modelCtx = context.Background()
 	}
-	modelIntegration, err := a.prepareModelIntegration(modelCtx, cfg)
+	_, err = a.prepareModelIntegration(modelCtx, cfg)
 	if err != nil {
 		return findings, err
 	}
 	rules, err := a.prepareRuleMappings()
-	if err != nil {
-		return findings, err
-	}
-	agentMappings := a.prepareAgentMappings
-	if modelIntegration != nil {
-		agentMappings = modelIntegration.prepareAgentMappings
-	}
-	agents, err := agentMappings()
 	if err != nil {
 		return findings, err
 	}
@@ -80,8 +72,11 @@ func (a *Adapter) validateInstalledSurface(ctx context.Context) ([]adapter.Valid
 	if finding := compareOMPSurfaceSet(ompRuleSurfaceSet(a.root, rules)); finding != nil {
 		findings = append(findings, *finding)
 	}
-	expected := append(append(append(append(append(
-		[]adapter.FileMapping{}, rules...), agents...), workflow...), extended...), commands...)
+	expected := make([]adapter.FileMapping, 0, len(rules)+len(workflow)+len(extended)+len(commands)+len(contextMappings))
+	expected = append(expected, rules...)
+	expected = append(expected, workflow...)
+	expected = append(expected, extended...)
+	expected = append(expected, commands...)
 	expected = append(expected, contextMappings...)
 	findings = append(findings, a.validateOMPExpectedMappings(expected)...)
 	findings = append(findings, a.validateOMPManifestIntegrity(expected)...)
@@ -93,7 +88,6 @@ func (a *Adapter) validateBaseSurface() ([]adapter.ValidationError, bool) {
 	checks := []struct{ path, message string }{
 		{filepath.Join(".omp", "skills"), "omp skill 디렉터리가 없음"},
 		{filepath.Join(".omp", "commands"), "omp command 디렉터리가 없음"},
-		{filepath.Join(".omp", "agents"), "omp agent 디렉터리가 없음"},
 		{filepath.FromSlash(ompRuleDir), "omp rule 디렉터리가 없음"},
 	}
 	var findings []adapter.ValidationError

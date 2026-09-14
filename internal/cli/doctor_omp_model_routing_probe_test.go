@@ -137,14 +137,15 @@ func TestReadOMPModelDoctorActivation_InvalidModeAndReadbackFailureFailClosed(t 
 	root := t.TempDir()
 	path := filepath.Join(root, filepath.FromSlash(omp.DefaultOMPModelOverlayPath))
 	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o700))
-	require.NoError(t, os.WriteFile(path, []byte("modelRoles: {}\n"), 0o644))
+	require.NoError(t, os.WriteFile(path, []byte("task:\n  agentModelOverrides: {}\n"), 0o644))
 	runner := &ompModelDoctorFakeRunner{outputs: map[string][]byte{}, errors: map[string]error{}}
 	assert.Empty(t, readOMPModelDoctorActivation(context.Background(), root, runner).ConfigHash)
 
 	require.NoError(t, os.Chmod(path, 0o600))
-	runner.errors["--config "+omp.DefaultOMPModelOverlayPath+" config get modelRoles"] = errors.New("readback")
+	runner.errors["--config "+omp.DefaultOMPModelOverlayPath+" config get "+
+		config.OMPNativeAgentModelOverridesKey] = errors.New("readback")
 	evidence := readOMPModelDoctorActivation(context.Background(), root, runner)
-	assert.Equal(t, omp.OMPModelSHA256([]byte("modelRoles: {}\n")), evidence.ConfigHash)
+	assert.Equal(t, omp.OMPModelSHA256([]byte("task:\n  agentModelOverrides: {}\n")), evidence.ConfigHash)
 	assert.Empty(t, evidence.ReadbackHash)
 }
 

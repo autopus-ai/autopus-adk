@@ -39,6 +39,9 @@ func TestAdapter_Update_WithManifestWriteFailureRollsBackWritesAndPrunes(t *test
 	a := NewWithRoot(dir)
 	fullCfg := config.DefaultFullConfig("demo")
 	fullCfg.Platforms = []string{"opencode"}
+	// The rollback assertion needs a long-tail artifact the failed update would
+	// otherwise have pruned, so the baseline selects the full library.
+	fullCfg.Skills.Compiler.Mode = config.SkillCompilerModeFull
 
 	_, err := a.Generate(context.Background(), fullCfg)
 	require.NoError(t, err)

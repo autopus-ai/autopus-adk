@@ -50,7 +50,9 @@ ISOLATED_TIMEOUT    ?= 10m
 # TestOrchestraBrainstorm_ spawns real shell providers per test and one case
 # measures a 2s timeout kill; on the shared scheduler that clock reads load,
 # not budget. Same rule, same -race gate, -p 1.
-PROCESS_HEAVY_TESTS ?= ^(TestReleaseHardeningBashContract|TestValidatePluginList|TestDetect|TestProbeOMPIdentity_|TestPOSIXInstaller|TestExecuteDesktopObservation_|TestOrchestraBrainstorm_)
+# These native-executable fixtures also measure process/pipe deadlines. They
+# pass with the same -race assertions in isolation, not under competing launches.
+PROCESS_HEAVY_TESTS ?= ^(TestReleaseHardeningBashContract|TestValidateReadiness|TestDetect|TestProbeOMPIdentity_|TestPOSIXInstaller|TestExecuteDesktopObservation_|TestOrchestraBrainstorm_|TestClaudeVersionGrandchildPipeReturnsWithinBound|TestCurrentOMPContextPromotionExecutableSHA256V3_LaunchThenReplace_DoesNotTrustReplacementPath)
 
 test:
 	go test -race -count=1 -timeout=$(INTEGRATION_TIMEOUT) -tags integration -skip '$(PROCESS_HEAVY_TESTS)' ./...

@@ -27,12 +27,6 @@ func TestRouterBudget_FullGenerate_RootIsThinAndEveryRouteHasOneDetail(t *testin
 	router := readClaudeSurface(t, root, ".claude/skills/auto/SKILL.md")
 	t.Logf("generated Claude root router: %d bytes", len([]byte(router)))
 	assert.LessOrEqual(t, len([]byte(router)), 8192, "root router must stay within the byte budget")
-	for _, token := range []string{
-		"Language Policy", "Source Ownership", "Subagent Delegation", "Review Convergence",
-		"Generated Surface Safety", ".autopus/project/workspace.md",
-	} {
-		assert.Contains(t, router, token)
-	}
 	for _, route := range frozenAutoRoutes {
 		detailPath := filepath.Join(".claude", "skills", "auto-"+route, "SKILL.md")
 		assert.Equal(t, 1, strings.Count(router, detailPath), "route %q must resolve exactly one detail", route)

@@ -8,6 +8,7 @@ import (
 
 	contentfs "github.com/insajin/autopus-adk/content"
 	"github.com/insajin/autopus-adk/pkg/adapter"
+	pkgcontent "github.com/insajin/autopus-adk/pkg/content"
 )
 
 const claudeManifestPath = ".autopus/" + adapterName + "-manifest.json"
@@ -42,9 +43,15 @@ func claudeCleanAllowedPaths() (map[string]bool, error) {
 		".git/hooks/pre-commit": true, ".git/hooks/commit-msg": true,
 	}
 	addSkill := func(name string) {
-		allowed[filepath.ToSlash(filepath.Join(".claude", "skills", name, "SKILL.md"))] = true
+		skillDir := filepath.Join(".claude", "skills", name)
+		allowed[filepath.ToSlash(filepath.Join(skillDir, "SKILL.md"))] = true
 		allowed[filepath.ToSlash(filepath.Join(".claude", "skills", name+".md"))] = true
 		allowed[filepath.ToSlash(filepath.Join(".claude", "skills", "autopus", name+".md"))] = true
+		// Reference bodies are manifest-owned siblings of the SKILL.md, so
+		// Clean must recognize them or it refuses the whole manifest.
+		for _, rel := range pkgcontent.SkillResourceRelPaths(name) {
+			allowed[filepath.ToSlash(filepath.Join(skillDir, filepath.FromSlash(rel)))] = true
+		}
 	}
 	addSkill("auto")
 	allowed[".claude/commands/auto.md"] = true

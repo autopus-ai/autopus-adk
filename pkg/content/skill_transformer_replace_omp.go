@@ -52,19 +52,8 @@ var ompLegacyCoordinationTokens = []string{
 	"auto pipeline worktree",
 }
 
-var ompForeignBrandingReplacer = strings.NewReplacer(
-	"Gemini CLI", "OMP",
-	"Claude Code", "OMP",
-	"OpenCode", "OMP",
-	"Codex", "OMP",
-	"Claude", "OMP",
-	"Gemini", "OMP",
-)
-
-// NormalizeOMPSemanticReferences performs the OMP-only clean cutover from
-// legacy coordination examples to the OMP 18.0.5 task, hub, and todo wire
-// contracts. It is intentionally idempotent so workflow renderers may require
-// the contract even when the canonical source did not contain a legacy call.
+// NormalizeOMPSemanticReferences translates legacy coordination examples into
+// native OMP tool calls without adding unrelated workflow instructions.
 func NormalizeOMPSemanticReferences(body string) string {
 	body = NormalizeOMPResourcePaths(body)
 	body = normalizeOMPLegacyDispatchBlocks(body)
@@ -125,8 +114,7 @@ func NormalizeOMPSemanticReferences(body string) string {
 		"AskUserQuestion", "ask the user directly",
 		"request_user_input", "ask the user directly",
 	).Replace(body)
-	body = ompForeignBrandingReplacer.Replace(body)
-	return appendOMPCoordinationContract(body)
+	return body
 }
 
 // NormalizeOMPResourcePaths completes the native OMP resource cutover after
@@ -154,10 +142,6 @@ func hasOMPLegacyCoordination(body string) bool {
 	return ompIsolationRe.MatchString(body)
 }
 
-func normalizeOMPBranding(body string) string {
-	return ompForeignBrandingReplacer.Replace(body)
-}
-
 func normalizeOMPLegacyDispatchBlocks(body string) string {
 	return ompFencedCodeRe.ReplaceAllStringFunc(body, func(block string) string {
 		if !hasOMPLegacyDispatch(block) {
@@ -182,8 +166,8 @@ func normalizeOMPInlineDispatchCode(call string) string {
 		dispatch.isolated = ompIsolationRe.MatchString(match[1])
 	}
 	result := "`task` batch"
-	if isOMPSafeIdentifier(dispatch.agent) {
-		result += " selecting agent `" + dispatch.agent + "`"
+	if agent := ompNativeDispatchAgent(dispatch.agent); agent != "" {
+		result += " selecting agent `" + agent + "`"
 	}
 	if dispatch.isolated {
 		result += " with per-item isolation"

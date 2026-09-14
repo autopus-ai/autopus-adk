@@ -112,9 +112,9 @@ func ompIntegratedExpectedValues(
 		fallbacks[selector] = append([]string(nil), candidates...)
 	}
 	values := map[string]any{
-		"modelRoles":           projection.ModelRoles,
-		"retry.fallbackChains": fallbacks,
-		"retry.modelFallback":  ompIntegratedModelFallback(projection),
+		config.OMPNativeAgentModelOverridesKey: projection.AgentModelOverrides,
+		"retry.fallbackChains":                 fallbacks,
+		"retry.modelFallback":                  ompIntegratedModelFallback(projection),
 	}
 	if safety.ApprovalMode != "" {
 		values["tools.approvalMode"] = safety.ApprovalMode
@@ -189,20 +189,21 @@ func ReadOMPModelExpectedValues(
 	}
 	sort.Strings(keys)
 	readback := make(map[string]any, len(keys))
-	roleRunner, useRoleRPC := runner.(ompModelRoleRPCStateRunner)
-	if useRoleRPC {
-		roles, ok := expected["modelRoles"].(map[string]string)
-		if !ok || len(roles) == 0 {
-			return nil, fmt.Errorf("activation readback modelRoles are invalid")
+	selectorRunner, useSelectorRPC := runner.(ompModelSelectorRPCStateRunner)
+	if useSelectorRPC {
+		overrides, ok := expected[config.OMPNativeAgentModelOverridesKey].(map[string]string)
+		if !ok || len(overrides) == 0 {
+			return nil, fmt.Errorf("activation readback %s is invalid",
+				config.OMPNativeAgentModelOverridesKey)
 		}
-		resolved, err := readOMPModelRolesViaRPC(ctx, roleRunner, configPath, roles)
+		resolved, err := readOMPModelAgentSelectorsViaRPC(ctx, selectorRunner, configPath, overrides)
 		if err != nil {
 			return nil, err
 		}
-		readback["modelRoles"] = resolved
+		readback[config.OMPNativeAgentModelOverridesKey] = resolved
 	}
 	for _, key := range keys {
-		if useRoleRPC && key == "modelRoles" {
+		if useSelectorRPC && key == config.OMPNativeAgentModelOverridesKey {
 			continue
 		}
 		output, runErr := runner.Run(ctx, cliBinary,

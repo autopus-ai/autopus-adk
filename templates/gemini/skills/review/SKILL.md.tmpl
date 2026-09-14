@@ -9,7 +9,7 @@ TRUST 5 기준으로 코드를 체계적으로 검토하는 스킬입니다.
 ## TRUST 5 리뷰 기준
 
 ### T — Tested (테스트됨)
-- [ ] 85% 이상 테스트 커버리지
+- [ ] 변경된 동작마다 그것을 단정하는 테스트 존재 (프로젝트가 커버리지 게이트를 설정했으면 그 임계값 충족)
 - [ ] 모든 엣지 케이스 테스트
 - [ ] 레이스/동시성 테스트 (Go: `go test -race`, Python: `pytest-asyncio`, etc.)
 - [ ] 특성 테스트 존재 (기존 코드 변경 시)
@@ -42,19 +42,13 @@ TRUST 5 기준으로 코드를 체계적으로 검토하는 스킬입니다.
 - [ ] 커밋 메시지가 명확한가?
 - [ ] SPEC/이슈 번호 참조
 
-#### @AX Compliance
-- [ ] @AX:REASON present on all WARN and ANCHOR tags
-- [ ] Per-file limits: ANCHOR ≤ 3, WARN ≤ 5
-- [ ] Agent-generated tags include [AUTO] prefix
-- [ ] Comment syntax matches file language (Go: `//`, Python: `#`)
-- [ ] ANCHOR tags verified: fan_in ≥ 3 callers (grep heuristic)
+#### @AX Compliance (opt-in)
+
+@AX annotation gate가 명시적으로 켜진 경우(`auto spec gates --annotation`)에만 확인합니다. 기본값은 `not_applicable`이며 태그 부재는 finding이 아닙니다. 규칙은 ax-annotation skill이 소유합니다.
 
 ### Structure Gate
-- [ ] No source code file exceeds 300 lines (hard limit)
-- [ ] Source files over 200 lines flagged for splitting
-- [ ] Non-code files excluded: generated (*_generated.go, *.pb.go), docs (*.md), config (*.yaml, *.json)
-- [ ] Complex changes delegated to subagents (3+ files)
-- [ ] @AX tag compliance verified (see Trackable > @AX Compliance)
+- [ ] 프로젝트가 명시한 소스 파일 줄 수 한도(`file-size-limit` 규칙) 준수. 생성 파일, 문서(`*.md`), 설정 파일은 대상 제외
+- [ ] 위임 판단이 파일 수가 아니라 독립 작업 분리·컨텍스트 격리·위험도 기준으로 이뤄졌는지
 
 ### UI Design Context Gate
 - [ ] UI-related files: `.tsx`, `.jsx`, CSS-family files, theme/token files, or design-system paths

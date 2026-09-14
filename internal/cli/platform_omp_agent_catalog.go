@@ -1,30 +1,24 @@
 package cli
 
 import (
-	"context"
 	"os"
-	"path"
 	"path/filepath"
-	"sort"
-	"strings"
 
-	"github.com/insajin/autopus-adk/pkg/adapter"
 	"github.com/insajin/autopus-adk/pkg/adapter/omp"
 	"github.com/insajin/autopus-adk/pkg/config"
 )
 
-const (
-	ompExpectedAgentCatalogSize = 16
-	ompMaxAgentDefinitionBytes  = 1 << 20
-	ompAgentManifestPath        = ".autopus/omp-manifest.json"
-)
+// ompNativeAgentRegistrySource names where OMP agents come from. Autopus
+// installs no agent definition file, so a row's identity is the bundled
+// registry entry, never a generated document.
+const ompNativeAgentRegistrySource = "omp_bundled_registry"
 
 type ompAgentCatalogSummary struct {
-	Status    string
-	Reason    string
-	Expected  int
-	Installed int
-	Verified  int
+	Status   string
+	Reason   string
+	Expected int
+	Source   string
+	Shadowed int
 }
 
 func newOMPModelOperatorProjection(
@@ -36,115 +30,52 @@ func newOMPModelOperatorProjection(
 		CatalogReason: "profile_not_selected", CatalogTrust: config.RoleModelCatalogTrustStrict,
 		ReceiptStatus:      "not_applicable",
 		AgentCatalogStatus: catalog.Status, AgentCatalogReason: catalog.Reason,
-		ExpectedAgents: catalog.Expected, InstalledAgents: catalog.Installed,
-		VerifiedAgents: catalog.Verified, Models: rows,
+		AgentCatalogSource: catalog.Source, ExpectedAgents: catalog.Expected,
+		ShadowedAgents: catalog.Shadowed, Models: rows,
 	}
 }
-func buildOMPAgentCatalog(
-	ctx context.Context,
-	root string,
-	runner omp.OMPModelCatalogRunner,
-) ([]ompEffectiveModelProjection, ompAgentCatalogSummary) {
-	mapping := config.OMPAgentRoleMapping()
-	names := make([]string, 0, len(mapping))
-	for name := range mapping {
-		names = append(names, name)
-	}
-	sort.Strings(names)
 
-	verified := validateOMPAgentDefinitions(ctx, root, runner, names)
-	rows := make([]ompEffectiveModelProjection, 0, len(names))
-	summary := ompAgentCatalogSummary{Expected: len(names)}
-	for _, name := range names {
-		role := mapping[name]
-		capability, _ := config.OMPAgentCapability(name)
-		definitionPath := path.Join(".omp", "agents", name+".md")
-		installStatus := inspectOMPAgentDefinition(root, definitionPath)
-		definitionVerified := verified[definitionPath]
-		if installStatus == "installed" {
-			summary.Installed++
-		}
-		if definitionVerified {
-			summary.Verified++
-		}
-		rows = append(rows, ompEffectiveModelProjection{
-			Agent: name, Role: role, Capability: capability,
-			ModelAlias: "inherit", EffectiveSelector: "",
-			Source: "generated_omp_agent_catalog", ConfigSource: "inherited",
-			Status: "inherited", Reason: "profile_not_selected",
-			DefinitionPath: definitionPath, InstallStatus: installStatus,
-			DefinitionVerified: definitionVerified, FallbackAttempts: []ompFallbackProjection{},
-		})
+// buildOMPAgentCatalog projects one inherited baseline row per bundled native
+// OMP agent. Nothing is counted on disk because Autopus installs no agent
+// definition: the only locally observable fact is whether a project file
+// shadows a bundled agent, which is reported instead of guessed at.
+func buildOMPAgentCatalog(root string) ([]ompEffectiveModelProjection, ompAgentCatalogSummary) {
+	natives := config.OMPNativeAgentNames()
+	rows := make([]ompEffectiveModelProjection, 0, len(natives))
+	summary := ompAgentCatalogSummary{
+		Expected: len(natives), Source: ompNativeAgentRegistrySource,
+		Status: "ready", Reason: "native_agent_registry",
 	}
-	if summary.Expected == ompExpectedAgentCatalogSize &&
-		summary.Installed == summary.Expected && summary.Verified == summary.Expected {
-		summary.Status, summary.Reason = "ready", "agent_catalog_ready"
-	} else {
-		summary.Status, summary.Reason = "blocked", "agent_catalog_incomplete"
+	for _, native := range natives {
+		row := ompEffectiveModelProjection{
+			Agent: native, ModelSource: "inherit", EffectiveSelector: "",
+			Source: ompNativeAgentRegistrySource, ConfigSource: "inherited",
+			Status: "inherited", Reason: "profile_not_selected",
+			Shadowed: shadowsOMPNativeAgent(root, native), FallbackAttempts: []ompFallbackProjection{},
+		}
+		if policy, err := config.ResolveOMPPolicyAgent(native); err == nil {
+			row.Role, row.Capability = policy.Role, policy.Capability
+		}
+		if row.Shadowed {
+			summary.Shadowed++
+		}
+		rows = append(rows, row)
+	}
+	if summary.Shadowed > 0 {
+		summary.Status, summary.Reason = "degraded", "native_agent_shadowed"
 	}
 	return rows, summary
 }
 
-func validateOMPAgentDefinitions(
-	ctx context.Context,
-	root string,
-	runner omp.OMPModelCatalogRunner,
-	names []string,
-) map[string]bool {
-	verified := make(map[string]bool, len(names))
-	for _, name := range names {
-		verified[path.Join(".omp", "agents", name+".md")] = true
-	}
-	if adapter.RejectSymlinkComponents(root, ompAgentManifestPath) != nil {
-		return map[string]bool{}
-	}
-	manifestPath := filepath.Join(root, filepath.FromSlash(ompAgentManifestPath))
-	manifestBefore, err := os.Lstat(manifestPath)
-	if err != nil || !manifestBefore.Mode().IsRegular() {
-		return map[string]bool{}
-	}
-	findings, err := omp.NewWithRoot(root).WithModelIntegrationRunner(runner).Validate(ctx)
-	if err != nil {
-		return map[string]bool{}
-	}
-	manifestAfter, err := os.Lstat(manifestPath)
-	if err != nil || !manifestAfter.Mode().IsRegular() || !os.SameFile(manifestBefore, manifestAfter) {
-		return map[string]bool{}
-	}
-	allInvalid := false
-	for _, finding := range findings {
-		file := filepath.ToSlash(finding.File)
-		if file == ".autopus/omp-manifest.json" || file == ".omp/agents" {
-			allInvalid = true
-		}
-		if strings.HasPrefix(file, ".omp/agents/") {
-			verified[file] = false
-		}
-	}
-	if allInvalid {
-		for file := range verified {
-			verified[file] = false
-		}
-	}
-	return verified
-}
-
-func inspectOMPAgentDefinition(root, definitionPath string) string {
-	if adapter.RejectSymlinkComponents(root, definitionPath) != nil {
-		return "not_regular"
-	}
-	fullPath := filepath.Join(root, filepath.FromSlash(definitionPath))
-	info, err := os.Lstat(fullPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return "missing"
-		}
-		return "unreadable"
-	}
-	if !info.Mode().IsRegular() || info.Size() > ompMaxAgentDefinitionBytes {
-		return "not_regular"
-	}
-	return "installed"
+// shadowsOMPNativeAgent reports whether a project definition would override a
+// bundled agent. OMP resolves exact agent names first-wins with the project
+// directory ahead of its own registry, so anything present at that path
+// replaces the bundled agent this projection describes. The path is only
+// stat-ed, never followed or read, so a symlink counts as a shadow too.
+func shadowsOMPNativeAgent(root, native string) bool {
+	definitionPath := filepath.Join(".omp", "agents", native+".md")
+	_, err := os.Lstat(filepath.Join(root, definitionPath))
+	return err == nil
 }
 
 func overlayOMPAgentCatalog(
@@ -165,7 +96,7 @@ func overlayOMPAgentCatalog(
 		if !exists {
 			continue
 		}
-		row.ModelAlias = "@" + row.Role
+		row.ModelSource = config.OMPNativeAgentModelOverridesKey
 		row.Source = "autopus.yaml"
 		row.ConfigSource = safeOMPOperatorToken(profile.ConfigMode)
 		row.Status = safeOMPOperatorReason(resolution.Status)
@@ -174,7 +105,10 @@ func overlayOMPAgentCatalog(
 		row.FallbackUsed = ompFallbackWasUsed(resolution.FallbackAttempts)
 		row.Verified = receiptVerified && resolution.Status == "selected"
 		if resolution.RequestedRole != "" {
-			row.ModelAlias = "@" + safeOMPOperatorToken(resolution.RequestedRole)
+			row.Role = safeOMPOperatorToken(resolution.RequestedRole)
+		}
+		if resolution.Capability != "" {
+			row.Capability = safeOMPOperatorToken(resolution.Capability)
 		}
 		if resolution.Status != "selected" {
 			continue

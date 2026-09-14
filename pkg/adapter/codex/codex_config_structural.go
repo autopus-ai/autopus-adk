@@ -36,7 +36,6 @@ var codexObsoleteConfigKeys = map[string]map[string]bool{
 	"agents": {
 		codexruntime.LegacyAgentConcurrencyAliasKey: true, "max_depth": true, "job_max_runtime_seconds": true,
 	},
-	"features": {"multi_agent": true},
 }
 
 type codexConfigEntry struct {

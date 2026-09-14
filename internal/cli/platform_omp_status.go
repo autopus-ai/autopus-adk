@@ -47,17 +47,18 @@ func renderOMPPlatformStatus(
 		projection.Models.ReceiptStatus, projection.Models.ReceiptVerified,
 	)
 	_, _ = fmt.Fprintf(
-		out, "Agent catalog: status=%s reason=%s expected=%d installed=%d verified=%d\n",
+		out, "Agent registry: status=%s reason=%s source=%s expected=%d shadowed=%d\n",
 		projection.Models.AgentCatalogStatus, projection.Models.AgentCatalogReason,
-		projection.Models.ExpectedAgents, projection.Models.InstalledAgents, projection.Models.VerifiedAgents,
+		projection.Models.AgentCatalogSource, projection.Models.ExpectedAgents,
+		projection.Models.ShadowedAgents,
 	)
 	for _, row := range projection.Models.Models {
 		_, _ = fmt.Fprintf(
-			out, "  %s role=%s capability=%s alias=%s selector=%s model=%s/%s thinking=%s source=%s:%s status=%s reason=%s definition=%s install=%s definition_verified=%t fallback=%t verified=%t\n",
-			row.Agent, row.Role, row.Capability, row.ModelAlias, valueOrDash(row.EffectiveSelector),
+			out, "  %s role=%s capability=%s model_source=%s selector=%s model=%s/%s thinking=%s source=%s:%s status=%s reason=%s shadowed=%t fallback=%t verified=%t\n",
+			row.Agent, row.Role, row.Capability, row.ModelSource, valueOrDash(row.EffectiveSelector),
 			valueOrDash(row.Provider), valueOrDash(row.Model), valueOrDash(row.Thinking),
-			row.Source, row.ConfigSource, row.Status, row.Reason, row.DefinitionPath,
-			row.InstallStatus, row.DefinitionVerified, row.FallbackUsed, row.Verified,
+			row.Source, row.ConfigSource, row.Status, row.Reason, row.Shadowed,
+			row.FallbackUsed, row.Verified,
 		)
 	}
 	_, _ = fmt.Fprintf(
@@ -112,17 +113,17 @@ func renderOMPExplain(
 		projection.Models.CatalogTrust, projection.Models.ReceiptStatus, projection.Models.ReceiptVerified,
 	)
 	_, _ = fmt.Fprintf(
-		out, "Agent catalog: status=%s reason=%s expected=%d installed=%d verified=%d\n",
+		out, "Agent registry: status=%s reason=%s source=%s expected=%d shadowed=%d\n",
 		projection.Models.AgentCatalogStatus, projection.Models.AgentCatalogReason,
-		projection.Models.ExpectedAgents, projection.Models.InstalledAgents, projection.Models.VerifiedAgents,
+		projection.Models.AgentCatalogSource, projection.Models.ExpectedAgents,
+		projection.Models.ShadowedAgents,
 	)
 	for _, row := range projection.Models.Models {
 		_, _ = fmt.Fprintf(
-			out, "- agent=%s capability=%s role=%s alias=%s selector=%s provider=%s model=%s thinking=%s source=%s:%s status=%s reason=%s definition=%s install=%s definition_verified=%t verified=%t\n",
-			row.Agent, row.Capability, row.Role, row.ModelAlias, valueOrDash(row.EffectiveSelector),
+			out, "- agent=%s capability=%s role=%s model_source=%s selector=%s provider=%s model=%s thinking=%s source=%s:%s status=%s reason=%s shadowed=%t verified=%t\n",
+			row.Agent, row.Capability, row.Role, row.ModelSource, valueOrDash(row.EffectiveSelector),
 			valueOrDash(row.Provider), valueOrDash(row.Model), valueOrDash(row.Thinking),
-			row.Source, row.ConfigSource, row.Status, row.Reason, row.DefinitionPath,
-			row.InstallStatus, row.DefinitionVerified, row.Verified,
+			row.Source, row.ConfigSource, row.Status, row.Reason, row.Shadowed, row.Verified,
 		)
 		for _, attempt := range row.FallbackAttempts {
 			_, _ = fmt.Fprintf(
@@ -166,7 +167,7 @@ func ompProjectionChecks(projection ompPlatformProjection) []jsonCheck {
 		{ID: "omp.platform", Severity: projectionCheckSeverity(projection.Configured), Status: projectionCheckStatus(projection.Configured), Detail: projection.Reason},
 		{ID: "omp.models", Severity: projectionStatusSeverity(projection.Models.Status), Status: projectionStatusCheck(projection.Models.Status), Detail: projection.Models.Reason},
 		{
-			ID: "omp.agent_catalog", Severity: projectionStatusSeverity(projection.Models.AgentCatalogStatus),
+			ID: "omp.agent_registry", Severity: projectionStatusSeverity(projection.Models.AgentCatalogStatus),
 			Status: projectionStatusCheck(projection.Models.AgentCatalogStatus), Detail: projection.Models.AgentCatalogReason,
 		},
 		{ID: "omp.context", Severity: projectionStatusSeverity(projection.Context.Status), Status: projectionStatusCheck(projection.Context.Status), Detail: projection.Context.Reason},
@@ -215,6 +216,8 @@ func projectionStatusCheck(status string) string {
 	switch status {
 	case "supported", "ready":
 		return "pass"
+	case "degraded":
+		return "warn"
 	case "disabled":
 		return "skip"
 	default:

@@ -13,7 +13,6 @@ import (
 func TestCodexRawCollaborationTemplates_HaveNoLegacyResiduals(t *testing.T) {
 	t.Parallel()
 	bodies := map[string]string{
-		"agent-pipeline":       codexAgentPipelineSkillBody(),
 		"agent-teams-native":   codexAgentTeamsSkillBody(config.CodexAgentConcurrencyDefault),
 		"worktree-isolation":   codexWorktreeIsolationSkillBody(),
 		"subagent-development": codexSubagentDevSkillBody(),

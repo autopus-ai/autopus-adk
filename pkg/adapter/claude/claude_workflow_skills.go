@@ -150,7 +150,7 @@ func renderClaudeContextProfile(route claudeWorkflowRoute) string {
 - Required: core workspace policy, canary, and the declared canary command.
 - Excluded: scenarios, signatures, and unrelated learnings.`
 	case "go":
-		return `- Supervisor Required: core,resolved_spec,plan,acceptance,available_architecture
+		return `- Supervisor Required: core,resolved_spec,plan,acceptance
 - Worker Optional: signature,learning,task_declared_extra
 - Excluded: test,canary`
 	default:

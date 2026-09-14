@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -46,14 +47,27 @@ func TestCodexAdapter_ContextProfilesKeepRouterCoreAndDetailsScoped(t *testing.T
 	assert.NotContains(t, canary, ".autopus/project/scenarios.md")
 	assert.NotContains(t, canary, ".autopus/context/signatures.md")
 
+	// The entrypoint keeps the routing marker; the budget, receipt fields, and
+	// no-replay rules live in the delegation resource it routes to.
 	pipelineSkill, err := contentfs.FS.ReadFile("skills/agent-pipeline.md")
 	require.NoError(t, err)
 	assert.Contains(t, string(pipelineSkill), "## Scoped Context Receipt Contract")
-	assert.Contains(t, string(pipelineSkill), "800 and 2,000")
-	assert.Contains(t, string(pipelineSkill), "Outcome Lock")
-	assert.Contains(t, string(pipelineSkill), "owned paths")
-	assert.Contains(t, string(pipelineSkill), "prompt-manifest hash")
-	assert.Contains(t, string(pipelineSkill), "Do not relay full repeated artifact bodies")
+	assert.Contains(t, string(pipelineSkill), "references/delegation.md")
+
+	delegation, err := contentfs.FS.ReadFile("skills/references/agent-pipeline/delegation.md")
+	require.NoError(t, err)
+	lowered := strings.ToLower(string(delegation))
+	for _, required := range []string{
+		"800 and 2,000",
+		"outcome lock",
+		"owned paths",
+		"prompt-manifest hash",
+		"omitted count",
+		"do not relay full repeated artifact bodies",
+	} {
+		assert.Contains(t, lowered, required,
+			"the delegation resource lost the scoped receipt contract clause %q", required)
+	}
 }
 
 func readCodexContextSurface(t *testing.T, root, rel string) string {

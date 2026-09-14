@@ -61,9 +61,12 @@ type EngineConfig struct {
 	ProjectDir string
 	SpecID     string
 	// SpecDir is the resolved, trusted directory containing required SPEC documents.
-	SpecDir    string
-	Platform   string
-	Strategy   Strategy
+	SpecDir  string
+	Platform string
+	Strategy Strategy
+	// Route selects the phases this run dispatches. The zero value is the
+	// conservative full route.
+	Route      PhaseRoute
 	Backend    PhaseBackend
 	Checkpoint *Checkpoint
 	DryRun     bool

@@ -7,40 +7,12 @@ alwaysApply: true
 
 # Language Policy
 
-IMPORTANT: Follow the configured language settings for all work in the project.
+IMPORTANT: Follow the project's configured language for each surface. Every agent checks the configuration before producing output.
 
-## Enforcement
+- `code_comments` — code comments, docstrings, inline documentation
+- `commit_messages` — git commit messages
+- `ai_responses` — responses to the user
 
-This is a prompt instruction, not a mechanical gate. Nothing in the harness
-inspects the language of a comment, a commit message, or a response: the
-pre-commit Lore check validates the commit type prefix and sign-off trailers
-only, `auto check --hygiene` measures file size, and no linter or CI step reads
-language at all. A violation surfaces as a review finding, so an agent cannot
-rely on a gate to catch it.
+An unconfigured surface defaults to English.
 
-## Configuration
-
-Language policy is configured per-project with three independent settings:
-
-| Setting | Controls | Example |
-|---------|----------|---------|
-| `code_comments` | Code comments, docstrings, inline documentation | `en` (English) |
-| `commit_messages` | Git commit messages | `ko` (Korean) |
-| `ai_responses` | AI agent responses to the user | `ko` (Korean) |
-
-## Rules
-
-- **Code comments**: Write all code comments, docstrings, and inline documentation in the configured language
-- **Commit messages**: Write all git commit messages in the configured language
-- **AI responses**: Respond to the user in the configured language
-
-## Scope
-
-This policy applies to ALL agents in the system. Each agent MUST check the project's language configuration before producing output.
-
-## Defaults
-
-When no language policy is explicitly configured:
-- Code comments: English (`en`)
-- Commit messages: English (`en`)
-- AI responses: English (`en`)
+Nothing enforces this mechanically: no hook, linter, or CI step inspects language, and the pre-commit Lore check validates only the commit type prefix and sign-off trailers. A violation surfaces as a review finding, so do not rely on a gate to catch it.

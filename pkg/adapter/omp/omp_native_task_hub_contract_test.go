@@ -13,8 +13,8 @@ const (
 	ompNativeAlphaID       = "NativeAlpha"
 	ompNativeBetaID        = "NativeBeta"
 	ompNativeSharedContext = "Read-only native lifecycle smoke. Do not modify files or use process or network tools. Return only the required five-field receipt through yield."
-	ompNativeAlphaTask     = "NATIVE_CHILD_ALPHA: inspect the generated explorer surface read-only and return its strict receipt without modifying anything."
-	ompNativeBetaTask      = "NATIVE_CHILD_BETA: inspect the generated reviewer surface read-only and return its strict receipt without modifying anything."
+	ompNativeAlphaTask     = "NATIVE_CHILD_ALPHA: inspect `.omp/skills/agent-pipeline/SKILL.md` read-only and return its strict receipt naming exactly that path without modifying anything."
+	ompNativeBetaTask      = "NATIVE_CHILD_BETA: inspect `.omp/rules/autopus-branding.md` read-only and return its strict receipt naming exactly that path without modifying anything."
 )
 
 type ompNativeChildReceipt struct {
@@ -51,7 +51,7 @@ func ompNativeTaskArguments() map[string]any {
 		"context": ompNativeSharedContext,
 		"tasks": []any{
 			map[string]any{
-				"name": ompNativeAlphaID, "agent": "explorer", "task": ompNativeAlphaTask,
+				"name": ompNativeAlphaID, "agent": "scout", "task": ompNativeAlphaTask,
 				"outputSchema": ompNativeReceiptSchema(), "schemaMode": "strict",
 			},
 			map[string]any{
@@ -66,12 +66,12 @@ func ompNativeExpectedReceipt(id string) ompNativeChildReceipt {
 	switch id {
 	case ompNativeAlphaID:
 		return ompNativeChildReceipt{
-			OwnedPaths: []string{".omp/agents/explorer.md"}, ChangedFiles: []string{},
+			OwnedPaths: []string{".omp/skills/agent-pipeline/SKILL.md"}, ChangedFiles: []string{},
 			Verification: []string{"native-alpha-read-only"}, Blockers: []string{}, NextRequiredStep: "none",
 		}
 	case ompNativeBetaID:
 		return ompNativeChildReceipt{
-			OwnedPaths: []string{".omp/agents/reviewer.md"}, ChangedFiles: []string{},
+			OwnedPaths: []string{".omp/rules/autopus-branding.md"}, ChangedFiles: []string{},
 			Verification: []string{"native-beta-read-only"}, Blockers: []string{}, NextRequiredStep: "none",
 		}
 	default:
@@ -114,8 +114,8 @@ func validateOMPNativeParentTools(tools []json.RawMessage) error {
 		return fmt.Errorf("task item shape drifted")
 	}
 	taskDefinition := ompNativeToolDefinition(tools, "task")
-	if !strings.Contains(taskDefinition, "explorer") || !strings.Contains(taskDefinition, "reviewer") {
-		return fmt.Errorf("generated agents missing from task definition")
+	if !strings.Contains(taskDefinition, "scout") || !strings.Contains(taskDefinition, "reviewer") {
+		return fmt.Errorf("bundled agents missing from task definition")
 	}
 	for _, forbidden := range []string{"effort", "model", "thinking", "isolated"} {
 		if _, exists := itemProperties[forbidden]; exists {

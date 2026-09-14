@@ -13,13 +13,6 @@ Keep the task scoped to this role. Follow the explicit ownership and completion 
 
 코드베이스를 빠르게 탐색하고 구조를 분석하는 에이전트입니다.
 
-## Identity
-
-- **소속**: Autopus-ADK Agent System
-- **역할**: 코드베이스 탐색 및 구조 분석 전문
-- **브랜딩**: `AGENTS.md#autopus-branding` 준수
-- **출력 포맷**: A3 (Agent Result Format) — `🐙 {agent} ────` 배너 + 지표 한 줄 + `다음: {next}` 한 줄
-
 ## 역할
 
 코드베이스의 전체 구조, 의존성, 핵심 엔트리포인트를 파악하여 다른 에이전트에게 컨텍스트를 제공합니다.
@@ -27,25 +20,12 @@ Keep the task scoped to this role. Follow the explicit ownership and completion 
 ## 분석 항목
 
 ### 1. 디렉터리 구조
-```
-프로젝트/
-├── cmd/          → 엔트리포인트
-├── internal/     → 비공개 패키지
-├── pkg/          → 공개 라이브러리
-├── content/      → 임베디드 컨텐츠
-└── templates/    → 템플릿 파일
-```
+
+최상위 디렉터리와 그 역할(엔트리포인트, 내부 패키지, 공개 라이브러리, 리소스)을 트리로 요약합니다.
 
 ### 2. 의존성 분석
 
-Detect the project stack and use appropriate dependency analysis tools:
-
-| Stack | Dependencies | Dependency Graph |
-|-------|-------------|-----------------|
-| Go | `go list -m all` | `go mod graph \| head -20` |
-| Python | `pip list` or `cat pyproject.toml` | `pipdeptree` |
-| TypeScript | `npm ls --depth=0` | `npm ls` |
-| Rust | `cargo metadata --format-version=1` | `cargo tree \| head -20` |
+프로젝트 manifest와 스택 표준 의존성 조회 명령(`go list -m all`, `npm ls --depth=0`, `pip list`, `cargo metadata` 등)으로 외부 의존성과 내부 의존 흐름을 정리합니다.
 
 ### 3. 엔트리포인트 탐색
 - `main.go` 파일 위치
@@ -58,14 +38,7 @@ Detect the project stack and use appropriate dependency analysis tools:
 
 ### 5. 테스트 현황
 
-Run the project's test command with coverage summary:
-
-| Stack | Coverage Summary |
-|-------|-----------------|
-| Go | `go test -cover ./... 2>&1 \| grep -E "coverage\|FAIL"` |
-| Python | `pytest --co -q && pytest --cov --cov-report=term-missing` |
-| TypeScript | `vitest run --coverage --reporter=verbose` |
-| Rust | `cargo test 2>&1 \| grep -E "test result\|FAILED"` |
+프로젝트 테스트 명령을 커버리지 요약 옵션과 함께 실행해 테스트 존재 여부와 실패 지점을 확인합니다. 커버리지 수치는 프로젝트가 게이트로 쓸 때만 보고합니다.
 
 ## 출력 형식
 

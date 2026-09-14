@@ -1,25 +1,33 @@
 package content
 
+import "strings"
+
+// coreSkillSet is the reusable-skill surface every install advertises by
+// default. Membership is explicit on purpose: a skill enters this set only
+// because every project needs it eagerly listed, never because its category or
+// filename looked important. Everything else stays registered and reachable
+// through skills.compiler bundles / explicit_skills / mode: full.
 var coreSkillSet = map[string]bool{
-	"adaptive-quality":            true,
-	"agent-pipeline":              true,
-	"agent-presets":               true,
-	"agent-teams":                 true,
-	"ax-annotation":               true,
-	"debugging":                   true,
-	"ddd":                         true,
-	"frontend-verify":             true,
-	"hash-anchored-edit":          true,
-	"make-interfaces-feel-better": true,
-	"planning":                    true,
-	"review":                      true,
-	"spec-review":                 true,
-	"subagent-dev":                true,
-	"tdd":                         true,
-	"testing-strategy":            true,
-	"using-autopus":               true,
-	"verification":                true,
-	"worktree-isolation":          true,
+	"agent-pipeline":     true,
+	"codebase-design":    true,
+	"debugging":          true,
+	"planning":           true,
+	"review":             true,
+	"tdd":                true,
+	"testing-strategy":   true,
+	"using-autopus":      true,
+	"verification":       true,
+	"worktree-isolation": true,
+}
+
+// routeSkillPrefix marks the generated `/auto <command>` routes. Routes are the
+// only way a user discovers harness commands, so they stay on the native
+// surface in every compiler mode regardless of bundle selection.
+const routeSkillPrefix = "auto-"
+
+// IsRouteSkill reports whether name is a generated `/auto` command route.
+func IsRouteSkill(name string) bool {
+	return name == "auto" || strings.HasPrefix(name, routeSkillPrefix)
 }
 
 var bundleOverrides = map[string][]string{
@@ -34,11 +42,11 @@ var bundleOverrides = map[string][]string{
 	"entropy-scan":                {"ops"},
 	"experiment":                  {"research", "ops"},
 	"frontend-skill":              {"frontend"},
-	"frontend-verify":             {"core", "frontend"},
+	"frontend-verify":             {"frontend", "quality"},
 	"git-worktrees":               {"ops"},
 	"idea":                        {"product", "research"},
 	"lore-commit":                 {"research"},
-	"make-interfaces-feel-better": {"core", "frontend"},
+	"make-interfaces-feel-better": {"frontend"},
 	"metrics":                     {"product"},
 	"migration":                   {"ops", "product"},
 	"monitor-patterns":            {"ops"},
@@ -50,26 +58,34 @@ var bundleOverrides = map[string][]string{
 	"writing-skills":              {"research"},
 }
 
+// categoryBundles maps a skill's declared category onto an opt-in bundle. No
+// entry may resolve to "core": category is a hint about topic, and letting it
+// mint core membership is how a compact default surface silently grows back to
+// the whole library.
+var categoryBundles = map[string][]string{
+	"agentic":       {"agentic"},
+	"development":   {"ops"},
+	"devops":        {"ops"},
+	"documentation": {"research"},
+	"methodology":   {"quality"},
+	"quality":       {"quality"},
+	"security":      {"ops"},
+	"strategy":      {"research"},
+	"testing":       {"quality"},
+	"workflow":      {"product"},
+}
+
 func bundlesForSkill(name, category string) []string {
 	if bundles, ok := bundleOverrides[name]; ok {
 		return bundles
 	}
-	if coreSkillSet[name] {
+	if coreSkillSet[name] || IsRouteSkill(name) {
 		return []string{"core"}
 	}
-
-	switch category {
-	case "agentic", "methodology", "quality", "testing":
-		return []string{"core"}
-	case "development", "devops", "security":
-		return []string{"ops"}
-	case "documentation", "strategy":
-		return []string{"research"}
-	case "workflow":
-		return []string{"product"}
-	default:
-		return []string{"product"}
+	if bundles, ok := categoryBundles[category]; ok {
+		return bundles
 	}
+	return []string{"product"}
 }
 
 // claudeOnlySkillSet lists skills that are scoped to the claude-code platform
@@ -94,7 +110,10 @@ func compileTargetsForSkill(name string) []string {
 	return []string{"claude", "codex", "gemini", "opencode", "omp"}
 }
 
-// IsCoreSkill reports whether the canonical skill should remain in shared/core surfaces.
+// IsCoreSkill reports whether the canonical skill belongs on the default native
+// surface. Three disjoint reasons qualify a skill: it is a declared core skill,
+// it is a command route, or an always-installed surface links to it and the
+// link would otherwise dangle.
 func IsCoreSkill(name string) bool {
-	return coreSkillSet[name]
+	return coreSkillSet[name] || IsRouteSkill(name) || pinnedSkillDependencies()[name]
 }

@@ -41,25 +41,25 @@ func TestNormalizeCodexExtendedSkill_RewritesSpecialSkills(t *testing.T) {
 	assert.NotContains(t, teams, "SendMessage")
 	assert.NotContains(t, teams, "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS")
 
-	pipeline := normalizeCodexExtendedSkill("agent-pipeline", "placeholder", cfg)
-	assert.Contains(t, pipeline, "@auto go")
-	assert.Contains(t, pipeline, "spawn_agent")
-	assert.Contains(t, pipeline, "explicit approval")
-	assert.Contains(t, pipeline, "Codex team profile")
-	assert.Contains(t, pipeline, "Goal Integration")
-	assert.Contains(t, pipeline, "Risk-Tiered Review Policy")
-	assert.Contains(t, pipeline, "fallback to single provider")
-	assert.Contains(t, pipeline, "Prompt Layer Discipline")
-	assert.Contains(t, pipeline, "Phase 0.7")
-	assert.Contains(t, pipeline, "subagent_dispatch_count")
-	assert.Contains(t, pipeline, "Phase 2.1")
-	assert.Contains(t, pipeline, "Gate 3")
-	assert.Contains(t, pipeline, "Required return fields")
-	assert.Contains(t, pipeline, "Sync Readiness Gate")
-	assert.Contains(t, pipeline, "completion_verdict_preview")
-	assert.Contains(t, pipeline, "spec_status_after_go")
+	// Codex now consumes the canonical pipeline body and appends only a native
+	// execution delta. The rewrite's contract is that delta: keep the shared
+	// body intact, name the tools Codex actually exposes, and state the shared
+	// filesystem consequence that a conversation fork does not solve.
+	pipeline := normalizeCodexExtendedSkill("agent-pipeline", "canonical body marker", cfg)
+	assert.Contains(t, pipeline, "canonical body marker",
+		"the shared body must survive the Codex rewrite, not be replaced by it")
+	for _, tool := range []string{
+		"spawn_agent", "send_message", "followup_task",
+		"wait_agent()", "interrupt_agent", "list_agents",
+	} {
+		assert.Contains(t, pipeline, tool, "the native delta must name %q", tool)
+	}
 	assert.NotContains(t, pipeline, "bypassPermissions")
 	assert.NotContains(t, pipeline, "auto permission detect")
+	for _, foreign := range []string{"TeamCreate", "SendMessage(", "Agent("} {
+		assert.NotContains(t, pipeline, foreign,
+			"the Codex delta must not reintroduce a Claude-only primitive")
+	}
 
 	worktree := normalizeCodexExtendedSkill("worktree-isolation", "placeholder", cfg)
 	assert.Contains(t, worktree, "shared cwd and filesystem")

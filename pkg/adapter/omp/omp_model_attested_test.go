@@ -49,6 +49,33 @@ func TestProbeOMPModelCatalogForProfile_MetadataInsufficiencyUsesOperatorAttesta
 	assertNoSensitiveOMPProbeArguments(t, runner.calls)
 }
 
+// An operator may pin a bundled agent by its native name. Reading the
+// capability from the ADK role matrix alone rejected that key, so a metadata
+// light installation refused every native-keyed pin with catalog_invalid.
+func TestProbeOMPModelCatalogForProfile_AttestsNativeKeyedAgentOverride(t *testing.T) {
+	t.Parallel()
+
+	profile := integrationHarnessConfig(config.RoleModelConfigModeOverlay).RoleModelPolicy.Profiles["p1"]
+	profile.CatalogTrust = config.RoleModelCatalogTrustOperatorAttested
+	profile.Agents = map[string]config.RoleAgentOverrideConf{
+		"task": {Candidates: []config.RoleModelCandidateConf{
+			{Selector: "openai/beta-coder", Thinking: "high", Family: "openai"},
+		}},
+	}
+	runner := &modelCatalogFakeRunner{outputs: map[string][]byte{
+		"--version":                     []byte("omp/17.2.6\n"),
+		"models --json --no-extensions": operatorAttestedAvailableCatalogJSON(),
+	}, errors: map[string]error{}}
+
+	got := ProbeOMPModelCatalogForProfile(context.Background(), OMPModelCatalogProbeOptions{
+		Runner: runner, Timeout: time.Second, MaxOutput: 4096,
+	}, profile)
+
+	require.Equal(t, "catalog_ready", got.Reason)
+	require.Equal(t, config.RoleModelCatalogTrustOperatorAttested, got.CatalogTrust)
+	require.NotEmpty(t, got.Catalog.Models)
+}
+
 func TestProbeOMPModelCatalogForProfile_OperatorAttestationDoesNotOverrideOtherFailures(t *testing.T) {
 	t.Parallel()
 
@@ -108,7 +135,7 @@ func TestOMPModelIntegration_OperatorAttestationIsBoundIntoReceipt(t *testing.T)
 	var receipt OMPModelResolutionReceipt
 	require.NoError(t, json.Unmarshal(mapping.Content, &receipt))
 	require.Equal(t, config.RoleModelCatalogTrustOperatorAttested, receipt.CatalogTrust)
-	require.Len(t, receipt.Roles, len(config.OMPAgentRoleMapping()))
+	require.Len(t, receipt.Roles, len(config.OMPNativeAgentNames()))
 	for _, role := range receipt.Roles {
 		require.Equal(t, "operator_attested", role.EvidenceClass, role.Agent)
 		require.NotEmpty(t, role.EffectiveFamily, role.Agent)

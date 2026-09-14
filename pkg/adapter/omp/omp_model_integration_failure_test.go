@@ -19,7 +19,7 @@ func TestOMPModelIntegration_S12S14_FailsClosedBeforeProjectWrite(t *testing.T) 
 		reason string
 	}{
 		{"unsupported setting", func(r *modelIntegrationFakeRunner, _ *config.HarnessConfig) {
-			r.unsupported = map[string]bool{"modelRoles": true}
+			r.unsupported = map[string]bool{config.OMPNativeAgentModelOverridesKey: true}
 		}, "model_setting_unsupported"},
 		{"metadata insufficient", func(r *modelIntegrationFakeRunner, _ *config.HarnessConfig) {
 			r.catalog = []byte(`{"models":[{"provider":"p","id":"m","thinking":["high"]}]}`)
@@ -45,7 +45,7 @@ func TestOMPModelIntegration_S12S14_FailsClosedBeforeProjectWrite(t *testing.T) 
 			r.unsupported = map[string]bool{"tools.approvalMode": true}
 		}, "model_setting_unsupported"},
 		{"activation readback mismatch", func(r *modelIntegrationFakeRunner, _ *config.HarnessConfig) {
-			r.corruptKey = "modelRoles"
+			r.corruptKey = config.OMPNativeAgentModelOverridesKey
 		}, "activation readback mismatch"},
 	}
 	for _, tc := range cases {

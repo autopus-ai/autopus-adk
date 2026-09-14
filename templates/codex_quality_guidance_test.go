@@ -35,6 +35,10 @@ func TestCodexQualityGuidanceDocumentsLoadedAgentBoundary(t *testing.T) {
 		assert.NotContains(t, content, "Sol/`max` for `planner`, `architect`, and `security-auditor`")
 	}
 
+	// The Codex provider/model tier table used to be restated inside the shared
+	// pipeline body. It is platform-specific projection, so it now lives only on
+	// the Codex quality surface checked above; the shared pipeline must not
+	// carry a provider tier mapping at all.
 	pipelinePaths := []string{
 		filepath.Join(root, "..", "content", "skills", "agent-pipeline.md"),
 		filepath.Join(root, "gemini", "skills", "agent-pipeline", "SKILL.md.tmpl"),
@@ -43,13 +47,13 @@ func TestCodexQualityGuidanceDocumentsLoadedAgentBoundary(t *testing.T) {
 		data, err := os.ReadFile(path)
 		require.NoError(t, err)
 		content := string(data)
-		assert.Contains(t, content, "quality-managed depth-0 supervisor")
-		assert.Contains(t, content, "An `inherit` supervisor keeps the")
-		assert.Contains(t, content, "user's Codex runtime default")
-		assert.Contains(t, content, "User-owned root model or effort assignments remain")
-		assert.Contains(t, content, "preserved and take precedence")
-		assert.Contains(t, content, "Fable-tier workers to Astra/`max`, and Opus-tier workers to Sol/`xhigh`")
-		assert.NotContains(t, content, "`planner`, `architect`, and `security-auditor` use Sol/`max`")
-		assert.NotContains(t, content, "the depth-0 supervisor and orchestra use Sol/`ultra`")
+		for _, providerTier := range []string{
+			"Astra", "Sol", "Fable-tier", "Opus-tier",
+			"`planner`, `architect`, and `security-auditor` use Sol/`max`",
+			"the depth-0 supervisor and orchestra use Sol/`ultra`",
+		} {
+			assert.NotContains(t, content, providerTier,
+				"%s must not pin a provider tier; quality projection is platform-owned", path)
+		}
 	}
 }

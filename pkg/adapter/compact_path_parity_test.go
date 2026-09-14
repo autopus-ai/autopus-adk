@@ -27,7 +27,6 @@ var compactPathAuthoringSources = []string{
 	"templates/gemini/skills/auto-plan/SKILL.md.tmpl",
 	"templates/gemini/skills/auto-fix/SKILL.md.tmpl",
 	"templates/gemini/skills/agent-pipeline/SKILL.md.tmpl",
-	"templates/shared/omp-agent-pipeline.md.tmpl",
 }
 
 // compactPathExecutionSources consume an existing contract, so they must name
@@ -81,7 +80,6 @@ func TestCompactPath_PipelineSurfacesCarryAuthoringGateAndMergedVerification(t *
 	surfaces := map[string]string{
 		"content/skills/agent-pipeline.md":                     string(pipeline),
 		"templates/gemini/skills/agent-pipeline/SKILL.md.tmpl": repoRelativeFile(t, "templates/gemini/skills/agent-pipeline/SKILL.md.tmpl"),
-		"templates/shared/omp-agent-pipeline.md.tmpl":          repoRelativeFile(t, "templates/shared/omp-agent-pipeline.md.tmpl"),
 	}
 	for name, body := range surfaces {
 		assert.Contains(t, body, "spec_authoring", "%s omits the authoring gate", name)
@@ -90,6 +88,36 @@ func TestCompactPath_PipelineSurfacesCarryAuthoringGateAndMergedVerification(t *
 			assert.Contains(t, body, retained, "%s stopped naming the retained safety gate %q", name, retained)
 		}
 	}
+}
+
+// An entrypoint that defers the compact-path detail must still reach it. The
+// contract itself is checked in the resource, not duplicated in every body:
+// duplicating it is exactly what let the two copies drift apart before.
+func TestCompactPath_DeferringEntrypointsReachTheGateResource(t *testing.T) {
+	t.Parallel()
+
+	for _, rel := range []string{
+		"templates/shared/omp-agent-pipeline.md.tmpl",
+		"content/skills/agent-pipeline.md",
+	} {
+		body := repoRelativeFile(t, rel)
+		assert.Contains(t, body, "references/gates.md",
+			"%s must route to the retrievable gate/change-class contract", rel)
+	}
+
+	gates, err := contentfs.FS.ReadFile("skills/references/agent-pipeline/gates.md")
+	require.NoError(t, err)
+	for _, claim := range []string{
+		"escalate_to_full_spec", "bugfix_existing_contract", "auto spec change",
+		"spec_authoring", "security", "validation", "data_loss", "deterministic_oracle",
+	} {
+		assert.Contains(t, string(gates), claim, "the gate resource omits %q", claim)
+	}
+
+	review, err := contentfs.FS.ReadFile("skills/references/agent-pipeline/review.md")
+	require.NoError(t, err)
+	assert.Contains(t, string(review), "awaiting_changes",
+		"the review resource omits the loop terminal status")
 }
 
 // The gate catalog listing is a closed set; a platform that lists it must list

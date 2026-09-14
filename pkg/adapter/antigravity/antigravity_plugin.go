@@ -10,8 +10,21 @@ import (
 
 const antigravityPluginDir = ".agents/plugins/autopus"
 
+// antigravityPluginManifest is the published plugin.json shape. The official
+// schema declares `additionalProperties: false` over exactly these two fields,
+// so the marshalled struct — not a map with extras such as `$schema` — is what
+// survives strict validation.
+type antigravityPluginManifest struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
 func prepareAntigravityPluginJSON() ([]adapter.FileMapping, error) {
-	body, err := json.MarshalIndent(map[string]string{"name": "autopus"}, "", "  ")
+	body, err := json.MarshalIndent(antigravityPluginManifest{
+		Name: "autopus",
+		Description: "Autopus-ADK harness: auto-* workflow routes, reusable skills, " +
+			"project rules, and subagent definitions.",
+	}, "", "  ")
 	if err != nil {
 		return nil, err
 	}
@@ -42,6 +55,11 @@ func mirrorAntigravityPluginMappings(files []adapter.FileMapping) []adapter.File
 	return mirrored
 }
 
+// antigravityPluginTarget maps a Gemini CLI surface path onto the matching
+// component inside the workspace plugin. `agy plugin validate` reports
+// skills, agents and commands as processed and accepts rules, so those four
+// directories are the whole loadable component set; commands are converted
+// into skills by the CLI itself.
 func antigravityPluginTarget(path string) (string, bool) {
 	path = filepath.ToSlash(path)
 	switch {
@@ -69,47 +87,6 @@ func rewriteAntigravityPluginContent(content string) string {
 		".gemini/rules/autopus/", antigravityPluginDir+"/rules/",
 		".gemini/agents/autopus/", antigravityPluginDir+"/agents/",
 		".gemini/commands/auto/", antigravityPluginDir+"/commands/auto/",
-	)
-	return replacer.Replace(content)
-}
-
-func mirrorAntigravityGlobalCommandMappings(files []adapter.FileMapping) []adapter.FileMapping {
-	mirrored := make([]adapter.FileMapping, 0, len(files))
-	for _, file := range files {
-		target, ok := antigravityGlobalCommandTarget(file.TargetPath)
-		if !ok {
-			continue
-		}
-		content := rewriteAntigravityGlobalCommandContent(string(file.Content))
-		mirrored = append(mirrored, adapter.FileMapping{
-			TargetPath:      target,
-			OverwritePolicy: file.OverwritePolicy,
-			Checksum:        checksum(content),
-			Content:         []byte(content),
-		})
-	}
-	return mirrored
-}
-
-func antigravityGlobalCommandTarget(path string) (string, bool) {
-	path = filepath.ToSlash(path)
-	switch {
-	case path == ".gemini/commands/auto.toml":
-		return ".agents/commands/auto.toml", true
-	case strings.HasPrefix(path, ".gemini/commands/auto/"):
-		return strings.Replace(path, ".gemini/commands/auto/", ".agents/commands/auto/", 1), true
-	default:
-		return "", false
-	}
-}
-
-func rewriteAntigravityGlobalCommandContent(content string) string {
-	replacer := strings.NewReplacer(
-		".gemini/skills/autopus/", ".agents/skills/",
-		".gemini/skills/auto/", ".agents/skills/auto/",
-		".gemini/rules/autopus/", ".agents/rules/",
-		".gemini/agents/autopus/", ".agents/agents/",
-		".gemini/commands/auto/", ".agents/commands/auto/",
 	)
 	return replacer.Replace(content)
 }

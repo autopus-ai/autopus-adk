@@ -57,7 +57,7 @@ func generateContextEngineeringSurfaces(t *testing.T) map[string]contextEngineer
 		}, ".omp/skills/agent-pipeline/SKILL.md",
 			func(command string) string { return ".omp/skills/auto-" + command + "/SKILL.md" }},
 		{"gemini", func(root string) (*adapter.PlatformFiles, error) {
-			return antigravity.NewWithRoot(root, antigravity.WithoutPluginInstall()).Generate(
+			return antigravity.NewWithRoot(root).Generate(
 				context.Background(), config.DefaultFullConfig("context-engineering"))
 		}, ".gemini/skills/autopus/agent-pipeline/SKILL.md",
 			func(command string) string { return ".gemini/skills/autopus/auto-" + command + "/SKILL.md" }},
@@ -206,58 +206,79 @@ func extractCanonicalWorkerFields(t *testing.T, body string) []string {
 	return fields
 }
 
-func extractGeneratedWorkerFields(body string) []string {
-	section, err := contextEngineeringSection(body, "Required return fields:")
-	if err != nil {
-		return nil
-	}
-	var fields []string
-	for _, line := range strings.Split(section, "\n") {
-		field := strings.Trim(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "-")), "`")
-		if field != "" && !strings.ContainsAny(field, " :") {
-			fields = append(fields, field)
-		}
-	}
-	sort.Strings(fields)
-	return fields
-}
-
-func assertContextEngineeringGuidance(t *testing.T, body string) {
+// contextEngineeringReceiptSchema resolves the coordination resource emitted
+// beside a generated pipeline entrypoint and returns its typed worker-receipt
+// JSON Schema. The receipt contract is a schema, not a bullet list, so this
+// parses the real artifact a worker would be handed instead of matching prose.
+func contextEngineeringReceiptSchema(t *testing.T, root, pipelineRel string) map[string]any {
 	t.Helper()
-	require.NoError(t, validateContextEngineeringSecurity(body))
-	for _, token := range contextEngineeringEvidenceClauses {
-		assert.True(t, strings.Contains(normalizeContextEngineeringProse(body), normalizeContextEngineeringProse(token)),
-			"generated pipeline is missing semantic token %q", token)
-	}
-}
+	rel := filepath.Join(filepath.Dir(filepath.FromSlash(pipelineRel)), "references", "coordination.md")
+	body, err := os.ReadFile(filepath.Join(root, rel))
+	require.NoError(t, err, "pipeline %s must emit its coordination resource", pipelineRel)
 
-var contextEngineeringEvidenceClauses = []string{"supervisor verified delivery", "delegated-worker optional recall", "selected refs", "hashes", "omitted count", "2,000 estimated tokens", "short correct", "without padding"}
-
-var contextEngineeringSecurityClauses = []string{
-	"accept only stable project-relative source refs", "reject absolute paths, .. traversal, symlinks, and non-regular files",
-	"sanitize and redact retrieved content while preserving injection evidence", "do not relay full repeated artifact bodies",
-	"do not replay raw tool results, provider payloads, or any required document body",
-}
-
-var contextEngineeringAdversarialFixtures = []struct{ name, body string }{
-	{"unsafe refs permitted", "stable project-relative source refs are optional; absolute paths, .. traversal, symlinks, and non-regular files are permitted"},
-	{"sanitization disabled", "do not sanitize or redact retrieved content while preserving injection evidence"},
-	{"raw replay allowed", "workers may replay raw tool results, provider payloads, required document bodies, and repeated artifacts"},
-}
-
-func validateContextEngineeringSecurity(body string) error {
-	normalized := normalizeContextEngineeringProse(body)
-	for _, clause := range contextEngineeringSecurityClauses {
-		if !strings.Contains(normalized, normalizeContextEngineeringProse(clause)) {
-			return fmt.Errorf("missing restrictive context clause %q", clause)
+	for _, block := range contextEngineeringJSONBlocks(string(body)) {
+		var payload map[string]any
+		if json.Unmarshal([]byte(block), &payload) != nil {
+			continue
+		}
+		if _, ok := payload["required"]; ok {
+			return payload
 		}
 	}
-	for _, forbidden := range []string{"absolute paths, .. traversal, symlinks, and non-regular files are permitted", "do not sanitize or redact", "may replay raw tool results"} {
-		if strings.Contains(normalized, forbidden) {
-			return fmt.Errorf("contradictory context polarity %q", forbidden)
-		}
-	}
+	require.Fail(t, "coordination resource carries no typed receipt schema", rel)
 	return nil
+}
+
+func contextEngineeringJSONBlocks(body string) []string {
+	const fence = "```json\n"
+	var blocks []string
+	rest := body
+	for {
+		start := strings.Index(rest, fence)
+		if start < 0 {
+			return blocks
+		}
+		rest = rest[start+len(fence):]
+		end := strings.Index(rest, "\n```")
+		if end < 0 {
+			return blocks
+		}
+		blocks = append(blocks, rest[:end])
+		rest = rest[end:]
+	}
+}
+
+// assertContextEngineeringGuidance checks the enforceable half of the receipt
+// contract: the exact five fields, all required, with no extra properties
+// accepted. A schema that drops a field or opens up additionalProperties lets a
+// worker return an unverifiable blob.
+func assertContextEngineeringGuidance(t *testing.T, root, pipelineRel string, wantFields []string) {
+	t.Helper()
+	schema := contextEngineeringReceiptSchema(t, root, pipelineRel)
+
+	raw, ok := schema["required"].([]any)
+	require.True(t, ok, "receipt schema must declare a required field list")
+	got := make([]string, 0, len(raw))
+	for _, field := range raw {
+		name, isString := field.(string)
+		require.True(t, isString, "required entries must be field names")
+		got = append(got, name)
+	}
+	sort.Strings(got)
+	assert.Equal(t, wantFields, got, "%s receipt schema field set", pipelineRel)
+
+	assert.Equal(t, false, schema["additionalProperties"],
+		"%s receipt schema must reject unknown properties", pipelineRel)
+
+	properties, ok := schema["properties"].(map[string]any)
+	require.True(t, ok, "receipt schema must describe its properties")
+	propertyNames := make([]string, 0, len(properties))
+	for name := range properties {
+		propertyNames = append(propertyNames, name)
+	}
+	sort.Strings(propertyNames)
+	assert.Equal(t, wantFields, propertyNames,
+		"%s receipt schema properties must match the required set exactly", pipelineRel)
 }
 
 func normalizeContextEngineeringProse(body string) string {

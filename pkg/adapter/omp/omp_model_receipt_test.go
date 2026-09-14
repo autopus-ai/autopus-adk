@@ -22,7 +22,7 @@ func modelReceiptFixture(generatedAt time.Time) OMPModelResolutionReceipt {
 		},
 		Roles: []OMPModelRoleReceipt{
 			{Agent: "reviewer", Profile: "balanced", ConfigSource: "overlay", RequestedRole: "autopus_reviewer", EffectiveRole: "autopus_reviewer", Capability: "independent_dissent", Provider: "q", Model: "review", Selector: "q/review", Thinking: "high", FamilyDiversity: OMPModelFamilyDiversityReceipt{Status: "satisfied", ExecutorFamily: "p", EffectiveFamily: "q"}, SafetySource: "user_effective"},
-			{Agent: "executor", Profile: "balanced", ConfigSource: "overlay", RequestedRole: "autopus_executor", EffectiveRole: "autopus_executor", Capability: "coding_tool_use", Provider: "p", Model: "code", Selector: "p/code", Thinking: "medium", FallbackAttempts: []OMPModelFallbackAttemptReceipt{{Selector: "p/old", Reason: "disabled"}}, SafetySource: "user_effective"},
+			{Agent: "task", Profile: "balanced", ConfigSource: "overlay", RequestedRole: "autopus_planner", EffectiveRole: "autopus_planner", Capability: "deep_reasoning", Provider: "p", Model: "code", Selector: "p/code", Thinking: "medium", FallbackAttempts: []OMPModelFallbackAttemptReceipt{{Selector: "p/old", Reason: "disabled"}}, SafetySource: "user_effective"},
 		},
 		Safety:      OMPModelSafetyReceipt{ApprovalMode: "write", IsolationMode: "auto", Source: "autopus_profile"},
 		GeneratedAt: generatedAt,
@@ -45,7 +45,7 @@ func TestCanonicalOMPModelResolutionReceipt_DigestBindsGeneratedAt(t *testing.T)
 	if string(firstBytes) == string(secondBytes) {
 		t.Fatal("canonical receipt bytes must retain generated_at metadata")
 	}
-	if first.Roles[0].Agent != "executor" || first.SchemaVersion != OMPModelReceiptSchemaVersion {
+	if first.Roles[0].Agent != "reviewer" || first.SchemaVersion != OMPModelReceiptSchemaVersion {
 		t.Fatalf("receipt canonicalization mismatch: %+v", first)
 	}
 	var raw map[string]any

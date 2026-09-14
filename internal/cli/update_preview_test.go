@@ -170,13 +170,18 @@ func TestUpdateCmd_PlanShowsSplitCompilerEmitRetainPruneAndChecksumDiff(t *testi
 	dir := t.TempDir()
 	configurePreviewBinaries(t, "codex", "opencode")
 	initMixedPreviewHarness(t, dir)
+	installFullSkillLibrary(t, dir)
 
-	assert.FileExists(t, filepath.Join(dir, ".agents", "skills", "metrics", "SKILL.md"), "acceptance S2 baseline: default full mode must start with the existing shared long-tail path before split opt-in")
+	assert.FileExists(t, filepath.Join(dir, ".agents", "skills", "metrics", "SKILL.md"), "acceptance S2 baseline: the full library must start with the shared long-tail path before split opt-in")
 
 	cfg, err := loadConfigFromDir(dir)
 	require.NoError(t, err)
 	cfg.Skills.SharedSurface = config.SharedSurfaceCore
 	cfg.Skills.Compiler.Mode = config.SkillCompilerModeSplit
+	// metrics is a `product` bundle skill. Split mode relocates a long-tail
+	// skill only once a bundle selects it; with nothing selected the compact
+	// surface simply drops it and there is no relocation left to preview.
+	cfg.Skills.Compiler.Bundles = []string{"product"}
 	cfg.Skills.Compiler.OpenCodeLongTailTarget = config.SkillLongTailTargetProject
 	cfg.Skills.Compiler.CodexLongTailTarget = config.SkillLongTailTargetPlugin
 	require.NoError(t, config.Save(dir, cfg))
@@ -196,10 +201,11 @@ func TestUpdateCmd_PlanShowsSplitCompilerEmitRetainPruneAndChecksumDiff(t *testi
 	assert.Contains(t, output, "checksum diff", "acceptance S9: split preview must expose checksum or manifest diffs before apply")
 }
 
-func TestUpdateCmd_PlanKeepsFullCompatibleSharedSkillPathWithoutSplitOptIn(t *testing.T) {
+func TestUpdateCmd_PlanKeepsFullCompatibleSharedSkillPathUnderExplicitFullMode(t *testing.T) {
 	dir := t.TempDir()
 	configurePreviewBinaries(t, "codex", "opencode")
 	initMixedPreviewHarness(t, dir)
+	installFullSkillLibrary(t, dir)
 
 	var out bytes.Buffer
 	updateCmd := newTestRootCmd()
@@ -209,9 +215,9 @@ func TestUpdateCmd_PlanKeepsFullCompatibleSharedSkillPathWithoutSplitOptIn(t *te
 	require.NoError(t, updateCmd.Execute())
 
 	output := out.String()
-	assert.Contains(t, output, "retain .agents/skills/metrics/SKILL.md", "acceptance S2: default full mode must keep the existing full-compatible shared skill path when split compiler mode is not enabled")
-	assert.NotContains(t, output, ".opencode/skills/metrics/SKILL.md", "acceptance S2: default full mode must not route shared long-tail skills to split OpenCode targets")
-	assert.NotContains(t, output, ".autopus/plugins/auto/skills/metrics/SKILL.md", "acceptance S2: default full mode must not route shared long-tail skills to split Codex plugin targets")
+	assert.Contains(t, output, "retain .agents/skills/metrics/SKILL.md", "acceptance S2: explicit full mode must keep the existing full-compatible shared skill path when split compiler mode is not enabled")
+	assert.NotContains(t, output, ".opencode/skills/metrics/SKILL.md", "acceptance S2: full mode must not route shared long-tail skills to split OpenCode targets")
+	assert.NotContains(t, output, ".autopus/plugins/auto/skills/metrics/SKILL.md", "acceptance S2: full mode must not route shared long-tail skills to split Codex plugin targets")
 }
 
 func TestUpdateCmd_PlanRetainsCodexNativeWorkflowSkills(t *testing.T) {
@@ -277,4 +283,21 @@ func initMixedPreviewHarness(t *testing.T, dir string) {
 	initCmd := newTestRootCmd()
 	initCmd.SetArgs([]string{"init", "--dir", dir, "--project", "preview-proj", "--platforms", "codex,opencode", "--yes"})
 	require.NoError(t, initCmd.Execute())
+}
+
+// installFullSkillLibrary switches the workspace onto the opt-in full skill
+// library and applies it, so a fixture whose subject is a transition away from
+// the full surface actually has that surface on disk first. `auto init` writes
+// the compact default, which installs the core surface only.
+func installFullSkillLibrary(t *testing.T, dir string) {
+	t.Helper()
+
+	cfg, err := loadConfigFromDir(dir)
+	require.NoError(t, err)
+	cfg.Skills.Compiler.Mode = config.SkillCompilerModeFull
+	require.NoError(t, config.Save(dir, cfg))
+
+	updateCmd := newTestRootCmd()
+	updateCmd.SetArgs([]string{"update", "--dir", dir, "--yes"})
+	require.NoError(t, updateCmd.Execute())
 }

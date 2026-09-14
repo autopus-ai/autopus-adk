@@ -31,8 +31,8 @@ func TestCheckOMPModelRoutingDoctor_FreshReceiptReturnsSafeRoleRows(t *testing.T
 	assert.Equal(t, "fresh", report.Reason)
 	require.Len(t, report.Roles, 2)
 	assert.Equal(t, OMPModelDoctorRoleRow{
-		Agent: "executor", Role: "autopus_executor", Capability: "coding_tool_use",
-		Status: "supported", Reason: "selected", FamilyDiversity: "not_applicable",
+		Agent: "reviewer", Role: "autopus_reviewer", Capability: "independent_dissent",
+		Status: "supported", Reason: "selected", FamilyDiversity: "satisfied",
 		FamilyReason:  "not_applicable",
 		EvidenceClass: "availability", QuorumEvidence: false,
 	}, report.Roles[0])
@@ -107,16 +107,18 @@ func TestCheckOMPModelRoutingDoctor_DegradedAndBlockedRolesRemainAvailabilityOnl
 
 	root := t.TempDir()
 	receipt := modelReceiptFixture(time.Date(2026, 8, 2, 1, 2, 3, 0, time.UTC))
-	receipt.Roles = receipt.Roles[:1]
+	// Keep only the task row: the degraded reviewer route is excluded from
+	// the current projection, and reviewer sorts first in the role rows.
+	receipt.Roles = receipt.Roles[1:]
 	_, err := WriteOMPModelResolutionReceipt(OMPModelReceiptWriteInput{
 		WorkspaceRoot: root,
 		Receipt:       receipt,
 	})
 	require.NoError(t, err)
 	input := modelDoctorInput(root)
-	input.Compilation.Resolutions[0].Status = "degraded"
-	input.Compilation.Resolutions[0].Reason = "explicit_degraded"
-	input.Compilation.Resolutions[0].DegradedReason = "explicit_runtime_default"
+	input.Compilation.Resolutions[1].Status = "degraded"
+	input.Compilation.Resolutions[1].Reason = "explicit_degraded"
+	input.Compilation.Resolutions[1].DegradedReason = "explicit_runtime_default"
 	report := CheckOMPModelRoutingDoctor(input)
 	assert.Equal(t, "degraded", report.Status)
 	assert.Equal(t, "role_degraded", report.Reason)
@@ -124,8 +126,8 @@ func TestCheckOMPModelRoutingDoctor_DegradedAndBlockedRolesRemainAvailabilityOnl
 	assert.Equal(t, "availability", report.Roles[0].EvidenceClass)
 	assert.False(t, report.Roles[0].QuorumEvidence)
 
-	input.Compilation.Resolutions[0].Status = "blocked"
-	input.Compilation.Resolutions[0].Reason = "no_compatible_candidate"
+	input.Compilation.Resolutions[1].Status = "blocked"
+	input.Compilation.Resolutions[1].Reason = "no_compatible_candidate"
 	report = CheckOMPModelRoutingDoctor(input)
 	assert.Equal(t, "blocked", report.Status)
 	assert.Equal(t, "role_blocked", report.Reason)
@@ -149,7 +151,7 @@ func modelDoctorInput(root string) OMPModelDoctorInput {
 		},
 		Activation: OMPModelActivationEvidence{ConfigHash: doctorHash("b"), ReadbackHash: doctorHash("c")},
 		Compilation: OMPModelRoutingCompilation{ResolutionDigest: doctorHash("9"), Resolutions: []OMPModelRouteResolution{
-			{RouteID: "executor", Agent: "executor", RequestedRole: "autopus_executor", Capability: "coding_tool_use", Status: "selected", Reason: "selected", EffectiveProvider: "p", EffectiveModel: "code", EffectiveSelector: "p/code:medium", Thinking: "medium", EvidenceClass: "availability"},
+			{RouteID: "task", Agent: "task", RequestedRole: "autopus_planner", Capability: "deep_reasoning", Status: "selected", Reason: "selected", EffectiveProvider: "p", EffectiveModel: "code", EffectiveSelector: "p/code:medium", Thinking: "medium", EvidenceClass: "availability"},
 			{RouteID: "reviewer", Agent: "reviewer", RequestedRole: "autopus_reviewer", Capability: "independent_dissent", Status: "selected", Reason: "selected", EffectiveProvider: "q", EffectiveModel: "review", EffectiveSelector: "q/review:high", Thinking: "high", EvidenceClass: "availability", FamilyDiversity: OMPFamilyDiversity{Status: "satisfied", Executor: "p", Reviewer: "q"}},
 		}},
 	}

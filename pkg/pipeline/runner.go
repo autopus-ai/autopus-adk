@@ -24,8 +24,9 @@ type RunConfig struct {
 	// LearnStore is the optional learning store for recording gate failures.
 	// When nil, learning hooks are silently skipped.
 	LearnStore *learn.Store
-	// CoverageThreshold is the minimum coverage percentage for the coverage gap hook.
-	// Defaults to 85.0 when zero.
+	// CoverageThreshold is the minimum coverage percentage for the coverage
+	// gap hook. Zero means the project set no threshold, and no coverage gap
+	// is recorded: the hook reports against an explicit policy or not at all.
 	CoverageThreshold float64
 	// DelegationSafety configures runtime depth and authenticity checks.
 	DelegationSafety DelegationContext
@@ -104,11 +105,9 @@ func (r *SequentialRunner) runPhaseWithRetry(ctx context.Context, phase Phase, p
 
 		learnHookGateFail(cfg.LearnStore, phase.ID, phase.Gate, resp.Output, attempt)
 
-		threshold := cfg.CoverageThreshold
-		if threshold <= 0 {
-			threshold = 85.0
+		if cfg.CoverageThreshold > 0 {
+			learnHookCoverageGap(cfg.LearnStore, resp.Output, cfg.CoverageThreshold)
 		}
-		learnHookCoverageGap(cfg.LearnStore, resp.Output, threshold)
 
 		if phase.Gate == GateReview {
 			learnHookReviewIssue(cfg.LearnStore, resp.Output, cfg.SpecID)

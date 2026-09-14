@@ -50,7 +50,7 @@ func planOMPProfileJSON(
 	return payload
 }
 
-func TestOMPProfilePlanPreviewsEverySelectedAgentWithoutWrites(t *testing.T) {
+func TestOMPProfilePlanPreviewsEveryBundledAgentWithoutWrites(t *testing.T) {
 	root, runner := writeOMPBalancedProject(t)
 	before, err := os.ReadFile(filepath.Join(root, autopusConfigName))
 	require.NoError(t, err)
@@ -64,13 +64,22 @@ func TestOMPProfilePlanPreviewsEverySelectedAgentWithoutWrites(t *testing.T) {
 	assert.Empty(t, payload.Blockers)
 	assert.Equal(t, ompProfileSourceBuiltin, payload.Source)
 	assert.False(t, payload.Persisted.ProfileDefinition)
-	assert.Len(t, payload.Agents, len(config.CanonicalAgentNames()))
+	// One row per bundled OMP agent, in registry order: the preview names what
+	// OMP registers, never the retired per-role agent set.
+	agents := make([]string, 0, len(payload.Agents))
+	for _, row := range payload.Agents {
+		agents = append(agents, row.Agent)
+	}
+	assert.Equal(t, config.OMPNativeAgentNames(), agents)
 	for _, row := range payload.Agents {
 		assert.Equal(t, ompProfileAvailabilityAvailable, row.Availability, row.Agent)
 		assert.NotEmpty(t, row.RequestedSelector, row.Agent)
 		assert.NotEmpty(t, row.Candidates, row.Agent)
 		assert.Equal(t, row.RequestedSelector, row.EffectiveSelector, row.Agent)
 		assert.Equal(t, row.RequestedThinking, row.EffectiveThinking, row.Agent)
+		representative, repErr := config.OMPNativeAgentRepresentative(row.Agent)
+		require.NoError(t, repErr, row.Agent)
+		assert.Equal(t, representative, row.PolicyKey, row.Agent)
 	}
 
 	after, err := os.ReadFile(filepath.Join(root, autopusConfigName))
@@ -81,14 +90,22 @@ func TestOMPProfilePlanPreviewsEverySelectedAgentWithoutWrites(t *testing.T) {
 	assert.Len(t, entriesAfter, len(entriesBefore))
 }
 
-func TestOMPProfilePlanPinsTopAgentsToHighestModelAtMaxInBothFamilies(t *testing.T) {
+// Collapsing many roles onto one bundled agent must not lower its model: the
+// representative role's rung decides, so `task` keeps the planning model even
+// though implementation and routine roles also run on it.
+func TestOMPProfilePlanKeepsRepresentativeModelForCollapsedAgents(t *testing.T) {
 	root, runner := writeOMPBalancedProject(t)
 
 	anthropic := planOMPProfileJSON(t, root, runner, "balanced")
-	for _, agent := range []string{"debugger", "deep-worker", "planner", "architect", "spec-writer", "reviewer", "security-auditor"} {
+	for _, agent := range []string{"task", "reviewer", "security-reviewer"} {
 		row := agentPreviewRow(t, anthropic, agent)
 		assert.Equal(t, "anthropic/claude-fable-5-1", row.EffectiveSelector, agent)
 		assert.Equal(t, "max", row.EffectiveThinking, agent)
+	}
+	for _, agent := range []string{"scout", "sonic"} {
+		row := agentPreviewRow(t, anthropic, agent)
+		assert.Equal(t, "anthropic/claude-sonnet-5", row.EffectiveSelector, agent)
+		assert.Equal(t, "high", row.EffectiveThinking, agent)
 	}
 	for _, row := range anthropic.Agents {
 		assert.Equal(t, "anthropic", row.EffectiveFamily, row.Agent)
@@ -96,18 +113,18 @@ func TestOMPProfilePlanPinsTopAgentsToHighestModelAtMaxInBothFamilies(t *testing
 
 	openai := planOMPProfileJSON(t, root, runner, "balanced", "--family", "gpt")
 	assert.Equal(t, "openai", openai.FamilyStored)
-	for _, agent := range []string{"debugger", "deep-worker", "planner", "architect", "spec-writer", "reviewer", "security-auditor"} {
+	for _, agent := range []string{"task", "reviewer", "security-reviewer"} {
 		row := agentPreviewRow(t, openai, agent)
 		assert.Equal(t, "openai-codex/gpt-6-astra", row.EffectiveSelector, agent)
 		assert.Equal(t, "max", row.EffectiveThinking, agent)
 	}
-	for _, row := range openai.Agents {
-		assert.Equal(t, "openai", row.EffectiveFamily, row.Agent)
-	}
-	for _, agent := range []string{"executor", "tester", "devops", "frontend-specialist", "perf-engineer", "explorer", "annotator", "validator", "ux-validator"} {
+	for _, agent := range []string{"scout", "sonic"} {
 		row := agentPreviewRow(t, openai, agent)
 		assert.Equal(t, "openai-codex/gpt-5.6-luna", row.EffectiveSelector, agent)
 		assert.Equal(t, "max", row.EffectiveThinking, agent)
+	}
+	for _, row := range openai.Agents {
+		assert.Equal(t, "openai", row.EffectiveFamily, row.Agent)
 	}
 }
 
@@ -131,7 +148,7 @@ func TestOMPProfilePlanBlocksWhenPinnedModelIsMissingFromCatalog(t *testing.T) {
 	text, err := executeOMPSubcommandExpectingError(
 		t, newPlatformOMPProfileApplyCmd(&dir, ompBalancedDeps(runner, nil)), "balanced", "--plan",
 	)
-	assert.Contains(t, text, "agent=debugger")
+	assert.Contains(t, text, "agent=task")
 	assert.Contains(t, text, "reason=model_unknown")
 	assert.Contains(t, err.Error(), "omp_profile_candidate_unavailable")
 
@@ -172,7 +189,7 @@ func TestOMPProfilePlanRejectsUnavailableChoiceInJSONWithoutFakeSuccess(t *testi
 	assert.Equal(t, jsonStatusError, envelope.Status)
 	assert.Equal(t, "omp_profile_unavailable", envelope.Error.Code)
 	assert.NotEmpty(t, envelope.Data.Blockers)
-	row := agentPreviewRow(t, envelope.Data, "planner")
+	row := agentPreviewRow(t, envelope.Data, "task")
 	assert.Equal(t, ompProfileAvailabilityUnavailable, row.Availability)
 	require.Len(t, row.FallbackAttempts, 1)
 	assert.Equal(t, "openai-codex/gpt-6-astra:max", row.FallbackAttempts[0].Selector)
@@ -180,6 +197,10 @@ func TestOMPProfilePlanRejectsUnavailableChoiceInJSONWithoutFakeSuccess(t *testi
 	assert.Empty(t, row.EffectiveSelector)
 }
 
+// A root pin on one logical role wins over the built-in default for every
+// bundled agent it governs, and each row reports which key to edit. `validator`
+// work is dispatched to `task`, and `validator` is also the tier row `sonic`
+// borrows, so one pin moves both rows rather than silently applying to one.
 func TestOMPProfilePlanReportsAgentOverrideSourceForRootPin(t *testing.T) {
 	root, runner := writeOMPBalancedProject(t)
 
@@ -187,22 +208,25 @@ func TestOMPProfilePlanReportsAgentOverrideSourceForRootPin(t *testing.T) {
 		t, root, runner, "balanced", "--agent", "validator=anthropic/claude-sonnet-5:max",
 	)
 
-	overridden := agentPreviewRow(t, payload, "validator")
-	assert.Equal(t, ompProfileSourceAgent, overridden.Source)
-	assert.Equal(t, "anthropic/claude-sonnet-5", overridden.EffectiveSelector)
-	assert.Equal(t, "max", overridden.EffectiveThinking)
+	for _, native := range []string{"sonic", "task"} {
+		row := agentPreviewRow(t, payload, native)
+		assert.Equal(t, ompProfileSourceAgent, row.Source, native)
+		assert.Equal(t, "validator", row.PolicyKey, native)
+		assert.Equal(t, "anthropic/claude-sonnet-5", row.EffectiveSelector, native)
+		assert.Equal(t, "max", row.EffectiveThinking, native)
+	}
 	assert.Equal(t, []string{"validator"}, payload.Persisted.Agents)
-	assert.Equal(t, ompProfileSourceBuiltin, agentPreviewRow(t, payload, "executor").Source)
+	assert.Equal(t, ompProfileSourceBuiltin, agentPreviewRow(t, payload, "reviewer").Source)
 }
 
 func TestOMPProfilePlanKeepsExplicitCustomProfileAndItsFallbackVisible(t *testing.T) {
 	root, runner, profile := writeSelectedOMPProfile(t)
-	route := profile.Capabilities[config.CapabilityCodingToolUse]
+	route := profile.Capabilities[config.CapabilityFastValidation]
 	route.Candidates = []config.RoleModelCandidateConf{
 		{Selector: "openai/disabled-coder", Thinking: "high", Family: "openai"},
 		{Selector: "openai/beta-coder", Thinking: "high", Family: "openai"},
 	}
-	profile.Capabilities[config.CapabilityCodingToolUse] = route
+	profile.Capabilities[config.CapabilityFastValidation] = route
 	cfg, err := config.LoadPreview(root)
 	require.NoError(t, err)
 	cfg.RoleModelPolicy.Profiles["balanced"] = profile
@@ -212,7 +236,7 @@ func TestOMPProfilePlanKeepsExplicitCustomProfileAndItsFallbackVisible(t *testin
 
 	assert.Equal(t, ompProfileSourceCustom, payload.Source)
 	assert.True(t, payload.Persisted.ProfileDefinition)
-	row := agentPreviewRow(t, payload, "executor")
+	row := agentPreviewRow(t, payload, "scout")
 	require.Len(t, row.Candidates, 2)
 	assert.Equal(t, "openai/disabled-coder", row.Candidates[0].Selector)
 	assert.Equal(t, "openai/beta-coder", row.EffectiveSelector)
@@ -233,7 +257,7 @@ func TestOMPProfilePlanTextListsOrderedCandidatesAndSources(t *testing.T) {
 
 	assert.Contains(t, text, "Writes: 0")
 	assert.Contains(t, text, "Blockers: none")
-	assert.Contains(t, text, "agent=debugger")
+	assert.Contains(t, text, "agent=task")
 	assert.Contains(t, text, "candidates=anthropic/claude-fable-5-1:max")
-	assert.Equal(t, len(config.CanonicalAgentNames()), strings.Count(text, "\n  candidates="))
+	assert.Equal(t, len(config.OMPNativeAgentNames()), strings.Count(text, "\n  candidates="))
 }

@@ -14,18 +14,14 @@ skills:
 
 Phase 2.5 @AX tag scanning and application specialist.
 
-## Identity
-
-- **소속**: Autopus-ADK Agent System
-- **역할**: Phase 2.5 @AX 태그 스캔 및 적용 전문
-- **브랜딩**: `content/rules/branding.md` 준수
-- **출력 포맷**: A3 (Agent Result Format) — `🐙 {agent} ────` 배너 + 지표 한 줄 + `다음: {next}` 한 줄
-
 ## Role
 
 Receives the executor work log (modified file list, change intent) from Phase 2 and applies
 @AX annotation tags to all modified source files. This agent replaces the executor re-spawn
 pattern that was previously used for Phase 2.5.
+
+This agent runs only when the @AX annotation gate is explicitly requested
+(`auto spec gates --annotation`). The default gate value is `not_applicable`, and an untagged file is not a finding.
 
 ## Teams Role
 
@@ -52,10 +48,7 @@ The orchestrator or planner spawns this agent with the following structure:
 [Scope limits, files to skip]
 ```
 
-Field descriptions:
-- **Modified Files**: Full paths with a brief description of what changed
-- **Change Intent**: Why the files were modified — used to infer annotation context
-- **Constraints**: Files to skip (e.g., generated files, vendor/)
+`Constraints`에는 건너뛸 파일(생성 파일, vendor/ 등)을 명시합니다. `Change Intent`는 태그 컨텍스트 추론에 사용합니다.
 
 ## Procedure
 
@@ -127,23 +120,10 @@ Status definitions:
 
 ## Harness-Only Task Mode
 
-When all input files are `.md` files (harness agent definitions, SPEC documents), skip the
-annotation phase entirely.
-
-```
-# Harness-only task detection
-if all modified files match *.md:
-    skip: @AX scanning and tag application
-    output: Status=DONE, Tagged Files=[], Tags Applied=0
-```
-
-This avoids spurious annotations on documentation files.
+When every input file is a `.md` file (harness agent definitions, SPEC documents), skip scanning
+and tagging entirely and report `Status=DONE`, `Tagged Files=[]`, `Tags Applied=0`.
 
 ## Result Format
-
-> 이 포맷은 A3 (Agent Result Format) 규격의 구현입니다.
-
-When returning results, use the following format at the end of your response:
 
 ```
 🐙 annotator ─────────────────────

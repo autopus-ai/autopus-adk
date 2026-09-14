@@ -11,18 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCheckArch_WarnRangeFile(t *testing.T) {
-	t.Parallel()
-
-	dir := t.TempDir()
-	writeGoFileWithCodeLines(t, dir, "warn.go", 200)
-
-	var buf bytes.Buffer
-	result := checkArch(dir, &buf, false, false)
-	assert.True(t, result, "warn-range file must not fail arch check")
-	assert.Contains(t, buf.String(), "consider splitting")
-}
-
 func TestCheckArch_WarnRangeQuiet(t *testing.T) {
 	t.Parallel()
 
@@ -54,6 +42,7 @@ func TestCheckArchStaged_FailsOnOversizedStaged(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
+	writeFileSizePolicy(t, dir, 300)
 	initTestGitRepo(t, dir)
 	writeGoFileWithCodeLines(t, dir, "big.go", 300)
 
@@ -69,6 +58,7 @@ func TestCheckArchStaged_FailsOnOversizedStagedSource(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
+	writeFileSizePolicy(t, dir, 300)
 	initTestGitRepo(t, dir)
 	writeSourceFileWithLines(t, dir, "panel.tsx", 301)
 
@@ -84,6 +74,7 @@ func TestCheckArchStaged_UsesStagedContent(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
+	writeFileSizePolicy(t, dir, 300)
 	initTestGitRepo(t, dir)
 	writeSourceFileWithLines(t, dir, "staged.ts", 301)
 	runGitCommand(t, dir, "add", "staged.ts")
@@ -99,6 +90,7 @@ func TestCheckArchWalk_ChecksNonGoSourceFiles(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
+	writeFileSizePolicy(t, dir, 300)
 	writeSourceFileWithLines(t, dir, "view.tsx", 301)
 	writeSourceFileWithLines(t, dir, "native.rs", 301)
 

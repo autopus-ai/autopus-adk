@@ -113,9 +113,11 @@ func TestOMPNormalization_S12_WorkflowToolNames(t *testing.T) {
 }
 
 // TestOMPNormalization_S12_AgentInvocationSyntax covers the native batch
-// contract and rejects the legacy single-agent pseudo-call fields.
+// contract and rejects the legacy single-agent pseudo-call fields. `reviewer`
+// keeps an explicit agent field; the default agent is selected by omitting it,
+// which pkg/content's collapse test covers per role.
 func TestOMPNormalization_S12_AgentInvocationSyntax(t *testing.T) {
-	got := ReplacePlatformReferences(`Agent(subagent_type="executor", task="build")`, "omp")
+	got := ReplacePlatformReferences(`Agent(subagent_type="reviewer", task="build")`, "omp")
 	for _, field := range []string{
 		`"i"`, `"context"`, `"tasks"`, `"agent"`, `"task"`, `"outputSchema"`,
 		`"schemaMode"`, `"owned_paths"`, `"changed_files"`,

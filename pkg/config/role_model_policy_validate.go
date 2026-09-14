@@ -46,6 +46,12 @@ func (c RoleModelPolicyConf) validateForQuality(quality QualityConf) error {
 		if err := validateRoleModelProfile(name, effective); err != nil {
 			return err
 		}
+		// The native OMP registry has one slot per bundled agent, so a policy
+		// whose operator-written routes cannot collapse into it is rejected
+		// here rather than halfway through generation.
+		if err := validateOMPNativeAgentCollapse(effective); err != nil {
+			return err
+		}
 	}
 	for name, profile := range c.Profiles {
 		if !IsValidQualityPresetName(name) {
@@ -56,6 +62,21 @@ func (c RoleModelPolicyConf) validateForQuality(quality QualityConf) error {
 		}
 	}
 	return nil
+}
+
+// ValidateResolvedRoleModelProfile validates a profile already resolved through
+// SelectedRoleModelProfileForQuality. Re-wrapping such a profile as a declared
+// document would reclassify its derived per-agent rows as operator intent and
+// reject every built-in profile on a native-agent conflict nobody wrote, so
+// provenance travels with the profile instead of being recomputed.
+func ValidateResolvedRoleModelProfile(name string, profile RoleModelProfileConf) error {
+	if !IsValidQualityPresetName(name) {
+		return fmt.Errorf("role_model_policy.profile_name_invalid: %q", name)
+	}
+	if err := validateRoleModelProfile(name, profile); err != nil {
+		return err
+	}
+	return validateOMPNativeAgentCollapse(profile)
 }
 
 // @AX:WARN [AUTO]: role-model profile validation contains 11 if branches.
@@ -155,7 +176,8 @@ func validateRoleManagedKeys(name string, profile RoleModelProfileConf) error {
 		return fmt.Errorf("role_model_policy.profiles[%s].managed_key_claim_required", name)
 	}
 	allowed := map[string]bool{
-		"modelRoles": true, "retry.fallbackChains": true, "retry.modelFallback": true,
+		OMPNativeAgentModelOverridesKey: true,
+		"retry.fallbackChains":          true, "retry.modelFallback": true,
 		"tools.approvalMode": true, "task.isolation.mode": true,
 	}
 	for path, claim := range profile.ManagedKeys {

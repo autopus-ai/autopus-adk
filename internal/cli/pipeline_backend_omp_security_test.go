@@ -58,8 +58,8 @@ func TestLoadPipelineOMPPhaseModels_RequiresExactInstalledVersion(t *testing.T) 
 	models, err := loadPipelineOMPPhaseModels(projectDir, writePipelineOMPVersionFixture(t, "omp/17.1.8"))
 	require.NoError(t, err)
 	assert.Equal(t, map[pipeline.PhaseID]string{
-		pipeline.PhasePlan: "provider/planner", pipeline.PhaseTestScaffold: "provider/tester",
-		pipeline.PhaseImplement: "provider/executor", pipeline.PhaseValidate: "provider/validator",
+		pipeline.PhasePlan: "provider/task", pipeline.PhaseTestScaffold: "provider/task",
+		pipeline.PhaseImplement: "provider/task", pipeline.PhaseValidate: "provider/task",
 		pipeline.PhaseReview: "provider/reviewer",
 	}, models)
 
@@ -197,12 +197,14 @@ func writePipelineOMPModelReceipt(t *testing.T, root, version string) {
 	overlayPath := filepath.Join(root, filepath.FromSlash(ompadapter.DefaultOMPModelOverlayPath))
 	require.NoError(t, os.MkdirAll(filepath.Dir(overlayPath), 0o700))
 	require.NoError(t, os.WriteFile(overlayPath, overlay, 0o600))
-	agents := []string{"planner", "tester", "executor", "validator", "reviewer"}
+	// The receipt is keyed by the agents OMP actually registers.
+	agents := []string{"scout", "reviewer", "security-reviewer", "task", "sonic"}
 	roles := make([]ompadapter.OMPModelRoleReceipt, 0, len(agents))
 	for _, agent := range agents {
 		roles = append(roles, ompadapter.OMPModelRoleReceipt{
-			Agent: agent, Profile: "balanced", ConfigSource: "overlay", RequestedRole: "task",
-			EffectiveRole: "task", Capability: "pipeline", Provider: "provider", Model: agent,
+			Agent: agent, Profile: "balanced", ConfigSource: "overlay",
+			RequestedRole: "autopus_planner", EffectiveRole: "autopus_planner",
+			Capability: "pipeline", Provider: "provider", Model: agent,
 			Selector: "provider/" + agent, Thinking: "medium",
 			FamilyDiversity: ompadapter.OMPModelFamilyDiversityReceipt{Status: "not_applicable"},
 			SafetySource:    "autopus_profile",

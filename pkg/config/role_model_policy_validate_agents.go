@@ -48,27 +48,29 @@ func sortedRoleAgentOverrides(overrides map[string]RoleAgentOverrideConf) []stri
 
 // validateAgentOverride validates one override declared inside a profile.
 func validateAgentOverride(profile, agent string, override RoleAgentOverrideConf) error {
-	if _, err := OMPAgentCapability(agent); err != nil {
+	if _, err := ResolveOMPPolicyAgent(agent); err != nil {
 		return fmt.Errorf("role_model_policy.profiles[%s].%w", profile, err)
 	}
 	scope := fmt.Sprintf("role_model_policy.profiles[%s].agents[%s]", profile, agent)
 	return validateRoleAgentOverride(scope, agent, override)
 }
 
-// validateRoleAgentOverride requires a matrix agent, rejects role or capability
-// assertions that disagree with the matrix, and applies the capability
-// candidate rules to override candidates. The scope prefixes every message so
-// profile-scoped and root-scoped overlays report where they were declared.
+// validateRoleAgentOverride requires an agent the policy can route, rejects
+// role or capability assertions that disagree with the resolved identity, and
+// applies the capability candidate rules to override candidates. The scope
+// prefixes every message so profile-scoped and root-scoped overlays report
+// where they were declared.
 func validateRoleAgentOverride(scope, agent string, override RoleAgentOverrideConf) error {
-	capability, err := OMPAgentCapability(agent)
+	resolved, err := ResolveOMPPolicyAgent(agent)
 	if err != nil {
 		return fmt.Errorf("%s.%w", scope, err)
 	}
-	if role := OMPAgentRoleName(agent); override.Role != "" && override.Role != role {
-		return fmt.Errorf("%s.role_capability_mismatch: role %q, want %q", scope, override.Role, role)
+	if override.Role != "" && override.Role != resolved.Role {
+		return fmt.Errorf("%s.role_capability_mismatch: role %q, want %q", scope, override.Role, resolved.Role)
 	}
-	if override.Capability != "" && override.Capability != capability {
-		return fmt.Errorf("%s.role_capability_mismatch: capability %q, want %q", scope, override.Capability, capability)
+	if override.Capability != "" && override.Capability != resolved.Capability {
+		return fmt.Errorf("%s.role_capability_mismatch: capability %q, want %q",
+			scope, override.Capability, resolved.Capability)
 	}
 	return validateRouteCandidates(scope, override.Candidates)
 }

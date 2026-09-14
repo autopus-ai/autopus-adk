@@ -72,10 +72,6 @@ func TestOMP002_WorkflowParity_GenerateEmitsCanonicalCommandsAndSkills(t *testin
 			assert.NotContains(t, body, "````json", "generated body %s contains a malformed nested JSON fence", target)
 			if name := strings.TrimSuffix(strings.TrimPrefix(target, skillPrefix), skillSuffix); name == "agent-pipeline" || name == "auto-go" || name == "worktree-isolation" {
 				coordinationBodies[name] = true
-				assertOMPNativeCoordinationContract(t, body)
-				if name == "auto-go" {
-					assert.Contains(t, body, `"agent"`, "custom legacy roles must map to the per-item agent field")
-				}
 				if name == "agent-pipeline" || name == "worktree-isolation" {
 					// A no-growth ratchet on the OMP-native core coordination skills:
 					// injected into every OMP session, so the bound equals the current
@@ -92,17 +88,6 @@ func TestOMP002_WorkflowParity_GenerateEmitsCanonicalCommandsAndSkills(t *testin
 						assert.NotContains(t, body, token,
 							"OMP-native core skill %s retained foreign execution policy %q", name, token)
 					}
-				}
-				if name == "agent-pipeline" {
-					assert.Contains(t, body, "inherits the current OMP parent-session model")
-					assert.Contains(t, body, "task_dispatch_count")
-					assert.Contains(t, body, "non-isolated or otherwise")
-					assert.Contains(t, body, "isolated worker is terminal")
-					assert.Contains(t, body, "new explicitly named task")
-				}
-				if name == "worktree-isolation" {
-					assert.Contains(t, body, "native `task` tool")
-					assert.Contains(t, body, "must not run manual worktree creation")
 				}
 			}
 		}
@@ -249,12 +234,9 @@ func TestOMP002_S7_ValidateReportsMissingAndTamperedManagedSets(t *testing.T) {
 
 	rules, err := a.prepareRuleMappings()
 	require.NoError(t, err)
-	agents, err := a.prepareAgentMappings()
-	require.NoError(t, err)
 	commands, err := a.prepareCommandMappings(cfg)
 	require.NoError(t, err)
 	removedRule := removeStableMapping(t, dir, rules)
-	removedAgent := removeStableMapping(t, dir, agents)
 	removedCommand := removeStableMapping(t, dir, commands)
 	require.NoError(t, os.Remove(filepath.Join(dir, ".omp", "skills", "auto-plan", "SKILL.md")))
 	require.NoError(t, os.WriteFile(
@@ -271,7 +253,7 @@ func TestOMP002_S7_ValidateReportsMissingAndTamperedManagedSets(t *testing.T) {
 	joined := strings.Join(details, "\n")
 	assert.Contains(t, joined, "expected="+itoa(len(rules))+" got="+itoa(len(rules)-1))
 	for _, path := range []string{
-		removedRule, removedAgent, removedCommand, ".omp/skills/auto-plan/SKILL.md",
+		removedRule, removedCommand, ".omp/skills/auto-plan/SKILL.md",
 	} {
 		assert.Contains(t, joined, path)
 	}

@@ -60,11 +60,16 @@ func shouldCompileCatalogSkill(skill CatalogSkill, platform string, cfg *config.
 	if containsString(compiler.ExplicitSkills, skill.Name) {
 		return true
 	}
-	if len(compiler.Bundles) == 0 {
-		return true
-	}
 	if IsCoreSkill(skill.Name) {
 		return true
+	}
+	if len(compiler.Bundles) == 0 {
+		// Compact default. Split mode without a bundle selection installs the
+		// core surface only, on every platform: an uninstalled skill costs no
+		// name/description slot in any native session prompt, and stays one
+		// bundle or explicit_skills entry away from coming back. Full mode is
+		// the documented opt-in that publishes the whole library everywhere.
+		return compiler.EffectiveMode() == config.SkillCompilerModeFull
 	}
 	for _, bundle := range skill.Bundles {
 		if containsString(compiler.Bundles, bundle) {

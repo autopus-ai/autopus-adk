@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/insajin/autopus-adk/pkg/adapter"
 	"github.com/insajin/autopus-adk/pkg/config"
 )
 
@@ -16,7 +15,6 @@ type ompModelIntegration struct {
 	probe       OMPModelCatalogProbeResult
 	routing     OMPModelRoutingCompilation
 	projection  OMPModelProjection
-	agents      []adapter.FileMapping
 }
 
 // WithModelIntegrationRunner injects metadata and config-readback execution.
@@ -31,8 +29,8 @@ func (a *Adapter) WithModelIntegrationClock(clock func() time.Time) *Adapter {
 	return a
 }
 
-// @AX:WARN [AUTO]: model integration preparation contains 9 if branches.
-// @AX:REASON [AUTO]: policy opt-in, probe evidence, catalog normalization, routing, projection, and receipt preparation are fail-closed.
+// @AX:WARN [AUTO]: model integration preparation contains 8 if branches.
+// @AX:REASON [AUTO]: policy opt-in, probe evidence, catalog normalization, routing, and projection preparation are fail-closed.
 func (a *Adapter) prepareModelIntegration(
 	ctx context.Context,
 	cfg *config.HarnessConfig,
@@ -69,18 +67,10 @@ func (a *Adapter) prepareModelIntegration(
 	if err != nil {
 		return nil, err
 	}
-	agents, err := a.prepareAgentMappingsWithProjection(projection)
-	if err != nil {
-		return nil, err
-	}
 	return &ompModelIntegration{
 		profileName: profileName, profile: profile, probe: probe,
-		routing: routing, projection: projection, agents: agents,
+		routing: routing, projection: projection,
 	}, nil
-}
-
-func (i *ompModelIntegration) prepareAgentMappings() ([]adapter.FileMapping, error) {
-	return append([]adapter.FileMapping(nil), i.agents...), nil
 }
 
 func isOwnerOnlyOMPModelPath(path string) bool {

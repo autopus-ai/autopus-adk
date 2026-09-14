@@ -3,7 +3,6 @@ package cli
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -91,20 +90,4 @@ func TestDoctor_EvidenceFreshness_NeverRunCanary(t *testing.T) {
 	assert.Equal(t, "warn", results[0].status)
 	assert.Contains(t, results[0].detail, "canary evidence has never been run")
 	assert.Contains(t, results[0].detail, "auto canary")
-}
-
-func TestDoctor_EvidenceFreshness_RuleDocument(t *testing.T) {
-	path := filepath.Join("..", "..", "content", "rules", "doc-storage.md")
-	if _, err := os.Stat(path); err != nil {
-		path = filepath.Join("content", "rules", "doc-storage.md")
-	}
-
-	contentBytes, err := os.ReadFile(path)
-	require.NoError(t, err)
-	contentStr := string(contentBytes)
-
-	assert.Contains(t, contentStr, "Evidence Freshness Guard")
-	assert.Contains(t, contentStr, "auto doctor")
-	assert.True(t, strings.Contains(contentStr, "freshness") || strings.Contains(contentStr, "신선도"))
-	assert.Contains(t, contentStr, "--spec")
 }

@@ -42,9 +42,18 @@ func TestPrepareFiles_ClaudeSkillsUseNativeLayoutAndResolveAgentReferences(t *te
 	require.NoError(t, err)
 
 	skills := make(map[string]bool)
+	resourceOwners := make(map[string]bool)
 	for _, file := range files {
 		path := filepath.ToSlash(file.TargetPath)
 		if !strings.HasPrefix(path, ".claude/skills/") {
+			continue
+		}
+		if owner, rel, ok := claudeSkillResourcePath(path); ok {
+			// A reference body is a resource of the skill above it, not a second
+			// entrypoint: it carries no frontmatter and owns no skill name.
+			assert.True(t, strings.HasSuffix(rel, ".md"), "resource %s must be markdown", path)
+			assert.NotContains(t, string(file.Content), "\ncompatibility:", "resource %s must not carry skill frontmatter", path)
+			resourceOwners[owner] = true
 			continue
 		}
 		assert.Equal(t, "SKILL.md", filepath.Base(path), path)
@@ -59,6 +68,10 @@ func TestPrepareFiles_ClaudeSkillsUseNativeLayoutAndResolveAgentReferences(t *te
 		skills[meta.Name] = true
 	}
 
+	for owner := range resourceOwners {
+		assert.True(t, skills[owner], "resources were installed for %q but its SKILL.md entrypoint was not", owner)
+	}
+
 	for _, file := range files {
 		path := filepath.ToSlash(file.TargetPath)
 		if !strings.HasPrefix(path, ".claude/agents/") {
@@ -70,6 +83,18 @@ func TestPrepareFiles_ClaudeSkillsUseNativeLayoutAndResolveAgentReferences(t *te
 			assert.True(t, skills[name], "%s references unresolved skill %q", path, name)
 		}
 	}
+}
+
+// claudeSkillResourcePath splits `.claude/skills/<skill>/references/<file>.md`
+// into its owning skill and relative file. It returns false for anything else,
+// so an unexpected nested path still fails the entrypoint layout contract
+// instead of being waved through as a resource.
+func claudeSkillResourcePath(path string) (owner, rel string, ok bool) {
+	parts := strings.Split(path, "/")
+	if len(parts) != 5 || parts[0] != ".claude" || parts[1] != "skills" || parts[3] != "references" {
+		return "", "", false
+	}
+	return parts[2], parts[4], true
 }
 
 func TestPrepareFiles_ClaudeAgentQualityProjectsModelAndEffortTogether(t *testing.T) {

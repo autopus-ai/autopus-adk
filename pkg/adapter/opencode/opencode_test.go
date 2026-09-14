@@ -98,14 +98,20 @@ func TestAdapter_Generate_CreatesOpenCodeFiles(t *testing.T) {
 	assert.Contains(t, string(autoSetupSkill), "## OpenCode Invocation")
 	agentPipelineSkill, err := os.ReadFile(filepath.Join(dir, ".agents", "skills", "agent-pipeline", "SKILL.md"))
 	require.NoError(t, err)
-	assert.Contains(t, string(agentPipelineSkill), "Context7 MCP")
-	assert.Contains(t, string(agentPipelineSkill), "web search")
-	assert.Contains(t, string(agentPipelineSkill), "same invocation")
-	assert.Contains(t, string(agentPipelineSkill), "repair -> validate -> verify cycle")
-	assert.Contains(t, string(agentPipelineSkill), "Only when the retry limit is exhausted")
+	// The entrypoint owns the dispatch-authenticity evidence and routes to its
+	// detail; documentation fetch and the review retry loop live in resources.
 	assert.Contains(t, string(agentPipelineSkill), "subagent_dispatch_count")
-	assert.Contains(t, string(agentPipelineSkill), "workflow authenticity blocker")
-	assert.Contains(t, string(agentPipelineSkill), "degraded-mode")
+	assert.Contains(t, string(agentPipelineSkill), "degraded_mode")
+	assert.Contains(t, string(agentPipelineSkill), "do not report main-session work")
+	pipelineResources := readOpenCodeSkillResources(t, dir, "agent-pipeline")
+	for _, token := range []string{
+		"web search",   // documentation fetch keeps its fallback
+		"retry budget", // the repair loop stays bounded
+		"same invocation",
+	} {
+		assert.Contains(t, pipelineResources, token,
+			"the pipeline resources lost %q", token)
+	}
 	autoPlanSkill, err := os.ReadFile(filepath.Join(dir, ".agents", "skills", "auto-plan", "SKILL.md"))
 	require.NoError(t, err)
 	assert.Contains(t, string(autoPlanSkill), "Clarification Ledger")
@@ -159,9 +165,6 @@ func TestAdapter_Generate_CreatesOpenCodeFiles(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(agentsData), markerBegin)
 	assert.Contains(t, string(agentsData), "플랫폼")
-	assert.Contains(t, string(agentsData), "## Execution Model")
-	assert.Contains(t, string(agentsData), "task(...)")
-	assert.Contains(t, string(agentsData), "openai/gpt-5.4")
 	assert.NotContains(t, string(agentsData), "Codex Rules: .codex/rules/autopus/")
 
 	configDoc := readConfigJSON(t, filepath.Join(dir, "opencode.json"))
@@ -276,4 +279,22 @@ func readConfigJSON(t *testing.T, path string) map[string]any {
 	var doc map[string]any
 	require.NoError(t, json.Unmarshal(data, &doc))
 	return doc
+}
+
+// readOpenCodeSkillResources concatenates the retrievable resources emitted
+// beside a generated skill. A slim entrypoint is only correct if its detail is
+// actually installed next to it, so an empty directory is a failure.
+func readOpenCodeSkillResources(t *testing.T, root, skill string) string {
+	t.Helper()
+	dir := filepath.Join(root, ".agents", "skills", skill, "references")
+	entries, err := os.ReadDir(dir)
+	require.NoError(t, err, "skill %s must emit its retrievable resources", skill)
+	require.NotEmpty(t, entries)
+	var combined string
+	for _, entry := range entries {
+		data, readErr := os.ReadFile(filepath.Join(dir, entry.Name()))
+		require.NoError(t, readErr)
+		combined += string(data)
+	}
+	return combined
 }

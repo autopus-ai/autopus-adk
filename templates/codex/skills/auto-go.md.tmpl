@@ -9,9 +9,10 @@ SPEC 문서를 기반으로 코드를 구현합니다.{{if .IsFullMode}} {{.Meth
 
 ## Context Profile: go
 
-- Supervisor Required: core,resolved_spec,plan,acceptance,available_architecture
+- Supervisor Required: core,resolved_spec,plan,acceptance
 - Worker Optional: signature,learning,task_declared_extra
 - Excluded: test,canary
+- Select architecture explicitly with `--conditional-profile architecture` or `--required-document`.
 
 ## 사용법
 
@@ -222,6 +223,7 @@ approved였던 SPEC의 clean re-review는 `status_changed=false`여도 위 curre
 - `{SPEC_DIR}/change.md` 또는 이 SPEC을 참조하는 `.autopus/specs/CHG-<id>/change.md`가 있으면 compact change contract입니다. `## Intended Surface`가 구현 범위를, `## Verification Plan`이 검증 범위를 한정하며 이 경로에서는 SPEC 세트를 새로 작성하지 않습니다.
 - `change_risk.risk_tier: low`이면 `spec_authoring`과 `risk_first_probe`가 `not_applicable`입니다. `high`이면 둘 다 `required`이며 Phase 2 fan-out 전에 Phase 1.9 probe를 실행합니다.
 - `change_risk.decision: escalate_to_full_spec`이면 실행을 중단하고 승격 이유를 보고한 뒤 `@auto plan`으로 넘깁니다.
+- 기록된 risk 필드만으로 단계를 생략하지 않습니다. CLI가 단일 계약과 실제 변경 경로를 재평가한 route를 따릅니다. 계약이 손상·중복·불일치하면 full이며, `--continue`는 저장된 route와 현재 승인된 route가 일치해야 합니다.
 - 소유 경로가 분리된 독립 태스크는 병렬 실행합니다. 전체 build/race/coverage/security/Phase 4 review는 통합 후 union change set에 대해 한 번만 실행하며 acceptance ID별 verdict와 evidence를 남깁니다. per-criterion 행이 없는 batch PASS는 불완전한 receipt입니다.
 - review loop는 `loop_status`로 종료합니다: `converged`, `awaiting_changes`(검토 입력이 그대로이므로 같은 입력으로 재검토하지 말고 명시된 blocking finding을 해결하거나 이유와 함께 defer), `revisions_exhausted`, `provider_unavailable`.
 
@@ -248,16 +250,16 @@ approved였던 SPEC의 clean re-review는 `status_changed=false`여도 위 curre
 
 ### Pre-Completion Verification
 
-- [ ] Phase 1: Planning 완료
-- [ ] Phase 1.5: Test Scaffold 완료 또는 `--skip-scaffold`
+- [ ] Phase 1: Planning 완료 (또는 compact route에서 dispatch되지 않음)
+- [ ] Phase 1.5: Test Scaffold 완료, `--skip-scaffold`, 또는 compact route에서 미dispatch
 - [ ] Gate 1: Approval 완료 또는 `--auto`
 - [ ] Phase 1.8: Doc Fetch 완료 또는 skip
 - [ ] Phase 1.9: Risk-First Probe Gate 완료 (executed 또는 이유가 있는 `not-run`)이며 `auto spec gates`가 `{SPEC_DIR}/gate-applicability.json`을 작성
 - [ ] Phase 2: Implementation 완료
 - [ ] Gate 2: Validation PASS
-- [ ] Phase 2.5: Annotation 완료
+- [ ] @AX Annotation: 명시적 opt-in일 때만 완료, 그 외에는 `@AX: not requested`
 - [ ] Phase 3: Testing 완료 또는 harness-only skip
-- [ ] Gate 3: Coverage 확인 완료 또는 N/A
+- [ ] Gate 3: Coverage 측정값 보고 완료, 선언된 threshold가 있으면 충족 (선언이 없으면 수치 게이트 없음)
 - [ ] Phase 4: Review APPROVE
 - [ ] Sync Readiness Gate PASS (`completion_verdict_preview`, `sync_ready`, `sync_blockers`, `spec_status_after_go`, `sync_evidence_refs` 기록)
 - [ ] subagent_dispatch_count 기록, role 목록, degraded-mode 상태 확인
@@ -273,7 +275,7 @@ approved였던 SPEC의 clean re-review는 `status_changed=false`여도 위 curre
 - `sync_ready`: Outcome Lock 만족, mandatory requirements 전부 충족, Must acceptance 전부 충족, Completion Debt `none`일 때만 `yes`.
 - `sync_blockers`: `none` 또는 `implemented` 상태 전환을 막는 구체 blocker.
 - `spec_status_after_go`: 성공 시 `implemented`. `done`/`completed`를 사용하지 않습니다. `completed`는 `@auto sync` 전용 상태입니다.
-- `sync_evidence_refs`: 변경 파일, 검증 명령, Phase 4 verdict, @AX annotation 결과 또는 `@AX: no-op`.
+- `sync_evidence_refs`: 변경 파일, 검증 명령, Phase 4 verdict, @AX annotation 결과 또는 `@AX: not requested`.
 - `decision_receipt`: reused existing code/helper/pattern, skipped dependency or abstraction, accepted expansion with evidence, and minimum sufficient verification summary.
 
 `sync_ready != yes`이면 workflow lifecycle bar와 `@auto sync` handoff를 출력하지 말고 blocker를 먼저 해결합니다.
@@ -321,13 +323,13 @@ approved였던 SPEC의 clean re-review는 `status_changed=false`여도 위 curre
 
 ## 품질 기준
 
-- 테스트 커버리지: {{if .IsFullMode}}85{{else}}80{{end}}%+
+- 테스트 커버리지: 측정값을 증거로 보고합니다. 수치 게이트는 프로젝트가 선언했을 때만 적용합니다. `workflow.coverage_threshold` 기본값은 `0`(수치 게이트 없음)이며, 프로젝트/라우트가 명시한 threshold는 선언된 그대로 강제하고 route가 global보다 우선합니다. 선언되지 않은 수치를 만들어 내지 않습니다.
 - LSP 에러: 0
 - 린트 에러: 0
 
 ## Subagent Delegation
 
-When a task modifies 3+ files, exceeds 200 lines, or spans multiple domains, delegate to specialized agents using `spawn_agent`.
+기본값은 메인 세션 인라인 실행입니다. 위임은 리스크 기준이며 크기 기준이 아닙니다. 소유 경로가 분리되고 미완료 작업에 의존하지 않으며 단독으로 끝낼 수 있는 독립 슬라이스이거나, 격리된 컨텍스트 또는 현재 세션이 수행하지 않는 전문 역할이 필요할 때만 `spawn_agent`로 위임합니다. 파일 수, 줄 수, 패키지 수는 위임 근거가 아닙니다. 저위험 compact contract 작업(`test_only`, `docs_only`, `small_ui`, `bugfix_existing_contract`)은 planner나 전용 scaffold/validator 에이전트 없이 인라인으로 진행하되 실제 검증은 동일하게 수행합니다.
 
 ### Executor Agent
 
@@ -345,7 +347,7 @@ spawn_agent executor \
 spawn_agent tester \
   --task "Write tests for {scope}" \
   --spec "{SPEC_DIR}/acceptance.md" \
-  --coverage-target {{if .IsFullMode}}85{{else}}80{{end}}
+  --coverage-target "{프로젝트가 선언한 threshold, 없으면 측정만}"
 ```
 
 ### Reviewer Agent
@@ -419,7 +421,7 @@ Status symbols: `✓` completed, `→` active, `○` pending. Replace `[N/M task
 current_gate: go completed, sync pending
 phase_4_review_verdict: APPROVE
 subagent_dispatch_count: {N}
-subagent_roles_dispatched: {planner,tester,executor,validator,reviewer,security-auditor}
+subagent_roles_dispatched: {실제로 dispatch된 role 목록, 인라인 실행이면 none (inline)}
 degraded-mode: none | solo | blocker
 degraded_mode: none | solo | blocker
 delegation_depth: {N}

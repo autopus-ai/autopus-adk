@@ -12,9 +12,11 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/insajin/autopus-adk/pkg/config"
 	"github.com/insajin/autopus-adk/pkg/learn"
 	"github.com/insajin/autopus-adk/pkg/orcarun"
 	"github.com/insajin/autopus-adk/pkg/pipeline"
+	"github.com/insajin/autopus-adk/pkg/spec/gates"
 )
 
 // pipelineRunConfig holds parsed flag values for the pipeline run command.
@@ -155,6 +157,8 @@ func runPipeline(cmd *cobra.Command, specID string, cfg *pipelineRunConfig) erro
 			fmt.Errorf("pipeline: resolve project directory: %w", err))
 	}
 	projectDir = filepath.Clean(projectDir)
+	route, routeReason := resolvePipelineRoute(projectDir, resolvedSpec.Dir, specID)
+	fmt.Fprintf(cmd.ErrOrStderr(), "Pipeline route: %s — %s\n", route, routeReason)
 	if platform == "omp" {
 		// REQ-106/INV-105: the read-only tier integrity gate completes here,
 		// before any checkpoint, worktree, Run, worker, or provider session
@@ -215,6 +219,7 @@ func runPipeline(cmd *cobra.Command, specID string, cfg *pipelineRunConfig) erro
 		Platform:      platform,
 		Strategy:      requestedStrategy,
 		Backend:       backend,
+		Route:         route,
 		Checkpoint:    cp,
 		DryRun:        cfg.DryRun,
 		SnapshotHash:  resolvedSpec.SnapshotHash,
@@ -232,14 +237,43 @@ func runPipeline(cmd *cobra.Command, specID string, cfg *pipelineRunConfig) erro
 		return fmt.Errorf("pipeline run failed: %w", err)
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "Pipeline complete: %d phases executed\n", len(result.PhaseResults))
 	if flags.MultiMode && !cfg.DryRun {
 		fmt.Fprintf(cmd.ErrOrStderr(), "Running multi-provider review for %s\n", specID)
 		if err := runSpecReview(ctx, specID, "", 0); err != nil {
 			return fmt.Errorf("pipeline multi review failed: %w", err)
 		}
 	}
+	if cfg.DryRun {
+		fmt.Fprintf(cmd.OutOrStdout(), "Pipeline dry run: %d phases planned; no backend execution\n", len(result.PhaseResults))
+	} else {
+		fmt.Fprintf(cmd.OutOrStdout(), "Pipeline complete: %d phases executed\n", len(result.PhaseResults))
+	}
 	return nil
+}
+
+// resolvePipelineRoute asks the gate package whether the compact route is
+// authorized for this SPEC, feeding it the same project UI globs and the same
+// working-tree change set `auto spec gates` reads, so both commands answer
+// from identical evidence. Anything that cannot be established — unreadable
+// config, an undeterminable change set, an absent, ambiguous, or contradicted
+// contract — keeps every canonical phase.
+func resolvePipelineRoute(projectDir, specDir, specID string) (pipeline.PhaseRoute, string) {
+	// LoadPreview, not Load: reading a route decision must not rewrite the
+	// project's own configuration file as a side effect.
+	cfg, err := config.LoadPreview(projectDir)
+	if err != nil {
+		return pipeline.RouteFull, fmt.Sprintf("project config unreadable: %v", err)
+	}
+	changed, err := resolveGatesChangeSet(projectDir, "", "")
+	if err != nil {
+		return pipeline.RouteFull, fmt.Sprintf("actual change set undeterminable: %v", err)
+	}
+	decision := gates.AuthorizeCompactRoute(specDir, specID, cfg.Design.UIFileGlobs, changed)
+	if !decision.Authorized {
+		return pipeline.RouteFull, decision.Reason
+	}
+	return pipeline.RouteCompact, decision.Reason +
+		"; plan and test_scaffold are not dispatched"
 }
 
 // explainPipelineOrcaUnavailable names the remedy for a missing orca CLI. The

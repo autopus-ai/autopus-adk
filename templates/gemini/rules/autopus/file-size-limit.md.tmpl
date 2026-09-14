@@ -1,37 +1,18 @@
 ---
 name: file-size-limit
-description: Hard limit of 300 lines per source code file
+description: Project-specific source size policy and cohesion review
 category: structure
 platform: antigravity-cli
 ---
 
-# File Size Limit
+@import content/rules/file-size-limit.md
 
-IMPORTANT: No single source code file may exceed 300 lines. This is a HARD limit.
+## This Project
 
-## Thresholds
-
-- Target: Under 200 lines per source code file
-- Warning: 200-300 lines (consider splitting)
-- Hard limit: 300 lines (MUST split before committing)
-
-## Splitting Strategies
-
-- By type: Move struct definitions and methods to separate files
-- By concern: Group related functions (validation, serialization)
-- By layer: Separate handler, service, and repository logic
+{{if gt .MaxFileLines 0}}`architecture.max_file_lines` is declared as {{.MaxFileLines}}. `auto check --arch` enforces it; split before committing a source file that exceeds it.{{else}}`architecture.max_file_lines` is not declared, so source size is advisory here. Split only on a real independent concern.{{end}}
 
 ## Exclusions
 
-This limit applies to source code files only. The following are excluded:
 - SPEC Markdown files under `.autopus/specs/**`: `prd.md`, `spec.md`, `plan.md`, `acceptance.md`, `research.md`, `review.md`
 {{range .Exclusions}}- {{.Description}}: `{{.Pattern}}`
 {{end}}
-## Counting
-
-Count code lines: blank lines and imports count, comment-only lines do not.
-A line that carries code beside a trailing comment still counts. Comment
-markers inside strings, template literals, regex literals, or heredocs are
-content and count. `auto check --gate` and `go run ./cmd/source-lines`
-apply the same rule.
-Test files follow the same limit.

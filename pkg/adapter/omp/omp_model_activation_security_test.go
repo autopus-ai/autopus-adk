@@ -12,10 +12,12 @@ import (
 func TestCompileOMPModelOverlay_RejectsUnsafeProjection(t *testing.T) {
 	t.Parallel()
 	cases := []OMPModelOverlayProjection{
-		{ModelRoles: map[string]string{" task": "p/m"}},
-		{ModelRoles: map[string]string{"task": "p/m\nother"}},
-		{ModelRoles: map[string]string{"task": "p/m"}, FallbackChains: map[string][]string{"p/m\n": {"q/f"}}},
-		{ModelRoles: map[string]string{"task": "p/m"}, FallbackChains: map[string][]string{"p/m": {"q/f\n"}}},
+		{AgentModelOverrides: map[string]string{" task": "p/m"}},
+		{AgentModelOverrides: map[string]string{"task": "p/m\nother"}},
+		{AgentModelOverrides: map[string]string{"task": "p/m"},
+			FallbackChains: map[string][]string{"p/m\n": {"q/f"}}},
+		{AgentModelOverrides: map[string]string{"task": "p/m"},
+			FallbackChains: map[string][]string{"p/m": {"q/f\n"}}},
 	}
 	for index, projection := range cases {
 		if _, err := CompileOMPModelOverlay(projection); err == nil {
@@ -29,7 +31,7 @@ func TestWriteOMPModelOverlay_DefaultPathAndCompileFailure(t *testing.T) {
 	root := t.TempDir()
 	evidence, err := WriteOMPModelOverlay(OMPModelOverlayWriteInput{
 		WorkspaceRoot: root,
-		Projection:    OMPModelOverlayProjection{ModelRoles: map[string]string{"task": "p/m"}},
+		Projection:    OMPModelOverlayProjection{AgentModelOverrides: map[string]string{"task": "p/m"}},
 	})
 	if err != nil {
 		t.Fatalf("write default overlay: %v", err)

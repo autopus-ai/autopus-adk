@@ -18,9 +18,12 @@ import (
 
 const rulesTemplateDir = "gemini/rules/autopus"
 
-// fileSizeLimitData is the template data for file-size-limit.md.
+// fileSizeLimitData is the template data for file-size-limit.md. MaxFileLines
+// carries the project's declared ceiling; zero means no ceiling is declared
+// and the rendered rule says so instead of asserting a universal number.
 type fileSizeLimitData struct {
-	Exclusions []content.FileSizeExclusion
+	MaxFileLines int
+	Exclusions   []content.FileSizeExclusion
 }
 
 // renderRuleTemplates reads Antigravity rule templates from embedded FS,
@@ -67,11 +70,13 @@ func (a *Adapter) prepareRuleMappings(cfg *config.HarnessConfig) ([]adapter.File
 			return nil, fmt.Errorf("gemini rule 템플릿 읽기 실패 %s: %w", name, err)
 		}
 
-		// file-size-limit uses a special data struct with exclusions
+		// file-size-limit renders the declared ceiling plus stack exclusions.
 		var rendered string
 		if outFile == "file-size-limit.md" {
-			exclusions := content.FileSizeExclusions(cfg.Stack, cfg.Framework)
-			data := fileSizeLimitData{Exclusions: exclusions}
+			data := fileSizeLimitData{
+				MaxFileLines: cfg.Architecture.MaxFileLines,
+				Exclusions:   content.FileSizeExclusions(cfg.Stack, cfg.Framework),
+			}
 			rendered, err = a.engine.RenderString(string(tmplContent), data)
 		} else {
 			rendered, err = a.engine.RenderString(string(tmplContent), cfg)

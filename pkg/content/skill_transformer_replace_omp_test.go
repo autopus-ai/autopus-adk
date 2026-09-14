@@ -33,7 +33,6 @@ var ompLegacyCoordinationTokens = []string{
 
 var ompForeignSurfaceTokens = []string{
 	".claude/", ".codex/", ".opencode/", ".gemini/",
-	"Claude Code", "Claude", "Codex", "OpenCode", "Gemini",
 }
 
 var ompRootGlobInventoryTestRe = regexp.MustCompile(
@@ -236,6 +235,10 @@ SendMessage(recipient="executor", content="Apply the review feedback")`
 	}
 }
 
+// An emitted batch may only name an agent OMP registers. The retired per-role
+// names collapse: implementation runs on the bundled default, so it emits no
+// agent field at all, while review keeps the bundled reviewer. The declared
+// role survives as the item name so the dispatch stays auditable.
 func TestReplacePlatformReferencesOMP_S12_MultilineTaskBatch(t *testing.T) {
 	t.Parallel()
 
@@ -259,20 +262,11 @@ Agent(
 		assert.Contains(t, got, field)
 	}
 	assert.NotContains(t, got, `"isolated": true`)
-	assert.Contains(t, got, `"agent": "executor"`)
+	assert.NotContains(t, got, `"agent": "executor"`,
+		"OMP registers no executor agent; implementation runs on the bundled default")
 	assert.Contains(t, got, `"agent": "reviewer"`)
 	assert.Contains(t, got, `"name": "executor-1"`)
 	assert.Contains(t, got, `"name": "reviewer-2"`)
-	assert.Contains(t, got, "same agent")
-	assert.Contains(t, got, "non-isolated or otherwise revivable")
-	assert.Contains(t, got, "isolated worker is terminal")
-	assert.Contains(t, got, "new explicitly named `task` item")
-	assert.Contains(t, got, `{"i":"Following up with an existing worker","op":"send"`)
-	assert.Contains(t, got, `{"i":"Updating parent-owned progress","op":"init"`)
-	assert.Contains(t, got, "single DAG owner invariant")
-	assert.Contains(t, got, "OMP-local")
-	assert.Contains(t, got, "Orca-supervised")
-	assert.Contains(t, got, "orca skills get orchestration --full")
 	for _, token := range ompLegacyCoordinationTokens {
 		assert.NotContains(t, got, token)
 	}

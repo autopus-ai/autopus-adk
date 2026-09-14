@@ -77,18 +77,20 @@ const geminiMDTemplate = `# Autopus-ADK Harness
 
 ### Subagent Delegation
 
-IMPORTANT: Use subagents for complex tasks that modify 3+ files, span multiple domains, or exceed 200 lines of new code. Define clear scope, provide full context, review output before integrating.
+IMPORTANT: Delegate for a reason, not for size. Ordinary work — including multi-file edits — stays inline. Use a subagent only for genuinely independent slices with disjoint write ownership, for work whose read surface would crowd out the main session, or for a risky change that needs isolated review. Give each worker owned paths, forbidden scope, completion criteria, and the return format.
 
-### File Size Limit
+### Source Size
 
-IMPORTANT: No source code file may exceed 300 lines. Target under 200 lines. Split source code by type, concern, or layer when approaching the limit. SPEC Markdown files under .autopus/specs/** are documentation and exempt from the 300-line source code limit. Excluded: generated files (*_generated.go, *.pb.go), documentation (*.md), and config files (*.yaml, *.json).
+{{if gt .Architecture.MaxFileLines 0}}IMPORTANT: This project declares architecture.max_file_lines = {{.Architecture.MaxFileLines}}, and "auto check --arch" enforces that ceiling on source code files. Split on a real independent concern, never by arbitrary line ranges.{{else}}IMPORTANT: This project declares no architecture.max_file_lines ceiling, so source size is advisory. Review a growing file's responsibilities and split it on a real independent concern; do not split cohesive code to satisfy an undeclared universal threshold.{{end}}
+
+SPEC Markdown under .autopus/specs/** is documentation, never a source-size input. Generated files (*_generated.go, *.pb.go), documentation (*.md), and configuration (*.yaml, *.json) are also excluded.
 
 ### Code Review
 
 During review, verify:
-- No source code file exceeds 300 lines (REQUIRED)
+- Source files respect the project's declared size policy, if one is declared (REQUIRED)
 - SPEC Markdown files under .autopus/specs/** are not split or rejected for line count alone
-- Complex changes use subagent delegation (SUGGESTED)
+- Delegated work was split for independence, context isolation, or risk — not for file or line count (SUGGESTED)
 
 ## Rules
 

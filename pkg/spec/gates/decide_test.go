@@ -161,16 +161,46 @@ func TestDecide_MandatorySafetyGatesNeverNotApplicable(t *testing.T) {
 	}
 }
 
-func TestDecide_AnnotationBlockedWhenReferenceMissing(t *testing.T) {
-	receipt := Decide(DecisionInput{
-		SpecID:                     "SPEC-GATES-001",
-		Classification:             Classify([]string{"pkg/a/x.go"}, nil),
-		AnnotationReferenceMissing: true,
-		Now:                        decideNow,
+// The annotation gate is tri-state and opt-in: an ordinary code change that
+// never asked for @AX work is not held behind it, a caller that asks for it
+// gets a required gate, and asking for it without a reference source to read
+// is blocked rather than silently passed.
+func TestDecide_AnnotationIsOptInTriState(t *testing.T) {
+	codeChange := Classify([]string{"pkg/a/x.go"}, nil)
+
+	unrequested := Decide(DecisionInput{
+		SpecID: "SPEC-GATES-001", Classification: codeChange, Now: decideNow,
 	})
-	annotation := applicabilityOf(t, receipt, GateAnnotation)
+	assert.Equal(t, NotApplicable, applicabilityOf(t, unrequested, GateAnnotation).Applicability,
+		"a code change that never requested annotation is not gated on it")
+
+	referenceMissingOnly := Decide(DecisionInput{
+		SpecID: "SPEC-GATES-001", Classification: codeChange, Now: decideNow,
+		AnnotationReferenceMissing: true,
+	})
+	assert.Equal(t, NotApplicable, applicabilityOf(t, referenceMissingOnly, GateAnnotation).Applicability,
+		"a missing reference source cannot block a gate nobody requested")
+
+	requested := Decide(DecisionInput{
+		SpecID: "SPEC-GATES-001", Classification: codeChange, Now: decideNow,
+		AnnotationRequested: true,
+	})
+	assert.Equal(t, Required, applicabilityOf(t, requested, GateAnnotation).Applicability)
+
+	blocked := Decide(DecisionInput{
+		SpecID: "SPEC-GATES-001", Classification: codeChange, Now: decideNow,
+		AnnotationRequested: true, AnnotationReferenceMissing: true,
+	})
+	annotation := applicabilityOf(t, blocked, GateAnnotation)
 	assert.Equal(t, Blocked, annotation.Applicability)
 	assert.Equal(t, "reference source missing", annotation.Reason)
+
+	docs := Decide(DecisionInput{
+		SpecID: "SPEC-GATES-001", Classification: Classify([]string{"README.md"}, nil),
+		Now: decideNow, AnnotationRequested: true,
+	})
+	assert.Equal(t, NotApplicable, applicabilityOf(t, docs, GateAnnotation).Applicability,
+		"requesting annotation on documentation has nothing to annotate")
 }
 
 func TestDecide_RequiredGatesNameMissingEvidence(t *testing.T) {

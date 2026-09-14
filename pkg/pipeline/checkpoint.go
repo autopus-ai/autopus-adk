@@ -117,21 +117,19 @@ func (c *Checkpoint) ValidateResume(specID, routeVersion, snapshotHash string) e
 }
 
 func (c *Checkpoint) validateDependencyClosedStatuses() error {
-	phases := DefaultPhases()
-	known := make(map[PhaseID]Phase, len(phases))
-	for _, phase := range phases {
-		known[phase.ID] = phase
+	known := make(map[PhaseID]struct{}, len(DefaultPhases()))
+	for _, phase := range DefaultPhases() {
+		known[phase.ID] = struct{}{}
 	}
 	for rawID, status := range c.TaskStatus {
-		phaseID := PhaseID(rawID)
-		if _, ok := known[phaseID]; !ok {
+		if _, ok := known[PhaseID(rawID)]; !ok {
 			return fmt.Errorf("checkpoint contains unknown phase %s", rawID)
 		}
 		if !validCheckpointStatus(status) {
 			return fmt.Errorf("checkpoint phase %s has unknown status %s", rawID, status)
 		}
 	}
-	for _, phase := range phases {
+	for _, phase := range c.routePhases() {
 		if c.TaskStatus[string(phase.ID)] != CheckpointStatusDone {
 			continue
 		}
@@ -142,6 +140,38 @@ func (c *Checkpoint) validateDependencyClosedStatuses() error {
 		}
 	}
 	return nil
+}
+
+// SavedRoute is the route the checkpoint recorded. A checkpoint whose receipt
+// names no route is read as the full route: an absent record is not evidence
+// that a shorter route was ever authorized.
+func (c *Checkpoint) SavedRoute() PhaseRoute {
+	if c == nil || c.Receipt == nil {
+		return RouteFull
+	}
+	return NormalizeRoute(c.Receipt.RoutePhaseSet)
+}
+
+// ValidateResumeRoute rejects resuming a checkpoint under a route other than
+// the one it ran. Resuming a full run on the compact route would silently
+// drop phases that were still owed; resuming a compact run on the full route
+// would dispatch phases the run never planned. Either way the operator has
+// to decide, not the resume path.
+func (c *Checkpoint) ValidateResumeRoute(authorized PhaseRoute) error {
+	if c == nil {
+		return nil
+	}
+	if saved := c.SavedRoute(); saved != NormalizeRoute(authorized) {
+		return fmt.Errorf("checkpoint phase route mismatch: saved %s, authorized %s",
+			saved, NormalizeRoute(authorized))
+	}
+	return nil
+}
+
+// routePhases returns the phases whose dependencies this checkpoint must
+// close. Only a receipt that names the compact route shortens that set.
+func (c *Checkpoint) routePhases() []Phase {
+	return PhasesForRoute(c.SavedRoute())
 }
 
 func validCheckpointStatus(status CheckpointStatus) bool {

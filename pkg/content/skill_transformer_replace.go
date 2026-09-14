@@ -112,7 +112,6 @@ func ReplacePlatformReferences(body string, platform string) string {
 	normalized := strings.Join(result, "\n")
 	if p == "omp" {
 		normalized = NormalizeOMPResourcePaths(normalized)
-		normalized = normalizeOMPBranding(normalized)
 	}
 	return normalized
 }

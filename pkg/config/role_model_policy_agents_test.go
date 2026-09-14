@@ -105,11 +105,41 @@ func TestRoleModelProfile_AgentCandidates_FailClosed(t *testing.T) {
 	if _, err := profile.AgentCandidates("future-agent"); err == nil || !strings.Contains(err.Error(), "agent_role_unmapped") {
 		t.Fatalf("unmapped agent error = %v", err)
 	}
-	if _, err := profile.AgentRoute("task"); err == nil || !strings.Contains(err.Error(), "agent_role_unmapped") {
-		t.Fatalf("native role as agent error = %v", err)
+	if _, err := profile.AgentCandidates("autopus_planner"); err == nil || !strings.Contains(err.Error(), "agent_role_unmapped") {
+		t.Fatalf("role name as agent error = %v", err)
 	}
 	delete(profile.Capabilities, CapabilityVisionDesign)
 	if _, err := profile.AgentCandidates("ux-validator"); err == nil || !strings.Contains(err.Error(), "capability_missing: vision_design") {
 		t.Fatalf("missing capability error = %v", err)
+	}
+}
+
+// A bundled OMP agent name is a valid agents-map key: it routes on its
+// representative ADK role's capability while keeping its own override.
+func TestRoleModelProfile_AgentRoute_AcceptsBundledAgentNames(t *testing.T) {
+	t.Parallel()
+
+	profile := validRoleModelPolicyFixture().Profiles["p1"]
+	for agent, wantCapability := range map[string]string{
+		"scout":             CapabilityFastValidation,
+		"reviewer":          CapabilityIndependentDissent,
+		"security-reviewer": CapabilityIndependentDissent,
+		"task":              CapabilityDeepReasoning,
+		"sonic":             CapabilityDeterministicTransform,
+	} {
+		route, err := profile.AgentRoute(agent)
+		if err != nil {
+			t.Fatalf("AgentRoute(%q): %v", agent, err)
+		}
+		if !reflect.DeepEqual(route.Candidates, profile.Capabilities[wantCapability].Candidates) {
+			t.Fatalf("AgentRoute(%q) candidates = %#v", agent, route.Candidates)
+		}
+	}
+
+	pinned := RoleModelCandidateConf{Selector: "anthropic/" + ClaudeHaikuModel, Thinking: "low", Family: "anthropic"}
+	profile.Agents = map[string]RoleAgentOverrideConf{"sonic": {Candidates: []RoleModelCandidateConf{pinned}}}
+	route, err := profile.AgentRoute("sonic")
+	if err != nil || !reflect.DeepEqual(route.Candidates, []RoleModelCandidateConf{pinned}) {
+		t.Fatalf("native override ignored: %#v, %v", route.Candidates, err)
 	}
 }

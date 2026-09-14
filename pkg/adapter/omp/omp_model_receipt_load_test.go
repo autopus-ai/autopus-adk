@@ -32,8 +32,17 @@ func TestLoadOMPModelResolutionReceipt_ValidCanonicalReceiptReturnsDefensiveCopi
 	}
 
 	first.Activation.Argv[0] = "mutated"
-	first.Roles[0].Agent = "mutated"
-	first.Roles[0].FallbackAttempts[0].Selector = "mutated/model"
+	mutatedAttempts := 0
+	for index := range first.Roles {
+		first.Roles[index].Agent = "mutated"
+		for attempt := range first.Roles[index].FallbackAttempts {
+			first.Roles[index].FallbackAttempts[attempt].Selector = "mutated/model"
+			mutatedAttempts++
+		}
+	}
+	if mutatedAttempts == 0 {
+		t.Fatal("the fixture must carry a fallback attempt for the alias check to mean anything")
+	}
 	second, err := LoadOMPModelResolutionReceipt(root)
 	if err != nil {
 		t.Fatalf("reload canonical receipt: %v", err)

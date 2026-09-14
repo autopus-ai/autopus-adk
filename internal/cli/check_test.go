@@ -45,10 +45,10 @@ func TestCheckCmd_QuietSuppressesOutput(t *testing.T) {
 	}
 }
 
-// TestCheckCmd_ArchFailsOnOversizedFile verifies that a file exceeding 300 lines
-// causes the arch check to return a non-zero exit.
+// TestCheckCmd_ArchFailsOnOversizedFile checks the explicit project ceiling.
 func TestCheckCmd_ArchFailsOnOversizedFile(t *testing.T) {
 	dir := t.TempDir()
+	configureFileSizeLimit(t, dir, 300)
 
 	// Create a .go file with 301 lines.
 	var sb strings.Builder
@@ -172,6 +172,7 @@ func TestCheckCmd_LoreSkipsOnExperimentBranch(t *testing.T) {
 // exit 0 even when violations are found.
 func TestCheckCmd_WarnOnlyExitsZero(t *testing.T) {
 	dir := t.TempDir()
+	configureFileSizeLimit(t, dir, 300)
 
 	// Create a .go file with 301 lines.
 	var sb strings.Builder
@@ -252,5 +253,14 @@ func TestCheckCmd_CC21_TaskCreatedModeFlagOverridesEnvAndConfig(t *testing.T) {
 	}
 	if !strings.Contains(buf.String(), "effective mode=enforce (source=flag)") {
 		t.Fatalf("expected task-created override output, got: %s", buf.String())
+	}
+}
+
+func configureFileSizeLimit(t *testing.T, dir string, limit int) {
+	t.Helper()
+	cfg := config.DefaultFullConfig("size-policy")
+	cfg.Architecture.MaxFileLines = limit
+	if err := config.Save(dir, cfg); err != nil {
+		t.Fatal(err)
 	}
 }

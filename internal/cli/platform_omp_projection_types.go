@@ -16,25 +16,27 @@ type ompFallbackProjection struct {
 	Reason   string `json:"reason"`
 }
 
+// ompEffectiveModelProjection is one bundled native OMP agent's model state.
+// Agent is a native OMP name; Role and Capability record the logical role that
+// supplied the route. ModelSource names the native config key that carries the
+// selection, or "inherit" when OMP's own configuration governs it.
 type ompEffectiveModelProjection struct {
-	Agent              string                  `json:"agent"`
-	Role               string                  `json:"role"`
-	Capability         string                  `json:"capability"`
-	ModelAlias         string                  `json:"model_alias"`
-	EffectiveSelector  string                  `json:"effective_selector"`
-	Provider           string                  `json:"provider,omitempty"`
-	Model              string                  `json:"model,omitempty"`
-	Thinking           string                  `json:"thinking,omitempty"`
-	Source             string                  `json:"source"`
-	ConfigSource       string                  `json:"config_source"`
-	Status             string                  `json:"status"`
-	Reason             string                  `json:"reason"`
-	DefinitionPath     string                  `json:"definition_path"`
-	InstallStatus      string                  `json:"install_status"`
-	DefinitionVerified bool                    `json:"definition_verified"`
-	Verified           bool                    `json:"verified"`
-	FallbackUsed       bool                    `json:"fallback_used"`
-	FallbackAttempts   []ompFallbackProjection `json:"fallback_attempts"`
+	Agent             string                  `json:"agent"`
+	Role              string                  `json:"role"`
+	Capability        string                  `json:"capability"`
+	ModelSource       string                  `json:"model_source"`
+	EffectiveSelector string                  `json:"effective_selector"`
+	Provider          string                  `json:"provider,omitempty"`
+	Model             string                  `json:"model,omitempty"`
+	Thinking          string                  `json:"thinking,omitempty"`
+	Source            string                  `json:"source"`
+	ConfigSource      string                  `json:"config_source"`
+	Status            string                  `json:"status"`
+	Reason            string                  `json:"reason"`
+	Shadowed          bool                    `json:"shadowed"`
+	Verified          bool                    `json:"verified"`
+	FallbackUsed      bool                    `json:"fallback_used"`
+	FallbackAttempts  []ompFallbackProjection `json:"fallback_attempts"`
 }
 
 type ompModelOperatorProjection struct {
@@ -49,9 +51,9 @@ type ompModelOperatorProjection struct {
 	CatalogFingerprint string                        `json:"catalog_fingerprint,omitempty"`
 	AgentCatalogStatus string                        `json:"agent_catalog_status"`
 	AgentCatalogReason string                        `json:"agent_catalog_reason"`
+	AgentCatalogSource string                        `json:"agent_catalog_source"`
 	ExpectedAgents     int                           `json:"expected_agents"`
-	InstalledAgents    int                           `json:"installed_agents"`
-	VerifiedAgents     int                           `json:"verified_agents"`
+	ShadowedAgents     int                           `json:"shadowed_agents"`
 	ReceiptStatus      string                        `json:"receipt_status"`
 	ReceiptVerified    bool                          `json:"receipt_verified"`
 	Models             []ompEffectiveModelProjection `json:"models"`
@@ -126,7 +128,8 @@ func defaultOMPPlatformProjection() ompPlatformProjection {
 			Status: "disabled", Reason: "profile_not_selected", CatalogStatus: "not_probed",
 			CatalogReason: "profile_not_selected", ReceiptStatus: "not_applicable",
 			AgentCatalogStatus: "not_evaluated", AgentCatalogReason: "platform_not_evaluated",
-			Models: []ompEffectiveModelProjection{},
+			AgentCatalogSource: ompNativeAgentRegistrySource,
+			Models:             []ompEffectiveModelProjection{},
 		},
 		Context: ompContextOperatorProjection{
 			Status: "disabled", Reason: "profile_not_selected", PromotionFreshness: "not_applicable",

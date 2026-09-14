@@ -27,7 +27,7 @@ func TestOMPGenerate_UsesOnlyNativeSkillsAndCommandsWithoutBaseConfig(t *testing
 	paths := manifestPaths(t, root)
 	assert.Greater(t, countPathsWithPrefix(paths, ".omp/skills/"), 20)
 	assert.Equal(t, len(workflowSpecs), countPathsWithPrefix(paths, ".omp/commands/"))
-	assert.Equal(t, 16, countPathsWithPrefix(paths, ".omp/agents/"))
+	assert.Equal(t, 0, countPathsWithPrefix(paths, ".omp/agents/"))
 	assert.Equal(t, 14, countPathsWithPrefix(paths, ompRuleDir+"/"+ompRuleFilePrefix))
 	assert.NotContains(t, paths, configFile)
 	assert.NoFileExists(t, filepath.Join(root, configFile))
@@ -68,20 +68,20 @@ func TestOMPValidate_DetectsManagedContentTamperingAndSymlinkReplacement(t *test
 	}
 	root := generateLatestOMP(t)
 	adapter := NewWithRoot(root)
-	target := filepath.Join(root, ".omp", "agents", "executor.md")
+	target := filepath.Join(root, ".omp", "commands", "auto.md")
 
 	require.NoError(t, os.WriteFile(target, []byte("tampered\n"), 0o644))
 	findings, err := adapter.Validate(context.Background())
 	require.NoError(t, err)
-	assertOMPValidationFinding(t, findings, ".omp/agents/executor.md", "checksum")
+	assertOMPValidationFinding(t, findings, ".omp/commands/auto.md", "checksum")
 
 	require.NoError(t, os.Remove(target))
-	external := filepath.Join(t.TempDir(), "executor.md")
+	external := filepath.Join(t.TempDir(), "auto.md")
 	require.NoError(t, os.WriteFile(external, []byte("external\n"), 0o644))
 	require.NoError(t, os.Symlink(external, target))
 	findings, err = adapter.Validate(context.Background())
 	require.NoError(t, err)
-	assertOMPValidationFinding(t, findings, ".omp/agents/executor.md", "regular file")
+	assertOMPValidationFinding(t, findings, ".omp/commands/auto.md", "regular file")
 }
 
 func TestOMPValidateExpectedMappings_RejectsSymlinkParentBeforeReading(t *testing.T) {

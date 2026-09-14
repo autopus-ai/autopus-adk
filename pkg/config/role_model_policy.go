@@ -39,6 +39,14 @@ type RoleModelProfileConf struct {
 	ManagedKeys     map[string]RoleManagedKeyClaimConf `yaml:"managed_keys,omitempty"`
 	FamilyDiversity FamilyDiversityPolicyConf          `yaml:"family_diversity,omitempty"`
 	Safety          RoleSafetyPolicyConf               `yaml:"safety,omitempty"`
+
+	// OperatorAgents names the Agents keys an operator actually wrote, either
+	// inside a custom profile or as the root overlay. A built-in profile
+	// derives one route per ADK agent from a tier ladder, and those derived
+	// routes collapse onto a native OMP agent through its representative
+	// instead of conflicting with each other. Resolution fills this in; it is
+	// never read from or written to YAML.
+	OperatorAgents map[string]bool `yaml:"-"`
 }
 
 // RoleManagedKeyClaimConf proves complete ownership of one project config key.
@@ -126,15 +134,17 @@ func (c RoleModelProfileConf) AgentCandidates(agent string) ([]RoleModelCandidat
 
 // AgentRoute returns a copy of the capability route that governs one agent
 // with Candidates replaced by AgentCandidates. Required and DegradedAction
-// always come from the capability route.
+// always come from the capability route. The agent may be an ADK role name or
+// a native OMP agent name; a native name routes on its representative's
+// capability while still honoring its own candidate override.
 func (c RoleModelProfileConf) AgentRoute(agent string) (RoleCapabilityRouteConf, error) {
-	capability, err := OMPAgentCapability(agent)
+	resolved, err := ResolveOMPPolicyAgent(agent)
 	if err != nil {
 		return RoleCapabilityRouteConf{}, err
 	}
-	route, ok := c.Capabilities[capability]
+	route, ok := c.Capabilities[resolved.Capability]
 	if !ok {
-		return RoleCapabilityRouteConf{}, fmt.Errorf("capability_missing: %s", capability)
+		return RoleCapabilityRouteConf{}, fmt.Errorf("capability_missing: %s", resolved.Capability)
 	}
 	candidates := route.Candidates
 	if override, ok := c.Agents[agent]; ok && len(override.Candidates) > 0 {
@@ -166,13 +176,41 @@ func (c RoleModelPolicyConf) SelectedRoleModelProfile() (string, RoleModelProfil
 // never leaks one resolution into the next or into the source config.
 func (c RoleModelPolicyConf) SelectedRoleModelProfileForQuality(quality QualityConf) (string, RoleModelProfileConf, bool) {
 	name, profile, ok := c.SelectedRoleModelProfile()
+	// A profile the operator defined carries operator intent in every one of
+	// its agent entries; a built-in profile derives them, so only the root
+	// overlay counts as written there.
+	var declared map[string]RoleAgentOverrideConf
+	if ok {
+		declared = profile.Agents
+	}
+	operator := operatorRoleAgentKeys(declared, c.Agents)
 	if !ok && name != "" {
 		profile, ok = BuiltinRoleModelProfile(name, quality, c.Family, c.ConfigMode)
 	}
 	if !ok {
 		return name, RoleModelProfileConf{}, false
 	}
-	return name, profile.withRootAgentOverlay(c.Agents), true
+	profile = profile.withRootAgentOverlay(c.Agents)
+	profile.OperatorAgents = operator
+	return name, profile, true
+}
+
+// operatorRoleAgentKeys collects the union of the agent keys an operator wrote.
+func operatorRoleAgentKeys(sets ...map[string]RoleAgentOverrideConf) map[string]bool {
+	total := 0
+	for _, set := range sets {
+		total += len(set)
+	}
+	if total == 0 {
+		return nil
+	}
+	keys := make(map[string]bool, total)
+	for _, set := range sets {
+		for agent := range set {
+			keys[agent] = true
+		}
+	}
+	return keys
 }
 
 // withRootAgentOverlay returns the profile with the policy's root per-agent

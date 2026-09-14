@@ -73,6 +73,35 @@ type ChangeRisk struct {
 // Escalated reports whether the compact path was refused.
 func (r ChangeRisk) Escalated() bool { return r.Decision == DecisionEscalate }
 
+// Compact reports whether this risk record authorizes the compact route. It
+// is not enough for the record to claim a low tier and a compact decision:
+// the classes it names must be recognised, must be low risk on their own,
+// must not have been escalated, and the effective class must not sit below
+// the declared one, because path signals only ever raise a class. A record
+// that fails any of those is internally inconsistent, and an inconsistent
+// record is exactly what a forged or stale one looks like.
+func (r ChangeRisk) Compact() bool {
+	if r.Decision != DecisionCompact || r.Tier != RiskLow || len(r.Reasons) > 0 {
+		return false
+	}
+	for _, kind := range []ChangeKind{r.DeclaredClass, r.EffectiveClass} {
+		if !KnownChangeKind(kind) || HighRiskKind(kind) {
+			return false
+		}
+	}
+	return kindRank(r.EffectiveClass) >= kindRank(r.DeclaredClass)
+}
+
+// KnownChangeKind reports whether kind is one of the declarable classes.
+func KnownChangeKind(kind ChangeKind) bool {
+	for _, known := range ChangeKinds {
+		if known == kind {
+			return true
+		}
+	}
+	return false
+}
+
 // ParseChangeKind resolves a declared change class name.
 func ParseChangeKind(value string) (ChangeKind, error) {
 	normalized := ChangeKind(strings.ToLower(strings.TrimSpace(value)))

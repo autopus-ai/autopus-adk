@@ -60,7 +60,10 @@ func TestOMPStatusProjectionReportsStaleCatalogAndMissingReceipt(t *testing.T) {
 	assert.False(t, statusEnvelope.Data.ReceiptVerification.ModelVerified)
 }
 
-func TestOMPStatusNoOptInBlocksWhenGeneratedAgentCatalogIsMissingAndBareStatusIsCompatible(t *testing.T) {
+// OMP installs its own agents, so a workspace with no project agent file is
+// ready, not blocked. Status reports where the registry comes from instead of
+// counting local definitions that Autopus never writes.
+func TestOMPStatusNoOptInReportsBundledRegistryAndBareStatusIsCompatible(t *testing.T) {
 	root := t.TempDir()
 	cfg := config.DefaultFullConfig("omp-status")
 	cfg.Platforms = []string{"omp"}
@@ -76,8 +79,10 @@ func TestOMPStatusNoOptInBlocksWhenGeneratedAgentCatalogIsMissingAndBareStatusIs
 	status.SetErr(&operatorOut)
 	status.SetArgs([]string{"--dir", root, "--platform", "omp"})
 	require.NoError(t, status.Execute())
-	assert.Contains(t, operatorOut.String(), "status=blocked")
-	assert.Contains(t, operatorOut.String(), "agent_catalog_incomplete")
+	assert.Contains(t, operatorOut.String(), "Agent registry: status=ready")
+	assert.Contains(t, operatorOut.String(), "source=omp_bundled_registry")
+	assert.Contains(t, operatorOut.String(), "expected=5 shadowed=0")
+	assert.NotContains(t, operatorOut.String(), "agent_catalog_incomplete")
 	assert.Contains(t, operatorOut.String(), ompLiveStateLimitation)
 	assert.Contains(t, operatorOut.String(), ompLiveStateNextCommand)
 	assert.Empty(t, runner.calls, "no opt-in must not probe OMP")
@@ -89,11 +94,11 @@ func TestOMPStatusNoOptInBlocksWhenGeneratedAgentCatalogIsMissingAndBareStatusIs
 	require.NoError(t, jsonStatusCmd.Execute())
 	var statusEnvelope ompCLIJSONEnvelope
 	require.NoError(t, json.Unmarshal(jsonOut.Bytes(), &statusEnvelope))
-	assert.Equal(t, jsonStatusWarn, statusEnvelope.Status)
+	assert.Equal(t, jsonStatusOK, statusEnvelope.Status)
 	var statusPayload ompPlatformProjection
 	require.NoError(t, json.Unmarshal(statusEnvelope.Data, &statusPayload))
-	assert.Equal(t, "blocked", statusPayload.Status)
-	assert.Equal(t, "agent_catalog_incomplete", statusPayload.Models.AgentCatalogReason)
+	assert.Equal(t, "ready", statusPayload.Status)
+	assert.Equal(t, "native_agent_registry", statusPayload.Models.AgentCatalogReason)
 	assert.Equal(t, ompLiveStateLimitation, statusPayload.ChildRuntime.Limitation)
 	assert.Empty(t, runner.calls, "JSON no opt-in must not probe OMP")
 

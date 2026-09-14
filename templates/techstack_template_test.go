@@ -56,11 +56,6 @@ func TestTechnologyStackFreshnessTemplateContracts(t *testing.T) {
 			"techstack-freshness",
 			"checked_at",
 		},
-		filepath.Join(root, "..", "pkg", "adapter", "codex", "codex_extended_skill_rewrites_pipeline_policy.go"): {
-			"Technology Stack Decision",
-			"version/source_ref/checked_at",
-			"techstack-freshness",
-		},
 		filepath.Join(root, "codex", "agents", "executor.toml.tmpl"): {
 			"Technology Stack Decision",
 			"version/source_ref/checked_at",
@@ -68,12 +63,6 @@ func TestTechnologyStackFreshnessTemplateContracts(t *testing.T) {
 		},
 		filepath.Join(root, "gemini", "commands", "auto-router.md.tmpl"): {
 			"Technology Stack Decision",
-			"techstack-freshness",
-			"version/source_ref/checked_at",
-		},
-		filepath.Join(root, "gemini", "skills", "agent-pipeline", "SKILL.md.tmpl"): {
-			"Technology Stack Decision",
-			"version/source_ref/checked_at",
 			"techstack-freshness",
 		},
 		filepath.Join(root, "gemini", "agents", "executor.md.tmpl"): {
@@ -100,4 +89,17 @@ func renderOrReadTechstackContract(t *testing.T, e *tmpl.Engine, cfg *config.Har
 	result, err := semanticContractSurface(e, path, cfg)
 	require.NoError(t, err)
 	return result
+}
+
+// The stack-metadata fields the documentation step must preserve moved into the
+// pipeline's phase resource. They are identifiers a greenfield manifest depends
+// on, so they are checked where they now live instead of in every prompt body.
+func TestTechnologyStackFreshnessResourceKeepsVersionEvidence(t *testing.T) {
+	t.Parallel()
+
+	surface := pipelineResourceSurface(t)
+	for _, field := range []string{"version", "source_ref", "checked_at"} {
+		assert.Contains(t, surface, field,
+			"the pipeline resources must preserve the stack evidence field %q", field)
+	}
 }

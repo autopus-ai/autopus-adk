@@ -25,7 +25,7 @@ func TestOMPClean_LateFailureRollsBackEveryMutation(t *testing.T) {
 	_, err := a.Generate(context.Background(), integrationHarnessConfig(config.RoleModelConfigModeProjectManaged))
 	require.NoError(t, err)
 
-	changed := filepath.Join(root, ".omp", "agents", "executor.md")
+	changed := filepath.Join(root, ".omp", "commands", "auto.md")
 	require.NoError(t, os.WriteFile(changed, []byte("user changed\n"), 0o620))
 	workspace, err := openOMPRootedWorkspace(root)
 	require.NoError(t, err)

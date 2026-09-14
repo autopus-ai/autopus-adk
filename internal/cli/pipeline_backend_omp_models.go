@@ -10,6 +10,7 @@ import (
 	"time"
 
 	ompadapter "github.com/insajin/autopus-adk/pkg/adapter/omp"
+	"github.com/insajin/autopus-adk/pkg/config"
 	"github.com/insajin/autopus-adk/pkg/pipeline"
 	"github.com/insajin/autopus-adk/pkg/processprobe"
 )
@@ -71,26 +72,41 @@ func loadPipelineOMPPhaseModelsWithAuthority(
 	if receipt.OMPVersion != observedVersion {
 		return nil, fmt.Errorf("OMP model receipt version does not match installed executable")
 	}
-	agentPhases := map[string]pipeline.PhaseID{
-		"planner": pipeline.PhasePlan, "tester": pipeline.PhaseTestScaffold,
-		"executor": pipeline.PhaseImplement, "validator": pipeline.PhaseValidate,
-		"reviewer": pipeline.PhaseReview,
-	}
-	models := make(map[pipeline.PhaseID]string, len(agentPhases))
+	models := make(map[pipeline.PhaseID]string, len(ompPipelinePhaseRoles))
+	selectors := make(map[string]string, len(receipt.Roles))
 	for _, role := range receipt.Roles {
-		phase, wanted := agentPhases[role.Agent]
-		if !wanted {
-			continue
+		if previous, duplicate := selectors[role.Agent]; duplicate && previous != role.Selector {
+			return nil, fmt.Errorf("conflicting OMP model routes for native agent %s", role.Agent)
 		}
-		if _, duplicate := models[phase]; duplicate {
-			return nil, fmt.Errorf("duplicate OMP model route for phase %s", phase)
-		}
-		models[phase] = role.Selector
+		selectors[role.Agent] = role.Selector
 	}
-	if len(models) != len(agentPhases) {
-		return nil, fmt.Errorf("OMP model receipt does not define all canonical pipeline phases")
+	// Several phases legitimately share one bundled agent, so the receipt is
+	// keyed by native agent and a phase resolves through the same collapse the
+	// generated workflows use. A phase whose agent the receipt omits fails
+	// closed instead of inheriting an unrelated selector.
+	for role, phase := range ompPipelinePhaseRoles {
+		native, err := config.OMPNativeAgentForRole(role)
+		if err != nil {
+			return nil, err
+		}
+		selector, resolved := selectors[native]
+		if !resolved || strings.TrimSpace(selector) == "" {
+			return nil, fmt.Errorf(
+				"OMP model receipt has no route for native agent %s required by phase %s", native, phase,
+			)
+		}
+		models[phase] = selector
 	}
 	return models, nil
+}
+
+// ompPipelinePhaseRoles maps each canonical pipeline phase onto the logical
+// role that owns it. The role is then collapsed onto the bundled OMP agent
+// that actually runs it.
+var ompPipelinePhaseRoles = map[string]pipeline.PhaseID{
+	"planner": pipeline.PhasePlan, "tester": pipeline.PhaseTestScaffold,
+	"executor": pipeline.PhaseImplement, "validator": pipeline.PhaseValidate,
+	"reviewer": pipeline.PhaseReview,
 }
 
 func observePipelineOMPVersion(

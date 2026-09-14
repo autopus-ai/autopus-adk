@@ -1,10 +1,7 @@
 package templates_test
 
 import (
-	"os"
 	"path/filepath"
-	"sort"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,31 +10,6 @@ import (
 	"github.com/insajin/autopus-adk/pkg/config"
 	tmpl "github.com/insajin/autopus-adk/pkg/template"
 )
-
-// codexPipelineNativeSurface concatenates every Go source file that renders the
-// Codex agent-pipeline skill. The skill body is assembled from siblings
-// (phase flow, gate applicability, probe gate, telemetry, completion), and the
-// builder is unexported, so the concatenated sources are the only way this
-// package can assert the emitted contract without duplicating the renderer.
-func codexPipelineNativeSurface(root string) (string, error) {
-	pattern := filepath.Join(root, "..", "pkg", "adapter", "codex",
-		"codex_extended_skill_rewrites_pipeline*.go")
-	paths, err := filepath.Glob(pattern)
-	if err != nil {
-		return "", err
-	}
-	sort.Strings(paths)
-	var surface strings.Builder
-	for _, path := range paths {
-		body, readErr := os.ReadFile(path)
-		if readErr != nil {
-			return "", readErr
-		}
-		surface.Write(body)
-		surface.WriteString("\n")
-	}
-	return surface.String(), nil
-}
 
 // A go/pipeline surface that names a runtime on one platform and omits it on
 // another is a silent behavioral fork: the supervisor on the quiet platform
@@ -64,22 +36,14 @@ func TestPipelineRuntimeSurfaceParity(t *testing.T) {
 		"auto telemetry leadtime",
 	}
 
-	cases := []struct {
+	// Route surfaces drive a run end to end, so they name every runtime the
+	// pipeline consumes. Pipeline entrypoints are decision layers: they name the
+	// classifier command and route to the detail, which is asserted on the
+	// resources below rather than duplicated into every body.
+	routeCases := []struct {
 		name string
 		path string
 	}{
-		{
-			name: "agent-pipeline-content",
-			path: filepath.Join(root, "..", "content", "skills", "agent-pipeline.md"),
-		},
-		{
-			name: "gemini-agent-pipeline-template",
-			path: filepath.Join(root, "gemini", "skills", "agent-pipeline", "SKILL.md.tmpl"),
-		},
-		{
-			name: "omp-agent-pipeline-template",
-			path: filepath.Join(root, "shared", "omp-agent-pipeline.md.tmpl"),
-		},
 		{
 			name: "claude-workflows",
 			path: filepath.Join(root, "claude", "commands", "auto-workflows.md.tmpl"),
@@ -97,8 +61,25 @@ func TestPipelineRuntimeSurfaceParity(t *testing.T) {
 			path: filepath.Join(root, "gemini", "skills", "auto-go", "SKILL.md.tmpl"),
 		},
 	}
+	entrypointCases := []struct {
+		name string
+		path string
+	}{
+		{
+			name: "agent-pipeline-content",
+			path: filepath.Join(root, "..", "content", "skills", "agent-pipeline.md"),
+		},
+		{
+			name: "gemini-agent-pipeline-template",
+			path: filepath.Join(root, "gemini", "skills", "agent-pipeline", "SKILL.md.tmpl"),
+		},
+		{
+			name: "omp-agent-pipeline-template",
+			path: filepath.Join(root, "shared", "omp-agent-pipeline.md.tmpl"),
+		},
+	}
 
-	for _, tc := range cases {
+	for _, tc := range routeCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -110,13 +91,25 @@ func TestPipelineRuntimeSurfaceParity(t *testing.T) {
 		})
 	}
 
-	t.Run("codex-agent-pipeline-native-source", func(t *testing.T) {
+	for _, tc := range entrypointCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			text, err := semanticContractSurface(e, tc.path, cfg)
+			require.NoError(t, err)
+			assert.Contains(t, text, "auto spec gates",
+				"%s must name the classifier that decides applicability", tc.path)
+			assert.Contains(t, text, "references/gates.md",
+				"%s must route to the gate and telemetry detail", tc.path)
+		})
+	}
+
+	t.Run("pipeline-resources", func(t *testing.T) {
 		t.Parallel()
-		text, err := codexPipelineNativeSurface(root)
-		require.NoError(t, err)
+		surface := pipelineResourceSurface(t)
 		for _, token := range runtimeTokens {
-			assert.Contains(t, text, token,
-				"the Codex agent-pipeline rewrite should contain %q", token)
+			assert.Contains(t, surface, token,
+				"the retrievable pipeline resources should contain %q", token)
 		}
 	})
 }

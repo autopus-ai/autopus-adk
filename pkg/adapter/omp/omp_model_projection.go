@@ -8,13 +8,15 @@ import (
 )
 
 // OMPModelProjectionInput is a provider-neutral bridge from the routing
-// resolver into OMP-native config and agent rendering.
+// resolver into OMP-native config.
 type OMPModelProjectionInput struct {
 	Agents []OMPProjectionAgent
 }
 
-// OMPProjectionAgent is one canonical agent whose route already resolved.
+// OMPProjectionAgent is one native OMP agent whose route already resolved.
 // Agents without a resolved route are absent and inherit runtime defaults.
+// Role and Capability carry the semantic ADK identity the route was resolved
+// under; they are audit provenance and are never emitted to OMP config.
 type OMPProjectionAgent struct {
 	Agent      string
 	Role       string
@@ -31,17 +33,11 @@ type OMPProjectionCandidate struct {
 }
 
 // OMPModelProjection is the canonical OMP-native representation consumed by
-// config activation and agent generation.
+// config activation. It binds concrete selectors to bundled agent names; no
+// role alias and no generated agent definition stands between the two.
 type OMPModelProjection struct {
-	ModelRoles     []OMPModelRoleProjection
 	FallbackChains []OMPFallbackChainProjection
 	Agents         []OMPAgentModelProjection
-}
-
-type OMPModelRoleProjection struct {
-	Role       string
-	Capability string
-	Selector   string
 }
 
 type OMPFallbackChainProjection struct {
@@ -52,13 +48,14 @@ type OMPFallbackChainProjection struct {
 type OMPAgentModelProjection struct {
 	Agent             string
 	Role              string
-	Model             string
+	Capability        string
 	Thinking          string
 	EffectiveSelector string
 }
 
-// CompileOMPModelProjection deterministically expands resolved agents into
-// one autopus_<agent> role each; unresolved agents intentionally inherit.
+// CompileOMPModelProjection orders resolved native agents canonically. At most
+// one entry per bundled agent survives, because OMP resolves
+// task.agentModelOverrides by exact agent name.
 func CompileOMPModelProjection(input OMPModelProjectionInput) (OMPModelProjection, error) {
 	agents, err := validateOMPProjectionAgents(input.Agents)
 	if err != nil {
@@ -66,21 +63,17 @@ func CompileOMPModelProjection(input OMPModelProjectionInput) (OMPModelProjectio
 	}
 
 	projection := OMPModelProjection{
-		ModelRoles: make([]OMPModelRoleProjection, 0, len(agents)),
-		Agents:     make([]OMPAgentModelProjection, 0, len(agents)),
+		Agents: make([]OMPAgentModelProjection, 0, len(agents)),
 	}
 	fallbacksBySelector := make(map[string][]string)
-	for _, spec := range ompProjectionRoleSpecs {
-		resolved, selected := agents[spec.agent]
+	for _, native := range config.OMPNativeAgentNames() {
+		resolved, selected := agents[native]
 		if !selected {
 			continue
 		}
 		selector := formatOMPProjectedSelector(resolved.Selector, resolved.Thinking)
-		projection.ModelRoles = append(projection.ModelRoles, OMPModelRoleProjection{
-			Role: spec.role, Capability: spec.capability, Selector: selector,
-		})
 		projection.Agents = append(projection.Agents, OMPAgentModelProjection{
-			Agent: spec.agent, Role: spec.role, Model: "@" + spec.role,
+			Agent: native, Role: resolved.Role, Capability: resolved.Capability,
 			Thinking: resolved.Thinking, EffectiveSelector: selector,
 		})
 		if len(resolved.Fallbacks) == 0 {
@@ -110,15 +103,15 @@ func validateOMPProjectionAgents(
 ) (map[string]OMPProjectionAgent, error) {
 	agents := make(map[string]OMPProjectionAgent, len(inputs))
 	for _, input := range inputs {
-		role, err := config.OMPAgentRole(input.Agent)
-		if err != nil {
+		source, roleErr := config.OMPRoleAgent(input.Role)
+		if roleErr != nil {
 			return nil, fmt.Errorf("agent_role_unmapped: %q", input.Agent)
 		}
-		capability, err := config.OMPAgentCapability(input.Agent)
-		if err != nil {
+		resolved, err := config.ResolveOMPPolicyAgent(source)
+		if err != nil || !config.OMPNativeAgentGovernedBy(source, input.Agent) {
 			return nil, fmt.Errorf("agent_role_unmapped: %q", input.Agent)
 		}
-		if input.Role != role || input.Capability != capability {
+		if input.Capability != resolved.Capability {
 			return nil, fmt.Errorf("role_capability_mismatch: agent=%s role=%s capability=%s",
 				input.Agent, input.Role, input.Capability)
 		}

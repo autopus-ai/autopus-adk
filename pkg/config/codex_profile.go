@@ -158,16 +158,6 @@ func CodexModelForTier(tier string) string {
 	}
 }
 
-func normalizeCodexTier(tier string) (string, bool) {
-	tier = strings.ToLower(strings.TrimSpace(tier))
-	switch tier {
-	case "fable", "opus", "sonnet", "haiku":
-		return tier, true
-	default:
-		return "", false
-	}
-}
-
 func normalizeCodexEffort(effort string) string {
 	effort = strings.ToLower(strings.TrimSpace(effort))
 	if codexEffortRank(effort) >= 0 {

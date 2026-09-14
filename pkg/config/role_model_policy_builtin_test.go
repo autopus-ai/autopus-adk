@@ -59,7 +59,7 @@ role_model_policy:
 	assert.Equal(t, RoleModelCatalogTrustOperatorAttested, profile.CatalogTrust)
 	assert.Equal(t, builtinDiversityPolicy(), profile.FamilyDiversity)
 	assert.Equal(t, map[string]RoleManagedKeyClaimConf{
-		"modelRoles": {
+		OMPNativeAgentModelOverridesKey: {
 			PriorFingerprint: OMPMissingManagedValueFingerprint(), Complete: true,
 		},
 		"retry.fallbackChains": {

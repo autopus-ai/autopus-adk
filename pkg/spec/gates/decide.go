@@ -31,10 +31,14 @@ type PriorEvidence struct {
 
 // DecisionInput carries everything Decide needs; it performs no IO.
 type DecisionInput struct {
-	SpecID                     string
-	Classification             Classification
-	Change                     ChangeRisk // zero value is derived from Classification
-	AnnotationReferenceMissing bool       // the @AX reference source is absent
+	SpecID         string
+	Classification Classification
+	Change         ChangeRisk // zero value is derived from Classification
+	// AnnotationRequested opts the @AX annotation gate into evaluation. The
+	// gate is not_applicable unless a caller asks for it, so ordinary code
+	// work is never held behind an annotation pass it never requested.
+	AnnotationRequested        bool
+	AnnotationReferenceMissing bool // the @AX reference source is absent
 	Prior                      map[GateID]PriorEvidence
 	Now                        time.Time
 	MaxAge                     time.Duration // zero selects DefaultMaxAge
@@ -109,6 +113,9 @@ func baseDecision(entry CatalogEntry, input DecisionInput) GateDecision {
 		}
 		decision.Reason = fmt.Sprintf("UI surface in change set: %d path(s)", len(input.Classification.UIPaths))
 	case GateAnnotation:
+		if !input.AnnotationRequested {
+			return notApplicable(decision, "@AX annotation not requested for this change set")
+		}
 		if docOnly {
 			return notApplicable(decision, "documentation-only change set")
 		}

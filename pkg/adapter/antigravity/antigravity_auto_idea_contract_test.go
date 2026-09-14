@@ -14,7 +14,7 @@ func TestGenerate_AutoIdeaUsesCanonicalBrainstormDebateContract(t *testing.T) {
 	t.Parallel()
 
 	root := t.TempDir()
-	_, err := NewWithRoot(root, WithoutPluginInstall()).Generate(
+	_, err := NewWithRoot(root).Generate(
 		context.Background(), config.DefaultFullConfig("auto-idea-contract"),
 	)
 	require.NoError(t, err)

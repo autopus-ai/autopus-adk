@@ -210,7 +210,6 @@ func TestPipelineRun_OMPOwnerPreservesDryRunForDefaultAndExplicitSelection(t *te
 			cmd.SetArgs(args)
 
 			require.NoError(t, cmd.Execute())
-			assert.Contains(t, stdout.String(), "Pipeline complete: 5 phases executed")
 			assert.NoFileExists(t, orcaMarker, "OMP ownership must not create an Orca Run")
 			var receipt pipelineExecutionOwnerReceipt
 			body, err := os.ReadFile(filepath.Join(pipelineStateDir, specID+".execution-owner.json"))

@@ -1,145 +1,19 @@
 package content
 
 import (
-	"errors"
-	"fmt"
-	"sort"
 	"strconv"
 	"strings"
 
-	"github.com/insajin/autopus-adk/pkg/config"
-
 	"gopkg.in/yaml.v3"
 )
-
-// ompToolMap maps ADK tools to omp canonical tool names.
-var ompToolMap = map[string]string{
-	"Read":      "read",
-	"Write":     "write",
-	"Edit":      "edit",
-	"Grep":      "grep",
-	"Glob":      "glob",
-	"Bash":      "bash",
-	"WebSearch": "web_search",
-	"WebFetch":  "web_search",
-}
-
-var ompNativeAgentTools = map[string][]string{
-	"debugger":            {"lsp"},
-	"executor":            {"lsp"},
-	"frontend-specialist": {"browser", "inspect_image", "lsp"},
-	"reviewer":            {"lsp"},
-	"ux-validator":        {"browser", "inspect_image"},
-	"validator":           {"lsp"},
-}
-
-// OMPAgentModelSelection is the validated model tuple rendered for an opt-in
-// OMP role-model policy. Model must be a native @role alias.
-type OMPAgentModelSelection struct {
-	Model    string
-	Thinking string
-}
-
-// TransformAgentForOMP produces an OMP markdown template without selecting a
-// child model. Legacy Claude tier labels are not OMP selectors, so their
-// omission intentionally inherits the parent session model.
-func TransformAgentForOMP(src AgentSource) string {
-	model := src.Meta.Model
-	switch model {
-	case "fable", "opus", "sonnet", "haiku":
-		model = ""
-	}
-	return renderAgentForOMP(src, model, "")
-}
-
-// TransformAgentForOMPWithModel produces an OMP agent using an explicitly
-// compiled native role alias. Only a validated opt-in selection emits both the
-// @role model and thinking fields.
-func TransformAgentForOMPWithModel(src AgentSource, selection OMPAgentModelSelection) (string, error) {
-	if err := validateOMPAgentModelSelection(selection); err != nil {
-		return "", err
-	}
-	return renderAgentForOMP(src, selection.Model, selection.Thinking), nil
-}
-
-// @AX:WARN [AUTO]: OMP agent rendering contains more than eight conditional branches.
-// @AX:REASON [AUTO]: portable and native tool deduplication, optional metadata, model, thinking, and emitted frontmatter sections converge here.
-func renderAgentForOMP(src AgentSource, model, thinking string) string {
-	var sb strings.Builder
-
-	body := NormalizeOMPResourcePaths(NormalizeAgentReferences(src.Body, "omp"))
-
-	// Tool mapping starts from canonical portable tools, then adds only the
-	// native capabilities required by the generated role.
-	var tools []string
-	seen := make(map[string]bool)
-	for _, tool := range strings.Split(src.Meta.Tools, ",") {
-		tool = strings.TrimSpace(tool)
-		if tool == "" || tool == "TodoWrite" {
-			continue
-		}
-		if strings.HasPrefix(tool, "mcp__") {
-			if !seen[tool] {
-				seen[tool] = true
-				tools = append(tools, tool)
-			}
-			continue
-		}
-		if mapped, ok := ompToolMap[tool]; ok && !seen[mapped] {
-			seen[mapped] = true
-			tools = append(tools, mapped)
-		}
-	}
-	for _, tool := range ompNativeAgentTools[src.Meta.Name] {
-		if !seen[tool] {
-			seen[tool] = true
-			tools = append(tools, tool)
-		}
-	}
-	sort.Strings(tools)
-
-	sb.WriteString("---\n")
-	fmt.Fprintf(&sb, "name: %s\n", OMPYAMLScalar(src.Meta.Name))
-	if src.Meta.Description != "" {
-		fmt.Fprintf(&sb, "description: %s\n", OMPYAMLScalar(src.Meta.Description))
-	}
-	if model != "" {
-		fmt.Fprintf(&sb, "model: %s\n", OMPYAMLScalar(model))
-	}
-	if thinking != "" {
-		fmt.Fprintf(&sb, "thinking: %s\n", OMPYAMLScalar(thinking))
-	}
-	if len(tools) > 0 {
-		sb.WriteString("tools:\n")
-		for _, tool := range tools {
-			fmt.Fprintf(&sb, "  - %s\n", tool)
-		}
-	}
-	sb.WriteString("---\n\n")
-	sb.WriteString(body)
-	sb.WriteString("\n")
-
-	return sb.String()
-}
-
-func validateOMPAgentModelSelection(selection OMPAgentModelSelection) error {
-	role := strings.TrimPrefix(selection.Model, "@")
-	if selection.Model == "" || role == selection.Model || !isOMPSafeIdentifier(role) {
-		return errors.New("OMP agent model must be a safe native @role alias")
-	}
-	if !isOMPThinkingLevel(selection.Thinking) {
-		return fmt.Errorf("unsupported OMP thinking level %q", selection.Thinking)
-	}
-	return nil
-}
 
 func isOMPSafeIdentifier(value string) bool {
 	if value == "" {
 		return false
 	}
-	for i, char := range value {
+	for index, char := range value {
 		if (char >= 'a' && char <= 'z') || (char >= '0' && char <= '9') ||
-			(i > 0 && (char == '-' || char == '_')) {
+			(index > 0 && (char == '-' || char == '_')) {
 			continue
 		}
 		return false
@@ -147,15 +21,7 @@ func isOMPSafeIdentifier(value string) bool {
 	return true
 }
 
-func isOMPThinkingLevel(value string) bool {
-	return config.IsOMPNativeThinkingLevel(value)
-}
-
-// OMPYAMLScalar renders a value as a YAML scalar for omp frontmatter. Emitting the raw
-// string let a value containing ": ", a newline, or a leading "tools:" line
-// close the field early and inject sibling frontmatter keys that omp would then
-// honor. Marshalling quotes only when the value would otherwise change the
-// document structure, so ordinary values keep their unquoted form.
+// OMPYAMLScalar keeps skill and command metadata inside a single YAML value.
 func OMPYAMLScalar(value string) string {
 	encoded, err := yaml.Marshal(value)
 	if err != nil {

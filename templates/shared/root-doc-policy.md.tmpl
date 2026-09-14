@@ -1,19 +1,15 @@
 ## Language Policy
 
-These settings are prompt instructions for every agent in this project. They are
-not mechanically enforced: no hook, linter, or CI gate inspects the language of
-comments, commit messages, or responses. The pre-commit Lore check validates the
-commit type prefix and sign-off trailers only, never the language. Treat a
-violation as a review finding, not as something a gate will catch.
-
 - **Code comments**: {{.Language.Comments}}
 - **Commit messages**: {{.Language.Commits}}
 - **AI responses**: {{.Language.AIResponses}}
 
+These are instructions, not mechanically enforced language checks.
+
 ## Autopus Branding
 
-The canonical banner header is the first line below. Start a `/auto` or `@auto`
-response with it and end the completed response with `🐙`.
+For explicit `/auto` or `@auto` workflows, start with this banner and end with `🐙`.
+Ordinary responses need no wrapper. Worker summaries remain concise evidence receipts.
 
 ```text
 🐙 Autopus ─────────────────────────
@@ -22,45 +18,14 @@ response with it and end the completed response with `🐙`.
   다음: {next-step recommendation}
 ```
 
-Subagent completion summaries use the A3 Agent Result shape:
-
-```text
-🐙 {agent-name} ─────────────────────
-  {key metric 1} | {key metric 2} | {key metric 3}
-  다음: {next step guidance}
-```
-
-General responses that applied no harness rule carry no banner, footer, or emoji.
-
 ## Document Storage
 
-IMPORTANT: A document stored in the wrong place causes sync failures and version
-control gaps.
+Product code is separate from `.autopus/` harness state. Root project context and
+cross-module SPECs belong to the meta repository; module-specific SPECs and
+CHANGELOG changes belong to the owning module. SPECs live under the owner's
+`.autopus/specs/`. Generated harness files and brainstorm/runtime output stay local
+and are not commit candidates.
 
-| Document Type | Location | Git Repo |
-|---------------|----------|----------|
-| Project context | Root | meta repo |
-| Harness bootstrap config | Root | meta repo |
-| Generated harness/runtime surface | Local working copy only | Do not commit |
-| Cross-module SPEC | Root `.autopus/specs/` | meta repo |
-| Module-specific SPEC | `{module}/.autopus/specs/` | module repo |
-| Brainstorm/runtime output | Local working copy only | Do not commit |
-| Module CHANGELOG | `{module}/CHANGELOG.md` | module repo |
-
-Module detection: match the referenced `pkg/`, `cmd/`, `internal/`, `src/`, or
-`app/` paths to their owning submodule. Paths spanning 2+ modules are
-cross-module and belong at the root.
-
-SPEC and BS IDs MUST be globally unique across the workspace. Scan both
-`.autopus/specs/SPEC-*` and `*/.autopus/specs/SPEC-*` (and the matching
-`brainstorms/BS-*` pair) before allocating an ID; a collision is a hard error.
-
-Run `auto sync verify` before committing. It is read-only and prints the
-topology it detected. In a single repository holding `autopus.yaml` it
-partitions every dirty path into a commit candidate, a blocked
-generated/runtime path, or an unclassified path. In a multi-repo workspace the
-same partition splits candidates into Phase A (module) and Phase B (meta)
-commits. Where neither layout applies it stops with a dedicated
-`unsupported topology:` diagnostic instead of a classification result.
-`auto check --hygiene --staged` is not an equivalent substitute: it checks
-generated/runtime hygiene only and never partitions the full dirty path set.
+Allocate SPEC/BS IDs uniquely across root and module repositories. Before committing,
+run `auto sync verify` to classify ownership and generated/runtime exclusions.
+`auto check --hygiene --staged` is not a substitute for that ownership check.

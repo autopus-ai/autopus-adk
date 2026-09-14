@@ -37,15 +37,13 @@ type SkillsConf struct {
 	AutoActivate bool `yaml:"auto_activate"`
 	// MaxActiveSkills limits the number of concurrently active skills (default 5).
 	MaxActiveSkills int `yaml:"max_active_skills"`
-	// SharedSurface controls how much of the reusable skill library is published to shared surfaces.
-	// full (default): always publish the full shared skill library.
-	// auto: full on single-platform installs, core on mixed Codex+OpenCode installs.
-	// full: always publish the full shared skill library.
-	// core: always publish only the core shared skill set.
+	// SharedSurface refines shared publication in explicit full compiler mode.
+	// full: publish the selected library; auto: core on mixed Codex+OpenCode;
+	// core: publish only the core shared skill set.
 	SharedSurface string `yaml:"shared_surface,omitempty"`
 	// CategoryWeights maps category names to priority weights for skill selection.
 	CategoryWeights map[string]int `yaml:"category_weights,omitempty"`
-	// Compiler controls the opt-in registry/compiler surface split behavior.
+	// Compiler defaults to a compact core; bundles or full mode opt into more skills.
 	Compiler SkillCompilerConf `yaml:"compiler,omitempty"`
 }
 
@@ -176,6 +174,8 @@ type ArchitectureConf struct {
 	AutoGenerate bool     `yaml:"auto_generate"`
 	Enforce      bool     `yaml:"enforce"`
 	Layers       []string `yaml:"layers"`
+	// MaxFileLines is a project-specific code-line ceiling; zero is advisory only.
+	MaxFileLines int `yaml:"max_file_lines,omitempty"`
 }
 
 // LoreConf는 Lore Decision Knowledge 설정이다.
@@ -264,6 +264,9 @@ func (c *HarnessConfig) Validate() error {
 	}
 	if err := c.validateSkillsConfig(); err != nil {
 		return err
+	}
+	if c.Architecture.MaxFileLines < 0 {
+		return fmt.Errorf("architecture.max_file_lines must be >= 0")
 	}
 	if c.Design.MaxContextLines < 0 {
 		return fmt.Errorf("design.max_context_lines must be >= 0")

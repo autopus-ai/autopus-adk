@@ -144,6 +144,7 @@ func DefaultFullConfig(projectName string) *HarnessConfig {
 		Skills: SkillsConf{
 			AutoActivate:    true,
 			MaxActiveSkills: 5,
+			Compiler:        SkillCompilerConf{Mode: SkillCompilerModeSplit},
 			CategoryWeights: map[string]int{
 				"security": 30,
 				"quality":  20,
@@ -166,9 +167,6 @@ func DefaultFullConfig(projectName string) *HarnessConfig {
 		},
 		Context: ContextConf{
 			SignatureMap: true,
-		},
-		Workflow: WorkflowConf{
-			CoverageThreshold: 85,
 		},
 		Features: FeaturesConf{
 			CC21: CC21FeaturesConf{

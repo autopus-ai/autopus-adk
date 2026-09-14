@@ -86,25 +86,3 @@ func TestRules_TriggerFieldsSurviveOpencode(t *testing.T) {
 		})
 	}
 }
-
-// TestRules_GeminiOutputUnchangedForTriggeredRules completes S7: the gemini
-// adapter keeps its pre-change bytes for the rules that gain triggers.
-func TestRules_GeminiOutputUnchangedForTriggeredRules(t *testing.T) {
-	t.Parallel()
-
-	golden := loadGolden(t)["gemini"]
-	require.NotEmpty(t, golden)
-
-	dir := generatePlatform(t, "gemini")
-	checked := 0
-	for target, want := range golden {
-		base := filepath.Base(target)
-		if base != "lore-commit.md" && base != "shell-portability.md" && base != "worktree-safety.md" {
-			continue
-		}
-		assert.Equal(t, want, fileDigest(t, filepath.Join(dir, filepath.FromSlash(target))),
-			"gemini output changed for %s", target)
-		checked++
-	}
-	assert.Positive(t, checked, "gemini goldens must cover the triggered rules")
-}

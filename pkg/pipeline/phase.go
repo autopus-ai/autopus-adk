@@ -41,6 +41,51 @@ func DefaultPhases() []Phase {
 	}
 }
 
+// PhaseRoute selects which canonical phases a run dispatches.
+type PhaseRoute string
+
+const (
+	// RouteFull dispatches every canonical phase. It is the conservative
+	// default: an absent, unreadable, or high-risk change decision lands here.
+	RouteFull PhaseRoute = "full"
+	// RouteCompact is the low-risk route recorded by a compact change
+	// contract. It drops the separate plan and test-scaffold dispatches and
+	// keeps both gated phases.
+	RouteCompact PhaseRoute = "compact"
+)
+
+// CompactPhases returns the low-risk route: implement, validate, review.
+// The dropped scaffold dispatch is not dropped work — the implementation
+// phase carries the test-first contract (see the compact route directive in
+// the phase prompt), and validation and review keep their gates and retries.
+func CompactPhases() []Phase {
+	return []Phase{
+		{ID: PhaseImplement, DependsOn: nil},
+		{ID: PhaseValidate, DependsOn: []PhaseID{PhaseImplement}, Gate: GateValidation, MaxRetries: 3},
+		{ID: PhaseReview, DependsOn: []PhaseID{PhaseValidate}, Gate: GateReview, MaxRetries: 2},
+	}
+}
+
+// NormalizeRoute resolves any unset or unrecognised route to the full route.
+// Route selection is authorization to skip work, so an unreadable value can
+// only ever resolve to the route that skips nothing.
+func NormalizeRoute(route PhaseRoute) PhaseRoute {
+	if route == RouteCompact {
+		return RouteCompact
+	}
+	return RouteFull
+}
+
+// PhasesForRoute returns the phases route dispatches. Any value other than
+// the compact route resolves to the full five-phase route, so an unknown or
+// unset route can only ever add phases, never remove them.
+func PhasesForRoute(route PhaseRoute) []Phase {
+	if NormalizeRoute(route) == RouteCompact {
+		return CompactPhases()
+	}
+	return DefaultPhases()
+}
+
 // claudeOutput is the JSON structure returned by Claude CLI.
 type claudeOutput struct {
 	LastAssistantMessage string `json:"last_assistant_message"`

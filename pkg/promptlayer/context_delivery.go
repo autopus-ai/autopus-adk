@@ -19,6 +19,9 @@ type ContextDeliveryOptions struct {
 	SpecDir             string
 	RequiredReferences  []string
 	ConditionalProfiles []ContextProfileName
+	// ExplicitArchitecture loads optional architecture only when selected by the
+	// task. The canonical OMP evidence path retains full delivery by default.
+	ExplicitArchitecture bool
 }
 
 type ContextDeliveryDocument struct {
@@ -140,11 +143,13 @@ func normalizeContextDeliveryOptions(opts ContextDeliveryOptions) (string, strin
 		return "", "", "", nil, err
 	}
 	refs = append(refs, documentsForProfiles(conditionalProfiles)...)
-	availableConditional, err := availableDefaultConditionalDocuments(root, command)
-	if err != nil {
-		return "", "", "", nil, err
+	if !opts.ExplicitArchitecture {
+		availableConditional, err := availableDefaultConditionalDocuments(root, command)
+		if err != nil {
+			return "", "", "", nil, err
+		}
+		refs = append(refs, availableConditional...)
 	}
-	refs = append(refs, availableConditional...)
 	if profile.RelevantSpec {
 		for _, name := range relevantSpecDocuments(command) {
 			refs = append(refs, filepath.ToSlash(filepath.Join(specDir, name)))

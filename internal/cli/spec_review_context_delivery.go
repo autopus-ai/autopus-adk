@@ -32,8 +32,9 @@ func prepareSpecReviewContextDelivery(
 	}
 	return &specReviewContextDelivery{options: promptlayer.ContextDeliveryOptions{
 		Root: scope.projectRoot, Command: "review", SpecDir: scope.specDir,
-		RequiredReferences:  append([]string(nil), opts.requiredDocuments...),
-		ConditionalProfiles: contextProfileNames(opts.conditionalProfiles),
+		RequiredReferences:   append([]string(nil), opts.requiredDocuments...),
+		ConditionalProfiles:  contextProfileNames(opts.conditionalProfiles),
+		ExplicitArchitecture: true,
 	}}, nil
 }
 

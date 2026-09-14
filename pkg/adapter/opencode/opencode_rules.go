@@ -9,6 +9,7 @@ import (
 	contentfs "github.com/insajin/autopus-adk/content"
 	"github.com/insajin/autopus-adk/pkg/adapter"
 	pkgcontent "github.com/insajin/autopus-adk/pkg/content"
+	"github.com/insajin/autopus-adk/pkg/rulecond"
 )
 
 const openCodeDeferredToolsRule = `# OpenCode Deferred Tool Compatibility
@@ -48,17 +49,31 @@ func (a *Adapter) prepareRuleMappings() ([]adapter.FileMapping, error) {
 	return files, nil
 }
 
-func managedRulePaths() ([]string, error) {
+func managedRulePaths() (active, deferred []string, err error) {
 	entries, err := contentfs.FS.ReadDir("rules")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	paths := make([]string, 0, len(entries))
+	active = make([]string, 0, len(entries))
+	deferred = make([]string, 0, len(entries))
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
 			continue
 		}
-		paths = append(paths, toSlash(filepath.Join(".opencode", "rules", "autopus", entry.Name())))
+		raw, readErr := contentfs.FS.ReadFile("rules/" + entry.Name())
+		if readErr != nil {
+			return nil, nil, readErr
+		}
+		rule, parseErr := rulecond.ParseRule(entry.Name(), raw)
+		if parseErr != nil {
+			return nil, nil, parseErr
+		}
+		path := toSlash(filepath.Join(".opencode", "rules", "autopus", entry.Name()))
+		if rulecond.Classify(rule) == rulecond.ClassSkillScoped {
+			deferred = append(deferred, path)
+		} else {
+			active = append(active, path)
+		}
 	}
-	return paths, nil
+	return active, deferred, nil
 }

@@ -13,6 +13,7 @@ platforms:
 architecture:
   auto_generate: {{.Architecture.AutoGenerate}}
   enforce: {{.Architecture.Enforce}}
+  max_file_lines: {{.Architecture.MaxFileLines}}
 {{if .Architecture.Layers}}  layers:
 {{range .Architecture.Layers}}    - {{.}}
 {{end}}{{end}}

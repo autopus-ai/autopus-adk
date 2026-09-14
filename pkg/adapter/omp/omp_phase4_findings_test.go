@@ -58,7 +58,7 @@ func TestOMPConfigMarkerSpan_PlainLifecyclePreservesUserConfig(t *testing.T) {
 			root := generateOMPOnly(t)
 			configPath := filepath.Join(root, configFile)
 			require.NoError(t, os.WriteFile(configPath, []byte(hostile), 0o600))
-			managedAgent := filepath.Join(root, ".omp", "agents", "executor.md")
+			managedCommand := filepath.Join(root, ".omp", "commands", "auto.md")
 
 			var err error
 			if operation == "update" {
@@ -69,9 +69,9 @@ func TestOMPConfigMarkerSpan_PlainLifecyclePreservesUserConfig(t *testing.T) {
 			require.NoError(t, err)
 			assertFileBytesOMP(t, configPath, hostile)
 			if operation == "clean" {
-				assert.NoFileExists(t, managedAgent)
+				assert.NoFileExists(t, managedCommand)
 			} else {
-				assert.FileExists(t, managedAgent)
+				assert.FileExists(t, managedCommand)
 			}
 		})
 	}

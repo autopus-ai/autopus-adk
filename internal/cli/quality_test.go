@@ -105,7 +105,7 @@ func TestQualityCmd_InteractiveChoice(t *testing.T) {
 	buf := &bytes.Buffer{}
 	root.SetOut(buf)
 	root.SetErr(buf)
-	root.SetIn(strings.NewReader("1\n"))
+	root.SetIn(strings.NewReader("global\n1\n"))
 	root.SetArgs([]string{"--config", configPath, "quality"})
 
 	require.NoError(t, root.Execute())

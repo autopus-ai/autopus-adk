@@ -22,9 +22,14 @@ type SkillCompilerConf struct {
 }
 
 // EffectiveMode returns the normalized compiler mode.
+//
+// An unset mode resolves to split: a fresh install advertises the core skill
+// surface plus the command routes, and reaches the rest of the library through
+// bundles, explicit_skills, or mode: full. Writing "full" restores the legacy
+// behavior of compiling every reusable skill onto every native surface.
 func (c SkillCompilerConf) EffectiveMode() string {
 	if c.Mode == "" {
-		return SkillCompilerModeFull
+		return SkillCompilerModeSplit
 	}
 	return c.Mode
 }

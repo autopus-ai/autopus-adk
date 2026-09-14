@@ -74,6 +74,7 @@ type OrchestrationRunReceipt struct {
 	RunID               string               `json:"run_id" yaml:"run_id"`
 	RouteID             string               `json:"route_id" yaml:"route_id"`
 	RouteVersion        string               `json:"route_version" yaml:"route_version"`
+	RoutePhaseSet       PhaseRoute           `json:"route_phase_set" yaml:"route_phase_set"`
 	SpecID              string               `json:"spec_id" yaml:"spec_id"`
 	RequestedStrategy   Strategy             `json:"requested_strategy" yaml:"requested_strategy"`
 	EffectiveStrategy   Strategy             `json:"effective_strategy" yaml:"effective_strategy"`
@@ -104,12 +105,13 @@ type OrchestrationRunReceipt struct {
 	FinishedAt          *time.Time           `json:"finished_at,omitempty" yaml:"finished_at,omitempty"`
 }
 
-func newRunReceipt(specID string, requested, effective Strategy, phases []Phase) OrchestrationRunReceipt {
+func newRunReceipt(specID string, requested, effective Strategy, route PhaseRoute, phases []Phase) OrchestrationRunReceipt {
 	receipt := OrchestrationRunReceipt{
 		SchemaVersion:       OrchestrationRunReceiptVersion,
 		RunID:               newRunID(),
 		RouteID:             "pipeline",
 		RouteVersion:        PipelineRouteVersion,
+		RoutePhaseSet:       route,
 		SpecID:              specID,
 		RequestedStrategy:   requested,
 		EffectiveStrategy:   effective,
@@ -138,7 +140,7 @@ func newRunReceipt(specID string, requested, effective Strategy, phases []Phase)
 // NewBlockedRunReceipt creates a terminal preflight receipt without dispatches.
 func NewBlockedRunReceipt(specID string, requested Strategy, blocker string) OrchestrationRunReceipt {
 	requested, effective, _ := effectivePipelineStrategy(requested)
-	receipt := newRunReceipt(specID, requested, effective, DefaultPhases())
+	receipt := newRunReceipt(specID, requested, effective, RouteFull, DefaultPhases())
 	receipt.finish(TerminalBlocked, blocker)
 	return receipt
 }

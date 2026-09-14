@@ -31,7 +31,7 @@ func TestContextEngineering_GeneratedSurfacesMatchCanonicalContract(t *testing.T
 			optional: []string{"learning", "signature"}, excluded: []string{"canary"}},
 		"canary": {required: []string{"canary", "core"},
 			optional: []string{"learning"}, excluded: []string{"signature", "test"}},
-		"go": {required: []string{"acceptance", "available_architecture", "core", "plan", "resolved_spec"},
+		"go": {required: []string{"acceptance", "core", "plan", "resolved_spec"},
 			workerOptional: []string{"learning", "signature", "task_declared_extra"}, excluded: []string{"canary", "test"}},
 	}
 	for _, surface := range surfaces {
@@ -65,10 +65,9 @@ func TestContextEngineering_GeneratedSurfacesMatchCanonicalContract(t *testing.T
 		surface := surface
 		t.Run("S3-S4 route-resolved pipeline "+surface.name, func(t *testing.T) {
 			detail := readContextEngineeringFile(t, surface.root, surface.details["go"])
-			body, err := resolveContextEngineeringPipeline(surface.root, detail, surface.pipeline)
+			_, err := resolveContextEngineeringPipeline(surface.root, detail, surface.pipeline)
 			require.NoError(t, err)
-			assert.Equal(t, expectedFields, extractGeneratedWorkerFields(body))
-			assertContextEngineeringGuidance(t, body)
+			assertContextEngineeringGuidance(t, surface.root, surface.pipeline, expectedFields)
 		})
 	}
 	t.Run("S3-S4 stale and missing pipeline refs fail closed", func(t *testing.T) {
@@ -79,20 +78,34 @@ func TestContextEngineering_GeneratedSurfacesMatchCanonicalContract(t *testing.T
 		_, err = resolveContextEngineeringPipeline(t.TempDir(), "Load `"+expected+"`.", expected)
 		assert.Error(t, err, "referenced but missing pipeline must fail")
 	})
+	// The plugin mirror is a copy, not a variant. Comparing the whole
+	// normalized body plus the resource a worker actually opens catches any
+	// divergence, including ones no clause list would have named.
 	t.Run("S4 gemini antigravity normalized parity", func(t *testing.T) {
-		native := normalizeContextEngineeringProse(readContextEngineeringFile(t, surfaces["gemini"].root, surfaces["gemini"].pipeline))
-		plugin := normalizeContextEngineeringProse(readContextEngineeringFile(t, surfaces["antigravity-mirror"].root, surfaces["antigravity-mirror"].pipeline))
-		for _, clause := range append(contextEngineeringSecurityClauses, contextEngineeringEvidenceClauses...) {
-			assert.Equal(t, strings.Contains(native, normalizeContextEngineeringProse(clause)),
-				strings.Contains(plugin, normalizeContextEngineeringProse(clause)), clause)
-		}
-	})
-	t.Run("S4 inverted clauses are rejected", func(t *testing.T) {
-		valid := strings.Join(contextEngineeringSecurityClauses, ". ")
-		for _, fixture := range contextEngineeringAdversarialFixtures {
-			t.Run(fixture.name, func(t *testing.T) {
-				assert.Error(t, validateContextEngineeringSecurity(valid+". "+fixture.body))
-			})
-		}
+		native := readContextEngineeringFile(t, surfaces["gemini"].root, surfaces["gemini"].pipeline)
+		plugin := readContextEngineeringFile(t, surfaces["antigravity-mirror"].root, surfaces["antigravity-mirror"].pipeline)
+		// The mirror rehomes managed paths into the plugin directory and
+		// changes nothing else, so undoing that rewrite makes the two bodies
+		// directly comparable.
+		rehomed := strings.NewReplacer(
+			".agents/plugins/autopus/skills/auto/", ".gemini/skills/auto/",
+			".agents/plugins/autopus/skills/", ".gemini/skills/autopus/",
+			".agents/plugins/autopus/rules/", ".gemini/rules/autopus/",
+			".agents/plugins/autopus/agents/", ".gemini/agents/autopus/",
+			".agents/plugins/autopus/commands/auto/", ".gemini/commands/auto/",
+		).Replace(plugin)
+		assert.Equal(t,
+			normalizeContextEngineeringProse(native),
+			normalizeContextEngineeringProse(rehomed),
+			"the plugin mirror must carry the same pipeline body as the native surface")
+
+		nativeCoordination := readContextEngineeringFile(t, surfaces["gemini"].root,
+			strings.TrimSuffix(surfaces["gemini"].pipeline, "SKILL.md")+"references/coordination.md")
+		pluginCoordination := readContextEngineeringFile(t, surfaces["antigravity-mirror"].root,
+			strings.TrimSuffix(surfaces["antigravity-mirror"].pipeline, "SKILL.md")+"references/coordination.md")
+		assert.Equal(t,
+			normalizeContextEngineeringProse(nativeCoordination),
+			normalizeContextEngineeringProse(pluginCoordination),
+			"the plugin mirror must carry the same coordination resource")
 	})
 }

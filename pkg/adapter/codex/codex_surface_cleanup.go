@@ -8,6 +8,7 @@ import (
 
 	contentfs "github.com/insajin/autopus-adk/content"
 	"github.com/insajin/autopus-adk/pkg/adapter"
+	pkgcontent "github.com/insajin/autopus-adk/pkg/content"
 	"github.com/insajin/autopus-adk/templates"
 )
 
@@ -145,10 +146,21 @@ func codexCleanAllowedPaths() (map[string]bool, error) {
 		".autopus/plugins/auto/.codex-plugin/plugin.json": true,
 	}
 	addSkill := func(name string) {
-		allowed[filepath.ToSlash(codexProjectSkillPath(name))] = true
+		skillDirs := []string{
+			filepath.Dir(codexProjectSkillPath(name)),
+			filepath.Join(".agents", "skills", name),
+			filepath.Join(".autopus", "plugins", "auto", "skills", name),
+		}
 		allowed[filepath.ToSlash(filepath.Join(".codex", "skills", name+".md"))] = true
-		allowed[filepath.ToSlash(filepath.Join(".agents", "skills", name, "SKILL.md"))] = true
-		allowed[filepath.ToSlash(filepath.Join(".autopus", "plugins", "auto", "skills", name, "SKILL.md"))] = true
+		resources := pkgcontent.SkillResourceRelPaths(name)
+		for _, dir := range skillDirs {
+			allowed[filepath.ToSlash(filepath.Join(dir, "SKILL.md"))] = true
+			// Reference bodies are manifest-owned siblings of the SKILL.md, so
+			// Clean must recognize them or it refuses the whole manifest.
+			for _, rel := range resources {
+				allowed[filepath.ToSlash(filepath.Join(dir, filepath.FromSlash(rel)))] = true
+			}
+		}
 	}
 	for _, spec := range workflowSpecs {
 		addSkill(spec.Name)

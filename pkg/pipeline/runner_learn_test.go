@@ -102,6 +102,40 @@ func TestSequentialRunner_GateFail_RecordsLearning(t *testing.T) {
 	assert.Equal(t, 2, gateFails, "expected 2 gate_fail entries (one per failed attempt)")
 }
 
+// A coverage gap is evidence against a policy. With no configured threshold
+// there is no policy to measure against, so nothing is recorded; an explicit
+// threshold stays authoritative and still records the gap.
+func TestSequentialRunner_CoverageGapNeedsAnExplicitThreshold(t *testing.T) {
+	t.Parallel()
+
+	runWithThreshold := func(t *testing.T, threshold float64) []learn.LearningEntry {
+		t.Helper()
+		backend := &mockBackend{outputs: []string{"coverage: 62.5% of statements", "VERDICT: PASS"}}
+		store := newLearnStoreForTest(t)
+		runner := NewSequentialRunner(backend)
+		_, err := runner.RunPhases(
+			context.Background(),
+			[]Phase{{ID: PhaseValidate, Gate: GateValidation, MaxRetries: 1}},
+			RunConfig{LearnStore: store, CoverageThreshold: threshold},
+		)
+		require.NoError(t, err)
+		entries, readErr := store.Read()
+		require.NoError(t, readErr)
+		return entries
+	}
+
+	for _, entry := range runWithThreshold(t, 0) {
+		assert.NotEqual(t, learn.EntryTypeCoverageGap, entry.Type,
+			"an unset threshold is not an 85 percent floor in disguise")
+	}
+
+	var recorded bool
+	for _, entry := range runWithThreshold(t, 85) {
+		recorded = recorded || entry.Type == learn.EntryTypeCoverageGap
+	}
+	assert.True(t, recorded, "an explicitly configured threshold still records the gap")
+}
+
 // TestSequentialRunner_NilStore_NoPanic verifies that RunPhases behaves
 // normally when LearnStore is nil (learning is optional).
 func TestSequentialRunner_NilStore_NoPanic(t *testing.T) {

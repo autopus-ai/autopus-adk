@@ -23,22 +23,15 @@ const (
 )
 
 // Adapter is the Antigravity CLI platform adapter.
+//
+// Generation is project-local. A plugin under `.agents/plugins/` is a
+// workspace customization `agy` discovers on its own, so the adapter never
+// stages a second copy into the user's global registry: that copy would carry
+// this project's rendered content into every other project and shadow-collide
+// with the workspace bundle on the shared `autopus` name.
 type Adapter struct {
-	root              string
-	engine            *tmpl.Engine
-	skipPluginInstall bool
-}
-
-// Option customizes an Antigravity adapter.
-type Option func(*Adapter)
-
-// WithoutPluginInstall disables the external `agy plugin install` lifecycle
-// step. It is intended for read-only generation observers such as doctor drift
-// baselines that render into an isolated root but must not mutate CLI state.
-func WithoutPluginInstall() Option {
-	return func(a *Adapter) {
-		a.skipPluginInstall = true
-	}
+	root   string
+	engine *tmpl.Engine
 }
 
 // New creates an adapter rooted at the current directory.
@@ -47,14 +40,8 @@ func New() *Adapter {
 }
 
 // NewWithRoot creates an adapter rooted at the specified path.
-func NewWithRoot(root string, options ...Option) *Adapter {
-	a := &Adapter{root: root, engine: tmpl.New()}
-	for _, option := range options {
-		if option != nil {
-			option(a)
-		}
-	}
-	return a
+func NewWithRoot(root string) *Adapter {
+	return &Adapter{root: root, engine: tmpl.New()}
 }
 
 func (a *Adapter) Name() string      { return adapterName }
@@ -71,17 +58,11 @@ func (a *Adapter) Detect(_ context.Context) (bool, error) {
 }
 
 // Generate creates Antigravity CLI files based on the harness config.
-func (a *Adapter) Generate(ctx context.Context, cfg *config.HarnessConfig) (*adapter.PlatformFiles, error) {
+func (a *Adapter) Generate(_ context.Context, cfg *config.HarnessConfig) (*adapter.PlatformFiles, error) {
 	antigravitySkillDir := filepath.Join(a.root, ".gemini", "skills", "autopus")
 	if err := os.MkdirAll(antigravitySkillDir, 0755); err != nil {
 		return nil, fmt.Errorf(".gemini/skills/autopus 디렉터리 생성 실패: %w", err)
 	}
-
-	agentsSkillsDir := filepath.Join(a.root, ".agents", "skills")
-	if err := os.MkdirAll(agentsSkillsDir, 0755); err != nil {
-		return nil, fmt.Errorf(".agents/skills 디렉터리 생성 실패: %w", err)
-	}
-
 	var files []adapter.FileMapping
 
 	geminiMD, err := a.injectMarkerSection(cfg)
@@ -177,6 +158,12 @@ func (a *Adapter) Generate(ctx context.Context, cfg *config.HarnessConfig) (*ada
 	}
 	files = append(files, hookFiles...)
 
+	resourceFiles, err := preparePluginSkillResources(files, cfg)
+	if err != nil {
+		return nil, err
+	}
+	files = append(files, resourceFiles...)
+
 	files, err = rewriteSanitizedAntigravityMappings(a.root, files)
 	if err != nil {
 		return nil, err
@@ -190,8 +177,6 @@ func (a *Adapter) Generate(ctx context.Context, cfg *config.HarnessConfig) (*ada
 		return nil, err
 	}
 	files = append(files, completionHookAssets...)
-
-	a.installAntigravityPluginIfAvailable(ctx)
 
 	pf := &adapter.PlatformFiles{
 		Files:    files,

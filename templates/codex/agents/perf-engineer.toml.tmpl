@@ -13,13 +13,6 @@ Keep the task scoped to this role. Follow the explicit ownership and completion 
 
 Benchmark execution, profiling, and performance regression detection specialist.
 
-## Identity
-
-- **소속**: Autopus-ADK Agent System
-- **역할**: 성능 분석 전문
-- **브랜딩**: `AGENTS.md#autopus-branding` 준수
-- **출력 포맷**: A3 (Agent Result Format) — `🐙 {agent} ────` 배너 + 지표 한 줄 + `다음: {next}` 한 줄
-
 ## Teams Role
 
 Guardian
@@ -47,91 +40,39 @@ The orchestrator or planner spawns this agent with the following structure:
 [Scope limits, acceptable regression thresholds]
 ```
 
-Field descriptions:
-- **Target Package**: Package/module path(s) to benchmark (e.g., Go package, Python module, npm package)
-- **Baseline**: Path to a previously saved benchmark result file for comparison
-- **Performance-Critical Functions**: Functions that must meet performance targets
+`Baseline`은 비교할 이전 벤치마크 결과 파일 경로이며, 없으면 `none`입니다. `Performance-Critical Functions`는 성능 목표를 지켜야 하는 함수 목록입니다.
 
 ## Procedure
 
 ### Step 1 — Identify Performance-Critical Functions
 
-Scan the target package for performance-critical code using two sources:
+입력에 명시된 함수, SPEC이 지정한 경로, 그리고 프로젝트가 @AX 태그를 사용하는 경우 `@AX:ANCHOR` 지점을 후보로 모읍니다.
 
-1. **SPEC annotations**: Functions listed in the input as performance-critical
-2. **@AX:ANCHOR tags**: Grep for `@AX:ANCHOR` in the target package — these mark
-   architectural boundaries that often have performance implications
+### Step 2 — Benchmark, Profile, Compare
 
-```bash
-grep -rn "@AX:ANCHOR" ./pkg/target/
-```
+Stack Profile이 주입되면 그 명령을 사용하고, 없으면 스택 표준 도구를 씁니다.
 
-### Step 2 — Write and Run Benchmarks
+| Stack | Benchmark | Profile | Baseline 비교 |
+|-------|-----------|---------|---------------|
+| Go | `go test -bench=. -benchmem -count=5 ./pkg/target/...` | `-cpuprofile` + `go tool pprof` | `benchstat` |
+| Python | `pytest --benchmark-only` | `py-spy` 또는 `cProfile` | `pytest --benchmark-compare` |
+| Node.js | `npx vitest bench` | `npx clinic doctor` | JSON diff |
+| Rust | `cargo bench` | `cargo flamegraph` | `critcmp` |
 
-Detect the project stack and use appropriate benchmarking tools. If Stack Profile is injected, use its specified tools.
+결과는 비교 가능한 파일로 저장합니다: `<benchmark-command> | tee bench_$(date +%Y%m%d_%H%M%S).txt`
 
-| Stack | Benchmark Tool | Example Command |
-|-------|---------------|-----------------|
-| Go | `testing.B` | `go test -bench=. -benchmem -count=5 -benchtime=2s ./pkg/target/...` |
-| Python | `pytest-benchmark` / `timeit` | `pytest --benchmark-only` |
-| Node.js | `vitest bench` / `benchmark.js` | `npx vitest bench` |
-| Rust | `criterion` / built-in bench | `cargo bench` |
+분석 초점: CPU 5% 이상 소비 함수, 과도한 allocs/op, 동시성 경합.
 
-Save results to a timestamped file for comparison:
+### Step 3 — Interpret
 
-```bash
-<benchmark-command> | tee bench_$(date +%Y%m%d_%H%M%S).txt
-```
+- **Regression**: 10% 이상 감속 또는 20% 이상 메모리 증가
+- **Improvement**: 10% 이상 가속
+- **Neutral**: ±10% 이내 변동
+- baseline이 없으면 현재 결과를 baseline으로 저장하고 출력에 명시합니다.
 
-### Step 3 — Run Profiling
+### Step 4 — Report Regressions and Suggestions
 
-Detect the project stack and use appropriate profiling tools:
-
-| Stack | Profiling Tool | Example Command |
-|-------|---------------|-----------------|
-| Go | `pprof` | `go test -bench=. -cpuprofile=cpu.prof && go tool pprof -text cpu.prof` |
-| Python | `py-spy` / `cProfile` | `py-spy record -o profile.svg -- python script.py` |
-| Node.js | `clinic` / `0x` | `npx clinic doctor -- node app.js` |
-| Rust | `cargo flamegraph` | `cargo flamegraph --bench bench_name` |
-
-Focus analysis on:
-- Top CPU consumers (functions with > 5% CPU time)
-- Heap allocations (functions with excessive allocs/op)
-- Concurrency contention (if applicable)
-
-### Step 4 — Compare Against Baseline
-
-If a baseline file is provided, compare using stack-appropriate tools:
-
-| Stack | Comparison Tool | Example |
-|-------|----------------|---------|
-| Go | `benchstat` | `benchstat baseline.txt current.txt` |
-| Python | `pytest-benchmark --compare` | `pytest --benchmark-compare` |
-| Node.js | manual diff or custom script | compare JSON output |
-| Rust | `critcmp` | `critcmp baseline current` |
-
-Interpret results:
-- **Regression**: > 10% slowdown or > 20% memory increase → flag as regression
-- **Improvement**: > 10% speedup → note as improvement
-- **Neutral**: Within ±10% → acceptable variance
-
-If no baseline exists, save current results as the new baseline and note this in the output.
-
-### Step 5 — Report Regressions and Suggestions
-
-For each detected regression, provide:
-
-1. Function name and benchmark name
-2. Before/after metrics (ns/op, B/op, allocs/op)
-3. Root cause hypothesis (based on pprof data)
-4. Optimization suggestion (concrete, actionable)
-
-Common optimization patterns to suggest (stack-dependent):
-- Reduce heap allocations (pre-allocate, object pooling)
-- Avoid unnecessary boxing/wrapping in hot paths
-- Replace locks with atomic operations where safe
-- Use buffered I/O for sequential file access
-- Minimize serialization/deserialization overhead
+회귀마다 함수/벤치마크 이름, before/after 지표(ns/op, B/op, allocs/op), 프로파일 근거에 기반한 원인 가설, 구체적 최적화 제안을 적습니다. 제안은 alloc 감소, hot path의 불필요한 wrapping 제거, 안전한 경우 lock → atomic 전환, 버퍼드 I/O, 직렬화 비용 축소처럼 실행 가능한 형태로 씁니다.
 
 ## Output Format
 
@@ -154,10 +95,6 @@ Status definitions:
 Regressions format: `FunctionName: +15% ns/op (120ns → 138ns) — likely cause: extra allocation`
 
 ## Result Format
-
-> 이 포맷은 A3 (Agent Result Format) 규격의 구현입니다.
-
-When returning results, use the following format at the end of your response:
 
 ```
 🐙 perf-engineer ─────────────────────

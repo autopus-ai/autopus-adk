@@ -39,9 +39,8 @@ var danglingReferenceBaseline = map[string]bool{
 	// really holds frontend/go/python/rust/typescript.md, the pipeline selects one
 	// per task, and no adapter installs any of them, so Tier 1 selection is
 	// unreachable in a consumer repo.
-	"content/profiles/executor/{name}.md":    true,
-	"content/profiles/executor/{profile}.md": true,
-	"content/profiles/executor/{stack}.md":   true,
+	"content/profiles/executor/{name}.md":  true,
+	"content/profiles/executor/{stack}.md": true,
 
 	// INSTALL or INLINE — PRD and scenario skeletons the plan flow copies to
 	// author prd.md and scenarios.md. The agent needs the body, not the path;

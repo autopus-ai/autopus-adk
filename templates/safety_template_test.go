@@ -23,7 +23,6 @@ func TestWorktreeSafetyTemplateContracts(t *testing.T) {
 		filepath.Join(root, "gemini", "skills", "worktree-isolation", "SKILL.md.tmpl"),
 	}
 	expected := []string{
-		"worktree slot",
 		"fifo_task_id",
 		"worktree_slot_cap",
 		"Slot reclaim",

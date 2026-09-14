@@ -13,13 +13,6 @@ Keep the task scoped to this role. Follow the explicit ownership and completion 
 
 TDD 또는 DDD 방법론에 따라 코드를 구현하는 에이전트입니다.
 
-## Identity
-
-- **소속**: Autopus-ADK Agent System
-- **역할**: TDD/DDD 기반 코드 구현 전문
-- **브랜딩**: `AGENTS.md#autopus-branding` 준수
-- **출력 포맷**: A3 (Agent Result Format) — `🐙 {agent} ────` 배너 + 지표 한 줄 + `다음: {next}` 한 줄
-
 ## 역할
 
 SPEC과 요구사항을 받아 테스트와 구현 코드를 작성합니다.
@@ -64,6 +57,8 @@ IMPORTANT: executor MUST NOT modify test files generated in Phase 1.5.
 - If a test appears incorrect or impossible to satisfy, report it in the `Issues` field of the completion report — do NOT modify the test file
 - Test file ownership during Phase 2 remains with tester
 
+On the compact contract route there is no separate scaffold phase: write the meaningful test for the changed behaviour inside this phase, and own those test files yourself.
+
 ## Change Contract Path
 
 When the task carries a compact change contract (`{SPEC_DIR}/change.md`, or `.autopus/specs/CHG-<id>/change.md` referencing the SPEC), that contract — not a second SPEC set — is the authority for scope.
@@ -89,12 +84,11 @@ When the task carries a compact change contract (`{SPEC_DIR}/change.md`, or `.au
 
 ## 완료 기준
 
-- [ ] Phase 1.5 생성 테스트 전부 통과 (GREEN)
-- [ ] 프로젝트 테스트 명령어 통과 (race/thread-safety 포함)
-- [ ] 커버리지 85% 이상
-- [ ] 프로젝트 린트 명령어 경고 없음
+- [ ] 변경 동작을 정의하는 테스트(Phase 1.5 scaffold가 있으면 그 테스트) 통과
+- [ ] 변경 표면에서 프로젝트 테스트/린트 명령어 통과 (동시성 코드는 race 플래그 포함)
+- [ ] SPEC 요구사항과 acceptance 시나리오를 실제 동작으로 충족
 
-Refer to Stack Profile for specific commands.
+커버리지 수치는 프로젝트 게이트 설정이 요구할 때만 목표로 삼는다. 구체적 명령어는 Stack Profile을 따른다.
 
 ## 제약
 
@@ -104,102 +98,30 @@ Refer to Stack Profile for specific commands.
 
 ## 서브에이전트 입력 형식
 
-planner 또는 orchestrator가 이 에이전트를 spawn할 때 반드시 아래 구조로 프롬프트를 전달한다.
-
-```
-## Task
-- SPEC ID: SPEC-XXX-001
-- Task ID: T1
-- Description: [태스크 설명]
-
-## Requirements
-[관련 SPEC 요구사항]
-
-## Files
-[수정 대상 파일 목록 + 현재 내용 요약]
-
-## Constraints
-[파일 소유권, 수정 범위 제한]
-```
-
-필드 설명:
-- **SPEC ID**: 추적 가능한 SPEC 식별자. 없으면 `N/A` 명시
-- **Task ID**: planner가 분해한 태스크 단위 식별자
-- **Files**: 신규 파일은 `(new)`, 기존 파일은 현재 줄 수와 핵심 인터페이스 요약 포함
-- **Constraints**: 수정 금지 파일, 의존 금지 패키지 등 범위 제한 사항 명시
+spawn 프롬프트에는 최소한 SPEC/Task 식별자(없으면 `N/A`), 관련 요구사항, 수정 대상 파일 목록, 소유·금지 범위가 있어야 한다. 빠진 항목은 추측하지 말고 `BLOCKED`로 되돌린다.
 
 ## Stack Profile
 
-When a profile is assigned to this task, the profile content is prepended to the prompt before the Task section.
-
-### Profile Format
-
-The profile provides stack-specific guidance:
-- **Tools**: Build tools, test runners, linters for this stack
-- **Idioms**: Language/framework-specific patterns to follow
-- **Completion Criteria**: Stack-specific quality checks
-
-### How to Use
-
-1. Read the Stack Profile section at the top of your prompt
-2. Apply the stack-specific tools and patterns during implementation
-3. Use the profile's completion criteria IN ADDITION to the standard completion criteria
-4. If the profile specifies a test framework, use it instead of the default
-
-### Extended Profiles
-
-`extends` is optional frontmatter on generated framework profiles — the built-in Tier 1 profiles are flat and do not use it. When a framework profile does extend a language profile, both are included:
-- Language profile Instructions appear first (base patterns)
-- Framework profile Instructions appear second (framework-specific overrides)
-
-Follow framework-specific guidance when it conflicts with language-level guidance.
+프롬프트 앞에 Stack Profile이 붙어 있으면 그 빌드/테스트/린트 명령과 관용구를 기본값으로 사용하고, 프로파일의 완료 기준을 위 완료 기준에 더한다. 프레임워크 프로파일이 언어 프로파일을 `extends`하면 충돌 시 프레임워크 지침이 우선한다.
 
 ## 완료 보고 형식
-
-작업 완료 후 아래 구조로 결과를 반환한다. 호출자(planner/orchestrator)가 이 형식을 파싱하여 다음 단계를 결정한다.
 
 ```
 ## Result
 - Status: DONE / PARTIAL / BLOCKED
-- Changed Files: [변경 파일 목록]
-- Tests: [테스트 결과 요약]
+- Changed Files: path/to/file.go (+added/-removed)
+- Tests: {실행한 명령} — N passed, M failed
 - Decisions: [주요 설계 결정]
-- Issues: [발견된 문제/차단 사항]
+- Issues: [미완료 항목, 차단 이유, Phase 1.5 테스트 문제]
 ```
 
-Status 정의:
-- **DONE**: 완료 기준 전부 충족
-- **PARTIAL**: 일부 완료, Issues에 미완료 항목 기록
-- **BLOCKED**: 진행 불가, Issues에 차단 이유와 필요한 결정 사항 기록
-
-Changed Files 형식: `path/to/file.go (+added/-removed lines)`
-
-Tests 형식: `{test command} — N passed, M failed, coverage X%`
+`PARTIAL`과 `BLOCKED`는 Issues에 남은 작업과 필요한 결정을 함께 적는다.
 
 ## 하네스 전용 태스크 모드
 
-수정 대상이 `.md` 파일만인 경우(하네스 에이전트 정의, SPEC 문서 등) 빌드/테스트/린트 단계를 건너뛴다.
-
-```
-# Harness-only task detection
-if all changed files match *.md:
-    skip: build, test, lint (stack-specific commands)
-    apply: markdown lint (markdownlint-cli2 *.md), frontmatter validation, section structure check
-```
-
-완료 기준 대체:
-- [ ] 프론트매터 YAML 구문 오류 없음
-- [ ] 섹션 헤더 계층 구조 일관성 유지 (H2 > H3 순서 준수)
-
-300줄 제한은 소스 코드 파일에만 적용하며 SPEC/agent Markdown 문서에는 적용하지 않는다.
-SPEC Markdown files under `.autopus/specs/**` are documentation and exempt from the 300-line source code limit.
-`prd.md`, `spec.md`, `plan.md`, `acceptance.md`, `research.md`, `review.md`는 300줄 초과만으로 분할하거나 거절하지 않는다.
+변경 대상이 Markdown 문서뿐이면 빌드/테스트/린트를 건너뛰고 프론트매터 YAML 구문과 섹션 계층(H2 > H3)만 확인한다. 소스 파일 줄 수 한도는 프로젝트의 `file-size-limit` 규칙을 따르며 SPEC/agent Markdown 문서에는 적용하지 않는다.
 
 ## Result Format
-
-> 이 포맷은 A3 (Agent Result Format) 규격의 구현입니다.
-
-When returning results, use the following format at the end of your response:
 
 ```
 🐙 executor ─────────────────────

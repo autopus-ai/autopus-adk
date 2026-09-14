@@ -14,7 +14,7 @@ import (
 
 // Update applies incremental changes to an existing installation.
 // Falls back to Generate when no manifest exists.
-func (a *Adapter) Update(ctx context.Context, cfg *config.HarnessConfig) (*adapter.PlatformFiles, error) {
+func (a *Adapter) Update(_ context.Context, cfg *config.HarnessConfig) (*adapter.PlatformFiles, error) {
 	oldManifest, err := adapter.LoadManifest(a.root, adapterName)
 	if err != nil {
 		return nil, fmt.Errorf("매니페스트 로드 실패: %w", err)
@@ -39,7 +39,6 @@ func (a *Adapter) Update(ctx context.Context, cfg *config.HarnessConfig) (*adapt
 	if _, err := adapter.ApplyTransaction(a.root, adapterName, plan); err != nil {
 		return nil, errors.Join(err, rollbackHooks())
 	}
-	a.installAntigravityPluginIfAvailable(ctx)
 
 	return pf, nil
 }
@@ -128,6 +127,12 @@ func (a *Adapter) prepareFiles(cfg *config.HarnessConfig) ([]adapter.FileMapping
 	}
 	files = append(files, hookMappings...)
 
+	resourceFiles, err := preparePluginSkillResources(files, cfg)
+	if err != nil {
+		return nil, err
+	}
+	files = append(files, resourceFiles...)
+
 	return sanitizeUnsupportedClaudeTeamMappings(files), nil
 }
 
@@ -157,16 +162,53 @@ func (a *Adapter) buildUpdateTransactionPlan(
 		Files:    finalFiles,
 		Checksum: checksum(fmt.Sprintf("%d", len(finalFiles))),
 	}
-	diff := adapter.BuildManifestDiff(oldManifest, newFiles, []string{
-		".gemini/skills/autopus",
-		".agents/plugins/autopus/skills",
-	})
+	diff := adapter.BuildManifestDiff(oldManifest, newFiles, PruneRoots())
+	diff.Prune = retainUserEditedPrunes(a.root, diff.Prune)
 
 	return adapter.TransactionPlan{
 		Writes:   writes,
 		Removes:  adapter.TransactionRemovesFromManifestDiff(diff, false),
 		Manifest: adapter.ManifestFromFiles(adapterName, pf),
 	}, pf
+}
+
+// PruneRoots lists the trees where a path this adapter previously recorded may
+// be deleted once it stops being generated. Ownership still comes from the
+// manifest — nothing outside the recorded set is ever considered — so shared
+// roots such as .agents/skills stay untouched even when they sit under a
+// listed ancestor. `.agents/commands` and the plugin tree are listed because
+// both once held Antigravity output that `agy` never reads.
+func PruneRoots() []string {
+	return []string{
+		".gemini/skills/autopus",
+		".gemini/commands",
+		".gemini/rules/autopus",
+		".gemini/agents/autopus",
+		antigravityPluginDir,
+		".agents/commands",
+	}
+}
+
+// retainUserEditedPrunes drops obsolete paths whose bytes no longer match what
+// this adapter wrote. A file the user edited is theirs; the transaction journal
+// is a rollback buffer, not a durable backup, so deleting such a file would
+// lose the edit at the next transaction.
+func retainUserEditedPrunes(root string, entries []adapter.ManifestDiffEntry) []adapter.ManifestDiffEntry {
+	kept := make([]adapter.ManifestDiffEntry, 0, len(entries))
+	for _, entry := range entries {
+		data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(entry.Path)))
+		if err != nil {
+			if os.IsNotExist(err) {
+				kept = append(kept, entry)
+			}
+			continue
+		}
+		if adapter.Checksum(string(data)) != entry.OldChecksum {
+			continue
+		}
+		kept = append(kept, entry)
+	}
+	return kept
 }
 
 func antigravityManagedHookAssets(files []adapter.FileMapping) []adapter.FileMapping {

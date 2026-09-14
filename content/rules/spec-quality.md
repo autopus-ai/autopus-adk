@@ -41,31 +41,21 @@ This checklist reviews a four-document SPEC set. It does not apply to a compact 
 
 ## N/A Status Guidance
 
-`N/A` is a first-class checklist status alongside `PASS` and `FAIL`. Use it when a dimension genuinely does not apply to the SPEC under review — never as an escape hatch to avoid analysis. SPEC-SPECREV-001 follow-up made the technical surface uniform: the orchestra parser (`pkg/orchestra/output_parser.go`), the self-verify CLI (`auto spec self-verify --status N/A`), and the persisted review.md `## Checklist Summary` section all accept and surface `N/A` as a distinct count separate from PASS/FAIL.
-
-### When `N/A` is appropriate
+`N/A` is a first-class status alongside `PASS` and `FAIL`, surfaced as its own count by the orchestra parser, `auto spec self-verify --status N/A`, and the persisted `## Checklist Summary`. Use it when a dimension genuinely does not apply — never to avoid analysis.
 
 | Dimension | Allowed scenarios | Required reason content |
 |-----------|------------------|-------------------------|
 | **correctness** (Q-CORR-*) | SPEC modifies only documentation/markdown; no code, configuration, or runtime contract referenced | Identify the doc-only scope; confirm no `[NEW]` runtime symbol claims |
-| **completeness** (Q-COMP-*) | Rare — usually FAIL or PASS. Acceptable only when the slice is owned by an approved sibling SPEC decision or explicitly outside the Outcome Lock | Reference the sibling SPEC ID or the Outcome Lock non-goal that owns the slice |
-| **feasibility** (Q-FEAS-*) | SPEC is purely conceptual (e.g. brainstorm-staged or pre-design) and runtime/module ownership is explicitly out of scope | State the gating step that establishes feasibility (e.g. prototype or approved sibling SPEC decision) |
-| **style** (Q-STYLE-*) | Rare. Acceptable when a section deliberately uses non-standard formatting validated by a linter exception | Cite the specific linter rule and the rationale for the exception |
-| **security** (Q-SEC-*) | SPEC has no trust boundary, secret, credential, privileged path, or external input parsing | Explain why no real attack surface is involved (matches the existing Q-SEC-* `N/A 기준` entries below) |
+| **completeness** (Q-COMP-*) | Rare. Only when the slice is owned by an approved sibling SPEC decision or is an explicit Outcome Lock non-goal | Reference the sibling SPEC ID or the non-goal that owns the slice |
+| **feasibility** (Q-FEAS-*) | SPEC is purely conceptual and runtime/module ownership is explicitly out of scope | State the gating step that will establish feasibility |
+| **style** (Q-STYLE-*) | Rare. A section deliberately uses non-standard formatting validated by a linter exception | Cite the linter rule and the rationale |
+| **security** (Q-SEC-*) | No trust boundary, secret, credential, privileged path, or external input parsing | Explain why no real attack surface is involved |
 
-### Required reason text
-
-Every `N/A` entry MUST carry a non-empty `Reason` field. Empty `N/A` reasons fail validation downstream:
-- `pkg/spec/selfverify.go::AppendSelfVerifyEntry` accepts the status but operators reading `.self-verify.log` will lose context.
-- `pkg/spec/checklist_render.go::RenderChecklistSection` renders the reason into the review.md table; an empty reason becomes `-`, which is indistinguishable from a PASS placeholder and defeats the audit purpose.
-
-Reason length is sanitized to 200 runes (`pkg/spec/provider_health.go::sanitizeNote`) — keep reasons concise and self-contained.
-
-### Anti-patterns
+Every `N/A` entry carries a non-empty reason, concise enough to survive the 200-rune sanitizer: an empty reason renders as `-` in `review.md` and is indistinguishable from a placeholder.
 
 - Do NOT mark `N/A` to silence a checklist item you have not analyzed.
-- Do NOT mark `N/A` for security on SPECs that touch user input, file paths, secrets, or external network calls — even doc-only SPECs that quote untrusted prompt evidence trigger Q-SEC-01.
-- Do NOT mix `N/A` and `PASS` for the same dimension across providers in multi-provider review without explaining the divergence in the merged finding list.
+- Do NOT mark `N/A` for security on a SPEC that touches user input, file paths, secrets, or external network calls — even a doc-only SPEC quoting untrusted prompt evidence triggers Q-SEC-01.
+- Do NOT mix `N/A` and `PASS` for the same dimension across providers without explaining the divergence in the merged finding list.
 
 ## correctness
 

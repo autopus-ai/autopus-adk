@@ -17,8 +17,15 @@ func assertClaudeLatestCLIContract(t *testing.T, fixture latestCLIFixture) {
 		if !strings.HasPrefix(path, ".claude/skills/") {
 			continue
 		}
-		skillCount++
 		parts := strings.Split(path, "/")
+		if len(parts) == 5 && parts[3] == "references" {
+			// Resources are installed beside their skill; the entrypoint layout
+			// contract belongs to the SKILL.md, not to its reference bodies.
+			assert.True(t, strings.HasSuffix(parts[4], ".md"), path)
+			require.True(t, manifestHas(manifest, strings.Join(parts[:3], "/")+"/SKILL.md"), path)
+			continue
+		}
+		skillCount++
 		require.Len(t, parts, 4, path)
 		assert.Equal(t, "SKILL.md", parts[3], path)
 		assert.NotEqual(t, "autopus", parts[2], path)
@@ -65,8 +72,15 @@ func assertCodexLatestCLIContract(t *testing.T, fixture latestCLIFixture) {
 		if !strings.HasPrefix(path, ".codex/skills/") {
 			continue
 		}
-		skillCount++
 		parts := strings.Split(path, "/")
+		if len(parts) == 5 && parts[3] == "references" {
+			// Resources are installed beside their skill; the entrypoint layout
+			// contract belongs to the SKILL.md, not to its reference bodies.
+			assert.True(t, strings.HasSuffix(parts[4], ".md"), path)
+			require.True(t, manifestHas(manifest, strings.Join(parts[:3], "/")+"/SKILL.md"), path)
+			continue
+		}
+		skillCount++
 		require.Len(t, parts, 4, path)
 		assert.True(t, strings.HasPrefix(parts[2], "codex-"), path)
 		assert.Equal(t, "SKILL.md", parts[3], path)

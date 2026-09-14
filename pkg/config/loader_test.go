@@ -65,25 +65,6 @@ design:
 	assert.False(t, cfg.Design.Enabled)
 }
 
-// TestLoad_WorkflowSectionAbsentDefaults verifies the supported workflow
-// defaults are restored when the whole section is absent.
-func TestLoad_WorkflowSectionAbsentDefaults(t *testing.T) {
-	t.Parallel()
-	dir := t.TempDir()
-	content := `
-mode: full
-project_name: test
-platforms:
-  - claude-code
-`
-	err := os.WriteFile(filepath.Join(dir, "autopus.yaml"), []byte(content), 0644)
-	require.NoError(t, err)
-
-	cfg, err := Load(dir)
-	require.NoError(t, err)
-	assert.Equal(t, 85, cfg.Workflow.CoverageThreshold)
-}
-
 func TestLoad_WorkflowSectionPreservesSupportedFields(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()

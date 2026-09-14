@@ -16,6 +16,12 @@ const (
 	adapterName = "omp"
 	cliBinary   = "omp"
 	adapterVer  = "1.0.0"
+
+	// ompRetiredAgentDir held one generated definition per ADK role until the
+	// native cutover. OMP now serves every Autopus workflow from its bundled
+	// registry, so nothing is written here and every manifest-recorded file
+	// left over is retired.
+	ompRetiredAgentDir = ".omp/agents"
 )
 
 // Adapter is the oh-my-pi (omp) platform adapter.
@@ -95,10 +101,20 @@ func (a *Adapter) Generate(ctx context.Context, cfg *config.HarnessConfig) (pf *
 	if err != nil {
 		return nil, fmt.Errorf("매니페스트 로드 실패: %w", err)
 	}
-	if len(writes) == 0 && ompRootedManifestUnchanged(workspace, oldManifest, manifest) {
+	// A re-init over an install that still records .omp/agents would orphan
+	// the retired ADK agent definitions: OMP resolves task agents by exact
+	// name, so a stale project file keeps shadowing the bundled agent of the
+	// same name forever. Only manifest-recorded paths are eligible, so a user
+	// agent OMP never wrote is never touched, and the rooted transaction
+	// snapshots each removal before deleting it.
+	removes := adapter.TransactionRemovesFromManifestDiff(
+		adapter.BuildManifestDiff(oldManifest, files, []string{ompRetiredAgentDir}), false,
+	)
+	if len(writes) == 0 && len(removes) == 0 &&
+		ompRootedManifestUnchanged(workspace, oldManifest, manifest) {
 		manifest = nil
 	}
-	plan := adapter.TransactionPlan{Writes: writes, Manifest: manifest}
+	plan := adapter.TransactionPlan{Writes: writes, Removes: removes, Manifest: manifest}
 	if _, err := applyOMPTransactionAt(workspace, adapterName, plan); err != nil {
 		return nil, err
 	}
@@ -175,27 +191,19 @@ func (a *Adapter) prepareFilesAt(
 	if err := appendFiles(a.prepareRuleMappings()); err != nil {
 		return nil, err
 	}
-	// 2. Agents
-	agentMappings := a.prepareAgentMappings
-	if modelIntegration != nil {
-		agentMappings = modelIntegration.prepareAgentMappings
-	}
-	if err := appendFiles(agentMappings()); err != nil {
-		return nil, err
-	}
-	// 3. Skills
+	// 2. Skills
 	if err := appendFiles(a.prepareSkillMappings(cfg)); err != nil {
 		return nil, err
 	}
-	// 4. Commands
+	// 3. Commands
 	if err := appendFiles(a.prepareCommandMappings(cfg)); err != nil {
 		return nil, err
 	}
-	// 5. Native context bridge (explicit OMP context-policy opt-in only)
+	// 4. Native context bridge (explicit OMP context-policy opt-in only)
 	if err := appendFiles(prepareOMPContextBridgeMappings(cfg)); err != nil {
 		return nil, err
 	}
-	// 6. Runtime/model claims. A plain OMP install needs no base config.
+	// 5. Runtime/model claims. A plain OMP install needs no base config.
 	if modelIntegration != nil {
 		var configMapping adapter.FileMapping
 		if modelIntegration.profile.ConfigMode == config.RoleModelConfigModeProjectManaged {

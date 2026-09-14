@@ -20,9 +20,12 @@ func TestAntigravitySkillCompiler_FullSplitFullKeepsNativeAndMirrorParity(t *tes
 	t.Parallel()
 
 	root := t.TempDir()
-	antigravityAdapter := antigravity.NewWithRoot(root, antigravity.WithoutPluginInstall())
+	antigravityAdapter := antigravity.NewWithRoot(root)
 	cfg := config.DefaultFullConfig("gemini-compiler")
 	cfg.Platforms = []string{"antigravity-cli"}
+	// The long-tail assertions below need the opt-in full catalog; the default
+	// compiler mode installs only the core subset.
+	cfg.Skills.Compiler.Mode = config.SkillCompilerModeFull
 
 	_, err := antigravityAdapter.Generate(context.Background(), cfg)
 	require.NoError(t, err)
@@ -110,7 +113,7 @@ func TestAntigravityAgents_ProjectNativeToolsWithoutChangingBodyOrSkills(t *test
 	root := t.TempDir()
 	cfg := config.DefaultFullConfig("gemini-tools")
 	cfg.Platforms = []string{"antigravity-cli"}
-	_, err := antigravity.NewWithRoot(root, antigravity.WithoutPluginInstall()).Generate(context.Background(), cfg)
+	_, err := antigravity.NewWithRoot(root).Generate(context.Background(), cfg)
 	require.NoError(t, err)
 
 	nativePath := filepath.Join(root, ".gemini", "agents", "autopus", "executor.md")
@@ -149,7 +152,7 @@ func TestAntigravitySkillCompiler_RejectsSymlinkedNativeOrMirrorRootDuringPrune(
 			t.Parallel()
 
 			root := t.TempDir()
-			antigravityAdapter := antigravity.NewWithRoot(root, antigravity.WithoutPluginInstall())
+			antigravityAdapter := antigravity.NewWithRoot(root)
 			cfg := config.DefaultFullConfig("gemini-symlink-prune")
 			cfg.Platforms = []string{"antigravity-cli"}
 			_, err := antigravityAdapter.Generate(context.Background(), cfg)

@@ -19,6 +19,9 @@ func TestAdapter_Update_SplitCompilerPrunesOpenCodeProjectLongTailWhenReturningT
 	splitCfg.Platforms = []string{"codex", "opencode"}
 	splitCfg.Skills.SharedSurface = config.SharedSurfaceCore
 	splitCfg.Skills.Compiler.Mode = config.SkillCompilerModeSplit
+	// metrics is a `product` bundle skill: split mode relocates a long-tail
+	// skill only once something selects it.
+	splitCfg.Skills.Compiler.Bundles = []string{"product"}
 	splitCfg.Skills.Compiler.OpenCodeLongTailTarget = config.SkillLongTailTargetProject
 
 	_, err := a.Generate(context.Background(), splitCfg)
@@ -27,6 +30,7 @@ func TestAdapter_Update_SplitCompilerPrunesOpenCodeProjectLongTailWhenReturningT
 
 	fullCfg := config.DefaultFullConfig("split-opencode")
 	fullCfg.Platforms = []string{"codex", "opencode"}
+	fullCfg.Skills.Compiler.Mode = config.SkillCompilerModeFull
 
 	_, err = a.Update(context.Background(), fullCfg)
 	require.NoError(t, err)

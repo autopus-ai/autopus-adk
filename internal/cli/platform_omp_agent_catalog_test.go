@@ -6,24 +6,26 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/insajin/autopus-adk/pkg/adapter"
 	ompadapter "github.com/insajin/autopus-adk/pkg/adapter/omp"
 	"github.com/insajin/autopus-adk/pkg/config"
 )
 
-func TestOMPAgentCatalog_ConfigOnlyProjectsExactInheritedBaselineAndBlocks(t *testing.T) {
+// OMP ships its agents inside the binary and Autopus installs none, so a
+// workspace with no project agent file is the normal state. It must project the
+// five bundled agents and must not block the platform on absent local files.
+func TestOMPAgentCatalog_ProjectsBundledRegistryWithoutProjectDefinitions(t *testing.T) {
 	root := writeOMPConfigOnlyWorkspace(t)
 	runner := &ompCLIFakeRunner{catalog: ompCLIReadyCatalogJSON()}
 	deps := normalizeOMPPlatformDependencies(ompPlatformDependencies{
 		newRunner: func() ompadapter.OMPModelCatalogRunner { return runner },
 	})
+	require.NoFileExists(t, filepath.Join(root, ".omp", "agents", "reviewer.md"))
 
 	status := decodeOMPAgentCatalogStatus(t, executeOMPSubcommand(
 		t, newStatusCmdWithOMPDependencies(deps), "--dir", root, "--platform", "omp", "--json",
@@ -33,181 +35,110 @@ func TestOMPAgentCatalog_ConfigOnlyProjectsExactInheritedBaselineAndBlocks(t *te
 		t, newPlatformOMPExplainCmd(&dir, deps), "--json",
 	))
 
-	assertOMPAgentCatalogBaseline(t, status.Models.Models, false)
-	assertOMPAgentCatalogBaseline(t, explain.Models.Models, false)
+	assertOMPAgentCatalogBaseline(t, status.Models.Models)
+	assertOMPAgentCatalogBaseline(t, explain.Models.Models)
 	assert.Equal(t, status.Models.Models, explain.Models.Models)
 	for _, projection := range []ompModelOperatorProjection{status.Models, explain.Models} {
-		assert.Equal(t, "blocked", projection.AgentCatalogStatus)
-		assert.Equal(t, "agent_catalog_incomplete", projection.AgentCatalogReason)
-		assert.Equal(t, 16, projection.ExpectedAgents)
-		assert.Zero(t, projection.InstalledAgents)
-		assert.Zero(t, projection.VerifiedAgents)
+		assert.Equal(t, "ready", projection.AgentCatalogStatus)
+		assert.Equal(t, "native_agent_registry", projection.AgentCatalogReason)
+		assert.Equal(t, "omp_bundled_registry", projection.AgentCatalogSource)
+		assert.Equal(t, 5, projection.ExpectedAgents)
+		assert.Zero(t, projection.ShadowedAgents)
 	}
-	assert.Equal(t, "blocked", status.Status)
-	assert.Equal(t, "blocked", explain.Status)
-	assert.Contains(t, status.Blockers, "agents:agent_catalog_incomplete")
-	assert.Contains(t, explain.Blockers, "agents:agent_catalog_incomplete")
-	assert.Empty(t, runner.calls, "an inherited catalog must not probe provider routing")
+	assert.Equal(t, "ready", status.Status)
+	assert.Equal(t, "ready", explain.Status)
+	assert.Empty(t, status.Blockers)
+	assert.Empty(t, explain.Blockers)
+	assert.Empty(t, runner.calls, "an inherited registry must not probe provider routing")
 }
 
-func TestOMPAgentCatalog_GeneratedWorkspaceVerifiesAllManifestDefinitionsAndIsReady(t *testing.T) {
+// A project file whose name matches a bundled agent wins OMP's exact-name
+// resolution and silently replaces it. That is observable locally and is the
+// one thing this projection can honestly report about the registry.
+func TestOMPAgentCatalog_ReportsProjectFileShadowingBundledAgent(t *testing.T) {
 	root := writeOMPConfigOnlyWorkspace(t)
-	cfg, err := config.LoadPreview(root)
-	require.NoError(t, err)
-	_, err = ompadapter.NewWithRoot(root).Generate(context.Background(), cfg)
-	require.NoError(t, err)
+	require.NoError(t, os.MkdirAll(filepath.Join(root, ".omp", "agents"), 0o750))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(root, ".omp", "agents", "reviewer.md"), []byte("---\nname: reviewer\n---\n"), 0o600,
+	))
 
-	manifest, err := adapter.LoadManifest(root, "omp")
-	require.NoError(t, err)
-	require.NotNil(t, manifest)
-	mapping := config.OMPAgentRoleMapping()
-	for _, name := range sortedOMPAgentCatalogNames(mapping) {
-		path := filepath.ToSlash(filepath.Join(".omp", "agents", name+".md"))
-		entry, tracked := manifest.Files[path]
-		require.True(t, tracked, "generated definition is absent from manifest: %s", path)
-		data, readErr := os.ReadFile(filepath.Join(root, filepath.FromSlash(path)))
-		require.NoError(t, readErr)
-		assert.Equal(t, entry.Checksum, adapter.Checksum(string(data)), path)
-	}
+	projection := buildOMPPlatformProjection(
+		context.Background(), root, &ompCLIFakeRunner{catalog: ompCLIReadyCatalogJSON()},
+		configTimeForOMPAgentCatalog(),
+	)
 
-	runner := &ompCLIFakeRunner{catalog: ompCLIReadyCatalogJSON()}
-	projection := buildOMPPlatformProjection(context.Background(), root, runner, configTimeForOMPAgentCatalog())
-	assertOMPAgentCatalogBaseline(t, projection.Models.Models, true)
-	assert.Equal(t, "ready", projection.Models.AgentCatalogStatus)
-	assert.Equal(t, 16, projection.Models.ExpectedAgents)
-	assert.Equal(t, 16, projection.Models.InstalledAgents)
-	assert.Equal(t, 16, projection.Models.VerifiedAgents)
-	assert.Equal(t, "ready", projection.Status)
-	assert.NotContains(t, projection.Blockers, "agents:agent_catalog_incomplete")
-	assert.False(t, projection.Models.ReceiptVerified,
-		"installed-definition integrity must not claim routing receipt verification")
+	assert.Equal(t, "degraded", projection.Models.AgentCatalogStatus)
+	assert.Equal(t, "native_agent_shadowed", projection.Models.AgentCatalogReason)
+	assert.Equal(t, 1, projection.Models.ShadowedAgents)
+	assert.Equal(t, "degraded", projection.Status)
+	assert.Contains(t, projection.Blockers, "agents:native_agent_shadowed")
 	for _, row := range projection.Models.Models {
-		assert.True(t, row.DefinitionVerified, row.Agent)
-		assert.False(t, row.Verified, "definition verification must remain separate from routing: %s", row.Agent)
+		assert.Equal(t, row.Agent == "reviewer", row.Shadowed, row.Agent)
 	}
-	corruptName := sortedOMPAgentCatalogNames(mapping)[0]
-	corruptPath := filepath.Join(root, ".omp", "agents", corruptName+".md")
-	original, err := os.ReadFile(corruptPath)
-	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(corruptPath, append(original, []byte("\ncorrupted\n")...), 0o600))
-	corrupt := buildOMPPlatformProjection(context.Background(), root, runner, configTimeForOMPAgentCatalog())
-	assert.Equal(t, "blocked", corrupt.Models.AgentCatalogStatus)
-	assert.Equal(t, "agent_catalog_incomplete", corrupt.Models.AgentCatalogReason)
-	assert.Equal(t, 16, corrupt.Models.InstalledAgents)
-	assert.Equal(t, 15, corrupt.Models.VerifiedAgents)
-	assert.Equal(t, "blocked", corrupt.Status)
-	assert.Contains(t, corrupt.Blockers, "agents:agent_catalog_incomplete")
-	require.Len(t, corrupt.Models.Models, 16)
-	assert.Equal(t, corruptName, corrupt.Models.Models[0].Agent)
-	assert.False(t, corrupt.Models.Models[0].DefinitionVerified)
-	assert.Empty(t, runner.calls, "definition verification must not probe provider routing")
 }
 
-func TestOMPAgentCatalog_RejectsSymlinkedManifestAndDefinition(t *testing.T) {
-	t.Run("manifest", func(t *testing.T) {
-		root := writeOMPConfigOnlyWorkspace(t)
-		cfg, err := config.LoadPreview(root)
-		require.NoError(t, err)
-		_, err = ompadapter.NewWithRoot(root).Generate(context.Background(), cfg)
-		require.NoError(t, err)
-		manifestPath := filepath.Join(root, ".autopus", "omp-manifest.json")
-		data, err := os.ReadFile(manifestPath)
-		require.NoError(t, err)
-		outside := filepath.Join(t.TempDir(), "manifest.json")
-		require.NoError(t, os.WriteFile(outside, data, 0o600))
-		require.NoError(t, os.Remove(manifestPath))
-		if err := os.Symlink(outside, manifestPath); err != nil {
-			t.Skipf("symlink unavailable: %v", err)
-		}
-		projection := buildOMPPlatformProjection(
-			context.Background(), root, &ompCLIFakeRunner{}, configTimeForOMPAgentCatalog(),
-		)
-		assert.Equal(t, "blocked", projection.Models.AgentCatalogStatus)
-		assert.Equal(t, 16, projection.Models.InstalledAgents)
-		assert.Zero(t, projection.Models.VerifiedAgents)
-	})
+// A symlink at the same path shadows the bundled agent just as a regular file
+// does, so the probe must stat without following instead of ignoring it.
+func TestOMPAgentCatalog_TreatsSymlinkedDefinitionAsShadow(t *testing.T) {
+	root := writeOMPConfigOnlyWorkspace(t)
+	require.NoError(t, os.MkdirAll(filepath.Join(root, ".omp", "agents"), 0o750))
+	outside := filepath.Join(t.TempDir(), "task.md")
+	require.NoError(t, os.WriteFile(outside, []byte("---\nname: task\n---\n"), 0o600))
+	link := filepath.Join(root, ".omp", "agents", "task.md")
+	if err := os.Symlink(outside, link); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
 
-	t.Run("definition", func(t *testing.T) {
-		root := writeOMPConfigOnlyWorkspace(t)
-		cfg, err := config.LoadPreview(root)
-		require.NoError(t, err)
-		_, err = ompadapter.NewWithRoot(root).Generate(context.Background(), cfg)
-		require.NoError(t, err)
-		name := sortedOMPAgentCatalogNames(config.OMPAgentRoleMapping())[0]
-		definitionPath := filepath.Join(root, ".omp", "agents", name+".md")
-		data, err := os.ReadFile(definitionPath)
-		require.NoError(t, err)
-		outside := filepath.Join(t.TempDir(), name+".md")
-		require.NoError(t, os.WriteFile(outside, data, 0o600))
-		require.NoError(t, os.Remove(definitionPath))
-		if err := os.Symlink(outside, definitionPath); err != nil {
-			t.Skipf("symlink unavailable: %v", err)
-		}
-		projection := buildOMPPlatformProjection(
-			context.Background(), root, &ompCLIFakeRunner{}, configTimeForOMPAgentCatalog(),
-		)
-		assert.Equal(t, "blocked", projection.Models.AgentCatalogStatus)
-		assert.Equal(t, 15, projection.Models.InstalledAgents)
-		assert.Equal(t, 15, projection.Models.VerifiedAgents)
-	})
+	projection := buildOMPPlatformProjection(
+		context.Background(), root, &ompCLIFakeRunner{}, configTimeForOMPAgentCatalog(),
+	)
+
+	assert.Equal(t, "degraded", projection.Models.AgentCatalogStatus)
+	assert.Equal(t, 1, projection.Models.ShadowedAgents)
 }
 
-func TestOMPAgentCatalog_SelectedRoutingOverlaysAliasAndExactSelector(t *testing.T) {
+// A selected profile binds a concrete model to each bundled agent through the
+// native override key. No alias appears because none is emitted any more.
+func TestOMPAgentCatalog_SelectedRoutingOverlaysNativeOverrideAndExactSelector(t *testing.T) {
 	root, runner, _ := writeSelectedOMPProfile(t)
 	projection := buildOMPPlatformProjection(context.Background(), root, runner, configTimeForOMPAgentCatalog())
-	mapping := config.OMPAgentRoleMapping()
-	require.Len(t, projection.Models.Models, len(mapping))
+	natives := config.OMPNativeAgentNames()
+	require.Len(t, projection.Models.Models, len(natives))
 
 	for index, row := range projection.Models.Models {
-		role := mapping[row.Agent]
-		require.NotEmpty(t, role, row.Agent)
-		assert.Equal(t, sortedOMPAgentCatalogNames(mapping)[index], row.Agent)
-		assert.Equal(t, "@"+role, row.ModelAlias, row.Agent)
+		assert.Equal(t, natives[index], row.Agent)
+		assert.Equal(t, config.OMPNativeAgentModelOverridesKey, row.ModelSource, row.Agent)
+		assert.NotContains(t, row.ModelSource, "@", row.Agent)
 		require.NotEmpty(t, row.Provider, row.Agent)
 		require.NotEmpty(t, row.Model, row.Agent)
 		require.NotEmpty(t, row.Thinking, row.Agent)
 		assert.Equal(t, fmt.Sprintf("%s/%s:%s", row.Provider, row.Model, row.Thinking),
 			row.EffectiveSelector, row.Agent)
-		assert.False(t, row.DefinitionVerified, "config-only workspace has no installed definition: %s", row.Agent)
+		assert.False(t, row.Shadowed, row.Agent)
 	}
-	assert.Equal(t, "blocked", projection.Models.AgentCatalogStatus)
-	assert.Contains(t, projection.Blockers, "agents:agent_catalog_incomplete")
+	assert.Equal(t, "ready", projection.Models.AgentCatalogStatus)
+	assert.NotContains(t, projection.Blockers, "agents:native_agent_shadowed")
 }
 
-func assertOMPAgentCatalogBaseline(t *testing.T, rows []ompEffectiveModelProjection, installed bool) {
+func assertOMPAgentCatalogBaseline(t *testing.T, rows []ompEffectiveModelProjection) {
 	t.Helper()
-	mapping := config.OMPAgentRoleMapping()
-	names := sortedOMPAgentCatalogNames(mapping)
-	require.Len(t, mapping, 16)
-	require.Len(t, rows, 16)
+	natives := config.OMPNativeAgentNames()
+	require.Equal(t, []string{"scout", "reviewer", "security-reviewer", "task", "sonic"}, natives)
+	require.Len(t, rows, len(natives))
 	for index, row := range rows {
-		name := names[index]
-		capability, err := config.OMPAgentCapability(name)
-		require.NoError(t, err)
-		assert.Equal(t, name, row.Agent)
-		assert.Equal(t, config.OMPAgentRoleName(name), row.Role, name)
-		assert.Equal(t, capability, row.Capability, name)
-		assert.Equal(t, "inherit", row.ModelAlias, name)
-		assert.Empty(t, row.EffectiveSelector, name)
-		assert.Equal(t, "inherited", row.Status, name)
-		assert.Equal(t, "profile_not_selected", row.Reason, name)
-		assert.Equal(t, filepath.ToSlash(filepath.Join(".omp", "agents", name+".md")), row.DefinitionPath)
-		assert.Equal(t, installed, row.DefinitionVerified, name)
-		if installed {
-			assert.Equal(t, "installed", row.InstallStatus, name)
-		} else {
-			assert.Equal(t, "missing", row.InstallStatus, name)
-		}
+		native := natives[index]
+		policy, err := config.ResolveOMPPolicyAgent(native)
+		require.NoError(t, err, native)
+		assert.Equal(t, native, row.Agent)
+		assert.Equal(t, policy.Role, row.Role, native)
+		assert.Equal(t, policy.Capability, row.Capability, native)
+		assert.Equal(t, "inherit", row.ModelSource, native)
+		assert.Equal(t, "omp_bundled_registry", row.Source, native)
+		assert.Empty(t, row.EffectiveSelector, native)
+		assert.Equal(t, "inherited", row.Status, native)
+		assert.Equal(t, "profile_not_selected", row.Reason, native)
+		assert.False(t, row.Shadowed, native)
 	}
-}
-
-func sortedOMPAgentCatalogNames(mapping map[string]string) []string {
-	names := make([]string, 0, len(mapping))
-	for name := range mapping {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return names
 }
 
 func writeOMPConfigOnlyWorkspace(t *testing.T) string {

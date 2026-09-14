@@ -37,9 +37,9 @@ func (r ompModelIntegrationExecRunner) RunWithInput(
 	input []byte,
 	args ...string,
 ) ([]byte, error) {
-	if executable != cliBinary || !bytes.Equal(input, ompModelRoleRPCRequest) ||
-		!SafeOMPModelRoleRPCArgs(args) {
-		return nil, fmt.Errorf("unsafe OMP model role command")
+	if executable != cliBinary || !bytes.Equal(input, ompModelRPCStateRequest) ||
+		!SafeOMPModelSelectorRPCArgs(args) {
+		return nil, fmt.Errorf("unsafe OMP model selector command")
 	}
 	if r.pinErr != nil {
 		return nil, r.pinErr

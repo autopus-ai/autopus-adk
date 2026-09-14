@@ -51,40 +51,13 @@ EARS (Easy Approach to Requirements Syntax) 형식으로 요구사항을 작성�
 - 동시성 충돌
 - 권한 부족
 
-### 4단계: OKR 정렬
+### 4단계: 상위 목표 정렬과 이해관계자 (해당 시)
 
-기능이 상위 목표에 어떻게 기여하는지 명시합니다:
+프로젝트에 OKR이 정의돼 있으면 이 기능이 기여하는 Objective, 측정 가능한 Key Result, 기여 방식(direct / indirect / enabler)을 한 줄씩 적습니다. 정의돼 있지 않으면 건너뜁니다.
 
-| 항목 | 설명 |
-|------|------|
-| **Objective** | 이 기능이 기여하는 상위 목표 |
-| **Key Result** | 이 기능으로 달성 가능한 측정 가능한 결과 |
-| **Alignment** | 직접 기여(Direct) / 간접 기여(Indirect) / 지원(Enabler) |
+의사결정자와 핵심 사용자의 요구는 요구사항에 직접 반영하고, 그 밖의 이해관계자는 알림 대상으로만 남깁니다. 이해관계자 분석 자체가 작업의 본체라면 product-discovery 또는 prd 스킬을 사용합니다.
 
-OKR이 프로젝트에 정의되어 있지 않으면 이 단계를 건너뜁니다.
-
-### 5단계: 이해관계자 매핑
-
-기능에 영향을 받는 이해관계자를 Power/Interest 그리드로 분류:
-
-```
-           High Power
-    ┌──────────┬──────────┐
-    │  Manage  │  Engage  │
-    │ closely  │ actively │
-Low ├──────────┼──────────┤ High
-Int │ Monitor  │   Keep   │ Interest
-    │  only    │ informed │
-    └──────────┴──────────┘
-           Low Power
-```
-
-- **Engage actively** (High Power + High Interest): 의사결정자, 핵심 사용자 → 요구사항 심층 반영
-- **Manage closely** (High Power + Low Interest): 경영진, 리더 → 정기 업데이트
-- **Keep informed** (Low Power + High Interest): 파워 유저, 커뮤니티 → 변경 알림
-- **Monitor** (Low Power + Low Interest): 간접 영향 그룹 → 최소 커뮤니케이션
-
-### 6단계: 구현 우선순위 결정
+### 5단계: 구현 우선순위 결정
 
 MoSCoW 방식으로 우선순위를 분류합니다:
 - **Must Have**: 반드시 필요한 핵심 기능

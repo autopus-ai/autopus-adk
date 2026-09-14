@@ -55,7 +55,7 @@ func TestUpdate_RemovesRetiredClaudeSurfaceWithoutManifest(t *testing.T) {
 
 	// The relocation target and the native skill layout must both be live.
 	assert.FileExists(t, filepath.Join(root, ".claude", "hooks", "autopus", "conditional", "lore-commit.md"))
-	assert.FileExists(t, filepath.Join(root, ".claude", "skills", "adaptive-quality", "SKILL.md"))
+	assert.FileExists(t, filepath.Join(root, ".claude", "skills", "planning", "SKILL.md"))
 	// No empty husk left where the retired layout used to live.
 	assert.NoDirExists(t, filepath.Join(root, ".claude", "skills", "autopus"))
 }

@@ -57,7 +57,7 @@ func TestOMPStandaloneModelWriters_AncestorSwapStaysOnOpenedWorkspace(t *testing
 		t.Cleanup(func() { require.NoError(t, workspace.Close()) })
 		swap()
 		_, err = writeOMPModelOverlayAt(workspace, OMPModelOverlayWriteInput{
-			Projection: OMPModelOverlayProjection{ModelRoles: map[string]string{"task": "p/m"}},
+			Projection: OMPModelOverlayProjection{AgentModelOverrides: map[string]string{"task": "p/m"}},
 		})
 		require.NoError(t, err)
 		assert.Contains(t, string(mustReadOMPReviewFile(t, filepath.Join(moved, DefaultOMPModelOverlayPath))), "task: p/m")

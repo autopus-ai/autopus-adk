@@ -1,6 +1,6 @@
 # OMP Native Task Isolation
 
-This skill defines isolation policy for Autopus executor fan-out on OMP. The native `task` tool
+This skill defines isolation policy for implementation fan-out on OMP. The native `task` tool
 owns workspace materialization, patch/branch integration, and cleanup.
 
 ## Activation
@@ -21,9 +21,11 @@ not permission to imitate it with shell commands.
 
 Inspect the current dynamic schema before each wave. When it exposes batch mode, dispatch
 independent isolated work in one batch with top-level `i` and shared `context`. Each item uses a
-unique stable name, a discovered custom role when needed, a complete assignment, the discovered
-isolation field enabled, the strict five-field receipt schema, and `schemaMode: strict`. When batch
-mode is absent, dispatch the corresponding flat calls and reference one shared `local://` context.
+unique stable name, a complete assignment, the discovered isolation field enabled, the strict
+five-field receipt schema, and `schemaMode: strict`. Writing items omit the agent field so they
+run on the bundled `task` agent; select `scout`, `reviewer`, `security-reviewer`, or `sonic` only
+when that agent's built-in boundary is what the item needs. When batch mode is absent, dispatch
+the corresponding flat calls and reference one shared `local://` context.
 
 The parent must check dynamic availability before adding `isolated` or `effort`. `isolated` does
 not exist when `task.isolation.mode = none`, and `effort` does not exist when its setting is off.
@@ -40,8 +42,9 @@ Before fan-out:
    schema registry, or other mutable authority;
 5. put cross-task interfaces in top-level `context` before dispatch.
 
-A maximum of five Autopus executor items may be active in one wave. Queue overflow by task id.
-This policy is stricter than OMP's session-wide semaphore and prevents excessive integration churn.
+A maximum of five isolated implementation items may be active in one wave. Queue overflow by
+task id. This policy is stricter than OMP's session-wide semaphore and prevents excessive
+integration churn.
 
 ## Tool-Owned Lifecycle
 

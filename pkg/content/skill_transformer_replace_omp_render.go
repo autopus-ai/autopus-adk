@@ -3,7 +3,13 @@ package content
 import (
 	"strconv"
 	"strings"
+
+	"github.com/insajin/autopus-adk/pkg/config"
 )
+
+// ompNativeDefaultAgent is the bundled OMP agent a task runs on when the
+// dispatch omits the agent field.
+const ompNativeDefaultAgent = "task"
 
 func parseOMPLegacyCalls(body string) []ompLegacyDispatch {
 	calls := ompLegacyCallRe.FindAllStringSubmatch(body, -1)
@@ -62,10 +68,10 @@ func renderOMPTaskBatch(dispatches []ompLegacyDispatch) string {
 	b.WriteString("  \"context\": \"Shared goal, constraints, owned-path boundaries, and cross-task contracts.\",\n")
 	b.WriteString("  \"tasks\": [\n")
 	for i, dispatch := range dispatches {
-		agent := strings.TrimSpace(dispatch.agent)
-		defaultAgent := agent == "" || agent == "task"
-		name := agent
-		if defaultAgent {
+		role := strings.TrimSpace(dispatch.agent)
+		agent := ompNativeDispatchAgent(role)
+		name := role
+		if name == "" {
 			name = "Worker"
 		}
 		taskText := strings.TrimSpace(dispatch.task)
@@ -77,7 +83,7 @@ func renderOMPTaskBatch(dispatches []ompLegacyDispatch) string {
 		}
 		b.WriteString("    {\n")
 		b.WriteString("      \"name\": " + strconv.Quote(name) + ",\n")
-		if !defaultAgent {
+		if agent != "" {
 			b.WriteString("      \"agent\": " + strconv.Quote(agent) + ",\n")
 		}
 		b.WriteString("      \"task\": " + strconv.Quote(taskText) + ",\n")
@@ -94,6 +100,29 @@ func renderOMPTaskBatch(dispatches []ompLegacyDispatch) string {
 	return b.String()
 }
 
+// ompNativeDispatchAgent resolves a legacy dispatch role to the OMP agent that
+// actually exists. OMP registers five agents, so the retired per-role names
+// collapse onto them; `task` is the bundled default and stays implicit. An
+// author-declared name outside the role catalog is left alone because it may
+// be a genuine project agent, and an unusable token is dropped rather than
+// emitted as a call to an agent nothing registers.
+func ompNativeDispatchAgent(role string) string {
+	role = strings.TrimSpace(role)
+	if role == "" {
+		return ""
+	}
+	if native, err := config.OMPNativeAgentForRole(role); err == nil {
+		if native == ompNativeDefaultAgent {
+			return ""
+		}
+		return native
+	}
+	if isOMPSafeIdentifier(role) {
+		return role
+	}
+	return ""
+}
+
 func writeOMPReceiptSchema(b *strings.Builder, indent string) {
 	b.WriteString(indent + "\"outputSchema\": {\n")
 	b.WriteString(indent + "  \"type\": \"object\",\n")
@@ -107,37 +136,4 @@ func writeOMPReceiptSchema(b *strings.Builder, indent string) {
 	b.WriteString(indent + "    \"next_required_step\": {\"type\": \"string\"}\n")
 	b.WriteString(indent + "  }\n")
 	b.WriteString(indent + "}")
-}
-
-func appendOMPCoordinationContract(body string) string {
-	if strings.Contains(body, "## OMP Coordination Contract") {
-		return body
-	}
-	contract := strings.Join([]string{
-		"## OMP Coordination Contract",
-		"",
-		"### Ownership gate",
-		"",
-		"- Choose exactly one topology before dispatch: `OMP-local` or `Orca-supervised`.",
-		"- `OMP-local` is the default. The current OMP session is the sole DAG owner and uses its native `task`, `hub`, and `todo` tools.",
-		"- `Orca-supervised` is allowed only when the user explicitly selects a supervised or durable topology. Before any Orca orchestration, run and read `orca skills get orchestration --full`.",
-		"- The single DAG owner invariant is mandatory: when Orca owns the DAG, the OMP session does not dispatch a competing DAG; when OMP owns it, Orca does not dispatch one.",
-		"",
-		"### Native field contracts",
-		"",
-		renderOMPTaskBatch([]ompLegacyDispatch{{
-			task:     "Complete one self-contained assignment and return only the required receipt.",
-			isolated: true,
-		}}),
-		"",
-		"- Inspect the current dynamic `task` schema before dispatch. Use the shown batch shape only when it exposes top-level `context` and `tasks`; otherwise use the discovered flat shape and place shared context in `local://`.",
-		"- Every model-authored `task`, `hub`, and `todo` call includes a concise top-level `i` while `tools.intentTracing` is enabled.",
-		"- Every `tasks` item uses `name` when a stable agent id is useful and carries per-item `task`, `outputSchema`, and `schemaMode`. Set `agent` only to select a custom agent type; omit it for OMP's default general worker.",
-		"- `isolated` and `effort` are conditional dynamic fields. Add `isolated` or `effort` only after the current schema exposes that exact field; otherwise omit it.",
-		"- `outputSchema` is the strict five-field receipt JSON Schema shown in the normalized batch: `owned_paths`, `changed_files`, `verification`, `blockers`, and `next_required_step`.",
-		"- Retain the agent id returned by `task`. For a non-isolated or otherwise revivable worker, every follow-up goes to that same id with `hub` send fields `{\"i\":\"Following up with an existing worker\",\"op\":\"send\",\"to\":\"<same agent id>\",\"message\":\"<follow-up>\"}`; do not create a replacement merely to continue revivable work.",
-		"- An isolated worker is terminal after workspace cleanup and cannot be revived. A correction is a new explicitly named `task` item with freshly declared ownership and context, not a `hub` send to the terminal agent id.",
-		"- The parent OMP session owns progress. A `todo` call contains one top-level operation and intent: initialize with `{\"i\":\"Updating parent-owned progress\",\"op\":\"init\",\"list\":[{\"phase\":\"Implementation\",\"items\":[\"...\"]}]}`, advance with `{\"i\":\"Updating parent-owned progress\",\"op\":\"start\",\"task\":\"<exact task content>\"}`, complete with `{\"i\":\"Updating parent-owned progress\",\"op\":\"done\",\"task\":\"<exact task content>\"}`, and block with `{\"i\":\"Updating parent-owned progress\",\"op\":\"block\",\"task\":\"<exact task content>\",\"reason\":\"<reason>\"}`.",
-	}, "\n")
-	return strings.TrimRight(body, "\n") + "\n\n" + contract + "\n"
 }

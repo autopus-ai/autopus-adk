@@ -37,7 +37,7 @@ func TestGenerate_SecondManagedHookFailureRestoresFirstAndManifest(t *testing.T)
 		t.Run(setup.name, func(t *testing.T) {
 			t.Parallel()
 			root := t.TempDir()
-			antigravityAdapter := NewWithRoot(root, WithoutPluginInstall())
+			antigravityAdapter := NewWithRoot(root)
 			cfg := config.DefaultFullConfig("gemini-only")
 			_, err := antigravityAdapter.Generate(context.Background(), cfg)
 			require.NoError(t, err)
@@ -86,7 +86,7 @@ func TestGenerate_SecondManagedHookFailureRestoresFirstAndManifest(t *testing.T)
 func TestGenerate_ManifestSaveFailureRestoresManagedHooks(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
-	antigravityAdapter := NewWithRoot(root, WithoutPluginInstall())
+	antigravityAdapter := NewWithRoot(root)
 	cfg := config.DefaultFullConfig("gemini-only")
 	_, err := antigravityAdapter.Generate(context.Background(), cfg)
 	require.NoError(t, err)
@@ -129,7 +129,7 @@ func TestGenerate_ManifestSaveFailureRemovesNewManagedHookDirectories(t *testing
 	manifestPath := filepath.Join(root, ".autopus", adapterName+"-manifest.json")
 	require.NoError(t, os.MkdirAll(manifestPath, 0o755))
 
-	_, err := NewWithRoot(root, WithoutPluginInstall()).Generate(
+	_, err := NewWithRoot(root).Generate(
 		context.Background(), config.DefaultFullConfig("gemini-only"),
 	)
 	require.Error(t, err)

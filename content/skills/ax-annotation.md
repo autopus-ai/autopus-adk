@@ -17,6 +17,27 @@ so the tag definitions, trigger conditions, lifecycle rules, and per-file limits
 below are authoritative for this installation. This skill provides actionable
 guidance for WHEN and HOW agents apply @AX tags.
 
+## Activation
+
+@AX annotation is opt-in. It is not a pipeline phase and no workflow tags files
+on its own.
+
+Run it only when one of these is true:
+
+- the user asks for @AX tags, or names this skill;
+- the run passes the annotation opt-in, so `auto spec gates <SPEC-ID>
+  --annotation` evaluates the `annotation` gate and returns `required`.
+
+Without that opt-in the `annotation` gate is `not_applicable`, the pipeline
+records no annotation step, and completion evidence reads `@AX: not requested`.
+A repository that has never adopted @AX therefore stays untagged instead of
+accumulating machine-authored comments nobody asked for.
+
+When the gate is opted in but the reference source or the annotator surface is
+missing, report `blocked` with the fallback "record modified files, defer
+tagging" rather than looping. Nothing to annotate is `not_applicable`, not
+`blocked`.
+
 ## Canonical Source
 
 Do NOT redefine tag rules elsewhere. Treat the sections of this document as the
@@ -54,7 +75,7 @@ Apply `@AX:TODO` when:
 
 ## Application Workflow
 
-Execute after the GREEN or REFACTOR phase of TDD:
+Execute after the GREEN or REFACTOR phase of TDD, once the opt-in above is satisfied:
 
 1. **Scan** — list all files modified in this task
 2. **Detect triggers** — for each file, check NOTE / WARN / ANCHOR / TODO conditions above

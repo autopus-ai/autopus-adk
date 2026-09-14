@@ -13,13 +13,8 @@ import (
 // state differently — installed paths, execution model, native routing — stays
 // in that adapter's own template.
 
-// RootDocInstalledComponents returns the "Installed Components" section. The
-// list is pinned against the real install manifests by
-// pkg/adapter/root_doc_components_test.go in both directions: nothing listed
-// here may be absent from the manifests, and no manifest path family may go
-// unlisted. Restating the installed surface in two adapter templates is what
-// let the list drift into naming only Codex and OpenCode while five platforms
-// were installed.
+// RootDocInstalledComponents returns native discovery roots. Detailed generated
+// file inventories remain in each platform's ownership manifest.
 func RootDocInstalledComponents() string {
 	return mustReadSharedFragment("shared/root-doc-installed.md.tmpl")
 }

@@ -16,7 +16,7 @@ level1_metadata: "RED-GREEN-REFACTOR 사이클, 사전 합의된 seam에서만 �
 
 ## 핵심 원칙
 
-**테스트 없이 코드를 작성하지 않는다.** 이 규칙을 위반하면 작업을 거부합니다.
+**테스트 없이 코드를 작성하지 않는다.** 동작이 바뀌는 코드는 그 동작을 정의하는 테스트를 먼저 쓰고, 테스트 없이 동작을 바꾸는 요청은 거부한다. 읽기 전용 조사, 문서, 기계적 리네이밍처럼 관찰 가능한 동작이 바뀌지 않는 작업에는 적용하지 않는다.
 
 좋은 테스트는 **public interface를 통해 동작을 검증**하며 구현 세부를 모른다. 코드가 통째로
 바뀌어도 테스트는 바뀌지 않아야 한다. 좋은 테스트는 명세처럼 읽힌다: "유효한 장바구니로 결제할
@@ -94,38 +94,9 @@ func TestCalculate_WithZeroInput_ReturnsError(t *testing.T) {
 4. 테스트는 항상 그린 상태 유지
 ```
 
-## Go 테스트 패턴
+## 테스트 작성 패턴
 
-```go
-func TestMyFunction(t *testing.T) {
-    t.Parallel()
-
-    tests := []struct {
-        name    string
-        input   int
-        want    int
-        wantErr bool
-    }{
-        {"정상 입력", 5, 25, false},
-        {"영 입력", 0, 0, true},
-        {"음수 입력", -1, 0, true},
-    }
-
-    for _, tt := range tests {
-        tt := tt
-        t.Run(tt.name, func(t *testing.T) {
-            t.Parallel()
-            got, err := MyFunction(tt.input)
-            if tt.wantErr {
-                require.Error(t, err)
-                return
-            }
-            require.NoError(t, err)
-            assert.Equal(t, tt.want, got)
-        })
-    }
-}
-```
+프로젝트 테스트 프레임워크의 관용구를 따른다. table-driven을 지원하는 언어에서는 정상/경계/에러 케이스를 한 테이블에 모으고, 각 케이스 이름이 검증하는 동작을 말하게 한다. 위 RED 예시가 이 형식의 최소 형태다.
 
 ## 루프의 규칙
 
@@ -139,9 +110,8 @@ func TestMyFunction(t *testing.T) {
 ## 완료 기준
 
 - [ ] 테스트 대상 seam을 사용자와 합의했다
-- [ ] 모든 새 코드에 테스트 존재
-- [ ] 테스트 커버리지 85% 이상
-- [ ] `go test -race ./...` 통과
-- [ ] 각 단계에서 커밋 생성
+- [ ] 변경된 동작마다 그것을 단정하는 테스트가 있다
+- [ ] 프로젝트 테스트 명령이 통과한다 (동시성 코드는 race 플래그 포함)
+- [ ] 프로젝트가 커버리지 게이트를 설정했다면 테스트 커버리지 85% 이상
 
 Seam 합의·안티패턴·루프 규칙은 mattpocock/skills `tdd`(MIT)에서 가져와 다듬었다.

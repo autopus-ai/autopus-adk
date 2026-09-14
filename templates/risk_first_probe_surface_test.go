@@ -83,12 +83,11 @@ func TestRiskFirstProbeSurfaceParity(t *testing.T) {
 			path: filepath.Join(root, "gemini", "skills", "agent-pipeline", "SKILL.md.tmpl"),
 		},
 		{
-			name: "omp-agent-pipeline-template",
-			path: filepath.Join(root, "shared", "omp-agent-pipeline.md.tmpl"),
-		},
-		{
-			name: "codex-agent-pipeline-native-source",
-			path: filepath.Join(root, "..", "pkg", "adapter", "codex", "codex_extended_skill_rewrites_pipeline_probe.go"),
+			// The OMP entrypoint is a decision layer: it must reach the probe
+			// contract, which the resource test below verifies in full.
+			name:   "omp-agent-pipeline-template",
+			path:   filepath.Join(root, "shared", "omp-agent-pipeline.md.tmpl"),
+			tokens: []string{"references/phases.md"},
 		},
 		{
 			name:   "spec-quality-rule",
@@ -115,5 +114,20 @@ func TestRiskFirstProbeSurfaceParity(t *testing.T) {
 			// requires every go/pipeline surface to describe the receipt that
 			// grants it.
 		})
+	}
+}
+
+// The row-by-row probe contract lives in the retrievable phase resource, so a
+// surface that routes there must find it complete.
+func TestRiskFirstProbeResourceCarriesTheRowContract(t *testing.T) {
+	t.Parallel()
+
+	surface := pipelineResourceSurface(t)
+	for _, token := range []string{
+		"Risk-First Integration Probe", "Phase 1.9", "not_applicable", "not-run",
+		"assumption_id", "evidence ref",
+	} {
+		assert.Contains(t, surface, token,
+			"the pipeline resources should contain the probe contract token %q", token)
 	}
 }

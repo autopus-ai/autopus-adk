@@ -65,6 +65,9 @@ func TestOMPModelIntegration_S10_ProjectManagedPreservesUnknownBytesAndRequiresC
 	if !strings.Contains(string(got), string(original)) || !strings.Contains(string(got), "modelFallback: true") {
 		t.Fatalf("project config did not preserve/merge bytes:\n%s", got)
 	}
+	if !strings.Contains(string(got), "agentModelOverrides:") || strings.Contains(string(got), "modelRoles") {
+		t.Fatalf("project config did not claim the native override key only:\n%s", got)
+	}
 	info, err := os.Stat(path)
 	if err != nil || info.Mode().Perm() != 0o640 {
 		t.Fatalf("project config mode = %v, err %v", info.Mode().Perm(), err)
@@ -78,7 +81,9 @@ func TestOMPModelIntegration_S10_ProjectManagedPreservesUnknownBytesAndRequiresC
 	}
 }
 
-func TestOMPModelIntegration_S11_ProjectManagedConflictIsByteIdentical(t *testing.T) {
+// A user who already binds a model to a bundled agent owns that key: the
+// managed claim must refuse it rather than replace their choice.
+func TestOMPModelIntegration_ProjectManagedConflictIsByteIdentical(t *testing.T) {
 	t.Parallel()
 
 	root := t.TempDir()
@@ -86,7 +91,7 @@ func TestOMPModelIntegration_S11_ProjectManagedConflictIsByteIdentical(t *testin
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	original := []byte("modelRoles:\n  task: user/model:high\nunknown: keep\n")
+	original := []byte("task:\n  agentModelOverrides:\n    task: user/model:high\nunknown: keep\n")
 	if err := os.WriteFile(path, original, 0o640); err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +138,7 @@ func TestOMPModelIntegration_ProjectManagedToOverlayRestoresPreimageAndRoundTrip
 		t.Fatalf("switch back to project-managed: %v", err)
 	}
 	got, err := os.ReadFile(path)
-	if err != nil || !strings.Contains(string(got), "modelRoles:") {
+	if err != nil || !strings.Contains(string(got), "agentModelOverrides:") {
 		t.Fatalf("project-managed re-apply did not restore managed keys: %v\n%s", err, got)
 	}
 }

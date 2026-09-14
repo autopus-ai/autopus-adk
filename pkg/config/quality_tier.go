@@ -47,6 +47,29 @@ func NormalizeAgentName(raw string) string {
 	return name
 }
 
+// qualityTiers is the relative tier vocabulary every preset is written in,
+// ordered strongest first. Each provider adapter projects it onto its own
+// model ids; nothing outside this file decides what a tier name may be.
+var qualityTiers = []string{"fable", "opus", "sonnet", "haiku"}
+
+// QualityTiers returns a detached copy of the tier vocabulary, strongest first.
+func QualityTiers() []string {
+	return append([]string(nil), qualityTiers...)
+}
+
+// NormalizeQualityTier folds an operator-typed tier onto its canonical
+// spelling. The second result is false for anything outside the vocabulary, so
+// a caller persists a tier only after the name is known.
+func NormalizeQualityTier(raw string) (string, bool) {
+	tier := strings.ToLower(strings.TrimSpace(raw))
+	for _, known := range qualityTiers {
+		if tier == known {
+			return tier, true
+		}
+	}
+	return "", false
+}
+
 // AgentTier resolves the relative tier (fable, opus, sonnet, or haiku) for one
 // agent under a provider's effective quality view. This is the single tier
 // decision; provider adapters project it onto their own model vocabulary.
@@ -57,11 +80,11 @@ func (q QualityConf) AgentTier(provider, agentName, fallbackTier string) string 
 		preset, ok = q.Presets["balanced"]
 	}
 	if ok {
-		if tier, valid := normalizeCodexTier(preset.Agents[name]); valid {
+		if tier, valid := NormalizeQualityTier(preset.Agents[name]); valid {
 			return tier
 		}
 	}
-	if tier, valid := normalizeCodexTier(fallbackTier); valid {
+	if tier, valid := NormalizeQualityTier(fallbackTier); valid {
 		return tier
 	}
 	return "sonnet"

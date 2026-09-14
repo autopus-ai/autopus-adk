@@ -12,6 +12,15 @@ import (
 	pkgcontent "github.com/insajin/autopus-adk/pkg/content"
 )
 
+// codexSkillDirPrefix is the native directory prefix every generated Codex
+// skill carries. The emitter and the surface validator share it so a rename
+// cannot silently split them.
+const codexSkillDirPrefix = "codex-"
+
+// codexSkillResourceDir names the reference subdirectory installed beside a
+// generated SKILL.md.
+const codexSkillResourceDir = pkgcontent.SkillResourceDirName
+
 // renderExtendedSkills transforms embedded content skills for the Codex platform
 // and returns file mappings for .codex/skills/{skill-name}.md.
 func (a *Adapter) renderExtendedSkills(cfg *config.HarnessConfig) ([]adapter.FileMapping, error) {
@@ -52,6 +61,11 @@ func (a *Adapter) renderExtendedSkills(cfg *config.HarnessConfig) ([]adapter.Fil
 		if !state.Compiled || state.TargetPath == "" {
 			continue
 		}
+		resources, resErr := codexSkillResourceMappings(s.Name, state.TargetPath, cfg)
+		if resErr != nil {
+			return nil, resErr
+		}
+		files = append(files, resources...)
 		if hasCodexSkillTemplate(s.Name) &&
 			strings.HasPrefix(filepath.ToSlash(state.TargetPath), ".codex/skills/") {
 			continue
@@ -70,6 +84,30 @@ func (a *Adapter) renderExtendedSkills(cfg *config.HarnessConfig) ([]adapter.Fil
 		})
 	}
 
+	return files, nil
+}
+
+// codexSkillResourceMappings returns the reference bodies installed beside a
+// generated skill. The caller invokes it before the template hand-off, so a
+// skill whose SKILL.md is owned by a Codex template still gets its references.
+func codexSkillResourceMappings(name, targetPath string, cfg *config.HarnessConfig) ([]adapter.FileMapping, error) {
+	resources, err := pkgcontent.RenderSkillResources(name, "codex", cfg)
+	if err != nil {
+		return nil, fmt.Errorf("codex skill resource render %s: %w", name, err)
+	}
+
+	names := pkgcontent.SkillResourceNames(resources)
+	skillDir := filepath.Dir(filepath.FromSlash(targetPath))
+	files := make([]adapter.FileMapping, 0, len(names))
+	for _, rel := range names {
+		data := resources[rel]
+		files = append(files, adapter.FileMapping{
+			TargetPath:      filepath.Join(skillDir, filepath.FromSlash(rel)),
+			OverwritePolicy: adapter.OverwriteAlways,
+			Checksum:        checksum(string(data)),
+			Content:         data,
+		})
+	}
 	return files, nil
 }
 

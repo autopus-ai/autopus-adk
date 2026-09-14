@@ -54,7 +54,7 @@ sync 완료를 선언하거나 workflow lifecycle bar를 표시하기 전에 아
    - `Completion Debt`가 하나라도 있으면 SPEC 상태를 `completed`로 바꾸지 말고 blocked reason을 남깁니다.
    - `Evolution Ideas`는 optional improvement로만 표시하고 자동 follow-up SPEC이나 sibling SPEC으로 추천하지 않습니다.
 4. `@AX Lifecycle Management` 결과
-   - 대상 태그가 없으면 반드시 `@AX: no-op`로 남깁니다.
+   - 대상 태그가 없으면 `@AX: no tags found`, annotation 자체를 요청하지 않은 실행이면 `@AX: not requested`로 남깁니다.
 5. Lore 커밋 결과
    - 변경 사항이 있으면 commit hash를 남깁니다.
    - 커밋 실패/보류 시 blocked reason을 남기고 sync completed 선언을 금지합니다.

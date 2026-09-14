@@ -138,13 +138,19 @@ func runQualityInteractive(cmd *cobra.Command, apply bool, deps ompPlatformDepen
 	if err != nil {
 		return err
 	}
-	if containsOMPString(cfg.Platforms, "omp") {
-		target, err := chooseQualityTarget(cmd)
+	if tools := configuredQualityModelTools(cfg); len(tools) > 0 {
+		target, err := chooseQualityTarget(cmd, cfg)
 		if err != nil {
 			return err
 		}
-		if target == "omp" {
-			return runOMPQualityInteractive(cmd, dir, cfg, deps)
+		for _, tool := range tools {
+			if tool.platform != target {
+				continue
+			}
+			if tool.platform == "omp" {
+				return runOMPQualityInteractive(cmd, dir, cfg, deps)
+			}
+			return runQualityToolInteractive(cmd, dir, cfg, tool, apply)
 		}
 	}
 	options := orderedQualityPresets(cfg)

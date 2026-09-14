@@ -55,24 +55,15 @@ refresh every configured platform.
 
 ## Complexity Assessment Criteria
 
-The planner assesses each task before spawning an agent. The assessment considers:
-
-| Factor | Weight |
-|--------|--------|
-| `file_count` | Number of files to be modified |
-| `estimated_lines` | Expected lines of new/changed code |
-| `requirement_count` | Number of distinct requirements |
-| `dependency_count` | Number of packages/modules involved |
-
-### Complexity Levels
+The planner assesses each task before spawning an agent. Complexity describes the nature of the work, not its size: file count and line count are not criteria.
 
 | Level | Criteria |
 |-------|----------|
-| **HIGH** | 3+ files OR 200+ expected lines OR complex logic/architecture decisions |
-| **MEDIUM** | 1–2 files, 50–200 lines, moderate logic |
-| **LOW** | 1 file, under 50 lines, simple or mechanical changes |
+| **HIGH** | Architecture or contract change, security/data-integrity boundary, irreversible migration, or judgement spanning several domains |
+| **MEDIUM** | Behavior change inside an existing pattern, or an implementation binding several requirements |
+| **LOW** | Mechanical or local change, read-only or documentation work |
 
-When criteria overlap (e.g., 1 file but 250 lines), use the highest matching level.
+When `{SPEC_DIR}/gate-applicability.json` carries `change_risk.risk_tier`, that value wins over a local guess.
 
 ## Execution Profile Table
 
@@ -99,15 +90,17 @@ Autopus projects the top two shared tiers onto fixed Claude model IDs. The
 `claude-opus-5`. This keeps generated agent definitions and cost estimates
 deterministic even when Claude Code aliases change over time.
 
-| Tier | Full model ID | Claude Code aliases | Minimum Claude Code version | Price per million tokens |
-|------|---------------|---------------------|-----------------------------|--------------------------|
-| `fable` | `claude-fable-5-1` | `fable`, `best` | `2.1.170` | $10 input / $50 output |
-| `opus` | `claude-opus-5` | `opus` | `2.1.219` | $5 input / $25 output |
+| Tier | Full model ID | Claude Code aliases |
+|------|---------------|---------------------|
+| `fable` | `claude-fable-5-1` | `fable`, `best` |
+| `opus` | `claude-opus-5` | `opus` |
 
-`best` is entitlement-dependent and can resolve to the latest Opus when Fable
-is unavailable. Deterministic routing and pricing therefore use
-`claude-fable-5-1`, not the dynamic alias. The legacy full ID
-`claude-fable-5` remains accepted for existing workflow definitions.
+`best` is entitlement-dependent and can resolve to the latest Opus when Fable is
+unavailable, so deterministic routing uses `claude-fable-5-1`, not the dynamic
+alias. The legacy full ID `claude-fable-5` remains accepted. Tier-to-model IDs
+live in `pkg/config/quality_tier.go` and prices in `pkg/cost/pricing.go`; do not
+restate either here. Minimum CLI versions per alias come from the official
+references linked below.
 
 Claude Code's `opus` alias is provider- and version-dependent:
 
@@ -188,35 +181,13 @@ Unsupported env values must fail open to Quality Mode defaults. Use `auto effort
 
 ## Agent Call Pattern
 
-Claude Code 2.1.246 agent calls inherit the model-and-effort projection from the
+Claude Code agent calls inherit the model-and-effort projection from the
 installed agent definition. Complexity changes that definition or the selected
 role; ordinary calls do not send per-call effort.
 
-### HIGH complexity
-
 ```python
 Agent(
-    description="Implement the high-complexity assigned task",
-    prompt=task_prompt,
-    subagent_type="executor",
-)
-```
-
-### MEDIUM complexity
-
-```python
-Agent(
-    description="Implement the medium-complexity assigned task",
-    prompt=task_prompt,
-    subagent_type="executor",
-)
-```
-
-### LOW complexity
-
-```python
-Agent(
-    description="Implement the low-complexity assigned task",
+    description="Implement the assigned task",
     prompt=task_prompt,
     subagent_type="executor",
 )
@@ -248,35 +219,23 @@ quality:
 
 ## Cost Estimation
 
-### Formula
-
-```
-cost = Σ(task_tokens × model_price_per_token)
-```
-
-Where `model_price_per_token` is looked up in `pkg/cost/pricing.go`.
-
-### Relative Cost
-
-Fable 5.1 costs more per token than Opus 5, while Sonnet 5 costs less. Compare
-profiles using the actual role mix and token counts rather than assuming that
-either quality mode is uniformly cheaper.
-
-**Reference**: `pkg/cost/pricing.go` for current pricing and
-`pkg/cost/estimator.go` for token estimation.
+`cost = Σ(task_tokens × model_price_per_token)`. Fable 5.1 costs more per token
+than Opus 5, and Sonnet 5 less, so compare profiles using the actual role mix
+and token counts rather than assuming a quality mode is uniformly cheaper.
+Pricing and token estimation live in `pkg/cost/pricing.go` and
+`pkg/cost/estimator.go`.
 
 ## Planner Integration
 
-The planner executes complexity assessment during Phase 1 and annotates each task:
+The planner annotates each task with its complexity during Phase 1 and passes
+the annotation to the orchestrator before any `Agent()` call:
 
 ```
-Task T1: Add user authentication
-  → file_count: 4, estimated_lines: 280
+Task T1: Add authentication to the public API
+  → contract change + auth boundary
   → Complexity: HIGH → strategic profile (fable)
 
-Task T2: Update error message string
-  → file_count: 1, estimated_lines: 3
+Task T2: Update an error message string
+  → local mechanical change
   → Complexity: LOW → standard profile (sonnet)
 ```
-
-The complexity annotation is included in the execution plan and passed to the orchestrator before Agent() calls are made.

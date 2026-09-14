@@ -6,7 +6,7 @@
 
 Make your AI coding tools (Claude Code, Codex, Antigravity CLI, OpenCode, Oh My Pi) work like a real engineering team — with planning, testing, code review, and security audits built in.
 
-**16 agents. 53 skills. One config. Every platform.**
+**16 agents. 53 skills in the library, a compact default catalog. One config across platforms.**
 
 [![GitHub Stars](https://img.shields.io/github/stars/Insajin/autopus-adk?style=social)](https://github.com/Insajin/autopus-adk/stargazers)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -58,7 +58,6 @@ Or if you prefer step-by-step control:
   ✓ Phase 1:   Planning         planner decomposed 5 tasks
   ✓ Phase 1.5: Test Scaffold    12 failing tests created (RED)
   ✓ Phase 2:   Implementation   3 executors in parallel worktrees
-  ✓ Phase 2.5: Annotation       @AX tags applied to 8 files
   ✓ Phase 3:   Testing          coverage: 62% → 91%
   ✓ Phase 4:   Review           TRUST 5: APPROVE | Security: PASS
   ───────────────────────────────────────────────────────
@@ -144,7 +143,7 @@ flowchart TB
     subgraph FOR ["🎯 For the Agents"]
         direction TB
         F1["Every file, rule, and doc\nis designed for agents to parse"]
-        F2["300-line limit · @AX tags\nStructured Lore · SPEC format"]
+        F2["Project-defined limits · opt-in @AX\nStructured Lore · SPEC format"]
     end
 
     OF --> BY --> FOR
@@ -169,7 +168,7 @@ flowchart TB
 
 ### 📏 Code That Agents Can Actually Read
 
-Most codebases aren't written for AI. A 1,200-line file overwhelms context windows. Tangled responsibilities confuse intent. Autopus enforces a **hard 300-line limit** on every source file — not for aesthetics, but because **agents work better when each file has one job and fits in one read.**
+File size alone does not establish cohesion or correctness. Autopus reports large source files, but enforces a ceiling only when the project sets a positive `architecture.max_file_lines`. Absent or `0` is advisory; keep cohesive code together and split by real responsibility. Repository-specific CI limits remain authoritative.
 
 ```
 ❌ Traditional:
@@ -189,7 +188,7 @@ This isn't just about file size. The entire harness is **agent-readable by desig
 | **Rules** | Structured markdown with IMPORTANT markers — agents parse, not skim |
 | **Skills** | YAML frontmatter with triggers — agents auto-activate the right skill |
 | **Docs** | Tables over paragraphs, checklists over prose — parseable, not readable |
-| **Code** | ≤ 300 lines, single responsibility, split by concern — fits in one context |
+| **Code** | Clear responsibilities and explicit project limits; no universal line-count ceiling |
 
 > 🐙 **Human-readable is a bonus. Agent-readable is the requirement.**
 
@@ -512,11 +511,17 @@ One `autopus.yaml` generates **native configuration** for every detected support
 |----------|-------------------|
 | **Claude Code** | `.claude/rules/`, `.claude/skills/<name>/SKILL.md`, `.claude/agents/`, `.claude/workflows/`, `.claude/settings.json`, `CLAUDE.md` |
 | **Codex** | `.codex/skills/codex-<name>/SKILL.md`, `.codex/agents/`, `.codex/hooks.json`, `.codex/config.toml`, `.agents/plugins/marketplace.json`, `.autopus/plugins/auto/`, `AGENTS.md` |
-| **Antigravity CLI** | `.gemini/`, `GEMINI.md` |
+| **Antigravity CLI** | `.agents/plugins/autopus/`, `.agents/hooks.json`, plus retained `.gemini/` / `GEMINI.md` compatibility surfaces |
 | **OpenCode** | `.opencode/rules/`, `.opencode/agents/`, `.opencode/commands/`, `.opencode/plugins/`, `.agents/skills/`, `AGENTS.md`, `opencode.json` |
-| **Oh My Pi (OMP)** | `.omp/rules/autopus-*.md`, `.omp/agents/`, `.omp/skills/<name>/SKILL.md`, `.omp/commands/`, optional `.omp/extensions/` |
+| **Oh My Pi (OMP)** | `.omp/rules/autopus-*.md`, `.omp/skills/<name>/SKILL.md`, `.omp/commands/`, optional `.omp/extensions/` |
 
-The current native baseline is [Claude Code 2.1.246](https://github.com/anthropics/claude-code/releases/tag/v2.1.246), [Codex CLI 0.149.1](https://github.com/openai/codex/releases/tag/rust-v0.149.1), and [OMP 18.0.5](https://github.com/can1357/oh-my-pi/releases/tag/v18.0.5). Rule and workflow semantics stay aligned, but each platform receives only the resource format it actually discovers.
+Antigravity discovers the workspace plugin directly. `auto init` and `auto update`
+do not import a project-rendered bundle globally, and no longer emit the unused
+`.agents/commands/` mirror. Inspect the generated bundle with
+`agy plugin validate .agents/plugins/autopus`; this checks structure, not whether
+runtime permissions or hooks have executed. Native user permission settings are preserved.
+
+The 2026-09-13 compatibility checks used Claude Code 2.1.263, Codex CLI 0.153.4, Antigravity CLI 1.1.26, OpenCode 1.18.7, and OMP 18.1.19. These are observed test versions, not a claim that every newer release or feature is verified. [Codex 0.154.0 worktree support](https://github.com/openai/codex/releases/tag/rust-v0.154.0) remains experimental; the harness does not silently enable experimental topology or replace user permission settings.
 
 Codex note:
 - Use `$codex-auto-plan ...`, `$codex-auto-go ...`, or another `$codex-auto-<route>` skill immediately after `auto init` or `auto update`
@@ -526,11 +531,12 @@ Codex note:
 - The requested spawned-worker ceiling is `codex.agents.max_concurrent_threads` in `autopus.yaml` (default 4, range 1–64); the coordinator is not included. `auto update` writes the requested value to `.codex/config.toml`. Namespace selection must be backed by CLI compatibility evidence; an unverified version uses the documented `[agents] max_concurrent_threads_per_session` with the assumption stated. Explicit harness settings survive regeneration. Host and account limits still take precedence.
 - `auto doctor` separates the requested count and the value inspected on disk from the loaded-session and effective limits. Reading a project or user config file does not prove that an active session loaded it. Unobservable session limits remain `unknown`, with the inspection limitation reported. Start a new session after changing configuration; Autopus never interrupts active agents or equates this setting with local build/test concurrency.
 - `.codex/hooks.json` is generated by default, while structural TOML merging preserves unrelated user config
+- `features.multi_agent` is still a live native switch. Explicit `true` and `false` values, including user comments, survive regeneration and cleanup; equality with a current default is not ownership evidence.
 
 OpenCode note:
 - `/auto ...` and direct aliases like `/auto-plan ...` are generated under `.opencode/commands/`
 - Native rule/agent/plugin files live under `.opencode/`, while reusable skills are published under `.agents/skills/`
-- With `skills.compiler.mode: split`, shared/core skills stay under `.agents/skills/` while OpenCode long-tail skills move to `.opencode/skills/`
+- The default `skills.compiler.mode: split` publishes core skills and their required references. Opted-in long-tail bundles use `.opencode/skills/`; workflow-only rules remain readable without loading into every initial prompt.
 - Helper workflows like `/auto status`, `/auto map`, `/auto why`, `/auto verify`, `/auto secure`, `/auto test`, `/auto dev`, and `/auto doctor` are generated as OpenCode-native command wrappers
 - `opencode.json` now registers the managed hook plugin automatically, so `.opencode/plugins/autopus-hooks.js` is live immediately after `auto init` or `auto update`
 
@@ -549,8 +555,12 @@ For everyday model setup, run:
 auto quality
 ```
 
-In an OMP-enabled project, choose **OMP → balanced/ultra → GPT/Claude**.
-Review the compact agent/model/thinking table and type `y` to apply.
+`auto quality` first asks which surface to configure: the shared quality mode or one coding tool's agent models. Only tools whose generated agents carry a model are offered — Claude Code, Codex, and OMP; Antigravity CLI and OpenCode inherit the session model and are named as such instead of being silently omitted.
+
+**Claude Code / Codex**: the wizard prints every agent with its relative tier and the concrete model that tier becomes on that tool, takes `agent=tier` edits (`fable`, `opus`, `sonnet`, `haiku`), previews the result, and on `y` stores the edits as a `quality.presets.<name>` entry bound through `quality.providers.<tool>`. Each tool keeps its own preset, so moving Claude Code's executor to `fable` leaves Codex where it was. `quality.default` never changes. Run `auto update` (or `auto quality --apply`) to regenerate the agent files.
+
+**OMP**: choose **balanced/ultra → GPT/Claude**, or **custom** to pick an installed model per bundled agent. The custom path still anchors a family for the agents you do not pin, lists the installed catalog with each model's thinking levels, and labels every prompt with the capability that agent's route requires. A model the catalog says cannot serve that capability is refused at the prompt with the models that can. Review the compact agent/model/thinking table and type `y` to apply.
+
 Enter, `n`, or EOF at confirmation cancels without changes; `--apply` is not required.
 Existing agent overrides and multi-provider review settings are preserved.
 An explicitly defined custom profile keeps its own model families.
@@ -570,21 +580,22 @@ When the installed OMP catalog lacks family, capability, or authorization metada
 
 Activation verifies every projected `@role` through an OMP RPC `get_state` session loaded with the generated overlay. It sends no prompt and makes no model-provider request; the resulting provider/model/thinking map is bound into the receipt and independently rechecked by `explain`/doctor.
 
-`auto init` always emits the exact 16 managed OMP agent definitions. With no selected role profile they inherit the parent session model. `auto platform omp explain` and `auto status --platform omp` show all 16 agent→role→capability rows plus manifest/checksum installation integrity; a missing or modified generated definition blocks readiness.
+`auto init` writes no agent definition for OMP. OMP registers its own bundled agents (`task`, `scout`, `reviewer`, `security-reviewer`, `sonic`) and resolves a task agent by exact name, so a generated `.omp/agents/<name>.md` would only shadow the bundled one. A role profile binds models through `task.agentModelOverrides` instead, and the 16 ADK work roles collapse onto those five agents. `auto platform omp explain` and `auto status --platform omp` show one row per bundled agent with its role/capability provenance and effective selector; a project file at `.omp/agents/<bundled name>.md` is reported as `native_agent_shadowed`.
+
+Several role keys can land on one bundled agent. The representative role decides — `task` follows `planner`, `scout` follows `explorer`, `sonic` follows `validator` — and every plan row, explain row, and receipt entry reports the governing key, so a pre-cutover policy that names all 16 roles keeps working and the applied entry stays visible. A set with no representative row has nothing to rank it and is refused with `omp_native_agent_conflict` naming the entries to reconcile.
 
 #### OMP balanced: GPT or Claude family
 
 Select the OMP mode and family together with `profile apply balanced --family gpt|claude`.
 The stored family names are `openai` and `anthropic`; both canonical names are also accepted.
-`--plan` previews all 16 agents, their requested/effective model and thinking, candidate order,
+`--plan` previews the bundled agents, their requested/effective model and thinking, candidate order,
 fallback attempts, and blockers without writing configuration or activating a profile.
 Apply verifies the same routes through the installed OMP catalog and provider-free RPC readback.
 
-| Agent group | GPT balanced | Claude balanced |
+| Bundled agent (representative role) | GPT balanced | Claude balanced |
 |---|---|---|
-| planner, architect, spec-writer, reviewer, security-auditor, **debugger, deep-worker** | GPT-6 Astra `max` | Claude Fable 5.1 `max` |
-| executor, tester, devops, frontend-specialist, perf-engineer | GPT-5.6 Luna `max` | Claude Sonnet 5 `max` |
-| explorer, annotator, validator, ux-validator | GPT-5.6 Luna `max` | Claude Sonnet 5 `high` |
+| `task` (planner), `reviewer`, `security-reviewer` (security-auditor) | GPT-6 Astra `max` | Claude Fable 5.1 `max` |
+| `scout` (explorer), `sonic` (validator) | GPT-5.6 Luna `max` | Claude Sonnet 5 `high` |
 
 Ordinary reviewers follow the selected family. Multi-provider review remains a separate
 `orchestra.providers` policy: changing this profile preserves its models and judge.
@@ -715,8 +726,22 @@ omp_context_policy:
 | Worker surface | `spawn_agent`, `send_message`, `followup_task`, targetless `wait_agent`, `interrupt_agent`, `list_agents` | OpenCode `task(...)` workers |
 
 Split compiler note:
-- `skills.compiler.mode: split` is opt-in. Default `full` keeps every Codex-native skill under its unique `.codex/skills/codex-*` name and leaves `.agents/skills/` under OpenCode ownership in mixed installations.
-- In split mode, `.agents/skills/` carries OpenCode shared/core skills, `.opencode/skills/` carries OpenCode long-tail skills, and `.autopus/plugins/auto/skills/` carries Codex plugin-scoped long-tail skills.
+- `skills.compiler.mode: split` is the default. It publishes the core/dependency set and all `/auto` routes; optional recipes remain available through `auto skill list` and `auto skill info <name>`.
+- Select `skills.compiler.mode: full` to publish the complete compatible library, or choose `bundles` / `explicit_skills`. In split mode, opted-in long-tail skills use `.opencode/skills/` or `.autopus/plugins/auto/skills/`; `opencode_long_tail_target: shared` and `codex_long_tail_target: repo` select native visible locations.
+
+Pipeline entrypoints load their `references/` details only when needed. Ordinary work stays
+inline; independent work, specialist review, or context isolation justifies delegation.
+`auto pipeline run` uses `implement → validate → review` only after one compact contract
+and the actual change set validate as low risk. Missing, ambiguous, malformed, or
+contradicted authorization retains all five phases. Resume requires the same authorized
+route. Annotation is opt-in through `auto spec gates --annotation`; validation, security,
+data-loss, and deterministic-oracle gates remain active.
+
+The default `workflow.coverage_threshold` is `0`: no universal percentage floor.
+Explicit project or retained workflow thresholds are still enforced. Ordinary
+`auto workflow context` selects architecture through `--conditional-profile architecture`
+or `--required-document`; required core/SPEC bodies remain complete and verified.
+The signed OMP canonical-context and release-evidence paths are unchanged.
 
 ---
 
@@ -840,7 +865,7 @@ Claude Code statusline note:
 ✓ Generated: .codex/skills/, .codex/agents/, .codex/hooks.json, .codex/config.toml, AGENTS.md
 ✓ Generated: .gemini/, GEMINI.md
 ✓ Generated: .opencode/, .agents/skills/, AGENTS.md, opencode.json
-✓ Generated: .omp/rules/, .omp/agents/, .omp/skills/, .omp/commands/, optional .omp/extensions/
+✓ Generated: .omp/rules/, .omp/skills/, .omp/commands/, optional .omp/extensions/
 ✓ Created: autopus.yaml
 ```
 
@@ -1093,9 +1118,10 @@ For Codex, use `@auto ...` after installing the generated local plugin from `.ag
 
 ## 🤖 The Pipeline
 
-### 7-Phase Multi-Agent Pipeline
+### Risk-Sized Execution
 
-Every `/auto go` runs this:
+Ordinary work stays inline; a validated compact contract uses the three-phase runtime route.
+This diagram illustrates the responsibilities in a full job, not a mandatory agent per phase:
 
 ```mermaid
 sequenceDiagram
@@ -1115,9 +1141,12 @@ sequenceDiagram
         T->>E: T1, T2, T3 ... (parallel)
     end
 
-    E->>A: Phase 2.5: @AX tag management
-    A->>V: Gate 2: Build + lint + vet
-    V->>T: Phase 3: Coverage → 85%+
+    opt Explicit annotation request
+        E->>A: Apply requested @AX tags
+        A-->>E: Annotation result
+    end
+    E->>V: Gate 2: Build + lint + vet
+    V->>T: Phase 3: Relevant tests + declared coverage gate
     T->>R: Phase 4: TRUST 5 + OWASP audit
     R-->>S: ✅ APPROVE
 ```
@@ -1129,8 +1158,8 @@ sequenceDiagram
 | **Planner** | SPEC decomposition, task assignment, complexity assessment | Phase 1 |
 | **Spec Writer** | Generate spec.md, plan.md, acceptance.md, research.md | `/auto plan` |
 | **Tester** | Test scaffold (RED) + coverage boost (GREEN) | Phase 1.5, 3 |
-| **Executor** | TDD implementation in parallel worktrees | Phase 2 |
-| **Annotator** | @AX tag lifecycle management | Phase 2.5 |
+| **Executor** | Implementation; native isolation when supported and needed | When delegated |
+| **Annotator** | @AX tag lifecycle management | Explicit request only |
 | **Validator** | Build, vet, lint, file size checks | Gate 2 |
 | **Reviewer** | TRUST 5 code review | Phase 4 |
 | **Security Auditor** | OWASP Top 10 vulnerability scan | Phase 4 |
@@ -1221,7 +1250,7 @@ in both modes, while explicit provider model/effort pins remain untouched.
 
 | Flag | Mode | Description |
 |------|------|-------------|
-| *(default)* | Subagent pipeline | Main session orchestrates the platform-native subagent surface |
+| *(default)* | Inline-first execution | Delegate independent slices or work needing specialist/context isolation |
 | `--team` | Team topology | Platform-native Lead / Builder / Guardian responsibility profile |
 | `--solo` | Single session | No subagents, direct TDD |
 | `--auto --loop` | Full autonomy | RALF self-healing, no human gates |
@@ -1300,9 +1329,9 @@ Feed the SPEC to **16 agents** that plan, scaffold tests, implement in parallel,
 Phase 1    │ 🧠 Planner         │ SPEC → tasks + agent assignments
 Phase 1.5  │ 🧪 Tester          │ Failing test skeletons (RED)
 Phase 2    │ ⚡ Executor ×N      │ TDD in parallel worktrees
-Phase 2.5  │ 📝 Annotator       │ @AX documentation tags
+Optional   │ 📝 Annotator       │ @AX tags only when explicitly requested
 Gate  2    │ ✅ Validator        │ Build + lint + vet
-Phase 3    │ 🧪 Tester          │ Coverage → 85%+
+Phase 3    │ 🧪 Tester          │ Relevant tests + declared coverage gate
 Phase 4    │ 🔍 Reviewer + 🛡️    │ TRUST 5 + OWASP audit
 ```
 
@@ -1338,8 +1367,8 @@ Every review scores across 5 dimensions:
 
 | | Dimension | What It Checks |
 |---|-----------|----------------|
-| **T** | Tested | 85%+ coverage, edge cases, `go test -race` |
-| **R** | Readable | Clear naming, single responsibility, ≤ 300 LOC |
+| **T** | Tested | Relevant behavior, edge cases, race checks, and declared coverage gates |
+| **R** | Readable | Clear naming, cohesive responsibilities, explicit project limits |
 | **U** | Unified | gofmt, goimports, golangci-lint, consistent patterns |
 | **S** | Secured | OWASP Top 10, no injection, no hardcoded secrets |
 | **T** | Trackable | Meaningful logs, error context, SPEC/Lore references |
@@ -1559,8 +1588,8 @@ security:
 
 **Best practices enforced by the harness:**
 - **Version pinning** — Lock all dependencies to exact versions (`go.sum`, `package-lock.json`, `requirements.txt`)
-- **Minimal dependencies** — The 300-line file limit and single-responsibility rule naturally reduce unnecessary imports
-- **Isolation** — Parallel executors run in isolated git worktrees; no cross-contamination between tasks
+- **Minimal dependencies** — Reuse existing code and native capabilities before adding dependencies or abstractions
+- **Isolation** — Use native isolation when available; shared-workspace writers require disjoint ownership. Conversation forks alone do not isolate files.
 - **No blind installs** — Security Auditor agent flags unknown or unvetted packages before they enter the codebase
 
 ### Binary Distribution Safety

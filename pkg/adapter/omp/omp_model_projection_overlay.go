@@ -1,19 +1,38 @@
 package omp
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/insajin/autopus-adk/pkg/config"
+)
 
 // OMPModelOverlayFromProjection is the explicit bridge into config activation.
 // It returns detached maps so activation cannot mutate the compiled projection.
 func OMPModelOverlayFromProjection(
 	projection OMPModelProjection,
 ) (OMPModelOverlayProjection, error) {
-	roles, err := indexOMPModelRoleProjection(projection.ModelRoles)
-	if err != nil {
-		return OMPModelOverlayProjection{}, err
-	}
 	overlay := OMPModelOverlayProjection{
-		ModelRoles:     roles,
-		FallbackChains: make(map[string][]string, len(projection.FallbackChains)),
+		AgentModelOverrides: make(map[string]string, len(projection.Agents)),
+		FallbackChains:      make(map[string][]string, len(projection.FallbackChains)),
+	}
+	for _, agent := range projection.Agents {
+		if _, err := config.OMPNativeAgentRepresentative(agent.Agent); err != nil {
+			return OMPModelOverlayProjection{}, err
+		}
+		if _, duplicate := overlay.AgentModelOverrides[agent.Agent]; duplicate {
+			return OMPModelOverlayProjection{}, fmt.Errorf("agent_duplicate: %q", agent.Agent)
+		}
+		selector, thinking, splitErr := splitOMPProjectedSelector(agent.EffectiveSelector)
+		if splitErr != nil {
+			return OMPModelOverlayProjection{}, splitErr
+		}
+		if validateErr := validateOMPProjectedSelector(selector, thinking); validateErr != nil {
+			return OMPModelOverlayProjection{}, validateErr
+		}
+		if thinking != agent.Thinking {
+			return OMPModelOverlayProjection{}, fmt.Errorf("agent_projection_mismatch: agent=%s", agent.Agent)
+		}
+		overlay.AgentModelOverrides[agent.Agent] = agent.EffectiveSelector
 	}
 	for _, chain := range projection.FallbackChains {
 		selector, thinking, splitErr := splitOMPProjectedSelector(chain.Selector)

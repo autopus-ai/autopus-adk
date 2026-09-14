@@ -16,6 +16,7 @@ func commentAwareGoFixture(codeLines, commentLines int) string {
 
 func TestCheckArchExcludesCommentOnlyLinesAtBoundary(t *testing.T) {
 	root := t.TempDir()
+	writeFileSizePolicy(t, root, 300)
 	writeTestFile(t, root, "boundary.go", commentAwareGoFixture(300, 400))
 	var out bytes.Buffer
 	assert.True(t, checkArch(root, &out, true, false), out.String())
@@ -27,6 +28,7 @@ func TestCheckArchExcludesCommentOnlyLinesAtBoundary(t *testing.T) {
 
 func TestCheckArchCommentPolicyUsesIndexRatherThanWorktree(t *testing.T) {
 	root := t.TempDir()
+	writeFileSizePolicy(t, root, 300)
 	initTestGitRepo(t, root)
 	writeTestFile(t, root, "index.go", commentAwareGoFixture(300, 400))
 	runGitCommand(t, root, "add", "index.go")

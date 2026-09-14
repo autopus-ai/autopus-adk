@@ -212,7 +212,7 @@ func TestBalancedRoleModelProfile_ProjectManagedClaimsTheRoutingKeys(t *testing.
 	assert.Equal(t, RoleModelConfigModeProjectManaged, profile.ConfigMode)
 	assert.Equal(t, RoleModelCatalogTrustOperatorAttested, profile.CatalogTrust)
 	require.Len(t, profile.ManagedKeys, 3)
-	for _, key := range []string{"modelRoles", "retry.fallbackChains", "retry.modelFallback"} {
+	for _, key := range []string{OMPNativeAgentModelOverridesKey, "retry.fallbackChains", "retry.modelFallback"} {
 		claim, claimed := profile.ManagedKeys[key]
 		require.True(t, claimed, key)
 		assert.True(t, claim.Complete, key)
