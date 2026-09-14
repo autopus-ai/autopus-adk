@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **커버리지 게이트 승격 2라운드** (2026-09-15): CI 실측 84.9%에서 게이트 85%를 여유 있게 넘기려고 남은 미커버 결정 로직을 덮었다. `pkg/qa/project` 22.7%→100%, `pkg/worker/controlplane` 69.6%→97.3%, `pkg/worker/mcpserver` 84.7%→92.7%, `pkg/selfupdate` 81.8%→87.4%, `pkg/companionmanifest` 83.1%→86.6%, `pkg/adapter/codex` 88.4%→90.4%, `pkg/adapter/omp` 86.4%→88.3%, `pkg/design` 86.6%→89.8%, `pkg/content` 90.9%→93.1%, `pkg/qa/run` 87.6%→89.0%, 그리고 `auto experiment` 의 git 기반 init/commit/reset/metric/record 경로. 단정 대상은 signed pair 트랜잭션의 fault 지점별 복구(커밋 마커 이후에는 새 쌍 유지), zip/tar 릴리스 추출의 체크섬·구조 거절, OMP readiness 판정의 이유 우선순위와 probe 실패 fan-out, Figma/외부 fetch의 사설 IP·리다이렉트 거절, QA 시그널 탐지 경계다.
+
+  플랫폼 의존 경로는 skip guard로 격리했다. managed OMP network sandbox는 darwin 전용 build tag라 observe 준비 테스트 3건이 linux에서 실패했고, sandbox가 있는 플랫폼에서만 실행하도록 고쳤다. launchd 설치 경로는 실제 사용자 세션을 건드리므로 darwin에서 skip하고 linux에서만 실패 분기를 덮는다.
+
 - **커버리지 게이트 승격을 위해 미커버 결정 로직을 테스트로 덮는다** (2026-09-15): CI 실측 83.7%에서 85% 게이트로 올리기 위해 미커버 상위 블록을 동작 단정 테스트로 덮었다. 파일 소유권을 나눠 병렬로 작업했고, 프로덕션 코드는 아래 한 건을 빼고 건드리지 않았다. 대상과 결과: `pkg/adapter` 68.2%→83.5%(트랜잭션 rollback/journal, prune 자격, symlink 탈출 거절), `pkg/adapter/omp` 84.6%→86.5%(config marker span 병합 fail-closed), `pkg/orchestra` 90.5%→91.3%와 `pkg/promptlayer` 85.4%→87.6%(judge freshness fail-closed, OMP context evidence/attestation 검증), `pkg/worker` 81.6%→85.3%(서비스 lifecycle 전이), `pkg/qa/scenario` 76.8%→93.7%, `pkg/qa/report` 80.0%→89.2%, `internal/cli` 81.0%→82.7%(react/verify/lsp/prompts, worker setup wizard, workflow merge, runtime observe endpoint admission), 그리고 `pkg/spec`·`pkg/pipeline`·`pkg/skillevolve`의 findings 병합·SPEC status 재작성·checkpoint→dashboard 매핑·promotion rollback. 로컬 merged 프로파일 85.8%→87.0%.
 
   테스트 작성 중 실제 결함 1건을 함께 고쳤다. `pkg/spec`의 인용 소스 추출이 URL을 걸러내려고 `://` 를 검사했지만, 정규식이 스킴을 이미 잘라낸 뒤 실행돼 `https://example.com/docs/guide.go` 가 `/example.com/docs/guide.go` 라는 가짜 소스 경로로 수집됐다. 매치 앞부분으로 스킴을 판정하도록 바꿨다.
