@@ -84,13 +84,13 @@ jobs:
           } > coverage.out
           COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | tr -d '%')
           echo "Total coverage: ${COVERAGE}%"
-          THRESHOLD=${COVERAGE_THRESHOLD:-83}
+          THRESHOLD=${COVERAGE_THRESHOLD:-85}
           if [ "$(echo "$COVERAGE < $THRESHOLD" | bc -l)" -eq 1 ]; then
             echo "::error::Coverage ${COVERAGE}% is below threshold ${THRESHOLD}%"
             exit 1
           fi
         env:
-          COVERAGE_THRESHOLD: "83"
+          COVERAGE_THRESHOLD: "85"
 
       - name: Vet
         run: go vet ./...

@@ -110,7 +110,7 @@ func TestCIWorkflow_StableChecksHaveBoundedTimeouts(t *testing.T) {
 			t.Fatalf("split lanes must merge coverage profiles; missing %q", required)
 		}
 	}
-	if !strings.Contains(readReleaseFile(t, ".github/workflows/ci.yaml"), "COVERAGE_THRESHOLD: \"83\"") {
+	if !strings.Contains(readReleaseFile(t, ".github/workflows/ci.yaml"), "COVERAGE_THRESHOLD: \"85\"") {
 		t.Fatal("coverage threshold is not pinned")
 	}
 	if !strings.Contains(shared, "./...") {

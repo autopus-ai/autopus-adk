@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **adk CI 커버리지 게이트를 83에서 85로 올린다** (2026-09-15): 두 라운드의 테스트 추가로 CI linux 실측이 83.7% → 84.9% → **85.6%** 가 됐고, 0.6pp 여유를 확인한 뒤 게이트를 옮겼다. `ci.yaml`의 `COVERAGE_THRESHOLD`와 기본값, 그리고 `internal/companionmanifest/release_ci_stability_test.go`의 핀을 함께 `85`로 옮겼다(핀이 따로 남으면 게이트가 조용히 되돌려질 수 있다). 이로써 하네스가 프로젝트에 부과하는 기본 하한 85와 adk 자체 CI 게이트가 같은 숫자가 됐지만, 둘은 여전히 별개 기계다 — 기본값은 파이프라인 Gate 3을 먹이고 CI 숫자는 이 저장소의 Go 문장을 재며, 프로젝트는 자기 하한을 낮추거나 `0`으로 끌 수 있다.
+
 - **커버리지 게이트 승격 2라운드** (2026-09-15): CI 실측 84.9%에서 게이트 85%를 여유 있게 넘기려고 남은 미커버 결정 로직을 덮었다. `pkg/qa/project` 22.7%→100%, `pkg/worker/controlplane` 69.6%→97.3%, `pkg/worker/mcpserver` 84.7%→92.7%, `pkg/selfupdate` 81.8%→87.4%, `pkg/companionmanifest` 83.1%→86.6%, `pkg/adapter/codex` 88.4%→90.4%, `pkg/adapter/omp` 86.4%→88.3%, `pkg/design` 86.6%→89.8%, `pkg/content` 90.9%→93.1%, `pkg/qa/run` 87.6%→89.0%, 그리고 `auto experiment` 의 git 기반 init/commit/reset/metric/record 경로. 단정 대상은 signed pair 트랜잭션의 fault 지점별 복구(커밋 마커 이후에는 새 쌍 유지), zip/tar 릴리스 추출의 체크섬·구조 거절, OMP readiness 판정의 이유 우선순위와 probe 실패 fan-out, Figma/외부 fetch의 사설 IP·리다이렉트 거절, QA 시그널 탐지 경계다.
 
   플랫폼 의존 경로는 skip guard로 격리했다. managed OMP network sandbox는 darwin 전용 build tag라 observe 준비 테스트 3건이 linux에서 실패했고, sandbox가 있는 플랫폼에서만 실행하도록 고쳤다. launchd 설치 경로는 실제 사용자 세션을 건드리므로 darwin에서 skip하고 linux에서만 실패 분기를 덮는다.
