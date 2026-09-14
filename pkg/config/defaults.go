@@ -168,6 +168,11 @@ func DefaultFullConfig(projectName string) *HarnessConfig {
 		Context: ContextConf{
 			SignatureMap: true,
 		},
+		// Written explicitly so a fresh autopus.yaml shows the floor it is
+		// held to; a project lowers it or sets 0 to opt out of the numeric gate.
+		Workflow: WorkflowConf{
+			CoverageThreshold: DefaultCoverageThreshold,
+		},
 		Features: FeaturesConf{
 			CC21: CC21FeaturesConf{
 				Enabled:                 false,

@@ -26,7 +26,7 @@ Stack Profile이 주입되면 그 명령을 사용하고, 없으면 project cont
 1. 빌드
 2. 테스트 (동시성 코드는 race/thread-safety 플래그 포함)
 3. 린트
-4. 커버리지 — 프로젝트 게이트가 커버리지를 요구할 때만
+4. 커버리지 — 기본 임계값 85%, 프로젝트 선언값 우선 (`0`이면 수치 게이트 해제)
 
 ### 5. 구조 검증
 - 프로젝트가 명시한 소스 파일 줄 수 한도(`file-size-limit` 규칙) 초과 파일
@@ -189,7 +189,7 @@ WHEN changed files include SQL migration files under any project migration direc
 | 컴파일 | PASS/FAIL | [에러 목록] |
 | 테스트 | PASS/FAIL | [실패 테스트] |
 | 린트 | PASS/FAIL | [경고 수] |
-| 커버리지 | XX% / SKIP | [프로젝트 게이트가 요구할 때만] |
+| 커버리지 | XX% | [임계값: 85% 또는 프로젝트 선언값] |
 | 파일 크기 | PASS/FAIL | [초과 파일] |
 | 스텁 검사 | PASS/FAIL | [스텁 함수 목록] |
 | Smoke test | PASS/FAIL/SKIP | [entry point 실행 결과] |

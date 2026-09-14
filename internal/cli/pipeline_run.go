@@ -225,9 +225,10 @@ func runPipeline(cmd *cobra.Command, specID string, cfg *pipelineRunConfig) erro
 		SnapshotHash:  resolvedSpec.SnapshotHash,
 		GitCommitHash: gitHash,
 		RunConfig: pipeline.RunConfig{
-			SpecID:        specID,
-			CheckpointDir: pipelineStateDir,
-			LearnStore:    learnStore,
+			SpecID:            specID,
+			CheckpointDir:     pipelineStateDir,
+			LearnStore:        learnStore,
+			CoverageThreshold: pipelineCoverageThreshold(projectDir),
 		},
 	}
 

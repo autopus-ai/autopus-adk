@@ -133,7 +133,8 @@ without weakening the applicable safety and verification gates.
 
 Run applicable checks once after integration, over the changed surface, with a
 verdict and evidence per acceptance criterion. Preserve explicitly configured
-quality thresholds; do not require a coverage percentage when none is declared.
+quality thresholds; the default `workflow.coverage_threshold` is `85`, which an
+explicit project or route value overrides and `0` turns off.
 Screenshot-free runs (`no-capture`) require the four UX oracles before any PASS.
 
 The review loop ends on `loop_status`; `awaiting_changes` means the reviewed

@@ -61,7 +61,7 @@ a completion blocker, not a note.
 SPEC: <SPEC-ID>
 Units: <completed> / <total>
 Verification: <commands run and their observed results>
-Coverage: <measured> (threshold: <declared or "none declared">)
+Coverage: <measured> (threshold: <declared, default 85, or "gate off">)
 Review: APPROVE
 subagent_dispatch_count: <N>
 subagent_roles_dispatched: <roles actually dispatched, or "none (inline)">

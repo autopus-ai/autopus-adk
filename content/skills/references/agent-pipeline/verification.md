@@ -24,8 +24,8 @@ non-reducible gates: `security`, `validation`, `accessibility`, `data-loss`,
 2. **Test** — the affected test surface passes, including the project's
    race/thread-safety flags where the language has them.
 3. **Lint** — the project's configured linter reports no new warning.
-4. **Coverage** — measure it; compare it against the declared threshold only
-   (see below).
+4. **Coverage** — measure it; compare it against the declared threshold
+   (default 85, see below).
 5. **Structure** — apply the project's declared file-size policy (see below).
 6. **Seam verification**
    - stub detection: search changed files for `TODO`, stub, placeholder, and
@@ -43,22 +43,23 @@ Issues: <list>
 Recommended owner: <the unit owner that should fix it>
 ```
 
-## Numeric thresholds come from the project
+## Numeric thresholds are declared, not invented
 
-Do not apply a blanket numeric bar.
+Apply the project's threshold, or the documented default when it declares none.
 
 - **Coverage.** Honor the project's declared `workflow.coverage_threshold`. The
-  default is `0`, which means there is no numeric coverage gate: report the
-  measured number as evidence and let the acceptance criteria decide. An
-  explicit project-level or route-level threshold is enforced exactly as
-  written, and a route threshold wins over the global one.
+  default is `85`, so a project that declares nothing is still held to that
+  floor. An explicit project-level or route-level threshold overrides it and is
+  enforced exactly as written, a route threshold wins over the global one, and
+  `0` turns the numeric gate off: report the measured number as evidence and
+  let the acceptance criteria decide.
 - **File size.** `architecture.max_file_lines` is enforced when it is a positive
   number. Absent or `0` is advisory: report the outlier, do not fail the gate.
   The limit applies to source code files; SPEC and other documentation Markdown
   are exempt.
 
-A threshold the project never declared is not a finding. Inventing one hides the
-real acceptance signal behind a number nobody agreed to.
+A number outside the declared-or-default threshold is not a finding. Inventing
+one hides the real acceptance signal behind a bar nobody agreed to.
 
 ## Harness-only changes
 

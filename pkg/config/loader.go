@@ -104,10 +104,17 @@ func applyMissingDefaults(cfg *HarnessConfig, data []byte) {
 	if _, ok := raw["design"]; !ok {
 		cfg.Design = defaults.Design
 	}
-	// Backfill workflow defaults only when the section is omitted entirely.
-	// Present workflow sections preserve their explicit supported fields.
-	if _, ok := raw["workflow"]; !ok {
+	// Backfill the workflow section key by key. An absent (or empty) section
+	// takes the whole default; a present section that omits coverage_threshold
+	// still inherits the floor, because a zero there reaches the runner as
+	// "no gate" and is indistinguishable from an explicit opt-out.
+	section, ok := raw["workflow"].(map[string]any)
+	if !ok {
 		cfg.Workflow = defaults.Workflow
+		return
+	}
+	if _, set := section["coverage_threshold"]; !set {
+		cfg.Workflow.CoverageThreshold = defaults.Workflow.CoverageThreshold
 	}
 }
 

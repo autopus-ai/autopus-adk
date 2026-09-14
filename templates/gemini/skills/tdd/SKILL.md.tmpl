@@ -104,6 +104,6 @@ func TestCalculate_WithZeroInput_ReturnsError(t *testing.T) {
 - [ ] 테스트 대상 seam을 사용자와 합의했다
 - [ ] 변경된 동작마다 그것을 단정하는 테스트가 있다
 - [ ] 프로젝트 테스트 명령이 통과한다 (동시성 코드는 race 플래그 포함)
-- [ ] 프로젝트가 커버리지 게이트를 설정했다면 테스트 커버리지 85% 이상
+- [ ] 테스트 커버리지 85% 이상 (프로젝트가 `workflow.coverage_threshold`로 다른 값을 선언하면 그 값)
 
 Seam 합의·안티패턴·루프 규칙은 mattpocock/skills `tdd`(MIT)에서 가져와 다듬었다.

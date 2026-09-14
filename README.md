@@ -737,8 +737,8 @@ contradicted authorization retains all five phases. Resume requires the same aut
 route. Annotation is opt-in through `auto spec gates --annotation`; validation, security,
 data-loss, and deterministic-oracle gates remain active.
 
-The default `workflow.coverage_threshold` is `0`: no universal percentage floor.
-Explicit project or retained workflow thresholds are still enforced. Ordinary
+The default `workflow.coverage_threshold` is `85`. An explicit project or route
+threshold overrides it, and `0` turns the numeric gate off. Ordinary
 `auto workflow context` selects architecture through `--conditional-profile architecture`
 or `--required-document`; required core/SPEC bodies remain complete and verified.
 The signed OMP canonical-context and release-evidence paths are unchanged.
@@ -1146,7 +1146,7 @@ sequenceDiagram
         A-->>E: Annotation result
     end
     E->>V: Gate 2: Build + lint + vet
-    V->>T: Phase 3: Relevant tests + declared coverage gate
+    V->>T: Phase 3: Relevant tests + coverage gate (default 85%)
     T->>R: Phase 4: TRUST 5 + OWASP audit
     R-->>S: ✅ APPROVE
 ```
@@ -1331,7 +1331,7 @@ Phase 1.5  │ 🧪 Tester          │ Failing test skeletons (RED)
 Phase 2    │ ⚡ Executor ×N      │ TDD in parallel worktrees
 Optional   │ 📝 Annotator       │ @AX tags only when explicitly requested
 Gate  2    │ ✅ Validator        │ Build + lint + vet
-Phase 3    │ 🧪 Tester          │ Relevant tests + declared coverage gate
+Phase 3    │ 🧪 Tester          │ Relevant tests + coverage gate (default 85%)
 Phase 4    │ 🔍 Reviewer + 🛡️    │ TRUST 5 + OWASP audit
 ```
 
@@ -1367,7 +1367,7 @@ Every review scores across 5 dimensions:
 
 | | Dimension | What It Checks |
 |---|-----------|----------------|
-| **T** | Tested | Relevant behavior, edge cases, race checks, and declared coverage gates |
+| **T** | Tested | Relevant behavior, edge cases, race checks, and the coverage gate (default 85%) |
 | **R** | Readable | Clear naming, cohesive responsibilities, explicit project limits |
 | **U** | Unified | gofmt, goimports, golangci-lint, consistent patterns |
 | **S** | Secured | OWASP Top 10, no injection, no hardcoded secrets |

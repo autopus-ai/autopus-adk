@@ -649,8 +649,8 @@ split compiler 참고:
 route와 현재 승인된 route가 같아야 합니다. 어노테이션은 `auto spec gates --annotation`으로
 명시적으로 요청하며, 검증·보안·데이터 손실·결정적 오라클 게이트는 유지합니다.
 
-`workflow.coverage_threshold`의 기본값은 `0`으로, 모든 작업에 같은 커버리지 하한을
-강제하지 않습니다. 프로젝트나 명시적으로 선택한 워크플로의 한도는 계속 적용합니다.
+`workflow.coverage_threshold`의 기본값은 `85`입니다. 프로젝트나 route가 다른 값을
+선언하면 그 값을 따르고, `0`이면 수치 게이트를 끕니다.
 일반 `auto workflow context`에서 아키텍처 문서는 `--conditional-profile architecture`
 또는 `--required-document`로 선택합니다. 필수 core·SPEC 본문은 완전성과 해시를
 검증하며, 서명된 OMP canonical context와 릴리스 증거 경로는 바꾸지 않습니다.
@@ -1028,7 +1028,7 @@ sequenceDiagram
         A-->>E: 어노테이션 결과
     end
     E->>V: Gate 2: 빌드 + 린트 + vet
-    V->>T: Phase 3: 관련 테스트 + 명시한 커버리지 기준
+    V->>T: Phase 3: 관련 테스트 + 커버리지 게이트 (기본 85%)
     T->>R: Phase 4: TRUST 5 리뷰 + OWASP 감사
     R-->>S: ✅ APPROVE
 ```
@@ -1217,7 +1217,7 @@ Phase 1.5  │ 🧪 Tester          │ 실패하는 테스트 스켈레톤 (RED
 Phase 2    │ ⚡ Executor ×N      │ 병렬 워크트리에서 TDD
 Optional   │ 📝 Annotator       │ 명시적으로 요청한 @AX 태그만 적용
 Gate  2    │ ✅ Validator        │ 빌드 + 린트 + vet
-Phase 3    │ 🧪 Tester          │ 관련 테스트 + 명시한 커버리지 기준
+Phase 3    │ 🧪 Tester          │ 관련 테스트 + 커버리지 게이트 (기본 85%)
 Phase 4    │ 🔍 Reviewer + 🛡️    │ TRUST 5 + OWASP 감사
 ```
 
@@ -1253,7 +1253,7 @@ auto sync verify --spec SPEC-HOOK-001 --strict
 
 | | 차원 | 검사 항목 |
 |---|------|----------|
-| **T** | Tested (테스트) | 관련 동작, 경계 조건, race 검사, 명시한 커버리지 기준 |
+| **T** | Tested (테스트) | 관련 동작, 경계 조건, race 검사, 커버리지 게이트 (기본 85%) |
 | **R** | Readable (가독성) | 명확한 이름, 응집된 책임, 프로젝트가 정한 한도 |
 | **U** | Unified (일관성) | gofmt, goimports, golangci-lint, 일관된 패턴 |
 | **S** | Secured (보안) | OWASP Top 10, 인젝션 없음, 하드코딩된 시크릿 없음 |

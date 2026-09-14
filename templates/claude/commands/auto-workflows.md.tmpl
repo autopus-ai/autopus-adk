@@ -1309,7 +1309,7 @@ Phase 1.9: Probe Gate    → main session (Risk-First Integration Probe rows bef
 Phase 2: Implementation  → inline units and executor units with explicit integration
 Gate 2:  Validation      → validator — retry up to 3× on FAIL
 Phase 3: Testing         → tester
-Gate 3:  Coverage        → measure; enforce only a declared threshold
+Gate 3:  Coverage        → measure; enforce the threshold (default 85%)
 Phase 4: Review          → reviewer + security-auditor — retry up to 2× on REQUEST_CHANGES
 ```
 
@@ -1333,7 +1333,7 @@ and nothing is tagged.
 | Step 1: SPEC Quality | 0 (refuse) or 1 (--auto one-shot) | 3 quality iterations | Abort `go`, guide: SPEC 직접 수정 또는 `--continue` |
 | Gate 1: Approval | skip if AUTO_MODE | skip if AUTO_MODE | N/A |
 | Gate 2: Validation | 3 | 5 | Abort, guide: `--continue` |
-| Gate 3: Coverage | re-spawn tester | 3 retries | Until the declared threshold is met / circuit break |
+| Gate 3: Coverage | re-spawn tester | 3 retries | Until the threshold (default 85%) is met / circuit break |
 | Phase 4: Review | 2 | 3 | Abort, request user intervention |
 
 ### RALF Loop Protocol
@@ -1637,7 +1637,7 @@ Add only the tests that close mandatory acceptance and real regression risk, the
 
 > **⏭ POST-PHASE**: testing returned. NEXT REQUIRED STEP: Gate 3: Coverage Check. Do NOT skip to Completion.
 
-**[GATE] Gate 3: Coverage** — Report the measured coverage as evidence. Enforce a numeric bar only when the project declares one: `workflow.coverage_threshold` defaults to `0`, which means no numeric gate, and an explicit project-level or route-level threshold is enforced exactly as written, route over global. Below a declared threshold, re-spawn the tester. Never invent a threshold the project did not declare. For harness-only tasks → [INTENDED SKIP: Gate 3]
+**[GATE] Gate 3: Coverage** — Report the measured coverage as evidence and compare it against the threshold. `workflow.coverage_threshold` defaults to `85`; an explicit project-level or route-level threshold overrides it exactly as written, route over global, and `0` turns the numeric gate off. Below the threshold, re-spawn the tester. Never invent a bar other than the declared-or-default one. For harness-only tasks → [INTENDED SKIP: Gate 3]
 
 WHEN `LOOP_MODE = true`: extend the coverage retry limit to 3 (default: 1).
 
@@ -1778,7 +1778,7 @@ Before displaying completion output, verify ALL phases were evaluated:
 - [ ] Gate 2: Validation — PASS
 - [ ] @AX Annotation — completed only if explicitly opted in, otherwise `@AX: not requested`
 - [ ] Phase 3: Testing — completed (or skipped for harness-only)
-- [ ] Gate 3: Coverage — measured and reported; a declared threshold met (or no threshold declared / N/A for harness-only)
+- [ ] Gate 3: Coverage — measured and reported; the threshold (default 85%) met (or the project set `0` / N/A for harness-only)
 - [ ] Phase 4: Review — APPROVE
 - [ ] Sync Readiness Gate — `completion_verdict_preview`, `sync_ready`, `sync_blockers`, `spec_status_after_go`, and `sync_evidence_refs` recorded
 - [ ] Lead-Time Telemetry — `auto telemetry leadtime [--run {SPEC_ID}] [--baseline <SPEC-ID|dir>]` reported first-slice/completion lead time and `critical_path`, with no increase in `escaped_defects` or `unresolved_safety_gates`

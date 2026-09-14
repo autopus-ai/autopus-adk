@@ -91,8 +91,9 @@ When the task carries a compact change contract (`{SPEC_DIR}/change.md`, or `.au
 - [ ] 변경 동작을 정의하는 테스트(Phase 1.5 scaffold가 있으면 그 테스트) 통과
 - [ ] 변경 표면에서 프로젝트 테스트/린트 명령어 통과 (동시성 코드는 race 플래그 포함)
 - [ ] SPEC 요구사항과 acceptance 시나리오를 실제 동작으로 충족
+- [ ] 커버리지 85% 이상 (프로젝트 임계값 우선)
 
-커버리지 수치는 프로젝트 게이트 설정이 요구할 때만 목표로 삼는다. 구체적 명령어는 Stack Profile을 따른다.
+커버리지 기본 임계값은 85%다. 프로젝트가 `workflow.coverage_threshold`로 다른 값을 선언하면 그 값을 따르고, `0`이면 수치 게이트를 끈다. 구체적 명령어는 Stack Profile을 따른다.
 
 ## 제약
 

@@ -25,8 +25,10 @@ type RunConfig struct {
 	// When nil, learning hooks are silently skipped.
 	LearnStore *learn.Store
 	// CoverageThreshold is the minimum coverage percentage for the coverage
-	// gap hook. Zero means the project set no threshold, and no coverage gap
-	// is recorded: the hook reports against an explicit policy or not at all.
+	// gap hook. Zero disables the hook. Callers resolve it from the project's
+	// workflow.coverage_threshold, which defaults to
+	// config.DefaultCoverageThreshold, so zero here means the project opted
+	// out rather than never having been asked.
 	CoverageThreshold float64
 	// DelegationSafety configures runtime depth and authenticity checks.
 	DelegationSafety DelegationContext
