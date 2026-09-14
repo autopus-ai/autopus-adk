@@ -790,6 +790,11 @@ cd autopus-adk && make build && make install
 cd your-project && auto init
 ```
 
+`make install` copies into `$(go env GOPATH)/bin`; pass `INSTALL_DIR=...` for another
+destination. When a signed release install outranks it on `PATH`, the target says so —
+the git hooks keep running that binary. Point them at the build under test with
+`AUTOPUS_BIN=$PWD/bin/auto`.
+
 Homebrew Cask is the canonical Homebrew distribution. If you previously installed the legacy
 Formula, remove it before installing the Cask:
 

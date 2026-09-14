@@ -150,8 +150,8 @@ func TestCodexAdapter_Update(t *testing.T) {
 	commitMsgHook := filepath.Join(dir, ".git", "hooks", "commit-msg")
 	data, err := os.ReadFile(commitMsgHook)
 	require.NoError(t, err)
-	assert.Contains(t, string(data), "auto check --lore --quiet --message")
-	assert.Contains(t, string(data), "auto lore validate \"$1\"")
+	assert.Contains(t, string(data), "\"$AUTO_BIN\" check --lore --quiet --message")
+	assert.Contains(t, string(data), "\"$AUTO_BIN\" lore validate \"$1\"")
 }
 
 func TestCodexAdapter_Update_DoesNotFabricateGitDirOutsideRepo(t *testing.T) {

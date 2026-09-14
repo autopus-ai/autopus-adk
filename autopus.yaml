@@ -34,6 +34,7 @@ architecture:
     auto_generate: true
     enforce: true
     layers: []
+    max_file_lines: 300
 lore:
     enabled: true
     auto_inject: false

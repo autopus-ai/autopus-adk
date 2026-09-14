@@ -692,6 +692,10 @@ git clone https://github.com/Insajin/autopus-adk.git
 cd autopus-adk && make build && make install
 ```
 
+`make install`은 `$(go env GOPATH)/bin`에 복사하며, 다른 위치는 `INSTALL_DIR=...`로 지정합니다.
+서명된 릴리스 설치본이 `PATH`에서 앞서면 install 타깃이 그 사실을 알립니다 — git 훅은 계속
+그 바이너리를 실행합니다. 검증 대상 빌드로 훅을 돌리려면 `AUTOPUS_BIN=$PWD/bin/auto`를 씁니다.
+
 Homebrew 신규 설치는 Cask를 기준으로 합니다. 기존 Formula로 설치했다면 Formula를 제거한
 뒤 Cask로 옮기세요.
 

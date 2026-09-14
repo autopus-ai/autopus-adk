@@ -65,8 +65,8 @@ func TestGenerateHookConfigs_WithoutHooks(t *testing.T) {
 	assert.Contains(t, paths, ".git/hooks/commit-msg")
 	for _, g := range gitHooks {
 		if g.Path == ".git/hooks/commit-msg" {
-			assert.Contains(t, g.Content, "auto check --lore --quiet --message")
-			assert.Contains(t, g.Content, "auto lore validate \"$1\"")
+			assert.Contains(t, g.Content, "\"$AUTO_BIN\" check --lore --quiet --message")
+			assert.Contains(t, g.Content, "\"$AUTO_BIN\" lore validate \"$1\"")
 		}
 	}
 }
@@ -258,7 +258,7 @@ func TestGitHookScript_Content(t *testing.T) {
 	require.NotEmpty(t, gitHooks)
 
 	// Script uses --staged to only check staged files.
-	assert.Contains(t, gitHooks[0].Content, "auto check --hygiene --arch --quiet --staged")
+	assert.Contains(t, gitHooks[0].Content, "\"$AUTO_BIN\" check --hygiene --arch --quiet --staged")
 }
 
 // TestGenerateHookConfigs_ConditionalDispatcher is the pkg/content half of S10

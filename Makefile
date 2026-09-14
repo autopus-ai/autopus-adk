@@ -3,6 +3,11 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev
 COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "none")
 DATE    ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 LDFLAGS := -ldflags "-s -w -X github.com/insajin/autopus-adk/pkg/version.version=$(VERSION) -X github.com/insajin/autopus-adk/pkg/version.commit=$(COMMIT) -X github.com/insajin/autopus-adk/pkg/version.date=$(DATE)"
+# GOPATH is a `go env` value, not an environment variable, so make never had it:
+# `$(GOPATH)/bin` expanded to `/bin` and `make install` died on SIP instead of
+# installing. Ask the toolchain, and let INSTALL_DIR name another destination.
+GOPATH      ?= $(shell go env GOPATH)
+INSTALL_DIR ?= $(GOPATH)/bin
 
 .PHONY: build test test-unit test-integration test-e2e test-all update-golden lint clean install generate-templates
 
@@ -90,8 +95,17 @@ clean:
 	rm -rf bin/ coverage.out
 
 install: build
-	cp bin/$(BINARY) $(GOPATH)/bin/$(BINARY)
+	@mkdir -p $(INSTALL_DIR)
+	cp bin/$(BINARY) $(INSTALL_DIR)/$(BINARY)
 	@if [ "$$(uname -s)" = "Darwin" ]; then \
-		xattr -cr $(GOPATH)/bin/$(BINARY) 2>/dev/null || true; \
-		codesign --force --sign - $(GOPATH)/bin/$(BINARY) >/dev/null 2>&1 || true; \
+		xattr -cr $(INSTALL_DIR)/$(BINARY) 2>/dev/null || true; \
+		codesign --force --sign - $(INSTALL_DIR)/$(BINARY) >/dev/null 2>&1 || true; \
+	fi
+# A signed release install under ~/.local/bin outranks $(INSTALL_DIR) on PATH, so
+# this copy can succeed while every hook and CLI run keeps answering from the
+# older released binary. Say so instead of letting the skew stay invisible.
+	@active=$$(command -v $(BINARY) 2>/dev/null || true); \
+	if [ -n "$$active" ] && [ "$$active" != "$(INSTALL_DIR)/$(BINARY)" ]; then \
+		echo "warning: installed $(INSTALL_DIR)/$(BINARY), but PATH resolves $(BINARY) to $$active"; \
+		echo "         that binary answers the git hooks; run with AUTOPUS_BIN=$(CURDIR)/bin/$(BINARY) to validate this build"; \
 	fi
