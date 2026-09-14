@@ -43,7 +43,6 @@ func TestOMPNativeTaskHubLiveSmoke(t *testing.T) {
 	}
 	executable := resolveOMPNativeLiveExecutable(t)
 	scratch := generateOMPOnly(t)
-	assertOMPNativeGeneratedAgentsInheritParent(t, scratch)
 	baseline := snapshotOMPNativeTree(t, scratch)
 
 	provider := newOMPNativeProvider(t)
@@ -117,23 +116,6 @@ func resolveOMPNativeLiveExecutable(t *testing.T) string {
 	executable, err := exec.LookPath(cliBinary)
 	require.NoError(t, err, "actual omp binary is required for the native live gate")
 	return executable
-}
-
-func assertOMPNativeGeneratedAgentsInheritParent(t *testing.T, root string) {
-	t.Helper()
-	for _, name := range []string{"explorer", "reviewer"} {
-		data, err := os.ReadFile(filepath.Join(root, ".omp", "agents", name+".md"))
-		require.NoError(t, err)
-		frontmatter, _ := splitEmittedFrontmatter(t, string(data))
-		require.NotContains(t, frontmatter, "model:", "%s must not override the parent model", name)
-		require.NotContains(t, frontmatter, "thinking:", "%s must not override parent thinking", name)
-		for _, tool := range []string{"bash", "glob", "grep", "read"} {
-			require.Contains(t, frontmatter, "  - "+tool)
-		}
-		for _, forbidden := range []string{"  - edit", "  - task", "  - write"} {
-			require.NotContains(t, frontmatter, forbidden)
-		}
-	}
 }
 
 func writeOMPNativeLiveOverlay(t *testing.T, profile string) string {

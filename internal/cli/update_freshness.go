@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
-	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -172,28 +171,6 @@ func (gate updateFreshnessGate) consumeReexecNonce(nonce string) error {
 		return fmt.Errorf("update freshness re-exec nonce 소비 실패: %w", err)
 	}
 	return nil
-}
-
-func stableCurrentVersion(raw string) (string, bool) {
-	value := trimPseudoVersion(strings.TrimPrefix(strings.TrimSpace(raw), "v"))
-	parts := strings.Split(value, ".")
-	if len(parts) != 3 {
-		return "", false
-	}
-	for _, part := range parts {
-		if part == "" {
-			return "", false
-		}
-		for _, char := range part {
-			if char < '0' || char > '9' {
-				return "", false
-			}
-		}
-		if _, err := strconv.Atoi(part); err != nil {
-			return "", false
-		}
-	}
-	return value, true
 }
 
 func stableLatestVersion(raw string) (string, bool) {
