@@ -6,7 +6,7 @@
 set -euo pipefail
 
 # --- Configuration ---
-REPO="Insajin/autopus-adk"
+REPO="autopus-ai/autopus-adk"
 CACHE_DIR="/tmp/autopus-statusline"
 VERSION_CACHE="$CACHE_DIR/latest_version"
 CACHE_MAX_AGE=3600  # 1 hour

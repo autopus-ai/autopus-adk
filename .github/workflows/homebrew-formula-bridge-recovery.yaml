@@ -128,7 +128,7 @@ jobs:
         run: |
           set -euo pipefail
           release_id=$(env -i PATH="$PATH" HOME="$HOME" GITHUB_TOKEN="$GITHUB_TOKEN" \
-            gh api "repos/Insajin/autopus-adk/releases/tags/$GITHUB_REF_NAME" | \
+            gh api "repos/autopus-ai/autopus-adk/releases/tags/$GITHUB_REF_NAME" | \
             jq -er '.id | select(type == "number" and . > 0)')
           checksums_path="$RUNNER_TEMP/autopus-$GITHUB_REF_NAME-checksums.txt"
           env -i PATH="$PATH" HOME="$HOME" TMPDIR="$RUNNER_TEMP" \

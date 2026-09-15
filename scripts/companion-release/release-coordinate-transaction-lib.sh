@@ -13,7 +13,7 @@ scope_json() { gh variable list "$@" --json name,value; }
 load_release_for_tag() {
   local releases count
   releases=$(gh api --paginate --slurp \
-    "repos/Insajin/autopus-adk/releases?per_page=100") || return 1
+    "repos/autopus-ai/autopus-adk/releases?per_page=100") || return 1
   jq -e 'type == "array" and all(.[]; type == "array")' <<<"$releases" >/dev/null ||
     return 1
   release_matches=$(jq -c --arg tag "$release_tag" \

@@ -2,7 +2,7 @@
 
 Ops runbook for promoting the eval-regression gate to a required status check on
 branch `main`. The live gate is owned by the sibling **Autopus repo**
-(`github.com/Insajin/Autopus`); this `autopus-adk` repo owns the verifier CLI,
+(`github.com/autopus-ai/Autopus`); this `autopus-adk` repo owns the verifier CLI,
 the committed public-key allowlist, and this runbook.
 
 Ref: SPEC-EVAL-GATE-LIVE-001 (REQ-EGL-RUNBOOK-001), extending
@@ -26,7 +26,7 @@ Autopus repo commit before registering it:
 
 ```bash
 # Confirm the rendered check context name on a real Autopus commit SHA.
-gh api repos/Insajin/Autopus/commits/<sha>/check-runs \
+gh api repos/autopus-ai/Autopus/commits/<sha>/check-runs \
   --jq '.check_runs[].name'
 ```
 
@@ -115,7 +115,7 @@ After the checklist passes, add the rendered `eval-regression` context to branch
 
 ```bash
 # OPS-ONLY. Requires an admin token. Not run by CI or this SPEC.
-gh api repos/Insajin/Autopus/branches/main/protection \
+gh api repos/autopus-ai/Autopus/branches/main/protection \
   --method PUT \
   --field required_status_checks[strict]=true \
   --field required_status_checks[contexts][]='eval-regression'

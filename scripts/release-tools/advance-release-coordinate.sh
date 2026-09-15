@@ -31,7 +31,7 @@ readonly from_version="${from_tag#v}" to_version="${to_tag#v}"
 
 repo_root=$(git rev-parse --show-toplevel) || fail 'not a git repository'
 cd "$repo_root"
-readonly repository='Insajin/autopus-adk'
+readonly repository='autopus-ai/autopus-adk'
 
 # Replace: each of these names the release being shipped, so exactly one value
 # is correct at a time.

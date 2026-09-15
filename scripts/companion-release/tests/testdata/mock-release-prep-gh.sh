@@ -80,11 +80,11 @@ case "$command" in
       esac
     done
     case "$method:$endpoint" in
-      GET:repos/Insajin/autopus-adk) printf '%s\n' '{"permissions":{"admin":true}}' ;;
-      'GET:repos/Insajin/autopus-adk/rulesets?includes_parents=true&targets=tag')
+      GET:repos/autopus-ai/autopus-adk) printf '%s\n' '{"permissions":{"admin":true}}' ;;
+      'GET:repos/autopus-ai/autopus-adk/rulesets?includes_parents=true&targets=tag')
         printf '%s\n' '[{"id":777,"name":"autopus-v0.50.118-release-authority","target":"tag"}]'
         ;;
-      GET:repos/Insajin/autopus-adk/rulesets/777)
+      GET:repos/autopus-ai/autopus-adk/rulesets/777)
         ruleset_state=$(<"$state/ruleset-state")
         case "$ruleset_state" in
           armed) bypass='[{"actor_id":204883817,"actor_type":"User","bypass_mode":"always"}]'; rules='[{"type":"creation"},{"type":"deletion"},{"type":"update"}]' ;;
@@ -99,7 +99,7 @@ case "$command" in
           '{id:777,name:"autopus-v0.50.118-release-authority",target:"tag",enforcement:"active",
             bypass_actors:$bypass,conditions:{ref_name:{include:["refs/tags/v0.50.118"],exclude:[]}},rules:$rules}'
         ;;
-      PUT:repos/Insajin/autopus-adk/rulesets/777)
+      PUT:repos/autopus-ai/autopus-adk/rulesets/777)
         [[ -f "$input" ]] || exit 65
         jq -e '.name == "autopus-v0.50.118-release-authority" and .target == "tag" and
           .enforcement == "active" and .bypass_actors == [] and
@@ -109,7 +109,7 @@ case "$command" in
         printf '%s\n' ruleset-seal >>"$log"
         printf '%s\n' '{"id":777}'
         ;;
-      'GET:repos/Insajin/autopus-adk/releases?per_page=100')
+      'GET:repos/autopus-ai/autopus-adk/releases?per_page=100')
         visibility_delay=${MOCK_RELEASE_PREP_RELEASE_VISIBILITY_DELAY:-0}
         if [[ -f "$state/release-created.json" && "$visibility_delay" -gt 0 ]]; then
           visibility_delay_file="$state/release-visibility-delay"
@@ -126,10 +126,10 @@ case "$command" in
         fi
         jq -c '[.]' "$state/releases.json"
         ;;
-      GET:repos/Insajin/autopus-adk/releases/tags/v0.50.118)
+      GET:repos/autopus-ai/autopus-adk/releases/tags/v0.50.118)
         jq -ce '.[] | select(.tag_name == "v0.50.118")' "$state/releases.json"
         ;;
-      POST:repos/Insajin/autopus-adk/releases)
+      POST:repos/autopus-ai/autopus-adk/releases)
         [[ "$field_tag" == 'v0.50.118' && "$field_target" =~ ^[0-9a-f]{40}$ &&
            "$field_release_name" == 'v0.50.118' &&
            "$field_draft" == 'true' && "$field_prerelease" == 'false' ]] || exit 65
@@ -147,25 +147,25 @@ case "$command" in
         if [[ "${MOCK_RELEASE_PREP_RELEASE_RESPONSE_LOST:-0}" -eq 1 ]]; then exit 75; fi
         cat "$state/release-created.json"
         ;;
-      DELETE:repos/Insajin/autopus-adk/releases/996)
+      DELETE:repos/autopus-ai/autopus-adk/releases/996)
         if [[ "${MOCK_RELEASE_PREP_RELEASE_DELETE_FAIL:-0}" -eq 1 ]]; then exit 75; fi
         write_count
         jq '[.[] | select(.id != 996)]' "$state/releases.json" >"$state/releases.json.next"
         mv "$state/releases.json.next" "$state/releases.json"
         printf '%s\n' 'release-reservation-delete' >>"$log"
         ;;
-      GET:repos/Insajin/autopus-adk/environments/adk-companion-release)
+      GET:repos/autopus-ai/autopus-adk/environments/adk-companion-release)
         if [[ "${MOCK_RELEASE_PREP_MASK_ENVIRONMENT:-0}" -eq 1 ]]; then
           printf '%s\n' '{"can_admins_bypass":false,"deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true},"protection_rules":[{"type":"branch_policy"}]}'
         else
           printf '%s\n' '{"can_admins_bypass":false,"deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true},"protection_rules":[{"type":"required_reviewers","prevent_self_review":false,"reviewers":[{"type":"User","reviewer":{"id":204883817}}]},{"type":"branch_policy"}]}'
         fi
         ;;
-      GET:repos/Insajin/autopus-adk/environments/adk-companion-release/deployment-branch-policies|GET:repos/Insajin/autopus-adk/environments/adk-companion-release/deployment-branch-policies\?per_page=100)
+      GET:repos/autopus-ai/autopus-adk/environments/adk-companion-release/deployment-branch-policies|GET:repos/autopus-ai/autopus-adk/environments/adk-companion-release/deployment-branch-policies\?per_page=100)
         jq -n --slurpfile policies "$state/deployment-policies.json" \
           '{total_count:($policies[0] | length),branch_policies:$policies[0]}'
         ;;
-      POST:repos/Insajin/autopus-adk/environments/adk-companion-release/deployment-branch-policies)
+      POST:repos/autopus-ai/autopus-adk/environments/adk-companion-release/deployment-branch-policies)
         [[ "$field_name" == 'v0.50.118' && "$field_type" == 'tag' ]] || exit 65
         write_count
         jq '[.[] | select(.name != "v0.50.118")] + [{id:596,type:"tag",name:"v0.50.118"}]' \
@@ -177,7 +177,7 @@ case "$command" in
         fi
         printf '%s\n' '{"id":596,"type":"tag","name":"v0.50.118"}'
         ;;
-      DELETE:repos/Insajin/autopus-adk/environments/adk-companion-release/deployment-branch-policies/596)
+      DELETE:repos/autopus-ai/autopus-adk/environments/adk-companion-release/deployment-branch-policies/596)
         write_count
         jq '[.[] | select(.id != 596)]' "$state/deployment-policies.json" >"$state/deployment-policies.json.next"
         mv "$state/deployment-policies.json.next" "$state/deployment-policies.json"

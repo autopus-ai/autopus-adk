@@ -8,7 +8,7 @@ Make your AI coding tools (Claude Code, Codex, Antigravity CLI, OpenCode, Oh My 
 
 **16 agents. 53 skills in the library, a compact default catalog. One config across platforms.**
 
-[![GitHub Stars](https://img.shields.io/github/stars/Insajin/autopus-adk?style=social)](https://github.com/Insajin/autopus-adk/stargazers)
+[![GitHub Stars](https://img.shields.io/github/stars/autopus-ai/autopus-adk?style=social)](https://github.com/autopus-ai/autopus-adk/stargazers)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Go Version](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)](https://golang.org)
 [![Platforms](https://img.shields.io/badge/Platforms-5-orange)](#-one-config-five-platforms)
@@ -19,10 +19,10 @@ Make your AI coding tools (Claude Code, Codex, Antigravity CLI, OpenCode, Oh My 
 
 ```bash
 # macOS / Linux
-curl -sSfL https://raw.githubusercontent.com/Insajin/autopus-adk/main/install.sh | sh
+curl -sSfL https://raw.githubusercontent.com/autopus-ai/autopus-adk/main/install.sh | sh
 
 # Windows (CMD or PowerShell)
-powershell -c "irm https://raw.githubusercontent.com/Insajin/autopus-adk/main/install.ps1 | iex"
+powershell -c "irm https://raw.githubusercontent.com/autopus-ai/autopus-adk/main/install.ps1 | iex"
 ```
 
 [Why Autopus](#-the-problem) · [**Core Workflow**](#-the-workflow-three-commands-to-ship) · [Features](#-what-makes-autopus-different) · [Pipeline](#-the-pipeline) · [Security](#-security) · [Docs](#-all-commands)
@@ -71,11 +71,11 @@ Or if you prefer step-by-step control:
 ## ⭐ Star History
 
 <p align="center">
-  <a href="https://www.star-history.com/#Insajin/autopus-adk&Date">
+  <a href="https://www.star-history.com/#autopus-ai/autopus-adk&Date">
     <img
-      src="https://api.star-history.com/svg?repos=Insajin/autopus-adk&type=Date"
+      src="https://api.star-history.com/svg?repos=autopus-ai/autopus-adk&type=Date"
       width="720"
-      alt="Star history chart for Insajin/autopus-adk"
+      alt="Star history chart for autopus-ai/autopus-adk"
     />
   </a>
 </p>
@@ -756,11 +756,11 @@ Get from zero to your first AI-powered feature in under 5 minutes.
 ```bash
 # macOS / Linux — installs the binary and checks required tools
 cd your-project    # go to your project folder (e.g., cd ~/my-app)
-curl -sSfL https://raw.githubusercontent.com/Insajin/autopus-adk/main/install.sh | sh
+curl -sSfL https://raw.githubusercontent.com/autopus-ai/autopus-adk/main/install.sh | sh
 
 # Windows (CMD or PowerShell)
 cd your-project
-powershell -c "irm https://raw.githubusercontent.com/Insajin/autopus-adk/main/install.ps1 | iex"
+powershell -c "irm https://raw.githubusercontent.com/autopus-ai/autopus-adk/main/install.ps1 | iex"
 ```
 
 **That's it.** The installer installs the `auto` CLI plus an `autopus` alias, checks required tools, skips anything already present, and auto-installs missing essentials like `git`, GitHub CLI, and Antigravity CLI. It does **not** run `auto init` for you.
@@ -780,10 +780,10 @@ Platform command syntax:
 brew install --cask Insajin/autopus/auto
 
 # go install (requires Go 1.26+)
-go install github.com/Insajin/autopus-adk/cmd/auto@latest
+go install github.com/insajin/autopus-adk/cmd/auto@latest
 
 # Build from source
-git clone https://github.com/Insajin/autopus-adk.git
+git clone https://github.com/autopus-ai/autopus-adk.git
 cd autopus-adk && make build && make install
 
 # After manual install, initialize:
@@ -1612,7 +1612,7 @@ closed. The Windows path uses the platform CNG implementation and `Get-FileHash`
 
 ```bash
 # 1. Download the script first — review it before running
-curl -sSfL https://raw.githubusercontent.com/Insajin/autopus-adk/main/install.sh -o install.sh
+curl -sSfL https://raw.githubusercontent.com/autopus-ai/autopus-adk/main/install.sh -o install.sh
 less install.sh          # Read what it does
 sh install.sh            # Run only after review
 ```
@@ -1621,9 +1621,9 @@ sh install.sh            # Run only after review
 
 ```bash
 # Download binary + checksums separately
-VERSION=$(curl -s https://api.github.com/repos/Insajin/autopus-adk/releases/latest | grep tag_name | sed 's/.*"v\(.*\)".*/\1/')
-curl -LO "https://github.com/Insajin/autopus-adk/releases/download/v${VERSION}/autopus-adk_${VERSION}_$(uname -s | tr A-Z a-z)_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz"
-curl -LO "https://github.com/Insajin/autopus-adk/releases/download/v${VERSION}/checksums.txt"
+VERSION=$(curl -s https://api.github.com/repos/autopus-ai/autopus-adk/releases/latest | grep tag_name | sed 's/.*"v\(.*\)".*/\1/')
+curl -LO "https://github.com/autopus-ai/autopus-adk/releases/download/v${VERSION}/autopus-adk_${VERSION}_$(uname -s | tr A-Z a-z)_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz"
+curl -LO "https://github.com/autopus-ai/autopus-adk/releases/download/v${VERSION}/checksums.txt"
 
 # Verify SHA256 integrity only (this does not authenticate the publisher)
 shasum -a 256 -c checksums.txt --ignore-missing

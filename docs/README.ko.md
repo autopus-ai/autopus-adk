@@ -8,7 +8,7 @@ AI 코딩 도구(Claude Code, Codex, Antigravity CLI, OpenCode, Oh My Pi)가 진
 
 **16개 에이전트. 53개 스킬 라이브러리와 작은 기본 목록. 여러 플랫폼을 하나의 설정으로 관리합니다.**
 
-[![GitHub Stars](https://img.shields.io/github/stars/Insajin/autopus-adk?style=social)](https://github.com/Insajin/autopus-adk/stargazers)
+[![GitHub Stars](https://img.shields.io/github/stars/autopus-ai/autopus-adk?style=social)](https://github.com/autopus-ai/autopus-adk/stargazers)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Go Version](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)](https://golang.org)
 [![Platforms](https://img.shields.io/badge/Platforms-5-orange)](#-하나의-설정-다섯-개-플랫폼)
@@ -19,10 +19,10 @@ AI 코딩 도구(Claude Code, Codex, Antigravity CLI, OpenCode, Oh My Pi)가 진
 
 ```bash
 # macOS / Linux
-curl -sSfL https://raw.githubusercontent.com/Insajin/autopus-adk/main/install.sh | sh
+curl -sSfL https://raw.githubusercontent.com/autopus-ai/autopus-adk/main/install.sh | sh
 
 # Windows (CMD or PowerShell)
-powershell -c "irm https://raw.githubusercontent.com/Insajin/autopus-adk/main/install.ps1 | iex"
+powershell -c "irm https://raw.githubusercontent.com/autopus-ai/autopus-adk/main/install.ps1 | iex"
 ```
 
 [왜 Autopus인가](#-문제점) · [**핵심 워크플로우**](#-워크플로우) · [주요 기능](#-autopus가-다른-이유) · [파이프라인](#-파이프라인) · [보안](#-보안) · [명령어](#-전체-명령어)
@@ -668,11 +668,11 @@ route와 현재 승인된 route가 같아야 합니다. 어노테이션은 `auto
 ```bash
 # macOS / Linux — 바이너리 설치 + 필수 도구 점검
 cd your-project    # 프로젝트 폴더로 이동 (예: cd ~/my-app)
-curl -sSfL https://raw.githubusercontent.com/Insajin/autopus-adk/main/install.sh | sh
+curl -sSfL https://raw.githubusercontent.com/autopus-ai/autopus-adk/main/install.sh | sh
 
 # Windows (CMD or PowerShell)
 cd your-project
-powershell -c "irm https://raw.githubusercontent.com/Insajin/autopus-adk/main/install.ps1 | iex"
+powershell -c "irm https://raw.githubusercontent.com/autopus-ai/autopus-adk/main/install.ps1 | iex"
 ```
 
 설치 스크립트는 `auto` CLI와 `autopus` alias를 함께 설치하고, 필수 도구를 점검한 뒤 이미 있는 것은 건너뛰고 누락된 `git`, GitHub CLI, Antigravity CLI 같은 핵심 도구를 자동 설치합니다. 대신 `auto init`은 자동으로 실행하지 않고 사용자에게 맡깁니다.
@@ -685,10 +685,10 @@ powershell -c "irm https://raw.githubusercontent.com/Insajin/autopus-adk/main/in
 brew install --cask Insajin/autopus/auto
 
 # go install (Go 1.26+ 필요)
-go install github.com/Insajin/autopus-adk/cmd/auto@latest
+go install github.com/insajin/autopus-adk/cmd/auto@latest
 
 # 소스에서 빌드
-git clone https://github.com/Insajin/autopus-adk.git
+git clone https://github.com/autopus-ai/autopus-adk.git
 cd autopus-adk && make build && make install
 ```
 
@@ -1497,7 +1497,7 @@ POSIX 경로에는 OpenSSL과 `sha256sum` 또는 `shasum`이 필요하며, 검�
 
 ```bash
 # 1. 스크립트를 먼저 다운로드 — 실행 전에 내용 확인
-curl -sSfL https://raw.githubusercontent.com/Insajin/autopus-adk/main/install.sh -o install.sh
+curl -sSfL https://raw.githubusercontent.com/autopus-ai/autopus-adk/main/install.sh -o install.sh
 less install.sh          # 무엇을 하는지 확인
 sh install.sh            # 확인 후에만 실행
 ```
@@ -1506,9 +1506,9 @@ sh install.sh            # 확인 후에만 실행
 
 ```bash
 # 바이너리 + 체크섬 별도 다운로드
-VERSION=$(curl -s https://api.github.com/repos/Insajin/autopus-adk/releases/latest | grep tag_name | sed 's/.*"v\(.*\)".*/\1/')
-curl -LO "https://github.com/Insajin/autopus-adk/releases/download/v${VERSION}/autopus-adk_${VERSION}_$(uname -s | tr A-Z a-z)_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz"
-curl -LO "https://github.com/Insajin/autopus-adk/releases/download/v${VERSION}/checksums.txt"
+VERSION=$(curl -s https://api.github.com/repos/autopus-ai/autopus-adk/releases/latest | grep tag_name | sed 's/.*"v\(.*\)".*/\1/')
+curl -LO "https://github.com/autopus-ai/autopus-adk/releases/download/v${VERSION}/autopus-adk_${VERSION}_$(uname -s | tr A-Z a-z)_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz"
+curl -LO "https://github.com/autopus-ai/autopus-adk/releases/download/v${VERSION}/checksums.txt"
 
 # SHA256 무결성만 검증(게시자 인증은 하지 않음)
 shasum -a 256 -c checksums.txt --ignore-missing

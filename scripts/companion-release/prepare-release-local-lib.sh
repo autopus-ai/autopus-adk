@@ -73,7 +73,7 @@ load_evidence() {
   credential_free_public_git "$public_home" init --quiet --bare "$public_root"
   for attempt in 1 2 3 4 5; do
     if credential_free_public_git "$public_home" -C "$public_root" fetch --quiet --force \
-      --no-tags 'https://github.com/Insajin/autopus-adk.git' "$evidence_ref:$evidence_ref"; then
+      --no-tags 'https://github.com/autopus-ai/autopus-adk.git' "$evidence_ref:$evidence_ref"; then
       fetched=1; break
     fi
     /bin/sleep 2

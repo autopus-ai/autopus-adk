@@ -195,7 +195,7 @@ jobs:
         run: |
           set -euo pipefail
           releases=$(gh api --paginate --slurp \
-            'repos/Insajin/autopus-adk/releases?per_page=100')
+            'repos/autopus-ai/autopus-adk/releases?per_page=100')
           reservation=$(jq -ce \
             '[.[][]] as $all |
              [$all[] | select(.tag_name == "v0.50.118")] as $tagged |
@@ -686,7 +686,7 @@ jobs:
             'omp-context-promotion-attestation.v2.json' \
             'release-lineage-v1.json' 'release-lineage-v1.sig' |
             jq -Rsc 'split("\n") | map(select(length > 0))')
-          release=$(gh api "repos/Insajin/autopus-adk/releases/${RELEASE_ID}")
+          release=$(gh api "repos/autopus-ai/autopus-adk/releases/${RELEASE_ID}")
           jq -e --argjson release_id "$RELEASE_ID" --arg commit "$GITHUB_SHA" \
             --arg tag "$GITHUB_REF_NAME" --argjson expected "$expected_assets" \
             '.id == $release_id and .tag_name == $tag and
