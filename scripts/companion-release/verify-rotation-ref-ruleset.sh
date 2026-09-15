@@ -9,11 +9,11 @@ if [[ "${1-}" == '--public' ]]; then
 fi
 [[ $# -eq 0 ]] || fail 'usage: verify-rotation-ref-ruleset.sh [--public]'
 readonly public_mode
-readonly repository='Insajin/autopus-adk'
+readonly repository='autopus-ai/autopus-adk'
 readonly ruleset_name='autopus-v0.50.109-rotation-ref-authority'
 readonly rotation_ref='refs/heads/release-key-rotation-v0.50.109'
 readonly publisher_actor_id=204883817
-readonly api_url='https://api.github.com/repos/Insajin/autopus-adk'
+readonly api_url='https://api.github.com/repos/autopus-ai/autopus-adk'
 command -v jq >/dev/null || fail 'jq is unavailable'
 if [[ "$public_mode" -eq 1 ]]; then
   command -v curl >/dev/null || fail 'curl is unavailable'

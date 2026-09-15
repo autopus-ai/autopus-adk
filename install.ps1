@@ -1,8 +1,8 @@
 # autopus-adk Windows install script
-# Usage: irm https://raw.githubusercontent.com/Insajin/autopus-adk/main/install.ps1 | iex
+# Usage: irm https://raw.githubusercontent.com/autopus-ai/autopus-adk/main/install.ps1 | iex
 param([switch]$LibraryOnly)
 $ErrorActionPreference = "Stop"
-$Repo = "Insajin/autopus-adk"
+$Repo = "autopus-ai/autopus-adk"
 $Binary = "auto.exe"
 $AliasBinary = "autopus.exe"
 $SigningFloor = "0.50.73"

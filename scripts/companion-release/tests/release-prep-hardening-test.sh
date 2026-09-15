@@ -231,7 +231,7 @@ run_publisher() {
     MOCK_RELEASE_PREP_FAIL_AT="${MOCK_RELEASE_PREP_FAIL_AT:-}" MOCK_RELEASE_PREP_FAIL_FROM="${MOCK_RELEASE_PREP_FAIL_FROM:-}" \
     MOCK_RELEASE_PREP_RELEASE_DELETE_FAIL="${MOCK_RELEASE_PREP_RELEASE_DELETE_FAIL:-0}" \
     MOCK_RELEASE_PREP_REJECT_TAG="${MOCK_RELEASE_PREP_REJECT_TAG:-0}" \
-    bash "$publisher" Insajin/autopus-adk adk-companion-release v0.50.118 "$source_commit" "$source_tree" \
+    bash "$publisher" autopus-ai/autopus-adk adk-companion-release v0.50.118 "$source_commit" "$source_tree" \
     "$fixture/static-policy.b64" "$evidence_tag_object" "$evidence_commit" "$evidence_tree" \
     "$(shasum -a 256 "$fixture/report" | awk '{print $1}')" \
     "$(shasum -a 256 "$fixture/attestation" | awk '{print $1}')" "$lock_argument" "$signing_key"

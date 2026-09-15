@@ -20,10 +20,31 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_CONFIG: .gitleaks.toml
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+      # `gitleaks-action` is free for a personal account and licensed for an
+      # organization. Moving this repository to `autopus-ai` crossed that line,
+      # and the job has failed with "missing gitleaks license" on every run
+      # since -- success on 2026-09-10, failure from 2026-09-14. The scanner
+      # itself is MIT, so invoking the binary keeps the scan and drops the
+      # licence. `backend-quality.yml` in the sibling repository already does
+      # this.
+      - name: Install Gitleaks
+        run: go install github.com/zricethezav/gitleaks/v8@v8.30.1
+
+      # Whole history, not `--log-opts=<base>..<head>`. A range scan sees only
+      # what the branch adds, so anything already on main stays unscanned, and
+      # a squash merge rewrites the commits a range-scoped fingerprint names --
+      # the ignore entry a pull request adds stops matching the moment it lands.
+      - name: Run Gitleaks
+        run: |
+          "$(go env GOPATH)/bin/gitleaks" git \
+            --config=.gitleaks.toml \
+            --redact=100 \
+            --no-banner \
+            --verbose \
+            .
 
   govulncheck:
     name: Dependency Vulnerability Check

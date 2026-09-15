@@ -9,7 +9,7 @@ usage: prepare-release.sh --endpoint URL --credential-locator ENV --provider NAM
 USAGE
   exit 64
 }
-readonly repository='Insajin/autopus-adk'
+readonly repository='autopus-ai/autopus-adk'
 readonly environment_name='adk-companion-release'
 readonly release_tag='v0.50.118'
 readonly spec_id='SPEC-OMP-004'
@@ -80,7 +80,7 @@ assert_source_identity() {
   [[ -z "$(git status --porcelain)" ]] || fail 'source worktree is not clean'
   [[ "$(git rev-parse --verify 'HEAD^{commit}')" == "$source_commit" ]] || fail 'source commit changed during release prep'
   [[ "$(git rev-parse --verify 'HEAD^{tree}')" == "$source_tree" ]] || fail 'source tree changed during release prep'
-  [[ "$(git remote get-url origin)" =~ ^(https://github\.com/|git@github\.com:)(Insajin|insajin)/autopus-adk(\.git)?$ ]] ||
+  [[ "$(git remote get-url origin)" =~ ^(https://github\.com/|git@github\.com:)(autopus-ai|Autopus-AI)/autopus-adk(\.git)?$ ]] ||
     fail 'origin is not the production repository'
 }
 [[ -z "$(git status --porcelain)" ]] || fail 'source worktree is not clean'

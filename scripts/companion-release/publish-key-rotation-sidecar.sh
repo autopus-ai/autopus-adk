@@ -24,7 +24,7 @@ scripts/companion-release/verify-rotation-ref-ruleset.sh ||
 repo_root=$(git rev-parse --show-toplevel)
 [[ "$(pwd -P)" == "$repo_root" && -z "$(git status --porcelain)" ]] ||
   fail 'rotation publication requires a clean repository root'
-[[ "$(git remote get-url origin)" =~ ^(https://github\.com/|git@github\.com:)(Insajin|insajin)/autopus-adk(\.git)?$ ]] ||
+[[ "$(git remote get-url origin)" =~ ^(https://github\.com/|git@github\.com:)(autopus-ai|Autopus-AI)/autopus-adk(\.git)?$ ]] ||
   fail 'origin is not the production repository'
 source_commit=$(git rev-parse --verify 'HEAD^{commit}')
 source_tree=$(git rev-parse --verify 'HEAD^{tree}')

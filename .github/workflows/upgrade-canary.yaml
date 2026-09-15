@@ -43,10 +43,10 @@ jobs:
           RECEIPT_DIR: ${{ runner.temp }}/upgrade-canary-live-receipt
         run: |
           set -euo pipefail
-          previous_release=$(gh api 'repos/Insajin/autopus-adk/releases/383826825')
-          previous_ref=$(gh api 'repos/Insajin/autopus-adk/git/ref/tags/v0.50.117')
-          previous_tag=$(gh api 'repos/Insajin/autopus-adk/git/tags/edcd4eb98f4e52e8ff868d1f8440cfa0d0c5bc3a')
-          previous_commit=$(gh api 'repos/Insajin/autopus-adk/commits/620e29a44d004cb199d5f1c22ae92878f9b6930e')
+          previous_release=$(gh api 'repos/autopus-ai/autopus-adk/releases/383826825')
+          previous_ref=$(gh api 'repos/autopus-ai/autopus-adk/git/ref/tags/v0.50.117')
+          previous_tag=$(gh api 'repos/autopus-ai/autopus-adk/git/tags/edcd4eb98f4e52e8ff868d1f8440cfa0d0c5bc3a')
+          previous_commit=$(gh api 'repos/autopus-ai/autopus-adk/commits/620e29a44d004cb199d5f1c22ae92878f9b6930e')
           jq -e '
             .id == 383826825 and .tag_name == "v0.50.117" and
             .target_commitish == "620e29a44d004cb199d5f1c22ae92878f9b6930e" and
@@ -68,11 +68,11 @@ jobs:
             .commit.tree.sha == "fce0d047ae8cf5c519762fe4ebf530e7ccc01ed1"
           ' <<<"$previous_commit" >/dev/null
 
-          candidate_release=$(gh api 'repos/Insajin/autopus-adk/releases/tags/v0.50.118')
-          candidate_ref=$(gh api 'repos/Insajin/autopus-adk/git/ref/tags/v0.50.118')
+          candidate_release=$(gh api 'repos/autopus-ai/autopus-adk/releases/tags/v0.50.118')
+          candidate_ref=$(gh api 'repos/autopus-ai/autopus-adk/git/ref/tags/v0.50.118')
           candidate_commit=$(jq -er '.target_commitish | select(test("^[0-9a-f]{40}$"))' \
             <<<"$candidate_release")
-          candidate_commit_json=$(gh api "repos/Insajin/autopus-adk/commits/$candidate_commit")
+          candidate_commit_json=$(gh api "repos/autopus-ai/autopus-adk/commits/$candidate_commit")
           jq -e '
             .tag_name == "v0.50.118" and .draft == false and
             .prerelease == false and .immutable == true and
@@ -82,7 +82,7 @@ jobs:
           candidate_tag_object=$(jq -er '.object.sha | select(test("^[0-9a-f]{40}$"))' \
             <<<"$candidate_ref")
           [[ "$(jq -er '.object.type' <<<"$candidate_ref")" == 'tag' ]]
-          candidate_tag=$(gh api "repos/Insajin/autopus-adk/git/tags/$candidate_tag_object")
+          candidate_tag=$(gh api "repos/autopus-ai/autopus-adk/git/tags/$candidate_tag_object")
           jq -e --arg commit "$candidate_commit" '
             .object.type == "commit" and .object.sha == $commit
           ' <<<"$candidate_tag" >/dev/null

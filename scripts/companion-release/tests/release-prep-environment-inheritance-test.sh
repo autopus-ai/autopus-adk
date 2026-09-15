@@ -18,7 +18,7 @@ cp "$mock_gh" "$temp_dir/bin/gh"; chmod 0700 "$temp_dir/bin/gh"
 printf '%s\n' '0' >"$state/write-count"
 printf '%s\n' '[{"name":"ADK_COMPANION_KEY_ID","value":"adk-release-2026-q3-b0"}]' >"$state/repository-variables.json"
 export MOCK_RELEASE_PREP_STATE="$state" PATH="$temp_dir/bin:$PATH"
-repository='Insajin/autopus-adk'; environment_name='adk-companion-release'
+repository='autopus-ai/autopus-adk'; environment_name='adk-companion-release'
 # shellcheck source=../prepare-release-runtime-lib.sh
 source "$runtime_lib"
 # shellcheck source=../prepare-release-probe-lib.sh

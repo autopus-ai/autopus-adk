@@ -68,7 +68,7 @@ for supplied in "$supplied_document" "$supplied_signature"; do
 done
 [[ "$(git rev-parse --show-toplevel)" == "$(pwd -P)" ]] ||
   fail 'rotation verification must run at repository root'
-[[ "$(git remote get-url origin)" =~ ^(https://github\.com/|git@github\.com:)(Insajin|insajin)/autopus-adk(\.git)?$ ]] ||
+[[ "$(git remote get-url origin)" =~ ^(https://github\.com/|git@github\.com:)(autopus-ai|Autopus-AI)/autopus-adk(\.git)?$ ]] ||
   fail 'origin is not the production repository'
 if [[ "$public_ruleset" -eq 1 ]]; then
   scripts/companion-release/verify-rotation-ref-ruleset.sh --public ||

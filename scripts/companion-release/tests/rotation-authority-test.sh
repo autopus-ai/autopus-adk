@@ -178,7 +178,7 @@ cat >"$temp/bin/git" <<EOF
 [[ -z "\${GH_TOKEN-}" && -z "\${GITHUB_TOKEN-}" &&
    "\${GIT_TERMINAL_PROMPT-}" == 0 && "\${GIT_ASKPASS-}" == /usr/bin/false ]] || exit 90
 args=(); for arg in "\$@"; do
-  [[ "\$arg" != 'https://github.com/Insajin/autopus-adk.git' ]] || arg='$temp/authority-repo'
+  [[ "\$arg" != 'https://github.com/autopus-ai/autopus-adk.git' ]] || arg='$temp/authority-repo'
   args+=("\$arg")
 done
 exec '$real_git' "\${args[@]}"
@@ -208,7 +208,7 @@ state='$temp/state'
    " \$* " != *' Authorization:'* ]] || exit 91
 printf '%s\n' "\$*" >>"\$state/curl-calls"
 url=\${!#}
-source='Insajin/autopus-adk'; [[ ! -f "\$state/public-bad" ]] || source='Other/repository'
+source='autopus-ai/autopus-adk'; [[ ! -f "\$state/public-bad" ]] || source='Other/repository'
 if [[ "\$url" == */rulesets/991 ]]; then
   printf '{"source_type":"Repository","source":"%s","name":"autopus-key-rotation-authority-v2","target":"branch","enforcement":"active","conditions":{"ref_name":{"exclude":[],"include":["refs/heads/release-key-rotation-authority-v2"]}},"rules":[{"type":"creation"},{"type":"deletion"},{"type":"update"}]}\n' "\$source"
 elif [[ "\$url" == */rulesets/992 ]]; then

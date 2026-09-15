@@ -9,7 +9,7 @@ umask 077
 #   INSTALL_DIR   — 설치 경로 (기본: /usr/local/bin)
 #   VERSION       — 특정 버전 지정 (기본: 최신)
 
-REPO="Insajin/autopus-adk"
+REPO="autopus-ai/autopus-adk"
 BINARY="auto"
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
 ALIAS="autopus"

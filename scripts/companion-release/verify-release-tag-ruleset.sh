@@ -6,7 +6,7 @@ usage() { printf '%s\n' 'usage: verify-release-tag-ruleset.sh --armed|--sealed|-
 [[ $# -eq 1 ]] || usage
 case "$1" in --armed) mode=armed ;; --sealed) mode=sealed ;; --sealed-runtime) mode=sealed-runtime ;; *) usage ;; esac
 readonly mode
-readonly repository='Insajin/autopus-adk'
+readonly repository='autopus-ai/autopus-adk'
 readonly ruleset_name='autopus-v0.50.118-release-authority'
 readonly release_tag='v0.50.118'
 readonly release_ref='refs/tags/v0.50.118'

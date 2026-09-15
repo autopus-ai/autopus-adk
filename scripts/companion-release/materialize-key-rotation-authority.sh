@@ -14,15 +14,15 @@ if [[ "${1-}" == '--public' ]]; then
 fi
 [[ $# -eq 1 ]] || usage
 readonly public_mode expected_authority_commit output_dir=$1
-readonly repository='Insajin/autopus-adk'
+readonly repository='autopus-ai/autopus-adk'
 readonly environment_name='adk-companion-release'
 readonly variable_name='ADK_KEY_ROTATION_AUTHORITY_COMMIT'
 readonly protected_variable_name='ADK_PROTECTED_KEY_ROTATION_AUTHORITY_COMMIT'
 readonly authority_ref='refs/heads/release-key-rotation-authority-v2'
 readonly ruleset_name='autopus-key-rotation-authority-v2'
 readonly authority_actor_id=204883817
-readonly remote_url='https://github.com/Insajin/autopus-adk.git'
-readonly api_url='https://api.github.com/repos/Insajin/autopus-adk'
+readonly remote_url='https://github.com/autopus-ai/autopus-adk.git'
+readonly api_url='https://api.github.com/repos/autopus-ai/autopus-adk'
 readonly policy_name='adk-key-rotation-authority.v1.json'
 readonly verifier_name='verify-rotation.sh'
 for tool in env git install jq mktemp openssl rm; do

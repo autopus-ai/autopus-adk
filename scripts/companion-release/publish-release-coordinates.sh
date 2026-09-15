@@ -23,7 +23,7 @@ readonly prep_lock_commit transaction_kind
 readonly evidence_tag="omp-context-evidence-${release_tag}" release_ref="refs/tags/${release_tag}"
 readonly evidence_ref="refs/tags/${evidence_tag}" prep_lock_ref="refs/heads/${evidence_tag}-source"
 readonly hex40='^[0-9a-f]{40}$' hex64='^[0-9a-f]{64}$'
-[[ "$repository" == 'Insajin/autopus-adk' ]] || fail 'repository is not production authority'
+[[ "$repository" == 'autopus-ai/autopus-adk' ]] || fail 'repository is not production authority'
 [[ "$environment_name" == 'adk-companion-release' ]] || fail 'environment is not protected release authority'
 [[ "$release_tag" == 'v0.50.118' ]] || fail 'release tag is not exact A29'
 for value in "$source_commit" "$source_tree" "$evidence_tag_object" "$evidence_commit" "$evidence_tree"; do

@@ -135,7 +135,7 @@ omp_executable="${HOME}/.cache/autopus/release/omp-${omp_version/omp\//v}-darwin
 # inferred the provider from the predecessor's asset list through a grep in a
 # command substitution; it worked once and then silently resolved to empty.
 active_policy=$(gh variable get OMP_CONTEXT_STATIC_POLICY_B64 \
-  --repo Insajin/autopus-adk 2>/dev/null | tr '_-' '/+' | base64 -d 2>/dev/null) ||
+  --repo autopus-ai/autopus-adk 2>/dev/null | tr '_-' '/+' | base64 -d 2>/dev/null) ||
   fail 'cannot read the active static policy'
 oracle_policy_digest=$(sed -n 's/.*"oracle_policy_digest":"\([^"]*\)".*/\1/p' <<<"$active_policy")
 provider=$(sed -n 's/.*"provider":"\([^"]*\)".*/\1/p' <<<"$active_policy")

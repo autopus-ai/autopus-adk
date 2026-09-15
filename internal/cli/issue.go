@@ -13,7 +13,7 @@ import (
 	"github.com/insajin/autopus-adk/pkg/issue"
 )
 
-const defaultIssueRepo = "Insajin/autopus-adk"
+const defaultIssueRepo = "autopus-ai/autopus-adk"
 
 // detectGitRepo extracts the GitHub owner/repo from git remote origin.
 func detectGitRepo() string {
