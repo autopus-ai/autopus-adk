@@ -222,8 +222,8 @@ set -euo pipefail
 endpoint=''
 while (($#)); do case "$1" in -H) shift 2 ;; *) endpoint=$1; shift ;; esac; done
 case "$endpoint" in
-  repos/Insajin/autopus-adk/releases/tags/v0.50.118) exec cat "$MOCK_CURRENT_RELEASE_STATE/release.json" ;;
-  repos/Insajin/autopus-adk/releases/assets/*) exec cat "$MOCK_CURRENT_RELEASE_STATE/assets/${endpoint##*/}" ;;
+  repos/autopus-ai/autopus-adk/releases/tags/v0.50.118) exec cat "$MOCK_CURRENT_RELEASE_STATE/release.json" ;;
+  repos/autopus-ai/autopus-adk/releases/assets/*) exec cat "$MOCK_CURRENT_RELEASE_STATE/assets/${endpoint##*/}" ;;
   *) exit 64 ;;
 esac
 `
