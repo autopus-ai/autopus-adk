@@ -39,7 +39,8 @@ func RunCodex(ctx context.Context, opts CodexOptions) (Evidence, error) {
 	if err != nil {
 		return Evidence{}, err
 	}
-	defer os.RemoveAll(cwd)
+	// Freeze the owned temporary path before an explicit working directory replaces cwd.
+	defer func(temporary string) { _ = os.RemoveAll(temporary) }(cwd)
 	if opts.WorkingDir != "" {
 		cwd, err = filepath.Abs(opts.WorkingDir)
 		if err != nil {

@@ -39,11 +39,3 @@ func (cfg RunConfig) recordSafetyEvidence(evidence DegradedEvidence) {
 	}
 	*cfg.SafetyEvents = append(*cfg.SafetyEvents, evidence)
 }
-
-func phaseTaskIDs(phases []Phase) []string {
-	taskIDs := make([]string, len(phases))
-	for i, phase := range phases {
-		taskIDs[i] = string(phase.ID)
-	}
-	return taskIDs
-}

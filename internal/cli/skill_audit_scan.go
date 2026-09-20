@@ -66,7 +66,7 @@ func scanSkillAuditFiles(root string, roots []string) ([]skillAuditFile, []strin
 	if err != nil {
 		return nil, nil, err
 	}
-	defer sandbox.Close()
+	defer func() { _ = sandbox.Close() }()
 	files := []skillAuditFile{}
 	skipped := []string{}
 	count := 0

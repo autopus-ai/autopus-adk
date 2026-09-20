@@ -29,7 +29,7 @@ func Select(policy Policy, task Task, directory string) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	defer root.Close()
+	defer func() { _ = root.Close() }()
 	result := Result{SchemaVersion: "skill_selection.v1", Selected: []string{}, Decisions: []Decision{}}
 	candidates := append([]Candidate(nil), policy.Candidates...)
 	sort.Slice(candidates, func(i, j int) bool { return candidates[i].ID < candidates[j].ID })

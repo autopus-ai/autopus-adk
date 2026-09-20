@@ -2,8 +2,9 @@ package opencode
 
 import (
 	"fmt"
-	"github.com/insajin/autopus-adk/templates"
 	"strings"
+
+	"github.com/insajin/autopus-adk/templates"
 )
 
 func routerDescription() string {

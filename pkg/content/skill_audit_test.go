@@ -1,8 +1,9 @@
 package content
 
 import (
-	"github.com/insajin/autopus-adk/pkg/config"
 	"testing"
+
+	"github.com/insajin/autopus-adk/pkg/config"
 )
 
 func TestExplainSkillSelection(t *testing.T) {
