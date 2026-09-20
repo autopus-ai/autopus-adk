@@ -185,7 +185,8 @@ func devWorkflowBody(name, summary string) customWorkflowBody {
 		"",
 		"- `dev`는 `plan → go → sync`를 순차 실행하는 orchestration wrapper입니다.",
 		"- OpenCode 기본 모델은 `"+openCodeDefaultModel+"`로 가정합니다. 사용자가 `--model`을 주면 그 값을 우선합니다.",
-		"- `--team`은 OpenCode에서 reserved compatibility flag이며 현재는 기본 subagent pipeline을 유지합니다.",
+		"- For explicit `--team`, verify that the current runtime exposes the requested native team lifecycle before dispatch. If unavailable, stop with unsupported-mode; do not substitute the default task-based pipeline or report it as team execution.",
+		"- `--multi` is a review modifier, not a team topology; preserve it independently through plan → go → sync.",
 		"- 각 단계가 실패하면 조용히 건너뛰지 말고 실패 지점과 재개 방법을 명시합니다.",
 	)
 

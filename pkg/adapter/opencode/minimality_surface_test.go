@@ -15,7 +15,7 @@ func TestOpenCodeAdapter_Generate_MinimalityCommandsStayThinAndSharedSkillsCarry
 	t.Parallel()
 
 	dir := t.TempDir()
-	_, err := NewWithRoot(dir).Generate(context.Background(), config.DefaultFullConfig("minimality-project"))
+	_, err := NewWithRoot(dir, WithCLIVersion("1.18.7")).Generate(context.Background(), config.DefaultFullConfig("minimality-project"))
 	require.NoError(t, err)
 
 	for _, name := range []string{"auto-plan", "auto-go", "auto-fix", "auto-review"} {

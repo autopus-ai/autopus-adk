@@ -54,7 +54,7 @@ func generateLatestCLIFixture(t *testing.T) latestCLIFixture {
 
 	generators := []adapter.PlatformAdapter{
 		claude.NewWithRoot(root), codex.NewWithRoot(root),
-		antigravity.NewWithRoot(root), opencode.NewWithRoot(root),
+		antigravity.NewWithRoot(root), opencode.NewWithRoot(root, opencode.WithCLIVersion("1.18.7")),
 		omp.NewWithRoot(root),
 	}
 	manifests := make(map[string]*adapter.Manifest, len(generators))

@@ -31,7 +31,7 @@ func TestNonClaudeAdaptersNeverEmitTeamWorkflow(t *testing.T) {
 	}{
 		{"codex", func(root string) generator { return codex.NewWithRoot(root) }},
 		{"gemini", func(root string) generator { return antigravity.NewWithRoot(root) }},
-		{"opencode", func(root string) generator { return opencode.NewWithRoot(root) }},
+		{"opencode", func(root string) generator { return opencode.NewWithRoot(root, opencode.WithCLIVersion("1.18.7")) }},
 	}
 
 	for _, tc := range cases {

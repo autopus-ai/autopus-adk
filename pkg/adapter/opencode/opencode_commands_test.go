@@ -15,7 +15,7 @@ import (
 func TestAdapter_Generate_WorkflowCommandsRouteAliasesThroughAuto(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	a := NewWithRoot(dir)
+	a := NewWithRoot(dir, WithCLIVersion("1.18.7"))
 
 	_, err := a.Generate(context.Background(), config.DefaultFullConfig("demo"))
 	require.NoError(t, err)

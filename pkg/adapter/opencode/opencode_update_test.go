@@ -17,7 +17,7 @@ func TestAdapter_Update_NoManifestWriteFailureRollsBackCreatedFiles(t *testing.T
 	t.Parallel()
 
 	dir := t.TempDir()
-	a := NewWithRoot(dir)
+	a := NewWithRoot(dir, WithCLIVersion("1.18.7"))
 	cfg := config.DefaultFullConfig("demo")
 
 	blockerPath := filepath.Join(dir, ".opencode", "commands", "auto.md")
@@ -36,7 +36,7 @@ func TestAdapter_Update_WithManifestWriteFailureRollsBackWritesAndPrunes(t *test
 	t.Parallel()
 
 	dir := t.TempDir()
-	a := NewWithRoot(dir)
+	a := NewWithRoot(dir, WithCLIVersion("1.18.7"))
 	fullCfg := config.DefaultFullConfig("demo")
 	fullCfg.Platforms = []string{"opencode"}
 	// The rollback assertion needs a long-tail artifact the failed update would
@@ -71,7 +71,7 @@ func TestAdapter_Update_LinkedWorktreeGitFileSkipsRootGitHooks(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	a := NewWithRoot(dir)
+	a := NewWithRoot(dir, WithCLIVersion("1.18.7"))
 	cfg := config.DefaultFullConfig("demo")
 
 	_, err := a.Generate(context.Background(), cfg)

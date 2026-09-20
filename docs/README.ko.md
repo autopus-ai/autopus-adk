@@ -13,7 +13,7 @@ AI 코딩 도구(Claude Code, Codex, Antigravity CLI, OpenCode, Oh My Pi)가 진
 [![Go Version](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)](https://golang.org)
 [![Platforms](https://img.shields.io/badge/Platforms-5-orange)](#-하나의-설정-다섯-개-플랫폼)
 [![Agents](https://img.shields.io/badge/Agents-16-blueviolet)](#-16개-전문-에이전트)
-[![Skills](https://img.shields.io/badge/Skills-40-ff69b4)](#-전체-명령어)
+[![Skills](https://img.shields.io/badge/Skills-53-ff69b4)](#-전체-명령어)
 
 **AI 코딩 도구의 채팅창에 아래 명령을 붙여넣으세요 — 에이전트가 실행해서 설치부터 설정까지 알아서 합니다. 터미널에서 직접 실행해도 됩니다.**
 
@@ -32,6 +32,44 @@ powershell -c "irm https://raw.githubusercontent.com/autopus-ai/autopus-adk/main
 </div>
 
 ---
+
+## 작업에 맞는 흐름으로 시작하기
+
+기존 저장소의 실제 작업 하나로 시작하세요. 설정을 마친 뒤 터미널에서
+`auto doctor`를 실행하면 플랫폼 연결 상태를 확인할 수 있습니다.
+
+| 작업 | 에이전트 채팅에서 실행 | 작업 범위 |
+| --- | --- | --- |
+| 기존 계약 안의 버그 수정 | `@auto fix "오류 설명"` | 재현 테스트, 최소 수정, 검증. 저위험 수정에는 전체 SPEC 문서가 필요하지 않습니다 |
+| 기존 변경 검토 | `@auto review` | 발견한 문제와 검증 근거 |
+| 새로운 요구사항 구현 | `@auto plan "원하는 결과"` → `@auto go SPEC-ID` | 인수 기준, 구현, 해당 작업에 필요한 검증 |
+
+위 예시는 Codex 플러그인 명령입니다. Codex 기본 스킬은 `$codex-auto-fix`,
+`$codex-auto-review`처럼 호출하며, Claude Code와 OpenCode는 `/auto ...`를 사용합니다.
+
+Autopus는 여러 코딩 도구와 저장소에 일관된 개발·검증 기준을 적용할 때 유용합니다.
+짧은 단일 작업에는 코딩 도구의 기본 기능만으로도 충분할 수 있습니다.
+기본 split 스킬 목록으로 시작하고 필요할 때 확장하세요.
+[하네스 비교와 평가 방법](harness-assessment.md)에 선택 기준을 정리했습니다.
+
+비용을 점검하려면 `auto skill audit --dir . --platform codex --json`으로 시작하세요.
+명시적 스킬 선택 정책을 반례와 함께 검증하고, `auto telemetry harness`로
+기본 에이전트·현재 하네스·축소한 하네스의 실행 관측값을 비교할 수 있습니다.
+[진단 사용법](harness-efficiency.md)에 실행 예제와 미측정 값의 의미,
+파일을 변경하지 않는 검증 계획 방법을 정리했습니다.
+
+[멀티에이전트 협업 정리](multiagent-coordination.md)에는 최신 플랫폼 지원과
+의존성 기반 실행, 작업자 소유 범위 검사를 설명했습니다. 서브에이전트 생성이
+가능하더라도 현재 세션의 팀 관리 기능과 작업 공간 격리는 따로 확인해야 합니다.
+
+`auto doctor agents`는 모델 호출 없이 설치된 실행 도구를 확인합니다.
+Codex와 OpenCode는 명시적인 live 검사로 생성·결과·취소·정리 근거를 수집하며,
+`auto telemetry team`은 부모 집계와 작업자 사용량의 중복을 막습니다.
+[검사·사용량 집계 안내](agent-lifecycle.md)에 실행 예제와 실제 관측 결과를 정리했습니다.
+
+**검증 범위:** CLI 게이트는 실행·설정된 범위의 산출물과 결과를 검사합니다.
+스킬의 기획·TDD·리뷰 지침만으로 에이전트가 모든 절차를 따랐다고 증명할 수는 없습니다.
+게이트 통과는 해당 검사의 근거이며, 애플리케이션의 운영 준비 완료를 보장하지 않습니다.
 
 ## 🎬 실제 동작
 
@@ -57,14 +95,14 @@ powershell -c "irm https://raw.githubusercontent.com/autopus-ai/autopus-adk/main
 🐙 Pipeline ─────────────────────────────────────────────
   ✓ Phase 1:   Planning         planner가 5개 태스크 분해
   ✓ Phase 1.5: Test Scaffold    12개 실패 테스트 생성 (RED)
-  ✓ Phase 2:   Implementation   3개 executor가 병렬 워크트리에서 구현
+  ✓ Phase 2:   Implementation   3개 executor가 겹치지 않는 파일을 나누어 구현
   ✓ Phase 3:   Testing          커버리지: 62% → 91%
   ✓ Phase 4:   Review           TRUST 5: APPROVE | 보안: PASS
   ───────────────────────────────────────────────────────
   ✅ 5/5 태스크 │ 91% 커버리지 │ 보안 이슈 0건 │ 4분 32초
 ```
 
-> 💡 명령 하나로. 테스트, 보안 감사, 문서, 의사결정 이력이 포함된 프로덕션 수준의 코드.
+> 위 파이프라인 출력은 설명용 예시이며 벤치마크 결과가 아닙니다. 완료 여부는 프로젝트의 인수 기준과 실제 검증 결과로 판단합니다.
 
 ---
 
@@ -185,7 +223,7 @@ Autopus는 하나의 AI 어시스턴트가 아닌 — 역할 정의, 품질 게�
 ```
 🧠 Planner        →  요구사항을 태스크로 분해
 ⚡ Executor ×N    →  병렬 워크트리에서 코드 구현
-🧪 Tester         →  코드 작성 전에 테스트 먼저 (TDD 강제)
+🧪 Tester         →  코드 작성 전에 테스트 먼저 (TDD 작업 지침)
 ✅ Validator       →  빌드, 린트, vet 검사
 🔍 Reviewer       →  TRUST 5 코드 리뷰
 🛡️ Security       →  OWASP Top 10 보안 감사
@@ -249,7 +287,9 @@ flowchart TB
 
 ### 🌳 격리된 워크트리에서 병렬 에이전트 실행
 
-여러 executor가 **동시에** 작업합니다 — 각각 자체 git 워크트리에서. 충돌 없음. 손상 없음.
+워크트리 실행 경로에서는 executor마다 별도의 Git 작업 디렉터리를 사용합니다.
+Codex 기본 worker는 같은 cwd와 파일시스템을 공유하므로 담당 파일을 나누고,
+수정 범위가 겹치면 순차 실행합니다. 아래는 워크트리 경로의 예시입니다.
 
 ```
 Phase 2: Implementation
@@ -261,7 +301,9 @@ Phase 2.1: Merge (태스크 ID 순서)
   ✓ T1 병합 → T2 병합 → T3 병합 → 작업 브랜치
 ```
 
-파일 소유권으로 충돌 방지. GC 억제로 손상 방지. 최대 **5개 동시 워크트리.**
+워크트리 경로는 최대 **5개 동시 워크트리**를 지원합니다. 담당 파일 분리와 순서에
+따른 통합으로 충돌을 줄이되, 병합 결과는 검증해야 합니다. 기본 worker의 동시 실행
+수는 플랫폼과 실제 실행 환경의 한도에 따릅니다.
 
 ### 📜 Lore: 코드베이스는 절대 잊지 않는다
 
@@ -798,7 +840,7 @@ ARCHITECTURE.md                    # 도메인, 레이어, 의존성 맵
 ╰────────────────────────────────────╯
 ```
 
-이게 전부입니다 — 테스트, 보안 감사, 완전한 문서화가 포함된 프로덕션 수준 코드가 세 개의 명령으로 완성됩니다.
+세 개의 명령으로 구현부터 검증과 문서화까지 진행합니다. 운영 준비 여부는 프로젝트의 인수 기준과 실제 검사 결과로 확인하세요.
 
 ### 빠른 참조
 
@@ -1247,7 +1289,8 @@ auto sync verify --spec SPEC-HOOK-001 --strict
 ╰────────────────────────────────────╯
 ```
 
-**끝입니다.** 세 개의 명령: 기획 → 구현 → 배포. 모든 결정이 기록됩니다. 모든 테스트가 강제됩니다.
+세 개의 명령으로 요구사항, 구현, 전달 기록을 연결합니다. 완료 여부는 기록된
+인수 기준과 검증 결과를 확인해 판단하세요.
 
 ---
 

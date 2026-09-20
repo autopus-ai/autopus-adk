@@ -47,7 +47,7 @@ func generateContextEngineeringSurfaces(t *testing.T) map[string]contextEngineer
 		}, ".codex/skills/codex-agent-pipeline/SKILL.md",
 			func(command string) string { return ".codex/skills/codex-auto-" + command + "/SKILL.md" }},
 		{"opencode", func(root string) (*adapter.PlatformFiles, error) {
-			return opencode.NewWithRoot(root).Generate(context.Background(), config.DefaultFullConfig("context-engineering"))
+			return opencode.NewWithRoot(root, opencode.WithCLIVersion("1.18.7")).Generate(context.Background(), config.DefaultFullConfig("context-engineering"))
 		}, ".agents/skills/agent-pipeline/SKILL.md",
 			func(command string) string { return ".agents/skills/auto-" + command + "/SKILL.md" }},
 		{"omp", func(root string) (*adapter.PlatformFiles, error) {

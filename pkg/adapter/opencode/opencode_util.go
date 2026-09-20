@@ -45,7 +45,7 @@ func normalizeOpenCodeMarkdown(content string) string {
 		"Codex 런타임 정책", "OpenCode 런타임 정책",
 		"Codex 런타임이", "OpenCode 런타임이",
 		"- `--team`: `.codex/skills/codex-agent-teams/SKILL.md`의 Codex team profile 적용",
-		"- `--team`: 별도 native team을 만들지 않고 OpenCode task-based pipeline 적용",
+		"- `--team`: verify the requested native team lifecycle in the current runtime; if unavailable, stop with unsupported-mode and do not substitute the OpenCode task-based pipeline.",
 		"spawn_agent(...)", "task(...)",
 		"`spawn_agent`", "`task`",
 		".codex/skills/codex-agent-pipeline/SKILL.md", ".agents/skills/agent-pipeline/SKILL.md",

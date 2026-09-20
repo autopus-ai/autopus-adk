@@ -3,7 +3,6 @@ package cli
 import (
 	"context"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -153,10 +152,11 @@ func TestWorkflowContextObserveVersion_InheritedModeStripsSecretsInsideDenyDefau
 `
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		cmd := exec.CommandContext(ctx, "/usr/bin/sandbox-exec", "-p", profile, os.Args[0],
-			"-test.run=^TestWorkflowContextObserveVersion_InheritedModeStripsSecretsInsideDenyDefaultSandbox$")
-		cmd.Env = append(os.Environ(), workflowContextInheritedVersionOuterSandboxFixture+"=1")
-		require.NoError(t, cmd.Run())
+		cmd := sandboxCoverageFixtureCommand(t, ctx, profile,
+			"TestWorkflowContextObserveVersion_InheritedModeStripsSecretsInsideDenyDefaultSandbox")
+		cmd.Env = append(cmd.Env, workflowContextInheritedVersionOuterSandboxFixture+"=1")
+		output, err := cmd.CombinedOutput()
+		require.NoError(t, err, strings.TrimSpace(string(output)))
 		return
 	}
 

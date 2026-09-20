@@ -49,7 +49,7 @@ func generatePlatform(t *testing.T, platform string) string {
 	case "gemini":
 		_, err = antigravity.NewWithRoot(dir).Generate(ctx, cfg)
 	case "opencode":
-		_, err = opencode.NewWithRoot(dir).Generate(ctx, cfg)
+		_, err = opencode.NewWithRoot(dir, opencode.WithCLIVersion("1.18.7")).Generate(ctx, cfg)
 	default:
 		t.Fatalf("unknown platform %q", platform)
 	}

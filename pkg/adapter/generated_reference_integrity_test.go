@@ -84,7 +84,7 @@ var platformGenerators = map[string]func(root string, ctx context.Context, cfg *
 		return antigravity.NewWithRoot(root).Generate(ctx, cfg)
 	},
 	"opencode": func(root string, ctx context.Context, cfg *config.HarnessConfig) (*adapter.PlatformFiles, error) {
-		return opencode.NewWithRoot(root).Generate(ctx, cfg)
+		return opencode.NewWithRoot(root, opencode.WithCLIVersion("1.18.7")).Generate(ctx, cfg)
 	},
 	"omp": func(root string, ctx context.Context, cfg *config.HarnessConfig) (*adapter.PlatformFiles, error) {
 		return omp.NewWithRoot(root).Generate(ctx, cfg)

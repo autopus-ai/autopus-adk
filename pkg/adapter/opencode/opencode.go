@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
 
 	"github.com/insajin/autopus-adk/pkg/adapter"
 	"github.com/insajin/autopus-adk/pkg/config"
@@ -24,18 +25,28 @@ const (
 
 // Adapter is the OpenCode platform adapter.
 type Adapter struct {
-	root   string
-	engine *tmpl.Engine
+	root          string
+	engine        *tmpl.Engine
+	pinnedVersion *string
+	versionOnce   sync.Once
+	major         int
+	versionKnown  bool
 }
 
 // New creates an adapter rooted at the current directory.
 func New() *Adapter {
-	return &Adapter{root: ".", engine: tmpl.New()}
+	return NewWithRoot(".")
 }
 
 // NewWithRoot creates an adapter rooted at the specified path.
-func NewWithRoot(root string) *Adapter {
-	return &Adapter{root: root, engine: tmpl.New()}
+func NewWithRoot(root string, options ...Option) *Adapter {
+	a := &Adapter{root: root, engine: tmpl.New()}
+	for _, option := range options {
+		if option != nil {
+			option(a)
+		}
+	}
+	return a
 }
 
 func (a *Adapter) Name() string        { return adapterName }
@@ -87,15 +98,18 @@ func (a *Adapter) Update(ctx context.Context, cfg *config.HarnessConfig) (*adapt
 
 // InstallHooks updates OpenCode plugin wiring for the provided hooks.
 func (a *Adapter) InstallHooks(_ context.Context, hooks []adapter.HookConfig, _ *adapter.PermissionSet) error {
+	if err := a.validateRuntime(); err != nil {
+		return err
+	}
 	mapping, err := a.prepareHookPluginMapping(hooks)
 	if err != nil {
 		return err
 	}
-	if err := writeMapping(a.root, mapping); err != nil {
-		return err
-	}
 	configMapping, err := a.prepareConfigMapping()
 	if err != nil {
+		return err
+	}
+	if err := writeMapping(a.root, mapping); err != nil {
 		return err
 	}
 	return writeMapping(a.root, configMapping)

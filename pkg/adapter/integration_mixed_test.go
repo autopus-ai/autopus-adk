@@ -23,7 +23,7 @@ func TestE2EMixedCodexOpencode_SharedFilesOwnedByOpencode(t *testing.T) {
 	cfg.Platforms = []string{"codex", "opencode"}
 
 	codexAdapter := codex.NewWithRoot(dir)
-	opencodeAdapter := opencode.NewWithRoot(dir)
+	opencodeAdapter := opencode.NewWithRoot(dir, opencode.WithCLIVersion("1.18.7"))
 
 	_, err := codexAdapter.Generate(context.Background(), cfg)
 	require.NoError(t, err)
@@ -52,7 +52,7 @@ func TestE2EMixedCodexOpencode_CodexSkipsSharedSurfaceWrites(t *testing.T) {
 	cfg.Platforms = []string{"codex", "opencode"}
 
 	codexAdapter := codex.NewWithRoot(dir)
-	opencodeAdapter := opencode.NewWithRoot(dir)
+	opencodeAdapter := opencode.NewWithRoot(dir, opencode.WithCLIVersion("1.18.7"))
 
 	_, err := codexAdapter.Generate(context.Background(), cfg)
 	require.NoError(t, err)
@@ -93,7 +93,7 @@ func TestE2EMixedCodexOpencode_CodexValidateSkipsSharedSurfaceChecks(t *testing.
 
 	_, err := codexAdapter.Generate(context.Background(), cfg)
 	require.NoError(t, err)
-	_, err = opencode.NewWithRoot(dir).Update(context.Background(), cfg)
+	_, err = opencode.NewWithRoot(dir, opencode.WithCLIVersion("1.18.7")).Update(context.Background(), cfg)
 	require.NoError(t, err)
 
 	errs, err := codexAdapter.Validate(context.Background())
@@ -113,7 +113,7 @@ func TestE2EMixedCodexOpencode_CodexCleanPreservesSharedSurface(t *testing.T) {
 	cfg.Platforms = []string{"codex", "opencode"}
 
 	codexAdapter := codex.NewWithRoot(dir)
-	opencodeAdapter := opencode.NewWithRoot(dir)
+	opencodeAdapter := opencode.NewWithRoot(dir, opencode.WithCLIVersion("1.18.7"))
 
 	_, err := codexAdapter.Generate(context.Background(), cfg)
 	require.NoError(t, err)

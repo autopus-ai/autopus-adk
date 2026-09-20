@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "expected_task_ids": [
+    "bug-001"
+  ],
+  "observations": [
+    {
+      "task_id": "bug-001",
+      "arm": "native",
+      "harness_revision": "recorded-harness-revision",
+      "harness_config_hash": "native-config-sha256",
+      "identity": {
+        "provider": "codex",
+        "provider_version": "recorded-cli-version",
+        "model": "recorded-model",
+        "model_version": "recorded-model-version",
+        "effort": "high",
+        "cache_stratum": "cold",
+        "task_hash": "task-content-sha256",
+        "oracle_hash": "acceptance-sha256",
+        "environment_hash": "environment-sha256",
+        "budget_hash": "budget-sha256",
+        "revision": "same-target-git-revision"
+      },
+      "accepted": null,
+      "elapsed_ms": null,
+      "human_corrections": null,
+      "runs": []
+    },
+    {
+      "task_id": "bug-001",
+      "arm": "current",
+      "harness_revision": "recorded-harness-revision",
+      "harness_config_hash": "current-config-sha256",
+      "identity": {
+        "provider": "codex",
+        "provider_version": "recorded-cli-version",
+        "model": "recorded-model",
+        "model_version": "recorded-model-version",
+        "effort": "high",
+        "cache_stratum": "cold",
+        "task_hash": "task-content-sha256",
+        "oracle_hash": "acceptance-sha256",
+        "environment_hash": "environment-sha256",
+        "budget_hash": "budget-sha256",
+        "revision": "same-target-git-revision"
+      },
+      "accepted": null,
+      "elapsed_ms": null,
+      "human_corrections": null,
+      "runs": []
+    },
+    {
+      "task_id": "bug-001",
+      "arm": "reduced",
+      "harness_revision": "recorded-harness-revision",
+      "harness_config_hash": "reduced-config-sha256",
+      "identity": {
+        "provider": "codex",
+        "provider_version": "recorded-cli-version",
+        "model": "recorded-model",
+        "model_version": "recorded-model-version",
+        "effort": "high",
+        "cache_stratum": "cold",
+        "task_hash": "task-content-sha256",
+        "oracle_hash": "acceptance-sha256",
+        "environment_hash": "environment-sha256",
+        "budget_hash": "budget-sha256",
+        "revision": "same-target-git-revision"
+      },
+      "accepted": null,
+      "elapsed_ms": null,
+      "human_corrections": null,
+      "runs": []
+    }
+  ]
+}

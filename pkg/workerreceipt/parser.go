@@ -125,6 +125,9 @@ func validateEnvelope(raw string, envelope *Envelope) error {
 			}
 		}
 	}
+	if err := ValidateOwnership(envelope.Receipt, nil); err != nil {
+		return err
+	}
 	if rawEvidence, present := outer["evidence"]; present {
 		if bytes.Equal(bytes.TrimSpace(rawEvidence), []byte("null")) {
 			return fmt.Errorf("worker receipt evidence must not be null")

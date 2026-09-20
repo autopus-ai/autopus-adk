@@ -7,7 +7,6 @@ import (
 	"context"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -118,9 +117,9 @@ func TestPipelineOMPVerifiedExecCommand_InheritedSandboxRunsInsideDenyDefaultOut
 	assert.NotContains(t, profile, "no-sandbox")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "/usr/bin/sandbox-exec", "-p", profile, os.Args[0],
-		"-test.run=^TestPipelineOMPVerifiedExecCommand_InheritedSandboxRunsInsideDenyDefaultOuterSandbox$")
-	cmd.Env = append(os.Environ(), pipelineOMPPrivatePathOuterSandboxFixture+"="+executable)
+	cmd := sandboxCoverageFixtureCommand(t, ctx, profile,
+		"TestPipelineOMPVerifiedExecCommand_InheritedSandboxRunsInsideDenyDefaultOuterSandbox")
+	cmd.Env = append(cmd.Env, pipelineOMPPrivatePathOuterSandboxFixture+"="+executable)
 	output, err := cmd.CombinedOutput()
 	require.NoError(t, err, strings.TrimSpace(string(output)))
 }

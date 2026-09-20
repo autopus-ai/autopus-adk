@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "team_run_id": "replace-with-team-run-id",
+  "expected_agents": [
+    {
+      "agent_id": "supervisor",
+      "role": "supervisor"
+    },
+    {
+      "agent_id": "worker-1",
+      "parent_agent_id": "supervisor",
+      "role": "worker"
+    }
+  ],
+  "observations": [
+    {
+      "agent_id": "supervisor",
+      "usage_scope": "unknown",
+      "capture_complete": false,
+      "usage": []
+    },
+    {
+      "agent_id": "worker-1",
+      "usage_scope": "unknown",
+      "capture_complete": false,
+      "usage": []
+    }
+  ]
+}

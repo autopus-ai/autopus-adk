@@ -44,9 +44,8 @@ func (a *Adapter) Validate(_ context.Context) ([]adapter.ValidationError, error)
 
 	configDoc, err := readJSONObject(filepath.Join(a.root, configFile))
 	if err == nil {
-		plugins := jsonPluginSlice(configDoc["plugin"])
 		for _, plugin := range managedPluginPaths(nil) {
-			if containsString(plugins, plugin) {
+			if managedPluginRegistered(configDoc, plugin, a.isV2(), a.root) {
 				continue
 			}
 			errs = append(errs, adapter.ValidationError{

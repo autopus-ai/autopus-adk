@@ -14,6 +14,35 @@ an evidence ref per `spec_id` plus acceptance-criteria id. A mandatory criterion
 without its own evidence row is not closed by a sibling PASS, and a failing
 slice is never offset by the number of passing ones.
 
+## Reuse evidence before scheduling another check
+
+Inspect `auto spec gates <SPEC-ID> --read-only --json` before repeating a
+previously passing check. This inspects the existing evidence and current file
+closure without rewriting project configuration or the receipt. `reusable`
+means the recorded file inputs still match; it does not attest the current
+toolchain, command flags, environment, provider, or external service state.
+
+- Reuse only a complete successful result whose declared input closure and
+  execution conditions still apply. Include lockfiles, test fixtures and policy
+  inputs in the closure. Never use HEAD alone to validate a dirty working tree.
+- Use `--no-reuse` and execute fresh checks when the command, toolchain,
+  environment, or external state changed or cannot be established. Failed,
+  partial, stale and missing evidence also require fresh verification.
+- Record a result with `auto spec gates record` only after executing the check;
+  that command records an assertion and file hashes, not an execution proof.
+- After a repair, repeat the affected checks and verify the frozen findings.
+  A passing unchanged check is not rerun solely because another phase or worker
+  has started. Required safety and acceptance checks still need valid evidence.
+- Record a necessary repeat through `auto telemetry record --action action
+  --kind rerun --target <check> --reason <changed-input-or-open-finding>`.
+
+For skill overhead investigation, use `auto skill audit` for configured/local
+exposure, and explicit `auto skill select` / `auto skill policy-check` contracts
+for positive and negative selection cases. These commands do not prove actual
+session loading and do not justify dropping required context. Three-arm
+observations belong in `auto telemetry harness`; never label fixture outputs
+as measured productivity improvements.
+
 ## Gate 2 check set
 
 Run the checks the changed surface actually has, and do not reduce the

@@ -13,6 +13,10 @@ func (a *Adapter) prepareFiles(_ context.Context, cfg *config.HarnessConfig) ([]
 		return nil, fmt.Errorf("하네스 설정이 필요합니다")
 	}
 
+	if err := a.validateRuntime(); err != nil {
+		return nil, err
+	}
+
 	var files []adapter.FileMapping
 	appendFiles := func(items []adapter.FileMapping, err error) error {
 		if err != nil {
@@ -53,5 +57,5 @@ func (a *Adapter) prepareFiles(_ context.Context, cfg *config.HarnessConfig) ([]
 	}
 	files = append(files, configMapping)
 
-	return sanitizeUnsupportedClaudeTeamMappings(files), nil
+	return a.adaptRuntimeMappings(sanitizeUnsupportedClaudeTeamMappings(files)), nil
 }

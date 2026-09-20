@@ -59,7 +59,7 @@ func stickyGenerate(t *testing.T, platform string) []adapter.FileMapping {
 	case "gemini":
 		pf, err = antigravity.NewWithRoot(dir).Generate(ctx, cfg)
 	case "opencode":
-		pf, err = opencode.NewWithRoot(dir).Generate(ctx, cfg)
+		pf, err = opencode.NewWithRoot(dir, opencode.WithCLIVersion("1.18.7")).Generate(ctx, cfg)
 	default:
 		t.Fatalf("unknown platform: %s", platform)
 	}

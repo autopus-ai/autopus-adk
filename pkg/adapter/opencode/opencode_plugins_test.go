@@ -18,7 +18,7 @@ import (
 func TestAdapter_InstallHooks_WritesPlugin(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	a := NewWithRoot(dir)
+	a := NewWithRoot(dir, WithCLIVersion("1.18.7"))
 	hooks := []adapter.HookConfig{{Event: "PreToolUse", Matcher: "Bash", Type: "command", Command: "auto check --arch --quiet --warn-only", Timeout: 30}}
 
 	err := a.InstallHooks(context.Background(), hooks, nil)
@@ -32,7 +32,7 @@ func TestAdapter_InstallHooks_WritesPlugin(t *testing.T) {
 func TestInjectOrchestraPlugin_MergesPluginArray(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	a := NewWithRoot(dir)
+	a := NewWithRoot(dir, WithCLIVersion("1.18.7"))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "opencode.json"), []byte(`{"plugin":["existing-plugin"]}`), 0644))
 
 	err := a.InjectOrchestraPlugin("/path/to/script.js")
@@ -48,7 +48,7 @@ func TestInjectOrchestraPlugin_MergesPluginArray(t *testing.T) {
 func TestAdapter_Generate_WorkflowSkillsUseOpenCodeSurface(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	a := NewWithRoot(dir)
+	a := NewWithRoot(dir, WithCLIVersion("1.18.7"))
 	_, err := a.Generate(context.Background(), config.DefaultFullConfig("demo"))
 	require.NoError(t, err)
 

@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "platform": "codex",
+  "runtime_version": "unmeasured",
+  "run_id": "example",
+  "supervisor_id": "supervisor",
+  "challenge": "example-token",
+  "events": []
+}

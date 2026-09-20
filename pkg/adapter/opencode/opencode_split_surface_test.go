@@ -14,7 +14,7 @@ import (
 func TestAdapter_Update_SplitCompilerPrunesOpenCodeProjectLongTailWhenReturningToFullMode(t *testing.T) {
 	t.Parallel()
 
-	a := NewWithRoot(t.TempDir())
+	a := NewWithRoot(t.TempDir(), WithCLIVersion("1.18.7"))
 	splitCfg := config.DefaultFullConfig("split-opencode")
 	splitCfg.Platforms = []string{"codex", "opencode"}
 	splitCfg.Skills.SharedSurface = config.SharedSurfaceCore

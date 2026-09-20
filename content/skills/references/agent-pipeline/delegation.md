@@ -78,6 +78,20 @@ Where the legacy external worktree pipeline is still in use:
 Sequential units integrate immediately after each unit completes, before the
 next dependent unit starts.
 
+Confirm shared interface ownership and dependency edges before each dispatch
+wave. A finished worker message is not acceptance: validate the returned receipt,
+inspect the actual changed paths against the supervisor's assignment, and verify
+the integrated result before dependent work proceeds. The marked receipt parser
+checks declared ownership consistency; it does not prove the actual filesystem
+diff or grant permissions. Literal roots and trailing `/**` scopes are accepted;
+do not use other glob patterns in canonical worker receipts.
+
+The local `ParallelRunner` honors `Phase.DependsOn` and records dependency-ready
+slot admission. This does not establish native host capacity, worktree creation,
+or the order in which admitted goroutines begin executing. Keep those claims
+separate from observed runtime dispatch. Never choose team size from a universal
+benchmark percentage; use available capacity and the independent ready work.
+
 ## Delegation safety rails
 
 - `delegation_depth` starts at 0 with a default `delegation_depth_cap` of 2.

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sync"
 
 	"github.com/insajin/autopus-adk/pkg/learn"
 	"gopkg.in/yaml.v3"
@@ -132,69 +131,11 @@ func NewParallelRunner(backend PhaseBackend) *ParallelRunner {
 	return &ParallelRunner{backend: backend}
 }
 
-// @AX:WARN: [AUTO] parallel worker goroutines depend on slot acquisition and backend Execute honoring ctx after dispatch.
-// @AX:REASON: Cancellation after a slot is acquired still relies on backend context handling; future worker changes must preserve bounded shutdown.
-// RunPhases executes all given phases in parallel and returns their results.
-// Results are returned in the same order as the input phases.
+// RunPhases admits dependency-ready phases at a bounded local concurrency.
+// Results retain input order. Admission does not imply native agent capacity,
+// filesystem isolation, or goroutine execution-start order.
 func (r *ParallelRunner) RunPhases(ctx context.Context, phases []Phase, cfg RunConfig) ([]PhaseResult, error) {
-	if err := cfg.preflightWorkflowAuthenticity(); err != nil {
-		return nil, err
-	}
-	n := len(phases)
-	results := make([]PhaseResult, n)
-	errs := make([]error, n)
-	slotCap := cfg.effectiveWorktreeSlotCap()
-	if n > 0 {
-		schedule := ScheduleWorktreeTasksWithCap(phaseTaskIDs(phases), slotCap)
-		cfg.recordSafetyEvidence(schedule.Evidence)
-	}
-	for _, phase := range phases {
-		if err := cfg.checkDelegationSafety(phase.ID); err != nil {
-			return nil, err
-		}
-	}
-	slots := make(chan struct{}, slotCap)
-
-	// @AX:NOTE: [AUTO] start-gun pattern — gate channel releases all goroutines simultaneously; maximizes concurrency burst
-	// gate is closed after all goroutines are launched, releasing them
-	// simultaneously to maximise observable concurrency.
-	gate := make(chan struct{})
-
-	var wg sync.WaitGroup
-	for i, phase := range phases {
-		wg.Add(1)
-		go func(idx int, ph Phase) {
-			defer wg.Done()
-			<-gate
-			select {
-			case slots <- struct{}{}:
-				defer func() { <-slots }()
-			case <-ctx.Done():
-				errs[idx] = ctx.Err()
-				return
-			}
-			resp, err := r.backend.Execute(ctx, PhaseRequest{PhaseID: ph.ID})
-			if err != nil {
-				learnHookExecutorError(cfg.LearnStore, ph.ID, err)
-				errs[idx] = fmt.Errorf("phase %s: %w", ph.ID, err)
-				return
-			}
-			verdict := EvaluateGate(ph.Gate, resp.Output)
-			if verdict != VerdictPass && ph.Gate != GateNone {
-				learnHookGateFail(cfg.LearnStore, ph.ID, ph.Gate, resp.Output, 0)
-			}
-			results[idx] = PhaseResult{PhaseID: ph.ID, Output: resp.Output, Verdict: verdict}
-		}(i, phase)
-	}
-	close(gate) // release all goroutines at once
-	wg.Wait()
-
-	for _, err := range errs {
-		if err != nil {
-			return nil, err
-		}
-	}
-	return results, nil
+	return r.runDependencyPhases(ctx, phases, cfg)
 }
 
 // buildRunnerPrompt constructs a phase prompt injecting the previous output.

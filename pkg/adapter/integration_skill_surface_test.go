@@ -72,7 +72,7 @@ func TestE2EInitMakeInterfacesFeelBetterSkill_AllPlatforms(t *testing.T) {
 				cfg.Platforms = []string{"opencode"}
 				cfg.Skills.Compiler.ExplicitSkills = []string{polishSkillName}
 				cfg.Skills.Compiler.OpenCodeLongTailTarget = config.SkillLongTailTargetShared
-				_, err := opencode.NewWithRoot(dir).Generate(ctx, cfg)
+				_, err := opencode.NewWithRoot(dir, opencode.WithCLIVersion("1.18.7")).Generate(ctx, cfg)
 				return err
 			},
 			path: filepath.Join(".agents", "skills", "make-interfaces-feel-better", "SKILL.md"),

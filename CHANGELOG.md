@@ -4,6 +4,69 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **OpenCode V1·V2 생성 규약을 분리한다** (2026-09-20): 설치된 버전에 따라
+  플러그인과 위임 지침을 생성한다. V2는 SDK 설치가 필요 없는 네이티브
+  플러그인 객체와 `subagent` 규약을
+  사용하며, 기존 V1 지원을 유지한다. 플러그인 옵션·명시적 비활성화·마커 밖
+  사용자 문구를 보존하고, 버전 조회 실패로 V2 플러그인을 V1으로 덮어쓰지
+  않도록 막는다. 검증 범위와 모델 인증 한계는 `docs/opencode-v2-compatibility.md`에 기록한다.
+
+- **네이티브 작업자 lifecycle과 팀 사용량을 분리해 확인한다** (2026-09-20):
+  `doctor agents`의 기본 동작은 설치 정보 조회이며 모델을 호출하지 않는다.
+  명시적 live 모드에서 Codex app-server의 실제 위임과 OpenCode의 연결된
+  세션 API를 검사한다. 생성·결과·취소·정리의 ID와 관측 순서를 확인하고,
+  취소 ACK나 호스트 종료만으로 성공을 판정하지 않는다. 가져온 trace는 실제
+  실행 증명으로 승격하지 않는다. Codex 0.155.1 실제 검사에서 네 단계 PASS를
+  확인했다. OpenCode 1.18.7은 외부 플러그인을 끈 모드의 403과 일반
+  모드의 UnknownError를 구분해 기록했으며, 전체 lifecycle은 미검증이다.
+
+- **협업 관측의 큐 과부하와 비용 이중 계산을 막는다** (2026-09-20): Codex V2
+  `subAgentActivity`를 부모 출처와 대조하고, 무관한 본문·추론 델타는 lifecycle
+  큐에 넣지 않는다. 300개 델타가 RPC 대기 중 큐를 넘치게 하던 경로를 재현해
+  수정했으며 기존 제한은 유지한다. `telemetry team`은 self-call만 합산하고
+  parent-inclusive rollup, 중복, 서로 다른 소유자의 같은 호출 주장을 구분한다.
+  누락은 null로, 관측한 비용은 부분합으로 남긴다. OpenCode 단가 기반 금액은
+  추정 비용이며 실제 청구액으로 취급하지 않는다.
+
+- **멀티에이전트 실행의 의존성과 반환 범위를 검사한다** (2026-09-20):
+  공개 `ParallelRunner`가 `Phase.DependsOn`을 지키도록 고쳤다. 잘못된 그래프는
+  실행 전에 거부하고, 선행 단계가 성공한 작업만 슬롯 한도 안에서 시작 대상으로
+  선택한다. 실패한 선행 작업의 후속 실행을 막고, 마지막 완료와 취소가 겹쳐도
+  취소를 성공으로 표시하지 않는다. 슬롯 기록은 실제 시작 순서나 워크트리 생성
+  증거와 구분한다. 작업자 receipt는 선언한 범위 밖의 변경 파일을 거부하며,
+  별도 validator는 호출자가 제공한 담당 범위보다 넓은 선언도 거부한다.
+  기본 CLI의 순차 실행 방식과 marker 없는 기존 출력의 호환성은 유지한다.
+
+- **플랫폼별 팀 실행 안내를 최신 지원 범위에 맞춘다** (2026-09-20): OpenCode가
+  명시적인 `--team`을 기본 task 실행으로 바꾸던 안내를 제거했다. Antigravity도
+  자체 멀티에이전트 지원과 현재 세션에서 검증된 ADK 연결 경로를 구분하도록
+  정정했다. 새로운 vendor workflow 자동 호출은 추가하지 않았으며, 요청한 팀
+  실행 경로를 확인할 수 없으면 `unsupported-mode`로 알린다.
+
+- **하네스 노출·선택·비교를 검증 가능한 명령으로 제공한다** (2026-09-19):
+  `auto skill audit`가 설정상 노출과 로컬 파일을 구분하고, 선택 이유·중복·누락·
+  크기 및 명시적인 토큰 추정치를 보여 준다. 실제 세션 로딩은 `UNKNOWN`으로
+  남긴다. `skill select`와 `skill policy-check`는 명시적 작업 종류·파일 조건·
+  버전 정책을 긍정·부정·비호환 사례로 검사하며 스킬을 실행하거나 설치하지
+  않는다. `telemetry harness`는 native/current/reduced 관측값을 같은 과제·모델·
+  환경·인수 기준에서 비교한다. 실패·재시도 지출은 포함하고 누락은 null로
+  남기며, 일부만 확인된 지출은 별도 부분합으로 표시한다. 실측 없이 승자나
+  성능 개선을 선언하지 않는다.
+
+- **재검증 계획을 읽기 전용으로 확인하고 불확실한 재사용을 막는다** (2026-09-19):
+  `auto spec gates --read-only`는 설정과 기존 근거 파일을 바꾸지 않는다.
+  `--no-reuse`는 명령·도구·환경·외부 상태가 달라졌을 때 기존 성공 결과를
+  재사용하지 않도록 한다. 검증 지침은 통합 후 공통 검증과 변경된 범위의
+  재검사를 구분하며 필수 안전·인수 검사를 유지한다. 프롬프트 생성은 중복
+  레이어 ID를 거부해 구성 요소 삭제가 변경 비교에서 숨겨지는 결함을 막는다.
+
+- **macOS 샌드박스 테스트에서 자식 커버리지를 보존한다** (2026-09-19):
+  전체 race·coverage 검사에서 기존 deny-default fixture 두 건이 보안 단언을
+  통과한 뒤 Go coverage 파일 쓰기 거부로 실패했다. 테스트 helper가 부모 Go
+  작업의 coverage 디렉터리만 쓰기 허용하고 자식의 flag·환경에 같은 경로를
+  전달한다. 운영 sandbox 정책과 secret 제거 단언은 유지하며 자식 counter도
+  최종 profile에 포함한다.
+
 - **adk CI 커버리지 게이트를 83에서 85로 올린다** (2026-09-15): 두 라운드의 테스트 추가로 CI linux 실측이 83.7% → 84.9% → **85.6%** 가 됐고, 0.6pp 여유를 확인한 뒤 게이트를 옮겼다. `ci.yaml`의 `COVERAGE_THRESHOLD`와 기본값, 그리고 `internal/companionmanifest/release_ci_stability_test.go`의 핀을 함께 `85`로 옮겼다(핀이 따로 남으면 게이트가 조용히 되돌려질 수 있다). 이로써 하네스가 프로젝트에 부과하는 기본 하한 85와 adk 자체 CI 게이트가 같은 숫자가 됐지만, 둘은 여전히 별개 기계다 — 기본값은 파이프라인 Gate 3을 먹이고 CI 숫자는 이 저장소의 Go 문장을 재며, 프로젝트는 자기 하한을 낮추거나 `0`으로 끌 수 있다.
 
 - **커버리지 게이트 승격 2라운드** (2026-09-15): CI 실측 84.9%에서 게이트 85%를 여유 있게 넘기려고 남은 미커버 결정 로직을 덮었다. `pkg/qa/project` 22.7%→100%, `pkg/worker/controlplane` 69.6%→97.3%, `pkg/worker/mcpserver` 84.7%→92.7%, `pkg/selfupdate` 81.8%→87.4%, `pkg/companionmanifest` 83.1%→86.6%, `pkg/adapter/codex` 88.4%→90.4%, `pkg/adapter/omp` 86.4%→88.3%, `pkg/design` 86.6%→89.8%, `pkg/content` 90.9%→93.1%, `pkg/qa/run` 87.6%→89.0%, 그리고 `auto experiment` 의 git 기반 init/commit/reset/metric/record 경로. 단정 대상은 signed pair 트랜잭션의 fault 지점별 복구(커밋 마커 이후에는 새 쌍 유지), zip/tar 릴리스 추출의 체크섬·구조 거절, OMP readiness 판정의 이유 우선순위와 probe 실패 fan-out, Figma/외부 fetch의 사설 IP·리다이렉트 거절, QA 시그널 탐지 경계다.

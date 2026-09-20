@@ -15,7 +15,7 @@ import (
 func TestAdapter_Validate_WarnsWhenContext7FallbackMissing(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	a := NewWithRoot(dir)
+	a := NewWithRoot(dir, WithCLIVersion("1.18.7"))
 	_, err := a.Generate(context.Background(), config.DefaultFullConfig("demo"))
 	require.NoError(t, err)
 
@@ -37,7 +37,7 @@ func TestAdapter_Validate_WarnsWhenContext7FallbackMissing(t *testing.T) {
 func TestInjectOrchestraPlugin_InvalidExistingJSON(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	a := NewWithRoot(dir)
+	a := NewWithRoot(dir, WithCLIVersion("1.18.7"))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "opencode.json"), []byte("{broken"), 0o644))
 
 	err := a.InjectOrchestraPlugin("/path/to/script.js")

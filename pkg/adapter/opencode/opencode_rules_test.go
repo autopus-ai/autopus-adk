@@ -48,7 +48,7 @@ func ruleFrontmatterFields(t *testing.T, raw string) map[string]string {
 func TestGenerate_PreservesTriggerFrontmatter(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	a := NewWithRoot(dir)
+	a := NewWithRoot(dir, WithCLIVersion("1.18.7"))
 	cfg := config.DefaultFullConfig("demo")
 
 	_, err := a.Generate(context.Background(), cfg)
@@ -78,7 +78,7 @@ func TestGenerate_PreservesTriggerFrontmatter(t *testing.T) {
 // drop a rule here.
 func TestPrepareRuleMappings_CoversContentRuleSet(t *testing.T) {
 	t.Parallel()
-	a := NewWithRoot(t.TempDir())
+	a := NewWithRoot(t.TempDir(), WithCLIVersion("1.18.7"))
 
 	mappings, err := a.prepareRuleMappings()
 	require.NoError(t, err)

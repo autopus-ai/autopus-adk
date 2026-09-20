@@ -13,7 +13,7 @@ Make your AI coding tools (Claude Code, Codex, Antigravity CLI, OpenCode, Oh My 
 [![Go Version](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)](https://golang.org)
 [![Platforms](https://img.shields.io/badge/Platforms-5-orange)](#-one-config-five-platforms)
 [![Agents](https://img.shields.io/badge/Agents-16-blueviolet)](#-16-specialized-agents)
-[![Skills](https://img.shields.io/badge/Skills-40-ff69b4)](#-all-commands)
+[![Skills](https://img.shields.io/badge/Skills-53-ff69b4)](#-all-commands)
 
 **Paste this command into your AI coding agent's chat (Claude Code, Codex, OpenCode, etc.) — the agent will run it and set up everything automatically. Or run it directly in your terminal.**
 
@@ -32,6 +32,49 @@ powershell -c "irm https://raw.githubusercontent.com/autopus-ai/autopus-adk/main
 </div>
 
 ---
+
+## Choose the workflow that fits the change
+
+Start with one real task in an existing repository. After setup, run `auto doctor`
+in your terminal to check the installed platform wiring.
+
+| Your task | Agent-chat entry point | Expected scope |
+| --- | --- | --- |
+| Reproduce and fix a bug within an existing contract | `@auto fix "describe the failure"` | Reproduction test, focused patch, verification; low-risk fixes do not need a full SPEC set |
+| Review existing changes | `@auto review` | Findings and verification evidence |
+| Build a feature with new requirements | `@auto plan "describe the outcome"`, then `@auto go SPEC-ID` | Explicit acceptance criteria, implementation, applicable gates |
+
+These examples use the Codex plugin router. Native Codex skills use
+`$codex-auto-fix`, `$codex-auto-review`, and the corresponding route names;
+Claude Code and OpenCode use `/auto ...`.
+
+Autopus is most useful when a team needs consistent delivery rules across coding
+tools and repositories. A single, short task may need only the coding tool's
+native workflow. Start with the default split skill catalog and expand it when
+needed. See the [harness comparison and evaluation protocol](docs/harness-assessment.md).
+
+To inspect overhead, start with `auto skill audit --dir . --platform codex --json`.
+Use explicit selection policies and replay cases before changing skill exposure,
+and `auto telemetry harness` to compare supplied native/current/reduced runs.
+The [diagnostics guide](docs/harness-efficiency.md) includes runnable examples,
+unknown-value semantics, and read-only verification planning.
+
+See [multiagent coordination](docs/multiagent-coordination.md) for current
+platform boundaries, dependency-aware runner behavior, and worker ownership
+validation. Native subagent availability alone does not establish a team lifecycle
+or workspace isolation in the active session.
+
+`auto doctor agents` inventories installed runtimes without model calls. Explicit
+live collectors for Codex and OpenCode check native lifecycle evidence;
+`auto telemetry team` attributes supervisor/worker usage without adding parent
+rollups twice. See [lifecycle checks and usage](docs/agent-lifecycle.md) for
+execution boundaries, examples, and the recorded live results.
+
+**What is checked:** CLI gates validate specific artifacts, configuration, and
+results when invoked and configured. Skill instructions guide planning, TDD,
+and review; they do not prove that an agent followed every step. A passing gate
+is evidence for its checked scope, not a guarantee that an application is ready
+for production.
 
 ## 🎬 See It In Action
 
@@ -57,14 +100,14 @@ Or if you prefer step-by-step control:
 🐙 Pipeline ─────────────────────────────────────────────
   ✓ Phase 1:   Planning         planner decomposed 5 tasks
   ✓ Phase 1.5: Test Scaffold    12 failing tests created (RED)
-  ✓ Phase 2:   Implementation   3 executors in parallel worktrees
+  ✓ Phase 2:   Implementation   3 executors with disjoint file ownership
   ✓ Phase 3:   Testing          coverage: 62% → 91%
   ✓ Phase 4:   Review           TRUST 5: APPROVE | Security: PASS
   ───────────────────────────────────────────────────────
   ✅ 5/5 tasks │ 91% coverage │ 0 security issues │ 4m 32s
 ```
 
-> 💡 One command. Production-ready code with tests, security audit, documentation, and decision history.
+> The pipeline output above is illustrative, not a benchmark. Completion depends on the project’s acceptance criteria and executed checks.
 
 ---
 
@@ -199,7 +242,7 @@ Autopus doesn't give you one AI assistant — it gives you a **software engineer
 ```
 🧠 Planner        →  Decomposes requirements into tasks
 ⚡ Executor ×N    →  Implements code in parallel worktrees
-🧪 Tester         →  Writes tests BEFORE code (TDD enforced)
+🧪 Tester         →  Writes tests BEFORE code (TDD workflow instruction)
 ✅ Validator       →  Checks build, lint, vet
 🔍 Reviewer       →  TRUST 5 code review
 🛡️ Security       →  OWASP Top 10 audit
@@ -279,7 +322,9 @@ flowchart LR
 
 ### 🌳 Parallel Agents in Isolated Worktrees
 
-Multiple executors work **simultaneously** — each in its own git worktree. No conflicts. No corruption.
+The worktree execution path isolates executors in separate Git working directories.
+Codex native workers share one cwd/filesystem: assign disjoint files and serialize
+overlapping edits. The following example applies to the worktree path.
 
 ```
 Phase 2: Implementation
@@ -291,7 +336,9 @@ Phase 2.1: Merge (task-ID order)
   ✓ T1 merged → T2 merged → T3 merged → working branch
 ```
 
-File ownership prevents conflicts. GC suppression prevents corruption. Up to **5 concurrent worktrees.**
+The worktree path supports up to **5 concurrent worktrees**. File ownership and
+ordered integration reduce conflicts; merges still require verification. Native
+worker capacity depends on the platform and available runtime limits.
 
 ### 📜 Lore: Your Codebase Never Forgets
 
@@ -930,7 +977,8 @@ Now you're ready. Describe what you want in plain language:
 ╰────────────────────────────────────╯
 ```
 
-That's it — production-ready code with tests, security audit, and full documentation.
+The workflow connects implementation, verification, and documentation. Confirm
+the project's acceptance criteria and recorded checks before deployment.
 
 ### Quick Reference
 
@@ -1362,7 +1410,8 @@ Before committing, `auto sync verify` creates a read-only staging plan and print
 ╰────────────────────────────────────╯
 ```
 
-**That's it.** Three commands: describe → build → ship. Every decision recorded. Every test enforced.
+Three commands connect requirements, implementation, and delivery records. Check
+the recorded acceptance and verification results before treating the work as complete.
 
 ---
 

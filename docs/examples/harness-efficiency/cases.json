@@ -1,0 +1,48 @@
+{
+  "schema_version": "skill_policy_cases.v1",
+  "cases": [
+    {
+      "name": "positive",
+      "task": {
+        "schema_version": "skill_task.v1",
+        "class": "bugfix_existing_contract",
+        "declared_versions": {
+          "go": "1.26"
+        }
+      },
+      "expected_selected": [
+        "testing-strategy"
+      ]
+    },
+    {
+      "name": "negative",
+      "task": {
+        "schema_version": "skill_task.v1",
+        "class": "deployment",
+        "declared_versions": {
+          "go": "1.26"
+        }
+      },
+      "expected_selected": []
+    },
+    {
+      "name": "incompatible",
+      "task": {
+        "schema_version": "skill_task.v1",
+        "class": "bugfix_existing_contract",
+        "declared_versions": {
+          "go": "1.25"
+        }
+      },
+      "expected_selected": []
+    },
+    {
+      "name": "unknown",
+      "task": {
+        "schema_version": "skill_task.v1",
+        "class": "bugfix_existing_contract"
+      },
+      "expected_selected": []
+    }
+  ]
+}

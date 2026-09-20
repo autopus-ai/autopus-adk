@@ -15,7 +15,7 @@ import (
 func TestAdapter_Generate_MixedMode_DefaultsToFullSharedSurface(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	a := NewWithRoot(dir)
+	a := NewWithRoot(dir, WithCLIVersion("1.18.7"))
 	cfg := config.DefaultFullConfig("demo")
 	cfg.Platforms = []string{"codex", "opencode"}
 	// This fixture is about shared-surface ownership under the full library, so
@@ -53,7 +53,7 @@ func TestAdapter_Generate_MarksOnlyMixedSharedSkillsAsOpenCodeOnly(t *testing.T)
 			cfg := config.DefaultFullConfig("demo")
 			cfg.Platforms = test.platforms
 
-			_, err := NewWithRoot(dir).Generate(context.Background(), cfg)
+			_, err := NewWithRoot(dir, WithCLIVersion("1.18.7")).Generate(context.Background(), cfg)
 			require.NoError(t, err)
 
 			for _, name := range []string{"auto", "auto-status", "auto-go", "planning"} {
@@ -79,7 +79,7 @@ func TestAdapter_Generate_MarksOnlyMixedSharedSkillsAsOpenCodeOnly(t *testing.T)
 func TestAdapter_Update_AutoSharedSurfacePrunesLegacyExtendedSkills(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	a := NewWithRoot(dir)
+	a := NewWithRoot(dir, WithCLIVersion("1.18.7"))
 	fullCfg := config.DefaultFullConfig("demo")
 	fullCfg.Platforms = []string{"opencode"}
 	// The prune under test needs metrics installed on the shared surface first.
@@ -104,7 +104,7 @@ func TestAdapter_Update_AutoSharedSurfacePrunesLegacyExtendedSkills(t *testing.T
 func TestAdapter_Generate_AutoSharedSurfaceUsesCoreSharedSkillSetInMixedMode(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	a := NewWithRoot(dir)
+	a := NewWithRoot(dir, WithCLIVersion("1.18.7"))
 	cfg := config.DefaultFullConfig("demo")
 	cfg.Platforms = []string{"codex", "opencode"}
 	cfg.Skills.SharedSurface = config.SharedSurfaceAuto

@@ -35,7 +35,7 @@ func generatePlatformRules(t *testing.T, platform string) map[string]string {
 	case "gemini":
 		pf, err = antigravity.NewWithRoot(dir).Generate(ctx, cfg)
 	case "opencode":
-		pf, err = opencode.NewWithRoot(dir).Generate(ctx, cfg)
+		pf, err = opencode.NewWithRoot(dir, opencode.WithCLIVersion("1.18.7")).Generate(ctx, cfg)
 	case "omp":
 		pf, err = omp.NewWithRoot(dir).Generate(ctx, cfg)
 	default:

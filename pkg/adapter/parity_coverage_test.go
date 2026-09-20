@@ -76,7 +76,7 @@ func runCoverageGate(
 			a := antigravity.NewWithRoot(dir)
 			pf, genErr = a.Generate(ctx, cfg)
 		case "opencode":
-			a := opencode.NewWithRoot(dir)
+			a := opencode.NewWithRoot(dir, opencode.WithCLIVersion("1.18.7"))
 			pf, genErr = a.Generate(ctx, cfg)
 		case "omp":
 			a := omp.NewWithRoot(dir)

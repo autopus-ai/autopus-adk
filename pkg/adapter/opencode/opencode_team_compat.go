@@ -11,7 +11,13 @@ import (
 func sanitizeUnsupportedClaudeTeamMappings(files []adapter.FileMapping) []adapter.FileMapping {
 	sanitized := make([]adapter.FileMapping, len(files))
 	for i, file := range files {
-		file.Content = []byte(sanitizeUnsupportedClaudeTeamSurface(string(file.Content)))
+		body := string(file.Content)
+		if file.TargetPath == "AGENTS.md" {
+			body = markerRe.ReplaceAllStringFunc(body, sanitizeUnsupportedClaudeTeamSurface)
+		} else {
+			body = sanitizeUnsupportedClaudeTeamSurface(body)
+		}
+		file.Content = []byte(body)
 		file.Checksum = adapter.Checksum(string(file.Content))
 		sanitized[i] = file
 	}

@@ -124,7 +124,7 @@ func TestWorkflowParity_NonClaudeHasNoWorkflowSurface(t *testing.T) {
 			return antigravity.NewWithRoot(root).Generate(ctx(), cfgFull())
 		}},
 		{"opencode", func(root string) (*adapter.PlatformFiles, error) {
-			return opencode.NewWithRoot(root).Generate(ctx(), cfgFull())
+			return opencode.NewWithRoot(root, opencode.WithCLIVersion("1.18.7")).Generate(ctx(), cfgFull())
 		}},
 	}
 

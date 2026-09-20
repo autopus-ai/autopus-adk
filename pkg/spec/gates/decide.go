@@ -42,6 +42,7 @@ type DecisionInput struct {
 	Prior                      map[GateID]PriorEvidence
 	Now                        time.Time
 	MaxAge                     time.Duration // zero selects DefaultMaxAge
+	DisableReuse               bool          // force fresh checks when execution conditions changed
 }
 
 // Decide computes the applicability receipt for input. Base rules derive from
@@ -68,7 +69,11 @@ func Decide(input DecisionInput) ApplicabilityReceipt {
 	for _, entry := range Catalog {
 		decision := baseDecision(entry, input)
 		if decision.Applicability == Required {
-			overlayReuse(&decision, input.Prior[entry.ID], input.Now, maxAge)
+			if input.DisableReuse {
+				decision.Reason += "; reuse disabled by caller"
+			} else {
+				overlayReuse(&decision, input.Prior[entry.ID], input.Now, maxAge)
+			}
 		}
 		receipt.Decisions = append(receipt.Decisions, decision)
 	}

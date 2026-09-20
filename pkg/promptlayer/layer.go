@@ -98,10 +98,15 @@ func Render(layers []Layer) (RenderResult, error) {
 
 	var promptParts []string
 	manifest := Manifest{Entries: make([]ManifestEntry, 0, len(ordered))}
+	seenIDs := make(map[string]struct{}, len(ordered))
 	for _, layer := range ordered {
 		if layer.ID == "" {
 			return RenderResult{}, fmt.Errorf("prompt layer id is required")
 		}
+		if _, exists := seenIDs[layer.ID]; exists {
+			return RenderResult{}, fmt.Errorf("duplicate prompt layer id: %q", layer.ID)
+		}
+		seenIDs[layer.ID] = struct{}{}
 		status := layer.RedactionStatus
 		if status == "" {
 			status = RedactionPassed

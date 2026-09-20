@@ -25,7 +25,7 @@ func TestCodexAndOpenCode_AGENTSMD_RemainsOpenCodeOwned(t *testing.T) {
 	assert.NoFileExists(t, filepath.Join(dir, "AGENTS.md"))
 	assert.FileExists(t, filepath.Join(dir, ".codex", "skills", "codex-auto", "SKILL.md"))
 
-	opencodeAdapter := opencode.NewWithRoot(dir)
+	opencodeAdapter := opencode.NewWithRoot(dir, opencode.WithCLIVersion("1.18.7"))
 	_, err = opencodeAdapter.Generate(context.Background(), cfg)
 	require.NoError(t, err)
 	agentsPath := filepath.Join(dir, "AGENTS.md")

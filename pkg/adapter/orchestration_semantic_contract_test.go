@@ -169,7 +169,7 @@ func TestGeneratedOrchestration_UnsupportedPlatformsContainNoClaudeTeamPrimitive
 	opencodeRoot := t.TempDir()
 	_, err := antigravity.NewWithRoot(geminiRoot).Generate(context.Background(), cfg)
 	require.NoError(t, err)
-	_, err = opencode.NewWithRoot(opencodeRoot).Generate(context.Background(), cfg)
+	_, err = opencode.NewWithRoot(opencodeRoot, opencode.WithCLIVersion("1.18.7")).Generate(context.Background(), cfg)
 	require.NoError(t, err)
 
 	for name, root := range map[string]string{"gemini": geminiRoot, "opencode": opencodeRoot} {

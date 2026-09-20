@@ -21,7 +21,7 @@ func TestNew_DefaultRoot(t *testing.T) {
 
 func TestNewWithRoot(t *testing.T) {
 	t.Parallel()
-	a := NewWithRoot("/some/path")
+	a := NewWithRoot("/some/path", WithCLIVersion("1.18.7"))
 	assert.Equal(t, "/some/path", a.root)
 }
 
@@ -36,7 +36,7 @@ func TestAdapter_Accessors(t *testing.T) {
 
 func TestAdapter_Detect_NoError(t *testing.T) {
 	t.Parallel()
-	a := NewWithRoot(t.TempDir())
+	a := NewWithRoot(t.TempDir(), WithCLIVersion("1.18.7"))
 	_, err := a.Detect(context.Background())
 	assert.NoError(t, err)
 }
@@ -44,7 +44,7 @@ func TestAdapter_Detect_NoError(t *testing.T) {
 func TestAdapter_Generate_CreatesOpenCodeFiles(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	a := NewWithRoot(dir)
+	a := NewWithRoot(dir, WithCLIVersion("1.18.7"))
 	cfg := config.DefaultFullConfig("demo")
 
 	pf, err := a.Generate(context.Background(), cfg)
@@ -186,7 +186,7 @@ func TestAdapter_Generate_CreatesOpenCodeFiles(t *testing.T) {
 func TestAdapter_Generate_AutoRouterUsesThinOpenCodeContract(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	a := NewWithRoot(dir)
+	a := NewWithRoot(dir, WithCLIVersion("1.18.7"))
 
 	_, err := a.Generate(context.Background(), config.DefaultFullConfig("demo"))
 	require.NoError(t, err)
@@ -211,7 +211,7 @@ func TestAdapter_Generate_AutoRouterUsesThinOpenCodeContract(t *testing.T) {
 
 func TestAdapter_Generate_NilConfig(t *testing.T) {
 	t.Parallel()
-	a := NewWithRoot(t.TempDir())
+	a := NewWithRoot(t.TempDir(), WithCLIVersion("1.18.7"))
 	_, err := a.Generate(context.Background(), nil)
 	assert.Error(t, err)
 }
@@ -219,7 +219,7 @@ func TestAdapter_Generate_NilConfig(t *testing.T) {
 func TestAdapter_Update_PreservesMergedFiles(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	a := NewWithRoot(dir)
+	a := NewWithRoot(dir, WithCLIVersion("1.18.7"))
 	cfg := config.DefaultFullConfig("demo")
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "AGENTS.md"), []byte("# Custom Header\n"), 0644))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "opencode.json"), []byte(`{"share":"manual"}`), 0644))
@@ -244,7 +244,7 @@ func TestAdapter_Update_PreservesMergedFiles(t *testing.T) {
 func TestAdapter_Validate_AfterGenerate(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	a := NewWithRoot(dir)
+	a := NewWithRoot(dir, WithCLIVersion("1.18.7"))
 	_, err := a.Generate(context.Background(), config.DefaultFullConfig("demo"))
 	require.NoError(t, err)
 
@@ -256,7 +256,7 @@ func TestAdapter_Validate_AfterGenerate(t *testing.T) {
 func TestAdapter_Clean_RemovesGeneratedFiles(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	a := NewWithRoot(dir)
+	a := NewWithRoot(dir, WithCLIVersion("1.18.7"))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "AGENTS.md"), []byte("# Custom Header\n"), 0644))
 	_, err := a.Generate(context.Background(), config.DefaultFullConfig("demo"))
 	require.NoError(t, err)

@@ -16,7 +16,7 @@ func TestOpenCodeAdapter_ContextProfilesReplaceUnconditionalProjectDocumentLoad(
 	t.Parallel()
 
 	root := t.TempDir()
-	_, err := NewWithRoot(root).Generate(context.Background(), config.DefaultFullConfig("context-profile"))
+	_, err := NewWithRoot(root, WithCLIVersion("1.18.7")).Generate(context.Background(), config.DefaultFullConfig("context-profile"))
 	require.NoError(t, err)
 
 	router := readOpenCodeContextSurface(t, root, ".agents/skills/auto/SKILL.md")

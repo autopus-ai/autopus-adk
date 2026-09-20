@@ -60,6 +60,12 @@ human reading the run reconstructs why a worker exists.
 
 ## Follow-up messaging
 
+Keep common facts in stable, versioned references and send task-specific deltas,
+blocking decisions and result locations. Choose files or messages to fit the
+workload; neither an all-to-all chat nor a shared file is mandatory for every
+team. Record integration failures and rework alongside dispatch counts: more
+messages, workers or merged branches do not establish a better outcome.
+
 Retain the agent id each dispatch returns. For a worker that is still revivable,
 every follow-up goes to that same id through the runtime's messaging tool:
 

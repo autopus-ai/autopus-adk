@@ -1,0 +1,7 @@
+{
+  "schema_version": "skill_task.v1",
+  "class": "bugfix_existing_contract",
+  "declared_versions": {
+    "go": "1.26"
+  }
+}

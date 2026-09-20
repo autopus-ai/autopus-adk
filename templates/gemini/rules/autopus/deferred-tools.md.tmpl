@@ -13,7 +13,12 @@ If discovery does not expose a requested tool, stop that route with an
 unsupported-tool diagnostic; never substitute a primitive from another agent
 platform.
 
-Persistent Claude team lifecycle is not supported on this platform. `--team`
-must fail closed and direct the user to the ordinary Antigravity subagent
-pipeline. Do not emit guessed team creation, direct teammate messaging, or team
-deletion calls.
+Antigravity supports multiagent workflows. Vendor feature availability does not
+prove that this session exposes an integrated ADK execution path. For explicit
+`--team`, require both the current runtime schema and a verified ADK mapping for
+the requested native team lifecycle. If either is unavailable, stop with an
+unsupported-mode diagnostic that identifies the missing capability or mapping.
+Do not substitute ordinary subagent execution for an explicit team request.
+Do not emit Claude-specific team primitives or guessed team creation, messaging,
+or deletion calls. Do not automatically invoke a vendor workflow command based
+only on documentation; validate the installed surface and execution contract.

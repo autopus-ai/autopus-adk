@@ -16,7 +16,7 @@ func TestInjectMarkerSection_MixedModeAdvertisesLatestCodexNativeSurface(t *test
 	cfg := config.DefaultFullConfig("demo")
 	cfg.Platforms = []string{"codex", "opencode"}
 
-	section, err := NewWithRoot(t.TempDir()).injectMarkerSection(cfg)
+	section, err := NewWithRoot(t.TempDir(), WithCLIVersion("1.18.7")).injectMarkerSection(cfg)
 	require.NoError(t, err)
 
 	// The marker advertises where each installed platform lives and how to
@@ -43,7 +43,7 @@ func TestInjectMarkerSection_UpdatePreservesCodexDollarInvocation(t *testing.T) 
 	cfg := config.DefaultFullConfig("demo")
 	cfg.Platforms = []string{"codex", "opencode"}
 
-	section, err := NewWithRoot(root).injectMarkerSection(cfg)
+	section, err := NewWithRoot(root, WithCLIVersion("1.18.7")).injectMarkerSection(cfg)
 
 	require.NoError(t, err)
 	assert.Contains(t, section, "$codex-auto")

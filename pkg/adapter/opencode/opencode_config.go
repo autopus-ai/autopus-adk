@@ -23,6 +23,9 @@ func (a *Adapter) prepareConfigMapping() (adapter.FileMapping, error) {
 }
 
 func (a *Adapter) renderConfigDocument(extraPlugins []string) (string, error) {
+	if err := a.validateRuntime(); err != nil {
+		return "", err
+	}
 	path := filepath.Join(a.root, configFile)
 	doc, err := readJSONObject(path)
 	if err != nil {
@@ -42,8 +45,8 @@ func (a *Adapter) renderConfigDocument(extraPlugins []string) (string, error) {
 	}
 	doc["instructions"] = uniqueStrings(kept, rulePaths)
 	plugins := managedPluginPaths(extraPlugins)
-	if len(plugins) > 0 {
-		doc["plugin"] = uniqueStrings(jsonPluginSlice(doc["plugin"]), plugins)
+	if err := mergePluginConfig(doc, plugins, a.isV2(), a.root); err != nil {
+		return "", err
 	}
 	data, err := json.MarshalIndent(doc, "", "  ")
 	if err != nil {

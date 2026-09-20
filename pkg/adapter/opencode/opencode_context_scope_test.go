@@ -15,7 +15,7 @@ import (
 func TestUpdateDefersWorkflowRulesAndPreservesUserInstructions(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
-	a := NewWithRoot(root)
+	a := NewWithRoot(root, WithCLIVersion("1.18.7"))
 	cfg := config.DefaultFullConfig("scoped-rules")
 	_, err := a.Generate(context.Background(), cfg)
 	require.NoError(t, err)

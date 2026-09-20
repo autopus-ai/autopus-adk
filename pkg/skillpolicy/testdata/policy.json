@@ -1,0 +1,10 @@
+{
+  "schema_version": "skill_policy.v1",
+  "candidates": [{
+    "id": "go-test",
+    "allowed_task_classes": ["bugfix"],
+    "excluded_task_classes": ["deployment"],
+    "required_files": ["go.mod"],
+    "supported_versions": {"go": ["1.26"]}
+  }]
+}

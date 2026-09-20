@@ -25,6 +25,8 @@ func newSpecGatesCmd() *cobra.Command {
 		maxAge              time.Duration
 		annotationRequested bool
 		referenceMissing    bool
+		readOnly            bool
+		noReuse             bool
 	)
 
 	cmd := &cobra.Command{
@@ -35,6 +37,9 @@ required, reusable, not_applicable, or blocked, and writes
 {SPEC_DIR}/gate-applicability.json. Mandatory safety gates are never
 not_applicable. Previously recorded evidence (see "gates record") is reused
 only when its exact input closure still matches the current tree.
+Use --read-only to inspect decisions without writing config or receipts.
+Use --no-reuse when command, toolchain, environment, or external state changed;
+file closures alone do not prove those execution conditions are unchanged.
 
 The declared change class decides the risk tier. Without --change-class the
 class is derived from the change set, so it can never be understated. Low-risk
@@ -56,13 +61,20 @@ absent.`,
 			if err != nil {
 				return err
 			}
-			cfg, err := config.Load(target.Root)
+			loadConfig := config.Load
+			if readOnly {
+				loadConfig = config.LoadPreview
+			}
+			cfg, err := loadConfig(target.Root)
 			if err != nil {
 				return fmt.Errorf("load config: %w", err)
 			}
-			prior, err := gates.LoadPriorEvidence(target.Root, target.SpecDir)
-			if err != nil {
-				return fmt.Errorf("load gate evidence: %w", err)
+			var prior map[gates.GateID]gates.PriorEvidence
+			if !noReuse {
+				prior, err = gates.LoadPriorEvidence(target.Root, target.SpecDir)
+				if err != nil {
+					return fmt.Errorf("load gate evidence: %w", err)
+				}
 			}
 			classification := gates.Classify(paths, cfg.Design.UIFileGlobs)
 			declared, err := resolveGatesChangeClass(changeClass)
@@ -78,10 +90,14 @@ absent.`,
 				Prior:                      prior,
 				Now:                        time.Now(),
 				MaxAge:                     maxAge,
+				DisableReuse:               noReuse,
 			})
-			receiptPath, err := gates.WriteApplicability(target.SpecDir, receipt)
-			if err != nil {
-				return err
+			var receiptPath string
+			if !readOnly {
+				receiptPath, err = gates.WriteApplicability(target.SpecDir, receipt)
+				if err != nil {
+					return err
+				}
 			}
 			if jsonOutput {
 				return writeGatesJSON(cmd.OutOrStdout(), receipt)
@@ -100,6 +116,8 @@ absent.`,
 	cmd.Flags().BoolVar(&annotationRequested, "annotation", false, "evaluate the @AX annotation gate for this change set (default: not_applicable)")
 	cmd.Flags().BoolVar(&referenceMissing, "annotation-reference-missing", false, "with --annotation, mark the annotation gate blocked because the @AX reference source is absent")
 
+	cmd.Flags().BoolVar(&readOnly, "read-only", false, "inspect applicability without writing config or receipts")
+	cmd.Flags().BoolVar(&noReuse, "no-reuse", false, "require fresh checks instead of reusing prior evidence")
 	cmd.AddCommand(newSpecGatesRecordCmd())
 	return cmd
 }
@@ -190,5 +208,7 @@ func printGateDecisions(w io.Writer, receipt gates.ApplicabilityReceipt, receipt
 	for _, decision := range receipt.Decisions {
 		fmt.Fprintf(w, "%s: %s — %s\n", decision.Gate, decision.Applicability, decision.Reason)
 	}
-	fmt.Fprintf(w, "receipt: %s\n", receiptPath)
+	if receiptPath != "" {
+		fmt.Fprintf(w, "receipt: %s\n", receiptPath)
+	}
 }

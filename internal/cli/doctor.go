@@ -105,6 +105,7 @@ func newDoctorCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&providerSmoke, "provider-smoke", false, "Run live provider subprocess transport smoke checks")
 	cmd.Flags().DurationVar(&providerSmokeTimeout, "provider-smoke-timeout", 30*time.Second, "Timeout per provider smoke check")
 	addJSONFlags(cmd, &jsonOutput, &format)
+	cmd.AddCommand(newDoctorAgentsCmd())
 	return cmd
 }
 

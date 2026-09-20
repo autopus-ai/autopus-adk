@@ -24,6 +24,9 @@ func (a *Adapter) preparePluginMappings(cfg *config.HarnessConfig) ([]adapter.Fi
 
 func (a *Adapter) prepareHookPluginMapping(hooks []adapter.HookConfig) (adapter.FileMapping, error) {
 	plugin, err := renderHookPlugin(hooks)
+	if a.isV2() {
+		plugin, err = renderHookPluginV2(hooks)
+	}
 	if err != nil {
 		return adapter.FileMapping{}, err
 	}

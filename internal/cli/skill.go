@@ -46,6 +46,9 @@ func newSkillCmd() *cobra.Command {
 	cmd.AddCommand(listCmd)
 	cmd.AddCommand(infoCmd)
 	cmd.AddCommand(newSkillCreateCmd())
+	cmd.AddCommand(newSkillSelectCmd())
+	cmd.AddCommand(newSkillPolicyCheckCmd())
+	cmd.AddCommand(newSkillAuditCmd())
 	// @AX:ANCHOR [AUTO] @AX:SPEC: SPEC-SKILL-EVOLVE-001: exposes `auto skill evolve` under the existing skill namespace.
 	// @AX:REASON: Removing this registration hides candidate, replay, promote, and archive commands from CLI users and smoke tests.
 	cmd.AddCommand(newSkillEvolveCmd())
