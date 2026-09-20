@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "kind": "feature",
+  "paths": [
+    "pkg/parser",
+    "pkg/format"
+  ],
+  "scope_complete": true,
+  "requirements_clear": true,
+  "acceptance_known": true,
+  "estimated_changed_lines": 180,
+  "risk": "medium",
+  "native_parallel_available": true,
+  "workers": [
+    {
+      "id": "parser",
+      "owned_paths": [
+        "pkg/parser"
+      ],
+      "independent": true
+    },
+    {
+      "id": "format",
+      "owned_paths": [
+        "pkg/format"
+      ],
+      "independent": true
+    }
+  ]
+}

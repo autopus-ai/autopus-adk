@@ -2,6 +2,7 @@ package opencode
 
 import (
 	"fmt"
+	"github.com/insajin/autopus-adk/templates"
 	"strings"
 )
 
@@ -39,14 +40,16 @@ func thinRouterSkillBody() string {
 	sections := []string{
 		strings.TrimSpace(skillInvocationNote("auto")),
 		"",
+		templates.TaskTriagePolicy(),
+		"",
 		"## Router Contract",
 		"",
 		"- 먼저 global flags `--auto`, `--loop`, `--multi`, `--quality`, `--team`, `--solo`, `--model`, `--variant` 를 분리합니다.",
 		"- 첫 non-flag 토큰을 subcommand로 사용합니다. 토큰이 없으면 사용자 의도를 분류합니다.",
 		"- 지원 서브커맨드: " + routerSupportedSubcommandsInline(),
 		"- `--model` / `--variant` 값은 이후 단계로 그대로 전달하고 자동으로 덮어쓰지 않습니다.",
-		"- `--auto`는 기본 `task(...)` 기반 subagent-first pipeline 진행에 대한 명시적 승인입니다.",
-		"- `--auto`가 없고 현재 OpenCode 런타임이 암묵적 `task(...)` 호출을 허용하지 않으면, 조용히 단일 세션으로 폴백하지 말고 서브에이전트 진행 여부 또는 `--solo` 선택을 사용자에게 확인합니다.",
+		"- `--auto` authorizes the selected execution depth; ordinary work stays inline and delegation requires independent work or specialist/context isolation.",
+		"- 실제로 위임이 필요하지만 `--auto`가 없고 현재 OpenCode 런타임이 암묵적 `task(...)` 호출을 허용하지 않으면, 조용히 단일 세션으로 폴백하지 말고 서브에이전트 진행 여부 또는 `--solo` 선택을 사용자에게 확인합니다.",
 		"- 서브커맨드를 해석한 뒤에는 반드시 대응하는 상세 스킬(" + routerDetailSkills() + ") 중 하나를 로드합니다.",
 		"- 지원하지 않는 서브커맨드면 목록을 짧게 안내하고 가장 가까운 워크플로우를 제안합니다.",
 		"- 이 스킬은 얇은 라우터입니다. 고정된 서브커맨드는 바로 상세 스킬로 넘깁니다.",

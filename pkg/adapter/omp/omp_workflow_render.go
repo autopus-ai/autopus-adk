@@ -5,11 +5,14 @@ import (
 	"strings"
 
 	pkgcontent "github.com/insajin/autopus-adk/pkg/content"
+	"github.com/insajin/autopus-adk/templates"
 )
 
 func ompRouterBody(prefix string) string {
 	return prefix + strings.Join([]string{
 		"`$ARGUMENTS`",
+		"",
+		templates.TaskTriagePolicy(),
 		"",
 		"## Router Contract",
 		"",

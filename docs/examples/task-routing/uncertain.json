@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "kind": "investigate",
+  "paths": [
+    "pkg/parser/value.go"
+  ]
+}

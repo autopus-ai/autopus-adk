@@ -12,6 +12,18 @@ description: "Autopus 명령 라우터 — setup/status/goal/update/plan/go/fix/
 
 `/goal`은 Codex thread-level 목표 기능입니다. `@auto goal`만 `/goal`에 대한 thin wrapper로 처리하고, 다른 workflow에서는 active goal이 있으면 목표/예산을 보존한 채 상세 workflow에 전달하세요.
 
+## Task Triage
+
+- For natural-language implementation requests, assess evidence before loading a planning workflow or dispatching workers. Do not reroute explicit `plan`, `review`, or other routes, or replace requested `--team`, `--multi`, or `--solo` behavior.
+- `inline`: a bounded, evidenced low-risk change stays in this session with targeted implementation and tests; do not add a default planner or preload unrelated skills.
+- `guided`: incomplete evidence or medium risk calls for focused inspection, then implementation and the verification appropriate to the discovered surface. Inspect uncertainty before treating it as a requirement for a full plan.
+- `planned`: confirmed cross-module work, high risk, or requirements still unclear after inspection use planning and required review. A plan does not itself authorize parallel dispatch.
+- When explicit task facts are available, optional read-only `auto workflow triage --facts-json <file> --format json` gives deterministic advice, not an authorization or proof of runtime capacity. Do not fabricate facts to obtain a cheaper route.
+- If the CLI is unavailable, apply the same conservative evidence-based policy and continue; do not block solely on the advisory command. A trivial question or non-implementation request needs no triage CLI call.
+- Parallel work requires independent ready slices, disjoint ownership, and observed native capacity. Honor `--solo`; file count alone never triggers workers.
+- Preserve mandatory security, UX, and coverage gates from the selected workflow and project policy. Triage cannot waive them or replace acceptance evidence.
+- Inherit the requested model and reasoning settings. Do not lower the model or effort to make a route appear cheaper.
+
 ## Shell Portability
 
 IMPORTANT: Do not wrap Autopus commands with GNU `timeout` (for example,
@@ -48,7 +60,7 @@ wrapper.
 - 첫 토큰이 없는 경우, 사용자의 의도를 위 19개 중 하나로 분류해서 진행합니다. 의도가 명확히 하나로 수렴하지 않으면 active tool list에 `request_user_input`이 있을 때 2-3개의 workflow 선택지를 제시해 사용자의 의도를 확인합니다. Codex App Server client는 같은 선택지 contract를 `tool/requestUserInput`으로 매핑합니다. Codex 질문 tool이 없을 때만 하나의 짧은 plain-text 질문으로 확인합니다.
 - 가능하면 같은 이름의 상세 스킬/프롬프트(`auto-setup`, `auto-status`, `auto-goal`, `auto-update`, `auto-plan`, `auto-go`, `auto-fix`, `auto-review`, `auto-sync`, `auto-idea`, `auto-map`, `auto-why`, `auto-verify`, `auto-secure`, `auto-test`, `auto-qa`, `auto-dev`, `auto-canary`, `auto-doctor`) 의미를 따릅니다.
 - 지원하지 않는 서브커맨드면 지원 목록을 짧게 안내하고 가장 가까운 워크플로우를 제안합니다.
-- Codex 하네스 기본값은 `spawn_agent(...)` 기반 subagent-first 입니다.
-- Codex에서 `--auto`가 있으면, 기본 subagent pipeline 진행에 대한 명시적 승인으로 해석합니다.
+- Codex 하네스 기본값은 근거에 따른 inline 작업이며, 독립 작업 또는 격리된 검토가 필요하고 native capacity가 확인될 때 `spawn_agent(...)`를 사용합니다.
+- Codex에서 `--auto`가 있으면, 선택한 작업 흐름의 진행에 대한 명시적 승인으로 해석하며, 불필요한 위임을 강제하지 않습니다.
 - Codex에서 `--team`이 있으면, native `multi_agent` 도구 기반 Lead/Builder/Guardian 팀 프로파일로 진행합니다.
-- 단, `--auto`가 없고 현재 Codex 런타임 정책이 암묵적 `spawn_agent(...)` 호출을 허용하지 않으면 조용히 단일 세션으로 폴백하지 말고, 하네스 기본값과 제약을 명시적으로 설명한 뒤 사용자에게 서브에이전트 진행 여부 또는 `--solo` 선택을 받으세요.
+- 단, 실제로 위임이 필요한 작업에서 `--auto`가 없고 현재 Codex 런타임 정책이 암묵적 `spawn_agent(...)` 호출을 허용하지 않으면 조용히 단일 세션으로 폴백하지 말고, 하네스 기본값과 제약을 명시적으로 설명한 뒤 사용자에게 서브에이전트 진행 여부 또는 `--solo` 선택을 받으세요.

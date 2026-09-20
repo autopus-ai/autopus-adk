@@ -33,6 +33,18 @@ ARGUMENTS: $ARGUMENTS
 - Do not directly edit generated/runtime roots such as `.claude/**`, `.codex/**`, `.gemini/**`, `.opencode/**`, or `.autopus/plugins/**`.
 - Change the canonical ADK template/source, regenerate, and exclude generated/runtime drift from commits.
 
+## Task Triage
+
+- For natural-language implementation requests, assess evidence before loading a planning workflow or dispatching workers. Do not reroute explicit `plan`, `review`, or other routes, or replace requested `--team`, `--multi`, or `--solo` behavior.
+- `inline`: a bounded, evidenced low-risk change stays in this session with targeted implementation and tests; do not add a default planner or preload unrelated skills.
+- `guided`: incomplete evidence or medium risk calls for focused inspection, then implementation and the verification appropriate to the discovered surface. Inspect uncertainty before treating it as a requirement for a full plan.
+- `planned`: confirmed cross-module work, high risk, or requirements still unclear after inspection use planning and required review. A plan does not itself authorize parallel dispatch.
+- When explicit task facts are available, optional read-only `auto workflow triage --facts-json <file> --format json` gives deterministic advice, not an authorization or proof of runtime capacity. Do not fabricate facts to obtain a cheaper route.
+- If the CLI is unavailable, apply the same conservative evidence-based policy and continue; do not block solely on the advisory command. A trivial question or non-implementation request needs no triage CLI call.
+- Parallel work requires independent ready slices, disjoint ownership, and observed native capacity. Honor `--solo`; file count alone never triggers workers.
+- Preserve mandatory security, UX, and coverage gates from the selected workflow and project policy. Triage cannot waive them or replace acceptance evidence.
+- Inherit the requested model and reasoning settings. Do not lower the model or effort to make a route appear cheaper.
+
 ## Routing Contract
 
 1. Strip global flags while preserving their values: `--auto`, `--loop`, `--multi`, `--quality`, `--team`, `--solo`, `--model`, `--variant`, `--think`, `--ultrathink`, `--workflow`.

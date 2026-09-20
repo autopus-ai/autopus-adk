@@ -23,6 +23,10 @@ Source baseline: `4282114a`, with the local changes described by
   generation, option-preserving config, unknown-version preservation, and
   generated JS/native host tests. See [V2 scope](../opencode-v2-compatibility.md).
 
+- Evidence-based task routing: read-only workflow triage and generated native
+  router policy select inline/guided/planned without weakening gates or changing
+  model presets. See [task routing](../task-routing.md).
+
 See [usage](../harness-efficiency.md) and [research](../harness-assessment.md).
 The new comparison command does not generate live model evidence or replace the
 signed OMP promotion verifier.

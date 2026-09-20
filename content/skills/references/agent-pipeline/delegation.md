@@ -23,6 +23,17 @@ A low-risk compact-contract change (`test_only`, `docs_only`, `small_ui`,
 planner, a scaffold worker, or a dedicated validator worker; it still requires
 real verification.
 
+For natural-language implementation work, triage before scheduling workers:
+evidenced small low-risk work stays inline; uncertain or medium-risk work gets
+focused inspection; confirmed cross-module, high-risk, or still-unclear work
+gets planning and required review. Optional read-only
+`auto workflow triage --facts-json <file> --format json` advises from declared
+facts; it does not establish native capacity or waive required gates. If absent,
+apply the same policy without blocking on the CLI. Explicit routes and `--solo`
+remain authoritative; preserve the requested model and reasoning settings.
+Parallel admission still requires independent ready work, disjoint ownership,
+and observed native capacity, even when triage recommends a planned route.
+
 ## Ownership
 
 Every dispatched unit declares:

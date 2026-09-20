@@ -1,0 +1,164 @@
+[
+  {
+    "id": "a01",
+    "category": "skill_selection_precedence",
+    "prompt": "Fix skill selection when a task supplies an incompatible supported-tool version but omits another required version. A confirmed incompatibility must remain excluded regardless of capability ordering, while missing evidence alone must remain unknown. Keep the declared selection evidence and compatible cases intact.",
+    "mutation": {
+      "path": "pkg/skillpolicy/select.go",
+      "before": "if decision.Status != \"excluded\" {\n\t\t\t\tdecision.Status = \"unknown\"\n\t\t\t}",
+      "after": "decision.Status = \"unknown\""
+    },
+    "oracle": {
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./pkg/skillpolicy",
+        "-run",
+        "^(TestVersionMismatchWinsOverUnknown|TestSelectExplicitEvidence|TestExcludeWinsAndMissingFile)$",
+        "-count=1"
+      ]
+    },
+    "allowed_paths": [
+      "pkg/skillpolicy/select.go"
+    ],
+    "difficulty": "small_boundary_fix",
+    "rationale": "Seeds a precedence regression where a later missing capability overwrites an earlier exclusion; existing tests cover unknown, incompatible, and compatible boundaries."
+  },
+  {
+    "id": "a02",
+    "category": "telemetry_call_identity",
+    "prompt": "Fix usage aggregation so separate model calls and retries within the same run retain their own spend. Repeated copies of the same call must still count once, and contradictory receipts for the same call must block a trustworthy total.",
+    "mutation": {
+      "path": "pkg/telemetry/usage_aggregate.go",
+      "before": "identity := callIdentity{runID: input.RunID, callID: input.CallID}",
+      "after": "identity := callIdentity{runID: input.RunID}"
+    },
+    "oracle": {
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./pkg/telemetry",
+        "-run",
+        "^TestAggregateUsage_DuplicateIdentity_DeduplicatesOrBlocksOnConflict$",
+        "-count=1"
+      ]
+    },
+    "allowed_paths": [
+      "pkg/telemetry/usage_aggregate.go"
+    ],
+    "difficulty": "small_boundary_fix",
+    "rationale": "Seeds accidental run-level rather than call-level deduplication; existing oracle covers copies, distinct retry calls, and conflicting duplicates."
+  },
+  {
+    "id": "a03",
+    "category": "prompt_manifest_provenance",
+    "prompt": "Fix prompt-manifest comparison so changing a layer source reference is reported even when its text and content hash stay the same. Preserve the invalidation category for that layer and avoid reporting unrelated stable layers as changed.",
+    "mutation": {
+      "path": "pkg/promptlayer/layer.go",
+      "before": "\t\told.SourceRef != next.SourceRef ||\n",
+      "after": ""
+    },
+    "oracle": {
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./pkg/promptlayer",
+        "-run",
+        "^(TestCompareManifestsReportsMetadataChanges|TestCompareManifestsIsolatesEphemeralChanges|TestCompareManifestsReportsRemovedLayers)$",
+        "-count=1"
+      ]
+    },
+    "allowed_paths": [
+      "pkg/promptlayer/layer.go"
+    ],
+    "difficulty": "small_boundary_fix",
+    "rationale": "Seeds source-provenance loss in cache invalidation; metadata-only changes are distinct from content, ephemeral, and removal changes."
+  },
+  {
+    "id": "a04",
+    "category": "pipeline_verdict_ambiguity",
+    "prompt": "Fix phase-gate evaluation so ambiguous or conflicting verdict declarations never authorize validation or review. A single exact typed success verdict surrounded by ordinary prose should continue to pass, and ungated phases should retain their current behavior.",
+    "mutation": {
+      "path": "pkg/pipeline/phase_gate.go",
+      "before": "if !strings.HasPrefix(line, \"VERDICT:\") || found != \"\" {\n\t\t\treturn \"\", false\n\t\t}",
+      "after": "if found != \"\" {\n\t\t\treturn found, true\n\t\t}\n\t\tif !strings.HasPrefix(line, \"VERDICT:\") {\n\t\t\treturn \"\", false\n\t\t}"
+    },
+    "oracle": {
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./pkg/pipeline",
+        "-run",
+        "^TestEvaluateGate_",
+        "-count=1"
+      ]
+    },
+    "allowed_paths": [
+      "pkg/pipeline/phase_gate.go"
+    ],
+    "difficulty": "small_boundary_fix",
+    "rationale": "Seeds a plausible first-verdict-wins parser shortcut that incorrectly accepts conflicting output; the oracle also protects valid typed and ungated behavior."
+  },
+  {
+    "id": "a05",
+    "category": "strict_policy_json_boundaries",
+    "prompt": "Fix strict skill-policy JSON decoding so duplicate object keys are rejected at every nesting depth instead of silently accepting the last value. Keep valid policy, task, and replay documents working and preserve the existing handling of unknown fields, trailing values, and malformed input.",
+    "mutation": {
+      "path": "pkg/skillpolicy/decode.go",
+      "before": "if !ok || seen[name] {",
+      "after": "if !ok {"
+    },
+    "oracle": {
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./pkg/skillpolicy",
+        "-run",
+        "^(TestStrictDecode|TestStrictPolicyAndReplayDocuments|TestReplayExampleFixtures)$",
+        "-count=1"
+      ]
+    },
+    "allowed_paths": [
+      "pkg/skillpolicy/decode.go"
+    ],
+    "difficulty": "small_boundary_fix",
+    "rationale": "Seeds duplicate-key ambiguity in the shared strict decoder; existing tests exercise top-level duplicate task fields and nested version-map duplicates while protecting valid replay fixtures."
+  },
+  {
+    "id": "a06",
+    "category": "experiment_pair_compatibility",
+    "prompt": "Fix observational harness comparison so tasks measured under different comparison conditions are excluded from paired deltas, even when both runs have complete token and elapsed-time measurements. Incompatible pairs must prevent overall completeness while compatible failed-task and retry spend remains visible.",
+    "mutation": {
+      "path": "pkg/experiment/harness_compare.go",
+      "before": "!aok || !bok || a.observation.Identity != b.observation.Identity || a.tokens == nil",
+      "after": "!aok || !bok || a.tokens == nil"
+    },
+    "oracle": {
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./pkg/experiment",
+        "-run",
+        "^(TestHarnessIncompatibleIdentityHasNoDelta|TestHarnessOverallCompletenessRequiresComparablePairsAndCorrections|TestHarnessIncludesFailedTrialsAndRetries)$",
+        "-count=1"
+      ]
+    },
+    "allowed_paths": [
+      "pkg/experiment/harness_compare.go"
+    ],
+    "difficulty": "small_boundary_fix",
+    "rationale": "Seeds omission of the compatibility identity guard, producing false paired deltas across different acceptance/oracle conditions; existing tests cover full experiment completeness and retained failed spend."
+  }
+]

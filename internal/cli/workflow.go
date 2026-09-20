@@ -34,6 +34,7 @@ func NewWorkflowCmd(prober workflow.Prober, runner workflow.CommandRunner) *cobr
 	cmd.AddCommand(newWorkflowContextCmd())
 	cmd.AddCommand(newWorkflowContextPlanCmd())
 	cmd.AddCommand(newWorkflowContextRuntimeCmd())
+	cmd.AddCommand(newWorkflowTriageCmd())
 	return cmd
 }
 

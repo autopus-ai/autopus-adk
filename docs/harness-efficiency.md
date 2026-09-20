@@ -126,3 +126,16 @@ Keep all attempts in the corpus, use fresh isolated checkouts and alternate
 execution order across repeated trials. The tool does not launch or randomize
 trials and does not estimate statistical significance. See
 [the research assessment](harness-assessment.md) for the experiment rationale.
+
+## Executed pilot
+
+The [2026-09-20 instruction/skill exposure pilot](benchmarks/harness-2026-09-20.md)
+ran 12 regression tasks under three fixed single-agent configurations. It found
+no focused code-oracle advantage, and native had the lowest total elapsed time.
+This does not evaluate the full workflow or multiagent effectiveness. The report
+preserves timeout usage as unknown and includes runnable benchmark source.
+
+The subsequent [task routing policy](task-routing.md) separates execution depth
+from model quality: evidenced small fixes can stay inline, uncertainty prompts
+focused inspection, and high risk requires planning/review. This new policy has
+functional verification; the exposure pilot does not measure its performance.

@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **작업 근거에 따라 실행 절차를 선택한다** (2026-09-20): `auto workflow triage`가
+  범위·위험·불확실성·검증 방법을 바탕으로 inline/guided/planned를 제안한다.
+  작은 저위험 수정에 기본 계획·위임 절차를 추가하지 않고, 민감 변경과 반복
+  실패는 상향한다. 병렬 추천은 독립성·부모 범위·소유권·실행 가능성을 별도로
+  확인하며 모델 설정과 필수 게이트를 유지한다. 판단은 호출자 선언 기반의
+  조언이고 실행이나 검증 완료를 뜻하지 않는다.
+
 - **OpenCode V1·V2 생성 규약을 분리한다** (2026-09-20): 설치된 버전에 따라
   플러그인과 위임 지침을 생성한다. V2는 SDK 설치가 필요 없는 네이티브
   플러그인 객체와 `subagent` 규약을

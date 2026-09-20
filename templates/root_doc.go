@@ -40,3 +40,14 @@ func mustReadSharedFragment(name string) string {
 	}
 	return strings.TrimRight(string(data), "\n")
 }
+
+// TaskTriagePolicy shares the canonical thin-router policy with code renderers.
+func TaskTriagePolicy() string {
+	body := mustReadSharedFragment("claude/commands/auto-router.md.tmpl")
+	_, section, found := strings.Cut(body, "## Task Triage\n")
+	if !found {
+		panic("canonical task triage section missing")
+	}
+	section, _, _ = strings.Cut(section, "\n## ")
+	return "## Task Triage\n" + strings.TrimSpace(section)
+}

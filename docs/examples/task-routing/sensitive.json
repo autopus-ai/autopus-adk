@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "kind": "bugfix",
+  "paths": [
+    "pkg/auth/token.go"
+  ],
+  "scope_complete": true,
+  "requirements_clear": true,
+  "acceptance_known": true,
+  "estimated_changed_lines": 20,
+  "risk": "low",
+  "requested": "inline"
+}

@@ -1,0 +1,164 @@
+[
+  {
+    "id": "b01",
+    "category": "pipeline_dependency_context",
+    "prompt": "Repair parallel phase execution so a dependent child starts only after its prerequisites succeed and receives their completed output as context. Preserve caller-visible result ordering. Do not modify tests.",
+    "mutation": {
+      "path": "pkg/pipeline/parallel_graph.go",
+      "before": "return buildRunnerPrompt(phase.ID, previous.String())",
+      "after": "return buildRunnerPrompt(phase.ID, \"\")"
+    },
+    "oracle": {
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./pkg/pipeline",
+        "-run",
+        "^TestParallelDependencyOutputAndInputOrder$",
+        "-count=1"
+      ]
+    },
+    "allowed_paths": [
+      "pkg/pipeline/parallel_graph.go"
+    ],
+    "difficulty": "medium",
+    "rationale": "Dependency readiness without transferring completed prerequisite output can silently produce context-free downstream work."
+  },
+  {
+    "id": "b02",
+    "category": "workerreceipt_ownership",
+    "prompt": "Repair worker receipt ownership checks so a grant for one project subtree does not authorize a sibling whose name merely shares its prefix. Preserve exact-path and nested-subtree grants, and reject scope expansion beyond the supervisor assignment. Do not modify tests.",
+    "mutation": {
+      "path": "pkg/workerreceipt/ownership.go",
+      "before": "path == root || strings.HasPrefix(path, root+\"/\")",
+      "after": "path == root || strings.HasPrefix(path, root)"
+    },
+    "oracle": {
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./pkg/workerreceipt",
+        "-run",
+        "^TestValidateOwnershipSupervisorBoundary$",
+        "-count=1"
+      ]
+    },
+    "allowed_paths": [
+      "pkg/workerreceipt/ownership.go"
+    ],
+    "difficulty": "easy",
+    "rationale": "A lexical prefix check without a directory boundary grants unintended sibling write scope."
+  },
+  {
+    "id": "b03",
+    "category": "gate_evidence_freshness",
+    "prompt": "Repair gate evidence reuse at the configured maximum-age boundary: otherwise-valid evidence remains reusable exactly at the limit, while older evidence requires a fresh check. Preserve the other validity and completeness conditions. Do not modify tests.",
+    "mutation": {
+      "path": "pkg/spec/gates/decide.go",
+      "before": "now.Sub(observed) > maxAge",
+      "after": "now.Sub(observed) >= maxAge"
+    },
+    "oracle": {
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./pkg/spec/gates",
+        "-run",
+        "^TestReuse_MaxAgeBoundaryIsInclusive$",
+        "-count=1"
+      ]
+    },
+    "allowed_paths": [
+      "pkg/spec/gates/decide.go"
+    ],
+    "difficulty": "easy",
+    "rationale": "Inclusive freshness windows are vulnerable to comparator regressions that trigger unnecessary verification work."
+  },
+  {
+    "id": "b04",
+    "category": "gate_security_classification",
+    "prompt": "Repair change classification so even one security or data path selects the security/data class, including changes that also span multiple modules. Keep documentation-only, UI-only, empty, and ordinary change classifications intact. Do not modify tests.",
+    "mutation": {
+      "path": "pkg/spec/gates/classify.go",
+      "before": "case len(result.SecurityPaths) > 0:",
+      "after": "case len(result.SecurityPaths) > 1:"
+    },
+    "oracle": {
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./pkg/spec/gates",
+        "-run",
+        "^TestClassifyChange_Table$",
+        "-count=1"
+      ]
+    },
+    "allowed_paths": [
+      "pkg/spec/gates/classify.go"
+    ],
+    "difficulty": "easy",
+    "rationale": "A single sensitive path must be sufficient to require the appropriate safety gates; file count is not a safety exemption."
+  },
+  {
+    "id": "b05",
+    "category": "config_symlink_identity",
+    "prompt": "Repair configuration path validation so operations refuse an autopus.yaml that is a symbolic link and leave its external target untouched. Preserve normal configuration handling and read-only preview behavior. Do not modify tests.",
+    "mutation": {
+      "path": "pkg/config/loader.go",
+      "before": "info, err := os.Lstat(component)",
+      "after": "info, err := os.Stat(component)"
+    },
+    "oracle": {
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./pkg/config",
+        "-run",
+        "^TestConfigOperations_RejectSymlinkedConfig$",
+        "-count=1"
+      ]
+    },
+    "allowed_paths": [
+      "pkg/config/loader.go"
+    ],
+    "difficulty": "medium",
+    "rationale": "Following a symbolic link while trying to detect it can permit configuration reads and writes outside the intended project boundary."
+  },
+  {
+    "id": "b06",
+    "category": "opencode_plugin_path_identity",
+    "prompt": "Repair OpenCode plugin configuration merging so an existing local file-URL declaration and the equivalent managed project path identify the same plugin. Do not duplicate that registration, and preserve the proper V1 versus V2 configuration shape. Do not modify tests.",
+    "mutation": {
+      "path": "pkg/adapter/opencode/opencode_config_v2.go",
+      "before": "path = u.Path",
+      "after": "return path"
+    },
+    "oracle": {
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./pkg/adapter/opencode",
+        "-run",
+        "^TestPluginConfigNewVersionShapeAndPathAliases$",
+        "-count=1"
+      ]
+    },
+    "allowed_paths": [
+      "pkg/adapter/opencode/opencode_config_v2.go"
+    ],
+    "difficulty": "medium",
+    "rationale": "Treating file URLs and filesystem paths as unrelated identities produces duplicate plugin registrations during harness updates."
+  }
+]

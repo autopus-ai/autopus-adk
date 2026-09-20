@@ -5,6 +5,11 @@ or work needing context isolation—not work merely spanning more files or lines
 Give workers owned/forbidden paths and acceptance criteria. Parallel writers need
 disjoint ownership; dependencies and shared mutable state require sequencing.
 
+Choose execution depth from scope, risk, uncertainty and known acceptance.
+Small verified low-risk fixes stay inline; inspect missing facts before adding
+steps. Plan high-risk or unclear work, and reassess after failure or scope growth.
+Routing never waives applicable gates or changes the user's model preferences.
+
 ### Verification
 
 Reproduce bugs and write meaningful tests before behavior changes. Run the affected
