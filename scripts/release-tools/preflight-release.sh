@@ -197,11 +197,13 @@ if [[ "$failures" -eq 0 ]]; then
   cat <<EOF
   All local checks passed. What remains cannot be done from here:
 
-    1. Generate K3-signed production evidence with the promotion signing key
-       and a live provider, then push the evidence tag and prep lock:
-         scripts/companion-release/prepare-release.sh --preflight ... then --apply
-    2. Push ${release_tag}. The workflow builds, signs, and publishes.
-    3. Seal ruleset bypass immediately after the tag exists.
+    1. Use the approved release-prep wrapper with the operator gateway and keys:
+         scripts/release-tools/release-prep.sh --preflight
+         scripts/release-tools/release-prep.sh --apply
+       Apply measures/signs evidence, publishes ${release_tag}, and seals its
+       ruleset. Do not manually create or push a separate release tag.
+    2. Follow the protected Release workflow and its environment review.
+    3. Confirm the tag ruleset is sealed after publication.
     4. Compare the published asset set against the expected 15 names.
     5. Say in the release description that the tag is R2-signed and how to
        verify it (git verify-tag against release-tag-signing-2026-q3-r2.pub).

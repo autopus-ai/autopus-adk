@@ -38,7 +38,7 @@ produce_omp_context_release_lineage() {
     --key-id "$COMPANION_KEY_ID" \
     --upstream-sha256 "sha256:$OMP_CONTEXT_CANDIDATE_ARTIFACT_SHA256" \
     --executable-sha256 "$executable_digest" \
-    --source-repository 'Insajin/autopus-adk' \
+    --source-repository 'autopus-ai/autopus-adk' \
     --source-commit "$COMPANION_SOURCE_COMMIT" --source-tree "$COMPANION_SOURCE_TREE" \
     --target 'darwin-arm64' --version "$COMPANION_VERSION" \
     --lineage-output "$lineage_path" --signature-output "$lineage_signature_path" \
