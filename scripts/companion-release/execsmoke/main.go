@@ -22,8 +22,8 @@ const (
 	maximumTimeout   = 60 * time.Second
 	defaultPipeWait  = 250 * time.Millisecond
 	maximumOutput    = 4096
-	pinnedOMPVersion = "omp/18.1.13"
-	pinnedOMPSHA256  = "sha256:a4c5c9cc5b8222184d0d7429b0bb6ac2a92bbe45dd11bf68e4b1360050791909"
+	pinnedOMPVersion = "omp/17.2.7"
+	pinnedOMPSHA256  = "sha256:cd2f47545cb3f8eb5e15c91bc9054d73967774652e020b432e294803d1b71ea0"
 )
 
 var (

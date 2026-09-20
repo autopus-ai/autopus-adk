@@ -3,7 +3,7 @@ set -euo pipefail
 umask 077
 
 readonly EXPECTED_K1_FINGERPRINT='e1fdfe066484c7eae8ff16fa4b1ee6237b8d06299c2b66ced485f029af77837f'
-readonly COSIGN_IDENTITY='https://github.com/Insajin/autopus-adk/.github/workflows/release.yaml@refs/tags/v0.50.118'
+readonly COSIGN_IDENTITY='https://github.com/autopus-ai/autopus-adk/.github/workflows/release.yaml@refs/tags/v0.50.118'
 readonly COSIGN_ISSUER='https://token.actions.githubusercontent.com'
 
 fail() {

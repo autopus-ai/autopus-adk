@@ -12,7 +12,7 @@ create_canary_plan() {
     --endpoint "$endpoint" --credential-locator "$credential_locator" \
     --model-context-window "$model_context_window" \
     --policy-id omp-context-active-v1 --oracle-policy-digest "$oracle_policy_digest" \
-    --omp-version 'omp/18.1.13' --omp-executable-sha256 "sha256:${expected_omp_sha256}" \
+    --omp-version 'omp/17.2.7' --omp-executable-sha256 "sha256:${expected_omp_sha256}" \
     --promotion-signing-key-id "$expected_promotion_key_id" \
     --release-lineage-key-id "$lineage_key_id" --release-lineage-handoff "$lineage_handoff" \
     --minimum-rollback-floor "$rollback_floor" >"$output"

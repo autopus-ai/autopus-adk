@@ -66,3 +66,23 @@ Publication remains a separate release operation: validate the exact final
 commit, obtain the protected CI and signed live cohort evidence, then use the
 existing release-prep workflow. No tag, remote release or Homebrew publication
 is created by the local diagnostics commands.
+
+## Publication preparation, 2026-09-20
+
+The release preparation checkout reconciles current repository identities to
+`autopus-ai/autopus-adk` in evidence checks and the v0.50.118 Cosign identity.
+Historical v0.50.117 certificate identity remains `Insajin/autopus-adk`.
+
+The previously failed 18.1.13 measurement pin is restored through the official
+pin tool to the retained, already measured OMP 17.2.7 policy. The authenticated
+static policy also declares 17.2.7. Runtime digest:
+`cd2f47545cb3f8eb5e15c91bc9054d73967774652e020b432e294803d1b71ea0`.
+Native protocol-v2 readiness, pin tests, derived implementation identity and
+release smoke contracts are verified. No reduction threshold is relaxed.
+
+The installed user CLI remains independent of this evidence-generation pin.
+Use `ADK_RELEASE_MODEL=gpt-5.6-sol` for the pinned catalog, matching the previous
+measured cohort; the user's gpt-6-astra default is not in the pinned catalog.
+Existing loopback broker/gateway endpoints 47311/47312 were checked as ready.
+`release-prep.sh --apply` itself signs/publishes the evidence and release tag,
+then seals the exact tag ruleset. Do not manually create a release tag.

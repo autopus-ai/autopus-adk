@@ -109,7 +109,7 @@ jobs:
             --attestation "$evidence/omp-context-promotion-attestation.v2.json" \
             --report-sha256 "$OMP_CONTEXT_EVIDENCE_REPORT_SHA256" \
             --attestation-sha256 "$OMP_CONTEXT_EVIDENCE_ATTESTATION_SHA256" \
-            --candidate-repository 'Insajin/autopus-adk' \
+            --candidate-repository 'autopus-ai/autopus-adk' \
             --candidate-revision "$GITHUB_SHA" \
             --candidate-tree "$COMPANION_SOURCE_TREE" \
             --candidate-artifact-sha256 "$CANDIDATE_ARTIFACT_SHA256" \
@@ -336,7 +336,7 @@ jobs:
             --attestation "$evidence/omp-context-promotion-attestation.v2.json" \
             --report-sha256 "$OMP_CONTEXT_EVIDENCE_REPORT_SHA256" \
             --attestation-sha256 "$OMP_CONTEXT_EVIDENCE_ATTESTATION_SHA256" \
-            --candidate-repository 'Insajin/autopus-adk' \
+            --candidate-repository 'autopus-ai/autopus-adk' \
             --candidate-revision "$GITHUB_SHA" \
             --candidate-tree "$COMPANION_SOURCE_TREE" \
             --candidate-artifact-sha256 "$CANDIDATE_ARTIFACT_SHA256" \

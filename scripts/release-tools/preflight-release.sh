@@ -11,7 +11,7 @@
 set -euo pipefail
 umask 077
 
-readonly repository='Insajin/autopus-adk'
+readonly repository='autopus-ai/autopus-adk'
 readonly release_tag="${1:-v0.50.118}"
 readonly predecessor_tag="${2:-v0.50.117}"
 readonly release_ref="refs/tags/${release_tag}"
@@ -150,7 +150,8 @@ work=$(mktemp -d "${TMPDIR:-/tmp}/release-preflight.XXXXXX")
 trap 'rm -rf -- "$work"' EXIT
 if gh release download "$predecessor_tag" -p 'checksums.txt' -p 'checksums.txt.bundle' \
   -D "$work" --clobber >/dev/null 2>&1; then
-  identity="https://github.com/${repository}/.github/workflows/release.yaml@refs/tags/${predecessor_tag}"
+  # The predecessor was signed before the repository transfer; certificate identity is immutable.
+  identity="https://github.com/Insajin/autopus-adk/.github/workflows/release.yaml@refs/tags/${predecessor_tag}"
   if (cd "$work" && cosign verify-blob checksums.txt --bundle checksums.txt.bundle \
     --certificate-identity "$identity" \
     --certificate-oidc-issuer 'https://token.actions.githubusercontent.com') >/dev/null 2>&1; then

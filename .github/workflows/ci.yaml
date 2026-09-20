@@ -30,6 +30,9 @@ jobs:
       - name: Build
         run: go build ./...
 
+      - name: Test harness benchmark contracts
+        run: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts/benchmarks/harness -p 'test_*.py'
+
       # Compile-check every goreleaser target OS so platform-specific syscall
       # usage is caught here instead of failing the release job at tag time.
       - name: Cross-compile release targets

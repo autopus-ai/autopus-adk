@@ -14,7 +14,7 @@ readonly environment_name='adk-companion-release'
 readonly release_tag='v0.50.118'
 readonly spec_id='SPEC-OMP-004'
 readonly expected_go_toolchain='go1.26.6'
-readonly expected_omp_sha256='a4c5c9cc5b8222184d0d7429b0bb6ac2a92bbe45dd11bf68e4b1360050791909'
+readonly expected_omp_sha256='cd2f47545cb3f8eb5e15c91bc9054d73967774652e020b432e294803d1b71ea0'
 readonly expected_promotion_key_id='omp-context-promotion-2026-q3-k3'
 readonly release_ref="refs/tags/${release_tag}"
 readonly evidence_tag="omp-context-evidence-${release_tag}"
@@ -132,11 +132,11 @@ for runtime_lib_name in prepare-release-user-lib.sh prepare-release-runtime-lib.
 done
 trap 'cleanup $?' EXIT
 probe_configure
-staged_omp="$temp_dir/omp-v18.1.13"
+staged_omp="$temp_dir/omp-v17.2.7"
 readonly staged_omp
 cp "$omp_executable" "$staged_omp"; chmod 0500 "$staged_omp"
 [[ "$(shasum -a 256 "$staged_omp" | awk '{print $1}')" == "$expected_omp_sha256" ]] || fail 'staged OMP executable digest differs'
-[[ "$("$staged_omp" --version)" == 'omp/18.1.13' ]] || fail 'verified OMP version differs from v18.1.13'
+[[ "$("$staged_omp" --version)" == 'omp/17.2.7' ]] || fail 'verified OMP version differs from v17.2.7'
 omp_executable=$staged_omp
 probe_verify_tag_signing_authority
 environment_variables=$(gh variable list --repo "$repository" --env "$environment_name" --json name,value) ||

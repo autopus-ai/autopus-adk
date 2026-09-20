@@ -63,8 +63,8 @@ contains "$remover" '[[ "$(/usr/bin/stat -f '"'"'%d:%i'"'"' /private/tmp)" == "$
 contains "$workflow" 'Remove isolated OMP release canary'
 contains "$workflow" 'run: scripts/companion-release/remove-omp-release-canary.sh'
 contains "$workflow" 'if: always()'
-contains "$materializer" 'https://github.com/can1357/oh-my-pi/releases/download/v18.1.13/omp-darwin-arm64'
-contains "$materializer" 'a4c5c9cc5b8222184d0d7429b0bb6ac2a92bbe45dd11bf68e4b1360050791909'
+contains "$materializer" 'https://github.com/can1357/oh-my-pi/releases/download/v17.2.7/omp-darwin-arm64'
+contains "$materializer" 'cd2f47545cb3f8eb5e15c91bc9054d73967774652e020b432e294803d1b71ea0'
 contains "$workflow" 'OMP_CONTEXT_RELEASE_CANARY_ROOT: /private/tmp/autopus-adk-omp-canary-${{ github.run_id }}-${{ github.run_attempt }}'
 contains "$workflow" 'OMP_CONTEXT_RELEASE_CANARY_EXECUTABLE="$OMP_CONTEXT_RELEASE_CANARY_EXECUTABLE"'
 contains "$uid_isolation" 'uid == targetUID'
@@ -135,7 +135,7 @@ if [[ "$(uname -s)" == 'Darwin' ]]; then
     fi
     if [[ -n "$omp_executable" && \
       "$(shasum -a 256 "$omp_executable" | awk '{print $1}')" == \
-      'a4c5c9cc5b8222184d0d7429b0bb6ac2a92bbe45dd11bf68e4b1360050791909' ]]; then
+      'cd2f47545cb3f8eb5e15c91bc9054d73967774652e020b432e294803d1b71ea0' ]]; then
       if /usr/bin/sudo -n -u nobody /usr/bin/true >/dev/null 2>&1; then
         uid_root=$(mktemp -d '/private/tmp/release-exec-smoke-nobody.XXXXXX')
         /usr/bin/sudo -n /usr/sbin/chown root:wheel "$uid_root"

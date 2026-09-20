@@ -18,7 +18,7 @@ const (
 	pipelineOMPActiveEndpointKey    = "AUTOPUS_OMP_CONTEXT_PROVIDER_ENDPOINT"
 	pipelineOMPActiveCredentialKey  = "AUTOPUS_OMP_CONTEXT_PROVIDER_TOKEN"
 	pipelineOMPActiveRPCIdentity    = "autopus.omp-pipeline-managed-rpc.v3"
-	pipelineOMPActivePolicyIdentity = "manual-compact-completed-history-before-reused-call;canonical-ephemeral-readmission;correlated-ack;provider-bound-endpoint;model-image-capability=required;snapcompact-image-schema=omp-v18.1.13;auto-compaction=off;retry-off;ambient-off;sandbox=candidate-managed|producer-inherited-external-live-image-darwin-v3;tools=read,bash,edit,write,grep,glob,todo"
+	pipelineOMPActivePolicyIdentity = "manual-compact-completed-history-before-reused-call;canonical-ephemeral-readmission;correlated-ack;provider-bound-endpoint;model-image-capability=required;snapcompact-image-schema=omp-v17.2.7;auto-compaction=off;retry-off;ambient-off;sandbox=candidate-managed|producer-inherited-external-live-image-darwin-v3;tools=read,bash,edit,write,grep,glob,todo"
 )
 
 const pipelineOMPActiveDefaultContextWindow = 262144

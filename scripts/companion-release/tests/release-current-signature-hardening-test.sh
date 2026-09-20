@@ -36,7 +36,7 @@ contains "$helper" 'verify_release_checksums_v1'
 contains "$helper" 'cosign verify-blob'
 contains "$helper" '--certificate-identity "$COSIGN_IDENTITY"'
 contains "$helper" '--certificate-oidc-issuer "$COSIGN_ISSUER"'
-contains "$helper" 'https://github.com/Insajin/autopus-adk/.github/workflows/release.yaml@refs/tags/v0.50.118'
+contains "$helper" 'https://github.com/autopus-ai/autopus-adk/.github/workflows/release.yaml@refs/tags/v0.50.118'
 contains "$helper" 'https://token.actions.githubusercontent.com'
 not_contains "$helper" "$OFFLINE_K2_FINGERPRINT"
 not_contains "$helper" '--offline'
