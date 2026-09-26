@@ -33,14 +33,17 @@ func (c CodexModelCatalog) Supports(model, effort string) bool {
 }
 
 // codexModelFallbackCandidates lists substitutes to try, best first, when the
-// requested model is absent. Astra and Sol descend through current-generation
-// tiers before crossing the generation boundary to legacy.
+// requested model is absent. Astra and Sol descend through the GPT-6 and 5.6
+// tiers before crossing the generation boundary to legacy, so a Codex catalog
+// that predates GPT-6 Sol or Luna keeps the same rung on 5.6.
 func codexModelFallbackCandidates(requested string) []string {
 	switch requested {
 	case CodexAstraModel:
-		return []string{CodexSolModel, CodexTerraModel, CodexLegacyModel}
+		return []string{CodexSolModel, CodexPreviousSolModel, CodexTerraModel, CodexLegacyModel}
 	case CodexSolModel:
-		return []string{CodexTerraModel, CodexLegacyModel}
+		return []string{CodexPreviousSolModel, CodexTerraModel, CodexLegacyModel}
+	case CodexLunaModel:
+		return []string{CodexPreviousLunaModel, CodexLegacyModel}
 	default:
 		return []string{CodexLegacyModel}
 	}

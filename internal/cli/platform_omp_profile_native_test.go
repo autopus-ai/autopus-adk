@@ -90,7 +90,7 @@ func TestOMPProfilePlanBlocksNativeAgentPinWhenThinkingUnsupported(t *testing.T)
 func TestOMPProfilePlanBlocksNativeAgentPinWhenSelectorAbsent(t *testing.T) {
 	root, runner := writeOMPBalancedProject(t)
 	runner.catalog = []byte(`{"models":[
-		{"provider":"openai-codex","id":"gpt-5.6-luna","thinking":["high","max"],"available":true}
+		{"provider":"openai-codex","id":"gpt-6-luna","thinking":["high","max"],"available":true}
 	]}`)
 	dir := root
 

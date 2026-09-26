@@ -133,7 +133,7 @@ func TestParseCodexModelCatalog(t *testing.T) {
 	catalog, err := ParseCodexModelCatalog([]byte(`{
 		"models": [
 			{
-				"slug": "gpt-5.6-sol",
+				"slug": "gpt-6-sol",
 				"default_reasoning_level": "low",
 				"supported_reasoning_levels": [
 					{"effort": "xhigh", "description": "deep"},
@@ -166,8 +166,8 @@ func TestResolveCodexProfile(t *testing.T) {
 
 	catalog := []byte(`{
 		"models": [
-			{"slug":"gpt-5.6-sol","supported_reasoning_levels":[{"effort":"xhigh"},{"effort":"max"},{"effort":"ultra"}]},
-			{"slug":"gpt-5.6-luna","supported_reasoning_levels":[{"effort":"xhigh"},{"effort":"max"}]},
+			{"slug":"gpt-6-sol","supported_reasoning_levels":[{"effort":"xhigh"},{"effort":"max"},{"effort":"ultra"}]},
+			{"slug":"gpt-6-luna","supported_reasoning_levels":[{"effort":"xhigh"},{"effort":"max"}]},
 			{"slug":"gpt-5.5","supported_reasoning_levels":[{"effort":"xhigh"}]}
 		]
 	}`)
@@ -187,7 +187,7 @@ func TestResolveCodexProfile(t *testing.T) {
 	})
 
 	t.Run("target model with no lower effort keeps model and defers effort", func(t *testing.T) {
-		onlyHigherEffort := []byte(`{"models":[{"slug":"gpt-5.6-sol","supported_reasoning_levels":[{"effort":"medium"}]}]}`)
+		onlyHigherEffort := []byte(`{"models":[{"slug":"gpt-6-sol","supported_reasoning_levels":[{"effort":"medium"}]}]}`)
 		got := ResolveCodexProfile(CodexProfile{Model: CodexSolModel, Effort: CodexEffortLow}, onlyHigherEffort)
 		assert.Equal(t, CodexResolutionRuntimeDefault, got.Reason)
 		assert.True(t, got.Fallback)
@@ -229,7 +229,7 @@ func TestResolveCodexProfile(t *testing.T) {
 	})
 
 	t.Run("missing target and legacy defers to runtime default", func(t *testing.T) {
-		withoutLegacy := []byte(`{"models":[{"slug":"gpt-5.6-luna","supported_reasoning_levels":[{"effort":"medium"}]}]}`)
+		withoutLegacy := []byte(`{"models":[{"slug":"gpt-6-luna","supported_reasoning_levels":[{"effort":"medium"}]}]}`)
 		got := ResolveCodexProfile(CodexProfile{Model: CodexTerraModel, Effort: CodexEffortMax}, withoutLegacy)
 		assert.Equal(t, CodexResolutionRuntimeDefault, got.Reason)
 		assert.True(t, got.Fallback)

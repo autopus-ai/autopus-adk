@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **Codex Sol·Luna 티어를 GPT-6로 올린다** (2026-09-26): Sol 티어는
+  `gpt-6-sol`, Luna 티어는 `gpt-6-luna`를 쓴다(Codex 권장 모델). GPT-6에는
+  Terra가 없으므로 Terra는 `gpt-5.6-terra`를 유지한다. GPT-6 Sol·Luna가 없는
+  Codex 카탈로그에서는 각 티어가 5.6 대응 모델로 먼저 내려간다. 이전 릴리스가
+  기록한 `gpt-5.6-sol` supervisor 설정은 계속 Autopus 관리 값으로 인식하므로
+  업데이트 때 사용자 설정으로 잘못 보존되지 않는다. OpenCode 안내문의 기본
+  모델은 ChatGPT 로그인 Codex에서 퇴역한 `gpt-5.4` 대신 `gpt-6-sol`로 적는다.
+
 - **Opus 티어를 Claude Opus 5.5로 올린다** (2026-09-26): `opus` 티어,
   `effort detect` 기본 모델, 워커 라우팅, `route_team` 고정 모델이
   `claude-opus-5-5`로 바뀐다. Opus 5.5 가격(MTok당 입력 $4 / 출력 $20)을

@@ -16,8 +16,13 @@ func TestResolveCodexProfile_AstraFallbackChain(t *testing.T) {
 	}{
 		{
 			name:    "Sol",
-			catalog: `{"models":[{"slug":"gpt-5.6-sol","supported_reasoning_levels":[{"effort":"max"}]},{"slug":"gpt-5.6-terra","supported_reasoning_levels":[{"effort":"max"}]},{"slug":"gpt-5.5","supported_reasoning_levels":[{"effort":"xhigh"}]}]}`,
+			catalog: `{"models":[{"slug":"gpt-6-sol","supported_reasoning_levels":[{"effort":"max"}]},{"slug":"gpt-5.6-terra","supported_reasoning_levels":[{"effort":"max"}]},{"slug":"gpt-5.5","supported_reasoning_levels":[{"effort":"xhigh"}]}]}`,
 			want:    CodexProfile{Model: CodexSolModel, Effort: CodexEffortMax},
+		},
+		{
+			name:    "previous Sol",
+			catalog: `{"models":[{"slug":"gpt-5.6-sol","supported_reasoning_levels":[{"effort":"max"}]},{"slug":"gpt-5.6-terra","supported_reasoning_levels":[{"effort":"max"}]},{"slug":"gpt-5.5","supported_reasoning_levels":[{"effort":"xhigh"}]}]}`,
+			want:    CodexProfile{Model: CodexPreviousSolModel, Effort: CodexEffortMax},
 		},
 		{
 			name:    "Terra",
@@ -61,7 +66,7 @@ func TestResolveCodexProfile_SolMissingPrefersTerra(t *testing.T) {
 func TestResolveCodexProfile_TerraMissingSkipsLuna(t *testing.T) {
 	t.Parallel()
 	catalog := []byte(`{"models":[
-		{"slug":"gpt-5.6-luna","supported_reasoning_levels":[{"effort":"max"}]},
+		{"slug":"gpt-6-luna","supported_reasoning_levels":[{"effort":"max"}]},
 		{"slug":"gpt-5.5","supported_reasoning_levels":[{"effort":"xhigh"}]}
 	]}`)
 
@@ -80,4 +85,24 @@ func TestResolveCodexProfile_NoKnownSubstituteDefersToRuntime(t *testing.T) {
 	assert.Equal(t, CodexResolutionRuntimeDefault, got.Reason)
 	assert.True(t, got.Fallback)
 	assert.Empty(t, got.Effective.Model)
+}
+
+// A Codex catalog that predates GPT-6 Sol and Luna keeps each rung on its 5.6
+// counterpart instead of dropping straight to Terra or legacy.
+func TestResolveCodexProfile_PreGPT6CatalogKeepsRungOn56(t *testing.T) {
+	t.Parallel()
+	catalog := []byte(`{"models":[
+		{"slug":"gpt-5.6-sol","supported_reasoning_levels":[{"effort":"xhigh"}]},
+		{"slug":"gpt-5.6-terra","supported_reasoning_levels":[{"effort":"xhigh"}]},
+		{"slug":"gpt-5.6-luna","supported_reasoning_levels":[{"effort":"max"}]},
+		{"slug":"gpt-5.5","supported_reasoning_levels":[{"effort":"xhigh"}]}
+	]}`)
+
+	sol := ResolveCodexProfile(CodexProfile{Model: CodexSolModel, Effort: CodexEffortXHigh}, catalog)
+	assert.Equal(t, CodexResolutionModelUnavailable, sol.Reason)
+	assert.Equal(t, CodexProfile{Model: CodexPreviousSolModel, Effort: CodexEffortXHigh}, sol.Effective)
+
+	luna := ResolveCodexProfile(CodexProfile{Model: CodexLunaModel, Effort: CodexEffortMax}, catalog)
+	assert.Equal(t, CodexResolutionModelUnavailable, luna.Reason)
+	assert.Equal(t, CodexProfile{Model: CodexPreviousLunaModel, Effort: CodexEffortMax}, luna.Effective)
 }

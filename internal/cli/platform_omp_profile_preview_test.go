@@ -120,7 +120,7 @@ func TestOMPProfilePlanKeepsRepresentativeModelForCollapsedAgents(t *testing.T) 
 	}
 	for _, agent := range []string{"scout", "sonic"} {
 		row := agentPreviewRow(t, openai, agent)
-		assert.Equal(t, "openai-codex/gpt-5.6-luna", row.EffectiveSelector, agent)
+		assert.Equal(t, "openai-codex/gpt-6-luna", row.EffectiveSelector, agent)
 		assert.Equal(t, "max", row.EffectiveThinking, agent)
 	}
 	for _, row := range openai.Agents {

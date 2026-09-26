@@ -96,7 +96,7 @@ func isKnownManagedCodexSupervisorTuple(model string, hasModel bool, effort stri
 	switch modelValue {
 	case config.CodexLegacyModel:
 		return effortValue == config.CodexEffortXHigh
-	case config.CodexSolModel:
+	case config.CodexSolModel, config.CodexPreviousSolModel:
 		return effortValue == config.CodexEffortXHigh || effortValue == config.CodexEffortUltra
 	case config.CodexAstraModel:
 		return effortValue == config.CodexEffortXHigh || effortValue == config.CodexEffortUltra

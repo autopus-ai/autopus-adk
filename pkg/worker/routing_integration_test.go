@@ -188,10 +188,10 @@ func TestRoutingIntegration_CodexProvider(t *testing.T) {
 
 	router := routing.NewRouter(enabledRoutingConfig())
 
-	// Short prompt -> simple -> gpt-5.6-luna for codex.
+	// Short prompt -> simple -> gpt-6-luna for codex.
 	model := router.Route("codex", "fix bug")
-	assert.Equal(t, "gpt-5.6-luna", model,
-		"codex simple prompt should route to gpt-5.6-luna")
+	assert.Equal(t, "gpt-6-luna", model,
+		"codex simple prompt should route to gpt-6-luna")
 }
 
 // TestRoutingIntegration_GeminiProvider verifies Gemini provider gets correct model.

@@ -18,9 +18,9 @@ func TestQualityOMPWizardCustomPinsChosenModelPerBundledAgent(t *testing.T) {
 	dir, runner := qualityOMPWizardFixture(t)
 	runner.catalog = ompCLIBalancedCatalogJSON()
 
-	// custom -> task: model 4 (openai-codex/gpt-6-astra) at thinking max;
+	// custom -> task: model 3 (openai-codex/gpt-6-astra) at thinking max;
 	// every other agent keeps the balanced default.
-	out, err := runQualityOMPWizard(t, dir, "omp\ncustom\ngpt\n\n\n\n4\nmax\n\ny\n", ompPlatformDependencies{
+	out, err := runQualityOMPWizard(t, dir, "omp\ncustom\ngpt\n\n\n\n3\nmax\n\ny\n", ompPlatformDependencies{
 		newRunner: func() omp.OMPModelCatalogRunner { return runner },
 		activate:  func(context.Context, string, *config.HarnessConfig) error { return nil },
 	})

@@ -98,7 +98,7 @@ func TestPrepareAgentFiles_NativeBalancedRefusesCatalogSubstitution(t *testing.T
 			name: "effort below placement",
 			catalog: `{"models":[
 				{"slug":"gpt-6-astra","supported_reasoning_levels":[{"effort":"max"}]},
-				{"slug":"gpt-5.6-luna","supported_reasoning_levels":[{"effort":"medium"},{"effort":"high"}]},
+				{"slug":"gpt-6-luna","supported_reasoning_levels":[{"effort":"medium"},{"effort":"high"}]},
 				{"slug":"gpt-5.5","supported_reasoning_levels":[{"effort":"xhigh"}]}
 			]}`,
 		},
@@ -161,7 +161,7 @@ func TestPrepareAgentFiles_NonPlacementProfilesKeepCatalogFallback(t *testing.T)
 
 	legacyOnly := []byte(`{"models":[
 		{"slug":"gpt-6-astra","supported_reasoning_levels":[{"effort":"max"}]},
-		{"slug":"gpt-5.6-luna","supported_reasoning_levels":[{"effort":"max"}]},
+		{"slug":"gpt-6-luna","supported_reasoning_levels":[{"effort":"max"}]},
 		{"slug":"gpt-5.5","supported_reasoning_levels":[{"effort":"xhigh"}]}
 	]}`)
 

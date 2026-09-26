@@ -26,7 +26,7 @@ func TestNativeBalancedAgentCandidateMatchesApprovedRolePlacement(t *testing.T) 
 			assert.Equal(t, "openai-codex/gpt-6-astra", codex.Selector, agent)
 		} else {
 			assert.Equal(t, "anthropic/claude-sonnet-5", claude.Selector, agent)
-			assert.Equal(t, "openai-codex/gpt-5.6-luna", codex.Selector, agent)
+			assert.Equal(t, "openai-codex/gpt-6-luna", codex.Selector, agent)
 			if routine[agent] {
 				assert.Equal(t, "high", claude.Thinking, agent)
 			} else {
@@ -43,7 +43,7 @@ func TestNativeBalancedAgentCandidatePreservesCustomTierWithoutChangingSiblings(
 	assert.False(t, ok, "explicit nonstandard tier stays on the existing tier path")
 	tester, ok := q.NativeBalancedAgentCandidate(QualityProviderCodex, "tester")
 	require.True(t, ok)
-	assert.Equal(t, "openai-codex/gpt-5.6-luna", tester.Selector)
+	assert.Equal(t, "openai-codex/gpt-6-luna", tester.Selector)
 	assert.Equal(t, "max", tester.Thinking)
 	assert.Equal(t, "opus", q.Presets["balanced"].Agents["executor"])
 }

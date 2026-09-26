@@ -56,7 +56,7 @@ func TestQualityOMPWizardAppliesChosenFamilyWithoutGlobalQualityChange(t *testin
 	assert.Equal(t, "balanced", cfg.RoleModelPolicy.Profile)
 	assert.Equal(t, "openai", cfg.RoleModelPolicy.Family)
 	assert.Empty(t, cfg.RoleModelPolicy.Profiles)
-	assert.Contains(t, out, "openai-codex/gpt-5.6-luna")
+	assert.Contains(t, out, "openai-codex/gpt-6-luna")
 	assert.Contains(t, out, "openai-codex/gpt-6-astra")
 	assert.Contains(t, out, "task")
 }

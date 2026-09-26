@@ -180,7 +180,7 @@ func TestContentDrift_CodexCatalogProbedOnce(t *testing.T) {
 
 	_, err := codex.NewWithRoot(dir, codex.WithModelCatalog(nil)).Generate(context.Background(), cfg)
 	require.NoError(t, err)
-	payload := []byte(`{"models":[{"slug":"gpt-6-astra","supported_reasoning_levels":[{"effort":"max"}]},{"slug":"gpt-5.6-luna","supported_reasoning_levels":[{"effort":"max"}]}]}`)
+	payload := []byte(`{"models":[{"slug":"gpt-6-astra","supported_reasoning_levels":[{"effort":"max"}]},{"slug":"gpt-6-luna","supported_reasoning_levels":[{"effort":"max"}]}]}`)
 	probeCalls := 0
 	var snapshots [][]byte
 	deps := defaultDriftContentDeps()

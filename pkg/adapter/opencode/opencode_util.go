@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-const openCodeDefaultModel = "openai/gpt-5.4"
+const openCodeDefaultModel = "openai/gpt-6-sol"
 
 func splitFrontmatter(content string) (string, string) {
 	if !strings.HasPrefix(content, "---\n") {

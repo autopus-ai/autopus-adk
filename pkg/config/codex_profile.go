@@ -4,10 +4,16 @@ import "strings"
 
 const (
 	CodexAstraModel  = "gpt-6-astra"
-	CodexSolModel    = "gpt-5.6-sol"
+	CodexSolModel    = "gpt-6-sol"
 	CodexTerraModel  = "gpt-5.6-terra"
-	CodexLunaModel   = "gpt-5.6-luna"
+	CodexLunaModel   = "gpt-6-luna"
 	CodexLegacyModel = "gpt-5.5"
+
+	// Previous-generation Sol and Luna. GPT-6 has no Terra, so Terra stays on
+	// 5.6. Older Codex catalogs without GPT-6 Sol/Luna fall back to these, and
+	// configs written by earlier Autopus releases still name them.
+	CodexPreviousSolModel  = "gpt-5.6-sol"
+	CodexPreviousLunaModel = "gpt-5.6-luna"
 
 	CodexEffortLow    = "low"
 	CodexEffortMedium = "medium"
