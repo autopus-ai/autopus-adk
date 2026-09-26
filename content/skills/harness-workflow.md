@@ -141,7 +141,7 @@ one task. The script does not request worktree isolation or a merge lifecycle.
 
 Before an explicit retained launch, run
 `auto workflow doctor --route route_team`. The route-aware pin is
-`RouteTeamMinVersion=2.1.246`; a failed doctor blocks this internal launch and
+`RouteTeamMinVersion=2.1.280`; a failed doctor blocks this internal launch and
 does not change native `--team` routing.
 
 Launch each required segment with the current Workflow input shape:

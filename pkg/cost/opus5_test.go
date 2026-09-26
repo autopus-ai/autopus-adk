@@ -31,12 +31,12 @@ func TestQualityModeToModels_FableAndOpusFollowPresets(t *testing.T) {
 	wantUltra := map[string]string{
 		"planner":          "claude-fable-5-1",
 		"architect":        "claude-fable-5-1",
-		"executor":         "claude-opus-5",
-		"tester":           "claude-opus-5",
+		"executor":         "claude-opus-5-5",
+		"tester":           "claude-opus-5-5",
 		"reviewer":         "claude-fable-5-1",
-		"validator":        "claude-opus-5",
-		"test_scaffold":    "claude-opus-5",
-		"annotator":        "claude-opus-5",
+		"validator":        "claude-opus-5-5",
+		"test_scaffold":    "claude-opus-5-5",
+		"annotator":        "claude-opus-5-5",
 		"security_auditor": "claude-fable-5-1",
 	}
 	ultra := cost.QualityModeToModels("ultra")

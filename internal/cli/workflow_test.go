@@ -113,12 +113,12 @@ func TestWorkflowDoctor_RouteTeamBelowMinVersionExitsNonZero(t *testing.T) {
 
 func TestWorkflowDoctor_RouteTeamAtMinVersionPasses(t *testing.T) {
 	out, err := runWorkflow(
-		fakeProber{version: "2.1.219"},
+		fakeProber{version: "2.1.280"},
 		nil,
 		"workflow", "doctor", "--route", "route_team",
 	)
 	if err != nil {
-		t.Fatalf("route_team doctor at 2.1.219: %v", err)
+		t.Fatalf("route_team doctor at 2.1.280: %v", err)
 	}
 	report := decodeReport(t, out)
 	if !report.VersionOK || report.Overall != "pass" {

@@ -6,7 +6,7 @@ import "strings"
 // projection resolves through these so a tier promotion lands in one place.
 const (
 	ClaudeFableModel  = "claude-fable-5-1"
-	ClaudeOpusModel   = "claude-opus-5"
+	ClaudeOpusModel   = "claude-opus-5-5"
 	ClaudeSonnetModel = "claude-sonnet-5"
 	ClaudeHaikuModel  = "claude-haiku-4-5"
 )

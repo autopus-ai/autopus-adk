@@ -18,10 +18,11 @@ type ModelPricing struct {
 }
 
 // DefaultPricingTable returns the canonical pricing table for supported models.
-// Prices are in USD per 1M tokens. Fable 5.1 and Opus 5 are the current top
+// Prices are in USD per 1M tokens. Fable 5.1 and Opus 5.5 are the current top
 // tiers; legacy full model IDs remain priced because they are still selectable.
+// Opus 5.5 is $4/$20 per MTok, one dollar below Opus 5 on input.
 // OMP catalog pricing: Fable 5.1 is $10/$50 and Sonnet 5 is $2/$10 per MTok.
-// Checked 2026-09-05.
+// Checked 2026-09-26.
 // Retained Opus pricing source: https://platform.claude.com/docs/en/about-claude/models/overview
 func DefaultPricingTable() map[string]ModelPricing {
 	return map[string]ModelPricing{
@@ -30,6 +31,10 @@ func DefaultPricingTable() map[string]ModelPricing {
 			OutputPricePerMillion: 50.0,
 		},
 		config.ClaudeOpusModel: {
+			InputPricePerMillion:  4.0,
+			OutputPricePerMillion: 20.0,
+		},
+		"claude-opus-5": {
 			InputPricePerMillion:  5.0,
 			OutputPricePerMillion: 25.0,
 		},

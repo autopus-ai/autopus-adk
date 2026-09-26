@@ -35,7 +35,7 @@ func TestDefaultConfig(t *testing.T) {
 		t.Parallel()
 		m := cfg.Models["claude"]
 		assert.Equal(t, "claude-sonnet-5", m.Simple)
-		assert.Equal(t, "claude-opus-5", m.Medium)
+		assert.Equal(t, "claude-opus-5-5", m.Medium)
 		assert.Equal(t, "claude-fable-5-1", m.Complex)
 	})
 

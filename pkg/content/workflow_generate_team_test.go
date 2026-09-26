@@ -69,7 +69,7 @@ func TestS1S19_TeamDeterministicGeneration(t *testing.T) {
 	}
 
 	implBlock := phaseJSBlock(js1, "implementation")
-	for _, want := range []string{"parallel(", "agent(taskPrompt", "shared working tree", "agentType: 'executor'", "fan_out_cap=5", "RT.implementation", "'claude-opus-5'"} {
+	for _, want := range []string{"parallel(", "agent(taskPrompt", "shared working tree", "agentType: 'executor'", "fan_out_cap=5", "RT.implementation", "'claude-opus-5-5'"} {
 		if !strings.Contains(implBlock, want) {
 			t.Errorf("implementation block missing %q, got:\n%s", want, implBlock)
 		}

@@ -40,8 +40,8 @@ func TestResolveTeamQualityBinding_SerializesBarePhaseMap(t *testing.T) {
 	if !ok {
 		t.Fatalf("missing implementation entry in %q", s)
 	}
-	if impl["model"] != "claude-opus-5" {
-		t.Fatalf("implementation model = %v, want claude-opus-5", impl["model"])
+	if impl["model"] != "claude-opus-5-5" {
+		t.Fatalf("implementation model = %v, want claude-opus-5-5", impl["model"])
 	}
 	if impl["effort"] != "max" {
 		t.Fatalf("implementation effort = %v, want max", impl["effort"])
@@ -63,7 +63,7 @@ func TestResolveTeamQualityBindingPreservesUltraAndUsesBalancedPlacement(t *test
 	t.Parallel()
 	ultra := resolveTeamQualityBinding("ultra", "")
 	impl := ultra.Phases["implementation"]
-	if impl.Model != "claude-opus-5" || impl.Effort != "max" {
+	if impl.Model != "claude-opus-5-5" || impl.Effort != "max" {
 		t.Fatalf("ultra implementation changed: %+v", impl)
 	}
 	balanced := resolveTeamQualityBinding("balanced", "")

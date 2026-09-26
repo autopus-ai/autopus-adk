@@ -73,17 +73,17 @@ Use debugger or deep-worker for complex diagnosis and long-running work; their s
 balanced profiles already use the top model at max. Do not silently promote or demote
 the standard executor's model based on task size.
 
-## Claude Fable 5.1 / Opus 5
+## Claude Fable 5.1 / Opus 5.5
 
 Autopus projects the top two shared tiers onto fixed Claude model IDs. The
 `fable` tier resolves to `claude-fable-5-1`; the `opus` tier resolves to
-`claude-opus-5`. This keeps generated agent definitions and cost estimates
+`claude-opus-5-5`. This keeps generated agent definitions and cost estimates
 deterministic even when Claude Code aliases change over time.
 
 | Tier | Full model ID | Claude Code aliases |
 |------|---------------|---------------------|
 | `fable` | `claude-fable-5-1` | `fable`, `best` |
-| `opus` | `claude-opus-5` | `opus` |
+| `opus` | `claude-opus-5-5` | `opus` |
 
 `best` is entitlement-dependent and can resolve to the latest Opus when Fable is
 unavailable, so deterministic routing uses `claude-fable-5-1`, not the dynamic
@@ -94,26 +94,28 @@ references linked below.
 
 Claude Code's `opus` alias is provider- and version-dependent:
 
-| Claude Code provider | `opus` on v2.1.219+ | Before v2.1.219 |
-|----------------------|---------------------|-----------------|
-| Anthropic API | Opus 5 | Opus 4.8 on v2.1.154–v2.1.218 |
-| Claude Platform on AWS | Opus 5 | Opus 4.8 on v2.1.207–v2.1.218; Opus 4.7 before v2.1.207 |
-| Amazon Bedrock | Opus 5 | Opus 4.8 on v2.1.207–v2.1.218; Opus 4.6 before v2.1.207 |
-| Google Cloud Agent Platform | Opus 5 | Opus 4.8 on v2.1.207–v2.1.218; Opus 4.6 before v2.1.207 |
-| Microsoft Foundry | Opus 4.6 | Opus 4.6 |
+| Claude Code provider | `opus` on v2.1.280+ | v2.1.219–v2.1.279 | Before v2.1.219 |
+|----------------------|---------------------|-------------------|-----------------|
+| Anthropic API | Opus 5.5 | Opus 5 | Opus 4.8 on v2.1.154–v2.1.218 |
+| Claude Platform on AWS | Check `/model` | Opus 5 | Opus 4.8 on v2.1.207–v2.1.218; Opus 4.7 before v2.1.207 |
+| Amazon Bedrock | Check `/model` | Opus 5 | Opus 4.8 on v2.1.207–v2.1.218; Opus 4.6 before v2.1.207 |
+| Google Cloud Agent Platform | Check `/model` | Opus 5 | Opus 4.8 on v2.1.207–v2.1.218; Opus 4.6 before v2.1.207 |
+| Microsoft Foundry | Opus 4.6 | Opus 4.6 | Opus 4.6 |
 
-Opus 5 is a drop-in upgrade from Opus 4.8 at the same standard price.
-Adaptive thinking is enabled by default and the default effort is `high`. If a
-direct API integration explicitly sends `thinking: {"type": "disabled"}`, effort must be
-`high` or lower: disabled thinking with `xhigh` or `max` returns HTTP 400.
-Autopus does not add a thinking-disable flag to Claude Code argv.
+Opus 5.5 succeeds Opus 5 at a lower standard price with the same 1M context
+and 128K output. Two differences matter to Autopus. Its default effort is
+`medium`, one level below Opus 5's `high`, so every generated Opus role writes
+its effort explicitly instead of inheriting the model default. Thinking cannot
+be disabled at any effort level, and forced `tool_choice` (`any` or `tool`)
+returns HTTP 400; both only affect direct API integrations, because Autopus
+adds no thinking-disable flag to Claude Code argv.
 
-Opus 4.8 remains a valid explicit model and the recommended cybersecurity
-fallback for Opus 5 refusals, so compatibility entries for
-`claude-opus-4-8` must not be removed. See the official
+`claude-opus-5` remains a valid explicit model and stays priced and
+allowlisted. Opus 4.8 remains the recommended cybersecurity fallback, so
+compatibility entries for `claude-opus-4-8` must not be removed. See the official
 [Claude Code model configuration](https://code.claude.com/docs/en/model-config),
 [models overview](https://platform.claude.com/docs/en/about-claude/models/overview),
-and [Opus 5 migration guide](https://platform.claude.com/docs/en/about-claude/models/migration-guide).
+and [model migration guide](https://platform.claude.com/docs/en/about-claude/models/migration-guide).
 
 ## Effort Mapping (SPEC-CC21-001)
 
@@ -130,7 +132,7 @@ Quality Mode defaults:
 | Mode | Model / Tier | Effort |
 |------|--------------|--------|
 | Any | Fable 5.1 | `max` |
-| Ultra | Opus 5 / Opus 4.8 / Opus 4.7 | `max` |
+| Ultra | Opus 5.5 / Opus 5 / Opus 4.8 / Opus 4.7 | `max` |
 | Ultra | Opus 4.6 / Sonnet 5 | `high` |
 | Balanced standard | Sonnet 5 implementation/testing roles | `max` |
 | Balanced standard | Sonnet 5 routine roles | `high` |
@@ -138,8 +140,9 @@ Quality Mode defaults:
 | Any | Haiku 4.5 | strip effort |
 
 Claude model/API effort is the closed set `low`, `medium`, `high`, `xhigh`, and
-`max`. Opus 5 and Fable 5.1 accept all five values and default to `high` outside
-the Autopus quality projection. Claude Code also exposes `ultracode` as a
+`max`. Opus 5.5, Opus 5 and Fable 5.1 accept all five values. Outside the
+Autopus quality projection, Fable 5.1 and Opus 5 default to `high` and Opus 5.5
+defaults to `medium`. Claude Code also exposes `ultracode` as a
 session-only CLI value: it sends actual model effort
 `xhigh` and adds dynamic workflow behavior. It is not a sixth model/API or
 persisted workflow effort. Main-session `ultracode` requires Claude Code
@@ -210,7 +213,7 @@ quality:
 ## Cost Estimation
 
 `cost = Σ(task_tokens × model_price_per_token)`. Fable 5.1 costs more per token
-than Opus 5, and Sonnet 5 less, so compare profiles using the actual role mix
+than Opus 5.5, and Sonnet 5 less, so compare profiles using the actual role mix
 and token counts rather than assuming a quality mode is uniformly cheaper.
 Pricing and token estimation live in `pkg/cost/pricing.go` and
 `pkg/cost/estimator.go`.

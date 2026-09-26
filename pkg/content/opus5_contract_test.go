@@ -32,41 +32,34 @@ func TestOpus5Guidance_SourceAndGeneratedContracts(t *testing.T) {
 
 	repoRoot := filepath.Dir(repoContentDir(t))
 	matrixFragments := []string{
-		"| Anthropic API | Opus 5 | Opus 4.8 on v2.1.154–v2.1.218 |",
-		"| Claude Platform on AWS | Opus 5 | Opus 4.8 on v2.1.207–v2.1.218; Opus 4.7 before v2.1.207 |",
-		"| Amazon Bedrock | Opus 5 | Opus 4.8 on v2.1.207–v2.1.218; Opus 4.6 before v2.1.207 |",
-		"| Google Cloud Agent Platform | Opus 5 | Opus 4.8 on v2.1.207–v2.1.218; Opus 4.6 before v2.1.207 |",
-		"| Microsoft Foundry | Opus 4.6 | Opus 4.6 |",
+		"| Claude Code provider | `opus` on v2.1.280+ | v2.1.219–v2.1.279 | Before v2.1.219 |",
+		"| Anthropic API | Opus 5.5 | Opus 5 | Opus 4.8 on v2.1.154–v2.1.218 |",
+		"| Claude Platform on AWS | Check `/model` | Opus 5 | Opus 4.8 on v2.1.207–v2.1.218; Opus 4.7 before v2.1.207 |",
+		"| Amazon Bedrock | Check `/model` | Opus 5 | Opus 4.8 on v2.1.207–v2.1.218; Opus 4.6 before v2.1.207 |",
+		"| Google Cloud Agent Platform | Check `/model` | Opus 5 | Opus 4.8 on v2.1.207–v2.1.218; Opus 4.6 before v2.1.207 |",
+		"| Microsoft Foundry | Opus 4.6 | Opus 4.6 | Opus 4.6 |",
+	}
+	englishFragments := []string{
+		"`claude-opus-5-5`",
+		"Its default effort is\n`medium`",
+		"writes\nits effort explicitly",
+		"Thinking cannot\nbe disabled at any effort level",
+		"`claude-opus-5` remains a valid explicit model",
+	}
+	koreanFragments := []string{
+		"| `opus` | `claude-opus-5-5` | `opus` | `2.1.280` | 입력 $4 / 출력 $20 |",
+		"더 높은 요구 버전인 `2.1.280`",
+		"기본 effort가 Opus 5의 `high`보다 한 단계 낮은 `medium`",
+		"effort를 항상 명시합니다",
+		"thinking은 어떤 effort에서도 끌 수 없고",
 	}
 	contractFiles := map[string][]string{
-		"content/skills/adaptive-quality.md": {
-			"drop-in upgrade from Opus 4.8",
-			"Adaptive thinking is enabled by default",
-			"`thinking: {\"type\": \"disabled\"}`",
-			"disabled thinking with `xhigh` or `max` returns HTTP 400",
-		},
-		"content/skills/using-autopus.md": {
-			"drop-in upgrade",
-			"adaptive thinking이 기본 활성화",
-			"`thinking: {\"type\": \"disabled\"}`",
-			"`xhigh` 또는 `max`를 함께 보내면 HTTP 400",
-		},
-		"templates/codex/skills/adaptive-quality.md.tmpl": {
-			"drop-in upgrade from Opus 4.8",
-			"disabled thinking with `xhigh` or `max` returns HTTP 400",
-		},
-		"templates/codex/skills/using-autopus.md.tmpl": {
-			"drop-in upgrade",
-			"`xhigh` 또는 `max`를 함께 보내면 HTTP 400",
-		},
-		"templates/gemini/skills/adaptive-quality/SKILL.md.tmpl": {
-			"drop-in upgrade from Opus 4.8",
-			"disabled thinking with `xhigh` or `max` returns HTTP 400",
-		},
-		"templates/gemini/skills/using-autopus/SKILL.md.tmpl": {
-			"drop-in upgrade",
-			"`xhigh` 또는 `max`를 함께 보내면 HTTP 400",
-		},
+		"content/skills/adaptive-quality.md":                     englishFragments,
+		"content/skills/using-autopus.md":                        koreanFragments,
+		"templates/codex/skills/adaptive-quality.md.tmpl":        englishFragments,
+		"templates/codex/skills/using-autopus.md.tmpl":           koreanFragments,
+		"templates/gemini/skills/adaptive-quality/SKILL.md.tmpl": englishFragments,
+		"templates/gemini/skills/using-autopus/SKILL.md.tmpl":    koreanFragments,
 	}
 
 	for relativePath, migrationFragments := range contractFiles {
@@ -91,7 +84,7 @@ func TestWorkflowDoctorGuidance_UsesRouteAwarePins(t *testing.T) {
 			"`auto workflow doctor --route route_a`",
 			"`RouteAMinVersion=2.1.246`",
 			"`auto workflow doctor --route route_team`",
-			"`RouteTeamMinVersion=2.1.246`",
+			"`RouteTeamMinVersion=2.1.280`",
 		},
 		"content/skills/using-autopus.md": {
 			"`auto workflow doctor --route route_team`",

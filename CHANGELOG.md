@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **Opus 티어를 Claude Opus 5.5로 올린다** (2026-09-26): `opus` 티어,
+  `effort detect` 기본 모델, 워커 라우팅, `route_team` 고정 모델이
+  `claude-opus-5-5`로 바뀐다. Opus 5.5 가격(MTok당 입력 $4 / 출력 $20)을
+  반영하고, `claude-opus-5`는 명시 선택용으로 가격표와 workflow 허용 목록에
+  남긴다. Claude Code가 이 모델을 인식하는 첫 버전에 맞춰 `route_team`
+  doctor 최소 버전을 `2.1.280`으로 올린다. Opus 5.5의 기본 effort가
+  `medium`이므로 생성되는 Opus 역할이 effort를 계속 명시한다는 점을
+  문서에 적는다.
+
 - **작업 근거에 따라 실행 절차를 선택한다** (2026-09-20): `auto workflow triage`가
   범위·위험·불확실성·검증 방법을 바탕으로 inline/guided/planned를 제안한다.
   작은 저위험 수정에 기본 계획·위임 절차를 추가하지 않고, 민감 변경과 반복

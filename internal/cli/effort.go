@@ -36,7 +36,8 @@ func newEffortDetectCmd() *cobra.Command {
   --effort flag > CLAUDE_CODE_EFFORT_LEVEL env > frontmatter > quality_mode > settings_default
 
 Model/API effort values: low | medium | high | xhigh | max
-Opus 5 identifiers: claude-opus-5 | opus (the opus alias resolves to Opus 5 in Claude Code >= 2.1.219).
+Opus 5.5 identifiers: claude-opus-5-5 | opus (the opus alias resolves to Opus 5.5 in Claude Code >= 2.1.280; Opus 5.5 defaults to medium effort, so Autopus sets effort explicitly).
+Legacy Opus 5: claude-opus-5 (the opus alias resolved to Opus 5 on Claude Code 2.1.219-2.1.279).
 Claude CLI session-only ultracode uses xhigh plus dynamic workflows (Claude Code >= 2.1.203; agent/team propagation >= 2.1.210).
 Fable 5.1 identifiers: claude-fable-5-1 | fable-5-1 | fable | best (Claude Code >= 2.1.170; legacy claude-fable-5 remains accepted).
 `,
@@ -74,7 +75,7 @@ Fable 5.1 identifiers: claude-fable-5-1 | fable-5-1 | fable | best (Claude Code 
 
 	cmd.Flags().StringVar(&quality, "quality", "", "Quality mode preset (ultra|balanced)")
 	cmd.Flags().StringVar(&complexity, "complexity", "", "Task complexity hint (low|medium|high)")
-	cmd.Flags().StringVar(&model, "model", "", "Model identifier (fable-5-1|claude-fable-5-1|fable|best|opus-5|claude-opus-5|opus|opus-4.8|opus-4.7|sonnet-5|sonnet-4.6|haiku-4.5|claude-fable-5)")
+	cmd.Flags().StringVar(&model, "model", "", "Model identifier (fable-5-1|claude-fable-5-1|fable|best|opus-5-5|claude-opus-5-5|opus-5|claude-opus-5|opus|opus-4.8|opus-4.7|sonnet-5|sonnet-4.6|haiku-4.5|claude-fable-5)")
 	cmd.Flags().StringVar(&agent, "agent", "", "Agent name for frontmatter lookup (future use)")
 	cmd.Flags().StringVar(&format, "format", "plain", "Output format (plain|json)")
 	cmd.Flags().StringVar(&effortFlag, "effort", "", "Explicit model effort or Claude CLI session-only ultracode (overrides quality-mode mapping)")

@@ -38,7 +38,7 @@ func TestRoute(t *testing.T) {
 			name:     "claude medium message returns opus",
 			provider: "claude",
 			message:  strings.Repeat("a", 500) + " 수정 변경",
-			want:     "claude-opus-5",
+			want:     "claude-opus-5-5",
 		},
 		{
 			name:     "unknown provider returns empty",

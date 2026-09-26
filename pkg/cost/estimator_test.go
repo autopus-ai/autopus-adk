@@ -31,14 +31,14 @@ func TestNewEstimatorWithPricing_CustomTable(t *testing.T) {
 }
 
 func TestEstimateCost_UltraExecutor(t *testing.T) {
-	// ultra/executor → claude-opus-5: input=$5/M, output=$25/M
+	// ultra/executor → claude-opus-5-5: input=$4/M, output=$20/M
 	// total=4000 → input=3000, output=1000
-	// cost = (3000/1_000_000 * 5) + (1000/1_000_000 * 25) = 0.015 + 0.025 = 0.04
+	// cost = (3000/1_000_000 * 4) + (1000/1_000_000 * 20) = 0.012 + 0.020 = 0.032
 	e := cost.NewEstimator("ultra")
 	run := telemetry.AgentRun{AgentName: "executor", EstimatedTokens: 4_000}
 
 	got := roundTo6(e.EstimateCost(run))
-	want := roundTo6(0.04)
+	want := roundTo6(0.032)
 	if got != want {
 		t.Errorf("EstimateCost ultra/executor: want %f, got %f", want, got)
 	}

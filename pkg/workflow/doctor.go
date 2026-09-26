@@ -8,15 +8,15 @@ import (
 const (
 	// RouteA is the model-agnostic deterministic workflow route.
 	RouteA = "route_a"
-	// RouteTeam is the deterministic team route whose planning phase pins Opus 5.
+	// RouteTeam is the deterministic team route whose planning phase pins Opus 5.5.
 	RouteTeam = "route_team"
 
 	// RouteAMinVersion preserves the original Dynamic Workflows compatibility
 	// floor for the model-agnostic Route A.
 	RouteAMinVersion = "2.1.154"
 	// RouteTeamMinVersion is the first Claude Code release that recognizes the
-	// fixed claude-opus-5 model used by Route Team.
-	RouteTeamMinVersion = "2.1.219"
+	// fixed claude-opus-5-5 model used by Route Team.
+	RouteTeamMinVersion = "2.1.280"
 
 	// MinVersion is kept as the Route A compatibility floor for callers that use
 	// the original route-agnostic EvaluateCapabilities API.

@@ -48,7 +48,7 @@ func TestEvaluate_RequiredUnavailableFailsGate(t *testing.T) {
 }
 
 // S12: the version pin is route-aware. Route A retains its original 2.1.154
-// floor, while Route Team requires the first release that recognizes Opus 5.
+// floor, while Route Team requires the first release that recognizes Opus 5.5.
 func TestEvaluate_RouteAwareVersionGate(t *testing.T) {
 	t.Parallel()
 
@@ -63,23 +63,23 @@ func TestEvaluate_RouteAwareVersionGate(t *testing.T) {
 		t.Fatalf("route_a minimum_version = %q, want %q", routeA.MinimumVersion, RouteAMinVersion)
 	}
 
-	routeTeam, err := EvaluateCapabilitiesForRoute(fakeProber{version: "2.1.218"}, RouteTeam)
+	routeTeam, err := EvaluateCapabilitiesForRoute(fakeProber{version: "2.1.279"}, RouteTeam)
 	if err != nil {
 		t.Fatalf("EvaluateCapabilitiesForRoute(route_team): %v", err)
 	}
 	if routeTeam.VersionOK || routeTeam.Overall != OverallFail {
-		t.Fatalf("route_team at 2.1.218 = %+v, want version_ok=false overall=fail", routeTeam)
+		t.Fatalf("route_team at 2.1.279 = %+v, want version_ok=false overall=fail", routeTeam)
 	}
 	if routeTeam.MinimumVersion != RouteTeamMinVersion {
 		t.Fatalf("route_team minimum_version = %q, want %q", routeTeam.MinimumVersion, RouteTeamMinVersion)
 	}
 
-	routeTeamCurrent, err := EvaluateCapabilitiesForRoute(fakeProber{version: "2.1.219"}, RouteTeam)
+	routeTeamCurrent, err := EvaluateCapabilitiesForRoute(fakeProber{version: "2.1.280"}, RouteTeam)
 	if err != nil {
 		t.Fatalf("EvaluateCapabilitiesForRoute(route_team current): %v", err)
 	}
 	if !routeTeamCurrent.VersionOK || routeTeamCurrent.Overall != OverallPass {
-		t.Fatalf("route_team at 2.1.219 = %+v, want version_ok=true overall=pass", routeTeamCurrent)
+		t.Fatalf("route_team at 2.1.280 = %+v, want version_ok=true overall=pass", routeTeamCurrent)
 	}
 }
 

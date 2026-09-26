@@ -35,6 +35,6 @@ func TestClaudeProviderQualityFeedsRouteTeamBinding(t *testing.T) {
 	assert.Len(t, overrideBinding.Phases, 6)
 	assert.Equal(t, "claude-fable-5-1", overrideBinding.Phases["planning"].Model)
 	assert.Equal(t, "max", overrideBinding.Phases["planning"].Effort)
-	assert.Equal(t, "claude-opus-5", overrideBinding.Phases["implementation"].Model)
+	assert.Equal(t, "claude-opus-5-5", overrideBinding.Phases["implementation"].Model)
 	assert.Equal(t, "max", overrideBinding.Phases["implementation"].Effort)
 }

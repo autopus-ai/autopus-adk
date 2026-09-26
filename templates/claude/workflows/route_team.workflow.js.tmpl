@@ -53,7 +53,7 @@ await phase('test_scaffold');
 await agent(`Scaffold tests for SPEC ${ctx.spec || ''} in ${ctx.workingDir || ''}`, { agentType: 'tester', model: (RT.test_scaffold && RT.test_scaffold.model) || 'claude-sonnet-5', effort: (RT.test_scaffold && RT.test_scaffold.effort) || 'medium' });
 
 await phase('implementation');
-// route_team baseline implementation: model=claude-opus-5 effort=high fan_out_cap=5 retry: 2 budget: 120000
+// route_team baseline implementation: model=claude-opus-5-5 effort=high fan_out_cap=5 retry: 2 budget: 120000
 const FANOUT_implementation = (RT.implementation && RT.implementation.fan_out_cap) || 5;
 const tasks_implementation = (plan && plan.tasks) || [];
 const limit_implementation = Math.min(tasks_implementation.length, FANOUT_implementation);
@@ -61,10 +61,10 @@ const executors_implementation = [];
 for (let i = 0; i < limit_implementation; i++) {
   const task = tasks_implementation[i];
   const taskPrompt = `Implement task ${task.id}: ${task.description}. Work in the shared working tree and own ONLY these files: ${task.files ? task.files.join(', ') : ''} — create or modify only files in that DISJOINT set; every other file belongs to a parallel executor and must not be created or touched. SPEC ${ctx.spec || ''} in ${ctx.workingDir || ''}`;
-  executors_implementation.push(() => agent(taskPrompt, { agentType: 'executor', model: (RT.implementation && RT.implementation.model) || 'claude-opus-5', effort: (RT.implementation && RT.implementation.effort) || 'high' }));
+  executors_implementation.push(() => agent(taskPrompt, { agentType: 'executor', model: (RT.implementation && RT.implementation.model) || 'claude-opus-5-5', effort: (RT.implementation && RT.implementation.effort) || 'high' }));
 }
 if (executors_implementation.length === 0) {
-  executors_implementation.push(() => agent(`Implement SPEC ${ctx.spec || ''} in ${ctx.workingDir || ''} (no planner task breakdown; implement the full SPEC)`, { agentType: 'executor', model: (RT.implementation && RT.implementation.model) || 'claude-opus-5', effort: (RT.implementation && RT.implementation.effort) || 'high' }));
+  executors_implementation.push(() => agent(`Implement SPEC ${ctx.spec || ''} in ${ctx.workingDir || ''} (no planner task breakdown; implement the full SPEC)`, { agentType: 'executor', model: (RT.implementation && RT.implementation.model) || 'claude-opus-5-5', effort: (RT.implementation && RT.implementation.effort) || 'high' }));
 }
 await parallel(executors_implementation);
 
@@ -84,15 +84,15 @@ await agent(`Run and verify tests for SPEC ${ctx.spec || ''} in ${ctx.workingDir
 
 if (SEGMENT === 'C') {
 await phase('review');
-// route_team baseline review: model=claude-opus-5 effort=high verify_votes=1 synthesis=false retry: 2 budget: 60000
+// route_team baseline review: model=claude-opus-5-5 effort=high verify_votes=1 synthesis=false retry: 2 budget: 60000
 const VOTES_review = (RT.review && RT.review.verify_votes) || 1;
 const SYNTH_review = (RT.review && RT.review.synthesis) || false;
 for (let v = 0; v < VOTES_review; v++) {
-  await agent(`Review changes for SPEC ${ctx.spec || ''} in ${ctx.workingDir || ''} (vote ${v})`, { agentType: 'reviewer', model: (RT.review && RT.review.model) || 'claude-opus-5', effort: (RT.review && RT.review.effort) || 'high' });
+  await agent(`Review changes for SPEC ${ctx.spec || ''} in ${ctx.workingDir || ''} (vote ${v})`, { agentType: 'reviewer', model: (RT.review && RT.review.model) || 'claude-opus-5-5', effort: (RT.review && RT.review.effort) || 'high' });
 }
-await agent(`Perform OWASP security audit for SPEC ${ctx.spec || ''} in ${ctx.workingDir || ''}`, { agentType: 'security-auditor', model: (RT.review && RT.review.model) || 'claude-opus-5', effort: (RT.review && RT.review.effort) || 'high' });
+await agent(`Perform OWASP security audit for SPEC ${ctx.spec || ''} in ${ctx.workingDir || ''}`, { agentType: 'security-auditor', model: (RT.review && RT.review.model) || 'claude-opus-5-5', effort: (RT.review && RT.review.effort) || 'high' });
 if (SYNTH_review) {
-  await agent(`Synthesize review results for SPEC ${ctx.spec || ''} in ${ctx.workingDir || ''}`, { agentType: 'reviewer', model: (RT.review && RT.review.model) || 'claude-opus-5', effort: (RT.review && RT.review.effort) || 'high' });
+  await agent(`Synthesize review results for SPEC ${ctx.spec || ''} in ${ctx.workingDir || ''}`, { agentType: 'reviewer', model: (RT.review && RT.review.model) || 'claude-opus-5-5', effort: (RT.review && RT.review.effort) || 'high' });
 }
 
 }

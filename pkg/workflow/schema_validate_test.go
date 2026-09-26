@@ -117,6 +117,7 @@ func TestIsSafeAgentModel(t *testing.T) {
 	t.Parallel()
 	cases := map[string]bool{
 		"":                           true,
+		"claude-opus-5-5":            true,
 		"claude-opus-5":              true,
 		"claude-opus-4-8":            true,
 		"claude-sonnet-5":            true,

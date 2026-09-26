@@ -101,7 +101,7 @@ CLI에서는 `claude-code`도 `claude`의 alias로 허용하지만 YAML에는 ca
 `quality.default`를 바꾸고 구성된 모든 플랫폼을 갱신합니다. 한 번의 실행에 지정한
 `--quality`는 두 persisted provider override보다 우선하며 YAML은 수정하지 않습니다.
 
-### Claude Fable 5.1 / Opus 5 기본 경로
+### Claude Fable 5.1 / Opus 5.5 기본 경로
 
 Autopus는 공통 모델 티어를 `fable` > `opus` > `sonnet` > `haiku` 순서로
 사용합니다. Ultra에서는 planner, architect, spec-writer, security-auditor,
@@ -113,28 +113,30 @@ Ultra와 Balanced 프리셋은 Haiku를 사용하지 않습니다.
 | 티어 | 전체 모델 ID | Claude Code alias | 최소 Claude Code 버전 | MTok당 가격 |
 |------|--------------|-------------------|--------------------------|-------------|
 | `fable` | `claude-fable-5-1` | `fable`, `best` | `2.1.170` | 입력 $10 / 출력 $50 |
-| `opus` | `claude-opus-5` | `opus` | `2.1.219` | 입력 $5 / 출력 $25 |
+| `opus` | `claude-opus-5-5` | `opus` | `2.1.280` | 입력 $4 / 출력 $20 |
 
 `route_team` workflow는 두 모델 ID를 고정하므로
-`auto workflow doctor --route route_team`에서 더 높은 요구 버전인 `2.1.219`
+`auto workflow doctor --route route_team`에서 더 높은 요구 버전인 `2.1.280`
 미만을 fail-closed합니다. 모델을 고정하지 않는 `route_a`는 기존 최소 버전
 `2.1.154`를 유지합니다.
 
 Claude Code의 `opus` alias는 provider와 버전에 따라 달라집니다.
 
-| Claude Code provider | `opus` on v2.1.219+ | Before v2.1.219 |
-|----------------------|---------------------|-----------------|
-| Anthropic API | Opus 5 | Opus 4.8 on v2.1.154–v2.1.218 |
-| Claude Platform on AWS | Opus 5 | Opus 4.8 on v2.1.207–v2.1.218; Opus 4.7 before v2.1.207 |
-| Amazon Bedrock | Opus 5 | Opus 4.8 on v2.1.207–v2.1.218; Opus 4.6 before v2.1.207 |
-| Google Cloud Agent Platform | Opus 5 | Opus 4.8 on v2.1.207–v2.1.218; Opus 4.6 before v2.1.207 |
-| Microsoft Foundry | Opus 4.6 | Opus 4.6 |
+| Claude Code provider | `opus` on v2.1.280+ | v2.1.219–v2.1.279 | Before v2.1.219 |
+|----------------------|---------------------|-------------------|-----------------|
+| Anthropic API | Opus 5.5 | Opus 5 | Opus 4.8 on v2.1.154–v2.1.218 |
+| Claude Platform on AWS | Check `/model` | Opus 5 | Opus 4.8 on v2.1.207–v2.1.218; Opus 4.7 before v2.1.207 |
+| Amazon Bedrock | Check `/model` | Opus 5 | Opus 4.8 on v2.1.207–v2.1.218; Opus 4.6 before v2.1.207 |
+| Google Cloud Agent Platform | Check `/model` | Opus 5 | Opus 4.8 on v2.1.207–v2.1.218; Opus 4.6 before v2.1.207 |
+| Microsoft Foundry | Opus 4.6 | Opus 4.6 | Opus 4.6 |
 
-Opus 5는 Opus 4.8과 가격이 같은 drop-in upgrade이며 adaptive thinking이 기본 활성화됩니다.
-직접 API를 연결할 때 `thinking: {"type": "disabled"}`와 `xhigh` 또는 `max`를 함께 보내면 HTTP 400이므로
-Autopus는 Claude Code argv에 thinking-disable flag를 추가하지 않습니다.
-Opus 4.8은 명시적으로 계속 선택할 수 있고 Opus 5 사이버보안 거부의 권장
-fallback이므로 호환 모델에서 제거하지 않습니다.
+Opus 5.5는 Opus 5의 후속 모델로, 1M context와 128K output은 같고 표준 가격은 더 낮습니다.
+기본 effort가 Opus 5의 `high`보다 한 단계 낮은 `medium`이므로, Autopus가 생성하는
+Opus 역할은 모델 기본값에 기대지 않고 effort를 항상 명시합니다.
+thinking은 어떤 effort에서도 끌 수 없고 강제 `tool_choice`(`any`, `tool`)는 HTTP 400입니다.
+둘 다 직접 API 연동에만 해당하며, Autopus는 Claude Code argv에 thinking-disable flag를 추가하지 않습니다.
+`claude-opus-5`는 명시적으로 계속 선택할 수 있고 가격표와 허용 목록에도 남아 있습니다.
+Opus 4.8은 사이버보안 거부의 권장 fallback이므로 호환 모델에서 제거하지 않습니다.
 
 Fable의 동적 alias인 `best`는 사용 권한에 따라 최신 Opus로 해석될 수
 있습니다. 따라서 모델 라우팅과 비용 계산에는 `claude-fable-5-1`을
@@ -156,7 +158,7 @@ Code `2.1.203` 이상, agent/team 전달은 `2.1.210` 이상을 사용하세요.
 
 자세한 내용은 [Claude Code model 설정](https://code.claude.com/docs/en/model-config),
 [모델 개요](https://platform.claude.com/docs/en/about-claude/models/overview),
-[Opus 5 migration guide](https://platform.claude.com/docs/en/about-claude/models/migration-guide),
+[model migration guide](https://platform.claude.com/docs/en/about-claude/models/migration-guide),
 [CLI reference](https://code.claude.com/docs/en/cli-reference),
 [effort reference](https://platform.claude.com/docs/en/build-with-claude/effort)를
 확인하세요.
