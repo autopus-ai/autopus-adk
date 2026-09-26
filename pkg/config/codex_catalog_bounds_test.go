@@ -83,7 +83,7 @@ func TestResolveCodexProfileRejectsOversizedCatalogDirectly(t *testing.T) {
 	resolution := ResolveCodexProfile(requested, []byte(strings.Repeat("x", MaxCodexModelCatalogBytes+1)))
 
 	assert.Equal(t, CodexResolutionCatalogUnknown, resolution.Reason)
-	assert.Equal(t, CodexProfile{Model: CodexLegacyModel, Effort: CodexEffortXHigh}, resolution.Effective)
+	assert.Equal(t, CodexProfile{Model: CodexFallbackModel, Effort: CodexEffortUltra}, resolution.Effective)
 	require.Error(t, resolution.CatalogError)
 	assert.Contains(t, resolution.CatalogError.Error(), "exceeds")
 }

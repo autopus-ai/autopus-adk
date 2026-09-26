@@ -136,8 +136,7 @@ func TestBuiltinRoleModelProfile_UltraCapabilityDefaultsTakeHighestAgentTier(t *
 		{CapabilityDeepReasoning, sonnetAnthropicCandidates()},
 		{CapabilityVisionDesign, sonnetAnthropicCandidates()},
 		{CapabilityIndependentDissent, []RoleModelCandidateConf{
-			builtinCandidate("openai-codex/"+CodexTerraModel, "medium", "openai"),
-			builtinCandidate("openai-codex/"+CodexLunaModel, "low", "openai"),
+			builtinCandidate("openai-codex/"+CodexLunaModel, "medium", "openai"),
 		}},
 	})
 }

@@ -75,7 +75,7 @@ When `{SPEC_DIR}/gate-applicability.json` carries `change_risk.risk_tier`, that 
 
 Platform note:
 - Standard balanced uses the same role matrix in Claude Code, Codex, and OMP. Claude emits Fable 5.1/max for the seven-role core, Sonnet 5/max for implementation, and Sonnet 5/high for routine work. Codex emits Astra/max for the core and Luna/max for every other canonical agent.
-- Explicit nonstandard native agent tiers retain the tier ladder: Claude Fable/Opus/Sonnet/Haiku and Codex Astra/Sol/Terra/Luna. Ultra remains unchanged. Native multi-provider review defaults to Fable 5.1/max and Astra/max regardless of quality mode; explicit provider pins and effort overrides stay authoritative.
+- Explicit nonstandard native agent tiers retain the tier ladder: Claude Fable/Opus/Sonnet/Haiku and Codex Astra/Sol/Luna (sonnet and haiku both run Luna; sonnet at `max`). Ultra remains unchanged. Native multi-provider review defaults to Fable 5.1/max and Astra/max regardless of quality mode; explicit provider pins and effort overrides stay authoritative.
 - Gemini maps `fable`/`opus`/`sonnet` to `gemini-3.1-pro` and `haiku` to `gemini-3.8-flash`.
 - OpenCode keeps the configured default runtime model; tier changes act as reasoning-profile hints until explicit model overrides are available.
 

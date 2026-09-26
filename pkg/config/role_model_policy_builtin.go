@@ -170,7 +170,10 @@ func builtinCandidatesForTier(family builtinModelFamily, tier string) []RoleMode
 	}
 	candidates := make([]RoleModelCandidateConf, 0, capacity)
 	candidates = append(candidates, builtinCandidateForTier(family, tier))
-	if hasLower {
+	// A family with fewer models than tiers maps adjacent tiers onto one model
+	// (Codex sonnet and haiku both run Luna); a second candidate on the same
+	// selector would be a duplicate attestation, not a fallback.
+	if hasLower && family.modelForTier(lower) != family.modelForTier(tier) {
 		candidates = append(candidates, builtinCandidateForTier(family, lower))
 	}
 	return candidates

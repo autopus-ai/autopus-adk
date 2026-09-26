@@ -33,19 +33,18 @@ func (c CodexModelCatalog) Supports(model, effort string) bool {
 }
 
 // codexModelFallbackCandidates lists substitutes to try, best first, when the
-// requested model is absent. Astra and Sol descend through the GPT-6 and 5.6
-// tiers before crossing the generation boundary to legacy, so a Codex catalog
-// that predates GPT-6 Sol or Luna keeps the same rung on 5.6.
+// requested model is absent. Each GPT-6 rung first tries its 5.6 counterpart,
+// so a Codex catalog that predates GPT-6 keeps the same rung.
 func codexModelFallbackCandidates(requested string) []string {
 	switch requested {
 	case CodexAstraModel:
-		return []string{CodexSolModel, CodexPreviousSolModel, CodexTerraModel, CodexLegacyModel}
+		return []string{CodexSolModel, CodexPreviousSolModel}
 	case CodexSolModel:
-		return []string{CodexPreviousSolModel, CodexTerraModel, CodexLegacyModel}
+		return []string{CodexPreviousSolModel}
 	case CodexLunaModel:
-		return []string{CodexPreviousLunaModel, CodexLegacyModel}
+		return []string{CodexPreviousLunaModel, CodexFallbackModel}
 	default:
-		return []string{CodexLegacyModel}
+		return []string{CodexFallbackModel}
 	}
 }
 
@@ -55,14 +54,11 @@ func ResolveCodexProfile(requested CodexProfile, catalogJSON []byte) CodexProfil
 	if err != nil {
 		return CodexProfileResolution{
 			Requested:    requested,
-			Effective:    legacyCodexProfile(requested.Effort),
+			Effective:    CodexProfile{Model: CodexFallbackModel, Effort: normalizeCodexEffort(requested.Effort)},
 			Fallback:     true,
 			Reason:       CodexResolutionCatalogUnknown,
 			CatalogError: err,
 		}
-	}
-	if requested.Model == CodexLegacyModel {
-		return resolveRequestedLegacyCodexProfile(catalog, requested)
 	}
 
 	model, ok := catalog.findModel(requested.Model)
@@ -72,11 +68,7 @@ func ResolveCodexProfile(requested CodexProfile, catalogJSON []byte) CodexProfil
 			if !entryOK {
 				continue
 			}
-			wanted := requested.Effort
-			if candidate == CodexLegacyModel {
-				wanted = capLegacyCodexEffort(wanted)
-			}
-			effort, effortOK := entry.highestCompatibleEffort(wanted)
+			effort, effortOK := entry.highestCompatibleEffort(requested.Effort)
 			if !effortOK {
 				continue
 			}

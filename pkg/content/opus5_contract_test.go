@@ -89,7 +89,7 @@ func TestWorkflowDoctorGuidance_UsesRouteAwarePins(t *testing.T) {
 		"content/skills/using-autopus.md": {
 			"`auto workflow doctor --route route_team`",
 			"`route_a`",
-			"`2.1.154`",
+			"`2.1.246`",
 		},
 		"templates/claude/commands/auto-workflows.md.tmpl": {
 			"`auto workflow doctor --route route_a`",

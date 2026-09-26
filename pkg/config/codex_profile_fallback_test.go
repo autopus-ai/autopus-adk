@@ -16,23 +16,13 @@ func TestResolveCodexProfile_AstraFallbackChain(t *testing.T) {
 	}{
 		{
 			name:    "Sol",
-			catalog: `{"models":[{"slug":"gpt-6-sol","supported_reasoning_levels":[{"effort":"max"}]},{"slug":"gpt-5.6-terra","supported_reasoning_levels":[{"effort":"max"}]},{"slug":"gpt-5.5","supported_reasoning_levels":[{"effort":"xhigh"}]}]}`,
+			catalog: `{"models":[{"slug":"gpt-6-sol","supported_reasoning_levels":[{"effort":"max"}]},{"slug":"gpt-5.6-sol","supported_reasoning_levels":[{"effort":"max"}]}]}`,
 			want:    CodexProfile{Model: CodexSolModel, Effort: CodexEffortMax},
 		},
 		{
 			name:    "previous Sol",
-			catalog: `{"models":[{"slug":"gpt-5.6-sol","supported_reasoning_levels":[{"effort":"max"}]},{"slug":"gpt-5.6-terra","supported_reasoning_levels":[{"effort":"max"}]},{"slug":"gpt-5.5","supported_reasoning_levels":[{"effort":"xhigh"}]}]}`,
+			catalog: `{"models":[{"slug":"gpt-5.6-sol","supported_reasoning_levels":[{"effort":"max"}]},{"slug":"gpt-5.5","supported_reasoning_levels":[{"effort":"xhigh"}]}]}`,
 			want:    CodexProfile{Model: CodexPreviousSolModel, Effort: CodexEffortMax},
-		},
-		{
-			name:    "Terra",
-			catalog: `{"models":[{"slug":"gpt-5.6-terra","supported_reasoning_levels":[{"effort":"max"}]},{"slug":"gpt-5.5","supported_reasoning_levels":[{"effort":"xhigh"}]}]}`,
-			want:    CodexProfile{Model: CodexTerraModel, Effort: CodexEffortMax},
-		},
-		{
-			name:    "legacy",
-			catalog: `{"models":[{"slug":"gpt-5.5","supported_reasoning_levels":[{"effort":"xhigh"}]}]}`,
-			want:    CodexProfile{Model: CodexLegacyModel, Effort: CodexEffortXHigh},
 		},
 	}
 
@@ -50,30 +40,33 @@ func TestResolveCodexProfile_AstraFallbackChain(t *testing.T) {
 	}
 }
 
-func TestResolveCodexProfile_SolMissingPrefersTerra(t *testing.T) {
-	t.Parallel()
-	catalog := []byte(`{"models":[
-		{"slug":"gpt-5.6-terra","supported_reasoning_levels":[{"effort":"xhigh"}]},
-		{"slug":"gpt-5.5","supported_reasoning_levels":[{"effort":"xhigh"}]}
-	]}`)
-
-	got := ResolveCodexProfile(CodexProfile{Model: CodexSolModel, Effort: CodexEffortXHigh}, catalog)
-
-	assert.Equal(t, CodexResolutionModelUnavailable, got.Reason)
-	assert.Equal(t, CodexProfile{Model: CodexTerraModel, Effort: CodexEffortXHigh}, got.Effective)
-}
-
-func TestResolveCodexProfile_TerraMissingSkipsLuna(t *testing.T) {
+// Astra never steps down to Luna or to the retiring gpt-5.5: a catalog that
+// offers only those leaves the choice to the Codex runtime.
+func TestResolveCodexProfile_AstraSkipsLunaAndLegacy(t *testing.T) {
 	t.Parallel()
 	catalog := []byte(`{"models":[
 		{"slug":"gpt-6-luna","supported_reasoning_levels":[{"effort":"max"}]},
 		{"slug":"gpt-5.5","supported_reasoning_levels":[{"effort":"xhigh"}]}
 	]}`)
 
-	got := ResolveCodexProfile(CodexProfile{Model: CodexTerraModel, Effort: CodexEffortMax}, catalog)
+	got := ResolveCodexProfile(CodexProfile{Model: CodexAstraModel, Effort: CodexEffortMax}, catalog)
+
+	assert.Equal(t, CodexResolutionRuntimeDefault, got.Reason)
+	assert.Empty(t, got.Effective.Model)
+}
+
+// Luna with neither GPT-6 nor 5.6 Luna climbs to the fallback model rather
+// than failing, since running on a stronger model is safe.
+func TestResolveCodexProfile_LunaMissingUsesFallbackModel(t *testing.T) {
+	t.Parallel()
+	catalog := []byte(`{"models":[
+		{"slug":"gpt-5.6-sol","supported_reasoning_levels":[{"effort":"max"}]}
+	]}`)
+
+	got := ResolveCodexProfile(CodexProfile{Model: CodexLunaModel, Effort: CodexEffortMax}, catalog)
 
 	assert.Equal(t, CodexResolutionModelUnavailable, got.Reason)
-	assert.Equal(t, CodexProfile{Model: CodexLegacyModel, Effort: CodexEffortXHigh}, got.Effective)
+	assert.Equal(t, CodexProfile{Model: CodexFallbackModel, Effort: CodexEffortMax}, got.Effective)
 }
 
 func TestResolveCodexProfile_NoKnownSubstituteDefersToRuntime(t *testing.T) {
@@ -88,7 +81,7 @@ func TestResolveCodexProfile_NoKnownSubstituteDefersToRuntime(t *testing.T) {
 }
 
 // A Codex catalog that predates GPT-6 Sol and Luna keeps each rung on its 5.6
-// counterpart instead of dropping straight to Terra or legacy.
+// counterpart instead of collapsing onto a single fallback.
 func TestResolveCodexProfile_PreGPT6CatalogKeepsRungOn56(t *testing.T) {
 	t.Parallel()
 	catalog := []byte(`{"models":[

@@ -3,17 +3,24 @@ package config
 import "strings"
 
 const (
-	CodexAstraModel  = "gpt-6-astra"
-	CodexSolModel    = "gpt-6-sol"
-	CodexTerraModel  = "gpt-5.6-terra"
-	CodexLunaModel   = "gpt-6-luna"
-	CodexLegacyModel = "gpt-5.5"
+	CodexAstraModel = "gpt-6-astra"
+	CodexSolModel   = "gpt-6-sol"
+	CodexLunaModel  = "gpt-6-luna"
 
-	// Previous-generation Sol and Luna. GPT-6 has no Terra, so Terra stays on
-	// 5.6. Older Codex catalogs without GPT-6 Sol/Luna fall back to these, and
-	// configs written by earlier Autopus releases still name them.
+	// Previous-generation Sol and Luna. Codex catalogs that predate GPT-6 fall
+	// back to these, and configs written by earlier Autopus releases name them.
 	CodexPreviousSolModel  = "gpt-5.6-sol"
 	CodexPreviousLunaModel = "gpt-5.6-luna"
+
+	// CodexFallbackModel is the last resort when neither the requested model
+	// nor its rung substitute is in the catalog, or the catalog is unreadable.
+	// It accepts every managed effort, so falling back never caps effort.
+	CodexFallbackModel = CodexPreviousSolModel
+
+	// CodexLegacyModel is the model earlier Autopus releases pinned. It only
+	// identifies historical managed configs; nothing resolves to it, because
+	// Codex with ChatGPT sign-in retires it on 2026-10-14.
+	CodexLegacyModel = "gpt-5.5"
 
 	CodexEffortLow    = "low"
 	CodexEffortMedium = "medium"
@@ -104,6 +111,8 @@ func (q QualityConf) CodexAgentProfile(agentName, fallbackTier, declaredEffort s
 		return CodexProfile{Model: CodexAstraModel, Effort: CodexEffortMax}
 	case "opus":
 		return CodexProfile{Model: CodexSolModel, Effort: CodexEffortXHigh}
+	case "sonnet":
+		return CodexProfile{Model: CodexLunaModel, Effort: CodexEffortMax}
 	default:
 		return CodexProfile{Model: CodexModelForTier(tier), Effort: normalizeManagedCodexEffort(declaredEffort)}
 	}
@@ -150,17 +159,17 @@ func (q QualityConf) codexAgentTier(agentName, fallbackTier string) string {
 	return q.AgentTier(QualityProviderCodex, agentName, fallbackTier)
 }
 
-// CodexModelForTier maps a relative tier onto its managed Codex model.
+// CodexModelForTier maps a relative tier onto its managed Codex model. GPT-6
+// has three rungs, so the sonnet and haiku tiers share Luna and differ only in
+// effort.
 func CodexModelForTier(tier string) string {
 	switch tier {
 	case "fable":
 		return CodexAstraModel
 	case "opus":
 		return CodexSolModel
-	case "haiku":
-		return CodexLunaModel
 	default:
-		return CodexTerraModel
+		return CodexLunaModel
 	}
 }
 

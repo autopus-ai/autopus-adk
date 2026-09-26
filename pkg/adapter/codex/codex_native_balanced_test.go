@@ -159,10 +159,10 @@ func TestGenerate_NativeBalancedCatalogRejectionWritesNothing(t *testing.T) {
 func TestPrepareAgentFiles_NonPlacementProfilesKeepCatalogFallback(t *testing.T) {
 	t.Parallel()
 
-	legacyOnly := []byte(`{"models":[
+	withoutSol := []byte(`{"models":[
 		{"slug":"gpt-6-astra","supported_reasoning_levels":[{"effort":"max"}]},
 		{"slug":"gpt-6-luna","supported_reasoning_levels":[{"effort":"max"}]},
-		{"slug":"gpt-5.5","supported_reasoning_levels":[{"effort":"xhigh"}]}
+		{"slug":"gpt-5.6-sol","supported_reasoning_levels":[{"effort":"xhigh"}]}
 	]}`)
 
 	t.Run("ultra", func(t *testing.T) {
@@ -170,7 +170,7 @@ func TestPrepareAgentFiles_NonPlacementProfilesKeepCatalogFallback(t *testing.T)
 
 		a := NewWithRoot(t.TempDir())
 		a.codexCatalogProbed = true
-		a.codexCatalogJSON = legacyOnly
+		a.codexCatalogJSON = withoutSol
 		a.codexFallbackWriter = nil
 		cfg := config.DefaultFullConfig("ultra-fallback")
 		cfg.Quality.Default = "ultra"
@@ -179,7 +179,7 @@ func TestPrepareAgentFiles_NonPlacementProfilesKeepCatalogFallback(t *testing.T)
 		require.NoError(t, err)
 		assertCodexRenderedProfile(t,
 			codexAgentMappingContent(t, files, "executor.toml"),
-			config.CodexProfile{Model: config.CodexLegacyModel, Effort: config.CodexEffortXHigh},
+			config.CodexProfile{Model: config.CodexPreviousSolModel, Effort: config.CodexEffortXHigh},
 		)
 	})
 
@@ -188,7 +188,7 @@ func TestPrepareAgentFiles_NonPlacementProfilesKeepCatalogFallback(t *testing.T)
 
 		a := NewWithRoot(t.TempDir())
 		a.codexCatalogProbed = true
-		a.codexCatalogJSON = legacyOnly
+		a.codexCatalogJSON = withoutSol
 		a.codexFallbackWriter = nil
 		cfg := config.DefaultFullConfig("custom-tier-fallback")
 		cfg.Quality.Presets["balanced"] = withCodexAgentTier(cfg.Quality.Presets["balanced"], "executor", "opus")
@@ -197,7 +197,7 @@ func TestPrepareAgentFiles_NonPlacementProfilesKeepCatalogFallback(t *testing.T)
 		require.NoError(t, err)
 		assertCodexRenderedProfile(t,
 			codexAgentMappingContent(t, files, "executor.toml"),
-			config.CodexProfile{Model: config.CodexLegacyModel, Effort: config.CodexEffortXHigh},
+			config.CodexProfile{Model: config.CodexPreviousSolModel, Effort: config.CodexEffortXHigh},
 		)
 		// The sibling keeps the placement, which the catalog still advertises.
 		assertCodexRenderedProfile(t,
@@ -214,7 +214,7 @@ func TestPrepareConfigFile_SupervisorKeepsCatalogFallback(t *testing.T) {
 
 	a := NewWithRoot(t.TempDir())
 	a.codexCatalogProbed = true
-	a.codexCatalogJSON = []byte(`{"models":[{"slug":"gpt-5.5","supported_reasoning_levels":[{"effort":"xhigh"}]}]}`)
+	a.codexCatalogJSON = []byte(`{"models":[{"slug":"gpt-5.6-sol","supported_reasoning_levels":[{"effort":"xhigh"}]}]}`)
 	a.codexFallbackWriter = nil
 	cfg := config.DefaultFullConfig("supervisor-fallback")
 	cfg.Quality.SupervisorModelPolicy = config.SupervisorModelPolicyQuality
@@ -222,7 +222,7 @@ func TestPrepareConfigFile_SupervisorKeepsCatalogFallback(t *testing.T) {
 	files, err := a.prepareConfigFile(cfg)
 	require.NoError(t, err)
 	root := strings.SplitN(string(files[0].Content), "[agents]", 2)[0]
-	assert.Contains(t, root, `model = "`+config.CodexLegacyModel+`"`)
+	assert.Contains(t, root, `model = "`+config.CodexPreviousSolModel+`"`)
 	assert.Contains(t, root, `model_reasoning_effort = "`+config.CodexEffortXHigh+`"`)
 }
 

@@ -90,7 +90,7 @@ func TestCodexAgentProfileNonCanonicalAgentKeepsTierLadder(t *testing.T) {
 	quality := DefaultFullConfig("non-canonical").Quality
 
 	assert.Equal(t,
-		CodexProfile{Model: CodexTerraModel, Effort: CodexEffortHigh},
+		CodexProfile{Model: CodexLunaModel, Effort: CodexEffortMax},
 		quality.CodexAgentProfile("synthetic", "sonnet", CodexEffortHigh),
 	)
 	assert.Equal(t,

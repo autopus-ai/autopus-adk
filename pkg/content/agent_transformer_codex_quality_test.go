@@ -60,11 +60,11 @@ func TestTransformAgentForCodex_RendersQualityAwareProfiles(t *testing.T) {
 		{
 			// reviewer's explicit sonnet differs from its standard fable tier,
 			// so that one agent stays on the tier ladder.
-			name:       "balanced reviewer keeps custom tier",
+			name:       "balanced reviewer keeps custom sonnet tier on Luna",
 			source:     codexProfileSource("reviewer", "opus", "high"),
 			quality:    balanced,
-			wantModel:  "gpt-5.6-terra",
-			wantEffort: "high",
+			wantModel:  "gpt-6-luna",
+			wantEffort: "max",
 		},
 		{
 			name:       "balanced haiku fallback",
@@ -74,10 +74,10 @@ func TestTransformAgentForCodex_RendersQualityAwareProfiles(t *testing.T) {
 			wantEffort: "low",
 		},
 		{
-			name:       "balanced sonnet preserves declared max",
+			name:       "balanced sonnet runs Luna at max",
 			source:     codexProfileSource("synthetic-max", "sonnet", "max"),
 			quality:    balanced,
-			wantModel:  "gpt-5.6-terra",
+			wantModel:  "gpt-6-luna",
 			wantEffort: "max",
 		},
 		{

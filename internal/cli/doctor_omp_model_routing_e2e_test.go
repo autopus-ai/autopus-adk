@@ -192,23 +192,26 @@ func ompModelDoctorE2EConfig(mode string) *config.HarnessConfig {
 }
 
 // ompModelDoctorPresetCatalogJSON mirrors the metadata-light OMP catalog the
-// built-in profiles attest: four Claude rungs and four Codex rungs.
+// built-in profiles attest: four Claude rungs and three Codex rungs, where
+// Luna serves both the sonnet (medium) and haiku (low) tiers.
 func ompModelDoctorPresetCatalogJSON() []byte {
-	rungs := []struct{ provider, model, thinking string }{
-		{"anthropic", config.ClaudeFableModel, "max"},
-		{"anthropic", config.ClaudeOpusModel, "xhigh"},
-		{"anthropic", config.ClaudeSonnetModel, "medium"},
-		{"anthropic", config.ClaudeHaikuModel, "low"},
-		{"openai-codex", config.CodexAstraModel, "max"},
-		{"openai-codex", config.CodexSolModel, "xhigh"},
-		{"openai-codex", config.CodexTerraModel, "medium"},
-		{"openai-codex", config.CodexLunaModel, "low"},
+	rungs := []struct {
+		provider, model string
+		thinking        []string
+	}{
+		{"anthropic", config.ClaudeFableModel, []string{"max"}},
+		{"anthropic", config.ClaudeOpusModel, []string{"xhigh"}},
+		{"anthropic", config.ClaudeSonnetModel, []string{"medium"}},
+		{"anthropic", config.ClaudeHaikuModel, []string{"low"}},
+		{"openai-codex", config.CodexAstraModel, []string{"max"}},
+		{"openai-codex", config.CodexSolModel, []string{"xhigh"}},
+		{"openai-codex", config.CodexLunaModel, []string{"low", "medium"}},
 	}
 	entries := make([]string, 0, len(rungs))
 	for _, rung := range rungs {
 		entries = append(entries, fmt.Sprintf(
-			`{"provider":%q,"id":%q,"selector":%q,"thinking":[%q]}`,
-			rung.provider, rung.model, rung.provider+"/"+rung.model, rung.thinking,
+			`{"provider":%q,"id":%q,"selector":%q,"thinking":["%s"]}`,
+			rung.provider, rung.model, rung.provider+"/"+rung.model, strings.Join(rung.thinking, `","`),
 		))
 	}
 	return []byte(`{"models":[` + strings.Join(entries, ",") + `]}`)

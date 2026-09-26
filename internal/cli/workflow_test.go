@@ -74,11 +74,12 @@ func TestWorkflowDoctor_RequiredUnavailableExitsNonZero(t *testing.T) {
 	}
 }
 
-// S12: the default Route A doctor preserves the original compatibility floor.
-func TestWorkflowDoctor_RouteADefaultAcceptsVersionBeforeOpus5(t *testing.T) {
-	out, err := runWorkflow(fakeProber{version: "2.1.218"}, nil, "workflow", "doctor")
+// S12: the default Route A doctor accepts its own 2.1.246 baseline, which is
+// below the Route Team floor.
+func TestWorkflowDoctor_RouteADefaultAcceptsVersionBelowRouteTeamFloor(t *testing.T) {
+	out, err := runWorkflow(fakeProber{version: "2.1.246"}, nil, "workflow", "doctor")
 	if err != nil {
-		t.Fatalf("route_a doctor at 2.1.218: %v", err)
+		t.Fatalf("route_a doctor at 2.1.246: %v", err)
 	}
 	report := decodeReport(t, out)
 	if !report.VersionOK || report.Overall != "pass" {
@@ -89,7 +90,7 @@ func TestWorkflowDoctor_RouteADefaultAcceptsVersionBeforeOpus5(t *testing.T) {
 	}
 }
 
-// S12: Route Team pins Opus 5 and therefore rejects Claude Code 2.1.218.
+// S12: Route Team pins Opus 5.5 and therefore rejects Claude Code 2.1.218.
 func TestWorkflowDoctor_RouteTeamBelowMinVersionExitsNonZero(t *testing.T) {
 	out, err := runWorkflow(
 		fakeProber{version: "2.1.218"},
@@ -145,7 +146,7 @@ func TestWorkflowDoctor_UnknownRouteFailsClosed(t *testing.T) {
 // pass.
 func TestWorkflowDoctor_AdvisoryUnavailableExitsZero(t *testing.T) {
 	out, err := runWorkflow(
-		fakeProber{unavailable: map[string]bool{"budget": true}, version: "2.1.219"},
+		fakeProber{unavailable: map[string]bool{"budget": true}, version: "2.1.280"},
 		nil, "workflow", "doctor")
 	if err != nil {
 		t.Fatalf("expected zero exit, got error: %v", err)

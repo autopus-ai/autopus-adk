@@ -4,13 +4,23 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-- **Codex Sol·Luna 티어를 GPT-6로 올린다** (2026-09-26): Sol 티어는
-  `gpt-6-sol`, Luna 티어는 `gpt-6-luna`를 쓴다(Codex 권장 모델). GPT-6에는
-  Terra가 없으므로 Terra는 `gpt-5.6-terra`를 유지한다. GPT-6 Sol·Luna가 없는
-  Codex 카탈로그에서는 각 티어가 5.6 대응 모델로 먼저 내려간다. 이전 릴리스가
-  기록한 `gpt-5.6-sol` supervisor 설정은 계속 Autopus 관리 값으로 인식하므로
-  업데이트 때 사용자 설정으로 잘못 보존되지 않는다. OpenCode 안내문의 기본
-  모델은 ChatGPT 로그인 Codex에서 퇴역한 `gpt-5.4` 대신 `gpt-6-sol`로 적는다.
+- **Codex 모델 사다리를 GPT-6 세 단으로 정리한다** (2026-09-26): 티어는
+  Astra(`gpt-6-astra`) > Sol(`gpt-6-sol`) > Luna(`gpt-6-luna`) 세 단을 쓴다.
+  GPT-6에 Terra가 없으므로 Terra를 빼고 sonnet 티어는 Luna `max`, haiku 티어는
+  Luna와 선언된 effort를 쓴다. GPT-6 Sol·Luna가 없는 Codex 카탈로그에서는 각
+  티어가 5.6 대응 모델로 먼저 내려간다. 최종 fallback은 2026-10-14에 ChatGPT
+  로그인 Codex에서 퇴역하는 `gpt-5.5` 대신 모든 effort를 받는 `gpt-5.6-sol`이며,
+  fallback 때 effort를 `xhigh`로 깎지 않는다. `gpt-5.5`는 이전 릴리스가 기록한
+  설정을 알아보는 용도로만 남는다. 이전 릴리스가 기록한 `gpt-5.6-sol`
+  supervisor 설정도 Autopus 관리 값으로 인식해 업데이트 때 사용자 설정으로
+  잘못 보존되지 않는다. OpenCode 안내문의 기본 모델은 퇴역한 `gpt-5.4` 대신
+  `gpt-6-sol`로 적는다.
+
+- **Route A 최소 Claude Code 버전을 문서와 맞춘다** (2026-09-26):
+  `auto workflow doctor --route route_a`의 최소 버전을 `2.1.154`에서 생성 표면의
+  기준 버전인 `2.1.246`으로 올린다. 문서는 2026-08-26부터 `2.1.246`을 요구했지만
+  doctor는 `2.1.154`를 통과시켜, 생성된 Workflow 호출 형식을 모르는 CLI에서
+  실행이 시작될 수 있었다.
 
 - **Opus 티어를 Claude Opus 5.5로 올린다** (2026-09-26): `opus` 티어,
   `effort detect` 기본 모델, 워커 라우팅, `route_team` 고정 모델이

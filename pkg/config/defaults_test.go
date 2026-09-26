@@ -119,10 +119,10 @@ func TestDefaultCodexProviderEntryUsesBalancedProfile(t *testing.T) {
 	assert.Equal(t, ProviderModelPolicyQuality, entry.ModelPolicy)
 	assert.Equal(t, CodexAstraModel, CodexFrontierModel)
 	assert.Equal(t, CodexSolModel, CodexCodingModel)
-	assert.Equal(t, CodexTerraModel, CodexStandardModel)
+	assert.Equal(t, CodexLunaModel, CodexStandardModel)
 	assert.Equal(t, CodexLunaModel, CodexMiniModel)
 	assert.Equal(t, CodexLunaModel, CodexSparkModel)
-	assert.Equal(t, CodexLegacyModel, CodexFallbackModel)
+	assert.Equal(t, CodexPreviousSolModel, CodexFallbackModel)
 	assert.Equal(t,
 		[]string{"exec", "--json", "--sandbox", "workspace-write", "-m", CodexAstraModel, "-c", `model_reasoning_effort="max"`},
 		entry.Args,

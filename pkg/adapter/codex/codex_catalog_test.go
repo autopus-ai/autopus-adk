@@ -35,12 +35,12 @@ func TestGenerateConfig_CatalogDowngradesEffortOnSameModel(t *testing.T) {
 	assert.Equal(t, 1, strings.Count(warnings.String(), "reason=effort_unavailable"))
 }
 
-func TestGenerateConfig_CatalogFallsBackToLegacyModel(t *testing.T) {
+func TestGenerateConfig_CatalogFallsBackToPreviousSol(t *testing.T) {
 	t.Parallel()
 
 	a := NewWithRoot(t.TempDir())
 	a.codexCatalogProbed = true
-	a.codexCatalogJSON = []byte(`{"models":[{"slug":"gpt-5.5","supported_reasoning_levels":[{"effort":"xhigh"}]}]}`)
+	a.codexCatalogJSON = []byte(`{"models":[{"slug":"gpt-5.6-sol","supported_reasoning_levels":[{"effort":"xhigh"}]},{"slug":"gpt-5.5","supported_reasoning_levels":[{"effort":"xhigh"}]}]}`)
 	cfg := config.DefaultFullConfig("legacy-project")
 	cfg.Quality.Default = "ultra"
 	cfg.Quality.SupervisorModelPolicy = "quality"
@@ -48,11 +48,11 @@ func TestGenerateConfig_CatalogFallsBackToLegacyModel(t *testing.T) {
 	files, err := a.prepareConfigFile(cfg)
 	require.NoError(t, err)
 	root := strings.SplitN(string(files[0].Content), "[agents]", 2)[0]
-	assert.Contains(t, root, `model = "gpt-5.5"`)
+	assert.Contains(t, root, `model = "gpt-5.6-sol"`)
 	assert.Contains(t, root, `model_reasoning_effort = "xhigh"`)
 }
 
-func TestGenerateConfig_CatalogUnknownUsesLegacyModel(t *testing.T) {
+func TestGenerateConfig_CatalogUnknownUsesFallbackModel(t *testing.T) {
 	t.Parallel()
 
 	a := NewWithRoot(t.TempDir())
@@ -66,8 +66,8 @@ func TestGenerateConfig_CatalogUnknownUsesLegacyModel(t *testing.T) {
 	files, err := a.prepareConfigFile(cfg)
 	require.NoError(t, err)
 	root := strings.SplitN(string(files[0].Content), "[agents]", 2)[0]
-	assert.Contains(t, root, `model = "gpt-5.5"`)
-	assert.Contains(t, root, `model_reasoning_effort = "xhigh"`)
+	assert.Contains(t, root, `model = "gpt-5.6-sol"`)
+	assert.Contains(t, root, `model_reasoning_effort = "ultra"`)
 	assert.Contains(t, warnings.String(), "reason=catalog_unknown")
 }
 
@@ -109,21 +109,21 @@ func TestCodexRenderContext_ResolvesAgentModelWithDeclaredEffort(t *testing.T) {
 
 	a := NewWithRoot(t.TempDir())
 	a.codexCatalogProbed = true
-	a.codexCatalogJSON = []byte(`{"models":[{"slug":"gpt-5.6-terra","supported_reasoning_levels":[{"effort":"medium"}]}]}`)
+	a.codexCatalogJSON = []byte(`{"models":[{"slug":"gpt-6-luna","supported_reasoning_levels":[{"effort":"medium"},{"effort":"max"}]}]}`)
 	var warnings bytes.Buffer
 	a.codexFallbackWriter = &warnings
 	cfg := config.DefaultFullConfig("tuple-project")
 	data := codexRenderContext{HarnessConfig: cfg, adapter: a}
 
 	// A non-canonical agent has no native balanced placement, so its declared
-	// tier and effort still decide the tuple the template receives.
+	// tier still decides the tuple; the sonnet tier runs Luna at max.
 	model, err := data.CodexAgentModel("synthetic", "sonnet", "medium")
 	require.NoError(t, err)
 	effort, err := data.CodexAgentEffort("synthetic", "sonnet", "medium")
 	require.NoError(t, err)
 
-	assert.Equal(t, config.CodexTerraModel, model)
-	assert.Equal(t, config.CodexEffortMedium, effort)
+	assert.Equal(t, config.CodexLunaModel, model)
+	assert.Equal(t, config.CodexEffortMax, effort)
 	assert.Empty(t, warnings.String())
 }
 
@@ -139,10 +139,10 @@ func TestGenerateAgents_AppliesCatalogFallbackProfiles(t *testing.T) {
 		wantOmissions bool
 	}{
 		{
-			name:       "legacy fallback",
-			catalog:    `{"models":[{"slug":"gpt-5.5","supported_reasoning_levels":[{"effort":"xhigh"}]}]}`,
-			wantModel:  config.CodexLegacyModel,
-			wantEffort: config.CodexEffortXHigh,
+			name:       "previous Sol fallback",
+			catalog:    `{"models":[{"slug":"gpt-5.6-sol","supported_reasoning_levels":[{"effort":"max"}]},{"slug":"gpt-5.5","supported_reasoning_levels":[{"effort":"xhigh"}]}]}`,
+			wantModel:  config.CodexPreviousSolModel,
+			wantEffort: config.CodexEffortMax,
 			wantReason: "model_unavailable",
 		},
 		{
@@ -160,8 +160,8 @@ func TestGenerateAgents_AppliesCatalogFallbackProfiles(t *testing.T) {
 		},
 		{
 			name:       "catalog unknown",
-			wantModel:  config.CodexLegacyModel,
-			wantEffort: config.CodexEffortXHigh,
+			wantModel:  config.CodexFallbackModel,
+			wantEffort: config.CodexEffortMax,
 			wantReason: "catalog_unknown",
 		},
 	}

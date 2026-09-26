@@ -117,8 +117,8 @@ Ultra와 Balanced 프리셋은 Haiku를 사용하지 않습니다.
 
 `route_team` workflow는 두 모델 ID를 고정하므로
 `auto workflow doctor --route route_team`에서 더 높은 요구 버전인 `2.1.280`
-미만을 fail-closed합니다. 모델을 고정하지 않는 `route_a`는 기존 최소 버전
-`2.1.154`를 유지합니다.
+미만을 fail-closed합니다. 모델을 고정하지 않는 `route_a`는 생성 표면의 기준
+버전인 `2.1.246`을 최소 버전으로 사용합니다.
 
 Claude Code의 `opus` alias는 provider와 버전에 따라 달라집니다.
 

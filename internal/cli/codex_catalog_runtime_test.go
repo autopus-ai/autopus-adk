@@ -53,7 +53,7 @@ func TestResolveCodexProviderCapabilities_PreservesPinnedProvider(t *testing.T) 
 	assert.Equal(t, provider, got[0])
 }
 
-func TestResolveCodexProviderCapabilities_UnknownCatalogUsesLegacy(t *testing.T) {
+func TestResolveCodexProviderCapabilities_UnknownCatalogUsesFallbackModel(t *testing.T) {
 	t.Parallel()
 
 	provider := managedRuntimeCodexProvider(config.CodexEffortUltra)
@@ -63,28 +63,28 @@ func TestResolveCodexProviderCapabilities_UnknownCatalogUsesLegacy(t *testing.T)
 	var receipt bytes.Buffer
 
 	got := resolveCodexProviderCapabilitiesWith(context.Background(), []orchestra.ProviderConfig{provider}, probe, &receipt)
-	assertCodexProfileInArgs(t, got[0].Args, config.CodexLegacyModel, config.CodexEffortXHigh)
-	assertCodexProfileInArgs(t, got[0].PaneArgs, config.CodexLegacyModel, config.CodexEffortXHigh)
+	assertCodexProfileInArgs(t, got[0].Args, config.CodexFallbackModel, config.CodexEffortUltra)
+	assertCodexProfileInArgs(t, got[0].PaneArgs, config.CodexFallbackModel, config.CodexEffortUltra)
 	assert.Contains(t, receipt.String(), "reason=catalog_unknown")
 }
 
-func TestResolveCodexProviderCapabilities_MissingModelUsesLegacy(t *testing.T) {
+func TestResolveCodexProviderCapabilities_MissingModelUsesPreviousSol(t *testing.T) {
 	t.Parallel()
 
 	provider := managedRuntimeCodexProvider(config.CodexEffortUltra)
 	probe := func(context.Context, string) ([]byte, error) {
-		return []byte(`{"models":[{"slug":"gpt-5.5","supported_reasoning_levels":[{"effort":"xhigh"}]}]}`), nil
+		return []byte(`{"models":[{"slug":"gpt-5.6-sol","supported_reasoning_levels":[{"effort":"xhigh"}]},{"slug":"gpt-5.5","supported_reasoning_levels":[{"effort":"xhigh"}]}]}`), nil
 	}
 	var receipt bytes.Buffer
 
 	got := resolveCodexProviderCapabilitiesWith(context.Background(), []orchestra.ProviderConfig{provider}, probe, &receipt)
-	assertCodexProfileInArgs(t, got[0].Args, config.CodexLegacyModel, config.CodexEffortXHigh)
-	assertCodexProfileInArgs(t, got[0].PaneArgs, config.CodexLegacyModel, config.CodexEffortXHigh)
+	assertCodexProfileInArgs(t, got[0].Args, config.CodexPreviousSolModel, config.CodexEffortXHigh)
+	assertCodexProfileInArgs(t, got[0].PaneArgs, config.CodexPreviousSolModel, config.CodexEffortXHigh)
 	assert.Contains(t, receipt.String(), "reason=model_unavailable")
 	assert.Equal(t, 1, strings.Count(receipt.String(), "reason=model_unavailable"))
 }
 
-func TestResolveCodexProviderCapabilities_OversizedCatalogUsesLegacy(t *testing.T) {
+func TestResolveCodexProviderCapabilities_OversizedCatalogUsesFallbackModel(t *testing.T) {
 	t.Parallel()
 
 	provider := managedRuntimeCodexProvider(config.CodexEffortUltra)
@@ -94,8 +94,8 @@ func TestResolveCodexProviderCapabilities_OversizedCatalogUsesLegacy(t *testing.
 	var receipt bytes.Buffer
 
 	got := resolveCodexProviderCapabilitiesWith(context.Background(), []orchestra.ProviderConfig{provider}, probe, &receipt)
-	assertCodexProfileInArgs(t, got[0].Args, config.CodexLegacyModel, config.CodexEffortXHigh)
-	assertCodexProfileInArgs(t, got[0].PaneArgs, config.CodexLegacyModel, config.CodexEffortXHigh)
+	assertCodexProfileInArgs(t, got[0].Args, config.CodexFallbackModel, config.CodexEffortUltra)
+	assertCodexProfileInArgs(t, got[0].PaneArgs, config.CodexFallbackModel, config.CodexEffortUltra)
 	assert.Contains(t, receipt.String(), "reason=catalog_unknown")
 }
 

@@ -261,6 +261,5 @@ func newBuiltinTierIntegrationRunner() *modelIntegrationFakeRunner {
 {"provider":"anthropic","id":"` + config.ClaudeHaikuModel + `","selector":"anthropic/` + config.ClaudeHaikuModel + `","thinking":["low"]},
 {"provider":"openai-codex","id":"` + config.CodexAstraModel + `","selector":"openai-codex/` + config.CodexAstraModel + `","thinking":["max"]},
 {"provider":"openai-codex","id":"` + config.CodexSolModel + `","selector":"openai-codex/` + config.CodexSolModel + `","thinking":["xhigh"]},
-{"provider":"openai-codex","id":"` + config.CodexTerraModel + `","selector":"openai-codex/` + config.CodexTerraModel + `","thinking":["medium"]},
-{"provider":"openai-codex","id":"` + config.CodexLunaModel + `","selector":"openai-codex/` + config.CodexLunaModel + `","thinking":["low","max"]}]}`)}
+{"provider":"openai-codex","id":"` + config.CodexLunaModel + `","selector":"openai-codex/` + config.CodexLunaModel + `","thinking":["low","medium","max"]}]}`)}
 }

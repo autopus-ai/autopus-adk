@@ -26,7 +26,7 @@ func TestIsKnownManagedCodexSupervisorTuple_RecognizesPreviousSol(t *testing.T) 
 		{"previous Sol xhigh", config.CodexPreviousSolModel, config.CodexEffortXHigh, true},
 		{"previous Sol ultra", config.CodexPreviousSolModel, config.CodexEffortUltra, true},
 		{"previous Sol medium is user-owned", config.CodexPreviousSolModel, config.CodexEffortMedium, false},
-		{"Terra is never a managed supervisor", config.CodexTerraModel, config.CodexEffortXHigh, false},
+		{"Terra is never a managed supervisor", "gpt-5.6-terra", config.CodexEffortXHigh, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

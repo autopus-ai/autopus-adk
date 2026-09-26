@@ -3,10 +3,9 @@ package config
 const (
 	CodexFrontierModel           = CodexAstraModel
 	CodexCodingModel             = CodexSolModel
-	CodexStandardModel           = CodexTerraModel
+	CodexStandardModel           = CodexLunaModel
 	CodexMiniModel               = CodexLunaModel
 	CodexSparkModel              = CodexLunaModel
-	CodexFallbackModel           = CodexLegacyModel
 	CodexOrchestraTimeoutSeconds = 420
 	// ClaudeOrchestraTimeoutSeconds covers opus reasoning that routinely runs
 	// 3–6 minutes on spec review workloads. Exceeds the 240s global timeout to

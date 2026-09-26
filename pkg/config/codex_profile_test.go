@@ -68,16 +68,16 @@ func TestQualityConfCodexAgentProfile(t *testing.T) {
 	}{
 		{name: "fable tier", quality: balanced, agent: "synthetic", fallbackTier: "fable", declaredEffort: "low", want: CodexProfile{Model: CodexAstraModel, Effort: CodexEffortMax}},
 		{name: "opus tier", quality: balanced, agent: "synthetic", fallbackTier: "opus", declaredEffort: "high", want: CodexProfile{Model: CodexSolModel, Effort: CodexEffortXHigh}},
-		{name: "sonnet tier", quality: balanced, agent: "synthetic", fallbackTier: "sonnet", declaredEffort: "medium", want: CodexProfile{Model: CodexTerraModel, Effort: CodexEffortMedium}},
+		{name: "sonnet tier", quality: balanced, agent: "synthetic", fallbackTier: "sonnet", declaredEffort: "medium", want: CodexProfile{Model: CodexLunaModel, Effort: CodexEffortMax}},
 		{name: "haiku tier", quality: balanced, agent: "synthetic", fallbackTier: "haiku", declaredEffort: "low", want: CodexProfile{Model: CodexLunaModel, Effort: CodexEffortLow}},
-		{name: "preset tier beats fallback tier", quality: balanced, agent: "custom-mid", fallbackTier: "fable", declaredEffort: "high", want: CodexProfile{Model: CodexTerraModel, Effort: CodexEffortHigh}},
-		{name: "invalid effort defaults medium", quality: balanced, agent: "synthetic", fallbackTier: "sonnet", declaredEffort: "invalid", want: CodexProfile{Model: CodexTerraModel, Effort: CodexEffortMedium}},
-		{name: "ladder clamps declared ultra to max", quality: balanced, agent: "synthetic", fallbackTier: "sonnet", declaredEffort: "ultra", want: CodexProfile{Model: CodexTerraModel, Effort: CodexEffortMax}},
+		{name: "preset tier beats fallback tier", quality: balanced, agent: "custom-mid", fallbackTier: "fable", declaredEffort: "high", want: CodexProfile{Model: CodexLunaModel, Effort: CodexEffortMax}},
+		{name: "invalid effort defaults medium", quality: balanced, agent: "synthetic", fallbackTier: "haiku", declaredEffort: "invalid", want: CodexProfile{Model: CodexLunaModel, Effort: CodexEffortMedium}},
+		{name: "ladder clamps declared ultra to max", quality: balanced, agent: "synthetic", fallbackTier: "haiku", declaredEffort: "ultra", want: CodexProfile{Model: CodexLunaModel, Effort: CodexEffortMax}},
 		{name: "ultra planner keeps fable", quality: ultra, agent: "planner", fallbackTier: "sonnet", declaredEffort: "medium", want: CodexProfile{Model: CodexAstraModel, Effort: CodexEffortMax}},
 		{name: "ultra executor keeps opus", quality: ultra, agent: "executor", fallbackTier: "sonnet", declaredEffort: "max", want: CodexProfile{Model: CodexSolModel, Effort: CodexEffortXHigh}},
 		{name: "ultra underscore security name keeps fable", quality: ultra, agent: "security_auditor", fallbackTier: "sonnet", declaredEffort: "medium", want: CodexProfile{Model: CodexAstraModel, Effort: CodexEffortMax}},
 		{name: "ultra unknown agent floors sonnet fallback", quality: ultra, agent: "custom-agent", fallbackTier: "sonnet", declaredEffort: "max", want: CodexProfile{Model: CodexSolModel, Effort: CodexEffortXHigh}},
-		{name: "invalid quality follows balanced", quality: QualityConf{Default: "invalid"}, agent: "synthetic", fallbackTier: "sonnet", declaredEffort: "high", want: CodexProfile{Model: CodexTerraModel, Effort: CodexEffortHigh}},
+		{name: "invalid quality follows balanced", quality: QualityConf{Default: "invalid"}, agent: "synthetic", fallbackTier: "sonnet", declaredEffort: "high", want: CodexProfile{Model: CodexLunaModel, Effort: CodexEffortMax}},
 		{name: "custom quality preset uses its role tier", quality: QualityConf{Default: "custom", Presets: map[string]QualityPreset{"custom": {Agents: map[string]string{"executor": "fable"}}}}, agent: "executor", fallbackTier: "sonnet", declaredEffort: "high", want: CodexProfile{Model: CodexAstraModel, Effort: CodexEffortMax}},
 	}
 
@@ -122,9 +122,9 @@ func TestCodexModelForTier(t *testing.T) {
 
 	assert.Equal(t, CodexAstraModel, CodexModelForTier("fable"))
 	assert.Equal(t, CodexSolModel, CodexModelForTier("opus"))
-	assert.Equal(t, CodexTerraModel, CodexModelForTier("sonnet"))
+	assert.Equal(t, CodexLunaModel, CodexModelForTier("sonnet"))
 	assert.Equal(t, CodexLunaModel, CodexModelForTier("haiku"))
-	assert.Equal(t, CodexTerraModel, CodexModelForTier("unknown"))
+	assert.Equal(t, CodexLunaModel, CodexModelForTier("unknown"))
 }
 
 func TestParseCodexModelCatalog(t *testing.T) {
@@ -168,6 +168,7 @@ func TestResolveCodexProfile(t *testing.T) {
 		"models": [
 			{"slug":"gpt-6-sol","supported_reasoning_levels":[{"effort":"xhigh"},{"effort":"max"},{"effort":"ultra"}]},
 			{"slug":"gpt-6-luna","supported_reasoning_levels":[{"effort":"xhigh"},{"effort":"max"}]},
+			{"slug":"gpt-5.6-sol","supported_reasoning_levels":[{"effort":"xhigh"},{"effort":"max"}]},
 			{"slug":"gpt-5.5","supported_reasoning_levels":[{"effort":"xhigh"}]}
 		]
 	}`)
@@ -194,43 +195,26 @@ func TestResolveCodexProfile(t *testing.T) {
 		assert.Equal(t, CodexProfile{Model: CodexSolModel}, got.Effective)
 	})
 
-	t.Run("unavailable model falls back to legacy and downgrades max", func(t *testing.T) {
-		requested := CodexProfile{Model: CodexTerraModel, Effort: CodexEffortMax}
+	t.Run("unmanaged model falls back to 5.6 Sol at the requested effort", func(t *testing.T) {
+		requested := CodexProfile{Model: "gpt-5.6-terra", Effort: CodexEffortMax}
 		got := ResolveCodexProfile(requested, catalog)
 		assert.Equal(t, CodexResolutionModelUnavailable, got.Reason)
 		assert.True(t, got.Fallback)
 		assert.Equal(t, requested, got.Requested)
-		assert.Equal(t, CodexProfile{Model: CodexLegacyModel, Effort: CodexEffortXHigh}, got.Effective)
+		assert.Equal(t, CodexProfile{Model: CodexFallbackModel, Effort: CodexEffortMax}, got.Effective)
 	})
 
-	t.Run("legacy model remains capped when catalog advertises newer efforts", func(t *testing.T) {
-		legacyWithNewerEfforts := []byte(`{
-			"models": [
-				{"slug":"gpt-5.5","supported_reasoning_levels":[
-					{"effort":"xhigh"},{"effort":"max"},{"effort":"ultra"}
-				]}
-			]
-		}`)
-		got := ResolveCodexProfile(
-			CodexProfile{Model: CodexSolModel, Effort: CodexEffortUltra},
-			legacyWithNewerEfforts,
-		)
-		assert.Equal(t, CodexResolutionModelUnavailable, got.Reason)
+	t.Run("retiring gpt-5.5 is never a fallback target", func(t *testing.T) {
+		onlyLegacy := []byte(`{"models":[{"slug":"gpt-5.5","supported_reasoning_levels":[{"effort":"xhigh"}]}]}`)
+		got := ResolveCodexProfile(CodexProfile{Model: CodexSolModel, Effort: CodexEffortXHigh}, onlyLegacy)
+		assert.Equal(t, CodexResolutionRuntimeDefault, got.Reason)
 		assert.True(t, got.Fallback)
-		assert.Equal(t, CodexProfile{Model: CodexLegacyModel, Effort: CodexEffortXHigh}, got.Effective)
-
-		direct := ResolveCodexProfile(
-			CodexProfile{Model: CodexLegacyModel, Effort: CodexEffortUltra},
-			legacyWithNewerEfforts,
-		)
-		assert.Equal(t, CodexResolutionEffortUnavailable, direct.Reason)
-		assert.True(t, direct.Fallback)
-		assert.Equal(t, CodexProfile{Model: CodexLegacyModel, Effort: CodexEffortXHigh}, direct.Effective)
+		assert.Equal(t, CodexProfile{}, got.Effective)
 	})
 
-	t.Run("missing target and legacy defers to runtime default", func(t *testing.T) {
-		withoutLegacy := []byte(`{"models":[{"slug":"gpt-6-luna","supported_reasoning_levels":[{"effort":"medium"}]}]}`)
-		got := ResolveCodexProfile(CodexProfile{Model: CodexTerraModel, Effort: CodexEffortMax}, withoutLegacy)
+	t.Run("missing target and fallback defers to runtime default", func(t *testing.T) {
+		withoutFallback := []byte(`{"models":[{"slug":"gpt-6-luna","supported_reasoning_levels":[{"effort":"medium"}]}]}`)
+		got := ResolveCodexProfile(CodexProfile{Model: "gpt-5.6-terra", Effort: CodexEffortMax}, withoutFallback)
 		assert.Equal(t, CodexResolutionRuntimeDefault, got.Reason)
 		assert.True(t, got.Fallback)
 		assert.Equal(t, CodexProfile{}, got.Effective)
@@ -246,7 +230,7 @@ func TestResolveCodexProfileCatalogUnknown(t *testing.T) {
 		assert.Equal(t, CodexResolutionCatalogUnknown, got.Reason)
 		assert.True(t, got.Fallback)
 		assert.Equal(t, requested, got.Requested)
-		assert.Equal(t, CodexProfile{Model: CodexLegacyModel, Effort: CodexEffortXHigh}, got.Effective)
+		assert.Equal(t, CodexProfile{Model: CodexFallbackModel, Effort: CodexEffortUltra}, got.Effective)
 		assert.Error(t, got.CatalogError)
 	}
 }

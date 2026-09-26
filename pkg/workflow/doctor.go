@@ -11,9 +11,10 @@ const (
 	// RouteTeam is the deterministic team route whose planning phase pins Opus 5.5.
 	RouteTeam = "route_team"
 
-	// RouteAMinVersion preserves the original Dynamic Workflows compatibility
-	// floor for the model-agnostic Route A.
-	RouteAMinVersion = "2.1.154"
+	// RouteAMinVersion is the Claude Code native baseline the generated
+	// surfaces target: directory skills, named Agent teammates, and the
+	// Workflow({scriptPath,args}) input shape the Route A launch uses.
+	RouteAMinVersion = "2.1.246"
 	// RouteTeamMinVersion is the first Claude Code release that recognizes the
 	// fixed claude-opus-5-5 model used by Route Team.
 	RouteTeamMinVersion = "2.1.280"
