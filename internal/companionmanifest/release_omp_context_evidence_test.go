@@ -10,16 +10,16 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func TestReleaseWorkflow_A29PublishesFreshPolicyOwnedK3Evidence(t *testing.T) {
+func TestReleaseWorkflow_A30PublishesFreshPolicyOwnedK3Evidence(t *testing.T) {
 	release := readReleaseFile(t, ".github/workflows/release.yaml")
 	config := readReleaseFile(t, ".goreleaser.yaml")
 	current := readReleaseFile(t, "scripts/companion-release/verify-current-release.sh")
 	combined := release + "\n" + config + "\n" + current
 	for _, required := range []string{
-		"refs/tags/v0.50.118",
-		"RELEASE_VERSION='0.50.118'",
+		"refs/tags/v0.50.119",
+		"RELEASE_VERSION='0.50.119'",
 		"omp-production-evidence",
-		"omp-context-evidence-v0.50.118",
+		"omp-context-evidence-v0.50.119",
 		"OMP_CONTEXT_STATIC_POLICY_B64",
 		"omp-context-promotion-report.v1.json",
 		"omp-context-promotion-attestation.v2.json",
@@ -29,7 +29,7 @@ func TestReleaseWorkflow_A29PublishesFreshPolicyOwnedK3Evidence(t *testing.T) {
 		"release-lineage-v1.sig",
 	} {
 		if !strings.Contains(combined, required) {
-			t.Fatalf("A29 normal evidence contract missing %q", required)
+			t.Fatalf("A30 normal evidence contract missing %q", required)
 		}
 	}
 	for _, forbidden := range []string{
@@ -39,7 +39,7 @@ func TestReleaseWorkflow_A29PublishesFreshPolicyOwnedK3Evidence(t *testing.T) {
 		"--expected-signing-key-id",
 	} {
 		if strings.Contains(combined, forbidden) {
-			t.Fatalf("A29 normal evidence contract contains bridge authority %q", forbidden)
+			t.Fatalf("A30 normal evidence contract contains bridge authority %q", forbidden)
 		}
 	}
 	for _, required := range []string{
@@ -51,7 +51,7 @@ func TestReleaseWorkflow_A29PublishesFreshPolicyOwnedK3Evidence(t *testing.T) {
 		"dst: release-lineage-v1.sig",
 	} {
 		if !strings.Contains(config, required) {
-			t.Fatalf("GoReleaser A29 evidence asset missing %q", required)
+			t.Fatalf("GoReleaser A30 evidence asset missing %q", required)
 		}
 	}
 	for _, asset := range []string{
@@ -72,7 +72,7 @@ func TestReleaseWorkflow_A29PublishesFreshPolicyOwnedK3Evidence(t *testing.T) {
 		"checksums.txt.signatures",
 	} {
 		if !strings.Contains(current, asset) {
-			t.Fatalf("current A29 verifier missing exact asset %q", asset)
+			t.Fatalf("current A30 verifier missing exact asset %q", asset)
 		}
 	}
 }
@@ -96,7 +96,7 @@ func TestReleaseSourceValidator_A22RotationSidecarRemainsHistoricalOnly(t *testi
 		"canonical-full-bridge",
 	} {
 		if strings.Contains(release, forbidden) {
-			t.Fatalf("A22 bridge authority escaped into active A29 workflow: %q", forbidden)
+			t.Fatalf("A22 bridge authority escaped into active A30 workflow: %q", forbidden)
 		}
 	}
 }

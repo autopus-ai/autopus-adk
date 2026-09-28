@@ -70,7 +70,7 @@ func recoveryStepIndex(t *testing.T, workflow recoveryWorkflow, name string) int
 	return -1
 }
 
-func TestFormulaRecoveryWorkflow_ManualExactA29LeastPrivilege(t *testing.T) {
+func TestFormulaRecoveryWorkflow_ManualExactA30LeastPrivilege(t *testing.T) {
 	raw, workflow := readRecoveryWorkflow(t)
 	dispatch, ok := workflow.On["workflow_dispatch"]
 	if len(workflow.On) != 1 || !ok || len(dispatch.Inputs) != 0 {
@@ -96,12 +96,12 @@ func TestFormulaRecoveryWorkflow_ManualExactA29LeastPrivilege(t *testing.T) {
 		}
 	}
 	for _, version := range regexp.MustCompile(`v?[0-9]+\.[0-9]+\.[0-9]+`).FindAllString(raw, -1) {
-		if version != "v0.50.118" && version != "v4.1.2" && version != "v3.1.2" {
-			t.Fatalf("recovery workflow references non-A29 version %q", version)
+		if version != "v0.50.119" && version != "v4.1.2" && version != "v3.1.2" {
+			t.Fatalf("recovery workflow references non-A30 version %q", version)
 		}
 	}
-	if strings.Count(raw, "v0.50.118") != 2 {
-		t.Fatalf("recovery workflow must name v0.50.118 only in invocation guidance and exact job guard")
+	if strings.Count(raw, "v0.50.119") != 2 {
+		t.Fatalf("recovery workflow must name v0.50.119 only in invocation guidance and exact job guard")
 	}
 }
 
@@ -134,7 +134,7 @@ func TestFormulaRecoveryWorkflow_PinsActionsSourceAndR2Tag(t *testing.T) {
 		}
 	}
 	if strings.Contains(raw, "ADK_KEY_ROTATION_VERIFIED") || strings.Contains(raw, "materialize-key-rotation-authority") {
-		t.Fatal("normal A29 recovery retains the A22 bridge rotation gate")
+		t.Fatal("normal A30 recovery retains the A22 bridge rotation gate")
 	}
 }
 
@@ -154,7 +154,7 @@ func TestFormulaRecoveryWorkflow_RequiresExactSealedTagAuthorityBeforeTapToken(t
 	}
 	ruleset := readReleaseFile(t, "scripts/companion-release/verify-release-tag-ruleset.sh")
 	for _, required := range []string{
-		`readonly release_ref='refs/tags/v0.50.118'`, `--sealed-runtime) mode=sealed-runtime`,
+		`readonly release_ref='refs/tags/v0.50.119'`, `--sealed-runtime) mode=sealed-runtime`,
 		`elif $mode == "sealed-runtime"`, `(.bypass_actors == [] or .bypass_actors == null)`,
 		`if [[ "$mode" != 'sealed-runtime' ]]`, `["creation","deletion","update"]`,
 	} {
@@ -230,21 +230,21 @@ func TestFormulaRecoveryWorkflow_SharedVerifierOwnsExact15AssetK3Proof(t *testin
 		"omp-context-promotion-report.v1.json", "omp-context-promotion-attestation.v2.json",
 		"release-lineage-v1.json", "release-lineage-v1.sig",
 		"checksums.txt", "checksums.txt.bundle", "checksums.txt.signatures",
-		"exactly fifteen A29 normal release assets",
+		"exactly fifteen A30 normal release assets",
 	} {
 		if !strings.Contains(helper, required) {
-			t.Fatalf("shared A29 release verifier missing %q", required)
+			t.Fatalf("shared A30 release verifier missing %q", required)
 		}
 	}
 	for _, platform := range []string{"darwin_amd64", "darwin_arm64", "linux_amd64", "linux_arm64"} {
 		if !strings.Contains(helper, "autopus-adk_${RELEASE_VERSION}_"+platform+".tar.gz") {
-			t.Fatalf("shared A29 verifier missing archive %s", platform)
+			t.Fatalf("shared A30 verifier missing archive %s", platform)
 		}
 	}
 	for _, arch := range []string{"amd64", "arm64"} {
 		for _, extension := range []string{"tar.gz", "zip"} {
 			if !strings.Contains(helper, "autopus-adk_${RELEASE_VERSION}_windows_"+arch+"."+extension) {
-				t.Fatalf("shared A29 verifier missing windows %s.%s", arch, extension)
+				t.Fatalf("shared A30 verifier missing windows %s.%s", arch, extension)
 			}
 		}
 	}
@@ -253,7 +253,7 @@ func TestFormulaRecoveryWorkflow_SharedVerifierOwnsExact15AssetK3Proof(t *testin
 		"--mode active", "--expected-signing-key-id",
 	} {
 		if strings.Contains(helper, forbidden) {
-			t.Fatalf("shared A29 verifier retains forbidden bridge/external authority %q", forbidden)
+			t.Fatalf("shared A30 verifier retains forbidden bridge/external authority %q", forbidden)
 		}
 	}
 }

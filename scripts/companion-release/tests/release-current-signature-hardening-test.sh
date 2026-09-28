@@ -36,7 +36,7 @@ contains "$helper" 'verify_release_checksums_v1'
 contains "$helper" 'cosign verify-blob'
 contains "$helper" '--certificate-identity "$COSIGN_IDENTITY"'
 contains "$helper" '--certificate-oidc-issuer "$COSIGN_ISSUER"'
-contains "$helper" 'https://github.com/autopus-ai/autopus-adk/.github/workflows/release.yaml@refs/tags/v0.50.118'
+contains "$helper" 'https://github.com/autopus-ai/autopus-adk/.github/workflows/release.yaml@refs/tags/v0.50.119'
 contains "$helper" 'https://token.actions.githubusercontent.com'
 not_contains "$helper" "$OFFLINE_K2_FINGERPRINT"
 not_contains "$helper" '--offline'
@@ -68,7 +68,7 @@ invocation_log="$temp_dir/invocations.log"
 valid_checksums="$temp_dir/checksums.txt"
 valid_bundle="$temp_dir/checksums.txt.bundle"
 valid_envelope="$temp_dir/checksums.txt.signatures"
-printf '%064d  autopus-adk_0.50.118_darwin_arm64.tar.gz\n' 1 >"$valid_checksums"
+printf '%064d  autopus-adk_0.50.119_darwin_arm64.tar.gz\n' 1 >"$valid_checksums"
 printf '%s\n' 'SECRET_BUNDLE_SENTINEL' >"$valid_bundle"
 printf 'AUTOPUS-RELEASE-SIGNATURE-V1\n%s\tAA==\n' \
   "$EXPECTED_K1_FINGERPRINT" >"$valid_envelope"
