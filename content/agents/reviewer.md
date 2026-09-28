@@ -5,7 +5,7 @@ model: sonnet
 effort: high
 tools: Read, Grep, Glob, Bash
 permissionMode: plan
-maxTurns: 30
+maxTurns: 80
 skills:
   - review
   - verification

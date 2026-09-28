@@ -5,7 +5,7 @@ model: opus
 effort: max
 tools: Read, Write, Edit, Grep, Glob, Bash, TodoWrite
 permissionMode: acceptEdits
-maxTurns: 100
+maxTurns: 200
 skills:
   - tdd
   - debugging

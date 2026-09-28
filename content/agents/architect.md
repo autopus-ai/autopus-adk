@@ -5,7 +5,7 @@ model: opus
 effort: max
 tools: Read, Grep, Glob, Bash, mcp__sequential-thinking__sequentialthinking
 permissionMode: plan
-maxTurns: 30
+maxTurns: 60
 skills:
   - planning
   - subagent-dev

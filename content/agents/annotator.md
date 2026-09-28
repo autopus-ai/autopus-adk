@@ -5,7 +5,7 @@ model: sonnet
 effort: medium
 tools: Read, Write, Edit, Grep, Glob, Bash
 permissionMode: bypassPermissions
-maxTurns: 20
+maxTurns: 30
 skills:
   - ax-annotation
 ---

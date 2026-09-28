@@ -5,7 +5,7 @@ model: opus
 effort: max
 tools: Read, Grep, Glob, Bash
 permissionMode: plan
-maxTurns: 30
+maxTurns: 80
 skills:
   - security-audit
   - review

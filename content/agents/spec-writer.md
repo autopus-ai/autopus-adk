@@ -5,7 +5,7 @@ model: opus
 effort: max
 tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
 permissionMode: acceptEdits
-maxTurns: 30
+maxTurns: 80
 skills:
   - planning
   - grilling

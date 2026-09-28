@@ -5,7 +5,7 @@ model: sonnet
 effort: medium
 tools: Read, Write, Edit, Grep, Glob, Bash
 permissionMode: bypassPermissions
-maxTurns: 40
+maxTurns: 100
 skills:
   - frontend-verify
 ---

@@ -5,7 +5,7 @@ model: sonnet
 effort: medium
 tools: Read, Grep, Glob, Bash
 permissionMode: plan
-maxTurns: 30
+maxTurns: 60
 ---
 
 # Perf-Engineer Agent
