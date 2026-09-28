@@ -2,6 +2,19 @@
 
 Read this file at Gate 2, at Phase 3, and at Phase 3.5.
 
+## Baseline before the first edit
+
+Before the first code change, run the tests the change can reach and record the
+command, the pass/fail counts, and the names of tests that already fail. Without
+a baseline a failure in the final run cannot be told apart from a regression.
+
+- Carry baseline failures as pre-existing; fix one only when the task needs it.
+- A final failure absent from the baseline is a regression until shown
+  otherwise. When no baseline was taken, re-run the failing test on the base
+  commit in a separate worktree before attributing it. A test that fails only
+  in the full run and passes alone is load-sensitive and is reported as such.
+- Never report the suite as fully green while a pre-existing failure remains.
+
 ## One merged run, per-criterion verdicts
 
 Independent units with disjoint ownership run in parallel and each verifies only

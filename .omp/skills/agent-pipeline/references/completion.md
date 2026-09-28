@@ -61,8 +61,9 @@ a completion blocker, not a note.
 SPEC: <SPEC-ID>
 Units: <completed> / <total>
 Verification: <commands run and their observed results>
+Baseline: <pre-existing failures carried from before the first edit, or "none">
 Coverage: <measured> (threshold: <declared, default 85, or "gate off">)
-Review: APPROVE
+Review: APPROVE | <loop_status> (APPROVE only for a completed review of the final change)
 subagent_dispatch_count: <N>
 subagent_roles_dispatched: <roles actually dispatched, or "none (inline)">
 degraded_mode: none | solo | blocker
@@ -93,6 +94,9 @@ topology and the one actually executed, and name any difference.
 - [ ] Phase 1.9 probe gate closed: every row executed, or carried as an explicit
       `not-run` with a reason and an applicability verdict
 - [ ] Declared thresholds honored; no invented numeric bar
+- [ ] Baseline failures reported as pre-existing, final failures absent from the
+      baseline treated as regressions, and no review status reported as APPROVE
+      unless a review of the final change completed
 - [ ] `auto telemetry leadtime` reported first-slice and completion lead time and
       the critical path, with no increase in `escaped_defects` or
       `unresolved_safety_gates`
