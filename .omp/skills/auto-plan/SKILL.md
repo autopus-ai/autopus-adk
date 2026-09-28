@@ -55,12 +55,12 @@ compatibility: omp
 - `--multi`: 명시적 top-level 요청일 때 pre-authoring plan advisory를 한 번 실행하고, SPEC 생성 후 별도의 멀티 프로바이더 리뷰를 활성화
 - `--quality <mode>`: 하위 에이전트 품질 모드 지정
 
-## OMP 기본 실행 모델
+## Codex 기본 실행 모델
 
-- OMP에서는 `plan`도 `task` batch 기반 subagent-first로 진행합니다.
+- Codex에서는 `plan`도 `task` batch 기반 subagent-first로 진행합니다.
 - 메인 세션은 최종 SPEC 구조, 게이트 판단, 저장을 담당합니다.
 - 코드베이스 스캔, 레퍼런스 탐색, 초안 작성은 `explorer`, `planner`, `spec-writer` 같은 서브에이전트로 분담합니다.
-- 현재 OMP 런타임 정책이 암묵적 `task` batch 호출을 제한하면, 하네스 기본값과 제약을 명시적으로 알린 뒤 사용자에게 서브에이전트 진행 여부 또는 `--solo` 성격의 단일 세션 진행을 확인받습니다.
+- 현재 Codex 런타임 정책이 암묵적 `task` batch 호출을 제한하면, 하네스 기본값과 제약을 명시적으로 알린 뒤 사용자에게 서브에이전트 진행 여부 또는 `--solo` 성격의 단일 세션 진행을 확인받습니다.
 - 단순한 한 파일 수준 문서 작업이면 메인 세션에서 직접 처리할 수 있습니다.
 
 전체 라우팅/리뷰게이트 규칙은 `/auto plan ...` 라우터를 우선합니다.
@@ -77,6 +77,17 @@ compatibility: omp
 - `--target <module>`
 - 글로벌 `--multi` / `--auto` / `--quality`
 
+### Step 1.1: Compact Path Gate
+
+문서를 작성하기 전에 이 작업이 SPEC 세트를 필요로 하는지 먼저 판정합니다.
+
+1. 변경 클래스를 `test_only`, `docs_only`, `small_ui`, `bugfix_existing_contract`, `feature`, `multi_domain`, `security_or_data` 중 하나로 분류합니다.
+2. 저위험 클래스(앞의 네 개)이고 기존 SPEC이 이미 그 결과를 담고 있으면 `auto spec change <SPEC-ID> --class <class> --ac <AC-ID,...> --surface <path,...> --verify "<command>" [--json]`을 실행하고 plan 파이프라인을 종료합니다. 생성된 `change.md`를 보고하고 `/auto go <SPEC-ID>`로 넘깁니다.
+3. 이 명령이 `escalate_to_full_spec`을 보고하면 그 이유를 기록하고 아래 전체 파이프라인을 계속합니다.
+4. 클래스가 `feature`, `multi_domain`, `security_or_data`이거나 해당 결과를 담은 SPEC이 없으면 전체 파이프라인을 진행합니다. 고위험 작업은 광범위한 구현 전에 실행 가능한 `## Risk-First Integration Probe` 행을 최소 하나 요구합니다.
+
+위험도는 파일 수로 결정하지 않습니다. auth/billing/data/migration/security 경로, production code가 두 개 module root에 걸치는 경우, 새 exported API/contract는 각각 단독 승격 사유입니다. 안전 게이트는 두 경로에서 동일하게 유지됩니다: `security`, `validation`, `data_loss`, `deterministic_oracle`, UI surface의 `accessibility`/`ux_verification`, race/coverage 임계값.
+
 ### Step 1.25: Direct Intent Ledger Gate
 
 `--from-idea`가 없으면 PRD 생성 전에 inline `Clarification Ledger`를 만듭니다. 이 gate는 `auto idea`의 Ledger와 같은 field/column/handoff contract를 사용합니다.
@@ -85,7 +96,7 @@ compatibility: omp
 - Columns: `Field`, `Status`, `Source`, `Confidence`, `Decision / Assumption`, `If Wrong`, `Plan Handoff`
 - 프로젝트 문서와 코드에서 답할 수 있는 row를 먼저 채우고, inferred row는 confidence `6` 이하와 non-empty `If Wrong`을 기록합니다.
 - Interactive default는 expected gain이 가장 큰 unresolved row 1개만 묻습니다. critical ambiguity면 최대 1개 추가하고, `--deep-clarify`와 같은 깊은 질문 확장은 plan에서 자동 활성화하지 않습니다.
-- Question transport: OMP에서는 active tool list에 `ask the user directly`이 있으면 반드시 사용합니다. OMP App Server client는 같은 질문 contract를 `tool/requestUserInput`으로 매핑합니다. OMP 질문 tool이 없을 때만 `Current understanding`, `Blocked decision`, `Recommended answer`, `Question` 네 블록을 포함한 짧은 plain-text 질문으로 묻습니다.
+- Question transport: Codex에서는 active tool list에 `ask the user directly`이 있으면 반드시 사용합니다. Codex App Server client는 같은 질문 contract를 `tool/requestUserInput`으로 매핑합니다. Codex 질문 tool이 없을 때만 `Current understanding`, `Blocked decision`, `Recommended answer`, `Question` 네 블록을 포함한 짧은 plain-text 질문으로 묻습니다.
 - `--auto`는 질문 0개, unresolved rows를 `assumed` 또는 `deferred`로 기록합니다.
 - `Question Audit`에 `question_transport`, `question_count`, `unresolved_fields`를 기록합니다.
 - Inline ledger는 PRD planner와 spec-writer prompt에 함께 전달하고, `research.md`에는 `## Clarification Ledger` 또는 `## Plan Intent Ledger`로 보존합니다.
@@ -162,6 +173,9 @@ auto orchestra plan '{SHELL_ESCAPED_FROZEN_CONTEXT}' --subprocess --no-detach --
 - research.md에는 `## Reviewer Brief`를 작성해 intended scope, explicit non-goals, self-verified evidence, reviewer focus를 제한합니다.
 - research.md에는 `## Outcome Lock`, `## Completion Debt`, `## Evolution Ideas`, 필요 시 `## Sibling SPEC Decision`을 작성합니다.
 - plan.md 또는 research.md에는 `## Visual Planning Brief`를 작성합니다. 워크플로우/상태 전이에는 Mermaid `flowchart`, 화면/UX에는 저충실도 wireframe, UI가 없는 CLI/API/백엔드 작업에는 sequence/data-flow/command-flow 다이어그램을 사용합니다.
+- `spec-writer`는 `plan.md`에 `## Risk-First Integration Probe`를 작성합니다. 1-3개 행에 `assumption_id`, `class`, `risk`, `boundary`, `input`, `oracle`, `isolation`, `status`, `reason`, `evidence`를 채우고, 가장 위험한 implementation assumption을 직접 이름 붙입니다. 정규 예시는 실제 제한 권한으로 composition root를 부팅하는 경로, browser -> BFF -> API 최소 round trip, logout/cancel/account switch 같은 in-flight 상태 경계입니다.
+- 모든 plan 진술은 `requirement_invariant` / `implementation_assumption` / `verified_fact`로 분류합니다. `status`는 `PASS` / `FAIL` / `not-run`이며, `PASS`는 실제 실행 evidence ref가 있을 때만 기록하고 `not-run`은 반드시 reason을 남기며 PASS로 취급되지 않습니다. doc-only 또는 low-risk SPEC도 섹션을 유지하고 `not-run` 한 행과 `no integration boundary` 이유를 남깁니다.
+- 구현자가 요구사항보다 넓은 제약(신규 ACL, 호환성 제한, 보안 제한)을 도입하면 scope expansion으로 표시하고 fan-out 전에 기존 런타임에서 probe합니다. 이 표는 `Phase 1.9: Risk-First Probe Gate`가 소비하며, 각 gate는 `required | reusable | not_applicable | blocked`와 이유를 기록합니다. 이 값은 `auto spec gates`가 쓴 `{SPEC_DIR}/gate-applicability.json`에서만 나오고 `reusable`은 exact-input evidence가 일치할 때 classifier만 부여합니다.
 - UX intent wireframe gate: screens, user journeys, navigation/IA, layout, visual hierarchy, component state, interaction, copy, accessibility, responsive behavior, design-system tokens/primitives, or frontend UI files가 관련되면 intent-confirmation wireframe을 이어받고, 사용자가 confirm or adjust 했는지와 `wireframe intent: assumed` / `wireframe intent: deferred` 리스크를 기록합니다.
 - Wireframe은 intent probe이자 communication aid이며 final design이 아닙니다. Outcome Lock, mandatory requirements, acceptance seeds에 연결된 항목만 required scope입니다.
 - 최종 사용자 응답도 Visual Planning Brief의 핵심 플로우차트 또는 wireframe 요지를 포함해 SPEC 범위를 설명합니다.
@@ -198,6 +212,7 @@ auto spec review {SPEC-ID} --strategy {STRATEGY}
 - [ ] Step 1.75: explicit top-level `--multi`이면 planning advisory를 정확히 한 번 처리하고 typed receipt를 재사용하거나 graceful fallback 완료; 아니면 미실행
 - [ ] Step 2: spec-writer 실행 완료, Outcome Lock/Feature Coverage Map/Completion Debt 확인, greenfield면 Technology Stack Decision 확인, primary/sibling SPEC-ID 추출
 - [ ] Step 2: Visual Planning Brief에 flowchart, wireframe, sequence/data-flow 중 적절한 설명 자료 포함
+- [ ] Step 2: `plan.md`에 `## Risk-First Integration Probe` 표 작성 완료(1-3개 행, `not-run`은 이유 포함)
 - [ ] Step 2.5: `auto spec validate {SPEC_DIR} --strict` 실행 완료, deterministic authoring preflight 오류 수정 완료
 - [ ] Step 3: 리뷰 게이트 여부 판단 완료
 - [ ] Step 4: review 실행 완료 또는 의도적 skip
@@ -300,6 +315,7 @@ Step 1에서 발견한 실제 코드 엔티티를 기반으로 요구사항을 �
 - 의존성 목록 (선행 작업, 외부 의존성)
 - Outcome Lock을 닫는 태스크, 승인된 sibling SPEC 의존성, Completion Debt 여부
 - Visual Planning Brief: Mermaid flowchart, wireframe, sequence/data-flow 중 작업 성격에 맞는 설명 자료
+- Risk-First Integration Probe: 가장 위험한 가정 1-3개, status `PASS`/`FAIL`/`not-run`, reason, `PASS` 행의 evidence ref
 
 ### Step 5.5: 기능 커버리지 검증
 
@@ -332,7 +348,7 @@ Then  [예상 결과]
 - 엣지 케이스 및 경계 조건
 - 에러 시나리오
 - Must oracle acceptance: concrete output rows, JSON fields, stdout/file content, matching rules, or numeric tolerances
-- 품질 게이트 기준 (커버리지 목표: 85%+)
+- 품질 게이트 기준 (커버리지: 프로젝트가 선언한 threshold만 강제하며, 선언이 없으면 측정값만 증거로 기록)
 
 ### Step 7: 리서치 결과 저장 (research.md)
 
@@ -349,7 +365,7 @@ Steps 1-3에서 발견한 모든 내용을 저장합니다.
 - 아키텍처 레이어 영향 분석
 - 방법론(tdd) 기반 구현 계획
 - Lore 의사결정 이력 연계
-- 예상 테스트 커버리지 목표: 85%+
+- 테스트 커버리지: 프로젝트가 선언한 threshold를 목표로 하고, 선언이 없으면 측정값만 기록
 
 
 ## Branding Formats
@@ -381,49 +397,3 @@ Detection order:
 1. No project docs → `📁 프로젝트 컨텍스트가 없습니다. /auto setup 을 실행하세요.`
 2. SPEC status `draft` → `SPEC {SPEC-ID} 생성됨 (status: draft)` + `/auto go {SPEC-ID}` 및 `/auto spec review {SPEC-ID}`
 3. SPEC status `approved` → `✓ SPEC {SPEC-ID} approved` + `/auto go {SPEC-ID}`
-
-## OMP Coordination Contract
-
-### Ownership gate
-
-- Choose exactly one DAG owner with `--execution-owner omp|orca` before dispatch; omission selects owner `omp`.
-- Owner `omp` is the default. The current OMP session is the sole DAG owner and uses its native `task`, `hub`, and `todo` tools.
-- Owner `orca` is allowed only when `--execution-owner orca` is explicit. Before any Orca orchestration, run and read `orca skills get orchestration --full`.
-- The single DAG owner invariant is mandatory: owner `orca` creates no OMP task DAG, and owner `omp` creates no Orca Run.
-
-### Native field contracts
-
-```json
-{
-  "i": "Dispatching bounded OMP work",
-  "context": "Shared goal, constraints, owned-path boundaries, and cross-task contracts.",
-  "tasks": [
-    {
-      "name": "Worker",
-      "task": "Complete one self-contained assignment and return only the required receipt.",
-      "outputSchema": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["owned_paths", "changed_files", "verification", "blockers", "next_required_step"],
-        "properties": {
-          "owned_paths": {"type": "array", "items": {"type": "string"}},
-          "changed_files": {"type": "array", "items": {"type": "string"}},
-          "verification": {"type": "array", "items": {"type": "string"}},
-          "blockers": {"type": "array", "items": {"type": "string"}},
-          "next_required_step": {"type": "string"}
-        }
-      },
-      "schemaMode": "strict"
-    }
-  ]
-}
-```
-
-- Inspect the current dynamic `task` schema before dispatch. Use the shown batch shape only when it exposes top-level `context` and `tasks`; otherwise use the discovered flat shape and place shared context in `local://`.
-- Every model-authored `task`, `hub`, and `todo` call includes a concise top-level `i` while `tools.intentTracing` is enabled.
-- Every `tasks` item uses `name` when a stable agent id is useful and carries per-item `task`, `outputSchema`, and `schemaMode`. Set `agent` only to select a custom agent type; omit it for OMP's default general worker.
-- `isolated` and `effort` are conditional dynamic fields. Add `isolated` or `effort` only after the current schema exposes that exact field; otherwise omit it.
-- `outputSchema` is the strict five-field receipt JSON Schema shown in the normalized batch: `owned_paths`, `changed_files`, `verification`, `blockers`, and `next_required_step`.
-- Retain the agent id returned by `task`. For a non-isolated or otherwise revivable worker, every follow-up goes to that same id with `hub` send fields `{"i":"Following up with an existing worker","op":"send","to":"<same agent id>","message":"<follow-up>"}`; do not create a replacement merely to continue revivable work.
-- An isolated worker is terminal after workspace cleanup and cannot be revived. A correction is a new explicitly named `task` item with freshly declared ownership and context, not a `hub` send to the terminal agent id.
-- The parent OMP session owns progress. A `todo` call contains one top-level operation and intent: initialize with `{"i":"Updating parent-owned progress","op":"init","list":[{"phase":"Implementation","items":["..."]}]}`, advance with `{"i":"Updating parent-owned progress","op":"start","task":"<exact task content>"}`, complete with `{"i":"Updating parent-owned progress","op":"done","task":"<exact task content>"}`, and block with `{"i":"Updating parent-owned progress","op":"block","task":"<exact task content>","reason":"<reason>"}`.

@@ -76,9 +76,9 @@ quality:
     codex: balanced
 ```
 
-### OMP와 OMP 품질 모드 분리
+### Claude와 Codex 품질 모드 분리
 
-`quality.default`는 기존 전역 fallback입니다. OMP와 OMP를 함께 쓰면
+`quality.default`는 기존 전역 fallback입니다. Claude Code와 Codex를 함께 쓰면
 `quality.providers.claude`와 `quality.providers.codex`를 선택적으로 추가해 서로 다른
 Ultra/Balanced 모드를 사용할 수 있습니다.
 
@@ -95,65 +95,67 @@ CLI에서는 `claude-code`도 `claude`의 alias로 허용하지만 YAML에는 ca
 `quality.default`를 바꾸고 구성된 모든 플랫폼을 갱신합니다. 한 번의 실행에 지정한
 `--quality`는 두 persisted provider override보다 우선하며 YAML은 수정하지 않습니다.
 
-### OMP Opus 5 기본 경로
+### Claude Fable 5.1 / Opus 5.5 기본 경로
 
-OMP Ultra, Balanced 전략 역할, high-complexity 라우팅은 고정 모델 ID
-`claude-opus-5`를 사용합니다. OMP의 `opus` alias가 Opus 5를 선택하려면
-`2.1.219` 이상이 필요합니다. Opus 5를 고정한 `route_team` workflow는
-`auto workflow doctor --route route_team`에서 `2.1.219` 미만을
-fail-closed합니다. 모델을 고정하지 않는 `route_a`는 기존 최소 버전
-`2.1.154`를 유지합니다.
+Autopus는 공통 모델 티어를 `fable` > `opus` > `sonnet` > `haiku` 순서로
+사용합니다. Ultra에서는 planner, architect, spec-writer, security-auditor,
+reviewer, debugger, deep-worker를 Fable에 할당하고 나머지 역할을 Opus에
+할당합니다. Balanced에서는 planner, architect, security-auditor를 Fable에,
+구현·리뷰·심층 작업 역할을 Opus에, 나머지 역할을 Sonnet에 할당합니다. 기본
+Ultra와 Balanced 프리셋은 Haiku를 사용하지 않습니다.
 
-| OMP provider | `opus` on v2.1.219+ | Before v2.1.219 |
-|----------------------|---------------------|-----------------|
-| Anthropic API | Opus 5 | Opus 4.8 on v2.1.154–v2.1.218 |
-| OMP Platform on AWS | Opus 5 | Opus 4.8 on v2.1.207–v2.1.218; Opus 4.7 before v2.1.207 |
-| Amazon Bedrock | Opus 5 | Opus 4.8 on v2.1.207–v2.1.218; Opus 4.6 before v2.1.207 |
-| Google Cloud Agent Platform | Opus 5 | Opus 4.8 on v2.1.207–v2.1.218; Opus 4.6 before v2.1.207 |
-| Microsoft Foundry | Opus 4.6 | Opus 4.6 |
+| 티어 | 전체 모델 ID | Claude Code alias | 최소 Claude Code 버전 | MTok당 가격 |
+|------|--------------|-------------------|--------------------------|-------------|
+| `fable` | `claude-fable-5-1` | `fable`, `best` | `2.1.170` | 입력 $10 / 출력 $50 |
+| `opus` | `claude-opus-5-5` | `opus` | `2.1.280` | 입력 $4 / 출력 $20 |
 
-Opus 5의 공식 가격은 입력 $5/MTok·출력 $25/MTok이며 native context는 1M
-tokens, 최대 output은 128k tokens입니다. `low`, `medium`, `high`, `xhigh`,
-`max` effort를 지원하고 기본 effort는 `high`입니다. Opus 4.8에서 같은 가격의
-drop-in upgrade이지만 adaptive thinking이 기본 활성화됩니다. 직접 API를 연결할
-때 `thinking: {"type": "disabled"}`와 `xhigh` 또는 `max`를 함께 보내면 HTTP 400이므로,
-Autopus는 OMP argv에 thinking-disable flag를 추가하지
-않습니다. Opus 4.8은 명시적으로 계속 선택할 수 있고 Opus 5 사이버보안 거부의
-권장 fallback이므로 호환 모델에서 제거하지 않습니다.
+`route_team` workflow는 두 모델 ID를 고정하므로
+`auto workflow doctor --route route_team`에서 더 높은 요구 버전인 `2.1.280`
+미만을 fail-closed합니다. 모델을 고정하지 않는 `route_a`는 생성 표면의 기준
+버전인 `2.1.246`을 최소 버전으로 사용합니다.
 
-자세한 내용은 [OMP model 설정](https://code.claude.com/docs/en/model-config),
+Claude Code의 `opus` alias는 provider와 버전에 따라 달라집니다.
+
+| Claude Code provider | `opus` on v2.1.280+ | v2.1.219–v2.1.279 | Before v2.1.219 |
+|----------------------|---------------------|-------------------|-----------------|
+| Anthropic API | Opus 5.5 | Opus 5 | Opus 4.8 on v2.1.154–v2.1.218 |
+| Claude Platform on AWS | Check `/model` | Opus 5 | Opus 4.8 on v2.1.207–v2.1.218; Opus 4.7 before v2.1.207 |
+| Amazon Bedrock | Check `/model` | Opus 5 | Opus 4.8 on v2.1.207–v2.1.218; Opus 4.6 before v2.1.207 |
+| Google Cloud Agent Platform | Check `/model` | Opus 5 | Opus 4.8 on v2.1.207–v2.1.218; Opus 4.6 before v2.1.207 |
+| Microsoft Foundry | Opus 4.6 | Opus 4.6 | Opus 4.6 |
+
+Opus 5.5는 Opus 5의 후속 모델로, 1M context와 128K output은 같고 표준 가격은 더 낮습니다.
+기본 effort가 Opus 5의 `high`보다 한 단계 낮은 `medium`이므로, Autopus가 생성하는
+Opus 역할은 모델 기본값에 기대지 않고 effort를 항상 명시합니다.
+thinking은 어떤 effort에서도 끌 수 없고 강제 `tool_choice`(`any`, `tool`)는 HTTP 400입니다.
+둘 다 직접 API 연동에만 해당하며, Autopus는 Claude Code argv에 thinking-disable flag를 추가하지 않습니다.
+`claude-opus-5`는 명시적으로 계속 선택할 수 있고 가격표와 허용 목록에도 남아 있습니다.
+Opus 4.8은 사이버보안 거부의 권장 fallback이므로 호환 모델에서 제거하지 않습니다.
+
+Fable의 동적 alias인 `best`는 사용 권한에 따라 최신 Opus로 해석될 수
+있습니다. 따라서 모델 라우팅과 비용 계산에는 `claude-fable-5-1`을
+사용합니다. 기존 workflow와의 호환성을 위해 `claude-fable-5`도 허용하지만
+기본 프리셋은 Fable 5.1의 전체 모델 ID를 생성합니다.
+
+Quality Mode가 effort를 정할 때 Fable은 모드와 관계없이 `max`를 사용합니다.
+Ultra의 Opus는 `max`, Sonnet은 `high`를 사용합니다. 표준 Balanced에서는
+기획·리뷰·보안·debugger·deep-worker가 Fable 5.1 `max`, 구현·테스트가 Sonnet 5
+`max`, 탐색·주석·검증이 Sonnet 5 `high`입니다. Codex의 같은 핵심 역할은 Astra
+`max`, 나머지는 Luna `max`입니다. 명시적인 사용자 티어 지정은 기존 변환 규칙을
+유지하며, Haiku에서는 Claude effort를 생략합니다. 멀티프로바이더 리뷰 기본값은
+품질 모드와 관계없이 Fable 5.1 `max`와 Astra `max`이고 명시적인 provider pin은 보존합니다.
+
+모델/API effort 값은 `low`, `medium`, `high`, `xhigh`, `max`입니다.
+`ultracode`는 여섯 번째 model effort가 아니라 실제 `xhigh`와 dynamic
+workflows를 결합한 Claude Code session-only 값입니다. main session은 Claude
+Code `2.1.203` 이상, agent/team 전달은 `2.1.210` 이상을 사용하세요.
+
+자세한 내용은 [Claude Code model 설정](https://code.claude.com/docs/en/model-config),
 [모델 개요](https://platform.claude.com/docs/en/about-claude/models/overview),
-[Opus 5 migration guide](https://platform.claude.com/docs/en/about-claude/models/migration-guide)를
-확인하세요.
-
-### OMP Fable 5 명시적 선택
-
-Fable 5는 Autopus의 기본 모델이 아닙니다. 조직에 Fable 사용 권한이 있고
-OMP `2.1.170` 이상을 사용하는 경우에만 OMP provider에서 명시적으로
-선택하세요.
-
-```yaml
-orchestra:
-  providers:
-    claude:
-      binary: claude
-      args: ["--print", "--model", "fable", "--effort", "high"]
-```
-
-전체 모델 ID는 `claude-fable-5`이며 OMP alias는 `fable`과 `best`입니다.
-`best`는 조직에 Fable 권한이 있으면 Fable을, 없으면 최신 Opus를 선택하므로
-결정적 비용 계산에는 resolved full model ID를 사용해야 합니다. Fable은 ZDR
-조직에서 사용할 수 없고, 공식 가격은 입력 $10/MTok·출력 $50/MTok이며 native
-context는 1M tokens, 최대 output은 128k tokens입니다.
-
-모델/API effort는 `low`, `medium`, `high`, `xhigh`, `max` 다섯 값이고 Fable의
-기본값은 `high`입니다. `ultracode`는 여섯 번째 model effort가 아니라 실제
-`xhigh`와 dynamic workflows를 결합한 OMP session-only 값입니다.
-main session은 OMP `2.1.203` 이상, agent/team 전달은 `2.1.210` 이상을
-사용하세요. 자세한 내용은 [OMP model 설정](https://code.claude.com/docs/en/model-config),
+[model migration guide](https://platform.claude.com/docs/en/about-claude/models/migration-guide),
 [CLI reference](https://code.claude.com/docs/en/cli-reference),
-[Fable 5 소개](https://platform.claude.com/docs/en/about-claude/models/introducing-claude-fable-5-and-claude-mythos-5),
-[effort reference](https://platform.claude.com/docs/en/build-with-claude/effort)를 확인하세요.
+[effort reference](https://platform.claude.com/docs/en/build-with-claude/effort)를
+확인하세요.
 
 ## 플랫폼별 설치 위치
 
@@ -175,6 +177,24 @@ auto skill info tdd
 # 카테고리별 스킬 목록
 auto skill list --category methodology
 ```
+
+### 설치되지 않은 스킬 가져오기
+
+기본 설치는 core 스킬과 `/auto` 라우트만 네이티브 표면에 올립니다. 나머지 스킬은
+레지스트리에 등록된 상태로 남아 있고 `auto skill list`로 계속 보이므로, 필요할 때
+아래 중 하나를 `autopus.yaml`에 적고 `auto update`를 실행하면 됩니다.
+
+```yaml
+skills:
+  compiler:
+    explicit_skills:      # 특정 스킬만 추가
+      - playwright-cli
+    bundles:              # 그룹 단위 추가
+      - frontend          # ops | product | research | frontend | quality | agentic
+    mode: full            # 전체 라이브러리 컴파일 (기본값은 split)
+```
+
+`auto skill info <name>`으로 설치 여부와 상관없이 스킬 내용을 확인할 수 있습니다.
 
 ## 트러블슈팅
 

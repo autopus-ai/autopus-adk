@@ -1,5 +1,5 @@
 ---
-description: goal 래퍼 — /goal 생성, 상태 확인, 완료/blocked handoff를 goal tool 또는 slash command로 연결합니다
+description: goal 관리 — 현재 세션이 지원하는 목표 생성, 상태 확인, 완료·차단 처리를 연결합니다
 agent: build
 ---
 

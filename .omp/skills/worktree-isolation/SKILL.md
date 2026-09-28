@@ -6,7 +6,7 @@ compatibility: omp
 
 # OMP Native Task Isolation
 
-This skill defines isolation policy for Autopus executor fan-out on OMP. The native `task` tool
+This skill defines isolation policy for implementation fan-out on OMP. The native `task` tool
 owns workspace materialization, patch/branch integration, and cleanup.
 
 ## Activation
@@ -27,9 +27,11 @@ not permission to imitate it with shell commands.
 
 Inspect the current dynamic schema before each wave. When it exposes batch mode, dispatch
 independent isolated work in one batch with top-level `i` and shared `context`. Each item uses a
-unique stable name, a discovered custom role when needed, a complete assignment, the discovered
-isolation field enabled, the strict five-field receipt schema, and `schemaMode: strict`. When batch
-mode is absent, dispatch the corresponding flat calls and reference one shared `local://` context.
+unique stable name, a complete assignment, the discovered isolation field enabled, the strict
+five-field receipt schema, and `schemaMode: strict`. Writing items omit the agent field so they
+run on the bundled `task` agent; select `scout`, `reviewer`, `security-reviewer`, or `sonic` only
+when that agent's built-in boundary is what the item needs. When batch mode is absent, dispatch
+the corresponding flat calls and reference one shared `local://` context.
 
 The parent must check dynamic availability before adding `isolated` or `effort`. `isolated` does
 not exist when `task.isolation.mode = none`, and `effort` does not exist when its setting is off.
@@ -46,8 +48,9 @@ Before fan-out:
    schema registry, or other mutable authority;
 5. put cross-task interfaces in top-level `context` before dispatch.
 
-A maximum of five Autopus executor items may be active in one wave. Queue overflow by task id.
-This policy is stricter than OMP's session-wide semaphore and prevents excessive integration churn.
+A maximum of five isolated implementation items may be active in one wave. Queue overflow by
+task id. This policy is stricter than OMP's session-wide semaphore and prevents excessive
+integration churn.
 
 ## Tool-Owned Lifecycle
 
@@ -94,49 +97,3 @@ Every isolated worker returns exactly:
 The main session rejects missing fields, out-of-scope changes, body dumps, secret material, or claims
 without observable verification. Integration is complete only after the parent sees the intended
 changes and the next deterministic gate passes.
-
-## OMP Coordination Contract
-
-### Ownership gate
-
-- Choose exactly one DAG owner with `--execution-owner omp|orca` before dispatch; omission selects owner `omp`.
-- Owner `omp` is the default. The current OMP session is the sole DAG owner and uses its native `task`, `hub`, and `todo` tools.
-- Owner `orca` is allowed only when `--execution-owner orca` is explicit. Before any Orca orchestration, run and read `orca skills get orchestration --full`.
-- The single DAG owner invariant is mandatory: owner `orca` creates no OMP task DAG, and owner `omp` creates no Orca Run.
-
-### Native field contracts
-
-```json
-{
-  "i": "Dispatching bounded OMP work",
-  "context": "Shared goal, constraints, owned-path boundaries, and cross-task contracts.",
-  "tasks": [
-    {
-      "name": "Worker",
-      "task": "Complete one self-contained assignment and return only the required receipt.",
-      "outputSchema": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["owned_paths", "changed_files", "verification", "blockers", "next_required_step"],
-        "properties": {
-          "owned_paths": {"type": "array", "items": {"type": "string"}},
-          "changed_files": {"type": "array", "items": {"type": "string"}},
-          "verification": {"type": "array", "items": {"type": "string"}},
-          "blockers": {"type": "array", "items": {"type": "string"}},
-          "next_required_step": {"type": "string"}
-        }
-      },
-      "schemaMode": "strict"
-    }
-  ]
-}
-```
-
-- Inspect the current dynamic `task` schema before dispatch. Use the shown batch shape only when it exposes top-level `context` and `tasks`; otherwise use the discovered flat shape and place shared context in `local://`.
-- Every model-authored `task`, `hub`, and `todo` call includes a concise top-level `i` while `tools.intentTracing` is enabled.
-- Every `tasks` item uses `name` when a stable agent id is useful and carries per-item `task`, `outputSchema`, and `schemaMode`. Set `agent` only to select a custom agent type; omit it for OMP's default general worker.
-- `isolated` and `effort` are conditional dynamic fields. Add `isolated` or `effort` only after the current schema exposes that exact field; otherwise omit it.
-- `outputSchema` is the strict five-field receipt JSON Schema shown in the normalized batch: `owned_paths`, `changed_files`, `verification`, `blockers`, and `next_required_step`.
-- Retain the agent id returned by `task`. For a non-isolated or otherwise revivable worker, every follow-up goes to that same id with `hub` send fields `{"i":"Following up with an existing worker","op":"send","to":"<same agent id>","message":"<follow-up>"}`; do not create a replacement merely to continue revivable work.
-- An isolated worker is terminal after workspace cleanup and cannot be revived. A correction is a new explicitly named `task` item with freshly declared ownership and context, not a `hub` send to the terminal agent id.
-- The parent OMP session owns progress. A `todo` call contains one top-level operation and intent: initialize with `{"i":"Updating parent-owned progress","op":"init","list":[{"phase":"Implementation","items":["..."]}]}`, advance with `{"i":"Updating parent-owned progress","op":"start","task":"<exact task content>"}`, complete with `{"i":"Updating parent-owned progress","op":"done","task":"<exact task content>"}`, and block with `{"i":"Updating parent-owned progress","op":"block","task":"<exact task content>","reason":"<reason>"}`.

@@ -101,9 +101,9 @@ Question selection:
 
 Question transport:
 - Use the current platform's native interactive question transport when available instead of rendering a numbered text menu.
-- OMP surfaces must preload and use `ask the user directly` for interactive clarification; see `.omp/rules/autopus-deferred-tools.md`.
-- OMP surfaces must use `ask the user directly` when it is present in the active tool list; OMP App Server clients should map the same question contract to `tool/requestUserInput`. Fall back to one concise plain-text question only when no OMP question tool is exposed.
-- OMP surfaces use `question` when available, otherwise ask one concise plain-text question.
+- Claude Code surfaces must preload and use `ask the user directly` for interactive clarification; see `.omp/rules/autopus-deferred-tools.md`.
+- Codex surfaces must use `ask the user directly` when it is present in the active tool list; Codex App Server clients should map the same question contract to `tool/requestUserInput`. Fall back to one concise plain-text question only when no Codex question tool is exposed.
+- OpenCode surfaces use `question` when available, otherwise ask one concise plain-text question.
 - Record `question_transport`, `question_count`, and unresolved ledger fields in the BS file or final handoff notes.
 
 UX intent wireframe gate:
@@ -207,7 +207,7 @@ auto orchestra brainstorm "{structured idea}" --strategy {strategy} --providers 
 
 - 명시적 `--providers`가 없을 때만 해당 플래그를 생략합니다.
 - debate는 독립 발산과 informed revision을 포함하는 최소 2라운드를 완료합니다.
-- resolved configured debate 집합의 모든 provider는 OMP를 포함해 Round 1과 Round 2에
+- resolved configured debate 집합의 모든 provider는 Claude를 포함해 Round 1과 Round 2에
   모두 참여하며, judge 선택 때문에 참가자를 제외하지 않습니다.
 - blind judge는 invoking provider를 사용하되 참가자와 분리된 fresh isolated provider
   session에서 실행합니다. Round 1/2 참가 세션의 context, history, tool state를

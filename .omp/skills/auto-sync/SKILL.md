@@ -26,12 +26,12 @@ compatibility: omp
 /auto-sync
 ```
 
-## OMP 기본 실행 모델
+## Codex 기본 실행 모델
 
-- OMP에서는 `sync`도 기본적으로 `task` batch 기반 subagent-first를 따릅니다.
+- Codex에서는 `sync`도 기본적으로 `task` batch 기반 subagent-first를 따릅니다.
 - 메인 세션은 동기화 범위 결정, 최종 상태 갱신, 커밋 판단을 담당합니다.
 - 변경점 검토, 문서 영향 분석, 검증 로그 정리는 필요 시 서브에이전트로 위임합니다.
-- 사용자가 `--auto` 또는 `--solo`를 명시하지 않았고 현재 OMP 런타임 정책이 암묵적 `task` batch 호출을 제한하면, 진행을 멈추고 하네스 기본값과 제약을 명시한 뒤 서브에이전트 opt-in 또는 `--solo` 확인을 먼저 받아야 합니다.
+- 사용자가 `--auto` 또는 `--solo`를 명시하지 않았고 현재 Codex 런타임 정책이 암묵적 `task` batch 호출을 제한하면, 진행을 멈추고 하네스 기본값과 제약을 명시한 뒤 서브에이전트 opt-in 또는 `--solo` 확인을 먼저 받아야 합니다.
 - 변경 범위가 작으면 메인 세션에서 직접 마무리할 수 있습니다.
 
 ## 동기화 항목
@@ -113,7 +113,7 @@ sync 완료를 선언하거나 workflow lifecycle bar를 표시하기 전에 아
    - `Completion Debt`가 하나라도 있으면 SPEC 상태를 `completed`로 바꾸지 말고 blocked reason을 남깁니다.
    - `Evolution Ideas`는 사용자에게 optional improvement로만 표시하고, 자동 follow-up SPEC이나 sibling SPEC으로 추천하지 않습니다.
 4. `@AX Lifecycle Management` 결과
-   - TODO/ANCHOR/NOTE 처리 결과를 남기고, 대상 태그가 없으면 반드시 `@AX: no-op`로 기록합니다.
+   - TODO/ANCHOR/NOTE 처리 결과를 남기고, 대상 태그가 없으면 `@AX: no tags found`, annotation을 요청하지 않은 실행이면 `@AX: not requested`로 기록합니다.
 5. Lore 커밋 결과
    - 변경 사항이 있으면 Lore 커밋을 시도하고 commit hash를 남깁니다.
    - 커밋이 실패했거나 보류되면 blocked reason을 남기고 sync를 completed로 선언하지 않습니다.
@@ -166,49 +166,3 @@ Detection order:
 2. Existing pending SPECs created by an approved Sibling SPEC Decision exist → recommend next SPEC to implement
 3. Do not recommend or create pending SPECs from Evolution Ideas
 4. Always append: `배포 후 검증: /auto canary`
-
-## OMP Coordination Contract
-
-### Ownership gate
-
-- Choose exactly one DAG owner with `--execution-owner omp|orca` before dispatch; omission selects owner `omp`.
-- Owner `omp` is the default. The current OMP session is the sole DAG owner and uses its native `task`, `hub`, and `todo` tools.
-- Owner `orca` is allowed only when `--execution-owner orca` is explicit. Before any Orca orchestration, run and read `orca skills get orchestration --full`.
-- The single DAG owner invariant is mandatory: owner `orca` creates no OMP task DAG, and owner `omp` creates no Orca Run.
-
-### Native field contracts
-
-```json
-{
-  "i": "Dispatching bounded OMP work",
-  "context": "Shared goal, constraints, owned-path boundaries, and cross-task contracts.",
-  "tasks": [
-    {
-      "name": "Worker",
-      "task": "Complete one self-contained assignment and return only the required receipt.",
-      "outputSchema": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["owned_paths", "changed_files", "verification", "blockers", "next_required_step"],
-        "properties": {
-          "owned_paths": {"type": "array", "items": {"type": "string"}},
-          "changed_files": {"type": "array", "items": {"type": "string"}},
-          "verification": {"type": "array", "items": {"type": "string"}},
-          "blockers": {"type": "array", "items": {"type": "string"}},
-          "next_required_step": {"type": "string"}
-        }
-      },
-      "schemaMode": "strict"
-    }
-  ]
-}
-```
-
-- Inspect the current dynamic `task` schema before dispatch. Use the shown batch shape only when it exposes top-level `context` and `tasks`; otherwise use the discovered flat shape and place shared context in `local://`.
-- Every model-authored `task`, `hub`, and `todo` call includes a concise top-level `i` while `tools.intentTracing` is enabled.
-- Every `tasks` item uses `name` when a stable agent id is useful and carries per-item `task`, `outputSchema`, and `schemaMode`. Set `agent` only to select a custom agent type; omit it for OMP's default general worker.
-- `isolated` and `effort` are conditional dynamic fields. Add `isolated` or `effort` only after the current schema exposes that exact field; otherwise omit it.
-- `outputSchema` is the strict five-field receipt JSON Schema shown in the normalized batch: `owned_paths`, `changed_files`, `verification`, `blockers`, and `next_required_step`.
-- Retain the agent id returned by `task`. For a non-isolated or otherwise revivable worker, every follow-up goes to that same id with `hub` send fields `{"i":"Following up with an existing worker","op":"send","to":"<same agent id>","message":"<follow-up>"}`; do not create a replacement merely to continue revivable work.
-- An isolated worker is terminal after workspace cleanup and cannot be revived. A correction is a new explicitly named `task` item with freshly declared ownership and context, not a `hub` send to the terminal agent id.
-- The parent OMP session owns progress. A `todo` call contains one top-level operation and intent: initialize with `{"i":"Updating parent-owned progress","op":"init","list":[{"phase":"Implementation","items":["..."]}]}`, advance with `{"i":"Updating parent-owned progress","op":"start","task":"<exact task content>"}`, complete with `{"i":"Updating parent-owned progress","op":"done","task":"<exact task content>"}`, and block with `{"i":"Updating parent-owned progress","op":"block","task":"<exact task content>","reason":"<reason>"}`.

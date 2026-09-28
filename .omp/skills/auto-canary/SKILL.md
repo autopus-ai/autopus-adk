@@ -56,7 +56,7 @@ compatibility: omp
 4. PASS/WARN/FAIL 판정
 5. `.autopus/canary/latest.json` 에 결과 저장
 
-## OMP Notes
+## Codex Notes
 
 - 전체 파이프라인 규칙과 검증 체크리스트는 `/auto canary` 라우터 본문을 우선합니다.
 - `canary.md`가 없으면 설정 부재를 명시하고 `/auto setup` 안내를 표시합니다.

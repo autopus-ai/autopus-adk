@@ -62,12 +62,12 @@ Opportunity-Solution Tree, 다관점 브레인스토밍, 가정 식별을 포함
 - `--multi`: `idea`에서는 기본적으로 orchestra가 기본 엔진이므로 사실상 항상 활성 상태로 취급합니다.
 - `--auto`: 완료 후 plan 체이닝까지 자동 진행합니다.
 
-## OMP 기본 실행 모델
+## Codex 기본 실행 모델
 
-- OMP에서는 `task` batch 기반 subagent-first를 기본 원칙으로 사용합니다.
+- Codex에서는 `task` batch 기반 subagent-first를 기본 원칙으로 사용합니다.
 - `idea`에서는 메인 세션이 오케스트라 실행과 최종 합성을 담당합니다.
 - 관련 코드 탐색, 기존 패턴 조사, 리스크 정리처럼 병렬화 가능한 보조 작업은 서브에이전트로 위임합니다.
-- 현재 OMP 런타임 정책이 암묵적 `task` batch 호출을 제한하면, 하네스 기본값과 제약을 명시적으로 알린 뒤 사용자에게 서브에이전트 진행 여부 또는 단일 세션 진행을 확인받습니다.
+- 현재 Codex 런타임 정책이 암묵적 `task` batch 호출을 제한하면, 하네스 기본값과 제약을 명시적으로 알린 뒤 사용자에게 서브에이전트 진행 여부 또는 단일 세션 진행을 확인받습니다.
 - 아이디어 발산 자체를 불필요하게 잘게 쪼개지는 않습니다.
 
 ## 5단계 파이프라인
@@ -94,7 +94,7 @@ Opportunity-Solution Tree, 다관점 브레인스토밍, 가정 식별을 포함
 - 코드베이스/프로젝트 문서에서 답할 수 있는 row는 먼저 채웁니다. 추론 row는 confidence `6` 이하와 non-empty `If Wrong`이 필요합니다.
 - Interactive default는 expected gain이 가장 큰 unresolved row 하나만 묻습니다. critical ambiguity면 최대 1개 추가, `--deep-clarify`는 총 3문항까지 허용합니다.
 - 질문 형식은 반드시 `Current understanding`, `Blocked decision`, `Recommended answer`, `Question` 네 블록을 사용합니다.
-- Question transport: OMP에서는 active tool list에 `ask the user directly`이 있으면 반드시 사용합니다. OMP App Server client는 같은 질문 contract를 `tool/requestUserInput`으로 매핑합니다. OMP 질문 tool이 없을 때만 같은 네 블록을 포함한 짧은 plain-text 질문으로 묻습니다. BS 파일 또는 handoff notes에 `question_transport`, `question_count`, unresolved fields를 기록합니다.
+- Question transport: Codex에서는 active tool list에 `ask the user directly`이 있으면 반드시 사용합니다. Codex App Server client는 같은 질문 contract를 `tool/requestUserInput`으로 매핑합니다. Codex 질문 tool이 없을 때만 같은 네 블록을 포함한 짧은 plain-text 질문으로 묻습니다. BS 파일 또는 handoff notes에 `question_transport`, `question_count`, unresolved fields를 기록합니다.
 - `--auto`는 질문 0개, orchestra 계속 진행, unresolved rows를 `assumed` 또는 `deferred`로 기록합니다.
 - UX intent wireframe gate: screens, user journeys, navigation/IA, layout, visual hierarchy, component state, interaction, copy, accessibility, responsive behavior, design-system tokens/primitives, or frontend UI files가 관련되면 low-fi text wireframe을 primary clarification artifact로 사용합니다.
 - Interactive mode에서는 current/target states와 1-3 hotspots를 그린 뒤 사용자가 confirm or adjust 할 질문을 `Question` 블록에 둡니다.
@@ -227,49 +227,3 @@ auto orchestra brainstorm "{structured idea}" --strategy {strategy} --providers 
 
 `--auto` 설정 시 Outcome Lock을 포함해 자동으로 `/auto plan --from-idea BS-{ID}`로 체이닝합니다.
 그렇지 않으면 다음 단계로 `/auto plan --from-idea BS-{ID} "feature description"` 를 안내합니다.
-
-## OMP Coordination Contract
-
-### Ownership gate
-
-- Choose exactly one DAG owner with `--execution-owner omp|orca` before dispatch; omission selects owner `omp`.
-- Owner `omp` is the default. The current OMP session is the sole DAG owner and uses its native `task`, `hub`, and `todo` tools.
-- Owner `orca` is allowed only when `--execution-owner orca` is explicit. Before any Orca orchestration, run and read `orca skills get orchestration --full`.
-- The single DAG owner invariant is mandatory: owner `orca` creates no OMP task DAG, and owner `omp` creates no Orca Run.
-
-### Native field contracts
-
-```json
-{
-  "i": "Dispatching bounded OMP work",
-  "context": "Shared goal, constraints, owned-path boundaries, and cross-task contracts.",
-  "tasks": [
-    {
-      "name": "Worker",
-      "task": "Complete one self-contained assignment and return only the required receipt.",
-      "outputSchema": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["owned_paths", "changed_files", "verification", "blockers", "next_required_step"],
-        "properties": {
-          "owned_paths": {"type": "array", "items": {"type": "string"}},
-          "changed_files": {"type": "array", "items": {"type": "string"}},
-          "verification": {"type": "array", "items": {"type": "string"}},
-          "blockers": {"type": "array", "items": {"type": "string"}},
-          "next_required_step": {"type": "string"}
-        }
-      },
-      "schemaMode": "strict"
-    }
-  ]
-}
-```
-
-- Inspect the current dynamic `task` schema before dispatch. Use the shown batch shape only when it exposes top-level `context` and `tasks`; otherwise use the discovered flat shape and place shared context in `local://`.
-- Every model-authored `task`, `hub`, and `todo` call includes a concise top-level `i` while `tools.intentTracing` is enabled.
-- Every `tasks` item uses `name` when a stable agent id is useful and carries per-item `task`, `outputSchema`, and `schemaMode`. Set `agent` only to select a custom agent type; omit it for OMP's default general worker.
-- `isolated` and `effort` are conditional dynamic fields. Add `isolated` or `effort` only after the current schema exposes that exact field; otherwise omit it.
-- `outputSchema` is the strict five-field receipt JSON Schema shown in the normalized batch: `owned_paths`, `changed_files`, `verification`, `blockers`, and `next_required_step`.
-- Retain the agent id returned by `task`. For a non-isolated or otherwise revivable worker, every follow-up goes to that same id with `hub` send fields `{"i":"Following up with an existing worker","op":"send","to":"<same agent id>","message":"<follow-up>"}`; do not create a replacement merely to continue revivable work.
-- An isolated worker is terminal after workspace cleanup and cannot be revived. A correction is a new explicitly named `task` item with freshly declared ownership and context, not a `hub` send to the terminal agent id.
-- The parent OMP session owns progress. A `todo` call contains one top-level operation and intent: initialize with `{"i":"Updating parent-owned progress","op":"init","list":[{"phase":"Implementation","items":["..."]}]}`, advance with `{"i":"Updating parent-owned progress","op":"start","task":"<exact task content>"}`, complete with `{"i":"Updating parent-owned progress","op":"done","task":"<exact task content>"}`, and block with `{"i":"Updating parent-owned progress","op":"block","task":"<exact task content>","reason":"<reason>"}`.

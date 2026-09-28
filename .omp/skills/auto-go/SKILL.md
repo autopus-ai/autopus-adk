@@ -42,9 +42,10 @@ SPEC 문서를 기반으로 코드를 구현합니다. TDD 방법론을 따릅�
 
 ## Context Profile: go
 
-- Supervisor Required: core,resolved_spec,plan,acceptance,available_architecture
+- Supervisor Required: core,resolved_spec,plan,acceptance
 - Worker Optional: signature,learning,task_declared_extra
 - Excluded: test,canary
+- Select architecture explicitly with `--conditional-profile architecture` or `--required-document`.
 
 ## 사용법
 
@@ -61,7 +62,7 @@ SPEC 문서를 기반으로 코드를 구현합니다. TDD 방법론을 따릅�
 | Flag | Description |
 |------|-------------|
 | `--continue` | 이전 중단 지점에서 재개합니다. |
-| `--team` | OMP native task-batch Lead/Builder/Guardian 팀 프로파일로 실행합니다. |
+| `--team` | Codex Multi-Agent V2 Lead/Builder/Guardian 팀 프로파일로 실행합니다. |
 | `--solo` | 서브에이전트 없이 메인 세션에서 직접 구현합니다. |
 | `--strategy <value>` | `--multi` 리뷰 전략을 지정합니다. |
 | `--providers <list>` | SPEC 및 코드 리뷰에 전달할 provider 목록을 지정합니다. |
@@ -69,7 +70,7 @@ SPEC 문서를 기반으로 코드를 구현합니다. TDD 방법론을 따릅�
 
 ### 공통 플래그
 
-- `--auto`: 승인/확인 단계 자동 진행. OMP에서는 기본 `task` batch subagent pipeline 진행에 대한 명시적 승인으로도 해석합니다.
+- `--auto`: 승인/확인 단계 자동 진행. Codex에서는 기본 `task` batch subagent pipeline 진행에 대한 명시적 승인으로도 해석합니다.
 - `--loop`: RALF 재시도 루프 활성화
 - `--multi`: 멀티 프로바이더 리뷰 활성화
 - `--quality <mode>`: 하위 에이전트 품질 모드 지정
@@ -103,6 +104,26 @@ Before implementation assignment, apply the minimality ladder: `actual need` →
 - Final handoff must include a concise receipt of important choices: reused existing code/helper/pattern, skipped dependency or abstraction, accepted new dependency or abstraction with evidence, and selected verification.
 - `qualityloop`/`skillevolve` signals are candidate-only and remain isolated/quarantined; do not apply them during this workflow.
 
+## Phase 1.9: Risk-First Probe Gate
+
+Phase 1.8 이후, Phase 2 fan-out 전에 메인 세션에서 실행합니다. 이 게이트는 기본 prompt-driven pipeline에 적용되며 deterministic Route A / Route Team 계약은 변경하지 않습니다.
+
+- `plan.md`의 `## Risk-First Integration Probe` 표(1-3개 행)를 읽습니다.
+- 지금 실행 가능한 `not-run` 행(실제 boundary, 격리된 fixture, 승인되지 않은 외부 효과 없음)은 실제로 실행하고 `PASS` 또는 `FAIL`을 실행 evidence ref와 함께 기록합니다.
+- 계속 `not-run`인 행은 reason을 유지한 채 handoff의 명시적 limitation으로 넘깁니다. 절대 `PASS`로 보고하지 않습니다.
+- high/critical 가정이 `FAIL`이면 planning으로 돌아가 `plan.md`를 수정합니다. re-plan은 최대 1회이며, 두 번째 `FAIL`은 세 번째 시도 대신 사용자에게 surface합니다.
+- 구현자가 요구사항보다 넓은 제약(신규 ACL, 호환성 제한, 보안 제한)을 도입하면 scope expansion이므로 fan-out 전에 기존 런타임에서 probe합니다.
+
+Gate applicability는 에이전트 판단이 아니라 receipt에서 옵니다. Phase 2 fan-out 전에 `auto spec gates {SPEC_ID} --base <ref>`(또는 `--changed p1,p2,...`)를 실행하면 `{SPEC_DIR}/gate-applicability.json`이 `spec_authoring, risk_first_probe, build, unit_tests, integration, security, validation, data_loss, deterministic_oracle, accessibility, ux_verification, annotation, provider_review, doc_sync` 전체에 대해 작성되고, 모든 worker 프롬프트가 그 결정을 `gate: applicability — reason`으로 전달합니다.
+
+- `spec_authoring`: 저위험 선언 클래스(`test_only`, `docs_only`, `small_ui`, `bugfix_existing_contract`)는 compact `change.md`가 4문서 SPEC 세트를 대체하므로 `not_applicable`, `feature`/`multi_domain`/`security_or_data`는 `required`.
+- `risk_first_probe`: 고위험 변경이 통합 경계를 건드리면 `required`, doc-only change set이나 저위험 선언 클래스면 `not_applicable`(단, `not-run` 한 행과 `no integration boundary` 이유 유지), fixture/환경이 없으면 `blocked`.
+- `reusable`은 receipt가 부여할 때만 유효합니다. 직전 `{SPEC_DIR}/gates/evidence-<gate>.json`의 `input_closure_sha256`이 현재 트리와 일치하고 `status: pass`, `complete: true`, `observed_at`이 `--max-age`(기본 168h) 안일 때만입니다. `input_globs`를 재확장하므로 파일 추가도 수정과 동일하게 evidence를 무효화하며, 의존성 변경·`fail`·`partial`·누락 입력·만료 receipt는 실패 조건을 명시한 `required`가 됩니다. 에이전트가 `reusable`을 자체 부여하지 않습니다.
+- 실제 build/test/UX 실행 직후 `auto spec gates record {SPEC_ID} --gate <id> --status pass|fail|partial --inputs <glob,...> [--dynamic-deps <path,...>] [--command "<text>"]`로 evidence를 기록합니다.
+- `security`, `validation`, `data_loss`, `deterministic_oracle`은 `not_applicable`이 될 수 없습니다. `accessibility`와 `ux_verification`은 변경 집합에 UI 경로가 있으면 `required`, 없으면 `no UI surface in change set` 이유의 `not_applicable`이며 classifier만 판단합니다.
+- `autopus.yaml`에 `verify.capture: no-capture`가 설정되면 스크린샷 없이 검증하고 `dom_geometry`, `accessibility_tree`, `keyboard_navigation`, `state_transition` 네 oracle이 모두 필수가 됩니다. 하나라도 없으면 UX PASS는 금지이며 kind를 명시한 `blocked`로 보고합니다.
+- 각 결정은 `auto telemetry record --spec-id {SPEC_ID} --action gate --gate <id> --applicability <value> [--resolved]`로 기록하고, 첫 probe `PASS`(모든 행이 `not-run`이면 첫 실제 통합 실행) 시점에 `auto telemetry record --spec-id {SPEC_ID} --action milestone --name first_vertical_slice`를 기록합니다.
+
 ## Frontend Design Preflight
 
 - UI 관련 변경(`.tsx`, `.jsx`, CSS-family, theme/token/design-system 경로, configured UI globs)이 있으면 구현 전에 `auto design pack --format markdown`을 실행하거나 동등한 local evidence를 수집합니다.
@@ -122,7 +143,7 @@ Before implementation assignment, apply the minimality ladder: `actual need` →
 ### Step 0: 플래그 파싱
 
 구현 시작 전에 다음 항목을 먼저 확정합니다.
-- `--team` → owner `omp` native task-batch team profile
+- `--team` → Codex team profile
 - `--solo` → 단일 세션 구현
 - `--strategy <value>`
 - `--providers <list>` → `PROVIDERS`; 입력이 없으면 provider 플래그를 생략
@@ -131,7 +152,7 @@ Before implementation assignment, apply the minimality ladder: `actual need` →
 - 글로벌 `--auto` / `--loop` / `--multi` / `--quality`
 
 실행 모드:
-- `--team` → OMP native task-batch 팀 프로파일
+- `--team` → Codex Multi-Agent V2 팀 프로파일
 - `--solo` → single session
 - 그 외 → 기본 `task` batch subagent pipeline
 
@@ -221,11 +242,21 @@ approved였던 SPEC의 clean re-review는 `status_changed=false`여도 위 curre
 
 **Anti-recursion**: SPEC Quality Loop 는 단일 `go` invocation 안에서만 돕니다. PASS 후에도 자기 자신을 재귀 호출하지 않고 같은 invocation에서 Step 3 으로 순차 진행.
 
+### Step 2.5: Change Class and Gate Applicability
+
+- Phase 1 전에 `auto spec gates <SPEC-ID> --base <ref> [--change-class <class>] [--new-contract] --json`을 실행하고 모든 gate 결정을 각 worker 프롬프트에 전달합니다. `--change-class`를 생략하면 change set에서 클래스를 유도하므로 과소 선언이 불가능합니다.
+- `{SPEC_DIR}/change.md` 또는 이 SPEC을 참조하는 `.autopus/specs/CHG-<id>/change.md`가 있으면 compact change contract입니다. `## Intended Surface`가 구현 범위를, `## Verification Plan`이 검증 범위를 한정하며 이 경로에서는 SPEC 세트를 새로 작성하지 않습니다.
+- `change_risk.risk_tier: low`이면 `spec_authoring`과 `risk_first_probe`가 `not_applicable`입니다. `high`이면 둘 다 `required`이며 Phase 2 fan-out 전에 Phase 1.9 probe를 실행합니다.
+- `change_risk.decision: escalate_to_full_spec`이면 실행을 중단하고 승격 이유를 보고한 뒤 `/auto plan`으로 넘깁니다.
+- 기록된 risk 필드만으로 단계를 생략하지 않습니다. CLI가 단일 계약과 실제 변경 경로를 재평가한 route를 따릅니다. 계약이 손상·중복·불일치하면 full이며, `--continue`는 저장된 route와 현재 승인된 route가 일치해야 합니다.
+- 소유 경로가 분리된 독립 태스크는 병렬 실행합니다. 전체 build/race/coverage/security/Phase 4 review는 통합 후 union change set에 대해 한 번만 실행하며 acceptance ID별 verdict와 evidence를 남깁니다. per-criterion 행이 없는 batch PASS는 불완전한 receipt입니다.
+- review loop는 `loop_status`로 종료합니다: `converged`, `awaiting_changes`(검토 입력이 그대로이므로 같은 입력으로 재검토하지 말고 명시된 blocking finding을 해결하거나 이유와 함께 defer), `revisions_exhausted`, `provider_unavailable`.
+
 ### Step 3: 파이프라인 라우팅
 
 - 기본 경로: `the pipeline reference above`에 정의된 subagent pipeline
 - `--solo`: 메인 세션 직접 구현
-- `--team`: `the pipeline reference above`의 OMP team profile 적용
+- `--team`: `the pipeline reference above`의 Codex team profile 적용
 
 ### Workflow Authenticity Evidence
 
@@ -244,18 +275,20 @@ approved였던 SPEC의 clean re-review는 `status_changed=false`여도 위 curre
 
 ### Pre-Completion Verification
 
-- [ ] Phase 1: Planning 완료
-- [ ] Phase 1.5: Test Scaffold 완료 또는 `--skip-scaffold`
+- [ ] Phase 1: Planning 완료 (또는 compact route에서 dispatch되지 않음)
+- [ ] Phase 1.5: Test Scaffold 완료, `--skip-scaffold`, 또는 compact route에서 미dispatch
 - [ ] Gate 1: Approval 완료 또는 `--auto`
 - [ ] Phase 1.8: Doc Fetch 완료 또는 skip
+- [ ] Phase 1.9: Risk-First Probe Gate 완료 (executed 또는 이유가 있는 `not-run`)이며 `auto spec gates`가 `{SPEC_DIR}/gate-applicability.json`을 작성
 - [ ] Phase 2: Implementation 완료
 - [ ] Gate 2: Validation PASS
-- [ ] Phase 2.5: Annotation 완료
+- [ ] @AX Annotation: 명시적 opt-in일 때만 완료, 그 외에는 `@AX: not requested`
 - [ ] Phase 3: Testing 완료 또는 harness-only skip
-- [ ] Gate 3: Coverage 확인 완료 또는 N/A
+- [ ] Gate 3: Coverage 측정값 보고 완료, 선언된 threshold가 있으면 충족 (선언이 없으면 수치 게이트 없음)
 - [ ] Phase 4: Review APPROVE
 - [ ] Sync Readiness Gate PASS (`completion_verdict_preview`, `sync_ready`, `sync_blockers`, `spec_status_after_go`, `sync_evidence_refs` 기록)
 - [ ] subagent_dispatch_count 기록, role 목록, degraded-mode 상태 확인
+- [ ] `auto telemetry leadtime [--run {SPEC_ID}] [--baseline <SPEC-ID|dir>]`로 first-slice/completion lead time과 `critical_path`를 보고하고 `escaped_defects`·`unresolved_safety_gates` 증가 없음 확인
 
 하나라도 비어 있으면 sync 단계 안내로 넘어가지 않습니다.
 
@@ -267,7 +300,7 @@ approved였던 SPEC의 clean re-review는 `status_changed=false`여도 위 curre
 - `sync_ready`: Outcome Lock 만족, mandatory requirements 전부 충족, Must acceptance 전부 충족, Completion Debt `none`일 때만 `yes`.
 - `sync_blockers`: `none` 또는 `implemented` 상태 전환을 막는 구체 blocker.
 - `spec_status_after_go`: 성공 시 `implemented`. `done`/`completed`를 사용하지 않습니다. `completed`는 `/auto sync` 전용 상태입니다.
-- `sync_evidence_refs`: 변경 파일, 검증 명령, Phase 4 verdict, @AX annotation 결과 또는 `@AX: no-op`.
+- `sync_evidence_refs`: 변경 파일, 검증 명령, Phase 4 verdict, @AX annotation 결과 또는 `@AX: not requested`.
 - `decision_receipt`: reused existing code/helper/pattern, skipped dependency or abstraction, accepted expansion with evidence, and minimum sufficient verification summary.
 
 `sync_ready != yes`이면 workflow lifecycle bar와 `/auto sync` handoff를 출력하지 말고 blocker를 먼저 해결합니다.
@@ -310,16 +343,18 @@ approved였던 SPEC의 clean re-review는 `status_changed=false`여도 위 curre
 - 수동 개입은 요구사항 충돌, 외부 credential/승인 필요, retry budget 소진, circuit break 같은 실제 blocker일 때만 허용합니다.
 - `Completion Handoff Gates`와 `Final Output Contract`는 terminal state에서만 사용합니다. review finding이 아직 fixable한데 `/auto go --continue` 또는 수동 review를 next step으로 제시하면 안 됩니다.
 - `go` 성공의 terminal handoff는 `/auto sync {SPEC-ID}` 까지입니다. `go`가 `sync`를 자동 호출하지는 않지만, review 수렴 전에는 sync handoff도 출력하지 않습니다.
+- 재리뷰는 frozen open-finding checklist에 대한 verify mode입니다. `{SPEC_DIR}/review-receipt.json`의 `discovery_repeat_detected`, `repeat_discovery_count`, `same_input_rereview`를 읽고, 이전 checklist에 없지만 정규화된 title 또는 같은 file+line으로 이전 finding과 매칭되면 신규가 아니라 repeat으로 분류합니다. repeat이 감지되면 같은 입력으로 discovery를 다시 돌리지 않고 open finding을 해결하거나 이유를 명시해 defer합니다.
+- 이미 검증된 입력을 다시 읽거나 통과한 검사를 다시 실행하면 `auto telemetry record --spec-id {SPEC_ID} --action action --kind reread|rerun --target <path|cmd> --reason <text>`를 기록합니다.
 
 ## 품질 기준
 
-- 테스트 커버리지: 85%+
+- 테스트 커버리지: 측정값을 증거로 보고합니다. 수치 게이트는 프로젝트가 선언했을 때만 적용합니다. `workflow.coverage_threshold` 기본값은 `0`(수치 게이트 없음)이며, 프로젝트/라우트가 명시한 threshold는 선언된 그대로 강제하고 route가 global보다 우선합니다. 선언되지 않은 수치를 만들어 내지 않습니다.
 - LSP 에러: 0
 - 린트 에러: 0
 
 ## Subagent Delegation
 
-When a task modifies 3+ files, exceeds 200 lines, or spans multiple domains, delegate to specialized agents using `task batch`.
+기본값은 메인 세션 인라인 실행입니다. 위임은 리스크 기준이며 크기 기준이 아닙니다. 소유 경로가 분리되고 미완료 작업에 의존하지 않으며 단독으로 끝낼 수 있는 독립 슬라이스이거나, 격리된 컨텍스트 또는 현재 세션이 수행하지 않는 전문 역할이 필요할 때만 `task batch`로 위임합니다. 파일 수, 줄 수, 패키지 수는 위임 근거가 아닙니다. 저위험 compact contract 작업(`test_only`, `docs_only`, `small_ui`, `bugfix_existing_contract`)은 planner나 전용 scaffold/validator 에이전트 없이 인라인으로 진행하되 실제 검증은 동일하게 수행합니다.
 
 ### Executor Agent
 
@@ -330,7 +365,6 @@ When a task modifies 3+ files, exceeds 200 lines, or spans multiple domains, del
   "tasks": [
     {
       "name": "executor",
-      "agent": "executor",
       "task": "Implement {task description}",
       "outputSchema": {
         "type": "object",
@@ -359,7 +393,6 @@ When a task modifies 3+ files, exceeds 200 lines, or spans multiple domains, del
   "tasks": [
     {
       "name": "tester",
-      "agent": "tester",
       "task": "Write tests for {scope}",
       "outputSchema": {
         "type": "object",
@@ -437,12 +470,12 @@ The synchronous review gate accepts only `schema=orchestration_cli_result.v1` wi
 an embedded `receipt.schema=orchestration_run_receipt.v1`; a detached job ID or
 untyped prose cannot satisfy the gate.
 
-## OMP Notes
+## Codex Notes
 
-- OMP의 기본 구현 모드는 `task` batch 기반 subagent pipeline입니다.
-- OMP에서 `--auto`는 기본 subagent pipeline 진행에 대한 명시적 승인입니다.
-- `--auto`가 없고 현재 OMP 런타임 정책이 암묵적 `task` batch 호출을 제한하면, 조용히 단일 세션으로 폴백하지 말고 하네스 기본값과 제약을 사용자에게 명시적으로 설명한 뒤 서브에이전트 opt-in 또는 `--solo` 선택을 받습니다.
-- `--team` uses the OMP Team and Provider Axes contract plus the pipeline reference above; Lead/Builder/Guardian share cwd/filesystem, write only disjoint paths, dispatch through `task`, coordinate through `hub`, and leave parent progress to `todo`.
+- Codex의 기본 구현 모드는 `task` batch 기반 subagent pipeline입니다.
+- Codex에서 `--auto`는 기본 subagent pipeline 진행에 대한 명시적 승인입니다.
+- `--auto`가 없고 현재 Codex 런타임 정책이 암묵적 `task` batch 호출을 제한하면, 조용히 단일 세션으로 폴백하지 말고 하네스 기본값과 제약을 사용자에게 명시적으로 설명한 뒤 서브에이전트 opt-in 또는 `--solo` 선택을 받습니다.
+- `--team`은 Codex Multi-Agent V2 팀 프로파일입니다. 모든 worker는 같은 shared cwd/filesystem을 사용하며 병렬 writer는 disjoint write ownership을 가져야 합니다. 메인 세션은 `task` batch, `hub send`, `hub send`, target-less `hub with {"i":"Waiting for blocked work","op":"wait","ids":["<job id>"]}`, `hub cancel`, `hub list`만 사용합니다.
 - Use only a runtime-exposed OMP goal surface. If none is available, do not claim or create persisted goal state; `/auto goal` remains the explicit route.
 - `--multi`는 구현 이후 reviewer / security-auditor / orchestra 리뷰를 추가로 붙이는 강화 모드입니다.
 - 전체 파이프라인 단계, 재시도 한도, 게이트 규칙은 `/auto go ...` 라우터 본문을 우선합니다.
@@ -471,7 +504,7 @@ Status symbols: `✓` completed, `→` active, `○` pending. Replace `[N/M task
 current_gate: go completed, sync pending
 phase_4_review_verdict: APPROVE
 subagent_dispatch_count: {N}
-subagent_roles_dispatched: {planner,tester,executor,validator,reviewer,security-auditor}
+subagent_roles_dispatched: {실제로 dispatch된 role 목록, 인라인 실행이면 none (inline)}
 degraded-mode: none | solo | blocker
 degraded_mode: none | solo | blocker
 delegation_depth: {N}
@@ -520,49 +553,3 @@ Subagent failure:
   1. /auto go {SPEC-ID} --continue  (worker crash/timeout 이후 파이프라인 재개)
   2. {manual fallback instruction}  (자동 재시도 범위를 벗어난 경우만 수동 처리)
 ```
-
-## OMP Coordination Contract
-
-### Ownership gate
-
-- Choose exactly one DAG owner with `--execution-owner omp|orca` before dispatch; omission selects owner `omp`.
-- Owner `omp` is the default. The current OMP session is the sole DAG owner and uses its native `task`, `hub`, and `todo` tools.
-- Owner `orca` is allowed only when `--execution-owner orca` is explicit. Before any Orca orchestration, run and read `orca skills get orchestration --full`.
-- The single DAG owner invariant is mandatory: owner `orca` creates no OMP task DAG, and owner `omp` creates no Orca Run.
-
-### Native field contracts
-
-```json
-{
-  "i": "Dispatching bounded OMP work",
-  "context": "Shared goal, constraints, owned-path boundaries, and cross-task contracts.",
-  "tasks": [
-    {
-      "name": "Worker",
-      "task": "Complete one self-contained assignment and return only the required receipt.",
-      "outputSchema": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["owned_paths", "changed_files", "verification", "blockers", "next_required_step"],
-        "properties": {
-          "owned_paths": {"type": "array", "items": {"type": "string"}},
-          "changed_files": {"type": "array", "items": {"type": "string"}},
-          "verification": {"type": "array", "items": {"type": "string"}},
-          "blockers": {"type": "array", "items": {"type": "string"}},
-          "next_required_step": {"type": "string"}
-        }
-      },
-      "schemaMode": "strict"
-    }
-  ]
-}
-```
-
-- Inspect the current dynamic `task` schema before dispatch. Use the shown batch shape only when it exposes top-level `context` and `tasks`; otherwise use the discovered flat shape and place shared context in `local://`.
-- Every model-authored `task`, `hub`, and `todo` call includes a concise top-level `i` while `tools.intentTracing` is enabled.
-- Every `tasks` item uses `name` when a stable agent id is useful and carries per-item `task`, `outputSchema`, and `schemaMode`. Set `agent` only to select a custom agent type; omit it for OMP's default general worker.
-- `isolated` and `effort` are conditional dynamic fields. Add `isolated` or `effort` only after the current schema exposes that exact field; otherwise omit it.
-- `outputSchema` is the strict five-field receipt JSON Schema shown in the normalized batch: `owned_paths`, `changed_files`, `verification`, `blockers`, and `next_required_step`.
-- Retain the agent id returned by `task`. For a non-isolated or otherwise revivable worker, every follow-up goes to that same id with `hub` send fields `{"i":"Following up with an existing worker","op":"send","to":"<same agent id>","message":"<follow-up>"}`; do not create a replacement merely to continue revivable work.
-- An isolated worker is terminal after workspace cleanup and cannot be revived. A correction is a new explicitly named `task` item with freshly declared ownership and context, not a `hub` send to the terminal agent id.
-- The parent OMP session owns progress. A `todo` call contains one top-level operation and intent: initialize with `{"i":"Updating parent-owned progress","op":"init","list":[{"phase":"Implementation","items":["..."]}]}`, advance with `{"i":"Updating parent-owned progress","op":"start","task":"<exact task content>"}`, complete with `{"i":"Updating parent-owned progress","op":"done","task":"<exact task content>"}`, and block with `{"i":"Updating parent-owned progress","op":"block","task":"<exact task content>","reason":"<reason>"}`.

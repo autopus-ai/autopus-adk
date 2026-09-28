@@ -73,7 +73,7 @@ Project-level QA를 QAMESH evidence와 feedback bundle로 연결합니다. 이 �
 - `auto qa scenario`: 프로젝트가 선언한 user scenario를 runner spec으로 컴파일합니다. `init`은 편집할 예시 시나리오를 만들고, `compile`은 `.autopus/qa/scenarios/*.yaml`을 프로젝트 Playwright `testDir` 아래 `autopus-generated/<id>.spec.ts`로 렌더링합니다. `--dry-run`은 검증과 렌더링만 하고 파일을 쓰지 않습니다.
 - `auto qa release`: fixed release lane set, sibling SPEC readiness, redacted command previews, blocker matrix, and release index aggregation을 계획/실행합니다. `canary-explicit`은 post-deploy smoke bridge lane이며 explicit Journey Pack 없이는 setup gap입니다.
 - `auto qa evidence`: producer가 이미 만든 QAMESH manifest를 검증, redaction, publish 경계로 보냅니다.
-- `auto qa feedback`: 기존 failed evidence를 OMP, OMP, OMP, OMP용 repair prompt bundle로 변환합니다.
+- `auto qa feedback`: 기존 failed evidence를 Claude, Codex, Gemini, OpenCode용 repair prompt bundle로 변환합니다.
 - ADK is a harness: concrete commands, origins, oracles, artifact policy는 `.autopus/qa/journeys/**` 아래 project-local Journey Pack에 둡니다.
 
 ## GUI Capture Contract

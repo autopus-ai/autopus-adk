@@ -6,7 +6,7 @@ compatibility: omp
 
 # Frontend Verify Skill
 
-OMP Vision을 활용하여 프론트엔드 UX를 5단계 파이프라인으로 자동 검증하는 스킬입니다.
+Claude Vision을 활용하여 프론트엔드 UX를 5단계 파이프라인으로 자동 검증하는 스킬입니다.
 
 ## 5단계 파이프라인
 
@@ -111,7 +111,7 @@ npx playwright test --update-snapshots=none --reporter=json
 
 ### Phase 3: VLM 시각 검증
 
-캡처된 스크린샷을 OMP Vision으로 분석합니다.
+캡처된 스크린샷을 Claude Vision으로 분석합니다.
 
 **판정 기준**
 
@@ -157,6 +157,23 @@ WARN/FAIL 판정에 대해 수정을 시도하고 최종 보고서를 생성합�
 - `--fix` 활성화 시: CSS/레이아웃 수정 후 Phase 2-3 재실행
 - `--report-only` 모드 시: 수정 없이 보고서만 생성
 - 재검증 후에도 FAIL이면 사용자 개입 요청
+
+## No-Capture Contract
+
+`verify.capture` selects the UX oracle: `screenshot` (default when unset) or `no-capture`. Any other value is rejected by config validation with `verify: capture "<value>" must be "screenshot" or "no-capture"`.
+
+In `no-capture` mode Phase 2 and Phase 3 change: do NOT call `page.screenshot`, `toHaveScreenshot`, or trace/video capture, and collect the four semantic oracles instead. All four are required for a UX PASS.
+
+| Oracle | Evidence kind | Replaces |
+|--------|---------------|----------|
+| DOM geometry | `dom_geometry` | Overlap, overflow, viewport-escape, and touch-target checks, from bounding boxes |
+| Accessibility tree | `accessibility_tree` | Role, accessible name, and exposed state checks on changed controls |
+| Keyboard navigation | `keyboard_navigation` | Tab-order traversal and focus-visible checks |
+| State transition | `state_transition` | loading->ready, error->recovered, logout->cleared assertions on the post-state |
+
+- 최종 보고서에 `Capture: no-capture`와 `oracles_collected:[dom_geometry, accessibility_tree, keyboard_navigation, state_transition]`를 기록합니다.
+- 네 가지 중 하나라도 없으면 PASS를 낼 수 없습니다. 위 순서에서 처음 빠진 kind로 `missing_no_capture_oracle:<kind>`를 보고하고 blocked로 처리합니다.
+- capture index를 쓰는 producer는 같은 kind 문자열을 `oracles[]`에 기록해야 하며, no-capture 모드에서 screenshot을 남기면 capture 계약이 거부합니다.
 
 ## CLI 플래그
 

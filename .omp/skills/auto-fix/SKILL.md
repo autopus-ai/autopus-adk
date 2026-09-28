@@ -42,7 +42,12 @@ compatibility: omp
 4. caller/shared root-cause path 확인 후 패치 위치 결정
 5. 최소 코드 변경으로 수정
 6. 테스트 통과 확인
-7. 전체 테스트 스위트 실행
+7. 영향받은 회귀 테스트 실행. 공통 전체 검증은 통합 후 한 번 수행하고, 입력·환경 변경이나 열린 finding이 있을 때만 관련 검사를 반복합니다.
+
+## Change Contract Boundary
+
+- 기존 계약 안의 버그 수정은 `bugfix_existing_contract`입니다. 저위험이며 SPEC 세트가 필요 없습니다. 승인된 SPEC이 해당 동작을 담고 있으면 `auto spec change <SPEC-ID> --class bugfix_existing_contract --ac <AC-ID,...> --surface <path,...> --verify "<command>"`로 계약을 기록해 참조 acceptance ID와 검증 계획을 남깁니다.
+- auth/billing/data/migration/security 경로를 건드리거나, production code가 두 module root에 걸치거나, 새 exported API/contract를 바꾸면 `auto spec change`가 `escalate_to_full_spec`을 보고하고 계약을 쓰지 않습니다. 이때는 `/auto plan`으로 승격합니다. 안전 게이트는 두 경로 모두 `required`로 유지됩니다.
 
 ## 규칙
 
