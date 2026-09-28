@@ -78,8 +78,12 @@ func projectOMPIntegrationAgents(
 			resolved[resolution.Agent] = resolution
 			continue
 		}
-		if route.Required && route.DegradedAction != "runtime_default" {
-			return nil, fmt.Errorf("required_route_unresolved: %s: %s", resolution.Agent, resolution.Reason)
+		if route.Required && route.DegradedAction != ompRuntimeDefaultAction {
+			err := fmt.Errorf("required_route_unresolved: %s: %s", resolution.Agent, resolution.Reason)
+			if hint := ompLoginHint(ompUnavailableCandidateProviders(catalog, route)); hint != "" {
+				err = fmt.Errorf("%w (%s)", err, hint)
+			}
+			return nil, err
 		}
 	}
 	result := make([]OMPProjectionAgent, 0, len(resolved))

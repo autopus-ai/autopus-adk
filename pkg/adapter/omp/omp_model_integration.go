@@ -3,6 +3,7 @@ package omp
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -56,6 +57,7 @@ func (a *Adapter) prepareModelIntegration(
 	if err != nil {
 		return nil, err
 	}
+	DegradeUnservedDerivedOMPRoutes(profile, probe.Catalog, routes)
 	routing := CompileOMPModelRouting(OMPModelRoutingInput{
 		Catalog: probe.Catalog, CatalogReason: probe.Reason, Routes: routes,
 	})
@@ -63,6 +65,7 @@ func (a *Adapter) prepareModelIntegration(
 	if err != nil {
 		return nil, err
 	}
+	a.reportDegradedModelRoutes(ompDegradedRoutesNotice(probe.Catalog, routes, routing))
 	projection, err := CompileOMPModelProjection(OMPModelProjectionInput{Agents: projected})
 	if err != nil {
 		return nil, err
@@ -71,6 +74,18 @@ func (a *Adapter) prepareModelIntegration(
 		profileName: profileName, profile: profile, probe: probe,
 		routing: routing, projection: projection,
 	}, nil
+}
+
+// reportDegradedModelRoutes prints the degradation notice once per adapter:
+// preview and generation both prepare the integration, and a repeated line
+// reads like a second problem. Diagnostics go to stderr so JSON on stdout
+// stays parseable.
+func (a *Adapter) reportDegradedModelRoutes(notice string) {
+	if notice == "" || a.modelDegradationReported {
+		return
+	}
+	a.modelDegradationReported = true
+	fmt.Fprintln(os.Stderr, notice)
 }
 
 func isOwnerOnlyOMPModelPath(path string) bool {

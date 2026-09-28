@@ -25,6 +25,7 @@ func CompileOMPModelDoctorActivationExpectation(
 	if err != nil {
 		return OMPModelDoctorActivationExpectation{}, err
 	}
+	DegradeUnservedDerivedOMPRoutes(profile, catalog, routes)
 	routing := CompileOMPModelRouting(OMPModelRoutingInput{
 		Catalog: catalog, CatalogReason: "catalog_ready", Routes: routes,
 	})

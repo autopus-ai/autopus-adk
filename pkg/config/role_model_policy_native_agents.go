@@ -100,6 +100,21 @@ func (c RoleModelProfileConf) OMPNativeAgentRoute(
 	return resolved, route, nil
 }
 
+// OMPNativeAgentOperatorPinned reports whether an operator-written agent
+// override with candidates collapses onto the bundled agent, which makes its
+// route an explicit choice rather than one derived from a profile ladder.
+func (c RoleModelProfileConf) OMPNativeAgentOperatorPinned(native string) bool {
+	for agent := range c.OperatorAgents {
+		if len(c.Agents[agent].Candidates) == 0 {
+			continue
+		}
+		if resolved, err := ResolveOMPPolicyAgent(agent); err == nil && resolved.Native == native {
+			return true
+		}
+	}
+	return false
+}
+
 func (c RoleModelProfileConf) ompNativeAgentRouteKey(native string) (string, error) {
 	keys := make([]string, 0, len(c.OperatorAgents))
 	for agent := range c.OperatorAgents {

@@ -92,10 +92,14 @@ func BuiltinRoleModelProfile(
 	if !ok {
 		return RoleModelProfileConf{}, false
 	}
+	var profile RoleModelProfileConf
 	if name == builtinRoleModelProfileBalanced {
-		return balancedRoleModelProfile(anchorName, mode), true
+		profile = balancedRoleModelProfile(anchorName, mode)
+	} else {
+		profile = ultraRoleModelProfile(quality, anchorName, mode)
 	}
-	return ultraRoleModelProfile(quality, anchorName, mode), true
+	profile.Builtin = true
+	return profile, true
 }
 
 // ultraRoleModelProfile projects the ultra quality preset onto the anchor

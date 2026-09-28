@@ -47,6 +47,13 @@ type RoleModelProfileConf struct {
 	// instead of conflicting with each other. Resolution fills this in; it is
 	// never read from or written to YAML.
 	OperatorAgents map[string]bool `yaml:"-"`
+
+	// Builtin marks a profile derived from a built-in ladder rather than one
+	// the operator defined. Its routes name models the operator never chose,
+	// so a route that the installed catalog cannot serve degrades to the OMP
+	// runtime default instead of failing the whole generation. Resolution
+	// fills this in; it is never read from or written to YAML.
+	Builtin bool `yaml:"-"`
 }
 
 // RoleManagedKeyClaimConf proves complete ownership of one project config key.

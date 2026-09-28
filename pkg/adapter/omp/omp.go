@@ -32,6 +32,8 @@ type Adapter struct {
 	modelIntegrationClock  func() time.Time
 	rootedWorkspaceHook    func()
 	rootedRootCreatedHook  func()
+	// modelDegradationReported keeps the routing notice to one line per run.
+	modelDegradationReported bool
 }
 
 // New creates an adapter rooted at the current directory.

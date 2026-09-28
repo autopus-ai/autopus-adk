@@ -157,6 +157,7 @@ func compileOMPModelDoctorRouting(
 		}
 		routes[native] = request
 	}
+	omp.DegradeUnservedDerivedOMPRoutes(profile, catalog, routes)
 	return omp.CompileOMPModelRouting(omp.OMPModelRoutingInput{
 		Catalog: catalog, CatalogReason: "catalog_ready", Routes: routes,
 	})

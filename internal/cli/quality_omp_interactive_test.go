@@ -125,7 +125,11 @@ func TestQualityOMPWizardRespectsExplicitBalancedDefinition(t *testing.T) {
 	require.NoError(t, err, out)
 	loaded, err := config.LoadPreview(dir)
 	require.NoError(t, err)
-	assert.Equal(t, profile, loaded.RoleModelPolicy.Profiles["balanced"])
+	// Written into profiles the ladder becomes the operator's own definition,
+	// so it no longer carries the in-memory built-in mark.
+	expected := profile
+	expected.Builtin = false
+	assert.Equal(t, expected, loaded.RoleModelPolicy.Profiles["balanced"])
 	assert.NotContains(t, out, "Choose model family")
 }
 
