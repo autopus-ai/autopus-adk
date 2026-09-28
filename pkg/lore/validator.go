@@ -52,5 +52,33 @@ func Validate(commitMsg string, config LoreConfig) []ValidationError {
 		})
 	}
 
+	errs = append(errs, forbiddenTrailerErrors(commitMsg, config.ForbiddenTrailers)...)
+
+	return errs
+}
+
+// forbiddenTrailerErrors reports each forbidden trailer the message carries.
+// The subject line is skipped because it is never a trailer, and keys compare
+// case-insensitively because git treats "Co-authored-by" and
+// "Co-Authored-By" as the same trailer.
+func forbiddenTrailerErrors(commitMsg string, forbidden []string) []ValidationError {
+	var errs []ValidationError
+	lines := strings.Split(commitMsg, "\n")
+	for _, key := range forbidden {
+		key = strings.TrimSpace(key)
+		if key == "" {
+			continue
+		}
+		for _, line := range lines[1:] {
+			name, _, ok := strings.Cut(strings.TrimSpace(line), ":")
+			if ok && strings.EqualFold(strings.TrimSpace(name), key) {
+				errs = append(errs, ValidationError{
+					Field:   key,
+					Message: fmt.Sprintf("금지된 트레일러 '%s'가 있습니다 (lore.forbidden_trailers)", key),
+				})
+				break
+			}
+		}
+	}
 	return errs
 }

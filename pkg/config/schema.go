@@ -1,7 +1,10 @@
 // Package config는 autopus.yaml 설정 스키마와 로더를 제공한다.
 package config
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // Mode는 설치 모드를 나타낸다.
 type Mode string
@@ -133,6 +136,35 @@ type LoreConf struct {
 	AutoInject         bool     `yaml:"auto_inject"`
 	RequiredTrailers   []string `yaml:"required_trailers"`
 	StaleThresholdDays int      `yaml:"stale_threshold_days"`
+	// ForbiddenTrailers is a pointer so that an omitted key and an explicit
+	// empty list stay distinguishable: omitted means the default set, [] turns
+	// the check off. omitempty keeps the key out of files that never set it,
+	// because older binaries decode autopus.yaml strictly and would reject it.
+	ForbiddenTrailers *[]string `yaml:"forbidden_trailers,omitempty"`
+}
+
+// DefaultForbiddenTrailers are rejected in commit messages unless
+// lore.forbidden_trailers overrides them. Agent attribution trailers are the
+// reason the list exists: tools append them by default, not by intent.
+var DefaultForbiddenTrailers = []string{"Co-Authored-By"}
+
+// EffectiveForbiddenTrailers resolves the configured list against the default.
+func (l LoreConf) EffectiveForbiddenTrailers() []string {
+	if l.ForbiddenTrailers == nil {
+		return append([]string(nil), DefaultForbiddenTrailers...)
+	}
+	return append([]string(nil), (*l.ForbiddenTrailers)...)
+}
+
+// ForbidsTrailer reports whether key is in the effective forbidden list,
+// compared case-insensitively as git trailer keys are.
+func (l LoreConf) ForbidsTrailer(key string) bool {
+	for _, forbidden := range l.EffectiveForbiddenTrailers() {
+		if strings.EqualFold(strings.TrimSpace(forbidden), key) {
+			return true
+		}
+	}
+	return false
 }
 
 // MethodologyConf는 방법론 설정이다 (Full 전용).

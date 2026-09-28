@@ -27,6 +27,7 @@ type LoreEntry struct {
 type LoreConfig struct {
 	RequiredTrailers   []string // 필수 트레일러 목록
 	StaleThresholdDays int      // 오래된 항목 기준 (일)
+	ForbiddenTrailers  []string // Trailer keys a commit message must not carry
 }
 
 // ValidationError는 검증 오류이다.

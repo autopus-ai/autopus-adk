@@ -226,6 +226,7 @@ func validateLoreMessage(msg, dir string, out io.Writer) bool {
 	loreConfig := lore.LoreConfig{
 		RequiredTrailers:   append([]string(nil), loreConf.RequiredTrailers...),
 		StaleThresholdDays: loreConf.StaleThresholdDays,
+		ForbiddenTrailers:  loreConf.EffectiveForbiddenTrailers(),
 	}
 
 	errs := lore.Validate(msg, loreConfig)

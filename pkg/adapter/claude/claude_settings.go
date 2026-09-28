@@ -18,6 +18,7 @@ func (a *Adapter) prepareHooksAndPermissionsFiles(cfg *config.HarnessConfig) ([]
 		return nil, fmt.Errorf("settings.json 경로 확인 실패: %w", err)
 	}
 	a.statusLineMode = resolveStatusLineMode(cfg, InspectStatusLine(a.root))
+	a.suppressCommitAttribution = commitAttributionForbidden(cfg)
 	hookConfigs, gitHooks, err := content.GenerateProjectHookConfigs(cfg, "claude-code", a.SupportsHooks())
 	if err != nil {
 		return nil, fmt.Errorf("hook config 준비 실패: %w", err)
@@ -129,6 +130,10 @@ func (a *Adapter) prepareSettingsMapping(hooks []adapter.HookConfig, perms *adap
 		settings["statusLine"] = projectClaudeStatusLine(settings["statusLine"], defaultClaudeCombinedStatusLine())
 	case config.StatusLineModeReplace:
 		settings["statusLine"] = projectClaudeStatusLine(settings["statusLine"], defaultClaudeStatusLine())
+	}
+
+	if a.suppressCommitAttribution {
+		settings["attribution"] = projectSuppressedCommitAttribution(settings["attribution"])
 	}
 
 	out, err := json.MarshalIndent(settings, "", "  ")

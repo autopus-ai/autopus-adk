@@ -15,4 +15,4 @@ IMPORTANT: Follow the project's configured language for each surface. Every agen
 
 An unconfigured surface defaults to English.
 
-Nothing enforces this mechanically: no hook, linter, or CI step inspects language, and the pre-commit Lore check validates only the commit type prefix and sign-off trailers. A violation surfaces as a review finding, so do not rely on a gate to catch it.
+Nothing enforces this mechanically: no hook, linter, or CI step inspects language, and the pre-commit Lore check validates only the commit type prefix, sign-off, and Lore trailers. A violation surfaces as a review finding, so do not rely on a gate to catch it.

@@ -45,12 +45,12 @@ Related: <SPEC-ID, issue, or related change>
 
 ## Rules
 
-- `auto check --lore` currently enforces a valid Lore type prefix and the Autopus sign-off.
+- `auto check --lore` enforces a valid Lore type prefix, the Autopus sign-off, and the absence of every trailer in `lore.forbidden_trailers`.
 - Structured Lore trailers use the `Constraint` / `Rejected` / `Confidence` / `Scope-risk` / `Reversibility` / `Directive` / `Tested` / `Not-tested` / `Related` protocol.
 - Default `autopus.yaml` requires `Constraint` when Lore trailer validation is enabled.
 - `Why` / `Decision` / `Alternatives` trailers are legacy guidance and are no longer the source of truth.
 - Sign with `🐙 Autopus <noreply@autopus.co>`
-- NEVER add `Co-Authored-By` trailers
+- NEVER add `Co-Authored-By` trailers. `lore.forbidden_trailers` defaults to `[Co-Authored-By]`, so the commit-msg hook rejects them, and generated Claude Code settings clear its commit attribution to match. Set `forbidden_trailers: []` to allow them.
 - When committing from Codex, build the full Lore message first and use `git commit -F <message-file>` so trailers and sign-off are preserved exactly.
 
 ## Merge and Squash Commits

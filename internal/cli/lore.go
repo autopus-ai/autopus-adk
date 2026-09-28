@@ -163,6 +163,7 @@ func newLoreCommitCmd() *cobra.Command {
 func newLoreValidateCmd() *cobra.Command {
 	var requiredTrailers []string
 	var staleDays int
+	forbiddenTrailers := config.LoreConf{}.EffectiveForbiddenTrailers()
 
 	cmd := &cobra.Command{
 		Use:   "validate <commit-message-file>",
@@ -186,11 +187,13 @@ func newLoreValidateCmd() *cobra.Command {
 				if !cmd.Flags().Changed("stale-days") {
 					staleDays = cfg.Lore.StaleThresholdDays
 				}
+				forbiddenTrailers = cfg.Lore.EffectiveForbiddenTrailers()
 			}
 
 			loreConfig := lore.LoreConfig{
 				RequiredTrailers:   requiredTrailers,
 				StaleThresholdDays: staleDays,
+				ForbiddenTrailers:  forbiddenTrailers,
 			}
 
 			errs := lore.Validate(string(content), loreConfig)

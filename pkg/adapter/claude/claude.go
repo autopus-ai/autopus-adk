@@ -26,6 +26,8 @@ type Adapter struct {
 	root           string                // project root path
 	engine         *tmpl.Engine          // template rendering engine
 	statusLineMode config.StatusLineMode // runtime-only statusline override
+	// suppressCommitAttribution mirrors lore.forbidden_trailers for this run.
+	suppressCommitAttribution bool
 }
 
 // New는 현재 디렉터리를 루트로 하는 어댑터를 생성한다.

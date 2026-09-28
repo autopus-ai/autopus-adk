@@ -1540,6 +1540,7 @@ lore:
   enabled: true
   required_trailers: [Why, Decision]
   stale_threshold_days: 90
+  forbidden_trailers: [Co-Authored-By]  # default; [] allows them
 
 spec:
   review_gate:
