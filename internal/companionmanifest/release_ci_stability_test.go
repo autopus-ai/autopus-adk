@@ -120,6 +120,18 @@ func TestCIWorkflow_StableChecksHaveBoundedTimeouts(t *testing.T) {
 		t.Fatal("CI race coverage gate must not run executable release integration fixtures")
 	}
 
+	// The GoReleaser fixtures download their pinned module; a transient
+	// checksum-database error there must be retried before the tests run.
+	prefetch := ciStepRun(t, workflow.Jobs["lineage-integration"], "Prefetch pinned GoReleaser module")
+	if !strings.Contains(prefetch, "go run "+productionGoReleaserModule+" --version") ||
+		!strings.Contains(prefetch, "for attempt in 1 2 3") {
+		t.Fatalf("GoReleaser prefetch must retry the exact fixture module %s:\n%s", productionGoReleaserModule, prefetch)
+	}
+	if ciStepIndex(t, workflow.Jobs["lineage-integration"], "Prefetch pinned GoReleaser module") >=
+		ciStepIndex(t, workflow.Jobs["lineage-integration"], "Test non-lineage integration packages") {
+		t.Fatal("GoReleaser prefetch must run before the integration tests")
+	}
+
 	nonLineageRun := ciStepRun(t, workflow.Jobs["lineage-integration"], "Test non-lineage integration packages")
 	// 이 레인의 계약은 "lineage 패키지를 정확히 하나 빼고 나머지를 돈다"이다.
 	// 스크립트 문면을 베끼는 대신 그 성질을 확인한다.

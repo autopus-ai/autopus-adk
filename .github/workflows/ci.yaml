@@ -111,6 +111,24 @@ jobs:
         with:
           go-version-file: go.mod
 
+      # The executable GoReleaser fixtures `go run` the pinned module, which
+      # downloads and checksum-verifies hundreds of modules. A single transient
+      # sum.golang.org HTTP/2 error there failed this job on v0.50.119 and again
+      # after it, so fetch the module once with bounded retries and let the tests
+      # start from a verified module cache. Checksum verification is unchanged.
+      - name: Prefetch pinned GoReleaser module
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if go run github.com/goreleaser/goreleaser/v2@v2.17.0 --version >/dev/null; then
+              exit 0
+            fi
+            echo "::warning::GoReleaser module prefetch attempt ${attempt} failed"
+            sleep $((attempt * 15))
+          done
+          exit 1
+
       # @AX:REASON [AUTO]: Keep the bounded GoReleaser warm-up off the shared package scheduler so its 30-minute budget is deterministic.
       - name: Test non-lineage integration packages
         shell: bash
