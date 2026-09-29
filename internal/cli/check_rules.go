@@ -25,6 +25,7 @@ const (
 // loreValidTypes defines allowed Lore commit type prefixes.
 var loreValidTypes = []string{
 	"feat(", "fix(", "refactor(", "test(", "docs(", "chore(", "perf(",
+	"merge(", "revert(",
 }
 
 // loreSignOff is the required Lore sign-off line.

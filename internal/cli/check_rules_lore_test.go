@@ -18,6 +18,8 @@ func TestHasValidLoreType_AllKnownTypes(t *testing.T) {
 		"docs(readme): update guide",
 		"chore(deps): bump version",
 		"perf(cache): reduce allocations",
+		"merge(release): integrate release branch",
+		"revert(api): restore compatibility",
 	}
 
 	for _, msg := range validPrefixes {

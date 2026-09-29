@@ -24,7 +24,7 @@ fi
 
 # Conventional Commits 형식 검사
 # 형식: <type>(<scope>): <subject>
-PATTERN="^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?: .{1,72}$"
+PATTERN="^(feat|fix|refactor|test|docs|chore|perf|merge|revert)\(.+\): .{1,72}$"
 FIRST_LINE=$(echo "$COMMIT_MSG" | head -1)
 
 if ! echo "$FIRST_LINE" | grep -qE "$PATTERN"; then
@@ -35,7 +35,7 @@ if ! echo "$FIRST_LINE" | grep -qE "$PATTERN"; then
     echo "올바른 형식:"
     echo "  <type>(<scope>): <subject>"
     echo ""
-    echo "허용된 타입: feat, fix, docs, style, refactor, test, chore, perf, ci, build, revert"
+    echo "허용된 타입: feat, fix, refactor, test, docs, chore, perf, merge, revert"
     echo "예시: feat(auth): JWT 기반 인증 구현"
     echo ""
     echo "자동 검사를 건너뛰려면: git commit --no-verify"
