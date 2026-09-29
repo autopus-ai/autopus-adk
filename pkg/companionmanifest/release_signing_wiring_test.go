@@ -90,7 +90,7 @@ func TestReleaseSigning_WorkflowMaterializesAndPreflightsKeyBeforeGoReleaser(t *
 	workflow := releaseWorkflowContract(t)
 	workflowSource := string(readRepositoryFile(t, ".github/workflows/release.yaml"))
 	for _, required := range []string{
-		"- 'v0.50.119'", `autopus-$GITHUB_REF_NAME-checksums.txt`,
+		"- 'v0.50.120'", `autopus-$GITHUB_REF_NAME-checksums.txt`,
 		`GITHUB_REF_NAME="$GITHUB_REF_NAME"`, `COMPANION_VERSION="${GITHUB_REF_NAME#v}"`,
 	} {
 		if !strings.Contains(workflowSource, required) {
@@ -98,7 +98,7 @@ func TestReleaseSigning_WorkflowMaterializesAndPreflightsKeyBeforeGoReleaser(t *
 		}
 	}
 	// The release workflow trigger owns exactly one A23 tag coordinate.
-	if got := strings.Count(workflowSource, "- 'v0.50.119'"); got != 1 {
+	if got := strings.Count(workflowSource, "- 'v0.50.120'"); got != 1 {
 		t.Fatalf("signing workflow release trigger is not exact: count=%d", got)
 	}
 	prepareIndex, _ := releaseWorkflowStepContaining(t, workflow, "Prepare release credentials")

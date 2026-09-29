@@ -31,9 +31,9 @@ if env -i PATH="$PATH" HOME="${HOME-}" TMPDIR="${TMPDIR:-/tmp}" \
   /bin/bash "$candidate_builder" "$temp_dir/builder-output" >/dev/null 2>"$builder_error"; then
   fail 'candidate builder accepted the reserved GitHub tag variable'
 fi
-grep -Fq 'release tag is not exact A30' "$builder_error" || fail 'candidate builder still reads the reserved GitHub tag variable'
+grep -Fq 'release tag is not exact A31' "$builder_error" || fail 'candidate builder still reads the reserved GitHub tag variable'
 if env -i PATH="$PATH" HOME="${HOME-}" TMPDIR="${TMPDIR:-/tmp}" \
-  COMPANION_RELEASE_TAG=v0.50.119 GITHUB_SHA=bad COMPANION_SOURCE_TREE=bad OMP_CONTEXT_STATIC_POLICY_B64=eA \
+  COMPANION_RELEASE_TAG=v0.50.120 GITHUB_SHA=bad COMPANION_SOURCE_TREE=bad OMP_CONTEXT_STATIC_POLICY_B64=eA \
   /bin/bash "$candidate_builder" "$temp_dir/builder-output" >/dev/null 2>"$builder_error"; then
   fail 'candidate builder accepted a malformed source commit'
 fi
