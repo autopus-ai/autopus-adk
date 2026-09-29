@@ -74,7 +74,11 @@ func runPluginContract(t *testing.T, body, scenario string) {
 	require.NoError(t, err)
 	runner := filepath.Join(root, "contract.mjs")
 	require.NoError(t, os.WriteFile(runner, fixture, 0600))
-	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	// Each hook runs through a login shell, which on a loaded Linux runner can
+	// take close to its 2s hook timeout; the normal scenario runs four hooks, so
+	// an 8s budget killed healthy runs. 30s still exceeds the worst bounded path
+	// (four hook timeouts plus their 1s force-kill grace) and catches a real hang.
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, node, runner, pluginPath, scenario, root)
 	output, err := cmd.CombinedOutput()

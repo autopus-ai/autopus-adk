@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"sync/atomic"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -22,11 +22,15 @@ func (m *memCredStore) Load(service string) (string, error) {
 }
 func (m *memCredStore) Delete(service string) error { m.val = ""; return nil }
 
-func lifecycleBackend(t *testing.T, seen *atomic.Value) *httptest.Server {
+// lifecycleBackend answers every worker request. When seen is non-nil it
+// records the Authorization header per request path: startServices also runs
+// background pollers against this server, so a single shared slot would hold
+// whichever request landed last rather than the one under test.
+func lifecycleBackend(t *testing.T, seen *sync.Map) *httptest.Server {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if seen != nil {
-			seen.Store(r.Header.Get("Authorization"))
+			seen.Store(r.URL.Path, r.Header.Get("Authorization"))
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"success":true,"data":[]}`))
@@ -186,8 +190,12 @@ func TestStartServices_ParentCancelPropagates(t *testing.T) {
 // Guards token rotation: an empty token is ignored, and a real token reaches the
 // outbound Authorization header of every token-bearing service.
 func TestUpdateAuthToken_IgnoresEmptyAndPropagatesToSearchers(t *testing.T) {
-	var seen atomic.Value
+	var seen sync.Map
 	srv := lifecycleBackend(t, &seen)
+	authFor := func(path string) any {
+		value, _ := seen.Load(path)
+		return value
+	}
 
 	wl := NewWorkerLoop(LoopConfig{
 		BackendURL:    srv.URL,
@@ -212,11 +220,13 @@ func TestUpdateAuthToken_IgnoresEmptyAndPropagatesToSearchers(t *testing.T) {
 		"describe",
 	)
 	require.NoError(t, err)
-	assert.Equal(t, "Bearer new-token", seen.Load(), "rotated token must be used for memory requests")
+	assert.Equal(t, "Bearer new-token", authFor("/api/v1/workspaces/ws-1/memory/context"),
+		"rotated token must be used for memory requests")
 
 	_, err = wl.knowledgeSearcher.Search(context.Background(), "query")
 	require.NoError(t, err)
-	assert.Equal(t, "Bearer new-token", seen.Load(), "rotated token must be used for knowledge search")
+	assert.Equal(t, "Bearer new-token", authFor("/api/v1/workspaces/ws-1/knowledge/search"),
+		"rotated token must be used for knowledge search")
 }
 
 // Guards degraded-mode reporting: engaging the REST fallback must surface a

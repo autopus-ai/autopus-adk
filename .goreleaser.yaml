@@ -138,6 +138,13 @@ homebrew_casks:
       name: homebrew-autopus
       branch: main
     directory: Casks
+    # The canonical Cask renderer and every published Cask use the pre-transfer
+    # owner; its release asset URLs redirect to autopus-ai. Without an explicit
+    # template GoReleaser derives the owner from the release repository, so the
+    # Cask it renders stopped matching the renderer after the transfer and the
+    # publish step failed on every release.
+    url:
+      template: "https://github.com/Insajin/autopus-adk/releases/download/{{ urlPathEscape .Tag }}/{{ .ArtifactName }}"
     homepage: "https://github.com/Insajin/autopus-adk"
     description: "Agentic Development Kit for coding CLIs (the auto CLI)"
     license: "MIT"
