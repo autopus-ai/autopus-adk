@@ -27,7 +27,7 @@ func (a *Adapter) probeIntegratedModelCatalog(
 	}
 	probe := ProbeOMPModelCatalogForProfile(ctx, opts, profile)
 	if probe.Status != "ready" || probe.Reason != "catalog_ready" {
-		return OMPModelCatalogProbeResult{}, fmt.Errorf("model_catalog_unavailable: %s", probe.Reason)
+		return OMPModelCatalogProbeResult{}, ompCatalogUnavailableError(probe.Reason)
 	}
 	supported := make(map[string]bool, len(probe.Settings))
 	for _, setting := range probe.Settings {
@@ -39,4 +39,18 @@ func (a *Adapter) probeIntegratedModelCatalog(
 		}
 	}
 	return probe, nil
+}
+
+// ompCatalogUnavailableError keeps the machine-readable reason first and adds
+// the operator's next step for the reasons that have one.
+func ompCatalogUnavailableError(reason string) error {
+	err := fmt.Errorf("model_catalog_unavailable: %s", reason)
+	switch reason {
+	case "catalog_timeout":
+		return fmt.Errorf("%w (`omp models --json --no-extensions` did not answer within %s; run it once to check OMP, then retry)",
+			err, defaultOMPModelProbeTimeout)
+	case "identity_unverified":
+		return fmt.Errorf("%w (`omp --version` did not identify the Oh My Pi CLI; check the omp on PATH)", err)
+	}
+	return err
 }
