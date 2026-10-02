@@ -25,7 +25,7 @@ readonly evidence_ref="refs/tags/${evidence_tag}" prep_lock_ref="refs/heads/${ev
 readonly hex40='^[0-9a-f]{40}$' hex64='^[0-9a-f]{64}$'
 [[ "$repository" == 'autopus-ai/autopus-adk' ]] || fail 'repository is not production authority'
 [[ "$environment_name" == 'adk-companion-release' ]] || fail 'environment is not protected release authority'
-[[ "$release_tag" == 'v0.50.120' ]] || fail 'release tag is not exact A31'
+[[ "$release_tag" == 'v0.50.121' ]] || fail 'release tag is not exact A32'
 for value in "$source_commit" "$source_tree" "$evidence_tag_object" "$evidence_commit" "$evidence_tree"; do
   [[ "$value" =~ $hex40 ]] || fail 'Git coordinate is malformed'
 done
@@ -109,7 +109,7 @@ exec 9<&-
 seal_release_tag_ruleset() {
   local summaries ruleset_id ruleset seal_payload
   summaries=$(gh api "repos/${repository}/rulesets?includes_parents=true&targets=tag") || return 1
-  ruleset_id=$(jq -er --arg name 'autopus-v0.50.120-release-authority' \
+  ruleset_id=$(jq -er --arg name 'autopus-v0.50.121-release-authority' \
     '[.[] | select(.name == $name and .target == "tag")] |
      if length == 1 then .[0].id else error("ruleset is missing or ambiguous") end' \
     <<<"$summaries") || return 1
@@ -177,7 +177,7 @@ if [[ -n "$remote_release" ]]; then
   exit 0
 fi
 scripts/companion-release/verify-release-tag-ruleset.sh --armed ||
-  fail 'exact armed v0.50.120 tag ruleset or environment is unavailable'
+  fail 'exact armed v0.50.121 tag ruleset or environment is unavailable'
 [[ "$prep_lock_commit" =~ $hex40 ]] || fail 'publishing requires exact evidence prep lock commit'
 lock_report="$temp_dir/lock-report.json"
 git cat-file blob "${evidence_commit}:omp-context-promotion-report.v1.json" >"$lock_report"; chmod 0600 "$lock_report"
@@ -239,7 +239,7 @@ git fetch --no-tags origin main
 # The R2 annotated tag is the immutable commit point; only one-way ruleset sealing follows.
 if [[ "$local_tag_preexisting" -eq 0 ]]; then
   env "${tag_git_config[@]}" git tag -s "$release_tag" "$source_commit" \
-    -m "${release_tag} - A31 companion release"
+    -m "${release_tag} - A32 companion release"
   created_release_tag=1
 fi
 env "${tag_git_config[@]}" git verify-tag "$release_ref" >/dev/null

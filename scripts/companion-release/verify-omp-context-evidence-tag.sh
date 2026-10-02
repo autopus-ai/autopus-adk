@@ -2,7 +2,7 @@
 set -euo pipefail
 umask 077
 
-readonly evidence_tag='omp-context-evidence-v0.50.120'
+readonly evidence_tag='omp-context-evidence-v0.50.121'
 readonly report_name='omp-context-promotion-report.v1.json'
 readonly attestation_name='omp-context-promotion-attestation.v2.json'
 

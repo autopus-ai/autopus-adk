@@ -8,26 +8,26 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func TestReleaseWorkflow_ExactA31ProtectedNormalLane(t *testing.T) {
+func TestReleaseWorkflow_ExactA32ProtectedNormalLane(t *testing.T) {
 	release := readReleaseFile(t, ".github/workflows/release.yaml")
 	for _, required := range []string{
-		"- 'v0.50.120'", "if: github.ref == 'refs/tags/v0.50.120'",
+		"- 'v0.50.121'", "if: github.ref == 'refs/tags/v0.50.121'",
 		"needs: [ci, security, omp-production-evidence]", "adk-companion-release",
-		"Validate exact R2-signed A31 source", "COMPANION_RELEASE_TAG_SIGNATURE_REQUIRED=1",
+		"Validate exact R2-signed A32 source", "COMPANION_RELEASE_TAG_SIGNATURE_REQUIRED=1",
 		"Verify exact sealed release-tag authority",
 		"scripts/companion-release/verify-release-tag-ruleset.sh --sealed-runtime",
 		"Build canonical policy-bearing production candidate", "OMP_CONTEXT_STATIC_POLICY_B64",
 		"Verify fresh K3-signed production evidence",
 		"Reverify active K3 production evidence inside protected environment",
-		"name: omp-context-evidence-v0.50.120", "--mode active",
-		"autopus.adk_release_reservation.v1", "release_tag:\"v0.50.120\"",
+		"name: omp-context-evidence-v0.50.121", "--mode active",
+		"autopus.adk_release_reservation.v1", "release_tag:\"v0.50.121\"",
 		`(.assets | type == "array" and length == 0)`, ".author.id == 204883817",
 		"Verify reserved release was published", ".immutable == true",
 		"COMPANION_RELEASE_ID: ${{ steps.release-reservation.outputs.release-id }}",
 		"OMP_CONTEXT_LINEAGE_VERIFIER=\"$OMP_CONTEXT_LINEAGE_VERIFIER\"",
 	} {
 		if !strings.Contains(release, required) {
-			t.Fatalf("A31 release workflow missing %q", required)
+			t.Fatalf("A32 release workflow missing %q", required)
 		}
 	}
 	protectedSource := strings.Index(release, "name: Validate exact protected release source")
@@ -45,12 +45,12 @@ func TestReleaseWorkflow_ExactA31ProtectedNormalLane(t *testing.T) {
 			strings.Count(release, "--mode active"))
 	}
 	for _, forbidden := range []string{
-		"v0.50.119", "omp-canonical-bridge-candidate", "omp-context-bridge-release.v1.json",
+		"v0.50.120", "omp-canonical-bridge-candidate", "omp-context-bridge-release.v1.json",
 		"adk-key-rotation-v1.json", "adk-key-rotation-v1.sig", "--expected-signing-key-id",
 		"releases/assets/${asset_id}", "--armed", "- 'v*'", "- v*",
 	} {
 		if strings.Contains(release, forbidden) {
-			t.Fatalf("A31 normal release workflow retains forbidden contract %q", forbidden)
+			t.Fatalf("A32 normal release workflow retains forbidden contract %q", forbidden)
 		}
 	}
 }
@@ -58,14 +58,14 @@ func TestReleaseWorkflow_ExactA31ProtectedNormalLane(t *testing.T) {
 func TestReleaseWorkflow_ExactFifteenAssetSet(t *testing.T) {
 	release := readReleaseFile(t, ".github/workflows/release.yaml")
 	assets := []string{
-		"autopus-adk_0.50.120_darwin_amd64.tar.gz",
-		"autopus-adk_0.50.120_darwin_arm64.tar.gz",
-		"autopus-adk_0.50.120_linux_amd64.tar.gz",
-		"autopus-adk_0.50.120_linux_arm64.tar.gz",
-		"autopus-adk_0.50.120_windows_amd64.tar.gz",
-		"autopus-adk_0.50.120_windows_amd64.zip",
-		"autopus-adk_0.50.120_windows_arm64.tar.gz",
-		"autopus-adk_0.50.120_windows_arm64.zip",
+		"autopus-adk_0.50.121_darwin_amd64.tar.gz",
+		"autopus-adk_0.50.121_darwin_arm64.tar.gz",
+		"autopus-adk_0.50.121_linux_amd64.tar.gz",
+		"autopus-adk_0.50.121_linux_arm64.tar.gz",
+		"autopus-adk_0.50.121_windows_amd64.tar.gz",
+		"autopus-adk_0.50.121_windows_amd64.zip",
+		"autopus-adk_0.50.121_windows_arm64.tar.gz",
+		"autopus-adk_0.50.121_windows_arm64.zip",
 		"checksums.txt", "checksums.txt.bundle", "checksums.txt.signatures",
 		"omp-context-promotion-report.v1.json",
 		"omp-context-promotion-attestation.v2.json",

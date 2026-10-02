@@ -18,7 +18,7 @@ func assertCurrentReleaseSignatureLog(t *testing.T, path string) {
 	}
 	for _, required := range []string{
 		"--bundle", "checksums.txt.bundle", "--certificate-identity",
-		"https://github.com/autopus-ai/autopus-adk/.github/workflows/release.yaml@refs/tags/v0.50.120",
+		"https://github.com/autopus-ai/autopus-adk/.github/workflows/release.yaml@refs/tags/v0.50.121",
 		"--certificate-oidc-issuer", "https://token.actions.githubusercontent.com",
 	} {
 		if !bytes.Contains(log, []byte(required)) {
