@@ -7,7 +7,7 @@ import "strings"
 const (
 	ClaudeFableModel  = "claude-fable-5-1"
 	ClaudeOpusModel   = "claude-opus-5-5"
-	ClaudeSonnetModel = "claude-sonnet-5"
+	ClaudeSonnetModel = "claude-sonnet-5-5"
 	ClaudeHaikuModel  = "claude-haiku-4-5"
 )
 

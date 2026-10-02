@@ -49,8 +49,8 @@ await phase('planning');
 plan = await agent(`Plan SPEC ${ctx.spec || ''} at ${ctx.workingDir || ''}. Decompose into independently-implementable tasks for parallel shared-working-tree execution: every task owns a DISJOINT set of files in the shared working tree, and files that depend on each other to compile (e.g. an implementation and its test, or a type and its consumers) MUST be grouped into the SAME task so a single executor owns them — never split inter-dependent files across tasks. Produce the task assignment table (id, description, file ownership)`, { agentType: 'planner', schema: PLAN_SCHEMA, model: (RT.planning && RT.planning.model) || 'claude-fable-5-1', effort: (RT.planning && RT.planning.effort) || 'max' });
 
 await phase('test_scaffold');
-// route_team baseline test_scaffold: model=claude-sonnet-5 effort=medium retry: 0 budget: 60000
-await agent(`Scaffold tests for SPEC ${ctx.spec || ''} in ${ctx.workingDir || ''}`, { agentType: 'tester', model: (RT.test_scaffold && RT.test_scaffold.model) || 'claude-sonnet-5', effort: (RT.test_scaffold && RT.test_scaffold.effort) || 'medium' });
+// route_team baseline test_scaffold: model=claude-sonnet-5-5 effort=medium retry: 0 budget: 60000
+await agent(`Scaffold tests for SPEC ${ctx.spec || ''} in ${ctx.workingDir || ''}`, { agentType: 'tester', model: (RT.test_scaffold && RT.test_scaffold.model) || 'claude-sonnet-5-5', effort: (RT.test_scaffold && RT.test_scaffold.effort) || 'medium' });
 
 await phase('implementation');
 // route_team baseline implementation: model=claude-opus-5-5 effort=high fan_out_cap=5 retry: 2 budget: 120000
@@ -77,8 +77,8 @@ log('gate', 'gate_build_test');
 
 if (SEGMENT === 'B') {
 await phase('testing');
-// route_team baseline testing: model=claude-sonnet-5 effort=medium retry: 0 budget: 60000 coverage_threshold=85
-await agent(`Run and verify tests for SPEC ${ctx.spec || ''} in ${ctx.workingDir || ''}`, { agentType: 'tester', model: (RT.testing && RT.testing.model) || 'claude-sonnet-5', effort: (RT.testing && RT.testing.effort) || 'medium' });
+// route_team baseline testing: model=claude-sonnet-5-5 effort=medium retry: 0 budget: 60000 coverage_threshold=85
+await agent(`Run and verify tests for SPEC ${ctx.spec || ''} in ${ctx.workingDir || ''}`, { agentType: 'tester', model: (RT.testing && RT.testing.model) || 'claude-sonnet-5-5', effort: (RT.testing && RT.testing.effort) || 'medium' });
 
 }
 

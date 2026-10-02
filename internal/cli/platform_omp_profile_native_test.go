@@ -139,14 +139,14 @@ func TestOMPProfilePlanAttestsPinFromExplicitProfileDeclaration(t *testing.T) {
 	runner := &ompCLIFakeRunner{catalog: ompCLIProfileNativeCatalogJSON()}
 
 	payload := planOMPProfileJSON(
-		t, root, runner, "house", "--agent", "validator=anthropic/claude-sonnet-5:high",
+		t, root, runner, "house", "--agent", "validator=anthropic/claude-sonnet-5-5:high",
 	)
 
 	assert.Equal(t, ompProfileSourceCustom, payload.Source)
 	assert.Empty(t, payload.Blockers)
 	row := agentPreviewRow(t, payload, "task")
 	assert.Equal(t, "validator", row.PolicyKey)
-	assert.Equal(t, "anthropic/claude-sonnet-5", row.EffectiveSelector)
+	assert.Equal(t, "anthropic/claude-sonnet-5-5", row.EffectiveSelector)
 	assert.Equal(t, "anthropic", row.EffectiveFamily)
 }
 
@@ -154,7 +154,7 @@ func TestOMPProfilePlanAttestsPinFromExplicitProfileDeclaration(t *testing.T) {
 // every capability on models the native catalog ships.
 func nativeOMPHouseProfile() config.RoleModelProfileConf {
 	sonnet := config.RoleModelCandidateConf{
-		Selector: "anthropic/claude-sonnet-5", Thinking: "high", Family: "anthropic",
+		Selector: "anthropic/claude-sonnet-5-5", Thinking: "high", Family: "anthropic",
 	}
 	capabilities := make(map[string]config.RoleCapabilityRouteConf)
 	for _, capability := range config.OMPProviderNeutralCapabilities() {

@@ -194,7 +194,7 @@ func resolveBalancedMode(complexity, model string) (EffortResult, error) {
 			Model:  model,
 			Reason: "balanced mode with opus tier",
 		}, nil
-	case "sonnet-5", "sonnet", "sonnet-4-6":
+	case "sonnet-5-5", "sonnet-5", "sonnet", "sonnet-4-6":
 		return EffortResult{
 			Effort: EffortMedium,
 			Source: EffortSourceQualityMode,

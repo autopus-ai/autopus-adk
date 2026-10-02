@@ -114,12 +114,12 @@ func TestWorkflowDoctor_RouteTeamBelowMinVersionExitsNonZero(t *testing.T) {
 
 func TestWorkflowDoctor_RouteTeamAtMinVersionPasses(t *testing.T) {
 	out, err := runWorkflow(
-		fakeProber{version: "2.1.280"},
+		fakeProber{version: "2.1.284"},
 		nil,
 		"workflow", "doctor", "--route", "route_team",
 	)
 	if err != nil {
-		t.Fatalf("route_team doctor at 2.1.280: %v", err)
+		t.Fatalf("route_team doctor at 2.1.284: %v", err)
 	}
 	report := decodeReport(t, out)
 	if !report.VersionOK || report.Overall != "pass" {
@@ -146,7 +146,7 @@ func TestWorkflowDoctor_UnknownRouteFailsClosed(t *testing.T) {
 // pass.
 func TestWorkflowDoctor_AdvisoryUnavailableExitsZero(t *testing.T) {
 	out, err := runWorkflow(
-		fakeProber{unavailable: map[string]bool{"budget": true}, version: "2.1.280"},
+		fakeProber{unavailable: map[string]bool{"budget": true}, version: "2.1.284"},
 		nil, "workflow", "doctor")
 	if err != nil {
 		t.Fatalf("expected zero exit, got error: %v", err)

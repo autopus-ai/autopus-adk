@@ -9,7 +9,7 @@ import (
 func TestDefaultPricingTable_ContainsAllModels(t *testing.T) {
 	table := cost.DefaultPricingTable()
 
-	required := []string{"claude-fable-5-1", "claude-fable-5", "claude-opus-5-5", "claude-opus-5", "claude-opus-4-8", "claude-opus-4-7", "claude-sonnet-5", "claude-sonnet-4-6", "claude-haiku-4-5"}
+	required := []string{"claude-fable-5-1", "claude-fable-5", "claude-opus-5-5", "claude-opus-5", "claude-opus-4-8", "claude-opus-4-7", "claude-sonnet-5-5", "claude-sonnet-5", "claude-sonnet-4-6", "claude-haiku-4-5"}
 	for _, model := range required {
 		if _, ok := table[model]; !ok {
 			t.Errorf("pricing table missing model: %s", model)
@@ -31,6 +31,7 @@ func TestDefaultPricingTable_Prices(t *testing.T) {
 		{"claude-opus-5", 5.0, 25.0},
 		{"claude-opus-4-8", 5.0, 25.0},
 		{"claude-opus-4-7", 5.0, 25.0},
+		{"claude-sonnet-5-5", 2.0, 10.0},
 		{"claude-sonnet-5", 2.0, 10.0},
 		{"claude-sonnet-4-6", 3.0, 15.0},
 		{"claude-haiku-4-5", 1.0, 5.0},
@@ -72,8 +73,8 @@ func TestQualityModeToModels_FableRoutesStrategicRoles(t *testing.T) {
 		{"ultra", "planner", "claude-fable-5-1"},
 		{"ultra", "executor", "claude-opus-5-5"},
 		{"balanced", "planner", "claude-fable-5-1"},
-		{"balanced", "executor", "claude-sonnet-5"},
-		{"balanced", "tester", "claude-sonnet-5"},
+		{"balanced", "executor", "claude-sonnet-5-5"},
+		{"balanced", "tester", "claude-sonnet-5-5"},
 	}
 	for _, tc := range cases {
 		if got := cost.ModelForAgent(tc.mode, tc.agent); got != tc.want {
@@ -115,10 +116,10 @@ func TestQualityModeToModels_Balanced(t *testing.T) {
 	}{
 		{"planner", "claude-fable-5-1"},
 		{"architect", "claude-fable-5-1"},
-		{"executor", "claude-sonnet-5"},
-		{"tester", "claude-sonnet-5"},
+		{"executor", "claude-sonnet-5-5"},
+		{"tester", "claude-sonnet-5-5"},
 		{"reviewer", "claude-fable-5-1"},
-		{"validator", "claude-sonnet-5"},
+		{"validator", "claude-sonnet-5-5"},
 	}
 
 	for _, tc := range cases {
@@ -143,9 +144,9 @@ func TestModelForAgent_Known(t *testing.T) {
 		{"ultra", "planner", "claude-fable-5-1"},
 		{"ultra", "executor", "claude-opus-5-5"},
 		{"balanced", "planner", "claude-fable-5-1"},
-		{"balanced", "executor", "claude-sonnet-5"},
-		{"balanced", "tester", "claude-sonnet-5"},
-		{"balanced", "validator", "claude-sonnet-5"},
+		{"balanced", "executor", "claude-sonnet-5-5"},
+		{"balanced", "tester", "claude-sonnet-5-5"},
+		{"balanced", "validator", "claude-sonnet-5-5"},
 	}
 
 	for _, tc := range cases {
@@ -171,16 +172,16 @@ func TestModelForAgent_TeamPhaseRoles(t *testing.T) {
 		{"ultra", "planner", "claude-fable-5-1"},
 		{"ultra", "executor", "claude-opus-5-5"},
 		{"balanced", "planner", "claude-fable-5-1"},
-		{"balanced", "executor", "claude-sonnet-5"},
-		{"balanced", "tester", "claude-sonnet-5"},
+		{"balanced", "executor", "claude-sonnet-5-5"},
+		{"balanced", "tester", "claude-sonnet-5-5"},
 		// Team-phase roles — Ultra mode.
 		{"ultra", "annotator", "claude-opus-5-5"},
 		{"ultra", "security_auditor", "claude-fable-5-1"},
 		{"ultra", "test_scaffold", "claude-opus-5-5"},
 		// Team-phase roles — Balanced mode.
-		{"balanced", "annotator", "claude-sonnet-5"},
+		{"balanced", "annotator", "claude-sonnet-5-5"},
 		{"balanced", "security_auditor", "claude-fable-5-1"},
-		{"balanced", "test_scaffold", "claude-sonnet-5"},
+		{"balanced", "test_scaffold", "claude-sonnet-5-5"},
 	}
 
 	for _, tc := range cases {

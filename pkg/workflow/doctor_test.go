@@ -70,23 +70,23 @@ func TestEvaluate_RouteAwareVersionGate(t *testing.T) {
 		t.Fatalf("route_a at 2.1.245 = %+v, want version_ok=false overall=fail", routeABelow)
 	}
 
-	routeTeam, err := EvaluateCapabilitiesForRoute(fakeProber{version: "2.1.279"}, RouteTeam)
+	routeTeam, err := EvaluateCapabilitiesForRoute(fakeProber{version: "2.1.283"}, RouteTeam)
 	if err != nil {
 		t.Fatalf("EvaluateCapabilitiesForRoute(route_team): %v", err)
 	}
 	if routeTeam.VersionOK || routeTeam.Overall != OverallFail {
-		t.Fatalf("route_team at 2.1.279 = %+v, want version_ok=false overall=fail", routeTeam)
+		t.Fatalf("route_team at 2.1.283 = %+v, want version_ok=false overall=fail", routeTeam)
 	}
 	if routeTeam.MinimumVersion != RouteTeamMinVersion {
 		t.Fatalf("route_team minimum_version = %q, want %q", routeTeam.MinimumVersion, RouteTeamMinVersion)
 	}
 
-	routeTeamCurrent, err := EvaluateCapabilitiesForRoute(fakeProber{version: "2.1.280"}, RouteTeam)
+	routeTeamCurrent, err := EvaluateCapabilitiesForRoute(fakeProber{version: "2.1.284"}, RouteTeam)
 	if err != nil {
 		t.Fatalf("EvaluateCapabilitiesForRoute(route_team current): %v", err)
 	}
 	if !routeTeamCurrent.VersionOK || routeTeamCurrent.Overall != OverallPass {
-		t.Fatalf("route_team at 2.1.280 = %+v, want version_ok=true overall=pass", routeTeamCurrent)
+		t.Fatalf("route_team at 2.1.284 = %+v, want version_ok=true overall=pass", routeTeamCurrent)
 	}
 }
 

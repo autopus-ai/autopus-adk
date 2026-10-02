@@ -73,7 +73,7 @@ func TestRoutingIntegration_WorkerLoopEnabled(t *testing.T) {
 
 	// BuildCommand captures the Model field.
 	mock.BuildCommand(context.Background(), taskCfg)
-	assert.Equal(t, "claude-sonnet-5", mock.capturedModel,
+	assert.Equal(t, "claude-sonnet-5-5", mock.capturedModel,
 		"short description should route to simple model (claude-sonnet-5)")
 }
 
@@ -161,7 +161,7 @@ func TestRoutingIntegration_PipelineSetRouter(t *testing.T) {
 	}
 
 	mock.BuildCommand(context.Background(), taskCfg)
-	assert.Equal(t, "claude-sonnet-5", mock.capturedModel,
+	assert.Equal(t, "claude-sonnet-5-5", mock.capturedModel,
 		"pipeline should route once on original prompt, not phase-wrapped prompt")
 }
 

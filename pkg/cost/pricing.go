@@ -54,6 +54,10 @@ func DefaultPricingTable() map[string]ModelPricing {
 			InputPricePerMillion:  2.0,
 			OutputPricePerMillion: 10.0,
 		},
+		"claude-sonnet-5": {
+			InputPricePerMillion:  2.0,
+			OutputPricePerMillion: 10.0,
+		},
 		config.ClaudeHaikuModel: {
 			InputPricePerMillion:  1.0,
 			OutputPricePerMillion: 5.0,

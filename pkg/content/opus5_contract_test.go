@@ -48,7 +48,7 @@ func TestOpus5Guidance_SourceAndGeneratedContracts(t *testing.T) {
 	}
 	koreanFragments := []string{
 		"| `opus` | `claude-opus-5-5` | `opus` | `2.1.280` | 입력 $4 / 출력 $20 |",
-		"더 높은 요구 버전인 `2.1.280`",
+		"가장 높은 요구 버전인 `2.1.284`",
 		"기본 effort가 Opus 5의 `high`보다 한 단계 낮은 `medium`",
 		"effort를 항상 명시합니다",
 		"thinking은 어떤 effort에서도 끌 수 없고",
@@ -84,7 +84,7 @@ func TestWorkflowDoctorGuidance_UsesRouteAwarePins(t *testing.T) {
 			"`auto workflow doctor --route route_a`",
 			"`RouteAMinVersion=2.1.246`",
 			"`auto workflow doctor --route route_team`",
-			"`RouteTeamMinVersion=2.1.280`",
+			"`RouteTeamMinVersion=2.1.284`",
 		},
 		"content/skills/using-autopus.md": {
 			"`auto workflow doctor --route route_team`",

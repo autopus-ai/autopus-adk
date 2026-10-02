@@ -79,7 +79,7 @@ func TestOMPProfileApplyInheritClearsRootAgentOverride(t *testing.T) {
 
 	executeOMPSubcommand(
 		t, newPlatformOMPProfileApplyCmd(&dir, deps),
-		"balanced", "--agent", "validator=anthropic/claude-sonnet-5:max",
+		"balanced", "--agent", "validator=anthropic/claude-sonnet-5-5:max",
 	)
 	pinned, err := config.LoadPreview(root)
 	require.NoError(t, err)
@@ -138,7 +138,7 @@ func TestOMPProfileApplyTextOutputNamesFamilyAndOverrides(t *testing.T) {
 
 	text := executeOMPSubcommand(
 		t, newPlatformOMPProfileApplyCmd(&dir, deps),
-		"balanced", "--family", "claude", "--agent", "tester=anthropic/claude-sonnet-5:high",
+		"balanced", "--family", "claude", "--agent", "tester=anthropic/claude-sonnet-5-5:high",
 	)
 
 	assert.Contains(t, text, "OMP profile applied: balanced")

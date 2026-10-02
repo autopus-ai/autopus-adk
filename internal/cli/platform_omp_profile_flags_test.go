@@ -74,7 +74,7 @@ func TestParseOMPProfileAgentAssignmentsRejectsInvalidInput(t *testing.T) {
 func ompCLIBalancedCatalogJSON() []byte {
 	return []byte(`{"models":[
 		{"provider":"anthropic","id":"claude-fable-5-1","family":"anthropic","capabilities":["deep_reasoning","coding_tool_use","independent_dissent"],"thinking":["high","max"],"auth_enabled":true,"keyless":false,"disabled":false},
-		{"provider":"anthropic","id":"claude-sonnet-5","family":"anthropic","capabilities":["coding_tool_use","fast_validation","vision_design","deterministic_transform","independent_dissent"],"thinking":["high","max"],"auth_enabled":true,"keyless":false,"disabled":false},
+		{"provider":"anthropic","id":"claude-sonnet-5-5","family":"anthropic","capabilities":["coding_tool_use","fast_validation","vision_design","deterministic_transform","independent_dissent"],"thinking":["high","max"],"auth_enabled":true,"keyless":false,"disabled":false},
 		{"provider":"openai-codex","id":"gpt-6-astra","family":"openai","capabilities":["deep_reasoning","coding_tool_use","independent_dissent"],"thinking":["high","max"],"auth_enabled":true,"keyless":false,"disabled":false},
 		{"provider":"openai-codex","id":"gpt-6-luna","family":"openai","capabilities":["coding_tool_use","fast_validation","vision_design","deterministic_transform","independent_dissent"],"thinking":["high","max"],"auth_enabled":true,"keyless":false,"disabled":false}
 	]}`)
@@ -87,7 +87,7 @@ func ompCLIBalancedCatalogJSON() []byte {
 func ompCLIProfileNativeCatalogJSON() []byte {
 	return []byte(`{"models":[
 		{"provider":"anthropic","id":"claude-fable-5-1","thinking":["high","max"],"available":true},
-		{"provider":"anthropic","id":"claude-sonnet-5","thinking":["high","max"],"available":true},
+		{"provider":"anthropic","id":"claude-sonnet-5-5","thinking":["high","max"],"available":true},
 		{"provider":"openai-codex","id":"gpt-6-astra","thinking":["high","max"],"available":true},
 		{"provider":"openai-codex","id":"gpt-6-luna","thinking":["high","max"],"available":true}
 	]}`)

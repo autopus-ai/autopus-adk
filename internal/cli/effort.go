@@ -75,7 +75,7 @@ Fable 5.1 identifiers: claude-fable-5-1 | fable-5-1 | fable | best (Claude Code 
 
 	cmd.Flags().StringVar(&quality, "quality", "", "Quality mode preset (ultra|balanced)")
 	cmd.Flags().StringVar(&complexity, "complexity", "", "Task complexity hint (low|medium|high)")
-	cmd.Flags().StringVar(&model, "model", "", "Model identifier (fable-5-1|claude-fable-5-1|fable|best|opus-5-5|claude-opus-5-5|opus-5|claude-opus-5|opus|opus-4.8|opus-4.7|sonnet-5|sonnet-4.6|haiku-4.5|claude-fable-5)")
+	cmd.Flags().StringVar(&model, "model", "", "Model identifier (fable-5-1|claude-fable-5-1|fable|best|opus-5-5|claude-opus-5-5|opus-5|claude-opus-5|opus|opus-4.8|opus-4.7|sonnet-5-5|claude-sonnet-5-5|sonnet-5|sonnet-4.6|haiku-4.5|claude-fable-5)")
 	cmd.Flags().StringVar(&agent, "agent", "", "Agent name for frontmatter lookup (future use)")
 	cmd.Flags().StringVar(&format, "format", "plain", "Output format (plain|json)")
 	cmd.Flags().StringVar(&effortFlag, "effort", "", "Explicit model effort or Claude CLI session-only ultracode (overrides quality-mode mapping)")

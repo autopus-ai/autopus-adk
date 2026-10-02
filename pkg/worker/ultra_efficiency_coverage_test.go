@@ -17,5 +17,5 @@ func TestUltraEfficiencyCoverage_ResolveModelUsesConfiguredRouter(t *testing.T) 
 
 	model := pe.resolveModel("", "fix typo")
 
-	assert.Equal(t, "claude-sonnet-5", model)
+	assert.Equal(t, "claude-sonnet-5-5", model)
 }

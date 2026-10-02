@@ -101,7 +101,7 @@ CLI에서는 `claude-code`도 `claude`의 alias로 허용하지만 YAML에는 ca
 `quality.default`를 바꾸고 구성된 모든 플랫폼을 갱신합니다. 한 번의 실행에 지정한
 `--quality`는 두 persisted provider override보다 우선하며 YAML은 수정하지 않습니다.
 
-### Claude Fable 5.1 / Opus 5.5 기본 경로
+### Claude Fable 5.1 / Opus 5.5 / Sonnet 5.5 기본 경로
 
 Autopus는 공통 모델 티어를 `fable` > `opus` > `sonnet` > `haiku` 순서로
 사용합니다. Ultra에서는 planner, architect, spec-writer, security-auditor,
@@ -114,10 +114,12 @@ Ultra와 Balanced 프리셋은 Haiku를 사용하지 않습니다.
 |------|--------------|-------------------|--------------------------|-------------|
 | `fable` | `claude-fable-5-1` | `fable`, `best` | `2.1.170` | 입력 $10 / 출력 $50 |
 | `opus` | `claude-opus-5-5` | `opus` | `2.1.280` | 입력 $4 / 출력 $20 |
+| `sonnet` | `claude-sonnet-5-5` | `sonnet` | `2.1.284` | 입력 $2 / 출력 $10 |
 
-`route_team` workflow는 두 모델 ID를 고정하므로
-`auto workflow doctor --route route_team`에서 더 높은 요구 버전인 `2.1.280`
-미만을 fail-closed합니다. 모델을 고정하지 않는 `route_a`는 생성 표면의 기준
+`route_team` workflow는 Opus 5.5와 Sonnet 5.5 모델 ID를 고정하므로
+`auto workflow doctor --route route_team`에서 가장 높은 요구 버전인 `2.1.284`
+미만을 fail-closed합니다. Claude Code는 2.1.284부터 Anthropic API에서 `sonnet`
+alias를 Sonnet 5.5로 해석합니다. 모델을 고정하지 않는 `route_a`는 생성 표면의 기준
 버전인 `2.1.246`을 최소 버전으로 사용합니다.
 
 Claude Code의 `opus` alias는 provider와 버전에 따라 달라집니다.
@@ -145,8 +147,8 @@ Fable의 동적 alias인 `best`는 사용 권한에 따라 최신 Opus로 해석
 
 Quality Mode가 effort를 정할 때 Fable은 모드와 관계없이 `max`를 사용합니다.
 Ultra의 Opus는 `max`, Sonnet은 `high`를 사용합니다. 표준 Balanced에서는
-기획·리뷰·보안·debugger·deep-worker가 Fable 5.1 `max`, 구현·테스트가 Sonnet 5
-`max`, 탐색·주석·검증이 Sonnet 5 `high`입니다. Codex의 같은 핵심 역할은 Astra
+기획·리뷰·보안·debugger·deep-worker가 Fable 5.1 `max`, 구현·테스트가 Sonnet 5.5
+`max`, 탐색·주석·검증이 Sonnet 5.5 `high`입니다. Codex의 같은 핵심 역할은 Astra
 `max`, 나머지는 Luna `max`입니다. 명시적인 사용자 티어 지정은 기존 변환 규칙을
 유지하며, Haiku에서는 Claude effort를 생략합니다. 멀티프로바이더 리뷰 기본값은
 품질 모드와 관계없이 Fable 5.1 `max`와 Astra `max`이고 명시적인 provider pin은 보존합니다.

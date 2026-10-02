@@ -104,7 +104,7 @@ func TestOMPProfilePlanKeepsRepresentativeModelForCollapsedAgents(t *testing.T) 
 	}
 	for _, agent := range []string{"scout", "sonic"} {
 		row := agentPreviewRow(t, anthropic, agent)
-		assert.Equal(t, "anthropic/claude-sonnet-5", row.EffectiveSelector, agent)
+		assert.Equal(t, "anthropic/claude-sonnet-5-5", row.EffectiveSelector, agent)
 		assert.Equal(t, "high", row.EffectiveThinking, agent)
 	}
 	for _, row := range anthropic.Agents {
@@ -205,14 +205,14 @@ func TestOMPProfilePlanReportsAgentOverrideSourceForRootPin(t *testing.T) {
 	root, runner := writeOMPBalancedProject(t)
 
 	payload := planOMPProfileJSON(
-		t, root, runner, "balanced", "--agent", "validator=anthropic/claude-sonnet-5:max",
+		t, root, runner, "balanced", "--agent", "validator=anthropic/claude-sonnet-5-5:max",
 	)
 
 	for _, native := range []string{"sonic", "task"} {
 		row := agentPreviewRow(t, payload, native)
 		assert.Equal(t, ompProfileSourceAgent, row.Source, native)
 		assert.Equal(t, "validator", row.PolicyKey, native)
-		assert.Equal(t, "anthropic/claude-sonnet-5", row.EffectiveSelector, native)
+		assert.Equal(t, "anthropic/claude-sonnet-5-5", row.EffectiveSelector, native)
 		assert.Equal(t, "max", row.EffectiveThinking, native)
 	}
 	assert.Equal(t, []string{"validator"}, payload.Persisted.Agents)

@@ -25,7 +25,7 @@ func TestNativeBalancedAgentCandidateMatchesApprovedRolePlacement(t *testing.T) 
 			assert.Equal(t, "max", claude.Thinking, agent)
 			assert.Equal(t, "openai-codex/gpt-6-astra", codex.Selector, agent)
 		} else {
-			assert.Equal(t, "anthropic/claude-sonnet-5", claude.Selector, agent)
+			assert.Equal(t, "anthropic/claude-sonnet-5-5", claude.Selector, agent)
 			assert.Equal(t, "openai-codex/gpt-6-luna", codex.Selector, agent)
 			if routine[agent] {
 				assert.Equal(t, "high", claude.Thinking, agent)

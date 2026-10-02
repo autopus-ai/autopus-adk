@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **Sonnet 티어를 Claude Sonnet 5.5로 올린다** (2026-10-03): `sonnet` 티어와
+  balanced 프로필, worker 라우팅, effort 판정, route_team의 test_scaffold·testing
+  고정 모델을 `claude-sonnet-5-5`로 옮긴다. 가격은 Sonnet 5와 같은 MTok당
+  $2/$10이다. Claude Code는 2.1.284부터 이 모델을 인식하므로 route_team doctor의
+  최소 버전을 `2.1.280`에서 `2.1.284`로 올린다. `claude-sonnet-5`는 가격표와
+  허용 목록에 명시적 선택지로 남는다. 같은 시점에 확인한 다른 provider의 새
+  모델은 일반 제공되지 않아 반영하지 않았다(Gemini 4 Argon은 보안 업체 한정,
+  GPT-6 Terra는 미출시).
+
 - **Codex 모델 사다리를 GPT-6 세 단으로 정리한다** (2026-09-26): 티어는
   Astra(`gpt-6-astra`) > Sol(`gpt-6-sol`) > Luna(`gpt-6-luna`) 세 단을 쓴다.
   GPT-6에 Terra가 없으므로 Terra를 빼고 sonnet 티어는 Luna `max`, haiku 티어는

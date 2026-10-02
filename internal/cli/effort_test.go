@@ -79,6 +79,7 @@ func TestEffortResolve_BalancedSonnetAndHaikuFollowModelTier(t *testing.T) {
 		model string
 		want  EffortValue
 	}{
+		{"claude-sonnet-5-5", EffortMedium},
 		{"claude-sonnet-5", EffortMedium},
 		{"claude-haiku-4-5", EffortStripped},
 	}

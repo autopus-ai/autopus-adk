@@ -66,7 +66,7 @@ func TestQualityOMPWizardCustomRejectsUnsupportedThinking(t *testing.T) {
 	runner.catalog = ompCLIBalancedCatalogJSON()
 	before := readAutopusConfigTree(t, dir)
 
-	// scout requires fast_validation, which claude-sonnet-5 (2) declares.
+	// scout requires fast_validation, which claude-sonnet-5-5 (2) declares.
 	_, err := runQualityOMPWizard(t, dir, "omp\ncustom\ngpt\n2\nminimal\n", ompPlatformDependencies{
 		newRunner: func() omp.OMPModelCatalogRunner { return runner },
 		activate: func(context.Context, string, *config.HarnessConfig) error {
@@ -97,6 +97,6 @@ func TestQualityOMPWizardCustomRefusesModelMissingTheAgentCapability(t *testing.
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "does not declare fast_validation")
-	assert.Contains(t, err.Error(), "anthropic/claude-sonnet-5")
+	assert.Contains(t, err.Error(), "anthropic/claude-sonnet-5-5")
 	assert.Equal(t, before, readAutopusConfigTree(t, dir))
 }

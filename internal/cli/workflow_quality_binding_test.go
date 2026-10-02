@@ -69,9 +69,9 @@ func TestResolveTeamQualityBindingPreservesUltraAndUsesBalancedPlacement(t *test
 	balanced := resolveTeamQualityBinding("balanced", "")
 	for phase, want := range map[string]struct{ model, effort string }{
 		"planning":       {"claude-fable-5-1", "max"},
-		"implementation": {"claude-sonnet-5", "max"},
-		"test_scaffold":  {"claude-sonnet-5", "max"},
-		"testing":        {"claude-sonnet-5", "max"},
+		"implementation": {"claude-sonnet-5-5", "max"},
+		"test_scaffold":  {"claude-sonnet-5-5", "max"},
+		"testing":        {"claude-sonnet-5-5", "max"},
 		"review":         {"claude-fable-5-1", "max"},
 	} {
 		got := balanced.Phases[phase]

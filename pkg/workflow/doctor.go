@@ -15,9 +15,10 @@ const (
 	// surfaces target: directory skills, named Agent teammates, and the
 	// Workflow({scriptPath,args}) input shape the Route A launch uses.
 	RouteAMinVersion = "2.1.246"
-	// RouteTeamMinVersion is the first Claude Code release that recognizes the
-	// fixed claude-opus-5-5 model used by Route Team.
-	RouteTeamMinVersion = "2.1.280"
+	// RouteTeamMinVersion is the first Claude Code release that recognizes
+	// every fixed model Route Team pins: claude-opus-5-5 (2.1.280) and
+	// claude-sonnet-5-5 (2.1.284).
+	RouteTeamMinVersion = "2.1.284"
 
 	// MinVersion is kept as the Route A compatibility floor for callers that use
 	// the original route-agnostic EvaluateCapabilities API.

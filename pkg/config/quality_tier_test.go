@@ -85,6 +85,6 @@ func TestClaudeModelSlugsArePinned(t *testing.T) {
 
 	assert.Equal(t, "claude-fable-5-1", ClaudeModelForTier("fable"))
 	assert.Equal(t, "claude-opus-5-5", ClaudeModelForTier("opus"))
-	assert.Equal(t, "claude-sonnet-5", ClaudeModelForTier("sonnet"))
+	assert.Equal(t, "claude-sonnet-5-5", ClaudeModelForTier("sonnet"))
 	assert.Equal(t, "claude-haiku-4-5", ClaudeModelForTier("haiku"))
 }

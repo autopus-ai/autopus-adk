@@ -98,7 +98,7 @@ func TestOMPProfilePlanResolvesCollapsingRoutesThroughTheRepresentative(t *testi
 
 	payload := planOMPProfileJSON(
 		t, root, runner, "balanced",
-		"--agent", "executor=anthropic/claude-sonnet-5:max",
+		"--agent", "executor=anthropic/claude-sonnet-5-5:max",
 		"--agent", "planner=anthropic/claude-fable-5-1:max",
 	)
 
@@ -119,7 +119,7 @@ func TestOMPProfilePlanRefusesConflictingRoutesForOneBundledAgent(t *testing.T) 
 	text, err := executeOMPSubcommandExpectingError(
 		t, newPlatformOMPProfileApplyCmd(&dir, ompBalancedDeps(runner, nil)),
 		"balanced", "--plan",
-		"--agent", "executor=anthropic/claude-sonnet-5:max",
+		"--agent", "executor=anthropic/claude-sonnet-5-5:max",
 		"--agent", "tester=anthropic/claude-fable-5-1:max",
 	)
 
@@ -141,19 +141,19 @@ func TestOMPProfilePlanAcceptsAgreeingRoutesForOneBundledAgent(t *testing.T) {
 
 	payload := planOMPProfileJSON(
 		t, root, runner, "balanced",
-		"--agent", "executor=anthropic/claude-sonnet-5:max",
-		"--agent", "planner=anthropic/claude-sonnet-5:max",
+		"--agent", "executor=anthropic/claude-sonnet-5-5:max",
+		"--agent", "planner=anthropic/claude-sonnet-5-5:max",
 	)
 
 	row := agentPreviewRow(t, payload, "task")
 	assert.Empty(t, payload.Blockers)
-	assert.Equal(t, "anthropic/claude-sonnet-5", row.EffectiveSelector)
+	assert.Equal(t, "anthropic/claude-sonnet-5-5", row.EffectiveSelector)
 	assert.Equal(t, ompProfileSourceAgent, row.Source)
 }
 
 func TestOMPProfileAgentOverrideRejectsNamesNoRegistryHas(t *testing.T) {
 	for _, name := range []string{"autopus_executor", "sonic-fast", "Task"} {
-		_, err := parseOMPProfileAgentAssignment(name + "=anthropic/claude-sonnet-5:max")
+		_, err := parseOMPProfileAgentAssignment(name + "=anthropic/claude-sonnet-5-5:max")
 		require.Error(t, err, name)
 		assert.Contains(t, err.Error(), "agent_override_unknown_agent", name)
 	}

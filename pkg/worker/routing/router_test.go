@@ -26,7 +26,7 @@ func TestRoute(t *testing.T) {
 			name:     "S5: claude simple message returns sonnet",
 			provider: "claude",
 			message:  "현재 상태 확인",
-			want:     "claude-sonnet-5",
+			want:     "claude-sonnet-5-5",
 		},
 		{
 			name:     "claude complex message returns fable",
