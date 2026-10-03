@@ -2,6 +2,7 @@ package evidence
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -210,7 +211,10 @@ func writeList(b *strings.Builder, values []string) {
 	}
 }
 
-func promptInline(value string) string {
+// PromptInline renders untrusted text for a single-line, backtick-quoted
+// prompt field: redacted, with no backtick or line break left to end the
+// quote or start a new markdown line.
+func PromptInline(value string) string {
 	text := RedactText(value)
 	text = strings.ReplaceAll(text, "`", "'")
 	text = strings.ReplaceAll(text, "\r", " ")
@@ -218,8 +222,19 @@ func promptInline(value string) string {
 	return text
 }
 
-func promptBlock(value string) string {
-	text := RedactText(value)
-	text = strings.ReplaceAll(text, "```", "` ` `")
-	return text
+// backtickRun matches any run long enough to open or close a code fence.
+var backtickRun = regexp.MustCompile("`{3,}")
+
+// PromptBlock renders untrusted text for the inside of a ``` fence: redacted,
+// with every run of three or more backticks spaced apart so no line of it can
+// close the fence it sits in.
+func PromptBlock(value string) string {
+	return backtickRun.ReplaceAllStringFunc(RedactText(value), func(run string) string {
+		return strings.TrimSuffix(strings.Repeat("` ", len(run)), " ")
+	})
 }
+
+// promptInline and promptBlock keep the package's existing call sites.
+func promptInline(value string) string { return PromptInline(value) }
+
+func promptBlock(value string) string { return PromptBlock(value) }

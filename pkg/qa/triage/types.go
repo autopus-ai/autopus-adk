@@ -8,7 +8,11 @@
 // map) and never asks an agent.
 package triage
 
-import "github.com/insajin/autopus-adk/pkg/qa/scenario"
+import (
+	"fmt"
+
+	"github.com/insajin/autopus-adk/pkg/qa/scenario"
+)
 
 // Class is the triage verdict for one failed journey.
 type Class string
@@ -65,12 +69,14 @@ type Verdict struct {
 }
 
 // Fingerprint identifies a failure for no-progress detection: the same
-// journey failing the same way at the same step after a fix means the fix did
-// nothing.
+// journey failing the same way at the same step of the same spec after a fix
+// means the fix did nothing. The step index is part of it, so a fix that
+// moves the failure to another step on the same screen counts as progress;
+// the line is not, because a recompile can shift it without any progress.
 func (v Verdict) Fingerprint() string {
 	step := ""
 	if v.Step != nil {
-		step = v.Step.Screen + "#" + v.Step.Kind
+		step = fmt.Sprintf("%s#%d#%s", v.Step.Screen, v.Step.Index, v.Step.Kind)
 	}
-	return v.JourneyID + "|" + string(v.Class) + "|" + step
+	return v.JourneyID + "|" + string(v.Class) + "|" + v.SpecPath + "|" + step
 }

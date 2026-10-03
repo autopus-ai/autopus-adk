@@ -25,10 +25,10 @@ func TestBuildPlan_TargetModeTable_MatchesREQ8(t *testing.T) {
 		{TargetClaude, ModeEdit, []string{"claude", "-p", "--permission-mode", "acceptEdits"}, prompt, ""},
 		{TargetCodex, ModeGenerate, []string{"codex", "exec", "--skip-git-repo-check", "--sandbox", "read-only", "-o", out, "-"}, prompt, out},
 		{TargetCodex, ModeEdit, []string{"codex", "exec", "--skip-git-repo-check", "--sandbox", "workspace-write", "-o", out, "-"}, prompt, out},
-		{TargetGemini, ModeGenerate, []string{"agy", "-p", prompt}, "", ""},
-		{TargetGemini, ModeEdit, []string{"agy", "-p", "--mode", "accept-edits", prompt}, "", ""},
-		{TargetOpenCode, ModeGenerate, []string{"opencode", "run", prompt}, "", ""},
-		{TargetOpenCode, ModeEdit, []string{"opencode", "run", prompt}, "", ""},
+		{TargetGemini, ModeGenerate, []string{"agy", "-p=" + prompt}, "", ""},
+		{TargetGemini, ModeEdit, []string{"agy", "--mode", "accept-edits", "-p=" + prompt}, "", ""},
+		{TargetOpenCode, ModeGenerate, []string{"opencode", "run", "--", prompt}, "", ""},
+		{TargetOpenCode, ModeEdit, []string{"opencode", "run", "--", prompt}, "", ""},
 	}
 	for _, tc := range cases {
 		t.Run(string(tc.target)+"/"+string(tc.mode), func(t *testing.T) {

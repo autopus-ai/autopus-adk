@@ -91,53 +91,73 @@ func (g gitRepo) currentRef() (ref string, detached bool, err error) {
 	return sha, true, err
 }
 
-func (g gitRepo) untracked() (map[string]bool, error) {
-	paths, err := g.paths("ls-files", "-z", "--others", "--exclude-standard")
-	return setOf(paths), err
-}
-
 // changed lists the paths that differ from HEAD, staged or not, plus the
-// untracked files absent from baseline. Renames are split so a moved test
-// cannot hide behind its new name.
-func (g gitRepo) changed(baseline map[string]bool, prefix string) ([]string, error) {
+// untracked files absent from the baseline. Renames are split so a moved test
+// cannot hide behind its new name. A baseline file is never listed, even when
+// an edited ignore rule has just made it visible, so it is never staged.
+func (g gitRepo) changed(base baseline, prefix string) ([]string, error) {
 	tracked, err := g.paths("diff", "--name-only", "--no-renames", "-z", "HEAD")
 	if err != nil {
 		return nil, err
 	}
-	untracked, err := g.untracked()
+	untracked, err := g.paths("ls-files", "-z", "--others", "--exclude-standard")
 	if err != nil {
 		return nil, err
 	}
 	set := setOf(tracked)
-	for p := range untracked {
+	for _, p := range untracked {
 		rel, inProject := strings.CutPrefix(p, prefix)
-		if !baseline[p] && !(inProject && isRuntimeArtifact(rel)) {
+		if !base.has(p) && !(inProject && isRuntimeArtifact(rel)) {
 			set[p] = true
 		}
 	}
 	return sortedKeys(set), nil
 }
 
-// revert undoes everything changed since baseline was taken: tracked paths
-// return to HEAD, files created since are removed, and untracked files that
-// predate the baseline are left alone. It returns the paths it handled.
-func (g gitRepo) revert(baseline map[string]bool, prefix string) ([]string, error) {
-	changed, err := g.changed(baseline, prefix)
-	if err != nil || len(changed) == 0 {
-		return changed, err
+// revert undoes everything changed since the baseline was taken: info/exclude
+// and tracked paths return to their baseline, files created since are
+// removed, and baseline files are left alone. A second pass runs once the
+// ignore rules are back, because a file the agent hid behind its own ignore
+// rule only shows up then. It returns the paths it handled.
+func (g gitRepo) revert(base baseline, prefix string) ([]string, error) {
+	if err := base.restoreExclude(); err != nil {
+		return nil, err
 	}
+	handled := map[string]bool{}
+	for pass := 0; pass < 2; pass++ {
+		changed, err := g.changed(base, prefix)
+		if err != nil {
+			return nil, err
+		}
+		if len(changed) == 0 {
+			break
+		}
+		if err := g.revertPaths(base, changed); err != nil {
+			return nil, err
+		}
+		for _, p := range changed {
+			handled[p] = true
+		}
+	}
+	if len(handled) == 0 {
+		return nil, nil
+	}
+	return sortedKeys(handled), nil
+}
+
+func (g gitRepo) revertPaths(base baseline, changed []string) error {
 	staged, err := g.paths("diff", "--cached", "--name-only", "--no-renames", "-z", "HEAD")
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if len(staged) > 0 {
 		if _, err := g.run(append([]string{"reset", "-q", "HEAD", "--"}, staged...)...); err != nil {
-			return nil, err
+			return err
 		}
 	}
 	inHead, err := g.paths(append([]string{"ls-tree", "-r", "-z", "--name-only", "HEAD", "--"}, changed...)...)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	head := setOf(inHead)
 	var restore []string
@@ -145,20 +165,20 @@ func (g gitRepo) revert(baseline map[string]bool, prefix string) ([]string, erro
 		switch {
 		case head[p]:
 			restore = append(restore, p)
-		case baseline[p]:
+		case base.has(p):
 			// An untracked file that predates the agent: unstaged above, kept.
 		default:
 			if err := os.Remove(filepath.Join(g.top, filepath.FromSlash(p))); err != nil && !os.IsNotExist(err) {
-				return nil, err
+				return err
 			}
 		}
 	}
 	if len(restore) > 0 {
 		if _, err := g.run(append([]string{"checkout", "HEAD", "--"}, restore...)...); err != nil {
-			return nil, err
+			return err
 		}
 	}
-	return changed, nil
+	return nil
 }
 
 // commit stages exactly paths and commits them through the project's hooks.
@@ -184,12 +204,9 @@ func (g gitRepo) commit(paths []string, message string) (string, error) {
 // ensureExcluded adds pattern to the repository's info/exclude once, so loop
 // reports never show up as untracked work.
 func (g gitRepo) ensureExcluded(pattern string) error {
-	path, err := g.line("rev-parse", "--git-path", "info/exclude")
+	path, err := g.excludePath()
 	if err != nil {
 		return err
-	}
-	if !filepath.IsAbs(path) {
-		path = filepath.Join(g.top, path)
 	}
 	body, err := os.ReadFile(path)
 	if err != nil && !os.IsNotExist(err) {
@@ -216,6 +233,18 @@ func (g gitRepo) ensureExcluded(pattern string) error {
 		writeErr = closeErr
 	}
 	return writeErr
+}
+
+// excludePath is the repository's info/exclude file as an absolute path.
+func (g gitRepo) excludePath() (string, error) {
+	path, err := g.line("rev-parse", "--git-path", "info/exclude")
+	if err != nil {
+		return "", err
+	}
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(g.top, path)
+	}
+	return path, nil
 }
 
 func setOf(items []string) map[string]bool {

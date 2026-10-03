@@ -37,7 +37,7 @@ func (r *runner) fix(ctx context.Context, it *Iteration) *stopState {
 	if len(dirty) > 0 {
 		return &stopState{StopBlockedEnv, CodeBlockedEnv, "the lane run changed tracked files: " + strings.Join(dirty, "; ")}
 	}
-	baseline, err := r.git.untracked()
+	base, err := r.git.snapshot()
 	if err != nil {
 		return gitStop(err)
 	}
@@ -57,35 +57,41 @@ func (r *runner) fix(ctx context.Context, it *Iteration) *stopState {
 		if errors.As(agentErr, &failure) {
 			it.Agent.ExitCode = failure.ExitCode
 		}
-		reverted, revertErr := r.restore(head, baseline)
+		reverted, revertErr := r.restore(head, base)
 		it.ChangedPaths = reverted
 		return withRevert(agentStop(agentErr), revertErr)
 	}
 	if moved := r.headMoved(head); moved != "" {
-		reverted, revertErr := r.restore(head, baseline)
+		reverted, revertErr := r.restore(head, base)
 		it.ChangedPaths = reverted
 		it.Guard = &GuardVerdict{Reason: moved}
 		return withRevert(&stopState{StopGuardRejected, CodeGuardRejected, moved}, revertErr)
 	}
-	changed, err := r.git.changed(baseline, r.prefix)
+	changed, err := r.git.changed(base, r.prefix)
 	if err != nil {
 		return gitStop(err)
 	}
+	judged := r.projectRel(changed)
 	it.ChangedPaths = changed
-	if len(changed) == 0 {
+	if base.excludeChanged() {
+		// No diff shows info/exclude, so the guard is told about it directly.
+		judged = append([]string{gitExcludeRel}, judged...)
+		it.ChangedPaths = append([]string{gitExcludeRel}, changed...)
+	}
+	if len(judged) == 0 {
 		it.Guard = &GuardVerdict{Reason: "agent changed nothing"}
 		return &stopState{StopNoProgress, CodeNoProgress, fmt.Sprintf("the %s agent changed nothing", class)}
 	}
-	verdict := Guard(GuardInput{Class: class, Paths: r.projectRel(changed), TestDir: r.testDir, Before: r.headContent, After: r.treeContent})
+	verdict := Guard(GuardInput{Class: class, Paths: judged, TestDir: r.testDir, Before: r.headContent, After: r.treeContent})
 	it.Guard = &verdict
 	if !verdict.Accepted {
-		_, revertErr := r.restore(head, baseline)
+		_, revertErr := r.restore(head, base)
 		return withRevert(&stopState{StopGuardRejected, CodeGuardRejected, verdict.Path + ": " + verdict.Reason}, revertErr)
 	}
 	stage := changed
 	if class == triage.ClassTestDrift {
-		if stage, err = r.recompile(changed, baseline); err != nil {
-			_, revertErr := r.restore(head, baseline)
+		if stage, err = r.recompile(changed, base); err != nil {
+			_, revertErr := r.restore(head, base)
 			it.Guard = &GuardVerdict{Reason: "recompile after the heal failed: " + err.Error()}
 			return withRevert(&stopState{StopGuardRejected, CodeGuardRejected, it.Guard.Reason}, revertErr)
 		}
@@ -93,7 +99,7 @@ func (r *runner) fix(ctx context.Context, it *Iteration) *stopState {
 	}
 	sha, err := r.git.commit(stage, commitMessage(it.N, r.report.RunID, class, verdicts))
 	if err != nil {
-		_, revertErr := r.restore(head, baseline)
+		_, revertErr := r.restore(head, base)
 		return withRevert(&stopState{StopCommitRejected, CodeCommitRejected, err.Error()}, revertErr)
 	}
 	it.Commit = sha
@@ -128,7 +134,7 @@ func journeyIDs(verdicts []triage.Verdict) []string {
 // restore returns the work tree to head plus the baseline untracked files. It
 // refuses once the agent has left the loop branch: resetting another branch
 // could destroy work that is not the loop's.
-func (r *runner) restore(head string, baseline map[string]bool) ([]string, error) {
+func (r *runner) restore(head string, base baseline) ([]string, error) {
 	branch, detached, err := r.git.currentRef()
 	if err != nil {
 		return nil, err
@@ -141,7 +147,7 @@ func (r *runner) restore(head string, baseline map[string]bool) ([]string, error
 			return nil, err
 		}
 	}
-	return r.git.revert(baseline, r.prefix)
+	return r.git.revert(base, r.prefix)
 }
 
 // headMoved reports an agent that committed or switched branches itself; only
@@ -162,11 +168,11 @@ func (r *runner) headMoved(head string) string {
 
 // recompile regenerates specs after an accepted heal and returns every path
 // to stage. Compiler output must stay under the Playwright testDir.
-func (r *runner) recompile(guarded []string, baseline map[string]bool) ([]string, error) {
+func (r *runner) recompile(guarded []string, base baseline) ([]string, error) {
 	if err := r.deps.Compile(r.projectDir); err != nil {
 		return nil, err
 	}
-	all, err := r.git.changed(baseline, r.prefix)
+	all, err := r.git.changed(base, r.prefix)
 	if err != nil {
 		return nil, err
 	}

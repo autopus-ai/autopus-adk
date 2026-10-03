@@ -2,11 +2,13 @@ package triage
 
 import (
 	"fmt"
+	"path"
 	"regexp"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/insajin/autopus-adk/pkg/qa/scenario"
+	"github.com/insajin/autopus-adk/pkg/qa/testpath"
 )
 
 // maxSignalEvidence bounds the evidence fragment a signal quotes.
@@ -57,8 +59,9 @@ var (
 	tsCompileError = regexp.MustCompile(`\berror TS\d+`)
 	netErrorCode   = regexp.MustCompile(`net::[A-Z_]+`)
 	// anyLocation finds the first source location after an error line.
-	anyLocation  = regexp.MustCompile(`([^\s'"()\[\]<>,]+\.(?:ts|tsx|js|jsx|mjs|cjs|py|go)):\d+`)
-	testFilePath = regexp.MustCompile(`[._](?:spec|test)\.[cm]?[jt]sx?$|(?:^|/)__tests__/|_test\.(?:go|py)$|(?:^|/)test_[^/]+\.py$`)
+	anyLocation = regexp.MustCompile(`([^\s'"()\[\]<>,]+\.(?:ts|tsx|js|jsx|mjs|cjs|py|go)):\d+`)
+	// windowsDrive marks an absolute Windows path once slashes are normalized.
+	windowsDrive = regexp.MustCompile(`^[A-Za-z]:/`)
 )
 
 // Classify assigns exactly one class to a failed journey. Rules run in a fixed
@@ -95,7 +98,7 @@ func Classify(in Input) Verdict {
 	if hit, ok := locateGeneratedStep(in.ProjectDir, lines); ok {
 		return classifyStep(v, hit)
 	}
-	if line, ok := testDefectLine(lines); ok {
+	if line, ok := testDefectLine(lines, in.ProjectDir); ok {
 		return v.decided(ClassTestDefect, ruleTestDefect, line)
 	}
 	if !isGUI(in) {
@@ -180,7 +183,7 @@ func isEnvironmentLine(line string) bool {
 	return false
 }
 
-func testDefectLine(lines []string) (string, bool) {
+func testDefectLine(lines []string, projectDir string) (string, bool) {
 	for i, line := range lines {
 		lower := strings.ToLower(line)
 		switch {
@@ -189,7 +192,7 @@ func testDefectLine(lines []string) (string, bool) {
 			strings.Contains(lower, "cannot find module"),
 			strings.Contains(lower, "strict mode violation"):
 			return strings.TrimSpace(line), true
-		case strings.Contains(line, "TypeError") && raisedInTestFile(lines[i:]):
+		case strings.Contains(line, "TypeError") && raisedInTestFile(lines[i:], projectDir):
 			return strings.TrimSpace(line), true
 		}
 	}
@@ -198,17 +201,34 @@ func testDefectLine(lines []string) (string, bool) {
 
 // raisedInTestFile reports whether the first source location at or after an
 // error line is a test file: a TypeError thrown by product code is a product
-// failure the test merely observed.
-func raisedInTestFile(lines []string) bool {
+// failure the test merely observed. It asks the predicate the diff guard
+// uses, so the two never disagree about what a test is.
+func raisedInTestFile(lines []string, projectDir string) bool {
 	for i, line := range lines {
 		if i > stackLookahead {
 			break
 		}
 		if match := anyLocation.FindStringSubmatch(line); match != nil {
-			return testFilePath.MatchString(normalizeSlashes(match[1]))
+			return testpath.IsTestPath(projectRelative(normalizeSlashes(match[1]), projectDir))
 		}
 	}
 	return false
+}
+
+// projectRelative makes a stack-trace location relative to the project. An
+// absolute location outside it keeps only its base name: the directories
+// above a checkout (a CI workspace named "test", say) say nothing about
+// whether the file is a test.
+func projectRelative(location, projectDir string) string {
+	if !strings.HasPrefix(location, "/") && !windowsDrive.MatchString(location) {
+		return strings.TrimPrefix(location, "./")
+	}
+	if root := strings.TrimSuffix(normalizeSlashes(projectDir), "/"); root != "" {
+		if rel, ok := strings.CutPrefix(location, root+"/"); ok {
+			return rel
+		}
+	}
+	return path.Base(location)
 }
 
 func assertionLine(lines []string) (string, bool) {

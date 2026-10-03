@@ -153,8 +153,14 @@ prompt on stdin or as the final argument, a working directory, and a timeout:
 |---|---|---|
 | claude | `claude -p --output-format text` | `claude -p --permission-mode acceptEdits` |
 | codex | `codex exec --skip-git-repo-check --sandbox read-only -o <file> -` | `--sandbox workspace-write` |
-| gemini | `agy -p` | `agy -p --mode accept-edits` |
-| opencode | `opencode run` | `opencode run` |
+| gemini | `agy -p=<prompt>` | `agy --mode accept-edits -p=<prompt>` |
+| opencode | `opencode run -- <prompt>` | `opencode run -- <prompt>` |
+
+agy's `-p` takes the prompt as its value, so it is attached with `=` and
+`--mode` goes first; `agy -p --mode accept-edits` reads `--mode` as the
+prompt. `--` keeps a prompt that starts with a dash from being read as an
+opencode flag. A prompt passed as an argument is capped at 120 KiB
+(`qa_agent_prompt_too_large`), below Linux's single-argument limit.
 
 `AUTOPUS_QA_AGENT_ARGV` (a JSON array) SHALL override the table; the prompt
 then goes on stdin. A missing binary is a setup gap (`qa_agent_cli_missing`),

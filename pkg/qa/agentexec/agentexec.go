@@ -48,7 +48,13 @@ const (
 	CodeOverrideInvalid = "qa_agent_override_invalid"
 	CodeTargetUnknown   = "qa_agent_target_unknown"
 	CodeRequestInvalid  = "qa_agent_request_invalid"
+	CodePromptTooLarge  = "qa_agent_prompt_too_large"
 )
+
+// MaxArgvPromptBytes bounds a prompt that travels as one argv element (agy
+// and opencode). Linux refuses any single argument over 128 KiB
+// (MAX_ARG_STRLEN); the margin leaves room for the flag sharing the element.
+const MaxArgvPromptBytes = 120 * 1024
 
 // Request describes one headless agent invocation.
 type Request struct {
@@ -188,6 +194,9 @@ func BuildPlan(target Target, mode Mode, prompt, outputFile, override string) (P
 		return Plan{Argv: argv, Stdin: prompt}, nil
 	}
 	edit := mode == ModeEdit
+	if (target == TargetGemini || target == TargetOpenCode) && len(prompt) > MaxArgvPromptBytes {
+		return Plan{}, requestErr(CodePromptTooLarge, "a %s prompt travels as one argument and is %d bytes; the limit is %d", target, len(prompt), MaxArgvPromptBytes)
+	}
 	switch target {
 	case TargetClaude:
 		if edit {
@@ -205,12 +214,16 @@ func BuildPlan(target Target, mode Mode, prompt, outputFile, override string) (P
 		argv := []string{"codex", "exec", "--skip-git-repo-check", "--sandbox", sandbox, "-o", outputFile, "-"}
 		return Plan{Argv: argv, Stdin: prompt, OutputFile: outputFile}, nil
 	case TargetGemini:
+		// agy's -p takes the prompt as its value. Attached with "=", a prompt
+		// that starts with a dash can never be read as a flag, and --mode goes
+		// first because a bare -p swallows the next argument as the prompt.
 		if edit {
-			return Plan{Argv: []string{"agy", "-p", "--mode", "accept-edits", prompt}}, nil
+			return Plan{Argv: []string{"agy", "--mode", "accept-edits", "-p=" + prompt}}, nil
 		}
-		return Plan{Argv: []string{"agy", "-p", prompt}}, nil
+		return Plan{Argv: []string{"agy", "-p=" + prompt}}, nil
 	default: // TargetOpenCode; validate rejected everything else.
-		return Plan{Argv: []string{"opencode", "run", prompt}}, nil
+		// "--" ends option parsing, so the prompt is always the message.
+		return Plan{Argv: []string{"opencode", "run", "--", prompt}}, nil
 	}
 }
 

@@ -62,5 +62,5 @@ consent handler. Playwright's auto-waiting covers the readiness tiers.
 - `claude -p`, `--output-format text`, `--permission-mode acceptEdits`
 - `codex exec --skip-git-repo-check --sandbox read-only|workspace-write -o <file>`
   (`-` reads the prompt from stdin)
-- `agy -p`, `--mode accept-edits|plan`
-- `opencode run [message...]`
+- `agy -p=<prompt>` with `--mode accept-edits|plan` placed before it. A bare `-p` takes the next argument as the prompt, so `agy -p --mode accept-edits` fails; found during review and probed live.
+- `opencode run -- <prompt>` (probed live 2026-10-03)

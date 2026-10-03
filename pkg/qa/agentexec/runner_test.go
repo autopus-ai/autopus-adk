@@ -105,7 +105,7 @@ func TestRun_NonZeroExit_ReturnsAgentErrorWithResponse(t *testing.T) {
 	assert.Equal(t, "partial output", resp.Stdout)
 	assert.Equal(t, "rate limited", resp.Stderr)
 	assert.Equal(t, 3, resp.ExitCode)
-	assert.Equal(t, []string{"opencode", "run", "p"}, resp.Argv)
+	assert.Equal(t, []string{"opencode", "run", "--", "p"}, resp.Argv)
 }
 
 func TestRun_StartFailure_IsAgentFailureWrappingCause(t *testing.T) {
