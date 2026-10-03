@@ -113,6 +113,7 @@ func BuildPrompt(in PromptInput) string {
 	b.WriteString("- Never invent expected values: assert only text, counts, titles, and URLs a criterion states. When a criterion is too vague to assert, write a manual case whose reason names what is missing.\n")
 	b.WriteString("- Address elements by role and accessible name, label, placeholder, text, or test_id; never CSS or XPath. An action target uses exactly one locator kind.\n")
 	b.WriteString("- Never put secrets in YAML: fill credentials with value_env naming an environment variable the criteria or their test data name.\n")
+	b.WriteString("- Assert visible messages with expect_text. Never give expect_role a name for alert, status, log, marquee, or timer: those roles do not take their name from their text.\n")
 	b.WriteString("- Use literal values for inputs that are not secrets, such as a deliberately wrong password or a search term; do not invent environment variables for them.\n")
 	fmt.Fprintf(&b, "- A command check's argv[0] must be one of: %s.\n", strings.Join(testscenario.CommandAllowlist, ", "))
 	b.WriteString("- Unknown keys are rejected, so use only the keys shown in the schemas.\n\n")

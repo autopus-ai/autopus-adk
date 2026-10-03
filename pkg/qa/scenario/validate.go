@@ -192,6 +192,9 @@ func validateStep(path, screenID string, index int, step Step, v2 bool) error {
 	if !v2 {
 		return nil
 	}
+	if err := validateRoleNames(path, where, step); err != nil {
+		return err
+	}
 	if err := validateAction(path, where, step); err != nil {
 		return err
 	}
