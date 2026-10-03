@@ -10,6 +10,7 @@ import (
 
 	qaevidence "github.com/insajin/autopus-adk/pkg/qa/evidence"
 	"github.com/insajin/autopus-adk/pkg/qa/journey"
+	"github.com/insajin/autopus-adk/pkg/qa/triage"
 )
 
 func Execute(opts Options) (Result, error) {
@@ -247,7 +248,8 @@ func writeFeedbackBundles(opts Options, manifestPaths []string) ([]string, error
 			continue
 		}
 		output := filepath.Join(filepath.Dir(filepath.Dir(path)), "feedback")
-		result, err := qaevidence.WriteFeedbackBundle(manifest, opts.FeedbackTo, output)
+		replay := triage.ReplayForManifest(opts.ProjectDir, manifest, filepath.Dir(path))
+		result, err := qaevidence.WriteFeedbackBundleWithReplay(manifest, opts.FeedbackTo, output, replay)
 		if err != nil {
 			return paths, err
 		}

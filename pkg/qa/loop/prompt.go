@@ -3,6 +3,7 @@ package loop
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/insajin/autopus-adk/pkg/qa/evidence"
@@ -88,7 +89,8 @@ func (r *runner) feedbackText(manifestPath string) string {
 		return ""
 	}
 	defer os.RemoveAll(dir)
-	result, err := evidence.WriteFeedbackBundle(manifest, string(r.opts.Agent), dir)
+	replay := triage.ReplayForManifest(r.opts.ProjectDir, manifest, filepath.Dir(manifestPath))
+	result, err := evidence.WriteFeedbackBundleWithReplay(manifest, string(r.opts.Agent), dir, replay)
 	if err != nil {
 		return ""
 	}

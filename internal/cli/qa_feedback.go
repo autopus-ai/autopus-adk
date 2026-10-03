@@ -2,10 +2,12 @@ package cli
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 
 	qaevidence "github.com/insajin/autopus-adk/pkg/qa/evidence"
+	qatriage "github.com/insajin/autopus-adk/pkg/qa/triage"
 )
 
 type qaFeedbackPayload struct {
@@ -66,7 +68,10 @@ func runQAFeedback(cmd *cobra.Command, opts qaFeedbackOptions) error {
 	if err != nil {
 		return qaCommandError(cmd, jsonMode, err, "qa_feedback_read_failed", map[string]any{"evidence": opts.EvidencePath})
 	}
-	result, err := qaevidence.WriteFeedbackBundle(manifest, opts.Target, opts.Output)
+	// The project root is the working directory: generated specs and their
+	// step maps are located relative to it for the replay section.
+	replay := qatriage.ReplayForManifest(".", manifest, filepath.Dir(opts.EvidencePath))
+	result, err := qaevidence.WriteFeedbackBundleWithReplay(manifest, opts.Target, opts.Output, replay)
 	if err != nil {
 		return qaCommandError(cmd, jsonMode, err, "qa_feedback_write_failed", map[string]any{"qa_result_id": manifest.QAResultID, "target": opts.Target})
 	}

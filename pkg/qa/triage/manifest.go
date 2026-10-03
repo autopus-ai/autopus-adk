@@ -65,3 +65,10 @@ func ReplayFor(in Input) *evidence.Replay {
 		ProjectDir: in.ProjectDir,
 	}
 }
+
+// ReplayForManifest is ReplayFor over a loaded manifest, for callers that
+// write repair bundles: `auto qa run --feedback-to`, `auto qa feedback`, and
+// the loop's repair prompt.
+func ReplayForManifest(projectDir string, manifest evidence.Manifest, manifestDir string) *evidence.Replay {
+	return ReplayFor(InputFor(projectDir, manifest, manifestDir))
+}
