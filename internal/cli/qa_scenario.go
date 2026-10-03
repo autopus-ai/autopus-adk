@@ -31,6 +31,8 @@ func newQAScenarioCmd() *cobra.Command {
 	}
 	cmd.AddCommand(newQAScenarioInitCmd())
 	cmd.AddCommand(newQAScenarioCompileCmd())
+	cmd.AddCommand(newQAScenarioGenerateCmd())
+	cmd.AddCommand(newQAScenarioPromoteCmd())
 	return cmd
 }
 

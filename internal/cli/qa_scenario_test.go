@@ -75,11 +75,12 @@ func TestQAScenarioCmd_IsRegisteredUnderQA(t *testing.T) {
 		found = append(found, sub.Name())
 	}
 	assert.Contains(t, found, "scenario")
+	assert.Contains(t, found, "loop")
 	var leaves []string
 	for _, sub := range newQAScenarioCmd().Commands() {
 		leaves = append(leaves, sub.Name())
 	}
-	assert.ElementsMatch(t, []string{"init", "compile"}, leaves)
+	assert.ElementsMatch(t, []string{"init", "compile", "generate", "promote"}, leaves)
 }
 
 func TestQAScenarioInit_InheritsJourneyAndNeverOverwrites(t *testing.T) {
