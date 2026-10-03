@@ -127,7 +127,7 @@ func (r *runner) feedbackText(manifestPath string) string {
 	if err != nil {
 		return ""
 	}
-	defer os.RemoveAll(dir)
+	defer func() { _ = os.RemoveAll(dir) }()
 	replay := triage.ReplayForManifest(r.opts.ProjectDir, manifest, filepath.Dir(manifestPath))
 	result, err := evidence.WriteFeedbackBundleWithReplay(manifest, string(r.opts.Agent), dir, replay)
 	if err != nil {

@@ -190,7 +190,8 @@ func (g gitRepo) commit(paths []string, message string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer os.Remove(file.Name())
+	// Best-effort cleanup of a temp file; the commit outcome is already decided.
+	defer func() { _ = os.Remove(file.Name()) }()
 	_, writeErr := file.WriteString(message)
 	if closeErr := file.Close(); writeErr != nil || closeErr != nil {
 		return "", fmt.Errorf("write commit message: %v %v", writeErr, closeErr)
