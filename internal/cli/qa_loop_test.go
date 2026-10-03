@@ -138,7 +138,7 @@ func TestQALoopCmd_TextNamesBranchAndReportOnNoProgress(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), qaloop.CodeNoProgress)
 	assert.Contains(t, out, ": no_progress")
-	assert.Contains(t, out, "loop branch: "+qaloop.BranchPrefix)
+	assert.Contains(t, out, "loop branch: none kept (no fix commit; "+qaloop.BranchPrefix)
 	assert.Contains(t, out, "report: "+filepath.Join(dir, ".autopus", "qa", "loop"))
 }
 

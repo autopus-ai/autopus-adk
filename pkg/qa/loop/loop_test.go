@@ -140,6 +140,7 @@ func TestQALoopRun_ProductFixPassesOnLoopBranch(t *testing.T) {
 	assert.Equal(t, "main", repo.git("rev-parse", "--abbrev-ref", "HEAD"), "the original branch is checked out again")
 	assert.True(t, report.Restored)
 	assert.Equal(t, "1", repo.git("rev-list", "--count", "main.."+report.Branch))
+	assert.False(t, report.BranchDeleted)
 	assert.Equal(t, "fix(qa): product_defect login", repo.git("log", "-1", "--format=%s", report.Branch))
 	body := repo.git("log", "-1", "--format=%B", report.Branch)
 	assert.Contains(t, body, "Constraint: QA loop iteration 1\nConfidence: medium\nRelated: "+report.RunID)
@@ -189,7 +190,7 @@ func TestQALoopRun_AgentThatChangesNothingStopsNoProgress(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, CodeNoProgress, ErrorCode(err))
 	assert.Equal(t, StopNoProgress, report.StopReason)
-	assert.Equal(t, "0", repo.git("rev-list", "--count", "main.."+report.Branch))
+	assertLoopBranchRemoved(t, repo, report)
 	assert.Equal(t, "main", repo.git("rev-parse", "--abbrev-ref", "HEAD"))
 	require.Len(t, report.Iterations, 1)
 	assert.False(t, report.Iterations[0].Guard.Accepted)
@@ -222,7 +223,7 @@ func TestQALoopRun_ProductFixTouchingTestsIsRevertedPrecisely(t *testing.T) {
 	assert.Equal(t, seed["src/app.ts"], repo.read("src/app.ts"))
 	assert.Equal(t, "<missing>", repo.read("src/helper.ts"), "files the agent created are removed")
 	assert.Equal(t, "mine\n", repo.read("notes.txt"), "pre-existing untracked files are kept")
-	assert.Equal(t, "0", repo.git("rev-list", "--count", "main.."+report.Branch))
+	assertLoopBranchRemoved(t, repo, report)
 }
 
 // AC-QALOOP-013: a dirty tracked tree is refused before any branch exists.
@@ -250,4 +251,13 @@ func TestQALoopRun_OutsideGitIsRefused(t *testing.T) {
 	assert.Equal(t, CodeNotGitRepo, ErrorCode(err))
 	_, err = Run(context.Background(), Options{ProjectDir: t.TempDir()}, Deps{})
 	assert.Equal(t, CodeInvalidOptions, ErrorCode(err))
+}
+
+// assertLoopBranchRemoved checks that a loop with no fix commit leaves no
+// branch behind: there is nothing on it to review.
+func assertLoopBranchRemoved(t *testing.T, r *repo, report Report) {
+	t.Helper()
+	assert.True(t, report.BranchDeleted)
+	_, err := runGit(r.dir, r.env, "rev-parse", "--verify", "--quiet", report.Branch)
+	assert.Error(t, err, "loop branch %s should be gone", report.Branch)
 }

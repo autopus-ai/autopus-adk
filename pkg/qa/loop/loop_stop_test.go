@@ -146,6 +146,7 @@ func TestQALoopRun_MaxIterationsAfterLastFixIsVerified(t *testing.T) {
 	require.Len(t, report.Iterations, 2, "the run after the last fix only verifies")
 	assert.Nil(t, report.Iterations[1].Agent)
 	assert.Equal(t, "1", repo.git("rev-list", "--count", "main.."+report.Branch))
+	assert.False(t, report.BranchDeleted)
 }
 
 func TestQALoopRun_UnchangedFingerprintAfterFixIsNoProgress(t *testing.T) {
@@ -179,7 +180,7 @@ func TestQALoopRun_AgentCommitIsUndoneAndRejected(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, CodeGuardRejected, ErrorCode(err))
 	assert.Contains(t, report.StopDetail, "only the loop may commit")
-	assert.Equal(t, "0", repo.git("rev-list", "--count", "main.."+report.Branch))
+	assertLoopBranchRemoved(t, repo, report)
 	assert.Equal(t, seed["fixed.txt"], repo.read("fixed.txt"))
 }
 

@@ -13,9 +13,12 @@ import (
 
 // Report is report.json, schema qamesh.qaloop.report.v1.
 type Report struct {
-	Schema        string      `json:"schema"`
-	RunID         string      `json:"run_id"`
-	Branch        string      `json:"branch"`
+	Schema string `json:"schema"`
+	RunID  string `json:"run_id"`
+	Branch string `json:"branch"`
+	// BranchDeleted is set when the loop made no fix commit: an empty branch
+	// carries nothing to review, so it is removed instead of left behind.
+	BranchDeleted bool        `json:"branch_deleted,omitempty"`
 	OriginalRef   string      `json:"original_ref"`
 	Restored      bool        `json:"original_ref_restored"`
 	Lane          string      `json:"lane"`

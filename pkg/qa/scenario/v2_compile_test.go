@@ -38,7 +38,7 @@ func TestCompileV2_ActionsCompileToJourneyWithStepMap(t *testing.T) {
 		2: {StepKindAction, "", `    await page.getByLabel("Password").first().fill(process.env["E2E_PASSWORD"] || missingEnv("E2E_PASSWORD"));`},
 		3: {StepKindAction, "AC-AUTH-001", `    await page.getByRole("button", { name: "Sign in" }).first().click();`},
 		4: {StepKindExpect, "AC-AUTH-001", `    await expect(page.getByText(new RegExp("Welcome back")).first()).toBeVisible();`},
-		5: {StepKindExpect, "AC-AUTH-002", `    await expect(page).toHaveURL(ORIGIN + "/dashboard");`},
+		5: {StepKindExpect, "AC-AUTH-002", `    await expect(page).toHaveURL(onPath("/dashboard"));`},
 	}
 	lines := strings.Split(out, "\n")
 	require.Len(t, steps.Lines, len(want))
@@ -137,7 +137,7 @@ func TestCompileV2_RendersEveryLocatorAndAction(t *testing.T) {
 		`await page.getByText("Continue", { exact: true }).first().click();`,
 		`await page.getByRole("link", { name: "Docs", exact: true }).first().click();`,
 		`await page.getByLabel("Name", { exact: true }).first().fill("Ada");`,
-		`await page.waitForURL(ORIGIN + "/done");`,
+		`await page.waitForURL(onPath("/done"));`,
 		`await expect(page.getByRole("heading", { name: "Done" }).first()).toBeVisible();`,
 		"// Intent: recording (recordings/checkout.jsonl)",
 		`test.describe("login @journey", () => {`,

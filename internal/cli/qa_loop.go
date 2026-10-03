@@ -116,7 +116,11 @@ func writeQALoopText(w io.Writer, report qaloop.Report) {
 	if report.StopDetail != "" {
 		fmt.Fprintf(w, "detail: %s\n", report.StopDetail)
 	}
-	fmt.Fprintf(w, "loop branch: %s (%d fix commit(s))\n", report.Branch, commits)
+	if report.BranchDeleted {
+		fmt.Fprintf(w, "loop branch: none kept (no fix commit; %s was removed)\n", report.Branch)
+	} else {
+		fmt.Fprintf(w, "loop branch: %s (%d fix commit(s))\n", report.Branch, commits)
+	}
 	fmt.Fprintf(w, "original ref: %s (restored: %t)\n", report.OriginalRef, report.Restored)
 	fmt.Fprintf(w, "iterations: %d of max %d\n", len(report.Iterations), report.MaxIterations)
 	fmt.Fprintf(w, "report: %s\n", report.ReportPath)

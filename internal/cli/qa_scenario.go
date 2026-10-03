@@ -139,7 +139,10 @@ func writeQAScenarioText(cmd *cobra.Command, result qascenario.Result, projectDi
 	for id, rows := range result.ScreenMatrix {
 		fmt.Fprintf(out, "screen_matrix for %s: %d rows (paste into the pack to enforce coverage)\n", id, len(rows))
 	}
-	fmt.Fprintf(out, "next: auto qa explore --project-dir %s\n", projectDir)
+	// Read-only specs run in gui-explore; @journey specs act on the page and run
+	// in a journey lane, where the loop can triage and repair them.
+	fmt.Fprintf(out, "next: auto qa explore --project-dir %s  (read-only @explore specs)\n", projectDir)
+	fmt.Fprintf(out, "next: auto qa loop --lane browser-staging --agent <platform> --project-dir %s  (@journey specs)\n", projectDir)
 }
 
 // resolveScenarioJourney picks the Journey Pack a starter scenario targets. An

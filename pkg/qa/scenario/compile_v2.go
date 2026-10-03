@@ -101,7 +101,7 @@ func usesValueEnv(s Scenario) bool {
 // renderAction emits one action line. Locators take .first() for the same
 // reason expect steps do: a repeated label should act on the first match
 // rather than fail as a strict-mode locator error.
-func renderAction(step Step) string {
+func renderAction(step Step, v2 bool) string {
 	switch {
 	case step.Click != nil:
 		return "await " + targetLocator(*step.Click) + ".first().click();"
@@ -118,7 +118,7 @@ func renderAction(step Step) string {
 	case step.Select != nil:
 		return "await " + targetLocator(step.Select.Target) + ".first().selectOption(" + tsString(step.Select.Option) + ");"
 	case strings.TrimSpace(step.WaitURL) != "":
-		return "await page.waitForURL(ORIGIN + " + tsString(strings.TrimSpace(step.WaitURL)) + ");"
+		return "await page.waitForURL(" + urlTarget(step.WaitURL, v2) + ");"
 	}
 	// Unreachable: renderStep only calls this for a step with an action.
 	return "// unsupported step"

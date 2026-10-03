@@ -71,7 +71,7 @@ func CompileWithMap(s Scenario, opts Options) ([]byte, StepMap, error) {
 	writeHeader(out, s, fixture, origin)
 	fmt.Fprintf(out, "test.describe(%s, () => {\n", tsString(s.ID+" "+describeTags(s)))
 	for _, screen := range s.Screens {
-		writeScreen(out, screen, &steps)
+		writeScreen(out, screen, &steps, s.IsV2())
 	}
 	out.WriteString("});\n")
 	return []byte(out.String()), steps, nil
@@ -96,6 +96,9 @@ func writeHeader(out *specWriter, s Scenario, fixture, origin string) {
 	}
 	fmt.Fprintf(out, "\nimport { test, expect } from %s;\n\n", tsString(fixture))
 	fmt.Fprintf(out, "const ORIGIN = %s;\n\n", tsString(origin))
+	if usesBarePathURL(s) {
+		out.WriteString(onPathHelper)
+	}
 	if usesValueEnv(s) {
 		out.WriteString(missingEnvHelper)
 	}
@@ -111,7 +114,7 @@ func sanitizeComment(value string) string {
 	return strings.TrimSpace(replaced)
 }
 
-func writeScreen(out *specWriter, screen Screen, steps *StepMap) {
+func writeScreen(out *specWriter, screen Screen, steps *StepMap, v2 bool) {
 	fmt.Fprintf(out, "  test(%s, async ({ page }) => {\n", tsString(screen.ID))
 	// The annotation is the only link between a declared screen and the capture
 	// index step the screen_matrix oracle counts.
@@ -126,20 +129,20 @@ func writeScreen(out *specWriter, screen Screen, steps *StepMap) {
 			Kind:   step.Kind(),
 			Ac:     strings.TrimSpace(step.Ac),
 		})
-		out.WriteString("    " + renderStep(step) + "\n")
+		out.WriteString("    " + renderStep(step, v2) + "\n")
 	}
 	out.WriteString("  });\n")
 }
 
-func renderStep(step Step) string {
+func renderStep(step Step, v2 bool) string {
 	if step.Action() != "" {
-		return renderAction(step)
+		return renderAction(step, v2)
 	}
 	switch {
 	case strings.TrimSpace(step.ExpectTitle) != "":
 		return "await expect(page).toHaveTitle(" + tsRegex(step.ExpectTitle) + ");"
 	case strings.TrimSpace(step.ExpectURL) != "":
-		return "await expect(page).toHaveURL(ORIGIN + " + tsString(step.ExpectURL) + ");"
+		return "await expect(page).toHaveURL(" + urlTarget(step.ExpectURL, v2) + ");"
 	case strings.TrimSpace(step.ExpectText) != "":
 		// .first() keeps a repeated string from failing Playwright strict mode,
 		// which would report a locator error instead of the missing text.
