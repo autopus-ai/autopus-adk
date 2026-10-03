@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **의도 기반 자동 QA: 시나리오 생성, 녹화, 자가 수리 루프** (2026-10-03,
+  SPEC-QALOOP-001): 수락 기준에서 시나리오를 만들고 실행·분류·수정·재검증까지
+  사람 없이 돌린다. 기대값은 SPEC 수락 기준, 사람이 확인한 녹화, 표시된
+  baseline에서만 온다. 코드에서 기대값을 지어내면 지금 동작(버그 포함)을 정답으로
+  굳히기 때문이다(토스 FE 발표에서 이 방식이 실패한 사례를 근거로 삼았다).
+  - `auto qa scenario generate --spec <ID> --agent <platform>`: 에이전트가
+    acceptance.md로 테스트 시나리오(`qamesh.test-scenarios.v1`, happy/negative/
+    edge)와 v2 사용자 시나리오 후보를 만든다. 하네스는 모든 `ac`가 실제 수락
+    기준인지 검증하고 기준별 커버리지를 보고한다. `promote`가 검증된 후보만 활성화한다.
+  - `qamesh.scenario.v2`: `intent_source`, 단계별 `ac`, click/fill/press/check/
+    select/wait_url 조작을 지원한다. 조작이 있으면 `@journey`로 컴파일해
+    gui-explore의 읽기 전용 보장을 유지하고, 자격 증명은 `value_env`로 실행 시
+    읽는다. 컴파일마다 줄→단계 step map을 남긴다. v1 출력은 바이트 단위로 같다.
+  - `auto qa loop --lane <lane> --agent <platform>`: 실행 → 실패 1회 재실행(flaky)
+    → 분류(environment/flaky/test_drift/test_defect/product_defect/unknown) → 수정
+    → diff guard → 커밋을 `autopus/qa-loop/<run-id>` 브랜치에서 반복한다. guard는
+    분류별 허용 경로 밖의 수정과 기대값·`ac` 변경을 거부하고, 그 반복의 변경만
+    되돌린다. repair prompt에는 실패 단계와 trace·스크린샷 경로를 담은 Replay 절이
+    붙는다.
+  - `auto qa record`(Playwright codegen)와 `auto qa record import`(codegen JS,
+    에이전트 녹화 JSONL)는 녹화를 `recording` 후보로 바꾼다. `ac` 없는 에이전트
+    assert는 확인 전까지 승격되지 않는다. `auto qa discover`는 읽기 전용 크롤로
+    회귀 baseline 후보를 만든다.
+  - `qa-autopilot` 스킬과 `auto qa init` README의 `@journey` Journey Pack 예시를
+    추가했다. 샘플 로그인 앱에서 claude로 체인 전체를 실제로 돌려, 주입한 제품
+    버그와 버튼 문구 변경을 각각 product_defect·test_drift로 분류하고 고쳤다.
+
 - **Sonnet 티어를 Claude Sonnet 5.5로 올린다** (2026-10-03): `sonnet` 티어와
   balanced 프로필, worker 라우팅, effort 판정, route_team의 test_scaffold·testing
   고정 모델을 `claude-sonnet-5-5`로 옮긴다. 가격은 Sonnet 5와 같은 MTok당

@@ -41,6 +41,8 @@ Project-level QA를 QAMESH evidence와 feedback bundle로 연결합니다. 이 �
 @auto qa scenario init --format json
 @auto qa scenario compile --format json
 @auto qa scenario compile --dry-run --format json
+@auto qa scenario generate --spec SPEC-XXX-001 --agent codex --format json
+@auto qa loop --lane browser-staging --agent codex --format json
 @auto qa run --format json
 @auto qa explore --dry-run --format json
 @auto qa release --dry-run --format json
@@ -64,6 +66,9 @@ Project-level QA를 QAMESH evidence와 feedback bundle로 연결합니다. 이 �
 - `auto qa run`: deterministic project QA를 실행하고 run index, QAMESH evidence, 선택된 feedback bundle을 생성합니다.
 - `auto qa explore`: explicit GUI Journey Pack만 대상으로 실제 UI 탐색 evidence를 생성합니다. 먼저 `--dry-run`으로 allowed origins, forbidden actions, artifact retention, setup gap을 확인합니다.
 - `auto qa scenario`: 프로젝트가 선언한 user scenario를 runner spec으로 컴파일합니다. `init`은 편집할 예시 시나리오를 만들고, `compile`은 `.autopus/qa/scenarios/*.yaml`을 프로젝트 Playwright `testDir` 아래 `autopus-generated/<id>.spec.ts`로 렌더링합니다. `--dry-run`은 검증과 렌더링만 하고 파일을 쓰지 않습니다.
+- `auto qa scenario generate --spec <SPEC-ID> --agent <claude|codex|gemini|opencode> --format json`으로 SPEC 수락 기준에서 테스트 시나리오(`.autopus/qa/test-scenarios/`)와 v2 사용자 시나리오 후보를 `candidates/`에 만듭니다. 모든 기대값은 수락 기준에서 와야 하고, 다루지 못한 기준은 지어내지 않고 uncovered로 보고합니다. `auto qa scenario promote --all`이 검증된 후보를 제자리로 옮깁니다.
+- `auto qa record --origin <url> --id <id>`(Playwright codegen)나 `auto qa record import --from <file.js|file.jsonl>`로 녹화를 `recording` 후보로 만들고, `auto qa discover --origin <url>`로 읽기 전용 크롤 `baseline` 후보를 만듭니다. baseline은 회귀 기준일 뿐 정답 증명이 아닙니다.
+- `auto qa loop --lane <lane> --agent <platform> --format json`은 실행, 실패 1회 재실행(flaky 판별), 분류(`environment | flaky | test_drift | test_defect | product_defect | unknown`), 수정을 `autopus/qa-loop/<run-id>` 브랜치에서 반복합니다. diff guard는 분류별 허용 경로 밖의 수정과 기대값 변경을 거부합니다. 루프 브랜치를 리뷰해 병합하고, 거부된 수정을 손으로 다시 적용하지 않습니다.
 - `auto qa release`: fixed release lane set, sibling SPEC readiness, redacted command previews, blocker matrix, and release index aggregation을 계획/실행합니다. `canary-explicit`은 post-deploy smoke bridge lane이며 explicit Journey Pack 없이는 setup gap입니다.
 - `auto qa evidence`: producer가 이미 만든 QAMESH manifest를 검증, redaction, publish 경계로 보냅니다.
 - `auto qa feedback`: 기존 failed evidence를 Claude, Codex, Gemini, OpenCode용 repair prompt bundle로 변환합니다.
@@ -85,7 +90,7 @@ Project-level QA를 QAMESH evidence와 feedback bundle로 연결합니다. 이 �
 ## Scenario Authoring Contract
 
 - `.autopus/qa/scenarios/*.yaml`는 프로젝트가 "사용자가 무엇을 보는가"를 선언하는 파일입니다. 하네스는 assertion을 발명하지 않고, 선언을 runner 방언으로 번역만 합니다. `schema_version: qamesh.scenario.v1`, `id`, `title`, `journey`, `screens[]`가 필수이고 `origin`은 생략하면 named Journey Pack의 `allowed_origins[0]`을 상속합니다 — 컴파일된 spec은 guard가 이미 허용한 origin으로만 이동할 수 있습니다.
-- step 어휘는 읽기 전용으로 닫혀 있습니다: `expect_title`, `expect_url`, `expect_text`, `expect_role`, `expect_count`. `click`, `fill`, `press`는 스키마에 존재하지 않으므로 컴파일된 spec은 `gui.forbidden_actions` guard를 트립시킬 수 없습니다 — 누락이 아니라 안전 속성입니다. mutation flow는 직접 작성한 spec으로 다룹니다.
+- `qamesh.scenario.v1` step은 읽기 전용입니다(`expect_title`, `expect_url`, `expect_text`, `expect_role`, `expect_count`). 이런 시나리오는 `@explore`로 컴파일되어 `gui.forbidden_actions` guard를 트립시킬 수 없습니다. `qamesh.scenario.v2`는 `intent_source`(`acceptance | recording | baseline`)와 조작 step(`click`, `fill`, `press`, `check`, `select`, `wait_url`)을 더합니다. 조작이 하나라도 있으면 `@explore`가 아닌 `@journey`로 컴파일되고 `browser-staging`의 `playwright` pack에서 실행됩니다. `acceptance` 시나리오의 모든 expect step은 `acceptance_refs`에 있는 `ac`를 달고, 자격 증명은 리터럴이 아닌 `value_env`로 씁니다.
 - element는 ARIA role로만 지정합니다. pack의 `selector_strategy: role-first`와 일치시키기 위한 제약이며, CSS 탈출구는 pack이 광고하는 전략과 모순되는 spec을 허용하게 됩니다. 알 수 없는 key나 알 수 없는 role은 파일 전체를 reject합니다.
 - 각 screen은 정확히 하나의 runner test로 컴파일되고 `autopus-screen` annotation을 push합니다. capture producer가 이를 step의 `screen_ref`로 기록하므로 pack의 `gui.screen_matrix`가 실제로 집행됩니다. annotation이 없는 직접 작성 spec은 첫 `goto`의 경로에서 `screen_ref`가 유도되므로, path로 선언한 matrix row는 수정 없이 만족됩니다.
 - `compile`은 `screen_matrix` 투영을 출력만 하고 pack에 쓰지 않습니다. 생성된 pack에는 설명 주석이 있고 YAML round-trip이 그것을 파괴하기 때문입니다. 선언 커버리지를 집행하려면 출력된 row를 pack에 붙여 넣습니다.
