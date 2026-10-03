@@ -123,7 +123,7 @@ source_refs:
 	agent := &fakeRunner{stdout: "I could not draft anything."}
 	report, err := Run(context.Background(), Options{ProjectDir: dir, SpecID: specX, Target: agentexec.TargetCodex, Runner: agent})
 	require.NoError(t, err)
-	assert.Contains(t, agent.got.Prompt, "- browser-gui-explore http://127.0.0.1:4173")
+	assert.Contains(t, agent.got.Prompt, "- browser-gui-explore http://127.0.0.1:4173 (read-only")
 	assert.Zero(t, report.Documents)
 	for _, row := range report.Coverage {
 		assert.Equal(t, Uncovered, row.Status, row.ID)
@@ -166,4 +166,36 @@ func TestWriteCandidates_UnsafeID_IsRefused(t *testing.T) {
 func TestErrorCode_UnknownError_IsGenerationFailure(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, CodeFailed, ErrorCode(errors.New("boom")))
+}
+
+// A playwright pack declares no GUI origins; its origin is the Playwright
+// baseURL, and it is offered as a journey that may act on the page.
+func TestRun_PlaywrightPackOffersBaseURL(t *testing.T) {
+	t.Parallel()
+	dir := projectX(t, acceptanceX)
+	writeFile(t, filepath.Join(dir, "playwright.config.js"), "module.exports = { use: { baseURL: 'http://127.0.0.1:4173' } };\n")
+	writeFile(t, filepath.Join(dir, ".autopus", "qa", "journeys", "browser-staging-playwright.yaml"), `id: browser-staging-playwright
+title: Browser staging
+surface: frontend
+lanes: [browser-staging]
+adapter:
+  id: playwright
+command:
+  argv: ["npm", "exec", "playwright", "test"]
+  cwd: .
+  timeout: 240s
+checks:
+  - id: browser-staging-playwright
+    type: deterministic
+    expected:
+      exit_code: 0
+source_refs:
+  source_spec: SPEC-QAMESH-005
+  acceptance_refs: [AC-1]
+  owned_paths: ["."]
+`)
+	agent := &fakeRunner{stdout: "nothing"}
+	_, err := Run(context.Background(), Options{ProjectDir: dir, SpecID: specX, Target: agentexec.TargetClaude, Runner: agent})
+	require.NoError(t, err)
+	assert.Contains(t, agent.got.Prompt, "- browser-staging-playwright http://127.0.0.1:4173 (actions allowed)")
 }

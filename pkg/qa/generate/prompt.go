@@ -33,6 +33,9 @@ const (
 type JourneyHint struct {
 	ID     string `json:"id"`
 	Origin string `json:"origin,omitempty"`
+	// ReadOnly marks a gui-explore pack. Its guard blocks click and fill, so
+	// only scenarios without action steps may name it.
+	ReadOnly bool `json:"read_only,omitempty"`
 }
 
 // PromptInput is everything the generation prompt is built from.
@@ -133,7 +136,11 @@ func writeJourneys(b *strings.Builder, journeys []JourneyHint) {
 			fmt.Fprintf(b, "- (%d more omitted)\n", len(journeys)-i)
 			break
 		}
-		fmt.Fprintf(b, "- %s %s\n", oneLine(j.ID), oneLine(j.Origin))
+		mode := "actions allowed"
+		if j.ReadOnly {
+			mode = "read-only: expect steps only, never click/fill/press/check/select"
+		}
+		fmt.Fprintf(b, "- %s %s (%s)\n", oneLine(j.ID), oneLine(j.Origin), mode)
 	}
 	b.WriteString("\n")
 }

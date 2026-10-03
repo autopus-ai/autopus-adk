@@ -182,6 +182,12 @@ func renderBlockList(indent string, values []string) string {
 	return strings.Join(lines, "\n")
 }
 
+// DetectPlaywrightOrigin is detectBaseOrigin for callers outside init, such as
+// scenario generation offering a Playwright pack's origin to the agent.
+func DetectPlaywrightOrigin(projectDir string) string {
+	return detectBaseOrigin(projectDir)
+}
+
 // detectBaseOrigin returns the origin of a Playwright baseURL when the config
 // states one as a plain string literal. Anything else - a template expression, a
 // relative URL, an origin carrying a path, query, fragment, or credentials -

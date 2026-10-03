@@ -12,6 +12,7 @@ import (
 	"github.com/insajin/autopus-adk/pkg/qa/acceptance"
 	"github.com/insajin/autopus-adk/pkg/qa/agentexec"
 	"github.com/insajin/autopus-adk/pkg/qa/journey"
+	"github.com/insajin/autopus-adk/pkg/qa/scaffold"
 	"github.com/insajin/autopus-adk/pkg/qa/scenario"
 )
 
@@ -173,17 +174,29 @@ func existingScenarioIDs(projectDir string) []string {
 	return ids
 }
 
-// journeyHints offers the packs that declare GUI origins: only those can run a
-// user scenario. An unreadable journey directory just means no hints.
+// journeyHints offers the packs that can run a user scenario: packs that
+// declare GUI origins, and playwright packs, whose origin is the baseURL the
+// project's Playwright config states. A playwright pack with no detectable
+// baseURL is not offered, because a scenario needs an absolute origin to
+// compile. An unreadable journey directory just means no hints.
 func journeyHints(projectDir string) []JourneyHint {
 	packs, err := journey.LoadDir(projectDir)
 	if err != nil {
 		return nil
 	}
 	var hints []JourneyHint
+	playwrightOrigin := ""
 	for _, pack := range packs {
-		if len(pack.GUI.AllowedOrigins) > 0 {
-			hints = append(hints, JourneyHint{ID: pack.ID, Origin: pack.GUI.AllowedOrigins[0]})
+		switch {
+		case len(pack.GUI.AllowedOrigins) > 0:
+			hints = append(hints, JourneyHint{ID: pack.ID, Origin: pack.GUI.AllowedOrigins[0], ReadOnly: pack.Adapter.ID == "gui-explore"})
+		case pack.Adapter.ID == "playwright":
+			if playwrightOrigin == "" {
+				playwrightOrigin = scaffold.DetectPlaywrightOrigin(projectDir)
+			}
+			if playwrightOrigin != "" {
+				hints = append(hints, JourneyHint{ID: pack.ID, Origin: playwrightOrigin})
+			}
 		}
 	}
 	return hints
