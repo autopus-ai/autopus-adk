@@ -36,6 +36,12 @@ var supportedFeedbackTargets = map[string]feedbackTarget{
 // @AX:ANCHOR [AUTO] @AX:SPEC: SPEC-QAMESH-001: feedback bundle generation is the cross-agent repair prompt contract.
 // @AX:REASON: Codex, Claude, Gemini, and OpenCode repair flows depend on failed-only validation and safe prompt material at this boundary.
 func WriteFeedbackBundle(manifest Manifest, target, outputDir string) (FeedbackResult, error) {
+	return writeFeedbackBundle(manifest, target, outputDir, nil)
+}
+
+// writeFeedbackBundle is the shared writer; replay is nil when no failing
+// generated-spec step was located.
+func writeFeedbackBundle(manifest Manifest, target, outputDir string, replay *Replay) (FeedbackResult, error) {
 	normalizedTarget := strings.ToLower(strings.TrimSpace(target))
 	profile, ok := supportedFeedbackTargets[normalizedTarget]
 	if !ok {
@@ -61,7 +67,7 @@ func WriteFeedbackBundle(manifest Manifest, target, outputDir string) (FeedbackR
 		return FeedbackResult{}, err
 	}
 	promptPath := filepath.Join(bundlePath, "repair-prompt.md")
-	prompt := renderPrompt(manifest, profile, artifacts)
+	prompt := renderPrompt(manifest, profile, artifacts, replay)
 	if err := AssertSafeText(prompt, promptPath); err != nil {
 		return FeedbackResult{}, err
 	}
