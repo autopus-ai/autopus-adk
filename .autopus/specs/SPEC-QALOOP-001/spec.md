@@ -1,6 +1,6 @@
 # SPEC-QALOOP-001: Intent-anchored autonomous QA loop
 
-**Status**: approved
+**Status**: completed
 **Created**: 2026-10-03
 **Domain**: QALOOP
 **Module**: autopus-adk
