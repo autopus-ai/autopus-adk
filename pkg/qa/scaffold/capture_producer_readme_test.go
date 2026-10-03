@@ -16,7 +16,7 @@ import (
 // README is parsed and validated as a real Journey Pack.
 func TestCaptureReadmeEmbedsValidatingGUIExplorePacks(t *testing.T) {
 	t.Parallel()
-	blocks := yamlBlocks(captureReadmeBody(projectSignals{PackageManager: "npm"}))
+	blocks := exploreBlocks(t, captureReadmeBody(projectSignals{PackageManager: "npm"}))
 	// Two: the browser pack and the desktop pack. A future edit must not silently
 	// drop one and leave that surface undocumented.
 	require.GreaterOrEqual(t, len(blocks), 2, "README must carry both gui-explore examples")
@@ -39,7 +39,7 @@ func TestCaptureReadmeEmbedsValidatingGUIExplorePacks(t *testing.T) {
 // capture_index and the guard receipt.
 func TestCaptureReadmeExamplesSelectTheExploreSubset(t *testing.T) {
 	t.Parallel()
-	blocks := yamlBlocks(captureReadmeBody(projectSignals{PackageManager: "npm"}))
+	blocks := exploreBlocks(t, captureReadmeBody(projectSignals{PackageManager: "npm"}))
 	require.Len(t, blocks, 2)
 
 	for _, block := range blocks {
@@ -66,7 +66,7 @@ func TestCaptureReadmeExampleTargetsDetectedBaseURL(t *testing.T) {
 	t.Parallel()
 	body := captureReadmeBody(projectSignals{PackageManager: "npm", BaseOrigin: "http://127.0.0.1:4173"})
 
-	blocks := yamlBlocks(body)
+	blocks := exploreBlocks(t, body)
 	require.Len(t, blocks, 2)
 	var pack journey.Pack
 	require.NoError(t, yaml.Unmarshal([]byte(blocks[0]), &pack))

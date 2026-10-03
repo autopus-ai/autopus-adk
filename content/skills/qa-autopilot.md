@@ -1,0 +1,110 @@
+---
+name: qa-autopilot
+description: 수락 기준에서 테스트·사용자 시나리오를 만들고 실행·분류·수정·재검증까지 무인으로 돌리는 QA 자동화 스킬
+triggers:
+  - qa autopilot
+  - qa loop
+  - 자동 QA
+  - QA 자동화
+  - 시나리오 생성
+  - 테스트 시나리오
+  - 사용자 시나리오
+  - qa record
+category: quality
+level1_metadata: "intent→scenario 생성, auto qa loop 자가 수리, codegen/에이전트 녹화, 탐색 baseline"
+---
+
+# QA Autopilot Skill
+
+의도(SPEC 수락 기준, 사람이 확인한 녹화)에서 출발해 시나리오 생성 → 실행 → 실패 분류 → 수정 → 재검증을 무인으로 돌립니다. 근거는 SPEC-QALOOP-001입니다.
+
+## 원칙: 기대값은 의도에서만 온다
+
+코드만 보고 시나리오와 기대값을 지어내면 **지금 동작(버그 포함)을 정답으로 굳힌** 테스트가 됩니다. 그래서 하네스는 아래 세 곳에서 온 기대값만 받습니다.
+
+| `intent_source` | 기대값의 출처 | 조작 단계 |
+|---|---|---|
+| `acceptance` | SPEC acceptance.md. 모든 expect 단계에 `ac` 필수 | 허용 (`@journey`) |
+| `recording` | 사람이 codegen에서 만든 assert, 또는 확인된 에이전트 assert | 허용 (`@journey`) |
+| `baseline` | 탐색 크롤 결과. 회귀 기준일 뿐 정답 증명이 아님 | 금지 (`@explore @baseline`) |
+
+자가 수리는 **요소를 찾는 방법**(click/fill 대상)만 바꿀 수 있습니다. expect 값, `ac`, `acceptance_refs`를 바꾸는 수리는 diff guard가 거절합니다. UI 문구가 정말 바뀐 것이라면 SPEC 수락 기준을 고치는 것이 맞습니다.
+
+## 무인 체인
+
+```bash
+# 1. 수락 기준 → 테스트 시나리오 + 사용자 시나리오 후보
+auto qa scenario generate --spec SPEC-XXX-001 --agent claude
+#    출력의 coverage에서 uncovered 기준을 확인합니다.
+
+# 2. 후보 승격 (검증·ac 존재·미확인 에이전트 assert 없음이 조건)
+auto qa scenario promote --all
+
+# 3. 사용자 시나리오 → Playwright spec (+ step map)
+auto qa scenario compile
+
+# 4. 실행 → 재실행(flaky 판별) → 분류 → 수정 → guard → 커밋, 최대 3회
+auto qa loop --lane browser-staging --agent claude
+```
+
+`auto qa loop`는 깨끗한 tracked 트리에서만 시작하고, `autopus/qa-loop/<run-id>` 브랜치에서 작업한 뒤 원래 브랜치로 돌아옵니다. 결과는 `.autopus/qa/loop/<run-id>/report.md`에 남습니다. 수정을 받아들이려면 그 브랜치를 리뷰하고 병합합니다.
+
+### 실패 분류와 처리
+
+| 분류 | 판정 근거 | 루프의 처리 |
+|---|---|---|
+| `environment` | setup gap, 연결 거부, 브라우저 미설치, webServer 타임아웃 | 멈추고 보고. 코드를 고치지 않음 |
+| `flaky` | 즉시 재실행에서 통과 | quarantine으로 보고. 루프 실패로 세지 않음 |
+| `test_drift` | 실패 줄이 step map에서 action 단계 | 시나리오의 action 대상만 수리 후 재컴파일 |
+| `test_defect` | 테스트 파일의 문법·타입·모듈 오류, strict-mode 위반 | 테스트 경로만 수정 |
+| `product_defect` | 실패 줄이 expect 단계, 또는 명령 check의 oracle 실패 | 제품 코드만 수정. 테스트·시나리오·SPEC 수정 금지 |
+| `unknown` | 그 외 | 멈추고 보고 |
+
+멈춤 사유는 `passed`, `passed_with_flaky`, `max_iterations`, `no_progress`, `blocked_environment`, `guard_rejected`, `agent_failed` 중 하나입니다.
+
+## 녹화로 시나리오 만들기
+
+### 사람이 직접 클릭
+
+```bash
+auto qa record --origin http://127.0.0.1:3000 --id checkout --journey web-journey
+```
+
+Playwright codegen 창에서 흐름을 진행하고, 툴바의 assert 도구로 확인할 내용을 찍은 뒤 창을 닫으면 v2 `recording` 후보로 변환됩니다. 변환하지 못한 줄은 줄 번호와 함께 보고됩니다.
+
+### 에이전트가 브라우저를 조작
+
+에이전트가 자연어 목표대로 브라우저를 조작할 때는(`playwright-cli` 스킬) 한 동작마다 `qamesh.recording.v1` JSONL 한 줄을 남깁니다.
+
+```jsonl
+{"schema_version":"qamesh.recording.v1","action":"goto","url":"/login","by":"agent"}
+{"action":"fill","target":{"label":"이메일"},"value_env":"E2E_EMAIL","by":"agent"}
+{"action":"click","target":{"role":"button","name":"로그인"},"by":"human"}
+{"expect":"text","value":"환영합니다","by":"agent","ac":"AC-LOGIN-002"}
+```
+
+- 사람이 대신 수행한 단계는 `"by":"human"`으로 적습니다.
+- `ac` 없이 에이전트가 만든 expect는 `confirm: required`로 표시됩니다. 사람이 확인하거나 `ac`를 달기 전까지 승격되지 않습니다(`promote --accept-agent-assertions`로 일괄 확인).
+- 비밀번호 같은 값은 `value_env`로 남기고 YAML에 쓰지 않습니다.
+
+```bash
+auto qa record import --from recording.jsonl --id login --journey web-journey
+```
+
+## 탐색 baseline
+
+```bash
+auto qa discover --origin http://127.0.0.1:3000 --max-pages 20
+```
+
+같은 origin 링크를 `goto`만으로 따라가며 제목·h1/h2·랜드마크를 기록하고 baseline 후보를 만듭니다. 화면이 사라지거나 바뀌는 회귀를 잡는 용도이며, 기능이 맞다는 증명은 아닙니다.
+
+## 에이전트 CLI
+
+`--agent`는 `claude`, `codex`, `gemini`(agy), `opencode`를 받습니다. 다른 실행 방식이 필요하면 `AUTOPUS_QA_AGENT_ARGV='["my-agent","--headless"]'`로 argv를 바꿀 수 있고, 프롬프트는 stdin으로 전달됩니다. CLI가 없으면 실패가 아니라 setup gap(`qa_agent_cli_missing`)으로 보고됩니다.
+
+## 금지 사항
+
+- `pass_fail_authority: ai`로 판정을 에이전트에게 넘기지 않습니다.
+- baseline 시나리오에 조작 단계를 넣지 않습니다. `@explore` 레인의 읽기 전용 보장이 깨집니다.
+- 루프가 거절한 수정을 손으로 다시 적용하지 않습니다. 거절 사유가 기대값 변경이면 SPEC부터 고칩니다.

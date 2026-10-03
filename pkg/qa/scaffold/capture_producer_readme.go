@@ -96,7 +96,8 @@ func captureReadmeJourneyPack(signals projectSignals) []string {
 		"",
 	)
 	rows = append(rows, fencedYAML(desktopGUIExplorePackExample(signals))...)
-	return append(rows, captureReadmeExploreSubset()...)
+	rows = append(rows, captureReadmeExploreSubset()...)
+	return append(rows, captureReadmeJourneySubset(signals)...)
 }
 
 func captureReadmeExploreSubset() []string {

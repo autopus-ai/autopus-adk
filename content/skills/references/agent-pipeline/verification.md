@@ -121,6 +121,17 @@ file-size policy does not apply to SPEC or agent Markdown.
   gate; generated packs and workflows are reviewed before execution. Use
   `auto qa init --local-only --format json` to skip release workflow
   scaffolding.
+- When the SPEC has acceptance criteria and the project has a GUI or command QA
+  surface, generate intent-anchored scenarios with `auto qa scenario generate
+  --spec <SPEC-ID> --agent <platform>`, then `auto qa scenario promote --all`
+  and `auto qa scenario compile`. Report uncovered criteria; never invent
+  expected values that no criterion or recording states.
+- When an affected lane fails, hand the failure to `auto qa loop --lane <lane>
+  --agent <platform>` instead of hand-patching tests. The loop triages
+  (`environment | flaky | test_drift | test_defect | product_defect`), fixes on
+  its own branch, and its diff guard refuses any change that moves an expected
+  value. Review and merge the loop branch; a `guard_rejected` or `no_progress`
+  stop goes back to the SPEC or to a human. See the `qa-autopilot` skill.
 
 ## Phase 3.5 — UX verification
 
