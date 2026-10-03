@@ -240,7 +240,7 @@ for helper in pins coordinates archive; do
 done
 install -m 0700 "$lineage" "$temp/verify-public-key-lineage.sh"
 ln -s -- "$lineage_assets" "$temp/verify-public-key-lineage-assets.sh"
-if output=$(GITHUB_REF_NAME=v0.50.121 PATH="$PATH" \
+if output=$(GITHUB_REF_NAME=v0.50.122 PATH="$PATH" \
   bash "$temp/verify-public-key-lineage.sh" 2>&1); then
   fail 'symlinked lineage asset helper passed'
 fi

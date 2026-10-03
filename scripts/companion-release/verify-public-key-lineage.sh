@@ -42,13 +42,13 @@ fi
 if [[ "$release_phase" == 'A23' ]]; then
   nonzero_hex "$prior_tag_object" 40 \
     || fail prior_evidence_unverifiable 'A22 annotated tag pin is not provisioned'
-elif [[ "$release_phase" == 'A2' || "$release_phase" == 'A3' || "$release_phase" == 'A4' || "$release_phase" == 'A5' || "$release_phase" == 'A6' || "$release_phase" == 'A7' || "$release_phase" == 'A8' || "$release_phase" == 'A9' || "$release_phase" == 'A10' || "$release_phase" == 'A11' || "$release_phase" == 'A12' || "$release_phase" == 'A13' || "$release_phase" == 'A14' || "$release_phase" == 'A15' || "$release_phase" == 'A16' || "$release_phase" == 'A17' || "$release_phase" == 'A18' || "$release_phase" == 'A19' || "$release_phase" == 'A20' || "$release_phase" == 'A21' || "$release_phase" == 'A22' || "$release_phase" == 'A24' || "$release_phase" == 'A25' || "$release_phase" == 'A26' || "$release_phase" == 'A27' || "$release_phase" == 'A28' || "$release_phase" == 'A29' || "$release_phase" == 'A30' || "$release_phase" == 'A31' || "$release_phase" == 'A32' ]]; then
+elif [[ "$release_phase" == 'A2' || "$release_phase" == 'A3' || "$release_phase" == 'A4' || "$release_phase" == 'A5' || "$release_phase" == 'A6' || "$release_phase" == 'A7' || "$release_phase" == 'A8' || "$release_phase" == 'A9' || "$release_phase" == 'A10' || "$release_phase" == 'A11' || "$release_phase" == 'A12' || "$release_phase" == 'A13' || "$release_phase" == 'A14' || "$release_phase" == 'A15' || "$release_phase" == 'A16' || "$release_phase" == 'A17' || "$release_phase" == 'A18' || "$release_phase" == 'A19' || "$release_phase" == 'A20' || "$release_phase" == 'A21' || "$release_phase" == 'A22' || "$release_phase" == 'A24' || "$release_phase" == 'A25' || "$release_phase" == 'A26' || "$release_phase" == 'A27' || "$release_phase" == 'A28' || "$release_phase" == 'A29' || "$release_phase" == 'A30' || "$release_phase" == 'A31' || "$release_phase" == 'A32' || "$release_phase" == 'A33' ]]; then
   nonzero_hex "$prior_tag_object" 40 || fail prior_evidence_unverifiable "${prior_phase} annotated tag pin is not provisioned"
   for pin in "$prior_amd64_archive" "$prior_arm64_archive"; do
     nonzero_hex "$pin" 64 || fail prior_evidence_unverifiable "${prior_phase} archive pins are not provisioned"
   done
 fi
-if [[ "$release_phase" == 'A15' || "$release_phase" == 'A16' || "$release_phase" == 'A17' || "$release_phase" == 'A18' || "$release_phase" == 'A19' || "$release_phase" == 'A20' || "$release_phase" == 'A21' || "$release_phase" == 'A22' || "$release_phase" == 'A24' || "$release_phase" == 'A25' || "$release_phase" == 'A26' || "$release_phase" == 'A27' || "$release_phase" == 'A28' || "$release_phase" == 'A29' || "$release_phase" == 'A30' || "$release_phase" == 'A31' || "$release_phase" == 'A32' ]]; then
+if [[ "$release_phase" == 'A15' || "$release_phase" == 'A16' || "$release_phase" == 'A17' || "$release_phase" == 'A18' || "$release_phase" == 'A19' || "$release_phase" == 'A20' || "$release_phase" == 'A21' || "$release_phase" == 'A22' || "$release_phase" == 'A24' || "$release_phase" == 'A25' || "$release_phase" == 'A26' || "$release_phase" == 'A27' || "$release_phase" == 'A28' || "$release_phase" == 'A29' || "$release_phase" == 'A30' || "$release_phase" == 'A31' || "$release_phase" == 'A32' || "$release_phase" == 'A33' ]]; then
   for pin in "$prior_linux_amd64_archive" "$prior_linux_arm64_archive"; do
     nonzero_hex "$pin" 64 \
       || fail prior_evidence_unverifiable "${prior_phase} Linux archive pins are not provisioned"
@@ -86,7 +86,7 @@ if [[ -n "${COMPANION_MANIFEST_VERIFIER-}" ]]; then
      -x "$COMPANION_MANIFEST_VERIFIER" ]] \
     || fail prior_evidence_unverifiable 'companion manifest verifier is invalid'
 fi
-if [[ "$release_phase" == 'A23' || "$release_phase" == 'A24' || "$release_phase" == 'A25' || "$release_phase" == 'A26' || "$release_phase" == 'A27' || "$release_phase" == 'A28' || "$release_phase" == 'A29' || "$release_phase" == 'A30' || "$release_phase" == 'A31' || "$release_phase" == 'A32' ]]; then
+if [[ "$release_phase" == 'A23' || "$release_phase" == 'A24' || "$release_phase" == 'A25' || "$release_phase" == 'A26' || "$release_phase" == 'A27' || "$release_phase" == 'A28' || "$release_phase" == 'A29' || "$release_phase" == 'A30' || "$release_phase" == 'A31' || "$release_phase" == 'A32' || "$release_phase" == 'A33' ]]; then
   [[ -f "${OMP_CONTEXT_LINEAGE_VERIFIER-}" &&
      ! -L "$OMP_CONTEXT_LINEAGE_VERIFIER" && -x "$OMP_CONTEXT_LINEAGE_VERIFIER" ]] \
     || fail prior_evidence_unverifiable 'OMP context lineage verifier is invalid'

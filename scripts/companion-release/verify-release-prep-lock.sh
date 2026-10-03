@@ -9,10 +9,10 @@ usage() {
 }
 [[ $# -eq 3 ]] || usage
 readonly lock_ref=$1 lock_commit=$2 report=$3
-readonly expected_ref='refs/heads/omp-context-evidence-v0.50.121-source'
+readonly expected_ref='refs/heads/omp-context-evidence-v0.50.122-source'
 readonly report_name='omp-context-promotion-report.v1.json'
 
-[[ "$lock_ref" == "$expected_ref" ]] || fail 'lock ref is not exact A32'
+[[ "$lock_ref" == "$expected_ref" ]] || fail 'lock ref is not exact A33'
 [[ "$lock_commit" =~ ^[0-9a-f]{40}$ ]] || fail 'lock commit is malformed'
 [[ -f "$report" && ! -L "$report" ]] || fail 'expected report is unsafe'
 for tool in awk cmp git; do command -v "$tool" >/dev/null || fail "$tool is unavailable"; done

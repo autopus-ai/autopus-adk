@@ -15,14 +15,14 @@ import (
 )
 
 var currentReleaseArchives = []string{
-	"autopus-adk_0.50.121_darwin_amd64.tar.gz",
-	"autopus-adk_0.50.121_darwin_arm64.tar.gz",
-	"autopus-adk_0.50.121_linux_amd64.tar.gz",
-	"autopus-adk_0.50.121_linux_arm64.tar.gz",
-	"autopus-adk_0.50.121_windows_amd64.tar.gz",
-	"autopus-adk_0.50.121_windows_amd64.zip",
-	"autopus-adk_0.50.121_windows_arm64.tar.gz",
-	"autopus-adk_0.50.121_windows_arm64.zip",
+	"autopus-adk_0.50.122_darwin_amd64.tar.gz",
+	"autopus-adk_0.50.122_darwin_arm64.tar.gz",
+	"autopus-adk_0.50.122_linux_amd64.tar.gz",
+	"autopus-adk_0.50.122_linux_arm64.tar.gz",
+	"autopus-adk_0.50.122_windows_amd64.tar.gz",
+	"autopus-adk_0.50.122_windows_amd64.zip",
+	"autopus-adk_0.50.122_windows_arm64.tar.gz",
+	"autopus-adk_0.50.122_windows_arm64.zip",
 }
 
 type currentReleaseAsset struct {
@@ -120,7 +120,7 @@ func newCurrentReleaseFixture(t *testing.T) *currentReleaseFixture {
 		signatureLog: filepath.Join(state, "signature.log"),
 		verifierLog:  filepath.Join(state, "verifier.log"), checksums: assetBodies["checksums.txt"],
 		reportSHA256: fmt.Sprintf("%x", reportDigest), attestationSHA256: fmt.Sprintf("%x", attestationDigest),
-		release: currentReleaseDocument{ID: 410118, TagName: "v0.50.121",
+		release: currentReleaseDocument{ID: 410118, TagName: "v0.50.122",
 			TargetCommitish: strings.Repeat("c", 40), Immutable: true, Assets: assets},
 	}
 	fixture.release.Author.ID = 204883817
@@ -222,7 +222,7 @@ set -euo pipefail
 endpoint=''
 while (($#)); do case "$1" in -H) shift 2 ;; *) endpoint=$1; shift ;; esac; done
 case "$endpoint" in
-  repos/autopus-ai/autopus-adk/releases/tags/v0.50.121) exec cat "$MOCK_CURRENT_RELEASE_STATE/release.json" ;;
+  repos/autopus-ai/autopus-adk/releases/tags/v0.50.122) exec cat "$MOCK_CURRENT_RELEASE_STATE/release.json" ;;
   repos/autopus-ai/autopus-adk/releases/assets/*) exec cat "$MOCK_CURRENT_RELEASE_STATE/assets/${endpoint##*/}" ;;
   *) exit 64 ;;
 esac

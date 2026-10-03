@@ -2,7 +2,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v0.50.121'
+      - 'v0.50.122'
 permissions:
   contents: read
 jobs:
@@ -31,7 +31,7 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Validate exact R2-signed A32 source
+      - name: Validate exact R2-signed A33 source
         id: release-source
         shell: bash
         run: |
@@ -59,7 +59,7 @@ jobs:
             scripts/companion-release/verify-omp-context-evidence-tag.sh \
             "$RUNNER_TEMP/omp-context-production-evidence"
 
-      - name: Build trusted A32 evidence verifier
+      - name: Build trusted A33 evidence verifier
         shell: bash
         run: |
           set -euo pipefail
@@ -118,7 +118,7 @@ jobs:
       - name: Carry verified evidence into the protected release job
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: omp-context-evidence-v0.50.121
+          name: omp-context-evidence-v0.50.122
           path: |
             ${{ runner.temp }}/omp-context-production-evidence/omp-context-promotion-report.v1.json
             ${{ runner.temp }}/omp-context-production-evidence/omp-context-promotion-attestation.v2.json
@@ -127,7 +127,7 @@ jobs:
 
   release:
     needs: [ci, security, omp-production-evidence]
-    if: github.ref == 'refs/tags/v0.50.121'
+    if: github.ref == 'refs/tags/v0.50.122'
     environment:
       name: adk-companion-release
     permissions:
@@ -198,8 +198,8 @@ jobs:
             'repos/autopus-ai/autopus-adk/releases?per_page=100')
           reservation=$(jq -ce \
             '[.[][]] as $all |
-             [$all[] | select(.tag_name == "v0.50.121")] as $tagged |
-             [$all[] | select(.draft == true and .name == "v0.50.121")] as $named |
+             [$all[] | select(.tag_name == "v0.50.122")] as $tagged |
+             [$all[] | select(.draft == true and .name == "v0.50.122")] as $named |
              if ($tagged | length) == 1 and ($named | length) == 1 and
                 $tagged[0].id == $named[0].id
              then $tagged[0]
@@ -223,11 +223,11 @@ jobs:
             --arg attestation_sha256 "$OMP_CONTEXT_EVIDENCE_ATTESTATION_SHA256" \
             --arg static_policy_sha256 "$static_policy_sha" \
             '.draft == true and .prerelease == false and .author.id == 204883817 and
-             .target_commitish == $source and .name == "v0.50.121" and
+             .target_commitish == $source and .name == "v0.50.122" and
              (.assets | type == "array" and length == 0) and
              ((.body | fromjson) == {
                schema_version:"autopus.adk_release_reservation.v1",
-               release_tag:"v0.50.121",
+               release_tag:"v0.50.122",
                source_commit:$source,
                source_tree:$tree,
                evidence_tag_object:$evidence_tag_object,
@@ -310,7 +310,7 @@ jobs:
       - name: Download same-run production evidence
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: omp-context-evidence-v0.50.121
+          name: omp-context-evidence-v0.50.122
           path: ${{ runner.temp }}/omp-context-production-evidence
 
       - name: Reverify active K3 production evidence inside protected environment
@@ -673,14 +673,14 @@ jobs:
           set -euo pipefail
           [[ "$RELEASE_ID" =~ ^[1-9][0-9]*$ ]]
           expected_assets=$(printf '%s\n' \
-            'autopus-adk_0.50.121_darwin_amd64.tar.gz' \
-            'autopus-adk_0.50.121_darwin_arm64.tar.gz' \
-            'autopus-adk_0.50.121_linux_amd64.tar.gz' \
-            'autopus-adk_0.50.121_linux_arm64.tar.gz' \
-            'autopus-adk_0.50.121_windows_amd64.tar.gz' \
-            'autopus-adk_0.50.121_windows_amd64.zip' \
-            'autopus-adk_0.50.121_windows_arm64.tar.gz' \
-            'autopus-adk_0.50.121_windows_arm64.zip' \
+            'autopus-adk_0.50.122_darwin_amd64.tar.gz' \
+            'autopus-adk_0.50.122_darwin_arm64.tar.gz' \
+            'autopus-adk_0.50.122_linux_amd64.tar.gz' \
+            'autopus-adk_0.50.122_linux_arm64.tar.gz' \
+            'autopus-adk_0.50.122_windows_amd64.tar.gz' \
+            'autopus-adk_0.50.122_windows_amd64.zip' \
+            'autopus-adk_0.50.122_windows_arm64.tar.gz' \
+            'autopus-adk_0.50.122_windows_arm64.zip' \
             'checksums.txt' 'checksums.txt.bundle' 'checksums.txt.signatures' \
             'omp-context-promotion-report.v1.json' \
             'omp-context-promotion-attestation.v2.json' \
@@ -746,7 +746,7 @@ jobs:
           COMPANION_PUBLIC_KEY_SHA256: ${{ vars.ADK_COMPANION_PUBLIC_KEY_SHA256 }}
         run: |
           set -euo pipefail
-          checksums_path="$RUNNER_TEMP/autopus-v0.50.121-checksums.txt"
+          checksums_path="$RUNNER_TEMP/autopus-v0.50.122-checksums.txt"
           [[ "$(printf '%s' "$OMP_CONTEXT_STATIC_POLICY_B64" |
             shasum -a 256 | awk '{print $1}')" == "$OMP_CONTEXT_STATIC_POLICY_SHA256" ]]
           env -i PATH="$PATH" HOME="$HOME" TMPDIR="$RUNNER_TEMP" \

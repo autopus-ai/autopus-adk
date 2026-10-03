@@ -19,19 +19,19 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Admit exact public signed A31 to A32 upgrade
+      - name: Admit exact public signed A32 to A33 upgrade
         shell: bash
         env:
           UPGRADE_CANARY_RECEIPT_DIR: ${{ runner.temp }}/upgrade-canary-live-receipt
           UPGRADE_CANARY_GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          scripts/release-signing/tests/posix-upgrade-canary.sh live 0.50.120 0.50.121
+          scripts/release-signing/tests/posix-upgrade-canary.sh live 0.50.121 0.50.122
           jq -e '
             .mode == "live" and .status == "admitted" and
             .proof == "public asset admission" and
-            .previous_public_version == "0.50.120" and
-            .candidate_public_version == "0.50.121" and
+            .previous_public_version == "0.50.121" and
+            .candidate_public_version == "0.50.122" and
             .actual_release_executables_verified == true and
             .public_signed_installers_verified == true
           ' "$UPGRADE_CANARY_RECEIPT_DIR/provenance.json" >/dev/null
@@ -43,40 +43,40 @@ jobs:
           RECEIPT_DIR: ${{ runner.temp }}/upgrade-canary-live-receipt
         run: |
           set -euo pipefail
-          previous_release=$(gh api 'repos/autopus-ai/autopus-adk/releases/398906327')
-          previous_ref=$(gh api 'repos/autopus-ai/autopus-adk/git/ref/tags/v0.50.120')
-          previous_tag=$(gh api 'repos/autopus-ai/autopus-adk/git/tags/cee58b628ee8fe83c449a7d2ed46a2185168a4eb')
-          previous_commit=$(gh api 'repos/autopus-ai/autopus-adk/commits/b69a8450d6a1c916dfd6e86b254907b4b0c76b78')
+          previous_release=$(gh api 'repos/autopus-ai/autopus-adk/releases/402213224')
+          previous_ref=$(gh api 'repos/autopus-ai/autopus-adk/git/ref/tags/v0.50.121')
+          previous_tag=$(gh api 'repos/autopus-ai/autopus-adk/git/tags/033a3581a00c3566e3d19841fad9cf495c20cfb3')
+          previous_commit=$(gh api 'repos/autopus-ai/autopus-adk/commits/8299c8df85bc0e24bfb4d4fbbd71889dceb96986')
           jq -e '
-            .id == 398906327 and .tag_name == "v0.50.120" and
-            .target_commitish == "b69a8450d6a1c916dfd6e86b254907b4b0c76b78" and
+            .id == 402213224 and .tag_name == "v0.50.121" and
+            .target_commitish == "8299c8df85bc0e24bfb4d4fbbd71889dceb96986" and
             .draft == false and .prerelease == false and .immutable == true and
-            ([.assets[] | select(.name == "autopus-adk_0.50.120_darwin_arm64.tar.gz" and
-              .digest == "sha256:2359b595f4fb3857b2e8c0b9ed849df3445586b7c6bd680367d610e2c71a0cdc")] | length) == 1
+            ([.assets[] | select(.name == "autopus-adk_0.50.121_darwin_arm64.tar.gz" and
+              .digest == "sha256:de90e3165a504c8c8dbe128114c5f2b9fc9c72890d12d1cc3695c3aea3e7dd17")] | length) == 1
           ' <<<"$previous_release" >/dev/null
           jq -e '
             .object.type == "tag" and
-            .object.sha == "cee58b628ee8fe83c449a7d2ed46a2185168a4eb"
+            .object.sha == "033a3581a00c3566e3d19841fad9cf495c20cfb3"
           ' <<<"$previous_ref" >/dev/null
           jq -e '
-            .sha == "cee58b628ee8fe83c449a7d2ed46a2185168a4eb" and
+            .sha == "033a3581a00c3566e3d19841fad9cf495c20cfb3" and
             .object.type == "commit" and
-            .object.sha == "b69a8450d6a1c916dfd6e86b254907b4b0c76b78"
+            .object.sha == "8299c8df85bc0e24bfb4d4fbbd71889dceb96986"
           ' <<<"$previous_tag" >/dev/null
           jq -e '
-            .sha == "b69a8450d6a1c916dfd6e86b254907b4b0c76b78" and
-            .commit.tree.sha == "9e003120060540c4f361c81d10242970ef7c350b"
+            .sha == "8299c8df85bc0e24bfb4d4fbbd71889dceb96986" and
+            .commit.tree.sha == "2a73b9db4adbaab78c29c37a75e3be8ffa4f365d"
           ' <<<"$previous_commit" >/dev/null
 
-          candidate_release=$(gh api 'repos/autopus-ai/autopus-adk/releases/tags/v0.50.121')
-          candidate_ref=$(gh api 'repos/autopus-ai/autopus-adk/git/ref/tags/v0.50.121')
+          candidate_release=$(gh api 'repos/autopus-ai/autopus-adk/releases/tags/v0.50.122')
+          candidate_ref=$(gh api 'repos/autopus-ai/autopus-adk/git/ref/tags/v0.50.122')
           candidate_commit=$(jq -er '.target_commitish | select(test("^[0-9a-f]{40}$"))' \
             <<<"$candidate_release")
           candidate_commit_json=$(gh api "repos/autopus-ai/autopus-adk/commits/$candidate_commit")
           jq -e '
-            .tag_name == "v0.50.121" and .draft == false and
+            .tag_name == "v0.50.122" and .draft == false and
             .prerelease == false and .immutable == true and
-            ([.assets[] | select(.name == "autopus-adk_0.50.121_darwin_arm64.tar.gz" and
+            ([.assets[] | select(.name == "autopus-adk_0.50.122_darwin_arm64.tar.gz" and
               (.digest | type == "string" and test("^sha256:[0-9a-f]{64}$")))] | length) == 1
           ' <<<"$candidate_release" >/dev/null
           candidate_tag_object=$(jq -er '.object.sha | select(test("^[0-9a-f]{40}$"))' \
@@ -91,7 +91,7 @@ jobs:
           candidate_release_id=$(jq -er '.id | select(type == "number" and . > 0)' \
             <<<"$candidate_release")
           candidate_archive_digest=$(jq -er '
-            [.assets[] | select(.name == "autopus-adk_0.50.121_darwin_arm64.tar.gz")][0].digest
+            [.assets[] | select(.name == "autopus-adk_0.50.122_darwin_arm64.tar.gz")][0].digest
           ' <<<"$candidate_release")
 
           jq -n \
@@ -104,12 +104,12 @@ jobs:
             --argjson candidate_release_id "$candidate_release_id" \
             '{schema_version:"autopus-upgrade-canary-provenance.v1",repository:$repository,
               workflow_ref:$workflow_ref,workflow_sha:$workflow_sha,run_id:$run_id,
-              run_attempt:$run_attempt,previous:{version:"0.50.120",release_id:398906327,
-              tag_object:"cee58b628ee8fe83c449a7d2ed46a2185168a4eb",
-              source_commit:"b69a8450d6a1c916dfd6e86b254907b4b0c76b78",
-              source_tree:"9e003120060540c4f361c81d10242970ef7c350b",
-              darwin_arm64_digest:"sha256:2359b595f4fb3857b2e8c0b9ed849df3445586b7c6bd680367d610e2c71a0cdc"},
-              candidate:{version:"0.50.121",release_id:$candidate_release_id,
+              run_attempt:$run_attempt,previous:{version:"0.50.121",release_id:402213224,
+              tag_object:"033a3581a00c3566e3d19841fad9cf495c20cfb3",
+              source_commit:"8299c8df85bc0e24bfb4d4fbbd71889dceb96986",
+              source_tree:"2a73b9db4adbaab78c29c37a75e3be8ffa4f365d",
+              darwin_arm64_digest:"sha256:de90e3165a504c8c8dbe128114c5f2b9fc9c72890d12d1cc3695c3aea3e7dd17"},
+              candidate:{version:"0.50.122",release_id:$candidate_release_id,
               tag_object:$candidate_tag_object,source_commit:$candidate_commit,
               source_tree:$candidate_tree,darwin_arm64_digest:$candidate_archive_digest}}' \
             > "$RECEIPT_DIR/workflow-provenance.json"
@@ -120,7 +120,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: upgrade-canary-0.50.120-to-0.50.121
+          name: upgrade-canary-0.50.121-to-0.50.122
           path: ${{ runner.temp }}/upgrade-canary-live-receipt
           if-no-files-found: error
           retention-days: 30

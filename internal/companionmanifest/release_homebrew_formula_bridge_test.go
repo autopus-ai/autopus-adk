@@ -36,7 +36,7 @@ var bridgeDigests = []string{
 	strings.Repeat("3", 64), strings.Repeat("4", 64),
 }
 
-func TestHomebrewFormulaBridge_A32UpdatesOnlyCaskThenIsIdempotent(t *testing.T) {
+func TestHomebrewFormulaBridge_A33UpdatesOnlyCaskThenIsIdempotent(t *testing.T) {
 	fixture := newHomebrewBridgeFixture(t)
 	frozenFormula, err := os.ReadFile(filepath.Join(fixture.state, "formula.json"))
 	if err != nil {
@@ -44,10 +44,10 @@ func TestHomebrewFormulaBridge_A32UpdatesOnlyCaskThenIsIdempotent(t *testing.T) 
 	}
 	output, err := fixture.run(nil)
 	if err != nil {
-		t.Fatalf("publish A32 Cask: %v\n%s", err, output)
+		t.Fatalf("publish A33 Cask: %v\n%s", err, output)
 	}
-	if cask := fixture.apiContent(t, "cask.json"); !strings.Contains(cask, `version "0.50.121"`) {
-		t.Fatalf("published Cask is not v0.50.121:\n%s", cask)
+	if cask := fixture.apiContent(t, "cask.json"); !strings.Contains(cask, `version "0.50.122"`) {
+		t.Fatalf("published Cask is not v0.50.122:\n%s", cask)
 	}
 	if got := fixture.updateCount(t, "cask"); got != "1" {
 		t.Fatalf("Cask update count = %q, want 1", got)
@@ -187,7 +187,7 @@ func (fixture homebrewBridgeFixture) run(overrides map[string]string) ([]byte, e
 	environment := map[string]string{
 		"PATH":   filepath.Join(fixture.root, "bin") + string(os.PathListSeparator) + os.Getenv("PATH"),
 		"TMPDIR": filepath.Join(fixture.root, "tmp"), "MOCK_TAP_STATE": fixture.state,
-		"GITHUB_REF_NAME": "v0.50.121", "COMPANION_VERSION": "0.50.121",
+		"GITHUB_REF_NAME": "v0.50.122", "COMPANION_VERSION": "0.50.122",
 		"COMPANION_HOMEBREW_POLICY": "cask-only",
 		"MOCK_TAP_PRIOR_COMMIT":     fixture.priorCommit,
 		"COMPANION_CHECKSUMS_PATH":  fixture.checksums,
@@ -291,8 +291,8 @@ func homebrewBridgeChecksums() string {
 	names := []string{"darwin_amd64", "darwin_arm64", "linux_amd64", "linux_arm64"}
 	var output strings.Builder
 	for index, name := range names {
-		fmt.Fprintf(&output, "%s  autopus-adk_0.50.121_%s.tar.gz\n", bridgeDigests[index], name)
+		fmt.Fprintf(&output, "%s  autopus-adk_0.50.122_%s.tar.gz\n", bridgeDigests[index], name)
 	}
-	fmt.Fprintf(&output, "%s  autopus-adk_0.50.121_windows_amd64.zip\n", strings.Repeat("5", 64))
+	fmt.Fprintf(&output, "%s  autopus-adk_0.50.122_windows_amd64.zip\n", strings.Repeat("5", 64))
 	return output.String()
 }

@@ -4,8 +4,8 @@ umask 077
 
 fail() { printf 'current release evidence: %s\n' "$1" >&2; exit 1; }
 readonly RELEASE_REPOSITORY='autopus-ai/autopus-adk'
-readonly RELEASE_VERSION='0.50.121'
-readonly RELEASE_TAG='v0.50.121'
+readonly RELEASE_VERSION='0.50.122'
+readonly RELEASE_TAG='v0.50.122'
 readonly REPORT_NAME='omp-context-promotion-report.v1.json'
 readonly ATTESTATION_NAME='omp-context-promotion-attestation.v2.json'
 readonly LINEAGE_NAME='release-lineage-v1.json'
@@ -94,9 +94,9 @@ arm64_archive="$temp_dir/$ARM64_ARCHIVE_NAME"
 
 GH_TOKEN="$GITHUB_TOKEN" gh api -H 'Accept: application/vnd.github+json' \
   "repos/${RELEASE_REPOSITORY}/releases/tags/${RELEASE_TAG}" >"$release_json" ||
-  fail 'cannot read exact A32 release'
+  fail 'cannot read exact A33 release'
 [[ -s "$release_json" && ! -L "$release_json" ]] ||
-  fail 'A32 release metadata is empty or unsafe'
+  fail 'A33 release metadata is empty or unsafe'
 expected_assets_json=$(printf '%s\n' "${EXPECTED_ASSETS[@]}" |
   jq -Rsc 'split("\n") | map(select(length > 0))') ||
   fail 'cannot construct expected asset set'
@@ -112,7 +112,7 @@ jq -e --arg id "$COMPANION_RELEASE_ID" --arg tag "$RELEASE_TAG" \
     (.size | type) == "number" and .size > 0 and
     (.digest | type) == "string" and (.digest | test("^sha256:[0-9a-f]{64}$")))
 ' "$release_json" >/dev/null ||
-  fail 'A32 release id, tag, source, author, state, assets, or digests differ'
+  fail 'A33 release id, tag, source, author, state, assets, or digests differ'
 
 download_release_asset() {
   local asset_name=$1 destination=$2 metadata asset_id asset_size api_digest
@@ -127,7 +127,7 @@ download_release_asset() {
     fail "${asset_name} destination already exists"
   GH_TOKEN="$GITHUB_TOKEN" gh api -H 'Accept: application/octet-stream' \
     "repos/${RELEASE_REPOSITORY}/releases/assets/${asset_id}" >"$destination" ||
-    fail "cannot download ${asset_name} from exact A32 release"
+    fail "cannot download ${asset_name} from exact A33 release"
   [[ -s "$destination" && ! -L "$destination" ]] ||
     fail "downloaded ${asset_name} is empty or unsafe"
   downloaded_size=$(wc -c <"$destination" | tr -d '[:space:]')
@@ -203,7 +203,7 @@ checksum_entries_json=$(jq -Rsc '
 printf '%s' "$checksum_entries_json" | jq -e --argjson expected "$expected_archives_json" '
   length == ($expected | length) and ([.[].name] | sort) == ($expected | sort) and
   ([.[].name] | unique | length) == ($expected | length)
-' >/dev/null || fail 'checksums.txt does not describe exactly eight A32 archives'
+' >/dev/null || fail 'checksums.txt does not describe exactly eight A33 archives'
 for archive in "${EXPECTED_ARCHIVES[@]}"; do
   api_digest=$(jq -er --arg name "$archive" '.assets[] | select(.name == $name) | .digest' \
     "$release_json") || fail "API digest is unavailable for ${archive}"
@@ -215,7 +215,7 @@ for archive in "${EXPECTED_ARCHIVES[@]}"; do
 done
 env -i PATH="$PATH" HOME="${HOME:-/}" TMPDIR="${TMPDIR:-/tmp}" \
   "$signature_helper" "$checksums" "$bundle" "$envelope" ||
-  fail 'A32 checksum ECDSA/cosign evidence is invalid'
+  fail 'A33 checksum ECDSA/cosign evidence is invalid'
 
 candidate_artifact_sha=$(jq -er '.candidate.artifact_sha256 |
   select(type == "string" and test("^sha256:[0-9a-f]{64}$")) | ltrimstr("sha256:")' "$report") ||
@@ -231,7 +231,7 @@ env -i PATH="$PATH" HOME="${HOME:-/}" TMPDIR="${TMPDIR:-/tmp}" \
   --executable-sha256 "$distributed_artifact_sha" \
   --source-repository "$RELEASE_REPOSITORY" --source-commit "$COMPANION_SOURCE_COMMIT" \
   --source-tree "$COMPANION_SOURCE_TREE" --target darwin-arm64 --version "$RELEASE_VERSION" ||
-  fail 'released A32 U-to-D lineage is invalid'
+  fail 'released A33 U-to-D lineage is invalid'
 
 # Active freshness is enforced before publication. This shared immutable gate
 # uses historical proof so Homebrew recovery remains valid after the active TTL.
@@ -243,7 +243,7 @@ env -i PATH="$PATH" HOME="${HOME:-/}" TMPDIR="${TMPDIR:-/tmp}" \
   --candidate-revision "$COMPANION_SOURCE_COMMIT" --candidate-tree "$COMPANION_SOURCE_TREE" \
   --candidate-artifact-sha256 "$candidate_artifact_sha" \
   --static-policy-b64 "$OMP_CONTEXT_STATIC_POLICY_B64" ||
-  fail 'A32 historical-recovery OMP evidence is invalid'
+  fail 'A33 historical-recovery OMP evidence is invalid'
 install -m 0600 "$checksums" "$checksums_output" || fail 'cannot materialize checksums.txt'
 cmp -s "$checksums" "$checksums_output" || fail 'materialized checksums differ'
-printf 'current release evidence: exactly fifteen A32 normal release assets verified\n'
+printf 'current release evidence: exactly fifteen A33 normal release assets verified\n'

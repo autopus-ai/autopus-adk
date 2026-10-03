@@ -16,7 +16,7 @@ lineage = (root / 'scripts/companion-release/produce-omp-context-lineage.sh').re
 assert "--source-repository 'autopus-ai/autopus-adk'" in lineage
 assert "--source-repository 'Insajin/autopus-adk'" not in lineage
 signature = (root / 'scripts/companion-release/verify-current-release-signatures.sh').read_text()
-assert "readonly COSIGN_IDENTITY='https://github.com/autopus-ai/autopus-adk/.github/workflows/release.yaml@refs/tags/v0.50.121'" in signature
+assert "readonly COSIGN_IDENTITY='https://github.com/autopus-ai/autopus-adk/.github/workflows/release.yaml@refs/tags/v0.50.122'" in signature
 preflight = (root / 'scripts/release-tools/preflight-release.sh').read_text()
 assert "readonly repository='autopus-ai/autopus-adk'" in preflight
 assert 'identity="https://github.com/autopus-ai/autopus-adk/.github/workflows/release.yaml@refs/tags/${predecessor_tag}"' in preflight
