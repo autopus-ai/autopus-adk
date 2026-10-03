@@ -13,7 +13,6 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/insajin/autopus-adk/pkg/qa/journey"
 	"github.com/insajin/autopus-adk/pkg/qa/scenario"
 )
 
@@ -69,7 +68,7 @@ func Import(projectDir string, opts ImportOptions) (Result, error) {
 	if len(unsupported) > 0 && !opts.AllowPartial {
 		return result, unsupportedError(unsupported)
 	}
-	journeyID, origin, err := importTarget(projectDir, opts.Journey, opts.Origin)
+	journeyID, origin, err := importTarget(projectDir, opts.Journey, opts.Origin, recordedOrigin(rec))
 	if err != nil {
 		return result, err
 	}
@@ -96,13 +95,17 @@ func Import(projectDir string, opts ImportOptions) (Result, error) {
 }
 
 // importTarget resolves the journey and origin a recording runs under: the
-// explicit ones, or else the journey's first allowed origin.
-func importTarget(projectDir, journeyID, origin string) (string, string, error) {
-	packs, err := journey.LoadDir(projectDir)
+// explicit ones, else the journey's first allowed origin, else the origin the
+// recording itself navigated to.
+func importTarget(projectDir, journeyID, origin, recorded string) (string, string, error) {
+	packs, err := LoadPacks(projectDir)
 	if err != nil && (strings.TrimSpace(journeyID) == "" || strings.TrimSpace(origin) == "") {
 		return "", "", fmt.Errorf("load Journey Packs: %w", err)
 	}
 	id, resolved, _ := ResolveJourney(packs, journeyID, origin)
+	if resolved == "" {
+		resolved = recorded
+	}
 	if resolved == "" {
 		return "", "", failf(CodeOriginMissing, "no origin: pass --origin or declare gui.allowed_origins in a Journey Pack")
 	}

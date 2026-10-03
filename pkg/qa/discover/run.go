@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/insajin/autopus-adk/pkg/qa/journey"
 	"github.com/insajin/autopus-adk/pkg/qa/record"
 )
 
@@ -109,7 +108,7 @@ func Run(ctx context.Context, projectDir string, opts Options) (Result, error) {
 // named it explicitly.
 func target(projectDir string, opts Options) (string, string, error) {
 	explicit := opts.Explicit && strings.TrimSpace(opts.Origin) != ""
-	packs, err := journey.LoadDir(projectDir)
+	packs, err := record.LoadPacks(projectDir)
 	if err != nil && !explicit {
 		return "", "", fmt.Errorf("load Journey Packs: %w", err)
 	}

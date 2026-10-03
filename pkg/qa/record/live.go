@@ -30,7 +30,7 @@ type LiveOptions struct {
 // raw recording is kept and its path returned, so a fixable line never costs
 // the person the session they just recorded.
 func Live(ctx context.Context, projectDir string, opts LiveOptions) (Result, error) {
-	journeyID, origin, err := importTarget(projectDir, opts.Journey, opts.Origin)
+	journeyID, origin, err := importTarget(projectDir, opts.Journey, opts.Origin, "")
 	if err != nil {
 		return Result{}, err
 	}
