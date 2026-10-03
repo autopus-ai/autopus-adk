@@ -61,8 +61,17 @@ func invalid(path, code, format string, args ...any) error {
 
 // Validate rejects anything the compiler cannot turn into a deterministic spec.
 func Validate(s Scenario) error {
-	if strings.TrimSpace(s.SchemaVersion) != SchemaVersion {
-		return invalid(s.Path, "qa_scenario_schema_version", "schema_version must be %q", SchemaVersion)
+	version := strings.TrimSpace(s.SchemaVersion)
+	if version != SchemaVersion && version != SchemaVersionV2 {
+		return invalid(s.Path, "qa_scenario_schema_version", "schema_version must be %q or %q", SchemaVersion, SchemaVersionV2)
+	}
+	v2 := version == SchemaVersionV2
+	// A v2 key in a v1 file is reported before anything else: it is the one
+	// mistake that would otherwise read as a decode or shape error.
+	if !v2 {
+		if err := rejectV2Fields(s); err != nil {
+			return err
+		}
 	}
 	if !idPattern.MatchString(strings.TrimSpace(s.ID)) {
 		return invalid(s.Path, "qa_scenario_id_invalid", "id must be lowercase kebab-case, got %q", s.ID)
@@ -81,9 +90,12 @@ func Validate(s Scenario) error {
 	}
 	seen := map[string]bool{}
 	for _, screen := range s.Screens {
-		if err := validateScreen(s.Path, screen, seen); err != nil {
+		if err := validateScreen(s.Path, screen, seen, v2); err != nil {
 			return err
 		}
+	}
+	if v2 {
+		return validateIntent(s)
 	}
 	return nil
 }
@@ -105,7 +117,7 @@ func validateOrigin(s Scenario) error {
 	return nil
 }
 
-func validateScreen(path string, screen Screen, seen map[string]bool) error {
+func validateScreen(path string, screen Screen, seen map[string]bool, v2 bool) error {
 	id := strings.TrimSpace(screen.ID)
 	if !idPattern.MatchString(id) {
 		return invalid(path, "qa_scenario_screen_id_invalid", "screen id must be lowercase kebab-case, got %q", screen.ID)
@@ -124,7 +136,7 @@ func validateScreen(path string, screen Screen, seen map[string]bool) error {
 		return invalid(path, "qa_scenario_steps_overflow", "screen %q declares %d steps, limit is %d", id, len(screen.Steps), maxSteps)
 	}
 	for index, step := range screen.Steps {
-		if err := validateStep(path, id, index, step); err != nil {
+		if err := validateStep(path, id, index, step, v2); err != nil {
 			return err
 		}
 	}
@@ -144,7 +156,7 @@ func validateScreenPath(path, id, value string) error {
 	return nil
 }
 
-func validateStep(path, screenID string, index int, step Step) error {
+func validateStep(path, screenID string, index int, step Step, v2 bool) error {
 	set := 0
 	for _, populated := range []bool{
 		strings.TrimSpace(step.ExpectTitle) != "",
@@ -152,6 +164,10 @@ func validateStep(path, screenID string, index int, step Step) error {
 		strings.TrimSpace(step.ExpectText) != "",
 		step.ExpectRole != nil,
 		step.ExpectCount != nil,
+		// Always zero on v1: rejectV2Fields refused every action key already.
+		step.Click != nil, step.Fill != nil, step.Press != nil,
+		step.Check != nil, step.Select != nil,
+		strings.TrimSpace(step.WaitURL) != "",
 	} {
 		if populated {
 			set++
@@ -159,11 +175,30 @@ func validateStep(path, screenID string, index int, step Step) error {
 	}
 	where := fmt.Sprintf("screen %q step %d", screenID, index+1)
 	if set == 0 {
+		if v2 {
+			return invalid(path, "qa_scenario_step_empty", "%s declares no action or assertion", where)
+		}
 		return invalid(path, "qa_scenario_step_empty", "%s declares no assertion", where)
 	}
 	if set > 1 {
+		if v2 {
+			return invalid(path, "qa_scenario_step_ambiguous", "%s declares %d actions or assertions; use one step per action or assertion", where, set)
+		}
 		return invalid(path, "qa_scenario_step_ambiguous", "%s declares %d assertions; use one step per assertion", where, set)
 	}
+	if err := validateExpect(path, where, step); err != nil {
+		return err
+	}
+	if !v2 {
+		return nil
+	}
+	if err := validateAction(path, where, step); err != nil {
+		return err
+	}
+	return validateAnnotations(path, where, step)
+}
+
+func validateExpect(path, where string, step Step) error {
 	if step.ExpectRole != nil {
 		return validateRole(path, where, step.ExpectRole.Role)
 	}

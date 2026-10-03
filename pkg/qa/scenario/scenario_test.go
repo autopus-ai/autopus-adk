@@ -96,7 +96,9 @@ func TestValidateRejectsMalformedScenarios(t *testing.T) {
 		mutate func(*Scenario)
 		want   string
 	}{
-		{"version", func(s *Scenario) { s.SchemaVersion = "qamesh.scenario.v2" }, "schema_version"},
+		// v2 is a real schema since SPEC-QALOOP-001; an unknown version must
+		// still be refused rather than read as the nearest known one.
+		{"version", func(s *Scenario) { s.SchemaVersion = "qamesh.scenario.v3" }, "schema_version"},
 		{"id shape", func(s *Scenario) { s.ID = "Not Kebab" }, "kebab-case"},
 		{"title", func(s *Scenario) { s.Title = "  " }, "title is required"},
 		{"journey", func(s *Scenario) { s.Journey = "" }, "journey is required"},

@@ -67,7 +67,13 @@ func CompileProject(projectDir string, dryRun bool) (Result, error) {
 		if err != nil {
 			return Result{}, err
 		}
-		body, err := Compile(item, Options{Origin: known, FixtureImport: fixture})
+		body, steps, err := CompileWithMap(item, Options{Origin: known, FixtureImport: fixture})
+		if err != nil {
+			return Result{}, err
+		}
+		specRel := filepath.ToSlash(filepath.Join(result.SpecDir, item.ID+".spec.ts"))
+		steps.SpecPath = specRel
+		stepMap, err := marshalStepMap(steps)
 		if err != nil {
 			return Result{}, err
 		}
@@ -75,14 +81,20 @@ func CompileProject(projectDir string, dryRun bool) (Result, error) {
 			if err := os.WriteFile(specPath, body, 0o644); err != nil {
 				return Result{}, err
 			}
+			// The sidecar is rewritten with its spec on every compile, so a map
+			// can never describe an older revision of the file next to it.
+			if err := os.WriteFile(StepMapPath(specPath), stepMap, 0o644); err != nil {
+				return Result{}, err
+			}
 		}
 		result.Compiled = append(result.Compiled, Compiled{
-			ScenarioID: item.ID,
-			SourcePath: filepath.ToSlash(filepath.Join(DirRel, item.Path)),
-			SpecPath:   filepath.ToSlash(filepath.Join(result.SpecDir, item.ID+".spec.ts")),
-			Screens:    len(item.Screens),
-			Steps:      countSteps(item),
-			Bytes:      len(body),
+			ScenarioID:  item.ID,
+			SourcePath:  filepath.ToSlash(filepath.Join(DirRel, item.Path)),
+			SpecPath:    specRel,
+			StepMapPath: StepMapPath(specRel),
+			Screens:     len(item.Screens),
+			Steps:       countSteps(item),
+			Bytes:       len(body),
 		})
 	}
 	for id := range origins {

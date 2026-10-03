@@ -53,6 +53,7 @@ func FromProject(projectDir string) []Candidate {
 		candidates = append(candidates, fromAcceptance(path, projectDir)...)
 		return nil
 	})
+	candidates = append(candidates, fromTestScenarios(projectDir)...)
 	return candidates
 }
 
@@ -146,7 +147,7 @@ func candidateFromCommand(source, adapterID string, argv []string, check any, pr
 		return Candidate{Source: "compiled", ManualOrDeferred: true, ErrorCode: code}
 	}
 	return Candidate{
-		JourneyID:         "compiled-" + source + "-" + adapterID,
+		JourneyID:         journeyID(source, adapterID),
 		StepID:            "step-1",
 		Adapter:           adapterID,
 		Command:           argv,
@@ -164,7 +165,7 @@ func candidateFromCommand(source, adapterID string, argv []string, check any, pr
 
 func deferredCandidate(source, adapterID string, argv []string, refs []string, inputSource, passFailAuthority string) Candidate {
 	return Candidate{
-		JourneyID:         "compiled-" + source + "-" + adapterID,
+		JourneyID:         journeyID(source, adapterID),
 		StepID:            "step-1",
 		Adapter:           adapterID,
 		Command:           argv,
@@ -175,6 +176,12 @@ func deferredCandidate(source, adapterID string, argv []string, refs []string, i
 		ManualOrDeferred:  true,
 		ErrorCode:         "qa_compiler_deferred_to_SPEC-QAMESH-003",
 	}
+}
+
+// journeyID is the one place a compiled candidate's journey id is derived;
+// run plans, filters, and output directories are all keyed by it.
+func journeyID(source, adapterID string) string {
+	return "compiled-" + source + "-" + adapterID
 }
 
 func artifactRefs(values []string) []journey.Artifact {
