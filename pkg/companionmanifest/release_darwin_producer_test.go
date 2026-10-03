@@ -237,19 +237,6 @@ func fakeCodesign(t *testing.T, args []string) {
 	fmt.Fprintln(os.Stderr, strings.Join(lines, "\n"))
 }
 
-func fakeNotarytool(t *testing.T) {
-	t.Helper()
-	appendDarwinReleaseEvent(t, "accepted_notarization")
-	switch os.Getenv("FAKE_DARWIN_SCENARIO") {
-	case "rejected_notarization":
-		fmt.Printf(`{"status":"Invalid","id":"%s"}`, acceptedNotaryID)
-	case "missing_notarization":
-		fmt.Print(`{"status":"Accepted"}`)
-	default:
-		fmt.Printf(`{"status":"Accepted","id":"%s"}`, acceptedNotaryID)
-	}
-}
-
 func fakePlutil(t *testing.T, args []string) {
 	t.Helper()
 	field, path := args[1], args[len(args)-1]
