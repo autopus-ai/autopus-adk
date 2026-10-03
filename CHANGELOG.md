@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **Codex Sol 티어를 GPT-6.1 Sol로 올린다** (2026-10-04): 2026-09-29 DevDay에서
+  나온 `gpt-6.1-sol`(API 입력 MTok당 $2, Codex 카탈로그 effort low~ultra)로 Sol
+  사다리를 옮긴다. opus 티어 에이전트, worker 라우팅의 medium, 기본 코딩 모델,
+  OpenCode 기본 모델(`openai/gpt-6.1-sol`)이 함께 바뀐다. 카탈로그에 6.1이 없으면
+  Sol 단은 `gpt-6-sol`을 거쳐 `gpt-5.6-sol`로 내려가고, 이전 릴리스가 기록한
+  `gpt-6-sol` supervisor 설정은 Autopus 관리 값으로 인식한다. 6.1 Sol은 Codex CLI
+  0.159.0 이상에서만 동작한다. 그보다 낮은 CLI는 `codex debug models`에 6.1을
+  내놓지 않으므로 하네스가 자동으로 `gpt-6-sol`을 쓴다. 0.156~0.158은 서버가
+  `not supported`로 거부했다. 최상위 Astra는
+  바꾸지 않는다. 6.1 Sol이 "Astra에 근접"한다는 발표는 있지만 Astra를 넘는다는
+  근거는 없다.
+
 - **의도 기반 자동 QA: 시나리오 생성, 녹화, 자가 수리 루프** (2026-10-03,
   SPEC-QALOOP-001): 수락 기준에서 시나리오를 만들고 실행·분류·수정·재검증까지
   사람 없이 돌린다. 기대값은 SPEC 수락 기준, 사람이 확인한 녹화, 표시된

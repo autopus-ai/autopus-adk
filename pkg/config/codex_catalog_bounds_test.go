@@ -14,7 +14,7 @@ func TestValidateCodexModelCatalogPayloadAcceptsBoundedCatalog(t *testing.T) {
 
 	err := ValidateCodexModelCatalogPayload([]byte(`{
 		"models":[{
-			"slug":"gpt-6-sol",
+			"slug":"gpt-6.1-sol",
 			"default_reasoning_level":"xhigh",
 			"supported_reasoning_levels":[{"effort":"xhigh"},{"effort":"max"}]
 		}]

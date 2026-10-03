@@ -4,8 +4,13 @@ import "strings"
 
 const (
 	CodexAstraModel = "gpt-6-astra"
-	CodexSolModel   = "gpt-6-sol"
+	CodexSolModel   = "gpt-6.1-sol"
 	CodexLunaModel  = "gpt-6-luna"
+
+	// CodexGPT6SolModel is the Sol before GPT-6.1. A Codex catalog that does
+	// not list 6.1 yet keeps the Sol rung through it, and configs written by
+	// earlier Autopus releases name it.
+	CodexGPT6SolModel = "gpt-6-sol"
 
 	// Previous-generation Sol and Luna. Codex catalogs that predate GPT-6 fall
 	// back to these, and configs written by earlier Autopus releases name them.

@@ -23,6 +23,8 @@ func TestIsKnownManagedCodexSupervisorTuple_RecognizesPreviousSol(t *testing.T) 
 		want   bool
 	}{
 		{"current Sol xhigh", config.CodexSolModel, config.CodexEffortXHigh, true},
+		{"GPT-6 Sol xhigh written before 6.1", config.CodexGPT6SolModel, config.CodexEffortXHigh, true},
+		{"GPT-6 Sol ultra written before 6.1", config.CodexGPT6SolModel, config.CodexEffortUltra, true},
 		{"previous Sol xhigh", config.CodexPreviousSolModel, config.CodexEffortXHigh, true},
 		{"previous Sol ultra", config.CodexPreviousSolModel, config.CodexEffortUltra, true},
 		{"previous Sol medium is user-owned", config.CodexPreviousSolModel, config.CodexEffortMedium, false},

@@ -200,7 +200,7 @@ func TestQualityUltraApplyWritesSelectiveCodexAgentEffort(t *testing.T) {
 	for _, entry := range entries {
 		data, readErr := os.ReadFile(filepath.Join(agentDir, entry.Name()))
 		require.NoError(t, readErr)
-		model, effort := "gpt-6-sol", "xhigh"
+		model, effort := "gpt-6.1-sol", "xhigh"
 		if fableAgents[entry.Name()] {
 			model, effort = "gpt-6-astra", "max"
 			seenFableAgents[entry.Name()] = true
@@ -214,7 +214,7 @@ func TestQualityUltraApplyWritesSelectiveCodexAgentEffort(t *testing.T) {
 
 func installQualityCodexCatalogFixture(t *testing.T) {
 	t.Helper()
-	catalog := []byte(`{"models":[{"slug":"gpt-6-astra","supported_reasoning_levels":[{"effort":"xhigh"},{"effort":"max"},{"effort":"ultra"}]},{"slug":"gpt-6-sol","supported_reasoning_levels":[{"effort":"xhigh"},{"effort":"max"},{"effort":"ultra"}]},{"slug":"gpt-5.6-terra","supported_reasoning_levels":[{"effort":"medium"},{"effort":"high"}]},{"slug":"gpt-6-luna","supported_reasoning_levels":[{"effort":"low"},{"effort":"medium"},{"effort":"max"}]},{"slug":"gpt-5.5","supported_reasoning_levels":[{"effort":"xhigh"}]}]}`)
+	catalog := []byte(`{"models":[{"slug":"gpt-6-astra","supported_reasoning_levels":[{"effort":"xhigh"},{"effort":"max"},{"effort":"ultra"}]},{"slug":"gpt-6.1-sol","supported_reasoning_levels":[{"effort":"xhigh"},{"effort":"max"},{"effort":"ultra"}]},{"slug":"gpt-5.6-terra","supported_reasoning_levels":[{"effort":"medium"},{"effort":"high"}]},{"slug":"gpt-6-luna","supported_reasoning_levels":[{"effort":"low"},{"effort":"medium"},{"effort":"max"}]},{"slug":"gpt-5.5","supported_reasoning_levels":[{"effort":"xhigh"}]}]}`)
 	originalUpdater := qualityPlatformUpdater
 	qualityPlatformUpdater = func(ctx context.Context, dir, platform string, cfg *config.HarnessConfig) (bool, error) {
 		if platform != "codex" {

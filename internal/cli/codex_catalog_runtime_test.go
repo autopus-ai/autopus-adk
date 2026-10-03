@@ -18,7 +18,7 @@ func TestResolveCodexProviderCapabilities_DowngradesSameModelEffort(t *testing.T
 
 	providers := []orchestra.ProviderConfig{managedRuntimeCodexProvider(config.CodexEffortUltra)}
 	probe := func(context.Context, string) ([]byte, error) {
-		return []byte(`{"models":[{"slug":"gpt-6-sol","supported_reasoning_levels":[{"effort":"xhigh"},{"effort":"max"}]}]}`), nil
+		return []byte(`{"models":[{"slug":"gpt-6.1-sol","supported_reasoning_levels":[{"effort":"xhigh"},{"effort":"max"}]}]}`), nil
 	}
 	var receipt bytes.Buffer
 
@@ -26,8 +26,8 @@ func TestResolveCodexProviderCapabilities_DowngradesSameModelEffort(t *testing.T
 	require.Len(t, got, 1)
 	assertCodexProfileInArgs(t, got[0].Args, config.CodexSolModel, config.CodexEffortMax)
 	assertCodexProfileInArgs(t, got[0].PaneArgs, config.CodexSolModel, config.CodexEffortMax)
-	assert.Contains(t, receipt.String(), "requested=gpt-6-sol/ultra")
-	assert.Contains(t, receipt.String(), "selected=gpt-6-sol/max")
+	assert.Contains(t, receipt.String(), "requested=gpt-6.1-sol/ultra")
+	assert.Contains(t, receipt.String(), "selected=gpt-6.1-sol/max")
 	assert.Contains(t, receipt.String(), "reason=effort_unavailable")
 	assert.Equal(t, 1, strings.Count(receipt.String(), "reason=effort_unavailable"))
 }
@@ -122,7 +122,7 @@ func TestResolveCodexProviderCapabilities_NoLowerEffortKeepsModel(t *testing.T) 
 
 	provider := managedRuntimeCodexProvider(config.CodexEffortLow)
 	probe := func(context.Context, string) ([]byte, error) {
-		return []byte(`{"models":[{"slug":"gpt-6-sol","supported_reasoning_levels":[{"effort":"medium"}]}]}`), nil
+		return []byte(`{"models":[{"slug":"gpt-6.1-sol","supported_reasoning_levels":[{"effort":"medium"}]}]}`), nil
 	}
 	var receipt bytes.Buffer
 
@@ -133,7 +133,7 @@ func TestResolveCodexProviderCapabilities_NoLowerEffortKeepsModel(t *testing.T) 
 		assert.Contains(t, joined, config.CodexSolModel)
 		assert.NotContains(t, joined, "model_reasoning_effort")
 	}
-	assert.Contains(t, receipt.String(), "selected=gpt-6-sol")
+	assert.Contains(t, receipt.String(), "selected=gpt-6.1-sol")
 	assert.Contains(t, receipt.String(), "reason=runtime_default")
 }
 

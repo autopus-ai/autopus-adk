@@ -43,7 +43,7 @@ func TestDefaultConfig(t *testing.T) {
 		t.Parallel()
 		m := cfg.Models["codex"]
 		assert.Equal(t, "gpt-6-luna", m.Simple)
-		assert.Equal(t, "gpt-6-sol", m.Medium)
+		assert.Equal(t, "gpt-6.1-sol", m.Medium)
 		assert.Equal(t, "gpt-6-astra", m.Complex)
 	})
 

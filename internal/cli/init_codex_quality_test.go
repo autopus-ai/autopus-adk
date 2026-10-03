@@ -15,7 +15,7 @@ import (
 // Sol/xhigh); balanced routes both through the native placement (planner
 // Astra/max, executor Luna/max).
 func TestInitCmd_QualityUltraInheritsCodexSupervisorAndSetsManagedAgents(t *testing.T) {
-	assertInitCodexQualityProfile(t, "ultra", "max", "gpt-6-sol", "xhigh", "max")
+	assertInitCodexQualityProfile(t, "ultra", "max", "gpt-6.1-sol", "xhigh", "max")
 }
 
 func TestInitCmd_QualityBalancedInheritsCodexSupervisorAndSetsManagedAgents(t *testing.T) {
@@ -59,7 +59,7 @@ func installCodex56CatalogFixture(t *testing.T) {
 	t.Helper()
 	binDir := t.TempDir()
 	script := `#!/bin/sh
-printf '%s' '{"models":[{"slug":"gpt-6-astra","supported_reasoning_levels":[{"effort":"xhigh"},{"effort":"max"},{"effort":"ultra"}]},{"slug":"gpt-6-sol","supported_reasoning_levels":[{"effort":"xhigh"},{"effort":"max"},{"effort":"ultra"}]},{"slug":"gpt-5.6-terra","supported_reasoning_levels":[{"effort":"medium"},{"effort":"high"}]},{"slug":"gpt-6-luna","supported_reasoning_levels":[{"effort":"low"},{"effort":"medium"},{"effort":"max"}]},{"slug":"gpt-5.5","supported_reasoning_levels":[{"effort":"xhigh"}]}]}'
+printf '%s' '{"models":[{"slug":"gpt-6-astra","supported_reasoning_levels":[{"effort":"xhigh"},{"effort":"max"},{"effort":"ultra"}]},{"slug":"gpt-6.1-sol","supported_reasoning_levels":[{"effort":"xhigh"},{"effort":"max"},{"effort":"ultra"}]},{"slug":"gpt-5.6-terra","supported_reasoning_levels":[{"effort":"medium"},{"effort":"high"}]},{"slug":"gpt-6-luna","supported_reasoning_levels":[{"effort":"low"},{"effort":"medium"},{"effort":"max"}]},{"slug":"gpt-5.5","supported_reasoning_levels":[{"effort":"xhigh"}]}]}'
 `
 	path := filepath.Join(binDir, "codex")
 	require.NoError(t, os.WriteFile(path, []byte(script), 0755))

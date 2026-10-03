@@ -98,7 +98,7 @@ func TestMapModel(t *testing.T) {
 	t.Parallel()
 
 	assert.Equal(t, "gpt-6-astra", content.MapModel("fable", "codex"))
-	assert.Equal(t, "gpt-6-sol", content.MapModel("opus", "codex"))
+	assert.Equal(t, "gpt-6.1-sol", content.MapModel("opus", "codex"))
 	assert.Equal(t, "gpt-6-luna", content.MapModel("sonnet", "codex"))
 	assert.Equal(t, "gpt-6-luna", content.MapModel("haiku", "codex"))
 	assert.Equal(t, "gemini-3.1-pro", content.MapModel("fable", "gemini"))

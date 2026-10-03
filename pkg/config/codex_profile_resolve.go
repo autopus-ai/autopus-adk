@@ -33,14 +33,14 @@ func (c CodexModelCatalog) Supports(model, effort string) bool {
 }
 
 // codexModelFallbackCandidates lists substitutes to try, best first, when the
-// requested model is absent. Each GPT-6 rung first tries its 5.6 counterpart,
-// so a Codex catalog that predates GPT-6 keeps the same rung.
+// requested model is absent. The Sol rung tries GPT-6 Sol before its 5.6
+// counterpart, so a catalog that predates GPT-6.1 or GPT-6 keeps the rung.
 func codexModelFallbackCandidates(requested string) []string {
 	switch requested {
 	case CodexAstraModel:
-		return []string{CodexSolModel, CodexPreviousSolModel}
+		return []string{CodexSolModel, CodexGPT6SolModel, CodexPreviousSolModel}
 	case CodexSolModel:
-		return []string{CodexPreviousSolModel}
+		return []string{CodexGPT6SolModel, CodexPreviousSolModel}
 	case CodexLunaModel:
 		return []string{CodexPreviousLunaModel, CodexFallbackModel}
 	default:

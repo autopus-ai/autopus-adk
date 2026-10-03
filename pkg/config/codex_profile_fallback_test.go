@@ -16,8 +16,13 @@ func TestResolveCodexProfile_AstraFallbackChain(t *testing.T) {
 	}{
 		{
 			name:    "Sol",
-			catalog: `{"models":[{"slug":"gpt-6-sol","supported_reasoning_levels":[{"effort":"max"}]},{"slug":"gpt-5.6-sol","supported_reasoning_levels":[{"effort":"max"}]}]}`,
+			catalog: `{"models":[{"slug":"gpt-6.1-sol","supported_reasoning_levels":[{"effort":"max"}]},{"slug":"gpt-5.6-sol","supported_reasoning_levels":[{"effort":"max"}]}]}`,
 			want:    CodexProfile{Model: CodexSolModel, Effort: CodexEffortMax},
+		},
+		{
+			name:    "GPT-6 Sol before 6.1",
+			catalog: `{"models":[{"slug":"gpt-6-sol","supported_reasoning_levels":[{"effort":"max"}]},{"slug":"gpt-5.6-sol","supported_reasoning_levels":[{"effort":"max"}]}]}`,
+			want:    CodexProfile{Model: CodexGPT6SolModel, Effort: CodexEffortMax},
 		},
 		{
 			name:    "previous Sol",
@@ -98,4 +103,14 @@ func TestResolveCodexProfile_PreGPT6CatalogKeepsRungOn56(t *testing.T) {
 	luna := ResolveCodexProfile(CodexProfile{Model: CodexLunaModel, Effort: CodexEffortMax}, catalog)
 	assert.Equal(t, CodexResolutionModelUnavailable, luna.Reason)
 	assert.Equal(t, CodexProfile{Model: CodexPreviousLunaModel, Effort: CodexEffortMax}, luna.Effective)
+}
+
+// A Codex catalog that does not list GPT-6.1 Sol yet keeps the Sol rung on
+// GPT-6 Sol before dropping a generation.
+func TestResolveCodexProfile_SolFallsBackToGPT6Sol(t *testing.T) {
+	t.Parallel()
+	catalog := `{"models":[{"slug":"gpt-6-sol","supported_reasoning_levels":[{"effort":"xhigh"}]},{"slug":"gpt-5.6-sol","supported_reasoning_levels":[{"effort":"xhigh"}]}]}`
+	got := ResolveCodexProfile(CodexProfile{Model: CodexSolModel, Effort: CodexEffortXHigh}, []byte(catalog))
+	assert.Equal(t, CodexResolutionModelUnavailable, got.Reason)
+	assert.Equal(t, CodexProfile{Model: CodexGPT6SolModel, Effort: CodexEffortXHigh}, got.Effective)
 }
