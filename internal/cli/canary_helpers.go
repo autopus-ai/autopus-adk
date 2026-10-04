@@ -97,7 +97,13 @@ func canaryHTTPStatus(ctx context.Context, url string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	resp, err := http.DefaultClient.Do(req)
+	// A transport of its own: anything that closes idle connections on the
+	// shared http.DefaultTransport (httptest.Server.Close does) can break a
+	// request in flight on it, which reads as "connection broken" instead of
+	// the endpoint's real status.
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	defer transport.CloseIdleConnections()
+	resp, err := (&http.Client{Transport: transport}).Do(req)
 	if err != nil {
 		return 0, err
 	}
