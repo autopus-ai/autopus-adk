@@ -52,8 +52,8 @@ contains "$prep" 'verify-release-tag-ruleset.sh --armed'
 contains "$prep" 'verify-release-tag-ruleset.sh --sealed'
 contains "$publisher" 'verify-release-tag-ruleset.sh --armed'
 contains "$publisher" 'verify-release-tag-ruleset.sh --sealed'
-contains "$tag_ruleset_gate" "ruleset_name='autopus-v0.50.122-release-authority'"
-contains "$tag_ruleset_gate" "release_ref='refs/tags/v0.50.122'"
+contains "$tag_ruleset_gate" "ruleset_name='autopus-v0.50.123-release-authority'"
+contains "$tag_ruleset_gate" "release_ref='refs/tags/v0.50.123'"
 contains "$tag_ruleset_gate" 'usage: verify-release-tag-ruleset.sh --armed|--sealed|--sealed-runtime'
 contains "$tag_ruleset_gate" 'actor_type:"User"'
 contains "$tag_ruleset_gate" 'else .bypass_actors == [] end'
@@ -90,9 +90,9 @@ for workflow in "$release" "$recovery"; do
   contains "$workflow" 'COMPANION_SOURCE_PIN_REQUIRED=1'
   contains "$workflow" 'verify-release-tag-ruleset.sh --sealed-runtime'
 done
-contains "$release" "- 'v0.50.122'"
-contains "$release" "if: github.ref == 'refs/tags/v0.50.122'"
-contains "$recovery" "if: github.ref == 'refs/tags/v0.50.122'"
+contains "$release" "- 'v0.50.123'"
+contains "$release" "if: github.ref == 'refs/tags/v0.50.123'"
+contains "$recovery" "if: github.ref == 'refs/tags/v0.50.123'"
 not_contains "$release" 'canonical-full-bridge'
 not_contains "$recovery" 'canonical-full bridge'
 not_contains "$release" 'omp-context-bridge-release.v1.json'
@@ -102,8 +102,8 @@ for workflow in "$release" "$recovery"; do
   contains "$workflow" 'GITHUB_REF_NAME="$GITHUB_REF_NAME"'
   contains "$workflow" 'COMPANION_VERSION="${GITHUB_REF_NAME#v}"'
 done
-contains "$release" "'autopus-adk_0.50.122_darwin_amd64.tar.gz'"
-contains "$release" "'autopus-adk_0.50.122_darwin_arm64.tar.gz'"
+contains "$release" "'autopus-adk_0.50.123_darwin_amd64.tar.gz'"
+contains "$release" "'autopus-adk_0.50.123_darwin_arm64.tar.gz'"
 contains "$producer_receipt" 'v0.50.109 0.50.109 A22'
 contains "$producer_receipt" 'v0.50.111 0.50.111 A23'
 contains "$producer_receipt" 'v0.50.113 0.50.113 A24'
@@ -116,9 +116,10 @@ contains "$producer_receipt" 'v0.50.119 0.50.119 A30'
 contains "$producer_receipt" 'v0.50.120 0.50.120 A31'
 contains "$producer_receipt" 'v0.50.121 0.50.121 A32'
 contains "$producer_receipt" 'v0.50.122 0.50.122 A33'
+contains "$producer_receipt" 'v0.50.123 0.50.123 A34'
 contains "$producer_receipt" "fail 'public_key_receipt_release_identity_mismatch'"
-contains "$homebrew_bridge" "readonly RELEASE_TAG='v0.50.122'"
-contains "$homebrew_bridge" "readonly RELEASE_VERSION='0.50.122'"
+contains "$homebrew_bridge" "readonly RELEASE_TAG='v0.50.123'"
+contains "$homebrew_bridge" "readonly RELEASE_VERSION='0.50.123'"
 contains "$release" 'timeout-minutes: 60'
 contains "$recovery" 'timeout-minutes: 20'
 
@@ -129,8 +130,8 @@ for workflow in "$release" "$recovery"; do
   workflow_token_index=$(grep -n 'name: Create Homebrew tap token' "$workflow" | cut -d: -f1)
   (( workflow_evidence_index < workflow_token_index )) || fail 'tap token precedes release evidence'
 done
-contains "$current_release_gate" "readonly RELEASE_TAG='v0.50.122'"
-contains "$current_release_gate" "readonly RELEASE_VERSION='0.50.122'"
+contains "$current_release_gate" "readonly RELEASE_TAG='v0.50.123'"
+contains "$current_release_gate" "readonly RELEASE_VERSION='0.50.123'"
 contains "$current_release_gate" '.target_commitish == $commit'
 contains "$current_release_gate" '.immutable == true'
 contains "$current_release_gate" '(.assets | length) == ($expected | length)'
@@ -147,7 +148,7 @@ contains "$current_signature_gate" 'verify_release_checksums_v1'
 contains "$current_signature_gate" 'cosign verify-blob'
 contains "$current_signature_gate" 'unset GITHUB_TOKEN GH_TOKEN'
 not_contains "$current_release_gate" 'omp-context-bridge-release.v1.json'
-contains "$current_release_gate" 'exactly fifteen A33 normal release assets verified'
+contains "$current_release_gate" 'exactly fifteen A34 normal release assets verified'
 for workflow in "$release" "$recovery"; do
   contains "$workflow" 'OMP_CONTEXT_STATIC_POLICY_B64'
   contains "$workflow" 'OMP_CONTEXT_EVIDENCE_REPORT_SHA256'

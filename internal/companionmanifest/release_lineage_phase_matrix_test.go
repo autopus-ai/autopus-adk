@@ -13,7 +13,7 @@ import (
 // bootstraps without prior evidence; every later live phase must reach the
 // token check, and every failed or burned coordinate must be refused by the
 // frozen policy rather than silently treated as a new phase.
-func TestLineageVerifier_A0BootstrapsWhileA1ThroughA33WithoutLiveEvidenceFailClosed(t *testing.T) {
+func TestLineageVerifier_A0BootstrapsWhileA1ThroughA34WithoutLiveEvidenceFailClosed(t *testing.T) {
 	script := filepath.Join(repositoryRoot(t), "scripts/companion-release/verify-public-key-lineage.sh")
 	cases := []struct {
 		name    string
@@ -55,6 +55,7 @@ func TestLineageVerifier_A0BootstrapsWhileA1ThroughA33WithoutLiveEvidenceFailClo
 		{name: "A31", tag: "v0.50.120", message: "missing GITHUB_TOKEN"},
 		{name: "A32", tag: "v0.50.121", message: "missing GITHUB_TOKEN"},
 		{name: "A33", tag: "v0.50.122", message: "missing GITHUB_TOKEN"},
+		{name: "A34", tag: "v0.50.123", message: "missing GITHUB_TOKEN"},
 		{name: "failed_A6_tag_75", tag: "v0.50.75", message: frozenReleasePhasePolicy},
 		{name: "failed_A6_tag_76", tag: "v0.50.76", message: frozenReleasePhasePolicy},
 		{name: "failed_A22_tag_93", tag: "v0.50.93", message: frozenReleasePhasePolicy},
