@@ -76,6 +76,12 @@ type Options struct {
 	Agent         agentexec.Target
 	MaxIterations int
 	AgentTimeout  time.Duration
+	// SeedPaths are project-relative QA paths (scenarios, test scenarios,
+	// compiled specs) committed as the loop branch's first commit. Changes
+	// under them do not count as a dirty tree.
+	SeedPaths []string
+	// SeedMessage is the subject of that commit.
+	SeedMessage string
 }
 
 // RunFunc runs a QA lane. run.Execute fits: it returns an error for a failed

@@ -43,6 +43,7 @@ Project-level QA를 QAMESH evidence와 feedback bundle로 연결합니다. 이 �
 @auto qa scenario compile --dry-run --format json
 @auto qa scenario generate --spec SPEC-XXX-001 --agent codex --format json
 @auto qa loop --lane browser-staging --agent codex --format json
+@auto qa go SPEC-XXX-001 --auto --format json
 @auto qa run --format json
 @auto qa explore --dry-run --format json
 @auto qa release --dry-run --format json
@@ -66,6 +67,7 @@ Project-level QA를 QAMESH evidence와 feedback bundle로 연결합니다. 이 �
 - `auto qa run`: deterministic project QA를 실행하고 run index, QAMESH evidence, 선택된 feedback bundle을 생성합니다.
 - `auto qa explore`: explicit GUI Journey Pack만 대상으로 실제 UI 탐색 evidence를 생성합니다. 먼저 `--dry-run`으로 allowed origins, forbidden actions, artifact retention, setup gap을 확인합니다.
 - `auto qa scenario`: 프로젝트가 선언한 user scenario를 runner spec으로 컴파일합니다. `init`은 편집할 예시 시나리오를 만들고, `compile`은 `.autopus/qa/scenarios/*.yaml`을 프로젝트 Playwright `testDir` 아래 `autopus-generated/<id>.spec.ts`로 렌더링합니다. `--dry-run`은 검증과 렌더링만 하고 파일을 쓰지 않습니다.
+- `auto qa go <SPEC-ID>`는 전체 체인을 한 명령으로 실행합니다: 생성 → 커버리지 확인(`--auto`면 생략) → 승격 → 컴파일 → `auto qa loop`. `--agent`는 설치된 첫 CLI, `--lane`은 pack이 선언한 `browser-staging`이 기본값이고, 생성된 QA 파일은 루프 브랜치의 첫 커밋이 됩니다. SPEC-ID 없이 실행하면 기존 시나리오를 컴파일하고 루프만 돕니다.
 - `auto qa scenario generate --spec <SPEC-ID> --agent <claude|codex|gemini|opencode> --format json`으로 SPEC 수락 기준에서 테스트 시나리오(`.autopus/qa/test-scenarios/`)와 v2 사용자 시나리오 후보를 `candidates/`에 만듭니다. 모든 기대값은 수락 기준에서 와야 하고, 다루지 못한 기준은 지어내지 않고 uncovered로 보고합니다. `auto qa scenario promote --all`이 검증된 후보를 제자리로 옮깁니다.
 - `auto qa record --origin <url> --id <id>`(Playwright codegen)나 `auto qa record import --from <file.js|file.jsonl>`로 녹화를 `recording` 후보로 만들고, `auto qa discover --origin <url>`로 읽기 전용 크롤 `baseline` 후보를 만듭니다. baseline은 회귀 기준일 뿐 정답 증명이 아닙니다.
 - `auto qa loop --lane <lane> --agent <platform> --format json`은 실행, 실패 1회 재실행(flaky 판별), 분류(`environment | flaky | test_drift | test_defect | product_defect | unknown`), 수정을 `autopus/qa-loop/<run-id>` 브랜치에서 반복합니다. diff guard는 분류별 허용 경로 밖의 수정과 기대값 변경을 거부합니다. 루프 브랜치를 리뷰해 병합하고, 거부된 수정을 손으로 다시 적용하지 않습니다.

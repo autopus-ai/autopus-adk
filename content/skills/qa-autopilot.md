@@ -30,7 +30,20 @@ level1_metadata: "intent→scenario 생성, auto qa loop 자가 수리, codegen/
 
 자가 수리는 **요소를 찾는 방법**(click/fill 대상)만 바꿀 수 있습니다. expect 값, `ac`, `acceptance_refs`를 바꾸는 수리는 diff guard가 거절합니다. UI 문구가 정말 바뀐 것이라면 SPEC 수락 기준을 고치는 것이 맞습니다.
 
-## 무인 체인
+## 한 번에: `auto qa go`
+
+```bash
+auto qa go SPEC-LOGIN-001          # 생성 → 커버리지 확인 → 승격 → 컴파일 → 실행·분류·수정·재검증
+auto qa go SPEC-LOGIN-001 --auto   # 확인 없이 끝까지 무인 (CI·스케줄)
+auto qa go                         # SPEC 없이 기존 시나리오로 실행·수정·재검증만
+```
+
+- `--agent`를 생략하면 설치된 CLI를 claude → codex → agy → opencode 순으로 찾아 씁니다.
+- `--lane`을 생략하면 Journey Pack이 선언한 `browser-staging`을 우선 고릅니다.
+- 생성된 시나리오는 루프 브랜치의 첫 커밋(`test(qa): <SPEC> 시나리오를 추가한다`)이 되고, 수정 커밋이 그 뒤에 쌓입니다. 현재 브랜치는 건드리지 않으므로, 끝나면 루프 브랜치를 리뷰해 병합합니다.
+- 비밀값은 환경변수로 넘기고(`E2E_PASSWORD=... auto qa go ...`), Journey Pack의 `env_allowlist`에 이름을 적어 둡니다.
+
+## 단계별로 나눠 실행
 
 ```bash
 # 1. 수락 기준 → 테스트 시나리오 + 사용자 시나리오 후보

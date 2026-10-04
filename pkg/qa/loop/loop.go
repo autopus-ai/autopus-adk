@@ -96,6 +96,7 @@ func prepare(opts Options, deps Deps) (*runner, error) {
 	if err != nil {
 		return nil, &Error{Code: CodeGitFailed, Message: err.Error()}
 	}
+	dirty = outsideSeeds(dirty, seedRoots(opts.SeedPaths, strings.TrimSpace(prefix)))
 	if len(dirty) > 0 {
 		return nil, &Error{Code: CodeDirtyWorktree, Message: "commit or stash tracked changes first: " + strings.Join(dirty, "; ")}
 	}
@@ -122,6 +123,10 @@ func prepare(opts Options, deps Deps) (*runner, error) {
 	}
 	if _, err := g.run("switch", "-q", "-c", r.report.Branch); err != nil {
 		return nil, &Error{Code: CodeGitFailed, Message: err.Error()}
+	}
+	if err := r.commitSeed(); err != nil {
+		r.abandonBranch()
+		return nil, &Error{Code: CodeCommitRejected, Message: "could not commit the generated QA files: " + err.Error()}
 	}
 	return r, nil
 }

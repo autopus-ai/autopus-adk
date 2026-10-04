@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **`auto qa go`: 시나리오 생성부터 수정·재검증까지 한 명령** (2026-10-04,
+  SPEC-QALOOP-001 REQ-20): `auto qa go SPEC-ID`가 생성 → 커버리지 확인 → 승격 →
+  컴파일 → `auto qa loop`를 잇는다. `--auto`(또는 `--json`)면 확인 없이 끝까지
+  돈다. `--agent`는 설치된 CLI 중 claude → codex → agy → opencode 순으로,
+  `--lane`은 pack이 선언한 `browser-staging`을 우선으로 자동 선택한다. 생성된
+  QA 파일은 루프 브랜치의 첫 커밋이 되고 수정 커밋이 그 뒤에 쌓인다. 그래서
+  현재 브랜치는 그대로이고, 리뷰할 브랜치 하나에 의도와 수정이 함께 담긴다.
+  SPEC-ID 없이 실행하면 기존 시나리오로 루프만 돈다.
+
 - **Codex Sol 티어를 GPT-6.1 Sol로 올린다** (2026-10-04): 2026-09-29 DevDay에서
   나온 `gpt-6.1-sol`(API 입력 MTok당 $2, Codex 카탈로그 effort low~ultra)로 Sol
   사다리를 옮긴다. opus 티어 에이전트, worker 라우팅의 medium, 기본 코딩 모델,

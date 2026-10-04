@@ -67,6 +67,7 @@ that, and it refuses any change that would quietly move an oracle.
 | REQ-16 | WHEN a recording JSONL contains an agent assertion without ac, THE SYSTEM SHALL mark it confirm required |
 | REQ-17 | WHEN discovery runs, THE SYSTEM SHALL crawl same-origin pages read-only and emit a baseline candidate scenario |
 | REQ-18 | WHEN auto qa init runs on a Playwright project, THE SYSTEM SHALL emit a gui-journey Journey Pack example |
+| REQ-20 | WHEN auto qa go runs, THE SYSTEM SHALL chain generation, a confirmation unless --auto, promotion, compilation, and the loop, committing the generated QA files as the loop branch's first commit |
 | REQ-19 | THE SYSTEM SHALL ship a qa-autopilot skill documenting the unattended chain and the agent recording protocol |
 
 ## Requirements (EARS)
@@ -276,3 +277,16 @@ running `--grep @journey` in lane `browser-staging`.
 `generate → promote → compile → loop` for unattended use and the agent
 recording protocol for P3. The agent-pipeline verification reference SHALL
 point `/auto go` at `auto qa loop` for QA failures.
+
+**REQ-20 One command.** `auto qa go [SPEC-ID]` SHALL chain REQ-6, REQ-7,
+compilation, and REQ-10.
+- After generation it SHALL print per-criterion coverage. Unless `--auto` (or
+  JSON output) is set, it SHALL ask before promoting. No answer stops the run
+  with `qa_go_declined` and leaves the candidates in place.
+- `--agent` SHALL default to the first installed CLI in the order claude,
+  codex, agy, opencode. `--lane` SHALL default to `browser-staging` when a
+  Journey Pack declares it, else the first declared lane, else `fast`.
+- The active scenarios, test scenarios, and compiled specs SHALL be committed
+  as the loop branch's first commit. Changes under them SHALL NOT count as a
+  dirty tree, and that branch SHALL be kept even when no fix was needed.
+- Without a SPEC-ID, generation and promotion SHALL be skipped.

@@ -18,7 +18,9 @@ type Report struct {
 	Branch string `json:"branch"`
 	// BranchDeleted is set when the loop made no fix commit: an empty branch
 	// carries nothing to review, so it is removed instead of left behind.
-	BranchDeleted bool        `json:"branch_deleted,omitempty"`
+	BranchDeleted bool `json:"branch_deleted,omitempty"`
+	// SeedCommit is the commit that added the QA files `auto qa go` generated.
+	SeedCommit    string      `json:"seed_commit,omitempty"`
 	OriginalRef   string      `json:"original_ref"`
 	Restored      bool        `json:"original_ref_restored"`
 	Lane          string      `json:"lane"`

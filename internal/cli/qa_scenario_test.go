@@ -76,6 +76,7 @@ func TestQAScenarioCmd_IsRegisteredUnderQA(t *testing.T) {
 	}
 	assert.Contains(t, found, "scenario")
 	assert.Contains(t, found, "loop")
+	assert.Contains(t, found, "go")
 	var leaves []string
 	for _, sub := range newQAScenarioCmd().Commands() {
 		leaves = append(leaves, sub.Name())

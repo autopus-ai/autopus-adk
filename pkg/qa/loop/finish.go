@@ -8,6 +8,9 @@ import (
 
 // madeCommit reports whether any iteration committed a fix.
 func (r *runner) madeCommit() bool {
+	if r.report.SeedCommit != "" {
+		return true
+	}
 	for _, it := range r.report.Iterations {
 		if it.Commit != "" {
 			return true

@@ -122,9 +122,10 @@ file-size policy does not apply to SPEC or agent Markdown.
   `auto qa init --local-only --format json` to skip release workflow
   scaffolding.
 - When the SPEC has acceptance criteria and the project has a GUI or command QA
-  surface, generate intent-anchored scenarios with `auto qa scenario generate
-  --spec <SPEC-ID> --agent <platform>`, then `auto qa scenario promote --all`
-  and `auto qa scenario compile`. Report uncovered criteria; never invent
+  surface, run `auto qa go <SPEC-ID> --auto`: it generates intent-anchored
+  scenarios, promotes and compiles them, and hands failures to the loop. The
+  steps are also available one by one (`auto qa scenario generate|promote|
+  compile`). Report uncovered criteria; never invent
   expected values that no criterion or recording states.
 - When an affected lane fails, hand the failure to `auto qa loop --lane <lane>
   --agent <platform>` instead of hand-patching tests. The loop triages
