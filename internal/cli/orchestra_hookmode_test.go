@@ -67,7 +67,7 @@ func TestNewOrchSessionID_IsUnique(t *testing.T) {
 	}
 }
 
-func TestRunOrchestraCommand_CodexHookEnablesPaneIPC(t *testing.T) {
+func TestRunOrchestraCommand_PaneTerminalWithHookStaysSubprocess(t *testing.T) {
 	projectRoot := t.TempDir()
 	require.NoError(t, os.WriteFile(
 		filepath.Join(projectRoot, "autopus.yaml"),
@@ -100,13 +100,14 @@ func TestRunOrchestraCommand_CodexHookEnablesPaneIPC(t *testing.T) {
 	}
 
 	err := runOrchestraCommand(
-		context.Background(), "plan", "consensus", []string{"codex"},
+		context.Background(), "review", "consensus", []string{"codex"},
 		30, "", "topic", 0, 0, OrchestraFlags{NoDetach: true},
 	)
 	require.NoError(t, err)
-	assert.True(t, captured.Interactive, "active mux must keep the pane execution path")
-	assert.True(t, captured.HookMode, "Codex Stop hook must enable pane IPC on shared orchestra commands")
-	assert.NotEmpty(t, captured.SessionID)
+	// The pane backend is retired: an active mux plus an installed Stop hook
+	// must still run headless subprocesses without pane hook IPC.
+	assert.True(t, captured.SubprocessMode, "orchestra must never select the pane backend")
+	assert.False(t, captured.HookMode, "pane hook IPC must stay off")
 }
 
 func TestApplyHookMode_ForcedSubprocessClearsLegacyPaneState(t *testing.T) {

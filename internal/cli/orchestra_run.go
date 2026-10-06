@@ -200,7 +200,7 @@ func runSubprocessPipeline(cmd *cobra.Command, opts orchestraRunOptions) error {
 		JudgeProvider:         opts.Judge,
 		InvokingProvider:      invokingProvider,
 		JudgeSelectionSource:  judgeSelectionSource,
-		SubprocessMode:        opts.ForceSubprocess,
+		SubprocessMode:        true, // pane backend is retired; see runOrchestraCommand
 		TimeoutSeconds:        opts.Timeout,
 		Terminal:              detectStructuredTerminal(),
 		FallbackMode:          orchestra.FallbackModeSubprocess,
