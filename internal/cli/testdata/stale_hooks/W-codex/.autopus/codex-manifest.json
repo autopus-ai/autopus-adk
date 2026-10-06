@@ -1,0 +1,23 @@
+{
+  "version": "1.0.0",
+  "platform": "codex",
+  "generated_at": "2026-10-07T00:00:00Z",
+  "files": {
+    ".codex/config.toml": {
+      "checksum": "b6c9980dc468f4112e295d83fdff417139e2b06d97c131d4f77b45766ada3900",
+      "policy": "merge"
+    },
+    ".codex/hooks.json": {
+      "checksum": "dd1d1d8baaf97c32923f9477e26e49b5d18d534db95de08245007f95a41c5d07",
+      "policy": "merge"
+    },
+    ".codex/hooks/autopus/hook-codex-sessionstart.sh": {
+      "checksum": "35970599764dff733295fa8062e95ba9d4eb2ee9effdc202db2a6e4ff3d7dc53",
+      "policy": "always"
+    },
+    ".codex/hooks/autopus/hook-codex-stop.sh": {
+      "checksum": "d9db44bb8a1a55b7a0fedd5dec2c484409b96e001cba3509803683d41ce3ad36",
+      "policy": "always"
+    }
+  }
+}

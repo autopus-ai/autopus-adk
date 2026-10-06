@@ -1,0 +1,3 @@
+#!/bin/sh
+# Fake OpenCode CLI: answers only the version probe (opencode_version.go reads the major).
+echo "opencode 2.0.0"

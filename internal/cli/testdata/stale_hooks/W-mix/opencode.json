@@ -1,0 +1,6 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": [
+    ".claude/hooks/autopus/hook-opencode-complete.ts"
+  ]
+}

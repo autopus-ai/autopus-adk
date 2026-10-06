@@ -1,0 +1,4 @@
+orchestra:
+    providers:
+        codex:
+            pane_argz: [x]

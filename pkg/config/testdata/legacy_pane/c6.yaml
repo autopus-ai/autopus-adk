@@ -1,0 +1,183 @@
+mode: full
+project_name: W-claude
+platforms:
+    - claude-code
+language:
+    comments: en
+    commits: en
+    ai_responses: en
+architecture:
+    auto_generate: true
+    enforce: true
+    layers: []
+lore:
+    enabled: true
+    auto_inject: false
+    required_trailers:
+        - Constraint
+    stale_threshold_days: 90
+spec:
+    id_format: SPEC-{DOMAIN}-{NUMBER}
+    ears_types:
+        - ubiquitous
+        - event-driven
+        - unwanted
+        - optional
+        - complex
+    review_gate:
+        enabled: true
+        strategy: debate
+        providers: [claude, codex, gemini]
+        judge: claude
+        max_revisions: 2
+        auto_collect_context: true
+        context_max_lines: 0
+        verdict_threshold: 0.67
+        doc_context_max_lines: 200
+methodology:
+    mode: tdd
+    enforce: true
+    review_gate: true
+hooks:
+    pre_commit_arch: true
+    pre_commit_lore: true
+    react_ci_failure: true
+    react_review: true
+session:
+    handoff_enabled: true
+    continue_file: .auto-continue.md
+    max_context_tokens: 2000
+orchestra:
+    enabled: true
+    default_strategy: consensus
+    timeout_seconds: 240
+    judge: claude
+    providers:
+        # keep-me
+        claude:
+            binary: claude
+            args: [--print, --model, claude-fable-5-1, --effort, max]
+            pane_args: [--print, --model, claude-fable-5-1, --effort, max]
+            working_patterns: [thinking]
+            subprocess:
+                timeout: 480
+        codex:
+            binary: codex
+            args: [exec, --json, --sandbox, workspace-write, -m, gpt-6-astra, -c, model_reasoning_effort="max"]
+            interactive_input: args
+            pane_argz: [x]
+            model_policy: quality
+            subprocess:
+                schema_flag: --output-schema
+                timeout: 420
+        gemini:
+            binary: agy
+            args: [--print, ""]
+            prompt_via_args: true
+            subprocess:
+                output_format: text
+                timeout: 480
+        my-local:
+            binary: my-local
+            args: []
+            pane_args: [--interactive]
+            prompt_via_args: true
+            interactive_input: args
+            working_patterns: [busy]
+    commands:
+        brainstorm:
+            strategy: debate
+            providers: [claude, codex, gemini]
+        plan:
+            strategy: consensus
+            providers: [claude, codex, gemini]
+        review:
+            strategy: debate
+            providers: [claude, codex, gemini]
+        secure:
+            strategy: consensus
+            providers: [claude, codex, gemini]
+    subprocess:
+        enabled: true
+        max_concurrent: 2
+        work_dir: "${AUTOPUS_WORKDIR}"
+        rounds: 3
+quality:
+    default: balanced
+    supervisor_model_policy: inherit
+    presets:
+        balanced:
+            description: 기획·리뷰·디버깅은 최상위, 구현·검증은 경량 모델.
+            agents:
+                annotator: sonnet
+                architect: fable
+                debugger: fable
+                deep-worker: fable
+                devops: sonnet
+                executor: sonnet
+                explorer: sonnet
+                frontend-specialist: sonnet
+                perf-engineer: sonnet
+                planner: fable
+                reviewer: fable
+                security-auditor: fable
+                spec-writer: fable
+                tester: sonnet
+                ux-validator: sonnet
+                validator: sonnet
+        ultra:
+            description: 추론 코어 7개는 Fable, 나머지는 Opus. 최고 품질.
+            agents:
+                annotator: opus
+                architect: fable
+                debugger: fable
+                deep-worker: fable
+                devops: opus
+                executor: opus
+                explorer: opus
+                frontend-specialist: opus
+                perf-engineer: opus
+                planner: fable
+                reviewer: fable
+                security-auditor: fable
+                spec-writer: fable
+                tester: opus
+                ux-validator: opus
+                validator: opus
+codex:
+    agents:
+        max_concurrent_threads: 4
+skills:
+    auto_activate: true
+    max_active_skills: 5
+    category_weights:
+        agentic: 15
+        quality: 20
+        security: 30
+        workflow: 10
+    compiler:
+        mode: split
+verify:
+    enabled: true
+    default_viewport: desktop
+    auto_fix: true
+    max_fix_attempts: 2
+design:
+    enabled: true
+    max_context_lines: 80
+    inject_on_review: true
+    inject_on_verify: true
+    external_imports: false
+context:
+    signature_map: true
+features:
+    cc21:
+        enabled: false
+        monitor_enabled: true
+        task_created_mode: warn
+        monitor_pattern_timeout_ms: 30000
+usage_profile: developer
+workflow:
+    coverage_threshold: 85
+future_extension:
+    note: keep

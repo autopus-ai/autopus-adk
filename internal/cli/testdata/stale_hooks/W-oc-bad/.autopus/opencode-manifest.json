@@ -1,0 +1,15 @@
+{
+  "version": "1.0.0",
+  "platform": "opencode",
+  "generated_at": "2026-10-07T00:00:00Z",
+  "files": {
+    ".opencode/plugins/autopus-hooks.js": {
+      "checksum": "6f83d2ae04a7d2c679e8def7faea16b2a6b377ac1fb6de60bae5684c2e479ff5",
+      "policy": "always"
+    },
+    "opencode.json": {
+      "checksum": "21e095367600cd311cafac6c476567c59de621a4bf261cfcbc3bd87e518fa7ab",
+      "policy": "merge"
+    }
+  }
+}

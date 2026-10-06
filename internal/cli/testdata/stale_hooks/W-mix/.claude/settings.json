@@ -1,0 +1,128 @@
+{
+  "attribution": {
+    "commit": ""
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "auto react check --quiet",
+            "timeout": 60,
+            "type": "command"
+          }
+        ],
+        "matcher": "Bash"
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "auto check --hygiene --arch --quiet --staged --warn-only",
+            "timeout": 30,
+            "type": "command"
+          }
+        ],
+        "matcher": "Bash"
+      },
+      {
+        "hooks": [
+          {
+            "command": "auto rules fire --event PreToolUse",
+            "timeout": 10,
+            "type": "command"
+          }
+        ],
+        "matcher": "Bash"
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "command": "./scripts/user-start.sh",
+            "timeout": 10,
+            "type": "command"
+          }
+        ],
+        "matcher": "user-sessionstart"
+      },
+      {
+        "hooks": [
+          {
+            "command": "\"${CLAUDE_PROJECT_DIR:-.}\"/.claude/hooks/autopus/hook-claude-sessionstart.sh",
+            "timeout": 60,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "command": "./scripts/user-stop.sh",
+            "timeout": 10,
+            "type": "command"
+          }
+        ],
+        "matcher": "user-stop"
+      },
+      {
+        "hooks": [
+          {
+            "command": "\"${CLAUDE_PROJECT_DIR:-.}\"/.claude/hooks/autopus/hook-claude-stop.sh",
+            "timeout": 300,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "command": "auto rules sticky --event UserPromptSubmit",
+            "timeout": 5,
+            "type": "command"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(auto *)",
+      "Bash(auto:*)",
+      "Bash(git *)",
+      "Bash(git:*)",
+      "Bash(make:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(wc:*)",
+      "Bash(sort:*)",
+      "Bash(mkdir:*)",
+      "Bash(echo:*)",
+      "Bash(gh:*)",
+      "mcp__sequential-thinking__sequentialthinking",
+      "WebSearch",
+      "Agent",
+      "AskUserQuestion",
+      "TaskCreate",
+      "TaskGet",
+      "TaskList",
+      "TaskUpdate",
+      "SendMessage",
+      "Workflow",
+      "ToolSearch"
+    ]
+  },
+  "statusLine": {
+    "command": ".claude/statusline.sh",
+    "padding": 1,
+    "type": "command"
+  }
+}
