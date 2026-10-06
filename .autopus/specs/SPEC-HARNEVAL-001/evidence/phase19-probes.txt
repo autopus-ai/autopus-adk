@@ -1,0 +1,55 @@
+# Phase 1.9 Risk-First probe re-run (SPEC-HARNEVAL-001, slice 1 = T1-T5, branch feat/harneval-001 @ 60f92ea5)
+executed 2026-10-06T21:40Z-22:05Z (UTC); macOS 26.5.2 (25F84), go1.27.0 darwin/arm64, go.mod toolchain go1.26.6
+paid model calls: 0. No host CLI ran: during every generation PATH held only recording sentinels for codex, opencode,
+claude, agy, gemini, omp and git (shell builtins only, exit 127) and HOME was an empty temp dir.
+raw artifacts (not in the repo): session scratchpad probe/ (a2_probe_test.go, a2_pin_probe_test.go, driver/main.go,
+run_binaries.sh, a2-inproc-run1.log, a2-inproc-run2.log, a2-binaries.log, a2-pin.log)
+verdicts: A2 PASS (re-run) | A1 carried PASS from plan, not re-run | A3 carried PASS from plan, not re-run |
+GitHub-hosted rows not-run | first_vertical_slice: A2 in-process run 1 PASS at 2026-10-06T21:40:18Z
+
+## A2 pinned surface reproducibility -> PASS
+pins in every run: project harneval-probe, codex WithModelCatalog(<5-model fixture with gpt-6-astra/max>),
+codex WithCLIVersion("codex-cli 0.160.0"), opencode WithCLIVersion("1.18.7"); config.DefaultFullConfig with all
+5 platforms, generated in order claude-code, codex, antigravity-cli, opencode, omp into one fresh root.
+digest = sha256 of sorted "relpath\x00sha256(content)\n" rows, excluding .autopus/txns/** and
+.autopus/<platform>-manifest.json.
+
+(a) in-process, `go test -overlay` scratch test in pkg/adapter (no repo file written), 2 processes:
+  run1 TZ=UTC, run2 TZ=Asia/Seoul, separate TMPDIR and HOME, two roots per process at different depths.
+  files on disk 553, digested 545, excluded 8 (5 platform manifests + 3 txn journals: claude-code, codex, omp).
+  digest 61b851f1d5976a37880d1c6cc95bac4d6db3b899f4b17e47e38fc63f968d0393 in all 4 roots (both processes).
+  Without the exclusions the 4 full digests all differ. The files that differ between roots are exactly the 8
+  excluded ones, so the closed exclusion list is sufficient and complete for this tree. 0 symlinks or other
+  non-regular files. Test binary version.Version() = "dev", codex plugin version 0.0.0-dev+codex.harneval-probe.d5815c275273.
+  sentinel: pinned runs 0 invocations; codex without pins -> "codex debug models", "codex --version";
+  opencode without pin -> "opencode --version".
+
+(b) separately built binaries, scratch driver (only APIs v0.50.122 also has), `git archive` extractions,
+  `go build -trimpath -ldflags "-X github.com/insajin/autopus-adk/pkg/version.version=<v>"`:
+  HEAD tree x/head      v0.50.123  bin sha256 70e7634b53b414ee..  digest 980a935fc78bea51bc482d48ed5623a2080736e8e5711819329a36e484f433f1  TZ=UTC
+  HEAD tree far/away/y  v0.50.123  bin sha256 70e7634b53b414ee..  digest 980a935fc78bea51bc482d48ed5623a2080736e8e5711819329a36e484f433f1  TZ=America/Los_Angeles
+  HEAD tree x/head      v0.50.123  (same binary again)           digest 980a935fc78bea51bc482d48ed5623a2080736e8e5711819329a36e484f433f1  TZ=Asia/Seoul
+  HEAD tree x/head      dev                                      digest 61b851f1d5976a37880d1c6cc95bac4d6db3b899f4b17e47e38fc63f968d0393  (= in-process test binary)
+  HEAD tree x/head      v0.50.124                                digest 828e92930f8ab043dd48a9f29dfa96980f5c39e05359fc965a563cfc7e0143b0
+  v0.50.122 tree        v0.50.122  builds and runs, 545 files    digest cefe9f8851f5ab9e683aaaed997cc42779168ae4d90648e9b450e694ec2d3063
+  v0.50.122 tree        v0.50.123                                digest b9e4bd7c2e7a457d7c29dfb36dc20543fc132dae62d31bc738a625d8e3fbb1ca (!= HEAD: harness differs)
+  every run: own root, HOME, TMPDIR and cwd; sentinel log never created (0 invocations).
+  oracle met: same pin -> same digest from two builds in different directories; a different version string
+  -> a different digest; the v0.50.122 driver builds and runs.
+
+(c) cross-check of the plan's implementation assumption "in-process WithPluginBaseVersion pin and ldflags pin
+  make the same surface", run after T2 added codex.WithPluginBaseVersion (working tree, test binary still "dev"):
+  pin v0.50.123 -> 980a935f..433f1, pin dev -> 61b851f1..0393, pin v0.50.124 -> 828e9293..43b0.
+  Each equals the ldflags binary of the same version byte for byte; sentinel 0 invocations. -> verified_fact.
+
+## A1 grader builds the corpus oracles in the sandbox -> carried PASS (plan 2026-10-06), not re-run here
+reason: the boundary is T11 (prepare_grader.py, grader.sb), which slice 1 does not own and which does not exist
+yet; re-running the planning scratch script would re-prove the same scratch profile. Re-run belongs to the T11 slice.
+
+## A3 grader isolation (sandbox-exec + env -i) -> carried PASS (plan 2026-10-06), not re-run here
+reason: same as A1; the profile under test is the T11/T12 deliverable grader.sb.
+
+## not-run (GitHub-hosted)
+- "ubuntu and macOS PR-lane results are identical": needs the harness-eval job on a GitHub-hosted ubuntu runner
+  (T9). Local evidence above is macOS only.
+- "harness-eval reported as a required check": OPS-only T14 (`gh api` evidence); no GitHub calls were made.
