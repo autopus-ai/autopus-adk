@@ -25,7 +25,6 @@ type specReviewLoopParams struct {
 	judgeConfig     *orchestra.ProviderConfig
 	configuredNames []string
 	codeContext     string
-	subprocessMode  bool
 	contextDelivery *specReviewContextDelivery
 	runtimeEvidence *specReviewRuntimeEvidence
 }
@@ -79,9 +78,13 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 			JudgeProvider:       p.gate.Judge,
 			JudgeConfig:         p.judgeConfig,
 			NoJudge:             p.gate.Judge == "",
-			SubprocessMode:      p.subprocessMode,
-			WorkingDir:          workingDir,
-			RunID:               orchestra.NewSessionID(),
+			// Reviewers are read-only: the pane backend launches claude/agy with a
+			// permission bypass flag and auto-approves tool prompts, so SPEC review
+			// always runs headless subprocesses regardless of terminal or flags.
+			SubprocessMode: true,
+			ReadOnly:       true,
+			WorkingDir:     workingDir,
+			RunID:          orchestra.NewSessionID(),
 			// REQ-006: inject the detected terminal so SelectBackend can choose the
 			// interactive pane backend on cmux/tmux and the subprocess backend on
 			// plain/CI terminals. The terminal import is centralized in

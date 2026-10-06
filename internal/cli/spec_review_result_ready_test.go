@@ -48,7 +48,9 @@ func TestNewSpecReviewCmd_RegistersPaneBypassFlags(t *testing.T) {
 	assert.NotNil(t, cmd.Flags().Lookup("plain"))
 }
 
-func TestRunSpecReviewWithOptions_ForcesSubprocessBackend(t *testing.T) {
+// SPEC review must never reach the pane backend, which adds a permission
+// bypass flag and auto-approves tool prompts; it is always read-only.
+func TestRunSpecReview_AlwaysReadOnlySubprocessBackend(t *testing.T) {
 	dir := t.TempDir()
 	scaffoldReviewSpec(t, dir, "SPEC-REVIEW-SUBPROCESS-001")
 	setFakeProviderOnPath(t, dir, "claude")
@@ -72,7 +74,8 @@ func TestRunSpecReviewWithOptions_ForcesSubprocessBackend(t *testing.T) {
 	}
 	defer func() { specReviewRunOrchestra = origRunner }()
 
-	err = runSpecReviewWithOptions(context.Background(), "SPEC-REVIEW-SUBPROCESS-001", "consensus", 10, specReviewOptions{forceSubprocess: true})
+	err = runSpecReviewWithOptions(context.Background(), "SPEC-REVIEW-SUBPROCESS-001", "consensus", 10, specReviewOptions{})
 	require.NoError(t, err)
 	assert.True(t, captured.SubprocessMode)
+	assert.True(t, captured.ReadOnly)
 }

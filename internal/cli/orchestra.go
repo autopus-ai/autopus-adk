@@ -174,7 +174,9 @@ func runOrchestraCommand(
 	nd := flags.NoDetach || execution.guarded || (s == orchestra.StrategyDebate && judge != "" && !noJudge)
 	yieldRounds := flags.YieldRounds
 	contextAware := flags.ContextAware
-	subprocessMode := flags.SubprocessMode
+	// Read-only commands never use the pane backend: its launch path cannot
+	// honor the read-only argv projection and auto-approves tool prompts.
+	subprocessMode := flags.SubprocessMode || execution.readOnly
 	resolvedTimeout := resolveOrchestraTimeout(orchConf, timeout, flags.TimeoutChanged, providers)
 	timeout = resolvedTimeout.Seconds
 	providers = applyResolvedProviderTimeouts(providers, resolvedTimeout)

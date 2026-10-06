@@ -74,7 +74,6 @@ func newSpecReviewCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			specID := args[0]
 			return runSpecReviewWithOptions(cmd.Context(), specID, strategy, timeout, specReviewOptions{
-				forceSubprocess:     forceSubprocess || forcePlain,
 				allowDegraded:       allowDegraded,
 				providers:           append([]string(nil), providers...),
 				requiredDocuments:   requiredDocuments,
@@ -86,8 +85,8 @@ func newSpecReviewCmd() *cobra.Command {
 
 	cmd.Flags().StringVarP(&strategy, "strategy", "s", "", "review strategy (default: from config)")
 	cmd.Flags().IntVarP(&timeout, "timeout", "t", 0, "timeout in seconds (default: from config)")
-	cmd.Flags().BoolVar(&forceSubprocess, "subprocess", false, "Force headless subprocess backend for SPEC review")
-	cmd.Flags().BoolVar(&forcePlain, "plain", false, "Alias for --subprocess; bypass interactive pane backend")
+	cmd.Flags().BoolVar(&forceSubprocess, "subprocess", false, "No-op: SPEC review always runs headless subprocess reviewers")
+	cmd.Flags().BoolVar(&forcePlain, "plain", false, "No-op alias for --subprocess")
 	cmd.Flags().BoolVar(&allowDegraded, "allow-degraded", false, "Promote a PASS even when a document was truncated or the provider quorum was not met (records an audit override)")
 	cmd.Flags().StringSliceVarP(&providers, "providers", "p", nil, "Provider list override (default: from config)")
 	cmd.Flags().StringArrayVar(&requiredDocuments, "required-document", nil, "Additional root-relative required review document")
@@ -99,7 +98,6 @@ func newSpecReviewCmd() *cobra.Command {
 }
 
 type specReviewOptions struct {
-	forceSubprocess     bool
 	allowDegraded       bool
 	providers           []string
 	requiredDocuments   []string
@@ -211,7 +209,6 @@ func runSpecReviewWithOptions(ctx context.Context, specID, strategy string, time
 		judgeConfig:     judgeConfig,
 		configuredNames: append([]string(nil), providerNames...),
 		codeContext:     codeContext,
-		subprocessMode:  opts.forceSubprocess || resolveSubprocessMode(&cfg.Orchestra),
 		contextDelivery: contextDelivery,
 		runtimeEvidence: runtimeEvidence,
 	}
