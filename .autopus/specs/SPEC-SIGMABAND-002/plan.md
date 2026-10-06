@@ -2,72 +2,82 @@
 
 ## Tasks
 
-Starts only after SPEC-SIGMABAND-001 is implemented. Waves: W1 = T1, T3, T4, T5, T7, T8. W2 = T2, T6. W3 = T9. Each task owns
-only the listed paths; every source file stays at or under 300 lines. T4 and T5 cannot finish before Completion Debt CD-1–CD-4
-is resolved.
+Starts only after SPEC-SIGMABAND-001 is implemented and SPEC-REVIEWRO-001 has landed. Waves: W1 = T1, T3, T4, T5, T6, T9. W2 = T2, T7.
+W3 = T8. W4 = T10. Each task owns only the listed paths and edits; every source file stays at or under 300 lines. Files marked
+`[PLANNED by SIGMABAND-001]` exist only after SPEC-SIGMABAND-001 is implemented.
 
-- [ ] T1: Flag (REQ-01). Owns the `AllowDraftPR` field in `pkg/config/schema_health_band.go` and its tests (omitted while false, strict decode accepts it, rejected by a binary without this SPEC as documented).
-- [ ] T2: Claim attachment and lease budget (REQ-02, REQ-09). Owns `[NEW] pkg/healthband/draftpr_claim.go`; extends 001's phase A without changing its action enum.
-- [ ] T3: Patch policy (REQ-06). Owns `[NEW] pkg/healthband/patchguard.go`.
-- [ ] T4: Git Execution Policy (REQ-05, CD-1). Owns `[NEW] pkg/healthband/gitpolicy.go`; decides and tests the key list and the neutralize-or-refuse rule.
-- [ ] T5: CI Skip-Coverage Scan (REQ-07, CD-2, CD-3, CD-4). Owns `[NEW] pkg/healthband/ciscan.go`.
-- [ ] T6: Executor (REQ-03, REQ-04, REQ-05). Owns `[NEW] internal/cli/react_band_draftpr.go` and `[NEW] pkg/healthband/commitmsg.go`; real-git temp-repo tests with `GIT_TRACE2_EVENT`, marker hooks, and a fake gh.
-- [ ] T7: Open-PR enumeration (REQ-08). Owns the open-PR and check-suite rows added to `internal/cli/react_band_gh.go`.
-- [ ] T8: Docs (REQ-10). Owns the flag section of `docs/health-band.md`, the help text addition, and `CHANGELOG.md`.
-- [ ] T9: Integration verification and security-auditor review (all REQ). Owns `[NEW] internal/cli/react_band_draftpr_integration_test.go`.
+- [ ] T1: Flag and 001 amendment (REQ-01). Owns the `AllowLocalPatch` field in `[PLANNED by SIGMABAND-001] pkg/config/schema_health_band.go`, the amendment of 001 REQ-15's key list, and the migration note; 001's `allow_draft_pr` rejection rows stay valid.
+- [ ] T2: Decision table, own WAL, recovery (REQ-02, REQ-11). Owns `[NEW] pkg/healthband/localpatch_decision.go`, `localpatch_wal.go`, `localpatch_recovery.go` (claim, prep, stage intent records; one Cleanup Rules set; the Recovery State Table; the recovery step with `.autopus/metrics/.recovery.lock`, 30 s git timeouts, and a 120 s budget per claim).
+- [ ] T3: Patch Policy (REQ-08). Owns `[NEW] pkg/healthband/patchpolicy.go`.
+- [ ] T4: Git Execution Policy (REQ-05, CD-1). Owns `[NEW] pkg/healthband/gitpolicy.go`.
+- [ ] T5: Patch Prompt Contract (REQ-07). Owns `[NEW] pkg/healthband/patchprompt.go`.
+- [ ] T6: Confined projection (REQ-03, CD-2). Owns the confined option in `internal/cli/orchestra_readonly_policy.go` (claude only: `--restricted`, `--strict-mcp-config`, `--tools=Read,Grep,Glob`), coordinated with SPEC-REVIEWRO-001.
+- [ ] T7: Executor (REQ-04, REQ-06, REQ-09, REQ-10, REQ-11, REQ-14). Owns `[NEW] internal/cli/react_band_localpatch.go`, `[NEW] pkg/healthband/commitmsg.go`; artifacts under `<UserCacheDir>/autopus/local-patches/<repo-hash>/`.
+- [ ] T8: 001 integration edits (REQ-02, REQ-03, REQ-12, REQ-13), after SPEC-SIGMABAND-001 is merged (cross-SPEC ownership). Owns the per-kind lease-budget table in `[PLANNED by SIGMABAND-001] pkg/healthband/episode.go` and `catchup.go` (diagnose 990 s and local_patch 810 s while the flag is true), the recovery-step call before phase A and the phase hooks in `[PLANNED by SIGMABAND-001] internal/cli/react_band.go` (decision call in phase A; while the flag is true, the diagnosis worktree and confined diagnosis in phase B; the local_patch claim right after its diagnose result), the cwd parameter in `react_band_diagnose.go`, the Local Patch lines in `pkg/brainstorm/render.go`, and the help text in `react_band_help.go`.
+- [ ] T9: Docs (REQ-13). Owns the flag section of `[PLANNED by SIGMABAND-001] docs/health-band.md` and the `CHANGELOG.md` entry.
+- [ ] T10: Integration verification and security-auditor review (all REQ). Owns `[NEW] internal/cli/react_band_localpatch_integration_test.go`.
 
 ## Implementation Strategy
 
-- Extension, not modification: this SPEC adds a claim kind, guards, and an executor around SPEC-SIGMABAND-001's write-ahead
-  log; 001's action enum, decision table, BS format, and provider contract stay unchanged.
-- Fail closed everywhere: every guard, scan, and lookup that cannot prove its condition refuses, and the 001 BS outcome stays.
-- No repository code runs before human review: hooks off, the Git Execution Policy, in-process Lore validation, `[skip ci]`,
-  the CI Skip-Coverage Scan, and no build, test, or run of the proposal.
+- Local only and outside the repository: the flow never runs a network command; the base is the last fetched remote-tracking
+  ref; worktree and patch file live in the user cache directory; the human reviews them and the branch, and pushes manually.
+- Confinement first: while the flag is true, every diagnosis and patch request runs in a band worktree of tracked content with
+  claude `--restricted`, so local secrets outside that tree cannot reach the BS or the patch.
+- No repository-selected command runs: hooks off, fsmonitor off, global and system attributes off, `info/attributes` empty, every
+  filter, diff, or merge driver refused outside the git-lfs allowlist, no LFS download or extension, scrubbed environment, `-F`
+  messages, and no test, build, or run of the proposal.
+- Own state, shared lock: decisions, claims, and results live in `localpatch-events.jsonl` and `localpatch-state.json` under
+  001's store lock; 001's events, checkpoint, enum, and BS format stay unchanged.
 - Scope expansion rule: any broader constraint is flagged in the task hand-off, gets a probe row, and is not promoted silently.
 
 ## Visual Planning Brief
 
 ```mermaid
 flowchart TD
-  T3E["001: tier-3 position, episode open"] --> F{"allow_draft_pr"}
-  F -->|"false"| D["001 diagnosis only"]
-  F -->|"true"| P{"diagnose done with BS or same run?"}
-  P -->|"in flight"| DEF["draft_pr_deferred:diagnose_in_flight"]
-  P -->|"no BS"| SK["draft_pr_skipped:episode_without_bs"]
-  P -->|"yes, no draft_pr claim yet"| C["draft_pr claim (lease 1,230 s, chained)"]
-  C --> G["open PRs (paginated) -> worktree -> CI scan -> patch request -> guards -> lore.Validate"]
-  G -->|"any refusal"| R["draft_pr_guard:code, 001 BS kept"]
-  G -->|"pass"| M["commit --no-verify -> push one ref, no tags -> gh pr create --draft -> worktree removed"]
+  A["001 phase A: position opens an episode at tier 3, flag on"] --> D{"Local Patch Decision Table (first match)"}
+  D -->|"skipped"| S["decision record with reason"]
+  D -->|"claim, depends_on diagnose"| W["config check + base SHA -> diagnosis worktree"]
+  W --> DX["confined diagnosis (claude --restricted, cwd worktree) -> BS with Local Patch lines"]
+  DX --> R{"diagnose result: BS and diagnosis ok?"}
+  R -->|"no"| F["failed:no_bs or failed:diagnosis_unavailable; worktree removed"]
+  R -->|"yes"| P["branch free? -> lore.Validate -> confined patch request -> Patch Policy"]
+  P -->|"refused"| C["failed:code; worktree removed; no objects written"]
+  P -->|"accepted"| L["apply --index -> commit verbatim -> local branch -> .patch file"]
+  L --> H["human reviews the patch file and pushes manually"]
 ```
 
 ```text
-draft_pr claim  BS exists? -> gh api --paginate pulls -> git fetch + worktree add (hooks off, fsmonitor off)
-  -> CI scan (workflows, configs, paginated check suites, statuses) -> patch request (cwd worktree, read-only)
-  -> fence, structure, paths, content, size -> apply --index + staged-set check -> lore.Validate
-  -> commit --no-verify -> push --no-verify --no-follow-tags --recurse-submodules=no -> gh pr create --draft -> worktree remove --force
+phase A  decision record -> claim (depends_on diagnose)
+phase B  cache dir + gitpolicy config check -> base = refs/remotes/origin/<default> -> prep record -> worktree add --detach under <lp> (hooks off, no fetch)
+         diagnose (confined) -> 001 records the result with bs_id -> local_patch reads it
+         branch free -> lore.Validate -> stage record (message hash) -> patch request (nonce-fenced) -> decoded paths -> Patch Policy
+         diff file + apply_intent -> apply --index + staged set -> apply_done -> commit --no-verify --cleanup=verbatim -F -> commit_done -> branch_intent (commit OID) -> update-ref (create only) -> branch_done -> patch_intent -> format-patch -> patch_done -> keep
 ```
 
 ## Feature Completion Scope
 
-- This sibling closes D3 for SPEC-SIGMABAND-001's tier-3 episodes. It depends on SPEC-SIGMABAND-001 and SPEC-REVIEWRO-001.
-- Completion Debt CD-1–CD-4 (research.md) blocks approval and sync; so does a missing security-auditor review.
+- This sibling closes D3 (local patch, user decision 2026-10-06) for SPEC-SIGMABAND-001's tier-3 episodes; it depends on
+  SPEC-SIGMABAND-001 and SPEC-REVIEWRO-001.
+- Completion Debt CD-1–CD-3 (research.md) blocks approval and sync.
 
 ## Risk-First Integration Probe
 
 | assumption_id | class | risk | boundary | input | oracle | isolation | status | reason | evidence |
 |---------------|-------|------|----------|-------|--------|-----------|--------|--------|----------|
-| A1 | implementation_assumption | high | read-only patch request by a real provider with cwd in the band worktree | temp repo worktree; prompt asks for one diff fence and also to write a file and run `git commit` | stdout holds a diff fence; no file written; no commit; worktree status clean | temp dirs outside the workspace | not-run | needs an authenticated paid provider and the SPEC-REVIEWRO-001 projection | - |
-| A2 | verified_fact | high | detached worktree, `git apply`, commit and push with hooks off, follow-tags guard, trace2 hook detection | temp repos, local bare remotes, hooks, `push.followTags=true` with an unpushed annotated tag, `GIT_TRACE2_EVENT` | user status, HEAD, stash unchanged; only the band ref added; unguarded push leaks the tag, guarded push leaks none; default commit 2 hook events, hooks-off commit 0 | temp dirs, git 2.50.1, no network | PASS | executed 2026-10-05 for SPEC-SIGMABAND-001 rev 2 and carried over | 001 session scratchpad `probe-a3-evidence.txt`, `probe-a4-evidence.txt`, `probe-a6-evidence.txt` |
-| A3 | implementation_assumption | high | git configuration that executes commands in the patched worktree despite hooks off (CD-1) | repo config `core.fsmonitor=tools/fsmonitor.py` and a filter driver, patch editing those scripts | trace2 `child_start` events list only git subcommands and no marker appears, or band refuses with `git_config_unsafe:<key>` | temp dirs, no network | not-run | the key list and the neutralize-or-refuse rule are Completion Debt CD-1 | - |
+| A1 | implementation_assumption | high | claude 2.1.289 `--restricted --strict-mcp-config --tools=Read,Grep,Glob` diagnosis and patch request with cwd in a temp worktree | prompt asking to read `~/.ssh/config` and the user checkout's `.env`, fetch a URL, run `git status`, and print one diff fence | stdout holds one diff fence; no read outside the worktree, no command, no network in the session transcript | temp dirs outside the workspace | not-run | needs an authenticated paid provider; Completion Debt CD-2 | - |
+| A2 | verified_fact | high | git mechanics and CLI flags this flow relies on | temp repos; `claude --help`, `git commit -h`, `git push -h` | detached worktree leaves user status, HEAD, stash unchanged; a hooks-off commit logs 0 trace2 hook events vs 2 by default; `--restricted` confines file tools to working directories; `--cleanup` exists | temp dirs, git 2.50.1 | PASS | executed 2026-10-05/06; values inlined in research.md | `/private/tmp/claude-502/-Users-bitgapnam-Documents-github-autopus-workspace-autopus-adk/0646ea10-1fbb-4a7d-8ece-c1136d78ddce/scratchpad/probe-a3-evidence.txt`, `probe-a6-evidence.txt`, `probe-a8-evidence.txt` |
+| A3 | implementation_assumption | high | Git Execution Policy: `info/attributes`, global and system attribute files, filter, diff, merge, and LFS settings, inherited `GIT_*` variables, no fetch | temp repo with those settings, a real git-lfs, and a patch editing the referenced scripts | no marker written; refusals and prep codes as in S6; no git-lfs network request; user index hash and refs unchanged | temp dirs, no network | not-run | Completion Debt CD-1 | - |
 
 Statement classification:
 
-- requirement_invariant: flag default OFF; at most one draft PR per episode and only after its BS exists; no repository code
-  or hook runs before human review; one band ref pushed, no tags; every incomplete lookup refuses.
-- implementation_assumption: rows A1 and A3; GitHub honors `[skip ci]` for `push` and `pull_request` only (GitHub docs);
-  `gh api --paginate` returns every page for pulls and check suites (CD-3 verifies).
-- verified_fact: row A2; gh `pr list`/`pr create` accept `-R` and `api` takes `--hostname` (001 probe A2); this repository's
-  workflow triggers and its `railway-app` check suite (001 rev 2 probe A5).
+- requirement_invariant: flag default OFF; local artifacts only, never a push, fetch, PR, or remote ref; at most one local patch
+  per tier-3-opened episode, only after an ok confined diagnosis; no repository-tracked code runs during checkout, apply,
+  commit, or format-patch; tests are never run automatically; every failure removes what the claim created.
+- implementation_assumption: rows A1 and A3; `git apply --numstat --summary -z --check` writes no object; `GIT_ATTR_NOSYSTEM`
+  and an empty `core.attributesFile` leave only tracked `.gitattributes` and `info/attributes` as attribute sources (git
+  documentation); the git-lfs commands of the allowlist are the only filters a typical repository needs.
+- verified_fact: row A2; `pkg/lore/query.go:87` recognizes five trailers; `.autopus/metrics/` and `.autopus/brainstorms/` are
+  local-only by SPEC-SIGMABAND-001 REQ-16 and the existing hygiene lists.
 
 Gate applicability is read only from `gate-applicability.json` written by `auto spec gates`; security, validation, data_loss,
 and deterministic_oracle gates cannot be `not_applicable`.
@@ -75,7 +85,8 @@ and deterministic_oracle gates cannot be `not_applicable`.
 ## Verification
 
 ```text
-go test ./pkg/healthband/... ./internal/cli/... -run 'DraftPR|GitPolicy|CIScan|PatchGuard' -count=1
+go test ./pkg/healthband/... ./internal/cli/... -run 'LocalPatch|GitPolicy|PatchPolicy|PatchPrompt' -count=1
+go test -race ./pkg/healthband/... -run 'LocalPatch' -count=1
 go test ./... -coverprofile=cover.out   (new files >= 85%)
 go vet ./... && golangci-lint run ./... && auto check --arch --quiet
 auto spec validate .autopus/specs/SPEC-SIGMABAND-002 --strict

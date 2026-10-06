@@ -97,7 +97,7 @@ Given project 밖 디렉터리 O와, `evals/harness/candidates`를 O로 가리�
 When intake, promote, reject, prune을 각 fixture에서 실행한다
 Then 모든 실행은 종료 코드 1과 `path_unsafe`(prune은 `eval_links_unreadable`)이고 O의 파일 목록과 SHA-256은 실행 전과 같다
 And `promote GTC-023E9302FF0B`(대문자)와 `promote GTC-023e9302ff0b/../x`는 경로를 만들기 전에 `candidate_id_invalid`로 거부된다
-And Windows build의 intake·promote·reject는 종료 코드 1과 `platform_unsupported`이고, 이 동작은 `//go:build windows` test로 고정되며 CI에서 `GOOS=windows go test -c ./pkg/harneval/intake/`로 컴파일된다
+And Windows build의 intake·promote·reject는 종료 코드 1과 `platform_unsupported`이고, 이 동작은 `//go:build windows` test로 고정된다. CI ubuntu job은 `GOOS=windows GOARCH=amd64 go vet ./pkg/harneval/intake/`로 이 test를 type-check하고, windows-runtime job은 `go test -list` 수가 floor 1 이상인지와 PASS 집합이 목록과 같은지 확인하며 실행한다. static test는 그 step에 floor 검사와 PASS 집합 비교가 있음을 단언한다
 
 ### S11: detector는 원문 기준 span 병합으로 repo의 secret 형식을 모두 가린다
 Priority: Must
@@ -106,7 +106,9 @@ When `secretscan.Redact`를 각 fixture에 적용한다
 Then 형식별 출력의 secret 자리는 이렇다. Bearer는 `[REDACTED_SECRET]`(Bearer 단어 포함), 다음 9개 token은 `[REDACTED_SECRET]`, `API_KEY=` 할당은 할당 전체가 `[REDACTED_SECRET]`, `--token [REDACTED_SECRET]`, `"api_key": "[REDACTED_SECRET]"`, `https://[REDACTED_SECRET]@example.com`, `?[REDACTED_SECRET]`, `/Users/[REDACTED_USER]/proj`, 마지막 3개는 `[REDACTED_SECRET]`이고 모두 두 번째 반환값이 true다
 And worker 전용 형식의 출력은 이렇다. `password=ab`와 `azure client_secret = ab`는 `[REDACTED_SECRET]`, `password=letmein was rejected`는 `[REDACTED_SECRET] was rejected`, `aws secret ` + 40자와 `Bearer abc`는 `[REDACTED_SECRET]`, `{"private_key_id": "k1"}`는 `{[REDACTED_SECRET]"}`다
 And 겹침 2개의 출력은 `see /Users/[REDACTED_SECRET] end`와 `[REDACTED_SECRET] end`다. rev 4의 순차 합성은 두 경우 모두 40자 값을 남겼다(실행 확인)
-And 모든 fixture에서 세 가지가 성립한다. `Redact`를 다시 적용해도 결과가 같다. 출력에 detector를 다시 돌리면 placeholder 밖 span이 0개다. 원문 secret span의 8자 이상 부분 문자열이 출력에 없다
+And 같은 match에 placeholder와 원문 값이 섞인 fixture도 가린다. `set password=[REDACTED_SECRET]hunter2xyz end`는 `set [REDACTED_SECRET] end`다. `aws [REDACTED_SECRET] ` + 40자와 `[REDACTED_SECRET]; aws ` + 40자는 둘 다 `[REDACTED_SECRET] end`다. `password=[REDACTED_SECRET]` + 24자는 `[REDACTED_SECRET] end`다. `vault note: [REDACTED_PRIVATE_NOTE] plus diary text here`는 `vault note: [REDACTED_PRIVATE_NOTE]`다. `{"api_key": "[REDACTED_SECRET] rawvalue123"}`는 `{"api_key": "[REDACTED_SECRET]"}`다
+And 인접 match `API_KEY=[REDACTED_SECRET] token=` + 12자는 `[REDACTED_SECRET] [REDACTED_SECRET] end`이고, `[REDACTED_SECRET]` 하나뿐인 입력은 그대로다. rev 5의 '겹치면 버림' 규칙은 위 혼합 fixture 여섯 개에서 모두 원문 값을 남겼다(실행 확인)
+And 모든 fixture에서 세 가지가 성립한다. `Redact`를 다시 적용해도 결과가 같다. 출력에 detector를 다시 돌리면 placeholder 밖 span이 0개다. 원문 secret span에서 placeholder를 뺀 부분의 8자 이상 부분 문자열이 출력에 없다
 And `Bearer token header was dropped by the hook`은 `[REDACTED_SECRET] header was dropped by the hook`(수용한 오탐), `router drops detail mapping for plan`은 그대로다. `pkg/secretscan` 표의 정규식 출처는 `SecretDetectorSources()`와 `DefaultPatternSources()`를 이은 목록과 정확히 같다
 
 ## Oracle Acceptance Notes

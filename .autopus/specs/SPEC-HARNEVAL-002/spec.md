@@ -1,6 +1,6 @@
 # SPEC-HARNEVAL-002: Learning·incident를 golden-task 후보로 승격
 
-**Status**: draft (rev 5, multi-provider review 4회 반영)
+**Status**: approved
 **Created**: 2026-10-06
 **Domain**: HARNEVAL
 **Module**: autopus-adk
@@ -36,14 +36,14 @@ THE SYSTEM SHALL add optional `expected`, `actual`, and `repro` string fields wi
 - cap과 순서: `expected`, `actual` 각 1024 byte, `repro` 512 byte다. 검사 순서는 다섯 단계로 고정한다. (1) raw 값에 제어 문자(C0·개행·DEL·C1)가 있으면 거부한다. (2) raw 길이가 cap의 4배를 넘으면 가리기 전에 거부한다. (3) `Redact`를 적용한다. (4) 가린 값이 cap을 넘으면 거부한다(placeholder가 원문보다 길 수 있으므로 cap은 가린 값에 적용한다). (5) 저장한다. 거부 reason은 모두 `learning_field_invalid`이고 detail은 `control_char`, `raw_over_limit`, `over_cap_after_redaction`이다. 그래서 저장된 값은 항상 cap 안이다. 값이 없는 entry는 key 없이 직렬화된다.
 - detector(span 병합 union): `[NEW] pkg/secretscan.Redact(s) (string, bool)`는 원문 하나에 detector를 모두 실행한다. 단계는 다음과 같다.
   - detector 표: `pkg/qa/evidence/redaction.go`의 정규식 14개(secret 5, 할당, flag, JSON key, credential URL, query, private note 2, Unix·Windows 사용자 경로)와 `pkg/worker/security` 기본 패턴 11개(`sk-[a-zA-Z0-9]{20,}`, `AKIA[A-Z0-9]{16}`, `ghp_`/`gho_` 36자, `Bearer [a-zA-Z0-9._\-]+`, 일반 할당 `(?i)(password|secret|api_key|apikey|token)\s*[=:]\s*\S+`, AWS 문맥, `"private_key…"` JSON, azure, PEM 머리줄, `apjwt_`)다.
-  - span: 각 match에서 secret 부분을 고른다. qa detector는 `RedactText`가 바꾸는 group(Bearer 뒤 값, 할당·flag·JSON의 값, URL userinfo, query 값, note 값, 사용자명)을 쓰고, worker 패턴은 match 전체를 쓴다. qa의 prose 예외는 적용하지 않는다(더 엄격). 이미 있는 placeholder와 겹치는 span은 버린다.
+  - span: 각 match에서 secret 부분을 고른다. qa detector는 `RedactText`가 바꾸는 group(Bearer 뒤 값, 할당·flag·JSON의 값, URL userinfo, query 값, note 값, 사용자명)을 쓰고, worker 패턴은 match 전체를 쓴다. qa의 prose 예외는 적용하지 않는다(더 엄격). placeholder와 겹친다는 이유로 span을 버리지 않는다. 대신 span 경계를 겹친 placeholder token의 경계까지 넓힌 뒤 병합하고, 병합 span 전체를 다시 가린다. 그 안에 있던 placeholder도 함께 덮인다. 넓힌 span의 text가 canonical placeholder 하나와 정확히 같을 때만 그 span을 건너뛴다. 이 예외 덕분에 다시 적용해도 결과가 같다. 그래서 사용자가 넣은 placeholder가 같은 match나 인접 match의 원문 secret을 가려 주지 못한다(S11).
   - 병합: span을 시작 위치로 정렬하고, 겹치거나 맞닿으면 합친다. 합친 span의 종류는 우선순위 secret > private note > user로 정한다.
   - 치환: 합친 span마다 한 번만 `[REDACTED_SECRET]`, `[REDACTED_PRIVATE_NOTE]`, `[REDACTED_USER]`로 바꾼다.
 - 순차 적용(rev 4)은 앞 detector가 바꾼 문맥 때문에 뒤 detector가 원문 secret을 놓쳤다. 예를 들어 `see /Users/aws/` + 40자는 사용자명만 가려지고 40자 값이 남았다(실행 확인). 원문 기준 span 병합은 이를 `see /Users/[REDACTED_SECRET] end`로 완전히 가린다(probe A1).
 - 성질과 drift test:
   - `Redact`는 같은 입력에 같은 결과를 낸다.
   - 출력에 detector를 다시 돌리면 placeholder 밖에는 span이 없다.
-  - 원문 secret span의 8자 이상 부분 문자열은 출력에 남지 않는다.
+  - 원문 secret span에서 placeholder token을 뺀 부분의 8자 이상 부분 문자열은 출력에 남지 않는다.
   - test에서만 두 package를 import한다. `SecretDetectorSources()`, `DefaultPatternSources()`가 돌려주는 정규식 출처와 `pkg/secretscan` 표가 정확히 같은지 검사하므로, 어느 detector가 바뀌어도 test가 실패한다.
 - redaction 위치: `pkg/learn/store.go`의 쓰기 함수(`Append`와 `AppendAtomic`이 거치는 경로). 대상 free-text field는 `pattern`, `resolution`, `phase`, `spec_id`, `expected`, `actual`, `repro`다. Go writer는 `record.go`의 `AppendAtomic` 하나뿐이므로 CLI와 `pkg/pipeline/learn_hook.go` 모두 이 경계를 지난다. `rewriteStore`(`Prune`, `UpdateReuseCount`가 공유)는 파싱된 entry를 지금처럼 canonical `MarshalJSON`으로 다시 encode한다. 다만 redaction을 다시 적용하지 않는다. 문자열 값과 `null`·`[]`는 round-trip에서 그대로이므로 저장 값과 fingerprint 입력은 prune 뒤에도 변하지 않는다. 시간대 표기 같은 기존 canonical 정규화(SPEC-ADK-EVIDENCE-LOOPS-001 계약)와 `reuse_count` 증가는 지금처럼 일어난다. 이 SPEC 이전 binary가 쓴 legacy raw entry도 다시 가리지 않으므로 원문과 fingerprint가 그대로 남는다(S2). 그 원문은 intake가 후보로 복사할 때만 가려진다. tracked store에 남은 legacy 원문은 수동 정리 대상이며 잔여 위험으로 둔다. 파싱되지 않은 줄(`SkipRecord`)은 경계를 지난 적이 없으므로 원문 줄 전체에 `Redact`를 적용해 다시 쓴다.
 - CLI 출력: `auto learn record`의 `Recorded %s entry: %s`(`learn_record.go:68`)는 원문이 아니라 저장된(가려진) pattern을 출력한다. 기존 test는 접두사 `Recorded <type> entry`만 단언한다.
@@ -100,7 +100,7 @@ THE SYSTEM SHALL accept only candidate ids matching `^GTC-[0-9a-f]{12}$` and tas
 - 인자는 형식 검사 뒤에만 경로에 합친다. 후보 파일 안의 `id`는 파일 이름과 같아야 한다(`candidate_invalid`, detail `id_mismatch`).
 - 검사 대상은 `evals`, `evals/harness`, `evals/harness/candidates`, 그 아래 `promoted`, `rejected`, 그리고 `evals/harness/tasks/surface`의 각 구성 요소다. `Root.Lstat`로 symlink와 regular file·directory가 아닌 항목(Windows junction 포함)을 거부한다. 검사와 열기 사이의 경쟁은 운영자 로컬 환경의 잔여 위험으로 둔다. `os.Root`는 repo 선례(`pkg/adapter/codex/codex_hooks_io.go:20`, `pkg/companionmanifest/signed_pair_io.go:43`)이며, 그 사이에 바뀐 symlink로 root 밖에 닿는 것을 막는다.
 - 게시 API: intake 영역의 생성·link·삭제는 모두 `os.Root` 메서드(`OpenFile`, `Link`, `Remove`, `Mkdir`, `Lstat`)로 한다. 그래서 검사 뒤 상위 디렉터리가 symlink로 바뀌어도 root 밖에 파일이 생기거나 지워지지 않는다(001 rev 3 review HC-003).
-- 플랫폼: 쓰기 경로는 `safepath_unix.go`(`//go:build !windows`, 디렉터리 fsync 포함)에 두고, `safepath_windows.go`는 `platform_unsupported`를 반환한다. 읽기 전용 prune 보호 scan은 모든 플랫폼에서 `os.Root`와 `Lstat`로 동작한다. ci.yaml을 바꿔(T13) 두 곳에서 확인한다. ubuntu `test` job에서는 `GOOS=windows GOARCH=amd64 go vet ./pkg/harneval/intake/`가 windows test까지 컴파일한다. 기존 `windows-runtime` job에서는 `go test ./pkg/harneval/intake/ -run 'PlatformUnsupported' -count=1`이 실제로 실행한다. 새 step은 action을 추가하지 않고, `version: latest`를 쓰지 않으며, omp-native-smoke 구간 밖에 있다. `TestWindowsRuntimeRunsSelfUpdateAdmissionContracts`는 `Contains` 단언이라 영향이 없다. golden set 관리는 macOS·Linux maintainer 작업이다.
+- 플랫폼: 쓰기 경로는 `safepath_unix.go`(`//go:build !windows`, 디렉터리 fsync 포함)에 두고, `safepath_windows.go`는 `platform_unsupported`를 반환한다. 읽기 전용 prune 보호 scan은 모든 플랫폼에서 `os.Root`와 `Lstat`로 동작한다. ci.yaml을 바꿔(T13) 두 곳에서 확인한다. ubuntu `test` job에서는 `GOOS=windows GOARCH=amd64 go vet ./pkg/harneval/intake/`가 windows test까지 컴파일한다. 기존 `windows-runtime` job에서는 그 job의 기존 step 규약을 따라 실행한다. 먼저 `go test -list 'PlatformUnsupported' ./pkg/harneval/intake/`의 test 수가 floor 1 이상인지 확인하고, `-v`로 실행한 뒤 PASS한 test 집합이 목록과 같은지 비교한다. 그래서 test 이름이 바뀌거나 빠졌을 때 'no tests to run'으로 통과하지 않는다. 이 규약은 `[NEW] internal/cli/eval_harness_intake_workflow_test.go`가 단언한다. 새 step은 action을 추가하지 않고, `version: latest`를 쓰지 않으며, omp-native-smoke 구간 밖에 있다. `TestWindowsRuntimeRunsSelfUpdateAdmissionContracts`는 `Contains` 단언이라 영향이 없다. golden set 관리는 macOS·Linux maintainer 작업이다.
 
 ### REQ-HC-06 사람 승인 승격
 Priority: Must · EARS: EventDriven
@@ -243,3 +243,5 @@ THE SYSTEM SHALL document the record, intake, assertion authoring, promote or re
 | F-022, F-023 (rev 5) 잔존 문구·S11 추적 | 생성 파일 상세, research, plan의 이전 설계 문구를 고치고 S11을 완료 근거, Traceability, INV-HC-04에 넣었다 | spec.md, research.md, plan.md |
 | F-024 (rev 5) Windows test 미실행 | CI task T13을 넣었다(ubuntu vet, windows-runtime 실행) | REQ-HC-11, plan T13 |
 | F-025 (rev 5) cap과 redaction 순서 | 5단계 순서와 detail, 재검증 실패의 행 결과를 정했다 | REQ-HC-01, REQ-HC-03, S1, S4 |
+| F-026 (rev 6) placeholder가 secret을 가려 줌 | 겹친 span을 버리지 않고 placeholder 경계까지 넓혀 병합 span 전체를 다시 가린다. 정확히 placeholder 하나인 span만 건너뛴다. 같은 match와 인접 match oracle을 넣었다. 이전 규칙의 누출 여섯 건은 실행으로 확인했다 | REQ-HC-01, S11 |
+| F-024 (rev 6) Windows test가 비어도 통과 | windows-runtime step에 `go test -list` floor와 PASS 집합 비교를 두고 static test로 고정한다. S10 문구를 CI 실제 단계와 맞췄다 | REQ-HC-11, S10, plan T13 |

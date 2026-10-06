@@ -170,7 +170,7 @@ These are optional improvements and do not block sync completion.
 - Q-STYLE-02 | status: PASS | attempt: 2 | files: spec.md, acceptance.md | reason: Priority는 Must/Should만 쓰고 EARS type과 분리했다
 - Q-STYLE-03 | status: PASS | attempt: 2 | files: acceptance.md | reason: 시나리오는 bare Given/When/Then/And 형식이다
 - Q-SEC-01 | status: PASS | attempt: 3 | files: spec.md | reason: 첫 저장 경계가 Go writer, CLI 출력, template 경로를 모두 덮고 intake 영역 접근은 `os.Root`로 제한한다
-- Q-SEC-02 | status: PASS | attempt: 5 | files: spec.md, acceptance.md | reason: 두 기존 detector의 union과 잃었던 형식별 oracle(S11), 일곱 field와 stdout redaction(S1), sync prune 직접 수정 제거, `os.Root` 게시(S10)
+- Q-SEC-02 | status: PASS | attempt: 6 | files: spec.md, acceptance.md | reason: 두 기존 detector의 union과 잃었던 형식별 oracle(S11), 일곱 field와 stdout redaction(S1), sync prune 직접 수정 제거, `os.Root` 게시(S10)
 - Q-SEC-03 | status: PASS | attempt: 3 | files: spec.md | reason: tracked artifact와 CLI 출력이 모두 가려진 데이터만 담고, skip 줄도 rewrite 때 가린다
 - Q-COH-01 | status: PASS | attempt: 2 | files: spec.md | reason: 사고를 영구 eval로 만드는 한 흐름에 수렴한다
 - Q-COH-02 | status: PASS | attempt: 2 | files: research.md | reason: Outcome Lock을 막는 001 의존은 Completion Debt로 남겨 sync를 막는다
