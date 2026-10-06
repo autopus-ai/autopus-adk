@@ -121,7 +121,7 @@ func (r sandboxModeRecorder) Execute(ctx context.Context, req orchestra.Provider
 func (r sandboxModeRecorder) Name() string { return r.routed.Name() }
 
 // Security M1: the smoke's agy launch is recorded unverified, not read-only,
-// until RFP-3 gives live evidence for the agy plan and sandbox flags.
+// because RFP-3 showed agy writes are blocked by headless auto-deny, not plan mode.
 func TestRunProviderTransportSmoke_RecordsAgyLaunchUnverified(t *testing.T) {
 	installReadOnlyArgvRecorders(t, "claude", "codex", "agy")
 	countCodexCatalogProbes(t)

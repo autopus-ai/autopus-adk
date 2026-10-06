@@ -88,8 +88,9 @@ func assembleSpecReviewProviders(ctx context.Context, req specReviewProviderRequ
 }
 
 // stampSpecReviewSandboxEvidence keeps the receipt from claiming more than the
-// evidence shows: agy's plan mode and sandbox flags have no live read-only
-// proof until RFP-3 passes, so a native agy provider is recorded unverified.
+// evidence shows: RFP-3 found agy writes blocked only by headless auto-deny
+// (plan mode is inert with slash commands disabled), which agy settings can
+// widen, so a native agy provider is recorded unverified.
 // It is neither excluded nor degraded, so default reviews keep their quorum.
 func stampSpecReviewSandboxEvidence(providers []orchestra.ProviderConfig) []orchestra.ProviderConfig {
 	for index := range providers {

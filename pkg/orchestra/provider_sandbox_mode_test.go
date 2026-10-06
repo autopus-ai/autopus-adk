@@ -105,8 +105,8 @@ func TestSubprocessBackend_RecordedSandboxModeReadsExecutedArgv(t *testing.T) {
 	assert.Equal(t, SandboxModeUnrestricted, bypassed.SandboxMode, "a bypass in a runtime item must not keep the read-only stamp")
 }
 
-// SPEC-REVIEWRO-001 M1: agy's read-only flags have no live evidence until
-// RFP-3 passes, so an unverified stamp survives the projected agy argv and a
+// SPEC-REVIEWRO-001 M1: RFP-3 showed agy relies on headless auto-deny rather
+// than its plan flag, so an unverified stamp survives the projected agy argv and a
 // bypass in the executed argv still beats it.
 func TestProviderSandboxMode_UnverifiedStampIsKeptUnlessBypassed(t *testing.T) {
 	t.Parallel()
