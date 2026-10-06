@@ -38,11 +38,14 @@ const (
 )
 
 // Failure reasons of a deterministic run (REQ-HE-03, REQ-HE-04).
+// generation_failed is not named by the requirements: it closes the gap of a
+// platform adapter that returns an error, which no other reason covers.
 const (
 	ReasonInvalid            = "invalid"
 	ReasonBaselineMissing    = "baseline_missing"
 	ReasonTemplatesStale     = "templates_stale"
 	ReasonHostProbeUnpinned  = "host_probe_unpinned"
+	ReasonGenerationFailed   = "generation_failed"
 	ReasonVacuous            = "vacuous"
 	ReasonRegression         = "regression"
 	ReasonExpectationChanged = "expectation_changed"

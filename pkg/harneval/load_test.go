@@ -9,63 +9,69 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// s1Defect seeds exactly one S1 defect into a standard fixture.
+type s1Defect struct {
+	name   string
+	mutate func(f *fixture)
+	detail string
+}
+
+// s1DefectFixtures are the S1 fixtures in acceptance order; the loader and the
+// run seam must both reject each with exactly its detail code.
+var s1DefectFixtures = []s1Defect{
+	{"unknown field", func(f *fixture) {
+		task := surfaceTask("GT-FIX-A")
+		task["extra"] = 1
+		f.writeJSON(surfacePath("GT-FIX-A"), task)
+	}, DetailUnknownField},
+	{"trailing data", func(f *fixture) {
+		f.write(surfacePath("GT-FIX-A"), mustJSON(f.t, surfaceTask("GT-FIX-A"))+"{}\n")
+	}, DetailTrailingData},
+	{"zero assertions", func(f *fixture) {
+		task := surfaceTask("GT-FIX-A")
+		task["assertions"] = []any{}
+		f.writeJSON(surfacePath("GT-FIX-A"), task)
+	}, DetailNoAssertions},
+	{"unknown assertion kind", func(f *fixture) {
+		task := surfaceTask("GT-FIX-A")
+		task["assertions"] = []any{map[string]any{"kind": "file_matches", "platform": "codex", "path": "AGENTS.md"}}
+		f.writeJSON(surfacePath("GT-FIX-A"), task)
+	}, DetailUnknownAssertionKind},
+	{"assertion without platform", func(f *fixture) {
+		task := surfaceTask("GT-FIX-A")
+		task["assertions"] = []any{map[string]any{"kind": AssertFileExists, "path": "AGENTS.md"}}
+		f.writeJSON(surfacePath("GT-FIX-A"), task)
+	}, DetailAssertionFieldInvalid},
+	{"duplicate task id", func(f *fixture) {
+		f.writeJSON("evals/harness/tasks/surface/zz-copy.json", surfaceTask("GT-FIX-A"))
+	}, DetailDuplicateTaskID},
+	{"threshold_bp 5", func(f *fixture) {
+		manifest := validManifest()
+		manifest["live"].(map[string]any)["threshold_bp"] = 5
+		f.writeJSON(ManifestPath, manifest)
+	}, DetailPolicyOutOfRange},
+	{"unclean active path", func(f *fixture) {
+		manifest := validManifest()
+		manifest["active_paths"] = []any{"evals/harness/tasks/../candidates"}
+		f.writeJSON(ManifestPath, manifest)
+	}, DetailUncleanPath},
+	{"symlinked task file", func(f *fixture) {
+		f.write("elsewhere/GT-FIX-D.json", mustJSON(f.t, surfaceTask("GT-FIX-D")))
+		require.NoError(f.t, os.Symlink(filepath.Join(f.root, "elsewhere", "GT-FIX-D.json"),
+			filepath.Join(f.root, filepath.FromSlash(surfacePath("GT-FIX-D")))))
+	}, DetailSymlinkNotAllowed},
+	{"agent task without expected_tests", func(f *fixture) {
+		task := agentTask("GT-AG-001")
+		delete(task, "expected_tests")
+		f.writeJSON(agentPath("GT-AG-001"), task)
+	}, DetailExpectedTestsMissing},
+}
+
 // TestLoadSet_S1Fixtures_RejectWithExactDetail is the S1 oracle at the loader
 // seam: each fixture carries one defect and yields exactly its detail code.
 func TestLoadSet_S1Fixtures_RejectWithExactDetail(t *testing.T) {
 	t.Parallel()
-	cases := []struct {
-		name   string
-		mutate func(f *fixture)
-		detail string
-	}{
-		{"unknown field", func(f *fixture) {
-			task := surfaceTask("GT-FIX-A")
-			task["extra"] = 1
-			f.writeJSON(surfacePath("GT-FIX-A"), task)
-		}, DetailUnknownField},
-		{"trailing data", func(f *fixture) {
-			f.write(surfacePath("GT-FIX-A"), mustJSON(t, surfaceTask("GT-FIX-A"))+"{}\n")
-		}, DetailTrailingData},
-		{"zero assertions", func(f *fixture) {
-			task := surfaceTask("GT-FIX-A")
-			task["assertions"] = []any{}
-			f.writeJSON(surfacePath("GT-FIX-A"), task)
-		}, DetailNoAssertions},
-		{"unknown assertion kind", func(f *fixture) {
-			task := surfaceTask("GT-FIX-A")
-			task["assertions"] = []any{map[string]any{"kind": "file_matches", "platform": "codex", "path": "AGENTS.md"}}
-			f.writeJSON(surfacePath("GT-FIX-A"), task)
-		}, DetailUnknownAssertionKind},
-		{"assertion without platform", func(f *fixture) {
-			task := surfaceTask("GT-FIX-A")
-			task["assertions"] = []any{map[string]any{"kind": AssertFileExists, "path": "AGENTS.md"}}
-			f.writeJSON(surfacePath("GT-FIX-A"), task)
-		}, DetailAssertionFieldInvalid},
-		{"duplicate task id", func(f *fixture) {
-			f.writeJSON("evals/harness/tasks/surface/zz-copy.json", surfaceTask("GT-FIX-A"))
-		}, DetailDuplicateTaskID},
-		{"threshold_bp 5", func(f *fixture) {
-			manifest := validManifest()
-			manifest["live"].(map[string]any)["threshold_bp"] = 5
-			f.writeJSON(ManifestPath, manifest)
-		}, DetailPolicyOutOfRange},
-		{"unclean active path", func(f *fixture) {
-			manifest := validManifest()
-			manifest["active_paths"] = []any{"evals/harness/tasks/../candidates"}
-			f.writeJSON(ManifestPath, manifest)
-		}, DetailUncleanPath},
-		{"symlinked task file", func(f *fixture) {
-			f.write("elsewhere/GT-FIX-D.json", mustJSON(t, surfaceTask("GT-FIX-D")))
-			require.NoError(t, os.Symlink(filepath.Join(f.root, "elsewhere", "GT-FIX-D.json"),
-				filepath.Join(f.root, filepath.FromSlash(surfacePath("GT-FIX-D")))))
-		}, DetailSymlinkNotAllowed},
-		{"agent task without expected_tests", func(f *fixture) {
-			task := agentTask("GT-AG-001")
-			delete(task, "expected_tests")
-			f.writeJSON(agentPath("GT-AG-001"), task)
-		}, DetailExpectedTestsMissing},
-	}
-	for _, tc := range cases {
+	for _, tc := range s1DefectFixtures {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			// Given a valid set with exactly one seeded defect
