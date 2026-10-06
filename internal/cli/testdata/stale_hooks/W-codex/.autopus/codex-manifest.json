@@ -3,6 +3,10 @@
   "platform": "codex",
   "generated_at": "2026-10-07T00:00:00Z",
   "files": {
+    ".agents/plugins/marketplace.json": {
+      "checksum": "7bac9f0f7c15eecf46023308f334e2122d112d03aa7b498f9e01adabd48ac03c",
+      "policy": "merge"
+    },
     ".codex/config.toml": {
       "checksum": "b6c9980dc468f4112e295d83fdff417139e2b06d97c131d4f77b45766ada3900",
       "policy": "merge"

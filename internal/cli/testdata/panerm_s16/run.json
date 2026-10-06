@@ -1,0 +1,160 @@
+{
+  "schema_version": "1.0.0",
+  "command": "auto orchestra run",
+  "status": "ok",
+  "generated_at": "<volatile>",
+  "data": {
+    "analysis_verdict": "pass",
+    "artifacts": null,
+    "attempted_providers": [
+      "claude",
+      "codex"
+    ],
+    "attempts": 2,
+    "configured_providers": [
+      "claude",
+      "codex"
+    ],
+    "critical_veto": false,
+    "degraded_reasons": null,
+    "dispatch_count": 3,
+    "effective_strategy": "debate",
+    "failed_providers": null,
+    "fresh_judge_session": {
+      "isolated": true,
+      "judge_session_fingerprint": "",
+      "mechanism": "fresh_backend_execution",
+      "participant_session_fingerprint": "",
+      "participants_terminated": true,
+      "reason": "fresh subprocess backend execution verified",
+      "required": true,
+      "verified": true
+    },
+    "gate_status": "passed",
+    "judge_provider_selection": {
+      "selected_judge_provider": "claude",
+      "selection_source": "explicit"
+    },
+    "judge_separation": {
+      "judge_model_family": "anthropic",
+      "judge_provider": "claude",
+      "participant_families": [
+        "anthropic",
+        "openai"
+      ],
+      "reason": "policy_not_required",
+      "required": false,
+      "separated": false
+    },
+    "judge_status": "passed",
+    "provider_receipts": [
+      {
+        "attempt": 1,
+        "backend": "subprocess",
+        "command": [
+          "claude",
+          "--print",
+          "--model",
+          "claude-fable-5-1",
+          "--effort",
+          "max"
+        ],
+        "cwd": "<root>",
+        "ended_at": "<volatile>",
+        "exit_code": 0,
+        "model_family": "anthropic",
+        "pid": "<volatile>",
+        "provider": "claude",
+        "role": "debater_r1",
+        "sandbox_mode": "unrestricted",
+        "started_at": "<volatile>",
+        "timed_out": false,
+        "usable": true
+      },
+      {
+        "attempt": 1,
+        "backend": "subprocess",
+        "command": [
+          "codex",
+          "exec",
+          "--json",
+          "--sandbox",
+          "workspace-write",
+          "-m",
+          "gpt-6-astra",
+          "-c",
+          "model_reasoning_effort=\"max\"",
+          "--output-schema",
+          "<tmpdir>/schema-debater_r1-<n>.json",
+          "--output-last-message",
+          "<tmpdir>/codex-last-message-<n>.txt"
+        ],
+        "cwd": "<root>",
+        "ended_at": "<volatile>",
+        "exit_code": 0,
+        "model_family": "openai",
+        "pid": "<volatile>",
+        "provider": "codex",
+        "role": "debater_r1",
+        "sandbox_mode": "workspace-write",
+        "started_at": "<volatile>",
+        "timed_out": false,
+        "usable": true
+      },
+      {
+        "attempt": 2,
+        "backend": "subprocess",
+        "command": [
+          "claude",
+          "--print",
+          "--model",
+          "claude-fable-5-1",
+          "--effort",
+          "max"
+        ],
+        "cwd": "<root>",
+        "ended_at": "<volatile>",
+        "exit_code": 0,
+        "model_family": "anthropic",
+        "pid": "<volatile>",
+        "provider": "claude",
+        "role": "judge",
+        "sandbox_mode": "unrestricted",
+        "started_at": "<volatile>",
+        "timed_out": false,
+        "usable": true
+      }
+    ],
+    "quorum_met": true,
+    "quorum_required": 2,
+    "quorum_usable": 2,
+    "requested_providers": [
+      "claude",
+      "codex"
+    ],
+    "requested_strategy": "debate",
+    "resolved_providers": [
+      "claude",
+      "codex"
+    ],
+    "route_id": "orchestra:debate",
+    "route_version": "orchestra-route.v1",
+    "run_id": "<volatile>",
+    "schema": "orchestration_run_receipt.v1",
+    "terminal_state": "completed",
+    "transitions": [
+      {
+        "analysis_verdict": "pass",
+        "gate_status": "passed",
+        "sequence": 1,
+        "state": "completed"
+      }
+    ],
+    "usable_providers": [
+      "claude",
+      "codex"
+    ],
+    "worker_receipts": []
+  }
+}
+

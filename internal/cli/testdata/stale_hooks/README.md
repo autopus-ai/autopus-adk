@@ -7,7 +7,9 @@ listed), and `codex debug models` failing so no host catalog is read.
 
 Kept per workspace: `autopus.yaml`, the platform manifest trimmed to the kept files (`generated_at` fixed to
 `2026-10-07T00:00:00Z`), the settings files, and the hook scripts. Skills, agents, rules, and instruction files are
-dropped. Added user content: a separate `user-*` entry before the managed ones in every settings file, a `mixed`
+dropped. W-codex also keeps O's `.agents/plugins/marketplace.json` (merge policy): B creates that file in template key
+order but rewrites an existing one in sorted order, so without it the second update of S12 would differ from the
+first for a reason unrelated to the hooks. Added user content: a separate `user-*` entry before the managed ones in every settings file, a `mixed`
 Stop entry (group S handler, then `./scripts/notify.sh`) in W-claude and W-codex, a `user-hooks` set in
 `.agents/hooks.json`, the user scripts under `scripts/`, and `plugins/mine.ts`.
 
@@ -23,5 +25,6 @@ Stop entry (group S handler, then `./scripts/notify.sh`) in W-claude and W-codex
 
 `{{ROOT}}` in JSON files stands for the workspace copy's absolute path; tests substitute it when they copy a fixture.
 `stale_hooks_fixture_test.go` holds the integrity checks, the W-mix and W-oc-bad guards that hold at B, and the S11
-retraction oracle, which is red at B and skips with a reason naming its owner task (T11) until it lands.
+retraction oracle, which is red at B and skips with a reason naming its owner task (T11) until it lands;
+`stale_hooks_s12_test.go` holds the S12 idempotency and fault-injection oracles (T11).
 `AUTOPUS_PANERM_RED=1 go test ./internal/cli -run TestStaleHookFixtures` runs it anyway.

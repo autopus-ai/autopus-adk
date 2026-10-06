@@ -1,0 +1,207 @@
+{
+  "schema": "orchestration_cli_result.v1",
+  "merged": "## 토론 결과\n\n### claude의 의견\n{\"verdict\":\"PASS\",\"summary\":\"fake claude answer\",\"findings\":[],\"recommendation\":\"fake claude answer\"}\n\n\n### codex의 의견\n{\"verdict\":\"PASS\",\"summary\":\"fake codex answer\",\"findings\":[],\"recommendation\":\"fake codex answer\"}\n\n### claude (judge)의 의견\n{\"verdict\":\"PASS\",\"summary\":\"fake claude answer\",\"findings\":[],\"recommendation\":\"fake claude answer\"}\n\n\n## 주요 차이점\n- codex에서만: {\"verdict\":\"PASS\",\"summary\":\"fake codex answer\",\"findings\":[],\"recommendation\":\"fake codex answer\"}\n",
+  "receipt": {
+    "schema": "orchestration_run_receipt.v1",
+    "run_id": "<volatile>",
+    "route_id": "orchestra:debate",
+    "route_version": "orchestra-route.v1",
+    "requested_strategy": "debate",
+    "effective_strategy": "debate",
+    "requested_providers": [
+      "claude",
+      "codex"
+    ],
+    "configured_providers": [
+      "claude",
+      "codex"
+    ],
+    "resolved_providers": [
+      "claude",
+      "codex"
+    ],
+    "attempted_providers": [
+      "claude",
+      "codex"
+    ],
+    "usable_providers": [
+      "claude",
+      "codex"
+    ],
+    "failed_providers": null,
+    "degraded_reasons": null,
+    "critical_veto": false,
+    "analysis_verdict": "pass",
+    "gate_status": "passed",
+    "terminal_state": "completed",
+    "judge_status": "passed",
+    "dispatch_count": 5,
+    "quorum_required": 2,
+    "quorum_met": true,
+    "quorum_usable": 2,
+    "attempts": 3,
+    "judge_separation": {
+      "required": false,
+      "participant_families": [
+        "anthropic",
+        "openai"
+      ],
+      "judge_provider": "claude",
+      "judge_model_family": "anthropic",
+      "separated": false,
+      "reason": "policy_not_required"
+    },
+    "fresh_judge_session": {
+      "required": true,
+      "isolated": true,
+      "verified": true,
+      "mechanism": "fresh_backend_execution",
+      "participants_terminated": true,
+      "participant_session_fingerprint": "",
+      "judge_session_fingerprint": "",
+      "reason": "fresh subprocess backend execution verified"
+    },
+    "judge_provider_selection": {
+      "selected_judge_provider": "claude",
+      "selection_source": "configured_fallback"
+    },
+    "provider_receipts": [
+      {
+        "provider": "claude",
+        "role": "debater_r1",
+        "attempt": 1,
+        "backend": "subprocess",
+        "model_family": "anthropic",
+        "exit_code": 0,
+        "timed_out": false,
+        "usable": true,
+        "command": [
+          "claude",
+          "--print",
+          "--model",
+          "claude-fable-5-1",
+          "--effort",
+          "max"
+        ],
+        "cwd": "<root>",
+        "pid": "<volatile>",
+        "sandbox_mode": "unrestricted",
+        "started_at": "<volatile>",
+        "ended_at": "<volatile>"
+      },
+      {
+        "provider": "codex",
+        "role": "debater_r1",
+        "attempt": 1,
+        "backend": "subprocess",
+        "model_family": "openai",
+        "exit_code": 0,
+        "timed_out": false,
+        "usable": true,
+        "command": [
+          "codex",
+          "exec",
+          "--json",
+          "--sandbox",
+          "workspace-write",
+          "-m",
+          "gpt-6-astra",
+          "-c",
+          "model_reasoning_effort=\"max\"",
+          "--output-last-message",
+          "<tmpdir>/codex-last-message-<n>.txt"
+        ],
+        "cwd": "<root>",
+        "pid": "<volatile>",
+        "sandbox_mode": "workspace-write",
+        "started_at": "<volatile>",
+        "ended_at": "<volatile>"
+      },
+      {
+        "provider": "claude",
+        "role": "debater_r2",
+        "attempt": 2,
+        "backend": "subprocess",
+        "model_family": "anthropic",
+        "exit_code": 0,
+        "timed_out": false,
+        "usable": true,
+        "command": [
+          "claude",
+          "--print",
+          "--model",
+          "claude-fable-5-1",
+          "--effort",
+          "max"
+        ],
+        "cwd": "<root>",
+        "pid": "<volatile>",
+        "sandbox_mode": "unrestricted",
+        "started_at": "<volatile>",
+        "ended_at": "<volatile>"
+      },
+      {
+        "provider": "codex",
+        "role": "debater_r2",
+        "attempt": 2,
+        "backend": "subprocess",
+        "model_family": "openai",
+        "exit_code": 0,
+        "timed_out": false,
+        "usable": true,
+        "command": [
+          "codex",
+          "exec",
+          "--json",
+          "--sandbox",
+          "workspace-write",
+          "-m",
+          "gpt-6-astra",
+          "-c",
+          "model_reasoning_effort=\"max\"",
+          "--output-last-message",
+          "<tmpdir>/codex-last-message-<n>.txt"
+        ],
+        "cwd": "<root>",
+        "pid": "<volatile>",
+        "sandbox_mode": "workspace-write",
+        "started_at": "<volatile>",
+        "ended_at": "<volatile>"
+      },
+      {
+        "provider": "claude",
+        "role": "judge",
+        "attempt": 3,
+        "backend": "subprocess",
+        "model_family": "anthropic",
+        "exit_code": 0,
+        "timed_out": false,
+        "usable": true,
+        "command": [
+          "claude",
+          "--print",
+          "--model",
+          "claude-fable-5-1",
+          "--effort",
+          "max"
+        ],
+        "cwd": "<root>",
+        "pid": "<volatile>",
+        "sandbox_mode": "unrestricted",
+        "started_at": "<volatile>",
+        "ended_at": "<volatile>"
+      }
+    ],
+    "worker_receipts": [],
+    "artifacts": null,
+    "transitions": [
+      {
+        "sequence": 1,
+        "state": "completed",
+        "analysis_verdict": "pass",
+        "gate_status": "passed"
+      }
+    ]
+  }
+}
+
