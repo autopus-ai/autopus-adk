@@ -6,12 +6,15 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/insajin/autopus-adk/pkg/rulecond"
 )
 
 // Document schemas of spec.md Decision Output Contract.
@@ -205,4 +208,69 @@ func validDigest(s string) bool {
 		}
 	}
 	return true
+}
+
+// lockView is the lock stage of one project root as the guard sees it.
+// Readers take no store lock; they see only complete records (REQ-EG-06).
+type lockView struct {
+	active []activeLock
+	// fault describes the dropped stage or the first dropped record.
+	fault string
+}
+
+type activeLock struct {
+	path, key string
+	file      fs.FileInfo // the recorded file now, nil when it is absent
+}
+
+func loadLockView(root string, fold bool, now time.Time) lockView {
+	dir, err := rulecond.LookupRuntimeStateDir(root, fixLocksName)
+	if errors.Is(err, fs.ErrNotExist) {
+		return lockView{}
+	}
+	unusable := lockView{fault: "lock state unusable: " + FixLocksDir}
+	if err != nil {
+		return unusable
+	}
+	defer func() { _ = dir.Close() }()
+	records, err := readRecords(dir, fold)
+	if err != nil {
+		return unusable
+	}
+	var view lockView
+	for _, r := range records {
+		switch {
+		case r.corrupt:
+			if view.fault == "" {
+				view.fault = "lock record unreadable: " + r.path()
+			}
+		case now.Before(r.expires): // an expired lock is normal state, not a fault
+			info, _ := os.Stat(filepath.Join(root, filepath.FromSlash(r.rec.Path)))
+			view.active = append(view.active, activeLock{path: r.rec.Path, key: FoldKey(r.rec.Path, fold), file: info})
+		}
+	}
+	return view
+}
+
+// match returns the recorded path of the unexpired lock whose path equals the
+// target or whose file is the target's file (REQ-EG-07).
+func (v lockView) match(t Target) (string, bool) {
+	if len(v.active) == 0 {
+		return "", false
+	}
+	for _, lock := range v.active {
+		if lock.key == t.Key {
+			return lock.path, true
+		}
+	}
+	target, err := os.Stat(t.Abs())
+	if err != nil {
+		return "", false
+	}
+	for _, lock := range v.active {
+		if lock.file != nil && os.SameFile(lock.file, target) {
+			return lock.path, true
+		}
+	}
+	return "", false
 }
