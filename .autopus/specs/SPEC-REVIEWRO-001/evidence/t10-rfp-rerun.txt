@@ -1,0 +1,107 @@
+# T10 Risk-First probe re-run with the IMPLEMENTED argv (SPEC-REVIEWRO-001, branch feat/reviewro-001, HEAD 4c24ae84)
+executed 2026-10-06T14:28Z-14:39Z; Claude Code 2.1.289, codex-cli 0.160.0, go1.27.0 darwin/arm64
+paid model calls: 0. claude ran only against a local fake Messages API (127.0.0.1, fake key). codex ran only as
+`codex sandbox` and `codex exec ... --help`. agy got no prompt; it ran once as `agy --version` (1.3.0) before the probes.
+raw artifacts (not in the repo): session scratchpad reviewro/t10/ (argv-capture.json, codexparse/, rfp2/, rfp1/runs/*/result.json)
+verdicts: S1 capture DONE | RFP-1 PASS (+ finding F1) | RFP-2 PASS | scope expansion: claude reproduces (a policy flag is
+swallowed), codex swallow does not reproduce but the projection-side allowlist escape reproduces at parse level
+
+## S1 executed argv, shipped default config (spec.review_gate.providers claude,codex,gemini; judge claude)
+method: a scratch _test.go compiled into internal/cli with `go test -overlay` (no repo file written). Recorder binaries
+named claude, codex and agy sit first on PATH and record argv and stdin.
+ (a) assembleSpecReviewProviders + assembleSpecReviewJudge on config.DefaultFullConfig. Each provider runs through
+     orchestra.NewSubprocessBackendImpl(); resp.Execution.Command[1:] == recorded argv for all 4 runs.
+ (b) full runSpecReviewWithOptions on a scratch project whose autopus.yaml is DefaultFullConfig with providers not
+     overridden (max_revisions 0, auto_collect_context off). Pane-capable terminal "cmux"; hermetic readiness, so no status
+     command ran. The codex catalog probe (`codex debug models`) is stubbed to fail, so -m stays gpt-5.6-sol.
+claude reviewer and judge, identical argv, prompt on stdin (30,881 B reviewer / 3,349 B judge):
+  claude --print --model claude-fable-5-1 --effort max --permission-mode plan --safe-mode --no-session-persistence --disable-slash-commands --strict-mcp-config --tools=Read,Grep,Glob
+codex reviewer, prompt on stdin (29,779 B):
+  codex exec --json --sandbox read-only -m gpt-5.6-sol -c model_reasoning_effort="max" --ephemeral --ignore-user-config --ignore-rules --output-schema <tmp>/schema-reviewer-N.json --output-last-message <tmp>/codex-last-message-N.txt
+agy (gemini) reviewer, prompt is the --print value (30,881 B), stdin /dev/null:
+  agy --print <prompt> --mode plan --sandbox --disable-slash-commands
+also: 0 pane splits. Receipt provider_policy: claude reviewer read-only, codex read-only, gemini unverified, claude judge
+read-only. With the repo's test catalog fixture instead of the stub, codex differs only in -m (gpt-6-astra) and keeps
+exactly one sandbox item, "--sandbox read-only".
+
+## RFP-1 re-run: real claude with the S1 claude argv -> PASS
+setup per run: env -i; fresh scratch HOME and CLAUDE_CONFIG_DIR; ANTHROPIC_BASE_URL=127.0.0.1 fake; fresh scratch git repo.
+  The repo holds a CLAUDE.md marker and a .claude/settings.json with allow [Bash, Bash(git *), Bash(touch *), Edit,
+  Write, mcp__probeuser__write_file, mcp__probeproj__write_file], enableAllProjectMcpServers, and SessionStart and
+  UserPromptSubmit hooks that touch files in the repo. MCP servers: project .mcp.json stdio "probeproj" and user-scope
+  "probeuser". Each server logs its own process start and exposes a write_file tool. The project is trusted.
+  The scripted model's first turn calls Bash (touch, append, git add, git commit), Write, Edit, Agent and both mcp__
+  write tools. It calls them by name even when they are not offered.
+  Oracle snapshot: HEAD sha, .git/index sha256, and `git status --porcelain --untracked-files=all --ignored` under a clean
+  git env, plus a full file walk.
+T1, exact argv with the prompt on stdin (14:35:59Z):
+  exit 0, stdout "VERDICT: PASS (fake model)", 2 requests.
+  Tools offered in both requests: exactly [Glob, Grep, Read]. The prompt marker is in the first request.
+  6/6 calls rejected "No such tool available: <tool>".
+  0 MCP processes started (user 0, project 0). CLAUDE.md not loaded, no hook ran.
+  HEAD, index, status and files unchanged.
+T2, exact argv plus a positional prompt, stdin /dev/null (14:36:01Z): same result as T1, and the positional prompt was delivered.
+controls:
+ C1 separated `--tools Read,Grep,Glob <prompt>`: exit 1 "Input must be provided either through stdin or as a prompt
+    argument", 0 requests. The prompt was swallowed.
+ C2 unprojected default `claude --print --model claude-fable-5-1 --effort max`:
+    23 tools offered (Agent, Bash, Edit, Write, EnterWorktree, NotebookEdit, ..., both mcp__ write tools).
+    MCP servers started: user 1, project 1.
+    Bash, Write, Edit and both MCP writes succeeded, the hooks ran, and HEAD and index changed. So this setup can mutate the repo.
+ C3 exact argv minus --safe-mode and --strict-mcp-config:
+    MCP servers started (user 1, project 1), and both mcp__ write tools were offered despite --tools=Read,Grep,Glob.
+    The calls were rejected ("Cannot call ... while in plan mode"). CLAUDE.md loaded.
+    Both hooks wrote untracked files. So both flags carry weight: plan mode does not stop hooks.
+F1 finding, not preventable by any projected flag:
+  If the global config holds a legacy projects[<repo>].enabledMcpjsonServers entry, claude moves it at startup into
+  <repo>/.claude/settings.local.json. The file is untracked and is hidden by this host's ~/.config/git/ignore.
+  Ablation on T1: with the key, the file was written in 2/2 runs (with and without enableAllProjectMcpServers);
+  without the key, nothing was written in 3/3 runs. The write happens once: the key is removed from .claude.json, and a
+  second run in the same project wrote nothing. HEAD and index stayed unchanged.
+
+## RFP-2 re-run: codex read-only sandbox for the S1 codex argv -> PASS
+argv: exactly one sandbox item, "--sandbox read-only"; no -s or -s= item. The projection drops -s:
+  [exec --json -s workspace-write -m gpt-5.6-sol] and the -s=workspace-write form both become
+  [exec --json -m gpt-5.6-sol --sandbox read-only --ephemeral --ignore-user-config --ignore-rules].
+  [-s workspace-write --sandbox workspace-write] keeps exactly one "--sandbox read-only".
+parse, no model call (14:29:33Z): `codex exec <S1 codex argv, scratch schema and last-message paths> --help` exits 0 and
+  prints the exec help.
+  The --help suffix does not hide earlier parse errors:
+   `exec -s workspace-write --sandbox read-only --help` -> exit 2 "the argument '--sandbox <SANDBOX_MODE>' cannot be used multiple times"
+   `--sandbox bogus --help` -> exit 2 "invalid value"
+   `--bogus-flag --help` -> exit 2 "unexpected argument"
+  Not exercised: clap's post-parse checks (conflicts, requires) and runtime parsing of the -c TOML value, which --help skips.
+seatbelt (14:30:30Z): fresh scratch repo, empty CODEX_HOME, env -i.
+  `codex sandbox -c sandbox_mode="read-only" -- /bin/sh -c '<touch new; append tracked; rm tracked2; mkdir; git add -A; git commit -qam; git commit --allow-empty>'`
+  -> touch=1 edit=1 rm=1 mkdir=1 git_add=128 commit=128 commit_empty=128 read=0; status clean; HEAD and index sha256 unchanged.
+  control, workspace-write: touch=0 edit=0 rm=0 mkdir=0; git exits 128 because codex protects .git; status " M tracked.txt, D tracked2.txt, ?? new.txt".
+  baseline, no sandbox: every step exits 0, and HEAD and index change.
+not exercised: the model-to-tool path inside `codex exec`, which needs a model run.
+
+## Scope-expansion probe: separated flag values starting with "-" (validReadOnlyProviderArgValue)
+implemented validator: rejects all 7 inputs, e.g. [--print --model --safe-mode] -> `provider "claude" contains unsafe
+  value for "--model"`. Also rejected: codex --sandbox and -m, gemini --mode.
+projection alone, with that rule bypassed, keeps the "-" item:
+  claude [--print --model --safe-mode] -> [--print --model --safe-mode --permission-mode plan --no-session-persistence
+    --disable-slash-commands --strict-mcp-config --tools=Read,Grep,Glob]. ensureBoolArg finds --safe-mode and adds none.
+  codex [exec --json --sandbox --worktree] -> [exec --json --sandbox read-only --worktree --ephemeral
+    --ignore-user-config --ignore-rules]. upsertArgValue keeps "-" items.
+claude, fake API (14:36-14:37Z): the CLI takes the next item as the value. REPRODUCES.
+  S4a, the projection argv above: request model "--safe-mode"; stderr `[claude-code:unrecognized_model] {"model":"--safe-mode",...}`.
+  S4b, projection of [--print --effort --strict-mcp-config]: stderr "Unknown --effort value '--strict-mcp-config' — ignoring it and using the default effort".
+  S4d, S4b minus --safe-mode: strict MCP is lost. MCP servers started (user 1, project 1), write tools offered, hooks wrote 2 files.
+  S4c, S4a minus --strict-mcp-config: --safe-mode was consumed as the model yet still honored (no CLAUDE.md, no hooks,
+    0 MCP). So claude also reads --safe-mode from raw argv.
+  With the full projection argv (S4a, S4b), the other projected items held: tools [Glob, Grep, Read], 0 MCP, 6/6
+    rejected, repo unchanged. A policy flag is really swallowed (--strict-mcp-config), but this version shows no
+    end-to-end write.
+codex, parse-only with a --help suffix: clap never takes a "-" item as a value, so the swallow DOES NOT REPRODUCE.
+  `exec --json --sandbox --worktree`, `--sandbox --approve-for-me`, `--color --json` and `-m --ephemeral` all exit 2
+  "a value is required for '<flag>' but none was supplied".
+  The projection side does reproduce an allowlist escape at parse level:
+   `exec --json --sandbox read-only --worktree ...` and `... --approve-for-me ...` -> exit 0. Flags absent from the
+     allowlist reach codex: --worktree runs "a new managed Git worktree", --approve-for-me routes approvals to
+     "automatic review using the workspace-write sandbox".
+   `--search` -> exit 2 (not an exec flag).
+   `-m --ephemeral --sandbox read-only ...` -> exit 2.
+  Not executed: the effect of the smuggled flags, which needs a model run.

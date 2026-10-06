@@ -118,6 +118,14 @@ runner(allowlisted argv, no shell, 5 s) -> raw streams -> bounded read (65,537 B
 | CD-4 live read-only evidence per CLI provider | claiming read-only without execution | RFP-1 (claude) and RFP-2 (codex) PASS; RFP-3 (agy) PASS (conditional, 2026-10-06; agy recorded `unverified` because enforcement is headless auto-deny, not plan mode) |
 | CD-5 OMP element fields `provider` and `reason` | incident detection (S11, S13) on real output | resolved 2026-10-06: real capture shows the field is `cause`; classifier reads `cause` with `reason` fallback; redacted fixture committed (e11250bd) |
 
+### Residual Risks (T10, 2026-10-06)
+
+- R-T10-1: when the global `~/.claude.json` carries a legacy `projects[<repo>].enabledMcpjsonServers` key, claude
+  2.1.289 writes `<repo>/.claude/settings.local.json` once at startup (a settings migration, not a reviewer tool call).
+  argv flags cannot prevent it; the file is a generated-surface path and gitignored on this host. Accepted as residual;
+  evidence `evidence/t10-rfp-rerun.txt`.
+- R-T10-2: codex model-to-tool path is not exercised (paid); the sandbox layer is verified (RFP-2 re-run).
+
 ## Evolution Ideas
 
 These are optional improvements and do not block sync completion.
