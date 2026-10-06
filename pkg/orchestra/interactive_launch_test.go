@@ -149,3 +149,38 @@ func TestBuildInteractiveLaunchCmd_CodexPreservesConfigQuoting(t *testing.T) {
 	cmd := buildInteractiveLaunchCmd(p, "")
 	assert.Equal(t, `codex -m gpt-5.5 -c 'model_reasoning_effort="xhigh"'`, cmd)
 }
+
+// SPEC-REVIEWRO-001 S2 (REQ-17): a pane launch built from a read-only run
+// config for the projected spec review claude and agy argv carries no
+// permission bypass; without ReadOnly the legacy bypass is appended.
+func TestBuildPaneLaunchCommand_ProjectedReadOnlyArgvCarriesNoBypass(t *testing.T) {
+	t.Parallel()
+
+	claude := ProviderConfig{Name: "claude", Binary: "claude", Args: projectedClaudeArgv, PaneArgs: projectedClaudeArgv}
+	agy := ProviderConfig{
+		Name: "gemini", Binary: "agy", PromptViaArgs: true,
+		Args:     []string{"--print", "", "--mode", "plan", "--sandbox", "--disable-slash-commands"},
+		PaneArgs: []string{"--mode", "plan", "--sandbox", "--disable-slash-commands"},
+	}
+	claudeLaunch := "claude --model claude-fable-5-1 --effort max --permission-mode plan --safe-mode " +
+		"--no-session-persistence --disable-slash-commands --strict-mcp-config '--tools=Read,Grep,Glob'"
+	tests := []struct {
+		name     string
+		readOnly bool
+		provider ProviderConfig
+		want     string
+	}{
+		{name: "read-only claude", readOnly: true, provider: claude, want: claudeLaunch},
+		{name: "read-only agy", readOnly: true, provider: agy, want: "agy --mode plan --sandbox --disable-slash-commands"},
+		{name: "claude outside a read-only run", provider: claude, want: claudeLaunch + " --dangerously-skip-permissions"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			cmd, script, err := buildPaneLaunchCommand(paneLaunchFor(OrchestraConfig{ReadOnly: tt.readOnly}), tt.provider, "")
+			require.NoError(t, err)
+			assert.Empty(t, script)
+			assert.Equal(t, tt.want, cmd)
+		})
+	}
+}

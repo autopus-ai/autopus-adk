@@ -6,12 +6,14 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/insajin/autopus-adk/pkg/config"
@@ -34,10 +36,15 @@ func stubSpecReviewAssembly(t *testing.T, build func(cfg *config.HarnessConfig, 
 	t.Cleanup(func() { specReviewProviderAssembly = original })
 }
 
+// productionReviewReadinessProbe is reviewReadinessProbe as production code
+// wires it, captured by init before the host-safe override below.
+var productionReviewReadinessProbe func(context.Context, []orchestra.ProviderConfig, providerReadinessOptions) []providerReadinessResult
+
 // Unit tests never run host provider CLIs: in this test binary the spec review
 // preflight and the doctor readiness checks report every provider skipped
 // unless a test opts into classification with useReadinessRunner.
 func init() {
+	productionReviewReadinessProbe = reviewReadinessProbe
 	reviewReadinessProbe = func(ctx context.Context, providers []orchestra.ProviderConfig, _ providerReadinessOptions) []providerReadinessResult {
 		return probeProviderReadiness(ctx, providers, providerReadinessOptions{Skip: true})
 	}
@@ -213,6 +220,14 @@ func specReviewVerdictLine(t *testing.T, specDir string) string {
 	}
 	t.Fatalf("review.md has no verdict line")
 	return ""
+}
+
+// The host-safe override in init must not mask the production wiring: spec
+// review and auto doctor run the real status probes by default.
+func TestReviewReadinessProbe_ProductionDefaultRunsStatusProbes(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, reflect.ValueOf(probeProviderReadiness).Pointer(), reflect.ValueOf(productionReviewReadinessProbe).Pointer())
 }
 
 func providerHealthRows(statuses []spec.ProviderStatus) []string {
