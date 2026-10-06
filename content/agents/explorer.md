@@ -5,7 +5,7 @@ model: sonnet
 effort: medium
 tools: Read, Grep, Glob, Bash
 permissionMode: plan
-maxTurns: 40
+maxTurns: 80
 skills:
   - entropy-scan
   - context-search

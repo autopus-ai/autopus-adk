@@ -5,7 +5,7 @@ model: opus
 effort: max
 tools: Read, Grep, Glob, Bash, WebSearch, WebFetch, mcp__sequential-thinking__sequentialthinking
 permissionMode: plan
-maxTurns: 40
+maxTurns: 100
 skills:
   - planning
   - brainstorming

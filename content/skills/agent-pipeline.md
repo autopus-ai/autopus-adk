@@ -69,6 +69,12 @@ exists before the first phase, initialize `subagent_dispatch_count = 0`,
 on an observed dispatch. If no dispatch can be created or observed, stop and say
 so; do not report main-session work as delegated work.
 
+A worker that stops at its turn limit returns a partial result. Never treat a
+partial result as a completed phase or feed it to the next phase. Resume that
+worker once with a narrowed instruction (finish and write the artifact, minimal
+further exploration); if the resumed run is partial again, stop and hand the
+phase to the user with what was produced.
+
 ## Phase map
 ```
 Phase 0    preflight, change class, gate receipt   → supervisor
