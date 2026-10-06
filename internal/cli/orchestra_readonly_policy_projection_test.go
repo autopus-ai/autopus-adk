@@ -228,7 +228,11 @@ func TestReadOnlyProviderPolicy_ProjectionIsIdempotent(t *testing.T) {
 	assert.Equal(t, once, twice)
 	assert.Equal(t, withClaudeReadOnlySuffix("--print", "--model", "claude-fable-5-1", "--effort", "max"), twice[0].Args)
 	for _, provider := range twice {
-		assert.Equal(t, orchestra.SandboxModeReadOnly, provider.SandboxMode, provider.Name)
+		want := orchestra.SandboxModeReadOnly
+		if provider.Name == "gemini" {
+			want = orchestra.SandboxModeUnverified
+		}
+		assert.Equal(t, want, provider.SandboxMode, provider.Name)
 	}
 }
 

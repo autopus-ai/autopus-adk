@@ -56,7 +56,7 @@ func TestReadOnlyProviderPolicy_ProjectsNativeProviderArgv(t *testing.T) {
 				Name: "gemini", Binary: "agy", ModelFamily: "google",
 				Args:          []string{"--print", "", "--mode", "plan", "--sandbox", "--disable-slash-commands"},
 				PaneArgs:      []string{"--model", "gemini-3", "--mode", "plan", "--sandbox", "--disable-slash-commands"},
-				PromptViaArgs: true, SandboxMode: orchestra.SandboxModeReadOnly,
+				PromptViaArgs: true, SandboxMode: orchestra.SandboxModeUnverified,
 			},
 		},
 		{

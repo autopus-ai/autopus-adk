@@ -82,6 +82,11 @@ func applyReadOnlyProviderPolicy(providers []orchestra.ProviderConfig, opts read
 			provider.PaneArgs = projectGeminiReadOnlyArgs(provider.PaneArgs)
 		}
 		provider.SandboxMode = orchestra.SandboxModeReadOnly
+		if provider.Name == "gemini" {
+			// RFP-3: agy blocks writes by headless auto-deny, not by plan mode,
+			// and agy settings can widen it, so the receipt stays unverified.
+			provider.SandboxMode = orchestra.SandboxModeUnverified
+		}
 		projected[index] = provider
 	}
 	return projected, nil

@@ -128,7 +128,12 @@ func TestOrchestraBrainstorm_RunsProvidersReadOnlyOutsideRepo(t *testing.T) {
 
 	for _, name := range []string{"codex", "gemini", "claude"} {
 		receipt := fixture.providerReceipt(t, name)
-		assert.Equal(t, orchestra.SandboxModeReadOnly, receipt.SandboxMode, name)
+		wantMode := orchestra.SandboxModeReadOnly
+		if name == "gemini" {
+			// agy's write blocking is headless auto-deny, not plan mode (RFP-3).
+			wantMode = orchestra.SandboxModeUnverified
+		}
+		assert.Equal(t, wantMode, receipt.SandboxMode, name)
 		assert.Equal(t, cfg.ProviderWorkDir, receipt.Cwd, name)
 		assert.Greater(t, receipt.PID, 0, name)
 		assert.NotEmpty(t, receipt.StartedAt, name)

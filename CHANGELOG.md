@@ -25,7 +25,7 @@ All notable changes to this project will be documented in this file.
     judge마다 실행된 argv로 판정한 `sandbox_mode`와 readiness를 기록한다. 실행된
     argv에 우회 플래그가 있으면 정책 stamp보다 우선해 `unrestricted`가 된다. agy(gemini)는
     `--mode plan`이 `--disable-slash-commands`와 함께면 효과가 없고 쓰기 차단이 headless 자동 거부에
-    기대므로 `unverified`로 기록한다. 실행 기록이 없는 provider는 빈 값이다.
+    기대므로 `unverified`로 기록한다(plan·brainstorm receipt도 같다). 실행 기록이 없는 provider는 빈 값이다.
   - OMP readiness는 비활성 계정의 `cause` 필드(이전 `reason`)를 읽어 만료 계정을 감지한다.
   - `auto doctor`는 기본으로 `doctor.provider_readiness.<provider>` 점검을 보고한다
     (text, `--json`). `--provider-smoke`는 spec review와 같은 조립·투영·routing으로
