@@ -27,11 +27,16 @@ type specReviewLoopParams struct {
 	codeContext     string
 	contextDelivery *specReviewContextDelivery
 	runtimeEvidence *specReviewRuntimeEvidence
+	// preflight carries the readiness outcome: excluded reviewers, their
+	// degraded reasons, and the receipt rows (SPEC-REVIEWRO-001).
+	preflight *specReviewPreflight
 }
 
 func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFindings []spec.ReviewFinding) (*spec.ReviewResult, error) {
 	var finalResult *spec.ReviewResult
 	repeats := &specReviewRepeatTracker{specDir: p.specDir}
+	reviewTerminal := specReviewTerminalDetector()
+	announceSpecReviewSubprocessMode(os.Stderr, reviewTerminal)
 
 	for revision := 0; revision <= p.maxRevisions; revision++ {
 		// REQ-02: reload spec on each revision so external edits are picked up.
@@ -78,18 +83,16 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 			JudgeProvider:       p.gate.Judge,
 			JudgeConfig:         p.judgeConfig,
 			NoJudge:             p.gate.Judge == "",
-			// Reviewers are read-only: the pane backend launches claude/agy with a
-			// permission bypass flag and auto-approves tool prompts, so SPEC review
-			// always runs headless subprocesses regardless of terminal or flags.
+			// Reviewers are read-only (SPEC-REVIEWRO-001 REQ-16, REQ-17): the pane
+			// backend launches claude/agy with a permission bypass flag and
+			// auto-approves tool prompts, so SPEC review always runs headless
+			// subprocesses regardless of terminal or flags, and ReadOnly keeps any
+			// pane launch built from this config free of bypass flags.
 			SubprocessMode: true,
 			ReadOnly:       true,
 			WorkingDir:     workingDir,
 			RunID:          orchestra.NewSessionID(),
-			// REQ-006: inject the detected terminal so SelectBackend can choose the
-			// interactive pane backend on cmux/tmux and the subprocess backend on
-			// plain/CI terminals. The terminal import is centralized in
-			// orchestra_terminal.go (detectStructuredTerminal).
-			Terminal: detectStructuredTerminal(),
+			Terminal:       reviewTerminal,
 		}
 		// SPEC-ORCH-022 T8: enable hook-IPC completion collection when the
 		// pane-capable, hook-installed context allows it. Without this the relaxed
@@ -115,6 +118,7 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 				p.runtimeEvidence.RunID = result.RunReceipt.RunID
 			}
 			p.runtimeEvidence.FinishedAt = time.Now().UTC()
+			p.runtimeEvidence.ProviderPolicy = specReviewProviderPolicyRows(p.preflight, result)
 		}
 
 		// Failed or judge responses never contribute to reviewer supermajority.
@@ -200,6 +204,9 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 		// and provider quorum so the promotion gate can fail closed on partial
 		// observation. Coverage is persisted into the findings sidecar.
 		coverages := applyObservationIntegrity(merged, p.specDir, p.gate, len(configuredNames))
+		// Readiness exclusions merge after the per-revision observation reasons,
+		// which applyObservationIntegrity has just rewritten.
+		applySpecReviewReadiness(merged, p.preflight)
 
 		// A mid-pipeline write failure must abort (issue #38).
 		if persistErr := spec.PersistFindingsWithCoverage(p.specDir, merged.Findings, coverages); persistErr != nil {

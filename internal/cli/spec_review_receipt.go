@@ -54,11 +54,27 @@ type specReviewPromotionReceipt struct {
 	// how the revision loop ended, BlockingReasons why a REVISE/REJECT happened.
 	LoopStatus      string                `json:"loop_status,omitempty"`
 	BlockingReasons []spec.BlockingReason `json:"blocking_reasons,omitempty"`
+
+	// Provider execution policy (SPEC-REVIEWRO-001 REQ-07), omitempty so a
+	// receipt of a run without provider execution keeps its existing bytes.
+	ProviderPolicy []specReviewProviderPolicyRow `json:"provider_policy,omitempty"`
+}
+
+// specReviewProviderPolicyRow records how one reviewer, excluded provider, or
+// judge ran. SandboxMode is judged from the executed argv and stays empty for
+// a provider that never executed; Readiness is the preflight status token.
+type specReviewProviderPolicyRow struct {
+	Provider    string `json:"provider"`
+	Role        string `json:"role"`
+	SandboxMode string `json:"sandbox_mode"`
+	Readiness   string `json:"readiness"`
+	Excluded    bool   `json:"excluded"`
 }
 
 type specReviewRuntimeEvidence struct {
-	RunID      string
-	FinishedAt time.Time
+	RunID          string
+	FinishedAt     time.Time
+	ProviderPolicy []specReviewProviderPolicyRow
 }
 
 // applySpecReviewRepeatDiscovery projects the loop's repeat-discovery evidence

@@ -154,6 +154,7 @@ func runDoctorText(cmd *cobra.Command, opts doctorOptions) error {
 	if !checkProviderTransportSmokeText(out, cfg, opts) {
 		allOK = false
 	}
+	allOK = checkProviderReadinessText(ctx, out, cfg) && allOK
 
 	if configuresClaudeCode(cfg) {
 		tui.SectionHeader(out, "Hooks & Permissions")

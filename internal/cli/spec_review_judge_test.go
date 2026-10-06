@@ -231,11 +231,9 @@ func TestRunSpecReview_ResolvesJudgeConfigFromHarness(t *testing.T) {
 			require.NoError(t, err)
 			require.NoError(t, os.Chdir(root))
 			t.Cleanup(func() { _ = os.Chdir(originalWD) })
-			originalProviders := specReviewConfigProviders
-			specReviewConfigProviders = func(*config.HarnessConfig, []string) []orchestra.ProviderConfig {
+			stubSpecReviewAssembly(t, func(*config.HarnessConfig, []string) []orchestra.ProviderConfig {
 				return append([]orchestra.ProviderConfig(nil), tc.reviewers...)
-			}
-			t.Cleanup(func() { specReviewConfigProviders = originalProviders })
+			})
 			var captured orchestra.OrchestraConfig
 			originalRunner := specReviewRunOrchestra
 			specReviewRunOrchestra = func(_ context.Context, runCfg orchestra.OrchestraConfig) (*orchestra.OrchestraResult, error) {
@@ -258,6 +256,8 @@ func TestRunSpecReview_ResolvesJudgeConfigFromHarness(t *testing.T) {
 				want, got := captured.Providers[0], *captured.JudgeConfig
 				want.HasHook, want.HasStartupHook = nil, nil
 				got.HasHook, got.HasStartupHook = nil, nil
+				// The judge is the read-only projection of that reviewer.
+				want.SandboxMode = orchestra.SandboxModeReadOnly
 				assert.Equal(t, want, got)
 			}
 		})

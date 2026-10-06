@@ -35,16 +35,16 @@ func TestRunProviderTransportSmoke_ClassifiesProviderResults(t *testing.T) {
 	dir := t.TempDir()
 	setFakeProviderOnPath(t, dir, "claude")
 	setFakeProviderOnPath(t, dir, "codex")
-	setFakeProviderOnPath(t, dir, "gemini")
+	setFakeProviderOnPath(t, dir, "agy")
 
 	cfg := config.DefaultFullConfig("provider-smoke")
 	cfg.Spec.ReviewGate.Providers = []string{"claude", "codex", "gemini"}
 	cfg.Orchestra.Providers["claude"] = config.ProviderEntry{Binary: "claude"}
 	cfg.Orchestra.Providers["codex"] = config.ProviderEntry{Binary: "codex"}
-	cfg.Orchestra.Providers["gemini"] = config.ProviderEntry{Binary: "gemini"}
+	cfg.Orchestra.Providers["gemini"] = config.ProviderEntry{Binary: "agy"}
 
 	origFactory := providerSmokeBackendFactory
-	providerSmokeBackendFactory = func() orchestra.ExecutionBackend {
+	providerSmokeBackendFactory = func(orchestra.OrchestraConfig) orchestra.ExecutionBackend {
 		return fakeProviderSmokeBackend{
 			responses: map[string]*orchestra.ProviderResponse{
 				"claude": {Provider: "claude", Output: providerSmokeMarker},
@@ -81,7 +81,7 @@ func TestCollectProviderTransportSmokeChecksWarnsOnFailure(t *testing.T) {
 	cfg.Orchestra.Providers["claude"] = config.ProviderEntry{Binary: "claude"}
 
 	origFactory := providerSmokeBackendFactory
-	providerSmokeBackendFactory = func() orchestra.ExecutionBackend {
+	providerSmokeBackendFactory = func(orchestra.OrchestraConfig) orchestra.ExecutionBackend {
 		return fakeProviderSmokeBackend{
 			responses: map[string]*orchestra.ProviderResponse{"claude": {Provider: "claude"}},
 			errors:    map[string]error{"claude": errors.New("transport failed")},

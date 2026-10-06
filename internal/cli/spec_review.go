@@ -64,6 +64,7 @@ func newSpecReviewCmd() *cobra.Command {
 		requiredDocuments   []string
 		conditionalProfiles []string
 		singlePass          bool
+		skipReadiness       bool
 	)
 
 	cmd := &cobra.Command{
@@ -74,20 +75,22 @@ func newSpecReviewCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			specID := args[0]
 			return runSpecReviewWithOptions(cmd.Context(), specID, strategy, timeout, specReviewOptions{
-				allowDegraded:       allowDegraded,
-				providers:           append([]string(nil), providers...),
-				requiredDocuments:   requiredDocuments,
-				conditionalProfiles: conditionalProfiles,
-				singlePass:          singlePass,
+				allowDegraded:         allowDegraded,
+				providers:             append([]string(nil), providers...),
+				requiredDocuments:     requiredDocuments,
+				conditionalProfiles:   conditionalProfiles,
+				singlePass:            singlePass,
+				skipProviderReadiness: skipReadiness,
 			})
 		},
 	}
 
 	cmd.Flags().StringVarP(&strategy, "strategy", "s", "", "review strategy (default: from config)")
 	cmd.Flags().IntVarP(&timeout, "timeout", "t", 0, "timeout in seconds (default: from config)")
-	cmd.Flags().BoolVar(&forceSubprocess, "subprocess", false, "No-op: SPEC review always runs headless subprocess reviewers")
+	cmd.Flags().BoolVar(&forceSubprocess, "subprocess", false, "No-op: SPEC review always runs read-only providers as headless subprocesses")
 	cmd.Flags().BoolVar(&forcePlain, "plain", false, "No-op alias for --subprocess")
-	cmd.Flags().BoolVar(&allowDegraded, "allow-degraded", false, "Promote a PASS even when a document was truncated or the provider quorum was not met (records an audit override)")
+	cmd.Flags().BoolVar(&allowDegraded, "allow-degraded", false, "Promote a PASS even when a document was truncated, the provider quorum was not met, or a not-ready reviewer was excluded (provider_unready); records an audit override")
+	cmd.Flags().BoolVar(&skipReadiness, "skip-provider-readiness", false, "Skip the provider login status preflight; the receipt records readiness skipped")
 	cmd.Flags().StringSliceVarP(&providers, "providers", "p", nil, "Provider list override (default: from config)")
 	cmd.Flags().StringArrayVar(&requiredDocuments, "required-document", nil, "Additional root-relative required review document")
 	cmd.Flags().StringArrayVar(&conditionalProfiles, "conditional-profile", nil, "Declared conditional review context profile")
@@ -105,6 +108,8 @@ type specReviewOptions struct {
 	// singlePass caps the review at one provider round regardless of
 	// max_revisions or --loop.
 	singlePass bool
+	// skipProviderReadiness runs no readiness probe (--skip-provider-readiness).
+	skipProviderReadiness bool
 }
 
 // runSpecReview executes the full SPEC review pipeline with REVISE loop.
@@ -157,24 +162,13 @@ func runSpecReviewWithOptions(ctx context.Context, specID, strategy string, time
 		threshold = 0.67
 	}
 
-	providerNames := append([]string(nil), opts.providers...)
-	if len(providerNames) == 0 {
-		providerNames = resolveSpecReviewProviderNames(cfg, flags.MultiMode)
+	// Gate, project, and probe every provider before context delivery and
+	// before any provider executes (SPEC-REVIEWRO-001).
+	plan, err := planSpecReviewProviders(ctx, cfg, gate.Judge, opts, flags.MultiMode, requestedTimeout)
+	if err != nil {
+		return err
 	}
-	providers := configureSpecReviewProviders(resolveCodexProviderCapabilities(ctx, specReviewConfigProviders(cfg, providerNames)))
-	providers = applySpecReviewExecutionTimeout(providers, requestedTimeout)
-	judgeConfig := resolveSpecReviewJudgeConfig(cfg, providers, gate.Judge)
-	if judgeConfig != nil {
-		configuredJudge := applySpecReviewExecutionTimeout([]orchestra.ProviderConfig{*judgeConfig}, requestedTimeout)
-		judgeConfig = &configuredJudge[0]
-	}
-	if len(providers) == 0 {
-		return fmt.Errorf("사용 가능한 프로바이더가 없습니다. 설치를 확인하세요: %v", providerNames)
-	}
-	if flags.MultiMode && len(providers) < 2 {
-		fmt.Fprintf(os.Stderr, "경고: --multi review requested but only one provider is installed; falling back to single-provider review (resolved: %v)\n", providerNames)
-	}
-	contextDelivery, err := prepareSpecReviewContextDelivery(specDir, providers, opts)
+	contextDelivery, err := prepareSpecReviewContextDelivery(specDir, plan.Providers, opts)
 	if err != nil {
 		return fmt.Errorf("리뷰 문서 전달 범위 확인 실패: %w", err)
 	}
@@ -205,12 +199,13 @@ func runSpecReviewWithOptions(ctx context.Context, specID, strategy string, time
 		maxRevisions:    maxRevisions,
 		threshold:       threshold,
 		gate:            gate,
-		providers:       providers,
-		judgeConfig:     judgeConfig,
-		configuredNames: append([]string(nil), providerNames...),
+		providers:       plan.Providers,
+		judgeConfig:     plan.Judge,
+		configuredNames: append([]string(nil), plan.Names...),
 		codeContext:     codeContext,
 		contextDelivery: contextDelivery,
 		runtimeEvidence: runtimeEvidence,
+		preflight:       plan.Preflight,
 	}
 
 	finalResult, err := runSpecReviewLoop(loopParams, doc, priorFindings)
@@ -261,28 +256,4 @@ func hasActiveFindings(findings []spec.ReviewFinding) bool {
 		}
 	}
 	return false
-}
-
-func resolveSpecReviewJudgeConfig(
-	cfg *config.HarnessConfig,
-	reviewers []orchestra.ProviderConfig,
-	judge string,
-) *orchestra.ProviderConfig {
-	if judge == "" {
-		return nil
-	}
-	for i := range reviewers {
-		if reviewers[i].Name == judge {
-			resolved := reviewers[i]
-			return &resolved
-		}
-	}
-	if cfg == nil {
-		return nil
-	}
-	resolved := configureSpecReviewProviders(resolveProviders(&cfg.Orchestra, "review", []string{judge}))
-	if len(resolved) == 0 {
-		return nil
-	}
-	return &resolved[0]
 }

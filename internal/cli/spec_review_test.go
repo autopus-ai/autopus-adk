@@ -167,13 +167,11 @@ func TestRunSpecReview_HonorsConfigPathFromContext(t *testing.T) {
 	require.NoError(t, os.Chdir(dir))
 
 	var capturedProviders []string
-	origBuilder := specReviewConfigProviders
-	specReviewConfigProviders = func(cfg *config.HarnessConfig, names []string) []orchestra.ProviderConfig {
+	stubSpecReviewAssembly(t, func(cfg *config.HarnessConfig, names []string) []orchestra.ProviderConfig {
 		require.NotNil(t, cfg)
 		capturedProviders = append([]string(nil), names...)
 		return []orchestra.ProviderConfig{{Name: "claude", Binary: "claude"}}
-	}
-	defer func() { specReviewConfigProviders = origBuilder }()
+	})
 
 	origRunner := specReviewRunOrchestra
 	specReviewRunOrchestra = func(_ context.Context, _ orchestra.OrchestraConfig) (*orchestra.OrchestraResult, error) {

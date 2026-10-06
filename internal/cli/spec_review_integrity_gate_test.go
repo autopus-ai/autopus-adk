@@ -32,11 +32,9 @@ func setThreeProviderQuorumConfig(t *testing.T, dir string) {
 // deterministic fakes so the gate is exercised without real providers.
 func overrideReviewSeams(t *testing.T, providers []orchestra.ProviderConfig, responses []orchestra.ProviderResponse) {
 	t.Helper()
-	origBuilder := specReviewConfigProviders
-	specReviewConfigProviders = func(_ *config.HarnessConfig, _ []string) []orchestra.ProviderConfig {
+	stubSpecReviewAssembly(t, func(_ *config.HarnessConfig, _ []string) []orchestra.ProviderConfig {
 		return providers
-	}
-	t.Cleanup(func() { specReviewConfigProviders = origBuilder })
+	})
 
 	origRunner := specReviewRunOrchestra
 	specReviewRunOrchestra = func(_ context.Context, _ orchestra.OrchestraConfig) (*orchestra.OrchestraResult, error) {

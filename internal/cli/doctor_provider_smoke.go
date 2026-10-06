@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"time"
 
@@ -20,7 +21,10 @@ type providerSmokeResult struct {
 	Detail   string
 }
 
-var providerSmokeBackendFactory = orchestra.NewSubprocessBackendImpl
+// providerSmokeBackendFactory routes the smoke like spec review routes its
+// read-only providers: the subprocess backend for CLI providers and the OMP
+// review backend for OMP-backed ones (SPEC-REVIEWRO-001 REQ-08).
+var providerSmokeBackendFactory func(orchestra.OrchestraConfig) orchestra.ExecutionBackend = selectRoutedBackend
 
 func checkProviderTransportSmokeText(w io.Writer, cfg *config.HarnessConfig, opts doctorOptions) bool {
 	tui.SectionHeader(w, "Provider Transport")
@@ -88,15 +92,22 @@ func runProviderTransportSmoke(ctx context.Context, cfg *config.HarnessConfig, t
 		timeout = 30 * time.Second
 	}
 
-	names := resolveSpecReviewProviderNames(cfg, false)
-	providers := configureSpecReviewProviders(specReviewConfigProviders(cfg, names))
-	if len(providers) == 0 {
+	// The smoke exercises exactly the gated, read-only projection spec review
+	// executes; a config the policy rejects fails here before anything runs.
+	set, err := assembleSpecReviewProviders(ctx, specReviewProviderRequest{Config: cfg})
+	if err != nil {
+		return []providerSmokeResult{{Provider: "review_gate", Status: "fail", Detail: err.Error()}}
+	}
+	if len(set.Providers) == 0 {
 		return []providerSmokeResult{{Provider: "review_gate", Status: "fail", Detail: "no installed review providers"}}
 	}
 
-	backend := providerSmokeBackendFactory()
-	results := make([]providerSmokeResult, 0, len(providers))
-	for _, provider := range providers {
+	workingDir, _ := os.Getwd()
+	backend := providerSmokeBackendFactory(orchestra.OrchestraConfig{
+		Providers: set.Providers, SubprocessMode: true, ReadOnly: true, WorkingDir: workingDir,
+	})
+	results := make([]providerSmokeResult, 0, len(set.Providers))
+	for _, provider := range set.Providers {
 		provider.OutputFormat = "text"
 		resp, err := backend.Execute(ctx, orchestra.ProviderRequest{
 			Provider: provider.Name,

@@ -22,11 +22,9 @@ func TestRunSpecReview_AddsVerdictCompletionHints(t *testing.T) {
 	defer func() { _ = os.Chdir(origWD) }()
 	require.NoError(t, os.Chdir(dir))
 
-	origBuilder := specReviewConfigProviders
-	specReviewConfigProviders = func(_ *config.HarnessConfig, names []string) []orchestra.ProviderConfig {
+	stubSpecReviewAssembly(t, func(_ *config.HarnessConfig, names []string) []orchestra.ProviderConfig {
 		return []orchestra.ProviderConfig{{Name: "claude", Binary: "claude"}}
-	}
-	defer func() { specReviewConfigProviders = origBuilder }()
+	})
 
 	var captured orchestra.OrchestraConfig
 	origRunner := specReviewRunOrchestra
@@ -60,11 +58,9 @@ func TestRunSpecReview_AlwaysReadOnlySubprocessBackend(t *testing.T) {
 	defer func() { _ = os.Chdir(origWD) }()
 	require.NoError(t, os.Chdir(dir))
 
-	origBuilder := specReviewConfigProviders
-	specReviewConfigProviders = func(_ *config.HarnessConfig, names []string) []orchestra.ProviderConfig {
+	stubSpecReviewAssembly(t, func(_ *config.HarnessConfig, names []string) []orchestra.ProviderConfig {
 		return []orchestra.ProviderConfig{{Name: "claude", Binary: "claude"}}
-	}
-	defer func() { specReviewConfigProviders = origBuilder }()
+	})
 
 	var captured orchestra.OrchestraConfig
 	origRunner := specReviewRunOrchestra

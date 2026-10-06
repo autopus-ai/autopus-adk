@@ -129,6 +129,7 @@ func collectDoctorJSONReport(cmd *cobra.Command, opts doctorOptions) doctorJSONR
 	report.collectCodexModelOwnershipCheck(opts.dir, cfg)
 	report.collectCodexAgentConcurrencyCheck(opts.dir, cfg)
 	report.collectProviderTransportSmokeChecks(cfg, opts)
+	report.collectProviderReadinessChecks(ctx, cfg)
 	if configuresClaudeCode(cfg) {
 		report.collectHookChecks(opts.dir)
 	}

@@ -2,20 +2,40 @@ package cli
 
 import (
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
 	"github.com/insajin/autopus-adk/pkg/orchestra"
 	"github.com/insajin/autopus-adk/pkg/spec"
+	"github.com/insajin/autopus-adk/pkg/terminal"
 )
 
 var (
-	specReviewRunOrchestra    = runStructuredSpecReviewOrchestra
-	specReviewConfigProviders = buildReviewProvidersWithConfig
-	// specReviewBackendFactory preserves pane/subprocess selection as the base
-	// while routing only providers explicitly configured with backend: omp.
+	specReviewRunOrchestra = runStructuredSpecReviewOrchestra
+	// specReviewProviderAssembly and specReviewJudgeAssembly build the gated,
+	// read-only reviewer set and judge; tests replace them to inject configs.
+	specReviewProviderAssembly = assembleSpecReviewProviders
+	specReviewJudgeAssembly    = assembleSpecReviewJudge
+	// specReviewTerminalDetector reports the terminal the review runs in.
+	specReviewTerminalDetector = detectStructuredTerminal
+	// specReviewBackendFactory selects the subprocess base for the read-only
+	// review config and routes providers configured with backend: omp to the
+	// OMP review backend.
 	specReviewBackendFactory func(orchestra.OrchestraConfig) orchestra.ExecutionBackend = selectRoutedBackend
 )
+
+// specReviewSubprocessNotice tells a pane-capable terminal why no provider
+// pane opens: read-only review runs every CLI provider as a subprocess.
+const specReviewSubprocessNotice = "spec review: read-only review runs providers in subprocess mode"
+
+// announceSpecReviewSubprocessMode prints the subprocess notice once per
+// review when the terminal could host provider panes (REQ-16).
+func announceSpecReviewSubprocessMode(w io.Writer, term terminal.Terminal) {
+	if term != nil && term.Name() != "plain" {
+		fmt.Fprintln(w, specReviewSubprocessNotice)
+	}
+}
 
 // shippedStatuses lists spec statuses that represent work already delivered.
 // A PASS verdict from a fresh review must never silently regress these back
@@ -52,6 +72,9 @@ func syncReviewedSpecStatusWithReceipt(
 	}
 	if result == nil {
 		return receipt, nil
+	}
+	if len(runtimeEvidence) > 0 {
+		receipt.ProviderPolicy = append([]specReviewProviderPolicyRow(nil), runtimeEvidence[0].ProviderPolicy...)
 	}
 	receipt.SpecID = result.SpecID
 	receipt.Verdict = string(result.Verdict)

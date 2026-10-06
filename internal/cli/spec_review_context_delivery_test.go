@@ -27,8 +27,7 @@ func TestRunSpecReview_GPTPromptConsumesVerifiedContextExactlyOnce(t *testing.T)
 	expectedHashes := expectedCLIReviewContextHashes(t, root, markers)
 	restoreWD := chdirForSpecReviewTest(t, root)
 	defer restoreWD()
-	restoreProviders := stubGPTSpecReviewProviders()
-	defer restoreProviders()
+	stubGPTSpecReviewProviders(t)
 
 	var capturedPrompt string
 	providerCalls := 0
@@ -62,8 +61,7 @@ func TestRunSpecReview_GPTMissingRequiredDocumentStopsBeforeProvider(t *testing.
 	root, specID, _ := writeGPTReviewContextProject(t)
 	restoreWD := chdirForSpecReviewTest(t, root)
 	defer restoreWD()
-	restoreProviders := stubGPTSpecReviewProviders()
-	defer restoreProviders()
+	stubGPTSpecReviewProviders(t)
 
 	providerCalls := 0
 	originalRunner := specReviewRunOrchestra
@@ -86,8 +84,7 @@ func TestRunSpecReview_GPTTamperedReceiptStopsBeforeProvider(t *testing.T) {
 	root, specID, _ := writeGPTReviewContextProject(t)
 	restoreWD := chdirForSpecReviewTest(t, root)
 	defer restoreWD()
-	restoreProviders := stubGPTSpecReviewProviders()
-	defer restoreProviders()
+	stubGPTSpecReviewProviders(t)
 
 	originalBuilder := specReviewBuildContextDelivery
 	specReviewBuildContextDelivery = func(opts promptlayer.ContextDeliveryOptions) (promptlayer.ContextDeliveryResult, error) {
@@ -117,8 +114,7 @@ func TestRunSpecReview_GPTOmittedRequiredSetStopsBeforeProvider(t *testing.T) {
 	writeCLIReviewContextFile(t, root, extraRef, "SET_BOUND_EXTRA")
 	restoreWD := chdirForSpecReviewTest(t, root)
 	defer restoreWD()
-	restoreProviders := stubGPTSpecReviewProviders()
-	defer restoreProviders()
+	stubGPTSpecReviewProviders(t)
 
 	originalBuilder := specReviewBuildContextDelivery
 	specReviewBuildContextDelivery = func(opts promptlayer.ContextDeliveryOptions) (promptlayer.ContextDeliveryResult, error) {
@@ -216,12 +212,11 @@ func chdirForSpecReviewTest(t *testing.T, dir string) func() {
 	return func() { require.NoError(t, os.Chdir(original)) }
 }
 
-func stubGPTSpecReviewProviders() func() {
-	original := specReviewConfigProviders
-	specReviewConfigProviders = func(_ *config.HarnessConfig, _ []string) []orchestra.ProviderConfig {
+func stubGPTSpecReviewProviders(t *testing.T) {
+	t.Helper()
+	stubSpecReviewAssembly(t, func(_ *config.HarnessConfig, _ []string) []orchestra.ProviderConfig {
 		return []orchestra.ProviderConfig{{Name: "codex", Binary: "codex"}}
-	}
-	return func() { specReviewConfigProviders = original }
+	})
 }
 
 func expectedCLIReviewContextHashes(t *testing.T, root string, markers map[string]string) map[string][2]string {

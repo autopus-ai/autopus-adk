@@ -34,14 +34,12 @@ func TestRunSpecReview_InheritsParentReviewWiringForNestedModule(t *testing.T) {
 
 	var capturedProviders []string
 	var capturedProjectName string
-	origBuilder := specReviewConfigProviders
-	specReviewConfigProviders = func(cfg *config.HarnessConfig, names []string) []orchestra.ProviderConfig {
+	stubSpecReviewAssembly(t, func(cfg *config.HarnessConfig, names []string) []orchestra.ProviderConfig {
 		require.NotNil(t, cfg)
 		capturedProjectName = cfg.ProjectName
 		capturedProviders = append([]string(nil), names...)
 		return []orchestra.ProviderConfig{{Name: "claude", Binary: "claude"}}
-	}
-	defer func() { specReviewConfigProviders = origBuilder }()
+	})
 
 	origRunner := specReviewRunOrchestra
 	specReviewRunOrchestra = func(_ context.Context, _ orchestra.OrchestraConfig) (*orchestra.OrchestraResult, error) {
@@ -156,12 +154,10 @@ func TestRunSpecReview_ExplicitConfigDoesNotInheritParentReviewWiring(t *testing
 	require.NoError(t, os.Chdir(child))
 
 	var capturedProviders []string
-	origBuilder := specReviewConfigProviders
-	specReviewConfigProviders = func(_ *config.HarnessConfig, names []string) []orchestra.ProviderConfig {
+	stubSpecReviewAssembly(t, func(_ *config.HarnessConfig, names []string) []orchestra.ProviderConfig {
 		capturedProviders = append([]string(nil), names...)
 		return nil
-	}
-	defer func() { specReviewConfigProviders = origBuilder }()
+	})
 
 	ctx := withGlobalFlags(context.Background(), globalFlags{ConfigPath: childConfigPath})
 	err = runSpecReview(ctx, "SPEC-REVIEW-EXPLICIT-001", "consensus", 10)

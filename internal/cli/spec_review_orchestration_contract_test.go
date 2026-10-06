@@ -26,17 +26,13 @@ func TestSpecReview_ConfiguredThreeResolvedOne_BlocksPromotion(t *testing.T) {
 	require.NoError(t, config.Save(root, cfg))
 	chdirForTest(t, root)
 
-	originalProviderBuilder := specReviewConfigProviders
 	originalRunner := specReviewRunOrchestra
-	t.Cleanup(func() {
-		specReviewConfigProviders = originalProviderBuilder
-		specReviewRunOrchestra = originalRunner
-	})
+	t.Cleanup(func() { specReviewRunOrchestra = originalRunner })
 
-	specReviewConfigProviders = func(_ *config.HarnessConfig, names []string) []orchestra.ProviderConfig {
+	stubSpecReviewAssembly(t, func(_ *config.HarnessConfig, names []string) []orchestra.ProviderConfig {
 		assert.ElementsMatch(t, []string{"claude", "codex", "gemini"}, names)
 		return []orchestra.ProviderConfig{{Name: "claude", Binary: "claude"}}
-	}
+	})
 	resolvedCount := 0
 	specReviewRunOrchestra = func(_ context.Context, cfg orchestra.OrchestraConfig) (*orchestra.OrchestraResult, error) {
 		resolvedCount = len(cfg.Providers)

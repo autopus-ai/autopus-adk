@@ -18,8 +18,7 @@ func TestRunSpecReview_GPTStaleReceiptStopsBeforeProvider(t *testing.T) {
 	root, specID, _ := writeGPTReviewContextProject(t)
 	restoreWD := chdirForSpecReviewTest(t, root)
 	defer restoreWD()
-	restoreProviders := stubGPTSpecReviewProviders()
-	defer restoreProviders()
+	stubGPTSpecReviewProviders(t)
 
 	originalBuilder := specReviewBuildContextDelivery
 	specReviewBuildContextDelivery = func(opts promptlayer.ContextDeliveryOptions) (promptlayer.ContextDeliveryResult, error) {
@@ -57,8 +56,7 @@ func TestRunSpecReview_GPTWrongSpecIdentityStopsBeforeProvider(t *testing.T) {
 	))
 	restoreWD := chdirForSpecReviewTest(t, root)
 	defer restoreWD()
-	restoreProviders := stubGPTSpecReviewProviders()
-	defer restoreProviders()
+	stubGPTSpecReviewProviders(t)
 
 	providerCalls := 0
 	originalRunner := specReviewRunOrchestra

@@ -158,6 +158,7 @@ func TestRunSpecReview_AppliesOrchestraMigrationToClaudeProvider(t *testing.T) {
 	defer func() { specReviewRunOrchestra = origRunner }()
 
 	require.NoError(t, runSpecReview(context.Background(), "SPEC-REVIEW-MIGRATE-001", "consensus", 0))
-	assert.Equal(t, config.DefaultClaudeProviderEntry().Args, capturedProvider.Args)
+	// The migrated default argv then gets the read-only projection suffix.
+	assert.Equal(t, withClaudeReadOnlySuffix(config.DefaultClaudeProviderEntry().Args...), capturedProvider.Args)
 	assert.Equal(t, 480*time.Second, capturedProvider.ExecutionTimeout)
 }

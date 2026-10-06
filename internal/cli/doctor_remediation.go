@@ -1,5 +1,11 @@
 package cli
 
+// providerReadinessAdvice follows the not-ready lines under Provider
+// Readiness: each line names its login command, and a status the probe
+// misclassified has an explicit escape in spec review.
+const providerReadinessAdvice = "Run the login command shown for each not-ready provider, then re-run 'auto doctor'; " +
+	"if a status is misclassified, 'auto spec review --skip-provider-readiness' skips the preflight"
+
 // doctorRemediationAdvice names the command that actually repairs what failed.
 //
 // The banner used to say "review warnings or run 'auto doctor --fix' where
