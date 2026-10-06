@@ -233,16 +233,8 @@ func runOrchestraCommand(
 	fmt.Fprintf(os.Stderr, "전략: %s, 프로바이더: %s, 백엔드: %s (terminal=%s, hook=%t)\n",
 		strategyStr, strings.Join(providerNames, ", "), selectRoutedBackend(cfg).Name(), termName, cfg.HookMode)
 
-	if orchestra.ShouldDetach(termName, isStdoutTTY(), cfg.NoDetach) {
-		jobID, err := orchestra.RunPaneOrchestraDetached(ctx, cfg)
-		if err != nil {
-			return fmt.Errorf("detach mode failed: %w", err)
-		}
-		fmt.Fprintf(os.Stderr, "Detached: job %s\n", jobID)
-		fmt.Printf("%s\n", jobID)
-		return nil
-	}
-
+	// Detach mode split provider panes; with the pane backend retired every run
+	// stays attached and headless (--no-detach is kept as a no-op).
 	result, err := runGuardedOrchestra(ctx, cfg, execution)
 	if err != nil {
 		return reportOrchestraFailure(commandName, strategyStr, providerNames, resolvedTimeout, result, err, flags.NoPersist)

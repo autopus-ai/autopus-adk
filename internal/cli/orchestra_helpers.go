@@ -132,16 +132,6 @@ func resolveRounds(strategy string, rounds int) int {
 	return 0
 }
 
-// isStdoutTTY returns true if stdout is a terminal device.
-// @AX:NOTE: [AUTO] REQ-1 TTY detection — used by auto-detach decision; returns false in CI/pipe contexts
-func isStdoutTTY() bool {
-	fi, err := os.Stdout.Stat()
-	if err != nil {
-		return false
-	}
-	return fi.Mode()&os.ModeCharDevice != 0
-}
-
 // buildProviderConfigs converts provider names to ProviderConfig slice.
 // This is the hardcoded fallback used when config is unavailable.
 // @AX:NOTE: [AUTO] hardcoded provider registry — add new providers here and in agenticArgs when expanding provider support
