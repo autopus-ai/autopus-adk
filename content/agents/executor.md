@@ -5,7 +5,7 @@ model: sonnet
 effort: medium
 tools: Read, Write, Edit, Grep, Glob, Bash, TodoWrite
 permissionMode: acceptEdits
-maxTurns: 150
+maxTurns: 200
 skills:
   - tdd
   - ddd
