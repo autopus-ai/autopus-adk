@@ -12,25 +12,14 @@ import (
 // treats as generated surfaces. Staging any of these without a corresponding
 // source-of-truth change is blocked (REQ-012). The .autopus entries are scoped
 // so legitimate `.autopus/specs` and `.autopus/project` edits are not blocked.
-var GeneratedSurfacePrefixes = []string{
-	".claude/",
-	".codex/",
-	".gemini/",
-	".opencode/",
-	".agents/plugins/",
-	".autopus/brainstorms/",
-	".autopus/orchestra/",
-	".autopus/plugins/",
-	".autopus/txns/",
-}
+// The members and their order come from the categorized surface table
+// (surface_class.go, REQ-EG-01).
+var GeneratedSurfacePrefixes = SurfacePrefixes(ConsumerDriftGate)
 
 // GeneratedSurfaceExactPaths are generated/runtime files that are not cleanly
 // expressible as directory prefixes without blocking human-managed project docs.
-var GeneratedSurfaceExactPaths = []string{
-	".agents/plugins/marketplace.json",
-	".autopus/context/signatures.md",
-	"config.toml",
-}
+// The members come from the categorized surface table.
+var GeneratedSurfaceExactPaths = SurfaceExactPaths(ConsumerDriftGate)
 
 // DefaultSourceLimit is the hard per-file source line limit.
 const DefaultSourceLimit = 300
@@ -74,13 +63,13 @@ func hasGeneratedPrefix(p string) bool {
 }
 
 func isRootAutopusManifest(clean string) bool {
-	if !strings.HasPrefix(clean, ".autopus/") {
+	if !strings.HasPrefix(clean, SurfaceManifestDir) {
 		return false
 	}
 	if path.Dir(clean) != ".autopus" {
 		return false
 	}
-	return strings.HasSuffix(path.Base(clean), "-manifest.json")
+	return strings.HasSuffix(path.Base(clean), SurfaceManifestSuffix)
 }
 
 // CheckStagedSourceSizes returns the paths whose line count exceeds limit.

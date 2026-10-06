@@ -1,6 +1,10 @@
 package qualityloop
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/insajin/autopus-adk/pkg/workflow"
+)
 
 func ValidateCandidateSafety(candidate CandidateDraft) SafetyDecision {
 	reasons := make([]string, 0)
@@ -44,38 +48,32 @@ func ValidateCandidateSafety(candidate CandidateDraft) SafetyDecision {
 	}
 }
 
+// generatedSurfacePrefixes are the prefix members of the categorized surface
+// table (pkg/workflow surface_class.go) this check reads.
+var generatedSurfacePrefixes = workflow.SurfacePrefixes(workflow.ConsumerQualityLoop)
+
+// isGeneratedSurfacePath keeps its own matching rules: a prefix matches at the
+// root or below any directory, and each named member keeps its member-specific
+// rule. Only the member strings come from the table.
 func isGeneratedSurfacePath(path string) bool {
 	rel := strings.TrimSpace(strings.ReplaceAll(path, "\\", "/"))
 	if rel == "" {
 		return false
 	}
-	generatedPrefixes := []string{
-		".codex/",
-		".opencode/",
-		".claude/",
-		".gemini/",
-		".agents/",
-		".autopus/plugins/",
-		".autopus/design/imports/",
-		".autopus/runtime/",
-		".autopus/brainstorms/",
-		".autopus/canary/",
-		".autopus/orchestra/",
-	}
-	for _, prefix := range generatedPrefixes {
+	for _, prefix := range generatedSurfacePrefixes {
 		if strings.HasPrefix(rel, prefix) || strings.Contains(rel, "/"+prefix) {
 			return true
 		}
 	}
-	if strings.HasSuffix(rel, ".agents/plugins/marketplace.json") ||
-		strings.Contains(rel, "/.agents/plugins/marketplace.json") ||
-		strings.Contains(rel, ".autopus/context/signatures.md") ||
-		rel == "config.toml" ||
-		strings.HasSuffix(rel, "/config.toml") ||
-		strings.Contains(rel, ".autopus/") && strings.HasSuffix(rel, "-manifest.json") {
+	if strings.HasSuffix(rel, workflow.SurfaceAgentsMarketplace) ||
+		strings.Contains(rel, "/"+workflow.SurfaceAgentsMarketplace) ||
+		strings.Contains(rel, workflow.SurfaceContextSignatures) ||
+		rel == workflow.SurfaceRootConfig ||
+		strings.HasSuffix(rel, "/"+workflow.SurfaceRootConfig) ||
+		strings.Contains(rel, workflow.SurfaceManifestDir) && strings.HasSuffix(rel, workflow.SurfaceManifestSuffix) {
 		return true
 	}
-	return strings.Contains(rel, "/plugins/cache/")
+	return strings.Contains(rel, "/"+workflow.SurfacePluginCache)
 }
 
 func crossWorkspaceRef(workspaceID, ref string) bool {
