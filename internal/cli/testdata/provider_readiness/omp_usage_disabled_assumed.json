@@ -1,0 +1,1 @@
+{"generatedAt":1,"reports":[{"provider":"openai-codex","account":"e5f6"},{"provider":"google-antigravity","account":"g7h8"}],"accountsWithoutUsage":[],"disabledCredentials":[{"provider":"anthropic","account":"c3d4","reason":"Refresh token expired"}],"capacity":{}}
