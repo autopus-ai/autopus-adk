@@ -184,6 +184,20 @@ func TestApplyCommandReadOnlyPolicy_OnlyPlanAndBrainstormProject(t *testing.T) {
 	}
 }
 
+// The projection switch has no default branch: the gate admits only names in
+// readOnlyNativeBinaries, so every one of them must have a projection, or a
+// provider would be stamped read-only over its unprojected argv.
+func TestReadOnlyProviderPolicy_EveryAdmittedProviderIsProjected(t *testing.T) {
+	t.Parallel()
+
+	for name, binary := range readOnlyNativeBinaries {
+		projected, err := applyReadOnlyProviderPolicy([]orchestra.ProviderConfig{{Name: name, Binary: binary}}, readOnlyPolicyOptions{})
+		require.NoError(t, err, name)
+		assert.NotEmpty(t, projected[0].Args, "%s has no read-only projection", name)
+		assert.NotEmpty(t, projected[0].PaneArgs, "%s has no read-only pane projection", name)
+	}
+}
+
 func TestNewOrchestraPlanCmd_RegistersSafetyFlags(t *testing.T) {
 	t.Parallel()
 

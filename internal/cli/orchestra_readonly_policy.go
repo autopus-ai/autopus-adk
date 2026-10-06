@@ -68,6 +68,8 @@ func applyReadOnlyProviderPolicy(providers []orchestra.ProviderConfig, opts read
 		provider.ResultReadyPatterns = append([]string(nil), provider.ResultReadyPatterns...)
 		provider.FastFailPatterns = append([]orchestra.FastFailRule(nil), provider.FastFailPatterns...)
 
+		// checkReadOnlyProvider admitted only names in readOnlyNativeBinaries,
+		// and each of them has a case here.
 		switch provider.Name {
 		case "claude":
 			provider.Args = projectClaudeReadOnlyArgs(provider.Args)
@@ -78,8 +80,6 @@ func applyReadOnlyProviderPolicy(providers []orchestra.ProviderConfig, opts read
 		case "gemini":
 			provider.Args = projectGeminiReadOnlyArgs(provider.Args)
 			provider.PaneArgs = projectGeminiReadOnlyArgs(provider.PaneArgs)
-		default:
-			return nil, &readOnlyPolicyViolation{Provider: provider.Name, Item: provider.Name, Kind: readOnlyUnsupportedProvider}
 		}
 		provider.SandboxMode = orchestra.SandboxModeReadOnly
 		projected[index] = provider

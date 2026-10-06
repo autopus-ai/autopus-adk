@@ -9,17 +9,6 @@ import (
 	"github.com/insajin/autopus-adk/pkg/orchestra"
 )
 
-func buildReviewProviders(names []string) []orchestra.ProviderConfig {
-	return filterInstalledProviders(buildProviderConfigs(names))
-}
-
-func buildReviewProvidersWithConfig(cfg *config.HarnessConfig, names []string) []orchestra.ProviderConfig {
-	if cfg == nil {
-		return buildReviewProviders(names)
-	}
-	return filterInstalledProviders(resolveProviders(&cfg.Orchestra, "review", names))
-}
-
 func filterInstalledProviders(all []orchestra.ProviderConfig) []orchestra.ProviderConfig {
 	var available []orchestra.ProviderConfig
 	for _, provider := range all {

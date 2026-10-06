@@ -49,36 +49,6 @@ func TestNewSpecReviewCmd_RequiresExactlyOneArg(t *testing.T) {
 	assert.Error(t, err, "two args should fail validation")
 }
 
-// TestBuildReviewProviders_NoNames verifies that empty names list returns empty slice.
-func TestBuildReviewProviders_NoNames(t *testing.T) {
-	t.Parallel()
-
-	result := buildReviewProviders([]string{})
-	assert.Empty(t, result, "empty input should return empty slice")
-}
-
-// TestBuildReviewProviders_SkipsMissingBinaries verifies that binaries not on PATH
-// are silently skipped.
-func TestBuildReviewProviders_SkipsMissingBinaries(t *testing.T) {
-	t.Parallel()
-
-	// Use a binary name guaranteed not to exist
-	result := buildReviewProviders([]string{"binary_that_does_not_exist_xyz_autopus_test"})
-	assert.Empty(t, result, "missing binary should be skipped")
-}
-
-// TestBuildReviewProviders_SkipsMultipleMissingBinaries verifies batch skip behavior.
-func TestBuildReviewProviders_SkipsMultipleMissingBinaries(t *testing.T) {
-	t.Parallel()
-
-	result := buildReviewProviders([]string{
-		"no_such_binary_aaa",
-		"no_such_binary_bbb",
-		"no_such_binary_ccc",
-	})
-	assert.Empty(t, result, "all missing binaries should be skipped")
-}
-
 func TestResolveSpecReviewProviderNames_Default(t *testing.T) {
 	t.Parallel()
 
