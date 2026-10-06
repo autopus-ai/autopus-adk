@@ -3,6 +3,8 @@ package companionmanifest
 import (
 	"errors"
 	"os"
+
+	"github.com/insajin/autopus-adk/pkg/oslock"
 )
 
 func createSignedPairTransactionLock(root *os.Root) (*os.File, error) {
@@ -59,4 +61,25 @@ func releaseSignedPairLockFile(file **os.File) error {
 	lockFile := *file
 	*file = nil
 	return errors.Join(unlockSignedPairFile(lockFile), lockFile.Close())
+}
+
+// lockSignedPairFile takes the transaction lock through pkg/oslock and keeps
+// the error texts this package reported before the helpers moved there.
+func lockSignedPairFile(file *os.File) (bool, error) {
+	active, err := oslock.TryLock(file)
+	if errors.Is(err, errors.ErrUnsupported) {
+		return false, errors.New("signed pair transaction locking is unsupported")
+	}
+	if err != nil {
+		return false, errors.New("lock signed pair transaction")
+	}
+	return active, nil
+}
+
+func unlockSignedPairFile(file *os.File) error {
+	err := oslock.Unlock(file)
+	if errors.Is(err, errors.ErrUnsupported) {
+		return errors.New("signed pair transaction unlocking is unsupported")
+	}
+	return err
 }
