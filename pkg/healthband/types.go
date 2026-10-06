@@ -4,10 +4,26 @@
 // sanitizer. Subprocess calls live in internal/cli behind fakeable seams.
 package healthband
 
-import "time"
+import (
+	"time"
 
-// SchemaObservation is the schema of every metric observation line.
-const SchemaObservation = "autopus.metric_observation.v1"
+	"github.com/insajin/autopus-adk/pkg/promptlayer"
+)
+
+// Schemas of the store files (Data Contracts).
+const (
+	SchemaObservation    = "autopus.metric_observation.v1"
+	SchemaBandEvaluation = "autopus.band_evaluation.v1"
+	SchemaBandState      = "autopus.band_state.v1"
+)
+
+// Series ID prefixes and observation sources.
+const (
+	SeriesPrefixCI     = "ci.failure_rate:"
+	SeriesPrefixCanary = "canary.failure_rate:"
+	SourceGH           = "gh"
+	SourceCanary       = "canary"
+)
 
 // Observation is one metric sample (Detector Contract item 1). Value is 0 or
 // 1 (1 = failure). The order key is (ObservedAt, Tiebreak) ascending: CI uses
@@ -48,13 +64,44 @@ func DefaultConstants() Constants {
 	return Constants{K: BlockSize, W: BaselineWindow, NMin: MinBaseline, Floor: VarianceFloor, Eps: TierEpsilon}
 }
 
-// Detector reason codes.
+// Reason codes. Events, state, envelopes, and text rows carry these codes,
+// numbers, filtered IDs, and manifest hashes only (Untrusted Input item 9).
 const (
+	// Detector.
 	ReasonNoCurrentBlock       = "no_current_block"
 	ReasonInsufficientSamples  = "insufficient_samples"
 	ReasonZeroVariance         = "zero_variance"
 	ReasonVarianceFloorApplied = "variance_floor_applied"
 	ReasonBelowBaseline        = "below_baseline"
+	ReasonLateObservation      = "late_observation"
+	// Store read and ingest.
+	ReasonMalformed           = "malformed"
+	ReasonUnknownSchema       = "unknown_schema"
+	ReasonInvalidValue        = "invalid_value"
+	ReasonNoChecksExecuted    = "no_checks_executed"
+	ReasonIdentifierSanitized = "identifier_sanitized"
+	ReasonStoreLocked         = "store_locked"
+	ReasonSeriesNotFound      = "series_not_found"
+	// CI source (REQ-05).
+	ReasonGHMissing            = "gh_missing"
+	ReasonGHUnauthenticated    = "gh_unauthenticated"
+	ReasonGHFetchFailed        = "gh_fetch_failed"
+	ReasonNoRemote             = "no_remote"
+	ReasonRemoteNotGitHub      = "remote_not_github"
+	ReasonDefaultBranchUnknown = "default_branch_unknown"
+	// Episodes and claims (Decision Table, Durability Protocol).
+	ReasonEpisodeClosed           = "episode_closed"
+	ReasonEpisodeAlreadyDiagnosed = "episode_already_diagnosed"
+	ReasonSupersededInBatch       = "superseded_in_batch"
+	ReasonLateResult              = "late_result"
+	ReasonClaimUnknown            = "claim_unknown"
+	// BS writer.
+	ReasonBSLockTimeout = "bs_lock_timeout"
+	ReasonBSIDExhausted = "bs_id_exhausted"
+	// Untrusted input; the values equal the promptlayer invalidation reasons.
+	ReasonInjectionRisk = promptlayer.InvalidationInjectionRisk
+	ReasonSecretRisk    = promptlayer.InvalidationSecretRisk
+	ReasonSizeCap       = promptlayer.InvalidationSizeCap
 )
 
 // Evaluation is one detector result. N and X are present only when a current
@@ -72,4 +119,76 @@ type Evaluation struct {
 	Tier      *int       `json:"tier,omitempty"`
 	Reasons   []string   `json:"reasons,omitempty"`
 	Constants *Constants `json:"constants,omitempty"`
+}
+
+// Event kinds and the three-value action enum (Decision Table).
+const (
+	EventKindEvaluation   = "evaluation"
+	EventKindActionResult = "action_result"
+	ActionLog             = "log"
+	ActionDiagnose        = "diagnose"
+	ActionSuppressed      = "suppressed"
+)
+
+// Claim kinds and statuses. A failed claim's status is ClaimFailedPrefix
+// followed by its reason, for example "failed:bs_lock_timeout".
+const (
+	ClaimKindDiagnose = "diagnose"
+	ClaimClaimed      = "claimed"
+	ClaimDone         = "done"
+	ClaimInterrupted  = "interrupted"
+	ClaimFailedPrefix = "failed:"
+)
+
+// Claim is one due action owned by one run. Events carry id, kind, owner,
+// and lease; the checkpoint adds status and, once interrupted, its time.
+type Claim struct {
+	ID            string     `json:"id"`
+	Kind          string     `json:"kind"`
+	Status        string     `json:"status,omitempty"`
+	Owner         string     `json:"owner"`
+	LeaseUntil    time.Time  `json:"lease_until"`
+	InterruptedAt *time.Time `json:"interrupted_at,omitempty"`
+}
+
+// Event is one band-events.jsonl line. Evaluation fields are inlined; an
+// action_result event adds the claim result fields. Empty fields are omitted.
+type Event struct {
+	Schema string `json:"schema"`
+	Seq    int64  `json:"seq"`
+	Kind   string `json:"kind"`
+	Evaluation
+	Action          string                      `json:"action,omitempty"`
+	EpisodeID       string                      `json:"episode_id,omitempty"`
+	MaxTier         *int                        `json:"max_tier,omitempty"`
+	Claims          []Claim                     `json:"claims,omitempty"`
+	ClaimID         string                      `json:"claim_id,omitempty"`
+	DiagnosisStatus string                      `json:"diagnosis_status,omitempty"`
+	BSID            string                      `json:"bs_id,omitempty"`
+	BSStatus        string                      `json:"bs_status,omitempty"`
+	PromptManifest  []promptlayer.ManifestEntry `json:"prompt_manifest,omitempty"`
+}
+
+// Episode is one anomaly episode of a series; its id is "e" plus the
+// opening sample key.
+type Episode struct {
+	ID      string  `json:"id"`
+	Open    bool    `json:"open"`
+	MaxTier int     `json:"max_tier"`
+	BSID    string  `json:"bs_id,omitempty"`
+	Claims  []Claim `json:"claims,omitempty"`
+}
+
+// SeriesState is the per-series checkpoint.
+type SeriesState struct {
+	LastKey  string    `json:"last_key"`
+	Episodes []Episode `json:"episodes,omitempty"`
+}
+
+// Checkpoint is band-state.json. Series is a map, so encoding/json writes its
+// keys sorted and equal state always yields equal bytes.
+type Checkpoint struct {
+	Schema  string                 `json:"schema"`
+	LastSeq int64                  `json:"last_seq"`
+	Series  map[string]SeriesState `json:"series,omitempty"`
 }

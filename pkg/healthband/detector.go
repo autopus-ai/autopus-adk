@@ -33,13 +33,15 @@ func Collapse(observations []Observation) []Observation {
 // comparing instants and the numeric tiebreak. The sort is stable, so equal
 // keys keep their input order.
 func SortObservations(observations []Observation) {
-	sort.SliceStable(observations, func(i, j int) bool {
-		a, b := observations[i], observations[j]
-		if !a.ObservedAt.Equal(b.ObservedAt) {
-			return a.ObservedAt.Before(b.ObservedAt)
-		}
-		return a.Tiebreak < b.Tiebreak
-	})
+	sort.SliceStable(observations, func(i, j int) bool { return orderKeyLess(observations[i], observations[j]) })
+}
+
+// orderKeyLess orders by instant first and the numeric tiebreak second.
+func orderKeyLess(a, b Observation) bool {
+	if !a.ObservedAt.Equal(b.ObservedAt) {
+		return a.ObservedAt.Before(b.ObservedAt)
+	}
+	return a.Tiebreak < b.Tiebreak
 }
 
 // OrderedSeries collapses file-order observations and returns each series
