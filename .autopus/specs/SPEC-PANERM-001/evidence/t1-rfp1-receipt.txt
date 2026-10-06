@@ -1,0 +1,59 @@
+# T1 RFP-1 operator gate (SPEC-PANERM-001, branch feat/panerm-001, B = 60f92ea5)
+executed 2026-10-06T22:21:45Z-22:25:04Z (2026-10-07 07:21-07:25 KST); Claude Code 2.1.289, go1.27.0 darwin/arm64
+paid model calls: 1 (claude). codex, gemini (agy), and OMP received no prompt.
+verdict: PASS for the operator-scoped row (claude, context (c)); see "Scope" for the rows not run.
+
+## Operator confirmation (2026-10-07)
+The operator confirmed that headless `claude -p` usage on their claude.ai Max subscription is billed to the
+subscription, with no separate API credits. Billing is not observable in CLI output, so this line is the billing
+evidence; it is operator-provided, not measured.
+
+## Precheck (no model call)
+`claude auth status --json`, redacted to these fields: loggedIn true, authMethod claude.ai, subscriptionType max,
+apiProvider firstParty. ANTHROPIC_API_KEY, OPENAI_API_KEY, and GEMINI_API_KEY were unset in the session and were
+also removed with `env -u` for the run.
+
+## Scope (operator instruction for T1)
+single provider claude, read-only command, no OMP, at most one paid call. Deviations from the plan row, each forced
+by that scope:
+- `--providers claude` instead of claude,codex,gemini.
+- `--strategy consensus` instead of `--rounds 1`: `--rounds` is valid only for debate (orchestra.go:131-133), and a
+  brainstorm debate requires a separate judge session (orchestra.go:148-163), which is a second paid call.
+- context (c) only (Claude Code Bash tool, CLAUDECODE set, stdin and stdout not a TTY, terminal=plain).
+  Contexts (a) plain shell and (b) cmux/tmux were not run.
+- cwd: an empty scratch directory with no autopus.yaml, because this repo's autopus.yaml routes claude through
+  `backend: omp`. config.Load returns DefaultFullConfig when the file is missing (loader.go:61-63), so the provider
+  is the shipped default claude entry with the brainstorm read-only projection.
+
+## Dry run (0 paid calls)
+The same command with a recording fake `claude` first on PATH: exit 0, exactly 1 `claude` process, 0 other
+`claude` invocations (no version or auth probe), prompt on stdin (3,570 B), judge_status not_requested,
+dispatch_count 1. This proved the real run makes exactly one model call.
+
+## Real run
+binary: `auto` built from 60f92ea5 into the session scratchpad (`go build ./cmd/auto`)
+command (cwd = empty scratch dir; providers run in an isolated temp git repo per brainstorm isolation):
+  env -u ANTHROPIC_API_KEY -u OPENAI_API_KEY -u GEMINI_API_KEY \
+    auto orchestra brainstorm "name one color" --providers claude --strategy consensus --format json --timeout 900
+exit 0; stderr: `전략: consensus, 프로바이더: claude, 백엔드: subprocess (terminal=plain, hook=false)`,
+  `[✓] claude: done 182.6s`, plus the result and receipt save lines.
+stdout (redacted to the RFP-1 fields; temp paths, pid, run id, and the merged text omitted; merged is 10,749 B of
+model output):
+  schema: orchestration_cli_result.v1
+  receipt.schema: orchestration_run_receipt.v1; effective_strategy consensus; terminal_state completed;
+  judge_status not_requested; dispatch_count 1; usable_providers [claude]; failed_providers null; degraded_reasons null
+  receipt.provider_receipts[0]:
+    provider claude, role participant, attempt 1, backend subprocess, model_family anthropic,
+    exit_code 0, timed_out false, usable true, failure_class absent (key not present), sandbox_mode read-only,
+    command [claude --print --model claude-fable-5-1 --effort max --permission-mode plan --safe-mode
+             --no-session-persistence --disable-slash-commands --strict-mcp-config --tools=Read,Grep,Glob],
+    started_at 2026-10-06T22:22:01.176771Z, ended_at 2026-10-06T22:25:03.74370875Z
+  receipt.workspace.mutation_detected false
+
+## Oracle check (plan RFP-1, claude row)
+schema = orchestration_cli_result.v1: yes. One provider_receipts row for claude: yes. backend = subprocess: yes.
+exit_code 0: yes. timed_out false: yes. usable true: yes. No failure_class: yes. Operator billing confirmation: yes.
+
+## Not run (open for S19)
+codex and gemini rows, and contexts (a) and (b), were out of the operator's T1 scope. S19 asks for all three
+providers in all three contexts, so S19 stays open for those rows.

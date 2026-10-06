@@ -164,6 +164,20 @@ These are optional improvements and do not block sync completion.
   `workflow.team_default` prunes with a nil error. Installed layout and RFP-1 precheck: `plan.md` probe rows.
 - Revert anchor (REQ-20): B; pane execution became unreachable in `7c781509` (backend) and `16b50216` (detach).
 
+## W0 Evidence
+
+W0 ran on `feat/panerm-001` at `60f92ea5` (main `16b50216` plus 14 SPEC-REVIEWRO-001 commits); the first PANERM merge
+is based on it, so W0 baselines use it as B. `16b50216` stays the revert anchor. Raw records: `evidence/`.
+
+- T1 RFP-1: PASS for the operator-scoped row (claude, context (c)); `evidence/t1-rfp1-receipt.txt`. Billing: the
+  operator confirmed on 2026-10-07 that headless `claude -p` on their claude.ai Max subscription is billed to the
+  subscription with no separate API credits (`claude auth status`: authMethod claude.ai, subscriptionType max).
+  One paid call: `auto orchestra brainstorm "name one color" --providers claude --strategy consensus --format json`
+  from an empty scratch cwd (shipped default claude entry, no OMP). Receipt row: backend `subprocess`, exit_code 0,
+  timed_out false, usable true, no `failure_class`; schema `orchestration_cli_result.v1`. `--strategy consensus`
+  replaces `--rounds 1`, which implies a debate with a second (judge) call. Codex, gemini, and contexts (a), (b) were
+  outside the operator's scope, so S19 stays open for them.
+
 ## Reviewer Brief
 
 - Intended scope: retire the orchestra pane backend with zero-touch upgrades (REQ-01–REQ-18).
