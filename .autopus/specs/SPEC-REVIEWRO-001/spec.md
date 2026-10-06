@@ -111,7 +111,7 @@ OMP rules: exit non-zero → unknown(probe_failed); a top level that is not an o
 string field `provider` equals F. usable = matching `reports` + matching `accountsWithoutUsage`; disabled = matching
 `disabledCredentials`. usable ≥ 1 → ready, plus the warning `omp <F>: <d> of <u+d> accounts unusable (<state>); run "omp
 usage --redact" for details` when disabled ≥ 1. usable 0 and disabled ≥ 1 → not_ready(auth_expired) when every
-matching `reason` contains `expired` (case-insensitive), else not_ready(account_disabled). usable 0 and disabled 0 →
+matching `cause` (fallback `reason`) contains `expired` (case-insensitive), else not_ready(account_disabled). usable 0 and disabled 0 →
 unknown(no_account_evidence). Remedy `omp login <F>`, plus ` (same PI_CODING_AGENT_DIR as this review)` when that
 variable is set.
 

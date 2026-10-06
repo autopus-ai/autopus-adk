@@ -94,7 +94,7 @@ And `--multi` with reviewers `[claude, codex]` and a discovered gemini whose bin
 Priority: Must
 Given F-default reviewers, judge claude, probe results claude ready and codex ready, and a fake model backend that returns PASS
 When the review finishes
-Then `review-receipt.json` `provider_policy` holds exactly (claude, reviewer, read-only, ready), (codex, reviewer, read-only, ready), (gemini, reviewer, read-only, unknown(no_status_command)), (claude, judge, read-only, ready) in this order
+Then `review-receipt.json` `provider_policy` holds exactly (claude, reviewer, read-only, ready), (codex, reviewer, read-only, ready), (gemini, reviewer, unverified, unknown(no_status_command)), (claude, judge, read-only, ready) in this order
 And a test seam that skips the projection yields sandbox_mode `unrestricted` for claude, `workspace-write` for codex, `unrestricted` for gemini, and `unrestricted` for the judge
 And `orchestra.ProviderSandboxMode` over a `read-only`-stamped claude config returns `unrestricted` for argv `--print --dangerously-skip-permissions` and `read-only` for P_claude
 And a receipt fixture from a run without provider execution keeps its existing bytes because the field is `omitempty`

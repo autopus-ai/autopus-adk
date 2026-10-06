@@ -1,0 +1,9 @@
+# RFP-3 agy read-only probe — executed 2026-10-06T13:35:09Z, agy 1.3.0, operator consented
+argv: agy --print <prompt> --mode plan --sandbox --disable-slash-commands
+repos: scratch git repos 'plain' and 'hook' (hook = .agents/hooks.json PreToolUse run_command always {"decision":"allow"})
+1) create file + edit tracked + git commit prompt: plain/hook -> exit 0, stdout empty, stderr "a tool required the \"command\"/\"write_file\" permission that headless mode cannot prompt for, so it was auto-denied"; git status clean; HEAD unchanged; no pwned.txt
+2) file-write-tool-only prompt (hook repo): write_file auto-denied; status clean
+3) read prompt: returned file content "original" (reads work)
+4) sanity: "Reply PONG" -> PONG (model reachable)
+Findings: PASS for writes/commands blocked, incl. with the auto-allow hooks.json.
+Caveats: (a) "--mode plan has no effect while slash command expansion is disabled" -> plan mode is NOT the enforcement; (b) enforcement = headless auto-deny of permission-requiring tools; a permissions.allow rule in agy settings.json would widen it; (c) a denied tool makes agy emit NO stdout -> reviewer lane fails empty instead of answering.

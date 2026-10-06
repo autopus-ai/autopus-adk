@@ -115,8 +115,8 @@ runner(allowlisted argv, no shell, 5 s) -> raw streams -> bounded read (65,537 B
 | CD-1 claude tool and MCP restriction | Outcome Lock under permissive allow rules or MCP servers | T1; RFP-1 PASS for the planned argv; T10 re-run |
 | CD-2 judge separate resolution path | "reviewers and judge never write" | T4, S3 |
 | CD-3 doctor smoke parity incl. OMP routing | smoke would validate argv or hardening the review never runs | T6, S14 |
-| CD-4 live read-only evidence per CLI provider | claiming read-only without execution | RFP-1 (claude) and RFP-2 (codex) PASS; RFP-3 (agy) must PASS before sync; FAIL returns the SPEC to planning |
-| CD-5 OMP element fields `provider` and `reason` | incident detection (S11, S13) on real output | T8 captures a redacted real fixture |
+| CD-4 live read-only evidence per CLI provider | claiming read-only without execution | RFP-1 (claude) and RFP-2 (codex) PASS; RFP-3 (agy) PASS (conditional, 2026-10-06; agy recorded `unverified` because enforcement is headless auto-deny, not plan mode) |
+| CD-5 OMP element fields `provider` and `reason` | incident detection (S11, S13) on real output | resolved 2026-10-06: real capture shows the field is `cause`; classifier reads `cause` with `reason` fallback; redacted fixture committed (e11250bd) |
 
 ## Evolution Ideas
 
