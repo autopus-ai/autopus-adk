@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **`auto spec review`: 읽기 전용 리뷰어와 provider readiness preflight** (2026-10-06,
+  SPEC-REVIEWRO-001): 리뷰어와 judge는 터미널, `orchestra.subprocess.enabled`,
+  `--subprocess`/`--plain`과 관계없이 read-only subprocess로만 돈다(OMP provider는
+  OMP review backend). pane을 띄울 수 있는 터미널이면 `spec review: read-only review
+  runs providers in subprocess mode`를 한 번 출력한다. 모든 argv는 read-only 정책으로
+  투영된다. claude는 `--permission-mode plan --safe-mode`에 `--strict-mcp-config
+  --tools=Read,Grep,Glob`이 붙는다(plan, brainstorm도 같다). codex의 `-s <mode>`는
+  `--sandbox read-only` 하나로 정리되고, `subprocess.schema_flag`는 codex
+  `--output-schema`만 허용한다. 정책을 넓히는 설정은 바이너리가 하나도 실행되기 전에
+  provider, 항목, config key, remedy를 담은 오류로 거부된다.
+  - 첫 provider 실행 전에 모델 호출 없는 상태 명령(`claude auth status --json`,
+    `codex login status`, `omp usage --json --redact`)이 동시에 돈다. 각각 최대 5초이고,
+    상태 조회는 네트워크를 쓸 수 있다. judge가 `not_ready`면 remedy와 함께 바로
+    실패한다. 리뷰어가 `not_ready`면 실행에서 빠지고 quorum 분모에는 남으며,
+    degraded 사유 `provider_unready:<provider>:<state>`가 붙는다. `--allow-degraded`가
+    이 사유도 덮는다. `unknown`은 리뷰를 막지 않는다. 오판된 상태는
+    `--skip-provider-readiness`로 건너뛰고 receipt에 `skipped`로 남긴다.
+  - `review-receipt.json`의 `provider_policy`(omitempty)가 리뷰어, 제외된 provider,
+    judge마다 실행된 argv로 판정한 `sandbox_mode`와 readiness를 기록한다. 실행된
+    argv에 우회 플래그가 있으면 정책 stamp보다 우선해 `unrestricted`가 된다.
+  - `auto doctor`는 기본으로 `doctor.provider_readiness.<provider>` 점검을 보고한다
+    (text, `--json`). `--provider-smoke`는 spec review와 같은 조립·투영·routing으로
+    돈다. 모델을 호출하는 경로는 여전히 `--provider-smoke`뿐이다.
+
 - **`auto qa go`: 시나리오 생성부터 수정·재검증까지 한 명령** (2026-10-04,
   SPEC-QALOOP-001 REQ-20): `auto qa go SPEC-ID`가 생성 → 커버리지 확인 → 승격 →
   컴파일 → `auto qa loop`를 잇는다. `--auto`(또는 `--json`)면 확인 없이 끝까지
