@@ -31,6 +31,7 @@ type Adapter struct {
 	codexVersion        string
 	codexFallbackWriter io.Writer
 	codexFallbackSeen   map[string]struct{}
+	pluginBaseVersion   *string
 }
 
 // Option customizes a Codex adapter.
@@ -51,6 +52,16 @@ func WithCLIVersion(version string) Option {
 	return func(a *Adapter) {
 		a.codexVersionProbed = true
 		a.codexVersion = version
+	}
+}
+
+// WithPluginBaseVersion pins the generator version the plugin manifest takes
+// its semver base from, instead of the version this binary was built with. A
+// hermetic evaluation uses it so every build of one source tree produces the
+// same surface; the value is normalized exactly like a build version.
+func WithPluginBaseVersion(generatorVersion string) Option {
+	return func(a *Adapter) {
+		a.pluginBaseVersion = &generatorVersion
 	}
 }
 
