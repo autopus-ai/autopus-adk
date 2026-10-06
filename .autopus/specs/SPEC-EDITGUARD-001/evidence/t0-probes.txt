@@ -1,0 +1,151 @@
+SPEC-EDITGUARD-001 T0 - Phase 1.9 probe gate evidence
+=====================================================
+
+checked_at: 2026-10-07 (local)
+host: darwin/arm64, case-insensitive APFS
+spike: throwaway, built and run only in the session scratchpad, never committed.
+  - spike guard installed as `auto` on PATH: Claude Code and OpenCode encoders,
+    one protected path read from a temp `.autopus/claude-code-manifest.json`
+    (policy always), fault switches SPIKE_MODE=panic|deny-exit2|deny-exit1 and
+    SPIKE_NO_GUARD=1 (a binary without the `guard` command).
+  - loopback model mocks on 127.0.0.1: Anthropic Messages SSE (Claude Code),
+    Chat Completions SSE (OpenCode), Responses SSE (Codex). Each replays a
+    scripted tool call; no request reached any provider.
+  - spike OpenCode V2 native plugin (ctx.tool.hook execute.before) with a
+    per-hook tool filter, payload synthesis, deny-only throw on a clean exit,
+    and host-native event capture.
+paid model calls: 0. The hosts' own hook pipelines ran for real; only the
+  model turn was a scripted mock reply. Claude Code printed total_cost_usd
+  0.00042, which it computed from the mock's usage numbers.
+
+Results
+-------
+A1  Claude Code 2.1.289 ..................... PASS
+A2  OpenCode 2.0.10 (V2 plugin API) ......... PASS
+A2  OpenCode 1.x (V1 plugin API) ............ NOT-RUN (no local 1.x runtime)
+A3  Codex CLI 0.160.0 apply_patch ........... PASS
+
+A1 - Claude Code 2.1.289 - PASS
+-------------------------------
+boundary: real `claude -p` with CLAUDE_CONFIG_DIR=<temp>, --setting-sources
+  project, --strict-mcp-config, --tools Read,Edit,Write,MultiEdit,
+  --no-session-persistence, ANTHROPIC_BASE_URL=<loopback mock> ->
+  <R>/.claude/settings.json PreToolUse entry {matcher Edit|Write|MultiEdit,
+  timeout 5, command = canonical line
+  `out=$(auto guard edit --platform claude-code) && [ -n "$out" ] && printf '%s\n' "$out"; exit 0`}
+  -> spike guard.
+script: mock turn 1 Read(<R>/.claude/skills/auto-fix/SKILL.md), turn 2
+  Edit(same file, "original line" -> "tampered line"), turn 3 text "done".
+file sha256 before every run: f8e7f9af5d1e32bb365dd4302fb21b3360be34e4a0bf17a9fd22f5fd2941a08c
+
+run   hooks / spike mode                         permission mode     result                                  sha256 after
+run1  guard alone, normal                        acceptEdits         denied                                  unchanged
+run2  guard + parallel user hook (allow), normal acceptEdits         denied (user hook ran, logged)          unchanged
+run1b guard alone, normal                        bypassPermissions   denied                                  unchanged
+run2b guard + parallel user hook (allow), normal bypassPermissions   denied (user hook ran, logged)          unchanged
+run3  deny bytes then exit 2                     acceptEdits         refused by host .claude/** permission   unchanged
+run3b deny bytes then exit 2                     bypassPermissions   edit landed                             ecc09df80d43fb77ed8c48a107a4a1bf5dca3bffd542eac1c504c461ead9ab2c
+run4  unrecovered panic (exit 2)                 bypassPermissions   edit landed                             ecc09df8...ab2c
+run5  deny bytes then exit 1                     bypassPermissions   edit landed                             ecc09df8...ab2c
+run6  version skew (no guard command, exit 1)    bypassPermissions   edit landed                             ecc09df8...ab2c
+run7  CONTROL: raw `auto guard edit` (no wrapper) + panic, bypass    blocked by the panic (exit 2)           unchanged
+
+deny evidence (run1, run2, run1b, run2b): the tool_result Claude Code sent back
+  to the mock was is_error=true with content
+  "PreToolUse:Edit hook error: spike-deny: .claude/skills/auto-fix/SKILL.md is generated (manifest .autopus/claude-code-manifest.json, policy always)",
+  and the result JSON listed the Edit under permission_denials.
+run3 note: under acceptEdits the hook layer passed the call (wrapper discarded
+  the exit-2 bytes), and Claude Code's own permission check then refused the
+  write: "Claude requested permissions to write to <R>/.claude/skills/auto-fix/SKILL.md,
+  but you haven't granted it yet." That refusal is host behavior for .claude/**
+  and is independent of the guard; run3b shows the same stub lets the edit land
+  when only the hook could block.
+run7 note: confirms V2/V7 on this version. A guard registered without the
+  wrapper fails closed on a crash; the canonical line is what keeps it open.
+verdict: PASS. Both normal runs (alone and next to a user hook returning
+  allow) refused the edit with the spike reason and left SHA-256 unchanged in
+  both permission modes, and the exit-2 stub run let the edit land.
+notes for T6/T8: 2.1.289 offered the tools [Edit, Read, Write]; this version
+  has no MultiEdit tool (the matcher still matches Edit and Write). Payload
+  keys: session_id, transcript_path, cwd, prompt_id, permission_mode, effort,
+  hook_event_name, tool_name, tool_input{file_path (absolute), old_string,
+  new_string, replace_all}, tool_use_id.
+
+A2 - OpenCode - V2 host PASS, V1 host NOT-RUN
+---------------------------------------------
+V2 boundary: installed opencode v2.0.10 `serve` with isolated XDG dirs and a
+  loopback openai-compatible provider stub -> spike plugin
+  <R>/.opencode/plugins/spike-guard.js -> `auto guard edit --platform opencode`
+  spawned with the synthesized payload on stdin.
+native file-editing tools, read from the tools list the host sent the stub:
+  - model key without a GPT family name: `edit` {path, oldString, newString,
+    replaceAll} and `write` {path, content}
+  - GPT-family model key (gpt-5.4): `patch` {patchText} replaces edit and
+    write; it accepts *** Add/Update/Delete File and *** Move to headers
+  - no multiedit or apply_patch tool name was offered by 2.0.10; other tools:
+    shell, execute {code}, read, glob, grep, question, skill, subagent,
+    webfetch, websearch
+event shape: {tool, sessionID, agent, messageID, id, input}; the session
+  directory comes from ctx.session.get({sessionID}).location.directory; paths
+  in input are relative to it as the model sent them.
+runs (protected = .claude/skills/auto-fix/SKILL.md, policy always in the temp manifest):
+  edit protected ............................ rejected with Error(spike reason); bytes unchanged
+  write protected ........................... rejected; bytes unchanged
+  write pkg/foo.go .......................... created
+  patch pkg/a.go then protected ............. rejected; payload targets ["pkg/a.go",".claude/skills/auto-fix/SKILL.md"]; both files unchanged
+  patch move pkg/movable.go -> protected .... rejected; payload targets ["pkg/movable.go",".claude/skills/auto-fix/SKILL.md"]; both unchanged
+  patch pkg/a.go only ....................... applied
+  shell call ................................ shell-only hook fired and the command ran; file-editing calls ran no shell hook
+  synthesized payload in every guarded call: {"platform":"opencode","cwd":"<R>","tool_name":"<native tool>","targets":[...]}
+fail-open on a protected edit (each landed, plugin resolved):
+  deny bytes then exit 2 (code 2) | unrecovered panic (code 2, empty stdout) |
+  `auto` absent from PATH (spawn error) | version skew (code 1)
+V1: NOT-RUN. Only @opencode/cli 2.0.10 is installed; no OpenCode 1.x runtime
+  exists locally and installing one needs a network download, which is outside
+  "local CLIs only". The V1 plugin lane has no host evidence yet, so CD-1 stays
+  open for V1.
+verdict: V2 PASS against every A2 oracle item; V1 not-run.
+
+A3 - Codex CLI 0.160.0 - PASS
+-----------------------------
+boundary: real `codex exec --ephemeral --skip-git-repo-check
+  --dangerously-bypass-hook-trust` with CODEX_HOME=<temp> ([features] hooks =
+  true, provider base_url = loopback Responses mock, approval never,
+  workspace-write) -> <R>/.codex/hooks.json PreToolUse (no matcher) -> stub.
+tool surface: apply_patch is offered as a freeform custom tool only for a
+  model with bundled metadata (gpt-5.5 here). An unknown slug (gpt-5.4, fallback
+  metadata, even with --enable apply_patch_freeform) offers only exec_command,
+  a shell path that is out of scope (Bash writes are a non-goal).
+script: one apply_patch call that appends a line to notes.txt and moves
+  old.txt to moved/new.txt.
+runs:
+  log-only hook ..... hook stdin tool_name "apply_patch", tool_input.command =
+                      the full patch text naming notes.txt, old.txt, and the
+                      move destination moved/new.txt; the patch applied
+  JSON deny, exit 0 . {"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny",...}}
+                      blocked; tool output "Command blocked by PreToolUse hook:
+                      spike-deny: probe. Command: *** Begin Patch ..."; bytes unchanged
+  exit 2 + stderr ... blocked the same way; bytes unchanged
+  canonical wrapper . `out=$(auto guard edit --platform codex) && [ -n "$out" ] && printf '%s\n' "$out"; exit 0`
+                      around a panicking guard: the guard ran through a shell,
+                      the exit was masked, the patch applied (fail-open)
+verdict: PASS, so the Codex lane may be `enforced`. Caveats for T11 and T14:
+  normal use needs persisted hook trust (this probe bypassed it); exit 2 blocks
+  in Codex, so the exit-masking wrapper is required there too; targets come
+  from the patch headers in tool_input.command, move destinations included.
+
+Host-native payload fixtures (temp root replaced by <R>)
+--------------------------------------------------------
+[claude-code 2.1.289 PreToolUse Edit payload]
+{"session_id":"895acae0-282a-493e-83be-efd5777e8e7e","transcript_path":"<TRANSCRIPT>","cwd":"<R>","prompt_id":"72e91633-9ed9-493d-ad46-c9d145ca050a","permission_mode":"acceptEdits","effort":{"level":"medium"},"hook_event_name":"PreToolUse","tool_name":"Edit","tool_input":{"file_path":"<R>/.claude/skills/auto-fix/SKILL.md","old_string":"original line","new_string":"tampered line","replace_all":false},"tool_use_id":"toolu_mock_1"}
+[opencode 2.0.10 execute.before events]
+{"tool":"edit","event":{"tool":"edit","sessionID":"ses_eecd05368ffeT8Mso7jK69m35h","agent":"build","messageID":"msg_1132faefa001OZRSiMQ6sThWUJ","id":"call_edit-protected_0","input":{"path":".claude/skills/auto-fix/SKILL.md","oldString":"original line","newString":"tampered line"}},"session_directory":"<R>"}
+{"tool":"write","event":{"tool":"write","sessionID":"ses_eecd050c0ffewEDNh3TnqEFQ94","agent":"build","messageID":"msg_1132faf4f0017pEd57Gt71gXfA","id":"call_write-protected_0","input":{"path":".claude/skills/auto-fix/SKILL.md","content":"overwritten\n"}},"session_directory":"<R>"}
+{"tool":"write","event":{"tool":"write","sessionID":"ses_eecd05080ffedBDoQH6NTqzD4F","agent":"build","messageID":"msg_1132faf8f001bJSrkjlzgzxS4z","id":"call_write-allowed_0","input":{"path":"pkg/foo.go","content":"package pkg\n\nfunc Foo() {}\n"}},"session_directory":"<R>"}
+{"tool":"shell","event":{"tool":"shell","sessionID":"ses_eecd04efcffeuIUmonWVlLWCE2","agent":"build","messageID":"msg_1132fb112001IRA6gRSYGPG2Jb","id":"call_shell-call_0","input":{"command":"printf shell-ran > shell-ran.txt","timeout":3000}},"session_directory":"<R>"}
+{"tool":"patch","event":{"tool":"patch","sessionID":"ses_eecd002a4ffeCb95uZ8S4PI0u6","agent":"build","messageID":"msg_1133008f7001jfPVj5ezb9okhs","id":"call_patch-two-files_0","input":{"patchText":"*** Begin Patch\n*** Update File: pkg/a.go\n@@\n-package pkg\n+package pkg // patched\n*** Update File: .claude/skills/auto-fix/SKILL.md\n@@\n-original line\n+tampered line\n*** End Patch"}},"session_directory":"<R>"}
+{"tool":"patch","event":{"tool":"patch","sessionID":"ses_eeccff6cfffeuQo6AMdDH2VkPo","agent":"build","messageID":"msg_113300940001PHqWhXmeUFTqNF","id":"call_patch-move-onto-protected_0","input":{"patchText":"*** Begin Patch\n*** Update File: pkg/movable.go\n*** Move to: .claude/skills/auto-fix/SKILL.md\n@@\n-package pkg // movable\n+package pkg // moved\n*** End Patch"}},"session_directory":"<R>"}
+{"tool":"patch","event":{"tool":"patch","sessionID":"ses_eeccff68fffe12QC6Ih9g8iYC2","agent":"build","messageID":"msg_11330097e001T7Vwb6gC9E1K4S","id":"call_patch-allowed_0","input":{"patchText":"*** Begin Patch\n*** Update File: pkg/a.go\n@@\n-package pkg\n+package pkg // patched\n*** End Patch"}},"session_directory":"<R>"}
+{"tool":"shell","event":{"tool":"shell","sessionID":"ses_eeccff658ffewDwJQ2DEMUJhm2","agent":"build","messageID":"msg_1133009b5001S8Io5nSyYtWJgE","id":"call_shell-call_0","input":{"command":"printf shell-ran > shell-ran.txt","timeout":3000}},"session_directory":"<R>"}
+[codex-cli 0.160.0 PreToolUse apply_patch payload]
+{"session_id":"01a11333-7903-7241-9d13-72125fc6f7b2","turn_id":"01a11333-79bd-7a13-a77f-5a3fee364a33","transcript_path":null,"cwd":"<R>","hook_event_name":"PreToolUse","model":"gpt-5.5","permission_mode":"bypassPermissions","tool_name":"apply_patch","tool_input":{"command":"*** Begin Patch\n*** Update File: notes.txt\n@@\n line one\n+appended line\n*** Update File: old.txt\n*** Move to: moved/new.txt\n@@\n-old content\n+old content moved\n*** End Patch\n"},"tool_use_id":"call_probe_patch"}
