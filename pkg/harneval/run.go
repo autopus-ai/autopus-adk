@@ -26,6 +26,10 @@ type RunOptions struct {
 	Evaluate func(Task, *Generation) (TaskOutcome, bool)
 	// Now stamps produced_at; the default is time.Now.
 	Now func() time.Time
+	// Baseline loads the committed baseline; the default is LoadBaseline.
+	// `auto eval harness baseline --init` substitutes an empty baseline,
+	// since the first baseline comes from a run that has none to compare.
+	Baseline func(root string) (*Baseline, error)
 }
 
 func (o RunOptions) withDefaults() RunOptions {
@@ -42,6 +46,9 @@ func (o RunOptions) withDefaults() RunOptions {
 	}
 	if o.Now == nil {
 		o.Now = time.Now
+	}
+	if o.Baseline == nil {
+		o.Baseline = LoadBaseline
 	}
 	return o
 }
@@ -67,7 +74,7 @@ func run(ctx context.Context, root string, opts RunOptions) (*Result, error) {
 	if err != nil {
 		return loadFailure(err)
 	}
-	baseline, err := LoadBaseline(root)
+	baseline, err := opts.Baseline(root)
 	if err != nil {
 		return loadFailure(err)
 	}
