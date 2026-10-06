@@ -82,23 +82,41 @@ func clearProviderCredentialEnv(t *testing.T) {
 }
 
 // recordingReviewBackend is the fake model backend: reviewers return PASS,
-// the judge returns a PASS decision, and every request is recorded.
+// the judge returns a PASS decision, and every request is recorded. Like the
+// subprocess backend it records the launch of every CLI provider; the OMP
+// review backend records none.
 type recordingReviewBackend struct {
 	mu        sync.Mutex
 	requests  []orchestra.ProviderRequest
 	execution map[string]*orchestra.ProviderExecution
+	// replies scripts the answer to "<provider>/<role>".
+	replies map[string]recordedReviewReply
+}
+
+// recordedReviewReply is a scripted answer; a nil response with an error is a
+// provider that failed before any process started.
+type recordedReviewReply struct {
+	resp *orchestra.ProviderResponse
+	err  error
 }
 
 func (b *recordingReviewBackend) Execute(_ context.Context, req orchestra.ProviderRequest) (*orchestra.ProviderResponse, error) {
 	b.mu.Lock()
 	b.requests = append(b.requests, req)
 	b.mu.Unlock()
+	if reply, ok := b.replies[req.Provider+"/"+req.Role]; ok {
+		return reply.resp, reply.err
+	}
 	output := `{"verdict":"PASS","summary":"ok","findings":[]}`
 	if req.Role == "judge" {
 		output = `{"verdict":"PASS","findings":[],"rationale":"ok"}`
 	}
+	execution := b.execution[req.Provider]
+	if execution == nil && req.Config.Backend != config.ProviderBackendOMP {
+		execution = &orchestra.ProviderExecution{Command: append([]string{req.Config.Binary}, req.Config.Args...)}
+	}
 	return &orchestra.ProviderResponse{
-		Provider: req.Provider, Output: output, Duration: time.Millisecond, Execution: b.execution[req.Provider],
+		Provider: req.Provider, Output: output, Duration: time.Millisecond, Execution: execution,
 	}, nil
 }
 

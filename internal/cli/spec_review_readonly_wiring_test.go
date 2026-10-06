@@ -104,7 +104,7 @@ func TestRunSpecReview_RealSubprocessBackendExecutesProjectedArgv(t *testing.T) 
 	assert.Equal(t, []specReviewProviderPolicyRow{
 		{Provider: "claude", Role: "reviewer", SandboxMode: "read-only", Readiness: "unknown(probe_failed)"},
 		{Provider: "codex", Role: "reviewer", SandboxMode: "read-only", Readiness: "unknown(probe_failed)"},
-		{Provider: "gemini", Role: "reviewer", SandboxMode: "read-only", Readiness: "unknown(no_status_command)"},
+		{Provider: "gemini", Role: "reviewer", SandboxMode: "unverified", Readiness: "unknown(no_status_command)"},
 		{Provider: "claude", Role: "judge", SandboxMode: "read-only", Readiness: "unknown(probe_failed)"},
 	}, receipt.ProviderPolicy)
 }

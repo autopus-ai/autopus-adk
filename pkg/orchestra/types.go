@@ -69,7 +69,7 @@ type ProviderConfig struct {
 	StdinMode           string        // subprocess: prompt delivery — "pipe" (default) or "file"
 	OutputFormat        string        // subprocess: expected output — "json" (default) or "text"
 	WorkDir             string        // subprocess: process working directory; empty inherits the orchestrator cwd (resolved from OrchestraConfig.ProviderWorkDir)
-	SandboxMode         string        // policy-stamped sandbox mode recorded in receipts (read-only, workspace-write, unrestricted); empty infers from argv
+	SandboxMode         string        // policy-stamped sandbox mode recorded in receipts (read-only, unverified, workspace-write, unrestricted); empty infers from argv
 	// FastFailPatterns overrides the built-in provider fast-fail rules. When nil,
 	// DefaultFastFailRules() is used (behavior identical to the legacy hardcoded set).
 	FastFailPatterns []FastFailRule

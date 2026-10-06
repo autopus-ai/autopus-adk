@@ -1,3 +1,129 @@
 {
-  "cd5_capture_pending": "PLACEHOLDER, not a capture (SPEC-REVIEWRO-001 CD-5). With operator consent, replace this whole file with one real `omp usage --json --redact` output from a setup that has a disabled or expired account. Keep the key structure and every provider and reason value; replace account, email, and token values with placeholders such as a1b2. TestProbeProviderReadiness_OMPCapturedDisabledAccount_IsDetected runs once this key is gone."
+  "generatedAt": 0,
+  "reports": [
+    {
+      "provider": "openai-codex",
+      "fetchedAt": 0,
+      "limits": [
+        {
+          "id": "openai-codex:primary",
+          "status": "ok",
+          "amount": {
+            "usedFraction": 0.0,
+            "remainingFraction": 1.0,
+            "unit": "percent"
+          }
+        }
+      ],
+      "metadata": {
+        "allowed": true,
+        "limitReached": false,
+        "email": "<redacted>",
+        "accountId": "<redacted>"
+      }
+    },
+    {
+      "provider": "openai-codex",
+      "fetchedAt": 0,
+      "limits": [
+        {
+          "id": "openai-codex:primary",
+          "status": "ok",
+          "amount": {
+            "usedFraction": 0.0,
+            "remainingFraction": 1.0,
+            "unit": "percent"
+          }
+        }
+      ],
+      "metadata": {
+        "allowed": true,
+        "limitReached": false,
+        "email": "<redacted>",
+        "accountId": "<redacted>"
+      }
+    },
+    {
+      "provider": "google-antigravity",
+      "fetchedAt": 0,
+      "limits": [
+        {
+          "id": "google-antigravity:google:default:gemini-weekly",
+          "status": "ok",
+          "amount": {
+            "usedFraction": 0.0,
+            "remainingFraction": 1.0,
+            "unit": "percent"
+          }
+        }
+      ],
+      "metadata": {
+        "allowed": null,
+        "limitReached": null,
+        "email": "<redacted>",
+        "accountId": "<redacted>"
+      }
+    },
+    {
+      "provider": "anthropic",
+      "fetchedAt": 0,
+      "limits": [
+        {
+          "id": "anthropic:5h",
+          "status": "ok",
+          "amount": {
+            "usedFraction": 0.0,
+            "remainingFraction": 1.0,
+            "unit": "percent"
+          }
+        }
+      ],
+      "metadata": {
+        "allowed": null,
+        "limitReached": null,
+        "email": "<redacted>",
+        "accountId": "<redacted>"
+      }
+    }
+  ],
+  "accountsWithoutUsage": [],
+  "disabledCredentials": [
+    {
+      "id": 2,
+      "provider": "anthropic",
+      "type": "oauth",
+      "cause": "oauth refresh failed: OAuthError: anthropic token refresh failed: 400 {\"error\": \"invalid_grant\", \"error_description\": \"Refresh token expired\"}",
+      "email": "<redacted>",
+      "accountId": "<redacted>",
+      "orgId": "<redacted>",
+      "orgName": "<redacted>",
+      "disabledAtMs": 0
+    }
+  ],
+  "capacity": {
+    "openai-codex": [
+      {
+        "window": "7d",
+        "accounts": 1,
+        "usedAccounts": 0,
+        "remainingAccounts": 1
+      }
+    ],
+    "google-antigravity": [
+      {
+        "window": "5h",
+        "accounts": 1,
+        "usedAccounts": 0,
+        "remainingAccounts": 1
+      }
+    ],
+    "anthropic": [
+      {
+        "window": "5h",
+        "accounts": 1,
+        "usedAccounts": 0,
+        "remainingAccounts": 1
+      }
+    ]
+  }
 }

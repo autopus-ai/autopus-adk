@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"slices"
 	"sync"
+	"time"
 )
 
 const (
@@ -41,8 +42,12 @@ var providerReadinessRunner = startProviderReadinessProcess
 
 var errReadinessProbeNotAllowlisted = errors.New("provider readiness probe is not allowlisted")
 
+// readinessProbeWaitDelay bounds how long Wait lingers after cancellation for
+// a probe that survived the kill, keeping a timed-out probe within 5.5 s.
+const readinessProbeWaitDelay = 250 * time.Millisecond
+
 // startProviderReadinessProcess execs one Readiness Contract argv directly,
-// never through a shell; ctx cancellation kills the process.
+// never through a shell; ctx cancellation kills the probe's process group.
 func startProviderReadinessProcess(ctx context.Context, command providerReadinessCommand) (providerReadinessProcess, error) {
 	if err := checkProviderReadinessCommand(command); err != nil {
 		return providerReadinessProcess{}, err
@@ -50,6 +55,8 @@ func startProviderReadinessProcess(ctx context.Context, command providerReadines
 	cmd := exec.CommandContext(ctx, command.Argv[0], command.Argv[1:]...)
 	cmd.Env = command.Env
 	cmd.Dir = command.Dir
+	killReadinessProcessGroupOnCancel(cmd)
+	cmd.WaitDelay = readinessProbeWaitDelay
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return providerReadinessProcess{}, err

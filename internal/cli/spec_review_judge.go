@@ -171,6 +171,9 @@ func failStructuredSpecReviewJudge(
 		failure.TimedOut = response.TimedOut
 		failure.StderrPreview = truncateStructuredReviewError(response.Error, 240)
 		failure.OutputPreview = truncateStructuredReviewError(response.Output, 240)
+		// The receipt judges the sandbox from this recorded launch; a judge
+		// that ended before Execute (schema or prompt error) records none.
+		failure.Execution = response.Execution
 	}
 	if failureClass == "timeout" {
 		failure.TimedOut = true

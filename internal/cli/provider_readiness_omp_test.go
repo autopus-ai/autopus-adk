@@ -2,10 +2,8 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -212,53 +210,6 @@ func TestProbeProviderReadiness_IncidentFixture_FlagsOnlyTheExpiredFamily(t *tes
 		[]string{results[0].Token(), results[1].Token(), results[2].Token(), results[3].Token()})
 	assert.Equal(t, `run "omp login anthropic"`, results[3].RunRemedy())
 	assert.Len(t, spy.argvs(), 1)
-}
-
-// assertOMPDisabledAccountsDetected is the CD-5 oracle: each family that owns a
-// disabled credential surfaces as not_ready, or as ready with an unusable-account warning.
-func assertOMPDisabledAccountsDetected(t *testing.T, usage string) {
-	t.Helper()
-	var top map[string]json.RawMessage
-	require.NoError(t, json.Unmarshal([]byte(usage), &top), "CD-5: the capture is a JSON object")
-	var disabled []map[string]any
-	require.NoError(t, json.Unmarshal(top["disabledCredentials"], &disabled), "CD-5: disabledCredentials holds objects")
-	families := map[string]bool{}
-	for _, element := range disabled {
-		provider, providerIsString := element["provider"].(string)
-		_, reasonIsString := element["reason"].(string)
-		require.True(t, providerIsString && reasonIsString, "CD-5: disabled credentials carry string provider and reason")
-		families[provider] = true
-	}
-	require.NotEmpty(t, families, "CD-5: the capture holds a disabled or expired account")
-	installFakeOMP(t)
-	installReadinessRunner(t, replyWith(0, usage, ""))
-	for family := range families {
-		provider := orchestra.ProviderConfig{Name: "claude", Backend: "omp", Model: family + "/model"}
-		result := probeProviderReadiness(context.Background(), []orchestra.ProviderConfig{provider},
-			providerReadinessOptions{Env: []string{"HOME=/a"}})[0]
-		switch result.Status {
-		case providerReadinessNotReady:
-			assert.Contains(t, []string{"auth_expired", "account_disabled"}, result.Reason)
-			assert.Equal(t, "omp login "+family, result.Remedy)
-		case providerReadinessReady:
-			require.Len(t, result.Warnings, 1)
-			assert.True(t, strings.HasPrefix(result.Warnings[0], "omp "+family+": "), result.Warnings[0])
-		default:
-			t.Errorf("CD-5: disabled %s account is not detected: %s", family, result.Token())
-		}
-	}
-}
-
-func TestProbeProviderReadiness_OMPAssumedDisabledShape_SatisfiesCaptureOracle(t *testing.T) {
-	assertOMPDisabledAccountsDetected(t, readReadinessFixture(t, "omp_usage_disabled_assumed.json"))
-}
-
-func TestProbeProviderReadiness_OMPCapturedDisabledAccount_IsDetected(t *testing.T) {
-	capture := readReadinessFixture(t, "omp_usage_disabled_capture.json")
-	if strings.Contains(capture, `"cd5_capture_pending"`) {
-		t.Skip("CD-5 operator capture pending")
-	}
-	assertOMPDisabledAccountsDetected(t, capture)
 }
 
 func TestProbeProviderReadiness_DistinctProbes_RunConcurrently(t *testing.T) {

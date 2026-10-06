@@ -2,6 +2,7 @@ package cli
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -147,4 +148,54 @@ func TestReadOnlyProviderPolicy_SchemaFlagViolationText(t *testing.T) {
 	}}, readOnlyPolicyOptions{})
 	require.Error(t, err)
 	assert.Equal(t, `read-only provider policy: provider "gemini" has unsupported schema flag "--json-schema"`, err.Error())
+}
+
+// Security L3 (CWE-532): config argv may carry credentials, so a violation
+// quotes argv items and values redacted, then cut at 64 runes, both in the
+// shared policy text and in the spec review Error Contract.
+func TestReadOnlyProviderPolicy_ViolationRedactsAndCapsConfigArgv(t *testing.T) {
+	t.Parallel()
+
+	long := "--" + strings.Repeat("x", 80)
+	tests := []struct {
+		name     string
+		provider orchestra.ProviderConfig
+		policy   string
+		contract string
+	}{
+		{
+			name:     "token in an unsupported argv item",
+			provider: orchestra.ProviderConfig{Name: "claude", Binary: "claude", Args: []string{"--print", "--api-key=sk-ant-oat01-abc123"}},
+			policy:   `read-only provider policy: provider "claude" contains unsupported argv "--api-key=[REDACTED]"`,
+			contract: `spec review: provider "claude" rejected by the read-only policy: contains unsupported argv "--api-key=[REDACTED]" (config key: orchestra.providers.claude.args; remedy: remove "--api-key=[REDACTED]" from orchestra.providers.claude.args)`,
+		},
+		{
+			name:     "email in an unsafe value",
+			provider: orchestra.ProviderConfig{Name: "codex", Binary: "codex", Args: []string{"exec", "-c", "account=dev@example.com"}},
+			policy:   `read-only provider policy: provider "codex" contains unsafe value for "-c"`,
+			contract: `spec review: provider "codex" rejected by the read-only policy: contains unsafe value for "-c" (config key: orchestra.providers.codex.args; remedy: remove "-c account=[REDACTED]" from orchestra.providers.codex.args)`,
+		},
+		{
+			name:     "token in a schema flag",
+			provider: orchestra.ProviderConfig{Name: "gemini", Binary: "agy", Args: []string{"--print", ""}, SchemaFlag: "--key=sk-proj-abc"},
+			policy:   `read-only provider policy: provider "gemini" has unsupported schema flag "--key=[REDACTED]"`,
+			contract: `spec review: provider "gemini" rejected by the read-only policy: unsupported schema flag "--key=[REDACTED]" (config key: orchestra.providers.gemini.subprocess.schema_flag; remedy: remove orchestra.providers.gemini.subprocess.schema_flag)`,
+		},
+		{
+			name:     "long argv item is cut",
+			provider: orchestra.ProviderConfig{Name: "claude", Binary: "claude", Args: []string{"--print", long}},
+			policy:   `read-only provider policy: provider "claude" contains unsupported argv "` + long[:64] + `"`,
+			contract: `spec review: provider "claude" rejected by the read-only policy: contains unsupported argv "` + long[:64] +
+				`" (config key: orchestra.providers.claude.args; remedy: remove "` + long[:64] + `" from orchestra.providers.claude.args)`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := applyReadOnlyProviderPolicy([]orchestra.ProviderConfig{tt.provider}, readOnlyPolicyOptions{})
+			require.Error(t, err)
+			assert.Equal(t, tt.policy, err.Error())
+			assert.Equal(t, tt.contract, specReviewPolicyError(err, specReviewSourceGateProviders).Error())
+		})
+	}
 }

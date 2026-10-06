@@ -55,6 +55,8 @@ func (v *readOnlyPolicyViolation) Error() string {
 }
 
 // Reason renders why the provider was rejected, without the policy prefix.
+// Provider and native binary names are quoted as is; config argv items go
+// through readOnlyViolationArgv.
 func (v *readOnlyPolicyViolation) Reason() string {
 	switch v.Kind {
 	case readOnlyUnsupportedProvider:
@@ -62,14 +64,29 @@ func (v *readOnlyPolicyViolation) Reason() string {
 	case readOnlyNativeBinary:
 		return fmt.Sprintf("requires native binary %q", v.Item)
 	case readOnlyUnsafeArgv:
-		return fmt.Sprintf("contains unsafe argv %q", v.Item)
+		return fmt.Sprintf("contains unsafe argv %q", readOnlyViolationArgv(v.Item))
 	case readOnlyIncompleteArgv:
-		return fmt.Sprintf("has incomplete argv %q", v.Item)
+		return fmt.Sprintf("has incomplete argv %q", readOnlyViolationArgv(v.Item))
 	case readOnlyUnsafeValue:
-		return fmt.Sprintf("contains unsafe value for %q", v.Item)
+		return fmt.Sprintf("contains unsafe value for %q", readOnlyViolationArgv(v.Item))
 	case readOnlyUnsupportedSchemaFlag:
-		return fmt.Sprintf("unsupported schema flag %q", v.Item)
+		return fmt.Sprintf("unsupported schema flag %q", readOnlyViolationArgv(v.Item))
 	default:
-		return fmt.Sprintf("contains unsupported argv %q", v.Item)
+		return fmt.Sprintf("contains unsupported argv %q", readOnlyViolationArgv(v.Item))
 	}
+}
+
+// readOnlyViolationArgvRunes bounds a config argv item or value quoted in a
+// violation message.
+const readOnlyViolationArgvRunes = 64
+
+// readOnlyViolationArgv renders a config argv item or value for stderr and
+// doctor output. Config argv may carry credentials (CWE-532), so it is
+// redacted first, which keeps a token whole for its pattern, and then cut.
+func readOnlyViolationArgv(text string) string {
+	runes := []rune(redactReadinessText(text))
+	if len(runes) > readOnlyViolationArgvRunes {
+		runes = runes[:readOnlyViolationArgvRunes]
+	}
+	return string(runes)
 }

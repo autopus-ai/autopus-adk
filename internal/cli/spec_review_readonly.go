@@ -20,9 +20,6 @@ const (
 	specReviewSourceGateJudge     = "spec.review_gate.judge"
 )
 
-// specReviewRemedyValueRunes bounds a rejected value quoted in a remedy.
-const specReviewRemedyValueRunes = 64
-
 // specReviewProviderRequest carries the inputs of the read-only reviewer assembly.
 type specReviewProviderRequest struct {
 	Config *config.HarnessConfig
@@ -85,7 +82,22 @@ func assembleSpecReviewProviders(ctx context.Context, req specReviewProviderRequ
 	if err != nil {
 		return specReviewProviderSet{}, specReviewPolicyError(err, "")
 	}
-	return specReviewProviderSet{Names: withoutExcludedNames(names, excluded), Providers: projected, Excluded: excluded}, nil
+	return specReviewProviderSet{
+		Names: withoutExcludedNames(names, excluded), Providers: stampSpecReviewSandboxEvidence(projected), Excluded: excluded,
+	}, nil
+}
+
+// stampSpecReviewSandboxEvidence keeps the receipt from claiming more than the
+// evidence shows: agy's plan mode and sandbox flags have no live read-only
+// proof until RFP-3 passes, so a native agy provider is recorded unverified.
+// It is neither excluded nor degraded, so default reviews keep their quorum.
+func stampSpecReviewSandboxEvidence(providers []orchestra.ProviderConfig) []orchestra.ProviderConfig {
+	for index := range providers {
+		if providers[index].Binary == readOnlyNativeBinaries["gemini"] {
+			providers[index].SandboxMode = orchestra.SandboxModeUnverified
+		}
+	}
+	return providers
 }
 
 // assembleSpecReviewJudge returns the judge through the same gate and
@@ -124,7 +136,7 @@ func assembleSpecReviewJudge(
 	if err != nil {
 		return nil, specReviewPolicyError(err, specReviewSourceGateJudge)
 	}
-	return &projected[0], nil
+	return &stampSpecReviewSandboxEvidence(projected)[0], nil
 }
 
 // selectSpecReviewProviderNames returns the reviewer names and the explicit
@@ -183,23 +195,23 @@ func specReviewPolicyError(err error, source string) error {
 		violation.Provider, violation.Reason(), key, specReviewPolicyRemedy(violation, key))
 }
 
+// specReviewPolicyRemedy quotes config argv redacted and cut, like Reason.
 func specReviewPolicyRemedy(violation *readOnlyPolicyViolation, key string) string {
 	switch violation.Kind {
 	case readOnlyNativeBinary:
 		return fmt.Sprintf("set %s to %q", key, violation.Item)
 	case readOnlyUnsupportedSchemaFlag:
 		return "remove " + key
+	case readOnlyUnsupportedProvider:
+		return fmt.Sprintf("remove %q from %s", violation.Item, key)
 	case readOnlyUnsafeValue:
-		value := []rune(violation.Value)
-		if len(value) > specReviewRemedyValueRunes {
-			value = value[:specReviewRemedyValueRunes]
-		}
 		separator := " "
 		if violation.Inline {
 			separator = "="
 		}
-		return fmt.Sprintf("remove %q from %s", violation.Item+separator+string(value), key)
+		return fmt.Sprintf("remove %q from %s",
+			readOnlyViolationArgv(violation.Item)+separator+readOnlyViolationArgv(violation.Value), key)
 	default:
-		return fmt.Sprintf("remove %q from %s", violation.Item, key)
+		return fmt.Sprintf("remove %q from %s", readOnlyViolationArgv(violation.Item), key)
 	}
 }

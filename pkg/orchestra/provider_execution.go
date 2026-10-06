@@ -8,7 +8,10 @@ import (
 
 // Sandbox mode vocabulary recorded on provider execution evidence.
 const (
-	SandboxModeReadOnly       = "read-only"
+	SandboxModeReadOnly = "read-only"
+	// SandboxModeUnverified marks a read-only projection whose enforcement has
+	// no live evidence yet, so the receipt does not claim read-only.
+	SandboxModeUnverified     = "unverified"
 	SandboxModeWorkspaceWrite = "workspace-write"
 	SandboxModeUnrestricted   = "unrestricted"
 )
@@ -20,7 +23,7 @@ type ProviderExecution struct {
 	Command     []string  `json:"command"`                // argv including the binary
 	Cwd         string    `json:"cwd,omitempty"`          // effective process working directory
 	PID         int       `json:"pid,omitempty"`          // started process ID; 0 when the process never started
-	SandboxMode string    `json:"sandbox_mode,omitempty"` // read-only, workspace-write, or unrestricted
+	SandboxMode string    `json:"sandbox_mode,omitempty"` // read-only, unverified, workspace-write, or unrestricted
 	StartedAt   time.Time `json:"started_at"`
 	EndedAt     time.Time `json:"ended_at"`
 }

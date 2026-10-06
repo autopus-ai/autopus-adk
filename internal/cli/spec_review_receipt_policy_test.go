@@ -30,7 +30,7 @@ func TestRunSpecReview_ReceiptRecordsProviderPolicyRows(t *testing.T) {
 	assert.Equal(t, []specReviewProviderPolicyRow{
 		{Provider: "claude", Role: "reviewer", SandboxMode: "read-only", Readiness: "ready"},
 		{Provider: "codex", Role: "reviewer", SandboxMode: "read-only", Readiness: "ready"},
-		{Provider: "gemini", Role: "reviewer", SandboxMode: "read-only", Readiness: "unknown(no_status_command)"},
+		{Provider: "gemini", Role: "reviewer", SandboxMode: "unverified", Readiness: "unknown(no_status_command)"},
 		{Provider: "claude", Role: "judge", SandboxMode: "read-only", Readiness: "ready"},
 	}, readSpecReviewReceipt(t, fixture.specDir).ProviderPolicy)
 	raw, err := os.ReadFile(filepath.Join(fixture.specDir, "review-receipt.json"))
@@ -123,7 +123,7 @@ func TestRunSpecReview_ReceiptBypassInExecutedArgvBeatsReadOnlyStamp(t *testing.
 	}
 	assert.Equal(t, map[string]string{
 		"claude/reviewer": "unrestricted", "codex/reviewer": "read-only",
-		"gemini/reviewer": "read-only", "claude/judge": "unrestricted",
+		"gemini/reviewer": "unverified", "claude/judge": "unrestricted",
 	}, modes)
 }
 

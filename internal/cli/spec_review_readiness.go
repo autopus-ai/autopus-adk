@@ -230,9 +230,11 @@ func (entry specReviewReadinessEntry) policyRow(role string) specReviewProviderP
 	}
 }
 
-// executedSandboxMode judges a provider's sandbox from the argv it executed:
-// the command a backend recorded, else the configured argv the subprocess
-// path launches. A provider absent from the run never executed: no mode.
+// executedSandboxMode judges a provider's sandbox from the launch a backend
+// recorded. A provider absent from the run, or without a recorded launch
+// because it never started, claims no mode. Only the OMP review backend, which
+// records no process argv and is read-only by construction, falls back to the
+// projected config.
 func executedSandboxMode(provider orchestra.ProviderConfig, name string, result *orchestra.OrchestraResult) string {
 	if result == nil {
 		return ""
@@ -241,21 +243,28 @@ func executedSandboxMode(provider orchestra.ProviderConfig, name string, result 
 	for _, response := range result.Responses {
 		if response.Provider == name {
 			executed = true
-			if response.Execution != nil && len(response.Execution.Command) > 0 {
-				return orchestra.ProviderSandboxMode(provider, response.Execution.Command[1:])
+			if mode := recordedSandboxMode(provider, response.Execution); mode != "" {
+				return mode
 			}
 		}
 	}
 	for _, failed := range result.FailedProviders {
 		if failed.Name == name {
 			executed = true
-			if failed.Execution != nil && len(failed.Execution.Command) > 0 {
-				return orchestra.ProviderSandboxMode(provider, failed.Execution.Command[1:])
+			if mode := recordedSandboxMode(provider, failed.Execution); mode != "" {
+				return mode
 			}
 		}
 	}
-	if !executed {
+	if !executed || provider.Backend != config.ProviderBackendOMP {
 		return ""
 	}
 	return orchestra.ProviderSandboxMode(provider, provider.Args)
+}
+
+func recordedSandboxMode(provider orchestra.ProviderConfig, execution *orchestra.ProviderExecution) string {
+	if execution == nil || len(execution.Command) == 0 {
+		return ""
+	}
+	return orchestra.ProviderSandboxMode(provider, execution.Command[1:])
 }

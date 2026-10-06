@@ -103,3 +103,54 @@ func TestRunProviderTransportSmoke_PolicyViolationFailsWithoutExecution(t *testi
 	require.NoError(t, err)
 	assert.Empty(t, recorded)
 }
+
+// sandboxModeRecorder keeps the sandbox mode each real launch recorded.
+type sandboxModeRecorder struct {
+	routed orchestra.ExecutionBackend
+	modes  map[string]string
+}
+
+func (r sandboxModeRecorder) Execute(ctx context.Context, req orchestra.ProviderRequest) (*orchestra.ProviderResponse, error) {
+	resp, err := r.routed.Execute(ctx, req)
+	if resp != nil && resp.Execution != nil {
+		r.modes[req.Provider] = resp.Execution.SandboxMode
+	}
+	return resp, err
+}
+
+func (r sandboxModeRecorder) Name() string { return r.routed.Name() }
+
+// Security M1: the smoke's agy launch is recorded unverified, not read-only,
+// until RFP-3 gives live evidence for the agy plan and sandbox flags.
+func TestRunProviderTransportSmoke_RecordsAgyLaunchUnverified(t *testing.T) {
+	installReadOnlyArgvRecorders(t, "claude", "codex", "agy")
+	countCodexCatalogProbes(t)
+	modes := map[string]string{}
+	original := providerSmokeBackendFactory
+	providerSmokeBackendFactory = func(runCfg orchestra.OrchestraConfig) orchestra.ExecutionBackend {
+		return sandboxModeRecorder{routed: original(runCfg), modes: modes}
+	}
+	t.Cleanup(func() { providerSmokeBackendFactory = original })
+
+	runProviderTransportSmoke(context.Background(), smokeReviewGateConfig(), 10*time.Second)
+
+	assert.Equal(t, map[string]string{"claude": "read-only", "codex": "read-only", "gemini": "unverified"}, modes)
+}
+
+// Security L3 (CWE-532): a credential in a rejected argv item reaches the
+// doctor report only redacted.
+func TestCollectProviderTransportSmokeChecks_RedactsRejectedArgv(t *testing.T) {
+	installReadOnlyArgvRecorders(t, "claude", "codex", "agy")
+	cfg := smokeReviewGateConfig()
+	editProvider(cfg, "claude", func(e *config.ProviderEntry) { e.Args = []string{"--print", "--api-key=sk-ant-oat01-abc123"} })
+
+	report := doctorJSONReport{status: jsonStatusOK}
+	report.collectProviderTransportSmokeChecks(cfg, doctorOptions{providerSmoke: true, providerSmokeTimeout: time.Second})
+
+	require.Len(t, report.checks, 1)
+	assert.Equal(t, `spec review: provider "claude" rejected by the read-only policy: contains unsupported argv "--api-key=[REDACTED]" `+
+		`(config key: orchestra.providers.claude.args; remedy: remove "--api-key=[REDACTED]" from orchestra.providers.claude.args)`,
+		report.checks[0].Detail)
+	require.Len(t, report.warnings, 1)
+	assert.NotContains(t, report.warnings[0].Message, "sk-ant-")
+}

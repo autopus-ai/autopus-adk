@@ -154,6 +154,10 @@ func malformedStructuredOutcome(provider string, err error, sourceResp *orchestr
 		}
 		failed.StderrPreview = truncateStructuredReviewError(sourceResp.Error, 240)
 		failed.OutputPreview = truncateStructuredReviewError(sourceResp.Output, 240)
+		// The receipt judges the sandbox from the recorded launch; a provider
+		// that never started has none and claims no sandbox.
+		response.Execution = sourceResp.Execution
+		failed.Execution = sourceResp.Execution
 	}
 	// The receipt projects FailedProvider over the response for a failed
 	// reviewer, so the observed backend must travel on both.

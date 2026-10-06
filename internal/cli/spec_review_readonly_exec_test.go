@@ -51,8 +51,9 @@ func TestAssembleSpecReviewProviders_ExecutesProjectedArgvPlusRuntimeItems(t *te
 	require.Equal(t, []string{"claude", "codex", "gemini"}, providerConfigNames(set.Providers))
 	assert.Equal(t, []string{"claude", "codex", "gemini"}, set.Names)
 	assert.Empty(t, set.Excluded)
+	assert.Equal(t, map[string]string{"claude": "read-only", "codex": "read-only", "gemini": "unverified"},
+		sandboxModesByName(set.Providers))
 	for _, provider := range set.Providers {
-		assert.Equal(t, orchestra.SandboxModeReadOnly, provider.SandboxMode, provider.Name)
 		assert.Equal(t, 30*time.Second, provider.ExecutionTimeout, provider.Name)
 		assert.Contains(t, provider.ResultReadyPatterns, "VERDICT:", provider.Name)
 	}
@@ -126,7 +127,7 @@ func TestAssembleSpecReviewProviders_OMPProviderKeepsReviewBackendPath(t *testin
 }
 
 // Without a harness config the built-in provider registry is gated and
-// projected the same way, as buildReviewProvidersWithConfig resolves it.
+// projected the same way, as resolveSpecReviewProviderConfigs resolves it.
 func TestAssembleSpecReviewProviders_WithoutConfigProjectsBuiltInProviders(t *testing.T) {
 	installReadOnlyArgvRecorders(t, "claude")
 

@@ -195,6 +195,24 @@ func TestAssembleSpecReviewProviders_DiscoveredWrapperIsExcluded(t *testing.T) {
 	assert.NoFileExists(t, filepath.Join(wrappers, "executed"))
 }
 
+// Security L3 (CWE-532): the exclusion warning of a discovered provider
+// quotes the rejected argv redacted, so a credential never reaches stderr.
+func TestAssembleSpecReviewProviders_DiscoveredExclusionWarningRedactsArgv(t *testing.T) {
+	installReadOnlyArgvRecorders(t, "claude", "codex")
+	countCodexCatalogProbes(t)
+	cfg := fDefaultSpecReviewConfig()
+	cfg.Spec.ReviewGate.Providers = []string{"claude", "codex"}
+	editProvider(cfg, "gemini", func(e *config.ProviderEntry) { e.Args = []string{"--print", "", "--api-key=sk-ant-oat01-abc123"} })
+
+	var warnings bytes.Buffer
+	set, err := assembleSpecReviewProviders(context.Background(), specReviewProviderRequest{Config: cfg, Multi: true, Warnings: &warnings})
+
+	require.NoError(t, err)
+	assert.Equal(t, []specReviewExclusion{{Provider: "gemini", Reason: `contains unsupported argv "--api-key=[REDACTED]"`}}, set.Excluded)
+	assert.Equal(t, "spec review: excluding discovered provider \"gemini\": contains unsupported argv \"--api-key=[REDACTED]\"\n",
+		warnings.String())
+}
+
 // The Error Contract cuts a rejected value at 64 runes in the remedy and
 // keeps the inline spelling of an inline value.
 func TestSpecReviewPolicyError_RemedyCutsLongValues(t *testing.T) {

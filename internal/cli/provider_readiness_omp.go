@@ -108,11 +108,16 @@ func ompFamilyElements(elements []json.RawMessage, family string) []map[string]j
 	return matched
 }
 
-// ompDisabledState is auth_expired only when every reason mentions expiry.
+// ompDisabledState is auth_expired only when every disabled credential's
+// failure text mentions expiry. omp names that text "cause" (CD-5 capture);
+// "reason" is read only when no string cause is present.
 func ompDisabledState(disabled []map[string]json.RawMessage) string {
 	for _, fields := range disabled {
-		reason, _ := readinessJSONString(fields["reason"])
-		if !strings.Contains(strings.ToLower(reason), "expired") {
+		cause, ok := readinessJSONString(fields["cause"])
+		if !ok {
+			cause, _ = readinessJSONString(fields["reason"])
+		}
+		if !strings.Contains(strings.ToLower(cause), "expired") {
 			return "account_disabled"
 		}
 	}

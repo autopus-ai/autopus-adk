@@ -104,3 +104,16 @@ func TestSubprocessBackend_RecordedSandboxModeReadsExecutedArgv(t *testing.T) {
 	assert.Contains(t, bypassed.Command, "--permission-mode=bypassPermissions")
 	assert.Equal(t, SandboxModeUnrestricted, bypassed.SandboxMode, "a bypass in a runtime item must not keep the read-only stamp")
 }
+
+// SPEC-REVIEWRO-001 M1: agy's read-only flags have no live evidence until
+// RFP-3 passes, so an unverified stamp survives the projected agy argv and a
+// bypass in the executed argv still beats it.
+func TestProviderSandboxMode_UnverifiedStampIsKeptUnlessBypassed(t *testing.T) {
+	t.Parallel()
+
+	stamped := ProviderConfig{Name: "gemini", Binary: "agy", SandboxMode: SandboxModeUnverified}
+	projected := []string{"--print", "Review SPEC-X", "--mode", "plan", "--sandbox", "--disable-slash-commands"}
+
+	assert.Equal(t, "unverified", ProviderSandboxMode(stamped, projected))
+	assert.Equal(t, SandboxModeUnrestricted, ProviderSandboxMode(stamped, append(projected, "--yolo")))
+}

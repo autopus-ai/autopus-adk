@@ -54,7 +54,7 @@ func TestRunSpecReview_NotReadyReviewerIsExcludedAndDegradesPromotion(t *testing
 			assert.Equal(t, []specReviewProviderPolicyRow{
 				{Provider: "claude", Role: "reviewer", SandboxMode: "read-only", Readiness: "ready"},
 				{Provider: "codex", Role: "reviewer", Readiness: "not_ready(logged_out)", Excluded: true},
-				{Provider: "gemini", Role: "reviewer", SandboxMode: "read-only", Readiness: "unknown(no_status_command)"},
+				{Provider: "gemini", Role: "reviewer", SandboxMode: "unverified", Readiness: "unknown(no_status_command)"},
 				{Provider: "claude", Role: "judge", SandboxMode: "read-only", Readiness: "ready"},
 			}, receipt.ProviderPolicy)
 			doc, err := spec.Load(fixture.specDir)
