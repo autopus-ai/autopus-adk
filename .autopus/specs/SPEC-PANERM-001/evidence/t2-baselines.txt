@@ -155,5 +155,30 @@ retained non-test files: 80; physical lines: 9249
 S15 bound: spec.md states 9,945 (17,945 at 16b50216 minus 8,000). At 60f92ea5 the same rule gives 9,981. The
 retained non-test lines after deleting group P alone are 9,249, so either bound is reachable.
 
-## Not recorded in W0 (remaining T2 items)
-touched-package coverage (PRD Q7), the S16 goldens, and the answers to PRD Q4, Q5, Q8, Q9.
+## Touched-package coverage at 214acc09 (PRD Q7; 2026-10-06T23:04Z-23:26Z)
+One package at a time, `go test -count=1 -timeout 40m -coverprofile=...`; CODEX_HOME pointed at an empty scratch dir
+(the host catalog lacks gpt-6-astra), every other variable from the host. internal/cli ran from a `go test -c -cover`
+binary built while the package held only 214acc09's files. Every run: exit 0, 0 failing tests.
+./pkg/orchestra             91.4%   (270s)
+./pkg/config                92.4%
+./pkg/content               93.2%
+./pkg/adapter               83.5%   below 85%
+./pkg/adapter/antigravity   87.1%
+./pkg/adapter/claude        88.7%
+./pkg/adapter/codex         90.4%
+./pkg/adapter/omp           88.5%
+./pkg/adapter/opencode      88.4%
+./internal/cli              83.2%   below 85% (10m15s)
+
+## S16 goldens
+internal/cli/testdata/panerm_s16/{brainstorm,plan,review,secure,run,recheck}.json (--format json stdout),
+spec-review-receipt.json, spec-review-provider-health.md, written by AUTOPUS_PANERM_S16_CAPTURE=1 at 214acc09 from
+internal/cli/panerm_output_parity_test.go (fake claude/codex/agy first on PATH=/usr/bin:/bin, scratch HOME and
+CODEX_HOME, AUTOPUS_PLATFORM=panerm-golden so no host agent becomes the invoking provider). Volatile fields replaced:
+run_id, started_at, ended_at, finished_at, generated_at, created_at, timestamp, pid, duration_ms, run ids
+(run-<ms>-<hex>, orch-<hex32>), the scratch roots (<root>, <home>, <tmpdir>), and the random suffixes of
+codex-last-message-*, schema-*-*, autopus-brainstorm-*. `go test -count=3` reproduces them byte for byte.
+
+## Q8 probe (content/hooks; AUTOPUS_SESSION_ID unset, and set with a missing session dir; env -i, scratch HOME)
+All 7 .sh: exit 0, stderr 0 bytes, 0 new files; stdout empty except hook-gemini-stop.sh: {"decision":"stop"}.
+The fixture copies under internal/cli/testdata/stale_hooks are byte-identical to content/hooks at 214acc09.
