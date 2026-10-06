@@ -1,0 +1,159 @@
+# T2 baselines at B = 60f92ea5 (SPEC-PANERM-001), go1.27.0 darwin/arm64
+
+## go test -race -count=1 -timeout 60m ./...  (2026-10-06T22:30:19Z-22:54:14Z, exit 1, 0 timeouts)
+Run 1 with the default 10m timeout timed out in internal/cli, internal/companionmanifest, and pkg/adapter/omp under
+host load (an RFP-1 run and deadcode shared the CPU), so it is not a usable failure set; run 2 is the baseline.
+Host cause of most failures: CODEX_HOME points at a Codex catalog without gpt-6-astra, so codex template rendering
+fails ("Codex 카탈로그가 관리형 native balanced 프로필을 지원하지 않음: gpt-6-astra/max"). This drives the pkg/adapter
+and pkg/adapter/codex failures and the TestUpdateCmd_* / TestPlatform* failures the PRD names.
+Failure set: 111 top-level tests in 6 packages; every later wave's failure set must be a subset.
+# FAIL . (1 top-level tests)
+# FAIL ./internal/cli (40 top-level tests)
+# FAIL ./pkg/adapter (26 top-level tests)
+# FAIL ./pkg/adapter/codex (40 top-level tests)
+# FAIL ./pkg/agentprobe (1 top-level tests)
+# FAIL ./pkg/detect (3 top-level tests)
+. TestPOSIXInstallerSnapshotFailureKeepsLaunchPayloadInCleanup
+./internal/cli TestOMPReviewBackend_ClassifiesFailures
+./internal/cli TestInitCmd_CodexPlatform
+./internal/cli TestPlatformAddOpenCodeOwnerFailureRollsBackBothPlatforms
+./internal/cli TestUpdateCmd_MigratesCodexPromptViaArgs
+./internal/cli TestUpdateCmd_AddsCodexToOrchestraCommands
+./internal/cli TestPlatformAddCodex_UpdatesOrchestraProviders
+./internal/cli TestPlatformRemoveCodexRefreshesOpenCodeOnlySurface
+./internal/cli TestUpdateCmd_PlanShowsDesignBackfillWithoutWriting
+./internal/cli TestPlatformRemoveOpenCodeRegeneratesCodexOwnedAgents
+./internal/cli TestPlatformAddOpenCodeRelinquishesPreviousCodexRootClaim
+./internal/cli TestPlatformRemoveCmd_Codex
+./internal/cli TestUpdateCmd_PlanShowsLegacyConfigNormalizationWithoutWriting
+./internal/cli TestUpdateCmd_PlanShowsStatusLineKeepHint
+./internal/cli TestDoctorCmd_AllPlatforms
+./internal/cli TestPlatformRemoveCmd_ClaudeCode
+./internal/cli TestPlatformAddCodexRefreshesOpenCodeOwnedSharedSurface
+./internal/cli TestSaveConfigWithGenerationRollback_UnwindsCommittedPlatforms
+./internal/cli TestUpdateCmd_MultiplePlatformsOutput
+./internal/cli TestPlatformAddCmd
+./internal/cli TestUpdateCmd_PlanShowsSkipAndPreserveWithoutWriting
+./internal/cli TestUpdateCmd_CodexPlatform
+./internal/cli TestUpdateCmd_PreviewReportsGitignoreWithoutWriting
+./internal/cli TestUpdateCmd_AllPlatforms
+./internal/cli TestCommandsRequireExistingConfig
+./internal/cli TestUpdateCmd_UnknownPlatform
+./internal/cli TestUpdateCmd_WithDir
+./internal/cli TestInitCmd_MultiplePlatforms
+./internal/cli TestPlatformRemoveCmd
+./internal/cli TestUpdateCmd_GeminiPlatform
+./internal/cli TestUpdateCmd_BackfillsDesignContextForExistingHarness
+./internal/cli TestUpdateCmd_OpenCodePlatformIsUpdated
+./internal/cli TestUpdateCmd_StatusLineModeMergeCombinesExistingCommand
+./internal/cli TestUpdateCmd_DeliversPatternsAddedAfterInit
+./internal/cli TestUpdateCmd_YesFlag_AutoIsolatesParentRules
+./internal/cli TestUpdateCmd_TaskCreatedModeFlagOverridesGeneratedSettings
+./internal/cli TestUpdateCmd_LeavesSatisfiedGitignoreUntouched
+./internal/cli TestUpdateCmd_DoesNotCreateDesignWhenDisabled
+./internal/cli TestUpdateCmd_PreservesUserModifications
+./internal/cli TestUpdateCmd_PreservesUserGitignoreEntries
+./internal/cli TestUpdateCmd_UpdatesAfterInit
+./pkg/adapter TestContextEngineering_GeneratedSurfacesMatchCanonicalContract
+./pkg/adapter TestLatestCLIContract_MixedInstall
+./pkg/adapter TestGeneratedOrchestration_SemanticContractsMatch
+./pkg/adapter TestGeneratedOrchestration_UsesOnlyNativePlatformPrimitives
+./pkg/adapter TestAcceptance_S5_PlatformFrontmatterValues
+./pkg/adapter TestAcceptance_S6_ExistingPlatformsBackwardCompatible
+./pkg/adapter TestAcceptance_S9_ParityGateCoversOMP
+./pkg/adapter TestParityCoverage
+./pkg/adapter TestTaskTriageGeneratedRouterParity
+./pkg/adapter TestE2EMixedCodexOpencode_SharedFilesOwnedByOpencode
+./pkg/adapter TestE2EUpdateIdempotent
+./pkg/adapter TestE2EMixedCodexOpencode_CodexCleanPreservesSharedSurface
+./pkg/adapter TestE2EMixedCodexOpencode_CodexSkipsSharedSurfaceWrites
+./pkg/adapter TestE2EMixedCodexOpencode_CodexValidateSkipsSharedSurfaceChecks
+./pkg/adapter TestE2ECodex_FileCount
+./pkg/adapter TestE2EUpdatePreservation_Codex
+./pkg/adapter TestE2EClean_Codex
+./pkg/adapter TestE2EInitCodex
+./pkg/adapter TestWorkflowParity_NonClaudeHasNoWorkflowSurface
+./pkg/adapter TestGeneratedSurfaces_ReferenceOnlyInstalledPaths
+./pkg/adapter TestRootDoc_DiscoveryListsInstalledRoots
+./pkg/adapter TestGeneratedOrchestration_S18BehavioralBindings
+./pkg/adapter TestParity_CrossPlatformFeatures
+./pkg/adapter TestParity_RelocationConservesRuleCount
+./pkg/adapter TestNonClaudeAdaptersNeverEmitTeamWorkflow
+./pkg/adapter TestE2EInitMakeInterfacesFeelBetterSkill_AllPlatforms
+./pkg/adapter/codex TestCodexAdapter_Generate_TeamAndPipelineUseSharedWorkspace
+./pkg/adapter/codex TestCodexAdapter_Generate_PreservesUserContent
+./pkg/adapter/codex TestCodexAdapter_Validate_WarnsWhenProjectDocBudgetTooLow
+./pkg/adapter/codex TestCodexAdapter_WorkspacePolicyContextPropagates
+./pkg/adapter/codex TestCodexAdapter_ContextProfilesKeepRouterCoreAndDetailsScoped
+./pkg/adapter/codex TestCodexAdapter_Update
+./pkg/adapter/codex TestCodexAdapter_Generate_CreatesSkillsDirectory
+./pkg/adapter/codex TestCodexAdapter_Validate_ErrorsWhenNativeRouterContractMissing
+./pkg/adapter/codex TestCodexAdapter_Generate_FullMode
+./pkg/adapter/codex TestCodexAdapter_Generate_WorkflowSurfacesUseV2Conventions
+./pkg/adapter/codex TestCodexAndOpenCode_AGENTSMD_RemainsOpenCodeOwned
+./pkg/adapter/codex TestCodexAdapter_Clean
+./pkg/adapter/codex TestCodexAdapter_AgentPipelineIsAnEntrypointWithNativeSyntax
+./pkg/adapter/codex TestCodexAdapter_Generate_CreatesAgentMd
+./pkg/adapter/codex TestCodexAdapter_Update_DoesNotFabricateGitDirOutsideRepo
+./pkg/adapter/codex TestCodexAdapter_Validate_AllowsInheritedModelDefaults
+./pkg/adapter/codex TestCodexAdapter_Validate_ErrorsOnObsoleteMarkdownRule
+./pkg/adapter/codex TestCodexAdapter_Validate_AfterGenerate
+./pkg/adapter/codex TestCodexAdapter_AutoGoCarriesVerifiedRequiredContextContract
+./pkg/adapter/codex TestUpdate_WithManifest_WritesNewFiles
+./pkg/adapter/codex TestUpdate_UserModifiedFile_BackedUp
+./pkg/adapter/codex TestUpdate_WithManifestWriteFailureRollsBackExistingFiles
+./pkg/adapter/codex TestCodexAdapter_Generate_CreatesAgentsMD
+./pkg/adapter/codex TestGenerate_IgnoresObsoletePromptsBlocker
+./pkg/adapter/codex TestUpdate_LinkedWorktreeGitFileSkipsRootGitHooks
+./pkg/adapter/codex TestCodexAdapter_Validate_NoErrors
+./pkg/adapter/codex TestUpdate_RemovesLegacyRootCodexConfig
+./pkg/adapter/codex TestNativeSkillRoutingInAgentsMD
+./pkg/adapter/codex TestUpdate_PreservesUnmanagedPluginSkill
+./pkg/adapter/codex TestUpdate_RemovesDeprecatedPluginWorkflowShims
+./pkg/adapter/codex TestUpdate_DeletedManagedFile_PreservesManifestClaimAcrossUpdates
+./pkg/adapter/codex TestAdapter_Update_SplitCompilerPrunesRepoVisibleLongTailWhenMovingToPluginSurface
+./pkg/adapter/codex TestGenerateAndUpdate_PreserveTrailingCommentTableHeaders
+./pkg/adapter/codex TestAdapter_Update_SplitCompilerWritesCodexPluginSkillFrontmatter
+./pkg/adapter/codex TestUpdate_PreservesUserFilesInsidePruneRoots
+./pkg/adapter/codex TestUpdate_RemovesRetiredSurfaceWithoutManifest
+./pkg/adapter/codex TestUpdate_PreservesSharedSkillsOnFreshCloneWithOpenCodeConfigured
+./pkg/adapter/codex TestGenerate_IgnoresObsoleteRulesBlocker
+./pkg/adapter/codex TestUpdate_NoManifest_FallsBackToGenerate
+./pkg/adapter/codex TestCodexAdapter_CleanRemovesFiles
+./pkg/agentprobe TestCodexRPCBoundedSubprocessRoundTrip
+./pkg/detect TestDetectBinaryFastVersion
+./pkg/detect TestDetectPlatformsOMPRequiresOhMyPiVersionShape
+./pkg/detect TestProbeOMPIdentity_RequiresExactReleaseIdentity
+
+## deadcode -test ./...  (golang.org/x/tools v0.50.0 cmd/deadcode, rebuilt from the module cache into a scratch GOBIN)
+18 entries, 0 under pkg/orchestra/ or internal/cli/orchestra:
+pkg/memindex/context/context.go:8:6: unreachable func: Render
+pkg/memindex/importer/importer.go:8:6: unreachable func: Scan
+pkg/memindex/search/search.go:9:6: unreachable func: Search
+pkg/pipeline/reclaim.go:45:6: unreachable func: ReclaimTerminalStates
+pkg/pipeline/safety.go:112:28: unreachable func: DelegationContext.EffectiveDepthCap
+pkg/pipeline/safety.go:118:28: unreachable func: DelegationContext.CheckDepth
+pkg/pipeline/safety.go:208:6: unreachable func: CheckWorkflowAuthenticity
+pkg/promptlayer/omp_context_promotion_artifact_loader_v2.go:14:6: unreachable func: LoadVerifiedOMPContextPromotionV2
+pkg/promptlayer/omp_context_promotion_runtime_v3.go:73:6: unreachable func: VerifyOMPContextPromotionRuntimeV3
+pkg/promptlayer/omp_context_promotion_runtime_v3.go:100:6: unreachable func: verifyOMPContextPromotionRuntimeV3At
+pkg/qa/adapter/registry.go:16:6: unreachable func: SurfaceDispatchReasonCodes
+pkg/qa/release/policy.go:3:6: unreachable func: BlockerRulesForProfile
+pkg/selfupdate/checker.go:143:6: unreachable func: WithHTTPClient
+pkg/selfupdate/signature.go:52:6: unreachable func: VerifyReleaseSignature
+pkg/version/version.go:71:6: unreachable func: Date
+pkg/worker/loop_workspace.go:22:6: unreachable func: StartWorkspaceGoroutines
+pkg/worker/a2a/ws_client.go:88:18: unreachable func: Client.Transport
+pkg/worker/poll/poller.go:65:22: unreachable func: TaskPoller.Reset
+
+## go run ./cmd/source-lines -max 0 -ext .go pkg/orchestra
+non-test files: 140; physical lines: 17981; counted: 16451
+test files: 203; physical lines: 30501
+group P non-test files: 60; physical lines: 8732; counted: 7806
+group P-named test files: 104
+retained non-test files: 80; physical lines: 9249
+S15 bound: spec.md states 9,945 (17,945 at 16b50216 minus 8,000). At 60f92ea5 the same rule gives 9,981. The
+retained non-test lines after deleting group P alone are 9,249, so either bound is reachable.
+
+## Not recorded in W0 (remaining T2 items)
+touched-package coverage (PRD Q7), the S16 goldens, and the answers to PRD Q4, Q5, Q8, Q9.

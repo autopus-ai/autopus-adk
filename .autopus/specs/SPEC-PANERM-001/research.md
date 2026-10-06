@@ -177,6 +177,15 @@ is based on it, so W0 baselines use it as B. `16b50216` stays the revert anchor.
   timed_out false, usable true, no `failure_class`; schema `orchestration_cli_result.v1`. `--strategy consensus`
   replaces `--rounds 1`, which implies a debate with a second (judge) call. Codex, gemini, and contexts (a), (b) were
   outside the operator's scope, so S19 stays open for them.
+- T2 baselines (`evidence/t2-baselines.txt`): `go test -race -timeout 60m ./...` fails 111 top-level tests in 6
+  packages, mostly from the host Codex catalog (no gpt-6-astra); deadcode v0.50.0 lists 18 entries, 0 in
+  `pkg/orchestra/` or `internal/cli/orchestra`; `pkg/orchestra` has 140 non-test files and 17,981 lines, group P 60
+  files and 8,732 lines. Census (`evidence/t2-census.txt`): 931 type-error sites in 127 files, each with one owner
+  (T4 36, T5 149, T6 17, T7 447, T8 118, T9 159, T10 5); `go vet ./...` alone stops at the first package. Open:
+  coverage (Q7), S16 goldens, Q4, Q5, Q8, Q9.
+- T3 fixtures: `pkg/config/testdata/legacy_pane/` (C1-C7, C2', C2o) and `internal/cli/testdata/stale_hooks/` (seven
+  O-generated workspaces, fake `opencode` 1.0.0 and 2.0.0). Red oracles skip with their owner task (T8, T11) unless
+  `AUTOPUS_PANERM_RED=1`; with it they fail at B for the asserted reasons.
 
 ## Reviewer Brief
 
