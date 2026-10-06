@@ -5,44 +5,44 @@
 Waves: W0 = RFP-1, RFP-2 (done: PASS). W1 = T1, T5, T8. W2 = T2 (after T1), T3 (after T8). W3 = T4 (after T2, T3, T5),
 T6 (after T2), T7 (after T3). W4 = T9, T10. Each file has exactly one owning task; tests sit next to each owned file.
 
-- [ ] T1: Shared policy (REQ-03, REQ-04, REQ-05). Owns `internal/cli/orchestra_readonly_policy.go`,
+- [x] T1: Shared policy (REQ-03, REQ-04, REQ-05). Owns `internal/cli/orchestra_readonly_policy.go`,
   `[NEW] internal/cli/orchestra_readonly_violation.go`, and their `_test.go` files, plus the expected-argv updates in the
   plan, brainstorm, and SPEC-ORCH-021 argv tests. Claude: `--strict-mcp-config` joins the ensured bools, every `--tools`
   item is removed and `--tools=Read,Grep,Glob` is appended last, `--tools` accepts only `Read,Grep,Glob`, `--mcp-config`
   stays rejected. Codex: drop `-s <mode>` / `-s=<mode>` before the `--sandbox read-only` upsert. Schema flag: codex
   `--output-schema` or empty, others empty. The typed violation (provider, field, item, value, reason) keeps today's
   `Error()` text. Cross-SPEC: merges before SPEC-SIGMABAND-001 T10, or the two are serialized on this file.
-- [ ] T2: Assembly helper (REQ-01, REQ-04, REQ-06, REQ-18, REQ-19). Owns `[NEW] internal/cli/spec_review_readonly.go`.
+- [x] T2: Assembly helper (REQ-01, REQ-04, REQ-06, REQ-18, REQ-19). Owns `[NEW] internal/cli/spec_review_readonly.go`.
   Order: `resolveProviders` (no execution) → pre-execution gate (provenance, name, native binary, argv, schema flag)
   → `filterInstalledProviders` → `resolveCodexProviderCapabilities` → `configureSpecReviewProviders` →
   `applySpecReviewExecutionTimeout` → `applyReadOnlyProviderPolicy` (last). Explicit violations render the Error
   Contract; discovered violations are excluded and returned with a reason. Shared by spec review and doctor smoke.
-- [ ] T3: Readiness probes (REQ-09, REQ-10, REQ-13, REQ-15). Owns `[NEW] internal/cli/provider_readiness.go`,
+- [x] T3: Readiness probes (REQ-09, REQ-10, REQ-13, REQ-15). Owns `[NEW] internal/cli/provider_readiness.go`,
   `provider_readiness_omp.go`, `provider_readiness_stream.go`. Runner seam (`var providerReadinessRunner`) accepts only
   the three Readiness Contract argv and returns raw streams; the bounded reader (65,537 bytes) and the classifiers live
   outside the seam. OMP uses `canonicalPipelineOMPExecutable` and `normalizePipelineOMPEnvironment`.
-- [ ] T4: Spec review wiring (REQ-01, REQ-02, REQ-07, REQ-09, REQ-11, REQ-12, REQ-16, REQ-17, REQ-19). Owns
+- [x] T4: Spec review wiring (REQ-01, REQ-02, REQ-07, REQ-09, REQ-11, REQ-12, REQ-16, REQ-17, REQ-19). Owns
   `internal/cli/spec_review.go` (helper call at lines 162-172, judge projection at line 286, `--skip-provider-readiness`,
   `--allow-degraded`/`--subprocess` help text), `spec_review_loop.go` (`ReadOnly: true` and `SubprocessMode: true` in
   `orchCfg` at lines 72-90, exclusion and readiness fields in `specReviewLoopParams`, one merge call after
   `applyObservationIntegrity` at line 199), `spec_review_runtime.go` (receipt rows in
   `syncReviewedSpecStatusWithReceipt`), `spec_review_receipt.go` (`provider_policy`, `omitempty`), and
   `[NEW] internal/cli/spec_review_readiness.go`. Order: helper → preflight → `prepareSpecReviewContextDelivery`.
-- [ ] T5: Sandbox evidence (REQ-07). Owns `pkg/orchestra/provider_execution.go` and
+- [x] T5: Sandbox evidence (REQ-07). Owns `pkg/orchestra/provider_execution.go` and
   `[NEW] pkg/orchestra/provider_sandbox_mode.go`: a bypass flag in the argv beats the stamp; exported
   `ProviderSandboxMode(provider, args)`. The test that pinned "policy stamp wins" over a bypass flag is inverted.
-- [ ] T6: Doctor smoke parity (REQ-08). Owns `internal/cli/doctor_provider_smoke.go`: the T2 helper plus a routed
+- [x] T6: Doctor smoke parity (REQ-08). Owns `internal/cli/doctor_provider_smoke.go`: the T2 helper plus a routed
   factory that mirrors `selectRoutedBackend` with `SubprocessMode` true (OMP providers → OMP review backend).
-- [ ] T7: Doctor readiness (REQ-14, REQ-15). Owns `[NEW] internal/cli/doctor_provider_readiness.go`, one wiring line in
+- [x] T7: Doctor readiness (REQ-14, REQ-15). Owns `[NEW] internal/cli/doctor_provider_readiness.go`, one wiring line in
   `doctor_text.go` and `doctor_json.go`, and remedy text in `doctor_remediation.go`.
-- [ ] T8: Fixtures (REQ-13, REQ-15). Owns `[NEW] internal/cli/testdata/provider_readiness/`. Redacted fixtures from the
+- [x] T8: Fixtures (REQ-13, REQ-15). Owns `[NEW] internal/cli/testdata/provider_readiness/`. Redacted fixtures from the
   verified shapes; the operator captures one real `omp usage --json --redact` output with a disabled or expired
   account on a consenting setup, keeping only key structure and `provider`/`reason` values (CD-5).
-- [ ] T9: Docs. Owns the `CHANGELOG.md` entry: subprocess-only read-only review, claude `--strict-mcp-config
+- [x] T9: Docs. Owns the `CHANGELOG.md` entry: subprocess-only read-only review, claude `--strict-mcp-config
   --tools=Read,Grep,Glob` (plan and brainstorm too), `-s` normalization, schema-flag check, readiness preflight and
   `--skip-provider-readiness`, `--allow-degraded` now covering `provider_unready`, doctor status probes (network status
   lookups, up to 5 s, concurrent), receipt `provider_policy`, bypass-beats-stamp receipts.
-- [ ] T10: Integration verification. Runs Verification below, re-runs RFP-1 and RFP-2 with the argv captured in S1,
+- [x] T10: Integration verification. Runs Verification below, re-runs RFP-1 and RFP-2 with the argv captured in S1,
   has the operator run RFP-3, and records results in the sync evidence.
 
 ## Implementation Strategy
