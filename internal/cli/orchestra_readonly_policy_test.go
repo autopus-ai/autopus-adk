@@ -28,8 +28,8 @@ func TestReadOnlyProviderPolicy_ProjectsNativeProviderArgv(t *testing.T) {
 			},
 			want: orchestra.ProviderConfig{
 				Name: "claude", Binary: "claude", ModelFamily: "anthropic",
-				Args:        []string{"--print", "--model", "opus", "--permission-mode", "plan", "--safe-mode", "--no-session-persistence", "--disable-slash-commands"},
-				PaneArgs:    []string{"--model", "opus", "--permission-mode", "plan", "--safe-mode", "--no-session-persistence", "--disable-slash-commands"},
+				Args:        []string{"--print", "--model", "opus", "--permission-mode", "plan", "--safe-mode", "--no-session-persistence", "--disable-slash-commands", "--strict-mcp-config", "--tools=Read,Grep,Glob"},
+				PaneArgs:    []string{"--model", "opus", "--permission-mode", "plan", "--safe-mode", "--no-session-persistence", "--disable-slash-commands", "--strict-mcp-config", "--tools=Read,Grep,Glob"},
 				SandboxMode: orchestra.SandboxModeReadOnly,
 			},
 		},

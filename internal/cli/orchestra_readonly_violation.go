@@ -1,0 +1,75 @@
+package cli
+
+import "fmt"
+
+// readOnlyViolationKind classifies why the read-only provider policy rejected
+// a provider.
+type readOnlyViolationKind int
+
+const (
+	readOnlyUnsupportedArgv readOnlyViolationKind = iota
+	readOnlyUnsupportedProvider
+	readOnlyNativeBinary
+	readOnlyUnsafeArgv
+	readOnlyIncompleteArgv
+	readOnlyUnsafeValue
+	readOnlyUnsupportedSchemaFlag
+)
+
+// Provider config fields a violation points at, named like the keys under
+// orchestra.providers.<name> in autopus.yaml.
+const (
+	readOnlyFieldBinary     = "binary"
+	readOnlyFieldArgs       = "args"
+	readOnlyFieldPaneArgs   = "pane_args"
+	readOnlyFieldSchemaFlag = "subprocess.schema_flag"
+)
+
+// readOnlyPolicyViolation is the typed error of the read-only provider policy.
+// Error keeps the historical text so plan and brainstorm output stays
+// byte-identical; callers that name a config key and a remedy read the fields.
+type readOnlyPolicyViolation struct {
+	Provider string
+	// Field is the offending config field; empty for an unsupported provider.
+	Field string
+	// Item is the offending argv item, value flag, required binary, schema
+	// flag, or provider name, depending on Kind.
+	Item string
+	// Value is the rejected flag value, or the configured binary for a
+	// native-binary violation.
+	Value string
+	// Inline reports that Value was attached to Item with "=".
+	Inline bool
+	Kind   readOnlyViolationKind
+}
+
+func (v *readOnlyPolicyViolation) Error() string {
+	switch v.Kind {
+	case readOnlyUnsupportedProvider:
+		return "read-only provider policy: " + v.Reason()
+	case readOnlyUnsupportedSchemaFlag:
+		return fmt.Sprintf("read-only provider policy: provider %q has %s", v.Provider, v.Reason())
+	default:
+		return fmt.Sprintf("read-only provider policy: provider %q %s", v.Provider, v.Reason())
+	}
+}
+
+// Reason renders why the provider was rejected, without the policy prefix.
+func (v *readOnlyPolicyViolation) Reason() string {
+	switch v.Kind {
+	case readOnlyUnsupportedProvider:
+		return fmt.Sprintf("unsupported provider %q", v.Item)
+	case readOnlyNativeBinary:
+		return fmt.Sprintf("requires native binary %q", v.Item)
+	case readOnlyUnsafeArgv:
+		return fmt.Sprintf("contains unsafe argv %q", v.Item)
+	case readOnlyIncompleteArgv:
+		return fmt.Sprintf("has incomplete argv %q", v.Item)
+	case readOnlyUnsafeValue:
+		return fmt.Sprintf("contains unsafe value for %q", v.Item)
+	case readOnlyUnsupportedSchemaFlag:
+		return fmt.Sprintf("unsupported schema flag %q", v.Item)
+	default:
+		return fmt.Sprintf("contains unsupported argv %q", v.Item)
+	}
+}

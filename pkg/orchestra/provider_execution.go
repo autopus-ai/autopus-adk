@@ -39,7 +39,7 @@ func newProviderExecution(provider ProviderConfig, args []string, start time.Tim
 	return &ProviderExecution{
 		Command:     command,
 		Cwd:         cwd,
-		SandboxMode: providerSandboxMode(provider, args),
+		SandboxMode: ProviderSandboxMode(provider, args),
 		StartedAt:   start,
 	}
 }
@@ -51,32 +51,6 @@ func (e *ProviderExecution) finish(duration time.Duration) {
 		return
 	}
 	e.EndedAt = e.StartedAt.Add(duration)
-}
-
-// providerSandboxMode reports the sandbox mode a provider runs under: the
-// policy-stamped mode wins; otherwise the native argv is inspected. Codex
-// declares its sandbox explicitly, a Claude plan permission mode is read-only,
-// and a permission/sandbox bypass flag means unrestricted. Without any
-// restriction the orchestrator imposes nothing, which is recorded as
-// unrestricted rather than guessed.
-func providerSandboxMode(provider ProviderConfig, args []string) string {
-	if mode := strings.TrimSpace(provider.SandboxMode); mode != "" {
-		return mode
-	}
-	for index, arg := range args {
-		switch {
-		case arg == "--sandbox" && index+1 < len(args) && !strings.HasPrefix(args[index+1], "-"):
-			return args[index+1]
-		case strings.HasPrefix(arg, "--sandbox=") && len(arg) > len("--sandbox="):
-			return strings.TrimPrefix(arg, "--sandbox=")
-		case arg == "--permission-mode" && index+1 < len(args) && args[index+1] == "plan",
-			arg == "--permission-mode=plan":
-			return SandboxModeReadOnly
-		case arg == "--dangerously-skip-permissions", arg == "--dangerously-bypass-approvals-and-sandbox", arg == "--yolo":
-			return SandboxModeUnrestricted
-		}
-	}
-	return SandboxModeUnrestricted
 }
 
 // resolveProviderWorkDir applies the run-level provider working directory to

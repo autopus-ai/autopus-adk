@@ -97,32 +97,6 @@ func TestRunProvider_WithoutWorkDirRecordsInheritedCwd(t *testing.T) {
 	assert.Equal(t, mustEvalSymlinks(t, cwd), mustEvalSymlinks(t, strings.TrimSpace(string(recorded))))
 }
 
-func TestProviderSandboxMode_InfersFromArgv(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name     string
-		provider ProviderConfig
-		args     []string
-		want     string
-	}{
-		{name: "policy stamp wins", provider: ProviderConfig{SandboxMode: SandboxModeReadOnly}, args: []string{"--dangerously-skip-permissions"}, want: SandboxModeReadOnly},
-		{name: "codex workspace write", args: []string{"exec", "--sandbox", "workspace-write", "-m", "gpt"}, want: SandboxModeWorkspaceWrite},
-		{name: "codex inline sandbox", args: []string{"exec", "--sandbox=read-only"}, want: SandboxModeReadOnly},
-		{name: "claude plan permission", args: []string{"--print", "--permission-mode", "plan"}, want: SandboxModeReadOnly},
-		{name: "claude bypass", args: []string{"--print", "--dangerously-skip-permissions"}, want: SandboxModeUnrestricted},
-		{name: "gemini boolean sandbox flag is not a value", args: []string{"--print", "", "--sandbox", "--disable-slash-commands"}, want: SandboxModeUnrestricted},
-		{name: "no restriction declared", args: []string{"--print", "--model", "opus"}, want: SandboxModeUnrestricted},
-	}
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, tt.want, providerSandboxMode(tt.provider, tt.args))
-		})
-	}
-}
-
 func TestBuildProviderRunReceipts_TimedOutAttemptKeepsLaunchProvenance(t *testing.T) {
 	t.Parallel()
 
