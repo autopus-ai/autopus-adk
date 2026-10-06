@@ -18,6 +18,8 @@ func TestHasValidLoreType_AllKnownTypes(t *testing.T) {
 		"docs(readme): update guide",
 		"chore(deps): bump version",
 		"perf(cache): reduce allocations",
+		// The lore-commit rule documents merge(<scope>) for required merge commits.
+		"merge(release): integrate rc branch",
 	}
 
 	for _, msg := range validPrefixes {
