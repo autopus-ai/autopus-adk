@@ -26,3 +26,14 @@ func TestAreaWrites_OnWindows_PlatformUnsupported(t *testing.T) {
 	assert.ErrorIs(t, a.syncDir("."), errPlatformUnsupported)
 	assert.NoDirExists(t, root+`\evals`)
 }
+
+func TestRun_OnWindows_PlatformUnsupported(t *testing.T) {
+	root := t.TempDir()
+
+	_, err := Run(Request{Root: root, Entries: s3Entries(), AllEligible: true, Redactor: noRedaction})
+
+	var runErr *RunError
+	require.ErrorAs(t, err, &runErr)
+	assert.Equal(t, ReasonPlatformUnsupported, runErr.Reason)
+	assert.NoDirExists(t, root+`\evals`)
+}

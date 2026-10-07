@@ -134,15 +134,3 @@ func TestWriteSupported_OnUnix_ReturnsNil(t *testing.T) {
 	t.Parallel()
 	assert.NoError(t, writeSupported())
 }
-
-// dirNames lists every name directly below rel, dot files included, sorted.
-func dirNames(t *testing.T, root, rel string) []string {
-	t.Helper()
-	entries, err := os.ReadDir(filepath.Join(root, filepath.FromSlash(rel)))
-	require.NoError(t, err)
-	names := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		names = append(names, entry.Name())
-	}
-	return names
-}
