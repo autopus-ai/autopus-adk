@@ -58,6 +58,10 @@ func persistQualityProvider(
 	if err != nil {
 		return fmt.Errorf("read config: %w", err)
 	}
+	// Like saveQualityScalar: the retired orchestra keys never ride along.
+	if data, _, err = pruneRetiredConfig(data); err != nil {
+		return err
+	}
 
 	updated, err := updateQualityProvider(data, provider, preset, remove)
 	if err != nil {

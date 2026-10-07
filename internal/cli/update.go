@@ -173,14 +173,8 @@ func newUpdateCmd() *cobra.Command {
 			addedPlatforms := newlyDetectedPlatforms(cfg)
 
 			// Persist config migrations before rendering platform-owned files.
-			orchestraMigrated, migrateErr := config.MigrateOrchestraConfig(cfg)
-			if migrateErr != nil {
-				return fmt.Errorf("orchestra 마이그레이션 실패: %w", migrateErr)
-			}
-			if orchestraMigrated || (designConfigMissing && cfg.Design.Enabled) {
-				if saveErr := config.Save(dir, cfg); saveErr != nil {
-					return fmt.Errorf("마이그레이션 설정 저장 실패: %w", saveErr)
-				}
+			if persistErr := persistUpdateConfigMigrations(cmd.OutOrStdout(), dir, cfg, designConfigMissing); persistErr != nil {
+				return persistErr
 			}
 			if len(addedPlatforms) > 0 {
 				fmt.Fprintf(cmd.OutOrStdout(), "  + 새 플랫폼 감지: %s\n", strings.Join(addedPlatforms, ", "))
