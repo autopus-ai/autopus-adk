@@ -21,6 +21,7 @@ schema and corpus digest only. The maintainer live lane (T10-T13) runs them.
 go run ./cmd/auto eval harness run --format json            # result document on stdout
 go run ./cmd/auto eval harness digest --format json         # set, agent set, surface digests
 go run ./cmd/auto eval harness baseline --update [--accept-regression GT-ID --reason "..."]
+go run ./cmd/auto eval harness report --input <session-dir> --format json  # unsigned live advisory report
 go test ./pkg/harneval -run GoldenSet                       # REQ-HE-13 coverage test (S14)
 go test ./pkg/harneval -run SeededMutations                 # REQ-HE-12 mutation table (S13)
 ```
@@ -126,6 +127,38 @@ Not run: the same calibration inside the `grader.sb` profile with the
 read-only module cache (REQ-HE-09). That profile and `prepare_grader.py` are
 T11 deliverables; the live lane runs that calibration before any trial and
 refuses the session with `oracle_calibration_failed` if a name here is wrong.
+
+## Live advisory report (REQ-HE-10, REQ-HE-11)
+
+`auto eval harness report` judges one live session directory written by the
+trusted runner and prints the unsigned `harness_live_advisory.v1` report on
+stdout. It exits 0 whatever the verdict and 1 only when the session cannot be
+judged. The report gates nothing: `auto check --eval-regression` rejects it as
+`artifact_unsigned` before decoding it. `grader.jsonl` is diagnostic and never
+read. `pkg/harneval/testdata/live-session/` is a complete reference session.
+
+| File | Document | When absent |
+|------|----------|-------------|
+| `protocol.json` | `harness_golden_live_protocol.v1`; `policy` is the manifest `live` block | invalid input, exit 1 |
+| `calibration.json` | `harness_golden_calibration.v1`; `after` only once a trial ran | verdict `vacuous` |
+| `records.jsonl` | one `harness_golden_live_record.v1` per line | no record |
+
+Every document is decoded strictly (unknown fields and trailing data are
+invalid). `schema_version` is optional on these three; when present it must be
+the document's own identifier. A record's `signal` fixes its `outcome` by the
+REQ-HE-08 table. Calibration is judged first: without a passed `before`, any
+record is `records_protocol_mismatch`; with one, the records must hold every
+`order` attempt of the session exactly once. A mismatch writes no report.
+
+| Verdict (precedence) | Reason | When |
+|----------------------|--------|------|
+| `vacuous` | `oracle_calibration_failed` | `calibration.json` absent, or `before` or `after` not `passed` |
+| `vacuous` | `oracle_not_run` | an arm has no record with `oracle.ran` true (build failures only) |
+| `incomplete` | `completeness_below_floor` | completeness < `policy.completeness_floor` |
+| `incomplete` | `no_valid_trial` | an arm has no non-error trial |
+| `regression` | `hard_flip` | a task passed K/K in the baseline and 0/K in the candidate |
+| `regression` | `pass_rate_regression` | `10000·(cp·bv − bp·cv) < threshold_bp·bv·cv` |
+| `ok` | `within_threshold` | otherwise; a delta exactly at the threshold is no regression |
 
 ## Seeded mutations (REQ-HE-12)
 
