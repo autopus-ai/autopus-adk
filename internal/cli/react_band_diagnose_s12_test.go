@@ -42,6 +42,7 @@ func TestReactBandDiagnose_S12ProviderReadOnlyContract(t *testing.T) {
 		edit     func(*bandDiagnoser, *bandFakeBackend)
 		status   string
 		calls    []string
+		killed   bool   // the timeout may kill the fake before it records its call
 		provider string // BS providers line
 		attempt  bool   // a run was attempted, so the prompt manifest is recorded
 	}{
@@ -70,7 +71,7 @@ func TestReactBandDiagnose_S12ProviderReadOnlyContract(t *testing.T) {
 			status: "unavailable(provider_missing)", provider: "claude", attempt: true},
 		{name: "sleep past the timeout", harness: bandHarness("claude", "", claude), mode: "sleep",
 			edit:   func(d *bandDiagnoser, _ *bandFakeBackend) { d.timeout = time.Second },
-			status: "unavailable(provider_timeout)", calls: []string{"claude"}, provider: "claude", attempt: true},
+			status: "unavailable(provider_timeout)", calls: []string{"claude"}, killed: true, provider: "claude", attempt: true},
 		{name: "exit 3", harness: bandHarness("claude", "", claude), mode: "exit3",
 			status: "unavailable(provider_exit_nonzero)", calls: []string{"claude"}, provider: "claude", attempt: true},
 		{name: "whitespace-only stdout", harness: bandHarness("claude", "", claude), mode: "blank",
@@ -103,7 +104,13 @@ func TestReactBandDiagnose_S12ProviderReadOnlyContract(t *testing.T) {
 			assert.Equal(t, tc.status, outcome.DiagnosisStatus)
 			assert.Empty(t, outcome.Status, "an unavailable provider never fails the claim")
 			assert.Equal(t, "written", outcome.BSStatus)
-			assert.Equal(t, tc.calls, fakes.calls(t), "raw subprocess runs")
+			if tc.killed {
+				// Under load the timeout can end the fake before its first
+				// line runs, so the record holds that call or nothing.
+				assert.Subset(t, tc.calls, fakes.calls(t), "raw subprocess runs")
+			} else {
+				assert.Equal(t, tc.calls, fakes.calls(t), "raw subprocess runs")
+			}
 			providerCalls := len(fakes.calls(t)) + len(backend.calls())
 			assert.LessOrEqual(t, providerCalls, 1, "at most one provider call, no second provider")
 			require.Equal(t, []string{"BS-BAND-001.md"}, fixture.bsFiles(t))

@@ -183,16 +183,13 @@ func TestStatusCmd_ImplementedStatusCountsAsDone(t *testing.T) {
 }
 
 // TestStatusCmd_DefaultDir verifies that when --dir is omitted, the command
-// falls back to the current working directory without error.
+// falls back to the current working directory without error. The working
+// directory is process-wide, so the test does not run in parallel: t.Chdir
+// refuses a parallel test and restores the directory afterwards.
 func TestStatusCmd_DefaultDir(t *testing.T) {
-	t.Parallel()
-
 	// Create a temp dir that has no .autopus/specs so the "no specs" path runs.
 	dir := t.TempDir()
-	original, err := os.Getwd()
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = os.Chdir(original) })
-	require.NoError(t, os.Chdir(dir))
+	t.Chdir(dir)
 
 	var out bytes.Buffer
 	cmd := newTestRootCmd()
