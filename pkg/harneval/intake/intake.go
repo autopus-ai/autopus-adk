@@ -219,7 +219,7 @@ func (req Request) checkFlagValues() error {
 	}
 	for _, field := range [][2]string{{"expected", req.Expected}, {"actual", req.Actual}} {
 		if _, refused := redactField(req.Redactor, field[0], field[1], evidenceCap); refused != nil {
-			return &RunError{Reason: refused.Reason, Detail: refused.Field + ": " + refused.Detail}
+			return &RunError{Reason: refused.reason, Detail: refused.field + ": " + refused.detail}
 		}
 	}
 	return nil

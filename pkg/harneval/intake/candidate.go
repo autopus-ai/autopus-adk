@@ -108,15 +108,12 @@ const (
 	DetailOverCapAfterRedaction = "over_cap_after_redaction"
 )
 
-// TextError reports learning text intake refuses to copy: an evidence field
-// (learning_field_invalid) or the pattern (candidate_text_invalid).
-type TextError struct {
-	Reason string
-	Field  string
-	Detail string
+// refusal reports learning text intake refuses to copy: an evidence field
+// (learning_field_invalid) or the pattern (candidate_text_invalid), with the
+// failed check as detail.
+type refusal struct {
+	reason, field, detail string
 }
-
-func (e *TextError) Error() string { return e.Reason + ": " + e.Field + ": " + e.Detail }
 
 // hasControl reports a C0, DEL, or C1 control character; allowLayout lets
 // newline and tab through.
@@ -133,9 +130,9 @@ func hasControl(text string, allowLayout bool) bool {
 // refuse a control character, refuse a raw value over rawCapFactor times its
 // cap, redact, then refuse a redacted value over its cap. The cap applies
 // after redaction because a placeholder can be longer than the text it hides.
-func redactField(redactor Redactor, field, value string, limit int) (string, *TextError) {
-	fail := func(detail string) (string, *TextError) {
-		return "", &TextError{Reason: ReasonLearningFieldInvalid, Field: field, Detail: detail}
+func redactField(redactor Redactor, field, value string, limit int) (string, *refusal) {
+	fail := func(detail string) (string, *refusal) {
+		return "", &refusal{reason: ReasonLearningFieldInvalid, field: field, detail: detail}
 	}
 	switch {
 	case hasControl(value, false):
@@ -152,9 +149,9 @@ func redactField(redactor Redactor, field, value string, limit int) (string, *Te
 
 // redactPattern applies REQ-HC-05 to a pattern, which may hold newlines and
 // tabs, then redacts it; the redacted pattern must stay within the cap too.
-func redactPattern(redactor Redactor, pattern string) (string, *TextError) {
-	fail := func(detail string) (string, *TextError) {
-		return "", &TextError{Reason: ReasonCandidateTextInvalid, Field: "pattern", Detail: detail}
+func redactPattern(redactor Redactor, pattern string) (string, *refusal) {
+	fail := func(detail string) (string, *refusal) {
+		return "", &refusal{reason: ReasonCandidateTextInvalid, field: "pattern", detail: detail}
 	}
 	switch {
 	case hasControl(pattern, true):
@@ -179,7 +176,7 @@ type evidence struct {
 // evidenceFor re-checks and re-redacts the stored text of e, whose expected
 // and actual are replaced by the flag pair when one was given. Store values
 // are re-checked because the store can be edited by hand.
-func evidenceFor(redactor Redactor, e Entry, expected, actual string) (evidence, *TextError) {
+func evidenceFor(redactor Redactor, e Entry, expected, actual string) (evidence, *refusal) {
 	pattern, refused := redactPattern(redactor, e.Pattern)
 	if refused != nil {
 		return evidence{}, refused

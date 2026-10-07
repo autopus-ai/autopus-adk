@@ -2,6 +2,7 @@ package intake
 
 import (
 	"path/filepath"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -71,6 +72,15 @@ func TestRun_ExplicitIDs_ReportMissingIDsInNumericOrder(t *testing.T) {
 	}, result.Rows)
 	assert.Equal(t, 2, result.ExitCode())
 	assert.Equal(t, candidateX, readFile(t, root, IntakeDir+"/GTC-8e80c7a18029.json"))
+}
+
+func TestIDLess_OrdersByNumberThenText(t *testing.T) {
+	t.Parallel()
+	ids := []string{"L-1000", "L-0999", "L-999", "L-010", "L-002"}
+
+	sort.SliceStable(ids, func(i, j int) bool { return idLess(ids[i], ids[j]) })
+
+	assert.Equal(t, []string{"L-002", "L-010", "L-0999", "L-999", "L-1000"}, ids)
 }
 
 func TestRun_FlagPair_SuppliesEvidenceWithoutChangingTheEntry(t *testing.T) {

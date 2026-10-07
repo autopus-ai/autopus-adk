@@ -15,9 +15,7 @@ import (
 
 func TestAreaWrites_OnWindows_PlatformUnsupported(t *testing.T) {
 	root := t.TempDir()
-	a, err := openArea(root)
-	require.NoError(t, err)
-	defer a.close()
+	a := openTestArea(t, root)
 
 	assert.ErrorIs(t, writeSupported(), errPlatformUnsupported)
 	assert.ErrorIs(t, a.ensureDir(IntakeDir), errPlatformUnsupported)

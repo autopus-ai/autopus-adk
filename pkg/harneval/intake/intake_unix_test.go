@@ -5,6 +5,7 @@ package intake
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -56,7 +57,37 @@ func TestRun_S10SymlinkedIntakePaths_RefusedWithPathUnsafe(t *testing.T) {
 			var runErr *RunError
 			require.ErrorAs(t, err, &runErr)
 			assert.Equal(t, ReasonPathUnsafe, runErr.Reason)
+			assert.ErrorIs(t, err, errPathUnsafe)
+			assert.True(t, strings.HasPrefix(err.Error(), "path_unsafe: "), err.Error())
 			assert.Equal(t, before, treeDigest(t, outside))
 		})
 	}
+}
+
+func TestPlannerPublish_NameTakenAfterIndexRead_TurnsGroupIntoCollision(t *testing.T) {
+	t.Parallel()
+	// Given a plan made from the index of an empty project, and a file that
+	// took one candidate name after the index was read. No public seam can
+	// stage this race, so the planner is driven directly.
+	root := t.TempDir()
+	a := openTestArea(t, root)
+	x, err := loadIndex(a)
+	require.NoError(t, err)
+	p := &planner{req: Request{AllEligible: true, Redactor: noRedaction}, index: x, byFingerprint: map[string]*group{}}
+	for _, item := range selectEntries(Request{Entries: s3Entries(), AllEligible: true}, nil) {
+		p.add(item)
+	}
+	writeFile(t, root, IntakeDir+"/GTC-8e80c7a18029.json", "concurrent\n")
+
+	// When the plan is published.
+	require.NoError(t, p.publish(a))
+
+	// Then the other group is created and the taken name is left alone.
+	assert.Equal(t, []Row{
+		{LearningID: "L-002", Result: ResultCreated, CandidateID: "GTC-023e9302ff0b", Fingerprint: fingerprintY, LearningRefs: []string{"L-002"}},
+		{LearningID: "L-999", Result: ResultSkipped, CandidateID: "GTC-8e80c7a18029", Fingerprint: fingerprintX, Reason: ReasonCandidateIDCollision},
+		{LearningID: "L-1000", Result: ResultSkipped, CandidateID: "GTC-8e80c7a18029", Fingerprint: fingerprintX, Reason: ReasonCandidateIDCollision},
+	}, p.result().Rows)
+	assert.Equal(t, "concurrent\n", readFile(t, root, IntakeDir+"/GTC-8e80c7a18029.json"))
+	assert.Equal(t, []string{"GTC-023e9302ff0b.json", "GTC-8e80c7a18029.json"}, dirNames(t, root, IntakeDir))
 }

@@ -138,6 +138,7 @@ func TestRun_FlagValueInvalid_FailsRunWithDetail(t *testing.T) {
 			require.ErrorAs(t, err, &runErr)
 			assert.Equal(t, ReasonLearningFieldInvalid, runErr.Reason)
 			assert.Equal(t, tc.detail, runErr.Detail)
+			assert.Equal(t, ReasonLearningFieldInvalid+": "+tc.detail, runErr.Error())
 			assert.NoDirExists(t, filepath.Join(root, "evals"))
 		})
 	}

@@ -58,7 +58,7 @@ func (p *planner) add(item selected) {
 	}
 	ev, refused := evidenceFor(p.req.Redactor, e, expected, actual)
 	if refused != nil {
-		p.skip(row, refused.Reason)
+		p.skip(row, refused.reason)
 		return
 	}
 	p.join(row, e, ev)
