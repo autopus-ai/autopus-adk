@@ -44,6 +44,10 @@ func (s *Store) Append(entry LearningEntry) error {
 }
 
 func (s *Store) appendUnlocked(entry LearningEntry) error {
+	entry, err := redactEntry(entry)
+	if err != nil {
+		return err
+	}
 	data, err := json.Marshal(entry)
 	if err != nil {
 		return fmt.Errorf("marshal entry: %w", err)
@@ -146,9 +150,34 @@ func (s *Store) AppendAtomic(entryType EntryType, opts RecordOpts) error {
 		Packages:   opts.Packages,
 		Pattern:    opts.Pattern,
 		Resolution: opts.Resolution,
+		Expected:   opts.Expected,
+		Actual:     opts.Actual,
+		Repro:      opts.Repro,
 		Severity:   opts.Severity,
 	}
 	return s.appendUnlocked(entry)
+}
+
+// redactEntry is the store's first-write boundary: every byte Append and
+// AppendAtomic persist passes through it. Evidence fields are validated and
+// redacted in the REQ-HC-01 order; a rejection writes nothing.
+func redactEntry(entry LearningEntry) (LearningEntry, error) {
+	evidence := []struct {
+		field EvidenceField
+		value *string
+	}{
+		{FieldExpected, &entry.Expected},
+		{FieldActual, &entry.Actual},
+		{FieldRepro, &entry.Repro},
+	}
+	for _, ev := range evidence {
+		redacted, _, err := RedactEvidenceField(ev.field, *ev.value)
+		if err != nil {
+			return LearningEntry{}, err
+		}
+		*ev.value = redacted
+	}
+	return entry, nil
 }
 
 // UpdateReuseCount increments reuse_count for the entry with the given ID.

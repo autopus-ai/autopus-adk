@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -30,6 +31,9 @@ func newLearnRecordCmd() *cobra.Command {
 		packages   []string
 		resolution string
 		severity   string
+		expected   string
+		actual     string
+		repro      string
 	)
 
 	cmd := &cobra.Command{
@@ -39,6 +43,11 @@ func newLearnRecordCmd() *cobra.Command {
 			recordFn, ok := recordFuncs[entryType]
 			if !ok {
 				return fmt.Errorf("unknown type %q: must be one of gate_fail, coverage_gap, review_issue, executor_error, fix_pattern", entryType)
+			}
+			// Refuse an invalid evidence value before touching the project:
+			// the store writer repeats the same checks on every write.
+			if err := validateEvidenceFlags(expected, actual, repro); err != nil {
+				return err
 			}
 
 			cwd, err := os.Getwd()
@@ -58,10 +67,17 @@ func newLearnRecordCmd() *cobra.Command {
 				Packages:   packages,
 				Pattern:    pattern,
 				Resolution: resolution,
+				Expected:   expected,
+				Actual:     actual,
+				Repro:      repro,
 				Severity:   learn.Severity(severity),
 			}
 
 			if err := recordFn(store, opts); err != nil {
+				var fieldErr *learn.FieldError
+				if errors.As(err, &fieldErr) {
+					return fieldErr
+				}
 				return fmt.Errorf("record: %w", err)
 			}
 
@@ -78,9 +94,31 @@ func newLearnRecordCmd() *cobra.Command {
 	cmd.Flags().StringSliceVar(&packages, "packages", nil, "Related package names")
 	cmd.Flags().StringVar(&resolution, "resolution", "", "Resolution applied")
 	cmd.Flags().StringVar(&severity, "severity", "", "Severity (low|medium|high|critical)")
+	cmd.Flags().StringVar(&expected, "expected", "", "Expected behaviour; no control characters, at most 1024 bytes after secret redaction")
+	cmd.Flags().StringVar(&actual, "actual", "", "Observed behaviour; no control characters, at most 1024 bytes after secret redaction")
+	cmd.Flags().StringVar(&repro, "repro", "", "Reproduction command stored as data and never executed; at most 512 bytes after secret redaction")
 
 	_ = cmd.MarkFlagRequired("type")
 	_ = cmd.MarkFlagRequired("pattern")
 
 	return cmd
+}
+
+// validateEvidenceFlags applies the store's evidence checks to the flag values
+// and returns the first *learn.FieldError (reason learning_field_invalid).
+func validateEvidenceFlags(expected, actual, repro string) error {
+	values := []struct {
+		field learn.EvidenceField
+		value string
+	}{
+		{learn.FieldExpected, expected},
+		{learn.FieldActual, actual},
+		{learn.FieldRepro, repro},
+	}
+	for _, v := range values {
+		if _, _, err := learn.RedactEvidenceField(v.field, v.value); err != nil {
+			return err
+		}
+	}
+	return nil
 }

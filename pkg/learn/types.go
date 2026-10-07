@@ -39,9 +39,14 @@ type LearningEntry struct {
 	Packages   []string  `json:"packages"`
 	Pattern    string    `json:"pattern"`
 	Resolution string    `json:"resolution"`
-	Severity   Severity  `json:"severity"`
-	ReuseCount int       `json:"reuse_count"`
-	Line       int       `json:"-"`
+	// Expected, Actual, and Repro carry incident evidence (SPEC-HARNEVAL-002).
+	// Repro is data only: nothing in the harness executes it.
+	Expected   string   `json:"expected,omitempty"`
+	Actual     string   `json:"actual,omitempty"`
+	Repro      string   `json:"repro,omitempty"`
+	Severity   Severity `json:"severity"`
+	ReuseCount int      `json:"reuse_count"`
+	Line       int      `json:"-"`
 }
 
 // entryIDRegex matches L-{NNN} format (one or more digits after L-).
@@ -78,6 +83,9 @@ type RecordOpts struct {
 	Packages   []string
 	Pattern    string
 	Resolution string
+	Expected   string
+	Actual     string
+	Repro      string
 	Severity   Severity
 }
 
