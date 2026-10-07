@@ -1,0 +1,85 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-HOOK-EDIT-GUARD-ON",
+  "kind": "surface",
+  "category": "hooks_settings",
+  "intent": "With the default config, every lane whose native hook can block a file edit runs the fail-open edit guard before the edit, while the advisory-only Antigravity lane never registers it.",
+  "outcome": "Claude PreToolUse (Edit|Write|MultiEdit), Codex PreToolUse (apply_patch, with the Codex hooks feature on), and Gemini CLI BeforeTool (write_file, replace) run `auto guard edit` for their own platform through the exit-0 wrapper; the OpenCode plugin's before-hook spawns the guard for its file-editing tools; .agents/hooks.json names no guard.",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "json_path_present",
+      "platform": "claude-code",
+      "path": ".claude/settings.json",
+      "json_path": "hooks.PreToolUse[*].hooks[*].command",
+      "value_contains": "out=$(auto guard edit --platform claude-code) && [ -n \"$out\" ] && printf '%s\\n' \"$out\"; exit 0"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "claude-code",
+      "path": ".claude/settings.json",
+      "json_path": "hooks.PreToolUse[*].matcher",
+      "value_contains": "Edit|Write|MultiEdit"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "codex",
+      "path": ".codex/hooks.json",
+      "json_path": "hooks.PreToolUse[*].hooks[*].command",
+      "value_contains": "out=$(auto guard edit --platform codex) && [ -n \"$out\" ] && printf '%s\\n' \"$out\"; exit 0"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "codex",
+      "path": ".codex/hooks.json",
+      "json_path": "hooks.PreToolUse[*].matcher",
+      "value_contains": "apply_patch"
+    },
+    {
+      "kind": "contains",
+      "platform": "codex",
+      "path": ".codex/config.toml",
+      "needle": "\nhooks = true\n"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "antigravity-cli",
+      "path": ".gemini/settings.json",
+      "json_path": "hooks.BeforeTool[*].hooks[*].command",
+      "value_contains": "out=$(auto guard edit --platform gemini) && [ -n \"$out\" ] && printf '%s\\n' \"$out\"; exit 0"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "antigravity-cli",
+      "path": ".gemini/settings.json",
+      "json_path": "hooks.BeforeTool[*].matcher",
+      "value_contains": "^(write_file|replace)$"
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": ".opencode/plugins/autopus-hooks.js",
+      "needle": "const EDIT_GUARD = {\"command\":\"auto\",\"args\":[\"guard\",\"edit\",\"--platform\",\"opencode\"],\"timeout\":5,\"tools\":[\"edit\",\"write\",\"multiedit\",\"patch\",\"apply_patch\"],\"patchTools\":[\"patch\",\"apply_patch\"]}"
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": ".opencode/plugins/autopus-hooks.js",
+      "needle": "\"tool.execute.before\": async (input, output) => {\n      if (EDIT_GUARD && EDIT_GUARD.tools.includes(input.tool)) {\n        await guardEdit(input.tool, output?.args, cwd)\n        return\n      }"
+    },
+    {
+      "kind": "not_contains",
+      "platform": "antigravity-cli",
+      "path": ".agents/hooks.json",
+      "needle": "auto guard edit"
+    }
+  ],
+  "provenance": {
+    "kind": "manual",
+    "ref": "SPEC-EDITGUARD-001 REQ-EG-11 to REQ-EG-14 and REQ-EG-16; pkg/content/hooks_edit_guard.go, pkg/editguard/matrix.go, pkg/adapter/opencode/opencode_plugin.go"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

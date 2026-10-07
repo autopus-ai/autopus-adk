@@ -91,7 +91,7 @@
     "ref": "pkg/adapter/claude, pkg/adapter/codex, pkg/adapter/antigravity, content/hooks"
   },
   "status": {
-    "state": "active",
-    "reason": ""
+    "state": "retired",
+    "reason": "SPEC-PANERM-001 REQ-12 retired the orchestra completion and ready hooks with the pane backend: no platform generates these scripts or their SessionStart, Stop, AfterAgent, or .agents Stop handlers any more. GT-HOOK-COMPLETION-RETIRED asserts their absence; the Codex hooks feature check moved to GT-HOOK-EDIT-GUARD-ON."
   }
 }

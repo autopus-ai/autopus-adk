@@ -25,6 +25,10 @@ type seededMutation struct {
 const triageInheritBullet = "- Inherit the requested model and reasoning settings. " +
 	"Do not lower the model or effort to make a route appear cheaper.\n"
 
+// claudeEditGuardCommand is the Claude Code edit-guard command line of
+// SPEC-EDITGUARD-001 REQ-EG-11, whose PreToolUse entry M13 drops.
+const claudeEditGuardCommand = `out=$(auto guard edit --platform claude-code) && [ -n "$out" ] && printf '%s\n' "$out"; exit 0`
+
 // seededMutations is the committed mutation table. M1-M5 are the REQ-HE-12
 // classes. M6-M14, with M2-M4, are the source spot-checks recorded in
 // evals/harness/README.md, each written as the surface edit its source change
@@ -95,12 +99,10 @@ var seededMutations = []seededMutation{
 			e.replace("claude-code", ".claude/hooks/autopus/conditional-rules.json",
 				"\"conditions\": [\n        "+`"\\bgit\\s+commit\\b"`+"\n      ]", `"conditions": []`)
 		}},
-	{ID: "M13", Defect: "the Claude hook directory is made absolute (hooks_completion.go)",
-		Regressed: []string{"GT-HOOK-SESSION-LIFECYCLE"},
+	{ID: "M13", Defect: "the Claude Code lane is no longer enforced, so its edit guard is not registered (editguard/matrix.go)",
+		Regressed: []string{"GT-HOOK-EDIT-GUARD-ON"},
 		Apply: func(e *surfaceEditor) {
-			e.replace("claude-code", ".claude/settings.json",
-				`\"${CLAUDE_PROJECT_DIR:-.}\"/.claude/hooks/autopus/hook-claude-sessionstart.sh`,
-				`/.claude/hooks/autopus/hook-claude-sessionstart.sh`)
+			e.editJSON("claude-code", ".claude/settings.json", dropHookEntries("PreToolUse", claudeEditGuardCommand))
 		}},
 	{ID: "M14", Defect: "legacy /auto:plan loads auto-go (gemini commands/auto/plan.toml.tmpl)",
 		Regressed: []string{"GT-ROUTE-ANTIGRAVITY-COMMANDS"},

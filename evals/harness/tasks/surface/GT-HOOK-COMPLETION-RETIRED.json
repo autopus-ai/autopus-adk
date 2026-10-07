@@ -1,0 +1,116 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-HOOK-COMPLETION-RETIRED",
+  "kind": "surface",
+  "category": "hooks_settings",
+  "intent": "The orchestra completion and ready hooks retired with the pane backend stay retired: no platform generates their scripts or registers a session lifecycle handler that runs one.",
+  "outcome": "No completion or ready hook script is generated for Claude (all seven former copies), Codex, or Antigravity, and no Claude or Codex SessionStart/Stop handler, Antigravity AfterAgent handler, or .agents Stop handler names one of them.",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "file_absent",
+      "platform": "claude-code",
+      "path": ".claude/hooks/autopus/hook-claude-sessionstart.sh"
+    },
+    {
+      "kind": "file_absent",
+      "platform": "claude-code",
+      "path": ".claude/hooks/autopus/hook-claude-stop.sh"
+    },
+    {
+      "kind": "file_absent",
+      "platform": "claude-code",
+      "path": ".claude/hooks/autopus/hook-codex-sessionstart.sh"
+    },
+    {
+      "kind": "file_absent",
+      "platform": "claude-code",
+      "path": ".claude/hooks/autopus/hook-codex-stop.sh"
+    },
+    {
+      "kind": "file_absent",
+      "platform": "claude-code",
+      "path": ".claude/hooks/autopus/hook-gemini-afteragent.sh"
+    },
+    {
+      "kind": "file_absent",
+      "platform": "claude-code",
+      "path": ".claude/hooks/autopus/hook-gemini-sessionstart.sh"
+    },
+    {
+      "kind": "file_absent",
+      "platform": "claude-code",
+      "path": ".claude/hooks/autopus/hook-gemini-stop.sh"
+    },
+    {
+      "kind": "json_path_absent",
+      "platform": "claude-code",
+      "path": ".claude/settings.json",
+      "json_path": "hooks.SessionStart[*].hooks[*].command",
+      "value_contains": "hook-claude-sessionstart.sh"
+    },
+    {
+      "kind": "json_path_absent",
+      "platform": "claude-code",
+      "path": ".claude/settings.json",
+      "json_path": "hooks.Stop[*].hooks[*].command",
+      "value_contains": "hook-claude-stop.sh"
+    },
+    {
+      "kind": "file_absent",
+      "platform": "codex",
+      "path": ".codex/hooks/autopus/hook-codex-sessionstart.sh"
+    },
+    {
+      "kind": "file_absent",
+      "platform": "codex",
+      "path": ".codex/hooks/autopus/hook-codex-stop.sh"
+    },
+    {
+      "kind": "json_path_absent",
+      "platform": "codex",
+      "path": ".codex/hooks.json",
+      "json_path": "hooks.SessionStart[*].hooks[*].command",
+      "value_contains": "hook-codex-sessionstart.sh"
+    },
+    {
+      "kind": "json_path_absent",
+      "platform": "codex",
+      "path": ".codex/hooks.json",
+      "json_path": "hooks.Stop[*].hooks[*].command",
+      "value_contains": "hook-codex-stop.sh"
+    },
+    {
+      "kind": "file_absent",
+      "platform": "antigravity-cli",
+      "path": ".gemini/hooks/autopus/hook-gemini-afteragent.sh"
+    },
+    {
+      "kind": "file_absent",
+      "platform": "antigravity-cli",
+      "path": ".gemini/hooks/autopus/hook-gemini-stop.sh"
+    },
+    {
+      "kind": "json_path_absent",
+      "platform": "antigravity-cli",
+      "path": ".gemini/settings.json",
+      "json_path": "hooks.AfterAgent[*].hooks[*].command",
+      "value_contains": "hook-gemini-afteragent.sh"
+    },
+    {
+      "kind": "json_path_absent",
+      "platform": "antigravity-cli",
+      "path": ".agents/hooks.json",
+      "json_path": "autopus.Stop[*].command",
+      "value_contains": "hook-gemini-stop.sh"
+    }
+  ],
+  "provenance": {
+    "kind": "manual",
+    "ref": "SPEC-PANERM-001 REQ-12 and its Retired Surface Inventory (groups H and S); pkg/adapter/claude, pkg/adapter/codex, pkg/adapter/antigravity"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

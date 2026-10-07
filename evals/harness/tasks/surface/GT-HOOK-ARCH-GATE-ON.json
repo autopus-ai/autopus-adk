@@ -52,7 +52,7 @@
       "kind": "contains",
       "platform": "opencode",
       "path": ".opencode/plugins/autopus-hooks.js",
-      "needle": "\"tool.execute.before\": async (input) => {\n      if (input.tool !== \"bash\") return\n      await runHooks(BEFORE_HOOKS, cwd)"
+      "needle": "      if (input.tool !== \"bash\") return\n      await runHooks(BEFORE_HOOKS, cwd)\n    },\n    \"tool.execute.after\""
     }
   ],
   "provenance": {

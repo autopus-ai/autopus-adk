@@ -9,9 +9,9 @@ schema and corpus digest only. The maintainer live lane (T10-T13) runs them.
 | Path | Content |
 |------|---------|
 | `manifest.json` | `harness_golden_set.v1`: active paths, floors, live policy, pins |
-| `baseline.json` | `harness_eval_baseline.v1`, written by `auto eval harness baseline --init` on this tree |
+| `baseline.json` | `harness_eval_baseline.v1`, written by `auto eval harness baseline --init` on this tree; 45 rows (32 active and 1 retired surface, 12 agent) |
 | `fixtures/codex-models.json` | the pinned Codex model catalog (`pins.codex_model_catalog`) |
-| `tasks/surface/*.json` | 31 active surface tasks |
+| `tasks/surface/*.json` | 32 active surface tasks and 1 retired tombstone |
 | `tasks/agent/*.json` | 12 active agent tasks, one per benchmark corpus task |
 | `candidates/` | reserved for SPEC-HARNEVAL-002 quarantine; never loaded |
 
@@ -67,10 +67,10 @@ as a required status check on main (T14, an OPS step).
 
 | Measure | Floor | Committed |
 |---------|-------|-----------|
-| active surface tasks | 20 | 31 |
+| active surface tasks | 20 | 32 |
 | assertion platforms | 5 | 5 |
 | surface categories | 4 | 5 |
-| multi-platform or multi-path ratio | 0.60 | 30/31 = 0.97 |
+| multi-platform or multi-path ratio | 0.60 | 31/32 = 0.97 |
 | active agent tasks | 12 | 12 |
 
 Surface tasks by category:
@@ -78,7 +78,7 @@ Surface tasks by category:
 - `routing`: GT-ROUTE-CLAUDE-DETAILS, GT-ROUTE-ANTIGRAVITY-DETAILS, GT-ROUTE-CODEX-SKILL-NAMES,
   GT-ROUTE-OMP-EXACT-MAP, GT-ROUTE-OPENCODE-DETAILS, GT-ROUTE-ALIASES, GT-ROUTE-ANTIGRAVITY-COMMANDS
 - `hooks_settings`: GT-HOOK-ARCH-GATE-ON, GT-HOOK-ARCH-GATE-OPT-OUT (variant `hooks.pre_commit_arch=false`),
-  GT-HOOK-SESSION-LIFECYCLE, GT-HOOK-CLAUDE-RULE-DISPATCH, GT-SETTINGS-MCP-SERVERS,
+  GT-HOOK-COMPLETION-RETIRED, GT-HOOK-EDIT-GUARD-ON, GT-HOOK-CLAUDE-RULE-DISPATCH, GT-SETTINGS-MCP-SERVERS,
   GT-SETTINGS-PERMISSION-SCOPE, GT-HOOK-OPENCODE-PLUGIN, GT-HOOK-LORE-COMMIT-MSG
 - `prompt_contract`: GT-PROMPT-TRIAGE-PARITY, GT-PROMPT-THIN-ROUTER, GT-PROMPT-WORKER-RECEIPT,
   GT-PROMPT-DELEGATION-RULE, GT-PROMPT-SHELL-PORTABILITY, GT-PROMPT-REVIEW-CONVERGENCE,
@@ -87,6 +87,17 @@ Surface tasks by category:
   GT-SKILL-CLAUDE-NATIVE-ORCHESTRATION, GT-SKILL-CODEX-PLUGIN-ENTRY
 - `generated_root_hygiene`: GT-HYGIENE-MANAGED-BLOCKS, GT-HYGIENE-SHARED-AGENTS-ROOT,
   GT-HYGIENE-REFERENCE-INTEGRITY, GT-HYGIENE-GENERATED-SURFACE-SAFETY
+
+Retired (2026-10-08): GT-HOOK-SESSION-LIFECYCLE, whose session lifecycle hooks
+SPEC-PANERM-001 REQ-12 removed with the orchestra pane backend.
+GT-HOOK-COMPLETION-RETIRED now asserts that none of those scripts or handlers
+is generated, and GT-HOOK-EDIT-GUARD-ON took over its Codex `hooks = true`
+check, since the Codex edit guard (SPEC-EDITGUARD-001) is a hook too. On the
+pinned surface of the integration tree before SPEC-PANERM-001 and
+SPEC-EDITGUARD-001 (`662eee2e`), every assertion of GT-HOOK-COMPLETION-RETIRED
+and every guard assertion of GT-HOOK-EDIT-GUARD-ON failed; the two that hold
+either way are the Codex hooks feature and the absent guard on the
+advisory-only `.agents/hooks.json` lane.
 
 Each task's `provenance.ref` names the canonical source the behavior comes
 from. A task must assert a cross-cutting behavior of the generated surface; a
@@ -205,7 +216,7 @@ without having applied.
 | M10 | Claude managed-block markers renamed (`pkg/adapter/claude/claude.go`) | GT-HYGIENE-MANAGED-BLOCKS |
 | M11 | OMP `/auto-plan` loads the router instead of the detail (`pkg/adapter/omp/omp_commands.go`) | GT-ROUTE-OMP-EXACT-MAP |
 | M12 | lore-commit loses its hook condition (`content/rules/lore-commit.md`) | GT-HOOK-CLAUDE-RULE-DISPATCH |
-| M13 | Claude hook directory made absolute (`pkg/content/hooks_completion.go`) | GT-HOOK-SESSION-LIFECYCLE |
+| M13 | Claude Code lane no longer `enforced`, so its edit guard is not registered in `.claude/settings.json` (`pkg/editguard/matrix.go`) | GT-HOOK-EDIT-GUARD-ON |
 | M14 | legacy `/auto:plan` loads `auto-go` (`templates/gemini/commands/auto/plan.toml.tmpl`) | GT-ROUTE-ANTIGRAVITY-COMMANDS |
 
 M1-M5 are the five REQ-HE-12 classes. An edit lands on every generated
@@ -217,6 +228,13 @@ run` regressed exactly the task above. The generators read `content/` and
 `templates/` through `go:embed`, so a source edit needs a binary of its own;
 each row is instead the surface edit its source change made, and it regresses
 the same task.
+
+M13 was replaced on 2026-10-08. Its first defect, a Claude completion hook
+directory made absolute, regressed GT-HOOK-SESSION-LIFECYCLE, and SPEC-PANERM-001
+deleted that hook and its source. The new row was spot-checked the same way:
+the Claude Code lane of `pkg/editguard/matrix.go` set to `none` in a scratch
+copy regressed exactly GT-HOOK-EDIT-GUARD-ON. So did the Antigravity lane set
+to `enforced`, which puts the guard on the advisory-only `.agents/hooks.json`.
 
 M9 first survived that spot-check: `value_contains` is a substring test, and
 `./.autopus/plugins/autopus` contains `./.autopus/plugins/auto`. Values that

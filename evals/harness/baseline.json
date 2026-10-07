@@ -1,7 +1,7 @@
 {
   "schema_version": "harness_eval_baseline.v1",
   "set_version": "1",
-  "set_digest": "c95c23dcea44b4e877a01458fc693a1986fa160fbb597c38597efe3576cad8eb",
+  "set_digest": "566cf33029d3cd5a24f5b185cc5545bcead37902bafb646237eace6237df17b8",
   "rows": [
     {
       "id": "GT-AGENT-A01",
@@ -106,7 +106,7 @@
       "kind": "surface",
       "state": "active",
       "result": "pass",
-      "expectation_digest": "3d3e3d396822a7a07bed1815c05f4d005cbc780b91c257e327bbb6512aee80db"
+      "expectation_digest": "46cd09cce2c81d1f7a6251fd17b7c976e6927c63d3b4b4effc1f2291c6b32871"
     },
     {
       "id": "GT-HOOK-ARCH-GATE-OPT-OUT",
@@ -121,6 +121,20 @@
       "state": "active",
       "result": "pass",
       "expectation_digest": "8f83e5aa9a29783a1b67139c5bb7f7a7ae8c2b6d93340c6fcd87517af7beb81b"
+    },
+    {
+      "id": "GT-HOOK-COMPLETION-RETIRED",
+      "kind": "surface",
+      "state": "active",
+      "result": "pass",
+      "expectation_digest": "ac8d02bcbaafbc042f16cf6bc3424dc8591614324ec670000835dfe0b7a5e194"
+    },
+    {
+      "id": "GT-HOOK-EDIT-GUARD-ON",
+      "kind": "surface",
+      "state": "active",
+      "result": "pass",
+      "expectation_digest": "460fccd532ed413e13120a6f544f0e4e83d30cc22f9fabbc98d694003e309f37"
     },
     {
       "id": "GT-HOOK-LORE-COMMIT-MSG",
@@ -139,9 +153,10 @@
     {
       "id": "GT-HOOK-SESSION-LIFECYCLE",
       "kind": "surface",
-      "state": "active",
+      "state": "retired",
       "result": "pass",
-      "expectation_digest": "6bdc6fd35c80f8f14b216977a124136c89bc26ea3ad72286c53a2bf62c40ed7a"
+      "expectation_digest": "6bdc6fd35c80f8f14b216977a124136c89bc26ea3ad72286c53a2bf62c40ed7a",
+      "retired_reason": "SPEC-PANERM-001 REQ-12 retired the orchestra completion and ready hooks with the pane backend: no platform generates these scripts or their SessionStart, Stop, AfterAgent, or .agents Stop handlers any more. GT-HOOK-COMPLETION-RETIRED asserts their absence; the Codex hooks feature check moved to GT-HOOK-EDIT-GUARD-ON."
     },
     {
       "id": "GT-HYGIENE-GENERATED-SURFACE-SAFETY",
