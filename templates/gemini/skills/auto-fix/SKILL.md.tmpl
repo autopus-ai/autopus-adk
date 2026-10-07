@@ -40,7 +40,7 @@ triggers:
 
 Step 번호는 `/auto fix` 라우터 본문의 단계입니다. Step 1 재현은 절차 1-2, Step 4 검증은 절차 6-7입니다.
 
-- 2단계에서 테스트가 컴파일되고 버그 단언에서 실패하면 코드를 고치기 전에 잠급니다. `<test-path>`는 현재 디렉터리 기준 테스트 파일 경로이며, 공백이나 셸 메타문자가 있으면 작은따옴표로 감쌉니다. exit 1이면 아무것도 잠기지 않았으니 경로를 확인하고 다시 실행합니다.
+- 2단계에서 테스트가 컴파일되고 버그 단언에서 실패하면 코드를 고치기 전에 잠급니다. `<test-path>`는 현재 디렉터리 기준 테스트 파일 경로이며, 공백이나 셸 메타문자가 있으면 작은따옴표로 감쌉니다. exit 1이면 아무것도 잠기지 않았으니 경로를 확인하고 다시 실행합니다. 잠금과 해제는 테스트에서 가장 가까운 프로젝트 루트, 곧 테스트 위로 처음 만나는 `autopus.yaml`이 있는 디렉터리에서 실행합니다. 바깥 프로젝트에서 실행하면 둘 다 exit 1로 끝나고 그 루트를 알려 줍니다.
 
   ```bash
   auto fix lock -- <test-path>
@@ -55,6 +55,7 @@ Step 번호는 `/auto fix` 라우터 본문의 단계입니다. Step 1 재현은
   ```
 
 - exit 0은 모든 판정이 `unchanged`라는 뜻입니다. exit 3(`modified`, `missing`, `unverifiable`)은 잠근 뒤 어떤 경로로든 테스트가 바뀌었다는 뜻이므로 수정이 끝나지 않은 것입니다. 판정을 보고하고 멈춘 뒤 사용자에게 묻습니다. `unchanged`를 얻으려고 다시 잠그거나 테스트를 고쳐 쓰지 않습니다.
+- unlock exit 1은 해제가 끝나지 않았다는 뜻입니다(경로에 잠금이 없거나, 제거 오류로 잠금이 남음). 이것도 수정이 끝나지 않은 것이므로 오류를 보고하고 멈춘 뒤 사용자에게 묻습니다.
 - 완료 보고 전 확인: Lock verdict is unchanged (any other verdict: not complete, stop and ask the user)
 - 테스트를 만들 수 없는 수정(CLI 전용 등)은 재현 절차를 문서로 남기고, 잠금과 판정 대신 보고에 `lock: not applicable`을 적습니다.
 - Antigravity는 advisory-only lane이라 `.agents/hooks.json`에 edit guard가 없어 편집을 막지 못하지만, unlock 판정은 잠근 뒤 남아 있는 변경을 보고합니다.

@@ -25,7 +25,7 @@ description: "버그 수정 — 재현 테스트를 먼저 작성한 뒤 최소 
 
 ## 재현 테스트 잠금
 
-Step 번호는 `/auto fix` 라우터 본문의 단계입니다. Step 1 재현은 절차 1-2, Step 4 검증은 절차 6-7입니다. `<test-path>`는 현재 디렉터리 기준 테스트 파일 경로이며, 공백이나 셸 메타문자가 있으면 작은따옴표로 감쌉니다.
+Step 번호는 `/auto fix` 라우터 본문의 단계입니다. Step 1 재현은 절차 1-2, Step 4 검증은 절차 6-7입니다. `<test-path>`는 현재 디렉터리 기준 테스트 파일 경로이며, 공백이나 셸 메타문자가 있으면 작은따옴표로 감쌉니다. 잠금과 해제는 테스트 위로 처음 만나는 `autopus.yaml`이 있는 디렉터리에서 실행합니다. 바깥 프로젝트에서 실행하면 exit 1로 끝나고 그 루트를 알려 줍니다.
 
 - 2단계 확인 직후, 코드를 고치기 전에 잠급니다:
 
@@ -41,7 +41,7 @@ Step 번호는 `/auto fix` 라우터 본문의 단계입니다. Step 1 재현은
   auto fix unlock --json -- <test-path>
   ```
 
-- 완료 보고 전 확인: Lock verdict is unchanged (any other verdict: not complete, stop and ask the user). exit 3이면 다시 잠그거나 테스트를 고쳐 쓰지 않습니다.
+- 완료 보고 전 확인: Lock verdict is unchanged (any other verdict: not complete, stop and ask the user). exit 3이면 다시 잠그거나 테스트를 고쳐 쓰지 않습니다. unlock exit 1도 해제가 끝나지 않은 것이므로 수정이 끝나지 않았습니다. 오류를 보고하고 멈춘 뒤 사용자에게 묻습니다.
 - 테스트를 만들 수 없는 수정은 잠금과 판정 대신 보고에 `lock: not applicable`을 적습니다.
 
 ## Change Contract Boundary
