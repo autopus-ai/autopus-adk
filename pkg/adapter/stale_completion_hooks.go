@@ -45,9 +45,23 @@ var staleCompletionHookScripts = map[string][]string{
 }
 
 // staleCompletionSettingsFiles are the project files whose content can point
-// at a group S script: each platform's hook settings and the OpenCode config.
+// at a group S script: each platform's hook settings, the OpenCode config, and
+// Claude Code's local settings, which Claude runs like the shared file but
+// update never writes.
 var staleCompletionSettingsFiles = []string{
-	".claude/settings.json", ".codex/hooks.json", ".agents/hooks.json", ".gemini/settings.json", "opencode.json",
+	".claude/settings.json", ".claude/settings.local.json", ".codex/hooks.json", ".agents/hooks.json",
+	".gemini/settings.json", "opencode.json",
+}
+
+// generatedHookLaunchers are the (prefix, suffix) forms that generation
+// wrapped around a group S script path, the bare path included. Only these
+// may hold shell operators; pkg/content generated the prefixed forms at B.
+var generatedHookLaunchers = [][2]string{
+	{"", ""},
+	{`"${CLAUDE_PROJECT_DIR:-.}"/`, ""},
+	{`"${GEMINI_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"/`, ""},
+	{`"$(cd .. && pwd)/`, `"`},
+	{`"$(git rev-parse --show-toplevel 2>/dev/null || pwd)/`, `"`},
 }
 
 // StaleCompletionHookScripts returns the group S scripts of platform as sorted
@@ -69,17 +83,29 @@ func AllStaleCompletionHookScripts() []string {
 	return scripts
 }
 
-// IsStaleCompletionHookCommand reports whether a settings handler command runs
-// one of platform's group S scripts. After surrounding blanks and trailing
-// quotes are trimmed, the command must end in the script's root-relative path
-// at a path boundary (the whole command, or a "/", blank, or quote before it),
-// whatever prefix locates the project root. Arguments after the script make
-// it a different command, which stays.
+// IsStaleCompletionHookCommand reports whether a settings handler command is
+// nothing but a launch of one of platform's group S scripts. After surrounding
+// blanks are trimmed, the command is either a generated launcher form around
+// the script's root-relative path, or a single path word that ends in it at a
+// path boundary (an absolute, $HOME, or quoted project-root prefix). A command
+// that carries shell operators, an interpreter, or arguments does other work,
+// so it is a user command and stays (its script stays with it).
 func IsStaleCompletionHookCommand(platform, command string) bool {
-	trimmed := strings.TrimRight(strings.TrimSpace(command), `"'`)
+	trimmed := strings.TrimSpace(command)
 	for _, script := range staleCompletionHookScripts[platform] {
-		rest, ok := strings.CutSuffix(trimmed, script)
-		if ok && (rest == "" || strings.ContainsAny(rest[len(rest)-1:], "/ \t\"'")) {
+		for _, launcher := range generatedHookLaunchers {
+			if trimmed == launcher[0]+script+launcher[1] {
+				return true
+			}
+		}
+	}
+	if strings.ContainsAny(trimmed, ";&|<>`\n\t ") || strings.Contains(trimmed, "$(") {
+		return false
+	}
+	unquoted := strings.TrimRight(trimmed, `"'`)
+	for _, script := range staleCompletionHookScripts[platform] {
+		rest, ok := strings.CutSuffix(unquoted, script)
+		if ok && (rest == "" || strings.ContainsAny(rest[len(rest)-1:], `/"'`)) {
 			return true
 		}
 	}

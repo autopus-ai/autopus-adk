@@ -38,7 +38,8 @@ func TestIsStaleCompletionHookCommand_MatchesCommandsEndingInAGroupSScript(t *te
 		{"claude-code", `"${CLAUDE_PROJECT_DIR:-.}"/.claude/hooks/autopus/hook-claude-stop.sh`, true},
 		{"claude-code", `$HOME/.claude/hooks/autopus/hook-claude-sessionstart.sh`, true},
 		{"claude-code", ` .claude/hooks/autopus/hook-claude-stop.sh `, true},
-		{"claude-code", `bash .claude/hooks/autopus/hook-claude-stop.sh`, true},
+		{"claude-code", `bash .claude/hooks/autopus/hook-claude-stop.sh`, false},
+		{"claude-code", `cp ~/.claude/hooks/autopus/hook-claude-stop.sh`, false},
 		{"claude-code", `.claude/hooks/autopus/hook-claude-stop.sh --verbose`, false},
 		{"claude-code", `/x/my.claude/hooks/autopus/hook-claude-stop.sh`, false},
 		{"claude-code", `.claude/hooks/autopus/react-review.sh`, false},
@@ -51,6 +52,33 @@ func TestIsStaleCompletionHookCommand_MatchesCommandsEndingInAGroupSScript(t *te
 	} {
 		assert.Equal(t, tc.want, IsStaleCompletionHookCommand(tc.platform, tc.command), "%s %q", tc.platform, tc.command)
 	}
+}
+
+// A user command that runs a group S script among other work is not a
+// generated hook: retracting it would delete the user's work with it. Only the
+// generated launcher forms may hold shell operators.
+func TestIsStaleCompletionHookCommand_KeepsCompoundUserCommands(t *testing.T) {
+	t.Parallel()
+	const stop = ".claude/hooks/autopus/hook-claude-stop.sh"
+	for _, command := range []string{
+		"./scripts/notify.sh && " + stop,
+		`./scripts/notify.sh && "${CLAUDE_PROJECT_DIR:-.}"/` + stop,
+		"echo x; " + stop,
+		"true || " + stop,
+		"cat log | " + stop,
+		"./notify.sh & " + stop,
+		"$(pwd)/" + stop,
+		"`pwd`/" + stop,
+		"echo x > " + stop,
+		"./notify.sh\n" + stop,
+	} {
+		assert.False(t, IsStaleCompletionHookCommand("claude-code", command), "%q", command)
+	}
+	assert.False(t, IsStaleCompletionHookCommand("codex",
+		`"$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.codex/hooks/autopus/hook-codex-stop.sh" && ./mine.sh`))
+	assert.True(t, IsStaleCompletionHookCommand("codex",
+		`"$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.codex/hooks/autopus/hook-codex-sessionstart.sh"`))
+	assert.True(t, IsStaleCompletionHookCommand("claude-code", "  \"${CLAUDE_PROJECT_DIR:-.}\"/"+stop+"\t"))
 }
 
 func TestRetractHookHandlers_RemovesOwnedHandlersAndKeepsUserOnes(t *testing.T) {
@@ -130,6 +158,20 @@ func TestStaleCompletionScriptRemoves_KeepsScriptsTheFinalStateStillNames(t *tes
 		"the planned settings write drops stop; opencode.json names the .ts; undecodable text naming a file keeps it")
 	assert.Equal(t, []string{codexStop}, removePaths(t, StaleCompletionScriptRemoves(root, scripts, nil)),
 		"without the planned write the on-disk settings still name stop")
+}
+
+// .claude/settings.local.json is a Claude Code settings file that update never
+// writes; a script its handler still runs stays, or every Stop would exit 127.
+func TestStaleCompletionScriptRemoves_KeepsAScriptTheLocalSettingsName(t *testing.T) {
+	t.Parallel()
+	const stop, start = ".claude/hooks/autopus/hook-claude-stop.sh", ".claude/hooks/autopus/hook-claude-sessionstart.sh"
+	root := t.TempDir()
+	writeStaleFile(t, root, stop, "x\n")
+	writeStaleFile(t, root, start, "x\n")
+	writeStaleFile(t, root, ".claude/settings.local.json",
+		`{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"\"${CLAUDE_PROJECT_DIR:-.}\"/`+stop+`"}]}]}}`)
+
+	assert.Equal(t, []string{start}, removePaths(t, StaleCompletionScriptRemoves(root, []string{stop, start}, nil)))
 }
 
 func TestStaleCompletionScriptRemoves_UnreadableSettingsKeepEveryScript(t *testing.T) {

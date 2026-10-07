@@ -30,7 +30,7 @@ func TestCodexUpdate_RetractsGroupSHandlersAndScripts(t *testing.T) {
 	hooksDoc := map[string]any{"hooks": map[string]any{
 		// An unstamped handler: only the group S predicate recognizes it.
 		"Stop": []any{user, map[string]any{"matcher": "mixed", "hooks": []any{
-			map[string]any{"type": "command", "command": "bash .codex/hooks/autopus/hook-codex-stop.sh", "timeout": 300},
+			map[string]any{"type": "command", "command": ".codex/hooks/autopus/hook-codex-stop.sh", "timeout": 300},
 			map[string]any{"type": "command", "command": "./scripts/notify.sh", "timeout": 10},
 		}}},
 		"SessionStart": []any{map[string]any{"hooks": []any{map[string]any{

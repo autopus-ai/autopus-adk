@@ -168,17 +168,16 @@ func (tx *transaction) writeFile(write TransactionWrite) error {
 	if err != nil {
 		return err
 	}
-	if write.Perm == 0 {
-		write.Perm = 0644
-	}
 	if err := tx.snapshot(rel, "write"); err != nil {
 		return err
 	}
-	if info, statErr := os.Lstat(abs); statErr == nil && info.IsDir() {
+	info, statErr := os.Lstat(abs)
+	if statErr == nil && info.IsDir() {
 		return fmt.Errorf("transaction target is directory %s", rel)
 	} else if statErr != nil && !os.IsNotExist(statErr) {
 		return fmt.Errorf("transaction stat %s: %w", rel, statErr)
 	}
+	perm := transactionWriteMode(info, write.Perm)
 	if err := os.MkdirAll(filepath.Dir(abs), 0755); err != nil {
 		return fmt.Errorf("transaction mkdir %s: %w", rel, err)
 	}
@@ -196,7 +195,7 @@ func (tx *transaction) writeFile(write TransactionWrite) error {
 		_ = os.Remove(tmpPath)
 		return fmt.Errorf("transaction close temp %s: %w", rel, err)
 	}
-	if err = os.Chmod(tmpPath, write.Perm); err != nil {
+	if err = os.Chmod(tmpPath, perm); err != nil {
 		_ = os.Remove(tmpPath)
 		return fmt.Errorf("transaction chmod temp %s: %w", rel, err)
 	}
