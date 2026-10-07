@@ -2305,9 +2305,20 @@ IMPORTANT: You MUST write a failing test that reproduces the bug before making a
 
 - Write the minimal test case that demonstrates the failure
 - Confirm it fails: `go test ./... -run TestXxx`
-- If no test is possible (e.g., CLI-only), document the reproduction steps explicitly
+- Confirm it compiles and fails on the bug assertion, not on a build error or an unrelated failure
+- If no test is possible (e.g., CLI-only), document the reproduction steps explicitly; there is nothing to lock (see Pre-Completion Verification)
 
-> **⏭ POST-STEP**: Failing test written. NEXT REQUIRED STEP: Step 2: Root Cause Analysis. Do NOT skip to Step 3.
+Once the test fails on the bug assertion, lock it before changing any code. `<test-path>` is the test file's path relative to the current directory; single-quote it when it holds spaces or shell metacharacters. Exit 1 means nothing was locked: check the path and rerun.
+
+```bash
+auto fix lock -- <test-path>
+```
+
+While the lock is active, the edit guard denies file-editing tool calls on the test with `[fix_lock]`. Fix the code under test instead; if the test itself is wrong, stop and ask the user.
+
+Do NOT run auto fix unlock before Step 4 verification passes.
+
+> **⏭ POST-STEP**: Failing test written and locked. NEXT REQUIRED STEP: Step 2: Root Cause Analysis. Do NOT skip to Step 3.
 
 #### [REQUIRED] Step 2: Root Cause Analysis
 
@@ -2336,15 +2347,28 @@ go test -race ./...
 
 **Fallback rule**: Only if the Bash call returns an error, display the exact error to the user and ask for fallback approval.
 
+#### [REQUIRED] Step 4.5: Complete — Release the Lock (MUST call Bash tool)
+
+After Step 4 passes, release the reproduction test lock and read its verdict:
+
+```bash
+auto fix unlock --json -- <test-path>
+```
+
+Exit 0 means every verdict is `unchanged`. Exit 3 (`modified`, `missing`, or `unverifiable`) means the locked test changed after it was locked, through any channel: the fix is not complete. Report the verdict, stop, and ask the user. Do NOT re-lock or rewrite the test to get an `unchanged` verdict.
+
 ### [REQUIRED] Pre-Completion Verification
 
 Before reporting the fix as complete, verify ALL steps were executed:
 
 - [ ] Step 1: Failing test written (or reproduction steps documented)
+- [ ] Step 1: Reproduction test locked once it failed on the bug assertion
 - [ ] Step 2: Root cause identified and documented
 - [ ] Step 2: caller/shared root-cause evidence recorded or symptom-only plan marked `revise-target`
 - [ ] Step 3: Minimal fix applied
 - [ ] Step 4: Bash tool called — `go test -race ./...` passed
+- [ ] Step 4.5: Lock verdict is unchanged (any other verdict: not complete, stop and ask the user)
+- [ ] A fix without a test records `lock: not applicable` in place of the lock and verdict items
 
 IF any item is unchecked → return to that step. Do NOT report completion.
 

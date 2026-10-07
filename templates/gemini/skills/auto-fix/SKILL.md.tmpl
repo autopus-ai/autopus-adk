@@ -28,12 +28,36 @@ triggers:
 ## 절차
 
 1. 재현 테스트 작성 (먼저)
-2. 테스트 실패 확인
+2. 테스트 실패 확인 — 컴파일되고 버그 단언에서 실패하면 수정 전에 재현 테스트를 잠급니다 (아래 재현 테스트 잠금)
 3. symptom location, owning function/path, caller 목록 또는 grep evidence 확인
 4. caller/shared root-cause path 확인 후 패치 위치 결정
 5. 최소 수정
 6. 테스트 통과 확인
 7. 영향받은 회귀 테스트 실행. 공통 전체 검증은 통합 후 한 번 수행하고, 입력·환경 변경이나 열린 finding이 있을 때만 관련 검사를 반복합니다.
+8. 완료: 재현 테스트 잠금을 풀고 판정을 확인합니다 (아래 재현 테스트 잠금)
+
+## 재현 테스트 잠금
+
+Step 번호는 `/auto fix` 라우터 본문의 단계입니다. Step 1 재현은 절차 1-2, Step 4 검증은 절차 6-7입니다.
+
+- 2단계에서 테스트가 컴파일되고 버그 단언에서 실패하면 코드를 고치기 전에 잠급니다. `<test-path>`는 현재 디렉터리 기준 테스트 파일 경로이며, 공백이나 셸 메타문자가 있으면 작은따옴표로 감쌉니다. exit 1이면 아무것도 잠기지 않았으니 경로를 확인하고 다시 실행합니다.
+
+  ```bash
+  auto fix lock -- <test-path>
+  ```
+
+- 잠금 중에는 Gemini CLI의 edit guard가 그 테스트를 고치는 `write_file`, `replace` 호출을 `[fix_lock]`으로 거부합니다. 테스트 대상 코드를 고치고, 테스트 자체가 틀렸다면 멈추고 사용자에게 묻습니다.
+- Do NOT run auto fix unlock before Step 4 verification passes.
+- 완료 단계(절차 8)에서 잠금을 풀고 판정을 읽습니다.
+
+  ```bash
+  auto fix unlock --json -- <test-path>
+  ```
+
+- exit 0은 모든 판정이 `unchanged`라는 뜻입니다. exit 3(`modified`, `missing`, `unverifiable`)은 잠근 뒤 어떤 경로로든 테스트가 바뀌었다는 뜻이므로 수정이 끝나지 않은 것입니다. 판정을 보고하고 멈춘 뒤 사용자에게 묻습니다. `unchanged`를 얻으려고 다시 잠그거나 테스트를 고쳐 쓰지 않습니다.
+- 완료 보고 전 확인: Lock verdict is unchanged (any other verdict: not complete, stop and ask the user)
+- 테스트를 만들 수 없는 수정(CLI 전용 등)은 재현 절차를 문서로 남기고, 잠금과 판정 대신 보고에 `lock: not applicable`을 적습니다.
+- Antigravity는 advisory-only lane이라 `.agents/hooks.json`에 edit guard가 없어 편집을 막지 못하지만, unlock 판정은 잠근 뒤 남아 있는 변경을 보고합니다.
 
 ## Change Contract Boundary
 
