@@ -123,10 +123,16 @@ the corpus oracle command. No agent and no model was called.
 | GT-AGENT-B05 | 1 | TestConfigOperations_RejectSymlinkedConfig |
 | GT-AGENT-B06 | 1 | TestPluginConfigNewVersionShapeAndPathAliases |
 
-Not run: the same calibration inside the `grader.sb` profile with the
-read-only module cache (REQ-HE-09). That profile and `prepare_grader.py` are
-T11 deliverables; the live lane runs that calibration before any trial and
-refuses the session with `oracle_calibration_failed` if a name here is wrong.
+The same calibration inside the `grader.sb` profile with the read-only module
+cache (REQ-HE-09) ran on 2026-10-07 with
+`scripts/benchmarks/harness/prepare_grader.py`: 12/12 clean accepted, 12/12
+mutated rejected, with the failing tests above. With an empty module cache
+the ten tasks whose packages import an external module fail to build with no
+pass event; GT-AGENT-A01 and GT-AGENT-A05 (`pkg/skillpolicy`, standard library
+only) still pass, so the calibration is refused through the other ten
+(`.autopus/specs/SPEC-HARNEVAL-001/evidence/t11-grader.txt`). The live lane
+runs this calibration before any trial and refuses the session with
+`oracle_calibration_failed` if a name here is wrong.
 
 ## Live advisory report (REQ-HE-10, REQ-HE-11)
 

@@ -1,0 +1,116 @@
+# T11 grader probes (SPEC-HARNEVAL-001 A1 + A3 re-run on the committed grader; slice 7 on feat/harneval-001 @ e3ff994c)
+executed 2026-10-07T03:08:03Z-03:18:44Z (UTC); macOS 26.5.2 (25F84), go1.27.0 darwin/arm64, Python 3.14.7.
+The host was shared with other agents (load average 24-29 during the run).
+paid model calls: 0. No agent and no codex process ran: every oracle is a local `go test` of a corpus package.
+code under test (sha256): grader.sb b3f1ba3c3ee60dfa5099cdcbdc79112b483635ed2464953ed38338af86b3d19a (= grader_profile_sha256)
+                          grader.py 37416b6a31c9dfb9fc0960f4a5c8ce62f93d9907d9aa26fb980a9d3e159d282a
+                          prepare_grader.py 170d9f964734e5eb2a7d9beffce4c6f2962b0f3f49108168e1083d131934ccae
+raw artifacts (not in the repo): session scratchpad harneval-t11/ (run_evidence.sh, cli.json, evidence.py, evidence.json,
+probe_test.go.txt, param_probe.sh, harneval-t11-hardlink.sh, hardlink.log, redcheck.py, session/ with logs and calibration.json)
+verdicts: A1 PASS (re-run on committed code; one refinement, see empty module cache) | A3 PASS (re-run, extended,
+negative control included) | S10 refusal fixtures PASS | GitHub-hosted runner not-run (outside this SPEC)
+
+## A1 trusted preparation and calibration through the committed CLI -> PASS
+command: PYTHONDONTWRITEBYTECODE=1 python3 scripts/benchmarks/harness/prepare_grader.py --repo <worktree> --output <scratch>/session
+exit 0, stderr empty, 4m29s wall for snapshot + preparation + 24 sandboxed oracle runs.
+- snapshot: workspace.snapshot of live.workspace_revision a05ce69df9dc03493b8c5de0ab9299459195e8d8 (git archive, harness roots stripped).
+- trusted preparation (outside the sandbox, about 23 s): `go mod download -json` from the file proxy
+  file://~/go/pkg/mod/cache/download -> 50 modules; every downloaded go.mod and zip hash is pinned in go.sum; go.sum
+  byte-identical afterwards; `go mod verify` "all modules verified"; module cache made read-only; warm build of the 9
+  oracle packages. prepare() raises on any of these, so returning means all held. PATH = the Go toolchain directory only
+  (/opt/homebrew/Cellar/go/1.27.0/libexec/bin): no C compiler, so cgo is off; all 12 oracles build that way.
+- calibration before (each run: fresh grade root = cp -c clones of snapshot and warm cache, env -i allowlist, sandbox-exec):
+  task          clean (signal, exit, expected passes, s)   mutated (signal, exit, expected fails)
+  GT-AGENT-A01  accepted 0 3/3 6.2                          oracle_failed 1 1
+  GT-AGENT-A02  accepted 0 1/1 2.4                          oracle_failed 1 1
+  GT-AGENT-A03  accepted 0 3/3 2.8                          oracle_failed 1 1
+  GT-AGENT-A04  accepted 0 7/7 6.0                          oracle_failed 1 1
+  GT-AGENT-A05  accepted 0 3/3 1.5                          oracle_failed 1 2
+  GT-AGENT-A06  accepted 0 3/3 2.9                          oracle_failed 1 2
+  GT-AGENT-B01  accepted 0 1/1 6.9                          oracle_failed 1 1
+  GT-AGENT-B02  accepted 0 1/1 2.7                          oracle_failed 1 1
+  GT-AGENT-B03  accepted 0 1/1 7.6                          oracle_failed 1 1
+  GT-AGENT-B04  accepted 0 1/1 3.2                          oracle_failed 1 1
+  GT-AGENT-B05  accepted 0 1/1 3.4                          oracle_failed 1 1
+  GT-AGENT-B06  accepted 0 1/1 8.3                          oracle_failed 1 1
+  clean accepted 12/12, mutated rejected 12/12 (oracle.ran true in all 24 runs, so every mutation is caught by a test,
+  not by a build error), calibration.json before.status passed. The failing-test counts equal the committed
+  evals/harness/README.md calibration table (A05 and A06 fail two tests, every other task one).
+  No run overflowed, left a process behind or timed out.
+- empty module cache (fixture, same caches except GOMODCACHE = an empty directory): calibration status failed,
+  oracle_calibration_failed ids A02 A03 A04 A06 B01 B02 B03 B04 B05 B06. Those 10 clean oracles exit 1 at build with
+  FailedBuild naming an external module (testify/assert, x/sys/unix, modernc.org/sqlite, yaml.v3) and 0 top-level
+  pass events. Refinement of the plan's A1 row (which tried one task): GT-AGENT-A01 and GT-AGENT-A05 still pass with
+  an empty cache because pkg/skillpolicy imports the standard library only. The refusal still holds through the other 10.
+- session-end recalibration (`after`, same caches, after every probe below): status passed (clean accepted 12,
+  mutated oracle_failed 12), recorded with record_after; calibration.json keeps session_id, before (passed) and
+  after (passed). Its bytes had not changed between the CLI and record_after. The module cache file listing
+  (path, mode, size, mtime of every entry) and the warm build cache listing are identical to their values right
+  after the CLI.
+
+## A3 grader isolation (grader.sb + env -i allowlist) -> PASS
+Probe: a stdlib-only package copied into a grade root's workspace clone, run as `go test -count=1 ./harnevalprobe`
+through grader.grade() with the CLI's caches. The trusted process held canaries HARNEVAL_CANARY, GITHUB_TOKEN,
+GITHUB_ENV, ACTIONS_ID_TOKEN_REQUEST_TOKEN, RUNNER_TEMP, CODEX_API_KEY and OPENAI_API_KEY in its own environment
+and a TCP listener on 127.0.0.1.
+  attempt (sandboxed)                                   result
+  write <root>/home/inside                              ok
+  write <root>/gocache/planted-t1                       ok
+  write <session>/outside.txt                           open: operation not permitted
+  write <session>/records.jsonl                         open: operation not permitted
+  write <session>/github_env                            open: operation not permitted
+  append <session>/calibration.json                     open: operation not permitted (sha256 unchanged)
+  write another trial's grade root (other-trial/ws)     open: operation not permitted
+  write the runner checkout (scripts/benchmarks/harness/.t11-sandbox-probe)   open: operation not permitted (absent after)
+  write <session>/grader/modcache/planted               open: operation not permitted (listing unchanged)
+  write <session>/grader/warm/gocache/planted           open: operation not permitted (listing unchanged)
+  dial tcp 127.0.0.1:<listener>                         connect: operation not permitted (listener accepted 0)
+  dial tcp 1.1.1.1:443                                  connect: operation not permitted
+  dial unix /var/run/mDNSResponder                      connect: operation not permitted
+  lookup example.com                                    no such host (the resolver's socket is denied above)
+  environment keys                                      GOCACHE GOFLAGS GOMODCACHE GOPATH GOPROXY GOSUMDB GOTOOLCHAIN
+                                                        HOME PATH PWD TMPDIR = the 10-key allowlist + PWD set by go;
+                                                        no canary, no GITHUB_*, ACTIONS_*, RUNNER_*, CODEX_*, OPENAI_*
+  background child (re-exec of the test binary, sleeps 2 min)   started; grade result stragglers=true (killed by the
+                                                        runner's group SIGKILL), leftover=false, pid gone afterwards
+  grade signal accepted, exit 0. A fresh grade root cloned afterwards has no gocache/planted-t1, so one run's
+  build-cache writes never reach the next run.
+Negative control: the same probe without sandbox-exec and with the inherited environment (90 keys):
+  write <scratch>/control-outside.txt ok (file created) | dial 127.0.0.1:<listener> ok (listener accepted 1) |
+  dial unix /var/run/mDNSResponder ok | all 7 canary keys visible | exit 0.
+  So the probe can write, connect and read the environment; the denials above come from the profile and env -i.
+Write paths other than open (shell probe on the committed profile, GRADE_ROOT=<p>/root):
+  ln <p>/session/records.jsonl <p>/root/link   -> Operation not permitted (no hard-link route to an outside inode)
+  mv <p>/session/protocol.json <p>/root/moved  -> Operation not permitted
+  ln -s outside file, then write through it    -> Operation not permitted
+  cp -c outside file into root, then append    -> ok, the original is untouched (clone is copy-on-write)
+  outside sha256 unchanged; control without the sandbox: hard link + append changes the outside file.
+GRADE_ROOT parameter (committed profile): canonical root -> write ok; missing -> sandbox-exec exit 65 ("expected
+pattern, got boolean"); empty -> exit 65 ("empty subpath pattern"); relative or through a symlink -> writes denied;
+"/" -> every write allowed. grader_argv() therefore refuses non-canonical roots and any root that contains the
+caches, the Go toolchain, the runner checkout or HOME (unit test GraderArgvTests).
+Output limit: a probe printing about 2 MiB -> the runner kept exactly 1048576 bytes of grader.jsonl, killed the
+group (exit -9), overflow=true, signal oracle_output_invalid, leftover=false.
+
+## S10 refusal fixtures (calibration on real corpus tasks, no agent) -> PASS
+  fixture                                             status  failed ids     run signals
+  empty module cache (all 12 tasks)                   failed  10 ids above   clean: 2 accepted, 10 oracle_failed
+  broken oracle (B02 + expected test TestDoesNotExist)  failed  GT-AGENT-B02   clean oracle_output_invalid, mutated oracle_failed
+  weak mutation (B02 operands swapped, same behavior) failed  GT-AGENT-B02   clean accepted, mutated accepted
+  Each wrote calibration.json with only session_id and before (status failed); no record was written.
+
+## Unit tests and red checks
+- PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts/benchmarks/harness -p 'test_*.py' -> 39 tests OK
+  (macOS, sandbox classes included). Python 3.11.15: parser, argv, document, agent-task and PrepareTests OK.
+  On the ubuntu CI job only the cross-platform classes run (JudgeTests, GraderArgvTests, PrepareTests with go,
+  CalibrationDocumentTests, AgentTaskTests); SandboxTests and CalibrationTests skip without sandbox-exec.
+- red checks on a scratch copy (each seeded defect must fail its test): sandbox-exec dropped from the argv, env -i and
+  the empty Popen environment both dropped, go.sum pin check dropped, module cache left writable, parser accepting
+  exit 0 without every expected pass, calibration ignoring the mutated direction, build cache shared through a symlink
+  instead of cloned, profile without (deny network*) -> all 8 FAIL. Dropping only the empty Popen environment stays
+  green because the argv's env -i still clears it (layered on purpose).
+
+## not-run
+- GitHub-hosted macOS runner (the SPEC keeps the live lane on a maintainer host; SPEC-HARNEVAL-003 owns hosted runs).
+- The T12 trial path (golden.py, run.py --mode golden) does not exist yet. Calibration uses the same grader.grade()
+  call T12 is expected to use for trials.

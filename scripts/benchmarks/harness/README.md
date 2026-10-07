@@ -65,3 +65,41 @@ bin/auto-0.50.118-candidate telemetry harness --evidence-json /absolute/new/evid
 Usage receipts are explicitly labelled session aggregates, not individual
 provider-call counts. The pilot exported report remains incomplete when timeout
 usage is unavailable, even though all 36 scheduled trials finished.
+
+## Golden live lane grader (SPEC-HARNEVAL-001)
+
+`prepare_grader.py`, `grader.py` and `grader.sb` grade the golden mode's agent
+tasks on a maintainer macOS host. None of them calls a model.
+
+- Trusted preparation runs outside any sandbox and before any agent. It fills
+  the session module cache with `go mod download` from the workspace `go.mod`
+  and `go.sum`. Every downloaded hash must already be pinned in `go.sum`; then
+  `go mod verify` runs and the cache becomes read-only. The oracle packages are
+  compiled once into a warm build cache. The default download source is a file
+  proxy over the local module cache, so this step needs no network.
+- Every grading run gets a fresh grade root: clonefile (`cp -c`) copies of the
+  snapshot (`ws/`) and of the warm cache (`gocache/`), plus its own `HOME`,
+  `TMPDIR` and `GOPATH`. The oracle runs as
+  `env -i <allowlist> sandbox-exec -f grader.sb -D GRADE_ROOT=<root> go test -json ...`.
+  The profile denies all network and every write outside that root. The whole
+  environment is `PATH` (the Go toolchain directory only), `HOME`, `TMPDIR`,
+  `GOPATH`, `GOCACHE`, `GOMODCACHE`, `GOFLAGS=-mod=mod`, `GOPROXY=off`,
+  `GOSUMDB=off` and `GOTOOLCHAIN=local`.
+- The trusted parser in `grader.py` reads only the captured stdout (at most
+  1 MiB). A run is accepted only with exit 0, valid test2json events, a
+  top-level pass for every `expected_tests` name and no fail for any of them.
+- Calibration grades every agent task twice under the same profile: the clean
+  workspace must be accepted and the mutated one must not. Anything else
+  refuses the session with `oracle_calibration_failed` before any agent call.
+
+Check the grader environment without any agent:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3 scripts/benchmarks/harness/prepare_grader.py \
+  --repo "$PWD" --output /absolute/new/calibration
+```
+
+It snapshots the manifest's `live.workspace_revision`, prepares both caches,
+writes `calibration.json` and exits 1 with the failing task ids when the
+calibration fails. The macOS-only unit tests in `test_grader.py` and
+`test_prepare_grader.py` exercise the same profile on small fixture modules.
