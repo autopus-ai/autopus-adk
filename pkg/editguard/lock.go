@@ -51,7 +51,19 @@ var (
 	ErrLockState         = errors.New("editguard: lock state is unusable")
 	ErrStoreBusy         = errors.New("editguard: the lock store stayed busy for 5 seconds")
 	ErrInvalidTTL        = errors.New("editguard: ttl must be between 1 minute and 168 hours")
+	// ErrNestedProject is the invalid lock target of a project nested in the
+	// store's root; its lock belongs to the store of that nearest root.
+	ErrNestedProject error = &refinedError{"editguard: the path belongs to a nested project", ErrInvalidLockTarget}
 )
+
+// refinedError is a sentinel that is also the broader sentinel it refines.
+type refinedError struct {
+	text  string
+	broad error
+}
+
+func (e *refinedError) Error() string { return e.text }
+func (e *refinedError) Unwrap() error { return e.broad }
 
 // Verdict is the integrity of a locked file (REQ-EG-08, REQ-EG-21).
 type Verdict string

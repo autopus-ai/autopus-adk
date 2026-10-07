@@ -3,15 +3,10 @@ package editguard
 import (
 	"errors"
 	"io"
-	"path"
-	"strings"
 	"time"
 
 	"github.com/insajin/autopus-adk/pkg/workflow"
 )
-
-// MaxPayloadBytes bounds the hook payload read from stdin (REQ-EG-02).
-const MaxPayloadBytes = 1 << 20
 
 // Class is the deny class of a decision.
 type Class string
@@ -49,6 +44,8 @@ type Options struct {
 	Now func() time.Time
 	// panicSeam is the test-only fault seam inside the decision (S7).
 	panicSeam func()
+	// payloadCap is a test-only stand-in for MaxPayloadBytes; 0 keeps it.
+	payloadCap int
 }
 
 // Dialect decodes one platform's hook payload and encodes its deny. The
@@ -82,7 +79,7 @@ func guard(stdin io.Reader, dialect Dialect, opts Options) (out []byte, diagnost
 			out, diagnostic = nil, allowBecause("internal error")
 		}
 	}()
-	payload, fault := readPayload(stdin)
+	payload, fault := readPayload(stdin, opts.payloadCap)
 	if fault != "" {
 		return nil, allowBecause(fault)
 	}
@@ -99,19 +96,6 @@ func guard(stdin io.Reader, dialect Dialect, opts Options) (out []byte, diagnost
 		return nil, allowBecause("deny not encodable")
 	}
 	return out, ""
-}
-
-func readPayload(stdin io.Reader) ([]byte, string) {
-	data, err := io.ReadAll(io.LimitReader(stdin, MaxPayloadBytes+1))
-	switch {
-	case err != nil:
-		return nil, "payload unreadable"
-	case len(data) == 0:
-		return nil, "empty payload"
-	case len(data) > MaxPayloadBytes:
-		return nil, "payload over 1 MiB"
-	}
-	return data, ""
 }
 
 func allowBecause(fault string) string {
@@ -161,7 +145,7 @@ func (ev *evaluation) note(fault string) {
 }
 
 func (ev *evaluation) target(cwd, raw string) (Decision, bool) {
-	target, err := Resolve(cwd, raw)
+	targets, err := ResolveAll(cwd, raw)
 	if err != nil {
 		// No project root is normal: nothing there is protected.
 		if !errors.Is(err, ErrNoProjectRoot) {
@@ -169,79 +153,45 @@ func (ev *evaluation) target(cwd, raw string) (Decision, bool) {
 		}
 		return Decision{}, false
 	}
-	if isGuardState(target.Key) {
-		return deny(ClassGuardState, gstReason(target.Rel)), true
+	// Stage precedence holds across every enclosing root, the nearest root
+	// first within a stage, so a nested autopus.yaml hides nothing (M1).
+	for _, target := range targets {
+		if ev.stagesOf(target).guardState(target) {
+			return deny(ClassGuardState, gstReason(target.Rel)), true
+		}
 	}
-	stages := ev.stagesOf(target)
-	if recorded, ok := stages.lockView(ev).match(target); ok {
-		return deny(ClassFixLock, flReason(recorded)), true
+	for _, target := range targets {
+		if recorded, ok := ev.stagesOf(target).lockView(ev).match(target); ok {
+			return deny(ClassFixLock, flReason(recorded)), true
+		}
 	}
+	for _, target := range targets {
+		if decision, ok := ev.generated(target); ok {
+			return decision, true
+		}
+	}
+	return Decision{}, false
+}
+
+// generated is the manifest stage of one root. A faulted stage drops only
+// that root's manifests (REQ-EG-18).
+func (ev *evaluation) generated(target Target) (Decision, bool) {
 	if !workflow.InEditGuardNamespace(target.Key) {
 		return Decision{}, false
 	}
+	stages := ev.stagesOf(target)
 	manifests := stages.manifestStage()
 	if manifests.fault != "" {
 		ev.note("manifest unreadable: " + displayPath(manifests.fault))
 		return Decision{}, false
 	}
-	if hit, ok := manifests.generated(target.Key); ok {
-		return deny(ClassGeneratedSurface, gsReason(hit.display, hit.manifest, stages.sourceRepo())), true
+	hit, ok := manifests.generated(target.Key)
+	if !ok {
+		return Decision{}, false
 	}
-	return Decision{}, false
+	return deny(ClassGeneratedSurface, gsReason(hit.display, hit.manifest, stages.sourceRepo())), true
 }
 
 func deny(class Class, reason string) Decision {
 	return Decision{Deny: true, Class: class, Reason: reason}
-}
-
-// isGuardState reports the lock store and the root manifests (REQ-EG-09).
-func isGuardState(key string) bool {
-	if key == FixLocksDir || strings.HasPrefix(key, FixLocksDir+"/") {
-		return true
-	}
-	return path.Dir(key) == manifestDir && strings.HasSuffix(key, manifestSuffix)
-}
-
-// rootStages caches the stages of one project root; each loads on first use,
-// so manifests are read only for namespace targets (REQ-EG-24).
-type rootStages struct {
-	root      string
-	fold      bool
-	locks     *lockView
-	manifests *manifestStage
-	source    *bool
-}
-
-func (ev *evaluation) stagesOf(target Target) *rootStages {
-	stages, ok := ev.roots[target.Root]
-	if !ok {
-		stages = &rootStages{root: target.Root, fold: target.CaseInsensitive}
-		ev.roots[target.Root] = stages
-	}
-	return stages
-}
-
-func (s *rootStages) lockView(ev *evaluation) *lockView {
-	if s.locks == nil {
-		view := loadLockView(s.root, s.fold, ev.now)
-		s.locks = &view
-		ev.note(view.fault)
-	}
-	return s.locks
-}
-
-func (s *rootStages) manifestStage() *manifestStage {
-	if s.manifests == nil {
-		stage := loadManifestStage(s.root, s.fold)
-		s.manifests = &stage
-	}
-	return s.manifests
-}
-
-func (s *rootStages) sourceRepo() bool {
-	if s.source == nil {
-		source := isSourceRepo(s.root)
-		s.source = &source
-	}
-	return *s.source
 }

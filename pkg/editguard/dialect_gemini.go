@@ -1,9 +1,6 @@
 package editguard
 
-import (
-	"encoding/json"
-	"slices"
-)
+import "slices"
 
 // geminiEditTools are the file-editing tools of Gemini CLI 0.52.0. Both name
 // their target in tool_input.file_path; every other built-in tool reads, or
@@ -17,16 +14,13 @@ var geminiEditTools = []string{"write_file", "replace"}
 type geminiDialect struct{}
 
 func (geminiDialect) Decode(payload []byte) (Call, error) {
-	var doc toolPayload
-	if err := json.Unmarshal(payload, &doc); err != nil {
+	doc, err := decodeHookPayload(payload, "file_path")
+	if err != nil {
 		return Call{}, err
 	}
-	call := Call{Cwd: doc.Cwd}
-	if !slices.Contains(geminiEditTools, doc.ToolName) {
-		return call, nil
-	}
-	if target, ok := doc.ToolInput["file_path"].(string); ok {
-		call.add(target)
+	call := Call{Cwd: doc.cwd}
+	if slices.Contains(geminiEditTools, doc.toolName) && doc.hasInput {
+		call.add(doc.input)
 	}
 	return call, nil
 }

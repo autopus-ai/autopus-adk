@@ -2,8 +2,6 @@ package editguard
 
 import (
 	"encoding/json"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -92,6 +90,8 @@ func TestManifestStage_OverrideInEitherOrderWins(t *testing.T) {
 }
 
 // S16 / REQ-EG-18: any unreadable or corrupt manifest skips the whole stage.
+// An entry that is not a regular file is no manifest at all (H2,
+// TestManifestStage_NonRegularEntryNamedLikeAManifest_IsSkipped).
 func TestManifestStage_FaultyManifest_SkipsTheStage(t *testing.T) {
 	t.Parallel()
 	faults := map[string]func(root string){
@@ -101,15 +101,6 @@ func TestManifestStage_FaultyManifest_SkipsTheStage(t *testing.T) {
 		},
 		"policy not a string": func(root string) {
 			writeFile(t, root, ".autopus/opencode-manifest.json", `{"files":{".claude/a":{"policy":7}}}`)
-		},
-		"directory named like a manifest": func(root string) {
-			manifest := filepath.Join(root, ".autopus", "opencode-manifest.json")
-			if err := os.Remove(manifest); err != nil {
-				t.Fatal(err)
-			}
-			if err := os.Mkdir(manifest, 0o755); err != nil {
-				t.Fatal(err)
-			}
 		},
 		"oversized": func(root string) {
 			writeFile(t, root, ".autopus/opencode-manifest.json", strings.Repeat(" ", maxManifestBytes+1))

@@ -88,7 +88,7 @@ func TestRun_CallLevelFaults_AllowWithAtMostOneStderrLine(t *testing.T) {
 	for label, stdin := range map[string]string{
 		"truncated json":      `{"tool_input":`,
 		"zero bytes":          "",
-		"1048577 bytes":       strings.Repeat("a", MaxPayloadBytes+1),
+		"1048577 bytes":       strings.Repeat("a", 1<<20+1),
 		"no target":           `{"tool_name":"Edit","tool_input":{}}`,
 		"non-string target":   `{"targets":[42]}`,
 		"empty target string": payloadOf(root, ""),
@@ -116,13 +116,13 @@ type failingReader struct{}
 
 func (failingReader) Read([]byte) (int, error) { return 0, errInjected }
 
-// REQ-EG-02: a payload of exactly 1 MiB is still decided; the bound is not off
-// by one.
+// REQ-EG-02: a payload of exactly the former 1 MiB bound is decided like any
+// other below the hard cap (TestRun_PayloadPastTheHardCap_Allows).
 func TestRun_PayloadOfExactly1MiB_IsDecided(t *testing.T) {
 	t.Parallel()
 	root := fixtureR(t)
 	payload := payloadOf(root, skillRel)
-	payload += strings.Repeat(" ", MaxPayloadBytes-len(payload))
+	payload += strings.Repeat(" ", 1<<20-len(payload))
 	class, reason := runGuard(strings.NewReader(payload), testDialect{}, Options{}).denied(t)
 	if class != string(ClassGeneratedSurface) || reason != gsConReason {
 		t.Fatalf("deny = %s %q", class, reason)

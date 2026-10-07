@@ -66,7 +66,8 @@ func TestRun_GeneratedReasons_AreSanitizedAndCapped(t *testing.T) {
 	assertNoSecret(t, root, "diagnostic", got.stderr)
 }
 
-// S8: lock reasons keep the unlock argument exact, and `--all` names a file.
+// S8 and L1: a lock reason echoes the unlock argument only for a path of the
+// safe charset, and `--all` names a file; a space or a quote gets FL-X.
 func TestDecide_LockReasons_QuoteExactlyOrFallBackToFLX(t *testing.T) {
 	t.Parallel()
 	root := secretProject(t)
@@ -81,8 +82,8 @@ func TestDecide_LockReasons_QuoteExactlyOrFallBackToFLX(t *testing.T) {
 	mustLock(t, store, files...)
 	opts := Options{Now: clock.Now}
 	endings := map[string]string{
-		files[0]: "auto fix unlock -- 'internal/foo/my repro_test.go'",
-		files[1]: `auto fix unlock -- 'internal/foo/it'\''s_test.go'`,
+		files[0]: flxTail,
+		files[1]: flxTail,
 		files[3]: "auto fix unlock -- '--all'",
 		files[2]: flxTail,
 		quotes:   flxTail,

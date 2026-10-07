@@ -33,8 +33,8 @@ func gsReason(display, manifest string, sourceRepo bool) string {
 		", policy always). " + tail
 }
 
-// flReason is FL for the recorded path, or FL-X when the path cannot be
-// echoed exactly or the complete FL reason would pass 1024 bytes.
+// flReason is FL for the recorded path, or FL-X when the path is not safe to
+// echo or the complete FL reason would pass 1024 bytes.
 func flReason(recorded string) string {
 	head := flHead(recorded)
 	if echoable(recorded) {
@@ -55,10 +55,23 @@ func gstReason(rel string) string {
 		" is edit-guard state. Use auto fix lock, auto fix unlock, or auto update instead."
 }
 
-// echoable reports whether a path survives display unchanged, so the quoted
-// argument names the very file the user sees.
+// echoable reports whether a path may be echoed as an unlock argument: at
+// most 256 bytes of [A-Za-z0-9._/@+-]. Such a path displays as itself, holds
+// no shell syntax for any shell, and cannot hide another file behind
+// lookalike or bidirectional characters (L1).
 func echoable(p string) bool {
-	return len(p) <= maxDisplayBytes && utf8.ValidString(p) && !strings.ContainsFunc(p, isControl)
+	if p == "" || len(p) > maxDisplayBytes {
+		return false
+	}
+	for i := 0; i < len(p); i++ {
+		switch c := p[i]; {
+		case 'a' <= c && c <= 'z', 'A' <= c && c <= 'Z', '0' <= c && c <= '9':
+		case c == '.' || c == '_' || c == '/' || c == '@' || c == '+' || c == '-':
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // displayPath is the sanitized {path}: control bytes removed, invalid UTF-8

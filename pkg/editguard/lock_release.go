@@ -18,7 +18,9 @@ import (
 // Unlock removes the records of the named paths (REQ-EG-08). Every named path
 // must have a record or nothing is removed; every verdict is computed before
 // the first removal. A removal error leaves the unremoved locks active for a
-// rerun, and the results still carry every computed verdict.
+// rerun, and the results still carry every computed verdict. Paths resolve
+// against the store root, so an autopus.yaml planted after the lock cannot
+// make the release fail (M1).
 func (s *Store) Unlock(paths []string) ([]UnlockResult, error) {
 	if len(paths) == 0 {
 		return nil, fmt.Errorf("%w: no path given", ErrNotLocked)
@@ -26,12 +28,15 @@ func (s *Store) Unlock(paths []string) ([]UnlockResult, error) {
 	names := make([]string, 0, len(paths))
 	shown := make(map[string]string, len(paths))
 	for _, raw := range paths {
-		target, err := Resolve(s.cwd, raw)
-		if err != nil || target.Root != s.root {
+		target, nested, ok := s.storeTarget(raw)
+		if !ok {
 			return nil, fmt.Errorf("%w: %s", ErrNotLocked, displayPath(raw))
 		}
 		if name := recordName(target.Key); shown[name] == "" {
-			names, shown[name] = append(names, name), target.Rel
+			names, shown[name] = append(names, name), displayPath(target.Rel)
+			if nested != "" {
+				shown[name] += nestedHint(nested, "auto fix unlock")
+			}
 		}
 	}
 	return s.release(func(records []storedRecord) ([]storedRecord, error) {
@@ -43,7 +48,7 @@ func (s *Store) Unlock(paths []string) ([]UnlockResult, error) {
 		for _, name := range names {
 			record, ok := byName[name]
 			if !ok {
-				return nil, fmt.Errorf("%w: %s", ErrNotLocked, displayPath(shown[name]))
+				return nil, fmt.Errorf("%w: %s", ErrNotLocked, shown[name])
 			}
 			picked = append(picked, record)
 		}

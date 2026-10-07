@@ -99,7 +99,7 @@ func TestClaudeDialect_CallLevelFaults_Allow(t *testing.T) {
 	for label, stdin := range map[string]string{
 		"truncated json":        `{"tool_input":`,
 		"zero bytes":            "",
-		"1048577 bytes":         strings.Repeat("a", MaxPayloadBytes+1),
+		"1048577 bytes":         strings.Repeat("a", 1<<20+1),
 		"no target":             `{"tool_name":"Edit","tool_input":{}}`,
 		"non-string target":     `{"tool_name":"Edit","tool_input":{"file_path":42}}`,
 		"no tool input":         `{"tool_name":"Write"}`,
@@ -128,8 +128,8 @@ func TestClaudeDialect_SourceRepoReason_KeepsAmpersandsLiteral(t *testing.T) {
 	}
 }
 
-// S4 and S8: an FL reason with quotes survives the JSON encoding exactly, on
-// one line.
+// S4 and S8: an FL reason with quotes in {path} survives the JSON encoding
+// exactly, on one line; the quotes make it FL-X (L1).
 func TestClaudeDialect_LockReasonWithQuotes_RoundTrips(t *testing.T) {
 	t.Parallel()
 	if runtime.GOOS == "windows" {
@@ -151,7 +151,7 @@ func TestClaudeDialect_LockReasonWithQuotes_RoundTrips(t *testing.T) {
 	if err := json.Unmarshal([]byte(got.stdout), &doc); err != nil || strings.Count(got.stdout, "\n") != 1 {
 		t.Fatalf("stdout %q is not one JSON line: %v", got.stdout, err)
 	}
-	want := flHead(rel) + flTail + `'internal/foo/it'\''s "q"_test.go'`
+	want := flHead(rel) + flxTail
 	if doc.Output.Event != "PreToolUse" || doc.Output.Decision != "deny" || doc.Output.Reason != want {
 		t.Fatalf("decoded %+v\nwant reason %q", doc.Output, want)
 	}

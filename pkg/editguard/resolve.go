@@ -9,13 +9,17 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/unicode/norm"
 )
 
 // projectMarker is the file whose directory is a project root.
 const projectMarker = "autopus.yaml"
 
-// maxSymlinkHops bounds how many dangling links resolution follows by hand.
+// maxSymlinkHops bounds how many symlinks one resolution follows.
 const maxSymlinkHops = 40
 
 var (
@@ -25,14 +29,17 @@ var (
 	ErrUnresolvable = errors.New("editguard: path cannot be resolved")
 )
 
-// Target is one path resolved against its nearest project root (REQ-EG-05).
+// caseFolder is Unicode full case folding; the Caser is stateless and safe for
+// concurrent use.
+var caseFolder = cases.Fold()
+
+// Target is one path resolved against a project root (REQ-EG-05).
 type Target struct {
 	// Root is the symlink-free absolute directory that holds autopus.yaml.
 	Root string
 	// Rel is the slash-separated path below Root, as resolved.
 	Rel string
-	// Key is Rel folded to lower case when Root's volume is case-insensitive,
-	// and Rel otherwise. Every comparison uses Key.
+	// Key is FoldKey of Rel for Root's volume. Every comparison uses Key.
 	Key string
 	// CaseInsensitive reports the detected case behavior of Root's volume.
 	CaseInsensitive bool
@@ -44,32 +51,45 @@ func (t Target) Abs() string {
 }
 
 // Resolve resolves raw against cwd (the process working directory when cwd is
-// empty), cleans `.` and `..` segments and duplicate separators, resolves the
-// symlinks of the deepest existing ancestor, and returns the path relative to
-// the nearest ancestor directory that contains autopus.yaml.
+// empty) the way the kernel walks it, and returns the path relative to the
+// nearest ancestor directory that contains autopus.yaml.
 func Resolve(cwd, raw string) (Target, error) {
-	if raw == "" || strings.ContainsRune(raw, 0) || strings.ContainsRune(cwd, 0) {
-		return Target{}, ErrUnresolvable
-	}
-	abs, err := absolutePath(cwd, raw)
-	if err != nil {
-		return Target{}, ErrUnresolvable
-	}
-	resolved, err := resolveExisting(abs)
-	if err != nil {
-		return Target{}, ErrUnresolvable
-	}
-	root, err := findRoot(filepath.Dir(resolved))
+	targets, err := ResolveAll(cwd, raw)
 	if err != nil {
 		return Target{}, err
 	}
-	rel, err := filepath.Rel(root, resolved)
-	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return Target{}, ErrUnresolvable
+	return targets[0], nil
+}
+
+// ResolveAll resolves raw like Resolve and returns it relative to every
+// enclosing project root, nearest first. A nested autopus.yaml, which any edit
+// can create, must not hide what an outer root protects (M1).
+func ResolveAll(cwd, raw string) ([]Target, error) {
+	if raw == "" || strings.ContainsRune(raw, 0) || strings.ContainsRune(cwd, 0) {
+		return nil, ErrUnresolvable
 	}
-	rel = filepath.ToSlash(rel)
-	fold := volumeIsCaseInsensitive(root)
-	return Target{Root: root, Rel: rel, Key: FoldKey(rel, fold), CaseInsensitive: fold}, nil
+	abs, err := absolutePath(cwd, raw)
+	if err != nil {
+		return nil, ErrUnresolvable
+	}
+	resolved, err := resolveComponents(abs)
+	if err != nil {
+		return nil, ErrUnresolvable
+	}
+	var targets []Target
+	for _, root := range enclosingRoots(filepath.Dir(resolved)) {
+		rel, err := filepath.Rel(root, resolved)
+		if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return nil, ErrUnresolvable
+		}
+		rel = filepath.ToSlash(rel)
+		fold := volumeIsCaseInsensitive(root)
+		targets = append(targets, Target{Root: root, Rel: rel, Key: FoldKey(rel, fold), CaseInsensitive: fold})
+	}
+	if len(targets) == 0 {
+		return nil, ErrNoProjectRoot
+	}
+	return targets, nil
 }
 
 // FindProjectRoot returns the nearest directory at or above dir that contains
@@ -83,83 +103,141 @@ func FindProjectRoot(dir string) (string, error) {
 	if err != nil {
 		return "", ErrNoProjectRoot
 	}
-	return findRoot(resolved)
+	if roots := enclosingRoots(resolved); len(roots) > 0 {
+		return roots[0], nil
+	}
+	return "", ErrNoProjectRoot
 }
 
-// FoldKey returns the comparison key of a project-relative path.
+// FoldKey returns the comparison key of a project-relative path. On a
+// case-insensitive volume it is the canonical caseless form NFD(fold(NFD(p))),
+// which names two spellings alike where APFS opens one file for both: case,
+// full case folding (U+00DF and "ss", U+017F and "s"), and canonical
+// equivalence (NFC and NFD). Invalid UTF-8 passes through unchanged.
 func FoldKey(rel string, caseInsensitive bool) string {
-	if caseInsensitive {
+	switch {
+	case !caseInsensitive:
+		return rel
+	case isASCII(rel):
 		return strings.ToLower(rel)
 	}
-	return rel
+	return norm.NFD.String(caseFolder.String(norm.NFD.String(rel)))
 }
 
+func isASCII(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] >= 0x80 {
+			return false
+		}
+	}
+	return true
+}
+
+// absolutePath joins a relative raw onto cwd, or onto the working directory
+// for an empty or relative cwd, without cleaning: a `..` climbs from wherever
+// the symlinks before it lead, which only the component walk knows (L3).
+// Windows applies `..` lexically before it follows a link, so it is cleaned.
 func absolutePath(cwd, raw string) (string, error) {
 	p := filepath.FromSlash(raw)
 	if !filepath.IsAbs(p) {
-		base := cwd
-		if base == "" {
+		base := filepath.FromSlash(cwd)
+		if !filepath.IsAbs(base) {
 			wd, err := os.Getwd()
 			if err != nil {
 				return "", err
 			}
-			base = wd
+			base = joinUncleaned(wd, base)
 		}
-		p = filepath.Join(base, p)
+		p = joinUncleaned(base, p)
 	}
-	return filepath.Abs(p)
+	if runtime.GOOS == "windows" {
+		return filepath.Clean(p), nil
+	}
+	return p, nil
 }
 
-// resolveExisting resolves the symlinks of the deepest existing ancestor of abs
-// and keeps the non-existent tail. A dangling link at that ancestor is followed
-// by hand, because a write through it lands at the link target.
-func resolveExisting(abs string) (string, error) {
-	for hop := 0; hop <= maxSymlinkHops; hop++ {
-		existing, tail := deepestExisting(abs)
-		resolved, err := filepath.EvalSymlinks(existing)
-		if err == nil {
-			return filepath.Join(resolved, tail), nil
+func joinUncleaned(dir, name string) string {
+	if name == "" {
+		return dir
+	}
+	return dir + string(filepath.Separator) + name
+}
+
+// resolveComponents walks abs one component at a time, as the kernel does: a
+// symlink is replaced by its target before the next component, and `..` leaves
+// the directory reached so far. From the first missing component on, the rest
+// is kept lexically, because no write passes through a missing directory.
+func resolveComponents(abs string) (string, error) {
+	volume := filepath.VolumeName(abs)
+	dest := volume + string(filepath.Separator)
+	rest := splitComponents(abs[len(volume):])
+	for hops := 0; len(rest) > 0; {
+		name := rest[0]
+		rest = rest[1:]
+		switch name {
+		case ".":
+			continue
+		case "..":
+			dest = filepath.Dir(dest)
+			continue
 		}
-		link, linkErr := os.Readlink(existing)
-		if linkErr != nil {
+		next := filepath.Join(dest, name)
+		info, err := os.Lstat(next)
+		if err != nil {
+			tail := filepath.Join(append([]string{name}, rest...)...)
+			if first, _, _ := strings.Cut(tail, string(filepath.Separator)); first != name {
+				rest = splitComponents(tail) // `..` climbed back out of the missing component
+				continue
+			}
+			return filepath.Join(dest, tail), nil
+		}
+		if info.Mode()&os.ModeSymlink == 0 {
+			dest = next
+			continue
+		}
+		if hops++; hops > maxSymlinkHops {
+			return "", ErrUnresolvable
+		}
+		link, err := os.Readlink(next)
+		if err != nil {
 			return "", err
 		}
-		parent, parentErr := filepath.EvalSymlinks(filepath.Dir(existing))
-		if parentErr != nil {
-			return "", parentErr
+		if filepath.IsAbs(link) {
+			volume = filepath.VolumeName(link)
+			dest, link = volume+string(filepath.Separator), link[len(volume):]
 		}
-		if !filepath.IsAbs(link) {
-			link = filepath.Join(parent, link)
-		}
-		abs = filepath.Join(filepath.Clean(link), tail)
+		rest = append(splitComponents(link), rest...)
 	}
-	return "", ErrUnresolvable
+	return dest, nil
 }
 
-func deepestExisting(abs string) (existing, tail string) {
-	existing = abs
-	for {
-		if _, err := os.Lstat(existing); err == nil {
-			return existing, tail
+// splitComponents splits p at its separators, dropping empty components. The
+// separators are ASCII, so splitting bytes never cuts a UTF-8 sequence.
+func splitComponents(p string) []string {
+	var parts []string
+	start := 0
+	for i := 0; i <= len(p); i++ {
+		if i == len(p) || os.IsPathSeparator(p[i]) {
+			if i > start {
+				parts = append(parts, p[start:i])
+			}
+			start = i + 1
 		}
-		parent := filepath.Dir(existing)
-		if parent == existing {
-			return existing, tail
-		}
-		tail = filepath.Join(filepath.Base(existing), tail)
-		existing = parent
 	}
+	return parts
 }
 
-func findRoot(dir string) (string, error) {
+// enclosingRoots lists every directory at or above dir, nearest first, that
+// holds a regular autopus.yaml.
+func enclosingRoots(dir string) []string {
+	var roots []string
 	for current := dir; ; {
-		info, err := os.Stat(filepath.Join(current, projectMarker))
-		if err == nil && info.Mode().IsRegular() {
-			return current, nil
+		if info, err := os.Stat(filepath.Join(current, projectMarker)); err == nil && info.Mode().IsRegular() {
+			roots = append(roots, current)
 		}
 		parent := filepath.Dir(current)
 		if parent == current {
-			return "", ErrNoProjectRoot
+			return roots
 		}
 		current = parent
 	}

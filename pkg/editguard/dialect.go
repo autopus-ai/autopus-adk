@@ -40,30 +40,25 @@ func DialectFor(platform string) (Dialect, bool) {
 
 var errNotADeny = errors.New("editguard: only a deny with a reason is encoded")
 
-// toolPayload is the part of a Claude Code or Codex PreToolUse payload the
-// guard reads; every other field the host sends is ignored.
-type toolPayload struct {
-	Cwd       string         `json:"cwd"`
-	ToolName  string         `json:"tool_name"`
-	ToolInput map[string]any `json:"tool_input"`
-}
-
 // claudeDialect reads tool_input.file_path of Edit, Write, and MultiEdit, the
 // subject rulecond derives for those tools (REQ-EG-02). Claude Code 2.1.289
 // offers no MultiEdit tool; the name stays accepted for hosts that still do.
+// Every other field the host sends, the content body included, is skipped.
 type claudeDialect struct{}
 
+const claudeTargetKey = "file_path"
+
 func (claudeDialect) Decode(payload []byte) (Call, error) {
-	var doc toolPayload
-	if err := json.Unmarshal(payload, &doc); err != nil {
+	doc, err := decodeHookPayload(payload, claudeTargetKey)
+	if err != nil {
 		return Call{}, err
 	}
-	call := Call{Cwd: doc.Cwd}
+	call := Call{Cwd: doc.cwd}
 	// ConditionSubject also answers for Bash, whose subject is a command.
-	if !slices.Contains(strings.Split(rulecond.MatcherEdit, "|"), doc.ToolName) {
+	if !doc.hasInput || !slices.Contains(strings.Split(rulecond.MatcherEdit, "|"), doc.toolName) {
 		return call, nil
 	}
-	if target, ok := rulecond.ConditionSubject(doc.ToolName, doc.ToolInput); ok {
+	if target, ok := rulecond.ConditionSubject(doc.toolName, map[string]any{claudeTargetKey: doc.input}); ok {
 		call.Targets = []string{target}
 	}
 	return call, nil
@@ -83,22 +78,7 @@ func (claudeDialect) EncodeDeny(decision Decision) ([]byte, error) {
 type openCodeDialect struct{}
 
 func (openCodeDialect) Decode(payload []byte) (Call, error) {
-	var doc struct {
-		Cwd     string            `json:"cwd"`
-		Targets []json.RawMessage `json:"targets"`
-	}
-	if err := json.Unmarshal(payload, &doc); err != nil {
-		return Call{}, err
-	}
-	call := Call{Cwd: doc.Cwd}
-	for _, raw := range doc.Targets {
-		var target string
-		if json.Unmarshal(raw, &target) != nil {
-			target = ""
-		}
-		call.add(target)
-	}
-	return call, nil
+	return decodeOpenCodePayload(payload)
 }
 
 // EncodeDeny writes {"decision":"deny","reason":...} exactly, without a line
@@ -120,16 +100,15 @@ type codexDialect struct{}
 const codexPatchTool = "apply_patch"
 
 func (codexDialect) Decode(payload []byte) (Call, error) {
-	var doc toolPayload
-	if err := json.Unmarshal(payload, &doc); err != nil {
+	doc, err := decodeHookPayload(payload, "command")
+	if err != nil {
 		return Call{}, err
 	}
-	call := Call{Cwd: doc.Cwd}
-	patch, ok := doc.ToolInput["command"].(string)
-	if doc.ToolName != codexPatchTool || !ok {
+	call := Call{Cwd: doc.cwd}
+	if doc.toolName != codexPatchTool || !doc.hasInput {
 		return call, nil
 	}
-	for _, target := range patchTargets(patch) {
+	for _, target := range patchTargets(doc.input) {
 		call.add(target)
 	}
 	return call, nil

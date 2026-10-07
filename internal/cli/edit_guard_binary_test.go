@@ -42,7 +42,7 @@ func TestEditGuardBinary_AcceptanceStdinCorpus_ExitsZeroWithContractBytes(t *tes
 		{"S1 .git/hooks", "claude-code", binEdit(r, "Edit", ".git/hooks/pre-commit"), "", ""},
 		{"S7 truncated", "claude-code", `{"tool_input":`, "", "autopus edit-guard: allow (payload malformed)\n"},
 		{"S7 zero bytes", "claude-code", "", "", "autopus edit-guard: allow (empty payload)\n"},
-		{"S7 1048577 bytes", "claude-code", strings.Repeat("a", 1<<20+1), "", "autopus edit-guard: allow (payload over 1 MiB)\n"},
+		{"S7 1048577 bytes", "claude-code", strings.Repeat("a", 1<<20+1), "", "autopus edit-guard: allow (payload malformed)\n"},
 		{"S7 no target", "claude-code", `{"tool_name":"Edit","tool_input":{}}`, "", "autopus edit-guard: allow (no target path)\n"},
 		{"S7 numeric target", "claude-code", `{"tool_name":"Edit","tool_input":{"file_path":42}}`, "", "*"},
 		{"S16 opencode malformed second", "opencode", binOpenCode(r, binSkill, 42), decisionDeny(binGSCon), ""},

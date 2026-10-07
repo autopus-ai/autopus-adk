@@ -8,9 +8,6 @@ import (
 	"io/fs"
 	"os"
 	"time"
-
-	"github.com/insajin/autopus-adk/pkg/oslock"
-	"github.com/insajin/autopus-adk/pkg/rulecond"
 )
 
 const (
@@ -41,6 +38,7 @@ type storeSeams struct {
 	afterVerdicts func()
 	beforeRemove  func(path string) error
 	onBusy        func()
+	cleanTemp     func(name string) error
 }
 
 // OpenStore returns the store of the project that contains cwd. Relative
@@ -88,6 +86,8 @@ func (s *Store) Lock(paths []string, ttl time.Duration) error {
 	})
 }
 
+// lockTargets validates the batch. A test of a nested project belongs to that
+// project's store, so its lock is refused with the root to run from (m3).
 func (s *Store) lockTargets(paths []string) ([]Target, error) {
 	if len(paths) == 0 {
 		return nil, fmt.Errorf("%w: no path given", ErrInvalidLockTarget)
@@ -95,8 +95,11 @@ func (s *Store) lockTargets(paths []string) ([]Target, error) {
 	seen := make(map[string]bool, len(paths))
 	targets := make([]Target, 0, len(paths))
 	for _, raw := range paths {
-		target, err := Resolve(s.cwd, raw)
-		if err != nil || target.Root != s.root || !isRegularFile(target.Abs()) {
+		target, nested, ok := s.storeTarget(raw)
+		if ok && nested != "" {
+			return nil, fmt.Errorf("%w: %s%s", ErrNestedProject, displayPath(raw), nestedHint(nested, "auto fix lock"))
+		}
+		if !ok || !isRegularFile(target.Abs()) {
 			return nil, fmt.Errorf("%w: %s", ErrInvalidLockTarget, displayPath(raw))
 		}
 		if !seen[target.Key] {
@@ -172,6 +175,8 @@ func (s *Store) publish(dir *os.Root, plans []lockPlan) error {
 	return nil
 }
 
+// publishOne publishes one record, or returns an error with nothing of it
+// published.
 func (s *Store) publishOne(dir *os.Root, plan lockPlan) error {
 	if s.seams.beforePublish != nil {
 		if err := s.seams.beforePublish(plan.rel); err != nil {
@@ -187,7 +192,21 @@ func (s *Store) publishOne(dir *os.Root, plan lockPlan) error {
 	}
 	// Link refuses an existing name, so a record is created exactly once, and a
 	// reader only ever sees the bytes of a complete temp file.
-	return errors.Join(dir.Link(temp, plan.name), removeIfPresent(dir, temp))
+	if err := dir.Link(temp, plan.name); err != nil {
+		return errors.Join(err, removeIfPresent(dir, temp))
+	}
+	// The record is published now. A temp file a failed cleanup leaves is
+	// skipped by every reader, so it fails nothing (m2).
+	_ = s.cleanTemp(dir, temp)
+	return nil
+}
+
+// cleanTemp removes a temp file; the cleanTemp seam stands in for it.
+func (s *Store) cleanTemp(dir *os.Root, name string) error {
+	if s.seams.cleanTemp != nil {
+		return s.seams.cleanTemp(name)
+	}
+	return removeIfPresent(dir, name)
 }
 
 // replaceRecord swaps name's content atomically through a complete temp file.
@@ -234,71 +253,4 @@ func removeIfPresent(dir *os.Root, name string) error {
 		return err
 	}
 	return nil
-}
-
-// withStoreLock runs fn holding the exclusive store lock, waiting at most 5
-// seconds for it. The OS releases the lock if this process dies.
-func (s *Store) withStoreLock(fn func(dir *os.Root) error) error {
-	dir, err := rulecond.OpenRuntimeStateDir(s.root, fixLocksName)
-	if err != nil {
-		return fmt.Errorf("%w: %s", ErrLockState, FixLocksDir)
-	}
-	defer func() { _ = dir.Close() }()
-	lock, err := openStoreLock(dir)
-	if err != nil {
-		return err
-	}
-	defer lock.Close()
-	if err := s.acquire(lock); err != nil {
-		return err
-	}
-	defer func() { _ = oslock.Unlock(lock) }()
-	return fn(dir)
-}
-
-// storeLockOpenAttempts bounds the store lock open. On darwin an os.Root
-// (openat) O_CREAT open that races another creator of the same name can fail
-// with ENOENT although the directory handle is live; by the next attempt the
-// name exists, so that open no longer creates (SPEC-EDITGUARD-001 T15).
-const storeLockOpenAttempts = 3
-
-func openStoreLock(dir *os.Root) (*os.File, error) {
-	unusable := fmt.Errorf("%w: %s/%s", ErrLockState, FixLocksDir, storeLockName)
-	if info, err := dir.Lstat(storeLockName); err == nil && !info.Mode().IsRegular() {
-		return nil, unusable
-	}
-	file, err := dir.OpenFile(storeLockName, os.O_RDWR|os.O_CREATE, 0o600)
-	for attempt := 1; errors.Is(err, fs.ErrNotExist) && attempt < storeLockOpenAttempts; attempt++ {
-		file, err = dir.OpenFile(storeLockName, os.O_RDWR|os.O_CREATE, 0o600)
-	}
-	if err != nil {
-		return nil, unusable
-	}
-	opened, openedErr := file.Stat()
-	named, namedErr := dir.Lstat(storeLockName)
-	if openedErr != nil || namedErr != nil || !opened.Mode().IsRegular() || !os.SameFile(opened, named) {
-		_ = file.Close()
-		return nil, unusable
-	}
-	return file, nil
-}
-
-func (s *Store) acquire(lock *os.File) error {
-	deadline := time.Now().Add(s.wait)
-	for {
-		busy, err := oslock.TryLock(lock)
-		if err != nil {
-			return fmt.Errorf("%w: %v", ErrLockState, err)
-		}
-		if !busy {
-			return nil
-		}
-		if s.seams.onBusy != nil {
-			s.seams.onBusy()
-		}
-		if !time.Now().Before(deadline) {
-			return ErrStoreBusy
-		}
-		time.Sleep(storeLockPoll)
-	}
 }

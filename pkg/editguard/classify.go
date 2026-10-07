@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"syscall"
 
 	"github.com/insajin/autopus-adk/pkg/workflow"
 )
@@ -60,9 +61,12 @@ func loadManifestStage(root string, fold bool) manifestStage {
 			continue
 		}
 		rel := manifestDir + "/" + entry.Name()
-		files, err := readManifestFiles(filepath.Join(root, manifestDir, entry.Name()))
+		files, ok, err := readManifestFiles(filepath.Join(root, manifestDir, entry.Name()))
 		if err != nil {
 			return manifestStage{fault: rel}
+		}
+		if !ok {
+			continue // not a regular file, so no manifest the generator wrote (H2)
 		}
 		paths := make([]string, 0, len(files))
 		for p := range files {
@@ -76,18 +80,28 @@ func loadManifestStage(root string, fold bool) manifestStage {
 	return stage
 }
 
-func readManifestFiles(name string) (map[string]string, error) {
-	file, err := os.Open(name)
+// readManifestFiles reads one manifest's file policies. ok is false for an
+// entry that is not a regular file: it is checked with Lstat before the open
+// and with Stat after it, and the open does not wait on a FIFO swapped in
+// between, so no entry can block the guard.
+func readManifestFiles(name string) (files map[string]string, ok bool, err error) {
+	if info, err := os.Lstat(name); err != nil || !info.Mode().IsRegular() {
+		return nil, false, err
+	}
+	file, err := os.OpenFile(name, os.O_RDONLY|syscall.O_NONBLOCK, 0)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	defer file.Close()
+	if info, err := file.Stat(); err != nil || !info.Mode().IsRegular() {
+		return nil, false, err
+	}
 	data, err := io.ReadAll(io.LimitReader(file, maxManifestBytes+1))
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if len(data) > maxManifestBytes {
-		return nil, errors.New("editguard: manifest exceeds the read bound")
+		return nil, false, errors.New("editguard: manifest exceeds the read bound")
 	}
 	var doc struct {
 		Files map[string]struct {
@@ -95,13 +109,13 @@ func readManifestFiles(name string) (map[string]string, error) {
 		} `json:"files"`
 	}
 	if err := json.Unmarshal(data, &doc); err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	files := make(map[string]string, len(doc.Files))
+	files = make(map[string]string, len(doc.Files))
 	for p, entry := range doc.Files {
 		files[p] = entry.Policy
 	}
-	return files, nil
+	return files, true, nil
 }
 
 func (s manifestStage) add(raw, policy, manifest string, fold bool) {

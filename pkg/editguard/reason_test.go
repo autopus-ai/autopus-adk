@@ -38,14 +38,20 @@ func TestReasons_MatchTheContractTextExactly(t *testing.T) {
 	}
 }
 
-// S8: the unlock argument is the original path, POSIX single-quoted after --.
-func TestFLReason_QuotesTheUnlockArgumentAfterEndOfOptions(t *testing.T) {
+// S8 and L1: the unlock argument is echoed, POSIX single-quoted after --, only
+// for a path of [A-Za-z0-9._/@+-], which reads the same in every shell and
+// every display. Any other path gets the FL-X sentence.
+func TestFLReason_EchoesOnlyAPathOfTheSafeCharset(t *testing.T) {
 	t.Parallel()
 	for path, ending := range map[string]string{
-		"internal/foo/my repro_test.go": "auto fix unlock -- 'internal/foo/my repro_test.go'",
-		"internal/foo/it's_test.go":     `auto fix unlock -- 'internal/foo/it'\''s_test.go'`,
-		"--all":                         "auto fix unlock -- '--all'",
-		"internal/foo/$(rm -rf x).go":   "auto fix unlock -- 'internal/foo/$(rm -rf x).go'",
+		"--all":                              "auto fix unlock -- '--all'",
+		"internal/foo/a@b+c-d_e.v2_test.go":  "auto fix unlock -- 'internal/foo/a@b+c-d_e.v2_test.go'",
+		"internal/foo/my repro_test.go":      flxTail,
+		"internal/foo/it's_test.go":          flxTail,
+		"internal/foo/$(rm -rf x).go":        flxTail,
+		"internal/foo/caf\U000000e9_test.go": flxTail,
+		"internal/foo/\U0000202eog.tset_x":   flxTail,
+		"internal/foo/a;b_test.go":           flxTail,
 	} {
 		if got := flReason(path); !strings.HasSuffix(got, ending) {
 			t.Errorf("flReason(%q) = %q, want suffix %q", path, got, ending)
