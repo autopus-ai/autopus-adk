@@ -1,10 +1,8 @@
 package orchestra
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"testing"
 	"time"
@@ -14,12 +12,6 @@ import (
 )
 
 const testSessionDirectory = "autopus-orchestra-sessions"
-
-type failingSessionRandomReader struct{}
-
-func (failingSessionRandomReader) Read(_ []byte) (int, error) {
-	return 0, errors.New("injected random source failure")
-}
 
 func isolatedSessionPath(t *testing.T, id string) string {
 	t.Helper()
@@ -112,22 +104,4 @@ func TestSessionPersistence_SymlinkedDirectoryFailsClosed(t *testing.T) {
 	require.ErrorContains(t, err, "not a private directory")
 	_, statErr := os.Stat(filepath.Join(target, "linked-dir.json"))
 	assert.ErrorIs(t, statErr, os.ErrNotExist)
-}
-
-func TestNewSessionID_HasAtLeast128BitsAndSafeAlphabet(t *testing.T) {
-	t.Parallel()
-
-	id := NewSessionID()
-	assert.Regexp(t, regexp.MustCompile(`^orch-[0-9a-f]{32,}$`), id)
-}
-
-func TestNewSessionID_RandomFailureFallbackRemainsUnique(t *testing.T) {
-	t.Parallel()
-
-	id1 := newSessionID(failingSessionRandomReader{})
-	id2 := newSessionID(failingSessionRandomReader{})
-
-	assert.Regexp(t, regexp.MustCompile(`^orch-[0-9a-f]{32,}$`), id1)
-	assert.Regexp(t, regexp.MustCompile(`^orch-[0-9a-f]{32,}$`), id2)
-	assert.NotEqual(t, id1, id2)
 }

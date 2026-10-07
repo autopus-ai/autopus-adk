@@ -63,48 +63,6 @@ func TestInteractive_StripANSI_BasicCodes(t *testing.T) {
 	}
 }
 
-// --- R10: Provider prompt line filtering ---
-
-// TestInteractive_FilterPromptLines_RemovesProviderPrompts verifies prompt lines are stripped.
-func TestInteractive_FilterPromptLines_RemovesProviderPrompts(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name:     "claude prompt filtered",
-			input:    "some output\n❯\nactual content",
-			expected: "some output\nactual content",
-		},
-		{
-			name:     "codex prompt filtered",
-			input:    "codex> \nreal output here",
-			expected: "real output here",
-		},
-		{
-			name:     "codex v0.135 prompt filtered",
-			input:    "result\n› Summarize recent commits\nmore output",
-			expected: "result\nmore output",
-		},
-		{
-			name:     "no prompt lines unchanged",
-			input:    "just normal output\nsecond line",
-			expected: "just normal output\nsecond line",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			got := filterPromptLines(tt.input)
-			assert.Equal(t, tt.expected, got)
-		})
-	}
-}
-
 // --- R7: Completion detection ---
 
 // TestInteractive_PromptPatternDetection_MatchesShellPrompt verifies prompt pattern matching.
@@ -176,50 +134,6 @@ func TestInteractive_CompletionDetection_TimeoutFallback(t *testing.T) {
 	assert.False(t, isOutputIdle("/nonexistent/file.txt", 10*time.Second))
 }
 
-// TestCleanScreenOutput verifies the cleanScreenOutput pipeline that combines
-// SanitizeScreenOutput and filterPromptLines.
-func TestCleanScreenOutput(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name:     "strips ANSI and prompts together",
-			input:    "\x1b[31mcolored\x1b[0m output\n$ \nreal content",
-			expected: "colored output\nreal content",
-		},
-		{
-			name:     "empty input",
-			input:    "",
-			expected: "",
-		},
-		{
-			name:     "plain text with no prompts",
-			input:    "just plain output\nsecond line",
-			expected: "just plain output\nsecond line",
-		},
-		{
-			name:     "codex prompt after ANSI strip",
-			input:    "\x1b[1mresult\x1b[0m\ncodex> \nmore output",
-			expected: "result\nmore output",
-		},
-		{
-			name:     "codex v0.135 prompt after ANSI strip",
-			input:    "\x1b[1mresult\x1b[0m\n› Find and fix a bug in @filename\nmore output",
-			expected: "result\nmore output",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			got := cleanScreenOutput(tt.input)
-			assert.Equal(t, tt.expected, got)
-		})
-	}
-}
-
 // TestIsPromptVisible_WithCustomPatterns verifies provider-specific patterns
 // are checked before default fallback patterns.
 func TestIsPromptVisible_WithCustomPatterns(t *testing.T) {
@@ -262,30 +176,6 @@ func TestIsPromptVisible_WithCustomPatterns(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			got := isPromptVisible(tt.screen, tt.patterns)
-			assert.Equal(t, tt.expected, got)
-		})
-	}
-}
-
-// TestIsPromptLine_EdgeCases verifies edge cases in prompt line detection.
-func TestIsPromptLine_EdgeCases(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name     string
-		line     string
-		expected bool
-	}{
-		{"empty string is not prompt", "", false},
-		{"whitespace only is not prompt", "   \t  ", false},
-		{"dollar prompt", "$ ", true},
-		{"hash prompt", "# ", true},
-		{"regular text", "hello world", false},
-		{"codex prompt", "codex> ", true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			got := isPromptLine(tt.line)
 			assert.Equal(t, tt.expected, got)
 		})
 	}

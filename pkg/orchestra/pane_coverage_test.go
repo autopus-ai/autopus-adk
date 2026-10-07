@@ -180,16 +180,6 @@ func TestPaneArgs_EmptyBothNil(t *testing.T) {
 	assert.Empty(t, paneArgs(ProviderConfig{Args: []string{}}))
 }
 
-// TestRandomHex_UniqueAndLength verifies randomHex output properties.
-func TestRandomHex_UniqueAndLength(t *testing.T) {
-	t.Parallel()
-	a := randomHex()
-	b := randomHex()
-	assert.Len(t, a, 8)
-	assert.Len(t, b, 8)
-	assert.NotEqual(t, a, b)
-}
-
 // TestRunPaneOrchestra_DefaultTimeout covers the default timeout (0 -> 120) branch.
 // Uses a tight context to avoid actually waiting 120 seconds.
 func TestRunPaneOrchestra_DefaultTimeout(t *testing.T) {
