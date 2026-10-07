@@ -102,7 +102,7 @@ func TestRenderHooksTemplate(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, rendered, "PreToolUse")
 	assert.Contains(t, rendered, "PostToolUse")
-	assert.Contains(t, rendered, "SessionStart")
+	assert.NotContains(t, rendered, "SessionStart", "the orchestra ready hook is retired")
 	assert.Contains(t, rendered, `"hooks"`)
 	assert.NotContains(t, rendered, "auto session save")
 	assert.NotContains(t, rendered, "auto check --status")
@@ -114,7 +114,7 @@ func TestGenerateHooks_WritesToDisk(t *testing.T) {
 	dir := t.TempDir()
 	files, err := NewWithRoot(dir).generateHooks(config.DefaultFullConfig("test"))
 	require.NoError(t, err)
-	require.Len(t, files, 3)
+	require.Len(t, files, 1)
 	data, err := os.ReadFile(filepath.Join(dir, ".codex", "hooks.json"))
 	require.NoError(t, err)
 	assert.JSONEq(t, string(files[0].Content), string(data))
@@ -136,7 +136,7 @@ func TestPrepareHooksFile_MergesExisting(t *testing.T) {
 
 	files, err := a.prepareHooksFile(cfg)
 	require.NoError(t, err)
-	require.Len(t, files, 3)
+	require.Len(t, files, 1)
 
 	content := string(files[0].Content)
 	assert.Contains(t, content, "user.sh", "user hook preserved")

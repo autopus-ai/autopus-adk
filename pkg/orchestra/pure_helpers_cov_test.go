@@ -105,28 +105,3 @@ func TestAppendSubprocessDiagnostic(t *testing.T) {
 	assert.Equal(t, "a\nb", appendSubprocessDiagnostic("a", "b"))
 	assert.Equal(t, "  ", appendSubprocessDiagnostic("  ", ""))
 }
-
-// TestIsProviderStillWorking exercises every branch: no patterns (false),
-// pattern match (true), and patterns present but none matching (false).
-func TestIsProviderStillWorking(t *testing.T) {
-	t.Parallel()
-
-	// No patterns configured — always false regardless of screen content.
-	assert.False(t, isProviderStillWorking("generating output...", nil))
-	assert.False(t, isProviderStillWorking("generating output...", []string{}))
-
-	// Pattern present and found in screen content — still working.
-	assert.True(t, isProviderStillWorking("thinking...", []string{"thinking"}))
-
-	// Patterns present but none match — provider is idle.
-	assert.False(t, isProviderStillWorking("idle screen", []string{"thinking", "generating"}))
-}
-
-// TestIsProviderStillWorking_ANSIStripped verifies ANSI escape codes are
-// stripped before pattern matching so patterns work on clean text.
-func TestIsProviderStillWorking_ANSIStripped(t *testing.T) {
-	t.Parallel()
-	// ANSI color codes wrap the keyword; stripANSI must clean it first.
-	ansiScreen := "\033[1;32mStreaming\033[0m response..."
-	assert.True(t, isProviderStillWorking(ansiScreen, []string{"Streaming"}))
-}

@@ -8,9 +8,8 @@ import "slices"
 var defaultProviderEntries = map[string]ProviderEntry{
 	"claude": DefaultClaudeProviderEntry(),
 	"codex":  DefaultCodexProviderEntry(),
-	// SPEC-ORCH-021 REQ-014/015: prompt is the value of --print (injected into "" slot);
-	// pane argv carries no --print (interactive session).
-	"gemini": {Binary: "agy", Args: []string{"--print", ""}, PaneArgs: []string{}, PromptViaArgs: true, InteractiveInput: "stdin", Subprocess: SubprocessProvConf{OutputFormat: "text", Timeout: GeminiOrchestraTimeoutSeconds}},
+	// SPEC-ORCH-021 REQ-014/015: prompt is the value of --print (injected into "" slot).
+	"gemini": {Binary: "agy", Args: []string{"--print", ""}, PromptViaArgs: true, Subprocess: SubprocessProvConf{OutputFormat: "text", Timeout: GeminiOrchestraTimeoutSeconds}},
 }
 
 func defaultProviderEntryForQuality(providerName string, quality QualityConf) (ProviderEntry, bool) {

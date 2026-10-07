@@ -2,13 +2,11 @@ package cli
 
 import (
 	"fmt"
-	"io"
 	"strings"
 	"time"
 
 	"github.com/insajin/autopus-adk/pkg/orchestra"
 	"github.com/insajin/autopus-adk/pkg/spec"
-	"github.com/insajin/autopus-adk/pkg/terminal"
 )
 
 var (
@@ -22,24 +20,6 @@ var (
 	// OMP review backend.
 	specReviewBackendFactory func(orchestra.OrchestraConfig) orchestra.ExecutionBackend = selectRoutedBackend
 )
-
-// specReviewSubprocessNotice tells a pane-capable terminal why no provider
-// pane opens: read-only review runs every CLI provider as a subprocess.
-//
-//nolint:unused // kept until the SPEC-PANERM-001 W2 deletion merge (T9)
-const specReviewSubprocessNotice = "spec review: read-only review runs providers in subprocess mode"
-
-// announceSpecReviewSubprocessMode prints the subprocess notice once per
-// review when the terminal could host provider panes (REQ-16). With the pane
-// backend retired no review detects a terminal, so nothing calls it
-// (SPEC-PANERM-001); W2 (T9) deletes it with the notice.
-//
-//nolint:unused // kept until the SPEC-PANERM-001 W2 deletion merge (T9)
-func announceSpecReviewSubprocessMode(w io.Writer, term terminal.Terminal) {
-	if term != nil && term.Name() != "plain" {
-		fmt.Fprintln(w, specReviewSubprocessNotice)
-	}
-}
 
 // shippedStatuses lists spec statuses that represent work already delivered.
 // A PASS verdict from a fresh review must never silently regress these back

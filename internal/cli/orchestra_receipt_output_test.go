@@ -111,30 +111,6 @@ func TestSaveOrchestraResult_WritesReceiptSidecar(t *testing.T) {
 	assert.Equal(t, filepath.Dir(resultPath), filepath.Dir(receiptPath))
 }
 
-func TestOrchestraResultCmd_JSONReturnsDetachedReceipt(t *testing.T) {
-	t.Parallel()
-
-	jobDir := t.TempDir()
-	jobID := "result-json-001"
-	jobJSON := `{"id":"result-json-001","run_id":"run-json-001","status":"done","strategy":"consensus",` +
-		`"providers":["claude","codex"],` +
-		`"results":{"claude":{"provider":"claude","output":"ok"},"codex":{"provider":"codex","output":"ok"}}}`
-	require.NoError(t, os.WriteFile(filepath.Join(jobDir, jobID+".json"), []byte(jobJSON), 0o600))
-	cmd := newLegacyOrchestraJobResultCmd()
-	var out bytes.Buffer
-	cmd.SetOut(&out)
-	cmd.SetArgs([]string{jobID, "--job-dir", jobDir, "--format", "json"})
-
-	err := cmd.Execute()
-
-	require.NoError(t, err)
-	var payload orchestraCLIOutput
-	require.NoError(t, json.Unmarshal(out.Bytes(), &payload))
-	assert.Equal(t, orchestraCLIOutputSchema, payload.Schema)
-	require.NotNil(t, payload.Receipt)
-	assert.Equal(t, orchestra.OrchestrationReceiptSchema, payload.Receipt.Schema)
-}
-
 func TestOrchestraReviewAndBrainstorm_RegisterTypedOutputFormat(t *testing.T) {
 	t.Parallel()
 
@@ -142,19 +118,4 @@ func TestOrchestraReviewAndBrainstorm_RegisterTypedOutputFormat(t *testing.T) {
 		assert.NotNil(t, cmd.Flags().Lookup("format"))
 		assert.NotNil(t, cmd.Flags().Lookup("no-detach"))
 	}
-	assert.NotNil(t, newLegacyOrchestraJobWaitCmd().Flags().Lookup("format"))
-}
-
-func TestWriteOrchestraJobWaitOutput_JSONPointsToTypedResult(t *testing.T) {
-	t.Parallel()
-
-	var out bytes.Buffer
-	err := writeOrchestraJobWaitOutput(&out, "job-123", orchestra.JobStatusDone, orchestraOutputJSON)
-
-	require.NoError(t, err)
-	var payload orchestraJobWaitOutput
-	require.NoError(t, json.Unmarshal(out.Bytes(), &payload))
-	assert.Equal(t, orchestraJobWaitOutputSchema, payload.Schema)
-	assert.Equal(t, orchestra.JobStatusDone, payload.Status)
-	assert.Equal(t, "auto orchestra result job-123 --format json", payload.NextRequiredStep)
 }

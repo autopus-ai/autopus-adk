@@ -8,18 +8,11 @@ import (
 
 // OrchestraFlags holds optional flags for runOrchestraCommand. A struct avoids
 // silent breakage when call sites add or reorder command options.
-//
-// NoDetach, YieldRounds, and SubprocessMode belong to flags retired with the
-// pane backend (SPEC-PANERM-001): no command sets them, and they are deleted
-// together with their last readers.
 type OrchestraFlags struct {
-	NoDetach          bool
 	NoPersist         bool
 	KeepRelay         bool
 	NoJudge           bool
-	YieldRounds       bool
 	ContextAware      bool
-	SubprocessMode    bool
 	TimeoutChanged    bool
 	RiskTier          reviewRiskTier
 	RiskInputs        []string

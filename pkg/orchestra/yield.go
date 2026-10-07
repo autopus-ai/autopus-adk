@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 
 	"github.com/insajin/autopus-adk/pkg/telemetry"
 )
 
-// YieldOutput is the JSON structure output by --yield-rounds mode.
+// YieldOutput is the per-round JSON structure printed when a run skips the
+// judge (--no-judge) and hands the round history to the caller.
 type YieldOutput struct {
 	Strategy        string                    `json:"strategy"`
 	Rounds          int                       `json:"rounds"`
@@ -58,7 +58,7 @@ func WriteYieldOutput(w io.Writer, output YieldOutput) error {
 }
 
 // BuildYieldOutputFromResult creates a YieldOutput from an OrchestraResult.
-// Used by --no-judge to output structured JSON without requiring pane references.
+// Used by --no-judge to output structured JSON.
 func BuildYieldOutputFromResult(result *OrchestraResult, sessionID string) YieldOutput {
 	aggregateOrchestraUsage(result)
 	var yieldRounds []YieldRound
@@ -90,60 +90,5 @@ func BuildYieldOutputFromResult(result *OrchestraResult, sessionID string) Yield
 		SessionID:       sessionID,
 		FailedProviders: failures,
 		Usage:           result.Usage, UsageAggregate: result.UsageAggregate, UsageCapability: result.UsageCapability,
-	}
-}
-
-// BuildYieldOutput creates a YieldOutput from debate state.
-// Derives failed_providers from roundHistory entries with TimedOut=true or
-// empty output so pane-mode consumers see the same failure signals as
-// subprocess-mode (BuildYieldOutputFromResult).
-func BuildYieldOutput(cfg OrchestraConfig, panes []paneInfo, roundHistory [][]ProviderResponse, sessionID string) YieldOutput {
-	paneMap := make(map[string]string)
-	for _, pi := range panes {
-		paneMap[pi.provider.Name] = string(pi.paneID)
-	}
-
-	var yieldRounds []YieldRound
-	var failures []YieldFailure
-	for i, responses := range roundHistory {
-		yr := YieldRound{Round: i + 1}
-		for _, r := range responses {
-			if r.Output == "" && !r.TimedOut {
-				log.Printf("[yield] WARNING: provider %s returned empty output (not timed out) — completion detection may have fired prematurely", r.Provider)
-			}
-			switch {
-			case r.TimedOut:
-				failures = append(failures, YieldFailure{
-					Provider: r.Provider,
-					Error:    fmt.Sprintf("round %d timeout", i+1),
-				})
-			case r.Output == "":
-				failures = append(failures, YieldFailure{
-					Provider: r.Provider,
-					Error:    fmt.Sprintf("round %d empty output", i+1),
-				})
-			}
-			yr.Responses = append(yr.Responses, YieldResponse{
-				Provider:   r.Provider,
-				Output:     r.Output,
-				DurationMs: r.Duration.Milliseconds(),
-				TimedOut:   r.TimedOut,
-				Usage:      r.Usage, UsageCapability: r.UsageCapability,
-			})
-		}
-		yieldRounds = append(yieldRounds, yr)
-	}
-
-	usageResult := &OrchestraResult{RoundHistory: roundHistory}
-	aggregateOrchestraUsage(usageResult)
-	return YieldOutput{
-		Strategy:        string(cfg.Strategy),
-		Rounds:          len(roundHistory),
-		RoundHistory:    yieldRounds,
-		Panes:           paneMap,
-		SessionID:       sessionID,
-		FailedProviders: failures,
-		Usage:           usageResult.Usage, UsageAggregate: usageResult.UsageAggregate,
-		UsageCapability: usageResult.UsageCapability,
 	}
 }

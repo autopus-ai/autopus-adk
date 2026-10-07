@@ -21,6 +21,14 @@ func TestNewSessionID_HasAtLeast128BitsAndSafeAlphabet(t *testing.T) {
 	assert.Regexp(t, regexp.MustCompile(`^orch-[0-9a-f]{32,}$`), id)
 }
 
+func TestNewSessionID_Unique(t *testing.T) {
+	t.Parallel()
+
+	id1 := NewSessionID()
+	id2 := NewSessionID()
+	assert.NotEqual(t, id1, id2)
+}
+
 func TestNewSessionID_RandomFailureFallbackRemainsUnique(t *testing.T) {
 	t.Parallel()
 

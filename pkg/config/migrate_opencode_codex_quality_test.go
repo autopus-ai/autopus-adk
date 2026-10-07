@@ -17,18 +17,18 @@ func TestMigrateOpencodeToCodex_EmptyExistingCodexUsesOwnershipSignals(t *testin
 	}{
 		{
 			name:     "quality managed resets to quality default",
-			existing: ProviderEntry{Binary: "stale-codex", PaneArgs: []string{"--stale"}, ModelPolicy: ProviderModelPolicyQuality},
+			existing: ProviderEntry{Binary: "stale-codex", ModelPolicy: ProviderModelPolicyQuality},
 		},
 		{name: "zero-value unmarked resets to quality default"},
 		{
 			name:     "unmarked custom signals remain user owned",
-			existing: ProviderEntry{Binary: "codex-wrapper", PaneArgs: []string{"--custom-pane"}, PromptViaArgs: true},
-			want:     ProviderEntry{Binary: "codex-wrapper", PaneArgs: []string{"--custom-pane"}, ModelPolicy: ProviderModelPolicyPinned, PromptViaArgs: true},
+			existing: ProviderEntry{Binary: "codex-wrapper", PromptViaArgs: true},
+			want:     ProviderEntry{Binary: "codex-wrapper", ModelPolicy: ProviderModelPolicyPinned, PromptViaArgs: true},
 		},
 		{
 			name:     "explicit pinned remains user owned",
-			existing: ProviderEntry{Binary: "codex-wrapper", PaneArgs: []string{"--custom-pane"}, ModelPolicy: ProviderModelPolicyPinned},
-			want:     ProviderEntry{Binary: "codex-wrapper", PaneArgs: []string{"--custom-pane"}, ModelPolicy: ProviderModelPolicyPinned},
+			existing: ProviderEntry{Binary: "codex-wrapper", ModelPolicy: ProviderModelPolicyPinned},
+			want:     ProviderEntry{Binary: "codex-wrapper", ModelPolicy: ProviderModelPolicyPinned},
 		},
 	}
 	for _, tt := range tests {

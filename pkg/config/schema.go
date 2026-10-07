@@ -97,15 +97,15 @@ type FeaturesConf struct {
 	CC21 CC21FeaturesConf `yaml:"cc21,omitempty"`
 }
 
-// CC21FeaturesConf holds Claude Code 2.1 integration flags.
+// CC21FeaturesConf holds Claude Code 2.1 integration flags. The retired
+// monitor_pattern_timeout_ms key (orchestra pane monitor) is ignored on load.
 type CC21FeaturesConf struct {
-	Enabled                 bool   `yaml:"enabled"`
-	EffortEnabled           bool   `yaml:"effort_enabled,omitempty"`
-	MonitorEnabled          bool   `yaml:"monitor_enabled,omitempty"`
-	TaskCreatedEnabled      bool   `yaml:"task_created_enabled,omitempty"`
-	InitialPromptEnabled    bool   `yaml:"initial_prompt_enabled,omitempty"`
-	TaskCreatedMode         string `yaml:"task_created_mode,omitempty"`
-	MonitorPatternTimeoutMS int    `yaml:"monitor_pattern_timeout_ms,omitempty"`
+	Enabled              bool   `yaml:"enabled"`
+	EffortEnabled        bool   `yaml:"effort_enabled,omitempty"`
+	MonitorEnabled       bool   `yaml:"monitor_enabled,omitempty"`
+	TaskCreatedEnabled   bool   `yaml:"task_created_enabled,omitempty"`
+	InitialPromptEnabled bool   `yaml:"initial_prompt_enabled,omitempty"`
+	TaskCreatedMode      string `yaml:"task_created_mode,omitempty"`
 }
 
 // ProfilesConf holds profile configuration for agents.

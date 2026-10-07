@@ -101,7 +101,6 @@ func TestRunOrchestraRecheck_SecondRoundSeesOwnFirstAnswer(t *testing.T) {
 		Providers:      []ProviderConfig{{Name: "cat", Binary: "cat", ExecutionTimeout: 20 * time.Second}},
 		Prompt:         "ORIGINAL-TASK",
 		TimeoutSeconds: 30,
-		SubprocessMode: true,
 	})
 	require.NoError(t, err)
 	require.NotNil(t, result)
@@ -122,72 +121,6 @@ func TestRunOrchestraRecheck_SecondRoundSeesOwnFirstAnswer(t *testing.T) {
 	assert.False(t, result.Degraded)
 	for i, resp := range result.Responses {
 		assert.Equal(t, "subprocess", resp.ExecutedBackend,
-			"round %d on a plain terminal must report the subprocess transport", i+1)
+			"round %d must report the subprocess transport", i+1)
 	}
-}
-
-func paneDeliveredPrompts(term *mockTerminal) string {
-	parts := make([]string, 0, len(term.sendLongTextCalls)+len(term.promptFileContents))
-	for _, call := range term.sendLongTextCalls {
-		parts = append(parts, call.Text)
-	}
-	parts = append(parts, term.promptFileContents...)
-	return strings.Join(parts, "\n")
-}
-
-// On cmux, tmux, and the Orca terminals built on them, recheck must run in
-// panes like every other strategy — one pane per round — instead of quietly
-// dropping to a child process.
-func TestRunOrchestraRecheck_RunsBothRoundsInPanes(t *testing.T) {
-	t.Parallel()
-	term := newCmuxMock()
-	term.readScreenOutput = "❯" // session-ready prompt marker
-
-	result, err := RunOrchestra(context.Background(), OrchestraConfig{
-		Strategy:       StrategyRecheck,
-		Providers:      []ProviderConfig{{Name: "claude", Binary: "cat", ExecutionTimeout: 20 * time.Second}},
-		Prompt:         "PANE-ROUTED-TASK",
-		TimeoutSeconds: 30,
-		Terminal:       term,
-		WorkingDir:     t.TempDir(),
-	})
-	require.NoError(t, err)
-	require.NotNil(t, result)
-
-	require.Len(t, result.Responses, 2, "both rounds must run on a pane terminal")
-	assert.Len(t, term.splitPaneCalls, recheckRoundCount, "one pane per round")
-	for i, resp := range result.Responses {
-		assert.Equal(t, "pane", resp.ExecutedBackend,
-			"round %d evidence must name the transport that actually ran", i+1)
-	}
-
-	// The re-derivation has to survive the pane transport, not just the
-	// subprocess one: round 2's delivered prompt carries the task and the
-	// reconsider instruction.
-	delivered := paneDeliveredPrompts(term)
-	assert.Contains(t, delivered, "Round 2: Reconsider")
-	assert.Contains(t, delivered, "PANE-ROUTED-TASK")
-}
-
-// The pane runner is a public entry point too, so entering through it must land
-// on the same two-round pane flow rather than the one-round fan-out.
-func TestRunPaneOrchestraRecheck_EntersTwoRoundPaneFlow(t *testing.T) {
-	t.Parallel()
-	term := newCmuxMock()
-	term.readScreenOutput = "❯" // session-ready prompt marker
-
-	result, err := RunPaneOrchestra(context.Background(), OrchestraConfig{
-		Strategy:       StrategyRecheck,
-		Providers:      []ProviderConfig{{Name: "claude", Binary: "cat", ExecutionTimeout: 20 * time.Second}},
-		Prompt:         "DIRECT-PANE-ENTRY",
-		TimeoutSeconds: 30,
-		Terminal:       term,
-		WorkingDir:     t.TempDir(),
-	})
-	require.NoError(t, err)
-	require.NotNil(t, result)
-
-	require.Len(t, result.Responses, 2)
-	assert.Len(t, term.splitPaneCalls, recheckRoundCount)
-	assert.Contains(t, paneDeliveredPrompts(term), "DIRECT-PANE-ENTRY")
 }

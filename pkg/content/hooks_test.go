@@ -84,17 +84,16 @@ func TestGenerateHookConfigs_AllDisabled(t *testing.T) {
 	hooks, gitHooks, err := content.GenerateHookConfigs(cfg, "claude", true)
 	require.NoError(t, err)
 	// All HooksConf fields disabled — the unconditional hooks remain: the
-	// completion Stop hook, the SessionStart ready hook (SPEC-ORCH-022), the
-	// SPEC-CONDRULE-001 dispatcher, and the SPEC-STICKYRULE-001 UserPromptSubmit
+	// SPEC-CONDRULE-001 dispatcher and the SPEC-STICKYRULE-001 UserPromptSubmit
 	// entry, which is gated by the compiled sticky set rather than by HooksConf.
-	require.Len(t, hooks, 4,
-		"completion, session-start ready, dispatcher, and sticky hooks are unconditional")
+	// The orchestra completion and ready hooks are retired (SPEC-PANERM-001).
+	require.Len(t, hooks, 2, "dispatcher and sticky hooks are unconditional")
 	events := map[string]string{}
 	for _, h := range hooks {
 		events[h.Event] = h.Command
 	}
-	assert.Equal(t, `"${CLAUDE_PROJECT_DIR:-.}"/.claude/hooks/autopus/hook-claude-stop.sh`, events["Stop"])
-	assert.Equal(t, `"${CLAUDE_PROJECT_DIR:-.}"/.claude/hooks/autopus/hook-claude-sessionstart.sh`, events["SessionStart"])
+	assert.NotContains(t, events, "Stop")
+	assert.NotContains(t, events, "SessionStart")
 	assert.Equal(t, "auto rules fire --event PreToolUse", events["PreToolUse"])
 	assert.Empty(t, gitHooks)
 }
@@ -137,16 +136,11 @@ func TestGenerateHookConfigs_AntigravityKeepsOfficialEventNames(t *testing.T) {
 	assert.Contains(t, events, "PostToolUse")
 	assert.NotContains(t, events, "BeforeTool")
 	assert.NotContains(t, events, "AfterTool")
-	// Stop is the completion hook in the Antigravity lifecycle.
-	assert.Contains(t, events, "Stop")
+	// The retired completion hook leaves no Stop entry (SPEC-PANERM-001).
+	assert.NotContains(t, events, "Stop")
 
-	// Tool-use hooks must be wrapped for Antigravity JSON stdout protocol;
-	// the completion Stop hook is a plain command (not tool-use).
+	// Tool-use hooks must be wrapped for Antigravity JSON stdout protocol.
 	for _, h := range hooks {
-		if h.Event == "Stop" {
-			// Completion hook: plain command, no run_command matcher.
-			continue
-		}
 		assert.Equal(t, "run_command", h.Matcher, "Antigravity tool-use hooks must match official tool names")
 		assert.Contains(t, h.Command, "sh -c", "Antigravity tool-use hooks must wrap commands for JSON stdout")
 		assert.Contains(t, h.Command, ">&2", "Antigravity tool-use hooks should keep command output off stdout")
@@ -190,10 +184,9 @@ func TestGenerateHookConfigs_DeduplicatesReactHooks(t *testing.T) {
 	hooks, _, err := content.GenerateHookConfigs(cfg, "claude", true)
 	require.NoError(t, err)
 	// ReactCIFailure and ReactReview both enabled — dedup keeps only one PostToolUse react hook,
-	// plus the unconditional completion Stop hook, the SessionStart ready hook
-	// (SPEC-ORCH-022), the SPEC-CONDRULE-001 dispatcher, and the SPEC-STICKYRULE-001 entry.
-	require.Len(t, hooks, 5,
-		"expected one deduped react hook plus the Stop, SessionStart, dispatcher, and sticky hooks")
+	// plus the unconditional SPEC-CONDRULE-001 dispatcher and SPEC-STICKYRULE-001 entry.
+	require.Len(t, hooks, 3,
+		"expected one deduped react hook plus the dispatcher and sticky hooks")
 	reactHook := findHook(hooks, "PostToolUse")
 	require.NotNil(t, reactHook, "expected a PostToolUse react hook")
 	assert.Equal(t, "auto react check --quiet", reactHook.Command)
@@ -205,20 +198,19 @@ func TestGenerateProjectHookConfigs_ClaudeTaskCreatedEnabled(t *testing.T) {
 	cfg := config.DefaultFullConfig("demo")
 	cfg.Hooks = config.HooksConf{}
 	cfg.Features.CC21 = config.CC21FeaturesConf{
-		Enabled:                 true,
-		EffortEnabled:           true,
-		MonitorEnabled:          true,
-		TaskCreatedEnabled:      true,
-		InitialPromptEnabled:    true,
-		TaskCreatedMode:         "warn",
-		MonitorPatternTimeoutMS: 30000,
+		Enabled:              true,
+		EffortEnabled:        true,
+		MonitorEnabled:       true,
+		TaskCreatedEnabled:   true,
+		InitialPromptEnabled: true,
+		TaskCreatedMode:      "warn",
 	}
 
 	hooks, gitHooks, err := content.GenerateProjectHookConfigs(cfg, "claude-code", true)
 	require.NoError(t, err)
-	// Expect: completion Stop hook + SessionStart ready hook (SPEC-ORCH-022) +
-	// TaskCreated hook + SPEC-CONDRULE-001 dispatcher + SPEC-STICKYRULE-001 entry.
-	require.Len(t, hooks, 5)
+	// Expect: TaskCreated hook + SPEC-CONDRULE-001 dispatcher +
+	// SPEC-STICKYRULE-001 entry.
+	require.Len(t, hooks, 3)
 	assert.Empty(t, gitHooks)
 	taskCreatedHook := findHook(hooks, "TaskCreated")
 	require.NotNil(t, taskCreatedHook, "expected a TaskCreated hook")
@@ -239,10 +231,9 @@ func TestGenerateProjectHookConfigs_TaskCreatedDisabledOutsideClaude(t *testing.
 
 	hooks, gitHooks, err := content.GenerateProjectHookConfigs(cfg, "codex", true)
 	require.NoError(t, err)
-	// TaskCreated is disabled outside claude; Codex still receives the completion
-	// and readiness hooks required by pane IPC.
-	require.Len(t, hooks, 2, "completion Stop and SessionStart hooks expected for codex")
-	assert.ElementsMatch(t, []string{"Stop", "SessionStart"}, eventNames(hooks))
+	// TaskCreated is disabled outside claude, and the retired completion and
+	// readiness hooks leave Codex with no native hook here.
+	assert.Empty(t, hooks, "no hook expected for codex: %v", eventNames(hooks))
 	assert.Empty(t, gitHooks)
 }
 

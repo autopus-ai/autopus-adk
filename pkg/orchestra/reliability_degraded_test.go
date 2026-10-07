@@ -1,6 +1,8 @@
 package orchestra
 
 import (
+	"bytes"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -49,4 +51,20 @@ func TestReliabilityStore_WritableStore_NoWarning(t *testing.T) {
 	if store.degraded {
 		t.Fatalf("writable store must not be marked degraded")
 	}
+}
+
+// captureLog redirects the standard logger to a buffer for the duration of fn.
+func captureLog(t *testing.T, fn func()) string {
+	t.Helper()
+	var buf bytes.Buffer
+	prevOut := log.Writer()
+	prevFlags := log.Flags()
+	log.SetOutput(&buf)
+	log.SetFlags(0)
+	defer func() {
+		log.SetOutput(prevOut)
+		log.SetFlags(prevFlags)
+	}()
+	fn()
+	return buf.String()
 }

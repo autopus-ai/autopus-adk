@@ -1,15 +1,9 @@
 package orchestra
 
 import (
-	"context"
-	"crypto/sha256"
-	"errors"
 	"fmt"
-	"log"
 	"path/filepath"
 	"strings"
-
-	"github.com/insajin/autopus-adk/pkg/terminal"
 )
 
 // FreshJudgeSessionEvidence records the observable logical session boundary
@@ -26,23 +20,6 @@ type FreshJudgeSessionEvidence struct {
 	ParticipantSessionFingerprint string `json:"participant_session_fingerprint"`
 	JudgeSessionFingerprint       string `json:"judge_session_fingerprint"`
 	Reason                        string `json:"reason"`
-}
-
-func newFreshJudgeSessionEvidence(cfg OrchestraConfig, participantHook *HookSession) *FreshJudgeSessionEvidence {
-	mechanism := "fresh_backend_execution"
-	participantSessionID := ""
-	if cfg.HookMode {
-		mechanism = "isolated_hook_session"
-		participantSessionID = cfg.SessionID
-		if participantHook != nil {
-			participantSessionID = participantHook.SessionID()
-		}
-	}
-	return &FreshJudgeSessionEvidence{
-		Required:                      true,
-		Mechanism:                     mechanism,
-		ParticipantSessionFingerprint: fingerprintSessionID(participantSessionID),
-	}
 }
 
 func newFreshSubprocessJudgeSessionEvidence() *FreshJudgeSessionEvidence {
@@ -86,7 +63,7 @@ func freshJudgeSessionFromResponses(responses []ProviderResponse) *FreshJudgeSes
 	return nil
 }
 
-// @AX:NOTE: [AUTO] judge Args and PaneArgs fail closed on provider-specific resume, continue, session, thread, or conversation tokens
+// @AX:NOTE: [AUTO] judge Args fail closed on provider-specific resume, continue, session, thread, or conversation tokens
 func freshJudgeConfigError(provider ProviderConfig) error {
 	identity := providerCanonicalName(provider.Name)
 	if binaryIdentity := providerCanonicalName(filepath.Base(strings.TrimSpace(provider.Binary))); identity == "" {
@@ -94,15 +71,13 @@ func freshJudgeConfigError(provider ProviderConfig) error {
 	} else if !knownProviderIdentity(identity) && knownProviderIdentity(binaryIdentity) {
 		identity = binaryIdentity
 	}
-	for _, args := range [][]string{provider.Args, provider.PaneArgs} {
-		for _, arg := range args {
-			if flag, blocked := freshJudgeResumeToken(identity, arg); blocked {
-				return fmt.Errorf(
-					"judge provider %q cannot prove a fresh session while resume/continue option %q is configured",
-					provider.Name,
-					flag,
-				)
-			}
+	for _, arg := range provider.Args {
+		if flag, blocked := freshJudgeResumeToken(identity, arg); blocked {
+			return fmt.Errorf(
+				"judge provider %q cannot prove a fresh session while resume/continue option %q is configured",
+				provider.Name,
+				flag,
+			)
 		}
 	}
 	return nil
@@ -165,73 +140,4 @@ func freshJudgeSessionError(evidence *FreshJudgeSessionEvidence) error {
 	default:
 		return nil
 	}
-}
-
-// @AX:WARN: [AUTO] high-branch terminal teardown — pane-close failures block judge dispatch; pipe-stop failures remain diagnostic
-// @AX:REASON: [AUTO] eight conditional branches coordinate monitoring, best-effort pipe stop, fail-closed pane ownership, and joined close failures
-func terminateParticipantsBeforeJudge(
-	cfg OrchestraConfig,
-	panes []paneInfo,
-	participantHook *HookSession,
-) error {
-	if cfg.SurfaceMgr != nil {
-		cfg.SurfaceMgr.Stop()
-	}
-	if participantHook != nil {
-		defer participantHook.Cleanup()
-	}
-	if len(panes) == 0 {
-		return nil
-	}
-	if cfg.Terminal == nil {
-		return fmt.Errorf("participant pane termination failed: terminal unavailable")
-	}
-
-	var failures []error
-	for i := range panes {
-		paneID := panes[i].paneID
-		if paneID == "" {
-			continue
-		}
-		if err := cfg.Terminal.PipePaneStop(context.Background(), paneID); err != nil {
-			log.Printf("[judge] participant pipe stop failed for %q (non-fatal): %v", paneID, err)
-		}
-		if closePaneSurface(cfg.Terminal, paneID) {
-			panes[i].paneID = terminal.PaneID("")
-		} else {
-			failures = append(failures, fmt.Errorf("close participant pane %q", paneID))
-		}
-	}
-	if err := errors.Join(failures...); err != nil {
-		return fmt.Errorf("participant pane termination failed: %w", err)
-	}
-	return nil
-}
-
-func activateFreshJudgeHookSession(evidence *FreshJudgeSessionEvidence) (*HookSession, error) {
-	if evidence.ParticipantSessionFingerprint == "" {
-		return nil, fmt.Errorf("participant hook session unavailable for fingerprint verification")
-	}
-	judgeSessionID := NewSessionID()
-	judgeHookSession, err := NewHookSession(judgeSessionID)
-	if err != nil {
-		return nil, fmt.Errorf("%s", strings.ReplaceAll(err.Error(), judgeSessionID, "[redacted]"))
-	}
-	evidence.JudgeSessionFingerprint = fingerprintSessionID(judgeHookSession.SessionID())
-	if evidence.ParticipantSessionFingerprint == evidence.JudgeSessionFingerprint {
-		judgeHookSession.Cleanup()
-		return nil, fmt.Errorf("judge hook session fingerprint matches participant session")
-	}
-	evidence.Isolated = true
-	evidence.Verified = true
-	evidence.Reason = "distinct hook session fingerprints verified"
-	return judgeHookSession, nil
-}
-
-func fingerprintSessionID(sessionID string) string {
-	if sessionID == "" {
-		return ""
-	}
-	sum := sha256.Sum256([]byte(sessionID))
-	return fmt.Sprintf("sha256:%x", sum)
 }

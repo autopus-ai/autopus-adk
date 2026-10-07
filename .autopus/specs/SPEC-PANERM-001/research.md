@@ -198,3 +198,11 @@ These are optional improvements and do not block sync completion.
 - Q-SEC-01 | status: PASS | attempt: 1 | files: research.md | reason: ledger and source clauses treated as untrusted evidence
 - Q-SEC-02 | status: PASS | attempt: 3 | files: spec.md, acceptance.md | reason: REQ-17 keeps read-only rejection for plan and brainstorm (F-018)
 - Q-SEC-03 | status: PASS | attempt: 1 | files: plan.md | reason: RFP-1 receipt redacted; no new persistent artifact
+
+## Group I Final List (T7)
+
+The working list in `spec.md` plus the exported declarations of the deleted `pkg/orchestra` code (W2 T7: the 60
+group P files, `BuildYieldOutput`, and the pane-only accessors removed from `types.go` and `provider_patterns.go`).
+In `internal/cli` these names match as `orchestra.<name>` selectors.
+
+`BuildYieldOutput`, `CleanRoundSignals`, `CleanScreenForCrossPollination`, `CleanupStaleJobs`, `CompletionDetector`, `CompletionPattern`, `DefaultCompletionPatterns`, `DefaultHookProviders`, `DefaultPromptPatterns`, `DefaultStartupHookProviders`, `HookInput`, `HookResult`, `HookResultToProviderResponse`, `IdleThreshold`, `Job`, `JobStatus`, `JobStatusDone`, `JobStatusError`, `JobStatusPartial`, `JobStatusRunning`, `JobStatusTimeout`, `LoadJob`, `LoadSession`, `NewCompletionDetector`, `NewCompletionDetectorWithConfig`, `NewHookSession`, `NewSignalEmitter`, `NewSurfaceManager`, `NewWarmPool`, `OrchestraSession`, `ReapOrphanSurfaces`, `RemoveSession`, `ResolveSessionTerminal`, `ResolveSessionTerminalWithWorkspace`, `RoundSignalName`, `SaveSession`, `SendRoundEnvToPane`, `SendSessionEnvToPane`, `SessionProviderConfig`, `SessionProviderResponse`, `SessionReadyPatterns`, `SetRoundEnv`, `SignalDetector`, `SignalEmitter`, `SurfaceManager`, `UpdateSession`, `WaitAndCollectHookResults`, `WarmPool`

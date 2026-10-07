@@ -8,7 +8,7 @@ type freshPipelineExecutionBackend interface {
 
 func pipelineBackendHasFreshExecutionSemantics(backend ExecutionBackend) bool {
 	switch backend.(type) {
-	case *subprocessBackend, *InteractivePaneBackend:
+	case *subprocessBackend:
 		return true
 	}
 	declared, ok := backend.(freshPipelineExecutionBackend)
@@ -28,12 +28,6 @@ func verifyFreshPipelineJudgeSession(
 		evidence.Isolated = true
 		evidence.Verified = true
 		evidence.Reason = "fresh per-request backend execution verified"
-		return
-	}
-	if response != nil && response.ExecutedBackend == paneBackendName {
-		evidence.Isolated = true
-		evidence.Verified = true
-		evidence.Reason = "fresh pane backend execution verified"
 		return
 	}
 	verifyFreshSubprocessJudgeSession(evidence, response)

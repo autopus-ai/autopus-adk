@@ -241,11 +241,9 @@ func TestCodexProviderEntryForQuality(t *testing.T) {
 	t.Parallel()
 
 	wantArgs := []string{"exec", "--json", "--sandbox", "workspace-write", "-m", CodexAstraModel, "-c", `model_reasoning_effort="max"`}
-	wantPaneArgs := []string{"-m", CodexAstraModel, "-c", `model_reasoning_effort="max"`}
 
 	for _, mode := range []string{"balanced", "ultra"} {
 		entry := CodexProviderEntryForQuality(QualityConf{Default: mode})
 		assert.Equal(t, wantArgs, entry.Args, mode)
-		assert.Equal(t, wantPaneArgs, entry.PaneArgs, mode)
 	}
 }

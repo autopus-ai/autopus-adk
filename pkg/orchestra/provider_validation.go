@@ -38,16 +38,6 @@ func validateSafeArtifactName(kind, name string) error {
 	return nil
 }
 
-func validateHookSessionID(sessionID string) error {
-	if err := validateSafeArtifactName("hook session ID", sessionID); err != nil {
-		return err
-	}
-	if sessionID != strings.ToLower(sessionID) {
-		return fmt.Errorf("hook session ID %q must use canonical lowercase", sessionID)
-	}
-	return nil
-}
-
 func providerCanonicalName(name string) string {
 	return strings.ToLower(providerArtifactIdentity(strings.TrimSpace(name)))
 }
@@ -78,11 +68,6 @@ func validateOrchestraProviderConfig(cfg OrchestraConfig) error {
 	if err := validateProviderConfigs(cfg.Providers); err != nil {
 		return err
 	}
-	if cfg.HookMode {
-		if err := validateHookSessionID(cfg.SessionID); err != nil {
-			return err
-		}
-	}
 	if cfg.JudgeProvider != "" {
 		if err := validateSafeArtifactName("judge provider name", cfg.JudgeProvider); err != nil {
 			return err
@@ -94,13 +79,6 @@ func validateOrchestraProviderConfig(cfg OrchestraConfig) error {
 		}
 	}
 	return nil
-}
-
-func validateProviderRequest(req ProviderRequest) error {
-	if err := validateSafeArtifactName("provider request name", req.Provider); err != nil {
-		return err
-	}
-	return validateSafeArtifactName("provider config name", req.Config.Name)
 }
 
 func validateSubprocessPipelineProviders(providers []ProviderConfig, judge ProviderConfig) error {

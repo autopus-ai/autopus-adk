@@ -19,7 +19,6 @@ func TestDefaultFullConfig_GeminiPromptViaArgs(t *testing.T) {
 	// value; the prompt fills the "" slot via PromptViaArgs (injectPromptArg).
 	assert.True(t, gemini.PromptViaArgs, "gemini provider must pass the prompt as the --print value")
 	assert.Equal(t, []string{"--print", ""}, gemini.Args, "gemini provider must use the --print value slot")
-	assert.Equal(t, "stdin", gemini.InteractiveInput, "gemini pane mode must not derive args-based launch input")
 }
 
 func TestDefaultFullConfig_OtherProvidersPromptViaArgsFalse(t *testing.T) {
@@ -182,7 +181,6 @@ func TestDefaultFullConfig_ClaudeReviewUsesFrontierMax(t *testing.T) {
 	require.True(t, ok, "claude provider must exist")
 	want := []string{"--print", "--model", "claude-fable-5-1", "--effort", "max"}
 	assert.Equal(t, want, claude.Args)
-	assert.Equal(t, want, claude.PaneArgs)
 }
 
 func TestDefaultFullConfig_SpecReviewContextUsesAdaptiveLimit(t *testing.T) {

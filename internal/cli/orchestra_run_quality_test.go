@@ -49,7 +49,6 @@ func TestRunSubprocessPipeline_AppliesRuntimeCodexQualityAndEffort(t *testing.T)
 		Timeout:          120,
 		TimeoutChanged:   false,
 		Judge:            "",
-		ForceSubprocess:  false,
 		DryRun:           false,
 		JSONMode:         false,
 		RequireAgreement: 0,

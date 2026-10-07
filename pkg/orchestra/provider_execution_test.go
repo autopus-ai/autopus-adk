@@ -132,29 +132,6 @@ func TestBuildProviderRunReceipts_TimedOutAttemptKeepsLaunchProvenance(t *testin
 	assert.Equal(t, "2026-09-06T10:00:30Z", codex.EndedAt)
 }
 
-func TestBuildInteractiveLaunchCommand_ReadOnlyOmitsBypassAndEntersWorkDir(t *testing.T) {
-	t.Parallel()
-
-	workDir := "/tmp/autopus-brainstorm-xyz"
-	claude := ProviderConfig{Name: "claude", Binary: "claude", PaneArgs: []string{"--model", "opus", "--permission-mode", "plan"}}
-	launch := paneLaunchFor(OrchestraConfig{WorkingDir: "/repo", ProviderWorkDir: workDir, ReadOnly: true})
-
-	cmd := buildInteractiveLaunchCommand(claude, "", launch)
-	assert.Equal(t, "cd "+shellQuote(workDir)+" && claude --model opus --permission-mode plan", cmd)
-	assert.NotContains(t, cmd, "--dangerously-skip-permissions")
-
-	gemini := ProviderConfig{Name: "gemini", Binary: "agy", PromptViaArgs: true}
-	geminiCmd := buildInteractiveLaunchCommand(gemini, "prompt", launch)
-	assert.NotContains(t, geminiCmd, "--dangerously-skip-permissions")
-	assert.True(t, strings.HasPrefix(geminiCmd, "cd "+shellQuote(workDir)+" && agy"), geminiCmd)
-
-	// Without ReadOnly the legacy bypass stays and the pane enters WorkingDir.
-	legacy := paneLaunchFor(OrchestraConfig{WorkingDir: "/repo"})
-	legacyCmd := buildInteractiveLaunchCommand(claude, "", legacy)
-	assert.Contains(t, legacyCmd, "--dangerously-skip-permissions")
-	assert.True(t, strings.HasPrefix(legacyCmd, "cd '/repo' && claude"), legacyCmd)
-}
-
 func mustEvalSymlinks(t *testing.T, path string) string {
 	t.Helper()
 	resolved, err := filepath.EvalSymlinks(path)

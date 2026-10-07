@@ -5,13 +5,13 @@ import (
 	"time"
 )
 
-// ExecutionBackend abstracts how a provider is executed. InteractivePaneBackend
-// drives a terminal pane; subprocessBackend spawns a child process with
-// schema-enforced JSON I/O.
+// ExecutionBackend abstracts how a provider is executed. subprocessBackend
+// spawns a child process with schema-enforced JSON I/O; routed backends such
+// as OMP are injected through OrchestraConfig.ProviderBackends.
 type ExecutionBackend interface {
 	// Execute runs a single provider and returns its response.
 	Execute(ctx context.Context, req ProviderRequest) (*ProviderResponse, error)
-	// Name returns the backend identifier (e.g., "pane", "subprocess").
+	// Name returns the backend identifier (e.g., "subprocess", "omp").
 	Name() string
 }
 
@@ -26,16 +26,11 @@ type ProviderRequest struct {
 	Config     ProviderConfig // full provider configuration
 }
 
-// SelectBackend chooses the appropriate ExecutionBackend based on config (REQ-002/003).
-// Interactive-pane execution is the default when the terminal is pane-capable
-// (cmux/tmux-style, non-plain) and subprocess mode is not forced. Plain, nil, or
-// subprocess-forced configs use the subprocess backend (F-001).
+// SelectBackend returns the default ExecutionBackend: the subprocess backend
+// (SPEC-PANERM-001 retired the interactive pane backend).
 //
 // Callers that exchange free text rather than schema-guided JSON must not use
 // this: the subprocess backend validates JSON output.
-func SelectBackend(cfg OrchestraConfig) ExecutionBackend {
-	if paneCapable(cfg.Terminal, cfg.SubprocessMode) {
-		return NewInteractivePaneBackend(cfg)
-	}
+func SelectBackend(OrchestraConfig) ExecutionBackend {
 	return NewSubprocessBackendImpl()
 }

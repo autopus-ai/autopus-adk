@@ -18,15 +18,10 @@ func migrateAntigravityGeminiProvider(existing, defaults ProviderEntry, replaceE
 	staleContract := defaults.PromptViaArgs && !existing.PromptViaArgs
 	if staleContract || isLegacyGeminiCLIArgs(existing.Args) || (replaceEmptyArgs && len(existing.Args) == 0) {
 		existing.Args = append([]string{}, defaults.Args...)
-		existing.PaneArgs = append([]string{}, defaults.PaneArgs...)
 		existing.PromptViaArgs = defaults.PromptViaArgs
 		if existing.Subprocess.OutputFormat == "" {
 			existing.Subprocess.OutputFormat = defaults.Subprocess.OutputFormat
 		}
-		changed = true
-	}
-	if defaults.InteractiveInput != "" && existing.InteractiveInput == "" {
-		existing.InteractiveInput = defaults.InteractiveInput
 		changed = true
 	}
 	return existing, changed

@@ -32,7 +32,6 @@ func TestMigrateOrchestraConfig_V05066AutoPinnedModelOnlyCodex_RepairsToQuality(
 			got := cfg.Orchestra.Providers["codex"]
 			assert.Equal(t, ProviderModelPolicyQuality, got.ModelPolicy)
 			assert.Equal(t, []string{"exec", "--json", "--sandbox", "workspace-write", "-m", CodexAstraModel, "-c", `model_reasoning_effort="` + tt.wantEffort + `"`}, got.Args)
-			assert.Equal(t, []string{"-m", CodexAstraModel, "-c", `model_reasoning_effort="` + tt.wantEffort + `"`}, got.PaneArgs)
 			assert.Equal(t, canonicalLegacyCodexSubprocess(), got.Subprocess)
 		})
 	}
@@ -47,7 +46,6 @@ func TestMigrateOrchestraConfig_V05066AutoPinnedNearMatches_RemainPinnedByteForB
 	}{
 		{name: "custom binary", mutate: func(entry *ProviderEntry) { entry.Binary = "codex-wrapper" }},
 		{name: "extra arg", mutate: func(entry *ProviderEntry) { entry.Args = append(entry.Args, "--json") }},
-		{name: "pane mismatch", mutate: func(entry *ProviderEntry) { entry.PaneArgs = append([]string{"--search"}, entry.PaneArgs...) }},
 		{name: "custom subprocess", mutate: func(entry *ProviderEntry) { entry.Subprocess.Timeout = 999 }},
 	}
 	for _, tt := range tests {
@@ -81,7 +79,6 @@ func TestMigrateOrchestraConfig_QualityCodexStructuredUsageIsIdempotent(t *testi
 
 	got := cfg.Orchestra.Providers["codex"]
 	assert.Equal(t, 1, countString(got.Args, "--json"))
-	assert.NotContains(t, got.PaneArgs, "--json")
 }
 
 func TestMigrateOrchestraConfig_ExplicitModernPinnedModelOnlyCodex_RemainsPinnedByteForByte(t *testing.T) {
@@ -115,7 +112,6 @@ func legacyAutoPinnedCodexConfig(quality string) *HarnessConfig {
 				"codex": {
 					Binary:      "codex",
 					Args:        []string{"exec", "--sandbox", "workspace-write", "-m", CodexLegacyModel},
-					PaneArgs:    []string{"-m", CodexLegacyModel},
 					ModelPolicy: ProviderModelPolicyPinned,
 					Subprocess:  canonicalLegacyCodexSubprocess(),
 				},
@@ -134,7 +130,5 @@ func canonicalLegacyCodexSubprocess() SubprocessProvConf {
 
 func cloneCodexProviderEntry(entry ProviderEntry) ProviderEntry {
 	entry.Args = append([]string(nil), entry.Args...)
-	entry.PaneArgs = append([]string(nil), entry.PaneArgs...)
-	entry.WorkingPatterns = append([]string(nil), entry.WorkingPatterns...)
 	return entry
 }

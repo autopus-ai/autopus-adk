@@ -30,9 +30,8 @@ func TestMigrateOrchestraConfig_MarksExactHistoricalCodexDefaultsQualityManaged(
 					Enabled: true,
 					Providers: map[string]ProviderEntry{
 						"codex": {
-							Binary:   "codex",
-							Args:     []string{"exec", "--sandbox", "workspace-write", "-m", CodexLegacyModel, "-c", `model_reasoning_effort="xhigh"`},
-							PaneArgs: []string{"-m", CodexLegacyModel, "-c", `model_reasoning_effort="xhigh"`},
+							Binary: "codex",
+							Args:   []string{"exec", "--sandbox", "workspace-write", "-m", CodexLegacyModel, "-c", `model_reasoning_effort="xhigh"`},
 						},
 					},
 					Commands: map[string]CommandEntry{},
@@ -46,7 +45,6 @@ func TestMigrateOrchestraConfig_MarksExactHistoricalCodexDefaultsQualityManaged(
 			got := cfg.Orchestra.Providers["codex"]
 			assert.Equal(t, ProviderModelPolicyQuality, got.ModelPolicy)
 			assert.Equal(t, []string{"exec", "--json", "--sandbox", "workspace-write", "-m", CodexAstraModel, "-c", `model_reasoning_effort="max"`}, got.Args)
-			assert.Equal(t, []string{"-m", CodexAstraModel, "-c", `model_reasoning_effort="max"`}, got.PaneArgs)
 		})
 	}
 }
@@ -55,14 +53,13 @@ func TestMigrateOrchestraConfig_UnmarkedCustomCodexBecomesPinnedWithoutArgvChang
 	t.Parallel()
 
 	args := []string{"exec", "--json", "-m", "user/codex", "-c", `model_reasoning_effort="ultra"`, "--sandbox", "danger-full-access"}
-	paneArgs := []string{"--search", "-m", "user/codex-pane", "-c", `model_reasoning_effort="low"`}
 	cfg := &HarnessConfig{
 		Platforms: []string{"codex"},
 		Quality:   QualityConf{Default: "ultra"},
 		Orchestra: OrchestraConf{
 			Enabled: true,
 			Providers: map[string]ProviderEntry{
-				"codex": {Binary: "codex-custom", Args: append([]string(nil), args...), PaneArgs: append([]string(nil), paneArgs...)},
+				"codex": {Binary: "codex-custom", Args: append([]string(nil), args...)},
 			},
 			Commands: map[string]CommandEntry{},
 		},
@@ -73,34 +70,31 @@ func TestMigrateOrchestraConfig_UnmarkedCustomCodexBecomesPinnedWithoutArgvChang
 	got := cfg.Orchestra.Providers["codex"]
 	assert.Equal(t, ProviderModelPolicyPinned, got.ModelPolicy)
 	assert.Equal(t, args, got.Args)
-	assert.Equal(t, paneArgs, got.PaneArgs)
 }
 
 func TestMigrateOrchestraConfig_HistoricalCodexNearMatchesRemainPinned(t *testing.T) {
 	t.Parallel()
 
 	historicalArgs := []string{"exec", "--sandbox", "workspace-write", "-m", CodexLegacyModel, "-c", `model_reasoning_effort="xhigh"`}
-	historicalPaneArgs := []string{"-m", CodexLegacyModel, "-c", `model_reasoning_effort="xhigh"`}
+	// A pane argv mismatch is no near match any more: the key is retired, so
+	// the historical subprocess argv alone is the default (S14 decision table).
 	tests := []struct {
-		name     string
-		args     []string
-		paneArgs []string
+		name string
+		args []string
 	}{
-		{name: "extra subprocess flag", args: append(append([]string(nil), historicalArgs...), "--json"), paneArgs: historicalPaneArgs},
-		{name: "reordered subprocess flags", args: []string{"exec", "-m", CodexLegacyModel, "--sandbox", "workspace-write", "-c", `model_reasoning_effort="xhigh"`}, paneArgs: historicalPaneArgs},
-		{name: "missing pane args", args: historicalArgs},
+		{name: "extra subprocess flag", args: append(append([]string(nil), historicalArgs...), "--json")},
+		{name: "reordered subprocess flags", args: []string{"exec", "-m", CodexLegacyModel, "--sandbox", "workspace-write", "-c", `model_reasoning_effort="xhigh"`}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			wantArgs := append([]string(nil), tt.args...)
-			wantPaneArgs := append([]string(nil), tt.paneArgs...)
 			cfg := &HarnessConfig{
 				Platforms: []string{"codex"},
 				Quality:   QualityConf{Default: "ultra"},
 				Orchestra: OrchestraConf{
 					Enabled:   true,
-					Providers: map[string]ProviderEntry{"codex": {Binary: "codex", Args: tt.args, PaneArgs: tt.paneArgs}},
+					Providers: map[string]ProviderEntry{"codex": {Binary: "codex", Args: tt.args}},
 					Commands:  map[string]CommandEntry{},
 				},
 			}
@@ -110,7 +104,6 @@ func TestMigrateOrchestraConfig_HistoricalCodexNearMatchesRemainPinned(t *testin
 			got := cfg.Orchestra.Providers["codex"]
 			assert.Equal(t, ProviderModelPolicyPinned, got.ModelPolicy)
 			assert.Equal(t, wantArgs, got.Args)
-			assert.Equal(t, wantPaneArgs, got.PaneArgs)
 		})
 	}
 }
@@ -119,14 +112,11 @@ func TestMigrateOrchestraConfig_ExplicitPinnedCodexRemainsByteForByte(t *testing
 	t.Parallel()
 
 	want := ProviderEntry{
-		Binary:           "codex-wrapper",
-		Args:             []string{"exec", "--full-auto", "-m", CodexLegacyModel},
-		PaneArgs:         []string{"--search", "-m", "custom-pane"},
-		ModelPolicy:      ProviderModelPolicyPinned,
-		PromptViaArgs:    true,
-		InteractiveInput: "args",
-		WorkingPatterns:  []string{"custom-working"},
-		Subprocess:       SubprocessProvConf{SchemaFlag: "--custom-schema", StdinMode: "file", OutputFormat: "text", Timeout: 999},
+		Binary:        "codex-wrapper",
+		Args:          []string{"exec", "--full-auto", "-m", CodexLegacyModel},
+		ModelPolicy:   ProviderModelPolicyPinned,
+		PromptViaArgs: true,
+		Subprocess:    SubprocessProvConf{SchemaFlag: "--custom-schema", StdinMode: "file", OutputFormat: "text", Timeout: 999},
 	}
 	cfg := &HarnessConfig{
 		Platforms: []string{"codex"},
@@ -146,13 +136,10 @@ func TestEnsureOrchestraProvider_PreservesPinnedCodexWithEmptyArgs(t *testing.T)
 	t.Parallel()
 
 	want := ProviderEntry{
-		Binary:           "codex-wrapper",
-		PaneArgs:         []string{"--custom-pane"},
-		ModelPolicy:      ProviderModelPolicyPinned,
-		PromptViaArgs:    true,
-		InteractiveInput: "args",
-		WorkingPatterns:  []string{"custom-working"},
-		Subprocess:       SubprocessProvConf{SchemaFlag: "--custom-schema", Timeout: 999},
+		Binary:        "codex-wrapper",
+		ModelPolicy:   ProviderModelPolicyPinned,
+		PromptViaArgs: true,
+		Subprocess:    SubprocessProvConf{SchemaFlag: "--custom-schema", Timeout: 999},
 	}
 	cfg := &HarnessConfig{
 		Quality: QualityConf{Default: "ultra"},
@@ -210,12 +197,9 @@ func TestEnsureOrchestraProvider_PinsAndPreservesUnmarkedCustomCodexWithEmptyArg
 	t.Parallel()
 
 	want := ProviderEntry{
-		Binary:           "codex-wrapper",
-		PaneArgs:         []string{"--custom-pane"},
-		PromptViaArgs:    true,
-		InteractiveInput: "stdin",
-		WorkingPatterns:  []string{"custom-working"},
-		Subprocess:       SubprocessProvConf{SchemaFlag: "--custom-schema", Timeout: 999},
+		Binary:        "codex-wrapper",
+		PromptViaArgs: true,
+		Subprocess:    SubprocessProvConf{SchemaFlag: "--custom-schema", Timeout: 999},
 	}
 	cfg := &HarnessConfig{
 		Quality: QualityConf{Default: "ultra"},

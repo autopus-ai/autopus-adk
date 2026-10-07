@@ -13,7 +13,7 @@ const (
 )
 
 // claudePrintFlags are the print-flag spellings a stored default may carry.
-// `-p` is the CLI's own short alias and appeared in shipped pane argv.
+// `-p` is the CLI's own short alias.
 var claudePrintFlags = []string{claudePrintFlag, "-p"}
 
 // historicalClaudeDefaultModelArgs lists every model policy tail autopus has
@@ -38,21 +38,18 @@ func claudeDefaultModelArgs() []string {
 }
 
 // DefaultClaudeProviderEntry returns the canonical Claude orchestra provider
-// entry. Subprocess and pane argv share one shape because `claude --print`
-// streams a single response on both surfaces, unlike codex where `exec` is
-// subprocess-only.
+// entry: `claude --print` streams a single response to the subprocess backend.
 func DefaultClaudeProviderEntry() ProviderEntry {
 	return ProviderEntry{
 		Binary:     "claude",
 		Args:       append([]string{claudePrintFlag}, claudeDefaultModelArgs()...),
-		PaneArgs:   append([]string{claudePrintFlag}, claudeDefaultModelArgs()...),
 		Subprocess: SubprocessProvConf{Timeout: ClaudeOrchestraTimeoutSeconds},
 	}
 }
 
-// upgradeHistoricalClaudeDefaultArgs moves one argv surface from a shipped
-// historical default onto the current default model policy, preserving the
-// print flag spelling. Anything else is returned untouched.
+// upgradeHistoricalClaudeDefaultArgs moves an argv from a shipped historical
+// default onto the current default model policy, preserving the print flag
+// spelling. Anything else is returned untouched.
 func upgradeHistoricalClaudeDefaultArgs(args []string) ([]string, bool) {
 	if len(args) == 0 || !slices.Contains(claudePrintFlags, args[0]) {
 		return args, false
@@ -77,12 +74,7 @@ func upgradeHistoricalClaudeProviderDefaults(entry ProviderEntry) (ProviderEntry
 	if entry.Backend != "" || entry.ModelPolicy == ProviderModelPolicyPinned || entry.Binary != "claude" {
 		return entry, false
 	}
-	changed := false
-	if args, upgraded := upgradeHistoricalClaudeDefaultArgs(entry.Args); upgraded {
-		entry.Args, changed = args, true
-	}
-	if paneArgs, upgraded := upgradeHistoricalClaudeDefaultArgs(entry.PaneArgs); upgraded {
-		entry.PaneArgs, changed = paneArgs, true
-	}
-	return entry, changed
+	args, upgraded := upgradeHistoricalClaudeDefaultArgs(entry.Args)
+	entry.Args = args
+	return entry, upgraded
 }

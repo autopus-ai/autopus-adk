@@ -3,7 +3,6 @@ package orchestra
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"sync"
 	"testing"
 
@@ -175,44 +174,6 @@ func TestConsensus_StableFindingIdentityAndCriticalVeto_AreTyped(t *testing.T) {
 	assert.Contains(t, receipt, "provider_receipts")
 	assert.Contains(t, receipt, "worker_receipts")
 	assert.Contains(t, receipt, "transitions")
-}
-
-func TestRunPaneOrchestra_FallbackModesHaveDistinctTerminalReceipts(t *testing.T) {
-	tests := []struct {
-		name         string
-		mode         ReliabilityFallbackMode
-		wantErr      bool
-		wantDispatch int
-		wantTerminal string
-		wantReason   string
-	}{
-		{name: "subprocess", mode: FallbackModeSubprocess, wantDispatch: 1, wantTerminal: TerminalCompleted, wantReason: "pane_provisioning_fallback"},
-		{name: "skip", mode: FallbackModeSkip, wantDispatch: 0, wantTerminal: TerminalSkipped, wantReason: "pane_provisioning_skipped"},
-		{name: "abort", mode: FallbackModeAbort, wantErr: true, wantDispatch: 0, wantTerminal: TerminalBlocked, wantReason: "pane_provisioning_aborted"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			term := newCmuxMock()
-			term.splitPaneErr = errors.New("pane unavailable")
-			result, err := RunPaneOrchestra(context.Background(), OrchestraConfig{
-				Providers: []ProviderConfig{echoProvider("claude")}, Strategy: StrategyConsensus,
-				Prompt: "fallback contract", TimeoutSeconds: 5, Terminal: term, FallbackMode: tt.mode,
-			})
-			if tt.wantErr {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-			}
-			require.NotNil(t, result)
-			assert.Equal(t, tt.wantDispatch, result.DispatchCount)
-			assert.Equal(t, tt.wantTerminal, result.TerminalState)
-			assert.Contains(t, result.DegradedReasons, tt.wantReason)
-			require.NotNil(t, result.RunReceipt)
-			assert.Equal(t, tt.wantDispatch, result.RunReceipt.DispatchCount)
-			assert.Equal(t, tt.wantTerminal, result.RunReceipt.TerminalState)
-		})
-	}
 }
 
 func TestProviderIntegrity_ConfiguredDenominatorBlocksOneOfThree(t *testing.T) {

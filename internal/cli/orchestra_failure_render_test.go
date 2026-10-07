@@ -73,18 +73,6 @@ func TestRenderOrchestraFailureSummary_NilResultNoPath(t *testing.T) {
 	assert.NotContains(t, out, "diagnostics report")
 }
 
-func TestRenderOrchestraFailureSummary_BlockedYield_ExposesCleanupHandle(t *testing.T) {
-	t.Parallel()
-	result := sampleFailedResult()
-	result.TerminalState = orchestra.TerminalBlocked
-	result.Yield = &orchestra.YieldOutput{SessionID: "orch-recover-123"}
-
-	out := renderOrchestraFailureSummary(sampleResolvedTimeout(), result, "/tmp/report.json")
-
-	assert.Contains(t, out, "session: orch-recover-123")
-	assert.Contains(t, out, "cleanup: auto orchestra cleanup --session-id orch-recover-123")
-}
-
 // TestSynthesizeOrchestraFailureError_NilAndPopulated covers both branches.
 func TestSynthesizeOrchestraFailureError_NilAndPopulated(t *testing.T) {
 	t.Parallel()
@@ -185,7 +173,10 @@ func TestSaveOrchestraDiagnosticsReport_WritesJSON(t *testing.T) {
 	assert.Equal(t, []string{"increase timeout"}, report.RetryHints)
 }
 
-func TestSaveOrchestraFailureReport_BlockedYield_PersistsCleanupHandle(t *testing.T) {
+// A yielded session belonged to the retired pane backend, and the cleanup
+// command it pointed at is a retirement stub (SPEC-PANERM-001), so a failure
+// report must not persist either handle.
+func TestSaveOrchestraFailureReport_BlockedYield_OmitsRetiredCleanupHandle(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
 	result := sampleFailedResult()
@@ -200,16 +191,14 @@ func TestSaveOrchestraFailureReport_BlockedYield_PersistsCleanupHandle(t *testin
 
 	raw, err := os.ReadFile(path)
 	require.NoError(t, err)
-	var report orchestraFailureReport
-	require.NoError(t, json.Unmarshal(raw, &report))
-	assert.Equal(t, "orch-report-recover", report.SessionID)
-	assert.Equal(t,
-		"auto orchestra cleanup --session-id orch-report-recover",
-		report.CleanupCommand,
-	)
+	assert.NotContains(t, string(raw), "orch-report-recover")
+	assert.NotContains(t, string(raw), "cleanup_command")
+	assert.NotContains(t, string(raw), "auto orchestra cleanup")
 }
 
-func TestRunOrchestraCommand_BlockedYield_WritesRecoveryHandleToStderr(t *testing.T) {
+// The stderr diagnostics of a blocked run must not point at the retired
+// `auto orchestra cleanup` stub (SPEC-PANERM-001).
+func TestRunOrchestraCommand_BlockedYield_OmitsRetiredCleanupCommand(t *testing.T) {
 	t.Chdir(t.TempDir())
 	originalRun := runOrchestraExecute
 	t.Cleanup(func() { runOrchestraExecute = originalRun })
@@ -236,8 +225,9 @@ func TestRunOrchestraCommand_BlockedYield_WritesRecoveryHandleToStderr(t *testin
 	})
 
 	require.Error(t, runErr)
-	assert.Contains(t, stderr, "session: orch-command-recover")
-	assert.Contains(t, stderr, "cleanup: auto orchestra cleanup --session-id orch-command-recover")
+	assert.Contains(t, stderr, "오케스트레이션 진단:")
+	assert.NotContains(t, stderr, "orch-command-recover")
+	assert.NotContains(t, stderr, "auto orchestra cleanup")
 }
 
 func countSubstr(s, sub string) int {

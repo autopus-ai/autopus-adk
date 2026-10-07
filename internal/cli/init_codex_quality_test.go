@@ -52,7 +52,10 @@ func assertInitCodexQualityProfile(t *testing.T, quality, orchestraEffort, execu
 	assert.Contains(t, harness, "supervisor_model_policy: inherit")
 	assert.Contains(t, harness, "model_policy: quality")
 	assert.Contains(t, harness, "gpt-6-astra")
-	assert.GreaterOrEqual(t, strings.Count(harness, `model_reasoning_effort="`+orchestraEffort+`"`), 2)
+	// The codex orchestra provider carries the effort once in args; pane_args
+	// was retired with the pane backend (SPEC-PANERM-001).
+	assert.Equal(t, 1, strings.Count(harness, `model_reasoning_effort="`+orchestraEffort+`"`))
+	assert.NotContains(t, harness, "pane_args")
 }
 
 func installCodex56CatalogFixture(t *testing.T) {

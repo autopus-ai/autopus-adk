@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/insajin/autopus-adk/pkg/adapter"
 	"github.com/insajin/autopus-adk/pkg/adapter/codex"
 	"github.com/insajin/autopus-adk/pkg/config"
 )
@@ -201,8 +202,24 @@ func TestCodexAdapter_Clean(t *testing.T) {
 
 	_, err := a.Generate(context.Background(), cfg)
 	require.NoError(t, err)
-	userHook := filepath.Join(dir, ".codex", "hooks", "autopus", "user-hook.sh")
+	hookDir := filepath.Join(dir, ".codex", "hooks", "autopus")
+	require.NoError(t, os.MkdirAll(hookDir, 0o755))
+	userHook := filepath.Join(hookDir, "user-hook.sh")
 	require.NoError(t, os.WriteFile(userHook, []byte("user-owned"), 0o700))
+	// A manifest written before SPEC-PANERM-001 still records the retired
+	// completion hook scripts. Clean must accept it and remove them, because it
+	// refuses a manifest that names a path outside its allowlist.
+	manifest, err := adapter.LoadManifest(dir, "codex")
+	require.NoError(t, err)
+	retired := []string{"hook-codex-stop.sh", "hook-codex-sessionstart.sh"}
+	for _, name := range retired {
+		body := "#!/bin/sh\n# installed by an older auto: " + name + "\n"
+		require.NoError(t, os.WriteFile(filepath.Join(hookDir, name), []byte(body), 0o755))
+		manifest.Files[".codex/hooks/autopus/"+name] = adapter.ManifestFile{
+			Checksum: adapter.Checksum(body), Policy: adapter.OverwriteAlways,
+		}
+	}
+	require.NoError(t, manifest.Save(dir))
 
 	err = a.Clean(context.Background())
 	require.NoError(t, err)
@@ -210,9 +227,9 @@ func TestCodexAdapter_Clean(t *testing.T) {
 	assert.NoFileExists(t, filepath.Join(dir, ".codex", "skills", "codex-auto", "SKILL.md"))
 	assert.NoDirExists(t, filepath.Join(dir, ".agents", "skills", "auto"))
 
-	for _, name := range []string{"hook-codex-stop.sh", "hook-codex-sessionstart.sh"} {
-		_, statErr := os.Stat(filepath.Join(dir, ".codex", "hooks", "autopus", name))
-		assert.ErrorIs(t, statErr, os.ErrNotExist, "managed Codex hook asset must be removed")
+	for _, name := range retired {
+		_, statErr := os.Stat(filepath.Join(hookDir, name))
+		assert.ErrorIs(t, statErr, os.ErrNotExist, "a recorded retired hook script must be removed")
 	}
 	userHookData, readErr := os.ReadFile(userHook)
 	require.NoError(t, readErr)

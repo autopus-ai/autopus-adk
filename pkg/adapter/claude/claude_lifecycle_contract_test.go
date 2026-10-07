@@ -170,8 +170,18 @@ func TestClean_RetractsManagedEntriesAndPreservesUserContent(t *testing.T) {
 	settingsPath := filepath.Join(root, ".claude", "settings.json")
 	settings := readJSONObject(t, settingsPath)
 	hooks := settings["hooks"].(map[string]any)
-	hooks["Stop"] = append(hooks["Stop"].([]any), map[string]any{
-		"hooks": []any{map[string]any{"type": "command", "command": "user-stop-hook", "timeout": float64(5)}},
+	// Generation no longer writes a Stop hook (SPEC-PANERM-001), so the Stop
+	// event mixes the managed completion entry an older auto wrote with a
+	// user entry.
+	hooks["Stop"] = []any{
+		map[string]any{"hooks": []any{map[string]any{
+			"type": "command", "command": `"${CLAUDE_PROJECT_DIR:-.}"/.claude/hooks/autopus/hook-claude-stop.sh`,
+			"timeout": float64(300),
+		}}},
+		map[string]any{"hooks": []any{map[string]any{"type": "command", "command": "user-stop-hook", "timeout": float64(5)}}},
+	}
+	hooks["PreToolUse"] = append(hooks["PreToolUse"].([]any), map[string]any{
+		"hooks": []any{map[string]any{"type": "command", "command": "user-pre-tool-hook", "timeout": float64(5)}},
 	})
 	writeJSONFile(t, settingsPath, settings)
 	mcpPath := filepath.Join(root, ".mcp.json")
@@ -185,7 +195,9 @@ func TestClean_RetractsManagedEntriesAndPreservesUserContent(t *testing.T) {
 	require.NoError(t, a.Clean(context.Background()))
 	assert.FileExists(t, userFile)
 	assert.NoFileExists(t, filepath.Join(root, ".claude", "skills", "tdd", "SKILL.md"))
-	assert.Equal(t, []string{"user-stop-hook"}, hookCommands(readJSONObject(t, settingsPath), "Stop"))
+	cleanSettings := readJSONObject(t, settingsPath)
+	assert.Equal(t, []string{"user-stop-hook"}, hookCommands(cleanSettings, "Stop"))
+	assert.Equal(t, []string{"user-pre-tool-hook"}, hookCommands(cleanSettings, "PreToolUse"))
 	cleanMCP := readJSONObject(t, mcpPath)
 	assert.Equal(t, map[string]any{"command": "user-mcp"}, cleanMCP["mcpServers"].(map[string]any)["user-server"])
 	assert.NotContains(t, cleanMCP["mcpServers"].(map[string]any), "context7")

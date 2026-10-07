@@ -88,12 +88,7 @@ func generateCLIHooks(cfg config.HooksConf, platform string) ([]adapter.HookConf
 		})
 	}
 
-	hooks, err := appendConditionalDispatcher(hooks, platform)
-	if err != nil {
-		return nil, err
-	}
-	hooks = append(hooks, generateCompletionHooks(platform)...)
-	return hooks, nil
+	return appendConditionalDispatcher(hooks, platform)
 }
 
 func generateCC21Hooks(cfg config.CC21FeaturesConf, platform string) []adapter.HookConfig {

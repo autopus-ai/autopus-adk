@@ -6,9 +6,6 @@ import (
 	"time"
 )
 
-// @AX:NOTE: [AUTO] configured completion-hook capability is preflight evidence only and must not claim runtime verification
-const completionHookConfiguredUnverifiedReason = "completion hook is configured but not runtime-verified"
-
 func ensureRunID(cfg *OrchestraConfig) string {
 	if cfg.RunID != "" {
 		return cfg.RunID
@@ -39,34 +36,13 @@ func roundCorrelation(runID, provider string, round, attempt int) CorrelationIDs
 	return correlation
 }
 
-func providerCapability(cfg OrchestraConfig, provider ProviderConfig) ProviderCapabilityReceipt {
-	launchMode := "subprocess"
-	if cfg.Terminal != nil && cfg.Terminal.Name() != "plain" && !cfg.SubprocessMode {
-		launchMode = "pane"
-	}
-	transportMode := "stdin_pipe"
-	if launchMode == "pane" {
-		switch {
-		case promptDeliveredAtLaunch(provider):
-			transportMode = "cli_args"
-		case shouldUseSendkeysPromptInput(provider, true):
-			transportMode = "sendkeys"
-		default:
-			transportMode = "send_long_text"
-		}
-	}
-	collectionModes := []string{"subprocess_stdout"}
-	if launchMode == "pane" {
-		collectionModes = []string{"poll"}
-		hookProviders := resolveHookProviders([]ProviderConfig{provider})
-		if cfg.HookMode && hookProviders[providerArtifactIdentity(provider.Name)] {
-			collectionModes = []string{"hook"}
-		}
-	}
+// providerCapability describes the only launch path: a subprocess that reads
+// the prompt from stdin and whose stdout is the collected result.
+func providerCapability(cfg OrchestraConfig) ProviderCapabilityReceipt {
 	return ProviderCapabilityReceipt{
-		LaunchMode:                launchMode,
-		PromptTransportMode:       transportMode,
-		CollectionModes:           collectionModes,
+		LaunchMode:                "subprocess",
+		PromptTransportMode:       "stdin_pipe",
+		CollectionModes:           []string{"subprocess_stdout"},
 		SupportsPromptReceipt:     true,
 		SupportsCollectionReceipt: true,
 		SupportsCWDCheck:          resolveWorkingDir(cfg) != "",
@@ -74,8 +50,8 @@ func providerCapability(cfg OrchestraConfig, provider ProviderConfig) ProviderCa
 }
 
 func preflightReceipt(runID string, cfg OrchestraConfig, provider ProviderConfig) ProviderPreflightReceipt {
-	capability := providerCapability(cfg, provider)
-	receipt := ProviderPreflightReceipt{
+	capability := providerCapability(cfg)
+	return ProviderPreflightReceipt{
 		SchemaVersion: reliabilitySchemaVersion,
 		Timestamp:     time.Now().UTC(),
 		Correlation:   roundCorrelation(runID, provider.Name, 0, 1),
@@ -86,13 +62,6 @@ func preflightReceipt(runID string, cfg OrchestraConfig, provider ProviderConfig
 		RequestedCWD:  resolveWorkingDir(cfg),
 		Capability:    capability,
 	}
-	if capability.LaunchMode == "pane" && cfg.HookMode {
-		receipt.EffectiveCWD = receipt.RequestedCWD
-		if len(capability.CollectionModes) == 1 && capability.CollectionModes[0] == "hook" {
-			receipt.Reason = completionHookConfiguredUnverifiedReason
-		}
-	}
-	return receipt
 }
 
 func promptReceipt(runID, provider, transportMode string, prompt string, round int, status, failureCodeCandidate string) PromptTransportReceipt {

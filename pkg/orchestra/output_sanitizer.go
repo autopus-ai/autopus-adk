@@ -111,7 +111,7 @@ func trimTrailingWhitespace(s string) string {
 const codexSuggestionPromptPattern = `(?im)^\s*›\s+\S.*$`
 
 // defaultPromptPatterns matches common shell and CLI prompts.
-// @AX:NOTE [AUTO] hardcoded prompt regexes — must stay in sync with DefaultCompletionPatterns
+// @AX:NOTE [AUTO] hardcoded prompt regexes — update when adding new providers
 var defaultPromptPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(?m)^❯(?:\s|\x{00a0})*$`),        // claude code prompt (unicode heavy right-pointing angle)
 	regexp.MustCompile(`(?m)^\s*>\s*(Type your|@|\s*$)`), // gemini TUI prompt (> Type your..., > @, bare >)

@@ -8,37 +8,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/insajin/autopus-adk/pkg/config"
 )
-
-// containsArg reports whether args contains target.
-func containsArg(args []string, target string) bool {
-	for _, a := range args {
-		if a == target {
-			return true
-		}
-	}
-	return false
-}
-
-// TestProviderConfig_GeminiPaneNoPrint covers S17: the gemini pane argv must not
-// contain --print (which is the non-interactive headless print mode).
-func TestProviderConfig_GeminiPaneNoPrint(t *testing.T) {
-	cfg := buildProviderConfigs([]string{"gemini"})[0]
-	assert.False(t, containsArg(cfg.PaneArgs, "--print"),
-		"gemini pane argv must not contain --print (interactive session)")
-}
-
-// TestProviderConfig_CodexPaneNotExec covers S19: the codex pane argv is
-// non-empty and does not begin with the non-interactive `exec` subcommand.
-func TestProviderConfig_CodexPaneNotExec(t *testing.T) {
-	cfg := buildProviderConfigs([]string{"codex"})[0]
-	require.NotEmpty(t, cfg.PaneArgs, "codex pane argv must be non-empty")
-	assert.NotEqual(t, "exec", cfg.PaneArgs[0],
-		"codex pane argv must not begin with exec (interactive TUI)")
-}
 
 // TestProviderConfig_CodexStructuredSchema covers S18: codex's structured argv
 // carries the --output-schema flag, and codex is present in the default

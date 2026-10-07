@@ -1,11 +1,9 @@
 package antigravity
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -59,7 +57,10 @@ func TestPrepareAntigravityHooksJSON_UsesOfficialSchema(t *testing.T) {
 	}
 }
 
-func TestGenerate_WritesProviderSpecificCompletionHookEvents(t *testing.T) {
+// SPEC-PANERM-001 REQ-12: Generate installs no orchestra completion hook. The
+// AfterAgent and Stop handlers and their .gemini/hooks/autopus scripts fed the
+// retired pane backend; the other native hooks stay.
+func TestGenerate_InstallsNoOrchestraCompletionHook(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	_, err := NewWithRoot(dir).Generate(
@@ -69,35 +70,20 @@ func TestGenerate_WritesProviderSpecificCompletionHookEvents(t *testing.T) {
 
 	settings := readJSONDocument(t, filepath.Join(dir, ".gemini", "settings.json"))
 	legacyHooks := requireJSONObject(t, settings["hooks"])
-	assert.Contains(t, legacyHooks, "AfterAgent")
-	assert.NotContains(t, legacyHooks, "Stop")
-
+	assert.NotEmpty(t, legacyHooks, "the other native hooks stay")
 	agents := readJSONDocument(t, filepath.Join(dir, ".agents", "hooks.json"))
 	agyHooks := requireJSONObject(t, agents["autopus"])
-	assert.Contains(t, agyHooks, "Stop")
-	assert.NotContains(t, agyHooks, "AfterAgent")
-	stop := agyHooks["Stop"].([]any)[0].(map[string]any)
-	assert.NotContains(t, stop, "hooks", "Stop must be a flat handler list")
-}
-
-func TestGenerate_AntigravityStopCommandRunsOutsideGit(t *testing.T) {
-	t.Parallel()
-	dir := t.TempDir()
-	_, err := NewWithRoot(dir).Generate(
-		context.Background(), config.DefaultFullConfig("test-project"),
-	)
-	require.NoError(t, err)
-
-	agents := readJSONDocument(t, filepath.Join(dir, ".agents", "hooks.json"))
-	hooks := requireJSONObject(t, agents["autopus"])
-	handler := hooks["Stop"].([]any)[0].(map[string]any)
-	command := handler["command"].(string)
-	cmd := exec.Command("sh", "-c", command)
-	cmd.Dir = filepath.Join(dir, ".agents")
-	cmd.Env = []string{"PATH=/nonexistent", "AUTOPUS_SESSION_ID="}
-	stdout, err := cmd.Output()
-	require.NoError(t, err)
-	assert.Equal(t, `{"decision":"stop"}`, string(bytes.TrimSpace(stdout)))
+	assert.NotEmpty(t, agyHooks, "the other native hooks stay")
+	for _, event := range []string{"AfterAgent", "Stop", "SessionStart"} {
+		assert.NotContains(t, legacyHooks, event)
+		assert.NotContains(t, agyHooks, event)
+	}
+	assert.NoDirExists(t, filepath.Join(dir, ".gemini", "hooks"))
+	for _, file := range []string{filepath.Join(".gemini", "settings.json"), filepath.Join(".agents", "hooks.json")} {
+		data, err := os.ReadFile(filepath.Join(dir, file))
+		require.NoError(t, err)
+		assert.NotContains(t, string(data), "hooks/autopus/hook-", file)
+	}
 }
 
 func TestMirrorAntigravityPluginMappings(t *testing.T) {
@@ -185,4 +171,20 @@ func TestRemoveAntigravityHooksJSON_PreservesUserHooks(t *testing.T) {
 	require.NoError(t, json.Unmarshal(updated, &parsed))
 	assert.NotContains(t, parsed, "autopus")
 	assert.Contains(t, parsed, "user")
+}
+
+func readJSONDocument(t *testing.T, path string) map[string]any {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	var document map[string]any
+	require.NoError(t, json.Unmarshal(data, &document))
+	return document
+}
+
+func requireJSONObject(t *testing.T, value any) map[string]any {
+	t.Helper()
+	object, ok := value.(map[string]any)
+	require.True(t, ok)
+	return object
 }

@@ -29,18 +29,13 @@ func buildRecheckPrompt(task, own string) string {
 type recheckRunner func(context.Context, ProviderRequest) (*ProviderResponse, error)
 
 // recheckTransport picks how each round reaches the provider, and the backend
-// name recorded in evidence. A pane-capable terminal (cmux, tmux, and the Orca
-// terminals built on them) drives the provider in a pane; a plain terminal,
-// forced subprocess mode, and agent runtimes such as OMP spawn it directly.
+// name recorded in evidence. Every round spawns the provider directly; a
+// provider with a configured backend (such as OMP) runs through it.
 //
 // SelectBackend is deliberately not used here. It returns the schema-enforcing
 // subprocess backend, and recheck exchanges free text with the provider the
 // same way consensus, pipeline, and relay do.
 func recheckTransport(cfg OrchestraConfig) (recheckRunner, string) {
-	if paneCapable(cfg.Terminal, cfg.SubprocessMode) {
-		backend := NewInteractivePaneBackend(cfg)
-		return backend.Execute, backend.Name()
-	}
 	return func(ctx context.Context, req ProviderRequest) (*ProviderResponse, error) {
 		if req.Config.Backend != "" {
 			return runConfiguredProvider(ctx, cfg, req.Config, req.Prompt, req.Role, req.Round, nil)

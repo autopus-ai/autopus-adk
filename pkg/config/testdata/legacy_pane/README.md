@@ -15,5 +15,4 @@ Inputs for the legacy config matrix (acceptance.md S4-S7, RFP-2).
 | `c7.yaml` | C7: C2 with `platforms: [claude]`, which `MigratePlatformNames` rewrites to `claude-code` |
 
 `legacy_pane_fixtures_test.go` checks the fixtures against P1 and P2 and pins the S4 and S5 behavior that holds at B.
-The S7 writer oracles are red at B; they skip with a reason naming their owner task (T8) until it lands.
-`AUTOPUS_PANERM_RED=1 go test ./pkg/config -run TestLegacyPaneFixtures` runs them anyway.
+The S7 writer oracles were red at B and run unskipped since T8 (W2) retired the group K fields.

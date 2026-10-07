@@ -2,9 +2,8 @@ package config
 
 // SPEC-PANERM-001 T3: legacy pane config fixtures C1-C7 (testdata/legacy_pane).
 // C1 is the autopus.yaml that binary O (v0.50.123, A34) wrote; the others are
-// hand fixtures derived from it (see testdata/legacy_pane/README.md). Oracles
-// that are red at B are skipped until their owner task lands;
-// AUTOPUS_PANERM_RED=1 runs them anyway.
+// hand fixtures derived from it (see testdata/legacy_pane/README.md). The
+// writer oracles were red at B and run since T8 retired the group K fields.
 
 import (
 	"os"
@@ -51,14 +50,6 @@ var (
 		"orchestra.subprocess.enabled",
 	}
 )
-
-func skipUntilPanermTask(t *testing.T, task, redReason string) {
-	t.Helper()
-	if os.Getenv("AUTOPUS_PANERM_RED") == "1" {
-		return
-	}
-	t.Skipf("SPEC-PANERM-001 %s un-skips this test; it is red at B because %s (AUTOPUS_PANERM_RED=1 runs it)", task, redReason)
-}
 
 func readLegacyPaneFixture(t *testing.T, name string) []byte {
 	t.Helper()
@@ -161,7 +152,6 @@ func TestLegacyPaneFixtures_TyposAndMisplacedKeysStillFail(t *testing.T) {
 }
 
 func TestLegacyPaneFixtures_SaveWritesNoGroupK(t *testing.T) {
-	skipUntilPanermTask(t, "T8 (W2)", "Save marshals the group K fields that B's schema still declares")
 	t.Parallel()
 	for _, name := range []string{"c1.yaml", "c2.yaml"} {
 		dir := legacyPaneWorkspace(t, name)
@@ -175,7 +165,6 @@ func TestLegacyPaneFixtures_SaveWritesNoGroupK(t *testing.T) {
 }
 
 func TestLegacyPaneFixtures_NormalizationRewriteWritesNoGroupK(t *testing.T) {
-	skipUntilPanermTask(t, "T8 (W2)", "the platform-name rewrite marshals the group K fields B still declares")
 	t.Parallel()
 	dir := legacyPaneWorkspace(t, "c7.yaml")
 	cfg, err := Load(dir)

@@ -12,27 +12,28 @@ type OrchestraConf struct {
 	Subprocess         SubprocessConf           `yaml:"subprocess,omitempty"` // global subprocess settings
 }
 
-// SubprocessConf holds global subprocess execution settings.
+// SubprocessConf holds global subprocess execution settings. Every provider
+// runs as a subprocess (or through OMP), so there is no mode switch; the
+// retired orchestra.subprocess.enabled key is ignored on load
+// (retiredOrchestraConfigKeys).
 type SubprocessConf struct {
-	Enabled       bool   `yaml:"enabled"`                  // enable subprocess mode globally
 	MaxConcurrent int    `yaml:"max_concurrent,omitempty"` // max parallel subprocess executions (default 3)
 	WorkDir       string `yaml:"work_dir,omitempty"`       // working directory for subprocess execution
 	Rounds        int    `yaml:"rounds,omitempty"`         // default debate rounds (default 1)
 }
 
-// ProviderEntry는 프로바이더 실행 설정이다.
+// ProviderEntry는 프로바이더 실행 설정이다. The pane-only keys pane_args,
+// interactive_input, and working_patterns were retired with the orchestra pane
+// backend and are ignored on load under any provider name.
 type ProviderEntry struct {
-	Backend          string             `yaml:"backend,omitempty"`
-	Model            string             `yaml:"model,omitempty"`
-	Tools            []string           `yaml:"tools,flow,omitempty"`
-	Binary           string             `yaml:"binary"`
-	Args             []string           `yaml:"args,flow"`
-	PaneArgs         []string           `yaml:"pane_args,flow,omitempty"`
-	ModelPolicy      string             `yaml:"model_policy,omitempty"`
-	PromptViaArgs    bool               `yaml:"prompt_via_args,omitempty"`
-	InteractiveInput string             `yaml:"interactive_input,omitempty"`
-	WorkingPatterns  []string           `yaml:"working_patterns,flow,omitempty"`
-	Subprocess       SubprocessProvConf `yaml:"subprocess,omitempty"` // per-provider subprocess overrides
+	Backend       string             `yaml:"backend,omitempty"`
+	Model         string             `yaml:"model,omitempty"`
+	Tools         []string           `yaml:"tools,flow,omitempty"`
+	Binary        string             `yaml:"binary"`
+	Args          []string           `yaml:"args,flow"`
+	ModelPolicy   string             `yaml:"model_policy,omitempty"`
+	PromptViaArgs bool               `yaml:"prompt_via_args,omitempty"`
+	Subprocess    SubprocessProvConf `yaml:"subprocess,omitempty"` // per-provider subprocess overrides
 }
 
 // SubprocessProvConf holds per-provider subprocess execution overrides.

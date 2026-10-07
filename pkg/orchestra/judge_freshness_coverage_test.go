@@ -35,12 +35,6 @@ func TestVerifyFreshPipelineJudgeSession_RequiresObservedExecution(t *testing.T)
 
 	evidence = newFreshSubprocessJudgeSessionEvidence()
 	verifyFreshPipelineJudgeSession(
-		evidence, &ProviderResponse{Provider: "judge", ExecutedBackend: paneBackendName}, &staleJudgeBackend{name: "custom"})
-	assert.True(t, evidence.Verified)
-	assert.Contains(t, evidence.Reason, "pane backend")
-
-	evidence = newFreshSubprocessJudgeSessionEvidence()
-	verifyFreshPipelineJudgeSession(
 		evidence, &ProviderResponse{Provider: "judge", ExecutedBackend: "custom"}, &staleJudgeBackend{name: "custom"})
 	assert.False(t, evidence.Verified, "an unproven backend must not be treated as fresh")
 	assert.Contains(t, evidence.Reason, "not observed")
@@ -91,7 +85,7 @@ func TestFreshJudgeConfigError_BlocksProviderSpecificResumeTokens(t *testing.T) 
 	}{
 		{name: "claude short continue", provider: ProviderConfig{Name: "claude", Args: []string{"-c"}}, blocked: "-c"},
 		{name: "gemini short session", provider: ProviderConfig{Name: "gemini", Args: []string{"-s"}}, blocked: "-s"},
-		{name: "long resume flag", provider: ProviderConfig{Name: "codex", PaneArgs: []string{"--resume=abc"}}, blocked: "--resume"},
+		{name: "long resume flag", provider: ProviderConfig{Name: "codex", Args: []string{"--resume=abc"}}, blocked: "--resume"},
 		{name: "identity from binary", provider: ProviderConfig{Name: "primary", Binary: "/usr/bin/claude", Args: []string{"-r"}}, blocked: "-r"},
 		{name: "fork session", provider: ProviderConfig{Name: "codex", Args: []string{"--fork-session"}}, blocked: "--fork-session"},
 	}

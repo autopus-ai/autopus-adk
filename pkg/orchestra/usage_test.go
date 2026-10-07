@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/insajin/autopus-adk/pkg/telemetry"
 	"github.com/stretchr/testify/assert"
@@ -130,37 +129,18 @@ func TestExecuteParallel_FailedResponseUsage_IsRetained(t *testing.T) {
 	assert.Equal(t, int64(150), *failed[0].Usage[0].RawTotalTokens)
 }
 
-func TestPaneAndHookResponses_UsageUnavailable_IsExplicit(t *testing.T) {
-	backend := &InteractivePaneBackend{}
-	paneResponse := backend.buildResponseFromScreen("claude", "answer", false)
-	assert.False(t, paneResponse.UsageCapability.Supported)
-	assert.Equal(t, "pane_usage_unavailable", paneResponse.UsageCapability.Reason)
-	require.Len(t, paneResponse.Usage, 1)
-	assert.Equal(t, telemetry.UsageStatusUnavailable, paneResponse.Usage[0].UsageStatus)
-
-	hookResponse := HookResultToProviderResponse(HookResult{Output: "answer"}, "gemini", time.Second)
-	assert.False(t, hookResponse.UsageCapability.Supported)
-	assert.Equal(t, "hook_usage_unavailable", hookResponse.UsageCapability.Reason)
-	require.Len(t, hookResponse.Usage, 1)
-}
-
-func TestUsageSerialization_SessionAndYieldRemainAdditive(t *testing.T) {
+func TestUsageSerialization_YieldResponseRemainsAdditive(t *testing.T) {
 	usage := actualOrchestraUsage("run-s", "call-s", "codex", 100, 20)
 	capability := UsageCapability{Supported: true, Source: "subprocess_stdout"}
-	session := SessionProviderResponse{
-		Provider: "codex", Output: "answer", Usage: []telemetry.UsageEnvelope{usage}, UsageCapability: capability,
-	}
 	yield := YieldResponse{
 		Provider: "codex", Output: "answer", Usage: []telemetry.UsageEnvelope{usage}, UsageCapability: capability,
 	}
 
-	for _, value := range []any{session, yield} {
-		payload, err := json.Marshal(value)
-		require.NoError(t, err)
-		assert.Contains(t, string(payload), `"usage"`)
-		assert.Contains(t, string(payload), `"usage_capability"`)
-		assert.NotContains(t, string(payload), "secret prompt")
-	}
+	payload, err := json.Marshal(yield)
+	require.NoError(t, err)
+	assert.Contains(t, string(payload), `"usage"`)
+	assert.Contains(t, string(payload), `"usage_capability"`)
+	assert.NotContains(t, string(payload), "secret prompt")
 }
 
 func TestParseCodexUsage_MalformedOrNonUsageLines_DoNotLeakPayload(t *testing.T) {

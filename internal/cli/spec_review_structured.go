@@ -87,23 +87,6 @@ func runStructuredSpecReviewOrchestra(ctx context.Context, cfg orchestra.Orchest
 	}, cfg), nil
 }
 
-// ownStructuredReviewHookSession created the pane hook session of a review.
-// Spec review runs no pane, so nothing calls it (SPEC-PANERM-001); it is group
-// C code that W2 (T9) deletes.
-//
-//nolint:unused // kept until the SPEC-PANERM-001 W2 deletion merge (T9)
-func ownStructuredReviewHookSession(cfg orchestra.OrchestraConfig) func() {
-	if !cfg.HookMode || strings.TrimSpace(cfg.SessionID) == "" {
-		return func() {}
-	}
-	hookSession, err := orchestra.NewHookSession(cfg.SessionID)
-	if err != nil {
-		return func() {}
-	}
-	hookSession.ApplyProviderHooks(cfg.Providers)
-	return hookSession.Cleanup
-}
-
 func buildStructuredSpecReviewPrompt(basePrompt, schemaJSON string, inlineSchema bool) string {
 	var sb strings.Builder
 	sb.WriteString(basePrompt)

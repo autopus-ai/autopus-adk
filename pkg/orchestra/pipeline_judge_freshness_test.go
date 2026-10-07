@@ -93,7 +93,6 @@ func TestPipelineBackendHasFreshExecutionSemantics_RecognizesOnlyBuiltInsAndExpl
 		want    bool
 	}{
 		{name: "subprocess", backend: NewSubprocessBackendImpl(), want: true},
-		{name: "interactive pane", backend: NewInteractivePaneBackend(OrchestraConfig{}), want: true},
 		{name: "explicit test model", backend: &pipelineFreshExecutionBackend{name: "subprocess"}, want: true},
 		{name: "custom name spoof", backend: &pipelineUnverifiedCustomBackend{}, want: false},
 	}
@@ -142,10 +141,10 @@ func TestFreshJudgeConfigError_RecognizesReuseWithoutFlagPrefixFalsePositives(t 
 		wantErr bool
 	}{
 		{name: "resume subprocess flag", judge: ProviderConfig{Args: []string{"--resume", "prior"}}, wantErr: true},
-		{name: "continue pane flag", judge: ProviderConfig{PaneArgs: []string{"--continue"}}, wantErr: true},
+		{name: "continue flag", judge: ProviderConfig{Args: []string{"--continue"}}, wantErr: true},
 		{name: "resume assignment", judge: ProviderConfig{Args: []string{"--resume=prior"}}, wantErr: true},
 		{name: "resume subcommand", judge: ProviderConfig{Args: []string{"resume", "prior"}}, wantErr: true},
-		{name: "explicit session id", judge: ProviderConfig{PaneArgs: []string{"--session-id=prior"}}, wantErr: true},
+		{name: "explicit session id", judge: ProviderConfig{Args: []string{"--session-id=prior"}}, wantErr: true},
 		{name: "claude short continue", judge: ProviderConfig{Name: "claude", Args: []string{"-c"}}, wantErr: true},
 		{name: "clean model args", judge: ProviderConfig{Args: []string{"exec", "-m", "gpt-5.5"}}},
 		{name: "codex config flag", judge: ProviderConfig{Name: "codex", Args: []string{"-c", `model_reasoning_effort="xhigh"`}}},

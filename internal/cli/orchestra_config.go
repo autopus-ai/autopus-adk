@@ -194,26 +194,6 @@ func resolveThreshold(conf *config.OrchestraConf, commandName string, flagValue 
 	return 0.66
 }
 
-// resolveWorkingPatterns returns per-provider working patterns.
-// Uses explicit YAML config if provided, otherwise falls back to built-in defaults.
-// The pane backend was its only consumer; SPEC-PANERM-001 W2 (T9) deletes it.
-//
-//nolint:unused // kept until the SPEC-PANERM-001 W2 deletion merge (T9)
-func resolveWorkingPatterns(providerName string, configured []string) []string {
-	if len(configured) > 0 {
-		return configured
-	}
-	// Built-in defaults for known providers whose TUI shows the prompt while still generating.
-	switch providerName {
-	case "gemini":
-		return []string{"⠴", "⠧", "⠋", "⠙", "⠹", "⠸", "⠼", "Generating", "Thinking"}
-	case "codex":
-		return []string{"Thinking", "Generating", "Running", "Executing"}
-	default:
-		return nil
-	}
-}
-
 // resolveSubprocessTimeout returns the per-provider subprocess timeout.
 // Priority: per-provider override > global orchestra timeout > 120s default.
 func resolveSubprocessTimeout(conf *config.OrchestraConf, entry config.ProviderEntry) time.Duration {
@@ -237,11 +217,6 @@ func resolveCommandTimeout(conf *config.OrchestraConf, requestedTimeout int, tim
 		return requestedTimeout
 	}
 	return 120
-}
-
-// resolveSubprocessMode returns whether subprocess mode is enabled via config.
-func resolveSubprocessMode(conf *config.OrchestraConf) bool {
-	return conf.Subprocess.Enabled
 }
 
 // resolveSubprocessRounds returns the configured debate rounds for subprocess mode.

@@ -6,16 +6,10 @@ import (
 	"os"
 	"path/filepath"
 
-	contentfs "github.com/insajin/autopus-adk/content"
 	"github.com/insajin/autopus-adk/pkg/adapter"
 	"github.com/insajin/autopus-adk/pkg/config"
 	"github.com/insajin/autopus-adk/pkg/content"
 )
-
-var codexHookAssetNames = []string{
-	"hook-codex-stop.sh",
-	"hook-codex-sessionstart.sh",
-}
 
 // generateHooks renders hooks.json template and merges with existing user hooks.
 // Legacy Autopus hooks are recognized by their marker or managed command;
@@ -37,22 +31,12 @@ func (a *Adapter) generateHooks(cfg *config.HarnessConfig) ([]adapter.FileMappin
 		return nil, fmt.Errorf("codex hooks.json 쓰기 실패: %w", err)
 	}
 
-	files := []adapter.FileMapping{{
+	return []adapter.FileMapping{{
 		TargetPath:      filepath.Join(".codex", "hooks.json"),
 		OverwritePolicy: adapter.OverwriteMerge,
 		Checksum:        checksum(string(merged)),
 		Content:         merged,
-	}}
-	assets, err := prepareCodexHookAssets()
-	if err != nil {
-		return nil, err
-	}
-	for _, asset := range assets {
-		if err := writeCodexManagedFile(a.root, asset.TargetPath, asset.Content, 0o755); err != nil {
-			return nil, fmt.Errorf("codex hook 쓰기 실패 %s: %w", asset.TargetPath, err)
-		}
-	}
-	return append(files, assets...), nil
+	}}, nil
 }
 
 // prepareHooksFile returns hooks.json file mapping without writing to disk.
@@ -69,34 +53,12 @@ func (a *Adapter) prepareHooksFile(cfg *config.HarnessConfig) ([]adapter.FileMap
 		return nil, err
 	}
 
-	files := []adapter.FileMapping{{
+	return []adapter.FileMapping{{
 		TargetPath:      filepath.Join(".codex", "hooks.json"),
 		OverwritePolicy: adapter.OverwriteMerge,
 		Checksum:        checksum(string(merged)),
 		Content:         merged,
-	}}
-	assets, err := prepareCodexHookAssets()
-	if err != nil {
-		return nil, err
-	}
-	return append(files, assets...), nil
-}
-
-func prepareCodexHookAssets() ([]adapter.FileMapping, error) {
-	files := make([]adapter.FileMapping, 0, len(codexHookAssetNames))
-	for _, name := range codexHookAssetNames {
-		data, err := contentfs.FS.ReadFile("hooks/" + name)
-		if err != nil {
-			return nil, fmt.Errorf("codex hook asset 읽기 실패 %s: %w", name, err)
-		}
-		files = append(files, adapter.FileMapping{
-			TargetPath:      filepath.Join(".codex", "hooks", "autopus", name),
-			OverwritePolicy: adapter.OverwriteAlways,
-			Checksum:        checksum(string(data)),
-			Content:         data,
-		})
-	}
-	return files, nil
+	}}, nil
 }
 
 func (a *Adapter) prepareGitHookFiles(cfg *config.HarnessConfig) ([]adapter.FileMapping, error) {

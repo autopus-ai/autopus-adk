@@ -21,14 +21,13 @@ func claudeMigrationConfig(entry ProviderEntry) *HarnessConfig {
 
 // TestMigrateOrchestraConfig_UpgradesHistoricalClaudeDefault proves an install
 // still carrying a shipped historical default lands on the current model
-// policy, and that the pane surface keeps its own print flag spelling.
+// policy.
 func TestMigrateOrchestraConfig_UpgradesHistoricalClaudeDefault(t *testing.T) {
 	t.Parallel()
 
 	cfg := claudeMigrationConfig(ProviderEntry{
-		Binary:   "claude",
-		Args:     []string{"--print", "--model", "opus", "--effort", "high"},
-		PaneArgs: []string{"-p", "--model", "opus", "--effort", "max"},
+		Binary: "claude",
+		Args:   []string{"--print", "--model", "opus", "--effort", "high"},
 	})
 
 	changed, err := MigrateOrchestraConfig(cfg)
@@ -37,7 +36,6 @@ func TestMigrateOrchestraConfig_UpgradesHistoricalClaudeDefault(t *testing.T) {
 
 	claude := cfg.Orchestra.Providers["claude"]
 	assert.Equal(t, []string{"--print", "--model", ClaudeFableModel, "--effort", "max"}, claude.Args)
-	assert.Equal(t, []string{"-p", "--model", ClaudeFableModel, "--effort", "max"}, claude.PaneArgs)
 	assert.Equal(t, ClaudeOrchestraTimeoutSeconds, claude.Subprocess.Timeout)
 }
 
@@ -65,17 +63,15 @@ func TestMigrateOrchestraConfig_PreservesExplicitClaudeProviders(t *testing.T) {
 		{
 			name: "extra flag",
 			entry: ProviderEntry{
-				Binary:   "claude",
-				Args:     []string{"--print", "--model", "opus", "--effort", "high", "--verbose"},
-				PaneArgs: []string{"--print", "--model", "opus", "--effort", "high", "--verbose"},
+				Binary: "claude",
+				Args:   []string{"--print", "--model", "opus", "--effort", "high", "--verbose"},
 			},
 		},
 		{
 			name: "full model id",
 			entry: ProviderEntry{
-				Binary:   "claude",
-				Args:     []string{"--print", "--model", "claude-opus-4-8", "--effort", "max"},
-				PaneArgs: []string{"--print", "--model", "claude-opus-4-8", "--effort", "max"},
+				Binary: "claude",
+				Args:   []string{"--print", "--model", "claude-opus-4-8", "--effort", "max"},
 			},
 		},
 		{
@@ -84,15 +80,13 @@ func TestMigrateOrchestraConfig_PreservesExplicitClaudeProviders(t *testing.T) {
 				Binary:      "claude",
 				ModelPolicy: ProviderModelPolicyPinned,
 				Args:        []string{"--print", "--model", "opus", "--effort", "high"},
-				PaneArgs:    []string{"--print", "--model", "opus", "--effort", "high"},
 			},
 		},
 		{
 			name: "wrapper binary",
 			entry: ProviderEntry{
-				Binary:   "claude-wrapper",
-				Args:     []string{"--print", "--model", "opus", "--effort", "high"},
-				PaneArgs: []string{"--print", "--model", "opus", "--effort", "high"},
+				Binary: "claude-wrapper",
+				Args:   []string{"--print", "--model", "opus", "--effort", "high"},
 			},
 		},
 	}
@@ -103,7 +97,6 @@ func TestMigrateOrchestraConfig_PreservesExplicitClaudeProviders(t *testing.T) {
 			t.Parallel()
 
 			wantArgs := append([]string(nil), tt.entry.Args...)
-			wantPaneArgs := append([]string(nil), tt.entry.PaneArgs...)
 
 			cfg := claudeMigrationConfig(tt.entry)
 			_, err := MigrateOrchestraConfig(cfg)
@@ -111,7 +104,6 @@ func TestMigrateOrchestraConfig_PreservesExplicitClaudeProviders(t *testing.T) {
 
 			claude := cfg.Orchestra.Providers["claude"]
 			assert.Equal(t, wantArgs, claude.Args)
-			assert.Equal(t, wantPaneArgs, claude.PaneArgs)
 		})
 	}
 }
@@ -136,5 +128,4 @@ func TestMigrateOrchestraConfig_PreservesBackendRoutedClaudeProvider(t *testing.
 	assert.Equal(t, ProviderBackendOMP, claude.Backend)
 	assert.Equal(t, "anthropic/"+ClaudeFableModel, claude.Model)
 	assert.Empty(t, claude.Args)
-	assert.Empty(t, claude.PaneArgs)
 }

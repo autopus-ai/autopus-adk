@@ -251,11 +251,8 @@ func TestRunSpecReview_ResolvesJudgeConfigFromHarness(t *testing.T) {
 			assert.Equal(t, "anthropic/claude-fable-5-1:max", captured.JudgeConfig.Model)
 			if tc.wantSame {
 				require.Len(t, captured.Providers, 1)
-				// Pane hook flags are reviewer-only policy; every routing field
-				// must match the reviewer entry of the same name.
+				// Every routing field must match the reviewer entry of the same name.
 				want, got := captured.Providers[0], *captured.JudgeConfig
-				want.HasHook, want.HasStartupHook = nil, nil
-				got.HasHook, got.HasStartupHook = nil, nil
 				// The judge is the read-only projection of that reviewer.
 				want.SandboxMode = orchestra.SandboxModeReadOnly
 				assert.Equal(t, want, got)

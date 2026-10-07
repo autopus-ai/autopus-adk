@@ -6,21 +6,19 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCodexProviderEntryForQuality_StructuredUsageOnlyOnSubprocess(t *testing.T) {
+func TestCodexProviderEntryForQuality_StructuredUsageExactlyOnce(t *testing.T) {
 	t.Parallel()
 
 	for _, mode := range []string{"balanced", "ultra"} {
 		entry := CodexProviderEntryForQuality(QualityConf{Default: mode})
 		assert.Equal(t, 1, countString(entry.Args, "--json"), "%s subprocess args", mode)
-		assert.NotContains(t, entry.PaneArgs, "--json", "%s pane args", mode)
 	}
 }
 
 func TestApplyCodexProviderProfile_PreservesStructuredAndCustomArgs(t *testing.T) {
 	t.Parallel()
 	entry := ProviderEntry{
-		Args:     []string{"exec", "--json", "--custom-flag", "custom-value", "-m", "old-model"},
-		PaneArgs: []string{"--custom-pane", "pane-value", "-m", "old-model"},
+		Args: []string{"exec", "--json", "--custom-flag", "custom-value", "-m", "old-model"},
 	}
 
 	got := ApplyCodexProviderProfile(entry, CodexProfile{Model: "new-model", Effort: "high"})
@@ -28,9 +26,6 @@ func TestApplyCodexProviderProfile_PreservesStructuredAndCustomArgs(t *testing.T
 	assert.Equal(t, 1, countString(got.Args, "--json"))
 	assert.Contains(t, got.Args, "--custom-flag")
 	assert.Contains(t, got.Args, "custom-value")
-	assert.NotContains(t, got.PaneArgs, "--json")
-	assert.Contains(t, got.PaneArgs, "--custom-pane")
-	assert.Contains(t, got.PaneArgs, "pane-value")
 }
 
 func TestApplyCodexProviderProfile_NormalizesStructuredUsageExactlyOnce(t *testing.T) {
@@ -38,14 +33,12 @@ func TestApplyCodexProviderProfile_NormalizesStructuredUsageExactlyOnce(t *testi
 	entry := ProviderEntry{
 		ModelPolicy: ProviderModelPolicyQuality,
 		Args:        []string{"exec", "--json", "--custom", "--json"},
-		PaneArgs:    []string{"--json", "--search", "--json"},
 	}
 
 	got := ApplyCodexProviderProfile(entry, CodexProfile{Model: "gpt-5.4", Effort: "high"})
 
 	assert.Equal(t, 1, countString(got.Args, "--json"))
 	assert.Equal(t, []string{"exec", "--json", "--custom", "-m", "gpt-5.4", "-c", `model_reasoning_effort="high"`}, got.Args)
-	assert.Equal(t, []string{"--search", "-m", "gpt-5.4", "-c", `model_reasoning_effort="high"`}, got.PaneArgs)
 }
 
 func TestApplyCodexProviderProfile_AddsStructuredUsageBeforeTerminator(t *testing.T) {

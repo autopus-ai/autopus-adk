@@ -70,8 +70,6 @@ func newOrchestraRunCmd() *cobra.Command {
 // orchestraRunOptions carries the `auto orchestra run` flag set. It exists so
 // callers name what they pass: the positional form had three adjacent booleans
 // and a trailing float, where any transposition still compiled.
-// ForceSubprocess belonged to --subprocess, which SPEC-PANERM-001 retired:
-// nothing sets or reads it.
 type orchestraRunOptions struct {
 	Topic            string
 	Strategy         string
@@ -80,7 +78,6 @@ type orchestraRunOptions struct {
 	Timeout          int
 	TimeoutChanged   bool
 	Judge            string
-	ForceSubprocess  bool
 	DryRun           bool
 	JSONMode         bool
 	RequireAgreement float64

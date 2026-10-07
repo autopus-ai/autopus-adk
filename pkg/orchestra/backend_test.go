@@ -81,33 +81,9 @@ func TestValidateJSONOutput_MalformedJSON(t *testing.T) {
 	assert.Error(t, validateJSONOutput(`{"broken`))
 }
 
-func TestSelectBackend_PaneWhenTerminalSet(t *testing.T) {
+func TestSelectBackend_ReturnsSubprocess(t *testing.T) {
 	t.Parallel()
-	cfg := OrchestraConfig{
-		Terminal: &mockTerminal{name: "mock"},
-	}
-	backend := SelectBackend(cfg)
-	require.NotNil(t, backend)
-	assert.Equal(t, "pane", backend.Name())
-}
-
-func TestSelectBackend_SubprocessWhenSubprocessMode(t *testing.T) {
-	t.Parallel()
-	cfg := OrchestraConfig{
-		Terminal:       &mockTerminal{name: "mock"},
-		SubprocessMode: true,
-	}
-	backend := SelectBackend(cfg)
-	require.NotNil(t, backend)
-	assert.Equal(t, "subprocess", backend.Name())
-}
-
-func TestSelectBackend_SubprocessWhenTerminalNil(t *testing.T) {
-	t.Parallel()
-	cfg := OrchestraConfig{
-		Terminal: nil,
-	}
-	backend := SelectBackend(cfg)
+	backend := SelectBackend(OrchestraConfig{})
 	require.NotNil(t, backend)
 	assert.Equal(t, "subprocess", backend.Name())
 }
