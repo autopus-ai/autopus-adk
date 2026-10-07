@@ -152,9 +152,11 @@ def run_driver(binary: Path, destination: Path, pins: dict, catalog: Path | None
         shutil.copy2(binary, root / 'surface_driver')
         if catalog:
             shutil.copyfile(catalog, root / 'codex-models.json')
-        go, goroot = grader.toolchain() or (None, None)
+        goroot = (grader.toolchain() or (None, None))[1]
     except (OSError, subprocess.SubprocessError) as error:
         raise SurfaceError('generate', f'run root: {type(error).__name__}: {error}') from error
+    if goroot is None:
+        raise SurfaceError('generate', 'go toolchain not found')
     root, output = root.resolve(), root.resolve() / 'surface'
     command = [str(root / 'surface_driver'), '--output', str(output), '--project-name', pins['project_name'],
                '--generator-version', pins['generator_version'],
