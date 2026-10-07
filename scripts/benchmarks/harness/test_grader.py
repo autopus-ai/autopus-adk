@@ -92,7 +92,8 @@ class GraderArgvTests(unittest.TestCase):
                          'warm_cache': str(self.base / 'session/grader/warm/gocache')}
 
     def test_grader_environment_is_exactly_the_allowlist(self):
-        with mock.patch.dict(os.environ, CANARIES):
+        roots = ('/Users/maintainer', '/Users/maintainer/Library/codex home')
+        with mock.patch.dict(os.environ, CANARIES), mock.patch.object(grader, 'credential_roots', return_value=roots):
             argv = grader.grader_argv(self.root, self.COMMAND, self.prepared)
         self.assertEqual(argv[:2], ['/usr/bin/env', '-i'])
         split = argv.index(grader.SANDBOX)
@@ -102,6 +103,8 @@ class GraderArgvTests(unittest.TestCase):
             'GOMODCACHE': self.prepared['modcache'], 'GOFLAGS': '-mod=mod', 'GOPROXY': 'off', 'GOSUMDB': 'off',
             'GOTOOLCHAIN': 'local'})
         self.assertEqual(argv[split:], [grader.SANDBOX, '-f', str(grader.PROFILE), '-D', 'GRADE_ROOT=' + str(self.root),
+                                        '-D', 'ACCOUNT_HOME=/Users/maintainer',
+                                        '-D', 'CODEX_HOME_DIR=/Users/maintainer/Library/codex home',
                                         self.prepared['go'], 'test', '-json', '-p', '1', './pkg/x', '-run',
                                         '^TestA$', '-count=1'])
         self.assertNotIn('leak', ' '.join(argv))

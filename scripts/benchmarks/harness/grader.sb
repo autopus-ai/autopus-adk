@@ -1,7 +1,9 @@
 ;; Grader profile for the SPEC-HARNEVAL-001 golden live lane (REQ-HE-08).
 ;;
-;; prepare_grader.py starts every oracle run, calibration and trial alike, as
-;;   env -i <allowlist> sandbox-exec -f grader.sb -D GRADE_ROOT=<root> go test -json ...
+;; prepare_grader.py and golden.py start every oracle run, calibration, warmup
+;; and trial alike, as
+;;   env -i <allowlist> sandbox-exec -f grader.sb -D GRADE_ROOT=<root>
+;;     -D ACCOUNT_HOME=<home> -D CODEX_HOME_DIR=<codex home> go test -json ...
 ;; where <root> is the canonical path of that run's fresh grade root: the
 ;; workspace clone (ws/), the per-run build cache clone (gocache/) and its own
 ;; HOME, TMPDIR and GOPATH. The session module cache, the warm build cache,
@@ -10,9 +12,9 @@
 ;;
 ;; Every network operation is denied, including localhost and Unix sockets.
 ;; Reads and process execution stay allowed: the Go toolchain needs both.
-;; sandbox-exec refuses to start (exit 65) when GRADE_ROOT is missing or
-;; empty; prepare_grader.grader_argv() refuses a root that is not canonical
-;; or that would contain a protected path such as "/".
+;; sandbox-exec refuses to start (exit 65) when a parameter is missing or
+;; GRADE_ROOT is empty; grader.grader_argv() refuses a root that is not
+;; canonical or that would contain a protected path such as "/".
 (version 1)
 (allow default)
 (deny network*)
@@ -20,3 +22,29 @@
 (allow file-write*
   (subpath (param "GRADE_ROOT"))
   (literal "/dev/null"))
+
+;; Credential stores stay unreadable (T12 scope expansion of REQ-HE-08: the
+;; profile above allowed every read). ACCOUNT_HOME is the canonical home of
+;; the account that runs the trusted runner and CODEX_HOME_DIR the canonical
+;; Codex home its agent step authenticates from. The toolchain, the module
+;; cache and the grade root lie outside these paths, so the oracle builds the
+;; same way. Denying the Security server lookups keeps the keychain closed
+;; through IPC as well as through its files.
+(define (account-path relative) (string-append (param "ACCOUNT_HOME") relative))
+(deny file-read*
+  (subpath (param "CODEX_HOME_DIR"))
+  (subpath (account-path "/.codex"))
+  (subpath (account-path "/.ssh"))
+  (subpath (account-path "/.config/gh"))
+  (subpath (account-path "/.aws"))
+  (subpath (account-path "/.claude"))
+  (literal (account-path "/.claude.json"))
+  (subpath (account-path "/.omp"))
+  (subpath (account-path "/.gnupg"))
+  (subpath (account-path "/.docker"))
+  (subpath (account-path "/Library/Keychains"))
+  (subpath "/Library/Keychains"))
+(deny mach-lookup
+  (global-name "com.apple.SecurityServer")
+  (global-name "com.apple.securityd")
+  (global-name "com.apple.securityd.xpc"))

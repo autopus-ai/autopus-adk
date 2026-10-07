@@ -1,15 +1,18 @@
 """Sandboxed oracle runs and the trusted test2json parser (SPEC-HARNEVAL-001 REQ-HE-08).
 
 A grading run executes one corpus oracle from <root>/ws as
-`env -i <allowlist> sandbox-exec -f grader.sb -D GRADE_ROOT=<root> go test -json ...`.
-The profile denies all network and every write outside the fresh grade root;
-the allowlist is the whole environment, so no credential, GITHUB_*, ACTIONS_*
-or RUNNER_* key reaches the oracle. The trusted runner, not the oracle, writes
-the captured stdout (at most 1 MiB) and the parser below judges only that file.
+`env -i <allowlist> sandbox-exec -f grader.sb -D GRADE_ROOT=<root> -D ACCOUNT_HOME=<home>
+-D CODEX_HOME_DIR=<codex home> go test -json ...`.
+The profile denies all network, every write outside the fresh grade root and
+every read of the account's credential stores; the allowlist is the whole
+environment, so no credential, GITHUB_*, ACTIONS_* or RUNNER_* key reaches the
+oracle. The trusted runner, not the oracle, writes the captured stdout (at most
+1 MiB) and the parser below judges only that file.
 """
 import json
 import os
 from pathlib import Path
+import pwd
 import signal
 import subprocess
 import threading
@@ -33,6 +36,16 @@ def allowlist(root: Path, go: Path, modcache: Path, proxy: str = 'off') -> dict:
             'GOFLAGS': '-mod=mod', 'GOPROXY': proxy, 'GOSUMDB': 'off', 'GOTOOLCHAIN': 'local'}
 
 
+def credential_roots() -> tuple:
+    """The canonical account home and Codex home whose credential stores grader.sb keeps unreadable.
+
+    The account home comes from the password database, not $HOME, and the Codex home is $CODEX_HOME or
+    its default <home>/.codex, the location the agent step authenticates from.
+    """
+    account = os.path.realpath(pwd.getpwuid(os.getuid()).pw_dir)
+    return account, os.path.realpath(os.environ.get('CODEX_HOME') or os.path.join(account, '.codex'))
+
+
 def grader_argv(root: Path, command: list, prepared: dict, profile: Path = PROFILE) -> list:
     """The `env -i` allowlist plus sandbox-exec argv for one oracle run in root/ws."""
     root, go = Path(root), Path(prepared['go'])
@@ -46,8 +59,10 @@ def grader_argv(root: Path, command: list, prepared: dict, profile: Path = PROFI
     if list(command[:2]) != ['go', 'test'] or any(arg.split('=')[0] in tool_flags for arg in command):
         raise ValueError('oracle must be a plain go test command')
     env = allowlist(root, go, Path(prepared['modcache']))
+    account, codex_home = credential_roots()
     return ['/usr/bin/env', '-i', *(key + '=' + value for key, value in env.items()), SANDBOX, '-f', str(profile),
-            '-D', 'GRADE_ROOT=' + str(root), str(go), 'test', '-json', *command[2:]]
+            '-D', 'GRADE_ROOT=' + str(root), '-D', 'ACCOUNT_HOME=' + account, '-D', 'CODEX_HOME_DIR=' + codex_home,
+            str(go), 'test', '-json', *command[2:]]
 
 
 def _kill_group(group: int) -> bool:
