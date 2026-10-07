@@ -75,7 +75,7 @@ When verdict를 계산한다
 Then baseline 0.8333333333, candidate 0.6, `regression_delta` -0.2333333333, completeness 0.9166666667, hard flip 1, `verdict` `regression`, `reason` `hard_flip`이다
 And T1 candidate가 [pass,fail]이면 delta -0.0333333333, `verdict` `ok`(`within_threshold`), 거기서 T2 candidate가 [error,error]이면 completeness 0.75, `verdict` `incomplete`다
 And baseline 6/6, candidate T1 [pass,fail] T2 [fail,pass] T3 [fail,pass]이면 delta -0.5, hard flip 0, `reason` `pass_rate_regression`이고, 5 task baseline 10/10 candidate 9/10이면 delta -0.1로 `verdict` `ok`다
-And 두 arm이 모두 error뿐이면 `verdict` `vacuous`, 두 arm의 `valid` 0과 `pass_rate` `null`, `regression_delta` 0이고 report가 strict decode에 성공한다
+And 두 arm이 모두 error뿐이면 `verdict` `vacuous`, `reason` `oracle_not_run`, 두 arm의 `valid` 0과 `pass_rate` `null`, `regression_delta` 0이고 report가 strict decode에 성공한다
 
 ### S10: grader는 corpus oracle을 실제로 빌드하고, calibration 없는 세션은 ok가 될 수 없다
 Priority: Must
@@ -83,7 +83,9 @@ Given trusted 준비가 만든 읽기 전용 module cache와 warm build cache, c
 When golden 모드 세션을 시작한다
 Then 정상 준비에서는 12개 task 모두 변형 전 accept, 변형 후 비accept로 `calibration.status` `passed`이고 trial이 시작된다
 And 세 fixture는 agent 호출 0회로 `oracle_calibration_failed`(detail에 task id)와 종료 코드 1이고, 세션 디렉터리에는 예정 order의 protocol과 `before.status` `failed`인 `calibration.json`만 있으며 record는 없다. 그 디렉터리의 `auto eval harness report`는 `verdict` `vacuous`, `reason` `oracle_calibration_failed`다
-And 모든 trial이 빌드 실패(`oracle.ran` false, `build_failed` true)로 끝난 세션과 세션 끝 재calibration(`after`)이 실패한 세션도 `verdict` `vacuous`다
+And 모든 trial이 빌드 실패(`oracle.ran` false, `build_failed` true)로 끝난 세션(`reason` `oracle_not_run`)과 세션 끝 재calibration(`after`)이 실패한 세션(`reason` `oracle_calibration_failed`)도 `verdict` `vacuous`다
+And `calibration.json`이 없는 세션과 `before`는 `passed`인데 `after`가 없는 세션의 report는 `calibration.status` `missing`, `verdict` `vacuous`, `reason` `oracle_calibration_failed`다
+And oracle이 모든 trial에서 돈 세션에서 두 arm의 valid trial이 모두 agent 단계 신호(`agent_launch_failed`, `agent_exit_nonzero`, `agent_timeout`, `observation_failed`)로 끝나면 completeness가 floor보다 낮아도 `verdict` `vacuous`, `reason` `agent_all_failed`다. 나머지 fail 신호 5종으로만 채운 세션은 `ok`(`within_threshold`)이고, candidate만 `agent_launch_failed`이고 baseline이 4/4 pass인 세션은 `regression`(`hard_flip`)이다
 And grader의 `GOMODCACHE` 쓰기는 거부되어 cache 파일 목록 hash가 그대로이고, 한 trial이 build cache에 쓴 파일은 다음 trial의 grade에 없다
 
 ### S11: trial outcome은 신호 표대로 정해지고 agent와 grader는 격리된다
