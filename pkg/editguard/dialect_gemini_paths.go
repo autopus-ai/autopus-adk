@@ -25,13 +25,7 @@ func geminiSpellings(cwd, raw string) []string {
 			spellings = append(spellings, p)
 		}
 	}
-	clean := strings.ReplaceAll(raw, "\x00", "")
-	bases := []string{clean}
-	if rest, ok := strings.CutPrefix(clean, "@"); ok {
-		if stripped := strings.TrimLeft(rest, `/\`); stripped != "" {
-			bases = append(bases, stripped)
-		}
-	}
+	bases := geminiBases(raw)
 	for _, base := range bases {
 		add(base)
 		if converted, ok := fileURLPath(base); ok {
@@ -45,9 +39,23 @@ func geminiSpellings(cwd, raw string) []string {
 		}
 	}
 	if len(spellings) == 0 {
-		return []string{clean} // an empty path: the malformed entry is dropped
+		return bases[:1] // an empty path: the malformed entry is dropped
 	}
 	return spellings
+}
+
+// geminiBases are the spellings resolveDefensiveToolPath may return: the path
+// without NUL bytes and, after a leading @, without the @ and the separators
+// that follow it.
+func geminiBases(raw string) []string {
+	clean := strings.ReplaceAll(raw, "\x00", "")
+	bases := []string{clean}
+	if rest, ok := strings.CutPrefix(clean, "@"); ok {
+		if stripped := strings.TrimLeft(rest, `/\`); stripped != "" {
+			bases = append(bases, stripped)
+		}
+	}
+	return bases
 }
 
 // lexicalAbs is path.resolve(cwd, p) for an absolute cwd; a relative p stays

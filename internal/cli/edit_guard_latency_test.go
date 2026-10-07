@@ -25,12 +25,13 @@ import (
 )
 
 const (
-	latencyEnv     = "AUTOPUS_EDITGUARD_LATENCY"
-	latencyRootEnv = "AUTOPUS_EDITGUARD_LATENCY_ROOT"
-	latencyRuns    = 200
-	latencyWarmup  = 20
-	latencyBudget  = 150 * time.Millisecond
-	hookDenyPrefix = `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny",`
+	latencyEnv       = "AUTOPUS_EDITGUARD_LATENCY"
+	latencyRootEnv   = "AUTOPUS_EDITGUARD_LATENCY_ROOT"
+	latencyRuns      = 200
+	latencyWarmup    = 20
+	latencyBudget    = 150 * time.Millisecond
+	hookDenyPrefix   = `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny",`
+	geminiDenyPrefix = `{"decision":"deny","reason":"autopus edit-guard [generated_surface]: `
 )
 
 func TestEditGuardBinary_LatencyBudget(t *testing.T) {
@@ -47,28 +48,32 @@ func TestEditGuardBinary_LatencyBudget(t *testing.T) {
 	t.Logf("root %s: %d manifests", root, len(manifests))
 
 	cases := []struct {
-		label, stdin string
-		deny, budget bool
+		label, platform, stdin, denyPrefix string
+		budget                             bool
 	}{
-		{"S1 row 1 " + binSkill, binEdit(root, "Edit", binSkill), true, true},
-		{".claude/settings.json", binEdit(root, "Edit", ".claude/settings.json"), false, true},
+		{"S1 row 1 " + binSkill, "claude-code", binEdit(root, "Edit", binSkill), hookDenyPrefix, true},
+		{".claude/settings.json", "claude-code", binEdit(root, "Edit", ".claude/settings.json"), "", true},
+		// A missing relative replace path takes the correctPath search, which
+		// reads the manifests for a target outside the namespace.
+		{"Gemini replace auto-fix/SKILL.md (searched)", "gemini", binGeminiReplace(root, "auto-fix/SKILL.md"),
+			geminiDenyPrefix, true},
 		// Reference only: an empty payload is decided before any file is read,
 		// so it shows the process start-up floor of the same binary.
-		{"start-up floor (empty stdin)", "", false, false},
+		{"start-up floor (empty stdin)", "claude-code", "", "", false},
 	}
 	for _, c := range cases {
-		got := guardProc(t, bin, root, "claude-code", c.stdin)
-		if c.deny {
-			require.True(t, strings.HasPrefix(got.stdout, hookDenyPrefix), "%s: %q", c.label, got.stdout)
+		got := guardProc(t, bin, root, c.platform, c.stdin)
+		if c.denyPrefix != "" {
+			require.True(t, strings.HasPrefix(got.stdout, c.denyPrefix), "%s: %q", c.label, got.stdout)
 		} else {
 			require.Empty(t, got.stdout, c.label)
 		}
 		for range latencyWarmup {
-			timeGuard(t, bin, root, c.stdin)
+			timeGuard(t, bin, root, c.platform, c.stdin)
 		}
 		samples := make([]time.Duration, latencyRuns)
 		for i := range samples {
-			samples[i] = timeGuard(t, bin, root, c.stdin)
+			samples[i] = timeGuard(t, bin, root, c.platform, c.stdin)
 		}
 		slices.Sort(samples)
 		p50, p95 := percentile(samples, 0.50), percentile(samples, 0.95)
@@ -81,11 +86,18 @@ func TestEditGuardBinary_LatencyBudget(t *testing.T) {
 	}
 }
 
+// binGeminiReplace is the BeforeTool payload of a Gemini CLI replace call.
+func binGeminiReplace(cwd, path string) string {
+	return corpusJSON(map[string]any{"session_id": "s1", "cwd": cwd, "hook_event_name": "BeforeTool",
+		"tool_name": "replace", "tool_input": map[string]any{"file_path": path, "instruction": "i",
+			"old_string": "a", "new_string": "b"}})
+}
+
 // timeGuard is one guard process's wall time as its parent sees it, from the
 // spawn to the reaped exit with stdout captured the way a host captures it.
-func timeGuard(t *testing.T, bin, dir, stdin string) time.Duration {
+func timeGuard(t *testing.T, bin, dir, platform, stdin string) time.Duration {
 	t.Helper()
-	cmd := exec.Command(bin, "guard", "edit", "--platform", "claude-code")
+	cmd := exec.Command(bin, "guard", "edit", "--platform", platform)
 	cmd.Dir = dir
 	cmd.Env = []string{"PATH=/usr/bin:/bin", "HOME=" + dir}
 	cmd.Stdin = strings.NewReader(stdin)

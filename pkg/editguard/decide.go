@@ -31,6 +31,9 @@ type Call struct {
 	// Displaced are the targets whose directory entry the call removes or
 	// replaces: a patch's Delete File and both ends of its Move to.
 	Displaced []string
+	// Searched are the targets the host swaps, when they name no file, for a
+	// workspace file whose path ends with them (Gemini CLI replace).
+	Searched []string
 }
 
 // Decision is the guard's answer for one call. An allow carries no reason; a
@@ -126,7 +129,7 @@ func Decide(call Call, opts Options) Decision {
 		if opts.panicSeam != nil {
 			opts.panicSeam()
 		}
-		if decision, deny := ev.target(call.Cwd, raw, slices.Contains(call.Displaced, raw)); deny {
+		if decision, deny := ev.target(call, raw); deny {
 			return decision
 		}
 	}
@@ -148,9 +151,10 @@ func (ev *evaluation) note(fault string) {
 	}
 }
 
-func (ev *evaluation) target(cwd, raw string, displaced bool) (Decision, bool) {
+func (ev *evaluation) target(call Call, raw string) (Decision, bool) {
+	cwd := call.Cwd
 	// A displaced root marker is guard state of the root it makes (REQ-EG-09).
-	if displaced {
+	if slices.Contains(call.Displaced, raw) {
 		if marker, ok := displacedMarker(cwd, raw); ok {
 			return deny(ClassGuardState, gstReason(marker)), true
 		}
@@ -162,6 +166,10 @@ func (ev *evaluation) target(cwd, raw string, displaced bool) (Decision, bool) {
 			ev.note("target unresolvable")
 		}
 		return Decision{}, false
+	}
+	// A protected file the host's search would swap in is one more location.
+	if slices.Contains(call.Searched, raw) {
+		targets = append(targets, ev.searchTargets(cwd, raw, targets)...)
 	}
 	// Stage precedence holds across every enclosing root, the nearest root
 	// first within a stage, so a nested autopus.yaml hides nothing (M1).
