@@ -55,7 +55,18 @@ func (a *Adapter) prepareGitHookMappings(cfg *config.HarnessConfig) ([]adapter.F
 	return adapter.FilterUnsupportedRootGitHookFiles(a.root, files), nil
 }
 
+// V1PluginExport is the line only the generated V1 plugin carries; `auto
+// doctor` reads it to report the host-unverified V1 lane of the edit guard.
+const V1PluginExport = "export default AutopusHooksPlugin"
+
+// renderHookPlugin renders the V1 plugin: the shell-tool hooks run for tool
+// bash, and the edit guard for the V1 file-editing tools, which no V1 host
+// has confirmed (CD-1).
 func renderHookPlugin(hooks []adapter.HookConfig) (string, error) {
+	hooks, guard, err := splitEditGuard(hooks, openCodeGuardToolsV1)
+	if err != nil {
+		return "", err
+	}
 	var before []string
 	var after []string
 	for _, hook := range hooks {
@@ -78,6 +89,10 @@ const AFTER_HOOKS = [
 %s
 ]
 
+// EDIT_GUARD is the generated auto guard edit registration, or null.
+const EDIT_GUARD = %s
+
+%s
 function runCommand(command, cwd, timeoutSeconds) {
   return new Promise((resolve, reject) => {
     const child = spawn("sh", ["-lc", command], {
@@ -121,7 +136,11 @@ async function runHooks(hooks, cwd) {
 export const AutopusHooksPlugin = async ({ directory, worktree }) => {
   const cwd = worktree || directory
   return {
-    "tool.execute.before": async (input) => {
+    "tool.execute.before": async (input, output) => {
+      if (EDIT_GUARD && EDIT_GUARD.tools.includes(input.tool)) {
+        await guardEdit(input.tool, output?.args, cwd)
+        return
+      }
       if (input.tool !== "bash") return
       await runHooks(BEFORE_HOOKS, cwd)
     },
@@ -133,6 +152,6 @@ export const AutopusHooksPlugin = async ({ directory, worktree }) => {
 }
 
 export default AutopusHooksPlugin
-`, strings.Join(before, ",\n"), strings.Join(after, ",\n"))
+`, strings.Join(before, ",\n"), strings.Join(after, ",\n"), guard, openCodeGuardRuntime)
 	return plugin, nil
 }

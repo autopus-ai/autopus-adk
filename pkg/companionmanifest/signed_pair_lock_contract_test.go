@@ -7,7 +7,7 @@ import (
 )
 
 func TestSignedPairLockPlatformContracts_AreNeverNoOp(t *testing.T) {
-	windowsSource, err := os.ReadFile("signed_pair_lock_windows.go")
+	windowsSource, err := os.ReadFile("../oslock/oslock_windows.go")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -21,7 +21,7 @@ func TestSignedPairLockPlatformContracts_AreNeverNoOp(t *testing.T) {
 			t.Fatalf("Windows signed-pair lock is missing %q", required)
 		}
 	}
-	otherSource, err := os.ReadFile("signed_pair_lock_other.go")
+	otherSource, err := os.ReadFile("../oslock/oslock_other.go")
 	if err != nil {
 		t.Fatal(err)
 	}

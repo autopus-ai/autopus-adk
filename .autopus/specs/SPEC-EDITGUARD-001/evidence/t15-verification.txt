@@ -1,0 +1,239 @@
+SPEC-EDITGUARD-001 T15 - verification evidence
+==============================================
+
+checked_at: 2026-10-07 (local, 12:20 to 13:08 +0900)
+host: Apple M2 Ultra, 24 cores, Darwin 25.5.0, case-insensitive APFS,
+  go1.27.0 darwin/arm64. The host was shared with other sessions: load
+  averages 16 to 54 during the runs (recorded per run below).
+tree: feat/editguard-001 at 9ea3c617 (T0 to T14) plus 608cfcde (the T15
+  store-lock fix, section 7) plus the T15 test commit that carries this file.
+  Production code measured = 608cfcde; the test commit changes tests only.
+isolation: every Go run used CODEX_HOME=$(mktemp -d). The corpus tests also pin
+  HOME, XDG_*, CODEX_HOME, and PATH=/usr/bin:/bin for `auto init`, so no host
+  CLI runs (init's `opencode --version` and `codex --version` probes ran their
+  first-time setup on a fresh HOME: 15.5 s init versus 2.9 s, with identical
+  manifests, 544 entries, same policies). Nothing was written to the worktree
+  outside the new test files and this file; `auto update` was never run on the
+  worktree (only on a scratchpad temp project, section 8).
+
+Results
+-------
+CE-2 protected corpus (S1 x Edit, Write, MultiEdit, all 4 lanes) ... 100% deny
+CE-2 legitimate corpus (14 categories) .............................. 0 deny
+CE-3 fault corpora S7 and S16 through the real binary ............... 100% as specified
+CE-4 S17 under -race -count=5 (pkg seams and real processes) ........ PASS after fix 608cfcde
+S14 / REQ-EG-24 latency, p95 <= 150 ms .............................. PASS (worst p95 79.2 ms)
+coverage of changed packages >= 85% ................................. PASS (lowest 86.5%)
+2x regeneration byte-identical ...................................... PASS (S11 test; whole tree on scratch)
+defects found ....................................................... 1, fixed in 608cfcde (flagged)
+
+1. Protected corpus (CE-2; acceptance S1 "times Edit, Write, MultiEdit")
+-----------------------------------------------------------------------
+test: internal/cli/edit_guard_corpus_test.go
+  TestEditGuardCorpus_ProtectedDeniedAndLegitimateAllowed/protected_...
+corpus: every distinct path inside the guard namespace that one of the five
+  manifests (antigravity-cli, claude-code, codex, omp, opencode) lists always
+  and none lists merge or marker. The namespace is spelled out in the test from
+  spec.md Outcome Boundary, independent of pkg/workflow.
+oracle: the exact deny bytes of the lane (spec.md Decision Output Contract)
+  with the GS-CON reason naming the path and the first always-manifest in
+  lexical order; exit 0; empty stderr.
+shapes: 12 file-editing shapes of the 4 enforced lanes, built with the fields
+  of the A1, A2, A3, and T11 host payload fixtures: claude-code Edit (absolute), Write (absolute),
+  MultiEdit (relative); opencode edit, write, patch with the target second;
+  codex apply_patch Update, Add, Delete, Move-to destination; gemini write_file
+  (absolute), replace (relative).
+results:
+  manifests of a five-platform `auto init`, default run ......... 531 paths, 2124 calls, 2124 denied (100.0%)
+    (every path x Edit, Write, MultiEdit, plus one of the 9 other shapes in
+    rotation, 59 paths each)
+  same, AUTOPUS_EDITGUARD_CORPUS_FULL=1 ............................ 531 x 12 = 6372 calls, 6372 denied (100.0%)
+  the repository's own five manifests (autopus-adk/.autopus, copied
+    into a temp project; AUTOPUS_EDITGUARD_CORPUS_MANIFESTS), full .. 533 x 12 = 6396 calls, 6396 denied (100.0%)
+  .git/hooks always entries x 12 shapes ............................ 0 denied
+    (generated: .git/hooks/commit-msg; repository: commit-msg, pre-commit)
+red capability (mutation, reverted): reclassifying `.omp/` out of the generated
+  category failed 316 calls, all on the 79 `.omp/` paths.
+
+2. Legitimate corpus (CE-2; PRD "no false denies", >= 12 cases)
+---------------------------------------------------------------
+test: same test, subtest legitimate_edits_are_never_denied.
+categories (generated manifests; the repository-manifest run in brackets):
+  merge-or-marker manifest entries (all of them) ........................ 12 [12]
+  always entries outside the namespace, .git/hooks and forged ones ....... 7 [8]
+  unmanifested sibling file in every generated directory ................ 259 [260]
+  unmanifested files under each namespace prefix ........................ 8
+  brainstorm files (BS-001 with a forged always entry, a new BS-002) .... 2
+  spec files ............................................................ 2
+  worktree with its own autopus.yaml: a copy of every protected file .... 531 [533]
+  worktree without a root: a copy of every protected file ............... 531 [533]
+  worktree source files ................................................. 2
+  submodule paths from the workspace root (submodule has no manifests) .. 3
+  root and nested config.toml ........................................... 2
+  source and new files .................................................. 7
+  .autopus non-state files (runtime/other.json, manifest.json, ...) ..... 5
+  outside the project root (../, absolute, another tree's .claude) ...... 3
+results:
+  default run (one shape per target in rotation) ... 1374 targets, 1374 calls, 0 denies
+  full run (every target x 12 shapes) .............. 16488 calls, 0 denies
+  repository manifests, full ....................... 1380 targets, 16560 calls, 0 denies
+  every call exited 0 with at most one stderr line.
+red capability (mutation, reverted): dropping the `.claude/worktrees/` exclusion
+  produced 2 denies, both on the forged always entry for
+  .claude/worktrees/agent-y/.claude/skills/auto-fix/SKILL.md.
+suite cost: 8.8 s without -race, 39.6 s with -race on the loaded host (load
+  ~40); the full cross products are opt-in through AUTOPUS_EDITGUARD_CORPUS_FULL=1.
+
+3. Fault corpora (CE-3; S7 and S16) through the real binary
+-----------------------------------------------------------
+test: internal/cli/edit_guard_binary_test.go
+  TestEditGuardBinary_AcceptanceStdinCorpus_ExitsZeroWithContractBytes
+binary: `go build ./cmd/auto` (no fault seam), run as a process in fixture R.
+rows (each: exit 0, never 2; exact stdout; exact stderr or at most one line):
+  S1 rows 1 to 6 plus the .git/hooks entry ........ 13 rows: 2 GS-CON denies, 11 EMPTY
+  S7 truncated JSON, zero bytes, 1048577 bytes,
+     no target, numeric target ..................... 5 rows EMPTY; the first four with the exact
+                                                     stderr "payload malformed", "empty payload",
+                                                     "payload over 1 MiB", "no target path"
+  S16 opencode [skill, 42], [42, skill], [42] ...... GS-CON opencode deny twice, then EMPTY
+  S16 symlinked .autopus/runtime + skill lock ...... DENY(GS-CON), empty stderr
+  S16 symlinked .autopus/runtime + T lock .......... EMPTY, "lock state unusable: .autopus/runtime/fix-locks"
+  S16 `not json` record next to T's lock ........... DENY(FL)
+  S16 T locked + claude manifest `{` ............... DENY(FL)
+  S16 opencode manifest `{`, merge-listed file ..... EMPTY, "manifest unreadable: .autopus/opencode-manifest.json"
+  S16 same, S1 row 1 ............................... EMPTY, same diagnostic
+  27 of 27 rows as specified.
+covered by existing tests, rerun on this tree (all PASS):
+  S7 crash after output (exit 2, exit 1), unrecovered panic, version skew, no
+    auto on PATH, through `sh -c` and the generated command line:
+    pkg/content TestEditGuardHookCommand_ForwardsOnlyACleanExitDecision (9 cases)
+  S7 recovered panic seam and in-process S16 rows:
+    pkg/editguard TestRun_CallLevelFaults_AllowWithAtMostOneStderrLine,
+    TestRun_StageFaults_DropOnlyTheUntrustworthyPart
+  S9 OpenCode plugin fault stubs: pkg/adapter/opencode -run Guard (12 PASS)
+
+4. S17 batch and concurrent lock transitions under -race -count=5 (CE-4)
+------------------------------------------------------------------------
+pkg seams (steps 2, 3, 7 paused interleaving, 8 removal fault):
+  go test -race -count=5 -v ./pkg/editguard/ ./pkg/oslock/ .... exit 0, 370 PASS lines, 0 FAIL (11 s)
+    (whole packages: the S17 tests TestLock_BatchFailures_LeaveTheStoreAsItWas and
+    TestLockAndUnlock_ConcurrentAndPausedTransitions plus every other store test)
+real processes (steps 1, 4 with 8 concurrent processes on a store that does
+  not exist yet, 5 with 4 rewrite/re-lock pairs, 6, 7 without the pause, 9 with
+  a `not json` record, 10), observed through exit status, `auto fix lock --list
+  --json`, P(Edit, T), and the record hash:
+  go test -race -count=5 -run TestEditGuardBinary_LockTransitionsAcrossConcurrentProcesses
+    before 608cfcde ............................................. 4 PASS, 1 FAIL (section 7)
+    after 608cfcde .............................................. 5 PASS, 0 FAIL (63 s)
+new regression test: TestLock_ConcurrentFirstLocksOfAFreshStore_AllSucceed
+  (10 fresh stores x 8 goroutines) red 10/10 with the retry disabled,
+  green -count=10 and -race -count=20 with it.
+
+5. Latency (S14, REQ-EG-24)
+---------------------------
+test: internal/cli/edit_guard_latency_test.go TestEditGuardBinary_LatencyBudget
+  (opt-in: AUTOPUS_EDITGUARD_LATENCY=1; AUTOPUS_EDITGUARD_LATENCY_ROOT=<dir>).
+method: the binary built from the tree, `auto guard edit --platform claude-code`
+  in the project root, 20 warm-up runs, then 200 timed runs per payload, each
+  timed from spawn to reaped exit with stdout captured (the guard process's
+  wall time; host spawn overhead such as OpenCode's node spawn is not in it).
+  Nearest-rank p50 and p95. The empty-stdin row is decided before any file is
+  read, so it is the start-up floor of the same binary (not budgeted).
+runs (p50 / p95 / max, ms):
+  12:44, load 21.7  generated five-platform project
+    S1 row 1 (deny) ........... 23.80 / 28.36 / 51.41
+    .claude/settings.json ..... 24.84 / 65.60 / 138.04
+    start-up floor ............ 23.74 / 52.03 / 147.63
+  12:45, load 19.0  autopus-adk repository, its five manifests (read-only)
+    S1 row 1 (GS-SRC deny) .... 25.24 / 79.24 / 145.21
+    .claude/settings.json ..... 24.88 / 27.98 / 49.87
+    start-up floor ............ 23.75 / 29.36 / 73.73
+  13:05, load 27.6  generated five-platform project, final tree
+    S1 row 1 (deny) ........... 26.24 / 51.79 / 146.17
+    .claude/settings.json ..... 26.42 / 52.45 / 105.08
+    start-up floor ............ 25.65 / 51.13 / 87.32
+  13:06, load 25.0  autopus-adk repository, final tree
+    S1 row 1 (GS-SRC deny) .... 27.94 / 62.60 / 136.04
+    .claude/settings.json ..... 28.96 / 73.33 / 176.26
+    start-up floor ............ 28.14 / 58.95 / 136.52
+verdict: PASS. Every budgeted p95 is at most 79.24 ms (budget 150 ms). In
+  every run the budgeted p50 is within 1.5 ms of the start-up floor's p50, and
+  the p95 tails track host load, since the floor shows the same tails. In
+  process, one deny decision (five manifests parsed) costs 1.4 ms, 10.6 ms
+  under -race.
+
+6. Coverage (CE-5)
+------------------
+pkg/editguard (with the T15 test) ........ 94.7% (classify 93.7, decide 100, dialect 98.7,
+                                            dialect_gemini 100, lock 95.1, lock_release 93.5,
+                                            lock_store 91.3, matrix 100, reason 100, resolve 89.3)
+pkg/oslock ............................... 100.0%
+internal/cli edit-guard files, from the targeted edit-guard tests
+  (-coverpkg=./internal/cli) ............. guard.go 100.0, fix_lock.go 97.0,
+                                            doctor_edit_guard.go 95.2 (96.5% together)
+other changed packages, `go test -cover`, unchanged since 9ea3c617:
+  pkg/workflow 90.9, pkg/rulecond 89.6, pkg/qualityloop 93.2,
+  pkg/worker/security 94.7, pkg/config 92.4, pkg/adapter/claude 88.9,
+  pkg/adapter/codex 90.4, pkg/adapter/opencode 88.4, pkg/content 93.2,
+  pkg/companionmanifest 86.5
+lint: golangci-lint run ./pkg/editguard/... ./internal/cli/... -> 0 issues.
+
+7. Defect found and fixed (flagged: production change 608cfcde)
+----------------------------------------------------------------
+symptom: concurrent `auto fix lock` on a store that does not exist yet: some
+  processes exit 1 with "lock state is unusable:
+  .autopus/runtime/fix-locks/.store.lock" (7 of 30 rounds of 8 processes, 13
+  of 240 processes). Violates S17 step 4 and REQ-EG-06. The pkg test locked
+  once before its concurrent lockers, so the lock file always pre-existed.
+loop: scratch script, K processes per fresh store, red rounds counted; with
+  the store lock file pre-created, 0 of 30 rounds were red.
+root cause: openStoreLock opens the lock file with os.Root OpenFile
+  (openat O_RDWR|O_CREAT|O_NOFOLLOW). On darwin that open can fail with
+  ENOENT when another creator makes the same name at the same moment.
+  Differential probe, 8 concurrent creators x 60 rounds per mode: os.Root
+  OpenFile 4/480 failures (9/480 when the racers also create the directory);
+  absolute-path os.OpenFile 0/480 with and without O_NOFOLLOW. At the failure
+  the directory fd was the live directory at that path (13/13 same inode).
+  Rejected hypotheses: directory removed or replaced; Mkdir/OpenRoot race;
+  flock error.
+fix: retry the same open on ENOENT, at most 3 attempts; by then the name
+  exists, so the open no longer creates. The regular-file and SameFile checks
+  after the open are unchanged.
+after: 0/320 (8 x 40 rounds) and 0/480 (16 x 30 rounds) failed processes.
+same pattern elsewhere (not changed, outside this SPEC): pkg/rulecond
+  sticky_state.go opens its counter with os.Root OpenFile(O_RDWR|O_CREATE);
+  there a failure is the silent "unusable state" path of STICKYRULE.
+
+8. 2x regeneration byte-identical
+---------------------------------
+- internal/cli TestUpdateCmd_EditGuardHandlerIsOwnedAloneAndRetractedByTheFlag
+  (S11): two `auto update` runs on a temp project leave identical
+  .claude/settings.json bytes with the guard handler once. PASS on this tree.
+- Whole tree, scratchpad temp project only (branch binary, init for all five
+  platforms, then `auto update` twice): every generated file is byte-identical
+  between the two updates; the four manifests differ only in `generated_at`
+  (omp in nothing), and `.autopus/txns` and `.autopus/backup` gain the new
+  transaction entries.
+
+9. Other suites rerun on this tree (all PASS)
+---------------------------------------------
+internal/cli -run 'EditGuard|GuardEdit|FixLock|TestDoctorCmd_ReportsEditGuard|TestUpdateCmd_EditGuard'
+  ........ 25 PASS (S11, S12 Claude lane, S15 doctor, fix lock CLI)
+PASS lines: pkg/content EditGuard 13, pkg/adapter/opencode Guard 12 (S9),
+  pkg/adapter/claude Hook|Retract|Managed 41, pkg/worker/security Hook 18,
+  pkg/workflow and pkg/qualityloop Surface|Parity|Namespace|Drift 12 (S10).
+
+Not run here
+------------
+- the full internal/cli suite (the supervisor runs it).
+- Linux CI: the case-sensitive S2 row and whether the darwin O_CREAT race
+  exists there.
+- live hosts: no new A1 to A3 or T11 probe; S12 rests on the T0, T10, and T11
+  evidence files.
+
+Reproduce
+---------
+CODEX_HOME=$(mktemp -d) go test -count=1 -v -run 'TestEditGuardCorpus_|TestEditGuardBinary_' ./internal/cli/
+AUTOPUS_EDITGUARD_CORPUS_FULL=1 [AUTOPUS_EDITGUARD_CORPUS_MANIFESTS=<repo>/.autopus] go test -run TestEditGuardCorpus_ -v ./internal/cli/
+AUTOPUS_EDITGUARD_LATENCY=1 [AUTOPUS_EDITGUARD_LATENCY_ROOT=<repo>] go test -run TestEditGuardBinary_LatencyBudget -v ./internal/cli/
+go test -race -count=5 ./pkg/editguard/ ./pkg/oslock/

@@ -1,17 +1,21 @@
 //go:build windows
 
-package companionmanifest
+package oslock
 
 import (
 	"errors"
+	"fmt"
 	"os"
 
 	"golang.org/x/sys/windows"
 )
 
-func lockSignedPairFile(file *os.File) (bool, error) {
+// TryLock takes a non-blocking exclusive LockFileEx lock on the first byte of
+// file. busy is true when another handle holds the lock; err reports any other
+// failure.
+func TryLock(file *os.File) (busy bool, err error) {
 	overlapped := &windows.Overlapped{}
-	err := windows.LockFileEx(
+	err = windows.LockFileEx(
 		windows.Handle(file.Fd()),
 		windows.LOCKFILE_EXCLUSIVE_LOCK|windows.LOCKFILE_FAIL_IMMEDIATELY,
 		0,
@@ -23,12 +27,13 @@ func lockSignedPairFile(file *os.File) (bool, error) {
 		return true, nil
 	}
 	if err != nil {
-		return false, errors.New("lock signed pair transaction")
+		return false, fmt.Errorf("oslock: lock file: %w", err)
 	}
 	return false, nil
 }
 
-func unlockSignedPairFile(file *os.File) error {
+// Unlock releases the lock TryLock took on file.
+func Unlock(file *os.File) error {
 	return windows.UnlockFileEx(
 		windows.Handle(file.Fd()),
 		0,

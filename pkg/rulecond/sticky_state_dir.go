@@ -39,55 +39,91 @@ var stickyStateKeyPattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
 // @AX:ANCHOR [AUTO] @AX:SPEC: SPEC-STICKYRULE-001: the write-side containment frame — every counter open and every retention delete goes through the handle this returns.
 // @AX:REASON: Returning a path string instead of a handle reinstates name re-resolution on every later syscall, which is the seam a concurrent component swap used to land a write inside a link target.
 func openStateRoot(projectRoot string) (*os.Root, bool) {
+	state, err := openStateDir(projectRoot, StickyStateDirRelPath, true)
+	return state, err == nil
+}
+
+// runtimeStateDirRelPath is the parent of every named runtime state directory.
+const runtimeStateDirRelPath = ".autopus/runtime"
+
+// errUnusableStateComponent reports a state path component that exists but is
+// not a real directory.
+var errUnusableStateComponent = errors.New("rulecond: state path component is not a directory")
+
+// OpenRuntimeStateDir opens `.autopus/runtime/<name>` below projectRoot as a
+// directory handle through the same component-wise descent as the sticky
+// counter state, creating absent components. A symlinked or non-directory
+// component is refused, never followed (SPEC-EDITGUARD-001 REQ-EG-09).
+func OpenRuntimeStateDir(projectRoot, name string) (*os.Root, error) {
+	return openRuntimeStateDir(projectRoot, name, true)
+}
+
+// LookupRuntimeStateDir is OpenRuntimeStateDir for readers: it creates
+// nothing, and an absent component yields an error wrapping fs.ErrNotExist so a
+// reader can tell "no state yet" from unusable state.
+func LookupRuntimeStateDir(projectRoot, name string) (*os.Root, error) {
+	return openRuntimeStateDir(projectRoot, name, false)
+}
+
+func openRuntimeStateDir(projectRoot, name string, create bool) (*os.Root, error) {
+	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, "/\\\x00") {
+		return nil, errors.New("rulecond: invalid runtime state directory name")
+	}
+	return openStateDir(projectRoot, runtimeStateDirRelPath+"/"+name, create)
+}
+
+// openStateDir descends the slash-separated relative path below projectRoot
+// one component at a time, each step relative to the parent's descriptor.
+func openStateDir(projectRoot, relative string, create bool) (*os.Root, error) {
 	// The project root is the trust anchor and is the one path here that may
 	// legitimately sit behind a symlink, because the system prefix above a
 	// checkout routinely does. See trustedroot.go for that contract.
 	base, err := filepath.EvalSymlinks(projectRoot)
 	if err != nil {
-		return nil, false
+		return nil, err
 	}
 	current, err := os.OpenRoot(base)
 	if err != nil {
-		return nil, false
+		return nil, err
 	}
 
-	relative := filepath.FromSlash(StickyStateDirRelPath)
-	for _, component := range strings.Split(relative, string(os.PathSeparator)) {
+	for _, component := range strings.Split(relative, "/") {
 		if component == "" {
 			continue
 		}
-		next, ok := descendStateComponent(current, component)
+		next, err := descendStateComponent(current, component, create)
 		_ = current.Close()
-		if !ok {
-			return nil, false
+		if err != nil {
+			return nil, err
 		}
 		current = next
 	}
-	return current, true
+	return current, nil
 }
 
-// descendStateComponent creates one component of the state path when it is
-// absent and returns a handle to it.
+// descendStateComponent returns a handle to one component of the state path,
+// creating it first when create is set and it is absent.
 //
 // Anything already at that name which is not a real directory — a symlink, a
 // regular file, a device node — is refused rather than followed, which is the
 // same rule containedProjectPath applies on the read side. The Lstat and the
 // open are both relative to the parent descriptor, so neither one re-resolves
 // the components above it.
-func descendStateComponent(parent *os.Root, component string) (*os.Root, bool) {
-	if err := parent.Mkdir(component, stickyStateDirPerm); err != nil &&
-		!errors.Is(err, fs.ErrExist) {
-		return nil, false
+func descendStateComponent(parent *os.Root, component string, create bool) (*os.Root, error) {
+	if create {
+		if err := parent.Mkdir(component, stickyStateDirPerm); err != nil &&
+			!errors.Is(err, fs.ErrExist) {
+			return nil, err
+		}
 	}
 	info, err := parent.Lstat(component)
-	if err != nil || !info.Mode().IsDir() {
-		return nil, false
-	}
-	child, err := parent.OpenRoot(component)
 	if err != nil {
-		return nil, false
+		return nil, err
 	}
-	return child, true
+	if !info.Mode().IsDir() {
+		return nil, errUnusableStateComponent
+	}
+	return parent.OpenRoot(component)
 }
 
 // pruneStickyState enforces the REQ-STICKYRULE-STATE-01 bounds: entries older

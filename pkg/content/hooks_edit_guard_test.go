@@ -1,0 +1,258 @@
+package content_test
+
+// SPEC-EDITGUARD-001 T8, T10, and T11 oracles: the guard HookConfig of each
+// enforced lane (REQ-EG-12 to REQ-EG-14), its confinement to the lanes the
+// enforcement matrix marks enforced, and the REQ-EG-11 command line run
+// through a real POSIX shell.
+
+import (
+	"bytes"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/insajin/autopus-adk/pkg/adapter"
+	"github.com/insajin/autopus-adk/pkg/config"
+	"github.com/insajin/autopus-adk/pkg/content"
+	"github.com/insajin/autopus-adk/pkg/editguard"
+)
+
+// wantClaudeGuard is the registration spec.md's Decision Output Contract
+// fixes: one PreToolUse entry for the file-editing tools, a 5 second timeout,
+// and the canonical command line, byte for byte.
+var wantClaudeGuard = adapter.HookConfig{
+	Event:   "PreToolUse",
+	Matcher: "Edit|Write|MultiEdit",
+	Type:    "command",
+	Command: `out=$(auto guard edit --platform claude-code) && [ -n "$out" ] && printf '%s\n' "$out"; exit 0`,
+	Timeout: 5,
+}
+
+// wantLaneGuards is the guard registration of every enforced lane. Codex
+// matches only apply_patch, the one tool whose payload names its targets, so
+// its shell calls (tool_name Bash) never reach the guard (T11 probe C1, C3).
+// Gemini CLI anchors its regex matcher on its two file-editing tools and reads
+// hook timeouts in milliseconds (T11 probe G7b, G8). OpenCode's plugin spawns
+// the bare command itself and translates the canonical file-editing matcher to
+// its native tools per plugin API version.
+var wantLaneGuards = map[string]adapter.HookConfig{
+	"claude":      wantClaudeGuard,
+	"claude-code": wantClaudeGuard,
+	"codex": {Event: "PreToolUse", Matcher: "apply_patch", Type: "command",
+		Command: `out=$(auto guard edit --platform codex) && [ -n "$out" ] && printf '%s\n' "$out"; exit 0`, Timeout: 5},
+	"opencode": {Event: "PreToolUse", Matcher: "Edit|Write|MultiEdit", Type: "command",
+		Command: "auto guard edit --platform opencode", Timeout: 5},
+	"gemini":     geminiGuard,
+	"gemini-cli": geminiGuard,
+}
+
+var geminiGuard = adapter.HookConfig{Event: "BeforeTool", Matcher: "^(write_file|replace)$", Type: "command",
+	Command: `out=$(auto guard edit --platform gemini) && [ -n "$out" ] && printf '%s\n' "$out"; exit 0`, Timeout: 5000}
+
+func guardEntries(hooks []adapter.HookConfig) []adapter.HookConfig {
+	var out []adapter.HookConfig
+	for _, hook := range hooks {
+		if strings.Contains(hook.Command, "auto guard edit") {
+			out = append(out, hook)
+		}
+	}
+	return out
+}
+
+func withoutGuard(hooks []adapter.HookConfig) []adapter.HookConfig {
+	out := make([]adapter.HookConfig, 0, len(hooks))
+	for _, hook := range hooks {
+		if !strings.Contains(hook.Command, "auto guard edit") {
+			out = append(out, hook)
+		}
+	}
+	return out
+}
+
+// TestGenerateProjectHookConfigs_EditGuardRegistersOnEnforcedLanes: each
+// enforced lane gets exactly its registration, under every adapter spelling of
+// its platform id, and Antigravity and OMP get none.
+func TestGenerateProjectHookConfigs_EditGuardRegistersOnEnforcedLanes(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.DefaultFullConfig("guard")
+	for platform, want := range wantLaneGuards {
+		hooks, _, err := content.GenerateProjectHookConfigs(cfg, platform, true)
+		require.NoError(t, err, platform)
+		assert.Equal(t, []adapter.HookConfig{want}, guardEntries(hooks), platform)
+	}
+	for _, platform := range []string{"antigravity-cli", "omp"} {
+		hooks, _, err := content.GenerateProjectHookConfigs(cfg, platform, true)
+		require.NoError(t, err, platform)
+		assert.Empty(t, guardEntries(hooks), "%s registers no guard entry", platform)
+	}
+}
+
+// TestGenerateProjectHookConfigs_EditGuardFollowsTheMatrix (S12): a lane the
+// enforcement matrix marks enforced has one guard handler, and every other
+// lane has none.
+func TestGenerateProjectHookConfigs_EditGuardFollowsTheMatrix(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.DefaultFullConfig("guard")
+	for _, lane := range editguard.Lanes() {
+		hooks, _, err := content.GenerateProjectHookConfigs(cfg, lane.Platform, true)
+		require.NoError(t, err, lane.Platform)
+		want := 0
+		if lane.State == editguard.Enforced {
+			want = 1
+		}
+		assert.Len(t, guardEntries(hooks), want, "%s is %s", lane.Platform, lane.State)
+	}
+}
+
+// TestGenerateHookConfigs_EditGuardFollowsTheFlag: unset and true register the
+// guard, false registers none, and the flag never moves any other hook.
+func TestGenerateHookConfigs_EditGuardFollowsTheFlag(t *testing.T) {
+	t.Parallel()
+
+	for _, platform := range []string{"codex", "opencode", "gemini"} {
+		hooks, _, err := content.GenerateHookConfigs(config.HooksConf{EditGuard: new(false)}, platform, true)
+		require.NoError(t, err, platform)
+		assert.Empty(t, guardEntries(hooks), "%s with edit_guard: false", platform)
+	}
+	off, _, err := content.GenerateHookConfigs(config.HooksConf{PreCommitArch: true, EditGuard: new(false)},
+		"claude-code", true)
+	require.NoError(t, err)
+	assert.Empty(t, guardEntries(off), "edit_guard: false")
+
+	for name, flag := range map[string]*bool{"unset": nil, "true": new(true)} {
+		on, _, err := content.GenerateHookConfigs(config.HooksConf{PreCommitArch: true, EditGuard: flag},
+			"claude-code", true)
+		require.NoError(t, err, name)
+		assert.Equal(t, []adapter.HookConfig{wantClaudeGuard}, guardEntries(on), name)
+		assert.Equal(t, off, withoutGuard(on), "%s: the guard must not displace another hook", name)
+	}
+}
+
+// guardStub is one `auto` executable the registered command line can meet.
+type guardStub struct {
+	name           string
+	stdout, stderr string
+	exit           int
+	absent         bool   // no `auto` on PATH at all
+	want           string // the command line's stdout
+	// runtimeTrace marks stderr the Go runtime writes for a panic the guard
+	// did not recover. REQ-EG-10 bounds stderr to one line for the faults the
+	// guard handles itself; an unrecovered panic prints its goroutine trace,
+	// which the command line passes through unchanged and still exits 0.
+	runtimeTrace bool
+}
+
+// TestEditGuardHookCommand_ForwardsOnlyACleanExitDecision runs the generated
+// Claude command line through sh -c (S7): a decision reaches the host only from
+// a guard that exited 0, with exactly one trailing newline, and the line itself
+// exits 0 whatever the guard did, so no guard fault can block an edit. The
+// command line adds nothing to stderr: the guard's own line passes through as
+// is, and a missing `auto` leaves the shell's single not-found line.
+func TestEditGuardHookCommand_ForwardsOnlyACleanExitDecision(t *testing.T) {
+	t.Parallel()
+
+	sh, err := exec.LookPath("sh")
+	if err != nil {
+		t.Skip("no POSIX shell on PATH")
+	}
+	cat, err := exec.LookPath("cat")
+	require.NoError(t, err)
+	line := claudeGuardHook(t).Command
+	// One stub executable for every case: macOS evaluates each new executable
+	// once, serialized system-wide, so a script per case would slow every test
+	// that runs beside this one (see the PROCESS_HEAVY_TESTS note in Makefile).
+	stubBin, emptyBin := t.TempDir(), t.TempDir()
+	writeGuardStub(t, stubBin)
+	// The reason carries printf and shell metacharacters that must pass as data.
+	deny := `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny",` +
+		`"permissionDecisionReason":"R1 100%s \\n 'q' \"$out\""}}`
+	payload := `{"tool_name":"Edit","tool_input":{"file_path":"/p/.claude/skills/auto-fix/SKILL.md"}}`
+
+	for _, stub := range []guardStub{
+		{name: "deny on a clean exit", stdout: deny + "\n", want: deny + "\n"},
+		{name: "deny without a newline", stdout: deny, want: deny + "\n"},
+		{name: "deny with extra newlines", stdout: deny + "\n\n\n", want: deny + "\n"},
+		{name: "allow on a clean exit"},
+		{name: "deny bytes then exit 2", stdout: deny + "\n", exit: 2},
+		{name: "deny bytes then exit 1", stdout: deny + "\n", exit: 1},
+		{name: "recovered fault", stderr: "autopus edit-guard: allow (payload malformed)\n"},
+		{name: "unrecovered panic", stderr: "panic: boom\n\ngoroutine 1 [running]:\n", exit: 2, runtimeTrace: true},
+		{name: "version skew", stderr: "Error: unknown command \"guard\" for \"auto\"\n", exit: 1},
+		{name: "no auto on PATH", absent: true},
+	} {
+		t.Run(stub.name, func(t *testing.T) {
+			t.Parallel()
+			bin, state := stubBin, t.TempDir()
+			if stub.absent {
+				bin = emptyBin
+			}
+			for name, body := range map[string]string{
+				"stdout": stub.stdout, "stderr": stub.stderr, "exit": strconv.Itoa(stub.exit) + "\n",
+			} {
+				require.NoError(t, os.WriteFile(filepath.Join(state, name), []byte(body), 0o600))
+			}
+			cmd := exec.Command(sh, "-c", line)
+			cmd.Env = []string{"PATH=" + bin + string(os.PathListSeparator) + filepath.Dir(cat), "GUARD_STUB=" + state}
+			cmd.Stdin = strings.NewReader(payload)
+			var stdout, stderr bytes.Buffer
+			cmd.Stdout, cmd.Stderr = &stdout, &stderr
+
+			require.NoError(t, cmd.Run(), "the command line must exit 0")
+			assert.Equal(t, stub.want, stdout.String())
+			if !stub.runtimeTrace {
+				assert.LessOrEqual(t, strings.Count(stderr.String(), "\n"), 1, "at most one stderr line: %q", stderr.String())
+			}
+			if stub.absent {
+				assert.Contains(t, stderr.String(), "auto", "the shell names the missing command")
+				return
+			}
+			assert.Equal(t, stub.stderr, stderr.String(), "the command line forwards the guard's stderr unchanged")
+			assert.Equal(t, payload, readStubFile(t, state, "stdin"), "the guard reads the payload on stdin")
+			assert.Equal(t, "guard edit --platform claude-code\n", readStubFile(t, state, "args"))
+		})
+	}
+}
+
+// claudeGuardHook returns the single guard entry generated for Claude Code.
+func claudeGuardHook(t *testing.T) adapter.HookConfig {
+	t.Helper()
+
+	hooks, _, err := content.GenerateProjectHookConfigs(config.DefaultFullConfig("guard"), "claude-code", true)
+	require.NoError(t, err)
+	guards := guardEntries(hooks)
+	require.Len(t, guards, 1)
+	return guards[0]
+}
+
+// writeGuardStub installs an `auto` that records its stdin and argv in the
+// case directory $GUARD_STUB, then prints that case's bytes and exits with its
+// status.
+func writeGuardStub(t *testing.T, bin string) {
+	t.Helper()
+
+	script := `#!/bin/sh
+cat > "$GUARD_STUB/stdin"
+printf '%s\n' "$*" > "$GUARD_STUB/args"
+cat "$GUARD_STUB/stdout"
+cat "$GUARD_STUB/stderr" >&2
+read -r code < "$GUARD_STUB/exit"
+exit "$code"
+`
+	require.NoError(t, os.WriteFile(filepath.Join(bin, "auto"), []byte(script), 0o755))
+}
+
+func readStubFile(t *testing.T, bin, name string) string {
+	t.Helper()
+
+	raw, err := os.ReadFile(filepath.Join(bin, name))
+	require.NoError(t, err)
+	return string(raw)
+}

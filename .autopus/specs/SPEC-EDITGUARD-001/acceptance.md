@@ -69,11 +69,12 @@ And `auto fix lock pkg`, `auto fix lock ../outside_test.go`, and `auto fix lock 
 Priority: Must
 Given fixture R, where S1 row 1 would deny
 When the guard, or the registered command line run through `sh -c`, handles each case of the table
-Then each run exits 0 with EMPTY stdout and at most one stderr line
+Then each run exits 0 with EMPTY stdout, and each fault the guard handles (REQ-EG-10) writes at most one stderr line
+And the unrecovered panic's Go runtime trace passes through on stderr while the command line still exits 0
 
 | case | input |
 |---|---|
-| bad stdin | `{"tool_input":`; zero bytes; 1048577 bytes of `a` |
+| bad stdin | `{"tool_input":`; zero bytes; 1048577 bytes of `a` (`payload malformed`); 67108865 bytes (`payload over 64 MiB`) |
 | no extractable target | `{"tool_name":"Edit","tool_input":{}}`; `{"tool_name":"Edit","tool_input":{"file_path":42}}` |
 | recovered panic | S1 row 1 with the [NEW] test-only panic seam inside the decision |
 | crash after output | command line with a stub `auto` that prints S1 row 1 deny bytes and exits 2; the same stub exiting 1 |
@@ -88,9 +89,9 @@ Given R in a temp dir whose absolute path ends in `alice/secret-project`, an alw
 When P(Edit) targets each by absolute path and a corrupt manifest triggers a diagnostic
 Then the first deny reason contains `.claude/skills/evil[31mname/SKILL.md`, no byte below 0x20, and no occurrence of R's absolute path
 And the long-path reason echoes a path of exactly 256 bytes ending in `...`, stays within 1024 bytes, and still ends with `then run: auto update`
-And the lock reasons end with `auto fix unlock -- 'internal/foo/my repro_test.go'`, `auto fix unlock -- 'internal/foo/it'\''s_test.go'`, and `auto fix unlock -- '--all'`
+And only the `--all` lock reason echoes its path, ending with `auto fix unlock -- '--all'`
 And running exactly `auto fix unlock -- '--all'` through `sh -c` removes only the `--all` lock while the other four locks stay listed
-And the control-character path and the 221-byte single-quote path (whose quoted FL reason would be 1248 bytes) both end with the FL-X sentence `If the test itself is wrong, stop and ask the user to find the path with auto fix lock --list --json and unlock it.` within 1024 bytes
+And `internal/foo/my repro_test.go`, `internal/foo/it's_test.go`, the control-character path, and the 221-byte single-quote path (whose quoted FL reason would be 1248 bytes), each holding a character outside `[A-Za-z0-9._/@+-]`, all end with the FL-X sentence `If the test itself is wrong, stop and ask the user to find the path with auto fix lock --list --json and unlock it.` within 1024 bytes
 And the corrupt-manifest stderr is exactly `autopus edit-guard: allow (manifest unreadable: .autopus/claude-code-manifest.json)`.
 
 ### S9: OpenCode plugins use native payloads and deny only on a clean exit
@@ -125,8 +126,8 @@ And `SetupAutonomousMode` and then `CleanupAutonomousMode` on that file leave ev
 Priority: Must
 Given A1 and A2 recorded PASS, and A3 and the T11 Gemini probe recorded PASS or FAIL in plan.md
 When `auto update` regenerates every platform
-Then `docs/edit-guard.md` lists exactly: Claude Code `enforced`; OpenCode `enforced`; Codex `enforced` on A3 PASS else `none`; Gemini CLI `enforced` on T11 PASS else `none`; Antigravity `advisory-only`; OMP `none`
-And each `enforced` lane has one guard handler whose real-payload fixture yields its deny encoding, and each `none` lane has zero guard handlers
+Then `docs/edit-guard.md` lists exactly: Claude Code `enforced`; OpenCode `enforced`; OpenCode 1.x `host-unverified`; Codex `enforced` on A3 PASS else `none`; Gemini CLI `enforced` on T11 PASS else `none`; Antigravity `advisory-only`; OMP `none`
+And each `enforced` lane has one guard handler whose real-payload fixture yields its deny encoding, the `host-unverified` OpenCode 1.x lane carries the generated guard without counting as enforced, and each `none` lane has zero guard handlers
 And an A1 or A2 FAIL leaves this scenario failing, which blocks completion until the lane is fixed or the user explicitly re-approves the scope.
 
 ### S13: The /auto fix workflow carries the lock contract

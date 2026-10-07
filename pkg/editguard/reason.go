@@ -1,0 +1,109 @@
+package editguard
+
+import (
+	"path/filepath"
+	"strings"
+	"unicode/utf8"
+)
+
+// Reason sizes of REQ-EG-17 and spec.md Decision Output Contract.
+const (
+	maxReasonBytes  = 1024
+	maxDisplayBytes = 256
+	displayCut      = maxDisplayBytes - len(displayEllipsis)
+	displayEllipsis = "..."
+	redacted        = "<redacted>"
+)
+
+const (
+	gsHead  = "autopus edit-guard [generated_surface]: "
+	gsSrc   = "Change the canonical source (content/, templates/, pkg/adapter/) and run: make generate-templates && auto update"
+	gsCon   = "Change autopus.yaml or the upstream Autopus source, then run: auto update"
+	flUser  = "If the test itself is wrong, stop and ask the user to run: auto fix unlock -- "
+	flxUser = "If the test itself is wrong, stop and ask the user to find the path with auto fix lock --list --json and unlock it."
+)
+
+// gsReason is GS-SRC in the ADK source repo and GS-CON elsewhere.
+func gsReason(display, manifest string, sourceRepo bool) string {
+	tail := gsCon
+	if sourceRepo {
+		tail = gsSrc
+	}
+	return gsHead + displayPath(display) + " is generated (manifest " + displayPath(manifest) +
+		", policy always). " + tail
+}
+
+// flReason is FL for the recorded path, or FL-X when the path is not safe to
+// echo or the complete FL reason would pass 1024 bytes.
+func flReason(recorded string) string {
+	head := flHead(recorded)
+	if echoable(recorded) {
+		if reason := head + flUser + shellQuote(recorded); len(reason) <= maxReasonBytes {
+			return reason
+		}
+	}
+	return head + flxUser
+}
+
+func flHead(recorded string) string {
+	return "autopus edit-guard [fix_lock]: " + displayPath(recorded) +
+		" is the locked reproduction test of an in-progress /auto fix. Fix the code under test instead. "
+}
+
+func gstReason(rel string) string {
+	return "autopus edit-guard [guard_state]: " + displayPath(rel) +
+		" is edit-guard state. Use auto fix lock, auto fix unlock, or auto update instead."
+}
+
+// echoable reports whether a path may be echoed as an unlock argument: at
+// most 256 bytes of [A-Za-z0-9._/@+-]. Such a path displays as itself, holds
+// no shell syntax for any shell, and cannot hide another file behind
+// lookalike or bidirectional characters (L1).
+func echoable(p string) bool {
+	if p == "" || len(p) > maxDisplayBytes {
+		return false
+	}
+	for i := 0; i < len(p); i++ {
+		switch c := p[i]; {
+		case 'a' <= c && c <= 'z', 'A' <= c && c <= 'Z', '0' <= c && c <= '9':
+		case c == '.' || c == '_' || c == '/' || c == '@' || c == '+' || c == '-':
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// displayPath is the sanitized {path}: control bytes removed, invalid UTF-8
+// replaced, an absolute path redacted, and more than 256 bytes cut on a UTF-8
+// boundary to at most 253 bytes plus "...".
+func displayPath(p string) string {
+	clean := strings.ToValidUTF8(strings.Map(dropControl, p), "�")
+	if strings.HasPrefix(clean, "/") || strings.HasPrefix(clean, `\`) || filepath.IsAbs(clean) {
+		return redacted
+	}
+	if len(clean) <= maxDisplayBytes {
+		return clean
+	}
+	cut := displayCut
+	for cut > 0 && !utf8.RuneStart(clean[cut]) {
+		cut--
+	}
+	return clean[:cut] + displayEllipsis
+}
+
+func isControl(r rune) bool { return r < 0x20 || r == 0x7f }
+
+func dropControl(r rune) rune {
+	if isControl(r) {
+		return -1
+	}
+	return r
+}
+
+// shellQuote quotes s for a POSIX shell. Nothing is special inside single
+// quotes, so each embedded quote closes the quoting, adds a backslash-escaped
+// quote, and reopens it.
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}

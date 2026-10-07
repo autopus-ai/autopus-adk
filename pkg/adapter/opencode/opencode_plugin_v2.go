@@ -7,7 +7,14 @@ import (
 	"github.com/insajin/autopus-adk/pkg/adapter"
 )
 
+// renderHookPluginV2 renders the V2 native plugin: the shell-tool hooks run
+// for tool shell, and the edit guard for the file-editing tools OpenCode 2.0.10
+// offered in probe A2.
 func renderHookPluginV2(hooks []adapter.HookConfig) (string, error) {
+	hooks, guard, err := splitEditGuard(hooks, openCodeGuardToolsV2)
+	if err != nil {
+		return "", err
+	}
 	type hookCommand struct {
 		Command string `json:"command"`
 		Timeout int    `json:"timeout"`
@@ -30,7 +37,8 @@ func renderHookPluginV2(hooks []adapter.HookConfig) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return strings.NewReplacer("__BEFORE_HOOKS__", string(encodedBefore), "__AFTER_HOOKS__", string(encodedAfter)).Replace(openCodePluginV2Source), nil
+	return strings.NewReplacer("__BEFORE_HOOKS__", string(encodedBefore), "__AFTER_HOOKS__", string(encodedAfter),
+		"__EDIT_GUARD__", guard, "__GUARD_RUNTIME__", openCodeGuardRuntime).Replace(openCodePluginV2Source), nil
 }
 
 // Hook signatures and session.location come from @opencode/plugin 2.0.10.
@@ -42,6 +50,10 @@ import path from "node:path"
 const BEFORE_HOOKS = __BEFORE_HOOKS__
 const AFTER_HOOKS = __AFTER_HOOKS__
 const OUTPUT_LIMIT = 65536
+// EDIT_GUARD is the generated auto guard edit registration, or null.
+const EDIT_GUARD = __EDIT_GUARD__
+
+__GUARD_RUNTIME__
 
 function bounded(promise, milliseconds) {
   let timer
@@ -128,8 +140,25 @@ export default {
       return workdir ? path.resolve(directory, workdir) : directory
     }
 
+    // sessionDirectory is the guard's cwd. Unlike the shell hooks, a lookup
+    // fault leaves it undefined, and the guard then fails open.
+    async function sessionDirectory(event) {
+      try {
+        const session = await bounded(ctx.session.get({ sessionID: event.sessionID }), 5000)
+        const directory = session?.location?.directory
+        if (session?.id === event.sessionID && typeof directory === "string" && path.isAbsolute(directory) && !directory.includes("\0")) return directory
+      } catch {}
+      return undefined
+    }
+
     try {
       registrations.push(await ctx.tool.hook("execute.before", async (event) => {
+        if (EDIT_GUARD && EDIT_GUARD.tools.includes(event.tool)) {
+          if (disposed) return
+          const cwd = await sessionDirectory(event)
+          if (cwd !== undefined) await guardEdit(event.tool, event.input, cwd, running)
+          return
+        }
         if (event.tool !== "shell") return
         const key = callKey(event)
         if (contexts.size >= 1024 || contexts.has(key)) throw new Error("Autopus shell hook context limit or duplicate call")

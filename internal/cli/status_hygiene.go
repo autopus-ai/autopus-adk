@@ -45,32 +45,19 @@ type statusHygieneFamilyPayload struct {
 	Paths       []string `json:"paths"`
 }
 
-var runtimeUnignoredExtraPrefixes = []string{
-	".agents/commands/",
-	".agents/skills/",
-	".autopus/backup/",
-	".autopus/cache/",
-	".autopus/canary/",
-	".autopus/design/imports/",
-	".autopus/design/verify/",
-	".autopus/docs/",
-	".autopus/metrics/",
-	".autopus/qa/cache/",
-	".autopus/qa/evidence/",
-	".autopus/qa/feedback/",
-	".autopus/qa/gui/",
-	".autopus/qa/releases/",
-	".autopus/qa/runs/",
-	".autopus/runtime/",
-	".autopus/telemetry/",
-}
+// runtimeUnignoredExtraPrefixes and runtimeUnignoredExtraExactPaths are the
+// members the hygiene check adds on top of the drift-gate members. Both come
+// from the categorized surface table in pkg/workflow (REQ-EG-01).
+var runtimeUnignoredExtraPrefixes = workflow.SurfacePrefixes(workflow.ConsumerStatusHygiene)
 
-var runtimeUnignoredExtraExactPaths = map[string]bool{
-	".agents/hooks.json":   true,
-	".autopus/audit.jsonl": true,
-	".autopus/state.json":  true,
-	".claude.json":         true,
-	".mcp.json":            true,
+var runtimeUnignoredExtraExactPaths = surfacePathSet(workflow.SurfaceExactPaths(workflow.ConsumerStatusHygiene))
+
+func surfacePathSet(paths []string) map[string]bool {
+	set := make(map[string]bool, len(paths))
+	for _, rel := range paths {
+		set[rel] = true
+	}
+	return set
 }
 
 func collectStatusHygiene(dir string) statusHygieneReport {

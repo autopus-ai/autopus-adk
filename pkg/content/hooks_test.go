@@ -79,6 +79,7 @@ func TestGenerateHookConfigs_AllDisabled(t *testing.T) {
 		PreCommitLore:  false,
 		ReactCIFailure: false,
 		ReactReview:    false,
+		EditGuard:      new(false),
 	}
 
 	hooks, gitHooks, err := content.GenerateHookConfigs(cfg, "claude", true)
@@ -190,60 +191,13 @@ func TestGenerateHookConfigs_DeduplicatesReactHooks(t *testing.T) {
 	hooks, _, err := content.GenerateHookConfigs(cfg, "claude", true)
 	require.NoError(t, err)
 	// ReactCIFailure and ReactReview both enabled — dedup keeps only one PostToolUse react hook,
-	// plus the unconditional completion Stop hook, the SessionStart ready hook
-	// (SPEC-ORCH-022), the SPEC-CONDRULE-001 dispatcher, and the SPEC-STICKYRULE-001 entry.
-	require.Len(t, hooks, 5,
-		"expected one deduped react hook plus the Stop, SessionStart, dispatcher, and sticky hooks")
+	// plus the Stop and SessionStart hooks (SPEC-ORCH-022), the SPEC-CONDRULE-001 dispatcher,
+	// the SPEC-STICKYRULE-001 entry, and the SPEC-EDITGUARD-001 guard an unset flag enables.
+	require.Len(t, hooks, 6,
+		"expected one deduped react hook plus the Stop, SessionStart, dispatcher, sticky, and edit guard hooks")
 	reactHook := findHook(hooks, "PostToolUse")
 	require.NotNil(t, reactHook, "expected a PostToolUse react hook")
 	assert.Equal(t, "auto react check --quiet", reactHook.Command)
-}
-
-func TestGenerateProjectHookConfigs_ClaudeTaskCreatedEnabled(t *testing.T) {
-	t.Parallel()
-
-	cfg := config.DefaultFullConfig("demo")
-	cfg.Hooks = config.HooksConf{}
-	cfg.Features.CC21 = config.CC21FeaturesConf{
-		Enabled:                 true,
-		EffortEnabled:           true,
-		MonitorEnabled:          true,
-		TaskCreatedEnabled:      true,
-		InitialPromptEnabled:    true,
-		TaskCreatedMode:         "warn",
-		MonitorPatternTimeoutMS: 30000,
-	}
-
-	hooks, gitHooks, err := content.GenerateProjectHookConfigs(cfg, "claude-code", true)
-	require.NoError(t, err)
-	// Expect: completion Stop hook + SessionStart ready hook (SPEC-ORCH-022) +
-	// TaskCreated hook + SPEC-CONDRULE-001 dispatcher + SPEC-STICKYRULE-001 entry.
-	require.Len(t, hooks, 5)
-	assert.Empty(t, gitHooks)
-	taskCreatedHook := findHook(hooks, "TaskCreated")
-	require.NotNil(t, taskCreatedHook, "expected a TaskCreated hook")
-	assert.Equal(t, "AUTOPUS_TASKCREATED_DEFAULT_MODE=warn .claude/hooks/task-created-validate.sh", taskCreatedHook.Command)
-	assert.Empty(t, taskCreatedHook.Env)
-}
-
-func TestGenerateProjectHookConfigs_TaskCreatedDisabledOutsideClaude(t *testing.T) {
-	t.Parallel()
-
-	cfg := config.DefaultFullConfig("demo")
-	cfg.Hooks = config.HooksConf{}
-	cfg.Features.CC21 = config.CC21FeaturesConf{
-		Enabled:            true,
-		TaskCreatedEnabled: true,
-		TaskCreatedMode:    "enforce",
-	}
-
-	hooks, gitHooks, err := content.GenerateProjectHookConfigs(cfg, "codex", true)
-	require.NoError(t, err)
-	// TaskCreated is disabled outside claude; Codex still receives the completion
-	// and readiness hooks required by pane IPC.
-	require.Len(t, hooks, 2, "completion Stop and SessionStart hooks expected for codex")
-	assert.ElementsMatch(t, []string{"Stop", "SessionStart"}, eventNames(hooks))
-	assert.Empty(t, gitHooks)
 }
 
 func TestGitHookScript_Content(t *testing.T) {

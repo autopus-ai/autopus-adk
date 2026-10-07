@@ -10,25 +10,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// The fragment uses Claude Code's current handler object format; a bare
+// command string is not a valid handler there (REQ-EG-19).
 func TestGenerateHookConfig(t *testing.T) {
 	t.Parallel()
 
-	config := GenerateHookConfig("/tmp/policy.json")
+	data, err := json.Marshal(GenerateHookConfig("/tmp/policy.json"))
+	require.NoError(t, err)
 
-	hooks, ok := config["hooks"].(map[string]any)
-	require.True(t, ok, "hooks key should be a map")
-
-	preToolUse, ok := hooks["PreToolUse"]
-	require.True(t, ok, "PreToolUse key should exist")
-
-	entries, ok := preToolUse.([]hookEntry)
-	require.True(t, ok, "PreToolUse should be []hookEntry")
-	require.Len(t, entries, 1)
-
-	assert.Equal(t, "Bash|Write|Edit", entries[0].Matcher)
-	require.Len(t, entries[0].Hooks, 1)
-	assert.Contains(t, entries[0].Hooks[0], "/tmp/policy.json")
-	assert.Contains(t, entries[0].Hooks[0], "auto worker validate")
+	assert.JSONEq(t, `{"hooks":{"PreToolUse":[`+workerEntry+`]}}`, string(data))
 }
 
 func TestWriteHookConfig(t *testing.T) {
@@ -103,6 +93,9 @@ func TestRemoveHookConfig(t *testing.T) {
 	assert.False(t, ok, "hooks key should be removed")
 }
 
+// Cleanup takes back only the worker handler: other keys and the hooks it did
+// not write stay, an untouched empty event included, while the event its
+// removal emptied goes (REQ-EG-19).
 func TestRemoveHookConfigPreservesOtherKeys(t *testing.T) {
 	t.Parallel()
 
@@ -110,14 +103,15 @@ func TestRemoveHookConfigPreservesOtherKeys(t *testing.T) {
 	settingsDir := filepath.Join(dir, ".claude")
 	require.NoError(t, os.MkdirAll(settingsDir, 0755))
 
-	// Write settings with hooks and other keys.
+	// Write settings with the worker hook, an empty event, and other keys.
 	settings := map[string]any{
 		"theme": "dark",
-		"hooks": map[string]any{"PreToolUse": []any{}},
+		"hooks": map[string]any{"PreToolUse": []any{}, "Stop": []any{}},
 	}
 	data, err := json.MarshalIndent(settings, "", "  ")
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(filepath.Join(settingsDir, "settings.json"), data, 0644))
+	require.NoError(t, WriteHookConfig(dir, "/tmp/policy.json"))
 
 	err = RemoveHookConfig(dir)
 	require.NoError(t, err)
@@ -125,12 +119,7 @@ func TestRemoveHookConfigPreservesOtherKeys(t *testing.T) {
 	result, err := os.ReadFile(filepath.Join(settingsDir, "settings.json"))
 	require.NoError(t, err)
 
-	var got map[string]any
-	require.NoError(t, json.Unmarshal(result, &got))
-
-	assert.Equal(t, "dark", got["theme"])
-	_, hasHooks := got["hooks"]
-	assert.False(t, hasHooks)
+	assert.JSONEq(t, `{"theme":"dark","hooks":{"Stop":[]}}`, string(result))
 }
 
 func TestWriteHookConfigInvalidExistingJSON(t *testing.T) {

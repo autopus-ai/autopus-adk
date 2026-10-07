@@ -162,6 +162,8 @@ func runDoctorText(cmd *cobra.Command, opts doctorOptions) error {
 			allOK = false
 		}
 	}
+	// The edit-guard registration report is advisory and never touches allOK.
+	checkEditGuardText(out, opts.dir, cfg)
 
 	// Context weight is advisory: it warns on an over-weight context catalog
 	// but never fails harness health, so its result does not touch allOK.
