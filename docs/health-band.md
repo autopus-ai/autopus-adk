@@ -59,20 +59,31 @@ diagnose phantom incidents:
 - A metric store band cannot read or write, such as a symlinked
   `.autopus/metrics/`, a store path swapped for a symlink or FIFO, or a store
   file above 64 MiB, completes no evaluation.
-- A metric store that git tracks (any file under `.autopus/metrics/` in the
-  index, in any letter case) came with the repository, not from this machine's
-  runs. Before it reads or locks the store, band checks this with a read-only
-  `git -c core.fsmonitor=false ls-files -z -- ':(icase).autopus/metrics'`,
-  records `store_tracked`, and changes nothing, under `--dry-run` as well. Any
-  listed path counts, however long the listing and whatever git's exit status.
-  `core.fsmonitor=false` keeps git from starting an fsmonitor command that the
-  repository's own config names, and the case-insensitive match also catches
-  `.autopus/METRICS/`, which is the store itself on a case-insensitive file
-  system such as APFS or NTFS. Run `git rm -r --cached .autopus/metrics` to
-  untrack it. Without git on `PATH`, outside a git repository, or in a
-  repository git refuses to read (for example one it reports as dubious
-  ownership), git lists nothing, and band treats the store as untracked: there
-  is no index it can read that could have brought store files in.
+- A metric store that git tracks (any path in the index that is
+  `.autopus/metrics/` or lies in it on disk, however the index spells it) came
+  with the repository, not from this machine's runs. Before it reads or locks
+  the store, band checks this with a read-only
+  `git -c core.fsmonitor=false ls-files -z -- ':(icase,glob).autopu*/metric*' ':(icase,glob).autopu*/metric*/**'`,
+  run without an inherited `GIT_LITERAL_PATHSPECS`, `GIT_GLOB_PATHSPECS`,
+  `GIT_NOGLOB_PATHSPECS`, or `GIT_ICASE_PATHSPECS`, records `store_tracked`,
+  and changes nothing, under `--dry-run` as well. git lists every path under
+  any `.autopu*/metric*` spelling, and band judges each by identity: a listed
+  path counts when its entry at the store's depth is the same file as
+  `.autopus/metrics/`. So `.autopus/METRICS/` and `.autopus/metricſ/` (a long
+  s, U+017F) count on a file system that resolves them to the store, such as
+  APFS, and a tracked symlink at the store path counts, while another
+  directory such as `.autopus/metrics-archive/` does not. When band cannot
+  settle identity, because a stat of either path fails or the listing is cut
+  short or above 64 KiB, the store counts as tracked, whatever git's exit
+  status: a project that tracks another `.autopu*/metric*` path is therefore
+  refused until `.autopus/metrics/` exists. `core.fsmonitor=false` keeps git
+  from starting an fsmonitor command that the repository's own config names.
+  Run `git rm -r --cached .autopus/metrics`, or the same for the spelling
+  `git ls-files` shows, to untrack it. Without git on `PATH`, outside a git
+  repository, or in a repository git refuses to read (for example one it
+  reports as dubious ownership), git lists nothing, and band treats the store
+  as untracked: there is no index it can read that could have brought store
+  files in.
 
 In both cases band prints the report it has and exits non-zero, and
 `--format json` carries the error in the envelope.
@@ -142,10 +153,12 @@ reason `identifier_sanitized`. CI logs, react reports, and provider output are
 redacted for secrets and local paths before any cut and reach a prompt or a BS
 file only inside a fenced untrusted-evidence block. Besides the shared
 patterns, band redacts JSON members and single-quoted Python dict items whose
-key names a credential (password, secret, token, AccessKey, ...), URL
-credentials (`scheme://user:pass@`, `scheme://:pass@`, and a token as the user
-of an http(s) URL, `https://<token>@host`),
-`Authorization: token|Basic|Bearer|Digest` headers, `Cookie:` and
+key names a credential (password, secret, token, AccessKey, Authorization,
+Cookie, ...), URL credentials (`scheme://user:pass@`, `scheme://:pass@`, and a
+token as the user of an http(s) URL, `https://<token>@host` and
+`https://<token>:@host`), `Authorization: token|Basic|Bearer|Digest` headers,
+also with the header name or the value quoted (`"Authorization": Bearer ...`,
+`Authorization: 'Bearer ...'` in a JS object), `Cookie:` and
 `Set-Cookie:` header values, JSON Web Tokens, PEM, PGP, and SSH2 private key
 blocks, `AccountKey=` and `SharedAccessKey=` values, and prefixed tokens such
 as `glpat-`, `ghp_`, `gho_`, `github_pat_`, `sk-`, and `pypi-`; each records

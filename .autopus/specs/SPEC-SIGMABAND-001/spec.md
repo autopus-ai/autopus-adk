@@ -2,7 +2,7 @@
 
 **Status**: approved
 **Created**: 2026-10-06
-**Revised**: 2026-10-07 (rev 3: split by user decision; the 3σ draft PR path moved to SPEC-SIGMABAND-002; rev 4: F-013, F-032, F-038; rev 5: Phase 4 review findings; rev 6: Phase 4 review round 2; see Review Resolution)
+**Revised**: 2026-10-07 (rev 3: split by user decision; the 3σ draft PR path moved to SPEC-SIGMABAND-002; rev 4: F-013, F-032, F-038; rev 5: Phase 4 review findings; rev 6: Phase 4 review rounds 2 and 3; see Review Resolution)
 **Domain**: SIGMABAND
 **Module**: autopus-adk
 **PRD**: `prd.md` (same directory). Where this SPEC and the PRD differ, the Review Resolution section names the reason and this SPEC wins.
@@ -109,11 +109,16 @@ SPEC-SIGMABAND-002 consumes the tier-3 episodes and their BS IDs; nothing in thi
 1. Network first, outside the lock: resolve host and `<owner/repo>` from the `origin` URL, then run the authentication,
    default-branch, and run-list commands of the gh Invocation Table.
 2. Before phase A and before a `--dry-run` plan, a store that git tracks is refused with `store_tracked` and a non-zero
-   exit: `git -c core.fsmonitor=false ls-files -z -- ':(icase).autopus/metrics'` lists any byte, whatever its exit status,
-   a listing above 64 KiB included. `core.fsmonitor=false` keeps a repository's fsmonitor command from starting, and the
-   `icase` pathspec also matches `.autopus/METRICS`, the store itself on a case-insensitive file system. Without git, or
-   when git lists nothing (outside a repository, or a repository git refuses to read), the store counts as untracked. A
-   store file above 64 MiB is refused before it is read.
+   exit. The store is judged by identity, not spelling:
+   `git -c core.fsmonitor=false ls-files -z -- ':(icase,glob).autopu*/metric*' ':(icase,glob).autopu*/metric*/**'`, run
+   without the inherited `GIT_LITERAL_PATHSPECS`, `GIT_GLOB_PATHSPECS`, `GIT_NOGLOB_PATHSPECS`, and `GIT_ICASE_PATHSPECS`,
+   lists the candidates: an entry at the store path and every path below it in any letter case and with a final s spelled
+   ſ (U+017F), which APFS folds to s. A candidate is a tracked store path when its entry at the store's depth (its first
+   two components) and `.autopus/metrics` stat to the same file (`os.SameFile`), and also when identity cannot be
+   settled: a stat of either path fails, a record lacks two components, the last record is unterminated, or the listing
+   exceeds 64 KiB. This holds whatever git's exit status. `core.fsmonitor=false` keeps a repository's fsmonitor command
+   from starting. Without git, or when git lists nothing (outside a repository, or a repository git refuses to read), the
+   store counts as untracked. A store file above 64 MiB is refused before it is read.
    Phase A under the lock (local file IO only; wait at most 5 s, otherwise `store_locked`): replay events newer than the
    checkpoint, append pending results, mark expired leases `interrupted`, merge fetched observations idempotently, evaluate
    pending positions, append evaluation events whose due actions carry claims `{id, kind, owner, lease_until}`, write the
@@ -194,7 +199,8 @@ are `remote_not_github` without a gh call; any other host must pass `gh auth sta
 injected `GH_HOST`, which gh answers only for a host in its hosts config or an inherited `GH_HOST` equal to it, otherwise
 the reason is `remote_not_github`. A failing `gh auth status --hostname github.com` gives `gh_unauthenticated`. The only
 other subprocess is the read-only `git remote get-url origin` and
-`git -c core.fsmonitor=false ls-files -z -- ':(icase).autopus/metrics'` (Review Resolution, store_tracked).
+`git -c core.fsmonitor=false ls-files -z -- ':(icase,glob).autopu*/metric*' ':(icase,glob).autopu*/metric*/**'`
+(Durability item 2, Review Resolution, store_tracked).
 
 ## Provider Read-Only Contract
 
@@ -222,9 +228,11 @@ other subprocess is the read-only `git remote get-url origin` and
    boundary; provider stdout keeps its first 1 MiB, bounded while the provider runs. Dropping bytes adds `size_cap`.
 2. Strip ANSI CSI sequences and C0 control characters except tab and newline.
 3. Redact the whole captured text first: the band-specific forms (JSON members and single-quoted Python dict items whose
-   key names a credential, URL credentials including `scheme://:password@` and a token as the user of an http(s) URL,
-   `Authorization: token|Basic|Bearer|Digest`, `Cookie:` and `Set-Cookie:` values, JWT, PEM, PGP, and SSH2 private key
-   blocks, `AccountKey=`, prefixed tokens such as `glpat-` and `pypi-`), each adding `secret_risk`, then
+   key names a credential, the `Authorization` and `Cookie` header names included, URL credentials including
+   `scheme://:password@` and a token as the user of an http(s) URL, also with an empty password (`https://<token>:@host`),
+   `Authorization: token|Basic|Bearer|Digest` with the header name or the value optionally quoted, `Cookie:` and
+   `Set-Cookie:` values, JWT, PEM, PGP, and SSH2 private key blocks, `AccountKey=`, prefixed tokens such as `glpat-` and
+   `pypi-`), each adding `secret_risk`, then
    `promptlayer.SanitizeContent(raw, ContextOptions{MaxBytes: 2*len(raw) + 17})` with
    injection evidence not preserved (`[REDACTED_SECRET]`, injection-marker lines removed, sorted reasons). The bound exceeds
    any redacted length (each secret match is at least 11 bytes and becomes the 17-byte `[REDACTED_SECRET]`), so this step never
@@ -387,8 +395,8 @@ amended:
 | F2 (store I/O exit) | a store band cannot read or write, and a git-tracked store, exit non-zero after the report: intentional fail-closed exceptions to the REQ-14 exit rule, since evaluating an untrusted store would record wrong results | REQ-14, docs/health-band.md |
 | F3 (`bs_scope_too_deep`) | a project more than 8 component edges below the top of its chain, which a scan from that top would not reach, ends the diagnose claim `failed:bs_scope_too_deep` instead of risking an ID collision, and the episode has no BS, like `failed:bs_lock_timeout` | BS Root Resolution item 2, docs/health-band.md |
 
-Rev 6 (Phase 4 review round 2, 2026-10-07) resolves the second-round findings; the contract text above already reads as
-amended:
+Rev 6 (Phase 4 review rounds 2 and 3, 2026-10-07) resolves the second-round findings and the third-round Low residuals;
+the contract text above already reads as amended:
 
 | Finding | Resolution | Where |
 |---------|------------|-------|
@@ -396,3 +404,5 @@ amended:
 | N1 (repository fsmonitor) | the tracked-store check runs `git -c core.fsmonitor=false`, so git never starts an fsmonitor command that the repository's own config names; `git remote get-url origin` reads no index and starts none | Durability item 2 |
 | L6 residual (BS ID exhaustion) | an ID an entry holds is never tried; when fewer than five free IDs remain above the highest valid BS, the allocation takes the five lowest free IDs and names each entry above `BS-BAND-999999994` on stderr, so no planted file at the top of the range, valid or not, blocks a BS; the S9 IDs and its five-collision `bs_id_exhausted` are unchanged | BS Root Resolution item 6, S9 |
 | M2 residual (secret forms, provider env) | band also redacts `https://<token>@host`, `scheme://:password@`, single-quoted Python dict credentials, `Cookie:` and `Set-Cookie:` values, and `pypi-` tokens; the provider also starts without the GitHub Actions OIDC and runtime tokens and the AWS web identity, `AWS_CONTAINER_*`, and Bedrock bearer credentials (`ProviderConfig.UnsetEnv` reads a trailing `*` as a prefix) | Untrusted Input Contract item 3, Provider Read-Only Contract item 6 |
+| L3 residual (spelling, inherited pathspec switches) | supersedes the `icase` spelling rule of the L3 residual row above: the store is judged by identity, not spelling. git lists candidates with `:(icase,glob).autopu*/metric*` and `:(icase,glob).autopu*/metric*/**`, so `.autopus/metricſ/` and `.autopuſ/metrics/` (ſ U+017F, which APFS folds to s) and a tracked symlink at the store path are listed, and a candidate counts when its entry at the store's depth is `os.SameFile` with `.autopus/metrics`, or when identity cannot be settled (a failed stat of either path, an unterminated record, a listing above 64 KiB), so another directory such as `.autopus/metrics-archive/` no longer counts; the call drops an inherited `GIT_LITERAL_PATHSPECS`, `GIT_GLOB_PATHSPECS`, `GIT_NOGLOB_PATHSPECS`, and `GIT_ICASE_PATHSPECS`, since `GIT_LITERAL_PATHSPECS=1` made git read the magic pathspec as a file name and list nothing | Durability item 2, gh Invocation Table |
+| M2 residual (header maps, empty password) | `authorization` and `cookie` join the credential keys, so `{"Authorization": "Bearer …"}`, `{'Authorization': 'Bearer …'}`, `{'Cookie': 'session=…'}`, and `{"cookie": "…"}` lose the whole value; the `Authorization` header form also takes a quoted header name and a quoted value (`"Authorization": Bearer …`, `Authorization: 'Bearer …'` in a JS object); a token user of an http(s) URL may carry an empty password (`https://<token>:@host`) | Untrusted Input Contract item 3 |
