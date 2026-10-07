@@ -1,5 +1,10 @@
 package terminal
 
+// Global pane IDs (%N) are the tmux targets every pane caller of this package
+// holds: Agent Teams panes and `auto terminal`. SPEC-PANERM-001 T17 retargeted
+// this file from the retired orchestra pane backend to that adapter contract;
+// each assertion below is TmuxAdapter behavior, not orchestra behavior.
+
 import (
 	"context"
 	"os/exec"
@@ -70,7 +75,7 @@ func TestTmuxAdapter_SendCommand_GlobalPaneIDUsesDirectTarget(t *testing.T) {
 }
 
 // TestTmuxAdapter_Close_GlobalPaneIDKillsPane verifies cleanup closes only the
-// pane created for the provider rather than treating its global ID as a session.
+// split pane a caller created rather than treating its global ID as a session.
 func TestTmuxAdapter_Close_GlobalPaneIDKillsPane(t *testing.T) {
 	restore, captured := newTmuxMock()
 	defer restore()
