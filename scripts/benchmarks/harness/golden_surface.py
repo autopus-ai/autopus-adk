@@ -92,7 +92,11 @@ def download_modules(tree: Path, modcache: Path, go: Path, scratch: Path, proxy:
     """Trusted stage: the arm's modules into a new session module cache, from a file proxy over the local
     module cache unless `proxy` names another; the arm's go.sum verifies them and may not change."""
     if proxy is None:
-        local = _run([str(go), 'env', 'GOMODCACHE'], tree, dict(os.environ), 60, 'build').strip()
+        # Outside the arm tree and with GOTOOLCHAIN=local, so an arm go.mod `toolchain` directive
+        # cannot download and re-exec a toolchain outside the sandbox.
+        scratch.mkdir(parents=True, exist_ok=True)
+        lookup = dict(os.environ, GOTOOLCHAIN='local', GOWORK='off', GOFLAGS='')
+        local = _run([str(go), 'env', 'GOMODCACHE'], scratch, lookup, 60, 'build').strip()
         proxy = Path(local, 'cache', 'download').as_uri()
     sums = Path(tree) / 'go.sum'
     pinned = sums.read_bytes() if sums.is_file() else b''

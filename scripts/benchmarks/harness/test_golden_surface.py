@@ -107,6 +107,30 @@ class DriverBuildTests(unittest.TestCase):
                       caught.exception.detail)
 
 
+    def test_the_module_cache_lookup_never_reads_the_arm_tree(self):
+        # An arm go.mod `toolchain` directive must not trigger a toolchain download and re-exec
+        # outside the sandbox, so the lookup runs in the scratch with GOTOOLCHAIN=local.
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            (base / 'tree').mkdir()
+            calls = []
+
+            def run(command, cwd, env, timeout, stage):
+                calls.append((command, Path(cwd), env))
+                if command[1:] == ['env', 'GOMODCACHE']:
+                    return str(base / 'host-modcache') + '\n'
+                raise gs.SurfaceError(stage, 'stop after the lookup')
+
+            with mock.patch.object(gs, '_run', side_effect=run):
+                with self.assertRaises(gs.SurfaceError):
+                    gs.download_modules(base / 'tree', base / 'modcache', Path('/toolchain/bin/go'), base / 'scratch')
+            command, cwd, env = calls[0]
+            self.assertEqual(command[1:], ['env', 'GOMODCACHE'])
+            self.assertEqual(cwd, base / 'scratch')
+            self.assertEqual(env['GOTOOLCHAIN'], 'local')
+            self.assertEqual(env['GOWORK'], 'off')
+
+
 class BaselineRefTests(unittest.TestCase):
     """Without --surfaces, a baseline ref the driver cannot be built from refuses the session first."""
 
