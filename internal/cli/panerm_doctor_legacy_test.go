@@ -3,8 +3,8 @@ package cli_test
 // SPEC-PANERM-001 T3 (S13): `auto doctor` reports exactly what `auto update`
 // deletes. Before the update doctor.legacy_orchestra_config and
 // doctor.stale_completion_hooks warn with the remedy run "auto update"; after
-// it both pass and no warning names a retired hook or key. Red at B: neither
-// check exists. T14 un-skips it.
+// it both pass and no warning names a retired hook or key. Red at B, where
+// neither check existed; runs since T14 landed both.
 
 import (
 	"bytes"
@@ -80,8 +80,6 @@ func scriptNames(paths []string) []string {
 }
 
 func TestPanermS13_DoctorReportsWhatUpdateDeletes(t *testing.T) {
-	skipUntilPanermTask(t, "T14 (W4, after T8 and T11)",
-		"B's doctor has neither a doctor.legacy_orchestra_config nor a doctor.stale_completion_hooks check")
 	for _, ws := range staleHookRetractionWorkspaces {
 		t.Run(ws.name, func(t *testing.T) {
 			useStaleHookEnv(t, ws.opencode)

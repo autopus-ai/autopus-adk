@@ -49,14 +49,6 @@ var staleHookRetractionWorkspaces = []staleHookWorkspace{
 	{name: "W-oc1", opencode: "1.0.0", deleted: []string{".claude/hooks/autopus/hook-opencode-complete.ts"}},
 }
 
-func skipUntilPanermTask(t *testing.T, task, redReason string) {
-	t.Helper()
-	if os.Getenv("AUTOPUS_PANERM_RED") == "1" {
-		return
-	}
-	t.Skipf("SPEC-PANERM-001 %s un-skips this test; it is red at B because %s (AUTOPUS_PANERM_RED=1 runs it)", task, redReason)
-}
-
 // copyStaleHookWorkspace copies one fixture into a temp dir and replaces the
 // {{ROOT}} placeholder with the copy's absolute path.
 func copyStaleHookWorkspace(t *testing.T, name string) string {

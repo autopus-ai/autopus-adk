@@ -6,6 +6,15 @@ package cli
 const providerReadinessAdvice = "Run the login command shown for each not-ready provider, then re-run 'auto doctor'; " +
 	"if a status is misclassified, 'auto spec review --skip-provider-readiness' skips the preflight"
 
+// retiredOrchestraRemedy repairs the surface SPEC-PANERM-001 retired: `auto
+// update` prunes the legacy orchestra keys from autopus.yaml and retracts the
+// stale completion hooks of every configured platform (REQ-14).
+const retiredOrchestraRemedy = `run "auto update"`
+
+// userLevelStaleHooksRemedy covers the user-level settings files that `auto
+// update` reports but never edits (REQ-13).
+const userLevelStaleHooksRemedy = "remove these handlers by hand; auto update never edits user-level settings"
+
 // doctorRemediationAdvice names the command that actually repairs what failed.
 //
 // The banner used to say "review warnings or run 'auto doctor --fix' where

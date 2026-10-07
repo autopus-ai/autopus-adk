@@ -163,6 +163,13 @@ func runDoctorText(cmd *cobra.Command, opts doctorOptions) error {
 		}
 	}
 
+	// Legacy orchestra keys and stale completion hooks are what `auto update`
+	// removes, so they share the managed-surface remediation.
+	retiredFound := !checkRetiredOrchestraText(out, opts.dir, cfg)
+	if retiredFound {
+		allOK = false
+	}
+
 	// Context weight is advisory: it warns on an over-weight context catalog
 	// but never fails harness health, so its result does not touch allOK.
 	checkContextWeight(out, opts.dir)
@@ -184,7 +191,7 @@ func runDoctorText(cmd *cobra.Command, opts doctorOptions) error {
 		if allOK {
 			return "All checks passed"
 		}
-		return doctorRemediationAdvice(platformFailed, depsMissing)
+		return doctorRemediationAdvice(platformFailed || retiredFound, depsMissing)
 	}())
 
 	return nil

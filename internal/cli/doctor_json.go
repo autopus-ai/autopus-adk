@@ -133,6 +133,7 @@ func collectDoctorJSONReport(cmd *cobra.Command, opts doctorOptions) doctorJSONR
 	if configuresClaudeCode(cfg) {
 		report.collectHookChecks(opts.dir)
 	}
+	report.collectRetiredOrchestraChecks(opts.dir, cfg)
 	report.collectContextWeightChecks(opts.dir)
 	report.collectHygieneChecks(opts.dir)
 	report.collectDriftGateChecksContext(ctx, opts.dir, cfg)
