@@ -155,6 +155,9 @@ func TestLoadSession_DefectiveDocument_IsInvalidWithItsDetail(t *testing.T) {
 		{"record without oracle", DetailFieldInvalid, RecordsFile + ":2", "oracle observation", record(2, func(d map[string]any) { delete(d, "oracle") })},
 		{"record negative count", DetailFieldInvalid, RecordsFile + ":4", "oracle observation", record(4, func(d map[string]any) { d["oracle"].(map[string]any)["expected_passed"] = -1 })},
 		{"record negative duration", DetailFieldInvalid, RecordsFile + ":7", "oracle observation", record(7, func(d map[string]any) { d["duration_s"] = -0.5 })},
+		{"record error whose oracle ran", DetailFieldInvalid, RecordsFile + ":11", "error trial never reaches grading", record(11, func(d map[string]any) {
+			d["oracle"].(map[string]any)["ran"] = true
+		})},
 		{"record blank line", DetailMalformedJSON, RecordsFile + ":2", "EOF", map[string]func(string) string{RecordsFile: func(b string) string {
 			return strings.Replace(b, "\n", "\n\n", 1)
 		}}},

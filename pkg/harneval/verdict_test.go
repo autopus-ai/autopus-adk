@@ -32,7 +32,8 @@ func newLive(k int, tasks ...string) *liveBuilder {
 
 // set gives one task arm its outcomes in trial order: pass, fail, error,
 // build (a fail whose oracle never built, so it never ran), ghost (an error
-// whose oracle claims to have run, which no trusted parser writes), agent (an
+// whose oracle claims to have run, which no trusted parser writes and
+// DecodeRecords rejects, so only an in-memory session holds one), agent (an
 // agent that exited nonzero) or launch (an agent that never started); the
 // last two are graded on the unrepaired workspace, so their oracle ran.
 func (b *liveBuilder) set(task, arm string, outcomes ...string) *liveBuilder {

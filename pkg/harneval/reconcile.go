@@ -12,10 +12,12 @@ var ErrRecordsProtocolMismatch = errors.New("records_protocol_mismatch")
 
 // reconcile checks the session documents against each other, calibration
 // first (REQ-HE-10). Without a passed before calibration no trial may have
-// run, so no record may exist; with one, the records must hold every
-// scheduled (task, arm, trial) of this session exactly once. A failed or
-// absent after calibration does not change what the records must hold: it
-// runs once every trial has ended.
+// run, so no record may exist. With one, every record must be a scheduled
+// (task, arm, trial) of this session, at most once. The after calibration
+// runs only once every trial has ended, so a passed or failed after requires
+// a record for every scheduled attempt, while a session without one stopped
+// early and may hold any part of the order (the runner appends in order, so
+// it holds a prefix). Such a session is vacuous with a missing calibration.
 func reconcile(s *Session) error {
 	if err := checkCalibration(s); err != nil {
 		return err
@@ -27,7 +29,7 @@ func reconcile(s *Session) error {
 		}
 		return nil
 	}
-	return reconcileRecords(s.Protocol, s.Records)
+	return reconcileRecords(s.Protocol, s.Records, s.Calibration.After != nil)
 }
 
 // checkCalibration ties calibration.json to the protocol: the same session,
@@ -53,10 +55,11 @@ func checkCalibration(s *Session) error {
 	return nil
 }
 
-// reconcileRecords requires the records to hold every scheduled attempt of
-// the session exactly once. Record numbers are 1-based, as are the lines of
+// reconcileRecords requires every record to be a scheduled attempt of the
+// session, at most once, and, when the session ended, every scheduled attempt
+// to have its record. Record numbers are 1-based, as are the lines of
 // records.jsonl.
-func reconcileRecords(protocol Protocol, records []Record) error {
+func reconcileRecords(protocol Protocol, records []Record, ended bool) error {
 	recorded := make(map[Attempt]bool, len(protocol.Order))
 	for _, attempt := range protocol.Order {
 		recorded[attempt] = false
@@ -74,6 +77,9 @@ func reconcileRecords(protocol Protocol, records []Record) error {
 			return fmt.Errorf("%w: record %d (%s) repeats an earlier record", ErrRecordsProtocolMismatch, index+1, attempt)
 		}
 		recorded[attempt] = true
+	}
+	if !ended {
+		return nil
 	}
 	for _, attempt := range protocol.Order {
 		if !recorded[attempt] {

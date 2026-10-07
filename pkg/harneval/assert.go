@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 )
 
 // AssertionFailure explains one failed (variant, assertion) evaluation. Index
@@ -53,16 +54,13 @@ func EvaluateTask(task Task, generation *Generation) TaskOutcome {
 // evaluateAssertion returns "" when the assertion holds on the surface, else
 // a short failure detail free of temp paths.
 func evaluateAssertion(a Assertion, surface *Surface) string {
-	if a.Kind == AssertSectionParity {
+	switch a.Kind {
+	case AssertSectionParity:
 		return evaluateSectionParity(a, surface)
+	case AssertFileAbsent:
+		return evaluateFileAbsent(a, surface)
 	}
 	data, problem := surfaceFile(surface, a.Platform, a.Path)
-	if a.Kind == AssertFileAbsent {
-		if problem == "" {
-			return "present"
-		}
-		return ""
-	}
 	if problem != "" {
 		return problem
 	}
@@ -106,6 +104,29 @@ func surfaceFile(surface *Surface, platform, rel string) ([]byte, string) {
 		return nil, "unreadable"
 	}
 	return data, ""
+}
+
+// evaluateFileAbsent checks the generated tree on disk, not only the paths the
+// adapters reported, so a write no adapter reported cannot pass as absent.
+// Nothing may be at the path, unless another platform's adapter reported it:
+// the five platforms share one generation root. An entry that no adapter
+// reported cannot be attributed, so it fails on every platform.
+func evaluateFileAbsent(a Assertion, surface *Surface) string {
+	_, err := os.Lstat(filepath.Join(surface.Root, filepath.FromSlash(a.Path)))
+	switch {
+	case errors.Is(err, fs.ErrNotExist) || errors.Is(err, syscall.ENOTDIR):
+		return ""
+	case err != nil:
+		return "unreadable"
+	case surface.Owned[a.Platform][a.Path]:
+		return "present"
+	}
+	for _, owned := range surface.Owned {
+		if owned[a.Path] {
+			return ""
+		}
+	}
+	return "present_unreported"
 }
 
 func evaluateJSONPath(a Assertion, data []byte) string {

@@ -206,5 +206,11 @@ func validateRecord(r Record) error {
 	if r.Oracle == nil || r.Oracle.ExpectedPassed < 0 || r.Oracle.ExpectedFailed < 0 || r.DurationS < 0 {
 		return invalidf(DetailFieldInvalid, "record needs an oracle observation with non-negative counts and duration")
 	}
+	// An error trial ends before the arm surface enters the workspace, so its
+	// oracle never ran; a record claiming otherwise would count toward an
+	// arm's run oracles without adding a valid trial.
+	if r.Outcome == OutcomeError && r.Oracle.Ran {
+		return invalidf(DetailFieldInvalid, "oracle ran, yet an error trial never reaches grading (signal %s)", r.Signal)
+	}
 	return nil
 }

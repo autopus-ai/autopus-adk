@@ -108,6 +108,27 @@ func TestEvaluateAssertion_DeletedOwnedFile_IsMissing(t *testing.T) {
 	assert.Equal(t, "", evaluateAssertion(Assertion{Kind: AssertFileAbsent, Platform: "codex", Path: "AGENTS.md"}, surface))
 }
 
+// TestEvaluateAssertion_FileAbsent_ReadsTheTreeOnDisk: file_absent checks the
+// generated tree, not only the paths the adapters reported. An entry on disk
+// that no adapter reported fails it on every platform; a file another platform
+// reported stays on that platform's surface, since all five share one root.
+func TestEvaluateAssertion_FileAbsent_ReadsTheTreeOnDisk(t *testing.T) {
+	t.Parallel()
+	surface := standardFakeSurface(t)
+	require.NoError(t, os.WriteFile(filepath.Join(surface.Root, ".codex", "stray.md"), []byte("written, never reported"), 0o644))
+	absent := func(platform, path string) string {
+		return evaluateAssertion(Assertion{Kind: AssertFileAbsent, Platform: platform, Path: path}, surface)
+	}
+
+	assert.Equal(t, "present_unreported", absent("codex", ".codex/stray.md"), "an unreported file")
+	assert.Equal(t, "present_unreported", absent("claude-code", ".claude/skills/missing/SKILL.md"), "an unreported file")
+	assert.Equal(t, "present_unreported", absent("omp", ".claude/skills/missing"), "an unreported directory")
+	assert.Equal(t, "present", absent("codex", "AGENTS.md"), "the platform reported it")
+	assert.Equal(t, "", absent("codex", ".claude/settings.json"), "another platform reported it")
+	assert.Equal(t, "", absent("codex", ".codex/never-written.md"), "nothing on disk")
+	assert.Equal(t, "", absent("codex", "AGENTS.md/below-a-file"), "a file where a directory would be")
+}
+
 func TestSectionBody_StopsAtSameOrHigherHeadingOutsideFences(t *testing.T) {
 	t.Parallel()
 	body, ok := sectionBody([]byte("## Plan  \r\na \r\n```\n## fenced\n```\n### Sub\nb\n## Next\nc\n"), "## Plan")

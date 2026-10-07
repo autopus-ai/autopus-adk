@@ -2,6 +2,8 @@ package harneval
 
 import (
 	"errors"
+	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -132,7 +134,7 @@ func walkActivePath(root, active string, visit func(rel string, data []byte) err
 		if entry.IsDir() || !entry.Type().IsRegular() || !strings.HasSuffix(entry.Name(), ".json") {
 			return nil
 		}
-		data, err := os.ReadFile(current)
+		data, err := readCapped(current)
 		if err != nil {
 			return withPath(&InvalidError{Detail: DetailReadFailed, Err: err}, rel)
 		}
@@ -149,9 +151,36 @@ func readRepoFile(root, rel string) ([]byte, error) {
 	if err := lstatComponents(root, rel, false); err != nil {
 		return nil, err
 	}
-	data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
+	data, err := readCapped(filepath.Join(root, filepath.FromSlash(rel)))
 	if err != nil {
 		return nil, &InvalidError{Detail: DetailReadFailed, Err: err}
+	}
+	return data, nil
+}
+
+// maxDocumentBytes caps every file the package reads: a golden set file, a
+// corpus, the baseline, and the documents of a live session directory.
+const maxDocumentBytes = 64 << 20
+
+// readCapped reads a whole file of at most maxDocumentBytes. A regular file
+// over the cap is refused before any byte is read; the limited reader bounds a
+// file that grows meanwhile or reports no size.
+func readCapped(name string) ([]byte, error) {
+	file, err := os.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	tooLarge := fmt.Errorf("%s is larger than the 64 MiB document cap", filepath.Base(name))
+	if info, err := file.Stat(); err == nil && info.Mode().IsRegular() && info.Size() > maxDocumentBytes {
+		return nil, tooLarge
+	}
+	data, err := io.ReadAll(io.LimitReader(file, maxDocumentBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(data) > maxDocumentBytes {
+		return nil, tooLarge
 	}
 	return data, nil
 }

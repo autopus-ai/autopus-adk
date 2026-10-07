@@ -133,6 +133,40 @@ func TestEvalHarnessReport_S10_RefusedSessionIsVacuousCalibrationFailure(t *test
 	assert.Equal(t, 0.0, doc["regression_delta"])
 }
 
+// TestEvalHarnessReport_S10_StoppedSessionIsVacuousCalibrationMissing: a
+// session stopped before its last trial leaves a passed before calibration, no
+// after, and the records of the trials that ran. It reports vacuous with a
+// missing calibration and exit 0, not records_protocol_mismatch.
+func TestEvalHarnessReport_S10_StoppedSessionIsVacuousCalibrationMissing(t *testing.T) {
+	t.Parallel()
+	dir := copyHarnessSession(t, func(name string, body []byte) []byte {
+		switch name {
+		case harneval.CalibrationFile:
+			var calibration map[string]any
+			require.NoError(t, json.Unmarshal(body, &calibration))
+			delete(calibration, "after")
+			edited, err := json.Marshal(calibration)
+			require.NoError(t, err)
+			return edited
+		case harneval.RecordsFile:
+			return []byte(strings.Join(strings.SplitAfter(string(body), "\n")[:7], ""))
+		}
+		return body
+	})
+
+	out := runHarness(t, evalHarnessDeps{}, "report", "--input", dir, "--format", "json")
+
+	require.Equal(t, 0, out.code, out.stderr)
+	doc := harnessDoc(t, out.stdout)
+	assert.Equal(t, "vacuous", doc["verdict"])
+	assert.Equal(t, "oracle_calibration_failed", doc["reason"])
+	assert.Equal(t, "missing", doc["calibration"].(map[string]any)["status"])
+	assert.Equal(t, map[string]any{
+		"baseline":  map[string]any{"passes": 3.0, "valid": 3.0, "pass_rate": 1.0},
+		"candidate": map[string]any{"passes": 2.0, "valid": 4.0, "pass_rate": 0.5},
+	}, doc["arms"])
+}
+
 // TestEvalHarnessReport_AgentFailedEveryTrial_IsVacuousNotOK: a session whose
 // agent failed in every trial of both arms (missing credentials, say) was
 // still graded, so every oracle ran and failed on the unrepaired workspace.

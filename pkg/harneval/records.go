@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"strings"
 )
@@ -136,7 +135,7 @@ type OracleObservation struct {
 // Any defect yields an *InvalidError naming the file; an absent calibration
 // or records file is not a defect.
 func LoadSession(dir string) (*Session, error) {
-	data, err := os.ReadFile(filepath.Join(dir, ProtocolFile))
+	data, err := readCapped(filepath.Join(dir, ProtocolFile))
 	if err != nil {
 		return nil, withPath(&InvalidError{Detail: DetailReadFailed, Err: err}, ProtocolFile)
 	}
@@ -167,7 +166,7 @@ func LoadSession(dir string) (*Session, error) {
 // readOptional reads a session file that may be absent. present is false only
 // when the file does not exist, so an empty file is still decoded.
 func readOptional(dir, name string) (data []byte, present bool, err error) {
-	data, err = os.ReadFile(filepath.Join(dir, name))
+	data, err = readCapped(filepath.Join(dir, name))
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, false, nil
 	}

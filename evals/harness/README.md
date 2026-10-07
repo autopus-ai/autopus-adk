@@ -91,8 +91,11 @@ Surface tasks by category:
 Each task's `provenance.ref` names the canonical source the behavior comes
 from. A task must assert a cross-cutting behavior of the generated surface; a
 task that restates one existing contract test assertion is rejected in review.
-`file_absent` reads ownership: a path counts as absent on a platform when that
-platform's adapter did not generate it, even if another platform wrote it.
+`file_absent` reads the generated tree on disk as well as ownership: a path
+counts as absent on a platform when nothing is there, or when what is there
+another platform's adapter reported (the five platforms share one root). An
+entry that no adapter reported fails on every platform (`present_unreported`),
+so an unreported write cannot pass as absent.
 
 ## Agent tasks and calibration
 
@@ -156,17 +159,22 @@ read. `pkg/harneval/testdata/live-session/` is a complete reference session.
 Every document is decoded strictly (unknown fields and trailing data are
 invalid). `schema_version` is optional on these three; when present it must be
 the document's own identifier. A record's `signal` fixes its `outcome` by the
-REQ-HE-08 table. Calibration is judged first: without a passed `before`, any
-record is `records_protocol_mismatch`; with one, the records must hold every
-`order` attempt of the session exactly once. A mismatch writes no report.
+REQ-HE-08 table, and an `error` record never has `oracle.ran` true. Each
+document is read up to 64 MiB; a larger one is `read_failed`. Calibration is
+judged first: without a passed `before`, any record is
+`records_protocol_mismatch`. With one, every record must be an `order` attempt
+of the session, at most once. `after` is recorded only once every trial has
+ended, so with `after` every attempt must have its record; without it the
+session stopped early, may hold any part of the order, and reports `vacuous`
+with calibration `missing`. A mismatch writes no report.
 
 | Verdict (precedence) | Reason | When |
 |----------------------|--------|------|
-| `vacuous` | `oracle_calibration_failed` | `calibration.json` absent, or `before` or `after` not `passed` |
-| `vacuous` | `oracle_not_run` | an arm has no record with `oracle.ran` true (build failures only) |
+| `vacuous` | `oracle_calibration_failed` | `calibration.json` absent, or `before` or `after` not `passed` (an absent `after` is calibration `missing`) |
+| `vacuous` | `oracle_not_run` | an arm has no record with `oracle.ran` true (build failures only). Known limitation: an arm whose every trial is `scope_violation` or `forbidden_construct` skips grading, so it also lands here rather than in `regression` |
 | `vacuous` | `agent_all_failed` | no trial of either arm got past the agent step (`agent_launch_failed`, `agent_exit_nonzero`, `agent_timeout`, `observation_failed` or error only), e.g. missing credentials; one arm alone failing at the agent step is still judged |
 | `incomplete` | `completeness_below_floor` | completeness < `policy.completeness_floor` |
-| `incomplete` | `no_valid_trial` | an arm has no non-error trial |
+| `incomplete` | `no_valid_trial` | an arm has no non-error trial (defensive: such an arm has no run oracle, so a decoded session meets `oracle_not_run` first) |
 | `regression` | `hard_flip` | a task passed K/K in the baseline and 0/K in the candidate |
 | `regression` | `pass_rate_regression` | `10000·(cp·bv − bp·cv) < threshold_bp·bv·cv` |
 | `ok` | `within_threshold` | otherwise; a delta exactly at the threshold is no regression |

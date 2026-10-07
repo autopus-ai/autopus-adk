@@ -21,27 +21,43 @@ func refuse(s *Session) {
 	s.Calibration.Before, s.Calibration.After, s.Records = refusedPhase, nil, []Record{}
 }
 
+// brokenAfter is a failed end-of-session calibration: GT-AGENT-A02's oracle
+// accepted the mutated workspace once every trial had ended.
+var brokenAfter = CalibrationPhase{Status: CalibrationFailed, Tasks: []CalibrationTask{
+	{TaskID: taskA, CleanAccepted: true}, {TaskID: taskB, CleanAccepted: true, MutatedAccepted: true}, {TaskID: taskC, CleanAccepted: true},
+}}
+
+// stop turns a session into one that stopped after its first n trials: the
+// runner appended n records in order and never recalibrated.
+func stop(n int) func(s *Session) {
+	return func(s *Session) { s.Calibration.After, s.Records = nil, s.Records[:n] }
+}
+
 // TestComputeVerdict_CalibrationFirst_UnprovenOracleIsVacuous: calibration is
 // judged before any record, and a session whose oracle calibration did not
-// pass at both ends is vacuous whatever its records say.
+// pass at both ends is vacuous whatever its records say. A session stopped
+// before its last trial never recalibrated, so its calibration is missing.
 func TestComputeVerdict_CalibrationFirst_UnprovenOracleIsVacuous(t *testing.T) {
 	t.Parallel()
-	brokenAfter := CalibrationPhase{Status: CalibrationFailed, Tasks: []CalibrationTask{
-		{TaskID: taskA, CleanAccepted: true}, {TaskID: taskB, CleanAccepted: true, MutatedAccepted: true}, {TaskID: taskC, CleanAccepted: true},
-	}}
-	passedTasks := s9Live().session().Calibration.Before.Tasks
+	missing := CalibrationPhase{Status: CalibrationMissing, Tasks: s9Live().session().Calibration.Before.Tasks}
 	tests := []struct {
-		name        string
-		edit        func(s *Session)
-		calibration CalibrationPhase
-		noRecords   bool
+		name                string
+		edit                func(s *Session)
+		calibration         CalibrationPhase
+		baseline, candidate armWant
+		completeness        float64
+		flips               []string
 	}{
-		{"S10 refused before the first trial", refuse, refusedPhase, true},
+		{"S10 refused before the first trial", refuse, refusedPhase, armWant{}, armWant{}, 0, []string{}},
 		{"calibration.json absent", func(s *Session) { s.Calibration, s.Records = nil, []Record{} },
-			CalibrationPhase{Status: CalibrationMissing, Tasks: []CalibrationTask{}}, true},
-		{"S10 end-of-session calibration failed", func(s *Session) { s.Calibration.After = &brokenAfter }, brokenAfter, false},
-		{"end-of-session calibration absent", func(s *Session) { s.Calibration.After = nil },
-			CalibrationPhase{Status: CalibrationMissing, Tasks: passedTasks}, false},
+			CalibrationPhase{Status: CalibrationMissing, Tasks: []CalibrationTask{}}, armWant{}, armWant{}, 0, []string{}},
+		{"S10 end-of-session calibration failed", func(s *Session) { s.Calibration.After = &brokenAfter }, brokenAfter,
+			armWant{5, 6, rate(0.8333333333)}, armWant{3, 5, rate(0.6)}, 0.9166666667, []string{taskA}},
+		{"end-of-session calibration absent", func(s *Session) { s.Calibration.After = nil }, missing,
+			armWant{5, 6, rate(0.8333333333)}, armWant{3, 5, rate(0.6)}, 0.9166666667, []string{taskA}},
+		{"S10 stopped before the first trial", stop(0), missing, armWant{}, armWant{}, 0, []string{}},
+		{"S10 stopped before the last trial", stop(7), missing,
+			armWant{3, 3, rate(1)}, armWant{2, 4, rate(0.5)}, 0.5833333333, []string{}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -55,21 +71,18 @@ func TestComputeVerdict_CalibrationFirst_UnprovenOracleIsVacuous(t *testing.T) {
 			assert.Equal(t, VerdictVacuous, verdict.Verdict)
 			assert.Equal(t, ReasonOracleCalibrationFailed, verdict.Reason)
 			assert.Equal(t, tt.calibration, verdict.Calibration)
-			if tt.noRecords {
-				assert.Equal(t, Arms{}, verdict.Arms, "no valid trial, both pass rates null")
-				assert.Zero(t, verdict.RegressionDelta)
-				assert.Zero(t, verdict.Completeness)
-				assert.Equal(t, []string{}, verdict.HardFlips)
-			} else {
-				assert.Equal(t, []string{taskA}, verdict.HardFlips, "the records still count; the verdict does not")
-			}
+			assertArm(t, tt.baseline, verdict.Arms.Baseline, ArmBaseline)
+			assertArm(t, tt.candidate, verdict.Arms.Candidate, ArmCandidate)
+			assert.InDelta(t, tt.completeness, verdict.Completeness, 1e-9, "the records still count; the verdict does not")
+			assert.Equal(t, tt.flips, verdict.HardFlips)
 		})
 	}
 }
 
 // TestComputeVerdict_RecordsMustReconcileWithTheOrder: without a passed
-// before calibration no record may exist; with one, the records must hold
-// every scheduled (task, arm, trial) of this session exactly once.
+// before calibration no record may exist. With one, every record must be a
+// scheduled (task, arm, trial) of this session at most once, and once the
+// after calibration ran, every scheduled attempt must have its record.
 func TestComputeVerdict_RecordsMustReconcileWithTheOrder(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -88,8 +101,20 @@ func TestComputeVerdict_RecordsMustReconcileWithTheOrder(t *testing.T) {
 		{"a record outside the order", "record 5 (GT-AGENT-A09/baseline/0) is not scheduled", func(s *Session) { s.Records[4].TaskID = "GT-AGENT-A09" }},
 		{"a repeated record", "record 12 (GT-AGENT-A01/baseline/0) repeats", func(s *Session) { s.Records[11] = s.Records[0] }},
 		{"a missing record", "attempt GT-AGENT-A03/baseline/1 has no record", func(s *Session) { s.Records = s.Records[:11] }},
-		{"no record after a passed calibration", "attempt GT-AGENT-A01/baseline/0 has no record", func(s *Session) {
-			s.Calibration.After, s.Records = nil, []Record{}
+		{"a missing record after a failed end-of-session calibration", "attempt GT-AGENT-A03/baseline/1 has no record", func(s *Session) {
+			s.Calibration.After, s.Records = &brokenAfter, s.Records[:11]
+		}},
+		{"a stopped session repeating a record", "record 3 (GT-AGENT-A01/baseline/0) repeats", func(s *Session) {
+			stop(2)(s)
+			s.Records = append(s.Records, s.Records[0])
+		}},
+		{"a stopped session with a record outside the order", "record 2 (GT-AGENT-A09/candidate/0) is not scheduled", func(s *Session) {
+			stop(2)(s)
+			s.Records[1].TaskID = "GT-AGENT-A09"
+		}},
+		{"a stopped session with a record of another session", "record 1 belongs to session " + strings.Repeat("0", 32), func(s *Session) {
+			stop(2)(s)
+			s.Records[0].SessionID = strings.Repeat("0", 32)
 		}},
 	}
 	for _, tt := range tests {
