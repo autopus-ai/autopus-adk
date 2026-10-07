@@ -7,11 +7,17 @@ file-editing tool call before the write when a target is:
   `always` by a platform manifest (`.autopus/<platform>-manifest.json`), unless a
   manifest lists it with `merge` or `marker`;
 - the reproduction test of an in-progress `/auto fix`, locked with `auto fix lock`;
-- edit-guard state: `.autopus/runtime/fix-locks/**` and `.autopus/*-manifest.json`.
+- edit-guard state: `.autopus/runtime/fix-locks/**`, `.autopus/*-manifest.json`,
+  and a project root's `autopus.yaml` when the call deletes it, moves it away,
+  or moves a file onto it (a Codex or OpenCode patch); editing it in place is
+  allowed.
 
 Every enclosing project root decides: a target is checked against the nearest
 directory with `autopus.yaml` and against every one above it, so an
-`autopus.yaml` planted below a project root hides nothing.
+`autopus.yaml` planted below a project root hides nothing. A target with `..`
+is judged both where the kernel's walk leads, past every symlink before the
+`..`, and at its lexically cleaned path, where hosts that clean the path before
+they open it write; a deny of either denies the call.
 
 Every other edit is allowed. The guard namespace is `.claude/`, `.codex/`,
 `.gemini/`, `.opencode/`, `.agents/`, `.omp/`, and `.autopus/plugins/`, minus
@@ -23,7 +29,8 @@ that part of the decision. A fault never makes a decision stricter.
 ## Enforcement matrix
 
 `pkg/editguard/matrix.go` holds the same rows; hook generation registers the
-guard exactly on the `enforced` lanes, and `auto doctor` reports them. OpenCode
+guard exactly on the `enforced` and `host-unverified` lanes, and `auto doctor`
+reports them. OpenCode
 generates the V1 or the V2 plugin for the installed OpenCode major version (V1
 when it cannot tell); both carry the guard, and `auto doctor` reports the lane
 of the plugin it finds.
@@ -32,9 +39,9 @@ of the plugin it finds.
 |---|---|---|---|
 | Claude Code | enforced | `.claude/settings.json` PreToolUse, matcher `Edit\|Write\|MultiEdit`, timeout 5 s | A1 PASS on Claude Code 2.1.289 |
 | OpenCode | enforced | `.opencode/plugins/autopus-hooks.js` V2 plugin, `EDIT_GUARD` literal, timeout 5 s | A2 PASS on OpenCode 2.0.10 (V2 plugin API) |
-| OpenCode 1.x | host-unverified | `.opencode/plugins/autopus-hooks.js` V1 plugin, `EDIT_GUARD` literal, timeout 5 s | the V1 plugin is generated with the guard, but no OpenCode 1.x host was probed (CD-1 open) |
+| OpenCode 1.x | host-unverified | `.opencode/plugins/autopus-hooks.js` V1 plugin, `EDIT_GUARD` literal, timeout 5 s | the V1 plugin is generated with the guard, but no OpenCode 1.x host was probed (CD-1 closed by the operator decision of 2026-10-07) |
 | Codex | enforced | `.codex/hooks.json` PreToolUse, matcher `apply_patch`, timeout 5 s | A3 PASS on Codex CLI 0.160.0; runs only after the user trusts the project hooks |
-| Gemini CLI | enforced | `.gemini/settings.json` BeforeTool, matcher `^(write_file\|replace)$`, timeout 5000 ms | T11 PASS on Gemini CLI 0.52.0; project hooks run only in a trusted folder |
+| Gemini CLI | enforced | `.gemini/settings.json` BeforeTool, matcher `^(write_file\|replace)$`, timeout 5000 ms | T11 PASS on Gemini CLI 0.52.0; the guard judges every spelling Gemini writes `file_path` as (NUL and a leading `@` removed, `file://` converted, percent-escapes decoded); project hooks run only in a trusted folder |
 | Antigravity | advisory-only | none: `.agents/hooks.json` gets no guard | its PreToolUse hooks run through the always-allow wrapper of `pkg/content/hooks_antigravity.go` |
 | OMP | none | none | the OMP adapter has no native hooks (`SupportsHooks()` is false) |
 
@@ -88,6 +95,8 @@ The guard is not a sandbox against an agent with shell access.
 - The guard reads at most 64 MiB of hook input. It decodes only the target fields and skips every other value, so a large content body is decided normally, but a payload over 64 MiB is allowed.
 - A manifest must be a regular file: an entry named like a manifest that is a directory, symlink, or FIFO is ignored, and paths below such a name are guard state.
 - Case-insensitive volumes compare paths in their canonical caseless form (Unicode full case folding and NFD), which is how APFS matches names; a volume whose matching differs, such as NTFS, may see a rare spelling denied that it would treat as another file.
+- The folding of `golang.org/x/text` swaps the case of the 86 Cherokee letter pairs that APFS opens as one name, so a Cherokee letter-case variant of a deleted locked test is not matched. Generated and guard-state names are ASCII, and an existing locked file is still matched by file identity.
+- Gemini CLI's `replace` tool rewrites a relative `file_path` that names no file to the one workspace file whose path ends with it (its `correctPath` search). The guard does not repeat that search, so such a call that reaches a protected file is not denied; the unlock verdict and the drift gate stay the backstop.
 
 ## Rollback
 

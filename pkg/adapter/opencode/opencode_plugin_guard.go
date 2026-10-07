@@ -22,7 +22,7 @@ var (
 	// patchText (testdata/opencode-2.0.10-execute-before.jsonl).
 	openCodeGuardToolsV2 = openCodeGuardTools{tools: []string{"edit", "write", "patch"}, patchTools: []string{"patch"}}
 	// openCodeGuardToolsV1 is host-unverified: probe A2 has no OpenCode 1.x run
-	// (CD-1 open). It adds to the 2.0.10 names the V1 names the 2.0.10
+	// (CD-1, closed as host-unverified). It adds to the 2.0.10 names the V1 names the 2.0.10
 	// compatibility layer still maps (apply_patch to patch) and multiedit; the
 	// plugin reads filePath, the V1 argument key, beside path.
 	openCodeGuardToolsV1 = openCodeGuardTools{

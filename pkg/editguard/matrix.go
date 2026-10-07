@@ -18,8 +18,8 @@ const (
 )
 
 // Lane is one platform row of the enforcement matrix. Hook generation
-// registers the guard exactly on the enforced lanes, and the docs and doctor
-// tasks publish the same rows.
+// registers the guard exactly on the enforced and host-unverified lanes, and
+// the docs and doctor tasks publish the same rows.
 type Lane struct {
 	// Platform is the lane id: the id `auto guard edit --platform` and the
 	// adapters use, or for a plugin API variant of a platform, LaneOpenCodeV1.
@@ -47,14 +47,15 @@ var lanes = [...]Lane{
 			"(evidence/t0-probes.txt, evidence/t11-probes.txt)"},
 	{LaneOpenCodeV1, "OpenCode 1.x", HostUnverified,
 		"the V1 plugin API lane is generated with the guard, but no OpenCode 1.x host was probed " +
-			"(A2 V1 not-run, CD-1 open)"},
+			"(A2 V1 not-run; CD-1 closed by the operator decision of 2026-10-07)"},
 	{PlatformCodex, "Codex", Enforced,
 		"A3 PASS on Codex CLI 0.160.0 and the T11 apply_patch matcher probe (evidence/t11-probes.txt); " +
 			"Codex runs project hooks only after the user trusts them, and offers apply_patch only to models " +
 			"with bundled metadata"},
 	{PlatformGemini, "Gemini CLI", Enforced,
 		"T11 BeforeTool probe PASS on Gemini CLI 0.52.0 for write_file and replace (evidence/t11-probes.txt); " +
-			"project hooks run only in a trusted folder"},
+			"the guard judges every spelling Gemini writes file_path as (NUL and a leading @ removed, file:// " +
+			"converted, percent-escapes decoded); project hooks run only in a trusted folder"},
 	{"antigravity-cli", "Antigravity", AdvisoryOnly,
 		"PreToolUse hooks run through the always-allow wrapper in pkg/content/hooks_antigravity.go, so " +
 			".agents/hooks.json gets no guard"},
