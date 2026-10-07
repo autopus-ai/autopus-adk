@@ -211,49 +211,6 @@ func (l *Locked) AppendObservations(name string, observations []Observation) err
 	return appendStoreFile(l.store.Path(name), buf.Bytes())
 }
 
-// MergeObservations appends only candidates whose (series, sample_key) is
-// new or whose attempt is higher than every stored and earlier-merged one,
-// and returns them, so re-ingesting a payload appends nothing.
-func (l *Locked) MergeObservations(name string, candidates []Observation) ([]Observation, error) {
-	for _, candidate := range candidates {
-		if err := candidate.Validate(); err != nil {
-			return nil, err
-		}
-	}
-	existing, _, err := l.store.ReadObservations(name)
-	if err != nil {
-		return nil, err
-	}
-	appended := NewerAttempts(existing, candidates)
-	if err := l.AppendObservations(name, appended); err != nil {
-		return nil, err
-	}
-	return appended, nil
-}
-
-// NewerAttempts returns, with UTC times, the candidates whose (series,
-// sample_key) is new or whose attempt is higher than every stored and
-// earlier candidate one: the lines MergeObservations appends, which a
-// read-only plan (auto react band --dry-run) merges in memory instead.
-func NewerAttempts(stored, candidates []Observation) []Observation {
-	best := make(map[seriesSampleKey]int, len(stored))
-	for _, observation := range stored {
-		key := seriesSampleKey{observation.Series, observation.SampleKey}
-		best[key] = max(best[key], observation.Attempt)
-	}
-	var newer []Observation
-	for _, candidate := range candidates {
-		key := seriesSampleKey{candidate.Series, candidate.SampleKey}
-		if candidate.Attempt <= best[key] {
-			continue
-		}
-		best[key] = candidate.Attempt
-		candidate.ObservedAt = candidate.ObservedAt.UTC()
-		newer = append(newer, candidate)
-	}
-	return newer
-}
-
 // AppendCanary appends one canary observation with sample key c<sequence>,
 // where the sequence is one above the highest in canary-runs.jsonl. A time
 // earlier than the newest stored one is clamped to it, so the order key never
