@@ -50,17 +50,30 @@ the claim as `planned`.
 Every completed evaluation exits 0, including insufficient samples, a missing
 gh or provider, an unknown series, and a locked store. The reason codes are in
 the output. An invalid flag or an unreadable or invalid `autopus.yaml` exits
-non-zero before anything runs. A metric store band cannot read or write, such
-as a symlinked `.autopus/metrics/`, completes no evaluation: band prints the
-report it has and exits non-zero, and `--format json` carries the error in the
-envelope.
+non-zero before anything runs.
+
+Two store conditions are intentional fail-closed exceptions to that rule,
+because evaluating a store band cannot trust would record wrong results and
+diagnose phantom incidents:
+
+- A metric store band cannot read or write, such as a symlinked
+  `.autopus/metrics/`, a store path swapped for a symlink or FIFO, or a store
+  file above 64 MiB, completes no evaluation.
+- A metric store that git tracks (any file under `.autopus/metrics/` in the
+  index) came with the repository, not from this machine's runs. Band checks
+  this with a read-only `git ls-files` before it reads or locks the store,
+  records `store_tracked`, and changes nothing, under `--dry-run` as well. Run
+  `git rm -r --cached .autopus/metrics` to untrack it.
+
+In both cases band prints the report it has and exits non-zero, and
+`--format json` carries the error in the envelope.
 
 ## Evidence
 
 ### CI runs
 
 Band resolves the host and `<owner/repo>` from the `origin` remote and calls
-gh with `GH_REPO` and `GH_HOST` set to them, replacing inherited values:
+gh with `GH_REPO` set to `<owner/repo>`, replacing an inherited value:
 
 ```sh
 gh auth status --hostname <host>
@@ -68,13 +81,33 @@ gh api repos/<owner>/<repo> --hostname <host> --jq .default_branch
 gh run list -R <owner/repo> --limit <n> --json databaseId,attempt,conclusion,status,headBranch,event,workflowName,createdAt
 ```
 
+The host check (`gh auth status`) runs without an injected `GH_HOST`, because
+gh treats `GH_HOST` as a configured host and would otherwise check an
+environment token such as `GH_ENTERPRISE_TOKEN` against whatever host `origin`
+names. An inherited `GH_HOST` is kept for that call only when it already names
+the same host. Only the calls after a passed check get `GH_HOST=<host>`. So a
+host other than `github.com` counts as GitHub only when gh knows it from its
+hosts config (`gh auth login --hostname <host>`) or from an inherited
+`GH_HOST` equal to it; a host known only through an environment token is
+`remote_not_github`. A `localhost` origin or an IP literal is never GitHub
+(`remote_not_github`, no gh call). Every gh call also gets
+`GH_PROMPT_DISABLED=1`, `GH_PAGER=cat`, and `NO_COLOR=1`, loses `GH_FORCE_TTY`
+and `CLICOLOR_FORCE`, and runs in its own process group, which a timeout kills
+as a whole.
+
 - Only completed runs whose event is `push` or `schedule` on the remote
   default branch become observations. Pull request, `workflow_dispatch`,
   `workflow_run`, and other events never count, and neither do other branches.
 - `success` counts 0. `failure`, `timed_out`, and `startup_failure` count 1.
   Every other conclusion, such as `cancelled`, is left out.
 - Each run id keeps one observation. A higher attempt replaces a lower one.
-- The series is `ci.failure_rate:<workflow>`.
+- The series is `ci.failure_rate:<workflow>`. It stays keyed by the filtered
+  workflow name (plus `#<h8>` when filtering changed it), not by the workflow
+  id, so a renamed workflow starts a new series.
+- A series keeps its newest 512 observations. Once it holds 512, a fetched run
+  older than the oldest kept one is not stored again, so `--limit` above 512
+  re-adds nothing that compaction dropped; a higher attempt of a kept run is
+  still taken.
 
 Without gh, without authentication, on a failed or slow fetch (30 s), without
 an `origin` remote, with a non-GitHub remote, or with an unknown default branch,
@@ -98,8 +131,16 @@ Workflow names and canary hosts are filtered to `[A-Za-z0-9 ._:+-]` and at most
 80 characters; a name that changed gets `#<first 8 hex of its SHA-256>` and the
 reason `identifier_sanitized`. CI logs, react reports, and provider output are
 redacted for secrets and local paths before any cut and reach a prompt or a BS
-file only inside a fenced untrusted-evidence block. Events and state hold
-numbers, filtered ids, reason codes, and manifest hashes only.
+file only inside a fenced untrusted-evidence block. Besides the shared
+patterns, band redacts JSON members whose key names a credential (password,
+secret, token, AccessKey, ...), URL credentials (`scheme://user:pass@`),
+`Authorization: token|Basic|Bearer|Digest` headers, JSON Web Tokens, PEM, PGP,
+and SSH2 private key blocks, `AccountKey=` and `SharedAccessKey=` values, and
+prefixed tokens such as `glpat-`, `ghp_`, `gho_`, `github_pat_`, and `sk-`;
+each records `secret_risk`. A filtered series id is still repository text, so
+outside the BS title line and the next-step command it is written as inline
+code. Events and state hold numbers, filtered ids, reason codes, and manifest
+hashes only.
 
 ## Detector
 
@@ -173,6 +214,12 @@ unknown key.
   `--sandbox read-only`, gemini needs `--mode plan` and `--sandbox`, and an
   OMP-backed provider runs only through its routed backend with a read-only
   sandbox and the tools glob, grep, and read. The call times out after 600 s.
+- The provider starts without `GH_TOKEN`, `GITHUB_TOKEN`,
+  `GH_ENTERPRISE_TOKEN`, `GITHUB_ENTERPRISE_TOKEN`, and the AWS, Google Cloud,
+  and Azure credential variables, on the subprocess path and the OMP route
+  alike. A provider that authenticates only through one of them (for example
+  Claude on Bedrock or Vertex AI) is therefore unavailable to band. Its output
+  is bounded while it runs: band keeps the first 1 MiB and drops the rest.
 - When no provider can run, the BS file is still written with the evidence and
   `diagnosis_status: unavailable(<reason>)`. The reasons are
   `provider_unconfigured`, `provider_unsupported`, `provider_policy_rejected`,
@@ -184,6 +231,20 @@ unknown key.
   modules, and nested repositories) under one per-user allocation lock. It
   follows the `/auto idea` brainstorm format, and its last step is
   `/auto plan --from-idea BS-BAND-NNN "<series> tier <k> anomaly response"`.
+  The file is private to its owner (mode 0600), and the BS directory is
+  checked again right before each create.
+- The ID scan ignores an entry named like a BS that is a symlink or not a
+  regular file. When the highest entries leave no ID in range, it also ignores,
+  highest first, entries that fail the BS format validator, so one planted
+  `BS-BAND-999999999.md` cannot block every later BS. Band names each ignored
+  path on stderr.
+- A BS that cannot be written ends the claim `failed:<reason>` and the episode
+  has no BS: `failed:bs_lock_timeout` (the per-user allocation lock stayed busy
+  for 30 s), `failed:bs_id_exhausted` (five consecutive IDs were taken),
+  `failed:bs_scope_too_deep` (the project sits more than 8 component levels
+  below the top of its repository chain, where a scan from that top would not
+  see its IDs, so allocating there could collide), `failed:bs_invalid`, and
+  `failed:bs_write_failed`.
 
 ## Configuration
 

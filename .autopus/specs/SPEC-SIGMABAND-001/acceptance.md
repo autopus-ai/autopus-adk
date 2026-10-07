@@ -43,7 +43,7 @@ Given origin git@github.com:acme/app.git, default branch main, GH_REPO=other/rep
 When band ingests the payload twice
 Then ci-runs.jsonl holds exactly 5 lines with expected values CI 500 = 0 (attempt 2), CI 502 = 1, CI 505 = 1, Security Scan 507 = 1, and ci.failure_rate:Lint2J#c1b4753b 511 = 1 with reason identifier_sanitized, and the second ingest appends 0 lines
 And a later payload with run 500 attempt 3 failure appends 1 line and the collapsed CI value for 500 becomes 1 with attempt 3, while run 500 attempt 1 failure appends 0 lines
-And the gh argv are exactly gh auth status --hostname github.com, gh api repos/acme/app --hostname github.com --jq .default_branch, and gh run list -R acme/app --limit 200 --json databaseId,attempt,conclusion,status,headBranch,event,workflowName,createdAt with no --status flag, and every gh environment holds GH_REPO=acme/app and GH_HOST=github.com instead of the inherited GH_REPO=other/repo
+And the gh argv are exactly gh auth status --hostname github.com, gh api repos/acme/app --hostname github.com --jq .default_branch, and gh run list -R acme/app --limit 200 --json databaseId,attempt,conclusion,status,headBranch,event,workflowName,createdAt with no --status flag, and every gh environment holds GH_REPO=acme/app instead of the inherited GH_REPO=other/repo, the gh auth status environment holds no GH_HOST because the inherited GH_HOST=stale.example.com names another host, and every later gh environment holds GH_HOST=github.com
 ### S5: Catch-up, backlog, late observations, and idempotent re-run
 Priority: Must
 Given a series with 100 observations of value 0 and no checkpoint
