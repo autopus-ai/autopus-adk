@@ -1,7 +1,8 @@
 package content_test
 
-// SPEC-EDITGUARD-001 T8 oracles: the guard HookConfig of REQ-EG-12, its lane
-// confinement, and the REQ-EG-11 command line run through a real POSIX shell.
+// SPEC-EDITGUARD-001 T8 and T10 oracles: the guard HookConfig of the Claude
+// Code and OpenCode lanes (REQ-EG-12, REQ-EG-13), its confinement to them, and
+// the REQ-EG-11 command line run through a real POSIX shell.
 
 import (
 	"bytes"
@@ -31,6 +32,16 @@ var wantClaudeGuard = adapter.HookConfig{
 	Timeout: 5,
 }
 
+// wantLaneGuards is the guard registration of every wired lane. OpenCode's
+// plugin spawns the bare command itself and translates the canonical
+// file-editing matcher to its native tools per plugin API version.
+var wantLaneGuards = map[string]adapter.HookConfig{
+	"claude":      wantClaudeGuard,
+	"claude-code": wantClaudeGuard,
+	"opencode": {Event: "PreToolUse", Matcher: "Edit|Write|MultiEdit", Type: "command",
+		Command: "auto guard edit --platform opencode", Timeout: 5},
+}
+
 func guardEntries(hooks []adapter.HookConfig) []adapter.HookConfig {
 	var out []adapter.HookConfig
 	for _, hook := range hooks {
@@ -51,19 +62,19 @@ func withoutGuard(hooks []adapter.HookConfig) []adapter.HookConfig {
 	return out
 }
 
-// TestGenerateProjectHookConfigs_EditGuardRegistersOnClaudeCodeOnly: only the
-// Claude Code lane is wired here, under both spellings of its platform id;
-// every other hook-capable platform gets no guard entry from this generator.
-func TestGenerateProjectHookConfigs_EditGuardRegistersOnClaudeCodeOnly(t *testing.T) {
+// TestGenerateProjectHookConfigs_EditGuardRegistersOnWiredLanes: Claude Code,
+// under both spellings of its platform id, and OpenCode get exactly their
+// registration; every other hook-capable platform gets no guard entry yet.
+func TestGenerateProjectHookConfigs_EditGuardRegistersOnWiredLanes(t *testing.T) {
 	t.Parallel()
 
 	cfg := config.DefaultFullConfig("guard")
-	for _, platform := range []string{"claude", "claude-code"} {
+	for platform, want := range wantLaneGuards {
 		hooks, _, err := content.GenerateProjectHookConfigs(cfg, platform, true)
 		require.NoError(t, err, platform)
-		assert.Equal(t, []adapter.HookConfig{wantClaudeGuard}, guardEntries(hooks), platform)
+		assert.Equal(t, []adapter.HookConfig{want}, guardEntries(hooks), platform)
 	}
-	for _, platform := range []string{"codex", "opencode", "gemini", "gemini-cli", "antigravity-cli", "omp"} {
+	for _, platform := range []string{"codex", "gemini", "gemini-cli", "antigravity-cli", "omp"} {
 		hooks, _, err := content.GenerateProjectHookConfigs(cfg, platform, true)
 		require.NoError(t, err, platform)
 		assert.Empty(t, guardEntries(hooks), "%s registers no guard entry", platform)
@@ -75,6 +86,11 @@ func TestGenerateProjectHookConfigs_EditGuardRegistersOnClaudeCodeOnly(t *testin
 func TestGenerateHookConfigs_EditGuardFollowsTheFlag(t *testing.T) {
 	t.Parallel()
 
+	for _, platform := range []string{"opencode"} {
+		hooks, _, err := content.GenerateHookConfigs(config.HooksConf{EditGuard: new(false)}, platform, true)
+		require.NoError(t, err, platform)
+		assert.Empty(t, guardEntries(hooks), "%s with edit_guard: false", platform)
+	}
 	off, _, err := content.GenerateHookConfigs(config.HooksConf{PreCommitArch: true, EditGuard: new(false)},
 		"claude-code", true)
 	require.NoError(t, err)

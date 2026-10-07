@@ -1,0 +1,45 @@
+SPEC-EDITGUARD-001 T10 - generated OpenCode plugin on the real host
+===================================================================
+
+checked_at: 2026-10-07 (local)
+host: darwin/arm64, case-insensitive APFS
+guard: `auto` built from this branch with T10 (`go build ./cmd/auto`), run
+  only from the session scratchpad; probe projects are temp dirs.
+model calls: 0. OpenCode 2.0.10 ran its real hook pipeline against the A2
+  loopback Chat Completions stub on 127.0.0.1 with isolated XDG dirs.
+
+Results
+-------
+OpenCode 2.0.10, generated V2 plugin ........ PASS
+OpenCode 1.x, generated V1 plugin ........... NOT-RUN (no local 1.x runtime; CD-1 stays open for V1)
+
+OpenCode 2.0.10 - generated V2 plugin - PASS
+--------------------------------------------
+boundary: `auto init --platforms opencode` (isolated HOME) generated
+  .opencode/plugins/autopus-hooks.js with
+  EDIT_GUARD = {"command":"auto","args":["guard","edit","--platform","opencode"],"timeout":5,
+                "tools":["edit","write","patch"],"patchTools":["patch"]}
+  and BEFORE_HOOKS holding only the shell-tool arch check. That file, not the
+  T0 spike, ran in the A2 harness (opencode serve, loopback provider) with the
+  branch guard on PATH and .claude/skills/auto-fix/SKILL.md listed always in a
+  temp claude-code manifest.
+runs (the A2 scenarios; the patch runs use model key gpt-5.4):
+  edit protected ............... refused, GS-CON reason in the tool error; bytes unchanged
+  write protected .............. refused, GS-CON reason; bytes unchanged
+  write pkg/foo.go ............. created
+  shell call ................... ran (shell-ran.txt written); the arch-check shell hook passed
+  patch pkg/a.go then protected  refused, GS-CON reason; both files unchanged
+  patch move onto protected .... refused, GS-CON reason; both files unchanged
+  patch pkg/a.go only .......... applied
+  shell call ................... ran
+verdict: PASS for the V2 lane. Fail-open (deny then exit 2, silence, a hung
+  guard, non-decision output, a missing binary), payload exactness against
+  the T0 spike's synthesized payloads, the patch grammar, and the V1
+  spellings are pinned under node by
+  pkg/adapter/opencode/opencode_plugin_guard_test.go (S9), replaying the A2
+  host-native events saved in
+  pkg/adapter/opencode/testdata/opencode-2.0.10-execute-before.jsonl.
+V1 note: the V1 plugin is generated per REQ-EG-13 with the tools edit,
+  write, multiedit, patch, and apply_patch and the argument keys filePath and
+  path. These names come from the 2.0.10 compatibility layer and the V1
+  plugin documentation, not from a V1 host.
