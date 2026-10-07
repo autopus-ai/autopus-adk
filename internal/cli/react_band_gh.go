@@ -68,7 +68,8 @@ func (execBandRunner) LookPath(file string) (string, error) { return exec.LookPa
 
 // Run executes an allowlisted command directly, never through a shell, with
 // stdin and stderr on the null device (gh never prompts and its untrusted
-// stderr is never read); ctx ends it.
+// stderr is never read); ctx ends it. The command starts in its own process
+// group, so a timeout kills gh together with any helper it spawned.
 func (execBandRunner) Run(ctx context.Context, command bandCommand) error {
 	if err := checkBandCommand(command); err != nil {
 		return err
@@ -78,6 +79,7 @@ func (execBandRunner) Run(ctx context.Context, command bandCommand) error {
 	cmd.Env = command.Env
 	cmd.Stdout = command.Stdout
 	cmd.WaitDelay = bandWaitDelay
+	killReadinessProcessGroupOnCancel(cmd)
 	return cmd.Run()
 }
 
@@ -93,10 +95,10 @@ func checkBandCommand(command bandCommand) error {
 		allowed = slices.Equal(a, []string{"remote", "get-url", "origin"})
 	case command.Name != "gh":
 	case len(a) == 4 && a[0] == "auth" && a[1] == "status" && a[2] == "--hostname":
-		allowed = bandHostPattern.MatchString(a[3])
+		allowed = validBandHost(a[3])
 	case len(a) == 6 && a[0] == "api" && a[2] == "--hostname" && a[4] == "--jq" && a[5] == ".default_branch":
 		slug, isRepoPath := strings.CutPrefix(a[1], "repos/")
-		allowed = isRepoPath && validBandSlug(slug) && bandHostPattern.MatchString(a[3])
+		allowed = isRepoPath && validBandSlug(slug) && validBandHost(a[3])
 	case len(a) == 8 && a[0] == "run" && a[1] == "list" && a[2] == "-R" && a[4] == "--limit" && a[6] == "--json":
 		limit, err := strconv.Atoi(a[5])
 		allowed = validBandSlug(a[3]) && err == nil && strconv.Itoa(limit) == a[5] &&
@@ -165,10 +167,23 @@ func parseBandOrigin(raw string) (bandGHTarget, bool) {
 	}
 	owner, repo, _ := strings.Cut(strings.TrimSuffix(strings.Trim(path, "/"), ".git"), "/")
 	target := bandGHTarget{Host: host, Owner: owner, Repo: repo}
-	if !bandHostPattern.MatchString(host) || !validBandSlug(target.Slug()) {
+	if !validBandHost(host) || !validBandSlug(target.Slug()) {
 		return bandGHTarget{}, false
 	}
 	return target, true
+}
+
+// validBandHost accepts a lowercase DNS name and refuses localhost and IP
+// literals, which no GitHub host is: a token must never reach a loopback,
+// link-local, or metadata address that an origin URL names. A last label
+// that starts with a digit is an IPv4 literal or a numeric form a resolver
+// may read as one (2130706433, 0x7f000001); IPv6 literals fail the pattern.
+func validBandHost(host string) bool {
+	if !bandHostPattern.MatchString(host) || host == "localhost" || strings.HasSuffix(host, ".localhost") {
+		return false
+	}
+	last := host[strings.LastIndexByte(host, '.')+1:]
+	return last != "" && (last[0] < '0' || last[0] > '9')
 }
 
 // bandGHClient runs the gh Invocation Table through the runner seam. Every
@@ -189,20 +204,46 @@ func newBandGHClient(runner bandRunner) bandGHClient {
 	}
 }
 
-// gh builds a gh command whose environment replaces any inherited GH_REPO
-// and GH_HOST with the resolved repository, so a stray value cannot
-// redirect a call.
+// gh builds a gh command for a host that already passed gh auth status: its
+// environment replaces any inherited GH_REPO and GH_HOST with the resolved
+// repository, so a stray value cannot redirect a call.
 func (c bandGHClient) gh(target bandGHTarget, dir string, args ...string) bandCommand {
+	return bandCommand{Name: "gh", Args: args, Dir: dir, Env: c.ghEnv(target, true)}
+}
+
+// ghAuthStatus builds the host check. It injects no GH_HOST, because gh
+// counts GH_HOST as a configured host and would then check, over the
+// network, an environment token (GH_ENTERPRISE_TOKEN) against whatever host
+// origin names. Without it gh answers only for a host in its hosts config,
+// or for an inherited GH_HOST that already names this host.
+func (c bandGHClient) ghAuthStatus(target bandGHTarget, dir string) bandCommand {
+	args := []string{"auth", "status", "--hostname", target.Host}
+	return bandCommand{Name: "gh", Args: args, Dir: dir, Env: c.ghEnv(target, false)}
+}
+
+// ghEnv is the inherited environment without the keys that redirect gh or
+// make it prompt, page, or color (GH_FORCE_TTY, CLICOLOR_FORCE), plus
+// GH_REPO, the plain-output settings, and GH_HOST when injectHost is set.
+func (c bandGHClient) ghEnv(target bandGHTarget, injectHost bool) []string {
 	base := c.environ()
-	env := make([]string, 0, len(base)+2)
+	env := make([]string, 0, len(base)+5)
 	for _, entry := range base {
-		key, _, _ := strings.Cut(entry, "=")
-		if !strings.EqualFold(key, "GH_REPO") && !strings.EqualFold(key, "GH_HOST") {
-			env = append(env, entry)
+		key, value, _ := strings.Cut(entry, "=")
+		switch strings.ToUpper(key) {
+		case "GH_REPO", "GH_PROMPT_DISABLED", "GH_PAGER", "NO_COLOR", "GH_FORCE_TTY", "CLICOLOR_FORCE":
+			continue
+		case "GH_HOST":
+			if injectHost || !strings.EqualFold(strings.TrimSpace(value), target.Host) {
+				continue
+			}
 		}
+		env = append(env, entry)
 	}
-	env = append(env, "GH_REPO="+target.Slug(), "GH_HOST="+target.Host)
-	return bandCommand{Name: "gh", Args: args, Dir: dir, Env: env}
+	env = append(env, "GH_REPO="+target.Slug(), "GH_PROMPT_DISABLED=1", "GH_PAGER=cat", "NO_COLOR=1")
+	if injectHost {
+		env = append(env, "GH_HOST="+target.Host)
+	}
+	return env
 }
 
 // capture runs command into out under timeout. A run that outlives its

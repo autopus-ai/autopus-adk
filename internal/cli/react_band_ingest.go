@@ -47,8 +47,10 @@ var bandCIConclusions = map[string]float64{"success": 0, "failure": 1, "timed_ou
 
 // resolveRepo resolves the repository band reads: origin names it, gh must
 // be on PATH, and the host rule holds. github.com must pass gh auth status
-// (else gh_unauthenticated); any other host counts as GitHub only when it
-// passes gh auth status (else remote_not_github).
+// (else gh_unauthenticated); any other host counts as GitHub only when it is
+// neither localhost nor an IP literal and passes gh auth status run without
+// an injected GH_HOST, which gh answers only for a host in its hosts config
+// (else remote_not_github). Only then do later calls get GH_HOST.
 func (c bandGHClient) resolveRepo(ctx context.Context, projectDir string) (bandGHTarget, string) {
 	originCommand := bandCommand{Name: "git", Args: []string{"remote", "get-url", "origin"}, Dir: projectDir}
 	origin, err := c.output(ctx, originCommand, bandTextOutputCap)
@@ -62,7 +64,7 @@ func (c bandGHClient) resolveRepo(ctx context.Context, projectDir string) (bandG
 	if _, err := c.runner.LookPath("gh"); err != nil {
 		return bandGHTarget{}, healthband.ReasonGHMissing
 	}
-	err = c.capture(ctx, c.callTimeout, c.gh(target, projectDir, "auth", "status", "--hostname", target.Host), io.Discard)
+	err = c.capture(ctx, c.callTimeout, c.ghAuthStatus(target, projectDir), io.Discard)
 	switch {
 	case err == nil:
 		return target, ""

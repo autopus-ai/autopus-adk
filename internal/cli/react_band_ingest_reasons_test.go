@@ -92,7 +92,7 @@ func TestReactBandIngest_SkippedFetchWritesNoHistory(t *testing.T) {
 }
 
 // Host rule: a GitHub Enterprise host that passes gh auth status is used for
-// --hostname and GH_HOST.
+// --hostname, and for GH_HOST once the check passed.
 func TestReactBandIngest_HostRule_AcceptsAnAuthenticatedEnterpriseHost(t *testing.T) {
 	t.Parallel()
 	runner := scriptedBandRunner("git@ghe.example.com:acme/app.git", "trunk",
@@ -108,7 +108,11 @@ func TestReactBandIngest_HostRule_AcceptsAnAuthenticatedEnterpriseHost(t *testin
 		bandRunListArgv,
 	}, runner.argvs("gh"))
 	for _, call := range runner.recorded("gh") {
-		assert.Contains(t, call.env, "GH_HOST=ghe.example.com")
+		if call.argv[1] == "auth" {
+			assert.NotContains(t, call.env, "GH_HOST=ghe.example.com", "the host check injects no GH_HOST")
+		} else {
+			assert.Contains(t, call.env, "GH_HOST=ghe.example.com")
+		}
 		assert.Contains(t, call.env, "GH_REPO=acme/app")
 	}
 }

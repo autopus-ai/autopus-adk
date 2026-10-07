@@ -83,7 +83,8 @@ func s4Runs(t *testing.T) string {
 
 // S4: only completed default-branch push and schedule runs with a mapped
 // conclusion become observations, once per run id, the highest attempt wins,
-// and every gh call carries the resolved GH_REPO and GH_HOST.
+// and every gh call carries the resolved GH_REPO, and every call after the
+// host check the resolved GH_HOST.
 func TestReactBandIngest_S4_KeepsTrustedRunsAndDeduplicates(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
@@ -130,8 +131,15 @@ func TestReactBandIngest_S4_KeepsTrustedRunsAndDeduplicates(t *testing.T) {
 		assert.Greater(t, call.timeout, 29*time.Second, call.argv)
 		assert.LessOrEqual(t, call.timeout, 30*time.Second, call.argv)
 	}
+	// The host check injects no GH_HOST (the stale inherited one is dropped);
+	// every later call carries GH_HOST of the checked host.
+	plain := []string{"PATH=/usr/bin", "GH_TOKEN=synthetic", "GH_REPO=acme/app", "GH_PROMPT_DISABLED=1", "GH_PAGER=cat", "NO_COLOR=1"}
 	for _, call := range runner.recorded("gh") {
-		assert.Equal(t, []string{"PATH=/usr/bin", "GH_TOKEN=synthetic", "GH_REPO=acme/app", "GH_HOST=github.com"}, call.env)
+		want := append([]string(nil), plain...)
+		if call.argv[1] != "auth" {
+			want = append(want, "GH_HOST=github.com")
+		}
+		assert.Equal(t, want, call.env, call.argv)
 	}
 
 	// A later attempt supersedes the stored one; an earlier attempt does not.
