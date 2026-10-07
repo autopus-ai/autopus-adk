@@ -4,7 +4,8 @@ package cli_test
 // keys and no other migration condition, must rewrite autopus.yaml without
 // them through a raw-node prune that keeps everything else, and the written
 // file must load again. Red at B: update saves only for another migration, so
-// the group K keys stay. T13 un-skips it.
+// the group K keys stay. T13 un-skipped it; since T8 retired the group K
+// fields, the in-tree loader is no longer O's, so binary O loads the file too.
 
 import (
 	"os"
@@ -15,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/insajin/autopus-adk/internal/cli"
 	"github.com/insajin/autopus-adk/pkg/config"
 )
 
@@ -27,8 +29,7 @@ var panermKeptLines = []string{
 }
 
 func TestPanermS7_UpdatePrunesGroupKAndKeepsTheRest(t *testing.T) {
-	skipUntilPanermTask(t, "T13 (W3)",
-		"B's auto update writes autopus.yaml only when another migration holds, so the group K keys stay in the file")
+	binaryO := cli.BuildPanermBinaryO(t) // before the subtests pin PATH to a scratch dir
 	for _, fixture := range []string{"c1.yaml", "c2.yaml"} {
 		t.Run(fixture, func(t *testing.T) {
 			useStaleHookEnv(t, "")
@@ -56,10 +57,9 @@ func TestPanermS7_UpdatePrunesGroupKAndKeepsTheRest(t *testing.T) {
 				}
 			}
 
-			// Binary O shares B's loader (pkg/config has no non-test diff since
-			// c447badc), so until T8 this reload is the O load of S7.
 			_, err = config.Load(dir)
 			require.NoError(t, err, "the written autopus.yaml must load again")
+			cli.RequirePanermOLoads(t, binaryO, path)
 		})
 	}
 }

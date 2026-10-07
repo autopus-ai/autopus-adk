@@ -5,7 +5,7 @@ Inputs for the legacy config matrix (acceptance.md S4-S7, RFP-2).
 | File | Content |
 |------|---------|
 | `c1.yaml` | C1: `autopus.yaml` written by binary O (`auto` v0.50.123 built from `c447badc`) via `auto init --platforms claude-code --yes`; group K paths = P1 |
-| `c2.yaml` | C2: C1 edited to hold the five group K keys under `claude`, `codex`, `my-local`, plus `prompt_via_args`, `orchestra.subprocess.{max_concurrent,work_dir,rounds}`, `features.cc21.monitor_enabled`, `future_extension`, and `# keep-me`; group K paths = P2 |
+| `c2.yaml` | C2: C1 edited to hold the five group K keys under `claude`, `codex`, `my-local`, plus `prompt_via_args`, `orchestra.subprocess.{max_concurrent,work_dir,rounds}`, `features.cc21.monitor_enabled`, `future_extension`, and `# keep-me`; group K paths = P2. `my-local` is also listed in the four `orchestra.commands.*.providers` lists, so C2 holds no other `auto update` migration condition (S7 b): an unlisted provider makes `MigrateOrchestraConfig` add it and save through `config.Save`, which drops comments and reserved blocks |
 | `c2-prime.yaml` | C2': C2 without its group K lines (S6 control) |
 | `c2o.yaml` | C2o: C2 plus `operator_extension: {credential_ref: ${OMP_SECRET}}` (S7 e) |
 | `c3.yaml` | C3: typo `pane_argz` on line 4 |
