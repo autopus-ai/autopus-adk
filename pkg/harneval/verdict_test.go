@@ -31,8 +31,10 @@ func newLive(k int, tasks ...string) *liveBuilder {
 }
 
 // set gives one task arm its outcomes in trial order: pass, fail, error,
-// build (a fail whose oracle never built, so it never ran), or ghost (an error
-// whose oracle claims to have run, which no trusted parser writes).
+// build (a fail whose oracle never built, so it never ran), ghost (an error
+// whose oracle claims to have run, which no trusted parser writes), agent (an
+// agent that exited nonzero) or launch (an agent that never started); the
+// last two are graded on the unrepaired workspace, so their oracle ran.
 func (b *liveBuilder) set(task, arm string, outcomes ...string) *liveBuilder {
 	for trial, outcome := range outcomes {
 		b.outcomes[Attempt{TaskID: task, Arm: arm, Trial: trial}] = outcome
@@ -87,6 +89,11 @@ func liveRecord(attempt Attempt, outcome string) Record {
 		record.Outcome, record.Signal, record.Oracle.Ran, record.Oracle.ExpectedFailed = OutcomeFail, "oracle_failed", true, 1
 	case "build":
 		record.Outcome, record.Signal, record.Oracle.BuildFailed = OutcomeFail, "oracle_failed", true
+	case "agent", "launch":
+		record.Outcome, record.Signal, record.Oracle.Ran, record.Oracle.ExpectedFailed = OutcomeFail, "agent_exit_nonzero", true, 1
+		if outcome == "launch" {
+			record.Signal = "agent_launch_failed"
+		}
 	case "error", "ghost":
 		record.Outcome, record.Signal, record.Oracle.Ran = OutcomeError, "warmup_failed", outcome == "ghost"
 	}
@@ -160,6 +167,21 @@ func TestComputeVerdict_FormulaAndPrecedence(t *testing.T) {
 		{"an arm without a valid trial is incomplete at any floor",
 			newLive(2, taskA).withFloor(0.5).set(taskA, ArmCandidate, "ghost", "ghost"),
 			armWant{2, 2, rate(1)}, armWant{0, 0, nil}, 0, 0.5, nil, VerdictIncomplete, ReasonNoValidTrial},
+		{"no trial past the agent stage in either arm is vacuous, not ok", newLive(2, taskA, taskB).
+			set(taskA, ArmBaseline, "agent", "launch").set(taskB, ArmBaseline, "agent", "agent").
+			set(taskA, ArmCandidate, "launch", "agent").set(taskB, ArmCandidate, "agent", "agent"),
+			armWant{0, 4, rate(0)}, armWant{0, 4, rate(0)}, 0, 1, nil, VerdictVacuous, "agent_all_failed"},
+		{"agent failures everywhere are vacuous before incomplete", newLive(2, taskA, taskB).
+			set(taskA, ArmBaseline, "agent", "error").set(taskB, ArmBaseline, "agent", "agent").
+			set(taskA, ArmCandidate, "agent", "agent").set(taskB, ArmCandidate, "agent", "agent"),
+			armWant{0, 3, rate(0)}, armWant{0, 4, rate(0)}, 0, 0.875, nil, VerdictVacuous, "agent_all_failed"},
+		{"S11 a candidate surface the agent cannot start with is a regression", newLive(2, taskA, taskB).
+			set(taskA, ArmCandidate, "launch", "launch").set(taskB, ArmCandidate, "launch", "launch"),
+			armWant{4, 4, rate(1)}, armWant{0, 4, rate(0)}, -1, 1, []string{taskA, taskB}, VerdictRegression, ReasonHardFlip},
+		{"one trial past the agent stage keeps the session judged", newLive(2, taskA, taskB).
+			set(taskA, ArmBaseline, "pass", "agent").set(taskB, ArmBaseline, "agent", "agent").
+			set(taskA, ArmCandidate, "agent", "agent").set(taskB, ArmCandidate, "agent", "agent"),
+			armWant{1, 4, rate(0.25)}, armWant{0, 4, rate(0)}, -0.25, 1, nil, VerdictRegression, ReasonPassRateRegression},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -181,4 +203,36 @@ func TestComputeVerdict_FormulaAndPrecedence(t *testing.T) {
 			assert.Equal(t, tt.reason, verdict.Reason)
 		})
 	}
+}
+
+// TestComputeVerdict_AgentStageSignals_AreTheOnlyIncompleteAgentSteps: in a
+// session whose oracle ran in every trial, each fail signal of the closed
+// REQ-HE-08 table fills both arms alone. Only the agent-stage failures leave a
+// session without a completed agent step; a fail after a completed agent step
+// is a measurement, so 0 passes in both arms stays within the threshold.
+func TestComputeVerdict_AgentStageSignals_AreTheOnlyIncompleteAgentSteps(t *testing.T) {
+	t.Parallel()
+	agentStage := map[string]bool{"agent_launch_failed": true, "agent_exit_nonzero": true,
+		"agent_timeout": true, "observation_failed": true}
+	fails := 0
+	for signal, outcome := range signalOutcomes {
+		if outcome != OutcomeFail {
+			continue
+		}
+		fails++
+		session := newLive(2, taskA, taskB).session()
+		for index := range session.Records {
+			session.Records[index].Outcome, session.Records[index].Signal = OutcomeFail, signal
+		}
+
+		verdict, err := ComputeVerdict(session)
+
+		require.NoError(t, err, signal)
+		want := [2]string{VerdictOK, ReasonWithinThreshold}
+		if agentStage[signal] {
+			want = [2]string{VerdictVacuous, "agent_all_failed"}
+		}
+		assert.Equal(t, want, [2]string{verdict.Verdict, verdict.Reason}, signal)
+	}
+	assert.Equal(t, 9, fails, "the REQ-HE-08 table has nine fail signals")
 }

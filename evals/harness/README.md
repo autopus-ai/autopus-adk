@@ -164,6 +164,7 @@ record is `records_protocol_mismatch`; with one, the records must hold every
 |----------------------|--------|------|
 | `vacuous` | `oracle_calibration_failed` | `calibration.json` absent, or `before` or `after` not `passed` |
 | `vacuous` | `oracle_not_run` | an arm has no record with `oracle.ran` true (build failures only) |
+| `vacuous` | `agent_all_failed` | no trial of either arm got past the agent step (`agent_launch_failed`, `agent_exit_nonzero`, `agent_timeout`, `observation_failed` or error only), e.g. missing credentials; one arm alone failing at the agent step is still judged |
 | `incomplete` | `completeness_below_floor` | completeness < `policy.completeness_floor` |
 | `incomplete` | `no_valid_trial` | an arm has no non-error trial |
 | `regression` | `hard_flip` | a task passed K/K in the baseline and 0/K in the candidate |

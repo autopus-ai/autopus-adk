@@ -133,6 +133,42 @@ func TestEvalHarnessReport_S10_RefusedSessionIsVacuousCalibrationFailure(t *test
 	assert.Equal(t, 0.0, doc["regression_delta"])
 }
 
+// TestEvalHarnessReport_AgentFailedEveryTrial_IsVacuousNotOK: a session whose
+// agent failed in every trial of both arms (missing credentials, say) was
+// still graded, so every oracle ran and failed on the unrepaired workspace.
+// Both arms end at 0 passes; that measured nothing and must not read ok.
+func TestEvalHarnessReport_AgentFailedEveryTrial_IsVacuousNotOK(t *testing.T) {
+	t.Parallel()
+	dir := copyHarnessSession(t, func(name string, body []byte) []byte {
+		if name != harneval.RecordsFile {
+			return body
+		}
+		var lines []string
+		for _, line := range strings.Split(strings.TrimSuffix(string(body), "\n"), "\n") {
+			var record map[string]any
+			require.NoError(t, json.Unmarshal([]byte(line), &record))
+			record["outcome"], record["signal"] = "fail", "agent_exit_nonzero"
+			record["oracle"] = map[string]any{"ran": true, "build_failed": false, "expected_passed": 0, "expected_failed": 1}
+			edited, err := json.Marshal(record)
+			require.NoError(t, err)
+			lines = append(lines, string(edited))
+		}
+		return []byte(strings.Join(lines, "\n") + "\n")
+	})
+
+	out := runHarness(t, evalHarnessDeps{}, "report", "--input", dir, "--format", "json")
+
+	require.Equal(t, 0, out.code, out.stderr)
+	doc := harnessDoc(t, out.stdout)
+	assert.Equal(t, "vacuous", doc["verdict"])
+	assert.Equal(t, "agent_all_failed", doc["reason"])
+	assert.Equal(t, map[string]any{
+		"baseline":  map[string]any{"passes": 0.0, "valid": 6.0, "pass_rate": 0.0},
+		"candidate": map[string]any{"passes": 0.0, "valid": 6.0, "pass_rate": 0.0},
+	}, doc["arms"])
+	assert.Equal(t, 1.0, doc["completeness"])
+}
+
 // TestEvalHarnessReport_InvalidInput_ExitsOneWithoutAReport: only an input the
 // command cannot judge exits 1, and then stdout stays empty.
 func TestEvalHarnessReport_InvalidInput_ExitsOneWithoutAReport(t *testing.T) {

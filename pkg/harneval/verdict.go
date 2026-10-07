@@ -10,6 +10,7 @@ const (
 
 	ReasonOracleCalibrationFailed = "oracle_calibration_failed"
 	ReasonOracleNotRun            = "oracle_not_run"
+	ReasonAgentAllFailed          = "agent_all_failed"
 	ReasonCompletenessBelowFloor  = "completeness_below_floor"
 	ReasonNoValidTrial            = "no_valid_trial"
 	ReasonHardFlip                = "hard_flip"
@@ -43,9 +44,24 @@ type LiveVerdict struct {
 	Reason          string           `json:"reason"`
 }
 
-// armTally accumulates the records of one arm, overall and per task.
+// agentStageFailures are the REQ-HE-08 signals of a trial whose agent step
+// failed: it never started, timed out, exited nonzero, or left no usable
+// observation. Grading still runs, so the oracle ran and failed on the
+// unrepaired workspace: a valid fail that says nothing about how the arm
+// surface steers a working agent.
+var agentStageFailures = map[string]bool{
+	"agent_launch_failed": true,
+	"agent_exit_nonzero":  true,
+	"agent_timeout":       true,
+	"observation_failed":  true,
+}
+
+// armTally accumulates the records of one arm, overall and per task. ran
+// counts records whose oracle ran; agentDone counts valid trials whose agent
+// step completed.
 type armTally struct {
 	ran        int
+	agentDone  int
 	totals     ArmTotals
 	taskValid  map[string]int
 	taskPasses map[string]int
@@ -70,6 +86,9 @@ func ComputeVerdict(s *Session) (LiveVerdict, error) {
 		}
 		if record.Outcome == OutcomeError {
 			continue
+		}
+		if !agentStageFailures[record.Signal] {
+			tally.agentDone++
 		}
 		tally.totals.Valid++
 		tally.taskValid[record.TaskID]++
@@ -113,14 +132,19 @@ func hardFlips(protocol Protocol, baseline, candidate *armTally) []string {
 
 // decide applies the REQ-HE-10 precedence: vacuous, then incomplete, then
 // regression (a hard flip before a pass-rate drop), then ok. A session whose
-// oracle calibration did not pass at both ends, or whose oracle never ran in
-// an arm, cannot be ok.
+// oracle calibration did not pass at both ends, whose oracle never ran in an
+// arm, or in which no trial of either arm got past the agent step cannot be
+// ok. The last is judged over both arms together: a candidate surface that
+// keeps the agent from starting while the baseline agent works is a
+// regression, not a vacuous session.
 func decide(verdict LiveVerdict, baseline, candidate *armTally, policy LivePolicy) (string, string) {
 	switch {
 	case verdict.Calibration.Status != CalibrationPassed:
 		return VerdictVacuous, ReasonOracleCalibrationFailed
 	case baseline.ran == 0 || candidate.ran == 0:
 		return VerdictVacuous, ReasonOracleNotRun
+	case baseline.agentDone+candidate.agentDone == 0:
+		return VerdictVacuous, ReasonAgentAllFailed
 	case verdict.Completeness < policy.CompletenessFloor:
 		return VerdictIncomplete, ReasonCompletenessBelowFloor
 	case baseline.totals.Valid == 0 || candidate.totals.Valid == 0:
