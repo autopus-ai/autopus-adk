@@ -627,14 +627,14 @@ IMPORTANT: You MUST execute this step via the Bash tool. Do NOT skip to Step 4 o
 For `STRATEGY=debate`, execute the explicit debate branch:
 
 ```bash
-auto orchestra brainstorm "{structured idea}" --strategy debate --providers {PROVIDERS} --rounds 2 --judge {invoking_provider} --no-detach --format json
+auto orchestra brainstorm "{structured idea}" --strategy debate --providers {PROVIDERS} --rounds 2 --judge {invoking_provider} --format json
 ```
 
 For `consensus`, `pipeline`, or `fastest`, execute the requested strategy
 without `--rounds` or `--judge`:
 
 ```bash
-auto orchestra brainstorm "{structured idea}" --strategy {STRATEGY} --providers {PROVIDERS} --no-detach --format json
+auto orchestra brainstorm "{structured idea}" --strategy {STRATEGY} --providers {PROVIDERS} --format json
 ```
 
 Omit `--providers` only when the user did not supply an explicit provider list.
@@ -645,16 +645,12 @@ merged brainstorm result.
 - `--multi` flag is ALWAYS active for idea — orchestra is the default engine
 - `--ultrathink` combines with orchestra: run orchestra first, then use Sequential Thinking to deepen the judge's analysis
 - `--rounds 2` is debate-only. For another requested strategy, omit this flag and execute the requested strategy without relabeling it.
-- The orchestra engine owns pane collection, informed revision, anonymization, and judge lifecycle. Do not reconstruct those phases in the workflow prompt.
+- The orchestra engine owns provider collection, informed revision, anonymization, and judge lifecycle. Do not reconstruct those phases in the workflow prompt.
 - Every provider in the resolved configured debate set, including Claude, must participate in both Round 1 and Round 2; judge selection must not remove a participant.
 - The blind judge must use the invoking provider in a fresh isolated provider session and preserve every dissenting idea in the result appendix. It must not reuse or share Round 1/2 participant session context, history, or tool state.
 
-**Fallback rule**: If the first Bash call returns an error, display the exact
-error and retry the same orchestra engine once with `--subprocess`,
-`--no-detach`, and `--format json`, preserving the selected
-strategy/providers and debate-only
-flags. Only when that same-engine retry also fails may native agents be
-considered. Native fallback requires runtime evidence that every provider in the
+**Fallback rule**: If the Bash call returns an error, display the exact error.
+Only after that error may native agents be considered. Native fallback requires runtime evidence that every provider in the
 resolved configured debate set, including Claude, participates in both rounds
 and that the invoking provider runs the separate blind judge in a fresh isolated
 provider session without reusing either participant session.
@@ -1729,7 +1725,7 @@ When `--multi` flag is set, activate the risk-tiered review policy:
 Execute the synchronous typed review and forward explicit providers unchanged:
 
 ```bash
-auto orchestra review {review paths} --risk-tier {RISK_TIER} --strategy {STRATEGY} --providers {PROVIDERS} --no-detach --format json
+auto orchestra review {review paths} --risk-tier {RISK_TIER} --strategy {STRATEGY} --providers {PROVIDERS} --format json
 ```
 
 Omit `--providers` only when absent. Require
@@ -2447,12 +2443,12 @@ Forward explicit strategy and provider choices unchanged. Omit `--providers`
 only when it was not supplied.
 
 ```bash
-auto orchestra review {review paths} --risk-tier {RISK_TIER} --strategy {STRATEGY} --providers {PROVIDERS} --no-detach --format json
+auto orchestra review {review paths} --risk-tier {RISK_TIER} --strategy {STRATEGY} --providers {PROVIDERS} --format json
 ```
 
 Require `schema=orchestration_cli_result.v1` and an embedded
-`receipt.schema=orchestration_run_receipt.v1`; a detached job ID or untyped
-prose does not satisfy this synchronous discovery gate. Freeze the discovery
+`receipt.schema=orchestration_run_receipt.v1`; untyped prose does not satisfy
+this discovery gate. Freeze the discovery
 findings, preserve dissent, and set
 `critical_veto=true` for an unresolved Critical security/correctness finding.
 Delegate focused repairs, run deterministic validation, then verify only the

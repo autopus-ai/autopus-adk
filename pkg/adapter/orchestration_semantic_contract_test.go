@@ -138,7 +138,9 @@ func TestGeneratedOrchestration_S18BehavioralBindings(t *testing.T) {
 		"claude-idea":   claudeIdea,
 		"codex-idea":    codexIdea,
 	} {
-		assert.Contains(t, surface, "--no-detach", "%s must synchronously consume orchestra output", name)
+		// Orchestra is always synchronous since SPEC-PANERM-001; the retired
+		// flag stays a hidden no-op and must not be instructed.
+		assert.NotContains(t, surface, "--no-detach", "%s must not instruct the retired --no-detach flag", name)
 		assert.Contains(t, surface, "--format json", "%s must request a typed CLI result", name)
 	}
 

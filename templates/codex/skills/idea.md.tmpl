@@ -180,8 +180,9 @@ Outcome (목표)
 ### [REQUIRED] Step 3: Engine-owned multi-provider debate
 
 아이디어 토론의 라운드와 judge lifecycle은 orchestra 엔진이 소유합니다. 메인 세션은
-pane을 열거나, Round 2 프롬프트를 직접 주입하거나, provider 출력을 다시 judge하지
-않습니다.
+provider를 직접 실행하거나, Round 2 프롬프트를 직접 주입하거나, provider 출력을 다시
+judge하지 않습니다. orchestra 명령은 모든 라운드를 동기적으로 실행하고 결과를 직접
+출력합니다.
 
 PM, Designer, Engineer 관점과 Step 2의 Intent Brief, Clarification Ledger,
 Visual Brief를 `{structured idea}`에 포함합니다. 사용자가 지정한 strategy와 providers를
@@ -190,13 +191,13 @@ Visual Brief를 `{structured idea}`에 포함합니다. 사용자가 지정한 s
 Debate 호출:
 
 ```bash
-auto orchestra brainstorm "{structured idea}" --strategy debate --providers {providers} --rounds 2 --judge {invoking_provider} --context --timeout 300 --no-detach --format json
+auto orchestra brainstorm "{structured idea}" --strategy debate --providers {providers} --rounds 2 --judge {invoking_provider} --context --timeout 300 --format json
 ```
 
 다른 strategy 호출:
 
 ```bash
-auto orchestra brainstorm "{structured idea}" --strategy {strategy} --providers {providers} --context --timeout 300 --no-detach --format json
+auto orchestra brainstorm "{structured idea}" --strategy {strategy} --providers {providers} --context --timeout 300 --format json
 ```
 
 규칙:
@@ -231,7 +232,7 @@ Fallback은 orchestra 호출이 실제 오류를 반환한 경우에만 허용�
 4. 모든 dissent를 보존한 결과
 
 native worker surface가 위 계약을 실행할 수 없으면 `orchestra_unavailable` blocker로
-종료합니다. 수동 pane 조작이나 메인 세션 자체 scoring은 fallback이 아닙니다.
+종료합니다. 메인 세션의 수동 provider 실행이나 자체 scoring은 fallback이 아닙니다.
 
 ### [REQUIRED] Step 4: Consume blind judge result
 

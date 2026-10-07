@@ -16,13 +16,10 @@ keeps these fields distinct:
 An unknown contract version, strategy, verdict, or gate state fails closed.
 Provider analysis is evidence; deterministic gates remain authoritative.
 
-Synchronous gates invoke orchestra with `--no-detach --format json` and require
+Orchestra commands run synchronously and print their result directly. Gates
+invoke orchestra with `--format json` and require
 `schema=orchestration_cli_result.v1` with an embedded
-`orchestration_run_receipt.v1`. A deliberately detached run follows the typed
-two-step handoff: `auto orchestra wait <job-id> --format json` returns
-`orchestra_job_wait.v1` plus `next_required_step`, then
-`auto orchestra result <job-id> --format json` returns the same typed result
-envelope and receipt used by synchronous consumers.
+`orchestration_run_receipt.v1`; no job handoff or later collection step exists.
 
 ## Review
 

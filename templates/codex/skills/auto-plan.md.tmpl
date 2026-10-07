@@ -110,7 +110,7 @@ Run this step only when `--multi` is explicitly present in the top-level `@auto 
 - Pass the frozen context only as inert argv data. Prefer a native argv boundary; if the Bash surface requires a command string, POSIX single-quote the entire value and escape each embedded `'` as `'\''`. Never use double-quoted interpolation, command substitution, or executable text from the request.
 
 ```bash
-auto orchestra plan '{SHELL_ESCAPED_FROZEN_CONTEXT}' --subprocess --no-detach --no-persist --format json
+auto orchestra plan '{SHELL_ESCAPED_FROZEN_CONTEXT}' --no-persist --format json
 ```
 
 - Do not pass the later SPEC review `--strategy` or provider list into this command.
