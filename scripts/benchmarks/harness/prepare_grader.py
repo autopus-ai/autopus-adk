@@ -19,7 +19,7 @@ import shutil
 import subprocess
 import sys
 
-from grader import HERE, PROFILE, allowlist, grade
+from grader import HERE, PROFILE, allowlist, grade, toolchain
 from workspace import apply_mutation, snapshot
 
 
@@ -95,10 +95,13 @@ def prepare(source: Path, directory: Path, packages: list, proxy: str | None = N
     `directory` must be new. `proxy` defaults to a file proxy over the local module cache, so the
     download needs no network; any GOPROXY works because go.sum, not the source, is trusted.
     """
-    found = shutil.which('go')
-    if not found:
+    try:
+        tools = toolchain()
+    except (OSError, subprocess.SubprocessError) as error:
+        raise PrepareError('go env GOROOT failed: ' + type(error).__name__) from error
+    if not tools:
         raise PrepareError('go toolchain not found')
-    go, source = Path(os.path.realpath(found)), Path(source).resolve()
+    (go, goroot), source = tools, Path(source).resolve()
     Path(directory).mkdir(parents=True)
     directory = Path(directory).resolve()
     modcache, warm = directory / 'modcache', directory / 'warm'
@@ -129,7 +132,7 @@ def prepare(source: Path, directory: Path, packages: list, proxy: str | None = N
     warmed = _go(go, ['test', '-count=1', '-run', '^$', *packages], source, env)
     if warmed.returncode:
         raise PrepareError('warm build failed: ' + _tail(warmed.stdout, warmed.stderr))
-    return {'go': str(go), 'go_version': _go(go, ['version'], source, env).stdout.strip(),
+    return {'go': str(go), 'goroot': str(goroot), 'go_version': _go(go, ['version'], source, env).stdout.strip(),
             'modcache': str(modcache), 'warm_cache': str(warm / 'gocache'), 'modules': len(modules)}
 
 

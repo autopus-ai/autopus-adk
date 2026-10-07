@@ -95,7 +95,8 @@ def parse(argv: list | None) -> argparse.Namespace:
     parser.add_argument('--credential-env', action='append', metavar='NAME',
                         help='runner variable passed to the agent process only (repeatable; default: '
                              + ', '.join(DEFAULT_CREDENTIALS) + ')')
-    parser.add_argument('--proxy', help='GOPROXY for the trusted module download (default: local file proxy)')
+    parser.add_argument('--proxy', help='GOPROXY for the trusted module downloads of the grader and of each arm '
+                                        'surface driver build (default: local file proxy)')
     parser.add_argument('--keep-scratch', action='store_true', help='keep workspaces, caches and transcripts')
     return parser.parse_args(argv)
 
@@ -181,7 +182,7 @@ def arm_surfaces(options: argparse.Namespace, steps: Steps, manifest: dict, scra
     for arm in () if surfaces else gp.ARMS:
         try:
             surfaces[arm] = steps.surface(options.repo, revisions[arm], manifest['pins'], options.dir,
-                                          scratch / 'surfaces' / arm, scratch / 'driver' / arm)
+                                          scratch / 'surfaces' / arm, scratch / 'driver' / arm, proxy=options.proxy)
         except golden_surface.SurfaceError as error:
             raise Refusal('baseline_ref_unsupported' if arm == 'baseline' else 'invalid',
                           f'{arm} surface at {revisions[arm]}: {error}') from error

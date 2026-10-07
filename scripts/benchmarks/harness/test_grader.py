@@ -87,9 +87,11 @@ class GraderArgvTests(unittest.TestCase):
         self.addCleanup(directory.cleanup)
         self.base = Path(directory.name).resolve()
         self.root = self.base / 'session' / 'grade'
-        self.root.mkdir(parents=True)
-        self.prepared = {'go': str(self.base / 'go/bin/go'), 'modcache': str(self.base / 'session/grader/modcache'),
+        self.prepared = {'go': str(self.base / 'go/bin/go'), 'goroot': str(self.base / 'go'),
+                         'modcache': str(self.base / 'session/grader/modcache'),
                          'warm_cache': str(self.base / 'session/grader/warm/gocache')}
+        for path in (self.root, self.prepared['goroot'], self.prepared['modcache'], self.prepared['warm_cache']):
+            Path(path).mkdir(parents=True, exist_ok=True)
 
     def test_grader_environment_is_exactly_the_allowlist(self):
         roots = ('/Users/maintainer', '/Users/maintainer/Library/codex home')
@@ -101,8 +103,10 @@ class GraderArgvTests(unittest.TestCase):
             'PATH': str(self.base / 'go/bin'), 'HOME': str(self.root / 'home'), 'TMPDIR': str(self.root / 'tmp'),
             'GOPATH': str(self.root / 'gopath'), 'GOCACHE': str(self.root / 'gocache'),
             'GOMODCACHE': self.prepared['modcache'], 'GOFLAGS': '-mod=mod', 'GOPROXY': 'off', 'GOSUMDB': 'off',
-            'GOTOOLCHAIN': 'local'})
+            'GOTOOLCHAIN': 'local', 'PWD': str(self.root / 'ws')})
         self.assertEqual(argv[split:], [grader.SANDBOX, '-f', str(grader.PROFILE), '-D', 'GRADE_ROOT=' + str(self.root),
+                                        '-D', 'MODCACHE=' + self.prepared['modcache'],
+                                        '-D', 'GOROOT=' + self.prepared['goroot'],
                                         '-D', 'ACCOUNT_HOME=/Users/maintainer',
                                         '-D', 'CODEX_HOME_DIR=/Users/maintainer/Library/codex home',
                                         self.prepared['go'], 'test', '-json', '-p', '1', './pkg/x', '-run',
@@ -119,6 +123,13 @@ class GraderArgvTests(unittest.TestCase):
                         ['go', 'test', '-toolexec', '/bin/sh', '.'], ['sh', '-c', 'go test']):
             with self.subTest(command=command), self.assertRaises(ValueError):
                 grader.grader_argv(self.root, command, self.prepared)
+
+    def test_rejects_a_module_cache_or_toolchain_that_would_reopen_a_home(self):
+        # grader.sb opens reads below the homes for these two roots, so neither may be or hold a home.
+        for key, value in (('goroot', '/'), ('goroot', str(Path.home())), ('modcache', '/private/tmp'),
+                           ('modcache', str(self.base / 'missing')), ('goroot', '')):
+            with self.subTest(key=key, value=value), self.assertRaises(ValueError):
+                grader.grader_argv(self.root, self.COMMAND, {**self.prepared, key: value})
 
 
 PROBE = '''package probe

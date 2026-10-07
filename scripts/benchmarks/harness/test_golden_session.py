@@ -38,6 +38,17 @@ def records(session: Path) -> list:
     return [json.loads(line) for line in (session / 'records.jsonl').read_text().splitlines()]
 
 
+def surface_sources_changed(base: str, head: str) -> bool:
+    """Whether go.mod, go.sum or an in-module package the surface driver builds from differs between two
+    revisions. The driver source itself is this checkout's in both arm builds, so it is left out; a git
+    error counts as a change, which only withholds the equality check."""
+    listing = subprocess.run(['go', 'list', '-deps', '-f', '{{if not .Standard}}{{.Dir}}{{end}}', './' + gs.DRIVER_PACKAGE],
+                             cwd=CHECKOUT, capture_output=True, text=True, check=True).stdout.split()
+    packages = {Path(path).relative_to(CHECKOUT).as_posix() for path in listing if Path(path).is_relative_to(CHECKOUT)}
+    paths = ['go.mod', 'go.sum', *sorted(packages - {gs.DRIVER_PACKAGE})]
+    return subprocess.run(['git', 'diff', '--quiet', base, head, '--', *paths], cwd=CHECKOUT).returncode != 0
+
+
 @unittest.skipUnless(sys.platform == 'darwin' and os.path.exists(grader.SANDBOX) and shutil.which('go'),
                      'requires macOS sandbox-exec and the Go toolchain')
 class GoldenSessionTests(unittest.TestCase):
@@ -110,8 +121,8 @@ class GoldenSessionTests(unittest.TestCase):
         # (live.baseline_ref v0.50.123, then HEAD); the fixture world keeps its own workspace repository.
         world, generated = self.world(['alpha'], k=1), {}
 
-        def surface(_repo, revision, *rest):
-            path = gs.arm_surface(CHECKOUT, revision, *rest)
+        def surface(_repo, revision, *rest, **options):
+            path = gs.arm_surface(CHECKOUT, revision, *rest, **options)
             generated[revision] = (gp.surface_digest(path), (path / 'AGENTS.md').read_text().strip())
             return path
         summary = self.run_golden(world, golden.Steps(surface=surface), surfaces=False)
@@ -120,7 +131,11 @@ class GoldenSessionTests(unittest.TestCase):
         protocol = json.loads((world.session / 'protocol.json').read_text())
         self.assertEqual((protocol['baseline_surface_digest'], protocol['candidate_surface_digest']),
                          (generated['v0.50.123'][0], generated['HEAD'][0]))
-        self.assertNotEqual(generated['v0.50.123'][0], generated['HEAD'][0], 'the arms differ by revision')
+        # HEAD need not generate another surface than the baseline tag (right after a release it does not), so
+        # the arms are told apart by the revision each driver was built from, not by their digests. Only when
+        # no surface source changed since the tag is the outcome known: then both arms are one surface.
+        if not surface_sources_changed('v0.50.123', 'HEAD'):
+            self.assertEqual(generated['v0.50.123'][0], generated['HEAD'][0], 'no surface source changed')
         # Trial 0 of the only task runs the baseline first; each agent saw its arm's generated AGENTS.md.
         self.assertEqual([call['policy'] for call in calls(world)], [generated['v0.50.123'][1], generated['HEAD'][1]])
         self.assertIn('# Autopus-ADK Harness', generated['HEAD'][1])
