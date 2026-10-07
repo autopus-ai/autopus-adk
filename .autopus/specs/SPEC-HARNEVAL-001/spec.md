@@ -1,6 +1,6 @@
 # SPEC-HARNEVAL-001: Harness 변경 Golden-Task Eval 게이트 (결정적 PR lane + advisory live lane)
 
-**Status**: approved
+**Status**: implemented
 **Created**: 2026-10-06
 **Domain**: HARNEVAL
 **Module**: autopus-adk
