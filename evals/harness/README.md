@@ -137,8 +137,12 @@ runs this calibration before any trial and refuses the session with
 ## Live advisory report (REQ-HE-10, REQ-HE-11)
 
 `auto eval harness report` judges one live session directory written by the
-trusted runner and prints the unsigned `harness_live_advisory.v1` report on
-stdout. It exits 0 whatever the verdict and 1 only when the session cannot be
+trusted runner (`python3 scripts/benchmarks/harness/run.py --mode golden`, see
+`scripts/benchmarks/harness/README.md`) and prints the unsigned
+`harness_live_advisory.v1` report on stdout. The report carries the
+protocol's `runner_sha256`, the tree digest of the whole runner file set
+(golden runner, grader, `grader.sb`, trusted preparation and the pilot modules
+they load), and `grader_profile_sha256`, the SHA-256 of `grader.sb`. It exits 0 whatever the verdict and 1 only when the session cannot be
 judged. The report gates nothing: `auto check --eval-regression` rejects it as
 `artifact_unsigned` before decoding it. `grader.jsonl` is diagnostic and never
 read. `pkg/harneval/testdata/live-session/` is a complete reference session.

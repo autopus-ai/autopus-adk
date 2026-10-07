@@ -214,7 +214,7 @@ def agent_tasks(checkout: Path) -> tuple:
             if not task.get('expected_tests'):
                 raise ValueError('expected_tests_missing: ' + task['id'])
             found[task['id']] = {'id': task['id'], 'expected_tests': list(task['expected_tests']),
-                                 'corpus': entries[ref['task_id']]}
+                                 'corpus': entries[ref['task_id']], 'corpus_ref': dict(ref)}
     return manifest, [found[key] for key in sorted(found)]
 
 

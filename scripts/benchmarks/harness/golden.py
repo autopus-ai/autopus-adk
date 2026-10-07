@@ -1,0 +1,259 @@
+"""Golden live lane runner: one advisory baseline/candidate session on a maintainer macOS host.
+
+    python3 scripts/benchmarks/harness/run.py --mode golden --output <new-dir> --surfaces <dir>
+
+SPEC-HARNEVAL-001 REQ-HE-07 and REQ-HE-08. The trusted runner refuses the session before any agent
+call on a non-macOS host, an invalid golden set, an existing protocol, a run cap overrun, a codex CLI
+other than the pinned one, a workspace where a mutation does not match exactly once, or a failed
+oracle calibration. Otherwise it freezes protocol.json (O_EXCL) and calibration.json, runs every
+attempt of the balanced order exactly once without retries, appends each record to records.jsonl
+itself, and recalibrates after the last trial. `auto eval harness report --input <dir>` judges it.
+"""
+import argparse
+from dataclasses import dataclass
+from datetime import datetime, timezone
+import json
+import os
+from pathlib import Path
+import secrets
+import shutil
+import signal
+import subprocess
+import sys
+import tempfile
+from types import SimpleNamespace
+from typing import Callable
+
+import golden_agent
+import golden_protocol as gp
+import golden_trial
+import grader
+import prepare_grader
+import workspace
+
+HERE = Path(__file__).resolve().parent
+CHECKOUT = HERE.parents[2]
+DEFAULT_CREDENTIALS = ('CODEX_HOME', 'CODEX_API_KEY', 'OPENAI_API_KEY')
+
+
+class Refusal(Exception):
+    """A session refused before its first trial: no agent was called and no record exists."""
+
+    def __init__(self, reason: str, detail: str = ''):
+        super().__init__(reason + (': ' + detail if detail else ''))
+        self.reason, self.detail = reason, detail
+
+
+def codex_version(codex: str, env: dict) -> str:
+    """`codex --version` with a bare environment; empty when it cannot run."""
+    try:
+        completed = subprocess.run([codex, '--version'], env=env, capture_output=True, text=True, timeout=60)
+    except (OSError, subprocess.SubprocessError):
+        return ''
+    return completed.stdout.strip() if completed.returncode == 0 else ''
+
+
+def build_auto(directory: Path) -> str:
+    """Build the checkout's own `auto`, the trusted golden set loader."""
+    target = Path(directory) / 'auto'
+    subprocess.run(['go', 'build', '-trimpath', '-o', str(target), './cmd/auto'], cwd=CHECKOUT, check=True,
+                   capture_output=True, timeout=1800)
+    return str(target)
+
+
+@dataclass
+class Steps:
+    """Session seams; the defaults are production and tests replace single stages."""
+    platform: str = sys.platform
+    now: Callable = lambda: datetime.now(timezone.utc)
+    set_digests: Callable = gp.set_digests
+    codex_version: Callable = codex_version
+    snapshot: Callable = workspace.snapshot
+    prepare: Callable = prepare_grader.prepare
+    calibrate: Callable = prepare_grader.calibrate
+    warmup: Callable = golden_trial.warmup
+    grade: Callable = grader.grade
+
+
+def parse(argv: list | None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(prog='run.py --mode golden', description=__doc__.splitlines()[0])
+    parser.add_argument('--output', type=Path, required=True, help='new session directory')
+    parser.add_argument('--surfaces', type=Path, required=True,
+                        help='directory holding the generated baseline/ and candidate/ arm surfaces')
+    parser.add_argument('--repo', type=Path, default=CHECKOUT, help='git repository holding live.workspace_revision')
+    parser.add_argument('--dir', type=Path, default=CHECKOUT, help='repository root holding evals/harness')
+    parser.add_argument('--codex', default=shutil.which('codex'), help='codex CLI (default: codex on PATH)')
+    parser.add_argument('--auto', help='auto binary for the golden set digests (default: built from this checkout)')
+    parser.add_argument('--credential-env', action='append', metavar='NAME',
+                        help='runner variable passed to the agent process only (repeatable; default: '
+                             + ', '.join(DEFAULT_CREDENTIALS) + ')')
+    parser.add_argument('--proxy', help='GOPROXY for the trusted module download (default: local file proxy)')
+    parser.add_argument('--keep-scratch', action='store_true', help='keep workspaces, caches and transcripts')
+    return parser.parse_args(argv)
+
+
+def credentials(names: list, environ: dict) -> dict:
+    """The agent-step credentials copied from the runner environment; CODEX_HOME falls back to its default."""
+    found = {name: environ[name] for name in names if environ.get(name)}
+    if 'CODEX_HOME' in names:
+        found.setdefault('CODEX_HOME', grader.credential_roots()[1])
+    return found
+
+
+def load_set(options: argparse.Namespace, steps: Steps) -> tuple:
+    """The manifest, the active agent tasks and the agent set digest; the Go loader must agree."""
+    try:
+        manifest, tasks = prepare_grader.agent_tasks(options.dir)
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        raise Refusal('invalid', 'golden set: ' + str(error)) from error
+    built = None if options.auto else tempfile.mkdtemp(prefix='harneval-golden-auto-')
+    try:
+        digests = steps.set_digests(options.auto or build_auto(Path(built)), options.dir)
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        raise Refusal('invalid', 'golden set: ' + str(error)) from error
+    finally:
+        if built:
+            shutil.rmtree(built, ignore_errors=True)
+    active = sorted(row['id'] for row in digests['tasks'] if row['kind'] == 'agent' and row['state'] == 'active')
+    if not tasks or active != [task['id'] for task in tasks]:
+        raise Refusal('invalid', 'no active agent task, or the Go and Python loaders disagree on the agent set')
+    return manifest, tasks, digests['agent_set_digest']
+
+
+def mutation_mismatches(source: Path, tasks: list) -> list:
+    """Ids of the tasks whose mutation source does not match exactly once in the snapshot."""
+    mismatched = []
+    for task in tasks:
+        mutation = task['corpus']['mutation']
+        try:
+            path = workspace._relative(source, mutation['path'])
+            matched = bool(mutation['before']) and path.is_file() and path.read_text().count(mutation['before']) == 1
+        except (OSError, ValueError, UnicodeDecodeError):
+            matched = False
+        if not matched:
+            mismatched.append(task['id'])
+    return mismatched
+
+
+def failed_calibration(tasks: list) -> dict:
+    """The calibration of a session whose trusted preparation failed: no task proved either direction."""
+    rows = [{'task_id': task['id'], 'clean_accepted': False, 'mutated_accepted': False} for task in tasks]
+    return {'status': 'failed', 'tasks': rows, 'runs': []}
+
+
+def preflight(options: argparse.Namespace, steps: Steps) -> tuple:
+    """Every refusal that needs neither the snapshot nor the caches, cheapest first."""
+    if steps.platform != 'darwin':
+        raise Refusal('unsupported_os', 'grader.sb and the codex permission profile are Seatbelt-only, host is '
+                      + steps.platform)
+    manifest, tasks, agent_set = load_set(options, steps)
+    out = options.output.resolve()
+    if os.path.lexists(out / 'protocol.json'):
+        raise Refusal('protocol_exists', str(out / 'protocol.json'))
+    if out.exists() and any(out.iterdir()):
+        raise Refusal('output_not_empty', str(out))
+    live, pins = manifest['live'], manifest['pins']
+    runs = len(tasks) * live['k'] * 2
+    if runs > live['max_agent_runs']:
+        raise Refusal('run_cap_exceeded', f"{len(tasks)} tasks x k={live['k']} x 2 arms = {runs} > "
+                                          f"max_agent_runs {live['max_agent_runs']}")
+    path = os.pathsep.join([str(Path(options.codex or '/nonexistent').parent), *golden_agent.SYSTEM_PATH])
+    cli = steps.codex_version(options.codex, {'PATH': path}) if options.codex else ''
+    if cli != pins['codex_cli_version']:
+        raise Refusal('codex_cli_version_mismatch', f"codex --version is {cli!r}, the pin is "
+                                                    f"{pins['codex_cli_version']!r}")
+    surfaces = {arm: options.surfaces.resolve() / arm for arm in gp.ARMS}
+    try:
+        digests = {arm: gp.surface_digest(path) for arm, path in surfaces.items()}
+    except (OSError, ValueError) as error:
+        raise Refusal('invalid', 'arm surface: ' + str(error)) from error
+    return manifest, tasks, agent_set, out, cli, surfaces, digests
+
+
+def run_session(options: argparse.Namespace, steps: Steps) -> dict:
+    manifest, tasks, agent_set, out, cli, surfaces, digests = preflight(options, steps)
+    scratch = out / 'scratch'
+    out.mkdir(parents=True, exist_ok=True)
+    try:
+        return _session(options, steps, manifest, tasks, agent_set, out, scratch, cli, surfaces, digests)
+    finally:
+        if not options.keep_scratch:
+            prepare_grader.remove_tree(scratch)
+
+
+def _session(options, steps, manifest, tasks, agent_set, out, scratch, cli, surfaces, digests) -> dict:
+    live, source = manifest['live'], scratch / 'source'
+    try:
+        steps.snapshot(options.repo, live['workspace_revision'], source)
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        raise Refusal('workspace_setup_failed', 'snapshot of ' + live['workspace_revision'] + ': ' + str(error))
+    mismatched = mutation_mismatches(source, tasks)
+    if mismatched:
+        raise Refusal('workspace_mutation_mismatch', ', '.join(mismatched))
+    session_id, started_at = secrets.token_hex(16), steps.now().strftime('%Y-%m-%dT%H:%M:%SZ')
+    order = gp.schedule([task['id'] for task in tasks], live['k'])
+    packages = sorted({arg for task in tasks for arg in task['corpus']['oracle']['command'] if arg.startswith('./')})
+    try:
+        prepared = steps.prepare(source, scratch / 'grader', packages, options.proxy)
+        before = steps.calibrate(tasks, source, prepared, scratch / 'calibration-before',
+                                 out / 'logs' / 'calibration-before', golden_trial.ORACLE_TIMEOUT)
+    except prepare_grader.PrepareError as error:
+        print('golden: trusted preparation failed: ' + str(error), file=sys.stderr)
+        prepared, before = None, failed_calibration(tasks)
+    protocol = gp.protocol_document(session_id, started_at, manifest, digests, agent_set,
+                                    gp.corpus_digests(tasks),
+                                    gp.runner_digest(), gp.sha256_hex(grader.PROFILE.read_bytes()), before, cli, order)
+    try:
+        gp.write_exclusive(out / 'protocol.json', protocol)
+    except FileExistsError as error:
+        raise Refusal('protocol_exists', str(out / 'protocol.json')) from error
+    prepare_grader.write_calibration(out / 'calibration.json', session_id, before)
+    if before['status'] != 'passed':
+        failed = [row['task_id'] for row in before['tasks'] if not row['clean_accepted'] or row['mutated_accepted']]
+        raise Refusal('oracle_calibration_failed', ', '.join(failed))
+    session = SimpleNamespace(session_id=session_id, out=out, scratch=scratch, source=source, prepared=prepared,
+                              surfaces=surfaces, tasks={task['id']: task for task in tasks}, codex=options.codex,
+                              model=live['model'], timeout=live['trial_timeout_seconds'], steps=steps,
+                              credentials=credentials(options.credential_env or DEFAULT_CREDENTIALS, os.environ),
+                              keep_scratch=options.keep_scratch)
+    outcomes = {}
+    for index, attempt in enumerate(order, 1):
+        record = golden_trial.run_trial(session, index, attempt)
+        gp.append_record(out / 'records.jsonl', record)
+        outcomes[record['outcome']] = outcomes.get(record['outcome'], 0) + 1
+        print(f"golden: [{index}/{len(order)}] {attempt['task_id']} {attempt['arm']} t{attempt['trial']} -> "
+              f"{record['outcome']} ({record['signal']})", file=sys.stderr, flush=True)
+    after = steps.calibrate(tasks, source, prepared, scratch / 'calibration-after', out / 'logs' / 'calibration-after',
+                            golden_trial.ORACLE_TIMEOUT)
+    prepare_grader.record_after(out / 'calibration.json', after)
+    return {'status': 'completed', 'session_id': session_id, 'records': len(order), 'outcomes': outcomes,
+            'calibration_after': after['status']}
+
+
+def _interrupt(signum: int, _frame) -> None:
+    raise KeyboardInterrupt('signal %d' % signum)
+
+
+def interrupt_on_termination() -> None:
+    """Turn SIGTERM and SIGHUP into KeyboardInterrupt, so a stopped runner still ends its agent and scratch."""
+    for signum in (signal.SIGTERM, signal.SIGHUP):
+        signal.signal(signum, _interrupt)
+
+
+def main(argv: list | None = None, steps: Steps | None = None) -> int:
+    options = parse(argv)
+    interrupt_on_termination()
+    try:
+        summary = run_session(options, steps or Steps())
+    except Refusal as refusal:
+        print(json.dumps({'status': 'refused', 'reason': refusal.reason, 'detail': refusal.detail}))
+        print('golden: refused ' + str(refusal), file=sys.stderr)
+        return 1
+    print(json.dumps(summary))
+    print('golden: render the unsigned advisory report with: auto eval harness report --input '
+          + str(options.output.resolve()) + ' --format json', file=sys.stderr)
+    return 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())
