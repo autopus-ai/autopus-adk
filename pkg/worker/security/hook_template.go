@@ -29,9 +29,16 @@ func workerHookEntry(policyPath string) map[string]any {
 		"matcher": workerHookMatcher,
 		"hooks": []any{map[string]any{
 			"type":    "command",
-			"command": fmt.Sprintf("auto worker validate --policy '%s' --command \"$TOOL_INPUT\"", policyPath),
+			"command": workerHookCommandPrefix + "--policy " + posixQuote(policyPath) + ` --command "$TOOL_INPUT"`,
 		}},
 	}
+}
+
+// posixQuote makes s one POSIX shell word. Nothing is special inside single
+// quotes, so each embedded quote closes the quoting, adds an escaped quote,
+// and reopens it.
+func posixQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
 // GenerateHookConfig returns the hooks fragment the worker adds to Claude Code
