@@ -121,7 +121,7 @@
         ],
         "cwd": "<tmpdir>/autopus-brainstorm-<n>",
         "pid": "<volatile>",
-        "sandbox_mode": "read-only",
+        "sandbox_mode": "unverified",
         "started_at": "<volatile>",
         "ended_at": "<volatile>"
       },
