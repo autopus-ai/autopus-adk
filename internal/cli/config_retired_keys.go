@@ -20,14 +20,20 @@ import (
 // When an entry does not own whole lines (a flow mapping, a mapping the cut
 // would leave without a value), the document is re-encoded from its node tree
 // instead; that keeps comments, quoting, env placeholders, and reserved blocks,
-// though not blank lines or indentation widths (REQ-10).
+// though not blank lines or indentation widths (REQ-10). A retired entry that
+// defines a YAML anchor is refused (config.ErrRetiredKeyAnchor), and either
+// rewrite must parse back to the pruned tree with every alias resolving to the
+// same data, or nothing is returned.
 func pruneRetiredConfig(data []byte) ([]byte, []string, error) {
 	var doc yaml.Node
 	if err := yaml.Unmarshal(data, &doc); err != nil {
 		return nil, nil, fmt.Errorf("parse config: %w", err)
 	}
 	entries := yamlMappingEntries(&doc)
-	paths := config.PruneRetiredKeys(&doc)
+	paths, err := config.PruneRetiredKeysForRewrite(&doc)
+	if err != nil {
+		return nil, nil, err
+	}
 	if len(paths) == 0 {
 		return data, nil, nil
 	}
@@ -40,7 +46,9 @@ func pruneRetiredConfig(data []byte) ([]byte, []string, error) {
 	encoded, err := yaml.Marshal(&doc)
 	if err == nil {
 		var check yaml.Node
-		err = yaml.Unmarshal(encoded, &check)
+		if err = yaml.Unmarshal(encoded, &check); err == nil && !sameYAMLData(&check, &doc) {
+			err = errors.New("the re-encoded document does not parse back to the same data")
+		}
 	}
 	if err != nil {
 		return nil, nil, fmt.Errorf("remove retired orchestra keys %s: %w", strings.Join(paths, ", "), err)
@@ -181,15 +189,33 @@ func leadingSpaces(line string) int {
 }
 
 // sameYAMLData reports whether two node trees hold the same data: kinds,
-// resolved tags, values, and anchors in the same order. Comments, styles, and
-// positions are ignored.
+// resolved tags, values, and anchors in the same order, with every alias also
+// compared by the node it resolves to, not only by its name, so a rewrite that
+// rebinds an alias to another anchor of the same name differs. Comments,
+// styles, and positions are ignored. Each node pair is compared once, so a
+// cyclic or alias-heavy document stays linear.
 func sameYAMLData(a, b *yaml.Node) bool {
+	return sameYAMLNode(a, b, map[[2]*yaml.Node]bool{})
+}
+
+func sameYAMLNode(a, b *yaml.Node, seen map[[2]*yaml.Node]bool) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	pair := [2]*yaml.Node{a, b}
+	if seen[pair] {
+		return true
+	}
+	seen[pair] = true
 	if a.Kind != b.Kind || a.ShortTag() != b.ShortTag() || a.Value != b.Value || a.Anchor != b.Anchor ||
 		len(a.Content) != len(b.Content) {
 		return false
 	}
+	if a.Kind == yaml.AliasNode && !sameYAMLNode(a.Alias, b.Alias, seen) {
+		return false
+	}
 	for i := range a.Content {
-		if !sameYAMLData(a.Content[i], b.Content[i]) {
+		if !sameYAMLNode(a.Content[i], b.Content[i], seen) {
 			return false
 		}
 	}

@@ -104,8 +104,9 @@ func PruneRetiredKeys(doc *yaml.Node) []string {
 // reserved keys are dropped silently.
 func decodeStrict(data []byte, out any) ([]string, error) {
 	var doc yaml.Node
-	// Decode into a node rather than the target struct so a multi-document
-	// file stays an error exactly as yaml.Unmarshal made it one.
+	// yaml.Unmarshal reads only the first document of a multi-document file
+	// and ignores the rest without an error, as B's loader did; the node it
+	// fills keeps the lines of the user's file for every later error.
 	if err := yaml.Unmarshal(data, &doc); err != nil {
 		return nil, err
 	}
@@ -165,49 +166,6 @@ type nodeSubstitute struct{ node *yaml.Node }
 func (s *nodeSubstitute) UnmarshalYAML(parsed *yaml.Node) error {
 	*parsed = *s.node
 	return nil
-}
-
-// pruneNodePaths deletes the mapping entries addressed by path and returns
-// their concrete dotted paths. A literal segment matches the first equal key,
-// as it always has; a "*" segment matches every scalar key at that depth. Only
-// mapping nodes are walked, so a scalar, sequence, or missing node anywhere on
-// the path is a miss rather than a panic.
-func pruneNodePaths(doc *yaml.Node, path []string) []string {
-	node := doc
-	if node.Kind == yaml.DocumentNode {
-		if len(node.Content) == 0 {
-			return nil
-		}
-		node = node.Content[0]
-	}
-	return pruneMappingPaths(node, path, nil)
-}
-
-func pruneMappingPaths(node *yaml.Node, path, prefix []string) []string {
-	if node.Kind != yaml.MappingNode || len(path) == 0 {
-		return nil
-	}
-	segment, rest := path[0], path[1:]
-	wildcard := segment == "*"
-	var pruned []string
-	for i := 0; i+1 < len(node.Content); i += 2 {
-		key := node.Content[i]
-		if wildcard && key.Kind != yaml.ScalarNode || !wildcard && key.Value != segment {
-			continue
-		}
-		concrete := append(slices.Clone(prefix), key.Value)
-		if len(rest) == 0 {
-			node.Content = append(node.Content[:i], node.Content[i+2:]...)
-			pruned = append(pruned, strings.Join(concrete, "."))
-			i -= 2
-		} else {
-			pruned = append(pruned, pruneMappingPaths(node.Content[i+1], rest, concrete)...)
-		}
-		if !wildcard {
-			break
-		}
-	}
-	return pruned
 }
 
 func sortedUniquePaths(paths []string) []string {
