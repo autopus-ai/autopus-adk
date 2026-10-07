@@ -28,7 +28,8 @@ func TestEnforcementMatrixDoc_ListsExactlyTheMatrixRows(t *testing.T) {
 		}
 		got = append(got, strings.TrimSpace(cells[1])+" "+strings.TrimSpace(cells[2]))
 	}
-	want := []string{"Claude Code enforced", "OpenCode enforced", "Codex enforced", "Gemini CLI enforced",
+	want := []string{"Claude Code enforced", "OpenCode enforced", "OpenCode 1.x host-unverified", "Codex enforced",
+		"Gemini CLI enforced",
 		"Antigravity advisory-only", "OMP none"}
 	if strings.Join(got, ", ") != strings.Join(want, ", ") {
 		t.Fatalf("docs matrix rows = %q, want %q", got, want)

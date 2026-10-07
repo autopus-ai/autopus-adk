@@ -6,6 +6,7 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -14,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/insajin/autopus-adk/pkg/adapter/opencode"
 	"github.com/insajin/autopus-adk/pkg/config"
 )
 
@@ -108,6 +110,27 @@ func TestDiagnoseEditGuard_FollowsTheFlag(t *testing.T) {
 			"OpenCode: guard not registered in .opencode/plugins/autopus-hooks.js; run 'auto update' (matrix: enforced)"},
 		{"doctor.edit_guard.codex", "warn", "Codex: guard not registered in .codex/hooks.json; run 'auto update' (matrix: enforced)"},
 	}, enabled)
+}
+
+// The OpenCode row follows the plugin API of the plugin the adapter generated:
+// the V1 plugin carries the guard, but no 1.x host was probed, so the doctor
+// does not call it enforced.
+func TestDiagnoseEditGuard_OpenCodeRowFollowsTheGeneratedPluginAPI(t *testing.T) {
+	t.Parallel()
+
+	cfg := editGuardConfig(nil, "opencode")
+	for version, want := range map[string]editGuardRow{
+		"1.14.0": {"doctor.edit_guard.opencode-v1", "skip", "OpenCode 1.x: guard registered in " +
+			".opencode/plugins/autopus-hooks.js, but no probe confirmed that this host blocks a denied edit " +
+			"(matrix: host-unverified)"},
+		"2.0.10": {"doctor.edit_guard.opencode", "pass",
+			"OpenCode: guard registered in .opencode/plugins/autopus-hooks.js (matrix: enforced)"},
+	} {
+		dir := t.TempDir()
+		_, err := opencode.NewWithRoot(dir, opencode.WithCLIVersion(version)).Generate(context.Background(), cfg)
+		require.NoError(t, err, version)
+		assert.Equal(t, []editGuardRow{want}, editGuardRows(diagnoseEditGuard(dir, cfg)), version)
+	}
 }
 
 // A surface the doctor cannot parse is reported as unreadable rather than as

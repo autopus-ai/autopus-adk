@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/insajin/autopus-adk/internal/cli/tui"
+	"github.com/insajin/autopus-adk/pkg/adapter/opencode"
 	"github.com/insajin/autopus-adk/pkg/config"
 	"github.com/insajin/autopus-adk/pkg/content"
 	"github.com/insajin/autopus-adk/pkg/editguard"
@@ -19,18 +20,22 @@ import (
 
 const doctorEditGuardCheckPrefix = "doctor.edit_guard."
 
-// editGuardSurface is the generated file that carries an enforced lane's guard
-// registration. event names the hook event of a JSON hook file; the OpenCode
-// plugin carries its registration as the EDIT_GUARD literal instead.
+// editGuardSurface is the generated file that carries a lane's guard
+// registration and the `--platform` id the registration runs. event names the
+// hook event of a JSON hook file; the OpenCode plugin carries its registration
+// as the EDIT_GUARD literal instead.
 type editGuardSurface struct {
-	path, event string
+	path, event, platform string
 }
 
+const openCodePluginPath = ".opencode/plugins/autopus-hooks.js"
+
 var editGuardSurfaces = map[string]editGuardSurface{
-	editguard.PlatformClaudeCode: {".claude/settings.json", "PreToolUse"},
-	editguard.PlatformCodex:      {".codex/hooks.json", "PreToolUse"},
-	editguard.PlatformGemini:     {".gemini/settings.json", "BeforeTool"},
-	editguard.PlatformOpenCode:   {".opencode/plugins/autopus-hooks.js", ""},
+	editguard.PlatformClaudeCode: {".claude/settings.json", "PreToolUse", editguard.PlatformClaudeCode},
+	editguard.PlatformCodex:      {".codex/hooks.json", "PreToolUse", editguard.PlatformCodex},
+	editguard.PlatformGemini:     {".gemini/settings.json", "BeforeTool", editguard.PlatformGemini},
+	editguard.PlatformOpenCode:   {openCodePluginPath, "", editguard.PlatformOpenCode},
+	editguard.LaneOpenCodeV1:     {openCodePluginPath, "", editguard.PlatformOpenCode},
 }
 
 // openCodeEditGuardLine starts the generated plugin line that holds the guard
@@ -123,7 +128,7 @@ func diagnoseEditGuard(dir string, cfg *config.HarnessConfig) []editGuardDiagnos
 	enabled := cfg.Hooks.IsEditGuardEnabled()
 	var diagnoses []editGuardDiagnosis
 	for _, platform := range cfg.Platforms {
-		lanes := editGuardLanesOf(platform)
+		lanes := editGuardLanesOf(dir, platform)
 		if len(lanes) == 0 {
 			diagnoses = append(diagnoses, editGuardDiagnosis{
 				platform: platform, state: editguard.NotEnforced, enabled: enabled, status: "skip",
@@ -139,13 +144,17 @@ func diagnoseEditGuard(dir string, cfg *config.HarnessConfig) []editGuardDiagnos
 }
 
 // editGuardLanesOf returns the matrix lanes the platform's adapter generates:
-// the antigravity-cli adapter also writes the Gemini CLI settings.
-func editGuardLanesOf(platform string) []editguard.Lane {
+// the antigravity-cli adapter also writes the Gemini CLI settings, and the
+// OpenCode lane is the one of the plugin API its generated plugin targets.
+func editGuardLanesOf(dir, platform string) []editguard.Lane {
 	var lanes []editguard.Lane
 	if platform == "antigravity-cli" {
 		if gemini, ok := editguard.LaneFor(editguard.PlatformGemini); ok {
 			lanes = append(lanes, gemini)
 		}
+	}
+	if platform == editguard.PlatformOpenCode && openCodePluginIsV1(dir) {
+		platform = editguard.LaneOpenCodeV1
 	}
 	if lane, ok := editguard.LaneFor(platform); ok {
 		lanes = append(lanes, lane)
@@ -153,21 +162,32 @@ func editGuardLanesOf(platform string) []editguard.Lane {
 	return lanes
 }
 
+// openCodePluginIsV1 reports a generated V1 plugin, the only one that exports
+// opencode.V1PluginExport; the V2 plugin exports a plugin object.
+func openCodePluginIsV1(dir string) bool {
+	data, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(openCodePluginPath)))
+	return err == nil && strings.Contains(string(data), opencode.V1PluginExport)
+}
+
 func diagnoseEditGuardLane(dir, platform string, lane editguard.Lane, enabled bool) editGuardDiagnosis {
 	d := editGuardDiagnosis{platform: platform, lane: lane.Platform, state: lane.State, enabled: enabled, status: "skip"}
 	matrix := fmt.Sprintf("(matrix: %s)", lane.State)
 	surface, ok := editGuardSurfaces[lane.Platform]
-	if lane.State != editguard.Enforced || !ok {
+	if !ok || lane.State != editguard.Enforced && lane.State != editguard.HostUnverified {
 		d.detail = fmt.Sprintf("%s: guard not registered by design %s", lane.Name, matrix)
 		return d
 	}
 	d.surface = surface.path
-	registered, err := editGuardRegistered(dir, lane.Platform, surface)
+	registered, err := editGuardRegistered(dir, surface)
 	d.registered = registered
 	switch {
 	case err != nil:
 		d.status, d.warningCode = "warn", "edit_guard_unreadable"
 		d.detail = fmt.Sprintf("%s: cannot read %s: %v %s", lane.Name, surface.path, err, matrix)
+	case registered && enabled && lane.State == editguard.HostUnverified:
+		// Registration alone is not enforcement, so the row stays informational.
+		d.detail = fmt.Sprintf("%s: guard registered in %s, but no probe confirmed that this host blocks a denied edit %s",
+			lane.Name, surface.path, matrix)
 	case registered && enabled:
 		d.status = "pass"
 		d.detail = fmt.Sprintf("%s: guard registered in %s %s", lane.Name, surface.path, matrix)
@@ -186,7 +206,7 @@ func diagnoseEditGuardLane(dir, platform string, lane editguard.Lane, enabled bo
 
 // editGuardRegistered reads the lane's generated surface. A missing file holds
 // no registration.
-func editGuardRegistered(dir, lanePlatform string, surface editGuardSurface) (bool, error) {
+func editGuardRegistered(dir string, surface editGuardSurface) (bool, error) {
 	data, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(surface.path)))
 	if errors.Is(err, fs.ErrNotExist) {
 		return false, nil
@@ -194,7 +214,7 @@ func editGuardRegistered(dir, lanePlatform string, surface editGuardSurface) (bo
 	if err != nil {
 		return false, err
 	}
-	command := content.EditGuardCommand(lanePlatform)
+	command := content.EditGuardCommand(surface.platform)
 	if surface.event == "" {
 		return openCodePluginRegistersGuard(data, command)
 	}

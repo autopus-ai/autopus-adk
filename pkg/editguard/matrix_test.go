@@ -4,12 +4,15 @@ import "testing"
 
 // REQ-EG-16 and S12: one state per platform, in matrix order, decided by the
 // probes A1 to A3 and T11; Antigravity is advisory-only and OMP has no hooks.
+// The OpenCode V1 plugin lane is generated but no 1.x host was probed (CD-1),
+// so it is host-unverified rather than enforced.
 func TestLanes_EnforcementMatrix(t *testing.T) {
 	t.Parallel()
 	// The state spellings are the ones REQ-EG-16 publishes.
 	want := []struct{ platform, name, state string }{
 		{"claude-code", "Claude Code", "enforced"},
 		{"opencode", "OpenCode", "enforced"},
+		{"opencode-v1", "OpenCode 1.x", "host-unverified"},
 		{"codex", "Codex", "enforced"},
 		{"gemini", "Gemini CLI", "enforced"},
 		{"antigravity-cli", "Antigravity", "advisory-only"},

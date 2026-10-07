@@ -55,6 +55,10 @@ func (a *Adapter) prepareGitHookMappings(cfg *config.HarnessConfig) ([]adapter.F
 	return adapter.FilterUnsupportedRootGitHookFiles(a.root, files), nil
 }
 
+// V1PluginExport is the line only the generated V1 plugin carries; `auto
+// doctor` reads it to report the host-unverified V1 lane of the edit guard.
+const V1PluginExport = "export default AutopusHooksPlugin"
+
 // renderHookPlugin renders the V1 plugin: the shell-tool hooks run for tool
 // bash, and the edit guard for the V1 file-editing tools, which no V1 host
 // has confirmed (CD-1).

@@ -14,6 +14,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/insajin/autopus-adk/pkg/adapter/opencode"
 )
 
 // Not parallel: t.Setenv pins CODEX_HOME so Codex generation stays in the
@@ -23,6 +25,16 @@ func TestDoctorCmd_ReportsEditGuardRegistrationPerInstalledPlatform(t *testing.T
 	t.Setenv("CODEX_HOME", filepath.Join(t.TempDir(), "codex-home"))
 	runEditGuardCLI(t, "init", "--dir", dir, "--project", "guard",
 		"--platforms", "claude-code,codex,opencode,antigravity-cli,omp")
+	// init writes the V2 plugin only when it finds OpenCode 2.x on PATH; the
+	// V1 plugin carries the guard too, but its lane is host-unverified.
+	openCodeLine := "OpenCode: guard registered in .opencode/plugins/autopus-hooks.js (matrix: enforced)"
+	openCodeID, openCodeRow := "doctor.edit_guard.opencode", "pass enforced registered=true"
+	if strings.Contains(string(readEditGuardFile(t, filepath.Join(dir, ".opencode", "plugins", "autopus-hooks.js"))),
+		opencode.V1PluginExport) {
+		openCodeLine = "OpenCode 1.x: guard registered in .opencode/plugins/autopus-hooks.js, " +
+			"but no probe confirmed that this host blocks a denied edit (matrix: host-unverified)"
+		openCodeID, openCodeRow = "doctor.edit_guard.opencode-v1", "skip host-unverified registered=true"
+	}
 
 	var text bytes.Buffer
 	doctor := newTestRootCmd()
@@ -32,7 +44,7 @@ func TestDoctorCmd_ReportsEditGuardRegistrationPerInstalledPlatform(t *testing.T
 	for _, line := range []string{
 		"Claude Code: guard registered in .claude/settings.json (matrix: enforced)",
 		"Codex: guard registered in .codex/hooks.json (matrix: enforced)",
-		"OpenCode: guard registered in .opencode/plugins/autopus-hooks.js (matrix: enforced)",
+		openCodeLine,
 		"Gemini CLI: guard registered in .gemini/settings.json (matrix: enforced)",
 		"Antigravity: guard not registered by design (matrix: advisory-only)",
 		"OMP: guard not registered by design (matrix: none)",
@@ -62,7 +74,7 @@ func TestDoctorCmd_ReportsEditGuardRegistrationPerInstalledPlatform(t *testing.T
 	assert.Equal(t, map[string]string{
 		"doctor.edit_guard.claude-code":     "pass enforced registered=true",
 		"doctor.edit_guard.codex":           "pass enforced registered=true",
-		"doctor.edit_guard.opencode":        "pass enforced registered=true",
+		openCodeID:                          openCodeRow,
 		"doctor.edit_guard.gemini":          "pass enforced registered=true",
 		"doctor.edit_guard.antigravity-cli": "skip advisory-only registered=false",
 		"doctor.edit_guard.omp":             "skip none registered=false",

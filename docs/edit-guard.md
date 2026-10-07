@@ -9,6 +9,10 @@ file-editing tool call before the write when a target is:
 - the reproduction test of an in-progress `/auto fix`, locked with `auto fix lock`;
 - edit-guard state: `.autopus/runtime/fix-locks/**` and `.autopus/*-manifest.json`.
 
+Every enclosing project root decides: a target is checked against the nearest
+directory with `autopus.yaml` and against every one above it, so an
+`autopus.yaml` planted below a project root hides nothing.
+
 Every other edit is allowed. The guard namespace is `.claude/`, `.codex/`,
 `.gemini/`, `.opencode/`, `.agents/`, `.omp/`, and `.autopus/plugins/`, minus
 `.claude/worktrees/`. The guard fails open: unreadable, empty, or oversized
@@ -19,18 +23,23 @@ that part of the decision. A fault never makes a decision stricter.
 ## Enforcement matrix
 
 `pkg/editguard/matrix.go` holds the same rows; hook generation registers the
-guard exactly on the `enforced` lanes, and `auto doctor` reports them.
+guard exactly on the `enforced` lanes, and `auto doctor` reports them. OpenCode
+generates the V1 or the V2 plugin for the installed OpenCode major version (V1
+when it cannot tell); both carry the guard, and `auto doctor` reports the lane
+of the plugin it finds.
 
 | Platform | State | Registration | Evidence |
 |---|---|---|---|
 | Claude Code | enforced | `.claude/settings.json` PreToolUse, matcher `Edit\|Write\|MultiEdit`, timeout 5 s | A1 PASS on Claude Code 2.1.289 |
-| OpenCode | enforced | `.opencode/plugins/autopus-hooks.js`, `EDIT_GUARD` literal, timeout 5 s | A2 PASS on OpenCode 2.0.10 (V2 plugin API); the V1 plugin is generated but no 1.x host was probed |
+| OpenCode | enforced | `.opencode/plugins/autopus-hooks.js` V2 plugin, `EDIT_GUARD` literal, timeout 5 s | A2 PASS on OpenCode 2.0.10 (V2 plugin API) |
+| OpenCode 1.x | host-unverified | `.opencode/plugins/autopus-hooks.js` V1 plugin, `EDIT_GUARD` literal, timeout 5 s | the V1 plugin is generated with the guard, but no OpenCode 1.x host was probed (CD-1 open) |
 | Codex | enforced | `.codex/hooks.json` PreToolUse, matcher `apply_patch`, timeout 5 s | A3 PASS on Codex CLI 0.160.0; runs only after the user trusts the project hooks |
 | Gemini CLI | enforced | `.gemini/settings.json` BeforeTool, matcher `^(write_file\|replace)$`, timeout 5000 ms | T11 PASS on Gemini CLI 0.52.0; project hooks run only in a trusted folder |
 | Antigravity | advisory-only | none: `.agents/hooks.json` gets no guard | its PreToolUse hooks run through the always-allow wrapper of `pkg/content/hooks_antigravity.go` |
 | OMP | none | none | the OMP adapter has no native hooks (`SupportsHooks()` is false) |
 
 - `enforced`: the native hook blocks a denied edit, verified by a probe against the real host.
+- `host-unverified`: the guard is generated for the lane, but no probe has confirmed that the host blocks a denied edit; treat it as not enforced.
 - `advisory-only`: Autopus hooks run on the platform but cannot block.
 - `none`: no guard runs.
 
@@ -53,8 +62,16 @@ and throws only for a deny decision from a guard that exited 0.
 | `auto fix lock --list [--json]` | lists each lock as `active` or `stale` with its integrity | 0 |
 | `auto fix unlock [--json] -- <path>...` or `auto fix unlock --all` | computes every verdict (`unchanged`, `modified`, `missing`, `unverifiable`), then releases | 0 all unchanged, 3 any other verdict, 1 nothing released or a removal error |
 
+Run both commands from the project root nearest to the test, the closest
+directory above it with `autopus.yaml`: from an enclosing project they exit 1
+and name that root. `auto fix unlock` resolves its paths against the root it
+runs in, so an `autopus.yaml` planted after the lock does not detach it. The
+deny reason echoes the exact unlock command only for a path of
+`[A-Za-z0-9._/@+-]`; for any other path it points to `auto fix lock --list --json`.
+
 The `/auto fix` workflow locks the reproduction test once it fails on the bug
-assertion, releases it after verification, and accepts only `unchanged`.
+assertion, releases it after verification, and accepts only `unchanged`; an
+unlock exit 1 means the fix is not complete either.
 
 ## Limitations
 
@@ -68,6 +85,9 @@ The guard is not a sandbox against an agent with shell access.
 - Locks do not span checkouts or worktrees, and a fresh worktree has no manifests, so its generated files are not protected.
 - Codex and Gemini CLI block only after the user trusts the project hooks or folder.
 - Manifest `always` entries outside the namespace, such as `.git/hooks/*`, are ignored.
+- The guard reads at most 64 MiB of hook input. It decodes only the target fields and skips every other value, so a large content body is decided normally, but a payload over 64 MiB is allowed.
+- A manifest must be a regular file: an entry named like a manifest that is a directory, symlink, or FIFO is ignored, and paths below such a name are guard state.
+- Case-insensitive volumes compare paths in their canonical caseless form (Unicode full case folding and NFD), which is how APFS matches names; a volume whose matching differs, such as NTFS, may see a rare spelling denied that it would treat as another file.
 
 ## Rollback
 
