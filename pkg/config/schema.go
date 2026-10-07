@@ -184,6 +184,9 @@ type HooksConf struct {
 	// StickyCadence is the SPEC-STICKYRULE-001 prompt interval between sticky
 	// rule re-injections. Read it through StickyCadence, never directly.
 	StickyCadence int `yaml:"sticky_cadence,omitempty"`
+	// EditGuard registers the SPEC-EDITGUARD-001 edit guard hook. Read it
+	// through IsEditGuardEnabled; DefaultEditGuard says why unset stays nil.
+	EditGuard *bool `yaml:"edit_guard,omitempty"`
 }
 
 // PermissionsConf는 코딩 CLI 권한 설정이다.

@@ -6,6 +6,8 @@ import (
 
 	"github.com/insajin/autopus-adk/pkg/adapter"
 	"github.com/insajin/autopus-adk/pkg/config"
+	"github.com/insajin/autopus-adk/pkg/editguard"
+	"github.com/insajin/autopus-adk/pkg/rulecond"
 )
 
 // GitHookScript는 Git 훅 스크립트이다.
@@ -64,6 +66,10 @@ func generateCLIHooks(cfg config.HooksConf, platform string) ([]adapter.HookConf
 		})
 	}
 
+	if cfg.IsEditGuardEnabled() {
+		hooks = appendEditGuardHook(hooks, platform)
+	}
+
 	// Lore check: not added as PreToolUse hook — it runs via git commit-msg hook only.
 	// Checking lore on every Bash call would fail because it validates the last commit,
 	// not the current action. The commit-msg hook validates the message being committed.
@@ -94,6 +100,35 @@ func generateCLIHooks(cfg config.HooksConf, platform string) ([]adapter.HookConf
 	}
 	hooks = append(hooks, generateCompletionHooks(platform)...)
 	return hooks, nil
+}
+
+// editGuardTimeoutSeconds bounds the guard hook (REQ-EG-12). A timed-out
+// PreToolUse command does not block, so a hung guard stays fail-open.
+const editGuardTimeoutSeconds = 5
+
+// appendEditGuardHook registers `auto guard edit` (SPEC-EDITGUARD-001) on the
+// lanes whose deny contract has been probed and whose wiring lives in this
+// generator: today only Claude Code. Every other platform gets no entry here.
+func appendEditGuardHook(hooks []adapter.HookConfig, platform string) []adapter.HookConfig {
+	if platform != "claude" && platform != "claude-code" {
+		return hooks
+	}
+	return appendUniqueHook(hooks, adapter.HookConfig{
+		Event:   "PreToolUse",
+		Matcher: rulecond.MatcherEdit,
+		Type:    "command",
+		Command: editGuardCommandLine(editguard.PlatformClaudeCode),
+		Timeout: editGuardTimeoutSeconds,
+	})
+}
+
+// editGuardCommandLine is the registered command line of REQ-EG-11. It buffers
+// the guard's decision and forwards it only after the guard exited 0, and it
+// always exits 0 itself: a host blocks on exit 2, which is also how the Go
+// runtime reports an unrecovered panic, so forwarding any other exit would turn
+// a guard fault, or a crash after printing a deny, into a blocked edit.
+func editGuardCommandLine(platform string) string {
+	return "out=$(auto guard edit --platform " + platform + `) && [ -n "$out" ] && printf '%s\n' "$out"; exit 0`
 }
 
 func generateCC21Hooks(cfg config.CC21FeaturesConf, platform string) []adapter.HookConfig {

@@ -16,6 +16,21 @@ const (
 	GeminiOrchestraTimeoutSeconds = 480
 )
 
+// DefaultEditGuard is what an unset hooks.edit_guard resolves to
+// (SPEC-EDITGUARD-001 REQ-EG-12). DefaultFullConfig leaves the key unset instead
+// of writing this value: config decoding rejects unknown keys, so a saved
+// `edit_guard` line would make every older binary fail to load the file.
+const DefaultEditGuard = true
+
+// IsEditGuardEnabled reports whether hook generation registers the edit guard.
+// An explicit value wins; nil means unset and resolves to DefaultEditGuard.
+func (h HooksConf) IsEditGuardEnabled() bool {
+	if h.EditGuard == nil {
+		return DefaultEditGuard
+	}
+	return *h.EditGuard
+}
+
 // DefaultCodexProviderEntry returns the canonical Codex orchestra provider entry.
 func DefaultCodexProviderEntry() ProviderEntry {
 	return CodexProviderEntryForQuality(QualityConf{Default: "balanced"})
@@ -80,6 +95,8 @@ func DefaultFullConfig(projectName string) *HarnessConfig {
 			Enforce:    true,
 			ReviewGate: true,
 		},
+		// EditGuard stays unset so a fresh autopus.yaml carries no key an
+		// older binary rejects; IsEditGuardEnabled resolves it to true.
 		Hooks: HooksConf{
 			PreCommitArch:  true,
 			PreCommitLore:  true,

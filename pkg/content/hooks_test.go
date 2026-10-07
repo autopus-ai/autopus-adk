@@ -79,6 +79,7 @@ func TestGenerateHookConfigs_AllDisabled(t *testing.T) {
 		PreCommitLore:  false,
 		ReactCIFailure: false,
 		ReactReview:    false,
+		EditGuard:      new(false),
 	}
 
 	hooks, gitHooks, err := content.GenerateHookConfigs(cfg, "claude", true)
@@ -190,10 +191,10 @@ func TestGenerateHookConfigs_DeduplicatesReactHooks(t *testing.T) {
 	hooks, _, err := content.GenerateHookConfigs(cfg, "claude", true)
 	require.NoError(t, err)
 	// ReactCIFailure and ReactReview both enabled — dedup keeps only one PostToolUse react hook,
-	// plus the unconditional completion Stop hook, the SessionStart ready hook
-	// (SPEC-ORCH-022), the SPEC-CONDRULE-001 dispatcher, and the SPEC-STICKYRULE-001 entry.
-	require.Len(t, hooks, 5,
-		"expected one deduped react hook plus the Stop, SessionStart, dispatcher, and sticky hooks")
+	// plus the Stop and SessionStart hooks (SPEC-ORCH-022), the SPEC-CONDRULE-001 dispatcher,
+	// the SPEC-STICKYRULE-001 entry, and the SPEC-EDITGUARD-001 guard an unset flag enables.
+	require.Len(t, hooks, 6,
+		"expected one deduped react hook plus the Stop, SessionStart, dispatcher, sticky, and edit guard hooks")
 	reactHook := findHook(hooks, "PostToolUse")
 	require.NotNil(t, reactHook, "expected a PostToolUse react hook")
 	assert.Equal(t, "auto react check --quiet", reactHook.Command)
@@ -216,9 +217,9 @@ func TestGenerateProjectHookConfigs_ClaudeTaskCreatedEnabled(t *testing.T) {
 
 	hooks, gitHooks, err := content.GenerateProjectHookConfigs(cfg, "claude-code", true)
 	require.NoError(t, err)
-	// Expect: completion Stop hook + SessionStart ready hook (SPEC-ORCH-022) +
-	// TaskCreated hook + SPEC-CONDRULE-001 dispatcher + SPEC-STICKYRULE-001 entry.
-	require.Len(t, hooks, 5)
+	// Expect: Stop + SessionStart ready hook (SPEC-ORCH-022) + TaskCreated hook + SPEC-CONDRULE-001
+	// dispatcher + SPEC-STICKYRULE-001 entry + SPEC-EDITGUARD-001 guard (unset flag enables it).
+	require.Len(t, hooks, 6)
 	assert.Empty(t, gitHooks)
 	taskCreatedHook := findHook(hooks, "TaskCreated")
 	require.NotNil(t, taskCreatedHook, "expected a TaskCreated hook")
