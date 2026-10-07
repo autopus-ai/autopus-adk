@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os/exec"
 	"slices"
@@ -72,6 +73,7 @@ type bandDiagnoser struct {
 	timeout    time.Duration      // provider call (REQ-11)
 	now        func() time.Time
 	bsOptions  brainstorm.Options
+	warn       io.Writer // BS ID scan warnings; nil discards them
 	// Seams: the shared read-only projection, the routed backends of an
 	// execution config, and the single-provider runner.
 	project  func([]orchestra.ProviderConfig, readOnlyPolicyOptions) ([]orchestra.ProviderConfig, error)
@@ -114,6 +116,11 @@ func (d *bandDiagnoser) Run(ctx context.Context, claim healthband.DueClaim) heal
 		Provider: diagnosis.provider, DiagnosisStatus: diagnosis.status, Diagnosis: diagnosis.output,
 		Logs: logs, Reports: reports,
 	}, d.bsOptions)
+	if d.warn != nil {
+		for _, path := range result.Ignored {
+			fmt.Fprintf(d.warn, "react band: BS-BAND ID scan ignored %q (a symlink, not a regular file, or not a valid BS)\n", path)
+		}
+	}
 	if err != nil {
 		reason := brainstorm.Reason(err)
 		outcome.Status, outcome.BSStatus = healthband.ClaimFailedPrefix+reason, reason

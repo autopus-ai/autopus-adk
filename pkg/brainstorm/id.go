@@ -8,9 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/insajin/autopus-adk/pkg/filelock"
@@ -63,10 +61,12 @@ type Options struct {
 	beforeCreate func(path string)
 }
 
-// Result names the BS file Write created.
+// Result names the BS file Write created and the BS-BAND entries the ID
+// scan ignored (see scanIDs); Ignored is set on an ID error as well.
 type Result struct {
-	ID   string
-	Path string
+	ID      string
+	Path    string
+	Ignored []string
 }
 
 // Reason maps a Write error to its reason code; nil maps to "".
@@ -115,11 +115,14 @@ func Write(ctx context.Context, projectDir string, req Request, opts Options) (R
 		return Result{}, err
 	}
 	defer func() { _ = lock.Unlock() }()
-	highest, err := highestID(scope)
+	scan, err := scanIDs(scope)
 	if err != nil {
 		return Result{}, err
 	}
-	return createNext(dir, highest, req, opts.beforeCreate)
+	highest, ignored := scan.base()
+	result, err := createNext(dir, highest, req, opts.beforeCreate)
+	result.Ignored = ignored
+	return result, err
 }
 
 // acquire takes the allocation lock; a busy lock past the wait, or a
@@ -137,7 +140,9 @@ func acquire(ctx context.Context, root string, opts Options) (*filelock.Lock, er
 }
 
 // createNext renders, validates, and exclusively creates the BS for the
-// first free ID above highest, trying at most MaxIDAttempts IDs.
+// first free ID above highest, trying at most MaxIDAttempts IDs. The BS
+// directory and its parent are checked again right before each create, so
+// one swapped for a symlink after the first check gets no file.
 func createNext(dir string, highest int, req Request, beforeCreate func(string)) (Result, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return Result{}, err
@@ -154,6 +159,9 @@ func createNext(dir string, highest int, req Request, beforeCreate func(string))
 		path := filepath.Join(dir, id+".md")
 		if beforeCreate != nil {
 			beforeCreate(path)
+		}
+		if err := realDirOrMissing(filepath.Dir(dir), dir); err != nil {
+			return Result{}, err
 		}
 		if err := createExclusive(path, content); errors.Is(err, fs.ErrExist) {
 			continue
@@ -195,60 +203,11 @@ func realDirOrMissing(paths ...string) error {
 	return nil
 }
 
-// highestID returns the highest BS-BAND number across the scan roots of the
-// scope: <dir>/.autopus/brainstorms and <dir>/*/.autopus/brainstorms for
-// every scope directory (BS Root Resolution item 2), each read once.
-func highestID(scope Scope) (int, error) {
-	highest := 0
-	scanned := map[string]bool{}
-	for _, dir := range scope.Dirs {
-		roots := []string{filepath.Join(dir, ".autopus", "brainstorms")}
-		entries, err := os.ReadDir(dir)
-		if err != nil {
-			return 0, err
-		}
-		for _, entry := range entries {
-			roots = append(roots, filepath.Join(dir, entry.Name(), ".autopus", "brainstorms"))
-		}
-		for _, root := range roots {
-			if scanned[root] {
-				continue
-			}
-			scanned[root] = true
-			found, err := highestIn(root)
-			if err != nil {
-				return 0, err
-			}
-			highest = max(highest, found)
-		}
-	}
-	return highest, nil
-}
-
-// highestIn reads one scan root. A missing root, a path through a file, or
-// a directory this user may not read holds no IDs this user allocated.
-func highestIn(root string) (int, error) {
-	entries, err := os.ReadDir(root)
-	if errors.Is(err, fs.ErrNotExist) || errors.Is(err, syscall.ENOTDIR) || errors.Is(err, fs.ErrPermission) {
-		return 0, nil
-	}
-	if err != nil {
-		return 0, err
-	}
-	highest := 0
-	for _, entry := range entries {
-		if match := idFileName.FindStringSubmatch(entry.Name()); match != nil {
-			number, _ := strconv.Atoi(match[1])
-			highest = max(highest, number)
-		}
-	}
-	return highest, nil
-}
-
-// createExclusive creates path only if it does not exist (O_EXCL also
-// refuses a planted symlink) and removes a partly written file on failure.
+// createExclusive creates path, private to its owner, only if it does not
+// exist (O_EXCL also refuses a planted symlink) and removes a partly
+// written file on failure.
 func createExclusive(path string, content []byte) error {
-	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
 		return err
 	}

@@ -164,14 +164,29 @@ func writeStoreFileAtomic(path string, data []byte) (err error) {
 // so every store file is opened only as a regular file that the path still
 // names after the open; nothing is read or written through a symlink.
 
+// beforeStoreOpen runs between the path check and the open; tests replace
+// it to swap the path in that window.
+var beforeStoreOpen = func(string) {}
+
+// OpenRegular opens path read-only as a regular file that the path still
+// names after the open, so no symlink, FIFO, or device is ever read; band
+// reads untrusted report files through it as well as its own store.
+func OpenRegular(path string) (*os.File, error) { return openStoreFile(path, os.O_RDONLY) }
+
 // openStoreFile opens path with flag (O_CREATE allowed) as a regular file.
+// The open itself refuses a symlink and never blocks on a FIFO swapped in
+// after the check (noFollowNonBlock); the descriptor is then checked again.
 func openStoreFile(path string, flag int) (*os.File, error) {
 	if info, err := os.Lstat(path); err == nil && !info.Mode().IsRegular() {
 		return nil, errUnsafeStorePath
 	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, err
 	}
-	file, err := os.OpenFile(path, flag, 0o600)
+	beforeStoreOpen(path)
+	file, err := os.OpenFile(path, flag|noFollowNonBlock, 0o600)
+	if isSymlinkLoop(err) {
+		return nil, errUnsafeStorePath
+	}
 	if err != nil {
 		return nil, err
 	}

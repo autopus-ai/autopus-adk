@@ -40,20 +40,20 @@ func (e bandRunEvidence) Evidence(ctx context.Context, claim healthband.DueClaim
 }
 
 // readBandReactReport keeps the last 4 MiB of a react report that is a
-// regular file in a real .autopus/react directory and sanitizes it like a
-// CI log, whose tail it ends with. A symlink or any other file type is not
-// evidence, so a planted link cannot pull a file from outside the project
-// into a prompt or a BS.
+// regular file in a real .autopus/react directory (neither component a
+// symlink) and sanitizes it like a CI log, whose tail it ends with. The
+// file is opened without following a link or blocking on a FIFO and is
+// checked again after the open, so a planted or swapped link cannot pull a
+// file from outside the project into a prompt or a BS.
 func readBandReactReport(projectDir string, runID int64) (healthband.Evidence, bool) {
-	dir := filepath.Join(projectDir, ".autopus", "react")
-	if info, err := os.Lstat(dir); err != nil || !info.IsDir() {
-		return healthband.Evidence{}, false
+	autopus := filepath.Join(projectDir, ".autopus")
+	dir := filepath.Join(autopus, "react")
+	for _, component := range []string{autopus, dir} {
+		if info, err := os.Lstat(component); err != nil || !info.IsDir() {
+			return healthband.Evidence{}, false
+		}
 	}
-	path := filepath.Join(dir, strconv.FormatInt(runID, 10)+".md")
-	if info, err := os.Lstat(path); err != nil || !info.Mode().IsRegular() {
-		return healthband.Evidence{}, false
-	}
-	file, err := os.Open(path)
+	file, err := healthband.OpenRegular(filepath.Join(dir, strconv.FormatInt(runID, 10)+".md"))
 	if err != nil {
 		return healthband.Evidence{}, false
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"time"
@@ -90,7 +91,7 @@ func runReactBand(cmd *cobra.Command, opts reactBandOptions, deps reactBandDeps)
 	if err != nil {
 		return err
 	}
-	run := bandRun{opts: opts, deps: deps, projectDir: projectDir, harness: harness, client: newBandGHClient(deps.runner)}
+	run := bandRun{opts: opts, deps: deps, projectDir: projectDir, harness: harness, client: newBandGHClient(deps.runner), stderr: cmd.ErrOrStderr()}
 	report, runErr := run.execute(cmd.Context())
 	if jsonMode {
 		if runErr != nil {
@@ -122,6 +123,7 @@ type bandRun struct {
 	projectDir string
 	harness    *config.HarnessConfig
 	client     bandGHClient
+	stderr     io.Writer // warnings that are no part of the report
 }
 
 // bandPlanned is what phase A (or the --dry-run plan) decided.
@@ -235,7 +237,7 @@ func (r bandRun) phaseB(ctx context.Context, store *healthband.Store, claims []h
 		evidence.target = fetch.Target
 	}
 	diagnoser := newBandDiagnoser(r.projectDir, r.harness, r.opts.noAgent, evidence)
-	diagnoser.now = r.deps.clock
+	diagnoser.now, diagnoser.warn = r.deps.clock, r.stderr
 	if r.deps.prepare != nil {
 		r.deps.prepare(diagnoser)
 	}
