@@ -17,8 +17,12 @@ import (
 // path, keeping a spelling that does not decode as it is. Both the @ and the
 // stripped spelling are judged, so no file created in between changes the
 // decision, and so is a file:// URL whichever branch reaches it. A spelling
-// that still holds a NUL byte is never written and is left out.
-func geminiSpellings(cwd, raw string) []string {
+// that still holds a NUL byte is never written and is left out. decodesFirst
+// is set for an absolute replace path, which the host decodes before it
+// resolves the `..` in it (bundle chunk-7LQRUKPT.js:307921 and 308375), so
+// that spelling is judged too; write_file and a relative replace path are
+// resolved before they are decoded.
+func geminiSpellings(cwd, raw string, decodesFirst bool) []string {
 	var spellings []string
 	add := func(p string) {
 		if p != "" && !strings.ContainsRune(p, 0) && !slices.Contains(spellings, p) {
@@ -36,6 +40,9 @@ func geminiSpellings(cwd, raw string) []string {
 		}
 		if decoded, ok := decodeURIComponent(lexicalAbs(cwd, base)); ok {
 			add(decoded)
+		}
+		if decoded, ok := decodeURIComponent(base); ok && decodesFirst {
+			add(lexicalAbs(cwd, decoded))
 		}
 	}
 	if len(spellings) == 0 {

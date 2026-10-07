@@ -40,6 +40,37 @@ func TestGeminiDialect_HostPathTransforms_DenyTheProtectedFile(t *testing.T) {
 	}
 }
 
+// An absolute replace path is decoded before it is resolved (bundle
+// chunk-7LQRUKPT.js:307921 and 308375 hand the raw path to resolveToRealPath),
+// so an encoded `..` and the literal `..` after it both climb:
+// <root>/a/b/%2e%2e/../T writes <root>/T. write_file (path.resolve) and a
+// relative replace (correctPath's path.join) clean the path before they
+// decode it and write <root>/a/b/T, which nothing protects.
+func TestGeminiDialect_AbsoluteReplace_DecodesBeforeItResolves(t *testing.T) {
+	t.Parallel()
+	root := fixtureR(t)
+	lockedRecordName(t, root)
+	dialect := dialectOf(t, PlatformGemini)
+	opts := Options{Now: newClock(t0).Now}
+	cases := map[string]Class{
+		"a/b/%2e%2e/../" + tRel:            ClassFixLock,
+		"a/b/%2E%2E/../" + skillRel:        ClassGeneratedSurface,
+		"a/b/%2e%2e/../" + claudeManifest:  ClassGuardState,
+		"a/b/c/%2e%2e%2f%2e%2e/../" + tRel: ClassFixLock,
+	}
+	for rel, class := range cases {
+		payload := geminiPayload(root, "replace", map[string]any{"file_path": root + "/" + rel})
+		got := runGuard(strings.NewReader(payload), dialect, opts)
+		if !strings.Contains(got.stdout, `"decision":"deny"`) || !strings.Contains(got.stdout, "["+string(class)+"]") {
+			t.Errorf("replace <root>/%s: got %+v, want a %s deny", rel, got, class)
+		}
+		for tool, path := range map[string]string{"write_file": root + "/" + rel, "replace": rel} {
+			payload := geminiPayload(root, tool, map[string]any{"file_path": path})
+			runGuard(strings.NewReader(payload), dialect, opts).allowed(t, tool+" "+path)
+		}
+	}
+}
+
 // A spelling no transform changes is the only target, and one that cannot be
 // percent-decoded stays as the host keeps it: raw.
 func TestGeminiDialect_HostPathTransforms_KeepUndecodableAndPlainPaths(t *testing.T) {

@@ -30,10 +30,12 @@ func (geminiDialect) Decode(payload []byte) (Call, error) {
 	}
 	call := Call{Cwd: doc.cwd}
 	if slices.Contains(geminiEditTools, doc.toolName) && doc.hasInput {
-		for _, spelling := range geminiSpellings(doc.cwd, doc.input) {
+		// replace decodes an absolute path as sent and searches a relative one.
+		replace, absolute := doc.toolName == geminiSearchTool, filepath.IsAbs(doc.input)
+		for _, spelling := range geminiSpellings(doc.cwd, doc.input, replace && absolute) {
 			call.add(spelling)
 		}
-		if doc.toolName == geminiSearchTool && !filepath.IsAbs(doc.input) {
+		if replace && !absolute {
 			call.Searched = geminiBases(doc.input)
 		}
 	}
