@@ -45,6 +45,16 @@ func TestSanitizeCILog_RedactsEverySecretForm(t *testing.T) {
 		{"github oauth token", "using gho_0123456789abcdefghijABCDEFGHIJ0123 here", "gho_0123456789abcdefghijABCDEFGHIJ0123", " here"},
 		{"github fine-grained token", "pat github_pat_11ABCDEFG0123456789_abcdefghijklmnopqrstuvwxyz here", "github_pat_11ABCDEFG0123456789_abcdefghijklmnopqrstuvwxyz", " here"},
 		{"api key with sk prefix", "key sk-ant-api03-AbCdEfGhIjKlMnOp here", "sk-ant-api03-AbCdEfGhIjKlMnOp", " here"},
+		// Review round 2 (M2 residual).
+		{"url token as the user", "fetching https://0123456789abcdef0123456789abcdef01234567@github.com/acme/app.git",
+			"0123456789abcdef0123456789abcdef01234567", "github.com/acme/app.git"},
+		{"url password without a user", "redis://:s3cr3t-pass@cache.internal:6379/0", "s3cr3t-pass", "cache.internal:6379/0"},
+		{"python dict password", `config {'user': 'ci', 'password': 'hunter2 hunter2'}`, "hunter2 hunter2", `'user': 'ci'`},
+		{"python dict api key", `{'api_key': "AbCdEf0123456789"}`, "AbCdEf0123456789", "{"},
+		{"cookie header", "> Cookie: session=Zm9vYmFyYmF6cXV4; theme=dark", "Zm9vYmFyYmF6cXV4", "> Cookie: "},
+		{"set-cookie header", "< set-cookie: _gh_sess=AbCdEf0123456789; path=/; secure; HttpOnly", "AbCdEf0123456789", "< set-cookie: "},
+		{"pypi token", "twine upload -p pypi-AgEIcHlwaS5vcmcCJDAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMAACKlsz now",
+			"pypi-AgEIcHlwaS5vcmcCJDAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMAACKlsz", " now"},
 	} {
 		t.Run(tc.form, func(t *testing.T) {
 			t.Parallel()
@@ -70,7 +80,9 @@ func TestSanitizeCILog_RedactsEverySecretForm(t *testing.T) {
 func TestSanitizeCILog_LeavesOrdinaryTextAlone(t *testing.T) {
 	t.Parallel()
 	text := "GET https://registry.example.com/v2/app 200\nAuthorization header absent\n{\"name\": \"lint\", \"status\": \"ok\"}\n" +
-		"token count: 4\ncommit eyJ is not a jwt\n"
+		"token count: 4\ncommit eyJ is not a jwt\n" +
+		"cloning ssh://git@github.com/acme/app.git and git@github.com:acme/app.git\nsee https://example.com/a?q=x@y\n" +
+		"{'name': 'lint', 'status': 'ok'}\nfortune cookie: none\nuses: pypa/gh-action-pypi-publish@release/v1\n"
 	got := healthband.SanitizeCILog(text, false, "/work/repo")
 	assert.Equal(t, strings.TrimSpace(text), got.Text)
 	assert.Empty(t, got.Reasons)

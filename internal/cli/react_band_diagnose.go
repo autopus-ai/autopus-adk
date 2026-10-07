@@ -47,11 +47,15 @@ func bandUnavailable(reason string) string { return "unavailable(" + reason + ")
 
 // bandProviderUnsetEnv are the inherited credentials a read-only diagnosis
 // never needs, so a provider steered by injected evidence cannot use them:
-// GitHub tokens and cloud credentials. A provider that authenticates only
-// through one of them (Bedrock, Vertex AI) is therefore unavailable to band.
+// GitHub tokens, the GitHub Actions OIDC and runtime tokens, and cloud
+// credentials, the AWS web identity, container (AWS_CONTAINER_*), and
+// Bedrock forms included. A provider that authenticates only through one of
+// them (Bedrock, Vertex AI) is therefore unavailable to band.
 var bandProviderUnsetEnv = []string{
 	"GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN",
+	"ACTIONS_ID_TOKEN_REQUEST_TOKEN", "ACTIONS_ID_TOKEN_REQUEST_URL", "ACTIONS_RUNTIME_TOKEN",
 	"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN", "AWS_SECURITY_TOKEN",
+	"AWS_WEB_IDENTITY_TOKEN_FILE", "AWS_CONTAINER_*", "AWS_BEARER_TOKEN_BEDROCK",
 	"GOOGLE_APPLICATION_CREDENTIALS", "GOOGLE_OAUTH_ACCESS_TOKEN", "CLOUDSDK_AUTH_ACCESS_TOKEN",
 	"AZURE_CLIENT_SECRET", "AZURE_CLIENT_CERTIFICATE_PASSWORD", "AZURE_STORAGE_KEY", "AZURE_STORAGE_CONNECTION_STRING",
 	"ARM_CLIENT_SECRET", "ARM_ACCESS_KEY",

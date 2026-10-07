@@ -29,14 +29,15 @@ func applyProviderEnv(cmd command, unset []string) error {
 }
 
 // EnvironWithout returns env without the entries whose name matches one of
-// names, compared case-insensitively.
+// names, compared case-insensitively. A name that ends in * matches every
+// variable that starts with the text before it, such as AWS_CONTAINER_*.
 func EnvironWithout(env, names []string) []string {
 	kept := make([]string, 0, len(env))
 	for _, entry := range env {
 		key, _, _ := strings.Cut(entry, "=")
 		drop := false
 		for _, name := range names {
-			if strings.EqualFold(key, name) {
+			if envNameMatches(key, name) {
 				drop = true
 				break
 			}
@@ -46,4 +47,14 @@ func EnvironWithout(env, names []string) []string {
 		}
 	}
 	return kept
+}
+
+// envNameMatches compares key with name, or with its prefix when name ends
+// in *, case-insensitively.
+func envNameMatches(key, name string) bool {
+	prefix, family := strings.CutSuffix(name, "*")
+	if !family {
+		return strings.EqualFold(key, name)
+	}
+	return prefix != "" && len(key) >= len(prefix) && strings.EqualFold(key[:len(prefix)], prefix)
 }
