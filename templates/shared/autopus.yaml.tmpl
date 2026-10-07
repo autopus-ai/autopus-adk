@@ -55,9 +55,7 @@ orchestra:
       binary: {{$v.Binary}}
 {{if $v.Args}}      args: [{{range $i, $a := $v.Args}}{{if $i}}, {{end}}"{{$a}}"{{end}}]
 {{end}}{{if $v.ModelPolicy}}      model_policy: {{$v.ModelPolicy}}
-{{end}}{{if $v.PaneArgs}}      pane_args: [{{range $i, $a := $v.PaneArgs}}{{if $i}}, {{end}}"{{$a}}"{{end}}]
 {{end}}{{if $v.PromptViaArgs}}      prompt_via_args: {{$v.PromptViaArgs}}
-{{end}}{{if $v.InteractiveInput}}      interactive_input: {{$v.InteractiveInput}}
 {{end}}{{if or $v.Subprocess.SchemaFlag $v.Subprocess.StdinMode $v.Subprocess.OutputFormat $v.Subprocess.Timeout}}      subprocess:
 {{if $v.Subprocess.SchemaFlag}}        schema_flag: "{{$v.Subprocess.SchemaFlag}}"
 {{end}}{{if $v.Subprocess.StdinMode}}        stdin_mode: {{$v.Subprocess.StdinMode}}

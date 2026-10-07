@@ -90,7 +90,6 @@ func TestCodexCapabilityMatrixProjectsEveryConsumer(t *testing.T) {
 				[]byte(tt.catalog),
 			)
 			assertCodexProviderProfile(t, provider.Args, tt.provider)
-			assertCodexProviderProfile(t, provider.PaneArgs, tt.provider)
 			assert.Equal(t, tt.providerReason, providerResolution.Reason)
 
 			rootResolution := config.ResolveCodexProfile(cfg.Quality.CodexSupervisorProfile(), []byte(tt.catalog))

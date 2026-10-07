@@ -79,8 +79,6 @@ func newBrainstormFixture(t *testing.T, gitRepo bool) *brainstormFixture {
 
 func (f *brainstormFixture) run(t *testing.T, timeout int, flags OrchestraFlags) error {
 	t.Helper()
-	flags.NoDetach = true
-	flags.SubprocessMode = true
 	flags.TimeoutChanged = true
 	return runOrchestraCommand(context.Background(), "brainstorm", "debate", []string{"codex", "gemini"},
 		timeout, "claude", "brainstorm topic", 1, 0, flags)

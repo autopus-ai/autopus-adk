@@ -1,0 +1,46 @@
+{
+  "autopus": {
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "sh -c 'auto react check --quiet >&2 || true; printf '\"'\"'{}\\n'\"'\"''",
+            "timeout": 60,
+            "type": "command"
+          }
+        ],
+        "matcher": "run_command"
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "sh -c 'auto check --hygiene --arch --quiet --staged --warn-only >&2 || true; printf '\"'\"'{\"decision\":\"allow\"}\\n'\"'\"''",
+            "timeout": 30,
+            "type": "command"
+          }
+        ],
+        "matcher": "run_command"
+      }
+    ],
+    "Stop": [
+      {
+        "command": "\"$(cd .. && pwd)/.gemini/hooks/autopus/hook-gemini-stop.sh\"",
+        "timeout": 300,
+        "type": "command"
+      }
+    ],
+    "enabled": true
+  },
+  "user-hooks": {
+    "Stop": [
+      {
+        "command": "./scripts/user-stop.sh",
+        "timeout": 10,
+        "type": "command"
+      }
+    ],
+    "enabled": true
+  }
+}

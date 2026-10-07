@@ -33,7 +33,7 @@ func (a *Adapter) buildUpdateTransactionPlan(
 		})
 	}
 
-	removes, err := a.buildUpdateTransactionRemoves(cfg, oldManifest, newFiles)
+	removes, err := a.buildUpdateTransactionRemoves(cfg, oldManifest, newFiles, writes)
 	if err != nil {
 		return adapter.TransactionPlan{}, nil, err
 	}
@@ -60,18 +60,22 @@ func (a *Adapter) buildUpdateTransactionPlan(
 
 // buildUpdateTransactionRemoves plans every deletion an update performs.
 //
-// Two complementary sources feed it. The manifest diff catches any managed file
+// Three sources feed it. The manifest diff catches any managed file
 // the previous install recorded and this one no longer emits, which is the wide
 // net but only exists when a manifest survives. The obsolete-surface detector
 // catches a closed, hardcoded set of retired layouts regardless of the manifest,
 // which is what makes a fresh clone converge: `.autopus/*-manifest.json` is
 // gitignored, so a cloned workspace has generated files with no ownership record
 // and a manifest-only prune is structurally blind to them — it would rewrite the
-// manifest without the orphans and never see them again.
+// manifest without the orphans and never see them again. The group S
+// declaration (adapter.StaleCompletionHookScripts) adds the retired completion
+// hook scripts that the transaction's final state no longer names, so the
+// transaction that retracts their hooks.json handlers deletes them.
 func (a *Adapter) buildUpdateTransactionRemoves(
 	cfg *config.HarnessConfig,
 	oldManifest *adapter.Manifest,
 	files []adapter.FileMapping,
+	writes []adapter.TransactionWrite,
 ) ([]adapter.TransactionRemove, error) {
 	var removes []adapter.TransactionRemove
 	planned := make(map[string]bool)
@@ -97,6 +101,10 @@ func (a *Adapter) buildUpdateTransactionRemoves(
 		add(adapter.TransactionRemove{Path: path, Recursive: true})
 	}
 	if remove, ok := a.legacyRootConfigRemove(); ok {
+		add(remove)
+	}
+	scripts := adapter.StaleCompletionHookScripts(adapterName)
+	for _, remove := range adapter.StaleCompletionScriptRemoves(a.root, scripts, writes) {
 		add(remove)
 	}
 	return adapter.FilterUnsupportedRootGitHookRemoves(a.root, removes), nil

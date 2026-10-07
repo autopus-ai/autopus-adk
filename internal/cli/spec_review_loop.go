@@ -35,8 +35,6 @@ type specReviewLoopParams struct {
 func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFindings []spec.ReviewFinding) (*spec.ReviewResult, error) {
 	var finalResult *spec.ReviewResult
 	repeats := &specReviewRepeatTracker{specDir: p.specDir}
-	reviewTerminal := specReviewTerminalDetector()
-	announceSpecReviewSubprocessMode(os.Stderr, reviewTerminal)
 
 	for revision := 0; revision <= p.maxRevisions; revision++ {
 		// REQ-02: reload spec on each revision so external edits are picked up.
@@ -67,11 +65,8 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 			return nil, fmt.Errorf("리뷰 필수 문서 전달 실패: %w", err)
 		}
 
-		// SPEC-ORCH-022: the pane provider must launch in the working directory
-		// whose .claude/settings.json carries the orchestra hooks (the same dir
-		// isHookModeAvailable inspects), so its SessionStart/Stop hooks fire and
-		// write the ready/done signals. Without WorkingDir the pane CLI runs in the
-		// surface's default cwd and reads neither hook.
+		// WorkingDir is the review's project root: the OMP review backend and
+		// the reliability receipts read it.
 		workingDir, _ := os.Getwd()
 		orchCfg := orchestra.OrchestraConfig{
 			Providers:           p.providers,
@@ -83,22 +78,13 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 			JudgeProvider:       p.gate.Judge,
 			JudgeConfig:         p.judgeConfig,
 			NoJudge:             p.gate.Judge == "",
-			// Reviewers are read-only (SPEC-REVIEWRO-001 REQ-16, REQ-17): the pane
-			// backend launches claude/agy with a permission bypass flag and
-			// auto-approves tool prompts, so SPEC review always runs headless
-			// subprocesses regardless of terminal or flags, and ReadOnly keeps any
-			// pane launch built from this config free of bypass flags.
-			SubprocessMode: true,
-			ReadOnly:       true,
-			WorkingDir:     workingDir,
-			RunID:          orchestra.NewSessionID(),
-			Terminal:       reviewTerminal,
+			// Reviewers are read-only (SPEC-REVIEWRO-001 REQ-17). The config
+			// carries no terminal, so every CLI reviewer runs as a headless
+			// subprocess (SPEC-PANERM-001).
+			ReadOnly:   true,
+			WorkingDir: workingDir,
+			RunID:      orchestra.NewSessionID(),
 		}
-		// SPEC-ORCH-022 T8: enable hook-IPC completion collection when the
-		// pane-capable, hook-installed context allows it. Without this the relaxed
-		// CLAUDECODE guard routed into the pane backend with HookMode=false and
-		// fell back to screen polling (the 0/N timeout this SPEC fixes).
-		applyHookMode(&orchCfg)
 
 		fmt.Fprintf(os.Stderr, "SPEC 리뷰 시작: %s (전략: %s, 리비전: %d)\n", p.specID, p.strategy, revision)
 

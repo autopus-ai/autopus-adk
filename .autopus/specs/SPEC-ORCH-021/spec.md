@@ -1,6 +1,7 @@
 # SPEC-ORCH-021: Reliable interactive-pane orchestration as the default execution path (subscription-first), with provisioning-only subprocess fallback
 
 **Status**: completed
+**Superseded by SPEC-PANERM-001** (2026-10-07): the orchestra pane backend was retired; providers run as subprocesses or through OMP.
 **Created**: 2026-05-30
 **Contract correction**: 2026-07-17 — subprocess fallback is limited to failures before pane transport commit
 **Current verification**: corrected-contract focused and full regression gates passed; independent convergence review has no remaining findings

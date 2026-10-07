@@ -1,6 +1,7 @@
 # SPEC-ORCH-024: Multi-provider Orchestration Contract Convergence
 
 **Status**: completed
+**Partially superseded by SPEC-PANERM-001** (2026-10-07): its orchestra pane-backend parts were retired; the rest stays in force.
 **Created**: 2026-07-20
 **Domain**: ORCH
 **Priority**: critical

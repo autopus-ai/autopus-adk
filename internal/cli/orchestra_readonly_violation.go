@@ -21,7 +21,6 @@ const (
 const (
 	readOnlyFieldBinary     = "binary"
 	readOnlyFieldArgs       = "args"
-	readOnlyFieldPaneArgs   = "pane_args"
 	readOnlyFieldSchemaFlag = "subprocess.schema_flag"
 )
 

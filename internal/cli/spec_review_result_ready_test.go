@@ -72,6 +72,6 @@ func TestRunSpecReview_AlwaysReadOnlySubprocessBackend(t *testing.T) {
 
 	err = runSpecReviewWithOptions(context.Background(), "SPEC-REVIEW-SUBPROCESS-001", "consensus", 10, specReviewOptions{})
 	require.NoError(t, err)
-	assert.True(t, captured.SubprocessMode)
 	assert.True(t, captured.ReadOnly)
+	assert.Equal(t, "subprocess", selectRoutedBackend(captured).Name())
 }

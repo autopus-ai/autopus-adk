@@ -1,0 +1,20 @@
+{
+  "name": "autopus-local",
+  "interface": {
+    "displayName": "Autopus Local"
+  },
+  "plugins": [
+    {
+      "name": "auto",
+      "source": {
+        "source": "local",
+        "path": "./.autopus/plugins/auto"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

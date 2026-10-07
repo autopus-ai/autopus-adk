@@ -2,6 +2,7 @@ package cli
 
 import (
 	"errors"
+	"fmt"
 	"regexp"
 
 	"gopkg.in/yaml.v3"
@@ -78,10 +79,17 @@ func marshalAutopusConfig(original []byte, cfg *config.HarnessConfig) ([]byte, e
 // autopus.yaml and leaves every sibling node untouched, so a caller that owns
 // one section never reformats the rest of a user's file. Comments inside the
 // replaced section do not survive: the section is re-encoded from the typed
-// value, which is the only representation the harness validates against.
+// value, which is the only representation the harness validates against. The
+// retired orchestra keys are the one exception among the siblings: they are
+// dropped, so no writer carries them forward (SPEC-PANERM-001 REQ-10). The
+// result is returned only once it parses back to the rewritten tree, every
+// alias resolving to the same data, and loads as config.Load would load it.
 func replaceAutopusConfigSection(original []byte, key string, section any) ([]byte, error) {
 	document, _, err := parseAutopusConfigDocument(original)
 	if err != nil {
+		return nil, err
+	}
+	if _, err := config.PruneRetiredKeysForRewrite(document); err != nil {
 		return nil, err
 	}
 	sectionData, err := yaml.Marshal(section)
@@ -111,6 +119,13 @@ func replaceAutopusConfigSection(original []byte, key string, section any) ([]by
 	encoded, err := yaml.Marshal(document)
 	if err != nil {
 		return nil, errors.New("autopus_config_marshal_failed")
+	}
+	var check yaml.Node
+	if yaml.Unmarshal(encoded, &check) != nil || !sameYAMLData(&check, document) {
+		return nil, errors.New("autopus_config_rewrite_unsafe")
+	}
+	if _, err := config.ParseConfig(encoded); err != nil {
+		return nil, fmt.Errorf("autopus_config_rewrite_invalid: %w", err)
 	}
 	return encoded, nil
 }

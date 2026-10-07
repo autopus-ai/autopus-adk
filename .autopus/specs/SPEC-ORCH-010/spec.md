@@ -1,6 +1,7 @@
 # SPEC-ORCH-010: Orchestra 멀티턴 토론 P0 버그 수정 및 Pane 안정성 개선
 
 **Status**: completed
+**Superseded by SPEC-PANERM-001** (2026-10-07): the orchestra pane backend was retired; providers run as subprocesses or through OMP.
 **Created**: 2026-03-27
 **Domain**: ORCH
 **Extends**: SPEC-ORCH-009

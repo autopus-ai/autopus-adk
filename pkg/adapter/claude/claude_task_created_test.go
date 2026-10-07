@@ -17,13 +17,12 @@ import (
 func cc21EnabledConfig(project string) *config.HarnessConfig {
 	cfg := config.DefaultFullConfig(project)
 	cfg.Features.CC21 = config.CC21FeaturesConf{
-		Enabled:                 true,
-		EffortEnabled:           true,
-		MonitorEnabled:          true,
-		TaskCreatedEnabled:      true,
-		InitialPromptEnabled:    true,
-		TaskCreatedMode:         "warn",
-		MonitorPatternTimeoutMS: 30000,
+		Enabled:              true,
+		EffortEnabled:        true,
+		MonitorEnabled:       true,
+		TaskCreatedEnabled:   true,
+		InitialPromptEnabled: true,
+		TaskCreatedMode:      "warn",
 	}
 	return cfg
 }

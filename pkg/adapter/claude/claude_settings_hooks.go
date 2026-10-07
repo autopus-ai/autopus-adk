@@ -1,8 +1,9 @@
 package claude
 
 import (
-	"maps"
 	"strings"
+
+	"github.com/insajin/autopus-adk/pkg/adapter"
 )
 
 var managedClaudeHookCommandPrefixes = []string{
@@ -19,69 +20,12 @@ var managedClaudeHookCommandPrefixes = []string{
 	`"${CLAUDE_PROJECT_DIR:-.}"/.claude/hooks/autopus/`,
 }
 
-// retractManagedHookEntries removes Autopus-owned handlers from every event one
-// handler at a time (SPEC-EDITGUARD-001 REQ-EG-19). settings.json is shared
-// with the user, so an entry can hold a user handler beside an Autopus one;
-// dropping the whole entry deleted the user's handler. An entry now keeps its
-// matcher, its other keys, and every handler this writer does not own, and is
-// dropped only when retraction left it with no handler.
+// retractManagedHookEntries removes every Autopus-owned handler from every
+// event. The unit is a handler (SPEC-PANERM-001 REQ-13): an entry is dropped
+// only when no handler remains, so a user handler that shares an entry with a
+// managed or group S one survives with its matcher and position.
 func retractManagedHookEntries(hooks map[string]any) {
-	for event, raw := range hooks {
-		entries, ok := raw.([]any)
-		if !ok {
-			continue
-		}
-		kept := make([]any, 0, len(entries))
-		for _, entry := range entries {
-			if remaining, keep := retractManagedHandlers(entry); keep {
-				kept = append(kept, remaining)
-			}
-		}
-		if len(kept) == 0 {
-			delete(hooks, event)
-			continue
-		}
-		hooks[event] = kept
-	}
-}
-
-// retractManagedHandlers returns entry without its managed handlers and whether
-// anything is left to keep. A value that is not an entry object holding a
-// handler array is not this writer's to change and comes back unchanged, and
-// so does an entry that holds no managed handler, including an empty one.
-func retractManagedHandlers(entry any) (any, bool) {
-	object, ok := entry.(map[string]any)
-	if !ok {
-		return entry, true
-	}
-	handlers, ok := object["hooks"].([]any)
-	if !ok {
-		return entry, true
-	}
-	kept := make([]any, 0, len(handlers))
-	for _, handler := range handlers {
-		if !isManagedClaudeHandler(handler) {
-			kept = append(kept, handler)
-		}
-	}
-	switch len(kept) {
-	case len(handlers):
-		return entry, true
-	case 0:
-		return nil, false
-	}
-	pruned := maps.Clone(object)
-	pruned["hooks"] = kept
-	return pruned, true
-}
-
-func isManagedClaudeHandler(handler any) bool {
-	object, ok := handler.(map[string]any)
-	if !ok {
-		return false
-	}
-	command, ok := object["command"].(string)
-	return ok && isManagedClaudeHookCommand(command)
+	adapter.RetractHookHandlers(hooks, isManagedClaudeHookCommand)
 }
 
 func isManagedClaudeHookEntry(entry any) bool {
@@ -99,7 +43,7 @@ func isManagedClaudeHookEntry(entry any) bool {
 
 func isManagedClaudeHookCommand(command string) bool {
 	trimmed := strings.TrimSpace(command)
-	if isStickyCommand(trimmed) {
+	if isStickyCommand(trimmed) || adapter.IsStaleCompletionHookCommand(adapterName, trimmed) {
 		return true
 	}
 	for _, prefix := range managedClaudeHookCommandPrefixes {

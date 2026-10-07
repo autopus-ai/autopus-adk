@@ -9,13 +9,7 @@ import (
 	"github.com/insajin/autopus-adk/pkg/telemetry"
 )
 
-const (
-	usageSourceSubprocess = "subprocess_stdout"
-	usageSourcePane       = "pane"
-	usageSourceHook       = "hook"
-	usageReasonPane       = "pane_usage_unavailable"
-	usageReasonHook       = "hook_usage_unavailable"
-)
+const usageSourceSubprocess = "subprocess_stdout"
 
 type usageBinding struct {
 	RunID    string
@@ -67,24 +61,6 @@ func decorateProviderUsage(provider ProviderConfig, role string, round int, raw 
 	return []telemetry.UsageEnvelope{unavailableUsage(binding)}, UsageCapability{
 		Source: usageSourceSubprocess, Reason: telemetry.UsageReasonProviderAbsent,
 	}
-}
-
-func unavailablePathUsage(provider, source, reason string) ([]telemetry.UsageEnvelope, UsageCapability) {
-	binding := newUsageBinding(provider, "", 0)
-	return []telemetry.UsageEnvelope{unavailableUsage(binding)}, UsageCapability{Source: source, Reason: reason}
-}
-
-func markUnavailableUsage(response *ProviderResponse, source, reason string) *ProviderResponse {
-	if response == nil {
-		return nil
-	}
-	response.Usage, response.UsageCapability = unavailablePathUsage(response.Provider, source, reason)
-	return response
-}
-
-func unavailableResponse(response ProviderResponse, source, reason string) ProviderResponse {
-	markUnavailableUsage(&response, source, reason)
-	return response
 }
 
 func unavailableUsage(binding usageBinding) telemetry.UsageEnvelope {
@@ -145,11 +121,6 @@ func aggregateOrchestraUsage(result *OrchestraResult) {
 	result.Usage = dedupeUsage(receipts)
 	result.UsageAggregate = telemetry.AggregateUsage(receipts)
 	result.UsageCapability = aggregateUsageCapability(capabilities)
-}
-
-func finalizeOrchestraResult(result *OrchestraResult) *OrchestraResult {
-	aggregateOrchestraUsage(result)
-	return finalizeOrchestrationContract(result)
 }
 
 func dedupeUsage(receipts []telemetry.UsageEnvelope) []telemetry.UsageEnvelope {

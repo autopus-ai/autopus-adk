@@ -129,33 +129,6 @@ func TestIntegration_DeepMode(t *testing.T) {
 	assert.Contains(t, result.Summary, "3 rounds")
 }
 
-func TestIntegration_BackendSelection_Default(t *testing.T) {
-	t.Parallel()
-	// Terminal present, no SubprocessMode → InteractivePaneBackend
-	cfg := OrchestraConfig{Terminal: &mockTerminal{name: "cmux"}}
-	backend := SelectBackend(cfg)
-	require.NotNil(t, backend)
-	assert.Equal(t, "pane", backend.Name())
-}
-
-func TestIntegration_BackendSelection_Subprocess(t *testing.T) {
-	t.Parallel()
-	// SubprocessMode=true → SubprocessBackend
-	cfg := OrchestraConfig{Terminal: &mockTerminal{name: "cmux"}, SubprocessMode: true}
-	backend := SelectBackend(cfg)
-	require.NotNil(t, backend)
-	assert.Equal(t, "subprocess", backend.Name())
-}
-
-func TestIntegration_BackendSelection_Headless(t *testing.T) {
-	t.Parallel()
-	// Terminal=nil → SubprocessBackend (headless/CI)
-	cfg := OrchestraConfig{Terminal: nil}
-	backend := SelectBackend(cfg)
-	require.NotNil(t, backend)
-	assert.Equal(t, "subprocess", backend.Name())
-}
-
 func TestIntegration_OutputParser_EndToEnd(t *testing.T) {
 	t.Parallel()
 	// Simulate: provider returns JSON, parser extracts, validator checks.

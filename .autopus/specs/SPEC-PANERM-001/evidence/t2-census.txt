@@ -1,0 +1,181 @@
+# T2 trial-deletion census at B = 60f92ea5 (SPEC-PANERM-001)
+
+Method: `git archive 60f92ea5` into a scratch dir; delete the 60 group P files with their 104 P-named tests, the 10
+group C files (orchestra_hookmode, orchestra_hook_discovery*, orchestra_cc21, orchestra_job, orchestra_job_output,
+orchestra_collect, orchestra_inject, orchestra_cleanup) with their 8 C-named tests, and the 9 group H assets; remove the
+group F fields (types.go), BuildYieldOutput, the group K fields (schema_orchestra.go, schema.go), the group C functions
+detectStructuredTerminal, paneInteractiveContext, paneInteractiveContextWithRuntime, ownStructuredReviewHookSession,
+resolveSubprocessMode, and OrchestraFlags.NoDetach/YieldRounds/SubprocessMode (go/ast edits).
+Then type-check every package with tests through golang.org/x/tools/go/packages, which keeps going past broken
+dependencies and the 10-error cap, plus the plan's `go vet ./...`.
+
+`go vet ./...` alone: "templates/embed.go:9:361: pattern hooks/*.tmpl: no matching files found" and nothing else (a
+go list error aborts vet); after dropping that pattern in the scratch copy it stops at pkg/config with "too many
+errors". The go/packages pass is therefore the census of record.
+
+Owner rule: pkg/orchestra non-test sites naming a group P helper that retained code uses go to T4 (relocate:
+noneBackendMarker, usesAntigravityPromptInteractive, sanitizeProviderName, randomHex, stripICEScores,
+cleanScreenOutput, consensusReached, NewSessionID); other pkg/orchestra sites and all pkg/orchestra tests go to T7;
+internal/cli sites go to the W1 owner of the file (T5, T6) or to T9 for tests of deleted group C code and W2-only
+compile fixes; pkg/config goes to T8; pkg/content, pkg/adapter, pkg/platform, templates/embed.go go to T10.
+Census additions beyond plan.md file lists: T5 also owns spec_review_runtime.go and doctor_provider_smoke.go;
+OrchestraConfig.SurfaceMgr (types.go) is a pane field missing from group F; DefaultCompletionPatterns,
+DefaultPromptPatterns, and the hook-provider accessors in provider_patterns.go lose their last retained caller once
+T7 drops the hook preflight; stubTerminal (defined in orchestra_cc21_test.go) is used by orchestra_failure_render_test.go
+and orchestra_readonly_subprocess_test.go.
+
+# sites=931 files=127 per_owner={'T10': 5, 'T4': 36, 'T5': 149, 'T6': 17, 'T7': 447, 'T8': 118, 'T9': 159}
+owner	file	errors	identifiers
+T10	pkg/adapter/claude/claude_task_created_test.go	1	config.CC21FeaturesConf.MonitorPatternTimeoutMS
+T10	pkg/adapter/codex/codex_capability_matrix_test.go	1	config.ProviderEntry.PaneArgs
+T10	pkg/content/hooks_test.go	1	config.CC21FeaturesConf.MonitorPatternTimeoutMS
+T10	pkg/platform/claude_test_helpers_test.go	1	config.CC21FeaturesConf.MonitorPatternTimeoutMS
+T10	templates/embed.go	1	embed:hooks/*.tmpl
+T4	pkg/orchestra/crosspolinate.go	3	stripICEScores
+T4	pkg/orchestra/debate.go	2	stripICEScores
+T4	pkg/orchestra/debate_judge.go	1	noneBackendMarker
+T4	pkg/orchestra/debate_round_policy.go	1	consensusReached
+T4	pkg/orchestra/debate_sentinel.go	2	randomHex
+T4	pkg/orchestra/failure_result.go	1	noneBackendMarker
+T4	pkg/orchestra/judge_session_evidence.go	1	NewSessionID
+T4	pkg/orchestra/merger.go	2	cleanScreenOutput
+T4	pkg/orchestra/prompt_file.go	1	sanitizeProviderName
+T4	pkg/orchestra/provider_patterns.go	1	usesAntigravityPromptInteractive
+T4	pkg/orchestra/provider_validation.go	1	sanitizeProviderName
+T4	pkg/orchestra/relay.go	2	randomHex
+T4	pkg/orchestra/reliability_bundle.go	13	sanitizeProviderName
+T4	pkg/orchestra/reliability_preflight.go	1	randomHex
+T4	pkg/orchestra/run_receipt.go	1	noneBackendMarker
+T4	pkg/orchestra/usage.go	3	NewSessionID, sanitizeProviderName
+T5	internal/cli/claude_effort_override_test.go	15	config.ProviderEntry.PaneArgs, orchestra.ProviderConfig.PaneArgs
+T5	internal/cli/codex_catalog_runtime.go	6	config.ProviderEntry.PaneArgs, orchestra.ProviderConfig.PaneArgs
+T5	internal/cli/codex_catalog_runtime_test.go	7	orchestra.ProviderConfig.PaneArgs
+T5	internal/cli/doctor_provider_smoke.go	1	orchestra.OrchestraConfig.SubprocessMode
+T5	internal/cli/doctor_provider_smoke_routing_test.go	1	orchestra.OrchestraConfig.SubprocessMode
+T5	internal/cli/omp_review_provider_config_test.go	5	config.ProviderEntry.PaneArgs, config.ProviderEntry.WorkingPatterns, orchestra.ProviderConfig.InteractiveInput, orchestra.ProviderConfig.PaneArgs, orchestra.ProviderConfig.WorkingPatterns
+T5	internal/cli/orchestra.go	25	OrchestraFlags.NoDetach, OrchestraFlags.YieldRounds, applyHookMode, detectStructuredTerminal, newOrchestraCleanupCmd, newOrchestraCollectCmd, newOrchestraInjectCmd, newOrchestraJobResultCmd, newOrchestraJobStatusCmd, newOrchestraJobWaitCmd, orchestra.CleanupStaleJobs, orchestra.NewSessionID, orchestra.OrchestraConfig.HookMode, orchestra.OrchestraConfig.Interactive, orchestra.OrchestraConfig.MonitorEnabled, orchestra.OrchestraConfig.MonitorTimeout, orchestra.OrchestraConfig.NoDetach, orchestra.OrchestraConfig.SessionID, orchestra.OrchestraConfig.SubprocessMode, orchestra.OrchestraConfig.Terminal, orchestra.OrchestraConfig.YieldRounds, resolveCC21MonitorRuntime
+T5	internal/cli/orchestra_codex_quality_test.go	13	OrchestraFlags.NoDetach, config.ProviderEntry.PaneArgs, orchestra.ProviderConfig.PaneArgs
+T5	internal/cli/orchestra_config.go	1	config.ProviderEntry.InteractiveInput
+T5	internal/cli/orchestra_config_gemini_test.go	4	config.ProviderEntry.InteractiveInput, config.ProviderEntry.PaneArgs, orchestra.ProviderConfig.InteractiveInput
+T5	internal/cli/orchestra_config_test.go	4	orchestra.ProviderConfig.InteractiveInput
+T5	internal/cli/orchestra_failure_render_test.go	2	OrchestraFlags.NoDetach, stubTerminal
+T5	internal/cli/orchestra_helpers.go	8	config.ProviderEntry.PaneArgs, config.ProviderEntry.WorkingPatterns, orchestra.ProviderConfig.InteractiveInput, orchestra.ProviderConfig.PaneArgs, orchestra.ProviderConfig.WorkingPatterns
+T5	internal/cli/orchestra_invoker_test.go	2	OrchestraFlags.NoDetach, orchestra.OrchestraConfig.NoDetach
+T5	internal/cli/orchestra_provider_backends_test.go	1	OrchestraFlags.NoDetach
+T5	internal/cli/orchestra_readonly_policy.go	11	orchestra.ProviderConfig.PaneArgs, orchestra.ProviderConfig.WorkingPatterns
+T5	internal/cli/orchestra_readonly_policy_projection_test.go	5	orchestra.ProviderConfig.PaneArgs
+T5	internal/cli/orchestra_readonly_policy_test.go	13	OrchestraFlags.NoDetach, orchestra.ProviderConfig.PaneArgs
+T5	internal/cli/orchestra_readonly_subprocess_test.go	3	OrchestraFlags.NoDetach, orchestra.OrchestraConfig.SubprocessMode, stubTerminal
+T5	internal/cli/orchestra_readonly_violation_test.go	1	orchestra.ProviderConfig.PaneArgs
+T5	internal/cli/orchestra_run_runtime.go	2	config.ProviderEntry.PaneArgs
+T5	internal/cli/orchestra_terminal.go	4	unused-import:github.com/insajin/autopus-adk/pkg/detect, unused-import:github.com/insajin/autopus-adk/pkg/terminal, unused-import:golang.org/x/term, unused-import:os
+T5	internal/cli/orchestra_timeout_override_test.go	1	OrchestraFlags.NoDetach
+T5	internal/cli/spec_review_loop.go	4	applyHookMode, orchestra.NewSessionID, orchestra.OrchestraConfig.SubprocessMode, orchestra.OrchestraConfig.Terminal
+T5	internal/cli/spec_review_readonly_test.go	3	config.ProviderEntry.PaneArgs, orchestra.ProviderConfig.PaneArgs
+T5	internal/cli/spec_review_result_ready_test.go	1	orchestra.OrchestraConfig.SubprocessMode
+T5	internal/cli/spec_review_runtime.go	2	detectStructuredTerminal, orchestra.NewSessionID
+T5	internal/cli/spec_review_runtime_subprocess_test.go	2	config.SubprocessConf.Enabled, orchestra.OrchestraConfig.SubprocessMode
+T5	internal/cli/spec_review_structured.go	1	ownStructuredReviewHookSession
+T5	internal/cli/spec_review_timeout_test.go	1	config.ProviderEntry.PaneArgs
+T6	internal/cli/orchestra_brainstorm.go	3	OrchestraFlags.NoDetach, OrchestraFlags.SubprocessMode, OrchestraFlags.YieldRounds
+T6	internal/cli/orchestra_brainstorm_guard_test.go	2	OrchestraFlags.NoDetach, OrchestraFlags.SubprocessMode
+T6	internal/cli/orchestra_file_cmds.go	2	OrchestraFlags.NoDetach
+T6	internal/cli/orchestra_plan.go	2	OrchestraFlags.NoDetach, OrchestraFlags.SubprocessMode
+T6	internal/cli/orchestra_run.go	7	applyHookMode, detectStructuredTerminal, orchestra.OrchestraConfig.HookMode, orchestra.OrchestraConfig.SubprocessMode, orchestra.OrchestraConfig.Terminal
+T6	internal/cli/orchestra_run_quality_test.go	1	orchestra.ProviderConfig.PaneArgs
+T7	pkg/orchestra/backend.go	4	NewInteractivePaneBackend, OrchestraConfig.SubprocessMode, OrchestraConfig.Terminal, paneCapable
+T7	pkg/orchestra/backend_test.go	6	OrchestraConfig.SubprocessMode, OrchestraConfig.Terminal, mockTerminal
+T7	pkg/orchestra/cc21_monitor_error_test.go	9	OrchestraConfig.CompletionDetector, handleCompletionResult, paneInfo, waitForCompletion
+T7	pkg/orchestra/codex_startup_fallback_integration_test.go	10	NewInteractivePaneBackend, NewSessionID, OrchestraConfig.HookMode, OrchestraConfig.SessionID, OrchestraConfig.Terminal, codexStablePrompt, codexStartupFallbackTerminal.commands, markedResponse, seqScreenMock
+T7	pkg/orchestra/completion_poll_idle_test.go	7	ScreenPollDetector, newPlainMock, paneInfo, shouldIdleComplete
+T7	pkg/orchestra/crosspolinate_test.go	1	stripICEScores
+T7	pkg/orchestra/fallback_contract_regression_test.go	8	NewInteractivePaneBackend, OrchestraConfig.Terminal, newCmuxMock, noneBackendMarker
+T7	pkg/orchestra/headless_hook_test.go	24	OrchestraConfig.HookMode, OrchestraConfig.Interactive, OrchestraConfig.SessionID, OrchestraConfig.Terminal, ProviderConfig.InteractiveInput, ProviderConfig.PaneArgs, RunInteractivePaneOrchestra, SendSessionEnvToPane, launchInteractiveSessions, mockTerminal, newCmuxMock, paneInfo
+T7	pkg/orchestra/job_cleanup_cov_test.go	17	CleanupStaleJobs, Job
+T7	pkg/orchestra/judge_freshness_coverage_test.go	2	ProviderConfig.PaneArgs, paneBackendName
+T7	pkg/orchestra/judge_session_evidence.go	12	HookSession, NewHookSession, OrchestraConfig.HookMode, OrchestraConfig.SessionID, OrchestraConfig.Terminal, ProviderConfig.PaneArgs, closePaneSurface, paneInfo
+T7	pkg/orchestra/judge_session_evidence_test.go	30	NewHookSession, OrchestraConfig.CompletionDetector, OrchestraConfig.HookMode, OrchestraConfig.SessionID, OrchestraConfig.Terminal, isolateSurfaceTracker, judgeSessionRecordingTerminal, newPaneBoundaryMarkerProvider, noneBackendMarker, paneCommitTerminal, paneInfo, runJudgeRound
+T7	pkg/orchestra/orchestration_contract_test.go	4	OrchestraConfig.Terminal, RunPaneOrchestra, consensusReached, newCmuxMock
+T7	pkg/orchestra/pipeline_integration_test.go	6	OrchestraConfig.SubprocessMode, OrchestraConfig.Terminal, mockTerminal
+T7	pkg/orchestra/pipeline_judge_freshness.go	2	InteractivePaneBackend, paneBackendName
+T7	pkg/orchestra/pipeline_judge_freshness_test.go	3	NewInteractivePaneBackend, ProviderConfig.PaneArgs
+T7	pkg/orchestra/pipeline_round_transition_coverage_test.go	1	noneBackendMarker
+T7	pkg/orchestra/prompt_reliability_privacy_test.go	20	HookSession, NewHookSession, NewSessionID, OrchestraConfig.HookMode, OrchestraConfig.Interactive, OrchestraConfig.Terminal, ProviderConfig.InteractiveInput, RoundSignalName, armSuccessfulRound2Recovery, attachRecoveryReceiptStore, executeRound, newCmuxMock, newRound2ReleaseRecoveryFixture, newRound2ReleaseRecoveryTerminal, paneInfo, round2PromptFailureTerminal, writeRoundIPCFixture
+T7	pkg/orchestra/provider_artifact_identity_test.go	6	HookInput, HookResult, NewHookSession, buildSignalName
+T7	pkg/orchestra/provider_execution_test.go	8	ProviderConfig.PaneArgs, buildInteractiveLaunchCommand, paneLaunchFor, shellQuote
+T7	pkg/orchestra/provider_patterns.go	3	defaultHookProviders, defaultPromptPatterns
+T7	pkg/orchestra/provider_patterns_test.go	2	defaultPromptPatterns
+T7	pkg/orchestra/provider_session_ready_alias_test.go	8	SessionReadyPatterns, codexStablePrompt, isProviderSessionReady, startupTimeoutFor
+T7	pkg/orchestra/provider_validation.go	2	OrchestraConfig.HookMode, OrchestraConfig.SessionID
+T7	pkg/orchestra/provider_validation_test.go	23	NewInteractivePaneBackend, OrchestraConfig.HookMode, OrchestraConfig.SessionID, OrchestraConfig.Terminal, RunInteractivePaneOrchestra, RunPaneOrchestra, RunPaneOrchestraDetached, WaitAndCollectHookResults, newCmuxMock
+T7	pkg/orchestra/pure_helpers_cov_test.go	5	isProviderStillWorking
+T7	pkg/orchestra/recheck.go	4	NewInteractivePaneBackend, OrchestraConfig.SubprocessMode, OrchestraConfig.Terminal, paneCapable
+T7	pkg/orchestra/recheck_test.go	7	OrchestraConfig.SubprocessMode, OrchestraConfig.Terminal, RunPaneOrchestra, mockTerminal, newCmuxMock
+T7	pkg/orchestra/recovery_runtime_canary_test.go	8	NewSessionID, armSuccessfulRound2Recovery, executeRound, newRound2ReleaseRecoveryFixture, newRound2ReleaseRecoveryTerminal, paneInfo, sanitizeProviderName
+T7	pkg/orchestra/recovery_startup_artifact_test.go	27	HookSession, NewHookSession, NewSurfaceManager, OrchestraConfig.HookMode, OrchestraConfig.SessionID, OrchestraConfig.Terminal, RoundSignalName, WarmPool, newRecoveryLaunchTerminal, paneInfo, recreatePane, warmPane
+T7	pkg/orchestra/relay_pane_edge_test.go	25	OrchestraConfig.Terminal, RunPaneOrchestra, filterMinusPFlag, newCmuxMock, runRelayPaneOrchestra, skippedResponse
+T7	pkg/orchestra/reliability_collection_test.go	9	NewHookSession, OrchestraConfig.HookMode, OrchestraConfig.SessionID, RoundSignalName, collectRoundHookResults
+T7	pkg/orchestra/reliability_core_test.go	14	OrchestraConfig.HookMode, OrchestraConfig.Terminal, ProviderConfig.InteractiveInput, newCmuxMock
+T7	pkg/orchestra/reliability_preflight.go	7	OrchestraConfig.HookMode, OrchestraConfig.SubprocessMode, OrchestraConfig.Terminal, promptDeliveredAtLaunch, shouldUseSendkeysPromptInput
+T7	pkg/orchestra/runner.go	4	OrchestraConfig.SubprocessMode, OrchestraConfig.Terminal, RunPaneOrchestra, paneCapable
+T7	pkg/orchestra/signal_emitter_response_file_test.go	3	NewSignalEmitter, newEmitterMock, paneInfo
+T7	pkg/orchestra/stability_fixes_test.go	36	OrchestraConfig.Terminal, failNSendLongTextMock.mu, failNSendLongTextMock.name, failNSendLongTextMock.nextPaneID, failNSendLongTextMock.readScreenOutput, failNSendLongTextMock.sendLongTextCalls, failNSendLongTextMock.splitPaneErr, mockTerminal, newCmuxMock, paneInfo, pollUntilPrompt, round2PollTimeout, runInteractiveDebate, sendPromptWithRetry
+T7	pkg/orchestra/startup_hook_capability_test.go	12	NewHookSession, NewSessionID, SessionReadyPatterns, seqScreenMock, waitForPaneReady
+T7	pkg/orchestra/subprocess_judge_session_evidence_test.go	4	OrchestraConfig.SubprocessMode, OrchestraConfig.Terminal
+T7	pkg/orchestra/surface_helpers_test.go	26	OrchestraConfig.Terminal, captureBaselines, mockTerminal, newCmuxMock, paneInfo, sendLongTextCountMock.mu, sendLongTextCountMock.sendLongTextCalls, sendLongTextErrorMock, sendPromptWithRetry
+T7	pkg/orchestra/surface_manager_stop_test.go	4	NewSurfaceManager, blockingSurfaceSignalMock.name, paneInfo, surfaceSignalMock
+T7	pkg/orchestra/types.go	3	SurfaceManager, codexReadyPromptPattern, unused-import:github.com/insajin/autopus-adk/pkg/terminal
+T7	pkg/orchestra/usage_test.go	4	HookResult, HookResultToProviderResponse, InteractivePaneBackend, SessionProviderResponse
+T7	pkg/orchestra/yield.go	1	unused-import:log
+T7	pkg/orchestra/yield_test.go	2	BuildYieldOutput, paneInfo
+T7	pkg/orchestra/yield_tracker_handoff_test.go	24	LoadSession, NewSessionID, OrchestraSession, RemoveSession, SaveSession, handoffYieldPanes, isolateSurfaceTracker, mockTerminal, paneInfo, readTrackerRefs, surfaceTrackerFile, trackSurfaceForTerminal, yieldSessionTerminal, yieldSurfaceUntracker
+T8	pkg/config/claude_provider.go	3	ProviderEntry.PaneArgs
+T8	pkg/config/claude_provider_test.go	15	ProviderEntry.PaneArgs
+T8	pkg/config/codex_profile_test.go	1	ProviderEntry.PaneArgs
+T8	pkg/config/codex_provider.go	16	ProviderEntry.InteractiveInput, ProviderEntry.PaneArgs, ProviderEntry.WorkingPatterns
+T8	pkg/config/codex_provider_test.go	12	ProviderEntry.PaneArgs
+T8	pkg/config/codex_structured_usage_test.go	7	ProviderEntry.PaneArgs
+T8	pkg/config/defaults.go	4	CC21FeaturesConf.MonitorPatternTimeoutMS, ProviderEntry.InteractiveInput, ProviderEntry.PaneArgs
+T8	pkg/config/defaults_test.go	2	ProviderEntry.InteractiveInput, ProviderEntry.PaneArgs
+T8	pkg/config/migrate.go	2	ProviderEntry.InteractiveInput, ProviderEntry.PaneArgs
+T8	pkg/config/migrate_antigravity.go	6	ProviderEntry.InteractiveInput, ProviderEntry.PaneArgs
+T8	pkg/config/migrate_antigravity_test.go	5	ProviderEntry.InteractiveInput, ProviderEntry.PaneArgs, other:cfg.Orchestra.Providers["gemini"].InteractiveInput undefined
+T8	pkg/config/migrate_claude_test.go	9	ProviderEntry.PaneArgs
+T8	pkg/config/migrate_codex_model_only_test.go	9	ProviderEntry.PaneArgs, ProviderEntry.WorkingPatterns
+T8	pkg/config/migrate_codex_ownership_test.go	7	ProviderEntry.InteractiveInput, ProviderEntry.PaneArgs, ProviderEntry.WorkingPatterns
+T8	pkg/config/migrate_codex_quality_test.go	15	ProviderEntry.InteractiveInput, ProviderEntry.PaneArgs, ProviderEntry.WorkingPatterns
+T8	pkg/config/migrate_opencode_codex_quality_test.go	5	ProviderEntry.PaneArgs
+T9	internal/cli/orchestra_cleanup_legacy_test.go	14	cleanupTerminal, countString, newOrchestraCleanupCmd, orchestra.LoadSession, orchestra.OrchestraSession, runOrchestraCleanup, stubTerminal, useCleanupTerminal
+T9	internal/cli/orchestra_cleanup_retry_test.go	42	cleanupTerminal, countString, orchestra.LoadSession, orchestra.NewSessionID, orchestra.OrchestraSession, orchestra.RemoveSession, orchestra.SaveSession, orchestra.UpdateSession, orchestraSessionRemover, orchestraSessionTerminalDetector, orchestraSessionUpdater, runOrchestraCleanup, stubTerminal, useCleanupTerminal
+T9	internal/cli/orchestra_helpers_hookmode_test.go	10	hookModeAvailableInDirs, isHookModeAvailable, writeHookFixture
+T9	internal/cli/orchestra_job_edge_test.go	8	newOrchestraJobResultCmd, newOrchestraJobStatusCmd, newOrchestraJobWaitCmd, orchestra.Job, orchestra.JobStatusDone, orchestra.JobStatusRunning
+T9	internal/cli/orchestra_receipt_output_test.go	7	newOrchestraJobResultCmd, newOrchestraJobWaitCmd, orchestra.JobStatusDone, orchestraJobWaitOutput, orchestraJobWaitOutputSchema, writeOrchestraJobWaitOutput
+T9	internal/cli/orchestra_session_commands_context_test.go	58	cleanupTerminal, newOrchestraCleanupCmd, newOrchestraCollectCmd, newOrchestraInjectCmd, orchestra.LoadSession, orchestra.NewSessionID, orchestra.OrchestraSession, orchestra.RemoveSession, orchestra.SaveSession, orchestra.SessionProviderConfig, orchestraInjectSubmitDelay, stubTerminal, useCleanupTerminal
+T9	internal/cli/orchestra_subprocess_test.go	4	config.SubprocessConf.Enabled, resolveSubprocessMode
+T9	internal/cli/orchestra_terminal_test.go	9	detectStructuredTerminal, orchestra.OrchestraConfig.SubprocessMode, orchestra.OrchestraConfig.Terminal, paneInteractiveContext, paneInteractiveContextWithRuntime
+T9	internal/cli/provider_argv_test.go	3	orchestra.ProviderConfig.PaneArgs
+T9	internal/cli/spec_review_structured_hook_test.go	2	orchestra.OrchestraConfig.HookMode, orchestra.OrchestraConfig.SessionID
+T9	internal/cli/update_codex_supervisor_test.go	1	config.ProviderEntry.PaneArgs
+T9	internal/cli/update_workspace_transaction_test.go	1	config.ProviderEntry.PaneArgs
+
+## Group H name references outside the deleted assets (rg; .autopus/specs and CHANGELOG history excluded)
+T9	internal/cli/orchestra_helpers_hookmode_test.go
+T10	pkg/adapter/antigravity/antigravity_completion_hook_test.go
+T10	pkg/adapter/antigravity/antigravity_completion_hook.go
+T10	pkg/adapter/antigravity/antigravity_platform_test.go
+T10	pkg/adapter/antigravity/antigravity_update_symlink_test.go
+T11	pkg/adapter/claude/claude_obsolete_surface.go
+T10	pkg/adapter/codex/codex_hooks_security_test.go
+T10	pkg/adapter/codex/codex_hooks.go
+T10	pkg/adapter/codex/codex_internal_test.go
+T10	pkg/adapter/codex/codex_test.go
+T10	pkg/content/claude_hook_contract_test.go
+T10	pkg/content/codex_hook_contract_test.go
+T10	pkg/content/codex_hook_session_directory_test.go
+T10	pkg/content/gemini_stop_hook_contract_test.go
+T10	pkg/content/hook_round_cursor_contract_test.go
+T10	pkg/content/hook_session_directory_contract_test.go
+T10	pkg/content/hooks_completion.go
+T10	pkg/content/hooks_stop_test.go
+T10	pkg/content/hooks_test.go
+T10	pkg/content/opencode_hook_contract_test.go

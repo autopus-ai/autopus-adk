@@ -2,12 +2,10 @@
 package orchestra
 
 import (
-	"regexp"
 	"slices"
 	"time"
 
 	"github.com/insajin/autopus-adk/pkg/telemetry"
-	"github.com/insajin/autopus-adk/pkg/terminal"
 )
 
 // Strategy는 오케스트레이션 전략이다.
@@ -55,14 +53,10 @@ type ProviderConfig struct {
 	Binary              string        // executable binary path
 	ModelFamily         string        // stable model-family identity used for judge separation policy
 	Args                []string      // args for non-interactive mode
-	PaneArgs            []string      // args for pane mode (overrides Args when set)
 	ModelPolicy         string        // model selection ownership: quality-managed or user-pinned
 	PromptViaArgs       bool          // true: pass prompt as last arg (gemini), false: pass via stdin (claude, codex)
-	InteractiveInput    string        // interactive prompt delivery: "args" = via CLI arg at launch, "" = via sendkeys (default)
 	StartupTimeout      time.Duration // per-provider startup timeout; 0 uses name-based default
 	ExecutionTimeout    time.Duration // per-provider execution timeout; 0 uses command/global timeout
-	IdleThreshold       time.Duration // per-provider idle fallback threshold; 0 uses default (R10 P1)
-	WorkingPatterns     []string      // per-provider "still working" screen patterns; if any matches, completion is deferred
 	ResultReadyPatterns []string      // non-interactive: semantic output markers that indicate the useful result is complete
 	ResultReadyGrace    time.Duration // non-interactive: required output idle window after a ready marker before forced cleanup
 	SchemaFlag          string        // subprocess: CLI flag for JSON schema (e.g., "--schema")
@@ -82,12 +76,6 @@ type ProviderConfig struct {
 	// FastFailPatterns overrides the built-in provider fast-fail rules. When nil,
 	// DefaultFastFailRules() is used (behavior identical to the legacy hardcoded set).
 	FastFailPatterns []FastFailRule
-	// HasHook overrides whether this provider has hook-based result collection.
-	// When nil, the DefaultHookProviders() membership applies (claude/gemini/codex).
-	HasHook *bool
-	// HasStartupHook independently overrides startup-ready artifact support.
-	// When nil, only providers with generated startup wiring require the artifact.
-	HasStartupHook *bool
 }
 
 // ReliabilityFallbackMode defines deterministic degradation behavior.
@@ -110,7 +98,7 @@ type ProviderResponse struct {
 	EmptyOutput bool          // true when stdout is empty (exit 0 but no content)
 	Receipt     string        // reliability collection receipt path, if persisted
 	// ExecutedBackend records which backend produced this response:
-	// "pane", "subprocess", "omp" (SPEC-OMP-006 read-only RPC session), or
+	// "subprocess", "omp" (SPEC-OMP-006 read-only RPC session), or
 	// "" / "none" when none succeeded (REQ-005, F-003).
 	ExecutedBackend string
 	Role            string
@@ -171,7 +159,7 @@ type OrchestraResult struct {
 	Usage           []telemetry.UsageEnvelope // deduplicated model-call receipts
 	UsageAggregate  telemetry.UsageAggregate  // additive usage summary
 	UsageCapability UsageCapability           // aggregate execution-path capability
-	Yield           *YieldOutput              // structured pane/session metadata when execution yields to the caller
+	Yield           *YieldOutput              // structured round metadata when execution yields to the caller
 	RunReceipt      *OrchestrationRunReceipt  `json:"run_receipt,omitempty"`
 	Workspace       *WorkspaceEvidence        `json:"workspace,omitempty"` // pre/post provider-execution worktree comparison
 
@@ -218,64 +206,24 @@ type OrchestraConfig struct {
 	JudgeConfig                  *ProviderConfig             // optional judge config when the judge is not a participant
 	RequireJudgeFamilySeparation bool                        // fail closed unless required judge uses a known, distinct model family
 	DebateRounds                 int                         // Number of debate rounds (1=no rebuttal, 2=with rebuttal). 0 defaults to 1.
-	Terminal                     terminal.Terminal           // Optional terminal for pane-based execution. Nil means non-interactive mode.
-	NoDetach                     bool                        // @AX:NOTE [AUTO] REQ-1 — when true, disable auto-detach even on pane terminals; maps to CLI --no-detach flag
 	KeepRelayOutput              bool                        // when true, preserve temp relay output files after execution
-	Interactive                  bool                        // when true, use interactive pane mode instead of sentinel-based
-	HookMode                     bool                        // when true, use hook file signals instead of ReadScreen for result collection
-	SessionID                    string                      // unique session ID for hook file signal directory
 	ConsensusThreshold           float64                     // consensus threshold (0 uses default 0.66)
 	MinimumProviders             int                         // policy floor for quorum; 0 uses configured-provider majority
 	MinimumAgreementRatio        float64                     // consensus gate floor on ConsensusMetrics.AgreementRatio; 0 disables the gate
-	InitialDelay                 time.Duration               // delay before completion polling starts (0 uses default 20s)
-	CompletionDetector           CompletionDetector          // completion detection strategy (nil = auto-detect from Terminal)
-	ScrollbackLines              int                         // R3: ReadScreen scrollback depth (default 500, 0 = use terminal default)
 	NoJudge                      bool                        // R4: skip judge verdict phase when true
-	YieldRounds                  bool                        // R5: yield after round 1 with JSON output, keep panes alive
 	ContextAware                 bool                        // R8: when true, skip topic isolation so providers can read project files
-	SubprocessMode               bool                        // when true, use the subprocess backend instead of an interactive pane
 	RoundPreset                  string                      // round preset: "fast", "standard", "deep" (for T8)
-	MonitorEnabled               bool                        // when true, prefer CC21 monitor-style completion over polling
-	MonitorTimeout               time.Duration               // max wait for monitor-style completion before polling fallback
-	WorkingDir                   string                      // requested working directory for pane-backed launches
-	ProviderWorkDir              string                      // provider process/pane cwd; empty inherits WorkingDir (pane) or the orchestrator cwd (subprocess)
-	ReadOnly                     bool                        // providers must run without workspace write capability; pane launches never add permission bypass flags
-	RunID                        string                      // optional run correlation ID; autogenerated when empty
-	FallbackMode                 ReliabilityFallbackMode
-	// SurfaceMgr is set during interactive debate setup.
-	// Not part of initial config -- populated by runPaneDebate().
-	SurfaceMgr *SurfaceManager
+	WorkingDir                   string                      // requested working directory recorded in reliability receipts and used by routed backends
+	ProviderWorkDir              string                      // provider process cwd; empty inherits the orchestrator cwd
+	// ReadOnly records that the caller dispatches the providers under the
+	// read-only projection. Nothing in this package reads it since the pane
+	// launch retired (SPEC-PANERM-001): read-only is enforced before dispatch
+	// by the CLI's provider argv projection (applyCommandReadOnlyPolicy,
+	// validateReadOnlyProviderArgv). It stays because SPEC-REVIEWRO-001 REQ-17
+	// callers and their tests assert that intent on the config.
+	ReadOnly     bool
+	RunID        string // optional run correlation ID; autogenerated when empty
+	FallbackMode ReliabilityFallbackMode
 	// ReliabilityStore is initialized internally when reliability artifacts are enabled.
 	ReliabilityStore *reliabilityStore
-}
-
-// CompletionPattern defines a provider-specific prompt detection pattern.
-type CompletionPattern struct {
-	Provider string         // provider name (claude, codex, gemini)
-	Pattern  *regexp.Regexp // compiled regex for prompt detection
-}
-
-// DefaultCompletionPatterns returns the built-in prompt patterns for known providers.
-// @AX:NOTE [AUTO] hardcoded provider prompt patterns — update when adding new providers
-func DefaultCompletionPatterns() []CompletionPattern {
-	return []CompletionPattern{
-		{Provider: "claude", Pattern: regexp.MustCompile(`(?m)^❯(?:\s|\x{00a0})*$`)},
-		{Provider: "codex", Pattern: regexp.MustCompile(codexReadyPromptPattern)},
-		{Provider: "gemini", Pattern: regexp.MustCompile(`(?m)^\s*>\s*(Type your|@|\s*$)`)},
-		{Provider: "opencode", Pattern: regexp.MustCompile(`(?im)^Ask anything\s*$`)},
-	}
-}
-
-// IdleThreshold is the default duration for idle detection (no new output).
-// Set to 30s to allow for AI model thinking time before triggering completion.
-const IdleThreshold = 30 * time.Second
-
-// scrollbackDepth returns the scrollback depth to use, defaulting to 3000 if unset.
-// Increased from 500 to 3000 to capture full AI brainstorm responses
-// (SCAMPER + HMW + ICE scoring can easily exceed 500 lines).
-func scrollbackDepth(configured int) int {
-	if configured == 0 {
-		return 3000
-	}
-	return configured
 }

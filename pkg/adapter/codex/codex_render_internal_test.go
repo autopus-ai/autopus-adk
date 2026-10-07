@@ -83,9 +83,8 @@ func TestPrepareHooksFile_MergeResult(t *testing.T) {
 
 	files, err := a.prepareHooksFile(cfg)
 	require.NoError(t, err)
-	assert.Len(t, files, 3)
+	require.Len(t, files, 1, "only hooks.json: the completion hook scripts are retired")
 	assert.Equal(t, adapter.OverwriteMerge, files[0].OverwritePolicy)
-	assert.Equal(t, adapter.OverwriteAlways, files[1].OverwritePolicy)
 }
 
 func TestClean_OnlyAgentsMD(t *testing.T) {

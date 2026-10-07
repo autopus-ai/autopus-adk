@@ -137,9 +137,8 @@ func TestRunSpecReview_AppliesOrchestraMigrationToClaudeProvider(t *testing.T) {
 	cfg := config.DefaultFullConfig("test-project")
 	cfg.Spec.ReviewGate.Providers = []string{"claude"}
 	cfg.Orchestra.Providers["claude"] = config.ProviderEntry{
-		Binary:   "claude",
-		Args:     []string{"--print", "--model", "opus", "--effort", "max"},
-		PaneArgs: []string{"-p", "--model", "opus", "--effort", "max"},
+		Binary: "claude",
+		Args:   []string{"--print", "--model", "opus", "--effort", "max"},
 	}
 	require.NoError(t, config.Save(dir, cfg))
 

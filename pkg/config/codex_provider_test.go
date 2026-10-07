@@ -14,7 +14,6 @@ func TestProviderEntryModelPolicyYAMLRoundTrip(t *testing.T) {
 	want := ProviderEntry{
 		Binary:      "codex",
 		Args:        []string{"exec", "--json"},
-		PaneArgs:    []string{"--search"},
 		ModelPolicy: ProviderModelPolicyQuality,
 	}
 	data, err := yaml.Marshal(want)
@@ -47,12 +46,10 @@ func TestApplyCodexProviderProfilePreservesNonModelArguments(t *testing.T) {
 		Binary:      "codex",
 		ModelPolicy: ProviderModelPolicyQuality,
 		Args:        []string{"exec", "--json", "-c", `foo="bar"`, "-m", CodexLegacyModel, "-c", `model_reasoning_effort="xhigh"`, "--sandbox", "workspace-write"},
-		PaneArgs:    []string{"--search", "--model=" + CodexLegacyModel, "-c", `model_reasoning_effort="medium"`},
 	}
 
 	got := ApplyCodexProviderProfile(entry, CodexProfile{Model: CodexSolModel, Effort: CodexEffortUltra})
 	assert.Equal(t, []string{"exec", "--json", "-c", `foo="bar"`, "-m", CodexSolModel, "-c", `model_reasoning_effort="ultra"`, "--sandbox", "workspace-write"}, got.Args)
-	assert.Equal(t, []string{"--search", "--model=" + CodexSolModel, "-c", `model_reasoning_effort="ultra"`}, got.PaneArgs)
 }
 
 func TestApplyCodexProviderProfileOmitsManagedFieldsForRuntimeDefault(t *testing.T) {
@@ -62,12 +59,10 @@ func TestApplyCodexProviderProfileOmitsManagedFieldsForRuntimeDefault(t *testing
 		Binary:      "codex",
 		ModelPolicy: ProviderModelPolicyQuality,
 		Args:        []string{"exec", "--sandbox", "workspace-write", "-m", CodexSolModel, "-c", `model_reasoning_effort="ultra"`, "-c", `foo="bar"`},
-		PaneArgs:    []string{"--model=" + CodexSolModel, "-c", `model_reasoning_effort="ultra"`, "--search"},
 	}
 
 	got := ApplyCodexProviderProfile(entry, CodexProfile{})
 	assert.Equal(t, []string{"exec", "--json", "--sandbox", "workspace-write", "-c", `foo="bar"`}, got.Args)
-	assert.Equal(t, []string{"--search"}, got.PaneArgs)
 }
 
 func TestApplyCodexProviderProfilePreservesTerminatorSuffix(t *testing.T) {
@@ -80,9 +75,6 @@ func TestApplyCodexProviderProfilePreservesTerminatorSuffix(t *testing.T) {
 			"exec", "--model=" + CodexLegacyModel,
 			"--", "child", "-m", "child-model", "--config=model_reasoning_effort=low",
 		},
-		PaneArgs: []string{
-			"--", "child", "--model=child-model", "-c", `model_reasoning_effort="low"`,
-		},
 	}
 
 	got := ApplyCodexProviderProfile(entry, CodexProfile{Model: CodexSolModel, Effort: CodexEffortUltra})
@@ -90,18 +82,11 @@ func TestApplyCodexProviderProfilePreservesTerminatorSuffix(t *testing.T) {
 		"exec", "--json", "--model=" + CodexSolModel, "-c", `model_reasoning_effort="ultra"`,
 		"--", "child", "-m", "child-model", "--config=model_reasoning_effort=low",
 	}, got.Args)
-	assert.Equal(t, []string{
-		"-m", CodexSolModel, "-c", `model_reasoning_effort="ultra"`,
-		"--", "child", "--model=child-model", "-c", `model_reasoning_effort="low"`,
-	}, got.PaneArgs)
 
 	runtimeDefault := ApplyCodexProviderProfile(entry, CodexProfile{})
 	assert.Equal(t, []string{
 		"exec", "--json", "--", "child", "-m", "child-model", "--config=model_reasoning_effort=low",
 	}, runtimeDefault.Args)
-	assert.Equal(t, []string{
-		"--", "child", "--model=child-model", "-c", `model_reasoning_effort="low"`,
-	}, runtimeDefault.PaneArgs)
 }
 
 func TestApplyCodexProviderProfileHandlesLongConfigOption(t *testing.T) {
@@ -114,7 +99,6 @@ func TestApplyCodexProviderProfileHandlesLongConfigOption(t *testing.T) {
 			"exec", "--model=" + CodexLegacyModel,
 			`--config=model_reasoning_effort="xhigh"`, "--config=foo=bar",
 		},
-		PaneArgs: []string{"--config=model_reasoning_effort=xhigh"},
 	}
 
 	got := ApplyCodexProviderProfile(entry, CodexProfile{Model: CodexSolModel, Effort: CodexEffortUltra})
@@ -122,21 +106,24 @@ func TestApplyCodexProviderProfileHandlesLongConfigOption(t *testing.T) {
 		"exec", "--json", "--model=" + CodexSolModel,
 		`--config=model_reasoning_effort="ultra"`, "--config=foo=bar",
 	}, got.Args)
-	assert.Equal(t, []string{"--config=model_reasoning_effort=\"ultra\"", "-m", CodexSolModel}, got.PaneArgs)
 
 	got = ApplyCodexProviderProfile(entry, CodexProfile{})
 	assert.Equal(t, []string{"exec", "--json", "--config=foo=bar"}, got.Args)
-	assert.Empty(t, got.PaneArgs)
+
+	// A long effort option without a model keeps its place, and the missing
+	// model is appended.
+	entry.Args = []string{"exec", "--config=model_reasoning_effort=xhigh"}
+	got = ApplyCodexProviderProfile(entry, CodexProfile{Model: CodexSolModel, Effort: CodexEffortUltra})
+	assert.Equal(t, []string{"exec", "--json", "--config=model_reasoning_effort=\"ultra\"", "-m", CodexSolModel}, got.Args)
 }
 
 func TestCodexProfileFromArgsIgnoresTerminatorSuffixAndReadsLongConfig(t *testing.T) {
 	t.Parallel()
 
-	got, ok := codexProfileFromArgs([]string{
+	got := codexProfileFromArgs([]string{
 		"exec", "--model=" + CodexSolModel, "--config=model_reasoning_effort=max",
 		"--", "child", "--model=child-model", "--config=model_reasoning_effort=low",
 	})
-	require.True(t, ok)
 	assert.Equal(t, CodexProfile{Model: CodexSolModel, Effort: CodexEffortMax}, got)
 }
 
@@ -153,5 +140,4 @@ func TestResolveCodexProviderProfileUsesCatalogResolution(t *testing.T) {
 	assert.Equal(t, CodexResolutionEffortUnavailable, resolution.Reason)
 	assert.Contains(t, got.Args, CodexAstraModel)
 	assert.Contains(t, got.Args, `model_reasoning_effort="max"`)
-	assert.Contains(t, got.PaneArgs, `model_reasoning_effort="max"`)
 }

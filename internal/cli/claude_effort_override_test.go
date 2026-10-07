@@ -107,29 +107,26 @@ func TestApplyRuntimeHarnessOverrides_ClaudeEffortDoesNotRequireCodex(t *testing
 	cfg := config.DefaultFullConfig(".")
 	cfg.Orchestra.Providers = map[string]config.ProviderEntry{
 		"claude": {
-			Binary:   "claude-wrapper",
-			Args:     []string{"--print", "--model", "fable", "--effort", "high", "--verbose"},
-			PaneArgs: []string{"--model", "claude-opus-4-8", "--effort=medium", "--permission-mode", "plan"},
+			Binary: "claude-wrapper",
+			Args:   []string{"--print", "--model", "fable", "--effort", "high", "--verbose"},
 		},
 	}
 
 	got := applyRuntimeHarnessOverrides(effectiveHarnessConfig{Config: cfg}, globalFlags{Effort: "ultracode"})
 	entry := got.Config.Orchestra.Providers["claude"]
 	wantArgs := []string{"--print", "--model", "fable", "--effort", "ultracode", "--verbose"}
-	wantPaneArgs := []string{"--model", "claude-opus-4-8", "--effort=ultracode", "--permission-mode", "plan"}
-	if !reflect.DeepEqual(entry.Args, wantArgs) || !reflect.DeepEqual(entry.PaneArgs, wantPaneArgs) {
-		t.Fatalf("Claude override = args %v pane %v, want %v / %v", entry.Args, entry.PaneArgs, wantArgs, wantPaneArgs)
+	if !reflect.DeepEqual(entry.Args, wantArgs) {
+		t.Fatalf("Claude override = args %v, want %v", entry.Args, wantArgs)
 	}
 }
 
-func TestApplyRuntimeHarnessOverrides_PreservesPinnedCodexAndCreatesPaneArgs(t *testing.T) {
+func TestApplyRuntimeHarnessOverrides_PreservesPinnedCodex(t *testing.T) {
 	t.Parallel()
 
 	cfg := config.DefaultFullConfig(".")
 	wantCodex := config.ProviderEntry{
 		Binary:      "codex-wrapper",
 		Args:        []string{"exec", "-m", "user/model", "-c", `model_reasoning_effort="low"`},
-		PaneArgs:    []string{"-m", "user/pane"},
 		ModelPolicy: config.ProviderModelPolicyPinned,
 	}
 	cfg.Orchestra.Providers = map[string]config.ProviderEntry{
@@ -141,9 +138,6 @@ func TestApplyRuntimeHarnessOverrides_PreservesPinnedCodexAndCreatesPaneArgs(t *
 	claude := got.Config.Orchestra.Providers["claude"]
 	if want := []string{"--model", "fable", "--effort", "max"}; !reflect.DeepEqual(claude.Args, want) {
 		t.Fatalf("Claude args = %v, want %v", claude.Args, want)
-	}
-	if want := []string{"--effort", "max"}; !reflect.DeepEqual(claude.PaneArgs, want) {
-		t.Fatalf("Claude pane args = %v, want %v", claude.PaneArgs, want)
 	}
 	if codex := got.Config.Orchestra.Providers["codex"]; !reflect.DeepEqual(codex, wantCodex) {
 		t.Fatalf("pinned Codex provider changed: got %+v want %+v", codex, wantCodex)
@@ -157,7 +151,6 @@ func TestApplyRuntimeHarnessOverrides_AbsentClaudeLeavesProvidersUnchanged(t *te
 	wantCodex := config.ProviderEntry{
 		Binary:      "codex",
 		Args:        []string{"exec", "-m", "user/model"},
-		PaneArgs:    []string{"-m", "user/model"},
 		ModelPolicy: config.ProviderModelPolicyPinned,
 	}
 	cfg.Orchestra.Providers = map[string]config.ProviderEntry{"codex": wantCodex}
@@ -176,13 +169,13 @@ func TestBuildProviderConfigsForRuntime_AppliesClaudeExplicitEffort(t *testing.T
 		t.Fatalf("providers = %d, want 1", len(got))
 	}
 	want := []string{"--print", "--model", config.ClaudeFableModel, "--effort", "xhigh"}
-	if !reflect.DeepEqual(got[0].Args, want) || !reflect.DeepEqual(got[0].PaneArgs, want) {
-		t.Fatalf("fallback Claude = args %v pane %v, want %v", got[0].Args, got[0].PaneArgs, want)
+	if !reflect.DeepEqual(got[0].Args, want) {
+		t.Fatalf("fallback Claude = args %v, want %v", got[0].Args, want)
 	}
 
 	empty := buildProviderConfigsForRuntime([]string{"claude"}, "balanced", "")
 	defaultArgs := config.DefaultClaudeProviderEntry().Args
-	if len(empty) != 1 || !reflect.DeepEqual(empty[0].Args, defaultArgs) || !reflect.DeepEqual(empty[0].PaneArgs, defaultArgs) {
+	if len(empty) != 1 || !reflect.DeepEqual(empty[0].Args, defaultArgs) {
 		t.Fatalf("fallback Claude = %+v, want the shipped default argv %v", empty, defaultArgs)
 	}
 }
@@ -193,29 +186,24 @@ func TestApplyRuntimeHarnessOverrides_UltracodeStaysAtClaudeBoundary(t *testing.
 	cfg := config.DefaultFullConfig(".")
 	cfg.Orchestra.Providers = map[string]config.ProviderEntry{
 		"claude": {
-			Binary:   "claude",
-			Args:     []string{"--print", "--model", "fable"},
-			PaneArgs: []string{"--model", "fable", "--effort", "high"},
+			Binary: "claude",
+			Args:   []string{"--print", "--model", "fable"},
 		},
 		"codex": config.CodexProviderEntryForQuality(config.QualityConf{Default: "balanced"}),
 	}
 
 	got := applyRuntimeHarnessOverrides(effectiveHarnessConfig{Config: cfg}, globalFlags{Effort: "ultracode"})
 	claude := got.Config.Orchestra.Providers["claude"]
-	for _, args := range [][]string{claude.Args, claude.PaneArgs} {
-		if !strings.Contains(strings.Join(args, "\x00"), "ultracode") {
-			t.Fatalf("Claude argv lost ultracode: %v", args)
-		}
+	if !strings.Contains(strings.Join(claude.Args, "\x00"), "ultracode") {
+		t.Fatalf("Claude argv lost ultracode: %v", claude.Args)
 	}
 	codex := got.Config.Orchestra.Providers["codex"]
-	for _, args := range [][]string{codex.Args, codex.PaneArgs} {
-		joined := strings.Join(args, "\x00")
-		if strings.Contains(joined, "ultracode") {
-			t.Fatalf("Codex argv contains Claude-only ultracode: %v", args)
-		}
-		if !strings.Contains(joined, `model_reasoning_effort="xhigh"`) {
-			t.Fatalf("Codex argv effort = %v, want xhigh", args)
-		}
+	joined := strings.Join(codex.Args, "\x00")
+	if strings.Contains(joined, "ultracode") {
+		t.Fatalf("Codex argv contains Claude-only ultracode: %v", codex.Args)
+	}
+	if !strings.Contains(joined, `model_reasoning_effort="xhigh"`) {
+		t.Fatalf("Codex argv effort = %v, want xhigh", codex.Args)
 	}
 }
 
@@ -226,18 +214,14 @@ func TestBuildProviderConfigsForRuntime_UltracodeStaysAtClaudeBoundary(t *testin
 	if len(got) != 2 {
 		t.Fatalf("providers = %d, want 2", len(got))
 	}
-	for _, args := range [][]string{got[0].Args, got[0].PaneArgs} {
-		if !strings.Contains(strings.Join(args, "\x00"), "ultracode") {
-			t.Fatalf("fallback Claude argv lost ultracode: %v", args)
-		}
+	if !strings.Contains(strings.Join(got[0].Args, "\x00"), "ultracode") {
+		t.Fatalf("fallback Claude argv lost ultracode: %v", got[0].Args)
 	}
-	for _, args := range [][]string{got[1].Args, got[1].PaneArgs} {
-		joined := strings.Join(args, "\x00")
-		if strings.Contains(joined, "ultracode") {
-			t.Fatalf("fallback Codex argv contains Claude-only ultracode: %v", args)
-		}
-		if !strings.Contains(joined, `model_reasoning_effort="xhigh"`) {
-			t.Fatalf("fallback Codex argv effort = %v, want xhigh", args)
-		}
+	joined := strings.Join(got[1].Args, "\x00")
+	if strings.Contains(joined, "ultracode") {
+		t.Fatalf("fallback Codex argv contains Claude-only ultracode: %v", got[1].Args)
+	}
+	if !strings.Contains(joined, `model_reasoning_effort="xhigh"`) {
+		t.Fatalf("fallback Codex argv effort = %v, want xhigh", got[1].Args)
 	}
 }

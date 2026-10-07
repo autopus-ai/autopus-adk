@@ -135,9 +135,6 @@ func runRebuttalRound(ctx context.Context, cfg OrchestraConfig, prevResponses []
 // @AX:NOTE [AUTO] REQ-2 hardcoded prompt prefix — injected by executeRound caller, not by buildRebuttalPrompt
 const topicIsolationInstruction = "IMPORTANT: Discuss ONLY the topic below. Do NOT read, reference, or analyze any existing files in the project directory. Focus exclusively on the given discussion topic.\n\n"
 
-// contextAwareInstruction replaces topicIsolationInstruction when --context is set.
-const contextAwareInstruction = "Use the project context below to ground your ideas in the actual codebase. Focus on the given topic.\n\n"
-
 // buildRebuttalPrompt creates a cross-pollination prompt with anonymized participant outputs.
 // Uses the Acknowledge/Integrate/Risk 3-step structure for structured revision.
 // ICE scores from Round 1 are stripped to prevent confidence cascade.

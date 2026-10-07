@@ -104,7 +104,6 @@ func TestRunSubprocessPipeline_BlockedReceiptFailsClosed(t *testing.T) {
 		Timeout:          5,
 		TimeoutChanged:   true,
 		Judge:            "",
-		ForceSubprocess:  true,
 		DryRun:           false,
 		JSONMode:         false,
 		RequireAgreement: 0,

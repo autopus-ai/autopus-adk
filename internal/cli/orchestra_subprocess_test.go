@@ -12,24 +12,6 @@ import (
 	"github.com/insajin/autopus-adk/pkg/config"
 )
 
-func TestResolveSubprocessMode(t *testing.T) {
-	t.Parallel()
-
-	t.Run("disabled by default", func(t *testing.T) {
-		t.Parallel()
-		conf := &config.OrchestraConf{}
-		assert.False(t, resolveSubprocessMode(conf))
-	})
-
-	t.Run("enabled when configured", func(t *testing.T) {
-		t.Parallel()
-		conf := &config.OrchestraConf{
-			Subprocess: config.SubprocessConf{Enabled: true},
-		}
-		assert.True(t, resolveSubprocessMode(conf))
-	})
-}
-
 func TestResolveSubprocessRounds(t *testing.T) {
 	t.Parallel()
 
@@ -151,7 +133,8 @@ orchestra:
 	cfg, err := config.Load(dir)
 	require.NoError(t, err)
 
-	assert.True(t, cfg.Orchestra.Subprocess.Enabled)
+	// subprocess.enabled is a retired key (SPEC-PANERM-001): it still loads and
+	// is ignored, and its siblings keep their values.
 	assert.Equal(t, 4, cfg.Orchestra.Subprocess.MaxConcurrent)
 	assert.Equal(t, "/tmp/orchestra", cfg.Orchestra.Subprocess.WorkDir)
 	assert.Equal(t, 2, cfg.Orchestra.Subprocess.Rounds)

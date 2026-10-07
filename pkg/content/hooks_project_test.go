@@ -19,20 +19,19 @@ func TestGenerateProjectHookConfigs_ClaudeTaskCreatedEnabled(t *testing.T) {
 	cfg := config.DefaultFullConfig("demo")
 	cfg.Hooks = config.HooksConf{}
 	cfg.Features.CC21 = config.CC21FeaturesConf{
-		Enabled:                 true,
-		EffortEnabled:           true,
-		MonitorEnabled:          true,
-		TaskCreatedEnabled:      true,
-		InitialPromptEnabled:    true,
-		TaskCreatedMode:         "warn",
-		MonitorPatternTimeoutMS: 30000,
+		Enabled:              true,
+		EffortEnabled:        true,
+		MonitorEnabled:       true,
+		TaskCreatedEnabled:   true,
+		InitialPromptEnabled: true,
+		TaskCreatedMode:      "warn",
 	}
 
 	hooks, gitHooks, err := content.GenerateProjectHookConfigs(cfg, "claude-code", true)
 	require.NoError(t, err)
-	// Expect: Stop + SessionStart ready hook (SPEC-ORCH-022) + TaskCreated hook + SPEC-CONDRULE-001
-	// dispatcher + SPEC-STICKYRULE-001 entry + SPEC-EDITGUARD-001 guard (unset flag enables it).
-	require.Len(t, hooks, 6)
+	// Expect: TaskCreated hook + SPEC-CONDRULE-001 dispatcher + SPEC-STICKYRULE-001 entry +
+	// SPEC-EDITGUARD-001 guard (unset flag enables it).
+	require.Len(t, hooks, 4)
 	assert.Empty(t, gitHooks)
 	taskCreatedHook := findHook(hooks, "TaskCreated")
 	require.NotNil(t, taskCreatedHook, "expected a TaskCreated hook")
@@ -55,9 +54,8 @@ func TestGenerateProjectHookConfigs_TaskCreatedDisabledOutsideClaude(t *testing.
 
 	hooks, gitHooks, err := content.GenerateProjectHookConfigs(cfg, "codex", true)
 	require.NoError(t, err)
-	// TaskCreated is disabled outside claude; Codex still receives the completion
-	// and readiness hooks required by pane IPC.
-	require.Len(t, hooks, 2, "completion Stop and SessionStart hooks expected for codex")
-	assert.ElementsMatch(t, []string{"Stop", "SessionStart"}, eventNames(hooks))
+	// TaskCreated is disabled outside claude, and the retired completion and
+	// readiness hooks (SPEC-PANERM-001) leave Codex with no native hook here.
+	assert.Empty(t, hooks, "no hook expected for codex: %v", eventNames(hooks))
 	assert.Empty(t, gitHooks)
 }

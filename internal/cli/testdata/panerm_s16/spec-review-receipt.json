@@ -1,0 +1,66 @@
+{
+  "schema": "spec_review_promotion_receipt.v1",
+  "run_id": "<volatile>",
+  "finished_at": "<volatile>",
+  "spec_id": "SPEC-PANERMS16-001",
+  "verdict": "PASS",
+  "analysis_verdict": "PASS",
+  "gate_status": "passed",
+  "critical_veto": false,
+  "previous_status": "draft",
+  "current_status": "approved",
+  "status_changed": true,
+  "degraded_reasons": null,
+  "override_applied": false,
+  "providers": [
+    {
+      "provider": "claude",
+      "status": "success",
+      "note": "-",
+      "executed_backend": "subprocess"
+    },
+    {
+      "provider": "codex",
+      "status": "success",
+      "note": "-",
+      "executed_backend": "subprocess"
+    }
+  ],
+  "judge": {
+    "provider": "claude",
+    "family": "anthropic",
+    "status": "ok",
+    "verdict": "PASS",
+    "accepted": 0,
+    "rejected": 0,
+    "merged": 0,
+    "accepted_ids": [],
+    "rationale": "",
+    "reason": ""
+  },
+  "loop_status": "converged",
+  "provider_policy": [
+    {
+      "provider": "claude",
+      "role": "reviewer",
+      "sandbox_mode": "read-only",
+      "readiness": "skipped",
+      "excluded": false
+    },
+    {
+      "provider": "codex",
+      "role": "reviewer",
+      "sandbox_mode": "read-only",
+      "readiness": "skipped",
+      "excluded": false
+    },
+    {
+      "provider": "claude",
+      "role": "judge",
+      "sandbox_mode": "read-only",
+      "readiness": "skipped",
+      "excluded": false
+    }
+  ]
+}
+

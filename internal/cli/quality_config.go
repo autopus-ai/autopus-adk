@@ -54,6 +54,10 @@ func saveQualityScalar(dir string, cfg *config.HarnessConfig, key, value string)
 	if err != nil {
 		return fmt.Errorf("read config: %w", err)
 	}
+	// The retired orchestra keys never ride along (SPEC-PANERM-001 REQ-10).
+	if data, _, err = pruneRetiredConfig(data); err != nil {
+		return err
+	}
 
 	updated, err := updateQualityScalar(data, key, value)
 	if err != nil {

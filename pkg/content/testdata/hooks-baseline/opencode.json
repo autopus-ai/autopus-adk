@@ -8,7 +8,7 @@
     {
       "platform": "opencode",
       "supports_hooks": true,
-      "hook_count": 2,
+      "hook_count": 3,
       "react_hooks": [
         {
           "event": "PostToolUse",

@@ -15,7 +15,6 @@ func newOrchestraReviewCmd() *cobra.Command {
 		timeout      int
 		judge        string
 		rounds       int
-		noDetach     bool
 		noJudge      bool
 		riskTier     string
 		outputFormat string
@@ -45,7 +44,6 @@ func newOrchestraReviewCmd() *cobra.Command {
 				return err
 			}
 			flags := OrchestraFlags{
-				NoDetach:          noDetach,
 				KeepRelay:         keepRelay,
 				NoJudge:           noJudge,
 				TimeoutChanged:    timeoutChanged,
@@ -64,11 +62,11 @@ func newOrchestraReviewCmd() *cobra.Command {
 	cmd.Flags().StringVar(&judge, "judge", "", "debate 전략에서 최종 판정 프로바이더")
 	cmd.Flags().Float64("threshold", 0, "consensus 전략 합의 임계값 (0.0-1.0)")
 	cmd.Flags().IntVar(&rounds, "rounds", 0, "debate 라운드 수 (1-10, debate 전략 전용)")
-	cmd.Flags().BoolVar(&noDetach, "no-detach", false, "Disable auto-detach mode")
 	cmd.Flags().Bool("keep-relay-output", false, "relay 전략 실행 후 임시 파일 보존")
 	cmd.Flags().BoolVar(&noJudge, "no-judge", false, "Skip judge verdict phase in debate strategy")
 	cmd.Flags().StringVar(&riskTier, "risk-tier", "auto", "리뷰 리스크 티어 (auto|low|medium|high|critical)")
 	cmd.Flags().StringVar(&outputFormat, "format", orchestraOutputText, "Output format (text|json)")
+	addRetiredNoOpFlags(cmd, "no-detach")
 
 	return cmd
 }
@@ -80,7 +78,6 @@ func newOrchestraSecureCmd() *cobra.Command {
 		providers    []string
 		timeout      int
 		rounds       int
-		noDetach     bool
 		outputFormat string
 	)
 
@@ -99,7 +96,7 @@ func newOrchestraSecureCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runOrchestraCommand(cmd.Context(), "secure", flagStrategy, flagProviders, timeout, "", prompt, resolvedRounds, thresholdFlag, OrchestraFlags{NoDetach: noDetach, KeepRelay: keepRelay, TimeoutChanged: timeoutChanged, OutputFormat: outputFormat})
+			return runOrchestraCommand(cmd.Context(), "secure", flagStrategy, flagProviders, timeout, "", prompt, resolvedRounds, thresholdFlag, OrchestraFlags{KeepRelay: keepRelay, TimeoutChanged: timeoutChanged, OutputFormat: outputFormat})
 		},
 	}
 
@@ -108,9 +105,9 @@ func newOrchestraSecureCmd() *cobra.Command {
 	cmd.Flags().IntVarP(&timeout, "timeout", "t", 120, "타임아웃 (초)")
 	cmd.Flags().Float64("threshold", 0, "consensus 전략 합의 임계값 (0.0-1.0)")
 	cmd.Flags().IntVar(&rounds, "rounds", 0, "debate 라운드 수 (1-10, debate 전략 전용)")
-	cmd.Flags().BoolVar(&noDetach, "no-detach", false, "Disable auto-detach mode")
 	cmd.Flags().StringVar(&outputFormat, "format", orchestraOutputText, "Output format (text|json)")
 	cmd.Flags().Bool("keep-relay-output", false, "relay 전략 실행 후 임시 파일 보존")
+	addRetiredNoOpFlags(cmd, "no-detach")
 
 	return cmd
 }

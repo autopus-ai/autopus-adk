@@ -23,21 +23,25 @@ func TestGenerateHooks_RejectsHooksJSONSymlink(t *testing.T) {
 	assertFileContent(t, victim, "preserve-hooks-json")
 }
 
-func TestGenerateHooks_RejectsHookAssetSymlink(t *testing.T) {
+// A symlinked .codex directory would redirect hooks.json out of the
+// repository, so generation fails at the write and the link target stays empty.
+func TestGenerateHooks_RefusesToWriteThroughASymlinkedCodexDir(t *testing.T) {
 	t.Parallel()
-	root := t.TempDir()
-	assetDir := filepath.Join(root, ".codex", "hooks", "autopus")
-	require.NoError(t, os.MkdirAll(assetDir, 0o755))
-	victim := filepath.Join(t.TempDir(), "victim.sh")
-	require.NoError(t, os.WriteFile(victim, []byte("preserve-asset"), 0o600))
-	requireSymlink(t, victim, filepath.Join(assetDir, "hook-codex-stop.sh"))
+	root, outside := t.TempDir(), t.TempDir()
+	requireSymlink(t, outside, filepath.Join(root, ".codex"))
 
 	_, err := NewWithRoot(root).generateHooks(config.DefaultFullConfig("test"))
-	require.Error(t, err)
-	assertFileContent(t, victim, "preserve-asset")
+
+	require.EqualError(t, err, "codex hooks.json 쓰기 실패: managed directory must not be a symlink: .codex")
+	entries, err := os.ReadDir(outside)
+	require.NoError(t, err)
+	assert.Empty(t, entries)
 }
 
-func TestGenerateHooks_RejectsSymlinkedHookParent(t *testing.T) {
+// No hook script is installed since the completion hooks were retired
+// (SPEC-PANERM-001 REQ-12), so generation writes nothing below .codex/hooks,
+// even through a symlinked parent.
+func TestGenerateHooks_WritesNothingBelowCodexHooks(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(root, ".codex"), 0o755))
@@ -45,24 +49,10 @@ func TestGenerateHooks_RejectsSymlinkedHookParent(t *testing.T) {
 	requireSymlink(t, outside, filepath.Join(root, ".codex", "hooks"))
 
 	_, err := NewWithRoot(root).generateHooks(config.DefaultFullConfig("test"))
-	require.Error(t, err)
-	_, statErr := os.Stat(filepath.Join(outside, "autopus", "hook-codex-stop.sh"))
-	assert.ErrorIs(t, statErr, os.ErrNotExist)
-}
-
-func TestGenerateHooks_RepairsHookAssetMode(t *testing.T) {
-	t.Parallel()
-	root := t.TempDir()
-	assetPath := filepath.Join(root, ".codex", "hooks", "autopus", "hook-codex-stop.sh")
-	require.NoError(t, os.MkdirAll(filepath.Dir(assetPath), 0o755))
-	require.NoError(t, os.WriteFile(assetPath, []byte("stale"), 0o644))
-	require.NoError(t, os.Chmod(assetPath, 0o644))
-
-	_, err := NewWithRoot(root).generateHooks(config.DefaultFullConfig("test"))
 	require.NoError(t, err)
-	info, err := os.Stat(assetPath)
+	entries, err := os.ReadDir(outside)
 	require.NoError(t, err)
-	assert.Equal(t, os.FileMode(0o755), info.Mode().Perm())
+	assert.Empty(t, entries)
 }
 
 func requireSymlink(t *testing.T, oldname, newname string) {

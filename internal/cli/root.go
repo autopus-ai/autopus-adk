@@ -2,6 +2,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/insajin/autopus-adk/internal/cli/tui"
+	"github.com/insajin/autopus-adk/pkg/config"
 	"github.com/insajin/autopus-adk/pkg/version"
 )
 
@@ -37,6 +39,8 @@ func NewRootCmd() *cobra.Command {
 		SilenceErrors:    true,
 		TraverseChildren: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			// Before any config load below, so the notice knows the command.
+			configNoticeFromContext(cmd.Context()).bind(cmd)
 			flags, err := collectGlobalFlags(cmd, configPath)
 			if err != nil {
 				return err
@@ -179,7 +183,14 @@ func Execute() {
 	// Must run before any lipgloss.NewStyle() or .Render() call.
 	tui.InitStyles()
 
-	if err := NewRootCmd().Execute(); err != nil {
+	// One config notice per process (SPEC-PANERM-001 REQ-09): every config
+	// load reports the retired keys it ignored, and the notice prints them
+	// once the root pre-run has bound the executing command.
+	notice := newConfigNotice(stderrIsTerminal)
+	config.SetRetiredKeyReporter(notice.report)
+	ctx := withConfigNotice(context.Background(), notice)
+
+	if err := NewRootCmd().ExecuteContext(ctx); err != nil {
 		code := exitCodeForError(err)
 		if isJSONFatalError(err) {
 			os.Exit(code)

@@ -2,6 +2,8 @@ package orchestra
 
 import (
 	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/insajin/autopus-adk/pkg/telemetry"
 )
@@ -90,5 +92,37 @@ func (cpb *CrossPollinateBuilder) IdentityMap() map[string]string {
 	return cp
 }
 
-// stripICEScores is defined in interactive_detect.go and reused here.
-// It removes self-assigned ICE scoring sections to prevent confidence cascade.
+// iceTableHeaderRe matches ICE scoring table headers (various formats).
+var iceTableHeaderRe = regexp.MustCompile(`(?i)(ICE\s*(Score|스코어)|통합\s*ICE|Top\s*\d+\s*(통합|아이디어)|Judge.*Merge|Judge.*Integration|Impact.*Confidence.*Ease)`)
+
+// iceScoreLineRe matches standalone ICE score lines like "ICE: 5.12" or "Score: 432".
+var iceScoreLineRe = regexp.MustCompile(`(?i)^\s*(ICE|Score)\s*[:=]\s*[\d.]+\s*$`)
+
+// stripICEScores removes self-assigned ICE scoring sections from provider output.
+// This prevents confidence cascade where later rounds blindly adopt earlier scores.
+func stripICEScores(s string) string {
+	lines := strings.Split(s, "\n")
+	filtered := make([]string, 0, len(lines))
+	inICETable := false
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		// Detect ICE table headers and skip until next non-table line
+		if iceTableHeaderRe.MatchString(trimmed) {
+			inICETable = true
+			continue
+		}
+		if inICETable {
+			// Stay in ICE table while lines look like table rows
+			if strings.HasPrefix(trimmed, "|") || strings.HasPrefix(trimmed, "+-") || strings.HasPrefix(trimmed, "┌") || strings.HasPrefix(trimmed, "├") || strings.HasPrefix(trimmed, "└") || strings.HasPrefix(trimmed, "│") || trimmed == "" {
+				continue
+			}
+			inICETable = false
+		}
+		// Skip standalone ICE score lines
+		if iceScoreLineRe.MatchString(trimmed) {
+			continue
+		}
+		filtered = append(filtered, line)
+	}
+	return strings.Join(filtered, "\n")
+}

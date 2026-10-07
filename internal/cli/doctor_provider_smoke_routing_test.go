@@ -63,7 +63,6 @@ func TestRunProviderTransportSmoke_UsesSpecReviewAssemblyAndRouting(t *testing.T
 	results := runProviderTransportSmoke(context.Background(), cfg, 10*time.Second)
 
 	require.Len(t, results, 4)
-	assert.True(t, factoryCfg.SubprocessMode)
 	assert.True(t, factoryCfg.ReadOnly)
 	assert.Equal(t, map[string]string{"claude": "subprocess", "codex": "subprocess", "gemini": "subprocess", "opus": "omp"}, recorder.routes)
 	pClaude := withClaudeReadOnlySuffix("--print", "--model", "claude-fable-5-1", "--effort", "max")

@@ -1,0 +1,184 @@
+# T19 integration verification (SPEC-PANERM-001), 2026-10-07 05:10Z-05:50Z, go1.27.0 darwin/arm64 (24 CPUs)
+HEAD b0f8ffa6 = feat/panerm-001 8cd9094f (W0-W4) + T16 guard. Every T19 run used scratch dirs under the session
+scratchpad (logs not committed); T19 wrote no repo file except this one, and `auto update` never ran on this repo.
+Binaries: N = `go build -trimpath ./cmd/auto` at 8cd9094f (reports 0.50.124-0.20261007050305-8cd9094f97fe; T16 adds
+test files only, so N carries HEAD's production code). O = c447badc (v0.50.123, A34) from `git archive`, built with
+GOPROXY=off GOWORK=off GOFLAGS=-mod=readonly: builds offline (plan.md implementation_assumption holds).
+Both are dev builds, so the `auto update` freshness gate makes no network call.
+
+## Verdicts
+- T16 guard: PASS (green on HEAD, red on a scratch copy per class; see the T16 commit b0f8ffa6).
+- RFP-2: PASS. 53/53 S4-S7 oracle checks at the binary level; finding F1 (C6 line number) is outside the oracles.
+- RFP-3: PASS. 111/111 S11-S13 checks on seven O-generated projects, 0 failed.
+- S19: PASS for claude in context (c) with one paid call; codex and gemini real lanes not-run (reason below).
+- Plan Verification: build, vet, lint 0 issues; race set within baseline except one load flake (F3); deadcode 18 = W0
+  list, 0 under pkg/orchestra/ or internal/cli/orchestra; source-lines 0 files over 300; spec validate exit 0.
+- Coverage: 11 of 12 measured packages at or above their baseline; pkg/adapter/codex 90.3% vs 90.4% (F2);
+  internal/cli deferred to the supervisor's serial run.
+
+## T16 guard (internal/cli/orchestra_pane_unreachable_test.go + orchestra_pane_guard_selftest_test.go)
+`go test ./internal/cli -run 'TestCLIProductionCodeNeverCallsPaneEntryPoints|TestPaneGuard_' -count=1`: PASS
+(subtests orchestra_identifiers_and_terminal, cli_identifiers, group_P_files, instruction_tokens; self-tests S15 Go
+fixture 7 + 3 findings, group P fixture 4 findings, S18 fixture 5 lines + 10 other tokens, allowlist row suppressed).
+Red check (scratch copy of HEAD, not committed): `func paneCapable()` appended to pkg/orchestra/backend.go,
+`func runInteractiveDebate()` in internal/cli, `import _ ".../pkg/terminal"` in pkg/orchestra, an empty
+pkg/orchestra/pane_backend.go, and `retry with --no-detach` appended to content/skills/idea.md -> all 4 subtests FAIL with
+exactly: backend.go:38 "paneCapable"; zz_red_terminal.go:3 imports pkg/terminal; zz_red_guard.go:3
+"runInteractiveDebate"; pane_backend.go group P "pane_*.go"; content/skills/idea.md:356 retired token "--no-detach".
+golangci-lint ./internal/cli: 0 issues. source-lines: 256 and 99 counted lines.
+
+## RFP-2: autopus.yaml across O and N (fixtures pkg/config/testdata/legacy_pane, `auto check --arch`)
+Each fixture copied alone as autopus.yaml into a fresh dir; HOME, TMPDIR, CODEX_HOME scratch; PATH=<empty>:/usr/bin:/bin.
+S4 loads: N exit 0 for C1, C2, C2', C2o, C7; O exit 0 for the same inputs.
+S4 pruned lists (N, stderr on a pty via script(1)): C1 notice lists exactly P1; C2 lists exactly P2.
+S5: C3 -> `yaml: unmarshal errors:` + `line 4: field pane_argz not found in type config.ProviderEntry (unknown keys are
+  rejected: fix the typo or delete the key)`, same text from O. C4 scalar (`line 3: cannot unmarshal !!str `x` into
+  config.ProviderEntry ...`) and C4 seq (`line 2: cannot unmarshal !!seq into map[string]config.ProviderEntry ...`):
+  N error lines equal O's (B schema) after path normalization, no panic. C5 orchestra (`line 2: field pane_args not found
+  in type config.OrchestraConf ...`) and C5 subprocess (`line 5: field pane_args not found in type
+  config.SubprocessProvConf ...`): fail, name pane_args, end in the suffix. C6 fails with the pane_argz error, exit 1,
+  and no notice on a pty.
+S6 (C2 and C2' in separate workspaces): pty run -> exactly one line
+  `auto: warning: ignored removed autopus.yaml keys: <P2>; the orchestra pane backend was retired (SPEC-PANERM-001);
+  run "auto update" or delete the keys`; `--quiet` on a pty -> 0 notice lines; pipe -> 0 notice lines. For all three
+  modes stdout bytes and exit code equal C2''s, and the rest of the pty stderr equals C2''s. (One-notifier dedupe
+  within a process is in-process only: config_notice_test.go, in the supervisor's internal/cli run.)
+S7 writers, then O `auto check --arch --quiet` on each written file (exit 0 for all):
+  (b) `auto update --dir <d> --yes` on C1 and C2: exit 0; removed lines are exactly the group K lines (C1: 4 = P1;
+      C2: 8 = P2, incl. `enabled: true` under orchestra.subprocess), 0 added lines; `# keep-me`,
+      `work_dir: "${AUTOPUS_WORKDIR}"`, `future_extension: {note: keep}` kept byte for byte.
+  (c) `auto --config <p> quality supervisor quality` on C2: no group K token, kept lines intact, one added line.
+  (d) `auto --config <p> quality provider claude ultra --apply` on C2: same; applied claude-code.
+  (f) `auto config get usage_profile` (config.Load persists the normalization) on C7: rewritten with `- claude-code`,
+      no group K token.
+  (a) config.Save and (e) applyOMPProfile have no CLI path without a fake OMP runner: in-process only
+      (panerm_raw_writers_test.go, supervisor's internal/cli run).
+
+## RFP-3: stale hook cleanup on real O-generated projects
+Per workspace: O `auto init --dir <w> --platforms <p> --yes` with fake claude, codex, agy, gemini (and the T3 fake
+opencode 2.0.0 or 1.0.0) on PATH, scratch HOME and CODEX_HOME; then the T3 user content (separate user entries first,
+mixed Stop entries in claude and codex, `.agents/hooks.json` user-hooks, scripts/, plugins/mine.ts, the legacy .ts,
+the OpenCode entries; W-claude holds C2; its scratch HOME gets a Stop handler for hook-claude-stop.sh). N `auto doctor
+--json`/`auto doctor`, N `auto update --dir <w> --yes`, both doctors, a second N update, O update on a copy of the
+pre-update tree, and O update on the S11 result (revert). Update and doctor ran with only the platform's own CLI on
+PATH (see F4). H(w) as acceptance.md defines it.
+S11 deleted sets (exact match, 0 added files): W-claude the 7 hook-*.sh + legacy .ts; W-codex the 2 .codex scripts;
+  W-agy the 2 .gemini scripts; W-oc2 and W-oc1 the .ts; W-mix the 7 .sh (the .ts stays); W-oc-bad none.
+S11 handlers: only group S handlers left claude/codex Stop and SessionStart, `.agents/hooks.json` Stop and
+  `.gemini/settings.json` AfterAgent; each mixed entry keeps matcher `mixed` and only ./scripts/notify.sh; every separate
+  user entry is byte-identical and in place; W-oc2 plugins after = [./.opencode/plugins/autopus-hooks.js,
+  {"package": "my-plugin"}, ./plugins/mine.ts]; W-oc1 plugin after = [.opencode/plugins/autopus-hooks.js,
+  ./plugins/mine.ts]; non-group-S managed handlers equal O's update output for the same workspace (diff empty in all
+  7; on W-oc-bad both binaries reject the config and change nothing).
+S12: second N update exit 0 and H(w) equal to the first for all six updatable workspaces; HOME settings byte-identical
+  and reported by `doctor.stale_completion_hooks.user_level` (`~/.claude/settings.json Stop
+  .claude/hooks/autopus/hook-claude-stop.sh`, remedy "remove these handlers by hand; auto update never edits user-level
+  settings"); W-mix keeps the .ts and its entry; W-oc-bad update fails with `invalid native plugins array`, opencode.json
+  and the .ts byte-identical, doctor reports the .ts; O revert: O update exit 0 restores its completion handlers (2 per
+  workspace) and scripts in W-claude, W-codex, W-agy, W-mix, keeps every user handler, and O loads autopus.yaml (exit 0);
+  O exits 1 on W-oc-bad's invalid opencode.json as N does. The F fault-injection leg needs
+  adapter.transactionStepHook (nil in production): in-process only (stale_hooks_s12_test.go, supervisor's run).
+S13: before the update `doctor.legacy_orchestra_config` warn, detail `legacy orchestra keys: <P2>`, fields.remedy
+  `run "auto update"` (W-claude with C2); `doctor.stale_completion_hooks` warn in all seven, and its script list equals
+  the S11 deleted set in each; after the update both checks pass (W-mix keeps warning about the referenced .ts as
+  designed) and no check with an id has status warn or fail naming hook-claude-stop.sh, hook-codex-stop.sh,
+  hook-gemini-afteragent.sh, AUTOPUS_SESSION_ID, or monitor_pattern_timeout_ms (the user-level check is S12's planted
+  HOME file and is excluded). Text doctor names both checks before the update.
+
+## S19 (binary N)
+Command (cwd an empty scratch dir with no autopus.yaml, so the provider is the shipped default claude entry; the API
+key variables removed from the environment): `auto orchestra brainstorm "name one color" --providers claude --strategy
+consensus --format json --timeout 900` (the T1 command; `--rounds 1` would need a debate judge, a second paid call).
+Precheck, no model call: `claude auth status --json` -> loggedIn true, authMethod claude.ai, subscriptionType max,
+  apiProvider firstParty; Claude Code 2.1.289; ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY unset; CLAUDECODE=1.
+Dry run, 0 paid calls (recording fake claude first on PATH): exit 0, exactly 1 claude invocation (no version or auth
+  probe), dispatch_count 1, row backend subprocess. A 3-provider dry run (fake claude, codex, agy) exits 0 with one row
+  each: backend subprocess, exit_code 0, timed_out false, usable true, no failure_class, sandbox read-only; argv
+  `claude --print --model claude-fable-5-1 --effort max --permission-mode plan --safe-mode --no-session-persistence
+  --disable-slash-commands --strict-mcp-config --tools=Read,Grep,Glob`, `codex exec --json --sandbox read-only -m
+  gpt-6-astra -c model_reasoning_effort="max" --ephemeral --ignore-user-config --ignore-rules --skip-git-repo-check
+  --output-last-message <tmp>`, `agy --print "" --mode plan --sandbox --disable-slash-commands -p <prompt>`; no bypass flag.
+Real run, 1 paid call, 2026-10-07T05:39:39Z, context (c) Claude Code Bash tool: exit 0 in 132.6s. stderr
+  `전략: consensus, 프로바이더: claude, 백엔드: subprocess` (the T1 run at 60f92ea5 added `(terminal=plain, hook=false)`) and
+  `[✓] claude: done 132.4s`. stdout (redacted; merged text 8,163 B omitted): schema orchestration_cli_result.v1;
+  receipt.schema orchestration_run_receipt.v1, effective_strategy consensus, terminal_state completed, judge_status
+  not_requested, dispatch_count 1, usable_providers [claude], failed_providers null, degraded_reasons null;
+  provider_receipts[0]: provider claude, role participant, backend subprocess, exit_code 0, timed_out false, usable
+  true, failure_class absent, sandbox_mode read-only, command as in the dry run.
+Billing: the operator confirmed claude subscription billing for 2026-10-07 (supervisor message); not observable in CLI
+  output, so that confirmation is the billing evidence.
+Not run: codex and gemini real lanes (each is a model call billed to a subscription the operator has not confirmed;
+  the scope allowed one paid call, spent on claude) and contexts (a) plain shell and (b) cmux/tmux (this agent runs
+  only inside the Claude Code Bash tool; a second context would be a second paid call). S19 therefore stays open for
+  those rows; the dry runs above show the dispatch they would use.
+
+## Plan Verification commands (CODEX_HOME = empty scratch dir)
+go build ./...: exit 0. go vet ./...: exit 0. golangci-lint run ./...: 0 issues.
+go test -race -count=1 -timeout 60m -json, every package except internal/cli (the supervisor runs it serially),
+  2026-10-07T05:14:34Z-05:28:36Z: 7,383 top-level tests, 124 packages ok, 4 failed packages, 4 failing top-level tests:
+    in baseline: . TestPOSIXInstallerSnapshotFailureKeepsLaunchPayloadInCleanup, ./pkg/agentprobe
+      TestCodexRPCBoundedSubprocessRoundTrip, ./pkg/detect TestDetectBinaryFastVersion
+    not in baseline: ./pkg/adapter/antigravity TestValidateReadinessReportsOnlyUnverifiedVersions (F3)
+  The other 68 non-cli baseline failures passed (they came from the host Codex catalog, removed by the empty CODEX_HOME).
+deadcode v0.50.0 (built with go1.27.0 from the module cache into a scratch GOBIN) -test ./...: 18 lines, identical to
+  the W0 list; `grep -E '^(pkg/orchestra/|internal/cli/orchestra)'` empty.
+go run ./cmd/source-lines -max 300 -ext .go pkg internal cmd: 3,805 files, exit 0.
+S15: pkg/orchestra non-test files 81, physical lines 9,032 (bound 9,945); group P files 0; `go list -f '{{join .Imports
+  "\n"}}' ./pkg/orchestra` has no pkg/terminal; 0 `.SendCommand(`/`.SendLongText(`/`.ReadScreen(` in non-test files.
+S17: pkg/orchestra/provider_argv_test.go and subprocess_schema_test.go: no diff vs B 16b50216;
+  internal/cli/provider_argv_test.go loses TestProviderConfig_GeminiPaneNoPrint, TestProviderConfig_CodexPaneNotExec and
+  their only helper containsArg, adds nothing; subprocess_judge_session_evidence_test.go +2/-10, only the
+  Terminal/SubprocessMode fields, the "plain terminal" row, and the pkg/terminal import; the four ORCH-021 S15/S16/S18/S20
+  test bodies hash-identical to B; pkg/terminal changed only a test file since B and `go doc -all ./pkg/terminal` is
+  byte-identical to 60f92ea5 (288 lines).
+S18: README.md 497-509 identical to B; CHANGELOG [Unreleased] names the 5 keys, 4 flags, 6 subcommands, 9 group H
+  assets, 16b50216, 7c781509.
+git diff --name-only 16b50216 HEAD -- .claude .codex .gemini .agents .opencode .omp: empty (no generated copy
+  regenerated, so none needs a canonical mapping); see F5.
+auto spec validate .autopus/specs/SPEC-PANERM-001 --strict (N): exit 0, one warning (research.md 208 lines > 200-line
+  review injection cap).
+
+## Coverage vs W0 baseline (one package at a time, -count=1, empty CODEX_HOME; W0 at 214acc09)
+package                    HEAD    W0      verdict
+./pkg/orchestra            92.6%   91.4%   ok
+./pkg/config               92.6%   92.4%   ok
+./pkg/content              93.2%   93.2%   ok (equal)
+./pkg/adapter              86.3%   83.5%   ok (now above 85%)
+./pkg/adapter/antigravity  88.4%   87.1%   ok
+./pkg/adapter/claude       88.7%   88.7%   ok (equal)
+./pkg/adapter/codex        90.3%   90.4%   BELOW by 0.1 (F2)
+./pkg/adapter/omp          88.5%   88.5%   ok (equal)
+./pkg/adapter/opencode     88.8%   88.4%   ok
+./pkg/terminal             88.6%   88.6%   ok (B measured at 60f92ea5 for touched packages without a W0 row)
+./pkg/platform             88.6%   83.8%   ok
+./templates                0.0%    0.0%    no statements (embed only)
+./internal/cli             -       83.2%   deferred: full suite runs in the supervisor's serial run
+
+## Findings
+F1 (low, owner T8 pkg/config/loader_strict.go): the strict-decode error names a line of the pruned, re-marshalled
+  document, not of the user's file. C6 has its typo on line 68; N reports `line 65: field pane_argz not found ...`
+  (three pruned group K lines precede it), O and B report line 68. REQ-08's error text and suffix hold and the S5
+  oracle (no line for C6) passes, but the line misleads a user who has a retired key above a typo. The C6 assertion in
+  legacy_pane_fixtures_test.go checks Contains without the line. A fix maps the line back, for example decode the
+  original bytes strictly and drop only the errors on pruned key lines.
+F2 (low): pkg/adapter/codex 2,323 statements / 2,097 covered (90.27%) vs W0 2,344 / 2,119 (90.40%). T10 deleted
+  well-covered hook-script code; generateHooks fell from 85.0% to 80.0% because its two error branches
+  (codex_hooks.go:21 render, :31 write) were already uncovered. Covering 3 more statements, for example those two
+  branches and prepareHooksFile's render error (:47), gives 2,100 / 2,323 = 90.40%. The plan's sync gate (85%) holds.
+F3 (flake, untouched code): TestValidateReadinessReportsOnlyUnverifiedVersions/below_floor and /unparseable_banner
+  failed only under the 124-package race run (each probe of a fake `agy --version` is bounded by
+  processprobe.DefaultWaitDelay + 2s). PANERM changed no readiness or lifecycle-probe file in pkg/adapter/antigravity.
+  Reruns: `go test -race -count=3 -run TestValidateReadinessReportsOnlyUnverifiedVersions` ok; the whole package
+  `go test -race -count=1` ok (47s).
+F4 (pre-existing, not PANERM): with all four fake CLIs on PATH, `auto update` auto-adds the detected platforms
+  (W-claude gains codex and antigravity-cli, 265 files). S11 still holds there, but the second update rewrites
+  .agents/plugins/marketplace.json, two manifests, .autopus/plugins/auto/.codex-plugin/plugin.json, AGENTS.md and
+  CLAUDE.md; a third update is a no-op. Binary O shows the same 6 (W-claude) and 5 (W-codex) files on its own second
+  update, so this churn predates PANERM. The RFP-3 run above therefore scopes PATH to the platform's own CLI.
+F5 (remaining, plan Cross-SPEC Ordering 3): the tracked .omp/skills/{auto-go,auto-idea,auto-plan,auto-review,idea}/
+  SKILL.md copies still carry retired tokens; they regenerate once the user commits or stashes the local .omp edits.
+
+## Not run here
+- internal/cli full suite (race and coverage): the supervisor runs it serially.
+- S19 codex and gemini real lanes, and contexts (a) plain shell and (b) cmux/tmux: see S19.
+- plan.md RFP-2 and RFP-3 rows still say not-run; this file is their PASS evidence for sync.

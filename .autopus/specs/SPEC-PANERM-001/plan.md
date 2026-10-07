@@ -22,18 +22,20 @@ references them. Within a wave each file has one owner. Lint `unused` findings i
   with the fake `opencode --version` binaries per workspace; each fixture fails at B for the asserted reason.
 - [ ] T4: Relocations (REQ-02). Moves `usesAntigravityPromptInteractive` (`interactive_launch.go` →
   `provider_patterns.go`), `noneBackendMarker` (`pane_fallback.go:15` → `run_receipt.go`, used by `run_receipt.go:229`,
-  `debate_judge.go:26`, `failure_result.go:41`), and every other group P declaration the census shows in retained use.
+  `debate_judge.go:26`, `failure_result.go:41`), `NewSessionID` (`session.go:63`; run ids at `spec_review_loop.go:94`,
+  `spec_review_runtime.go:59`, `usage.go:33`), and every other group P declaration the census shows in retained use.
 - [ ] T5: CLI consumers (REQ-01, REQ-02, REQ-17). Owns `orchestra.go`, `orchestra_config.go`, `orchestra_helpers.go`,
   `orchestra_run_runtime.go`, `codex_catalog_runtime.go`, `orchestra_terminal.go`, `orchestra_readonly_policy.go`
-  (after REVIEWRO T1), `spec_review_loop.go`, `spec_review_structured.go`: no group F write, no group K read, no group
-  C call; census-mapped tests.
+  (after REVIEWRO T1), `spec_review_loop.go`, `spec_review_structured.go`, `spec_review_runtime.go`,
+  `doctor_provider_smoke.go`: no group F write, no group K read, no group C call; census-mapped tests.
 - [ ] T6: Flags and stubs (REQ-04, REQ-05, REQ-06). Owns `[NEW] internal/cli/orchestra_retired.go`, `orchestra_flags.go`,
   `orchestra_brainstorm.go`, `orchestra_plan.go`, `orchestra_file_cmds.go`, `orchestra_run.go` (drops the
   `applyHookMode` call at `:212` and its group F writes), `spec_review.go`, `orchestra_job.go`, `orchestra_collect.go`,
   `orchestra_inject.go`, `orchestra_cleanup.go`; retired `OrchestraFlags` fields stay declared until T9.
 - [ ] T7: pkg/orchestra deletion (REQ-01, REQ-02, REQ-03, REQ-17). Entry cut in `runner.go`, `backend.go`, `recheck.go`;
   group F reads dropped from `judge_session_evidence.go`, `provider_validation.go`, `reliability_preflight.go`; group F
-  (`types.go`); `BuildYieldOutput` (`yield.go`); the 60 group P files with their tests (`pane_backend_test.go`,
+  and `OrchestraConfig.SurfaceMgr`, a pane field typed by group P `surface_manager.go` (`types.go`); `BuildYieldOutput`
+  (`yield.go`); the 60 group P files with their tests (`pane_backend_test.go`,
   `interactive_judge_pane_test.go`, ...); retained tests that set group F (`backend_test.go`, `backend_routed_test.go`,
   `subprocess_judge_session_evidence_test.go`); appends the remaining group I declarations.
 - [ ] T8: pkg/config deletion (REQ-07, REQ-08, REQ-11). Group K fields (`schema_orchestra.go`, `schema.go`), the
@@ -118,7 +120,7 @@ below 85% coverage, or a source file exceeds 300 lines. S20 (Nice) does not bloc
 
 | assumption_id | class | risk | boundary | input | oracle | isolation | status | reason | evidence |
 |---------------|-------|------|----------|-------|--------|-----------|--------|--------|----------|
-| RFP-1 | implementation_assumption | high | default provider headless argv → real `claude --print` 2.1.289, `codex exec`, `agy --print` under subscription logins | `auto orchestra brainstorm "<tiny prompt>" --providers claude,codex,gemini --rounds 1 --format json` from (a) a plain shell, (b) cmux or tmux, (c) a Claude Code Bash tool with `CLAUDECODE` set | stdout `schema` = `orchestration_cli_result.v1`; for each provider at least one `receipt.provider_receipts[]` row and every row with `backend` = `subprocess`, `exit_code` 0, `timed_out` false, `usable` true, no `failure_class` (`pkg/orchestra/run_receipt.go:18-30`); the operator confirms subscription billing in the provider consoles | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` unset; opt-in paid run with operator consent | not-run | paid live run needs operator consent; precheck only: `claude auth status --json` → loggedIn true, authMethod claude.ai, subscriptionType max, Claude Code 2.1.289, 0 model calls; billing is not observable in CLI output | precheck in `prd.md` survey correction 8 |
+| RFP-1 | implementation_assumption | high | default provider headless argv → real `claude --print` 2.1.289, `codex exec`, `agy --print` under subscription logins | `auto orchestra brainstorm "<tiny prompt>" --providers claude,codex,gemini --rounds 1 --format json` from (a) a plain shell, (b) cmux or tmux, (c) a Claude Code Bash tool with `CLAUDECODE` set | stdout `schema` = `orchestration_cli_result.v1`; for each provider at least one `receipt.provider_receipts[]` row and every row with `backend` = `subprocess`, `exit_code` 0, `timed_out` false, `usable` true, no `failure_class` (`pkg/orchestra/run_receipt.go:18-30`); the operator confirms subscription billing in the provider consoles | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` unset; opt-in paid run with operator consent | not-run | partial run only: the operator-scoped claude row in context (c) passed on 2026-10-06T22:21Z (1 paid call, backend `subprocess`, exit_code 0, usable true) with the operator's billing confirmation; codex, gemini, and contexts (a), (b) were outside the operator's T1 scope | `evidence/t1-rfp1-receipt.txt`; `research.md` W0 Evidence T1 |
 | RFP-2 | implementation_assumption | high | `autopus.yaml` load and write across binary O and the new binary | fixtures C1–C7 (`acceptance.md`) | S4–S7 expected values | scratch dirs, both binaries built locally, no network | not-run | the new binary does not exist yet; T3 writes the fixtures red; partial verified fact: B's `DefaultFullConfig` emits exactly P1 and C3 yields the S5 error text | scratchpad `panerm/config-probe.txt` (overlay test, no repo file) |
 | RFP-3 | implementation_assumption | high | O `auto init` per platform → new `auto update` → `auto doctor` on real generated projects | W-claude, W-codex, W-agy, W-oc2, W-oc1, W-oc-bad, W-mix with user, mixed, legacy, invalid, and out-of-band entries | S11–S13 expected values | scratch project dirs and scratch `HOME`; no network | not-run | the new binary does not exist yet; T3 builds the workspaces red; verified fact: this repo's installed layout (7 scripts in `.claude/hooks/autopus`, 2 in `.codex/hooks/autopus`, 2 in `.gemini/hooks/autopus`, managed handlers in 4 settings files) | `ls` and `grep` of this repo at B |
 

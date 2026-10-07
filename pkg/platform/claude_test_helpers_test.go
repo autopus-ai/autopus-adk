@@ -73,13 +73,12 @@ func patchExecCommand(t *testing.T, fn func(ctx context.Context, name string, ar
 
 func enabledCC21Features() config.CC21FeaturesConf {
 	return config.CC21FeaturesConf{
-		Enabled:                 true,
-		EffortEnabled:           true,
-		MonitorEnabled:          true,
-		TaskCreatedEnabled:      true,
-		InitialPromptEnabled:    true,
-		TaskCreatedMode:         "warn",
-		MonitorPatternTimeoutMS: 30000,
+		Enabled:              true,
+		EffortEnabled:        true,
+		MonitorEnabled:       true,
+		TaskCreatedEnabled:   true,
+		InitialPromptEnabled: true,
+		TaskCreatedMode:      "warn",
 	}
 }
 

@@ -69,6 +69,7 @@ func (a *Adapter) generateSettingsWithHooks(cfg *config.HarnessConfig) ([]adapte
 	if err := json.Unmarshal(files[0].Content, &settings); err != nil {
 		return nil, fmt.Errorf("gemini settings JSON 파싱 실패: %w", err)
 	}
+	retractStaleCompletionHandlers(settings)
 	perms := filterUnsupportedAntigravityPermissions(content.DetectPermissions(a.root, cfg.Hooks.Permissions))
 	applyAntigravityHooksAndPermissions(settings, a.configuredLegacyGeminiHooks(cfg), perms)
 	return buildAntigravitySettingsMapping(settings)

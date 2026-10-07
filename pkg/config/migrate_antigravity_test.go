@@ -31,7 +31,6 @@ func TestMigrateOrchestraConfig_AntigravityMigratesLegacyGeminiProvider(t *testi
 	// Reconciling the legacy entry must also restore the prompt-via-args contract,
 	// otherwise the prompt is never injected and `agy --print` runs with no value.
 	assert.True(t, cfg.Orchestra.Providers["gemini"].PromptViaArgs)
-	assert.Equal(t, "stdin", cfg.Orchestra.Providers["gemini"].InteractiveInput)
 }
 
 // TestMigrateOrchestraConfig_AntigravityReconcilesBarePrintGemini reproduces the
@@ -66,7 +65,6 @@ func TestMigrateOrchestraConfig_AntigravityReconcilesBarePrintGemini(t *testing.
 	assert.Equal(t, "agy", gemini.Binary)
 	assert.Equal(t, []string{"--print", ""}, gemini.Args)
 	assert.True(t, gemini.PromptViaArgs)
-	assert.Equal(t, "stdin", gemini.InteractiveInput)
 	assert.Equal(t, "text", gemini.Subprocess.OutputFormat)
 }
 
@@ -81,11 +79,10 @@ func TestMigrateOrchestraConfig_AntigravityFillsGeminiSubprocessTimeout(t *testi
 			Enabled: true,
 			Providers: map[string]ProviderEntry{
 				"gemini": {
-					Binary:           "agy",
-					Args:             []string{"--print", ""},
-					PromptViaArgs:    true,
-					InteractiveInput: "stdin",
-					Subprocess:       SubprocessProvConf{OutputFormat: "text"},
+					Binary:        "agy",
+					Args:          []string{"--print", ""},
+					PromptViaArgs: true,
+					Subprocess:    SubprocessProvConf{OutputFormat: "text"},
 				},
 			},
 			Commands: map[string]CommandEntry{
@@ -119,7 +116,6 @@ func TestMigrateOrchestraConfig_AntigravityPreservesContractGemini(t *testing.T)
 				"gemini": {
 					Binary:        "agy",
 					Args:          []string{"--print", ""},
-					PaneArgs:      []string{},
 					PromptViaArgs: true,
 					Subprocess:    SubprocessProvConf{OutputFormat: "text", Timeout: GeminiOrchestraTimeoutSeconds},
 				},
@@ -130,12 +126,14 @@ func TestMigrateOrchestraConfig_AntigravityPreservesContractGemini(t *testing.T)
 		},
 	}
 
-	_, err := MigrateOrchestraConfig(cfg)
+	// The entry already satisfies the contract, so even the first pass has
+	// nothing to rewrite now that no pane input mode is backfilled.
+	changed, err := MigrateOrchestraConfig(cfg)
 	require.NoError(t, err)
+	assert.False(t, changed)
 	gemini := cfg.Orchestra.Providers["gemini"]
 	assert.Equal(t, []string{"--print", ""}, gemini.Args)
 	assert.True(t, gemini.PromptViaArgs)
-	assert.Equal(t, "stdin", gemini.InteractiveInput)
 	assert.Equal(t, GeminiOrchestraTimeoutSeconds, gemini.Subprocess.Timeout)
 
 	// Second pass must report no change — the gemini contract is already satisfied.

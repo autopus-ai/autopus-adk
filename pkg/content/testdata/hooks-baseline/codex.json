@@ -8,7 +8,7 @@
     {
       "platform": "codex",
       "supports_hooks": true,
-      "hook_count": 4,
+      "hook_count": 3,
       "react_hooks": [
         {
           "event": "PostToolUse",

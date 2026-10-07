@@ -1,0 +1,96 @@
+{
+  "hooks": {
+    "AfterAgent": [
+      {
+        "hooks": [
+          {
+            "command": "./scripts/user-stop.sh",
+            "timeout": 10,
+            "type": "command"
+          }
+        ],
+        "matcher": "user-afteragent"
+      },
+      {
+        "hooks": [
+          {
+            "command": "\"${GEMINI_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}\"/.gemini/hooks/autopus/hook-gemini-afteragent.sh",
+            "timeout": 300,
+            "type": "command"
+          }
+        ],
+        "matcher": ""
+      }
+    ],
+    "AfterTool": [
+      {
+        "hooks": [
+          {
+            "command": "auto react check --quiet",
+            "timeout": 60,
+            "type": "command"
+          }
+        ],
+        "matcher": "Bash"
+      }
+    ],
+    "BeforeTool": [
+      {
+        "hooks": [
+          {
+            "command": "auto check --hygiene --arch --quiet --staged --warn-only",
+            "timeout": 30,
+            "type": "command"
+          }
+        ],
+        "matcher": "Bash"
+      }
+    ]
+  },
+  "mcpServers": {
+    "context7": {
+      "args": [
+        "-l",
+        "-c",
+        "exec npx -y @upstash/context7-mcp@latest"
+      ],
+      "command": "/bin/bash"
+    },
+    "sequential-thinking": {
+      "args": [
+        "-l",
+        "-c",
+        "exec npx -y @modelcontextprotocol/server-sequential-thinking"
+      ],
+      "command": "/bin/bash"
+    }
+  },
+  "permissions": {
+    "allow": [
+      "Bash(auto *)",
+      "Bash(auto:*)",
+      "Bash(git *)",
+      "Bash(git:*)",
+      "Bash(make:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(wc:*)",
+      "Bash(sort:*)",
+      "Bash(mkdir:*)",
+      "Bash(echo:*)",
+      "Bash(gh:*)",
+      "mcp__sequential-thinking__sequentialthinking",
+      "WebSearch",
+      "Agent",
+      "AskUserQuestion",
+      "TaskCreate",
+      "TaskGet",
+      "TaskList",
+      "TaskUpdate",
+      "Workflow",
+      "ToolSearch"
+    ]
+  }
+}

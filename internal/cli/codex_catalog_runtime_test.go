@@ -25,7 +25,6 @@ func TestResolveCodexProviderCapabilities_DowngradesSameModelEffort(t *testing.T
 	got := resolveCodexProviderCapabilitiesWith(context.Background(), providers, probe, &receipt)
 	require.Len(t, got, 1)
 	assertCodexProfileInArgs(t, got[0].Args, config.CodexSolModel, config.CodexEffortMax)
-	assertCodexProfileInArgs(t, got[0].PaneArgs, config.CodexSolModel, config.CodexEffortMax)
 	assert.Contains(t, receipt.String(), "requested=gpt-6.1-sol/ultra")
 	assert.Contains(t, receipt.String(), "selected=gpt-6.1-sol/max")
 	assert.Contains(t, receipt.String(), "reason=effort_unavailable")
@@ -39,7 +38,6 @@ func TestResolveCodexProviderCapabilities_PreservesPinnedProvider(t *testing.T) 
 		Name:        "codex",
 		Binary:      "codex-wrapper",
 		Args:        []string{"exec", "-m", "custom-model", "-c", `model_reasoning_effort="ultra"`},
-		PaneArgs:    []string{"--search"},
 		ModelPolicy: config.ProviderModelPolicyPinned,
 	}
 	called := false
@@ -64,7 +62,6 @@ func TestResolveCodexProviderCapabilities_UnknownCatalogUsesFallbackModel(t *tes
 
 	got := resolveCodexProviderCapabilitiesWith(context.Background(), []orchestra.ProviderConfig{provider}, probe, &receipt)
 	assertCodexProfileInArgs(t, got[0].Args, config.CodexFallbackModel, config.CodexEffortUltra)
-	assertCodexProfileInArgs(t, got[0].PaneArgs, config.CodexFallbackModel, config.CodexEffortUltra)
 	assert.Contains(t, receipt.String(), "reason=catalog_unknown")
 }
 
@@ -79,7 +76,6 @@ func TestResolveCodexProviderCapabilities_MissingModelUsesPreviousSol(t *testing
 
 	got := resolveCodexProviderCapabilitiesWith(context.Background(), []orchestra.ProviderConfig{provider}, probe, &receipt)
 	assertCodexProfileInArgs(t, got[0].Args, config.CodexPreviousSolModel, config.CodexEffortXHigh)
-	assertCodexProfileInArgs(t, got[0].PaneArgs, config.CodexPreviousSolModel, config.CodexEffortXHigh)
 	assert.Contains(t, receipt.String(), "reason=model_unavailable")
 	assert.Equal(t, 1, strings.Count(receipt.String(), "reason=model_unavailable"))
 }
@@ -95,7 +91,6 @@ func TestResolveCodexProviderCapabilities_OversizedCatalogUsesFallbackModel(t *t
 
 	got := resolveCodexProviderCapabilitiesWith(context.Background(), []orchestra.ProviderConfig{provider}, probe, &receipt)
 	assertCodexProfileInArgs(t, got[0].Args, config.CodexFallbackModel, config.CodexEffortUltra)
-	assertCodexProfileInArgs(t, got[0].PaneArgs, config.CodexFallbackModel, config.CodexEffortUltra)
 	assert.Contains(t, receipt.String(), "reason=catalog_unknown")
 }
 
@@ -109,7 +104,7 @@ func TestResolveCodexProviderCapabilities_OmitsOverridesForRuntimeDefault(t *tes
 	var receipt bytes.Buffer
 
 	got := resolveCodexProviderCapabilitiesWith(context.Background(), []orchestra.ProviderConfig{provider}, probe, &receipt)
-	joined := strings.Join(append(append([]string{}, got[0].Args...), got[0].PaneArgs...), "\x00")
+	joined := strings.Join(got[0].Args, "\x00")
 	assert.NotContains(t, joined, "gpt-5.6")
 	assert.NotContains(t, joined, "model_reasoning_effort")
 	assert.NotContains(t, joined, "-m")
@@ -128,11 +123,9 @@ func TestResolveCodexProviderCapabilities_NoLowerEffortKeepsModel(t *testing.T) 
 
 	got := resolveCodexProviderCapabilitiesWith(context.Background(), []orchestra.ProviderConfig{provider}, probe, &receipt)
 	require.Len(t, got, 1)
-	for _, args := range [][]string{got[0].Args, got[0].PaneArgs} {
-		joined := strings.Join(args, "\x00")
-		assert.Contains(t, joined, config.CodexSolModel)
-		assert.NotContains(t, joined, "model_reasoning_effort")
-	}
+	joined := strings.Join(got[0].Args, "\x00")
+	assert.Contains(t, joined, config.CodexSolModel)
+	assert.NotContains(t, joined, "model_reasoning_effort")
 	assert.Contains(t, receipt.String(), "selected=gpt-6.1-sol")
 	assert.Contains(t, receipt.String(), "reason=runtime_default")
 }
@@ -158,5 +151,5 @@ func TestResolveCodexProviderCapabilities_SkipsOMPBackend(t *testing.T) {
 func managedRuntimeCodexProvider(effort string) orchestra.ProviderConfig {
 	entry := config.CodexProviderEntryForQuality(config.QualityConf{Default: "ultra"})
 	entry = config.ApplyCodexProviderProfile(entry, config.CodexProfile{Model: config.CodexSolModel, Effort: effort})
-	return providerConfigFromEntry("codex", entry, "")
+	return providerConfigFromEntry("codex", entry)
 }

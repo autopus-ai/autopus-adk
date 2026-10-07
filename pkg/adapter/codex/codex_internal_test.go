@@ -20,25 +20,22 @@ func TestGenerateHooks(t *testing.T) {
 
 	files, err := a.generateHooks(cfg)
 	require.NoError(t, err)
-	assert.Len(t, files, 3)
+	require.Len(t, files, 1)
 	assert.Equal(t, filepath.Join(".codex", "hooks.json"), files[0].TargetPath)
 	assert.FileExists(t, filepath.Join(dir, ".codex", "hooks.json"))
-	assert.FileExists(t, filepath.Join(dir, ".codex", "hooks", "autopus", "hook-codex-stop.sh"))
-	assert.FileExists(t, filepath.Join(dir, ".codex", "hooks", "autopus", "hook-codex-sessionstart.sh"))
-	stopInfo, err := os.Stat(filepath.Join(dir, ".codex", "hooks", "autopus", "hook-codex-stop.sh"))
-	require.NoError(t, err)
-	assert.NotZero(t, stopInfo.Mode().Perm()&0o111, "installed Codex hook must be executable")
 	assert.Contains(t, string(files[0].Content), "PreToolUse")
 	assert.Contains(t, string(files[0].Content), "PostToolUse")
-	assert.Contains(t, string(files[0].Content), "SessionStart")
-	// SPEC-ORCH-022: Codex owns both completion and ready hooks so a codex-only
-	// harness can use file IPC without depending on Claude-generated assets.
-	assert.Contains(t, string(files[0].Content), "Stop")
+	// SPEC-PANERM-001 REQ-12: the orchestra completion and ready hooks and
+	// their .codex/hooks/autopus scripts are retired with the pane backend.
+	assert.NotContains(t, string(files[0].Content), "SessionStart")
+	assert.NotContains(t, string(files[0].Content), `"Stop"`)
+	assert.NotContains(t, string(files[0].Content), "hook-codex-")
+	assert.NoDirExists(t, filepath.Join(dir, ".codex", "hooks", "autopus"))
 	var doc hooksDoc
 	require.NoError(t, json.Unmarshal(files[0].Content, &doc))
-	stop := requireHookGroup(t, doc, "Stop", 0)
-	assert.NotEmpty(t, stop.Hooks, "Codex commands must use event -> matcher group -> hooks[] schema")
-	assert.Equal(t, autopusHookStatusMessage, stop.Hooks[0].StatusMessage)
+	pre := requireHookGroup(t, doc, "PreToolUse", 0)
+	assert.NotEmpty(t, pre.Hooks, "Codex commands must use event -> matcher group -> hooks[] schema")
+	assert.Equal(t, autopusHookStatusMessage, pre.Hooks[0].StatusMessage)
 	assert.NotContains(t, string(files[0].Content), "__autopus__")
 }
 
@@ -50,7 +47,7 @@ func TestPrepareHooksFile_NoDiskWrite(t *testing.T) {
 
 	files, err := a.prepareHooksFile(cfg)
 	require.NoError(t, err)
-	assert.Len(t, files, 3)
+	assert.Len(t, files, 1)
 
 	_, err = os.Stat(filepath.Join(dir, ".codex", "hooks.json"))
 	assert.True(t, os.IsNotExist(err))
@@ -142,7 +139,7 @@ func TestGenerateHooks_ValidJSON(t *testing.T) {
 
 	files, err := a.generateHooks(cfg)
 	require.NoError(t, err)
-	require.Len(t, files, 3)
+	require.Len(t, files, 1)
 
 	var parsed map[string]interface{}
 	err = json.Unmarshal(files[0].Content, &parsed)
@@ -152,9 +149,9 @@ func TestGenerateHooks_ValidJSON(t *testing.T) {
 	require.True(t, ok, "should have hooks key")
 	assert.Contains(t, hooks, "PreToolUse")
 	assert.Contains(t, hooks, "PostToolUse")
-	assert.Contains(t, hooks, "SessionStart")
-	// SPEC-ORCH-022: codex registers completion and ready hooks.
-	assert.Contains(t, hooks, "Stop")
+	// SPEC-PANERM-001 REQ-12: no orchestra completion or ready hook.
+	assert.NotContains(t, hooks, "SessionStart")
+	assert.NotContains(t, hooks, "Stop")
 }
 
 func TestNativeSkillRoutingInAgentsMD(t *testing.T) {

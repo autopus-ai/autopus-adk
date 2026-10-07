@@ -23,6 +23,14 @@ func PruneRoots() []string {
 	}
 }
 
+// retiredCodexCompletionHookNames are the orchestra completion and ready hook
+// scripts that Codex generation installed under .codex/hooks/autopus until the
+// pane backend was retired (SPEC-PANERM-001 group H).
+var retiredCodexCompletionHookNames = []string{
+	"hook-codex-stop.sh",
+	"hook-codex-sessionstart.sh",
+}
+
 var codexEmptyPrunePaths = []string{
 	filepath.Join(".codex", "skills"),
 	filepath.Join(".codex", "agents"),
@@ -185,7 +193,10 @@ func codexCleanAllowedPaths() (map[string]bool, error) {
 			allowed[filepath.ToSlash(filepath.Join(".codex", "agents", name))] = true
 		}
 	}
-	for _, name := range codexHookAssetNames {
+	// The retired completion hook scripts are no longer generated, but a
+	// manifest written before SPEC-PANERM-001 still records them, and Clean
+	// refuses a manifest that names a path outside this allowlist.
+	for _, name := range retiredCodexCompletionHookNames {
 		allowed[filepath.ToSlash(filepath.Join(".codex", "hooks", "autopus", name))] = true
 	}
 	rules, err := contentfs.FS.ReadDir("rules")

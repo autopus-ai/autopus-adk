@@ -9,6 +9,25 @@ import (
 	"strings"
 )
 
+// SetTransactionStepHookForTest installs hook as transactionStepHook and
+// returns a func that restores the previous hook; a nil hook clears the seam.
+// Only tests call it: internal/cli injects update faults through it (S12).
+func SetTransactionStepHookForTest(hook func(op, path string) error) (restore func()) {
+	var next *func(op, path string) error
+	if hook != nil {
+		next = &hook
+	}
+	previous := transactionStepHook.Swap(next)
+	return func() { transactionStepHook.Store(previous) }
+}
+
+func runTransactionStepHook(op, path string) error {
+	if hook := transactionStepHook.Load(); hook != nil {
+		return (*hook)(op, filepath.ToSlash(filepath.Clean(path)))
+	}
+	return nil
+}
+
 func rollbackJournal(root string, journal *TransactionJournal) error {
 	for i := len(journal.Entries) - 1; i >= 0; i-- {
 		if err := rollbackEntry(root, journal.Entries[i]); err != nil {

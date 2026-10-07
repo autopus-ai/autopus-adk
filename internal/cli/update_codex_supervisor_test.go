@@ -47,7 +47,6 @@ func TestUpdateCmdRepairsLegacyOrchestraBeforePersistingSupervisorInherit(t *tes
 	cfg.Orchestra.Providers["codex"] = config.ProviderEntry{
 		Binary:      "codex",
 		Args:        []string{"exec", "--sandbox", "workspace-write", "-m", config.CodexLegacyModel},
-		PaneArgs:    []string{"-m", config.CodexLegacyModel},
 		ModelPolicy: config.ProviderModelPolicyPinned,
 		Subprocess: config.SubprocessProvConf{
 			SchemaFlag: "--output-schema",

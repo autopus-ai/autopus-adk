@@ -104,7 +104,7 @@ func runProviderTransportSmoke(ctx context.Context, cfg *config.HarnessConfig, t
 
 	workingDir, _ := os.Getwd()
 	backend := providerSmokeBackendFactory(orchestra.OrchestraConfig{
-		Providers: set.Providers, SubprocessMode: true, ReadOnly: true, WorkingDir: workingDir,
+		Providers: set.Providers, ReadOnly: true, WorkingDir: workingDir,
 	})
 	results := make([]providerSmokeResult, 0, len(set.Providers))
 	for _, provider := range set.Providers {

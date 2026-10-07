@@ -1,6 +1,7 @@
 # SPEC-ORCH-008: Interactive 멀티턴 핑퐁 Debate + Hook 자동주입
 
 **Status**: completed
+**Superseded by SPEC-PANERM-001** (2026-10-07): the orchestra pane backend was retired; providers run as subprocesses or through OMP.
 **Created**: 2026-03-27
 **Domain**: ORCH
 **Extends**: SPEC-ORCH-007 (Hook 기반 멀티프로바이더 오케스트레이션)

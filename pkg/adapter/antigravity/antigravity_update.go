@@ -3,7 +3,6 @@ package antigravity
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -32,12 +31,8 @@ func (a *Adapter) Update(_ context.Context, cfg *config.HarnessConfig) (*adapter
 	}
 
 	plan, pf := a.buildUpdateTransactionPlan(oldManifest, newFiles)
-	rollbackHooks, err := applyAntigravityManagedHookAssets(a.root, antigravityManagedHookAssets(pf.Files))
-	if err != nil {
-		return nil, err
-	}
 	if _, err := adapter.ApplyTransaction(a.root, adapterName, plan); err != nil {
-		return nil, errors.Join(err, rollbackHooks())
+		return nil, err
 	}
 
 	return pf, nil
@@ -97,12 +92,6 @@ func (a *Adapter) prepareFiles(cfg *config.HarnessConfig) ([]adapter.FileMapping
 		files = append(files, agentMappings...)
 	}
 
-	completionHookAssets, err := prepareAntigravityCompletionHookAssets()
-	if err != nil {
-		return nil, err
-	}
-	files = append(files, completionHookAssets...)
-
 	settingsMappings, err := a.generateSettingsWithHooks(cfg)
 	if err != nil {
 		return nil, err
@@ -143,17 +132,15 @@ func (a *Adapter) buildUpdateTransactionPlan(
 	finalFiles := make([]adapter.FileMapping, 0, len(newFiles))
 	writes := make([]adapter.TransactionWrite, 0, len(newFiles))
 	for _, file := range newFiles {
-		if !isAntigravityManagedHookAsset(file) {
-			action := adapter.ResolveAction(a.root, file.TargetPath, file.OverwritePolicy, oldManifest)
-			if action == adapter.ActionSkip {
-				continue
-			}
-			writes = append(writes, adapter.TransactionWrite{
-				Path:    file.TargetPath,
-				Content: file.Content,
-				Perm:    antigravityFileMode(file.TargetPath),
-			})
+		action := adapter.ResolveAction(a.root, file.TargetPath, file.OverwritePolicy, oldManifest)
+		if action == adapter.ActionSkip {
+			continue
 		}
+		writes = append(writes, adapter.TransactionWrite{
+			Path:    file.TargetPath,
+			Content: file.Content,
+			Perm:    antigravityFileMode(file.TargetPath),
+		})
 		finalFiles = append(finalFiles, file)
 	}
 
@@ -164,10 +151,23 @@ func (a *Adapter) buildUpdateTransactionPlan(
 	}
 	diff := adapter.BuildManifestDiff(oldManifest, newFiles, PruneRoots())
 	diff.Prune = retainUserEditedPrunes(a.root, diff.Prune)
+	removes := adapter.TransactionRemovesFromManifestDiff(diff, false)
+	// Group S scripts (SPEC-PANERM-001) leave in the transaction that retracts
+	// their .agents/hooks.json and .gemini/settings.json handlers.
+	planned := make(map[string]bool, len(removes))
+	for _, remove := range removes {
+		planned[filepath.ToSlash(filepath.Clean(remove.Path))] = true
+	}
+	scripts := adapter.StaleCompletionHookScripts(adapterName)
+	for _, remove := range adapter.StaleCompletionScriptRemoves(a.root, scripts, writes) {
+		if !planned[remove.Path] {
+			removes = append(removes, remove)
+		}
+	}
 
 	return adapter.TransactionPlan{
 		Writes:   writes,
-		Removes:  adapter.TransactionRemovesFromManifestDiff(diff, false),
+		Removes:  removes,
 		Manifest: adapter.ManifestFromFiles(adapterName, pf),
 	}, pf
 }
@@ -209,16 +209,6 @@ func retainUserEditedPrunes(root string, entries []adapter.ManifestDiffEntry) []
 		kept = append(kept, entry)
 	}
 	return kept
-}
-
-func antigravityManagedHookAssets(files []adapter.FileMapping) []adapter.FileMapping {
-	assets := make([]adapter.FileMapping, 0, len(files))
-	for _, file := range files {
-		if isAntigravityManagedHookAsset(file) {
-			assets = append(assets, file)
-		}
-	}
-	return assets
 }
 
 func antigravityFileMode(path string) os.FileMode {

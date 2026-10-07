@@ -1,6 +1,7 @@
 # SPEC-ORCH-017: Hook-triggered Bidirectional File IPC
 
 **Status**: completed
+**Superseded by SPEC-PANERM-001** (2026-10-07): the orchestra pane backend was retired; providers run as subprocesses or through OMP.
 **Created**: 2026-03-29
 **Domain**: ORCH
 

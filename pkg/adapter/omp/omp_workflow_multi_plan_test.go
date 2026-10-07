@@ -17,8 +17,11 @@ func TestGeneratedOMPAutoPlanSkill_ExplicitMultiRunsOnePreAuthoringAdvisory(t *t
 	body := generatedOMPAutoPlanSkillForMultiTest(t)
 	planCalls := ompWorkflowCommandLinesForMultiTest(body, "auto orchestra plan ")
 	require.Len(t, planCalls, 1, "explicit --multi must issue exactly one plan advisory call")
-	assertOMPWorkflowFlagForMultiTest(t, planCalls[0], "--subprocess", "")
-	assertOMPWorkflowFlagForMultiTest(t, planCalls[0], "--no-detach", "")
+	// SPEC-PANERM-001 retired --subprocess and --no-detach: plan always runs
+	// synchronously through the subprocess backend.
+	for _, retired := range []string{"--subprocess", "--no-detach"} {
+		assert.NotContains(t, strings.Fields(planCalls[0]), retired)
+	}
 	assertOMPWorkflowFlagForMultiTest(t, planCalls[0], "--no-persist", "")
 	assertOMPWorkflowFlagForMultiTest(t, planCalls[0], "--format", "json")
 

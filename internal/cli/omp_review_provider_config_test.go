@@ -20,7 +20,7 @@ func TestProviderConfigFromEntry_MapsOMPReviewSettings(t *testing.T) {
 		Args:    []string{"legacy-provider-arg"},
 	}
 
-	got := providerConfigFromEntry("reviewer", entry, "")
+	got := providerConfigFromEntry("reviewer", entry)
 
 	assert.Equal(t, config.ProviderBackendOMP, got.Backend)
 	assert.Equal(t, "openai-codex/gpt-6-astra:max", got.Model)
@@ -31,33 +31,29 @@ func TestProviderConfigFromEntry_MapsOMPReviewSettings(t *testing.T) {
 
 	defaults := providerConfigFromEntry("reviewer", config.ProviderEntry{
 		Backend: config.ProviderBackendOMP, Model: "anthropic/model",
-	}, "")
+	})
 	assert.Equal(t, []string{"glob", "grep", "read"}, defaults.Tools)
 }
 
 func TestProviderConfigFromEntry_EmptyBackendPreservesLegacyMapping(t *testing.T) {
 	t.Parallel()
 	entry := config.ProviderEntry{
-		Binary:          "custom-cli",
-		Args:            []string{"--print"},
-		PaneArgs:        []string{"--interactive"},
-		ModelPolicy:     "user-pinned",
-		PromptViaArgs:   true,
-		WorkingPatterns: []string{"working"},
+		Binary:        "custom-cli",
+		Args:          []string{"--print"},
+		ModelPolicy:   "user-pinned",
+		PromptViaArgs: true,
 		Subprocess: config.SubprocessProvConf{
 			SchemaFlag: "--schema", StdinMode: "file", OutputFormat: "text", Timeout: 17,
 		},
 	}
 
-	got := providerConfigFromEntry("custom", entry, "args")
+	got := providerConfigFromEntry("custom", entry)
 
 	assert.Equal(t, orchestra.ProviderConfig{
 		Name: "custom", Binary: "custom-cli", Args: []string{"--print"},
-		PaneArgs: []string{"--interactive"}, ModelPolicy: "user-pinned",
-		PromptViaArgs: true, InteractiveInput: "args",
+		ModelPolicy: "user-pinned", PromptViaArgs: true,
 		StartupTimeout: resolveProviderStartupTimeout("custom"), ExecutionTimeout: 17 * time.Second,
-		WorkingPatterns: []string{"working"}, SchemaFlag: "--schema",
-		StdinMode: "file", OutputFormat: "text",
+		SchemaFlag: "--schema", StdinMode: "file", OutputFormat: "text",
 	}, got)
 }
 

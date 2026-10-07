@@ -12,7 +12,7 @@ import (
 
 // RunOrchestra executes orchestration according to the given config.
 // @AX:ANCHOR: [AUTO] public API — 4 callers; do not change signature
-// @AX:REASON: CLI, pane fallback, spec-review loop, and tests rely on the result/error contract and degraded-provider propagation.
+// @AX:REASON: CLI, spec-review loop, and tests rely on the result/error contract and degraded-provider propagation.
 func RunOrchestra(ctx context.Context, cfg OrchestraConfig) (*OrchestraResult, error) {
 	if err := validateOrchestraProviderConfig(cfg); err != nil {
 		return nil, err
@@ -28,14 +28,6 @@ func RunOrchestra(ctx context.Context, cfg OrchestraConfig) (*OrchestraResult, e
 	}
 	if result, err := preflightJudgeFamilySeparation(cfg); err != nil {
 		return result, err
-	}
-
-	// Delegate to pane runner for non-plain terminals (REQ-007 shared predicate).
-	// recheck is excluded from that wrapper only because it fans providers out
-	// one round each; recheck still runs in panes when the terminal supports
-	// them — runRecheck selects the pane transport itself.
-	if paneCapable(cfg.Terminal, cfg.SubprocessMode) && cfg.Strategy != StrategyRecheck {
-		return RunPaneOrchestra(ctx, cfg)
 	}
 
 	timeoutCtx, cancel := context.WithTimeout(ctx, orchestrationTimeout(cfg))

@@ -4,7 +4,6 @@
 
 - Pane reachability at B and the remaining `pkg/orchestra` branches: `plan.md` statement classification (verified_fact).
 - Consumers outside group P at B: 29 production files (declarations included) and 89 test files, 35 of them pane tests.
-- Receipts: `orchestraCLIOutput` (`orchestra_receipt_output.go:18-22`), `ProviderRunReceipt` (`run_receipt.go:18-30`), spec review `executed_backend` (`pkg/spec/types.go:161`).
 
 ## Plan Intent Ledger
 
@@ -28,9 +27,8 @@ Carried from `prd.md` (Discovery Q&A). Cells are untrusted evidence, summarized;
   or through OMP; A34 workspaces upgrade without edits: config loads, `auto update` rewrites it without group K and
   retracts only managed completion hooks, installed skills passing `--no-detach` keep working, doctor warns then passes.
 - Mandatory requirements: REQ-01–REQ-18 (`spec.md`).
-- Explicit non-goals: `pkg/terminal` and its API, `auto terminal`, Agent Teams panes, the OMP backend, subprocess engine
-  semantics (SPEC-ORCH-019, SPEC-ORCH-024), the read-only policy (SPEC-REVIEWRO-001), a live-progress UI, removing the
-  shims, editing user-level settings files.
+- Explicit non-goals: `pkg/terminal` and its API, `auto terminal`, Agent Teams panes, OMP, subprocess engine semantics
+  (ORCH-019, ORCH-024), the read-only policy (REVIEWRO-001), a progress UI, removing the shims, user-level settings.
 - Completion evidence: Must scenarios S1–S19 pass; RFP-1 operator receipt before W1; RFP-2, RFP-3 PASS; the T2
   baselines are not exceeded; touched packages ≥85% coverage; every source file ≤300 lines.
 
@@ -38,9 +36,8 @@ Carried from `prd.md` (Discovery Q&A). Cells are untrusted evidence, summarized;
 
 ```mermaid
 flowchart TD
-  A1[before: auto orchestra / spec review] --> B1{paneCapable?}
-  B1 -. unreachable: 7c781509 backend, 16b50216 detach .-> P1[pane backend: surfaces, screen reads, hook IPC, detach]
-  B1 --> S1[SubprocessBackend or OMP route]
+  A1[before: auto orchestra / spec review] -. unreachable: 7c781509, 16b50216 .-> P1[pane backend: surfaces, screen reads, hook IPC, detach]
+  A1 --> S1[SubprocessBackend or OMP route]
   A2[after: auto orchestra / spec review] --> S2[SubprocessBackend]
   A2 -- backend: omp --> O2[OMP backend]
   L[legacy autopus.yaml] --> D{decodeStrict: removedConfigKeys, providers.* wildcard}
@@ -62,13 +59,12 @@ Removal sequencing: `plan.md` Visual Planning Brief. UX wireframe gate: not appl
 - D1 Delete, do not flag: a build tag or runtime flag keeps keys, hooks, tests, and docs alive for a dead path.
 - D2 Consumers first: W1 rewires consumers while declarations and tests exist; W2 deletes declarations, assets, and
   their tests in one commit; the census is a trial deletion in a scratch copy, so asset-name and constant users show up.
-- D3 PRD corrections: REVIEWRO-001 and SIGMABAND-001 are approved; the seven `--no-detach` sites are 11 files; A34
-  defaults emit P1; the hook-invoked loader is `auto check` (`check.go:68`); `checkMonitorCommands` stays (general
-  Monitor guard); `cc21_runtime.go` is TaskCreated runtime called from the root pre-run and stays (F-016);
-  `content/embed.go` embeds `hooks/*.sh` only, so the `.ts` exists only as a legacy orphan.
+- D3 PRD corrections: REVIEWRO-001, SIGMABAND-001 approved; `--no-detach` sits in 11 files; A34 defaults emit P1; the
+  hook loader is `auto check` (`check.go:68`); `checkMonitorCommands` and `cc21_runtime.go` stay (F-016); the `.ts` is
+  an orphan (`content/embed.go` embeds `hooks/*.sh` only).
 - D4 `config.Save` drops comments and reserved blocks (`loader.go:122-188`), so `auto update` prunes group K through a
   raw-node rewrite (F-017); OpenCode retraction accepts only what `validatePluginEntries` accepts (F-06).
-- D5 Notice scope is group K only. R1 billing stays open: RFP-1 gates W1 and needs operator confirmation.
+- D5 Notice scope is group K only. R1: T1 confirmed claude billing; codex and gemini stay open (S19).
 
 ## Minimality Decision Matrix
 
@@ -153,27 +149,31 @@ These are optional improvements and do not block sync completion.
 | `.claude/`, `.codex/`, `.gemini/`, `.agents/`, `.opencode/`, `.omp/` | generated (not source of truth) | regenerated only |
 | `[NEW]` files and fixtures listed in `spec.md` Retired Surface Inventory | [NEW] planned addition | excluded from existing-reference checks |
 
-## Verified Baselines
+## W0 Evidence
 
-- B = `16b50216`; `git diff --stat c447badc 16b50216 -- pkg/config pkg/orchestra pkg/adapter pkg/content content/hooks
-  templates/shared` is empty, so C1 equals B's defaults. `pkg/orchestra` at B: 139 non-test files, 17,945 physical
-  lines, 202 test files; group P 60 files, 8,732 lines.
-- deadcode: `~/go/bin/deadcode` (go1.26 build) fails on go1.27; v0.50.0 rebuilt offline reports 18 entries at
-  `7c781509`, 0 under `pkg/orchestra/` or `internal/cli/orchestra`; T2 re-runs it at B.
-- Overlay test (scratch file only): `DefaultFullConfig` emits exactly P1; C3 yields the S5 error text;
-  `workflow.team_default` prunes with a nil error. Installed layout and RFP-1 precheck: `plan.md` probe rows.
-- Revert anchor (REQ-20): B; pane execution became unreachable in `7c781509` (backend) and `16b50216` (detach).
+- Anchors: revert anchor B = `16b50216` (REQ-20); `7c781509` (backend) and `16b50216` (detach) made pane execution
+  unreachable; W0 ran on `60f92ea5` (B plus 14 REVIEWRO commits). `pkg/config` and `pkg/adapter` non-test code is
+  unchanged since `c447badc`, so C1 equals B's defaults and in-tree loads stand in for binary O until W2.
+- Tasks (`evidence/`): T1 RFP-1 PASS for claude in context (c), Max billing confirmed. T2 race 111 failing tests in 6
+  packages (host Codex catalog), deadcode 0 in scope, census 931 sites, S16 goldens in `internal/cli/testdata/panerm_s16`.
+  T3 C1-C7, C2', C2o, seven O workspaces; red oracles skip naming T8 or T11-T14 unless `AUTOPUS_PANERM_RED=1`.
+- Q4: keep. JSON stdout (`orchestra_receipt_output.go:18-22`, `run_receipt.go:18-35`) and `review-receipt.json` have no
+  pane-only key, only values (`backend` `pane`; `isolated_hook_session`, `judge_session_evidence.go:34-36`); `YieldOutput.panes`
+  (`yield.go:17-18`) and `launch_mode` (`reliability_receipt.go:24`) come only from group P (`interactive_debate.go:100,228`).
+- Q5: yes. `saveQualityScalar` (`quality_config.go:41-69`), `persistQualityProvider` (`quality_provider_config.go:39-76`)
+  rewrite one line, `replaceAutopusConfigSection` (`platform_omp_config.go:82-116`) re-encodes siblings: group K stays.
+- Q7 (one package at a time, empty `CODEX_HOME`, 0 failures): orchestra 91.4%, config 92.4, content 93.2, adapter 83.5,
+  antigravity 87.1, claude 88.7, codex 90.4, omp 88.5, opencode 88.4, internal/cli 83.2; adapter and cli miss 85% at B.
+- Q8: yes. Each `.sh` exits 0 before file or stdin access without `AUTOPUS_SESSION_ID` (`hook-claude-sessionstart.sh:5-8`;
+  probe: no stderr, no file; `hook-gemini-stop.sh:10-13` prints `{"decision":"stop"}`); the `.ts` exits at load
+  (`:18-19`), the `.tmpl` has no reader, and only group P sets the variable (`interactive.go:56`).
+- Q9: yes. `types.go:28-29,84-90` and `runner.go:26-27` stay; `orchestra.go:223` passes "" (no flag binds it),
+  `orchestra_run.go:206` passes `subprocess`, no key or receipt carries it, and only `pane_fallback.go:133,233` reads it.
 
 ## Reviewer Brief
 
-- Intended scope: retire the orchestra pane backend with zero-touch upgrades (REQ-01–REQ-18).
-- Explicit non-goals: Agent Teams panes, `pkg/terminal`, `auto terminal`, OMP, engine semantics, read-only policy, a
-  progress UI. Do not request team-pane changes.
-- R1 call-out: headless `claude -p` billing on a Max subscription is unverified; RFP-1 blocks W1 until an operator
-  confirms; B is the revert anchor.
-- Self-verified: traceability, invariants, oracle acceptance, `[NEW]` discipline, EARS via real `ParseEARS`, Review
-  Resolution (`spec.md`). Focus on: compat-contract correctness, retraction data safety, compile-safe wave order,
-  cross-SPEC ordering, Completion Debt only.
+- Intended scope: REQ-01–REQ-18 with zero-touch upgrades; R1 stays open for codex and gemini (S19); B is the anchor.
+- Explicit non-goals: Outcome Lock; no team-pane changes. Focus: compat contract, retraction safety, wave order, CD.
 
 ## Self-Verify Summary
 
@@ -198,3 +198,11 @@ These are optional improvements and do not block sync completion.
 - Q-SEC-01 | status: PASS | attempt: 1 | files: research.md | reason: ledger and source clauses treated as untrusted evidence
 - Q-SEC-02 | status: PASS | attempt: 3 | files: spec.md, acceptance.md | reason: REQ-17 keeps read-only rejection for plan and brainstorm (F-018)
 - Q-SEC-03 | status: PASS | attempt: 1 | files: plan.md | reason: RFP-1 receipt redacted; no new persistent artifact
+
+## Group I Final List (T7)
+
+The working list in `spec.md` plus the exported declarations of the deleted `pkg/orchestra` code (W2 T7: the 60
+group P files, `BuildYieldOutput`, and the pane-only accessors removed from `types.go` and `provider_patterns.go`).
+In `internal/cli` these names match as `orchestra.<name>` selectors.
+
+`BuildYieldOutput`, `CleanRoundSignals`, `CleanScreenForCrossPollination`, `CleanupStaleJobs`, `CompletionDetector`, `CompletionPattern`, `DefaultCompletionPatterns`, `DefaultHookProviders`, `DefaultPromptPatterns`, `DefaultStartupHookProviders`, `HookInput`, `HookResult`, `HookResultToProviderResponse`, `IdleThreshold`, `Job`, `JobStatus`, `JobStatusDone`, `JobStatusError`, `JobStatusPartial`, `JobStatusRunning`, `JobStatusTimeout`, `LoadJob`, `LoadSession`, `NewCompletionDetector`, `NewCompletionDetectorWithConfig`, `NewHookSession`, `NewSignalEmitter`, `NewSurfaceManager`, `NewWarmPool`, `OrchestraSession`, `ReapOrphanSurfaces`, `RemoveSession`, `ResolveSessionTerminal`, `ResolveSessionTerminalWithWorkspace`, `RoundSignalName`, `SaveSession`, `SendRoundEnvToPane`, `SendSessionEnvToPane`, `SessionProviderConfig`, `SessionProviderResponse`, `SessionReadyPatterns`, `SetRoundEnv`, `SignalDetector`, `SignalEmitter`, `SurfaceManager`, `UpdateSession`, `WaitAndCollectHookResults`, `WarmPool`

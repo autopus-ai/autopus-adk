@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/insajin/autopus-adk/pkg/terminal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -14,12 +13,9 @@ import (
 func TestRunOrchestra_SubprocessDebateProjectsVerifiedFreshJudgeEvidence(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		name           string
-		terminal       terminal.Terminal
-		subprocessMode bool
+		name string
 	}{
-		{name: "plain terminal", terminal: &terminal.PlainAdapter{}},
-		{name: "forced subprocess", subprocessMode: true},
+		{name: "forced subprocess"},
 	}
 
 	for _, tt := range tests {
@@ -35,8 +31,6 @@ func TestRunOrchestra_SubprocessDebateProjectsVerifiedFreshJudgeEvidence(t *test
 				TimeoutSeconds: 10,
 				JudgeProvider:  judge.Name,
 				JudgeConfig:    &judge,
-				Terminal:       tt.terminal,
-				SubprocessMode: tt.subprocessMode,
 			}
 
 			result, err := RunOrchestra(context.Background(), cfg)
@@ -83,7 +77,6 @@ func TestRunOrchestra_SubprocessJudgeResumeArgsFailClosedBeforeDispatch(t *testi
 				TimeoutSeconds: 10,
 				JudgeProvider:  judge.Name,
 				JudgeConfig:    &judge,
-				SubprocessMode: true,
 			}
 
 			result, err := RunOrchestra(context.Background(), cfg)
@@ -149,7 +142,6 @@ func TestFinalizeDebateOutcome_InvalidFreshJudgeEvidenceBlocksPassedJudge(t *tes
 		Providers:        []ProviderConfig{{Name: "debater"}},
 		Strategy:         StrategyDebate,
 		JudgeProvider:    "judge",
-		SubprocessMode:   true,
 		MinimumProviders: 1,
 	}
 

@@ -1319,7 +1319,7 @@ auto sync verify --spec SPEC-HOOK-001 --strict
 
 프로바이더: **Claude** · **Codex** · **Gemini** · **OpenCode** — 그레이스풀 디그레이드 지원.
 
-**인터랙티브 토론**을 실시간 창 시각화(cmux/tmux)로. **훅 기반 결과 수집**으로 구조화된 JSON 출력. Context7 문서 불가 시 **WebSearch 폴백**.
+모든 프로바이더는 headless subprocess로(또는 `backend: omp` 프로바이더는 OMP로) 실행되며, 각 명령은 모든 라운드를 동기적으로 마친 뒤 결과를 직접 출력합니다. Context7 문서 불가 시 **WebSearch 폴백**.
 
 ---
 
@@ -1338,7 +1338,7 @@ auto sync verify --spec SPEC-HOOK-001 --strict
 | `auto arch` | 아키텍처 분석 (generate / enforce) |
 | `auto spec` | SPEC 관리 (new / validate / review / gates — exact-input 증거 재사용을 포함한 gate applicability receipt) |
 | `auto lore` | 의사결정 추적 (context / commit / validate / stale) |
-| `auto orchestra` | 멀티 모델 오케스트레이션 (review / plan / secure / brainstorm / job-status / job-wait / job-result) |
+| `auto orchestra` | 멀티 모델 오케스트레이션 (brainstorm / plan / review / secure / run) |
 | `auto setup` | 프로젝트 컨텍스트 문서 (generate / update / validate / status) |
 | `auto status` | SPEC 대시보드 (done / in-progress / draft) |
 | `auto telemetry` | 파이프라인 텔레메트리 (record / summary / cost / compare / leadtime — first-slice·critical-path 리드타임과 baseline 회귀 게이트) |
@@ -1470,7 +1470,7 @@ autopus-adk/
 │   ├── issue/          # 자동 이슈 리포터 (컨텍스트 수집, 정제)
 │   ├── lore/           # 의사결정 추적 (9-trailer 프로토콜)
 │   ├── lsp/            # LSP 연동
-│   ├── orchestra/      # 멀티 모델 오케스트레이션 (전략 4개 + brainstorm + 인터랙티브 토론 + 훅)
+│   ├── orchestra/      # 멀티 모델 오케스트레이션 (전략 4개 + brainstorm + 토론 judge, subprocess·OMP 실행)
 │   ├── pipeline/       # 파이프라인 상태 지속성 + 체크포인트 + 팀 모니터
 │   ├── search/         # 지식 검색 (Context7/Exa) + 해시 기반 검색
 │   ├── selfupdate/     # CLI 바이너리 자동 업데이트 (게시자 서명, SHA256, 트랜잭션 교체)

@@ -521,18 +521,6 @@ Phase 1.8: Doc Fetch
 
 Context7 MCP → WebSearch fallback → skip (never blocks pipeline). Adaptive token budget: 1 lib → 5000 tokens, 5 libs → 2000 tokens each.
 
-### 🔌 Hook-Based Result Collection
-
-Instead of scraping terminal output, Autopus uses each provider's native hook system to collect structured JSON results.
-
-| Provider | Hook Type | How |
-|----------|-----------|-----|
-| Claude Code | Stop hook | Extracts `last_assistant_message` |
-| Antigravity CLI | AfterAgent hook | Extracts `prompt_response` |
-| OpenCode | Plugin | Extracts `text` field |
-
-Fallback: providers without hooks use ReadScreen + idle detection (SPEC-ORCH-006).
-
 ### 🔧 More Power Tools
 
 | Feature | Command | What It Does |
@@ -1440,7 +1428,7 @@ Every review scores across 5 dimensions:
 
 Providers: **Claude** · **Codex** · **Gemini** · **OpenCode** — with graceful degradation.
 
-**Interactive debate** with real-time pane visualization (cmux/tmux). **Hook-based result collection** for structured JSON output. **WebSearch fallback** when Context7 docs are unavailable.
+Every provider runs as a headless subprocess (or through OMP for a `backend: omp` provider), and each command runs all rounds synchronously and prints its result directly. **WebSearch fallback** when Context7 docs are unavailable.
 
 ---
 
@@ -1459,7 +1447,7 @@ Providers: **Claude** · **Codex** · **Gemini** · **OpenCode** — with gracef
 | `auto arch` | Architecture analysis (generate / enforce) |
 | `auto spec` | SPEC management (new / validate / review / gates — gate applicability receipt with exact-input evidence reuse) |
 | `auto lore` | Decision tracking (context / commit / validate / stale) |
-| `auto orchestra` | Multi-model orchestration (review / plan / secure / brainstorm / job-status / job-wait / job-result) |
+| `auto orchestra` | Multi-model orchestration (brainstorm / plan / review / secure / run) |
 | `auto setup` | Project context documents (generate / update / validate / status) |
 | `auto status` | SPEC dashboard (done / in-progress / draft) |
 | `auto telemetry` | Pipeline telemetry (record / summary / cost / compare / leadtime — first-slice and critical-path lead time with baseline regression gate) |
@@ -1591,7 +1579,7 @@ autopus-adk/
 │   ├── issue/          # Auto issue reporter (context collection, sanitization)
 │   ├── lore/           # Decision tracking (9-trailer protocol)
 │   ├── lsp/            # LSP integration
-│   ├── orchestra/      # Multi-model orchestration (4 strategies + brainstorm + interactive debate + hooks)
+│   ├── orchestra/      # Multi-model orchestration (4 strategies + brainstorm + debate judge, subprocess and OMP backends)
 │   ├── pipeline/       # Pipeline state persistence + checkpoint + team monitor
 │   ├── search/         # Knowledge search (Context7/Exa) + hash-based search
 │   ├── selfupdate/     # CLI binary self-update (publisher signature, SHA256, transactional replace)

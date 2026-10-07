@@ -19,16 +19,14 @@ const (
 )
 
 type reliabilityStore struct {
-	runID       string
-	dir         string
-	mu          sync.Mutex
-	degraded    bool // set once when receipt persistence first fails (REQ-005)
-	preflight   []ProviderPreflightReceipt
-	prompt      []PromptTransportReceipt
-	collection  []CollectionReceipt
-	events      []ReliabilityEvent
-	recovery    []PaneRecoveryTransition
-	recoverySeq uint64
+	runID      string
+	dir        string
+	mu         sync.Mutex
+	degraded   bool // set once when receipt persistence first fails (REQ-005)
+	preflight  []ProviderPreflightReceipt
+	prompt     []PromptTransportReceipt
+	collection []CollectionReceipt
+	events     []ReliabilityEvent
 }
 
 func newReliabilityStore(runID string) (*reliabilityStore, error) {
@@ -150,55 +148,20 @@ func (s *reliabilityStore) recordEvent(event ReliabilityEvent) string {
 	return s.writeJSON(fmt.Sprintf("event-%s-%s.json", sanitizeProviderName(event.Kind), sanitizeProviderName(event.Correlation.ProviderID)), event)
 }
 
-// @AX:NOTE: [AUTO] recovery sequence increments under the store mutex and prefixes artifact names to preserve bundle order
-func (s *reliabilityStore) recordRecoveryTransition(
-	provider string,
-	round int,
-	attempt int,
-	stage string,
-	status string,
-	failureCode string,
-) string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.recoverySeq++
-	transition := PaneRecoveryTransition{
-		SchemaVersion: reliabilitySchemaVersion,
-		Timestamp:     time.Now().UTC(),
-		Correlation:   roundCorrelation(s.runID, provider, round, attempt),
-		Provider:      provider,
-		Sequence:      s.recoverySeq,
-		Stage:         stage,
-		Status:        status,
-		FailureCode:   failureCode,
-	}
-	s.recovery = append(s.recovery, transition)
-	return s.writeJSON(fmt.Sprintf(
-		"recovery-%06d-%s-%s-%s-%s-%s.json",
-		transition.Sequence,
-		sanitizeProviderName(provider),
-		sanitizeProviderName(transition.Correlation.RoundID),
-		sanitizeProviderName(transition.Correlation.AttemptID),
-		sanitizeProviderName(stage),
-		sanitizeProviderName(status),
-	), transition)
-}
-
 func (s *reliabilityStore) writeFailureBundle(summary, nextStep string, degraded bool) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	bundle := FailureBundle{
-		SchemaVersion:       reliabilitySchemaVersion,
-		Timestamp:           time.Now().UTC(),
-		RunID:               s.runID,
-		Degraded:            degraded,
-		Summary:             summary,
-		NextStep:            nextStep,
-		PreflightReceipts:   append([]ProviderPreflightReceipt(nil), s.preflight...),
-		PromptReceipts:      append([]PromptTransportReceipt(nil), s.prompt...),
-		CollectionReceipts:  append([]CollectionReceipt(nil), s.collection...),
-		Events:              append([]ReliabilityEvent(nil), s.events...),
-		RecoveryTransitions: append([]PaneRecoveryTransition(nil), s.recovery...),
+		SchemaVersion:      reliabilitySchemaVersion,
+		Timestamp:          time.Now().UTC(),
+		RunID:              s.runID,
+		Degraded:           degraded,
+		Summary:            summary,
+		NextStep:           nextStep,
+		PreflightReceipts:  append([]ProviderPreflightReceipt(nil), s.preflight...),
+		PromptReceipts:     append([]PromptTransportReceipt(nil), s.prompt...),
+		CollectionReceipts: append([]CollectionReceipt(nil), s.collection...),
+		Events:             append([]ReliabilityEvent(nil), s.events...),
 	}
 	return s.writeJSON("failure-bundle.json", bundle)
 }

@@ -1,0 +1,125 @@
+{
+  "schema": "orchestration_cli_result.v1",
+  "merged": "\n## 이견이 있는 내용\n△ {\"verdict\":\"PASS\",\"summary\":\"fake claude answer\",\"findings\":[],\"recommendation\":\"fake claude answer\"} [claude]\n△ {\"verdict\":\"PASS\",\"summary\":\"fake codex answer\",\"findings\":[],\"recommendation\":\"fake codex answer\"} [codex]",
+  "receipt": {
+    "schema": "orchestration_run_receipt.v1",
+    "run_id": "<volatile>",
+    "route_id": "orchestra:consensus",
+    "route_version": "orchestra-route.v1",
+    "requested_strategy": "consensus",
+    "effective_strategy": "consensus",
+    "requested_providers": [
+      "claude",
+      "codex"
+    ],
+    "configured_providers": [
+      "claude",
+      "codex"
+    ],
+    "resolved_providers": [
+      "claude",
+      "codex"
+    ],
+    "attempted_providers": [
+      "claude",
+      "codex"
+    ],
+    "usable_providers": [
+      "claude",
+      "codex"
+    ],
+    "failed_providers": null,
+    "degraded_reasons": null,
+    "critical_veto": false,
+    "analysis_verdict": "pass",
+    "gate_status": "passed",
+    "terminal_state": "completed",
+    "judge_status": "not_requested",
+    "dispatch_count": 2,
+    "quorum_required": 2,
+    "quorum_met": true,
+    "quorum_usable": 2,
+    "attempts": 1,
+    "consensus_metrics": {
+      "total_claims": 2,
+      "agreed_claims": 0,
+      "dissent_claims": 2,
+      "agreement_ratio": 0,
+      "critical_veto": false
+    },
+    "provider_receipts": [
+      {
+        "provider": "claude",
+        "role": "participant",
+        "attempt": 1,
+        "backend": "subprocess",
+        "model_family": "anthropic",
+        "exit_code": 0,
+        "timed_out": false,
+        "usable": true,
+        "command": [
+          "claude",
+          "--print",
+          "--model",
+          "claude-fable-5-1",
+          "--effort",
+          "max",
+          "--permission-mode",
+          "plan",
+          "--safe-mode",
+          "--no-session-persistence",
+          "--disable-slash-commands",
+          "--strict-mcp-config",
+          "--tools=Read,Grep,Glob"
+        ],
+        "cwd": "<root>",
+        "pid": "<volatile>",
+        "sandbox_mode": "read-only",
+        "started_at": "<volatile>",
+        "ended_at": "<volatile>"
+      },
+      {
+        "provider": "codex",
+        "role": "participant",
+        "attempt": 1,
+        "backend": "subprocess",
+        "model_family": "openai",
+        "exit_code": 0,
+        "timed_out": false,
+        "usable": true,
+        "command": [
+          "codex",
+          "exec",
+          "--json",
+          "--sandbox",
+          "read-only",
+          "-m",
+          "gpt-6-astra",
+          "-c",
+          "model_reasoning_effort=\"max\"",
+          "--ephemeral",
+          "--ignore-user-config",
+          "--ignore-rules",
+          "--output-last-message",
+          "<tmpdir>/codex-last-message-<n>.txt"
+        ],
+        "cwd": "<root>",
+        "pid": "<volatile>",
+        "sandbox_mode": "read-only",
+        "started_at": "<volatile>",
+        "ended_at": "<volatile>"
+      }
+    ],
+    "worker_receipts": [],
+    "artifacts": null,
+    "transitions": [
+      {
+        "sequence": 1,
+        "state": "completed",
+        "analysis_verdict": "pass",
+        "gate_status": "passed"
+      }
+    ]
+  }
+}
+

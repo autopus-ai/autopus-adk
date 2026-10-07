@@ -55,6 +55,36 @@ func (a *Adapter) renderConfigDocument(extraPlugins []string) (string, error) {
 	return string(data) + "\n", nil
 }
 
+// retractStaleCompletionPlugins rewrites the opencode.json mapping of an
+// update without the plugin entries that load a group S script and returns
+// those scripts, so the same transaction can delete them (SPEC-PANERM-001
+// REQ-13). Only Update calls it: Generate and InjectOrchestraPlugin keep the
+// entries, and the next update retracts them together with their scripts.
+func (a *Adapter) retractStaleCompletionPlugins(files []adapter.FileMapping) ([]string, error) {
+	for i := range files {
+		if filepath.ToSlash(files[i].TargetPath) != configFile {
+			continue
+		}
+		var doc map[string]any
+		if err := json.Unmarshal(files[i].Content, &doc); err != nil {
+			return nil, fmt.Errorf("%s 파싱 실패: %w", configFile, err)
+		}
+		scripts, err := retractStalePluginEntries(doc, a.isV2(), a.root)
+		if err != nil || len(scripts) == 0 {
+			return nil, err
+		}
+		data, err := json.MarshalIndent(doc, "", "  ")
+		if err != nil {
+			return nil, fmt.Errorf("%s 직렬화 실패: %w", configFile, err)
+		}
+		content := string(data) + "\n"
+		files[i].Content = []byte(content)
+		files[i].Checksum = adapter.Checksum(content)
+		return scripts, nil
+	}
+	return nil, nil
+}
+
 func managedPluginPaths(extraPlugins []string) []string {
 	base := []string{toSlash(filepath.Join(".opencode", "plugins", "autopus-hooks.js"))}
 	return uniqueStrings(base, extraPlugins)

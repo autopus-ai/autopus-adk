@@ -1,0 +1,90 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "auto react check --quiet",
+            "statusMessage": "Running Autopus hook",
+            "timeout": 60,
+            "type": "command"
+          }
+        ],
+        "matcher": "Bash"
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "auto check --hygiene --arch --quiet --staged --warn-only",
+            "statusMessage": "Running Autopus hook",
+            "timeout": 30,
+            "type": "command"
+          }
+        ],
+        "matcher": "Bash"
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "command": "./scripts/user-start.sh",
+            "timeout": 10,
+            "type": "command"
+          }
+        ],
+        "matcher": "user-sessionstart"
+      },
+      {
+        "hooks": [
+          {
+            "command": "\"$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.codex/hooks/autopus/hook-codex-sessionstart.sh\"",
+            "statusMessage": "Running Autopus hook",
+            "timeout": 60,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "command": "./scripts/user-stop.sh",
+            "timeout": 10,
+            "type": "command"
+          }
+        ],
+        "matcher": "user-stop"
+      },
+      {
+        "hooks": [
+          {
+            "command": "\"$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.codex/hooks/autopus/hook-codex-stop.sh\"",
+            "statusMessage": "Running Autopus hook",
+            "timeout": 300,
+            "type": "command"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "command": "\"$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.codex/hooks/autopus/hook-codex-stop.sh\"",
+            "statusMessage": "Running Autopus hook",
+            "timeout": 300,
+            "type": "command"
+          },
+          {
+            "command": "./scripts/notify.sh",
+            "timeout": 10,
+            "type": "command"
+          }
+        ],
+        "matcher": "mixed"
+      }
+    ]
+  }
+}

@@ -30,6 +30,91 @@ All notable changes to this project will be documented in this file.
   - 데몬이나 스케줄러는 없다. cron이나 `/auto schedule`로 주기 실행한다. 파일, 이유 코드,
     초기화 방법은 `docs/health-band.md`에 있다.
 
+- **orchestra pane backend 은퇴** (2026-10-07, SPEC-PANERM-001): `auto orchestra`(brainstorm,
+  plan, review, secure, run, recheck 전략)와 `auto spec review`는 모든 provider를 subprocess로,
+  `backend: omp` provider는 OMP로 실행한다. 터미널 pane을 열거나 화면을 읽거나 입력을 보내거나
+  detach job을 만들지 않는다. pane 실행은 `7c781509`(모든 orchestra 명령의 subprocess 강제)와
+  `16b50216`(마지막 detach 분기 제거)부터 CLI에서 닿을 수 없었고, 이번 변경은 남은 코드, 설정
+  키, hook, 지침을 지운다. 되돌릴 기준점(revert anchor)은 B = `16b50216`이다. pane launch가
+  붙이던 `--dangerously-skip-permissions`와 권한 프롬프트 자동 응답도 함께 사라지고, provider
+  설정의 args는 그대로 전달된다.
+  - 은퇴한 플래그 4개는 숨은 no-op으로 남는다: `--no-detach`(brainstorm, plan, review, secure),
+    `--subprocess`(brainstorm, plan, run, spec review), `--plain`(spec review), `--yield-rounds`
+    (brainstorm). `--help`에서 빠지고 provider argv, stdout, stderr, exit code는 플래그가 없을 때와
+    같다. `--yield-rounds`만 stderr에 `auto: warning: --yield-rounds was retired with the
+    orchestra pane backend (SPEC-PANERM-001); all rounds run synchronously`를 한 번 쓰고 모든
+    라운드를 동기로 돈다. 이주: 호출에서 플래그를 지운다. 이전 skill이 넘겨도 계속 동작한다.
+  - 은퇴한 하위 명령 6개 `auto orchestra collect`, `inject`, `cleanup`, `status`, `wait`, `result`는
+    인자, 플래그와 상관없이 root pre-run 없이 `Error: auto orchestra <name> was retired with the
+    orchestra pane backend (SPEC-PANERM-001); orchestra commands now run synchronously and print
+    their result directly`로 exit 1이 되고 아무것도 건드리지 않는다. `auto orchestra --help`에도
+    없다. 이주: job id를 기다리거나 모으지 말고 orchestra 명령의 `--format json` stdout을 바로 읽는다.
+  - 은퇴한 `autopus.yaml` 키 5개: `orchestra.providers.*.pane_args`,
+    `orchestra.providers.*.interactive_input`, `orchestra.providers.*.working_patterns`,
+    `orchestra.subprocess.enabled`, `features.cc21.monitor_pattern_timeout_ms`(`*`는 provider 이름
+    하나). 로드는 값을 무시하고, stderr가 터미널이면 `auto: warning: ignored removed autopus.yaml
+    keys: <paths>; the orchestra pane backend was retired (SPEC-PANERM-001); run "auto update" or
+    delete the keys`를 프로세스당 한 번 쓴다(`--quiet`이면 생략, stdout과 exit code는 그대로). 그 밖의
+    모르는 키는 여전히 strict-decode 오류다. `config.Save`, `auto quality supervisor`, `auto quality
+    provider`, OMP profile apply, platform 이름 정규화 rewrite는 이 키를 다시 쓰지 않고, 새 기본
+    설정(`auto init`, `configs/autopus.yaml`)도 내지 않는다. 이주: `auto update`가 주석, env
+    placeholder, `future_extension`·`operator_extension` 블록을 지키는 raw-node rewrite로 키를 지운다.
+  - 기본 entry 판정: 은퇴한 키만 다른 provider entry는 이제 기본 entry와 같다. B와 판정이 달라진
+    경우는 6개다. (1) claude `args: [--print, --model, my-model]`에 `pane_args`만 더한 entry는 args를
+    그대로 두고 B처럼 다시 쓰지 않는다. (2) historical canonical codex args에 사용자 `pane_args`를 단
+    entry, (3) v0.50.66 auto-pinned codex args에 사용자 `pane_args`를 단 entry, (4) `pane_args`만,
+    (5) `working_patterns`만, (6) `interactive_input`만 가진 표식 없는 codex entry는 B의 update가
+    pane 키 때문에 사용자 entry로 보고 `model_policy: pinned`로 두던 것(gpt-5.5, 또는 args 없음)이
+    이제 `auto update`에서 managed quality policy(`exec --json --sandbox workspace-write -m <Codex
+    astra 모델> -c model_reasoning_effort="max"`)로 올라간다. 이 entry들의 subprocess 모델 값은
+    사용자가 고른 것이 아니라 하네스가 쓴 기본값(historical canonical args, v0.50.66 auto-pin, 또는
+    args 없음)이지만, update 뒤 codex 모델과 effort가 B와 달라지므로 비용도 달라진다. 사용자가 고른
+    모델(사용자 args, 또는 `model_policy: pinned`와 사용자 args)은 B처럼 그대로다. B의 update를 이미
+    거친 파일은 B가 써 둔 `model_policy: pinned` 때문에 (2), (4)~(6)이 바뀌지 않고, v0.50.66
+    auto-pin 값이 그대로인 (3)만 올라간다. 이주: B처럼 gpt-5.5에 머물려면 update 전에 그 entry에
+    `model_policy: pinned`를 쓰고, (3)은 args를 v0.50.66 값(`exec --sandbox workspace-write -m
+    gpt-5.5`)과 다르게 바꾼다.
+  - hook: orchestra completion·ready hook을 더 생성하지 않고 group H 자산 9개
+    (`content/hooks/hook-claude-sessionstart.sh`, `hook-claude-stop.sh`, `hook-codex-sessionstart.sh`,
+    `hook-codex-stop.sh`, `hook-gemini-sessionstart.sh`, `hook-gemini-stop.sh`,
+    `hook-gemini-afteragent.sh`, `hook-opencode-complete.ts`, `templates/hooks/completion-hook.sh.tmpl`)를
+    지운다. 이주: `auto update`가 각 플랫폼의 update transaction 안에서 설치된 사본과 그 handler만
+    회수한다. claude-code는 `.claude/settings.json` Stop·SessionStart handler와
+    `.claude/hooks/autopus/`의 스크립트 7개, 레거시 `hook-opencode-complete.ts`; codex는
+    `.codex/hooks.json` handler와 `.codex/hooks/autopus/` 스크립트 2개; antigravity-cli는
+    `.agents/hooks.json` Stop·`.gemini/settings.json` AfterAgent handler와 `.gemini/hooks/autopus/`
+    스크립트 2개; opencode는 그 `.ts`를 부르는 `opencode.json` plugin entry다. 회수 단위는 handler라서
+    같은 entry의 사용자 handler는 command, matcher, timeout, 순서를 지킨다. 다른 설정 파일이 아직
+    부르는 스크립트는 남기고, `effectivePluginConfig`가 거부한 `opencode.json`은 다시 쓰지 않는다.
+    user-level 설정(`~/.claude/settings.json` 등)과 `.claude/settings.local.json`은 고치지 않고,
+    그 파일이 아직 부르는 스크립트도 남긴다. handler가 생성된 실행 형태 그대로이거나 경로 하나뿐일
+    때만 회수하고, `;`, `&&`, `||`, `|`, `$(`, backtick 같은 셸 연산자나 인터프리터·인자가 붙은
+    사용자 command는 스크립트와 함께 남긴다. 단, claude·codex 설정의 기존(B부터의) 접두 규칙은
+    생성 경로로 시작하는 복합 command(예: `.../hook-claude-stop.sh && ./audit.sh`)를 여전히 회수한다. 두 번째 update는 회수할 것이 없어 stale hook과 그
+    handler를 더 바꾸지 않는다. transaction이 다시 쓰는 파일은 기존 권한(예: 0600 `opencode.json`)을
+    유지한다.
+  - `auto doctor`(text, `--json`)는 `doctor.legacy_orchestra_config`(`legacy orchestra keys:
+    <paths>`)와 `doctor.stale_completion_hooks`(`stale completion hooks: <file> <event> <script>,
+    ...` 뒤에 스크립트 경로)를 남은 멤버가 있으면 warn과 remedy `run "auto update"`로, 없으면 pass로
+    보고한다. 로드와 update가 쓰는 판정 함수를 그대로 쓰고 설정된 플랫폼만 보므로 update가 지우는
+    집합을 보여 준다. user-level 설정의 stale handler는 advisory
+    `doctor.stale_completion_hooks.user_level`로, `.claude/settings.local.json`의 stale handler는
+    advisory `doctor.stale_completion_hooks.local`로 따로 알린다. 사용자 파일에서 온 provider
+    이름과 event 이름은 터미널 제어 문자를 escape해서 출력한다.
+  - 은퇴한 키를 지우는 raw rewrite는 그 키 아래에 YAML anchor가 있으면 경로와 anchor를 밝힌
+    오류로 거부한다(다시 파싱하면 뒤의 alias가 앞의 같은 이름 anchor로 다시 묶여, 버린 값 대신
+    다른 argv가 살아날 수 있다). 이주: anchor를 남는 키로 옮기거나 그 키를 손으로 지운다. rewrite
+    결과는 alias가 가리키는 값까지 원래와 같고 `config.Load`가 읽을 수 있을 때만 쓴다. inline merge
+    (`<<: {pane_args: [...]}`) 안의 은퇴 키도 B처럼 로드되고 지워지며, 같은 은퇴 키가 한 mapping에
+    두 번 있으면 B처럼 duplicate-key 오류다. 한계: 줄 단위로 지울 수 없는 entry(flow mapping 등)가
+    있으면 문서 전체를 다시 encode해 blank line과 들여쓰기 폭이 바뀐다.
+  - `auto spec review`가 pane을 띄울 수 있는 터미널에서 한 번 출력하던 `spec review: read-only
+    review runs providers in subprocess mode` 안내는 은퇴했다. 이제 모든 터미널에서 같은 read-only
+    subprocess 실행이라 알릴 차이가 없다.
+  - 설치되는 지침(orchestration contract, idea, review, plan, go, monitor-patterns skill)에서 detach
+    job handoff, `--no-detach`·`--subprocess` 호출, pane transport 재시도, Monitor 기반 pane 대기를
+    지웠다. `auto update`가 새 지침을 설치한다.
+
 - **`auto spec review`: 읽기 전용 리뷰어와 provider readiness preflight** (2026-10-06,
   SPEC-REVIEWRO-001): 리뷰어와 judge는 터미널, `orchestra.subprocess.enabled`,
   `--subprocess`/`--plain`과 관계없이 read-only subprocess로만 돈다(OMP provider는

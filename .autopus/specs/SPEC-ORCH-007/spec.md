@@ -1,6 +1,7 @@
 # SPEC-ORCH-007: --multi Hook 기반 멀티프로바이더 오케스트레이션
 
 **Status**: completed
+**Superseded by SPEC-PANERM-001** (2026-10-07): the orchestra pane backend was retired; providers run as subprocesses or through OMP.
 **Created**: 2026-03-26
 **Domain**: ORCH
 **Extends**: SPEC-ORCH-006 (인터랙티브 pane 모드)

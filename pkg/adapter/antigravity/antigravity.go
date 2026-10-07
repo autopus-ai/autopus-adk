@@ -3,7 +3,6 @@ package antigravity
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -168,15 +167,6 @@ func (a *Adapter) Generate(_ context.Context, cfg *config.HarnessConfig) (*adapt
 	if err != nil {
 		return nil, err
 	}
-	completionHookAssets, err := prepareAntigravityCompletionHookAssets()
-	if err != nil {
-		return nil, err
-	}
-	rollbackHooks, err := applyAntigravityManagedHookAssets(a.root, completionHookAssets)
-	if err != nil {
-		return nil, err
-	}
-	files = append(files, completionHookAssets...)
 
 	pf := &adapter.PlatformFiles{
 		Files:    files,
@@ -185,7 +175,7 @@ func (a *Adapter) Generate(_ context.Context, cfg *config.HarnessConfig) (*adapt
 
 	m := adapter.ManifestFromFiles(adapterName, pf)
 	if err := m.Save(a.root); err != nil {
-		return nil, errors.Join(fmt.Errorf("매니페스트 저장 실패: %w", err), rollbackHooks())
+		return nil, fmt.Errorf("매니페스트 저장 실패: %w", err)
 	}
 
 	return pf, nil

@@ -31,7 +31,6 @@ func TestMigrateOrchestraConfig_EmptyManagedOrCanonicalCodexUsesPersistentQualit
 	}{
 		{name: "quality managed", provider: ProviderEntry{
 			Binary:        "stale-codex",
-			PaneArgs:      []string{"--stale-pane"},
 			ModelPolicy:   ProviderModelPolicyQuality,
 			PromptViaArgs: true,
 		}},
@@ -67,11 +66,10 @@ func TestMigrateOrchestraConfig_EmptyUnmarkedCustomCodexBecomesPinned(t *testing
 		name     string
 		provider ProviderEntry
 	}{
+		// The retired pane keys are no customization any more; their former
+		// rows live in the SPEC-PANERM-001 S14 decision table.
 		{name: "custom binary", provider: ProviderEntry{Binary: "codex-wrapper"}},
-		{name: "custom pane args", provider: ProviderEntry{Binary: "codex", PaneArgs: []string{"--custom-pane"}}},
 		{name: "prompt via args", provider: ProviderEntry{Binary: "codex", PromptViaArgs: true}},
-		{name: "interactive input", provider: ProviderEntry{Binary: "codex", InteractiveInput: "stdin"}},
-		{name: "working patterns", provider: ProviderEntry{Binary: "codex", WorkingPatterns: []string{"custom-working"}}},
 		{name: "subprocess settings", provider: ProviderEntry{Binary: "codex", Subprocess: SubprocessProvConf{Timeout: 999}}},
 	}
 	for _, tt := range tests {
@@ -101,7 +99,6 @@ func TestMigrateOrchestraConfig_EmptyPinnedCodexRemainsUserOwned(t *testing.T) {
 
 	want := ProviderEntry{
 		Binary:        "codex-wrapper",
-		PaneArgs:      []string{"--custom-pane"},
 		ModelPolicy:   ProviderModelPolicyPinned,
 		PromptViaArgs: true,
 		Subprocess:    SubprocessProvConf{Timeout: 999},
@@ -132,7 +129,6 @@ func TestMigrateOrchestraConfig_ExplicitQualityCodexUsesPersistentQuality(t *tes
 				"codex": {
 					Binary:      "codex",
 					Args:        []string{"exec", "--sandbox", "workspace-write", "-m", CodexSolModel, "-c", `model_reasoning_effort="xhigh"`, "--json"},
-					PaneArgs:    []string{"--search", "-m", CodexSolModel, "-c", `model_reasoning_effort="xhigh"`},
 					ModelPolicy: ProviderModelPolicyQuality,
 				},
 			},
@@ -144,7 +140,6 @@ func TestMigrateOrchestraConfig_ExplicitQualityCodexUsesPersistentQuality(t *tes
 	require.NoError(t, err)
 	got := cfg.Orchestra.Providers["codex"]
 	assert.Equal(t, []string{"exec", "--sandbox", "workspace-write", "-m", CodexAstraModel, "-c", `model_reasoning_effort="max"`, "--json"}, got.Args)
-	assert.Equal(t, []string{"--search", "-m", CodexAstraModel, "-c", `model_reasoning_effort="max"`}, got.PaneArgs)
 }
 
 func TestMigrateOrchestraConfig_PinsUnmarkedDeprecatedCodexWithoutRewriting(t *testing.T) {

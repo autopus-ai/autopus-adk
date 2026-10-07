@@ -4,8 +4,9 @@ name: auto-monitor-patterns
 
 # Monitor Patterns Skill
 
-Claude Code 2.1.x `Monitor` tool을 활용한 pane 이벤트 스트리밍 패턴.
-주 사용처는 orchestra Round 2 응답 대기(`idea.md` Step 3.6).
+Claude Code 2.1.x `Monitor` tool을 활용한 command 출력 이벤트 스트리밍 패턴.
+주 사용처는 장시간 실행되는 build, test, log stream의 완료 신호 대기다. orchestra 명령은
+결과를 동기적으로 직접 출력하므로 Monitor로 대기하지 않는다.
 
 ## 1. Monitor Tool 개요
 
@@ -66,104 +67,43 @@ Monitor 호출 시 적용:
 
 ```python
 Monitor(
-  command = f"cmux read-screen --surface {surface_id} --follow --scrollback 200 | {GREP_LB} -E '{idle_regex}'",
+  command = f"tail -f {log_path} | {GREP_LB} -E '{done_regex}'",
   timeout_ms = 180000
 )
 ```
 
-## 4. Provider별 idle prompt 정규식
+## 4. Timeout 처리 및 Fallback
 
-`spec.md R7` 정의. provider pane이 응답을 마치고 입력 대기 상태에 진입하면
-해당 라인이 stdout으로 출력된다.
-
-| Provider | Pattern |
-|----------|---------|
-| claude | `^❯\s*$` |
-| codex | `^codex>\s*$` |
-| antigravity-cli | `^>\s*(Type your\|Press Ctrl)` 또는 `gemini>\s*$` |
-| opencode | `^opencode›\s*$` 또는 `^>\s*Ready\s*$` |
-
-### 오버라이드
-
-`.autopus/project/orchestra-patterns.yaml`:
-
-```yaml
-orchestra_patterns:
-  claude:
-    idle: '^❯\s*$'
-  codex:
-    idle: '^codex>\s*$'
-  antigravity-cli:
-    idle: '^>\s*(Type your|Press Ctrl)'
-  opencode:
-    idle: '^opencode›\s*$'
-```
-
-## 5. Orchestra Round 2 대기 — 전체 예시
-
-`idea.md` Step 3.6 구현 레퍼런스.
+Monitor `timeout_ms`가 지나면 해당 stream만 polling fallback으로 전환한다.
+다른 stream의 Monitor는 유지한다.
 
 ```python
-# Step 0: resolve GREP_LB at runtime (see §3)
-providers = ["claude", "codex", "antigravity-cli"]
-pending = set(providers)
-
-# Step 1: launch Monitor per provider (parallel)
-for provider in providers:
-    surface = get_surface_id(provider)           # cmux surface lookup
-    pattern = get_idle_pattern(provider)         # from orchestra-patterns.yaml or defaults
-    Monitor(
-      command = f"cmux read-screen --surface {surface} --follow --scrollback 200 | {GREP_LB} -E '{pattern}'",
-      timeout_ms = 180000
-    )
-
-# Step 2: process notifications as they arrive
-#   On each notification:
-#     provider_name = identify_provider(notification.source)
-#     pending.discard(provider_name)
-#     if not pending:
-#         break  # all providers idle
-
-# Step 3: collect scrollback once all panes are done
-for provider in providers:
-    surface = get_surface_id(provider)
-    result = bash(f"cmux read-screen --surface {surface} --scrollback --lines 500")
-    store_round2_result(provider, result)
-```
-
-## 6. Timeout 처리 및 Fallback
-
-Monitor `timeout_ms` 경과 시 해당 provider만 polling fallback으로 전환한다.
-다른 provider의 Monitor는 유지한다.
-
-```python
-# On Monitor timeout for a specific provider:
-log(f"monitor_timeout=true, fallback=polling, provider={provider}")
-bash(f"sleep 120")
-result = bash(f"cmux read-screen --surface {surface} --scrollback --lines 500")
-store_round2_result(provider, result)
+# On Monitor timeout for one stream:
+log(f"monitor_timeout=true, fallback=polling, stream={log_path}")
+bash("sleep 120")
+result = bash(f"tail -n 500 {log_path}")
 ```
 
 **비 Claude Code 환경 전체 fallback** (`AUTOPUS_PLATFORM != claude-code`):
 
 ```bash
 sleep 120  # 2-minute polling wait
-cmux read-screen --surface {surface} --scrollback --lines 500
+tail -n 500 "$LOG_PATH"
 ```
 
-## 7. Anti-Patterns
+## 5. Anti-Patterns
 
 - **grep `--line-buffered` 누락** → pipe 버퍼링으로 Monitor notification 지연 또는 미수신.
   macOS BSD grep에서 특히 발생.
 - **Monitor timeout 너무 짧게 설정**(`< 30s`) → 응답 생성 중 false timeout. 최솟값 60s 권장.
-- **단일 Monitor에 여러 pane 멀티플렉스 시도** → notification 출처 구분 불가.
-  provider당 1개 Monitor 호출 원칙.
+- **단일 Monitor에 여러 stream 멀티플렉스 시도** → notification 출처 구분 불가.
+  stream당 1개 Monitor 호출 원칙.
 - **bash special char 미escape** (`|`, `(`, `)` 등을 grep pattern 내 그대로 사용)
   → 쉘 파싱 오류 또는 매칭 실패. f-string/template 삽입 시 escape 확인 필수.
-- **Round 2 수집 전 Step 4 진입** → `idea.md` HARD BLOCK 조건. Monitor가 완료 신호를
-  주기 전에 scrollback을 수집하면 응답이 잘린다.
+- **완료 신호 전 결과 수집** → Monitor가 완료 라인을 알리기 전에 출력을 읽으면
+  결과가 잘린다.
 
-## 8. auto check 연동
+## 6. auto check 연동
 
 `auto check --monitor-commands` lint는 Monitor command 문자열을 스캔하여
 `--line-buffered` / `stdbuf -oL` / `unbuffer` 중 하나가 없으면 warning을 발행한다
@@ -172,24 +112,22 @@ cmux read-screen --surface {surface} --scrollback --lines 500
 경고 예시:
 
 ```
-WARN  monitor-patterns  command lacks line-buffered guard: "cmux read-screen ... | grep -E '...'"
+WARN  monitor-patterns  command lacks line-buffered guard: "tail -f ... | grep -E '...'"
       → add --line-buffered (GNU) or stdbuf -oL (BSD)
 ```
 
-## 9. 성능 지표
+## 7. 성능 지표
 
 `spec.md §5` 참조. Monitor notification 지연 SLO:
 
 | 지표 | 목표 |
 |------|------|
 | p95 notification latency | ≤ 500ms |
-| 측정 기준 | idle prompt 라인 stdout 기록 timestamp ↔ Monitor notification 수신 timestamp |
+| 측정 기준 | 완료 라인 stdout 기록 timestamp ↔ Monitor notification 수신 timestamp |
 | 기록 위치 | `logs/pipeline/<run-id>.jsonl` (`monitor_notifications` 필드) |
 
 ## Ref
 
-- `spec.md` R7 — Monitor 기반 Round 2 대기 요구사항 및 provider별 idle 패턴
-- `idea.md` Step 3.6 — Monitor 기반 Round 2 결과 수집 절차
 - BSD grep man page — `--line-buffered` 미지원 확인
 - Claude Code 2.1.x Monitor tool 공식 문서
 - `acceptance.md` S7-3 — auto check --monitor-commands lint 검증 케이스

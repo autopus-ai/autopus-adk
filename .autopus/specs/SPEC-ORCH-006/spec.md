@@ -1,6 +1,7 @@
 # SPEC-ORCH-006: Orchestra 인터랙티브 pane 모드 — 멀티프로바이더 CLI 세션 실행 및 결과 자동 수집
 
 **Status**: completed
+**Superseded by SPEC-PANERM-001** (2026-10-07): the orchestra pane backend was retired; providers run as subprocesses or through OMP.
 **Created**: 2026-03-26
 **Domain**: ORCH
 

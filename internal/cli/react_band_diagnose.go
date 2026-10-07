@@ -193,7 +193,7 @@ func (d *bandDiagnoser) resolveProvider(name string) (orchestra.ProviderConfig, 
 	entry, configured := d.harness.Orchestra.Providers[name]
 	provider := orchestra.ProviderConfig{Name: name, Binary: name, Args: []string{}}
 	if configured {
-		provider = providerConfigFromEntry(name, entry, "")
+		provider = providerConfigFromEntry(name, entry)
 	}
 	projected, err := d.project([]orchestra.ProviderConfig{provider}, readOnlyPolicyOptions{})
 	var violation *readOnlyPolicyViolation
@@ -258,7 +258,7 @@ func (d *bandDiagnoser) execute(ctx context.Context, provider orchestra.Provider
 	provider.MaxOutputBytes = healthband.ProviderCaptureBytes + 1
 	cfg := orchestra.OrchestraConfig{
 		Providers: []orchestra.ProviderConfig{provider}, TimeoutSeconds: int((d.timeout + time.Second - 1) / time.Second),
-		WorkingDir: d.projectDir, ProviderWorkDir: d.projectDir, ReadOnly: true, SubprocessMode: true,
+		WorkingDir: d.projectDir, ProviderWorkDir: d.projectDir, ReadOnly: true,
 	}
 	cfg.ProviderBackends = d.backends(cfg)
 	response, err := d.run(ctx, cfg, provider, prompt)

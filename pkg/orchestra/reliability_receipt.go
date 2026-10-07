@@ -86,37 +86,20 @@ type ReliabilityEvent struct {
 	NextStep      string         `json:"next_step,omitempty"`
 }
 
-// PaneRecoveryTransition records ordered lifecycle evidence without creating
-// an actionable ReliabilityEvent. It intentionally contains no pane refs,
-// session IDs, prompt content, or raw errors.
-// @AX:ANCHOR: [AUTO] public JSON wire contract for ordered, redacted pane-recovery lifecycle evidence
-// @AX:REASON: [AUTO] persisted artifacts and failure-bundle readers depend on stable sequence, stage, status, and correlation fields
-type PaneRecoveryTransition struct {
-	SchemaVersion string         `json:"schema_version"`
-	Timestamp     time.Time      `json:"timestamp"`
-	Correlation   CorrelationIDs `json:"correlation"`
-	Provider      string         `json:"provider"`
-	Sequence      uint64         `json:"sequence"`
-	Stage         string         `json:"stage"`
-	Status        string         `json:"status"`
-	FailureCode   string         `json:"failure_code,omitempty"`
-}
-
 // FailureBundle exports the persisted evidence needed to reconstruct a run.
 // @AX:ANCHOR: [AUTO] public persisted bundle schema shared by runtime diagnostics and artifact consumers
-// @AX:REASON: [AUTO] recovery transitions must remain an additive ordered projection alongside existing receipt collections
+// @AX:REASON: [AUTO] receipt collections and events are additive ordered projections; readers depend on their field names
 type FailureBundle struct {
-	SchemaVersion       string                     `json:"schema_version"`
-	Timestamp           time.Time                  `json:"timestamp"`
-	RunID               string                     `json:"run_id"`
-	Degraded            bool                       `json:"degraded"`
-	Summary             string                     `json:"summary"`
-	NextStep            string                     `json:"next_step,omitempty"`
-	PreflightReceipts   []ProviderPreflightReceipt `json:"preflight_receipts,omitempty"`
-	PromptReceipts      []PromptTransportReceipt   `json:"prompt_receipts,omitempty"`
-	CollectionReceipts  []CollectionReceipt        `json:"collection_receipts,omitempty"`
-	Events              []ReliabilityEvent         `json:"events,omitempty"`
-	RecoveryTransitions []PaneRecoveryTransition   `json:"recovery_transitions,omitempty"`
+	SchemaVersion      string                     `json:"schema_version"`
+	Timestamp          time.Time                  `json:"timestamp"`
+	RunID              string                     `json:"run_id"`
+	Degraded           bool                       `json:"degraded"`
+	Summary            string                     `json:"summary"`
+	NextStep           string                     `json:"next_step,omitempty"`
+	PreflightReceipts  []ProviderPreflightReceipt `json:"preflight_receipts,omitempty"`
+	PromptReceipts     []PromptTransportReceipt   `json:"prompt_receipts,omitempty"`
+	CollectionReceipts []CollectionReceipt        `json:"collection_receipts,omitempty"`
+	Events             []ReliabilityEvent         `json:"events,omitempty"`
 }
 
 // ReliabilitySummary points callers to persisted artifacts and counts.

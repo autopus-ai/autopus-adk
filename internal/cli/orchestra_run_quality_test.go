@@ -49,7 +49,6 @@ func TestRunSubprocessPipeline_AppliesRuntimeCodexQualityAndEffort(t *testing.T)
 		Timeout:          120,
 		TimeoutChanged:   false,
 		Judge:            "",
-		ForceSubprocess:  false,
 		DryRun:           false,
 		JSONMode:         false,
 		RequireAgreement: 0,
@@ -57,5 +56,4 @@ func TestRunSubprocessPipeline_AppliesRuntimeCodexQualityAndEffort(t *testing.T)
 	require.NoError(t, err)
 	require.Len(t, captured.Providers, 1)
 	assertCodexProfileInArgs(t, captured.Providers[0].Args, config.CodexAstraModel, config.CodexEffortMax)
-	assertCodexProfileInArgs(t, captured.Providers[0].PaneArgs, config.CodexAstraModel, config.CodexEffortMax)
 }

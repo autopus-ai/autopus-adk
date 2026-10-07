@@ -24,12 +24,11 @@ func TestReadOnlyProviderPolicy_ProjectsNativeProviderArgv(t *testing.T) {
 			name: "claude permission plan",
 			in: orchestra.ProviderConfig{
 				Name: "claude", Binary: "claude", ModelFamily: "anthropic",
-				Args: []string{"--print", "--model", "opus"}, PaneArgs: []string{"--model", "opus"},
+				Args: []string{"--print", "--model", "opus"},
 			},
 			want: orchestra.ProviderConfig{
 				Name: "claude", Binary: "claude", ModelFamily: "anthropic",
 				Args:        []string{"--print", "--model", "opus", "--permission-mode", "plan", "--safe-mode", "--no-session-persistence", "--disable-slash-commands", "--strict-mcp-config", "--tools=Read,Grep,Glob"},
-				PaneArgs:    []string{"--model", "opus", "--permission-mode", "plan", "--safe-mode", "--no-session-persistence", "--disable-slash-commands", "--strict-mcp-config", "--tools=Read,Grep,Glob"},
 				SandboxMode: orchestra.SandboxModeReadOnly,
 			},
 		},
@@ -37,12 +36,11 @@ func TestReadOnlyProviderPolicy_ProjectsNativeProviderArgv(t *testing.T) {
 			name: "codex sandbox read only",
 			in: orchestra.ProviderConfig{
 				Name: "codex", Binary: "codex", ModelFamily: "openai",
-				Args: []string{"exec", "--sandbox", "workspace-write", "-m", "gpt-5.6-sol"}, PaneArgs: []string{"-m", "gpt-5.6-sol"},
+				Args: []string{"exec", "--sandbox", "workspace-write", "-m", "gpt-5.6-sol"},
 			},
 			want: orchestra.ProviderConfig{
 				Name: "codex", Binary: "codex", ModelFamily: "openai",
 				Args:        []string{"exec", "--sandbox", "read-only", "-m", "gpt-5.6-sol", "--ephemeral", "--ignore-user-config", "--ignore-rules"},
-				PaneArgs:    []string{"-m", "gpt-5.6-sol", "--sandbox", "read-only", "--ephemeral", "--ignore-user-config", "--ignore-rules"},
 				SandboxMode: orchestra.SandboxModeReadOnly,
 			},
 		},
@@ -50,12 +48,11 @@ func TestReadOnlyProviderPolicy_ProjectsNativeProviderArgv(t *testing.T) {
 			name: "gemini plan sandbox",
 			in: orchestra.ProviderConfig{
 				Name: "gemini", Binary: "agy", ModelFamily: "google",
-				Args: []string{"--print", ""}, PaneArgs: []string{"--model", "gemini-3"}, PromptViaArgs: true,
+				Args: []string{"--print", ""}, PromptViaArgs: true,
 			},
 			want: orchestra.ProviderConfig{
 				Name: "gemini", Binary: "agy", ModelFamily: "google",
 				Args:          []string{"--print", "", "--mode", "plan", "--sandbox", "--disable-slash-commands"},
-				PaneArgs:      []string{"--model", "gemini-3", "--mode", "plan", "--sandbox", "--disable-slash-commands"},
 				PromptViaArgs: true, SandboxMode: orchestra.SandboxModeUnverified,
 			},
 		},
@@ -78,14 +75,12 @@ func TestReadOnlyProviderPolicy_ProjectsNativeProviderArgv(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			originalArgs := append([]string(nil), tt.in.Args...)
-			originalPaneArgs := append([]string(nil), tt.in.PaneArgs...)
 
 			got, err := applyReadOnlyProviderPolicy([]orchestra.ProviderConfig{tt.in}, readOnlyPolicyOptions{})
 			require.NoError(t, err)
 			require.Len(t, got, 1)
 			assert.Equal(t, tt.want, got[0])
 			assert.Equal(t, originalArgs, tt.in.Args, "projection must not mutate caller-owned Args")
-			assert.Equal(t, originalPaneArgs, tt.in.PaneArgs, "projection must not mutate caller-owned PaneArgs")
 		})
 	}
 }
@@ -94,12 +89,11 @@ func TestReadOnlyProviderPolicy_OutsideRepoAddsCodexRepoCheckSkip(t *testing.T) 
 	t.Parallel()
 
 	got, err := applyReadOnlyProviderPolicy([]orchestra.ProviderConfig{{
-		Name: "codex", Binary: "codex", Args: []string{"exec", "--sandbox", "workspace-write"}, PaneArgs: []string{"-m", "gpt"},
+		Name: "codex", Binary: "codex", Args: []string{"exec", "--sandbox", "workspace-write"},
 	}}, readOnlyPolicyOptions{OutsideRepo: true})
 	require.NoError(t, err)
 	require.Len(t, got, 1)
 	assert.Equal(t, []string{"exec", "--sandbox", "read-only", "--ephemeral", "--ignore-user-config", "--ignore-rules", "--skip-git-repo-check"}, got[0].Args)
-	assert.NotContains(t, got[0].PaneArgs, "--skip-git-repo-check", "interactive codex has no exec-only repo check flag")
 
 	again, err := applyReadOnlyProviderPolicy(got, readOnlyPolicyOptions{OutsideRepo: true})
 	require.NoError(t, err)
@@ -128,7 +122,7 @@ func TestReadOnlyProviderPolicy_DangerousAndUnknownFailClosed(t *testing.T) {
 		{
 			name: "gemini dangerous yolo",
 			provider: orchestra.ProviderConfig{
-				Name: "gemini", Binary: "agy", PaneArgs: []string{"--yolo"},
+				Name: "gemini", Binary: "agy", Args: []string{"--print", "", "--yolo"},
 			},
 		},
 		{
@@ -194,7 +188,6 @@ func TestReadOnlyProviderPolicy_EveryAdmittedProviderIsProjected(t *testing.T) {
 		projected, err := applyReadOnlyProviderPolicy([]orchestra.ProviderConfig{{Name: name, Binary: binary}}, readOnlyPolicyOptions{})
 		require.NoError(t, err, name)
 		assert.NotEmpty(t, projected[0].Args, "%s has no read-only projection", name)
-		assert.NotEmpty(t, projected[0].PaneArgs, "%s has no read-only pane projection", name)
 	}
 }
 
@@ -230,7 +223,7 @@ func TestRunOrchestraCommand_NoPersistLeavesNoOrchestraArtifact(t *testing.T) {
 
 	err = runOrchestraCommand(
 		context.Background(), "plan", "consensus", []string{"claude"}, 30, "", "topic", 0, 0,
-		OrchestraFlags{NoDetach: true, NoPersist: true},
+		OrchestraFlags{NoPersist: true},
 	)
 	require.NoError(t, err)
 	_, statErr := os.Stat(".autopus/orchestra")

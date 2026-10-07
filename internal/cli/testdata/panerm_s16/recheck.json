@@ -1,0 +1,98 @@
+{
+  "schema": "orchestration_cli_result.v1",
+  "merged": "{\"verdict\":\"PASS\",\"summary\":\"fake claude answer\",\"findings\":[],\"recommendation\":\"fake claude answer\"}\n",
+  "receipt": {
+    "schema": "orchestration_run_receipt.v1",
+    "run_id": "<volatile>",
+    "route_id": "orchestra:recheck",
+    "route_version": "orchestra-route.v1",
+    "requested_strategy": "recheck",
+    "effective_strategy": "recheck",
+    "requested_providers": [
+      "claude"
+    ],
+    "configured_providers": [
+      "claude"
+    ],
+    "resolved_providers": [
+      "claude"
+    ],
+    "attempted_providers": [
+      "claude"
+    ],
+    "usable_providers": [
+      "claude"
+    ],
+    "failed_providers": null,
+    "degraded_reasons": null,
+    "critical_veto": false,
+    "analysis_verdict": "pass",
+    "gate_status": "passed",
+    "terminal_state": "completed",
+    "judge_status": "not_requested",
+    "dispatch_count": 2,
+    "quorum_required": 1,
+    "quorum_met": true,
+    "quorum_usable": 1,
+    "attempts": 2,
+    "provider_receipts": [
+      {
+        "provider": "claude",
+        "role": "recheck_r1",
+        "attempt": 1,
+        "backend": "subprocess",
+        "model_family": "anthropic",
+        "exit_code": 0,
+        "timed_out": false,
+        "usable": true,
+        "command": [
+          "claude",
+          "--print",
+          "--model",
+          "claude-fable-5-1",
+          "--effort",
+          "max"
+        ],
+        "cwd": "<root>",
+        "pid": "<volatile>",
+        "sandbox_mode": "unrestricted",
+        "started_at": "<volatile>",
+        "ended_at": "<volatile>"
+      },
+      {
+        "provider": "claude",
+        "role": "recheck_r2",
+        "attempt": 2,
+        "backend": "subprocess",
+        "model_family": "anthropic",
+        "exit_code": 0,
+        "timed_out": false,
+        "usable": true,
+        "command": [
+          "claude",
+          "--print",
+          "--model",
+          "claude-fable-5-1",
+          "--effort",
+          "max"
+        ],
+        "cwd": "<root>",
+        "pid": "<volatile>",
+        "sandbox_mode": "unrestricted",
+        "started_at": "<volatile>",
+        "ended_at": "<volatile>"
+      }
+    ],
+    "worker_receipts": [],
+    "artifacts": null,
+    "transitions": [
+      {
+        "sequence": 1,
+        "state": "completed",
+        "analysis_verdict": "pass",
+        "gate_status": "passed"
+      }
+    ]
+  }
+}
+

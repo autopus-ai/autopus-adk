@@ -1,6 +1,7 @@
 # SPEC-ORCH-001: cmux Orchestra 연동 — 멀티프로바이더 실행 시 cmux 창분할 자동화
 
 **Status**: completed
+**Superseded by SPEC-PANERM-001** (2026-10-07): the orchestra pane backend was retired; providers run as subprocesses or through OMP.
 **Created**: 2026-03-25
 **Domain**: ORCH
 

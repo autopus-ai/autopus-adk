@@ -20,7 +20,6 @@ func newOrchestraRunCmd() *cobra.Command {
 		rounds           string
 		timeout          int
 		judge            string
-		subprocess       bool
 		dryRun           bool
 		jsonOut          bool
 		format           string
@@ -47,7 +46,6 @@ func newOrchestraRunCmd() *cobra.Command {
 				Timeout:          timeout,
 				TimeoutChanged:   timeoutChanged,
 				Judge:            judge,
-				ForceSubprocess:  subprocess,
 				DryRun:           dryRun,
 				JSONMode:         jsonMode,
 				RequireAgreement: requireAgreement,
@@ -60,11 +58,11 @@ func newOrchestraRunCmd() *cobra.Command {
 	cmd.Flags().StringVar(&rounds, "rounds", "standard", "Round preset: fast, standard, deep")
 	cmd.Flags().IntVarP(&timeout, "timeout", "t", 120, "Per-provider timeout (seconds)")
 	cmd.Flags().StringVar(&judge, "judge", "", "Judge provider name")
-	cmd.Flags().BoolVar(&subprocess, "subprocess", false, "Force subprocess backend (default: auto-detect)")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Output prompts to files without executing")
 	cmd.Flags().Float64Var(&requireAgreement, "require-agreement", 0,
 		"Block a consensus run whose provider agreement ratio falls below this floor (0-1; 0 disables)")
 	addJSONFlags(cmd, &jsonOut, &format)
+	addRetiredNoOpFlags(cmd, "subprocess")
 
 	return cmd
 }
@@ -80,7 +78,6 @@ type orchestraRunOptions struct {
 	Timeout          int
 	TimeoutChanged   bool
 	Judge            string
-	ForceSubprocess  bool
 	DryRun           bool
 	JSONMode         bool
 	RequireAgreement float64
@@ -188,9 +185,9 @@ func runSubprocessPipeline(cmd *cobra.Command, opts orchestraRunOptions) error {
 		return executeDryRun(opts.Topic, promptData, providerConfigs, roundCount)
 	}
 
-	// Choose backend (REQ-003). Inject the detected terminal so SelectBackend
-	// returns the interactive pane backend on cmux/tmux terminals and the headless
-	// subprocess backend on plain/CI terminals or when --subprocess is forced.
+	// Choose backend (REQ-003): without a terminal the config never selects a
+	// pane, so every provider runs headless as a subprocess, or through OMP when
+	// it is configured with backend: omp (SPEC-PANERM-001).
 	cfg := orchestra.OrchestraConfig{
 		Providers:             providerConfigs,
 		RequestedProviders:    append([]string(nil), configuredNames...),
@@ -200,16 +197,10 @@ func runSubprocessPipeline(cmd *cobra.Command, opts orchestraRunOptions) error {
 		JudgeProvider:         opts.Judge,
 		InvokingProvider:      invokingProvider,
 		JudgeSelectionSource:  judgeSelectionSource,
-		SubprocessMode:        true, // pane backend is retired; see runOrchestraCommand
 		TimeoutSeconds:        opts.Timeout,
-		Terminal:              detectStructuredTerminal(),
 		FallbackMode:          orchestra.FallbackModeSubprocess,
 		MinimumAgreementRatio: opts.RequireAgreement,
 	}
-	// SPEC-ORCH-022 T8: enable hook-IPC collection before backend selection so a
-	// pane-capable, hook-installed context collects via done-file instead of
-	// screen polling.
-	applyHookMode(&cfg)
 	backend := orchestraRunBackendFactory(cfg)
 
 	pipelineCfg := orchestra.SubprocessPipelineConfig{
@@ -226,12 +217,8 @@ func runSubprocessPipeline(cmd *cobra.Command, opts orchestraRunOptions) error {
 	for i, p := range providerConfigs {
 		names[i] = p.Name
 	}
-	terminalName := ""
-	if cfg.Terminal != nil {
-		terminalName = cfg.Terminal.Name()
-	}
-	fmt.Fprintf(os.Stderr, "Strategy: %s | Providers: %s | Rounds: %s (%d) | Backend: %s (terminal=%s, hook=%t)\n",
-		opts.Strategy, strings.Join(names, ", "), opts.RoundsPreset, roundCount+1, backend.Name(), terminalName, cfg.HookMode)
+	fmt.Fprintf(os.Stderr, "Strategy: %s | Providers: %s | Rounds: %s (%d) | Backend: %s\n",
+		opts.Strategy, strings.Join(names, ", "), opts.RoundsPreset, roundCount+1, backend.Name())
 
 	result, err := executeOrchestraRunStrategy(ctx, requestedStrategy, cfg, pipelineCfg)
 	if err != nil {

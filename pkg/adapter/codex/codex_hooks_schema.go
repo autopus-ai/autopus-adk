@@ -3,6 +3,8 @@ package codex
 import (
 	"encoding/json"
 	"strings"
+
+	"github.com/insajin/autopus-adk/pkg/adapter"
 )
 
 const autopusHookStatusMessage = "Running Autopus hook"
@@ -131,7 +133,8 @@ func isAutopusHookHandler(handler hookHandler) bool {
 		// without its status message, so regeneration never runs it twice.
 		strings.HasPrefix(command, codexEditGuardCommandPrefix) ||
 		strings.Contains(command, "/.codex/hooks/autopus/hook-codex-") ||
-		strings.Contains(command, ".claude/hooks/autopus/hook-codex-")
+		strings.Contains(command, ".claude/hooks/autopus/hook-codex-") ||
+		adapter.IsStaleCompletionHookCommand(adapterName, command)
 }
 
 // codexEditGuardCommandPrefix anchors the registered edit-guard command line.

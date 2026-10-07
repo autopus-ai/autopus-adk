@@ -63,8 +63,6 @@ func applyReadOnlyProviderPolicy(providers []orchestra.ProviderConfig, opts read
 		}
 
 		provider.Args = append([]string(nil), provider.Args...)
-		provider.PaneArgs = append([]string(nil), provider.PaneArgs...)
-		provider.WorkingPatterns = append([]string(nil), provider.WorkingPatterns...)
 		provider.ResultReadyPatterns = append([]string(nil), provider.ResultReadyPatterns...)
 		provider.FastFailPatterns = append([]orchestra.FastFailRule(nil), provider.FastFailPatterns...)
 
@@ -73,13 +71,10 @@ func applyReadOnlyProviderPolicy(providers []orchestra.ProviderConfig, opts read
 		switch provider.Name {
 		case "claude":
 			provider.Args = projectClaudeReadOnlyArgs(provider.Args)
-			provider.PaneArgs = projectClaudeReadOnlyArgs(provider.PaneArgs)
 		case "codex":
 			provider.Args = projectCodexReadOnlyArgs(provider.Args, opts.OutsideRepo)
-			provider.PaneArgs = projectCodexReadOnlyArgs(provider.PaneArgs, false)
 		case "gemini":
 			provider.Args = projectGeminiReadOnlyArgs(provider.Args)
-			provider.PaneArgs = projectGeminiReadOnlyArgs(provider.PaneArgs)
 		}
 		provider.SandboxMode = orchestra.SandboxModeReadOnly
 		if provider.Name == "gemini" {
@@ -103,9 +98,6 @@ func validateReadOnlyProvider(provider orchestra.ProviderConfig) *readOnlyPolicy
 		}
 	}
 	if violation := validateReadOnlyProviderArgv(provider.Name, readOnlyFieldArgs, provider.Args); violation != nil {
-		return violation
-	}
-	if violation := validateReadOnlyProviderArgv(provider.Name, readOnlyFieldPaneArgs, provider.PaneArgs); violation != nil {
 		return violation
 	}
 	if !readOnlySchemaFlagAllowed(provider.Name, provider.SchemaFlag) {

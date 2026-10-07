@@ -39,7 +39,6 @@ func TestLoadHarnessConfigForDir_CodexRuntimeOverridesAreEphemeral(t *testing.T)
 	assert.Equal(t, config.ProviderModelPolicyQuality, provider.ModelPolicy)
 	assert.Contains(t, provider.Args, config.CodexAstraModel)
 	assert.Contains(t, provider.Args, `model_reasoning_effort="low"`)
-	assert.Contains(t, provider.PaneArgs, `model_reasoning_effort="low"`)
 
 	disk, err := os.ReadFile(filepath.Join(dir, "autopus.yaml"))
 	require.NoError(t, err)
@@ -71,7 +70,6 @@ func TestLoadHarnessConfigForDir_RuntimeBalancedOverridesPersistentUltra(t *test
 	// Orchestra runs the anchor model at max in both modes, so the runtime mode
 	// switch is visible in the effective quality rather than the argv effort.
 	assertCodexProfileInArgs(t, provider.Args, config.CodexAstraModel, config.CodexEffortMax)
-	assertCodexProfileInArgs(t, provider.PaneArgs, config.CodexAstraModel, config.CodexEffortMax)
 
 	disk, err := os.ReadFile(filepath.Join(dir, "autopus.yaml"))
 	require.NoError(t, err)
@@ -103,18 +101,14 @@ func TestRunOrchestraCommand_AppliesRuntimeCodexQualityAndEffort(t *testing.T) {
 	}
 
 	ctx := withGlobalFlags(context.Background(), globalFlags{Quality: "ultra", Effort: config.CodexEffortMax})
-	err = runOrchestraCommand(ctx, "plan", "", []string{"codex"}, 30, "", "topic", 0, 0, OrchestraFlags{NoDetach: true})
+	err = runOrchestraCommand(ctx, "plan", "", []string{"codex"}, 30, "", "topic", 0, 0, OrchestraFlags{})
 	require.NoError(t, err)
 	require.Len(t, captured.Providers, 1)
 	assertCodexProfileInArgs(t, captured.Providers[0].Args, config.CodexAstraModel, config.CodexEffortMax)
-	assertCodexProfileInArgs(t, captured.Providers[0].PaneArgs, config.CodexAstraModel, config.CodexEffortMax)
 	assert.Contains(t, captured.Providers[0].Args, "read-only")
-	assert.Contains(t, captured.Providers[0].PaneArgs, "read-only")
 	assert.NotContains(t, captured.Providers[0].Args, "workspace-write")
-	assert.NotContains(t, captured.Providers[0].PaneArgs, "workspace-write")
 	for _, flag := range []string{"--ephemeral", "--ignore-user-config", "--ignore-rules"} {
 		assert.Contains(t, captured.Providers[0].Args, flag)
-		assert.Contains(t, captured.Providers[0].PaneArgs, flag)
 	}
 }
 
@@ -150,7 +144,7 @@ func TestRunOrchestraCommand_PlanRejectsNoncanonicalCodexBeforeCatalogProbe(t *t
 		return &orchestra.OrchestraResult{Merged: "unexpected"}, nil
 	}
 
-	err = runOrchestraCommand(context.Background(), "plan", "", []string{"codex"}, 30, "", "topic", 0, 0, OrchestraFlags{NoDetach: true})
+	err = runOrchestraCommand(context.Background(), "plan", "", []string{"codex"}, 30, "", "topic", 0, 0, OrchestraFlags{})
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `requires native binary "codex"`)
@@ -180,11 +174,9 @@ func TestLoadHarnessConfigForDir_PinnedCodexIgnoresRuntimeOverrides(t *testing.T
 	cfg.Platforms = []string{"codex"}
 	cfg.Quality.Default = "balanced"
 	wantArgs := []string{"exec", "--json", "-m", "user/model", "-c", `model_reasoning_effort="low"`}
-	wantPaneArgs := []string{"--search", "-m", "user/pane"}
 	cfg.Orchestra.Providers["codex"] = config.ProviderEntry{
 		Binary:      "codex-wrapper",
 		Args:        append([]string(nil), wantArgs...),
-		PaneArgs:    append([]string(nil), wantPaneArgs...),
 		ModelPolicy: config.ProviderModelPolicyPinned,
 	}
 	require.NoError(t, config.Save(dir, cfg))
@@ -193,7 +185,6 @@ func TestLoadHarnessConfigForDir_PinnedCodexIgnoresRuntimeOverrides(t *testing.T
 	require.NoError(t, err)
 	provider := effective.Orchestra.Providers["codex"]
 	assert.Equal(t, wantArgs, provider.Args)
-	assert.Equal(t, wantPaneArgs, provider.PaneArgs)
 }
 
 func TestBuildProviderConfigsForRuntime_CodexQualityMatrix(t *testing.T) {
@@ -217,8 +208,6 @@ func TestBuildProviderConfigsForRuntime_CodexQualityMatrix(t *testing.T) {
 			require.Len(t, providers, 1)
 			assert.Contains(t, providers[0].Args, config.CodexAstraModel)
 			assert.Contains(t, providers[0].Args, `model_reasoning_effort="`+tt.want+`"`)
-			assert.Contains(t, providers[0].PaneArgs, `model_reasoning_effort="`+tt.want+`"`)
-			assert.NotEqual(t, "exec", providers[0].PaneArgs[0])
 		})
 	}
 }
@@ -228,7 +217,6 @@ func managedCodexProviderForTest(quality config.QualityConf) config.ProviderEntr
 	return config.ProviderEntry{
 		Binary:      "codex",
 		Args:        []string{"exec", "--sandbox", "workspace-write", "-m", profile.Model, "-c", `model_reasoning_effort="` + profile.Effort + `"`},
-		PaneArgs:    []string{"-m", profile.Model, "-c", `model_reasoning_effort="` + profile.Effort + `"`},
 		ModelPolicy: config.ProviderModelPolicyQuality,
 		Subprocess:  config.SubprocessProvConf{SchemaFlag: "--output-schema", Timeout: config.CodexOrchestraTimeoutSeconds},
 	}

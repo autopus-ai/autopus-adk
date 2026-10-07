@@ -1,6 +1,7 @@
 # SPEC-ORCH-012: cmux SendLongText buffer 경로 및 launch command 통합
 
 **Status**: completed
+**Superseded by SPEC-PANERM-001** (2026-10-07): the orchestra pane backend was retired; providers run as subprocesses or through OMP.
 **Created**: 2026-03-28
 **Domain**: ORCH
 

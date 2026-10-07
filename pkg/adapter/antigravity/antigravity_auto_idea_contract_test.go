@@ -31,7 +31,6 @@ func TestGenerate_AutoIdeaUsesCanonicalBrainstormDebateContract(t *testing.T) {
 			"--providers {providers}",
 			"--rounds 2",
 			"--judge {invoking_provider}",
-			"--no-detach",
 			"--format json",
 			"resolved configured debate",
 			"모든 provider",
@@ -40,12 +39,15 @@ func TestGenerate_AutoIdeaUsesCanonicalBrainstormDebateContract(t *testing.T) {
 			`"preserve_dissent": true`,
 			"dissent appendix",
 			"fresh isolated judge session evidence",
-			"--subprocess",
 			"orchestra_unavailable",
 		} {
 			assert.Contains(t, rendered, token, "%s must contain %q", rel, token)
 		}
 		assert.NotContains(t, rendered, `auto orchestra run "{structured idea}"`)
+		// SPEC-PANERM-001 retired both flags with the pane backend.
+		for _, retired := range []string{"--no-detach", "--subprocess"} {
+			assert.NotContains(t, rendered, retired, "%s must not instruct the retired %s flag", rel, retired)
+		}
 		assert.NotContains(t, rendered, "--rounds standard")
 	}
 }

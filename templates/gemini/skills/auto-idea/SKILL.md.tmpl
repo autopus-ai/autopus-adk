@@ -173,12 +173,12 @@ Step 2의 Intent Brief를 `{structured idea}`에 포함하고, 토론자들이 �
 
 **debate 호출 (기본)**:
 ```bash
-auto orchestra brainstorm "{structured idea}" --strategy debate --providers {providers} --rounds 2 --judge {invoking_provider} --no-detach --format json
+auto orchestra brainstorm "{structured idea}" --strategy debate --providers {providers} --rounds 2 --judge {invoking_provider} --format json
 ```
 
 **다른 strategy 호출**:
 ```bash
-auto orchestra brainstorm "{structured idea}" --strategy {strategy} --providers {providers} --no-detach --format json
+auto orchestra brainstorm "{structured idea}" --strategy {strategy} --providers {providers} --format json
 ```
 
 명시적 `--providers`가 없을 때만 해당 플래그를 생략합니다. resolved configured debate
@@ -200,9 +200,8 @@ session에서 실행합니다. Round 1/2 참가 세션의 context, history, tool
 - judge status가 성공이며 dissent appendix가 보존됨
 
 Fallback은 orchestra 호출이 실제 오류를 반환한 경우에만 허용합니다. 오류를 그대로
-표시하고 같은 provider/strategy/judge에 `--subprocess --no-detach --format json`을
-붙여 동일 엔진을 한 번 재시도합니다. 재시도도 실패하거나 위 evidence가 없으면
-성공으로 축소하지 말고 `orchestra_unavailable` blocker로 종료합니다.
+표시하고, 위 evidence가 없으면 성공으로 축소하지 말고 `orchestra_unavailable`
+blocker로 종료합니다.
 
 ### Step 4: ICE 스코어링 + Assumption Risk Overlay
 

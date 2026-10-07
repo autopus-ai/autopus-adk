@@ -1,0 +1,23 @@
+{
+  "version": "1.0.0",
+  "platform": "antigravity-cli",
+  "generated_at": "2026-10-07T00:00:00Z",
+  "files": {
+    ".agents/hooks.json": {
+      "checksum": "9e478f1889c9af84adac4e6b3c057f1e002a64c7c9d26172eac7e9d2f664948e",
+      "policy": "merge"
+    },
+    ".gemini/hooks/autopus/hook-gemini-afteragent.sh": {
+      "checksum": "1f75c577e09232d0f11a0a1fc1b3b24ff8bcef21a9d772c36be7e5ad8644b4fb",
+      "policy": "always"
+    },
+    ".gemini/hooks/autopus/hook-gemini-stop.sh": {
+      "checksum": "0305e7e5cbcc6d420762d9a80910ffc06bfa069d36bbd4b4bdccd3d015a135c1",
+      "policy": "always"
+    },
+    ".gemini/settings.json": {
+      "checksum": "2c6f16925b12c3c5f0b82c1e05b4d8dd84bc1246b4d446aa4f0249d97bda339b",
+      "policy": "merge"
+    }
+  }
+}

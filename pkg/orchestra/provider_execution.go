@@ -65,12 +65,3 @@ func resolveProviderWorkDir(cfg OrchestraConfig, provider ProviderConfig) Provid
 	}
 	return provider
 }
-
-// providerLaunchDir resolves where pane shells run: the isolated provider
-// directory when set, otherwise the artifact working directory.
-func (cfg OrchestraConfig) providerLaunchDir() string {
-	if cfg.ProviderWorkDir != "" {
-		return cfg.ProviderWorkDir
-	}
-	return cfg.WorkingDir
-}

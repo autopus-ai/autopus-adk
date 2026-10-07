@@ -2,8 +2,31 @@ package orchestra
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 )
+
+// validProviderName matches safe provider names (alphanumeric, hyphens, underscores).
+var validProviderName = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+
+// sanitizeProviderName returns a safe provider name for use in file paths.
+// Rejects names containing path separators or special characters.
+func sanitizeProviderName(name string) string {
+	if validProviderName.MatchString(name) {
+		return name
+	}
+	// Strip everything except safe chars
+	var sb strings.Builder
+	for _, r := range name {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
+			sb.WriteRune(r)
+		}
+	}
+	if sb.Len() == 0 {
+		return "unknown"
+	}
+	return sb.String()
+}
 
 func validateSafeArtifactName(kind, name string) error {
 	if name == "" {
@@ -11,16 +34,6 @@ func validateSafeArtifactName(kind, name string) error {
 	}
 	if name != sanitizeProviderName(name) {
 		return fmt.Errorf("%s %q is unsafe", kind, name)
-	}
-	return nil
-}
-
-func validateHookSessionID(sessionID string) error {
-	if err := validateSafeArtifactName("hook session ID", sessionID); err != nil {
-		return err
-	}
-	if sessionID != strings.ToLower(sessionID) {
-		return fmt.Errorf("hook session ID %q must use canonical lowercase", sessionID)
 	}
 	return nil
 }
@@ -55,11 +68,6 @@ func validateOrchestraProviderConfig(cfg OrchestraConfig) error {
 	if err := validateProviderConfigs(cfg.Providers); err != nil {
 		return err
 	}
-	if cfg.HookMode {
-		if err := validateHookSessionID(cfg.SessionID); err != nil {
-			return err
-		}
-	}
 	if cfg.JudgeProvider != "" {
 		if err := validateSafeArtifactName("judge provider name", cfg.JudgeProvider); err != nil {
 			return err
@@ -71,13 +79,6 @@ func validateOrchestraProviderConfig(cfg OrchestraConfig) error {
 		}
 	}
 	return nil
-}
-
-func validateProviderRequest(req ProviderRequest) error {
-	if err := validateSafeArtifactName("provider request name", req.Provider); err != nil {
-		return err
-	}
-	return validateSafeArtifactName("provider config name", req.Config.Name)
 }
 
 func validateSubprocessPipelineProviders(providers []ProviderConfig, judge ProviderConfig) error {

@@ -15,31 +15,22 @@ var historicalCanonicalCodexArgs = []string{
 	"-c", `model_reasoning_effort="xhigh"`,
 }
 
-var historicalCanonicalCodexPaneArgs = []string{
-	"-m", CodexLegacyModel, "-c", `model_reasoning_effort="xhigh"`,
-}
-
 var v05066AutoPinnedCodexArgs = []string{
 	"exec", "--sandbox", "workspace-write", "-m", CodexLegacyModel,
 }
 
-var v05066AutoPinnedCodexPaneArgs = []string{"-m", CodexLegacyModel}
-
 // ApplyCodexProviderProfile changes only model policy arguments. Other provider
 // flags remain in their original order.
 func ApplyCodexProviderProfile(entry ProviderEntry, profile CodexProfile) ProviderEntry {
-	entry.Args = applyCodexProfileArgs(entry.Args, profile, true)
-	entry.PaneArgs = applyCodexProfileArgs(entry.PaneArgs, profile, false)
+	entry.Args = applyCodexProfileArgs(entry.Args, profile)
 	return entry
 }
 
-func applyCodexProfileArgs(args []string, profile CodexProfile, subprocess bool) []string {
+// applyCodexProfileArgs rewrites the model and effort arguments of a codex
+// subprocess argv and keeps exactly one --json right after a leading exec.
+func applyCodexProfileArgs(args []string, profile CodexProfile) []string {
 	if len(args) == 0 {
-		if subprocess {
-			args = []string{"exec", "--sandbox", "workspace-write"}
-		} else {
-			args = []string{}
-		}
+		args = []string{"exec", "--sandbox", "workspace-write"}
 	}
 	managedArgs, suffix := splitCodexManagedArgs(args)
 
@@ -50,7 +41,7 @@ func applyCodexProfileArgs(args []string, profile CodexProfile, subprocess bool)
 	for i := 0; i < len(managedArgs); i++ {
 		switch managedArgs[i] {
 		case "--json":
-			if subprocess && !jsonFound {
+			if !jsonFound {
 				next = append(next, managedArgs[i])
 				jsonFound = true
 			}
@@ -101,7 +92,7 @@ func applyCodexProfileArgs(args []string, profile CodexProfile, subprocess bool)
 	if profile.Effort != "" && !effortFound {
 		next = append(next, "-c", codexReasoningEffortAssignment(profile.Effort))
 	}
-	if subprocess && !jsonFound {
+	if !jsonFound {
 		at := 0
 		if len(next) > 0 && next[0] == "exec" {
 			at = 1
@@ -115,10 +106,7 @@ func applyCodexProfileArgs(args []string, profile CodexProfile, subprocess bool)
 
 // ResolveCodexProviderProfile applies catalog capability fallback to a managed provider.
 func ResolveCodexProviderProfile(entry ProviderEntry, catalogJSON []byte) (ProviderEntry, CodexProfileResolution) {
-	requested, ok := codexProfileFromArgs(entry.Args)
-	if !ok {
-		requested, _ = codexProfileFromArgs(entry.PaneArgs)
-	}
+	requested := codexProfileFromArgs(entry.Args)
 	resolution := ResolveCodexProfile(requested, catalogJSON)
 	if entry.ModelPolicy != ProviderModelPolicyQuality {
 		resolution.Effective = requested
@@ -129,7 +117,7 @@ func ResolveCodexProviderProfile(entry ProviderEntry, catalogJSON []byte) (Provi
 	return ApplyCodexProviderProfile(entry, resolution.Effective), resolution
 }
 
-func codexProfileFromArgs(args []string) (CodexProfile, bool) {
+func codexProfileFromArgs(args []string) CodexProfile {
 	var profile CodexProfile
 	managedArgs, _ := splitCodexManagedArgs(args)
 	for i := 0; i < len(managedArgs); i++ {
@@ -154,7 +142,7 @@ func codexProfileFromArgs(args []string) (CodexProfile, bool) {
 			}
 		}
 	}
-	return profile, profile.Model != "" || profile.Effort != ""
+	return profile
 }
 
 func splitCodexManagedArgs(args []string) ([]string, []string) {
@@ -188,20 +176,20 @@ func codexReasoningEffortValue(assignment string) string {
 	return strings.Trim(value, `"'`)
 }
 
+// The default-entry detectors below compare only the keys a load keeps. A
+// shipped default also carried pane argv, but that key is retired and ignored
+// on load, so an entry whose only difference was its pane argv is now the
+// default entry it otherwise equals (SPEC-PANERM-001 S14).
 func isHistoricalCanonicalCodexProvider(entry ProviderEntry) bool {
 	return entry.Binary == "codex" &&
-		slices.Equal(entry.Args, historicalCanonicalCodexArgs) &&
-		slices.Equal(entry.PaneArgs, historicalCanonicalCodexPaneArgs)
+		slices.Equal(entry.Args, historicalCanonicalCodexArgs)
 }
 
 func isV05066AutoPinnedCodexProvider(entry ProviderEntry) bool {
 	return entry.ModelPolicy == ProviderModelPolicyPinned &&
 		entry.Binary == "codex" &&
 		slices.Equal(entry.Args, v05066AutoPinnedCodexArgs) &&
-		slices.Equal(entry.PaneArgs, v05066AutoPinnedCodexPaneArgs) &&
 		!entry.PromptViaArgs &&
-		entry.InteractiveInput == "" &&
-		len(entry.WorkingPatterns) == 0 &&
 		entry.Subprocess == (SubprocessProvConf{
 			SchemaFlag: "--output-schema",
 			Timeout:    CodexOrchestraTimeoutSeconds,
@@ -237,10 +225,7 @@ func providerEntryEqual(left, right ProviderEntry) bool {
 	return left.Binary == right.Binary &&
 		left.ModelPolicy == right.ModelPolicy &&
 		left.PromptViaArgs == right.PromptViaArgs &&
-		left.InteractiveInput == right.InteractiveInput &&
 		slices.Equal(left.Args, right.Args) &&
-		slices.Equal(left.PaneArgs, right.PaneArgs) &&
-		slices.Equal(left.WorkingPatterns, right.WorkingPatterns) &&
 		left.Subprocess == right.Subprocess
 }
 
@@ -292,9 +277,6 @@ func isZeroLikeUnmarkedCodexProvider(entry ProviderEntry) bool {
 	return entry.ModelPolicy == "" &&
 		len(entry.Args) == 0 &&
 		(entry.Binary == "" || entry.Binary == "codex") &&
-		len(entry.PaneArgs) == 0 &&
 		!entry.PromptViaArgs &&
-		entry.InteractiveInput == "" &&
-		len(entry.WorkingPatterns) == 0 &&
 		entry.Subprocess == (SubprocessProvConf{})
 }

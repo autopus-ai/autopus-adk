@@ -95,13 +95,14 @@ func (a *Adapter) buildUpdateTransactionPlan(
 		}
 	}
 	diff := adapter.BuildManifestDiff(oldManifest, newFiles, PruneRoots())
-	removes, err := a.buildUpdateTransactionRemoves(diff)
+	writes := adapter.TransactionWritesFromFiles(finalFiles, claudeFileMode)
+	removes, err := a.buildUpdateTransactionRemoves(diff, writes)
 	if err != nil {
 		return adapter.TransactionPlan{}, nil, err
 	}
 
 	return adapter.TransactionPlan{
-		Writes:   adapter.TransactionWritesFromFiles(finalFiles, claudeFileMode),
+		Writes:   writes,
 		Removes:  removes,
 		Manifest: manifest,
 	}, pf, nil
@@ -109,7 +110,7 @@ func (a *Adapter) buildUpdateTransactionPlan(
 
 // buildUpdateTransactionRemoves plans every deletion an update performs.
 //
-// Two complementary sources feed it. The manifest diff catches any managed file
+// Three sources feed it. The manifest diff catches any managed file
 // the previous install recorded and this one no longer emits, which is the wide
 // net but only exists while a manifest survives. The obsolete-surface detector
 // catches a closed, hardcoded set of retired layouts regardless of the manifest,
@@ -117,9 +118,13 @@ func (a *Adapter) buildUpdateTransactionPlan(
 // gitignored while the generated files are committed, so a cloned workspace has
 // orphans with no ownership record and a manifest-only prune is structurally
 // blind to them — it rewrites the manifest without them and never proposes the
-// prune again, making the orphan permanent.
+// prune again, making the orphan permanent. The group S declaration
+// (adapter.StaleCompletionHookScripts) adds the retired completion hook
+// scripts, minus any that the transaction's final state still names, so the
+// transaction that retracts a handler is the one that deletes its script.
 func (a *Adapter) buildUpdateTransactionRemoves(
 	diff adapter.ManifestDiff,
+	writes []adapter.TransactionWrite,
 ) ([]adapter.TransactionRemove, error) {
 	removes := adapter.TransactionRemovesFromManifestDiff(diff, false)
 	planned := make(map[string]bool, len(removes))
@@ -137,6 +142,13 @@ func (a *Adapter) buildUpdateTransactionRemoves(
 		}
 		planned[path] = true
 		removes = append(removes, adapter.TransactionRemove{Path: path, Recursive: true})
+	}
+	scripts := adapter.StaleCompletionHookScripts(adapterName)
+	for _, remove := range adapter.StaleCompletionScriptRemoves(a.root, scripts, writes) {
+		if !planned[remove.Path] {
+			planned[remove.Path] = true
+			removes = append(removes, remove)
+		}
 	}
 	return removes, nil
 }

@@ -8,7 +8,7 @@
     {
       "platform": "antigravity-cli",
       "supports_hooks": true,
-      "hook_count": 3,
+      "hook_count": 2,
       "react_hooks": [
         {
           "event": "PostToolUse",

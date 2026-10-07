@@ -89,7 +89,12 @@ func (a *Adapter) Update(ctx context.Context, cfg *config.HarnessConfig) (*adapt
 	if err != nil {
 		return nil, err
 	}
+	staleScripts, err := a.retractStaleCompletionPlugins(files)
+	if err != nil {
+		return nil, err
+	}
 	plan, pf := a.buildUpdateTransactionPlan(oldManifest, files)
+	plan.Removes = append(plan.Removes, adapter.StaleCompletionScriptRemoves(a.root, staleScripts, plan.Writes)...)
 	if _, err := adapter.ApplyTransaction(a.root, adapterName, plan); err != nil {
 		return nil, err
 	}

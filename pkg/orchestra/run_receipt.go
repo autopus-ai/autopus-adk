@@ -4,6 +4,10 @@ import "strings"
 
 const OrchestraRouteVersion = "orchestra-route.v1"
 
+// noneBackendMarker records that no backend produced a usable response for a
+// provider (REQ-013).
+const noneBackendMarker = "none"
+
 // OrchestrationTransition records the authoritative terminal projection for a run.
 type OrchestrationTransition struct {
 	Sequence        int    `json:"sequence"`

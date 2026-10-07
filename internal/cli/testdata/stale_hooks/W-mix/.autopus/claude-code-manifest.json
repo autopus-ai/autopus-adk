@@ -1,0 +1,55 @@
+{
+  "version": "1.0.0",
+  "platform": "claude-code",
+  "generated_at": "2026-10-07T00:00:00Z",
+  "files": {
+    ".claude/hooks/autopus/hook-claude-sessionstart.sh": {
+      "checksum": "75af5ed4465bc74c362fc35640bef156b8d0d50449d776218c275d945ced4692",
+      "policy": "always"
+    },
+    ".claude/hooks/autopus/hook-claude-stop.sh": {
+      "checksum": "fa6e605a815128f4a4b7853faca474b5f9722ebdb8cc2bb3ef891bcdd92bfcda",
+      "policy": "always"
+    },
+    ".claude/hooks/autopus/hook-codex-sessionstart.sh": {
+      "checksum": "35970599764dff733295fa8062e95ba9d4eb2ee9effdc202db2a6e4ff3d7dc53",
+      "policy": "always"
+    },
+    ".claude/hooks/autopus/hook-codex-stop.sh": {
+      "checksum": "d9db44bb8a1a55b7a0fedd5dec2c484409b96e001cba3509803683d41ce3ad36",
+      "policy": "always"
+    },
+    ".claude/hooks/autopus/hook-gemini-afteragent.sh": {
+      "checksum": "1f75c577e09232d0f11a0a1fc1b3b24ff8bcef21a9d772c36be7e5ad8644b4fb",
+      "policy": "always"
+    },
+    ".claude/hooks/autopus/hook-gemini-sessionstart.sh": {
+      "checksum": "12356e2fe12337e17fcee40f4b9107e1a960557da198e7174ca1c0d53bc5f42e",
+      "policy": "always"
+    },
+    ".claude/hooks/autopus/hook-gemini-stop.sh": {
+      "checksum": "0305e7e5cbcc6d420762d9a80910ffc06bfa069d36bbd4b4bdccd3d015a135c1",
+      "policy": "always"
+    },
+    ".claude/hooks/autopus/pre-commit-arch.sh": {
+      "checksum": "1b0b1d2babc2a6799bb237a512a0e6d0722009f00e7a0b0845826bc95cc79fa2",
+      "policy": "always"
+    },
+    ".claude/hooks/autopus/pre-commit-lore.sh": {
+      "checksum": "de583ee730c372b745a33d76ea85863d539e624ab3d8adcf5965567e131341b8",
+      "policy": "always"
+    },
+    ".claude/hooks/autopus/react-ci-failure.sh": {
+      "checksum": "b7089428c63d3fdbdadb141ce50b89289272348b09f9da6212c9c81013946d16",
+      "policy": "always"
+    },
+    ".claude/hooks/autopus/react-review.sh": {
+      "checksum": "98fc91b3c56b8c9f49cb477163cde5cf51be34f4219821150c147cb03eb10f28",
+      "policy": "always"
+    },
+    ".claude/settings.json": {
+      "checksum": "96e4eba64fbdc1c332987f212449b82f97180d1b786eb6a0534251d5d1fe69a8",
+      "policy": "merge"
+    }
+  }
+}

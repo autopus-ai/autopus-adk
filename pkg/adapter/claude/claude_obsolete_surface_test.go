@@ -137,7 +137,7 @@ func TestBuildUpdateTransactionRemoves_DeduplicatesDetectorAndManifestPrune(t *t
 	}}
 	diff := adapter.BuildManifestDiff(oldManifest, nil, PruneRoots())
 
-	removes, err := NewWithRoot(root).buildUpdateTransactionRemoves(diff)
+	removes, err := NewWithRoot(root).buildUpdateTransactionRemoves(diff, nil)
 	require.NoError(t, err)
 
 	count := 0

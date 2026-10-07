@@ -33,6 +33,10 @@ func prepareUpdatePreviewConfig(
 	if designConfigMissing && previewCfg.Design.Enabled {
 		reasons = appendConfigPreviewReason(reasons, "design defaults would be persisted in autopus.yaml")
 	}
+	if retired := retiredConfigKeysInFile(dir); len(retired) > 0 {
+		reasons = appendConfigPreviewReason(reasons,
+			"retired orchestra keys would be removed from autopus.yaml: "+terminalSafe(strings.Join(retired, ", ")))
+	}
 
 	if changed, reason := previewLanguagePreview(previewCfg, yesFlag, interactive); changed {
 		reasons = appendConfigPreviewReason(reasons, reason)
