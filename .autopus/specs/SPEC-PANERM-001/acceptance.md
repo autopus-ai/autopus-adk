@@ -140,7 +140,8 @@ And after the update no check has status `warn` or `fail` with a message naming 
 Priority: Must
 Given the claude, codex, and gemini entries of C1, entries equal to `historicalCanonicalCodexPaneArgs` and `v05066AutoPinnedCodexPaneArgs`, and a user codex entry whose only customization is `pane_args`
 When the codex and claude default-entry detection runs at B (golden from T2) and after the change
-Then every decision matches the golden expected value, except the `pane_args`-only entry, which becomes a default entry as the CHANGELOG states
+Then every decision matches the golden expected value, except the six entries whose only difference from a default entry is a retired pane key (one claude entry and five codex entries, `panerm_default_entry_decisions_test.go`), which now decide like the default entry they otherwise equal, as the CHANGELOG states
+And an entry whose codex model the user chose (user args, with or without `model_policy: pinned`) keeps it exactly as at B
 
 ### S15: No pane symbol remains reachable
 Priority: Must

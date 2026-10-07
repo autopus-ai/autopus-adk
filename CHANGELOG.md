@@ -37,10 +37,17 @@ All notable changes to this project will be documented in this file.
     경우는 6개다. (1) claude `args: [--print, --model, my-model]`에 `pane_args`만 더한 entry는 args를
     그대로 두고 B처럼 다시 쓰지 않는다. (2) historical canonical codex args에 사용자 `pane_args`를 단
     entry, (3) v0.50.66 auto-pinned codex args에 사용자 `pane_args`를 단 entry, (4) `pane_args`만,
-    (5) `working_patterns`만, (6) `interactive_input`만 가진 표식 없는 codex entry는 pinned로 남던
-    것이 managed quality policy(`exec --json --sandbox workspace-write -m <Codex astra 모델> -c
-    model_reasoning_effort="max"`)로 올라간다. pane 값은 이미 실행에 영향이 없었으므로 이 entry들의
-    실제 실행 설정은 B에서도 기본 entry와 같았다. 이주: 필요 없다.
+    (5) `working_patterns`만, (6) `interactive_input`만 가진 표식 없는 codex entry는 B의 update가
+    pane 키 때문에 사용자 entry로 보고 `model_policy: pinned`로 두던 것(gpt-5.5, 또는 args 없음)이
+    이제 `auto update`에서 managed quality policy(`exec --json --sandbox workspace-write -m <Codex
+    astra 모델> -c model_reasoning_effort="max"`)로 올라간다. 이 entry들의 subprocess 모델 값은
+    사용자가 고른 것이 아니라 하네스가 쓴 기본값(historical canonical args, v0.50.66 auto-pin, 또는
+    args 없음)이지만, update 뒤 codex 모델과 effort가 B와 달라지므로 비용도 달라진다. 사용자가 고른
+    모델(사용자 args, 또는 `model_policy: pinned`와 사용자 args)은 B처럼 그대로다. B의 update를 이미
+    거친 파일은 B가 써 둔 `model_policy: pinned` 때문에 (2), (4)~(6)이 바뀌지 않고, v0.50.66
+    auto-pin 값이 그대로인 (3)만 올라간다. 이주: B처럼 gpt-5.5에 머물려면 update 전에 그 entry에
+    `model_policy: pinned`를 쓰고, (3)은 args를 v0.50.66 값(`exec --sandbox workspace-write -m
+    gpt-5.5`)과 다르게 바꾼다.
   - hook: orchestra completion·ready hook을 더 생성하지 않고 group H 자산 9개
     (`content/hooks/hook-claude-sessionstart.sh`, `hook-claude-stop.sh`, `hook-codex-sessionstart.sh`,
     `hook-codex-stop.sh`, `hook-gemini-sessionstart.sh`, `hook-gemini-stop.sh`,
@@ -53,14 +60,27 @@ All notable changes to this project will be documented in this file.
     스크립트 2개; opencode는 그 `.ts`를 부르는 `opencode.json` plugin entry다. 회수 단위는 handler라서
     같은 entry의 사용자 handler는 command, matcher, timeout, 순서를 지킨다. 다른 설정 파일이 아직
     부르는 스크립트는 남기고, `effectivePluginConfig`가 거부한 `opencode.json`은 다시 쓰지 않는다.
-    user-level 설정(`~/.claude/settings.json` 등)은 고치지 않는다. 두 번째 update는 transaction
-    기록 밖의 어떤 파일도 바꾸지 않는다.
+    user-level 설정(`~/.claude/settings.json` 등)과 `.claude/settings.local.json`은 고치지 않고,
+    그 파일이 아직 부르는 스크립트도 남긴다. handler가 생성된 실행 형태 그대로이거나 경로 하나뿐일
+    때만 회수하고, `;`, `&&`, `||`, `|`, `$(`, backtick 같은 셸 연산자나 인터프리터·인자가 붙은
+    사용자 command는 스크립트와 함께 남긴다. 두 번째 update는 회수할 것이 없어 stale hook과 그
+    handler를 더 바꾸지 않는다. transaction이 다시 쓰는 파일은 기존 권한(예: 0600 `opencode.json`)을
+    유지한다.
   - `auto doctor`(text, `--json`)는 `doctor.legacy_orchestra_config`(`legacy orchestra keys:
     <paths>`)와 `doctor.stale_completion_hooks`(`stale completion hooks: <file> <event> <script>,
     ...` 뒤에 스크립트 경로)를 남은 멤버가 있으면 warn과 remedy `run "auto update"`로, 없으면 pass로
     보고한다. 로드와 update가 쓰는 판정 함수를 그대로 쓰고 설정된 플랫폼만 보므로 update가 지우는
     집합을 보여 준다. user-level 설정의 stale handler는 advisory
-    `doctor.stale_completion_hooks.user_level`로 따로 알린다.
+    `doctor.stale_completion_hooks.user_level`로, `.claude/settings.local.json`의 stale handler는
+    advisory `doctor.stale_completion_hooks.local`로 따로 알린다. 사용자 파일에서 온 provider
+    이름과 event 이름은 터미널 제어 문자를 escape해서 출력한다.
+  - 은퇴한 키를 지우는 raw rewrite는 그 키 아래에 YAML anchor가 있으면 경로와 anchor를 밝힌
+    오류로 거부한다(다시 파싱하면 뒤의 alias가 앞의 같은 이름 anchor로 다시 묶여, 버린 값 대신
+    다른 argv가 살아날 수 있다). 이주: anchor를 남는 키로 옮기거나 그 키를 손으로 지운다. rewrite
+    결과는 alias가 가리키는 값까지 원래와 같고 `config.Load`가 읽을 수 있을 때만 쓴다. inline merge
+    (`<<: {pane_args: [...]}`) 안의 은퇴 키도 B처럼 로드되고 지워지며, 같은 은퇴 키가 한 mapping에
+    두 번 있으면 B처럼 duplicate-key 오류다. 한계: 줄 단위로 지울 수 없는 entry(flow mapping 등)가
+    있으면 문서 전체를 다시 encode해 blank line과 들여쓰기 폭이 바뀐다.
   - `auto spec review`가 pane을 띄울 수 있는 터미널에서 한 번 출력하던 `spec review: read-only
     review runs providers in subprocess mode` 안내는 은퇴했다. 이제 모든 터미널에서 같은 read-only
     subprocess 실행이라 알릴 차이가 없다.

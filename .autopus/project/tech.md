@@ -197,11 +197,8 @@ Codex Ultra에서 quality-managed supervisor와 orchestra는 Sol+`ultra`, `plann
 | Review Strategy | debate (claude + codex + gemini) |
 | Brainstorm Strategy | debate (claude + codex + gemini) |
 | Secure Strategy | consensus (claude + gemini) |
-| Detach Mode | Auto-detach on pane terminals (cmux/tmux), --no-detach override |
-| Job Commands | status, wait, result (--cleanup) |
-| Stale Job GC | Opportunistic cleanup of jobs older than 1 hour |
+| Execution | provider마다 headless subprocess, `backend: omp` provider는 OMP; 결과는 명령 stdout으로 바로 나온다 (pane backend·detach job은 SPEC-PANERM-001로 은퇴) |
 | Relay Strategy | relay (순차 agentic one-shot) |
-| Interactive Pane Mode | cmux/tmux에서 프로바이더 CLI 인터랙티브 세션 실행, ReadScreen 폴링 완료 감지 |
 
 ## Frontend Verification
 
