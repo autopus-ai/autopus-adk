@@ -1,0 +1,55 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-HYGIENE-GENERATED-SURFACE-SAFETY",
+  "kind": "surface",
+  "category": "generated_root_hygiene",
+  "intent": "Agents are told to change the canonical source and regenerate instead of editing generated roots.",
+  "outcome": "The Claude and both Antigravity routers forbid direct edits of the generated roots and require regeneration from the canonical source; AGENTS.md keeps generated output out of commits; CLAUDE.md marks itself generated.",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "contains",
+      "platform": "claude-code",
+      "path": ".claude/skills/auto/SKILL.md",
+      "needle": "- Do not directly edit generated/runtime roots such as `.claude/**`, `.codex/**`, `.gemini/**`, `.opencode/**`, or `.autopus/plugins/**`."
+    },
+    {
+      "kind": "contains",
+      "platform": "claude-code",
+      "path": ".claude/skills/auto/SKILL.md",
+      "needle": "- Change the canonical ADK template/source, regenerate, and exclude generated/runtime drift from commits."
+    },
+    {
+      "kind": "contains",
+      "platform": "antigravity-cli",
+      "path": ".agents/plugins/autopus/skills/auto/SKILL.md",
+      "needle": "- Never directly edit `.claude/**`, `.codex/**`, `.gemini/**`, `.opencode/**`, or `.autopus/plugins/**` generated/runtime surfaces."
+    },
+    {
+      "kind": "contains",
+      "platform": "antigravity-cli",
+      "path": ".gemini/skills/auto/SKILL.md",
+      "needle": "- Modify the canonical ADK template/source, regenerate, and keep generated/runtime drift out of commits."
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": "AGENTS.md",
+      "needle": "Generated harness files and brainstorm/runtime output stay local\nand are not commit candidates."
+    },
+    {
+      "kind": "contains",
+      "platform": "claude-code",
+      "path": "CLAUDE.md",
+      "needle": "> 이 섹션은 Autopus-ADK에 의해 자동 생성됩니다. 수동으로 편집하지 마세요."
+    }
+  ],
+  "provenance": {
+    "kind": "manual",
+    "ref": "router templates, AGENTS.md and CLAUDE.md renderers"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

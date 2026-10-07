@@ -1,0 +1,79 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-HYGIENE-SHARED-AGENTS-ROOT",
+  "kind": "surface",
+  "category": "generated_root_hygiene",
+  "intent": "Three adapters write under the shared .agents/ root, and each owns a disjoint part of it.",
+  "outcome": "OpenCode alone owns .agents/skills, Antigravity alone owns .agents/plugins/autopus and .agents/hooks.json, and Codex alone owns .agents/plugins/marketplace.json.",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "file_exists",
+      "platform": "opencode",
+      "path": ".agents/skills/auto/SKILL.md"
+    },
+    {
+      "kind": "file_absent",
+      "platform": "antigravity-cli",
+      "path": ".agents/skills/auto/SKILL.md"
+    },
+    {
+      "kind": "file_absent",
+      "platform": "codex",
+      "path": ".agents/skills/auto/SKILL.md"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "antigravity-cli",
+      "path": ".agents/plugins/autopus/plugin.json"
+    },
+    {
+      "kind": "file_absent",
+      "platform": "opencode",
+      "path": ".agents/plugins/autopus/plugin.json"
+    },
+    {
+      "kind": "file_absent",
+      "platform": "codex",
+      "path": ".agents/plugins/autopus/plugin.json"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "antigravity-cli",
+      "path": ".agents/hooks.json"
+    },
+    {
+      "kind": "file_absent",
+      "platform": "opencode",
+      "path": ".agents/hooks.json"
+    },
+    {
+      "kind": "file_absent",
+      "platform": "codex",
+      "path": ".agents/hooks.json"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "codex",
+      "path": ".agents/plugins/marketplace.json"
+    },
+    {
+      "kind": "file_absent",
+      "platform": "antigravity-cli",
+      "path": ".agents/plugins/marketplace.json"
+    },
+    {
+      "kind": "file_absent",
+      "platform": "opencode",
+      "path": ".agents/plugins/marketplace.json"
+    }
+  ],
+  "provenance": {
+    "kind": "manual",
+    "ref": "pkg/adapter/opencode, pkg/adapter/antigravity, pkg/adapter/codex (manifest ownership)"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

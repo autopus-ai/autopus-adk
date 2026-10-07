@@ -1,0 +1,37 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-AGENT-B02",
+  "kind": "agent",
+  "category": "workerreceipt_ownership",
+  "intent": "Repair worker receipt ownership checks so a grant for one project subtree does not authorize a sibling whose name merely shares its prefix. Preserve exact-path and nested-subtree grants, and reject scope expansion beyond the supervisor assignment. Do not modify tests.",
+  "outcome": "With the generated Codex surface installed, the agent repairs the seeded regression in pkg/workerreceipt/ownership.go so every expected oracle test passes again (A lexical prefix check without a directory boundary grants unintended sibling write scope.)",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "file_exists",
+      "platform": "codex",
+      "path": ".codex/config.toml"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "codex",
+      "path": ".codex/skills/codex-auto/SKILL.md"
+    }
+  ],
+  "corpus_ref": {
+    "file": "scripts/benchmarks/harness/corpus_b.json",
+    "task_id": "b02",
+    "file_sha256": "b9149571e3381eb961c23eaac35b0b20a10e36311b2b1f2395547d2588a9643f"
+  },
+  "expected_tests": [
+    "TestValidateOwnershipSupervisorBoundary"
+  ],
+  "provenance": {
+    "kind": "benchmark",
+    "ref": "scripts/benchmarks/harness/corpus_b.json#b02"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

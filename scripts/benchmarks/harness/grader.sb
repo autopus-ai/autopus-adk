@@ -1,0 +1,58 @@
+;; Grader profile for the SPEC-HARNEVAL-001 golden live lane (REQ-HE-08).
+;;
+;; prepare_grader.py and golden.py start every oracle run, calibration, warmup
+;; and trial alike, and golden_surface.py every surface driver build and run,
+;; as
+;;   env -i <allowlist> sandbox-exec -f grader.sb -D GRADE_ROOT=<root>
+;;     -D MODCACHE=<module cache> -D GOROOT=<toolchain> -D ACCOUNT_HOME=<home>
+;;     -D CODEX_HOME_DIR=<codex home> <command>
+;; where <root> is the canonical path of that run's fresh root: for an oracle
+;; the workspace clone (ws/), the per-run build cache clone (gocache/) and its
+;; own HOME, TMPDIR and GOPATH. The session module cache, the warm build cache,
+;; the protocol, records, calibration.json, other trials and the runner
+;; checkout all lie outside the root, so the oracle cannot write them.
+;;
+;; Every network operation is denied, including localhost and Unix sockets,
+;; and so is every Mach service lookup: go test needs none, and the Security
+;; server stays closed, so the keychain cannot be reached through IPC either.
+;; sandbox-exec refuses to start (exit 65) when a parameter is missing;
+;; grader.sandbox_argv() refuses a root, module cache or toolchain that is not
+;; canonical or that would contain a home or another protected path.
+(version 1)
+(allow default)
+(deny network*)
+(deny mach-lookup)
+(deny file-write*)
+(allow file-write*
+  (subpath (param "GRADE_ROOT"))
+  (literal "/dev/null"))
+
+;; Reads are denied by default below the account home, every other home and
+;; the per-user and shared temporary roots: that is where credential stores
+;; (~/.netrc, ~/.npmrc, ~/.git-credentials, ~/.config, ~/.kube, ~/.gemini,
+;; ~/.local/share, ~/Library/Application Support, shell history, ...) and the
+;; files of other sessions live, named or not. Metadata stays readable so that
+;; path resolution works: a denied file can be stat'ed, not opened or listed.
+;; The toolchain under /usr, /opt, /System and /Library stays readable.
+;;
+;; Every read rule names its operations. A rule on a named operation beats a
+;; file-read* rule whatever their order, so a later (allow file-read* ...)
+;; would not reopen a file-read-data deny; among rules on the same operation
+;; the later one wins.
+(deny file-read-data file-read-xattr
+  (subpath (param "ACCOUNT_HOME"))
+  (subpath "/Users")
+  (subpath "/private/var/folders")
+  (subpath "/private/tmp")
+  (subpath "/private/var/tmp"))
+(allow file-read-data file-read-xattr
+  (subpath (param "GRADE_ROOT"))
+  (subpath (param "MODCACHE"))
+  (subpath (param "GOROOT")))
+
+;; The Codex home the agent step authenticates from and the keychains stay
+;; closed, metadata included, wherever they lie.
+(deny file-read-data file-read-xattr file-read-metadata
+  (subpath (param "CODEX_HOME_DIR"))
+  (subpath (string-append (param "ACCOUNT_HOME") "/Library/Keychains"))
+  (subpath "/Library/Keychains"))

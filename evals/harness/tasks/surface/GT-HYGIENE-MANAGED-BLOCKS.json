@@ -1,0 +1,55 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-HYGIENE-MANAGED-BLOCKS",
+  "kind": "surface",
+  "category": "generated_root_hygiene",
+  "intent": "Generated text in shared instruction files stays inside a managed block, so user text outside it survives updates.",
+  "outcome": "CLAUDE.md, AGENTS.md, and GEMINI.md each wrap the generated content in AUTOPUS:BEGIN and AUTOPUS:END markers.",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "contains",
+      "platform": "claude-code",
+      "path": "CLAUDE.md",
+      "needle": "<!-- AUTOPUS:BEGIN -->\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "claude-code",
+      "path": "CLAUDE.md",
+      "needle": "<!-- AUTOPUS:END -->"
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": "AGENTS.md",
+      "needle": "<!-- AUTOPUS:BEGIN -->\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": "AGENTS.md",
+      "needle": "<!-- AUTOPUS:END -->"
+    },
+    {
+      "kind": "contains",
+      "platform": "antigravity-cli",
+      "path": "GEMINI.md",
+      "needle": "<!-- AUTOPUS:BEGIN -->\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "antigravity-cli",
+      "path": "GEMINI.md",
+      "needle": "<!-- AUTOPUS:END -->"
+    }
+  ],
+  "provenance": {
+    "kind": "manual",
+    "ref": "pkg/adapter (marker blocks)"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

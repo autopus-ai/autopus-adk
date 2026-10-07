@@ -1,0 +1,109 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-AGENT-READONLY-REVIEW",
+  "kind": "surface",
+  "category": "agent_skill_exposure",
+  "intent": "Review and validation agents are projected read-only on every platform, while the executor keeps write access.",
+  "outcome": "Claude reviewer and validator get plan mode without Write/Edit, OpenCode denies every tool but read-only ones and grants no edit, Antigravity lists no write_file/replace, and the Codex reviewer is told not to edit; the executor keeps Write/Edit, edit, and write_file/replace.",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "contains",
+      "platform": "claude-code",
+      "path": ".claude/agents/autopus/reviewer.md",
+      "needle": "tools: Read, Grep, Glob, Bash\npermissionMode: plan\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "claude-code",
+      "path": ".claude/agents/autopus/validator.md",
+      "needle": "tools: Read, Grep, Glob, Bash\npermissionMode: plan\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "claude-code",
+      "path": ".claude/agents/autopus/executor.md",
+      "needle": "tools: Read, Write, Edit, Grep, Glob, Bash, TodoWrite\npermissionMode: acceptEdits\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": ".opencode/agents/reviewer.md",
+      "needle": "permission:\n  \"*\": deny\n"
+    },
+    {
+      "kind": "not_contains",
+      "platform": "opencode",
+      "path": ".opencode/agents/reviewer.md",
+      "needle": "\"edit\": allow"
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": ".opencode/agents/validator.md",
+      "needle": "permission:\n  \"*\": deny\n"
+    },
+    {
+      "kind": "not_contains",
+      "platform": "opencode",
+      "path": ".opencode/agents/validator.md",
+      "needle": "\"edit\": allow"
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": ".opencode/agents/executor.md",
+      "needle": "  \"edit\": allow\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "antigravity-cli",
+      "path": ".gemini/agents/autopus/reviewer.md",
+      "needle": "tools:\n  - read_file\n  - grep_search\n  - glob\n  - run_shell_command\nskills:\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "antigravity-cli",
+      "path": ".gemini/agents/autopus/validator.md",
+      "needle": "tools:\n  - read_file\n  - grep_search\n  - glob\n  - run_shell_command\nskills:\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "antigravity-cli",
+      "path": ".agents/plugins/autopus/agents/reviewer.md",
+      "needle": "tools:\n  - read_file\n  - grep_search\n  - glob\n  - run_shell_command\nskills:\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "antigravity-cli",
+      "path": ".agents/plugins/autopus/agents/validator.md",
+      "needle": "tools:\n  - read_file\n  - grep_search\n  - glob\n  - run_shell_command\nskills:\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "antigravity-cli",
+      "path": ".gemini/agents/autopus/executor.md",
+      "needle": "  - write_file\n  - replace\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "antigravity-cli",
+      "path": ".agents/plugins/autopus/agents/executor.md",
+      "needle": "  - write_file\n  - replace\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "codex",
+      "path": ".codex/agents/reviewer.toml",
+      "needle": "Keep review semantics read-only: identify issues and delegate fixes to executor/debugger; do not edit files from this agent."
+    }
+  ],
+  "provenance": {
+    "kind": "manual",
+    "ref": "content/agents/reviewer.md, content/agents/validator.md, content/agents/executor.md, agent projections"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

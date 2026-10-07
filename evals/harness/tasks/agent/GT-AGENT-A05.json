@@ -1,0 +1,39 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-AGENT-A05",
+  "kind": "agent",
+  "category": "strict_policy_json_boundaries",
+  "intent": "Fix strict skill-policy JSON decoding so duplicate object keys are rejected at every nesting depth instead of silently accepting the last value. Keep valid policy, task, and replay documents working and preserve the existing handling of unknown fields, trailing values, and malformed input.",
+  "outcome": "With the generated Codex surface installed, the agent repairs the seeded regression in pkg/skillpolicy/decode.go so every expected oracle test passes again (Seeds duplicate-key ambiguity in the shared strict decoder; existing tests exercise top-level duplicate task fields and nested version-map duplicates while protecting valid replay fixtures.)",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "file_exists",
+      "platform": "codex",
+      "path": ".codex/config.toml"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "codex",
+      "path": ".codex/skills/codex-auto/SKILL.md"
+    }
+  ],
+  "corpus_ref": {
+    "file": "scripts/benchmarks/harness/corpus_a.json",
+    "task_id": "a05",
+    "file_sha256": "97c03debd2dd2e9414a585ec3fabc931228ed87167fe98ffc51b3d9abf774101"
+  },
+  "expected_tests": [
+    "TestReplayExampleFixtures",
+    "TestStrictDecode",
+    "TestStrictPolicyAndReplayDocuments"
+  ],
+  "provenance": {
+    "kind": "benchmark",
+    "ref": "scripts/benchmarks/harness/corpus_a.json#a05"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

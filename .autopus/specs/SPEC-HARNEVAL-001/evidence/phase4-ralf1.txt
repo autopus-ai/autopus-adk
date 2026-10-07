@@ -1,0 +1,53 @@
+# Phase 4 review fix round (RALF retry 1) evidence (SPEC-HARNEVAL-001 on feat/harneval-001 @ 47dc0ca9 + this round)
+executed 2026-10-07 (KST) on macOS 26.5.2, go1.27.0 darwin/arm64, Python 3.14.7. paid model calls: 0. No real
+credential file was opened: fake stores live under a fake account home, and the real home was probed with
+access(2) only (readable or not, no byte read).
+
+## Seatbelt rule precedence (sandbox-exec probes on throwaway files)
+- (deny file-read-data X) then (allow file-read* X/sub): X/sub/f stays unreadable (cat exit 1)
+- (deny file-read-data X) then (allow file-read-data X/sub): X/sub/f readable (cat exit 0)
+- (allow file-read-data X/sub) then (deny file-read* X/sub/c): X/sub/c/f still readable, only its metadata denied
+- file-read-data deny: open, readdir and access(R_OK) fail with EPERM; stat and test -e succeed
+=> a rule on a named operation outranks a file-read* rule whatever the order; grader.sb names every read operation.
+
+## grader.sb read default-deny (item 6)
+red (T12 profile, final test_grader_credentials.py): 22 failures - 14 fake stores readable below the fake home
+(.netrc, .npmrc, .git-credentials, .gemini, .local/share/opencode, .config/gcloud, .kube, .pypirc, .zsh_history,
+.bash_history, Library/Application Support, an ordinary file, the home listing, another session's file under
+/private/tmp), 6 real-home paths readable by access(2), 2 missing parameters (MODCACHE, GOROOT) not refused.
+green: 0 failures; every fake store and the Codex home EPERM, every real-home path denied or absent, the oracle
+built and passed from a session inside the fake home (grade root, module cache and GOROOT/VERSION readable),
+`security list-keychains` failed. A session below the real home (/Users/...) graded `accepted`.
+Without PWD in the grader env, go failed with "cannot determine current directory: open ..: operation not
+permitted"; PWD=<root>/ws fixed it.
+
+## Mach lookup deny, rlimits, stderr (item 8)
+(deny mach-lookup) for every service: fixture sessions (S8, S10, S11) and the corpus calibration below pass.
+test_grader_limits: child sees RLIMIT_CPU (90, 90) for a 45 s timeout, RLIMIT_FSIZE (1 GiB, 1 GiB), RLIMIT_NPROC
+soft = hard in (512, 16000]; raising RLIMIT_CPU fails (ValueError); a write past 1 GiB fails with EFBIG; a 1 MiB +
+4 KiB stderr is cut at 1 MiB and ends with the stamp, a short one is unchanged.
+
+## Real corpus calibration under the new profile
+python3 scripts/benchmarks/harness/prepare_grader.py --repo "$PWD" --output <new dir under /private/tmp>
+exit 0 in 109 s; status passed; 12/12 clean accepted, 12/12 mutated not accepted (GT-AGENT-A01..A06, B01..B06);
+prepared names goroot.
+
+## Surface driver build and run under grader.sb (item 7)
+trusted `go mod download` from the local module cache file proxy (no network), then the sandboxed offline build
+(CGO_ENABLED=0, GOPROXY=off, writes only the build root) and the sandboxed run (writes only the run root):
+  revision    files  surface_digest (same as the unsandboxed T13 evidence)
+  v0.50.122   553    641e43c5dd29b62118c9b8cf941d985e0676f3d194a4de04f34d20bd4357ceb8   35.1 s
+  v0.50.123   553    90e9898cabc4ba3b25e4a15f64114f6abfbd92257aad65bdafac5b2e6300dee6   19.5 s
+test_s8_driver_built_arm_surfaces_reach_the_trial_workspaces built v0.50.123 and HEAD the same way.
+
+## Live verdict and loader fixes (items 1, 2, 3, 9; commit 30372e19)
+stopped session (before passed, after absent, 7 of 12 records): was records_protocol_mismatch exit 1, now report
+exit 0 with calibration missing, vacuous/oracle_calibration_failed. file_absent on an unreported file or directory:
+was pass, now present_unreported; `auto eval harness run --dir .` 31/31 pass, no transition. error record with
+oracle.ran true: now field_invalid. 64 MiB + 1 byte sparse documents: now read_failed (was trailing_data,
+malformed_json or corpus_digest_mismatch).
+
+## Suites
+go test -race ./pkg/harneval (coverage 96.5%), go test -race ./internal/cli -run EvalHarness,
+harness Python unittest discover: 80 tests OK (2 skipped: the opt-in e2e and the non-macOS driver source build),
+golangci-lint --allow-parallel-runners: 0 issues.

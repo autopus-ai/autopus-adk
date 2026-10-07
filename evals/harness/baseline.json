@@ -1,0 +1,308 @@
+{
+  "schema_version": "harness_eval_baseline.v1",
+  "set_version": "1",
+  "set_digest": "c95c23dcea44b4e877a01458fc693a1986fa160fbb597c38597efe3576cad8eb",
+  "rows": [
+    {
+      "id": "GT-AGENT-A01",
+      "kind": "agent",
+      "state": "active",
+      "result": "not_run",
+      "expectation_digest": "262e844f8243cb733d37cc365d7d946ea73431aef40577018237c314287a77d0"
+    },
+    {
+      "id": "GT-AGENT-A02",
+      "kind": "agent",
+      "state": "active",
+      "result": "not_run",
+      "expectation_digest": "bb168ad9ce4726afdcb1dcfc93abcd55d4b70add2ed3165cbba8c4e6159945f0"
+    },
+    {
+      "id": "GT-AGENT-A03",
+      "kind": "agent",
+      "state": "active",
+      "result": "not_run",
+      "expectation_digest": "d101955e2fa4daceae107558554c69070e145b4d93d2fdacbcc97607a2155627"
+    },
+    {
+      "id": "GT-AGENT-A04",
+      "kind": "agent",
+      "state": "active",
+      "result": "not_run",
+      "expectation_digest": "3a7d35bfbc24bba576550ddd356e7f4caf5e7343fbda4ab3ce56b4905df27799"
+    },
+    {
+      "id": "GT-AGENT-A05",
+      "kind": "agent",
+      "state": "active",
+      "result": "not_run",
+      "expectation_digest": "59eef1c8cef78c6b98f5531462b8bb9ac568c3077e3580b55f22251875603c29"
+    },
+    {
+      "id": "GT-AGENT-A06",
+      "kind": "agent",
+      "state": "active",
+      "result": "not_run",
+      "expectation_digest": "7bdce3fd33e567f676a635df2d6eeed9dc776b7518e0fd3a2314cbeaabf860b7"
+    },
+    {
+      "id": "GT-AGENT-B01",
+      "kind": "agent",
+      "state": "active",
+      "result": "not_run",
+      "expectation_digest": "357561ee3661cd6c93c179b9e449e97524b33c1a7e3d9844e7b418df04cf2524"
+    },
+    {
+      "id": "GT-AGENT-B02",
+      "kind": "agent",
+      "state": "active",
+      "result": "not_run",
+      "expectation_digest": "a099312b40f8d1f4b210b4edf3dff6e1727a77e2c62baaea7abe65e20d31b1a1"
+    },
+    {
+      "id": "GT-AGENT-B03",
+      "kind": "agent",
+      "state": "active",
+      "result": "not_run",
+      "expectation_digest": "783406edc10fc9d60fce14f7cc20788f5d82207a38b48dcba7b33ae829c9bb26"
+    },
+    {
+      "id": "GT-AGENT-B04",
+      "kind": "agent",
+      "state": "active",
+      "result": "not_run",
+      "expectation_digest": "99cc933494527aac602cf2c2c28200fa1932380e95275502d358d5273cecdfe4"
+    },
+    {
+      "id": "GT-AGENT-B05",
+      "kind": "agent",
+      "state": "active",
+      "result": "not_run",
+      "expectation_digest": "d25f388d8dbc0611c1f6ebbf1fc7eccf0d76441e8dadb1a44510cf103a37b10c"
+    },
+    {
+      "id": "GT-AGENT-B06",
+      "kind": "agent",
+      "state": "active",
+      "result": "not_run",
+      "expectation_digest": "d3c3d369d4c8f63095387cf95cbecede3a6b797400a147ed45afd19ba1f5caca"
+    },
+    {
+      "id": "GT-AGENT-PIPELINE-ROLES",
+      "kind": "surface",
+      "state": "active",
+      "result": "pass",
+      "expectation_digest": "aab2a666a6fd548078085805027f3d10abb8c712a80adc9289d7bdf4ab6ba2b8"
+    },
+    {
+      "id": "GT-AGENT-READONLY-REVIEW",
+      "kind": "surface",
+      "state": "active",
+      "result": "pass",
+      "expectation_digest": "3707dde3f292276dfa595381ea231f0d473fed4ec83a3385db8501bfd59c54c5"
+    },
+    {
+      "id": "GT-HOOK-ARCH-GATE-ON",
+      "kind": "surface",
+      "state": "active",
+      "result": "pass",
+      "expectation_digest": "3d3e3d396822a7a07bed1815c05f4d005cbc780b91c257e327bbb6512aee80db"
+    },
+    {
+      "id": "GT-HOOK-ARCH-GATE-OPT-OUT",
+      "kind": "surface",
+      "state": "active",
+      "result": "pass",
+      "expectation_digest": "946dded5cb26652c6d1ee7aa60caab411ae9c57123df526887af8d759eb972dd"
+    },
+    {
+      "id": "GT-HOOK-CLAUDE-RULE-DISPATCH",
+      "kind": "surface",
+      "state": "active",
+      "result": "pass",
+      "expectation_digest": "8f83e5aa9a29783a1b67139c5bb7f7a7ae8c2b6d93340c6fcd87517af7beb81b"
+    },
+    {
+      "id": "GT-HOOK-LORE-COMMIT-MSG",
+      "kind": "surface",
+      "state": "active",
+      "result": "pass",
+      "expectation_digest": "cbdd2b837698f0a805f1c3d75ec3bf0def069fb95e439bb38eb3013d7b3116b5"
+    },
+    {
+      "id": "GT-HOOK-OPENCODE-PLUGIN",
+      "kind": "surface",
+      "state": "active",
+      "result": "pass",
+      "expectation_digest": "eabcbc7bea0f52b120b4bf798208fd91be958e123efcad55139419b22d5d6c98"
+    },
+    {
+      "id": "GT-HOOK-SESSION-LIFECYCLE",
+      "kind": "surface",
+      "state": "active",
+      "result": "pass",
+      "expectation_digest": "6bdc6fd35c80f8f14b216977a124136c89bc26ea3ad72286c53a2bf62c40ed7a"
+    },
+    {
+      "id": "GT-HYGIENE-GENERATED-SURFACE-SAFETY",
+      "kind": "surface",
+      "state": "active",
+      "result": "pass",
+      "expectation_digest": "a093a74968620bae8bcebd27709c6d68bd4aa09a3d99a8f100532c09a4a5f493"
+    },
+    {
+      "id": "GT-HYGIENE-MANAGED-BLOCKS",
+      "kind": "surface",
+      "state": "active",
+      "result": "pass",
+      "expectation_digest": "4da17dd2b7164469b684ec042340ec8d5229518097c8d72ae18aceb89096d117"
+    },
+    {
+      "id": "GT-HYGIENE-REFERENCE-INTEGRITY",
+      "kind": "surface",
+      "state": "active",
+      "result": "pass",
+      "expectation_digest": "a3feb1d97b57a3f4ece0c8cfac176ce092d4466ad547d62d799c85fc2e023a9d"
+    },
+    {
+      "id": "GT-HYGIENE-SHARED-AGENTS-ROOT",
+      "kind": "surface",
+      "state": "active",
+      "result": "pass",
+      "expectation_digest": "9d3989edf90e7f704fa5b2989b29c53f49aa18f8ebc221eb1a7a74e164105c6a"
+    },
+    {
+      "id": "GT-PROMPT-DELEGATION-RULE",
+      "kind": "surface",
+      "state": "active",
+      "result": "pass",
+      "expectation_digest": "88c775b31c277a2eeaeb9731d542cced148c8689da283bf6fa6cb8a33ee3f033"
+    },
+    {
+      "id": "GT-PROMPT-PROJECT-IDENTITY",
+      "kind": "surface",
+      "state": "active",
+      "result": "pass",
+      "expectation_digest": "be713c0db59f8b39ebab9a1ef064614d99b1084076fa7fc5ee7e0774e83de3cd"
+    },
+    {
+      "id": "GT-PROMPT-REVIEW-CONVERGENCE",
+      "kind": "surface",
+      "state": "active",
+      "result": "pass",
+      "expectation_digest": "d6c8805bcddfc6a9d8c4a1575f22578694febccc01c72bebd2d954e6b088f6e8"
+    },
+    {
+      "id": "GT-PROMPT-SHELL-PORTABILITY",
+      "kind": "surface",
+      "state": "active",
+      "result": "pass",
+      "expectation_digest": "68629e6822bc8ee3b31cd7405e35ec46e27d05ef5a7cfa7ebcd1a5ce9c89ef65"
+    },
+    {
+      "id": "GT-PROMPT-THIN-ROUTER",
+      "kind": "surface",
+      "state": "active",
+      "result": "pass",
+      "expectation_digest": "13b88b4efdf9a1b497dd07c9b0ec6745974d3216cfd2eda4ce1841aeb14661c8"
+    },
+    {
+      "id": "GT-PROMPT-TRIAGE-PARITY",
+      "kind": "surface",
+      "state": "active",
+      "result": "pass",
+      "expectation_digest": "d122daa76648f637046eaef5b01f2fac6b06d46b476106ad6509c42a28507431"
+    },
+    {
+      "id": "GT-PROMPT-WORKER-RECEIPT",
+      "kind": "surface",
+      "state": "active",
+      "result": "pass",
+      "expectation_digest": "7852e745a18834b238e44bd60d00e74713bfb4e7c6bf3b4cb2a51109af4cc227"
+    },
+    {
+      "id": "GT-ROUTE-ALIASES",
+      "kind": "surface",
+      "state": "active",
+      "result": "pass",
+      "expectation_digest": "b2e7b67f13490549432eec165ed7ad70008887c363978955681ff525a589f9c9"
+    },
+    {
+      "id": "GT-ROUTE-ANTIGRAVITY-COMMANDS",
+      "kind": "surface",
+      "state": "active",
+      "result": "pass",
+      "expectation_digest": "a9cc37b9adecee2315e862a868f0ee3112d93dd4241b4ef61809d48cef7af314"
+    },
+    {
+      "id": "GT-ROUTE-ANTIGRAVITY-DETAILS",
+      "kind": "surface",
+      "state": "active",
+      "result": "pass",
+      "expectation_digest": "f0f42b28108e917bdc7b0f2e961c8e028bccf1731ac15ad8e48bb3fd83b84de4"
+    },
+    {
+      "id": "GT-ROUTE-CLAUDE-DETAILS",
+      "kind": "surface",
+      "state": "active",
+      "result": "pass",
+      "expectation_digest": "36c60833260465b1393808ffb42a524edf8153ab5eb1f25a5cf14cbce526340e"
+    },
+    {
+      "id": "GT-ROUTE-CODEX-SKILL-NAMES",
+      "kind": "surface",
+      "state": "active",
+      "result": "pass",
+      "expectation_digest": "f4562e471e4e5d8d52c8c4f892b5f1f35205e7f47936bb8d0e23b15d15271d63"
+    },
+    {
+      "id": "GT-ROUTE-OMP-EXACT-MAP",
+      "kind": "surface",
+      "state": "active",
+      "result": "pass",
+      "expectation_digest": "dbcac541e91e43f9449ebafb294f5eb63915533dc7631dd795650177ad7e7ac3"
+    },
+    {
+      "id": "GT-ROUTE-OPENCODE-DETAILS",
+      "kind": "surface",
+      "state": "active",
+      "result": "pass",
+      "expectation_digest": "a0652f93ca268087f06747bd103356543fa77da4c264c2b4ade84fecdf0a0494"
+    },
+    {
+      "id": "GT-SETTINGS-MCP-SERVERS",
+      "kind": "surface",
+      "state": "active",
+      "result": "pass",
+      "expectation_digest": "11e17f5b123e885428ed4670f5cb4a0317efc03f16d76fa023c812e008dbdc91"
+    },
+    {
+      "id": "GT-SETTINGS-PERMISSION-SCOPE",
+      "kind": "surface",
+      "state": "active",
+      "result": "pass",
+      "expectation_digest": "ba9a309b3b004b4fa444887cc7a533f96ee574b9b1ebdbfd5836dfa5ffa20ae8"
+    },
+    {
+      "id": "GT-SKILL-CLAUDE-NATIVE-ORCHESTRATION",
+      "kind": "surface",
+      "state": "active",
+      "result": "pass",
+      "expectation_digest": "0c6c1162487cdf0f7faa1950b2a260a3ff771dfcf225c879167c37675a6c5709"
+    },
+    {
+      "id": "GT-SKILL-CODEX-PLUGIN-ENTRY",
+      "kind": "surface",
+      "state": "active",
+      "result": "pass",
+      "expectation_digest": "2b2a07f8eada8889069b7351e996d1ec4e4be5c6d5bd61be98c3b9283d11cf75"
+    },
+    {
+      "id": "GT-SKILL-CORE-CATALOG",
+      "kind": "surface",
+      "state": "active",
+      "result": "pass",
+      "expectation_digest": "7eb45c6a4ac0948d7a7796b57602ce3a2673b61438b76a53057d98c3b81ffc41"
+    }
+  ]
+}

@@ -1,0 +1,127 @@
+# T15 brownfield regression and coverage evidence (SPEC-HARNEVAL-001 slice 10 on feat/harneval-001 @ 62ab5490)
+executed 2026-10-07T05:30Z-06:02Z (UTC); macOS 26.5.2, go1.27.0 darwin/arm64, Python 3.14.7, PyYAML 6.0.3. The host
+was shared with other agents (load average 14-34 on 24 cores). paid model calls: 0. Every command ran with CODEX_HOME
+set to an empty temp dir. base = 60f92ea5, extracted with `git archive` into the session scratchpad (not a git
+checkout); HEAD = 62ab5490, the code under test. The SPEC sync commit cca0b724 changes only .autopus/specs.
+No full `go test ./...` and no full internal/cli suite: internal/cli ran with -run filters only.
+verdicts: S15 PASS | pilot default mode unchanged PASS | ci.yaml jobs unchanged except harness-eval PASS |
+coverage >= base PASS | PR lane pass 31/31 PASS | auto spec validate --strict PASS
+
+## S15: existing files unchanged (git diff 60f92ea5 HEAD)
+- all 2239 test and testdata files that existed at base (`*_test.go`, `test_*.py`, `testdata/`): diff --quiet exit 0
+- pilot files corpus_a.json, corpus_b.json, report.py, export.py, observe.py, workspace.py, generate.go: exit 0
+- .github/workflows/release.yaml, security.yml: exit 0. pkg/evalregression, 13 files including the committed key
+  allowlist in attestation.go: exit 0
+- no file deleted since base. 9 existing files modified: plan.md, ci.yaml, internal/cli/doctor_drift_source.go,
+  internal/cli/root.go, pkg/adapter/codex/codex.go, codex_plugin_manifest.go, and in scripts/benchmarks/harness
+  README.md, permissions.py, run.py. Under .github only ci.yaml changed. ci.yaml and release.yaml hold `golden` 0
+  times and `harness_live_advisory` 0 times (S12)
+
+## S15: Go commands (go test -race -count=1 -json)
+  command                                                      HEAD                                 base
+  ./pkg/experiment/...                                         ok, 130 pass                         ok, 130 pass
+  ./pkg/evalregression/...                                     ok, 35 pass                          ok, 35 pass
+  ./pkg/companionmanifest/...                                  ok, 133 pass, 43 skip                ok, 133 pass, 43 skip
+  ./internal/companionmanifest/receiptverify                   ok, 6 pass                           ok, 6 pass
+  ./internal/companionmanifest (-timeout=40m rerun)            ok, 85 pass, 1 skip (690 s)          13 fail, see below
+  ./internal/cli -run 'EvalRegression|TelemetryHarness|Doctor' ok, 138 pass, 1 skip                 ok, 138 pass, 1 skip
+- named S15 tests at HEAD: TestEvalRegressionADKWorkflowIsRetired, TestReleaseWorkflow_ExactA34ProtectedNormalLane,
+  TestCommittedAllowlistContainsPromotionKeyAndIsDefensiveForE2E all pass.
+- internal/companionmanifest: the first HEAD run used the default 10m test timeout and timed out in
+  TestReleaseSourceValidator_PhasesRejectUnsignedTagWhenProductionSignatureIsRequired/A30 under the host load, with
+  no test failed (48 pass by then). The rerun with -timeout=40m passed. CI gives this package -timeout=20m in the
+  shared lane and runs its process-heavy tests in a separate -p 1 lane. The base run failed 13 tests:
+  TestReleaseHardeningBashContract and 12 TestReleaseSourceValidator_* `git clone` the checkout, and the archive tree
+  has no .git ("fatal: repository ... does not exist"). That failure is an artifact of the base extract, not of the
+  code. The test files are byte-identical, and the package has no non-test statements, so it is outside the
+  coverage comparison.
+
+## ci.yaml: existing jobs unchanged except the declared harness-eval addition
+- textual diff: one hunk `@@ -216,0 +217,62 @@`, 62 lines added, 0 removed.
+- PyYAML structural compare: name, on, permissions, env are equal. All 9 base jobs are deep-equal at HEAD. The only
+  added job is harness-eval, between static-contracts and omp-native-smoke, outside the
+  omp-native-smoke..macos-runtime window. Base job order is kept. harness-eval has no job-level if or needs,
+  timeout-minutes 10, and three uses pinned to 40-hex SHAs. `on` has 0 paths/paths-ignore.
+- the eight ci.yaml-reading tests of `## Existing Test Changes` (files unchanged) pass at HEAD and at base:
+  TestMacOSRuntimeCIExecutesUnsignedBoundedVersionSmoke, TestOMPNativeSmokeCIPinsExactBinaryAndTest,
+  TestWindowsRuntimeRunsSelfUpdateAdmissionContracts, TestWindowsInstallerOracleRunsInPowerShellFiveAndSeven
+  (`go test -race -run ... .`), TestCIWorkflow_StableChecksHaveBoundedTimeouts,
+  TestCIWorkflow_StaticAndMacOSContractsArePullRequestSafe, TestSecurityWorkflow_JobsHaveBoundedTimeouts,
+  TestReleaseWorkflow_UsesOnlyImmutableActions (internal/companionmanifest).
+
+## Pilot (run.py default mode): behavior and contract unchanged
+- the only pilot-path changes are the mode dispatch in run.py (`--mode pilot|golden`, a parser with add_help=False
+  and allow_abbrev=False, so pilot flags such as --model pass through unchanged) and the optional
+  `extra_reads=()` parameter of permissions.profile_args.
+- pilot tests (test_export, test_observe, test_permissions, test_run, test_workspace; files unchanged): base 25 OK,
+  HEAD 25 OK, with the same test names and results.
+- differential script, run once per tree with that tree's modules: `run.py --help` (exit 0) and `run.py` with no
+  argument (usage error, exit 2) give the same text. schedule() gives 36 unique (task, arm) pairs for 12 tasks.
+  build_report on one task x 3 arms has automatic_winner null, trial_design "one observation per task and arm;
+  descriptive only", and statistical_significance "not_assessed". A duplicate task/arm observation is rejected with
+  "one trial per task/arm is supported". to_markdown and profile_args for three roots match too. The two outputs
+  are byte-identical (7912 bytes).
+- full Python suite at HEAD: `python3 -m unittest discover -s scripts/benchmarks/harness -p 'test_*.py'`: 74 tests
+  OK, 1 skipped (the opt-in HARNEVAL_GOLDEN_E2E e2e), 398 s. Base has the 25 pilot tests only, and the last main CI
+  run (3f15677c) logged "Ran 25 tests".
+
+## Coverage vs base 60f92ea5 (statement coverage, -race covermode atomic, blocks de-duplicated)
+  target                                                    base                   HEAD
+  pkg/harneval (package)                                    new                    96.3% (1079/1120)
+  internal/cli eval_harness*.go (-run EvalHarness, 25 tests) new                   95.8% (300/313)
+  pkg/content (package)                                     93.2% (2377/2551)      93.2% (2425/2602)
+  pkg/content/regen_drift.go                                new                    90.2% (46/51)
+  internal/cli/doctor_drift_source.go (its own 9 tests)     59.3% (48/81)          42.5% (17/40)
+  regen-drift code as a whole (that file + regen_drift.go)  59.3% (48/81)          69.2% (63/91)
+  pkg/evalregression (package, diff 0)                      95.4% (104/109)        95.4% (104/109)
+  pkg/adapter/codex (package)                               90.4% (2119/2344)      90.5% (2127/2349)
+  pkg/adapter/codex codex.go + codex_plugin_manifest.go     89.5% (94/105)         91.8% (101/110)
+  scripts/benchmarks/harness/surface_driver (package main)  new                    86.8% (33/38)
+  pkg/experiment/..., pkg/companionmanifest/...,            92.6%, 86.6%, 88.7%    unchanged
+    internal/companionmanifest/receiptverify
+- doctor_drift_source.go: the comparison moved to pkg/content/regen_drift.go and the file kept thin wrappers, so its
+  own percentage fell. Taken as a whole, the code covers more (59.3% -> 69.2%), and uncovered statements went from 33
+  to 28. doctor_drift_source_test.go passes unmodified at base and at HEAD (9/9, S5).
+- CI total: not measured (that needs the full `go test -race ./...` with internal/cli). The last main CI run on
+  3f15677c, an ancestor of base, reported "Total coverage: 85.6%" (threshold 85). The new Go files of this SPEC
+  measure 95.8% (1458/1522: pkg/harneval, eval_harness*.go under the EvalHarness tests alone, regen_drift.go,
+  surface_driver). Every changed existing package kept or raised its coverage (pkg/content 93.18% -> 93.20%,
+  pkg/adapter/codex 90.4% -> 90.5%), and 41 statements left doctor_drift_source.go. This is an inference:
+  statements covered above the total cannot lower it, so the total stays at or above the base total. It assumes
+  the REVIEWRO-001 commits 3f15677c..60f92ea5 kept the base total at 85% or more, which was not measured.
+
+## PR lane on this tree (HEAD-built auto, `go build -trimpath ./cmd/auto`)
+- `auto eval harness run --format json --output result.json --summary summary.md`: exit 0, 11 s. stdout is the
+  document alone and equals the --output file. status pass, failure_reasons [], details [], totals declared_surface
+  31, executed_surface 31, passed_surface 31, declared_agent 12. pass_rate 1, baseline_pass_rate 1, regression_delta
+  0, transitions []. categories: agent_skill_exposure 5/5, generated_root_hygiene 4/4, hooks_settings 8/8,
+  prompt_contract 7/7, routing 7/7. set_digest c95c23dcea44b4e877a01458fc693a1986fa160fbb597c38597efe3576cad8eb.
+  surface_digest 97a4cbbe815e0bd46c449de1b1356ed0b7ace92fa5a3e3fea41541bc27ab4aa0 (equal to the T13 HEAD driver
+  digest). stderr had 4 human lines only (extended-skill counts). summary.md shows the category table and "No task
+  changed against the baseline".
+- a second run is identical except produced_at. `auto eval harness digest` gives the same set and surface digests,
+  agent_set_digest d9ac821b8a159e17cc6faf5e71eeee0fa760f17e4bd73d9aff632285d40f8dcc, and 43 tasks.
+- `auto eval harness applicable --event pull_request` on `git diff --name-only --no-renames 60f92ea5...HEAD`:
+  applicable, harness_input_changed, 136 of 143 changed paths matched, exit 0. The tree stayed clean (git status
+  empty) after every run.
+
+## SPEC sync (cca0b724)
+- spec.md REQ-HE-10 now lists every verdict/reason in precedence order: oracle_calibration_failed, oracle_not_run,
+  agent_all_failed (0bcf375f), completeness_below_floor, no_valid_trial, hard_flip, pass_rate_regression,
+  within_threshold. It also gives report calibration.status passed|failed|missing and the three session input files.
+  REQ-HE-07 runner_sha256 is now the RUNNER_FILES tree digest. The Wire Contracts rows gained null pass rates, the
+  advisory arms shape and the closed values. The new `## Implementation Resolution (rev 5)` table covers
+  generation_failed, malformed_json/field_invalid/read_failed, baseline_exists, `run --summary`, the applicable and
+  digest output shapes, the session directory and diagnostic files, the runner end documents and extra refusal
+  reasons, the golden-mode flags, the grader.sb credential parameters, and the file layout.
+- acceptance.md S9 and S10 gained reason literals, the calibration missing line, and the agent_all_failed line,
+  each matched against existing pkg/harneval verdict_test and verdict_reconcile_test cases.
+- plan.md marks T1-T13 done (T15 in this commit). It merges probe rows A3 and A4, the same grader-isolation
+  boundary, into one row. Before the merge, strict validation failed with "Risk-First Integration Probe: 표에는
+  1-3개의 행이 필요합니다 (현재 4개)". After it, `auto spec validate .autopus/specs/SPEC-HARNEVAL-001 --strict`
+  prints "SPEC 검증 통과", exit 0.
+
+## not-run
+- the full `go test -race ./...` and its CI total coverage; the full internal/cli suite (by instruction).
+- T14 (OPS): registering harness-eval as a required status check on main needs the branch pushed.
+- a real codex/model live session.

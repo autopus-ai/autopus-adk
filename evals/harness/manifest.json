@@ -1,0 +1,29 @@
+{
+  "schema_version": "harness_golden_set.v1",
+  "set_version": "1",
+  "active_paths": [
+    "evals/harness/tasks/surface",
+    "evals/harness/tasks/agent"
+  ],
+  "floors": {
+    "surface_tasks": 20,
+    "agent_tasks": 12
+  },
+  "live": {
+    "k": 2,
+    "threshold_bp": -1000,
+    "completeness_floor": 0.9,
+    "max_agent_runs": 48,
+    "trial_timeout_seconds": 180,
+    "workspace_revision": "a05ce69df9dc03493b8c5de0ab9299459195e8d8",
+    "baseline_ref": "v0.50.123",
+    "model": "gpt-6-astra"
+  },
+  "pins": {
+    "generator_version": "v0.50.123",
+    "project_name": "harness-golden",
+    "codex_model_catalog": "evals/harness/fixtures/codex-models.json",
+    "codex_cli_version": "codex-cli 0.160.0",
+    "opencode_cli_version": "1.18.7"
+  }
+}

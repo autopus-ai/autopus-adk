@@ -1,0 +1,61 @@
+# T13 per-revision surface driver evidence (SPEC-HARNEVAL-001 slice 9 on feat/harneval-001 @ db132a0d + this slice)
+executed 2026-10-07T04:56Z-05:28Z (UTC); macOS 26.5.2, go1.27.0 darwin/arm64, Python 3.14.7. The host was shared with
+other agents (load average 12-23 on 24 cores). paid model calls: 0 (every agent step was the scripted fake codex).
+verdicts: vacuous-ok fix red->green PASS | v0.50.122 bootstrap PASS | -X pin == in-process pin PASS |
+baseline_ref_unsupported PASS | driver-built arms session PASS | seeded-defect red checks 6/6 + 2/2 FAIL as expected
+
+## Bug from the T12 report: an agent failing in every trial read ok -> fixed in 0bcf375f
+red (before the fix): pkg/harneval verdict table, both arms 0/4 with every record agent_exit_nonzero or
+agent_launch_failed graded (oracle.ran true) -> verdict ok, reason within_threshold; the same session with one error
+trial -> incomplete/completeness_below_floor; `auto eval harness report` on the reference session with every record
+rewritten to agent_exit_nonzero -> ok/within_threshold, exit 0.
+green: vacuous, reason agent_all_failed, when no valid trial of either arm got past the agent step
+(agent_launch_failed, agent_exit_nonzero, agent_timeout, observation_failed). Precedence: oracle_calibration_failed,
+oracle_not_run, agent_all_failed, then incomplete. Guards that stay as before: S11 shape (candidate always
+agent_launch_failed, baseline 4/4) -> regression/hard_flip; one completed baseline trial -> pass_rate_regression.
+Each of the 9 fail signals filling a session alone: only the 4 agent-stage signals give agent_all_failed (dropping
+observation_failed from the set turns that case red). spec.md REQ-HE-10 still lists only the calibration and
+oracle.ran conditions for vacuous.
+
+## Surface driver build and run (REQ-HE-07)
+build: git archive <rev> (workspace.snapshot), this checkout's surface_driver/main.go as the only file of
+scripts/benchmarks/harness/surface_driver, then
+`go build -trimpath -ldflags=-X github.com/insajin/autopus-adk/pkg/version.version=v0.50.123` with GOWORK=off,
+GOFLAGS=-mod=readonly -buildvcs=false, GOTOOLCHAIN=local. run: candidate manifest pins, env exactly PATH=<empty dir>,
+HOME=<empty dir>, TMPDIR. Phases (warm build cache, under load): extract 3-7 s, build 0.5 s, generate 3-10 s.
+  revision    files  surface_digest
+  v0.50.122   553    641e43c5dd29b62118c9b8cf941d985e0676f3d194a4de04f34d20bd4357ceb8
+  v0.50.123   553    90e9898cabc4ba3b25e4a15f64114f6abfbd92257aad65bdafac5b2e6300dee6
+  HEAD        553    97a4cbbe815e0bd46c449de1b1356ed0b7ace92fa5a3e3fea41541bc27ab4aa0
+`auto eval harness digest --dir .` (in-process harneval.Generate, WithPluginBaseVersion pin) on the same tree:
+surface_digest 97a4cbbe...4aa0, equal to the HEAD driver digest. The driver's codex plugin manifest version is
+0.50.123+codex.harness-golden.<12 hex> at every revision, so the -X pin reaches generation.
+
+## Tests
+- go test -race ./scripts/benchmarks/harness/surface_driver (42 s): the driver built with -trimpath and -X writes the
+  harneval.Generate default surface digest; in-process run with the test binary's version as the pin writes it too;
+  a pin other than the linked-in version, missing pins, a stray argument, an unknown flag, an unreadable catalog and an
+  existing output are refused without writing. Seeded defects (default single-platform config, no version check):
+  all 3 tests FAIL.
+- test_golden_surface.py (7): v0.50.122 bootstrap (two builds in different paths, one digest; .claude/settings.json,
+  .codex/config.toml, .gemini/settings.json, opencode.json, .omp/commands, autopus.yaml; plugin version pin; extracted
+  tree removed); build command and environment; the arm tree's driver package holds only this checkout's main.go;
+  baseline_ref_unsupported for a fixture ref without the autopus-adk packages ("import lookup disabled by
+  -mod=readonly", no network) and for a ref missing from the repository, both with 0 agent calls and no protocol;
+  candidate failure -> invalid; without --surfaces the arms are requested as (repo, v0.50.123) then (repo, HEAD) with
+  the candidate pins and their digests land in protocol.json.
+- test_golden_session.py new session (macOS, real grader.sb, fake codex, 57 s alone): both arms built by the driver
+  from this checkout at v0.50.123 and HEAD; protocol digests = the generated surfaces, the two differ; each agent call
+  saw its arm's generated AGENTS.md; 2 records oracle_failed with oracle.ran true; report ok/within_threshold.
+- seeded-defect red checks on the runner wiring, each restored byte-identical after its run: candidate failure as
+  baseline_ref_unsupported, swapped arm revisions, revision driver package kept, go.work honored, build failure
+  ignored, driver missing from RUNNER_FILES -> 6/6 FAIL.
+- final runs: `python3 -m unittest discover -s scripts/benchmarks/harness -p 'test_*.py'` -> 74 tests OK, 1 skipped
+  (opt-in e2e), 307 s; go test -race ./pkg/harneval; go test -race ./internal/cli -run EvalHarness; golangci-lint
+  --allow-parallel-runners on ./scripts/benchmarks/harness/... ./pkg/harneval/... ./internal/cli/... -> 0 issues.
+- runner_sha256 of the committed files: 1f2dd0afc57308c2717c42bf8e85f64832d4520e72435d5d757af5127a931833 over the 14
+  RUNNER_FILES (T12's 12 plus golden_surface.py and surface_driver/main.go).
+
+## not-run
+- a real codex/model session on driver-built arms; the GitHub-hosted runner's cold-cache build time; the opt-in
+  real-corpus e2e (HARNEVAL_GOLDEN_E2E=1, still given --surfaces).

@@ -1,0 +1,76 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-ROUTE-ALIASES",
+  "kind": "surface",
+  "category": "routing",
+  "intent": "Preserved router aliases keep reaching their targets: `browse`, the review aliases, and the management aliases.",
+  "outcome": "On Claude and on both Antigravity routers, `browse` loads that surface's browser-automation detail, `stale` and `spec review` route through `review`, and `init` and `platform` route through `update`.",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "route_detail",
+      "platform": "claude-code",
+      "path": ".claude/skills/auto/SKILL.md",
+      "route": "- `browse` loads",
+      "detail": ".claude/skills/browser-automation/SKILL.md"
+    },
+    {
+      "kind": "route_detail",
+      "platform": "antigravity-cli",
+      "path": ".agents/plugins/autopus/skills/auto/SKILL.md",
+      "route": "- `browse` loads",
+      "detail": ".agents/plugins/autopus/skills/browser-automation/SKILL.md"
+    },
+    {
+      "kind": "route_detail",
+      "platform": "antigravity-cli",
+      "path": ".gemini/skills/auto/SKILL.md",
+      "route": "- `browse` loads",
+      "detail": ".gemini/skills/autopus/browser-automation/SKILL.md"
+    },
+    {
+      "kind": "contains",
+      "platform": "claude-code",
+      "path": ".claude/skills/auto/SKILL.md",
+      "needle": "- `stale` and `spec review` route through `review` with the alias arguments intact."
+    },
+    {
+      "kind": "contains",
+      "platform": "antigravity-cli",
+      "path": ".agents/plugins/autopus/skills/auto/SKILL.md",
+      "needle": "- `stale` and `spec review` route through `review` with the alias arguments intact."
+    },
+    {
+      "kind": "contains",
+      "platform": "antigravity-cli",
+      "path": ".gemini/skills/auto/SKILL.md",
+      "needle": "- `stale` and `spec review` route through `review` with the alias arguments intact."
+    },
+    {
+      "kind": "contains",
+      "platform": "claude-code",
+      "path": ".claude/skills/auto/SKILL.md",
+      "needle": "- Management aliases `init` and `platform` route through `update`;"
+    },
+    {
+      "kind": "contains",
+      "platform": "antigravity-cli",
+      "path": ".agents/plugins/autopus/skills/auto/SKILL.md",
+      "needle": "- Management aliases `init` and `platform` route through `update`;"
+    },
+    {
+      "kind": "contains",
+      "platform": "antigravity-cli",
+      "path": ".gemini/skills/auto/SKILL.md",
+      "needle": "- Management aliases `init` and `platform` route through `update`;"
+    }
+  ],
+  "provenance": {
+    "kind": "manual",
+    "ref": "templates/claude/commands/auto-router.md.tmpl, templates/gemini/commands/auto-router.md.tmpl"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

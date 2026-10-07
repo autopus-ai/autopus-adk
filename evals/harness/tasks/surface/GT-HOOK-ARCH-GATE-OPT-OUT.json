@@ -1,0 +1,94 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-HOOK-ARCH-GATE-OPT-OUT",
+  "kind": "surface",
+  "category": "hooks_settings",
+  "intent": "Turning off `hooks.pre_commit_arch` removes only the architecture check from every platform's hooks.",
+  "outcome": "Under pre_commit_arch=false no platform hook runs `auto check --hygiene --arch`, while the rule dispatcher and the post-tool react check stay registered.",
+  "variants": [
+    {
+      "name": "arch-off",
+      "overrides": {
+        "hooks.pre_commit_arch": false
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "json_path_absent",
+      "platform": "claude-code",
+      "path": ".claude/settings.json",
+      "json_path": "hooks.PreToolUse[*].hooks[*].command",
+      "value_contains": "auto check --hygiene --arch"
+    },
+    {
+      "kind": "json_path_absent",
+      "platform": "codex",
+      "path": ".codex/hooks.json",
+      "json_path": "hooks.PreToolUse[*].hooks[*].command",
+      "value_contains": "auto check --hygiene --arch"
+    },
+    {
+      "kind": "json_path_absent",
+      "platform": "antigravity-cli",
+      "path": ".gemini/settings.json",
+      "json_path": "hooks.BeforeTool[*].hooks[*].command",
+      "value_contains": "auto check --hygiene --arch"
+    },
+    {
+      "kind": "json_path_absent",
+      "platform": "antigravity-cli",
+      "path": ".agents/hooks.json",
+      "json_path": "autopus.PreToolUse[*].hooks[*].command",
+      "value_contains": "auto check --hygiene --arch"
+    },
+    {
+      "kind": "not_contains",
+      "platform": "opencode",
+      "path": ".opencode/plugins/autopus-hooks.js",
+      "needle": "auto check --hygiene --arch"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "claude-code",
+      "path": ".claude/settings.json",
+      "json_path": "hooks.PreToolUse[*].hooks[*].command",
+      "value_contains": "auto rules fire --event PreToolUse"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "claude-code",
+      "path": ".claude/settings.json",
+      "json_path": "hooks.PostToolUse[*].hooks[*].command",
+      "value_contains": "auto react check --quiet"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "codex",
+      "path": ".codex/hooks.json",
+      "json_path": "hooks.PostToolUse[*].hooks[*].command",
+      "value_contains": "auto react check --quiet"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "antigravity-cli",
+      "path": ".gemini/settings.json",
+      "json_path": "hooks.AfterTool[*].hooks[*].command",
+      "value_contains": "auto react check --quiet"
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": ".opencode/plugins/autopus-hooks.js",
+      "needle": "const AFTER_HOOKS = [\n  { command: \"auto react check --quiet\", timeout: 60 }\n]"
+    }
+  ],
+  "provenance": {
+    "kind": "manual",
+    "ref": "pkg/config/defaults.go, pkg/content/hooks.go"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

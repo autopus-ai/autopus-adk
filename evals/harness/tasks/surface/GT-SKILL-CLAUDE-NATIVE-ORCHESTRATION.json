@@ -1,0 +1,89 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-SKILL-CLAUDE-NATIVE-ORCHESTRATION",
+  "kind": "surface",
+  "category": "agent_skill_exposure",
+  "intent": "Skills that need a Claude-only runtime are not advertised on platforms that cannot run them.",
+  "outcome": "harness-workflow and its workflow scripts exist only on Claude; agent-teams exists on Claude and as the Codex team profile; neither is exposed on Antigravity, OpenCode, or OMP, and Codex has no harness-workflow.",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "file_exists",
+      "platform": "claude-code",
+      "path": ".claude/skills/harness-workflow/SKILL.md"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "claude-code",
+      "path": ".claude/workflows/route_a.workflow.js"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "claude-code",
+      "path": ".claude/workflows/route_team.workflow.js"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "claude-code",
+      "path": ".claude/skills/agent-teams/SKILL.md"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "codex",
+      "path": ".codex/skills/codex-agent-teams/SKILL.md"
+    },
+    {
+      "kind": "file_absent",
+      "platform": "codex",
+      "path": ".codex/skills/codex-harness-workflow/SKILL.md"
+    },
+    {
+      "kind": "file_absent",
+      "platform": "antigravity-cli",
+      "path": ".agents/plugins/autopus/skills/harness-workflow/SKILL.md"
+    },
+    {
+      "kind": "file_absent",
+      "platform": "antigravity-cli",
+      "path": ".gemini/skills/autopus/harness-workflow/SKILL.md"
+    },
+    {
+      "kind": "file_absent",
+      "platform": "opencode",
+      "path": ".agents/skills/harness-workflow/SKILL.md"
+    },
+    {
+      "kind": "file_absent",
+      "platform": "omp",
+      "path": ".omp/skills/harness-workflow/SKILL.md"
+    },
+    {
+      "kind": "file_absent",
+      "platform": "antigravity-cli",
+      "path": ".agents/plugins/autopus/skills/agent-teams/SKILL.md"
+    },
+    {
+      "kind": "file_absent",
+      "platform": "antigravity-cli",
+      "path": ".gemini/skills/autopus/agent-teams/SKILL.md"
+    },
+    {
+      "kind": "file_absent",
+      "platform": "opencode",
+      "path": ".agents/skills/agent-teams/SKILL.md"
+    },
+    {
+      "kind": "file_absent",
+      "platform": "omp",
+      "path": ".omp/skills/agent-teams/SKILL.md"
+    }
+  ],
+  "provenance": {
+    "kind": "manual",
+    "ref": "content/skills/harness-workflow.md, content/skills/agent-teams.md (platforms), templates/codex/skills/agent-teams.md.tmpl"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

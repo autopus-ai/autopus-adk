@@ -51,7 +51,14 @@ def copy_candidate(work, grade, allowed):
     return valid
 
 
-def main():
+def main(argv=None):
+    # --mode golden runs the SPEC-HARNEVAL-001 live lane; the default pilot path below is unchanged.
+    mode=argparse.ArgumentParser(add_help=False,allow_abbrev=False)
+    mode.add_argument('--mode',choices=('pilot','golden'),default='pilot')
+    selected,argv=mode.parse_known_args(argv)
+    if selected.mode=='golden':
+        from golden import main as golden_main
+        return golden_main(argv)
     from permissions import profile_args
     from workspace import snapshot,apply_mutation,install_surface,hashes,audit,initialize
     ap=argparse.ArgumentParser()
@@ -63,7 +70,7 @@ def main():
     ap.add_argument('--effort',default='medium')
     ap.add_argument('--timeout',type=int,default=180)
     ap.add_argument('--limit',type=int)
-    args=ap.parse_args()
+    args=ap.parse_args(argv)
     base=Path(__file__).resolve().parent
     tasks=json.loads((base/'corpus_a.json').read_text())+json.loads((base/'corpus_b.json').read_text())
     tasks=sorted(tasks,key=lambda x:x['id'])
@@ -114,4 +121,4 @@ def main():
     print('BENCHMARK_COMPLETE',flush=True)
 
 
-if __name__=='__main__':main()
+if __name__=='__main__':raise SystemExit(main())

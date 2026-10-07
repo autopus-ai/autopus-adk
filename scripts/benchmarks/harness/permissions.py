@@ -7,7 +7,8 @@ import subprocess
 import tempfile
 
 
-def profile_args(workspace: Path, cache: Path, temp: Path) -> list:
+def profile_args(workspace: Path, cache: Path, temp: Path, extra_reads: list = ()) -> list:
+    """Codex permission overrides; extra_reads adds read-only roots (golden mode: the session module cache)."""
     roots = [path.resolve() for path in (workspace, cache, temp)]
     forbidden = {Path('/'), Path('/tmp').resolve(), Path.home().resolve(), Path('/Users')}
     if any(root in forbidden for root in roots):
@@ -24,6 +25,7 @@ def profile_args(workspace: Path, cache: Path, temp: Path) -> list:
     reads += [Path(p) / 'pkg' / 'mod' for p in gopath.split(os.pathsep) if p]
     # These are instruction libraries, never the original repository or its parent.
     reads += [Path.home() / '.agents' / 'skills']
+    reads += [Path(p) for p in extra_reads]
     for path in sorted(set(path.resolve() for path in reads)):
         filesystem[str(path)] = 'read'
     for path in roots:

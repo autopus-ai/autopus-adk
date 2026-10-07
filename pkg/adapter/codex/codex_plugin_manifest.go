@@ -78,7 +78,7 @@ var codexPluginSemverRe = regexp.MustCompile(`^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1
 func (a *Adapter) renderPluginManifestJSON(cfg *config.HarnessConfig, routerContent string) (string, error) {
 	doc := pluginManifest{
 		Name:        "auto",
-		Version:     codexPluginVersion(cfg, routerContent),
+		Version:     codexPluginVersion(a.pluginBuildVersion(), cfg, routerContent),
 		Description: "Autopus workflow router for Codex: setup, status, goal, update, plan, go, fix, review, sync, idea, map, why, verify, secure, test, qa, dev, canary, and doctor.",
 		Author:      pluginAuthor{Name: "Autopus", Email: "noreply@autopus.co", URL: "https://autopus.co"},
 		Homepage:    "https://autopus.co",
@@ -112,8 +112,17 @@ func (a *Adapter) renderPluginManifestJSON(cfg *config.HarnessConfig, routerCont
 	return string(data) + "\n", nil
 }
 
-func codexPluginVersion(cfg *config.HarnessConfig, routerContent string) string {
-	base := codexPluginBaseVersion(version.Version())
+// pluginBuildVersion is the raw version the plugin manifest derives its base
+// from: the pinned generator version when one is set, else the build version.
+func (a *Adapter) pluginBuildVersion() string {
+	if a.pluginBaseVersion != nil {
+		return *a.pluginBaseVersion
+	}
+	return version.Version()
+}
+
+func codexPluginVersion(rawVersion string, cfg *config.HarnessConfig, routerContent string) string {
+	base := codexPluginBaseVersion(rawVersion)
 	project := "local"
 	if cfg != nil && strings.TrimSpace(cfg.ProjectName) != "" {
 		project = cfg.ProjectName

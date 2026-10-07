@@ -1,0 +1,70 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-SKILL-CODEX-PLUGIN-ENTRY",
+  "kind": "surface",
+  "category": "agent_skill_exposure",
+  "intent": "Codex can install the local Autopus plugin and reach the same router through `@auto` as through `$codex-auto`.",
+  "outcome": "The local marketplace points at ./.autopus/plugins/auto, the plugin manifest is named auto and ships ./skills, the plugin router skill is named auto, and its Router Execution Contract matches the repository router.",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "json_path_present",
+      "platform": "codex",
+      "path": ".agents/plugins/marketplace.json",
+      "json_path": "plugins[*].source.path",
+      "value_contains": "./.autopus/plugins/auto"
+    },
+    {
+      "kind": "contains",
+      "platform": "codex",
+      "path": ".agents/plugins/marketplace.json",
+      "needle": "\"path\": \"./.autopus/plugins/auto\""
+    },
+    {
+      "kind": "contains",
+      "platform": "codex",
+      "path": ".autopus/plugins/auto/.codex-plugin/plugin.json",
+      "needle": "{\n  \"name\": \"auto\",\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "codex",
+      "path": ".autopus/plugins/auto/.codex-plugin/plugin.json",
+      "needle": "\"skills\": \"./skills\","
+    },
+    {
+      "kind": "contains",
+      "platform": "codex",
+      "path": ".autopus/plugins/auto/skills/auto/SKILL.md",
+      "needle": "---\nname: auto\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "codex",
+      "path": ".codex/skills/codex-auto/SKILL.md",
+      "needle": "---\nname: codex-auto\n"
+    },
+    {
+      "kind": "section_parity",
+      "files": [
+        {
+          "platform": "codex",
+          "path": ".autopus/plugins/auto/skills/auto/SKILL.md"
+        },
+        {
+          "platform": "codex",
+          "path": ".codex/skills/codex-auto/SKILL.md"
+        }
+      ],
+      "heading": "## Router Execution Contract"
+    }
+  ],
+  "provenance": {
+    "kind": "manual",
+    "ref": "pkg/adapter/codex/codex_plugin_manifest.go, templates/codex/prompts/auto.md.tmpl"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

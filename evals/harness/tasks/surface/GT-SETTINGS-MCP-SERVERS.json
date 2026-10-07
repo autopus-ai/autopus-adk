@@ -1,0 +1,67 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-SETTINGS-MCP-SERVERS",
+  "kind": "surface",
+  "category": "hooks_settings",
+  "intent": "The documentation and reasoning MCP servers are wired the same way on every platform that configures MCP.",
+  "outcome": "Claude .mcp.json and Antigravity settings start context7 and sequential-thinking through the login shell, Codex config declares context7, and the sequential-thinking tool is pre-approved under its server name.",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "json_path_present",
+      "platform": "claude-code",
+      "path": ".mcp.json",
+      "json_path": "mcpServers.context7.args[*]",
+      "value_contains": "exec npx -y @upstash/context7-mcp@latest"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "claude-code",
+      "path": ".mcp.json",
+      "json_path": "mcpServers.sequential-thinking.args[*]",
+      "value_contains": "exec npx -y @modelcontextprotocol/server-sequential-thinking"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "antigravity-cli",
+      "path": ".gemini/settings.json",
+      "json_path": "mcpServers.context7.args[*]",
+      "value_contains": "exec npx -y @upstash/context7-mcp@latest"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "antigravity-cli",
+      "path": ".gemini/settings.json",
+      "json_path": "mcpServers.sequential-thinking.args[*]",
+      "value_contains": "exec npx -y @modelcontextprotocol/server-sequential-thinking"
+    },
+    {
+      "kind": "contains",
+      "platform": "codex",
+      "path": ".codex/config.toml",
+      "needle": "[mcp_servers.context7]\ncommand = \"npx\"\nargs = [\"-y\", \"@upstash/context7-mcp@latest\"]"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "claude-code",
+      "path": ".claude/settings.json",
+      "json_path": "permissions.allow[*]",
+      "value_contains": "mcp__sequential-thinking__sequentialthinking"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "antigravity-cli",
+      "path": ".gemini/settings.json",
+      "json_path": "permissions.allow[*]",
+      "value_contains": "mcp__sequential-thinking__sequentialthinking"
+    }
+  ],
+  "provenance": {
+    "kind": "manual",
+    "ref": "templates/claude/mcp.json.tmpl, templates/gemini/settings, pkg/adapter/codex"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

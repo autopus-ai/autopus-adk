@@ -1,0 +1,252 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-HYGIENE-REFERENCE-INTEGRITY",
+  "kind": "surface",
+  "category": "generated_root_hygiene",
+  "intent": "Entry documents and configs only reference files their own adapter generated.",
+  "outcome": "Every OpenCode instruction file listed in opencode.json exists, every GEMINI.md rule import resolves inside the Antigravity plugin, CLAUDE.md names a generated router, and the Claude status line script exists.",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "json_path_present",
+      "platform": "opencode",
+      "path": "opencode.json",
+      "json_path": "instructions[*]",
+      "value_contains": ".opencode/rules/autopus/branding.md"
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": "opencode.json",
+      "needle": "\".opencode/rules/autopus/branding.md\""
+    },
+    {
+      "kind": "file_exists",
+      "platform": "opencode",
+      "path": ".opencode/rules/autopus/branding.md"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "opencode",
+      "path": "opencode.json",
+      "json_path": "instructions[*]",
+      "value_contains": ".opencode/rules/autopus/deferred-tools.md"
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": "opencode.json",
+      "needle": "\".opencode/rules/autopus/deferred-tools.md\""
+    },
+    {
+      "kind": "file_exists",
+      "platform": "opencode",
+      "path": ".opencode/rules/autopus/deferred-tools.md"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "opencode",
+      "path": "opencode.json",
+      "json_path": "instructions[*]",
+      "value_contains": ".opencode/rules/autopus/file-size-limit.md"
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": "opencode.json",
+      "needle": "\".opencode/rules/autopus/file-size-limit.md\""
+    },
+    {
+      "kind": "file_exists",
+      "platform": "opencode",
+      "path": ".opencode/rules/autopus/file-size-limit.md"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "opencode",
+      "path": "opencode.json",
+      "json_path": "instructions[*]",
+      "value_contains": ".opencode/rules/autopus/language-policy.md"
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": "opencode.json",
+      "needle": "\".opencode/rules/autopus/language-policy.md\""
+    },
+    {
+      "kind": "file_exists",
+      "platform": "opencode",
+      "path": ".opencode/rules/autopus/language-policy.md"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "opencode",
+      "path": "opencode.json",
+      "json_path": "instructions[*]",
+      "value_contains": ".opencode/rules/autopus/lore-commit.md"
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": "opencode.json",
+      "needle": "\".opencode/rules/autopus/lore-commit.md\""
+    },
+    {
+      "kind": "file_exists",
+      "platform": "opencode",
+      "path": ".opencode/rules/autopus/lore-commit.md"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "opencode",
+      "path": "opencode.json",
+      "json_path": "instructions[*]",
+      "value_contains": ".opencode/rules/autopus/objective-reasoning.md"
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": "opencode.json",
+      "needle": "\".opencode/rules/autopus/objective-reasoning.md\""
+    },
+    {
+      "kind": "file_exists",
+      "platform": "opencode",
+      "path": ".opencode/rules/autopus/objective-reasoning.md"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "opencode",
+      "path": "opencode.json",
+      "json_path": "instructions[*]",
+      "value_contains": ".opencode/rules/autopus/project-identity.md"
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": "opencode.json",
+      "needle": "\".opencode/rules/autopus/project-identity.md\""
+    },
+    {
+      "kind": "file_exists",
+      "platform": "opencode",
+      "path": ".opencode/rules/autopus/project-identity.md"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "opencode",
+      "path": "opencode.json",
+      "json_path": "instructions[*]",
+      "value_contains": ".opencode/rules/autopus/shell-portability.md"
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": "opencode.json",
+      "needle": "\".opencode/rules/autopus/shell-portability.md\""
+    },
+    {
+      "kind": "file_exists",
+      "platform": "opencode",
+      "path": ".opencode/rules/autopus/shell-portability.md"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "opencode",
+      "path": "opencode.json",
+      "json_path": "instructions[*]",
+      "value_contains": ".opencode/rules/autopus/subagent-delegation.md"
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": "opencode.json",
+      "needle": "\".opencode/rules/autopus/subagent-delegation.md\""
+    },
+    {
+      "kind": "file_exists",
+      "platform": "opencode",
+      "path": ".opencode/rules/autopus/subagent-delegation.md"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "opencode",
+      "path": "opencode.json",
+      "json_path": "instructions[*]",
+      "value_contains": ".opencode/rules/autopus/worktree-safety.md"
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": "opencode.json",
+      "needle": "\".opencode/rules/autopus/worktree-safety.md\""
+    },
+    {
+      "kind": "file_exists",
+      "platform": "opencode",
+      "path": ".opencode/rules/autopus/worktree-safety.md"
+    },
+    {
+      "kind": "route_detail",
+      "platform": "antigravity-cli",
+      "path": "GEMINI.md",
+      "route": "@.agents/plugins/autopus/rules/",
+      "detail": ".agents/plugins/autopus/rules/lore-commit.md"
+    },
+    {
+      "kind": "route_detail",
+      "platform": "antigravity-cli",
+      "path": "GEMINI.md",
+      "route": "@.agents/plugins/autopus/rules/",
+      "detail": ".agents/plugins/autopus/rules/file-size-limit.md"
+    },
+    {
+      "kind": "route_detail",
+      "platform": "antigravity-cli",
+      "path": "GEMINI.md",
+      "route": "@.agents/plugins/autopus/rules/",
+      "detail": ".agents/plugins/autopus/rules/subagent-delegation.md"
+    },
+    {
+      "kind": "route_detail",
+      "platform": "antigravity-cli",
+      "path": "GEMINI.md",
+      "route": "@.agents/plugins/autopus/rules/",
+      "detail": ".agents/plugins/autopus/rules/language-policy.md"
+    },
+    {
+      "kind": "route_detail",
+      "platform": "antigravity-cli",
+      "path": "GEMINI.md",
+      "route": "@.agents/plugins/autopus/rules/",
+      "detail": ".agents/plugins/autopus/rules/techstack-freshness.md"
+    },
+    {
+      "kind": "route_detail",
+      "platform": "claude-code",
+      "path": "CLAUDE.md",
+      "route": "- Router:",
+      "detail": ".claude/skills/auto/SKILL.md"
+    },
+    {
+      "kind": "contains",
+      "platform": "claude-code",
+      "path": ".claude/settings.json",
+      "needle": "\"statusLine\": {\n    \"command\": \".claude/statusline.sh\","
+    },
+    {
+      "kind": "file_exists",
+      "platform": "claude-code",
+      "path": ".claude/statusline.sh"
+    }
+  ],
+  "provenance": {
+    "kind": "manual",
+    "ref": "pkg/adapter/opencode/opencode_config.go, pkg/adapter/antigravity, pkg/adapter/claude"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

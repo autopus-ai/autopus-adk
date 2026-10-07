@@ -1,10 +1,8 @@
 package cli
 
 import (
-	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/insajin/autopus-adk/pkg/content"
@@ -62,75 +60,26 @@ func collectSourceDrift(dir string) sourceDriftReport {
 	return rep
 }
 
-// detectTemplateRegenDrift regenerates templates from the content sources into a
-// temp dir and returns the committed template paths that would change. ok is
-// false when regeneration fails, degrading to a silent skip rather than a false
-// signal. The committed templates/ tree is never mutated — regeneration writes
-// only to the temp dir.
+// detectTemplateRegenDrift is the doctor's advisory view of
+// content.DetectTemplateRegenDrift: ok is false when the comparison could not
+// complete, degrading to a silent skip rather than a false signal. The
+// committed templates/ tree is never mutated.
 func detectTemplateRegenDrift(dir string) ([]string, bool) {
-	tmp, err := os.MkdirTemp("", "autopus-regen-")
+	stale, err := content.DetectTemplateRegenDrift(dir)
 	if err != nil {
 		return nil, false
 	}
-	defer func() { _ = os.RemoveAll(tmp) }()
-
-	contentDir := filepath.Join(dir, "content")
-	if err := content.GenerateAllTemplates(contentDir, tmp); err != nil {
-		return nil, false
-	}
-
-	committedDir := filepath.Join(dir, "templates")
-	stale := diffRegeneratedTemplates(committedDir, tmp)
 	return stale, true
 }
 
-// diffRegeneratedTemplates compares both directions: regenerated files detect
-// missing/stale committed output, while committed generator-owned paths detect
-// residue left behind after a source is deleted. Static template families are
-// excluded from the reverse comparison by content.IsGeneratedTemplatePath.
+// diffRegeneratedTemplates keeps the doctor's name for
+// content.DiffRegeneratedTemplates and drops its error: an incomplete
+// comparison reports nothing stale.
 func diffRegeneratedTemplates(committedDir, regenDir string) []string {
-	staleSet := make(map[string]bool)
-	regenerated := make(map[string]bool)
-	_ = filepath.WalkDir(regenDir, func(p string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			return nil
-		}
-		rel, relErr := filepath.Rel(regenDir, p)
-		if relErr != nil {
-			return nil
-		}
-		rel = filepath.ToSlash(rel)
-		regenerated[rel] = true
-		regenBytes, readErr := os.ReadFile(p)
-		if readErr != nil {
-			return nil
-		}
-		committedBytes, cErr := os.ReadFile(filepath.Join(committedDir, rel))
-		if cErr != nil || !bytesEqual(committedBytes, regenBytes) {
-			staleSet[rel] = true
-		}
+	stale, err := content.DiffRegeneratedTemplates(committedDir, regenDir)
+	if err != nil {
 		return nil
-	})
-	_ = filepath.WalkDir(committedDir, func(p string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			return nil
-		}
-		rel, relErr := filepath.Rel(committedDir, p)
-		if relErr != nil {
-			return nil
-		}
-		rel = filepath.ToSlash(rel)
-		if content.IsGeneratedTemplatePath(rel) && !regenerated[rel] {
-			staleSet[rel] = true
-		}
-		return nil
-	})
-
-	stale := make([]string, 0, len(staleSet))
-	for rel := range staleSet {
-		stale = append(stale, rel)
 	}
-	sort.Strings(stale)
 	return stale
 }
 
@@ -175,18 +124,4 @@ func headPrefixForDisplay(headFull string, width int) string {
 		return headFull
 	}
 	return headFull[:width]
-}
-
-// bytesEqual reports byte-for-byte equality without pulling in bytes.Equal at
-// each call site; kept local so the drift files share one comparison helper.
-func bytesEqual(a, b []byte) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
 }

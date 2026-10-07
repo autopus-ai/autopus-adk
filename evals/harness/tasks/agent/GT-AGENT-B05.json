@@ -1,0 +1,37 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-AGENT-B05",
+  "kind": "agent",
+  "category": "config_symlink_identity",
+  "intent": "Repair configuration path validation so operations refuse an autopus.yaml that is a symbolic link and leave its external target untouched. Preserve normal configuration handling and read-only preview behavior. Do not modify tests.",
+  "outcome": "With the generated Codex surface installed, the agent repairs the seeded regression in pkg/config/loader.go so every expected oracle test passes again (Following a symbolic link while trying to detect it can permit configuration reads and writes outside the intended project boundary.)",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "file_exists",
+      "platform": "codex",
+      "path": ".codex/config.toml"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "codex",
+      "path": ".codex/skills/codex-auto/SKILL.md"
+    }
+  ],
+  "corpus_ref": {
+    "file": "scripts/benchmarks/harness/corpus_b.json",
+    "task_id": "b05",
+    "file_sha256": "b9149571e3381eb961c23eaac35b0b20a10e36311b2b1f2395547d2588a9643f"
+  },
+  "expected_tests": [
+    "TestConfigOperations_RejectSymlinkedConfig"
+  ],
+  "provenance": {
+    "kind": "benchmark",
+    "ref": "scripts/benchmarks/harness/corpus_b.json#b05"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

@@ -1,0 +1,121 @@
+# T12 golden runner evidence (SPEC-HARNEVAL-001 slice 8 on feat/harneval-001 @ f1031a5e + this slice)
+executed 2026-10-07T03:30Z-04:47Z (UTC); macOS 26.5.2 (25F84), go1.27.0 darwin/arm64, Python 3.14.7, codex-cli 0.160.0.
+The host was shared with other agents (load average 18-39 on 24 cores during the runs).
+paid model calls: 0. Every agent step ran a scripted fake codex; the real codex ran only `--version`, `codex sandbox`
+(a local Seatbelt command runner) and three `codex exec` probes, each with an empty CODEX_HOME, no API key and all
+network denied by an outer sandbox (no request could leave the host).
+raw artifacts (not in the repo): session scratchpad t12/ (envprobe.py, envprobe2.py, strictprobe.py, sbprobe.py,
+kcprobe.py, homeprobe.py, redcheck.py, calib-12.out, calib-final.out, e2e-run*.log, godigest/)
+verdicts: codex env policy PASS (sandbox path; exec path needs a live session) | grader credential deny PASS |
+12/12 calibration under the updated grader.sb PASS | S8/S10/S11 fixture sessions PASS | real-corpus e2e PASS |
+unit-level red checks 6/6 FAIL as expected | per-revision surface driver (T13) not-run
+
+## Codex shell environment policy (REQ-HE-08 "credential only in the codex process") -> PASS on the sandbox path
+probe: `codex sandbox -P bench -C <ws> <pilot profile_args> [policy] -- /usr/bin/env` with canaries
+HARNEVAL_AGENT_CREDENTIAL, CODEX_HOME, OPENAI_API_KEY and PLAIN_CANARY in codex's own environment.
+  default policy (no override)            commands see all 4 canary keys and values (OPENAI_API_KEY included: no
+                                          default *KEY* exclusion in this version)
+  inherit="none" + set={allowlist}        commands see exactly the set keys + CODEX_SANDBOX, CODEX_SANDBOX_NETWORK_DISABLED
+  inherit="all" + include_only=[allowlist] commands see exactly the allowlist keys + the two CODEX_SANDBOX keys; PATH
+                                          keeps codex's own arg0 helper prefix (the only CODEX_HOME-derived value)
+golden_trial.agent_argv uses inherit="all" + include_only=AGENT_KEYS, so codex keeps its PATH handling and no
+credential key reaches a command.
+`codex exec --strict-config -c shell_environment_policy.inherit_typo="all"` -> exit 1 "unknown configuration field
+`shell_environment_policy.inherit_typo` in -c/--config override" before any session; without --strict-config the same
+typo is accepted silently. With the valid golden overrides --strict-config proceeds to session creation (stopped by
+the outer no-network sandbox), so every override the runner passes is known to codex-cli 0.160.0.
+not-run: the command environment inside a real `codex exec` turn (needs a model turn; the maintainer's first live
+session checks it, e.g. a canary in --credential-env and `env` in the transcript).
+
+## grader.sb credential read deny (T11 handover 2, scope expansion, plan.md A4) -> PASS
+profile sha256 33406715cec30e4ae94bcf241db26c69f9fcb5f20656a93b23b48267dc0c0f83 (= grader_profile_sha256);
+new parameters ACCOUNT_HOME (password-database home, canonical) and CODEX_HOME_DIR ($CODEX_HOME or <home>/.codex,
+canonical). On this host CODEX_HOME is ~/Library/Application Support/orca/codex-accounts/<id>/home, not ~/.codex, so
+the parameter is what keeps the agent step's real credential closed.
+- fixture account home (test_grader_credentials.py, sandboxed go test reading each path): $CODEX_HOME/auth.json,
+  .codex/auth.json, .ssh, .config/gh, .aws, .claude, .claude.json, .omp, .gnupg, .docker, Library/Keychains ->
+  11/11 "operation not permitted"; a plain file in the same home -> read ok; `security list-keychains` -> error;
+  the oracle itself -> accepted. A missing ACCOUNT_HOME or CODEX_HOME_DIR -> sandbox-exec exit 65.
+- red check: the same test against the T11 profile (allow every read) -> all 11 stores read, keychain search
+  works, missing parameters do not refuse (15 failures).
+- real home, exit codes only (no content read): `ls` of ~/.codex, ~/.ssh, ~/.config/gh, ~/.claude, ~/.omp, ~/.gnupg,
+  ~/.docker, ~/Library/Keychains, $CODEX_HOME and /Library/Keychains under the profile -> all exit 1 "Operation not
+  permitted"; control without the sandbox -> exit 0.
+- keychain IPC (nonexistent service names only): files-only profile -> list-keychains 0, default-keychain 0;
+  this profile -> list-keychains 1 "SecKeychainCopySearchList: One or more parameters ... not valid",
+  default-keychain 1 "A default keychain could not be found"; control -> 0, 0.
+
+## 12-task calibration under the updated grader.sb (REQ-HE-09) -> PASS
+command: PYTHONDONTWRITEBYTECODE=1 python3 scripts/benchmarks/harness/prepare_grader.py --repo <worktree> --output <scratch>/calib-12
+2026-10-07T03:43:42Z-03:47:26Z, exit 0 (3m44s): 50 modules from the file proxy, go.sum-pinned, read-only cache, warm
+build; clean 12/12 accepted, mutated 12/12 oracle_failed, oracle.ran true in all 24 runs, no leftover process;
+failing-test counts per task = evals/harness/README.md (A05 and A06 fail two, every other task one).
+It ran with the committed grader.sb (33406715...) and grader.py (eb4883eb...); prepare_grader.py differed from the
+committed one only by the later additive `corpus_ref` key of agent_tasks(), which calibrate() does not read.
+
+## Golden runner (T12) unit and fixture-session tests -> PASS
+- test_golden.py (13): S8 order literal and the reference session's order, protocol and record fields equal to
+  pkg/harneval/testdata/live-session, the 13-signal table, O_EXCL protocol, record append, runner digest covers each
+  of the 11 runner files and not README.md, RUNNER_FILES == the modules `import golden` loads + grader.sb, the Python
+  surface digest == the Go harneval.SurfaceDigest literal e0d4279a... of the same tree (computed by a Go test via
+  -overlay), agent-stage and stage-order classification, new forbidden literals only, agent env == AGENT_KEYS +
+  credentials with parent canaries absent, codex argv (--strict-config, include_only, modcache read, write roots).
+- test_golden_runner.py (8): the agent gets exactly its environment, both background children (same group and own
+  process group) are killed by the session sweep, timeout, unstartable agent, an interrupted runner ends the agent
+  before the interrupt propagates, SIGTERM and SIGHUP reach golden.main as an interrupt; refusals with 0 agent calls and no
+  protocol: unsupported_os, protocol_exists (existing file untouched), run_cap_exceeded ("2 tasks x k=2 x 2 arms = 8 >
+  max_agent_runs 6"), codex_cli_version_mismatch, invalid (symlinked surface), workspace_mutation_mismatch (empty
+  session dir); `run.py --mode golden` dispatch and the unchanged pilot parser.
+- test_golden_session.py (3, macOS, real grader.sb, fake codex, freshly built auto):
+  S8  K=2 x 2 tasks, warmup_failed injected at the 3rd attempt: order (X01,b,0)(X01,c,0)(X02,c,0)(X02,b,0)(X01,c,1)
+      (X01,b,1)(X02,b,1)(X02,c,1), 8 records, record 3 error/warmup_failed, 7 agent calls, each agent env = AGENT_KEYS +
+      the credential (+ LC_CTYPE, __CF_USER_TEXT_ENCODING that the stub's Python adds itself), one snapshot tree hash
+      over all 8 trials, protocol values = manifest and checkout digests; report exit 0, regression/hard_flip
+      [GT-AGENT-X01], baseline 4/4, candidate 0/3, completeness 0.875.
+  S10 broken oracle (expected test TestMissing): oracle_calibration_failed GT-AGENT-X01, 0 agent calls, the session
+      holds calibration.json, logs/, protocol.json (4 scheduled attempts, calibration failed) and no records; report
+      exit 0 vacuous/oracle_calibration_failed.
+  S11 K=1 x 4 tasks, candidate surface the fake codex refuses to start with: baseline forbidden_construct (no grading),
+      scope_violation (no grading), agent_exit_nonzero (graded: ran, 2 expected passes), accepted with a background
+      child killed (stragglers true, leftover false, pid gone); every candidate trial agent_launch_failed and graded
+      (ran true); report exit 0 regression/hard_flip.
+- red checks on a scratch copy of the committed split (each seeded defect must fail its test; the clean copy passes):
+  agent env inherits the runner env, no include_only policy, process-group-only cleanup, runner digest over
+  golden.py only, forbidden check counting existing literals, agent_launch_failed mapped to error -> 6/6 FAIL.
+  not-run: session-level red checks (warmup retry, grading skipped after an agent failure).
+- runner_sha256 of the committed files: 4dbb415610abfb859ff7d034fe7f7f0a1a6f19a128f7fb690e49814430084d70 over the 12
+  RUNNER_FILES (golden.py, golden_agent.py, golden_protocol.py, golden_trial.py, grader.py, grader.sb, observe.py,
+  permissions.py, prepare_grader.py, report.py, run.py, workspace.py).
+- final runs on the committed tree: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest test_workspace test_observe
+  test_export test_permissions test_run test_grader test_prepare_grader test_golden test_golden_runner -> 60 tests
+  OK (295.6s under load); test_golden_session test_grader_credentials -> 5 tests OK (1127.5s under load, run
+  next to the end-to-end session below).
+  The pre-SPEC test files (test_run, test_permissions, test_workspace, test_observe, test_export) and the corpus,
+  report and export files are unchanged.
+
+## Real-corpus end-to-end session (run.py --mode golden -> auto eval harness report) -> PASS
+command (from scripts/benchmarks/harness): HARNEVAL_GOLDEN_E2E=1 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest -v test_golden_e2e
+2026-10-07T04:23:13Z-04:46:28Z, OK (1395.0s under load). The test copies the committed manifest (k=2, max_agent_runs 48,
+completeness_floor 0.9), the model catalog, the 31 surface tasks, GT-AGENT-A01, GT-AGENT-A05 and corpus_a.json into a
+set root, builds auto from this checkout, and runs `python3 run.py --mode golden --dir <set> --surfaces <arms> --codex
+<fake> --auto <auto> --credential-env HARNEVAL_AGENT_CREDENTIAL` against the real repository (default --repo): snapshot
+of live.workspace_revision a05ce69d, trusted preparation (file proxy, go.sum, read-only cache), calibration of both
+tasks inside grader.sb, 8 trials, recalibration. The fake codex writes the clean file back only under the baseline
+surface. A first run whose fake agent reversed the a05 mutation text instead hit an earlier `if !ok {` of
+decode.go; the runner recorded those trials as oracle_failed with oracle.ran false and build_failed true.
+- run.py exit 0, summary records 8, outcomes {pass 4, fail 4}, calibration_after passed; 8 fake codex calls, each with
+  the credential and without the GITHUB_TOKEN canary of the runner environment.
+- `auto eval harness report --input <session> --format json` exit 0:
+  session_id b8d2b2c87cb4485b7abc4568ba6dd29b, verdict regression, reason hard_flip, hard_flips [GT-AGENT-A01,
+  GT-AGENT-A05], baseline passes 4 / valid 4, candidate passes 0 / valid 4, completeness 1, calibration passed
+  (A01 and A05 clean accepted, mutated rejected), runner_sha256 4dbb4156...4d70 (= the committed RUNNER_FILES),
+  grader_profile_sha256 33406715...0f83 (= grader.sb), agent_set_digest cd821cdc...7028 (the Go digest of the
+  two-task set), workspace_revision a05ce69df9dc03493b8c5de0ab9299459195e8d8.
+- the session directory holds exactly calibration.json, logs/, protocol.json, records.jsonl and trials/; scratch/
+  (workspaces, caches, transcripts) was removed.
+
+## not-run
+- T13 per-revision surface driver: golden.py takes pre-generated --surfaces until surface_driver/main.go lands, so
+  baseline_ref_unsupported is not reachable yet.
+- the command environment inside a real codex exec turn (see the codex policy section).
+- GitHub-hosted macOS runner (outside this SPEC).

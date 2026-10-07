@@ -1,0 +1,37 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-AGENT-B03",
+  "kind": "agent",
+  "category": "gate_evidence_freshness",
+  "intent": "Repair gate evidence reuse at the configured maximum-age boundary: otherwise-valid evidence remains reusable exactly at the limit, while older evidence requires a fresh check. Preserve the other validity and completeness conditions. Do not modify tests.",
+  "outcome": "With the generated Codex surface installed, the agent repairs the seeded regression in pkg/spec/gates/decide.go so every expected oracle test passes again (Inclusive freshness windows are vulnerable to comparator regressions that trigger unnecessary verification work.)",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "file_exists",
+      "platform": "codex",
+      "path": ".codex/config.toml"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "codex",
+      "path": ".codex/skills/codex-auto/SKILL.md"
+    }
+  ],
+  "corpus_ref": {
+    "file": "scripts/benchmarks/harness/corpus_b.json",
+    "task_id": "b03",
+    "file_sha256": "b9149571e3381eb961c23eaac35b0b20a10e36311b2b1f2395547d2588a9643f"
+  },
+  "expected_tests": [
+    "TestReuse_MaxAgeBoundaryIsInclusive"
+  ],
+  "provenance": {
+    "kind": "benchmark",
+    "ref": "scripts/benchmarks/harness/corpus_b.json#b03"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

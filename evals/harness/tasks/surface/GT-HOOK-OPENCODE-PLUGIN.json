@@ -1,0 +1,55 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-HOOK-OPENCODE-PLUGIN",
+  "kind": "surface",
+  "category": "hooks_settings",
+  "intent": "OpenCode loads the Autopus hooks plugin from the project and runs it only around bash tool calls.",
+  "outcome": "opencode.json registers the project-relative plugin path, the plugin file exists and exports the hooks plugin, and its after-hook runs only for the bash tool.",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "json_path_present",
+      "platform": "opencode",
+      "path": "opencode.json",
+      "json_path": "plugin[*]",
+      "value_contains": ".opencode/plugins/autopus-hooks.js"
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": "opencode.json",
+      "needle": "\"plugin\": [\n    \".opencode/plugins/autopus-hooks.js\"\n  ]"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "opencode",
+      "path": ".opencode/plugins/autopus-hooks.js"
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": ".opencode/plugins/autopus-hooks.js",
+      "needle": "export const AutopusHooksPlugin = async ({ directory, worktree }) => {"
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": ".opencode/plugins/autopus-hooks.js",
+      "needle": "export default AutopusHooksPlugin"
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": ".opencode/plugins/autopus-hooks.js",
+      "needle": "\"tool.execute.after\": async (input) => {\n      if (input.tool !== \"bash\") return\n      await runHooks(AFTER_HOOKS, cwd)"
+    }
+  ],
+  "provenance": {
+    "kind": "manual",
+    "ref": "pkg/adapter/opencode/opencode_plugin.go"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

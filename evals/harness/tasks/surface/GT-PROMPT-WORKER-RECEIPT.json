@@ -1,0 +1,67 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-PROMPT-WORKER-RECEIPT",
+  "kind": "surface",
+  "category": "prompt_contract",
+  "intent": "Delegated workers return one five-field receipt, and every platform describes the same receipt.",
+  "outcome": "The native coordination payload reference is byte-identical on all five platforms and requires owned_paths, changed_files, verification, blockers, and next_required_step; AGENTS.md and the Codex V2 contract name the same five fields.",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "section_parity",
+      "files": [
+        {
+          "platform": "claude-code",
+          "path": ".claude/skills/agent-pipeline/references/coordination.md"
+        },
+        {
+          "platform": "codex",
+          "path": ".codex/skills/codex-agent-pipeline/references/coordination.md"
+        },
+        {
+          "platform": "antigravity-cli",
+          "path": ".agents/plugins/autopus/skills/agent-pipeline/references/coordination.md"
+        },
+        {
+          "platform": "antigravity-cli",
+          "path": ".gemini/skills/autopus/agent-pipeline/references/coordination.md"
+        },
+        {
+          "platform": "opencode",
+          "path": ".agents/skills/agent-pipeline/references/coordination.md"
+        },
+        {
+          "platform": "omp",
+          "path": ".omp/skills/agent-pipeline/references/coordination.md"
+        }
+      ],
+      "heading": "# Native Coordination Payloads"
+    },
+    {
+      "kind": "contains",
+      "platform": "claude-code",
+      "path": ".claude/skills/agent-pipeline/references/coordination.md",
+      "needle": "\"required\": [\"owned_paths\", \"changed_files\", \"verification\", \"blockers\", \"next_required_step\"]"
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": "AGENTS.md",
+      "needle": "Return `owned_paths`, `changed_files`, `verification`, `blockers`, and\n`next_required_step`."
+    },
+    {
+      "kind": "contains",
+      "platform": "codex",
+      "path": ".codex/skills/codex-auto/SKILL.md",
+      "needle": "Every worker returns exactly `owned_paths`,\n`changed_files`, `verification`, `blockers`, and\n`next_required_step`."
+    }
+  ],
+  "provenance": {
+    "kind": "manual",
+    "ref": "content/skills/references/agent-pipeline/coordination.md, templates/codex/prompts/auto.md.tmpl, AGENTS.md renderer"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}
