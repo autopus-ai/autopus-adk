@@ -143,12 +143,19 @@ type guardStub struct {
 	exit           int
 	absent         bool   // no `auto` on PATH at all
 	want           string // the command line's stdout
+	// runtimeTrace marks stderr the Go runtime writes for a panic the guard
+	// did not recover. REQ-EG-10 bounds stderr to one line for the faults the
+	// guard handles itself; an unrecovered panic prints its goroutine trace,
+	// which the command line passes through unchanged and still exits 0.
+	runtimeTrace bool
 }
 
 // TestEditGuardHookCommand_ForwardsOnlyACleanExitDecision runs the generated
 // Claude command line through sh -c (S7): a decision reaches the host only from
 // a guard that exited 0, with exactly one trailing newline, and the line itself
-// exits 0 whatever the guard did, so no guard fault can block an edit.
+// exits 0 whatever the guard did, so no guard fault can block an edit. The
+// command line adds nothing to stderr: the guard's own line passes through as
+// is, and a missing `auto` leaves the shell's single not-found line.
 func TestEditGuardHookCommand_ForwardsOnlyACleanExitDecision(t *testing.T) {
 	t.Parallel()
 
@@ -176,7 +183,8 @@ func TestEditGuardHookCommand_ForwardsOnlyACleanExitDecision(t *testing.T) {
 		{name: "allow on a clean exit"},
 		{name: "deny bytes then exit 2", stdout: deny + "\n", exit: 2},
 		{name: "deny bytes then exit 1", stdout: deny + "\n", exit: 1},
-		{name: "unrecovered panic", stderr: "panic: boom\n\ngoroutine 1 [running]:\n", exit: 2},
+		{name: "recovered fault", stderr: "autopus edit-guard: allow (payload malformed)\n"},
+		{name: "unrecovered panic", stderr: "panic: boom\n\ngoroutine 1 [running]:\n", exit: 2, runtimeTrace: true},
 		{name: "version skew", stderr: "Error: unknown command \"guard\" for \"auto\"\n", exit: 1},
 		{name: "no auto on PATH", absent: true},
 	} {
@@ -194,14 +202,19 @@ func TestEditGuardHookCommand_ForwardsOnlyACleanExitDecision(t *testing.T) {
 			cmd := exec.Command(sh, "-c", line)
 			cmd.Env = []string{"PATH=" + bin + string(os.PathListSeparator) + filepath.Dir(cat), "GUARD_STUB=" + state}
 			cmd.Stdin = strings.NewReader(payload)
-			var stdout bytes.Buffer
-			cmd.Stdout = &stdout
+			var stdout, stderr bytes.Buffer
+			cmd.Stdout, cmd.Stderr = &stdout, &stderr
 
 			require.NoError(t, cmd.Run(), "the command line must exit 0")
 			assert.Equal(t, stub.want, stdout.String())
+			if !stub.runtimeTrace {
+				assert.LessOrEqual(t, strings.Count(stderr.String(), "\n"), 1, "at most one stderr line: %q", stderr.String())
+			}
 			if stub.absent {
+				assert.Contains(t, stderr.String(), "auto", "the shell names the missing command")
 				return
 			}
+			assert.Equal(t, stub.stderr, stderr.String(), "the command line forwards the guard's stderr unchanged")
 			assert.Equal(t, payload, readStubFile(t, state, "stdin"), "the guard reads the payload on stdin")
 			assert.Equal(t, "guard edit --platform claude-code\n", readStubFile(t, state, "args"))
 		})
