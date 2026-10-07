@@ -127,6 +127,12 @@ func isAutopusHookHandler(handler hookHandler) bool {
 	command := strings.TrimSpace(handler.Command)
 	return command == "auto check --hygiene --arch --quiet --staged --warn-only" ||
 		command == "auto react check --quiet" ||
+		// The edit-guard command line (SPEC-EDITGUARD-001) stays managed even
+		// without its status message, so regeneration never runs it twice.
+		strings.HasPrefix(command, codexEditGuardCommandPrefix) ||
 		strings.Contains(command, "/.codex/hooks/autopus/hook-codex-") ||
 		strings.Contains(command, ".claude/hooks/autopus/hook-codex-")
 }
+
+// codexEditGuardCommandPrefix anchors the registered edit-guard command line.
+const codexEditGuardCommandPrefix = "out=$(auto guard edit "

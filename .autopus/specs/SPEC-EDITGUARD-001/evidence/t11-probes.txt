@@ -1,0 +1,84 @@
+SPEC-EDITGUARD-001 T11 - Codex and Gemini CLI lane probe evidence
+=================================================================
+
+checked_at: 2026-10-07 (local)
+host: darwin/arm64, case-insensitive APFS
+guard: `auto` built from this branch with T11 (`go build ./cmd/auto`), run
+  only from the session scratchpad; probe projects are temp dirs.
+model calls: 0. Each host ran its real hook pipeline against a loopback model
+  mock on 127.0.0.1 (Responses SSE for Codex, generativelanguage v1beta SSE
+  for Gemini CLI) with fake keys and an isolated HOME or CODEX_HOME; the mock
+  log shows no other endpoint. OpenCode (T10) is in evidence/t10-opencode-live.txt.
+
+Results
+-------
+T11 Codex CLI 0.160.0, apply_patch matcher ............... PASS
+T11 Gemini CLI 0.52.0, BeforeTool write_file and replace . PASS
+Antigravity (agy 1.3.0) .................................. not probed: advisory-only by design
+  (the PreToolUse wrapper in pkg/content/hooks_antigravity.go always prints allow)
+
+T11 - Codex CLI 0.160.0 - PASS
+------------------------------
+boundary: real `codex exec --ephemeral --skip-git-repo-check
+  --dangerously-bypass-hook-trust` (model gpt-5.5, CODEX_HOME temp, loopback
+  Responses mock) -> <R>/.codex/hooks.json PreToolUse.
+runs:
+  C1 matcher apply_patch + exec_command call ... hook not invoked; command ran
+  C2 matcher apply_patch + apply_patch call .... hook invoked once; patch applied (log-only)
+  C3 no matcher + exec_command call ............ hook invoked with tool_name "Bash",
+                                                 tool_input.command = the shell command
+  C4 generated registration (matcher apply_patch, timeout 5, canonical wrapper)
+     + branch guard, patch moving old.txt onto the protected path ... blocked:
+     "Command blocked by PreToolUse hook: autopus edit-guard [generated_surface]:
+     .claude/skills/auto-fix/SKILL.md is generated (...)"; all bytes unchanged
+  C5 same registration + exec_command .......... command ran; no edit-guard text in
+                                                 codex stdout or stderr
+  C6 same registration + unprotected patch ..... applied
+verdict: PASS. Without the apply_patch matcher every shell call would reach
+  the guard as tool Bash and print its no-target diagnostic (C3). Normal use
+  still needs persisted hook trust (the probe bypassed it, as A3 did).
+
+T11 - Gemini CLI 0.52.0 - PASS
+------------------------------
+boundary: real `gemini -p ... --yolo -m gemini-2.5-flash --output-format json`
+  with HOME=<temp> (settings: usage statistics off, auto update off,
+  security.auth.selectedType gemini-api-key; trustedFolders.json trusts the
+  probe project), GEMINI_API_KEY=<fake>, GOOGLE_GEMINI_BASE_URL=<loopback mock>
+  -> <R>/.gemini/settings.json hooks.BeforeTool.
+host facts read from the 0.52.0 bundle and confirmed by the runs:
+  - command hook timeout is milliseconds (DEFAULT_HOOK_TIMEOUT 6e4);
+  - stdout JSON {"decision":"deny"|"block","reason":...} blocks on any exit;
+  - with empty stdout, stderr is parsed: exit 0 or 1 allows (system
+    message), any other exit denies with the text as reason;
+  - the matcher is an unanchored RegExp tested against the tool name;
+  - project hooks run only in a trusted folder.
+runs (matcher write_file|replace unless noted):
+  G1 log hook, write_file pkg/foo.go ........... hook invoked; payload keys session_id,
+     transcript_path, cwd, hook_event_name BeforeTool, timestamp, tool_name,
+     tool_input{file_path (as sent), content}; file created
+  G2 log hook, replace notes.txt ............... hook invoked; tool_input{file_path,
+     instruction, old_string, new_string}; file changed
+  G3 JSON deny exit 0, write_file protected .... "Tool execution blocked: spike-deny: probe"; unchanged
+  G4 JSON deny exit 0, replace protected ....... blocked; unchanged
+  G5 stderr + exit 2, write_file protected ..... blocked (raw guard would fail closed)
+  G6 canonical wrapper + panicking auto stub ... edit landed (wrapper masks exit 2)
+  G7 log hook, read_file ....................... hook not invoked
+  G7b/G7c matcher ^(write_file|replace)$ ....... write_file blocked by a deny hook; read_file
+                                                 not invoked
+  G8a timeout 5 + 1 s deny hook ................ hook killed before reading stdin; edit landed
+  G8b timeout 5000 + 1 s deny hook ............. blocked
+  G9a generated registration (^(write_file|replace)$, timeout 5000, canonical
+      wrapper) + branch guard, write_file absolute protected ... blocked with the
+      GS-CON reason; unchanged
+  G9b same, replace relative protected ......... blocked with the GS-CON reason; unchanged
+  G9c same, write_file pkg/foo.go .............. created
+  G9d same, read_file .......................... ran, guard not invoked
+verdict: PASS, so the Gemini CLI lane is `enforced`. Registration: BeforeTool,
+  matcher ^(write_file|replace)$, timeout 5000, canonical wrapper with
+  --platform gemini; deny encoding {"decision":"deny","reason":...}.
+
+Host-native payload fixtures (run root replaced by <R>)
+-------------------------------------------------------
+pkg/editguard/testdata/hostpayload/gemini-cli-0.52.0-before-tool.jsonl (G1 to G4)
+pkg/adapter/opencode/testdata/opencode-2.0.10-execute-before.jsonl (the A2 events
+  of evidence/t0-probes.txt, saved for T10)

@@ -159,7 +159,7 @@ func TestClaudeDialect_LockReasonWithQuotes_RoundTrips(t *testing.T) {
 
 func TestDialectFor_OnlyVerifiedPlatformsHaveADialect(t *testing.T) {
 	t.Parallel()
-	for _, platform := range []string{"", "gemini", "antigravity-cli", "omp", "Claude-Code", "claude"} {
+	for _, platform := range []string{"", "gemini-cli", "antigravity-cli", "omp", "Claude-Code", "claude"} {
 		if dialect, ok := DialectFor(platform); ok || dialect != nil {
 			t.Errorf("DialectFor(%q) = %v, %v; want no dialect", platform, dialect, ok)
 		}
@@ -170,7 +170,7 @@ func TestDialectFor_OnlyVerifiedPlatformsHaveADialect(t *testing.T) {
 // guard turns into an allow.
 func TestDialects_EncodeOnlyADenyWithAReason(t *testing.T) {
 	t.Parallel()
-	for _, platform := range []string{PlatformClaudeCode, PlatformOpenCode, PlatformCodex} {
+	for _, platform := range []string{PlatformClaudeCode, PlatformOpenCode, PlatformCodex, PlatformGemini} {
 		dialect := dialectOf(t, platform)
 		for _, decision := range []Decision{{}, {Deny: true, Class: ClassFixLock}} {
 			if out, err := dialect.EncodeDeny(decision); err == nil || out != nil {

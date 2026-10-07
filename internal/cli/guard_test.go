@@ -29,12 +29,15 @@ func TestGuardEditCLI_DeniesInThePlatformEncoding(t *testing.T) {
 	codex, _ := json.Marshal(map[string]any{"cwd": root, "hook_event_name": "PreToolUse", "tool_name": "apply_patch",
 		"tool_input": map[string]any{"command": "*** Begin Patch\n*** Update File: pkg/a.go\n*** Move to: " +
 			egSkill + "\n@@\n-a\n+b\n*** End Patch\n"}})
+	gemini, _ := json.Marshal(map[string]any{"cwd": root, "hook_event_name": "BeforeTool", "tool_name": "replace",
+		"tool_input": map[string]any{"file_path": egSkill, "old_string": "x", "new_string": "y"}})
 	cases := []struct {
 		platform, stdin, want string
 	}{
 		{"claude-code", egEdit(root, "Edit", egSkill), egClaudeDeny(egGSCon)},
 		{"opencode", string(opencode), `{"decision":"deny","reason":"` + egGSCon + `"}`},
 		{"codex", string(codex), egClaudeDeny(egGSCon)},
+		{"gemini", string(gemini), `{"decision":"deny","reason":"` + egGSCon + `"}` + "\n"},
 	}
 	for _, c := range cases {
 		got := egRunGuard(t, c.stdin, "--platform", c.platform)
@@ -76,7 +79,9 @@ func TestGuardEditCLI_UnknownPlatformAndUsageErrors_AllowWithExitZero(t *testing
 		args   []string
 		stderr string
 	}{
-		"gemini has no dialect":  {[]string{"--platform", "gemini"}, "autopus edit-guard: allow (unknown platform)\n"},
+		// Antigravity is advisory-only: no lane registers the guard there.
+		"antigravity has no dialect": {[]string{"--platform", "antigravity-cli"},
+			"autopus edit-guard: allow (unknown platform)\n"},
 		"no platform":            {nil, "autopus edit-guard: allow (unknown platform)\n"},
 		"platform without value": {[]string{"--platform"}, "autopus edit-guard: allow (usage error)\n"},
 	} {

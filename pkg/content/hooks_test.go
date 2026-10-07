@@ -231,7 +231,9 @@ func TestGenerateProjectHookConfigs_TaskCreatedDisabledOutsideClaude(t *testing.
 	t.Parallel()
 
 	cfg := config.DefaultFullConfig("demo")
-	cfg.Hooks = config.HooksConf{}
+	// The edit guard, on by default, is a Codex PreToolUse entry of its own
+	// (hooks_edit_guard_test.go); off here, only TaskCreated is under test.
+	cfg.Hooks = config.HooksConf{EditGuard: new(false)}
 	cfg.Features.CC21 = config.CC21FeaturesConf{
 		Enabled:            true,
 		TaskCreatedEnabled: true,

@@ -1,8 +1,9 @@
 package content_test
 
-// SPEC-EDITGUARD-001 T8 and T10 oracles: the guard HookConfig of the Claude
-// Code and OpenCode lanes (REQ-EG-12, REQ-EG-13), its confinement to them, and
-// the REQ-EG-11 command line run through a real POSIX shell.
+// SPEC-EDITGUARD-001 T8, T10, and T11 oracles: the guard HookConfig of each
+// enforced lane (REQ-EG-12 to REQ-EG-14), its confinement to the lanes the
+// enforcement matrix marks enforced, and the REQ-EG-11 command line run
+// through a real POSIX shell.
 
 import (
 	"bytes"
@@ -19,6 +20,7 @@ import (
 	"github.com/insajin/autopus-adk/pkg/adapter"
 	"github.com/insajin/autopus-adk/pkg/config"
 	"github.com/insajin/autopus-adk/pkg/content"
+	"github.com/insajin/autopus-adk/pkg/editguard"
 )
 
 // wantClaudeGuard is the registration spec.md's Decision Output Contract
@@ -32,15 +34,26 @@ var wantClaudeGuard = adapter.HookConfig{
 	Timeout: 5,
 }
 
-// wantLaneGuards is the guard registration of every wired lane. OpenCode's
-// plugin spawns the bare command itself and translates the canonical
-// file-editing matcher to its native tools per plugin API version.
+// wantLaneGuards is the guard registration of every enforced lane. Codex
+// matches only apply_patch, the one tool whose payload names its targets, so
+// its shell calls (tool_name Bash) never reach the guard (T11 probe C1, C3).
+// Gemini CLI anchors its regex matcher on its two file-editing tools and reads
+// hook timeouts in milliseconds (T11 probe G7b, G8). OpenCode's plugin spawns
+// the bare command itself and translates the canonical file-editing matcher to
+// its native tools per plugin API version.
 var wantLaneGuards = map[string]adapter.HookConfig{
 	"claude":      wantClaudeGuard,
 	"claude-code": wantClaudeGuard,
+	"codex": {Event: "PreToolUse", Matcher: "apply_patch", Type: "command",
+		Command: `out=$(auto guard edit --platform codex) && [ -n "$out" ] && printf '%s\n' "$out"; exit 0`, Timeout: 5},
 	"opencode": {Event: "PreToolUse", Matcher: "Edit|Write|MultiEdit", Type: "command",
 		Command: "auto guard edit --platform opencode", Timeout: 5},
+	"gemini":     geminiGuard,
+	"gemini-cli": geminiGuard,
 }
+
+var geminiGuard = adapter.HookConfig{Event: "BeforeTool", Matcher: "^(write_file|replace)$", Type: "command",
+	Command: `out=$(auto guard edit --platform gemini) && [ -n "$out" ] && printf '%s\n' "$out"; exit 0`, Timeout: 5000}
 
 func guardEntries(hooks []adapter.HookConfig) []adapter.HookConfig {
 	var out []adapter.HookConfig
@@ -62,10 +75,10 @@ func withoutGuard(hooks []adapter.HookConfig) []adapter.HookConfig {
 	return out
 }
 
-// TestGenerateProjectHookConfigs_EditGuardRegistersOnWiredLanes: Claude Code,
-// under both spellings of its platform id, and OpenCode get exactly their
-// registration; every other hook-capable platform gets no guard entry yet.
-func TestGenerateProjectHookConfigs_EditGuardRegistersOnWiredLanes(t *testing.T) {
+// TestGenerateProjectHookConfigs_EditGuardRegistersOnEnforcedLanes: each
+// enforced lane gets exactly its registration, under every adapter spelling of
+// its platform id, and Antigravity and OMP get none.
+func TestGenerateProjectHookConfigs_EditGuardRegistersOnEnforcedLanes(t *testing.T) {
 	t.Parallel()
 
 	cfg := config.DefaultFullConfig("guard")
@@ -74,10 +87,28 @@ func TestGenerateProjectHookConfigs_EditGuardRegistersOnWiredLanes(t *testing.T)
 		require.NoError(t, err, platform)
 		assert.Equal(t, []adapter.HookConfig{want}, guardEntries(hooks), platform)
 	}
-	for _, platform := range []string{"codex", "gemini", "gemini-cli", "antigravity-cli", "omp"} {
+	for _, platform := range []string{"antigravity-cli", "omp"} {
 		hooks, _, err := content.GenerateProjectHookConfigs(cfg, platform, true)
 		require.NoError(t, err, platform)
 		assert.Empty(t, guardEntries(hooks), "%s registers no guard entry", platform)
+	}
+}
+
+// TestGenerateProjectHookConfigs_EditGuardFollowsTheMatrix (S12): a lane the
+// enforcement matrix marks enforced has one guard handler, and every other
+// lane has none.
+func TestGenerateProjectHookConfigs_EditGuardFollowsTheMatrix(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.DefaultFullConfig("guard")
+	for _, lane := range editguard.Lanes() {
+		hooks, _, err := content.GenerateProjectHookConfigs(cfg, lane.Platform, true)
+		require.NoError(t, err, lane.Platform)
+		want := 0
+		if lane.State == editguard.Enforced {
+			want = 1
+		}
+		assert.Len(t, guardEntries(hooks), want, "%s is %s", lane.Platform, lane.State)
 	}
 }
 
@@ -86,7 +117,7 @@ func TestGenerateProjectHookConfigs_EditGuardRegistersOnWiredLanes(t *testing.T)
 func TestGenerateHookConfigs_EditGuardFollowsTheFlag(t *testing.T) {
 	t.Parallel()
 
-	for _, platform := range []string{"opencode"} {
+	for _, platform := range []string{"codex", "opencode", "gemini"} {
 		hooks, _, err := content.GenerateHookConfigs(config.HooksConf{EditGuard: new(false)}, platform, true)
 		require.NoError(t, err, platform)
 		assert.Empty(t, guardEntries(hooks), "%s with edit_guard: false", platform)

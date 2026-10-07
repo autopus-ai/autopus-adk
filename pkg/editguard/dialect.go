@@ -17,10 +17,12 @@ const (
 	PlatformClaudeCode = "claude-code"
 	PlatformOpenCode   = "opencode"
 	PlatformCodex      = "codex"
+	PlatformGemini     = "gemini"
 )
 
-// DialectFor returns the codec of a platform id. Gemini CLI has none: its lane
-// gets a codec only from a passing BeforeTool probe (REQ-EG-14).
+// DialectFor returns the codec of a platform id. Each codec comes from the
+// probe that verified its host (A1 to A3, T11 for Gemini CLI); a platform
+// without one has no enforced lane (REQ-EG-14).
 func DialectFor(platform string) (Dialect, bool) {
 	switch platform {
 	case PlatformClaudeCode:
@@ -29,6 +31,8 @@ func DialectFor(platform string) (Dialect, bool) {
 		return openCodeDialect{}, true
 	case PlatformCodex:
 		return codexDialect{}, true
+	case PlatformGemini:
+		return geminiDialect{}, true
 	default:
 		return nil, false
 	}
@@ -103,10 +107,7 @@ func (openCodeDialect) EncodeDeny(decision Decision) ([]byte, error) {
 	if !decision.Deny || decision.Reason == "" {
 		return nil, errNotADeny
 	}
-	line, err := encodeJSONLine(struct {
-		Decision string `json:"decision"`
-		Reason   string `json:"reason"`
-	}{Decision: "deny", Reason: decision.Reason})
+	line, err := encodeJSONLine(decisionDeny{Decision: "deny", Reason: decision.Reason})
 	return bytes.TrimSuffix(line, []byte("\n")), err
 }
 

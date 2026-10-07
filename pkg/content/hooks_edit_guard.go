@@ -10,27 +10,50 @@ import (
 // pre-tool command does not block, so a hung guard stays fail-open.
 const editGuardTimeoutSeconds = 5
 
+// geminiEditGuardTimeoutMillis is the same bound for Gemini CLI, which reads a
+// command hook timeout in milliseconds: in the T11 probe a timeout of 5 killed
+// the hook before it read stdin, and 5000 let a 1 second hook deny.
+const geminiEditGuardTimeoutMillis = editGuardTimeoutSeconds * 1000
+
+// Native matchers of the lanes that do not take the canonical file-editing
+// matcher rulecond.MatcherEdit.
+const (
+	// codexEditGuardMatcher keeps Codex shell calls, which reach PreToolUse as
+	// tool Bash, away from the guard; only apply_patch names its targets.
+	codexEditGuardMatcher = "apply_patch"
+	// geminiEditGuardMatcher is anchored because Gemini CLI tests a matcher as
+	// an unanchored regular expression against every tool name, MCP tools
+	// included.
+	geminiEditGuardMatcher = "^(write_file|replace)$"
+)
+
 // appendEditGuardHook registers `auto guard edit` (SPEC-EDITGUARD-001) on the
-// lanes whose deny contract has been probed and whose wiring lives in this
-// generator: Claude Code (A1) and OpenCode (A2). Every other platform gets no
-// entry here.
+// lanes the enforcement matrix marks enforced. Antigravity, OMP, and unknown
+// platforms get no entry (REQ-EG-12 to REQ-EG-14).
 func appendEditGuardHook(hooks []adapter.HookConfig, platform string) []adapter.HookConfig {
+	lane, ok := editguard.LaneFor(platform)
+	if !ok || lane.State != editguard.Enforced {
+		return hooks
+	}
 	hook := adapter.HookConfig{
 		Event:   "PreToolUse",
 		Matcher: rulecond.MatcherEdit,
 		Type:    "command",
+		Command: editGuardCommandLine(lane.Platform),
 		Timeout: editGuardTimeoutSeconds,
 	}
-	switch platform {
-	case "claude", "claude-code":
-		hook.Command = editGuardCommandLine(editguard.PlatformClaudeCode)
-	case "opencode":
+	switch lane.Platform {
+	case editguard.PlatformCodex:
+		hook.Matcher = codexEditGuardMatcher
+	case editguard.PlatformOpenCode:
 		// The plugin spawns the guard without a shell, applies the clean-exit
 		// rule itself, and maps the canonical matcher to its native tools per
 		// plugin API version.
-		hook.Command = EditGuardCommand(editguard.PlatformOpenCode)
-	default:
-		return hooks
+		hook.Command = EditGuardCommand(lane.Platform)
+	case editguard.PlatformGemini:
+		hook.Event = translateHookEvent(hook.Event, platform)
+		hook.Matcher = geminiEditGuardMatcher
+		hook.Timeout = geminiEditGuardTimeoutMillis
 	}
 	return appendUniqueHook(hooks, hook)
 }
