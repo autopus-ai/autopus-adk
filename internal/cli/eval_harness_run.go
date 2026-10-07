@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 
@@ -10,9 +12,10 @@ import (
 
 // newEvalHarnessRunCmd runs the deterministic lane (REQ-HE-03): the
 // harness_eval_result.v1 document alone on stdout (and in --output), human
-// guidance on stderr, and the exit code of harneval.ExitCode.
+// guidance on stderr, the job summary appended to --summary (REQ-HE-14), and
+// the exit code of harneval.ExitCode.
 func newEvalHarnessRunCmd(deps evalHarnessDeps, dir *string) *cobra.Command {
-	var format, output string
+	var format, output, summary string
 	cmd := &cobra.Command{
 		Use:   "run",
 		Short: "Evaluate the golden set against the committed baseline",
@@ -28,12 +31,32 @@ func newEvalHarnessRunCmd(deps evalHarnessDeps, dir *string) *cobra.Command {
 			if err := harneval.Emit(result, output, cmd.OutOrStdout(), cmd.ErrOrStderr()); err != nil {
 				return err
 			}
+			if summary != "" {
+				if err := appendHarnessSummary(summary, result); err != nil {
+					return err
+				}
+			}
 			return harnessExit(harneval.ExitCode(result))
 		},
 	}
 	cmd.Flags().StringVar(&format, "format", "json", "output format (json)")
 	cmd.Flags().StringVar(&output, "output", "", "also write the result document to this file")
+	cmd.Flags().StringVar(&summary, "summary", "", "append the markdown job summary to this file, such as $GITHUB_STEP_SUMMARY")
 	return cmd
+}
+
+// appendHarnessSummary appends the job summary to path; the file is created
+// when missing and kept otherwise, since CI steps share $GITHUB_STEP_SUMMARY.
+// It runs after the document is emitted, so a summary failure cannot hide it.
+func appendHarnessSummary(path string, result *harneval.Result) error {
+	file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return fmt.Errorf("write --summary: %w", err)
+	}
+	if err := errors.Join(harneval.WriteSummary(file, result), file.Close()); err != nil {
+		return fmt.Errorf("write --summary: %w", err)
+	}
+	return nil
 }
 
 // harnessDigests is the `auto eval harness digest` document: the digests a
