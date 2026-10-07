@@ -1,0 +1,22 @@
+;; Grader profile for the SPEC-HARNEVAL-001 golden live lane (REQ-HE-08).
+;;
+;; prepare_grader.py starts every oracle run, calibration and trial alike, as
+;;   env -i <allowlist> sandbox-exec -f grader.sb -D GRADE_ROOT=<root> go test -json ...
+;; where <root> is the canonical path of that run's fresh grade root: the
+;; workspace clone (ws/), the per-run build cache clone (gocache/) and its own
+;; HOME, TMPDIR and GOPATH. The session module cache, the warm build cache,
+;; the protocol, records, calibration.json, other trials and the runner
+;; checkout all lie outside the root, so the oracle cannot write them.
+;;
+;; Every network operation is denied, including localhost and Unix sockets.
+;; Reads and process execution stay allowed: the Go toolchain needs both.
+;; sandbox-exec refuses to start (exit 65) when GRADE_ROOT is missing or
+;; empty; prepare_grader.grader_argv() refuses a root that is not canonical
+;; or that would contain a protected path such as "/".
+(version 1)
+(allow default)
+(deny network*)
+(deny file-write*)
+(allow file-write*
+  (subpath (param "GRADE_ROOT"))
+  (literal "/dev/null"))
