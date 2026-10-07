@@ -23,6 +23,21 @@ func TestGenerateHooks_RejectsHooksJSONSymlink(t *testing.T) {
 	assertFileContent(t, victim, "preserve-hooks-json")
 }
 
+// A symlinked .codex directory would redirect hooks.json out of the
+// repository, so generation fails at the write and the link target stays empty.
+func TestGenerateHooks_RefusesToWriteThroughASymlinkedCodexDir(t *testing.T) {
+	t.Parallel()
+	root, outside := t.TempDir(), t.TempDir()
+	requireSymlink(t, outside, filepath.Join(root, ".codex"))
+
+	_, err := NewWithRoot(root).generateHooks(config.DefaultFullConfig("test"))
+
+	require.EqualError(t, err, "codex hooks.json 쓰기 실패: managed directory must not be a symlink: .codex")
+	entries, err := os.ReadDir(outside)
+	require.NoError(t, err)
+	assert.Empty(t, entries)
+}
+
 // No hook script is installed since the completion hooks were retired
 // (SPEC-PANERM-001 REQ-12), so generation writes nothing below .codex/hooks,
 // even through a symlinked parent.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/insajin/autopus-adk/pkg/config"
@@ -195,20 +196,28 @@ func TestGenerateHooks_MkdirBlocked(t *testing.T) {
 	assert.Error(t, err)
 }
 
+// requireGitRepository gives dir the readable .git/HEAD that makes
+// adapter.SupportsRootGitHooks true; without it every root git hook is
+// filtered out and installGitHooks writes nothing.
+func requireGitRepository(t *testing.T, dir string) {
+	t.Helper()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".git"), 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".git", "HEAD"), []byte("ref: refs/heads/main\n"), 0644))
+}
+
 func TestInstallGitHooks_WriteFileBlocked(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	a := NewWithRoot(dir)
 	cfg := config.DefaultFullConfig("test-project")
 
+	requireGitRepository(t, dir)
 	gitHooksDir := filepath.Join(dir, ".git", "hooks")
-	require.NoError(t, os.MkdirAll(gitHooksDir, 0755))
 	require.NoError(t, os.MkdirAll(filepath.Join(gitHooksDir, "pre-commit"), 0755))
 
 	err := a.installGitHooks(cfg)
-	if err != nil {
-		assert.Contains(t, err.Error(), "hook")
-	}
+	require.Error(t, err)
+	assert.True(t, strings.HasPrefix(err.Error(), "git hook 쓰기 실패 .git/hooks/pre-commit: "), err.Error())
 }
 
 func TestInstallGitHooks_MkdirBlocked(t *testing.T) {
@@ -218,12 +227,12 @@ func TestInstallGitHooks_MkdirBlocked(t *testing.T) {
 	cfg := config.DefaultFullConfig("test-project")
 
 	// Block .git/hooks as a file so MkdirAll for parent fails
-	gitDir := filepath.Join(dir, ".git")
-	require.NoError(t, os.MkdirAll(gitDir, 0755))
-	require.NoError(t, os.WriteFile(filepath.Join(gitDir, "hooks"), []byte("blocker"), 0444))
+	requireGitRepository(t, dir)
+	blocker := filepath.Join(dir, ".git", "hooks")
+	require.NoError(t, os.WriteFile(blocker, []byte("blocker"), 0444))
 
 	err := a.installGitHooks(cfg)
-	if err != nil {
-		assert.Contains(t, err.Error(), "hook")
-	}
+	require.Error(t, err)
+	assert.True(t, strings.HasPrefix(err.Error(), "git hook 디렉터리 생성 실패: "), err.Error())
+	assertFileContent(t, blocker, "blocker")
 }
