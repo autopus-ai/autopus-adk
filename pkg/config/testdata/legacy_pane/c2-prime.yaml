@@ -80,16 +80,16 @@ orchestra:
     commands:
         brainstorm:
             strategy: debate
-            providers: [claude, codex, gemini]
+            providers: [claude, codex, gemini, my-local]
         plan:
             strategy: consensus
-            providers: [claude, codex, gemini]
+            providers: [claude, codex, gemini, my-local]
         review:
             strategy: debate
-            providers: [claude, codex, gemini]
+            providers: [claude, codex, gemini, my-local]
         secure:
             strategy: consensus
-            providers: [claude, codex, gemini]
+            providers: [claude, codex, gemini, my-local]
     subprocess:
         max_concurrent: 2
         work_dir: "${AUTOPUS_WORKDIR}"
