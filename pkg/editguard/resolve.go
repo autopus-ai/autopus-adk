@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"unicode"
 
 	"golang.org/x/text/cases"
 	"golang.org/x/text/unicode/norm"
@@ -127,8 +128,9 @@ func FindProjectRoot(dir string) (string, error) {
 // FoldKey returns the comparison key of a project-relative path. On a
 // case-insensitive volume it is the canonical caseless form NFD(fold(NFD(p))),
 // which names two spellings alike where APFS opens one file for both: case,
-// full case folding (U+00DF and "ss", U+017F and "s"), and canonical
-// equivalence (NFC and NFD). Invalid UTF-8 passes through unchanged.
+// full case folding (U+00DF and "ss", U+017F and "s"), canonical equivalence
+// (NFC and NFD), and the Cherokee case pairs (oneCherokeeCase). Invalid UTF-8
+// passes through unchanged.
 func FoldKey(rel string, caseInsensitive bool) string {
 	switch {
 	case !caseInsensitive:
@@ -136,7 +138,17 @@ func FoldKey(rel string, caseInsensitive bool) string {
 	case isASCII(rel):
 		return strings.ToLower(rel)
 	}
-	return norm.NFD.String(caseFolder.String(norm.NFD.String(rel)))
+	return norm.NFD.String(strings.Map(oneCherokeeCase, caseFolder.String(norm.NFD.String(rel))))
+}
+
+// oneCherokeeCase gives both letters of a Cherokee case pair the uppercase
+// form Unicode case folding maps them to. The x/text fold instead swaps the
+// case of each of the 86 pairs, which would leave two keys for one name.
+func oneCherokeeCase(r rune) rune {
+	if unicode.Is(unicode.Cherokee, r) {
+		return unicode.ToUpper(r)
+	}
+	return r
 }
 
 func isASCII(s string) bool {
