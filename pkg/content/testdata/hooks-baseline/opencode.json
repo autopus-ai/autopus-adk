@@ -1,0 +1,36 @@
+{
+  "schema": "autopus.hooks_baseline.v1",
+  "source_commit": "60f92ea561ffdbc1629d4c7fffead3a4d8777dce",
+  "config": "config.DefaultFullConfig(\"autopus\")",
+  "adapter": "opencode",
+  "supports_hooks": true,
+  "calls": [
+    {
+      "platform": "opencode",
+      "supports_hooks": true,
+      "hook_count": 2,
+      "react_hooks": [
+        {
+          "event": "PostToolUse",
+          "matcher": "Bash",
+          "type": "command",
+          "command": "auto react check --quiet",
+          "timeout": 60
+        }
+      ],
+      "git_hooks": [
+        ".git/hooks/commit-msg"
+      ]
+    },
+    {
+      "platform": "opencode",
+      "supports_hooks": false,
+      "hook_count": 0,
+      "react_hooks": [],
+      "git_hooks": [
+        ".git/hooks/pre-commit",
+        ".git/hooks/commit-msg"
+      ]
+    }
+  ]
+}

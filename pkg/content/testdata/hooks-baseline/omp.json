@@ -1,0 +1,8 @@
+{
+  "schema": "autopus.hooks_baseline.v1",
+  "source_commit": "60f92ea561ffdbc1629d4c7fffead3a4d8777dce",
+  "config": "config.DefaultFullConfig(\"autopus\")",
+  "adapter": "omp",
+  "supports_hooks": false,
+  "calls": []
+}

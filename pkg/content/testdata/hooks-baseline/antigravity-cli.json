@@ -1,0 +1,43 @@
+{
+  "schema": "autopus.hooks_baseline.v1",
+  "source_commit": "60f92ea561ffdbc1629d4c7fffead3a4d8777dce",
+  "config": "config.DefaultFullConfig(\"autopus\")",
+  "adapter": "antigravity-cli",
+  "supports_hooks": true,
+  "calls": [
+    {
+      "platform": "antigravity-cli",
+      "supports_hooks": true,
+      "hook_count": 3,
+      "react_hooks": [
+        {
+          "event": "PostToolUse",
+          "matcher": "run_command",
+          "type": "command",
+          "command": "sh -c 'auto react check --quiet >&2 || true; printf '\"'\"'{}\\n'\"'\"''",
+          "timeout": 60
+        }
+      ],
+      "git_hooks": [
+        ".git/hooks/commit-msg"
+      ]
+    },
+    {
+      "platform": "gemini",
+      "supports_hooks": true,
+      "hook_count": 3,
+      "react_hooks": [
+        {
+          "event": "AfterTool",
+          "matcher": "Bash",
+          "type": "command",
+          "command": "auto react check --quiet",
+          "timeout": 60
+        }
+      ],
+      "git_hooks": [
+        ".git/hooks/commit-msg"
+      ]
+    }
+  ]
+}
