@@ -10,10 +10,6 @@ import (
 	"github.com/insajin/autopus-adk/pkg/terminal"
 )
 
-// noneBackendMarker records that neither the pane nor the subprocess backend
-// produced a usable response (REQ-013).
-const noneBackendMarker = "none"
-
 // recoveryHint is the concrete operator-facing recovery instruction surfaced
 // when both backends are unavailable (REQ-013/S14).
 const recoveryHint = "ensure a logged-in cmux/tmux CLI session and that the provider CLI is logged in"

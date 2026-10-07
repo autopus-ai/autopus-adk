@@ -1,9 +1,6 @@
 package orchestra
 
 import (
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,15 +9,12 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sync/atomic"
 	"time"
 
 	"github.com/insajin/autopus-adk/pkg/telemetry"
 )
 
 const sessionDirectoryName = "autopus-orchestra-sessions"
-
-var sessionFallbackCounter atomic.Uint64
 
 type sessionWritableFile interface {
 	Stat() (fs.FileInfo, error)
@@ -56,29 +50,6 @@ type SessionProviderResponse struct {
 	TimedOut        bool                      `json:"timed_out"`
 	Usage           []telemetry.UsageEnvelope `json:"usage,omitempty"`
 	UsageCapability UsageCapability           `json:"usage_capability"`
-}
-
-// NewSessionID uses 128 random bits and a collision-resistant fallback if the
-// operating system random source fails.
-func NewSessionID() string {
-	return newSessionID(rand.Reader)
-}
-
-func newSessionID(randomSource io.Reader) string {
-	randomBytes := make([]byte, 16)
-	var readErr error
-	if randomSource == nil {
-		readErr = errors.New("nil random source")
-	} else {
-		_, readErr = io.ReadFull(randomSource, randomBytes)
-	}
-	if readErr != nil {
-		counter := sessionFallbackCounter.Add(1)
-		seed := fmt.Sprintf("%d:%d:%d:%p", time.Now().UnixNano(), os.Getpid(), counter, &randomBytes)
-		digest := sha256.Sum256([]byte(seed))
-		copy(randomBytes, digest[:16])
-	}
-	return "orch-" + hex.EncodeToString(randomBytes)
 }
 
 func sessionDirectoryPath() string {

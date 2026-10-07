@@ -150,19 +150,6 @@ func populateJudgeResponse(resp *ProviderResponse, judgeCfg ProviderConfig, roun
 	resp.ModelFamily = judgeCfg.ModelFamily
 }
 
-// @AX:NOTE [AUTO] REQ-7 magic constant 0.66 — default consensus threshold; configurable via ConsensusThreshold field
-func consensusReached(responses []ProviderResponse, cfg OrchestraConfig) bool {
-	if len(responses) < 2 {
-		return false
-	}
-	threshold := cfg.ConsensusThreshold
-	if threshold <= 0 {
-		threshold = 0.66 // Default consensus threshold
-	}
-	metrics := deriveConsensusMetrics(responses, threshold)
-	return metrics != nil && metrics.TotalClaims > 0 && metrics.DissentClaims == 0
-}
-
 func countNonEmpty(responses []ProviderResponse) int {
 	n := 0
 	for _, r := range responses {

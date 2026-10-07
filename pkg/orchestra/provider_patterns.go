@@ -88,6 +88,15 @@ func resolveHookProviders(providers []ProviderConfig) map[string]bool {
 	return out
 }
 
+// usesAntigravityPromptInteractive reports whether p is the gemini provider
+// served by the Antigravity CLI (agy).
+func usesAntigravityPromptInteractive(p ProviderConfig) bool {
+	if p.Binary != "agy" && !strings.HasSuffix(p.Binary, "/agy") {
+		return false
+	}
+	return providerArtifactIdentity(p.Name) == "gemini"
+}
+
 // DefaultStartupHookProviders returns providers whose generated wiring emits a
 // startup-ready artifact. Completion-only hooks are intentionally excluded.
 func DefaultStartupHookProviders() map[string]bool {

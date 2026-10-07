@@ -1,9 +1,7 @@
 package orchestra
 
 import (
-	"crypto/rand"
 	"fmt"
-	"time"
 )
 
 // paneArgs returns the args to use in pane mode for the given provider.
@@ -37,14 +35,4 @@ func buildPaneCommand(provider ProviderConfig, prompt, outputFile string) string
 	delim := uniqueHeredocDelimiter("PROMPT_EOF", prompt, randomHex())
 	return fmt.Sprintf("( %s %s <<'%s'\n%s\n%s\n) | tee %s; echo %s >> %s",
 		binary, args, delim, prompt, delim, safeOutput, sentinel, safeOutput)
-}
-
-// randomHex returns an 8-character random hex string.
-// SEC-005: falls back to timestamp-based value on rand.Read failure.
-func randomHex() string {
-	b := make([]byte, 4)
-	if _, err := rand.Read(b); err != nil {
-		return fmt.Sprintf("%08x", time.Now().UnixNano()&0xFFFFFFFF)
-	}
-	return fmt.Sprintf("%x", b)
 }

@@ -10,105 +10,14 @@ import (
 // ansiEscapeRe matches ANSI escape sequences including color codes, cursor movement, etc.
 var ansiEscapeRe = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
 
-// iceTableHeaderRe matches ICE scoring table headers (various formats).
-var iceTableHeaderRe = regexp.MustCompile(`(?i)(ICE\s*(Score|스코어)|통합\s*ICE|Top\s*\d+\s*(통합|아이디어)|Judge.*Merge|Judge.*Integration|Impact.*Confidence.*Ease)`)
-
-// iceScoreLineRe matches standalone ICE score lines like "ICE: 5.12" or "Score: 432".
-var iceScoreLineRe = regexp.MustCompile(`(?i)^\s*(ICE|Score)\s*[:=]\s*[\d.]+\s*$`)
-
 // stripANSI removes all ANSI escape sequences from the input string.
 func stripANSI(s string) string {
 	return ansiEscapeRe.ReplaceAllString(s, "")
 }
 
-// defaultPromptPatterns matches common shell and CLI prompts.
-// @AX:NOTE [AUTO] hardcoded prompt regexes — must stay in sync with DefaultCompletionPatterns
-const (
-	codexSuggestionPromptPattern = `(?im)^\s*›\s+\S.*$`
-	codexReadyPromptPattern      = `(?im)^(?:codex>\s*|\s*›\s+\S.*)$`
-)
-
-var defaultPromptPatterns = []*regexp.Regexp{
-	regexp.MustCompile(`(?m)^❯(?:\s|\x{00a0})*$`),        // claude code prompt (unicode heavy right-pointing angle)
-	regexp.MustCompile(`(?m)^\s*>\s*(Type your|@|\s*$)`), // gemini TUI prompt (> Type your..., > @, bare >)
-	regexp.MustCompile(`(?im)^codex>\s*$`),               // codex prompt (case-insensitive)
-	regexp.MustCompile(codexSuggestionPromptPattern),     // codex v0.135+ TUI suggestion prompt
-	regexp.MustCompile(`(?im)^Ask anything\s*$`),         // opencode TUI prompt
-	regexp.MustCompile(`(?m)^\$\s*$`),                    // shell $ prompt
-	regexp.MustCompile(`(?m)^#\s*$`),                     // root # prompt
-}
-
-// cliNoisePatterns matches provider CLI lines that are pure noise (used for line-level filtering).
-var cliNoisePatterns = []*regexp.Regexp{
-	// gemini CLI noise (line-level)
-	regexp.MustCompile(`(?i)We're making changes to Gemini CLI`),
-	regexp.MustCompile(`(?i)Update successful`),
-	regexp.MustCompile(`(?i)What's\s+Changing:`),
-	regexp.MustCompile(`(?i)How it\s+affects`),
-	regexp.MustCompile(`(?i)Read more:\s*https://`),
-	regexp.MustCompile(`(?i)/auth\s*$`),
-	regexp.MustCompile(`(?i)/upgrade\s*$`),
-	regexp.MustCompile(`(?i)Signed in with`),
-	regexp.MustCompile(`(?i)Plan: Gemini`),
-	// gemini CLI box drawing and single-char wrapped lines
-	regexp.MustCompile(`^[╭╰│╮╯─]+$`),
-	regexp.MustCompile(`^│\s*.{1,3}\s*│$`),
-	regexp.MustCompile(`(?i)^Positional arguments now default`),
-	regexp.MustCompile(`(?i)non-interactive mode.*--prompt`),
-	// opencode TUI noise
-	regexp.MustCompile(`(?i)Build\s+·\s+gpt`),
-	regexp.MustCompile(`(?i)^\s*Build\s+GPT-[\d.]+\s+OpenAI`),
-	regexp.MustCompile(`(?i)⬝+\s+esc`),
-	regexp.MustCompile(`(?i)ctrl\+[a-z]\s`),
-	// Additional opencode TUI chrome (without "Build" prefix)
-	regexp.MustCompile(`(?i)^\s*gpt-[\d.]+\s+OpenAI`),
-	// Shell login banner (macOS/Linux)
-	regexp.MustCompile(`(?i)^Last login:`),
-	// User@host shell prompt (zsh %, bash $, root #)
-	regexp.MustCompile(`^\w+@[\w.-]+.*[%$#]\s*$`),
-	// cmux status bar fragments
-	regexp.MustCompile(`🐙\s+v?\d+\.\d+`),
-}
-
-// inlineNoisePatterns are stripped via regex replace (not line-level) to handle noise
-// concatenated with content on the same line (e.g., "MCP issues detected.I will begin...").
-var inlineNoisePatterns = []*regexp.Regexp{
-	regexp.MustCompile(`(?i)MCP issues detected\.\s*Run /mcp list for status\.?`),
-	regexp.MustCompile(`(?i)ℹ\s*MCP issues detected\.\s*Run\s+/mcp list\s+for\s+status\.?`),
-	regexp.MustCompile(`(?i)ℹ\s*Update\s+successful!\s*The new\s+version will be used on your next run\.?`),
-}
-
-// filterPromptLines removes lines matching known CLI prompt patterns from output.
-func filterPromptLines(output string) string {
-	lines := strings.Split(output, "\n")
-	filtered := make([]string, 0, len(lines))
-	for _, line := range lines {
-		if isPromptLine(line) {
-			continue
-		}
-		filtered = append(filtered, line)
-	}
-	return strings.Join(filtered, "\n")
-}
-
-// isPromptLine checks if a single line matches any known prompt or CLI noise pattern.
-func isPromptLine(line string) bool {
-	trimmed := strings.TrimSpace(line)
-	if trimmed == "" {
-		return false
-	}
-	for _, p := range defaultPromptPatterns {
-		if p.MatchString(line) {
-			return true
-		}
-	}
-	for _, p := range cliNoisePatterns {
-		if p.MatchString(trimmed) {
-			return true
-		}
-	}
-	return false
-}
+// codexReadyPromptPattern matches the codex ready prompt, including the
+// v0.135+ TUI suggestion line.
+const codexReadyPromptPattern = `(?im)^(?:codex>\s*|\s*›\s+\S.*)$`
 
 // isPromptVisible checks if the screen content contains a visible prompt pattern,
 // indicating the CLI session has returned to input-ready state.
@@ -222,22 +131,6 @@ func isOutputIdle(outputFile string, threshold time.Duration) bool {
 	return time.Since(info.ModTime()) >= threshold
 }
 
-// stripInlineNoise removes noise fragments that may be concatenated with content on the same line.
-func stripInlineNoise(s string) string {
-	for _, p := range inlineNoisePatterns {
-		s = p.ReplaceAllString(s, "")
-	}
-	return s
-}
-
-// cleanScreenOutput strips ANSI codes, inline noise, and prompt lines from raw screen content.
-// Used to produce clean text for merge logic (R10).
-func cleanScreenOutput(raw string) string {
-	cleaned := SanitizeScreenOutput(raw)
-	cleaned = stripInlineNoise(cleaned)
-	return filterPromptLines(cleaned)
-}
-
 // CleanScreenForCrossPollination applies full sanitization for Round 2 cross-pollination.
 // Strips TUI noise and self-assigned ICE scores (to prevent confidence cascade),
 // but preserves all idea content, SCAMPER analysis, HMW questions, and reasoning.
@@ -245,33 +138,4 @@ func CleanScreenForCrossPollination(raw string) string {
 	cleaned := cleanScreenOutput(raw)
 	cleaned = stripICEScores(cleaned)
 	return strings.TrimSpace(cleaned)
-}
-
-// stripICEScores removes self-assigned ICE scoring sections from provider output.
-// This prevents confidence cascade where later rounds blindly adopt earlier scores.
-func stripICEScores(s string) string {
-	lines := strings.Split(s, "\n")
-	filtered := make([]string, 0, len(lines))
-	inICETable := false
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		// Detect ICE table headers and skip until next non-table line
-		if iceTableHeaderRe.MatchString(trimmed) {
-			inICETable = true
-			continue
-		}
-		if inICETable {
-			// Stay in ICE table while lines look like table rows
-			if strings.HasPrefix(trimmed, "|") || strings.HasPrefix(trimmed, "+-") || strings.HasPrefix(trimmed, "┌") || strings.HasPrefix(trimmed, "├") || strings.HasPrefix(trimmed, "└") || strings.HasPrefix(trimmed, "│") || trimmed == "" {
-				continue
-			}
-			inICETable = false
-		}
-		// Skip standalone ICE score lines
-		if iceScoreLineRe.MatchString(trimmed) {
-			continue
-		}
-		filtered = append(filtered, line)
-	}
-	return strings.Join(filtered, "\n")
 }

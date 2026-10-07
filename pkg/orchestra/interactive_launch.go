@@ -99,13 +99,6 @@ func promptDeliveredAtLaunch(p ProviderConfig) bool {
 	return p.InteractiveInput == "args" || usesAntigravityPromptInteractive(p)
 }
 
-func usesAntigravityPromptInteractive(p ProviderConfig) bool {
-	if p.Binary != "agy" && !strings.HasSuffix(p.Binary, "/agy") {
-		return false
-	}
-	return providerArtifactIdentity(p.Name) == "gemini"
-}
-
 func shellQuoteCommandArg(s string) string {
 	if s == "" {
 		return "''"

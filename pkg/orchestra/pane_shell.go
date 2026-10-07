@@ -1,31 +1,6 @@
 package orchestra
 
-import (
-	"regexp"
-	"strings"
-)
-
-// validProviderName matches safe provider names (alphanumeric, hyphens, underscores).
-var validProviderName = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
-
-// sanitizeProviderName returns a safe provider name for use in file paths.
-// Rejects names containing path separators or special characters.
-func sanitizeProviderName(name string) string {
-	if validProviderName.MatchString(name) {
-		return name
-	}
-	// Strip everything except safe chars
-	var sb strings.Builder
-	for _, r := range name {
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
-			sb.WriteRune(r)
-		}
-	}
-	if sb.Len() == 0 {
-		return "unknown"
-	}
-	return sb.String()
-}
+import "strings"
 
 // shellEscapeArg wraps a string in single quotes for safe shell interpolation.
 // Any embedded single quotes use the standard POSIX quote-break pattern:
