@@ -256,12 +256,21 @@ func (s *Store) withStoreLock(fn func(dir *os.Root) error) error {
 	return fn(dir)
 }
 
+// storeLockOpenAttempts bounds the store lock open. On darwin an os.Root
+// (openat) O_CREAT open that races another creator of the same name can fail
+// with ENOENT although the directory handle is live; by the next attempt the
+// name exists, so that open no longer creates (SPEC-EDITGUARD-001 T15).
+const storeLockOpenAttempts = 3
+
 func openStoreLock(dir *os.Root) (*os.File, error) {
 	unusable := fmt.Errorf("%w: %s/%s", ErrLockState, FixLocksDir, storeLockName)
 	if info, err := dir.Lstat(storeLockName); err == nil && !info.Mode().IsRegular() {
 		return nil, unusable
 	}
 	file, err := dir.OpenFile(storeLockName, os.O_RDWR|os.O_CREATE, 0o600)
+	for attempt := 1; errors.Is(err, fs.ErrNotExist) && attempt < storeLockOpenAttempts; attempt++ {
+		file, err = dir.OpenFile(storeLockName, os.O_RDWR|os.O_CREATE, 0o600)
+	}
 	if err != nil {
 		return nil, unusable
 	}
