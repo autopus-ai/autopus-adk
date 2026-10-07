@@ -92,7 +92,7 @@ func checkBandCommand(command bandCommand) error {
 	allowed := false
 	switch {
 	case command.Name == "git":
-		allowed = slices.Equal(a, []string{"remote", "get-url", "origin"})
+		allowed = slices.Equal(a, []string{"remote", "get-url", "origin"}) || slices.Equal(a, bandTrackedArgs)
 	case command.Name != "gh":
 	case len(a) == 4 && a[0] == "auth" && a[1] == "status" && a[2] == "--hostname":
 		allowed = validBandHost(a[3])

@@ -81,6 +81,7 @@ const (
 	ReasonNoChecksExecuted    = "no_checks_executed"
 	ReasonIdentifierSanitized = "identifier_sanitized"
 	ReasonStoreLocked         = "store_locked"
+	ReasonStoreTracked        = "store_tracked"
 	ReasonSeriesNotFound      = "series_not_found"
 	// CI source (REQ-05).
 	ReasonGHMissing            = "gh_missing"

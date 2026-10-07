@@ -32,6 +32,9 @@ const (
 	MaxEvents                = 2048
 	StoreLockWait            = 5 * time.Second
 	ResultLockWait           = 60 * time.Second
+	// MaxStoreFileBytes bounds every store file read: compaction keeps far
+	// less, so a larger file was planted or corrupted.
+	MaxStoreFileBytes = 64 << 20
 )
 
 var (
@@ -40,7 +43,9 @@ var (
 	ErrStoreLocked = errors.New("healthband: metric store is locked")
 	// ErrInvalidObservation rejects an observation at ingest (invalid_value).
 	ErrInvalidObservation = errors.New("healthband: invalid observation")
-	errUnsafeStorePath    = errors.New("healthband: metric store path must be a regular file or directory, not a symlink")
+	// ErrStoreTooLarge refuses a store file above MaxStoreFileBytes.
+	ErrStoreTooLarge   = errors.New("healthband: metric store file exceeds its size bound")
+	errUnsafeStorePath = errors.New("healthband: metric store path must be a regular file or directory, not a symlink")
 )
 
 var (

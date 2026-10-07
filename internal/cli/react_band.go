@@ -138,6 +138,9 @@ type bandPlanned struct {
 
 func (r bandRun) execute(ctx context.Context) (bandReport, error) {
 	report := bandReport{DryRun: r.opts.dryRun, Constants: healthband.DefaultConstants(), Series: []bandSeriesResult{}}
+	if err := r.guardStore(ctx, &report); err != nil {
+		return report, err
+	}
 	var fetch bandCIFetch
 	if !r.opts.noFetch {
 		// Network first, outside the lock (Durability item 1); an unavailable

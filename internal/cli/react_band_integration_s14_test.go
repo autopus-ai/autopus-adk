@@ -110,7 +110,8 @@ func TestReactBandIT_S14_TierThreeNeverMutatesGitOrGitHub(t *testing.T) {
 		assert.Contains(t, strings.Join(argv, " "), "--sandbox read-only")
 	}
 	assertBandITReadOnly(t, fake)
-	assert.Equal(t, []string{"git remote get-url origin"}, fake.argvs("git"), "the only git call is the read-only origin lookup")
+	assert.Equal(t, []string{bandTrackedArgv, "git remote get-url origin"}, fake.argvs("git"),
+		"the only git calls are the read-only tracked-store check and origin lookup")
 	assert.Equal(t, before, snapshot())
 }
 

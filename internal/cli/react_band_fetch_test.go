@@ -119,7 +119,8 @@ func TestReactBand_FailedRunLogsFollowTheFetchedSource(t *testing.T) {
 			assert.NotContains(t, argv, "gh run view", args)
 		}
 		if len(args) > 0 {
-			assert.Empty(t, failing.calls, "--no-fetch runs no git or gh at all")
+			assert.Equal(t, []string{bandTrackedArgv}, failing.argvs("git"), "--no-fetch runs only the read-only tracked-store check")
+			assert.Empty(t, failing.argvs("gh"), "--no-fetch runs no gh at all")
 		}
 	}
 }

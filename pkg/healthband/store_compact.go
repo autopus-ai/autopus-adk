@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -200,7 +201,7 @@ func openStoreFile(path string, flag int) (*os.File, error) {
 }
 
 // readStoreLines returns the non-blank lines of a store file; a missing file
-// has none.
+// has none, and a file above MaxStoreFileBytes is refused before any read.
 func readStoreLines(path string) ([][]byte, error) {
 	file, err := openStoreFile(path, os.O_RDONLY)
 	if errors.Is(err, os.ErrNotExist) {
@@ -210,9 +211,15 @@ func readStoreLines(path string) ([][]byte, error) {
 		return nil, err
 	}
 	defer file.Close()
+	if info, err := file.Stat(); err != nil || info.Size() > MaxStoreFileBytes {
+		return nil, errors.Join(ErrStoreTooLarge, err)
+	}
 	var buf bytes.Buffer
-	if _, err := buf.ReadFrom(file); err != nil {
+	if _, err := buf.ReadFrom(io.LimitReader(file, MaxStoreFileBytes+1)); err != nil {
 		return nil, fmt.Errorf("read metric store: %w", err)
+	}
+	if buf.Len() > MaxStoreFileBytes {
+		return nil, ErrStoreTooLarge
 	}
 	var lines [][]byte
 	for _, line := range bytes.Split(buf.Bytes(), []byte{'\n'}) {
