@@ -122,7 +122,7 @@ func TestReactBandGH_CheckCommand_AllowsOnlyTheInvocationTable(t *testing.T) {
 	t.Parallel()
 	allowed := [][]string{
 		{"git", "remote", "get-url", "origin"},
-		{"git", "-c", "core.fsmonitor=false", "ls-files", "-z", "--", ":(icase).autopus/metrics"},
+		{"git", "-c", "core.fsmonitor=false", "ls-files", "-z", "--", ":(icase,glob).autopu*/metric*", ":(icase,glob).autopu*/metric*/**"},
 		{"gh", "auth", "status", "--hostname", "github.com"},
 		{"gh", "api", "repos/acme/app", "--hostname", "ghe.example.com", "--jq", ".default_branch"},
 		{"gh", "run", "list", "-R", "acme/app", "--limit", "1000", "--json", bandRunListFields},
@@ -138,7 +138,8 @@ func TestReactBandGH_CheckCommand_AllowsOnlyTheInvocationTable(t *testing.T) {
 		{"git", "commit", "-m", "x"},
 		{"git", "remote", "get-url", "upstream"},
 		{"git", "ls-files", "-z", "--", ".autopus/metrics"},
-		{"git", "-c", "core.fsmonitor=/tmp/hook", "ls-files", "-z", "--", ":(icase).autopus/metrics"},
+		{"git", "-c", "core.fsmonitor=false", "ls-files", "-z", "--", ":(icase).autopus/metrics"},
+		{"git", "-c", "core.fsmonitor=/tmp/hook", "ls-files", "-z", "--", ":(icase,glob).autopu*/metric*", ":(icase,glob).autopu*/metric*/**"},
 		{"gh", "pr", "create", "--draft"},
 		{"gh", "api", "-X", "POST", "repos/acme/app/pulls"},
 		{"gh", "api", "repos/acme/app", "--hostname", "github.com", "--jq", ".default_branch", "--method", "PATCH"},

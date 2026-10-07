@@ -18,7 +18,7 @@ import (
 )
 
 // bandTrackedArgv is the read-only check that the store is not committed.
-const bandTrackedArgv = "git -c core.fsmonitor=false ls-files -z -- :(icase).autopus/metrics"
+const bandTrackedArgv = "git -c core.fsmonitor=false ls-files -z -- :(icase,glob).autopu*/metric* :(icase,glob).autopu*/metric*/**"
 
 // Security L3: a metric store that git tracks came with the repository, not
 // from this machine's runs, so band refuses to read or write it: the run
@@ -46,9 +46,10 @@ func TestReactBand_RefusesATrackedMetricsStore(t *testing.T) {
 	}
 }
 
-// Review round 2: any listed byte names a tracked file, whatever git's exit
-// status, and a listing above the output bound is still a listing; only a
-// failure that listed nothing counts as untracked.
+// Review round 2: a listed store path counts whatever git's exit status, and
+// a listing above the output bound counts as a whole; only a failure that
+// listed nothing counts as untracked. Neither the listed directory nor the
+// store exists here, so identity cannot clear the listed path (round 3).
 func TestReactBandGH_StoreTrackedCountsAnyListing(t *testing.T) {
 	t.Parallel()
 	for name, answer := range map[string]fakeBandAnswer{

@@ -102,6 +102,16 @@ func TestReadObservations_ClassifiesContractViolations(t *testing.T) {
 	assert.Equal(t, healthband.ReadCounts{Malformed: len(malformed), UnknownSchema: len(unknown), InvalidValue: len(invalid)}, counts)
 }
 
+// REQ-01: the store directory is <projectDir>/.autopus/metrics, and every
+// store file lies directly in it.
+func TestNewStore_AddressesTheMetricsDirectory(t *testing.T) {
+	t.Parallel()
+	store := healthband.NewStore("/work/repo")
+
+	assert.Equal(t, filepath.Join("/work/repo", ".autopus", "metrics"), store.Dir())
+	assert.Equal(t, filepath.Join(store.Dir(), healthband.CIRunsFile), store.Path(healthband.CIRunsFile))
+}
+
 func TestReadObservations_MissingFileIsAnEmptyStore(t *testing.T) {
 	t.Parallel()
 	observations, counts, err := healthband.NewStore(t.TempDir()).ReadObservations(healthband.CIRunsFile)

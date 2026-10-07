@@ -93,6 +93,9 @@ func NewStore(projectDir string) *Store {
 	return &Store{dir: filepath.Join(projectDir, ".autopus", "metrics")}
 }
 
+// Dir returns the store directory, <projectDir>/.autopus/metrics.
+func (s *Store) Dir() string { return s.dir }
+
 // Path returns the path of a store file.
 func (s *Store) Path(name string) string { return filepath.Join(s.dir, name) }
 
