@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -32,6 +33,23 @@ func TestLoadPreview_RejectsUnknownKeyWithLocatableError(t *testing.T) {
 	assert.ErrorContains(t, err, "ai_response")
 	assert.ErrorContains(t, err, "line 7")
 	assert.ErrorContains(t, err, "unknown keys are rejected")
+}
+
+// The line must be the one in the user's file, whatever precedes the typo:
+// blank lines, a comment, a reserved block, and a silently removed key. The
+// tolerated keys are pruned from the parsed file, which is decoded as parsed;
+// re-encoding it would drop the blank lines and the pruned entries and point
+// at line 7.
+func TestLoadPreview_UnknownKeyErrorNamesTheLineOfTheUsersFile(t *testing.T) {
+	t.Parallel()
+	root := writeStrictConfig(t, strictBaseConfig+"\nfuture_extension:\n  note: keep\n\n"+
+		"# tolerated keys above the typo\nworkflow:\n  team_default: true\n  coverage_treshold: 80\n")
+
+	_, err := LoadPreview(root)
+
+	require.Error(t, err)
+	assert.True(t, strings.HasSuffix(err.Error(), ": yaml: unmarshal errors:\n  line 12: field coverage_treshold "+
+		"not found in type config.WorkflowConf (unknown keys are rejected: fix the typo or delete the key)"), "%v", err)
 }
 
 // The typo must not be papered over by a neighbouring valid key in the same

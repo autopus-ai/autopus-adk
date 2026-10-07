@@ -147,8 +147,10 @@ func TestLegacyPaneFixtures_TyposAndMisplacedKeysStillFail(t *testing.T) {
 		assert.Contains(t, msg, "pane_args", name)
 		assert.True(t, strings.HasSuffix(msg, legacyPaneUnknownKeySuffix), "%s: %s", name, msg)
 	}
-	assert.Contains(t, loadErr("c6.yaml"),
-		"field pane_argz not found in type config.ProviderEntry "+legacyPaneUnknownKeySuffix, "C6")
+	// C6 fails like C3 at the typo's own line 68, as O and B report it: the
+	// group K lines 60, 61, and 67 above it are pruned, not renumbered away.
+	assert.Equal(t, "yaml: unmarshal errors:\n  line 68: field pane_argz not found in type config.ProviderEntry "+
+		legacyPaneUnknownKeySuffix, loadErr("c6.yaml"), "C6")
 }
 
 func TestLegacyPaneFixtures_SaveWritesNoGroupK(t *testing.T) {

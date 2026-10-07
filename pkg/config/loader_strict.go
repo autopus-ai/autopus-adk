@@ -1,7 +1,6 @@
 package config
 
 import (
-	"bytes"
 	"fmt"
 	"slices"
 	"strings"
@@ -98,9 +97,11 @@ func PruneRetiredKeys(doc *yaml.Node) []string {
 // decodeStrict decodes autopus.yaml and rejects any key the schema does not
 // declare, reusing the KnownFields(true) precedent from
 // internal/cli/workflow_context_runtime_managed_rpc_authority.go. Deliberately
-// removed keys are pruned from the document first so only genuinely unknown
-// keys fail. It returns the retired orchestra paths it pruned, in byte order;
-// the other removed and reserved keys are dropped silently.
+// removed keys are pruned from the parsed document first so only genuinely
+// unknown keys fail, and the pruned document is decoded as parsed, never
+// re-encoded, so every error names a line of the user's file. It returns the
+// retired orchestra paths it pruned, in byte order; the other removed and
+// reserved keys are dropped silently.
 func decodeStrict(data []byte, out any) ([]string, error) {
 	var doc yaml.Node
 	// Decode into a node rather than the target struct so a multi-document
@@ -123,16 +124,47 @@ func decodeStrict(data []byte, out any) ([]string, error) {
 	for _, key := range reservedConfigKeys {
 		pruneNodePaths(&doc, []string{key})
 	}
-	pruned, err := yaml.Marshal(&doc)
-	if err != nil {
-		return nil, err
-	}
-	dec := yaml.NewDecoder(bytes.NewReader(pruned))
-	dec.KnownFields(true)
-	if err := dec.Decode(out); err != nil {
+	if err := decodeNodeKnownFields(&doc, out); err != nil {
 		return nil, fmt.Errorf("%w (unknown keys are rejected: fix the typo or delete the key)", err)
 	}
 	return sortedUniquePaths(retired), nil
+}
+
+// decodeNodeKnownFields decodes node into out exactly as a Decoder with
+// KnownFields(true) decodes the document it parses. yaml.v3 offers
+// KnownFields only on a Decoder, and Node.Decode is never strict, while
+// encoding node again to feed a Decoder renumbers the lines: the encoder drops
+// blank lines, and the pruned entries are gone. So the Decoder parses a
+// placeholder and knownFieldsBridge hands it node, whose nodes keep the lines
+// and columns of the file they were parsed from.
+func decodeNodeKnownFields(node *yaml.Node, out any) error {
+	dec := yaml.NewDecoder(strings.NewReader("{}"))
+	dec.KnownFields(true)
+	return dec.Decode(&knownFieldsBridge{node: node, out: out})
+}
+
+// knownFieldsBridge implements the callback form of yaml.v3's Unmarshaler,
+// whose decode callback runs on the strict Decoder that called it. The first
+// decode overwrites the parsed placeholder with node; the second decodes the
+// result into out.
+type knownFieldsBridge struct {
+	node *yaml.Node
+	out  any
+}
+
+func (b *knownFieldsBridge) UnmarshalYAML(decode func(any) error) error {
+	if err := decode(&nodeSubstitute{node: b.node}); err != nil {
+		return err
+	}
+	return decode(b.out)
+}
+
+// nodeSubstitute replaces the node it is decoded from with its own node.
+type nodeSubstitute struct{ node *yaml.Node }
+
+func (s *nodeSubstitute) UnmarshalYAML(parsed *yaml.Node) error {
+	*parsed = *s.node
+	return nil
 }
 
 // pruneNodePaths deletes the mapping entries addressed by path and returns
