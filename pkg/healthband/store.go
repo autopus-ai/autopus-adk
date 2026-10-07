@@ -224,12 +224,24 @@ func (l *Locked) MergeObservations(name string, candidates []Observation) ([]Obs
 	if err != nil {
 		return nil, err
 	}
-	best := make(map[seriesSampleKey]int, len(existing))
-	for _, observation := range existing {
+	appended := NewerAttempts(existing, candidates)
+	if err := l.AppendObservations(name, appended); err != nil {
+		return nil, err
+	}
+	return appended, nil
+}
+
+// NewerAttempts returns, with UTC times, the candidates whose (series,
+// sample_key) is new or whose attempt is higher than every stored and
+// earlier candidate one: the lines MergeObservations appends, which a
+// read-only plan (auto react band --dry-run) merges in memory instead.
+func NewerAttempts(stored, candidates []Observation) []Observation {
+	best := make(map[seriesSampleKey]int, len(stored))
+	for _, observation := range stored {
 		key := seriesSampleKey{observation.Series, observation.SampleKey}
 		best[key] = max(best[key], observation.Attempt)
 	}
-	var appended []Observation
+	var newer []Observation
 	for _, candidate := range candidates {
 		key := seriesSampleKey{candidate.Series, candidate.SampleKey}
 		if candidate.Attempt <= best[key] {
@@ -237,12 +249,9 @@ func (l *Locked) MergeObservations(name string, candidates []Observation) ([]Obs
 		}
 		best[key] = candidate.Attempt
 		candidate.ObservedAt = candidate.ObservedAt.UTC()
-		appended = append(appended, candidate)
+		newer = append(newer, candidate)
 	}
-	if err := l.AppendObservations(name, appended); err != nil {
-		return nil, err
-	}
-	return appended, nil
+	return newer
 }
 
 // AppendCanary appends one canary observation with sample key c<sequence>,

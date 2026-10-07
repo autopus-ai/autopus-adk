@@ -41,6 +41,7 @@ func newReactCmd() *cobra.Command {
 
 	cmd.AddCommand(newReactCheckCmd())
 	cmd.AddCommand(newReactApplyCmd())
+	cmd.AddCommand(newReactBandCmd())
 	return cmd
 }
 

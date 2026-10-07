@@ -40,8 +40,10 @@ Tiers (a boundary belongs to the upper tier: tier k means z ≥ k - ε)
 Exit status
   Every completed evaluation exits 0, including insufficient samples, a
   missing gh or provider, an unknown --series, and a locked store; reason
-  codes appear in the output. Only invalid flags or an unreadable or invalid
-  autopus.yaml exit non-zero. --dry-run writes nothing and calls no provider.
+  codes appear in the output. Invalid flags and an unreadable or invalid
+  autopus.yaml exit non-zero before anything runs. A metric store band cannot
+  read or write, such as a symlinked .autopus/metrics, ends the run non-zero
+  after the report. --dry-run writes nothing and calls no provider.
 
 Configuration
   health_band.diagnosis_provider picks the diagnosis provider first; without

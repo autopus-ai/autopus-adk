@@ -26,17 +26,34 @@ auto react band --format json   # one band.<series> check per series
 | `--no-fetch` | Skip the gh fetch and evaluate the stored series |
 | `--no-agent` | Run no provider; the BS file records `diagnosis_status: skipped(no_agent)` |
 | `--dry-run` | Report the planned action without writing a file, taking the lock, or calling a provider |
-| `--series <id>` | Evaluate one series such as `ci.failure_rate:CI`; an unknown id reports `series_not_found` |
+| `--series <id>` | Evaluate only this series, such as `ci.failure_rate:CI` (repeatable); an unknown id reports `series_not_found` |
 | `--limit <n>` | Runs to fetch, 1 to 1000 (default 200) |
 | `--json`, `--format text\|json` | Output format |
 
 Text output prints one row per series, sorted by series id, with n/N_min, x,
-μ, sd_eff, z, tier, action, and episode.
+μ, sd_eff, z, tier, action, and episode, for the newest position the run
+evaluated; an absent value prints `-`. Indented lines below a row name its
+reason codes and the diagnose claim of the run. A series without a newer
+observation reports its checkpoint key instead.
+
+```text
+ci.failure_rate:CI n=20/20 x=0.500000 μ=0.000000 sd_eff=0.250000 z=2.000000 tier=2 action=diagnose episode=e1042
+  reasons: zero_variance
+  claim: diagnose 1042 done bs=BS-BAND-001 diagnosis=ok
+```
+
+`--format json` adds one `band.<series>` check per series. Its fields hold the
+values of `data.series`, numbers as their JSON text, and an absent value is an
+absent key. Under `--dry-run` the action is reported as `planned_action` and
+the claim as `planned`.
 
 Every completed evaluation exits 0, including insufficient samples, a missing
 gh or provider, an unknown series, and a locked store. The reason codes are in
-the output. Only an invalid flag or an unreadable or invalid `autopus.yaml`
-exits non-zero.
+the output. An invalid flag or an unreadable or invalid `autopus.yaml` exits
+non-zero before anything runs. A metric store band cannot read or write, such
+as a symlinked `.autopus/metrics/`, completes no evaluation: band prints the
+report it has and exits non-zero, and `--format json` carries the error in the
+envelope.
 
 ## Evidence
 

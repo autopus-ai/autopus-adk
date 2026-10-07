@@ -166,13 +166,13 @@ func bandCIObservation(run bandGHRun, value float64) (healthband.Observation, bo
 
 // mergeBandCI is the phase A ingest step: under the store lock it appends
 // the fetched observations whose run id is new or whose attempt is higher
-// than every stored one, so re-ingesting a payload appends nothing.
-func mergeBandCI(locked *healthband.Locked, fetch bandCIFetch) (int, error) {
+// than every stored one, so re-ingesting a payload appends nothing. It
+// returns the appended observations, which phase A plans as fresh.
+func mergeBandCI(locked *healthband.Locked, fetch bandCIFetch) ([]healthband.Observation, error) {
 	if fetch.Reason != "" || len(fetch.Observations) == 0 {
-		return 0, nil
+		return nil, nil
 	}
-	appended, err := locked.MergeObservations(healthband.CIRunsFile, fetch.Observations)
-	return len(appended), err
+	return locked.MergeObservations(healthband.CIRunsFile, fetch.Observations)
 }
 
 // failedRunEvidence fetches the failed-step log of one run attempt (the

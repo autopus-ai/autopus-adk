@@ -47,7 +47,7 @@ func ingestBandCI(t *testing.T, client bandGHClient, dir string, limit int) (ban
 	defer func() { require.NoError(t, locked.Unlock()) }()
 	appended, err := mergeBandCI(locked, fetch)
 	require.NoError(t, err)
-	return fetch, appended
+	return fetch, len(appended)
 }
 
 func ciRunLines(t *testing.T, dir string) []string {
