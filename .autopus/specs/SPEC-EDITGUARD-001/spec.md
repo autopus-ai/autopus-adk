@@ -1,6 +1,6 @@
 # SPEC-EDITGUARD-001: Deterministic Blocking Edit Guard
 
-**Status**: approved
+**Status**: implemented
 **Created**: 2026-10-06
 **Domain**: EDITGUARD
 **Target module**: autopus-adk
