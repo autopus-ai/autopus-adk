@@ -1,6 +1,6 @@
 # SPEC-SIGMABAND-001: σ-band 단계형 하네스 헬스 신호 대응 (auto react band)
 
-**Status**: approved
+**Status**: implemented
 **Created**: 2026-10-06
 **Revised**: 2026-10-07 (rev 3: split by user decision; the 3σ draft PR path moved to SPEC-SIGMABAND-002; rev 4: F-013, F-032, F-038; rev 5: Phase 4 review findings; rev 6: Phase 4 review rounds 2 and 3; see Review Resolution)
 **Domain**: SIGMABAND
