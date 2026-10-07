@@ -29,28 +29,67 @@ type idScan struct {
 	ignored []string  // symlinks and other non-regular entries
 }
 
-// base returns the number the next ID goes above and the ignored paths. A
+// fullWindowTop is the highest number that leaves MaxIDAttempts IDs above it
+// in range; an entry above it holds the top of the range.
+const fullWindowTop = maxIDNumber - MaxIDAttempts
+
+// idPlan is where one allocation looks for its ID.
+type idPlan struct {
+	numbers  []int    // IDs to try in order, at most MaxIDAttempts
+	ignored  []string // entries the scan ignored
+	rangeEnd []string // entries at the top of the range when numbers are the lowest free IDs
+}
+
+// plan returns the IDs one allocation tries and the paths to report. A
 // regular entry counts as is, so a hand-written BS-BAND-7.md still raises
-// the next ID. Only when the highest entry leaves no ID in range are the
-// entries that fail the structural validator skipped, highest first, until
-// a valid BS is found: one planted BS-BAND-999999999.md cannot block every
-// later BS, while a real BS at the top still exhausts the range.
-func (s idScan) base() (int, []string) {
-	ignored := append([]string(nil), s.ignored...)
+// the next ID, and an ID that an entry holds is never tried. Only when the
+// highest entry holds the top of the range are the entries that fail the
+// structural validator skipped, highest first, until a valid BS is found.
+// When fewer than MaxIDAttempts free IDs are left above that BS, the
+// allocation takes the lowest free IDs instead and names the entries at the
+// top of the range, so no planted file, a BS or not, blocks every later BS.
+func (s idScan) plan() idPlan {
 	sort.SliceStable(s.entries, func(a, b int) bool { return s.entries[a].number > s.entries[b].number })
-	if len(s.entries) == 0 {
-		return 0, ignored
-	}
-	if s.entries[0].number < maxIDNumber {
-		return s.entries[0].number, ignored
-	}
+	plan := idPlan{ignored: append([]string(nil), s.ignored...)}
+	held := make(map[int]bool, len(s.entries))
 	for _, entry := range s.entries {
-		if validBSFile(entry.path, entry.id) {
-			return entry.number, ignored
-		}
-		ignored = append(ignored, entry.path)
+		held[entry.number] = true
 	}
-	return 0, ignored
+	base := 0
+	if len(s.entries) > 0 && s.entries[0].number <= fullWindowTop {
+		base = s.entries[0].number
+	} else {
+		for _, entry := range s.entries {
+			if validBSFile(entry.path, entry.id) {
+				base = entry.number
+				break
+			}
+			plan.ignored = append(plan.ignored, entry.path)
+		}
+	}
+	if plan.numbers = freeIDs(held, base+1); len(plan.numbers) == MaxIDAttempts {
+		return plan
+	}
+	plan.numbers = freeIDs(held, 1)
+	for _, entry := range s.entries {
+		if entry.number > fullWindowTop {
+			plan.rangeEnd = append(plan.rangeEnd, entry.path)
+		}
+	}
+	return plan
+}
+
+// freeIDs returns the first MaxIDAttempts numbers from from on, up to
+// maxIDNumber, that no entry holds. Every skipped number is an entry, so the
+// loop ends within MaxIDAttempts plus len(held) steps.
+func freeIDs(held map[int]bool, from int) []int {
+	var numbers []int
+	for number := from; number <= maxIDNumber && len(numbers) < MaxIDAttempts; number++ {
+		if !held[number] {
+			numbers = append(numbers, number)
+		}
+	}
+	return numbers
 }
 
 // validBSFile reports whether path is a regular file of at most the BS body

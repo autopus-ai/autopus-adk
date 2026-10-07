@@ -120,6 +120,9 @@ func (d *bandDiagnoser) Run(ctx context.Context, claim healthband.DueClaim) heal
 		for _, path := range result.Ignored {
 			fmt.Fprintf(d.warn, "react band: BS-BAND ID scan ignored %q (a symlink, not a regular file, or not a valid BS)\n", path)
 		}
+		for _, path := range result.RangeEnd {
+			fmt.Fprintf(d.warn, "react band: BS-BAND ID range end is held by %q; the BS took the lowest free ID\n", path)
+		}
 	}
 	if err != nil {
 		reason := brainstorm.Reason(err)

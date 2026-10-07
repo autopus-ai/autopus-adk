@@ -61,12 +61,15 @@ type Options struct {
 	beforeCreate func(path string)
 }
 
-// Result names the BS file Write created and the BS-BAND entries the ID
-// scan ignored (see scanIDs); Ignored is set on an ID error as well.
+// Result names the BS file Write created, the BS-BAND entries the ID scan
+// ignored (see scanIDs), and, when the ID came from the lowest free IDs, the
+// entries that hold the top of the ID range (see idScan.plan). Ignored and
+// RangeEnd are set on an ID error as well.
 type Result struct {
-	ID      string
-	Path    string
-	Ignored []string
+	ID       string
+	Path     string
+	Ignored  []string
+	RangeEnd []string
 }
 
 // Reason maps a Write error to its reason code; nil maps to "".
@@ -90,9 +93,10 @@ func Reason(err error) string {
 
 // Write allocates the next BS-BAND ID of projectDir's scope and creates the
 // BS in projectDir/.autopus/brainstorms/ (REQ-13). Under the per-user lock it
-// scans every scan root of the scope, renders and validates the BS for one
-// above the highest ID, and creates it exclusively; a collision moves to the
-// next ID, at most MaxIDAttempts times. Nothing is overwritten, and no lock
+// scans every scan root of the scope, renders and validates the BS for the
+// first free ID above the highest ID (or the lowest free ID, see
+// idScan.plan), and creates it exclusively; a collision moves to the next
+// free ID, at most MaxIDAttempts times. Nothing is overwritten, and no lock
 // file is created inside a repository unless no user cache dir is usable.
 func Write(ctx context.Context, projectDir string, req Request, opts Options) (Result, error) {
 	if err := req.validate(); err != nil {
@@ -119,9 +123,9 @@ func Write(ctx context.Context, projectDir string, req Request, opts Options) (R
 	if err != nil {
 		return Result{}, err
 	}
-	highest, ignored := scan.base()
-	result, err := createNext(dir, highest, req, opts.beforeCreate)
-	result.Ignored = ignored
+	plan := scan.plan()
+	result, err := createNext(dir, plan.numbers, req, opts.beforeCreate)
+	result.Ignored, result.RangeEnd = plan.ignored, plan.rangeEnd
 	return result, err
 }
 
@@ -140,14 +144,15 @@ func acquire(ctx context.Context, root string, opts Options) (*filelock.Lock, er
 }
 
 // createNext renders, validates, and exclusively creates the BS for the
-// first free ID above highest, trying at most MaxIDAttempts IDs. The BS
-// directory and its parent are checked again right before each create, so
-// one swapped for a symlink after the first check gets no file.
-func createNext(dir string, highest int, req Request, beforeCreate func(string)) (Result, error) {
+// first of numbers whose create does not collide; numbers holds at most
+// MaxIDAttempts IDs. The BS directory and its parent are checked again right
+// before each create, so one swapped for a symlink after the first check
+// gets no file.
+func createNext(dir string, numbers []int, req Request, beforeCreate func(string)) (Result, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return Result{}, err
 	}
-	for number := highest + 1; number <= highest+MaxIDAttempts && number <= maxIDNumber; number++ {
+	for _, number := range numbers {
 		id := fmt.Sprintf("BS-BAND-%03d", number)
 		content, err := Render(id, req)
 		if err != nil {
