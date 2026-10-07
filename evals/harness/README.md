@@ -22,6 +22,7 @@ go run ./cmd/auto eval harness run --format json            # result document on
 go run ./cmd/auto eval harness digest --format json         # set, agent set, surface digests
 go run ./cmd/auto eval harness baseline --update [--accept-regression GT-ID --reason "..."]
 go test ./pkg/harneval -run GoldenSet                       # REQ-HE-13 coverage test (S14)
+go test ./pkg/harneval -run SeededMutations                 # REQ-HE-12 mutation table (S13)
 ```
 
 Run with `CODEX_HOME` pointing at an empty directory for a hermetic shell. The
@@ -112,32 +113,47 @@ read-only module cache (REQ-HE-09). That profile and `prepare_grader.py` are
 T11 deliverables; the live lane runs that calibration before any trial and
 refuses the session with `oracle_calibration_failed` if a name here is wrong.
 
-## Mutation spot-check
+## Seeded mutations (REQ-HE-12)
 
-Run on 2026-10-07. Each mutation edited one canonical source or template in a
-fresh scratch copy of this tree (content/ edits were followed by
-`go run ./cmd/generate-templates`), `auto` was built from that copy, and
-`auto eval harness run` compared it with this baseline. The unmutated copy
-passed 31/31. Every mutation failed the run with reason `regression` and
-exactly the task below as its only transition.
+`go test ./pkg/harneval -run SeededMutations` runs the committed mutation
+table in `pkg/harneval/mutation_test.go`. It generates the pinned surfaces
+once and, inside the run's mutation seam (after generation, before any
+assertion), applies one row at a time, evaluates and compares the surfaces
+with this baseline exactly as a run does, and undoes the edit. Every row must
+fail with reason `regression` and exactly the tasks below; the unmutated
+surfaces pass every active surface task before the first row and after the
+last. A row whose target text is gone fails the test instead of passing
+without having applied.
 
-| Mutation (file) | Regressed task |
-|-----------------|----------------|
-| Claude router maps `plan` to `auto-go` (`templates/claude/commands/auto-router.md.tmpl`) | GT-ROUTE-CLAUDE-DETAILS |
-| one Task Triage bullet dropped on Antigravity (`templates/gemini/commands/auto-router.md.tmpl`) | GT-PROMPT-TRIAGE-PARITY |
-| reviewer gains Write, Edit (`content/agents/reviewer.md`) | GT-AGENT-READONLY-REVIEW |
-| `hooks.pre_commit_arch` ignored (`pkg/content/hooks.go`) | GT-HOOK-ARCH-GATE-OPT-OUT |
-| harness-workflow loses its claude-only gating (`content/skills/harness-workflow.md`) | GT-SKILL-CLAUDE-NATIVE-ORCHESTRATION |
-| OpenCode after-hook runs for every tool (`pkg/adapter/opencode/opencode_plugin.go`) | GT-HOOK-OPENCODE-PLUGIN |
-| Codex marketplace points at `./.autopus/plugins/autopus` (`pkg/adapter/codex/codex_plugin_manifest.go`) | GT-SKILL-CODEX-PLUGIN-ENTRY |
-| Claude managed-block marker renamed (`pkg/adapter/claude/claude.go`) | GT-HYGIENE-MANAGED-BLOCKS |
-| OMP `/auto-<route>` loads the router instead of the detail (`pkg/adapter/omp/omp_commands.go`) | GT-ROUTE-OMP-EXACT-MAP |
-| lore-commit loses its hook condition (`content/rules/lore-commit.md`) | GT-HOOK-CLAUDE-RULE-DISPATCH |
-| Claude hook directory made absolute (`pkg/content/hooks_completion.go`) | GT-HOOK-SESSION-LIFECYCLE |
-| legacy `/auto:plan` loads `auto-go` (`templates/gemini/commands/auto/plan.toml.tmpl`) | GT-ROUTE-ANTIGRAVITY-COMMANDS |
+| Row | Defect (the source change it stands for) | Regressed tasks |
+|-----|------------------------------------------|-----------------|
+| M1 | managed PreToolUse rule-dispatch hook removed from `.claude/settings.json` | GT-HOOK-ARCH-GATE-OPT-OUT, GT-HOOK-CLAUDE-RULE-DISPATCH |
+| M2 | Claude router maps `plan` to `auto-go` (`templates/claude/commands/auto-router.md.tmpl`) | GT-ROUTE-CLAUDE-DETAILS |
+| M3 | one Task Triage bullet dropped on Antigravity (`templates/gemini/commands/auto-router.md.tmpl`) | GT-PROMPT-TRIAGE-PARITY |
+| M4 | `hooks.pre_commit_arch` ignored: the `false` variant gets the flag-on surface (`pkg/content/hooks.go`) | GT-HOOK-ARCH-GATE-OPT-OUT |
+| M5 | the `tdd` skill no longer exposed on OMP | GT-SKILL-CORE-CATALOG |
+| M6 | reviewer gains Write, Edit (`content/agents/reviewer.md`) | GT-AGENT-READONLY-REVIEW |
+| M7 | harness-workflow loses its claude-only gating (`content/skills/harness-workflow.md`) | GT-SKILL-CLAUDE-NATIVE-ORCHESTRATION |
+| M8 | OpenCode after-hook runs for every tool (`pkg/adapter/opencode/opencode_plugin.go`) | GT-HOOK-OPENCODE-PLUGIN |
+| M9 | Codex marketplace points at `./.autopus/plugins/autopus` (`pkg/adapter/codex/codex_plugin_manifest.go`) | GT-SKILL-CODEX-PLUGIN-ENTRY |
+| M10 | Claude managed-block markers renamed (`pkg/adapter/claude/claude.go`) | GT-HYGIENE-MANAGED-BLOCKS |
+| M11 | OMP `/auto-plan` loads the router instead of the detail (`pkg/adapter/omp/omp_commands.go`) | GT-ROUTE-OMP-EXACT-MAP |
+| M12 | lore-commit loses its hook condition (`content/rules/lore-commit.md`) | GT-HOOK-CLAUDE-RULE-DISPATCH |
+| M13 | Claude hook directory made absolute (`pkg/content/hooks_completion.go`) | GT-HOOK-SESSION-LIFECYCLE |
+| M14 | legacy `/auto:plan` loads `auto-go` (`templates/gemini/commands/auto/plan.toml.tmpl`) | GT-ROUTE-ANTIGRAVITY-COMMANDS |
 
-The marketplace mutation first survived: `value_contains` is a substring test,
-and `./.autopus/plugins/autopus` contains `./.autopus/plugins/auto`. Values that
+M1-M5 are the five REQ-HE-12 classes. An edit lands on every generated
+variant that holds its target, as a source change would, so M1 also regresses
+the opt-out variant task. M2-M4 and M6-M14 began as a manual source
+spot-check on 2026-10-07: each edited one canonical source or template in a
+scratch copy of this tree, `auto` was rebuilt from it, and `auto eval harness
+run` regressed exactly the task above. The generators read `content/` and
+`templates/` through `go:embed`, so a source edit needs a binary of its own;
+each row is instead the surface edit its source change made, and it regresses
+the same task.
+
+M9 first survived that spot-check: `value_contains` is a substring test, and
+`./.autopus/plugins/autopus` contains `./.autopus/plugins/auto`. Values that
 a longer path could contain are therefore also asserted as quoted strings with
 `contains`.
 
