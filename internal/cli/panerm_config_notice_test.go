@@ -5,8 +5,8 @@ package cli_test
 // (C2 without its group K lines) with stderr on a pseudo-terminal, then with
 // --quiet, then with stderr on a pipe. Only the first C2 run may differ from
 // its C2' control, by exactly one notice line on stderr. Red at B: no notice
-// exists. T12 un-skips it; the "two loads through one notifier" half of S6 is
-// a unit test of the T12 notifier API.
+// exists; T12 un-skipped it. The "two loads through one notifier" half of S6
+// is a unit test of the T12 notifier API (config_notice_test.go).
 
 import (
 	"bytes"
@@ -113,7 +113,6 @@ func withoutLine(text, line string) (string, int) {
 }
 
 func TestPanermS6_ConfigNoticeIsExactSingleAndQuietAware(t *testing.T) {
-	skipUntilPanermTask(t, "T12 (W3)", "B writes no config notice when a load ignores group K keys")
 	bin := buildPanermAuto(t)
 	c2, c2Prime := panermConfigWorkspace(t, "c2.yaml"), panermConfigWorkspace(t, "c2-prime.yaml")
 	notice := "auto: warning: ignored removed autopus.yaml keys: " + strings.Join(panermP2, ", ") + panermNoticeSuffix
