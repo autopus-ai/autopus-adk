@@ -9,8 +9,9 @@ var geminiEditTools = []string{"write_file", "replace"}
 
 // geminiDialect reads the BeforeTool payload Gemini CLI sends a command hook,
 // whose tool_input.file_path is the target as the model sent it, relative to
-// the payload cwd or absolute. The deny is the top-level decision document the
-// T11 probe saw block on exit 0.
+// the payload cwd or absolute; its targets are every spelling the host may
+// write it as (geminiSpellings). The deny is the top-level decision document
+// the T11 probe saw block on exit 0.
 type geminiDialect struct{}
 
 func (geminiDialect) Decode(payload []byte) (Call, error) {
@@ -20,7 +21,9 @@ func (geminiDialect) Decode(payload []byte) (Call, error) {
 	}
 	call := Call{Cwd: doc.cwd}
 	if slices.Contains(geminiEditTools, doc.toolName) && doc.hasInput {
-		call.add(doc.input)
+		for _, spelling := range geminiSpellings(doc.cwd, doc.input) {
+			call.add(spelling)
+		}
 	}
 	return call, nil
 }

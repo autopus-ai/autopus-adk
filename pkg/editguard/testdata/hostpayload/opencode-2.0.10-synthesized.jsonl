@@ -2,5 +2,5 @@
 {"platform":"opencode","cwd":"<R>","tool_name":"write","targets":[".claude/skills/auto-fix/SKILL.md"]}
 {"platform":"opencode","cwd":"<R>","tool_name":"write","targets":["pkg/foo.go"]}
 {"platform":"opencode","cwd":"<R>","tool_name":"patch","targets":["pkg/a.go",".claude/skills/auto-fix/SKILL.md"]}
-{"platform":"opencode","cwd":"<R>","tool_name":"patch","targets":["pkg/movable.go",".claude/skills/auto-fix/SKILL.md"]}
+{"platform":"opencode","cwd":"<R>","tool_name":"patch","targets":["pkg/movable.go",".claude/skills/auto-fix/SKILL.md"],"displaced":["pkg/movable.go",".claude/skills/auto-fix/SKILL.md"]}
 {"platform":"opencode","cwd":"<R>","tool_name":"patch","targets":["pkg/a.go"]}

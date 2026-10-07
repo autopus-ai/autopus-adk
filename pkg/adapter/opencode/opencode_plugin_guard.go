@@ -73,14 +73,16 @@ const PATCH_HEADERS = ["*** Add File: ", "*** Delete File: ", "*** Update File: 
 
 // patchTargets reads the paths of an OpenCode patch in patch order, move
 // destinations included, at the header positions the OpenCode 2.0.10 patch
-// parser reads. Where the host would reject a patch, extra paths are harmless.
+// parser reads, and lists as displaced each Delete File and both ends of each
+// Move to. Where the host would reject a patch, extra paths are harmless.
 function patchTargets(text) {
-  if (typeof text !== "string") return []
+  const targets = []
+  const displaced = []
+  if (typeof text !== "string") return { targets, displaced }
   const trimmed = text.trim()
   const body = trimmed.match(/^(?:cat\s+)?<<(['"]?)(\w+)\1\s*\n([\s\S]*?)\n\2\s*$/)?.[3] ?? trimmed
   const lines = body.split("\n").map((line) => (line.endsWith("\r") ? line.slice(0, -1) : line))
   const isHeader = (line) => line === "*** End Patch" || PATCH_HEADERS.some((marker) => line.startsWith(marker))
-  const targets = []
   let hunk = ""
   for (let i = 0; i < lines.length; i++) {
     const header = lines[i].trim()
@@ -91,34 +93,41 @@ function patchTargets(text) {
       targets.push(header.slice(PATCH_HEADERS[0].length).trim())
       hunk = "add"
     } else if (header.startsWith(PATCH_HEADERS[1])) {
-      targets.push(header.slice(PATCH_HEADERS[1].length).trim())
+      const deleted = header.slice(PATCH_HEADERS[1].length).trim()
+      targets.push(deleted)
+      displaced.push(deleted)
     } else if (header.startsWith(PATCH_HEADERS[2])) {
-      targets.push(header.slice(PATCH_HEADERS[2].length).trim())
+      const source = header.slice(PATCH_HEADERS[2].length).trim()
+      targets.push(source)
       let next = i + 1
       while (lines[next]?.trimEnd() === "*** End of File") next++
       const move = lines[next]?.trimEnd()
       if (move === "*** Move to:" || move?.startsWith("*** Move to: ")) {
-        targets.push(move.slice(13).trim())
+        const dest = move.slice(13).trim()
+        targets.push(dest)
+        displaced.push(source, dest)
         i = next
       }
       hunk = "update"
     }
   }
-  return targets
+  return { targets, displaced }
 }
 
 // guardTargets lists every path a file-editing call writes, in native
-// argument order; a non-string or empty path is no target.
+// argument order, and the displaced paths of its patch; a non-string or
+// empty path is no target.
 function guardTargets(tool, args) {
-  if (!args || typeof args !== "object") return []
-  const targets = EDIT_GUARD.patchTools.includes(tool) ? patchTargets(args.patchText) : []
+  if (!args || typeof args !== "object") return { targets: [], displaced: [] }
+  const { targets, displaced } = EDIT_GUARD.patchTools.includes(tool) ? patchTargets(args.patchText) : patchTargets()
   for (const key of ["path", "filePath", "filepath"]) {
     if (typeof args[key] === "string") targets.push(args[key])
   }
   if (Array.isArray(args.edits)) {
     for (const edit of args.edits) if (typeof edit?.filePath === "string") targets.push(edit.filePath)
   }
-  return targets.filter((target) => target !== "")
+  const named = (target) => target !== ""
+  return { targets: targets.filter(named), displaced: displaced.filter(named) }
 }
 
 function denyReason(stdout) {
@@ -175,7 +184,9 @@ function runEditGuard(payload, cwd, running) {
 }
 
 async function guardEdit(tool, args, cwd, running) {
-  const payload = { platform: "opencode", cwd, tool_name: tool, targets: guardTargets(tool, args) }
+  const { targets, displaced } = guardTargets(tool, args)
+  const payload = { platform: "opencode", cwd, tool_name: tool, targets }
+  if (displaced.length > 0) payload.displaced = displaced
   const reason = await runEditGuard(payload, cwd, running)
   if (reason !== undefined) throw new Error(reason)
 }

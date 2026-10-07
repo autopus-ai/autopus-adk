@@ -21,8 +21,9 @@ import (
 var pluginVersions = []string{"v1", "v2"}
 
 // The recording stub receives exactly the payloads the T0 spike plugin
-// synthesized from the same A2 events, in event order, and the shell-tool
-// hooks run for the two shell calls only.
+// synthesized from the same A2 events, in event order, with the displaced
+// paths of the move the spike did not list, and the shell-tool hooks run for
+// the two shell calls only.
 func TestOpenCodeGuardPlugin_SendsTheSynthesizedPayloadOfEveryA2Event(t *testing.T) {
 	t.Parallel()
 	for _, version := range pluginVersions {
@@ -110,7 +111,8 @@ func TestOpenCodeGuardPlugin_FailsOpenUnlessACleanExitDenies(t *testing.T) {
 // 2.0.10 patch parser reads (its function bq in the 2.0.10 binary): headers
 // are trimmed and padded headers count where the parser trims, inner padding
 // is trimmed, an Update hunk ends only at an unpadded header, and a Move to
-// counts right below its Update header, after End of File lines.
+// counts right below its Update header, after End of File lines. A Delete
+// File and both ends of a Move to are also listed as displaced.
 func TestOpenCodeGuardPlugin_PatchTargetsFollowTheOpenCodeParser(t *testing.T) {
 	t.Parallel()
 	patch := func(body ...string) string {
@@ -118,22 +120,23 @@ func TestOpenCodeGuardPlugin_PatchTargetsFollowTheOpenCodeParser(t *testing.T) {
 	}
 	edit := func(head ...string) string { return patch(append(head, "@@", "-old", "+new")...) }
 	cases := []struct {
-		tool, patch string
-		want        []string
+		tool, patch     string
+		want, displaced []string
 	}{
-		{"patch", edit("  *** Update File: a.txt"), []string{"a.txt"}},
-		{"patch", edit("*** Add File: c.txt", "+hi", "  *** Update File: a.txt"), []string{"c.txt", "a.txt"}},
-		{"patch", edit("*** Delete File: b.txt", "\t*** Update File: a.txt"), []string{"b.txt", "a.txt"}},
-		{"patch", patch("*** Add File:  f.txt ", "+hi"), []string{"f.txt"}},
-		{"patch", edit("*** Update File: a.txt", "*** Move to:  h.txt \t"), []string{"a.txt", "h.txt"}},
-		{"patch", edit("*** Update File: a.txt", "*** End of File", "*** Move to: d.txt"), []string{"a.txt", "d.txt"}},
-		{"patch", edit("*** Update File: a.txt", " *** Move to: e.txt"), []string{"a.txt"}},
-		{"patch", edit("*** Update File: a.txt", "*** Move to:"), []string{"a.txt"}},
-		{"patch", patch("*** Add File: c.txt", "+*** Update File: a.txt"), []string{"c.txt"}},
-		{"patch", edit("*** Update File: b.txt", "@@", " *** Update File: a.txt", "-keep"), []string{"b.txt"}},
-		{"patch", edit("*** update file: a.txt"), nil},
-		{"patch", strings.ReplaceAll(edit("*** Update File: a.txt"), "\n", "\r\n"), []string{"a.txt"}},
-		{"patch", "<<'EOF'\n" + patch("*** Add File: x.txt", "+x") + "\nEOF", []string{"x.txt"}},
+		{"patch", edit("  *** Update File: a.txt"), []string{"a.txt"}, nil},
+		{"patch", edit("*** Add File: c.txt", "+hi", "  *** Update File: a.txt"), []string{"c.txt", "a.txt"}, nil},
+		{"patch", edit("*** Delete File: b.txt", "\t*** Update File: a.txt"), []string{"b.txt", "a.txt"}, []string{"b.txt"}},
+		{"patch", patch("*** Add File:  f.txt ", "+hi"), []string{"f.txt"}, nil},
+		{"patch", edit("*** Update File: a.txt", "*** Move to:  h.txt \t"), []string{"a.txt", "h.txt"}, []string{"a.txt", "h.txt"}},
+		{"patch", edit("*** Update File: a.txt", "*** End of File", "*** Move to: d.txt"), []string{"a.txt", "d.txt"},
+			[]string{"a.txt", "d.txt"}},
+		{"patch", edit("*** Update File: a.txt", " *** Move to: e.txt"), []string{"a.txt"}, nil},
+		{"patch", edit("*** Update File: a.txt", "*** Move to:"), []string{"a.txt"}, []string{"a.txt"}},
+		{"patch", patch("*** Add File: c.txt", "+*** Update File: a.txt"), []string{"c.txt"}, nil},
+		{"patch", edit("*** Update File: b.txt", "@@", " *** Update File: a.txt", "-keep"), []string{"b.txt"}, nil},
+		{"patch", edit("*** update file: a.txt"), nil, nil},
+		{"patch", strings.ReplaceAll(edit("*** Update File: a.txt"), "\n", "\r\n"), []string{"a.txt"}, nil},
+		{"patch", "<<'EOF'\n" + patch("*** Add File: x.txt", "+x") + "\nEOF", []string{"x.txt"}, nil},
 	}
 	h := newGuardHarness(t)
 	var calls []pluginCall
@@ -145,7 +148,7 @@ func TestOpenCodeGuardPlugin_PatchTargetsFollowTheOpenCodeParser(t *testing.T) {
 	payloads := h.stubLog("stdin.log")
 	require.Len(t, payloads, len(cases))
 	for i, c := range cases {
-		assert.Equal(t, synthesized(h.root, c.tool, c.want), payloads[i], "case %d: %q", i+1, c.patch)
+		assert.Equal(t, synthesized(h.root, c.tool, c.want, c.displaced...), payloads[i], "case %d: %q", i+1, c.patch)
 	}
 }
 
@@ -170,14 +173,20 @@ func TestOpenCodeGuardPlugin_V1Spellings(t *testing.T) {
 }
 
 // synthesized is the payload of the Decision Output Contract as the plugin
-// writes it.
-func synthesized(root, tool string, targets []string) string {
-	quoted := make([]string, len(targets))
-	for i, target := range targets {
-		quoted[i] = `"` + target + `"`
+// writes it; displaced appears only when a patch displaces a path.
+func synthesized(root, tool string, targets []string, displaced ...string) string {
+	quote := func(paths []string) string {
+		quoted := make([]string, len(paths))
+		for i, p := range paths {
+			quoted[i] = `"` + p + `"`
+		}
+		return "[" + strings.Join(quoted, ",") + "]"
 	}
-	return `{"platform":"opencode","cwd":"` + root + `","tool_name":"` + tool + `","targets":[` +
-		strings.Join(quoted, ",") + `]}`
+	payload := `{"platform":"opencode","cwd":"` + root + `","tool_name":"` + tool + `","targets":` + quote(targets)
+	if len(displaced) > 0 {
+		payload += `,"displaced":` + quote(displaced)
+	}
+	return payload + "}"
 }
 
 // The generated plugin of each version carries the guard of the enforced

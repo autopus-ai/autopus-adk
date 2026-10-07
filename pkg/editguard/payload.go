@@ -167,8 +167,9 @@ func decodeHookPayload(payload []byte, inputKey string) (hookPayload, error) {
 	return doc, d.end()
 }
 
-// decodeOpenCodePayload reads the cwd and the targets array of the payload
-// the OpenCode plugin synthesizes; a non-string entry is a dropped target.
+// decodeOpenCodePayload reads the cwd, the targets array, and the displaced
+// array of the payload the OpenCode plugin synthesizes; a non-string target
+// is a dropped target, and a non-string displaced entry names nothing.
 func decodeOpenCodePayload(payload []byte) (Call, error) {
 	d := newPayloadDecoder(payload)
 	var call Call
@@ -178,7 +179,14 @@ func decodeOpenCodePayload(payload []byte) (Call, error) {
 			return d.requireText(&call.Cwd)
 		case "targets":
 			call.Targets, call.Dropped = nil, 0
-			return d.targets(&call)
+			return d.strings(call.add)
+		case "displaced":
+			call.Displaced = nil
+			return d.strings(func(p string) {
+				if p != "" {
+					call.Displaced = append(call.Displaced, p)
+				}
+			})
 		}
 		return d.skip()
 	})
@@ -188,7 +196,9 @@ func decodeOpenCodePayload(payload []byte) (Call, error) {
 	return call, d.end()
 }
 
-func (d payloadDecoder) targets(call *Call) error {
+// strings walks one array and passes each entry to add, a non-string entry
+// as "".
+func (d payloadDecoder) strings(add func(string)) error {
 	token, err := d.dec.Token()
 	if err != nil || token == nil {
 		return err
@@ -197,11 +207,11 @@ func (d payloadDecoder) targets(call *Call) error {
 		return errNotAnArray
 	}
 	for d.dec.More() {
-		target, _, err := d.text()
+		entry, _, err := d.text()
 		if err != nil {
 			return err
 		}
-		call.add(target)
+		add(entry)
 	}
 	_, err = d.dec.Token()
 	return err

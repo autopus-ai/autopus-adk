@@ -3,6 +3,7 @@ package editguard
 import (
 	"errors"
 	"io"
+	"slices"
 	"time"
 
 	"github.com/insajin/autopus-adk/pkg/workflow"
@@ -27,6 +28,9 @@ type Call struct {
 	Targets []string
 	// Dropped counts malformed target entries the dialect skipped.
 	Dropped int
+	// Displaced are the targets whose directory entry the call removes or
+	// replaces: a patch's Delete File and both ends of its Move to.
+	Displaced []string
 }
 
 // Decision is the guard's answer for one call. An allow carries no reason; a
@@ -122,7 +126,7 @@ func Decide(call Call, opts Options) Decision {
 		if opts.panicSeam != nil {
 			opts.panicSeam()
 		}
-		if decision, deny := ev.target(call.Cwd, raw); deny {
+		if decision, deny := ev.target(call.Cwd, raw, slices.Contains(call.Displaced, raw)); deny {
 			return decision
 		}
 	}
@@ -144,8 +148,14 @@ func (ev *evaluation) note(fault string) {
 	}
 }
 
-func (ev *evaluation) target(cwd, raw string) (Decision, bool) {
-	targets, err := ResolveAll(cwd, raw)
+func (ev *evaluation) target(cwd, raw string, displaced bool) (Decision, bool) {
+	// A displaced root marker is guard state of the root it makes (REQ-EG-09).
+	if displaced {
+		if marker, ok := displacedMarker(cwd, raw); ok {
+			return deny(ClassGuardState, gstReason(marker)), true
+		}
+	}
+	targets, err := resolveWrites(cwd, raw)
 	if err != nil {
 		// No project root is normal: nothing there is protected.
 		if !errors.Is(err, ErrNoProjectRoot) {

@@ -108,9 +108,11 @@ func (codexDialect) Decode(payload []byte) (Call, error) {
 	if doc.toolName != codexPatchTool || !doc.hasInput {
 		return call, nil
 	}
-	for _, target := range patchTargets(doc.input) {
+	targets, displaced := patchTargets(doc.input)
+	for _, target := range targets {
 		call.add(target)
 	}
+	call.Displaced = displaced
 	return call, nil
 }
 
@@ -152,16 +154,20 @@ var patchHeaders = [...]struct {
 // "+" lines, an Update hunk runs until a line starting "***" other than End of
 // File, and a Move to line counts only unpadded right below its Update header,
 // with trailing space trimmed. Where Codex would reject the patch, reading more
-// targets is harmless: nothing is written.
-func patchTargets(patch string) []string {
-	var targets []string
+// targets is harmless: nothing is written. displaced lists the targets whose
+// directory entry the patch removes or replaces: each Delete File, and the
+// source and destination of each Move to.
+func patchTargets(patch string) (targets, displaced []string) {
 	state := patchAtHeader
+	updated := ""
 	for _, line := range strings.Split(patch, "\n") {
 		line = strings.TrimSuffix(line, "\r")
 		if state == patchAfterUpdate {
 			state = patchInUpdate
 			if dest, ok := strings.CutPrefix(line, patchMoveTo); ok {
-				targets = append(targets, strings.TrimRightFunc(dest, unicode.IsSpace))
+				dest = strings.TrimRightFunc(dest, unicode.IsSpace)
+				targets = append(targets, dest)
+				displaced = append(displaced, updated, dest)
 				continue
 			}
 		}
@@ -174,12 +180,15 @@ func patchTargets(patch string) []string {
 		for _, marker := range patchHeaders {
 			if target, ok := strings.CutPrefix(header, marker.prefix); ok {
 				targets = append(targets, target)
-				state = marker.next
+				if marker.prefix == patchDeleteFile {
+					displaced = append(displaced, target)
+				}
+				updated, state = target, marker.next
 				break
 			}
 		}
 	}
-	return targets
+	return targets, displaced
 }
 
 // add appends one decoded target; an empty or non-string one is a malformed

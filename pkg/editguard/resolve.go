@@ -65,13 +65,28 @@ func Resolve(cwd, raw string) (Target, error) {
 // enclosing project root, nearest first. A nested autopus.yaml, which any edit
 // can create, must not hide what an outer root protects (M1).
 func ResolveAll(cwd, raw string) ([]Target, error) {
+	abs, err := checkedAbs(cwd, raw)
+	if err != nil {
+		return nil, err
+	}
+	return locate(abs)
+}
+
+// checkedAbs is absolutePath for a usable raw and cwd.
+func checkedAbs(cwd, raw string) (string, error) {
 	if raw == "" || strings.ContainsRune(raw, 0) || strings.ContainsRune(cwd, 0) {
-		return nil, ErrUnresolvable
+		return "", ErrUnresolvable
 	}
 	abs, err := absolutePath(cwd, raw)
 	if err != nil {
-		return nil, ErrUnresolvable
+		return "", ErrUnresolvable
 	}
+	return abs, nil
+}
+
+// locate walks abs the way the kernel does and returns it relative to every
+// enclosing project root, nearest first.
+func locate(abs string) ([]Target, error) {
 	resolved, err := resolveComponents(abs)
 	if err != nil {
 		return nil, ErrUnresolvable
