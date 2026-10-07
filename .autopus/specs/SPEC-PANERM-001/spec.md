@@ -1,6 +1,6 @@
 # SPEC-PANERM-001: Retire the orchestra pane backend (subprocess and OMP only)
 
-**Status**: approved
+**Status**: implemented
 **Created**: 2026-10-06
 **Revised**: 2026-10-06 (rev 3: review rounds 1 and 2; see Review Resolution)
 **Domain**: PANERM
