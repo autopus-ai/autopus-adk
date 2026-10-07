@@ -66,12 +66,7 @@
 | Debate | `pkg/orchestra/debate.go` | 2-phase debate + judge 판정 |
 | Consensus | `pkg/orchestra/consensus.go` | 구조화 키 기반 합의 추출 |
 | Graceful Degradation | `pkg/orchestra/runner.go` | 부분 실패 시 성공 응답으로 계속 진행 |
-| Detach Mode | `pkg/orchestra/detach.go` | pane 터미널 감지 시 비동기 Job 실행 (auto-detach), ShouldDetach() 판정 |
-| Job Persistence | `pkg/orchestra/job.go` | Job 직렬화/역직렬화, sentinel 기반 상태 추적, stale job GC |
 | Relay Strategy | `pkg/orchestra/relay.go` | Agentic one-shot 순차 실행 전략 |
-| Relay Pane | `pkg/orchestra/relay_pane.go` | Relay 전략 pane 인터랙티브 모드 |
-| Interactive Pane | `pkg/orchestra/interactive.go` | 인터랙티브 CLI 세션 실행, pipe capture, ReadScreen 폴링 완료 감지, 결과 수집 |
-| Completion Detection | `pkg/orchestra/interactive_detect.go` | 프로바이더별 프롬프트 패턴 매칭, idle 감지, ANSI 이스케이프 제거 |
 | Template | `pkg/template/` | Go template 렌더링 |
 | Factory | `pkg/config/defaults.go` | Full/Lite 설정 생성 |
 | Marker Update | `pkg/adapter/manifest.go` | AUTOPUS:BEGIN/END 부분 업데이트 |

@@ -63,7 +63,8 @@ All notable changes to this project will be documented in this file.
     user-level 설정(`~/.claude/settings.json` 등)과 `.claude/settings.local.json`은 고치지 않고,
     그 파일이 아직 부르는 스크립트도 남긴다. handler가 생성된 실행 형태 그대로이거나 경로 하나뿐일
     때만 회수하고, `;`, `&&`, `||`, `|`, `$(`, backtick 같은 셸 연산자나 인터프리터·인자가 붙은
-    사용자 command는 스크립트와 함께 남긴다. 두 번째 update는 회수할 것이 없어 stale hook과 그
+    사용자 command는 스크립트와 함께 남긴다. 단, claude·codex 설정의 기존(B부터의) 접두 규칙은
+    생성 경로로 시작하는 복합 command(예: `.../hook-claude-stop.sh && ./audit.sh`)를 여전히 회수한다. 두 번째 update는 회수할 것이 없어 stale hook과 그
     handler를 더 바꾸지 않는다. transaction이 다시 쓰는 파일은 기존 권한(예: 0600 `opencode.json`)을
     유지한다.
   - `auto doctor`(text, `--json`)는 `doctor.legacy_orchestra_config`(`legacy orchestra keys:

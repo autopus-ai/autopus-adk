@@ -8,9 +8,10 @@ package config
 // (Load, then MigrateOrchestraConfig). The atB column was recorded by running
 // this table at B (pkg/config non-test code unchanged since c447badc), so it is
 // independent of the code under test. The only intended differences are the
-// entries whose sole customization is pane_args: B treated them as user-owned,
-// and with pane_args retired nothing distinguishes them from the default entry
-// they otherwise equal, so they now upgrade like it (CHANGELOG, S14).
+// entries whose only customizations are retired keys (pane_args and the other
+// pane-era fields): B treated them as user-owned, and with those keys retired
+// nothing distinguishes them from the default entry they otherwise equal, so
+// they now upgrade like it (CHANGELOG, S14).
 
 import (
 	"os"
