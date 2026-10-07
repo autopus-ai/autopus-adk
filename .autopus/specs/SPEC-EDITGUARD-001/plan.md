@@ -54,11 +54,11 @@ sequenceDiagram
   participant G as auto guard edit
   participant L as fix-locks
   participant M as manifests
-  A->>W: stdin payload (untrusted, at most 1 MiB)
+  A->>W: stdin payload (untrusted, at most 64 MiB, target fields decoded)
   W->>G: same stdin
   G->>G: env off, decode fault, no target, or panic: allow (exit 0, empty stdout)
-  G->>G: per target: nearest autopus.yaml root, normalized rel path (no root: no protection)
-  G->>G: guard state path: deny guard_state
+  G->>G: per target: host normalization, kernel and lexical walk, every enclosing autopus.yaml root (no root: no protection)
+  G->>G: guard state path or displaced root autopus.yaml: deny guard_state
   G->>L: unexpired lock by path or os.SameFile: deny fix_lock (unusable state: skip stage)
   G->>M: namespace hit, always with no merge or marker: deny generated_surface (manifest fault: skip stage)
   G-->>W: decision bytes, exit status

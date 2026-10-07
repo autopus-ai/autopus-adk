@@ -122,7 +122,7 @@ The sequence diagram (payload to wrapper to `auto guard edit` to decision), the 
 ## Completion Debt
 | Item | Blocks | Required resolution |
 |---|---|---|
-| CD-1 probes A1 to A3 and the T11 Gemini probe | REQ-EG-11 to 14, CE-1, CE-6 | A1 and A2 must PASS (or the user re-approves the scope); A3 and T11 FAIL become `none` |
+| CD-1 probes A1 to A3 and the T11 Gemini probe | REQ-EG-11 to 14, CE-1, CE-6 | A1 and A2 must PASS (or the user re-approves the scope); A3 and T11 FAIL become `none`. Closed 2026-10-07: A1, A2 on the V2 plugin API, A3, and T11 PASS; for the unprobed V1 plugin the operator chose option (a): OpenCode V2 `enforced`, OpenCode 1.x V1 `host-unverified` |
 | CD-2 Claude contract check | PRD Q4 | closed by V1 to V6; re-confirmed live by A1 |
 | CD-3 enforcement matrix | CE-6 | T14 |
 | CD-4 canonical auto-fix sources regenerated with zero drift | REQ-EG-15 | T13 |
@@ -153,7 +153,7 @@ The `/auto fix` template edits (T13) are prompt-state work under `content/skills
 - ephemeral: deny reasons and `auto fix unlock --json` verdicts, per tool call, project-relative paths only, never written into a stable layer.
 
 ## Review Resolution
-Round 1 (codex and gemini; claude lane and judge failed for an environment reason) and round 2 (all providers and judge). No finding was factually wrong; F-005 overstated current reachability but is fixed anyway.
+Round 1 (codex and gemini; claude lane and judge failed for an environment reason) and round 2 (all providers and judge). Rows P4-R2 are the Phase 4 fix round 2 findings of the security audit and the correctness review (2026-10-07). No finding was factually wrong; F-005 overstated current reachability but is fixed anyway.
 
 | Finding | Resolution | Where |
 |---|---|---|
@@ -171,6 +171,13 @@ Round 1 (codex and gemini; claude lane and judge failed for an environment reaso
 | F-012 tamper guarantee | fixed: guarantee limited to changes present at unlock; revert-before-unlock and post-deletion hardlink limits documented | Purpose, Reviewer Brief |
 | F-013 spawn overhead (deferred) | acknowledged: REQ-EG-24 and S14 measure the guard process only | REQ-EG-24, S14 |
 | F-014 fixed path in S8 (deferred) | fixed: R is a temp dir ending in `alice/secret-project`; the oracle checks for R's absolute path | S8 |
+| P4-R2-1 `..` after a symlink on a lexical host (regression of 1111f2b7) | fixed: a path with `..` is judged where the kernel walk leads and at its lexical clean, deny if either is protected; the kernel cases stay denied | REQ-EG-05 |
+| P4-R2-2 Gemini CLI path transforms | fixed: NUL bytes and a leading `@` removed, `file://` converted, percent-escapes decoded as Gemini CLI 0.52.0 does, raw and normalized both judged; an undecodable spelling stays raw | REQ-EG-05, `docs/edit-guard.md` |
+| P4-R2-3 root `autopus.yaml` deleted or moved by a patch | fixed: a Delete File or either end of a Move to that names a root's `autopus.yaml` is GST (Codex `apply_patch`, OpenCode payload `displaced`); an edit in place stays allowed | REQ-EG-09, REQ-EG-13, contract |
+| P4-R2-4 registration wording | fixed: hook generation registers the guard on the `enforced` and `host-unverified` lanes | REQ-EG-16, `docs/edit-guard.md` |
+| P4-R2-5 Cherokee case pairs | documented: the x/text fold swaps the 86 Cherokee pairs APFS opens as one name; protected generated names are ASCII and an existing locked file still matches by identity | `docs/edit-guard.md` Limitations |
+| P4-R2-6 SPEC text drift | fixed: 64 MiB cap with target-field decoding, FL-X for any character outside `[A-Za-z0-9._/@+-]`, the `host-unverified` lane, S7 stderr scope, REQ-EG-05, 06, 09, 23 | spec.md, acceptance.md, plan.md |
+| CD-1 OpenCode V1 lane | closed by the operator decision of 2026-10-07, option (a) | Completion Debt |
 
 ## Reviewer Brief
 - Intended scope: the Outcome Lock above, delivered by REQ-EG-01 to REQ-EG-24; explicit non-goals as listed there (no Bash detection, configurable paths, or sandbox).
