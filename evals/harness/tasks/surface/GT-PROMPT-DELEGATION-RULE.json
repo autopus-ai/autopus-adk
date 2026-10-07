@@ -1,0 +1,97 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-PROMPT-DELEGATION-RULE",
+  "kind": "surface",
+  "category": "prompt_contract",
+  "intent": "The always-on delegation rule gives every rule-loading platform the same delegate-for-a-reason policy.",
+  "outcome": "The When to Delegate, How to Delegate, and Anti-Patterns sections of the subagent-delegation rule are byte-identical on Claude, Antigravity (plugin and legacy), OpenCode, and OMP.",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "section_parity",
+      "files": [
+        {
+          "platform": "claude-code",
+          "path": ".claude/rules/autopus/subagent-delegation.md"
+        },
+        {
+          "platform": "antigravity-cli",
+          "path": ".agents/plugins/autopus/rules/subagent-delegation.md"
+        },
+        {
+          "platform": "antigravity-cli",
+          "path": ".gemini/rules/autopus/subagent-delegation.md"
+        },
+        {
+          "platform": "opencode",
+          "path": ".opencode/rules/autopus/subagent-delegation.md"
+        },
+        {
+          "platform": "omp",
+          "path": ".omp/rules/autopus-subagent-delegation.md"
+        }
+      ],
+      "heading": "## When to Delegate"
+    },
+    {
+      "kind": "section_parity",
+      "files": [
+        {
+          "platform": "claude-code",
+          "path": ".claude/rules/autopus/subagent-delegation.md"
+        },
+        {
+          "platform": "antigravity-cli",
+          "path": ".agents/plugins/autopus/rules/subagent-delegation.md"
+        },
+        {
+          "platform": "antigravity-cli",
+          "path": ".gemini/rules/autopus/subagent-delegation.md"
+        },
+        {
+          "platform": "opencode",
+          "path": ".opencode/rules/autopus/subagent-delegation.md"
+        },
+        {
+          "platform": "omp",
+          "path": ".omp/rules/autopus-subagent-delegation.md"
+        }
+      ],
+      "heading": "## How to Delegate"
+    },
+    {
+      "kind": "section_parity",
+      "files": [
+        {
+          "platform": "claude-code",
+          "path": ".claude/rules/autopus/subagent-delegation.md"
+        },
+        {
+          "platform": "antigravity-cli",
+          "path": ".agents/plugins/autopus/rules/subagent-delegation.md"
+        },
+        {
+          "platform": "antigravity-cli",
+          "path": ".gemini/rules/autopus/subagent-delegation.md"
+        },
+        {
+          "platform": "opencode",
+          "path": ".opencode/rules/autopus/subagent-delegation.md"
+        },
+        {
+          "platform": "omp",
+          "path": ".omp/rules/autopus-subagent-delegation.md"
+        }
+      ],
+      "heading": "## Anti-Patterns"
+    }
+  ],
+  "provenance": {
+    "kind": "manual",
+    "ref": "content/rules/subagent-delegation.md"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

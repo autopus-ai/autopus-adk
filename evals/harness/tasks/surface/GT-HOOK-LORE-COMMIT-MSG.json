@@ -1,0 +1,37 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-HOOK-LORE-COMMIT-MSG",
+  "kind": "surface",
+  "category": "hooks_settings",
+  "intent": "Commits are checked for the Lore format by a commit-msg hook that runs from the repository root.",
+  "outcome": "The generated git commit-msg hook resolves the auto binary from AUTOPUS_BIN, changes to the repository root, and runs both the Lore format check and `lore validate` on the message file.",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "contains",
+      "platform": "claude-code",
+      "path": ".git/hooks/commit-msg",
+      "needle": "AUTO_BIN=\"${AUTOPUS_BIN:-auto}\""
+    },
+    {
+      "kind": "contains",
+      "platform": "claude-code",
+      "path": ".git/hooks/commit-msg",
+      "needle": "ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)\ncd \"$ROOT\""
+    },
+    {
+      "kind": "contains",
+      "platform": "claude-code",
+      "path": ".git/hooks/commit-msg",
+      "needle": "\"$AUTO_BIN\" check --lore --quiet --message \"$1\"\n\"$AUTO_BIN\" lore validate \"$1\""
+    }
+  ],
+  "provenance": {
+    "kind": "manual",
+    "ref": "pkg/adapter/claude (git hook), content/hooks"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

@@ -1,0 +1,164 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-AGENT-PIPELINE-ROLES",
+  "kind": "surface",
+  "category": "agent_skill_exposure",
+  "intent": "The five pipeline roles are available as native agents on every agent-capable platform.",
+  "outcome": "planner, executor, tester, validator, and reviewer exist on Claude, as named Codex agents, as auto-agent-* agents in both Antigravity roots, and as OpenCode subagents.",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "file_exists",
+      "platform": "claude-code",
+      "path": ".claude/agents/autopus/planner.md"
+    },
+    {
+      "kind": "contains",
+      "platform": "codex",
+      "path": ".codex/agents/planner.toml",
+      "needle": "name = \"planner\"\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "antigravity-cli",
+      "path": ".gemini/agents/autopus/planner.md",
+      "needle": "name: auto-agent-planner\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "antigravity-cli",
+      "path": ".agents/plugins/autopus/agents/planner.md",
+      "needle": "name: auto-agent-planner\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": ".opencode/agents/planner.md",
+      "needle": "mode: subagent\n"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "claude-code",
+      "path": ".claude/agents/autopus/executor.md"
+    },
+    {
+      "kind": "contains",
+      "platform": "codex",
+      "path": ".codex/agents/executor.toml",
+      "needle": "name = \"executor\"\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "antigravity-cli",
+      "path": ".gemini/agents/autopus/executor.md",
+      "needle": "name: auto-agent-executor\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "antigravity-cli",
+      "path": ".agents/plugins/autopus/agents/executor.md",
+      "needle": "name: auto-agent-executor\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": ".opencode/agents/executor.md",
+      "needle": "mode: subagent\n"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "claude-code",
+      "path": ".claude/agents/autopus/tester.md"
+    },
+    {
+      "kind": "contains",
+      "platform": "codex",
+      "path": ".codex/agents/tester.toml",
+      "needle": "name = \"tester\"\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "antigravity-cli",
+      "path": ".gemini/agents/autopus/tester.md",
+      "needle": "name: auto-agent-tester\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "antigravity-cli",
+      "path": ".agents/plugins/autopus/agents/tester.md",
+      "needle": "name: auto-agent-tester\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": ".opencode/agents/tester.md",
+      "needle": "mode: subagent\n"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "claude-code",
+      "path": ".claude/agents/autopus/validator.md"
+    },
+    {
+      "kind": "contains",
+      "platform": "codex",
+      "path": ".codex/agents/validator.toml",
+      "needle": "name = \"validator\"\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "antigravity-cli",
+      "path": ".gemini/agents/autopus/validator.md",
+      "needle": "name: auto-agent-validator\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "antigravity-cli",
+      "path": ".agents/plugins/autopus/agents/validator.md",
+      "needle": "name: auto-agent-validator\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": ".opencode/agents/validator.md",
+      "needle": "mode: subagent\n"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "claude-code",
+      "path": ".claude/agents/autopus/reviewer.md"
+    },
+    {
+      "kind": "contains",
+      "platform": "codex",
+      "path": ".codex/agents/reviewer.toml",
+      "needle": "name = \"reviewer\"\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "antigravity-cli",
+      "path": ".gemini/agents/autopus/reviewer.md",
+      "needle": "name: auto-agent-reviewer\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "antigravity-cli",
+      "path": ".agents/plugins/autopus/agents/reviewer.md",
+      "needle": "name: auto-agent-reviewer\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": ".opencode/agents/reviewer.md",
+      "needle": "mode: subagent\n"
+    }
+  ],
+  "provenance": {
+    "kind": "manual",
+    "ref": "content/agents/*.md, pkg/adapter/*/agents"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

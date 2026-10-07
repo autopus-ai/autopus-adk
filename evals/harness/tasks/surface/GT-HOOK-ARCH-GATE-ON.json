@@ -1,0 +1,66 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-HOOK-ARCH-GATE-ON",
+  "kind": "surface",
+  "category": "hooks_settings",
+  "intent": "With the default config, every hook-capable platform runs the staged architecture hygiene check before a shell tool call, without ever blocking the call.",
+  "outcome": "Claude PreToolUse, Codex PreToolUse, Antigravity BeforeTool and plugin PreToolUse, and the OpenCode bash before-hook all run the warn-only staged arch check; the Antigravity plugin hook always answers allow.",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "json_path_present",
+      "platform": "claude-code",
+      "path": ".claude/settings.json",
+      "json_path": "hooks.PreToolUse[*].hooks[*].command",
+      "value_contains": "auto check --hygiene --arch --quiet --staged --warn-only"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "codex",
+      "path": ".codex/hooks.json",
+      "json_path": "hooks.PreToolUse[*].hooks[*].command",
+      "value_contains": "auto check --hygiene --arch --quiet --staged --warn-only"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "antigravity-cli",
+      "path": ".gemini/settings.json",
+      "json_path": "hooks.BeforeTool[*].hooks[*].command",
+      "value_contains": "auto check --hygiene --arch --quiet --staged --warn-only"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "antigravity-cli",
+      "path": ".agents/hooks.json",
+      "json_path": "autopus.PreToolUse[*].hooks[*].command",
+      "value_contains": "auto check --hygiene --arch --quiet --staged --warn-only >&2 || true"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "antigravity-cli",
+      "path": ".agents/hooks.json",
+      "json_path": "autopus.PreToolUse[*].hooks[*].command",
+      "value_contains": "{\"decision\":\"allow\"}"
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": ".opencode/plugins/autopus-hooks.js",
+      "needle": "const BEFORE_HOOKS = [\n  { command: \"auto check --hygiene --arch --quiet --staged --warn-only\", timeout: 30 }\n]"
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": ".opencode/plugins/autopus-hooks.js",
+      "needle": "\"tool.execute.before\": async (input) => {\n      if (input.tool !== \"bash\") return\n      await runHooks(BEFORE_HOOKS, cwd)"
+    }
+  ],
+  "provenance": {
+    "kind": "manual",
+    "ref": "pkg/content/hooks.go, pkg/adapter/*/hooks"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

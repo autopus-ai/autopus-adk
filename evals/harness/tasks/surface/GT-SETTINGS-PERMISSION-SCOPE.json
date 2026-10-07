@@ -1,0 +1,117 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-SETTINGS-PERMISSION-SCOPE",
+  "kind": "surface",
+  "category": "hooks_settings",
+  "intent": "The pre-approved tool list lets the harness run its own CLI and coordination tools without granting blanket or destructive shell access.",
+  "outcome": "Claude and Antigravity allow `Bash(auto *)`, AskUserQuestion, TaskCreate, and ToolSearch, and allow no `Bash(*)`, `Bash(sudo`, or `Bash(rm` entry.",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "json_path_present",
+      "platform": "claude-code",
+      "path": ".claude/settings.json",
+      "json_path": "permissions.allow[*]",
+      "value_contains": "Bash(auto *)"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "claude-code",
+      "path": ".claude/settings.json",
+      "json_path": "permissions.allow[*]",
+      "value_contains": "AskUserQuestion"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "claude-code",
+      "path": ".claude/settings.json",
+      "json_path": "permissions.allow[*]",
+      "value_contains": "TaskCreate"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "claude-code",
+      "path": ".claude/settings.json",
+      "json_path": "permissions.allow[*]",
+      "value_contains": "ToolSearch"
+    },
+    {
+      "kind": "json_path_absent",
+      "platform": "claude-code",
+      "path": ".claude/settings.json",
+      "json_path": "permissions.allow[*]",
+      "value_contains": "Bash(*)"
+    },
+    {
+      "kind": "json_path_absent",
+      "platform": "claude-code",
+      "path": ".claude/settings.json",
+      "json_path": "permissions.allow[*]",
+      "value_contains": "Bash(sudo"
+    },
+    {
+      "kind": "json_path_absent",
+      "platform": "claude-code",
+      "path": ".claude/settings.json",
+      "json_path": "permissions.allow[*]",
+      "value_contains": "Bash(rm"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "antigravity-cli",
+      "path": ".gemini/settings.json",
+      "json_path": "permissions.allow[*]",
+      "value_contains": "Bash(auto *)"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "antigravity-cli",
+      "path": ".gemini/settings.json",
+      "json_path": "permissions.allow[*]",
+      "value_contains": "AskUserQuestion"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "antigravity-cli",
+      "path": ".gemini/settings.json",
+      "json_path": "permissions.allow[*]",
+      "value_contains": "TaskCreate"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "antigravity-cli",
+      "path": ".gemini/settings.json",
+      "json_path": "permissions.allow[*]",
+      "value_contains": "ToolSearch"
+    },
+    {
+      "kind": "json_path_absent",
+      "platform": "antigravity-cli",
+      "path": ".gemini/settings.json",
+      "json_path": "permissions.allow[*]",
+      "value_contains": "Bash(*)"
+    },
+    {
+      "kind": "json_path_absent",
+      "platform": "antigravity-cli",
+      "path": ".gemini/settings.json",
+      "json_path": "permissions.allow[*]",
+      "value_contains": "Bash(sudo"
+    },
+    {
+      "kind": "json_path_absent",
+      "platform": "antigravity-cli",
+      "path": ".gemini/settings.json",
+      "json_path": "permissions.allow[*]",
+      "value_contains": "Bash(rm"
+    }
+  ],
+  "provenance": {
+    "kind": "manual",
+    "ref": "pkg/adapter/claude/claude_settings.go, pkg/adapter/antigravity/antigravity_settings.go"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-PROMPT-TRIAGE-PARITY",
+  "kind": "surface",
+  "category": "prompt_contract",
+  "intent": "Every `/auto` router applies one task-triage policy, whichever platform reads it.",
+  "outcome": "The Task Triage section is byte-identical across the Claude, Codex (repository and plugin), and both Antigravity routers, and across the OMP router, OMP `/auto` command, and OpenCode router, which render the same policy without the blank line after the heading; both groups keep the inline rule.",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "section_parity",
+      "files": [
+        {
+          "platform": "claude-code",
+          "path": ".claude/skills/auto/SKILL.md"
+        },
+        {
+          "platform": "codex",
+          "path": ".codex/skills/codex-auto/SKILL.md"
+        },
+        {
+          "platform": "codex",
+          "path": ".autopus/plugins/auto/skills/auto/SKILL.md"
+        },
+        {
+          "platform": "antigravity-cli",
+          "path": ".agents/plugins/autopus/skills/auto/SKILL.md"
+        },
+        {
+          "platform": "antigravity-cli",
+          "path": ".gemini/skills/auto/SKILL.md"
+        }
+      ],
+      "heading": "## Task Triage"
+    },
+    {
+      "kind": "section_parity",
+      "files": [
+        {
+          "platform": "omp",
+          "path": ".omp/skills/auto/SKILL.md"
+        },
+        {
+          "platform": "omp",
+          "path": ".omp/commands/auto.md"
+        },
+        {
+          "platform": "opencode",
+          "path": ".agents/skills/auto/SKILL.md"
+        }
+      ],
+      "heading": "## Task Triage"
+    },
+    {
+      "kind": "contains",
+      "platform": "claude-code",
+      "path": ".claude/skills/auto/SKILL.md",
+      "needle": "- `inline`: a bounded, evidenced low-risk change stays in this session with targeted implementation and tests; do not add a default planner or preload unrelated skills."
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/skills/auto/SKILL.md",
+      "needle": "- `inline`: a bounded, evidenced low-risk change stays in this session with targeted implementation and tests; do not add a default planner or preload unrelated skills."
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": ".agents/skills/auto/SKILL.md",
+      "needle": "- `inline`: a bounded, evidenced low-risk change stays in this session with targeted implementation and tests; do not add a default planner or preload unrelated skills."
+    }
+  ],
+  "provenance": {
+    "kind": "manual",
+    "ref": "templates/claude/commands/auto-router.md.tmpl, templates/gemini/commands/auto-router.md.tmpl, templates/codex/prompts/auto.md.tmpl, templates/root_doc.go::TaskTriagePolicy"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

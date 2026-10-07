@@ -1,0 +1,152 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-ROUTE-CLAUDE-DETAILS",
+  "kind": "surface",
+  "category": "routing",
+  "intent": "`/auto <route>` on Claude Code loads exactly the detail skill its router table names.",
+  "outcome": "Every one of the 19 workflow routes has a router table row that names that route's own detail skill, and that detail skill is generated on the Claude surface.",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "route_detail",
+      "platform": "claude-code",
+      "path": ".claude/skills/auto/SKILL.md",
+      "route": "| `setup` |",
+      "detail": ".claude/skills/auto-setup/SKILL.md"
+    },
+    {
+      "kind": "route_detail",
+      "platform": "claude-code",
+      "path": ".claude/skills/auto/SKILL.md",
+      "route": "| `status` |",
+      "detail": ".claude/skills/auto-status/SKILL.md"
+    },
+    {
+      "kind": "route_detail",
+      "platform": "claude-code",
+      "path": ".claude/skills/auto/SKILL.md",
+      "route": "| `goal` |",
+      "detail": ".claude/skills/auto-goal/SKILL.md"
+    },
+    {
+      "kind": "route_detail",
+      "platform": "claude-code",
+      "path": ".claude/skills/auto/SKILL.md",
+      "route": "| `update` |",
+      "detail": ".claude/skills/auto-update/SKILL.md"
+    },
+    {
+      "kind": "route_detail",
+      "platform": "claude-code",
+      "path": ".claude/skills/auto/SKILL.md",
+      "route": "| `plan` |",
+      "detail": ".claude/skills/auto-plan/SKILL.md"
+    },
+    {
+      "kind": "route_detail",
+      "platform": "claude-code",
+      "path": ".claude/skills/auto/SKILL.md",
+      "route": "| `go` |",
+      "detail": ".claude/skills/auto-go/SKILL.md"
+    },
+    {
+      "kind": "route_detail",
+      "platform": "claude-code",
+      "path": ".claude/skills/auto/SKILL.md",
+      "route": "| `fix` |",
+      "detail": ".claude/skills/auto-fix/SKILL.md"
+    },
+    {
+      "kind": "route_detail",
+      "platform": "claude-code",
+      "path": ".claude/skills/auto/SKILL.md",
+      "route": "| `review` |",
+      "detail": ".claude/skills/auto-review/SKILL.md"
+    },
+    {
+      "kind": "route_detail",
+      "platform": "claude-code",
+      "path": ".claude/skills/auto/SKILL.md",
+      "route": "| `sync` |",
+      "detail": ".claude/skills/auto-sync/SKILL.md"
+    },
+    {
+      "kind": "route_detail",
+      "platform": "claude-code",
+      "path": ".claude/skills/auto/SKILL.md",
+      "route": "| `idea` |",
+      "detail": ".claude/skills/auto-idea/SKILL.md"
+    },
+    {
+      "kind": "route_detail",
+      "platform": "claude-code",
+      "path": ".claude/skills/auto/SKILL.md",
+      "route": "| `map` |",
+      "detail": ".claude/skills/auto-map/SKILL.md"
+    },
+    {
+      "kind": "route_detail",
+      "platform": "claude-code",
+      "path": ".claude/skills/auto/SKILL.md",
+      "route": "| `why` |",
+      "detail": ".claude/skills/auto-why/SKILL.md"
+    },
+    {
+      "kind": "route_detail",
+      "platform": "claude-code",
+      "path": ".claude/skills/auto/SKILL.md",
+      "route": "| `verify` |",
+      "detail": ".claude/skills/auto-verify/SKILL.md"
+    },
+    {
+      "kind": "route_detail",
+      "platform": "claude-code",
+      "path": ".claude/skills/auto/SKILL.md",
+      "route": "| `secure` |",
+      "detail": ".claude/skills/auto-secure/SKILL.md"
+    },
+    {
+      "kind": "route_detail",
+      "platform": "claude-code",
+      "path": ".claude/skills/auto/SKILL.md",
+      "route": "| `test` |",
+      "detail": ".claude/skills/auto-test/SKILL.md"
+    },
+    {
+      "kind": "route_detail",
+      "platform": "claude-code",
+      "path": ".claude/skills/auto/SKILL.md",
+      "route": "| `qa` |",
+      "detail": ".claude/skills/auto-qa/SKILL.md"
+    },
+    {
+      "kind": "route_detail",
+      "platform": "claude-code",
+      "path": ".claude/skills/auto/SKILL.md",
+      "route": "| `dev` |",
+      "detail": ".claude/skills/auto-dev/SKILL.md"
+    },
+    {
+      "kind": "route_detail",
+      "platform": "claude-code",
+      "path": ".claude/skills/auto/SKILL.md",
+      "route": "| `canary` |",
+      "detail": ".claude/skills/auto-canary/SKILL.md"
+    },
+    {
+      "kind": "route_detail",
+      "platform": "claude-code",
+      "path": ".claude/skills/auto/SKILL.md",
+      "route": "| `doctor` |",
+      "detail": ".claude/skills/auto-doctor/SKILL.md"
+    }
+  ],
+  "provenance": {
+    "kind": "manual",
+    "ref": "templates/claude/commands/auto-router.md.tmpl"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

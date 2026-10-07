@@ -1,0 +1,67 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-PROMPT-PROJECT-IDENTITY",
+  "kind": "surface",
+  "category": "prompt_contract",
+  "intent": "The configured project name and mode reach every generated entry document.",
+  "outcome": "CLAUDE.md, AGENTS.md, GEMINI.md, the Claude router banner, the Codex router and config, a Codex agent, and an Antigravity command all carry the pinned project name harness-golden in full mode.",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "contains",
+      "platform": "claude-code",
+      "path": "CLAUDE.md",
+      "needle": "- **프로젝트**: harness-golden\n- **모드**: full"
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": "AGENTS.md",
+      "needle": "- **프로젝트**: harness-golden\n- **모드**: full"
+    },
+    {
+      "kind": "contains",
+      "platform": "antigravity-cli",
+      "path": "GEMINI.md",
+      "needle": "- **프로젝트**: harness-golden\n- **모드**: full"
+    },
+    {
+      "kind": "contains",
+      "platform": "claude-code",
+      "path": ".claude/skills/auto/SKILL.md",
+      "needle": "> 🐙 Autopus | harness-golden | full"
+    },
+    {
+      "kind": "contains",
+      "platform": "codex",
+      "path": ".codex/skills/codex-auto/SKILL.md",
+      "needle": "**프로젝트**: harness-golden | **모드**: full"
+    },
+    {
+      "kind": "contains",
+      "platform": "codex",
+      "path": ".codex/config.toml",
+      "needle": "# Project: harness-golden\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "codex",
+      "path": ".codex/agents/reviewer.toml",
+      "needle": "You are the reviewer agent for project harness-golden."
+    },
+    {
+      "kind": "contains",
+      "platform": "antigravity-cli",
+      "path": ".gemini/commands/auto/plan.toml",
+      "needle": "Project: harness-golden | Mode: full"
+    }
+  ],
+  "provenance": {
+    "kind": "manual",
+    "ref": "templates (ProjectName/Mode bindings), pkg/adapter/*"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

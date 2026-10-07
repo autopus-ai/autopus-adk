@@ -1,0 +1,65 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-PROMPT-SHELL-PORTABILITY",
+  "kind": "surface",
+  "category": "prompt_contract",
+  "intent": "No platform tells an agent to wrap `auto` in GNU `timeout`, which macOS lacks.",
+  "outcome": "The Shell Portability rule is byte-identical on Claude (hook-fired), Antigravity, OpenCode, and OMP; Claude fires it on a `timeout <n>` command; OpenCode lists it as an instruction; the Codex router carries the same prohibition.",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "section_parity",
+      "files": [
+        {
+          "platform": "claude-code",
+          "path": ".claude/hooks/autopus/conditional/shell-portability.md"
+        },
+        {
+          "platform": "antigravity-cli",
+          "path": ".agents/plugins/autopus/rules/shell-portability.md"
+        },
+        {
+          "platform": "antigravity-cli",
+          "path": ".gemini/rules/autopus/shell-portability.md"
+        },
+        {
+          "platform": "opencode",
+          "path": ".opencode/rules/autopus/shell-portability.md"
+        },
+        {
+          "platform": "omp",
+          "path": ".omp/rules/autopus-shell-portability.md"
+        }
+      ],
+      "heading": "# Shell Portability"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "claude-code",
+      "path": ".claude/hooks/autopus/conditional-rules.json",
+      "json_path": "rules[*].conditions[*]",
+      "value_contains": "g?timeout\\s+[0-9]"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "opencode",
+      "path": "opencode.json",
+      "json_path": "instructions[*]",
+      "value_contains": ".opencode/rules/autopus/shell-portability.md"
+    },
+    {
+      "kind": "contains",
+      "platform": "codex",
+      "path": ".codex/skills/codex-auto/SKILL.md",
+      "needle": "IMPORTANT: Do not wrap Autopus commands with GNU `timeout`"
+    }
+  ],
+  "provenance": {
+    "kind": "manual",
+    "ref": "content/rules/shell-portability.md, templates/codex/prompts/auto.md.tmpl"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

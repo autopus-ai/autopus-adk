@@ -1,0 +1,85 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-PROMPT-THIN-ROUTER",
+  "kind": "surface",
+  "category": "prompt_contract",
+  "intent": "Each router stays a thin entrypoint: it selects exactly one detail and forwards the arguments untouched.",
+  "outcome": "Claude, Antigravity, Codex, OMP, and OpenCode routers each state the one-detail rule and the unchanged-argument rule in their own wording.",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "contains",
+      "platform": "claude-code",
+      "path": ".claude/skills/auto/SKILL.md",
+      "needle": "3. Load exactly one detail from the table below. Do not preload other auto details or the generation-only workflow source."
+    },
+    {
+      "kind": "contains",
+      "platform": "claude-code",
+      "path": ".claude/skills/auto/SKILL.md",
+      "needle": "4. Pass all arguments and flags unchanged to the selected detail."
+    },
+    {
+      "kind": "contains",
+      "platform": "antigravity-cli",
+      "path": ".agents/plugins/autopus/skills/auto/SKILL.md",
+      "needle": "3. Load exactly one detail listed below. Do not preload other auto skills."
+    },
+    {
+      "kind": "contains",
+      "platform": "antigravity-cli",
+      "path": ".agents/plugins/autopus/skills/auto/SKILL.md",
+      "needle": "4. Forward all arguments and flags unchanged."
+    },
+    {
+      "kind": "contains",
+      "platform": "antigravity-cli",
+      "path": ".gemini/skills/auto/SKILL.md",
+      "needle": "3. Load exactly one detail listed below. Do not preload other auto skills."
+    },
+    {
+      "kind": "contains",
+      "platform": "codex",
+      "path": ".codex/skills/codex-auto/SKILL.md",
+      "needle": "- Treat this file as a thin entrypoint only."
+    },
+    {
+      "kind": "contains",
+      "platform": "codex",
+      "path": ".codex/skills/codex-auto/SKILL.md",
+      "needle": "- Do not stay at the router layer when a detailed workflow exists for the request."
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/skills/auto/SKILL.md",
+      "needle": "Preserve `--model <provider/model>` and `--variant <value>` exactly as supplied."
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/skills/auto/SKILL.md",
+      "needle": "Do not fuzzy-correct an unknown subcommand; report it as unsupported and show the exact map."
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": ".agents/skills/auto/SKILL.md",
+      "needle": "- 이 스킬은 얇은 라우터입니다. 고정된 서브커맨드는 바로 상세 스킬로 넘깁니다."
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": ".agents/skills/auto/SKILL.md",
+      "needle": "- `--model` / `--variant` 값은 이후 단계로 그대로 전달하고 자동으로 덮어쓰지 않습니다."
+    }
+  ],
+  "provenance": {
+    "kind": "manual",
+    "ref": "templates/*/auto-router, templates/codex/prompts/auto.md.tmpl, pkg/adapter/omp, pkg/adapter/opencode"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

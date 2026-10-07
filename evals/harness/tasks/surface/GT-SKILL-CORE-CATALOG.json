@@ -1,0 +1,174 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-SKILL-CORE-CATALOG",
+  "kind": "surface",
+  "category": "agent_skill_exposure",
+  "intent": "The core methodology skills every pipeline phase relies on are exposed on all five platforms.",
+  "outcome": "agent-pipeline, tdd, debugging, review, and verification exist on Claude, Codex (codex- prefixed and so named), both Antigravity roots, the shared OpenCode catalog, and OMP.",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "file_exists",
+      "platform": "claude-code",
+      "path": ".claude/skills/agent-pipeline/SKILL.md"
+    },
+    {
+      "kind": "contains",
+      "platform": "codex",
+      "path": ".codex/skills/codex-agent-pipeline/SKILL.md",
+      "needle": "name: codex-agent-pipeline\n"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "antigravity-cli",
+      "path": ".agents/plugins/autopus/skills/agent-pipeline/SKILL.md"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "antigravity-cli",
+      "path": ".gemini/skills/autopus/agent-pipeline/SKILL.md"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "opencode",
+      "path": ".agents/skills/agent-pipeline/SKILL.md"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "omp",
+      "path": ".omp/skills/agent-pipeline/SKILL.md"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "claude-code",
+      "path": ".claude/skills/tdd/SKILL.md"
+    },
+    {
+      "kind": "contains",
+      "platform": "codex",
+      "path": ".codex/skills/codex-tdd/SKILL.md",
+      "needle": "name: codex-tdd\n"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "antigravity-cli",
+      "path": ".agents/plugins/autopus/skills/tdd/SKILL.md"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "antigravity-cli",
+      "path": ".gemini/skills/autopus/tdd/SKILL.md"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "opencode",
+      "path": ".agents/skills/tdd/SKILL.md"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "omp",
+      "path": ".omp/skills/tdd/SKILL.md"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "claude-code",
+      "path": ".claude/skills/debugging/SKILL.md"
+    },
+    {
+      "kind": "contains",
+      "platform": "codex",
+      "path": ".codex/skills/codex-debugging/SKILL.md",
+      "needle": "name: codex-debugging\n"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "antigravity-cli",
+      "path": ".agents/plugins/autopus/skills/debugging/SKILL.md"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "antigravity-cli",
+      "path": ".gemini/skills/autopus/debugging/SKILL.md"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "opencode",
+      "path": ".agents/skills/debugging/SKILL.md"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "omp",
+      "path": ".omp/skills/debugging/SKILL.md"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "claude-code",
+      "path": ".claude/skills/review/SKILL.md"
+    },
+    {
+      "kind": "contains",
+      "platform": "codex",
+      "path": ".codex/skills/codex-review/SKILL.md",
+      "needle": "name: codex-review\n"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "antigravity-cli",
+      "path": ".agents/plugins/autopus/skills/review/SKILL.md"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "antigravity-cli",
+      "path": ".gemini/skills/autopus/review/SKILL.md"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "opencode",
+      "path": ".agents/skills/review/SKILL.md"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "omp",
+      "path": ".omp/skills/review/SKILL.md"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "claude-code",
+      "path": ".claude/skills/verification/SKILL.md"
+    },
+    {
+      "kind": "contains",
+      "platform": "codex",
+      "path": ".codex/skills/codex-verification/SKILL.md",
+      "needle": "name: codex-verification\n"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "antigravity-cli",
+      "path": ".agents/plugins/autopus/skills/verification/SKILL.md"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "antigravity-cli",
+      "path": ".gemini/skills/autopus/verification/SKILL.md"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "opencode",
+      "path": ".agents/skills/verification/SKILL.md"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "omp",
+      "path": ".omp/skills/verification/SKILL.md"
+    }
+  ],
+  "provenance": {
+    "kind": "manual",
+    "ref": "content/skills, pkg/adapter/*/skills"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

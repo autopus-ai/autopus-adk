@@ -1,0 +1,97 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-HOOK-SESSION-LIFECYCLE",
+  "kind": "surface",
+  "category": "hooks_settings",
+  "intent": "Session lifecycle hooks call the hook scripts their own adapter generated, through a project-root expression rather than an absolute path.",
+  "outcome": "Claude SessionStart/Stop, Codex SessionStart/Stop (with the Codex hooks feature on), Antigravity AfterAgent, and the plugin Stop hook each name a generated script of the same platform via a root-relative command.",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "json_path_present",
+      "platform": "claude-code",
+      "path": ".claude/settings.json",
+      "json_path": "hooks.SessionStart[*].hooks[*].command",
+      "value_contains": "\"${CLAUDE_PROJECT_DIR:-.}\"/.claude/hooks/autopus/hook-claude-sessionstart.sh"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "claude-code",
+      "path": ".claude/hooks/autopus/hook-claude-sessionstart.sh"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "claude-code",
+      "path": ".claude/settings.json",
+      "json_path": "hooks.Stop[*].hooks[*].command",
+      "value_contains": "\"${CLAUDE_PROJECT_DIR:-.}\"/.claude/hooks/autopus/hook-claude-stop.sh"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "claude-code",
+      "path": ".claude/hooks/autopus/hook-claude-stop.sh"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "codex",
+      "path": ".codex/hooks.json",
+      "json_path": "hooks.SessionStart[*].hooks[*].command",
+      "value_contains": "\"$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.codex/hooks/autopus/hook-codex-sessionstart.sh\""
+    },
+    {
+      "kind": "file_exists",
+      "platform": "codex",
+      "path": ".codex/hooks/autopus/hook-codex-sessionstart.sh"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "codex",
+      "path": ".codex/hooks.json",
+      "json_path": "hooks.Stop[*].hooks[*].command",
+      "value_contains": "\"$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.codex/hooks/autopus/hook-codex-stop.sh\""
+    },
+    {
+      "kind": "file_exists",
+      "platform": "codex",
+      "path": ".codex/hooks/autopus/hook-codex-stop.sh"
+    },
+    {
+      "kind": "contains",
+      "platform": "codex",
+      "path": ".codex/config.toml",
+      "needle": "\nhooks = true\n"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "antigravity-cli",
+      "path": ".gemini/settings.json",
+      "json_path": "hooks.AfterAgent[*].hooks[*].command",
+      "value_contains": "\"${GEMINI_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}\"/.gemini/hooks/autopus/hook-gemini-afteragent.sh"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "antigravity-cli",
+      "path": ".gemini/hooks/autopus/hook-gemini-afteragent.sh"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "antigravity-cli",
+      "path": ".agents/hooks.json",
+      "json_path": "autopus.Stop[*].command",
+      "value_contains": "\"$(cd .. && pwd)/.gemini/hooks/autopus/hook-gemini-stop.sh\""
+    },
+    {
+      "kind": "file_exists",
+      "platform": "antigravity-cli",
+      "path": ".gemini/hooks/autopus/hook-gemini-stop.sh"
+    }
+  ],
+  "provenance": {
+    "kind": "manual",
+    "ref": "pkg/adapter/claude, pkg/adapter/codex, pkg/adapter/antigravity, content/hooks"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

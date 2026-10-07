@@ -1,0 +1,43 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-AGENT-A04",
+  "kind": "agent",
+  "category": "pipeline_verdict_ambiguity",
+  "intent": "Fix phase-gate evaluation so ambiguous or conflicting verdict declarations never authorize validation or review. A single exact typed success verdict surrounded by ordinary prose should continue to pass, and ungated phases should retain their current behavior.",
+  "outcome": "With the generated Codex surface installed, the agent repairs the seeded regression in pkg/pipeline/phase_gate.go so every expected oracle test passes again (Seeds a plausible first-verdict-wins parser shortcut that incorrectly accepts conflicting output; the oracle also protects valid typed and ungated behavior.)",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "file_exists",
+      "platform": "codex",
+      "path": ".codex/config.toml"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "codex",
+      "path": ".codex/skills/codex-auto/SKILL.md"
+    }
+  ],
+  "corpus_ref": {
+    "file": "scripts/benchmarks/harness/corpus_a.json",
+    "task_id": "a04",
+    "file_sha256": "97c03debd2dd2e9414a585ec3fabc931228ed87167fe98ffc51b3d9abf774101"
+  },
+  "expected_tests": [
+    "TestEvaluateGate_ConflictingOrUnknownVerdict_FailsClosed",
+    "TestEvaluateGate_None_AlwaysPass",
+    "TestEvaluateGate_Review_ApproveOnApproval",
+    "TestEvaluateGate_Review_RequestChanges",
+    "TestEvaluateGate_SingleExactTypedPass_Passes",
+    "TestEvaluateGate_Validation_FailOnError",
+    "TestEvaluateGate_Validation_PassOnSuccess"
+  ],
+  "provenance": {
+    "kind": "benchmark",
+    "ref": "scripts/benchmarks/harness/corpus_a.json#a04"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

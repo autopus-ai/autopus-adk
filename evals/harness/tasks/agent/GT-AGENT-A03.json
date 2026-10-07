@@ -1,0 +1,39 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-AGENT-A03",
+  "kind": "agent",
+  "category": "prompt_manifest_provenance",
+  "intent": "Fix prompt-manifest comparison so changing a layer source reference is reported even when its text and content hash stay the same. Preserve the invalidation category for that layer and avoid reporting unrelated stable layers as changed.",
+  "outcome": "With the generated Codex surface installed, the agent repairs the seeded regression in pkg/promptlayer/layer.go so every expected oracle test passes again (Seeds source-provenance loss in cache invalidation; metadata-only changes are distinct from content, ephemeral, and removal changes.)",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "file_exists",
+      "platform": "codex",
+      "path": ".codex/config.toml"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "codex",
+      "path": ".codex/skills/codex-auto/SKILL.md"
+    }
+  ],
+  "corpus_ref": {
+    "file": "scripts/benchmarks/harness/corpus_a.json",
+    "task_id": "a03",
+    "file_sha256": "97c03debd2dd2e9414a585ec3fabc931228ed87167fe98ffc51b3d9abf774101"
+  },
+  "expected_tests": [
+    "TestCompareManifestsIsolatesEphemeralChanges",
+    "TestCompareManifestsReportsMetadataChanges",
+    "TestCompareManifestsReportsRemovedLayers"
+  ],
+  "provenance": {
+    "kind": "benchmark",
+    "ref": "scripts/benchmarks/harness/corpus_a.json#a03"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

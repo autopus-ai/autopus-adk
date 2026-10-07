@@ -1,0 +1,37 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-AGENT-A02",
+  "kind": "agent",
+  "category": "telemetry_call_identity",
+  "intent": "Fix usage aggregation so separate model calls and retries within the same run retain their own spend. Repeated copies of the same call must still count once, and contradictory receipts for the same call must block a trustworthy total.",
+  "outcome": "With the generated Codex surface installed, the agent repairs the seeded regression in pkg/telemetry/usage_aggregate.go so every expected oracle test passes again (Seeds accidental run-level rather than call-level deduplication; existing oracle covers copies, distinct retry calls, and conflicting duplicates.)",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "file_exists",
+      "platform": "codex",
+      "path": ".codex/config.toml"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "codex",
+      "path": ".codex/skills/codex-auto/SKILL.md"
+    }
+  ],
+  "corpus_ref": {
+    "file": "scripts/benchmarks/harness/corpus_a.json",
+    "task_id": "a02",
+    "file_sha256": "97c03debd2dd2e9414a585ec3fabc931228ed87167fe98ffc51b3d9abf774101"
+  },
+  "expected_tests": [
+    "TestAggregateUsage_DuplicateIdentity_DeduplicatesOrBlocksOnConflict"
+  ],
+  "provenance": {
+    "kind": "benchmark",
+    "ref": "scripts/benchmarks/harness/corpus_a.json#a02"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

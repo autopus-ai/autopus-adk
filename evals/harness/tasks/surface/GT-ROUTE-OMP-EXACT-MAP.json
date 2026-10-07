@@ -1,0 +1,259 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-ROUTE-OMP-EXACT-MAP",
+  "kind": "surface",
+  "category": "routing",
+  "intent": "OMP routes `/auto <route>` and the direct `/auto-<route>` command to the same named detail skill.",
+  "outcome": "The OMP router skill and `/auto` command carry the exact 19-route map, every `/auto-<route>` command loads detail skill `auto-<route>` as the same target, and each detail skill declares that name.",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/skills/auto/SKILL.md",
+      "needle": "Route to exactly one matching detail skill from this exact map: `auto-setup`, `auto-status`, `auto-goal`, `auto-update`, `auto-plan`, `auto-go`, `auto-fix`, `auto-review`, `auto-sync`, `auto-idea`, `auto-map`, `auto-why`, `auto-verify`, `auto-secure`, `auto-test`, `auto-qa`, `auto-dev`, `auto-canary`, `auto-doctor`."
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/commands/auto.md",
+      "needle": "Route to exactly one matching detail skill from this exact map: `auto-setup`, `auto-status`, `auto-goal`, `auto-update`, `auto-plan`, `auto-go`, `auto-fix`, `auto-review`, `auto-sync`, `auto-idea`, `auto-map`, `auto-why`, `auto-verify`, `auto-secure`, `auto-test`, `auto-qa`, `auto-dev`, `auto-canary`, `auto-doctor`."
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/commands/auto-setup.md",
+      "needle": "Load exact detail skill `auto-setup`; this is the same target selected by `/auto setup ...`."
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/commands/auto-status.md",
+      "needle": "Load exact detail skill `auto-status`; this is the same target selected by `/auto status ...`."
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/commands/auto-goal.md",
+      "needle": "Load exact detail skill `auto-goal`; this is the same target selected by `/auto goal ...`."
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/commands/auto-update.md",
+      "needle": "Load exact detail skill `auto-update`; this is the same target selected by `/auto update ...`."
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/commands/auto-plan.md",
+      "needle": "Load exact detail skill `auto-plan`; this is the same target selected by `/auto plan ...`."
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/commands/auto-go.md",
+      "needle": "Load exact detail skill `auto-go`; this is the same target selected by `/auto go ...`."
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/commands/auto-fix.md",
+      "needle": "Load exact detail skill `auto-fix`; this is the same target selected by `/auto fix ...`."
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/commands/auto-review.md",
+      "needle": "Load exact detail skill `auto-review`; this is the same target selected by `/auto review ...`."
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/commands/auto-sync.md",
+      "needle": "Load exact detail skill `auto-sync`; this is the same target selected by `/auto sync ...`."
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/commands/auto-idea.md",
+      "needle": "Load exact detail skill `auto-idea`; this is the same target selected by `/auto idea ...`."
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/commands/auto-map.md",
+      "needle": "Load exact detail skill `auto-map`; this is the same target selected by `/auto map ...`."
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/commands/auto-why.md",
+      "needle": "Load exact detail skill `auto-why`; this is the same target selected by `/auto why ...`."
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/commands/auto-verify.md",
+      "needle": "Load exact detail skill `auto-verify`; this is the same target selected by `/auto verify ...`."
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/commands/auto-secure.md",
+      "needle": "Load exact detail skill `auto-secure`; this is the same target selected by `/auto secure ...`."
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/commands/auto-test.md",
+      "needle": "Load exact detail skill `auto-test`; this is the same target selected by `/auto test ...`."
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/commands/auto-qa.md",
+      "needle": "Load exact detail skill `auto-qa`; this is the same target selected by `/auto qa ...`."
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/commands/auto-dev.md",
+      "needle": "Load exact detail skill `auto-dev`; this is the same target selected by `/auto dev ...`."
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/commands/auto-canary.md",
+      "needle": "Load exact detail skill `auto-canary`; this is the same target selected by `/auto canary ...`."
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/commands/auto-doctor.md",
+      "needle": "Load exact detail skill `auto-doctor`; this is the same target selected by `/auto doctor ...`."
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/skills/auto-setup/SKILL.md",
+      "needle": "name: auto-setup\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/skills/auto-status/SKILL.md",
+      "needle": "name: auto-status\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/skills/auto-goal/SKILL.md",
+      "needle": "name: auto-goal\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/skills/auto-update/SKILL.md",
+      "needle": "name: auto-update\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/skills/auto-plan/SKILL.md",
+      "needle": "name: auto-plan\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/skills/auto-go/SKILL.md",
+      "needle": "name: auto-go\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/skills/auto-fix/SKILL.md",
+      "needle": "name: auto-fix\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/skills/auto-review/SKILL.md",
+      "needle": "name: auto-review\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/skills/auto-sync/SKILL.md",
+      "needle": "name: auto-sync\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/skills/auto-idea/SKILL.md",
+      "needle": "name: auto-idea\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/skills/auto-map/SKILL.md",
+      "needle": "name: auto-map\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/skills/auto-why/SKILL.md",
+      "needle": "name: auto-why\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/skills/auto-verify/SKILL.md",
+      "needle": "name: auto-verify\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/skills/auto-secure/SKILL.md",
+      "needle": "name: auto-secure\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/skills/auto-test/SKILL.md",
+      "needle": "name: auto-test\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/skills/auto-qa/SKILL.md",
+      "needle": "name: auto-qa\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/skills/auto-dev/SKILL.md",
+      "needle": "name: auto-dev\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/skills/auto-canary/SKILL.md",
+      "needle": "name: auto-canary\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/skills/auto-doctor/SKILL.md",
+      "needle": "name: auto-doctor\n"
+    }
+  ],
+  "provenance": {
+    "kind": "manual",
+    "ref": "pkg/adapter/omp"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

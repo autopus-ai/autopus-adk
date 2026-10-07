@@ -1,0 +1,67 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-PROMPT-REVIEW-CONVERGENCE",
+  "kind": "surface",
+  "category": "prompt_contract",
+  "intent": "Review retries verify only the open findings instead of re-running discovery from scratch.",
+  "outcome": "The Review Loop reference is byte-identical on all five platforms, and the Claude and Antigravity routers and AGENTS.md each separate finding discovery from verification.",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "section_parity",
+      "files": [
+        {
+          "platform": "claude-code",
+          "path": ".claude/skills/agent-pipeline/references/review.md"
+        },
+        {
+          "platform": "codex",
+          "path": ".codex/skills/codex-agent-pipeline/references/review.md"
+        },
+        {
+          "platform": "antigravity-cli",
+          "path": ".agents/plugins/autopus/skills/agent-pipeline/references/review.md"
+        },
+        {
+          "platform": "antigravity-cli",
+          "path": ".gemini/skills/autopus/agent-pipeline/references/review.md"
+        },
+        {
+          "platform": "opencode",
+          "path": ".agents/skills/agent-pipeline/references/review.md"
+        },
+        {
+          "platform": "omp",
+          "path": ".omp/skills/agent-pipeline/references/review.md"
+        }
+      ],
+      "heading": "# Review Loop"
+    },
+    {
+      "kind": "contains",
+      "platform": "claude-code",
+      "path": ".claude/skills/auto/SKILL.md",
+      "needle": "- Separate finding discovery from verification. Retries verify only open findings against the new diff and keep configured retry limits."
+    },
+    {
+      "kind": "contains",
+      "platform": "antigravity-cli",
+      "path": ".agents/plugins/autopus/skills/auto/SKILL.md",
+      "needle": "- Separate initial finding discovery from verification. Retry only open findings against the updated diff and retain configured limits."
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": "AGENTS.md",
+      "needle": "Separate initial finding discovery from verification of fixes. Do not repeat\nunchanged reviews."
+    }
+  ],
+  "provenance": {
+    "kind": "manual",
+    "ref": "content/skills/references/agent-pipeline/review.md, router templates, AGENTS.md renderer"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

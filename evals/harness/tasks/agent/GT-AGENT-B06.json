@@ -1,0 +1,37 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-AGENT-B06",
+  "kind": "agent",
+  "category": "opencode_plugin_path_identity",
+  "intent": "Repair OpenCode plugin configuration merging so an existing local file-URL declaration and the equivalent managed project path identify the same plugin. Do not duplicate that registration, and preserve the proper V1 versus V2 configuration shape. Do not modify tests.",
+  "outcome": "With the generated Codex surface installed, the agent repairs the seeded regression in pkg/adapter/opencode/opencode_config_v2.go so every expected oracle test passes again (Treating file URLs and filesystem paths as unrelated identities produces duplicate plugin registrations during harness updates.)",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "file_exists",
+      "platform": "codex",
+      "path": ".codex/config.toml"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "codex",
+      "path": ".codex/skills/codex-auto/SKILL.md"
+    }
+  ],
+  "corpus_ref": {
+    "file": "scripts/benchmarks/harness/corpus_b.json",
+    "task_id": "b06",
+    "file_sha256": "b9149571e3381eb961c23eaac35b0b20a10e36311b2b1f2395547d2588a9643f"
+  },
+  "expected_tests": [
+    "TestPluginConfigNewVersionShapeAndPathAliases"
+  ],
+  "provenance": {
+    "kind": "benchmark",
+    "ref": "scripts/benchmarks/harness/corpus_b.json#b06"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

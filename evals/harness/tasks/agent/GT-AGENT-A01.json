@@ -1,0 +1,39 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-AGENT-A01",
+  "kind": "agent",
+  "category": "skill_selection_precedence",
+  "intent": "Fix skill selection when a task supplies an incompatible supported-tool version but omits another required version. A confirmed incompatibility must remain excluded regardless of capability ordering, while missing evidence alone must remain unknown. Keep the declared selection evidence and compatible cases intact.",
+  "outcome": "With the generated Codex surface installed, the agent repairs the seeded regression in pkg/skillpolicy/select.go so every expected oracle test passes again (Seeds a precedence regression where a later missing capability overwrites an earlier exclusion; existing tests cover unknown, incompatible, and compatible boundaries.)",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "file_exists",
+      "platform": "codex",
+      "path": ".codex/config.toml"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "codex",
+      "path": ".codex/skills/codex-auto/SKILL.md"
+    }
+  ],
+  "corpus_ref": {
+    "file": "scripts/benchmarks/harness/corpus_a.json",
+    "task_id": "a01",
+    "file_sha256": "97c03debd2dd2e9414a585ec3fabc931228ed87167fe98ffc51b3d9abf774101"
+  },
+  "expected_tests": [
+    "TestExcludeWinsAndMissingFile",
+    "TestSelectExplicitEvidence",
+    "TestVersionMismatchWinsOverUnknown"
+  ],
+  "provenance": {
+    "kind": "benchmark",
+    "ref": "scripts/benchmarks/harness/corpus_a.json#a01"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

@@ -1,0 +1,115 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-HOOK-CLAUDE-RULE-DISPATCH",
+  "kind": "surface",
+  "category": "hooks_settings",
+  "intent": "Claude loads hook-fired rules on demand and sticky rules every prompt, instead of preloading them all.",
+  "outcome": "settings.json registers the PreToolUse rule dispatcher and the UserPromptSubmit sticky hook; each hook-fired rule body lives under the conditional root and not in the baseline rules; each sticky body stays in the baseline rules; lore-commit fires on `git commit`.",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "json_path_present",
+      "platform": "claude-code",
+      "path": ".claude/settings.json",
+      "json_path": "hooks.PreToolUse[*].hooks[*].command",
+      "value_contains": "auto rules fire --event PreToolUse"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "claude-code",
+      "path": ".claude/settings.json",
+      "json_path": "hooks.UserPromptSubmit[*].hooks[*].command",
+      "value_contains": "auto rules sticky --event UserPromptSubmit"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "claude-code",
+      "path": ".claude/hooks/autopus/conditional-rules.json",
+      "json_path": "rules[*].conditions[*]",
+      "value_contains": "\\bgit\\s+commit\\b"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "claude-code",
+      "path": ".claude/hooks/autopus/conditional-rules.json",
+      "json_path": "rules[*].body",
+      "value_contains": "lore-commit.md"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "claude-code",
+      "path": ".claude/hooks/autopus/conditional/lore-commit.md"
+    },
+    {
+      "kind": "file_absent",
+      "platform": "claude-code",
+      "path": ".claude/rules/autopus/lore-commit.md"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "claude-code",
+      "path": ".claude/hooks/autopus/conditional-rules.json",
+      "json_path": "rules[*].body",
+      "value_contains": "shell-portability.md"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "claude-code",
+      "path": ".claude/hooks/autopus/conditional/shell-portability.md"
+    },
+    {
+      "kind": "file_absent",
+      "platform": "claude-code",
+      "path": ".claude/rules/autopus/shell-portability.md"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "claude-code",
+      "path": ".claude/hooks/autopus/conditional-rules.json",
+      "json_path": "rules[*].body",
+      "value_contains": "worktree-safety.md"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "claude-code",
+      "path": ".claude/hooks/autopus/conditional/worktree-safety.md"
+    },
+    {
+      "kind": "file_absent",
+      "platform": "claude-code",
+      "path": ".claude/rules/autopus/worktree-safety.md"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "claude-code",
+      "path": ".claude/hooks/autopus/conditional-rules.json",
+      "json_path": "sticky[*].body",
+      "value_contains": "language-policy.md"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "claude-code",
+      "path": ".claude/rules/autopus/language-policy.md"
+    },
+    {
+      "kind": "json_path_present",
+      "platform": "claude-code",
+      "path": ".claude/hooks/autopus/conditional-rules.json",
+      "json_path": "sticky[*].body",
+      "value_contains": "objective-reasoning.md"
+    },
+    {
+      "kind": "file_exists",
+      "platform": "claude-code",
+      "path": ".claude/rules/autopus/objective-reasoning.md"
+    }
+  ],
+  "provenance": {
+    "kind": "manual",
+    "ref": "pkg/rulecond, pkg/content/hooks_conditional.go"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}
