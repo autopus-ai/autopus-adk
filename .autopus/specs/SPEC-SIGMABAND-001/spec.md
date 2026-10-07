@@ -2,7 +2,7 @@
 
 **Status**: approved
 **Created**: 2026-10-06
-**Revised**: 2026-10-07 (rev 3: split by user decision; the 3σ draft PR path moved to SPEC-SIGMABAND-002; rev 4: F-013, F-032, F-038; rev 5: Phase 4 review findings, see Review Resolution)
+**Revised**: 2026-10-07 (rev 3: split by user decision; the 3σ draft PR path moved to SPEC-SIGMABAND-002; rev 4: F-013, F-032, F-038; rev 5: Phase 4 review findings; rev 6: Phase 4 review round 2; see Review Resolution)
 **Domain**: SIGMABAND
 **Module**: autopus-adk
 **PRD**: `prd.md` (same directory). Where this SPEC and the PRD differ, the Review Resolution section names the reason and this SPEC wins.
@@ -108,8 +108,12 @@ SPEC-SIGMABAND-002 consumes the tier-3 episodes and their BS IDs; nothing in thi
 
 1. Network first, outside the lock: resolve host and `<owner/repo>` from the `origin` URL, then run the authentication,
    default-branch, and run-list commands of the gh Invocation Table.
-2. Before phase A and before a `--dry-run` plan, a store that git tracks (`git ls-files -z -- .autopus/metrics` lists a
-   file) is refused with `store_tracked` and a non-zero exit, and a store file above 64 MiB is refused before it is read.
+2. Before phase A and before a `--dry-run` plan, a store that git tracks is refused with `store_tracked` and a non-zero
+   exit: `git -c core.fsmonitor=false ls-files -z -- ':(icase).autopus/metrics'` lists any byte, whatever its exit status,
+   a listing above 64 KiB included. `core.fsmonitor=false` keeps a repository's fsmonitor command from starting, and the
+   `icase` pathspec also matches `.autopus/METRICS`, the store itself on a case-insensitive file system. Without git, or
+   when git lists nothing (outside a repository, or a repository git refuses to read), the store counts as untracked. A
+   store file above 64 MiB is refused before it is read.
    Phase A under the lock (local file IO only; wait at most 5 s, otherwise `store_locked`): replay events newer than the
    checkpoint, append pending results, mark expired leases `interrupted`, merge fetched observations idempotently, evaluate
    pending positions, append evaluation events whose due actions carry claims `{id, kind, owner, lease_until}`, write the
@@ -161,9 +165,12 @@ repositories; the rule calls only exported functions.
    claim `failed:bs_lock_timeout`, and that episode then has no BS.
 5. An outer repository that lists the meta root as a direct component (for example a dotfiles repository at `$HOME`) becomes
    the root of that chain; the recursive scope still includes the meta root's modules, and only the per-user lock is written.
-6. The scan ignores an entry named like a BS that is a symlink or not a regular file; when the highest entries leave no ID in
-   range, it also skips, highest first, entries that fail the structural validator. Each ignored path is printed on stderr.
-   The BS directory is checked again right before each create, and the file is created with mode 0600.
+6. The scan ignores an entry named like a BS that is a symlink or not a regular file. An allocation tries the first five IDs
+   above the highest entry that no entry holds. When the highest entry leaves fewer than five IDs above it in range, the
+   scan also skips, highest first, entries that fail the structural validator until a valid BS is found; when fewer than
+   five free IDs remain above that BS, the allocation tries the five lowest free IDs instead, so no planted file, a BS or
+   not, blocks every later BS. Each ignored path, and after such a fallback each entry above `BS-BAND-999999994`, is printed
+   on stderr. The BS directory is checked again right before each create, and the file is created with mode 0600.
 
 ## gh Invocation Table
 
@@ -186,8 +193,8 @@ Host rule: `github.com` is used as is; `localhost`, `*.localhost`, and IP litera
 are `remote_not_github` without a gh call; any other host must pass `gh auth status --hostname <host>` run without an
 injected `GH_HOST`, which gh answers only for a host in its hosts config or an inherited `GH_HOST` equal to it, otherwise
 the reason is `remote_not_github`. A failing `gh auth status --hostname github.com` gives `gh_unauthenticated`. The only
-other subprocess is the read-only `git remote get-url origin` and `git ls-files -z -- .autopus/metrics` (Review
-Resolution, store_tracked).
+other subprocess is the read-only `git remote get-url origin` and
+`git -c core.fsmonitor=false ls-files -z -- ':(icase).autopus/metrics'` (Review Resolution, store_tracked).
 
 ## Provider Read-Only Contract
 
@@ -203,8 +210,10 @@ Resolution, store_tracked).
    OMP-backed provider always uses its registered backend and never the raw subprocess runner; a missing route gives
    `unavailable(provider_backend_unavailable)`.
 5. Working directory: the project directory, read-only.
-6. Environment: the provider starts without `GH_TOKEN`, `GITHUB_TOKEN`, `GH_ENTERPRISE_TOKEN`, `GITHUB_ENTERPRISE_TOKEN`, and
-   the AWS, Google Cloud, and Azure credential variables, on the subprocess path and the OMP route alike.
+6. Environment: the provider starts without `GH_TOKEN`, `GITHUB_TOKEN`, `GH_ENTERPRISE_TOKEN`, `GITHUB_ENTERPRISE_TOKEN`, the
+   GitHub Actions tokens `ACTIONS_ID_TOKEN_REQUEST_TOKEN`, `ACTIONS_ID_TOKEN_REQUEST_URL`, and `ACTIONS_RUNTIME_TOKEN`, and
+   the AWS, Google Cloud, and Azure credential variables (for AWS also `AWS_WEB_IDENTITY_TOKEN_FILE`, every
+   `AWS_CONTAINER_*` variable, and `AWS_BEARER_TOKEN_BEDROCK`), on the subprocess path and the OMP route alike.
 
 ## Untrusted Input Contract
 
@@ -212,9 +221,10 @@ Resolution, store_tracked).
    most K failed runs of the current block, keeping the last 4 MiB of each log in a ring buffer aligned forward to a line
    boundary; provider stdout keeps its first 1 MiB, bounded while the provider runs. Dropping bytes adds `size_cap`.
 2. Strip ANSI CSI sequences and C0 control characters except tab and newline.
-3. Redact the whole captured text first: the band-specific forms (JSON members whose key names a credential, URL
-   credentials, `Authorization: token|Basic|Bearer|Digest`, JWT, PEM, PGP, and SSH2 private key blocks, `AccountKey=`,
-   prefixed tokens such as `glpat-`), each adding `secret_risk`, then
+3. Redact the whole captured text first: the band-specific forms (JSON members and single-quoted Python dict items whose
+   key names a credential, URL credentials including `scheme://:password@` and a token as the user of an http(s) URL,
+   `Authorization: token|Basic|Bearer|Digest`, `Cookie:` and `Set-Cookie:` values, JWT, PEM, PGP, and SSH2 private key
+   blocks, `AccountKey=`, prefixed tokens such as `glpat-` and `pypi-`), each adding `secret_risk`, then
    `promptlayer.SanitizeContent(raw, ContextOptions{MaxBytes: 2*len(raw) + 17})` with
    injection evidence not preserved (`[REDACTED_SECRET]`, injection-marker lines removed, sorted reasons). The bound exceeds
    any redacted length (each secret match is at least 11 bytes and becomes the 17-byte `[REDACTED_SECRET]`), so this step never
@@ -376,3 +386,13 @@ amended:
 | L6 (planted top BS ID) | symlinks and non-regular entries never count; when the top entries leave no ID, entries that fail the BS validator are skipped; each ignored path is printed on stderr. Ignoring every invalid entry was not taken, because S9 counts any file named `BS-BAND-NNN.md` | REQ-13, S9 |
 | F2 (store I/O exit) | a store band cannot read or write, and a git-tracked store, exit non-zero after the report: intentional fail-closed exceptions to the REQ-14 exit rule, since evaluating an untrusted store would record wrong results | REQ-14, docs/health-band.md |
 | F3 (`bs_scope_too_deep`) | a project more than 8 component edges below the top of its chain, which a scan from that top would not reach, ends the diagnose claim `failed:bs_scope_too_deep` instead of risking an ID collision, and the episode has no BS, like `failed:bs_lock_timeout` | BS Root Resolution item 2, docs/health-band.md |
+
+Rev 6 (Phase 4 review round 2, 2026-10-07) resolves the second-round findings; the contract text above already reads as
+amended:
+
+| Finding | Resolution | Where |
+|---------|------------|-------|
+| L3 residual (tracked check fails open) | any listed byte counts as tracked, whatever git's exit status, a listing above 64 KiB included; the `icase` pathspec also matches `.autopus/METRICS/`, the store itself on a case-insensitive file system; only a git that lists nothing (no git, outside a repository, a repository git refuses to read) counts as untracked, as docs/health-band.md states | Durability item 2, gh Invocation Table |
+| N1 (repository fsmonitor) | the tracked-store check runs `git -c core.fsmonitor=false`, so git never starts an fsmonitor command that the repository's own config names; `git remote get-url origin` reads no index and starts none | Durability item 2 |
+| L6 residual (BS ID exhaustion) | an ID an entry holds is never tried; when fewer than five free IDs remain above the highest valid BS, the allocation takes the five lowest free IDs and names each entry above `BS-BAND-999999994` on stderr, so no planted file at the top of the range, valid or not, blocks a BS; the S9 IDs and its five-collision `bs_id_exhausted` are unchanged | BS Root Resolution item 6, S9 |
+| M2 residual (secret forms, provider env) | band also redacts `https://<token>@host`, `scheme://:password@`, single-quoted Python dict credentials, `Cookie:` and `Set-Cookie:` values, and `pypi-` tokens; the provider also starts without the GitHub Actions OIDC and runtime tokens and the AWS web identity, `AWS_CONTAINER_*`, and Bedrock bearer credentials (`ProviderConfig.UnsetEnv` reads a trailing `*` as a prefix) | Untrusted Input Contract item 3, Provider Read-Only Contract item 6 |

@@ -60,10 +60,19 @@ diagnose phantom incidents:
   `.autopus/metrics/`, a store path swapped for a symlink or FIFO, or a store
   file above 64 MiB, completes no evaluation.
 - A metric store that git tracks (any file under `.autopus/metrics/` in the
-  index) came with the repository, not from this machine's runs. Band checks
-  this with a read-only `git ls-files` before it reads or locks the store,
-  records `store_tracked`, and changes nothing, under `--dry-run` as well. Run
-  `git rm -r --cached .autopus/metrics` to untrack it.
+  index, in any letter case) came with the repository, not from this machine's
+  runs. Before it reads or locks the store, band checks this with a read-only
+  `git -c core.fsmonitor=false ls-files -z -- ':(icase).autopus/metrics'`,
+  records `store_tracked`, and changes nothing, under `--dry-run` as well. Any
+  listed path counts, however long the listing and whatever git's exit status.
+  `core.fsmonitor=false` keeps git from starting an fsmonitor command that the
+  repository's own config names, and the case-insensitive match also catches
+  `.autopus/METRICS/`, which is the store itself on a case-insensitive file
+  system such as APFS or NTFS. Run `git rm -r --cached .autopus/metrics` to
+  untrack it. Without git on `PATH`, outside a git repository, or in a
+  repository git refuses to read (for example one it reports as dubious
+  ownership), git lists nothing, and band treats the store as untracked: there
+  is no index it can read that could have brought store files in.
 
 In both cases band prints the report it has and exits non-zero, and
 `--format json` carries the error in the envelope.
@@ -132,15 +141,17 @@ Workflow names and canary hosts are filtered to `[A-Za-z0-9 ._:+-]` and at most
 reason `identifier_sanitized`. CI logs, react reports, and provider output are
 redacted for secrets and local paths before any cut and reach a prompt or a BS
 file only inside a fenced untrusted-evidence block. Besides the shared
-patterns, band redacts JSON members whose key names a credential (password,
-secret, token, AccessKey, ...), URL credentials (`scheme://user:pass@`),
-`Authorization: token|Basic|Bearer|Digest` headers, JSON Web Tokens, PEM, PGP,
-and SSH2 private key blocks, `AccountKey=` and `SharedAccessKey=` values, and
-prefixed tokens such as `glpat-`, `ghp_`, `gho_`, `github_pat_`, and `sk-`;
-each records `secret_risk`. A filtered series id is still repository text, so
-outside the BS title line and the next-step command it is written as inline
-code. Events and state hold numbers, filtered ids, reason codes, and manifest
-hashes only.
+patterns, band redacts JSON members and single-quoted Python dict items whose
+key names a credential (password, secret, token, AccessKey, ...), URL
+credentials (`scheme://user:pass@`, `scheme://:pass@`, and a token as the user
+of an http(s) URL, `https://<token>@host`),
+`Authorization: token|Basic|Bearer|Digest` headers, `Cookie:` and
+`Set-Cookie:` header values, JSON Web Tokens, PEM, PGP, and SSH2 private key
+blocks, `AccountKey=` and `SharedAccessKey=` values, and prefixed tokens such
+as `glpat-`, `ghp_`, `gho_`, `github_pat_`, `sk-`, and `pypi-`; each records
+`secret_risk`. A filtered series id is still repository text, so outside the
+BS title line and the next-step command it is written as inline code. Events
+and state hold numbers, filtered ids, reason codes, and manifest hashes only.
 
 ## Detector
 
@@ -215,11 +226,15 @@ unknown key.
   OMP-backed provider runs only through its routed backend with a read-only
   sandbox and the tools glob, grep, and read. The call times out after 600 s.
 - The provider starts without `GH_TOKEN`, `GITHUB_TOKEN`,
-  `GH_ENTERPRISE_TOKEN`, `GITHUB_ENTERPRISE_TOKEN`, and the AWS, Google Cloud,
-  and Azure credential variables, on the subprocess path and the OMP route
-  alike. A provider that authenticates only through one of them (for example
-  Claude on Bedrock or Vertex AI) is therefore unavailable to band. Its output
-  is bounded while it runs: band keeps the first 1 MiB and drops the rest.
+  `GH_ENTERPRISE_TOKEN`, `GITHUB_ENTERPRISE_TOKEN`, the GitHub Actions tokens
+  `ACTIONS_ID_TOKEN_REQUEST_TOKEN`, `ACTIONS_ID_TOKEN_REQUEST_URL`, and
+  `ACTIONS_RUNTIME_TOKEN`, and the AWS, Google Cloud, and Azure credential
+  variables, including `AWS_WEB_IDENTITY_TOKEN_FILE`, every `AWS_CONTAINER_*`
+  variable, and `AWS_BEARER_TOKEN_BEDROCK`, on the subprocess path and the OMP
+  route alike. A provider that authenticates only through one of them (for
+  example Claude on Bedrock or Vertex AI) is therefore unavailable to band.
+  Its output is bounded while it runs: band keeps the first 1 MiB and drops
+  the rest.
 - When no provider can run, the BS file is still written with the evidence and
   `diagnosis_status: unavailable(<reason>)`. The reasons are
   `provider_unconfigured`, `provider_unsupported`, `provider_policy_rejected`,
@@ -234,10 +249,14 @@ unknown key.
   The file is private to its owner (mode 0600), and the BS directory is
   checked again right before each create.
 - The ID scan ignores an entry named like a BS that is a symlink or not a
-  regular file. When the highest entries leave no ID in range, it also ignores,
-  highest first, entries that fail the BS format validator, so one planted
-  `BS-BAND-999999999.md` cannot block every later BS. Band names each ignored
-  path on stderr.
+  regular file, and an ID that an existing file holds is never tried. When the
+  highest entry leaves fewer than five IDs above it, the scan also ignores,
+  highest first, entries that fail the BS format validator until it finds a
+  valid BS. When fewer than five free IDs remain above that BS, the BS takes
+  the lowest free ID instead (for example `BS-BAND-001`). So no planted file
+  such as `BS-BAND-999999999.md`, a valid BS or not, can block every later BS.
+  Band names each ignored path on stderr, and after a lowest-free fallback
+  each file above `BS-BAND-999999994` as the holder of the range end.
 - A BS that cannot be written ends the claim `failed:<reason>` and the episode
   has no BS: `failed:bs_lock_timeout` (the per-user allocation lock stayed busy
   for 30 s), `failed:bs_id_exhausted` (five consecutive IDs were taken),
