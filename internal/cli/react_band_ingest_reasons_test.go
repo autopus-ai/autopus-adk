@@ -114,27 +114,46 @@ func TestReactBandIngest_HostRule_AcceptsAnAuthenticatedEnterpriseHost(t *testin
 }
 
 // S13: a gh call that hangs is cut off by its own timeout and ends ingest
-// with the reason of its step instead of blocking band.
+// with the reason of its step instead of blocking band. Every step shares
+// the per-call budget, and a step that answers still fails once it outlives
+// it, so the budget is generous: at 20 ms a loaded scheduler let an earlier
+// step overrun and report its reason instead. The bounds keep the proof:
+// the hung call carried its own deadline, only that deadline ended the
+// hang, no later step ran, and the run ended far below the 30 s budget.
 func TestReactBandIngest_HangingCallsEndAtTheirTimeout(t *testing.T) {
 	t.Parallel()
+	const budget = time.Second
 	for _, tc := range []struct {
 		hung   string
 		reason string
+		calls  int // calls up to and including the hung one
 	}{
-		{"gh run list", healthband.ReasonGHFetchFailed},
-		{"gh api repos/acme/app", healthband.ReasonDefaultBranchUnknown},
-		{"gh auth status", healthband.ReasonGHUnauthenticated},
-		{"git remote get-url", healthband.ReasonNoRemote},
+		{"gh run list", healthband.ReasonGHFetchFailed, 4},
+		{"gh api repos/acme/app", healthband.ReasonDefaultBranchUnknown, 3},
+		{"gh auth status", healthband.ReasonGHUnauthenticated, 2},
+		{"git remote get-url", healthband.ReasonNoRemote, 1},
 	} {
-		runner := scriptedBandRunner("git@github.com:acme/app.git", "main", "[]")
-		runner.answers[tc.hung] = fakeBandAnswer{hang: true}
-		client := testBandClient(runner)
-		client.callTimeout = 20 * time.Millisecond
-		started := time.Now()
-		fetch, err := client.fetchCI(t.Context(), t.TempDir(), bandDefaultLimit)
-		require.NoError(t, err, tc.hung)
-		assert.Equal(t, tc.reason, fetch.Reason, tc.hung)
-		assert.Less(t, time.Since(started), 5*time.Second, tc.hung)
+		t.Run(tc.hung, func(t *testing.T) {
+			t.Parallel()
+			runner := scriptedBandRunner("git@github.com:acme/app.git", "main", "[]")
+			runner.answers[tc.hung] = fakeBandAnswer{hang: true}
+			client := testBandClient(runner)
+			client.callTimeout = budget
+			started := time.Now()
+
+			fetch, err := client.fetchCI(t.Context(), t.TempDir(), bandDefaultLimit)
+
+			elapsed := time.Since(started)
+			require.NoError(t, err)
+			assert.Equal(t, tc.reason, fetch.Reason)
+			require.Len(t, runner.calls, tc.calls, "no step after the hung one runs")
+			hung := runner.calls[tc.calls-1]
+			assert.True(t, strings.HasPrefix(strings.Join(hung.argv, " "), tc.hung), "%v", hung.argv)
+			assert.Positive(t, hung.timeout, "the hung call carries a deadline")
+			assert.LessOrEqual(t, hung.timeout, budget, "that deadline is its own per-call budget")
+			assert.GreaterOrEqual(t, elapsed, budget, "only the budget ended the hang")
+			assert.Less(t, elapsed, budget+4*time.Second, "far below the 30 s production budget")
+		})
 	}
 }
 
