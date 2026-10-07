@@ -111,7 +111,7 @@ func TestEvaluationLayer_IsTheFrozenRecordOfOneEvent(t *testing.T) {
 
 	assert.Equal(t, strings.Join([]string{
 		"Frozen evaluation record (final; do not recompute):",
-		"series: ci.failure_rate:CI", "sample_key: 1042", "n: 20", "mu: 0.000000", "sd: 0.000000", "sd_eff: 0.250000",
+		"series: `ci.failure_rate:CI`", "sample_key: 1042", "n: 20", "mu: 0.000000", "sd: 0.000000", "sd_eff: 0.250000",
 		"x: 0.500000", "z: 2.000000", "tier: 2", "constants: K=4 W=30 N_min=20 floor=0.25 eps=1e-09",
 	}, "\n"), layer.Content)
 	assert.Equal(t, promptlayer.KindSnapshot, layer.Kind)

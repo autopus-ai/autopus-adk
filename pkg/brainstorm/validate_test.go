@@ -99,7 +99,7 @@ func TestValidate_FollowsMarkdownTableAndFenceRules(t *testing.T) {
 	doc := render(t, "BS-BAND-013", o2Request())
 	status := "diagnosis_status: unavailable(provider_missing)\n"
 
-	assert.Empty(t, validate(strings.Replace(doc, "Bring ci.failure_rate:CI back", `Bring a\|b back`, 1)))
+	assert.Empty(t, validate(strings.Replace(doc, "Bring `ci.failure_rate:CI` back", `Bring a\|b back`, 1)))
 	assert.Equal(t, []string{"ledger_columns", "ledger_rows"}, validate(strings.Replace(doc, "|---|---|---|---:|---|---|---|\n", "", 1)))
 	assert.Empty(t, validate(strings.Replace(doc, status, status+"````\n## Fake\n   ````\n", 1)))
 	assert.Empty(t, validate(strings.Replace(doc, status, status+"````\n    ````\n## Fake\n````\n", 1)))

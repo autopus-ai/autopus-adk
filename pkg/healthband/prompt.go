@@ -136,7 +136,9 @@ func EventHash(event Event) (string, error) {
 // sample key, n, μ, sd, sd_eff, x, z, tier, constants. Absent values are
 // left out, never written as placeholders.
 func frozenRecord(event Event) string {
-	lines := []string{frozenRecordHeading, "series: " + event.Series, "sample_key: " + event.SampleKey}
+	// The series ID is repository text that passed the identifier filter (no
+	// backtick); inline code keeps it data outside the evidence fences.
+	lines := []string{frozenRecordHeading, "series: `" + event.Series + "`", "sample_key: " + event.SampleKey}
 	if event.N != nil {
 		lines = append(lines, fmt.Sprintf("n: %d", *event.N))
 	}
