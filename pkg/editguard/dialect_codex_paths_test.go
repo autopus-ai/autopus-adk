@@ -42,6 +42,12 @@ func TestCodexDialect_TabOrCRInAHeaderPath_DeniesTheFileCodexWrites(t *testing.T
 		"move onto, tab":       {codexUpdate("pkg/main.go", "internal/foo/foo_repro_\ttest.go"), tFLReason},
 		"move away, tab":       {codexUpdate("autopus\t.yaml", "moved.yaml"), marker},
 		"move onto marker, cr": {codexUpdate("pkg/main.go", "autopus.y\raml"), marker},
+		// Codex resolves the path as sent (relative) and then drops the TAB or
+		// CR, so a leading TAB before `/` still writes below the cwd.
+		"update, tab then slash":    {codexUpdate("\t/internal/foo/foo_repro_test.go", ""), tFLReason},
+		"add, cr then slash":        {codexPatch("*** Add File: \r/.claude/skills/auto-fix/SKILL.md", "+x"), gsConReason},
+		"delete, tabs and slashes":  {codexPatch("*** Delete File: \t/\t/autopus.yaml"), marker},
+		"move onto, tab then slash": {codexUpdate("pkg/main.go", "\t\r/internal/foo/foo_repro_test.go"), tFLReason},
 	}
 	for name, c := range cases {
 		payload := codexPayload(root, codexPatchTool, map[string]any{"command": c.patch})
@@ -70,6 +76,10 @@ func TestCodexDialect_HeaderPathSpellings(t *testing.T) {
 		{"delete", codexPatch("*** Delete File: c\r.txt"), []string{"c\r.txt", "c.txt"}, []string{"c\r.txt", "c.txt"}},
 		{"move", codexUpdate("d\t.txt", "e\t.txt"), moved, moved},
 		{"plain path", codexPatch("*** Delete File: f.txt"), []string{"f.txt"}, []string{"f.txt"}},
+		{"tab then slash", codexPatch("*** Delete File: \t/i.txt"), []string{"\t/i.txt", "/i.txt", "i.txt"},
+			[]string{"\t/i.txt", "/i.txt", "i.txt"}},
+		{"absolute with tab", codexPatch("*** Delete File: /\tj.txt"), []string{"/\tj.txt", "/j.txt"},
+			[]string{"/\tj.txt", "/j.txt"}},
 	}
 	for _, kept := range []string{"\v", "\f", "\u00a0", "\u200b", "\ufeff", "\x1b", "\x7f"} {
 		path := []string{"g" + kept + "h.txt"}

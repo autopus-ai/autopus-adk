@@ -200,12 +200,21 @@ var patchWritten = strings.NewReplacer("\t", "", "\r", "")
 // holds a TAB or CR, as Codex 0.160.0 writes it: once a line has matched its
 // marker, Codex removes every TAB and CR from the path and keeps every other
 // character (a differential run of `codex --codex-run-as-apply-patch`). Both
-// are judged, so a host that keeps the characters is covered as well.
+// are judged, so a host that keeps the characters is covered as well. Codex
+// decides relative or absolute on the path as sent, so a relative path whose
+// stripped form starts with `/` is also judged below the cwd.
 func patchPathSpellings(path string) []string {
 	if !strings.ContainsAny(path, "\t\r") {
 		return []string{path}
 	}
-	return []string{path, patchWritten.Replace(path)}
+	written := patchWritten.Replace(path)
+	spellings := []string{path, written}
+	if !strings.HasPrefix(path, "/") && strings.HasPrefix(written, "/") {
+		if relative := strings.TrimLeft(written, "/"); relative != "" {
+			spellings = append(spellings, relative)
+		}
+	}
+	return spellings
 }
 
 // add appends one decoded target; an empty or non-string one is a malformed
