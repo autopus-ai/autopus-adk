@@ -153,21 +153,22 @@ var patchHeaders = [...]struct {
 // a header line is trimmed and matched case-sensitively, an Add body runs over
 // "+" lines, an Update hunk runs until a line starting "***" other than End of
 // File, and a Move to line counts only unpadded right below its Update header,
-// with trailing space trimmed. Where Codex would reject the patch, reading more
-// targets is harmless: nothing is written. displaced lists the targets whose
-// directory entry the patch removes or replaces: each Delete File, and the
-// source and destination of each Move to.
+// with trailing space trimmed. Each path comes in every spelling of
+// patchPathSpellings. Where Codex would reject the patch, reading more targets
+// is harmless: nothing is written. displaced lists the targets whose directory
+// entry the patch removes or replaces: each Delete File, and the source and
+// destination of each Move to.
 func patchTargets(patch string) (targets, displaced []string) {
 	state := patchAtHeader
-	updated := ""
+	var updated []string
 	for _, line := range strings.Split(patch, "\n") {
 		line = strings.TrimSuffix(line, "\r")
 		if state == patchAfterUpdate {
 			state = patchInUpdate
 			if dest, ok := strings.CutPrefix(line, patchMoveTo); ok {
-				dest = strings.TrimRightFunc(dest, unicode.IsSpace)
-				targets = append(targets, dest)
-				displaced = append(displaced, updated, dest)
+				dests := patchPathSpellings(strings.TrimRightFunc(dest, unicode.IsSpace))
+				targets = append(targets, dests...)
+				displaced = append(append(displaced, updated...), dests...)
 				continue
 			}
 		}
@@ -179,16 +180,32 @@ func patchTargets(patch string) (targets, displaced []string) {
 		header := strings.TrimSpace(line)
 		for _, marker := range patchHeaders {
 			if target, ok := strings.CutPrefix(header, marker.prefix); ok {
-				targets = append(targets, target)
+				spellings := patchPathSpellings(target)
+				targets = append(targets, spellings...)
 				if marker.prefix == patchDeleteFile {
-					displaced = append(displaced, target)
+					displaced = append(displaced, spellings...)
 				}
-				updated, state = target, marker.next
+				updated, state = spellings, marker.next
 				break
 			}
 		}
 	}
 	return targets, displaced
+}
+
+// patchWritten removes the characters Codex drops from a header path.
+var patchWritten = strings.NewReplacer("\t", "", "\r", "")
+
+// patchPathSpellings returns a header path as the patch names it and, when it
+// holds a TAB or CR, as Codex 0.160.0 writes it: once a line has matched its
+// marker, Codex removes every TAB and CR from the path and keeps every other
+// character (a differential run of `codex --codex-run-as-apply-patch`). Both
+// are judged, so a host that keeps the characters is covered as well.
+func patchPathSpellings(path string) []string {
+	if !strings.ContainsAny(path, "\t\r") {
+		return []string{path}
+	}
+	return []string{path, patchWritten.Replace(path)}
 }
 
 // add appends one decoded target; an empty or non-string one is a malformed
