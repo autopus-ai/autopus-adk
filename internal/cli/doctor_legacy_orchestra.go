@@ -21,7 +21,13 @@ const (
 	legacyOrchestraConfigCheckID = "doctor.legacy_orchestra_config"
 	staleCompletionHooksCheckID  = "doctor.stale_completion_hooks"
 	userLevelStaleHooksCheckID   = "doctor.stale_completion_hooks.user_level"
+	localStaleHooksCheckID       = "doctor.stale_completion_hooks.local"
 )
+
+// localStaleHookSource is Claude Code's local settings file: Claude runs its
+// handlers like the shared file's, but update never writes it, so its stale
+// handlers are reported apart and the scripts they run stay.
+var localStaleHookSource = staleHookSource{file: ".claude/settings.local.json", platform: "claude-code", hookSet: "hooks"}
 
 // staleHookSource is one settings file whose handlers can run a group S
 // script of platform. hookSet is the key of the event map inside the file:
@@ -44,17 +50,19 @@ var staleHookSources = []staleHookSource{
 // for group S the configured platforms' adapter.IsStaleCompletionHookCommand
 // handlers, adapter.PresentStaleCompletionScripts files, and OpenCode plugin
 // entries. A platform that is not configured is not updated, so its leftovers
-// are not listed. User-level settings are reported apart: update never edits
-// them.
+// are not listed. User-level and local settings are reported apart: update
+// never edits them.
 type retiredOrchestraReport struct {
 	legacyKeys     []string
 	staleHooks     []string // "<file> <event> <script>" members, then script paths
 	userLevelHooks []string
+	localHooks     []string
 	opencodeErr    error // effectivePluginConfig rejected opencode.json
 }
 
 func collectRetiredOrchestraReport(dir string, cfg *config.HarnessConfig) retiredOrchestraReport {
-	report := retiredOrchestraReport{legacyKeys: retiredConfigKeysInFile(dir)}
+	report := retiredOrchestraReport{legacyKeys: retiredConfigKeysInFile(dir),
+		localHooks: sortedUniqueStrings(staleHookHandlers(dir, localStaleHookSource, localStaleHookSource.file))}
 	var members, scripts []string
 	for _, platform := range cfg.Platforms {
 		for _, source := range staleHookSources {
@@ -100,7 +108,7 @@ func staleHookHandlers(root string, source staleHookSource, label string) []stri
 		for _, item := range items {
 			for _, command := range staleHookItemCommands(item) {
 				if adapter.IsStaleCompletionHookCommand(source.platform, command) {
-					found = append(found, fmt.Sprintf("%s %s %s", label, event, staleHookScript(source.platform, command)))
+					found = append(found, fmt.Sprintf("%s %s %s", label, terminalSafe(event), staleHookScript(source.platform, command)))
 				}
 			}
 		}
@@ -192,6 +200,8 @@ func (report retiredOrchestraReport) findings() []retiredOrchestraFinding {
 			remedy: retiredOrchestraRemedy, members: report.staleHooks},
 		{id: userLevelStaleHooksCheckID, label: "user-level stale completion hooks",
 			remedy: userLevelStaleHooksRemedy, members: report.userLevelHooks, advisory: true},
+		{id: localStaleHooksCheckID, label: "local stale completion hooks",
+			remedy: localStaleHooksRemedy, members: report.localHooks, advisory: true},
 	}
 }
 
@@ -229,9 +239,9 @@ func checkRetiredOrchestraText(out io.Writer, dir string, cfg *config.HarnessCon
 			}
 			continue
 		}
-		tui.SKIP(out, finding.detail())
+		tui.SKIP(out, terminalSafe(finding.detail()))
 		if finding.id == staleCompletionHooksCheckID && report.opencodeErr != nil {
-			tui.Bullet(out, "opencode.json: "+report.opencodeErr.Error())
+			tui.Bullet(out, "opencode.json: "+terminalSafe(report.opencodeErr.Error()))
 		}
 		tui.Bullet(out, "remedy: "+finding.remedy)
 		healthy = healthy && finding.advisory

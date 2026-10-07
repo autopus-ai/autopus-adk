@@ -15,6 +15,11 @@ const retiredOrchestraRemedy = `run "auto update"`
 // update` reports but never edits (REQ-13).
 const userLevelStaleHooksRemedy = "remove these handlers by hand; auto update never edits user-level settings"
 
+// localStaleHooksRemedy covers .claude/settings.local.json, which `auto
+// update` never edits; the scripts its handlers run stay until they are gone.
+const localStaleHooksRemedy = "remove these handlers from .claude/settings.local.json by hand, then run \"auto update\"; " +
+	"auto update never edits that file and keeps the scripts it names"
+
 // doctorRemediationAdvice names the command that actually repairs what failed.
 //
 // The banner used to say "review warnings or run 'auto doctor --fix' where

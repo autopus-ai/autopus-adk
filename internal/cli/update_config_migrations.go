@@ -29,7 +29,7 @@ func persistUpdateConfigMigrations(out io.Writer, dir string, cfg *config.Harnes
 		return fmt.Errorf("retired orchestra key cleanup failed: %w", err)
 	}
 	if len(retired) > 0 {
-		fmt.Fprintf(out, "  - removed retired orchestra keys from autopus.yaml: %s\n", strings.Join(retired, ", "))
+		fmt.Fprintf(out, "  - removed retired orchestra keys from autopus.yaml: %s\n", terminalSafe(strings.Join(retired, ", ")))
 	}
 	return nil
 }

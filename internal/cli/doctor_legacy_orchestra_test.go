@@ -131,6 +131,40 @@ func TestRetiredOrchestraChecks_UserLevelHandlersAreAdvisory(t *testing.T) {
 	assert.NotContains(t, text.String(), "stale completion hooks: .claude", "the project itself is clean")
 }
 
+// Claude Code runs .claude/settings.local.json handlers like the shared ones,
+// but update never edits that file: its stale handler is advisory, and the
+// script it runs stays (pkg/adapter keeps a script a settings file names).
+// Before this fix a stale binary deleted the script and doctor said pass while
+// every Stop exited 127.
+func TestRetiredOrchestraChecks_LocalSettingsHandlersAreAdvisory(t *testing.T) {
+	isolateDoctorEnv(t)
+	root := t.TempDir()
+	writeDoctorFixture(t, root, map[string]string{
+		"autopus.yaml": "mode: full\n",
+		".claude/settings.local.json": `{"hooks":{"Stop":[{"hooks":[{"type":"command",` +
+			`"command":"\"${CLAUDE_PROJECT_DIR:-.}\"/` + claudeStopScript + `","timeout":300}]}]}}`,
+	})
+	cfg := doctorConfigFor("claude-code")
+
+	report := doctorJSONReport{status: jsonStatusOK}
+	report.collectRetiredOrchestraChecks(root, cfg)
+
+	assert.Equal(t, jsonStatusOK, report.status, "a local finding never fails the run")
+	byID := map[string]jsonCheck{}
+	for _, check := range report.checks {
+		byID[check.ID] = check
+	}
+	assert.Equal(t, "pass", byID[staleCompletionHooksCheckID].Status, "the script is already gone")
+	local := byID[localStaleHooksCheckID]
+	assert.Equal(t, "warn", local.Status)
+	assert.Equal(t, "local stale completion hooks: .claude/settings.local.json Stop "+claudeStopScript, local.Detail)
+	assert.Equal(t, localStaleHooksRemedy, local.Fields["remedy"])
+
+	var text bytes.Buffer
+	assert.True(t, checkRetiredOrchestraText(&text, root, cfg))
+	assert.Contains(t, text.String(), ".claude/settings.local.json Stop "+claudeStopScript)
+}
+
 func TestRetiredOrchestraChecks_ProjectFindingsWarnWithTheUpdateRemedy(t *testing.T) {
 	isolateDoctorEnv(t)
 	root := t.TempDir()

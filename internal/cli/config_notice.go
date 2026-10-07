@@ -82,7 +82,7 @@ func (n *configNotice) flush() {
 	paths := slices.Compact(slices.Sorted(slices.Values(n.pending)))
 	n.pending = nil
 	n.written = true
-	_, _ = fmt.Fprintf(n.out, configNoticeFormat, strings.Join(paths, ", "))
+	_, _ = fmt.Fprintf(n.out, configNoticeFormat, terminalSafe(strings.Join(paths, ", ")))
 }
 
 // stderrIsTerminal reports whether w is a file attached to a terminal.

@@ -35,7 +35,7 @@ func prepareUpdatePreviewConfig(
 	}
 	if retired := retiredConfigKeysInFile(dir); len(retired) > 0 {
 		reasons = appendConfigPreviewReason(reasons,
-			"retired orchestra keys would be removed from autopus.yaml: "+strings.Join(retired, ", "))
+			"retired orchestra keys would be removed from autopus.yaml: "+terminalSafe(strings.Join(retired, ", ")))
 	}
 
 	if changed, reason := previewLanguagePreview(previewCfg, yesFlag, interactive); changed {
