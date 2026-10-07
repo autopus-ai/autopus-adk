@@ -65,7 +65,7 @@ func useCleanupTerminal(t *testing.T, term terminal.Terminal) {
 func TestNewOrchestraCleanupCmd_Flags(t *testing.T) {
 	t.Parallel()
 
-	cmd := newOrchestraCleanupCmd()
+	cmd := newLegacyOrchestraCleanupCmd()
 	require.NotNil(t, cmd)
 	assert.Equal(t, "cleanup", cmd.Use)
 	assert.NotNil(t, cmd.Flags().Lookup("session-id"), "session-id flag must exist")
@@ -75,7 +75,7 @@ func TestNewOrchestraCleanupCmd_Flags(t *testing.T) {
 func TestNewOrchestraCleanupCmd_RequiresSessionID(t *testing.T) {
 	t.Parallel()
 
-	cmd := newOrchestraCleanupCmd()
+	cmd := newLegacyOrchestraCleanupCmd()
 	cmd.SetArgs([]string{})
 	err := cmd.Execute()
 	assert.Error(t, err, "should fail without --session-id")

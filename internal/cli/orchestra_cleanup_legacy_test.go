@@ -58,7 +58,7 @@ func TestOrchestraCleanup_V05085LegacyCmuxFile_ExplicitWorkspaceRecovers(t *test
 	require.NoError(t, err)
 	path := filepath.Join(os.TempDir(), "autopus-orch-session-"+session.ID+".json")
 	require.NoError(t, os.WriteFile(path, data, 0o600))
-	cmd := newOrchestraCleanupCmd()
+	cmd := newLegacyOrchestraCleanupCmd()
 	cmd.SetArgs([]string{
 		"--session-id", session.ID, "--workspace-ref", "workspace:13",
 	})

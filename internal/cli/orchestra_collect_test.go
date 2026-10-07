@@ -10,7 +10,7 @@ import (
 func TestNewOrchestraCollectCmd_Flags(t *testing.T) {
 	t.Parallel()
 
-	cmd := newOrchestraCollectCmd()
+	cmd := newLegacyOrchestraCollectCmd()
 	require.NotNil(t, cmd)
 	assert.Equal(t, "collect <session-id>", cmd.Use)
 	assert.NotNil(t, cmd.Flags().Lookup("round"), "round flag must exist")
@@ -20,7 +20,7 @@ func TestNewOrchestraCollectCmd_Flags(t *testing.T) {
 func TestNewOrchestraCollectCmd_RequiresArgs(t *testing.T) {
 	t.Parallel()
 
-	cmd := newOrchestraCollectCmd()
+	cmd := newLegacyOrchestraCollectCmd()
 	cmd.SetArgs([]string{})
 	err := cmd.Execute()
 	assert.Error(t, err, "should fail without session-id argument")

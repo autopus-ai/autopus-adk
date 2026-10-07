@@ -13,9 +13,11 @@ import (
 
 var orchestraInjectSubmitDelay = 500 * time.Millisecond
 
-// newOrchestraInjectCmd creates the "orchestra inject" subcommand.
+// newLegacyOrchestraInjectCmd creates the "orchestra inject" subcommand.
+// Retired (SPEC-PANERM-001): the command tree registers the stub of
+// orchestra_retired.go instead; this body stays until the pane backend deletion.
 // Sends a prompt to a specific provider's pane in an existing session.
-func newOrchestraInjectCmd() *cobra.Command {
+func newLegacyOrchestraInjectCmd() *cobra.Command {
 	var (
 		sessionID    string
 		provider     string

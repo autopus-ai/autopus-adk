@@ -23,7 +23,7 @@ func TestOrchestraStatusCmd_ValidJob(t *testing.T) {
 	require.NoError(t, os.WriteFile(jobFile, []byte(jobJSON), 0o644))
 
 	// When: orchestra status command is executed with valid job ID
-	cmd := newOrchestraJobStatusCmd()
+	cmd := newLegacyOrchestraJobStatusCmd()
 	buf := new(bytes.Buffer)
 	cmd.SetOut(buf)
 	cmd.SetArgs([]string{jobID, "--job-dir", jobDir})
@@ -45,7 +45,7 @@ func TestOrchestraStatusCmd_InvalidJob(t *testing.T) {
 	jobDir := t.TempDir()
 
 	// When: orchestra status command is executed with non-existent job ID
-	cmd := newOrchestraJobStatusCmd()
+	cmd := newLegacyOrchestraJobStatusCmd()
 	cmd.SetArgs([]string{"nonexistent-job", "--job-dir", jobDir})
 	err := cmd.Execute()
 
@@ -69,7 +69,7 @@ func TestOrchestraResultCmd_AllDone(t *testing.T) {
 	require.NoError(t, os.WriteFile(jobFile, []byte(jobJSON), 0o644))
 
 	// When: orchestra result command is executed
-	cmd := newOrchestraJobResultCmd()
+	cmd := newLegacyOrchestraJobResultCmd()
 	buf := new(bytes.Buffer)
 	cmd.SetOut(buf)
 	cmd.SetArgs([]string{jobID, "--job-dir", jobDir})
@@ -98,7 +98,7 @@ func TestOrchestraResultCmd_WithCleanup(t *testing.T) {
 	require.NoError(t, os.WriteFile(jobFile, []byte(jobJSON), 0o644))
 
 	// When: orchestra result command is executed with --cleanup
-	cmd := newOrchestraJobResultCmd()
+	cmd := newLegacyOrchestraJobResultCmd()
 	buf := new(bytes.Buffer)
 	cmd.SetOut(buf)
 	cmd.SetArgs([]string{jobID, "--job-dir", jobDir, "--cleanup"})
@@ -125,7 +125,7 @@ func TestOrchestraWaitCmd_CompletedJob(t *testing.T) {
 	require.NoError(t, os.WriteFile(jobFile, []byte(jobJSON), 0o644))
 
 	// When: orchestra wait command is executed for a completed job
-	cmd := newOrchestraJobWaitCmd()
+	cmd := newLegacyOrchestraJobWaitCmd()
 	buf := new(bytes.Buffer)
 	cmd.SetOut(buf)
 	cmd.SetArgs([]string{jobID, "--job-dir", jobDir})
@@ -146,7 +146,7 @@ func TestOrchestraWaitCmd_InvalidJob(t *testing.T) {
 	jobDir := t.TempDir()
 
 	// When: orchestra wait command is executed with non-existent job ID
-	cmd := newOrchestraJobWaitCmd()
+	cmd := newLegacyOrchestraJobWaitCmd()
 	cmd.SetArgs([]string{"nonexistent", "--job-dir", jobDir})
 	err := cmd.Execute()
 

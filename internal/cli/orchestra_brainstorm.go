@@ -16,11 +16,8 @@ func newOrchestraBrainstormCmd() *cobra.Command {
 		timeout      int
 		judge        string
 		rounds       int
-		noDetach     bool
 		noJudge      bool
-		yieldRounds  bool
 		contextAware bool
-		subprocess   bool
 		outputFormat string
 	)
 
@@ -32,6 +29,9 @@ func newOrchestraBrainstormCmd() *cobra.Command {
 judge 모델이 ICE 점수로 아이디어를 통합하고 증폭합니다.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if cmd.Flags().Changed("yield-rounds") {
+				fmt.Fprintln(cmd.ErrOrStderr(), yieldRoundsRetiredNotice)
+			}
 			flagStrategy := flagStringIfChanged(cmd, "strategy", strategy)
 			flagProviders := flagStringSliceIfChanged(cmd, "providers", providers)
 			keepRelay, _ := cmd.Flags().GetBool("keep-relay-output")
@@ -42,7 +42,7 @@ judge 모델이 ICE 점수로 아이디어를 통합하고 증폭합니다.`,
 				prompt = prependProjectContext(prompt)
 			}
 			resolvedRounds := resolveRounds(flagStrategy, rounds)
-			return runOrchestraCommand(cmd.Context(), "brainstorm", flagStrategy, flagProviders, timeout, judge, prompt, resolvedRounds, thresholdFlag, OrchestraFlags{NoDetach: noDetach, KeepRelay: keepRelay, NoJudge: noJudge, YieldRounds: yieldRounds, ContextAware: contextAware, SubprocessMode: subprocess, TimeoutChanged: timeoutChanged, OutputFormat: outputFormat})
+			return runOrchestraCommand(cmd.Context(), "brainstorm", flagStrategy, flagProviders, timeout, judge, prompt, resolvedRounds, thresholdFlag, OrchestraFlags{KeepRelay: keepRelay, NoJudge: noJudge, ContextAware: contextAware, TimeoutChanged: timeoutChanged, OutputFormat: outputFormat})
 		},
 	}
 
@@ -53,13 +53,11 @@ judge 모델이 ICE 점수로 아이디어를 통합하고 증폭합니다.`,
 	cmd.Flags().StringVar(&judge, "judge", "", "debate 전략에서 최종 판정 프로바이더")
 	cmd.Flags().Float64("threshold", 0, "consensus 전략 합의 임계값 (0.0-1.0)")
 	cmd.Flags().IntVar(&rounds, "rounds", 0, "debate 라운드 수 (1-10, debate 전략 전용)")
-	cmd.Flags().BoolVar(&noDetach, "no-detach", false, "Disable auto-detach mode")
 	cmd.Flags().Bool("keep-relay-output", false, "relay 전략 실행 후 임시 파일 보존")
 	cmd.Flags().BoolVar(&noJudge, "no-judge", false, "Skip judge verdict phase in debate strategy")
-	cmd.Flags().BoolVar(&yieldRounds, "yield-rounds", false, "Round 1 후 JSON 출력 및 pane 유지")
 	cmd.Flags().BoolVar(&contextAware, "context", false, "Allow providers to read project files (skip topic isolation)")
-	cmd.Flags().BoolVar(&subprocess, "subprocess", false, "Force headless -p subprocess backend (default: false; interactive pane is used on cmux/tmux terminals)")
 	cmd.Flags().StringVar(&outputFormat, "format", orchestraOutputText, "Output format (text|json)")
+	addRetiredNoOpFlags(cmd, "no-detach", "yield-rounds", "subprocess")
 
 	return cmd
 }

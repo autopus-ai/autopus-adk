@@ -18,9 +18,11 @@ var orchestraSessionTerminalDetector = terminal.DetectTerminal
 var orchestraSessionUpdater = orchestra.UpdateSession
 var orchestraSessionRemover = orchestra.RemoveSession
 
-// newOrchestraCleanupCmd creates the cleanup subcommand for orchestra.
+// newLegacyOrchestraCleanupCmd creates the cleanup subcommand for orchestra.
+// Retired (SPEC-PANERM-001): the command tree registers the stub of
+// orchestra_retired.go instead; this body stays until the pane backend deletion.
 // Loads a persisted session, kills all panes, and removes the session file.
-func newOrchestraCleanupCmd() *cobra.Command {
+func newLegacyOrchestraCleanupCmd() *cobra.Command {
 	var sessionID string
 	var workspaceRef string
 

@@ -11,10 +11,12 @@ import (
 	"github.com/insajin/autopus-adk/pkg/orchestra"
 )
 
-// newOrchestraJobStatusCmd creates the "orchestra status" subcommand.
+// newLegacyOrchestraJobStatusCmd creates the "orchestra status" subcommand.
+// Retired (SPEC-PANERM-001): the command tree registers the stub of
+// orchestra_retired.go instead; this body stays until the pane backend deletion.
 // Loads a job by ID and prints its current status and per-provider completion.
 // @AX:NOTE [AUTO] REQ-5 job lifecycle CLI — reads persisted job JSON; prints stored status without recalculating
-func newOrchestraJobStatusCmd() *cobra.Command {
+func newLegacyOrchestraJobStatusCmd() *cobra.Command {
 	var jobDir string
 
 	cmd := &cobra.Command{
@@ -48,10 +50,12 @@ func newOrchestraJobStatusCmd() *cobra.Command {
 	return cmd
 }
 
-// newOrchestraJobWaitCmd creates the "orchestra wait" subcommand.
+// newLegacyOrchestraJobWaitCmd creates the "orchestra wait" subcommand.
+// Retired (SPEC-PANERM-001): the command tree registers the stub of
+// orchestra_retired.go instead; this body stays until the pane backend deletion.
 // Polls CheckStatus until done/timeout and prints the final status.
 // @AX:NOTE [AUTO] REQ-5 blocking wait — 1s poll interval; reloads job JSON each cycle to pick up new results
-func newOrchestraJobWaitCmd() *cobra.Command {
+func newLegacyOrchestraJobWaitCmd() *cobra.Command {
 	var (
 		jobDir       string
 		outputFormat string
@@ -89,10 +93,12 @@ func newOrchestraJobWaitCmd() *cobra.Command {
 	return cmd
 }
 
-// newOrchestraJobResultCmd creates the "orchestra result" subcommand.
+// newLegacyOrchestraJobResultCmd creates the "orchestra result" subcommand.
+// Retired (SPEC-PANERM-001): the command tree registers the stub of
+// orchestra_retired.go instead; this body stays until the pane backend deletion.
 // Collects results, prints merged output, and optionally cleans up.
 // @AX:NOTE [AUTO] REQ-5 result retrieval — --cleanup removes both job subdir and JSON file
-func newOrchestraJobResultCmd() *cobra.Command {
+func newLegacyOrchestraJobResultCmd() *cobra.Command {
 	var (
 		jobDir       string
 		cleanup      bool

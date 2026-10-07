@@ -25,7 +25,7 @@ func TestOrchestraCollect_PersistedWorkspace_ReadsOriginalPaneContext(t *testing
 	}
 	require.NoError(t, orchestra.SaveSession(session))
 	t.Cleanup(func() { _ = orchestra.RemoveSession(session.ID) })
-	cmd := newOrchestraCollectCmd()
+	cmd := newLegacyOrchestraCollectCmd()
 	var stdout bytes.Buffer
 	cmd.SetOut(&stdout)
 	cmd.SetArgs([]string{session.ID})
@@ -52,7 +52,7 @@ func TestOrchestraInject_PersistedWorkspace_TargetsOriginalPaneContext(t *testin
 	}
 	require.NoError(t, orchestra.SaveSession(session))
 	t.Cleanup(func() { _ = orchestra.RemoveSession(session.ID) })
-	cmd := newOrchestraInjectCmd()
+	cmd := newLegacyOrchestraInjectCmd()
 	cmd.SetArgs([]string{"--session-id", session.ID, "--provider", "claude", "follow up"})
 
 	require.NoError(t, cmd.Execute())
@@ -74,7 +74,7 @@ func TestOrchestraCollect_LegacyCmuxSession_DoesNotGuessCurrentWorkspace(t *test
 	}
 	require.NoError(t, orchestra.SaveSession(session))
 	t.Cleanup(func() { _ = orchestra.RemoveSession(session.ID) })
-	cmd := newOrchestraCollectCmd()
+	cmd := newLegacyOrchestraCollectCmd()
 	cmd.SetArgs([]string{session.ID})
 
 	err := cmd.Execute()
@@ -97,7 +97,7 @@ func TestOrchestraCollect_LegacyCmuxSession_ExplicitWorkspaceSucceeds(t *testing
 	}
 	require.NoError(t, orchestra.SaveSession(session))
 	t.Cleanup(func() { _ = orchestra.RemoveSession(session.ID) })
-	cmd := newOrchestraCollectCmd()
+	cmd := newLegacyOrchestraCollectCmd()
 	cmd.SetArgs([]string{"--workspace-ref", "workspace:13", session.ID})
 
 	require.NoError(t, cmd.Execute())
@@ -120,7 +120,7 @@ func TestOrchestraInject_LegacyCmuxSession_ExplicitWorkspaceSucceeds(t *testing.
 	}
 	require.NoError(t, orchestra.SaveSession(session))
 	t.Cleanup(func() { _ = orchestra.RemoveSession(session.ID) })
-	cmd := newOrchestraInjectCmd()
+	cmd := newLegacyOrchestraInjectCmd()
 	cmd.SetArgs([]string{
 		"--session-id", session.ID, "--provider", "claude",
 		"--workspace-ref", "workspace:13", "follow up",
@@ -142,7 +142,7 @@ func TestOrchestraCleanup_LegacyCmuxSession_ExplicitWorkspaceSucceeds(t *testing
 		Panes: map[string]string{"claude": "surface:1414"}, CreatedAt: time.Now(),
 	}
 	require.NoError(t, orchestra.SaveSession(session))
-	cmd := newOrchestraCleanupCmd()
+	cmd := newLegacyOrchestraCleanupCmd()
 	cmd.SetArgs([]string{
 		"--session-id", session.ID, "--workspace-ref", "workspace:13",
 	})
@@ -155,7 +155,7 @@ func TestOrchestraCleanup_LegacyCmuxSession_ExplicitWorkspaceSucceeds(t *testing
 }
 
 func TestNewOrchestraInjectCmd_ExposesLegacyWorkspaceFlag(t *testing.T) {
-	cmd := newOrchestraInjectCmd()
+	cmd := newLegacyOrchestraInjectCmd()
 
 	assert.NotNil(t, cmd.Flags().Lookup("workspace-ref"))
 }

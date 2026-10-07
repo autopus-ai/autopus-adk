@@ -28,7 +28,7 @@ func TestOrchestraWaitCmd_TimeoutStatus(t *testing.T) {
 	require.NoError(t, os.WriteFile(jobFile, []byte(jobJSON), 0o644))
 
 	// When: wait command runs
-	cmd := newOrchestraJobWaitCmd()
+	cmd := newLegacyOrchestraJobWaitCmd()
 	buf := new(bytes.Buffer)
 	cmd.SetOut(buf)
 	cmd.SetArgs([]string{jobID, "--job-dir", jobDir})
@@ -55,7 +55,7 @@ func TestOrchestraResultCmd_CleanupRemovesJobDir(t *testing.T) {
 	require.NoError(t, os.WriteFile(jobFile, []byte(jobJSON), 0o644))
 
 	// When: result command with --cleanup
-	cmd := newOrchestraJobResultCmd()
+	cmd := newLegacyOrchestraJobResultCmd()
 	buf := new(bytes.Buffer)
 	cmd.SetOut(buf)
 	cmd.SetArgs([]string{jobID, "--job-dir", jobDir, "--cleanup"})
@@ -82,7 +82,7 @@ func TestOrchestraStatusCmd_ProviderStates(t *testing.T) {
 		`"results":{"claude":{"provider":"claude","output":"ok"}}}`
 	require.NoError(t, os.WriteFile(jobFile, []byte(jobJSON), 0o644))
 
-	cmd := newOrchestraJobStatusCmd()
+	cmd := newLegacyOrchestraJobStatusCmd()
 	buf := new(bytes.Buffer)
 	cmd.SetOut(buf)
 	cmd.SetArgs([]string{jobID, "--job-dir", jobDir})
@@ -124,7 +124,7 @@ func TestOrchestraWaitCmd_PollUntilDone(t *testing.T) {
 	}()
 
 	// When: wait command runs
-	cmd := newOrchestraJobWaitCmd()
+	cmd := newLegacyOrchestraJobWaitCmd()
 	buf := new(bytes.Buffer)
 	cmd.SetOut(buf)
 	cmd.SetArgs([]string{jobID, "--job-dir", jobDir})
@@ -141,7 +141,7 @@ func TestOrchestraResultCmd_InvalidJob(t *testing.T) {
 	t.Parallel()
 
 	jobDir := t.TempDir()
-	cmd := newOrchestraJobResultCmd()
+	cmd := newLegacyOrchestraJobResultCmd()
 	cmd.SetArgs([]string{"nonexistent", "--job-dir", jobDir})
 	err := cmd.Execute()
 

@@ -24,10 +24,12 @@ type CollectProviderResult struct {
 	Error    string `json:"error,omitempty"`
 }
 
-// newOrchestraCollectCmd creates the "orchestra collect" subcommand.
+// newLegacyOrchestraCollectCmd creates the "orchestra collect" subcommand.
+// Retired (SPEC-PANERM-001): the command tree registers the stub of
+// orchestra_retired.go instead; this body stays until the pane backend deletion.
 // Loads a persisted session, reads each provider's pane screen, and outputs JSON.
 // With --clean, applies the orchestra sanitizer to strip TUI noise while preserving content.
-func newOrchestraCollectCmd() *cobra.Command {
+func newLegacyOrchestraCollectCmd() *cobra.Command {
 	var round int
 	var clean bool
 	var workspaceRef string

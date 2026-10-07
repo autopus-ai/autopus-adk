@@ -120,7 +120,7 @@ func TestOrchestraResultCmd_JSONReturnsDetachedReceipt(t *testing.T) {
 		`"providers":["claude","codex"],` +
 		`"results":{"claude":{"provider":"claude","output":"ok"},"codex":{"provider":"codex","output":"ok"}}}`
 	require.NoError(t, os.WriteFile(filepath.Join(jobDir, jobID+".json"), []byte(jobJSON), 0o600))
-	cmd := newOrchestraJobResultCmd()
+	cmd := newLegacyOrchestraJobResultCmd()
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetArgs([]string{jobID, "--job-dir", jobDir, "--format", "json"})
@@ -142,7 +142,7 @@ func TestOrchestraReviewAndBrainstorm_RegisterTypedOutputFormat(t *testing.T) {
 		assert.NotNil(t, cmd.Flags().Lookup("format"))
 		assert.NotNil(t, cmd.Flags().Lookup("no-detach"))
 	}
-	assert.NotNil(t, newOrchestraJobWaitCmd().Flags().Lookup("format"))
+	assert.NotNil(t, newLegacyOrchestraJobWaitCmd().Flags().Lookup("format"))
 }
 
 func TestWriteOrchestraJobWaitOutput_JSONPointsToTypedResult(t *testing.T) {

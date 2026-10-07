@@ -57,8 +57,6 @@ func newSpecReviewCmd() *cobra.Command {
 	var (
 		strategy            string
 		timeout             int
-		forceSubprocess     bool
-		forcePlain          bool
 		allowDegraded       bool
 		providers           []string
 		requiredDocuments   []string
@@ -87,8 +85,10 @@ func newSpecReviewCmd() *cobra.Command {
 
 	cmd.Flags().StringVarP(&strategy, "strategy", "s", "", "review strategy (default: from config)")
 	cmd.Flags().IntVarP(&timeout, "timeout", "t", 0, "timeout in seconds (default: from config)")
-	cmd.Flags().BoolVar(&forceSubprocess, "subprocess", false, "No-op: SPEC review always runs read-only providers as headless subprocesses")
-	cmd.Flags().BoolVar(&forcePlain, "plain", false, "No-op alias for --subprocess")
+	// --subprocess and --plain were retired with the pane backend (SPEC-PANERM-001).
+	cmd.Flags().Bool("subprocess", false, "No-op: SPEC review always runs read-only providers as headless subprocesses")
+	cmd.Flags().Bool("plain", false, "No-op alias for --subprocess")
+	hideRetiredFlags(cmd, "subprocess", "plain")
 	cmd.Flags().BoolVar(&allowDegraded, "allow-degraded", false, "Promote a PASS even when a document was truncated, the provider quorum was not met, or a not-ready reviewer was excluded (provider_unready); records an audit override")
 	cmd.Flags().BoolVar(&skipReadiness, "skip-provider-readiness", false, "Skip the provider login status preflight; the receipt records readiness skipped")
 	cmd.Flags().StringSliceVarP(&providers, "providers", "p", nil, "Provider list override (default: from config)")
