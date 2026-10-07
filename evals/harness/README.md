@@ -29,6 +29,20 @@ Run with `CODEX_HOME` pointing at an empty directory for a hermetic shell. The
 generation itself never reads the host: `PATH` and `HOME` are replaced by
 sentinels while it runs.
 
+## CI gate
+
+The `harness-eval` job in `.github/workflows/ci.yaml` always runs and always
+reports its check; there is no paths filter and no job-level `if`. For a pull
+request it lists `git diff --name-only --no-renames <base>...<head>` and asks
+`auto eval harness applicable`; when no changed path meets the harness input
+set the job ends `not_applicable` and passes. Every other event (push to main,
+the release `workflow_call`) is evaluated. The evaluation is
+`auto eval harness run --format json --output <file> --summary "$GITHUB_STEP_SUMMARY"`:
+any failure reason fails the job, the job summary gets the category table and
+the transitions (never task text), and the result document is uploaded as the
+`harness-eval` artifact. Blocking merges also needs `harness-eval` registered
+as a required status check on main (T14, an OPS step).
+
 ## Pins and live policy
 
 | Field | Value | Why |

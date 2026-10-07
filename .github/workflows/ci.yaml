@@ -214,6 +214,68 @@ jobs:
             bash -n "$script"
           done < <(git ls-files -z '*.sh')
 
+  # SPEC-HARNEVAL-001 deterministic harness gate. The check must always be
+  # reported, so there is no workflow paths filter and no job-level if or
+  # needs: the job itself decides. A pull request is evaluated when its
+  # --no-renames diff meets the derived harness input set (renames list both
+  # paths); every other event, including the release workflow_call, is
+  # evaluated unconditionally. The run fails the job on any failure reason.
+  harness-eval:
+    name: harness-eval
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+
+      - name: Evaluate harness surfaces
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          out="${RUNNER_TEMP}/harness-eval"
+          auto_bin="${RUNNER_TEMP}/auto-harness-eval"
+          mkdir -p "$out"
+          go build -trimpath -o "$auto_bin" ./cmd/auto
+          decide=(eval harness applicable --event "$EVENT_NAME" --format json)
+          if [[ "$EVENT_NAME" == pull_request ]]; then
+            git diff --name-only --no-renames "${BASE_SHA}...${HEAD_SHA}" > "$out/changed-files.txt"
+            decide+=(--changed-files "$out/changed-files.txt")
+          fi
+          "$auto_bin" "${decide[@]}" > "$out/applicable.json"
+          status="$(jq -er .status "$out/applicable.json")"
+          reason="$(jq -er .reason "$out/applicable.json")"
+          if [[ "$status" == not_applicable ]]; then
+            printf '### harness-eval: not_applicable\n\n- %s: no changed path meets the harness input set.\n' \
+              "$reason" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if [[ "$status" != applicable ]]; then
+            echo "::error::auto eval harness applicable returned status '${status}'"
+            exit 1
+          fi
+          echo "harness-eval: evaluating (${reason})"
+          "$auto_bin" eval harness run --format json --output "$out/result.json" \
+            --summary "$GITHUB_STEP_SUMMARY" > /dev/null
+
+      - name: Upload harness eval result
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: harness-eval
+          path: ${{ runner.temp }}/harness-eval
+          if-no-files-found: warn
+          retention-days: 14
+
   omp-native-smoke:
     name: omp-native-smoke
     permissions:
