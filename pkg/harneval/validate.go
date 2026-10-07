@@ -130,8 +130,16 @@ func validateActivePath(p string) error {
 }
 
 func validatePolicy(floors Floors, live LivePolicy) error {
-	if floors.SurfaceTasks < 1 || floors.AgentTasks < 1 || live.K < 1 ||
-		live.ThresholdBP < -10000 || live.ThresholdBP > 0 ||
+	if floors.SurfaceTasks < 1 || floors.AgentTasks < 1 {
+		return invalidf(DetailPolicyOutOfRange, "floors or live policy value out of range")
+	}
+	return validateLivePolicy(live)
+}
+
+// validateLivePolicy checks the live policy a manifest declares and a live
+// protocol freezes.
+func validateLivePolicy(live LivePolicy) error {
+	if live.K < 1 || live.ThresholdBP < -10000 || live.ThresholdBP > 0 ||
 		live.CompletenessFloor <= 0 || live.CompletenessFloor > 1 ||
 		live.MaxAgentRuns < 1 || live.TrialTimeoutSeconds < 1 {
 		return invalidf(DetailPolicyOutOfRange, "floors or live policy value out of range")

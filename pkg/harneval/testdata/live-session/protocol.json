@@ -1,0 +1,64 @@
+{
+  "schema_version": "harness_golden_live_protocol.v1",
+  "session_id": "4f9c2e7a1b3d5f60718293a4b5c6d7e8",
+  "started_at": "2026-10-07T01:02:03Z",
+  "workspace_revision": "a05ce69df9dc03493b8c5de0ab9299459195e8d8",
+  "baseline_ref": "v0.50.123",
+  "baseline_surface_digest": "ba5eba5eba5eba5eba5eba5eba5eba5eba5eba5eba5eba5eba5eba5eba5eba5e",
+  "candidate_surface_digest": "ca9dca9dca9dca9dca9dca9dca9dca9dca9dca9dca9dca9dca9dca9dca9dca9d",
+  "agent_set_digest": "a9e7a9e7a9e7a9e7a9e7a9e7a9e7a9e7a9e7a9e7a9e7a9e7a9e7a9e7a9e7a9e7",
+  "corpus_digests": [
+    {
+      "file": "scripts/benchmarks/harness/corpus_a.json",
+      "file_sha256": "97c03debd2dd2e9414a585ec3fabc931228ed87167fe98ffc51b3d9abf774101"
+    }
+  ],
+  "runner_sha256": "5c415c415c415c415c415c415c415c415c415c415c415c415c415c415c415c41",
+  "grader_profile_sha256": "9ad09ad09ad09ad09ad09ad09ad09ad09ad09ad09ad09ad09ad09ad09ad09ad0",
+  "calibration": {
+    "status": "passed",
+    "tasks": [
+      {"task_id": "GT-AGENT-A01", "clean_accepted": true, "mutated_accepted": false},
+      {"task_id": "GT-AGENT-A02", "clean_accepted": true, "mutated_accepted": false},
+      {"task_id": "GT-AGENT-A03", "clean_accepted": true, "mutated_accepted": false}
+    ]
+  },
+  "policy": {
+    "k": 2,
+    "threshold_bp": -1000,
+    "completeness_floor": 0.9,
+    "max_agent_runs": 48,
+    "trial_timeout_seconds": 180,
+    "workspace_revision": "a05ce69df9dc03493b8c5de0ab9299459195e8d8",
+    "baseline_ref": "v0.50.123",
+    "model": "gpt-6-astra"
+  },
+  "pins": {
+    "generator_version": "v0.50.123",
+    "project_name": "harness-golden",
+    "codex_model_catalog": "evals/harness/fixtures/codex-models.json",
+    "codex_cli_version": "codex-cli 0.160.0",
+    "opencode_cli_version": "1.18.7"
+  },
+  "cli_version": "codex-cli 0.160.0",
+  "model": "gpt-6-astra",
+  "order": [
+    {"task_id": "GT-AGENT-A01", "arm": "baseline", "trial": 0},
+    {"task_id": "GT-AGENT-A01", "arm": "candidate", "trial": 0},
+    {"task_id": "GT-AGENT-A02", "arm": "candidate", "trial": 0},
+    {"task_id": "GT-AGENT-A02", "arm": "baseline", "trial": 0},
+    {"task_id": "GT-AGENT-A03", "arm": "baseline", "trial": 0},
+    {"task_id": "GT-AGENT-A03", "arm": "candidate", "trial": 0},
+    {"task_id": "GT-AGENT-A01", "arm": "candidate", "trial": 1},
+    {"task_id": "GT-AGENT-A01", "arm": "baseline", "trial": 1},
+    {"task_id": "GT-AGENT-A02", "arm": "baseline", "trial": 1},
+    {"task_id": "GT-AGENT-A02", "arm": "candidate", "trial": 1},
+    {"task_id": "GT-AGENT-A03", "arm": "candidate", "trial": 1},
+    {"task_id": "GT-AGENT-A03", "arm": "baseline", "trial": 1}
+  ],
+  "prompt_layers": [
+    {"layer": "stable", "identifiers": ["baseline_surface_digest", "candidate_surface_digest", "agent_set_digest"]},
+    {"layer": "snapshot", "identifiers": ["corpus_digests", "workspace_revision", "model", "cli_version"]},
+    {"layer": "ephemeral", "identifiers": []}
+  ]
+}

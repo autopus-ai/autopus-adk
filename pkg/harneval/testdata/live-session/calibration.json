@@ -1,0 +1,20 @@
+{
+  "schema_version": "harness_golden_calibration.v1",
+  "session_id": "4f9c2e7a1b3d5f60718293a4b5c6d7e8",
+  "before": {
+    "status": "passed",
+    "tasks": [
+      {"task_id": "GT-AGENT-A01", "clean_accepted": true, "mutated_accepted": false},
+      {"task_id": "GT-AGENT-A02", "clean_accepted": true, "mutated_accepted": false},
+      {"task_id": "GT-AGENT-A03", "clean_accepted": true, "mutated_accepted": false}
+    ]
+  },
+  "after": {
+    "status": "passed",
+    "tasks": [
+      {"task_id": "GT-AGENT-A01", "clean_accepted": true, "mutated_accepted": false},
+      {"task_id": "GT-AGENT-A02", "clean_accepted": true, "mutated_accepted": false},
+      {"task_id": "GT-AGENT-A03", "clean_accepted": true, "mutated_accepted": false}
+    ]
+  }
+}
