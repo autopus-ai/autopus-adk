@@ -6,6 +6,7 @@ package cli_test
 
 import (
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
 
@@ -99,9 +100,32 @@ func assertPairEqual(t *testing.T, bin string, args []string, flag string,
 
 	assert.Equal(t, plain.calls(t), flagged.calls(t), "recorded provider argv")
 	assert.Equal(t, plain.normalize(t, want.stdout), flagged.normalize(t, got.stdout), "stdout")
-	assert.Equal(t, plain.normalize(t, want.stderr), flagged.normalize(t, got.stderr), "stderr")
+	assert.Equal(t, sortParallelStartLines(plain.normalize(t, want.stderr)),
+		sortParallelStartLines(flagged.normalize(t, got.stderr)), "stderr")
 	assert.Equal(t, want.exit, got.exit, "exit status")
 	return want, got
+}
+
+// parallelProviderStartLine is the line spec review prints as it launches each
+// provider in parallel (spec_review_structured_runtime.go); their relative
+// order is goroutine scheduling, not behavior.
+var parallelProviderStartLine = regexp.MustCompile(`^SPEC 리뷰 provider 시작: \S+ \(.*, mode=parallel\)$`)
+
+// sortParallelStartLines sorts each run of consecutive parallel provider start
+// lines, so a stderr comparison ignores their launch order and nothing else.
+func sortParallelStartLines(text string) string {
+	lines := strings.Split(text, "\n")
+	for i := 0; i < len(lines); i++ {
+		j := i
+		for j < len(lines) && parallelProviderStartLine.MatchString(lines[j]) {
+			j++
+		}
+		if j-i > 1 {
+			sort.Strings(lines[i:j])
+			i = j - 1
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 func TestPanermS8_HiddenNoOpFlagsChangeNothing(t *testing.T) {
@@ -161,4 +185,26 @@ func countPanermCalls(calls []string, prefix string) int {
 		}
 	}
 	return n
+}
+
+func TestSortParallelStartLines_ReordersOnlyParallelStartLines(t *testing.T) {
+	start := func(name, mode string) string {
+		return "SPEC 리뷰 provider 시작: " + name + " (backend=subprocess, timeout=<duration>, mode=" + mode + ")"
+	}
+	done := func(name string) string {
+		return "SPEC 리뷰 provider 완료: " + name + " (backend=subprocess, elapsed=<duration>)"
+	}
+	lines := func(order ...string) string { return strings.Join(append(order, ""), "\n") }
+	launched := lines("head", start("codex", "parallel"), start("claude", "parallel"), done("codex"), done("claude"),
+		start("codex", "sequential"), start("claude", "sequential"))
+
+	assert.Equal(t, sortParallelStartLines(launched), sortParallelStartLines(lines("head",
+		start("claude", "parallel"), start("codex", "parallel"), done("codex"), done("claude"),
+		start("codex", "sequential"), start("claude", "sequential"))), "parallel launch order is ignored")
+	assert.NotEqual(t, sortParallelStartLines(launched), sortParallelStartLines(lines("head",
+		start("codex", "parallel"), start("claude", "parallel"), done("claude"), done("codex"),
+		start("codex", "sequential"), start("claude", "sequential"))), "completion order still counts")
+	assert.NotEqual(t, sortParallelStartLines(launched), sortParallelStartLines(lines("head",
+		start("codex", "parallel"), start("claude", "parallel"), done("codex"), done("claude"),
+		start("claude", "sequential"), start("codex", "sequential"))), "sequential launch order still counts")
 }
