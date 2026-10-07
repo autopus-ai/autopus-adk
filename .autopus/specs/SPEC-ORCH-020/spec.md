@@ -5,6 +5,7 @@ id: SPEC-ORCH-020
 title: Orchestra Reliability Kit
 version: 0.1.0
 status: completed
+note: Partially superseded by SPEC-PANERM-001 (its orchestra pane-backend parts were retired on 2026-10-07)
 priority: Must
 ---
 

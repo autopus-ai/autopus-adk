@@ -2,6 +2,7 @@
 id: SPEC-ORCH-018
 title: Orchestra Debate Stability & Yield-Rounds Mode
 status: completed
+note: Superseded by SPEC-PANERM-001 (the orchestra pane backend was retired on 2026-10-07)
 priority: P0
 target_module: autopus-adk
 created: 2026-03-31

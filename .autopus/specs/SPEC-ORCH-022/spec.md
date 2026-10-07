@@ -1,6 +1,7 @@
 # SPEC-ORCH-022: Claude Code 안 hook-IPC headless 멀티프로바이더 실행 경로 — 구독 세션 결정론적 수집
 
 **Status**: completed
+**Superseded by SPEC-PANERM-001** (2026-10-07): the orchestra pane backend was retired; providers run as subprocesses or through OMP.
 **Created**: 2026-06-09
 **Domain**: ORCH
 **Review**: main-session adjudication — `auto spec validate --strict` PASS + spec-quality self-verify 전항목 PASS(research.md) + 4파일 직접 검증 + Option B feasibility 스모크 PASS(cmux headless surface 호스팅, claude Stop hook 발화/last_assistant_message 확인). multi-provider review는 현재 CLAUDECODE→subprocess 경로로 신뢰불가(이 SPEC이 고치는 문제)라 미사용.

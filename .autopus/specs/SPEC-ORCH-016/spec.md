@@ -1,6 +1,7 @@
 # SPEC-ORCH-016: Interactive Pane Debate Round 2+ Surface 유효성 검증 및 Pane 재생성
 
 **Status**: completed
+**Superseded by SPEC-PANERM-001** (2026-10-07): the orchestra pane backend was retired; providers run as subprocesses or through OMP.
 **Created**: 2026-03-29
 **Domain**: ORCH
 

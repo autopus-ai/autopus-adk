@@ -1,6 +1,7 @@
 # SPEC-ORCH-014: opencode Interactive TUI Pane Mode
 
 **Status**: completed
+**Superseded by SPEC-PANERM-001** (2026-10-07): the orchestra pane backend was retired; providers run as subprocesses or through OMP.
 **Created**: 2026-03-28
 **Domain**: ORCH
 
