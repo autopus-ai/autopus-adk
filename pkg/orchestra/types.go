@@ -70,6 +70,14 @@ type ProviderConfig struct {
 	OutputFormat        string        // subprocess: expected output — "json" (default) or "text"
 	WorkDir             string        // subprocess: process working directory; empty inherits the orchestrator cwd (resolved from OrchestraConfig.ProviderWorkDir)
 	SandboxMode         string        // policy-stamped sandbox mode recorded in receipts (read-only, unverified, workspace-write, unrestricted); empty infers from argv
+	// UnsetEnv names inherited environment variables (case-insensitive) the
+	// provider process starts without, on the subprocess path and on routed
+	// backends that honor it; empty inherits the whole environment.
+	UnsetEnv []string
+	// MaxOutputBytes bounds what stdout and stderr each keep while the
+	// subprocess runs; later bytes are drained and dropped. Zero uses the
+	// package bound of every provider stream (fastFailBufferCap).
+	MaxOutputBytes int
 	// FastFailPatterns overrides the built-in provider fast-fail rules. When nil,
 	// DefaultFastFailRules() is used (behavior identical to the legacy hardcoded set).
 	FastFailPatterns []FastFailRule

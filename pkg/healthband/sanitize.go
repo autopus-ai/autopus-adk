@@ -30,8 +30,8 @@ const (
 
 var (
 	ansiCSI    = regexp.MustCompile(`\x1b\[[0-?]*[ -/]*[@-~]`)
-	keyBegin   = regexp.MustCompile(`(?i)-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----`)
-	keyEnd     = regexp.MustCompile(`(?i)-----END [A-Z0-9 ]*PRIVATE KEY-----`)
+	keyBegin   = regexp.MustCompile(`(?i)` + keyMarkerPrefix + `BEGIN` + keyMarkerSuffix)
+	keyEnd     = regexp.MustCompile(`(?i)` + keyMarkerPrefix + `END` + keyMarkerSuffix)
 	homeDirs   = regexp.MustCompile(`/Users/[^/\s]+|/home/[^/\s]+|(?i:[A-Z]:\\Users\\[^\\\s]+)`)
 	reasonRank = map[string]int{ReasonInjectionRisk: 0, ReasonSecretRisk: 1, ReasonSizeCap: 2}
 )
@@ -80,14 +80,15 @@ func SanitizeProviderOutput(captured string, captureDropped bool, projectDir str
 	return Sanitize(captured, SanitizeOptions{ProjectDir: projectDir, Cut: KeepHead, Limit: ProviderExcerptBytes, CaptureDropped: captureDropped})
 }
 
-// Sanitize strips controls, redacts the whole text before any cut, redacts
-// local paths, and only then cuts (items 2–5). The SanitizeContent bound
-// 2×len+17 exceeds any redacted length (a match of at least 11 bytes becomes
-// the 17-byte marker), so redaction itself never truncates or adds size_cap.
+// Sanitize strips controls, redacts the whole text before any cut (the
+// band-specific secret forms first, then SanitizeContent), redacts local
+// paths, and only then cuts (items 2–5). The SanitizeContent bound 2×len+17
+// exceeds any redacted length (a match of at least 11 bytes becomes the
+// 17-byte marker), so redaction itself never truncates or adds size_cap.
 func Sanitize(raw string, opts SanitizeOptions) Evidence {
-	text := StripControls(raw)
+	text, bandRedacted := redactBandSecrets(StripControls(raw))
 	sanitized := promptlayer.SanitizeContent(text, promptlayer.ContextOptions{MaxBytes: 2*len(text) + 17})
-	reasons := map[string]bool{ReasonSizeCap: opts.CaptureDropped}
+	reasons := map[string]bool{ReasonSizeCap: opts.CaptureDropped, ReasonSecretRisk: bandRedacted}
 	for _, reason := range strings.Split(sanitized.InvalidationReason, ",") {
 		if reason != promptlayer.InvalidationNone {
 			reasons[reason] = true

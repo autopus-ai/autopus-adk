@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/insajin/autopus-adk/pkg/orchestra"
 )
 
 const (
@@ -37,7 +39,7 @@ func startPipelineOMPProcess(ctx context.Context, config pipelineOMPBackendConfi
 	return startPipelineOMPProcessWithOptions(ctx, config, pipelineOMPProcessOptions{})
 }
 
-func prepareOMPReviewProcessConfig(projectDir string, maxTime time.Duration) (pipelineOMPBackendConfig, string, error) {
+func prepareOMPReviewProcessConfig(projectDir string, maxTime time.Duration, unsetEnv []string) (pipelineOMPBackendConfig, string, error) {
 	if strings.TrimSpace(projectDir) == "" {
 		projectDir = "."
 	}
@@ -58,7 +60,7 @@ func prepareOMPReviewProcessConfig(projectDir string, maxTime time.Duration) (pi
 	if err != nil {
 		return pipelineOMPBackendConfig{}, "", err
 	}
-	environment, err := normalizePipelineOMPEnvironment(os.Environ())
+	environment, err := ompReviewEnvironment(unsetEnv)
 	if err != nil {
 		return pipelineOMPBackendConfig{}, "", err
 	}
@@ -85,6 +87,12 @@ func prepareOMPReviewProcessConfig(projectDir string, maxTime time.Duration) (pi
 		canonicalEnv: pipelineOMPCanonicalEnvironment(environment),
 		MaxTime:      maxTime, executableID: executableID,
 	}, runtimeBase, nil
+}
+
+// ompReviewEnvironment is the normalized OMP review environment without the
+// inherited variables unsetEnv names (ProviderConfig.UnsetEnv).
+func ompReviewEnvironment(unsetEnv []string) ([]string, error) {
+	return normalizePipelineOMPEnvironment(orchestra.EnvironWithout(os.Environ(), unsetEnv))
 }
 
 func writeOMPReviewHardeningOverlay(runtimeBase string) (string, error) {

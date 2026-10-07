@@ -1,13 +1,11 @@
 package orchestra
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"io"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -34,6 +32,9 @@ func runProvider(ctx context.Context, provider ProviderConfig, prompt string) (*
 	defer cleanupLastMessage()
 
 	cmd := newCommand(ctx, provider.Binary, args...)
+	if err := applyProviderEnv(cmd, provider.UnsetEnv); err != nil {
+		return nil, err
+	}
 	cmd.SetDir(provider.WorkDir)
 	execution := newProviderExecution(provider, args, start)
 
@@ -45,6 +46,7 @@ func runProvider(ctx context.Context, provider ProviderConfig, prompt string) (*
 	stderrBuf := newFastFailBuffer(detector, fastFailRules, func(reason string) {
 		_ = cmd.Terminate(provider.Name + " fast-fail: " + reason)
 	})
+	stdoutBuf.limit, stderrBuf.limit = provider.MaxOutputBytes, provider.MaxOutputBytes
 	cmd.SetStdout(stdoutBuf)
 	cmd.SetStderr(stderrBuf)
 	readyMonitor := newResultReadyMonitor(provider, stdoutBuf, stderrBuf)
@@ -189,66 +191,6 @@ func buildProviderResponse(start time.Time, provider ProviderConfig, stdout, std
 	}
 
 	return resp, nil
-}
-
-type fastFailDetector struct {
-	mu     sync.Mutex
-	reason string
-	once   sync.Once
-}
-
-func (d *fastFailDetector) Trigger(reason string, terminate func(string)) {
-	if reason == "" {
-		return
-	}
-	d.once.Do(func() {
-		d.mu.Lock()
-		d.reason = reason
-		d.mu.Unlock()
-		terminate(reason)
-	})
-}
-
-func (d *fastFailDetector) Reason() string {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	return d.reason
-}
-
-type fastFailBuffer struct {
-	mu        sync.Mutex
-	buf       bytes.Buffer
-	lastWrite time.Time
-	detector  *fastFailDetector
-	rules     []FastFailRule
-	onMatch   func(string)
-}
-
-func newFastFailBuffer(detector *fastFailDetector, rules []FastFailRule, onMatch func(string)) *fastFailBuffer {
-	return &fastFailBuffer{
-		detector: detector,
-		rules:    rules,
-		onMatch:  onMatch,
-	}
-}
-
-func (b *fastFailBuffer) Write(p []byte) (int, error) {
-	b.mu.Lock()
-	n, err := b.buf.Write(p)
-	b.lastWrite = time.Now()
-	snapshot := b.buf.String()
-	b.mu.Unlock()
-
-	if reason := matchFastFailRules(snapshot, b.rules); reason != "" {
-		b.detector.Trigger(reason, b.onMatch)
-	}
-	return n, err
-}
-
-func (b *fastFailBuffer) String() string {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return b.buf.String()
 }
 
 // detectProviderFastFail evaluates output against the built-in default fast-fail

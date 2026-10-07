@@ -60,7 +60,7 @@ func (backend *ompReviewBackend) Execute(ctx context.Context, req orchestra.Prov
 	defer cancel()
 	session := ompReviewSession{
 		projectDir: backend.projectDir, timeout: timeout, model: model, thinking: thinking,
-		prompt: req.Prompt, tools: tools, toolsCSV: toolsCSV, maxTime: maxTime,
+		prompt: req.Prompt, tools: tools, toolsCSV: toolsCSV, maxTime: maxTime, unsetEnv: req.Config.UnsetEnv,
 	}
 	var output string
 	var executionErr, cleanupErr error

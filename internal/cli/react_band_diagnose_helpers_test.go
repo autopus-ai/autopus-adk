@@ -112,6 +112,7 @@ name=$(basename "$0")
 echo "$name" >> "$BAND_FAKE_LOG/calls"
 printf '%s\n' "$@" > "$BAND_FAKE_LOG/$name.argv"
 pwd -P > "$BAND_FAKE_LOG/$name.cwd"
+env > "$BAND_FAKE_LOG/$name.env"
 cat > "$BAND_FAKE_LOG/$name.stdin"
 case "$BAND_FAKE_MODE" in
 sleep) exec sleep 5 ;;

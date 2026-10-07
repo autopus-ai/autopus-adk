@@ -44,6 +44,18 @@ const (
 
 func bandUnavailable(reason string) string { return "unavailable(" + reason + ")" }
 
+// bandProviderUnsetEnv are the inherited credentials a read-only diagnosis
+// never needs, so a provider steered by injected evidence cannot use them:
+// GitHub tokens and cloud credentials. A provider that authenticates only
+// through one of them (Bedrock, Vertex AI) is therefore unavailable to band.
+var bandProviderUnsetEnv = []string{
+	"GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN",
+	"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN", "AWS_SECURITY_TOKEN",
+	"GOOGLE_APPLICATION_CREDENTIALS", "GOOGLE_OAUTH_ACCESS_TOKEN", "CLOUDSDK_AUTH_ACCESS_TOKEN",
+	"AZURE_CLIENT_SECRET", "AZURE_CLIENT_CERTIFICATE_PASSWORD", "AZURE_STORAGE_KEY", "AZURE_STORAGE_CONNECTION_STRING",
+	"ARM_CLIENT_SECRET", "ARM_ACCESS_KEY",
+}
+
 // bandEvidenceSource gathers the sanitized evidence of one diagnose claim:
 // failed-step logs and existing react reports of its current block.
 type bandEvidenceSource interface {
@@ -226,6 +238,10 @@ func bandFlagValues(args []string, flag string) []string {
 // timeout and keeps only the sanitized head of its output.
 func (d *bandDiagnoser) execute(ctx context.Context, provider orchestra.ProviderConfig, prompt string) (string, healthband.Evidence) {
 	provider.WorkDir, provider.ExecutionTimeout = d.projectDir, d.timeout
+	provider.UnsetEnv = bandProviderUnsetEnv
+	// Bound the capture while the provider runs; one byte past the 1 MiB
+	// head tells the capture below that bytes were dropped (size_cap).
+	provider.MaxOutputBytes = healthband.ProviderCaptureBytes + 1
 	cfg := orchestra.OrchestraConfig{
 		Providers: []orchestra.ProviderConfig{provider}, TimeoutSeconds: int((d.timeout + time.Second - 1) / time.Second),
 		WorkingDir: d.projectDir, ProviderWorkDir: d.projectDir, ReadOnly: true, SubprocessMode: true,
