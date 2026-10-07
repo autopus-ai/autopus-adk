@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **`auto react band`: CI·canary 신호의 σ-band 판정과 read-only 진단** (2026-10-07,
+  SPEC-SIGMABAND-001): 기본 브랜치의 신뢰할 수 있는 CI run(`push`·`schedule`, 성공
+  포함)과 실제로 실행된 `auto canary` run을 `.autopus/metrics/`의 bounded append-only
+  이력에 쌓고, 시리즈마다 자기 baseline과 비교해 tier별로 대응한다. git ref, worktree,
+  GitHub 상태는 바꾸지 않고, 진단 에이전트는 모든 tier에서 read-only다.
+  - 탐지기: 최신 관측부터 거꾸로 K=4개씩 block을 자르고, 현재 block 값 x를 직전 최대
+    W=30개 block의 baseline과 비교한다. z = (x - μ) / max(sd, 1/K)이고, baseline block이
+    N_min=20개보다 적으면 `insufficient_samples`로 기록만 한다. 상수는 v1에서 고정이다
+    (floor=1/K=0.25, ε=1e-9, override 없음).
+  - tier 1은 기록만 한다. tier 2와 tier 3은 episode마다 한 번 read-only provider로 진단해
+    `BS-BAND-NNN` brainstorm을 남기고, `/auto plan --from-idea`로 이어진다. tier 3은
+    진단만 한다. tier 3으로 기록될 뿐 PR, branch, patch를 만들지 않는다(draft PR 경로는
+    SPEC-SIGMABAND-002가 맡는다).
+  - `auto canary`는 실행된 run마다 관측 한 줄을 더하고, `latest.json`, stdout, JSON
+    envelope, exit code는 그대로다. `auto react check`·`apply`와 생성되는 훅도 그대로이고,
+    band를 부르는 훅은 없다. gh나 provider가 없거나 표본이 부족하거나 store가 잠겨
+    있어도 판정은 exit 0으로 끝나고 이유 코드를 남긴다.
+  - `.autopus/metrics/`는 local-only runtime 상태다. `.gitignore`(기존 프로젝트는 다음
+    `auto update`부터), sync commit plan, `auto check --hygiene --staged`가 모두 막는다.
+  - 설정: 선택 키 `health_band.diagnosis_provider`가 진단 provider를 먼저 고른다. 기본값이면
+    `autopus.yaml`에 키가 생기지 않는다. 구버전 바이너리는 `autopus.yaml`을 strict
+    decode해 모르는 `health_band` 키를 거부하므로, `health_band`를 켜기 전에 그 파일을
+    읽는 모든 머신과 CI runner의 `auto`를 업그레이드한다.
+  - 데몬이나 스케줄러는 없다. cron이나 `/auto schedule`로 주기 실행한다. 파일, 이유 코드,
+    초기화 방법은 `docs/health-band.md`에 있다.
+
 - **`auto spec review`: 읽기 전용 리뷰어와 provider readiness preflight** (2026-10-06,
   SPEC-REVIEWRO-001): 리뷰어와 judge는 터미널, `orchestra.subprocess.enabled`,
   `--subprocess`/`--plain`과 관계없이 read-only subprocess로만 돈다(OMP provider는
