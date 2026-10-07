@@ -176,7 +176,9 @@ def calls(world: SimpleNamespace) -> list:
     return [json.loads(path.read_text()) for path in paths]
 
 
-def argv(world: SimpleNamespace, *extra: str) -> list:
-    """golden.py arguments for the world: its set, workspace repository, surfaces and fake codex."""
-    return ['--output', str(world.session), '--surfaces', str(world.surfaces), '--repo', str(world.repo),
-            '--dir', str(world.root), '--codex', str(world.stub), *extra]
+def argv(world: SimpleNamespace, *extra: str, surfaces: bool = True) -> list:
+    """golden.py arguments for the world: its set, workspace repository, fake codex and, unless `surfaces`
+    is false (the runner then generates each arm with the surface driver), its two arm surfaces."""
+    given = ['--surfaces', str(world.surfaces)] if surfaces else []
+    return ['--output', str(world.session), *given, '--repo', str(world.repo), '--dir', str(world.root),
+            '--codex', str(world.stub), *extra]

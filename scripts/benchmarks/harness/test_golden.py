@@ -69,6 +69,7 @@ class DigestTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             copy = Path(directory)
             for name in gp.RUNNER_FILES + ('README.md',):
+                (copy / name).parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(HERE / name, copy / name)
             original = gp.runner_digest(copy)
             self.assertEqual(original, gp.runner_digest(HERE))
@@ -82,13 +83,15 @@ class DigestTests(unittest.TestCase):
                     self.assertNotEqual(gp.runner_digest(copy), original)
                     (copy / name).write_bytes(data)
 
-    def test_runner_files_are_the_modules_the_runner_loads_plus_the_profile(self):
+    def test_runner_files_are_the_modules_the_runner_loads_plus_the_profile_and_the_driver(self):
+        # grader.sb goes to sandbox-exec and surface_driver/main.go into every arm build (T13).
         probe = ('import sys, golden; from pathlib import Path; here = Path(golden.__file__).parent; '
                  'print("\\n".join(sorted(Path(m.__file__).name for m in list(sys.modules.values()) '
                  'if getattr(m, "__file__", None) and Path(m.__file__).parent == here)))')
         loaded = subprocess.run([sys.executable, '-c', probe], cwd=HERE, capture_output=True, text=True, check=True,
                                 env={**os.environ, 'PYTHONDONTWRITEBYTECODE': '1'}).stdout.split()
-        self.assertEqual(sorted(gp.RUNNER_FILES), sorted(loaded + ['grader.sb']))
+        self.assertIn('golden_surface.py', loaded)
+        self.assertEqual(sorted(gp.RUNNER_FILES), sorted(loaded + ['grader.sb', 'surface_driver/main.go']))
 
     def test_surface_digest_is_the_go_surface_digest(self):
         # The literal is harneval.SurfaceDigest of this tree, printed by a Go test on 2026-10-07.

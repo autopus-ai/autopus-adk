@@ -17,9 +17,10 @@ from unittest import mock
 import golden
 import golden_agent as ga
 import golden_protocol as gp
+import golden_surface as gs
 import golden_trial as gt
 import grader
-from test_golden_fixture import PIN, argv, build_world, calls
+from test_golden_fixture import CHECKOUT, PIN, argv, build_world, calls
 
 CANARIES = {'GITHUB_TOKEN': 'leak', 'ACTIONS_RUNTIME_TOKEN': 'leak', 'RUNNER_TEMP': 'leak', 'HARNEVAL_CANARY': 'leak'}
 # The fake codex is a Python script: its interpreter adds these two keys itself on macOS (PEP 538, CoreFoundation).
@@ -52,8 +53,9 @@ class GoldenSessionTests(unittest.TestCase):
         self.addCleanup(directory.cleanup)
         return build_world(Path(directory.name), names, **options)
 
-    def run_golden(self, world, steps=None, *extra):
-        options = golden.parse(argv(world, '--auto', self.auto, '--credential-env', 'HARNEVAL_AGENT_CREDENTIAL', *extra))
+    def run_golden(self, world, steps=None, *extra, surfaces=True):
+        options = golden.parse(argv(world, '--auto', self.auto, '--credential-env', 'HARNEVAL_AGENT_CREDENTIAL', *extra,
+                                    surfaces=surfaces))
         with mock.patch.dict(os.environ, {**CANARIES, 'HARNEVAL_AGENT_CREDENTIAL': 'agent-only'}):
             return golden.run_session(options, steps or golden.Steps())
 
@@ -102,6 +104,30 @@ class GoldenSessionTests(unittest.TestCase):
         self.assertAlmostEqual(document['completeness'], 0.875, delta=1e-9)
         self.assertEqual((document['advisory'], document['calibration']['status'], document['runner_sha256'],
                           document['agent_set_digest']), (True, 'passed', gp.runner_digest(), protocol['agent_set_digest']))
+
+    def test_s8_driver_built_arm_surfaces_reach_the_trial_workspaces(self):
+        # T13: without --surfaces each arm comes from the surface driver built from its revision of this checkout
+        # (live.baseline_ref v0.50.123, then HEAD); the fixture world keeps its own workspace repository.
+        world, generated = self.world(['alpha'], k=1), {}
+
+        def surface(_repo, revision, *rest):
+            path = gs.arm_surface(CHECKOUT, revision, *rest)
+            generated[revision] = (gp.surface_digest(path), (path / 'AGENTS.md').read_text().strip())
+            return path
+        summary = self.run_golden(world, golden.Steps(surface=surface), surfaces=False)
+        self.assertEqual((summary['records'], summary['outcomes']), (2, {'fail': 2}))
+        self.assertEqual(sorted(generated), ['HEAD', 'v0.50.123'])
+        protocol = json.loads((world.session / 'protocol.json').read_text())
+        self.assertEqual((protocol['baseline_surface_digest'], protocol['candidate_surface_digest']),
+                         (generated['v0.50.123'][0], generated['HEAD'][0]))
+        self.assertNotEqual(generated['v0.50.123'][0], generated['HEAD'][0], 'the arms differ by revision')
+        # Trial 0 of the only task runs the baseline first; each agent saw its arm's generated AGENTS.md.
+        self.assertEqual([call['policy'] for call in calls(world)], [generated['v0.50.123'][1], generated['HEAD'][1]])
+        self.assertIn('# Autopus-ADK Harness', generated['HEAD'][1])
+        self.assertEqual([(row['signal'], row['oracle']['ran']) for row in records(world.session)],
+                         [('oracle_failed', True)] * 2)
+        code, document = report(self.auto, world.session)
+        self.assertEqual((code, document['verdict'], document['reason']), (0, 'ok', 'within_threshold'))
 
     def test_s10_failed_calibration_refuses_with_protocol_and_calibration_only(self):
         world = self.world(['alpha'], expected={'alpha': ['TestValue', 'TestMissing']})

@@ -18,11 +18,12 @@ PLATFORMS = ('claude-code', 'codex', 'antigravity-cli', 'opencode', 'omp')
 
 # The runner file set behind runner_sha256. REQ-HE-07 names golden.py; the digest covers every file
 # the trusted runner process loads or hands to the sandbox (T11 handover): the orchestration, the
-# trial stages, the sandboxed grader and its profile, the trusted preparation, and the pilot modules
+# trial stages, the sandboxed grader and its profile, the trusted preparation, the arm surface
+# builder and the driver source it compiles into every arm revision (T13), and the pilot modules
 # they import (report.py is loaded through run.py). test_golden.py keeps this list equal to them.
-RUNNER_FILES = ('golden.py', 'golden_agent.py', 'golden_protocol.py', 'golden_trial.py', 'grader.py',
-                'grader.sb', 'observe.py', 'permissions.py', 'prepare_grader.py', 'report.py', 'run.py',
-                'workspace.py')
+RUNNER_FILES = ('golden.py', 'golden_agent.py', 'golden_protocol.py', 'golden_surface.py', 'golden_trial.py',
+                'grader.py', 'grader.sb', 'observe.py', 'permissions.py', 'prepare_grader.py', 'report.py', 'run.py',
+                'surface_driver/main.go', 'workspace.py')
 
 # REQ-HE-08 signal table: the signal fixes the outcome. Only a failure before the arm surface enters
 # the trial workspace is an error, so a candidate surface cannot remove its own failures.
