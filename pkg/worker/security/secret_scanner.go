@@ -13,9 +13,11 @@ type SecretScanner struct {
 	patterns []*regexp.Regexp
 }
 
-// defaultPatterns returns the built-in secret detection patterns.
-func defaultPatterns() []*regexp.Regexp {
-	raw := []string{
+// DefaultPatternSources returns the source text of the built-in secret
+// patterns in the order Scan applies them. Each call returns a fresh slice.
+// pkg/secretscan keeps a verbatim copy and its tests compare it with this list.
+func DefaultPatternSources() []string {
+	return []string{
 		// OpenAI / Stripe style API keys
 		`sk-[a-zA-Z0-9]{20,}`,
 		// AWS access key IDs
@@ -39,7 +41,11 @@ func defaultPatterns() []*regexp.Regexp {
 		// Autopus JWT (apjwt_ prefix with base64url segments)
 		`apjwt_[a-zA-Z0-9_\-]+\.[a-zA-Z0-9_\-]+\.[a-zA-Z0-9_\-]+`,
 	}
+}
 
+// defaultPatterns returns the built-in secret detection patterns.
+func defaultPatterns() []*regexp.Regexp {
+	raw := DefaultPatternSources()
 	patterns := make([]*regexp.Regexp, 0, len(raw))
 	for _, r := range raw {
 		patterns = append(patterns, regexp.MustCompile(r))
