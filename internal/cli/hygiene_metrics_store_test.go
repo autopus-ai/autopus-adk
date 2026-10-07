@@ -39,6 +39,7 @@ func TestHygieneMetricsStore_EachLocalOnlyListHoldsOneEntry(t *testing.T) {
 		"generatedRuntimePrefixes":        generatedRuntimePrefixes,
 		"trackedIgnoredLocalOnlyPrefixes": trackedIgnoredLocalOnlyPrefixes,
 		"hygieneAlwaysBlockPrefixes":      hygieneAlwaysBlockPrefixes,
+		"runtimeUnignoredExtraPrefixes":   runtimeUnignoredExtraPrefixes,
 	} {
 		count := 0
 		for _, entry := range list {
@@ -69,6 +70,25 @@ func TestHygieneMetricsStore_ManagedGitignoreHidesEveryStoreFile(t *testing.T) {
 	writePolicyTestFile(t, dir, ".autopus/project/metrics.md")
 	err = exec.Command("git", "-C", dir, "check-ignore", "--no-index", "--quiet", ".autopus/project/metrics.md").Run()
 	assert.Error(t, err, "a human-managed project doc must stay visible to git")
+}
+
+// A repository whose .gitignore predates the store pattern gets the
+// status/doctor runtime_unignored warning for every store file, and only
+// for those: a human-managed project doc stays out of it.
+func TestHygieneMetricsStore_StatusWarnsWhenTheStoreIsNotIgnored(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	syncGit(t, dir, "init")
+	for _, rel := range append([]string{".autopus/project/metrics.md"}, metricsStorePaths...) {
+		writePolicyTestFile(t, dir, rel)
+	}
+
+	report := collectStatusHygiene(dir)
+
+	assert.Equal(t, "warn", report.Status)
+	assert.ElementsMatch(t, metricsStorePaths, report.RuntimeUnignored)
+	assert.Equal(t, len(metricsStorePaths), report.payload().RuntimeUnignored.Count)
 }
 
 func TestHygieneMetricsStore_SyncVerifyBlocksStoreInEveryRepoRole(t *testing.T) {
