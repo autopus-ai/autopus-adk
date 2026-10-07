@@ -44,6 +44,7 @@ var generatedRuntimePrefixes = []string{
 	".autopus/cache/",
 	".autopus/canary/",
 	".autopus/design/imports/",
+	".autopus/metrics/",
 	".autopus/orchestra/",
 	".autopus/plugins/",
 	".autopus/qa/",

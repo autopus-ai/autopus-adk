@@ -1,8 +1,8 @@
 # SPEC-SIGMABAND-001: σ-band 단계형 하네스 헬스 신호 대응 (auto react band)
 
-**Status**: approved
+**Status**: implemented
 **Created**: 2026-10-06
-**Revised**: 2026-10-06 (rev 3: split by user decision; the 3σ draft PR path moved to SPEC-SIGMABAND-002; rev 4: F-013, F-032, F-038)
+**Revised**: 2026-10-07 (rev 3: split by user decision; the 3σ draft PR path moved to SPEC-SIGMABAND-002; rev 4: F-013, F-032, F-038; rev 5: Phase 4 review findings; rev 6: Phase 4 review rounds 2 and 3; see Review Resolution)
 **Domain**: SIGMABAND
 **Module**: autopus-adk
 **PRD**: `prd.md` (same directory). Where this SPEC and the PRD differ, the Review Resolution section names the reason and this SPEC wins.
@@ -70,7 +70,9 @@ Priority 열은 Must/Should만 쓴다. PRD 열은 원본 FR 번호나 review fin
    numeric `run_id`; canary uses a nanosecond `observed_at`, sample key `c<sequence>`, and `tiebreak` = sequence, where the
    sequence is store-global and assigned under the lock. Lines with the same (series, sample_key) collapse to the highest
    `attempt`; equal attempts keep the first written line. Canary `<target>` is the sorted, de-duplicated set of lowercase API
-   and frontend hosts with default ports removed, joined by `+`, or `local` when no URL is given.
+   and frontend hosts with default ports removed, joined by `+`, or `local` when no URL is given. A series that already
+   holds 512 observations takes no new sample older than the oldest one compaction keeps; a higher attempt of a kept sample
+   still counts.
 3. Blocks: K = 4. Non-overlapping blocks are cut backwards from the newest observation; the oldest `count mod K`
    observations are excluded. The current block is the newest K observations; the baseline is the up-to W = 30 blocks
    immediately before it. Block value b = failures / K; x is the current block value.
@@ -106,7 +108,18 @@ SPEC-SIGMABAND-002 consumes the tier-3 episodes and their BS IDs; nothing in thi
 
 1. Network first, outside the lock: resolve host and `<owner/repo>` from the `origin` URL, then run the authentication,
    default-branch, and run-list commands of the gh Invocation Table.
-2. Phase A under the lock (local file IO only; wait at most 5 s, otherwise `store_locked`): replay events newer than the
+2. Before phase A and before a `--dry-run` plan, a store that git tracks is refused with `store_tracked` and a non-zero
+   exit. The store is judged by identity, not spelling:
+   `git -c core.fsmonitor=false ls-files -z -- ':(icase,glob).autopu*/metric*' ':(icase,glob).autopu*/metric*/**'`, run
+   without the inherited `GIT_LITERAL_PATHSPECS`, `GIT_GLOB_PATHSPECS`, `GIT_NOGLOB_PATHSPECS`, and `GIT_ICASE_PATHSPECS`,
+   lists the candidates: an entry at the store path and every path below it in any letter case and with a final s spelled
+   ſ (U+017F), which APFS folds to s. A candidate is a tracked store path when its entry at the store's depth (its first
+   two components) and `.autopus/metrics` stat to the same file (`os.SameFile`), and also when identity cannot be
+   settled: a stat of either path fails, a record lacks two components, the last record is unterminated, or the listing
+   exceeds 64 KiB. This holds whatever git's exit status. `core.fsmonitor=false` keeps a repository's fsmonitor command
+   from starting. Without git, or when git lists nothing (outside a repository, or a repository git refuses to read), the
+   store counts as untracked. A store file above 64 MiB is refused before it is read.
+   Phase A under the lock (local file IO only; wait at most 5 s, otherwise `store_locked`): replay events newer than the
    checkpoint, append pending results, mark expired leases `interrupted`, merge fetched observations idempotently, evaluate
    pending positions, append evaluation events whose due actions carry claims `{id, kind, owner, lease_until}`, write the
    checkpoint, then compact.
@@ -157,12 +170,22 @@ repositories; the rule calls only exported functions.
    claim `failed:bs_lock_timeout`, and that episode then has no BS.
 5. An outer repository that lists the meta root as a direct component (for example a dotfiles repository at `$HOME`) becomes
    the root of that chain; the recursive scope still includes the meta root's modules, and only the per-user lock is written.
+6. The scan ignores an entry named like a BS that is a symlink or not a regular file. An allocation tries the first five IDs
+   above the highest entry that no entry holds. When the highest entry leaves fewer than five IDs above it in range, the
+   scan also skips, highest first, entries that fail the structural validator until a valid BS is found; when fewer than
+   five free IDs remain above that BS, the allocation tries the five lowest free IDs instead, so no planted file, a BS or
+   not, blocks every later BS. Each ignored path, and after such a fallback each entry above `BS-BAND-999999994`, is printed
+   on stderr. The BS directory is checked again right before each create, and the file is created with mode 0600.
 
 ## gh Invocation Table
 
 Verified against `gh <command> --help` of gh 2.98.0 (probe A2): `run list` and `run view` accept `-R`; `auth status` takes
-`--hostname`; `api` takes the repository in its path plus `--hostname`. Every gh subprocess also gets `GH_REPO=<owner/repo>`
-and `GH_HOST=<host>`, replacing inherited values. Commands for pull requests belong to SPEC-SIGMABAND-002.
+`--hostname`; `api` takes the repository in its path plus `--hostname`. Every gh subprocess gets `GH_REPO=<owner/repo>`,
+`GH_PROMPT_DISABLED=1`, `GH_PAGER=cat`, and `NO_COLOR=1`, replacing inherited values, loses `GH_FORCE_TTY` and
+`CLICOLOR_FORCE`, and runs in its own process group that a timeout kills. The authentication call gets no injected
+`GH_HOST` (an inherited `GH_HOST` stays only when it equals `<host>`), because gh treats `GH_HOST` as a configured host and
+would check an environment token against it; every later call gets `GH_HOST=<host>` once that check passed. Commands for
+pull requests belong to SPEC-SIGMABAND-002.
 
 | Purpose | Command |
 |---------|---------|
@@ -171,8 +194,13 @@ and `GH_HOST=<host>`, replacing inherited values. Commands for pull requests bel
 | Runs | `gh run list -R <owner/repo> --limit <n> --json databaseId,attempt,conclusion,status,headBranch,event,workflowName,createdAt` |
 | Failed-step log | `gh run view <run_id> -R <owner/repo> --attempt <attempt> --log-failed` |
 
-Host rule: `github.com` is used as is; any other host must pass `gh auth status --hostname <host>`, otherwise the reason is
-`remote_not_github`. A failing `gh auth status --hostname github.com` gives `gh_unauthenticated`.
+Host rule: `github.com` is used as is; `localhost`, `*.localhost`, and IP literals (a last label that starts with a digit)
+are `remote_not_github` without a gh call; any other host must pass `gh auth status --hostname <host>` run without an
+injected `GH_HOST`, which gh answers only for a host in its hosts config or an inherited `GH_HOST` equal to it, otherwise
+the reason is `remote_not_github`. A failing `gh auth status --hostname github.com` gives `gh_unauthenticated`. The only
+other subprocess is the read-only `git remote get-url origin` and
+`git -c core.fsmonitor=false ls-files -z -- ':(icase,glob).autopu*/metric*' ':(icase,glob).autopu*/metric*/**'`
+(Durability item 2, Review Resolution, store_tracked).
 
 ## Provider Read-Only Contract
 
@@ -188,14 +216,24 @@ Host rule: `github.com` is used as is; any other host must pass `gh auth status 
    OMP-backed provider always uses its registered backend and never the raw subprocess runner; a missing route gives
    `unavailable(provider_backend_unavailable)`.
 5. Working directory: the project directory, read-only.
+6. Environment: the provider starts without `GH_TOKEN`, `GITHUB_TOKEN`, `GH_ENTERPRISE_TOKEN`, `GITHUB_ENTERPRISE_TOKEN`, the
+   GitHub Actions tokens `ACTIONS_ID_TOKEN_REQUEST_TOKEN`, `ACTIONS_ID_TOKEN_REQUEST_URL`, and `ACTIONS_RUNTIME_TOKEN`, and
+   the AWS, Google Cloud, and Azure credential variables (for AWS also `AWS_WEB_IDENTITY_TOKEN_FILE`, every
+   `AWS_CONTAINER_*` variable, and `AWS_BEARER_TOKEN_BEDROCK`), on the subprocess path and the OMP route alike.
 
 ## Untrusted Input Contract
 
 1. Capture: the failed-step log command of the gh Invocation Table with the attempt of the evaluated observation, for at
    most K failed runs of the current block, keeping the last 4 MiB of each log in a ring buffer aligned forward to a line
-   boundary; provider stdout keeps its first 1 MiB. Dropping bytes adds `size_cap`.
+   boundary; provider stdout keeps its first 1 MiB, bounded while the provider runs. Dropping bytes adds `size_cap`.
 2. Strip ANSI CSI sequences and C0 control characters except tab and newline.
-3. Redact the whole captured text first: `promptlayer.SanitizeContent(raw, ContextOptions{MaxBytes: 2*len(raw) + 17})` with
+3. Redact the whole captured text first: the band-specific forms (JSON members and single-quoted Python dict items whose
+   key names a credential, the `Authorization` and `Cookie` header names included, URL credentials including
+   `scheme://:password@` and a token as the user of an http(s) URL, also with an empty password (`https://<token>:@host`),
+   `Authorization: token|Basic|Bearer|Digest` with the header name or the value optionally quoted, `Cookie:` and
+   `Set-Cookie:` values, JWT, PEM, PGP, and SSH2 private key blocks, `AccountKey=`, prefixed tokens such as `glpat-` and
+   `pypi-`), each adding `secret_risk`, then
+   `promptlayer.SanitizeContent(raw, ContextOptions{MaxBytes: 2*len(raw) + 17})` with
    injection evidence not preserved (`[REDACTED_SECRET]`, injection-marker lines removed, sorted reasons). The bound exceeds
    any redacted length (each secret match is at least 11 bytes and becomes the 17-byte `[REDACTED_SECRET]`), so this step never
    truncates and never adds `size_cap`. Then the orphan-marker rule applies:
@@ -208,7 +246,8 @@ Host rule: `github.com` is used as is; any other host must pass `gh auth status 
    max(4, longest backtick run + 1) with info string `untrusted-evidence`.
 7. Identifiers: workflow names and canary hosts are filtered at ingest to `[A-Za-z0-9 ._:+-]`, at most 80 characters; a
    filtered name that differs from the raw name gets the suffix `#<first 8 hex of SHA-256 of the raw name>` and reason
-   `identifier_sanitized`. Only filtered IDs are stored, hashed, or printed.
+   `identifier_sanitized`. Only filtered IDs are stored, hashed, or printed. Outside BS line 1 and the next-step line, the
+   BS body and the prompt render a series ID as inline code.
 8. The whole BS body stays at most 32 KiB; evidence is truncated first.
 9. Events, state, envelopes, and text rows hold only numbers, filtered IDs, reason codes, and manifest hashes.
 
@@ -338,3 +377,32 @@ together with its open findings. Status per finding across review rounds 1–3:
 | F-013 (rev 4) | resolved: the root is the top of the component chain, the scope recurses along component edges, and one per-user lock serializes every allocation, so nested repositories and outer repositories share one scope | REQ-13, BS Root Resolution, S9 |
 | F-032 (rev 4) | resolved: each claim's result is recorded right after that claim, inside its margin, before the next claim starts | Durability items 3–4, S7 |
 | F-038 | resolved: the redaction bound exceeds any redacted length, so only the capture and the 8 KiB cut add `size_cap` | Untrusted Input Contract item 3, S11 |
+
+Rev 5 (Phase 4 review, 2026-10-07) resolves the implementation review findings; the contract text above already reads as
+amended:
+
+| Finding | Resolution | Where |
+|---------|------------|-------|
+| F1 (`--limit` > 512) | a series that already holds 512 observations takes no new sample older than the oldest one compaction keeps (a higher attempt of a kept sample still counts), in the merge and the `--dry-run` plan alike, so a wide fetch window re-adds nothing as `late_observation` | REQ-02, REQ-09, REQ-19 |
+| M1 (GH_HOST token exposure) | the host check runs without an injected `GH_HOST`; `GH_HOST` is set only for calls after it passed; `localhost` and IP literal hosts are refused. The smaller change was chosen over a `health_band` host allowlist, which would need a new config key | gh Invocation Table, S4 |
+| M2 (secret forms, provider env) | band-specific redaction (JSON credential keys, URL credentials, `Authorization: token/Basic/Bearer/Digest`, JWT, PEM/PGP/SSH2 key blocks, `AccountKey=`, prefixed tokens) runs on the whole text before any cut and records `secret_risk`; the provider starts without GitHub tokens and cloud credentials | Untrusted Input Contract item 3, Provider Read-Only Contract |
+| L1 (workflow names outside the fence) | series IDs are inline code in the BS body and the prompt, except BS line 1 and the next-step line whose forms S10 fixes; the series stays keyed by the filtered workflow name plus `#<h8>`, because the series form, S3, S4, and the Invocation Table fields fix the name and exclude `workflowDatabaseId` | Untrusted Input Contract item 7 |
+| L2 (capture after exit) | the provider capture is bounded while the provider runs (first 1 MiB + 1 byte), and every provider stream without its own bound stops at 64 MiB | Untrusted Input Contract item 1 |
+| L3 (planted store) | a git-tracked `.autopus/metrics/` is refused before any read or lock (`store_tracked`, non-zero); a store file above 64 MiB is refused before it is read | REQ-01, REQ-14 |
+| L4 (TOCTOU) | store files and react reports open with `O_NOFOLLOW|O_NONBLOCK` and are checked again by descriptor; the BS directory is checked again before each create; BS files are mode 0600 | REQ-13, REQ-17 |
+| L5 (gh env, process tree) | gh never prompts, pages, or colors and runs in its own process group | gh Invocation Table |
+| L6 (planted top BS ID) | symlinks and non-regular entries never count; when the top entries leave no ID, entries that fail the BS validator are skipped; each ignored path is printed on stderr. Ignoring every invalid entry was not taken, because S9 counts any file named `BS-BAND-NNN.md` | REQ-13, S9 |
+| F2 (store I/O exit) | a store band cannot read or write, and a git-tracked store, exit non-zero after the report: intentional fail-closed exceptions to the REQ-14 exit rule, since evaluating an untrusted store would record wrong results | REQ-14, docs/health-band.md |
+| F3 (`bs_scope_too_deep`) | a project more than 8 component edges below the top of its chain, which a scan from that top would not reach, ends the diagnose claim `failed:bs_scope_too_deep` instead of risking an ID collision, and the episode has no BS, like `failed:bs_lock_timeout` | BS Root Resolution item 2, docs/health-band.md |
+
+Rev 6 (Phase 4 review rounds 2 and 3, 2026-10-07) resolves the second-round findings and the third-round Low residuals;
+the contract text above already reads as amended:
+
+| Finding | Resolution | Where |
+|---------|------------|-------|
+| L3 residual (tracked check fails open) | any listed byte counts as tracked, whatever git's exit status, a listing above 64 KiB included; the `icase` pathspec also matches `.autopus/METRICS/`, the store itself on a case-insensitive file system; only a git that lists nothing (no git, outside a repository, a repository git refuses to read) counts as untracked, as docs/health-band.md states | Durability item 2, gh Invocation Table |
+| N1 (repository fsmonitor) | the tracked-store check runs `git -c core.fsmonitor=false`, so git never starts an fsmonitor command that the repository's own config names; `git remote get-url origin` reads no index and starts none | Durability item 2 |
+| L6 residual (BS ID exhaustion) | an ID an entry holds is never tried; when fewer than five free IDs remain above the highest valid BS, the allocation takes the five lowest free IDs and names each entry above `BS-BAND-999999994` on stderr, so no planted file at the top of the range, valid or not, blocks a BS; the S9 IDs and its five-collision `bs_id_exhausted` are unchanged | BS Root Resolution item 6, S9 |
+| M2 residual (secret forms, provider env) | band also redacts `https://<token>@host`, `scheme://:password@`, single-quoted Python dict credentials, `Cookie:` and `Set-Cookie:` values, and `pypi-` tokens; the provider also starts without the GitHub Actions OIDC and runtime tokens and the AWS web identity, `AWS_CONTAINER_*`, and Bedrock bearer credentials (`ProviderConfig.UnsetEnv` reads a trailing `*` as a prefix) | Untrusted Input Contract item 3, Provider Read-Only Contract item 6 |
+| L3 residual (spelling, inherited pathspec switches) | supersedes the `icase` spelling rule of the L3 residual row above: the store is judged by identity, not spelling. git lists candidates with `:(icase,glob).autopu*/metric*` and `:(icase,glob).autopu*/metric*/**`, so `.autopus/metricſ/` and `.autopuſ/metrics/` (ſ U+017F, which APFS folds to s) and a tracked symlink at the store path are listed, and a candidate counts when its entry at the store's depth is `os.SameFile` with `.autopus/metrics`, or when identity cannot be settled (a failed stat of either path, an unterminated record, a listing above 64 KiB), so another directory such as `.autopus/metrics-archive/` no longer counts; the call drops an inherited `GIT_LITERAL_PATHSPECS`, `GIT_GLOB_PATHSPECS`, `GIT_NOGLOB_PATHSPECS`, and `GIT_ICASE_PATHSPECS`, since `GIT_LITERAL_PATHSPECS=1` made git read the magic pathspec as a file name and list nothing | Durability item 2, gh Invocation Table |
+| M2 residual (header maps, empty password) | `authorization` and `cookie` join the credential keys, so `{"Authorization": "Bearer …"}`, `{'Authorization': 'Bearer …'}`, `{'Cookie': 'session=…'}`, and `{"cookie": "…"}` lose the whole value; the `Authorization` header form also takes a quoted header name and a quoted value (`"Authorization": Bearer …`, `Authorization: 'Bearer …'` in a JS object); a token user of an http(s) URL may carry an empty password (`https://<token>:@host`) | Untrusted Input Contract item 3 |

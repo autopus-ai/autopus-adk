@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/insajin/autopus-adk/internal/cli/tui"
@@ -23,6 +24,7 @@ var hygieneManifestSourcePrefixes = []string{
 
 var hygieneAlwaysBlockPrefixes = []string{
 	".autopus/brainstorms/",
+	".autopus/metrics/",
 	".autopus/orchestra/",
 	".autopus/txns/",
 }
@@ -66,7 +68,7 @@ func checkHygiene(dir string, out io.Writer, quiet bool) bool {
 }
 
 func blockedGeneratedDrift(dir string, staged []string) []string {
-	candidates := workflow.DetectGeneratedDrift(staged, false)
+	candidates := hygieneDriftCandidates(staged)
 	var blocked []string
 	var claims map[string]string
 	claimsLoaded := false
@@ -88,6 +90,27 @@ func blockedGeneratedDrift(dir string, staged []string) []string {
 		blocked = append(blocked, rel)
 	}
 	return blocked
+}
+
+// hygieneDriftCandidates is the shared generated-surface drift set plus every
+// staged always-blocked path the shared detector does not list. The band
+// metric store (.autopus/metrics/) is runtime state rather than a generated
+// surface, so only this union makes staging it fail the check.
+func hygieneDriftCandidates(staged []string) []string {
+	candidates := workflow.DetectGeneratedDrift(staged, false)
+	listed := make(map[string]bool, len(candidates))
+	for _, rel := range candidates {
+		listed[normalizeGitRel(rel)] = true
+	}
+	for _, rel := range staged {
+		clean := normalizeGitRel(rel)
+		if !listed[clean] && isAlwaysBlockedGenerated(clean) {
+			candidates = append(candidates, rel)
+			listed[clean] = true
+		}
+	}
+	slices.Sort(candidates)
+	return candidates
 }
 
 // isAlwaysBlockedGenerated names the paths no evidence can clear. They are

@@ -89,6 +89,7 @@ type HarnessConfig struct {
 	UsageProfile     UsageProfile         `yaml:"usage_profile,omitempty"` // developer (default) or fullstack
 	Hints            HintsConf            `yaml:"hints,omitempty"`
 	Workflow         WorkflowConf         `yaml:"workflow,omitempty"`
+	HealthBand       HealthBandConf       `yaml:"health_band,omitempty"`
 	Runtime          RuntimeConf          `yaml:"-"`
 }
 

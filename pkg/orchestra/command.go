@@ -51,6 +51,11 @@ func (e *execCommand) SetStderr(w io.Writer) {
 	e.cmd.Stderr = w
 }
 
+// SetEnv replaces the inherited environment of the process.
+func (e *execCommand) SetEnv(env []string) {
+	e.cmd.Env = env
+}
+
 // SetDir pins the process working directory; an empty dir inherits the caller's.
 func (e *execCommand) SetDir(dir string) {
 	e.cmd.Dir = dir

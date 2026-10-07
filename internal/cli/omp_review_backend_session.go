@@ -23,12 +23,13 @@ type ompReviewSession struct {
 	tools      []string
 	toolsCSV   string
 	maxTime    string
+	unsetEnv   []string // inherited variables the OMP process starts without
 }
 
 // run executes one attempt. cleanupErr is reported separately because a
 // successful reply with a failed runtime cleanup must still fail closed.
 func (s ompReviewSession) run(ctx context.Context) (output string, executionErr, cleanupErr error) {
-	processConfig, runtimeBase, err := prepareOMPReviewProcessConfig(s.projectDir, s.timeout)
+	processConfig, runtimeBase, err := prepareOMPReviewProcessConfig(s.projectDir, s.timeout, s.unsetEnv)
 	if err != nil {
 		return "", err, nil
 	}

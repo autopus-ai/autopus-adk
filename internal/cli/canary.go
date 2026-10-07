@@ -93,6 +93,7 @@ func runCanaryCmd(cmd *cobra.Command, opts canaryOptions) error {
 		result.Verdict = "FAIL"
 		result.Summary = canarySummary(result)
 	}
+	recordCanaryHistory(cmd, opts, result)
 	if jsonMode {
 		status := jsonStatusOK
 		if result.Verdict == "WARN" {

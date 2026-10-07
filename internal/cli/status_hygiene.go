@@ -54,6 +54,7 @@ var runtimeUnignoredExtraPrefixes = []string{
 	".autopus/design/imports/",
 	".autopus/design/verify/",
 	".autopus/docs/",
+	".autopus/metrics/",
 	".autopus/qa/cache/",
 	".autopus/qa/evidence/",
 	".autopus/qa/feedback/",

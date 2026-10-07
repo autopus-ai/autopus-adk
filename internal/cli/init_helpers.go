@@ -89,6 +89,7 @@ var gitignorePatterns = []string{
 	".autopus/design/imports/",
 	".autopus/design/verify/",
 	".autopus/canary/",
+	".autopus/metrics/",
 	".autopus/backup/",
 	".autopus/cache/",
 	".autopus/docs/",

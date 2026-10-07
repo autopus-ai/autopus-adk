@@ -1,0 +1,80 @@
+# Phase 1.9 Risk-First Integration Probe re-run (SPEC-SIGMABAND-001, slice 1, base 60f92ea5)
+executed 2026-10-06: A2 at 21:33:53Z (auth), 21:34:20Z (limit 200), 21:34:47Z (limit 1000); A3 and the A1 OMP run
+right after, before 22:00Z; gh 2.98.0 (2026-08-20), git 2.50.1, go1.27.0 darwin/arm64, omp 18.6.1
+paid model calls: 0. gh calls were read-only (auth status, api GET, run list). No prompt was sent to any provider.
+raw artifacts (session scratchpad, not in the repo): sigmaband/p19/runs200.json, runs1000.json, analyze.py, inspect.py,
+probe_a3_test.go, probe_a1_omp_test.go; sigmaband/oracle.py, oracle_live.py. No token text was recorded.
+verdicts: A1 PARTIAL (claude and codex halves cited PASS, OMP tool exposure measured PASS, OMP model-to-tool path not run)
+| A2 PASS | A3 PASS
+
+## A1 provider read-only boundary
+cited, not re-run (paid): SPEC-REVIEWRO-001 evidence/t10-rfp-rerun.txt, executed 2026-10-06T14:28Z-14:39Z
+ claude (RFP-1 re-run, fake Messages API on 127.0.0.1, 0 paid calls), projected argv
+   claude --print ... --permission-mode plan --safe-mode --no-session-persistence --disable-slash-commands
+   --strict-mcp-config --tools=Read,Grep,Glob
+   -> tools offered exactly [Glob, Grep, Read]; 6/6 scripted write calls (Bash touch/commit, Write, Edit, Agent, 2 MCP
+   writes) rejected "No such tool available"; 0 MCP servers; HEAD, index, status unchanged; stdout non-empty.
+   Bash is not offered at all, so the A1 `git stash` and `x.txt` prompts cannot execute. Residual F1 stays: a legacy
+   enabledMcpjsonServers key in ~/.claude.json makes claude write <repo>/.claude/settings.local.json once.
+ codex (RFP-2 re-run): exactly one "--sandbox read-only"; seatbelt read-only blocks touch, edit, rm, git add/commit;
+   status clean, HEAD and index unchanged. The codex model-to-tool path is not exercised (paid).
+ agy (RFP-3): conditional PASS, recorded unverified (headless auto-deny is the enforcement, not --mode plan).
+ projection source in this tree: internal/cli/orchestra_readonly_policy.go projectClaudeReadOnlyArgs appends the inline
+   --tools=Read,Grep,Glob item last (SPEC-REVIEWRO-001 landed, so the S12 claude-ok row is reachable).
+measured here, OMP routed backend tool exposure (0 model calls):
+ method: go test -overlay adds a scratch _test.go to internal/cli that starts the real omp binary through the review
+   backend's own helpers (prepareOMPReviewProcessConfig, writeOMPReviewHardeningOverlay,
+   startPipelineOMPProcessWithOptions with --no-skills --no-lsp --config <overlay> --tools <csv> --approval-mode yolo),
+   runs protocol.initialize (negotiate_protocol, set_auto_retry/compaction off) and get_state, then closes without any
+   prompt. Project dir: a fresh temp git repo with one committed file.
+ allowlist   --tools glob,grep,read -> dumpTools=glob,grep,read; verifyOMPReviewToolSet(glob,grep,read)=nil
+ control     --tools bash,edit,glob,grep,read,write -> dumpTools=bash,edit,glob,grep,read,write;
+             verifyOMPReviewToolSet -> "exposed tools outside the allowlist: bash,edit,write" (fail closed)
+ repo        HEAD unchanged=true, status unchanged=true (empty)
+ so the A1 oracle "OMP tools equal as a set to glob, grep, read" holds for a real session, and the control proves the
+   dump reflects --tools (the oracle is not vacuous).
+not run: an OMP model turn that tries to create x.txt / git stash (needs a paid model call). A1 therefore stays a T10
+   merge gate for the OMP model-to-tool half; config validation (provider_tools_invalid) and the session tool dump are
+   the enforcement that exists today.
+
+## A2 gh CLI contract and run data (read-only, GH_REPO=autopus-ai/autopus-adk GH_HOST=github.com)
+help, gh 2.98.0: auth status -h/--hostname; run list -R/--repo, -L/--limit (default 20), --json, -s/--status exists
+  and is not used; run view -R/--repo, -a/--attempt, --log-failed; api --hostname (default github.com), -q/--jq.
+gh auth status --hostname github.com -> exit 0 (output not recorded)
+gh api repos/autopus-ai/autopus-adk --hostname github.com --jq .default_branch -> main (exit 0)
+gh run list -R autopus-ai/autopus-adk --limit 200 --json databaseId,attempt,conclusion,status,headBranch,event,workflowName,createdAt
+ 200 rows, 200 unique databaseId, createdAt 2026-09-03T02:08:05Z..2026-10-05T13:31:21Z, all completed
+ event mix: CI push 83, pull_request 3; Security Scan push 83, schedule 5, pull_request 3; Release push 10;
+   Receive signed ADK channel workflow_dispatch 2; Recover Homebrew Formula Bridge workflow_dispatch 3;
+   Upgrade Canary workflow_dispatch 8 (same as plan A2)
+ conclusions: success 169, failure 26, cancelled 3, action_required 2; rows with attempt>1: 9 (max 3)
+ trusted filter (completed, push|schedule, headBranch main, success=0, failure|timed_out|startup_failure=1, else excluded)
+   excluded: workflow_dispatch 13, pull_request 6, off-default-branch 10 (all Release tag pushes v0.50.114..v0.50.123,
+   headBranch = tag), cancelled 3
+   ci.failure_rate:CI 80 observations 00101000000000000010000000000000000000001000000111010000000000000010000011100000
+   ci.failure_rate:Security Scan 88 observations
+     0000000000000000000000000000000000000000000000000111111111000000000000000000000000000000
+   both strings equal acceptance S3 exactly; no workflow name falls outside [A-Za-z0-9 ._:+-]
+gh run list ... --limit 1000 (REQ-19 upper bound, 10 API pages)
+ 1000 rows, 1000 unique databaseId (no duplicate across page boundaries), createdAt 2026-07-17T09:59:39Z..2026-10-05T13:31:21Z
+ the limit-200 list is the exact prefix of the limit-1000 list; rows are createdAt-descending
+ status: completed 999, queued 1 (run 31117590659, CI pull_request, conclusion "") -> excluded as not completed
+ rows with attempt>1: 30 (max 4); gh returns one row per run with its latest attempt, so supersession by a higher
+   attempt happens across fetches (S4 later payload), never inside one payload
+ push/schedule rows sharing createdAt within one workflow: 0 (the run_id tiebreak matters for fixtures, G1)
+ trusted series: CI 274 observations (83 failures), Security Scan 291 observations (12 failures)
+ independent Python oracle on these series (now pinned as L1/L2 in pkg/healthband/detector_test.go):
+   L1 CI n=30 (W cap active) x=0 mu=0.416667 sd=0.422091 sd_eff=0.422091 z=-0.987149 tier 0 [below_baseline]
+   L2 Security Scan n=30 x=0 mu=0.075000 sd=0.238078 sd_eff=0.25 z=-0.300000 tier 0
+      [variance_floor_applied, below_baseline]
+ note for T5 (no decision taken here): run 34003784257 (CI push) reports attempt 2 cancelled; the run is excluded, so a
+   previously stored attempt-1 observation of the same run would keep its value.
+
+## A3 BS Root Resolution over the real setup.DetectMultiRepo (go test -overlay into pkg/setup, temp dirs only)
+ W  .,module,other   W/module nil   W/other nil
+ H  .,dots           H/work nil     H/work/proj nil
+ P  nil
+ N  .,m,n            N/m .,x        N/m/x nil   N/n nil
+ O  .,W2,d           O/W2 .,module,other   O/W2/module nil   O/d nil
+ matches plan A3 and the S9 preconditions, including the outer repository O whose component W2 is a meta root.
+ git status of this worktree stayed clean after every overlay run.

@@ -18,11 +18,12 @@ var specEvidenceBasenames = map[string]bool{
 
 // trackedIgnoredLocalOnlyPrefixes is the "Brainstorm/runtime output ... Local
 // working copy only / Do not commit" row of content/rules/doc-storage.md, plus
-// the transaction log that hygieneAlwaysBlockPrefixes pairs with it. These
-// paths are deliberately never committed, so a tracked one is stale index
-// state rather than a rule that needs loosening.
+// the transaction log and the band metric store that hygieneAlwaysBlockPrefixes
+// pairs with it. These paths are deliberately never committed, so a tracked one
+// is stale index state rather than a rule that needs loosening.
 var trackedIgnoredLocalOnlyPrefixes = []string{
 	".autopus/brainstorms/",
+	".autopus/metrics/",
 	".autopus/orchestra/",
 	".autopus/runtime/",
 	".autopus/txns/",
