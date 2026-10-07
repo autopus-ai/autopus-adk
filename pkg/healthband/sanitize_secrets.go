@@ -18,15 +18,21 @@ var bandSecretPatterns = []bandSecret{
 	// "PRIVATE KEY BLOCK", and the four-dash SSH2 form.
 	{regexp.MustCompile(`(?is)` + keyMarkerPrefix + `BEGIN` + keyMarkerSuffix + `.*?` + keyMarkerPrefix + `END` + keyMarkerSuffix), redactedSecret},
 	// JSON members and Python dict items whose key names a credential, in
-	// either quote style, whatever the value holds.
+	// either quote style, whatever the value holds. The Authorization and
+	// Cookie header names count, so a header map printed as JSON, a Python
+	// dict, or a JS object literal with quoted keys loses the whole value.
 	{regexp.MustCompile(`(?i)(?:"` + credentialKey + `"|'` + credentialKey + `')\s*:\s*(?:"(?:[^"\\]|\\.){4,}"|'(?:[^'\\]|\\.){4,}')`), redactedSecret},
 	// URL credentials: scheme://user:password@host, the user possibly empty.
 	{regexp.MustCompile(`(?i)\b([a-z][a-z0-9+.-]*://)[^\s/:@]*:[^\s/@]+@`), "${1}" + redactedSecret + "@"},
-	// A token as the user of an http(s) URL: https://<token>@host. Eight
-	// characters keep a short user name such as git readable.
-	{regexp.MustCompile(`(?i)\b((?:[a-z0-9.-]+\+)?https?://)[^\s/:@?#]{8,}@`), "${1}" + redactedSecret + "@"},
-	// Authorization headers of every scheme gh, git, and HTTP clients print.
-	{regexp.MustCompile(`(?i)\b(?:proxy-)?authorization\s*:\s*(?:token|basic|bearer|digest)\s+[A-Za-z0-9._~+/=-]{6,}`), redactedSecret},
+	// A token as the user of an http(s) URL, https://<token>@host, also with
+	// an empty password, https://<token>:@host. Eight characters keep a short
+	// user name such as git readable.
+	{regexp.MustCompile(`(?i)\b((?:[a-z0-9.-]+\+)?https?://)[^\s/:@?#]{8,}:?@`), "${1}" + redactedSecret + "@"},
+	// Authorization headers of every scheme gh, git, and HTTP clients print,
+	// the header name possibly quoted ("Authorization": Bearer ...) and the
+	// value possibly quoted, as a JS object literal writes it
+	// (Authorization: 'Bearer ...').
+	{regexp.MustCompile(`(?i)["']?\b(?:proxy-)?authorization["']?\s*:\s*["']?(?:token|basic|bearer|digest)\s+[A-Za-z0-9._~+/=-]{6,}`), redactedSecret},
 	// Cookie and Set-Cookie header values: from the first name=value pair to
 	// the end of the line.
 	{regexp.MustCompile(`(?i)\b((?:set-)?cookie\s*:\s*)[^\s=;,]+=[^\n]*`), "${1}" + redactedSecret},
@@ -39,8 +45,9 @@ var bandSecretPatterns = []bandSecret{
 	{regexp.MustCompile(`\b(?:glpat-[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{16,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{16,}|xox[abposr]-[A-Za-z0-9-]{10,}|[rs]k_(?:live|test)_[A-Za-z0-9]{16,}|pypi-[A-Za-z0-9_-]{32,})`), redactedSecret},
 }
 
-// credentialKey is a member key that names a credential.
-const credentialKey = `[a-z0-9_.-]*(?:pass(?:word|wd)?|pwd|secret|token|api[_-]?key|access[_-]?key|account[_-]?key|private[_-]?key|credential)[a-z0-9_.-]*`
+// credentialKey is a member key that names a credential, including the
+// Authorization and Cookie header names.
+const credentialKey = `[a-z0-9_.-]*(?:pass(?:word|wd)?|pwd|secret|token|api[_-]?key|access[_-]?key|account[_-]?key|private[_-]?key|credential|authorization|cookie)[a-z0-9_.-]*`
 
 // Key marker parts shared by the block pattern and the orphan-marker rule:
 // four or five dashes, an optional space, BEGIN or END, the key type, and

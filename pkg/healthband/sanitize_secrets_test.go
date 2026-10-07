@@ -55,6 +55,20 @@ func TestSanitizeCILog_RedactsEverySecretForm(t *testing.T) {
 		{"set-cookie header", "< set-cookie: _gh_sess=AbCdEf0123456789; path=/; secure; HttpOnly", "AbCdEf0123456789", "< set-cookie: "},
 		{"pypi token", "twine upload -p pypi-AgEIcHlwaS5vcmcCJDAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMAACKlsz now",
 			"pypi-AgEIcHlwaS5vcmcCJDAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMAACKlsz", " now"},
+		// Review round 3 (M2 residual): header names as quoted keys, the JS
+		// object form, and a token user with an empty password.
+		{"json authorization member", `request {"Authorization": "Bearer Zm9vYmFyYmF6cXV4MTIzNA", "Accept": "application/json"}`,
+			"Zm9vYmFyYmF6cXV4MTIzNA", `"Accept": "application/json"`},
+		{"python dict authorization item", `headers {'Authorization': 'Bearer Zm9vYmFyYmF6cXV4MTIzNA', 'Accept': 'text/plain'}`,
+			"Zm9vYmFyYmF6cXV4MTIzNA", `'Accept': 'text/plain'`},
+		{"js object authorization", "fetch(url, { headers: { Authorization: 'Bearer Zm9vYmFyYmF6cXV4MTIzNA' } })",
+			"Zm9vYmFyYmF6cXV4MTIzNA", "fetch(url, { headers: { "},
+		{"quoted authorization header name", `header "Authorization": Bearer Zm9vYmFyYmF6cXV4MTIzNA sent`, "Zm9vYmFyYmF6cXV4MTIzNA", " sent"},
+		{"python dict cookie item", `{'Cookie': 'session=Zm9vYmFyYmF6cXV4; theme=dark', 'Host': 'example.com'}`,
+			"Zm9vYmFyYmF6cXV4", `'Host': 'example.com'`},
+		{"json cookie member", `{"cookie": "_gh_sess=AbCdEf0123456789", "status": 200}`, "AbCdEf0123456789", `"status": 200`},
+		{"url token as the user with an empty password", "fetching https://0123456789abcdef0123456789abcdef01234567:@github.com/acme/app.git",
+			"0123456789abcdef0123456789abcdef01234567", "github.com/acme/app.git"},
 	} {
 		t.Run(tc.form, func(t *testing.T) {
 			t.Parallel()
