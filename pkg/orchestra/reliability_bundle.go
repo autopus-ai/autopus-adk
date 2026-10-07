@@ -27,7 +27,6 @@ type reliabilityStore struct {
 	prompt     []PromptTransportReceipt
 	collection []CollectionReceipt
 	events     []ReliabilityEvent
-	recovery   []PaneRecoveryTransition
 }
 
 func newReliabilityStore(runID string) (*reliabilityStore, error) {
@@ -153,17 +152,16 @@ func (s *reliabilityStore) writeFailureBundle(summary, nextStep string, degraded
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	bundle := FailureBundle{
-		SchemaVersion:       reliabilitySchemaVersion,
-		Timestamp:           time.Now().UTC(),
-		RunID:               s.runID,
-		Degraded:            degraded,
-		Summary:             summary,
-		NextStep:            nextStep,
-		PreflightReceipts:   append([]ProviderPreflightReceipt(nil), s.preflight...),
-		PromptReceipts:      append([]PromptTransportReceipt(nil), s.prompt...),
-		CollectionReceipts:  append([]CollectionReceipt(nil), s.collection...),
-		Events:              append([]ReliabilityEvent(nil), s.events...),
-		RecoveryTransitions: append([]PaneRecoveryTransition(nil), s.recovery...),
+		SchemaVersion:      reliabilitySchemaVersion,
+		Timestamp:          time.Now().UTC(),
+		RunID:              s.runID,
+		Degraded:           degraded,
+		Summary:            summary,
+		NextStep:           nextStep,
+		PreflightReceipts:  append([]ProviderPreflightReceipt(nil), s.preflight...),
+		PromptReceipts:     append([]PromptTransportReceipt(nil), s.prompt...),
+		CollectionReceipts: append([]CollectionReceipt(nil), s.collection...),
+		Events:             append([]ReliabilityEvent(nil), s.events...),
 	}
 	return s.writeJSON("failure-bundle.json", bundle)
 }

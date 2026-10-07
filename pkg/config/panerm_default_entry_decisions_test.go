@@ -116,6 +116,25 @@ func defaultEntryRows() []defaultEntryRow {
 			entry: "binary: codex\ninteractive_input: stdin\n",
 			atB:   defaultEntryDecision{Policy: ProviderModelPolicyPinned, Changed: true},
 			after: &managed},
+		// A model the user chose stays, pane keys or not (fix-round item 7,
+		// atB recorded at 60f92ea5). So does an entry B's update already
+		// pinned: only the v0.50.66 auto-pin above moves after a B update.
+		{name: "user-pinned-codex-model-with-pane-args", platform: "codex", provider: "codex", legacyQuality: true,
+			entry: "binary: codex\nmodel_policy: pinned\nargs: [exec, --sandbox, workspace-write, -m, my-own-model]\n" +
+				"pane_args: [-m, my-own-model]\n",
+			atB: defaultEntryDecision{Policy: ProviderModelPolicyPinned,
+				Args: []string{"exec", "--sandbox", "workspace-write", "-m", "my-own-model"}}},
+		{name: "unmarked-user-codex-args-with-pane-args", platform: "codex", provider: "codex", legacyQuality: true,
+			entry: "binary: codex\nargs: [exec, --sandbox, workspace-write, -m, my-own-model]\npane_args: [-m, my-own-model]\n",
+			atB: defaultEntryDecision{Policy: ProviderModelPolicyPinned,
+				Args: []string{"exec", "--sandbox", "workspace-write", "-m", "my-own-model"}, Changed: true}},
+		{name: "historical-canonical-codex-custom-pane-args-after-b-update", platform: "codex", provider: "codex",
+			legacyQuality: true,
+			entry:         "binary: codex\nmodel_policy: pinned\nargs: " + s14HistoricalCodexArgs + "\npane_args: [-m, my-model]\n",
+			atB:           defaultEntryDecision{Policy: ProviderModelPolicyPinned, Args: historicalCodexArgs}},
+		{name: "unmarked-codex-pane-args-only-after-b-update", platform: "codex", provider: "codex", legacyQuality: true,
+			entry: "binary: codex\nmodel_policy: pinned\npane_args: [-m, my-model]\n",
+			atB:   defaultEntryDecision{Policy: ProviderModelPolicyPinned}},
 	}
 }
 
