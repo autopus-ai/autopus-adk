@@ -144,31 +144,6 @@ func TestPaneInteractiveContext(t *testing.T) {
 	}
 }
 
-func TestCodexRuntimeMarkerIncludesCurrentCodexCLIEnv(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name              string
-		codex             string
-		codexCI           string
-		codexThreadID     string
-		codexManagedByNPM string
-		want              bool
-	}{
-		{"legacy CODEX", "1", "", "", "", true},
-		{"codex ci marker", "", "1", "", "", true},
-		{"codex thread marker", "", "", "019f4028-f88f-7051-a738-072a27975cc3", "", true},
-		{"codex npm marker", "", "", "", "1", true},
-		{"no codex marker", "", "", "", "", false},
-	}
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, tt.want, hasCodexRuntimeMarker(tt.codex, tt.codexCI, tt.codexThreadID, tt.codexManagedByNPM))
-		})
-	}
-}
-
 func TestPaneInteractiveContextWithRuntime_ProcessTreeAgentUsesNestedGate(t *testing.T) {
 	t.Parallel()
 

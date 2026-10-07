@@ -28,6 +28,12 @@ func currentOrchestraInvokingProvider() string {
 	)
 }
 
+// hasCodexRuntimeMarker reports whether any environment marker that the Codex
+// CLI exports to its child processes is set.
+func hasCodexRuntimeMarker(codex, codexCI, codexThreadID, codexManagedByNPM string) bool {
+	return codex != "" || codexCI != "" || codexThreadID != "" || codexManagedByNPM != ""
+}
+
 // @AX:NOTE: [AUTO] signal precedence is AUTOPUS_PLATFORM, then exact bounded runtime ancestry, then mutually exclusive legacy markers
 func orchestraInvokerProviderFromSignals(
 	platform string,

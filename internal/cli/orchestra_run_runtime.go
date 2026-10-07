@@ -21,7 +21,6 @@ func applyRuntimeHarnessOverrides(effective effectiveHarnessConfig, flags global
 	if effort := strings.TrimSpace(flags.Effort); effort != "" {
 		if claude, ok := cfg.Orchestra.Providers["claude"]; ok {
 			claude.Args = upsertClaudeEffortArg(claude.Args, effort)
-			claude.PaneArgs = upsertClaudeEffortArg(claude.PaneArgs, effort)
 			cfg.Orchestra.Providers["claude"] = claude
 		}
 	}
@@ -41,7 +40,7 @@ var (
 	orchestraRunLoadConfig     = loadHarnessConfigForFlags
 	orchestraRunBuildProviders = buildProviderConfigsForRuntime
 	// orchestraRunBackendFactory routes explicit OMP providers while preserving
-	// SelectBackend as the pane/subprocess base. Kept as a var for test seams.
+	// SelectBackend as the subprocess base. Kept as a var for test seams.
 	orchestraRunBackendFactory  func(orchestra.OrchestraConfig) orchestra.ExecutionBackend = selectRoutedBackend
 	orchestraRunExecutePipeline                                                            = orchestra.RunSubprocessPipeline
 )

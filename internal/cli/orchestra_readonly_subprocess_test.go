@@ -8,18 +8,15 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/insajin/autopus-adk/pkg/orchestra"
-	"github.com/insajin/autopus-adk/pkg/terminal"
 )
 
-// Read-only commands must stay on the subprocess backend even on a pane-capable
-// terminal without --subprocess: the pane launch path adds a permission bypass
-// flag and auto-approves tool prompts.
+// Read-only commands must stay on the subprocess backend even in a
+// pane-capable context without --subprocess: the pane launch path added a
+// permission bypass flag and auto-approved tool prompts. SPEC-PANERM-001
+// retired that path, so the context changes nothing.
 func TestOrchestraBrainstorm_ReadOnlyForcesSubprocessOnPaneTerminal(t *testing.T) {
 	fixture := newBrainstormFixture(t, true)
-
-	origDetector := runOrchestraTerminalDetector
-	t.Cleanup(func() { runOrchestraTerminalDetector = origDetector })
-	runOrchestraTerminalDetector = func() terminal.Terminal { return stubTerminal{name: "cmux"} }
+	tmuxLog := usePaneCapableContext(t)
 
 	runOrchestraExecute = func(_ context.Context, cfg orchestra.OrchestraConfig) (*orchestra.OrchestraResult, error) {
 		fixture.captured = &cfg
@@ -28,10 +25,11 @@ func TestOrchestraBrainstorm_ReadOnlyForcesSubprocessOnPaneTerminal(t *testing.T
 
 	_ = runOrchestraCommand(context.Background(), "brainstorm", "debate", []string{"codex", "gemini"},
 		30, "claude", "brainstorm topic", 1, 0,
-		OrchestraFlags{OutputFormat: orchestraOutputJSON, NoDetach: true, TimeoutChanged: true})
+		OrchestraFlags{OutputFormat: orchestraOutputJSON, TimeoutChanged: true})
 
 	cfg := fixture.captured
 	require.NotNil(t, cfg)
 	assert.True(t, cfg.ReadOnly)
-	assert.True(t, cfg.SubprocessMode, "read-only brainstorm must not select the pane backend")
+	assert.Equal(t, "subprocess", selectRoutedBackend(*cfg).Name(), "read-only brainstorm must not select the pane backend")
+	assert.NoFileExists(t, tmuxLog, "read-only brainstorm must not call the terminal")
 }

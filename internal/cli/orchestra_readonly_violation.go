@@ -21,7 +21,7 @@ const (
 const (
 	readOnlyFieldBinary     = "binary"
 	readOnlyFieldArgs       = "args"
-	readOnlyFieldPaneArgs   = "pane_args"
+	readOnlyFieldPaneArgs   = "pane_args" //nolint:unused // pane argv is no longer validated; SPEC-PANERM-001 W2 (T9) deletes this
 	readOnlyFieldSchemaFlag = "subprocess.schema_flag"
 )
 

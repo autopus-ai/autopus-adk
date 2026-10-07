@@ -85,14 +85,10 @@ func TestRunOrchestraCommand_PaneTerminalWithHookStaysSubprocess(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("AUTOPUS_PLATFORM", "codex")
 	t.Chdir(projectRoot)
+	usePaneCapableContext(t)
 
-	originalDetector := runOrchestraTerminalDetector
 	originalRun := runOrchestraExecute
-	t.Cleanup(func() {
-		runOrchestraTerminalDetector = originalDetector
-		runOrchestraExecute = originalRun
-	})
-	runOrchestraTerminalDetector = func() terminal.Terminal { return stubTerminal{name: "cmux"} }
+	t.Cleanup(func() { runOrchestraExecute = originalRun })
 	var captured orchestra.OrchestraConfig
 	runOrchestraExecute = func(_ context.Context, cfg orchestra.OrchestraConfig) (*orchestra.OrchestraResult, error) {
 		captured = cfg
@@ -106,7 +102,7 @@ func TestRunOrchestraCommand_PaneTerminalWithHookStaysSubprocess(t *testing.T) {
 	require.NoError(t, err)
 	// The pane backend is retired: an active mux plus an installed Stop hook
 	// must still run headless subprocesses without pane hook IPC.
-	assert.True(t, captured.SubprocessMode, "orchestra must never select the pane backend")
+	assert.Equal(t, "subprocess", selectRoutedBackend(captured).Name(), "orchestra must never select the pane backend")
 	assert.False(t, captured.HookMode, "pane hook IPC must stay off")
 }
 

@@ -85,7 +85,7 @@ func TestRunOrchestraCommand_AppliesExplicitTimeoutToProviderExecution(t *testin
 	}
 
 	err = runOrchestraCommand(context.Background(), "plan", "", []string{"codex"}, 300, "", "topic", 0, 0, OrchestraFlags{
-		NoDetach: true, TimeoutChanged: true,
+		TimeoutChanged: true,
 	})
 	require.NoError(t, err)
 	require.Len(t, captured.Providers, 1)

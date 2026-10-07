@@ -108,7 +108,3 @@ func paneInteractiveContextWithRuntime(
 		muxActive,
 	)
 }
-
-func hasCodexRuntimeMarker(codex, codexCI, codexThreadID, codexManagedByNPM string) bool {
-	return codex != "" || codexCI != "" || codexThreadID != "" || codexManagedByNPM != ""
-}

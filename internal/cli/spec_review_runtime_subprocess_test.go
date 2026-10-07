@@ -2,8 +2,6 @@ package cli
 
 import (
 	"context"
-	"strings"
-	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,31 +9,7 @@ import (
 
 	"github.com/insajin/autopus-adk/pkg/config"
 	"github.com/insajin/autopus-adk/pkg/orchestra"
-	"github.com/insajin/autopus-adk/pkg/terminal"
 )
-
-// countingPaneTerminal is a pane-capable terminal that counts pane launches.
-type countingPaneTerminal struct {
-	fakeWiringTerminal
-	splits, longTexts atomic.Int32
-}
-
-func (term *countingPaneTerminal) SplitPane(context.Context, terminal.Direction) (terminal.PaneID, error) {
-	term.splits.Add(1)
-	return "pane-1", nil
-}
-
-func (term *countingPaneTerminal) SendLongText(context.Context, terminal.PaneID, string) error {
-	term.longTexts.Add(1)
-	return nil
-}
-
-func useSpecReviewTerminal(t *testing.T, term terminal.Terminal) {
-	t.Helper()
-	original := specReviewTerminalDetector
-	specReviewTerminalDetector = func() terminal.Terminal { return term }
-	t.Cleanup(func() { specReviewTerminalDetector = original })
-}
 
 // captureSpecReviewRouting records the run config and, for every reviewer
 // and then the judge, the backend the real routed factory selects.
@@ -57,15 +31,14 @@ func captureSpecReviewRouting(t *testing.T) (*orchestra.OrchestraConfig, *[]stri
 	return captured, names
 }
 
-// S2 (REQ-16, REQ-17): on a pane-capable terminal with subprocess mode
-// disabled in config, spec review builds a read-only subprocess config,
-// routes every provider and the judge to the subprocess backend, opens no
-// pane, and says so once.
+// S2 (REQ-17) with SPEC-PANERM-001 REQ-01: in the context that used to select
+// pane execution, spec review builds a read-only config, routes every
+// provider and the judge to the subprocess backend, and calls no terminal.
+// The pane backend is retired, so no subprocess notice is printed either.
 func TestRunSpecReview_PaneCapableTerminalRunsProvidersAsSubprocesses(t *testing.T) {
-	fixture := newReadOnlyReviewFixture(t, func(cfg *config.HarnessConfig) { cfg.Orchestra.Subprocess.Enabled = false })
+	fixture := newReadOnlyReviewFixture(t, nil)
 	useHermeticReadiness(t)
-	term := &countingPaneTerminal{fakeWiringTerminal: fakeWiringTerminal{name: "cmux"}}
-	useSpecReviewTerminal(t, term)
+	tmuxLog := usePaneCapableContext(t)
 	captured, names := captureSpecReviewRouting(t)
 
 	stderr := captureSpecReviewStderr(t, func() {
@@ -73,18 +46,18 @@ func TestRunSpecReview_PaneCapableTerminalRunsProvidersAsSubprocesses(t *testing
 	})
 
 	assert.True(t, captured.ReadOnly)
-	assert.True(t, captured.SubprocessMode)
 	assert.Equal(t, []string{"claude=subprocess", "codex=subprocess", "gemini=subprocess", "claude=subprocess"}, *names)
-	assert.Zero(t, term.splits.Load())
-	assert.Zero(t, term.longTexts.Load())
-	assert.Equal(t, 1, strings.Count(stderr, "spec review: read-only review runs providers in subprocess mode\n"))
+	assert.NoFileExists(t, tmuxLog, "spec review must not call the terminal")
+	assert.NotContains(t, stderr, "read-only review runs providers in subprocess mode")
 }
 
 func TestRunSpecReview_PlainTerminalPrintsNoSubprocessNotice(t *testing.T) {
 	fixture := newReadOnlyReviewFixture(t, nil)
 	fixture.useFakeBackend(t)
 	useHermeticReadiness(t)
-	useSpecReviewTerminal(t, fakeWiringTerminal{name: "plain"})
+	for _, key := range []string{"TMUX", "CMUX_SOCKET_PATH", "CMUX_WORKSPACE_ID", "CMUX_SURFACE_ID", "CMUX_PANE_ID"} {
+		t.Setenv(key, "")
+	}
 
 	stderr := captureSpecReviewStderr(t, func() {
 		require.NoError(t, runSpecReviewWithOptions(context.Background(), fixture.specID, "", 0, specReviewOptions{}))
@@ -100,7 +73,7 @@ func TestRunSpecReview_OMPBackedProviderRoutesToOMPReviewBackend(t *testing.T) {
 	})
 	installReviewJSONRecorders(t, "omp", "codex", "agy")
 	useHermeticReadiness(t)
-	useSpecReviewTerminal(t, &countingPaneTerminal{fakeWiringTerminal: fakeWiringTerminal{name: "tmux"}})
+	usePaneCapableContext(t)
 	_, names := captureSpecReviewRouting(t)
 
 	require.NoError(t, runSpecReviewWithOptions(context.Background(), fixture.specID, "", 0, specReviewOptions{}))

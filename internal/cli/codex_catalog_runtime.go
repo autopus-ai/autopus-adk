@@ -40,7 +40,6 @@ func resolveCodexProviderCapabilitiesWith(
 	for i := range resolved {
 		provider := &resolved[i]
 		provider.Args = append([]string(nil), provider.Args...)
-		provider.PaneArgs = append([]string(nil), provider.PaneArgs...)
 		if provider.Backend == config.ProviderBackendOMP || provider.Name != "codex" || provider.ModelPolicy != config.ProviderModelPolicyQuality {
 			continue
 		}
@@ -52,12 +51,10 @@ func resolveCodexProviderCapabilitiesWith(
 		entry := config.ProviderEntry{
 			Binary:      provider.Binary,
 			Args:        provider.Args,
-			PaneArgs:    provider.PaneArgs,
 			ModelPolicy: provider.ModelPolicy,
 		}
 		entry, resolution := config.ResolveCodexProviderProfile(entry, catalogJSON)
 		provider.Args = entry.Args
-		provider.PaneArgs = entry.PaneArgs
 		reportCodexRuntimeFallback(writer, resolution)
 	}
 	return resolved

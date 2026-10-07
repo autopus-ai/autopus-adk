@@ -87,11 +87,11 @@ func TestReadOnlyProviderPolicy_ViolationCarriesTypedFields(t *testing.T) {
 			wantReason: `requires native binary "claude"`,
 		},
 		{
-			name: "unsafe pane argv",
+			name: "unsafe argv",
 			provider: orchestra.ProviderConfig{
-				Name: "claude", Binary: "claude", Args: []string{"--print"}, PaneArgs: []string{"--print", "--dangerously-skip-permissions"},
+				Name: "claude", Binary: "claude", Args: []string{"--print", "--dangerously-skip-permissions"},
 			},
-			want:       readOnlyPolicyViolation{Provider: "claude", Field: "pane_args", Item: "--dangerously-skip-permissions", Kind: readOnlyUnsafeArgv},
+			want:       readOnlyPolicyViolation{Provider: "claude", Field: "args", Item: "--dangerously-skip-permissions", Kind: readOnlyUnsafeArgv},
 			wantReason: `contains unsafe argv "--dangerously-skip-permissions"`,
 		},
 		{

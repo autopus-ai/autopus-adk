@@ -63,15 +63,14 @@ func readRecordedArgvs(t *testing.T, evidenceDir, name string) [][]string {
 	return argvs
 }
 
-// S1 (REQ-01, REQ-19) at the CLI boundary: on a pane-capable terminal every
+// S1 (REQ-01, REQ-19) at the CLI boundary: in a pane-capable context every
 // reviewer and the judge execute through the real subprocess backend with the
 // projected argv plus only the Execution Boundary runtime items, and the
 // receipt reads its sandbox mode from that executed argv (REQ-07).
 func TestRunSpecReview_RealSubprocessBackendExecutesProjectedArgv(t *testing.T) {
 	fixture := newReadOnlyReviewFixture(t, nil)
 	useHermeticReadiness(t)
-	term := &countingPaneTerminal{fakeWiringTerminal: fakeWiringTerminal{name: "cmux"}}
-	useSpecReviewTerminal(t, term)
+	tmuxLog := usePaneCapableContext(t)
 
 	require.NoError(t, runSpecReviewWithOptions(context.Background(), fixture.specID, "", 0, specReviewOptions{}))
 
@@ -98,7 +97,7 @@ func TestRunSpecReview_RealSubprocessBackendExecutesProjectedArgv(t *testing.T) 
 	for _, argv := range append(append(readRecordedArgvs(t, fixture.evidence, "claude"), codex...), withoutPrompt) {
 		assertNoWideningArgv(t, argv)
 	}
-	assert.Zero(t, term.splits.Load())
+	assert.NoFileExists(t, tmuxLog, "spec review must not call the terminal")
 	receipt := readSpecReviewReceipt(t, fixture.specDir)
 	assert.Equal(t, "PASS", receipt.Verdict)
 	assert.Equal(t, []specReviewProviderPolicyRow{

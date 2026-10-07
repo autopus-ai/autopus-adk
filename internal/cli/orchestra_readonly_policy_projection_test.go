@@ -25,16 +25,16 @@ func withClaudeReadOnlySuffix(args ...string) []string {
 	return append(append([]string(nil), args...), claudeReadOnlySuffix...)
 }
 
-func projectReadOnlyArgsForTest(t *testing.T, name, binary string, args []string) ([]string, []string, error) {
+func projectReadOnlyArgsForTest(t *testing.T, name, binary string, args []string) ([]string, error) {
 	t.Helper()
 	got, err := applyReadOnlyProviderPolicy([]orchestra.ProviderConfig{{
-		Name: name, Binary: binary, Args: append([]string(nil), args...), PaneArgs: append([]string(nil), args...),
+		Name: name, Binary: binary, Args: append([]string(nil), args...),
 	}}, readOnlyPolicyOptions{})
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	require.Len(t, got, 1)
-	return got[0].Args, got[0].PaneArgs, nil
+	return got[0].Args, nil
 }
 
 // S4: claude built-in tools shrink to Read, Grep, Glob and MCP servers are
@@ -70,10 +70,9 @@ func TestReadOnlyProviderPolicy_ClaudeRestrictsToolsAndMCP(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			args, paneArgs, err := projectReadOnlyArgsForTest(t, "claude", "claude", tt.args)
+			args, err := projectReadOnlyArgsForTest(t, "claude", "claude", tt.args)
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, args)
-			assert.Equal(t, tt.want, paneArgs)
 		})
 	}
 
@@ -91,7 +90,7 @@ func TestReadOnlyProviderPolicy_ClaudeRestrictsToolsAndMCP(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			_, _, err := projectReadOnlyArgsForTest(t, "claude", "claude", tt.args)
+			_, err := projectReadOnlyArgsForTest(t, "claude", "claude", tt.args)
 			require.Error(t, err)
 			assert.Equal(t, tt.want, err.Error())
 		})
@@ -138,7 +137,7 @@ func TestReadOnlyProviderPolicy_ReplacesNarrowingValues(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			args, _, err := projectReadOnlyArgsForTest(t, tt.provider, tt.binary, tt.args)
+			args, err := projectReadOnlyArgsForTest(t, tt.provider, tt.binary, tt.args)
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, args)
 		})
@@ -204,15 +203,13 @@ func fDefaultReadOnlyProviders() []orchestra.ProviderConfig {
 	return []orchestra.ProviderConfig{
 		{
 			Name: "claude", Binary: "claude",
-			Args:     []string{"--print", "--model", "claude-fable-5-1", "--effort", "max"},
-			PaneArgs: []string{"--print", "--model", "claude-fable-5-1", "--effort", "max"},
+			Args: []string{"--print", "--model", "claude-fable-5-1", "--effort", "max"},
 		},
 		{
 			Name: "codex", Binary: "codex", SchemaFlag: "--output-schema",
-			Args:     []string{"exec", "--json", "--sandbox", "workspace-write", "-m", "gpt-5.6-sol", "-c", `model_reasoning_effort="max"`},
-			PaneArgs: []string{"-m", "gpt-5.6-sol", "-c", `model_reasoning_effort="max"`},
+			Args: []string{"exec", "--json", "--sandbox", "workspace-write", "-m", "gpt-5.6-sol", "-c", `model_reasoning_effort="max"`},
 		},
-		{Name: "gemini", Binary: "agy", Args: []string{"--print", ""}, PaneArgs: []string{}, PromptViaArgs: true},
+		{Name: "gemini", Binary: "agy", Args: []string{"--print", ""}, PromptViaArgs: true},
 	}
 }
 
@@ -253,7 +250,7 @@ func TestReadOnlyProviderPolicy_FlagLikeSeparatedValueFailsClosed(t *testing.T) 
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			_, _, err := projectReadOnlyArgsForTest(t, tt.provider, tt.binary, tt.args)
+			_, err := projectReadOnlyArgsForTest(t, tt.provider, tt.binary, tt.args)
 			require.Error(t, err)
 			assert.Equal(t, tt.want, err.Error())
 		})

@@ -17,8 +17,6 @@ var (
 	// read-only reviewer set and judge; tests replace them to inject configs.
 	specReviewProviderAssembly = assembleSpecReviewProviders
 	specReviewJudgeAssembly    = assembleSpecReviewJudge
-	// specReviewTerminalDetector reports the terminal the review runs in.
-	specReviewTerminalDetector = detectStructuredTerminal
 	// specReviewBackendFactory selects the subprocess base for the read-only
 	// review config and routes providers configured with backend: omp to the
 	// OMP review backend.
@@ -27,10 +25,16 @@ var (
 
 // specReviewSubprocessNotice tells a pane-capable terminal why no provider
 // pane opens: read-only review runs every CLI provider as a subprocess.
+//
+//nolint:unused // kept until the SPEC-PANERM-001 W2 deletion merge (T9)
 const specReviewSubprocessNotice = "spec review: read-only review runs providers in subprocess mode"
 
 // announceSpecReviewSubprocessMode prints the subprocess notice once per
-// review when the terminal could host provider panes (REQ-16).
+// review when the terminal could host provider panes (REQ-16). With the pane
+// backend retired no review detects a terminal, so nothing calls it
+// (SPEC-PANERM-001); W2 (T9) deletes it with the notice.
+//
+//nolint:unused // kept until the SPEC-PANERM-001 W2 deletion merge (T9)
 func announceSpecReviewSubprocessMode(w io.Writer, term terminal.Terminal) {
 	if term != nil && term.Name() != "plain" {
 		fmt.Fprintln(w, specReviewSubprocessNotice)

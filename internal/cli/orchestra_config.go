@@ -106,12 +106,7 @@ func resolveProviders(conf *config.OrchestraConf, commandName string, flagProvid
 			})
 			continue
 		}
-		interactiveInput := entry.InteractiveInput
-		// Auto-derive InteractiveInput from PromptViaArgs when not explicitly set
-		if interactiveInput == "" && entry.PromptViaArgs {
-			interactiveInput = "args"
-		}
-		result = append(result, providerConfigFromEntry(name, entry, interactiveInput))
+		result = append(result, providerConfigFromEntry(name, entry))
 	}
 	return result
 }
@@ -201,6 +196,9 @@ func resolveThreshold(conf *config.OrchestraConf, commandName string, flagValue 
 
 // resolveWorkingPatterns returns per-provider working patterns.
 // Uses explicit YAML config if provided, otherwise falls back to built-in defaults.
+// The pane backend was its only consumer; SPEC-PANERM-001 W2 (T9) deletes it.
+//
+//nolint:unused // kept until the SPEC-PANERM-001 W2 deletion merge (T9)
 func resolveWorkingPatterns(providerName string, configured []string) []string {
 	if len(configured) > 0 {
 		return configured

@@ -9,7 +9,6 @@ import (
 
 	"github.com/insajin/autopus-adk/pkg/config"
 	"github.com/insajin/autopus-adk/pkg/orchestra"
-	"github.com/insajin/autopus-adk/pkg/terminal"
 )
 
 func TestOMPProviderBackends_ConfiguresProviderAndJudgeRoutes(t *testing.T) {
@@ -52,12 +51,7 @@ func TestRunOrchestraCommand_AssemblesOMPProviderBackend(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 
 	originalRun := runOrchestraExecute
-	originalDetector := runOrchestraTerminalDetector
-	t.Cleanup(func() {
-		runOrchestraExecute = originalRun
-		runOrchestraTerminalDetector = originalDetector
-	})
-	runOrchestraTerminalDetector = func() terminal.Terminal { return nil }
+	t.Cleanup(func() { runOrchestraExecute = originalRun })
 	var captured orchestra.OrchestraConfig
 	runOrchestraExecute = func(_ context.Context, cfg orchestra.OrchestraConfig) (*orchestra.OrchestraResult, error) {
 		captured = cfg
@@ -66,7 +60,7 @@ func TestRunOrchestraCommand_AssemblesOMPProviderBackend(t *testing.T) {
 
 	err := runOrchestraCommand(
 		context.Background(), "secure", "consensus", []string{"claude"},
-		30, "", "topic", 0, 0, OrchestraFlags{NoDetach: true, NoPersist: true},
+		30, "", "topic", 0, 0, OrchestraFlags{NoPersist: true},
 	)
 
 	require.NoError(t, err)

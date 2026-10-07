@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/insajin/autopus-adk/pkg/orchestra"
-	"github.com/insajin/autopus-adk/pkg/terminal"
 )
 
 func sampleResolvedTimeout() ResolvedOrchestraTimeout {
@@ -213,12 +212,7 @@ func TestSaveOrchestraFailureReport_BlockedYield_PersistsCleanupHandle(t *testin
 func TestRunOrchestraCommand_BlockedYield_WritesRecoveryHandleToStderr(t *testing.T) {
 	t.Chdir(t.TempDir())
 	originalRun := runOrchestraExecute
-	originalDetector := runOrchestraTerminalDetector
-	t.Cleanup(func() {
-		runOrchestraExecute = originalRun
-		runOrchestraTerminalDetector = originalDetector
-	})
-	runOrchestraTerminalDetector = func() terminal.Terminal { return stubTerminal{name: "plain"} }
+	t.Cleanup(func() { runOrchestraExecute = originalRun })
 	runOrchestraExecute = func(context.Context, orchestra.OrchestraConfig) (*orchestra.OrchestraResult, error) {
 		return &orchestra.OrchestraResult{
 			TerminalState:       orchestra.TerminalBlocked,
@@ -237,7 +231,7 @@ func TestRunOrchestraCommand_BlockedYield_WritesRecoveryHandleToStderr(t *testin
 	stderr := captureSpecReviewStderr(t, func() {
 		runErr = runOrchestraCommand(
 			context.Background(), "brainstorm", "consensus", []string{"claude", "gemini"},
-			30, "", "topic", 0, 0, OrchestraFlags{NoDetach: true},
+			30, "", "topic", 0, 0, OrchestraFlags{},
 		)
 	})
 

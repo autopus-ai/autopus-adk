@@ -190,16 +190,15 @@ func buildProviderConfigsForRuntime(names []string, quality, effort string) []or
 	}
 	claudeEntry := config.DefaultClaudeProviderEntry()
 	knownProviders := map[string]orchestra.ProviderConfig{
-		"claude": {Name: "claude", Binary: claudeEntry.Binary, ModelFamily: "anthropic", Args: upsertClaudeEffortArg(claudeEntry.Args, effort), PaneArgs: upsertClaudeEffortArg(claudeEntry.PaneArgs, effort), PromptViaArgs: false},
+		"claude": {Name: "claude", Binary: claudeEntry.Binary, ModelFamily: "anthropic", Args: upsertClaudeEffortArg(claudeEntry.Args, effort), PromptViaArgs: false},
 		// SPEC-ORCH-021 REQ-014/015: codex subprocess uses `exec --sandbox workspace-write`
-		// (no deprecated --full-auto) with reasoning effort aligned to autopus.yaml; pane argv
-		// stays interactive (no leading `exec`). SchemaFlag carries the structured schema.
-		"codex": providerConfigFromEntry("codex", codexEntry, ""),
+		// (no deprecated --full-auto) with reasoning effort aligned to autopus.yaml.
+		// SchemaFlag carries the structured schema.
+		"codex": providerConfigFromEntry("codex", codexEntry),
 		// SPEC-ORCH-021 REQ-014/015: gemini (`agy`) --print is a STRING flag taking the prompt
 		// as its value. Pass the prompt in the empty "" slot via PromptViaArgs (injectPromptArg
-		// replaces "" with the prompt) → `agy --print "<prompt>"`. Pane argv must be interactive,
-		// so it carries no --print.
-		"gemini": {Name: "gemini", Binary: "agy", ModelFamily: "google", Args: []string{"--print", ""}, PaneArgs: []string{}, PromptViaArgs: true, StartupTimeout: defaultProviderStartupTimeout("gemini"), OutputFormat: "text"},
+		// replaces "" with the prompt) → `agy --print "<prompt>"`.
+		"gemini": {Name: "gemini", Binary: "agy", ModelFamily: "google", Args: []string{"--print", ""}, PromptViaArgs: true, StartupTimeout: defaultProviderStartupTimeout("gemini"), OutputFormat: "text"},
 	}
 
 	var result []orchestra.ProviderConfig
@@ -218,7 +217,9 @@ func buildProviderConfigsForRuntime(names []string, quality, effort string) []or
 	return result
 }
 
-func providerConfigFromEntry(name string, entry config.ProviderEntry, interactiveInput string) orchestra.ProviderConfig {
+// providerConfigFromEntry maps a configured provider onto the subprocess or
+// OMP execution config. The pane-only keys of the entry are not carried.
+func providerConfigFromEntry(name string, entry config.ProviderEntry) orchestra.ProviderConfig {
 	binary := entry.Binary
 	modelFamily := providerModelFamily(name)
 	var tools []string
@@ -239,13 +240,10 @@ func providerConfigFromEntry(name string, entry config.ProviderEntry, interactiv
 		Binary:           binary,
 		ModelFamily:      modelFamily,
 		Args:             append([]string(nil), entry.Args...),
-		PaneArgs:         append([]string(nil), entry.PaneArgs...),
 		ModelPolicy:      entry.ModelPolicy,
 		PromptViaArgs:    entry.PromptViaArgs,
-		InteractiveInput: interactiveInput,
 		StartupTimeout:   resolveProviderStartupTimeout(name),
 		ExecutionTimeout: resolveProviderExecutionTimeout(entry),
-		WorkingPatterns:  resolveWorkingPatterns(name, entry.WorkingPatterns),
 		SchemaFlag:       entry.Subprocess.SchemaFlag,
 		StdinMode:        entry.Subprocess.StdinMode,
 		OutputFormat:     entry.Subprocess.OutputFormat,

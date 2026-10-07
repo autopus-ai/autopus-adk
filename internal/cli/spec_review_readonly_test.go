@@ -26,7 +26,7 @@ func fDefaultSpecReviewConfig() *config.HarnessConfig {
 	cfg.Orchestra.Providers = map[string]config.ProviderEntry{}
 	for _, provider := range fDefaultReadOnlyProviders() {
 		cfg.Orchestra.Providers[provider.Name] = config.ProviderEntry{
-			Binary: provider.Binary, Args: provider.Args, PaneArgs: provider.PaneArgs, PromptViaArgs: provider.PromptViaArgs,
+			Binary: provider.Binary, Args: provider.Args, PromptViaArgs: provider.PromptViaArgs,
 			Subprocess: config.SubprocessProvConf{SchemaFlag: provider.SchemaFlag},
 		}
 	}
@@ -80,8 +80,8 @@ func TestAssembleSpecReviewProviders_ExplicitViolationFailsBeforeExecution(t *te
 			`spec review: provider "claude" rejected by the read-only policy: contains unsupported argv "--verbose" (config key: orchestra.providers.claude.args; remedy: remove "--verbose" from orchestra.providers.claude.args)`},
 		{"claude allowed tools", "claude", func(e *config.ProviderEntry) { e.Args = []string{"--print", "--allowedTools", "Bash(git *)"} },
 			`spec review: provider "claude" rejected by the read-only policy: contains unsupported argv "--allowedTools" (config key: orchestra.providers.claude.args; remedy: remove "--allowedTools" from orchestra.providers.claude.args)`},
-		{"claude pane bypass", "claude", func(e *config.ProviderEntry) { e.PaneArgs = []string{"--print", "--dangerously-skip-permissions"} },
-			`spec review: provider "claude" rejected by the read-only policy: contains unsafe argv "--dangerously-skip-permissions" (config key: orchestra.providers.claude.pane_args; remedy: remove "--dangerously-skip-permissions" from orchestra.providers.claude.pane_args)`},
+		{"claude bypass", "claude", func(e *config.ProviderEntry) { e.Args = []string{"--print", "--dangerously-skip-permissions"} },
+			`spec review: provider "claude" rejected by the read-only policy: contains unsafe argv "--dangerously-skip-permissions" (config key: orchestra.providers.claude.args; remedy: remove "--dangerously-skip-permissions" from orchestra.providers.claude.args)`},
 		{"claude wrapper", "claude", func(e *config.ProviderEntry) { e.Binary = claudeWrapper },
 			`spec review: provider "claude" rejected by the read-only policy: requires native binary "claude" (config key: orchestra.providers.claude.binary; remedy: set orchestra.providers.claude.binary to "claude")`},
 		{"codex quality wrapper", "codex", func(e *config.ProviderEntry) {
