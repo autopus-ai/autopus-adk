@@ -25,6 +25,5 @@ Stop entry (group S handler, then `./scripts/notify.sh`) in W-claude and W-codex
 
 `{{ROOT}}` in JSON files stands for the workspace copy's absolute path; tests substitute it when they copy a fixture.
 `stale_hooks_fixture_test.go` holds the integrity checks, the W-mix and W-oc-bad guards that hold at B, and the S11
-retraction oracle, which is red at B and skips with a reason naming its owner task (T11) until it lands;
-`stale_hooks_s12_test.go` holds the S12 idempotency and fault-injection oracles (T11).
-`AUTOPUS_PANERM_RED=1 go test ./internal/cli -run TestStaleHookFixtures` runs it anyway.
+retraction oracle, which was red at B and runs since T11 landed; `stale_hooks_s12_test.go` holds the S12 idempotency
+and fault-injection oracles (T11), which inject the fault through `adapter.SetTransactionStepHookForTest`.

@@ -100,5 +100,11 @@ func claudeCleanAllowedPaths() (map[string]bool, error) {
 		allowed[filepath.ToSlash(mapping.TargetPath)] = true
 	}
 	allowed[".claude/hooks/autopus/conditional-rules.json"] = true
+	// The group S completion hooks are no longer generated, but a manifest
+	// written before SPEC-PANERM-001 still records them, and Clean refuses a
+	// manifest that names a path outside this allowlist.
+	for _, rel := range adapter.StaleCompletionHookScripts(adapterName) {
+		allowed[rel] = true
+	}
 	return allowed, nil
 }

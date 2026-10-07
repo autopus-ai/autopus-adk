@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"net/url"
 	"path/filepath"
+	"sort"
 	"strings"
+
+	"github.com/insajin/autopus-adk/pkg/adapter"
 )
 
 // Native V2 values take precedence; legacy tuples remain intact when selected.
@@ -196,6 +199,55 @@ func mergePluginConfig(doc map[string]any, managed []string, v2 bool, root strin
 	doc[key] = entries
 	return nil
 }
+
+// retractStalePluginEntries removes every plugin entry that loads a group S
+// script (SPEC-PANERM-001): an entry matches when managedEntry holds for the
+// script's root-relative path or "./" plus it, which covers the bare, "./",
+// absolute, and file: forms. It reads the entries effectivePluginConfig
+// accepts and, on V2, a coexisting legacy plugin entry the way
+// mergePluginConfig treats it, and returns the loaded scripts in sorted order.
+// A config that effectivePluginConfig rejects is returned untouched with its
+// error, so it is never rewritten.
+func retractStalePluginEntries(doc map[string]any, v2 bool, root string) ([]string, error) {
+	key, entries, err := effectivePluginConfig(doc, v2)
+	if err != nil {
+		return nil, err
+	}
+	loaded := map[string]bool{}
+	if kept, changed := withoutStalePluginEntries(entries, root, loaded); changed {
+		doc[key] = kept
+	}
+	if legacy, ok := doc["plugin"].([]any); ok && key == "plugins" {
+		if kept, changed := withoutStalePluginEntries(legacy, root, loaded); changed {
+			doc["plugin"] = kept
+		}
+	}
+	scripts := make([]string, 0, len(loaded))
+	for script := range loaded {
+		scripts = append(scripts, script)
+	}
+	sort.Strings(scripts)
+	return scripts, nil
+}
+
+func withoutStalePluginEntries(entries []any, root string, loaded map[string]bool) ([]any, bool) {
+	kept := make([]any, 0, len(entries))
+	for _, entry := range entries {
+		path := pluginEntryPath(entry)
+		matched := false
+		for _, script := range adapter.AllStaleCompletionHookScripts() {
+			if managedEntry(path, script, root) || managedEntry(path, "./"+script, root) {
+				loaded[script], matched = true, true
+				break
+			}
+		}
+		if !matched {
+			kept = append(kept, entry)
+		}
+	}
+	return kept, len(kept) != len(entries)
+}
+
 func normalizeManagedPath(path string) string {
 	if strings.HasPrefix(path, ".opencode/") {
 		return "./" + path

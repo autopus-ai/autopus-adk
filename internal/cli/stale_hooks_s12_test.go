@@ -5,7 +5,7 @@ package cli_test
 // records and never touches the user-level settings file; a fault injected
 // into the first write after the removes leaves the claude-code surface
 // byte-identical, and a clean rerun reaches the S11 end state. Both oracles
-// are red at B and skip until T11 lands; the W-mix and W-oc-bad guards live in
+// were red at B and run since T11; the W-mix and W-oc-bad guards live in
 // stale_hooks_fixture_test.go, and the binary O revert path is RFP-3 (T19).
 
 import (
@@ -23,15 +23,15 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/insajin/autopus-adk/pkg/adapter"
 )
 
 // setTransactionStepHook installs hook as adapter.transactionStepHook, the
-// [NEW] seam of plan.md T11 that ApplyTransaction calls before each step with
-// the step kind ("remove" or "write"; the manifest is a write) and the
-// root-relative path, and returns a restore func. It stays nil until T11 adds
-// the seam together with a setter that internal/cli tests can reach and
-// assigns that setter here.
-var setTransactionStepHook func(hook func(op, path string) error) (restore func())
+// seam of plan.md T11 that ApplyTransaction calls before each step with the
+// step kind ("remove" or "write"; the manifest is a write) and the
+// root-relative path, and returns a restore func.
+var setTransactionStepHook = adapter.SetTransactionStepHookForTest
 
 var staleHookManifestGeneratedAt = regexp.MustCompile(`"generated_at":\s*"[^"]*"`)
 
@@ -85,8 +85,6 @@ func writeUserLevelClaudeSettings(t *testing.T) (string, []byte) {
 }
 
 func TestStaleHookFixtures_SecondUpdateChangesNothing(t *testing.T) {
-	skipUntilPanermTask(t, "T11 (W3, after the T10 asset deletion in W2)",
-		"B's first auto update keeps every group S member, so there is no retracted state to repeat")
 	for _, ws := range staleHookRetractionWorkspaces {
 		t.Run(ws.name, func(t *testing.T) {
 			useStaleHookEnv(t, ws.opencode)
@@ -127,10 +125,6 @@ func claudeSurface(t *testing.T, root string) map[string]string {
 }
 
 func TestStaleHookFixtures_FailedUpdateKeepsClaudeSurface(t *testing.T) {
-	skipUntilPanermTask(t, "T11 (W3)",
-		"adapter.transactionStepHook does not exist at B, so no fault can reach the update transaction")
-	require.NotNil(t, setTransactionStepHook,
-		"T11 adds adapter.transactionStepHook and assigns its test setter to setTransactionStepHook")
 	useStaleHookEnv(t, "")
 	root := copyStaleHookWorkspace(t, "W-claude")
 	before := claudeSurface(t, root)

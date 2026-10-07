@@ -88,6 +88,7 @@ func (a *Adapter) removeManagedSettingsKeys() error {
 		return err
 	}
 	removeAuthoredLegacyHooks(settings, append(defaultLegacyHookConfigs(), a.configuredLegacyGeminiHooks(cfg)...))
+	retractStaleCompletionHandlers(settings)
 	currentServers, _ := settings["mcpServers"].(map[string]any)
 	authoredServers, _ := authored["mcpServers"].(map[string]any)
 	for name, value := range authoredServers {
@@ -106,6 +107,25 @@ func (a *Adapter) removeManagedSettingsKeys() error {
 		return err
 	}
 	return adapter.WriteFileIfChanged(path, append(out, '\n'), 0o644)
+}
+
+// retractStaleCompletionHandlers removes the group S handlers
+// (SPEC-PANERM-001: the AfterAgent hook-gemini-afteragent.sh handler that
+// legacy Gemini generation wrote) from .gemini/settings.json. The authored-hook
+// subtraction cannot see them because generation no longer authors them, yet
+// update and Clean both delete the script they run. A user handler sharing
+// their entry stays.
+func retractStaleCompletionHandlers(settings map[string]any) {
+	hooks, ok := settings["hooks"].(map[string]any)
+	if !ok {
+		return
+	}
+	removed := adapter.RetractHookHandlers(hooks, func(command string) bool {
+		return adapter.IsStaleCompletionHookCommand(adapterName, command)
+	})
+	if removed > 0 && len(hooks) == 0 {
+		delete(settings, "hooks")
+	}
 }
 
 func defaultLegacyHookConfigs() []adapter.HookConfig {

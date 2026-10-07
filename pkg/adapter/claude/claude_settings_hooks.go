@@ -1,6 +1,10 @@
 package claude
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/insajin/autopus-adk/pkg/adapter"
+)
 
 var managedClaudeHookCommandPrefixes = []string{
 	"auto check --hygiene --arch --quiet --staged --warn-only",
@@ -12,25 +16,12 @@ var managedClaudeHookCommandPrefixes = []string{
 	`"${CLAUDE_PROJECT_DIR:-.}"/.claude/hooks/autopus/`,
 }
 
-// retractManagedHookEntries removes only Autopus-owned entries from every event.
+// retractManagedHookEntries removes every Autopus-owned handler from every
+// event. The unit is a handler (SPEC-PANERM-001 REQ-13): an entry is dropped
+// only when no handler remains, so a user handler that shares an entry with a
+// managed or group S one survives with its matcher and position.
 func retractManagedHookEntries(hooks map[string]any) {
-	for event, raw := range hooks {
-		entries, ok := raw.([]any)
-		if !ok {
-			continue
-		}
-		kept := make([]any, 0, len(entries))
-		for _, entry := range entries {
-			if !isManagedClaudeHookEntry(entry) {
-				kept = append(kept, entry)
-			}
-		}
-		if len(kept) == 0 {
-			delete(hooks, event)
-			continue
-		}
-		hooks[event] = kept
-	}
+	adapter.RetractHookHandlers(hooks, isManagedClaudeHookCommand)
 }
 
 func isManagedClaudeHookEntry(entry any) bool {
@@ -48,7 +39,7 @@ func isManagedClaudeHookEntry(entry any) bool {
 
 func isManagedClaudeHookCommand(command string) bool {
 	trimmed := strings.TrimSpace(command)
-	if isStickyCommand(trimmed) {
+	if isStickyCommand(trimmed) || adapter.IsStaleCompletionHookCommand(adapterName, trimmed) {
 		return true
 	}
 	for _, prefix := range managedClaudeHookCommandPrefixes {

@@ -41,15 +41,13 @@ const (
 // members below are the deletion half of a migration whose reference half
 // already landed in code.
 //
-// `.claude/hooks/autopus/hook-opencode-complete.ts` is a deliberate omission.
-// It is an orphan too — pkg/content/hooks_completion.go only ever registers
-// `.sh` scripts under that directory for claude-code, so nothing this adapter
-// writes references it — but no code declares that path legacy the way the two
-// members above are declared legacy. It is also executable: opencode's
-// InjectOrchestraPlugin takes an arbitrary scriptPath, so an out-of-band caller
-// can have pointed `opencode.json` at this copy, and this adapter cannot see
-// another platform's config. Deleting it is a one-way loss with no in-repo
-// authority for the claim, so it is left for the doctor's operator to judge.
+// The retired orchestra completion hooks under `.claude/hooks/autopus/`,
+// including the orphan `hook-opencode-complete.ts`, are not members here. They
+// are group S of SPEC-PANERM-001 (adapter.StaleCompletionHookScripts): the
+// update deletes them through adapter.StaleCompletionScriptRemoves, which
+// keeps a script that a settings file or `opencode.json` still names until the
+// transaction that retracts that reference, and the doctor reports them as
+// stale completion hooks rather than as an obsolete surface.
 func obsoleteClaudeSurfacePaths(root string) ([]string, error) {
 	paths := legacyFlatClaudeSkillPaths(root)
 	relocated, err := relocatedClaudeRulePaths(root)

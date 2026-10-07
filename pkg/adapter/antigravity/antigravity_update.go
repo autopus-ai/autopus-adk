@@ -151,10 +151,23 @@ func (a *Adapter) buildUpdateTransactionPlan(
 	}
 	diff := adapter.BuildManifestDiff(oldManifest, newFiles, PruneRoots())
 	diff.Prune = retainUserEditedPrunes(a.root, diff.Prune)
+	removes := adapter.TransactionRemovesFromManifestDiff(diff, false)
+	// Group S scripts (SPEC-PANERM-001) leave in the transaction that retracts
+	// their .agents/hooks.json and .gemini/settings.json handlers.
+	planned := make(map[string]bool, len(removes))
+	for _, remove := range removes {
+		planned[filepath.ToSlash(filepath.Clean(remove.Path))] = true
+	}
+	scripts := adapter.StaleCompletionHookScripts(adapterName)
+	for _, remove := range adapter.StaleCompletionScriptRemoves(a.root, scripts, writes) {
+		if !planned[remove.Path] {
+			removes = append(removes, remove)
+		}
+	}
 
 	return adapter.TransactionPlan{
 		Writes:   writes,
-		Removes:  adapter.TransactionRemovesFromManifestDiff(diff, false),
+		Removes:  removes,
 		Manifest: adapter.ManifestFromFiles(adapterName, pf),
 	}, pf
 }

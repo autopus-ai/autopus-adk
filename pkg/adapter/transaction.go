@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -15,6 +16,14 @@ const (
 	TransactionStatusCommitted  = "committed"
 	TransactionStatusRolledBack = "rolled_back"
 )
+
+// transactionStepHook is the SPEC-PANERM-001 fault-injection seam. When set,
+// ApplyTransaction calls it before each step with the step kind ("remove" or
+// "write"; the manifest is a write) and the root-relative slash path, and an
+// error fails that step, which rolls the whole transaction back. It is nil in
+// production; tests outside this package set it through
+// SetTransactionStepHookForTest.
+var transactionStepHook atomic.Pointer[func(op, path string) error]
 
 type TransactionPlan struct {
 	Writes   []TransactionWrite
@@ -128,16 +137,25 @@ func newTransaction(root, platform string) (*transaction, error) {
 
 func (tx *transaction) apply(plan TransactionPlan) error {
 	for _, remove := range plan.Removes {
+		if err := runTransactionStepHook("remove", remove.Path); err != nil {
+			return err
+		}
 		if err := tx.removePath(remove); err != nil {
 			return err
 		}
 	}
 	for _, write := range plan.Writes {
+		if err := runTransactionStepHook("write", write.Path); err != nil {
+			return err
+		}
 		if err := tx.writeFile(write); err != nil {
 			return err
 		}
 	}
 	if plan.Manifest != nil {
+		if err := runTransactionStepHook("write", filepath.Join(manifestDir, plan.Manifest.Platform+"-"+manifestFile)); err != nil {
+			return err
+		}
 		if err := tx.writeManifest(plan.Manifest); err != nil {
 			return err
 		}

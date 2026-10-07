@@ -3,6 +3,8 @@ package codex
 import (
 	"encoding/json"
 	"strings"
+
+	"github.com/insajin/autopus-adk/pkg/adapter"
 )
 
 const autopusHookStatusMessage = "Running Autopus hook"
@@ -128,5 +130,6 @@ func isAutopusHookHandler(handler hookHandler) bool {
 	return command == "auto check --hygiene --arch --quiet --staged --warn-only" ||
 		command == "auto react check --quiet" ||
 		strings.Contains(command, "/.codex/hooks/autopus/hook-codex-") ||
-		strings.Contains(command, ".claude/hooks/autopus/hook-codex-")
+		strings.Contains(command, ".claude/hooks/autopus/hook-codex-") ||
+		adapter.IsStaleCompletionHookCommand(adapterName, command)
 }

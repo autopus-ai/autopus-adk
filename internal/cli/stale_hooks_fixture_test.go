@@ -1,8 +1,8 @@
 package cli_test
 
 // SPEC-PANERM-001 T3: the stale completion-hook workspaces (testdata/stale_hooks)
-// that binary O (v0.50.123) generated. The retraction oracle is red at B and is
-// skipped until its owner task lands; AUTOPUS_PANERM_RED=1 runs it anyway.
+// that binary O (v0.50.123) generated. The retraction oracle was red at B and
+// runs since T11 landed the group S retraction.
 
 import (
 	"bytes"
@@ -180,8 +180,6 @@ func TestStaleHookFixtures_HoldTheirGroupSMembers(t *testing.T) {
 }
 
 func TestStaleHookFixtures_UpdateRetractsOnlyGroupS(t *testing.T) {
-	skipUntilPanermTask(t, "T11 (W3, after the T10 asset deletion in W2)",
-		"B's auto update regenerates the completion hooks and drops a mixed entry whole instead of retracting handlers")
 	for _, ws := range staleHookRetractionWorkspaces {
 		t.Run(ws.name, func(t *testing.T) {
 			useStaleHookEnv(t, ws.opencode)
