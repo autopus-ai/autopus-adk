@@ -67,3 +67,38 @@
 (if (string=? (param "MODE") "run")
   (allow file-read-data file-read-xattr file-read-metadata file-test-existence
     (literal (param "ARTIFACT"))))
+
+;; Other processes stay closed (SPEC-HARNEVAL-003 S1). A same-user sibling's
+;; environment, which on the live runner holds the agent credential, is
+;; readable through the kern.procargs2 sysctl, and its state through
+;; proc_info and the kern.proc sysctls; a signal could stop or kill it. So
+;; proc_info and signals reach this process only, and sysctl reads are the
+;; hardware, kernel-version and clock names a Go program, the go command and
+;; a test binary read (the App Sandbox container profile's list, without any
+;; kern.proc or kern.procargs name).
+(deny process-info*)
+(allow process-info* (target self))
+(deny signal)
+(allow signal (target self))
+(deny sysctl-read)
+(allow sysctl-read
+  (sysctl-name
+    "hw.activecpu" "hw.busfrequency" "hw.busfrequency_compat" "hw.byteorder" "hw.cacheconfig"
+    "hw.cachelinesize" "hw.cachelinesize_compat" "hw.cachesize" "hw.cpu64bit_capable" "hw.cpufamily"
+    "hw.cpufrequency" "hw.cpufrequency_compat" "hw.cpufrequency_max" "hw.cpusubfamily" "hw.cpusubtype"
+    "hw.cputype" "hw.l1dcachesize" "hw.l1dcachesize_compat" "hw.l1icachesize" "hw.l1icachesize_compat"
+    "hw.l2cachesize" "hw.l2cachesize_compat" "hw.l2settings" "hw.l3cachesize" "hw.l3cachesize_compat"
+    "hw.l3settings" "hw.logicalcpu" "hw.logicalcpu_max" "hw.machine" "hw.memsize" "hw.model" "hw.ncpu"
+    "hw.nperflevels" "hw.pagesize" "hw.pagesize_compat" "hw.physicalcpu" "hw.physicalcpu_max" "hw.physmem"
+    "hw.product" "hw.target" "hw.tbfrequency" "hw.tbfrequency_compat" "hw.usermem" "hw.vectorunit"
+    "machdep.virtual_address_size" "machdep.ptrauth_enabled"
+    "kern.boottime" "kern.clockrate" "kern.hostname" "kern.hv_vmm_present" "kern.iossupportversion"
+    "kern.maxfilesperproc" "kern.maxproc" "kern.maxvnodes" "kern.memorystatus_level"
+    "kern.monotoniclock_offset_usecs" "kern.ngroups" "kern.osproductversion" "kern.osrelease"
+    "kern.ostype" "kern.osvariant_status" "kern.osversion" "kern.safeboot" "kern.saved_ids"
+    "kern.secure_kernel" "kern.system_version_compat" "kern.usrstack64" "kern.version" "kern.waketime"
+    "security.mac.sandbox.sentinel" "vm.loadavg" "sysctl.name2oid" "sysctl.proc_native")
+  (sysctl-name-prefix "hw.optional.")
+  (sysctl-name-prefix "hw.perflevel")
+  (sysctl-name-prefix "kern.monotonicclock")
+  (sysctl-name-prefix "sysctl.oidfmt."))
