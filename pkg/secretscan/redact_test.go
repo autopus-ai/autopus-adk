@@ -141,12 +141,13 @@ func TestRedact_EmptyInput_ReturnsEmptyUnchanged(t *testing.T) {
 }
 
 // TestRedact_Properties_HoldForEveryFixture asserts the three S11 properties:
-// re-applying Redact is a no-op, the detectors find no span outside a
+// re-applying Redact is a no-op, the spans a pass collects lie inside a
 // placeholder in the output, and no 8-byte fragment of a raw secret span
-// (placeholder bytes excluded) survives.
+// (placeholder bytes excluded) survives. A pass collects its spans on the
+// placeholder-neutral copy, so text after a placeholder is not secret context.
 func TestRedact_Properties_HoldForEveryFixture(t *testing.T) {
 	t.Parallel()
-	for _, fx := range append(s11Fixtures(), extraFixtures()...) {
+	for _, fx := range append(append(s11Fixtures(), extraFixtures()...), reviewFixtures()...) {
 		t.Run(fx.name, func(t *testing.T) {
 			t.Parallel()
 			out, _ := Redact(fx.in)
@@ -156,7 +157,7 @@ func TestRedact_Properties_HoldForEveryFixture(t *testing.T) {
 			assert.False(t, changed, "second pass must not replace anything")
 
 			inPlaceholder := placeholderMask(out)
-			for _, sp := range detect(out) {
+			for _, sp := range spansOf(out, placeholderTokens(out)) {
 				for i := sp.start; i < sp.end; i++ {
 					if !inPlaceholder[i] {
 						t.Fatalf("span [%d,%d) of output %q lies outside a placeholder", sp.start, sp.end, out)
@@ -182,12 +183,12 @@ func placeholderMask(s string) []bool {
 	return mask
 }
 
-// secretFragments returns every n-byte window of the raw detector spans of s,
-// skipping placeholder bytes, which are not raw secret material.
+// secretFragments returns every n-byte window of the spans a pass collects in
+// s, skipping placeholder bytes, which are not raw secret material.
 func secretFragments(s string, n int) []string {
 	inPlaceholder := placeholderMask(s)
 	var fragments []string
-	for _, sp := range detect(s) {
+	for _, sp := range spansOf(s, placeholderTokens(s)) {
 		var run strings.Builder
 		flush := func() {
 			r := run.String()

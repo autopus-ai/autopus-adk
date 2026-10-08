@@ -3,10 +3,10 @@
 //
 // The detector table is the union of the pkg/qa/evidence redaction regexes
 // and the pkg/worker/security default patterns. Every detector runs on the
-// original text; the selected spans are merged and each merged span is
-// replaced once. Applying the detectors one after another instead lets an
-// early replacement erase the context a later detector needs, which leaks the
-// value that detector would have caught.
+// same text; the selected spans are merged and each merged span is replaced
+// once. Applying the detectors one after another instead lets an early
+// replacement erase the context a later detector needs, which leaks the value
+// that detector would have caught.
 package secretscan
 
 import (
@@ -21,6 +21,11 @@ const (
 	PlaceholderPrivateNote = "[REDACTED_PRIVATE_NOTE]"
 	PlaceholderUser        = "[REDACTED_USER]"
 )
+
+// filler stands in for placeholder bytes in the neutral copy the detectors
+// scan. It is neither a word nor a space character, and no detector keyword,
+// token alphabet, or value terminator contains it.
+const filler = '#'
 
 // kind orders span sensitivity; a merged span takes the highest kind.
 type kind int
@@ -58,19 +63,31 @@ type span struct {
 }
 
 // Redact returns s with every detected secret replaced by a placeholder and
-// reports whether it replaced anything. It is deterministic.
+// reports whether it replaced anything. It is deterministic and idempotent:
+// it repeats its pass until the pass changes nothing, so Redact applied to its
+// own output returns that output unchanged.
 //
 // A span that overlaps a placeholder already in s is widened to that
 // placeholder's bounds and redacted as a whole, so a placeholder cannot shield
 // raw text inside the same or an adjacent match. Only a widened span that is
-// exactly one placeholder is skipped, which keeps redacted text stable.
+// exactly one placeholder is skipped.
 func Redact(s string) (string, bool) {
-	if s == "" {
-		return s, false
+	out := s
+	for {
+		next, changed := redactPass(out)
+		if !changed {
+			return out, out != s
+		}
+		out = next
 	}
+}
+
+// redactPass replaces each merged span once. Every changing pass removes raw
+// bytes or joins placeholders, so the passes Redact repeats always end.
+func redactPass(s string) (string, bool) {
 	tokens := placeholderTokens(s)
 	var spans []span
-	for _, sp := range detect(s) {
+	for _, sp := range spansOf(s, tokens) {
 		sp = widen(sp, tokens)
 		if isPlaceholder(s[sp.start:sp.end]) {
 			continue
@@ -92,37 +109,69 @@ func Redact(s string) (string, bool) {
 	return b.String(), true
 }
 
-// detect returns the raw span every detector selects in s.
-func detect(s string) []span {
-	var spans []span
-	for _, d := range detectors {
-		for _, m := range d.re.FindAllStringSubmatchIndex(s, -1) {
-			start, end := d.selectSpan(s, m)
-			if start < 0 || end <= start {
-				continue
-			}
-			spans = append(spans, span{start: start, end: end, kind: d.kind})
+// spansOf returns the spans one pass redacts in s, whose placeholders are
+// tokens. The detectors and the upstream replay scan a neutral copy in which
+// every placeholder is filler, so a placeholder is read as an opaque value:
+// raw text glued to it joins its value, and its own letters (the SECRET of
+// [REDACTED_SECRET]) are no keyword. A span of s itself is added when it lies
+// clear of every placeholder, or when it overlaps one and also overlaps a span
+// of the neutral copy, which lets a match that starts inside a placeholder
+// absorb it into the raw secret next to it. A span that only placeholder text
+// explains is dropped, so the text after a placeholder is not redacted again.
+func spansOf(s string, tokens []span) []span {
+	scan := neutral(s, tokens)
+	spans := append(detect(scan), replaySpans(scan)...)
+	if len(tokens) == 0 {
+		return spans
+	}
+	confirmed := merge(append([]span(nil), spans...))
+	for _, sp := range detect(s) {
+		if !overlapsAny(sp, tokens) || overlapsAny(sp, confirmed) {
+			spans = append(spans, sp)
 		}
 	}
 	return spans
+}
+
+// neutral returns s with every token's bytes replaced by filler; positions
+// are unchanged, so a span of the copy is a span of s.
+func neutral(s string, tokens []span) string {
+	if len(tokens) == 0 {
+		return s
+	}
+	b := []byte(s)
+	for _, tok := range tokens {
+		for i := tok.start; i < tok.end; i++ {
+			b[i] = filler
+		}
+	}
+	return string(b)
+}
+
+// overlapsAny reports whether sp overlaps one of the disjoint, sorted spans.
+func overlapsAny(sp span, sorted []span) bool {
+	i := sort.Search(len(sorted), func(i int) bool { return sorted[i].end > sp.start })
+	return i < len(sorted) && sorted[i].start < sp.end
 }
 
 // widen grows sp to the bounds of every placeholder it overlaps. The span
 // also takes the kind of a covered placeholder when that kind is higher, so a
 // replacement never relabels secret material as a lower kind.
 func widen(sp span, tokens []span) span {
-	for _, tok := range tokens {
-		if tok.start < sp.end && sp.start < tok.end {
-			sp.start = min(sp.start, tok.start)
-			sp.end = max(sp.end, tok.end)
-			sp.kind = max(sp.kind, tok.kind)
-		}
+	i := sort.Search(len(tokens), func(i int) bool { return tokens[i].end > sp.start })
+	for ; i < len(tokens) && tokens[i].start < sp.end; i++ {
+		sp.start = min(sp.start, tokens[i].start)
+		sp.end = max(sp.end, tokens[i].end)
+		sp.kind = max(sp.kind, tokens[i].kind)
 	}
 	return sp
 }
 
 // merge sorts spans by start and joins spans that overlap or touch.
 func merge(spans []span) []span {
+	if len(spans) == 0 {
+		return nil
+	}
 	sort.Slice(spans, func(i, j int) bool {
 		if spans[i].start != spans[j].start {
 			return spans[i].start < spans[j].start

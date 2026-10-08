@@ -3,20 +3,24 @@ package secretscan
 import (
 	"regexp"
 	"strings"
+	"unicode"
 )
 
 // selector picks the secret part of one match. m is the submatch index slice
 // from FindAllStringSubmatchIndex; a negative start means "no span".
 type selector func(s string, m []int) (start, end int)
 
+// detector is one table row: the regex, the kind of span it yields, the part
+// of a match Redact selects, and how its upstream redactor rewrites a match.
 type detector struct {
 	re         *regexp.Regexp
 	kind       kind
 	selectSpan selector
+	rewrite    rewrite
 }
 
-func newDetector(source string, k kind, sel selector) detector {
-	return detector{re: regexp.MustCompile(source), kind: k, selectSpan: sel}
+func newDetector(source string, k kind, sel selector, rw rewrite) detector {
+	return detector{re: regexp.MustCompile(source), kind: k, selectSpan: sel, rewrite: rw}
 }
 
 // detectors copies, verbatim and in order, the 14 regexes of
@@ -25,43 +29,118 @@ func newDetector(source string, k kind, sel selector) detector {
 // test compares the sources, so an upstream change fails the test.
 //
 // The qa detectors select the part RedactText replaces; the worker patterns
-// redact the whole match. The qa prose exemption is deliberately not applied.
+// redact the whole match, a private key header with its key body. The qa
+// prose exemption is deliberately not applied.
 var detectors = []detector{
 	// pkg/qa/evidence secretPatterns.
-	newDetector(`\bBearer\s+[A-Za-z0-9._~+/=-]{12,}\b`, kindSecret, bearerValue),
-	newDetector(`\bsk-(?:proj-)?[A-Za-z0-9_-]{16,}\b`, kindSecret, wholeMatch),
-	newDetector(`\bsk-ant-[A-Za-z0-9_-]{16,}\b`, kindSecret, wholeMatch),
-	newDetector(`\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{20,}\b`, kindSecret, wholeMatch),
-	newDetector(`\bgithub_pat_[A-Za-z0-9_]{20,}\b`, kindSecret, wholeMatch),
+	newDetector(`\bBearer\s+[A-Za-z0-9._~+/=-]{12,}\b`, kindSecret, bearerValue, rewriteSpan),
+	newDetector(`\bsk-(?:proj-)?[A-Za-z0-9_-]{16,}\b`, kindSecret, wholeMatch, rewriteSpan),
+	newDetector(`\bsk-ant-[A-Za-z0-9_-]{16,}\b`, kindSecret, wholeMatch, rewriteSpan),
+	newDetector(`\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{20,}\b`, kindSecret, wholeMatch, rewriteSpan),
+	newDetector(`\bgithub_pat_[A-Za-z0-9_]{20,}\b`, kindSecret, wholeMatch, rewriteSpan),
 	// sensitiveAssignmentRe: the value group.
-	newDetector(`(?i)\b([A-Z0-9_.-]*(TOKEN|SECRET|PASSWORD|PASSWD|PWD|API[_-]?KEY|PRIVATE[_-]?KEY|ACCESS[_-]?KEY|CREDENTIAL|COOKIE|SESSION|AUTH)[A-Z0-9_.-]*)(\s*[:=]\s*)(["']?)([^\s"',}\]]{3,})(["']?)`, kindSecret, group(5)),
+	newDetector(`(?i)\b([A-Z0-9_.-]*(TOKEN|SECRET|PASSWORD|PASSWD|PWD|API[_-]?KEY|PRIVATE[_-]?KEY|ACCESS[_-]?KEY|CREDENTIAL|COOKIE|SESSION|AUTH)[A-Z0-9_.-]*)(\s*[:=]\s*)(["']?)([^\s"',}\]]{3,})(["']?)`, kindSecret, group(5), rewriteUnredacted),
 	// sensitiveFlagValueRe: the flag value group.
-	newDetector(`(?i)(^|[\s"'({\[])(--?[A-Z0-9_.-]*(TOKEN|SECRET|PASSWORD|PASSWD|PWD|API[_-]?KEY|PRIVATE[_-]?KEY|ACCESS[_-]?KEY|CREDENTIAL|COOKIE|SESSION|AUTH|KEY|PASS)[A-Z0-9_.-]*(?:=|\s+))("[^"]*"|'[^']*'|[^\s"',}\]]{3,})`, kindSecret, group(4)),
+	newDetector(`(?i)(^|[\s"'({\[])(--?[A-Z0-9_.-]*(TOKEN|SECRET|PASSWORD|PASSWD|PWD|API[_-]?KEY|PRIVATE[_-]?KEY|ACCESS[_-]?KEY|CREDENTIAL|COOKIE|SESSION|AUTH|KEY|PASS)[A-Z0-9_.-]*(?:=|\s+))("[^"]*"|'[^']*'|[^\s"',}\]]{3,})`, kindSecret, group(4), rewriteUnredacted),
 	// jsonSensitiveRe: the JSON value, inside its quotes.
-	newDetector(`(?i)("[^"]*(token|secret|password|passwd|pwd|api[_-]?key|apikey|private[_-]?key|access[_-]?key|credential|cookie|session|authorization|auth)[^"]*"\s*:\s*)("[^"]*"|[^",\n}\]]+)`, kindSecret, unquotedGroup(3)),
+	newDetector(`(?i)("[^"]*(token|secret|password|passwd|pwd|api[_-]?key|apikey|private[_-]?key|access[_-]?key|credential|cookie|session|authorization|auth)[^"]*"\s*:\s*)("[^"]*"|[^",\n}\]]+)`, kindSecret, unquotedGroup(3), rewriteJSONValue),
 	// credentialURLRe: the userinfo between the scheme and the trailing '@'.
-	newDetector(`(?i)\b([a-z][a-z0-9+.\-]*://)[^/\s:@]+:[^/\s@]+@`, kindSecret, credentialUserinfo),
+	newDetector(`(?i)\b([a-z][a-z0-9+.\-]*://)[^/\s:@]+:[^/\s@]+@`, kindSecret, credentialUserinfo, rewriteSpan),
 	// secretQueryRe: the query value.
-	newDetector(`(?i)([?&][^=\s&]*(TOKEN|SECRET|PASSWORD|PASSWD|PWD|API[_-]?KEY|PRIVATE[_-]?KEY|ACCESS[_-]?KEY|CREDENTIAL|COOKIE|SESSION|AUTH|KEY|PASS)[^=\s&]*=)[^&\s"']+`, kindSecret, afterGroup(1)),
+	newDetector(`(?i)([?&][^=\s&]*(TOKEN|SECRET|PASSWORD|PASSWD|PWD|API[_-]?KEY|PRIVATE[_-]?KEY|ACCESS[_-]?KEY|CREDENTIAL|COOKIE|SESSION|AUTH|KEY|PASS)[^=\s&]*=)[^&\s"']+`, kindSecret, afterGroup(1), rewriteSpan),
 	// privateNoteRe and jsonPrivateNoteRe: the note value.
-	newDetector(`(?im)\b((local[_ -]?vault[_ -]?note|vault[_ -]?note|private[_ -]?note|private_note_body|note[_ -]?body|localNoteBody|vaultNoteBody|vaultNoteContent)[^:=\n"{}]*\s*[:=]\s*)([^,\n\r}]*)`, kindPrivateNote, group(3)),
-	newDetector(`(?i)("[^"]*(localNote|vaultNote|privateNote|noteBody|note_body|noteContent|note_content)[^"]*"\s*:\s*)("[^"]*"|[^",\n}\]]+)`, kindPrivateNote, unquotedGroup(3)),
+	newDetector(`(?im)\b((local[_ -]?vault[_ -]?note|vault[_ -]?note|private[_ -]?note|private_note_body|note[_ -]?body|localNoteBody|vaultNoteBody|vaultNoteContent)[^:=\n"{}]*\s*[:=]\s*)([^,\n\r}]*)`, kindPrivateNote, group(3), rewriteSpan),
+	newDetector(`(?i)("[^"]*(localNote|vaultNote|privateNote|noteBody|note_body|noteContent|note_content)[^"]*"\s*:\s*)("[^"]*"|[^",\n}\]]+)`, kindPrivateNote, unquotedGroup(3), rewriteJSONValue),
 	// userPathRe and windowsUserPathRe: the user name.
-	newDetector(`(file://)?/(Users|home)/([^/\s:"']+)(/[^\s"',)]*)?`, kindUser, group(3)),
-	newDetector(`([A-Za-z]:\\+Users\\+)([^\\\s:"']+)((?:\\+[^\s"',)]*)?)`, kindUser, group(2)),
+	newDetector(`(file://)?/(Users|home)/([^/\s:"']+)(/[^\s"',)]*)?`, kindUser, group(3), rewriteUserName),
+	newDetector(`([A-Za-z]:\\+Users\\+)([^\\\s:"']+)((?:\\+[^\s"',)]*)?)`, kindUser, group(2), rewriteSpan),
 
 	// pkg/worker/security default patterns.
-	newDetector(`sk-[a-zA-Z0-9]{20,}`, kindSecret, wholeMatch),
-	newDetector(`AKIA[A-Z0-9]{16}`, kindSecret, wholeMatch),
-	newDetector(`ghp_[a-zA-Z0-9]{36}`, kindSecret, wholeMatch),
-	newDetector(`gho_[a-zA-Z0-9]{36}`, kindSecret, wholeMatch),
-	newDetector(`Bearer [a-zA-Z0-9._\-]+`, kindSecret, wholeMatch),
-	newDetector(`(?i)(password|secret|api_key|apikey|token)\s*[=:]\s*\S+`, kindSecret, wholeMatch),
-	newDetector(`(?i)(aws|secret).{0,20}[a-zA-Z0-9/+=]{40}`, kindSecret, wholeMatch),
-	newDetector(`"private_key[_a-z]*"\s*:\s*"[^"]+`, kindSecret, wholeMatch),
-	newDetector(`(?i)azure.{0,20}(client.?secret|tenant.?id)\s*[=:]\s*\S+`, kindSecret, wholeMatch),
-	newDetector(`-----BEGIN[A-Z ]*PRIVATE KEY-----`, kindSecret, wholeMatch),
-	newDetector(`apjwt_[a-zA-Z0-9_\-]+\.[a-zA-Z0-9_\-]+\.[a-zA-Z0-9_\-]+`, kindSecret, wholeMatch),
+	newDetector(`sk-[a-zA-Z0-9]{20,}`, kindSecret, wholeMatch, rewriteWhole),
+	newDetector(`AKIA[A-Z0-9]{16}`, kindSecret, wholeMatch, rewriteWhole),
+	newDetector(`ghp_[a-zA-Z0-9]{36}`, kindSecret, wholeMatch, rewriteWhole),
+	newDetector(`gho_[a-zA-Z0-9]{36}`, kindSecret, wholeMatch, rewriteWhole),
+	newDetector(`Bearer [a-zA-Z0-9._\-]+`, kindSecret, wholeMatch, rewriteWhole),
+	newDetector(`(?i)(password|secret|api_key|apikey|token)\s*[=:]\s*\S+`, kindSecret, wholeMatch, rewriteWhole),
+	newDetector(`(?i)(aws|secret).{0,20}[a-zA-Z0-9/+=]{40}`, kindSecret, wholeMatch, rewriteWhole),
+	newDetector(`"private_key[_a-z]*"\s*:\s*"[^"]+`, kindSecret, wholeMatch, rewriteWhole),
+	newDetector(`(?i)azure.{0,20}(client.?secret|tenant.?id)\s*[=:]\s*\S+`, kindSecret, wholeMatch, rewriteWhole),
+	newDetector(`-----BEGIN[A-Z ]*PRIVATE KEY-----`, kindSecret, pemBlock, rewriteWhole),
+	newDetector(`apjwt_[a-zA-Z0-9_\-]+\.[a-zA-Z0-9_\-]+\.[a-zA-Z0-9_\-]+`, kindSecret, wholeMatch, rewriteWhole),
+}
+
+// Bounds of the extra searches one detector makes inside its own matches:
+// they may scan researchFactor times the text plus researchFloor bytes.
+const (
+	researchFactor = 8
+	researchFloor  = 4096
+)
+
+// detect returns the span every detector selects in s. After each match a
+// detector searches again from inside the part it selected (one byte past the
+// match start when it selects the whole match), so a value that runs over the
+// next key cannot hide that key's own match; FindAll alone resumes after the
+// value. Past the search bound, the rest of the text from where the searches
+// stopped is one secret span: deeply nested input is over-redacted instead of
+// scanned quadratically.
+func detect(s string) []span {
+	var spans []span
+	for _, d := range detectors {
+		spans = d.collect(s, spans)
+	}
+	return spans
+}
+
+// collect appends the spans of d's matches in s, nested matches included.
+func (d detector) collect(s string, spans []span) []span {
+	budget := researchFactor*len(s) + researchFloor
+	for _, m := range d.re.FindAllStringSubmatchIndex(s, -1) {
+		spans = d.add(s, m, spans)
+		for from := d.restart(s, m); ; {
+			loc := d.re.FindStringSubmatchIndex(s[from:])
+			scanned := len(s) - from
+			if loc != nil {
+				shift(loc, from)
+				scanned = loc[1] - from
+			}
+			if budget -= scanned; budget < 0 {
+				return append(spans, span{start: from, end: len(s), kind: kindSecret})
+			}
+			if loc == nil || loc[0] >= m[1] {
+				break
+			}
+			spans = d.add(s, loc, spans)
+			from = d.restart(s, loc)
+		}
+	}
+	return spans
+}
+
+// add appends the non-empty span d selects from match m.
+func (d detector) add(s string, m []int, spans []span) []span {
+	start, end := d.selectSpan(s, m)
+	if start < 0 || end <= start {
+		return spans
+	}
+	return append(spans, span{start: start, end: end, kind: d.kind})
+}
+
+// restart is where the search for matches nested in m begins: the start of
+// the selected part, or one byte past the match start.
+func (d detector) restart(s string, m []int) int {
+	if start, _ := d.selectSpan(s, m); start > m[0] {
+		return start
+	}
+	return m[0] + 1
+}
+
+// shift moves the submatch indexes of a match found in s[from:] onto s.
+func shift(loc []int, from int) {
+	for i := range loc {
+		if loc[i] >= 0 {
+			loc[i] += from
+		}
+	}
 }
 
 func wholeMatch(_ string, m []int) (int, int) { return m[0], m[1] }
@@ -100,4 +179,22 @@ func bearerValue(s string, m []int) (int, int) {
 		return m[0] + len(prefix), m[1]
 	}
 	return m[0], m[1]
+}
+
+// pemFooter and pemBody bound the key material after a private key header.
+var (
+	pemFooter = regexp.MustCompile(`-----END[A-Z ]*PRIVATE KEY-----`)
+	pemBody   = regexp.MustCompile(`^[A-Za-z0-9+/=\s]*`)
+)
+
+// pemBlock extends a private key header over its key material: through the
+// footer when one follows, or else over the base64 body after the header,
+// trailing whitespace excluded.
+func pemBlock(s string, m []int) (int, int) {
+	rest := s[m[1]:]
+	if loc := pemFooter.FindStringIndex(rest); loc != nil {
+		return m[0], m[1] + loc[1]
+	}
+	body := strings.TrimRightFunc(pemBody.FindString(rest), unicode.IsSpace)
+	return m[0], m[1] + len(body)
 }
