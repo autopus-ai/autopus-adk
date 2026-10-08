@@ -77,7 +77,7 @@ func TestVerifySignedSession_S8_TableGivesEachTrialExactlyOneJudgement(t *testin
 			return r.trial(signedC1, StageOracle, agentExited(0), OutcomeFail, SignalOracleHarnessError, notRun, partial)
 		}, ""},
 		{"row 6 an unchecked output without a timeout", func(r *signedRun) signedTrial {
-			unchecked := []byte(`{"task_id":"GT-AG-001","output_check":"not_checked","assertions":[],"artifact_exit":0,"timed_out":false}`)
+			unchecked := []byte(v1 + `"task_id":"GT-AG-001","output_check":"not_checked","assertions":[],"artifact_exit":0,"timed_out":false}`)
 			return r.trial(signedC1, StageOracle, agentExited(0), OutcomeFail, SignalOracleHarnessError, OracleObservation{}, unchecked)
 		}, ""},
 		{"row 6 an empty comparison is no pass", func(r *signedRun) signedTrial {

@@ -12,6 +12,7 @@ import base64
 import hashlib
 import json
 from pathlib import Path
+import posixpath
 import re
 import signal as signals
 
@@ -25,6 +26,7 @@ RESULT_FILE = 'oracle_result.json'
 OUTPUT_LIMIT = 1 << 20
 INPUT_LIMIT = 16 << 20
 MAX_ASSERTIONS = 32
+ORACLE_ROOT = 'evals/harness/oracles'
 STAGES = ('setup', 'agent', 'build', 'run', 'oracle')
 CHECKS = ('ok', 'link_rejected', 'too_large', 'not_checked')
 KINDS = ('exit_code', 'stdout', 'file')
@@ -43,10 +45,15 @@ FIXED_PATH = re.compile(r'^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$')
 
 
 def _pinned(value, role: str) -> dict:
+    """One {path, sha256} pin: a clean path below ORACLE_ROOT, as Go's PinnedFile.validate requires."""
     if not isinstance(value, dict) or set(value) != {'path', 'sha256'} or not isinstance(value['path'], str) \
             or not isinstance(value['sha256'], str) or not SHA256.match(value['sha256']):
         raise ValueError(role + ' must be {path, sha256} with a lowercase 64-hex digest')
-    return {'path': value['path'], 'sha256': value['sha256']}
+    name = value['path']
+    if any(char in name for char in '\\\x00') or posixpath.normpath(name) != name or \
+            not name.startswith(ORACLE_ROOT + '/'):
+        raise ValueError(role + ' ' + repr(name) + ' is not a clean path under ' + ORACLE_ROOT + '/')
+    return {'path': name, 'sha256': value['sha256']}
 
 
 def _assertion(item) -> dict:
@@ -176,7 +183,7 @@ def decode_result(data: bytes | None, task_id: str) -> dict | None:
     exit_code, items = document['artifact_exit'], document['assertions']
     if document['schema_version'] != RESULT_SCHEMA or document['task_id'] != task_id or \
             document['output_check'] not in CHECKS or type(document['timed_out']) is not bool or \
-            not (exit_code is None or type(exit_code) is int) or not isinstance(items, list):
+            not (exit_code is None or (type(exit_code) is int and 0 <= exit_code <= 255)) or not isinstance(items, list):
         return None
     if any(not isinstance(item, dict) or set(item) != {'id', 'passed'} or not isinstance(item['id'], str)
            or type(item['passed']) is not bool for item in items) or len({item['id'] for item in items}) != len(items):
@@ -208,7 +215,8 @@ def derive(stage: str, signal: str | None, termination: dict, data: bytes | None
     """
     result = decode_result(data, task_id) if stage == 'oracle' else None
     checked = result is not None and result['output_check'] == 'ok'
-    ran = checked and {item['id'] for item in result['assertions']} == set(assertion_ids)
+    # As in the signer, an empty comparison is no comparison: a task always pins at least one assertion.
+    ran = checked and bool(assertion_ids) and {item['id'] for item in result['assertions']} == set(assertion_ids)
     passed = sum(item['passed'] for item in result['assertions']) if ran else 0
     oracle = {**NO_ORACLE, 'ran': ran, 'build_failed': stage == 'build', 'expected_passed': passed,
               'expected_failed': len(assertion_ids) - passed if ran else 0}

@@ -142,6 +142,13 @@ class DefinitionTests(unittest.TestCase):
             'repeated input name': edited(inputs=ORACLE['inputs'] * 2),
             'stdin not an input': edited(stdin='missing.txt'),
             'short digest': edited(inputs=[{'path': 'x', 'sha256': 'abc'}]),
+            # S3: a pin outside evals/harness/oracles/ is refused as Go's PinnedFile.validate refuses it.
+            'input outside the oracle root': edited(inputs=[{'path': 'evals/harness/tasks/agent/x.json', 'sha256': 'a' * 64}]),
+            'expected outside the oracle root': edited(assertions=[{**file_item, 'expected': {'path': 'README.md',
+                                                                                             'sha256': 'c' * 64}}]),
+            'unclean pin below the oracle root': edited(inputs=[{'path': 'evals/harness/oracles/../tasks/x.json',
+                                                                'sha256': 'a' * 64}]),
+            'the oracle root itself': edited(inputs=[{'path': 'evals/harness/oracles/', 'sha256': 'a' * 64}]),
             'no assertion': edited(assertions=[]),
             'repeated assertion id': edited(assertions=ORACLE['assertions'][:1] * 2),
             'escaping output path': edited(assertions=[{**file_item, 'path': '../result.txt'}]),

@@ -6,8 +6,8 @@ import (
 )
 
 // OracleResultSchemaV1 identifies the document the trusted oracle harness
-// writes for one trial (SPEC-HARNEVAL-003 Wire Contracts). It need not carry
-// schema_version; one that does carries exactly this identifier.
+// writes for one trial (SPEC-HARNEVAL-003 Wire Contracts). Every result
+// carries it, as the trusted runner requires.
 const OracleResultSchemaV1 = "harness_oracle_result.v1"
 
 // Output checks of an oracle result: how opening the pinned output paths went.
@@ -21,9 +21,9 @@ const (
 // OracleResult is the harness_oracle_result.v1 document. ArtifactExit and
 // TimedOut are the runner's observation of the artifact, copied by the
 // harness; a timed-out artifact is not_checked, and only an ok output check
-// carries assertions.
+// carries assertions. ArtifactExit is null or an exit status in 0..255.
 type OracleResult struct {
-	SchemaVersion string            `json:"schema_version,omitempty"`
+	SchemaVersion string            `json:"schema_version"`
 	TaskID        string            `json:"task_id"`
 	OutputCheck   string            `json:"output_check"`
 	Assertions    []OracleAssertion `json:"assertions"`
@@ -37,17 +37,24 @@ type OracleAssertion struct {
 	Passed bool   `json:"passed"`
 }
 
-// DecodeOracleResult strictly decodes and validates one oracle result alone;
-// whether its assertions are the task's is decided against main's task
-// definition when the trial is re-derived.
+// DecodeOracleResult strictly decodes and validates one oracle result alone,
+// as the trusted runner's golden_blackbox.decode_result does: every key
+// present once, null only for artifact_exit. Whether its assertions are the
+// task's is decided against main's task definition when the trial is
+// re-derived.
 func DecodeOracleResult(data []byte) (OracleResult, error) {
 	var result OracleResult
 	if err := strictDecode(data, &result); err != nil {
 		return result, err
 	}
+	if err := checkOracleResultShape(data); err != nil {
+		return result, err
+	}
 	switch {
-	case result.SchemaVersion != "" && result.SchemaVersion != OracleResultSchemaV1:
+	case result.SchemaVersion != OracleResultSchemaV1:
 		return result, invalidf(DetailFieldInvalid, "oracle result schema_version %q is not %s", result.SchemaVersion, OracleResultSchemaV1)
+	case result.ArtifactExit != nil && (*result.ArtifactExit < 0 || *result.ArtifactExit > 255):
+		return result, invalidf(DetailFieldInvalid, "oracle result artifact_exit %d is outside 0..255", *result.ArtifactExit)
 	case !taskIDPattern.MatchString(result.TaskID):
 		return result, invalidf(DetailFieldInvalid, "oracle result task_id %q is not a GT id", result.TaskID)
 	case !slices.Contains([]string{OutputCheckOK, OutputCheckLinkRejected, OutputCheckTooLarge, OutputCheckNotChecked}, result.OutputCheck):

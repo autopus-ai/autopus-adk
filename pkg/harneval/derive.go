@@ -225,9 +225,13 @@ func deriveTrial(r Record, data []byte, want []string) (derived, bool) {
 		}
 	}
 	// Rows 1-5 judge the record's own observation, rows 6-10 the oracle result.
+	// A trial that never left setup matches row 1 or no row, as in the trusted
+	// runner's table: rows 2-4 judge the agent step it never reached.
 	switch {
 	case r.StageReached == StageSetup && slices.Contains([]string{"workspace_setup_failed", "mutation_failed", "warmup_failed"}, r.Signal):
 		got.signal = r.Signal
+	case r.StageReached == StageSetup:
+		return derived{}, false
 	case !term.Launched:
 		got.signal = "agent_launch_failed"
 	case term.TimedOut:
