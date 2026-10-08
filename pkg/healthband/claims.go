@@ -84,6 +84,11 @@ type ClaimRunner func(ctx context.Context, claim DueClaim) ClaimOutcome
 type ExecuteOptions struct {
 	Clock      func() time.Time // nil uses time.Now
 	ResultWait time.Duration    // phase C lock wait; zero uses ResultLockWait
+	// AfterRecord, when set, runs after phase C has recorded a claim's
+	// result and before the next claim starts, with the outcome its runner
+	// returned and how phase C recorded it (SPEC-SIGMABAND-002: the
+	// local_patch claim of a diagnose claim runs here, under the same owner).
+	AfterRecord func(ctx context.Context, claim DueClaim, outcome ClaimOutcome, recorded Recorded)
 }
 
 // ExecuteClaims runs the claims one at a time in order, without the store
@@ -111,6 +116,9 @@ func (s *Store) ExecuteClaims(ctx context.Context, claims []DueClaim, run ClaimR
 		recorded = append(recorded, record)
 		if err != nil {
 			errs = append(errs, err)
+		}
+		if opts.AfterRecord != nil {
+			opts.AfterRecord(ctx, claim, result.ClaimOutcome, record)
 		}
 	}
 	return recorded, errors.Join(errs...)

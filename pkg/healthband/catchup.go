@@ -19,6 +19,18 @@ type PlanOptions struct {
 	// Evaluate evaluates one position of an ordered series; nil uses the
 	// detector (EvaluateAt).
 	Evaluate func(ordered []Observation, position int) Evaluation
+	// DiagnoseBudget, when positive, is the budget a diagnose claim adds to
+	// the lease chain in place of ClaimBudget(ClaimKindDiagnose)
+	// (SPEC-SIGMABAND-002: LocalPatchDiagnoseBudget while the flag is true).
+	DiagnoseBudget time.Duration
+	// LocalPatch, when set, decides each event of a series plan once, in
+	// plan order, after the event's seq and diagnose claim are set
+	// (SPEC-SIGMABAND-002 Local Patch Decision Table, LocalPatchDecider.
+	// Decide); ok is false for an event it does not decide. Plan.LocalPatch
+	// gets the decision record and, for a row-5 claim, the claim record,
+	// whose lease Plan chains with ClaimBudget(ClaimKindLocalPatch) right
+	// after its diagnose claim.
+	LocalPatch func(series []Event, i int) (LocalPatchDecision, bool)
 }
 
 // RunRef is one failed CI run attempt whose log is diagnosis evidence.
@@ -53,8 +65,11 @@ type Plan struct {
 	Series   []SeriesPlan // sorted by series ID
 	Claims   []DueClaim   // phase B order: series sorted, one claim at a time
 	NotFound []string     // Only entries that name no stored series
-	base     int64        // first seq of the plan
-	complete bool         // every stored series was planned, so compaction may run
+	// LocalPatch holds the decision and claim records of the LocalPatch
+	// hook in plan order, appended after Commit (SPEC-SIGMABAND-002).
+	LocalPatch []LocalPatchRecord
+	base       int64 // first seq of the plan
+	complete   bool  // every stored series was planned, so compaction may run
 }
 
 // Events returns every planned event in append order.
@@ -81,6 +96,10 @@ func (w *WAL) Plan(series map[string][]Observation, opts PlanOptions) (Plan, err
 	if evaluate == nil {
 		evaluate = EvaluateAt
 	}
+	diagnoseBudget := ClaimBudget(ClaimKindDiagnose)
+	if opts.DiagnoseBudget > 0 {
+		diagnoseBudget = opts.DiagnoseBudget
+	}
 	plan := Plan{base: w.nextSeq}
 	var ids []string
 	ids, plan.NotFound, plan.complete = selectSeries(series, opts.Only)
@@ -94,20 +113,40 @@ func (w *WAL) Plan(series map[string][]Observation, opts PlanOptions) (Plan, err
 		for i := range seriesPlan.Events {
 			event := &seriesPlan.Events[i]
 			event.Seq, seq = seq, seq+1
-			if event.Action != ActionDiagnose {
-				continue
+			if event.Action == ActionDiagnose {
+				chained += diagnoseBudget
+				claim := Claim{ID: newID(), Kind: ClaimKindDiagnose, Owner: opts.Owner, LeaseUntil: w.now.Add(chained)}
+				event.Claims = []Claim{claim}
+				plan.Claims = append(plan.Claims, DueClaim{
+					Claim: claim, Series: id, SampleKey: event.SampleKey, EpisodeID: event.EpisodeID, Tier: *event.Tier,
+					Event: *event, FailedRuns: failedRuns(ordered, positions[i]),
+				})
 			}
-			chained += ClaimBudget(ClaimKindDiagnose)
-			claim := Claim{ID: newID(), Kind: ClaimKindDiagnose, Owner: opts.Owner, LeaseUntil: w.now.Add(chained)}
-			event.Claims = []Claim{claim}
-			plan.Claims = append(plan.Claims, DueClaim{
-				Claim: claim, Series: id, SampleKey: event.SampleKey, EpisodeID: event.EpisodeID, Tier: *event.Tier,
-				Event: *event, FailedRuns: failedRuns(ordered, positions[i]),
-			})
+			if opts.LocalPatch != nil {
+				chained = plan.decideLocalPatch(opts.LocalPatch, seriesPlan.Events, i, w.now, chained)
+			}
 		}
 		plan.Series = append(plan.Series, seriesPlan)
 	}
 	return plan, nil
+}
+
+// decideLocalPatch records the LocalPatch hook's decision for series[i]; a
+// row-5 claim's lease is chained right after its diagnose claim. It returns
+// the lease chain after the claim.
+func (p *Plan) decideLocalPatch(hook func([]Event, int) (LocalPatchDecision, bool), series []Event, i int, now time.Time, chained time.Duration) time.Duration {
+	decision, ok := hook(series, i)
+	if !ok {
+		return chained
+	}
+	p.LocalPatch = append(p.LocalPatch, decision.Record)
+	if decision.Claim != nil {
+		chained += ClaimBudget(ClaimKindLocalPatch)
+		claim := *decision.Claim
+		claim.LeaseUntil = now.Add(chained)
+		p.LocalPatch = append(p.LocalPatch, claim)
+	}
+	return chained
 }
 
 // decideSeries evaluates positions oldest first against a scratch copy of
