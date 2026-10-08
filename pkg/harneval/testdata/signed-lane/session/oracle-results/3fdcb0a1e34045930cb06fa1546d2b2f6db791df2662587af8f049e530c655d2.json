@@ -1,0 +1,1 @@
+{"schema_version":"harness_oracle_result.v1","task_id":"GT-AGENT-X07","output_check":"ok","assertions":[{"id":"exit","passed":true},{"id":"stdout","passed":true},{"id":"positive_control.exit","passed":false},{"id":"positive_control.stdout","passed":false}],"artifact_exit":1,"timed_out":false}

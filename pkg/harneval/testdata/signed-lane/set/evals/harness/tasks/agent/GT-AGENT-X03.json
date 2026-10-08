@@ -16,7 +16,7 @@
   "corpus_ref": {
     "file": "scripts/benchmarks/harness/corpus_fixture.json",
     "task_id": "x03",
-    "file_sha256": "3fd1ee7238f365f3c15f717e07db309e88d975b03b634e5932d3755bff1bbf44"
+    "file_sha256": "e35240b6cf2f754784c42258bab2cab3a235b218474c75235c3ff702a2c29c2f"
   },
   "expected_tests": [
     "TestValue",
@@ -29,5 +29,37 @@
   "status": {
     "state": "active",
     "reason": ""
+  },
+  "oracle_mode": "black_box",
+  "black_box_oracle": {
+    "build": "./cmd/gamma",
+    "command": [
+      "{artifact}"
+    ],
+    "inputs": [],
+    "assertions": [
+      {
+        "id": "exit",
+        "kind": "exit_code",
+        "exit_code": 0
+      },
+      {
+        "id": "stdout",
+        "kind": "stdout",
+        "expected": {
+          "path": "evals/harness/oracles/GT-AGENT-X03/stdout.txt",
+          "sha256": "1121cfccd5913f0a63fec40a6ffd44ea64f9dc135c66634ba001d10bcf4302a2"
+        }
+      },
+      {
+        "id": "result",
+        "kind": "file",
+        "path": "result.txt",
+        "expected": {
+          "path": "evals/harness/oracles/GT-AGENT-X03/result.txt",
+          "sha256": "1121cfccd5913f0a63fec40a6ffd44ea64f9dc135c66634ba001d10bcf4302a2"
+        }
+      }
+    ]
   }
 }

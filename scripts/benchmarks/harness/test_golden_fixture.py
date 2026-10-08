@@ -43,9 +43,12 @@ behavior = BEHAVIORS.get(allowed, 'policy')
 call.write_text(json.dumps({{'argv': args, 'env': dict(os.environ), 'allowed': allowed, 'policy': policy,
                             'behavior': behavior, 'cwd': os.getcwd(),
                             'harness_files': (work / 'evals' / 'harness').exists()}}))
-if config.is_file() and 'FAKE-START: refuse' in config.read_text():
+if behavior == 'refuse' or (config.is_file() and 'FAKE-START: refuse' in config.read_text()):
     sys.stderr.write('Error: the project configuration was rejected\\n')
     sys.exit(1)
+if behavior == 'turnfailed':
+    sys.stdout.write(EVENTS.split('\\n', 1)[0] + '\\n{{"type":"turn.failed","error":{{"message":"fixture"}}}}\\n')
+    sys.exit(0)
 sys.stdout.write(EVENTS)
 sys.stdout.flush()
 

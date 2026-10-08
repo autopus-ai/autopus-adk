@@ -1,5 +1,5 @@
 {
-  "session_id": "53cee9e39f81a85a1114b7a09e8ebc21",
+  "session_id": "5e75ba84ae6463e181c237c7af7f0d2d",
   "before": {
     "status": "passed",
     "tasks": [
@@ -20,6 +20,46 @@
       },
       {
         "task_id": "GT-AGENT-X04",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      },
+      {
+        "task_id": "GT-AGENT-X05",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      },
+      {
+        "task_id": "GT-AGENT-X06",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      },
+      {
+        "task_id": "GT-AGENT-X07",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      },
+      {
+        "task_id": "GT-AGENT-X08",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      },
+      {
+        "task_id": "GT-AGENT-X09",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      },
+      {
+        "task_id": "GT-AGENT-X10",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      },
+      {
+        "task_id": "GT-AGENT-X11",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      },
+      {
+        "task_id": "GT-AGENT-X12",
         "clean_accepted": true,
         "mutated_accepted": false
       }
@@ -45,6 +85,46 @@
       },
       {
         "task_id": "GT-AGENT-X04",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      },
+      {
+        "task_id": "GT-AGENT-X05",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      },
+      {
+        "task_id": "GT-AGENT-X06",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      },
+      {
+        "task_id": "GT-AGENT-X07",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      },
+      {
+        "task_id": "GT-AGENT-X08",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      },
+      {
+        "task_id": "GT-AGENT-X09",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      },
+      {
+        "task_id": "GT-AGENT-X10",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      },
+      {
+        "task_id": "GT-AGENT-X11",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      },
+      {
+        "task_id": "GT-AGENT-X12",
         "clean_accepted": true,
         "mutated_accepted": false
       }

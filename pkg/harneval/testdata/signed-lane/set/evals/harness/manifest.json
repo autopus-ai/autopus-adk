@@ -12,9 +12,9 @@
     "k": 2,
     "threshold_bp": -1000,
     "completeness_floor": 0.8,
-    "max_agent_runs": 20,
-    "trial_timeout_seconds": 60,
-    "workspace_revision": "07439f5ea2a73112a0d52d2398ac08fc7e80a0de",
+    "max_agent_runs": 52,
+    "trial_timeout_seconds": 8,
+    "workspace_revision": "4ea35ed741bb4050fcb27fb38d14abb00d4d3985",
     "baseline_ref": "v0.50.123",
     "model": "gpt-6-astra"
   },

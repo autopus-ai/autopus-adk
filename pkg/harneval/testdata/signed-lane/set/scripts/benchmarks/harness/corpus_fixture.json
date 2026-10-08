@@ -83,6 +83,33 @@
  {
   "id": "x04",
   "category": "fixture",
+  "prompt": "Repair delta.Value so its tests pass.",
+  "mutation": {
+   "path": "delta/delta.go",
+   "before": "return x + 1",
+   "after": "return x + 2"
+  },
+  "oracle": {
+   "command": [
+    "go",
+    "test",
+    "-p",
+    "1",
+    "./delta",
+    "-run",
+    "^(TestValue|TestZero)$",
+    "-count=1"
+   ]
+  },
+  "allowed_paths": [
+   "delta/delta.go"
+  ],
+  "difficulty": "fixture",
+  "rationale": "fixture"
+ },
+ {
+  "id": "x05",
+  "category": "fixture",
   "prompt": "Repair epsilon.Value so its tests pass.",
   "mutation": {
    "path": "epsilon/epsilon.go",
@@ -108,7 +135,196 @@
   "rationale": "fixture"
  },
  {
-  "id": "x05",
+  "id": "x06",
+  "category": "fixture",
+  "prompt": "Repair eta.Value so its tests pass.",
+  "mutation": {
+   "path": "eta/eta.go",
+   "before": "return x + 1",
+   "after": "return x + 2"
+  },
+  "oracle": {
+   "command": [
+    "go",
+    "test",
+    "-p",
+    "1",
+    "./eta",
+    "-run",
+    "^(TestValue|TestZero)$",
+    "-count=1"
+   ]
+  },
+  "allowed_paths": [
+   "eta/eta.go"
+  ],
+  "difficulty": "fixture",
+  "rationale": "fixture"
+ },
+ {
+  "id": "x07",
+  "category": "fixture",
+  "prompt": "Repair theta.Value so its tests pass.",
+  "mutation": {
+   "path": "theta/theta.go",
+   "before": "return x + 1",
+   "after": "return x + 2"
+  },
+  "oracle": {
+   "command": [
+    "go",
+    "test",
+    "-p",
+    "1",
+    "./theta",
+    "-run",
+    "^(TestValue|TestZero)$",
+    "-count=1"
+   ]
+  },
+  "allowed_paths": [
+   "theta/theta.go"
+  ],
+  "difficulty": "fixture",
+  "rationale": "fixture"
+ },
+ {
+  "id": "x08",
+  "category": "fixture",
+  "prompt": "Repair iota.Value so its tests pass.",
+  "mutation": {
+   "path": "iota/iota.go",
+   "before": "return x + 1",
+   "after": "return x + 2"
+  },
+  "oracle": {
+   "command": [
+    "go",
+    "test",
+    "-p",
+    "1",
+    "./iota",
+    "-run",
+    "^(TestValue|TestZero)$",
+    "-count=1"
+   ]
+  },
+  "allowed_paths": [
+   "iota/iota.go"
+  ],
+  "difficulty": "fixture",
+  "rationale": "fixture"
+ },
+ {
+  "id": "x09",
+  "category": "fixture",
+  "prompt": "Repair kappa.Value so its tests pass.",
+  "mutation": {
+   "path": "kappa/kappa.go",
+   "before": "return x + 1",
+   "after": "return x + 2"
+  },
+  "oracle": {
+   "command": [
+    "go",
+    "test",
+    "-p",
+    "1",
+    "./kappa",
+    "-run",
+    "^(TestValue|TestZero)$",
+    "-count=1"
+   ]
+  },
+  "allowed_paths": [
+   "kappa/kappa.go"
+  ],
+  "difficulty": "fixture",
+  "rationale": "fixture"
+ },
+ {
+  "id": "x10",
+  "category": "fixture",
+  "prompt": "Repair lam.Value so its tests pass.",
+  "mutation": {
+   "path": "lam/lam.go",
+   "before": "return x + 1",
+   "after": "return x + 2"
+  },
+  "oracle": {
+   "command": [
+    "go",
+    "test",
+    "-p",
+    "1",
+    "./lam",
+    "-run",
+    "^(TestValue|TestZero)$",
+    "-count=1"
+   ]
+  },
+  "allowed_paths": [
+   "lam/lam.go"
+  ],
+  "difficulty": "fixture",
+  "rationale": "fixture"
+ },
+ {
+  "id": "x11",
+  "category": "fixture",
+  "prompt": "Repair mu.Value so its tests pass.",
+  "mutation": {
+   "path": "mu/mu.go",
+   "before": "return x + 1",
+   "after": "return x + 2"
+  },
+  "oracle": {
+   "command": [
+    "go",
+    "test",
+    "-p",
+    "1",
+    "./mu",
+    "-run",
+    "^(TestValue|TestZero)$",
+    "-count=1"
+   ]
+  },
+  "allowed_paths": [
+   "mu/mu.go"
+  ],
+  "difficulty": "fixture",
+  "rationale": "fixture"
+ },
+ {
+  "id": "x12",
+  "category": "fixture",
+  "prompt": "Repair nu.Value so its tests pass.",
+  "mutation": {
+   "path": "nu/nu.go",
+   "before": "return x + 1",
+   "after": "return x + 2"
+  },
+  "oracle": {
+   "command": [
+    "go",
+    "test",
+    "-p",
+    "1",
+    "./nu",
+    "-run",
+    "^(TestValue|TestZero)$",
+    "-count=1"
+   ]
+  },
+  "allowed_paths": [
+   "nu/nu.go"
+  ],
+  "difficulty": "fixture",
+  "rationale": "fixture"
+ },
+ {
+  "id": "x13",
   "category": "fixture",
   "prompt": "Repair zeta.Value so its tests pass.",
   "mutation": {

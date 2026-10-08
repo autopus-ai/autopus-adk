@@ -3,6 +3,7 @@ package harneval
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -13,11 +14,13 @@ import (
 )
 
 // signedLaneFixture is a session the trusted runner wrote with --signed-lane
-// on its fixture world: four black-box tasks and one white-box task at K=2,
-// with the fake codex. scripts/benchmarks/harness/test_golden_wire_fixture.py
-// regenerates it. The golden set is committed as LoadSet reads it before T15
-// gives the task schema oracle_mode and black_box_oracle; black_box.json
-// keeps the assertion ids of the black-box task definitions.
+// on its fixture world: twelve black-box tasks and one white-box task at
+// K=2, with the fake codex. scripts/benchmarks/harness/test_golden_wire_fixture.py
+// regenerates it and lists the REQ-HR-08 rows it reaches and why the others
+// are out of an honest runner's reach. The golden set is committed with the
+// T15 task schema (oracle_mode, black_box_oracle, GT-AGENT-X07's positive
+// control) and its oracle fixtures, so LoadSet decodes it and
+// OracleAssertionIDs gives the trusted assertion ids.
 const signedLaneFixture = "testdata/signed-lane"
 
 // fixtureLane is the lane file the bind job's auto computed for the session.
@@ -40,17 +43,16 @@ func readFixtureJSON(t *testing.T, name string, target any) {
 
 // fixtureTrust is what the signer computes beside main's golden set: the
 // lane values, both arm surface digests computed here by Go over the arm
-// trees the runner digested in Python, and the black-box assertion ids.
+// trees the runner digested in Python, and the black-box assertion ids of
+// the set's own task definitions.
 func fixtureTrust(t *testing.T) (TrustedProtocol, RunMeta) {
 	t.Helper()
 	var lane fixtureLane
 	readFixtureJSON(t, "lane.json", &lane)
-	assertions := map[string][]string{}
-	readFixtureJSON(t, "black_box.json", &assertions)
 	set, err := LoadSet(filepath.Join(signedLaneFixture, "set"))
 	require.NoError(t, err)
 	inputs := TrustedInputs{BaselineCommit: lane.BaselineCommit, RunnerTreeDigest: lane.RunnerTreeDigest,
-		BindingDigest: lane.BindingDigest, OracleAssertions: assertions}
+		BindingDigest: lane.BindingDigest, OracleAssertions: OracleAssertionIDs(set)}
 	for arm, target := range map[string]*string{ArmBaseline: &inputs.BaselineSurfaceDigest, ArmCandidate: &inputs.CandidateSurfaceDigest} {
 		*target, err = SurfaceDigest(filepath.Join(signedLaneFixture, "surfaces", arm))
 		require.NoError(t, err)
@@ -94,24 +96,37 @@ func TestSignedLaneFixture_RunnerSessionVerifiesAndJudges(t *testing.T) {
 	trusted, meta := fixtureTrust(t)
 	in, err := LoadSignerInput(filepath.Join(signedLaneFixture, "session"))
 	require.NoError(t, err)
-	require.Len(t, in.OracleResults, 4, "identical oracle results share one content-addressed file")
 
 	session, err := VerifySignedSession(in, trusted, meta, fixtureAttested(t, in, trusted, meta))
 
 	require.NoError(t, err)
-	assert.Equal(t, BalancedOrder([]string{"GT-AGENT-X01", "GT-AGENT-X02", "GT-AGENT-X03", "GT-AGENT-X04"}, 2), session.Protocol.Order,
-		"GT-AGENT-X05 is white-box and stays in the advisory lane")
+	var ids []string
+	for index := 1; index <= 12; index++ {
+		ids = append(ids, fmt.Sprintf("GT-AGENT-X%02d", index))
+	}
+	assert.Equal(t, BalancedOrder(ids, 2), session.Protocol.Order, "GT-AGENT-X13 is white-box and stays in the advisory lane")
+	assert.Equal(t, []string{"exit", "stdout", PositiveControlExitID, PositiveControlStdoutID},
+		trusted.OracleAssertions["GT-AGENT-X07"], "the positive control's ids come from main's definition")
 	type judged struct {
 		outcome, signal  string
 		ran, buildFailed bool
 	}
+	both := func(j judged) [2]judged { return [2]judged{j, j} }
 	want := map[string][2]judged{
 		"GT-AGENT-X01": {{OutcomePass, "accepted", true, false}, {OutcomeFail, SignalExpectationMismatch, true, false}},
-		"GT-AGENT-X02": {{OutcomeFail, "agent_exit_nonzero", true, false}, {OutcomeFail, "agent_exit_nonzero", true, false}},
-		"GT-AGENT-X03": {{OutcomeFail, SignalArtifactTimeout, false, false}, {OutcomeFail, SignalArtifactTimeout, false, false}},
-		"GT-AGENT-X04": {{OutcomeFail, SignalArtifactBuildFailed, false, true}, {OutcomeFail, SignalArtifactBuildFailed, false, true}},
+		"GT-AGENT-X02": both(judged{OutcomeFail, "agent_exit_nonzero", true, false}),
+		"GT-AGENT-X03": both(judged{OutcomeFail, SignalArtifactTimeout, false, false}),
+		"GT-AGENT-X04": both(judged{OutcomeFail, SignalOutputLinkRejected, false, false}),
+		"GT-AGENT-X05": both(judged{OutcomeFail, SignalArtifactBuildFailed, false, true}),
+		"GT-AGENT-X06": both(judged{OutcomeFail, "scope_violation", false, false}),
+		"GT-AGENT-X07": both(judged{OutcomeFail, SignalExpectationMismatch, true, false}),
+		"GT-AGENT-X08": both(judged{OutcomeFail, "agent_timeout", true, false}),
+		"GT-AGENT-X09": both(judged{OutcomeFail, "agent_launch_failed", true, false}),
+		"GT-AGENT-X10": both(judged{OutcomeFail, "observation_failed", false, false}),
+		"GT-AGENT-X11": both(judged{OutcomeFail, SignalOutputTooLarge, false, false}),
+		"GT-AGENT-X12": both(judged{OutcomeError, "warmup_failed", false, false}),
 	}
-	require.Len(t, session.Records, 16)
+	require.Len(t, session.Records, 48)
 	for _, record := range session.Records {
 		arm := 0
 		if record.Arm == ArmCandidate {
@@ -119,14 +134,18 @@ func TestSignedLaneFixture_RunnerSessionVerifiesAndJudges(t *testing.T) {
 		}
 		got := judged{record.Outcome, record.Signal, record.Oracle.Ran, record.Oracle.BuildFailed}
 		assert.Equal(t, want[record.TaskID][arm], got, "%s/%s/%d", record.TaskID, record.Arm, record.Trial)
+		if record.TaskID == "GT-AGENT-X07" {
+			assert.Equal(t, [2]int{2, 2}, [2]int{record.Oracle.ExpectedPassed, record.Oracle.ExpectedFailed},
+				"the fix that refuses every request passes the task's own assertions and fails its positive control")
+		}
 	}
 	verdict, err := ComputeVerdict(session)
 	require.NoError(t, err)
 	assert.Equal(t, [2]string{VerdictRegression, ReasonHardFlip}, [2]string{verdict.Verdict, verdict.Reason})
 	assert.Equal(t, []string{"GT-AGENT-X01"}, verdict.HardFlips)
-	assert.Equal(t, [4]int{2, 8, 0, 8}, [4]int{verdict.Arms.Baseline.Passes, verdict.Arms.Baseline.Valid,
+	assert.Equal(t, [4]int{2, 22, 0, 22}, [4]int{verdict.Arms.Baseline.Passes, verdict.Arms.Baseline.Valid,
 		verdict.Arms.Candidate.Passes, verdict.Arms.Candidate.Valid})
-	assert.InDelta(t, -0.25, verdict.RegressionDelta, 1e-9)
+	assert.InDelta(t, -2.0/22, verdict.RegressionDelta, 1e-9)
 	assert.Equal(t, CalibrationPassed, verdict.Calibration.Status)
 }
 
