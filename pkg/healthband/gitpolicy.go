@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 	"time"
 
@@ -150,6 +151,9 @@ type GitPolicyRunner struct {
 	IndexFile string          // GIT_INDEX_FILE of the temp-index commands
 	MaxOutput int             // stdout bound of Run and RunInput; 0 is GitPolicyOutputBytes
 	StopGrace time.Duration   // SIGTERM lead before the deadline; 0 is GitStopGrace
+	// RemoveRoot is the absolute directory, <lp>, strictly below which git
+	// worktree remove --force may name a path; "" refuses that form.
+	RemoveRoot string
 }
 
 // In returns a copy of r that runs in dir.
@@ -196,7 +200,7 @@ func (r GitPolicyRunner) RunTo(ctx context.Context, w io.Writer, args ...string)
 // process group: SIGTERM reaches the group StopGrace before the context
 // deadline and SIGKILL when the context ends, so no git child outlives it.
 func (r GitPolicyRunner) run(ctx context.Context, stdin io.Reader, stdout io.Writer, args []string) error {
-	if err := CheckGitCommand(args, r.IndexFile); err != nil {
+	if err := r.check(args); err != nil {
 		return err
 	}
 	if err := ctx.Err(); err != nil {
@@ -235,6 +239,22 @@ func (r GitPolicyRunner) run(ctx context.Context, stdin io.Reader, stdout io.Wri
 	}
 	stopped := signalled || ctx.Err() != nil
 	return &GitCommandError{Command: args[0], ExitCode: exitCode, Stopped: stopped, Err: err}
+}
+
+// check is CheckGitCommand plus the location rule of git worktree remove
+// --force (Phase 4 security review L4): its path lies strictly below
+// RemoveRoot, so no removal reaches a worktree outside <lp>.
+func (r GitPolicyRunner) check(args []string) error {
+	if err := CheckGitCommand(args, r.IndexFile); err != nil {
+		return err
+	}
+	if len(args) == 4 && args[0] == "worktree" && args[1] == "remove" {
+		root := strings.TrimSuffix(r.RemoveRoot, "/")
+		if !validGitPolicyAbs(root) || !strings.HasPrefix(args[3], root+"/") || strings.TrimSuffix(args[3], "/") == root {
+			return fmt.Errorf("%w: git worktree remove outside %q", ErrGitCommandNotAllowed, r.RemoveRoot)
+		}
+	}
+	return nil
 }
 
 // gitPolicyStop signals one command's process group: SIGTERM from the timer

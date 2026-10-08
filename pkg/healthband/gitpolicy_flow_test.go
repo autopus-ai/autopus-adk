@@ -93,7 +93,9 @@ func TestGitPolicyRunner_HostileRepositoryRunsNoRepositoryCommand(t *testing.T) 
 	h.must(w.Run(ctx, "ls-files", "-s", "-z"))
 	assert.Contains(t, string(h.must(r.Run(ctx, "worktree", "list", "--porcelain", "-z"))), "worktree "+wt+"\x00")
 	h.must(r.Run(ctx, "update-ref", "--no-deref", "-d", ref, head))
-	h.must(r.Run(ctx, "worktree", "remove", "--force", wt))
+	remover := r
+	remover.RemoveRoot = lp // the removal names a path below <lp> (L4)
+	h.must(remover.Run(ctx, "worktree", "remove", "--force", wt))
 
 	assert.Empty(t, h.markerNames(), "no repository-selected command ran")
 	children := gpChildren(t, h.bandTrace)

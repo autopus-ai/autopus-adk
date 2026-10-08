@@ -12,13 +12,18 @@ import (
 // minEncodedRun is the shortest run of base64 or hex characters refused.
 const minEncodedRun = 40
 
-// deniedContent is item 7.
+// deniedContent is item 7: per added line the raw check and then the
+// mixed-script check outside whole-line comments, then Sanitize, the
+// injection phrases, and the encoded runs over all added lines.
 func deniedContent(files []*diffFile) string {
 	var added []string
 	for _, file := range files {
 		for _, line := range file.lines {
 			if !cleanLine(line) {
 				return PatchCodeControlChar
+			}
+			if !commentLine(file.path, line.text) && mixedScriptToken(line.text) {
+				return PatchCodeConfusable
 			}
 			added = append(added, line.text)
 		}
@@ -29,6 +34,9 @@ func deniedContent(files []*diffFile) string {
 		if reason == ReasonSecretRisk || reason == ReasonInjectionRisk {
 			return PatchCodeContentDenied
 		}
+	}
+	if injectionPhrase(text) {
+		return PatchCodeContentDenied
 	}
 	for _, line := range added {
 		if hasEncodedRun(line) {
@@ -59,12 +67,14 @@ func cleanLine(line addedLine) bool {
 }
 
 // hasEncodedRun reports a run of 40 or more characters of the RFC 4648
-// base64 alphabet, which holds every hex digit.
+// base64 and base64url alphabets together (+, /, -, and _), which hold
+// every hex digit. It is a heuristic: a 40-character identifier, camelCase
+// or snake_case, is refused as well, an intended fail-closed limitation.
 func hasEncodedRun(line string) bool {
 	run := 0
 	for i := 0; i < len(line); i++ {
 		switch c := line[i]; {
-		case 'A' <= c && c <= 'Z', 'a' <= c && c <= 'z', '0' <= c && c <= '9', c == '+', c == '/':
+		case 'A' <= c && c <= 'Z', 'a' <= c && c <= 'z', '0' <= c && c <= '9', c == '+', c == '/', c == '-', c == '_':
 			if run++; run >= minEncodedRun {
 				return true
 			}

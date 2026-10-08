@@ -1,6 +1,8 @@
 package healthband
 
 import (
+	"context"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -142,4 +144,26 @@ func TestCheckGitCommand_RefusesEverythingElse(t *testing.T) {
 	}
 	assert.ErrorIs(t, CheckGitCommand(gpArgs("read-tree "+gpOID), "relative/index"), ErrGitCommandNotAllowed)
 	assert.ErrorContains(t, CheckGitCommand(gpArgs("push origin"), ""), `git "push"`)
+}
+
+// Phase 4 security review L4: git worktree remove --force names only a path
+// strictly below the runner's RemoveRoot, <lp>; without a root, or for a
+// path outside it, the runner refuses the command before git starts.
+func TestGitPolicyRunner_WorktreeRemove_OnlyBelowRemoveRoot(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	root := "/cache/autopus/local-patches/0123456789ab"
+	missing := filepath.Join(t.TempDir(), "no-git") // a refused command never starts it
+	for _, tc := range []struct{ root, path string }{
+		{"", gpWT}, {"relative/lp", gpWT}, {root, "/elsewhere/worktree"}, {root, root}, {root, root + "/"},
+		{root, "/cache/autopus/local-patches/0123456789abc/key/worktree"},
+	} {
+		_, err := GitPolicyRunner{Binary: missing, RemoveRoot: tc.root}.Run(ctx, "worktree", "remove", "--force", tc.path)
+		assert.ErrorIs(t, err, ErrGitCommandNotAllowed, "%+v", tc)
+	}
+	for _, rootForm := range []string{root, root + "/"} {
+		_, err := GitPolicyRunner{Binary: missing, RemoveRoot: rootForm}.Run(ctx, "worktree", "remove", "--force", gpWT)
+		assert.Error(t, err)
+		assert.NotErrorIs(t, err, ErrGitCommandNotAllowed, "a path below the root reaches git")
+	}
 }

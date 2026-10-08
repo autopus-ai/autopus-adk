@@ -75,7 +75,10 @@ type lpCleaner struct {
 	kept    []LocalPatchKept
 }
 
+// newLPCleaner binds git's worktree removals to <lp> (RemoveRoot), the only
+// directory whose worktrees a Cleanup Rule may remove.
 func newLPCleaner(git GitPolicyRunner, dir *LocalPatchDir, facts lpFacts, timeout time.Duration) *lpCleaner {
+	git.RemoveRoot = dir.Path
 	return &lpCleaner{git: git, dir: dir, paths: dir.Paths(facts.key), facts: facts, timeout: timeout}
 }
 

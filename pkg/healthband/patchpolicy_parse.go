@@ -159,14 +159,29 @@ func (p *diffParser) extendedHeaders(file *diffFile) bool {
 	return true
 }
 
-// validIndexLine accepts `index <a>..<b>` with an optional regular-file
-// mode; the base entry decides between 100644 and 100755 (item 3).
+// validIndexLine accepts `index <a>..<b>`, both abbreviated object names of
+// 4 to 64 lowercase hex digits, with an optional regular-file mode; the
+// base entry decides between 100644 and 100755 (item 3).
 func validIndexLine(line string) bool {
 	fields := strings.Fields(strings.TrimPrefix(line, "index "))
-	if len(fields) == 0 || len(fields) > 2 || !strings.Contains(fields[0], "..") {
+	if len(fields) == 0 || len(fields) > 2 || !indexRange.MatchString(fields[0]) {
 		return false
 	}
 	return len(fields) == 1 || fields[1] == "100644" || fields[1] == "100755"
+}
+
+var indexRange = regexp.MustCompile(`^[0-9a-f]{4,64}\.\.[0-9a-f]{4,64}$`)
+
+// printableASCII reports text of bytes 0x20 to 0x7E only, such as the
+// function context that git prints after a hunk header's closing @@; git
+// ignores that text, but a reviewer reads it.
+func printableASCII(text string) bool {
+	for i := 0; i < len(text); i++ {
+		if text[i] < 0x20 || text[i] > 0x7e {
+			return false
+		}
+	}
+	return true
 }
 
 // names reads the `---` line already taken and the `+++` line after it: a
@@ -216,7 +231,7 @@ func headerName(raw, prefix string) (string, bool) {
 func (p *diffParser) hunk(file *diffFile) bool {
 	header, _ := p.next()
 	match := hunkHeader.FindStringSubmatch(header)
-	if match == nil {
+	if match == nil || !printableASCII(header[len(match[0]):]) {
 		return false
 	}
 	oldCount, newCount := hunkCount(match[2]), hunkCount(match[4])

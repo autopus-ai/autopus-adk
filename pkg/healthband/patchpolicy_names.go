@@ -95,7 +95,7 @@ func validPaths(files []*diffFile) bool {
 }
 
 func validPath(path string) bool {
-	if path == "" || strings.HasPrefix(path, "/") || !utf8.ValidString(path) {
+	if path == "" || strings.HasPrefix(path, "/") || !utf8.ValidString(path) || mixedScriptToken(path) {
 		return false
 	}
 	for _, r := range path {
@@ -123,8 +123,14 @@ var controlTables = []*unicode.RangeTable{
 }
 
 // inControlSet reports a code point of the item 7 set, TAB included; the
-// added-line check allows TAB itself.
-func inControlSet(r rune) bool { return unicode.In(r, controlTables...) }
+// added-line check allows TAB itself. Beside the tables, the set holds every
+// space separator (Zs) but U+0020, such as U+00A0, U+2009, and U+3000, and
+// the two symbols (So) that render blank, U+2800 BRAILLE PATTERN BLANK and
+// U+1D159 MUSICAL SYMBOL NULL NOTEHEAD (Phase 4 security review L1); every
+// other symbol, such as U+2714, stays visible and passes.
+func inControlSet(r rune) bool {
+	return unicode.In(r, controlTables...) || r != ' ' && unicode.Is(unicode.Zs, r) || r == 0x2800 || r == 0x1d159
+}
 
 // pathPrefixes returns the directory prefixes of a slash path, shortest first.
 func pathPrefixes(path string) []string {

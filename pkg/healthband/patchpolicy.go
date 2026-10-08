@@ -34,6 +34,7 @@ const (
 	PatchCodeGuardFault    = "path_denied:guard_fault"
 	PatchCodeContentDenied = "patch_content_denied"
 	PatchCodeControlChar   = "patch_content_denied:control_char"
+	PatchCodeConfusable    = "patch_content_denied:confusable"
 	PatchCodeTooLarge      = "patch_too_large"
 )
 
