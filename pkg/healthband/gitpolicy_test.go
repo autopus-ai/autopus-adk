@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -145,51 +146,56 @@ func TestGitPolicyRunner_InputOutputAndExitCodes(t *testing.T) {
 
 // REQ-12: a command that outlives its step group gets SIGTERM on its process
 // group StopGrace before the deadline and SIGKILL at the deadline, and no
-// child of git survives it.
+// child of git survives it. Each deadline clock starts only once the fake
+// git is ready (gpReadyContext), so the SIGTERM never lands before its trap
+// exists, however loaded the machine is.
 func TestGitPolicyRunner_StopsAtTheStepGroupDeadline(t *testing.T) {
 	t.Parallel()
 	f := newGPFixture(t)
 	signal, late := filepath.Join(f.root, "signal.txt"), filepath.Join(f.root, "late.txt")
-	const grace, budget = 600 * time.Millisecond, 1500 * time.Millisecond
+	const grace, budget = 1200 * time.Millisecond, 2400 * time.Millisecond
 
-	terminated := f.gpFake("FAKE_MODE=term-exit", "FAKE_SIGNAL="+signal)
+	termReady := filepath.Join(f.root, "term.ready")
+	terminated := f.gpFake("FAKE_MODE=term-exit", "FAKE_SIGNAL="+signal, "FAKE_READY="+termReady)
 	terminated.StopGrace = grace
-	ctx, cancel := context.WithTimeout(context.Background(), budget)
-	defer cancel()
-	start := time.Now()
+	ctx := newGPReadyContext(termReady, budget)
 	_, err := terminated.Run(ctx, "reset", "--hard", "--no-recurse-submodules", "--quiet")
-	elapsed := time.Since(start)
+	ended := time.Now()
+	deadline, _ := ctx.Deadline()
 	assert.ErrorIs(t, err, ErrGitStopped)
 	assert.Equal(t, 143, GitExitCode(err), "git ended on the SIGTERM it got")
-	assert.Less(t, elapsed, budget-200*time.Millisecond, "SIGTERM came before the deadline")
+	assert.True(t, ended.Before(deadline.Add(-200*time.Millisecond)), "SIGTERM came before the deadline")
 	data, readErr := os.ReadFile(signal)
 	require.NoError(t, readErr)
 	assert.Equal(t, "term\n", string(data))
 
 	// Control: killing only the direct child leaves its child alive, which
-	// writes its file 2 s after it started.
-	ignoring := f.gpFake("FAKE_MODE=ignore-term", "FAKE_LATE="+late)
+	// writes its file 4 s after it started.
+	ignoreReady, controlReady := filepath.Join(f.root, "ignore.ready"), filepath.Join(f.root, "control.ready")
+	ignoring := f.gpFake("FAKE_MODE=ignore-term", "FAKE_LATE="+late, "FAKE_READY="+ignoreReady)
 	control := exec.Command(ignoring.Binary)
-	control.Env = append(ignoring.Environ(), "FAKE_LATE="+late+".control")
+	control.Env = append(ignoring.Environ(), "FAKE_LATE="+late+".control", "FAKE_READY="+controlReady)
 	control.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	require.NoError(t, control.Start())
 	defer func() { _ = syscall.Kill(-control.Process.Pid, syscall.SIGKILL) }()
-	time.Sleep(300 * time.Millisecond)
+	require.Eventually(t, func() bool { return gpFileExists(controlReady) }, gpReadyWait, 5*time.Millisecond)
 	require.NoError(t, control.Process.Kill())
 	_ = control.Wait()
 
 	ignoring.StopGrace = grace
-	ctx, cancel = context.WithTimeout(context.Background(), budget)
-	defer cancel()
-	start = time.Now()
+	ctx = newGPReadyContext(ignoreReady, budget)
 	_, err = ignoring.Run(ctx, "worktree", "add", "--no-checkout", "--detach", filepath.Join(f.root, "wt"), gpOID)
-	elapsed = time.Since(start)
+	ended = time.Now()
+	deadline, _ = ctx.Deadline()
 	assert.ErrorIs(t, err, ErrGitStopped)
 	assert.ErrorContains(t, err, "stopped at its deadline")
-	assert.GreaterOrEqual(t, elapsed, budget-50*time.Millisecond, "SIGKILL waited for the deadline")
-	assert.Less(t, elapsed, budget+2*time.Second)
-	time.Sleep(time.Until(start.Add(3 * time.Second)))
-	assert.FileExists(t, late+".control", "the control's child outlived a kill of its parent")
+	assert.False(t, ended.Before(deadline.Add(-50*time.Millisecond)), "SIGKILL waited for the deadline")
+	assert.True(t, ended.Before(deadline.Add(2*time.Second)))
+	assert.Eventually(t, func() bool { return gpFileExists(late + ".control") }, 10*time.Second, 20*time.Millisecond,
+		"the control's child outlived a kill of its parent")
+	// The killed child would have written its file 4 s after its fake got
+	// ready, which is no later than the clock start (deadline - budget).
+	time.Sleep(time.Until(deadline.Add(-budget + 4*time.Second + 500*time.Millisecond)))
 	assert.NoFileExists(t, late, "the SIGKILL of the process group reached git's child")
 
 	done, cancel := context.WithCancel(context.Background())
@@ -197,4 +203,55 @@ func TestGitPolicyRunner_StopsAtTheStepGroupDeadline(t *testing.T) {
 	_, err = ignoring.Run(done, "version")
 	assert.ErrorIs(t, err, context.Canceled)
 	assert.ErrorIs(t, err, ErrGitStopped)
+}
+
+// gpReadyWait bounds how long a test waits for a fake to get ready.
+const gpReadyWait = 30 * time.Second
+
+// gpReadyContext is a context whose deadline clock starts only once the
+// ready file exists, which a stop mode of the fake creates after it has
+// installed its TERM trap. The runner reads the deadline when it arms its
+// SIGTERM timer right after the start, so the first Deadline call waits for
+// the file and then starts the clock; Done closes at that deadline.
+type gpReadyContext struct {
+	context.Context
+	ready    string
+	budget   time.Duration
+	done     chan struct{}
+	once     sync.Once
+	mu       sync.Mutex
+	deadline time.Time
+	err      error
+}
+
+func newGPReadyContext(ready string, budget time.Duration) *gpReadyContext {
+	return &gpReadyContext{Context: context.Background(), ready: ready, budget: budget, done: make(chan struct{})}
+}
+
+func (c *gpReadyContext) Deadline() (time.Time, bool) {
+	c.once.Do(func() {
+		for limit := time.Now().Add(gpReadyWait); !gpFileExists(c.ready) && time.Now().Before(limit); {
+			time.Sleep(time.Millisecond)
+		}
+		c.mu.Lock()
+		c.deadline = time.Now().Add(c.budget)
+		c.mu.Unlock()
+		time.AfterFunc(c.budget, func() {
+			c.mu.Lock()
+			c.err = context.DeadlineExceeded
+			c.mu.Unlock()
+			close(c.done)
+		})
+	})
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.deadline, true
+}
+
+func (c *gpReadyContext) Done() <-chan struct{} { return c.done }
+
+func (c *gpReadyContext) Err() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.err
 }

@@ -16,7 +16,9 @@ import (
 // gpFakeGit is one fake git for runner tests, so macOS assesses a single new
 // executable: FAKE_ARGS and FAKE_ENV record the argv and environment,
 // FAKE_OUT is printed, FAKE_STDIN echoes stdin, FAKE_MODE selects a stop
-// behavior, and FAKE_EXIT is the exit status.
+// behavior, and FAKE_EXIT is the exit status. A stop mode creates
+// FAKE_READY once its TERM trap is installed (and, in ignore-term, its child
+// has started), so a test can start its deadline clock only then.
 func (f *gpFixture) gpFakeGit() string {
 	if path := filepath.Join(f.bin, "fakegit"); gpFileExists(path) {
 		return path
@@ -26,8 +28,8 @@ func (f *gpFixture) gpFakeGit() string {
 [ -n "$FAKE_OUT" ] && cat "$FAKE_OUT"
 [ -n "$FAKE_STDIN" ] && cat
 case "$FAKE_MODE" in
-ignore-term) trap '' TERM; (sleep 2; touch "$FAKE_LATE") & sleep 30 & wait ;;
-term-exit) trap 'echo term > "$FAKE_SIGNAL"; exit 143' TERM; sleep 30 & wait ;;
+ignore-term) trap '' TERM; (sleep 4; touch "$FAKE_LATE") & : > "$FAKE_READY"; sleep 30 & wait ;;
+term-exit) trap 'echo term > "$FAKE_SIGNAL"; exit 143' TERM; : > "$FAKE_READY"; sleep 30 & wait ;;
 esac
 exit "${FAKE_EXIT:-0}"
 `)
