@@ -126,7 +126,7 @@ flowchart LR
 | b04 | black-box(calibrated) | `auto spec gates --changed pkg/a/x.go,pkg/b/schema.go --read-only`: `security_or_data` |
 | a01 | black-box(calibrated, 후보에서 승격) | `auto skill select`: 버전 불일치 후보가 `excluded`로 남는다 |
 | a02 | black-box(calibrated, 후보에서 승격) | `auto telemetry team`: 같은 run의 call과 retry를 따로 센다 |
-| a05 | black-box(calibrated, 후보에서 승격) | `auto skill select`: 중첩 중복 key를 거부한다(exit 1, 빈 stdout). 거부만 증명하므로 모든 문서를 거부하는 수정도 통과한다 |
+| a05 | black-box(calibrated, 후보에서 승격) | `auto skill select`: 중첩 중복 key를 거부한다(exit 1, 빈 stdout). 처음에는 거부만 증명해 모든 문서를 거부하는 수정도 통과했다. Phase 4 C2에서 positive control(중복 없는 같은 문서가 선택되어야 함)을 더해, 그런 수정은 `expectation_mismatch`다 |
 | b03 | white-box 유지 | max-age 경계는 `{SPEC_DIR}/gates/evidence-<gate>.json`의 이전 증거에서만 판정되는데, 입력은 `{input}`에 평평하게 복사된다 |
 | b05 | white-box 유지 | symlink인 `autopus.yaml`이 있어야 차이가 난다. 입력은 일반 파일이고 출력 root는 비어 있다 |
 | b06 | white-box 유지 | 프로젝트 절대 경로를 적은 기존 `opencode.json`이 있어야 차이가 난다. trial 출력 root는 매번 새 경로다 |
