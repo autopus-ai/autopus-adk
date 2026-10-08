@@ -12,8 +12,9 @@ schema and corpus digest only. The maintainer live lane (T10-T13) runs them.
 | `baseline.json` | `harness_eval_baseline.v1`, written by `auto eval harness baseline --init` on this tree; 45 rows (32 active and 1 retired surface, 12 agent) |
 | `fixtures/codex-models.json` | the pinned Codex model catalog (`pins.codex_model_catalog`) |
 | `tasks/surface/*.json` | 32 active surface tasks and 1 retired tombstone |
-| `tasks/agent/*.json` | 12 active agent tasks, one per benchmark corpus task |
-| `candidates/` | reserved for SPEC-HARNEVAL-002 quarantine; never loaded |
+| `tasks/agent/*.json` | 12 active agent tasks, one per benchmark corpus task; 5 of them also carry a black-box oracle |
+| `oracles/<task id>/` | the input fixtures and expected outputs the black-box oracles pin (see Black-box oracles) |
+| `candidates/` | the SPEC-HARNEVAL-002 intake area: open candidates, `promoted/` link records, `rejected/` records; never loaded (see Incident intake) |
 
 ## Commands
 
@@ -148,6 +149,47 @@ only) still pass, so the calibration is refused through the other ten
 runs this calibration before any trial and refuses the session with
 `oracle_calibration_failed` if a name here is wrong.
 
+## Black-box oracles (SPEC-HARNEVAL-003 T15)
+
+The signed live lane judges only agent tasks whose document carries
+`oracle_mode: black_box` and a `black_box_oracle` (format: the signed-lane
+section of `scripts/benchmarks/harness/README.md`). The trusted runner builds
+`./cmd/auto` from the agent-modified `live.workspace_revision` snapshot, runs
+the command below under `artifact.sb` with the inputs copied into `{input}`,
+and the trusted oracle harness compares the exit status and the whole stdout
+with the pinned expectations. The Go loader applies the runner's definition
+rules, requires every fixture below `evals/harness/oracles/` (removed from
+every agent, build, and artifact snapshot), and reads each one like a corpus
+file: a byte or size drift (inputs up to 16 MiB, expected outputs up to 1 MiB)
+is `invalid` with detail `oracle_digest_mismatch`. `floors.signed_agent_tasks`
+is 5: a signed session with fewer black-box tasks is `vacuous`.
+
+| Task | Command after `{artifact}` | Expected |
+|------|----------------------------|----------|
+| GT-AGENT-A01 | `skill select --policy-json {input}/policy.json --task-json {input}/task.json --dir {input}` | exit 0; `version-mismatch` stays `excluded` (mutation: `unknown`) |
+| GT-AGENT-A02 | `telemetry team --evidence-json {input}/team.json --format json` | exit 0; a call and its retry in one run count twice (mutation: once) |
+| GT-AGENT-A05 | `skill select --policy-json {input}/policy.json --task-json {input}/task.json --dir {input}` | exit 1, empty stdout: a nested duplicate key is refused (mutation: accepted); positive control: the same document without the repeat is selected |
+| GT-AGENT-A06 | `telemetry harness --evidence-json {input}/evidence.json --format json` | exit 0; the incompatible-identity task leaves the two pairs it would join (mutation: paired) |
+| GT-AGENT-B04 | `spec gates {input} --changed pkg/a/x.go,pkg/b/schema.go --read-only` | exit 0; one schema path across two modules is `security_or_data` (mutation: `multi_domain`) |
+
+Each expected stdout is what the clean reference artifact of the workspace
+revision prints. Calibration on 2026-10-09 (macOS 26.5.2, go1.27.0, no agent
+and no model, `golden_blackbox_trial.calibrate` under both profiles): 5/5
+clean artifacts `accepted`, 5/5 mutated ones `expectation_mismatch`
+(`.autopus/specs/SPEC-HARNEVAL-003/evidence/t15-calibration.txt`). GT-AGENT-A05
+also pins a positive control (`control/task.json` without the duplicate key,
+with the same `policy.json`, must exit 0 and print `control/stdout.json`), so
+an `auto` that refuses every document fails it: recalibrated the same day,
+clean `accepted`, mutated and a refuse-everything decoder both
+`expectation_mismatch`.
+
+The SPEC's first five (a06, b03, b04, b05, b06) were not all observable with
+this format. b03 needs prior gate evidence at `{SPEC_DIR}/gates/` while inputs
+are copied flat into `{input}`; b05 needs a symlinked `autopus.yaml` and b06
+an existing `opencode.json` naming the project's absolute path, while inputs
+are read-only regular files and the output root starts empty. a01, a02 and
+a05 took their places. The other 7 tasks stay white-box in the advisory lane.
+
 ## Live advisory report (REQ-HE-10, REQ-HE-11)
 
 `auto eval harness report` judges one live session directory written by the
@@ -247,7 +289,100 @@ a longer path could contain are therefore also asserted as quoted strings with
   task's `expectation_digest`; the run fails with `expectation_changed` until
   `auto eval harness baseline --update` records it. Wording in `intent` and
   `outcome` is outside the digest.
+- The digest also covers `oracle_mode` and `black_box_oracle` of a black-box
+  task, so an edited fixture needs its new `sha256` in the definition and
+  then a baseline update. A white-box task encodes neither field, so its
+  digest is the SPEC-HARNEVAL-001 one; adding the five oracles changed exactly
+  those five baseline rows.
 - Retire a task with `status.state: retired` and a reason instead of deleting
   it; the baseline keeps the retired row.
 - Editing a corpus file changes its digest: update `file_sha256` in every agent
   task that pins it, and recalibrate `expected_tests` if the oracle changed.
+
+## Incident intake (SPEC-HARNEVAL-002)
+
+An incident recorded in the learn store (`.autopus/learnings/pipeline.jsonl`)
+becomes a golden task only through a person. Intake turns the entry into a
+quarantined candidate under `candidates/`, a person writes the task's category
+and assertions, and an explicit `promote` publishes it to `tasks/surface/`, or
+`reject` retires it. Nothing is promoted in bulk or automatically, no
+assertion is generated, and no `repro` value is ever executed. Run every
+command from the repository root: `auto learn` uses the working directory, and
+`auto eval harness` reads `--dir`, which defaults to `.`.
+
+```sh
+auto learn record --type fix_pattern --pattern "hook missing in codex" --files pkg/content/a.go,pkg/content/hooks.go,pkg/content/z.go --packages pkg/adapter,pkg/content --expected "codex gets .codex/hooks.json" --actual "the codex surface has no hooks file" --repro "auto init"
+auto eval harness intake --all-eligible --format json
+# write the task category and assertions into candidates/GTC-023e9302ff0b.json
+auto eval harness promote GTC-023e9302ff0b --format json
+auto eval harness baseline --update
+```
+
+1. **Record.** `--expected` and `--actual` make an entry eligible; `--repro`
+   is stored as data. The store writer masks secrets in every free-text field
+   with `pkg/secretscan` before any byte is written. It refuses an `expected`,
+   `actual`, or `repro` with a control character, and caps `expected` and
+   `actual` at 1024 bytes and `repro` at 512 bytes after masking.
+2. **Intake.** `--all-eligible` takes every entry that has `expected` and
+   `actual` and whose fingerprint is not already an open candidate, a promoted
+   link, a rejection, or an active incident task. `--learning L-NNN[,L-MMM]`
+   names entries and reports each one it skips. Entries with the same
+   fingerprint (type, pattern, files, and packages, normalized) form one
+   candidate, `candidates/GTC-<12 hex>.json`, whose evidence comes from the
+   lowest id alone. Intake checks and masks the stored text again and skips a
+   pattern that has a control character other than newline or tab or is
+   longer than 4096 bytes. stdout holds one `harness_intake_result.v1`
+   document. The exit code is 0, 2 when a row was skipped, and 1 when the
+   invocation is refused, which writes nothing.
+3. **Write the draft.** The candidate's `task` is a complete
+   `harness_golden_task.v1` draft whose `category` is `""` and whose
+   `assertions` is `[]`. Set `category` and write at least one assertion;
+   `variants` is optional. For the example above, the `task` gets:
+
+   ```json
+   {
+     "category": "hooks_settings",
+     "assertions": [
+       {"kind": "file_exists", "platform": "codex", "path": ".codex/hooks.json"}
+     ]
+   }
+   ```
+
+4. **Promote or reject.** `promote` checks the candidate in a fixed order and
+   stops at the first failure without writing anything. It publishes
+   `tasks/surface/GT-INC-<8 HEX>.json`, loads the whole set again and removes
+   the task alone when the set no longer loads, writes the permanent link
+   record `candidates/promoted/GT-INC-<8 HEX>.json`, and removes the candidate
+   last, so rerunning an interrupted promotion finishes it. `current_outcome`
+   is the new task's `pass` or `fail` on the pinned surface, or
+   `not_evaluated` with the precondition that stopped it; the promotion holds
+   either way. `auto eval harness reject GTC-<12 hex> --reason "<text>"` moves
+   the candidate into `candidates/rejected/` instead, so intake never offers
+   that fingerprint again. Deleting a candidate file by hand is not a
+   rejection: the next `--all-eligible` creates it again.
+5. **Pin.** Until `auto eval harness baseline --update` records it, the run
+   reports the promoted task as `new` with `set_digest_mismatch`.
+
+`auto learn prune --days N` keeps every entry that an open candidate, a
+promoted link record, or the provenance of an incident task names, whatever
+its age, and then prints `Kept K entries linked to golden-task evals.`. A
+rejection protects nothing. When any of those files cannot be read, prune
+stops with `eval_links_unreadable` and leaves the store unchanged. Intake,
+promote, and reject refuse with `platform_unsupported` on Windows, so
+golden-set upkeep is a macOS or Linux task.
+
+Caveats:
+
+- **Mixed-version prune.** An `auto learn prune` from a binary older than this
+  flow deletes linked entries by age and drops `expected`, `actual`, and
+  `repro` from the entries it keeps. Candidates and link records hold their
+  own copies, so the eval evidence survives.
+- **Duplicate entries.** Intake never edits an existing candidate. An entry
+  recorded with the same fingerprint after its candidate exists does not join
+  it: `--all-eligible` skips it, `--learning` reports `duplicate_candidate`,
+  and prune does not keep it. After a secret detector change, recording the
+  same incident again can mask its text differently and yield a second
+  candidate; reject the duplicate.
+- **Shell history.** Masking covers what these commands write and print. The
+  values of `--pattern`, `--expected`, `--actual`, `--repro`, and `--reason`
+  stay in your shell history as typed, so do not paste secrets into them.

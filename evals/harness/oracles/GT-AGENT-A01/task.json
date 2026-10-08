@@ -1,0 +1,5 @@
+{
+  "schema_version": "skill_task.v1",
+  "class": "fix",
+  "declared_versions": {"a": "wrong", "go": "1.26"}
+}

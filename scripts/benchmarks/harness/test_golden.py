@@ -66,22 +66,32 @@ class ScheduleAndDocumentTests(unittest.TestCase):
 
 class DigestTests(unittest.TestCase):
     def test_runner_digest_covers_every_runner_file_and_nothing_else(self):
+        # The copy keeps the checkout layout: ORACLE_FILES are read at their checkout path (SPEC-HARNEVAL-003).
         with tempfile.TemporaryDirectory() as directory:
-            copy = Path(directory)
-            for name in gp.RUNNER_FILES + ('README.md',):
-                (copy / name).parent.mkdir(parents=True, exist_ok=True)
-                shutil.copyfile(HERE / name, copy / name)
+            checkout, copy = Path(directory), Path(directory) / 'scripts/benchmarks/harness'
+            files = [copy / name for name in gp.RUNNER_FILES + ('README.md', 'test_golden.py')]
+            files += [checkout / name for name in gp.ORACLE_FILES + ('cmd/harneval-oracle/main_test.go',)]
+            for path in files:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(HERE.parents[2] / path.relative_to(checkout), path)
             original = gp.runner_digest(copy)
             self.assertEqual(original, gp.runner_digest(HERE))
-            with (copy / 'README.md').open('a') as readme:
-                readme.write('more prose\n')
+            for extra in (copy / 'README.md', copy / 'test_golden.py', checkout / 'cmd/harneval-oracle/main_test.go'):
+                with extra.open('a') as prose:
+                    prose.write('more prose\n')
             self.assertEqual(gp.runner_digest(copy), original)
-            for name in gp.RUNNER_FILES:
-                with self.subTest(name):
-                    data = (copy / name).read_bytes()
-                    (copy / name).write_bytes(data + b'\n')
+            for path in [copy / name for name in gp.RUNNER_FILES] + [checkout / name for name in gp.ORACLE_FILES]:
+                with self.subTest(str(path.relative_to(checkout))):
+                    data = path.read_bytes()
+                    path.write_bytes(data + b'\n')
                     self.assertNotEqual(gp.runner_digest(copy), original)
-                    (copy / name).write_bytes(data)
+                    path.write_bytes(data)
+
+    def test_oracle_files_are_the_sources_of_the_oracle_harness(self):
+        sources = sorted(path.relative_to(HERE.parents[2]).as_posix()
+                         for path in (HERE.parents[2] / 'cmd/harneval-oracle').glob('*.go')
+                         if not path.name.endswith('_test.go'))
+        self.assertEqual(sorted(gp.ORACLE_FILES), sources)
 
     def test_runner_files_are_the_modules_the_runner_loads_plus_the_profile_and_the_driver(self):
         # grader.sb goes to sandbox-exec and surface_driver/main.go into every arm build (T13).
@@ -91,7 +101,9 @@ class DigestTests(unittest.TestCase):
         loaded = subprocess.run([sys.executable, '-c', probe], cwd=HERE, capture_output=True, text=True, check=True,
                                 env={**os.environ, 'PYTHONDONTWRITEBYTECODE': '1'}).stdout.split()
         self.assertIn('golden_surface.py', loaded)
-        self.assertEqual(sorted(gp.RUNNER_FILES), sorted(loaded + ['grader.sb', 'surface_driver/main.go']))
+        self.assertIn('golden_blackbox_trial.py', loaded)
+        profiles = ['artifact.sb', 'grader.sb', 'oracle.sb', 'surface_driver/main.go']
+        self.assertEqual(sorted(gp.RUNNER_FILES), sorted(loaded + profiles))
 
     def test_surface_digest_is_the_go_surface_digest(self):
         # The literal is harneval.SurfaceDigest of this tree, printed by a Go test on 2026-10-07.

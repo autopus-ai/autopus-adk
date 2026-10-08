@@ -1,6 +1,6 @@
 # SPEC-HARNEVAL-002: Learning·incident를 golden-task 후보로 승격
 
-**Status**: approved
+**Status**: implemented
 **Created**: 2026-10-06
 **Domain**: HARNEVAL
 **Module**: autopus-adk
@@ -39,14 +39,16 @@ THE SYSTEM SHALL add optional `expected`, `actual`, and `repro` string fields wi
   - span: 각 match에서 secret 부분을 고른다. qa detector는 `RedactText`가 바꾸는 group(Bearer 뒤 값, 할당·flag·JSON의 값, URL userinfo, query 값, note 값, 사용자명)을 쓰고, worker 패턴은 match 전체를 쓴다. qa의 prose 예외는 적용하지 않는다(더 엄격). placeholder와 겹친다는 이유로 span을 버리지 않는다. 대신 span 경계를 겹친 placeholder token의 경계까지 넓힌 뒤 병합하고, 병합 span 전체를 다시 가린다. 그 안에 있던 placeholder도 함께 덮인다. 넓힌 span의 text가 canonical placeholder 하나와 정확히 같을 때만 그 span을 건너뛴다. 이 예외 덕분에 다시 적용해도 결과가 같다. 그래서 사용자가 넣은 placeholder가 같은 match나 인접 match의 원문 secret을 가려 주지 못한다(S11).
   - 병합: span을 시작 위치로 정렬하고, 겹치거나 맞닿으면 합친다. 합친 span의 종류는 우선순위 secret > private note > user로 정한다.
   - 치환: 합친 span마다 한 번만 `[REDACTED_SECRET]`, `[REDACTED_PRIVATE_NOTE]`, `[REDACTED_USER]`로 바꾼다.
+  - neutral copy와 고정점(rev 7): detector는 canonical placeholder를 같은 길이 filler `#`로 바꾼 사본을 훑는다. placeholder는 불투명한 값이라 붙은 원문은 그 값에 합쳐지고, placeholder 글자(`SECRET`)는 keyword가 아니다. 원문 자체의 span은 placeholder와 겹치지 않거나 사본의 span과도 겹칠 때만 더한다(S11의 `[REDACTED_SECRET]; aws <40>`). 한 pass가 아무것도 바꾸지 않을 때까지 반복하므로 `Redact(Redact(x)) == Redact(x)`다.
+  - 겹친 match와 replay(rev 7): detector마다 match의 선택 부분 시작(전체 선택이면 시작+1)에서 다시 찾아 값이 삼킨 다음 key의 match도 모은다. 중첩 검색은 detector당 text의 8배+4096 byte까지만 훑고, 넘으면 그 지점부터 끝까지를 secret 하나로 가린다. `RedactText`와 worker `Scan`을 위치를 추적하며 다시 돌려 각 치환이 지운 원문 범위도 가린다. PEM 머리줄 span은 footer 끝까지, footer가 없으면 뒤의 base64 본문까지다.
 - 순차 적용(rev 4)은 앞 detector가 바꾼 문맥 때문에 뒤 detector가 원문 secret을 놓쳤다. 예를 들어 `see /Users/aws/` + 40자는 사용자명만 가려지고 40자 값이 남았다(실행 확인). 원문 기준 span 병합은 이를 `see /Users/[REDACTED_SECRET] end`로 완전히 가린다(probe A1).
 - 성질과 drift test:
   - `Redact`는 같은 입력에 같은 결과를 낸다.
-  - 출력에 detector를 다시 돌리면 placeholder 밖에는 span이 없다.
+  - 출력에 detector를 다시 돌리면(pass가 neutral copy 기준으로 모으는 span) placeholder 밖에는 span이 없다.
   - 원문 secret span에서 placeholder token을 뺀 부분의 8자 이상 부분 문자열은 출력에 남지 않는다.
   - test에서만 두 package를 import한다. `SecretDetectorSources()`, `DefaultPatternSources()`가 돌려주는 정규식 출처와 `pkg/secretscan` 표가 정확히 같은지 검사하므로, 어느 detector가 바뀌어도 test가 실패한다.
-- redaction 위치: `pkg/learn/store.go`의 쓰기 함수(`Append`와 `AppendAtomic`이 거치는 경로). 대상 free-text field는 `pattern`, `resolution`, `phase`, `spec_id`, `expected`, `actual`, `repro`다. Go writer는 `record.go`의 `AppendAtomic` 하나뿐이므로 CLI와 `pkg/pipeline/learn_hook.go` 모두 이 경계를 지난다. `rewriteStore`(`Prune`, `UpdateReuseCount`가 공유)는 파싱된 entry를 지금처럼 canonical `MarshalJSON`으로 다시 encode한다. 다만 redaction을 다시 적용하지 않는다. 문자열 값과 `null`·`[]`는 round-trip에서 그대로이므로 저장 값과 fingerprint 입력은 prune 뒤에도 변하지 않는다. 시간대 표기 같은 기존 canonical 정규화(SPEC-ADK-EVIDENCE-LOOPS-001 계약)와 `reuse_count` 증가는 지금처럼 일어난다. 이 SPEC 이전 binary가 쓴 legacy raw entry도 다시 가리지 않으므로 원문과 fingerprint가 그대로 남는다(S2). 그 원문은 intake가 후보로 복사할 때만 가려진다. tracked store에 남은 legacy 원문은 수동 정리 대상이며 잔여 위험으로 둔다. 파싱되지 않은 줄(`SkipRecord`)은 경계를 지난 적이 없으므로 원문 줄 전체에 `Redact`를 적용해 다시 쓴다.
-- CLI 출력: `auto learn record`의 `Recorded %s entry: %s`(`learn_record.go:68`)는 원문이 아니라 저장된(가려진) pattern을 출력한다. 기존 test는 접두사 `Recorded <type> entry`만 단언한다.
+- redaction 위치: `pkg/learn/store.go`의 쓰기 함수(`Append`와 `AppendAtomic`이 거치는 경로). 대상 free-text field는 `pattern`, `resolution`, `phase`, `spec_id`, `expected`, `actual`, `repro`다. 받은 그대로 저장하는 field는 거부만 한다(rev 7). `severity`는 빈 값, `low`, `medium`, `high`, `critical`만 받고(detail `unknown_value`), fingerprint 입력인 `files`·`packages`는 `Redact`가 바꿀 항목이 있으면 거부한다(detail `needs_redaction`). store 파일이 symlink이거나 regular file이 아니면 append와 rewrite 모두 거부한다. Go writer는 `record.go`의 `AppendAtomic` 하나뿐이므로 CLI와 `pkg/pipeline/learn_hook.go` 모두 이 경계를 지난다. `rewriteStore`(`Prune`, `UpdateReuseCount`가 공유)는 파싱된 entry를 지금처럼 canonical `MarshalJSON`으로 다시 encode한다. 다만 redaction을 다시 적용하지 않는다. 문자열 값과 `null`·`[]`는 round-trip에서 그대로이므로 저장 값과 fingerprint 입력은 prune 뒤에도 변하지 않는다. 시간대 표기 같은 기존 canonical 정규화(SPEC-ADK-EVIDENCE-LOOPS-001 계약)와 `reuse_count` 증가는 지금처럼 일어난다. 이 SPEC 이전 binary가 쓴 legacy raw entry도 다시 가리지 않으므로 원문과 fingerprint가 그대로 남는다(S2). 그 원문은 intake가 후보로 복사할 때만 가려진다. tracked store에 남은 legacy 원문은 수동 정리 대상이며 잔여 위험으로 둔다. 파싱되지 않은 줄(`SkipRecord`)은 경계를 지난 적이 없으므로 원문 줄 전체에 `Redact`를 적용해 다시 쓴다.
+- CLI 출력: `auto learn record`의 `Recorded %s entry: %s`(`learn_record.go:68`)는 원문이 아니라 저장된(가려진) pattern을 출력하고, 제어 문자는 `\uXXXX`로 escape한다(rev 7). 기존 test는 접두사 `Recorded <type> entry`만 단언한다.
 - template(canonical source는 `templates/claude/commands/auto-workflows.md.tmpl`이고 `content/`에는 이 문구가 없다). 두 곳을 고친다.
   - L2359: "append directly to `.autopus/learnings/pipeline.jsonl`" fallback을 "`auto learn record` 실패를 보고하고 store를 직접 쓰지 않는다"로 바꾼다.
   - Sync Target 4.5 (L2671-2674): 항상 실패하는 `auto learn prune --max-age 90d`(`IntVar`라 `90d`는 parse 오류)를 `auto learn prune --days 90`으로 바꾼다. "read the file directly and remove entries older than 90 days" fallback은 "prune 실패(`eval_links_unreadable` 포함)를 보고하고 store를 고치지 않는다"로 바꾼다.
@@ -110,12 +112,12 @@ WHEN `auto eval harness promote <candidate-id>` runs, THEN THE SYSTEM SHALL appl
 - 검사 순서(첫 실패에서 멈추고 아무것도 쓰지 않는다):
   1. `candidate_id_invalid`, `platform_unsupported`
   2. `path_unsafe`
-  3. `candidate_invalid`(detail `decode`, `id_mismatch`)
+  3. `candidate_invalid`(detail `decode`, `id_mismatch`, rev 7부터 `unredacted_text`: `expected`, `actual`, `repro`, task `intent`·`outcome`·`status.reason`에 `Redact`를 다시 적용해 바뀌면 거부)
   4. `candidate_provenance_mismatch`(kind ≠ incident, fingerprint ≠ 후보 fingerprint, ref ≠ `representative`, 또는 ref ∉ `learning_refs`)
   5. `draft_incomplete`(detail 순서 `status`, `category`, `assertions`, `kind`)
   6. `candidate_invalid`(001 strict loader detail 그대로)
   7. `no_active_path_for_kind`
-  8. `active_set_invalid`(게시 전 001 loader로 기존 active set을 읽어 이미 invalid이면 거부)
+  8. `active_set_invalid`(게시 전 001 loader로 기존 active set을 읽어 이미 invalid이면 거부). 예외: 대상 `<id>.json`이 이 promote의 bytes와 같고 그 id의 link record가 없으면 10과 11 사이 중단으로 보고 11부터 재개한다. link record가 있으면 재개하지 않고 아무것도 바꾸지 않은 채 거부한다(rev 7)
   9. 대상과 중복 검사: 대상 `<id>.json`이 같은 bytes로 있으면 `already_active`로 10을 건너뛰되 그 디렉터리를 다시 fsync한다. 같은 id가 다른 파일에 있거나 bytes가 다르면 `task_id_exists`, 같은 fingerprint의 active task나 promoted link가 있으면 `already_promoted`
 - 게시와 rollback(이 순서 하나만 있다):
   10. task 게시: 모든 연산은 project root의 `os.Root`로 한다. 같은 디렉터리의 `.<id>.json.tmp-<16 hex>`(이름이 `.json`으로 끝나지 않아 001 loader가 읽지 않음)를 `Root.OpenFile(O_CREATE|O_EXCL|O_WRONLY)`로 쓰고 fsync한다. `Root.Link`로 `<id>.json`을 만들고(go1.26.6 `(*os.Root).Link`), `Root.Open`한 디렉터리를 fsync한다. `Root.Remove`로 temp를 지우고 디렉터리를 다시 fsync한다. 경로 기반 `os.Link`·`os.Rename`·`os.Remove`는 쓰지 않는다. 같은 id의 남은 temp는 시작할 때 지운다.
@@ -245,3 +247,25 @@ THE SYSTEM SHALL document the record, intake, assertion authoring, promote or re
 | F-025 (rev 5) cap과 redaction 순서 | 5단계 순서와 detail, 재검증 실패의 행 결과를 정했다 | REQ-HC-01, REQ-HC-03, S1, S4 |
 | F-026 (rev 6) placeholder가 secret을 가려 줌 | 겹친 span을 버리지 않고 placeholder 경계까지 넓혀 병합 span 전체를 다시 가린다. 정확히 placeholder 하나인 span만 건너뛴다. 같은 match와 인접 match oracle을 넣었다. 이전 규칙의 누출 여섯 건은 실행으로 확인했다 | REQ-HC-01, S11 |
 | F-024 (rev 6) Windows test가 비어도 통과 | windows-runtime step에 `go test -list` floor와 PASS 집합 비교를 두고 static test로 고정한다. S10 문구를 CI 실제 단계와 맞췄다 | REQ-HC-11, S10, plan T13 |
+
+## Review Resolution (rev 7, Phase 4 RALF 1)
+
+| Finding | 처리 | 위치 |
+|---------|------|------|
+| C1 8단계 재개가 durable link 뒤 task를 지움 | 재개 예외는 task bytes가 같고 그 id의 link record가 없을 때만 적용한다. link가 있으면 아무것도 바꾸지 않고 `active_set_invalid`로 멈춘다. 결함을 고친 뒤 재실행은 `already_active`로 13단계만 진행한다 | REQ-HC-06, S6 |
+| C2 `Redact` 멱등 위반(placeholder의 `SECRET`이 worker AWS 문맥) | neutral copy를 훑고 placeholder 글자만으로 생긴 원문 span은 버린다. pass를 고정점까지 반복한다. S11 fixture 37개 bytes는 그대로이고 SHA fixture, fixture·무작위 corpus 멱등 성질 test를 더했다 | REQ-HC-01, S11 |
+| C3 intake 검사기 사본이 raw C1 byte를 받음 | intake는 `learn.CheckEvidence`와 `learn.HasControlChar`를 쓴다. 깨진 UTF-8은 제어 문자다 | REQ-HC-01, REQ-HC-03, REQ-HC-05 |
+| S1 placeholder에 붙은 원문(`session=[REDACTED_SECRET]hunter2xyz`) | neutral copy의 filler가 값 문자이므로 붙은 원문이 값에 합쳐져 가려진다. qa 전용 key와 flag shield fixture 9개 | REQ-HC-01, S11 |
+| S2 `--severity`, `--files`, `--packages` 원문 저장 | severity는 enum만 받는다. files·packages는 가리지 않고(fingerprint 입력) `Redact`가 바꿀 항목이 있으면 `learning_field_invalid`로 거부한다. CLI는 쓰기 전에 같은 검사를 한다 | REQ-HC-01, REQ-HC-02 |
+| S3 match가 다음 key를 삼킴(`Bearer token: secret: hunter2xyz`) | 선택 부분 시작에서 다시 찾아 겹친 match를 모으고, `RedactText`·worker `Scan`의 순차 치환을 위치 추적 replay로 함께 가린다. placeholder 없는 무작위 입력 6000개에서 upstream이 지운 secret을 남기지 않는 차등 test를 둔다. placeholder가 이미 든 입력은 C2 때문에 superset 대상에서 뺀다(worker는 `SECRET` 글자를 문맥으로 읽는다) | REQ-HC-01, S11 |
+| S4 PEM 본문 노출 | 머리줄 span을 footer 끝까지, footer가 없으면 base64 본문까지 넓힌다 | REQ-HC-01, S11 |
+| S5 `Recorded` 줄의 제어 문자 | `intakePrintable`로 가리고 escape한다 | REQ-HC-01 |
+| S6 손으로 고친 후보의 원문 | 3단계에서 게시할 text에 `Redact`를 다시 적용해 바뀌면 `candidate_invalid`(`unredacted_text`). `PromoteRequest.Redactor`는 필수다 | REQ-HC-06 |
+| S7 symlink store(`pipeline.jsonl -> ../../.env`) | append와 rewrite는 Lstat regular file 검사 뒤 unix에서 `O_NOFOLLOW`·`O_NONBLOCK`으로 연다. 읽기와 상위 디렉터리 symlink는 잔여 위험이다 | REQ-HC-01, REQ-HC-07 |
+| 실행자 결정 `reason_required` | 빈 `--reason`은 쓰기 없이 `reason_required`, 종료 코드 1 | REQ-HC-10 |
+| 실행자 결정 `rejection_exists` | 같은 이름의 거절 record가 다른 bytes면 `rejection_exists`, 같은 bytes면 fsync 뒤 유지해 재실행이 이동을 끝낸다 | REQ-HC-10 |
+| 실행자 결정 `learning_not_found` | 없는 `--learning` id는 실행 단위 오류가 아니라 행 `skipped`(`learning_not_found`)이고 종료 코드 2다 | REQ-HC-03 |
+| 실행자 결정 Windows floor | windows-runtime step의 floor는 PlatformUnsupported test 네 개 전부(intake, promote, reject, 쓰기 helper)라 하나만 빠져도 실패한다 | REQ-HC-11, S10 |
+| 실행자 결정 8단계 재개 예외 | 게시 전 set이 invalid여도 task가 이 promote의 bytes이고 link가 없으면 11부터 재개해 task가 원인이면 rollback한다(C1로 link 조건 추가) | REQ-HC-06, S6 |
+| 실행자 결정 text-invalid member 제외 | pattern(`candidate_text_invalid`)이나 evidence(`learning_field_invalid`) 검사에 실패한 entry는 `skipped`이고 fingerprint 그룹의 `learning_refs`와 prune 보호에 들지 않는다 | REQ-HC-03, REQ-HC-05 |
+| 기존 test 변경 | 이 SPEC이 만든 `TestStoreWriter_RedactsEveryFreeTextField`의 files 값을 `/Users/alice/…`에서 repo 상대 경로로 바꿨다(S2로 거부되는 값). 성질 test는 raw `detect` 대신 pass의 span으로 검사한다. main의 기존 test는 바꾸지 않는다 | Existing Test Changes |

@@ -2373,15 +2373,12 @@ IF any item is unchecked → return to that step. Do NOT report completion.
 WHEN the fix is successfully verified (Step 4 passed), THE SYSTEM SHALL record the fix pattern:
 
 ```bash
-auto learn record --type fix_pattern --files {changed_files} --pattern "{error → root cause → resolution}" --spec {SPEC_ID_if_available}
+auto learn record --type fix_pattern --files {changed_files} --pattern "{error → root cause → resolution}" --spec-id {SPEC_ID_if_available}
 ```
 
-If the command fails, append directly to `.autopus/learnings/pipeline.jsonl`:
-```json
-{"id":"L-{next}","timestamp":"{now}","type":"fix_pattern","phase":"fix","files":[...],"packages":[...],"pattern":"{error description}","resolution":"{how it was fixed}","severity":"low","reuse_count":0}
-```
+If the command fails, report the `auto learn record` error and skip the learning capture. Do NOT append to or edit `.autopus/learnings/pipeline.jsonl` directly: only `auto learn record` redacts secrets before an entry reaches the tracked store.
 
-Display:
+Display (only after the record succeeded):
 ```
 💡 수정 패턴 학습됨: "{one-line pattern summary}"
 ```
@@ -2688,10 +2685,10 @@ WHEN `.autopus/learnings/pipeline.jsonl` exists, THE SYSTEM SHALL:
 **Step 1: Auto-Prune (R9)**
 
 ```bash
-auto learn prune --max-age 90d
+auto learn prune --days 90
 ```
 
-If the command fails, read the file directly and remove entries older than 90 days. Display only if entries were pruned:
+If the command fails (including `eval_links_unreadable`), report the failure and leave `.autopus/learnings/pipeline.jsonl` unchanged. Do NOT read the file directly to remove or rewrite entries: only `auto learn prune` applies the store's retention rules and redacts lines it cannot parse. Display only if entries were pruned:
 ```
 정리: {N}개 학습 항목 만료 삭제 (90일 초과)
 ```

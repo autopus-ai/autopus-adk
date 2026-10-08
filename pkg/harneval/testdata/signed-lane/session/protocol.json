@@ -1,0 +1,372 @@
+{
+  "schema_version": "harness_golden_live_protocol.v1",
+  "session_id": "5e75ba84ae6463e181c237c7af7f0d2d",
+  "started_at": "2026-10-09T00:00:00Z",
+  "workspace_revision": "4ea35ed741bb4050fcb27fb38d14abb00d4d3985",
+  "baseline_ref": "v0.50.123",
+  "baseline_surface_digest": "6bc64d188405b9f58ae9296e2a3eaa2a4f823fc521505f5b30ba3c4f3600e452",
+  "candidate_surface_digest": "a6143b79d1291b6658fbed5d14552f9beb4f3345c76b3879e1f28f1f908bf5bd",
+  "agent_set_digest": "341ddbca9a7bf4247b9df46a04e0c0c475549f5f9a0af9424e02f4987b85c926",
+  "corpus_digests": [
+    {
+      "file": "scripts/benchmarks/harness/corpus_fixture.json",
+      "file_sha256": "e35240b6cf2f754784c42258bab2cab3a235b218474c75235c3ff702a2c29c2f"
+    }
+  ],
+  "runner_sha256": "b8ce34821ffdce00edf0f781ce2efb4025914f9a0b715a2d1d49ef09eca97145",
+  "grader_profile_sha256": "c35255ddca5a040280e5b80e6fb0b63bfef87afa6fcde992e2e7d973babd7de3",
+  "calibration": {
+    "status": "passed",
+    "tasks": [
+      {
+        "task_id": "GT-AGENT-X01",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      },
+      {
+        "task_id": "GT-AGENT-X02",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      },
+      {
+        "task_id": "GT-AGENT-X03",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      },
+      {
+        "task_id": "GT-AGENT-X04",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      },
+      {
+        "task_id": "GT-AGENT-X05",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      },
+      {
+        "task_id": "GT-AGENT-X06",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      },
+      {
+        "task_id": "GT-AGENT-X07",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      },
+      {
+        "task_id": "GT-AGENT-X08",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      },
+      {
+        "task_id": "GT-AGENT-X09",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      },
+      {
+        "task_id": "GT-AGENT-X10",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      },
+      {
+        "task_id": "GT-AGENT-X11",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      },
+      {
+        "task_id": "GT-AGENT-X12",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      }
+    ]
+  },
+  "policy": {
+    "k": 2,
+    "threshold_bp": -1000,
+    "completeness_floor": 0.8,
+    "max_agent_runs": 52,
+    "trial_timeout_seconds": 8,
+    "workspace_revision": "4ea35ed741bb4050fcb27fb38d14abb00d4d3985",
+    "baseline_ref": "v0.50.123",
+    "model": "gpt-6-astra"
+  },
+  "pins": {
+    "generator_version": "v0.50.123",
+    "project_name": "harness-golden",
+    "codex_model_catalog": "evals/harness/fixtures/codex-models.json",
+    "codex_cli_version": "codex-cli 0.160.0",
+    "opencode_cli_version": "1.18.7"
+  },
+  "cli_version": "codex-cli 0.160.0",
+  "model": "gpt-6-astra",
+  "order": [
+    {
+      "task_id": "GT-AGENT-X01",
+      "arm": "baseline",
+      "trial": 0
+    },
+    {
+      "task_id": "GT-AGENT-X01",
+      "arm": "candidate",
+      "trial": 0
+    },
+    {
+      "task_id": "GT-AGENT-X02",
+      "arm": "candidate",
+      "trial": 0
+    },
+    {
+      "task_id": "GT-AGENT-X02",
+      "arm": "baseline",
+      "trial": 0
+    },
+    {
+      "task_id": "GT-AGENT-X03",
+      "arm": "baseline",
+      "trial": 0
+    },
+    {
+      "task_id": "GT-AGENT-X03",
+      "arm": "candidate",
+      "trial": 0
+    },
+    {
+      "task_id": "GT-AGENT-X04",
+      "arm": "candidate",
+      "trial": 0
+    },
+    {
+      "task_id": "GT-AGENT-X04",
+      "arm": "baseline",
+      "trial": 0
+    },
+    {
+      "task_id": "GT-AGENT-X05",
+      "arm": "baseline",
+      "trial": 0
+    },
+    {
+      "task_id": "GT-AGENT-X05",
+      "arm": "candidate",
+      "trial": 0
+    },
+    {
+      "task_id": "GT-AGENT-X06",
+      "arm": "candidate",
+      "trial": 0
+    },
+    {
+      "task_id": "GT-AGENT-X06",
+      "arm": "baseline",
+      "trial": 0
+    },
+    {
+      "task_id": "GT-AGENT-X07",
+      "arm": "baseline",
+      "trial": 0
+    },
+    {
+      "task_id": "GT-AGENT-X07",
+      "arm": "candidate",
+      "trial": 0
+    },
+    {
+      "task_id": "GT-AGENT-X08",
+      "arm": "candidate",
+      "trial": 0
+    },
+    {
+      "task_id": "GT-AGENT-X08",
+      "arm": "baseline",
+      "trial": 0
+    },
+    {
+      "task_id": "GT-AGENT-X09",
+      "arm": "baseline",
+      "trial": 0
+    },
+    {
+      "task_id": "GT-AGENT-X09",
+      "arm": "candidate",
+      "trial": 0
+    },
+    {
+      "task_id": "GT-AGENT-X10",
+      "arm": "candidate",
+      "trial": 0
+    },
+    {
+      "task_id": "GT-AGENT-X10",
+      "arm": "baseline",
+      "trial": 0
+    },
+    {
+      "task_id": "GT-AGENT-X11",
+      "arm": "baseline",
+      "trial": 0
+    },
+    {
+      "task_id": "GT-AGENT-X11",
+      "arm": "candidate",
+      "trial": 0
+    },
+    {
+      "task_id": "GT-AGENT-X12",
+      "arm": "candidate",
+      "trial": 0
+    },
+    {
+      "task_id": "GT-AGENT-X12",
+      "arm": "baseline",
+      "trial": 0
+    },
+    {
+      "task_id": "GT-AGENT-X01",
+      "arm": "candidate",
+      "trial": 1
+    },
+    {
+      "task_id": "GT-AGENT-X01",
+      "arm": "baseline",
+      "trial": 1
+    },
+    {
+      "task_id": "GT-AGENT-X02",
+      "arm": "baseline",
+      "trial": 1
+    },
+    {
+      "task_id": "GT-AGENT-X02",
+      "arm": "candidate",
+      "trial": 1
+    },
+    {
+      "task_id": "GT-AGENT-X03",
+      "arm": "candidate",
+      "trial": 1
+    },
+    {
+      "task_id": "GT-AGENT-X03",
+      "arm": "baseline",
+      "trial": 1
+    },
+    {
+      "task_id": "GT-AGENT-X04",
+      "arm": "baseline",
+      "trial": 1
+    },
+    {
+      "task_id": "GT-AGENT-X04",
+      "arm": "candidate",
+      "trial": 1
+    },
+    {
+      "task_id": "GT-AGENT-X05",
+      "arm": "candidate",
+      "trial": 1
+    },
+    {
+      "task_id": "GT-AGENT-X05",
+      "arm": "baseline",
+      "trial": 1
+    },
+    {
+      "task_id": "GT-AGENT-X06",
+      "arm": "baseline",
+      "trial": 1
+    },
+    {
+      "task_id": "GT-AGENT-X06",
+      "arm": "candidate",
+      "trial": 1
+    },
+    {
+      "task_id": "GT-AGENT-X07",
+      "arm": "candidate",
+      "trial": 1
+    },
+    {
+      "task_id": "GT-AGENT-X07",
+      "arm": "baseline",
+      "trial": 1
+    },
+    {
+      "task_id": "GT-AGENT-X08",
+      "arm": "baseline",
+      "trial": 1
+    },
+    {
+      "task_id": "GT-AGENT-X08",
+      "arm": "candidate",
+      "trial": 1
+    },
+    {
+      "task_id": "GT-AGENT-X09",
+      "arm": "candidate",
+      "trial": 1
+    },
+    {
+      "task_id": "GT-AGENT-X09",
+      "arm": "baseline",
+      "trial": 1
+    },
+    {
+      "task_id": "GT-AGENT-X10",
+      "arm": "baseline",
+      "trial": 1
+    },
+    {
+      "task_id": "GT-AGENT-X10",
+      "arm": "candidate",
+      "trial": 1
+    },
+    {
+      "task_id": "GT-AGENT-X11",
+      "arm": "candidate",
+      "trial": 1
+    },
+    {
+      "task_id": "GT-AGENT-X11",
+      "arm": "baseline",
+      "trial": 1
+    },
+    {
+      "task_id": "GT-AGENT-X12",
+      "arm": "baseline",
+      "trial": 1
+    },
+    {
+      "task_id": "GT-AGENT-X12",
+      "arm": "candidate",
+      "trial": 1
+    }
+  ],
+  "prompt_layers": [
+    {
+      "layer": "stable",
+      "identifiers": [
+        "baseline_surface_digest",
+        "candidate_surface_digest",
+        "agent_set_digest"
+      ]
+    },
+    {
+      "layer": "snapshot",
+      "identifiers": [
+        "corpus_digests",
+        "workspace_revision",
+        "model",
+        "cli_version"
+      ]
+    },
+    {
+      "layer": "ephemeral",
+      "identifiers": []
+    }
+  ],
+  "run_id": 18300000001,
+  "run_attempt": 1,
+  "binding_digest": "4674f7a172e270d12b9528b8f1091a11ff5a5da27557bf6475c027fc0ba9c380",
+  "baseline_commit": "4ea35ed741bb4050fcb27fb38d14abb00d4d3985",
+  "runner_tree_digest": "0429b06ff6fe38379217e99fdd28a5fb41411b712d6a6d516670418c861bba4f"
+}

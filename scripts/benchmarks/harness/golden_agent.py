@@ -14,6 +14,7 @@ import time
 
 import grader
 from permissions import profile_args
+import process_tree
 
 # The agent process environment keys; codex passes exactly these names to the commands it runs.
 AGENT_KEYS = ('PATH', 'HOME', 'TMPDIR', 'GOPATH', 'GOCACHE', 'GOMODCACHE', 'GOFLAGS', 'GOPROXY', 'GOSUMDB',
@@ -69,42 +70,6 @@ def _exited(pid: int, seconds: float) -> bool:
     return True
 
 
-def _members(session: int) -> list:
-    """Live (non-zombie) processes whose session is `session`, its leader excluded."""
-    listing = subprocess.run(['/bin/ps', '-A', '-o', 'pid=,stat='], capture_output=True, text=True, check=True)
-    members = []
-    for line in listing.stdout.splitlines():
-        fields = line.split()
-        if len(fields) < 2 or fields[1].startswith('Z') or int(fields[0]) == session:
-            continue
-        try:
-            if os.getsid(int(fields[0])) == session:
-                members.append(int(fields[0]))
-        except OSError:
-            continue
-    return members
-
-
-def sweep(session: int, rounds: int = 40) -> tuple:
-    """SIGKILL every live member of the session, which codex's per-command process groups stay in.
-
-    Returns (stragglers, leftover): whether any member was found, and whether one survived the kills.
-    """
-    found = False
-    for _ in range(rounds):
-        members = _members(session)
-        if not members:
-            return found, False
-        found = True
-        for pid in members:
-            try:
-                os.kill(pid, signal.SIGKILL)
-            except (ProcessLookupError, PermissionError):
-                pass
-        time.sleep(0.05)
-    return found, bool(_members(session))
-
-
 def _end(pid: int) -> None:
     """Stop a running agent: TERM, then KILL, its process group, waiting without reaping it."""
     for sig, grace in ((signal.SIGTERM, 5), (signal.SIGKILL, 30)):
@@ -117,10 +82,12 @@ def _end(pid: int) -> None:
 
 
 def run_agent(argv: list, cwd: Path, env: dict, prompt: str, events: Path, stderr: Path, timeout: float) -> dict:
-    """Run the agent in a new session with exactly `env`, the prompt on stdin, then empty its session.
+    """Run the agent in a new session with exactly `env`, the prompt on stdin, then kill every process it
+    left: its whole descendant tree, including setsid and orphaned descendants and every command the
+    workspace's Seatbelt profile confines (process_tree; `cwd` is the profile's write root).
 
     An interrupt of the runner (Ctrl-C, or SIGTERM and SIGHUP through golden.main) ends the agent's
-    session before it propagates, so no agent keeps spending model quota after the runner stopped.
+    tree before it propagates, so no agent keeps spending model quota after the runner stopped.
     """
     started = time.monotonic()
     try:
@@ -130,6 +97,7 @@ def run_agent(argv: list, cwd: Path, env: dict, prompt: str, events: Path, stder
     except OSError as error:
         return {'launched': False, 'exit_code': None, 'timed_out': False, 'stragglers': False, 'leftover': False,
                 'duration_s': 0.0, 'error': type(error).__name__}
+    tree = process_tree.Tree(process.pid, Path(cwd)).watch()
     try:
         try:
             process.stdin.write(prompt.encode())
@@ -141,10 +109,10 @@ def run_agent(argv: list, cwd: Path, env: dict, prompt: str, events: Path, stder
             _end(process.pid)
     except BaseException:
         _end(process.pid)
-        sweep(process.pid)
+        tree.sweep()
         process.wait()
         raise
-    stragglers, leftover = sweep(process.pid)
+    stragglers, leftover = tree.sweep()
     process.wait()
     return {'launched': True, 'exit_code': process.returncode, 'timed_out': timed_out, 'stragglers': stragglers,
             'leftover': leftover, 'duration_s': round(time.monotonic() - started, 3),

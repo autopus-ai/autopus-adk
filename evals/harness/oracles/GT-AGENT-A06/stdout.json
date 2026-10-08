@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "mode": "observational",
+  "complete": false,
+  "arms": [
+    {
+      "known_actual_tokens": 24,
+      "measured_tasks": 2,
+      "harness_revision": "h",
+      "harness_config_hash": "native",
+      "arm": "native",
+      "expected": 2,
+      "observed": 2,
+      "accepted": 2,
+      "rejected": 0,
+      "unknown_acceptance": 0,
+      "actual_tokens": 24,
+      "elapsed_ms": 200,
+      "human_corrections": 0,
+      "missing_tasks": []
+    },
+    {
+      "known_actual_tokens": 32,
+      "measured_tasks": 2,
+      "harness_revision": "h",
+      "harness_config_hash": "current",
+      "arm": "current",
+      "expected": 2,
+      "observed": 2,
+      "accepted": 2,
+      "rejected": 0,
+      "unknown_acceptance": 0,
+      "actual_tokens": 32,
+      "elapsed_ms": 250,
+      "human_corrections": 0,
+      "missing_tasks": []
+    },
+    {
+      "known_actual_tokens": 40,
+      "measured_tasks": 2,
+      "harness_revision": "h",
+      "harness_config_hash": "reduced",
+      "arm": "reduced",
+      "expected": 2,
+      "observed": 2,
+      "accepted": 2,
+      "rejected": 0,
+      "unknown_acceptance": 0,
+      "actual_tokens": 40,
+      "elapsed_ms": 300,
+      "human_corrections": 0,
+      "missing_tasks": []
+    }
+  ],
+  "pairs": [
+    {
+      "complete": false,
+      "exclusion_reasons": {
+        "t2": "incompatible_identity"
+      },
+      "baseline": "native",
+      "candidate": "current",
+      "task_count": 1,
+      "task_ids": [
+        "t1"
+      ],
+      "excluded_tasks": [
+        "t2"
+      ],
+      "token_delta": 4,
+      "elapsed_delta_ms": 25
+    },
+    {
+      "complete": true,
+      "exclusion_reasons": {},
+      "baseline": "native",
+      "candidate": "reduced",
+      "task_count": 2,
+      "task_ids": [
+        "t1",
+        "t2"
+      ],
+      "excluded_tasks": [],
+      "token_delta": 16,
+      "elapsed_delta_ms": 100
+    },
+    {
+      "complete": false,
+      "exclusion_reasons": {
+        "t2": "incompatible_identity"
+      },
+      "baseline": "current",
+      "candidate": "reduced",
+      "task_count": 1,
+      "task_ids": [
+        "t1"
+      ],
+      "excluded_tasks": [
+        "t2"
+      ],
+      "token_delta": 4,
+      "elapsed_delta_ms": 25
+    }
+  ]
+}

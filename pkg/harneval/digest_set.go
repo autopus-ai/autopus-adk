@@ -5,23 +5,33 @@ import "encoding/json"
 // expectationInput is the closed field set an expectation digest covers.
 // intent, outcome, category, provenance, and status wording stay out.
 type expectationInput struct {
-	Kind          string      `json:"kind"`
-	Variants      []Variant   `json:"variants"`
-	Assertions    []Assertion `json:"assertions"`
-	CorpusRef     CorpusRef   `json:"corpus_ref"`
-	ExpectedTests []string    `json:"expected_tests"`
+	Kind           string          `json:"kind"`
+	Variants       []Variant       `json:"variants"`
+	Assertions     []Assertion     `json:"assertions"`
+	CorpusRef      CorpusRef       `json:"corpus_ref"`
+	ExpectedTests  []string        `json:"expected_tests"`
+	OracleMode     string          `json:"oracle_mode,omitempty"`
+	BlackBoxOracle *BlackBoxOracle `json:"black_box_oracle,omitempty"`
 }
 
 // ExpectationDigest is the SHA-256 hex of the Go json.Marshal of the task's
-// {kind, variants, assertions, corpus_ref, expected_tests}. Absent and empty
-// collections encode alike as [] or {}; a surface task carries an empty
-// corpus_ref and no expected tests, so only behavior moves the digest.
+// {kind, variants, assertions, corpus_ref, expected_tests, oracle_mode,
+// black_box_oracle}. Absent and empty collections encode alike as [] or {}; a
+// surface task carries an empty corpus_ref and no expected tests, so only
+// behavior moves the digest. A white-box task, whose oracle_mode is absent or
+// white_box, encodes neither oracle field, so its digest is the
+// SPEC-HARNEVAL-001 one; a black-box task adds its mode and its definition,
+// whose fixture sha256 pins move the digest when an expectation changes.
 func ExpectationDigest(task Task) string {
 	input := expectationInput{
-		Kind:          task.Kind,
-		Variants:      make([]Variant, 0, len(task.Variants)),
-		Assertions:    task.Assertions,
-		ExpectedTests: task.ExpectedTests,
+		Kind:           task.Kind,
+		Variants:       make([]Variant, 0, len(task.Variants)),
+		Assertions:     task.Assertions,
+		ExpectedTests:  task.ExpectedTests,
+		BlackBoxOracle: task.BlackBoxOracle,
+	}
+	if task.OracleMode == OracleModeBlackBox {
+		input.OracleMode = OracleModeBlackBox
 	}
 	for _, variant := range task.Variants {
 		if variant.Overrides == nil {

@@ -1,0 +1,219 @@
+package intake
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"slices"
+	"strings"
+
+	"github.com/insajin/autopus-adk/pkg/harneval"
+)
+
+// PromoteResultSchemaV1 identifies the stdout document of one promotion.
+const PromoteResultSchemaV1 = "harness_promote_result.v1"
+
+// Results of a promotion that holds; a refused promotion is a *RunError.
+const (
+	PromoteResultPromoted      = "promoted"
+	PromoteResultAlreadyActive = "already_active"
+)
+
+// Current outcomes of the promoted task.
+const (
+	OutcomePass         = harneval.ResultPass
+	OutcomeFail         = harneval.ResultFail
+	OutcomeNotEvaluated = "not_evaluated"
+)
+
+// Refusal reasons of promote (REQ-HC-06) besides the path reasons declared
+// with the path helpers and the candidate reasons declared with the shared
+// candidate reader. A promoted fingerprint is ResultAlreadyPromoted.
+const (
+	ReasonCandidateProvenanceMismatch = "candidate_provenance_mismatch"
+	ReasonDraftIncomplete             = "draft_incomplete"
+	ReasonNoActivePathForKind         = "no_active_path_for_kind"
+	ReasonActiveSetInvalid            = "active_set_invalid"
+	ReasonTaskIDExists                = "task_id_exists"
+	ReasonPromoteRolledBack           = "promote_rolled_back"
+)
+
+// PromoteRequest is one `auto eval harness promote` invocation.
+type PromoteRequest struct {
+	Root        string
+	CandidateID string
+	// Redactor checks again that the text promote publishes is redacted; it
+	// is required.
+	Redactor Redactor
+	// Run holds the SPEC-HARNEVAL-001 run seams current_outcome is evaluated
+	// with; the zero value is production. Its Baseline and Evaluate seams are
+	// replaced, because one task is evaluated and compared with nothing.
+	Run harneval.RunOptions
+	// interrupt, when set, is called after publication steps 10, 11, and 12.
+	// An error stops the promotion there as a crash would: nothing after that
+	// point runs, so a test can rerun from each interruption point.
+	interrupt func(step int) error
+}
+
+// PromoteResult is the harness_promote_result.v1 document.
+type PromoteResult struct {
+	SchemaVersion      string `json:"schema_version"`
+	Result             string `json:"result"`
+	CandidateID        string `json:"candidate_id"`
+	TaskID             string `json:"task_id"`
+	TaskPath           string `json:"task_path"`
+	LinkPath           string `json:"link_path"`
+	CurrentOutcome     string `json:"current_outcome"`
+	NotEvaluatedReason string `json:"not_evaluated_reason,omitempty"`
+}
+
+// promotion is the state one Promote call builds check by check. set is the
+// active set check 8 loaded and taskData the canonical task file; resumed is
+// set when an earlier, interrupted run already published exactly those bytes.
+type promotion struct {
+	req                            PromoteRequest
+	area                           *area
+	candidate                      Candidate
+	set                            *harneval.Set
+	taskData                       []byte
+	candidateRel, taskRel, linkRel string
+	resumed                        bool
+}
+
+// Promote applies the ordered checks 1 to 9 of REQ-HC-06, stopping at the
+// first failure without writing anything. It then publishes the task file,
+// rolls back that file alone when the SPEC-HARNEVAL-001 load after
+// publication fails, publishes the permanent link record, removes the
+// candidate last, and reports the task's current outcome. A rerun after an
+// interruption at any point converges on the files of an uninterrupted run.
+// No repro value is ever executed.
+func Promote(ctx context.Context, req PromoteRequest) (PromoteResult, error) {
+	if !ValidCandidateID(req.CandidateID) {
+		return PromoteResult{}, &RunError{Reason: ReasonCandidateIDInvalid,
+			Err: errors.New("candidate ids must match GTC-<12 lowercase hex>")}
+	}
+	if err := writeSupported(); err != nil {
+		return PromoteResult{}, &RunError{Reason: ReasonPlatformUnsupported, Err: err}
+	}
+	if req.Redactor == nil {
+		return PromoteResult{}, errors.New("intake: PromoteRequest.Redactor is required")
+	}
+	a, err := openArea(req.Root)
+	if err != nil {
+		return PromoteResult{}, fmt.Errorf("open project root: %w", err)
+	}
+	// Every write is fsynced before it counts, so a close error loses nothing.
+	defer func() { _ = a.close() }()
+	p := &promotion{req: req, area: a, candidateRel: candidatePath(req.CandidateID)}
+	if err := p.check(); err != nil {
+		return PromoteResult{}, err
+	}
+	if err := p.publish(); err != nil {
+		return PromoteResult{}, err
+	}
+	return p.result(ctx), nil
+}
+
+// check runs checks 2 to 9 in order. Check 9 is skipped when check 8 found
+// an interrupted publication to resume.
+func (p *promotion) check() error {
+	for _, step := range []func() error{p.readCandidate, p.checkDraft, p.checkActivePath, p.loadActiveSet} {
+		if err := step(); err != nil {
+			return err
+		}
+	}
+	if p.resumed {
+		return nil
+	}
+	return p.checkTarget()
+}
+
+// readCandidate is checks 2 and 3: a safe layout, then a regular candidate
+// file that decodes strictly, names itself, and holds only redacted text.
+func (p *promotion) readCandidate() error {
+	candidate, err := p.area.readCandidate(p.req.CandidateID)
+	p.candidate = candidate
+	if err != nil {
+		return err
+	}
+	return unredactedText(p.req.Redactor, candidate)
+}
+
+// checkDraft is checks 4 to 6: provenance that ties the draft task to this
+// candidate, the parts a person completes, and the SPEC-HARNEVAL-001 strict
+// decoder on the canonical task bytes. Only a task id that passed the
+// decoder's grammar is joined into a path.
+func (p *promotion) checkDraft() error {
+	c, task := p.candidate, p.candidate.Task
+	if detail := provenanceGap(c); detail != "" {
+		return &RunError{Reason: ReasonCandidateProvenanceMismatch, Detail: detail}
+	}
+	if detail := draftGap(task); detail != "" {
+		return &RunError{Reason: ReasonDraftIncomplete, Detail: detail}
+	}
+	data, err := encodeRecord(task)
+	if err != nil {
+		return err
+	}
+	if _, err := harneval.DecodeTask(data); err != nil {
+		return &RunError{Reason: ReasonCandidateInvalid, Detail: invalidDetail(err), Err: err}
+	}
+	p.taskData = data
+	p.taskRel = SurfaceTaskDir + "/" + task.ID + ".json"
+	p.linkRel = PromotedDir + "/" + task.ID + ".json"
+	return nil
+}
+
+// provenanceGap names the provenance field that does not tie the draft task
+// to its candidate, or returns "".
+func provenanceGap(c Candidate) string {
+	provenance := c.Task.Provenance
+	switch {
+	case provenance.Kind != "incident":
+		return "kind"
+	case provenance.Fingerprint != c.Fingerprint:
+		return "fingerprint"
+	case provenance.Ref != c.Representative || !slices.Contains(c.LearningRefs, provenance.Ref):
+		return "ref"
+	}
+	return ""
+}
+
+// draftGap names the first part of the draft that is not complete, in the
+// fixed order status, category, assertions, kind, or returns "".
+func draftGap(task harneval.Task) string {
+	switch {
+	case task.Status.State != harneval.StateActive:
+		return "status"
+	case strings.TrimSpace(task.Category) == "":
+		return "category"
+	case len(task.Assertions) == 0:
+		return "assertions"
+	case task.Kind != harneval.KindSurface:
+		return "kind"
+	}
+	return ""
+}
+
+// checkActivePath is check 7: an active path must cover the surface task
+// directory. A manifest this lenient read cannot use is left to check 8,
+// where the SPEC-HARNEVAL-001 loader names its defect.
+func (p *promotion) checkActivePath() error {
+	actives, err := p.area.activePaths()
+	covered := err != nil || slices.ContainsFunc(actives, func(active string) bool {
+		return active == SurfaceTaskDir || strings.HasPrefix(SurfaceTaskDir, active+"/")
+	})
+	if !covered {
+		return &RunError{Reason: ReasonNoActivePathForKind, Detail: harneval.KindSurface}
+	}
+	return nil
+}
+
+// invalidDetail returns the SPEC-HARNEVAL-001 detail code carried by err.
+func invalidDetail(err error) string {
+	var invalid *harneval.InvalidError
+	if errors.As(err, &invalid) {
+		return invalid.Detail
+	}
+	return ""
+}

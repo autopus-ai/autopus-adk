@@ -223,8 +223,13 @@ process groups included, before reaping it.
 runner file set in `golden_protocol.RUNNER_FILES`: the golden modules,
 `grader.py`, `grader.sb`, `prepare_grader.py`, `surface_driver/main.go` (the
 source compiled into every arm revision) and the pilot modules the runner
-loads. REQ-HE-07 names `golden.py` alone; the union is the T11 handover.
-`grader_profile_sha256` is the SHA-256 of `grader.sb`.
+loads, plus (SPEC-HARNEVAL-003) the signed-lane modules, `artifact.sb`,
+`oracle.sb` and `golden_protocol.ORACLE_FILES`, the non-test sources of
+`cmd/harneval-oracle` at their checkout path. REQ-HE-07 names `golden.py`
+alone; the union is the T11 handover. `grader_profile_sha256` is the SHA-256
+of `grader.sb`. Every snapshot the agents, graders and builds are cloned from
+has `evals/harness/**` removed, so no trial sees an oracle input or expected
+output (SPEC-HARNEVAL-003 REQ-HR-08).
 
 Tests: `test_golden.py`, `test_golden_runner.py` and `test_golden_surface.py`
 run everywhere (the v0.50.122 bootstrap needs `go` and the tag);
@@ -240,3 +245,172 @@ HARNEVAL_GOLDEN_E2E=1 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest -v test_gold
 ```
 
 run from this directory. Its agent is a scripted fake codex; no model is called.
+
+## Golden signed lane (SPEC-HARNEVAL-003)
+
+`run.py --mode golden --signed-lane <lane.json>` runs the session that the
+release signer re-derives (T13). The lane file holds exactly the five fields
+the signed lane adds to the protocol, after the SPEC-HARNEVAL-001 ones:
+`run_id` and `run_attempt` (positive integers), `binding_digest` and
+`runner_tree_digest` (64-hex, computed by the bind job's `auto`) and
+`baseline_commit` (40-hex), which must still be the commit `live.baseline_ref`
+names in `--repo`; the baseline arm is built from that commit. A maintainer
+host never passes the option and writes none of the five. Any other defect
+refuses the session with `invalid` before any agent call: a malformed lane
+file, a moved baseline tag, no black-box task, a malformed definition or an
+oracle harness that does not build.
+
+Only active agent tasks whose document carries `oracle_mode: black_box` run;
+white-box tasks stay in the advisory lane above. The definition pins the
+artifact, its inputs and its expected outputs by SHA-256; the Go task schema
+decodes the same fields strictly and checks every pinned fixture below
+`evals/harness/oracles/` (T15, the five committed oracles are listed in
+`evals/harness/README.md`):
+
+```json
+"oracle_mode": "black_box",
+"black_box_oracle": {
+  "build": "./cmd/auto",
+  "command": ["{artifact}", "telemetry", "harness", "--evidence-json", "{input}/evidence.json"],
+  "inputs": [{"path": "evals/harness/oracles/GT-AGENT-A06/evidence.json", "sha256": "<64-hex>"}],
+  "stdin": "evidence.json",
+  "assertions": [
+    {"id": "exit", "kind": "exit_code", "exit_code": 0},
+    {"id": "stdout", "kind": "stdout", "expected": {"path": "evals/harness/oracles/GT-AGENT-A06/stdout.json", "sha256": "<64-hex>"}},
+    {"id": "report", "kind": "file", "path": "report.json", "expected": {"path": "evals/harness/oracles/GT-AGENT-A06/report.json", "sha256": "<64-hex>"}}
+  ]
+}
+```
+
+`{input}` is the trial input directory (each input copied there under its
+file name, read-only), `{output}` the output root, which is also the working
+directory; `stdin` optionally names an input fed on stdin. A `file` assertion
+names a fixed clean relative path below the output root.
+
+A task whose own assertions expect a refusal also pins a `positive_control`
+(GT-AGENT-A05): the same artifact runs the same command a second time over
+its own inputs (`{input}` is then a second read-only directory, `{output}` a
+fresh root the oracle never reads) and must exit 0 and print exactly the
+pinned stdout, so a fix that refuses every input fails the task:
+
+```json
+"positive_control": {
+  "inputs": [{"path": "evals/harness/oracles/GT-AGENT-A05/policy.json", "sha256": "<64-hex>"},
+             {"path": "evals/harness/oracles/GT-AGENT-A05/control/task.json", "sha256": "<64-hex>"}],
+  "stdout": {"path": "evals/harness/oracles/GT-AGENT-A05/control/stdout.json", "sha256": "<64-hex>"}
+}
+```
+
+The bundle then carries `positive_control{artifact_exit, timed_out, stdout,
+stdout_overflow, expected_stdout}`, and the harness reports the control as
+the assertions `positive_control.exit` and `positive_control.stdout` after
+the task's own (the prefix `positive_control.` is reserved). Its timeout or
+stdout overflow is the run's: `not_checked` with `timed_out` true, or
+`too_large`; `artifact_exit` stays the task invocation's.
+
+A trial runs these stages, each a sibling process the runner starts itself;
+no profile is nested (`sandbox_apply` is refused inside a restricted profile):
+
+1. setup: the agent root, the mutation, the inputs copied and checked, every
+   expected output read from the golden set root and checked against its
+   pin (kept in memory only), the warmup. A failure is `error` with
+   `workspace_setup_failed`, `mutation_failed` or `warmup_failed`.
+2. agent: as in the advisory lane, without the literal check. A failed agent
+   is still built and judged; `observation_failed` (an unusable transcript or
+   a process the runner could not end) and `scope_violation` skip the rest.
+3. build: a fresh clone of the snapshot with the mutation and the agent's
+   allowed files, built under `artifact.sb` build mode (`go build -trimpath`,
+   offline, no cgo, the read-only session module cache, a trial build cache
+   warmed once by a trusted build of each black-box package).
+4. run: the artifact under `artifact.sb` run mode with `PATH`, `HOME`,
+   `TMPDIR`, `TZ=UTC` and `PWD` only (a positive control runs next, the same
+   way). The runner keeps stdout to 1 MiB (more ends the run), the exit status
+   and the timeout, then kills whatever the run left: `process_tree` walks
+   the whole process table while the stage runs and reaches every child,
+   group member and session member of a reached process, keeps a reached
+   process by pid after a setsid or reparenting, and also counts every live
+   process the stage's own profile instance confines (`sandbox_check`:
+   sandboxed, allowed to write the stage's scratch root, denied its parent),
+   so a double-forked daemon is found too. A process it cannot account for
+   (one that survives every kill, or holds an output pipe) is
+   `observation_failed` and no oracle starts. The agent step and the build
+   and oracle stages are swept the same way.
+5. oracle: `cmd/harneval-oracle`, built from this checkout, under
+   `oracle.sb`, with the `harness_oracle_input.v1` bundle on stdin (the
+   assertions and fixed paths from the main task definition, the checked
+   expected outputs, the captured stdout and exit status). It opens the
+   output root with `os.Root`, only at the fixed paths, and accepts a file
+   only when every intermediate element is a real directory, the final one a
+   regular file by `Lstat`, and the descriptor opened with
+   `O_NOFOLLOW|O_NONBLOCK` a regular single-link file that is the same file;
+   at most 1 MiB is read. It writes `harness_oracle_result.v1`
+   (`schema_version`, `task_id`, `output_check: ok|link_rejected|too_large|not_checked`,
+   `assertions[]{id, passed}`, `artifact_exit`, `timed_out`): a timeout is
+   `not_checked`, a stdout over the limit is `too_large`, and a check other
+   than `ok` holds no assertion. A missing output fails only its assertion.
+
+`artifact.sb` reads by allowlist: the system paths a process needs to start,
+the artifact itself, the read-only input root and its own scratch (build
+mode adds the toolchain, the module cache, the build cache and the artifact
+directory). Metadata stays readable for path resolution except below the
+checkout, the golden set root, the Codex home and the keychains, where not
+even the size or the existence of an expected output is visible. Network and
+Mach lookups are denied, and writes outside the scratch (build mode: also
+the build cache and the artifact directory). `oracle.sb` applies the same
+read allowlist to the harness binary, the output root and the result
+directory, and lets the harness write only its result directory.
+
+The record of a black-box trial adds `stage_reached`
+(`setup|agent|build|run|oracle`), `agent_termination{launched, exit_code,
+os_signal, timed_out}` (a negative return code becomes the signal name and a
+null exit code; an agent that never started, or exited nonzero before its
+first event, did not launch) and `oracle_result_sha256` (null unless the
+oracle stage was reached and wrote a result). The result bytes stay in
+`oracle-results/<sha256>.json`. `golden_blackbox.derive` applies the
+REQ-HR-08 table, first matching row wins, to exactly what the signer gets:
+setup signal; agent termination (launch, timeout, exit or signal);
+`observation_failed`; `scope_violation` at the agent stage;
+`artifact_build_failed`; `oracle_harness_error` (no or schema-invalid result,
+or a checked result naming other assertions); `artifact_timeout`;
+`output_link_rejected` or `output_too_large`; `expectation_mismatch`;
+`accepted`. `oracle.ran` is true only for a checked result naming exactly the
+task's assertions, `build_failed` only at the build stage.
+
+`pkg/harneval/testdata/signed-lane` is a session this runner wrote on the
+fixture world; Go's `TestSignedLaneFixture_*` verify and judge it with the
+signer (`LoadSignerInput`, `RebuildTrustedProtocol`, `VerifySignedSession`,
+`ComputeVerdict`), the wire cross-check of the two implementations.
+Regenerate it on macOS after a wire change:
+
+```bash
+HARNEVAL_REGENERATE_WIRE_FIXTURE=1 PYTHONDONTWRITEBYTECODE=1 \
+  python3 -m unittest test_golden_wire_fixture   # from scripts/benchmarks/harness
+```
+
+The signer (`auto eval harness export`) takes the protocol's trusted
+`baseline_surface_digest` from its own rebuild, not from this runner:
+`harneval.ArmSurfaceDigest` is the Go twin of `golden_surface.arm_surface`
+(the binding's `baseline_commit` extracted with `git archive`, this
+checkout's driver installed, the modules downloaded from a file proxy over
+the local module cache and checked against the arm's `go.sum`, the offline
+build and the driver run under `grader.sb`, the digest of the written
+surface). It needs no Python, so the sign job runs only `auto` and the
+baseline driver it builds; on macOS it gives the digest this runner gives
+for the same commit (`TestArmSurfaceDigest_BaselineTagMatchesTheTrustedRunner`,
+v0.50.123: `90e9898c…`). It does not set the runner's rlimits, which bound
+agent-modified code, not a release tag of main.
+
+Calibration runs the same stages without an agent before the first trial and
+after the last into `calibration.json`: the clean reference artifact must be
+`accepted`, and the mutated one must be rejected by the comparison itself, so
+its row's `mutated_accepted` is true for any outcome but
+`expectation_mismatch` (a build failure or a timeout proves nothing).
+
+Tests: `test_golden_blackbox.py` and `test_golden_lane.py` run everywhere;
+`go test ./cmd/harneval-oracle` covers the output rules (the REQ-HR-10
+self-check items) and the wire documents; `test_golden_blackbox_sandbox.py`
+probes both profiles on macOS (reads, links, writes, network, environment,
+the offline build, the self-check under `oracle.sb`) and the stage runner;
+`test_golden_blackbox_session.py` runs whole signed-lane sessions on the
+fixture world, one trial per table row, and re-derives every record from its
+stored result bytes.

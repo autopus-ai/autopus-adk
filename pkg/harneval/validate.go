@@ -130,7 +130,7 @@ func validateActivePath(p string) error {
 }
 
 func validatePolicy(floors Floors, live LivePolicy) error {
-	if floors.SurfaceTasks < 1 || floors.AgentTasks < 1 {
+	if floors.SurfaceTasks < 1 || floors.AgentTasks < 1 || floors.SignedAgentTasks < 0 {
 		return invalidf(DetailPolicyOutOfRange, "floors or live policy value out of range")
 	}
 	return validateLivePolicy(live)
@@ -194,7 +194,10 @@ func validateTask(t Task) error {
 			return fmt.Errorf("task %q assertion %d: %w", t.ID, index, err)
 		}
 	}
-	return validateAgentFields(t)
+	if err := validateAgentFields(t); err != nil {
+		return err
+	}
+	return validateOracleFields(t)
 }
 
 func validateVariants(t Task) error {

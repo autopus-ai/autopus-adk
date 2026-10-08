@@ -1,0 +1,267 @@
+# Signed live lane of the harness golden set (SPEC-HARNEVAL-003 REQ-HR-01).
+#
+# A release operator dispatches it on main; it takes no input. Three jobs keep
+# the credentials apart: bind holds no stored secret and attests the binding
+# (OIDC only), live-eval holds only the Codex credential (in the golden-session
+# step's env) and attests the session result, and sign holds only the signing
+# key (in the export step's env), which reaches auto on stdin alone. No run
+# script interpolates an expression: dynamic values travel in env or files.
+name: harness-eval-live
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: harness-eval-live
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  PYTHONDONTWRITEBYTECODE: "1"
+
+jobs:
+  bind:
+    if: github.ref == 'refs/heads/main'
+    runs-on: macos-15
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+
+      - name: binding
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          go build -trimpath -o "$RUNNER_TEMP/auto" ./cmd/auto
+          "$RUNNER_TEMP/auto" eval harness digest --binding --format json --dir . > "$RUNNER_TEMP/binding.json"
+          binding=$(jq -er '.binding_digest' "$RUNNER_TEMP/binding.json")
+          run_key=$(printf 'harneval-run:%s:%s' "$RUN_ID" "$RUN_ATTEMPT" | shasum -a 256 | cut -d' ' -f1)
+          printf '%s  binding\n%s  run-key\n' "$binding" "$run_key" > "$RUNNER_TEMP/bound-subjects.txt"
+          jq -n --argjson run_id "$RUN_ID" --argjson run_attempt "$RUN_ATTEMPT" --arg binding "$binding" \
+            '{run_id: $run_id, run_attempt: $run_attempt, binding_digest: $binding, event: "bound"}' \
+            > "$RUNNER_TEMP/bound-predicate.json"
+          mkdir -p "$RUNNER_TEMP/lane"
+          jq -n --argjson run_id "$RUN_ID" --argjson run_attempt "$RUN_ATTEMPT" --slurpfile doc "$RUNNER_TEMP/binding.json" \
+            '{run_id: $run_id, run_attempt: $run_attempt, binding_digest: $doc[0].binding_digest,
+              baseline_commit: $doc[0].binding.baseline_commit, runner_tree_digest: $doc[0].binding.runner_tree_digest}' \
+            > "$RUNNER_TEMP/lane/lane.json"
+
+      - name: attest-bound
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-checksums: ${{ runner.temp }}/bound-subjects.txt
+          predicate-type: https://autopus.ai/harness-eval/bound/v1
+          predicate-path: ${{ runner.temp }}/bound-predicate.json
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: harness-eval-lane-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/lane/lane.json
+          if-no-files-found: error
+          retention-days: 7
+
+  live-eval:
+    needs: bind
+    if: github.ref == 'refs/heads/main'
+    runs-on: macos-15
+    timeout-minutes: 360
+    environment: adk-harness-eval-agent
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+
+      # A job re-run without its bind job has no bound record for this
+      # attempt: it stops here, before any trial (REQ-HR-01, REQ-HR-06). Only
+      # a bound attestation this workflow signed on main counts: gh
+      # attestation verify checks the bundle signature, its transparency log
+      # proof and the pinned signer workflow. The subject is the run key, the
+      # SHA-256 of the file written here, as the bind job attests it.
+      - name: bound-check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          printf 'harneval-run:%s:%s' "$RUN_ID" "$RUN_ATTEMPT" > "$RUNNER_TEMP/run-key"
+          if ! gh attestation verify "$RUNNER_TEMP/run-key" --repo autopus-ai/autopus-adk \
+            --signer-workflow autopus-ai/autopus-adk/.github/workflows/harness-eval-live.yml \
+            --source-ref refs/heads/main --predicate-type https://autopus.ai/harness-eval/bound/v1 \
+            --deny-self-hosted-runners > /dev/null; then
+            echo "harness-eval: attempt_unbound: run $RUN_ID attempt $RUN_ATTEMPT has no verified bound attestation" >&2
+            exit 1
+          fi
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: harness-eval-lane-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/lane
+
+      - name: codex-cli
+        run: |
+          version=$(jq -er '.pins.codex_cli_version | ltrimstr("codex-cli ")' evals/harness/manifest.json)
+          npm install --global --no-audit --no-fund "@openai/codex@$version"
+
+      # Trusted module step, outside every sandbox: the session builds the
+      # workspace revision, the baseline commit and this checkout offline,
+      # so their modules go into one fresh cache from the Go module proxy,
+      # each tree verified by its own go.sum; the runner reads that cache as
+      # its file:// proxy, never a warm local cache.
+      - name: modules
+        run: |
+          workspace=$(jq -er '.live.workspace_revision' evals/harness/manifest.json)
+          baseline=$(jq -er '.baseline_commit' "$RUNNER_TEMP/lane/lane.json")
+          scripts/benchmarks/harness/fill_modules.sh "$RUNNER_TEMP/modules" "$workspace" "$baseline" "$GITHUB_SHA"
+
+      # The hosted sandbox preflight of REQ-HR-10 (SPEC-HARNEVAL-003 T14) has
+      # not landed: until it does, this step fails closed and no trial runs.
+      - name: sandbox-preflight
+        run: |
+          echo "harness-eval: sandbox_preflight_failed: the hosted macos-15 sandbox preflight (SPEC-HARNEVAL-003 T14) is not implemented; no trial runs" >&2
+          exit 1
+
+      - name: golden-session
+        env:
+          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
+        run: |
+          python3 scripts/benchmarks/harness/run.py --mode golden --signed-lane "$RUNNER_TEMP/lane/lane.json" \
+            --output "$RUNNER_TEMP/session" --credential-env CODEX_API_KEY --proxy "file://$RUNNER_TEMP/modules/cache/download"
+
+      - name: session-result
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          session="$RUNNER_TEMP/session"
+          unsigned="$RUNNER_TEMP/unsigned"
+          mkdir -p "$unsigned/oracle-results"
+          cp "$session/protocol.json" "$session/records.jsonl" "$session/calibration.json" "$unsigned/"
+          if [ -d "$session/oracle-results" ]; then
+            find "$session/oracle-results" -maxdepth 1 -type f -name '*.json' -exec cp {} "$unsigned/oracle-results/" \;
+          fi
+          digest() { shasum -a 256 "$1" | cut -d' ' -f1; }
+          binding=$(jq -er '.binding_digest' "$RUNNER_TEMP/lane/lane.json")
+          oracle=$(find "$unsigned/oracle-results" -type f -name '*.json' -exec shasum -a 256 {} \; | cut -d' ' -f1 | jq -R . | jq -s .)
+          jq -n --argjson run_id "$RUN_ID" --argjson run_attempt "$RUN_ATTEMPT" --arg binding "$binding" \
+            --arg protocol "$(digest "$unsigned/protocol.json")" --arg records "$(digest "$unsigned/records.jsonl")" \
+            --arg calibration "$(digest "$unsigned/calibration.json")" --argjson oracle "$oracle" \
+            '{run_id: $run_id, run_attempt: $run_attempt, binding_digest: $binding, event: "session_result",
+              protocol_sha256: $protocol, records_sha256: $records, oracle_result_sha256: $oracle,
+              calibration_sha256: $calibration}' > "$RUNNER_TEMP/session-result-predicate.json"
+          printf '%s  binding\n' "$binding" > "$RUNNER_TEMP/session-result-subjects.txt"
+
+      - name: attest-session-result
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-checksums: ${{ runner.temp }}/session-result-subjects.txt
+          predicate-type: https://autopus.ai/harness-eval/session-result/v1
+          predicate-path: ${{ runner.temp }}/session-result-predicate.json
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: harness-eval-unsigned-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/unsigned
+          if-no-files-found: error
+          retention-days: 7
+
+  sign:
+    needs: live-eval
+    if: github.ref == 'refs/heads/main'
+    runs-on: macos-15
+    timeout-minutes: 60
+    environment: adk-harness-eval-signing
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+
+      - name: build-auto
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          go build -trimpath -o "$RUNNER_TEMP/bin/auto" ./cmd/auto
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: harness-eval-unsigned-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/unsigned
+
+      - name: run-meta
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          gh api "repos/$REPOSITORY/actions/runs/$RUN_ID/attempts/$RUN_ATTEMPT" \
+            --jq '{run_id: .id, run_attempt: .run_attempt, run_created_at: .created_at, attempt_started_at: .run_started_at}' \
+            > "$RUNNER_TEMP/run-meta.json"
+
+      # Trusted module step for the baseline arm the export rebuilds: the
+      # baseline tag's tree, its modules from the Go module proxy into a fresh
+      # cache verified by its go.sum, read by auto as its file:// proxy.
+      - name: modules
+        run: |
+          ref=$(jq -er '.live.baseline_ref' evals/harness/manifest.json)
+          baseline=$(git rev-parse --verify --end-of-options "refs/tags/$ref^{commit}")
+          scripts/benchmarks/harness/fill_modules.sh "$RUNNER_TEMP/modules" "$baseline"
+
+      # The shell reads HARNESS_EVAL_SIGNING_KEY and env -u removes the same
+      # name, so the key reaches auto on stdin only. export verifies the
+      # signed evidence against the committed allowlist before it succeeds.
+      - name: export
+        env:
+          HARNESS_EVAL_SIGNING_KEY: ${{ secrets.HARNESS_EVAL_SIGNING_KEY }}
+        run: |
+          printf '%s' "$HARNESS_EVAL_SIGNING_KEY" | env -u HARNESS_EVAL_SIGNING_KEY auto eval harness export --input "$RUNNER_TEMP/unsigned" --run-meta "$RUNNER_TEMP/run-meta.json" --output "$RUNNER_TEMP/evidence" --proxy "file://$RUNNER_TEMP/modules/cache/download" > "$RUNNER_TEMP/export.out"
+
+      - name: evidence-name
+        id: evidence
+        run: |
+          binding=$(sed -n 's/^eval-regression: [a-z_]* (version=\([0-9a-f]\{64\}\))$/\1/p' "$RUNNER_TEMP/export.out")
+          test -n "$binding"
+          echo "binding16=${binding:0:16}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: harness-eval-evidence-${{ steps.evidence.outputs.binding16 }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/evidence
+          if-no-files-found: error
+          retention-days: 7

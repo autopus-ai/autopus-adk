@@ -1,0 +1,730 @@
+{
+  "about": "The REQ-HR-08 judgement table over hand-made records and oracle result bytes. Go (deriveTrial, derive_table_test.go) and the trusted runner (golden_blackbox.derive, test_golden_derive_table.py) must both give each case its want (assertion_ids, when a case names them, replace the table ones): [outcome, signal, oracle.ran, oracle.build_failed, expected_passed, expected_failed], or null when no row matches.",
+  "task_id": "GT-AGENT-X01",
+  "assertion_ids": [
+    "exit",
+    "stdout",
+    "result"
+  ],
+  "terminations": {
+    "clean": {
+      "launched": true,
+      "exit_code": 0,
+      "os_signal": null,
+      "timed_out": false
+    },
+    "never": {
+      "launched": false,
+      "exit_code": null,
+      "os_signal": null,
+      "timed_out": false
+    },
+    "killed_on_timeout": {
+      "launched": true,
+      "exit_code": null,
+      "os_signal": "SIGKILL",
+      "timed_out": true
+    },
+    "exited_2": {
+      "launched": true,
+      "exit_code": 2,
+      "os_signal": null,
+      "timed_out": false
+    },
+    "sigsegv": {
+      "launched": true,
+      "exit_code": null,
+      "os_signal": "SIGSEGV",
+      "timed_out": false
+    }
+  },
+  "results": {
+    "all_pass": "{\"schema_version\":\"harness_oracle_result.v1\",\"task_id\":\"GT-AGENT-X01\",\"output_check\":\"ok\",\"assertions\":[{\"id\":\"exit\",\"passed\":true},{\"id\":\"stdout\",\"passed\":true},{\"id\":\"result\",\"passed\":true}],\"artifact_exit\":0,\"timed_out\":false}",
+    "control_passed": "{\"schema_version\":\"harness_oracle_result.v1\",\"task_id\":\"GT-AGENT-X01\",\"output_check\":\"ok\",\"assertions\":[{\"id\":\"exit\",\"passed\":true},{\"id\":\"stdout\",\"passed\":true},{\"id\":\"result\",\"passed\":true},{\"id\":\"positive_control.exit\",\"passed\":true},{\"id\":\"positive_control.stdout\",\"passed\":true}],\"artifact_exit\":1,\"timed_out\":false}",
+    "control_refused": "{\"schema_version\":\"harness_oracle_result.v1\",\"task_id\":\"GT-AGENT-X01\",\"output_check\":\"ok\",\"assertions\":[{\"id\":\"exit\",\"passed\":true},{\"id\":\"stdout\",\"passed\":true},{\"id\":\"result\",\"passed\":true},{\"id\":\"positive_control.exit\",\"passed\":false},{\"id\":\"positive_control.stdout\",\"passed\":false}],\"artifact_exit\":1,\"timed_out\":false}",
+    "mismatch": "{\"schema_version\":\"harness_oracle_result.v1\",\"task_id\":\"GT-AGENT-X01\",\"output_check\":\"ok\",\"assertions\":[{\"id\":\"exit\",\"passed\":true},{\"id\":\"stdout\",\"passed\":true},{\"id\":\"result\",\"passed\":false}],\"artifact_exit\":0,\"timed_out\":false}",
+    "timed_out": "{\"schema_version\":\"harness_oracle_result.v1\",\"task_id\":\"GT-AGENT-X01\",\"output_check\":\"not_checked\",\"assertions\":[],\"artifact_exit\":null,\"timed_out\":true}",
+    "link_rejected": "{\"schema_version\":\"harness_oracle_result.v1\",\"task_id\":\"GT-AGENT-X01\",\"output_check\":\"link_rejected\",\"assertions\":[],\"artifact_exit\":0,\"timed_out\":false}",
+    "too_large": "{\"schema_version\":\"harness_oracle_result.v1\",\"task_id\":\"GT-AGENT-X01\",\"output_check\":\"too_large\",\"assertions\":[],\"artifact_exit\":0,\"timed_out\":false}",
+    "no_schema_version": "{\"task_id\":\"GT-AGENT-X01\",\"output_check\":\"ok\",\"assertions\":[{\"id\":\"exit\",\"passed\":true},{\"id\":\"stdout\",\"passed\":true},{\"id\":\"result\",\"passed\":true}],\"artifact_exit\":0,\"timed_out\":false}",
+    "repeated_key": "{\"schema_version\":\"harness_oracle_result.v1\",\"task_id\":\"GT-AGENT-X01\",\"output_check\":\"ok\",\"assertions\":[{\"id\":\"exit\",\"passed\":true},{\"id\":\"stdout\",\"passed\":true},{\"id\":\"result\",\"passed\":true}],\"artifact_exit\":0,\"timed_out\":false,\"timed_out\":false}",
+    "repeated_nested_key": "{\"schema_version\":\"harness_oracle_result.v1\",\"task_id\":\"GT-AGENT-X01\",\"output_check\":\"ok\",\"assertions\":[{\"id\":\"exit\",\"passed\":true,\"passed\":true},{\"id\":\"stdout\",\"passed\":true},{\"id\":\"result\",\"passed\":true}],\"artifact_exit\":0,\"timed_out\":false}",
+    "no_timed_out": "{\"schema_version\":\"harness_oracle_result.v1\",\"task_id\":\"GT-AGENT-X01\",\"output_check\":\"ok\",\"assertions\":[{\"id\":\"exit\",\"passed\":true},{\"id\":\"stdout\",\"passed\":true},{\"id\":\"result\",\"passed\":true}],\"artifact_exit\":0}",
+    "no_artifact_exit": "{\"schema_version\":\"harness_oracle_result.v1\",\"task_id\":\"GT-AGENT-X01\",\"output_check\":\"ok\",\"assertions\":[{\"id\":\"exit\",\"passed\":true},{\"id\":\"stdout\",\"passed\":true},{\"id\":\"result\",\"passed\":true}],\"timed_out\":false}",
+    "null_timed_out": "{\"schema_version\":\"harness_oracle_result.v1\",\"task_id\":\"GT-AGENT-X01\",\"output_check\":\"ok\",\"assertions\":[{\"id\":\"exit\",\"passed\":true},{\"id\":\"stdout\",\"passed\":true},{\"id\":\"result\",\"passed\":true}],\"artifact_exit\":0,\"timed_out\":null}",
+    "null_assertions_rejected": "{\"schema_version\":\"harness_oracle_result.v1\",\"task_id\":\"GT-AGENT-X01\",\"output_check\":\"link_rejected\",\"assertions\":null,\"artifact_exit\":0,\"timed_out\":false}",
+    "null_passed": "{\"schema_version\":\"harness_oracle_result.v1\",\"task_id\":\"GT-AGENT-X01\",\"output_check\":\"ok\",\"assertions\":[{\"id\":\"exit\",\"passed\":null},{\"id\":\"stdout\",\"passed\":true},{\"id\":\"result\",\"passed\":true}],\"artifact_exit\":0,\"timed_out\":false}",
+    "no_passed": "{\"schema_version\":\"harness_oracle_result.v1\",\"task_id\":\"GT-AGENT-X01\",\"output_check\":\"ok\",\"assertions\":[{\"id\":\"exit\"},{\"id\":\"stdout\",\"passed\":true},{\"id\":\"result\",\"passed\":true}],\"artifact_exit\":0,\"timed_out\":false}",
+    "other_ids": "{\"schema_version\":\"harness_oracle_result.v1\",\"task_id\":\"GT-AGENT-X01\",\"output_check\":\"ok\",\"assertions\":[{\"id\":\"exit\",\"passed\":true},{\"id\":\"stdout\",\"passed\":true},{\"id\":\"extra\",\"passed\":true}],\"artifact_exit\":0,\"timed_out\":false}",
+    "other_task": "{\"schema_version\":\"harness_oracle_result.v1\",\"task_id\":\"GT-AGENT-X02\",\"output_check\":\"ok\",\"assertions\":[{\"id\":\"exit\",\"passed\":true},{\"id\":\"stdout\",\"passed\":true},{\"id\":\"result\",\"passed\":true}],\"artifact_exit\":0,\"timed_out\":false}",
+    "huge_exit": "{\"schema_version\":\"harness_oracle_result.v1\",\"task_id\":\"GT-AGENT-X01\",\"output_check\":\"ok\",\"assertions\":[{\"id\":\"exit\",\"passed\":true},{\"id\":\"stdout\",\"passed\":true},{\"id\":\"result\",\"passed\":true}],\"artifact_exit\":99999999999999999999,\"timed_out\":false}",
+    "negative_exit": "{\"schema_version\":\"harness_oracle_result.v1\",\"task_id\":\"GT-AGENT-X01\",\"output_check\":\"ok\",\"assertions\":[{\"id\":\"exit\",\"passed\":true},{\"id\":\"stdout\",\"passed\":true},{\"id\":\"result\",\"passed\":true}],\"artifact_exit\":-1,\"timed_out\":false}",
+    "exit_above_255": "{\"schema_version\":\"harness_oracle_result.v1\",\"task_id\":\"GT-AGENT-X01\",\"output_check\":\"ok\",\"assertions\":[{\"id\":\"exit\",\"passed\":true},{\"id\":\"stdout\",\"passed\":true},{\"id\":\"result\",\"passed\":true}],\"artifact_exit\":256,\"timed_out\":false}",
+    "nan_exit": "{\"schema_version\":\"harness_oracle_result.v1\",\"task_id\":\"GT-AGENT-X01\",\"output_check\":\"ok\",\"assertions\":[{\"id\":\"exit\",\"passed\":true},{\"id\":\"stdout\",\"passed\":true},{\"id\":\"result\",\"passed\":true}],\"artifact_exit\":NaN,\"timed_out\":false}",
+    "empty_ok": "{\"schema_version\":\"harness_oracle_result.v1\",\"task_id\":\"GT-AGENT-X01\",\"output_check\":\"ok\",\"assertions\":[],\"artifact_exit\":0,\"timed_out\":false}"
+  },
+  "cases": [
+    {
+      "name": "row 1 workspace setup failed",
+      "stage_reached": "setup",
+      "signal": "workspace_setup_failed",
+      "agent_termination": "never",
+      "oracle_result": null,
+      "want": [
+        "error",
+        "workspace_setup_failed",
+        false,
+        false,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "row 1 mutation failed",
+      "stage_reached": "setup",
+      "signal": "mutation_failed",
+      "agent_termination": "never",
+      "oracle_result": null,
+      "want": [
+        "error",
+        "mutation_failed",
+        false,
+        false,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "row 1 warmup failed",
+      "stage_reached": "setup",
+      "signal": "warmup_failed",
+      "agent_termination": "never",
+      "oracle_result": null,
+      "want": [
+        "error",
+        "warmup_failed",
+        false,
+        false,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "setup stage, an agent launch failure is no row",
+      "stage_reached": "setup",
+      "signal": "agent_launch_failed",
+      "agent_termination": "never",
+      "oracle_result": null,
+      "want": null
+    },
+    {
+      "name": "setup stage, observation_failed is no row",
+      "stage_reached": "setup",
+      "signal": "observation_failed",
+      "agent_termination": "clean",
+      "oracle_result": null,
+      "want": null
+    },
+    {
+      "name": "setup stage, observation_failed of an unlaunched agent is no row",
+      "stage_reached": "setup",
+      "signal": "observation_failed",
+      "agent_termination": "never",
+      "oracle_result": null,
+      "want": null
+    },
+    {
+      "name": "setup stage, an agent timeout is no row",
+      "stage_reached": "setup",
+      "signal": "agent_timeout",
+      "agent_termination": "killed_on_timeout",
+      "oracle_result": null,
+      "want": null
+    },
+    {
+      "name": "setup stage without a setup signal is no row",
+      "stage_reached": "setup",
+      "signal": "accepted",
+      "agent_termination": "clean",
+      "oracle_result": null,
+      "want": null
+    },
+    {
+      "name": "a setup signal past setup is no row 1",
+      "stage_reached": "oracle",
+      "signal": "workspace_setup_failed",
+      "agent_termination": "clean",
+      "oracle_result": "all_pass",
+      "want": [
+        "pass",
+        "accepted",
+        true,
+        false,
+        3,
+        0
+      ]
+    },
+    {
+      "name": "row 2 agent timeout outranks a passing grade",
+      "stage_reached": "oracle",
+      "signal": null,
+      "agent_termination": "killed_on_timeout",
+      "oracle_result": "all_pass",
+      "want": [
+        "fail",
+        "agent_timeout",
+        true,
+        false,
+        3,
+        0
+      ]
+    },
+    {
+      "name": "row 2 agent never launched, still graded",
+      "stage_reached": "oracle",
+      "signal": null,
+      "agent_termination": "never",
+      "oracle_result": "all_pass",
+      "want": [
+        "fail",
+        "agent_launch_failed",
+        true,
+        false,
+        3,
+        0
+      ]
+    },
+    {
+      "name": "row 2 agent ended by a signal",
+      "stage_reached": "oracle",
+      "signal": null,
+      "agent_termination": "sigsegv",
+      "oracle_result": "all_pass",
+      "want": [
+        "fail",
+        "agent_exit_nonzero",
+        true,
+        false,
+        3,
+        0
+      ]
+    },
+    {
+      "name": "row 2 agent exit outranks a build failure",
+      "stage_reached": "build",
+      "signal": null,
+      "agent_termination": "exited_2",
+      "oracle_result": null,
+      "want": [
+        "fail",
+        "agent_exit_nonzero",
+        false,
+        true,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "row 2 agent timeout outranks leftovers",
+      "stage_reached": "agent",
+      "signal": "observation_failed",
+      "agent_termination": "killed_on_timeout",
+      "oracle_result": null,
+      "want": [
+        "fail",
+        "agent_timeout",
+        false,
+        false,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "row 3 leftovers after the agent",
+      "stage_reached": "agent",
+      "signal": "observation_failed",
+      "agent_termination": "clean",
+      "oracle_result": null,
+      "want": [
+        "fail",
+        "observation_failed",
+        false,
+        false,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "row 3 leftovers after the build",
+      "stage_reached": "build",
+      "signal": "observation_failed",
+      "agent_termination": "clean",
+      "oracle_result": null,
+      "want": [
+        "fail",
+        "observation_failed",
+        false,
+        true,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "row 3 leftovers after the artifact",
+      "stage_reached": "run",
+      "signal": "observation_failed",
+      "agent_termination": "clean",
+      "oracle_result": null,
+      "want": [
+        "fail",
+        "observation_failed",
+        false,
+        false,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "row 4 scope violation",
+      "stage_reached": "agent",
+      "signal": "scope_violation",
+      "agent_termination": "clean",
+      "oracle_result": null,
+      "want": [
+        "fail",
+        "scope_violation",
+        false,
+        false,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "row 4 scope is judged at the agent stage only",
+      "stage_reached": "oracle",
+      "signal": "scope_violation",
+      "agent_termination": "clean",
+      "oracle_result": "all_pass",
+      "want": [
+        "pass",
+        "accepted",
+        true,
+        false,
+        3,
+        0
+      ]
+    },
+    {
+      "name": "agent stage without a signal is no row",
+      "stage_reached": "agent",
+      "signal": null,
+      "agent_termination": "clean",
+      "oracle_result": null,
+      "want": null
+    },
+    {
+      "name": "row 5 build failed",
+      "stage_reached": "build",
+      "signal": null,
+      "agent_termination": "clean",
+      "oracle_result": null,
+      "want": [
+        "fail",
+        "artifact_build_failed",
+        false,
+        true,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "run stage without a signal is no row",
+      "stage_reached": "run",
+      "signal": null,
+      "agent_termination": "clean",
+      "oracle_result": null,
+      "want": null
+    },
+    {
+      "name": "an unknown stage is no row",
+      "stage_reached": "nowhere",
+      "signal": null,
+      "agent_termination": "clean",
+      "oracle_result": null,
+      "want": null
+    },
+    {
+      "name": "row 6 no result document",
+      "stage_reached": "oracle",
+      "signal": null,
+      "agent_termination": "clean",
+      "oracle_result": null,
+      "want": [
+        "fail",
+        "oracle_harness_error",
+        false,
+        false,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "row 6 schema_version absent",
+      "stage_reached": "oracle",
+      "signal": null,
+      "agent_termination": "clean",
+      "oracle_result": "no_schema_version",
+      "want": [
+        "fail",
+        "oracle_harness_error",
+        false,
+        false,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "row 6 a repeated key",
+      "stage_reached": "oracle",
+      "signal": null,
+      "agent_termination": "clean",
+      "oracle_result": "repeated_key",
+      "want": [
+        "fail",
+        "oracle_harness_error",
+        false,
+        false,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "row 6 a repeated key inside an assertion",
+      "stage_reached": "oracle",
+      "signal": null,
+      "agent_termination": "clean",
+      "oracle_result": "repeated_nested_key",
+      "want": [
+        "fail",
+        "oracle_harness_error",
+        false,
+        false,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "row 6 timed_out absent",
+      "stage_reached": "oracle",
+      "signal": null,
+      "agent_termination": "clean",
+      "oracle_result": "no_timed_out",
+      "want": [
+        "fail",
+        "oracle_harness_error",
+        false,
+        false,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "row 6 artifact_exit absent",
+      "stage_reached": "oracle",
+      "signal": null,
+      "agent_termination": "clean",
+      "oracle_result": "no_artifact_exit",
+      "want": [
+        "fail",
+        "oracle_harness_error",
+        false,
+        false,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "row 6 timed_out null",
+      "stage_reached": "oracle",
+      "signal": null,
+      "agent_termination": "clean",
+      "oracle_result": "null_timed_out",
+      "want": [
+        "fail",
+        "oracle_harness_error",
+        false,
+        false,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "row 6 assertions null",
+      "stage_reached": "oracle",
+      "signal": null,
+      "agent_termination": "clean",
+      "oracle_result": "null_assertions_rejected",
+      "want": [
+        "fail",
+        "oracle_harness_error",
+        false,
+        false,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "row 6 passed null",
+      "stage_reached": "oracle",
+      "signal": null,
+      "agent_termination": "clean",
+      "oracle_result": "null_passed",
+      "want": [
+        "fail",
+        "oracle_harness_error",
+        false,
+        false,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "row 6 passed absent",
+      "stage_reached": "oracle",
+      "signal": null,
+      "agent_termination": "clean",
+      "oracle_result": "no_passed",
+      "want": [
+        "fail",
+        "oracle_harness_error",
+        false,
+        false,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "row 6 assertion ids other than the definition",
+      "stage_reached": "oracle",
+      "signal": null,
+      "agent_termination": "clean",
+      "oracle_result": "other_ids",
+      "want": [
+        "fail",
+        "oracle_harness_error",
+        false,
+        false,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "row 6 a result of another task",
+      "stage_reached": "oracle",
+      "signal": null,
+      "agent_termination": "clean",
+      "oracle_result": "other_task",
+      "want": [
+        "fail",
+        "oracle_harness_error",
+        false,
+        false,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "row 6 an exit status beyond 64 bits",
+      "stage_reached": "oracle",
+      "signal": null,
+      "agent_termination": "clean",
+      "oracle_result": "huge_exit",
+      "want": [
+        "fail",
+        "oracle_harness_error",
+        false,
+        false,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "row 6 a negative exit status",
+      "stage_reached": "oracle",
+      "signal": null,
+      "agent_termination": "clean",
+      "oracle_result": "negative_exit",
+      "want": [
+        "fail",
+        "oracle_harness_error",
+        false,
+        false,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "row 6 an exit status above 255",
+      "stage_reached": "oracle",
+      "signal": null,
+      "agent_termination": "clean",
+      "oracle_result": "exit_above_255",
+      "want": [
+        "fail",
+        "oracle_harness_error",
+        false,
+        false,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "row 6 a NaN exit status",
+      "stage_reached": "oracle",
+      "signal": null,
+      "agent_termination": "clean",
+      "oracle_result": "nan_exit",
+      "want": [
+        "fail",
+        "oracle_harness_error",
+        false,
+        false,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "row 6 an empty comparison",
+      "stage_reached": "oracle",
+      "signal": null,
+      "agent_termination": "clean",
+      "oracle_result": "empty_ok",
+      "want": [
+        "fail",
+        "oracle_harness_error",
+        false,
+        false,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "row 6 an empty comparison of a task without assertions",
+      "stage_reached": "oracle",
+      "signal": null,
+      "agent_termination": "clean",
+      "oracle_result": "empty_ok",
+      "want": [
+        "fail",
+        "oracle_harness_error",
+        false,
+        false,
+        0,
+        0
+      ],
+      "assertion_ids": []
+    },
+    {
+      "name": "row 7 artifact timed out",
+      "stage_reached": "oracle",
+      "signal": null,
+      "agent_termination": "clean",
+      "oracle_result": "timed_out",
+      "want": [
+        "fail",
+        "artifact_timeout",
+        false,
+        false,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "row 8 output link rejected",
+      "stage_reached": "oracle",
+      "signal": null,
+      "agent_termination": "clean",
+      "oracle_result": "link_rejected",
+      "want": [
+        "fail",
+        "output_link_rejected",
+        false,
+        false,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "row 8 output too large",
+      "stage_reached": "oracle",
+      "signal": null,
+      "agent_termination": "clean",
+      "oracle_result": "too_large",
+      "want": [
+        "fail",
+        "output_too_large",
+        false,
+        false,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "row 9 an assertion failed",
+      "stage_reached": "oracle",
+      "signal": null,
+      "agent_termination": "clean",
+      "oracle_result": "mismatch",
+      "want": [
+        "fail",
+        "expectation_mismatch",
+        true,
+        false,
+        2,
+        1
+      ]
+    },
+    {
+      "name": "row 10 every assertion passed",
+      "stage_reached": "oracle",
+      "signal": null,
+      "agent_termination": "clean",
+      "oracle_result": "all_pass",
+      "want": [
+        "pass",
+        "accepted",
+        true,
+        false,
+        3,
+        0
+      ]
+    },
+    {
+      "name": "row 10 the task and its positive control passed",
+      "stage_reached": "oracle",
+      "signal": null,
+      "agent_termination": "clean",
+      "oracle_result": "control_passed",
+      "assertion_ids": ["exit", "stdout", "result", "positive_control.exit", "positive_control.stdout"],
+      "want": ["pass", "accepted", true, false, 5, 0]
+    },
+    {
+      "name": "row 9 a fix that refuses every input fails the positive control",
+      "stage_reached": "oracle",
+      "signal": null,
+      "agent_termination": "clean",
+      "oracle_result": "control_refused",
+      "assertion_ids": ["exit", "stdout", "result", "positive_control.exit", "positive_control.stdout"],
+      "want": ["fail", "expectation_mismatch", true, false, 3, 2]
+    },
+    {
+      "name": "row 6 a result without the definition's positive control",
+      "stage_reached": "oracle",
+      "signal": null,
+      "agent_termination": "clean",
+      "oracle_result": "all_pass",
+      "assertion_ids": ["exit", "stdout", "result", "positive_control.exit", "positive_control.stdout"],
+      "want": ["fail", "oracle_harness_error", false, false, 0, 0]
+    }
+  ]
+}

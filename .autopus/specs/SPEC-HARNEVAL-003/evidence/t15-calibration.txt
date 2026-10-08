@@ -1,0 +1,132 @@
+SPEC-HARNEVAL-003 T15 black-box oracle calibration (probe A3 calibration half)
+=============================================================================
+
+Date: 2026-10-09
+Host: macOS 26.5.2 arm64 (Darwin 25.5.0), /usr/bin/sandbox-exec, go1.27.0 (GOTOOLCHAIN=local),
+      Python 3.14.7
+Tree: worktree on feat/harneval-003 (21e711a3) plus the T15 change set
+Workspace revision: a05ce69df9dc03493b8c5de0ab9299459195e8d8 (manifest live.workspace_revision)
+Agent and model calls: none. Credentials: CODEX_HOME pointed at an empty scratch directory;
+      no credential file was read (artifact.sb and oracle.sb close the account and Codex homes).
+
+Procedure
+---------
+The same stages `run.py --mode golden --signed-lane` runs before its first trial, driven by a
+scratch script (session scratchpad, not committed) that imports the runner modules:
+
+  1. prepare_grader.agent_tasks + golden_lane.black_box_tasks on this tree: the 5 tasks with
+     oracle_mode black_box (Python definition rules accept all 5).
+  2. workspace.snapshot of the workspace revision, golden_lane.exclude_harness (evals/harness/**
+     removed; asserted absent), prepare_grader.prepare (go.sum-verified read-only module cache
+     from a file proxy over the local module cache, warm build cache).
+  3. golden_sandbox.build_oracle (cmd/harneval-oracle from this checkout).
+  4. golden_blackbox_trial.calibrate: per task, a clean reference build and a mutated build
+     (corpus mutation applied), each as sibling processes: go build under artifact.sb build mode,
+     the artifact under artifact.sb run mode with the inputs in {input}, cmd/harneval-oracle
+     under oracle.sb with the expected outputs on stdin. No process left over in any stage.
+
+Result: status passed, 153.4 s
+
+  task          direction  signal                build  artifact exit  oracle exit
+  GT-AGENT-A01  clean      accepted               4.3s  0              0
+  GT-AGENT-A01  mutated    expectation_mismatch   5.9s  0              0
+  GT-AGENT-A02  clean      accepted               3.8s  0              0
+  GT-AGENT-A02  mutated    expectation_mismatch   7.9s  0              0
+  GT-AGENT-A05  clean      accepted               4.0s  1              0
+  GT-AGENT-A05  mutated    expectation_mismatch   6.2s  0              0
+  GT-AGENT-A06  clean      accepted               4.0s  0              0
+  GT-AGENT-A06  mutated    expectation_mismatch   4.9s  0              0
+  GT-AGENT-B04  clean      accepted               3.3s  0              0
+  GT-AGENT-B04  mutated    expectation_mismatch   5.5s  0              0
+
+  calibration.tasks: 5/5 clean_accepted=true, 5/5 mutated_accepted=false.
+
+What each mutation changes in the compared stdout (clean vs mutated `auto` of the workspace
+revision, run directly before the sandboxed calibration):
+
+  GT-AGENT-A01 skill select: decision version-mismatch "excluded" -> "unknown"
+  GT-AGENT-A02 telemetry team: unique_model_call_count worker-a 2 -> 1, team 3 -> 2
+  GT-AGENT-A05 skill select: exit 1 with empty stdout -> exit 0 with a selection document
+  GT-AGENT-A06 telemetry harness: native->current and current->reduced pairs exclude t2
+               (incompatible_identity, task_count 1) -> pair t1 and t2 (task_count 2)
+  GT-AGENT-B04 spec gates: "input (security_or_data)" -> "input (multi_domain)" and the
+               integration/provider_review reasons follow
+
+Classification of the research.md confirmed five
+------------------------------------------------
+  a06, b04: observable, calibrated above.
+  b03: the max-age boundary is decided only for prior evidence read from
+       {SPEC_DIR}/gates/evidence-<gate>.json; black-box inputs are copied flat into {input}, so
+       no command of the workspace revision can be given prior evidence.
+  b05: rejectSymlinkComponents only differs for an autopus.yaml that is itself a symlink; inputs
+       are regular read-only files and the output root starts empty.
+  b06: the file-URL identity only differs for an existing opencode.json that names the project's
+       absolute path; the trial output root is a fresh path and starts empty.
+  Replacements from the candidates, calibrated above: a01, a02 (pkg/skillpolicy, pkg/telemetry
+  through `auto skill select` and `auto telemetry team`) and a05. a05 only proves the refusal:
+  an `auto` that fails the command without stdout passes it. a03 has no non-test caller of
+  CompareManifests; a04 and b01 are reached only through `auto pipeline run`, which needs a
+  provider CLI. The floor floors.signed_agent_tasks = 5 is met.
+
+Signer-side baseline surface (T15 item 4)
+-----------------------------------------
+  go test ./pkg/harneval -run TestArmSurfaceDigest_BaselineTagMatchesTheTrustedRunner -v
+  baseline v0.50.123 at c447badc28e393b19984d2eeea159a81d609acd9:
+    harneval.ArmSurfaceDigest = golden_surface.arm_surface + golden_protocol.surface_digest =
+    90e9898cabc4ba3b25e4a15f64114f6abfbd92257aad65bdafac5b2e6300dee6   (PASS, 37.3 s, both builds)
+
+
+GT-AGENT-A05 positive control recalibration (Phase 4 review C2)
+===============================================================
+
+Date: 2026-10-09
+Host: macOS 26.5.2 arm64 (Darwin 25.5.0), /usr/bin/sandbox-exec, go1.27.0 (GOTOOLCHAIN=local),
+      Python 3.14.7
+Tree: worktree on feat/harneval-003 (633a5b55) plus the C2 change set (black_box_oracle
+      positive_control, runner, oracle harness, signer ids)
+Workspace revision: a05ce69df9dc03493b8c5de0ab9299459195e8d8 (unchanged)
+Agent and model calls: none. CODEX_HOME pointed at an empty scratch directory; no credential file
+      was read.
+
+Finding: the A05 definition proved only the refusal (exit 1, empty stdout for a nested duplicate
+key), so an `auto` that refuses every document passed it. The definition now pins a positive
+control: the same artifact and command over evals/harness/oracles/GT-AGENT-A05/policy.json and
+control/task.json (no duplicate key) must exit 0 and print control/stdout.json, the selection
+document the clean reference artifact printed under artifact.sb run mode (sha256
+557d4a00c669fbf3203fc747646253163b5827b5b2a5a660f1b9eaec90d4ab68). The oracle harness reports it as
+positive_control.exit and positive_control.stdout after the task's own two assertions.
+
+Procedure: a scratch script (session scratchpad, not committed) importing the runner modules, as
+for T15 above: snapshot of the workspace revision without evals/harness/**, prepare_grader.prepare,
+golden_sandbox.build_oracle, then
+  1. golden_blackbox_trial.calibrate([GT-AGENT-A05]): the runner's own two directions.
+  2. golden_blackbox_trial.artifact_stages for three builds, each judged with the committed
+     definition and with the same definition stripped of positive_control:
+       clean       the workspace revision as is
+       mutated     the corpus mutation (`if !ok || seen[name] {` -> `if !ok {`)
+       reject_all  `if !ok || seen[name] {` -> `if !ok || seen[name] || len(name) >= 0 {`: every
+                   object key counts as a repeat, so every policy and task document is refused
+
+Result 1: calibrate status passed, 33.2 s; clean_accepted=true, mutated_accepted=false
+
+  direction  signal                build  artifact exit  control exit  oracle exit
+  clean      accepted              0      1              0             0
+  mutated    expectation_mismatch  0      0              0             0
+
+Result 2:
+
+  definition                build       signal                passed/failed  artifact  control
+  with positive control     clean       accepted              4/0            exit 1    exit 0
+  with positive control     mutated     expectation_mismatch  2/2            exit 0    exit 0
+  with positive control     reject_all  expectation_mismatch  2/2            exit 1    exit 1
+  without positive control  clean       accepted              2/0            exit 1    -
+  without positive control  mutated     expectation_mismatch  0/2            exit 0    -
+  without positive control  reject_all  accepted              2/0            exit 1    -
+
+  The last row is the review finding reproduced: without the control the refuse-everything fix is
+  accepted. With it, the same artifact fails positive_control.exit and positive_control.stdout and
+  is expectation_mismatch. No process was left over in any stage.
+
+Baseline: `auto eval harness baseline --update` with an auto built from this tree changed exactly
+  the GT-AGENT-A05 expectation_digest (086437f5... -> 0dfa93a5...) and set_digest
+  (a5e36f9a... -> 70a03ecd...).

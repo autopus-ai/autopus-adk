@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "team_run_id": "team-1",
+  "expected_agents": 2,
+  "observed_agents": 2,
+  "missing_agents": [],
+  "excluded_rollups": [],
+  "attribution_conflicts": [],
+  "by_agent": [
+    {
+      "agent_id": "lead",
+      "role": "supervisor",
+      "usage_scope": "self_calls",
+      "observed": true,
+      "capture_complete": true,
+      "known_estimated_cost_usd": 0,
+      "complete": true,
+      "cost_complete": false,
+      "actual_tokens": 48,
+      "known_actual_tokens": 48,
+      "actual_cost_usd": null,
+      "known_actual_cost_usd": 0,
+      "estimated_tokens": null,
+      "unique_model_call_count": 1
+    },
+    {
+      "agent_id": "worker-a",
+      "parent_agent_id": "lead",
+      "role": "worker",
+      "usage_scope": "self_calls",
+      "observed": true,
+      "capture_complete": true,
+      "known_estimated_cost_usd": 0,
+      "complete": true,
+      "cost_complete": false,
+      "actual_tokens": 205,
+      "known_actual_tokens": 205,
+      "actual_cost_usd": null,
+      "known_actual_cost_usd": 0,
+      "estimated_tokens": null,
+      "unique_model_call_count": 2
+    }
+  ],
+  "known_estimated_cost_usd": 0,
+  "complete": true,
+  "cost_complete": false,
+  "actual_tokens": 253,
+  "known_actual_tokens": 253,
+  "actual_cost_usd": null,
+  "known_actual_cost_usd": 0,
+  "estimated_tokens": null,
+  "unique_model_call_count": 3
+}

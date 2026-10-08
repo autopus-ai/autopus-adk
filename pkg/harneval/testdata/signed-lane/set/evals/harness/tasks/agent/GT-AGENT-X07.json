@@ -1,0 +1,74 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-AGENT-X07",
+  "kind": "agent",
+  "category": "fixture",
+  "intent": "Repair theta.Value so its tests pass.",
+  "outcome": "The fixture oracle passes again.",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "file_exists",
+      "platform": "codex",
+      "path": ".codex/config.toml"
+    }
+  ],
+  "corpus_ref": {
+    "file": "scripts/benchmarks/harness/corpus_fixture.json",
+    "task_id": "x07",
+    "file_sha256": "e35240b6cf2f754784c42258bab2cab3a235b218474c75235c3ff702a2c29c2f"
+  },
+  "expected_tests": [
+    "TestValue",
+    "TestZero"
+  ],
+  "provenance": {
+    "kind": "benchmark",
+    "ref": "scripts/benchmarks/harness/corpus_fixture.json#x07"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  },
+  "oracle_mode": "black_box",
+  "black_box_oracle": {
+    "build": "./cmd/theta",
+    "command": [
+      "{artifact}",
+      "{input}/request.txt"
+    ],
+    "inputs": [
+      {
+        "path": "evals/harness/oracles/GT-AGENT-X07/request.txt",
+        "sha256": "28fca28ef02d08bd61931c03999b7a5b822392132867682e88b2db492ee9f087"
+      }
+    ],
+    "assertions": [
+      {
+        "id": "exit",
+        "kind": "exit_code",
+        "exit_code": 1
+      },
+      {
+        "id": "stdout",
+        "kind": "stdout",
+        "expected": {
+          "path": "evals/harness/oracles/GT-AGENT-X07/empty.txt",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      }
+    ],
+    "positive_control": {
+      "inputs": [
+        {
+          "path": "evals/harness/oracles/GT-AGENT-X07/control/request.txt",
+          "sha256": "009d962905920ad0e3ff46c6987fad36418982deb81796fd1f58e326d167c268"
+        }
+      ],
+      "stdout": {
+        "path": "evals/harness/oracles/GT-AGENT-X07/control/stdout.txt",
+        "sha256": "1121cfccd5913f0a63fec40a6ffd44ea64f9dc135c66634ba001d10bcf4302a2"
+      }
+    }
+  }
+}

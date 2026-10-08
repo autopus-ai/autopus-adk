@@ -196,9 +196,9 @@ func validateRecord(r Record) error {
 	if r.SchemaVersion != "" && r.SchemaVersion != RecordSchemaV1 {
 		return invalidf(DetailFieldInvalid, "record schema_version %q is not %s", r.SchemaVersion, RecordSchemaV1)
 	}
-	outcome, known := signalOutcomes[r.Signal]
+	outcome, known := signalOutcome(r.Signal)
 	if !known {
-		return invalidf(DetailFieldInvalid, "signal %q is not a REQ-HE-08 signal", r.Signal)
+		return invalidf(DetailFieldInvalid, "signal %q is not a REQ-HE-08 or REQ-HR-08 signal", r.Signal)
 	}
 	if r.Outcome != outcome {
 		return invalidf(DetailFieldInvalid, "outcome %q contradicts signal %s, which is %s", r.Outcome, r.Signal, outcome)

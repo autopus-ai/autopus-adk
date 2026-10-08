@@ -26,6 +26,40 @@
   "expected_tests": [
     "TestAggregateUsage_DuplicateIdentity_DeduplicatesOrBlocksOnConflict"
   ],
+  "oracle_mode": "black_box",
+  "black_box_oracle": {
+    "build": "./cmd/auto",
+    "command": [
+      "{artifact}",
+      "telemetry",
+      "team",
+      "--evidence-json",
+      "{input}/team.json",
+      "--format",
+      "json"
+    ],
+    "inputs": [
+      {
+        "path": "evals/harness/oracles/GT-AGENT-A02/team.json",
+        "sha256": "e5968709fd1ce0b059e2108eddcafd813e376844c0396a279956b99d10011f90"
+      }
+    ],
+    "assertions": [
+      {
+        "id": "exit",
+        "kind": "exit_code",
+        "exit_code": 0
+      },
+      {
+        "id": "stdout",
+        "kind": "stdout",
+        "expected": {
+          "path": "evals/harness/oracles/GT-AGENT-A02/stdout.json",
+          "sha256": "beac58a3e529c8b9ddc20b65f26a280cd05e149b491f73d45d6820f3598f6bd6"
+        }
+      }
+    ]
+  },
   "provenance": {
     "kind": "benchmark",
     "ref": "scripts/benchmarks/harness/corpus_a.json#a02"

@@ -143,6 +143,55 @@ configured, the gate is expected to fail closed on `artifact_missing`,
 `artifact_unsigned`, or `signature_key_unknown`. That is the intended safe
 default, not an incomplete implementation.
 
+## Harness eval lane (SPEC-HARNEVAL-003)
+
+The ADK harness golden set has its own signing lane, separate from the Autopus
+staging-to-main lane above. Its evidence is produced by
+`.github/workflows/harness-eval-live.yml` on `main` and verified by the same
+strict `auto check --eval-regression` path with these six expected values:
+
+| Flag | Harness lane value |
+|------|--------------------|
+| `--eval-regression-expected-key-id` | `adk-harness-eval-2026-10` (`evalregression.ADKHarnessEvalKeyID`) |
+| `--eval-regression-expected-trust-lane` | `adk-harness-eval` (`evalregression.ADKHarnessEvalTrustLane`) |
+| `--eval-regression-expected-source-environment` | `adk-harness-live` |
+| `--eval-regression-expected-target-environment` | `adk-release` |
+| `--eval-regression-expected-source-revision` | the binding digest B of the release source |
+| `--eval-regression-expected-workspace-scope` | `autopus-adk` |
+
+`auto eval harness digest --binding --format json` prints B, and
+`auto eval harness policy --binding B` prints the six values. The two lanes
+reject each other with `attestation_policy_mismatch` because their key ids
+differ; there is no unsigned-accept path in either lane. The only harness lane
+entry in `evalRegressionPublicKeys` is its public key; the private key lives
+only in the `adk-harness-eval-signing` Environment secret
+`HARNESS_EVAL_SIGNING_KEY`, which reaches `auto eval harness export` on stdin.
+
+Environments (OPS-ONLY): `adk-harness-eval-agent` holds only the Codex
+credential and `adk-harness-eval-signing` holds only the signing key. Both
+limit deployment branches to `main`; `adk-harness-eval-signing` requires at
+least one reviewer and forbids self-review.
+
+### Harness lane key rotation
+
+The key id is part of the binding (`signing_key_id`), so a rotation changes B:
+sessions signed before the rotation never enter the new binding's window and
+cannot block or unblock a release. Rotate in this order:
+
+1. Stop dispatching `harness-eval-live.yml`.
+2. Cancel every run that is in progress or waiting for Environment approval:
+   `gh run list --workflow harness-eval-live.yml --status in_progress` and
+   `--status waiting`, then `gh run cancel <run_id>` for each.
+3. Apply together, in one change: add the new public key to
+   `evalRegressionPublicKeys`, replace the `ADKHarnessEvalKeyID` constant, and
+   replace the `HARNESS_EVAL_SIGNING_KEY` Environment secret.
+4. Resume dispatching `harness-eval-live.yml`.
+5. Produce a new session under the new binding before the next release.
+
+Every export verifies its own output against the committed allowlist before
+upload; evidence signed with a key the allowlist does not hold under
+`ADKHarnessEvalKeyID` stops as `self_verify_failed` and is never uploaded.
+
 ## Non-goals and safety
 
 - This document does not run `gh api`, write secrets, alter branch protection, or

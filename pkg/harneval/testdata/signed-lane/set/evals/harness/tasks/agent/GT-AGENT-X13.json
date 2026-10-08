@@ -1,0 +1,33 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-AGENT-X13",
+  "kind": "agent",
+  "category": "fixture",
+  "intent": "Repair zeta.Value so its tests pass.",
+  "outcome": "The fixture oracle passes again.",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "file_exists",
+      "platform": "codex",
+      "path": ".codex/config.toml"
+    }
+  ],
+  "corpus_ref": {
+    "file": "scripts/benchmarks/harness/corpus_fixture.json",
+    "task_id": "x13",
+    "file_sha256": "e35240b6cf2f754784c42258bab2cab3a235b218474c75235c3ff702a2c29c2f"
+  },
+  "expected_tests": [
+    "TestValue",
+    "TestZero"
+  ],
+  "provenance": {
+    "kind": "benchmark",
+    "ref": "scripts/benchmarks/harness/corpus_fixture.json#x13"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

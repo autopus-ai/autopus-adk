@@ -41,10 +41,14 @@ policy = agents.read_text().strip() if agents.is_file() else ''
 call = CALLS / ('call-%d.json' % time.monotonic_ns())
 behavior = BEHAVIORS.get(allowed, 'policy')
 call.write_text(json.dumps({{'argv': args, 'env': dict(os.environ), 'allowed': allowed, 'policy': policy,
-                            'behavior': behavior, 'cwd': os.getcwd()}}))
-if config.is_file() and 'FAKE-START: refuse' in config.read_text():
+                            'behavior': behavior, 'cwd': os.getcwd(),
+                            'harness_files': (work / 'evals' / 'harness').exists()}}))
+if behavior == 'refuse' or (config.is_file() and 'FAKE-START: refuse' in config.read_text()):
     sys.stderr.write('Error: the project configuration was rejected\\n')
     sys.exit(1)
+if behavior == 'turnfailed':
+    sys.stdout.write(EVENTS.split('\\n', 1)[0] + '\\n{{"type":"turn.failed","error":{{"message":"fixture"}}}}\\n')
+    sys.exit(0)
 sys.stdout.write(EVENTS)
 sys.stdout.flush()
 
@@ -76,6 +80,9 @@ elif behavior == 'background':
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     (CALLS / ('child-%d.pid' % child.pid)).write_text(str(child.pid))
 elif behavior == 'sleep':
+    time.sleep(600)
+elif behavior == 'slowrepair':
+    repair()
     time.sleep(600)
 '''
 

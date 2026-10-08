@@ -4,6 +4,8 @@ import (
 	"crypto/ed25519"
 	"encoding/base64"
 	"encoding/json"
+	"slices"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -110,6 +112,21 @@ func TestEvalRegressionLiveGateE2EReasons(t *testing.T) {
 	})
 }
 
+// committedKeyIDs is the exact key id set of the committed allowlist
+// (SPEC-HARNEVAL-003 Existing Test Changes, L120 and L138). The harness lane
+// key id ADKHarnessEvalKeyID joins it together with its public key when the
+// key is issued (T10); until then the promotion key is the only entry.
+var committedKeyIDs = []string{"autopus-eval-staging-to-main-2026-07"}
+
+func allowlistKeyIDs(keys map[string]ed25519.PublicKey) []string {
+	ids := make([]string, 0, len(keys))
+	for id := range keys {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	return ids
+}
+
 func TestCommittedAllowlistContainsPromotionKeyAndIsDefensiveForE2E(t *testing.T) {
 	const (
 		wantKeyID        = "autopus-eval-staging-to-main-2026-07"
@@ -117,8 +134,8 @@ func TestCommittedAllowlistContainsPromotionKeyAndIsDefensiveForE2E(t *testing.T
 	)
 
 	keys := CommittedEvalRegressionPublicKeys()
-	if len(keys) != 1 {
-		t.Fatalf("committed allowlist length = %d, want 1", len(keys))
+	if got := allowlistKeyIDs(keys); !slices.Equal(got, committedKeyIDs) {
+		t.Fatalf("committed allowlist key ids = %v, want %v", got, committedKeyIDs)
 	}
 	publicKey, present := keys[wantKeyID]
 	if !present {
@@ -135,8 +152,8 @@ func TestCommittedAllowlistContainsPromotionKeyAndIsDefensiveForE2E(t *testing.T
 	delete(keys, wantKeyID)
 	keys["egl-should-not-stick"] = ed25519.PublicKey("attacker")
 	again := CommittedEvalRegressionPublicKeys()
-	if len(again) != 1 {
-		t.Fatalf("committed allowlist mutated through defensive copy: length = %d, want 1", len(again))
+	if got := allowlistKeyIDs(again); !slices.Equal(got, committedKeyIDs) {
+		t.Fatalf("committed allowlist mutated through defensive copy: key ids = %v, want %v", got, committedKeyIDs)
 	}
 	if _, present := again["egl-should-not-stick"]; present {
 		t.Fatalf("committed allowlist accepted injected key through defensive copy")

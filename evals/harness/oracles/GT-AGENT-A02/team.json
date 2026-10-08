@@ -1,0 +1,139 @@
+{
+  "version": 1,
+  "team_run_id": "team-1",
+  "expected_agents": [
+    {
+      "agent_id": "lead",
+      "role": "supervisor"
+    },
+    {
+      "agent_id": "worker-a",
+      "parent_agent_id": "lead",
+      "role": "worker"
+    }
+  ],
+  "observations": [
+    {
+      "agent_id": "lead",
+      "usage_scope": "self_calls",
+      "capture_complete": true,
+      "usage": [
+        {
+          "version": 1,
+          "run_id": "run-lead",
+          "call_id": "plan",
+          "task_id": "t",
+          "provider": "p",
+          "model": "m",
+          "effort": "high",
+          "provider_version": "v",
+          "model_version": "v",
+          "cache_stratum": "cold",
+          "usage_status": "actual",
+          "usage_source": "provider",
+          "source_schema": "fixture",
+          "input_tokens_total": 40,
+          "uncached_input_tokens": null,
+          "cached_input_tokens": null,
+          "cache_creation_input_tokens": null,
+          "cache_read_input_tokens": null,
+          "output_tokens_total": 8,
+          "reasoning_tokens": null,
+          "tool_tokens": null,
+          "raw_total_tokens": 48,
+          "actual_cost_usd": null,
+          "estimated_total_tokens": null,
+          "estimated_cost_usd": null
+        }
+      ]
+    },
+    {
+      "agent_id": "worker-a",
+      "usage_scope": "self_calls",
+      "capture_complete": true,
+      "usage": [
+        {
+          "version": 1,
+          "run_id": "run-worker",
+          "call_id": "edit",
+          "task_id": "t",
+          "provider": "p",
+          "model": "m",
+          "effort": "high",
+          "provider_version": "v",
+          "model_version": "v",
+          "cache_stratum": "cold",
+          "usage_status": "actual",
+          "usage_source": "provider",
+          "source_schema": "fixture",
+          "input_tokens_total": 100,
+          "uncached_input_tokens": null,
+          "cached_input_tokens": null,
+          "cache_creation_input_tokens": null,
+          "cache_read_input_tokens": null,
+          "output_tokens_total": 20,
+          "reasoning_tokens": null,
+          "tool_tokens": null,
+          "raw_total_tokens": 120,
+          "actual_cost_usd": null,
+          "estimated_total_tokens": null,
+          "estimated_cost_usd": null
+        },
+        {
+          "version": 1,
+          "run_id": "run-worker",
+          "call_id": "edit-retry",
+          "task_id": "t",
+          "provider": "p",
+          "model": "m",
+          "effort": "high",
+          "provider_version": "v",
+          "model_version": "v",
+          "cache_stratum": "cold",
+          "usage_status": "actual",
+          "usage_source": "provider",
+          "source_schema": "fixture",
+          "input_tokens_total": 70,
+          "uncached_input_tokens": null,
+          "cached_input_tokens": null,
+          "cache_creation_input_tokens": null,
+          "cache_read_input_tokens": null,
+          "output_tokens_total": 15,
+          "reasoning_tokens": null,
+          "tool_tokens": null,
+          "raw_total_tokens": 85,
+          "actual_cost_usd": null,
+          "estimated_total_tokens": null,
+          "estimated_cost_usd": null
+        },
+        {
+          "version": 1,
+          "run_id": "run-worker",
+          "call_id": "edit",
+          "task_id": "t",
+          "provider": "p",
+          "model": "m",
+          "effort": "high",
+          "provider_version": "v",
+          "model_version": "v",
+          "cache_stratum": "cold",
+          "usage_status": "actual",
+          "usage_source": "provider",
+          "source_schema": "fixture",
+          "input_tokens_total": 100,
+          "uncached_input_tokens": null,
+          "cached_input_tokens": null,
+          "cache_creation_input_tokens": null,
+          "cache_read_input_tokens": null,
+          "output_tokens_total": 20,
+          "reasoning_tokens": null,
+          "tool_tokens": null,
+          "raw_total_tokens": 120,
+          "actual_cost_usd": null,
+          "estimated_total_tokens": null,
+          "estimated_cost_usd": null
+        }
+      ]
+    }
+  ]
+}

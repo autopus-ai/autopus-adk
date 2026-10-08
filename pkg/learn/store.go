@@ -3,13 +3,17 @@ package learn
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/insajin/autopus-adk/pkg/secretscan"
 )
 
 // Store manages learning entries in a JSONL file.
@@ -25,10 +29,11 @@ type SkipRecord struct {
 	Reason string
 }
 
-// NewStore creates a store rooted at dir, ensuring .autopus/learnings/ exists.
+// NewStore creates a store rooted at dir, ensuring .autopus/learnings/ exists
+// as real directories: a symlink at either level is refused.
 func NewStore(dir string) (*Store, error) {
 	learningsDir := filepath.Join(dir, ".autopus", "learnings")
-	if err := os.MkdirAll(learningsDir, 0o755); err != nil {
+	if err := makeStoreDirs(dir); err != nil {
 		return nil, fmt.Errorf("create learnings dir: %w", err)
 	}
 	return &Store{
@@ -44,12 +49,16 @@ func (s *Store) Append(entry LearningEntry) error {
 }
 
 func (s *Store) appendUnlocked(entry LearningEntry) error {
+	entry, err := redactEntry(entry)
+	if err != nil {
+		return err
+	}
 	data, err := json.Marshal(entry)
 	if err != nil {
 		return fmt.Errorf("marshal entry: %w", err)
 	}
 
-	f, err := os.OpenFile(s.path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	f, err := openStoreFile(s.path, os.O_APPEND|os.O_CREATE|os.O_WRONLY)
 	if err != nil {
 		return fmt.Errorf("open file: %w", err)
 	}
@@ -61,11 +70,13 @@ func (s *Store) appendUnlocked(entry LearningEntry) error {
 	return nil
 }
 
-// ReadTolerant reads all entries from the JSONL file tolerantly.
+// ReadTolerant reads all entries from the JSONL file tolerantly. A store that
+// is a symlink, a FIFO, a device, or in a linked directory is refused before
+// any byte is read.
 func (s *Store) ReadTolerant() ([]LearningEntry, []SkipRecord, error) {
-	f, err := os.Open(s.path)
+	f, err := openStoreFile(s.path, os.O_RDONLY)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, fs.ErrNotExist) {
 			return []LearningEntry{}, []SkipRecord{}, nil
 		}
 		return nil, nil, fmt.Errorf("open file: %w", err)
@@ -135,8 +146,12 @@ func (s *Store) AppendAtomic(entryType EntryType, opts RecordOpts) error {
 	if err != nil {
 		return fmt.Errorf("next id: %w", err)
 	}
+	return s.appendUnlocked(newEntry(id, entryType, opts))
+}
 
-	entry := LearningEntry{
+// newEntry is the entry AppendAtomic writes for opts, stamped now.
+func newEntry(id string, entryType EntryType, opts RecordOpts) LearningEntry {
+	return LearningEntry{
 		ID:         id,
 		Timestamp:  time.Now(),
 		Type:       entryType,
@@ -146,9 +161,66 @@ func (s *Store) AppendAtomic(entryType EntryType, opts RecordOpts) error {
 		Packages:   opts.Packages,
 		Pattern:    opts.Pattern,
 		Resolution: opts.Resolution,
+		Expected:   opts.Expected,
+		Actual:     opts.Actual,
+		Repro:      opts.Repro,
 		Severity:   opts.Severity,
 	}
-	return s.appendUnlocked(entry)
+}
+
+// redactEntry is the store's first-write boundary: every byte Append and
+// AppendAtomic persist passes through it. Evidence fields are validated and
+// redacted in the REQ-HC-01 order and the verbatim fields are checked (a
+// rejection writes nothing), then the other free-text fields are redacted.
+// rewriteStore never calls this, so a stored value and its fingerprint do not
+// change when prune re-encodes the entry.
+func redactEntry(entry LearningEntry) (LearningEntry, error) {
+	evidence := []struct {
+		field EvidenceField
+		value *string
+	}{
+		{FieldExpected, &entry.Expected},
+		{FieldActual, &entry.Actual},
+		{FieldRepro, &entry.Repro},
+	}
+	for _, ev := range evidence {
+		redacted, _, err := RedactEvidenceField(ev.field, *ev.value)
+		if err != nil {
+			return LearningEntry{}, err
+		}
+		*ev.value = redacted
+	}
+	if err := checkVerbatim(entry); err != nil {
+		return LearningEntry{}, err
+	}
+	for _, text := range []*string{&entry.Pattern, &entry.Resolution, &entry.Phase, &entry.SpecID} {
+		*text, _ = secretscan.Redact(*text)
+	}
+	return entry, nil
+}
+
+// checkVerbatim refuses the fields the writer stores as given: a severity
+// outside the enum, and a files or packages item that redaction would change.
+// Files and packages are fingerprint input, so they are refused rather than
+// redacted.
+func checkVerbatim(entry LearningEntry) error {
+	switch entry.Severity {
+	case "", SeverityLow, SeverityMedium, SeverityHigh, SeverityCritical:
+	default:
+		return &FieldError{Field: FieldSeverity, Detail: DetailUnknownValue}
+	}
+	lists := []struct {
+		field EvidenceField
+		items []string
+	}{{FieldFiles, entry.Files}, {FieldPackages, entry.Packages}}
+	for _, list := range lists {
+		for _, item := range list.items {
+			if redactSecrets(item) != item {
+				return &FieldError{Field: list.field, Detail: DetailNeedsRedaction}
+			}
+		}
+	}
+	return nil
 }
 
 // UpdateReuseCount increments reuse_count for the entry with the given ID.

@@ -41,6 +41,13 @@ jobs:
           GOOS=darwin GOARCH=arm64 go build ./...
           GOOS=linux GOARCH=arm64 go build ./...
 
+      # Intake, promote, and reject refuse every write on Windows
+      # (SPEC-HARNEVAL-002 REQ-HC-11), and the //go:build windows tests that pin
+      # it compile nowhere else. Vet type-checks them here; the windows-runtime
+      # job runs them.
+      - name: Vet Windows intake tests
+        run: GOOS=windows GOARCH=amd64 go vet ./pkg/harneval/intake/
+
       # 프로세스 중량 테스트 목록은 Makefile 의 PROCESS_HEAVY_TESTS 가 단일
       # 출처다. CI 가 정규식을 복사해 두면 로컬 게이트와 CI 게이트가 조용히
       # 갈라지므로, 값을 그대로 읽어 오고 파싱 실패는 즉시 에러로 만든다.
@@ -360,7 +367,7 @@ jobs:
   macos-runtime:
     name: macos-runtime
     runs-on: macos-15
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
@@ -463,6 +470,30 @@ jobs:
             exit 1
           fi
 
+      - name: Test signed harness lane digest chain
+        shell: bash
+        run: |
+          set -euo pipefail
+          # SPEC-HARNEVAL-003 S5 needs a darwin build (the tests carry
+          # //go:build darwin). Same rule as the installer step: the listed
+          # TestEvalHarnessE2E_ tests must meet the floor, and exactly those
+          # tests must report PASS, so neither a rename nor a skip passes.
+          filter='^TestEvalHarnessE2E_'
+          minimum=1
+          log="$(mktemp)"
+          listed="$(go test -list "$filter" ./internal/cli | awk '/^TestEvalHarnessE2E_/' | sort -u | tr '\n' ' ')"
+          read -ra listed_tests <<<"$listed"
+          if [[ "${#listed_tests[@]}" -lt "$minimum" ]]; then
+            echo "::error::-run '${filter}' lists ${#listed_tests[@]} test(s) in ./internal/cli, below the declared ${minimum}: [${listed}]"
+            exit 1
+          fi
+          CODEX_HOME="$(mktemp -d)" go test -count=1 -timeout=10m -v ./internal/cli -run "$filter" 2>&1 | tee "$log"
+          observed="$(sed -n 's/^--- PASS: \([^ ]*\).*/\1/p' "$log" | sort -u | tr '\n' ' ')"
+          if [[ "$observed" != "$listed" ]]; then
+            echo "::error::-run '${filter}' listed [${listed}] but only [${observed}] reported PASS; the difference skipped or never ran"
+            exit 1
+          fi
+
   windows-runtime:
     name: windows-runtime
     runs-on: windows-latest
@@ -540,6 +571,34 @@ jobs:
               exit 1
             fi
           done < <(sed -n 's/^--- SKIP: \([^ ]*\).*/\1/p' "$log" | sort -u)
+
+      - name: Test Windows intake write refusals
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Intake, promote, and reject refuse every write on Windows with
+          # platform_unsupported (SPEC-HARNEVAL-002 REQ-HC-11). The
+          # //go:build windows tests that pin it carry PlatformUnsupported in
+          # their names, so compare the PASS set with `go test -list` for the
+          # same filter: a renamed test would otherwise leave "no tests to run"
+          # behind a green gate. The floor is the four refusals of intake,
+          # promote, reject, and the write helpers, so losing one fails even
+          # while another still matches the filter.
+          filter='PlatformUnsupported'
+          minimum=4
+          log="$(mktemp)"
+          listed="$(go test -list "$filter" ./pkg/harneval/intake | awk '/^Test/' | sort -u | tr '\n' ' ')"
+          read -ra listed_tests <<<"$listed"
+          if [[ "${#listed_tests[@]}" -lt "$minimum" ]]; then
+            echo "::error::-run '${filter}' lists ${#listed_tests[@]} test(s) in ./pkg/harneval/intake, below the declared ${minimum}: [${listed}]"
+            exit 1
+          fi
+          go test -count=1 -timeout=5m -v ./pkg/harneval/intake -run "$filter" 2>&1 | tee "$log"
+          observed="$(sed -n 's/^--- PASS: \([^ ]*\).*/\1/p' "$log" | sort -u | tr '\n' ' ')"
+          if [[ "$observed" != "$listed" ]]; then
+            echo "::error::-run '${filter}' listed [${listed}] but only [${observed}] reported PASS; the difference skipped or never ran"
+            exit 1
+          fi
 
       - name: Test Windows installer signing on PowerShell 5.1
         run: >-

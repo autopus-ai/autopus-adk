@@ -1,0 +1,83 @@
+# T12 regression verification (SPEC-HARNEVAL-002 slice E on feat/harneval-002 @ 2527dff1)
+executed 2026-10-08T09:00Z-09:35Z (UTC); macOS 26.5.2, go1.27.0 darwin/arm64 (go.mod toolchain go1.26.6), 24 cores
+shared with other agents (load average 8-11). Every command ran with CODEX_HOME set to an empty session-scratchpad
+directory. base = main @ 1943e596 (an ancestor of HEAD); HEAD = 2527dff1, the code under test. The commit that adds
+this file changes only .autopus/specs. paid model calls: 0. No full `go test ./...`; internal/cli ran with -run.
+verdicts: T12 package set PASS | internal/cli Learn|EvalHarness PASS | Windows build and test compile PASS |
+existing tests unchanged PASS | coverage >= 85% for new packages PASS | race PASS | lint 0 | template drift 0
+
+## Slice E commits (on top of 588987ff, T1-T9)
+- fa7778df refactor: promote and reject share one candidate reader (candidate_read.go) and the candidate_missing,
+  candidate_invalid, decode, id_mismatch constants. Reasons, details, check order, exit codes, and file effects are
+  unchanged and no test changed. Wording: reject's candidate_missing carries its text in Err instead of Detail (the
+  Error() string is identical); reject's file-name id_mismatch now names the candidate the file holds, as promote did.
+- f75c2cd8 T10: pkg/harneval/intake/isolation_test.go (REQ-HC-08, S8)
+- db4407fd T11: evals/harness/README.md Incident intake section, help text of intake/promote/reject (REQ-HC-09, S9)
+- 2527dff1 T13: .github/workflows/ci.yaml two steps and internal/cli/eval_harness_intake_workflow_test.go (REQ-HC-11)
+
+## T12 package set, unfiltered: go test -count=1 -json <set>   (exit 0)
+  package                     top-level                    subtests
+  pkg/learn                   62 pass, 0 fail, 0 skip      32 pass, 0 fail, 0 skip
+  pkg/secretscan               6 pass, 0 fail, 0 skip     125 pass, 0 fail, 0 skip
+  pkg/qa/evidence             92 pass, 0 fail, 0 skip      90 pass, 0 fail, 0 skip
+  pkg/worker/security        104 pass, 0 fail, 0 skip      34 pass, 0 fail, 0 skip
+  pkg/harneval                83 pass, 0 fail, 0 skip     125 pass, 0 fail, 0 skip
+  pkg/harneval/intake         88 pass, 0 fail, 0 skip     108 pass, 0 fail, 0 skip
+- set = ./pkg/learn/... ./pkg/secretscan/... ./pkg/qa/evidence/... ./pkg/worker/security/... ./pkg/harneval/...
+- the same set with -race (pkg/learn, pkg/secretscan, pkg/harneval/intake): ok, no DATA RACE
+
+## internal/cli: go test -count=1 -v ./internal/cli -run 'Learn|EvalHarness'   (exit 0, 19.1 s)
+- 79 top-level PASS, 74 subtest PASS, 0 FAIL, 0 SKIP (includes the S2 two-binary test, the S6 promote flow, the S9
+  README flow, and the T13 workflow tests). The same filter with -race: ok, no DATA RACE.
+
+## Windows
+- GOOS=windows GOARCH=amd64 go build ./...                       ok
+- GOOS=windows go test -c -o /dev/null ./pkg/harneval/intake/    ok (windows/arm64 from this host)
+- GOOS=windows GOARCH=amd64 go vet ./pkg/harneval/intake/ ./internal/cli/   ok
+- Windows tests a Windows build compiles that match 'PlatformUnsupported' (go/build windows context + go/parser, as
+  TestEvalHarnessIntakeWorkflow_S10_WindowsRefusalsAreVettedAndRun counts them): TestAreaWrites_OnWindows_
+  PlatformUnsupported, TestPromote_OnWindows_PlatformUnsupported, TestReject_OnWindows_PlatformUnsupported,
+  TestRun_OnWindows_PlatformUnsupported. The windows-runtime floor is 4.
+- not run here: the windows-latest runner step itself (the PR's CI runs it).
+
+## Existing tests unchanged: git diff main --name-status -- '*_test.go'
+- --diff-filter=MDR (modified, deleted, renamed): 0 files. --diff-filter=A: 41 new test files. No existing test
+  was modified by any slice, so spec.md "Existing Test Changes" stays "none".
+- the ci.yaml readers pass unmodified: root package TestWindowsInstallerOracleRunsInPowerShellFiveAndSeven,
+  TestMacOSRuntimeCIExecutesUnsignedBoundedVersionSmoke, TestOMPNativeSmokeCIPinsExactBinaryAndTest,
+  TestWindowsRuntimeRunsSelfUpdateAdmissionContracts; internal/companionmanifest
+  TestCIWorkflow_StableChecksHaveBoundedTimeouts, TestCIWorkflow_StaticAndMacOSContractsArePullRequestSafe,
+  TestSecurityWorkflow_JobsHaveBoundedTimeouts, TestReleaseWorkflow_UsesOnlyImmutableActions; internal/cli
+  TestEvalHarnessWorkflow_S6_JobAlwaysReportsAndDecidesInside, TestEvalHarnessWorkflow_StepScript_GatesOnThe
+  ApplicableDecision (the SPEC counted 8; the two harness-eval readers from SPEC-HARNEVAL-001 make 10).
+
+## ci.yaml (git diff main -- .github/workflows/ci.yaml): 2 hunks, 35 added, 0 removed
+- @@ -43,0 +44,7 @@ test job: "Vet Windows intake tests", run `GOOS=windows GOARCH=amd64 go vet ./pkg/harneval/intake/`
+- @@ -543,0 +551,28 @@ windows-runtime job, after the self-update CLI step: "Test Windows intake write refusals"
+  (shell bash, set -euo pipefail, filter 'PlatformUnsupported', minimum=4, go test -list, -v run, PASS-set compare)
+- no `uses:` added, `version: latest` absent, `golden` absent, nothing added inside omp-native-smoke.
+  go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7 .github/workflows/ci.yaml: exit 0 (shellcheck on PATH)
+- the step script ran against a fake go: all listed PASS -> 0; list below the floor -> 1 before the run; a skip,
+  a fail, or "no tests to run" -> 1.
+
+## Coverage: go test -count=1 -cover
+  pkg/secretscan (new)         98.8%
+  pkg/harneval/intake (new)    93.4%
+  pkg/learn (changed)          92.8%
+
+## REQ-HC-08 closure: go list -deps ./pkg/harneval
+- 163 packages, 24 in this module; pkg/harneval/intake, pkg/learn, pkg/secretscan, pkg/worker/security and any
+  package below them: 0. TestIsolation_S8_HarnevalDependencyClosureLeavesOutTheIntakeSide checks host and windows.
+
+## Red checks of the slice E tests (overlay or temporary edit, reverted)
+- LoadSet also walking evals/harness/candidates once it exists: TestIsolation_S8_IntakeAreaLeavesTheRunResult
+  Unchanged fails at all four steps (invalid / unknown_field instead of the pinned pass).
+- pkg/harneval importing pkg/learn: the closure test reports pkg/learn and pkg/secretscan for host and windows.
+- README promote id changed to GTC-023e9302ff0c: the S9 flow test fails with candidate_missing.
+- reject help without the flow trailer: the help test fails for reject.
+- windows-runtime minimum raised to 5: the T13 static test fails (floor above the 4 Windows tests).
+
+## Hygiene
+- golangci-lint run --allow-parallel-runners ./...: 0 issues; GOOS=windows on pkg/harneval/intake: 0 issues
+- go run ./cmd/source-lines --max 300 on the 69 Go files changed since main: 0 over the limit
+- make generate-templates: zero drift (git status clean afterwards); `auto update` was not run

@@ -1,0 +1,16 @@
+input (security_or_data): 2 changed path(s)
+change risk: high escalate_to_full_spec (declared security_or_data, effective security_or_data)
+spec_authoring: required — high-risk security_or_data change requires the full SPEC set: multi_domain_change_set; no prior evidence
+risk_first_probe: required — integration boundary in change set; no prior evidence
+build: required — code change set; no prior evidence
+unit_tests: required — code change set; no prior evidence
+integration: required — security_or_data change set crosses an integration boundary; no prior evidence
+security: required — mandatory safety gate; no prior evidence
+validation: required — mandatory safety gate; no prior evidence
+data_loss: required — mandatory safety gate; no prior evidence
+deterministic_oracle: required — mandatory safety gate; no prior evidence
+accessibility: not_applicable — no UI surface in change set
+ux_verification: not_applicable — no UI surface in change set
+annotation: not_applicable — @AX annotation not requested for this change set
+provider_review: required — security_or_data change set requires provider review; no prior evidence
+doc_sync: required — always required; no prior evidence

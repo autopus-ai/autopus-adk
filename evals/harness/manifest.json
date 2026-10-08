@@ -7,7 +7,8 @@
   ],
   "floors": {
     "surface_tasks": 20,
-    "agent_tasks": 12
+    "agent_tasks": 12,
+    "signed_agent_tasks": 5
   },
   "live": {
     "k": 2,

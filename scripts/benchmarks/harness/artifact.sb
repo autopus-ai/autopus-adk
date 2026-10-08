@@ -1,0 +1,111 @@
+;; Artifact profile for the SPEC-HARNEVAL-003 signed live lane (REQ-HR-08).
+;;
+;; The trusted runner (golden_blackbox.py) starts every black-box stage that
+;; processes agent-modified input as a sibling process under this profile; no
+;; stage nests another profile. MODE selects the stage:
+;;   build: env -i <allowlist> sandbox-exec -f artifact.sb -D MODE=build
+;;            -D SCRATCH=<home, tmp, gopath> -D INPUT=<grade copy>
+;;            -D GOROOT=<toolchain> -D MODCACHE=<module cache>
+;;            -D BUILD_CACHE=<trial build cache> -D OUTPUT=<artifact dir>
+;;            -D CHECKOUT=<runner checkout> -D SET_ROOT=<golden set root>
+;;            -D ACCOUNT_HOME=<home> -D CODEX_HOME_DIR=<codex home>
+;;            go build -o <OUTPUT>/artifact <package>
+;;   run:   ... -D MODE=run -D SCRATCH=<out, home, tmp> -D INPUT=<trial inputs>
+;;            -D ARTIFACT=<artifact binary> ... <artifact> <args>
+;; Every root is the canonical path of a fresh per-trial directory, checked by
+;; golden_blackbox.check_roots(); sandbox-exec refuses to start (exit 65) when
+;; a parameter the chosen mode needs is missing.
+;;
+;; Network and every Mach service lookup are denied, so is every write outside
+;; SCRATCH (build mode: also the build cache and the artifact directory).
+(version 1)
+(allow default)
+(deny network*)
+(deny mach-lookup)
+(deny file-write*)
+(allow file-write*
+  (subpath (param "SCRATCH"))
+  (literal "/dev/null"))
+
+;; Reads are an allowlist. Every read operation is denied first; metadata and
+;; existence tests are reopened everywhere so that path resolution works,
+;; except below the runner checkout, the golden set root (expected outputs
+;; live there, so not even their size or existence is visible), the Codex home
+;; and the keychains. File contents are readable only on the system paths a
+;; process needs to start, the artifact itself (run mode), the read-only input
+;; root and the stage's own scratch. A rule on a named operation beats a
+;; file-read* rule whatever their order; among rules on the same operation the
+;; later one wins.
+(deny file-read* file-test-existence)
+(allow file-read-metadata file-test-existence)
+(deny file-read-metadata file-test-existence
+  (subpath (param "CHECKOUT"))
+  (subpath (param "SET_ROOT"))
+  (subpath (param "CODEX_HOME_DIR"))
+  (subpath (string-append (param "ACCOUNT_HOME") "/Library/Keychains"))
+  (subpath "/Library/Keychains"))
+(allow file-read-data file-read-xattr file-read-metadata file-test-existence
+  (literal "/")
+  (subpath "/System")
+  (subpath "/usr/lib")
+  (subpath "/private/var/db/dyld")
+  (subpath "/dev")
+  (subpath (param "INPUT"))
+  (subpath (param "SCRATCH")))
+
+(if (string=? (param "MODE") "build")
+  (begin
+    (allow file-read-data file-read-xattr file-read-metadata file-test-existence
+      (subpath (param "GOROOT"))
+      (subpath (param "MODCACHE"))
+      (subpath (param "BUILD_CACHE"))
+      (subpath (param "OUTPUT")))
+    (allow file-write*
+      (subpath (param "BUILD_CACHE"))
+      (subpath (param "OUTPUT")))))
+
+(if (string=? (param "MODE") "run")
+  (begin
+    (allow file-read-data file-read-xattr file-read-metadata file-test-existence
+      (literal (param "ARTIFACT")))
+    ;; Run mode judges the artifact by its own output, so it never needs to start another process.
+    ;; Denying fork stops an artifact from forking, calling setsid and re-execing itself every
+    ;; generation to leave a sandboxed process a single leftover walk can miss (SPEC-HARNEVAL-003 S2);
+    ;; a Go artifact that only needs OS threads is unaffected, as threads are not forks. Build mode
+    ;; keeps fork, because the Go toolchain forks the compiler, linker and vet.
+    (deny process-fork)))
+
+;; Other processes stay closed (SPEC-HARNEVAL-003 S1). A same-user sibling's
+;; environment, which on the live runner holds the agent credential, is
+;; readable through the kern.procargs2 sysctl, and its state through
+;; proc_info and the kern.proc sysctls; a signal could stop or kill it. So
+;; proc_info and signals reach this process only, and sysctl reads are the
+;; hardware, kernel-version and clock names a Go program, the go command and
+;; a test binary read (the App Sandbox container profile's list, without any
+;; kern.proc or kern.procargs name).
+(deny process-info*)
+(allow process-info* (target self))
+(deny signal)
+(allow signal (target self))
+(deny sysctl-read)
+(allow sysctl-read
+  (sysctl-name
+    "hw.activecpu" "hw.busfrequency" "hw.busfrequency_compat" "hw.byteorder" "hw.cacheconfig"
+    "hw.cachelinesize" "hw.cachelinesize_compat" "hw.cachesize" "hw.cpu64bit_capable" "hw.cpufamily"
+    "hw.cpufrequency" "hw.cpufrequency_compat" "hw.cpufrequency_max" "hw.cpusubfamily" "hw.cpusubtype"
+    "hw.cputype" "hw.l1dcachesize" "hw.l1dcachesize_compat" "hw.l1icachesize" "hw.l1icachesize_compat"
+    "hw.l2cachesize" "hw.l2cachesize_compat" "hw.l2settings" "hw.l3cachesize" "hw.l3cachesize_compat"
+    "hw.l3settings" "hw.logicalcpu" "hw.logicalcpu_max" "hw.machine" "hw.memsize" "hw.model" "hw.ncpu"
+    "hw.nperflevels" "hw.pagesize" "hw.pagesize_compat" "hw.physicalcpu" "hw.physicalcpu_max" "hw.physmem"
+    "hw.product" "hw.target" "hw.tbfrequency" "hw.tbfrequency_compat" "hw.usermem" "hw.vectorunit"
+    "machdep.virtual_address_size" "machdep.ptrauth_enabled"
+    "kern.boottime" "kern.clockrate" "kern.hostname" "kern.hv_vmm_present" "kern.iossupportversion"
+    "kern.maxfilesperproc" "kern.maxproc" "kern.maxvnodes" "kern.memorystatus_level"
+    "kern.monotoniclock_offset_usecs" "kern.ngroups" "kern.osproductversion" "kern.osrelease"
+    "kern.ostype" "kern.osvariant_status" "kern.osversion" "kern.safeboot" "kern.saved_ids"
+    "kern.secure_kernel" "kern.system_version_compat" "kern.usrstack64" "kern.version" "kern.waketime"
+    "security.mac.sandbox.sentinel" "vm.loadavg" "sysctl.name2oid" "sysctl.proc_native")
+  (sysctl-name-prefix "hw.optional.")
+  (sysctl-name-prefix "hw.perflevel")
+  (sysctl-name-prefix "kern.monotonicclock")
+  (sysctl-name-prefix "sysctl.oidfmt."))
