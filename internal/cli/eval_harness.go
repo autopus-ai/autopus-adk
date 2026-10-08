@@ -75,6 +75,8 @@ func newEvalHarnessCmd(deps evalHarnessDeps) *cobra.Command {
 		newEvalHarnessApplicableCmd(deps, &dir),
 		newEvalHarnessDigestCmd(deps, &dir),
 		newEvalHarnessReportCmd(),
+		newEvalHarnessIntakeCmd(&dir),
+		newEvalHarnessRejectCmd(&dir),
 	)
 	return cmd
 }

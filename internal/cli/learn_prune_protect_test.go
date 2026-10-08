@@ -167,9 +167,9 @@ func TestLearnPrune_S7_UnreadableLinks_RefuseWithTheStoreUnchanged(t *testing.T)
 	}
 }
 
-// assertPruneRefused runs prune and requires eval_links_unreadable, no
-// stdout, and an unchanged store.
-func assertPruneRefused(t *testing.T, path string) {
+// assertPruneRefused runs prune, requires eval_links_unreadable, no stdout,
+// and an unchanged store, and returns the refusal message.
+func assertPruneRefused(t *testing.T, path string) string {
 	t.Helper()
 	before := fileSHA256(t, path)
 
@@ -180,4 +180,5 @@ func assertPruneRefused(t *testing.T, path string) {
 	assert.Contains(t, err.Error(), "the learning store is unchanged")
 	assert.Empty(t, out)
 	assert.Equal(t, before, fileSHA256(t, path))
+	return err.Error()
 }

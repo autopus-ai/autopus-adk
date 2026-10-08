@@ -47,7 +47,9 @@ func newLearnPruneCmd() *cobra.Command {
 			})
 			var linksErr *intake.RunError
 			if errors.As(err, &linksErr) {
-				return fmt.Errorf("%w; the learning store is unchanged", err)
+				// The message can name a hand-made file, so it is masked and
+				// escaped like every intake command line.
+				return errors.New(intakePrintable(err.Error()) + "; the learning store is unchanged")
 			}
 			if err != nil {
 				return fmt.Errorf("prune: %w", err)

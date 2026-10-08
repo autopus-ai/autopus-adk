@@ -5,8 +5,22 @@ package cli_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+func TestLearnPrune_ControlCharacterFileName_IsEscapedInTheError(t *testing.T) {
+	dir := setupLearnDir(t)
+	chdir(t, dir)
+	path := s7PruneProject(t, dir, true, true)
+	if err := os.Symlink(t.TempDir(), filepath.Join(dir, "evals", "harness", "tasks", "surface", "GT-\x1b[2J.json")); err != nil {
+		t.Fatal(err)
+	}
+
+	if msg := assertPruneRefused(t, path); !strings.Contains(msg, `GT-\u001b[2J.json`) || strings.Contains(msg, "\x1b") {
+		t.Fatalf("the file name must reach the error escaped: %q", msg)
+	}
+}
 
 func TestLearnPrune_S7S10_SymlinkedLinkOrTask_RefuseWithTheStoreUnchanged(t *testing.T) {
 	cases := map[string]string{
