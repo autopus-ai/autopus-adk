@@ -30,7 +30,8 @@ or not_evaluated with the precondition that stopped the evaluation; the
 promotion holds either way. The candidate's repro value is never executed.
 
 Until "auto eval harness baseline --update" pins it, "auto eval harness run"
-reports the new task as "new" with set_digest_mismatch.`
+reports the new task as "new" with set_digest_mismatch.
+` + intakeFlowHelp
 
 // newEvalHarnessPromoteCmd promotes one reviewed candidate (SPEC-HARNEVAL-002
 // REQ-HC-06): the harness_promote_result.v1 document alone goes to stdout,

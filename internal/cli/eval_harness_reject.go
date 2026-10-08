@@ -20,8 +20,8 @@ keep its learning entries from "auto learn prune".
 
 Exactly one candidate id is accepted and nothing is rejected in bulk. A refused
 run exits 1 and changes nothing; a rerun after an interrupted reject finishes
-it. No repro value is ever run. The reason stays in your shell history, so do
-not paste secrets into it.`
+it. No repro value is ever run.
+` + intakeFlowHelp
 
 // newEvalHarnessRejectCmd moves one candidate into its rejection record
 // (REQ-HC-10).

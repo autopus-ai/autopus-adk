@@ -77,16 +77,32 @@ single --learning id; they are checked and redacted like the learn store's own
 fields and are never written to the store.
 
 Each new candidate is written to evals/harness/candidates/GTC-<12 hex>.json,
-which is never evaluated. Write its task category and at least one assertion,
-then run "auto eval harness promote <id>", or "auto eval harness reject <id>
---reason <text>". After a promotion, pin it with "auto eval harness baseline
---update". Intake never edits an existing candidate, so an entry recorded after
-its candidate exists does not join it and is not kept by prune.
+which is never evaluated, and intake never edits an existing candidate.
 
 stdout holds one harness_intake_result.v1 document and guidance goes to stderr.
 The exit code is 0 when no row was skipped, 2 when a row was skipped, and 1 when
 the invocation is refused, which writes nothing. No repro value is ever run.
-Flag values stay in your shell history, so do not paste secrets into them.`
+` + intakeFlowHelp
+
+// intakeFlowHelp closes the help text of intake, promote, and reject with the
+// whole flow and its caveats (REQ-HC-09).
+const intakeFlowHelp = `
+Flow, from the repository root (evals/harness/README.md has a worked example):
+  1. auto learn record --type <type> --pattern <text> --expected <text> --actual <text> [--repro <command>]
+  2. auto eval harness intake --all-eligible
+  3. write the candidate's task category and at least one assertion
+  4. auto eval harness promote <candidate-id>
+     or auto eval harness reject <candidate-id> --reason <text>
+  5. auto eval harness baseline --update, which pins a promoted task
+
+Caveats:
+  - An "auto learn prune" from a binary older than this flow deletes linked
+    entries by age and drops expected, actual, and repro; the candidates and
+    link records keep their own copies.
+  - An entry with the same fingerprint recorded after its candidate exists
+    does not join it and is not kept by prune. A second candidate of one
+    incident, which a changed secret detector can cause, is rejected by hand.
+  - Flag values stay in your shell history, so do not paste secrets into them.`
 
 // newEvalHarnessIntakeCmd creates the candidates of the selected learning
 // entries (REQ-HC-03, REQ-HC-04, REQ-HC-05) from the learn store under --dir.
