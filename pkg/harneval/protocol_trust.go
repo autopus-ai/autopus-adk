@@ -64,12 +64,6 @@ func DecodeRunMeta(data []byte) (RunMeta, error) {
 	return meta, nil
 }
 
-// CorpusDigest is one row of a protocol's corpus_digests.
-type CorpusDigest struct {
-	File       string `json:"file"`
-	FileSHA256 string `json:"file_sha256"`
-}
-
 // TrustedInputs are the trusted values the signer computes from the main
 // checkout beside the golden set: the commit the baseline tag points to, the
 // runner tree digest, both arm surface digests, the binding digest, and the
