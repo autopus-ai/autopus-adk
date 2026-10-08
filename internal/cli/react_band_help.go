@@ -1,15 +1,20 @@
 package cli
 
-// Help text for `auto react band` (SPEC-SIGMABAND-001 REQ-21). The command in
-// react_band.go reads these constants. The detector constants they state are
-// fixed in pkg/healthband, and react_band_help_test.go checks the two agree.
+// Help text for `auto react band` (SPEC-SIGMABAND-001 REQ-21, SPEC-SIGMABAND-
+// 002 REQ-13). The command in react_band.go reads these constants. The
+// detector constants they state are fixed in pkg/healthband, and
+// react_band_help_test.go checks the two agree; the local patch sentences
+// are docs/health-band.md's, which react_band_help_localpatch_test.go checks.
 
 const reactBandShort = "Score CI and canary history against a σ-band; diagnose anomalies read-only"
 
 const reactBandLong = `auto react band keeps a local history of trusted CI runs and executed canary
 runs under .autopus/metrics/, scores every series against its own baseline,
-and responds by tier. It never changes a git ref, a worktree, or GitHub state,
-and the diagnosis agent is read-only in every tier.
+and responds by tier. With the default configuration the command never
+changes a git ref, a worktree, or GitHub state, and the diagnosis agent is
+read-only in every tier. With health_band.allow_local_patch: true, an episode
+that opens at tier 3 can also get one local patch outside the repository;
+band still changes no GitHub state.
 
 Evidence
   CI      completed push and schedule runs on the remote default branch, read
@@ -34,8 +39,50 @@ Tiers (a boundary belongs to the upper tier: tier k means z ≥ k - ε)
   tier 2   z ≥ 2   diagnose once per episode: one read-only provider run and
                    one BS-BAND-NNN brainstorm for /auto plan --from-idea
   tier 3   z ≥ 3   the same response as tier 2, recorded as tier 3
-  Tier 3 is diagnosis-only: it opens no pull request, pushes nothing, and
-  applies no patch. A repeat tier 2 or 3 inside an open episode is suppressed.
+  Tier 3 is diagnosis-only while health_band.allow_local_patch is false, the
+  default: it opens no pull request, pushes nothing, and applies no patch. A
+  repeat tier 2 or 3 inside an open episode is suppressed.
+
+Local patch (tier 3, opt-in)
+  health_band.allow_local_patch: true gives an episode that opens at tier 3
+  at most one local patch, and only after its confined diagnosis succeeded:
+  a local branch autopus/band/<key>, a worktree <lp>/<key>/worktree/, and a
+  patch file <lp>/<key>.patch, where <lp> is
+  <user cache directory>/autopus/local-patches/<repo-hash>, so the
+  artifacts live in autopus/local-patches under the user cache directory.
+  Inside the repository band writes only the BS file and the records under
+  .autopus/metrics/, and band never pushes, fetches, or opens a pull
+  request: a human reviews the patch file and pushes the branch by hand.
+  Band never runs tests, builds, or the proposed change. The BS ends its
+  추천 방향 section with pointer lines to these paths and this warning:
+    Reviewer warning: this local branch holds a patch that an AI model
+    derived from untrusted CI logs and that nothing has run. Read the whole
+    patch file before you open the worktree in an IDE, run any command or
+    agent in it, or push the branch, because repository hooks and tool
+    configuration files run on checkout, commit, and build, and the edit
+    guard does not cover that worktree.
+  The outcome, the changed files, and the requested and actual model of the
+  patch request appear in the run output (local_patches[] with --format
+  json) with this warning:
+    This patch was derived by an AI model from untrusted CI logs; read the
+    whole patch file before running anything.
+
+  Only a subprocess claude provider can run a confined diagnosis. While the
+  flag is true, every diagnosis, a tier-2 diagnosis included, and every
+  patch request runs on a claude CLI subprocess with --restricted whose only
+  working directory is a band worktree; any other provider gives
+  unavailable(provider_unconfined). With health_band.local_patch_provider
+  set, band runs the claude named by health_band.local_patch_provider as a
+  CLI subprocess whatever its orchestra backend, while orchestra keeps that
+  backend. The expected deployment is the claude CLI signed in with a Claude
+  subscription (claude auth login); it needs no API key.
+
+  A refused or failed claim ends failed:<code>, keeps the BS, removes what
+  it created unless it cannot prove an artifact its own and unchanged, and
+  exits 0. Recovery runs in every run but --dry-run while
+  .autopus/metrics/localpatch-events.jsonl exists, whatever the flag. A
+  checkout that a crash of band interrupted is kept as worktree_incomplete;
+  look at it, then remove it with git worktree remove --force --force <path>.
 
 Exit status
   Every completed evaluation exits 0, including insufficient samples, a
@@ -47,9 +94,14 @@ Exit status
 
 Configuration
   health_band.diagnosis_provider picks the diagnosis provider first; without
-  it band uses orchestra.judge, then the first configured provider. Upgrade
-  every auto binary that reads this autopus.yaml before you set health_band:
-  older binaries decode autopus.yaml strictly and reject the unknown key.
+  it band uses orchestra.judge, then the first configured provider. While
+  health_band.allow_local_patch is true, the confined provider rule above
+  replaces this choice. Upgrade every auto binary that reads this autopus.yaml
+  before you set health_band: older binaries decode autopus.yaml strictly and
+  reject the unknown key. Upgrade every auto binary that reads this
+  autopus.yaml before you set health_band.allow_local_patch or
+  health_band.local_patch_provider: a binary without SPEC-SIGMABAND-002
+  rejects a file that sets either key.
 
 Scheduling
   band runs no daemon or scheduler. Run it from cron, for example
