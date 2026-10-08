@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
-	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -70,7 +69,10 @@ type bandEvidenceSource interface {
 // bandDiagnoser executes the diagnose claims of one band run (phase B). Its
 // Run method is the healthband.ClaimRunner of the run.
 type bandDiagnoser struct {
-	projectDir string                // absolute; provider cwd and BS directory
+	// projectDir is absolute: the BS directory, and the provider cwd while
+	// health_band.allow_local_patch is off; a flag-on diagnosis runs in its
+	// band worktree instead (SPEC-SIGMABAND-002).
+	projectDir string
 	harness    *config.HarnessConfig // nil selects no provider
 	noAgent    bool
 	evidence   bandEvidenceSource // nil gathers no evidence
@@ -83,6 +85,9 @@ type bandDiagnoser struct {
 	project  func([]orchestra.ProviderConfig, readOnlyPolicyOptions) ([]orchestra.ProviderConfig, error)
 	backends func(orchestra.OrchestraConfig) map[string]orchestra.ExecutionBackend
 	run      func(context.Context, orchestra.OrchestraConfig, orchestra.ProviderConfig, string) (*orchestra.ProviderResponse, error)
+	// localPatch is the flag-on flow that enableLocalPatch switched on; nil
+	// keeps every claim exactly as SPEC-SIGMABAND-001 runs it.
+	localPatch *bandDiagnoseLocalPatch
 }
 
 func newBandDiagnoser(projectDir string, harness *config.HarnessConfig, noAgent bool, evidence bandEvidenceSource) *bandDiagnoser {
@@ -105,21 +110,39 @@ type bandDiagnosis struct {
 // call, and the BS. A provider that is unavailable for any reason leaves an
 // evidence-only BS and a done claim; only a BS that cannot be written fails
 // the claim, with the BS writer's reason (bs_lock_timeout, bs_id_exhausted).
+// While enableLocalPatch has switched the flag-on flow on, steps 1–2 of the
+// Local Patch Flow come first and the provider is the confined claude of
+// the Local Patch Provider Contract (SPEC-SIGMABAND-002).
 func (d *bandDiagnoser) Run(ctx context.Context, claim healthband.DueClaim) healthband.ClaimOutcome {
 	var logs []healthband.RunLog
 	var reports []healthband.ReactReport
 	if d.evidence != nil {
 		logs, reports = d.evidence.Evidence(ctx, claim)
 	}
+	// --no-agent starts no provider, so a flag-on claim needs no worktree.
+	if d.localPatch != nil && !d.noAgent {
+		return d.localPatch.run(ctx, claim, logs, reports)
+	}
 	diagnosis := d.diagnose(ctx, claim.Event, logs, reports)
-	outcome := healthband.ClaimOutcome{DiagnosisStatus: diagnosis.status, PromptManifest: diagnosis.manifest}
-	bsCtx, cancel := context.WithTimeout(ctx, healthband.BSWriteTimeout)
-	defer cancel()
-	result, err := brainstorm.Write(bsCtx, d.projectDir, brainstorm.Request{
+	return d.writeBS(ctx, d.bsRequest(claim, diagnosis, logs, reports), diagnosis.manifest)
+}
+
+// bsRequest is the BS of one claim and its diagnosis.
+func (d *bandDiagnoser) bsRequest(claim healthband.DueClaim, diagnosis bandDiagnosis, logs []healthband.RunLog, reports []healthband.ReactReport) brainstorm.Request {
+	return brainstorm.Request{
 		Evaluation: claim.Event.Evaluation, EpisodeID: claim.EpisodeID, Created: d.now(),
 		Provider: diagnosis.provider, DiagnosisStatus: diagnosis.status, Diagnosis: diagnosis.output,
 		Logs: logs, Reports: reports,
-	}, d.bsOptions)
+	}
+}
+
+// writeBS writes the claim's BS and returns the claim outcome: the BS ID,
+// or the BS writer's reason as the claim's failure.
+func (d *bandDiagnoser) writeBS(ctx context.Context, req brainstorm.Request, manifest []promptlayer.ManifestEntry) healthband.ClaimOutcome {
+	outcome := healthband.ClaimOutcome{DiagnosisStatus: req.DiagnosisStatus, PromptManifest: manifest}
+	bsCtx, cancel := context.WithTimeout(ctx, healthband.BSWriteTimeout)
+	defer cancel()
+	result, err := brainstorm.Write(bsCtx, d.projectDir, req, d.bsOptions)
 	if d.warn != nil {
 		for _, path := range result.Ignored {
 			fmt.Fprintf(d.warn, "react band: BS-BAND ID scan ignored %q (a symlink, not a regular file, or not a valid BS)\n", path)
@@ -208,44 +231,6 @@ func (d *bandDiagnoser) resolveProvider(name string) (orchestra.ProviderConfig, 
 		return orchestra.ProviderConfig{}, bandProviderPolicyIncomplete
 	}
 	return projected[0], ""
-}
-
-// bandReadOnlyControls checks, fail-closed, the required controls of the
-// Provider Read-Only Contract item 3 on a projected provider.
-func bandReadOnlyControls(provider orchestra.ProviderConfig) bool {
-	if provider.Backend == config.ProviderBackendOMP {
-		tools := slices.Clone(provider.Tools)
-		slices.Sort(tools)
-		return provider.SandboxMode == orchestra.SandboxModeReadOnly && slices.Equal(slices.Compact(tools), []string{"glob", "grep", "read"})
-	}
-	args := provider.Args
-	switch provider.Name {
-	case "claude":
-		return slices.Equal(bandFlagValues(args, "--permission-mode"), []string{"plan"}) &&
-			slices.Equal(bandFlagValues(args, "--tools"), []string{claudeReadOnlyTools}) &&
-			slices.Contains(args, "--tools="+claudeReadOnlyTools)
-	case "codex":
-		return slices.Equal(bandFlagValues(args, "--sandbox"), []string{"read-only"}) && len(bandFlagValues(args, "-s")) == 0
-	case "gemini":
-		return slices.Equal(bandFlagValues(args, "--mode"), []string{"plan"}) && slices.Contains(args, "--sandbox")
-	}
-	return false
-}
-
-// bandFlagValues returns every value of a value flag before a "--"
-// separator, in separated or inline form; a separated flag owns the next
-// item, as in the projection.
-func bandFlagValues(args []string, flag string) []string {
-	var values []string
-	for index := 0; index < len(args) && args[index] != "--"; index++ {
-		if value, inline := strings.CutPrefix(args[index], flag+"="); inline {
-			values = append(values, value)
-		} else if args[index] == flag && index+1 < len(args) {
-			index++
-			values = append(values, args[index])
-		}
-	}
-	return values
 }
 
 // execute runs the provider once in the project dir under the provider

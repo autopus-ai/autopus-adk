@@ -20,7 +20,12 @@ const (
 
 // claimBudgets is the worst-case budget per claim kind. A kind added by a
 // sibling SPEC registers its budget here, so the lease chain counts it.
-var claimBudgets = map[string]time.Duration{ClaimKindDiagnose: DiagnoseBudget}
+var claimBudgets = map[string]time.Duration{
+	ClaimKindDiagnose: DiagnoseBudget,
+	// SPEC-SIGMABAND-002: 600 + 60 + 30 + 60 + 60 = 810 s; Plan chains it only
+	// for the row-5 claims of its LocalPatch hook.
+	ClaimKindLocalPatch: LocalPatchClaimBudget,
+}
 
 // ClaimBudget returns the step budget of a claim kind; an unknown kind has
 // none.

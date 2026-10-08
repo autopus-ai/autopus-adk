@@ -13,19 +13,43 @@ var errProviderEnvUnsupported = errors.New("orchestra: provider command cannot d
 // envSetter is the optional command capability of a replaced environment.
 type envSetter interface{ SetEnv(env []string) }
 
-// applyProviderEnv starts the provider without the inherited variables that
-// unset names. Nothing changes when unset is empty; a command that cannot
-// take an environment fails closed.
-func applyProviderEnv(cmd command, unset []string) error {
-	if len(unset) == 0 {
+// applyProviderEnv starts the provider with only the inherited variables
+// that keep names, when keep is not empty, and without the ones that unset
+// names. Nothing changes when both are empty; a command that cannot take an
+// environment fails closed.
+func applyProviderEnv(cmd command, keep, unset []string) error {
+	if len(keep) == 0 && len(unset) == 0 {
 		return nil
 	}
 	setter, ok := cmd.(envSetter)
 	if !ok {
 		return errProviderEnvUnsupported
 	}
-	setter.SetEnv(EnvironWithout(os.Environ(), unset))
+	env := os.Environ()
+	if len(keep) > 0 {
+		env = EnvironOnly(env, keep)
+	}
+	setter.SetEnv(EnvironWithout(env, unset))
 	return nil
+}
+
+// EnvironOnly returns the entries of env whose name equals one of names,
+// letter case included, the stricter reading for a keep list. A name that
+// ends in * keeps every variable that starts with the text before it, such
+// as LC_*; a bare * keeps nothing.
+func EnvironOnly(env, names []string) []string {
+	var kept []string
+	for _, entry := range env {
+		key, _, _ := strings.Cut(entry, "=")
+		for _, name := range names {
+			prefix, family := strings.CutSuffix(name, "*")
+			if family && prefix != "" && strings.HasPrefix(key, prefix) || !family && key == name {
+				kept = append(kept, entry)
+				break
+			}
+		}
+	}
+	return kept
 }
 
 // EnvironWithout returns env without the entries whose name matches one of

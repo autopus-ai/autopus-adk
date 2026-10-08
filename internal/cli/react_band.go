@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -19,7 +20,11 @@ import (
 // network step without the store lock, phase A under it (Lock, OpenWAL,
 // merge, ReadSeries, Plan, Commit, Unlock), then phases B and C one claim at
 // a time. --dry-run only loads the log and plans: no write, no lock, no
-// provider. Tier 2 and tier 3 both diagnose; nothing changes git or GitHub.
+// provider. Tier 2 and tier 3 both diagnose; with the flag off nothing
+// changes git or GitHub. SPEC-SIGMABAND-002 adds the recovery step between
+// the network step and phase A whenever its log exists, and, while
+// health_band.allow_local_patch is true, the Local Patch Flow of
+// react_band_localpatch_run.go around phases A and B.
 
 type reactBandOptions struct {
 	projectDir string
@@ -33,17 +38,21 @@ type reactBandOptions struct {
 }
 
 // reactBandDeps are the seams of a band run: the git and gh runner, the
-// clock of phases A and C, the store lock wait, and a hook that adjusts the
-// diagnoser before phase B (nil keeps it).
+// clock of phases A and C, the store lock wait, a hook that adjusts the
+// diagnoser before phase B (nil keeps it), and the Local Patch Flow's seams.
 type reactBandDeps struct {
-	runner   bandRunner
-	clock    func() time.Time
-	lockWait time.Duration
-	prepare  func(*bandDiagnoser)
+	runner     bandRunner
+	clock      func() time.Time
+	lockWait   time.Duration
+	prepare    func(*bandDiagnoser)
+	localPatch bandLocalPatchDeps
 }
 
 func newReactBandCmd() *cobra.Command {
-	return newReactBandCmdWith(reactBandDeps{runner: execBandRunner{}, clock: time.Now, lockWait: healthband.StoreLockWait})
+	return newReactBandCmdWith(reactBandDeps{
+		runner: execBandRunner{}, clock: time.Now, lockWait: healthband.StoreLockWait,
+		localPatch: bandLocalPatchDeps{enable: (*bandDiagnoser).enableLocalPatch},
+	})
 }
 
 func newReactBandCmdWith(deps reactBandDeps) *cobra.Command {
@@ -71,9 +80,10 @@ func newReactBandCmdWith(deps reactBandDeps) *cobra.Command {
 	return cmd
 }
 
-// runReactBand rejects an invalid invocation or config before any git, gh,
-// or store access (the only expected non-zero exits, REQ-14), runs band, and
-// writes the report. A store I/O failure is returned after the report.
+// runReactBand rejects an invalid invocation or config, and a flag-on run
+// without a diagnose side, before any git, gh, or store access (the only
+// expected non-zero exits, REQ-14), runs band, and writes the report. A
+// store I/O failure is returned after the report.
 func runReactBand(cmd *cobra.Command, opts reactBandOptions, deps reactBandDeps) error {
 	jsonMode, err := resolveJSONMode(opts.jsonOut, opts.format)
 	if err != nil {
@@ -92,14 +102,25 @@ func runReactBand(cmd *cobra.Command, opts reactBandOptions, deps reactBandDeps)
 		return err
 	}
 	run := bandRun{opts: opts, deps: deps, projectDir: projectDir, harness: harness, client: newBandGHClient(deps.runner), stderr: cmd.ErrOrStderr()}
+	if harness != nil && harness.HealthBand.AllowLocalPatch {
+		if deps.localPatch.enable == nil {
+			return errBandConfinedUnwired
+		}
+		run.lp = newBandLocalPatchRun(deps.localPatch, opts.noAgent)
+	}
 	report, runErr := run.execute(cmd.Context())
+	data := bandRunData{bandReport: report}
+	if run.lp != nil {
+		data.LocalPatches = run.lp.results
+	}
 	if jsonMode {
 		if runErr != nil {
-			return writeJSONResultAndExit(cmd, jsonStatusError, runErr, "band_failed", report, nil, report.checks())
+			return writeJSONResultAndExit(cmd, jsonStatusError, runErr, "band_failed", data, nil, report.checks())
 		}
-		return writeJSONResult(cmd, report.status(), report, nil, report.checks())
+		return writeJSONResult(cmd, report.status(), data, nil, report.checks())
 	}
 	printBandText(cmd.OutOrStdout(), report)
+	printBandLocalPatches(cmd.OutOrStdout(), data.LocalPatches)
 	return runErr
 }
 
@@ -123,7 +144,8 @@ type bandRun struct {
 	projectDir string
 	harness    *config.HarnessConfig
 	client     bandGHClient
-	stderr     io.Writer // warnings that are no part of the report
+	stderr     io.Writer          // warnings that are no part of the report
+	lp         *bandLocalPatchRun // the Local Patch Flow; nil while the flag is off
 }
 
 // bandPlanned is what phase A (or the --dry-run plan) decided.
@@ -160,9 +182,17 @@ func (r bandRun) execute(ctx context.Context) (bandReport, error) {
 		}
 		return report, err
 	}
+	if err := r.recoverLocalPatches(ctx, store, &report); err != nil {
+		return report, err
+	}
+	if r.lp != nil {
+		r.lp.start(ctx, r, store, fetch)
+	}
 	locked, err := store.Lock(ctx, r.deps.lockWait)
 	if errors.Is(err, healthband.ErrStoreLocked) {
-		report.Reasons = append(report.Reasons, healthband.ReasonStoreLocked)
+		if !slices.Contains(report.Reasons, healthband.ReasonStoreLocked) {
+			report.Reasons = append(report.Reasons, healthband.ReasonStoreLocked)
+		}
 		return report, nil
 	}
 	if err != nil {
@@ -175,6 +205,11 @@ func (r bandRun) execute(ctx context.Context) (bandReport, error) {
 	report.addPlan(planned, fetch)
 	outcomes, recorded, err := r.phaseB(ctx, store, planned.plan.Claims, fetch)
 	report.addClaims(planned.plan.Claims, outcomes, recorded)
+	if r.lp != nil {
+		// Records phase A could not keep fail the run after the report, as a
+		// store I/O failure does (SPEC-SIGMABAND-002 Decision Table).
+		err = errors.Join(err, r.lp.recordsErr)
+	}
 	return report, err
 }
 
@@ -193,9 +228,16 @@ func (r bandRun) phaseA(locked *healthband.Locked, fetch bandCIFetch) (bandPlann
 	if err != nil {
 		return bandPlanned{}, err
 	}
-	plan, err := wal.Plan(series, healthband.PlanOptions{Owner: healthband.NewOwner(), Only: r.opts.series, Fresh: fresh})
+	opts := healthband.PlanOptions{Owner: healthband.NewOwner(), Only: r.opts.series, Fresh: fresh}
+	if r.lp != nil {
+		r.lp.planOptions(locked, wal.Checkpoint(), &opts)
+	}
+	plan, err := wal.Plan(series, opts)
 	if err == nil {
 		err = wal.Commit(plan)
+	}
+	if err == nil && r.lp != nil {
+		r.lp.record(locked, plan.LocalPatch)
 	}
 	return bandPlanned{
 		plan: plan, state: wal.Checkpoint(), counts: counts, fresh: len(fresh),
@@ -233,7 +275,10 @@ func (r bandRun) planDry(store *healthband.Store, fetch bandCIFetch) (bandPlanne
 // phaseB executes this run's claims one at a time without the lock, each
 // recorded (phase C) before the next starts, and returns their outcomes.
 // Failed-step logs are fetched only when this run resolved the repository
-// and listed its runs, so --no-fetch and a skipped source call no gh.
+// and listed its runs, so --no-fetch and a skipped source call no gh. While
+// the flag is on, the diagnose side gets the Local Patch Flow before the
+// prepare hook, and its AfterRecord hook runs each local_patch claim right
+// after phase C recorded the diagnose claim.
 func (r bandRun) phaseB(ctx context.Context, store *healthband.Store, claims []healthband.DueClaim, fetch bandCIFetch) (map[string]healthband.ClaimOutcome, []healthband.Recorded, error) {
 	evidence := bandRunEvidence{client: r.client, projectDir: r.projectDir}
 	if fetch.Reason == "" {
@@ -241,6 +286,10 @@ func (r bandRun) phaseB(ctx context.Context, store *healthband.Store, claims []h
 	}
 	diagnoser := newBandDiagnoser(r.projectDir, r.harness, r.opts.noAgent, evidence)
 	diagnoser.now, diagnoser.warn = r.deps.clock, r.stderr
+	options := healthband.ExecuteOptions{Clock: r.deps.clock}
+	if r.lp != nil {
+		options.AfterRecord = r.lp.enable(diagnoser)
+	}
 	if r.deps.prepare != nil {
 		r.deps.prepare(diagnoser)
 	}
@@ -250,6 +299,6 @@ func (r bandRun) phaseB(ctx context.Context, store *healthband.Store, claims []h
 		outcomes[claim.ID] = outcome
 		return outcome
 	}
-	recorded, err := store.ExecuteClaims(ctx, claims, runClaim, healthband.ExecuteOptions{Clock: r.deps.clock})
+	recorded, err := store.ExecuteClaims(ctx, claims, runClaim, options)
 	return outcomes, recorded, err
 }

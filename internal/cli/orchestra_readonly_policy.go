@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/insajin/autopus-adk/pkg/config"
@@ -12,7 +14,15 @@ type readOnlyPolicyOptions struct {
 	// OutsideRepo marks that providers start from an isolated non-repository
 	// directory; Codex exec refuses such a cwd without --skip-git-repo-check.
 	OutsideRepo bool
+	// Confined marks a band local-patch request (SPEC-SIGMABAND-002 REQ-03):
+	// it admits only a claude without a Backend and adds --output-format
+	// stream-json, --verbose, and --restricted to its projection.
+	Confined bool
 }
+
+// errReadOnlyUnconfined is wrapped by every refusal of a confined projection:
+// only a subprocess claude takes --restricted (Provider Contract item 3).
+var errReadOnlyUnconfined = errors.New("only a subprocess claude can be confined")
 
 // readOnlyOrchestraCommand reports whether a command must run its providers
 // read-only: planning and brainstorming produce advisory text only, so no
@@ -36,7 +46,7 @@ var readOnlyNativeBinaries = map[string]string{"claude": "claude", "codex": "cod
 
 // checkReadOnlyProvider runs every check of the read-only policy without
 // projecting, so callers can reject a provider before any configured binary
-// executes. OMP-backed providers pass, as in applyReadOnlyProviderPolicy.
+// executes. OMP-backed providers pass, as in the shared projection.
 func checkReadOnlyProvider(provider orchestra.ProviderConfig) *readOnlyPolicyViolation {
 	if provider.Backend == config.ProviderBackendOMP {
 		return nil
@@ -44,15 +54,32 @@ func checkReadOnlyProvider(provider orchestra.ProviderConfig) *readOnlyPolicyVio
 	return validateReadOnlyProvider(provider)
 }
 
+// checkConfinedProvider refuses what a confined projection cannot confine,
+// before every other check: the shared projection passes OMP providers as-is.
+func checkConfinedProvider(provider orchestra.ProviderConfig) error {
+	if provider.Backend != "" {
+		return fmt.Errorf("read-only provider policy: provider %q on backend %q: %w", provider.Name, provider.Backend, errReadOnlyUnconfined)
+	}
+	if provider.Name != "claude" {
+		return fmt.Errorf("read-only provider policy: provider %q: %w", provider.Name, errReadOnlyUnconfined)
+	}
+	return nil
+}
+
 // applyReadOnlyProviderPolicy returns provider configs whose native argv
 // enforce read-only execution and whose SandboxMode records that evidence.
 // OMP-backed providers are accepted as-is: that backend only exposes the
 // read/grep/glob tool allowlist and fails closed at session start otherwise.
-// Caller-owned configs and slices are not mutated. Rejections are
-// *readOnlyPolicyViolation errors.
+// Caller-owned configs and slices are not mutated. A confined refusal wraps
+// errReadOnlyUnconfined; other rejections are *readOnlyPolicyViolation errors.
 func applyReadOnlyProviderPolicy(providers []orchestra.ProviderConfig, opts readOnlyPolicyOptions) ([]orchestra.ProviderConfig, error) {
 	projected := make([]orchestra.ProviderConfig, len(providers))
 	for index, provider := range providers {
+		if opts.Confined {
+			if err := checkConfinedProvider(provider); err != nil {
+				return nil, err
+			}
+		}
 		if violation := checkReadOnlyProvider(provider); violation != nil {
 			return nil, violation
 		}
@@ -70,7 +97,7 @@ func applyReadOnlyProviderPolicy(providers []orchestra.ProviderConfig, opts read
 		// and each of them has a case here.
 		switch provider.Name {
 		case "claude":
-			provider.Args = projectClaudeReadOnlyArgs(provider.Args)
+			provider.Args = projectClaudeReadOnlyArgs(provider.Args, opts.Confined)
 		case "codex":
 			provider.Args = projectCodexReadOnlyArgs(provider.Args, opts.OutsideRepo)
 		case "gemini":
@@ -206,10 +233,17 @@ func validReadOnlyProviderArgValue(provider, flag, value string, separated bool)
 // claudeReadOnlyTools is the only built-in tool set a read-only claude keeps.
 const claudeReadOnlyTools = "Read,Grep,Glob"
 
-func projectClaudeReadOnlyArgs(args []string) []string {
+func projectClaudeReadOnlyArgs(args []string, confined bool) []string {
 	args = upsertArgValue(removeArgFlag(args, "--tools"), "--permission-mode", "plan")
 	for _, flag := range []string{"--safe-mode", "--no-session-persistence", "--disable-slash-commands", "--strict-mcp-config"} {
 		args = ensureBoolArg(args, flag)
+	}
+	if confined {
+		// --restricted keeps file tools inside the working directory, and
+		// stream-json, which --print emits only with --verbose, names the
+		// model of every turn. Neither flag is in the argv allowlist, so only
+		// the projection adds them; stream-json replaces a configured format.
+		args = append(removeArgFlag(args, "--output-format"), "--output-format", "stream-json", "--verbose", "--restricted")
 	}
 	// The inline form goes last: separated --tools is variadic and swallows a
 	// following positional prompt (RFP-1).

@@ -29,10 +29,14 @@ type bandGHRun struct {
 }
 
 // bandCIFetch is the outcome of the CI network step. Reason is the REQ-05
-// code of a skipped ingest, which carries no observations.
+// code of a skipped ingest, which carries no observations. DefaultBranch is
+// the remote default branch the step resolved, "" when the lookup failed;
+// the local patch base of SPEC-SIGMABAND-002 (Git Execution Policy item 4)
+// is its remote-tracking ref.
 type bandCIFetch struct {
 	Reason        string
 	Target        *bandGHTarget            // resolved repository; nil when resolution failed
+	DefaultBranch string                   // resolved default branch; "" when unknown
 	Rows          int                      // rows gh returned
 	Excluded      int                      // rows outside the trusted filter
 	Invalid       int                      // trusted rows rejected at ingest (invalid_value)
@@ -95,6 +99,7 @@ func (c bandGHClient) fetchCI(ctx context.Context, projectDir string, limit int)
 		fetch.Reason = healthband.ReasonDefaultBranchUnknown
 		return fetch, nil
 	}
+	fetch.DefaultBranch = branch
 	// No status filter: successes are evidence too (REQ-04).
 	listCommand := c.gh(target, projectDir, "run", "list", "-R", target.Slug(), "--limit", strconv.Itoa(limit), "--json", bandRunListFields)
 	listing, err := c.output(ctx, listCommand, bandRunListCap)
