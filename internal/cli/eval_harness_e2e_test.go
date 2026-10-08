@@ -105,6 +105,7 @@ func TestEvalHarnessE2E_S5_DigestChainReachesTheStrictCheck(t *testing.T) {
 		{"threshold_bp", edit(manifest, `"threshold_bp": -1000`, `"threshold_bp": -900`)},
 		{"workspace_revision", edit(manifest, strings.Repeat("a", 40), strings.Repeat("b", 40))},
 		{"live.model", edit(manifest, `"model": "gpt-test"`, `"model": "gpt-other"`)},
+		{"floors.signed_agent_tasks", edit(manifest, `"signed_agent_tasks": 1`, `"signed_agent_tasks": 2`)},
 		{"runner tree file", edit(filepath.Join(world.root, "pkg", "harneval", "verdict.go"), "package harneval\n", "package harneval\n\n// changed\n")},
 		{"expected_tests", edit(agent, `"TestVersionMismatchWinsOverUnknown"`, `"TestVersionMismatchWinsOverUnknownToo"`)},
 		{"corpus byte and file_sha256", func() {

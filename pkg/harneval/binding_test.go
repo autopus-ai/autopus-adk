@@ -19,7 +19,7 @@ import (
 // over hand-built rows and json.dumps(separators=(",", ":")) of the binding.
 const (
 	oracleRunnerTreeDigest = "3e39db11b4a4291a4f664f48bc713cef753169c590a218f85ad21cb3edecb8db"
-	oracleBindingDigest    = "6e1b50c7cb559ed00eebfab05d3f93b5db1f281dbe058ed6d0848a96c30606fd"
+	oracleBindingDigest    = "7014bda5133affaae5b19466c89c4947db1993cd4744959cb3007a9b13a63cd7"
 )
 
 // oracleRunnerTree holds one file under each runner tree root.
@@ -102,7 +102,8 @@ func TestBindingDigest_IsTheSHA256OfTheMarshaledDocument(t *testing.T) {
 		SchemaVersion: BindingSchemaV1, CandidateSurfaceDigest: strings.Repeat("1", 64),
 		AgentSetDigest: strings.Repeat("2", 64), RunnerTreeDigest: strings.Repeat("4", 64),
 		CorpusDigests: []CorpusDigest{{File: "bench/corpus_a.json", FileSHA256: strings.Repeat("3", 64)}},
-		Policy:        live, Model: "gpt-test", WorkspaceRevision: strings.Repeat("a", 40), BaselineRef: "v0.50.122",
+		Policy:        live, Floors: Floors{SurfaceTasks: 20, AgentTasks: 12, SignedAgentTasks: 5},
+		Model: "gpt-test", WorkspaceRevision: strings.Repeat("a", 40), BaselineRef: "v0.50.122",
 		BaselineCommit: strings.Repeat("5", 40), SigningKeyID: "adk-harness-eval-2026-10",
 		Pins: Pins{GeneratorVersion: "v0.50.123", ProjectName: "harneval-fixture", CodexCLIVersion: "codex-cli 0.160.0",
 			OpencodeCLIVersion: "1.18.7"},
@@ -151,6 +152,7 @@ func TestComputeBinding_TakesEveryFieldFromTheTrustedTree(t *testing.T) {
 		CorpusDigests:          []CorpusDigest{{File: "bench/corpus_a.json", FileSHA256: sha256Of(fixtureCorpus)}},
 		RunnerTreeDigest:       oracleRunnerTreeDigest,
 		Policy:                 set.Manifest.Live,
+		Floors:                 set.Manifest.Floors,
 		Model:                  "gpt-test",
 		WorkspaceRevision:      strings.Repeat("a", 40),
 		BaselineRef:            "v0.50.122",
@@ -172,13 +174,23 @@ func TestComputeBinding_S5_EachEvaluationInputMovesTheDigest(t *testing.T) {
 		manifest["live"].(map[string]any)[key] = value
 		f.writeJSON(ManifestPath, manifest)
 	}
+	floor := func(f *fixture, key string, value int) {
+		manifest := validManifest()
+		manifest["floors"].(map[string]any)[key] = value
+		f.writeJSON(ManifestPath, manifest)
+	}
 	cases := map[string]func(f *fixture, opts *BindingOptions){
 		"threshold_bp":       func(f *fixture, _ *BindingOptions) { live(f, "threshold_bp", -500) },
 		"workspace_revision": func(f *fixture, _ *BindingOptions) { live(f, "workspace_revision", strings.Repeat("b", 40)) },
 		"baseline_ref":       func(f *fixture, _ *BindingOptions) { live(f, "baseline_ref", "v0.50.121") },
 		"live.model":         func(f *fixture, _ *BindingOptions) { live(f, "model", "gpt-other") },
-		"baseline tag moved": func(_ *fixture, opts *BindingOptions) { opts.TagCommit = stubTagCommit(strings.Repeat("d", 40)) },
-		"corpus byte":        func(f *fixture, _ *BindingOptions) { rewriteCorpus(f, `[{"id":"a01","prompt":"fix it!"}]`+"\n") },
+		// Every floor some verdict reads: the signed lane's vacuity and the
+		// PR lane's surface and agent floors.
+		"floors.signed_agent_tasks": func(f *fixture, _ *BindingOptions) { floor(f, "signed_agent_tasks", 6) },
+		"floors.agent_tasks":        func(f *fixture, _ *BindingOptions) { floor(f, "agent_tasks", 2) },
+		"floors.surface_tasks":      func(f *fixture, _ *BindingOptions) { floor(f, "surface_tasks", 2) },
+		"baseline tag moved":        func(_ *fixture, opts *BindingOptions) { opts.TagCommit = stubTagCommit(strings.Repeat("d", 40)) },
+		"corpus byte":               func(f *fixture, _ *BindingOptions) { rewriteCorpus(f, `[{"id":"a01","prompt":"fix it!"}]`+"\n") },
 		"expected_tests": func(f *fixture, _ *BindingOptions) {
 			task := agentTask("GT-AG-001")
 			task["expected_tests"] = []any{"TestVersionMismatchWinsOverUnknown", "TestSelectExplicitEvidence"}

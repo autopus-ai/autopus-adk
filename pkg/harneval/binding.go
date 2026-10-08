@@ -37,7 +37,9 @@ var tagNamePattern = regexp.MustCompile(`^[0-9A-Za-z][0-9A-Za-z._/+-]{0,127}$`)
 
 // Binding is the harness_eval_binding.v1 document. Its digest is both the
 // attestation source_revision and the report attributed_version, so a change
-// to any field invalidates the evidence of the old binding.
+// to any field invalidates the evidence of the old binding. Floors holds every
+// manifest floor a verdict reads: signed_agent_tasks decides the signed
+// lane's vacuity, and surface_tasks and agent_tasks the PR lane's.
 type Binding struct {
 	SchemaVersion          string         `json:"schema_version"`
 	CandidateSurfaceDigest string         `json:"candidate_surface_digest"`
@@ -45,6 +47,7 @@ type Binding struct {
 	CorpusDigests          []CorpusDigest `json:"corpus_digests"`
 	RunnerTreeDigest       string         `json:"runner_tree_digest"`
 	Policy                 LivePolicy     `json:"policy"`
+	Floors                 Floors         `json:"floors"`
 	Model                  string         `json:"model"`
 	WorkspaceRevision      string         `json:"workspace_revision"`
 	BaselineRef            string         `json:"baseline_ref"`
@@ -76,8 +79,8 @@ type BindingOptions struct {
 // ComputeBinding derives the binding of the trusted tree at root: the
 // default candidate surface generated exactly as `auto eval harness digest`
 // generates it, the agent set and corpus digests of the strictly loaded set,
-// the runner tree digest, the manifest live policy and pins, the commit the
-// baseline_ref tag points to, and the harness lane signing key id.
+// the runner tree digest, the manifest live policy, floors and pins, the
+// commit the baseline_ref tag points to, and the harness lane signing key id.
 func ComputeBinding(ctx context.Context, root string, opts BindingOptions) (Binding, error) {
 	set, err := LoadSet(root)
 	if err != nil {
@@ -110,6 +113,7 @@ func ComputeBinding(ctx context.Context, root string, opts BindingOptions) (Bind
 		CorpusDigests:          bindingCorpus(set),
 		RunnerTreeDigest:       tree,
 		Policy:                 live,
+		Floors:                 set.Manifest.Floors,
 		Model:                  live.Model,
 		WorkspaceRevision:      live.WorkspaceRevision,
 		BaselineRef:            live.BaselineRef,
