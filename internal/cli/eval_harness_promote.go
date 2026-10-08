@@ -47,7 +47,9 @@ func newEvalHarnessPromoteCmd(deps evalHarnessDeps, dir *string) *cobra.Command 
 			if err := requireHarnessJSON(format); err != nil {
 				return err
 			}
-			result, err := intake.Promote(cmd.Context(), intake.PromoteRequest{Root: *dir, CandidateID: args[0], Run: deps.run})
+			result, err := intake.Promote(cmd.Context(), intake.PromoteRequest{
+				Root: *dir, CandidateID: args[0], Redactor: intakeRedactor, Run: deps.run,
+			})
 			var refusal *intake.RunError
 			if errors.As(err, &refusal) {
 				fmt.Fprintln(cmd.ErrOrStderr(), "harness-eval: promote refused: "+printablePromoteError(refusal))

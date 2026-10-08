@@ -151,7 +151,7 @@ func promoteRun(files ...string) harneval.RunOptions {
 // runPromote promotes the S6 candidate below root on a codex surface holding
 // .codex/hooks.json; edit adjusts the request first.
 func runPromote(root string, edit func(*PromoteRequest)) (PromoteResult, error) {
-	req := PromoteRequest{Root: root, CandidateID: promoteCandidateID, Run: promoteRun(".codex/hooks.json")}
+	req := PromoteRequest{Root: root, CandidateID: promoteCandidateID, Redactor: noRedaction, Run: promoteRun(".codex/hooks.json")}
 	if edit != nil {
 		edit(&req)
 	}

@@ -44,6 +44,9 @@ const (
 type PromoteRequest struct {
 	Root        string
 	CandidateID string
+	// Redactor checks again that the text promote publishes is redacted; it
+	// is required.
+	Redactor Redactor
 	// Run holds the SPEC-HARNEVAL-001 run seams current_outcome is evaluated
 	// with; the zero value is production. Its Baseline and Evaluate seams are
 	// replaced, because one task is evaluated and compared with nothing.
@@ -94,6 +97,9 @@ func Promote(ctx context.Context, req PromoteRequest) (PromoteResult, error) {
 	if err := writeSupported(); err != nil {
 		return PromoteResult{}, &RunError{Reason: ReasonPlatformUnsupported, Err: err}
 	}
+	if req.Redactor == nil {
+		return PromoteResult{}, errors.New("intake: PromoteRequest.Redactor is required")
+	}
 	a, err := openArea(req.Root)
 	if err != nil {
 		return PromoteResult{}, fmt.Errorf("open project root: %w", err)
@@ -125,11 +131,14 @@ func (p *promotion) check() error {
 }
 
 // readCandidate is checks 2 and 3: a safe layout, then a regular candidate
-// file that decodes strictly and names itself.
+// file that decodes strictly, names itself, and holds only redacted text.
 func (p *promotion) readCandidate() error {
 	candidate, err := p.area.readCandidate(p.req.CandidateID)
 	p.candidate = candidate
-	return err
+	if err != nil {
+		return err
+	}
+	return unredactedText(p.req.Redactor, candidate)
 }
 
 // checkDraft is checks 4 to 6: provenance that ties the draft task to this
