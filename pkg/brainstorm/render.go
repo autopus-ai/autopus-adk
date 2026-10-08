@@ -37,6 +37,12 @@ type Request struct {
 	Diagnosis       healthband.Evidence // sanitized provider output; empty when none
 	Logs            []healthband.RunLog // sanitized failed-step logs of the current block
 	Reports         []healthband.ReactReport
+	// LocalPatch, set for the diagnosis of a local_patch claim, adds the
+	// pointer lines and the local-patch sentences (SPEC-SIGMABAND-002).
+	LocalPatch *LocalPatch
+	// DiagnosisModel, set for a flag-on diagnosis whose request returned a
+	// stream, adds the Diagnosis model line (SPEC-SIGMABAND-002).
+	DiagnosisModel *DiagnosisModel
 }
 
 // Render renders the content/skills/idea.md BS format for id: every section
@@ -80,6 +86,9 @@ func (r Request) validate() error {
 	case r.Diagnosis.Text != "" && !sanitizedEvidence(r.Diagnosis):
 		field = "diagnosis"
 	default:
+		if err := r.validateLocalPatch(); err != nil {
+			return err
+		}
 		return r.validateEvidence()
 	}
 	return fmt.Errorf("%w: %s", ErrInvalidRequest, field)
@@ -151,15 +160,15 @@ func (r Request) head(id string) string {
 			*e.N, constants.NMin, *e.X, *e.Mu, *e.SD, *e.SDEff, *e.Z, tier),
 		"{constants}": fmt.Sprintf("K=%d, W=%d", constants.K, constants.W),
 	}
-	return fill(headTemplate, values)
+	return fill(r.headTemplateFor(), values)
 }
 
 // tail renders the sections after the provider results.
 func (r Request) tail(id string) string {
 	series := r.Evaluation.Series
-	return fill(tailTemplate, map[string]string{
+	return r.withDirectionLines(fill(r.tailTemplateFor(), map[string]string{
 		"{id}": id, "{series}": series, "{series_code}": "`" + series + "`", "{tier}": fmt.Sprint(*r.Evaluation.Tier),
-	})
+	}))
 }
 
 func fill(template string, values map[string]string) string {
