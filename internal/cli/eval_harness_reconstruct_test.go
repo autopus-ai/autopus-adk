@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -43,13 +44,19 @@ func writeReconstructFile(t *testing.T, path string, data []byte) {
 }
 
 func newReconstructWorld(t *testing.T, floor int) *reconstructWorld {
+	return newReconstructWorldWith(t, floor, harnessDeps(harnessRouter))
+}
+
+// newReconstructWorldWith builds the world with deps, whose adapters generate
+// the candidate surface the binding digests.
+func newReconstructWorldWith(t *testing.T, floor int, deps evalHarnessDeps) *reconstructWorld {
 	t.Helper()
 	tree := exportGitTree(t)
 	manifest := harnessManifest()
 	manifest["floors"].(map[string]any)["signed_agent_tasks"] = floor
 	tree.writeJSON(harneval.ManifestPath, manifest)
 	world := &reconstructWorld{root: tree.root, input: filepath.Join(t.TempDir(), "unsigned"),
-		meta: filepath.Join(t.TempDir(), "run-meta.json"), deps: harnessDeps(harnessRouter)}
+		meta: filepath.Join(t.TempDir(), "run-meta.json"), deps: deps}
 	binding, err := harneval.ComputeBinding(context.Background(), tree.root, harneval.BindingOptions{Adapters: world.deps.run.Adapters})
 	require.NoError(t, err)
 	world.digest = binding.Digest()
@@ -135,7 +142,7 @@ func (w *reconstructWorld) attested(t *testing.T) harneval.AttestedSession {
 
 // export runs the production export over the world: the real binding and the
 // trusted reconstruction with the given sources.
-func (w *reconstructWorld) export(t *testing.T, sources harnessTrustSources) (harnessOutcome, string) {
+func (w *reconstructWorld) export(t *testing.T, sources harnessTrustSources) (harnessOutcome, string, ed25519.PublicKey) {
 	t.Helper()
 	pub, _, key := exportKey(t)
 	seams := exportSeams(t, nil, pub)
@@ -153,7 +160,7 @@ func (w *reconstructWorld) export(t *testing.T, sources harnessTrustSources) (ha
 	if err := cmd.Execute(); err != nil {
 		code = exitCodeForError(err)
 	}
-	return harnessOutcome{stdout: stdout.String(), stderr: stderr.String(), code: code}, out
+	return harnessOutcome{stdout: stdout.String(), stderr: stderr.String(), code: code}, out, pub
 }
 
 // TestEvalHarnessExport_TrustedReconstruction_SignsTheVerifiedSession: the
@@ -171,7 +178,7 @@ func TestEvalHarnessExport_TrustedReconstruction_SignsTheVerifiedSession(t *test
 	} {
 		world := newReconstructWorld(t, tt.floor)
 
-		got, out := world.export(t, world.sources)
+		got, out, _ := world.export(t, world.sources)
 
 		require.Equal(t, 0, got.code, tt.name+": "+got.stderr)
 		assert.Equal(t, "eval-regression: "+tt.line+" (version="+world.digest+")\n", got.stdout, tt.name)
@@ -203,7 +210,7 @@ func TestEvalHarnessExport_TrustedReconstruction_RefusesWithoutWriting(t *testin
 		"records changed after attestation": {tampered, "attestation_digest_mismatch: records.jsonl differs from records_sha256"},
 		"no trust sources in this build":    {harnessTrustSources{}, "reconstruction_unavailable: this build has no black_box_oracle"},
 	} {
-		got, out := world.export(t, tc.sources)
+		got, out, _ := world.export(t, tc.sources)
 
 		assert.Equal(t, 1, got.code, name)
 		assert.Contains(t, got.stderr, "harness-eval: export refused: "+tc.want, name)

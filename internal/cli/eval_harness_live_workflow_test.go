@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -208,4 +209,33 @@ func TestEvalHarnessLiveWorkflow_S3_VariantsAreCaught(t *testing.T) {
 		assert.NotEmpty(t, got, variant.name)
 		assert.Contains(t, strings.Join(got, "\n"), variant.want, variant.name)
 	}
+}
+
+// TestEvalHarnessLiveWorkflow_S5StepGatesOnListFloorAndPassSet: ci.yaml's
+// macos-runtime job runs the darwin-only S5 tests with a go test -list floor
+// no larger than the TestEvalHarnessE2E_ tests declared, then compares the
+// PASS set with the list, so a skip or a rename fails the step (REQ-HR-10).
+func TestEvalHarnessLiveWorkflow_S5StepGatesOnListFloorAndPassSet(t *testing.T) {
+	t.Parallel()
+	data, err := os.ReadFile(filepath.Join("..", "..", ".github", "workflows", "ci.yaml"))
+	require.NoError(t, err)
+	raw := string(data)
+	start, end := strings.Index(raw, "\n  macos-runtime:\n"), strings.Index(raw, "\n  windows-runtime:\n")
+	require.True(t, start >= 0 && end > start, "cannot isolate macos-runtime")
+	job := raw[start:end]
+	at := strings.Index(job, "- name: Test signed harness lane digest chain")
+	require.GreaterOrEqual(t, at, 0, "macos-runtime has no S5 step")
+	step := job[at:]
+	requireContainsAll(t, step, `filter='^TestEvalHarnessE2E_'`, `go test -list "$filter" ./internal/cli`,
+		`-v ./internal/cli -run "$filter"`, `sed -n 's/^--- PASS: \([^ ]*\).*/\1/p' "$log"`, `[[ "$observed" != "$listed" ]]`)
+	floor := regexp.MustCompile(`\n\s+minimum=(\d+)\n`).FindStringSubmatch(step)
+	require.Len(t, floor, 2)
+	source, err := os.ReadFile("eval_harness_e2e_test.go")
+	require.NoError(t, err)
+	assert.True(t, strings.HasPrefix(string(source), "//go:build darwin\n"), "the S5 chain needs sandbox-exec hosts only")
+	declared := strings.Count(string(source), "\nfunc TestEvalHarnessE2E_")
+	minimum, err := strconv.Atoi(floor[1])
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, minimum, 1, "a zero floor lets an empty list pass")
+	assert.LessOrEqual(t, minimum, declared, "the floor exceeds the declared S5 tests")
 }

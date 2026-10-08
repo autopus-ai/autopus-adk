@@ -367,7 +367,7 @@ jobs:
   macos-runtime:
     name: macos-runtime
     runs-on: macos-15
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
@@ -464,6 +464,30 @@ jobs:
             exit 1
           fi
           go test -count=1 -timeout=5m -v . -run "$filter" 2>&1 | tee "$log"
+          observed="$(sed -n 's/^--- PASS: \([^ ]*\).*/\1/p' "$log" | sort -u | tr '\n' ' ')"
+          if [[ "$observed" != "$listed" ]]; then
+            echo "::error::-run '${filter}' listed [${listed}] but only [${observed}] reported PASS; the difference skipped or never ran"
+            exit 1
+          fi
+
+      - name: Test signed harness lane digest chain
+        shell: bash
+        run: |
+          set -euo pipefail
+          # SPEC-HARNEVAL-003 S5 needs a darwin build (the tests carry
+          # //go:build darwin). Same rule as the installer step: the listed
+          # TestEvalHarnessE2E_ tests must meet the floor, and exactly those
+          # tests must report PASS, so neither a rename nor a skip passes.
+          filter='^TestEvalHarnessE2E_'
+          minimum=1
+          log="$(mktemp)"
+          listed="$(go test -list "$filter" ./internal/cli | awk '/^TestEvalHarnessE2E_/' | sort -u | tr '\n' ' ')"
+          read -ra listed_tests <<<"$listed"
+          if [[ "${#listed_tests[@]}" -lt "$minimum" ]]; then
+            echo "::error::-run '${filter}' lists ${#listed_tests[@]} test(s) in ./internal/cli, below the declared ${minimum}: [${listed}]"
+            exit 1
+          fi
+          CODEX_HOME="$(mktemp -d)" go test -count=1 -timeout=10m -v ./internal/cli -run "$filter" 2>&1 | tee "$log"
           observed="$(sed -n 's/^--- PASS: \([^ ]*\).*/\1/p' "$log" | sort -u | tr '\n' ' ')"
           if [[ "$observed" != "$listed" ]]; then
             echo "::error::-run '${filter}' listed [${listed}] but only [${observed}] reported PASS; the difference skipped or never ran"
