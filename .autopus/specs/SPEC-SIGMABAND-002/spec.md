@@ -353,7 +353,11 @@ band never reads `local_patch_provider`.
    `--verbose` included (the bool-flag list has no `--verbose`, `:150-153`), still gives `unavailable(provider_policy_rejected)`.
 4. The patch request resolves its provider by this contract again; anything but a confined subprocess claude ends the claim
    `failed:patch_provider_unconfined` (Local Patch Flow step 6). A missing binary, a timeout, a non-zero exit, and empty output
-   keep 001's REQ-12 reasons.
+   keep 001's REQ-12 reasons. Every confined request, diagnosis and patch request alike, runs with an empty fast-fail rule
+   set (`ProviderConfig.FastFailPatterns`): stream-json carries the text of every file that a `Read` returns, so a tracked
+   file that holds a substring of orchestra's default rules, such as `resource_exhausted` or `ratelimitexceeded`, would
+   otherwise end the provider early as a capacity failure; the timeout, the exit status, the 8 MiB bound, and the `result`
+   event of item 7 decide instead (implementation review, 2026-10-09).
 5. Orchestra stays unchanged: `resolveProviders` (`internal/cli/orchestra_config.go:92`) and every orchestra command keep
    `orchestra.providers.<name>.backend`; only band reads `local_patch_provider`, and band never writes `autopus.yaml`.
 6. Expected deployment: the subscription-authenticated `claude` CLI (Configuration). Band never projects `--bare`, whose
@@ -731,6 +735,20 @@ or T9; `existing` = older code.
 | REQ-15 | T6, T7, T8 | S7, S13, S14 | INV-11 |
 
 ## Review Resolution
+
+Implementation record (2026-10-09, waves W1–W3, plan tasks T2–T8 on rev 11): the merged code differs from or narrows rev 11's
+text in these points, each kept fail-closed; none widens what band may run or write:
+
+| Item | Resolution | Where |
+|------|------------|-------|
+| fast-fail rules off for confined requests (T7) | a confined request runs with an empty `FastFailPatterns` set, because stream-json carries repository file text in tool results, so a tracked file holding `resource_exhausted` would otherwise kill the provider | Local Patch Provider Contract item 4 |
+| one implementation of `<lp>`, key, paths, key lock, status hash, records, and Cleanup Rules (T7 onto T2) | the executor calls `pkg/healthband` (`ResolveLocalPatchLocation`, `LocalPatchLocation.Open`, `LocalPatchKey` over `BandSlug`, `LocalPatchDir` writes, `AcquireKeyLock`, `WorktreeStatusSHA256`, `CleanupLocalPatch`, `RemoveStoppedCheckout`, `Store.AppendLocalPatch*`); `<lp>` is derived from the real path of the user cache directory, the form git records for a worktree, so a record the live run writes is the one recovery derives; a missing user cache directory is created with mode 0700 | Data Contracts Derived paths, REQ-11, REQ-14 |
+| Patch Policy base listing (T3, T4) | the allowlist admits `git ls-tree -r -z <oid>`, the listing with modes of Patch Policy items 3–4 | Git Execution Policy item 6 |
+| step-8 configuration change (S6) | Cleanup Rule 3 runs item 3 inside the worktree before reading it, so a checked-out worktree whose configuration became unsafe during the patch request is kept with reason `git_config_unsafe` in `kept[]`; S6's "no worktree left" holds for a worktree without a checkout | Cleanup Rule 3, S6 |
+| `git apply` check last (T3) | the in-process checks of items 2–3 run first and the `git apply --numstat --summary -z --check` cross-check of item 2 runs last, so item 4 refuses an NFD spelling of a tracked NFC file on a normalization-insensitive volume (APFS), where `git apply` would fail first with "already exists in working directory"; every other diff gets the same code in either order | Patch Policy items 2 and 4, Local Patch Flow step 7 |
+| mode-aware base listing (T3) | git precomposes argv on macOS, so an NFD pathspec matches only an NFC entry and an NFD entry matches no pathspec; item 4's listing therefore carries modes (`git ls-tree -r -z <base>`), and every exact-path answer of item 2 is cross-checked against it byte for byte | Patch Policy items 2–4 |
+| extra fail-closed refusals (T4) | `hook.<name>.command` in any scope, a configuration git cannot list (`config_unreadable`), an unparsable or failing `git version` (`git_version_unsupported:unknown`), a non-regular `info/attributes`, and a non-empty `$GIT_DIR/info/attributes` of a linked worktree give `git_config_unsafe:<key>` or the version code | Git Execution Policy items 1 and 3 |
+| recovery faults (T2) | a Cleanup Rule whose git command fails keeps its artifact under one of the SPEC's keep reasons (no new reason); recovery skips the run when the repository cannot be resolved or git hangs at resolution, so a later run recovers; every recovery result, a failed one included, carries `recovered: true`; an `eol` worktree that changes between apply and commit is kept as `worktree_modified` | Recovery step, Recovery State Table, Cleanup Rule 3 |
 
 Rev 11 (2026-10-08) applies two narrow fixes from the CD-3 verify of rev 10 and three of its follow-ups, records the other
 follow-ups as residual risks, and closes CD-3; the operator hand-off states that the operator approved proceeding, so the
