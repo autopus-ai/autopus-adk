@@ -203,7 +203,8 @@ func GitTagCommit(ctx context.Context, root, ref string, env []string) (string, 
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("resolve baseline tag %s: %w: %s", ref, err, strings.TrimSpace(stderr.String()))
+		// %v, not %w: git's exit status must not become the CLI exit code.
+		return "", fmt.Errorf("resolve baseline tag %s: %v: %s", ref, err, strings.TrimSpace(stderr.String()))
 	}
 	commit := strings.TrimSpace(string(out))
 	if !revisionPattern.MatchString(commit) {
