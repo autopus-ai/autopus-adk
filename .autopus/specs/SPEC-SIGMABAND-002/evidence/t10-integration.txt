@@ -1,0 +1,83 @@
+SPEC-SIGMABAND-002 T10 integration verification (deterministic; fake gh and claude binaries)
+==========================================================================================
+
+Date: 2026-10-09 (KST), macOS darwin/arm64, git 2.50.1 (Apple Git-155), Go 1.27.0.
+Base: feat/sigmaband-002 head 9bac61f2 (production wiring on a076b365), fast-forwarded.
+
+Tests (internal/cli, //go:build unix), all through the band command with the REAL
+(*bandDiagnoser).enableLocalPatch, real git, a real store, and real <lp> below a temp user
+cache directory (test HOME); gh and claude are fake binaries on PATH, and a git wrapper on PATH
+records every git call (cwd, argv, GIT_* variables) in order and injects one fault at a time.
+
+  react_band_localpatch_integration_test.go
+    TestReactBandLocalPatchIT_S4_ProductionCommandLeavesOneLocalPatch   literal newReactBandCmd()
+      (execBandRunner + fake gh, time.Now, os.UserCacheDir, git from PATH, NewClaimID): S4 end
+      state exactly (branch at commit, one parent = prep base, tree = apply_intent tree, worktree
+      registered at the commit, patch == canonical format-patch byte for byte, SHA-256 =
+      patch_intent = patch_done, message SHA-256 = message stage, author/committer autopus-band
+      despite repo author.*/committer.* and global author.email, Patch model line, Related:
+      BS-BAND-001, sign-off, result fields, BS pointer + Diagnosis model lines and the three
+      local-patch sentences, <lp> 0700, patch 0600, local_patches[]); only BS + metrics change
+      outside .git/; inside .git/ only the band ref + reflog, one worktrees/<name>/, loose
+      objects; status/HEAD/index/stash/refs/bare origin byte-identical; trace2 0 hook children
+      and 0 git-lfs/maintenance/gc/fetch/push/upload-pack children; every policy command carries
+      all item-2 flags and only the seven item-1 variables, GIT_INDEX_FILE (a band temp index) on
+      exactly read-tree/apply --cached/write-tree; update-ref --no-deref; format-patch canonical
+      flags + base..commit, no HEAD; S7/S13 argv, cwd, env of both calls, no .env, symlink
+      checked out as its link text, canary never read; S12 gh/git recorders.
+    TestReactBandLocalPatchIT_S4_TextOutputShowsTheLocalPatch           text block of the run.
+    TestReactBandLocalPatchIT_FixtureHooksRunOutsideBand                fixture hooks fire outside
+      band (markers + trace2 hook events), so the 0-marker oracles are not vacuous.
+  react_band_localpatch_integration_fail_test.go (one failure path per family)
+    ..._S5_PolicyDenialLeavesNothing             path_denied, no object holds the reply, nothing left
+    ..._S15_RefusalFallbackEndsThePatchRequest   patch_model_refused, both models[], 3 MiB tool events
+    ..._S6_ConfigTurnsUnsafeDuringThePatchRequest  failed:git_config_unsafe:filter.mark.clean at
+      step 8, worktree kept unread (kept[] git_config_unsafe), 0 git status in it after the
+      change, no branch/diff/patch, count-objects unchanged
+    ..._S9_StoppedCheckoutIsRemovedAtOnce         checkout ignoring SIGTERM gets SIGKILL at the
+      (shortened) setup deadline, worktree_failed, exactly one `worktree remove --force`, no
+      unlock, no admin entry, no <lp>/<key>/, retention 0, unavailable(worktree_unavailable)
+  react_band_localpatch_integration_crash_test.go
+    ..._S9_RecoveryAfterACrashAfterCommit (+ ..._CrashChild)   a child test process runs the
+      production command; the git wrapper SIGKILLs it right after git commit; the next run past
+      the lease finds the claim commit by parent, message hash, and expected tree, removes the
+      clean worktree and diff file, unlinks the lock, failed:interrupted, recovered true.
+  react_band_localpatch_integration_live_test.go   gated live S7 check (see t10-live-s7.txt).
+  fixtures: react_band_localpatch_integration_{world,probe,argv}_test.go
+
+Part-X wiring tests (react_band_localpatch_run*_test.go): the stand-in now records the hand-over
+and delegates to the real enableLocalPatch (result injection kept only for the output-plumbing
+tests). With the real diagnose side the retention-cap test asserts production's composition:
+decision, prep cap_reached, result failed:cap_reached keyed by the diagnose claim,
+unavailable(worktree_unavailable), 0 worktree and provider calls.
+
+Red-capability (each production mutation applied alone or in disjoint pairs, test run, file
+restored with git checkout): drop core.symlinks=false -> S4 red (flag on 41 commands, link
+text, regular file); drop GIT_* from the provider unset list -> S4 red (GIT_DIR, GIT_INDEX_FILE,
+GIT_CONFIG_PARAMETERS, GIT_EDITOR reach claude); update-ref without --no-deref -> S4 red; drop
+the step-8 config re-check -> S6 red; stopped checkout through the Cleanup Rules -> S9 removal
+red; invert the recovery message-hash match -> crash recovery red.
+
+Commands
+--------
+go test ./internal/cli -run 'TestReactBandLocalPatchIT_|TestReactBandLocalPatch_' -count=1   ok (54.9 s)
+go test -race ./pkg/healthband ./pkg/brainstorm -count=1                                      ok (44.6 s, 3.8 s)
+go test -race ./internal/cli -run 'ReactBand|LocalPatch' -count=2   first run FAIL: 129 "no space left
+  on device" (shared disk at 100% from other workloads; every failing test at 0.00 s in TempDir),
+  0 DATA RACE; re-run in progress at commit time (see the commit report).
+golangci-lint run ./internal/cli/...   0 issues
+auto check --arch --quiet              exit 0 (all new files <= 300 lines)
+auto spec validate .autopus/specs/SPEC-SIGMABAND-002 --strict   SPEC 검증 통과
+001 frozen tests: git diff 1943e596..HEAD changes no 001 test file except a comment in
+  pkg/config/schema_health_band_test.go (T1).
+
+Findings
+--------
+- JSON envelope: output_json.go maskHomePath turns $HOME into ~ in every string, so
+  local_patches[].patch_path under a default user cache directory reads ~/Library/Caches/...;
+  the text output and the BS keep the absolute path. CLI-wide contract, not a SIGMABAND-002
+  change; a consumer needs the text output or ~ expansion.
+- Observation (untested): run inside an agent session, band passes CLAUDECODE, CLAUDE_CODE_*
+  (messaging socket and token), and ORCA_AGENT_HOOK_TOKEN to the confined claude, because
+  bandProviderUnsetEnv lists none of them; the confined session has only Read, Grep, and Glob,
+  so no tool can use them, but adding them to the unset list is cheap hardening.
