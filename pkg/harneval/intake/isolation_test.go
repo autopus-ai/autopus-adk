@@ -123,8 +123,11 @@ func goListDeps(t *testing.T, pkg, goos string) []string {
 	return strings.Fields(string(output))
 }
 
+// Not parallel: a parallel promote evaluates current_outcome under the
+// SPEC-HARNEVAL-001 sentinel, which swaps the process-wide PATH, and
+// exec.Command resolves go from PATH. Sequential tests run before the
+// parallel ones start.
 func TestIsolation_S8_HarnevalDependencyClosureLeavesOutTheIntakeSide(t *testing.T) {
-	t.Parallel()
 	harnevalPath := reflect.TypeOf(harneval.Task{}).PkgPath()
 	module, found := strings.CutSuffix(harnevalPath, "/pkg/harneval")
 	require.True(t, found, "pkg/harneval moved: %s", harnevalPath)
