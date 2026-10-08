@@ -106,34 +106,14 @@ func deriveEvalRegressionAttestationPath(artifactPath string) string {
 	return artifactPath + ".attestation.json"
 }
 
-// checkEvalRegression reads the artifact bytes once, verifies the ed25519
-// signature BEFORE any decode or gate logic (verify-before-trust), then strictly
-// decodes and evaluates the deterministic gate with the injected clock. It
-// prints a redacted one-line verdict and returns true (pass) iff the gate exit
-// code is zero.
-//
-// Fail-closed order:
-//  1. missing report file            → artifact_missing (precedes verify — S6d)
-//  2. signature verify fails          → the verify reason (blocked never read)
-//  3. strict-decode fails             → the decode reason
-//  4. otherwise                       → pure gate verdict
-//
-// The printed line carries only the machine-readable reason code plus the
-// gate-sanitized attributed version (REQ-ECI-SANITIZE-001) — no raw artifact
-// string is ever echoed. WHERE warnOnly is set the function always returns true
-// (advisory) but still prints the verdict (REQ-ECI-WARN-001).
-func checkEvalRegression(dir, artifactPath, attestationPath string, maxAge time.Duration, now time.Time, trusted map[string]ed25519.PublicKey, out io.Writer, quiet, warnOnly bool) bool {
-	_ = dir // artifact path is absolute/explicit; dir is accepted for dispatch symmetry.
-	return writeEvalRegressionDecision(
-		evaluateEvalRegression(artifactPath, attestationPath, maxAge, now, trusted),
-		out,
-		quiet,
-		warnOnly,
-	)
-}
-
-// checkEvalRegressionStrict is the v2 production trust path. An invalid policy
-// remains mandatory even when the caller requested advisory mode.
+// checkEvalRegressionStrict is the v2 production trust path, the only one:
+// the v1 helpers that trust the whole allowlist without a lane policy live in
+// eval_regression_v1_test.go (SPEC-HARNEVAL-003 REQ-HR-05). It reads the
+// artifact bytes once, verifies the signature and the lane context BEFORE any
+// decode or gate logic, then strictly decodes and evaluates the gate with the
+// injected clock, printing one redacted verdict line (REQ-ECI-SANITIZE-001).
+// An invalid policy remains mandatory even when the caller requested advisory
+// mode.
 func checkEvalRegressionStrict(dir, artifactPath, attestationPath string, maxAge time.Duration, now time.Time, trusted map[string]ed25519.PublicKey, policy evalregression.EvalRegressionAttestationPolicyV2, out io.Writer, quiet, warnOnly bool) bool {
 	_ = dir
 	_, policyOK := evalregression.ValidateEvalRegressionAttestationPolicyV2(policy)
@@ -165,21 +145,12 @@ func writeEvalRegressionDecision(decision evalregression.GateDecision, out io.Wr
 
 // @AX:WARN [AUTO] Fail-closed verify-before-trust ordering is load-bearing — missing precedes verify, verify precedes decode, decode precedes gate (INV-EVP-01/04).
 // @AX:REASON: reordering steps 1-4 would allow a tampered or unverified artifact to influence the gate result before its signature is checked; the unverified report bytes are never decoded and the blocked field is never read on any verify failure.
-// evaluateEvalRegression builds the fail-closed GateDecision from the verify-
-// before-trust chain. It is split out so checkEvalRegression only handles the
-// print/warn-only surface.
-func evaluateEvalRegression(artifactPath, attestationPath string, maxAge time.Duration, now time.Time, trusted map[string]ed25519.PublicKey) evalregression.GateDecision {
-	return evaluateEvalRegressionWithVerifier(
-		artifactPath,
-		attestationPath,
-		maxAge,
-		now,
-		func(reportBytes, attestationBytes []byte) (string, bool) {
-			return evalregression.VerifyEvalRegressionArtifact(reportBytes, attestationBytes, trusted)
-		},
-	)
-}
-
+// evaluateEvalRegressionStrict builds the fail-closed GateDecision from the
+// verify-before-trust chain:
+//  1. missing report file            → artifact_missing (precedes verify — S6d)
+//  2. signature or lane verify fails → the verify reason (blocked never read)
+//  3. strict-decode fails             → the decode reason
+//  4. otherwise                       → pure gate verdict
 func evaluateEvalRegressionStrict(artifactPath, attestationPath string, maxAge time.Duration, now time.Time, trusted map[string]ed25519.PublicKey, policy evalregression.EvalRegressionAttestationPolicyV2) evalregression.GateDecision {
 	if reason, ok := evalregression.ValidateEvalRegressionAttestationPolicyV2(policy); !ok {
 		return evalregression.GateDecision{Blocked: true, ExitCode: 1, Reason: reason}
