@@ -2,6 +2,7 @@ package secretscan
 
 import (
 	"regexp"
+	"sort"
 	"strings"
 	"unicode"
 )
@@ -12,15 +13,24 @@ type selector func(s string, m []int) (start, end int)
 
 // detector is one table row: the regex, the kind of span it yields, the part
 // of a match Redact selects, and how its upstream redactor rewrites a match.
+// prepare, when set, builds selectSpan for one scanned text, so a selector
+// that looks past its match indexes the text once instead of once per match.
 type detector struct {
 	re         *regexp.Regexp
 	kind       kind
 	selectSpan selector
+	prepare    func(s string) selector
 	rewrite    rewrite
 }
 
 func newDetector(source string, k kind, sel selector, rw rewrite) detector {
 	return detector{re: regexp.MustCompile(source), kind: k, selectSpan: sel, rewrite: rw}
+}
+
+// preparedBy returns d with prepare set.
+func (d detector) preparedBy(prepare func(s string) selector) detector {
+	d.prepare = prepare
+	return d
 }
 
 // detectors copies, verbatim and in order, the 14 regexes of
@@ -65,7 +75,7 @@ var detectors = []detector{
 	newDetector(`(?i)(aws|secret).{0,20}[a-zA-Z0-9/+=]{40}`, kindSecret, wholeMatch, rewriteWhole),
 	newDetector(`"private_key[_a-z]*"\s*:\s*"[^"]+`, kindSecret, wholeMatch, rewriteWhole),
 	newDetector(`(?i)azure.{0,20}(client.?secret|tenant.?id)\s*[=:]\s*\S+`, kindSecret, wholeMatch, rewriteWhole),
-	newDetector(`-----BEGIN[A-Z ]*PRIVATE KEY-----`, kindSecret, pemBlock, rewriteWhole),
+	newDetector(`-----BEGIN[A-Z ]*PRIVATE KEY-----`, kindSecret, pemBlock, rewriteWhole).preparedBy(pemBlocks),
 	newDetector(`apjwt_[a-zA-Z0-9_\-]+\.[a-zA-Z0-9_\-]+\.[a-zA-Z0-9_\-]+`, kindSecret, wholeMatch, rewriteWhole),
 }
 
@@ -93,8 +103,12 @@ func detect(s string) []span {
 
 // collect appends the spans of d's matches in s, nested matches included.
 func (d detector) collect(s string, spans []span) []span {
+	matches := d.re.FindAllStringSubmatchIndex(s, -1)
+	if len(matches) > 0 && d.prepare != nil {
+		d.selectSpan = d.prepare(s)
+	}
 	budget := researchFactor*len(s) + researchFloor
-	for _, m := range d.re.FindAllStringSubmatchIndex(s, -1) {
+	for _, m := range matches {
 		spans = d.add(s, m, spans)
 		for from := d.restart(s, m); ; {
 			loc := d.re.FindStringSubmatchIndex(s[from:])
@@ -189,12 +203,31 @@ var (
 
 // pemBlock extends a private key header over its key material: through the
 // footer when one follows, or else over the base64 body after the header,
-// trailing whitespace excluded.
-func pemBlock(s string, m []int) (int, int) {
-	rest := s[m[1]:]
-	if loc := pemFooter.FindStringIndex(rest); loc != nil {
-		return m[0], m[1] + loc[1]
+// trailing whitespace excluded. It indexes s for one match; collect prepares
+// the selector once per text with pemBlocks instead.
+func pemBlock(s string, m []int) (int, int) { return pemBlocks(s)(s, m) }
+
+// pemBlocks returns the pemBlock selector for s. It finds every footer in s
+// once, overlapping ones included, so a header looks up the first footer
+// starting at or after its end, the one a search from there finds, instead of
+// searching the rest of the text again: that made many headers without a
+// footer quadratic.
+func pemBlocks(s string) selector {
+	var footers [][2]int
+	for from := 0; ; {
+		loc := pemFooter.FindStringIndex(s[from:])
+		if loc == nil {
+			break
+		}
+		footers = append(footers, [2]int{from + loc[0], from + loc[1]})
+		from += loc[0] + 1
 	}
-	body := strings.TrimRightFunc(pemBody.FindString(rest), unicode.IsSpace)
-	return m[0], m[1] + len(body)
+	return func(_ string, m []int) (int, int) {
+		i := sort.Search(len(footers), func(i int) bool { return footers[i][0] >= m[1] })
+		if i < len(footers) {
+			return m[0], footers[i][1]
+		}
+		body := strings.TrimRightFunc(pemBody.FindString(s[m[1]:]), unicode.IsSpace)
+		return m[0], m[1] + len(body)
+	}
 }
