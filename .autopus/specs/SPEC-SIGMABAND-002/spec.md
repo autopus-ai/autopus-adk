@@ -791,7 +791,7 @@ SPEC-EDITGUARD-001, and resolves the findings that rev 5's review left open or r
 | refresh: key alphabet | the slug rule maps 001's identifier and sample-key characters to `[a-z0-9-]` | `<key>` definition |
 | F-061 (regressed) | resolved by SPEC-SIGMABAND-001's implementation: `pkg/filelock`, `episode.go`, and `catchup.go` exist and are cited as existing code | 생성 파일 상세, research.md |
 | F-068 (c) | resolved with 001's `DueClaim.LeaseUntil`: every flag-on diagnosis `prep` carries the diagnose claim id and lease, and a diagnosis-only claim gets a `result` and recovery | Data Contracts, S9 |
-| F-068 (d) | resolved: a patch file is deleted only when it equals a fresh format-patch of the claim commit; `patch_done` carries its hash | Cleanup Rule 2, S9 |
+| F-068 (d) | resolved in rev 6 (superseded in rev 10 by F-010: a patch file is recognized by its `patch_intent` hash, never by a fresh format-patch); `patch_done` carries its hash | Cleanup Rule 2, S9 |
 | F-068 (b') | resolved: group deadlines, 5 s record appends, and a lease check before each group, so a live claim never acts after its lease | Local Patch Flow, Step Timeouts and Lease |
 | F-068 (e) | resolved: `record_unavailable` is REQ-04's first check; `recovery_locked` is a run reason, not a record | REQ-04, Data Contracts, S9 |
 | F-080 | resolved: the `stage` phase list and fields are complete; the claim commit is the `commit_done` OID or parent, message hash, and expected tree; rules run 3, 1, 2; `apply_intent` records the expected tree | Local Patch Flow steps 8–9, Data Contracts, S9 |
