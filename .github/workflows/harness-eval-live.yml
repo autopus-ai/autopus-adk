@@ -98,20 +98,23 @@ jobs:
           go-version-file: go.mod
 
       # A job re-run without its bind job has no bound record for this
-      # attempt: it stops here, before any trial (REQ-HR-01, REQ-HR-06).
+      # attempt: it stops here, before any trial (REQ-HR-01, REQ-HR-06). Only
+      # a bound attestation this workflow signed on main counts: gh
+      # attestation verify checks the bundle signature, its transparency log
+      # proof and the pinned signer workflow. The subject is the run key, the
+      # SHA-256 of the file written here, as the bind job attests it.
       - name: bound-check
         env:
           GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
           RUN_ID: ${{ github.run_id }}
           RUN_ATTEMPT: ${{ github.run_attempt }}
         run: |
-          run_key=$(printf 'harneval-run:%s:%s' "$RUN_ID" "$RUN_ATTEMPT" | shasum -a 256 | cut -d' ' -f1)
-          count=$(gh api "repos/$REPOSITORY/attestations/sha256:$run_key" \
-            --jq '[.attestations[] | select(.bundle.dsseEnvelope.payload | @base64d | fromjson
-              | .predicateType == "https://autopus.ai/harness-eval/bound/v1")] | length' 2>/dev/null || echo 0)
-          if [ "$count" -lt 1 ]; then
-            echo "harness-eval: attempt_unbound: run $RUN_ID attempt $RUN_ATTEMPT has no bound attestation" >&2
+          printf 'harneval-run:%s:%s' "$RUN_ID" "$RUN_ATTEMPT" > "$RUNNER_TEMP/run-key"
+          if ! gh attestation verify "$RUNNER_TEMP/run-key" --repo autopus-ai/autopus-adk \
+            --signer-workflow autopus-ai/autopus-adk/.github/workflows/harness-eval-live.yml \
+            --source-ref refs/heads/main --predicate-type https://autopus.ai/harness-eval/bound/v1 \
+            --deny-self-hosted-runners > /dev/null; then
+            echo "harness-eval: attempt_unbound: run $RUN_ID attempt $RUN_ATTEMPT has no verified bound attestation" >&2
             exit 1
           fi
 
@@ -125,12 +128,30 @@ jobs:
           version=$(jq -er '.pins.codex_cli_version | ltrimstr("codex-cli ")' evals/harness/manifest.json)
           npm install --global --no-audit --no-fund "@openai/codex@$version"
 
+      # Trusted module step, outside every sandbox: the session builds the
+      # workspace revision, the baseline commit and this checkout offline,
+      # so their modules go into one fresh cache from the Go module proxy,
+      # each tree verified by its own go.sum; the runner reads that cache as
+      # its file:// proxy, never a warm local cache.
+      - name: modules
+        run: |
+          workspace=$(jq -er '.live.workspace_revision' evals/harness/manifest.json)
+          baseline=$(jq -er '.baseline_commit' "$RUNNER_TEMP/lane/lane.json")
+          scripts/benchmarks/harness/fill_modules.sh "$RUNNER_TEMP/modules" "$workspace" "$baseline" "$GITHUB_SHA"
+
+      # The hosted sandbox preflight of REQ-HR-10 (SPEC-HARNEVAL-003 T14) has
+      # not landed: until it does, this step fails closed and no trial runs.
+      - name: sandbox-preflight
+        run: |
+          echo "harness-eval: sandbox_preflight_failed: the hosted macos-15 sandbox preflight (SPEC-HARNEVAL-003 T14) is not implemented; no trial runs" >&2
+          exit 1
+
       - name: golden-session
         env:
           CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
         run: |
           python3 scripts/benchmarks/harness/run.py --mode golden --signed-lane "$RUNNER_TEMP/lane/lane.json" \
-            --output "$RUNNER_TEMP/session" --credential-env CODEX_API_KEY
+            --output "$RUNNER_TEMP/session" --credential-env CODEX_API_KEY --proxy "file://$RUNNER_TEMP/modules/cache/download"
 
       - name: session-result
         env:
@@ -213,6 +234,15 @@ jobs:
             --jq '{run_id: .id, run_attempt: .run_attempt, run_created_at: .created_at, attempt_started_at: .run_started_at}' \
             > "$RUNNER_TEMP/run-meta.json"
 
+      # Trusted module step for the baseline arm the export rebuilds: the
+      # baseline tag's tree, its modules from the Go module proxy into a fresh
+      # cache verified by its go.sum, read by auto as its file:// proxy.
+      - name: modules
+        run: |
+          ref=$(jq -er '.live.baseline_ref' evals/harness/manifest.json)
+          baseline=$(git rev-parse --verify --end-of-options "refs/tags/$ref^{commit}")
+          scripts/benchmarks/harness/fill_modules.sh "$RUNNER_TEMP/modules" "$baseline"
+
       # The shell reads HARNESS_EVAL_SIGNING_KEY and env -u removes the same
       # name, so the key reaches auto on stdin only. export verifies the
       # signed evidence against the committed allowlist before it succeeds.
@@ -220,7 +250,7 @@ jobs:
         env:
           HARNESS_EVAL_SIGNING_KEY: ${{ secrets.HARNESS_EVAL_SIGNING_KEY }}
         run: |
-          printf '%s' "$HARNESS_EVAL_SIGNING_KEY" | env -u HARNESS_EVAL_SIGNING_KEY auto eval harness export --input "$RUNNER_TEMP/unsigned" --run-meta "$RUNNER_TEMP/run-meta.json" --output "$RUNNER_TEMP/evidence" > "$RUNNER_TEMP/export.out"
+          printf '%s' "$HARNESS_EVAL_SIGNING_KEY" | env -u HARNESS_EVAL_SIGNING_KEY auto eval harness export --input "$RUNNER_TEMP/unsigned" --run-meta "$RUNNER_TEMP/run-meta.json" --output "$RUNNER_TEMP/evidence" --proxy "file://$RUNNER_TEMP/modules/cache/download" > "$RUNNER_TEMP/export.out"
 
       - name: evidence-name
         id: evidence

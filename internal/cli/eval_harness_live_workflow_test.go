@@ -193,7 +193,7 @@ func TestEvalHarnessLiveWorkflow_S3_VariantsAreCaught(t *testing.T) {
 		{"unset a different variable", "env -u HARNESS_EVAL_SIGNING_KEY auto", "env -u SIGNING_KEY auto", "export must hold only"},
 		{"pull request trigger", "on:\n  workflow_dispatch:\n", "on:\n  workflow_dispatch:\n  pull_request:\n", "on must be exactly"},
 		{"dispatch input", "on:\n  workflow_dispatch:\n", "on:\n  workflow_dispatch:\n    inputs:\n      ref:\n        type: string\n", "on must be exactly"},
-		{"expression in a script", `"repos/$REPOSITORY/attestations`, `"repos/${{ github.repository }}/attestations`, "interpolates an expression"},
+		{"expression in a script", `"repos/$REPOSITORY/actions`, `"repos/${{ github.repository }}/actions`, "interpolates an expression"},
 		{"tag-pinned attest", "actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2\n        with:\n          subject-checksums: ${{ runner.temp }}/bound",
 			"actions/attest@v4\n        with:\n          subject-checksums: ${{ runner.temp }}/bound", "without a 40-hex SHA"},
 		{"secret in another step", "- name: bound-check\n        env:\n          GH_TOKEN: ${{ github.token }}",
