@@ -24,6 +24,15 @@ import threading
 import time
 
 POLL = 0.05
+# One sweep walk (a proc_pidinfo pass plus a sandbox_check per pid) can outlast one generation of a
+# process that forks, setsids and re-execs itself in a tight loop, so a walk that happens to land
+# between two generations sees nothing while the chain is still alive. A stage is therefore clean only
+# after SETTLE_WALKS consecutive empty walks that span at least SETTLE_SECONDS; a confined process the
+# stage's own profile instance still holds after the first kill, and that the sweep did not itself
+# kill, is a live chain member and fails the stage closed at once (SPEC-HARNEVAL-003 S2).
+SETTLE_POLL = 0.05
+SETTLE_WALKS = 3
+SETTLE_SECONDS = 0.5
 _ZOMBIE, _BSD_INFO, _FILTER_PATH, _NO_REPORT = 5, 3, 1, 0x40000000
 
 
@@ -118,8 +127,13 @@ class Tree:
             return set(reached)
 
     def watch(self) -> 'Tree':
-        """Walk every POLL seconds until sweep(); a failed walk is retried on the next tick."""
+        """Walk at once and then every POLL seconds until sweep(), so a stage that exits before the
+        first tick is still seen; a failed walk is retried on the next tick."""
         def loop():
+            try:
+                self.reach(table())
+            except (OSError, ValueError, subprocess.SubprocessError):
+                pass
             while not self._stop.wait(POLL):
                 try:
                     self.reach(table())
@@ -129,28 +143,52 @@ class Tree:
         self._thread.start()
         return self
 
-    def members(self) -> tuple:
+    def _walk(self) -> tuple:
+        """One table snapshot: (rows, pids reached through the descendant tree, pids the profile confines)."""
         rows = table()
-        return rows, self.reach(rows) | confined(rows, self.scratch)
+        return rows, self.reach(rows), confined(rows, self.scratch)
+
+    def members(self) -> tuple:
+        rows, reached, instanced = self._walk()
+        return rows, reached | instanced
 
     def sweep(self, rounds: int = 40) -> tuple:
-        """(stragglers, leftover) after killing every member and its group until a walk finds none."""
+        """(stragglers, leftover) after the stage ends.
+
+        Kill every reached and confined process and its group each round. The stage is clean only
+        after SETTLE_WALKS consecutive empty walks that span at least SETTLE_SECONDS, so a walk that
+        lands between two generations of a fast re-forking chain cannot pass it off as clean. A
+        confined process the profile still holds after the first kill that this sweep did not itself
+        kill is a live chain member and fails closed at once; any process still reached when the
+        rounds run out is a leftover.
+        """
         self._stop.set()
         if self._thread is not None:
             self._thread.join()
         found, own_group = False, os.getpgrp()
+        killed, killed_pids, empty, since = False, set(), 0, None
         for _ in range(rounds):
-            rows, members = self.members()
+            rows, reached, instanced = self._walk()
             if self.root in rows:
                 _kill(os.kill, self.root)
-            if not members:
+            if killed and (instanced - killed_pids):
+                return True, True
+            members = reached | instanced
+            if members:
+                found, empty, since = True, 0, None
+                for pid in members:
+                    _kill(os.kill, pid)
+                for group in {rows[pid][1] for pid in members if pid in rows} - {own_group}:
+                    _kill(os.killpg, group)
+                killed, killed_pids = True, killed_pids | members
+                time.sleep(SETTLE_POLL)
+                continue
+            now = time.monotonic()
+            since = now if since is None else since
+            empty += 1
+            if empty >= SETTLE_WALKS and now - since >= SETTLE_SECONDS:
                 return found, False
-            found = True
-            for pid in members:
-                _kill(os.kill, pid)
-            for group in {rows[pid][1] for pid in members if pid in rows} - {own_group}:
-                _kill(os.killpg, group)
-            time.sleep(0.05)
+            time.sleep(SETTLE_POLL)
         return found, bool(self.members()[1])
 
 

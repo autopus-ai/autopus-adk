@@ -59,6 +59,11 @@
 (allow process-info* (target self))
 (deny signal)
 (allow signal (target self))
+;; The trusted oracle harness is a single Go binary that compares output files, so it never needs to
+;; start another process. Denying fork stops any fork, setsid and re-exec chain that could leave a
+;; sandboxed process a single leftover walk might miss (SPEC-HARNEVAL-003 S2); OS threads are not
+;; forks and are unaffected.
+(deny process-fork)
 (deny sysctl-read)
 (allow sysctl-read
   (sysctl-name

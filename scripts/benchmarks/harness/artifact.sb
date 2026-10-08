@@ -65,8 +65,15 @@
       (subpath (param "OUTPUT")))))
 
 (if (string=? (param "MODE") "run")
-  (allow file-read-data file-read-xattr file-read-metadata file-test-existence
-    (literal (param "ARTIFACT"))))
+  (begin
+    (allow file-read-data file-read-xattr file-read-metadata file-test-existence
+      (literal (param "ARTIFACT")))
+    ;; Run mode judges the artifact by its own output, so it never needs to start another process.
+    ;; Denying fork stops an artifact from forking, calling setsid and re-execing itself every
+    ;; generation to leave a sandboxed process a single leftover walk can miss (SPEC-HARNEVAL-003 S2);
+    ;; a Go artifact that only needs OS threads is unaffected, as threads are not forks. Build mode
+    ;; keeps fork, because the Go toolchain forks the compiler, linker and vet.
+    (deny process-fork)))
 
 ;; Other processes stay closed (SPEC-HARNEVAL-003 S1). A same-user sibling's
 ;; environment, which on the live runner holds the agent credential, is
