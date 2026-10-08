@@ -108,8 +108,8 @@ class SignedLaneSessionTests(unittest.TestCase):
         black_box(world, NAMES)
         real_run, real_argv, oracle_runs = gs.run_stage, gs.oracle_argv, []
 
-        def run_stage(argv_, cwd, stdout_path, stderr_path, timeout, stdin=None):
-            result = real_run(argv_, cwd, stdout_path, stderr_path, timeout, stdin)
+        def run_stage(argv_, cwd, stdout_path, stderr_path, timeout, stdin=None, confined=None):
+            result = real_run(argv_, cwd, stdout_path, stderr_path, timeout, stdin, confined)
             if '/trials/' in str(stdout_path) and 'GT-AGENT-X11' in str(stdout_path) and 'MODE=run' in argv_:
                 result['leftover'] = True
             if str(stdout_path).endswith('oracle.stdout') and '/trials/' in str(stdout_path):

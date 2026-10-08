@@ -9,8 +9,9 @@ own profile; no stage nests a sandbox (sandbox_apply is refused inside a restric
 
 Every stage runs in a new session with the grader's hard rlimits and an allowlist environment;
 stdout is kept to 1 MiB (more ends the stage), stderr to 1 MiB with a stamp. When the stage ends
-or times out, every process left in its session is killed, and `leftover` reports any that
-survived or still held an output pipe: the runner then starts no later stage.
+or times out, every process it left is killed: its descendant tree, followed past setsid and
+orphaning, and every process its profile instance confines (process_tree). `leftover` reports any
+that survived or still held an output pipe: the runner then starts no later stage.
 """
 import os
 from pathlib import Path
@@ -20,7 +21,8 @@ import threading
 import time
 
 import grader
-from golden_agent import _exited, sweep
+from golden_agent import _exited
+import process_tree
 
 HERE = Path(__file__).resolve().parent
 CHECKOUT = HERE.parents[2]
@@ -134,8 +136,9 @@ def _feed(pipe, data: bytes) -> None:
 
 
 def run_stage(argv: list, cwd: Path, stdout_path: Path, stderr_path: Path, timeout: float,
-              stdin: Path | bytes | None = None) -> dict:
-    """Run one stage and empty its session. `stdin` is an input file, bytes piped by the runner, or nothing."""
+              stdin: Path | bytes | None = None, confined: Path | None = None) -> dict:
+    """Run one stage and kill every process it left. `stdin` is an input file, bytes piped by the runner,
+    or nothing; `confined` is the scratch root the stage's profile instance alone may write."""
     limits, started = grader.run_limits(timeout), time.monotonic()
 
     def confine():
@@ -152,6 +155,7 @@ def run_stage(argv: list, cwd: Path, stdout_path: Path, stderr_path: Path, timeo
     finally:
         if isinstance(stdin, Path):
             source.close()
+    tree = process_tree.Tree(process.pid, confined).watch()
     overflow = threading.Event()
     threads = [threading.Thread(target=_pump, args=(process.stdout, stdout_path, True, overflow, process.pid),
                                 daemon=True),
@@ -166,7 +170,7 @@ def run_stage(argv: list, cwd: Path, stdout_path: Path, stderr_path: Path, timeo
         if timed_out:
             grader._kill_group(process.pid)
     finally:
-        stragglers, leftover = sweep(process.pid)
+        stragglers, leftover = tree.sweep()
         grader._kill_group(process.pid)
         for thread in threads[:2]:
             thread.join(timeout=5)

@@ -14,11 +14,13 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest import mock
 
 import golden_blackbox as gb
 import golden_sandbox as gs
 import grader
 import prepare_grader
+import process_tree
 
 PROBE = '''package main
 
@@ -243,9 +245,12 @@ class StageRunnerTests(unittest.TestCase):
         self.assertTrue(not state.stdout.strip() or state.stdout.strip().startswith('Z'))
 
     def test_a_process_that_escaped_the_session_with_the_pipe_is_a_leftover(self):
+        # No walk runs while the stage lives (process_tree.POLL is an hour), so the setsid child, orphaned
+        # when its parent exits, is out of reach; still holding the stdout pipe makes it a leftover.
         script = ('import pathlib, subprocess, sys; child = subprocess.Popen(["/bin/sleep", "60"], '
                   'start_new_session=True); pathlib.Path(sys.argv[1]).write_text(str(child.pid))')
-        escaped, _ = self.stage([sys.executable, '-c', script, str(self.base / 'pid')])
+        with mock.patch.object(process_tree, 'POLL', 3600):
+            escaped, _ = self.stage([sys.executable, '-c', script, str(self.base / 'pid')])
         pid = int((self.base / 'pid').read_text())
         self.addCleanup(lambda: subprocess.run(['/bin/kill', '-9', str(pid)], capture_output=True))
         self.assertTrue(escaped['leftover'])
