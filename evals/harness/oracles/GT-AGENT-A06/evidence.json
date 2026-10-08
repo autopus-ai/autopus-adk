@@ -1,0 +1,387 @@
+{
+  "version": 1,
+  "expected_task_ids": [
+    "t1",
+    "t2"
+  ],
+  "observations": [
+    {
+      "task_id": "t1",
+      "arm": "native",
+      "harness_revision": "h",
+      "harness_config_hash": "native",
+      "identity": {
+        "provider": "p",
+        "provider_version": "v",
+        "model": "m",
+        "model_version": "v",
+        "effort": "high",
+        "cache_stratum": "cold",
+        "task_hash": "task-t1",
+        "oracle_hash": "oracle",
+        "environment_hash": "env",
+        "budget_hash": "budget",
+        "revision": "rev"
+      },
+      "accepted": true,
+      "elapsed_ms": 100,
+      "human_corrections": 0,
+      "runs": [
+        {
+          "agent_name": "executor",
+          "task_id": "t1",
+          "start_time": "0001-01-01T00:00:00Z",
+          "end_time": "0001-01-01T00:00:00Z",
+          "duration_ns": 0,
+          "status": "PASS",
+          "files_modified": 0,
+          "estimated_tokens": 0,
+          "usage": [
+            {
+              "version": 1,
+              "run_id": "native-t1",
+              "call_id": "c",
+              "task_id": "t1",
+              "provider": "p",
+              "model": "m",
+              "effort": "high",
+              "provider_version": "v",
+              "model_version": "v",
+              "cache_stratum": "cold",
+              "usage_status": "actual",
+              "usage_source": "provider",
+              "source_schema": "fixture",
+              "input_tokens_total": 10,
+              "uncached_input_tokens": null,
+              "cached_input_tokens": null,
+              "cache_creation_input_tokens": null,
+              "cache_read_input_tokens": null,
+              "output_tokens_total": 2,
+              "reasoning_tokens": null,
+              "tool_tokens": null,
+              "raw_total_tokens": 12,
+              "actual_cost_usd": null,
+              "estimated_total_tokens": null,
+              "estimated_cost_usd": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "task_id": "t1",
+      "arm": "current",
+      "harness_revision": "h",
+      "harness_config_hash": "current",
+      "identity": {
+        "provider": "p",
+        "provider_version": "v",
+        "model": "m",
+        "model_version": "v",
+        "effort": "high",
+        "cache_stratum": "cold",
+        "task_hash": "task-t1",
+        "oracle_hash": "oracle",
+        "environment_hash": "env",
+        "budget_hash": "budget",
+        "revision": "rev"
+      },
+      "accepted": true,
+      "elapsed_ms": 125,
+      "human_corrections": 0,
+      "runs": [
+        {
+          "agent_name": "executor",
+          "task_id": "t1",
+          "start_time": "0001-01-01T00:00:00Z",
+          "end_time": "0001-01-01T00:00:00Z",
+          "duration_ns": 0,
+          "status": "PASS",
+          "files_modified": 0,
+          "estimated_tokens": 0,
+          "usage": [
+            {
+              "version": 1,
+              "run_id": "current-t1",
+              "call_id": "c",
+              "task_id": "t1",
+              "provider": "p",
+              "model": "m",
+              "effort": "high",
+              "provider_version": "v",
+              "model_version": "v",
+              "cache_stratum": "cold",
+              "usage_status": "actual",
+              "usage_source": "provider",
+              "source_schema": "fixture",
+              "input_tokens_total": 13,
+              "uncached_input_tokens": null,
+              "cached_input_tokens": null,
+              "cache_creation_input_tokens": null,
+              "cache_read_input_tokens": null,
+              "output_tokens_total": 3,
+              "reasoning_tokens": null,
+              "tool_tokens": null,
+              "raw_total_tokens": 16,
+              "actual_cost_usd": null,
+              "estimated_total_tokens": null,
+              "estimated_cost_usd": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "task_id": "t1",
+      "arm": "reduced",
+      "harness_revision": "h",
+      "harness_config_hash": "reduced",
+      "identity": {
+        "provider": "p",
+        "provider_version": "v",
+        "model": "m",
+        "model_version": "v",
+        "effort": "high",
+        "cache_stratum": "cold",
+        "task_hash": "task-t1",
+        "oracle_hash": "oracle",
+        "environment_hash": "env",
+        "budget_hash": "budget",
+        "revision": "rev"
+      },
+      "accepted": true,
+      "elapsed_ms": 150,
+      "human_corrections": 0,
+      "runs": [
+        {
+          "agent_name": "executor",
+          "task_id": "t1",
+          "start_time": "0001-01-01T00:00:00Z",
+          "end_time": "0001-01-01T00:00:00Z",
+          "duration_ns": 0,
+          "status": "PASS",
+          "files_modified": 0,
+          "estimated_tokens": 0,
+          "usage": [
+            {
+              "version": 1,
+              "run_id": "reduced-t1",
+              "call_id": "c",
+              "task_id": "t1",
+              "provider": "p",
+              "model": "m",
+              "effort": "high",
+              "provider_version": "v",
+              "model_version": "v",
+              "cache_stratum": "cold",
+              "usage_status": "actual",
+              "usage_source": "provider",
+              "source_schema": "fixture",
+              "input_tokens_total": 16,
+              "uncached_input_tokens": null,
+              "cached_input_tokens": null,
+              "cache_creation_input_tokens": null,
+              "cache_read_input_tokens": null,
+              "output_tokens_total": 4,
+              "reasoning_tokens": null,
+              "tool_tokens": null,
+              "raw_total_tokens": 20,
+              "actual_cost_usd": null,
+              "estimated_total_tokens": null,
+              "estimated_cost_usd": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "task_id": "t2",
+      "arm": "native",
+      "harness_revision": "h",
+      "harness_config_hash": "native",
+      "identity": {
+        "provider": "p",
+        "provider_version": "v",
+        "model": "m",
+        "model_version": "v",
+        "effort": "high",
+        "cache_stratum": "cold",
+        "task_hash": "task-t2",
+        "oracle_hash": "oracle",
+        "environment_hash": "env",
+        "budget_hash": "budget",
+        "revision": "rev"
+      },
+      "accepted": true,
+      "elapsed_ms": 100,
+      "human_corrections": 0,
+      "runs": [
+        {
+          "agent_name": "executor",
+          "task_id": "t2",
+          "start_time": "0001-01-01T00:00:00Z",
+          "end_time": "0001-01-01T00:00:00Z",
+          "duration_ns": 0,
+          "status": "PASS",
+          "files_modified": 0,
+          "estimated_tokens": 0,
+          "usage": [
+            {
+              "version": 1,
+              "run_id": "native-t2",
+              "call_id": "c",
+              "task_id": "t2",
+              "provider": "p",
+              "model": "m",
+              "effort": "high",
+              "provider_version": "v",
+              "model_version": "v",
+              "cache_stratum": "cold",
+              "usage_status": "actual",
+              "usage_source": "provider",
+              "source_schema": "fixture",
+              "input_tokens_total": 10,
+              "uncached_input_tokens": null,
+              "cached_input_tokens": null,
+              "cache_creation_input_tokens": null,
+              "cache_read_input_tokens": null,
+              "output_tokens_total": 2,
+              "reasoning_tokens": null,
+              "tool_tokens": null,
+              "raw_total_tokens": 12,
+              "actual_cost_usd": null,
+              "estimated_total_tokens": null,
+              "estimated_cost_usd": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "task_id": "t2",
+      "arm": "current",
+      "harness_revision": "h",
+      "harness_config_hash": "current",
+      "identity": {
+        "provider": "p",
+        "provider_version": "v",
+        "model": "m",
+        "model_version": "v",
+        "effort": "high",
+        "cache_stratum": "cold",
+        "task_hash": "task-t2",
+        "oracle_hash": "oracle-changed",
+        "environment_hash": "env",
+        "budget_hash": "budget",
+        "revision": "rev"
+      },
+      "accepted": true,
+      "elapsed_ms": 125,
+      "human_corrections": 0,
+      "runs": [
+        {
+          "agent_name": "executor",
+          "task_id": "t2",
+          "start_time": "0001-01-01T00:00:00Z",
+          "end_time": "0001-01-01T00:00:00Z",
+          "duration_ns": 0,
+          "status": "PASS",
+          "files_modified": 0,
+          "estimated_tokens": 0,
+          "usage": [
+            {
+              "version": 1,
+              "run_id": "current-t2",
+              "call_id": "c",
+              "task_id": "t2",
+              "provider": "p",
+              "model": "m",
+              "effort": "high",
+              "provider_version": "v",
+              "model_version": "v",
+              "cache_stratum": "cold",
+              "usage_status": "actual",
+              "usage_source": "provider",
+              "source_schema": "fixture",
+              "input_tokens_total": 13,
+              "uncached_input_tokens": null,
+              "cached_input_tokens": null,
+              "cache_creation_input_tokens": null,
+              "cache_read_input_tokens": null,
+              "output_tokens_total": 3,
+              "reasoning_tokens": null,
+              "tool_tokens": null,
+              "raw_total_tokens": 16,
+              "actual_cost_usd": null,
+              "estimated_total_tokens": null,
+              "estimated_cost_usd": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "task_id": "t2",
+      "arm": "reduced",
+      "harness_revision": "h",
+      "harness_config_hash": "reduced",
+      "identity": {
+        "provider": "p",
+        "provider_version": "v",
+        "model": "m",
+        "model_version": "v",
+        "effort": "high",
+        "cache_stratum": "cold",
+        "task_hash": "task-t2",
+        "oracle_hash": "oracle",
+        "environment_hash": "env",
+        "budget_hash": "budget",
+        "revision": "rev"
+      },
+      "accepted": true,
+      "elapsed_ms": 150,
+      "human_corrections": 0,
+      "runs": [
+        {
+          "agent_name": "executor",
+          "task_id": "t2",
+          "start_time": "0001-01-01T00:00:00Z",
+          "end_time": "0001-01-01T00:00:00Z",
+          "duration_ns": 0,
+          "status": "PASS",
+          "files_modified": 0,
+          "estimated_tokens": 0,
+          "usage": [
+            {
+              "version": 1,
+              "run_id": "reduced-t2",
+              "call_id": "c",
+              "task_id": "t2",
+              "provider": "p",
+              "model": "m",
+              "effort": "high",
+              "provider_version": "v",
+              "model_version": "v",
+              "cache_stratum": "cold",
+              "usage_status": "actual",
+              "usage_source": "provider",
+              "source_schema": "fixture",
+              "input_tokens_total": 16,
+              "uncached_input_tokens": null,
+              "cached_input_tokens": null,
+              "cache_creation_input_tokens": null,
+              "cache_read_input_tokens": null,
+              "output_tokens_total": 4,
+              "reasoning_tokens": null,
+              "tool_tokens": null,
+              "raw_total_tokens": 20,
+              "actual_cost_usd": null,
+              "estimated_total_tokens": null,
+              "estimated_cost_usd": null
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -28,6 +28,46 @@
     "TestSelectExplicitEvidence",
     "TestVersionMismatchWinsOverUnknown"
   ],
+  "oracle_mode": "black_box",
+  "black_box_oracle": {
+    "build": "./cmd/auto",
+    "command": [
+      "{artifact}",
+      "skill",
+      "select",
+      "--policy-json",
+      "{input}/policy.json",
+      "--task-json",
+      "{input}/task.json",
+      "--dir",
+      "{input}"
+    ],
+    "inputs": [
+      {
+        "path": "evals/harness/oracles/GT-AGENT-A01/policy.json",
+        "sha256": "14d7c166c67b257296275d6074e3ff7f959290ff8b60ac30df6a4aef50ddbb61"
+      },
+      {
+        "path": "evals/harness/oracles/GT-AGENT-A01/task.json",
+        "sha256": "24ff7a3018beba12df6d4e25357463ce464ed68b0a1bd1448e380cdbcc395189"
+      }
+    ],
+    "assertions": [
+      {
+        "id": "exit",
+        "kind": "exit_code",
+        "exit_code": 0
+      },
+      {
+        "id": "stdout",
+        "kind": "stdout",
+        "expected": {
+          "path": "evals/harness/oracles/GT-AGENT-A01/stdout.json",
+          "sha256": "9dae35332f25bc8735a0de66af51e42c97247169253532466bb1836abe766146"
+        }
+      }
+    ]
+  },
   "provenance": {
     "kind": "benchmark",
     "ref": "scripts/benchmarks/harness/corpus_a.json#a01"

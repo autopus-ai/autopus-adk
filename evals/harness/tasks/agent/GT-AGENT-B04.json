@@ -26,6 +26,40 @@
   "expected_tests": [
     "TestClassifyChange_Table"
   ],
+  "oracle_mode": "black_box",
+  "black_box_oracle": {
+    "build": "./cmd/auto",
+    "command": [
+      "{artifact}",
+      "spec",
+      "gates",
+      "{input}",
+      "--changed",
+      "pkg/a/x.go,pkg/b/schema.go",
+      "--read-only"
+    ],
+    "inputs": [
+      {
+        "path": "evals/harness/oracles/GT-AGENT-B04/spec.md",
+        "sha256": "e8afa5854bc58c7fed0efe8014be9ce2cd74ff8ec84c3bdd6412be9611ea7c48"
+      }
+    ],
+    "assertions": [
+      {
+        "id": "exit",
+        "kind": "exit_code",
+        "exit_code": 0
+      },
+      {
+        "id": "stdout",
+        "kind": "stdout",
+        "expected": {
+          "path": "evals/harness/oracles/GT-AGENT-B04/stdout.txt",
+          "sha256": "63b46b282e668619241e9e795ea09205425bbacc13cd3fdd1a79198e38b1dc39"
+        }
+      }
+    ]
+  },
   "provenance": {
     "kind": "benchmark",
     "ref": "scripts/benchmarks/harness/corpus_b.json#b04"

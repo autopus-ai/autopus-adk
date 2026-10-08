@@ -116,6 +116,26 @@ flowchart LR
 
 - coverage trade-off: 서명 gate는 처음에 확인된 5개로 시작한다(`floors.signed_agent_tasks` 5). 후보 6개는 oracle을 쓸 수 있는지 판정한 뒤 더한다. 최대는 11개다. black-box oracle은 unit test보다 관측이 거칠어 미세한 회귀를 놓칠 수 있다. 대신 artifact는 기대 출력을 읽거나 판정 기록에 쓸 수 없으므로, 출력이 실제로 맞아야만 통과한다(REQ-HR-08 process 구조). 12개 전부는 계속 001 advisory lane에서 white-box로 측정된다.
 
+### T15 판정 결과 (2026-10-09)
+
+위 표의 "확인됨"은 동작이 `auto` 명령에 드러나는지만 본 분류였다. T15에서 slice B 형식(입력은 `{input}`에 파일 이름으로만 복사되는 읽기 전용 일반 파일, artifact 명령 하나, 처음에 비어 있는 출력 root)으로 실제 oracle을 쓰자 셋은 관측할 수 없었다. 그래서 후보 셋으로 바꿔 floor 5를 맞췄다. 근거와 calibration은 `evidence/t15-calibration.txt`에 있다.
+
+| task | 결과 | 근거 |
+|------|------|------|
+| a06 | black-box(calibrated) | `auto telemetry harness`: 비교 조건이 다른 task가 짝에서 빠진다 |
+| b04 | black-box(calibrated) | `auto spec gates --changed pkg/a/x.go,pkg/b/schema.go --read-only`: `security_or_data` |
+| a01 | black-box(calibrated, 후보에서 승격) | `auto skill select`: 버전 불일치 후보가 `excluded`로 남는다 |
+| a02 | black-box(calibrated, 후보에서 승격) | `auto telemetry team`: 같은 run의 call과 retry를 따로 센다 |
+| a05 | black-box(calibrated, 후보에서 승격) | `auto skill select`: 중첩 중복 key를 거부한다(exit 1, 빈 stdout). 거부만 증명하므로 모든 문서를 거부하는 수정도 통과한다 |
+| b03 | white-box 유지 | max-age 경계는 `{SPEC_DIR}/gates/evidence-<gate>.json`의 이전 증거에서만 판정되는데, 입력은 `{input}`에 평평하게 복사된다 |
+| b05 | white-box 유지 | symlink인 `autopus.yaml`이 있어야 차이가 난다. 입력은 일반 파일이고 출력 root는 비어 있다 |
+| b06 | white-box 유지 | 프로젝트 절대 경로를 적은 기존 `opencode.json`이 있어야 차이가 난다. trial 출력 root는 매번 새 경로다 |
+| a03 | white-box 유지 | `CompareManifests`의 non-test 호출자가 없다 |
+| a04, b01 | white-box 유지 | `auto pipeline run`으로만 닿고 provider CLI가 필요하다 |
+| b02 | white-box 유지 | CLI importer 0개 |
+
+- b03은 입력을 하위 경로에 둘 수 있게 형식을 넓히면 쓸 수 있다(Duration 포화로 경계를 정확히 맞출 수 있음을 확인). b05·b06은 symlink 입력이나 trial 경로를 넣은 fixture가 필요해 REQ-HR-08의 고정 입력 규칙과 맞지 않는다. 형식 확장은 이 SPEC 범위 밖이다.
+
 ## Feature Coverage Map
 
 | Outcome slice | Covered by | Status |

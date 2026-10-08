@@ -1,0 +1,9 @@
+{
+  "schema_version": "skill_policy.v1",
+  "candidates": [
+    {"id": "compatible", "allowed_task_classes": ["fix"], "supported_versions": {"go": ["1.26"]}},
+    {"id": "excluded-class", "allowed_task_classes": ["fix", "deploy"], "excluded_task_classes": ["fix"]},
+    {"id": "missing-evidence", "allowed_task_classes": ["fix"], "supported_versions": {"node": ["22"]}},
+    {"id": "version-mismatch", "allowed_task_classes": ["fix"], "supported_versions": {"a": ["1"], "z": ["2"]}}
+  ]
+}

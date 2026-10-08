@@ -12,7 +12,8 @@ schema and corpus digest only. The maintainer live lane (T10-T13) runs them.
 | `baseline.json` | `harness_eval_baseline.v1`, written by `auto eval harness baseline --init` on this tree; 45 rows (32 active and 1 retired surface, 12 agent) |
 | `fixtures/codex-models.json` | the pinned Codex model catalog (`pins.codex_model_catalog`) |
 | `tasks/surface/*.json` | 32 active surface tasks and 1 retired tombstone |
-| `tasks/agent/*.json` | 12 active agent tasks, one per benchmark corpus task |
+| `tasks/agent/*.json` | 12 active agent tasks, one per benchmark corpus task; 5 of them also carry a black-box oracle |
+| `oracles/<task id>/` | the input fixtures and expected outputs the black-box oracles pin (see Black-box oracles) |
 | `candidates/` | the SPEC-HARNEVAL-002 intake area: open candidates, `promoted/` link records, `rejected/` records; never loaded (see Incident intake) |
 
 ## Commands
@@ -148,6 +149,45 @@ only) still pass, so the calibration is refused through the other ten
 runs this calibration before any trial and refuses the session with
 `oracle_calibration_failed` if a name here is wrong.
 
+## Black-box oracles (SPEC-HARNEVAL-003 T15)
+
+The signed live lane judges only agent tasks whose document carries
+`oracle_mode: black_box` and a `black_box_oracle` (format: the signed-lane
+section of `scripts/benchmarks/harness/README.md`). The trusted runner builds
+`./cmd/auto` from the agent-modified `live.workspace_revision` snapshot, runs
+the command below under `artifact.sb` with the inputs copied into `{input}`,
+and the trusted oracle harness compares the exit status and the whole stdout
+with the pinned expectations. The Go loader applies the runner's definition
+rules, requires every fixture below `evals/harness/oracles/` (removed from
+every agent, build, and artifact snapshot), and reads each one like a corpus
+file: a byte or size drift (inputs up to 16 MiB, expected outputs up to 1 MiB)
+is `invalid` with detail `oracle_digest_mismatch`. `floors.signed_agent_tasks`
+is 5: a signed session with fewer black-box tasks is `vacuous`.
+
+| Task | Command after `{artifact}` | Expected |
+|------|----------------------------|----------|
+| GT-AGENT-A01 | `skill select --policy-json {input}/policy.json --task-json {input}/task.json --dir {input}` | exit 0; `version-mismatch` stays `excluded` (mutation: `unknown`) |
+| GT-AGENT-A02 | `telemetry team --evidence-json {input}/team.json --format json` | exit 0; a call and its retry in one run count twice (mutation: once) |
+| GT-AGENT-A05 | `skill select --policy-json {input}/policy.json --task-json {input}/task.json --dir {input}` | exit 1, empty stdout: a nested duplicate key is refused (mutation: accepted) |
+| GT-AGENT-A06 | `telemetry harness --evidence-json {input}/evidence.json --format json` | exit 0; the incompatible-identity task leaves the two pairs it would join (mutation: paired) |
+| GT-AGENT-B04 | `spec gates {input} --changed pkg/a/x.go,pkg/b/schema.go --read-only` | exit 0; one schema path across two modules is `security_or_data` (mutation: `multi_domain`) |
+
+Each expected stdout is what the clean reference artifact of the workspace
+revision prints. Calibration on 2026-10-09 (macOS 26.5.2, go1.27.0, no agent
+and no model, `golden_blackbox_trial.calibrate` under both profiles): 5/5
+clean artifacts `accepted`, 5/5 mutated ones `expectation_mismatch`
+(`.autopus/specs/SPEC-HARNEVAL-003/evidence/t15-calibration.txt`). GT-AGENT-A05
+only proves the refusal: any `auto` that fails this command without stdout
+passes it, so an over-strict decoder is not caught here (the advisory lane's
+white-box tests still are).
+
+The SPEC's first five (a06, b03, b04, b05, b06) were not all observable with
+this format. b03 needs prior gate evidence at `{SPEC_DIR}/gates/` while inputs
+are copied flat into `{input}`; b05 needs a symlinked `autopus.yaml` and b06
+an existing `opencode.json` naming the project's absolute path, while inputs
+are read-only regular files and the output root starts empty. a01, a02 and
+a05 took their places. The other 7 tasks stay white-box in the advisory lane.
+
 ## Live advisory report (REQ-HE-10, REQ-HE-11)
 
 `auto eval harness report` judges one live session directory written by the
@@ -247,6 +287,11 @@ a longer path could contain are therefore also asserted as quoted strings with
   task's `expectation_digest`; the run fails with `expectation_changed` until
   `auto eval harness baseline --update` records it. Wording in `intent` and
   `outcome` is outside the digest.
+- The digest also covers `oracle_mode` and `black_box_oracle` of a black-box
+  task, so an edited fixture needs its new `sha256` in the definition and
+  then a baseline update. A white-box task encodes neither field, so its
+  digest is the SPEC-HARNEVAL-001 one; adding the five oracles changed exactly
+  those five baseline rows.
 - Retire a task with `status.state: retired` and a reason instead of deleting
   it; the baseline keeps the retired row.
 - Editing a corpus file changes its digest: update `file_sha256` in every agent
