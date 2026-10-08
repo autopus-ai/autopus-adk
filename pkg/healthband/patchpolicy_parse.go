@@ -26,13 +26,15 @@ type addedLine struct {
 	noEOL bool
 }
 
-// diffFile is one file section of a diff.
+// diffFile is one file section of a diff. oldEnded and newEnded record a
+// side that a no-newline marker ended.
 type diffFile struct {
-	path    string
-	isNew   bool
-	added   int
-	removed int
-	lines   []addedLine
+	path               string
+	isNew              bool
+	added              int
+	removed            int
+	lines              []addedLine
+	oldEnded, newEnded bool
 }
 
 const (
@@ -221,6 +223,9 @@ func (p *diffParser) hunk(file *diffFile) bool {
 	if oldCount > maxHunkCount || newCount > maxHunkCount || (file.isNew && oldCount != 0) {
 		return false
 	}
+	if file.oldEnded || file.newEnded {
+		return false
+	}
 	changed := false
 	for oldCount > 0 || newCount > 0 {
 		line, ok := p.next()
@@ -238,7 +243,9 @@ func (p *diffParser) hunk(file *diffFile) bool {
 		case !p.marker(file, line):
 			return false
 		}
-		if oldCount < 0 || newCount < 0 {
+		// A side that a marker ended takes no further line: git would join
+		// it to the line before the marker.
+		if oldCount < 0 || newCount < 0 || (file.oldEnded && oldSide(line)) || (file.newEnded && newSide(line)) {
 			return false
 		}
 	}
@@ -253,16 +260,30 @@ func (p *diffParser) hunk(file *diffFile) bool {
 }
 
 // marker accepts a `\ No newline at end of file` line, which git knows only
-// by its `\ ` start and length; after an added line it marks that line.
+// by its `\ ` start and length. git drops the LF of the line before it, so
+// the marker ends that line's side of the file (both sides after a context
+// line), and after an added line it marks that line.
 func (p *diffParser) marker(file *diffFile, line string) bool {
 	if !strings.HasPrefix(line, `\ `) || len(line)+1 < minMarkerBytes {
 		return false
 	}
-	if previous := p.lines[p.at-2]; strings.HasPrefix(previous, "+") && len(file.lines) > 0 {
-		file.lines[len(file.lines)-1].noEOL = true
+	previous := p.lines[p.at-2]
+	switch {
+	case strings.HasPrefix(previous, "+") && len(file.lines) > 0:
+		file.lines[len(file.lines)-1].noEOL, file.newEnded = true, true
+	case strings.HasPrefix(previous, "-"):
+		file.oldEnded = true
+	case previous == "" || previous[0] == ' ':
+		file.oldEnded, file.newEnded = true, true
+	default: // a second marker, or one that opens the body
+		return false
 	}
 	return true
 }
+
+// oldSide and newSide report body lines that count on that side.
+func oldSide(line string) bool { return line == "" || line[0] == ' ' || line[0] == '-' }
+func newSide(line string) bool { return line == "" || line[0] == ' ' || line[0] == '+' }
 
 func hunkCount(raw string) int {
 	if raw == "" {

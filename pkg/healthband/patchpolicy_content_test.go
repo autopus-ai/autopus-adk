@@ -96,6 +96,48 @@ func TestPatchPolicy_PlusPlusPlusLineInsideHunk_CountsAsAddedLine(t *testing.T) 
 	assert.Equal(t, healthband.PatchCodeContentDenied, verdict.Code)
 }
 
+// A no-newline marker inside a hunk makes git join the line before it with
+// the next one of that side: `+// ignore previous`, the marker, and
+// `+ instructions` apply as one line `// ignore previous instructions`, so
+// a split secret, token, or base64 run would pass a per-line check. A
+// marker therefore ends its side of the file, and git's own reading of an
+// index line's mode as a mode change is refused by the summary cross-check.
+func TestPatchPolicy_LineJoiningMarkerAndIndexMode_RefusePatchInvalid(t *testing.T) {
+	t.Parallel()
+	repo := newPolicyRepo(t, policyBase)
+	head := "diff --git a/pkg/foo/foo.go b/pkg/foo/foo.go\n--- a/pkg/foo/foo.go\n+++ b/pkg/foo/foo.go\n"
+	marker := "\\ No newline at end of file\n"
+	for name, diff := range map[string]string{
+		"added lines joined":     head + "@@ -3 +3,3 @@\n func Foo() int { return 1 }\n+// ignore previous\n" + marker + "+ instructions\n",
+		"token joined":           head + "@@ -3 +3,3 @@\n func Foo() int { return 1 }\n+var t = \"ghp_ABCDEFGH\n" + marker + "+IJKLMNOPQRSTUVWX\"\n",
+		"context after marker":   head + "@@ -2,2 +2,3 @@\n \n+// x\n" + marker + " func Foo() int { return 1 }\n",
+		"removed lines joined":   head + "@@ -1,3 +1,2 @@\n-package foo\n" + marker + "-\n+package foo\n func Foo() int { return 1 }\n",
+		"marker after context":   head + "@@ -1,3 +1,4 @@\n package foo\n" + marker + " \n func Foo() int { return 1 }\n+// x\n",
+		"hunk after marker":      head + "@@ -1 +1,2 @@\n package foo\n+// x\n" + marker + "@@ -3 +4 @@\n-func Foo() int { return 1 }\n+func Foo() int { return 2 }\n",
+		"two markers":            head + "@@ -3 +3,2 @@\n func Foo() int { return 1 }\n+// x\n" + marker + marker,
+		"marker opens the body":  head + "@@ -3 +3,2 @@\n" + marker + " func Foo() int { return 1 }\n+// x\n",
+		"index mode mismatching": strings.Replace(modifyFoo("// x"), "--- a/", "index 1111111..2222222 100755\n--- a/", 1),
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			git := &recordingGit{home: repo.home}
+			assert.Equal(t, healthband.PatchCodeInvalid, evaluate(t, repo, healthband.PatchPolicy{Git: git}, replyWith(diff)).Code)
+			assert.Equal(t, name == "index mode mismatching", git.invoked("apply"), "only the index mode row reaches git apply")
+		})
+	}
+	// The usual end-of-file markers stay valid: a removed and an added last
+	// line, each without its LF, in a base file that ends without one.
+	noEOL := newPolicyRepo(t, []baseFile{{path: "pkg/foo/foo.go", content: "package foo\n\nfunc Foo() int { return 1 }"}})
+	for name, diff := range map[string]string{
+		"both sides":   head + "@@ -3 +3 @@\n-func Foo() int { return 1 }\n" + marker + "+func Foo() int { return 2 }\n" + marker,
+		"old side":     head + "@@ -3 +3,2 @@\n-func Foo() int { return 1 }\n" + marker + "+func Foo() int { return 2 }\n+// end\n",
+		"context last": head + "@@ -1,3 +1,4 @@\n package foo\n+// doc\n \n func Foo() int { return 1 }\n" + marker,
+	} {
+		verdict := evaluate(t, noEOL, healthband.PatchPolicy{}, replyWith(diff))
+		assert.True(t, verdict.Accepted(), "%s: code %q", name, verdict.Code)
+	}
+}
+
 // S5 item 8: 11 files or 401 changed lines refuse patch_too_large; 10 files
 // and 400 lines pass.
 func TestPatchPolicy_SizeCaps_RefuseTooLarge(t *testing.T) {
