@@ -2,7 +2,7 @@
 
 **Status**: draft
 **Created**: 2026-10-06
-**Revised**: 2026-10-08 (rev 7: operator decision on OQ-1, the band-only subprocess provider `health_band.local_patch_provider`; rev 6: refreshed against the merged SPEC-SIGMABAND-001 code at main `1943e596`, SPEC-PANERM-001, and SPEC-EDITGUARD-001, and resolves the open rev 5 findings; rev 5: one recovery state table, a separate recovery step with its own lock, claim-unique diagnosis worktrees, chained-lease oracle; rev 2 rescoped the cap to local patch only)
+**Revised**: 2026-10-08 (rev 8: Risk-First probes A1 and A3 executed and folded in, closing Completion Debt CD-1 and CD-2; rev 7: operator decision on OQ-1, the band-only subprocess provider `health_band.local_patch_provider`; rev 6: refreshed against the merged SPEC-SIGMABAND-001 code at main `1943e596`, SPEC-PANERM-001, and SPEC-EDITGUARD-001, and resolves the open rev 5 findings; rev 5: one recovery state table, a separate recovery step with its own lock, claim-unique diagnosis worktrees, chained-lease oracle; rev 2 rescoped the cap to local patch only)
 **Domain**: SIGMABAND
 **Module**: autopus-adk
 **Sibling of**: SPEC-SIGMABAND-001 (implemented and merged; this SPEC consumes its tier-3 episodes, diagnosis, BS, write-ahead log, and claims)
@@ -31,7 +31,7 @@
 - Explicit non-goals: push, fetch, PR 생성·갱신, 원격 ref, GitHub 쓰기 API, CI 실행, test·build 자동 실행, 에이전트 쓰기 권한, tier 2로 열린 뒤
   tier 3으로 오른 episode의 patch, OMP backend의 worktree confinement, orchestra 명령의 provider backend 변경, SPEC-SIGMABAND-001이 소유한 동작. 리뷰어가 worktree를 IDE로 열거나
   그 안에서 명령이나 에이전트를 실행하거나 branch를 push할 때의 실행도 범위 밖이며, BS의 reviewer warning이 이를 알린다.
-- Completion evidence: acceptance S1–S14 통과, Completion Debt CD-1–CD-3 해소, security-auditor 리뷰 통과, 모든 run에서 원격 쓰기 0건, 저장소 root
+- Completion evidence: acceptance S1–S15 통과, Completion Debt CD-3 해소(CD-1, CD-2는 2026-10-08 probe A3, A1로 해소), security-auditor 리뷰 통과, 모든 run에서 원격 쓰기 0건, 저장소 root
   아래 `.git/` 밖 파일 변경은 BS와 `.autopus/metrics/` 기록 파일뿐.
 
 ## Requirements
@@ -42,11 +42,11 @@ Priority 열은 Must만 쓴다. 각 문장은 `pkg/spec` parser 문법을 따르
 |----|----------|--------|------------------|
 | REQ-01 | Must | FR-17, F-052, decisions 2026-10-06 and 2026-10-08 | THE SYSTEM SHALL add `AllowLocalPatch bool` with the tag `yaml:"allow_local_patch,omitempty"` and `LocalPatchProvider string` with the tag `yaml:"local_patch_provider,omitempty"` to `HealthBandConf` in `pkg/config/schema_health_band.go`, amend SPEC-SIGMABAND-001 REQ-15's key list with both keys at this SPEC's sync while `allow_draft_pr` stays rejected, omit each key from generated and saved `autopus.yaml` files while it holds its default, and document that a binary without this SPEC rejects a file that sets either key. |
 | REQ-02 | Must | FR-07, F-049, F-072 | WHEN SPEC-SIGMABAND-001's phase A plans an evaluated tier-3 position IF `health_band.allow_local_patch` is true, THEN THE SYSTEM SHALL decide it exactly as the Local Patch Decision Table defines, record a `local_patch` claim that depends on the diagnose claim of a row-4 position, append those records to `.autopus/metrics/localpatch-events.jsonl` under the store lock after 001's `Commit` and before its `Unlock`, and write nothing into SPEC-SIGMABAND-001's files beyond the amendments listed in Related SPECs. |
-| REQ-03 | Must | F-039, F-057, PANERM, decision 2026-10-08 | WHERE `health_band.allow_local_patch` is true, THEN THE SYSTEM SHALL run every SPEC-SIGMABAND-001 diagnosis and every patch request with a band worktree at the base SHA as the only working directory, on the subprocess claude that the Local Patch Provider Contract selects, projected by `applyReadOnlyProviderPolicy` with the confined option that adds `--restricted` to the shared projection, without the variables of `bandProviderUnsetEnv` and without any `GIT_*` variable, and record every selection that does not end at that subprocess claude, an OMP-backed claude reached without `health_band.local_patch_provider` included, as `unavailable(provider_unconfined)`. |
+| REQ-03 | Must | F-039, F-057, PANERM, decision 2026-10-08, probe A1 | WHERE `health_band.allow_local_patch` is true, THEN THE SYSTEM SHALL run every SPEC-SIGMABAND-001 diagnosis and every patch request with a band worktree at the base SHA as the only working directory, on the subprocess claude that the Local Patch Provider Contract selects, projected by `applyReadOnlyProviderPolicy` with the confined option that adds `--restricted`, `--output-format stream-json`, and `--verbose` to the shared projection, without the variables of `bandProviderUnsetEnv` and without any `GIT_*` variable, record every selection that does not end at that subprocess claude, an OMP-backed claude reached without `health_band.local_patch_provider` included, as `unavailable(provider_unconfined)`, and record each request's requested and actual model, marking `model_substituted` without failing the request when claude answered on another model. |
 | REQ-04 | Must | F-049, F-050, F-068, F-073 | WHEN a `local_patch` claim executes, THEN THE SYSTEM SHALL end it with `failed:record_unavailable` when its diagnosis has no `prep` record, otherwise with the step-1 code of that `prep` record when the code is not ok, otherwise with `failed:worktree_failed` when its `stage` records hold `worktree_failed`, otherwise with `failed:no_bs` when the diagnose outcome has no BS ID, otherwise with `failed:diagnosis_unavailable` when `diagnosis_status` is not ok, and only otherwise start the patch stage, so that no failed preparation or diagnosis leads to a patch request, apply, or commit. |
 | REQ-05 | Must | F-043, F-071, F-075 | WHEN band runs git for a local patch, THEN THE SYSTEM SHALL run only the commands of the Git Execution Policy through its own allowlist, leave SPEC-SIGMABAND-001's `checkBandCommand` unchanged, and apply that policy to every git command (scrubbed environment with `GIT_ATTR_NOSYSTEM=1` and `GIT_LFS_SKIP_SMUDGE=1`, hooks off, `core.fsmonitor=false`, an empty `core.attributesFile`, refusal of a non-empty `info/attributes`, of every configured filter, diff, or merge driver outside the git-lfs allowlist, and of every `lfs.extension` or `lfs.customtransfer` setting, and no network command) so that checkout, apply, commit, and format-patch run no command that the repository or its configuration selects beyond the allowlisted git-lfs binary, and THE SYSTEM SHALL never run tests, builds, or the proposed change. |
 | REQ-06 | Must | F-016, F-055, F-056 | WHEN band builds the commit message, THEN THE SYSTEM SHALL build and validate it in-process with `lore.BuildCommit` and `lore.Validate` before any `git apply`, refuse with `lore_unsupported_required:<trailer>` when a required trailer is not one of the five that `lore.Validate` recognizes, and confirm after the commit that the commit object's message equals the `-F` file bytes. |
-| REQ-07 | Must | F-039, F-047, F-048 | WHEN band requests a patch, THEN THE SYSTEM SHALL build the prompt as the Patch Prompt Contract defines, bound the reply capture at 1 MiB while the provider runs, take the diff from the raw reply without redaction or line removal, and keep the reply in memory until the Patch Policy has accepted it. |
+| REQ-07 | Must | F-039, F-047, F-048, probe A1 | WHEN band requests a patch, THEN THE SYSTEM SHALL build the prompt as the Patch Prompt Contract defines, bound the provider stream at 8 MiB while the provider runs and the `result` text taken from that stream at 1 MiB, take the diff from that raw text without redaction or line removal, and keep the reply in memory until the Patch Policy has accepted it. |
 | REQ-08 | Must | F-040, F-058, decision 2026-10-06, EDITGUARD | WHEN a proposed diff is evaluated, THEN THE SYSTEM SHALL decode every path as the Patch Policy defines and accept the diff only when the Patch Policy accepts every decoded path (including the dotenv and credential entries and the edit guard check of item 9), mode, and added line and the change stays within 10 files, 400 changed lines, and 64 KiB, before any command writes to the object database. |
 | REQ-09 | Must | decision 2026-10-06, F-070, F-080 | WHEN the Patch Policy accepts a diff, THEN THE SYSTEM SHALL apply it with `git apply --index` in the claim's worktree under `<lp>/<key>/worktree/`, confirm that the worktree's index tree equals the expected tree recorded in `apply_intent`, commit it, create the local branch `autopus/band/<key>` at that commit, write `git format-patch` output to `<lp>/<key>.patch`, and keep the worktree for human review. |
 | REQ-10 | Must | decision 2026-10-06 | THE SYSTEM SHALL never push, fetch, create or update a pull request, call a GitHub write API, or create a remote ref in the local patch flow, so that every artifact stays local until a human pushes it. |
@@ -54,7 +54,7 @@ Priority 열은 Must만 쓴다. 각 문장은 `pkg/spec` parser 문법을 따르
 | REQ-12 | Must | F-032, F-068, F-072 | THE SYSTEM SHALL give a diagnose claim the 990 s budget and a `local_patch` claim the 810 s budget of the Step Timeouts table while `allow_local_patch` is true, execute each `local_patch` claim right after phase C has recorded its diagnose claim, count both budgets in the lease chain of SPEC-SIGMABAND-001's `Plan` through the `PlanOptions` and `ExecuteOptions` hooks that plan task T8 adds in `pkg/healthband/catchup.go` and `claims.go`, and start no step group whose deadline the claim's remaining lease does not cover. |
 | REQ-13 | Must | FR-23, decisions 2026-10-06 and 2026-10-08 | THE SYSTEM SHALL document the flag, the `local_patch_provider` key with the subscription claude CLI deployment, the artifact locations, the reviewer warning, the subprocess claude requirement, and the upgrade-before-enable note in the `auto react band` help text, `docs/health-band.md`, and `CHANGELOG.md`, qualify their tier-3 diagnosis-only statements with the flag, and put the Local Patch pointer lines with the reviewer warning in every 3σ BS of a `local_patch` claim. |
 | REQ-14 | Must | F-070, F-077 | THE SYSTEM SHALL keep every worktree and patch file of this SPEC under `<UserCacheDir>/autopus/local-patches/<repo-hash>/`, outside the repository, refuse with `cache_unavailable` when that directory cannot be created, change no file under the repository root outside `.git/` except the BS file and the files under `.autopus/metrics/` that SPEC-SIGMABAND-001 and this SPEC own, and change inside `.git/` only `refs/heads/autopus/band/<key>` with its reflog, the `worktrees/<name>/` entry of the claim's worktree, and new objects. |
-| REQ-15 | Must | operator decision 2026-10-08 (OQ-1) | WHERE `health_band.allow_local_patch` is true, THEN THE SYSTEM SHALL select the provider of every diagnosis and every patch request by the Local Patch Provider Contract, run a `claude` named by `health_band.local_patch_provider` as a CLI subprocess whatever its `orchestra.providers.claude.backend` says, use SPEC-SIGMABAND-001's selection only while that key is empty and only when it resolves to a subprocess claude, give `unavailable(provider_unconfined)` in every other case, a key naming another provider included, and leave the provider backend of every orchestra command unchanged. |
+| REQ-15 | Must | operator decision 2026-10-08 (OQ-1), probe A1 | WHERE `health_band.allow_local_patch` is true, THEN THE SYSTEM SHALL select the provider of every diagnosis and every patch request by the Local Patch Provider Contract, run a `claude` named by `health_band.local_patch_provider` as a CLI subprocess whatever its `orchestra.providers.claude.backend` says, on the model that the contract's model rule names, use SPEC-SIGMABAND-001's selection only while that key is empty and only when it resolves to a subprocess claude, give `unavailable(provider_unconfined)` in every other case, a key naming another provider included, and leave the provider backend of every orchestra command unchanged. |
 
 `<repo-hash>` = first 12 hex digits of the SHA-256 of `git rev-parse --path-format=absolute --git-common-dir`, so every worktree
 of one repository shares one directory. `<key>` = `<series-slug>-<h8>-<episode-id>-<c8>`: `<series-slug>` is the series ID
@@ -186,6 +186,12 @@ repository (see 추천 방향); band pushes nothing.`, `- Explicit non-goals: ch
 pushes nothing and changes no GitHub state.`, and `Tier 3 with health_band.allow_local_patch adds at most one local branch,
 worktree, and patch file and opens no pull request.` A BS without a `local_patch` claim keeps 001's text.
 
+Every flag-on diagnosis BS, with or without a `local_patch` claim, also gets through a `[NEW]` `Request.DiagnosisModel` field
+one line after the pointer lines, if any, at the end of `## 추천 방향` (Local Patch Provider Contract item 7; `none` stands
+for an argv without `--model`): `Diagnosis model: requested <requested>, actual <actual>.`, or after a substitution
+`Diagnosis model: requested <requested>, actual <actual>; model_substituted (refusal category <category>).` The patch
+request runs after the BS is written and the BS stays write-once, so its models appear only in the `result` record.
+
 `<lp>` is written as an absolute path. The BS lives in `.autopus/brainstorms/` and the records in `.autopus/metrics/`; both
 are gitignored and always blocked from staging (`internal/cli/check_rules_hygiene.go:25-30`). The branch is a local ref;
 `git push --all` would publish it, which the docs state.
@@ -204,17 +210,23 @@ are gitignored and always blocked from staging (`internal/cli/check_rules_hygien
 3. Unsafe configuration, checked before any worktree exists, against `git config --list --show-scope --show-origin` and the
    repository files:
    - `$GIT_COMMON_DIR/info/attributes` holding any line that is not blank or a comment gives `git_config_unsafe:info_attributes`.
+     This refusal is mandatory, not a second layer: probe A3 showed that a linked worktree still reads that file and runs the
+     filter it selects under every flag and variable of items 1–2, so no flag can replace it.
    - Any configured `filter.<driver>.clean`, `.smudge`, or `.process` gives `git_config_unsafe:filter.<driver>.<kind>` unless the
      driver is `lfs` and the raw value matches, byte for byte, the expression
      `^(git-lfs|/[A-Za-z0-9._/-]+/git-lfs) (filter-process|clean -- %f|smudge -- %f)$` (single spaces, no newline, tab, quote, `$`,
      backtick, or other shell metacharacter, because git runs filter commands through the shell), and the executable resolves
      (PATH lookup for the bare word) to an absolute path outside the repository and every worktree. An interpreter such as
-     `/usr/bin/python3 tools/clean.py` is never allowed.
+     `/usr/bin/python3 tools/clean.py` is never allowed. The rule covers every scope that `--show-scope` reports, so a non-LFS
+     filter that only global or system configuration sets is refused even when no attribute source selects it: an intended
+     fail-closed limitation (probe A3), because a tracked `.gitattributes` at the base SHA can select any configured driver
+     by name; such a user gets `git_config_unsafe:filter.<driver>.<kind>` and removes the filter or keeps the flag off.
    - Any configured `diff.<driver>.textconv` or `.command`, or `merge.<driver>.driver`, gives `git_config_unsafe:<key>`.
    - Any `lfs.extension.<name>.*` or `lfs.customtransfer.<name>.*` setting gives `git_config_unsafe:<key>`.
    - `core.alternateRefsCommand` set at all gives `git_config_unsafe:core.alternateRefsCommand`.
    With global and system attribute files disabled by items 1–2 and `info/attributes` empty, only tracked `.gitattributes` files
-   select drivers, and only the git-lfs allowlist can be configured, so no repository-selected command runs.
+   select drivers, and only the git-lfs allowlist can be configured, so no repository-selected command runs. Probe A3
+   (git 2.50.1) wrote 0 markers under this policy against 15 distinct markers from the same sources without it.
 4. Base SHA: `<default>` is the default branch that 001's `fetchCI` resolved (`internal/cli/react_band_ingest.go:83-111`; today
    a local variable that T8 exposes as `[NEW]` `bandCIFetch.DefaultBranch`, `:33-41`), else, under `--no-fetch` or a failed
    lookup, `git symbolic-ref --short refs/remotes/origin/HEAD` without its `origin/` prefix; it must pass
@@ -231,8 +243,8 @@ are gitignored and always blocked from staging (`internal/cli/check_rules_hygien
 ## Local Patch Provider Contract
 
 While `health_band.allow_local_patch` is true, this contract replaces item 1 (selection) and item 5 (working directory) of
-SPEC-SIGMABAND-001's Provider Read-Only Contract for every diagnosis and every patch request, adds `--restricted` to its item 3
-and `GIT_*` to its item 6, and keeps items 2 and 4 (REQ-03, REQ-15). With the flag off, 001's contract applies unchanged and
+SPEC-SIGMABAND-001's Provider Read-Only Contract for every diagnosis and every patch request, adds `--restricted`, `--verbose`, and
+`--output-format stream-json` to its item 3 and `GIT_*` to its item 6, and keeps items 2 and 4 (REQ-03, REQ-15). With the flag off, 001's contract applies unchanged and
 band never reads `local_patch_provider`.
 
 1. Selection, first match; once a rule matches, no later rule and no other provider is tried (001's no-retry rule):
@@ -244,17 +256,24 @@ band never reads `local_patch_provider`.
    3. Otherwise `unavailable(provider_unconfined)`: an OMP-backed claude, codex, gemini, an unconfigured name, or no name.
 2. Subprocess form: rule 1 takes the `orchestra.providers.claude` entry when it exists without a `backend`
    (`providerConfigFromEntry`, `internal/cli/orchestra_helpers.go:222`), else `config.DefaultClaudeProviderEntry()`
-   (`pkg/config/claude_provider.go:42`: binary `claude`, `--print`, the default model policy). An OMP entry's `binary` (default
-   `omp`), `model` selector, and `tools` have no subprocess meaning and are never read, so this is no fallback of the OMP
-   provider: band never runs the OMP entry. Rule 2 takes `providerConfigFromEntry` of the entry, as 001 does. The result has
+   (`pkg/config/claude_provider.go:42`: binary `claude`, `--print`, `--model claude-fable-5-1`, `--effort max`) under one
+   model rule: when an `orchestra.providers.claude` entry with a `backend` has a `model` that `orchestra.SplitModelSelector`
+   (`pkg/orchestra/model_family.go:9`) accepts with provider `anthropic` and a model ID that matches
+   `^claude-[a-z0-9][a-z0-9.-]*$`, that model ID replaces the `--model` value, its thinking suffix is dropped, and
+   `--effort max` stays (this repository: `anthropic/claude-opus-5-5:max` gives `--model claude-opus-5-5`); every other case
+   keeps `claude-fable-5-1`. An OMP entry's `binary` (default `omp`) and `tools` have no subprocess meaning and are never
+   read, and its `model` is read only by this rule, so this is no fallback of the OMP provider: band never runs the OMP
+   entry. Rule 2 takes `providerConfigFromEntry` of the entry, as 001 does. The result has
    no `Backend`, so `orchestra.RunSingleProvider` runs the projected argv as a subprocess
    (`pkg/orchestra/provider_backend_route.go:26-30`), and band's execution config registers no OMP route.
-3. Projection: `applyReadOnlyProviderPolicy` with `[NEW]` `readOnlyPolicyOptions.Confined` (plan task T6) adds `--restricted`
-   before the last item `--tools=Read,Grep,Glob` and refuses a provider that has a `Backend` or a name other than `claude`,
+3. Projection: `applyReadOnlyProviderPolicy` with `[NEW]` `readOnlyPolicyOptions.Confined` (plan task T6) sets
+   `--output-format stream-json` (replacing a configured value), adds `--verbose` and `--restricted` before the last item
+   `--tools=Read,Grep,Glob`, and refuses a provider that has a `Backend` or a name other than `claude`,
    because the shared projection passes an OMP-backed provider through as-is (`orchestra_readonly_policy.go:59-63`); a refusal
-   gives `unavailable(provider_unconfined)`. Then `bandReadOnlyControls` and a `--restricted` check run fail-closed, and a
-   projection without `--restricted` gives `unavailable(provider_unconfined)`. An argv item outside the claude allowlist
-   (`:148-185`), `--bare` included, still gives `unavailable(provider_policy_rejected)`.
+   gives `unavailable(provider_unconfined)`. Then `bandReadOnlyControls` and a check for `--restricted`, `--verbose`, and
+   `--output-format stream-json` run fail-closed, and a projection without one of them gives
+   `unavailable(provider_unconfined)`. An argv item outside the claude allowlist (`:148-185`), `--bare` and a configured
+   `--verbose` included (the bool-flag list has no `--verbose`, `:150-153`), still gives `unavailable(provider_policy_rejected)`.
 4. The patch request resolves its provider by this contract again; anything but a confined subprocess claude ends the claim
    `failed:patch_provider_unconfined` (Local Patch Flow step 6). A missing binary, a timeout, a non-zero exit, and empty output
    keep 001's REQ-12 reasons.
@@ -262,8 +281,24 @@ band never reads `local_patch_provider`.
    `orchestra.providers.<name>.backend`; only band reads `local_patch_provider`, and band never writes `autopus.yaml`.
 6. Expected deployment: the subscription-authenticated `claude` CLI (Configuration). Band never projects `--bare`, whose
    authentication reads only `ANTHROPIC_API_KEY` or an `apiKeyHelper` and never the subscription login, while `--safe-mode`
-   keeps authentication working (claude 2.1.289 help). That a `--restricted` session signs in through the subscription login
-   is probe A1 (Completion Debt CD-2).
+   keeps authentication working (claude 2.1.289 help). Probe A1 (2026-10-08, claude 2.1.289) confirmed it: a `--restricted`
+   session signed in through the subscription login (`init` `apiKeySource` `none`), offered only `Glob`, `Grep`, and `Read`
+   with no MCP server, and its permission layer, not the model, denied a `Read` outside the worktree (`permission_denials`).
+7. Stream and model record: claude can retry a refused request on another model and say so only in its event stream (probe
+   A1 run 2: a `system` event with subtype `model_refusal_fallback`, `original_model` `claude-fable-5-1`, `fallback_model`
+   `claude-opus-4-8`, `api_refusal_category` `cyber`; the text output showed nothing). A confined request therefore sets
+   `MaxOutputBytes` to `[NEW]` `bandProviderStreamBytes` + 1 (8 MiB, room for the JSON escaping of a 1 MiB text and for tool
+   events) in place of 001's `ProviderCaptureBytes` + 1 (`react_band_diagnose.go:258`), and band parses the captured stream
+   as JSON lines (a line that is not a JSON object is skipped), keeping only the `system` `init` event's `model`, every
+   `model_refusal_fallback` event, and the last `result` event. A stream without a `result` event whose `subtype` is
+   `success` and whose `is_error` is false is empty output under item 4 (for a diagnosis 001's `provider_empty_output`,
+   `:39,272`), and so is a diagnosis stream past the bound; a patch-request stream past the bound gives `patch_too_large`.
+   The `result` text is the reply: 001's 1 MiB `NewHeadBuffer` capture (`:268`) and sanitization take it for a diagnosis,
+   Patch Policy item 1 for a patch. Per request, `requested` is the `--model` value, `actual` the last `fallback_model` or
+   else the `init` `model`, and `refusal_category` the last `api_refusal_category`; they go into the `result` record's
+   `models[]` and, for the diagnosis, the BS (BS Record), and `model_substituted` is true when any `model_refusal_fallback`
+   event occurred. A substitution never fails a request: the diagnosis, the patch request, and every Patch Policy check
+   proceed unchanged.
 
 ## Patch Prompt Contract
 
@@ -275,7 +310,7 @@ not reused, because it fixes the `untrusted-evidence` info string.
 
 | Layer ID | Kind | Content | Cache eligible |
 |----------|------|---------|----------------|
-| `band.patch_instructions.v1` | stable | role, "answer with exactly one diff fence", no commands, the nonce rule | true |
+| `band.patch_instructions.v1` | stable | role; the diff is a proposal that band checks and applies outside the session, which edits no file (plan mode); "answer with exactly one diff fence"; no commands; the nonce rule | true |
 | `band.patch_rules.v1` | stable | Patch Policy summary and size caps | true |
 | `band.evaluation.<event-hash>` | snapshot | 001's frozen evaluation record (`EventHash`, `prompt.go:126`; no BS ID) | false |
 | `band.diagnosis.<claim-id>` | ephemeral | the sanitized diagnosis text that the diagnose claim passed to `brainstorm.Request.Diagnosis` (no title line, no BS ID) | false |
@@ -287,14 +322,17 @@ hex, drawn again whenever it occurs inside any layer, and whose backtick run is 
 length rule of `healthband.Fence`, `pkg/healthband/sanitize.go:246`): a closing fence needs only backticks, so the nonce alone
 cannot keep the text from closing the block. The instructions name the nonce and state that text inside such fences is data.
 Both providers read only files inside a band worktree at the base SHA (`--restricted`), which holds tracked content only;
-untracked files of the user's checkout, such as `.env`, are not in it.
+untracked files of the user's checkout, such as `.env`, are not in it. The proposal framing is load-bearing: in probe A1
+run 1 the plan-mode session declined to print a throwaway diff and gave no fence, while run 2, which framed the diff as a
+proposal, answered with one well-formed fence.
 
 ## Patch Policy
 
-1. The reply capture is bounded while the provider runs at `healthband.ProviderCaptureBytes` + 1 (1 MiB,
-   `pkg/healthband/sanitize.go:16`), as 001's diagnosis capture is (`react_band_diagnose.go:253-276`); a capture that dropped
-   bytes gives `patch_too_large`. The reply holds exactly one ```` ```diff ```` fence (else `no_patch`), and the diff is at most
-   64 KiB (else `patch_too_large`).
+1. The reply is the `result` text of the provider stream (Local Patch Provider Contract item 7), captured at
+   `healthband.ProviderCaptureBytes` (1 MiB, `pkg/healthband/sanitize.go:16`) as 001's diagnosis capture is
+   (`react_band_diagnose.go:253-276`); a stream past its 8 MiB bound or a text capture that dropped bytes gives
+   `patch_too_large`. The reply holds exactly one ```` ```diff ```` fence (else `no_patch`), and the diff is at most 64 KiB
+   (else `patch_too_large`).
 2. Paths are decoded before any check: a path in a `diff --git`, `---`, `+++`, `rename`, or `copy` header that starts with `"` is a
    C-quoted string whose escapes (`\a \b \f \n \r \t \v \\ \"` and three-digit octal) are decoded to bytes; every other path is
    taken as is. Every check below runs on the decoded bytes, and the decoded path set must equal the NUL-separated path set that
@@ -346,8 +384,10 @@ untracked files of the user's checkout, such as `.env`, are not in it.
     `branch_intent`), or `patch_sha256` (`patch_done`). Every `*_intent` is written before the command that creates the
     artifact, so every artifact that may exist is named by a durable record first.
   - `result`: `seq`, `claim_id`, `status` (`done` or `failed:<code>`), `bs_id`, `base_sha`, `commit_sha`, `branch`,
-    `worktree_path`, `patch_path`, `prompt_manifest`, `recovered`, `kept[]` (artifacts kept by a cleanup rule, with reason); a
-    diagnosis without a `local_patch` claim writes one too, keyed by its diagnose claim id.
+    `worktree_path`, `patch_path`, `prompt_manifest`, `recovered`, `kept[]` (artifacts kept by a cleanup rule, with reason),
+    `models[]` (one entry per confined request of the claim that returned a stream: `request` (`diagnosis` or `patch`),
+    `requested`, `actual`, `refusal_category`), and `model_substituted`; a diagnosis without a `local_patch` claim writes one
+    too, keyed by its diagnose claim id.
 - `.autopus/metrics/localpatch-state.json` (`autopus.band_localpatch_state.v1`): claims per series, written after the events and
   replayed like SPEC-SIGMABAND-001's checkpoint. SPEC-SIGMABAND-001 binaries never read these two files. Their codes may hold
   `:` and `.` (`failed:git_config_unsafe:filter.lfs.process`), which 001's `validResultStatus` would refuse
@@ -355,13 +395,16 @@ untracked files of the user's checkout, such as `.env`, are not in it.
   `unavailable(provider_unconfined)` and `unavailable(worktree_unavailable)`.
 - Cleanup Rules (one set for the live run and for recovery; only artifacts named by the claim's intent records are considered;
   every git call has a 30 s timeout; the rules run in the order 3, 1, 2, so the worktree check still finds the diff file):
-  3. Worktree: only the admin entry whose path equals the `worktree_intent` path is considered. It is removed with
-     `git worktree remove --force <path>` when its HEAD is the base SHA or the claim commit, it has no unstaged or untracked
-     change (`git status --porcelain --untracked-files=all`), and its index tree is the HEAD tree or the `apply_intent`
-     expected tree. An entry that still holds the `locked` file of an interrupted `git worktree add` is kept with reason
-     `worktree_incomplete`, because band cannot prove that a partial checkout holds only its own files; the docs name
-     `git worktree remove --force --force <path>` for it. Otherwise it is kept with reason `worktree_modified`, or
-     `head_unrecognized` when HEAD is neither commit.
+  3. Worktree: only the admin entry whose path equals the `worktree_intent` path is considered. The `locked` check comes
+     first and alone decides an entry that still holds the `locked` file of an interrupted `git worktree add` (content
+     `initializing`, beside an `index.lock`): it is kept with reason `worktree_incomplete`, because band cannot prove that a
+     partial checkout holds only its own files, and the HEAD test below cannot tell it apart, since its admin HEAD already
+     equals the base SHA (probe A3). `git worktree remove --force` refuses a locked entry (exit 128), so the docs name
+     `git worktree remove --force --force <path>` for a human to run; band never passes `--force` twice and never runs
+     `git worktree unlock`. Any other entry is removed with `git worktree remove --force <path>` when its HEAD is the base
+     SHA or the claim commit, it has no unstaged or untracked change (`git status --porcelain --untracked-files=all`), and
+     its index tree is the HEAD tree or the `apply_intent` expected tree; otherwise it is kept with reason
+     `worktree_modified`, or `head_unrecognized` when HEAD is neither commit.
   1. Branch: `git update-ref -d refs/heads/autopus/band/<key> <claim-commit>`, which deletes only while the branch points at the
      claim commit; a branch at another OID is kept with reason `branch_moved`.
   2. Patch and diff files: `<lp>/<key>.patch` or its `.tmp-<c8>` is deleted only when its bytes equal a fresh
@@ -382,7 +425,7 @@ untracked files of the user's checkout, such as `.env`, are not in it.
 | Last durable record | Found | Action | State |
 |---------------------|-------|--------|-------|
 | `decision`, `claim`, or `prep` | no artifact | none | `failed:interrupted` |
-| `worktree_intent` | an admin entry with the `locked` file of an interrupted add | keep it, `worktree_incomplete` in `kept[]` | `failed:interrupted` |
+| `worktree_intent` | an admin entry with the `locked` file of an interrupted add, whatever its HEAD | keep it, `worktree_incomplete` in `kept[]` | `failed:interrupted` |
 | `worktree_intent` | a finished worktree at the path, or none | Cleanup Rule 3 | `failed:interrupted` |
 | `worktree_failed` | an admin entry at the path, or none | Cleanup Rule 3 | `failed:worktree_failed` |
 | `worktree_done` or `message` (diagnosis or patch request in flight) | clean worktree at the base SHA | Cleanup Rule 3 | `failed:interrupted` |
@@ -442,7 +485,7 @@ or T9; `existing` = older code.
 | existing (001) `internal/cli/react_band_ingest.go:33-41,83-111` | `[NEW]` `bandCIFetch.DefaultBranch` (T8) |
 | existing (001) `pkg/brainstorm/render.go:31-40,180,196,208-209` | `[NEW]` `Request.LocalPatch`: pointer lines and the three local-patch sentences (T8) |
 | existing (001) `internal/cli/react_band_help.go:9-58`, `docs/health-band.md:223-228`; existing `CHANGELOG.md` | flag, `local_patch_provider` with the subscription claude CLI deployment, artifact locations, reviewer warning, subprocess claude requirement, upgrade note (T8 help text, T9 docs) |
-| existing `internal/cli/orchestra_readonly_policy.go:11-15,53-88,209-217` | `[NEW]` `readOnlyPolicyOptions.Confined`, which adds `--restricted` to the claude projection and refuses a provider with a `Backend` or a name other than `claude` (T6) |
+| existing `internal/cli/orchestra_readonly_policy.go:11-15,53-88,209-217` | `[NEW]` `readOnlyPolicyOptions.Confined`, which adds `--restricted`, `--verbose`, and `--output-format stream-json` to the claude projection and refuses a provider with a `Backend` or a name other than `claude` (T6) |
 
 ## Related SPECs
 
@@ -459,8 +502,9 @@ or T9; `existing` = older code.
 - SPEC-REVIEWRO-001 (implemented): owns the shared claude projection, which already carries `--permission-mode plan`,
   `--safe-mode`, `--no-session-persistence`, `--disable-slash-commands`, `--strict-mcp-config`, and the last item
   `--tools=Read,Grep,Glob` (`orchestra_readonly_policy.go:209-217`); this SPEC adds only the confined option, which appends
-  `--restricted` and refuses a provider with a `Backend` (the projection passes OMP providers as-is, `:59-63`), and the claude
-  bool-flag list (`:150-153`) needs no change because the projection, not the user's argv, adds it.
+  `--restricted` and `--verbose`, sets `--output-format stream-json`, and refuses a provider with a `Backend` (the projection
+  passes OMP providers as-is, `:59-63`), and the claude bool-flag list (`:150-153`) needs no change because the projection,
+  not the user's argv, adds both flags.
 - SPEC-PANERM-001 (implemented): orchestra has no pane backend and no `OrchestraConfig.SubprocessMode` (no match in `pkg`,
   `internal`, or `cmd`); `orchestra.RunSingleProvider` (`pkg/orchestra/provider_runner_single.go:28`) runs a provider as a
   subprocess of its projected argv or on its routed backend. `--restricted` is a claude argv flag, so only the subprocess
@@ -480,11 +524,11 @@ or T9; `existing` = older code.
 |-------------|-----------|---------------------|--------------------|
 | REQ-01 | T1 | S1, S10 | INV-01 |
 | REQ-02 | T2, T8 | S2, S3 | INV-02 |
-| REQ-03 | T6, T7, T8 | S7, S13 | INV-06 |
+| REQ-03 | T6, T7, T8 | S7, S13, S15 | INV-06, INV-12 |
 | REQ-04 | T7 | S3, S6 | INV-02 |
 | REQ-05 | T4, T7 | S4, S6 | INV-03 |
 | REQ-06 | T7 | S5 | INV-08 |
-| REQ-07 | T5 | S8 | INV-06 |
+| REQ-07 | T5, T7 | S8, S15 | INV-06, INV-12 |
 | REQ-08 | T3 | S5 | INV-05, INV-10 |
 | REQ-09 | T7 | S4 | INV-07 |
 | REQ-10 | T7, T10 | S12 | INV-04 |
@@ -495,6 +539,18 @@ or T9; `existing` = older code.
 | REQ-15 | T6, T7, T8 | S7, S13, S14 | INV-11 |
 
 ## Review Resolution
+
+Rev 8 (2026-10-08) folds in the executed Risk-First probes A1 and A3 (plan.md), which close Completion Debt CD-1 and CD-2:
+
+| Item | Resolution | Where |
+|------|------------|-------|
+| A1 PASS | subscription sign-in without an API key (`apiKeySource` `none`); only `Glob`, `Grep`, `Read`, no MCP; an out-of-worktree `Read` denied by the permission layer; one diff fence | Local Patch Provider Contract item 6, plan.md A1 |
+| A1 new risk: silent model fallback | stream-json with `--verbose`; the `init` model and every `model_refusal_fallback` event parsed; requested and actual model in `models[]` and the BS; `model_substituted` recorded, never a failure; 8 MiB stream bound, 1 MiB on the `result` text | REQ-03, REQ-07, Provider Contract items 3 and 7, Patch Policy item 1, Data Contracts, BS Record, S15 |
+| A1 model rule | an OMP entry's `anthropic/claude-*` selector gives the subprocess `--model` (this repository: `claude-opus-5-5`); otherwise `claude-fable-5-1` | REQ-15, Provider Contract item 2, S13 |
+| A1 run 1 gave no fence | the patch instructions frame the diff as a proposal that band applies outside the session | Patch Prompt Contract, S8 |
+| A3 PASS | 0 markers under the policy vs 15 without it; temp-index tree equals the `apply --index` tree (crlf, ident, lfs, rename, mode); user index, HEAD, and stash unchanged; S6 fixture codes as listed | Git Execution Policy item 3, plan.md A3 |
+| A3 deviations | the `info/attributes` refusal is mandatory; an interrupted add is classified by its `locked` file alone and removed only by a human with `--force --force`; global or system non-LFS filters are refused as an intended fail-closed limitation | Git Execution Policy item 3, Cleanup Rule 3, Recovery State Table, S6, S9 |
+| residual risks | real git-lfs network behavior and a tracked `.lfsconfig`, and `GIT_ATTR_NOSYSTEM` against a real `/etc/gitattributes`, stay unverified; not blockers | research.md Completion Debt (RR-1, RR-2) |
 
 Rev 7 (2026-10-08) applies the operator decision on OQ-1 (the OMP backend cannot be confined, and every orchestra provider of
 this repository is `backend: omp`):

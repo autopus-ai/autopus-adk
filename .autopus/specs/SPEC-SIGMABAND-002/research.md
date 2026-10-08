@@ -7,6 +7,7 @@
 - User decision (2026-10-06, AskUserQuestion): the 3σ cap changed from "draft PR" to "local patch only"; band never pushes, never creates a PR, and never calls a remote write API; the human reviews and pushes manually. D3 now reads "local patch".
 - Operator restatement (2026-10-08, refresh hand-off): 3σ produces a local patch on an isolated worktree only, no push and no PR, behind a flag that defaults to OFF. Rev 6 refreshes the draft against the merged code; no new user decision was taken.
 - Operator decision (2026-10-08, OQ-1, rev 7 hand-off): the OMP backend cannot be confined and every orchestra provider here is `backend: omp`, so band gets a band-only subprocess provider: `health_band.local_patch_provider` (default empty) names a provider that band always runs as a CLI subprocess with the confined projection, whatever `orchestra.providers.<name>.backend` says, while orchestra keeps its backend. Order: the key, then 001's selection only when it resolves to a confinable subprocess provider, otherwise `unavailable(provider_unconfined)`. Expected deployment: the subscription claude CLI, no API key.
+- Operator hand-off (2026-10-08, rev 8): probes A1 and A3 ran (plan.md); the hand-off set the model rule (an OMP entry's `anthropic/claude-*` model, here `claude-opus-5-5`, else `claude-fable-5-1`), stream-json recording of a model substitution that marks `model_substituted` without failing, the proposal framing of the patch prompt, and the three A3 deviations. No new user decision was taken.
 
 ## 기존 코드 분석
 
@@ -19,13 +20,14 @@ SPEC-SIGMABAND-001 is merged (main `1943e596`); rev 6 read its code instead of i
 - BS: `render.go:180,196,208-209` hold diagnosis-only sentences; `validate.go:26-27` checks sections only; prompts use `EvaluationLayer` (`prompt.go:113`) and an unexported `evidenceLayer` with a fixed `untrusted-evidence` fence (`:164`).
 - Cross-SPEC: SPEC-REVIEWRO-001's projection already appends `--strict-mcp-config`, `--safe-mode`, and `--tools=Read,Grep,Glob` (`orchestra_readonly_policy.go:209-217`); SPEC-PANERM-001 left subprocess and OMP backends only (no `SubprocessMode` in `pkg`, `internal`, `cmd`); SPEC-EDITGUARD-001 guards `Edit|Write|MultiEdit` tool calls and documents that a fresh worktree has no manifests (`docs/edit-guard.md:92`).
 - Provider routing (rev 7, same commit): `providerConfigFromEntry` gives an OMP entry the binary `omp`, its model selector, and OMP tools (`orchestra_helpers.go:222`); the shared projection passes an OMP-backed provider through as-is and otherwise requires the binary `claude` (`orchestra_readonly_policy.go:59-63,90-99`); `runConfiguredProvider` runs a provider without `Backend` as a subprocess (`provider_backend_route.go:26-30`); `config.DefaultClaudeProviderEntry()` is the built-in subprocess claude (`claude_provider.go:42-48`, model `claude-fable-5-1`, `quality_tier.go:8`); orchestra commands build their providers in `resolveProviders` (`orchestra_config.go:92`). claude 2.1.289 help: `--bare` reads only `ANTHROPIC_API_KEY` or `apiKeyHelper`, and `--safe-mode` keeps auth working. `claude auth status` on the authoring machine: `loggedIn: true`, `authMethod: claude.ai`, `subscriptionType: max`, no `ANTHROPIC_API_KEY` set (identity fields omitted).
+- Rev 8 (read at `40398043`): `orchestra.SplitModelSelector` splits `provider/model:thinking` (`pkg/orchestra/model_family.go:9-28`); 001's diagnoser bounds the capture through `MaxOutputBytes` (`react_band_diagnose.go:258`), keeps the head with `NewHeadBuffer` (`:268`), and reports `provider_empty_output` (`:39,272`); the claude argv allowlist accepts `--output-format` (`orchestra_readonly_policy.go:170`) but not `--verbose` (`:150-153`).
 
 ## Outcome Lock
 
 - User-visible outcome: with `health_band.allow_local_patch: true`, every SPEC-SIGMABAND-001 episode opened at tier 3 with an ok confined diagnosis gets at most one local patch (exactly one when every guard passes): branch `autopus/band/<key>`, worktree `<lp>/<key>/worktree/`, patch file `<lp>/<key>.patch` with `<lp>` = `<UserCacheDir>/autopus/local-patches/<repo-hash>` outside the repository, a pointer in the 3σ BS, nothing remote, and no repository-selected command run by band. A repository whose orchestra providers are all OMP-backed gets the same with `health_band.local_patch_provider: claude`, while orchestra keeps its backend.
 - Mandatory requirements: REQ-01–REQ-15.
 - Explicit non-goals: push, fetch, PR, remote refs, GitHub write APIs, CI, automatic tests or builds, agent write access, patches for episodes that reached tier 3 after a tier-2 BS, OMP backend confinement, changing an orchestra provider's backend, reviewer-side execution (warned in the BS), anything SPEC-SIGMABAND-001 owns.
-- Completion evidence: S1–S14 pass, Completion Debt CD-1–CD-3 resolved, security-auditor review passed, 0 remote writes in every run, and no file under the repository root outside `.git/` changes except the BS and `.autopus/metrics/` records, with only the REQ-14 changes inside `.git/`.
+- Completion evidence: S1–S15 pass, Completion Debt CD-3 resolved (CD-1 and CD-2 closed by probes A3 and A1, 2026-10-08), security-auditor review passed, 0 remote writes in every run, and no file under the repository root outside `.git/` changes except the BS and `.autopus/metrics/` records, with only the REQ-14 changes inside `.git/`.
 
 ## Visual Planning Brief
 
@@ -42,7 +44,7 @@ flowchart LR
 
 - Rescope (user decision 2026-10-06): removing publication removes the remote trust problems; the remaining boundary is agent-authored code placed in the user's repository.
 - Confinement (F-039, PANERM): only a subprocess claude can be confined (`--restricted` is argv); an OMP-backed provider is reported unconfined instead of silently running unconfined.
-- Band-only subprocess provider (operator decision 2026-10-08, OQ-1): `local_patch_provider` lets an all-OMP repository produce a local patch without touching orchestra. A set key is final, as 001 never tries a second provider; an OMP entry's `binary`, `model`, and `tools` are not reused because they have no subprocess meaning, so a backend-less entry or `DefaultClaudeProviderEntry()` applies; `Confined` refuses a `Backend` because the shared projection passes OMP providers as-is. Rejected: switching `orchestra.providers.claude` to the subprocess backend (changes every orchestra command) and OMP worktree confinement (the operator ruled the OMP backend cannot be confined).
+- Band-only subprocess provider (operator decision 2026-10-08, OQ-1): `local_patch_provider` lets an all-OMP repository produce a local patch without touching orchestra. A set key is final, as 001 never tries a second provider; an OMP entry's `binary` and `tools` are not reused because they have no subprocess meaning, and its `model` only through the rev 8 model rule, so a backend-less entry or `DefaultClaudeProviderEntry()` applies; `Confined` refuses a `Backend` because the shared projection passes OMP providers as-is. Rejected: switching `orchestra.providers.claude` to the subprocess backend (changes every orchestra command) and OMP worktree confinement (the operator ruled the OMP backend cannot be confined).
 - No repository-selected command (F-043, F-071, F-075): attribute sources off or empty, drivers refused outside the git-lfs token rule, LFS downloads and extensions off, no network command, and an own git allowlist so 001's mutation-free `checkBandCommand` stays as it is.
 - Location (F-070): worktree and patch file live in the user cache directory; the BS keeps only a pointer.
 - Binding (F-049, F-050, F-067, F-073, F-074): the claim depends on the diagnose claim; preparation codes come first; first-match decision order with a default row; the Opening tier rule replaces an opening tier 001 does not store.
@@ -50,17 +52,19 @@ flowchart LR
 - Ownership (F-072): plan task T8 owns the edits in 001's files; 001's `Plan` needs a hook, because registering a budget alone does not chain it.
 - Edit guard (EDITGUARD): band's writes bypass the pre-tool hook by construction, so the Patch Policy asks the guard's own decision function against the user's checkout instead of assuming the guard applies.
 - Budgets (F-032, F-072): diagnose 990 s (930 + 30 setup + 30 diagnosis-only cleanup), local_patch 810 s; appends wait at most 5 s inside group deadlines; a claim stops before a group its lease cannot cover.
+- Model record and model rule (probe A1): claude can switch models after a safeguard refusal with no trace in text output, so band reads stream-json events and records requested and actual models; a substitution is recorded, not failed, because the Patch Policy, not the model's identity, decides what is applied. The operator's configured `anthropic/claude-*` model (here `claude-opus-5-5`, which answered run 3 without a fallback) wins over the built-in `claude-fable-5-1`, whose safeguards refused the run-2 prompt (category `cyber`). The 1 MiB bound moves to the `result` text, because tool events inflate the stream.
+- Git deviations (probe A3): `info/attributes` selects filters in a linked worktree under every flag, so its refusal is mandatory; a killed add leaves HEAD at the base, so only the `locked` file classifies it, and a human removes it with `--force --force`; refusing global or system non-LFS filters over-refuses on purpose (fail-closed), because a tracked `.gitattributes` can select any configured driver by name.
 
 ## Minimality Decision Matrix
 
 | Ladder step | Evidence | Decision | Receipt item |
 |-------------|----------|----------|--------------|
 | actual need | D3 as a local patch (Decision Record); 001 stops at diagnosis (`render.go:180`) | proceed | one local patch per tier-3 opening |
-| existing code/helper/pattern | 001 store helpers, `Plan`, `ExecuteClaims`, `bandProviderUnsetEnv`, `Sanitize`, `EvaluationLayer`, `Fence`, `H8`, `applyReadOnlyProviderPolicy`, `selectBandProvider`, `providerConfigFromEntry`, `config.DefaultClaudeProviderEntry`, `editguard.Decide`, `lore.BuildCommit`/`Validate`, `orchestra.EnvironWithout`, `filelock.Acquire` | reuse | no second store, sanitizer, projection, provider schema, or guard |
+| existing code/helper/pattern | 001 store helpers, `Plan`, `ExecuteClaims`, `bandProviderUnsetEnv`, `Sanitize`, `EvaluationLayer`, `Fence`, `H8`, `applyReadOnlyProviderPolicy`, `selectBandProvider`, `providerConfigFromEntry`, `config.DefaultClaudeProviderEntry`, `editguard.Decide`, `lore.BuildCommit`/`Validate`, `orchestra.EnvironWithout`, `orchestra.SplitModelSelector`, `filelock.Acquire` | reuse | no second store, sanitizer, projection, provider schema, or guard |
 | stdlib/native | `os.UserCacheDir`, `crypto/sha256`, `crypto/rand`, git worktree, apply, update-ref, format-patch | use | artifacts, hashes, nonce, isolation |
 | existing dependency | no new module; git and claude CLIs already required | reuse | none added |
-| new dependency or abstraction / new dependency or new abstraction | two hooks in 001 (`PlanOptions.LocalPatch`, `ExecuteOptions.AfterRecord`), one projection option (`Confined`), one config key (`local_patch_provider`), nine `[NEW]` source files and one integration test | accepted | hooks keep 001 free of local-patch logic; the key leaves orchestra unchanged |
-| minimum sufficient verification | S1–S14 with real git in temp repos, probes A1 and A3, security-auditor review, strict validate | required checks | `plan.md` Verification |
+| new dependency or abstraction / new dependency or new abstraction | two hooks in 001 (`PlanOptions.LocalPatch`, `ExecuteOptions.AfterRecord`), one projection option (`Confined`), one stream-json parser, one config key (`local_patch_provider`), nine `[NEW]` source files and one integration test | accepted | hooks keep 001 free of local-patch logic; the key leaves orchestra unchanged |
+| minimum sufficient verification | S1–S15 with real git in temp repos, probes A1 and A3 (PASS 2026-10-08), security-auditor review, strict validate | required checks | `plan.md` Verification |
 
 ## Semantic Invariant Inventory
 
@@ -77,6 +81,7 @@ flowchart LR
 | INV-09 | a failure removes what the claim created unless a Cleanup Rule keeps it; recovery uses only durable records | cleanup / recovery | worktree, branch, patch file, result records, `kept[]` | S5, S9 |
 | INV-10 | a path the edit guard denies in the user's checkout is denied in a patch | guard / parity | `path_denied:<class>` codes | S5 |
 | INV-11 | operator decision 2026-10-08: the key's claude always runs as a band-only CLI subprocess; orchestra keeps its configured backend | ordering / selection | provider argv, cwd, diagnosis status, OMP backend request count, orchestra provider config | S7, S13, S14 |
+| INV-12 | operator hand-off rev 8: record requested vs actual model, keep the patch, mark `model_substituted` | parser / record | stream-json events, `result` `models[]`, `model_substituted`, BS model line, stream and text bounds | S15 |
 
 ## Feature Coverage Map
 
@@ -86,8 +91,8 @@ flowchart LR
 | Decisions, own WAL, BS binding, leases, recovery | REQ-02, REQ-04, REQ-11, REQ-12 / T2, T8 / S2, S3, S9 | covered |
 | Happy path local patch outside the repository | REQ-05, REQ-06, REQ-09, REQ-14 / T7 / S4 | covered |
 | Patch Policy, edit guard parity, failure cleanup | REQ-08, REQ-11 / T3, T7 / S5 | covered |
-| Git Execution Policy | REQ-05 / T4 / S6 | completion-debt (CD-1) |
-| Provider confinement and prompt | REQ-03, REQ-07 / T5, T6 / S7, S8 | completion-debt (CD-2) |
+| Git Execution Policy | REQ-05 / T4 / S6 | covered (probe A3 PASS; RR-1 and RR-2 residual) |
+| Provider confinement, prompt, stream, and model record | REQ-03, REQ-07 / T5, T6, T7 / S7, S8, S15 | covered (probe A1 PASS) |
 | Band-only subprocess provider (`local_patch_provider`) | REQ-01, REQ-15 / T1, T6, T7, T8 / S1, S10, S13, S14 | covered |
 | Never publish | REQ-10 / T7, T10 / S12 | covered |
 | Docs, BS warning | REQ-13 / T9 / S11 | covered |
@@ -96,9 +101,11 @@ flowchart LR
 
 | Item | Blocks | Required resolution |
 |------|--------|---------------------|
-| CD-1 | INV-03, S6, approval | run probe A3 against the Git Execution Policy and the Local Patch Flow git mechanics (attribute sources, filter, diff, merge, and LFS settings with a real git-lfs, inherited `GIT_*` variables, the temp-index expected tree, an interrupted worktree add) and fix every gap it shows |
-| CD-2 | INV-06, S7, S13, approval | run probe A1: the subscription-authenticated claude CLI (no API key) in the band-only subprocess form with the shared projection plus `--restricted` signs in, reads nothing outside the worktree, runs no command or network tool, and answers with one diff fence |
+| CD-1 | INV-03, S6, approval | closed 2026-10-08: probe A3 PASS (plan.md); its three deviations are encoded in Git Execution Policy item 3, Cleanup Rule 3, and the Recovery State Table |
+| CD-2 | INV-06, S7, S13, approval | closed 2026-10-08: probe A1 PASS (plan.md); the silent model fallback it found is recorded by Local Patch Provider Contract items 2 and 7 and S15, and the patch prompt frames a proposal |
 | CD-3 | approval and sync | security-auditor review of the local boundary |
+
+Residual risks, not blockers (probe A3 could not exercise them; the CD-3 review may promote either): RR-1, real git-lfs network behavior and a tracked `.lfsconfig` (git-lfs is not installed, so a fake ran, always with `GIT_LFS_SKIP_SMUDGE=1`); RR-2, `GIT_ATTR_NOSYSTEM=1` against a real `/etc/gitattributes` (writing it needs root).
 
 The earlier CI-scan, pagination, and ruleset items were only about remote publication and were dropped with the rescope.
 
@@ -141,40 +148,42 @@ No further sibling; no recursive sibling.
 | claude 2.1.289 `--restricted` (removes code-running tools and WebFetch, ignores user, project, and local settings, confines file tools to working directories), `--safe-mode`, `--strict-mcp-config`, `--tools`; git 2.50.1 `commit --cleanup` | external CLI | help output 2026-10-08, `probe-a8-evidence.txt` |
 | Probe values: `probe-a3-evidence.txt` (`user_status_unchanged=yes head_unchanged=yes stash_after=0`), `probe-a6-evidence.txt` (`default_commit hook_child_events=2 markers=2`, `guarded_commit hook_child_events=0 markers=0`) | executed evidence in `/private/tmp/claude-502/-Users-bitgapnam-Documents-github-autopus-workspace-autopus-adk/0646ea10-1fbb-4a7d-8ece-c1136d78ddce/scratchpad/` | file names are SPEC-SIGMABAND-001 rev 2 probe IDs, not 001's current plan rows |
 | claude 2.1.289 `--bare` (auth reads only `ANTHROPIC_API_KEY` or `apiKeyHelper`), `--safe-mode` (auth works normally); `claude auth status` (`authMethod: claude.ai`, `subscriptionType: max`) | external CLI, executed | `sigmaband002-rev7-claude-help.txt` and `sigmaband002-rev7-auth-status.json` in the same scratchpad directory, 2026-10-08; identity fields omitted |
+| claude 2.1.289 stream-json events: `system` `init` (`model`, `tools`, `apiKeySource`, `mcp_servers`), `system` `model_refusal_fallback` (`original_model`, `fallback_model`, `api_refusal_category`), `result` (`subtype`, `is_error`, `result`, `permission_denials`) | external CLI, executed | probe A1 runs 2 and 3, `a1-evidence.txt` and `a1b-evidence.txt` in `/private/tmp/claude-502/-Users-bitgapnam-Documents-github-autopus-workspace-autopus-adk/0646ea10-1fbb-4a7d-8ece-c1136d78ddce/scratchpad/sigmaband002-a1a3-probe-20261008171829/`, 2026-10-08 |
+| `pkg/orchestra/model_family.go:9-28`; `internal/cli/react_band_diagnose.go:39,258,268,272`; `orchestra_readonly_policy.go:150-153,170` | existing (rev 8) | Read 2026-10-08 at `40398043` |
 | Worktree-safety rule (no automatic gc and no prune while worktrees run) | existing harness rule | hook context 2026-10-06 |
-| gitattributes(5), git-lfs-config(5), the `locked` file that a running worktree add holds, Go `os.UserCacheDir` | external docs | to be verified by probe A3, which is not-run (CD-1) |
-| `PlanOptions.LocalPatch`, `Plan.LocalPatch`, `ExecuteOptions.AfterRecord`, `bandCIFetch.DefaultBranch`, `Request.LocalPatch`, `readOnlyPolicyOptions.Confined`, `HealthBandConf.LocalPatchProvider`, `pkg/healthband/localpatch_decision.go`, `localpatch_wal.go`, `localpatch_recovery.go`, `patchpolicy.go`, `patchprompt.go`, `commitmsg.go`, `gitpolicy.go`, `internal/cli/react_band_localpatch.go`, `react_band_localpatch_provider.go`, integration test | [NEW] planned addition | n/a |
+| gitattributes(5), git-lfs-config(5), the `locked` file that a running worktree add holds, Go `os.UserCacheDir` | external docs, executed | probe A3 2026-10-08 (git 2.50.1, `a3-evidence.txt`): attribute sources, filters, temp index, and the `locked` file behave as stated; real git-lfs and `/etc/gitattributes` not exercised (RR-1, RR-2) |
+| `PlanOptions.LocalPatch`, `Plan.LocalPatch`, `ExecuteOptions.AfterRecord`, `bandCIFetch.DefaultBranch`, `Request.LocalPatch`, `Request.DiagnosisModel`, `bandProviderStreamBytes`, `readOnlyPolicyOptions.Confined`, `HealthBandConf.LocalPatchProvider`, `pkg/healthband/localpatch_decision.go`, `localpatch_wal.go`, `localpatch_recovery.go`, `patchpolicy.go`, `patchprompt.go`, `commitmsg.go`, `gitpolicy.go`, `internal/cli/react_band_localpatch.go`, `react_band_localpatch_provider.go`, integration test | [NEW] planned addition | n/a |
 
 ## Reviewer Brief
 
-- Intended scope: D3 as a local patch for SPEC-SIGMABAND-001's tier-3 openings via REQ-01–REQ-15; draft status; Completion Debt CD-1–CD-3 blocks sync; rev 7 adds the band-only subprocess provider `health_band.local_patch_provider` (operator decision on OQ-1) to the rev 6 refresh against merged code.
+- Intended scope: D3 as a local patch for SPEC-SIGMABAND-001's tier-3 openings via REQ-01–REQ-15; draft status; Completion Debt CD-3 blocks sync; rev 8 folds in probes A1 and A3 (CD-1 and CD-2 closed: stream-json model record, the model rule, the proposal-framed patch prompt, the A3 deviations); rev 7 added the band-only subprocess provider `health_band.local_patch_provider` (operator decision on OQ-1) to the rev 6 refresh against merged code.
 - Explicit non-goals: any remote write, automatic tests, agent write access, escalated episodes, OMP confinement, changing an orchestra provider's backend, reviewer-side execution, anything 001 owns.
-- Self-verified: every 001, REVIEWRO, PANERM, and EDITGUARD reference and the rev 7 provider-routing code re-read at main `1943e596`; Traceability Matrix; Semantic Invariant Inventory; strict validate.
-- Reviewer should focus on: the two 001 hooks and the lease chain, the Opening tier rule, the claim-commit and expected-tree rules, Cleanup Rule order and `worktree_incomplete`, recovery under `--dry-run` and flag-off runs, edit guard parity, the Local Patch Provider Contract (selection order, band-only subprocess form, `Confined` refusing a `Backend`), and Completion Debt only.
+- Self-verified: every 001, REVIEWRO, PANERM, and EDITGUARD reference and the rev 7 provider-routing code re-read at main `1943e596`; the rev 8 references read at `40398043`; probe evidence A1 and A3; Traceability Matrix; Semantic Invariant Inventory; strict validate.
+- Reviewer should focus on: the two 001 hooks and the lease chain, the Opening tier rule, the claim-commit and expected-tree rules, Cleanup Rule order and `worktree_incomplete`, recovery under `--dry-run` and flag-off runs, edit guard parity, the Local Patch Provider Contract (selection order, band-only subprocess form and model rule, `Confined` refusing a `Backend`, the stream parse and model record), Cleanup Rule 3's `locked` check, and Completion Debt only.
 
 ## Self-Verify Summary
 
 - Q-CORR-01 | status: PASS | attempt: 6 | files: spec.md, research.md, plan.md | reason: every existing path, symbol, and line re-read at main `1943e596`, the rev 7 provider-routing references included; no reference rests on 001's plan
 - Q-CORR-02 | status: PASS | attempt: 5 | files: spec.md, research.md, plan.md | reason: references carry existing (001), existing, or [NEW] labels; no planned-by-001 label remains (F-061)
 - Q-CORR-03 | status: PASS | attempt: 6 | files: spec.md | reason: strict validate parses all 15 requirements; trailer support matches `hasField`
-- Q-CORR-04 | status: PASS | attempt: 7 | files: research.md | reason: references classified; claude help and auth status saved as evidence; `LocalPatchProvider` and the provider resolver are [NEW]; external docs and the `locked` file behavior await probe A3
+- Q-CORR-04 | status: PASS | attempt: 8 | files: research.md | reason: references classified; claude help, auth status, and probe A1 and A3 evidence saved; `LocalPatchProvider`, the provider resolver, `bandProviderStreamBytes`, and `Request.DiagnosisModel` are [NEW]; real git-lfs and `/etc/gitattributes` stay residual risks RR-1 and RR-2
 - Q-COMP-01 | status: PASS | attempt: 1 | files: all | reason: each document keeps its role
-- Q-COMP-02 | status: PASS | attempt: 8 | files: spec.md, plan.md, acceptance.md | reason: every REQ maps to an owning task and a scenario; REQ-15 maps to T6, T7, T8 and S7, S13, S14; T8 lists every 001 edit with lines
+- Q-COMP-02 | status: PASS | attempt: 9 | files: spec.md, plan.md, acceptance.md | reason: every REQ maps to an owning task and a scenario; REQ-15 maps to T6, T7, T8 and S7, S13, S14; S15 covers the REQ-03 model record and the REQ-07 stream bounds; T8 lists every 001 edit with lines
 - Q-COMP-03 | status: PASS | attempt: 7 | files: spec.md | reason: the Recovery State Table has rows for `worktree_failed`, an interrupted add, and `patch_done` (F-083); live failures keep step codes
-- Q-COMP-04 | status: PASS | attempt: 7 | files: spec.md, research.md | reason: remaining work is blocking Completion Debt CD-1–CD-3; OQ-1 is closed by the operator decision of 2026-10-08 (REQ-15)
-- Q-COMP-05 | status: PASS | attempt: 8 | files: research.md, acceptance.md | reason: INV-01–INV-11 map to Must oracles; S9 follows the Recovery State Table row by row; S13 and S14 fix the provider selection with exact argv, statuses, and OMP request counts
+- Q-COMP-04 | status: PASS | attempt: 8 | files: spec.md, research.md | reason: remaining work is blocking Completion Debt CD-3; probes A3 and A1 closed CD-1 and CD-2 on 2026-10-08; OQ-1 is closed by the operator decision of 2026-10-08 (REQ-15)
+- Q-COMP-05 | status: PASS | attempt: 9 | files: research.md, acceptance.md | reason: INV-01–INV-12 map to Must oracles; S9 follows the Recovery State Table row by row; S13 and S14 fix the provider selection with exact argv, statuses, and OMP request counts; S15 fixes `models[]` values and byte bounds
 - Q-COMP-06 | status: PASS | attempt: 4 | files: spec.md, research.md | reason: Traceability Matrix and Reviewer Brief bound the scope, including the rev 7 provider key
-- Q-COMP-07 | status: PASS | attempt: 6 | files: research.md | reason: CD-1–CD-3 block sync; OQ-1 is closed; Evolution Ideas carry no IDs
-- Q-COMP-08 | status: PASS | attempt: 7 | files: plan.md, research.md | reason: A2 PASS cites existing evidence; A1 names the subscription claude CLI and stays not-run with its reason; A3 not-run
+- Q-COMP-07 | status: PASS | attempt: 7 | files: research.md | reason: CD-3 blocks sync; CD-1 and CD-2 are closed with evidence; RR-1 and RR-2 are named non-blocking residual risks; OQ-1 is closed; Evolution Ideas carry no IDs
+- Q-COMP-08 | status: PASS | attempt: 8 | files: plan.md, research.md | reason: A1, A2, and A3 are PASS verified_fact rows with evidence paths; the A1 and A3 deviations are encoded in spec.md, not left in the probe table
 - Q-FEAS-01 | status: PASS | attempt: 3 | files: plan.md | reason: the 001 hooks are small and owned by T8; files near the 300-line ceiling may split along their seams
 - Q-FEAS-02 | status: PASS | attempt: 5 | files: plan.md, spec.md | reason: recovery has its own step, lock, and timeouts; appends wait 5 s inside group deadlines (F-068 b')
 - Q-FEAS-03 | status: PASS | attempt: 7 | files: acceptance.md | reason: each S9 expectation matches one row of the Recovery State Table; the recorded expected tree replaces a recovery-time recomputation (F-080)
 - Q-STYLE-01 | status: PASS | attempt: 1 | files: spec.md | reason: no ambiguous words in requirements
 - Q-STYLE-02 | status: PASS | attempt: 1 | files: spec.md, acceptance.md | reason: Priority uses Must only
 - Q-STYLE-03 | status: PASS | attempt: 1 | files: acceptance.md | reason: bare Given/When/Then/And steps
-- Q-SEC-01 | status: PASS | attempt: 7 | files: spec.md, acceptance.md | reason: subprocess claude confined; an OMP selection is unconfined unless the key runs claude as a subprocess; `Confined` refuses a `Backend`; a set key is final; confinement proof pending as CD-2
+- Q-SEC-01 | status: PASS | attempt: 8 | files: spec.md, acceptance.md | reason: subprocess claude confined; probe A1 showed the permission layer denying an outside Read; an OMP selection is unconfined unless the key runs claude as a subprocess; `Confined` refuses a `Backend`; a set key is final; a model substitution is recorded, never hidden
 - Q-SEC-02 | status: PASS | attempt: 5 | files: spec.md | reason: untracked secrets are outside the worktree; provider env drops 001's credential list and `GIT_*`; added lines use 001's band secret forms
-- Q-SEC-03 | status: PASS | attempt: 7 | files: spec.md | reason: intent records, the recorded claim commit and expected tree, and keep-on-doubt cleanup protect user data in the live run and in recovery (F-068, F-080, F-082)
+- Q-SEC-03 | status: PASS | attempt: 8 | files: spec.md | reason: intent records, the recorded claim commit and expected tree, and keep-on-doubt cleanup protect user data in the live run and in recovery (F-068, F-080, F-082); an interrupted add is classified by its `locked` file alone (probe A3)
 - Q-COH-01 | status: PASS | attempt: 1 | files: spec.md | reason: one story: the 3σ local patch
 - Q-COH-02 | status: PASS | attempt: 4 | files: research.md | reason: the boundary work sits in requirements or blocking Completion Debt; OQ-1 is closed by REQ-15
 - Q-COH-03 | status: PASS | attempt: 1 | files: research.md | reason: one approved sibling, no recursion
