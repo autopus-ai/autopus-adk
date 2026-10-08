@@ -1,7 +1,7 @@
 {
   "schema_version": "harness_eval_baseline.v1",
   "set_version": "1",
-  "set_digest": "a5e36f9aeca58f4670e2be8ff1a7af779655a93f98d00ddd4721040821b2a0c5",
+  "set_digest": "70a03ecde6ec225808071d836b1100f8c4098ec19c1113caa32e133152603461",
   "rows": [
     {
       "id": "GT-AGENT-A01",
@@ -36,7 +36,7 @@
       "kind": "agent",
       "state": "active",
       "result": "not_run",
-      "expectation_digest": "086437f536a9bd0012d4c2756b7c825d285ef72c00697e458de4b64bb4163f3c"
+      "expectation_digest": "0dfa93a598735e537a9baeb8980f67cf98601151ffeec8d5a69349258a7f49c3"
     },
     {
       "id": "GT-AGENT-A06",

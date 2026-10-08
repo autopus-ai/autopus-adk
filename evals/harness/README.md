@@ -168,7 +168,7 @@ is 5: a signed session with fewer black-box tasks is `vacuous`.
 |------|----------------------------|----------|
 | GT-AGENT-A01 | `skill select --policy-json {input}/policy.json --task-json {input}/task.json --dir {input}` | exit 0; `version-mismatch` stays `excluded` (mutation: `unknown`) |
 | GT-AGENT-A02 | `telemetry team --evidence-json {input}/team.json --format json` | exit 0; a call and its retry in one run count twice (mutation: once) |
-| GT-AGENT-A05 | `skill select --policy-json {input}/policy.json --task-json {input}/task.json --dir {input}` | exit 1, empty stdout: a nested duplicate key is refused (mutation: accepted) |
+| GT-AGENT-A05 | `skill select --policy-json {input}/policy.json --task-json {input}/task.json --dir {input}` | exit 1, empty stdout: a nested duplicate key is refused (mutation: accepted); positive control: the same document without the repeat is selected |
 | GT-AGENT-A06 | `telemetry harness --evidence-json {input}/evidence.json --format json` | exit 0; the incompatible-identity task leaves the two pairs it would join (mutation: paired) |
 | GT-AGENT-B04 | `spec gates {input} --changed pkg/a/x.go,pkg/b/schema.go --read-only` | exit 0; one schema path across two modules is `security_or_data` (mutation: `multi_domain`) |
 
@@ -177,9 +177,11 @@ revision prints. Calibration on 2026-10-09 (macOS 26.5.2, go1.27.0, no agent
 and no model, `golden_blackbox_trial.calibrate` under both profiles): 5/5
 clean artifacts `accepted`, 5/5 mutated ones `expectation_mismatch`
 (`.autopus/specs/SPEC-HARNEVAL-003/evidence/t15-calibration.txt`). GT-AGENT-A05
-only proves the refusal: any `auto` that fails this command without stdout
-passes it, so an over-strict decoder is not caught here (the advisory lane's
-white-box tests still are).
+also pins a positive control (`control/task.json` without the duplicate key,
+with the same `policy.json`, must exit 0 and print `control/stdout.json`), so
+an `auto` that refuses every document fails it: recalibrated the same day,
+clean `accepted`, mutated and a refuse-everything decoder both
+`expectation_mismatch`.
 
 The SPEC's first five (a06, b03, b04, b05, b06) were not all observable with
 this format. b03 needs prior gate evidence at `{SPEC_DIR}/gates/` while inputs

@@ -287,6 +287,27 @@ file name, read-only), `{output}` the output root, which is also the working
 directory; `stdin` optionally names an input fed on stdin. A `file` assertion
 names a fixed clean relative path below the output root.
 
+A task whose own assertions expect a refusal also pins a `positive_control`
+(GT-AGENT-A05): the same artifact runs the same command a second time over
+its own inputs (`{input}` is then a second read-only directory, `{output}` a
+fresh root the oracle never reads) and must exit 0 and print exactly the
+pinned stdout, so a fix that refuses every input fails the task:
+
+```json
+"positive_control": {
+  "inputs": [{"path": "evals/harness/oracles/GT-AGENT-A05/policy.json", "sha256": "<64-hex>"},
+             {"path": "evals/harness/oracles/GT-AGENT-A05/control/task.json", "sha256": "<64-hex>"}],
+  "stdout": {"path": "evals/harness/oracles/GT-AGENT-A05/control/stdout.json", "sha256": "<64-hex>"}
+}
+```
+
+The bundle then carries `positive_control{artifact_exit, timed_out, stdout,
+stdout_overflow, expected_stdout}`, and the harness reports the control as
+the assertions `positive_control.exit` and `positive_control.stdout` after
+the task's own (the prefix `positive_control.` is reserved). Its timeout or
+stdout overflow is the run's: `not_checked` with `timed_out` true, or
+`too_large`; `artifact_exit` stays the task invocation's.
+
 A trial runs these stages, each a sibling process the runner starts itself;
 no profile is nested (`sandbox_apply` is refused inside a restricted profile):
 
@@ -302,10 +323,18 @@ no profile is nested (`sandbox_apply` is refused inside a restricted profile):
    offline, no cgo, the read-only session module cache, a trial build cache
    warmed once by a trusted build of each black-box package).
 4. run: the artifact under `artifact.sb` run mode with `PATH`, `HOME`,
-   `TMPDIR`, `TZ=UTC` and `PWD` only. The runner keeps stdout to 1 MiB (more
-   ends the run), the exit status and the timeout, then kills whatever is left
-   in the run's session; a process it cannot account for (one that survives,
-   or holds an output pipe) is `observation_failed` and no oracle starts.
+   `TMPDIR`, `TZ=UTC` and `PWD` only (a positive control runs next, the same
+   way). The runner keeps stdout to 1 MiB (more ends the run), the exit status
+   and the timeout, then kills whatever the run left: `process_tree` walks
+   the whole process table while the stage runs and reaches every child,
+   group member and session member of a reached process, keeps a reached
+   process by pid after a setsid or reparenting, and also counts every live
+   process the stage's own profile instance confines (`sandbox_check`:
+   sandboxed, allowed to write the stage's scratch root, denied its parent),
+   so a double-forked daemon is found too. A process it cannot account for
+   (one that survives every kill, or holds an output pipe) is
+   `observation_failed` and no oracle starts. The agent step and the build
+   and oracle stages are swept the same way.
 5. oracle: `cmd/harneval-oracle`, built from this checkout, under
    `oracle.sb`, with the `harness_oracle_input.v1` bundle on stdin (the
    assertions and fixed paths from the main task definition, the checked

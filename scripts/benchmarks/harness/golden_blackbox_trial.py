@@ -42,36 +42,52 @@ def _stats(run: dict) -> dict:
     return {key: run.get(key) for key in STATS}
 
 
+def _run_artifact(ctx, oracle: dict, artifact: Path, input_dir: Path, run_root: Path, stdin_name: str | None,
+                  logs: Path, name: str) -> tuple:
+    """One run of the artifact under artifact.sb run mode in a fresh <run_root>: (run, captured stdout)."""
+    for sub in ('out', 'home', 'tmp'):
+        (Path(run_root) / sub).mkdir(parents=True)
+    run_root, input_dir = Path(run_root).resolve(), Path(input_dir).resolve()
+    args = gb.artifact_args(oracle, artifact, input_dir, run_root / 'out')
+    ran = gs.run_stage(gs.run_argv(artifact, input_dir, run_root, args, ctx.params, (ctx.out,)), run_root / 'out',
+                       logs / (name + '.stdout'), logs / (name + '.stderr'), gs.ARTIFACT_TIMEOUT,
+                       input_dir / stdin_name if stdin_name else None, confined=run_root)
+    return ran, (logs / (name + '.stdout')).read_bytes() if ran['launched'] else b''
+
+
 def artifact_stages(ctx, task: dict, prepared: dict, build_root: Path, input_dir: Path, expected: dict, work: Path,
                     logs: Path, diagnostics: dict) -> tuple:
-    """Build, run and judge one artifact as sibling processes: (stage_reached, stage signal, oracle bytes)."""
-    oracle = task['black_box']
+    """Build, run and judge one artifact as sibling processes: (stage_reached, stage signal, oracle bytes).
+    A task with a positive control runs the same artifact a second time over the control's inputs."""
+    oracle, control = task['black_box'], task['black_box'].get('positive_control')
     built = gs.run_stage(gs.build_argv(prepared, build_root, oracle['build'], ctx.params, (ctx.out,)),
-                         build_root / 'ws', logs / 'build.stdout', logs / 'build.stderr', gs.BUILD_TIMEOUT)
+                         build_root / 'ws', logs / 'build.stdout', logs / 'build.stderr', gs.BUILD_TIMEOUT,
+                         confined=build_root / 'scratch')
     diagnostics['build'] = _stats(built)
     artifact = build_root / 'bin' / 'artifact'
     if built['leftover']:
         return 'build', 'observation_failed', None
     if built['exit_code'] != 0 or built['timed_out'] or built['overflow'] or not artifact.is_file():
         return 'build', None, None
-    run_root = Path(work) / 'run'
-    for name in ('out', 'home', 'tmp'):
-        (run_root / name).mkdir(parents=True)
-    run_root, input_dir = run_root.resolve(), Path(input_dir).resolve()
-    args = gb.artifact_args(oracle, artifact, input_dir, run_root / 'out')
-    stdin = input_dir / oracle['stdin'] if oracle['stdin'] else None
-    ran = gs.run_stage(gs.run_argv(artifact, input_dir, run_root, args, ctx.params, (ctx.out,)), run_root / 'out',
-                       logs / 'artifact.stdout', logs / 'artifact.stderr', gs.ARTIFACT_TIMEOUT, stdin)
+    ran, stdout = _run_artifact(ctx, oracle, artifact, input_dir, Path(work) / 'run', oracle['stdin'], logs,
+                                'artifact')
     diagnostics['artifact'] = _stats(ran)
     if ran['leftover']:
         return 'run', 'observation_failed', None
+    observed = None
+    if control:
+        observed = _run_artifact(ctx, oracle, artifact, gb.control_input(input_dir), Path(work) / 'control',
+                                 control['stdin'], logs, 'control')
+        diagnostics['control'] = _stats(observed[0])
+        if observed[0]['leftover']:
+            return 'run', 'observation_failed', None
     result_dir = Path(work) / 'oracle'
     result_dir.mkdir()
     result_dir = result_dir.resolve()
-    stdout = (logs / 'artifact.stdout').read_bytes() if ran['launched'] else b''
-    judged = gs.run_stage(gs.oracle_argv(ctx.oracle, run_root / 'out', result_dir, task['id'], ctx.params),
+    judged = gs.run_stage(gs.oracle_argv(ctx.oracle, Path(work).resolve() / 'run' / 'out', result_dir, task['id'],
+                                         ctx.params),
                           result_dir, logs / 'oracle.stdout', logs / 'oracle.stderr', gs.ORACLE_TIMEOUT,
-                          gb.bundle(task['id'], oracle, expected, ran, stdout))
+                          gb.bundle(task['id'], oracle, expected, ran, stdout, observed), confined=result_dir)
     diagnostics['oracle'] = _stats(judged)
     path = result_dir / gb.RESULT_FILE
     if judged['exit_code'] != 0 or judged['timed_out'] or path.is_symlink() or not path.is_file():
@@ -95,7 +111,7 @@ def run_trial(ctx, session, index: int, attempt: dict) -> dict:
         if not session.keep_scratch:
             remove_tree(roots)
     digest = gb.store_result(session.out, data) if data is not None else None
-    ids = [item['id'] for item in task['black_box']['assertions']]
+    ids = gb.assertion_ids(task['black_box'])
     derived = gb.derive(stage, signal, ended, data, task['id'], ids)
     diagnostics.update(stage_reached=stage, signal=derived[1], oracle_result_sha256=digest)
     (logs / 'trial.json').write_text(json.dumps(diagnostics, indent=2, sort_keys=True) + '\n')
@@ -180,7 +196,7 @@ def calibrate(ctx, tasks: list, source: Path, prepared: dict, scratch: Path, log
         rows = [{'task_id': task['id'], 'clean_accepted': False, 'mutated_accepted': False} for task in tasks]
         return {'status': 'failed', 'tasks': sorted(rows, key=lambda row: row['task_id']), 'runs': []}
     for task in sorted(tasks, key=lambda item: item['id']):
-        row, ids = {'task_id': task['id']}, [item['id'] for item in task['black_box']['assertions']]
+        row, ids = {'task_id': task['id']}, gb.assertion_ids(task['black_box'])
         for direction in ('clean', 'mutated'):
             base, log, diagnostics = Path(scratch) / (task['id'] + '-' + direction), Path(logs) / (task['id'] + '-'
                                                                                                     + direction), {}

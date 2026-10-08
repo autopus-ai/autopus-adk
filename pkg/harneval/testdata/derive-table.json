@@ -40,6 +40,8 @@
   },
   "results": {
     "all_pass": "{\"schema_version\":\"harness_oracle_result.v1\",\"task_id\":\"GT-AGENT-X01\",\"output_check\":\"ok\",\"assertions\":[{\"id\":\"exit\",\"passed\":true},{\"id\":\"stdout\",\"passed\":true},{\"id\":\"result\",\"passed\":true}],\"artifact_exit\":0,\"timed_out\":false}",
+    "control_passed": "{\"schema_version\":\"harness_oracle_result.v1\",\"task_id\":\"GT-AGENT-X01\",\"output_check\":\"ok\",\"assertions\":[{\"id\":\"exit\",\"passed\":true},{\"id\":\"stdout\",\"passed\":true},{\"id\":\"result\",\"passed\":true},{\"id\":\"positive_control.exit\",\"passed\":true},{\"id\":\"positive_control.stdout\",\"passed\":true}],\"artifact_exit\":1,\"timed_out\":false}",
+    "control_refused": "{\"schema_version\":\"harness_oracle_result.v1\",\"task_id\":\"GT-AGENT-X01\",\"output_check\":\"ok\",\"assertions\":[{\"id\":\"exit\",\"passed\":true},{\"id\":\"stdout\",\"passed\":true},{\"id\":\"result\",\"passed\":true},{\"id\":\"positive_control.exit\",\"passed\":false},{\"id\":\"positive_control.stdout\",\"passed\":false}],\"artifact_exit\":1,\"timed_out\":false}",
     "mismatch": "{\"schema_version\":\"harness_oracle_result.v1\",\"task_id\":\"GT-AGENT-X01\",\"output_check\":\"ok\",\"assertions\":[{\"id\":\"exit\",\"passed\":true},{\"id\":\"stdout\",\"passed\":true},{\"id\":\"result\",\"passed\":false}],\"artifact_exit\":0,\"timed_out\":false}",
     "timed_out": "{\"schema_version\":\"harness_oracle_result.v1\",\"task_id\":\"GT-AGENT-X01\",\"output_check\":\"not_checked\",\"assertions\":[],\"artifact_exit\":null,\"timed_out\":true}",
     "link_rejected": "{\"schema_version\":\"harness_oracle_result.v1\",\"task_id\":\"GT-AGENT-X01\",\"output_check\":\"link_rejected\",\"assertions\":[],\"artifact_exit\":0,\"timed_out\":false}",
@@ -696,6 +698,33 @@
         3,
         0
       ]
+    },
+    {
+      "name": "row 10 the task and its positive control passed",
+      "stage_reached": "oracle",
+      "signal": null,
+      "agent_termination": "clean",
+      "oracle_result": "control_passed",
+      "assertion_ids": ["exit", "stdout", "result", "positive_control.exit", "positive_control.stdout"],
+      "want": ["pass", "accepted", true, false, 5, 0]
+    },
+    {
+      "name": "row 9 a fix that refuses every input fails the positive control",
+      "stage_reached": "oracle",
+      "signal": null,
+      "agent_termination": "clean",
+      "oracle_result": "control_refused",
+      "assertion_ids": ["exit", "stdout", "result", "positive_control.exit", "positive_control.stdout"],
+      "want": ["fail", "expectation_mismatch", true, false, 3, 2]
+    },
+    {
+      "name": "row 6 a result without the definition's positive control",
+      "stage_reached": "oracle",
+      "signal": null,
+      "agent_termination": "clean",
+      "oracle_result": "all_pass",
+      "assertion_ids": ["exit", "stdout", "result", "positive_control.exit", "positive_control.stdout"],
+      "want": ["fail", "oracle_harness_error", false, false, 0, 0]
     }
   ]
 }

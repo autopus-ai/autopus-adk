@@ -39,17 +39,50 @@ const (
 	maxOracleOutputBytes  = 1 << 20
 )
 
+// The assertion ids the oracle harness reports for a positive control, after
+// the task's own assertions. The prefix is reserved: no task assertion takes it.
+const (
+	PositiveControlPrefix   = "positive_control."
+	PositiveControlExitID   = PositiveControlPrefix + "exit"
+	PositiveControlStdoutID = PositiveControlPrefix + "stdout"
+)
+
 // BlackBoxOracle is the black_box_oracle of an agent task: the package the
 // artifact is built from, its argv ({artifact} first; {input} and {output}
 // name the trial input directory and the output root), the inputs copied
 // into the input directory under their file names, the input fed on stdin,
-// and the pinned assertions.
+// the pinned assertions, and an optional positive control.
 type BlackBoxOracle struct {
-	Build      string              `json:"build"`
-	Command    []string            `json:"command"`
-	Inputs     []PinnedFile        `json:"inputs"`
-	Stdin      *string             `json:"stdin,omitempty"`
-	Assertions []BlackBoxAssertion `json:"assertions"`
+	Build           string              `json:"build"`
+	Command         []string            `json:"command"`
+	Inputs          []PinnedFile        `json:"inputs"`
+	Stdin           *string             `json:"stdin,omitempty"`
+	Assertions      []BlackBoxAssertion `json:"assertions"`
+	PositiveControl *PositiveControl    `json:"positive_control,omitempty"`
+}
+
+// PositiveControl is a second run of the same artifact with the same command
+// over a second input set, which must succeed: exit 0 and print exactly the
+// pinned stdout. A task whose own assertions expect a refusal pins one, so a
+// fix that refuses every input fails the task. {input} names the control's
+// own input directory and {output} a fresh output root the oracle never reads.
+type PositiveControl struct {
+	Inputs []PinnedFile `json:"inputs"`
+	Stdin  *string      `json:"stdin,omitempty"`
+	Stdout *PinnedFile  `json:"stdout"`
+}
+
+// AssertionIDs is the trusted assertion ids of the definition in report
+// order: its own assertions, then the positive control's exit and stdout.
+func (o *BlackBoxOracle) AssertionIDs() []string {
+	var ids []string
+	for _, assertion := range o.Assertions {
+		ids = append(ids, assertion.ID)
+	}
+	if o.PositiveControl != nil {
+		ids = append(ids, PositiveControlExitID, PositiveControlStdoutID)
+	}
+	return ids
 }
 
 // PinnedFile is one committed fixture pinned by the SHA-256 of its raw bytes.
@@ -104,22 +137,8 @@ func (o *BlackBoxOracle) validate() error {
 		slices.ContainsFunc(o.Command[1:], func(arg string) bool { return strings.Contains(arg, "{artifact}") }) {
 		return invalidf(DetailFieldInvalid, "command must start with {artifact} and name it once")
 	}
-	if o.Inputs == nil {
-		return invalidf(DetailFieldInvalid, "inputs must be a list of {path, sha256}")
-	}
-	names := map[string]bool{}
-	for _, input := range o.Inputs {
-		if err := input.validate("input"); err != nil {
-			return err
-		}
-		if name := path.Base(input.Path); !names[name] {
-			names[name] = true
-			continue
-		}
-		return invalidf(DetailFieldInvalid, "input file name %q repeats", path.Base(input.Path))
-	}
-	if o.Stdin != nil && !names[*o.Stdin] {
-		return invalidf(DetailFieldInvalid, "stdin %q names no input", *o.Stdin)
+	if err := validateInputs(o.Inputs, o.Stdin, "input"); err != nil {
+		return err
 	}
 	if len(o.Assertions) == 0 || len(o.Assertions) > maxBlackBoxAssertions {
 		return invalidf(DetailFieldInvalid, "needs 1 to %d assertions", maxBlackBoxAssertions)
@@ -129,10 +148,43 @@ func (o *BlackBoxOracle) validate() error {
 		if err := assertion.validate(); err != nil {
 			return err
 		}
-		if ids[assertion.ID] {
-			return invalidf(DetailFieldInvalid, "assertion id %q repeats", assertion.ID)
+		if ids[assertion.ID] || strings.HasPrefix(assertion.ID, PositiveControlPrefix) {
+			return invalidf(DetailFieldInvalid, "assertion id %q repeats or takes the reserved %s prefix", assertion.ID, PositiveControlPrefix)
 		}
 		ids[assertion.ID] = true
+	}
+	if control := o.PositiveControl; control != nil {
+		if len(control.Inputs) == 0 || control.Stdout == nil {
+			return invalidf(DetailFieldInvalid, "positive_control needs at least one input and a pinned stdout")
+		}
+		if err := validateInputs(control.Inputs, control.Stdin, "positive_control input"); err != nil {
+			return err
+		}
+		return control.Stdout.validate("positive_control stdout")
+	}
+	return nil
+}
+
+// validateInputs checks one input set: a list of pins with distinct file
+// names, since each is copied into one directory under its name, and a stdin
+// naming one of them.
+func validateInputs(inputs []PinnedFile, stdin *string, role string) error {
+	if inputs == nil {
+		return invalidf(DetailFieldInvalid, "%ss must be a list of {path, sha256}", role)
+	}
+	names := map[string]bool{}
+	for _, input := range inputs {
+		if err := input.validate(role); err != nil {
+			return err
+		}
+		if name := path.Base(input.Path); !names[name] {
+			names[name] = true
+			continue
+		}
+		return invalidf(DetailFieldInvalid, "%s file name %q repeats", role, path.Base(input.Path))
+	}
+	if stdin != nil && !names[*stdin] {
+		return invalidf(DetailFieldInvalid, "%s stdin %q names no input", role, *stdin)
 	}
 	return nil
 }
@@ -173,13 +225,19 @@ func (p PinnedFile) validate(role string) error {
 
 // checkOracleFixtures reads every fixture a black-box definition pins and
 // compares its raw-byte SHA-256 and size with the pin, as the trusted runner
-// does before a trial: an input up to 16 MiB, an expected output up to 1 MiB.
+// does before a trial: an input up to 16 MiB, an expected output up to 1 MiB,
+// the positive control's inputs and stdout alike.
 func (l *taskLoader) checkOracleFixtures(oracle *BlackBoxOracle) error {
 	if oracle == nil {
 		return nil
 	}
 	pins := map[PinnedFile]int{}
-	for _, input := range oracle.Inputs {
+	inputs := oracle.Inputs
+	if control := oracle.PositiveControl; control != nil {
+		inputs = append(slices.Clone(inputs), control.Inputs...)
+		pins[*control.Stdout] = maxOracleOutputBytes
+	}
+	for _, input := range inputs {
 		pins[input] = maxOracleInputBytes
 	}
 	for _, assertion := range oracle.Assertions {
@@ -202,17 +260,15 @@ func (l *taskLoader) checkOracleFixtures(oracle *BlackBoxOracle) error {
 }
 
 // OracleAssertionIDs is the trusted black-box assertion ids of every active
-// black-box agent task in the set, in definition order: the
-// TrustedInputs.OracleAssertions the signer takes from main's task definitions.
+// black-box agent task in the set, in report order (BlackBoxOracle.AssertionIDs):
+// the TrustedInputs.OracleAssertions the signer takes from main's task definitions.
 func OracleAssertionIDs(set *Set) map[string][]string {
 	ids := map[string][]string{}
 	for _, task := range set.Tasks {
 		if task.Kind != KindAgent || task.Status.State != StateActive || task.BlackBoxOracle == nil {
 			continue
 		}
-		for _, assertion := range task.BlackBoxOracle.Assertions {
-			ids[task.ID] = append(ids[task.ID], assertion.ID)
-		}
+		ids[task.ID] = task.BlackBoxOracle.AssertionIDs()
 	}
 	return ids
 }

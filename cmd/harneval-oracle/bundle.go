@@ -37,20 +37,64 @@ const (
 	CheckNotChecked   = "not_checked"
 )
 
+// The assertions the harness reports for a positive control, after the
+// bundle's own: the control exited 0, and its stdout is the expected one. No
+// bundle assertion may take the reserved prefix.
+const (
+	controlPrefix   = "positive_control."
+	ControlExitID   = controlPrefix + "exit"
+	ControlStdoutID = controlPrefix + "stdout"
+)
+
 var assertionID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$`)
 
 // input is the harness_oracle_input.v1 bundle. ArtifactExit is null when the
 // artifact did not exit on its own with a status (a signal, a timeout, or no
 // launch); Stdout holds at most OutputLimit bytes and StdoutOverflow says the
-// artifact wrote more, which the runner did not keep.
+// artifact wrote more, which the runner did not keep. PositiveControl is the
+// same artifact's second run, present exactly when the task pins one.
 type input struct {
-	SchemaVersion  string      `json:"schema_version"`
-	TaskID         string      `json:"task_id"`
-	ArtifactExit   *int        `json:"artifact_exit"`
-	TimedOut       bool        `json:"timed_out"`
-	Stdout         []byte      `json:"stdout"`
-	StdoutOverflow bool        `json:"stdout_overflow"`
-	Assertions     []assertion `json:"assertions"`
+	SchemaVersion   string      `json:"schema_version"`
+	TaskID          string      `json:"task_id"`
+	ArtifactExit    *int        `json:"artifact_exit"`
+	TimedOut        bool        `json:"timed_out"`
+	Stdout          []byte      `json:"stdout"`
+	StdoutOverflow  bool        `json:"stdout_overflow"`
+	Assertions      []assertion `json:"assertions"`
+	PositiveControl *control    `json:"positive_control,omitempty"`
+}
+
+// control is the runner's observation of the positive-control run, read like
+// the task's own, and the pinned stdout the runner checked for it.
+type control struct {
+	ArtifactExit   *int    `json:"artifact_exit"`
+	TimedOut       bool    `json:"timed_out"`
+	Stdout         []byte  `json:"stdout"`
+	StdoutOverflow bool    `json:"stdout_overflow"`
+	ExpectedStdout *[]byte `json:"expected_stdout"`
+}
+
+func (c *control) validate() error {
+	switch {
+	case c == nil:
+		return nil
+	case c.TimedOut && c.ArtifactExit != nil:
+		return fmt.Errorf("a timed-out positive control has no exit status")
+	case len(c.Stdout) > OutputLimit:
+		return fmt.Errorf("positive control stdout holds more than %d bytes", OutputLimit)
+	case c.ExpectedStdout == nil || len(*c.ExpectedStdout) > OutputLimit:
+		return fmt.Errorf("positive control expected_stdout is missing or larger than %d bytes", OutputLimit)
+	}
+	return nil
+}
+
+// results is the control's two assertions: an exit status of 0 and exactly
+// the expected stdout.
+func (c *control) results() []assertionResult {
+	return []assertionResult{
+		{ID: ControlExitID, Passed: c.ArtifactExit != nil && *c.ArtifactExit == 0},
+		{ID: ControlStdoutID, Passed: string(c.Stdout) == string(*c.ExpectedStdout)},
+	}
 }
 
 // assertion is one pinned expectation from the main task definition. An
@@ -96,15 +140,15 @@ func (in input) validate(task string) error {
 	}
 	seen := map[string]bool{}
 	for _, item := range in.Assertions {
-		if !assertionID.MatchString(item.ID) || seen[item.ID] {
-			return fmt.Errorf("assertion id %q is malformed or repeated", item.ID)
+		if !assertionID.MatchString(item.ID) || seen[item.ID] || strings.HasPrefix(item.ID, controlPrefix) {
+			return fmt.Errorf("assertion id %q is malformed, repeated or reserved", item.ID)
 		}
 		seen[item.ID] = true
 		if err := item.validate(); err != nil {
 			return fmt.Errorf("assertion %s: %w", item.ID, err)
 		}
 	}
-	return nil
+	return in.PositiveControl.validate()
 }
 
 func (a assertion) validate() error {

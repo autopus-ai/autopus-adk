@@ -23,7 +23,7 @@ PLATFORMS = ('claude-code', 'codex', 'antigravity-cli', 'opencode', 'omp')
 # they import (report.py is loaded through run.py). test_golden.py keeps this list equal to them.
 # SPEC-HARNEVAL-003 T13 adds the signed-lane modules and the two profiles handed to sandbox-exec,
 # and ORACLE_FILES, the sources of the oracle harness the runner builds, by checkout path.
-RUNNER_FILES = ('artifact.sb', 'golden.py', 'golden_agent.py', 'golden_blackbox.py',
+RUNNER_FILES = ('artifact.sb', 'golden.py', 'golden_agent.py', 'golden_blackbox.py', 'golden_blackbox_definition.py',
                 'golden_blackbox_trial.py', 'golden_lane.py', 'golden_protocol.py', 'golden_sandbox.py',
                 'golden_surface.py', 'golden_trial.py', 'grader.py', 'grader.sb', 'observe.py', 'oracle.sb',
                 'permissions.py', 'prepare_grader.py', 'process_tree.py', 'report.py', 'run.py',

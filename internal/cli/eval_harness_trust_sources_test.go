@@ -23,7 +23,8 @@ func TestEvalHarnessExport_DefaultOracleAssertions_AreMainsBlackBoxDefinitions(t
 
 	require.NoError(t, err)
 	assert.Equal(t, map[string][]string{
-		"GT-AGENT-A01": {"exit", "stdout"}, "GT-AGENT-A02": {"exit", "stdout"}, "GT-AGENT-A05": {"exit", "stdout"},
+		"GT-AGENT-A01": {"exit", "stdout"}, "GT-AGENT-A02": {"exit", "stdout"},
+		"GT-AGENT-A05": {"exit", "stdout", harneval.PositiveControlExitID, harneval.PositiveControlStdoutID},
 		"GT-AGENT-A06": {"exit", "stdout"}, "GT-AGENT-B04": {"exit", "stdout"},
 	}, got)
 	assert.GreaterOrEqual(t, len(got), set.Manifest.Floors.SignedAgentTasks, "the committed set meets its signed-lane floor")

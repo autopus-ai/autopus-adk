@@ -66,7 +66,23 @@
           "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         }
       }
-    ]
+    ],
+    "positive_control": {
+      "inputs": [
+        {
+          "path": "evals/harness/oracles/GT-AGENT-A05/policy.json",
+          "sha256": "14d7c166c67b257296275d6074e3ff7f959290ff8b60ac30df6a4aef50ddbb61"
+        },
+        {
+          "path": "evals/harness/oracles/GT-AGENT-A05/control/task.json",
+          "sha256": "09df3c601268312e618a0c6e1a82e56fcba3b39d2d09bf9a3fd16d355c79bb60"
+        }
+      ],
+      "stdout": {
+        "path": "evals/harness/oracles/GT-AGENT-A05/control/stdout.json",
+        "sha256": "557d4a00c669fbf3203fc747646253163b5827b5b2a5a660f1b9eaec90d4ab68"
+      }
+    }
   },
   "provenance": {
     "kind": "benchmark",

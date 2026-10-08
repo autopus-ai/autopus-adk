@@ -32,8 +32,9 @@ import (
 // ResultFile is the name of the result document inside the --result directory.
 const ResultFile = "oracle_result.json"
 
-// maxInput caps the stdin bundle: at most maxAssertions expected outputs and
-// one stdout, each at most OutputLimit bytes, in base64.
+// maxInput caps the stdin bundle: at most maxAssertions expected outputs, one
+// stdout, and a positive control's stdout and expected stdout, each at most
+// OutputLimit bytes, in base64.
 const maxInput = 64 << 20
 
 func main() {

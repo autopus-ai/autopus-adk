@@ -3,19 +3,19 @@
 Trusted runner code. A signed-lane agent task carries `oracle_mode: black_box` and a
 `black_box_oracle` definition; its trial builds the agent-modified artifact, runs it, and lets the
 trusted oracle harness (cmd/harneval-oracle) compare the run with the pinned expectations. This
-module validates the definition, prepares the trial inputs, checks every expected output against
-its pinned SHA-256, writes the harness_oracle_input.v1 bundle, strictly decodes the
-harness_oracle_result.v1 document, and applies the ten-row table the signer re-applies to the same
-record and oracle result bytes. No process is started here.
+module takes the definition golden_blackbox_definition validates, prepares the trial inputs (the
+positive control's too), checks every expected output against its pinned SHA-256, writes the
+harness_oracle_input.v1 bundle, strictly decodes the harness_oracle_result.v1 document, and applies
+the ten-row table the signer re-applies to the same record and oracle result bytes. No process is
+started here.
 """
 import base64
 import hashlib
 import json
 from pathlib import Path
-import posixpath
-import re
 import signal as signals
 
+from golden_blackbox_definition import CONTROL_IDS, assertion_ids, control_input, definition  # noqa: F401
 from golden_protocol import NO_ORACLE, RECORD_SCHEMA
 from observe import reject_json_constant, unique_object
 from workspace import _relative
@@ -25,11 +25,8 @@ RESULT_SCHEMA = 'harness_oracle_result.v1'
 RESULT_FILE = 'oracle_result.json'
 OUTPUT_LIMIT = 1 << 20
 INPUT_LIMIT = 16 << 20
-MAX_ASSERTIONS = 32
-ORACLE_ROOT = 'evals/harness/oracles'
 STAGES = ('setup', 'agent', 'build', 'run', 'oracle')
 CHECKS = ('ok', 'link_rejected', 'too_large', 'not_checked')
-KINDS = ('exit_code', 'stdout', 'file')
 SETUP_SIGNALS = ('workspace_setup_failed', 'mutation_failed', 'warmup_failed')
 # The closed black-box signal table: no literal check and no white-box grading signal exists here.
 OUTCOMES = {**dict.fromkeys(SETUP_SIGNALS, 'error'),
@@ -38,71 +35,6 @@ OUTCOMES = {**dict.fromkeys(SETUP_SIGNALS, 'error'),
                              'output_link_rejected', 'output_too_large', 'expectation_mismatch'), 'fail'),
             'accepted': 'pass'}
 NOT_LAUNCHED = {'launched': False, 'exit_code': None, 'os_signal': None, 'timed_out': False}
-SHA256 = re.compile(r'^[0-9a-f]{64}$')
-ASSERTION_ID = re.compile(r'^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$')
-PACKAGE = re.compile(r'^\./[A-Za-z0-9_][A-Za-z0-9_./-]*$')
-FIXED_PATH = re.compile(r'^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$')
-
-
-def _pinned(value, role: str) -> dict:
-    """One {path, sha256} pin: a clean path below ORACLE_ROOT, as Go's PinnedFile.validate requires."""
-    if not isinstance(value, dict) or set(value) != {'path', 'sha256'} or not isinstance(value['path'], str) \
-            or not isinstance(value['sha256'], str) or not SHA256.match(value['sha256']):
-        raise ValueError(role + ' must be {path, sha256} with a lowercase 64-hex digest')
-    name = value['path']
-    if any(char in name for char in '\\\x00') or posixpath.normpath(name) != name or \
-            not name.startswith(ORACLE_ROOT + '/'):
-        raise ValueError(role + ' ' + repr(name) + ' is not a clean path under ' + ORACLE_ROOT + '/')
-    return {'path': name, 'sha256': value['sha256']}
-
-
-def _assertion(item) -> dict:
-    if not isinstance(item, dict) or not isinstance(item.get('id'), str) or not ASSERTION_ID.match(item['id']):
-        raise ValueError('assertion id is malformed: ' + repr(item))
-    kind = item.get('kind')
-    keys = {'exit_code': {'id', 'kind', 'exit_code'}, 'stdout': {'id', 'kind', 'expected'},
-            'file': {'id', 'kind', 'path', 'expected'}}.get(kind)
-    if keys is None or set(item) != keys:
-        raise ValueError('assertion ' + item['id'] + ' must be one of ' + ', '.join(KINDS) + ' with its own fields')
-    if kind == 'exit_code':
-        if type(item['exit_code']) is not int:
-            raise ValueError('assertion ' + item['id'] + ' exit_code must be an integer')
-        return dict(item)
-    if kind == 'file' and (not isinstance(item['path'], str) or not FIXED_PATH.match(item['path'])
-                           or any(part in ('.', '..') for part in item['path'].split('/'))):
-        raise ValueError('assertion ' + item['id'] + ' path must be a clean relative output path')
-    return {**item, 'expected': _pinned(item['expected'], 'assertion ' + item['id'] + ' expected')}
-
-
-def definition(task: dict) -> dict | None:
-    """The validated black_box_oracle of a task document, or None for a white-box task."""
-    mode = task.get('oracle_mode', 'white_box')
-    if mode == 'white_box' and 'black_box_oracle' not in task:
-        return None
-    oracle = task.get('black_box_oracle')
-    if mode != 'black_box' or not isinstance(oracle, dict) or not {'build', 'command', 'inputs', 'assertions'} \
-            <= set(oracle) <= {'build', 'command', 'inputs', 'assertions', 'stdin'}:
-        raise ValueError('oracle_mode black_box needs black_box_oracle{build, command, inputs, assertions[, stdin]}')
-    build, command = oracle['build'], oracle['command']
-    if not isinstance(build, str) or not PACKAGE.match(build) or '..' in build.split('/'):
-        raise ValueError('black_box_oracle.build must be a ./ package path')
-    if not isinstance(command, list) or not command or command[0] != '{artifact}' or \
-            not all(isinstance(arg, str) and '{artifact}' not in arg for arg in command[1:]):
-        raise ValueError('black_box_oracle.command must start with {artifact} and name it once')
-    inputs = [_pinned(item, 'input') for item in oracle['inputs']] if isinstance(oracle['inputs'], list) else None
-    names = [Path(item['path']).name for item in inputs or []]
-    if inputs is None or len(set(names)) != len(names):
-        raise ValueError('black_box_oracle.inputs must be a list of {path, sha256} with distinct file names')
-    stdin = oracle.get('stdin')
-    if stdin is not None and stdin not in names:
-        raise ValueError('black_box_oracle.stdin must name one input')
-    items = oracle['assertions']
-    if not isinstance(items, list) or not 0 < len(items) <= MAX_ASSERTIONS:
-        raise ValueError('black_box_oracle.assertions needs 1 to %d assertions' % MAX_ASSERTIONS)
-    assertions = [_assertion(item) for item in items]
-    if len({item['id'] for item in assertions}) != len(assertions):
-        raise ValueError('black_box_oracle assertion ids repeat')
-    return {'build': build, 'command': list(command), 'inputs': inputs, 'stdin': stdin, 'assertions': assertions}
 
 
 def _pinned_bytes(set_root: Path, pinned: dict, limit: int) -> bytes:
@@ -117,18 +49,28 @@ def _pinned_bytes(set_root: Path, pinned: dict, limit: int) -> bytes:
     return data
 
 
-def prepare_fixtures(oracle: dict, set_root: Path, input_dir: Path) -> dict:
-    """Copy the inputs into the new trial input directory and check each copy, then read every expected
-    output from the set root and check it; the expected outputs stay in memory, never in a trial tree."""
+def _copy_inputs(inputs: list, set_root: Path, input_dir: Path) -> None:
     Path(input_dir).mkdir(parents=True)
-    for pinned in oracle['inputs']:
+    for pinned in inputs:
         copy = Path(input_dir) / Path(pinned['path']).name
         copy.write_bytes(_pinned_bytes(set_root, pinned, INPUT_LIMIT))
         if hashlib.sha256(copy.read_bytes()).hexdigest() != pinned['sha256']:
             raise ValueError('the input copy ' + copy.name + ' does not match its pinned sha256')
         copy.chmod(0o444)
-    return {item['id']: _pinned_bytes(set_root, item['expected'], OUTPUT_LIMIT)
-            for item in oracle['assertions'] if item['kind'] != 'exit_code'}
+
+
+def prepare_fixtures(oracle: dict, set_root: Path, input_dir: Path) -> dict:
+    """Copy the inputs into the new trial input directory (a positive control's into control_input of it)
+    and check each copy, then read every expected output from the set root and check it, keyed by its
+    assertion id; the expected outputs stay in memory, never in a trial tree."""
+    _copy_inputs(oracle['inputs'], set_root, input_dir)
+    expected = {item['id']: _pinned_bytes(set_root, item['expected'], OUTPUT_LIMIT)
+                for item in oracle['assertions'] if item['kind'] != 'exit_code'}
+    control = oracle.get('positive_control')
+    if control:
+        _copy_inputs(control['inputs'], set_root, control_input(input_dir))
+        expected[CONTROL_IDS[1]] = _pinned_bytes(set_root, control['stdout'], OUTPUT_LIMIT)
+    return expected
 
 
 def artifact_args(oracle: dict, artifact: Path, input_dir: Path, output_root: Path) -> list:
@@ -142,11 +84,20 @@ def artifact_args(oracle: dict, artifact: Path, input_dir: Path, output_root: Pa
     return [str(artifact), *args]
 
 
-def bundle(task_id: str, oracle: dict, expected: dict, run: dict, stdout: bytes) -> bytes:
+def _encode(data: bytes) -> str:
+    return base64.b64encode(data).decode()
+
+
+def _observed(run: dict, stdout: bytes) -> dict:
+    return {'artifact_exit': artifact_exit(run), 'timed_out': bool(run['timed_out']),
+            'stdout': _encode(stdout[:OUTPUT_LIMIT]), 'stdout_overflow': bool(run['overflow'])}
+
+
+def bundle(task_id: str, oracle: dict, expected: dict, run: dict, stdout: bytes, control: tuple | None = None) -> bytes:
     """The harness_oracle_input.v1 stdin bundle: assertions from the main task definition, the checked
-    expected outputs, the captured stdout and the artifact's exit status."""
-    def encode(data: bytes) -> str:
-        return base64.b64encode(data).decode()
+    expected outputs, the captured stdout and the artifact's exit status; for a task with a positive
+    control, `control` is (run, stdout) of the control run, sent with the control's checked stdout."""
+    encode = _encode
     items = []
     for item in oracle['assertions']:
         entry = {'id': item['id'], 'kind': item['kind']}
@@ -156,9 +107,9 @@ def bundle(task_id: str, oracle: dict, expected: dict, run: dict, stdout: bytes)
             entry.update({'path': item['path']} if item['kind'] == 'file' else {})
             entry['expected'] = encode(expected[item['id']])
         items.append(entry)
-    document = {'schema_version': INPUT_SCHEMA, 'task_id': task_id, 'artifact_exit': artifact_exit(run),
-                'timed_out': bool(run['timed_out']), 'stdout': encode(stdout[:OUTPUT_LIMIT]),
-                'stdout_overflow': bool(run['overflow']), 'assertions': items}
+    document = {'schema_version': INPUT_SCHEMA, 'task_id': task_id, **_observed(run, stdout), 'assertions': items}
+    if oracle.get('positive_control'):
+        document['positive_control'] = {**_observed(*control), 'expected_stdout': encode(expected[CONTROL_IDS[1]])}
     return json.dumps(document, separators=(',', ':')).encode()
 
 

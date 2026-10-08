@@ -13,15 +13,19 @@ import (
 // A timed-out run is not checked. A stdout over the limit is too_large. Every
 // file assertion path is opened by the output rules below, in assertion
 // order, and the first path that breaks them decides the check; a rejected
-// run holds no assertion, so nothing artifact-shaped is ever compared.
+// run holds no assertion, so nothing artifact-shaped is ever compared. A
+// positive control counts as part of the run: its timeout or stdout overflow
+// is the run's, and its two assertions follow the task's own. The result's
+// artifact_exit stays the task invocation's.
 func judge(in input, outputs string) result {
+	pc := in.PositiveControl
 	res := result{SchemaVersion: ResultSchema, TaskID: in.TaskID, Assertions: []assertionResult{},
-		ArtifactExit: in.ArtifactExit, TimedOut: in.TimedOut}
+		ArtifactExit: in.ArtifactExit, TimedOut: in.TimedOut || (pc != nil && pc.TimedOut)}
 	switch {
-	case in.TimedOut:
+	case res.TimedOut:
 		res.OutputCheck = CheckNotChecked
 		return res
-	case in.StdoutOverflow:
+	case in.StdoutOverflow || (pc != nil && pc.StdoutOverflow):
 		res.OutputCheck = CheckTooLarge
 		return res
 	}
@@ -32,6 +36,9 @@ func judge(in input, outputs string) result {
 	}
 	for _, item := range in.Assertions {
 		res.Assertions = append(res.Assertions, assertionResult{ID: item.ID, Passed: item.matches(in, contents)})
+	}
+	if pc != nil {
+		res.Assertions = append(res.Assertions, pc.results()...)
 	}
 	return res
 }
