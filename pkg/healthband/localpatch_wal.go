@@ -61,10 +61,17 @@ import (
 //	ok, err = store.AppendLocalPatchResult(ctx, result) // write-once; !ok: already ended
 //	err = lock.Release()                          // unlink, then unlock
 //
+// Before each step group the claim checks LocalPatchLeaseCovers(now, lease,
+// <group deadline>) and otherwise ends failed:lease_exhausted through
+// CleanupLocalPatch; the Local Patch*Deadline constants are the Step Timeouts
+// table, and LocalPatchDiagnoseBudget (990 s) and LocalPatchClaimBudget
+// (810 s) are what T8's lease chain counts while the flag is true.
+//
 // Recovery (T8, after fetchCI and before phase A's store.Lock, never under
 // --dry-run, whatever the flag): store.RecoverLocalPatches(ctx, opts). It
 // takes RecoveryLockFile, ends every claim whose lease passed without a
-// result by the Recovery State Table, and reports recovery_locked and
+// result by the Recovery State Table (re-reading through
+// ReadLocalPatchLocked after the key lock), and reports recovery_locked and
 // recovery_key_locked as run reasons.
 //
 // Stage values: status_sha256 is WorktreeStatusSHA256 (git status --porcelain

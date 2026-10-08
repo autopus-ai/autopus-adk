@@ -37,8 +37,8 @@ type LocalPatchDir struct {
 // directory is a symlink or no directory, when <lp> is not a directory of
 // the current user without group or other permission bits, or when it
 // cannot be created with mode 0700. The location check runs before anything
-// is created, so a refusal creates nothing. Only a done context or an
-// allowlist refusal is an error.
+// is created, so a refusal creates nothing. Only a done context or a git
+// worktree list that the runner stopped (ErrGitStopped) is an error.
 func (loc LocalPatchLocation) Open(ctx context.Context, git GitPolicyRunner) (*LocalPatchDir, string, error) {
 	if code, err := loc.checkOutside(ctx, git); code != "" || err != nil {
 		return nil, code, err
@@ -88,6 +88,9 @@ func (loc LocalPatchLocation) checkOutside(ctx context.Context, git GitPolicyRun
 	out, err := git.Run(ctx, "worktree", "list", "--porcelain", "-z")
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return "", ctxErr
+	}
+	if errors.Is(err, ErrGitStopped) {
+		return "", err
 	}
 	if err != nil {
 		return LocalPatchCodeCacheUnavailable, nil

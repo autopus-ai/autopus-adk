@@ -4,8 +4,8 @@ package healthband
 
 import (
 	"context"
+	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -17,8 +17,9 @@ import (
 // lpWorld is a repository with a store, an <lp> under a temp cache, and one
 // local_patch claim of the acceptance fixture whose artifacts a test builds
 // step by step as the live flow does, through the policy runner. Every band
-// git command of the world and of the code under test goes through a
-// recording wrapper, so tests count invocations.
+// git command of the world and of the code under test runs with a HOME whose
+// trace2.eventTarget records it (band strips GIT_TRACE2_EVENT), so tests
+// count invocations without a wrapper executable.
 type lpWorld struct {
 	*lpRepo
 	t        *testing.T
@@ -27,7 +28,7 @@ type lpWorld struct {
 	cache    string
 	lp       *LocalPatchDir
 	paths    LocalPatchPaths
-	recorder string
+	trace    string
 	temp     string
 	diff     []byte
 	message  []byte
@@ -44,20 +45,22 @@ var lpWorldFiles = map[string]string{
 	"pkg/foo/foo.go": "package foo\n", "pkg/foo/bar.go": "package foo\n\nvar Bar = 1\n", ".gitignore": "secret.env\n.autopus/\n",
 }
 
+// lpWorldSlots bounds the worlds that run git at once, so the package's
+// timing-sensitive runner tests keep their margins under parallel load.
+var lpWorldSlots = make(chan struct{}, 6)
+
 func newLPWorld(t *testing.T, files map[string]string) *lpWorld {
 	t.Helper()
+	lpWorldSlots <- struct{}{}
+	t.Cleanup(func() { <-lpWorldSlots })
 	f := newGPFixture(t)
 	if files == nil {
 		files = lpWorldFiles
 	}
 	dir, base := f.repo("repo", files)
-	real, err := exec.LookPath("git")
-	require.NoError(t, err)
-	w := &lpWorld{t: t, ctx: gpContext(t), recorder: filepath.Join(f.root, "git-argv.log"), temp: filepath.Join(f.root, "band-tmp")}
-	wrapper := f.script("git-rec", "printf '%s\\037' \"$@\" >> '"+w.recorder+"'\nprintf '\\n' >> '"+w.recorder+"'\nexec '"+real+"' \"$@\"\n")
-	git := f.runner(f.setupEnv, dir)
-	git.Binary = wrapper
-	w.lpRepo = &lpRepo{f: f, dir: dir, base: base, git: git}
+	w := &lpWorld{t: t, ctx: gpContext(t), trace: filepath.Join(f.root, "band-trace.json"), temp: filepath.Join(f.root, "band-tmp")}
+	bandEnv := f.home("band-home", "[maintenance]\n\tauto = false\n[gc]\n\tauto = 0\n", w.trace)
+	w.lpRepo = &lpRepo{f: f, dir: dir, base: base, git: f.runner(bandEnv, dir)}
 	w.store, w.cache, w.diff = NewStore(dir), filepath.Join(f.root, "cache"), []byte(lpWorldDiff)
 	require.NoError(t, os.MkdirAll(w.temp, 0o700))
 	dirOpened, code := w.open(t, w.cache)
@@ -185,20 +188,29 @@ func (w *lpWorld) records() []LocalPatchRecord {
 	return log.ClaimRecords(lpClaimID)
 }
 
-// mark starts a new invocation window of the recorder.
+// mark starts a new invocation window of the trace.
 func (w *lpWorld) mark() int { return len(w.invocations(0)) }
 
-// invocations returns the recorded git argv after the policy -c flags, from
-// window start on, each joined by spaces.
+// invocations returns the argv of every band git command (a trace2 start
+// event of a top-level process, whose sid holds no "/") after git and the
+// policy -c flags, from window start on, each joined by spaces.
 func (w *lpWorld) invocations(start int) []string {
-	data, err := os.ReadFile(w.recorder)
+	data, err := os.ReadFile(w.trace)
 	if os.IsNotExist(err) {
 		return nil
 	}
 	require.NoError(w.t, err)
 	var calls []string
 	for _, line := range strings.Split(strings.TrimSuffix(string(data), "\n"), "\n") {
-		args := strings.Split(strings.TrimSuffix(line, "\x1f"), "\x1f")
+		var event struct {
+			Event string   `json:"event"`
+			SID   string   `json:"sid"`
+			Argv  []string `json:"argv"`
+		}
+		if json.Unmarshal([]byte(line), &event) != nil || event.Event != "start" || strings.Contains(event.SID, "/") || len(event.Argv) == 0 {
+			continue
+		}
+		args := event.Argv[1:]
 		for len(args) > 1 && args[0] == "-c" {
 			args = args[2:]
 		}

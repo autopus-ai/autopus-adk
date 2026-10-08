@@ -68,6 +68,13 @@ func TestLocalPatchLocationOpen_UnsafeLp_IsCacheUnavailableAndCreatesNothing(t *
 	t.Parallel()
 	cases := map[string]func(r *lpRepo) string{
 		"cache directory inside the repository": func(r *lpRepo) string { return filepath.Join(r.dir, ".cache") },
+		"cache directory is a symlink into the repository": func(r *lpRepo) string {
+			require.NoError(t, os.MkdirAll(filepath.Join(r.dir, "caches"), 0o700))
+			require.NoError(t, os.MkdirAll(filepath.Join(r.f.root, "home", "Library"), 0o700))
+			link := filepath.Join(r.f.root, "home", "Library", "Caches")
+			require.NoError(t, os.Symlink(filepath.Join(r.dir, "caches"), link))
+			return link
+		},
 		"local-patches is a symlink into the repository": func(r *lpRepo) string {
 			cache := filepath.Join(r.f.root, "cache")
 			require.NoError(t, os.MkdirAll(filepath.Join(cache, "autopus"), 0o700))

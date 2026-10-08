@@ -143,25 +143,26 @@ type lpRecovery struct {
 }
 
 // open derives <lp> from the current user cache directory and the
-// repository. An <lp> that cannot be derived or that Open refuses leaves dir
-// nil, so every due claim ends failed:record_invalid and nothing is touched;
-// a git call that timed out leaves the step not ready, so a later run
-// recovers instead.
+// repository. An <lp> that Open refuses (cache_unavailable) leaves dir nil,
+// so every due claim ends failed:record_invalid and nothing is touched. A
+// repository that git cannot resolve, or a git call that was stopped at its
+// timeout, leaves the step not ready, so a later run recovers instead.
 func (r *lpRecovery) open(ctx context.Context) (ready bool, err error) {
-	gitCtx, cancel := context.WithTimeout(ctx, durationOr(r.opts.GitTimeout, LocalPatchGitTimeout))
+	timeout := durationOr(r.opts.GitTimeout, LocalPatchGitTimeout)
+	resolveCtx, cancel := context.WithTimeout(ctx, timeout)
+	loc, err := ResolveLocalPatchLocation(resolveCtx, r.opts.Git, r.opts.CacheDir)
+	cancel()
+	if err != nil {
+		return false, ctx.Err()
+	}
+	openCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	loc, err := ResolveLocalPatchLocation(gitCtx, r.opts.Git, r.opts.CacheDir)
-	if err == nil {
-		var dir *LocalPatchDir
-		if dir, _, err = loc.Open(gitCtx, r.opts.Git); err == nil {
-			r.loc, r.dir = loc, dir
-		}
+	dir, _, err := loc.Open(openCtx, r.opts.Git)
+	if err != nil {
+		return false, ctx.Err()
 	}
-	if ready = ctx.Err() == nil && gitCtx.Err() == nil; !ready {
-		r.close()
-		r.dir = nil
-	}
-	return ready, ctx.Err()
+	r.loc, r.dir = loc, dir
+	return true, nil
 }
 
 func (r *lpRecovery) close() {

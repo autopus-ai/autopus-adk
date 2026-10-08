@@ -45,6 +45,19 @@ func lpTreeHashes(t *testing.T, root string) map[string]string {
 	return hashes
 }
 
+// lpCheckoutHashes is lpTreeHashes of the user's checkout without the
+// store under .autopus/, whose records recovery appends by design.
+func lpCheckoutHashes(t *testing.T, root string) map[string]string {
+	t.Helper()
+	hashes := lpTreeHashes(t, root)
+	for rel := range hashes {
+		if rel == ".autopus" || strings.HasPrefix(rel, ".autopus"+string(filepath.Separator)) {
+			delete(hashes, rel)
+		}
+	}
+	return hashes
+}
+
 // lpSHA256 is the hex SHA-256 of data.
 func lpSHA256(data []byte) string {
 	sum := sha256.Sum256(data)
