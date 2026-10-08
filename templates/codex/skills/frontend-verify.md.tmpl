@@ -92,7 +92,8 @@ npx playwright test --update-snapshots=none --reporter=json
 ```
 
 - 주요 상태(초기 로드, 인터랙션 후, 에러 상태)에서 스크린샷 캡처
-- 가능하면 Playwright `toHaveScreenshot()` baseline/golden ref를 사용해 visual diff 근거를 남김
+- 시각 변경이면 Phase 3 채점용 증거 세트(contact sheet, phone strip, motion strip)를 `## Evidence Contact Sheet` 명령으로 만듦
+- 가능하면 Playwright `toHaveScreenshot()` baseline/golden ref를 사용해 visual diff 근거를 남기고, 새 baseline은 `## Deterministic Visual Baselines`의 두 번 캡처 검사를 통과한 뒤에만 신뢰함
 - blob 증거를 복구하려면 `toHaveScreenshot('name.png')`처럼 파일명을 명시하고 기본 expect 제목을 유지합니다. custom expect message를 쓰면 blob report에서 matcher 종류를 확인할 수 없으므로 visual gate는 증거 없음으로 처리합니다.
 - `auto verify`는 승인 baseline을 바꾸지 않도록 Playwright에 `--update-snapshots=none`을 강제합니다.
 - Snapshot proof gaps are advisory by default: `ignoreSnapshots`가 켜졌거나 공개 API로 상태를 확인할 수 없으면 v2 보고서에 비차단 finding으로 기록합니다. `--strict-visual-gate`를 명시하면 같은 proof 부족을 차단합니다. 실제 Playwright 실행 실패는 두 모드 모두 차단합니다.
@@ -107,7 +108,7 @@ npx playwright test --update-snapshots=none --reporter=json
 
 ### Phase 3: VLM 시각 검증
 
-캡처된 스크린샷을 Claude Vision으로 분석합니다.
+캡처된 스크린샷을 Claude Vision으로 분석합니다. 증거 세트 전체는 `## Scored Critique Loop`의 루브릭으로 채점하고, 전체 판정은 그 Verdict 규칙을 따릅니다. 스크린샷별 판정은 문제 위치를 가리키는 근거입니다.
 
 **판정 기준**
 
@@ -143,16 +144,112 @@ npx playwright test --update-snapshots=none --reporter=json
 ```markdown
 ### 스크린샷: [파일명]
 판정: PASS / WARN / FAIL
-문제: [발견된 시각적 문제 서술 — 수치 점수 없음]
+문제: [발견된 시각적 문제 서술과 위치 — 수치는 루브릭 score line에만]
 ```
 
 ### Phase 4: 리포터 및 자동 수정
 
 WARN/FAIL 판정에 대해 수정을 시도하고 최종 보고서를 생성합니다.
 
-- `--fix` 활성화 시: CSS/레이아웃 수정 후 Phase 2-3 재실행
+- `--fix` 활성화 시: 최악 3건을 수정하고 Phase 2-3을 다시 실행합니다. 재실행 한 번이 critique round 하나이며 라운드 3 뒤에는 멈춥니다
 - `--report-only` 모드 시: 수정 없이 보고서만 생성
 - 재검증 후에도 FAIL이면 사용자 개입 요청
+
+## Scored Critique Loop
+
+Run this loop after every visual change; Phase 3 scores a round and Phase 4 fixes between rounds.
+
+### Critique Rubric
+
+Be a harsh reviewer, not a proud author: score only what the evidence shows, never what the code intended.
+
+| Key | Dimension | 8 or more requires |
+|-----|-----------|--------------------|
+| `hierarchy` | First-screen hierarchy and hook | The product or brand and the one primary action read at a glance; one dominant visual idea, nothing competing with it |
+| `phone_360` | Readability at phone width (360px) | No horizontal scroll, clipping, or overlap; text reads without zoom; touch targets of at least 44px |
+| `spacing` | Spacing and alignment | Gaps come from one spacing scale, edges share alignment lines, and equal relationships get equal gaps |
+| `states` | State coverage | Changed controls show hover, focus-visible, pressed, and disabled; changed flows show loading, empty, and error |
+| `motion` | Motion quality | Every motion has a purpose; eased or spring curves, not linear slides; no dead or janky frames; a reduced-motion fallback |
+| `design_system` | Brand and design-system accuracy | Color, type, radius, spacing, and icons come from DESIGN.md, tokens, or shared components; brand assets are correct |
+| `a11y` | Accessibility | WCAG AA contrast, visible focus, logical tab order, accessible names, and no meaning carried by color alone |
+
+Score each key as an integer from 1 to 10: 10 nothing left to fix, 8 shippable with nits, 5-7 a problem a user would notice, 4 or less broken. Outside no-capture mode only `motion` may be `n/a`, and only when the change touches no motion and the surface needs none. `min` is the lowest number. One score line per round:
+
+```text
+scores: hierarchy=N phone_360=N spacing=N states=N motion=N design_system=N a11y=N min=N
+```
+
+Verdict: PASS only when every scored key is 8 or more and no blocker shows; FAIL when any key is 4 or less, or the evidence shows a blocker (clipped or overlapping primary content, a layout broken at a checked width, a missing primary control, an accessibility blocker); WARN otherwise. Every key below 8 names its problem and location. The loop runs at most 3 rounds, and one that ends with any key below 8 reports the remaining gaps with WARN or FAIL and never claims PASS.
+
+### Rounds
+
+1. Capture the evidence set (`## Evidence Contact Sheet`) into `.autopus/design/verify/critique/round-<N>/`.
+2. Score every key and write the score line.
+3. When any key is below 8, list the 3 worst problems, each with a location (route, component or `file:line`, state, breakpoint), fix them, and start the next round.
+4. Stop when every key is 8 or more, or after round 3: the first score plus the two fix passes of the default `verify.max_fix_attempts: 2`.
+
+Append each round to `{SPEC_DIR}/review_log.md` when a SPEC is active, otherwise to `.autopus/design/verify/critique/review_log.md`:
+
+```markdown
+### Round N/3 (YYYY-MM-DD)
+scores: hierarchy=N phone_360=N spacing=N states=N motion=N design_system=N a11y=N min=N
+worst: 1) problem @ location 2) problem @ location 3) problem @ location
+fixed: changed files · evidence: .autopus/design/verify/critique/round-N/contact-sheet.png
+```
+
+For `--visual-critic-report`, write the final round as `{"status": "<verdict>", "findings": [...]}` with one finding per remaining problem: `severity` WARN or FAIL, `category` the rubric key, `message` with its location.
+
+## Evidence Contact Sheet
+
+A round is reviewed from three composite images, never from loose screenshots: a contact sheet (key states × breakpoints), a phone strip (every state at 360px), and a motion strip (consecutive frames around each changed motion).
+
+Capture viewport screenshots named `<width>-<n>-<state>.png` with a zero-padded width, so name order is row order:
+
+```ts
+const dir = `.autopus/design/verify/critique/round-${process.env.ROUND ?? 1}`;
+for (const width of [360, 768, 1280]) {
+  await page.setViewportSize({ width, height: 800 });
+  for (const [n, [state, enter]] of Object.entries(states).entries()) {
+    await enter(page); // navigate and drive the page into this state
+    await page.screenshot({ path: `${dir}/${String(width).padStart(4, '0')}-${n}-${state}.png` });
+  }
+}
+```
+
+Tile them, with `S` the number of states and `W` the number of widths. `tile=` needs one frame size, so each cell is padded to a common size first:
+
+```bash
+R=.autopus/design/verify/critique/round-1
+mkdir -p "$R/cells"
+for f in "$R"/[0-9]*.png; do
+  ffmpeg -y -loglevel error -i "$f" -vf "scale=480:600:force_original_aspect_ratio=decrease,pad=480:600:-1:-1:white" "$R/cells/${f##*/}"
+done
+# contact sheet: one row per width, one column per state
+ffmpeg -y -pattern_type glob -i "$R/cells/*.png" -vf "tile=${S}x${W}:padding=8:color=white" -frames:v 1 "$R/contact-sheet.png"
+# phone strip: every state at 360px, side by side
+ffmpeg -y -pattern_type glob -i "$R/0360-*.png" -vf "tile=${S}x1:padding=8:color=white" -frames:v 1 "$R/phone-strip.png"
+# motion strip: 12 frames from a recordVideo capture; -ss is the second just before the trigger
+ffmpeg -y -ss 1.0 -t 0.8 -i "$R/motion.webm" -vf "fps=15,scale=360:-2,tile=12x1:padding=4:color=white" -frames:v 1 "$R/motion-strip.png"
+```
+
+Record `motion.webm` with `browser.newContext({ recordVideo: { dir: R, size: { width: 360, height: 800 } } })` and `await page.video().saveAs(...)` after the context closes. Without ffmpeg, place the cells in an HTML grid (`grid-template-columns: repeat(S, 1fr)`) and take one `fullPage` screenshot of it.
+
+## Deterministic Visual Baselines
+
+A screenshot baseline is trusted only after the same capture reproduces exactly. Remove each source of run-to-run change before the first `toHaveScreenshot`:
+
+- Seeded randomness: render paths under test draw from a seeded generator the test controls and never call `Math.random`. Pin third-party randomness before load: `await page.addInitScript(() => { let s = 42; Math.random = () => (s = (s * 16807) % 2147483647) / 2147483647; });`
+- Frozen time: before `goto`, call `await page.clock.install({ time: new Date('2026-01-01T09:00:00Z') })` and `await page.clock.pauseAt(new Date('2026-01-01T09:00:01Z'))`, then `await page.clock.runFor(ms)` to step timers and `requestAnimationFrame` to an exact frame. `install` alone lets time keep running, and `page.clock.setFixedTime(...)` pins only `Date`.
+- Motion off at capture: pass `animations: 'disabled'` to `toHaveScreenshot` and `page.screenshot`, and emulate reduced motion (`use: { contextOptions: { reducedMotion: 'reduce' } }` or `page.emulateMedia({ reducedMotion: 'reduce' })`) so components that honor `prefers-reduced-motion` render their static variant.
+- No timer-dependent state at capture: wait for a ready locator instead of `waitForTimeout`, and dismiss toasts, mock pending requests, and pause carousels and countdowns first.
+- Capture twice, then compare: a new baseline reproduces on fresh pages before it is committed. The first command writes each missing baseline and reports it as a failure while writing; the second must pass every repeat.
+
+```bash
+npx playwright test e2e/visual.spec.ts --update-snapshots=missing
+npx playwright test e2e/visual.spec.ts --update-snapshots=none --repeat-each=3
+```
+
+Every repeat passes with no `maxDiffPixels` or `maxDiffPixelRatio` slack. A differing pixel means a nondeterministic source remains; remove it instead of loosening the comparison.
 
 ## No-Capture Contract
 
@@ -170,6 +267,7 @@ In `no-capture` mode Phase 2 and Phase 3 change: do NOT call `page.screenshot`, 
 - 최종 보고서에 `Capture: no-capture`와 `oracles_collected:[dom_geometry, accessibility_tree, keyboard_navigation, state_transition]`를 기록합니다.
 - 네 가지 중 하나라도 없으면 PASS를 낼 수 없습니다. 위 순서에서 처음 빠진 kind로 `missing_no_capture_oracle:<kind>`를 보고하고 blocked로 처리합니다.
 - capture index를 쓰는 producer는 같은 kind 문자열을 `oracles[]`에 기록해야 하며, no-capture 모드에서 screenshot을 남기면 capture 계약이 거부합니다.
+- The critique loop scores the oracle reports instead of a contact sheet: `hierarchy`, `phone_360`, and `spacing` from `dom_geometry`; `states` from `state_transition` and `accessibility_tree`; `a11y` from `accessibility_tree` and `keyboard_navigation`. `motion` and `design_system` have no pixel evidence and are reported as `n/a`, never as a number; the verdict applies to the scored keys.
 
 ## CLI 플래그
 
@@ -208,6 +306,7 @@ Visual gate compatibility report: .autopus/design/verify/latest.json
 Visual gate evidence report: .autopus/design/verify/latest.v2.json
 Screenshot diff summary: [pairs compared / max changed ratio / diff refs]
 Visual critic: [attached / skipped / PASS-WARN-FAIL]
+Critique: [rounds N/3 · final score line · review_log path]
 전체 판정: PASS / WARN / FAIL
 
 ### 스크린샷별 판정

@@ -131,7 +131,7 @@ npx playwright test --reporter=list \
 
 스크린샷은 DPR 1x(`deviceScaleFactor: 1`)로 캡처하도록 Playwright config 또는 per-test context에 설정합니다.
 
-Collect all screenshots to `./playwright-screenshots/` for analysis.
+Collect all screenshots to `./playwright-screenshots/` for analysis. For a visual change, also build the round's evidence set (contact sheet, phone strip, motion strip) with the `## Evidence Contact Sheet` commands of the frontend-verify skill.
 
 When using `auto verify`, preserve `.autopus/design/verify/latest.json` for v1 consumers and `.autopus/design/verify/latest.v2.json` for detailed proof. Treat both as a QAMESH handoff candidate; ingestion is not proven until a real consumer validates the report. `--strict-visual-gate` is opt-in and should only be used when the parent prompt asks for a blocking visual gate.
 
@@ -157,9 +157,11 @@ For each captured screenshot, analyze:
 | Touch/safe-area issue | FAIL | Touch targets are too small or critical controls collide with safe areas |
 | Motion/accessibility issue | WARN | Motion lacks reduced-motion fallback or state transition is decorative/noisy |
 
-Classify each finding as PASS / WARN / FAIL.
+Classify each finding as PASS / WARN / FAIL. Then score the evidence set with the Critique Rubric of `.claude/skills/frontend-verify/SKILL.md` (`## Scored Critique Loop`): that rubric's verdict rule decides the Verdict, so PASS needs every scored key at 8 or more.
 
 ### Step 5 — Attempt Auto-Fix (Max 2 Attempts)
+
+The two attempts are critique rounds 2 and 3: each one fixes the 3 worst problems, re-captures, re-scores, and appends its score line to the round log. After round 3, report every key still below 8 instead of a PASS.
 
 For each WARN or FAIL item, attempt an auto-fix:
 
@@ -210,6 +212,7 @@ A UX PASS is forbidden while any of the four is missing. Report `Status: BLOCKED
 - UX Intelligence: [source/inferred/skipped + surface type + pattern]
 - Design Pack: [available / setup gaps]
 - Visual Gate Report: [.autopus/design/verify/latest.json or skipped]
+- Critique: [final score line, rounds used N/3]
 - Issues:
   - WARN: [issue description, file, screenshot path]
   - FAIL: [issue description, file, screenshot path]
@@ -219,7 +222,7 @@ A UX PASS is forbidden while any of the four is missing. Report `Status: BLOCKED
 ```
 
 Verdict definitions:
-- **PASS**: No unresolved WARN or FAIL items
+- **PASS**: No unresolved WARN or FAIL items, and every scored rubric key at 8 or more
 - **WARN**: Unresolved WARN items, no FAIL items
 - **FAIL**: One or more unresolved FAIL items
 

@@ -18,6 +18,21 @@ Before building, write three things:
 
 Each section gets one job, one dominant visual idea, and one primary takeaway or action.
 
+After building, run the Critique Loop at the end of this skill before calling the work done.
+
+## Reference-First
+
+When the user supplies a reference (image, video, site, or folder), write a style guide from it before any code:
+
+- palette: hex values mapped to palette roles (background, foreground, primary, accent, muted, danger)
+- type: family, weights, tracking, and the size scale per role
+- spacing scale and corner radius
+- motion grammar: durations, easing curves, and stagger
+
+Take the grammar, never the content: logos, wordmarks, photos, illustrations, and copy from the reference never ship in the product. Run `auto design pack --format markdown` first and write the guide in DESIGN.md's section shape (Palette Roles, Typography, Layout, Depth, plus Motion). Where the project already has DESIGN.md or tokens, the guide lists each departure from them, and the project source wins unless the user approves the change. A remote site enters through `auto design import <URL>` as untrusted reference when `design.external_imports` allows it. Read a video's motion grammar from a frame sheet, where each cell is 100 ms: `ffmpeg -i ref.mp4 -vf "fps=10,scale=320:-2,tile=8x4" -frames:v 1 ref-frames.png`.
+
+Present the guide and wait for approval before coding. Under `--auto`, record `style guide: auto-approved (--auto)` in the work log and continue.
+
 ## UX Intelligence Pass
 
 Run this pass before choosing components, colors, or layout. It is a compact design-system generator inspired by professional UI/UX skill packs, but it must use this project's existing design sources and stack conventions first.
@@ -225,6 +240,16 @@ Motion rules:
 - Carousel with no narrative purpose
 - App UI made of stacked cards instead of layout
 
+## Banned Looks
+
+These read as generated or dated. Each one present keeps its rubric key below 8.
+
+- Gradient-filled headline text, neon glow, or frosted-glass panels standing in for a visual idea (`design_system`)
+- The same fade-up reveal on every section, linear slide-ins, or bounce easing on routine controls (`motion`)
+- Centered multi-line body text, or body lines longer than about 75 characters (`phone_360`)
+- Unthemed component-library defaults (stock palette, radius, and shadows) where the project has tokens (`design_system`)
+- Stock-photo clichés such as handshakes, headset agents, or laptops on desks (`hierarchy`)
+
 ## Litmus Checks
 
 - Is the brand or product unmistakable in the first screen?
@@ -234,3 +259,14 @@ Motion rules:
 - Are cards actually necessary?
 - Does motion improve hierarchy or atmosphere?
 - Would the design still feel premium if all decorative shadows were removed?
+
+## Critique Loop
+
+After implementing a visual change, critique it before calling it done. Be a harsh reviewer, not a proud author.
+
+1. Capture the evidence set: a contact sheet of key states × breakpoints, a 360px phone strip, and a motion strip for changed motion (commands in `.gemini/skills/autopus/frontend-verify/SKILL.md`, `## Evidence Contact Sheet`).
+2. Score it with the Critique Rubric of that skill: `hierarchy`, `phone_360`, `spacing`, `states`, `motion`, `design_system`, and `a11y`, each an integer from 1 to 10.
+3. List the 3 worst problems with locations, fix them, re-capture, and re-score.
+4. Stop when every score is 8 or more, or after round 3. A loop that ends below 8 reports the remaining gaps honestly and never claims PASS.
+
+Log each round's score line and top 3 in `{SPEC_DIR}/review_log.md`, or in `.autopus/design/verify/critique/review_log.md` when no SPEC is active. The Litmus Checks above feed the `hierarchy` and `design_system` scores; they do not replace them.
