@@ -29,23 +29,15 @@ const (
 )
 
 // Refusal reasons of promote (REQ-HC-06) besides the path reasons declared
-// with the path helpers. A promoted fingerprint is ResultAlreadyPromoted.
+// with the path helpers and the candidate reasons declared with the shared
+// candidate reader. A promoted fingerprint is ResultAlreadyPromoted.
 const (
-	ReasonCandidateMissing            = "candidate_missing"
-	ReasonCandidateInvalid            = "candidate_invalid"
 	ReasonCandidateProvenanceMismatch = "candidate_provenance_mismatch"
 	ReasonDraftIncomplete             = "draft_incomplete"
 	ReasonNoActivePathForKind         = "no_active_path_for_kind"
 	ReasonActiveSetInvalid            = "active_set_invalid"
 	ReasonTaskIDExists                = "task_id_exists"
 	ReasonPromoteRolledBack           = "promote_rolled_back"
-)
-
-// Details of a candidate_invalid document. A draft task the SPEC-HARNEVAL-001
-// strict decoder rejects carries that decoder's detail instead.
-const (
-	DetailDecode     = "decode"
-	DetailIDMismatch = "id_mismatch"
 )
 
 // PromoteRequest is one `auto eval harness promote` invocation.
@@ -108,7 +100,7 @@ func Promote(ctx context.Context, req PromoteRequest) (PromoteResult, error) {
 	}
 	// Every write is fsynced before it counts, so a close error loses nothing.
 	defer func() { _ = a.close() }()
-	p := &promotion{req: req, area: a, candidateRel: IntakeDir + "/" + req.CandidateID + ".json"}
+	p := &promotion{req: req, area: a, candidateRel: candidatePath(req.CandidateID)}
 	if err := p.check(); err != nil {
 		return PromoteResult{}, err
 	}
@@ -135,28 +127,9 @@ func (p *promotion) check() error {
 // readCandidate is checks 2 and 3: a safe layout, then a regular candidate
 // file that decodes strictly and names itself.
 func (p *promotion) readCandidate() error {
-	if err := p.area.checkLayout(); err != nil {
-		return areaError(err, "")
-	}
-	data, err := p.area.readFile(p.candidateRel)
-	if errors.Is(err, fs.ErrNotExist) {
-		return &RunError{Reason: ReasonCandidateMissing, Err: fmt.Errorf("%s does not exist", p.candidateRel)}
-	}
-	if err != nil {
-		return areaError(err, "")
-	}
-	c := &p.candidate
-	if err := decodeStrict(data, c); err != nil {
-		return &RunError{Reason: ReasonCandidateInvalid, Detail: DetailDecode, Err: err}
-	}
-	if _, err := recordKey(c.SchemaVersion, CandidateSchemaV1, c.FingerprintVersion, c.Fingerprint); err != nil {
-		return &RunError{Reason: ReasonCandidateInvalid, Detail: DetailDecode, Err: err}
-	}
-	if c.ID != p.req.CandidateID {
-		return &RunError{Reason: ReasonCandidateInvalid, Detail: DetailIDMismatch,
-			Err: fmt.Errorf("%s holds candidate %q", p.candidateRel, c.ID)}
-	}
-	return nil
+	candidate, err := p.area.readCandidate(p.req.CandidateID)
+	p.candidate = candidate
+	return err
 }
 
 // checkDraft is checks 4 to 6: provenance that ties the draft task to this

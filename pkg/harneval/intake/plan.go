@@ -111,7 +111,7 @@ func (p *planner) publish(a *area) error {
 		if err != nil {
 			return err
 		}
-		err = a.createExclusive(IntakeDir+"/"+g.candidate.ID+".json", data)
+		err = a.createExclusive(candidatePath(g.candidate.ID), data)
 		if errors.Is(err, fs.ErrExist) {
 			g.collide()
 			continue

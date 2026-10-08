@@ -8,16 +8,11 @@ import (
 	"strings"
 )
 
-// Reasons and details reject reports beside the shared path and platform
-// ones; candidate_missing and candidate_invalid name the same candidate
-// checks promote runs.
+// Reasons reject reports beside the shared path, platform, and candidate
+// ones.
 const (
-	reasonCandidateMissing    = "candidate_missing"
-	reasonCandidateInvalid    = "candidate_invalid"
-	reasonRejectionExists     = "rejection_exists"
-	reasonReasonRequired      = "reason_required"
-	detailCandidateDecode     = "decode"
-	detailCandidateIDMismatch = "id_mismatch"
+	reasonRejectionExists = "rejection_exists"
+	reasonReasonRequired  = "reason_required"
 )
 
 // RejectRequest is one `auto eval harness reject` invocation. Reason is the
@@ -72,11 +67,7 @@ func Reject(req RejectRequest) (RejectResult, error) {
 	}
 	// Every write is fsynced before Reject returns, so a close error loses nothing.
 	defer func() { _ = a.close() }()
-	if err := a.checkLayout(); err != nil {
-		return RejectResult{}, areaError(err, "")
-	}
-	candidatePath := IntakeDir + "/" + req.CandidateID + ".json"
-	candidate, err := loadRejectCandidate(a, req.CandidateID, candidatePath)
+	candidate, err := readRejectCandidate(a, req.CandidateID)
 	if err != nil {
 		return RejectResult{}, err
 	}
@@ -89,7 +80,7 @@ func Reject(req RejectRequest) (RejectResult, error) {
 	if err != nil {
 		return RejectResult{}, err
 	}
-	if err := a.removeFile(candidatePath); err != nil {
+	if err := a.removeFile(candidatePath(req.CandidateID)); err != nil {
 		return RejectResult{}, areaError(err, "")
 	}
 	return RejectResult{CandidateID: candidate.ID, RecordPath: recordPath, Fingerprint: candidate.Fingerprint, LearningRefs: refs}, nil
@@ -109,27 +100,16 @@ func rejectionReason(redactor Redactor, raw string) (string, error) {
 	return masked, nil
 }
 
-// loadRejectCandidate reads the open candidate id strictly. Its id must be
-// both its file name and the name its fingerprint derives, so the record
+// readRejectCandidate reads the open candidate id with the reader promote
+// uses. Its id must also be the name its fingerprint derives, so the record
 // blocks the fingerprint the candidate was created for.
-func loadRejectCandidate(a *area, id, rel string) (Candidate, error) {
-	data, err := a.readFile(rel)
-	if errors.Is(err, fs.ErrNotExist) {
-		return Candidate{}, &RunError{Reason: reasonCandidateMissing, Detail: rel + " does not exist"}
-	}
+func readRejectCandidate(a *area, id string) (Candidate, error) {
+	candidate, err := a.readCandidate(id)
 	if err != nil {
-		return Candidate{}, areaError(err, "")
+		return Candidate{}, err
 	}
-	var candidate Candidate
-	if err := decodeStrict(data, &candidate); err != nil {
-		return Candidate{}, &RunError{Reason: reasonCandidateInvalid, Detail: detailCandidateDecode, Err: err}
-	}
-	_, err = recordKey(candidate.SchemaVersion, CandidateSchemaV1, candidate.FingerprintVersion, candidate.Fingerprint)
-	if err != nil {
-		return Candidate{}, &RunError{Reason: reasonCandidateInvalid, Detail: detailCandidateDecode, Err: err}
-	}
-	if candidate.ID != id || candidateIDFor(candidate.Fingerprint) != id {
-		return Candidate{}, &RunError{Reason: reasonCandidateInvalid, Detail: detailCandidateIDMismatch}
+	if candidateIDFor(candidate.Fingerprint) != id {
+		return Candidate{}, &RunError{Reason: ReasonCandidateInvalid, Detail: DetailIDMismatch}
 	}
 	return candidate, nil
 }
