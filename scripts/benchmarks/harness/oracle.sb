@@ -1,0 +1,48 @@
+;; Oracle profile for the SPEC-HARNEVAL-003 signed live lane (REQ-HR-08).
+;;
+;; golden_blackbox.py starts the trusted oracle harness, built from the runner
+;; checkout (cmd/harneval-oracle), as a sibling process, never nested, and only
+;; after the artifact and every process it left have ended:
+;;   env -i <allowlist> sandbox-exec -f oracle.sb -D ORACLE=<harness binary>
+;;     -D OUTPUT_ROOT=<artifact output root> -D RESULT_DIR=<result directory>
+;;     -D CHECKOUT=<runner checkout> -D SET_ROOT=<golden set root>
+;;     -D ACCOUNT_HOME=<home> -D CODEX_HOME_DIR=<codex home>
+;;     harneval-oracle --task <id> --outputs <OUTPUT_ROOT> --result <RESULT_DIR>
+;; with the bundle (expected outputs, assertions, stdout, exit status) on
+;; stdin. The expected outputs exist on disk only in the golden set root, which
+;; this profile closes entirely, so an output link or a code defect cannot make
+;; the harness compare an expected file with itself.
+;;
+;; Network and every Mach service lookup are denied. The only writable tree is
+;; RESULT_DIR: the harness cannot change an artifact output.
+(version 1)
+(allow default)
+(deny network*)
+(deny mach-lookup)
+(deny file-write*)
+(allow file-write*
+  (subpath (param "RESULT_DIR"))
+  (literal "/dev/null"))
+
+;; Reads are an allowlist, as in artifact.sb: metadata and existence tests stay
+;; open for path resolution except below the runner checkout, the golden set
+;; root, the Codex home and the keychains; file contents are readable only on
+;; the system paths a process needs to start, the harness binary, the artifact
+;; output root and the result directory.
+(deny file-read* file-test-existence)
+(allow file-read-metadata file-test-existence)
+(deny file-read-metadata file-test-existence
+  (subpath (param "CHECKOUT"))
+  (subpath (param "SET_ROOT"))
+  (subpath (param "CODEX_HOME_DIR"))
+  (subpath (string-append (param "ACCOUNT_HOME") "/Library/Keychains"))
+  (subpath "/Library/Keychains"))
+(allow file-read-data file-read-xattr file-read-metadata file-test-existence
+  (literal "/")
+  (subpath "/System")
+  (subpath "/usr/lib")
+  (subpath "/private/var/db/dyld")
+  (subpath "/dev")
+  (literal (param "ORACLE"))
+  (subpath (param "OUTPUT_ROOT"))
+  (subpath (param "RESULT_DIR")))
