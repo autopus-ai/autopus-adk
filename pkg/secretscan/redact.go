@@ -27,6 +27,12 @@ const (
 // token alphabet, or value terminator contains it.
 const filler = '#'
 
+// alphabetFiller stands in for placeholder bytes in the copy the
+// fixed-alphabet detectors also scan. A digit is a letter of every such
+// alphabet and of no keyword, so a placeholder inside a token reads as part
+// of it and the raw characters glued to it join the same match.
+const alphabetFiller = '0'
+
 // kind orders span sensitivity; a merged span takes the highest kind.
 type kind int
 
@@ -113,17 +119,20 @@ func redactPass(s string) (string, bool) {
 // tokens. The detectors and the upstream replay scan a neutral copy in which
 // every placeholder is filler, so a placeholder is read as an opaque value:
 // raw text glued to it joins its value, and its own letters (the SECRET of
-// [REDACTED_SECRET]) are no keyword. A span of s itself is added when it lies
-// clear of every placeholder, or when it overlaps one and also overlaps a span
-// of the neutral copy, which lets a match that starts inside a placeholder
-// absorb it into the raw secret next to it. A span that only placeholder text
-// explains is dropped, so the text after a placeholder is not redacted again.
+// [REDACTED_SECRET]) are no keyword. Filler is outside every fixed alphabet,
+// so those detectors also scan a copy filled with alphabetFiller. A span of s
+// itself is added when it lies clear of every placeholder, or when it
+// overlaps one and also overlaps a span of a neutral copy, which lets a match
+// that starts inside a placeholder absorb it into the raw secret next to it.
+// A span that only placeholder text explains is dropped, so the text after a
+// placeholder is not redacted again.
 func spansOf(s string, tokens []span) []span {
-	scan := neutral(s, tokens)
+	scan := neutral(s, tokens, filler)
 	spans := append(detect(scan), replaySpans(scan)...)
 	if len(tokens) == 0 {
 		return spans
 	}
+	spans = append(spans, glue(s, tokens, detectAlphabet(neutral(s, tokens, alphabetFiller)))...)
 	confirmed := merge(append([]span(nil), spans...))
 	for _, sp := range detect(s) {
 		if !overlapsAny(sp, tokens) || overlapsAny(sp, confirmed) {
@@ -133,19 +142,42 @@ func spansOf(s string, tokens []span) []span {
 	return spans
 }
 
-// neutral returns s with every token's bytes replaced by filler; positions
-// are unchanged, so a span of the copy is a span of s.
-func neutral(s string, tokens []span) string {
+// neutral returns s with every token's bytes replaced by fill; positions are
+// unchanged, so a span of the copy is a span of s.
+func neutral(s string, tokens []span, fill byte) string {
 	if len(tokens) == 0 {
 		return s
 	}
 	b := []byte(s)
 	for _, tok := range tokens {
 		for i := tok.start; i < tok.end; i++ {
-			b[i] = filler
+			b[i] = fill
 		}
 	}
 	return string(b)
+}
+
+// glue extends every span that ends inside a placeholder, or at its end,
+// over the letters and digits glued after that placeholder. A fixed-length
+// value (AKIA and 16 characters) reads the placeholder as the rest of it and
+// would otherwise stop there, leaving the raw characters after it.
+func glue(s string, tokens, spans []span) []span {
+	for i, sp := range spans {
+		j := sort.Search(len(tokens), func(j int) bool { return tokens[j].end >= sp.end })
+		if j == len(tokens) || tokens[j].start >= sp.end {
+			continue
+		}
+		end := tokens[j].end
+		for end < len(s) && isAlnum(s[end]) {
+			end++
+		}
+		spans[i].end = max(sp.end, end)
+	}
+	return spans
+}
+
+func isAlnum(c byte) bool {
+	return '0' <= c && c <= '9' || 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z'
 }
 
 // overlapsAny reports whether sp overlaps one of the disjoint, sorted spans.

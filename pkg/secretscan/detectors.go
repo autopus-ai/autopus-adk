@@ -15,11 +15,14 @@ type selector func(s string, m []int) (start, end int)
 // of a match Redact selects, and how its upstream redactor rewrites a match.
 // prepare, when set, builds selectSpan for one scanned text, so a selector
 // that looks past its match indexes the text once instead of once per match.
+// alphabet marks a value drawn from a fixed alphabet (Bearer, sk-, ghp_,
+// AKIA, ...) that the filler of the neutral copy is not part of.
 type detector struct {
 	re         *regexp.Regexp
 	kind       kind
 	selectSpan selector
 	prepare    func(s string) selector
+	alphabet   bool
 	rewrite    rewrite
 }
 
@@ -33,6 +36,12 @@ func (d detector) preparedBy(prepare func(s string) selector) detector {
 	return d
 }
 
+// ofAlphabet returns d with alphabet set.
+func (d detector) ofAlphabet() detector {
+	d.alphabet = true
+	return d
+}
+
 // detectors copies, verbatim and in order, the 14 regexes of
 // evidence.SecretDetectorSources() followed by the 11 patterns of
 // security.DefaultPatternSources(). This package imports neither: the drift
@@ -43,11 +52,11 @@ func (d detector) preparedBy(prepare func(s string) selector) detector {
 // prose exemption is deliberately not applied.
 var detectors = []detector{
 	// pkg/qa/evidence secretPatterns.
-	newDetector(`\bBearer\s+[A-Za-z0-9._~+/=-]{12,}\b`, kindSecret, bearerValue, rewriteSpan),
-	newDetector(`\bsk-(?:proj-)?[A-Za-z0-9_-]{16,}\b`, kindSecret, wholeMatch, rewriteSpan),
-	newDetector(`\bsk-ant-[A-Za-z0-9_-]{16,}\b`, kindSecret, wholeMatch, rewriteSpan),
-	newDetector(`\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{20,}\b`, kindSecret, wholeMatch, rewriteSpan),
-	newDetector(`\bgithub_pat_[A-Za-z0-9_]{20,}\b`, kindSecret, wholeMatch, rewriteSpan),
+	newDetector(`\bBearer\s+[A-Za-z0-9._~+/=-]{12,}\b`, kindSecret, bearerValue, rewriteSpan).ofAlphabet(),
+	newDetector(`\bsk-(?:proj-)?[A-Za-z0-9_-]{16,}\b`, kindSecret, wholeMatch, rewriteSpan).ofAlphabet(),
+	newDetector(`\bsk-ant-[A-Za-z0-9_-]{16,}\b`, kindSecret, wholeMatch, rewriteSpan).ofAlphabet(),
+	newDetector(`\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{20,}\b`, kindSecret, wholeMatch, rewriteSpan).ofAlphabet(),
+	newDetector(`\bgithub_pat_[A-Za-z0-9_]{20,}\b`, kindSecret, wholeMatch, rewriteSpan).ofAlphabet(),
 	// sensitiveAssignmentRe: the value group.
 	newDetector(`(?i)\b([A-Z0-9_.-]*(TOKEN|SECRET|PASSWORD|PASSWD|PWD|API[_-]?KEY|PRIVATE[_-]?KEY|ACCESS[_-]?KEY|CREDENTIAL|COOKIE|SESSION|AUTH)[A-Z0-9_.-]*)(\s*[:=]\s*)(["']?)([^\s"',}\]]{3,})(["']?)`, kindSecret, group(5), rewriteUnredacted),
 	// sensitiveFlagValueRe: the flag value group.
@@ -66,17 +75,17 @@ var detectors = []detector{
 	newDetector(`([A-Za-z]:\\+Users\\+)([^\\\s:"']+)((?:\\+[^\s"',)]*)?)`, kindUser, group(2), rewriteSpan),
 
 	// pkg/worker/security default patterns.
-	newDetector(`sk-[a-zA-Z0-9]{20,}`, kindSecret, wholeMatch, rewriteWhole),
-	newDetector(`AKIA[A-Z0-9]{16}`, kindSecret, wholeMatch, rewriteWhole),
-	newDetector(`ghp_[a-zA-Z0-9]{36}`, kindSecret, wholeMatch, rewriteWhole),
-	newDetector(`gho_[a-zA-Z0-9]{36}`, kindSecret, wholeMatch, rewriteWhole),
-	newDetector(`Bearer [a-zA-Z0-9._\-]+`, kindSecret, wholeMatch, rewriteWhole),
+	newDetector(`sk-[a-zA-Z0-9]{20,}`, kindSecret, wholeMatch, rewriteWhole).ofAlphabet(),
+	newDetector(`AKIA[A-Z0-9]{16}`, kindSecret, wholeMatch, rewriteWhole).ofAlphabet(),
+	newDetector(`ghp_[a-zA-Z0-9]{36}`, kindSecret, wholeMatch, rewriteWhole).ofAlphabet(),
+	newDetector(`gho_[a-zA-Z0-9]{36}`, kindSecret, wholeMatch, rewriteWhole).ofAlphabet(),
+	newDetector(`Bearer [a-zA-Z0-9._\-]+`, kindSecret, wholeMatch, rewriteWhole).ofAlphabet(),
 	newDetector(`(?i)(password|secret|api_key|apikey|token)\s*[=:]\s*\S+`, kindSecret, wholeMatch, rewriteWhole),
-	newDetector(`(?i)(aws|secret).{0,20}[a-zA-Z0-9/+=]{40}`, kindSecret, wholeMatch, rewriteWhole),
+	newDetector(`(?i)(aws|secret).{0,20}[a-zA-Z0-9/+=]{40}`, kindSecret, wholeMatch, rewriteWhole).ofAlphabet(),
 	newDetector(`"private_key[_a-z]*"\s*:\s*"[^"]+`, kindSecret, wholeMatch, rewriteWhole),
 	newDetector(`(?i)azure.{0,20}(client.?secret|tenant.?id)\s*[=:]\s*\S+`, kindSecret, wholeMatch, rewriteWhole),
 	newDetector(`-----BEGIN[A-Z ]*PRIVATE KEY-----`, kindSecret, pemBlock, rewriteWhole).preparedBy(pemBlocks),
-	newDetector(`apjwt_[a-zA-Z0-9_\-]+\.[a-zA-Z0-9_\-]+\.[a-zA-Z0-9_\-]+`, kindSecret, wholeMatch, rewriteWhole),
+	newDetector(`apjwt_[a-zA-Z0-9_\-]+\.[a-zA-Z0-9_\-]+\.[a-zA-Z0-9_\-]+`, kindSecret, wholeMatch, rewriteWhole).ofAlphabet(),
 }
 
 // Bounds of the extra searches one detector makes inside its own matches:
@@ -97,6 +106,17 @@ func detect(s string) []span {
 	var spans []span
 	for _, d := range detectors {
 		spans = d.collect(s, spans)
+	}
+	return spans
+}
+
+// detectAlphabet returns the spans the fixed-alphabet detectors select in s.
+func detectAlphabet(s string) []span {
+	var spans []span
+	for _, d := range detectors {
+		if d.alphabet {
+			spans = d.collect(s, spans)
+		}
 	}
 	return spans
 }

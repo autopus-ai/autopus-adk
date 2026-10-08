@@ -11,10 +11,13 @@ import (
 // placeholder is not read as secret context (C2), a placeholder does not
 // shield the raw value glued to it (S1), a value that runs over the next key
 // does not hide that key (S3), and a private key header masks its key body
-// (S4). Round 2 adds the header lines of an encrypted key without a footer.
+// (S4). Round 2 adds the header lines of an encrypted key without a footer and
+// placeholders glued inside a fixed-alphabet token.
 func reviewFixtures() []fixture {
 	v12 := synth(12, synthAlphabet, 212)
 	v20 := synth(20, synthAlphabet, 220)
+	raw36 := synth(36, synthAlphabet, 236)
+	up8 := synth(8, synthUpper, 208)
 	body := synth(64, synthAlphabet, 264)
 	tail := synth(24, synthAlphabet, 224)
 	iv := synth(32, "0123456789ABCDEF", 232)
@@ -51,6 +54,18 @@ func reviewFixtures() []fixture {
 		{"encrypted pem without footer", header + "\n" + procType + "\n" + dekInfo + "\n\n" + body + "\n", sec + "\n", true},
 		{"flattened encrypted pem", header + " " + procType + " " + dekInfo + " " + body + ".", sec + ".", true},
 		{"encrypted pem with footer", header + "\n" + procType + "\n" + dekInfo + "\n\n" + body + "\n" + footer + " done", sec + " done", true},
+		// Round 2: a placeholder inside a fixed-alphabet token reads as letters
+		// of it, so the raw characters glued to it join the token.
+		{"bearer glued", "Bearer " + sec + raw36[:24], sec, true},
+		{"bearer glued in header", "Authorization: Bearer " + sec + raw36[:24], "Authorization: " + sec, true},
+		{"bearer split by placeholder", "Bearer " + raw36[:6] + sec + raw36[:24], sec, true},
+		{"bearer keyword before placeholder", "Bearer " + sec, sec, true},
+		{"sk glued", "sk-" + sec + raw36[:24], sec, true},
+		{"ghp glued", "ghp_" + sec + raw36, sec, true},
+		{"github_pat glued", "github" + "_pat_" + sec + raw36[:24], sec, true},
+		{"akia glued", "AKIA" + sec + up8, sec, true},
+		{"aws value split", "aws " + v20 + sec + v20 + " end", sec + " end", true},
+		{"apjwt glued", "apjwt_" + sec + "." + v12 + "." + v12, sec, true},
 	}
 }
 
