@@ -66,7 +66,7 @@ func lpAllowedEnvName(name string) bool {
 // rule, so a tracked file whose text a Read returns in the stream, here one
 // holding orchestra's RESOURCE_EXHAUSTED and ratelimitexceeded rules, does
 // not end the provider as a capacity failure.
-func TestBandConfinedProvider_Request_RepositoryTextDoesNotFastFail(t *testing.T) {
+func TestReactBandLocalPatchProvider_RepositoryTextDoesNotFastFail(t *testing.T) {
 	fake := installLPFakeClaude(t)
 	file := `{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"t1","content":` +
 		`"// status RESOURCE_EXHAUSTED: quota\n// grpc code ratelimitexceeded\nfunc Foo() int { return 1 }"}]}}`
@@ -83,7 +83,7 @@ func TestBandConfinedProvider_Request_RepositoryTextDoesNotFastFail(t *testing.T
 	assert.Equal(t, "### Summary\nquota text is repository content", text)
 }
 
-func TestBandConfinedProvider_Request_EnvironmentIsAnAllowlist(t *testing.T) {
+func TestReactBandLocalPatchProvider_EnvironmentIsAnAllowlist(t *testing.T) {
 	fake := installLPFakeClaude(t)
 	for _, name := range lpPollutedEnv {
 		t.Setenv(name, "synthetic-"+strings.ToLower(name))
