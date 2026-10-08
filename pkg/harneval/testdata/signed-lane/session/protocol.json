@@ -1,0 +1,172 @@
+{
+  "schema_version": "harness_golden_live_protocol.v1",
+  "session_id": "53cee9e39f81a85a1114b7a09e8ebc21",
+  "started_at": "2026-10-09T00:00:00Z",
+  "workspace_revision": "07439f5ea2a73112a0d52d2398ac08fc7e80a0de",
+  "baseline_ref": "v0.50.123",
+  "baseline_surface_digest": "6bc64d188405b9f58ae9296e2a3eaa2a4f823fc521505f5b30ba3c4f3600e452",
+  "candidate_surface_digest": "a6143b79d1291b6658fbed5d14552f9beb4f3345c76b3879e1f28f1f908bf5bd",
+  "agent_set_digest": "bae2336ec9299e60711b873d28be24b2a81c47d9c5c868bd5f0499cfd825a998",
+  "corpus_digests": [
+    {
+      "file": "scripts/benchmarks/harness/corpus_fixture.json",
+      "file_sha256": "3fd1ee7238f365f3c15f717e07db309e88d975b03b634e5932d3755bff1bbf44"
+    }
+  ],
+  "runner_sha256": "8790d6a4831584b94ec4f808b9ac5d35a441f5916784d766c67b3df0e5386513",
+  "grader_profile_sha256": "4fd02eb87934900daed38b3e908454c46834baa5c0514d350aff282c240f6a18",
+  "calibration": {
+    "status": "passed",
+    "tasks": [
+      {
+        "task_id": "GT-AGENT-X01",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      },
+      {
+        "task_id": "GT-AGENT-X02",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      },
+      {
+        "task_id": "GT-AGENT-X03",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      },
+      {
+        "task_id": "GT-AGENT-X04",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      }
+    ]
+  },
+  "policy": {
+    "k": 2,
+    "threshold_bp": -1000,
+    "completeness_floor": 0.8,
+    "max_agent_runs": 20,
+    "trial_timeout_seconds": 60,
+    "workspace_revision": "07439f5ea2a73112a0d52d2398ac08fc7e80a0de",
+    "baseline_ref": "v0.50.123",
+    "model": "gpt-6-astra"
+  },
+  "pins": {
+    "generator_version": "v0.50.123",
+    "project_name": "harness-golden",
+    "codex_model_catalog": "evals/harness/fixtures/codex-models.json",
+    "codex_cli_version": "codex-cli 0.160.0",
+    "opencode_cli_version": "1.18.7"
+  },
+  "cli_version": "codex-cli 0.160.0",
+  "model": "gpt-6-astra",
+  "order": [
+    {
+      "task_id": "GT-AGENT-X01",
+      "arm": "baseline",
+      "trial": 0
+    },
+    {
+      "task_id": "GT-AGENT-X01",
+      "arm": "candidate",
+      "trial": 0
+    },
+    {
+      "task_id": "GT-AGENT-X02",
+      "arm": "candidate",
+      "trial": 0
+    },
+    {
+      "task_id": "GT-AGENT-X02",
+      "arm": "baseline",
+      "trial": 0
+    },
+    {
+      "task_id": "GT-AGENT-X03",
+      "arm": "baseline",
+      "trial": 0
+    },
+    {
+      "task_id": "GT-AGENT-X03",
+      "arm": "candidate",
+      "trial": 0
+    },
+    {
+      "task_id": "GT-AGENT-X04",
+      "arm": "candidate",
+      "trial": 0
+    },
+    {
+      "task_id": "GT-AGENT-X04",
+      "arm": "baseline",
+      "trial": 0
+    },
+    {
+      "task_id": "GT-AGENT-X01",
+      "arm": "candidate",
+      "trial": 1
+    },
+    {
+      "task_id": "GT-AGENT-X01",
+      "arm": "baseline",
+      "trial": 1
+    },
+    {
+      "task_id": "GT-AGENT-X02",
+      "arm": "baseline",
+      "trial": 1
+    },
+    {
+      "task_id": "GT-AGENT-X02",
+      "arm": "candidate",
+      "trial": 1
+    },
+    {
+      "task_id": "GT-AGENT-X03",
+      "arm": "candidate",
+      "trial": 1
+    },
+    {
+      "task_id": "GT-AGENT-X03",
+      "arm": "baseline",
+      "trial": 1
+    },
+    {
+      "task_id": "GT-AGENT-X04",
+      "arm": "baseline",
+      "trial": 1
+    },
+    {
+      "task_id": "GT-AGENT-X04",
+      "arm": "candidate",
+      "trial": 1
+    }
+  ],
+  "prompt_layers": [
+    {
+      "layer": "stable",
+      "identifiers": [
+        "baseline_surface_digest",
+        "candidate_surface_digest",
+        "agent_set_digest"
+      ]
+    },
+    {
+      "layer": "snapshot",
+      "identifiers": [
+        "corpus_digests",
+        "workspace_revision",
+        "model",
+        "cli_version"
+      ]
+    },
+    {
+      "layer": "ephemeral",
+      "identifiers": []
+    }
+  ],
+  "run_id": 18300000001,
+  "run_attempt": 1,
+  "binding_digest": "4674f7a172e270d12b9528b8f1091a11ff5a5da27557bf6475c027fc0ba9c380",
+  "baseline_commit": "07439f5ea2a73112a0d52d2398ac08fc7e80a0de",
+  "runner_tree_digest": "0429b06ff6fe38379217e99fdd28a5fb41411b712d6a6d516670418c861bba4f"
+}

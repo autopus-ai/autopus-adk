@@ -96,19 +96,23 @@ type TrustedProtocol struct {
 
 // RebuildTrustedProtocol rebuilds the trusted protocol from the main
 // checkout's golden set and the inputs computed beside it. Like the trusted
-// runner, it schedules every active agent task in the balanced order, takes
-// one corpus row per pinned corpus file, and expects the codex CLI pin as
-// cli_version, since the runner refuses any other codex. The policy must fit
-// one job (policy_out_of_range).
+// runner's signed lane, it schedules in the balanced order exactly the active
+// agent tasks whose main task definition has a black-box oracle, the tasks
+// inputs.OracleAssertions names; a white-box task stays in the
+// SPEC-HARNEVAL-001 advisory lane (REQ-HR-08). It takes one corpus row per
+// corpus file those tasks pin and expects the codex CLI pin as cli_version,
+// since the runner refuses any other codex. The policy must fit one job
+// (policy_out_of_range).
 func RebuildTrustedProtocol(set *Set, inputs TrustedInputs) (TrustedProtocol, error) {
 	tasks := []Task{}
 	for _, task := range set.Tasks {
-		if task.Kind == KindAgent && task.Status.State == StateActive {
+		_, blackBox := inputs.OracleAssertions[task.ID]
+		if task.Kind == KindAgent && task.Status.State == StateActive && blackBox {
 			tasks = append(tasks, task)
 		}
 	}
 	if len(tasks) == 0 {
-		return TrustedProtocol{}, invalidf(DetailFieldInvalid, "golden set has no active agent task to schedule")
+		return TrustedProtocol{}, invalidf(DetailFieldInvalid, "golden set has no active black-box agent task to schedule")
 	}
 	ids := make([]string, 0, len(tasks))
 	for _, task := range tasks {
@@ -198,7 +202,7 @@ func (t TrustedProtocol) validateAssertions() error {
 	}
 	for _, task := range slices.Sorted(maps.Keys(t.OracleAssertions)) {
 		if _, found := slices.BinarySearch(scheduled, task); !found {
-			return invalidf(DetailFieldInvalid, "trusted black-box assertions name unscheduled task %s", task)
+			return invalidf(DetailFieldInvalid, "trusted black-box assertions name %s, which is no active agent task", task)
 		}
 	}
 	for _, task := range scheduled {

@@ -214,7 +214,7 @@ class FixtureAndBundleTests(unittest.TestCase):
         early = gb.record('f' * 32, attempt, gb.derive('build', None, CLEAN, None, 'X', IDS), 0, 'build', CLEAN, 'e' * 64)
         self.assertIsNone(early['oracle_result_sha256'])
         digest = gb.store_result(self.base, b'{}')
-        self.assertEqual((self.base / 'oracle_results' / (digest + '.json')).read_bytes(), b'{}')
+        self.assertEqual((self.base / 'oracle-results' / (digest + '.json')).read_bytes(), b'{}')
         self.assertEqual(gb.store_result(self.base, b'{}'), digest)
 
 

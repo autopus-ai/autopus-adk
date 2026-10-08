@@ -1,0 +1,137 @@
+[
+ {
+  "id": "x01",
+  "category": "fixture",
+  "prompt": "Repair alpha.Value so its tests pass.",
+  "mutation": {
+   "path": "alpha/alpha.go",
+   "before": "return x + 1",
+   "after": "return x + 2"
+  },
+  "oracle": {
+   "command": [
+    "go",
+    "test",
+    "-p",
+    "1",
+    "./alpha",
+    "-run",
+    "^(TestValue|TestZero)$",
+    "-count=1"
+   ]
+  },
+  "allowed_paths": [
+   "alpha/alpha.go"
+  ],
+  "difficulty": "fixture",
+  "rationale": "fixture"
+ },
+ {
+  "id": "x02",
+  "category": "fixture",
+  "prompt": "Repair beta.Value so its tests pass.",
+  "mutation": {
+   "path": "beta/beta.go",
+   "before": "return x + 1",
+   "after": "return x + 2"
+  },
+  "oracle": {
+   "command": [
+    "go",
+    "test",
+    "-p",
+    "1",
+    "./beta",
+    "-run",
+    "^(TestValue|TestZero)$",
+    "-count=1"
+   ]
+  },
+  "allowed_paths": [
+   "beta/beta.go"
+  ],
+  "difficulty": "fixture",
+  "rationale": "fixture"
+ },
+ {
+  "id": "x03",
+  "category": "fixture",
+  "prompt": "Repair gamma.Value so its tests pass.",
+  "mutation": {
+   "path": "gamma/gamma.go",
+   "before": "return x + 1",
+   "after": "return x + 2"
+  },
+  "oracle": {
+   "command": [
+    "go",
+    "test",
+    "-p",
+    "1",
+    "./gamma",
+    "-run",
+    "^(TestValue|TestZero)$",
+    "-count=1"
+   ]
+  },
+  "allowed_paths": [
+   "gamma/gamma.go"
+  ],
+  "difficulty": "fixture",
+  "rationale": "fixture"
+ },
+ {
+  "id": "x04",
+  "category": "fixture",
+  "prompt": "Repair epsilon.Value so its tests pass.",
+  "mutation": {
+   "path": "epsilon/epsilon.go",
+   "before": "return x + 1",
+   "after": "return x + 2"
+  },
+  "oracle": {
+   "command": [
+    "go",
+    "test",
+    "-p",
+    "1",
+    "./epsilon",
+    "-run",
+    "^(TestValue|TestZero)$",
+    "-count=1"
+   ]
+  },
+  "allowed_paths": [
+   "epsilon/epsilon.go"
+  ],
+  "difficulty": "fixture",
+  "rationale": "fixture"
+ },
+ {
+  "id": "x05",
+  "category": "fixture",
+  "prompt": "Repair zeta.Value so its tests pass.",
+  "mutation": {
+   "path": "zeta/zeta.go",
+   "before": "return x + 1",
+   "after": "return x + 2"
+  },
+  "oracle": {
+   "command": [
+    "go",
+    "test",
+    "-p",
+    "1",
+    "./zeta",
+    "-run",
+    "^(TestValue|TestZero)$",
+    "-count=1"
+   ]
+  },
+  "allowed_paths": [
+   "zeta/zeta.go"
+  ],
+  "difficulty": "fixture",
+  "rationale": "fixture"
+ }
+]

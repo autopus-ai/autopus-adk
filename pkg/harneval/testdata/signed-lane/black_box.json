@@ -1,0 +1,22 @@
+{
+  "GT-AGENT-X01": [
+    "exit",
+    "stdout",
+    "result"
+  ],
+  "GT-AGENT-X02": [
+    "exit",
+    "stdout",
+    "result"
+  ],
+  "GT-AGENT-X03": [
+    "exit",
+    "stdout",
+    "result"
+  ],
+  "GT-AGENT-X04": [
+    "exit",
+    "stdout",
+    "result"
+  ]
+}

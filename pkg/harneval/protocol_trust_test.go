@@ -172,7 +172,6 @@ func TestRebuildTrustedProtocol_MalformedInputs_AreInvalid(t *testing.T) {
 		{"runner tree digest short", "runner_tree_digest", func(in *TrustedInputs) { in.RunnerTreeDigest = "7e" }},
 		{"baseline surface digest blank", "baseline_surface_digest", func(in *TrustedInputs) { in.BaselineSurfaceDigest = "" }},
 		{"candidate surface digest upper case", "candidate_surface_digest", func(in *TrustedInputs) { in.CandidateSurfaceDigest = strings.Repeat("CA", 32) }},
-		{"assertions miss a scheduled task", "GT-AG-001", func(in *TrustedInputs) { in.OracleAssertions = map[string][]string{} }},
 		{"assertions name an unscheduled task", "GT-AG-009", func(in *TrustedInputs) { in.OracleAssertions["GT-AG-009"] = signedAssertions }},
 		{"assertions empty", "GT-AG-001", func(in *TrustedInputs) { in.OracleAssertions["GT-AG-001"] = []string{} }},
 		{"assertion id repeated", "stdout", func(in *TrustedInputs) { in.OracleAssertions["GT-AG-001"] = []string{"stdout", "stdout"} }},
@@ -191,7 +190,34 @@ func TestRebuildTrustedProtocol_MalformedInputs_AreInvalid(t *testing.T) {
 		})
 	}
 	noAgent := loadedSet(t, func(f *fixture) { f.writeJSON(agentPath("GT-AG-001"), retiredTask(agentTask("GT-AG-001"))) })
-	_, err := RebuildTrustedProtocol(noAgent, trustedInputs())
-	requireInvalid(t, err, DetailFieldInvalid)
-	assert.Contains(t, err.Error(), "no active agent task")
+	for name, check := range map[string]struct {
+		set    *Set
+		inputs TrustedInputs
+	}{"no active agent task": {noAgent, trustedInputs()}, "no black-box task": {set, TrustedInputs{}}} {
+		_, err := RebuildTrustedProtocol(check.set, check.inputs)
+		requireInvalid(t, err, DetailFieldInvalid)
+		assert.Contains(t, err.Error(), "no active black-box agent task", name)
+	}
+}
+
+// TestRebuildTrustedProtocol_WhiteBoxTask_StaysOutOfTheSignedLane: an active
+// agent task without a black-box oracle in main's task definition is neither
+// scheduled nor pinned by a corpus row, as the runner's signed lane leaves it
+// to the SPEC-HARNEVAL-001 advisory lane (REQ-HR-08, S8).
+func TestRebuildTrustedProtocol_WhiteBoxTask_StaysOutOfTheSignedLane(t *testing.T) {
+	t.Parallel()
+	const corpusB = `[{"id":"b01","prompt":"fix that"}]` + "\n"
+	set := loadedSet(t, func(f *fixture) {
+		f.write("bench/corpus_b.json", corpusB)
+		whiteBox := agentTask("GT-AG-002")
+		whiteBox["corpus_ref"] = map[string]any{"file": "bench/corpus_b.json", "task_id": "b01", "file_sha256": sha256Of(corpusB)}
+		f.writeJSON(agentPath("GT-AG-002"), whiteBox)
+	})
+
+	trusted, err := RebuildTrustedProtocol(set, trustedInputs("GT-AG-001"))
+
+	require.NoError(t, err)
+	assert.Equal(t, BalancedOrder([]string{"GT-AG-001"}, 2), trusted.Order)
+	assert.Equal(t, []CorpusDigest{{File: "bench/corpus_a.json", FileSHA256: sha256Of(fixtureCorpus)}}, trusted.CorpusDigests)
+	assert.Equal(t, AgentSetDigest(set), trusted.AgentSetDigest, "the agent set digest still covers every agent task")
 }

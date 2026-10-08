@@ -335,7 +335,7 @@ os_signal, timed_out}` (a negative return code becomes the signal name and a
 null exit code; an agent that never started, or exited nonzero before its
 first event, did not launch) and `oracle_result_sha256` (null unless the
 oracle stage was reached and wrote a result). The result bytes stay in
-`oracle_results/<sha256>.json`. `golden_blackbox.derive` applies the
+`oracle-results/<sha256>.json`. `golden_blackbox.derive` applies the
 REQ-HR-08 table, first matching row wins, to exactly what the signer gets:
 setup signal; agent termination (launch, timeout, exit or signal);
 `observation_failed`; `scope_violation` at the agent stage;
@@ -344,6 +344,17 @@ or a checked result naming other assertions); `artifact_timeout`;
 `output_link_rejected` or `output_too_large`; `expectation_mismatch`;
 `accepted`. `oracle.ran` is true only for a checked result naming exactly the
 task's assertions, `build_failed` only at the build stage.
+
+`pkg/harneval/testdata/signed-lane` is a session this runner wrote on the
+fixture world; Go's `TestSignedLaneFixture_*` verify and judge it with the
+signer (`LoadSignerInput`, `RebuildTrustedProtocol`, `VerifySignedSession`,
+`ComputeVerdict`), the wire cross-check of the two implementations.
+Regenerate it on macOS after a wire change:
+
+```bash
+HARNEVAL_REGENERATE_WIRE_FIXTURE=1 PYTHONDONTWRITEBYTECODE=1 \
+  python3 -m unittest test_golden_wire_fixture   # from scripts/benchmarks/harness
+```
 
 Calibration runs the same stages without an agent before the first trial and
 after the last into `calibration.json`: the clean reference artifact must be

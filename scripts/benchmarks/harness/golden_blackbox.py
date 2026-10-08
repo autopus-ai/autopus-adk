@@ -260,9 +260,9 @@ def record(session_id: str, attempt: dict, derived: tuple, duration_s: float, st
 
 
 def store_result(out: Path, data: bytes) -> str:
-    """Keep oracle result bytes content-addressed in <session>/oracle_results/<sha256>.json."""
+    """Keep oracle result bytes content-addressed in <session>/oracle-results/<sha256>.json."""
     digest = hashlib.sha256(data).hexdigest()
-    directory = Path(out) / 'oracle_results'
+    directory = Path(out) / 'oracle-results'
     directory.mkdir(exist_ok=True)
     try:
         with open(directory / (digest + '.json'), 'xb') as sink:

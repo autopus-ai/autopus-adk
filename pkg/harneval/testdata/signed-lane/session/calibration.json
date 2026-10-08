@@ -1,0 +1,53 @@
+{
+  "session_id": "53cee9e39f81a85a1114b7a09e8ebc21",
+  "before": {
+    "status": "passed",
+    "tasks": [
+      {
+        "task_id": "GT-AGENT-X01",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      },
+      {
+        "task_id": "GT-AGENT-X02",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      },
+      {
+        "task_id": "GT-AGENT-X03",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      },
+      {
+        "task_id": "GT-AGENT-X04",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      }
+    ]
+  },
+  "after": {
+    "status": "passed",
+    "tasks": [
+      {
+        "task_id": "GT-AGENT-X01",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      },
+      {
+        "task_id": "GT-AGENT-X02",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      },
+      {
+        "task_id": "GT-AGENT-X03",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      },
+      {
+        "task_id": "GT-AGENT-X04",
+        "clean_accepted": true,
+        "mutated_accepted": false
+      }
+    ]
+  }
+}

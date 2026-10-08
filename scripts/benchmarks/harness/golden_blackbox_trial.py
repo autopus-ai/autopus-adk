@@ -5,7 +5,7 @@ agent (surface, agent, scope audit), build, run, oracle. As in SPEC-HARNEVAL-001
 still gets built and judged, so `oracle.ran` stays observable; observation_failed (processes the
 runner could not account for) and scope_violation skip every later stage. No literal check runs
 and no white-box grade: the record follows from the REQ-HR-08 table over the record fields and
-the oracle result bytes, which the session keeps in oracle_results/<sha256>.json.
+the oracle result bytes, which the session keeps in oracle-results/<sha256>.json.
 """
 import json
 from pathlib import Path

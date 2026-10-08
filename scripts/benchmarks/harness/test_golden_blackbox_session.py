@@ -154,7 +154,7 @@ class SignedLaneSessionTests(unittest.TestCase):
             with self.subTest(task=row['task_id'], arm=row['arm']):
                 self.assertEqual(got, want[row['task_id'][-3:]][row['arm'] == 'candidate'])
                 digest = row['oracle_result_sha256']
-                data = (world.session / 'oracle_results' / (digest + '.json')).read_bytes() if digest else None
+                data = (world.session / 'oracle-results' / (digest + '.json')).read_bytes() if digest else None
                 if data is not None:
                     self.assertEqual(hashlib.sha256(data).hexdigest(), digest)
                 ids = [item['id'] for item in documents[row['task_id']]['black_box_oracle']['assertions']]
