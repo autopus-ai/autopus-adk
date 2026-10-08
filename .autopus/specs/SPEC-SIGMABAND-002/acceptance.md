@@ -2,14 +2,15 @@
 
 ## Test Scenarios
 
-Fixtures reuse SPEC-SIGMABAND-001 (O3 at sample key 1042, episode e1042, BS-BAND-001, `<h8>` of `ci.failure_rate:CI` = c6d37d0a, and the injected claim id a1b2c3d4e5f60708a1b2c3d4e5f60708, the 32-hex form `NewClaimID` returns and `claimIDPattern` accepts, gives `<c8>` = a1b2c3d4, so `<key>` = ci-failure-rate-ci-c6d37d0a-e1042-a1b2c3d4). Every test points the user cache directory at a temp dir, so `<lp>` = `<temp cache>/autopus/local-patches/<repo-hash>`. gh, provider, and clock are fakes; S3–S9 and S12 use real git in temp repos with `GIT_TRACE2_EVENT`. The "S4 setup" means: a real repo with a dirty tracked file, an untracked `.env` holding a synthetic ghp_ token, a local bare remote whose main matches refs/remotes/origin/main, marker-writing hooks of every hook type in .git/hooks and in a relative core.hooksPath, allow_local_patch true, and a subprocess claude fake (no `backend`) with the confined projection whose diagnosis reply is a short text and whose patch reply is one diff fence changing 2 lines of pkg/foo/foo.go. IDs, codes, refs, argv, hashes, file bytes, and counts compare exactly.
+Fixtures reuse SPEC-SIGMABAND-001 (O3 at sample key 1042, episode e1042, BS-BAND-001, `<h8>` of `ci.failure_rate:CI` = c6d37d0a, and the injected claim id a1b2c3d4e5f60708a1b2c3d4e5f60708, the 32-hex form `NewClaimID` returns and `claimIDPattern` accepts, gives `<c8>` = a1b2c3d4, so `<key>` = ci-failure-rate-ci-c6d37d0a-e1042-a1b2c3d4). Every test points the user cache directory at a temp dir, so `<lp>` = `<temp cache>/autopus/local-patches/<repo-hash>`. gh, provider, and clock are fakes; S3–S9 and S12–S14 use real git in temp repos with `GIT_TRACE2_EVENT`. The "S4 setup" means: a real repo with a dirty tracked file, an untracked `.env` holding a synthetic ghp_ token, a local bare remote whose main matches refs/remotes/origin/main, marker-writing hooks of every hook type in .git/hooks and in a relative core.hooksPath, allow_local_patch true, and a subprocess claude fake (no `backend`) with the confined projection whose diagnosis reply is a short text and whose patch reply is one diff fence changing 2 lines of pkg/foo/foo.go. IDs, codes, refs, argv, hashes, file bytes, and counts compare exactly. The "OMP backend recorder" is a recording `ExecutionBackend` that the diagnoser's `backends` seam (`internal/cli/react_band_diagnose.go:84`) supplies for `omp`, and the "fake claude binary" is an executable named claude on PATH that records its argv, cwd, and environment, replies as the S4 fake does, and runs through the real `orchestra.RunSingleProvider`.
 
 ### S1: Flag off adds nothing to SPEC-SIGMABAND-001
 Priority: Must
 Given the O3 fixture and an autopus.yaml without health_band.allow_local_patch
 When band runs
 Then .autopus/metrics/localpatch-events.jsonl, .autopus/metrics/.recovery.lock, and <lp> do not exist, the diagnosis provider ran with cwd equal to the project directory and an argv without --restricted exactly as SPEC-SIGMABAND-001 defines, and after removing leading -c options the git argv recorder holds 0 invocations whose subcommand is worktree, apply, commit, update-ref, or format-patch
-And the default generated autopus.yaml contains no allow_local_patch substring
+And adding health_band.local_patch_provider claude without allow_local_patch leaves the provider argv, cwd, and backend and every count above unchanged
+And the default generated autopus.yaml contains neither the allow_local_patch nor the local_patch_provider substring
 ### S2: Decisions live in their own log and 001's evaluation fields stay the same
 Priority: Must
 Given the S4 setup, the O3 fixture, and a second copy of the same store run with the flag off under the same injected clock
@@ -57,7 +58,7 @@ Priority: Must
 Given the S4 setup and one provider configuration at a time
 When band runs
 Then the diagnosis and the patch request each use a claude argv that holds --restricted, --strict-mcp-config, --safe-mode, --permission-mode plan, and the last item --tools=Read,Grep,Glob, with cwd equal to <lp>/ci-failure-rate-ci-c6d37d0a-e1042-a1b2c3d4/worktree/ and no --add-dir, an environment without GH_TOKEN, ACTIONS_ID_TOKEN_REQUEST_TOKEN, AWS_CONTAINER_CREDENTIALS_FULL_URI, or any GIT_ variable, and that worktree holds no .env file
-And a codex, gemini (binary agy), or OMP-backed claude provider yields the diagnosis status unavailable(provider_unconfined) and the local_patch result failed:diagnosis_unavailable, and a claude projection without --restricted yields unavailable(provider_unconfined) as well
+And with health_band.local_patch_provider unset, a codex, gemini (binary agy), or OMP-backed claude provider selected by SPEC-SIGMABAND-001's order yields the diagnosis status unavailable(provider_unconfined) and the local_patch result failed:diagnosis_unavailable, and a claude projection without --restricted yields unavailable(provider_unconfined) as well
 And a tier-2 diagnosis with the flag on runs in <lp>/<key>/worktree/ under its own claim-unique <key>, writes prep and worktree_intent records, is removed right after the diagnosis only through Cleanup Rule 3, and ends with a result record keyed by its diagnose claim id, while an artifact already at that <key> yields artifact_exists and stays untouched
 ### S8: The patch prompt is layered, fenced, and kept in memory
 Priority: Must
@@ -76,25 +77,42 @@ And a crash after the patch-file rename and before patch_done ends with result d
 And a crash after git commit and before commit_done finds the claim commit by its parent, message hash, and expected tree, removes the clean worktree, and ends failed:interrupted; a crash after update-ref and before branch_done deletes the branch with update-ref -d at the claim commit; a crash after git apply --index and before apply_done removes the worktree because its index tree equals the apply_intent expected tree; a crash during B's tier-2 diagnosis after worktree_done removes B's worktree through Cleanup Rule 3 and writes B's result failed:interrupted keyed by its diagnose claim id
 And a crash inside git worktree add that leaves the admin entry's locked file keeps that entry with reason worktree_incomplete in kept[] and runs no --force removal, and another worktree of the user stays registered
 And a branch the user moved, a worktree in which the user edited or staged another file, a HEAD that is neither the base nor the claim commit, a commit the user amended to another tree, and a patch file whose body a reviewer edited before patch_done are kept with reasons branch_moved, worktree_modified, head_unrecognized, head_unrecognized, and patch_modified, all listed in kept[]
-### S10: The flag decodes strictly and amends SPEC-SIGMABAND-001
+### S10: The flag and the provider key decode strictly and amend SPEC-SIGMABAND-001
 Priority: Must
-Given a config with health_band.allow_local_patch true and health_band.diagnosis_provider codex, and a default config saved again
-When both are decoded with decodeStrict and the default is read as text
-Then AllowLocalPatch is true and DiagnosisProvider is codex, the saved default contains no allow_local_patch substring, and health_band.allow_draft_pr still fails with an unknown-field error naming allow_draft_pr
+Given a config with health_band.allow_local_patch true, health_band.local_patch_provider claude, and health_band.diagnosis_provider codex, and a default config saved again
+When both are decoded with decodeStrict, the first is saved again, and both saved files are read as text
+Then AllowLocalPatch is true, LocalPatchProvider is claude, and DiagnosisProvider is codex, the first saved file holds allow_local_patch: true and local_patch_provider: claude, the saved default contains neither the allow_local_patch nor the local_patch_provider substring, and health_band.allow_draft_pr and the typo health_band.local_patch_providr each fail with an unknown-field error naming that key
+And health_band.local_patch_provider codex beside allow_local_patch true loads without an error, because the key is not validated at load
 ### S11: Docs and the BS state the local-only boundary
 Priority: Must
 Given the built binary, the repository docs, and BS-BAND-001 of S4
 When auto react band --help, docs/health-band.md, CHANGELOG.md, and the BS are read
-Then each of the first three contains health_band.allow_local_patch, autopus/local-patches under the user cache directory, the reviewer warning sentence, the sentence that band never pushes, the sentence that only a subprocess claude provider can run a confined diagnosis, and the upgrade-before-enable note, and the BS contains the reviewer warning sentence with its edit guard clause
+Then each of the first three contains health_band.allow_local_patch, health_band.local_patch_provider, autopus/local-patches under the user cache directory, the reviewer warning sentence, the sentence that band never pushes, the sentence that only a subprocess claude provider can run a confined diagnosis, the sentence that band runs the claude named by local_patch_provider as a CLI subprocess whatever its orchestra backend while orchestra keeps that backend, the sentence that the expected deployment is the claude CLI signed in with a Claude subscription (claude auth login) and needs no API key, and the upgrade-before-enable note, and the BS contains the reviewer warning sentence with its edit guard clause
 ### S12: Nothing remote ever changes
 Priority: Must
-Given every run of S3–S9
+Given every run of S3–S9, S13, and S14
 When the git and gh recorders and the bare remote are inspected
 Then the git argv recorder holds 0 invocations whose subcommand is push, fetch, ls-remote, or remote, the gh recorder holds 0 pr calls and 0 api calls with a method other than GET, and the bare remote's refs and objects are byte-identical before and after every run
+### S13: An OMP-backed orchestra claude still yields a subprocess local patch through local_patch_provider
+Priority: Must
+Given the S4 setup except that orchestra.providers.claude is this repository's OMP entry (backend omp, model anthropic/claude-opus-5-5:max, no binary, no args), orchestra.judge is claude, health_band.local_patch_provider is claude, the band process has no ANTHROPIC_API_KEY, the provider is the fake claude binary, and an OMP backend recorder is in place
+When band runs
+Then the diagnosis and the patch request each start the fake claude binary as a subprocess whose argv begins with --print, --model, claude-fable-5-1, --effort, max (config.DefaultClaudeProviderEntry), holds --restricted, --strict-mcp-config, --safe-mode, and --permission-mode plan, ends with --tools=Read,Grep,Glob, and holds neither --bare nor anthropic/claude-opus-5-5:max, with cwd <lp>/ci-failure-rate-ci-c6d37d0a-e1042-a1b2c3d4/worktree/ and an environment without ANTHROPIC_API_KEY or any GIT_ variable
+And the OMP backend recorder holds 0 requests, the run made exactly 2 provider calls, and the result record has status done with the S4 branch, worktree path, and patch path
+And resolveProviders for the review command over the same loaded config still returns claude with Backend omp, Binary omp, and Model anthropic/claude-opus-5-5:max, and autopus.yaml is byte-identical before and after the run
+And with health_band.diagnosis_provider codex added the diagnosis still runs the fake claude binary, and with orchestra.providers.claude a subprocess entry (binary claude, args --print --model sonnet) the argv begins with --print, --model, sonnet
+### S14: Without local_patch_provider an all-OMP orchestra yields provider_unconfined and no local patch
+Priority: Must
+Given the S4 setup except that orchestra.providers holds this repository's three OMP entries (claude, codex, gemini, each backend omp), orchestra.judge is claude, health_band.local_patch_provider is unset, the provider is the fake claude binary, and an OMP backend recorder is in place
+When band runs
+Then the key-1042 diagnosis status is unavailable(provider_unconfined), BS-BAND-001 records that status, the local_patch claim ends failed:diagnosis_unavailable, the fake claude binary ran 0 times, the OMP backend recorder holds 0 requests, the git argv recorder holds 0 apply, commit, update-ref, or format-patch invocations, no worktree, branch, or patch file remains, and the run exits 0
+And the same holds with health_band.diagnosis_provider codex or gemini and with health_band.local_patch_provider set to spaces only
+And health_band.local_patch_provider codex beside a subprocess claude entry and orchestra.judge claude also yields unavailable(provider_unconfined) with 0 provider calls, because a set key is final
 
 ## Oracle Acceptance Notes
 
 - Every Must scenario carries concrete expected output: refs, argv, codes, record fields, file bytes, hashes, counts, and lease values; there is no statistic, so the explicit tolerance is exact match.
 - The step order of the Local Patch Flow fixes each oracle: S3 and S6 take the prep code first, S5 separates object-free refusals (steps 4–7) from post-apply refusals, S4 compares the commit tree with the apply_intent expected tree and the commit object's message with the -F bytes, and S2 compares 001's evaluation fields that REQ-12 does not amend.
-- S6 and S7 are also the acceptance targets of Completion Debt CD-1 and CD-2; they must pass against real git, git-lfs, and claude behavior before sync.
+- S6, S7, and S13 are also the acceptance targets of Completion Debt CD-1 and CD-2; they must pass against real git, git-lfs, and claude behavior before sync.
+- S13 and S14 fix the Local Patch Provider Contract: exact argv items, cwd, environment, OMP backend request counts, diagnosis statuses, and orchestra's own provider config.
 - No Must scenario closes on file existence, a heading, an exit code, or non-empty output alone; every ghp_ string in fixtures is synthetic.

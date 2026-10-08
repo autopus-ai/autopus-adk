@@ -2,7 +2,7 @@
 
 **Status**: draft
 **Created**: 2026-10-06
-**Revised**: 2026-10-08 (rev 6: refreshed against the merged SPEC-SIGMABAND-001 code at main `1943e596`, SPEC-PANERM-001, and SPEC-EDITGUARD-001, and resolves the open rev 5 findings; rev 5: one recovery state table, a separate recovery step with its own lock, claim-unique diagnosis worktrees, chained-lease oracle; rev 2 rescoped the cap to local patch only)
+**Revised**: 2026-10-08 (rev 7: operator decision on OQ-1, the band-only subprocess provider `health_band.local_patch_provider`; rev 6: refreshed against the merged SPEC-SIGMABAND-001 code at main `1943e596`, SPEC-PANERM-001, and SPEC-EDITGUARD-001, and resolves the open rev 5 findings; rev 5: one recovery state table, a separate recovery step with its own lock, claim-unique diagnosis worktrees, chained-lease oracle; rev 2 rescoped the cap to local patch only)
 **Domain**: SIGMABAND
 **Module**: autopus-adk
 **Sibling of**: SPEC-SIGMABAND-001 (implemented and merged; this SPEC consumes its tier-3 episodes, diagnosis, BS, write-ahead log, and claims)
@@ -14,8 +14,9 @@
 플래그)에서는 저장소 밖 사용자 cache 디렉토리에 격리 worktree를 만들고, 로컬 branch를 만들고, read-only provider가 제안한 patch를
 적용한 뒤 `.patch` 파일을 쓴다. 3σ BS에는 그 위치를 가리키는 pointer만 남는다. band는 push·fetch·PR·원격 쓰기를 하지 않는다. 사람이
 검토한 뒤 직접 push한다. 신뢰 경계는 남아 있다. 에이전트가 작성한 코드가 사용자 저장소의 branch와 object에 놓이기 때문이다. 그래서
-두 provider는 모두 band worktree 안에서만 읽을 수 있는 subprocess claude다. git은 checkout·apply·commit·format-patch 동안 repository가
-지정한 어떤 명령도 실행하지 않는다. 저장소 root 아래 `.git/` 밖 파일은 BS와 band 기록 파일 외에는 바뀌지 않고 `.git/` 안에는 REQ-14가
+두 provider는 모두 band worktree 안에서만 읽을 수 있는 subprocess claude다. orchestra provider가 모두 OMP backend인 저장소에서는
+`health_band.local_patch_provider: claude`가 band에서만 claude를 CLI subprocess로 실행하고, orchestra는 설정된 backend를 그대로
+쓴다. git은 checkout·apply·commit·format-patch 동안 repository가 지정한 어떤 명령도 실행하지 않는다. 저장소 root 아래 `.git/` 밖 파일은 BS와 band 기록 파일 외에는 바뀌지 않고 `.git/` 안에는 REQ-14가
 허용한 변경만 생기며, test는 자동으로 돌리지 않는다.
 
 ## Outcome Boundary
@@ -24,22 +25,24 @@
   (모든 guard 통과 시 정확히 한 번) 로컬 산출물을 받는다. 산출물은 로컬 branch `autopus/band/<key>`, worktree `<lp>/<key>/worktree/`,
   patch 파일 `<lp>/<key>.patch`이다. 여기서 `<lp>` = `<UserCacheDir>/autopus/local-patches/<repo-hash>`, `<key>` =
   `<series-slug>-<h8>-<episode-id>-<c8>`이고 `<c8>`은 claim id의 앞 8 hex다. 3σ BS에는 pointer가 기록되고, 원격에는 아무것도 생기지 않는다.
-- Mandatory requirements: REQ-01–REQ-14 (Priority Must).
+  orchestra provider가 모두 OMP backend인 저장소도 `health_band.local_patch_provider: claude`로 같은 산출물을 받고, orchestra는
+  설정된 backend를 유지한다.
+- Mandatory requirements: REQ-01–REQ-15 (Priority Must).
 - Explicit non-goals: push, fetch, PR 생성·갱신, 원격 ref, GitHub 쓰기 API, CI 실행, test·build 자동 실행, 에이전트 쓰기 권한, tier 2로 열린 뒤
-  tier 3으로 오른 episode의 patch, OMP backend의 worktree confinement, SPEC-SIGMABAND-001이 소유한 동작. 리뷰어가 worktree를 IDE로 열거나
+  tier 3으로 오른 episode의 patch, OMP backend의 worktree confinement, orchestra 명령의 provider backend 변경, SPEC-SIGMABAND-001이 소유한 동작. 리뷰어가 worktree를 IDE로 열거나
   그 안에서 명령이나 에이전트를 실행하거나 branch를 push할 때의 실행도 범위 밖이며, BS의 reviewer warning이 이를 알린다.
-- Completion evidence: acceptance S1–S12 통과, Completion Debt CD-1–CD-3 해소, security-auditor 리뷰 통과, 모든 run에서 원격 쓰기 0건, 저장소 root
+- Completion evidence: acceptance S1–S14 통과, Completion Debt CD-1–CD-3 해소, security-auditor 리뷰 통과, 모든 run에서 원격 쓰기 0건, 저장소 root
   아래 `.git/` 밖 파일 변경은 BS와 `.autopus/metrics/` 기록 파일뿐.
 
 ## Requirements
 
-Priority 열은 Must만 쓴다. 각 문장은 `pkg/spec` parser 문법을 따르며 strict validate의 `ParseEARS`로 14개 모두 인식된다.
+Priority 열은 Must만 쓴다. 각 문장은 `pkg/spec` parser 문법을 따르며 strict validate의 `ParseEARS`로 15개 모두 인식된다.
 
 | ID | Priority | Source | EARS requirement |
 |----|----------|--------|------------------|
-| REQ-01 | Must | FR-17, F-052, decision 2026-10-06 | THE SYSTEM SHALL add `AllowLocalPatch bool` with the tag `yaml:"allow_local_patch,omitempty"` to `HealthBandConf` in `pkg/config/schema_health_band.go`, amend SPEC-SIGMABAND-001 REQ-15's key list at this SPEC's sync while `allow_draft_pr` stays rejected, omit the key from generated and saved `autopus.yaml` files while it is false, and document that a binary without this SPEC rejects a file that enables it. |
+| REQ-01 | Must | FR-17, F-052, decisions 2026-10-06 and 2026-10-08 | THE SYSTEM SHALL add `AllowLocalPatch bool` with the tag `yaml:"allow_local_patch,omitempty"` and `LocalPatchProvider string` with the tag `yaml:"local_patch_provider,omitempty"` to `HealthBandConf` in `pkg/config/schema_health_band.go`, amend SPEC-SIGMABAND-001 REQ-15's key list with both keys at this SPEC's sync while `allow_draft_pr` stays rejected, omit each key from generated and saved `autopus.yaml` files while it holds its default, and document that a binary without this SPEC rejects a file that sets either key. |
 | REQ-02 | Must | FR-07, F-049, F-072 | WHEN SPEC-SIGMABAND-001's phase A plans an evaluated tier-3 position IF `health_band.allow_local_patch` is true, THEN THE SYSTEM SHALL decide it exactly as the Local Patch Decision Table defines, record a `local_patch` claim that depends on the diagnose claim of a row-4 position, append those records to `.autopus/metrics/localpatch-events.jsonl` under the store lock after 001's `Commit` and before its `Unlock`, and write nothing into SPEC-SIGMABAND-001's files beyond the amendments listed in Related SPECs. |
-| REQ-03 | Must | F-039, F-057, PANERM | WHERE `health_band.allow_local_patch` is true, THEN THE SYSTEM SHALL run every SPEC-SIGMABAND-001 diagnosis and every patch request with a band worktree at the base SHA as the only working directory, on a subprocess claude projected by `applyReadOnlyProviderPolicy` with the confined option that adds `--restricted` to the shared projection, without the variables of `bandProviderUnsetEnv` and without any `GIT_*` variable, and record every other provider, an OMP-backed claude included, as `unavailable(provider_unconfined)`. |
+| REQ-03 | Must | F-039, F-057, PANERM, decision 2026-10-08 | WHERE `health_band.allow_local_patch` is true, THEN THE SYSTEM SHALL run every SPEC-SIGMABAND-001 diagnosis and every patch request with a band worktree at the base SHA as the only working directory, on the subprocess claude that the Local Patch Provider Contract selects, projected by `applyReadOnlyProviderPolicy` with the confined option that adds `--restricted` to the shared projection, without the variables of `bandProviderUnsetEnv` and without any `GIT_*` variable, and record every selection that does not end at that subprocess claude, an OMP-backed claude reached without `health_band.local_patch_provider` included, as `unavailable(provider_unconfined)`. |
 | REQ-04 | Must | F-049, F-050, F-068, F-073 | WHEN a `local_patch` claim executes, THEN THE SYSTEM SHALL end it with `failed:record_unavailable` when its diagnosis has no `prep` record, otherwise with the step-1 code of that `prep` record when the code is not ok, otherwise with `failed:worktree_failed` when its `stage` records hold `worktree_failed`, otherwise with `failed:no_bs` when the diagnose outcome has no BS ID, otherwise with `failed:diagnosis_unavailable` when `diagnosis_status` is not ok, and only otherwise start the patch stage, so that no failed preparation or diagnosis leads to a patch request, apply, or commit. |
 | REQ-05 | Must | F-043, F-071, F-075 | WHEN band runs git for a local patch, THEN THE SYSTEM SHALL run only the commands of the Git Execution Policy through its own allowlist, leave SPEC-SIGMABAND-001's `checkBandCommand` unchanged, and apply that policy to every git command (scrubbed environment with `GIT_ATTR_NOSYSTEM=1` and `GIT_LFS_SKIP_SMUDGE=1`, hooks off, `core.fsmonitor=false`, an empty `core.attributesFile`, refusal of a non-empty `info/attributes`, of every configured filter, diff, or merge driver outside the git-lfs allowlist, and of every `lfs.extension` or `lfs.customtransfer` setting, and no network command) so that checkout, apply, commit, and format-patch run no command that the repository or its configuration selects beyond the allowlisted git-lfs binary, and THE SYSTEM SHALL never run tests, builds, or the proposed change. |
 | REQ-06 | Must | F-016, F-055, F-056 | WHEN band builds the commit message, THEN THE SYSTEM SHALL build and validate it in-process with `lore.BuildCommit` and `lore.Validate` before any `git apply`, refuse with `lore_unsupported_required:<trailer>` when a required trailer is not one of the five that `lore.Validate` recognizes, and confirm after the commit that the commit object's message equals the `-F` file bytes. |
@@ -49,8 +52,9 @@ Priority 열은 Must만 쓴다. 각 문장은 `pkg/spec` parser 문법을 따르
 | REQ-10 | Must | decision 2026-10-06 | THE SYSTEM SHALL never push, fetch, create or update a pull request, call a GitHub write API, or create a remote ref in the local patch flow, so that every artifact stays local until a human pushes it. |
 | REQ-11 | Must | F-060, F-064, F-068, F-076, F-080, F-083 | IF any guard or step of the local patch flow or of a confined diagnosis fails, or a later run finds a claim interrupted, THEN THE SYSTEM SHALL handle exactly the artifacts that the claim's intent records name under the one Cleanup Rules set, end a live failure with the code of its Local Patch Flow step and an interrupted claim with the state of the Recovery State Table, write the `result` record, keep the SPEC-SIGMABAND-001 BS, never touch an artifact that no intent record of the claim names or that a user changed, and exit 0. |
 | REQ-12 | Must | F-032, F-068, F-072 | THE SYSTEM SHALL give a diagnose claim the 990 s budget and a `local_patch` claim the 810 s budget of the Step Timeouts table while `allow_local_patch` is true, execute each `local_patch` claim right after phase C has recorded its diagnose claim, count both budgets in the lease chain of SPEC-SIGMABAND-001's `Plan` through the `PlanOptions` and `ExecuteOptions` hooks that plan task T8 adds in `pkg/healthband/catchup.go` and `claims.go`, and start no step group whose deadline the claim's remaining lease does not cover. |
-| REQ-13 | Must | FR-23, decision 2026-10-06 | THE SYSTEM SHALL document the flag, the artifact locations, the reviewer warning, the subprocess claude requirement, and the upgrade-before-enable note in the `auto react band` help text, `docs/health-band.md`, and `CHANGELOG.md`, qualify their tier-3 diagnosis-only statements with the flag, and put the Local Patch pointer lines with the reviewer warning in every 3σ BS of a `local_patch` claim. |
+| REQ-13 | Must | FR-23, decisions 2026-10-06 and 2026-10-08 | THE SYSTEM SHALL document the flag, the `local_patch_provider` key with the subscription claude CLI deployment, the artifact locations, the reviewer warning, the subprocess claude requirement, and the upgrade-before-enable note in the `auto react band` help text, `docs/health-band.md`, and `CHANGELOG.md`, qualify their tier-3 diagnosis-only statements with the flag, and put the Local Patch pointer lines with the reviewer warning in every 3σ BS of a `local_patch` claim. |
 | REQ-14 | Must | F-070, F-077 | THE SYSTEM SHALL keep every worktree and patch file of this SPEC under `<UserCacheDir>/autopus/local-patches/<repo-hash>/`, outside the repository, refuse with `cache_unavailable` when that directory cannot be created, change no file under the repository root outside `.git/` except the BS file and the files under `.autopus/metrics/` that SPEC-SIGMABAND-001 and this SPEC own, and change inside `.git/` only `refs/heads/autopus/band/<key>` with its reflog, the `worktrees/<name>/` entry of the claim's worktree, and new objects. |
+| REQ-15 | Must | operator decision 2026-10-08 (OQ-1) | WHERE `health_band.allow_local_patch` is true, THEN THE SYSTEM SHALL select the provider of every diagnosis and every patch request by the Local Patch Provider Contract, run a `claude` named by `health_band.local_patch_provider` as a CLI subprocess whatever its `orchestra.providers.claude.backend` says, use SPEC-SIGMABAND-001's selection only while that key is empty and only when it resolves to a subprocess claude, give `unavailable(provider_unconfined)` in every other case, a key naming another provider included, and leave the provider backend of every orchestra command unchanged. |
 
 `<repo-hash>` = first 12 hex digits of the SHA-256 of `git rev-parse --path-format=absolute --git-common-dir`, so every worktree
 of one repository shares one directory. `<key>` = `<series-slug>-<h8>-<episode-id>-<c8>`: `<series-slug>` is the series ID
@@ -61,6 +65,35 @@ slug rule; `<c8>` is the first 8 hex digits of the 32-hex claim id (`NewClaimID`
 `[a-z0-9-]`, so `<key>` is one valid ref component and one file name on every file system, although 001 sample keys may hold
 `.` and `_` and series IDs `:`, `+`, space, and `#`. Two checkouts of one repository, two series, or a run after the store was
 deleted never share a `<key>`.
+
+## Configuration
+
+| Key | Type and default | Effect |
+|-----|------------------|--------|
+| `health_band.allow_local_patch` | bool, `false` | turns the local patch flow on (REQ-01) |
+| `health_band.local_patch_provider` | string, empty | while `allow_local_patch` is true, names the provider that band runs as a CLI subprocess for every diagnosis and patch request, whatever `orchestra.providers.<name>.backend` says (REQ-15); only `claude` can be confined; ignored while the flag is false |
+| `health_band.diagnosis_provider` | string, empty (SPEC-SIGMABAND-001) | unchanged; while the flag is true, band reads it only through rule 2 of the Local Patch Provider Contract |
+| `health_band.allow_draft_pr` | none | stays an unknown key that strict decoding rejects |
+
+Both new keys follow SPEC-SIGMABAND-001 REQ-15: `decodeStrict` (`pkg/config/loader_strict.go:105`) accepts them and still
+rejects every other unknown `health_band` key, and generated and saved `autopus.yaml` files omit each key while it holds its
+default. At this SPEC's sync, 001 REQ-15's key list becomes `diagnosis_provider`, `allow_local_patch`, and
+`local_patch_provider`. Like `diagnosis_provider` (`schema_health_band.go:9-12`), `local_patch_provider` is not validated at
+load: a name that cannot be confined is a runtime `unavailable(provider_unconfined)`, never a load failure, so orchestra
+commands keep loading the file. A binary without this SPEC rejects a file that sets either key, so the docs say to upgrade
+every binary that reads the file first.
+
+Expected deployment for a repository whose orchestra providers are all `backend: omp` (this repository, `autopus.yaml:77-90`):
+
+```yaml
+health_band:
+  allow_local_patch: true
+  local_patch_provider: claude
+```
+
+with the `claude` CLI on PATH, signed in with a Claude subscription (`claude auth login`; `claude auth status` reports
+`authMethod` `claude.ai`). Band sets no API key and needs none, and `orchestra.providers.claude` keeps `backend: omp` for
+reviews, plans, brainstorms, and secure runs.
 
 ## Local Patch Decision Table
 
@@ -111,7 +144,7 @@ records, and `result` record.
 | 3 | `local_patch` claim: result check in the order of REQ-04 | `record_unavailable`, the `prep` code, `worktree_failed`, `no_bs`, `diagnosis_unavailable` |
 | 4 | `refs/heads/autopus/band/<key>` still absent; it can only appear here if something created it after step 1 | `branch_exists` |
 | 5 | Lore message built and validated (REQ-06); `stage` `message` with its SHA-256 | `lore_unsupported_required:<trailer>`, `lore_rejected` |
-| 6 | Patch request (REQ-07); the reply stays in memory | `patch_provider_unconfined`, 001 REQ-12 reasons |
+| 6 | Patch request (REQ-07) on the provider of the Local Patch Provider Contract; the reply stays in memory | `patch_provider_unconfined`, 001 REQ-12 reasons |
 | 7 | Patch Policy over the raw reply (REQ-08), ending with `git apply --numstat --summary -z --check`; no command writes objects before this step passes | `no_patch`, `patch_invalid`, `path_denied`, `patch_content_denied`, `patch_too_large` |
 | 8 | Expected tree: a band temp index (`GIT_INDEX_FILE`, Git Execution Policy item 1) reads the base tree, takes the diff with `git apply --cached`, and `git write-tree` gives the expected tree; `stage` `apply_intent` with the diff's SHA-256 and the expected tree; only then the diff is written to `<lp>/<key>.diff`; `git apply --index` in the worktree; the worktree's index tree (`git write-tree`) equals the expected tree; `stage` `apply_done` | `patch_invalid` |
 | 9 | `git commit --no-verify --cleanup=verbatim -F <msg>`; `stage` `commit_done` with `git rev-parse HEAD`; then the commit object's message (after the header's blank line in `git cat-file commit HEAD`) equals the `-F` file bytes | `commit_failed`, `commit_message_altered` |
@@ -194,6 +227,43 @@ are gitignored and always blocked from staging (`internal/cli/check_rules_hygien
    modeled on `execBandRunner.Run` (`internal/cli/react_band_gh.go:73-84`). 001's `checkBandCommand` (`:90-113`), which
    refuses every git mutation, stays unchanged, so a flag-off run keeps 001 S14's zero-mutation recorder.
 7. Nothing else: the user's worktrees, index, HEAD, stash, and every ref except `refs/heads/autopus/band/<key>` stay unchanged.
+
+## Local Patch Provider Contract
+
+While `health_band.allow_local_patch` is true, this contract replaces item 1 (selection) and item 5 (working directory) of
+SPEC-SIGMABAND-001's Provider Read-Only Contract for every diagnosis and every patch request, adds `--restricted` to its item 3
+and `GIT_*` to its item 6, and keeps items 2 and 4 (REQ-03, REQ-15). With the flag off, 001's contract applies unchanged and
+band never reads `local_patch_provider`.
+
+1. Selection, first match; once a rule matches, no later rule and no other provider is tried (001's no-retry rule):
+   1. `health_band.local_patch_provider`, trimmed, when non-empty. Band runs it as a CLI subprocess whatever
+      `orchestra.providers.<name>.backend` says. Only `claude` can be confined (`--restricted` is a claude argv flag), so any
+      other name gives `unavailable(provider_unconfined)`.
+   2. Otherwise SPEC-SIGMABAND-001's selection (`selectBandProvider`, `internal/cli/react_band_diagnose.go:165-186`), used only
+      when it names `claude` and `orchestra.providers.claude` exists without a `backend`.
+   3. Otherwise `unavailable(provider_unconfined)`: an OMP-backed claude, codex, gemini, an unconfigured name, or no name.
+2. Subprocess form: rule 1 takes the `orchestra.providers.claude` entry when it exists without a `backend`
+   (`providerConfigFromEntry`, `internal/cli/orchestra_helpers.go:222`), else `config.DefaultClaudeProviderEntry()`
+   (`pkg/config/claude_provider.go:42`: binary `claude`, `--print`, the default model policy). An OMP entry's `binary` (default
+   `omp`), `model` selector, and `tools` have no subprocess meaning and are never read, so this is no fallback of the OMP
+   provider: band never runs the OMP entry. Rule 2 takes `providerConfigFromEntry` of the entry, as 001 does. The result has
+   no `Backend`, so `orchestra.RunSingleProvider` runs the projected argv as a subprocess
+   (`pkg/orchestra/provider_backend_route.go:26-30`), and band's execution config registers no OMP route.
+3. Projection: `applyReadOnlyProviderPolicy` with `[NEW]` `readOnlyPolicyOptions.Confined` (plan task T6) adds `--restricted`
+   before the last item `--tools=Read,Grep,Glob` and refuses a provider that has a `Backend` or a name other than `claude`,
+   because the shared projection passes an OMP-backed provider through as-is (`orchestra_readonly_policy.go:59-63`); a refusal
+   gives `unavailable(provider_unconfined)`. Then `bandReadOnlyControls` and a `--restricted` check run fail-closed, and a
+   projection without `--restricted` gives `unavailable(provider_unconfined)`. An argv item outside the claude allowlist
+   (`:148-185`), `--bare` included, still gives `unavailable(provider_policy_rejected)`.
+4. The patch request resolves its provider by this contract again; anything but a confined subprocess claude ends the claim
+   `failed:patch_provider_unconfined` (Local Patch Flow step 6). A missing binary, a timeout, a non-zero exit, and empty output
+   keep 001's REQ-12 reasons.
+5. Orchestra stays unchanged: `resolveProviders` (`internal/cli/orchestra_config.go:92`) and every orchestra command keep
+   `orchestra.providers.<name>.backend`; only band reads `local_patch_provider`, and band never writes `autopus.yaml`.
+6. Expected deployment: the subscription-authenticated `claude` CLI (Configuration). Band never projects `--bare`, whose
+   authentication reads only `ANTHROPIC_API_KEY` or an `apiKeyHelper` and never the subscription login, while `--safe-mode`
+   keeps authentication working (claude 2.1.289 help). That a `--restricted` session signs in through the subscription login
+   is probe A1 (Completion Debt CD-2).
 
 ## Patch Prompt Contract
 
@@ -364,36 +434,39 @@ or T9; `existing` = older code.
 | [NEW] `pkg/healthband/localpatch_decision.go`, `localpatch_wal.go`, `localpatch_recovery.go` | Local Patch Decision Table with the Opening tier rule, own write-ahead log and checkpoint over 001's store helpers, Recovery step and State Table |
 | [NEW] `pkg/healthband/patchpolicy.go`, `patchprompt.go`, `commitmsg.go`, `gitpolicy.go` | Patch Policy (with the `editguard.Decide` check), Patch Prompt Contract, Lore message, Git Execution Policy |
 | [NEW] `internal/cli/react_band_localpatch.go` | executor of the Local Patch Flow with its own git allowlist and runner |
-| existing (001) `pkg/config/schema_health_band.go:8-14` | gains `AllowLocalPatch bool` with `yaml:"allow_local_patch,omitempty"` (T1) |
+| [NEW] `internal/cli/react_band_localpatch_provider.go` | Local Patch Provider Contract: selection order, band-only subprocess form, confined projection and its control checks (T7) |
+| existing (001) `pkg/config/schema_health_band.go:8-14` | gains `AllowLocalPatch bool` with `yaml:"allow_local_patch,omitempty"` and `LocalPatchProvider string` with `yaml:"local_patch_provider,omitempty"` (T1) |
 | existing (001) `pkg/healthband/episode.go:21-27`, `catchup.go:12-22,51-58,73-111`, `claims.go:84-117` | `local_patch` budget in `claimBudgets`; `[NEW]` `PlanOptions` budget override and `LocalPatch` hook with `[NEW]` `Plan.LocalPatch`; `[NEW]` `ExecuteOptions.AfterRecord` (T8) |
 | existing (001) `internal/cli/react_band.go:139-255` | recovery step between `fetchCI` and `store.Lock`; decision and claim records after `Commit`; the hooks in `phaseA` and `phaseB` (T8) |
-| existing (001) `internal/cli/react_band_diagnose.go:54-62,72-86,192-276` | `[NEW]` provider work directory apart from the BS directory, steps 1–2 inside `Run`, the confined projection and its control check in `bandReadOnlyControls`, `GIT_*` added to the unset list, the worktree path redacted by the output sanitizer, the two new unavailable reasons (T8) |
+| existing (001) `internal/cli/react_band_diagnose.go:54-62,72-86,140-276` | `[NEW]` provider work directory apart from the BS directory, steps 1–2 inside `Run`, the flag-on provider from the Local Patch Provider Contract in place of `selectBandProvider` and `resolveProvider`, `GIT_*` added to the unset list, the worktree path redacted by the output sanitizer, the two new unavailable reasons (T8) |
 | existing (001) `internal/cli/react_band_ingest.go:33-41,83-111` | `[NEW]` `bandCIFetch.DefaultBranch` (T8) |
 | existing (001) `pkg/brainstorm/render.go:31-40,180,196,208-209` | `[NEW]` `Request.LocalPatch`: pointer lines and the three local-patch sentences (T8) |
-| existing (001) `internal/cli/react_band_help.go:9-58`, `docs/health-band.md:223-228`; existing `CHANGELOG.md` | flag, artifact locations, reviewer warning, subprocess claude requirement, upgrade note (T9) |
-| existing `internal/cli/orchestra_readonly_policy.go:11-15,209-217` | `[NEW]` `readOnlyPolicyOptions.Confined`, which appends `--restricted` to the claude projection (T6) |
+| existing (001) `internal/cli/react_band_help.go:9-58`, `docs/health-band.md:223-228`; existing `CHANGELOG.md` | flag, `local_patch_provider` with the subscription claude CLI deployment, artifact locations, reviewer warning, subprocess claude requirement, upgrade note (T8 help text, T9 docs) |
+| existing `internal/cli/orchestra_readonly_policy.go:11-15,53-88,209-217` | `[NEW]` `readOnlyPolicyOptions.Confined`, which adds `--restricted` to the claude projection and refuses a provider with a `Backend` or a name other than `claude` (T6) |
 
 ## Related SPECs
 
 - SPEC-SIGMABAND-001 (implemented, merged): plan task T8 owns this SPEC's edits to the 001 files of 생성 파일 상세. While the
-  flag is true, this SPEC amends: the diagnosis cwd, projection, and environment (REQ-03); the diagnosis status values
+  flag is true, this SPEC amends: the diagnosis provider selection (REQ-15) and its cwd, projection, and environment (REQ-03); the diagnosis status values
   `unavailable(provider_unconfined)` and `unavailable(worktree_unavailable)`; the diagnose budget (990 s) and the lease chain,
   which also counts `local_patch` budgets, so claim `owner`/`lease_until` values differ from a flag-off run (REQ-12); the BS
   pointer lines and three sentences (BS Record); REQ-22, whose redaction does not apply to the raw patch reply, which never
   reaches a prompt, BS, or terminal (REQ-07); and the run order, which gains the recovery step between 001's network step and
   phase A whenever this SPEC's log exists. It never changes 001's action enum, decision table, evaluation fields other than
-  claim leases, BS sections, or `checkBandCommand`. At sync it amends 001 REQ-15's key list (REQ-01) and the text that still
-  names the retired draft PR path: 001 `spec.md` Related SPECs, `docs/health-band.md:226-228`, and the `HealthBandConf`
+  claim leases, BS sections, or `checkBandCommand`. At sync it adds `allow_local_patch` and `local_patch_provider` to 001
+  REQ-15's key list (REQ-01) and amends the text that still names the retired draft PR path: 001 `spec.md` Related SPECs, `docs/health-band.md:226-228`, and the `HealthBandConf`
   comment (`schema_health_band.go:3-7`).
 - SPEC-REVIEWRO-001 (implemented): owns the shared claude projection, which already carries `--permission-mode plan`,
   `--safe-mode`, `--no-session-persistence`, `--disable-slash-commands`, `--strict-mcp-config`, and the last item
-  `--tools=Read,Grep,Glob` (`orchestra_readonly_policy.go:209-217`); this SPEC adds only `--restricted` through the confined
-  option, and the claude bool-flag list (`:150-153`) needs no change because the projection, not the user's argv, adds it.
+  `--tools=Read,Grep,Glob` (`orchestra_readonly_policy.go:209-217`); this SPEC adds only the confined option, which appends
+  `--restricted` and refuses a provider with a `Backend` (the projection passes OMP providers as-is, `:59-63`), and the claude
+  bool-flag list (`:150-153`) needs no change because the projection, not the user's argv, adds it.
 - SPEC-PANERM-001 (implemented): orchestra has no pane backend and no `OrchestraConfig.SubprocessMode` (no match in `pkg`,
   `internal`, or `cmd`); `orchestra.RunSingleProvider` (`pkg/orchestra/provider_runner_single.go:28`) runs a provider as a
   subprocess of its projected argv or on its routed backend. `--restricted` is a claude argv flag, so only the subprocess
-  claude can be confined; an OMP-backed claude, the form this repository's `autopus.yaml:77-90` configures for every provider,
-  is `unavailable(provider_unconfined)` while the flag is true (research.md Open Questions, OQ-1).
+  claude can be confined. An OMP-backed claude, the form this repository's `autopus.yaml:77-90` configures for every provider,
+  is `unavailable(provider_unconfined)` while the flag is true unless `health_band.local_patch_provider` names claude, which
+  band then runs as a CLI subprocess while orchestra keeps `backend: omp` (Local Patch Provider Contract; OQ-1 closed 2026-10-08).
 - SPEC-EDITGUARD-001 (implemented): the edit guard neither protects the local patch flow nor is relied on by it. The band
   providers hold only Read, Grep, and Glob, so the guard's `Edit|Write|MultiEdit` matcher never fires; `--safe-mode` disables
   hooks and `--restricted` ignores project and local settings, so a tracked `.claude/settings.json` in the band worktree
@@ -407,7 +480,7 @@ or T9; `existing` = older code.
 |-------------|-----------|---------------------|--------------------|
 | REQ-01 | T1 | S1, S10 | INV-01 |
 | REQ-02 | T2, T8 | S2, S3 | INV-02 |
-| REQ-03 | T6, T8 | S7 | INV-06 |
+| REQ-03 | T6, T7, T8 | S7, S13 | INV-06 |
 | REQ-04 | T7 | S3, S6 | INV-02 |
 | REQ-05 | T4, T7 | S4, S6 | INV-03 |
 | REQ-06 | T7 | S5 | INV-08 |
@@ -419,8 +492,16 @@ or T9; `existing` = older code.
 | REQ-12 | T2, T8 | S2, S9 | INV-02 |
 | REQ-13 | T8, T9 | S4, S11 | INV-01, INV-07 |
 | REQ-14 | T7 | S4 | INV-07 |
+| REQ-15 | T6, T7, T8 | S7, S13, S14 | INV-11 |
 
 ## Review Resolution
+
+Rev 7 (2026-10-08) applies the operator decision on OQ-1 (the OMP backend cannot be confined, and every orchestra provider of
+this repository is `backend: omp`):
+
+| Item | Resolution | Where |
+|------|------------|-------|
+| OQ-1 (operator decision 2026-10-08) | closed: band-only subprocess provider. `[NEW]` `health_band.local_patch_provider` (default empty, strict decode, omitted while empty) names the claude that band always runs as a CLI subprocess with the confined projection, whatever its orchestra backend; the order is the key, then 001's selection only for a subprocess claude, then `unavailable(provider_unconfined)`; orchestra keeps its backend; the 001 REQ-15 amendment covers both new keys; the subscription claude CLI is the expected deployment | REQ-01, REQ-03, REQ-13, REQ-15, Configuration, Local Patch Provider Contract, S1, S7, S10–S14, plan.md T1, T6–T9, research.md Decision Record and Open Questions |
 
 Rev 6 (2026-10-08) refreshes this draft against the merged SPEC-SIGMABAND-001 code (main `1943e596`), SPEC-PANERM-001, and
 SPEC-EDITGUARD-001, and resolves the findings that rev 5's review left open or regressed:
