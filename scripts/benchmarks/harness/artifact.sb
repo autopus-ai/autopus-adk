@@ -1,0 +1,69 @@
+;; Artifact profile for the SPEC-HARNEVAL-003 signed live lane (REQ-HR-08).
+;;
+;; The trusted runner (golden_blackbox.py) starts every black-box stage that
+;; processes agent-modified input as a sibling process under this profile; no
+;; stage nests another profile. MODE selects the stage:
+;;   build: env -i <allowlist> sandbox-exec -f artifact.sb -D MODE=build
+;;            -D SCRATCH=<home, tmp, gopath> -D INPUT=<grade copy>
+;;            -D GOROOT=<toolchain> -D MODCACHE=<module cache>
+;;            -D BUILD_CACHE=<trial build cache> -D OUTPUT=<artifact dir>
+;;            -D CHECKOUT=<runner checkout> -D SET_ROOT=<golden set root>
+;;            -D ACCOUNT_HOME=<home> -D CODEX_HOME_DIR=<codex home>
+;;            go build -o <OUTPUT>/artifact <package>
+;;   run:   ... -D MODE=run -D SCRATCH=<out, home, tmp> -D INPUT=<trial inputs>
+;;            -D ARTIFACT=<artifact binary> ... <artifact> <args>
+;; Every root is the canonical path of a fresh per-trial directory, checked by
+;; golden_blackbox.check_roots(); sandbox-exec refuses to start (exit 65) when
+;; a parameter the chosen mode needs is missing.
+;;
+;; Network and every Mach service lookup are denied, so is every write outside
+;; SCRATCH (build mode: also the build cache and the artifact directory).
+(version 1)
+(allow default)
+(deny network*)
+(deny mach-lookup)
+(deny file-write*)
+(allow file-write*
+  (subpath (param "SCRATCH"))
+  (literal "/dev/null"))
+
+;; Reads are an allowlist. Every read operation is denied first; metadata and
+;; existence tests are reopened everywhere so that path resolution works,
+;; except below the runner checkout, the golden set root (expected outputs
+;; live there, so not even their size or existence is visible), the Codex home
+;; and the keychains. File contents are readable only on the system paths a
+;; process needs to start, the artifact itself (run mode), the read-only input
+;; root and the stage's own scratch. A rule on a named operation beats a
+;; file-read* rule whatever their order; among rules on the same operation the
+;; later one wins.
+(deny file-read* file-test-existence)
+(allow file-read-metadata file-test-existence)
+(deny file-read-metadata file-test-existence
+  (subpath (param "CHECKOUT"))
+  (subpath (param "SET_ROOT"))
+  (subpath (param "CODEX_HOME_DIR"))
+  (subpath (string-append (param "ACCOUNT_HOME") "/Library/Keychains"))
+  (subpath "/Library/Keychains"))
+(allow file-read-data file-read-xattr file-read-metadata file-test-existence
+  (literal "/")
+  (subpath "/System")
+  (subpath "/usr/lib")
+  (subpath "/private/var/db/dyld")
+  (subpath "/dev")
+  (subpath (param "INPUT"))
+  (subpath (param "SCRATCH")))
+
+(if (string=? (param "MODE") "build")
+  (begin
+    (allow file-read-data file-read-xattr file-read-metadata file-test-existence
+      (subpath (param "GOROOT"))
+      (subpath (param "MODCACHE"))
+      (subpath (param "BUILD_CACHE"))
+      (subpath (param "OUTPUT")))
+    (allow file-write*
+      (subpath (param "BUILD_CACHE"))
+      (subpath (param "OUTPUT")))))
+
+(if (string=? (param "MODE") "run")
+  (allow file-read-data file-read-xattr file-read-metadata file-test-existence
+    (literal (param "ARTIFACT"))))

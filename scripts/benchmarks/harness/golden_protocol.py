@@ -21,9 +21,14 @@ PLATFORMS = ('claude-code', 'codex', 'antigravity-cli', 'opencode', 'omp')
 # trial stages, the sandboxed grader and its profile, the trusted preparation, the arm surface
 # builder and the driver source it compiles into every arm revision (T13), and the pilot modules
 # they import (report.py is loaded through run.py). test_golden.py keeps this list equal to them.
-RUNNER_FILES = ('golden.py', 'golden_agent.py', 'golden_protocol.py', 'golden_surface.py', 'golden_trial.py',
-                'grader.py', 'grader.sb', 'observe.py', 'permissions.py', 'prepare_grader.py', 'report.py', 'run.py',
-                'surface_driver/main.go', 'workspace.py')
+# SPEC-HARNEVAL-003 T13 adds the signed-lane modules and the two profiles handed to sandbox-exec,
+# and ORACLE_FILES, the sources of the oracle harness the runner builds, by checkout path.
+RUNNER_FILES = ('artifact.sb', 'golden.py', 'golden_agent.py', 'golden_blackbox.py', 'golden_blackbox_trial.py',
+                'golden_lane.py', 'golden_protocol.py', 'golden_sandbox.py', 'golden_surface.py', 'golden_trial.py',
+                'grader.py', 'grader.sb', 'observe.py', 'oracle.sb', 'permissions.py', 'prepare_grader.py', 'report.py',
+                'run.py', 'surface_driver/main.go', 'workspace.py')
+ORACLE_FILES = tuple('cmd/harneval-oracle/' + name for name in ('bundle.go', 'judge.go', 'links_other.go',
+                                                                 'links_unix.go', 'main.go'))
 
 # REQ-HE-08 signal table: the signal fixes the outcome. Only a failure before the arm surface enters
 # the trial workspace is an error, so a candidate surface cannot remove its own failures.
@@ -55,9 +60,12 @@ def _rows_digest(rows: list) -> str:
 
 
 def runner_digest(directory: Path = HERE) -> str:
-    """runner_sha256: the tree digest of RUNNER_FILES under their checkout path scripts/benchmarks/harness/."""
-    return _rows_digest([f'scripts/benchmarks/harness/{name}\x00{sha256_hex((Path(directory) / name).read_bytes())}\n'
-                         for name in RUNNER_FILES])
+    """runner_sha256: the tree digest of RUNNER_FILES under their checkout path scripts/benchmarks/harness/
+    and of ORACLE_FILES, read from the checkout that holds `directory` at that path."""
+    checkout = Path(directory).parents[2]
+    rows = [f'scripts/benchmarks/harness/{name}\x00{sha256_hex((Path(directory) / name).read_bytes())}\n'
+            for name in RUNNER_FILES]
+    return _rows_digest(rows + [f'{name}\x00{sha256_hex((checkout / name).read_bytes())}\n' for name in ORACLE_FILES])
 
 
 def _bookkeeping(rel: str) -> bool:
