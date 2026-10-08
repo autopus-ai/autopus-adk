@@ -121,3 +121,23 @@ func TestRedact_DeeplyNestedKeys_RedactTheRestOfTheText(t *testing.T) {
 	assert.Equal(t, "note "+PlaceholderSecret, got)
 	assert.True(t, changed)
 }
+
+// TestRedact_PassCapReached_RedactsTheWholeText covers the defensive cap on
+// the fixpoint loop (review round 2): a text still changing when the passes
+// run out is redacted whole instead of returned half done.
+func TestRedact_PassCapReached_RedactsTheWholeText(t *testing.T) {
+	t.Parallel()
+	const in = "note token=abc end"
+
+	got, changed := redactWithin(in, 2)
+	assert.Equal(t, "note "+PlaceholderSecret+" end", got, "the second pass confirms the fixpoint")
+	assert.True(t, changed)
+
+	got, changed = redactWithin(in, 1)
+	assert.Equal(t, PlaceholderSecret, got, "one pass changes the text and cannot confirm it")
+	assert.True(t, changed)
+
+	got, changed = redactWithin("router drops detail mapping", 1)
+	assert.Equal(t, "router drops detail mapping", got, "clean text needs only the confirming pass")
+	assert.False(t, changed)
+}

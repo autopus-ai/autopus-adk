@@ -77,15 +77,21 @@ type span struct {
 // placeholder's bounds and redacted as a whole, so a placeholder cannot shield
 // raw text inside the same or an adjacent match. Only a widened span that is
 // exactly one placeholder is skipped.
-func Redact(s string) (string, bool) {
+func Redact(s string) (string, bool) { return redactWithin(s, 2*len(s)+1) }
+
+// redactWithin runs at most passes passes. A changing pass lowers twice the
+// raw bytes plus the placeholders of the text, so 2*len(s)+1 passes always
+// reach the fixpoint; a text still changing past the cap is one secret.
+func redactWithin(s string, passes int) (string, bool) {
 	out := s
-	for {
+	for range passes {
 		next, changed := redactPass(out)
 		if !changed {
 			return out, out != s
 		}
 		out = next
 	}
+	return PlaceholderSecret, true
 }
 
 // redactPass replaces each merged span once. Every changing pass removes raw
