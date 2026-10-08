@@ -84,14 +84,31 @@ func TestEvalHarnessReport_S12_AdvisoryReportIsRejectedAsUnsigned(t *testing.T) 
 	require.Error(t, check.Execute(), "the advisory report must not pass the signed gate")
 	assert.Contains(t, checkOut.String(), "eval-regression: artifact_unsigned")
 
+	// SPEC-HARNEVAL-003 narrows S12 to "the 001 golden command does not sign"
+	// (CD-HR-5): the runner never touches signing material, no workflow runs
+	// the golden command outside the signed lane, and no workflow reads the
+	// advisory report. The signed lane's workflow is 003 S3's contract.
+	runner, err := filepath.Glob(filepath.Join("..", "..", "scripts", "benchmarks", "harness", "*.py"))
+	require.NoError(t, err)
+	require.NotEmpty(t, runner)
+	for _, path := range runner {
+		raw, err := os.ReadFile(path)
+		require.NoError(t, err)
+		for _, signing := range []string{"HARNESS_EVAL_SIGNING_KEY", "eval_regression_attestation", "ed25519"} {
+			assert.NotContains(t, string(raw), signing, "%s: the golden command does not sign (S12)", path)
+		}
+	}
 	workflows, err := filepath.Glob(filepath.Join("..", "..", ".github", "workflows", "*"))
 	require.NoError(t, err)
 	require.NotEmpty(t, workflows)
 	for _, workflow := range workflows {
 		raw, err := os.ReadFile(workflow)
 		require.NoError(t, err)
-		for _, forbidden := range []string{"golden", "harness_live_advisory"} {
-			assert.NotContains(t, strings.ToLower(string(raw)), forbidden, "%s: the live lane adds no workflow (S12)", workflow)
+		assert.NotContains(t, strings.ToLower(string(raw)), "harness_live_advisory", "%s: no workflow reads the advisory report (S12)", workflow)
+		for _, line := range strings.Split(string(raw), "\n") {
+			if strings.Contains(line, "--mode golden") {
+				assert.Contains(t, line, "--signed-lane", "%s: the golden command runs in a workflow only as the signed lane (S12)", workflow)
+			}
 		}
 	}
 }
