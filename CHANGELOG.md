@@ -4,6 +4,53 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **`auto react band`: tier 3의 opt-in 로컬 patch** (2026-10-08, SPEC-SIGMABAND-002): 선택 키
+  `health_band.allow_local_patch: true`를 켜면 tier 3으로 열린 episode는 confined 진단이 성공한 뒤
+  최대 한 번 로컬 patch를 받는다. read-only provider가 제안한 diff를 검사하고, 저장소 밖 사용자 cache
+  디렉토리의 autopus/local-patches/<repo-hash> 아래 격리 worktree에서 적용하고 commit한 뒤 로컬 branch
+  `autopus/band/<key>`, worktree `<lp>/<key>/worktree/`, patch 파일 `<lp>/<key>.patch`를 남긴다. band는
+  push, fetch, PR 생성, 원격 쓰기를 하지 않는다. 사람이 patch 파일을 검토한 뒤 직접 push한다. test,
+  build, 제안된 변경도 실행하지 않는다. 플래그가 꺼져 있으면(기본값) SPEC-SIGMABAND-001과 같고 tier 3은
+  진단만 한다.
+  - 로컬 patch claim의 3σ BS는 `## 추천 방향` 끝에 위치 pointer와 다음 경고를 담는다: "Reviewer
+    warning: this local branch holds a patch that an AI model derived from untrusted CI logs and that
+    nothing has run. Read the whole patch file before you open the worktree in an IDE, run any command
+    or agent in it, or push the branch, because repository hooks and tool configuration files run on
+    checkout, commit, and build, and the edit guard does not cover that worktree." 결과, 바뀐 파일,
+    patch 요청의 요청·실제 model은 run 출력(`--format json`의 `local_patches[]`)과
+    `.autopus/metrics/localpatch-events.jsonl`에 남는다.
+  - provider: subprocess claude provider만 confined 진단을 실행할 수 있다. 플래그가 켜지면 tier 2를
+    포함한 모든 진단과 patch 요청이 band worktree만 작업 디렉토리로 갖는 claude CLI subprocess에서
+    `--restricted`, `--verbose`, `--output-format stream-json`을 더해 돌고, `GIT_*`와 GitHub·cloud
+    자격 증명 변수 없이 시작한다. `health_band.local_patch_provider: claude`가 있으면 band는 그 claude를
+    orchestra backend와 상관없이 CLI subprocess로 실행하고, orchestra는 설정된 backend를 그대로 쓴다.
+    기대 배포는 Claude 구독으로 로그인한(`claude auth login`) claude CLI이며 API key가 필요 없다. 그
+    밖의 선택(OMP backend claude, codex, gemini)은 `unavailable(provider_unconfined)`이다. `--model`이
+    없거나 `sonnet` 같은 alias인 patch 요청은 `patch_model_unverified`로 끝나므로 full model ID를
+    설정한다.
+  - git: band는 자체 allowlist의 git 명령만 실행하고, 상속된 `GIT_*`를 지우고, hooks, fsmonitor, 전역
+    attributes 파일, replace ref, 자동 gc와 maintenance를 끄고, tracked symlink를 링크 문자열을 담은
+    일반 파일로 checkout하고, identity를 `autopus-band <band@autopus.invalid>`로 고정한다. git-lfs는
+    실행하지 않으며 `filter` attribute가 있는 경로를 고치는 patch는 `path_denied:filter`로 거부한다.
+    다음은 fail-closed로 `git_config_unsafe:<key>`가 된다: 비어 있지 않은 `info/attributes`, git-lfs
+    allowlist 밖의 filter, diff, merge driver(전역이나 시스템 설정에만 있는 non-LFS filter 포함),
+    `lfs.extension`, `lfs.customtransfer`, `core.alternateRefsCommand`, 설정으로 정의한
+    `hook.<name>.command`, partial clone. git 2.44 미만은
+    `git_version_unsupported:<version>`이다. reviewer 자신의 git은 band worktree의 tracked symlink를
+    type change로 보여 준다.
+  - 제한: 저장소당 보존 key는 5개다(`local_patch_skipped:cap_reached`). base tree가 200,000 entry나
+    2 GiB를 넘으면 `worktree_too_large`이고, 200,000 entry 가까운 저장소는 30 s setup 기한을 넘겨
+    `worktree_failed`로 끝날 수 있다(안전이 아니라 가용성의 한계).
+  - 정리: 실패하면 claim이 만든 산출물을 지우되, 바뀌었거나 band 것임을 증명할 수 없는 산출물은
+    `kept[]`에 이유와 함께 남긴다. live run이 멈춘 checkout은 즉시 지운다. band가 crash해 중단된
+    checkout은 recovery가 `worktree_incomplete`로 남기고, 사람이 확인한 뒤
+    `git worktree remove --force --force <path>`로 지운다.
+  - 설정: `health_band.allow_local_patch`(기본 false)와 `health_band.local_patch_provider`(기본 빈 값,
+    load 때 검증하지 않음)가 더해진다. 기본값이면 `autopus.yaml`에 키가 생기지 않고,
+    `health_band.allow_draft_pr`는 여전히 모르는 키다. 이 SPEC이 없는 바이너리는 두 키 중 하나라도 둔
+    파일을 거부하므로, 켜기 전에 그 파일을 읽는 모든 머신과 CI runner의 `auto`를 업그레이드한다.
+    자세한 내용은 `docs/health-band.md`의 Local patch 절에 있다.
+
 - **`auto react band`: CI·canary 신호의 σ-band 판정과 read-only 진단** (2026-10-07,
   SPEC-SIGMABAND-001): 기본 브랜치의 신뢰할 수 있는 CI run(`push`·`schedule`, 성공
   포함)과 실제로 실행된 `auto canary` run을 `.autopus/metrics/`의 bounded append-only
@@ -15,8 +62,8 @@ All notable changes to this project will be documented in this file.
     (floor=1/K=0.25, ε=1e-9, override 없음).
   - tier 1은 기록만 한다. tier 2와 tier 3은 episode마다 한 번 read-only provider로 진단해
     `BS-BAND-NNN` brainstorm을 남기고, `/auto plan --from-idea`로 이어진다. tier 3은
-    진단만 한다. tier 3으로 기록될 뿐 PR, branch, patch를 만들지 않는다(draft PR 경로는
-    SPEC-SIGMABAND-002가 맡는다).
+    진단만 한다. tier 3으로 기록될 뿐 PR, branch, patch를 만들지 않는다
+    (`health_band.allow_local_patch`를 켜면 위 항목의 로컬 patch가 더해지고, draft PR 경로는 없다).
   - `auto canary`는 실행된 run마다 관측 한 줄을 더하고, `latest.json`, stdout, JSON
     envelope, exit code는 그대로다. `auto react check`·`apply`와 생성되는 훅도 그대로이고,
     band를 부르는 훅은 없다. gh나 provider가 없거나 표본이 부족하거나 store가 잠겨

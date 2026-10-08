@@ -4,12 +4,15 @@
 `.autopus/metrics/`, scores each series against its own recent baseline with a
 block-based mean ± σ detector, and responds by tier. Tier 1 is logged. Tier 2
 and tier 3 get one read-only diagnosis per anomaly, written as a `BS-BAND-NNN`
-brainstorm that `/auto plan --from-idea` can triage. The command never changes
-a git ref, a worktree, or GitHub state, and the diagnosis agent is read-only in
-every tier.
+brainstorm that `/auto plan --from-idea` can triage. With the default
+configuration the command never changes a git ref, a worktree, or GitHub
+state, and the diagnosis agent is read-only in every tier. With
+`health_band.allow_local_patch: true`, an episode that opens at tier 3 can
+also get one local patch outside the repository (see
+[Local patch](#local-patch-tier-3-opt-in)); band still changes no GitHub state.
 
-Defined by SPEC-SIGMABAND-001. `auto react check` and `auto react apply` are
-unchanged, and no hook runs band.
+Defined by SPEC-SIGMABAND-001; the local patch flow by SPEC-SIGMABAND-002.
+`auto react check` and `auto react apply` are unchanged, and no hook runs band.
 
 ## Running it
 
@@ -220,18 +223,24 @@ oldest first. When one run finds due actions for several episodes of a series,
 only the newest episode's action runs and the rest are recorded as `suppressed`
 with `superseded_in_batch`.
 
-**Tier 3 is diagnosis-only.** Tier 3 is recorded as tier 3 in the event and in
-the BS file, and it gets exactly the tier 2 response: one read-only diagnosis.
-It opens no pull request, creates no branch or worktree, and applies no patch.
-A draft pull request path for tier 3 is planned separately (SPEC-SIGMABAND-002)
-behind its own flag; this release rejects `health_band.allow_draft_pr` as an
-unknown key.
+**Tier 3 is diagnosis-only** while `health_band.allow_local_patch` is false,
+the default. Tier 3 is recorded as tier 3 in the event and in the BS file, and
+it gets exactly the tier 2 response: one read-only diagnosis. It opens no pull
+request, creates no branch or worktree, and applies no patch. With
+`health_band.allow_local_patch: true`, an episode that opens at tier 3 can also
+get one local patch: a local branch, a worktree, and a patch file outside the
+repository ([Local patch](#local-patch-tier-3-opt-in)). Even then band opens no
+pull request and pushes nothing. There is no draft pull request path:
+`health_band.allow_draft_pr` stays an unknown key that strict decoding rejects.
 
 ## Diagnosis
 
 - One provider is chosen: `health_band.diagnosis_provider`, otherwise
   `orchestra.judge`, otherwise the lexicographically first configured provider.
-  No other provider is tried after the choice.
+  No other provider is tried after the choice. While
+  `health_band.allow_local_patch` is true, the confined provider rule of
+  [Local patch](#local-patch-tier-3-opt-in) replaces this choice for every
+  diagnosis, a tier-2 diagnosis included.
 - The provider is projected through the shared read-only policy and refused
   unless the projection keeps every read-only control: claude needs
   `--permission-mode plan` and `--tools=Read,Grep,Glob`, codex needs
@@ -253,7 +262,8 @@ unknown key.
   `provider_unconfigured`, `provider_unsupported`, `provider_policy_rejected`,
   `provider_policy_incomplete`, `provider_backend_unavailable`,
   `provider_missing`, `provider_timeout`, `provider_exit_nonzero`, and
-  `provider_empty_output`.
+  `provider_empty_output`; with `health_band.allow_local_patch` set, also
+  `provider_unconfined` and `worktree_unavailable`.
 - The BS file is `<project>/.autopus/brainstorms/BS-BAND-NNN.md`, numbered one
   above the highest `BS-BAND-*` id in the whole repository tree (meta root,
   modules, and nested repositories) under one per-user allocation lock. It
@@ -278,20 +288,259 @@ unknown key.
   see its IDs, so allocating there could collide), `failed:bs_invalid`, and
   `failed:bs_write_failed`.
 
+## Local patch (tier 3, opt-in)
+
+`health_band.allow_local_patch: true` (default false, SPEC-SIGMABAND-002) gives
+an episode that opens at tier 3 at most one local patch, and only after its
+confined diagnosis succeeded. Band asks a read-only provider for a proposed
+diff, checks it, applies and commits it in an isolated worktree outside the
+repository, and keeps three artifacts:
+
+| Artifact | Location |
+| --- | --- |
+| Local branch | `autopus/band/<key>` |
+| Worktree | `<lp>/<key>/worktree/` |
+| Patch file | `<lp>/<key>.patch` (mode 0600) |
+
+`<lp>` is `<user cache directory>/autopus/local-patches/<repo-hash>`, so the
+artifacts live in autopus/local-patches under the user cache directory
+(`~/Library/Caches` on macOS, `$XDG_CACHE_HOME` or `~/.cache` on Linux). Band
+creates it with mode 0700 and refuses it (`cache_unavailable`) when it cannot,
+when it is not a directory of yours without group or other permissions, when a
+component below the user cache directory is a symlink, or when it resolves
+into the repository, its git directory, or one of its worktrees. `<repo-hash>` is
+the first 12 hex digits of the SHA-256 of the absolute common git directory,
+so every worktree of one repository shares it, and `<key>` is
+`<series-slug>-<h8>-<episode-id>-<c8>`, where `<c8>` is the first 8 hex digits
+of the claim id. Inside the repository band writes only the BS file and the
+records under `.autopus/metrics/`, and band never pushes, fetches, or opens a
+pull request: a human reviews the patch file and pushes the branch by hand.
+The branch is an ordinary local ref, so `git push --all` would publish it.
+Band never runs tests, builds, or the proposed change.
+
+Every 3σ BS of a local patch claim gets pointer lines to these paths at the end
+of its `## 추천 방향` section, with this warning:
+
+> Reviewer warning: this local branch holds a patch that an AI model derived from untrusted CI logs and that nothing has run. Read the whole patch file before you open the worktree in an IDE, run any command or agent in it, or push the branch, because repository hooks and tool configuration files run on checkout, commit, and build, and the edit guard does not cover that worktree.
+
+The patch request runs after the BS is written, so the outcome, the changed
+files with their added and removed line counts, and the requested and actual
+model of the patch request appear in the run output (`local_patches[]` with
+`--format json`) and in `.autopus/metrics/localpatch-events.jsonl`, with this
+warning:
+
+```text
+This patch was derived by an AI model from untrusted CI logs; read the whole patch file before running anything.
+```
+
+### Confined provider
+
+Only a subprocess claude provider can run a confined diagnosis. While the flag
+is true, every diagnosis, a tier-2 diagnosis included, and every patch request
+runs on a claude CLI subprocess whose only working directory is a band
+worktree of tracked content at the base commit, so untracked files of your
+checkout, such as `.env`, are not in it. The shared read-only projection
+(`--permission-mode plan`, `--safe-mode`, `--strict-mcp-config`, and
+`--tools=Read,Grep,Glob`) gains `--restricted`, `--verbose`, and
+`--output-format stream-json`, and the provider starts without the GitHub and
+cloud credential variables and without any `GIT_*` variable. A provider
+chosen this way is the only one tried:
+
+1. `health_band.local_patch_provider`, trimmed, when it is not empty. With
+   that key set, band runs the claude named by health_band.local_patch_provider
+   as a CLI subprocess whatever its orchestra backend, while orchestra keeps
+   that backend for reviews, plans, brainstorms, and secure runs. Only `claude`
+   can be confined; any other name gives `unavailable(provider_unconfined)`.
+2. Otherwise the provider of the default choice
+   (`health_band.diagnosis_provider`, then `orchestra.judge`, then the first
+   configured provider), used only when it is `claude` and
+   `orchestra.providers.claude` has no `backend`.
+3. Otherwise `unavailable(provider_unconfined)`: an OMP-backed claude, codex,
+   gemini, an unconfigured name, or no name. The local patch claim then ends
+   `failed:diagnosis_unavailable`.
+
+The expected deployment is the claude CLI signed in with a Claude subscription
+(claude auth login); it needs no API key. Band sets no API key and never passes
+`--bare`, which reads only an API key and never the subscription login. A
+repository whose orchestra providers are all `backend: omp` sets:
+
+```yaml
+health_band:
+  allow_local_patch: true
+  local_patch_provider: claude
+```
+
+with the `claude` CLI on `PATH` (`claude auth status` reports `authMethod`
+`claude.ai`), while `orchestra.providers.claude` keeps `backend: omp`.
+
+The model is the `--model` of a claude entry without a `backend`, or, for an
+OMP entry, the model ID of an `anthropic/claude-*` selector
+(`anthropic/claude-opus-5-5:max` gives `--model claude-opus-5-5`), otherwise
+`claude-fable-5-1`. claude can retry a refused request on another model and say
+so only in its event stream, so band records the requested and the actual
+model of every request; each flag-on diagnosis BS states them on a
+`Diagnosis model:` line. A diagnosis answered on another model is recorded as
+`model_substituted` and kept. A patch request that claude retried on another
+model (a `model_refusal_fallback` event) ends `failed:patch_model_refused`, and
+one whose stream does not prove its model (no `init` event, an `init` model
+other than the requested `--model`, or an `assistant` event without a model or
+on a model other than the `init` model) ends `failed:patch_model_unverified`. A patch request without `--model`, or with an
+alias such as `sonnet` that claude expands to a full model ID, therefore always
+ends `failed:patch_model_unverified`: configure a full model ID such as
+`claude-opus-5-5`.
+
+### What git runs
+
+Band runs git only from its own command allowlist, never through a shell. Every
+command starts without any inherited `GIT_*` variable, with
+`GIT_ATTR_NOSYSTEM=1`, `GIT_LFS_SKIP_SMUDGE=1`, `GIT_NO_LAZY_FETCH=1`, and
+`GIT_NO_REPLACE_OBJECTS=1`, and with `-c` flags that turn off hooks
+(`core.hooksPath=/dev/null`), fsmonitor, the global attributes file
+(`core.attributesFile=/dev/null`), replace refs, automatic gc and maintenance,
+and signing, check tracked symlinks out as plain files (`core.symlinks=false`),
+and fix the user, author, and committer identity to
+`autopus-band <band@autopus.invalid>`. So no hook, filter, diff or merge
+driver, or other command that the repository or its configuration names runs
+during checkout, apply, commit, or format-patch.
+
+Band never runs git-lfs. The git-lfs driver is blanked, so LFS-tracked files
+stay pointer files in a band worktree, and a patch that touches a path with a
+`filter` attribute at the base, `lfs` included, ends
+`failed:path_denied:filter`.
+
+A band worktree checks every tracked symlink out as a plain file that holds the
+link text, so no file there leads out of the worktree. Your own git, which runs
+without that flag, reports each tracked symlink of the worktree as a type
+change (`T` in `git status`); that is expected and not part of the patch.
+
+In your checkout, inside the new worktree before its checkout, and again before
+the first object write, band refuses the following with
+`git_config_unsafe:<key>`, before any file is checked out or any object is
+written:
+
+- an `info/attributes` file of the common git directory that holds any line
+  besides blank lines and comments (`git_config_unsafe:info_attributes`);
+- any configured `filter.<driver>.clean`, `.smudge`, or `.process` other than
+  the plain git-lfs commands (`git-lfs filter-process`, `git-lfs clean -- %f`,
+  or `git-lfs smudge -- %f`, optionally with an absolute path to `git-lfs`), in
+  every scope: a non-LFS filter that only your global or system configuration
+  sets is refused even when no attribute selects it, an intended fail-closed
+  limitation, so remove that filter or keep the flag off;
+- any `diff.<driver>.textconv` or `.command`, `merge.<driver>.driver`,
+  `lfs.extension.*` or `lfs.customtransfer.*` setting,
+  `core.alternateRefsCommand`, and a config-defined `hook.<name>.command`;
+- a partial clone (`remote.<name>.promisor`, `remote.<name>.partialclonefilter`,
+  or `extensions.partialclone`), because its checkout would fetch missing
+  objects from the promisor remote;
+- a configuration git cannot list (`git_config_unsafe:config_unreadable`).
+
+Band also refuses git older than 2.44 (`git_version_unsupported:<version>`,
+such as `git_version_unsupported:2.43`), because git 2.44 added
+`GIT_NO_LAZY_FETCH`. The base is the commit of the last fetched
+`refs/remotes/origin/<default branch>`, otherwise `refs/heads/<default branch>`
+(`base_unavailable` when neither exists); band fetches nothing.
+
+### Limits
+
+- Retention cap: at most 5 kept keys per repository. Every `<lp>/<key>/`
+  directory or `<lp>/<key>.patch` file counts, the kept worktree of a done
+  claim and an artifact that a cleanup rule kept included. With 5 kept keys, a
+  new tier-3 opening is recorded as `local_patch_skipped:cap_reached`, and
+  every other flag-on diagnosis, a tier-2 diagnosis included, reports
+  `unavailable(worktree_unavailable)` with the code `cap_reached`. Remove
+  reviewed local patches to free a slot. Two checkouts of one repository that
+  run band at the same moment can overshoot the cap.
+- Size: before the checkout band counts the base tree. More than 200,000
+  entries or 2 GiB gives `worktree_too_large`, and free space below the
+  checkout's size plus 512 MiB gives `disk_insufficient`. The checkout must also
+  finish within the 30 s setup deadline: a 150,000-file checkout took 16.5 s on
+  APFS, so a repository near the 200,000-entry cap can end `worktree_failed`, a
+  limit on availability and not on safety.
+
+### Failures and cleanup
+
+Every refusal and failure ends the claim `failed:<code>` with one `result`
+record, keeps the BS, and exits 0. Band removes what the claim created, but
+never an artifact that it cannot prove is its own and unchanged. `kept[]` of
+the `result` names each kept artifact with its reason: `worktree_modified` (an
+edited, staged, untracked, or ignored file, an index flag, or a file inside a
+gitlink directory), `head_unrecognized`, `branch_moved`, `patch_modified`,
+`git_config_unsafe`, or `worktree_incomplete`.
+
+A checkout that the live run stopped at its deadline, or that failed, is
+removed at once with `git worktree remove --force` and takes no retention slot;
+only when git refuses that removal is the entry kept as `worktree_incomplete`.
+Otherwise `worktree_incomplete` remains for a checkout that a crash of band
+interrupted, which the next run's recovery finds: band cannot prove that a
+partial checkout holds only its own files, and a `git worktree add`
+interrupted that way leaves its entry locked. Look at it, then remove it
+yourself:
+
+```sh
+git worktree remove --force --force <path>
+```
+
+Band itself never passes `--force` twice and never runs `git worktree unlock`
+or `git worktree prune`.
+
+Recovery runs in every band run but `--dry-run` while
+`.autopus/metrics/localpatch-events.jsonl` exists, whatever the flag, so a claim
+interrupted while the flag was on is still cleaned up after it is turned off. It
+holds `.autopus/metrics/.recovery.lock`; while another process holds that lock,
+the run reports `recovery_locked`, and a claim whose key lock a live process
+still holds is reported as `recovery_key_locked` and handled by a later run.
+
+### Reviewing a local patch
+
+```sh
+less <lp>/<key>.patch                             # read the whole patch first
+git push origin autopus/band/<key>                # only after review, by hand
+git worktree remove --force <lp>/<key>/worktree   # then free the retention slot
+git branch -D autopus/band/<key>
+rm <lp>/<key>.patch
+```
+
+`--force` is needed when the base tracks a symlink, which your git reports as
+a type change in the band worktree.
+
+### Codes
+
+| Stage | Codes |
+| --- | --- |
+| Decision (`local_patch_skipped:<reason>`) | `no_agent`, `superseded_in_batch`, `episode_already_patched`, `cap_reached`, `bs_not_tier3`, `no_opening_claim` |
+| Preparation (the diagnosis reports `unavailable(worktree_unavailable)`) | `git_version_unsupported:<version>`, `cache_unavailable`, `artifact_exists`, `cap_reached`, `git_config_unsafe:<key>`, `base_unavailable`, `worktree_too_large`, `disk_insufficient` |
+| Worktree | `worktree_failed`, `git_config_unsafe:<key>` |
+| Before the patch request | `record_unavailable`, `no_bs`, `diagnosis_unavailable`, `branch_exists`, `lore_unsupported_required:<trailer>`, `lore_rejected` |
+| Patch request | `patch_provider_unconfined`, `patch_model_refused`, `patch_model_unverified` |
+| Patch policy | `no_patch`, `patch_invalid`, `path_denied`, `path_denied:<class>` (`filter`, `case_collision`, `guard_state`, `fix_lock`, `generated_surface`, `guard_fault`), `patch_content_denied`, `patch_content_denied:control_char`, `patch_too_large` |
+| Apply, commit, branch, patch file | `commit_failed`, `commit_tree_mismatch`, `commit_message_altered`, `branch_failed`, `patch_file_failed` |
+| Any step or recovery | `lease_exhausted`, `interrupted`, `record_invalid` |
+
 ## Configuration
 
 ```yaml
 health_band:
   diagnosis_provider: codex
+  allow_local_patch: true       # tier-3 local patch; default false
+  local_patch_provider: claude  # band-only subprocess claude; default empty
 ```
 
-`health_band.diagnosis_provider` is the only key in this release and is
-optional. Generated and saved `autopus.yaml` files omit `health_band` while it
-holds its default, so a project that never sets it is unaffected.
+`health_band` has three optional keys: `health_band.diagnosis_provider`,
+`health_band.allow_local_patch` (default false), and
+`health_band.local_patch_provider` (default empty; band reads it only while
+`allow_local_patch` is true). Like `diagnosis_provider`, `local_patch_provider`
+is not validated at load: a name that cannot be confined is a runtime
+`unavailable(provider_unconfined)`, so orchestra commands keep loading the
+file. Generated and saved `autopus.yaml` files omit each key while it holds
+its default, so a project that never sets them is unaffected, and
+`health_band.allow_draft_pr` is still an unknown key.
 
 Upgrade every auto binary that reads this autopus.yaml before you set
 health_band. Older binaries decode `autopus.yaml` strictly and reject the
-unknown key, which breaks every command on that machine or CI runner.
+unknown key, which breaks every command on that machine or CI runner. Upgrade
+every auto binary that reads this autopus.yaml before you set
+health_band.allow_local_patch or health_band.local_patch_provider: a binary
+without SPEC-SIGMABAND-002 rejects a file that sets either key.
 
 ## Scheduling
 
@@ -318,6 +567,9 @@ byte-identical.
 | `.autopus/metrics/band-state.json` | Checkpoint written after the events (`autopus.band_state.v1`) |
 | `.autopus/metrics/.lock` | Cross-process lock |
 | `.autopus/metrics/pending/<claim-id>.json` | A result that could not take the lock; the next run appends it once |
+| `.autopus/metrics/localpatch-events.jsonl` | Local patch log: decisions, claims, preparation, stages, and one `result` per claim (`autopus.band_localpatch.v1`); SPEC-SIGMABAND-001 binaries never read it |
+| `.autopus/metrics/localpatch-state.json` | Local patch claims per series, written after the log (`autopus.band_localpatch_state.v1`) |
+| `.autopus/metrics/.recovery.lock` | Lock of the local patch recovery step; created only while the local patch log exists |
 
 The store keeps the newest 512 observations per series and the newest 2,048
 events. A malformed, unknown-schema, or invalid line is skipped and counted.
