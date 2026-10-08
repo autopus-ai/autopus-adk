@@ -75,6 +75,41 @@ func TestPromote_S6RerunFromEachInterruption_ConvergesToTheOneShotFiles(t *testi
 	}
 }
 
+// TestPromote_InterruptedAfterLinkThenSetBroken_RefusesThenFinishesOnceFixed
+// is the review C1 regression. The resume exception of check 8 used to roll
+// back a task whose link record was already durable when an unrelated file
+// broke the set, which left link and candidate behind and every later rerun
+// stuck at already_promoted.
+func TestPromote_InterruptedAfterLinkThenSetBroken_RefusesThenFinishesOnceFixed(t *testing.T) {
+	t.Parallel()
+	oneShot := newCompletedProject(t)
+	_, err := runPromote(oneShot, nil)
+	require.NoError(t, err)
+	want := treeDigest(t, oneShot)
+
+	// Given a promotion stopped between steps 12 and 13, then an unrelated
+	// task file that breaks the active set.
+	root := newCompletedProject(t)
+	interruptedPromotion(stepLinkPublished)(t, root)
+	broken := SurfaceTaskDir + "/GT-BROKEN.json"
+	writeFile(t, root, broken, "{")
+	before := treeDigest(t, root)
+
+	// When promote runs again, it stops at check 8 and changes nothing.
+	_, err = runPromote(root, nil)
+	var refusal *RunError
+	require.ErrorAs(t, err, &refusal)
+	assert.Equal(t, ReasonActiveSetInvalid, refusal.Reason)
+	assert.Equal(t, before, treeDigest(t, root))
+
+	// Then, once the unrelated defect is gone, the rerun finishes the move.
+	removeRel(t, root, broken)
+	result, err := runPromote(root, nil)
+	require.NoError(t, err)
+	assert.Equal(t, PromoteResultAlreadyActive, result.Result)
+	assert.Equal(t, want, treeDigest(t, root))
+}
+
 func TestPromote_RerunAfterSuccess_IsCandidateMissingAndChangesNothing(t *testing.T) {
 	t.Parallel()
 	root := newCompletedProject(t)

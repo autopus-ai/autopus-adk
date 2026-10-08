@@ -204,20 +204,33 @@ func (p *promotion) checkActivePath() error {
 
 // loadActiveSet is check 8: the existing active set must load with the
 // SPEC-HARNEVAL-001 loader. When it does not but the task file already holds
-// exactly the bytes this promotion publishes, an earlier run stopped between
-// steps 10 and 11, and the promotion resumes at the post-check, which rolls
-// the task back when it is what broke the set.
+// exactly the bytes this promotion publishes and no link record exists yet,
+// an earlier run stopped between steps 10 and 11, and the promotion resumes
+// at the post-check, which rolls the task back when it is what broke the set.
+// A link record means that run already passed the post-check, so the set
+// broke for another reason: the promotion stops and changes nothing.
 func (p *promotion) loadActiveSet() error {
 	set, err := harneval.LoadSet(p.req.Root)
 	if err == nil {
 		p.set = set
 		return nil
 	}
-	if existing, readErr := p.area.readFile(p.taskRel); readErr == nil && bytes.Equal(existing, p.taskData) {
+	if p.publishedBeforePostCheck() {
 		p.resumed = true
 		return nil
 	}
 	return &RunError{Reason: ReasonActiveSetInvalid, Detail: invalidDetail(err), Err: err}
+}
+
+// publishedBeforePostCheck reports a task file holding exactly this
+// promotion's bytes with no link record of its id.
+func (p *promotion) publishedBeforePostCheck() bool {
+	existing, err := p.area.readFile(p.taskRel)
+	if err != nil || !bytes.Equal(existing, p.taskData) {
+		return false
+	}
+	_, err = p.area.lstatChain(p.linkRel, false)
+	return errors.Is(err, fs.ErrNotExist)
 }
 
 // checkTarget is check 9. The target already holding these bytes is an
