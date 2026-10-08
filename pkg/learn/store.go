@@ -55,7 +55,7 @@ func (s *Store) appendUnlocked(entry LearningEntry) error {
 		return fmt.Errorf("marshal entry: %w", err)
 	}
 
-	f, err := os.OpenFile(s.path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	f, err := openStoreFile(s.path, os.O_APPEND|os.O_CREATE|os.O_WRONLY)
 	if err != nil {
 		return fmt.Errorf("open file: %w", err)
 	}

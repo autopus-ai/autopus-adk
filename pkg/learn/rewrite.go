@@ -23,7 +23,7 @@ type writableItem struct {
 // stored value (and the fingerprint computed from it) survives prune. A line
 // that never parsed never crossed the write boundary, so it is redacted here.
 func rewriteStore(store *Store, entries []LearningEntry, skips []SkipRecord) error {
-	f, err := os.Create(store.path)
+	f, err := openStoreFile(store.path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC)
 	if err != nil {
 		return fmt.Errorf("create file: %w", err)
 	}
