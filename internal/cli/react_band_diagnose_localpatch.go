@@ -10,6 +10,7 @@ import (
 	"github.com/insajin/autopus-adk/pkg/brainstorm"
 	"github.com/insajin/autopus-adk/pkg/config"
 	"github.com/insajin/autopus-adk/pkg/healthband"
+	"github.com/insajin/autopus-adk/pkg/orchestra"
 )
 
 // Flag-on diagnose claims of auto react band (SPEC-SIGMABAND-002 plan task
@@ -73,9 +74,12 @@ func (d *bandDiagnoser) enableLocalPatch(patcher *bandLocalPatcher, plan []healt
 	return lp.afterRecord
 }
 
-// run is Run of a flag-on claim after its evidence: steps 1–2, the confined
-// diagnosis, the BS, and, for a diagnosis without a local_patch claim, its
-// cleanup and result.
+// run is Run of a flag-on claim after its evidence: the provider of the
+// contract, steps 1–2, the confined diagnosis, the BS, and, for a diagnosis
+// without a local_patch claim, its cleanup and result. The provider is
+// resolved before step 1, so a refused one (provider_unconfined,
+// provider_policy_rejected) leaves no record, key lock, or worktree; its
+// local_patch claim then ends no_bs or diagnosis_unavailable at step 3.
 func (lp *bandDiagnoseLocalPatch) run(ctx context.Context, claim healthband.DueClaim, logs []healthband.RunLog, reports []healthband.ReactReport) healthband.ClaimOutcome {
 	d := lp.d
 	if lp.patcher == nil {
@@ -83,8 +87,18 @@ func (lp *bandDiagnoseLocalPatch) run(ctx context.Context, claim healthband.DueC
 		return d.writeBS(ctx, d.bsRequest(claim, diagnosis, logs, reports), nil)
 	}
 	patch, hasPatch := lp.claims[claim.ID]
-	setup := lp.patcher.prepare(ctx, localPatchTarget{diagnose: claim, claimID: patch.id, lease: patch.lease})
-	diagnosis, reply := lp.diagnose(ctx, setup, claim.Event, logs, reports)
+	target := localPatchTarget{diagnose: claim, claimID: patch.id, lease: patch.lease}
+	provider, refused := lp.patcher.provider.resolve()
+	var setup *localPatchSetup
+	var diagnosis bandDiagnosis
+	var reply *bandConfinedReply
+	if refused != "" {
+		setup = &localPatchSetup{target: target, key: target.key(), unconfined: true}
+		diagnosis = bandDiagnosis{provider: bandConfinedName(d.harness), status: bandUnavailable(refused)}
+	} else {
+		setup = lp.patcher.prepare(ctx, target)
+		diagnosis, reply = lp.diagnose(ctx, setup, provider, claim.Event, logs, reports)
+	}
 	req := d.bsRequest(claim, diagnosis, logs, reports)
 	if location := lp.patcher.location; hasPatch && location != nil {
 		req.LocalPatch = &brainstorm.LocalPatch{Key: setup.key, Dir: location.Path, ClaimID: patch.id}
@@ -97,7 +111,9 @@ func (lp *bandDiagnoseLocalPatch) run(ctx context.Context, claim healthband.DueC
 	}
 	outcome := d.writeBS(ctx, req, diagnosis.manifest)
 	if !hasPatch {
-		lp.patcher.finishDiagnosis(ctx, setup, reply)
+		if !setup.unconfined {
+			lp.patcher.finishDiagnosis(ctx, setup, reply)
+		}
 		return outcome
 	}
 	lp.held[claim.ID] = bandHeldPatch{setup: setup, input: localPatchInput{diagnosis: diagnosis.output, logs: logs, reply: reply}}
@@ -105,20 +121,16 @@ func (lp *bandDiagnoseLocalPatch) run(ctx context.Context, claim healthband.DueC
 }
 
 // diagnose is the confined diagnosis: no provider without a ready worktree,
-// then the contract's provider in that worktree with 001's prompt. The reply
-// is returned whenever the request returned one, for the models[] record.
-func (lp *bandDiagnoseLocalPatch) diagnose(ctx context.Context, setup *localPatchSetup, event healthband.Event, logs []healthband.RunLog, reports []healthband.ReactReport) (bandDiagnosis, *bandConfinedReply) {
+// then the contract's provider, resolved before step 1, in that worktree
+// with 001's prompt. The reply is returned whenever the request returned
+// one, for the models[] record.
+func (lp *bandDiagnoseLocalPatch) diagnose(ctx context.Context, setup *localPatchSetup, provider orchestra.ProviderConfig, event healthband.Event, logs []healthband.RunLog, reports []healthband.ReactReport) (bandDiagnosis, *bandConfinedReply) {
 	diagnosis := bandDiagnosis{provider: bandConfinedName(lp.d.harness)}
 	if !setup.ready() {
 		diagnosis.status = bandUnavailable(bandWorktreeUnavailable)
 		return diagnosis, nil
 	}
 	confined := lp.patcher.provider
-	provider, reason := confined.resolve()
-	if reason != "" {
-		diagnosis.status = bandUnavailable(reason)
-		return diagnosis, nil
-	}
 	rendered, err := healthband.DiagnosisPrompt(event, logs, reports)
 	if err != nil {
 		diagnosis.status = bandUnavailable(bandPromptInvalid)

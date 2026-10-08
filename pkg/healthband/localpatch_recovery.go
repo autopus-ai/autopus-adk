@@ -48,7 +48,8 @@ type RecoveryOptions struct {
 // RecoveryReport is what one recovery step did.
 type RecoveryReport struct {
 	// Reasons are run reasons for the JSON envelope and text output:
-	// recovery_locked, recovery_key_locked, or store_locked.
+	// recovery_locked, recovery_key_locked, recovery_skipped, or
+	// store_locked.
 	Reasons []string
 	// Results are the result records this step appended, in claim order.
 	Results []LocalPatchRecord
@@ -93,6 +94,9 @@ func (s *Store) RecoverLocalPatches(ctx context.Context, opts RecoveryOptions) (
 	}
 	r := &lpRecovery{store: s, opts: opts, report: &report}
 	if ready, err := r.open(ctx); err != nil || !ready {
+		if err == nil {
+			report.Reasons = append(report.Reasons, ReasonRecoverySkipped)
+		}
 		return report, err
 	}
 	defer r.close()

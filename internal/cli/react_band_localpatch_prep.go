@@ -44,6 +44,11 @@ func (t localPatchTarget) recordClaimID() string {
 	return t.diagnose.ID
 }
 
+// key is the <key> of the target's records and artifacts.
+func (t localPatchTarget) key() string {
+	return healthband.LocalPatchKey(t.diagnose.Series, t.diagnose.EpisodeID, t.recordClaimID())
+}
+
 // localPatchSetup is what steps 1–2 left for the diagnosis and the patch stage.
 type localPatchSetup struct {
 	target   localPatchTarget
@@ -55,9 +60,12 @@ type localPatchSetup struct {
 	prepped  bool   // the prep record was appended
 	code     string // "" while ok, else the code the claim ends with
 	stopped  bool   // key lock busy or a result found: this claim gets no record
-	lock     *healthband.LocalPatchKeyLock
-	records  []healthband.LocalPatchRecord // prep and stage records appended, for the Cleanup Rules
-	kept     []healthband.LocalPatchKept
+	// unconfined: the contract refused the provider before step 1, so no
+	// step ran and only a local_patch claim's result follows.
+	unconfined bool
+	lock       *healthband.LocalPatchKeyLock
+	records    []healthband.LocalPatchRecord // prep and stage records appended, for the Cleanup Rules
+	kept       []healthband.LocalPatchKept
 }
 
 // ready reports a worktree at the base SHA for the confined diagnosis.
@@ -66,7 +74,7 @@ func (s *localPatchSetup) ready() bool { return s.worktree != "" && s.code == ""
 // prepare runs steps 1–2 of a flag-on diagnosis within the setup deadline.
 func (p *bandLocalPatcher) prepare(ctx context.Context, target localPatchTarget) *localPatchSetup {
 	d := target.diagnose
-	s := &localPatchSetup{target: target, key: healthband.LocalPatchKey(d.Series, d.EpisodeID, target.recordClaimID())}
+	s := &localPatchSetup{target: target, key: target.key()}
 	if !p.covers(d.LeaseUntil, p.groups.setup, false) {
 		s.code = healthband.LocalPatchCodeLeaseExhausted
 		return s

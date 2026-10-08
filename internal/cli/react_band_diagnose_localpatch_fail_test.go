@@ -56,8 +56,27 @@ func TestReactBandDiagnoseLocalPatch_UnconfinedProviderRunsNothing(t *testing.T)
 			assert.NotContains(t, w.bs(t, outcome.BSID), "Diagnosis model:")
 			assert.Empty(t, w.worktrees(t))
 			assert.True(t, w.absent(lpKey))
+			// C1: the provider is resolved before step 1, so no prep, stage,
+			// key lock, or worktree exists; only the claim's result is written.
+			assert.Equal(t, []string{healthband.LocalPatchKindResult}, dlpKinds(w.ledger.records()))
 		})
 	}
+	// A diagnosis without a local_patch claim then writes no record at all.
+	w := newDLPWorld(t, lpHarness("", "claude", "", allOMP))
+	outcome := w.claim(t, dlpTierThree())
+	assert.Equal(t, "unavailable(provider_unconfined)", outcome.DiagnosisStatus)
+	assert.Empty(t, w.ledger.records())
+	assert.Empty(t, w.worktrees(t))
+	assert.Equal(t, 0, w.fake.calls(t))
+}
+
+// dlpKinds spells records as their kinds.
+func dlpKinds(records []healthband.LocalPatchRecord) []string {
+	var kinds []string
+	for _, record := range records {
+		kinds = append(kinds, record.Kind)
+	}
+	return kinds
 }
 
 // S3: a prep code makes the diagnosis unavailable(worktree_unavailable)

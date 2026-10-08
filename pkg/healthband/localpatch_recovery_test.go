@@ -153,3 +153,16 @@ func TestRecoverLocalPatches_ClaimPausedBeforeItsKeyLock_ResumesIntoTheResult(t 
 	assert.Equal(t, map[string]int{LocalPatchKindClaim: 1, LocalPatchKindResult: 1}, kinds)
 	assert.Zero(t, w.count(start, "worktree"))
 }
+
+// F4: a repository that git cannot resolve leaves the step not ready, so no
+// claim is touched, and the run reports recovery_skipped, which makes the
+// skip visible; a later run that resolves the repository recovers.
+func TestRecoverLocalPatches_UnresolvedRepository_ReportsRecoverySkipped(t *testing.T) {
+	t.Parallel()
+	w := newLPWorld(t, nil)
+	w.claimed(lpLease)
+	report := w.recover(lpLease.Add(time.Second), func(opts *RecoveryOptions) { opts.Git = opts.Git.In(t.TempDir()) })
+	assert.Equal(t, []string{ReasonRecoverySkipped}, report.Reasons)
+	assert.Empty(t, w.results())
+	require.Len(t, w.recover(lpLease.Add(2*time.Second)).Results, 1, "a later run recovers")
+}

@@ -46,6 +46,27 @@ func TestReactBandLocalPatch_PhaseAAppendFails_HandsOverNoExecutor(t *testing.T)
 	assert.Equal(t, string(jsonStatusError), envelope.Status, "the report is written before the non-zero exit")
 }
 
+// F6: an <lp> that cannot be resolved before phase A installs no Decision
+// Table hook, so no decision or claim record names a zero location; the
+// tier-3 diagnosis still runs flag-on and step 1 ends it cache_unavailable.
+func TestReactBandLocalPatch_UnresolvedLocation_DecidesNoClaim(t *testing.T) {
+	w := newBandLPWorld(t, bandLPConfig)
+	w.storeO3()
+	broken := filepath.Join(t.TempDir(), "git")
+	require.NoError(t, os.WriteFile(broken, []byte("#!/bin/sh\ncase \" $* \" in *\" --git-common-dir \"*) exit 128;; esac\nexec git \"$@\"\n"), 0o755))
+	w.deps = func(deps *bandLocalPatchDeps) { deps.git.Binary = broken }
+	run := w.band("--no-fetch", "--format", "json")
+	require.NoError(t, run.err, run.stdout)
+
+	assert.Equal(t, []string{"prep", "result"}, w.trail(), "no decision or claim record")
+	assert.Empty(t, w.enable.plan)
+	assert.Equal(t, healthband.LocalPatchCodeCacheUnavailable, w.record(healthband.LocalPatchKindPrep).Code)
+	assert.Equal(t, w.diagnoseClaim(lpSeries).ID, w.record(healthband.LocalPatchKindResult).ClaimID)
+	assert.NotContains(t, w.worktrees(), w.lp(), "0 worktree invocations")
+	assert.Empty(t, w.fake.record(t, "calls"), "no provider call")
+	assert.Empty(t, decodeBandLPEnvelope(t, run.stdout).Data.LocalPatches)
+}
+
 // S3 row 1: --no-agent wins over row 5, and the run hands nothing to the
 // diagnose side, so 001's diagnosis runs no provider and needs no worktree.
 func TestReactBandLocalPatch_NoAgent_RecordsTheSkipAndKeeps001(t *testing.T) {

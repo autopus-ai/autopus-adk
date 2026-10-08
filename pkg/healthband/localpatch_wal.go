@@ -162,6 +162,10 @@ const (
 const (
 	ReasonRecoveryLocked    = "recovery_locked"
 	ReasonRecoveryKeyLocked = "recovery_key_locked"
+	// ReasonRecoverySkipped: git could not resolve the repository or <lp>,
+	// or was stopped at its timeout, so this run left every due claim for a
+	// later run.
+	ReasonRecoverySkipped = "recovery_skipped"
 )
 
 // Step Timeouts and Lease (REQ-12): step-group deadlines and the budgets

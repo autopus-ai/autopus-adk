@@ -139,6 +139,10 @@ func (r *patchRun) steps(ctx context.Context) string {
 func (r *patchRun) resultCheck() string {
 	s := r.s
 	switch {
+	case s.unconfined && r.in.outcome.BSID == "":
+		return lpCodeNoBS // a refused provider ran no step 1; REQ-04's BS and diagnosis checks remain
+	case s.unconfined:
+		return lpCodeDiagnosisUnavailable
 	case !s.prepped && s.code != "":
 		return s.code // record_unavailable or lease_exhausted before any prep
 	case !s.prepped:

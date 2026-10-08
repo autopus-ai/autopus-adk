@@ -62,6 +62,27 @@ func lpAllowedEnvName(name string) bool {
 	return slices.Contains(exact, name) || strings.HasPrefix(name, "LC_") || strings.HasPrefix(name, "XDG_")
 }
 
+// F3, Provider Contract item 4: a confined request runs with no fast-fail
+// rule, so a tracked file whose text a Read returns in the stream, here one
+// holding orchestra's RESOURCE_EXHAUSTED and ratelimitexceeded rules, does
+// not end the provider as a capacity failure.
+func TestBandConfinedProvider_Request_RepositoryTextDoesNotFastFail(t *testing.T) {
+	fake := installLPFakeClaude(t)
+	file := `{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"t1","content":` +
+		`"// status RESOURCE_EXHAUSTED: quota\n// grpc code ratelimitexceeded\nfunc Foo() int { return 1 }"}]}}`
+	fake.setStream(t, lpStream(lpInit55, lpAssistant55, file, lpResult("### Summary\nquota text is repository content")))
+	provider := newBandConfinedProvider(lpHarness("claude", "", "", nil))
+	projected, reason := provider.resolve()
+	require.Empty(t, reason)
+
+	reply, reason := provider.request(context.Background(), projected, t.TempDir(), "p", lpRequestDiagnosis)
+
+	require.Empty(t, reason, "the provider was not killed by a fast-fail rule")
+	text, _, reason := reply.diagnosisText()
+	assert.Empty(t, reason)
+	assert.Equal(t, "### Summary\nquota text is repository content", text)
+}
+
 func TestBandConfinedProvider_Request_EnvironmentIsAnAllowlist(t *testing.T) {
 	fake := installLPFakeClaude(t)
 	for _, name := range lpPollutedEnv {

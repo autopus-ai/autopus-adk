@@ -65,9 +65,14 @@ func (lp *bandLocalPatchRun) start(ctx context.Context, r bandRun, store *health
 // planOptions wires the flag into 001's Plan under the store lock: the
 // 990 s diagnose budget and the Decision Table hook, which reads this SPEC's
 // records and the retention count of <lp>. A record read that fails keeps
-// the hook out, so the run decides nothing it could not record.
+// the hook out, so the run decides nothing it could not record, and so does
+// an <lp> that could not be resolved, so no claim names a zero location;
+// each flag-on diagnosis then ends step 1 cache_unavailable.
 func (lp *bandLocalPatchRun) planOptions(locked *healthband.Locked, checkpoint healthband.Checkpoint, opts *healthband.PlanOptions) {
 	opts.DiagnoseBudget = healthband.LocalPatchDiagnoseBudget
+	if lp.location == nil {
+		return
+	}
 	log, err := locked.Store().ReadLocalPatchLog()
 	if err != nil {
 		lp.recordsErr = err
@@ -75,13 +80,11 @@ func (lp *bandLocalPatchRun) planOptions(locked *healthband.Locked, checkpoint h
 	}
 	decider := &healthband.LocalPatchDecider{
 		NoAgent: lp.noAgent, Checkpoint: checkpoint, Log: log, Owner: opts.Owner, NewClaimID: lp.deps.newClaimID,
+		Location: *lp.location,
 	}
-	if lp.location != nil {
-		decider.Location = *lp.location
-		// A directory read that fails counts no key: step 1 counts again
-		// and refuses the claim with the code of what it finds.
-		decider.Kept, _ = healthband.CountKeptKeys(lp.location.Path)
-	}
+	// A directory read that fails counts no key: step 1 counts again and
+	// refuses the claim with the code of what it finds.
+	decider.Kept, _ = healthband.CountKeptKeys(lp.location.Path)
 	opts.LocalPatch = decider.Decide
 }
 
@@ -135,8 +138,9 @@ func (lp *bandLocalPatchRun) report(result healthband.LocalPatchRecord) {
 // recoverLocalPatches is the recovery step (Data Contracts): after fetchCI
 // and before phase A's store.Lock, whatever the flag, never under
 // --dry-run. Without localpatch-events.jsonl it runs nothing and creates no
-// lock; its run reasons (recovery_locked, recovery_key_locked) go to the
-// report, and only a store or lock I/O failure is an error.
+// lock; its run reasons (recovery_locked, recovery_key_locked,
+// recovery_skipped) go to the report, and only a store or lock I/O failure
+// is an error.
 func (r bandRun) recoverLocalPatches(ctx context.Context, store *healthband.Store, report *bandReport) error {
 	deps := r.deps.localPatch
 	recovery, err := store.RecoverLocalPatches(ctx, healthband.RecoveryOptions{
