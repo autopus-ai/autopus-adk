@@ -94,13 +94,55 @@ func (d *LocalPatchDir) gitlinkClear(key, path string) bool {
 	return false
 }
 
-// removeFile deletes the file name below <lp>.
-func (d *LocalPatchDir) removeFile(name string) error { return d.root.Remove(name) }
+// RemoveFile deletes the file name below <lp> (an empty directory too).
+func (d *LocalPatchDir) RemoveFile(name string) error { return d.root.Remove(name) }
 
-// removeEmptyKeyDir removes <key>/ when it is an empty directory, so a
+// RemoveEmptyKeyDir removes <key>/ when it is an empty directory, so a
 // removed worktree takes no retention slot; anything else stays.
-func (d *LocalPatchDir) removeEmptyKeyDir(key string) {
+func (d *LocalPatchDir) RemoveEmptyKeyDir(key string) {
 	if info, err := d.root.Lstat(key); err == nil && info.IsDir() {
 		_ = d.root.Remove(key) // rmdir: a directory that holds anything stays
 	}
+}
+
+// The live flow's writes below <lp> (REQ-14): every file is new, mode 0600,
+// and created through O_CREAT, O_EXCL, and O_NOFOLLOW below the os.Root, so
+// no write follows a link or replaces an entry that appeared meanwhile.
+
+// MakeKeyDir creates <key>/ with mode 0700; anything already there fails.
+func (d *LocalPatchDir) MakeKeyDir(key string) error {
+	if !localPatchKeyPattern.MatchString(key) {
+		return errLocalPatchKey
+	}
+	return d.root.Mkdir(key, 0o700)
+}
+
+// CreateFile writes data to the new file name below <lp> and syncs it; a
+// partial file is removed.
+func (d *LocalPatchDir) CreateFile(name string, data []byte) error {
+	file, err := d.root.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL|noFollowNonBlock, 0o600)
+	if err != nil {
+		return err
+	}
+	_, err = file.Write(data)
+	if err == nil {
+		err = file.Sync()
+	}
+	if err = errors.Join(err, file.Close()); err != nil {
+		_ = d.root.Remove(name)
+	}
+	return err
+}
+
+// RenameFile moves the file from to the name to, both below <lp>.
+func (d *LocalPatchDir) RenameFile(from, to string) error { return d.root.Rename(from, to) }
+
+// Exists reports an entry of any type at name below <lp> without following
+// a link; a fault that cannot prove absence is an error.
+func (d *LocalPatchDir) Exists(name string) (bool, error) {
+	_, err := d.root.Lstat(name)
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+	return err == nil, err
 }

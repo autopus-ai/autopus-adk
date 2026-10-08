@@ -8,7 +8,6 @@ import (
 	"github.com/insajin/autopus-adk/pkg/config"
 	"github.com/insajin/autopus-adk/pkg/editguard"
 	"github.com/insajin/autopus-adk/pkg/healthband"
-	"github.com/insajin/autopus-adk/pkg/promptlayer"
 )
 
 // Local Patch Flow executor of SPEC-SIGMABAND-002 (plan task T7, REQ-03,
@@ -18,21 +17,17 @@ import (
 // right after phase C recorded its diagnose claim (patch). Every git command
 // goes through the Git Execution Policy runner (healthband.GitPolicyRunner):
 // its own allowlist, a scrubbed environment, and a process group that gets
-// SIGTERM 5 s before the step group's deadline and SIGKILL at it. The
-// write-ahead log and the Cleanup Rules are plan task T2's; the executor
-// reaches them through localPatchLedger and localPatchCleaner.
+// SIGTERM 5 s before the step group's deadline and SIGKILL at it. <lp>, the
+// key, the derived paths, the key lock, the status hash, the write-ahead
+// log, and the Cleanup Rules are plan task T2's (pkg/healthband), so the
+// live run and recovery derive and judge every artifact the same way.
 
-// Codes of the Local Patch Flow steps; a failure ends a claim failed:<code>.
+// Codes of the Local Patch Flow steps that the executor owns; the step-1
+// codes of <lp>, artifacts, and retention are healthband.LocalPatchCode*.
+// A failure ends a claim failed:<code>.
 const (
-	lpStatusDone                  = "done"
-	lpCodeOK                      = "ok"
-	lpCodeRecordUnavailable       = "record_unavailable"
-	lpCodeCacheUnavailable        = "cache_unavailable"
-	lpCodeArtifactExists          = "artifact_exists"
-	lpCodeCapReached              = "cap_reached"
 	lpCodeWorktreeTooLarge        = "worktree_too_large"
 	lpCodeDiskInsufficient        = "disk_insufficient"
-	lpCodeWorktreeFailed          = "worktree_failed"
 	lpCodeNoBS                    = "no_bs"
 	lpCodeDiagnosisUnavailable    = "diagnosis_unavailable"
 	lpCodeBranchExists            = "branch_exists"
@@ -44,89 +39,23 @@ const (
 	lpCodeCommitMessageAltered    = "commit_message_altered"
 	lpCodeBranchFailed            = "branch_failed"
 	lpCodePatchFileFailed         = "patch_file_failed"
-	lpCodeLeaseExhausted          = "lease_exhausted"
-	lpKeptWorktreeIncomplete      = "worktree_incomplete"
 	// Unavailable reasons a flag-on diagnosis adds to 001's REQ-12 list.
 	bandProviderUnconfined  = "provider_unconfined"
 	bandWorktreeUnavailable = "worktree_unavailable"
-)
-
-// Stage phases of the stage record (Data Contracts).
-const (
-	lpPhaseWorktreeIntent = "worktree_intent"
-	lpPhaseWorktreeDone   = "worktree_done"
-	lpPhaseWorktreeFailed = "worktree_failed"
-	lpPhaseMessage        = "message"
-	lpPhaseApplyIntent    = "apply_intent"
-	lpPhaseApplyDone      = "apply_done"
-	lpPhaseCommitDone     = "commit_done"
-	lpPhaseBranchIntent   = "branch_intent"
-	lpPhaseBranchDone     = "branch_done"
-	lpPhasePatchIntent    = "patch_intent"
-	lpPhasePatchDone      = "patch_done"
 )
 
 // bandLocalPatchWarning is the run output's warning for every local_patch
 // claim (BS Record, run output).
 const bandLocalPatchWarning = "This patch was derived by an AI model from untrusted CI logs; read the whole patch file before running anything."
 
-// localPatchPrep is the prep record of one flag-on diagnosis.
-type localPatchPrep struct {
-	Series          string    `json:"series"`
-	EpisodeID       string    `json:"episode_id"`
-	DiagnoseClaimID string    `json:"diagnose_claim_id"`
-	LeaseUntil      time.Time `json:"lease_until"`
-	ClaimID         string    `json:"claim_id,omitempty"`
-	Key             string    `json:"key"`
-	BaseSHA         string    `json:"base_sha,omitempty"`
-	Code            string    `json:"code"`
-}
-
-// localPatchStage is one stage record; each phase sets its own fields.
-type localPatchStage struct {
-	ClaimID       string `json:"claim_id"`
-	Phase         string `json:"phase"`
-	Path          string `json:"path,omitempty"`
-	StatusSHA256  string `json:"status_sha256,omitempty"`
-	Code          string `json:"code,omitempty"`
-	MessageSHA256 string `json:"message_sha256,omitempty"`
-	DiffSHA256    string `json:"diff_sha256,omitempty"`
-	Tree          string `json:"tree,omitempty"`
-	CommitOID     string `json:"commit_oid,omitempty"`
-	PatchSHA256   string `json:"patch_sha256,omitempty"`
-}
-
-// localPatchKept is one artifact a rule kept, with its reason.
-type localPatchKept struct {
-	Artifact string `json:"artifact"`
-	Reason   string `json:"reason"`
-}
-
 // localPatchModel is one models[] entry (Provider Contract item 7).
-type localPatchModel struct {
-	Request         string `json:"request"`
-	Requested       string `json:"requested"`
-	Actual          string `json:"actual"`
-	RefusalCategory string `json:"refusal_category"`
-}
+type localPatchModel = healthband.LocalPatchModel
 
-// localPatchResult is the write-once result record of one claim.
-type localPatchResult struct {
-	ClaimID          string                      `json:"claim_id"`
-	Status           string                      `json:"status"`
-	BSID             string                      `json:"bs_id,omitempty"`
-	BaseSHA          string                      `json:"base_sha,omitempty"`
-	CommitSHA        string                      `json:"commit_sha,omitempty"`
-	Branch           string                      `json:"branch,omitempty"`
-	WorktreePath     string                      `json:"worktree_path,omitempty"`
-	PatchPath        string                      `json:"patch_path,omitempty"`
-	PromptManifest   []promptlayer.ManifestEntry `json:"prompt_manifest,omitempty"`
-	Recovered        bool                        `json:"recovered"`
-	Kept             []localPatchKept            `json:"kept,omitempty"`
-	Models           []localPatchModel           `json:"models,omitempty"`
-	ModelSubstituted bool                        `json:"model_substituted"`
-	Files            []healthband.PatchFile      `json:"files,omitempty"`
-}
+// Request kinds of a models[] entry.
+const (
+	lpRequestDiagnosis = healthband.ModelRequestDiagnosis
+	lpRequestPatch     = healthband.ModelRequestPatch
+)
 
 // bandLocalPatchReport is one local_patches[] entry of the run output: the
 // result status, the patch file, the changed paths with their git apply
@@ -142,7 +71,7 @@ type bandLocalPatchReport struct {
 	Warning        string                 `json:"warning"`
 }
 
-func newBandLocalPatchReport(result localPatchResult) bandLocalPatchReport {
+func newBandLocalPatchReport(result healthband.LocalPatchRecord) bandLocalPatchReport {
 	report := bandLocalPatchReport{
 		ClaimID: result.ClaimID, Status: result.Status, PatchPath: result.PatchPath,
 		Files: append([]healthband.PatchFile{}, result.Files...), Warning: bandLocalPatchWarning,
@@ -156,26 +85,15 @@ func newBandLocalPatchReport(result localPatchResult) bandLocalPatchReport {
 }
 
 // localPatchLedger is the part of this SPEC's write-ahead log
-// (.autopus/metrics/localpatch-events.jsonl, plan task T2) that the live
-// flow writes. Each append runs under SPEC-SIGMABAND-001's store lock and
-// waits at most StoreLockWait (a result: ResultLockWait).
+// (.autopus/metrics/localpatch-events.jsonl) that the live flow writes;
+// *healthband.Store implements it. Each append runs under SPEC-SIGMABAND-
+// 001's store lock: prep re-reads the records and appends only while the
+// claim has no result, and a result is write-once (appended false: the
+// claim had already ended).
 type localPatchLedger interface {
-	// AppendPrep re-reads the records under the store lock and appends prep
-	// only when they hold no result for the claim of prep.Key (ClaimID, else
-	// DiagnoseClaimID); appended is false when such a result exists.
-	AppendPrep(ctx context.Context, prep localPatchPrep) (appended bool, err error)
-	// AppendStage appends one stage record.
-	AppendStage(ctx context.Context, stage localPatchStage) error
-	// AppendResult appends the write-once result of result.ClaimID;
-	// appended is false when the claim already has one.
-	AppendResult(ctx context.Context, result localPatchResult) (appended bool, err error)
-}
-
-// localPatchCleaner applies the Cleanup Rules (Data Contracts, plan task
-// T2), in the order 3, 1, 2, to the artifacts that the intent records of
-// claimID name at their derived paths, and returns what a rule kept.
-type localPatchCleaner interface {
-	Cleanup(ctx context.Context, claimID string) ([]localPatchKept, error)
+	AppendLocalPatchPrep(ctx context.Context, prep healthband.LocalPatchRecord) (bool, error)
+	AppendLocalPatchStage(ctx context.Context, stage healthband.LocalPatchRecord) error
+	AppendLocalPatchResult(ctx context.Context, result healthband.LocalPatchRecord) (bool, error)
 }
 
 // localPatchGroups are the step-group deadlines of Step Timeouts and Lease.
@@ -184,47 +102,38 @@ type localPatchGroups struct {
 }
 
 var defaultLocalPatchGroups = localPatchGroups{
-	setup: 30 * time.Second, diagnosisCleanup: 30 * time.Second, patchRequest: healthband.ProviderTimeout,
-	applyCommit: 60 * time.Second, branchPatch: 30 * time.Second, cleanup: 60 * time.Second,
-	margin: healthband.ResultLockWait,
+	setup: healthband.LocalPatchSetupDeadline, diagnosisCleanup: healthband.LocalPatchDiagnosisCleanupDeadline,
+	patchRequest: healthband.LocalPatchRequestDeadline, applyCommit: healthband.LocalPatchApplyDeadline,
+	branchPatch: healthband.LocalPatchBranchDeadline, cleanup: healthband.LocalPatchCleanupDeadline,
+	margin: healthband.LocalPatchMarginDeadline,
 }
 
 // bandLocalPatcher executes the Local Patch Flow of one flag-on band run.
 type bandLocalPatcher struct {
-	checkout      string // top level of the user's checkout, absolute
+	checkout      string // the user's checkout, absolute; git runs there
 	harness       *config.HarnessConfig
-	cache         *localPatchCache // <lp>; nil when it could not be resolved
+	location      *healthband.LocalPatchLocation // <lp>, resolved before the store lock; nil when unresolved
 	ledger        localPatchLedger
-	cleaner       localPatchCleaner
 	git           healthband.GitPolicyRunner // Dir is set per command
 	provider      bandConfinedProvider
 	defaultBranch string // the default branch 001's fetchCI resolved, or ""
 	now           func() time.Time
 	groups        localPatchGroups
-	// Seams: the free space of <lp>, the Patch Policy's git runner (nil is
-	// bandPolicyGit over git), the edit guard of Patch Policy item 9, and a
-	// hook between apply_done and git commit.
+	// Seams: the free space of <lp>, the edit guard of Patch Policy item 9,
+	// and a hook between apply_done and git commit.
 	statfs       func(path string) (lpDiskSpace, error)
-	policyGit    healthband.GitRunner
 	decide       func(editguard.Call, editguard.Options) editguard.Decision
 	beforeCommit func(worktree string)
-	warn         io.Writer // cleanup faults; nil discards them
+	warn         io.Writer // record faults; nil discards them
 }
 
-// newBandLocalPatcher returns the executor of a run; cache comes from
-// resolveLocalPatchCache before the store lock.
-func newBandLocalPatcher(checkout string, harness *config.HarnessConfig, cache *localPatchCache, ledger localPatchLedger, cleaner localPatchCleaner) *bandLocalPatcher {
+// newBandLocalPatcher returns the executor of a run; location comes from
+// healthband.ResolveLocalPatchLocation before the store lock.
+func newBandLocalPatcher(checkout string, harness *config.HarnessConfig, location *healthband.LocalPatchLocation, ledger localPatchLedger) *bandLocalPatcher {
 	return &bandLocalPatcher{
-		checkout: checkout, harness: harness, cache: cache, ledger: ledger, cleaner: cleaner,
+		checkout: checkout, harness: harness, location: location, ledger: ledger,
 		provider: newBandConfinedProvider(harness), now: time.Now, groups: defaultLocalPatchGroups, statfs: lpStatfs,
 	}
-}
-
-// bandLocalPatchKey is the <key> of a claim: <series-slug>-<h8>-<episode-id>-<c8>,
-// where <c8> is the first 8 hex digits of the claim id (the local_patch
-// claim's, else the diagnose claim's).
-func bandLocalPatchKey(series, episodeID, claimID string) string {
-	return healthband.BandSlug(series) + "-" + healthband.H8(series) + "-" + healthband.BandSlug(episodeID) + "-" + claimID[:min(8, len(claimID))]
 }
 
 // bandPolicyGit adapts the Git Execution Policy runner to the Patch Policy's

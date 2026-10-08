@@ -10,6 +10,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/insajin/autopus-adk/pkg/healthband"
 )
 
 func TestLocalPatchPatch_ConfigGainedDuringRequest_UnsafeAtStepEight(t *testing.T) {
@@ -20,25 +22,30 @@ func TestLocalPatchPatch_ConfigGainedDuringRequest_UnsafeAtStepEight(t *testing.
 	assert.Equal(t, "failed:git_config_unsafe:filter.mark.clean", result.Status)
 	assert.Equal(t, objects, w.git(w.repo, "count-objects", "-v"), "no object before the step-8 check")
 	assert.NotContains(t, w.ledger.trail(), "stage:apply_intent")
-	assert.Equal(t, []string{lpPatchClaimID}, w.cleaner.calls)
+	// Cleanup Rule 3 runs item 3 inside the worktree before reading its
+	// files, and the unsafe configuration keeps it (CD-3 F-001).
+	assert.Equal(t, []healthband.LocalPatchKept{{Artifact: healthband.ArtifactWorktree, Reason: healthband.KeptGitConfigUnsafe}}, result.Kept)
+	assert.False(t, w.absent(lpKey), "the worktree is kept, unread")
+	assert.Empty(t, w.git(w.repo, "for-each-ref", "refs/heads/autopus/band/"), "no branch")
+	assert.True(t, w.absent(lpKey+".diff"), "no diff file")
 }
 
 func TestLocalPatchPatch_RecordFaults_RecordUnavailable(t *testing.T) {
 	for _, phase := range []string{
-		lpPhaseMessage, lpPhaseApplyIntent, lpPhaseApplyDone, lpPhaseCommitDone,
-		lpPhaseBranchIntent, lpPhaseBranchDone, lpPhasePatchIntent, lpPhasePatchDone,
+		healthband.StageMessage, healthband.StageApplyIntent, healthband.StageApplyDone, healthband.StageCommitDone,
+		healthband.StageBranchIntent, healthband.StageBranchDone, healthband.StagePatchIntent, healthband.StagePatchDone,
 	} {
 		t.Run(phase, func(t *testing.T) {
 			w := newLPPatchWorld(t, lpS13Harness())
 			w.ledger.failPhase = phase
 			result := w.run(t)
 			assert.Equal(t, "failed:record_unavailable", result.Status)
-			assert.Equal(t, []string{lpPatchClaimID}, w.cleaner.calls)
-			if phase == lpPhaseApplyIntent {
+			assert.True(t, w.absent(lpKey), "the Cleanup Rules removed the worktree")
+			if phase == healthband.StageApplyIntent {
 				_, err := os.Lstat(filepath.Join(w.lp(), lpKey+".diff"))
 				assert.True(t, os.IsNotExist(err), "no diff file without its intent record")
 			}
-			if phase == lpPhasePatchIntent {
+			if phase == healthband.StagePatchIntent {
 				_, err := os.Lstat(filepath.Join(w.lp(), lpKey+".patch.tmp-a1b2c3d4"))
 				assert.True(t, os.IsNotExist(err), "no patch file without its intent record")
 			}
@@ -63,26 +70,25 @@ func TestLocalPatchPatch_BranchAndPatchFileFailures(t *testing.T) {
 
 func TestLocalPatchPrepare_WorktreeRecordFaults(t *testing.T) {
 	f := newLPFixture(t, nil)
-	f.ledger.failPhase = lpPhaseWorktreeDone
+	f.ledger.failPhase = healthband.StageWorktreeDone
 	s := f.patcher.prepare(t.Context(), f.target())
-	assert.Equal(t, lpCodeRecordUnavailable, s.code)
-	assert.Equal(t, []string{lpPatchClaimID}, f.cleaner.calls, "the worktree goes through the Cleanup Rules")
+	assert.Equal(t, healthband.LocalPatchCodeRecordUnavailable, s.code)
 	_, err := os.Lstat(filepath.Join(f.lp(), lpKey))
 	assert.True(t, os.IsNotExist(err))
 	f.patcher.release(s)
 
 	f = newLPFixture(t, nil)
 	f.useGitWrapper("add128")
-	f.ledger.failPhase = lpPhaseWorktreeFailed
+	f.ledger.failPhase = healthband.StageWorktreeFailed
 	s = f.patcher.prepare(t.Context(), f.target())
-	assert.Equal(t, lpCodeRecordUnavailable, s.code)
+	assert.Equal(t, healthband.LocalPatchCodeRecordUnavailable, s.code)
 	f.patcher.release(s)
 
 	f = newLPFixture(t, nil)
 	require.NoError(t, os.Remove(f.lp()))
 	require.NoError(t, os.WriteFile(f.lp(), nil, 0o600))
 	s = f.patcher.prepare(t.Context(), f.target())
-	assert.Equal(t, lpCodeCacheUnavailable, s.code, "a file in place of <lp>")
+	assert.Equal(t, healthband.LocalPatchCodeCacheUnavailable, s.code, "a file in place of <lp>")
 }
 
 func TestLocalPatchPatch_GitFaults(t *testing.T) {

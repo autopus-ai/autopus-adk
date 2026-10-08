@@ -109,3 +109,8 @@ func printable(s string, required bool) bool {
 	}
 	return !strings.ContainsFunc(s, func(r rune) bool { return r < 0x20 || r >= 0x7f && r <= 0x9f })
 }
+
+// ValidLocalPatchModel reports a model name that a models[] entry and a BS
+// model line may hold; a provider stream's model outside it is treated as
+// absent, so no record or BS line is refused for it.
+func ValidLocalPatchModel(model string) bool { return localPatchModelPattern.MatchString(model) }

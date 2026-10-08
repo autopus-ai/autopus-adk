@@ -37,10 +37,13 @@ type lpPatchWorld struct {
 	input localPatchInput
 }
 
-func newLPPatchWorld(t *testing.T, harness *config.HarnessConfig) *lpPatchWorld {
+func newLPPatchWorld(t *testing.T, harness *config.HarnessConfig, before ...func(*lpFixture)) *lpPatchWorld {
 	t.Helper()
 	fake := installLPFakeClaude(t)
 	f := newLPFixture(t, harness)
+	for _, hook := range before {
+		hook(f)
+	}
 	setup := f.patcher.prepare(context.Background(), f.target())
 	require.True(t, setup.ready(), "code %q", setup.code)
 	reply := parseBandStream(lpStream(lpInit55, lpAssistant55, lpResult("### Summary")), lpRequestDiagnosis, "claude-opus-5-5")
@@ -54,7 +57,7 @@ func newLPPatchWorld(t *testing.T, harness *config.HarnessConfig) *lpPatchWorld 
 	return &lpPatchWorld{lpFixture: f, fake: fake, setup: setup, input: input}
 }
 
-func (w *lpPatchWorld) run(t *testing.T) localPatchResult {
+func (w *lpPatchWorld) run(t *testing.T) healthband.LocalPatchRecord {
 	t.Helper()
 	result, written := w.patcher.patch(context.Background(), w.setup, w.input)
 	require.True(t, written)
@@ -70,7 +73,7 @@ func TestLocalPatchPatch_Done_LocalArtifactsOnly(t *testing.T) {
 	userHead, userStatus := w.git(w.repo, "rev-parse", "HEAD"), w.git(w.repo, "status", "--porcelain")
 	result := w.run(t)
 
-	require.Equal(t, lpStatusDone, result.Status)
+	require.Equal(t, healthband.ClaimDone, result.Status)
 	worktree, patchPath := filepath.Join(w.lp(), lpKey, "worktree"), filepath.Join(w.lp(), lpKey+".patch")
 	assert.Equal(t, []string{"prep", "stage:worktree_intent", "stage:worktree_done", "stage:message", "stage:apply_intent",
 		"stage:apply_done", "stage:commit_done", "stage:branch_intent", "stage:branch_done", "stage:patch_intent",
@@ -88,18 +91,18 @@ func TestLocalPatchPatch_Done_LocalArtifactsOnly(t *testing.T) {
 	}, result.Models)
 	assert.False(t, result.ModelSubstituted)
 	assert.Len(t, result.PromptManifest, 6)
-	assert.Equal(t, result, w.ledger.result(t), "the returned result is the one record written")
+	assert.Equal(t, lpUnsealed(w.ledger.result()), result, "the returned result is the one record written")
 	assert.Equal(t, bandLocalPatchReport{
-		ClaimID: lpPatchClaimID, Status: lpStatusDone, PatchPath: patchPath, Files: result.Files,
+		ClaimID: lpPatchClaimID, Status: healthband.ClaimDone, PatchPath: patchPath, Files: result.Files,
 		RequestedModel: "claude-opus-5-5", ActualModel: "claude-opus-5-5",
 		Warning: "This patch was derived by an AI model from untrusted CI logs; read the whole patch file before running anything.",
 	}, newBandLocalPatchReport(result))
 
 	commit := result.CommitSHA
 	assert.Equal(t, commit+"\n", w.git(w.repo, "rev-parse", "refs/heads/autopus/band/"+lpKey))
-	assert.Equal(t, w.ledger.stage(t, lpPhaseCommitDone).CommitOID, commit)
+	assert.Equal(t, w.ledger.stage(healthband.StageCommitDone).CommitOID, commit)
 	assert.Equal(t, w.base+"\n", w.git(w.repo, "rev-parse", commit+"^"))
-	assert.Equal(t, w.ledger.stage(t, lpPhaseApplyIntent).Tree+"\n", w.git(w.repo, "rev-parse", commit+"^{tree}"))
+	assert.Equal(t, w.ledger.stage(healthband.StageApplyIntent).Tree+"\n", w.git(w.repo, "rev-parse", commit+"^{tree}"))
 	assert.Equal(t, commit+"\n", w.git(worktree, "rev-parse", "HEAD"))
 	identity := w.git(w.repo, "log", "-1", "--format=%an <%ae>|%cn <%ce>", commit)
 	assert.Equal(t, "autopus-band <band@autopus.invalid>|autopus-band <band@autopus.invalid>\n", identity)
@@ -117,8 +120,8 @@ func TestLocalPatchPatch_Done_LocalArtifactsOnly(t *testing.T) {
 	require.NoError(t, err)
 	canonical := w.git(w.repo, healthband.GitFormatPatchArgs(w.base, commit)...)
 	assert.Equal(t, canonical, string(patch), "the patch file is the canonical format-patch")
-	assert.Equal(t, lpSHA256(patch), w.ledger.stage(t, lpPhasePatchDone).PatchSHA256)
-	assert.Equal(t, patchPath, w.ledger.stage(t, lpPhasePatchIntent).Path)
+	assert.Equal(t, lpSHA256(patch), w.ledger.stage(healthband.StagePatchDone).PatchSHA256)
+	assert.Equal(t, patchPath, w.ledger.stage(healthband.StagePatchIntent).Path)
 	info, err := os.Lstat(patchPath)
 	require.NoError(t, err)
 	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
@@ -135,5 +138,5 @@ func TestLocalPatchPatch_Done_LocalArtifactsOnly(t *testing.T) {
 	for _, flag := range []string{"--restricted\n", "--verbose\n", "stream-json\n", "--strict-mcp-config\n", "--tools=Read,Grep,Glob\n"} {
 		assert.Contains(t, argv, flag)
 	}
-	assert.Empty(t, w.cleaner.calls)
+	assert.False(t, w.absent(lpKey), "the worktree is kept for review")
 }

@@ -36,10 +36,10 @@ func TestLocalPatchKey_SlugRule_MapsEverySeriesAndEpisodeToTheKeyAlphabet(t *tes
 			key := LocalPatchKey(tc.series, tc.episode, lpClaimID)
 			assert.True(t, strings.HasPrefix(key, tc.wantPrefix), key)
 			assert.Regexp(t, `^[a-z0-9-]+$`, key)
-			assert.True(t, strings.HasSuffix(key, "-"+H8(tc.series)+"-"+localPatchSlug(tc.episode)+"-a1b2c3d4"), key)
+			assert.True(t, strings.HasSuffix(key, "-"+H8(tc.series)+"-"+BandSlug(tc.episode)+"-a1b2c3d4"), key)
 		})
 	}
-	assert.Equal(t, "e-c7", localPatchSlug("e.c7_"))
+	assert.Equal(t, "e-c7", BandSlug("e.c7_"))
 }
 
 func TestLocalPatchKey_LongSeries_CutsEachSlugTo40Bytes(t *testing.T) {

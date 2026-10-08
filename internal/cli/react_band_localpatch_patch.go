@@ -30,43 +30,34 @@ type localPatchInput struct {
 // finishDiagnosis ends a flag-on diagnosis without a local_patch claim:
 // within the diagnosis-only cleanup deadline the Cleanup Rules remove its
 // worktree, and its result, keyed by the diagnose claim id, is written.
-func (p *bandLocalPatcher) finishDiagnosis(ctx context.Context, s *localPatchSetup, reply *bandConfinedReply) localPatchResult {
-	result := localPatchResult{ClaimID: s.target.diagnose.ID, Status: lpStatusDone, BaseSHA: s.baseSHA, Kept: s.kept}
-	result.addModel(reply)
+func (p *bandLocalPatcher) finishDiagnosis(ctx context.Context, s *localPatchSetup, reply *bandConfinedReply) healthband.LocalPatchRecord {
+	result := healthband.NewLocalPatchResult(s.target.diagnose.ID, s.code)
+	result.BaseSHA, result.Kept = s.baseSHA, s.kept
+	lpAddModel(&result, reply)
 	if s.stopped {
 		return result
-	}
-	if s.code != "" {
-		result.Status = healthband.ClaimFailedPrefix + s.code
 	}
 	if s.worktree != "" {
 		lease := s.target.diagnose.LeaseUntil
 		if !p.covers(lease, p.groups.diagnosisCleanup, true) {
-			result.Status = healthband.ClaimFailedPrefix + lpCodeLeaseExhausted
+			result.Status = healthband.ClaimFailedPrefix + healthband.LocalPatchCodeLeaseExhausted
 		}
-		cctx, cancel := p.group(ctx, lease, p.groups.diagnosisCleanup)
-		kept, err := p.cleaner.Cleanup(cctx, s.target.diagnose.ID)
-		cancel()
-		if err != nil && p.warn != nil {
-			fmt.Fprintf(p.warn, "react band: local patch cleanup of claim %s: %v\n", s.target.diagnose.ID, err)
-		}
-		_ = p.cache.removeEmpty(s.key)
-		result.Kept = append(result.Kept, kept...)
+		result.Kept = append(result.Kept, p.cleanup(ctx, s, lease, p.groups.diagnosisCleanup)...)
 	}
 	return p.finish(ctx, s, result)
 }
 
 // finish appends the claim's write-once result and releases the key lock.
-func (p *bandLocalPatcher) finish(ctx context.Context, s *localPatchSetup, result localPatchResult) localPatchResult {
-	if _, err := p.ledger.AppendResult(ctx, result); err != nil && p.warn != nil {
+func (p *bandLocalPatcher) finish(ctx context.Context, s *localPatchSetup, result healthband.LocalPatchRecord) healthband.LocalPatchRecord {
+	if _, err := p.ledger.AppendLocalPatchResult(ctx, result); err != nil && p.warn != nil {
 		fmt.Fprintf(p.warn, "react band: local patch result of claim %s: %v\n", result.ClaimID, err)
 	}
 	p.release(s)
 	return result
 }
 
-// addModel records the models[] entry of a request that returned a stream.
-func (r *localPatchResult) addModel(reply *bandConfinedReply) {
+// lpAddModel records the models[] entry of a request that returned a stream.
+func lpAddModel(r *healthband.LocalPatchRecord, reply *bandConfinedReply) {
 	if reply == nil || !reply.streamed {
 		return
 	}
@@ -79,7 +70,7 @@ type patchRun struct {
 	p       *bandLocalPatcher
 	s       *localPatchSetup
 	in      localPatchInput
-	result  localPatchResult
+	result  healthband.LocalPatchRecord
 	message string                // the -F file bytes (step 6)
 	reply   healthband.PatchReply // the patch request's reply, in memory only
 	diff    string                // the accepted diff (step 7)
@@ -90,14 +81,13 @@ type patchRun struct {
 
 // patch runs steps 3–12 of the local_patch claim and writes its result; a
 // claim that step 1 stopped gets no record and reports false.
-func (p *bandLocalPatcher) patch(ctx context.Context, s *localPatchSetup, in localPatchInput) (localPatchResult, bool) {
+func (p *bandLocalPatcher) patch(ctx context.Context, s *localPatchSetup, in localPatchInput) (healthband.LocalPatchRecord, bool) {
 	if s.stopped {
-		return localPatchResult{}, false
+		return healthband.LocalPatchRecord{}, false
 	}
-	run := &patchRun{p: p, s: s, in: in, result: localPatchResult{
-		ClaimID: s.target.claimID, BSID: in.outcome.BSID, BaseSHA: s.baseSHA, Kept: s.kept,
-	}}
-	run.result.addModel(in.reply)
+	run := &patchRun{p: p, s: s, in: in, result: healthband.NewLocalPatchResult(s.target.claimID, "")}
+	run.result.BSID, run.result.BaseSHA, run.result.Kept = in.outcome.BSID, s.baseSHA, s.kept
+	lpAddModel(&run.result, in.reply)
 	code := run.steps(ctx)
 	if run.temp != "" {
 		_ = os.RemoveAll(run.temp)
@@ -105,14 +95,13 @@ func (p *bandLocalPatcher) patch(ctx context.Context, s *localPatchSetup, in loc
 	if code != "" {
 		run.result.Status = healthband.ClaimFailedPrefix + code
 		if s.worktree != "" {
-			run.result.Kept = append(run.result.Kept, p.cleanup(ctx, s, s.target.lease)...)
+			run.result.Kept = append(run.result.Kept, p.cleanup(ctx, s, s.target.lease, p.groups.cleanup)...)
 		}
 		return p.finish(ctx, s, run.result), true
 	}
-	_ = p.cache.removeEmpty(s.key + ".diff")
-	run.result.Status, run.result.CommitSHA = lpStatusDone, run.commit
-	run.result.Branch = strings.TrimPrefix(healthband.BandBranchRef(s.key), "refs/heads/")
-	run.result.WorktreePath, run.result.PatchPath = s.worktree, p.cache.path(s.key+".patch")
+	_ = s.dir.RemoveFile(s.key + ".diff")
+	run.result.CommitSHA, run.result.Branch = run.commit, s.paths.Branch
+	run.result.WorktreePath, run.result.PatchPath = s.worktree, s.paths.Patch
 	return p.finish(ctx, s, run.result), true
 }
 
@@ -132,7 +121,7 @@ func (r *patchRun) steps(ctx context.Context) string {
 	}, r.s.target.lease
 	for _, group := range groups {
 		if !r.p.covers(lease, group.deadline, false) {
-			return lpCodeLeaseExhausted
+			return healthband.LocalPatchCodeLeaseExhausted
 		}
 		gctx, cancel := r.p.group(ctx, lease, group.deadline)
 		for _, step := range group.steps {
@@ -153,11 +142,11 @@ func (r *patchRun) resultCheck() string {
 	case !s.prepped && s.code != "":
 		return s.code // record_unavailable or lease_exhausted before any prep
 	case !s.prepped:
-		return lpCodeRecordUnavailable
+		return healthband.LocalPatchCodeRecordUnavailable
 	case s.code != "":
 		return s.code // the prep code, the worktree_failed code, or record_unavailable
 	case s.worktree == "":
-		return lpCodeRecordUnavailable
+		return healthband.LocalPatchCodeRecordUnavailable
 	case r.in.outcome.BSID == "":
 		return lpCodeNoBS
 	case r.in.outcome.DiagnosisStatus != bandDiagnosisOK:
@@ -167,9 +156,13 @@ func (r *patchRun) resultCheck() string {
 }
 
 // branchCheck is step 4: the band branch is still absent, as a ref and as a
-// symbolic ref.
+// symbolic ref; any answer but git's "absent" exit 1 counts as present.
 func (r *patchRun) branchCheck(gctx, _ context.Context) string {
-	if r.p.branchPresent(gctx, r.s.worktree, r.s.key) {
+	run := r.p.git.In(r.s.worktree)
+	if _, err := run.Run(gctx, "rev-parse", "--verify", "--quiet", r.s.paths.Ref); healthband.GitExitCode(err) != 1 {
+		return lpCodeBranchExists
+	}
+	if _, err := run.Run(gctx, "symbolic-ref", "-q", "--no-recurse", r.s.paths.Ref); healthband.GitExitCode(err) != 1 {
 		return lpCodeBranchExists
 	}
 	return ""
@@ -212,7 +205,7 @@ func (r *patchRun) request(gctx, ctx context.Context) string {
 	}
 	r.result.PromptManifest = rendered.Manifest.Entries
 	reply, reason := r.p.provider.request(gctx, provider, r.s.worktree, rendered.Prompt, lpRequestPatch)
-	r.result.addModel(&reply)
+	lpAddModel(&r.result, &reply)
 	if reason != "" {
 		return reason
 	}
@@ -224,9 +217,10 @@ func (r *patchRun) request(gctx, ctx context.Context) string {
 		return code
 	}
 	r.message, r.reply = message, reply.patchReply()
-	stage := localPatchStage{ClaimID: r.s.target.claimID, Phase: lpPhaseMessage, MessageSHA256: lpSHA256([]byte(message))}
-	if err := r.p.ledger.AppendStage(ctx, stage); err != nil {
-		return lpCodeRecordUnavailable
+	stage := healthband.NewLocalPatchStage(r.s.target.claimID, healthband.StageMessage)
+	stage.MessageSHA256 = lpSHA256([]byte(message))
+	if err := r.p.appendStage(ctx, r.s, stage); err != nil {
+		return healthband.LocalPatchCodeRecordUnavailable
 	}
 	return ""
 }

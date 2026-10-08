@@ -20,11 +20,16 @@ import (
 // JSON escaping of a 1 MiB result text and for tool events.
 const bandProviderStreamBytes = 8 << 20
 
-// Request kinds of a models[] entry.
-const (
-	lpRequestDiagnosis = "diagnosis"
-	lpRequestPatch     = "patch"
-)
+// bandStreamModel is a model name of the stream as band records it: a name
+// outside the models[] alphabet (healthband.ValidLocalPatchModel) is treated
+// as absent, so a patch request ends patch_model_unverified and no record or
+// BS line is refused for it.
+func bandStreamModel(model string) string {
+	if !healthband.ValidLocalPatchModel(model) {
+		return ""
+	}
+	return model
+}
 
 // bandStreamLine is the part of one stream-json event that band reads.
 type bandStreamLine struct {
@@ -56,6 +61,7 @@ type bandConfinedReply struct {
 // parseBandStream reads a captured stream; a line that is not a JSON object
 // is skipped. requested is the --model value of the argv, "" without one.
 func parseBandStream(stream, request, requested string) bandConfinedReply {
+	requested = bandStreamModel(requested)
 	reply := bandConfinedReply{streamed: true, overBound: len(stream) > bandProviderStreamBytes}
 	var (
 		hasInit, missingModel   bool
@@ -71,12 +77,12 @@ func parseBandStream(stream, request, requested string) bandConfinedReply {
 		}
 		switch {
 		case event.Type == "system" && event.Subtype == "init" && !hasInit:
-			hasInit, reply.initModel = true, event.Model
+			hasInit, reply.initModel = true, bandStreamModel(event.Model)
 		case event.Type == "system" && event.Subtype == "model_refusal_fallback":
 			reply.refused = true
-			lastFallback, lastClass = event.FallbackModel, event.RefusalCategory
+			lastFallback, lastClass = bandStreamModel(event.FallbackModel), bandStreamModel(event.RefusalCategory)
 		case event.Type == "assistant":
-			if event.Message == nil || event.Message.Model == nil || *event.Message.Model == "" {
+			if event.Message == nil || event.Message.Model == nil || bandStreamModel(*event.Message.Model) == "" {
 				missingModel = true
 				continue
 			}

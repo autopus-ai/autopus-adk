@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -23,7 +22,8 @@ import (
 
 // Fixtures of the executor tests: a user checkout with a bare origin whose
 // main matches refs/remotes/origin/main, a HOME for band git, a temp user
-// cache directory, an in-memory ledger, and a test cleaner.
+// cache directory, and plan task T2's store and <lp> behind the executor,
+// with a ledger that can inject a write error.
 
 const (
 	lpSeries          = "ci.failure_rate:CI"
@@ -35,126 +35,89 @@ const (
 
 var lpT0 = time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
 
-// lpRecord is one appended record: its kind and value.
-type lpRecord struct {
-	kind  string
-	value any
-}
-
-// lpMemLedger is an in-memory localPatchLedger with injectable faults.
-type lpMemLedger struct {
-	mu        sync.Mutex
-	records   []lpRecord
-	results   map[string]bool
-	failPrep  bool
-	failPhase string
-}
-
-func newLPMemLedger() *lpMemLedger { return &lpMemLedger{results: map[string]bool{}} }
-
 var errLPInjected = errors.New("injected write error")
 
-func (l *lpMemLedger) AppendPrep(_ context.Context, prep localPatchPrep) (bool, error) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
+// lpLedger is T2's store as the executor's ledger, except that a prep, a
+// stage of failPhase, or, with failResult, a result fails as a write error.
+type lpLedger struct {
+	t          *testing.T
+	store      *healthband.Store
+	failPrep   bool
+	failPhase  string
+	failResult bool
+}
+
+func (l *lpLedger) AppendLocalPatchPrep(ctx context.Context, prep healthband.LocalPatchRecord) (bool, error) {
 	if l.failPrep {
 		return false, errLPInjected
 	}
-	id := prep.ClaimID
-	if id == "" {
-		id = prep.DiagnoseClaimID
-	}
-	if l.results[id] {
-		return false, nil
-	}
-	l.records = append(l.records, lpRecord{"prep", prep})
-	return true, nil
+	return l.store.AppendLocalPatchPrep(ctx, prep)
 }
 
-func (l *lpMemLedger) AppendStage(_ context.Context, stage localPatchStage) error {
-	l.mu.Lock()
-	defer l.mu.Unlock()
+func (l *lpLedger) AppendLocalPatchStage(ctx context.Context, stage healthband.LocalPatchRecord) error {
 	if stage.Phase == l.failPhase {
 		return errLPInjected
 	}
-	l.records = append(l.records, lpRecord{"stage", stage})
-	return nil
+	return l.store.AppendLocalPatchStage(ctx, stage)
 }
 
-func (l *lpMemLedger) AppendResult(_ context.Context, result localPatchResult) (bool, error) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	if l.results[result.ClaimID] {
-		return false, nil
+func (l *lpLedger) AppendLocalPatchResult(ctx context.Context, result healthband.LocalPatchRecord) (bool, error) {
+	if l.failResult {
+		return false, errLPInjected
 	}
-	l.results[result.ClaimID] = true
-	l.records = append(l.records, lpRecord{"result", result})
-	return true, nil
+	return l.store.AppendLocalPatchResult(ctx, result)
 }
 
-// trail is the record sequence as kind or kind:phase, so tests compare order.
-func (l *lpMemLedger) trail() []string {
-	l.mu.Lock()
-	defer l.mu.Unlock()
+// records are the store's records in seq order.
+func (l *lpLedger) records() []healthband.LocalPatchRecord {
+	l.t.Helper()
+	log, err := l.store.ReadLocalPatchLog()
+	require.NoError(l.t, err)
+	return log.Records
+}
+
+// trail is the record sequence as kind or stage:phase, so tests compare order.
+func (l *lpLedger) trail() []string {
 	var trail []string
-	for _, record := range l.records {
-		if stage, ok := record.value.(localPatchStage); ok {
-			trail = append(trail, "stage:"+stage.Phase)
+	for _, record := range l.records() {
+		if record.Kind == healthband.LocalPatchKindStage {
+			trail = append(trail, "stage:"+record.Phase)
 			continue
 		}
-		trail = append(trail, record.kind)
+		trail = append(trail, record.Kind)
 	}
 	return trail
 }
 
-func (l *lpMemLedger) prep(t *testing.T) localPatchPrep {
-	t.Helper()
-	for _, record := range l.records {
-		if prep, ok := record.value.(localPatchPrep); ok {
-			return prep
+// find returns the first record of kind (and phase for a stage).
+func (l *lpLedger) find(kind, phase string) healthband.LocalPatchRecord {
+	l.t.Helper()
+	for _, record := range l.records() {
+		if record.Kind == kind && (phase == "" || record.Phase == phase) {
+			return record
 		}
 	}
-	t.Fatal("no prep record")
-	return localPatchPrep{}
+	l.t.Fatalf("no %s %s record", kind, phase)
+	return healthband.LocalPatchRecord{}
 }
 
-func (l *lpMemLedger) stage(t *testing.T, phase string) localPatchStage {
-	t.Helper()
-	for _, record := range l.records {
-		if stage, ok := record.value.(localPatchStage); ok && stage.Phase == phase {
-			return stage
-		}
-	}
-	t.Fatalf("no %s stage", phase)
-	return localPatchStage{}
+func (l *lpLedger) prep() healthband.LocalPatchRecord {
+	return l.find(healthband.LocalPatchKindPrep, "")
 }
 
-func (l *lpMemLedger) result(t *testing.T) localPatchResult {
-	t.Helper()
-	for _, record := range l.records {
-		if result, ok := record.value.(localPatchResult); ok {
-			return result
-		}
-	}
-	t.Fatal("no result record")
-	return localPatchResult{}
+func (l *lpLedger) stage(phase string) healthband.LocalPatchRecord {
+	return l.find(healthband.LocalPatchKindStage, phase)
 }
 
-// lpTestCleaner records its calls and removes a registered worktree that
-// the claim's worktree_intent names, as Cleanup Rule 3 does for a clean one.
-type lpTestCleaner struct {
-	f     *lpFixture
-	calls []string
+func (l *lpLedger) result() healthband.LocalPatchRecord {
+	return l.find(healthband.LocalPatchKindResult, "")
 }
 
-func (c *lpTestCleaner) Cleanup(ctx context.Context, claimID string) ([]localPatchKept, error) {
-	c.calls = append(c.calls, claimID)
-	for _, record := range c.f.ledger.records {
-		if stage, ok := record.value.(localPatchStage); ok && stage.Phase == lpPhaseWorktreeIntent && stage.ClaimID == claimID {
-			_, _ = c.f.patcher.git.In(c.f.repo).Run(ctx, "worktree", "remove", "--force", stage.Path)
-		}
-	}
-	return nil, nil
+// lpUnsealed drops the fields that the append sets, so a returned record
+// compares with its stored copy.
+func lpUnsealed(record healthband.LocalPatchRecord) healthband.LocalPatchRecord {
+	record.Schema, record.Seq = "", 0
+	return record
 }
 
 // lpFixture is the temp world of one executor test.
@@ -165,8 +128,7 @@ type lpFixture struct {
 	base     string
 	cacheDir string
 	setupEnv []string
-	ledger   *lpMemLedger
-	cleaner  *lpTestCleaner
+	ledger   *lpLedger
 	patcher  *bandLocalPatcher
 }
 
@@ -174,7 +136,7 @@ func newLPFixture(t *testing.T, harness *config.HarnessConfig) *lpFixture {
 	t.Helper()
 	root, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
-	f := &lpFixture{t: t, root: root, repo: filepath.Join(root, "repo"), cacheDir: filepath.Join(root, "cache"), ledger: newLPMemLedger()}
+	f := &lpFixture{t: t, root: root, repo: filepath.Join(root, "repo"), cacheDir: filepath.Join(root, "cache")}
 	f.setupEnv = f.home("setup-home", "[user]\n\tname = Setup\n\temail = setup@example.invalid\n[init]\n\tdefaultBranch = main\n")
 	bandEnv := f.home("band-home", "")
 	require.NoError(t, os.MkdirAll(f.cacheDir, 0o700))
@@ -189,17 +151,27 @@ func newLPFixture(t *testing.T, harness *config.HarnessConfig) *lpFixture {
 	f.git(f.repo, "remote", "set-head", "origin", "main")
 	f.base = strings.TrimSpace(f.git(f.repo, "rev-parse", "HEAD"))
 	runner := healthband.GitPolicyRunner{Environ: func() []string { return slices.Clone(bandEnv) }}
-	cache, err := resolveLocalPatchCache(context.Background(), runner, f.repo, func() (string, error) { return f.cacheDir, nil })
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = cache.close() })
+	f.ledger = &lpLedger{t: t, store: healthband.NewStore(filepath.Join(root, "project"))}
 	if harness == nil {
 		harness = lpHarness("claude", "", "", nil)
 	}
-	f.cleaner = &lpTestCleaner{f: f}
-	f.patcher = newBandLocalPatcher(f.repo, harness, cache, f.ledger, f.cleaner)
-	f.patcher.git, f.patcher.now, f.patcher.policyGit = runner, func() time.Time { return lpT0 }, lpPolicyGit(runner)
+	f.patcher = newBandLocalPatcher(f.repo, harness, f.location(f.cacheDir, runner), f.ledger)
+	f.patcher.git, f.patcher.now = runner, func() time.Time { return lpT0 }
 	f.patcher.statfs = func(string) (lpDiskSpace, error) { return lpDiskSpace{avail: 1 << 40, unit: 4096}, nil }
+	// Open creates <lp>, so a test can place artifacts there first.
+	dir, code, err := f.patcher.location.Open(context.Background(), runner.In(f.repo))
+	require.NoError(t, err)
+	require.Empty(t, code)
+	require.NoError(t, dir.Close())
 	return f
+}
+
+// location resolves <lp> of the fixture's checkout below cacheDir.
+func (f *lpFixture) location(cacheDir string, runner healthband.GitPolicyRunner) *healthband.LocalPatchLocation {
+	f.t.Helper()
+	loc, err := healthband.ResolveLocalPatchLocation(context.Background(), runner.In(f.repo), cacheDir)
+	require.NoError(f.t, err)
+	return &loc
 }
 
 // home writes a HOME with a .gitconfig and returns its environment.
@@ -227,35 +199,23 @@ func (f *lpFixture) write(name, content string) {
 }
 
 // lp is the absolute <lp> of the fixture.
-func (f *lpFixture) lp() string { return f.patcher.cache.dir }
+func (f *lpFixture) lp() string { return f.patcher.location.Path }
+
+// absent reports that nothing is at <lp>/<name>.
+func (f *lpFixture) absent(name string) bool {
+	_, err := os.Lstat(filepath.Join(f.lp(), name))
+	return os.IsNotExist(err)
+}
 
 // target is the S4 tier-3 diagnose claim with its local_patch claim.
 func (f *lpFixture) target() localPatchTarget {
 	z, tier := 4.2, 3
+	diagnoseClaim := healthband.Claim{ID: lpDiagnoseClaimID, Kind: healthband.ClaimKindDiagnose, Owner: bandDiagnoseOwner, LeaseUntil: lpT0.Add(990 * time.Second)}
 	event := healthband.Event{
 		Schema: healthband.SchemaBandEvaluation, Seq: 42, Kind: healthband.EventKindEvaluation,
 		Evaluation: healthband.Evaluation{Series: lpSeries, SampleKey: "1042", Z: &z, Tier: &tier},
-		Action:     healthband.ActionDiagnose, EpisodeID: "e1042",
+		Action:     healthband.ActionDiagnose, EpisodeID: "e1042", Claims: []healthband.Claim{diagnoseClaim},
 	}
-	diagnose := healthband.DueClaim{
-		Claim:  healthband.Claim{ID: lpDiagnoseClaimID, Kind: healthband.ClaimKindDiagnose, Owner: bandDiagnoseOwner, LeaseUntil: lpT0.Add(990 * time.Second)},
-		Series: lpSeries, SampleKey: "1042", EpisodeID: "e1042", Tier: 3, Event: event,
-	}
+	diagnose := healthband.DueClaim{Claim: diagnoseClaim, Series: lpSeries, SampleKey: "1042", EpisodeID: "e1042", Tier: 3, Event: event}
 	return localPatchTarget{diagnose: diagnose, claimID: lpPatchClaimID, lease: lpT0.Add(1800 * time.Second)}
-}
-
-// lpPolicyGit is the Patch Policy runner of the tests: the production
-// adapter, except that it runs the base listing `ls-tree -r -z <base>` with
-// the policy argv and environment, because the W1 allowlist does not admit
-// that form yet (reported in the T7 hand-off).
-func lpPolicyGit(runner healthband.GitPolicyRunner) healthband.GitRunner {
-	adapter := bandPolicyGit(runner)
-	return healthband.GitRunnerFunc(func(ctx context.Context, dir string, stdin []byte, args ...string) ([]byte, error) {
-		if len(args) == 4 && slices.Equal(args[:3], []string{"ls-tree", "-r", "-z"}) {
-			cmd := exec.CommandContext(ctx, "git", healthband.GitPolicyArgv(args...)...)
-			cmd.Dir, cmd.Env = dir, healthband.GitPolicyEnv(runner.Environ(), "")
-			return cmd.Output()
-		}
-		return adapter.Run(ctx, dir, stdin, args...)
-	})
 }

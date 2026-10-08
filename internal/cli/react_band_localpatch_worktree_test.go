@@ -14,6 +14,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/insajin/autopus-adk/pkg/healthband"
 )
 
 // lpGitWrapper logs every band git argv to LP_GIT_LOG and, by LP_GIT_MODE,
@@ -82,9 +84,9 @@ func TestLocalPatchPrepare_StoppedOrFailedCheckout_RemovedAtOnce(t *testing.T) {
 			started := time.Now()
 			s := f.patcher.prepare(context.Background(), f.target())
 			assert.Less(t, time.Since(started), 30*time.Second, "SIGKILL at the setup deadline")
-			assert.Equal(t, lpCodeWorktreeFailed, s.code)
+			assert.Equal(t, healthband.LocalPatchCodeWorktreeFailed, s.code)
 			assert.Equal(t, []string{"prep", "stage:worktree_intent", "stage:worktree_failed"}, f.ledger.trail())
-			assert.Equal(t, lpCodeWorktreeFailed, f.ledger.stage(t, lpPhaseWorktreeFailed).Code)
+			assert.Equal(t, healthband.LocalPatchCodeWorktreeFailed, f.ledger.stage(healthband.StageWorktreeFailed).Code)
 			worktree := filepath.Join(f.lp(), lpKey, "worktree")
 			lines := lpGitLog(t, log)
 			assert.Equal(t, 1, lpCountArgv(lines, "worktree remove --force "+worktree), "one remove with a single --force")
@@ -92,9 +94,8 @@ func TestLocalPatchPrepare_StoppedOrFailedCheckout_RemovedAtOnce(t *testing.T) {
 			assert.Zero(t, lpCountArgv(lines, "worktree unlock"))
 			assert.Empty(t, s.kept)
 			assert.NotContains(t, f.git(f.repo, "worktree", "list", "--porcelain"), worktree)
-			_, err := os.Lstat(filepath.Join(f.lp(), lpKey))
-			assert.True(t, os.IsNotExist(err), "no <lp>/<key>/ is left, so no retention slot is taken")
-			assert.Empty(t, f.cleaner.calls, "the live removal replaces the Cleanup Rules")
+			assert.True(t, f.absent(lpKey), "no <lp>/<key>/ is left, so no retention slot is taken")
+			assert.Zero(t, lpCountArgv(lines, "ls-files"), "the live removal replaces the Cleanup Rule 3 tests")
 			f.patcher.release(s)
 			result, _ := f.patcher.patch(context.Background(), s, localPatchInput{})
 			assert.Equal(t, "failed:worktree_failed", result.Status)
@@ -106,11 +107,10 @@ func TestLocalPatchPrepare_WorktreeAddFails_CleanupRules(t *testing.T) {
 	f := newLPFixture(t, nil)
 	f.useGitWrapper("add128")
 	s := f.patcher.prepare(context.Background(), f.target())
-	assert.Equal(t, lpCodeWorktreeFailed, s.code)
+	assert.Equal(t, healthband.LocalPatchCodeWorktreeFailed, s.code)
 	assert.Equal(t, []string{"prep", "stage:worktree_intent", "stage:worktree_failed"}, f.ledger.trail())
-	assert.Equal(t, []string{lpPatchClaimID}, f.cleaner.calls)
-	_, err := os.Lstat(filepath.Join(f.lp(), lpKey))
-	assert.True(t, os.IsNotExist(err), "the empty <lp>/<key>/ is removed")
+	assert.Empty(t, s.kept, "Cleanup Rule 3 finds no worktree to keep")
+	assert.True(t, f.absent(lpKey), "the empty <lp>/<key>/ is removed")
 	f.patcher.release(s)
 }
 
@@ -123,10 +123,13 @@ func TestLocalPatchPrepare_IncludeIfInsideWorktree_UnsafeBeforeCheckout(t *testi
 	require.NoError(t, os.WriteFile(filepath.Join(f.root, "band-home", ".gitconfig"), []byte(global), 0o600))
 	s := f.patcher.prepare(context.Background(), f.target())
 	assert.Equal(t, "git_config_unsafe:filter.mark.smudge", s.code)
-	assert.Equal(t, "git_config_unsafe:filter.mark.smudge", f.ledger.stage(t, lpPhaseWorktreeFailed).Code)
-	assert.Equal(t, "ok", f.ledger.prep(t).Code, "the user's checkout passed step 1")
-	assert.Zero(t, lpCountArgv(lpGitLog(t, log), "reset --hard"), "no file of the base is checked out")
-	assert.Equal(t, []string{lpPatchClaimID}, f.cleaner.calls)
+	assert.Equal(t, "git_config_unsafe:filter.mark.smudge", f.ledger.stage(healthband.StageWorktreeFailed).Code)
+	assert.Equal(t, "ok", f.ledger.prep().Code, "the user's checkout passed step 1")
+	lines := lpGitLog(t, log)
+	assert.Zero(t, lpCountArgv(lines, "reset --hard"), "no file of the base is checked out")
+	assert.Equal(t, 1, lpCountArgv(lines, "worktree remove --force"), "Cleanup Rule 3 removes a worktree that holds only its .git file")
+	assert.Empty(t, s.kept)
+	assert.True(t, f.absent(lpKey))
 	f.patcher.release(s)
 }
 
@@ -136,16 +139,15 @@ func TestLocalPatchPrepare_DiagnosisOnly_FinishWritesResult(t *testing.T) {
 	target.claimID = ""
 	s := f.patcher.prepare(context.Background(), target)
 	require.True(t, s.ready(), "code %q", s.code)
-	assert.Equal(t, bandLocalPatchKey(lpSeries, "e1042", lpDiagnoseClaimID), s.key)
+	assert.Equal(t, healthband.LocalPatchKey(lpSeries, "e1042", lpDiagnoseClaimID), s.key)
 	reply := parseBandStream(lpStream(lpInit55, lpAssistant55, lpResult("ok")), lpRequestDiagnosis, "claude-opus-5-5")
 	result := f.patcher.finishDiagnosis(context.Background(), s, &reply)
 	assert.Equal(t, lpDiagnoseClaimID, result.ClaimID)
-	assert.Equal(t, lpStatusDone, result.Status)
+	assert.Equal(t, healthband.ClaimDone, result.Status)
 	assert.Equal(t, []localPatchModel{reply.model}, result.Models)
 	assert.Equal(t, []string{"prep", "stage:worktree_intent", "stage:worktree_done", "result"}, f.ledger.trail())
-	assert.Equal(t, []string{lpDiagnoseClaimID}, f.cleaner.calls)
-	_, err := os.Lstat(filepath.Join(f.lp(), s.key))
-	assert.True(t, os.IsNotExist(err), "the diagnosis worktree is removed")
-	_, err = os.Lstat(filepath.Join(f.lp(), s.key+".lock"))
-	assert.True(t, os.IsNotExist(err))
+	assert.Equal(t, lpUnsealed(f.ledger.result()), result, "the returned result is the one record written")
+	assert.Empty(t, result.Kept, "Cleanup Rule 3 removed the clean worktree")
+	assert.True(t, f.absent(s.key), "the diagnosis worktree is removed")
+	assert.True(t, f.absent(s.key+".lock"))
 }

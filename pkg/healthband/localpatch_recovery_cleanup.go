@@ -139,7 +139,7 @@ func (c *lpCleaner) worktreeRule(ctx context.Context) {
 	state := c.inspect(ctx)
 	switch {
 	case !state.present:
-		c.dir.removeEmptyKeyDir(c.facts.key)
+		c.dir.RemoveEmptyKeyDir(c.facts.key)
 	case state.removable:
 		c.removeWorktree(ctx)
 	default:
@@ -152,7 +152,7 @@ func (c *lpCleaner) removeWorktree(ctx context.Context) {
 		c.keep(ArtifactWorktree, KeptWorktreeIncomplete)
 		return
 	}
-	c.dir.removeEmptyKeyDir(c.facts.key)
+	c.dir.RemoveEmptyKeyDir(c.facts.key)
 }
 
 // branchRule is Cleanup Rule 1: the branch is deleted only while it is no
@@ -214,7 +214,7 @@ func (c *lpCleaner) removeIfHash(name, want, artifact string) {
 	if !found && err == nil {
 		return
 	}
-	if err != nil || sum != want || c.dir.removeFile(name) != nil {
+	if err != nil || sum != want || c.dir.RemoveFile(name) != nil {
 		c.keep(artifact, KeptPatchModified)
 	}
 }

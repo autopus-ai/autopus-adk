@@ -3,12 +3,10 @@ package cli
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/insajin/autopus-adk/pkg/filelock"
 	"github.com/insajin/autopus-adk/pkg/healthband"
 )
 
@@ -24,6 +22,12 @@ const (
 	lpMaxBlobBytes = 2 << 30
 	lpDiskReserve  = 512 << 20
 )
+
+// lpDiskSpace is the free space of the file system that holds <lp>: Bavail
+// blocks of the unit in which the file system counts Bavail.
+type lpDiskSpace struct {
+	avail, unit uint64
+}
 
 // localPatchTarget names the claims of one flag-on diagnosis.
 type localPatchTarget struct {
@@ -44,13 +48,16 @@ func (t localPatchTarget) recordClaimID() string {
 type localPatchSetup struct {
 	target   localPatchTarget
 	key      string
-	worktree string // absolute; set once worktree_done is recorded
+	dir      *healthband.LocalPatchDir  // the opened <lp>; nil when unavailable
+	paths    healthband.LocalPatchPaths // derived from <lp> and key once dir is open
+	worktree string                     // absolute; set once worktree_done is recorded
 	baseSHA  string
 	prepped  bool   // the prep record was appended
 	code     string // "" while ok, else the code the claim ends with
 	stopped  bool   // key lock busy or a result found: this claim gets no record
-	lock     *filelock.Lock
-	kept     []localPatchKept
+	lock     *healthband.LocalPatchKeyLock
+	records  []healthband.LocalPatchRecord // prep and stage records appended, for the Cleanup Rules
+	kept     []healthband.LocalPatchKept
 }
 
 // ready reports a worktree at the base SHA for the confined diagnosis.
@@ -58,22 +65,22 @@ func (s *localPatchSetup) ready() bool { return s.worktree != "" && s.code == ""
 
 // prepare runs steps 1–2 of a flag-on diagnosis within the setup deadline.
 func (p *bandLocalPatcher) prepare(ctx context.Context, target localPatchTarget) *localPatchSetup {
-	s := &localPatchSetup{target: target, key: bandLocalPatchKey(target.diagnose.Series, target.diagnose.EpisodeID, target.recordClaimID())}
-	lease := target.diagnose.LeaseUntil
-	if !p.covers(lease, p.groups.setup, false) {
-		s.code = lpCodeLeaseExhausted
+	d := target.diagnose
+	s := &localPatchSetup{target: target, key: healthband.LocalPatchKey(d.Series, d.EpisodeID, target.recordClaimID())}
+	if !p.covers(d.LeaseUntil, p.groups.setup, false) {
+		s.code = healthband.LocalPatchCodeLeaseExhausted
 		return s
 	}
-	gctx, cancel := p.group(ctx, lease, p.groups.setup)
+	gctx, cancel := p.group(ctx, d.LeaseUntil, p.groups.setup)
 	defer cancel()
 	code := p.firstChecks(gctx, s)
 	if code == "" {
-		code = p.lockKey(gctx, s)
-		if s.stopped {
+		if code = p.lockKey(gctx, s); s.stopped {
+			p.release(s)
 			return s
 		}
 	}
-	if code == "" && s.lock != nil {
+	if code == "" {
 		code = p.repoChecks(gctx, s)
 	}
 	if p.appendPrep(ctx, s, code) {
@@ -85,51 +92,42 @@ func (p *bandLocalPatcher) prepare(ctx context.Context, target localPatchTarget)
 // firstChecks are the four codes that end step 1 before the key lock: the
 // git version, <lp>, an existing artifact, and the retention count.
 func (p *bandLocalPatcher) firstChecks(ctx context.Context, s *localPatchSetup) string {
-	code, err := p.git.In(p.checkout).CheckVersion(ctx)
+	run := p.git.In(p.checkout)
+	code, err := run.CheckVersion(ctx)
 	switch {
 	case err != nil:
 		return healthband.GitVersionUnsupportedPrefix + "unknown"
 	case code != "":
 		return code
-	case p.cache == nil || !p.cache.available():
-		return lpCodeCacheUnavailable
+	case p.location == nil:
+		return healthband.LocalPatchCodeCacheUnavailable
 	}
-	exists, err := p.cache.artifactExists(s.key)
-	if err != nil {
-		return lpCodeCacheUnavailable
+	dir, code, err := p.location.Open(ctx, run)
+	if err != nil || code != "" {
+		return healthband.LocalPatchCodeCacheUnavailable
 	}
-	if exists || p.branchPresent(ctx, p.checkout, s.key) {
-		return lpCodeArtifactExists
+	s.dir, s.paths = dir, dir.Paths(s.key)
+	if code, err := dir.CheckNoArtifacts(ctx, run, s.key); err != nil || code != "" {
+		return healthband.LocalPatchCodeArtifactExists
 	}
-	if count, err := p.cache.retained(); err != nil {
-		return lpCodeCacheUnavailable
-	} else if count >= lpRetentionCap {
-		return lpCodeCapReached
+	if count, err := dir.KeptKeys(); err != nil {
+		return healthband.LocalPatchCodeCacheUnavailable
+	} else if count >= healthband.LocalPatchRetentionCap {
+		return healthband.LocalPatchCodeCapReached
 	}
 	return ""
-}
-
-// branchPresent reports refs/heads/autopus/band/<key> as a ref or as a
-// symbolic ref; any answer but git's "absent" exit 1 counts as present.
-func (p *bandLocalPatcher) branchPresent(ctx context.Context, dir, key string) bool {
-	ref, run := healthband.BandBranchRef(key), p.git.In(dir)
-	if _, err := run.Run(ctx, "rev-parse", "--verify", "--quiet", ref); healthband.GitExitCode(err) != 1 {
-		return true
-	}
-	_, err := run.Run(ctx, "symbolic-ref", "-q", "--no-recurse", ref)
-	return healthband.GitExitCode(err) != 1
 }
 
 // lockKey takes <lp>/<key>.lock with a zero wait; a lock that another
 // process holds stops the claim.
 func (p *bandLocalPatcher) lockKey(ctx context.Context, s *localPatchSetup) string {
-	lock, err := filelock.Acquire(ctx, p.cache.path(s.key+".lock"), 0)
+	lock, err := s.dir.AcquireKeyLock(ctx, s.key)
 	switch {
-	case errors.Is(err, filelock.ErrTimeout):
+	case errors.Is(err, healthband.ErrLocalPatchKeyLocked):
 		s.stopped = true
 		return ""
 	case err != nil:
-		return lpCodeCacheUnavailable
+		return healthband.LocalPatchCodeCacheUnavailable
 	}
 	s.lock = lock
 	return ""
@@ -158,7 +156,7 @@ func (p *bandLocalPatcher) repoChecks(ctx context.Context, s *localPatchSetup) s
 	if !ok {
 		return lpCodeWorktreeTooLarge
 	}
-	space, err := p.statfs(p.cache.dir)
+	space, err := p.statfs(s.dir.Path)
 	if err != nil || space.unit == 0 || space.avail < lpBlocksNeeded(sizes, space.unit) {
 		return lpCodeDiskInsufficient
 	}
@@ -213,47 +211,52 @@ func lpBlocksNeeded(sizes []uint64, unit uint64) uint64 {
 // reports whether step 2 may start. A result found by the re-read stops the
 // claim with no record, and a failed append ends it record_unavailable.
 func (p *bandLocalPatcher) appendPrep(ctx context.Context, s *localPatchSetup, code string) bool {
-	d := s.target.diagnose
-	prep := localPatchPrep{
-		Series: d.Series, EpisodeID: d.EpisodeID, DiagnoseClaimID: d.ID, LeaseUntil: d.LeaseUntil,
-		ClaimID: s.target.claimID, Key: s.key, BaseSHA: s.baseSHA, Code: lpCodeOK,
-	}
-	if code != "" {
-		prep.Code = code
-	}
-	appended, err := p.ledger.AppendPrep(ctx, prep)
+	prep := healthband.NewLocalPatchPrep(s.target.diagnose, s.target.claimID, s.key, s.baseSHA, defaultString(code, healthband.LocalPatchCodeOK))
+	appended, err := p.ledger.AppendLocalPatchPrep(ctx, prep)
 	switch {
 	case err != nil:
-		s.code = lpCodeRecordUnavailable
+		s.code = healthband.LocalPatchCodeRecordUnavailable
 	case !appended:
 		s.stopped = true
 		p.release(s)
 	default:
 		s.prepped, s.code = true, code
+		s.records = append(s.records, prep)
 	}
 	return s.prepped && code == ""
 }
 
-// cleanup applies the Cleanup Rules to the claim within the cleanup
-// deadline, then removes an empty <lp>/<key>/ that the claim created.
-func (p *bandLocalPatcher) cleanup(ctx context.Context, s *localPatchSetup, lease time.Time) []localPatchKept {
-	cctx, cancel := p.group(ctx, lease, p.groups.cleanup)
-	defer cancel()
-	kept, err := p.cleaner.Cleanup(cctx, s.target.recordClaimID())
-	if err != nil && p.warn != nil {
-		fmt.Fprintf(p.warn, "react band: local patch cleanup of claim %s: %v\n", s.target.recordClaimID(), err)
+// appendStage appends one stage record of the claim and keeps it for the
+// Cleanup Rules; an error ends the claim record_unavailable.
+func (p *bandLocalPatcher) appendStage(ctx context.Context, s *localPatchSetup, stage healthband.LocalPatchRecord) error {
+	if err := p.ledger.AppendLocalPatchStage(ctx, stage); err != nil {
+		return err
 	}
-	_ = p.cache.removeEmpty(s.key)
-	return kept
+	s.records = append(s.records, stage)
+	return nil
 }
 
-// release unlinks <lp>/<key>.lock while it is held, then unlocks it, so a
-// waiter that opened the old file fails filelock's same-file check.
-func (p *bandLocalPatcher) release(s *localPatchSetup) {
-	if s.lock == nil {
-		return
+// cleanup applies the Cleanup Rules, in the order 3, 1, 2, to the artifacts
+// that the claim's intent records name, within the cleanup deadline.
+func (p *bandLocalPatcher) cleanup(ctx context.Context, s *localPatchSetup, lease time.Time, deadline time.Duration) []healthband.LocalPatchKept {
+	if s.dir == nil {
+		return nil
 	}
-	_ = p.cache.removeEmpty(s.key + ".lock")
-	_ = s.lock.Unlock()
-	s.lock = nil
+	cctx, cancel := p.group(ctx, lease, deadline)
+	defer cancel()
+	return healthband.CleanupLocalPatch(cctx, p.git.In(p.checkout), s.dir, s.records)
+}
+
+// release unlinks and unlocks <lp>/<key>.lock while it is held (T2's
+// Release), so a waiter that opened the old file fails its same-file
+// check, and closes <lp>.
+func (p *bandLocalPatcher) release(s *localPatchSetup) {
+	if s.lock != nil {
+		_ = s.lock.Release()
+		s.lock = nil
+	}
+	if s.dir != nil {
+		_ = s.dir.Close()
+		s.dir = nil
+	}
 }

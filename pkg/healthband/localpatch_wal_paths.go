@@ -15,8 +15,7 @@ import (
 // path that a record stores.
 
 const (
-	localPatchSlugBytes = 40
-	localPatchHashHex   = 12
+	localPatchHashHex = 12
 	// localPatchCacheParts are the components below the user cache directory.
 	localPatchCacheParts = "autopus/local-patches"
 )
@@ -24,28 +23,13 @@ const (
 var errLocalPatchLocation = errors.New("healthband: the repository's git common directory is unavailable")
 
 // LocalPatchKey returns <series-slug>-<h8>-<episode-id>-<c8>: both slugs
-// follow the slug rule, <h8> is H8 of the series ID, and <c8> the first 8 hex
-// of the record claim id. The key alphabet is [a-z0-9-].
+// follow the slug rule (BandSlug: lowercase, runs outside [a-z0-9] folded to
+// one "-", trimmed, then cut to 40 bytes), <h8> is H8 of the series ID, and
+// <c8> the first 8 hex of the record claim id. The key alphabet is
+// [a-z0-9-]. The live executor, phase A, and recovery all derive the key
+// here, so a record that one writes is the key that another derives.
 func LocalPatchKey(series, episodeID, claimID string) string {
-	return localPatchSlug(series) + "-" + H8(series) + "-" + localPatchSlug(episodeID) + "-" + claimID[:min(len(claimID), 8)]
-}
-
-// localPatchSlug lowercases s, replaces every run of bytes outside [a-z0-9]
-// with one "-", trims "-", and cuts the result to 40 bytes.
-func localPatchSlug(s string) string {
-	var b strings.Builder
-	dash := false
-	for _, c := range []byte(strings.ToLower(s)) {
-		if c >= 'a' && c <= 'z' || c >= '0' && c <= '9' {
-			b.WriteByte(c)
-			dash = false
-		} else if !dash {
-			b.WriteByte('-')
-			dash = true
-		}
-	}
-	slug := strings.Trim(b.String(), "-")
-	return slug[:min(len(slug), localPatchSlugBytes)]
+	return BandSlug(series) + "-" + H8(series) + "-" + BandSlug(episodeID) + "-" + claimID[:min(len(claimID), 8)]
 }
 
 // LocalPatchRepoHash is <repo-hash>: the first 12 hex of the SHA-256 of the
@@ -119,8 +103,10 @@ func ResolveLocalPatchLocation(ctx context.Context, git GitPolicyRunner, cacheDi
 	if cacheDir, err = filepath.Abs(cacheDir); err != nil {
 		return LocalPatchLocation{}, err
 	}
+	// <lp> derives from the real path, the form a worktree is registered
+	// under and the form every stored path is compared with.
 	loc.CacheDir, loc.RepoHash = realPathOf(cacheDir), LocalPatchRepoHash(loc.CommonDir)
-	loc.Path = localPatchDirOf(cacheDir, loc.RepoHash)
+	loc.Path = localPatchDirOf(loc.CacheDir, loc.RepoHash)
 	return loc, nil
 }
 

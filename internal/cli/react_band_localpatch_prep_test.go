@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/insajin/autopus-adk/pkg/filelock"
+	"github.com/insajin/autopus-adk/pkg/healthband"
 )
 
 func TestLocalPatchPrepare_Ready_RecordsAndWorktree(t *testing.T) {
@@ -25,13 +26,14 @@ func TestLocalPatchPrepare_Ready_RecordsAndWorktree(t *testing.T) {
 	require.True(t, s.ready(), "code %q", s.code)
 	assert.Equal(t, []string{"prep", "stage:worktree_intent", "stage:worktree_done"}, f.ledger.trail())
 	worktree := filepath.Join(f.lp(), lpKey, "worktree")
-	assert.Equal(t, localPatchPrep{
-		Series: lpSeries, EpisodeID: "e1042", DiagnoseClaimID: lpDiagnoseClaimID, LeaseUntil: lpT0.Add(990 * time.Second),
-		ClaimID: lpPatchClaimID, Key: lpKey, BaseSHA: f.base, Code: "ok",
-	}, f.ledger.prep(t))
-	assert.Equal(t, worktree, f.ledger.stage(t, lpPhaseWorktreeIntent).Path)
+	prep := f.ledger.prep()
+	assert.Equal(t, healthband.LocalPatchRecord{
+		Kind: healthband.LocalPatchKindPrep, Series: lpSeries, EpisodeID: "e1042", DiagnoseClaimID: lpDiagnoseClaimID,
+		LeaseUntil: lpT0.Add(990 * time.Second), ClaimID: lpPatchClaimID, Key: lpKey, BaseSHA: f.base, Code: "ok",
+	}, lpUnsealed(prep))
+	assert.Equal(t, worktree, f.ledger.stage(healthband.StageWorktreeIntent).Path)
 	empty := sha256.Sum256(nil)
-	assert.Equal(t, hex.EncodeToString(empty[:]), f.ledger.stage(t, lpPhaseWorktreeDone).StatusSHA256)
+	assert.Equal(t, hex.EncodeToString(empty[:]), f.ledger.stage(healthband.StageWorktreeDone).StatusSHA256)
 	assert.Equal(t, worktree, s.worktree)
 	data, err := os.ReadFile(filepath.Join(worktree, "pkg", "foo", "foo.go"))
 	require.NoError(t, err)
@@ -41,11 +43,9 @@ func TestLocalPatchPrepare_Ready_RecordsAndWorktree(t *testing.T) {
 	info, err := os.Lstat(f.lp())
 	require.NoError(t, err)
 	assert.Equal(t, os.FileMode(0o700), info.Mode().Perm())
-	_, err = os.Lstat(filepath.Join(f.lp(), lpKey+".lock"))
-	assert.NoError(t, err, "the key lock is held until the last result")
+	assert.False(t, f.absent(lpKey+".lock"), "the key lock is held until the last result")
 	f.patcher.release(s)
-	_, err = os.Lstat(filepath.Join(f.lp(), lpKey+".lock"))
-	assert.True(t, os.IsNotExist(err), "the key lock is unlinked after the result")
+	assert.True(t, f.absent(lpKey+".lock"), "the key lock is unlinked after the result")
 }
 
 func TestLocalPatchPrepare_StepOneCodes(t *testing.T) {
@@ -81,21 +81,20 @@ func TestLocalPatchPrepare_StepOneCodes(t *testing.T) {
 			// Two one-block blobs plus 512 MiB need 131,074 blocks of 4096.
 			f.patcher.statfs = func(string) (lpDiskSpace, error) { return lpDiskSpace{avail: 131_073, unit: 4096}, nil }
 		}, "disk_insufficient"},
-		{"no cache directory", func(f *lpFixture) { f.patcher.cache = nil }, "cache_unavailable"},
+		{"no <lp> location", func(f *lpFixture) { f.patcher.location = nil }, "cache_unavailable"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newLPFixture(t, nil)
+			lp := f.lp()
 			tc.setup(f)
 			s := f.patcher.prepare(context.Background(), f.target())
 			assert.False(t, s.ready())
 			assert.Equal(t, tc.want, s.code)
 			assert.Equal(t, []string{"prep"}, f.ledger.trail())
-			assert.Equal(t, tc.want, f.ledger.prep(t).Code)
-			if f.patcher.cache != nil {
-				_, err := os.Lstat(filepath.Join(f.lp(), lpKey, "worktree"))
-				assert.True(t, os.IsNotExist(err), "no worktree add")
-			}
+			assert.Equal(t, tc.want, f.ledger.prep().Code)
+			_, err := os.Lstat(filepath.Join(lp, lpKey, "worktree"))
+			assert.True(t, os.IsNotExist(err), "no worktree add")
 			f.patcher.release(s)
 		})
 	}
@@ -130,46 +129,58 @@ func TestLPTreeSizes_Bounds(t *testing.T) {
 
 func TestLocalPatchPrepare_ResultFoundByReRead_StopsWithoutRecord(t *testing.T) {
 	f := newLPFixture(t, nil)
-	f.ledger.results[lpPatchClaimID] = true
+	ended := healthband.NewLocalPatchResult(lpPatchClaimID, healthband.LocalPatchCodeInterrupted)
+	ended.Recovered = true
+	appended, err := f.ledger.store.AppendLocalPatchResult(context.Background(), ended)
+	require.NoError(t, err)
+	require.True(t, appended)
 	s := f.patcher.prepare(context.Background(), f.target())
 	assert.True(t, s.stopped)
 	assert.False(t, s.ready())
-	assert.Empty(t, f.ledger.trail())
-	_, err := os.Lstat(filepath.Join(f.lp(), lpKey+".lock"))
-	assert.True(t, os.IsNotExist(err), "the key lock file is unlinked")
-	_, err = os.Lstat(filepath.Join(f.lp(), lpKey))
-	assert.True(t, os.IsNotExist(err), "no worktree")
+	assert.Equal(t, []string{"result"}, f.ledger.trail(), "no prep or stage record")
+	assert.True(t, f.absent(lpKey+".lock"), "the key lock file is unlinked")
+	assert.True(t, f.absent(lpKey), "no worktree")
 	_, written := f.patcher.patch(context.Background(), s, localPatchInput{})
 	assert.False(t, written)
-	assert.Empty(t, f.ledger.trail())
+	assert.Equal(t, []string{"result"}, f.ledger.trail())
 }
 
-func TestLocalPatchLockKey_HeldByAnotherProcess_Stops(t *testing.T) {
+func TestLocalPatchPrepare_KeyLockHeldByAnotherProcess_Stops(t *testing.T) {
 	f := newLPFixture(t, nil)
 	held, err := filelock.Acquire(context.Background(), filepath.Join(f.lp(), lpKey+".lock"), 0)
 	require.NoError(t, err)
 	defer func() { _ = held.Unlock() }()
-	s := &localPatchSetup{target: f.target(), key: lpKey}
-	assert.Empty(t, f.patcher.lockKey(context.Background(), s))
-	assert.True(t, s.stopped)
-	assert.Nil(t, s.lock)
+	// A lock file present at step 1 is an artifact (checked before the lock).
+	s := f.patcher.prepare(context.Background(), f.target())
+	assert.Equal(t, healthband.LocalPatchCodeArtifactExists, s.code)
+	assert.Equal(t, []string{"prep"}, f.ledger.trail())
+	assert.True(t, f.absent(lpKey), "no worktree")
+
+	// A lock taken between that check and the key lock stops the claim.
+	dir, code, err := f.patcher.location.Open(context.Background(), f.patcher.git.In(f.repo))
+	require.NoError(t, err)
+	require.Empty(t, code)
+	raced := &localPatchSetup{target: f.target(), key: lpKey, dir: dir}
+	assert.Empty(t, f.patcher.lockKey(context.Background(), raced))
+	assert.True(t, raced.stopped)
+	assert.Nil(t, raced.lock)
+	f.patcher.release(raced)
 }
 
 func TestLocalPatchPrepare_RecordFaults(t *testing.T) {
 	f := newLPFixture(t, nil)
 	f.ledger.failPrep = true
 	s := f.patcher.prepare(context.Background(), f.target())
-	assert.Equal(t, lpCodeRecordUnavailable, s.code)
+	assert.Equal(t, healthband.LocalPatchCodeRecordUnavailable, s.code)
 	assert.False(t, s.prepped)
 	f.patcher.release(s)
 
 	f = newLPFixture(t, nil)
-	f.ledger.failPhase = lpPhaseWorktreeIntent
+	f.ledger.failPhase = healthband.StageWorktreeIntent
 	s = f.patcher.prepare(context.Background(), f.target())
-	assert.Equal(t, lpCodeRecordUnavailable, s.code)
+	assert.Equal(t, healthband.LocalPatchCodeRecordUnavailable, s.code)
 	assert.Equal(t, []string{"prep"}, f.ledger.trail())
-	_, err := os.Lstat(filepath.Join(f.lp(), lpKey))
-	assert.True(t, os.IsNotExist(err), "no artifact without its intent record")
+	assert.True(t, f.absent(lpKey), "no artifact without its intent record")
 	f.patcher.release(s)
 }
 
@@ -177,7 +188,7 @@ func TestLocalPatchPrepare_LeaseShort_LeaseExhausted(t *testing.T) {
 	f := newLPFixture(t, nil)
 	f.patcher.now = func() time.Time { return lpT0.Add(900 * time.Second) } // 90 s left of 990 s
 	s := f.patcher.prepare(context.Background(), f.target())
-	assert.Equal(t, lpCodeLeaseExhausted, s.code)
+	assert.Equal(t, healthband.LocalPatchCodeLeaseExhausted, s.code)
 	assert.Empty(t, f.ledger.trail())
 	result, written := f.patcher.patch(context.Background(), s, localPatchInput{})
 	require.True(t, written)

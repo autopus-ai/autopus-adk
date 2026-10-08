@@ -3,7 +3,6 @@ package cli
 import (
 	"context"
 	"errors"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,11 +24,7 @@ const lpPatchFileBytes = 1 << 20
 // policy is step 7: Patch Policy items 1–9, ending with git apply --numstat
 // --summary -z --check; a fault refuses the diff.
 func (r *patchRun) policy(gctx, _ context.Context) string {
-	git := r.p.policyGit
-	if git == nil {
-		git = bandPolicyGit(r.p.git)
-	}
-	policy := healthband.PatchPolicy{Git: git, Decide: r.p.decide}
+	policy := healthband.PatchPolicy{Git: bandPolicyGit(r.p.git), Decide: r.p.decide}
 	verdict, err := policy.Evaluate(gctx, healthband.PatchPolicyInput{
 		Reply: r.reply, BaseSHA: r.s.baseSHA, Worktree: r.s.worktree, Checkout: r.p.checkout,
 	})
@@ -72,21 +67,24 @@ func (r *patchRun) apply(gctx, ctx context.Context) string {
 	if r.tree = strings.TrimSuffix(string(out), "\n"); err != nil || !lpValidOID(r.tree) {
 		return healthband.PatchCodeInvalid
 	}
-	intent := localPatchStage{ClaimID: r.s.target.claimID, Phase: lpPhaseApplyIntent, DiffSHA256: lpSHA256([]byte(r.diff)), Tree: r.tree}
-	if err := r.p.ledger.AppendStage(ctx, intent); err != nil {
-		return lpCodeRecordUnavailable
+	intent := healthband.NewLocalPatchStage(r.s.target.claimID, healthband.StageApplyIntent)
+	intent.DiffSHA256, intent.Tree = lpSHA256([]byte(r.diff)), r.tree
+	if err := r.p.appendStage(ctx, r.s, intent); err != nil {
+		return healthband.LocalPatchCodeRecordUnavailable
 	}
-	if err := r.p.cache.create(r.s.key+".diff", []byte(r.diff)); err != nil {
+	if err := r.s.dir.CreateFile(r.s.key+".diff", []byte(r.diff)); err != nil {
 		return healthband.PatchCodeInvalid
 	}
-	if _, err := run.Run(gctx, "apply", "--index", r.p.cache.path(r.s.key+".diff")); err != nil {
+	if _, err := run.Run(gctx, "apply", "--index", r.s.paths.Diff); err != nil {
 		return healthband.PatchCodeInvalid
 	}
 	if out, err := run.Run(gctx, "write-tree"); err != nil || strings.TrimSuffix(string(out), "\n") != r.tree {
 		return healthband.PatchCodeInvalid
 	}
-	if err := r.p.ledger.AppendStage(ctx, localPatchStage{ClaimID: r.s.target.claimID, Phase: lpPhaseApplyDone, Tree: r.tree}); err != nil {
-		return lpCodeRecordUnavailable
+	done := healthband.NewLocalPatchStage(r.s.target.claimID, healthband.StageApplyDone)
+	done.Tree = r.tree
+	if err := r.p.appendStage(ctx, r.s, done); err != nil {
+		return healthband.LocalPatchCodeRecordUnavailable
 	}
 	return ""
 }
@@ -114,8 +112,10 @@ func (r *patchRun) commitPatch(gctx, ctx context.Context) string {
 		r.commit = ""
 		return lpCodeCommitFailed
 	}
-	if err := r.p.ledger.AppendStage(ctx, localPatchStage{ClaimID: r.s.target.claimID, Phase: lpPhaseCommitDone, CommitOID: r.commit}); err != nil {
-		return lpCodeRecordUnavailable
+	done := healthband.NewLocalPatchStage(r.s.target.claimID, healthband.StageCommitDone)
+	done.CommitOID = r.commit
+	if err := r.p.appendStage(ctx, r.s, done); err != nil {
+		return healthband.LocalPatchCodeRecordUnavailable
 	}
 	raw, err := run.Run(gctx, "cat-file", "commit", r.commit)
 	if err != nil {
@@ -134,16 +134,16 @@ func (r *patchRun) commitPatch(gctx, ctx context.Context) string {
 // branch is step 10: branch_intent, then a create-only update-ref that
 // never writes through a symbolic ref, then branch_done.
 func (r *patchRun) branch(gctx, ctx context.Context) string {
-	claimID := r.s.target.claimID
-	if err := r.p.ledger.AppendStage(ctx, localPatchStage{ClaimID: claimID, Phase: lpPhaseBranchIntent, CommitOID: r.commit}); err != nil {
-		return lpCodeRecordUnavailable
+	intent := healthband.NewLocalPatchStage(r.s.target.claimID, healthband.StageBranchIntent)
+	intent.CommitOID = r.commit
+	if err := r.p.appendStage(ctx, r.s, intent); err != nil {
+		return healthband.LocalPatchCodeRecordUnavailable
 	}
-	ref := healthband.BandBranchRef(r.s.key)
-	if _, err := r.p.git.In(r.s.worktree).Run(gctx, "update-ref", "--no-deref", ref, r.commit, ""); err != nil {
+	if _, err := r.p.git.In(r.s.worktree).Run(gctx, "update-ref", "--no-deref", r.s.paths.Ref, r.commit, ""); err != nil {
 		return lpCodeBranchFailed
 	}
-	if err := r.p.ledger.AppendStage(ctx, localPatchStage{ClaimID: claimID, Phase: lpPhaseBranchDone}); err != nil {
-		return lpCodeRecordUnavailable
+	if err := r.p.appendStage(ctx, r.s, healthband.NewLocalPatchStage(r.s.target.claimID, healthband.StageBranchDone)); err != nil {
+		return healthband.LocalPatchCodeRecordUnavailable
 	}
 	return ""
 }
@@ -158,24 +158,25 @@ func (r *patchRun) patchFile(gctx, ctx context.Context) string {
 	if err != nil || len(out) == 0 {
 		return lpCodePatchFileFailed
 	}
-	claimID, name := r.s.target.claimID, r.s.key+".patch"
-	sum := lpSHA256(out)
-	intent := localPatchStage{ClaimID: claimID, Phase: lpPhasePatchIntent, Path: r.p.cache.path(name), PatchSHA256: sum}
-	if err := r.p.ledger.AppendStage(ctx, intent); err != nil {
-		return lpCodeRecordUnavailable
+	name, temp, sum := filepath.Base(r.s.paths.Patch), filepath.Base(r.s.paths.PatchTemp), lpSHA256(out)
+	intent := healthband.NewLocalPatchStage(r.s.target.claimID, healthband.StagePatchIntent)
+	intent.Path, intent.PatchSHA256 = r.s.paths.Patch, sum
+	if err := r.p.appendStage(ctx, r.s, intent); err != nil {
+		return healthband.LocalPatchCodeRecordUnavailable
 	}
-	if _, err := r.p.cache.root.Lstat(r.p.cache.relPath(name)); !errors.Is(err, fs.ErrNotExist) {
+	if present, err := r.s.dir.Exists(name); err != nil || present {
 		return lpCodePatchFileFailed // never replace a file that appeared since step 1
 	}
-	temp := name + ".tmp-" + claimID[:8]
-	if err := r.p.cache.create(temp, out); err != nil {
+	if err := r.s.dir.CreateFile(temp, out); err != nil {
 		return lpCodePatchFileFailed
 	}
-	if err := r.p.cache.rename(temp, name); err != nil {
+	if err := r.s.dir.RenameFile(temp, name); err != nil {
 		return lpCodePatchFileFailed
 	}
-	if err := r.p.ledger.AppendStage(ctx, localPatchStage{ClaimID: claimID, Phase: lpPhasePatchDone, PatchSHA256: sum}); err != nil {
-		return lpCodeRecordUnavailable
+	done := healthband.NewLocalPatchStage(r.s.target.claimID, healthband.StagePatchDone)
+	done.PatchSHA256 = sum
+	if err := r.p.appendStage(ctx, r.s, done); err != nil {
+		return healthband.LocalPatchCodeRecordUnavailable
 	}
 	return ""
 }

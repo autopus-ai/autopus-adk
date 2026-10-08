@@ -68,7 +68,6 @@ func TestLocalPatchPatch_FailureCodes(t *testing.T) {
 			result := w.run(t)
 			assert.Equal(t, tc.want, result.Status)
 			assert.Equal(t, strings.Repeat("call\n", tc.calls), w.fake.record(t, "calls"))
-			assert.Equal(t, []string{lpPatchClaimID}, w.cleaner.calls, "the Cleanup Rules handle the claim")
 			trail := w.ledger.trail()
 			if tc.objects {
 				assert.Equal(t, objects, w.git(w.repo, "count-objects", "-v"), "no object written")
@@ -108,7 +107,7 @@ func TestLocalPatchPatch_PrepFailures_EndWithTheirCode(t *testing.T) {
 	result, written := f.patcher.patch(t.Context(), s, localPatchInput{})
 	require.True(t, written)
 	assert.Equal(t, "failed:base_unavailable", result.Status)
-	assert.Empty(t, f.cleaner.calls, "no worktree exists")
+	assert.True(t, f.absent(lpKey), "no worktree exists")
 
 	f = newLPFixture(t, nil)
 	f.ledger.failPrep = true
