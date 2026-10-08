@@ -262,8 +262,10 @@ oracle harness that does not build.
 
 Only active agent tasks whose document carries `oracle_mode: black_box` run;
 white-box tasks stay in the advisory lane above. The definition pins the
-artifact, its inputs and its expected outputs by SHA-256 (the golden set
-schema change itself is T15):
+artifact, its inputs and its expected outputs by SHA-256; the Go task schema
+decodes the same fields strictly and checks every pinned fixture below
+`evals/harness/oracles/` (T15, the five committed oracles are listed in
+`evals/harness/README.md`):
 
 ```json
 "oracle_mode": "black_box",
@@ -355,6 +357,19 @@ Regenerate it on macOS after a wire change:
 HARNEVAL_REGENERATE_WIRE_FIXTURE=1 PYTHONDONTWRITEBYTECODE=1 \
   python3 -m unittest test_golden_wire_fixture   # from scripts/benchmarks/harness
 ```
+
+The signer (`auto eval harness export`) takes the protocol's trusted
+`baseline_surface_digest` from its own rebuild, not from this runner:
+`harneval.ArmSurfaceDigest` is the Go twin of `golden_surface.arm_surface`
+(the binding's `baseline_commit` extracted with `git archive`, this
+checkout's driver installed, the modules downloaded from a file proxy over
+the local module cache and checked against the arm's `go.sum`, the offline
+build and the driver run under `grader.sb`, the digest of the written
+surface). It needs no Python, so the sign job runs only `auto` and the
+baseline driver it builds; on macOS it gives the digest this runner gives
+for the same commit (`TestArmSurfaceDigest_BaselineTagMatchesTheTrustedRunner`,
+v0.50.123: `90e9898c…`). It does not set the runner's rlimits, which bound
+agent-modified code, not a release tag of main.
 
 Calibration runs the same stages without an agent before the first trial and
 after the last into `calibration.json`: the clean reference artifact must be

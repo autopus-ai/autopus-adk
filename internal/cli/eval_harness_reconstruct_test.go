@@ -207,8 +207,8 @@ func TestEvalHarnessExport_TrustedReconstruction_RefusesWithoutWriting(t *testin
 		sources harnessTrustSources
 		want    string
 	}{
-		"records changed after attestation": {tampered, "attestation_digest_mismatch: records.jsonl differs from records_sha256"},
-		"no trust sources in this build":    {harnessTrustSources{}, "reconstruction_unavailable: this build has no black_box_oracle"},
+		"records changed after attestation":   {tampered, "attestation_digest_mismatch: records.jsonl differs from records_sha256"},
+		"no attestation source in this build": {harnessTrustSources{}, "reconstruction_unavailable: this build has no attestation bundle verification"},
 	} {
 		got, out, _ := world.export(t, tc.sources)
 

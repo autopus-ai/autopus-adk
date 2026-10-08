@@ -115,6 +115,8 @@ func TestEvalHarnessE2E_S5_DigestChainReachesTheStrictCheck(t *testing.T) {
 			e2eGit(t, world.root, "commit", "-q", "--allow-empty", "-m", "another")
 			e2eGit(t, world.root, "tag", "-f", "v0.50.122")
 		}},
+		{"task oracle_mode black_box", func() { e2eBlackBox(t, world.root, "two rows\n") }},
+		{"black-box expected output byte and sha256", func() { e2eBlackBox(t, world.root, "two rowS\n") }},
 	}
 	for _, change := range changes {
 		change.apply()
@@ -125,4 +127,24 @@ func TestEvalHarnessE2E_S5_DigestChainReachesTheStrictCheck(t *testing.T) {
 			strictLine(t, report, at, trusted, binaryPolicy(t, auto, moved)), change.name)
 		binding = moved
 	}
+}
+
+// e2eBlackBox makes GT-AG-001 a black-box task whose stdout expectation is
+// the committed fixture holding stdout, pinned by its sha256.
+func e2eBlackBox(t *testing.T, root, stdout string) {
+	t.Helper()
+	fixture := harneval.OracleFixtureRoot + "/GT-AG-001/stdout.txt"
+	writeReconstructFile(t, filepath.Join(root, filepath.FromSlash(fixture)), []byte(stdout))
+	path := filepath.Join(root, filepath.FromSlash(harnessAgentPath))
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	var task map[string]any
+	require.NoError(t, json.Unmarshal(data, &task))
+	task["oracle_mode"] = harneval.OracleModeBlackBox
+	task["black_box_oracle"] = map[string]any{"build": "./cmd/auto", "command": []string{"{artifact}", "version"},
+		"inputs": []any{}, "assertions": []any{map[string]any{"id": "stdout", "kind": harneval.BlackBoxStdout,
+			"expected": map[string]any{"path": fixture, "sha256": sha256String([]byte(stdout))}}}}
+	data, err = json.MarshalIndent(task, "", "  ")
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(path, data, 0o644))
 }
