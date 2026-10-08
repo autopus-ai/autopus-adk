@@ -49,7 +49,10 @@ type reactBandDeps struct {
 }
 
 func newReactBandCmd() *cobra.Command {
-	return newReactBandCmdWith(reactBandDeps{runner: execBandRunner{}, clock: time.Now, lockWait: healthband.StoreLockWait})
+	return newReactBandCmdWith(reactBandDeps{
+		runner: execBandRunner{}, clock: time.Now, lockWait: healthband.StoreLockWait,
+		localPatch: bandLocalPatchDeps{enable: (*bandDiagnoser).enableLocalPatch},
+	})
 }
 
 func newReactBandCmdWith(deps reactBandDeps) *cobra.Command {
