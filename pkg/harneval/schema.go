@@ -108,9 +108,13 @@ type Manifest struct {
 }
 
 // Floors are the minimum active task counts below which a run is vacuous.
+// SignedAgentTasks is the signed live lane's floor of black-box agent tasks
+// (SPEC-HARNEVAL-003 REQ-HR-08); a manifest that declares none leaves it 0,
+// and the signer signs nothing but vacuous for it.
 type Floors struct {
-	SurfaceTasks int `json:"surface_tasks"`
-	AgentTasks   int `json:"agent_tasks"`
+	SurfaceTasks     int `json:"surface_tasks"`
+	AgentTasks       int `json:"agent_tasks"`
+	SignedAgentTasks int `json:"signed_agent_tasks,omitempty"`
 }
 
 // LivePolicy is the advisory live-lane policy frozen into each protocol.

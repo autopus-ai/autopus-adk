@@ -80,16 +80,20 @@ type harnessExportRequest struct {
 
 // harnessSignable is a session the reconstruction accepted: its documents
 // match the session_result attestation, its protocol the trusted one, and its
-// records the re-derived outcomes.
+// records the re-derived outcomes. SignedTaskFloor is main's
+// floors.signed_agent_tasks.
 type harnessSignable struct {
-	Session *harneval.Session
+	Session         *harneval.Session
+	SignedTaskFloor int
 }
 
 // harnessExportSeams are the export's seams; the zero value is production.
-// A nil reconstruct refuses every export, because nothing unverified is
+// A nil reconstruct is the trusted reconstruction (eval_harness_reconstruct.go)
+// over sources, whose nil members refuse, because nothing unverified is
 // signed. afterReport runs between the two evidence files.
 type harnessExportSeams struct {
 	reconstruct func(context.Context, harnessExportRequest) (harnessSignable, error)
+	sources     harnessTrustSources
 	binding     func(context.Context, string, harneval.BindingOptions) (harneval.Binding, error)
 	trusted     func() map[string]ed25519.PublicKey
 	environ     func() []string
@@ -99,10 +103,7 @@ type harnessExportSeams struct {
 
 func (s harnessExportSeams) withDefaults() harnessExportSeams {
 	if s.reconstruct == nil {
-		s.reconstruct = func(context.Context, harnessExportRequest) (harnessSignable, error) {
-			return harnessSignable{}, exportRefusal(exportReconstructionUnavailable,
-				"this build has no trusted protocol reconstruction (SPEC-HARNEVAL-003 T2); nothing was signed")
-		}
+		s.reconstruct = s.sources.reconstruct
 	}
 	if s.binding == nil {
 		s.binding = harneval.ComputeBinding
@@ -201,7 +202,7 @@ func (e harnessExport) run(ctx context.Context, stdin io.Reader) (string, error)
 	if err != nil {
 		return "", err
 	}
-	reportBytes, attBytes, err := signHarnessEvidence(signable.Session, digest, key)
+	reportBytes, attBytes, err := signHarnessEvidence(signable, digest, key)
 	if err != nil {
 		return "", err
 	}
@@ -246,14 +247,15 @@ func readExportKey(stdin io.Reader) (ed25519.PrivateKey, error) {
 	return key, nil
 }
 
-// signHarnessEvidence judges the session with the SPEC-HARNEVAL-001 verdict,
-// maps it into the report of binding digest, and signs the report bytes with
-// the harness lane context.
-func signHarnessEvidence(session *harneval.Session, digest string, key ed25519.PrivateKey) ([]byte, []byte, error) {
+// signHarnessEvidence judges the session with the SPEC-HARNEVAL-001 verdict
+// and the signed-lane task floor, maps it into the report of binding digest,
+// and signs the report bytes with the harness lane context.
+func signHarnessEvidence(signable harnessSignable, digest string, key ed25519.PrivateKey) ([]byte, []byte, error) {
+	session := signable.Session
 	if session == nil {
 		return nil, nil, exportRefusal(exportReportFailed, "the reconstruction returned no session")
 	}
-	verdict, err := harneval.ComputeVerdict(session)
+	verdict, err := harneval.SignedLaneVerdict(session, signable.SignedTaskFloor)
 	if err != nil {
 		return nil, nil, exportRefusal(exportReportFailed, err.Error())
 	}

@@ -99,15 +99,15 @@ func TestEvalHarnessExport_S2_RefusesBeforeWritingAnything(t *testing.T) {
 		mutate func(*harnessExportSeams)
 		want   string
 	}{
-		"empty stdin":              {"", nil, "private_key_missing"},
-		"blank stdin":              {"\n \t\n", nil, "private_key_missing"},
-		"not base64":               {"not base64!", nil, "private_key_invalid"},
-		"seed only":                {base64.StdEncoding.EncodeToString(priv.Seed()), nil, "private_key_invalid"},
-		"foreign public half":      {base64.StdEncoding.EncodeToString(mixed), nil, "private_key_invalid"},
-		"oversized stdin":          {strings.Repeat("A", 5000), nil, "private_key_invalid"},
-		"binding fails":            {key, failing("binding", errors.New("templates unreadable")), "binding_failed: templates unreadable"},
-		"reconstruction refuses":   {key, failing("reconstruct", errors.New("attestation_digest_mismatch: records.jsonl")), "attestation_digest_mismatch: records.jsonl"},
-		"no reconstruction (prod)": {key, func(seams *harnessExportSeams) { seams.reconstruct = nil }, "reconstruction_unavailable"},
+		"empty stdin":               {"", nil, "private_key_missing"},
+		"blank stdin":               {"\n \t\n", nil, "private_key_missing"},
+		"not base64":                {"not base64!", nil, "private_key_invalid"},
+		"seed only":                 {base64.StdEncoding.EncodeToString(priv.Seed()), nil, "private_key_invalid"},
+		"foreign public half":       {base64.StdEncoding.EncodeToString(mixed), nil, "private_key_invalid"},
+		"oversized stdin":           {strings.Repeat("A", 5000), nil, "private_key_invalid"},
+		"binding fails":             {key, failing("binding", errors.New("templates unreadable")), "binding_failed: templates unreadable"},
+		"reconstruction refuses":    {key, failing("reconstruct", errors.New("attestation_digest_mismatch: records.jsonl")), "attestation_digest_mismatch: records.jsonl"},
+		"production reconstruction": {key, func(seams *harnessExportSeams) { seams.reconstruct = nil }, "run_meta_invalid"},
 	}
 	for name, tc := range cases {
 		reconstructed := false

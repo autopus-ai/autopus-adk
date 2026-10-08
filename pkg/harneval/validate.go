@@ -130,7 +130,7 @@ func validateActivePath(p string) error {
 }
 
 func validatePolicy(floors Floors, live LivePolicy) error {
-	if floors.SurfaceTasks < 1 || floors.AgentTasks < 1 {
+	if floors.SurfaceTasks < 1 || floors.AgentTasks < 1 || floors.SignedAgentTasks < 0 {
 		return invalidf(DetailPolicyOutOfRange, "floors or live policy value out of range")
 	}
 	return validateLivePolicy(live)

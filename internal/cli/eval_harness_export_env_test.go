@@ -108,7 +108,7 @@ func TestEvalHarnessExport_S2_ChildProcessesSeeOnlyTheAllowlist(t *testing.T) {
 	seams.binding, seams.environ = nil, nil
 	seams.reconstruct = func(_ context.Context, req harnessExportRequest) (harnessSignable, error) {
 		request = req
-		return harnessSignable{Session: exportSession("pass", "pass")}, nil
+		return harnessSignable{Session: exportSession("pass", "pass"), SignedTaskFloor: 1}, nil
 	}
 	dir := tree.root
 	deps := harnessDeps(harnessRouter)
@@ -154,8 +154,8 @@ func withEnv(base []string, overrides map[string]string) []string {
 // runs the REQ-HR-01 export command shape against a built binary: the shell
 // reads HARNESS_EVAL_SIGNING_KEY and env -u removes the same name, so the
 // key reaches auto on stdin alone. auto's own environment and its git child's
-// are recorded. This build has no reconstruction, so the run refuses after
-// the key was read and the binding was computed.
+// are recorded. The run meta file does not exist, so the trusted
+// reconstruction refuses after the key was read and the binding was computed.
 func TestEvalHarnessExport_S2_ExportPipelineKeepsTheKeyOutOfEveryEnvironment(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds an auto binary")
@@ -179,9 +179,9 @@ func TestEvalHarnessExport_S2_ExportPipelineKeepsTheKeyOutOfEveryEnvironment(t *
 	})
 	output, err := shell.CombinedOutput()
 	var exitErr *exec.ExitError
-	require.True(t, errors.As(err, &exitErr), "export must refuse in a build without the reconstruction: %s", output)
+	require.True(t, errors.As(err, &exitErr), "export must refuse without a run meta file: %s", output)
 	assert.Equal(t, 1, exitErr.ExitCode())
-	assert.Contains(t, string(output), "harness-eval: export refused: reconstruction_unavailable", "the key arrived on stdin")
+	assert.Contains(t, string(output), "harness-eval: export refused: run_meta_invalid", "the key arrived on stdin")
 	assertNoKey(t, priv, "export output", output)
 	assert.NoDirExists(t, out)
 	// auto itself keeps the step environment minus the key; its children get

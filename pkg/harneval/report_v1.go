@@ -103,7 +103,7 @@ func reportVerdict(verdict, reason string) (blocked bool, reportReason string, e
 		return true, ReportReasonIncomplete, nil
 	case verdict == VerdictVacuous && reason == ReasonOracleCalibrationFailed:
 		return true, ReasonOracleCalibrationFailed, nil
-	case verdict == VerdictVacuous && (reason == ReasonOracleNotRun || reason == ReasonAgentAllFailed):
+	case verdict == VerdictVacuous && (reason == ReasonOracleNotRun || reason == ReasonAgentAllFailed || reason == ReasonSignedTasksBelowFloor):
 		return true, ReportReasonVacuous, nil
 	}
 	return false, "", fmt.Errorf("report: verdict %q with reason %q has no eval_regression_report.v1 mapping", verdict, reason)

@@ -82,7 +82,7 @@ func exportSeams(t *testing.T, session *harneval.Session, pub ed25519.PublicKey)
 			return exportBinding(), nil
 		},
 		reconstruct: func(context.Context, harnessExportRequest) (harnessSignable, error) {
-			return harnessSignable{Session: session}, nil
+			return harnessSignable{Session: session, SignedTaskFloor: 1}, nil
 		},
 		trusted: func() map[string]ed25519.PublicKey {
 			return map[string]ed25519.PublicKey{evalregression.ADKHarnessEvalKeyID: pub}
