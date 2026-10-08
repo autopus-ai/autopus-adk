@@ -75,6 +75,11 @@ const (
 	DetailReadFailed            = "read_failed"
 )
 
+// DetailOracleDigestMismatch is the black-box twin of corpus_digest_mismatch
+// (SPEC-HARNEVAL-003 REQ-HR-08): an input fixture or expected output whose
+// raw bytes do not match the black_box_oracle pin, or exceed its size limit.
+const DetailOracleDigestMismatch = "oracle_digest_mismatch"
+
 // DetailRegenFailed marks a template regeneration comparison that could not
 // complete; it is reported with reason templates_stale.
 const DetailRegenFailed = "regen_failed"
@@ -141,21 +146,25 @@ type Pins struct {
 }
 
 // Task is the harness_golden_task.v1 document. Path is the repository-relative
-// file the task was loaded from and is not part of the wire format.
+// file the task was loaded from and is not part of the wire format. An agent
+// task may carry oracle_mode and, when it is black_box, a black_box_oracle
+// (SPEC-HARNEVAL-003 CD-HR-5); a surface task carries neither.
 type Task struct {
-	SchemaVersion string      `json:"schema_version"`
-	ID            string      `json:"id"`
-	Kind          string      `json:"kind"`
-	Category      string      `json:"category"`
-	Intent        string      `json:"intent"`
-	Outcome       string      `json:"outcome"`
-	Variants      []Variant   `json:"variants"`
-	Assertions    []Assertion `json:"assertions"`
-	CorpusRef     *CorpusRef  `json:"corpus_ref,omitempty"`
-	ExpectedTests []string    `json:"expected_tests,omitempty"`
-	Provenance    Provenance  `json:"provenance"`
-	Status        TaskStatus  `json:"status"`
-	Path          string      `json:"-"`
+	SchemaVersion  string          `json:"schema_version"`
+	ID             string          `json:"id"`
+	Kind           string          `json:"kind"`
+	Category       string          `json:"category"`
+	Intent         string          `json:"intent"`
+	Outcome        string          `json:"outcome"`
+	Variants       []Variant       `json:"variants"`
+	Assertions     []Assertion     `json:"assertions"`
+	CorpusRef      *CorpusRef      `json:"corpus_ref,omitempty"`
+	ExpectedTests  []string        `json:"expected_tests,omitempty"`
+	OracleMode     string          `json:"oracle_mode,omitempty"`
+	BlackBoxOracle *BlackBoxOracle `json:"black_box_oracle,omitempty"`
+	Provenance     Provenance      `json:"provenance"`
+	Status         TaskStatus      `json:"status"`
+	Path           string          `json:"-"`
 }
 
 // Variant is one config override set a task is evaluated under.

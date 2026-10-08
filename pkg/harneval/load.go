@@ -90,6 +90,9 @@ func (l *taskLoader) visit(rel string, data []byte) error {
 		if err := l.checkCorpus(task.CorpusRef); err != nil {
 			return err
 		}
+		if err := l.checkOracleFixtures(task.BlackBoxOracle); err != nil {
+			return err
+		}
 	}
 	task.Path = rel
 	l.tasks = append(l.tasks, task)

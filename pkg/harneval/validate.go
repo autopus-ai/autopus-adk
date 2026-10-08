@@ -194,7 +194,10 @@ func validateTask(t Task) error {
 			return fmt.Errorf("task %q assertion %d: %w", t.ID, index, err)
 		}
 	}
-	return validateAgentFields(t)
+	if err := validateAgentFields(t); err != nil {
+		return err
+	}
+	return validateOracleFields(t)
 }
 
 func validateVariants(t Task) error {
