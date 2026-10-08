@@ -2,7 +2,7 @@
 
 **Status**: draft
 **Created**: 2026-10-06
-**Revised**: 2026-10-08 (rev 8: Risk-First probes A1 and A3 executed and folded in, closing Completion Debt CD-1 and CD-2; rev 7: operator decision on OQ-1, the band-only subprocess provider `health_band.local_patch_provider`; rev 6: refreshed against the merged SPEC-SIGMABAND-001 code at main `1943e596`, SPEC-PANERM-001, and SPEC-EDITGUARD-001, and resolves the open rev 5 findings; rev 5: one recovery state table, a separate recovery step with its own lock, claim-unique diagnosis worktrees, chained-lease oracle; rev 2 rescoped the cap to local patch only)
+**Revised**: 2026-10-08 (rev 9: the CD-3 security design review findings H1–H3, M1–M7, and L1–L4 applied, see Review Resolution; rev 8: Risk-First probes A1 and A3 executed and folded in, closing Completion Debt CD-1 and CD-2; rev 7: operator decision on OQ-1, the band-only subprocess provider `health_band.local_patch_provider`; rev 6: refreshed against the merged SPEC-SIGMABAND-001 code at main `1943e596`, SPEC-PANERM-001, and SPEC-EDITGUARD-001, and resolves the open rev 5 findings; rev 5: one recovery state table, a separate recovery step with its own lock, claim-unique diagnosis worktrees, chained-lease oracle; rev 2 rescoped the cap to local patch only)
 **Domain**: SIGMABAND
 **Module**: autopus-adk
 **Sibling of**: SPEC-SIGMABAND-001 (implemented and merged; this SPEC consumes its tier-3 episodes, diagnosis, BS, write-ahead log, and claims)
@@ -16,13 +16,13 @@
 검토한 뒤 직접 push한다. 신뢰 경계는 남아 있다. 에이전트가 작성한 코드가 사용자 저장소의 branch와 object에 놓이기 때문이다. 그래서
 두 provider는 모두 band worktree 안에서만 읽을 수 있는 subprocess claude다. orchestra provider가 모두 OMP backend인 저장소에서는
 `health_band.local_patch_provider: claude`가 band에서만 claude를 CLI subprocess로 실행하고, orchestra는 설정된 backend를 그대로
-쓴다. git은 checkout·apply·commit·format-patch 동안 repository가 지정한 어떤 명령도 실행하지 않는다. 저장소 root 아래 `.git/` 밖 파일은 BS와 band 기록 파일 외에는 바뀌지 않고 `.git/` 안에는 REQ-14가
+쓴다. git은 checkout·apply·commit·format-patch 동안 repository가 지정한 어떤 명령도 실행하지 않고, promisor remote에서 객체를 받아 오지 않으며, tracked symlink를 링크로 풀지 않는다. 저장소 root 아래 `.git/` 밖 파일은 BS와 band 기록 파일 외에는 바뀌지 않고 `.git/` 안에는 REQ-14가
 허용한 변경만 생기며, test는 자동으로 돌리지 않는다.
 
 ## Outcome Boundary
 
 - Outcome Lock: `health_band.allow_local_patch: true`이면, SPEC-SIGMABAND-001이 tier 3으로 연 episode 중 confined 진단이 성공한 것은 최대 한 번
-  (모든 guard 통과 시 정확히 한 번) 로컬 산출물을 받는다. 산출물은 로컬 branch `autopus/band/<key>`, worktree `<lp>/<key>/worktree/`,
+  (모든 guard를 통과하고 저장소당 보존 상한인 남은 key 5개에 이르지 않았으면 정확히 한 번, 상한에 이르면 `local_patch_skipped:cap_reached`) 로컬 산출물을 받는다. 산출물은 로컬 branch `autopus/band/<key>`, worktree `<lp>/<key>/worktree/`,
   patch 파일 `<lp>/<key>.patch`이다. 여기서 `<lp>` = `<UserCacheDir>/autopus/local-patches/<repo-hash>`, `<key>` =
   `<series-slug>-<h8>-<episode-id>-<c8>`이고 `<c8>`은 claim id의 앞 8 hex다. 3σ BS에는 pointer가 기록되고, 원격에는 아무것도 생기지 않는다.
   orchestra provider가 모두 OMP backend인 저장소도 `health_band.local_patch_provider: claude`로 같은 산출물을 받고, orchestra는
@@ -31,7 +31,7 @@
 - Explicit non-goals: push, fetch, PR 생성·갱신, 원격 ref, GitHub 쓰기 API, CI 실행, test·build 자동 실행, 에이전트 쓰기 권한, tier 2로 열린 뒤
   tier 3으로 오른 episode의 patch, OMP backend의 worktree confinement, orchestra 명령의 provider backend 변경, SPEC-SIGMABAND-001이 소유한 동작. 리뷰어가 worktree를 IDE로 열거나
   그 안에서 명령이나 에이전트를 실행하거나 branch를 push할 때의 실행도 범위 밖이며, BS의 reviewer warning이 이를 알린다.
-- Completion evidence: acceptance S1–S15 통과, Completion Debt CD-3 해소(CD-1, CD-2는 2026-10-08 probe A3, A1로 해소), security-auditor 리뷰 통과, 모든 run에서 원격 쓰기 0건, 저장소 root
+- Completion evidence: acceptance S1–S15 통과, Completion Debt CD-3 해소(설계 리뷰 지적 H1–H3, M1–M7, L1–L4는 rev 9에 반영, security-auditor 재리뷰 통과로 닫힘; CD-1, CD-2는 2026-10-08 probe A3, A1로 해소), 모든 run에서 원격 쓰기 0건, 저장소 root
   아래 `.git/` 밖 파일 변경은 BS와 `.autopus/metrics/` 기록 파일뿐.
 
 ## Requirements
@@ -41,19 +41,19 @@ Priority 열은 Must만 쓴다. 각 문장은 `pkg/spec` parser 문법을 따르
 | ID | Priority | Source | EARS requirement |
 |----|----------|--------|------------------|
 | REQ-01 | Must | FR-17, F-052, decisions 2026-10-06 and 2026-10-08 | THE SYSTEM SHALL add `AllowLocalPatch bool` with the tag `yaml:"allow_local_patch,omitempty"` and `LocalPatchProvider string` with the tag `yaml:"local_patch_provider,omitempty"` to `HealthBandConf` in `pkg/config/schema_health_band.go`, amend SPEC-SIGMABAND-001 REQ-15's key list with both keys at this SPEC's sync while `allow_draft_pr` stays rejected, omit each key from generated and saved `autopus.yaml` files while it holds its default, and document that a binary without this SPEC rejects a file that sets either key. |
-| REQ-02 | Must | FR-07, F-049, F-072 | WHEN SPEC-SIGMABAND-001's phase A plans an evaluated tier-3 position IF `health_band.allow_local_patch` is true, THEN THE SYSTEM SHALL decide it exactly as the Local Patch Decision Table defines, record a `local_patch` claim that depends on the diagnose claim of a row-4 position, append those records to `.autopus/metrics/localpatch-events.jsonl` under the store lock after 001's `Commit` and before its `Unlock`, and write nothing into SPEC-SIGMABAND-001's files beyond the amendments listed in Related SPECs. |
-| REQ-03 | Must | F-039, F-057, PANERM, decision 2026-10-08, probe A1 | WHERE `health_band.allow_local_patch` is true, THEN THE SYSTEM SHALL run every SPEC-SIGMABAND-001 diagnosis and every patch request with a band worktree at the base SHA as the only working directory, on the subprocess claude that the Local Patch Provider Contract selects, projected by `applyReadOnlyProviderPolicy` with the confined option that adds `--restricted`, `--output-format stream-json`, and `--verbose` to the shared projection, without the variables of `bandProviderUnsetEnv` and without any `GIT_*` variable, record every selection that does not end at that subprocess claude, an OMP-backed claude reached without `health_band.local_patch_provider` included, as `unavailable(provider_unconfined)`, and record each request's requested and actual model, marking `model_substituted` without failing the request when claude answered on another model. |
+| REQ-02 | Must | FR-07, F-049, F-072 | WHEN SPEC-SIGMABAND-001's phase A plans an evaluated tier-3 position IF `health_band.allow_local_patch` is true, THEN THE SYSTEM SHALL decide it exactly as the Local Patch Decision Table defines, record a `local_patch` claim that depends on the diagnose claim of a row-5 position, append those records to `.autopus/metrics/localpatch-events.jsonl` under the store lock after 001's `Commit` and before its `Unlock`, and write nothing into SPEC-SIGMABAND-001's files beyond the amendments listed in Related SPECs. |
+| REQ-03 | Must | F-039, F-057, PANERM, decision 2026-10-08, probe A1, CD-3 M4 | WHERE `health_band.allow_local_patch` is true, THEN THE SYSTEM SHALL run every SPEC-SIGMABAND-001 diagnosis and every patch request with a band worktree at the base SHA as the only working directory, on the subprocess claude that the Local Patch Provider Contract selects, projected by `applyReadOnlyProviderPolicy` with the confined option that adds `--restricted`, `--output-format stream-json`, and `--verbose` to the shared projection, without the variables of `bandProviderUnsetEnv` and without any `GIT_*` variable, record every selection that does not end at that subprocess claude, an OMP-backed claude reached without `health_band.local_patch_provider` included, as `unavailable(provider_unconfined)`, and record each request's requested and actual model, marking `model_substituted` without failing a diagnosis that claude answered on another model and ending a patch request that claude answered on another model with `failed:patch_model_refused`. |
 | REQ-04 | Must | F-049, F-050, F-068, F-073 | WHEN a `local_patch` claim executes, THEN THE SYSTEM SHALL end it with `failed:record_unavailable` when its diagnosis has no `prep` record, otherwise with the step-1 code of that `prep` record when the code is not ok, otherwise with `failed:worktree_failed` when its `stage` records hold `worktree_failed`, otherwise with `failed:no_bs` when the diagnose outcome has no BS ID, otherwise with `failed:diagnosis_unavailable` when `diagnosis_status` is not ok, and only otherwise start the patch stage, so that no failed preparation or diagnosis leads to a patch request, apply, or commit. |
-| REQ-05 | Must | F-043, F-071, F-075 | WHEN band runs git for a local patch, THEN THE SYSTEM SHALL run only the commands of the Git Execution Policy through its own allowlist, leave SPEC-SIGMABAND-001's `checkBandCommand` unchanged, and apply that policy to every git command (scrubbed environment with `GIT_ATTR_NOSYSTEM=1` and `GIT_LFS_SKIP_SMUDGE=1`, hooks off, `core.fsmonitor=false`, an empty `core.attributesFile`, refusal of a non-empty `info/attributes`, of every configured filter, diff, or merge driver outside the git-lfs allowlist, and of every `lfs.extension` or `lfs.customtransfer` setting, and no network command) so that checkout, apply, commit, and format-patch run no command that the repository or its configuration selects beyond the allowlisted git-lfs binary, and THE SYSTEM SHALL never run tests, builds, or the proposed change. |
+| REQ-05 | Must | F-043, F-071, F-075, CD-3 H3, M1, L2, L4 | WHEN band runs git for a local patch, THEN THE SYSTEM SHALL run only the commands of the Git Execution Policy through its own allowlist, leave SPEC-SIGMABAND-001's `checkBandCommand` unchanged, and apply that policy to every git command (scrubbed environment with `GIT_ATTR_NOSYSTEM=1`, `GIT_LFS_SKIP_SMUDGE=1`, and `GIT_NO_LAZY_FETCH=1`, refusal of a git older than 2.44 and of a partial clone, hooks off through `core.hooksPath=/dev/null`, `core.fsmonitor=false`, `core.symlinks=false`, `core.attributesFile=/dev/null`, the fixed band identity, refusal of a non-empty `info/attributes`, of every configured filter, diff, or merge driver outside the git-lfs allowlist, and of every `lfs.extension` or `lfs.customtransfer` setting, the same refusals checked again before the first object write, and no network command) so that checkout, apply, commit, and format-patch run no command that the repository or its configuration selects beyond the allowlisted git-lfs binary, and THE SYSTEM SHALL never run tests, builds, or the proposed change. |
 | REQ-06 | Must | F-016, F-055, F-056 | WHEN band builds the commit message, THEN THE SYSTEM SHALL build and validate it in-process with `lore.BuildCommit` and `lore.Validate` before any `git apply`, refuse with `lore_unsupported_required:<trailer>` when a required trailer is not one of the five that `lore.Validate` recognizes, and confirm after the commit that the commit object's message equals the `-F` file bytes. |
 | REQ-07 | Must | F-039, F-047, F-048, probe A1 | WHEN band requests a patch, THEN THE SYSTEM SHALL build the prompt as the Patch Prompt Contract defines, bound the provider stream at 8 MiB while the provider runs and the `result` text taken from that stream at 1 MiB, take the diff from that raw text without redaction or line removal, and keep the reply in memory until the Patch Policy has accepted it. |
-| REQ-08 | Must | F-040, F-058, decision 2026-10-06, EDITGUARD | WHEN a proposed diff is evaluated, THEN THE SYSTEM SHALL decode every path as the Patch Policy defines and accept the diff only when the Patch Policy accepts every decoded path (including the dotenv and credential entries and the edit guard check of item 9), mode, and added line and the change stays within 10 files, 400 changed lines, and 64 KiB, before any command writes to the object database. |
+| REQ-08 | Must | F-040, F-058, decision 2026-10-06, EDITGUARD, CD-3 H1, H2, M2, M3, L1 | WHEN a proposed diff is evaluated, THEN THE SYSTEM SHALL decode every path as the Patch Policy defines and accept the diff only when the Patch Policy accepts every decoded path (including the dotenv and credential entries, the structural deny rules, the folded collision check, and the edit guard check of item 9, whose fault denies), every mode together with the base mode that `git ls-tree` reports for each touched path, and every added line, which holds no control, bidi, or zero-width character, and the change stays within 10 files, 400 changed lines, and 64 KiB, before any command writes to the object database. |
 | REQ-09 | Must | decision 2026-10-06, F-070, F-080 | WHEN the Patch Policy accepts a diff, THEN THE SYSTEM SHALL apply it with `git apply --index` in the claim's worktree under `<lp>/<key>/worktree/`, confirm that the worktree's index tree equals the expected tree recorded in `apply_intent`, commit it, create the local branch `autopus/band/<key>` at that commit, write `git format-patch` output to `<lp>/<key>.patch`, and keep the worktree for human review. |
-| REQ-10 | Must | decision 2026-10-06 | THE SYSTEM SHALL never push, fetch, create or update a pull request, call a GitHub write API, or create a remote ref in the local patch flow, so that every artifact stays local until a human pushes it. |
-| REQ-11 | Must | F-060, F-064, F-068, F-076, F-080, F-083 | IF any guard or step of the local patch flow or of a confined diagnosis fails, or a later run finds a claim interrupted, THEN THE SYSTEM SHALL handle exactly the artifacts that the claim's intent records name under the one Cleanup Rules set, end a live failure with the code of its Local Patch Flow step and an interrupted claim with the state of the Recovery State Table, write the `result` record, keep the SPEC-SIGMABAND-001 BS, never touch an artifact that no intent record of the claim names or that a user changed, and exit 0. |
-| REQ-12 | Must | F-032, F-068, F-072 | THE SYSTEM SHALL give a diagnose claim the 990 s budget and a `local_patch` claim the 810 s budget of the Step Timeouts table while `allow_local_patch` is true, execute each `local_patch` claim right after phase C has recorded its diagnose claim, count both budgets in the lease chain of SPEC-SIGMABAND-001's `Plan` through the `PlanOptions` and `ExecuteOptions` hooks that plan task T8 adds in `pkg/healthband/catchup.go` and `claims.go`, and start no step group whose deadline the claim's remaining lease does not cover. |
+| REQ-10 | Must | decision 2026-10-06, CD-3 M1 | THE SYSTEM SHALL never push, fetch, fetch an object lazily from a promisor remote, create or update a pull request, call a GitHub write API, or create a remote ref in the local patch flow, so that every artifact stays local until a human pushes it. |
+| REQ-11 | Must | F-060, F-064, F-068, F-076, F-080, F-083, CD-3 M6, M7, L3 | IF any guard or step of the local patch flow or of a confined diagnosis fails, or a later run finds a claim interrupted, THEN THE SYSTEM SHALL handle exactly the artifacts that the claim's intent records name, at the paths derived from `<lp>` and the claim's key and never at a path that a record stores, under the one Cleanup Rules set, end a live failure with the code of its Local Patch Flow step, an interrupted claim with the state of the Recovery State Table, and a claim whose records disagree with that derivation with `failed:record_invalid`, leave without a `result` in recovery a claim whose key lock another process holds, write the `result` record of every other claim, keep the SPEC-SIGMABAND-001 BS, never touch an artifact that no intent record of the claim names or that a user changed or added, ignored files included, and exit 0. |
+| REQ-12 | Must | F-032, F-068, F-072, CD-3 M5 | THE SYSTEM SHALL give a diagnose claim the 990 s budget and a `local_patch` claim the 810 s budget of the Step Timeouts table while `allow_local_patch` is true, execute each `local_patch` claim right after phase C has recorded its diagnose claim, count both budgets in the lease chain of SPEC-SIGMABAND-001's `Plan` through the `PlanOptions` and `ExecuteOptions` hooks that plan task T8 adds in `pkg/healthband/catchup.go` and `claims.go`, start no step group whose deadline the claim's remaining lease does not cover, and stop a command that outlives its step group with SIGTERM 5 s before the group's deadline and SIGKILL at it. |
 | REQ-13 | Must | FR-23, decisions 2026-10-06 and 2026-10-08 | THE SYSTEM SHALL document the flag, the `local_patch_provider` key with the subscription claude CLI deployment, the artifact locations, the reviewer warning, the subprocess claude requirement, and the upgrade-before-enable note in the `auto react band` help text, `docs/health-band.md`, and `CHANGELOG.md`, qualify their tier-3 diagnosis-only statements with the flag, and put the Local Patch pointer lines with the reviewer warning in every 3σ BS of a `local_patch` claim. |
-| REQ-14 | Must | F-070, F-077 | THE SYSTEM SHALL keep every worktree and patch file of this SPEC under `<UserCacheDir>/autopus/local-patches/<repo-hash>/`, outside the repository, refuse with `cache_unavailable` when that directory cannot be created, change no file under the repository root outside `.git/` except the BS file and the files under `.autopus/metrics/` that SPEC-SIGMABAND-001 and this SPEC own, and change inside `.git/` only `refs/heads/autopus/band/<key>` with its reflog, the `worktrees/<name>/` entry of the claim's worktree, and new objects. |
+| REQ-14 | Must | F-070, F-077, CD-3 M5, L2 | THE SYSTEM SHALL keep every worktree and patch file of this SPEC under `<UserCacheDir>/autopus/local-patches/<repo-hash>/`, outside the repository, refuse with `cache_unavailable` when that directory cannot be created with mode 0700 or exists as anything but a directory of the current user without group or other permission bits, create every patch, diff, and temp file that band writes there with mode 0600 through `O_CREAT`, `O_EXCL`, and `O_NOFOLLOW`, skip a new claim with `local_patch_skipped:cap_reached` while 5 kept keys remain there, change no file under the repository root outside `.git/` except the BS file and the files under `.autopus/metrics/` that SPEC-SIGMABAND-001 and this SPEC own, and change inside `.git/` only `refs/heads/autopus/band/<key>` with its reflog, the `worktrees/<name>/` entry of the claim's worktree, and new objects. |
 | REQ-15 | Must | operator decision 2026-10-08 (OQ-1), probe A1 | WHERE `health_band.allow_local_patch` is true, THEN THE SYSTEM SHALL select the provider of every diagnosis and every patch request by the Local Patch Provider Contract, run a `claude` named by `health_band.local_patch_provider` as a CLI subprocess whatever its `orchestra.providers.claude.backend` says, on the model that the contract's model rule names, use SPEC-SIGMABAND-001's selection only while that key is empty and only when it resolves to a subprocess claude, give `unavailable(provider_unconfined)` in every other case, a key naming another provider included, and leave the provider backend of every orchestra command unchanged. |
 
 `<repo-hash>` = first 12 hex digits of the SHA-256 of `git rev-parse --path-format=absolute --git-common-dir`, so every worktree
@@ -99,7 +99,7 @@ reviews, plans, brainstorms, and secure runs.
 
 SPEC-SIGMABAND-001's `(*WAL).Plan` (`pkg/healthband/catchup.go:73-111`) calls this table through the `[NEW]`
 `PlanOptions.LocalPatch` hook (plan task T8) once per evaluated tier-3 event, in plan order, while the flag is true. Rows
-are checked top down and the first match wins; row 6 is the default. Decisions go to
+are checked top down and the first match wins; row 7 is the default. Decisions go to
 `.autopus/metrics/localpatch-events.jsonl` (kind `decision`).
 
 | Order | Condition | Decision | Reason |
@@ -107,13 +107,19 @@ are checked top down and the first match wins; row 6 is the default. Decisions g
 | 1 | the run has `--no-agent` | skipped | `local_patch_skipped:no_agent` |
 | 2 | the event carries `superseded_in_batch` (001 batch rule, `decideSeries`, `catchup.go:117-144`) | skipped | `local_patch_skipped:superseded_in_batch` |
 | 3 | `localpatch-state.json` holds a `local_patch` claim for the episode | skipped | `local_patch_skipped:episode_already_patched` |
-| 4 | the event's action is `diagnose`, so it opens the episode at tier 3 | claim, `depends_on` = that event's diagnose claim | - |
-| 5 | the episode's opening tier is 2 | skipped | `local_patch_skipped:bs_not_tier3` |
-| 6 | any other tier-3 position, such as a later position of an episode whose tier-3 opening got no claim (rows 1–2, or the flag was off) | skipped | `local_patch_skipped:no_opening_claim` |
+| 4 | the event's action is `diagnose` and the retention count has reached 5 | skipped | `local_patch_skipped:cap_reached` |
+| 5 | the event's action is `diagnose`, so it opens the episode at tier 3 | claim, `depends_on` = that event's diagnose claim | - |
+| 6 | the episode's opening tier is 2 | skipped | `local_patch_skipped:bs_not_tier3` |
+| 7 | any other tier-3 position, such as a later position of an episode whose tier-3 opening got no claim (rows 1, 2, and 4, or the flag was off) | skipped | `local_patch_skipped:no_opening_claim` |
 
 Opening tier: 001's `Episode` (`pkg/healthband/types.go:175-181`) keeps `max_tier` but not the opening tier, so the table takes
 the `tier` of the opening event when this plan holds it, else 2 when 001's checkpoint gives the episode `max_tier` 2, else 2
 when this SPEC's records hold a `bs_not_tier3` decision for the episode, else 3.
+
+Retention count (CD-3 M5): the number of distinct keys that have a `<lp>/<key>/` directory or a `<lp>/<key>.patch` file, read
+by one `os.ReadDir` of `<lp>` (local IO under the store lock, no git), plus the row-5 claims already decided in this plan.
+Kept worktrees of done claims and artifacts that a Cleanup Rule kept both count, and a human frees a slot by removing them.
+While the flag is true, band resolves `<lp>` (the `git rev-parse` of the `<repo-hash>` definition) before `store.Lock`.
 
 Phase A (`phaseA`, `internal/cli/react_band.go:183-204`): `Plan` returns the decisions and claims in `[NEW]` `Plan.LocalPatch`.
 After `wal.Commit(plan)` and before `Unlock`, their records are appended in one fsynced write through the store helpers
@@ -139,14 +145,14 @@ records, and `result` record.
 
 | Order | Step | Code on failure |
 |-------|------|-----------------|
-| 1 | Inside the diagnose claim (`bandDiagnoser.Run`, `internal/cli/react_band_diagnose.go:108`): `<lp>` available, no artifact at `<lp>/<key>/`, `<lp>/<key>.patch`, `<lp>/<key>.diff`, or `refs/heads/autopus/band/<key>`, unsafe configuration check (Git Execution Policy item 3), base SHA (item 4); then one `prep` record with the diagnose claim id, its `lease_until`, the base SHA, and the code (ok or the failure); a failure makes the diagnosis report `unavailable(worktree_unavailable)` and 001 writes the evidence-only BS | `cache_unavailable`, `artifact_exists`, `git_config_unsafe:<key>`, `base_unavailable` |
-| 2 | Inside the diagnose claim: `stage` `worktree_intent` (path), `git worktree add --detach <worktree> <base-sha>`, then `stage` `worktree_done` or `worktree_failed`; then the confined diagnosis with cwd `<worktree>` (REQ-03) and the BS, with the BS Record lines when a `local_patch` claim exists; a diagnosis without a `local_patch` claim then applies the Cleanup Rules to its worktree and writes its `result` | `worktree_failed`, 001 REQ-12 reasons |
+| 1 | Inside the diagnose claim (`bandDiagnoser.Run`, `internal/cli/react_band_diagnose.go:108`): git 2.44 or later (Git Execution Policy item 1), `<lp>` available with the REQ-14 modes, no artifact at `<lp>/<key>/`, `<lp>/<key>.patch`, `<lp>/<key>.diff`, `<lp>/<key>.lock`, or `refs/heads/autopus/band/<key>`, unsafe configuration check (item 3, partial clones included), base SHA (item 4), checkout preflight (below the table); then one `prep` record with the diagnose claim id, its `lease_until`, the base SHA, and the code (ok or the failure); a failure makes the diagnosis report `unavailable(worktree_unavailable)` and 001 writes the evidence-only BS | `git_version_unsupported:<version>`, `cache_unavailable`, `artifact_exists`, `git_config_unsafe:<key>`, `base_unavailable`, `worktree_too_large`, `disk_insufficient` |
+| 2 | Inside the diagnose claim: the key lock `<lp>/<key>.lock` (`filelock.Acquire`, `pkg/filelock/lock.go:37`, with a zero wait, which tries once, creates a 0600 file, and refuses a symlink), held until the claim's last `result` record (the `local_patch` claim's when one exists) and then unlinked; `stage` `worktree_intent` (path), `git worktree add --detach <worktree> <base-sha>` (stopped as Step Timeouts and Lease states), then `stage` `worktree_done` or `worktree_failed`; then the confined diagnosis with cwd `<worktree>` (REQ-03) and the BS, with the BS Record lines when a `local_patch` claim exists; a diagnosis without a `local_patch` claim then applies the Cleanup Rules to its worktree and writes its `result` | `worktree_failed`, 001 REQ-12 reasons |
 | 3 | `local_patch` claim: result check in the order of REQ-04 | `record_unavailable`, the `prep` code, `worktree_failed`, `no_bs`, `diagnosis_unavailable` |
 | 4 | `refs/heads/autopus/band/<key>` still absent; it can only appear here if something created it after step 1 | `branch_exists` |
 | 5 | Lore message built and validated (REQ-06); `stage` `message` with its SHA-256 | `lore_unsupported_required:<trailer>`, `lore_rejected` |
-| 6 | Patch request (REQ-07) on the provider of the Local Patch Provider Contract; the reply stays in memory | `patch_provider_unconfined`, 001 REQ-12 reasons |
-| 7 | Patch Policy over the raw reply (REQ-08), ending with `git apply --numstat --summary -z --check`; no command writes objects before this step passes | `no_patch`, `patch_invalid`, `path_denied`, `patch_content_denied`, `patch_too_large` |
-| 8 | Expected tree: a band temp index (`GIT_INDEX_FILE`, Git Execution Policy item 1) reads the base tree, takes the diff with `git apply --cached`, and `git write-tree` gives the expected tree; `stage` `apply_intent` with the diff's SHA-256 and the expected tree; only then the diff is written to `<lp>/<key>.diff`; `git apply --index` in the worktree; the worktree's index tree (`git write-tree`) equals the expected tree; `stage` `apply_done` | `patch_invalid` |
+| 6 | Patch request (REQ-07) on the provider of the Local Patch Provider Contract; the reply stays in memory; a `model_refusal_fallback` event in its stream ends the claim (Provider Contract item 7) | `patch_provider_unconfined`, `patch_model_refused`, 001 REQ-12 reasons |
+| 7 | Patch Policy over the raw reply (REQ-08), ending with `git apply --numstat --summary -z --check`; no command writes objects before this step passes | `no_patch`, `patch_invalid`, `path_denied`, `path_denied:<class>`, `patch_content_denied`, `patch_content_denied:control_char`, `patch_too_large` |
+| 8 | Git Execution Policy item 3 again, because the configuration can change during the patch request (CD-3 L4); then the expected tree: a band temp index (`GIT_INDEX_FILE`, Git Execution Policy item 1) reads the base tree, takes the diff with `git apply --cached`, and `git write-tree` gives the expected tree; `stage` `apply_intent` with the diff's SHA-256 and the expected tree; only then the diff is written to `<lp>/<key>.diff`; `git apply --index` in the worktree; the worktree's index tree (`git write-tree`) equals the expected tree; `stage` `apply_done` | `git_config_unsafe:<key>`, `patch_invalid` |
 | 9 | `git commit --no-verify --cleanup=verbatim -F <msg>`; `stage` `commit_done` with `git rev-parse HEAD`; then the commit object's message (after the header's blank line in `git cat-file commit HEAD`) equals the `-F` file bytes | `commit_failed`, `commit_message_altered` |
 | 10 | `stage` `branch_intent` with the commit OID; `git update-ref refs/heads/autopus/band/<key> <commit-oid> ""`, which creates the ref only while it is absent; `stage` `branch_done` | `branch_failed` |
 | 11 | `stage` `patch_intent` (path); `git format-patch --no-textconv --no-ext-diff --stdout <base-sha>..HEAD` to `<lp>/<key>.patch.tmp-<c8>`; rename to `<lp>/<key>.patch`; `stage` `patch_done` with the patch file's SHA-256 | `patch_file_failed` |
@@ -157,15 +163,21 @@ records, and `result` record.
   even when a crash came before `commit_done`; a commit that fails the message comparison is still known by `commit_done`;
   a commit a user amended to another tree is never the claim commit.
 - Objects: steps 1–7 write no object. Steps 8–11 write objects; after a failure there they stay unreachable in the shared
-  object database until the user's own `git gc`, and no ref points to them. The temp index is a band-owned file in the OS
-  temp directory, deleted at the end of step 8.
+  object database until the user's own `git gc`, and no ref points to them. The temp index and the `-F` message file live in a
+  band-owned directory that `os.MkdirTemp` creates with mode 0700 in the OS temp directory; the temp index is deleted at the
+  end of step 8 and the directory after step 9.
 - Commit message via `lore.BuildCommit` (`pkg/lore/writer.go:11`): subject `fix(band): <series-slug> anomaly local patch
   (<episode-id>)`, or `fix(band): <series-slug> 이상 대응 로컬 패치 (<episode-id>)` when the commit-message language is `ko`;
   body with tier, z, and BS ID; the `pkg/lore` sign-off (`writer.go:8`); the `-F` file is the `BuildCommit` output plus one
   newline. Required trailers outside Constraint, Rejected, Confidence, Directive, Tested stop step 5 (`pkg/lore/query.go:87`
   `hasField` recognizes only these five). Values: Constraint `generated by auto react band; local patch needs human review`,
   Rejected `write-capable agent; read-only proposal only`, Confidence `low`, Directive `review the patch file before running
-  anything`, Tested `none; nothing was run`; `Related: <BS-ID>` is always added.
+  anything`, Tested `none; nothing was run`; `Related: <BS-ID>` is always added. Author and committer are
+  `autopus-band <band@autopus.invalid>` (Git Execution Policy item 2), so no band commit carries the user's identity.
+- Checkout preflight (CD-3 M5): `git ls-tree -r -l -z <base-sha>` gives the entry count and the summed blob sizes (an LFS
+  pointer counts with its pointer size, since `GIT_LFS_SKIP_SMUDGE=1` checks out pointers); more than 200,000 entries or
+  2 GiB gives `worktree_too_large`, and free space on the file system that holds `<lp>` below the summed size plus 512 MiB
+  gives `disk_insufficient`.
 
 ## BS Record
 
@@ -175,8 +187,8 @@ section, so the BS sections and the structural validator (`validate.go:26-27`) s
 
 ```text
 Local patch (3σ, local only, if produced): branch autopus/band/<key>, worktree <lp>/<key>/worktree/, patch file <lp>/<key>.patch, outside this repository.
-The outcome is recorded in .autopus/metrics/localpatch-events.jsonl under claim <claim-id>; nothing was pushed.
-Reviewer warning: this local branch holds an agent-proposed patch that nothing has run. Read the whole patch file before you open the worktree in an IDE, run any command or agent in it, or push the branch, because repository hooks and tool configuration files run on checkout, commit, and build, and the edit guard does not cover that worktree.
+The outcome, the changed files, and the model that wrote the patch are in the run output and in .autopus/metrics/localpatch-events.jsonl under claim <claim-id>; nothing was pushed.
+Reviewer warning: this local branch holds a patch that an AI model derived from untrusted CI logs and that nothing has run. Read the whole patch file before you open the worktree in an IDE, run any command or agent in it, or push the branch, because repository hooks and tool configuration files run on checkout, commit, and build, and the edit guard does not cover that worktree.
 ```
 
 `render.go` also holds three fixed diagnosis-only sentences that a local patch would contradict: the `- When:` line
@@ -190,23 +202,42 @@ Every flag-on diagnosis BS, with or without a `local_patch` claim, also gets thr
 one line after the pointer lines, if any, at the end of `## 추천 방향` (Local Patch Provider Contract item 7; `none` stands
 for an argv without `--model`): `Diagnosis model: requested <requested>, actual <actual>.`, or after a substitution
 `Diagnosis model: requested <requested>, actual <actual>; model_substituted (refusal category <category>).` The patch
-request runs after the BS is written and the BS stays write-once, so its models appear only in the `result` record.
+request runs after the BS is written and the BS stays write-once, so its models appear only in the `result` record and the run output.
 
 `<lp>` is written as an absolute path. The BS lives in `.autopus/brainstorms/` and the records in `.autopus/metrics/`; both
 are gitignored and always blocked from staging (`internal/cli/check_rules_hygiene.go:25-30`). The branch is a local ref;
 `git push --all` would publish it, which the docs state.
 
+Run output (CD-3 L4): for every `local_patch` claim of the run, the text output of `auto react band` and its JSON envelope
+(`[NEW]` `local_patches[]`) show the `result` status, the patch file path, the changed paths with the added and removed
+line counts of `git apply --numstat` (`files[]`), the requested and actual model of the patch request, and this warning:
+
+```text
+This patch was derived by an AI model from untrusted CI logs; read the whole patch file before running anything.
+```
+
+The BS is written before the patch request and stays write-once, so it carries the warning and the pointer, while the
+outcome, the file list, and the model appear in the run output and the `result` record.
+
 ## Git Execution Policy
 
 1. Environment: every git subprocess starts from `orchestra.EnvironWithout(os.Environ(), []string{"GIT_*"})`
    (`pkg/orchestra/provider_env.go:34`) and gets `GIT_TERMINAL_PROMPT=0`, `GIT_EDITOR=:`, `GIT_PAGER=cat`,
-   `GIT_ATTR_NOSYSTEM=1` (no system attributes file), and `GIT_LFS_SKIP_SMUDGE=1` (git-lfs downloads nothing); only the
-   three temp-index commands of Local Patch Flow step 8 also get `GIT_INDEX_FILE=<band temp file>`. No fetch, push, or other
-   network command runs, so no transport or credential configuration is used.
-2. Flags on every git command: `-c core.hooksPath=<hooks-off>` (an empty band-owned directory), `-c core.attributesFile=<empty>`
-   (an empty band-owned file), `-c core.fsmonitor=false`, `-c core.untrackedCache=false`, `-c commit.gpgSign=false`,
-   `-c gc.auto=0` (no automatic gc in the shared object database, per the worktree-safety rule); `format-patch` and every diff
-   also pass `--no-textconv --no-ext-diff`.
+   `GIT_ATTR_NOSYSTEM=1` (no system attributes file), `GIT_LFS_SKIP_SMUDGE=1` (git-lfs downloads nothing), and
+   `GIT_NO_LAZY_FETCH=1` (no lazy fetch of a missing object from a promisor remote). Git 2.44 added that variable, so Local
+   Patch Flow step 1 refuses an older or unparsable `git version` with `git_version_unsupported:<version>`, such as
+   `git_version_unsupported:2.43`. Only the three temp-index commands of Local Patch Flow step 8 also get
+   `GIT_INDEX_FILE=<band temp file>`. No fetch, push, or other network command runs, so no transport or credential
+   configuration is used. A lazy fetch is git's own child process, which no band argv recorder sees: in the auditor's CD-3
+   probe a default `git worktree add` of a partial clone started 4 fetch or upload-pack children (trace2 `child_start`).
+2. Flags on every git command: `-c core.hooksPath=/dev/null`, `-c core.attributesFile=/dev/null`, `-c core.fsmonitor=false`,
+   `-c core.untrackedCache=false`, `-c core.symlinks=false` (a tracked symlink is checked out as a plain file that holds its
+   link text, so no file of a band worktree leads out of it; CD-3 H3), `-c commit.gpgSign=false`,
+   `-c user.name=autopus-band`, `-c user.email=band@autopus.invalid`, `-c gc.auto=0` (no automatic gc in the shared object
+   database, per the worktree-safety rule), and, when item 3 accepted an LFS driver, `-c filter.lfs.process=<git-lfs>
+   filter-process` with `<git-lfs>` the absolute path that item 3 resolved (git prefers a `process` filter over `clean` and
+   `smudge`, and a command-line value wins over every configuration file, so a later PATH or configuration change cannot
+   swap the binary; CD-3 L4); `format-patch` and every diff also pass `--no-textconv --no-ext-diff`.
 3. Unsafe configuration, checked before any worktree exists, against `git config --list --show-scope --show-origin` and the
    repository files:
    - `$GIT_COMMON_DIR/info/attributes` holding any line that is not blank or a comment gives `git_config_unsafe:info_attributes`.
@@ -224,9 +255,13 @@ are gitignored and always blocked from staging (`internal/cli/check_rules_hygien
    - Any configured `diff.<driver>.textconv` or `.command`, or `merge.<driver>.driver`, gives `git_config_unsafe:<key>`.
    - Any `lfs.extension.<name>.*` or `lfs.customtransfer.<name>.*` setting gives `git_config_unsafe:<key>`.
    - `core.alternateRefsCommand` set at all gives `git_config_unsafe:core.alternateRefsCommand`.
+   - A partial clone, that is any `remote.<name>.promisor` set to true, any `remote.<name>.partialclonefilter`, or
+     `extensions.partialclone`, gives `git_config_unsafe:<key>`, because its checkout fetches missing objects (CD-3 M1).
    With global and system attribute files disabled by items 1–2 and `info/attributes` empty, only tracked `.gitattributes` files
    select drivers, and only the git-lfs allowlist can be configured, so no repository-selected command runs. Probe A3
-   (git 2.50.1) wrote 0 markers under this policy against 15 distinct markers from the same sources without it.
+   (git 2.50.1) wrote 0 markers under this policy against 15 distinct markers from the same sources without it. Item 3 runs
+   again at the start of Local Patch Flow step 8, where an accepted LFS driver must still resolve to the absolute path that
+   item 2 pins; a change gives `git_config_unsafe:<key>` before any object is written (CD-3 L4).
 4. Base SHA: `<default>` is the default branch that 001's `fetchCI` resolved (`internal/cli/react_band_ingest.go:83-111`; today
    a local variable that T8 exposes as `[NEW]` `bandCIFetch.DefaultBranch`, `:33-41`), else, under `--no-fetch` or a failed
    lookup, `git symbolic-ref --short refs/remotes/origin/HEAD` without its `origin/` prefix; it must pass
@@ -234,9 +269,12 @@ are gitignored and always blocked from staging (`internal/cli/check_rules_hygien
    `refs/heads/<default>`; none of these gives `base_unavailable`. No fetch runs, so the base is the last fetched state the
    user already has.
 5. Worktree: `git worktree add --detach <worktree> <base-sha>` at `<lp>/<key>/worktree/`, for a tier-3 claim and for a diagnosis
-   without a `local_patch` claim alike (each with its own `<key>`); the latter is cleaned up right after its diagnosis.
-6. Runner: the executor runs only the commands this policy names, through its own allowlist and a process-group runner
-   modeled on `execBandRunner.Run` (`internal/cli/react_band_gh.go:73-84`). 001's `checkBandCommand` (`:90-113`), which
+   without a `local_patch` claim alike (each with its own `<key>`); the latter is cleaned up right after its diagnosis. With
+   `core.symlinks=false`, a reviewer's own git, which runs without that flag, reports each tracked symlink of the worktree
+   as a type change; the docs say so.
+6. Runner: the executor runs only the git commands that this SPEC names (this policy, the Local Patch Flow, the Patch
+   Policy, and the Cleanup Rules), through its own allowlist and a process-group runner modeled on `execBandRunner.Run`
+   (`internal/cli/react_band_gh.go:73-84`) that stops a command as Step Timeouts and Lease states. 001's `checkBandCommand` (`:90-113`), which
    refuses every git mutation, stays unchanged, so a flag-off run keeps 001 S14's zero-mutation recorder.
 7. Nothing else: the user's worktrees, index, HEAD, stash, and every ref except `refs/heads/autopus/band/<key>` stay unchanged.
 
@@ -284,6 +322,10 @@ band never reads `local_patch_provider`.
    keeps authentication working (claude 2.1.289 help). Probe A1 (2026-10-08, claude 2.1.289) confirmed it: a `--restricted`
    session signed in through the subscription login (`init` `apiKeySource` `none`), offered only `Glob`, `Grep`, and `Read`
    with no MCP server, and its permission layer, not the model, denied a `Read` outside the worktree (`permission_denials`).
+   Git Execution Policy item 2 checks every tracked symlink out as a plain file, so no link in the worktree leads a `Read`
+   outside it (CD-3 H3), and a tracked `.claude/settings.json` or `.mcp.json` of the worktree (`apiKeyHelper`, hooks, `env`)
+   has no effect: `--restricted` ignores project and local settings, `--safe-mode` disables hooks, and `--strict-mcp-config`
+   loads no `.mcp.json` server (S7 live check).
 7. Stream and model record: claude can retry a refused request on another model and say so only in its event stream (probe
    A1 run 2: a `system` event with subtype `model_refusal_fallback`, `original_model` `claude-fable-5-1`, `fallback_model`
    `claude-opus-4-8`, `api_refusal_category` `cyber`; the text output showed nothing). A confined request therefore sets
@@ -297,8 +339,10 @@ band never reads `local_patch_provider`.
    Patch Policy item 1 for a patch. Per request, `requested` is the `--model` value, `actual` the last `fallback_model` or
    else the `init` `model`, and `refusal_category` the last `api_refusal_category`; they go into the `result` record's
    `models[]` and, for the diagnosis, the BS (BS Record), and `model_substituted` is true when any `model_refusal_fallback`
-   event occurred. A substitution never fails a request: the diagnosis, the patch request, and every Patch Policy check
-   proceed unchanged.
+   event occurred. A substitution during a diagnosis is recorded and the diagnosis proceeds unchanged. A
+   `model_refusal_fallback` event during the patch request ends the claim `failed:patch_model_refused` at Local Patch Flow
+   step 6, with its `models[]` entry recorded and before any Patch Policy check, because a safeguard refused that prompt on
+   the configured model and band applies code only from the model that the operator selected (CD-3 M4).
 
 ## Patch Prompt Contract
 
@@ -328,6 +372,8 @@ proposal, answered with one well-formed fence.
 
 ## Patch Policy
 
+The items run in order, and the first item that fails gives the code.
+
 1. The reply is the `result` text of the provider stream (Local Patch Provider Contract item 7), captured at
    `healthband.ProviderCaptureBytes` (1 MiB, `pkg/healthband/sanitize.go:16`) as 001's diagnosis capture is
    (`react_band_diagnose.go:253-276`); a stream past its 8 MiB bound or a text capture that dropped bytes gives
@@ -336,11 +382,21 @@ proposal, answered with one well-formed fence.
 2. Paths are decoded before any check: a path in a `diff --git`, `---`, `+++`, `rename`, or `copy` header that starts with `"` is a
    C-quoted string whose escapes (`\a \b \f \n \r \t \v \\ \"` and three-digit octal) are decoded to bytes; every other path is
    taken as is. Every check below runs on the decoded bytes, and the decoded path set must equal the NUL-separated path set that
-   `git apply --numstat --summary -z --check` reports (it writes no object), else `patch_invalid`.
+   `git apply --numstat --summary -z --check` reports (it writes no object), else `patch_invalid`. Band then reads the base
+   entry of every touched path and of each of its directory prefixes with
+   `git --literal-pathspecs ls-tree -z <base-sha> -- <paths>` (CD-3 H2).
 3. Any rename, copy, deletion, mode change, symlink (120000), gitlink (160000), binary patch, new file whose mode is not 100644,
-   absolute path, `..`, decoded path with control characters, or decoded path that is not valid UTF-8 gives `patch_invalid`.
-4. Decoded paths are compared after Unicode NFC normalization and case folding; a path that folds to a different tracked path
-   gives `path_denied:case_collision`.
+   absolute path, `..`, decoded path with control characters, or decoded path that is not valid UTF-8 gives `patch_invalid`,
+   and so do a touched path whose base entry is anything but a 100644 or 100755 blob (an added path must have no base entry)
+   and a directory prefix whose base entry is anything but a tree (040000). The base mode decides, not the headers: a
+   modeless hunk on a tracked symlink or gitlink has no mode line, so `git apply --numstat --summary -z --check` reports
+   nothing, yet in the auditor's CD-3 probe such a hunk retargeted a tracked `link.go` to `../../../../../../../.ssh/id_rsa`
+   through `git apply --index`.
+4. Collisions (CD-3 M2): every decoded path and each of its directory prefixes is folded (NFC normalization, then Unicode
+   case folding, so an NFD and an NFC spelling fold alike). Two distinct paths or prefixes of the diff with one fold, or a
+   path or prefix whose fold equals that of a different tracked path or directory at the base SHA
+   (`git ls-tree -r -z --name-only <base-sha>` with its directory prefixes), give `path_denied:case_collision`. In the
+   auditor's CD-3 probe, `pkg/n.go` and `pkg/N.go` added by one diff both entered the index while APFS kept one file.
 5. Allowlist: extensions `.go .ts .tsx .js .jsx .mjs .cjs .py .rs .java .kt .rb .php .cs .swift .c .h .cc .cpp .hpp`.
 6. Deny list (any path segment or file name, after folding): `.github/`, `.gitlab/`, `.circleci/`, `.buildkite/`, `.husky/`,
    `.githooks/`, `.lefthook/`, `.autopus/`, `.omp/`, `.agents/`, `.cursor/`, `.windsurf/`, `.vscode/`, `.idea/`, `.devcontainer/`,
@@ -352,8 +408,19 @@ proposal, answered with one well-formed fence.
    `*credentials*`, `*.pem`, `*.key`, `id_rsa*`, `id_ed25519*`, `*.p12`, `*.pfx`, `*.keystore`, `*.jks`; and files that tools
    load or run on their own: `build.rs`, `conftest.py`, `setup.py`, `noxfile.py`, `sitecustomize.py`, `usercustomize.py`,
    `*.config.js`, `*.config.cjs`, `*.config.mjs`, `*.config.ts`, `*.config.cts`, `*.config.mts`, `.eslintrc.*`, `.prettierrc.*`,
-   `.pnpmfile.cjs`, `Package.swift`, `gulpfile.*`, `Gruntfile.*`, `magefile.go`, `Dangerfile.*`.
-7. Added lines: `healthband.Sanitize` (`pkg/healthband/sanitize.go:88`) over the raw added lines, which applies 001's band
+   `.pnpmfile.cjs`, `Package.swift`, `gulpfile.*`, `Gruntfile.*`, `magefile.go`, `Dangerfile.*`. Structural rules (CD-3 M3),
+   also after folding: any path segment that starts with `.`, with no exception (every dot entry above falls under it and
+   stays listed for clarity); any file name matching `*.conf.*`, `*rc.*`, or `.*rc` (tool configuration; `*rc.*` also
+   denies a name such as `src.go`, an intended fail-closed limitation); the Gradle included-build directories
+   `build-logic/` and `buildSrc/`; `.yarn/` and `.pnp.*`; and every modification of a path whose base mode is 100755, an
+   executable that a hook, a script, or a reviewer may run. Each gives `path_denied`.
+7. Added lines: first a byte check of the raw added lines (CD-3 H1), because 001's `Sanitize` strips such characters
+   silently while `git apply` applies the raw diff. An added line that is not valid UTF-8 or that holds a bidi control
+   (U+202A–U+202E, U+2066–U+2069), a zero-width or bidi mark (U+061C, U+200B–U+200F, U+2060, U+FEFF), ESC or another C0
+   control except TAB (U+0000–U+001F), DEL (U+007F), a C1 control (U+0080–U+009F), or a CR anywhere but as the one byte
+   right before the LF that ends the line in the diff text gives `patch_content_denied:control_char`; a CRLF line ending
+   passes, while a lone CR, an embedded CR, and CR CR LF do not. Then `healthband.Sanitize`
+   (`pkg/healthband/sanitize.go:88`) over the raw added lines, which applies 001's band
    secret forms (`bandSecretPatterns`, `sanitize_secrets.go:16`) before `promptlayer.SanitizeContent`, reports neither
    `secret_risk` nor `injection_risk`, and no added line holds a run of 40 or more base64 or hex characters
    (`patch_content_denied`).
@@ -363,7 +430,9 @@ proposal, answered with one well-formed fence.
    `docs/edit-guard.md:92`). The policy therefore calls `editguard.Decide` (`pkg/editguard/decide.go:116`) with a `Call`
    (`:24-36`) whose `Cwd` is the top level of the user's checkout and whose `Targets` are the decoded paths, which classifies
    them where the manifests and fix locks live; a deny gives `path_denied:<class>` (`guard_state`, `fix_lock`, or
-   `generated_surface`). A guard fault allows by the guard's own contract, so items 5–6 stay the primary path rules.
+   `generated_surface`). A guard fault, which the guard's own contract turns into an allow with a non-empty
+   `Decision.Diagnostic` (`decide.go:40-45,116-139`), gives `path_denied:guard_fault` here, so band fails closed where an
+   agent edit would proceed (CD-3 L1); items 5–6 stay the primary path rules.
 
 ## Data Contracts
 
@@ -373,7 +442,8 @@ proposal, answered with one well-formed fence.
   claim) holds five record kinds:
   - `decision`: `seq`, `series`, `episode_id`, `evaluation_seq`, `decision` (`claim` or `skipped`), `reason`.
   - `claim`: `seq`, `claim_id`, `owner`, `lease_until`, `series`, `episode_id`, `depends_on` (the diagnose claim id), `key`,
-    `worktree_path`, `patch_path`, `branch`; written in phase A.
+    `worktree_path`, `patch_path`, `branch`; written in phase A. A stored path or branch is only compared with its derived
+    value (Derived paths below) and never used.
   - `prep`: `seq`, `series`, `episode_id`, `diagnose_claim_id`, `lease_until` (both from 001's `DueClaim`,
     `pkg/healthband/catchup.go:30-42`), `claim_id` (when a `local_patch` claim exists), `key`, `base_sha` (once resolved),
     `code` (`ok` or a step-1 code); exactly one per flag-on diagnosis, written after step 1 and before any artifact exists.
@@ -386,25 +456,40 @@ proposal, answered with one well-formed fence.
   - `result`: `seq`, `claim_id`, `status` (`done` or `failed:<code>`), `bs_id`, `base_sha`, `commit_sha`, `branch`,
     `worktree_path`, `patch_path`, `prompt_manifest`, `recovered`, `kept[]` (artifacts kept by a cleanup rule, with reason),
     `models[]` (one entry per confined request of the claim that returned a stream: `request` (`diagnosis` or `patch`),
-    `requested`, `actual`, `refusal_category`), and `model_substituted`; a diagnosis without a `local_patch` claim writes one
+    `requested`, `actual`, `refusal_category`), `model_substituted`, and `files[]` (`path`, `added`, and `removed` from
+    `git apply --numstat`, once step 7 has passed); a diagnosis without a `local_patch` claim writes one
     too, keyed by its diagnose claim id.
 - `.autopus/metrics/localpatch-state.json` (`autopus.band_localpatch_state.v1`): claims per series, written after the events and
   replayed like SPEC-SIGMABAND-001's checkpoint. SPEC-SIGMABAND-001 binaries never read these two files. Their codes may hold
   `:` and `.` (`failed:git_config_unsafe:filter.lfs.process`), which 001's `validResultStatus` would refuse
   (`wal_validate.go:31-34`); no such code reaches 001's events, whose diagnosis status only gains
   `unavailable(provider_unconfined)` and `unavailable(worktree_unavailable)`.
-- Cleanup Rules (one set for the live run and for recovery; only artifacts named by the claim's intent records are considered;
+- Derived paths (CD-3 L3): recovery and the Cleanup Rules never use a path or branch that a record stores. They take `<lp>`
+  from the current `os.UserCacheDir` and `<repo-hash>`, require the record's `key` to match `^[a-z0-9-]+$`, to end in
+  `-<c8>` of the claim id that the `<key>` definition names, and to equal the key that the `<key>` rule gives for the
+  record's series and episode ID,
+  derive `<lp>/<key>/worktree/`, `<lp>/<key>.patch`, `<lp>/<key>.diff`, `<lp>/<key>.lock`, and
+  `refs/heads/autopus/band/<key>` from it, and compare every stored path with its derived value. Any mismatch, a changed
+  user cache directory included, ends the claim `failed:record_invalid` and touches nothing.
+- Cleanup Rules (one set for the live run and for recovery; only artifacts named by the claim's intent records, at their
+  derived paths, are considered;
   every git call has a 30 s timeout; the rules run in the order 3, 1, 2, so the worktree check still finds the diff file):
-  3. Worktree: only the admin entry whose path equals the `worktree_intent` path is considered. The `locked` check comes
+  3. Worktree: only the admin entry whose path equals the derived worktree path, which the `worktree_intent` path must
+     equal, is considered. The `locked` check comes
      first and alone decides an entry that still holds the `locked` file of an interrupted `git worktree add` (content
      `initializing`, beside an `index.lock`): it is kept with reason `worktree_incomplete`, because band cannot prove that a
      partial checkout holds only its own files, and the HEAD test below cannot tell it apart, since its admin HEAD already
      equals the base SHA (probe A3). `git worktree remove --force` refuses a locked entry (exit 128), so the docs name
      `git worktree remove --force --force <path>` for a human to run; band never passes `--force` twice and never runs
-     `git worktree unlock`. Any other entry is removed with `git worktree remove --force <path>` when its HEAD is the base
-     SHA or the claim commit, it has no unstaged or untracked change (`git status --porcelain --untracked-files=all`), and
-     its index tree is the HEAD tree or the `apply_intent` expected tree; otherwise it is kept with reason
-     `worktree_modified`, or `head_unrecognized` when HEAD is neither commit.
+     `git worktree unlock`. A `git worktree add` that SIGTERM stopped may remove its own partial worktree, so recovery can
+     find no entry; one that SIGKILL stopped leaves such a `locked` entry. Any other entry is removed with
+     `git worktree remove --force <path>` only when its HEAD is the base SHA or the claim commit and
+     `git status --porcelain -z --untracked-files=all --ignored` prints nothing, or, while HEAD is the base SHA and the
+     index tree is the `apply_intent` expected tree, prints only staged entries (`M ` or `A `) of the diff's paths. Any
+     untracked (`??`), ignored (`!!`), or unstaged entry keeps it with reason `worktree_modified` (CD-3 M6: in the auditor's
+     CD-3 probe `remove --force` deleted an ignored `secret.env` that `--untracked-files=all` alone does not list), and a
+     HEAD that is neither commit keeps it with reason `head_unrecognized`. After a removal, an empty `<lp>/<key>/` is
+     removed as well.
   1. Branch: `git update-ref -d refs/heads/autopus/band/<key> <claim-commit>`, which deletes only while the branch points at the
      claim commit; a branch at another OID is kept with reason `branch_moved`.
   2. Patch and diff files: `<lp>/<key>.patch` or its `.tmp-<c8>` is deleted only when its bytes equal a fresh
@@ -419,11 +504,16 @@ proposal, answered with one well-formed fence.
   nothing). It reads this SPEC's records under the store lock (local file IO only), then, without the store lock, handles
   every `local_patch` claim and every flag-on diagnosis (`prep` record) whose `lease_until` has passed without a `result`
   (never retried) by the Recovery State Table, with a budget of 120 s per claim, and appends each `result` under the store
-  lock. Phase A only reads these results.
+  lock. Per claim it first derives the paths (Derived paths) and takes the key lock (`filelock.Acquire` on
+  `<lp>/<key>.lock`, zero wait); a claim whose lock another process still holds, such as a live claim that a suspended or
+  stuck process keeps past its lease, gets no result, the run reports reason `recovery_key_locked`, and a later run handles
+  it (CD-3 M7). After the claim's `result`, recovery unlinks the lock file. Phase A only reads these results.
 - Recovery State Table (last durable record of the claim → what recovery finds → action → claim state):
 
 | Last durable record | Found | Action | State |
 |---------------------|-------|--------|-------|
+| any | a `key` or stored path that differs from its derived value (Derived paths) | none | `failed:record_invalid` |
+| any | `<lp>/<key>.lock` held by another process | skip the claim; run reason `recovery_key_locked` | no `result` yet; a later run handles it |
 | `decision`, `claim`, or `prep` | no artifact | none | `failed:interrupted` |
 | `worktree_intent` | an admin entry with the `locked` file of an interrupted add, whatever its HEAD | keep it, `worktree_incomplete` in `kept[]` | `failed:interrupted` |
 | `worktree_intent` | a finished worktree at the path, or none | Cleanup Rule 3 | `failed:interrupted` |
@@ -441,7 +531,7 @@ proposal, answered with one well-formed fence.
 
 | Step group | Steps | Deadline |
 |------------|-------|----------|
-| diagnosis setup | 1–2 up to `worktree_done` (checks, three records, `git worktree add`) | 30 s |
+| diagnosis setup | 1–2 up to `worktree_done` (checks with the checkout preflight, three records, the key lock, `git worktree add`) | 30 s |
 | diagnosis-only cleanup | Cleanup Rule 3 and the `result` record after the BS | 30 s |
 | patch request | 3–6 (result check, branch check, Lore message and its record, provider call bounded by `ProviderTimeout`) | 600 s |
 | apply and commit | 7–9 | 60 s |
@@ -454,8 +544,12 @@ While the flag is true, a diagnose claim's budget is SPEC-SIGMABAND-001's `Diagn
 600 + 60 + 30 + 60 + 60 = 810 s. 001's `Plan` chains only `ClaimBudget(ClaimKindDiagnose)` (`catchup.go:100-101`), so
 registering a kind in `claimBudgets` (`episode.go:21-27`) alone does not add it to the chain. Plan task T8 therefore adds
 `[NEW]` `PlanOptions` fields: a budget override that gives a diagnose claim 990 s while the flag is true, and the `LocalPatch`
-hook, whose row-4 claims `Plan` chains with 810 s right after their diagnose claim. A diagnose and its `local_patch` first in a
+hook, whose row-5 claims `Plan` chains with 810 s right after their diagnose claim. A diagnose and its `local_patch` first in a
 run get 990 s and 1,800 s. A checkout of the base that does not fit the 30 s setup deadline ends `worktree_failed`.
+
+Stopping (CD-3 M5): a command that outlives its step group gets SIGTERM on its process group 5 s before the group's deadline
+and SIGKILL at the deadline, so the stop stays inside the budget. SIGTERM lets `git worktree add` remove its partial
+worktree; an entry that SIGKILL leaves is kept as `worktree_incomplete` (Cleanup Rule 3).
 
 ## PRD Deviations
 
@@ -475,12 +569,12 @@ or T9; `existing` = older code.
 | Path | Role |
 |------|------|
 | [NEW] `pkg/healthband/localpatch_decision.go`, `localpatch_wal.go`, `localpatch_recovery.go` | Local Patch Decision Table with the Opening tier rule, own write-ahead log and checkpoint over 001's store helpers, Recovery step and State Table |
-| [NEW] `pkg/healthband/patchpolicy.go`, `patchprompt.go`, `commitmsg.go`, `gitpolicy.go` | Patch Policy (with the `editguard.Decide` check), Patch Prompt Contract, Lore message, Git Execution Policy |
+| [NEW] `pkg/healthband/patchpolicy.go`, `patchprompt.go`, `commitmsg.go`, `gitpolicy.go` | Patch Policy (with the base-mode read, folded collisions, structural rules, the control-character check, and the fail-closed `editguard.Decide` check), Patch Prompt Contract, Lore message, Git Execution Policy (with the version, partial-clone, and step-8 re-checks) |
 | [NEW] `internal/cli/react_band_localpatch.go` | executor of the Local Patch Flow with its own git allowlist and runner |
 | [NEW] `internal/cli/react_band_localpatch_provider.go` | Local Patch Provider Contract: selection order, band-only subprocess form, confined projection and its control checks (T7) |
 | existing (001) `pkg/config/schema_health_band.go:8-14` | gains `AllowLocalPatch bool` with `yaml:"allow_local_patch,omitempty"` and `LocalPatchProvider string` with `yaml:"local_patch_provider,omitempty"` (T1) |
 | existing (001) `pkg/healthband/episode.go:21-27`, `catchup.go:12-22,51-58,73-111`, `claims.go:84-117` | `local_patch` budget in `claimBudgets`; `[NEW]` `PlanOptions` budget override and `LocalPatch` hook with `[NEW]` `Plan.LocalPatch`; `[NEW]` `ExecuteOptions.AfterRecord` (T8) |
-| existing (001) `internal/cli/react_band.go:139-255` | recovery step between `fetchCI` and `store.Lock`; decision and claim records after `Commit`; the hooks in `phaseA` and `phaseB` (T8) |
+| existing (001) `internal/cli/react_band.go:139-255` | recovery step between `fetchCI` and `store.Lock`; `<lp>` resolved before `store.Lock`; decision and claim records after `Commit`; the hooks in `phaseA` and `phaseB`; the `[NEW]` `local_patches[]` run output (T8) |
 | existing (001) `internal/cli/react_band_diagnose.go:54-62,72-86,140-276` | `[NEW]` provider work directory apart from the BS directory, steps 1–2 inside `Run`, the flag-on provider from the Local Patch Provider Contract in place of `selectBandProvider` and `resolveProvider`, `GIT_*` added to the unset list, the worktree path redacted by the output sanitizer, the two new unavailable reasons (T8) |
 | existing (001) `internal/cli/react_band_ingest.go:33-41,83-111` | `[NEW]` `bandCIFetch.DefaultBranch` (T8) |
 | existing (001) `pkg/brainstorm/render.go:31-40,180,196,208-209` | `[NEW]` `Request.LocalPatch`: pointer lines and the three local-patch sentences (T8) |
@@ -493,7 +587,7 @@ or T9; `existing` = older code.
   flag is true, this SPEC amends: the diagnosis provider selection (REQ-15) and its cwd, projection, and environment (REQ-03); the diagnosis status values
   `unavailable(provider_unconfined)` and `unavailable(worktree_unavailable)`; the diagnose budget (990 s) and the lease chain,
   which also counts `local_patch` budgets, so claim `owner`/`lease_until` values differ from a flag-off run (REQ-12); the BS
-  pointer lines and three sentences (BS Record); REQ-22, whose redaction does not apply to the raw patch reply, which never
+  pointer lines and three sentences (BS Record); the run's text output and JSON envelope, which gain `local_patches[]` (BS Record); REQ-22, whose redaction does not apply to the raw patch reply, which never
   reaches a prompt, BS, or terminal (REQ-07); and the run order, which gains the recovery step between 001's network step and
   phase A whenever this SPEC's log exists. It never changes 001's action enum, decision table, evaluation fields other than
   claim leases, BS sections, or `checkBandCommand`. At sync it adds `allow_local_patch` and `local_patch_provider` to 001
@@ -526,19 +620,39 @@ or T9; `existing` = older code.
 | REQ-02 | T2, T8 | S2, S3 | INV-02 |
 | REQ-03 | T6, T7, T8 | S7, S13, S15 | INV-06, INV-12 |
 | REQ-04 | T7 | S3, S6 | INV-02 |
-| REQ-05 | T4, T7 | S4, S6 | INV-03 |
+| REQ-05 | T4, T7 | S4, S6, S7 | INV-03, INV-06 |
 | REQ-06 | T7 | S5 | INV-08 |
 | REQ-07 | T5, T7 | S8, S15 | INV-06, INV-12 |
 | REQ-08 | T3 | S5 | INV-05, INV-10 |
 | REQ-09 | T7 | S4 | INV-07 |
-| REQ-10 | T7, T10 | S12 | INV-04 |
+| REQ-10 | T4, T7, T10 | S12 | INV-04 |
 | REQ-11 | T2, T7 | S5, S9 | INV-09 |
-| REQ-12 | T2, T8 | S2, S9 | INV-02 |
+| REQ-12 | T2, T7, T8 | S2, S3, S9 | INV-02 |
 | REQ-13 | T8, T9 | S4, S11 | INV-01, INV-07 |
-| REQ-14 | T7 | S4 | INV-07 |
+| REQ-14 | T2, T7 | S3, S4 | INV-02, INV-07 |
 | REQ-15 | T6, T7, T8 | S7, S13, S14 | INV-11 |
 
 ## Review Resolution
+
+Rev 9 (2026-10-08) applies the CD-3 security design review (security-auditor; repro `cd3-probe/probe.sh`, git 2.50.1).
+CD-3 stays open until the re-review passes:
+
+| Item | Resolution | Where |
+|------|------------|-------|
+| H1 invisible and control characters | a byte check of the raw added lines runs before `Sanitize`: invalid UTF-8, bidi controls U+202A–U+202E and U+2066–U+2069, zero-width and bidi marks, ESC and other C0 controls except TAB, DEL, C1 controls, and every CR except the one right before a line's LF give `patch_content_denied:control_char`; a CRLF line ending passes (decided here) | Patch Policy item 7, REQ-08, S5 |
+| H2 modeless hunks on non-regular entries | the base entry of every touched path and directory prefix comes from `git ls-tree -z <base-sha>`; anything but a 100644 or 100755 blob (no entry for an add) or a non-tree prefix gives `patch_invalid` | Patch Policy items 2–3, REQ-08, S5 |
+| H3 symlinks out of the worktree | `-c core.symlinks=false` on every band git command checks tracked links out as text files; a reviewer's own git shows them as type changes, which the docs state | Git Execution Policy items 2 and 5, Provider Contract item 6, REQ-05, S7 |
+| M1 lazy fetch | `GIT_NO_LAZY_FETCH=1` with git 2.44 or later, else `git_version_unsupported:<version>`; partial clones refused at step 1; S6 and S12 count network children by trace2 `child_start` events, not by an argv recorder | Git Execution Policy items 1 and 3, REQ-05, REQ-10, S6, S12 |
+| M2 collisions | decoded paths and their directory prefixes, folded by NFC and case, collide neither with each other nor with tracked paths | Patch Policy item 4, REQ-08, S5 |
+| M3 structural denies | dot segments with no exception, `*.conf.*`, `*rc.*`, `.*rc`, `build-logic/`, `buildSrc/`, `.yarn/`, `.pnp.*`, and modifications of 100755 paths give `path_denied` | Patch Policy item 6, REQ-08, S5 |
+| M4 refused patch model | a `model_refusal_fallback` during the patch request gives `failed:patch_model_refused`, which replaces rev 8's never-fail rule for the patch request; a diagnosis keeps record-and-continue | REQ-03, Local Patch Flow step 6, Provider Contract item 7, S15 |
+| M5 bounded checkout and retention | SIGTERM 5 s before a step group's deadline, then SIGKILL; a `git ls-tree -r -l` preflight against 200,000 entries, 2 GiB, and free disk; a per-repository cap of 5 kept keys gives `local_patch_skipped:cap_reached` | Step Timeouts and Lease, Local Patch Flow step 1, Decision Table row 4, Cleanup Rule 3, Outcome Lock, REQ-12, REQ-14, S3 |
+| M6 ignored files | a worktree is removed only when `git status --porcelain --untracked-files=all --ignored` is empty, or lists only the claim's staged paths before its commit; otherwise `worktree_modified` | Cleanup Rule 3, REQ-11, S9 |
+| M7 live claim against recovery | the key lock `<lp>/<key>.lock` is held for the claim's lifetime; recovery skips a key that it cannot lock at once (`recovery_key_locked`) | Local Patch Flow step 2, Data Contracts Recovery step, Recovery State Table, REQ-11, S9 |
+| L1 guard fault | an `editguard.Decide` allow with a `Diagnostic` gives `path_denied:guard_fault` | Patch Policy item 9, REQ-08, S5 |
+| L2 identity, hooks, attributes, file modes | `user.name=autopus-band`, `user.email=band@autopus.invalid`, `core.hooksPath=/dev/null`, `core.attributesFile=/dev/null`; `<lp>` 0700 and files 0600 through `O_CREAT`, `O_EXCL`, and `O_NOFOLLOW` | Git Execution Policy item 2, Local Patch Flow commit message, REQ-05, REQ-14, S4, S6 |
+| L3 untrusted record paths | every path re-derived from `<lp>` and a key that matches `^[a-z0-9-]+$` and ends in the claim id's `<c8>`; a mismatch gives `failed:record_invalid` | Data Contracts Derived paths, Recovery State Table, REQ-11, S9 |
+| L4 re-check and disclosure | item 3 runs again at step 8; `filter.lfs.process` is pinned to the resolved absolute path; the run output shows status, files, and models with the untrusted-CI-logs warning; the write-once BS, written before the patch request, carries the warning and points there | Git Execution Policy items 2–3, Local Patch Flow step 8, BS Record, S4, S6 |
 
 Rev 8 (2026-10-08) folds in the executed Risk-First probes A1 and A3 (plan.md), which close Completion Debt CD-1 and CD-2:
 
