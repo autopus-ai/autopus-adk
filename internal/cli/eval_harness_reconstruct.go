@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net/url"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/insajin/autopus-adk/pkg/harneval"
 )
@@ -18,7 +21,21 @@ const (
 	exportInputInvalid           = "input_invalid"
 	exportTrustedProtocolInvalid = "trusted_protocol_invalid"
 	exportBaselineSurfaceFailed  = "baseline_surface_failed"
+	exportProxyInvalid           = "proxy_invalid"
 )
+
+// fileModuleProxy reports whether raw is one file:// GOPROXY naming a clean
+// absolute directory: no host, query, fragment, or list separator, so the
+// baseline rebuild's module download reads that directory and never the
+// network (SPEC-HARNEVAL-003 REQ-HR-02).
+func fileModuleProxy(raw string) bool {
+	parsed, err := url.Parse(raw)
+	if err != nil || strings.ContainsAny(raw, ",|") || parsed.Scheme != "file" || parsed.Host != "" || parsed.Opaque != "" ||
+		parsed.User != nil || parsed.RawQuery != "" || parsed.ForceQuery || parsed.Fragment != "" {
+		return false
+	}
+	return filepath.IsAbs(parsed.Path) && filepath.Clean(parsed.Path) == parsed.Path && parsed.Path != "/"
+}
 
 // maxRunMetaBytes bounds the --run-meta file, four short fields.
 const maxRunMetaBytes = 64 << 10
@@ -61,10 +78,11 @@ func (s harnessTrustSources) withDefaults() harnessTrustSources {
 
 // rebuildBaselineSurface rebuilds the baseline arm surface of the binding's
 // baseline_commit with main's pins and the allowlisted child environment,
-// offline from the local module cache, and digests it.
+// offline from the --proxy file proxy (default: one over the local module
+// cache), and digests it.
 func rebuildBaselineSurface(ctx context.Context, req harnessExportRequest) (string, error) {
 	digest, err := harneval.ArmSurfaceDigest(ctx, req.Root, req.Binding.BaselineCommit, req.Binding.Pins,
-		harneval.ArmSurfaceOptions{Env: req.Env})
+		harneval.ArmSurfaceOptions{Env: req.Env, Proxy: req.Proxy})
 	if err != nil {
 		return "", exportRefusal(exportBaselineSurfaceFailed, err.Error())
 	}

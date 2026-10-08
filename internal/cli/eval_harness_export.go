@@ -69,13 +69,15 @@ func harnessChildEnv(parent []string) []string {
 
 // harnessExportRequest is what the trusted reconstruction of REQ-HR-02 and
 // REQ-HR-09 reads: the main checkout, the downloaded unsigned artifact, the
-// run meta file, the binding computed from the checkout, and the allowlisted
-// environment for every process it starts.
+// run meta file, the binding computed from the checkout, the allowlisted
+// environment for every process it starts, and the file:// module proxy of
+// the baseline rebuild (empty: one over the local module cache).
 type harnessExportRequest struct {
 	Root, Input, RunMeta string
 	Binding              harneval.Binding
 	BindingDigest        string
 	Env                  []string
+	Proxy                string
 }
 
 // harnessSignable is a session the reconstruction accepted: its documents
@@ -141,7 +143,7 @@ func newEvalHarnessExportCmd(deps evalHarnessDeps, dir *string) *cobra.Command {
 }
 
 func newEvalHarnessExportCmdWith(deps evalHarnessDeps, dir *string, seams harnessExportSeams) *cobra.Command {
-	var input, runMeta, output string
+	var input, runMeta, output, proxy string
 	cmd := &cobra.Command{
 		Use:   "export",
 		Short: "Sign a verified live session as eval_regression evidence (key on stdin)",
@@ -151,8 +153,14 @@ func newEvalHarnessExportCmdWith(deps evalHarnessDeps, dir *string, seams harnes
 			if input == "" || runMeta == "" || output == "" {
 				return errors.New("--input, --run-meta, and --output are required")
 			}
-			export := harnessExport{deps: deps, seams: seams.withDefaults(), root: *dir, input: input, runMeta: runMeta, output: output}
-			line, err := export.run(cmd.Context(), cmd.InOrStdin())
+			export := harnessExport{deps: deps, seams: seams.withDefaults(), root: *dir, input: input, runMeta: runMeta,
+				output: output, proxy: proxy}
+			line, err := "", error(nil)
+			if proxy != "" && !fileModuleProxy(proxy) {
+				err = exportRefusal(exportProxyInvalid, "--proxy must be a file:// URL of an absolute directory")
+			} else {
+				line, err = export.run(cmd.Context(), cmd.InOrStdin())
+			}
 			if err != nil {
 				fmt.Fprintln(cmd.ErrOrStderr(), "harness-eval: export refused: "+intakePrintable(err.Error()))
 				return harnessFailure()
@@ -165,6 +173,7 @@ func newEvalHarnessExportCmdWith(deps evalHarnessDeps, dir *string, seams harnes
 	cmd.Flags().StringVar(&input, "input", "", "directory of the downloaded unsigned live result")
 	cmd.Flags().StringVar(&runMeta, "run-meta", "", "file holding {run_id, run_attempt, run_created_at, attempt_started_at}")
 	cmd.Flags().StringVar(&output, "output", "", "directory to create for the signed evidence; it must not exist")
+	cmd.Flags().StringVar(&proxy, "proxy", "", "file:// GOPROXY the baseline arm rebuild downloads from (default: the local module cache)")
 	return cmd
 }
 
@@ -173,7 +182,7 @@ type harnessExport struct {
 	deps                 evalHarnessDeps
 	seams                harnessExportSeams
 	root, input, runMeta string
-	output               string
+	output, proxy        string
 }
 
 // run reads the key, then checks the output path, computes the trusted
@@ -197,7 +206,7 @@ func (e harnessExport) run(ctx context.Context, stdin io.Reader) (string, error)
 	}
 	digest := binding.Digest()
 	signable, err := e.seams.reconstruct(ctx, harnessExportRequest{
-		Root: e.root, Input: e.input, RunMeta: e.runMeta, Binding: binding, BindingDigest: digest, Env: env,
+		Root: e.root, Input: e.input, RunMeta: e.runMeta, Binding: binding, BindingDigest: digest, Env: env, Proxy: e.proxy,
 	})
 	if err != nil {
 		return "", err
