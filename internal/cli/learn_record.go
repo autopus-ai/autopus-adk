@@ -83,9 +83,9 @@ func newLearnRecordCmd() *cobra.Command {
 			}
 
 			// The store writer applies the same deterministic Redact, so this
-			// echo is the stored pattern, never the raw flag value.
-			stored, _ := secretscan.Redact(pattern)
-			fmt.Fprintf(cmd.OutOrStdout(), "Recorded %s entry: %s\n", entryType, stored)
+			// echo is the stored pattern, never the raw flag value; its control
+			// characters are escaped so the pattern cannot drive the terminal.
+			fmt.Fprintf(cmd.OutOrStdout(), "Recorded %s entry: %s\n", entryType, intakePrintable(pattern))
 			return nil
 		},
 	}

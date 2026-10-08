@@ -38,3 +38,17 @@ func TestLearnRecord_S2_VerbatimFlags_RefusedWithoutWrite(t *testing.T) {
 		})
 	}
 }
+
+// TestLearnRecord_S5_EchoEscapesControlCharacters pins review S5: the
+// Recorded line prints the stored (redacted) pattern with its control
+// characters escaped, so a pattern cannot drive the terminal.
+func TestLearnRecord_S5_EchoEscapesControlCharacters(t *testing.T) {
+	dir := setupLearnDir(t)
+	chdir(t, dir)
+
+	out, err := runLearn(t, "learn", "record", "--type", "fix_pattern",
+		"--pattern", "hook \x1b[31mred\nnext "+synthGitHubToken())
+
+	require.NoError(t, err)
+	assert.Equal(t, `Recorded fix_pattern entry: hook \u001b[31mred\u000anext [REDACTED_SECRET]`+"\n", out)
+}
