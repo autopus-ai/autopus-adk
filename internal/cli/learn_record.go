@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/insajin/autopus-adk/pkg/learn"
+	"github.com/insajin/autopus-adk/pkg/secretscan"
 )
 
 // recordFuncs maps entry type string to the corresponding Record* function.
@@ -42,7 +43,8 @@ func newLearnRecordCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			recordFn, ok := recordFuncs[entryType]
 			if !ok {
-				return fmt.Errorf("unknown type %q: must be one of gate_fail, coverage_gap, review_issue, executor_error, fix_pattern", entryType)
+				shown, _ := secretscan.Redact(entryType)
+				return fmt.Errorf("unknown type %q: must be one of gate_fail, coverage_gap, review_issue, executor_error, fix_pattern", shown)
 			}
 			// Refuse an invalid evidence value before touching the project:
 			// the store writer repeats the same checks on every write.
@@ -81,7 +83,10 @@ func newLearnRecordCmd() *cobra.Command {
 				return fmt.Errorf("record: %w", err)
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(), "Recorded %s entry: %s\n", entryType, pattern)
+			// The store writer applies the same deterministic Redact, so this
+			// echo is the stored pattern, never the raw flag value.
+			stored, _ := secretscan.Redact(pattern)
+			fmt.Fprintf(cmd.OutOrStdout(), "Recorded %s entry: %s\n", entryType, stored)
 			return nil
 		},
 	}

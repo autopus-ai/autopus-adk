@@ -6,6 +6,8 @@ import (
 	"os"
 	"sort"
 	"strings"
+
+	"github.com/insajin/autopus-adk/pkg/secretscan"
 )
 
 type writableItem struct {
@@ -16,6 +18,10 @@ type writableItem struct {
 }
 
 // rewriteStore rewrites the store file with the given entries and skips merged in order of line numbers.
+//
+// Parsed entries are re-encoded as stored, without redacting them again, so a
+// stored value (and the fingerprint computed from it) survives prune. A line
+// that never parsed never crossed the write boundary, so it is redacted here.
 func rewriteStore(store *Store, entries []LearningEntry, skips []SkipRecord) error {
 	f, err := os.Create(store.path)
 	if err != nil {
@@ -37,7 +43,7 @@ func rewriteStore(store *Store, entries []LearningEntry, skips []SkipRecord) err
 
 	for _, item := range items {
 		if item.isSkip {
-			raw := item.skip.Raw
+			raw, _ := secretscan.Redact(item.skip.Raw)
 			if !strings.HasSuffix(raw, "\n") {
 				raw += "\n"
 			}

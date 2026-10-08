@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/insajin/autopus-adk/pkg/secretscan"
 )
 
 // Store manages learning entries in a JSONL file.
@@ -160,7 +162,10 @@ func (s *Store) AppendAtomic(entryType EntryType, opts RecordOpts) error {
 
 // redactEntry is the store's first-write boundary: every byte Append and
 // AppendAtomic persist passes through it. Evidence fields are validated and
-// redacted in the REQ-HC-01 order; a rejection writes nothing.
+// redacted in the REQ-HC-01 order (a rejection writes nothing), then the other
+// free-text fields are redacted. Files and packages stay verbatim because they
+// are fingerprint input. rewriteStore never calls this, so a stored value and
+// its fingerprint do not change when prune re-encodes the entry.
 func redactEntry(entry LearningEntry) (LearningEntry, error) {
 	evidence := []struct {
 		field EvidenceField
@@ -176,6 +181,9 @@ func redactEntry(entry LearningEntry) (LearningEntry, error) {
 			return LearningEntry{}, err
 		}
 		*ev.value = redacted
+	}
+	for _, text := range []*string{&entry.Pattern, &entry.Resolution, &entry.Phase, &entry.SpecID} {
+		*text, _ = secretscan.Redact(*text)
 	}
 	return entry, nil
 }
