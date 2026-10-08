@@ -3,7 +3,9 @@ package learn
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -27,10 +29,11 @@ type SkipRecord struct {
 	Reason string
 }
 
-// NewStore creates a store rooted at dir, ensuring .autopus/learnings/ exists.
+// NewStore creates a store rooted at dir, ensuring .autopus/learnings/ exists
+// as real directories: a symlink at either level is refused.
 func NewStore(dir string) (*Store, error) {
 	learningsDir := filepath.Join(dir, ".autopus", "learnings")
-	if err := os.MkdirAll(learningsDir, 0o755); err != nil {
+	if err := makeStoreDirs(dir); err != nil {
 		return nil, fmt.Errorf("create learnings dir: %w", err)
 	}
 	return &Store{
@@ -67,11 +70,13 @@ func (s *Store) appendUnlocked(entry LearningEntry) error {
 	return nil
 }
 
-// ReadTolerant reads all entries from the JSONL file tolerantly.
+// ReadTolerant reads all entries from the JSONL file tolerantly. A store that
+// is a symlink, a FIFO, a device, or in a linked directory is refused before
+// any byte is read.
 func (s *Store) ReadTolerant() ([]LearningEntry, []SkipRecord, error) {
-	f, err := os.Open(s.path)
+	f, err := openStoreFile(s.path, os.O_RDONLY)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, fs.ErrNotExist) {
 			return []LearningEntry{}, []SkipRecord{}, nil
 		}
 		return nil, nil, fmt.Errorf("open file: %w", err)
