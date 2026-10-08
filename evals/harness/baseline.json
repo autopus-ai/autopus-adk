@@ -1,7 +1,7 @@
 {
   "schema_version": "harness_eval_baseline.v1",
   "set_version": "1",
-  "set_digest": "566cf33029d3cd5a24f5b185cc5545bcead37902bafb646237eace6237df17b8",
+  "set_digest": "a3079d5ddf44b9fbde326af8e4b29ffed67ec5422523e7cb2d315cc77d62dd72",
   "rows": [
     {
       "id": "GT-AGENT-A01",
@@ -318,6 +318,20 @@
       "state": "active",
       "result": "pass",
       "expectation_digest": "7eb45c6a4ac0948d7a7796b57602ce3a2673b61438b76a53057d98c3b81ffc41"
+    },
+    {
+      "id": "GT-SKILL-UI-CRITIQUE-LOOP",
+      "kind": "surface",
+      "state": "active",
+      "result": "pass",
+      "expectation_digest": "82a22da8b17ff1a3c049c8c42902329f6655aebfdaa50533df694e80c59e57c3"
+    },
+    {
+      "id": "GT-SKILL-UI-VISUAL-DETERMINISM",
+      "kind": "surface",
+      "state": "active",
+      "result": "pass",
+      "expectation_digest": "8cf83970a2104c4cad3d05a498432259a57696954aa160b0de2e6732f3997832"
     }
   ]
 }

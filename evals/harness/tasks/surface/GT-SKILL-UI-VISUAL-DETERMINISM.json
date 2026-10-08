@@ -1,0 +1,103 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-SKILL-UI-VISUAL-DETERMINISM",
+  "kind": "surface",
+  "category": "agent_skill_exposure",
+  "intent": "Every platform's UI verification skill builds critique evidence the same way and trusts a screenshot baseline only after it reproduces.",
+  "outcome": "The Evidence Contact Sheet and Deterministic Visual Baselines sections of frontend-verify are byte-identical on Claude, Codex, both Antigravity roots, OpenCode, and OMP; they tile states by breakpoints with ffmpeg, forbid Math.random in render paths under test, freeze the Playwright clock, and require a repeat run to match before a baseline is trusted.",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "section_parity",
+      "files": [
+        {
+          "platform": "claude-code",
+          "path": ".claude/skills/frontend-verify/SKILL.md"
+        },
+        {
+          "platform": "codex",
+          "path": ".codex/skills/codex-frontend-verify/SKILL.md"
+        },
+        {
+          "platform": "antigravity-cli",
+          "path": ".agents/plugins/autopus/skills/frontend-verify/SKILL.md"
+        },
+        {
+          "platform": "antigravity-cli",
+          "path": ".gemini/skills/autopus/frontend-verify/SKILL.md"
+        },
+        {
+          "platform": "opencode",
+          "path": ".agents/skills/frontend-verify/SKILL.md"
+        },
+        {
+          "platform": "omp",
+          "path": ".omp/skills/frontend-verify/SKILL.md"
+        }
+      ],
+      "heading": "## Evidence Contact Sheet"
+    },
+    {
+      "kind": "section_parity",
+      "files": [
+        {
+          "platform": "claude-code",
+          "path": ".claude/skills/frontend-verify/SKILL.md"
+        },
+        {
+          "platform": "codex",
+          "path": ".codex/skills/codex-frontend-verify/SKILL.md"
+        },
+        {
+          "platform": "antigravity-cli",
+          "path": ".agents/plugins/autopus/skills/frontend-verify/SKILL.md"
+        },
+        {
+          "platform": "antigravity-cli",
+          "path": ".gemini/skills/autopus/frontend-verify/SKILL.md"
+        },
+        {
+          "platform": "opencode",
+          "path": ".agents/skills/frontend-verify/SKILL.md"
+        },
+        {
+          "platform": "omp",
+          "path": ".omp/skills/frontend-verify/SKILL.md"
+        }
+      ],
+      "heading": "## Deterministic Visual Baselines"
+    },
+    {
+      "kind": "contains",
+      "platform": "claude-code",
+      "path": ".claude/skills/frontend-verify/SKILL.md",
+      "needle": "tile=${S}x${W}:padding=8:color=white"
+    },
+    {
+      "kind": "contains",
+      "platform": "claude-code",
+      "path": ".claude/skills/frontend-verify/SKILL.md",
+      "needle": "render paths under test draw from a seeded generator the test controls and never call `Math.random`."
+    },
+    {
+      "kind": "contains",
+      "platform": "claude-code",
+      "path": ".claude/skills/frontend-verify/SKILL.md",
+      "needle": "before `goto`, call `await page.clock.install({ time: new Date('2026-01-01T09:00:00Z') })` and `await page.clock.pauseAt(new Date('2026-01-01T09:00:01Z'))`"
+    },
+    {
+      "kind": "contains",
+      "platform": "claude-code",
+      "path": ".claude/skills/frontend-verify/SKILL.md",
+      "needle": "npx playwright test e2e/visual.spec.ts --update-snapshots=none --repeat-each=3\n"
+    }
+  ],
+  "provenance": {
+    "kind": "manual",
+    "ref": "content/skills/frontend-verify.md, skill projections"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}
