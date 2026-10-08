@@ -196,15 +196,20 @@ func bearerValue(s string, m []int) (int, int) {
 }
 
 // pemFooter and pemBody bound the key material after a private key header.
+// Without a footer the material is the RFC 1421 header lines of an encrypted
+// key (Proc-Type: 4,ENCRYPTED and DEK-Info: <cipher>,<iv>), each on its own
+// line or flattened onto one, then the base64 body. A header name or value
+// never holds "--", so the material cannot run over the dashes of the next
+// private key header, and each header scans only up to it.
 var (
 	pemFooter = regexp.MustCompile(`-----END[A-Z ]*PRIVATE KEY-----`)
-	pemBody   = regexp.MustCompile(`^[A-Za-z0-9+/=\s]*`)
+	pemBody   = regexp.MustCompile(`^(?:\s*[A-Za-z](?:[A-Za-z0-9]|-[A-Za-z0-9])*:[ \t]*(?:[A-Za-z0-9+/=,]|-[A-Za-z0-9+/=,])*)*[A-Za-z0-9+/=\s]*`)
 )
 
 // pemBlock extends a private key header over its key material: through the
-// footer when one follows, or else over the base64 body after the header,
-// trailing whitespace excluded. It indexes s for one match; collect prepares
-// the selector once per text with pemBlocks instead.
+// footer when one follows, or else over the header lines and base64 body
+// after the header, trailing whitespace excluded. It indexes s for one match;
+// collect prepares the selector once per text with pemBlocks instead.
 func pemBlock(s string, m []int) (int, int) { return pemBlocks(s)(s, m) }
 
 // pemBlocks returns the pemBlock selector for s. It finds every footer in s

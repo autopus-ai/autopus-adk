@@ -11,14 +11,16 @@ import (
 // placeholder is not read as secret context (C2), a placeholder does not
 // shield the raw value glued to it (S1), a value that runs over the next key
 // does not hide that key (S3), and a private key header masks its key body
-// (S4).
+// (S4). Round 2 adds the header lines of an encrypted key without a footer.
 func reviewFixtures() []fixture {
 	v12 := synth(12, synthAlphabet, 212)
 	v20 := synth(20, synthAlphabet, 220)
 	body := synth(64, synthAlphabet, 264)
 	tail := synth(24, synthAlphabet, 224)
+	iv := synth(32, "0123456789ABCDEF", 232)
 	sha := strings.Repeat("0123456789abcdef", 3)[:40]
 	header, footer := "-----BEGIN RSA PRIVATE KEY-----", "-----END RSA PRIVATE KEY-----"
+	procType, dekInfo := "Proc-Type: 4,ENCRYPTED", "DEK-Info: AES-128-CBC,"+iv
 	const sec = PlaceholderSecret
 	return []fixture{
 		// C2: a commit SHA after a redacted value is not an AWS secret.
@@ -45,6 +47,10 @@ func reviewFixtures() []fixture {
 		{"pem block in prose", "pem then " + header + " " + body + " " + footer + " rotated", "pem then " + sec + " rotated", true},
 		{"pem body without footer", header + "\n" + body + "\n" + tail, sec, true},
 		{"pem header then punctuation", header + " " + body + ".", sec + ".", true},
+		// Round 2: the Proc-Type and DEK-Info lines go with the body they open.
+		{"encrypted pem without footer", header + "\n" + procType + "\n" + dekInfo + "\n\n" + body + "\n", sec + "\n", true},
+		{"flattened encrypted pem", header + " " + procType + " " + dekInfo + " " + body + ".", sec + ".", true},
+		{"encrypted pem with footer", header + "\n" + procType + "\n" + dekInfo + "\n\n" + body + "\n" + footer + " done", sec + " done", true},
 	}
 }
 
