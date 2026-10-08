@@ -333,6 +333,11 @@ warning:
 This patch was derived by an AI model from untrusted CI logs; read the whole patch file before running anything.
 ```
 
+With `--format json`, every path under your home directory is masked as `~`,
+so `local_patches[].patch_path` reads `~/Library/Caches/autopus/...` on macOS;
+replace `~` with your home directory to open it. The text output prints the
+full path.
+
 ### Confined provider
 
 Only a subprocess claude provider can run a confined diagnosis. While the flag
@@ -342,9 +347,15 @@ worktree of tracked content at the base commit, so untracked files of your
 checkout, such as `.env`, are not in it. The shared read-only projection
 (`--permission-mode plan`, `--safe-mode`, `--strict-mcp-config`, and
 `--tools=Read,Grep,Glob`) gains `--restricted`, `--verbose`, and
-`--output-format stream-json`, and the provider starts without the GitHub and
-cloud credential variables and without any `GIT_*` variable. A provider
-chosen this way is the only one tried:
+`--output-format stream-json`, and the provider starts with only an allowlist
+of inherited variables (`PATH`, `HOME`, `USER`, `LOGNAME`, `SHELL`, `TMPDIR`,
+`LANG`, `LC_*`, `TERM`, `TZ`, `XDG_*`, `CLAUDE_CONFIG_DIR`,
+`CLAUDE_CODE_OAUTH_TOKEN`, the proxy variables in both letter cases,
+`SSL_CERT_FILE`, `SSL_CERT_DIR`, and `NODE_EXTRA_CA_CERTS`). No credential,
+`GIT_*`, `ANTHROPIC_API_KEY`, or agent-session variable (such as `CLAUDECODE`,
+`CLAUDE_CODE_*`, or `MCP_*`) reaches it, so authenticate with the subscription
+login or `CLAUDE_CODE_OAUTH_TOKEN`. A provider chosen this way is the only one
+tried, and it is chosen before any worktree exists:
 
 1. `health_band.local_patch_provider`, trimmed, when it is not empty. With
    that key set, band runs the claude named by health_band.local_patch_provider
@@ -356,8 +367,8 @@ chosen this way is the only one tried:
    configured provider), used only when it is `claude` and
    `orchestra.providers.claude` has no `backend`.
 3. Otherwise `unavailable(provider_unconfined)`: an OMP-backed claude, codex,
-   gemini, an unconfigured name, or no name. The local patch claim then ends
-   `failed:diagnosis_unavailable`.
+   gemini, an unconfigured name, or no name. Band then creates no worktree, and
+   the local patch claim ends `failed:diagnosis_unavailable`.
 
 The expected deployment is the claude CLI signed in with a Claude subscription
 (claude auth login); it needs no API key. Band sets no API key and never passes
@@ -489,6 +500,10 @@ interrupted while the flag was on is still cleaned up after it is turned off. It
 holds `.autopus/metrics/.recovery.lock`; while another process holds that lock,
 the run reports `recovery_locked`, and a claim whose key lock a live process
 still holds is reported as `recovery_key_locked` and handled by a later run.
+When git cannot resolve the repository or `<lp>`, or a git call is stopped at
+its timeout, the run reports `recovery_skipped` and a later run recovers. A
+`result` record with `recovered: true` is one that recovery wrote, failed or
+done; a result that the live run wrote never carries it.
 
 ### Reviewing a local patch
 
@@ -512,7 +527,16 @@ a type change in the band worktree.
 | Worktree | `worktree_failed`, `git_config_unsafe:<key>` |
 | Before the patch request | `record_unavailable`, `no_bs`, `diagnosis_unavailable`, `branch_exists`, `lore_unsupported_required:<trailer>`, `lore_rejected` |
 | Patch request | `patch_provider_unconfined`, `patch_model_refused`, `patch_model_unverified` |
-| Patch policy | `no_patch`, `patch_invalid`, `path_denied`, `path_denied:<class>` (`filter`, `case_collision`, `guard_state`, `fix_lock`, `generated_surface`, `guard_fault`), `patch_content_denied`, `patch_content_denied:control_char`, `patch_too_large` |
+| Patch policy | `no_patch`, `patch_invalid`, `path_denied`, `path_denied:<class>` (`filter`, `case_collision`, `guard_state`, `fix_lock`, `generated_surface`, `guard_fault`), `patch_content_denied`, `patch_content_denied:control_char`, `patch_content_denied:confusable`, `patch_too_large` |
+| Recovery run reasons | `recovery_locked`, `recovery_key_locked`, `recovery_skipped` |
+
+The content checks are heuristics: besides control and invisible characters,
+`control_char` covers every space other than U+0020 and the blank symbols
+U+2800 and U+1D159, `confusable` an identifier that mixes Latin, Cyrillic, or
+Greek letters outside a whole-line comment, and `patch_content_denied`
+injection phrases and runs of 40 or more base64, base64url, or hex characters,
+so a 40-character identifier is refused as well. Passing them proves nothing:
+read the whole patch.
 | Apply, commit, branch, patch file | `commit_failed`, `commit_tree_mismatch`, `commit_message_altered`, `branch_failed`, `patch_file_failed` |
 | Any step or recovery | `lease_exhausted`, `interrupted`, `record_invalid` |
 

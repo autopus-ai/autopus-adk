@@ -28,9 +28,8 @@ SPEC-SIGMABAND-001 is merged (main `1943e596`); rev 6 read its code instead of i
 ## Outcome Lock
 
 - User-visible outcome: with `health_band.allow_local_patch: true`, every SPEC-SIGMABAND-001 episode opened at tier 3 with an ok confined diagnosis gets at most one local patch (exactly one when every guard passes and fewer than 5 kept keys remain under `<lp>`, else `local_patch_skipped:cap_reached`): branch `autopus/band/<key>`, worktree `<lp>/<key>/worktree/`, patch file `<lp>/<key>.patch` with `<lp>` = `<UserCacheDir>/autopus/local-patches/<repo-hash>` outside the repository, a pointer in the 3σ BS, nothing remote, and no repository-selected command run by band. A repository whose orchestra providers are all OMP-backed gets the same with `health_band.local_patch_provider: claude`, while orchestra keeps its backend.
-- Mandatory requirements: REQ-01–REQ-15.
 - Explicit non-goals: push, fetch, PR, remote refs, GitHub write APIs, CI, automatic tests or builds, agent write access, patches for episodes that reached tier 3 after a tier-2 BS, OMP backend confinement, changing an orchestra provider's backend, reviewer-side execution (warned in the BS), anything SPEC-SIGMABAND-001 owns.
-- Completion evidence: S1–S15 pass, Completion Debt CD-3 resolved (CD-1 and CD-2 closed by probes A3 and A1, 2026-10-08), security-auditor review passed, 0 remote writes in every run, and no file under the repository root outside `.git/` changes except the BS and `.autopus/metrics/` records, with only the REQ-14 changes inside `.git/`.
+- Completion evidence (mandatory requirements REQ-01–REQ-15): S1–S15 pass, Completion Debt CD-3 resolved (CD-1 and CD-2 closed by probes A3 and A1, 2026-10-08), security-auditor review passed, 0 remote writes in every run, and no file under the repository root outside `.git/` changes except the BS and `.autopus/metrics/` records, with only the REQ-14 changes inside `.git/`.
 
 ## Visual Planning Brief
 
@@ -118,6 +117,7 @@ Residual risks, not blockers (follow-ups for a later revision; RR-1, real git-lf
 | RR-4 | CD-3 verify N4: Patch Policy item 7 checks the added lines that band's hunk count finds, not the lines that `git apply --cached` staged | re-run item 7 at step 8 over `git diff --cached` of the temp index against the base tree |
 | RR-5 | the step-1 retention recount is not atomic with the worktree add, so band runs that share `<lp>` and check out at once can overshoot the cap of 5 | hold one `<lp>`-wide lock from the recount to `worktree_intent` |
 | RR-6 | outside this SPEC: the agy (gemini) subprocess spec-review lane returned empty output twice, with stderr `--mode plan has no effect while slash command expansion is disabled` | none here; the orchestra provider adapters own it |
+| RR-7 | Phase 4 security L3: Patch Policy item 6 does not deny an allowed source path that a build runs, such as a Rust proc-macro crate, a Cargo `build =` target other than `build.rs`, or a Gradle `includeBuild` directory other than `build-logic/` and `buildSrc/` | band never builds or runs the change; the BS reviewer warning and the run-output warning tell the reviewer to read the whole patch before any build; a later revision may read Cargo and Gradle manifests at the base to deny those paths |
 
 ## Open Questions
 
