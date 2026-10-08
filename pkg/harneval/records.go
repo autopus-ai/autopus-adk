@@ -51,9 +51,32 @@ type Session struct {
 	Records     []Record
 }
 
+// Stages a black-box trial reaches in order (SPEC-HARNEVAL-003 REQ-HR-08):
+// workspace setup, the agent, the artifact build, the artifact run, and the
+// trusted oracle harness.
+const (
+	StageSetup  = "setup"
+	StageAgent  = "agent"
+	StageBuild  = "build"
+	StageRun    = "run"
+	StageOracle = "oracle"
+)
+
+// Signals only a black-box trial records (REQ-HR-08); every one is a fail.
+const (
+	SignalArtifactBuildFailed = "artifact_build_failed"
+	SignalOracleHarnessError  = "oracle_harness_error"
+	SignalArtifactTimeout     = "artifact_timeout"
+	SignalOutputLinkRejected  = "output_link_rejected"
+	SignalOutputTooLarge      = "output_too_large"
+	SignalExpectationMismatch = "expectation_mismatch"
+)
+
 // Protocol is the harness_golden_live_protocol.v1 document frozen before the
 // first trial. Policy is the manifest live policy; corpus_digests and
-// prompt_layers are carried for the signed lane and never read here.
+// prompt_layers are carried for the signed lane and never read here. The last
+// five fields are written only by the signed lane, which needs all of them
+// (SPEC-HARNEVAL-003 Wire Contracts); a maintainer-host session has none.
 type Protocol struct {
 	SchemaVersion          string            `json:"schema_version,omitempty"`
 	SessionID              string            `json:"session_id"`
@@ -73,6 +96,11 @@ type Protocol struct {
 	Model                  string            `json:"model"`
 	Order                  []Attempt         `json:"order"`
 	PromptLayers           []json.RawMessage `json:"prompt_layers"`
+	RunID                  int64             `json:"run_id,omitempty"`
+	RunAttempt             int               `json:"run_attempt,omitempty"`
+	BindingDigest          string            `json:"binding_digest,omitempty"`
+	BaselineCommit         string            `json:"baseline_commit,omitempty"`
+	RunnerTreeDigest       string            `json:"runner_tree_digest,omitempty"`
 }
 
 // Attempt is one scheduled trial of the protocol order.
@@ -108,17 +136,37 @@ type CalibrationTask struct {
 }
 
 // Record is one harness_golden_live_record.v1 line of records.jsonl. Oracle
-// is never nil in a decoded record.
+// is never nil in a decoded record. The last three fields are the black-box
+// observation the trusted runner records for a signed-lane trial
+// (SPEC-HARNEVAL-003 Wire Contracts); a SPEC-HARNEVAL-001 record has none,
+// and a black-box record has StageReached and AgentTermination. The oracle
+// result digest is set only for a trial that reached the oracle and got a
+// result file from it.
 type Record struct {
-	SchemaVersion string             `json:"schema_version,omitempty"`
-	SessionID     string             `json:"session_id"`
-	TaskID        string             `json:"task_id"`
-	Arm           string             `json:"arm"`
-	Trial         int                `json:"trial"`
-	Outcome       string             `json:"outcome"`
-	Signal        string             `json:"signal"`
-	Oracle        *OracleObservation `json:"oracle"`
-	DurationS     float64            `json:"duration_s"`
+	SchemaVersion      string             `json:"schema_version,omitempty"`
+	SessionID          string             `json:"session_id"`
+	TaskID             string             `json:"task_id"`
+	Arm                string             `json:"arm"`
+	Trial              int                `json:"trial"`
+	Outcome            string             `json:"outcome"`
+	Signal             string             `json:"signal"`
+	Oracle             *OracleObservation `json:"oracle"`
+	DurationS          float64            `json:"duration_s"`
+	OracleResultSHA256 *string            `json:"oracle_result_sha256,omitempty"`
+	StageReached       string             `json:"stage_reached,omitempty"`
+	AgentTermination   *AgentTermination  `json:"agent_termination,omitempty"`
+}
+
+// AgentTermination is how the agent process of a black-box trial ended, as
+// the trusted runner normalizes it: an agent that never started has only
+// nulls and false; one that ended by a signal has a null exit code and the
+// signal name. TimedOut says the runner ended it at the trial timeout,
+// whatever the ending looks like.
+type AgentTermination struct {
+	Launched bool    `json:"launched"`
+	ExitCode *int    `json:"exit_code"`
+	OSSignal *string `json:"os_signal"`
+	TimedOut bool    `json:"timed_out"`
 }
 
 // OracleObservation is what the trusted parser saw in the grader output. Ran
@@ -184,7 +232,10 @@ func DecodeProtocol(data []byte) (Protocol, error) {
 	if err := strictDecode(data, &protocol); err != nil {
 		return protocol, err
 	}
-	return protocol, validateProtocol(&protocol)
+	if err := validateProtocol(&protocol); err != nil {
+		return protocol, err
+	}
+	return protocol, validateSignedLane(protocol)
 }
 
 // DecodeCalibration strictly decodes and validates a calibration.json document.
@@ -209,6 +260,9 @@ func DecodeRecords(data []byte) ([]Record, error) {
 		err := strictDecode([]byte(line), &record)
 		if err == nil {
 			err = validateRecord(record)
+		}
+		if err == nil {
+			err = validateBlackBox(record)
 		}
 		if err != nil {
 			return nil, withPath(err, fmt.Sprintf("%s:%d", RecordsFile, index+1))
