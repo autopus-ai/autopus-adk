@@ -141,8 +141,12 @@ func (s *Store) AppendAtomic(entryType EntryType, opts RecordOpts) error {
 	if err != nil {
 		return fmt.Errorf("next id: %w", err)
 	}
+	return s.appendUnlocked(newEntry(id, entryType, opts))
+}
 
-	entry := LearningEntry{
+// newEntry is the entry AppendAtomic writes for opts, stamped now.
+func newEntry(id string, entryType EntryType, opts RecordOpts) LearningEntry {
+	return LearningEntry{
 		ID:         id,
 		Timestamp:  time.Now(),
 		Type:       entryType,
@@ -157,15 +161,14 @@ func (s *Store) AppendAtomic(entryType EntryType, opts RecordOpts) error {
 		Repro:      opts.Repro,
 		Severity:   opts.Severity,
 	}
-	return s.appendUnlocked(entry)
 }
 
 // redactEntry is the store's first-write boundary: every byte Append and
 // AppendAtomic persist passes through it. Evidence fields are validated and
-// redacted in the REQ-HC-01 order (a rejection writes nothing), then the other
-// free-text fields are redacted. Files and packages stay verbatim because they
-// are fingerprint input. rewriteStore never calls this, so a stored value and
-// its fingerprint do not change when prune re-encodes the entry.
+// redacted in the REQ-HC-01 order and the verbatim fields are checked (a
+// rejection writes nothing), then the other free-text fields are redacted.
+// rewriteStore never calls this, so a stored value and its fingerprint do not
+// change when prune re-encodes the entry.
 func redactEntry(entry LearningEntry) (LearningEntry, error) {
 	evidence := []struct {
 		field EvidenceField
@@ -182,10 +185,37 @@ func redactEntry(entry LearningEntry) (LearningEntry, error) {
 		}
 		*ev.value = redacted
 	}
+	if err := checkVerbatim(entry); err != nil {
+		return LearningEntry{}, err
+	}
 	for _, text := range []*string{&entry.Pattern, &entry.Resolution, &entry.Phase, &entry.SpecID} {
 		*text, _ = secretscan.Redact(*text)
 	}
 	return entry, nil
+}
+
+// checkVerbatim refuses the fields the writer stores as given: a severity
+// outside the enum, and a files or packages item that redaction would change.
+// Files and packages are fingerprint input, so they are refused rather than
+// redacted.
+func checkVerbatim(entry LearningEntry) error {
+	switch entry.Severity {
+	case "", SeverityLow, SeverityMedium, SeverityHigh, SeverityCritical:
+	default:
+		return &FieldError{Field: FieldSeverity, Detail: DetailUnknownValue}
+	}
+	lists := []struct {
+		field EvidenceField
+		items []string
+	}{{FieldFiles, entry.Files}, {FieldPackages, entry.Packages}}
+	for _, list := range lists {
+		for _, item := range list.items {
+			if redactSecrets(item) != item {
+				return &FieldError{Field: list.field, Detail: DetailNeedsRedaction}
+			}
+		}
+	}
+	return nil
 }
 
 // UpdateReuseCount increments reuse_count for the entry with the given ID.

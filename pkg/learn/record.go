@@ -12,10 +12,14 @@ import (
 const ReasonFieldInvalid = "learning_field_invalid"
 
 // Details of a ReasonFieldInvalid rejection, one per failing validation step.
+// A verbatim field is a severity outside the enum (DetailUnknownValue) or a
+// files or packages item that redaction would change (DetailNeedsRedaction).
 const (
 	DetailControlChar           = "control_char"
 	DetailRawOverLimit          = "raw_over_limit"
 	DetailOverCapAfterRedaction = "over_cap_after_redaction"
+	DetailUnknownValue          = "unknown_value"
+	DetailNeedsRedaction        = "needs_redaction"
 )
 
 // rawLimitFactor bounds a raw value before redaction runs, so an oversized
@@ -29,6 +33,14 @@ const (
 	FieldExpected EvidenceField = "expected"
 	FieldActual   EvidenceField = "actual"
 	FieldRepro    EvidenceField = "repro"
+)
+
+// Fields the store writer keeps verbatim instead of redacting. They have no
+// cap; a FieldError names them when the writer refuses their value.
+const (
+	FieldSeverity EvidenceField = "severity"
+	FieldFiles    EvidenceField = "files"
+	FieldPackages EvidenceField = "packages"
 )
 
 // Cap returns the byte cap of the redacted value. An unknown field has cap 0,
@@ -115,6 +127,13 @@ func HasControlChar(s string, layout bool) bool {
 func redactSecrets(s string) string {
 	out, _ := secretscan.Redact(s)
 	return out
+}
+
+// CheckRecordOpts runs the store writer's checks on opts without writing, so
+// a caller can refuse invalid input before it touches the project.
+func CheckRecordOpts(opts RecordOpts) error {
+	_, err := redactEntry(newEntry("", "", opts))
+	return err
 }
 
 func recordEntry(store *Store, entryType EntryType, opts RecordOpts) error {

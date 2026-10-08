@@ -46,22 +46,6 @@ func newLearnRecordCmd() *cobra.Command {
 				shown, _ := secretscan.Redact(entryType)
 				return fmt.Errorf("unknown type %q: must be one of gate_fail, coverage_gap, review_issue, executor_error, fix_pattern", shown)
 			}
-			// Refuse an invalid evidence value before touching the project:
-			// the store writer repeats the same checks on every write.
-			if err := validateEvidenceFlags(expected, actual, repro); err != nil {
-				return err
-			}
-
-			cwd, err := os.Getwd()
-			if err != nil {
-				return fmt.Errorf("get working directory: %w", err)
-			}
-
-			store, err := learn.NewStore(cwd)
-			if err != nil {
-				return fmt.Errorf("open store: %w", err)
-			}
-
 			opts := learn.RecordOpts{
 				Phase:      phase,
 				SpecID:     specID,
@@ -73,6 +57,21 @@ func newLearnRecordCmd() *cobra.Command {
 				Actual:     actual,
 				Repro:      repro,
 				Severity:   learn.Severity(severity),
+			}
+			// Refuse an invalid value before touching the project: the store
+			// writer repeats the same checks on every write.
+			if err := learn.CheckRecordOpts(opts); err != nil {
+				return err
+			}
+
+			cwd, err := os.Getwd()
+			if err != nil {
+				return fmt.Errorf("get working directory: %w", err)
+			}
+
+			store, err := learn.NewStore(cwd)
+			if err != nil {
+				return fmt.Errorf("open store: %w", err)
 			}
 
 			if err := recordFn(store, opts); err != nil {
@@ -95,8 +94,8 @@ func newLearnRecordCmd() *cobra.Command {
 	cmd.Flags().StringVar(&pattern, "pattern", "", "Pattern description")
 	cmd.Flags().StringVar(&phase, "phase", "", "Pipeline phase")
 	cmd.Flags().StringVar(&specID, "spec-id", "", "Related SPEC ID")
-	cmd.Flags().StringSliceVar(&files, "files", nil, "Related file paths")
-	cmd.Flags().StringSliceVar(&packages, "packages", nil, "Related package names")
+	cmd.Flags().StringSliceVar(&files, "files", nil, "Related repo-relative file paths, stored as given; a value secret redaction would change is refused")
+	cmd.Flags().StringSliceVar(&packages, "packages", nil, "Related package names, stored as given; a value secret redaction would change is refused")
 	cmd.Flags().StringVar(&resolution, "resolution", "", "Resolution applied")
 	cmd.Flags().StringVar(&severity, "severity", "", "Severity (low|medium|high|critical)")
 	cmd.Flags().StringVar(&expected, "expected", "", "Expected behaviour; no control characters, at most 1024 bytes after secret redaction")
@@ -107,23 +106,4 @@ func newLearnRecordCmd() *cobra.Command {
 	_ = cmd.MarkFlagRequired("pattern")
 
 	return cmd
-}
-
-// validateEvidenceFlags applies the store's evidence checks to the flag values
-// and returns the first *learn.FieldError (reason learning_field_invalid).
-func validateEvidenceFlags(expected, actual, repro string) error {
-	values := []struct {
-		field learn.EvidenceField
-		value string
-	}{
-		{learn.FieldExpected, expected},
-		{learn.FieldActual, actual},
-		{learn.FieldRepro, repro},
-	}
-	for _, v := range values {
-		if _, _, err := learn.RedactEvidenceField(v.field, v.value); err != nil {
-			return err
-		}
-	}
-	return nil
 }

@@ -22,7 +22,7 @@ func TestStoreWriter_RedactsEveryFreeTextField(t *testing.T) {
 	require.NoError(t, store.AppendAtomic(EntryTypeReviewIssue, RecordOpts{
 		Phase:      "review " + token,
 		SpecID:     token,
-		Files:      []string{"/Users/alice/pkg/a.go"},
+		Files:      []string{"pkg/content/a.go"},
 		Packages:   []string{"pkg/content"},
 		Pattern:    "p " + token,
 		Resolution: "rotated " + token,
@@ -44,8 +44,9 @@ func TestStoreWriter_RedactsEveryFreeTextField(t *testing.T) {
 	assert.Equal(t, "no "+redactedSecret, got.Expected)
 	assert.Equal(t, redactedSecret+" leaked", got.Actual)
 	assert.Equal(t, "auto init --token "+redactedSecret, got.Repro)
-	// Files and packages feed the fingerprint and stay verbatim.
-	assert.Equal(t, []string{"/Users/alice/pkg/a.go"}, got.Files)
+	// Files and packages feed the fingerprint and stay verbatim; a value
+	// redaction would change is refused instead (store_fields_test.go).
+	assert.Equal(t, []string{"pkg/content/a.go"}, got.Files)
 	assert.Equal(t, []string{"pkg/content"}, got.Packages)
 }
 
