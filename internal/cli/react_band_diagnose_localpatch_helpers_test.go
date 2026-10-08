@@ -42,9 +42,9 @@ type dlpFakeClaude struct{ logs string }
 func installDLPFakeClaude(t *testing.T) dlpFakeClaude {
 	t.Helper()
 	bin, logs := t.TempDir(), t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(bin, "claude"), []byte(dlpFakeClaudeScript), 0o755))
+	script := lpBakeShellVars(dlpFakeClaudeScript, map[string]string{"DLP_FAKE_LOG": logs})
+	require.NoError(t, os.WriteFile(filepath.Join(bin, "claude"), []byte(script), 0o755))
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
-	t.Setenv("DLP_FAKE_LOG", logs)
 	return dlpFakeClaude{logs: logs}
 }
 

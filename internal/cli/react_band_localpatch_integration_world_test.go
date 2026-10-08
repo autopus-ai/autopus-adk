@@ -96,7 +96,7 @@ case "$1 $2" in
 "auth status") exit 0;;
 "api repos/acme/app") echo main; exit 0;;
 "run list") cat "$LPIT_GH/runs.json"; exit 0;;
-"run view") echo "step 3 failed: TestFoo in pkg/foo/foo.go (run $3)"; exit 0;;
+"run view") if [ -f "$LPIT_GH/log.txt" ]; then cat "$LPIT_GH/log.txt"; else echo "step 3 failed: TestFoo in pkg/foo/foo.go (run $3)"; fi; exit 0;;
 esac
 exit 1
 `
@@ -195,7 +195,10 @@ func (w *lpitWorld) markerHook(name string) string {
 // inherited variables that band must keep from git and from the provider.
 func (w *lpitWorld) installFakes() {
 	w.writeAbs(filepath.Join(w.bin, "git"), lpitGitWrapper, 0o755)
-	w.writeAbs(filepath.Join(w.bin, "claude"), lpitFakeClaude, 0o755)
+	// The confined environment is an allowlist: the fake claude carries the
+	// record directories and the real git that its hooks use.
+	w.writeAbs(filepath.Join(w.bin, "claude"), lpBakeShellVars(lpitFakeClaude,
+		map[string]string{"LPIT_CLAUDE": w.claude, "LPIT_GITREC": w.gitrec, "LPIT_REALGIT": w.realGit}), 0o755)
 	w.writeAbs(filepath.Join(w.bin, "gh"), lpitFakeGH, 0o755)
 	w.writeAbs(filepath.Join(w.gh, "runs.json"), ghPayload(w.t, bandITRows("CI", bandITRuns(959, bandO3Values))...), 0o600)
 	for key, value := range map[string]string{

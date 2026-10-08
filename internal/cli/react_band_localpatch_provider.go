@@ -24,6 +24,21 @@ import (
 // bandClaudeModelIDPattern is the model rule's form of a full claude ID.
 var bandClaudeModelIDPattern = regexp.MustCompile(`^claude-[a-z0-9][a-z0-9.-]*$`)
 
+// bandConfinedKeepEnv is the allowlist of a confined request's environment
+// (Provider Contract item 6): the process, locale, terminal, and XDG
+// variables, the claude configuration directory and its headless OAuth
+// token, the proxy variables in both letter cases, and the TLS trust
+// variables. Every other inherited variable is dropped, so the markers,
+// socket, and token of an agent session that runs band (CLAUDECODE,
+// CLAUDE_CODE_*, ORCA_*), an IDE or MCP bridge, NODE_OPTIONS, an SSH agent,
+// and an API key never reach the confined claude.
+var bandConfinedKeepEnv = []string{
+	"PATH", "HOME", "USER", "LOGNAME", "SHELL", "TMPDIR", "LANG", "LC_*", "TERM", "TZ", "XDG_*",
+	"CLAUDE_CONFIG_DIR", "CLAUDE_CODE_OAUTH_TOKEN",
+	"HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy",
+	"SSL_CERT_FILE", "SSL_CERT_DIR", "NODE_EXTRA_CA_CERTS",
+}
+
 // bandConfinedProvider selects, projects, and runs the confined provider.
 type bandConfinedProvider struct {
 	harness *config.HarnessConfig
@@ -128,14 +143,16 @@ func bandRequestedModel(args []string) string {
 }
 
 // request runs one confined request with workDir, a band worktree, as the
-// only working directory, without the variables of bandProviderUnsetEnv and
-// without any GIT_* variable, and with no backend route registered. The
-// stream is bounded at bandProviderStreamBytes while the provider runs. The
-// fast-fail substring rules are off: stream-json carries tool results, which
-// are repository text. It returns the parsed stream and 001's REQ-12 reason
-// of a failed run.
+// only working directory, with only the variables of bandConfinedKeepEnv
+// (001's bandProviderUnsetEnv and GIT_* stay on the unset list as a second
+// guard), and with no backend route registered, the one path that honors
+// KeepEnv. The stream is bounded at bandProviderStreamBytes while the
+// provider runs. The fast-fail substring rules are off: stream-json carries
+// tool results, which are repository text. It returns the parsed stream and
+// 001's REQ-12 reason of a failed run.
 func (c bandConfinedProvider) request(ctx context.Context, provider orchestra.ProviderConfig, workDir, prompt, kind string) (bandConfinedReply, string) {
 	provider.WorkDir, provider.ExecutionTimeout = workDir, c.timeout
+	provider.KeepEnv = bandConfinedKeepEnv
 	provider.UnsetEnv = append(slices.Clone(bandProviderUnsetEnv), "GIT_*")
 	provider.MaxOutputBytes = bandProviderStreamBytes + 1
 	provider.FastFailPatterns = []orchestra.FastFailRule{}

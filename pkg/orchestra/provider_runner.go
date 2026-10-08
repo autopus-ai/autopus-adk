@@ -32,7 +32,7 @@ func runProvider(ctx context.Context, provider ProviderConfig, prompt string) (*
 	defer cleanupLastMessage()
 
 	cmd := newCommand(ctx, provider.Binary, args...)
-	if err := applyProviderEnv(cmd, provider.UnsetEnv); err != nil {
+	if err := applyProviderEnv(cmd, provider.KeepEnv, provider.UnsetEnv); err != nil {
 		return nil, err
 	}
 	cmd.SetDir(provider.WorkDir)

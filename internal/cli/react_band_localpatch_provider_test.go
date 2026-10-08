@@ -137,11 +137,12 @@ func installLPFakeClaude(t *testing.T) lpFakeClaude {
 		t.Skip("the fake claude binary is a POSIX shell script")
 	}
 	bin, logs := t.TempDir(), t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(bin, "claude"), []byte(lpFakeClaudeScript), 0o755))
 	fake := lpFakeClaude{logs: logs, stream: filepath.Join(logs, "stream.jsonl")}
+	// The confined environment is an allowlist, so the script carries its
+	// own paths instead of reading them from the environment.
+	script := lpBakeShellVars(lpFakeClaudeScript, map[string]string{"LP_FAKE_LOG": logs, "LP_FAKE_STREAM": fake.stream})
+	require.NoError(t, os.WriteFile(filepath.Join(bin, "claude"), []byte(script), 0o755))
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
-	t.Setenv("LP_FAKE_LOG", logs)
-	t.Setenv("LP_FAKE_STREAM", fake.stream)
 	return fake
 }
 

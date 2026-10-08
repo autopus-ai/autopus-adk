@@ -69,6 +69,12 @@ type ProviderConfig struct {
 	// subprocess path and on routed backends that honor it; empty inherits
 	// the whole environment.
 	UnsetEnv []string
+	// KeepEnv, when not empty, names the only inherited environment
+	// variables (exact names, letter case included; a trailing * names a
+	// prefix) the provider process starts with on the subprocess path, and
+	// UnsetEnv still drops from what it keeps. Routed backends do not read
+	// it, so a caller that sets it registers no backend route.
+	KeepEnv []string
 	// MaxOutputBytes bounds what stdout and stderr each keep while the
 	// subprocess runs; later bytes are drained and dropped. Zero uses the
 	// package bound of every provider stream (fastFailBufferCap).
