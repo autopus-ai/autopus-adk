@@ -1,6 +1,6 @@
 # SPEC-HARNEVAL-002: Learning·incident를 golden-task 후보로 승격
 
-**Status**: approved
+**Status**: implemented
 **Created**: 2026-10-06
 **Domain**: HARNEVAL
 **Module**: autopus-adk
