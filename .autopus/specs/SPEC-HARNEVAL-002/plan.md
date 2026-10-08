@@ -4,19 +4,19 @@
 
 선행 조건: SPEC-HARNEVAL-001 rev 3의 T1(loader, manifest), T2(hermetic 생성·sentinel), T3(assertion), T4(digest·비교), T5(stale templates), T6(`auto eval harness` 골격)이 merge되어 있어야 한다. T1-T3은 001 없이 시작할 수 있다.
 
-- [ ] T1: `pkg/learn/types.go`, `record.go`, `internal/cli/learn_record.go` — `expected`/`actual`/`repro` 필드와 flag, cap·제어 문자 검증 (REQ-HC-01).
-- [ ] T2: `[NEW] pkg/secretscan`. qa detector 14개와 worker 기본 패턴 11개를 원문에 모두 실행해 span을 모으고 병합한 뒤 한 번만 가리는 `Redact`를 만든다. `[NEW] evidence.SecretDetectorSources()`·`security.DefaultPatternSources()` accessor와 출처 일치 drift test, superset·조각 잔존 test를 둔다. `pkg/learn` 쓰기 함수의 일곱 field redaction, `rewriteStore`의 skip 줄 redaction, `learn_record.go` 출력 가림, `auto-workflows.md.tmpl` L2359 직접 append fallback 제거, L2671-2674 Sync Target 4.5를 `--days 90`과 직접 수정 금지로 교체, static test. template 줄을 단언하는 기존 test가 없는지 grep으로 확인 (REQ-HC-01).
-- [ ] T3: `[NEW] pkg/harneval/intake/fingerprint.go` — 고정 순서 정규화, `v` 1, scanner 미사용 (REQ-HC-02).
-- [ ] T4: `[NEW] pkg/harneval/intake/candidate.go`, `intake.go` — 선택·숫자 순서·grouping·대표 규칙·eligible·중복(후보, link, 거절, task)·충돌·재검증·재redaction·canonical encoding·행 결과와 종료 코드 (REQ-HC-03, REQ-HC-04, REQ-HC-05).
-- [ ] T5: `[NEW] pkg/harneval/intake/safepath.go`, `safepath_unix.go`, `safepath_windows.go` — id 형식, `os.Root`와 `Root.Lstat` 구성 요소 검사, regular file, `O_EXCL` 생성, unix 디렉터리 fsync, Windows 쓰기 `platform_unsupported`, windows build tag test. 모든 intake 영역 입출력이 이 helper를 지난다 (REQ-HC-11).
-- [ ] T6: `[NEW] internal/cli/eval_harness_intake.go`와 `internal/cli/eval_harness.go` 등록 줄 — flag 조합 검사, JSON stdout·안내 stderr (REQ-HC-03, REQ-HC-04, REQ-HC-05).
-- [ ] T7: `[NEW] pkg/harneval/intake/promote.go`, `publish.go`, `[NEW] internal/cli/eval_harness_promote.go` — 1~9 검사(게시 전 `active_set_invalid` 포함), 10 task 게시(temp 이름 규칙, `Root.OpenFile`·`Root.Link`·`Root.Remove`, fsync), 11 사후 검사와 task만 지우는 rollback, 12 link 게시, 13 후보 삭제, 중단 지점별 재실행, `current_outcome` (REQ-HC-06).
-- [ ] T8: `[NEW] pkg/harneval/intake/reject.go`, `[NEW] internal/cli/eval_harness_reject.go` — 거절 record 게시와 후보 삭제 (REQ-HC-10).
-- [ ] T9: `[NEW] pkg/harneval/intake/links.go`, `pkg/learn/prune.go::PruneExcept`, `internal/cli/learn_prune.go` — lock 안 callback, 파일 범위, 관대한 task 읽기, fail-closed, K 출력 (REQ-HC-07).
-- [ ] T10: `[NEW] pkg/harneval/intake/isolation_test.go` — 001 run 결과 동일성과 `go list -deps ./pkg/harneval` closure 검사 (REQ-HC-08).
-- [ ] T11: `evals/harness/README.md` intake 절과 세 명령 help text (REQ-HC-09).
-- [ ] T13: `.github/workflows/ci.yaml`. ubuntu `test` job에 `GOOS=windows GOARCH=amd64 go vet ./pkg/harneval/intake/`를 더한다. 기존 `windows-runtime` job에는 그 job의 규약대로 step을 더한다. `go test -list 'PlatformUnsupported' ./pkg/harneval/intake/`로 floor 1 이상을 확인하고, `-v` 실행 뒤 PASS 집합을 목록과 비교한다. `[NEW] internal/cli/eval_harness_intake_workflow_test.go`가 이 step을 단언한다. 새 action과 `version: latest`가 없고 omp-native-smoke 구간 밖이며, ci.yaml을 읽는 기존 test 8개가 수정 없이 통과한다 (REQ-HC-11).
-- [ ] T12: 회귀 검증. `go test ./pkg/learn/... ./pkg/secretscan/... ./pkg/qa/evidence/... ./pkg/worker/security/... ./pkg/harneval/...`는 필터 없이 전체를 돌린다. 여기에 `go test ./internal/cli -run 'Learn|EvalHarness'`, `GOOS=windows GOARCH=amd64 go build ./...`, `GOOS=windows go test -c ./pkg/harneval/intake/`를 더한다. 기존 test 변경 0건과 coverage 85% 이상을 확인한다.
+- [x] T1: `pkg/learn/types.go`, `record.go`, `internal/cli/learn_record.go` — `expected`/`actual`/`repro` 필드와 flag, cap·제어 문자 검증 (REQ-HC-01).
+- [x] T2: `[NEW] pkg/secretscan`. qa detector 14개와 worker 기본 패턴 11개를 원문에 모두 실행해 span을 모으고 병합한 뒤 한 번만 가리는 `Redact`를 만든다. `[NEW] evidence.SecretDetectorSources()`·`security.DefaultPatternSources()` accessor와 출처 일치 drift test, superset·조각 잔존 test를 둔다. `pkg/learn` 쓰기 함수의 일곱 field redaction, `rewriteStore`의 skip 줄 redaction, `learn_record.go` 출력 가림, `auto-workflows.md.tmpl` L2359 직접 append fallback 제거, L2671-2674 Sync Target 4.5를 `--days 90`과 직접 수정 금지로 교체, static test. template 줄을 단언하는 기존 test가 없는지 grep으로 확인 (REQ-HC-01).
+- [x] T3: `[NEW] pkg/harneval/intake/fingerprint.go` — 고정 순서 정규화, `v` 1, scanner 미사용 (REQ-HC-02).
+- [x] T4: `[NEW] pkg/harneval/intake/candidate.go`, `intake.go` — 선택·숫자 순서·grouping·대표 규칙·eligible·중복(후보, link, 거절, task)·충돌·재검증·재redaction·canonical encoding·행 결과와 종료 코드 (REQ-HC-03, REQ-HC-04, REQ-HC-05).
+- [x] T5: `[NEW] pkg/harneval/intake/safepath.go`, `safepath_unix.go`, `safepath_windows.go` — id 형식, `os.Root`와 `Root.Lstat` 구성 요소 검사, regular file, `O_EXCL` 생성, unix 디렉터리 fsync, Windows 쓰기 `platform_unsupported`, windows build tag test. 모든 intake 영역 입출력이 이 helper를 지난다 (REQ-HC-11).
+- [x] T6: `[NEW] internal/cli/eval_harness_intake.go`와 `internal/cli/eval_harness.go` 등록 줄 — flag 조합 검사, JSON stdout·안내 stderr (REQ-HC-03, REQ-HC-04, REQ-HC-05).
+- [x] T7: `[NEW] pkg/harneval/intake/promote.go`, `publish.go`, `[NEW] internal/cli/eval_harness_promote.go` — 1~9 검사(게시 전 `active_set_invalid` 포함), 10 task 게시(temp 이름 규칙, `Root.OpenFile`·`Root.Link`·`Root.Remove`, fsync), 11 사후 검사와 task만 지우는 rollback, 12 link 게시, 13 후보 삭제, 중단 지점별 재실행, `current_outcome` (REQ-HC-06).
+- [x] T8: `[NEW] pkg/harneval/intake/reject.go`, `[NEW] internal/cli/eval_harness_reject.go` — 거절 record 게시와 후보 삭제 (REQ-HC-10).
+- [x] T9: `[NEW] pkg/harneval/intake/links.go`, `pkg/learn/prune.go::PruneExcept`, `internal/cli/learn_prune.go` — lock 안 callback, 파일 범위, 관대한 task 읽기, fail-closed, K 출력 (REQ-HC-07).
+- [x] T10: `[NEW] pkg/harneval/intake/isolation_test.go` — 001 run 결과 동일성과 `go list -deps ./pkg/harneval` closure 검사 (REQ-HC-08).
+- [x] T11: `evals/harness/README.md` intake 절과 세 명령 help text (REQ-HC-09).
+- [x] T13: `.github/workflows/ci.yaml`. ubuntu `test` job에 `GOOS=windows GOARCH=amd64 go vet ./pkg/harneval/intake/`를 더한다. 기존 `windows-runtime` job에는 그 job의 규약대로 step을 더한다. `go test -list 'PlatformUnsupported' ./pkg/harneval/intake/`로 floor 1 이상을 확인하고, `-v` 실행 뒤 PASS 집합을 목록과 비교한다. `[NEW] internal/cli/eval_harness_intake_workflow_test.go`가 이 step을 단언한다. 새 action과 `version: latest`가 없고 omp-native-smoke 구간 밖이며, ci.yaml을 읽는 기존 test 8개가 수정 없이 통과한다 (REQ-HC-11).
+- [x] T12: 회귀 검증. `go test ./pkg/learn/... ./pkg/secretscan/... ./pkg/qa/evidence/... ./pkg/worker/security/... ./pkg/harneval/...`는 필터 없이 전체를 돌린다. 여기에 `go test ./internal/cli -run 'Learn|EvalHarness'`, `GOOS=windows GOARCH=amd64 go build ./...`, `GOOS=windows go test -c ./pkg/harneval/intake/`를 더한다. 기존 test 변경 0건과 coverage 85% 이상을 확인한다.
 
 ## Implementation Strategy
 
