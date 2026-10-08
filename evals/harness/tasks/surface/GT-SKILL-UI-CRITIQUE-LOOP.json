@@ -1,0 +1,189 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-SKILL-UI-CRITIQUE-LOOP",
+  "kind": "surface",
+  "category": "agent_skill_exposure",
+  "intent": "Every platform that ships the UI verification skill or the UX validator scores visual work with the same critique rubric, PASS threshold, and round cap.",
+  "outcome": "The Critique Rubric is byte-identical in frontend-verify on all five platforms (both Antigravity roots) and in ux-validator on Claude, Codex, both Antigravity roots, and OpenCode; it carries the harsh-reviewer stance, the seven-key score line, PASS only at 8 or more, and the 3-round cap that never ends in a claimed PASS. Each copy scores no-capture runs from the oracle reports with motion and design_system as n/a, and ux-validator no longer forbids numeric scores.",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "section_parity",
+      "files": [
+        {
+          "platform": "claude-code",
+          "path": ".claude/skills/frontend-verify/SKILL.md"
+        },
+        {
+          "platform": "codex",
+          "path": ".codex/skills/codex-frontend-verify/SKILL.md"
+        },
+        {
+          "platform": "antigravity-cli",
+          "path": ".agents/plugins/autopus/skills/frontend-verify/SKILL.md"
+        },
+        {
+          "platform": "antigravity-cli",
+          "path": ".gemini/skills/autopus/frontend-verify/SKILL.md"
+        },
+        {
+          "platform": "opencode",
+          "path": ".agents/skills/frontend-verify/SKILL.md"
+        },
+        {
+          "platform": "omp",
+          "path": ".omp/skills/frontend-verify/SKILL.md"
+        },
+        {
+          "platform": "claude-code",
+          "path": ".claude/agents/autopus/ux-validator.md"
+        },
+        {
+          "platform": "codex",
+          "path": ".codex/agents/ux-validator.toml"
+        },
+        {
+          "platform": "antigravity-cli",
+          "path": ".gemini/agents/autopus/ux-validator.md"
+        },
+        {
+          "platform": "antigravity-cli",
+          "path": ".agents/plugins/autopus/agents/ux-validator.md"
+        },
+        {
+          "platform": "opencode",
+          "path": ".opencode/agents/ux-validator.md"
+        }
+      ],
+      "heading": "### Critique Rubric"
+    },
+    {
+      "kind": "contains",
+      "platform": "claude-code",
+      "path": ".claude/skills/frontend-verify/SKILL.md",
+      "needle": "Be a harsh reviewer, not a proud author: score only what the evidence shows, never what the code intended."
+    },
+    {
+      "kind": "contains",
+      "platform": "claude-code",
+      "path": ".claude/skills/frontend-verify/SKILL.md",
+      "needle": "scores: hierarchy=N phone_360=N spacing=N states=N motion=N design_system=N a11y=N min=N\n"
+    },
+    {
+      "kind": "contains",
+      "platform": "claude-code",
+      "path": ".claude/skills/frontend-verify/SKILL.md",
+      "needle": "Verdict: PASS only when every scored key is 8 or more and no blocker shows;"
+    },
+    {
+      "kind": "contains",
+      "platform": "claude-code",
+      "path": ".claude/skills/frontend-verify/SKILL.md",
+      "needle": "The loop runs at most 3 rounds, and one that ends with any key below 8 reports the remaining gaps with WARN or FAIL and never claims PASS."
+    },
+    {
+      "kind": "contains",
+      "platform": "claude-code",
+      "path": ".claude/skills/frontend-verify/SKILL.md",
+      "needle": "`motion` and `design_system` have no pixel evidence and are reported as `n/a`, never as a number; the verdict applies to the scored keys."
+    },
+    {
+      "kind": "contains",
+      "platform": "codex",
+      "path": ".codex/skills/codex-frontend-verify/SKILL.md",
+      "needle": "`motion` and `design_system` have no pixel evidence and are reported as `n/a`, never as a number; the verdict applies to the scored keys."
+    },
+    {
+      "kind": "contains",
+      "platform": "antigravity-cli",
+      "path": ".agents/plugins/autopus/skills/frontend-verify/SKILL.md",
+      "needle": "`motion` and `design_system` have no pixel evidence and are reported as `n/a`, never as a number; the verdict applies to the scored keys."
+    },
+    {
+      "kind": "contains",
+      "platform": "antigravity-cli",
+      "path": ".gemini/skills/autopus/frontend-verify/SKILL.md",
+      "needle": "`motion` and `design_system` have no pixel evidence and are reported as `n/a`, never as a number; the verdict applies to the scored keys."
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": ".agents/skills/frontend-verify/SKILL.md",
+      "needle": "`motion` and `design_system` have no pixel evidence and are reported as `n/a`, never as a number; the verdict applies to the scored keys."
+    },
+    {
+      "kind": "contains",
+      "platform": "omp",
+      "path": ".omp/skills/frontend-verify/SKILL.md",
+      "needle": "`motion` and `design_system` have no pixel evidence and are reported as `n/a`, never as a number; the verdict applies to the scored keys."
+    },
+    {
+      "kind": "contains",
+      "platform": "claude-code",
+      "path": ".claude/agents/autopus/ux-validator.md",
+      "needle": "`motion` and `design_system` have no pixel evidence and are reported as `n/a`, never as a number; the verdict applies to the scored keys."
+    },
+    {
+      "kind": "contains",
+      "platform": "codex",
+      "path": ".codex/agents/ux-validator.toml",
+      "needle": "`motion` and `design_system` have no pixel evidence and are reported as `n/a`, never as a number; the verdict applies to the scored keys."
+    },
+    {
+      "kind": "contains",
+      "platform": "antigravity-cli",
+      "path": ".gemini/agents/autopus/ux-validator.md",
+      "needle": "`motion` and `design_system` have no pixel evidence and are reported as `n/a`, never as a number; the verdict applies to the scored keys."
+    },
+    {
+      "kind": "contains",
+      "platform": "antigravity-cli",
+      "path": ".agents/plugins/autopus/agents/ux-validator.md",
+      "needle": "`motion` and `design_system` have no pixel evidence and are reported as `n/a`, never as a number; the verdict applies to the scored keys."
+    },
+    {
+      "kind": "contains",
+      "platform": "opencode",
+      "path": ".opencode/agents/ux-validator.md",
+      "needle": "`motion` and `design_system` have no pixel evidence and are reported as `n/a`, never as a number; the verdict applies to the scored keys."
+    },
+    {
+      "kind": "not_contains",
+      "platform": "claude-code",
+      "path": ".claude/agents/autopus/ux-validator.md",
+      "needle": "수치 점수 없이"
+    },
+    {
+      "kind": "not_contains",
+      "platform": "codex",
+      "path": ".codex/agents/ux-validator.toml",
+      "needle": "수치 점수 없이"
+    },
+    {
+      "kind": "not_contains",
+      "platform": "antigravity-cli",
+      "path": ".gemini/agents/autopus/ux-validator.md",
+      "needle": "수치 점수 없이"
+    },
+    {
+      "kind": "not_contains",
+      "platform": "antigravity-cli",
+      "path": ".agents/plugins/autopus/agents/ux-validator.md",
+      "needle": "수치 점수 없이"
+    },
+    {
+      "kind": "not_contains",
+      "platform": "opencode",
+      "path": ".opencode/agents/ux-validator.md",
+      "needle": "수치 점수 없이"
+    }
+  ],
+  "provenance": {
+    "kind": "manual",
+    "ref": "content/skills/frontend-verify.md, content/agents/ux-validator.md, skill and agent projections"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

@@ -9,9 +9,9 @@ schema and corpus digest only. The maintainer live lane (T10-T13) runs them.
 | Path | Content |
 |------|---------|
 | `manifest.json` | `harness_golden_set.v1`: active paths, floors, live policy, pins |
-| `baseline.json` | `harness_eval_baseline.v1`, written by `auto eval harness baseline --init` on this tree; 45 rows (32 active and 1 retired surface, 12 agent) |
+| `baseline.json` | `harness_eval_baseline.v1`, written by `auto eval harness baseline --init` on this tree; 47 rows (34 active and 1 retired surface, 12 agent) |
 | `fixtures/codex-models.json` | the pinned Codex model catalog (`pins.codex_model_catalog`) |
-| `tasks/surface/*.json` | 32 active surface tasks and 1 retired tombstone |
+| `tasks/surface/*.json` | 34 active surface tasks and 1 retired tombstone |
 | `tasks/agent/*.json` | 12 active agent tasks, one per benchmark corpus task; 5 of them also carry a black-box oracle |
 | `oracles/<task id>/` | the input fixtures and expected outputs the black-box oracles pin (see Black-box oracles) |
 | `candidates/` | the SPEC-HARNEVAL-002 intake area: open candidates, `promoted/` link records, `rejected/` records; never loaded (see Incident intake) |
@@ -68,10 +68,10 @@ as a required status check on main (T14, an OPS step).
 
 | Measure | Floor | Committed |
 |---------|-------|-----------|
-| active surface tasks | 20 | 32 |
+| active surface tasks | 20 | 34 |
 | assertion platforms | 5 | 5 |
 | surface categories | 4 | 5 |
-| multi-platform or multi-path ratio | 0.60 | 31/32 = 0.97 |
+| multi-platform or multi-path ratio | 0.60 | 33/34 = 0.97 |
 | active agent tasks | 12 | 12 |
 
 Surface tasks by category:
@@ -85,7 +85,8 @@ Surface tasks by category:
   GT-PROMPT-DELEGATION-RULE, GT-PROMPT-SHELL-PORTABILITY, GT-PROMPT-REVIEW-CONVERGENCE,
   GT-PROMPT-PROJECT-IDENTITY
 - `agent_skill_exposure`: GT-AGENT-READONLY-REVIEW, GT-AGENT-PIPELINE-ROLES, GT-SKILL-CORE-CATALOG,
-  GT-SKILL-CLAUDE-NATIVE-ORCHESTRATION, GT-SKILL-CODEX-PLUGIN-ENTRY
+  GT-SKILL-CLAUDE-NATIVE-ORCHESTRATION, GT-SKILL-CODEX-PLUGIN-ENTRY, GT-SKILL-UI-CRITIQUE-LOOP,
+  GT-SKILL-UI-VISUAL-DETERMINISM
 - `generated_root_hygiene`: GT-HYGIENE-MANAGED-BLOCKS, GT-HYGIENE-SHARED-AGENTS-ROOT,
   GT-HYGIENE-REFERENCE-INTEGRITY, GT-HYGIENE-GENERATED-SURFACE-SAFETY
 
