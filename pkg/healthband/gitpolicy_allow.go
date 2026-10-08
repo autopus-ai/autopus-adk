@@ -51,6 +51,9 @@ var gitPolicyForms = []gitPolicyForm{
 	{tokens: []string{"check-ref-format", "--branch", "<branch>"}},
 	{tokens: []string{"ls-tree", "-r", "-l", "-z", "<oid>"}},
 	{tokens: []string{"ls-tree", "-r", "-z", "--name-only", "<oid>"}},
+	// The base listing with modes of Patch Policy items 3-4 (folded
+	// collisions against every tracked path and directory).
+	{tokens: []string{"ls-tree", "-r", "-z", "<oid>"}},
 	{tokens: []string{"ls-tree", "-z", "<oid>", "--", "<literal-path>"}},
 	{tokens: []string{"check-attr", "-z", "<source>", "filter", "--", gitPolicyPathsToken}},
 	{tokens: []string{"apply", "--numstat", "--summary", "-z", "--check"}},
