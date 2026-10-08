@@ -40,7 +40,8 @@ func TestReactBandLocalPatch_PhaseAAppendFails_HandsOverNoExecutor(t *testing.T)
 	assert.NotContains(t, w.worktrees(), w.lp(), "0 worktree invocations")
 	assert.Empty(t, w.fake.record(t, "calls"), "no patch request")
 	_, results := bandITEvents(t, w.project)
-	assert.Len(t, results, 1, "phase C still records the diagnose claim")
+	require.Len(t, results, 1, "phase C still records the diagnose claim")
+	assert.Equal(t, bandUnavailable(bandWorktreeUnavailable), results[0].DiagnosisStatus)
 	envelope := decodeBandLPEnvelope(t, run.stdout)
 	assert.Equal(t, string(jsonStatusError), envelope.Status, "the report is written before the non-zero exit")
 }
@@ -67,7 +68,9 @@ func TestReactBandLocalPatch_NoAgent_RecordsTheSkipAndKeeps001(t *testing.T) {
 
 // S3: an <lp> that holds 5 kept keys gives the tier-3 opening
 // local_patch_skipped:cap_reached with no claim, so Plan.LocalPatch holds the
-// decision alone and the kept files stay byte-identical.
+// decision alone; the diagnosis still runs flag-on, and step 1 refuses its
+// worktree with a cap_reached prep and result keyed by the diagnose claim,
+// with 0 worktree invocations and the kept files byte-identical.
 func TestReactBandLocalPatch_RetentionCap_SkipsTheOpening(t *testing.T) {
 	w := newBandLPWorld(t, bandLPConfig)
 	w.storeO3()
@@ -78,11 +81,21 @@ func TestReactBandLocalPatch_RetentionCap_SkipsTheOpening(t *testing.T) {
 	run := w.band("--no-fetch", "--format", "json")
 	require.NoError(t, run.err, run.stdout)
 
-	assert.Equal(t, []string{"decision"}, w.trail())
+	assert.Equal(t, []string{"decision", "prep", "result"}, w.trail())
 	assert.Equal(t, healthband.LocalPatchSkippedCapReached, w.record(healthband.LocalPatchKindDecision).Reason)
 	require.Len(t, w.enable.plan, 1)
 	assert.Equal(t, healthband.LocalPatchKindDecision, w.enable.plan[0].Kind)
 	assert.NotNil(t, w.enable.patcher, "the tier-3 diagnosis still runs flag-on, step 1 refusing its worktree")
+	diagnose := w.diagnoseClaim(lpSeries)
+	assert.Equal(t, healthband.LocalPatchCodeCapReached, w.record(healthband.LocalPatchKindPrep).Code)
+	result := w.record(healthband.LocalPatchKindResult)
+	assert.Equal(t, diagnose.ID, result.ClaimID, "a diagnosis without a local_patch claim keys its result by its claim")
+	assert.Equal(t, healthband.ClaimFailedPrefix+healthband.LocalPatchCodeCapReached, result.Status)
+	assert.NotContains(t, w.worktrees(), w.lp(), "0 worktree invocations")
+	assert.Empty(t, w.fake.record(t, "calls"), "no worktree, no provider")
+	_, results := bandITEvents(t, w.project)
+	require.Len(t, results, 1)
+	assert.Equal(t, bandUnavailable(bandWorktreeUnavailable), results[0].DiagnosisStatus)
 	for i := 1; i <= healthband.LocalPatchRetentionCap; i++ {
 		data, err := os.ReadFile(kept(i))
 		require.NoError(t, err)

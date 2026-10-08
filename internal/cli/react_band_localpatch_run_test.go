@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -15,9 +16,11 @@ import (
 
 // SPEC-SIGMABAND-002 S2, S3, S4 wiring through the band command (plan task
 // T8): phase A appends the decision and claim records after Commit with the
-// chained leases, phase B hands the executor and Plan.LocalPatch to the
-// diagnose side before the prepare hook, and the hook it returns runs as
-// AfterRecord right after phase C, its results going to local_patches[].
+// chained leases, phase B hands the executor and Plan.LocalPatch to
+// production's diagnose side before the prepare hook, which runs the
+// confined diagnosis in place of 001's provider call, and the hook it
+// returns runs as AfterRecord right after phase C, its results going to
+// local_patches[].
 func TestReactBandLocalPatch_FlagOn_HandsTheFlowToTheDiagnoseSide(t *testing.T) {
 	w := newBandLPWorld(t, bandLPConfig)
 	w.storeO3()
@@ -62,6 +65,12 @@ func TestReactBandLocalPatch_FlagOn_HandsTheFlowToTheDiagnoseSide(t *testing.T) 
 
 	require.Len(t, results, 1)
 	assert.Equal(t, []string{diagnose.ID + " " + results[0].BSID}, w.enable.after, "AfterRecord got the outcome phase C recorded")
+	assert.Equal(t, bandDiagnosisOK, results[0].DiagnosisStatus, "the confined diagnosis answered")
+	assert.Zero(t, w.provider.count(), "001's unconfined provider call never ran")
+	assert.Equal(t, "call\ncall\n", w.fake.record(t, "calls"), "the diagnosis and the patch request")
+	bs, err := os.ReadFile(filepath.Join(w.repo, ".autopus", "brainstorms", results[0].BSID+".md"))
+	require.NoError(t, err)
+	assert.Contains(t, string(bs), "Local patch (3σ, local only, if produced): branch autopus/band/"+lpKey+",")
 	assert.Equal(t, []string{"decision", "claim", "prep", "stage:worktree_intent", "stage:worktree_done", "stage:message",
 		"stage:apply_intent", "stage:apply_done", "stage:commit_done", "stage:branch_intent", "stage:branch_done",
 		"stage:patch_intent", "stage:patch_done", "result"}, w.trail(), "the handed-over executor ran the whole flow")

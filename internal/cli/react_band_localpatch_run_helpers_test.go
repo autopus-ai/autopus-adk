@@ -20,9 +20,9 @@ import (
 
 // Fixtures of the run wiring tests (SPEC-SIGMABAND-002 plan task T8): the
 // band command over plan task T7's fixture repository as the project, with
-// a stored series, a fake diagnose side in place of
-// (*bandDiagnoser).enableLocalPatch, and the fake claude binary that answers
-// the patch request.
+// a stored series, a recorder around production's diagnose side
+// ((*bandDiagnoser).enableLocalPatch), and the fake claude binary that
+// answers both confined requests.
 
 // bandLPConfig turns the flag on with health_band.local_patch_provider
 // claude over this repository's OMP claude entry, so the patch request asks
@@ -34,13 +34,11 @@ const bandLPConfig = bandITConfig + "    claude:\n      backend: omp\n      mode
 // bandLPT0 is the phase A time of every wiring run.
 var bandLPT0 = time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
 
-// bandLPEnable stands in for the diagnose side: it records what the run
-// hands over and returns an AfterRecord hook that, right after phase C,
-// takes each local_patch claim of plan through the handed-over executor
-// (steps 1–2, then steps 3–12 with the BS ID phase C recorded) and reports
-// its result, or calls reports when set. The real diagnose side runs steps
-// 1–2 inside Run before the diagnosis; here Run is 001's, so the stand-in
-// treats the diagnosis as ok.
+// bandLPEnable records what the run hands over to the diagnose side and
+// delegates to production's (*bandDiagnoser).enableLocalPatch, whose
+// AfterRecord hook it wraps to record each call. With reports set it stands
+// in for the diagnose side instead: Run stays 001's and the hook only
+// injects results, so the run's own report plumbing is tested alone.
 type bandLPEnable struct {
 	calls   int
 	patcher *bandLocalPatcher
@@ -55,7 +53,11 @@ func (f *bandLPEnable) enable(d *bandDiagnoser, patcher *bandLocalPatcher, plan 
 	f.calls++
 	f.patcher, f.plan = patcher, plan
 	*f.order = append(*f.order, "enable")
-	return func(ctx context.Context, claim healthband.DueClaim, outcome healthband.ClaimOutcome, _ healthband.Recorded) {
+	var after func(context.Context, healthband.DueClaim, healthband.ClaimOutcome, healthband.Recorded)
+	if f.reports == nil {
+		after = d.enableLocalPatch(patcher, plan, report)
+	}
+	return func(ctx context.Context, claim healthband.DueClaim, outcome healthband.ClaimOutcome, recorded healthband.Recorded) {
 		f.after = append(f.after, claim.ID+" "+outcome.BSID)
 		if f.during != nil {
 			f.during(claim)
@@ -64,22 +66,7 @@ func (f *bandLPEnable) enable(d *bandDiagnoser, patcher *bandLocalPatcher, plan 
 			f.reports(report, claim)
 			return
 		}
-		for _, record := range plan {
-			if patcher == nil || record.Kind != healthband.LocalPatchKindClaim || record.DependsOn != claim.ID {
-				continue
-			}
-			setup := patcher.prepare(ctx, localPatchTarget{diagnose: claim, claimID: record.ClaimID, lease: record.LeaseUntil})
-			reply := parseBandStream(lpStream(lpInit55, lpAssistant55, lpResult("### Summary")), lpRequestDiagnosis, "claude-opus-5-5")
-			input := localPatchInput{
-				outcome:   healthband.ClaimOutcome{BSID: outcome.BSID, BSStatus: outcome.BSStatus, DiagnosisStatus: bandDiagnosisOK},
-				diagnosis: healthband.SanitizeProviderOutput("### Summary\nThe flaky step failed in pkg/foo/foo.go.\n", false, d.projectDir),
-				logs:      []healthband.RunLog{{RunID: 1042, Attempt: 1, Evidence: healthband.SanitizeCILog("step 3 failed\n", false, d.projectDir)}},
-				reply:     &reply,
-			}
-			if result, written := patcher.patch(ctx, setup, input); written {
-				report(result)
-			}
-		}
+		after(ctx, claim, outcome, recorded)
 	}
 }
 
