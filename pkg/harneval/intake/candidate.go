@@ -6,9 +6,9 @@ import (
 	"errors"
 	"io"
 	"sort"
-	"unicode"
 
 	"github.com/insajin/autopus-adk/pkg/harneval"
+	"github.com/insajin/autopus-adk/pkg/learn"
 )
 
 // Wire-contract schema identifiers of the intake records.
@@ -89,23 +89,22 @@ func encodeRecord(record any) ([]byte, error) {
 	return append(data, '\n'), nil
 }
 
-// Byte caps of REQ-HC-01 and REQ-HC-05. A raw evidence value longer than
-// rawCapFactor times its cap is refused before redaction runs.
+// Byte caps of REQ-HC-01 and REQ-HC-05.
 const (
-	evidenceCap  = 1024
-	reproCap     = 512
-	patternCap   = 4096
-	rawCapFactor = 4
+	evidenceCap = 1024
+	reproCap    = 512
+	patternCap  = 4096
 )
 
-// Reasons and details of refused learning text.
+// Reasons and details of refused learning text. The evidence ones are the
+// learn store writer's, whose validator intake shares.
 const (
-	ReasonLearningFieldInvalid = "learning_field_invalid"
+	ReasonLearningFieldInvalid = learn.ReasonFieldInvalid
 	ReasonCandidateTextInvalid = "candidate_text_invalid"
 
-	DetailControlChar           = "control_char"
-	DetailRawOverLimit          = "raw_over_limit"
-	DetailOverCapAfterRedaction = "over_cap_after_redaction"
+	DetailControlChar           = learn.DetailControlChar
+	DetailRawOverLimit          = learn.DetailRawOverLimit
+	DetailOverCapAfterRedaction = learn.DetailOverCapAfterRedaction
 )
 
 // refusal reports learning text intake refuses to copy: an evidence field
@@ -115,34 +114,14 @@ type refusal struct {
 	reason, field, detail string
 }
 
-// hasControl reports a C0, DEL, or C1 control character; allowLayout lets
-// newline and tab through.
-func hasControl(text string, allowLayout bool) bool {
-	for _, r := range text {
-		if unicode.IsControl(r) && !(allowLayout && (r == '\n' || r == '\t')) {
-			return true
-		}
-	}
-	return false
-}
-
-// redactField applies the fixed REQ-HC-01 order to one evidence value:
-// refuse a control character, refuse a raw value over rawCapFactor times its
-// cap, redact, then refuse a redacted value over its cap. The cap applies
-// after redaction because a placeholder can be longer than the text it hides.
+// redactField applies the learn store writer's REQ-HC-01 validator to one
+// evidence value: refuse a control character (invalid UTF-8 included), refuse
+// a raw value over four times its cap, redact, then refuse a redacted value
+// over its cap.
 func redactField(redactor Redactor, field, value string, limit int) (string, *refusal) {
-	fail := func(detail string) (string, *refusal) {
+	masked, detail := learn.CheckEvidence(value, limit, redactor.Redact)
+	if detail != "" {
 		return "", &refusal{reason: ReasonLearningFieldInvalid, field: field, detail: detail}
-	}
-	switch {
-	case hasControl(value, false):
-		return fail(DetailControlChar)
-	case len(value) > rawCapFactor*limit:
-		return fail(DetailRawOverLimit)
-	}
-	masked := redactor.Redact(value)
-	if len(masked) > limit {
-		return fail(DetailOverCapAfterRedaction)
 	}
 	return masked, nil
 }
@@ -154,7 +133,7 @@ func redactPattern(redactor Redactor, pattern string) (string, *refusal) {
 		return "", &refusal{reason: ReasonCandidateTextInvalid, field: "pattern", detail: detail}
 	}
 	switch {
-	case hasControl(pattern, true):
+	case learn.HasControlChar(pattern, true):
 		return fail(DetailControlChar)
 	case len(pattern) > patternCap:
 		return fail(DetailRawOverLimit)

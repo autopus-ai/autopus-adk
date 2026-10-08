@@ -58,43 +58,63 @@ func (e *FieldError) Error() string {
 // Reason returns ReasonFieldInvalid.
 func (e *FieldError) Reason() string { return ReasonFieldInvalid }
 
-// RedactEvidenceField validates and redacts one evidence value in the fixed
-// SPEC-HARNEVAL-002 REQ-HC-01 order: (1) reject a control character, (2)
-// reject a raw value longer than four times the cap, (3) redact, (4) reject a
-// redacted value over the cap. The cap applies after redaction because a
-// placeholder can be longer than the text it replaces. It returns the value to
-// persist and whether redaction changed it; an empty value passes unchanged.
+// RedactEvidenceField validates and redacts one evidence value with
+// CheckEvidence, its field's cap, and pkg/secretscan.Redact. It returns the
+// value to persist and whether redaction changed it; an empty value passes
+// unchanged.
 func RedactEvidenceField(field EvidenceField, value string) (string, bool, error) {
-	if value == "" {
-		return "", false, nil
+	redacted, detail := CheckEvidence(value, field.Cap(), redactSecrets)
+	if detail != "" {
+		return "", false, &FieldError{Field: field, Detail: detail}
 	}
-	if hasControlChar(value) {
-		return "", false, &FieldError{Field: field, Detail: DetailControlChar}
-	}
-	limit := field.Cap()
-	if len(value) > rawLimitFactor*limit {
-		return "", false, &FieldError{Field: field, Detail: DetailRawOverLimit}
-	}
-	redacted, changed := secretscan.Redact(value)
-	if len(redacted) > limit {
-		return "", false, &FieldError{Field: field, Detail: DetailOverCapAfterRedaction}
-	}
-	return redacted, changed, nil
+	return redacted, redacted != value, nil
 }
 
-// hasControlChar reports a C0 control (tab and newline included), DEL, or C1
-// control. Invalid UTF-8 counts too: an undecodable byte in 0x80-0x9F is an
-// 8-bit C1 control to a terminal, and JSON encoding would rewrite it anyway.
-func hasControlChar(s string) bool {
+// CheckEvidence applies the fixed SPEC-HARNEVAL-002 REQ-HC-01 order to one
+// capped free-text value, with redact as step (3): (1) reject a control
+// character, (2) reject a raw value longer than four times limit, (3) redact,
+// (4) reject a redacted value over limit. The cap applies after redaction
+// because a placeholder can be longer than the text it replaces. It returns
+// the value to persist, or "" and the detail of the step that rejected it; an
+// empty value passes unchanged. pkg/harneval/intake checks stored values, flag
+// values, and rejection reasons with it, so intake and the store writer
+// refuse the same text.
+func CheckEvidence(value string, limit int, redact func(string) string) (string, string) {
+	switch {
+	case value == "":
+		return "", ""
+	case HasControlChar(value, false):
+		return "", DetailControlChar
+	case len(value) > rawLimitFactor*limit:
+		return "", DetailRawOverLimit
+	}
+	redacted := redact(value)
+	if len(redacted) > limit {
+		return "", DetailOverCapAfterRedaction
+	}
+	return redacted, ""
+}
+
+// HasControlChar reports a C0 control, DEL, or C1 control in s; layout lets
+// newline and tab through, as a pattern may hold them. Invalid UTF-8 counts
+// too: an undecodable byte in 0x80-0x9F is an 8-bit C1 control to a terminal,
+// and JSON encoding would rewrite it as a longer U+FFFD.
+func HasControlChar(s string, layout bool) bool {
 	if !utf8.ValidString(s) {
 		return true
 	}
 	for _, r := range s {
-		if unicode.IsControl(r) {
+		if unicode.IsControl(r) && !(layout && (r == '\n' || r == '\t')) {
 			return true
 		}
 	}
 	return false
+}
+
+// redactSecrets is pkg/secretscan.Redact without its changed flag.
+func redactSecrets(s string) string {
+	out, _ := secretscan.Redact(s)
+	return out
 }
 
 func recordEntry(store *Store, entryType EntryType, opts RecordOpts) error {
