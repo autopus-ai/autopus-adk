@@ -132,5 +132,46 @@ class ReachTests(unittest.TestCase):
         self.assertEqual(pt.Tree(10).reach(rows), set())
 
 
+class SweepSettleTests(unittest.TestCase):
+    """sweep must not call a stage clean on one empty walk: a fast re-forking chain can slip between
+    two generations in the time one walk takes (SPEC-HARNEVAL-003 S2). Walks are scripted, so the
+    cases are deterministic and start no process; an empty table makes reach() empty, so the scripted
+    confined set alone drives membership."""
+
+    def tree(self, confined_sets: list) -> 'pt.Tree':
+        sequence = iter(confined_sets)
+        self.enterContext(mock.patch.object(pt, 'table', lambda: {}))
+        self.enterContext(mock.patch.object(pt, 'confined', lambda rows, scratch: next(sequence, set())))
+        tree = pt.Tree(10, scratch=Path('/does-not-matter'))
+        tree._stop.set()
+        return tree
+
+    def test_a_confined_process_reappearing_after_a_kill_fails_closed(self):
+        # One empty walk between two generations used to end the sweep clean; now the next generation
+        # (a new confined pid the sweep did not kill) fails the stage closed.
+        tree = self.tree([{111}, set(), {222}, set(), set(), set()])
+        self.assertEqual(tree.sweep(), (True, True))
+
+    def test_a_single_empty_walk_is_not_enough_to_call_a_stage_clean(self):
+        calls = []
+
+        def counting(rows, scratch):
+            calls.append(1)
+            return set()
+        self.enterContext(mock.patch.object(pt, 'table', lambda: {}))
+        self.enterContext(mock.patch.object(pt, 'confined', counting))
+        self.enterContext(mock.patch.object(pt, 'SETTLE_SECONDS', 0.2))
+        tree = pt.Tree(10, scratch=Path('/does-not-matter'))
+        tree._stop.set()
+        self.assertEqual(tree.sweep(), (False, False))
+        self.assertGreaterEqual(len(calls), pt.SETTLE_WALKS)
+
+    def test_a_process_the_sweep_itself_killed_does_not_fail_the_stage_closed(self):
+        # The same confined pid lingering one walk after its kill is the kill taking effect, not a new
+        # generation; the sweep keeps killing it and, once it is gone and stays gone, calls it clean.
+        tree = self.tree([{111}, {111}, set(), set(), set(), set()])
+        self.assertEqual(tree.sweep(), (True, False))
+
+
 if __name__ == '__main__':
     unittest.main()
