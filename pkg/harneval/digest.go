@@ -12,10 +12,13 @@ import (
 )
 
 // isBookkeeping reports whether a root-relative path is ADK bookkeeping that
-// embeds a timestamp. The list is closed (probe A2): transaction journals and
-// the per-platform manifests directly under the root .autopus/ directory.
+// embeds a timestamp. The list is closed (probe A2): transaction journals,
+// overwrite backups, and the per-platform manifests directly under the root
+// .autopus/ directory.
 func isBookkeeping(rel string) bool {
-	if strings.HasPrefix(rel, ".autopus/txns/") {
+	// A later platform backs up a shared file it overwrites (the git hooks
+	// every platform installs) under a timestamped directory.
+	if strings.HasPrefix(rel, ".autopus/txns/") || strings.HasPrefix(rel, ".autopus/backup/") {
 		return true
 	}
 	for _, platform := range Platforms {

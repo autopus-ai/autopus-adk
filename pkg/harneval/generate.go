@@ -146,6 +146,11 @@ func generateSurface(
 	if err := config.Save(root, cfg); err != nil {
 		return nil, &GenerationError{Platform: "config", Err: err}
 	}
+	// Adapters write root-local git hooks only into a real gitdir (see
+	// adapter.SupportsRootGitHooks); the surface stands for a repository root.
+	if err := writeGitdirMarker(root); err != nil {
+		return nil, &GenerationError{Platform: "config", Err: err}
+	}
 	surface := &Surface{Root: root, Owned: map[string]map[string]bool{}}
 	for _, generator := range factory(root, pins, set.CodexCatalog) {
 		files, err := generator.Generate(ctx, cfg)
@@ -186,4 +191,15 @@ func variantKey(overrides map[string]bool) string {
 	}
 	sort.Strings(pairs)
 	return strings.Join(pairs, ",")
+}
+
+// writeGitdirMarker makes root look like a repository root to the adapters:
+// a .git directory holding HEAD, which is what adapter.SupportsRootGitHooks
+// checks before it lets an adapter address .git/hooks.
+func writeGitdirMarker(root string) error {
+	gitDir := filepath.Join(root, ".git")
+	if err := os.MkdirAll(gitDir, 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(gitDir, "HEAD"), []byte("ref: refs/heads/main\n"), 0o644)
 }
