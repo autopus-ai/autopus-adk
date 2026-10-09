@@ -166,9 +166,10 @@ func runDoctorText(cmd *cobra.Command, opts doctorOptions) error {
 	checkEditGuardText(out, opts.dir, cfg)
 
 	// Legacy orchestra keys and stale completion hooks are what `auto update`
-	// removes, so they share the managed-surface remediation.
-	retiredFound := !checkRetiredOrchestraText(out, opts.dir, cfg)
-	if retiredFound {
+	// removes, so they share the managed-surface remediation unless every
+	// remaining member is one that update keeps.
+	retiredHealthy, retiredUpdateFixes := checkRetiredOrchestraText(out, opts.dir, cfg)
+	if !retiredHealthy {
 		allOK = false
 	}
 
@@ -193,7 +194,7 @@ func runDoctorText(cmd *cobra.Command, opts doctorOptions) error {
 		if allOK {
 			return "All checks passed"
 		}
-		return doctorRemediationAdvice(platformFailed || retiredFound, depsMissing)
+		return doctorRemediationAdvice(platformFailed || retiredUpdateFixes, depsMissing)
 	}())
 
 	return nil

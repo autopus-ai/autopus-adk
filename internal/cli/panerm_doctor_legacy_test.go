@@ -148,3 +148,47 @@ func uniqueSorted(items []string) []string {
 	sort.Strings(out)
 	return out
 }
+
+// W-mix: claude-code is configured and opencode is not, and opencode.json loads
+// the orphan .ts. Only the opencode update edits opencode.json, and every
+// update keeps a script a settings file still names, so after any number of
+// updates doctor still lists the .ts. The remedy says what clears it instead
+// of run "auto update", and doing that clears it.
+func TestPanermDoctor_ScriptThatAnUnconfiguredOpenCodeLoadsGetsTheRemedyThatClearsIt(t *testing.T) {
+	useStaleHookEnv(t, "")
+	root := copyStaleHookWorkspace(t, "W-mix")
+	out, err := runStaleHookUpdate(t, root)
+	require.NoError(t, err, out)
+	const wantRemedy = "opencode is not configured, so auto update never edits opencode.json and keeps the scripts " +
+		"it loads (.claude/hooks/autopus/hook-opencode-complete.ts): remove those plugin entries from opencode.json " +
+		`by hand or run "auto platform add opencode", then run "auto update"`
+
+	_, checks := runPanermDoctor(t, root, true)
+
+	stale := findPanermCheck(checks, panermStaleCheck)
+	require.NotNil(t, stale)
+	assert.Equal(t, "warn", stale.Status)
+	assert.Equal(t, "stale completion hooks: .claude/hooks/autopus/hook-opencode-complete.ts", stale.Detail)
+	assert.Equal(t, wantRemedy, stale.Fields["remedy"])
+	text, _ := runPanermDoctor(t, root, false)
+	assert.Contains(t, text, "remedy: "+wantRemedy)
+	assert.NotContains(t, doctorResultBanner(text), "auto update", "the summary must not send the user to update either")
+
+	require.NoError(t, os.WriteFile(filepath.Join(root, "opencode.json"), []byte(`{"plugin": []}`+"\n"), 0o644))
+	out, err = runStaleHookUpdate(t, root)
+	require.NoError(t, err, out)
+	_, after := runPanermDoctor(t, root, true)
+	assert.Equal(t, "pass", findPanermCheck(after, panermStaleCheck).Status, "removing the plugin entry clears it")
+}
+
+// doctorResultBanner returns the closing result box of a text doctor run as
+// one line: the box wraps its sentence across bordered lines.
+func doctorResultBanner(text string) string {
+	start := strings.LastIndex(text, "\u256d")
+	if start < 0 {
+		return ""
+	}
+	box := strings.NewReplacer("\u2502", " ", "\u256d", " ", "\u256e", " ", "\u2570", " ", "\u256f", " ", "\u2500", " ").
+		Replace(text[start:])
+	return strings.Join(strings.Fields(box), " ")
+}

@@ -125,7 +125,8 @@ func TestRetiredOrchestraChecks_UserLevelHandlersAreAdvisory(t *testing.T) {
 	assert.Equal(t, userLevelStaleHooksRemedy, user.Fields["remedy"])
 
 	var text bytes.Buffer
-	assert.True(t, checkRetiredOrchestraText(&text, root, cfg))
+	healthy, _ := checkRetiredOrchestraText(&text, root, cfg)
+	assert.True(t, healthy)
 	assert.Contains(t, text.String(), "~/.claude/settings.json Stop "+claudeStopScript)
 	assert.Contains(t, text.String(), "auto update never edits user-level settings")
 	assert.NotContains(t, text.String(), "stale completion hooks: .claude", "the project itself is clean")
@@ -161,7 +162,8 @@ func TestRetiredOrchestraChecks_LocalSettingsHandlersAreAdvisory(t *testing.T) {
 	assert.Equal(t, localStaleHooksRemedy, local.Fields["remedy"])
 
 	var text bytes.Buffer
-	assert.True(t, checkRetiredOrchestraText(&text, root, cfg))
+	healthy, _ := checkRetiredOrchestraText(&text, root, cfg)
+	assert.True(t, healthy)
 	assert.Contains(t, text.String(), ".claude/settings.local.json Stop "+claudeStopScript)
 }
 
@@ -185,6 +187,52 @@ func TestRetiredOrchestraChecks_ProjectFindingsWarnWithTheUpdateRemedy(t *testin
 	assert.Equal(t, "stale completion hooks: "+claudeStopScript, report.checks[1].Detail)
 
 	var text bytes.Buffer
-	assert.False(t, checkRetiredOrchestraText(&text, root, cfg))
+	healthy, updateFixes := checkRetiredOrchestraText(&text, root, cfg)
+	assert.False(t, healthy)
+	assert.True(t, updateFixes)
 	assert.Equal(t, 2, strings.Count(text.String(), `remedy: run "auto update"`))
+}
+
+// opencode.json holds the orphan .ts only while opencode is not configured: a
+// configured opencode's update retracts the plugin entry and deletes the
+// script, so its remedy stays run "auto update". A member that update does
+// remove keeps the summary on update even while the .ts is held.
+func TestRetiredOrchestraChecks_OpenCodeHeldRemedyAppliesOnlyWhileOpenCodeIsUnconfigured(t *testing.T) {
+	isolateDoctorEnv(t)
+	root := t.TempDir()
+	writeDoctorFixture(t, root, map[string]string{
+		staleTSScript:    "export default {}\n",
+		claudeStopScript: "#!/bin/sh\n",
+		"opencode.json":  `{"plugin": ["` + staleTSScript + `"]}`,
+	})
+
+	for _, tc := range []struct {
+		name      string
+		platforms []string
+		held      bool
+	}{
+		{name: "unconfigured opencode", platforms: []string{"claude-code"}, held: true},
+		{name: "configured opencode", platforms: []string{"claude-code", "opencode"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			report := doctorJSONReport{status: jsonStatusOK}
+			report.collectRetiredOrchestraChecks(root, doctorConfigFor(tc.platforms...))
+			var remedy string
+			for _, check := range report.checks {
+				if check.ID == staleCompletionHooksCheckID {
+					remedy = check.Fields["remedy"]
+				}
+			}
+			if tc.held {
+				assert.Contains(t, remedy, "keeps the scripts it loads ("+staleTSScript+")")
+				assert.Contains(t, remedy, `run "auto platform add opencode", then run "auto update"`)
+			} else {
+				assert.Equal(t, `run "auto update"`, remedy)
+			}
+
+			healthy, updateFixes := checkRetiredOrchestraText(&bytes.Buffer{}, root, doctorConfigFor(tc.platforms...))
+			assert.False(t, healthy)
+			assert.True(t, updateFixes, "update still removes "+claudeStopScript)
+		})
+	}
 }
