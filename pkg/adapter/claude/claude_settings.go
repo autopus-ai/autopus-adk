@@ -41,7 +41,7 @@ func (a *Adapter) prepareHooksAndPermissionsFiles(cfg *config.HarnessConfig) ([]
 			Content:         []byte(gh.Content),
 		})
 	}
-	return files, nil
+	return adapter.FilterUnsupportedRootGitHookFiles(a.root, files), nil
 }
 
 // InstallHooks는 .claude/settings.json에 훅과 권한을 Claude Code 중첩 스키마로 설치한다.

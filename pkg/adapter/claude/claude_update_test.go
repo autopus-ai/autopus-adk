@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -133,4 +134,43 @@ func TestClaudeAdapter_Update_BacksUpUserModifiedManagedFile(t *testing.T) {
 		}
 	}
 	_ = foundBackup // backup directory presence is environment-dependent; restoration assertion above is the oracle
+}
+
+// A linked worktree stores .git as a gitdir file, so root-local .git/hooks is
+// not addressable there. Update must skip those writes and prunes instead of
+// failing the whole platform on `lstat .git/hooks: not a directory`.
+func TestUpdate_LinkedWorktreeGitFileSkipsRootGitHooks(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		generate bool
+	}{
+		{name: "fresh worktree without a manifest"},
+		{name: "worktree after a root install", generate: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			a := claude.NewWithRoot(dir)
+			cfg := config.DefaultFullConfig("test-project")
+			if tc.generate {
+				require.NoError(t, os.MkdirAll(filepath.Join(dir, ".git"), 0755))
+				require.NoError(t, os.WriteFile(filepath.Join(dir, ".git", "HEAD"), []byte("ref: refs/heads/main\n"), 0644))
+				_, err := a.Generate(context.Background(), cfg)
+				require.NoError(t, err)
+				require.NoError(t, os.RemoveAll(filepath.Join(dir, ".git")))
+			}
+			require.NoError(t, os.WriteFile(filepath.Join(dir, ".git"), []byte("gitdir: /tmp/autopus-worktree\n"), 0644))
+
+			pf, err := a.Update(context.Background(), cfg)
+			require.NoError(t, err)
+			require.NotNil(t, pf)
+			for _, file := range pf.Files {
+				assert.False(t, strings.HasPrefix(filepath.ToSlash(file.TargetPath), ".git/hooks/"), file.TargetPath)
+			}
+			info, err := os.Lstat(filepath.Join(dir, ".git"))
+			require.NoError(t, err)
+			assert.False(t, info.IsDir(), "the gitdir file must survive the update")
+		})
+	}
 }

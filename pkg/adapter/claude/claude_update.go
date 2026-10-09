@@ -150,5 +150,5 @@ func (a *Adapter) buildUpdateTransactionRemoves(
 			removes = append(removes, remove)
 		}
 	}
-	return removes, nil
+	return adapter.FilterUnsupportedRootGitHookRemoves(a.root, removes), nil
 }
