@@ -71,7 +71,8 @@ def runner_digest(directory: Path = HERE) -> str:
 
 def _bookkeeping(rel: str) -> bool:
     """The closed timestamp-bearing ADK bookkeeping list that the Go SurfaceDigest leaves out."""
-    return rel.startswith('.autopus/txns/') or rel in {f'.autopus/{name}-manifest.json' for name in PLATFORMS}
+    return (rel.startswith(('.autopus/txns/', '.autopus/backup/'))
+            or rel in {f'.autopus/{name}-manifest.json' for name in PLATFORMS})
 
 
 def _raise(error: OSError) -> None:

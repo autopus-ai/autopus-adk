@@ -109,6 +109,7 @@ class DigestTests(unittest.TestCase):
         # The literal is harneval.SurfaceDigest of this tree, printed by a Go test on 2026-10-07.
         files = {'AGENTS.md': '# fixture surface\n', '.codex/config.toml': 'model = "gpt-6-astra"\n',
                  '.codex/skills/alpha/SKILL.md': 'alpha skill\n', '.autopus/txns/0001.json': '{"at": "2026-10-07T00:00:00Z"}\n',
+                 '.autopus/backup/20261009T080517/transaction/codex/.git/hooks/commit-msg': 'backed up\n',
                  '.autopus/codex-manifest.json': '{"generated_at": 1}\n', '.autopus/omp-manifest.json': '{"generated_at": 2}\n',
                  '.autopus/other-manifest.json': '{"kept": true}\n', 'nested/über/notes.txt': 'unicode path\n',
                  'nested/a.txt': ''}
