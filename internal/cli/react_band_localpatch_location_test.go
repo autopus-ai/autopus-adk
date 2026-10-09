@@ -119,8 +119,10 @@ func TestLocalPatchPrepare_MissingUserCacheDirectory_IsCreated(t *testing.T) {
 }
 
 // Git Execution Policy item 6: the allowlist admits every git command of
-// the Patch Policy, the base listing with modes `ls-tree -r -z <base>` of
-// items 3–4 included, so the production adapter needs no bypass.
+// the Patch Policy, the base listing with modes, OIDs, and sizes
+// `ls-tree -r -l -z <base>` of items 3–4 and 6 and the manifest read
+// `cat-file --batch` of item 6 (RR-7) included, so the production adapter
+// needs no bypass.
 func TestBandPolicyGit_PatchPolicyCommandsAgainstAllowlist(t *testing.T) {
 	t.Parallel()
 	base := strings.Repeat("ab", 20)
@@ -129,7 +131,8 @@ func TestBandPolicyGit_PatchPolicyCommandsAgainstAllowlist(t *testing.T) {
 		{"check-attr", "-z", "--source=" + base, "filter", "--", "pkg/foo/foo.go", "pkg/x.go"},
 		{"apply", "--numstat", "--summary", "-z", "--check"},
 		{"ls-tree", "-r", "-z", "--name-only", base},
-		{"ls-tree", "-r", "-z", base},
+		{"ls-tree", "-r", "-l", "-z", base},
+		{"cat-file", "--batch"},
 	} {
 		assert.NoError(t, healthband.CheckGitCommand(args, ""), "%v", args)
 	}

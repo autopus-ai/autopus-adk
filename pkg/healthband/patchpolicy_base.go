@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"sort"
+	"strconv"
 	"strings"
 
 	"golang.org/x/text/unicode/norm"
@@ -22,13 +23,15 @@ import (
 // Git precomposes argv on macOS (core.precomposeUnicode), so a pathspec
 // spelled in NFD matches only an NFC entry, and an entry stored in NFD
 // matches no pathspec. Item 4's listing therefore carries modes
-// (`git ls-tree -r -z <base>`, the --name-only listing plus each entry's
-// mode, read from the tree bytes with no pathspec), and every exact-path
-// answer is cross-checked against it byte for byte.
+// (`git ls-tree -r -l -z <base>`, the --name-only listing plus each entry's
+// mode, OID, and size, read from the tree bytes with no pathspec), and every
+// exact-path answer is cross-checked against it byte for byte. The OIDs and
+// sizes are what item 6 reads the base manifests by (patchpolicy_build.go).
 
-// treeEntry is one base entry.
+// treeEntry is one base entry; size is -1 when the output gave none.
 type treeEntry struct {
-	mode, kind string
+	mode, kind, oid string
+	size            int64
 }
 
 // baseView is what the policy read of the base: the exact-path answers, the
@@ -59,7 +62,7 @@ func (r policyRun) readBase(files []*diffFile) (baseView, error) {
 			}
 		}
 	}
-	out, err := r.git(nil, "ls-tree", "-r", "-z", r.in.BaseSHA)
+	out, err := r.git(nil, "ls-tree", "-r", "-l", "-z", r.in.BaseSHA)
 	if err != nil {
 		return baseView{}, err
 	}
@@ -83,15 +86,25 @@ func (r policyRun) readBase(files []*diffFile) (baseView, error) {
 	return view, nil
 }
 
-// lsTreeRecord reads the `<mode> <type> <oid>\t<path>` record of want, or
-// the first record when want is empty.
+// lsTreeRecord reads the `<mode> <type> <oid>[ <size>]\t<path>` record of
+// want, or the first record when want is empty; a size of "-" (a gitlink)
+// reads as none.
 func lsTreeRecord(out []byte, want string) (treeEntry, string, bool) {
 	for _, record := range bytes.Split(out, []byte{0}) {
 		meta, name, ok := bytes.Cut(record, []byte{'\t'})
 		fields := strings.Fields(string(meta))
-		if ok && len(fields) == 3 && (want == "" || string(name) == want) {
-			return treeEntry{mode: fields[0], kind: fields[1]}, string(name), true
+		if !ok || len(fields) < 3 || len(fields) > 4 || want != "" && string(name) != want {
+			continue
 		}
+		entry := treeEntry{mode: fields[0], kind: fields[1], oid: fields[2], size: -1}
+		if len(fields) == 4 && fields[3] != "-" {
+			size, err := strconv.ParseInt(fields[3], 10, 64)
+			if err != nil || size < 0 {
+				continue
+			}
+			entry.size = size
+		}
+		return entry, string(name), true
 	}
 	return treeEntry{}, "", false
 }

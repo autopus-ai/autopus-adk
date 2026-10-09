@@ -13,7 +13,8 @@ import (
 // Patch Policy (SPEC-SIGMABAND-002 REQ-08). The policy reads a patch
 // request's reply, keeps it in memory, and accepts the one diff it holds only
 // when every item passes; the first item that fails gives the code. It writes
-// no object and no file: its git commands are ls-tree, check-attr, and, last,
+// no object and no file: its git commands are ls-tree, check-attr, cat-file
+// --batch over the base manifests' OIDs (item 6, RR-7), and, last,
 // `git apply --numstat --summary -z --check` with the diff on stdin.
 //
 // Command order: the in-process checks of items 2–3 run before any git
@@ -154,9 +155,9 @@ type policyRun struct {
 }
 
 // evaluate runs the items that read the base (2–4, 6: the exact-path
-// queries, the listing, and check-attr), the in-process items 5–8, the edit
-// guard (9), and the git apply cross-check of item 2, in that order. An
-// error is a git fault.
+// queries, the listing, check-attr, and the manifests), the in-process
+// items 5–8, the edit guard (9), and the git apply cross-check of item 2, in
+// that order. An error is a git fault.
 func (r policyRun) evaluate(files []*diffFile) (PatchVerdict, error) {
 	base, err := r.readBase(files)
 	if err != nil {
@@ -172,9 +173,13 @@ func (r policyRun) evaluate(files []*diffFile) (PatchVerdict, error) {
 	if filtered {
 		return refusePatch(PatchCodeFilter), nil
 	}
+	built, err := r.buildDenials(base)
+	if err != nil {
+		return PatchVerdict{}, err
+	}
 	steps := []func() string{
 		func() string { return caseCollision(files, base.folds) },
-		func() string { return deniedPath(files, base.exact) },
+		func() string { return deniedPath(files, base.exact, built) },
 		func() string { return deniedContent(files) },
 		func() string { return tooLarge(files) },
 		func() string { return guardDenial(r.policy.Decide, r.in.Checkout, files) },

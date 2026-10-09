@@ -54,8 +54,8 @@ func TestCheckGitCommand_AdmitsEveryCommandTheSPECNames(t *testing.T) {
 		"check-ref-format --branch feature/한글",
 		"ls-tree -r -l -z " + gpOID,
 		"ls-tree -r -z --name-only " + gpOID,
-		"ls-tree -r -z " + gpOID,
 		"ls-tree -z " + gpOID + " -- :(literal)pkg/foo",
+		"cat-file --batch",
 		"check-attr -z --source=" + gpOID + " filter -- pkg/foo/foo.go pkg/foo/new.go",
 		"apply --numstat --summary -z --check",
 		"apply --index",
@@ -125,7 +125,8 @@ func TestCheckGitCommand_RefusesEverythingElse(t *testing.T) {
 		"check-attr -z --source=HEAD filter -- a.go", "check-attr -z --source=" + gpOID + " filter --",
 		"check-attr -z --source=" + gpOID + " diff -- a.go", "check-attr -z filter -- a.go",
 		"check-ref-format --branch -x", "check-ref-format --branch", "check-ref-format main",
-		"cat-file -p " + gpOID, "cat-file commit HEAD",
+		"cat-file -p " + gpOID, "cat-file commit HEAD", "cat-file --batch-check", "cat-file --batch --filters",
+		"cat-file --batch --textconv", "cat-file blob " + gpOID, "ls-tree -r -z " + gpOID,
 		"status --porcelain", "diff --binary", "ls-files -z", "reset --hard",
 	}
 	for _, line := range refused {

@@ -8,7 +8,8 @@ import (
 )
 
 // Patch Policy items 5–6: the extension allowlist, then the deny list, the
-// structural rules (CD-3 M3), and the executable rule, each giving
+// structural rules (CD-3 M3), the executable rule, and the paths that the
+// base manifests make a build run (RR-7, patchpolicy_build.go), each giving
 // path_denied. Deny entries match any path segment or the file name after
 // folding; the tool-configuration name rules match the file name only.
 
@@ -47,14 +48,14 @@ var deniedSegments = []string{
 var deniedFileNames = []string{"*.conf.*", "*rc.*", ".*rc"}
 
 // deniedPath runs items 5 and 6 over every path.
-func deniedPath(files []*diffFile, entries map[string]treeEntry) string {
+func deniedPath(files []*diffFile, entries map[string]treeEntry, built buildPaths) string {
 	for _, file := range files {
 		if !allowedExtensions[path.Ext(path.Base(file.path))] {
 			return PatchCodePathDenied
 		}
 	}
 	for _, file := range files {
-		if deniedName(foldPath(file.path)) || (!file.isNew && entries[file.path].mode == "100755") {
+		if deniedName(foldPath(file.path)) || (!file.isNew && entries[file.path].mode == "100755") || built.denies(file.path) {
 			return PatchCodePathDenied
 		}
 	}
