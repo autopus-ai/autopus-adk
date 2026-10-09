@@ -106,6 +106,11 @@ All notable changes to this project will be documented in this file.
     기본 split 설정에서 executor는 `tdd`, `debugging`만 적고, 설치되지 않는 `ddd`, `ast-refactoring`,
     `grilling`, `docker` 같은 long-tail 이름은 빠진다. `skills.compiler.bundles`나 `explicit_skills`로 그
     skill을 설치하면 참조도 다시 생긴다(Claude Code는 이미 이렇게 동작했다).
+- **`auto react band` 로컬 patch 후속 조치** (2026-10-09, SPEC-SIGMABAND-002):
+  - confined provider의 환경 allowlist에 `ANTHROPIC_API_KEY`가 들어가, API key만 쓰는 배포도 confined
+    진단과 patch 요청을 실행할 수 있다(이전에는 구독 로그인이나 `CLAUDE_CODE_OAUTH_TOKEN`만 됐다).
+    `ANTHROPIC_BASE_URL` 등 다른 `ANTHROPIC_*` 변수는 여전히 버린다. key가 설정돼 있으면 claude가
+    구독 대신 그 key를 쓸 수 있으므로, 구독으로 과금하려면 band 실행 환경에서 key를 지운다.
 
 - **`auto react band`: tier 3의 opt-in 로컬 patch** (2026-10-08, SPEC-SIGMABAND-002): 선택 키
   `health_band.allow_local_patch: true`를 켜면 tier 3으로 열린 episode는 confined 진단이 성공한 뒤

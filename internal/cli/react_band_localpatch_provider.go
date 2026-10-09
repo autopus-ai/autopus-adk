@@ -25,16 +25,18 @@ import (
 var bandClaudeModelIDPattern = regexp.MustCompile(`^claude-[a-z0-9][a-z0-9.-]*$`)
 
 // bandConfinedKeepEnv is the allowlist of a confined request's environment
-// (Provider Contract item 6): the process, locale, terminal, and XDG
+// (Provider Contract item 8): the process, locale, terminal, and XDG
 // variables, the claude configuration directory and its headless OAuth
-// token, the proxy variables in both letter cases, and the TLS trust
-// variables. Every other inherited variable is dropped, so the markers,
-// socket, and token of an agent session that runs band (CLAUDECODE,
-// CLAUDE_CODE_*, ORCA_*), an IDE or MCP bridge, NODE_OPTIONS, an SSH agent,
-// and an API key never reach the confined claude.
+// token, ANTHROPIC_API_KEY for an API-key-only deployment, the proxy
+// variables in both letter cases, and the TLS trust variables. Every other
+// inherited variable is dropped, so the markers, socket, and token of an
+// agent session that runs band (CLAUDECODE, CLAUDE_CODE_*, ORCA_*), an IDE
+// or MCP bridge, NODE_OPTIONS, an SSH agent, and every other ANTHROPIC_*
+// variable, such as a base URL that would send the key elsewhere, never
+// reach the confined claude.
 var bandConfinedKeepEnv = []string{
 	"PATH", "HOME", "USER", "LOGNAME", "SHELL", "TMPDIR", "LANG", "LC_*", "TERM", "TZ", "XDG_*",
-	"CLAUDE_CONFIG_DIR", "CLAUDE_CODE_OAUTH_TOKEN",
+	"CLAUDE_CONFIG_DIR", "CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_API_KEY",
 	"HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy",
 	"SSL_CERT_FILE", "SSL_CERT_DIR", "NODE_EXTRA_CA_CERTS",
 }

@@ -350,12 +350,17 @@ checkout, such as `.env`, are not in it. The shared read-only projection
 `--output-format stream-json`, and the provider starts with only an allowlist
 of inherited variables (`PATH`, `HOME`, `USER`, `LOGNAME`, `SHELL`, `TMPDIR`,
 `LANG`, `LC_*`, `TERM`, `TZ`, `XDG_*`, `CLAUDE_CONFIG_DIR`,
-`CLAUDE_CODE_OAUTH_TOKEN`, the proxy variables in both letter cases,
-`SSL_CERT_FILE`, `SSL_CERT_DIR`, and `NODE_EXTRA_CA_CERTS`). No credential,
-`GIT_*`, `ANTHROPIC_API_KEY`, or agent-session variable (such as `CLAUDECODE`,
+`CLAUDE_CODE_OAUTH_TOKEN`, `ANTHROPIC_API_KEY`, the proxy variables in both
+letter cases, `SSL_CERT_FILE`, `SSL_CERT_DIR`, and `NODE_EXTRA_CA_CERTS`).
+Every other variable is dropped: no other credential, no `GIT_*` variable, no
+other `ANTHROPIC_*` variable (such as `ANTHROPIC_BASE_URL`, which would send
+the key elsewhere), and no agent-session variable (such as `CLAUDECODE`,
 `CLAUDE_CODE_*`, or `MCP_*`) reaches it, so authenticate with the subscription
-login or `CLAUDE_CODE_OAUTH_TOKEN`. A provider chosen this way is the only one
-tried, and it is chosen before any worktree exists:
+login, `CLAUDE_CODE_OAUTH_TOKEN`, or `ANTHROPIC_API_KEY`. With
+`ANTHROPIC_API_KEY` set, claude can use that key instead of the subscription
+login, so unset it in band's environment when the subscription should pay for
+band's requests. A provider chosen this way is the only one tried, and it is
+chosen before any worktree exists:
 
 1. `health_band.local_patch_provider`, trimmed, when it is not empty. With
    that key set, band runs the claude named by health_band.local_patch_provider
@@ -371,9 +376,10 @@ tried, and it is chosen before any worktree exists:
    the local patch claim ends `failed:diagnosis_unavailable`.
 
 The expected deployment is the claude CLI signed in with a Claude subscription
-(claude auth login); it needs no API key. Band sets no API key and never passes
-`--bare`, which reads only an API key and never the subscription login. A
-repository whose orchestra providers are all `backend: omp` sets:
+(claude auth login); it needs no API key. An API-key-only deployment exports
+ANTHROPIC_API_KEY for the band run instead. Band itself sets no API key and
+never passes `--bare`, which reads only an API key and never the subscription
+login. A repository whose orchestra providers are all `backend: omp` sets:
 
 ```yaml
 health_band:
