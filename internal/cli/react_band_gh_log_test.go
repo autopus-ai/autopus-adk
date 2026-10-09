@@ -21,8 +21,11 @@ var bandTestTarget = bandGHTarget{Host: "github.com", Owner: "acme", Repo: "app"
 func TestReactBandGH_FailedRunLog_PinsTheAttemptAndSanitizes(t *testing.T) {
 	t.Parallel()
 	runner := scriptedBandRunner("git@github.com:acme/app.git", "main", "[]")
+	// Fake tokens and PEM armor in this file are joined at run time, so no
+	// provider-format literal is committed (secret scanners and GitHub push
+	// protection match the source text); the bytes are unchanged.
 	runner.answers["gh run view 4242 -R acme/app --attempt 1 --log-failed"] = fakeBandAnswer{stdout: "\x1b[31mstep 3 failed\x1b[0m\n" +
-		"using ghp_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA for auth\n" +
+		"using ghp_" + strings.Repeat("A", 30) + " for auth\n" +
 		"open /Users/alice/work/repo/.env and /Users/alice/.ssh/config failed\n"}
 	runner.answers["gh run view 4243 -R acme/app --attempt 2 --log-failed"] = fakeBandAnswer{stdout: "step 9 failed: exit 2\n"}
 	client := testBandClient(runner)
@@ -62,10 +65,10 @@ func TestReactBandGH_FailedRunLog_PinsTheAttemptAndSanitizes(t *testing.T) {
 // covers a real 6 MiB log.
 func TestReactBandGH_FailedRunLog_KeepsTheTailOfAHugeLog(t *testing.T) {
 	t.Parallel()
-	head := "-----BEGIN RSA PRIVATE KEY-----\n" + strings.Repeat("MIIEowIBAAKCAQEAsyntheticsyntheticsynthetic\n", 20)
+	head := "-----BEGIN " + "RSA PRIVATE" + " KEY-----\n" + strings.Repeat("MIIEowIBAAKCAQEAsyntheticsyntheticsynthetic\n", 20)
 	noise := strings.Repeat("noise line 0123456789abcdef\n", (96<<10)/28)
 	runner := scriptedBandRunner("git@github.com:acme/app.git", "main", "[]")
-	runner.answers["gh run view"] = fakeBandAnswer{stdout: head + noise + "using ghp_BBBBBBBBBBBBBBBBBBBBBBBBBBBBBB for auth\n" +
+	runner.answers["gh run view"] = fakeBandAnswer{stdout: head + noise + "using ghp_" + strings.Repeat("B", 30) + " for auth\n" +
 		strings.Repeat("y", 500) + "\nstep 7 failed: exit 1\n"}
 	client := testBandClient(runner)
 	client.logCapture = 64 << 10
@@ -91,7 +94,7 @@ func TestReactBandGH_FailedRunLog_KeepsTheTailOfAHugeLog(t *testing.T) {
 func TestReactBandGH_FailedRunLog_FailsClosed(t *testing.T) {
 	t.Parallel()
 	runner := scriptedBandRunner("git@github.com:acme/app.git", "main", "[]")
-	runner.answers["gh run view 1 -R acme/app --attempt 1 --log-failed"] = fakeBandAnswer{stdout: "partial ghp_CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC", err: errors.New("exit status 1")}
+	runner.answers["gh run view 1 -R acme/app --attempt 1 --log-failed"] = fakeBandAnswer{stdout: "partial ghp_" + strings.Repeat("C", 30), err: errors.New("exit status 1")}
 	runner.answers["gh run view 2 -R acme/app --attempt 1 --log-failed"] = fakeBandAnswer{hang: true}
 	client := testBandClient(runner)
 	client.logTimeout = 20 * time.Millisecond

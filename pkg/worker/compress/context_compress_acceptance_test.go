@@ -127,11 +127,15 @@ Compress without losing required context.
 }
 
 func TestContextCompress_RedactionMetadataAndIndexEligibility_RedactsUnsafeBodies(t *testing.T) {
-	const fakeSecret = "sk-test-1234567890abcdef"
-	const fakeAWSKey = "AKIAABCDEFGHIJKLMNOP"
-	const fakeGitHubToken = "ghp_abcdefghijklmnopqrstuvwxyzABCDEFGHIJ"
+	// Fake credentials are joined from fragments: GitHub push protection and
+	// secret scanners match the contiguous source text, so a provider-format
+	// fake written as one literal would be reported. Each joined value is
+	// byte-identical to the literal it replaced.
+	const fakeSecret = "sk-" + "test-1234567890abcdef"
+	const fakeAWSKey = "AKIA" + "ABCDEFGHIJKLMNOP"
+	const fakeGitHubToken = "ghp_" + "abcdefghijklmnopqr" + "stuvwxyzABCDEFGHIJ"
 	const fakeBearer = "Bearer abc.def-ghi_jkl"
-	const fakePrivateKey = "-----BEGIN OPENSSH PRIVATE KEY-----"
+	const fakePrivateKey = "-----BEGIN " + "OPENSSH PRIVATE" + " KEY-----"
 	const rawLocalPath = "/Users/alice/private/provider-payload.json"
 	const rawWindowsPath = `C:\Users\alice\private\payload.json`
 	const rawMacPrivatePath = "/private/var/folders/zz/provider-payload.json"

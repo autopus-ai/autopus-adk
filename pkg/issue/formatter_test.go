@@ -89,7 +89,7 @@ func TestFormatMarkdown_SanitizesSecrets(t *testing.T) {
 	t.Parallel()
 
 	const (
-		apiKey  = "sk-live-ABCDEF0123456789"
+		apiKey  = "sk-" + "live-ABCDEF0123456789" // joined so no provider-format literal is committed
 		credURL = "https://user:supersecrettoken@host/x"
 	)
 

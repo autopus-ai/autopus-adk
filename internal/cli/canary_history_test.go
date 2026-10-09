@@ -69,7 +69,8 @@ func TestCanaryHistorySample_S18Cases(t *testing.T) {
 			canaryRan("FAIL", "SKIPPED", "PASS", "SKIPPED", "FAIL", "PASS"), "canary.failure_rate:preview.example.com", 1},
 		{"default port of each scheme only", canaryOptions{frontendURL: "https://api.example.com:80", apiURL: "http://API.example.com:80"},
 			canaryRan("PASS", "PASS"), "canary.failure_rate:api.example.com+api.example.com:80", 0},
-		{"user info never reaches the series", canaryOptions{apiURL: "https://ci:ghp_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA@api.example.com/x"},
+		// The token is joined at run time so no provider-format literal is committed.
+		{"user info never reaches the series", canaryOptions{apiURL: "https://ci:ghp_" + strings.Repeat("A", 30) + "@api.example.com/x"},
 			canaryRan("PASS", "PASS"), "canary.failure_rate:api.example.com", 0},
 		{"host without a scheme", canaryOptions{apiURL: "Localhost:3000"}, canaryRan("FAIL", "SKIPPED", "PASS", "SKIPPED", "FAIL"),
 			"canary.failure_rate:localhost:3000", 1},

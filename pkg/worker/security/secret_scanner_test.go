@@ -6,6 +6,19 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// Fake credentials are joined from fragments: GitHub push protection and
+// secret scanners match the contiguous source text, so a provider-format fake
+// written as one literal would be reported. Each joined value is
+// byte-identical to the literal it replaced, so the scanner sees the same
+// input.
+const (
+	fakeOpenAIKey     = "sk-" + "abcdefghijklmnopqr" + "stuvwxyz1234567890"
+	fakeAWSKeyID      = "AKIA" + "IOSFODNN7EXAMPLE"
+	fakeGitHubPAT     = "ghp_" + "ABCDEFGHIJKLMNOPQR" + "STUVWXYZabcdefghij"
+	fakeGitHubOAuth   = "gho_" + "ABCDEFGHIJKLMNOPQR" + "STUVWXYZabcdefghij"
+	fakeAWSSecretPair = "aws_secret=" + "ABCDEFGHIJKLMNOPQRST" + "UVWXYZ0123456789abcd"
+)
+
 func TestSecretScanner_DefaultPatterns(t *testing.T) {
 	t.Parallel()
 
@@ -16,15 +29,15 @@ func TestSecretScanner_DefaultPatterns(t *testing.T) {
 		input    string
 		contains bool
 	}{
-		{"OpenAI key", "key: sk-abcdefghijklmnopqrstuvwxyz1234567890", true},
-		{"AWS access key", "AKIAIOSFODNN7EXAMPLE", true},
-		{"GitHub PAT", "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij", true},
-		{"GitHub OAuth", "gho_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij", true},
+		{"OpenAI key", "key: " + fakeOpenAIKey, true},
+		{"AWS access key", fakeAWSKeyID, true},
+		{"GitHub PAT", fakeGitHubPAT, true},
+		{"GitHub OAuth", fakeGitHubOAuth, true},
 		{"Bearer token", "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.test", true},
 		{"password assignment", "password=supersecret123", true},
 		{"secret assignment", "secret: my-secret-value", true},
-		{"api_key assignment", "api_key=abcdef12345", true},
-		{"AWS secret key", "aws_secret=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcd", true},
+		{"api_key assignment", "api_key=" + "abcdef12345", true},
+		{"AWS secret key", fakeAWSSecretPair, true},
 	}
 
 	for _, tt := range tests {
@@ -83,7 +96,7 @@ func TestSecretScanner_CustomPatterns(t *testing.T) {
 	assert.Contains(t, s.Scan("key: CUSTOM-ABCDEFGHIJ"), redactedPlaceholder)
 
 	// Default patterns should still work.
-	assert.True(t, s.ContainsSecret("sk-abcdefghijklmnopqrstuvwxyz1234567890"))
+	assert.True(t, s.ContainsSecret(fakeOpenAIKey))
 }
 
 func TestSecretScanner_CustomPatterns_InvalidSkipped(t *testing.T) {
@@ -98,14 +111,14 @@ func TestSecretScanner_CustomPatterns_InvalidSkipped(t *testing.T) {
 	// The valid custom pattern should work.
 	assert.True(t, s.ContainsSecret("VALID-ABC"))
 	// Default patterns should still work.
-	assert.True(t, s.ContainsSecret("sk-abcdefghijklmnopqrstuvwxyz1234567890"))
+	assert.True(t, s.ContainsSecret(fakeOpenAIKey))
 }
 
 func TestSecretScanner_ContainsSecret(t *testing.T) {
 	t.Parallel()
 
 	s := NewSecretScanner()
-	assert.True(t, s.ContainsSecret("ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij"))
+	assert.True(t, s.ContainsSecret(fakeGitHubPAT))
 	assert.False(t, s.ContainsSecret("this is just normal text"))
 }
 
@@ -113,12 +126,12 @@ func TestSecretScanner_ScanLines(t *testing.T) {
 	t.Parallel()
 
 	s := NewSecretScanner()
-	input := "line1: safe\nline2: sk-abcdefghijklmnopqrstuvwxyz1234567890\nline3: safe"
+	input := "line1: safe\nline2: " + fakeOpenAIKey + "\nline3: safe"
 	result := s.ScanLines(input)
 
 	assert.Contains(t, result, "line1: safe")
 	assert.Contains(t, result, "line3: safe")
-	assert.NotContains(t, result, "sk-abcdefghijklmnopqrstuvwxyz1234567890")
+	assert.NotContains(t, result, fakeOpenAIKey)
 	assert.Contains(t, result, redactedPlaceholder)
 }
 

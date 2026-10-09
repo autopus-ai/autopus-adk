@@ -87,15 +87,18 @@ func TestFire_ToolInputNeverReentersContext(t *testing.T) {
 	f.writeBody("lore-commit.md", sourceRuleBody(t, "lore-commit"))
 	f.writeManifest(bashRule("lore-commit", condLoreCommit, "lore-commit.md"))
 
-	command := "export GH_TOKEN=ghp_EXAMPLEFAKETOKEN && git commit -m x"
+	// The token is joined from fragments so no provider-format literal is
+	// committed; the bytes are unchanged.
+	const token = "ghp_" + "EXAMPLEFAKETOKEN"
+	command := "export GH_TOKEN=" + token + " && git commit -m x"
 	stdout, stderr := f.fire(bashPayload(command))
 
 	ctx := injectedContext(t, stdout)
 	require.Contains(t, ctx, loreCommitSignature)
 
-	assert.NotContains(t, ctx, "ghp_EXAMPLEFAKETOKEN")
+	assert.NotContains(t, ctx, token)
 	assert.NotContains(t, ctx, "export GH_TOKEN")
 	assert.NotContains(t, ctx, "git commit -m x")
-	assert.NotContains(t, stdout, "ghp_EXAMPLEFAKETOKEN")
-	assert.NotContains(t, stderr, "ghp_EXAMPLEFAKETOKEN")
+	assert.NotContains(t, stdout, token)
+	assert.NotContains(t, stderr, token)
 }

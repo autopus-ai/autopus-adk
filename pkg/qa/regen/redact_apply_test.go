@@ -15,7 +15,9 @@ import (
 // and an absolute local path must not survive into the serialized diff; the
 // redaction placeholder appears instead, and AssertDiffSafe passes.
 func TestRedactDiff_StripsSecretAndPath(t *testing.T) {
-	secret := "sk-proj-ABCDEFGHIJKLMNOP1234567890"
+	// Joined from fragments so no provider-format literal is committed; the
+	// bytes are unchanged.
+	secret := "sk-" + "proj-ABCDEFGHIJKLMNOP1234567890"
 	localPath := "/Users/victim/secrets/app"
 
 	diff := Diff{

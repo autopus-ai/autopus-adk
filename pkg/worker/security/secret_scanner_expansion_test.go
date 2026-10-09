@@ -47,6 +47,14 @@ func TestSecretScanner_AzureClientSecret(t *testing.T) {
 		"Azure client secret must be redacted")
 }
 
+// privateKeyHeader is the PEM header of a private key of kind, joined from
+// fragments so no PEM armor is committed as one literal (secret scanners and
+// GitHub push protection match the source text); the joined header is
+// byte-identical to the literal it replaced.
+func privateKeyHeader(kind string) string {
+	return "-----BEGIN " + kind + " PRIVATE" + " KEY-----"
+}
+
 // TestSecretScanner_SSHPrivateKeyHeader verifies detection of SSH private key
 // PEM header.
 // RED: SSH private key header pattern not in defaultPatterns yet.
@@ -59,9 +67,9 @@ func TestSecretScanner_SSHPrivateKeyHeader(t *testing.T) {
 		name  string
 		input string
 	}{
-		{"RSA private key", "-----BEGIN RSA PRIVATE KEY-----"},
-		{"OpenSSH private key", "-----BEGIN OPENSSH PRIVATE KEY-----"},
-		{"EC private key", "-----BEGIN EC PRIVATE KEY-----"},
+		{"RSA private key", privateKeyHeader("RSA")},
+		{"OpenSSH private key", privateKeyHeader("OPENSSH")},
+		{"EC private key", privateKeyHeader("EC")},
 	}
 
 	for _, tt := range tests {

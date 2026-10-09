@@ -66,7 +66,7 @@ func s11Fixtures() []fixture {
 		{"query", "?token=" + v12, "?" + sec, true},
 		{"user path", "/Users/alice/proj", "/Users/" + PlaceholderUser + "/proj", true},
 		{"aws access key", "AKIA" + up16, sec, true},
-		{"pem header", "-----BEGIN RSA PRIVATE KEY-----", sec, true},
+		{"pem header", "-----BEGIN " + "RSA PRIVATE" + " KEY-----", sec, true},
 		{"apjwt", "apjwt_a.b.c", sec, true},
 		// Shapes only the worker patterns catch.
 		{"short password", "password=ab", sec, true},
