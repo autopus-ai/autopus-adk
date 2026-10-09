@@ -43,6 +43,10 @@ type RecoveryOptions struct {
 	// beforeKeyLock runs between the first read and a claim's key lock (a
 	// test seam for the CD-3 M7 races).
 	beforeKeyLock func(claimID string)
+	// gitCallTimeout, when it returns more than 0 for a Cleanup Rule
+	// command, replaces GitTimeout for that one call (a test seam: only the
+	// call a test makes hang reaches its timeout, whatever the load).
+	gitCallTimeout func(args []string) time.Duration
 }
 
 // RecoveryReport is what one recovery step did.
