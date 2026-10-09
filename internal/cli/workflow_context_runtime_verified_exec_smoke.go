@@ -69,14 +69,14 @@ func runWorkflowContextVerifiedExecSmoke(
 	config := pipelineOMPBackendConfig{Executable: canonical, executableID: identity}
 	ompVersion, err := probePipelineOMPActiveVersion(cmd.Context(), config, pipelineOMPActiveCurrentRuntimeHooks{})
 	if err != nil {
-		return workflowContextVerifiedExecSmokeV1{}, errors.New("authority-free OMP version probe failed")
+		return workflowContextVerifiedExecSmokeV1{}, fmt.Errorf("authority-free OMP version probe failed: %w", err)
 	}
 	if err := verifyPipelineOMPExecutable(canonical, identity); err != nil {
 		return workflowContextVerifiedExecSmokeV1{}, err
 	}
 	providerCalls, err := runWorkflowContextVerifiedExecRPCSmoke(cmd.Context(), canonical, identity)
 	if err != nil {
-		return workflowContextVerifiedExecSmokeV1{}, errors.New("authority-free OMP RPC readiness probe failed")
+		return workflowContextVerifiedExecSmokeV1{}, fmt.Errorf("authority-free OMP RPC readiness probe failed: %w", err)
 	}
 	if providerCalls != 0 {
 		return workflowContextVerifiedExecSmokeV1{}, errors.New("OMP RPC readiness probe reached the provider endpoint")

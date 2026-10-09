@@ -146,12 +146,18 @@ func (output *pipelineOMPActiveProbeOutput) result() ([]byte, bool) {
 	return bytes.Clone(output.data), output.exceeded
 }
 
+// pipelineOMPActiveVersionProbeTimeout bounds `omp --version` under the probe
+// sandbox. A healthy probe answers in well under a second; the ceiling only
+// matters for a hang. Five seconds was too tight for the first sandboxed launch
+// of a freshly installed binary on a loaded hosted runner (v0.50.124 release).
+const pipelineOMPActiveVersionProbeTimeout = 15 * time.Second
+
 func probePipelineOMPActiveVersion(
 	ctx context.Context,
 	config pipelineOMPBackendConfig,
 	hooks pipelineOMPActiveCurrentRuntimeHooks,
 ) (version string, resultErr error) {
-	probeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	probeCtx, cancel := context.WithTimeout(ctx, pipelineOMPActiveVersionProbeTimeout)
 	defer cancel()
 	verifiedCommand, err := newPipelineOMPVerifiedExecCommandContext(
 		probeCtx, config.Executable, config.executableID, "--version",
