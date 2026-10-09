@@ -100,30 +100,39 @@ func assertPairEqual(t *testing.T, bin string, args []string, flag string,
 
 	assert.Equal(t, plain.calls(t), flagged.calls(t), "recorded provider argv")
 	assert.Equal(t, plain.normalize(t, want.stdout), flagged.normalize(t, got.stdout), "stdout")
-	assert.Equal(t, sortParallelStartLines(plain.normalize(t, want.stderr)),
-		sortParallelStartLines(flagged.normalize(t, got.stderr)), "stderr")
+	assert.Equal(t, sortParallelProviderLines(plain.normalize(t, want.stderr)),
+		sortParallelProviderLines(flagged.normalize(t, got.stderr)), "stderr")
 	assert.Equal(t, want.exit, got.exit, "exit status")
 	return want, got
 }
 
-// parallelProviderStartLine is the line spec review prints as it launches each
-// provider in parallel (spec_review_structured_runtime.go); their relative
-// order is goroutine scheduling, not behavior.
-var parallelProviderStartLine = regexp.MustCompile(`^SPEC 리뷰 provider 시작: \S+ \(.*, mode=parallel\)$`)
+// Spec review runs providers in parallel goroutines that each print a start
+// line (mode=parallel) and then a completion or failure line
+// (spec_review_structured_runtime.go). Which provider launches first, which
+// finishes first, and whether one finishes before the other launches is
+// goroutine scheduling, not behavior.
+var (
+	parallelProviderStartLine = regexp.MustCompile(`^SPEC 리뷰 provider 시작: \S+ \(.*, mode=parallel\)$`)
+	providerOutcomeLine       = regexp.MustCompile(`^SPEC 리뷰 provider (완료|실패): \S+ \(`)
+)
 
-// sortParallelStartLines sorts each run of consecutive parallel provider start
-// lines, so a stderr comparison ignores their launch order and nothing else.
-func sortParallelStartLines(text string) string {
+// sortParallelProviderLines sorts each block of parallel provider lines: a
+// parallel start line and the start, completion, and failure lines right
+// after it. A stderr comparison then ignores the scheduling order inside the
+// block and nothing else: every line still counts, no line crosses another
+// line, and sequential providers keep their order.
+func sortParallelProviderLines(text string) string {
 	lines := strings.Split(text, "\n")
 	for i := 0; i < len(lines); i++ {
-		j := i
-		for j < len(lines) && parallelProviderStartLine.MatchString(lines[j]) {
+		if !parallelProviderStartLine.MatchString(lines[i]) {
+			continue
+		}
+		j := i + 1
+		for j < len(lines) && (parallelProviderStartLine.MatchString(lines[j]) || providerOutcomeLine.MatchString(lines[j])) {
 			j++
 		}
-		if j-i > 1 {
-			sort.Strings(lines[i:j])
-			i = j - 1
-		}
+		sort.Strings(lines[i:j])
+		i = j - 1
 	}
 	return strings.Join(lines, "\n")
 }
@@ -187,24 +196,45 @@ func countPanermCalls(calls []string, prefix string) int {
 	return n
 }
 
-func TestSortParallelStartLines_ReordersOnlyParallelStartLines(t *testing.T) {
+func TestSortParallelProviderLines_IgnoresOnlyParallelSchedulingOrder(t *testing.T) {
 	start := func(name, mode string) string {
 		return "SPEC 리뷰 provider 시작: " + name + " (backend=subprocess, timeout=<duration>, mode=" + mode + ")"
 	}
 	done := func(name string) string {
 		return "SPEC 리뷰 provider 완료: " + name + " (backend=subprocess, elapsed=<duration>)"
 	}
+	failed := func(name string) string {
+		return "SPEC 리뷰 provider 실패: " + name + " (backend=subprocess, class=timeout, elapsed=<duration>): x"
+	}
+	const judge = "SPEC 리뷰 judge 완료: claude (verdict=PASS, accepted=0, rejected=0, merged=0)"
 	lines := func(order ...string) string { return strings.Join(append(order, ""), "\n") }
-	launched := lines("head", start("codex", "parallel"), start("claude", "parallel"), done("codex"), done("claude"),
-		start("codex", "sequential"), start("claude", "sequential"))
+	normalized := func(order ...string) string { return sortParallelProviderLines(lines(order...)) }
+	launched := normalized("head", start("claude", "parallel"), start("codex", "parallel"), done("codex"), done("claude"),
+		judge, start("codex", "sequential"), done("codex"), start("claude", "sequential"), done("claude"))
 
-	assert.Equal(t, sortParallelStartLines(launched), sortParallelStartLines(lines("head",
-		start("claude", "parallel"), start("codex", "parallel"), done("codex"), done("claude"),
-		start("codex", "sequential"), start("claude", "sequential"))), "parallel launch order is ignored")
-	assert.NotEqual(t, sortParallelStartLines(launched), sortParallelStartLines(lines("head",
-		start("codex", "parallel"), start("claude", "parallel"), done("claude"), done("codex"),
-		start("codex", "sequential"), start("claude", "sequential"))), "completion order still counts")
-	assert.NotEqual(t, sortParallelStartLines(launched), sortParallelStartLines(lines("head",
-		start("codex", "parallel"), start("claude", "parallel"), done("codex"), done("claude"),
-		start("claude", "sequential"), start("codex", "sequential"))), "sequential launch order still counts")
+	for name, order := range map[string][]string{
+		"parallel launch order": {"head", start("codex", "parallel"), start("claude", "parallel"), done("codex"),
+			done("claude"), judge, start("codex", "sequential"), done("codex"), start("claude", "sequential"), done("claude")},
+		// The stderr pair of CI run 37871017866.
+		"parallel completion order": {"head", start("claude", "parallel"), start("codex", "parallel"), done("claude"),
+			done("codex"), judge, start("codex", "sequential"), done("codex"), start("claude", "sequential"), done("claude")},
+		"completion before the other launch": {"head", start("codex", "parallel"), done("codex"), start("claude", "parallel"),
+			done("claude"), judge, start("codex", "sequential"), done("codex"), start("claude", "sequential"), done("claude")},
+	} {
+		assert.Equal(t, launched, normalized(order...), "%s is goroutine scheduling", name)
+	}
+	assert.Equal(t, normalized(start("codex", "parallel"), start("claude", "parallel"), failed("claude"), done("codex")),
+		normalized(start("claude", "parallel"), done("codex"), start("codex", "parallel"), failed("claude")),
+		"a parallel failure line is an outcome like a completion line")
+
+	for name, order := range map[string][]string{
+		"sequential launch order": {"head", start("claude", "parallel"), start("codex", "parallel"), done("codex"),
+			done("claude"), judge, start("claude", "sequential"), done("claude"), start("codex", "sequential"), done("codex")},
+		"an outcome after another line": {"head", start("claude", "parallel"), start("codex", "parallel"), done("codex"),
+			judge, done("claude"), start("codex", "sequential"), done("codex"), start("claude", "sequential"), done("claude")},
+		"a missing outcome": {"head", start("claude", "parallel"), start("codex", "parallel"), done("codex"),
+			judge, start("codex", "sequential"), done("codex"), start("claude", "sequential"), done("claude")},
+	} {
+		assert.NotEqual(t, launched, normalized(order...), "%s still counts", name)
+	}
 }
