@@ -12,8 +12,18 @@ a baseline a failure in the final run cannot be told apart from a regression.
 - A final failure absent from the baseline is a regression until shown
   otherwise. When no baseline was taken, re-run the failing test on the base
   commit in a separate worktree before attributing it. A test that fails only
-  in the full run and passes alone is load-sensitive and is reported as such.
+  in the full run is judged by the shared-machine rules below.
 - Never report the suite as fully green while a pre-existing failure remains.
+
+### Full-suite runs on a shared machine
+
+- Run the full suite serially, never beside another suite, with host agent
+  state isolated (an empty `CODEX_HOME` or the platform's equivalent): load and
+  host configuration both cause failures the change did not.
+- Count a full-run failure as a regression only when the test also fails run
+  alone, at least three times over: one red under load is not evidence.
+- Record a test that passes alone but fails under load as a timing-sensitive
+  follow-up, never as a pass and never as a regression.
 
 ## One merged run, per-criterion verdicts
 
@@ -85,6 +95,22 @@ Issues: <list>
 Recommended owner: <the unit owner that should fix it>
 ```
 
+## Secret-shaped fixtures
+
+- Never commit a provider-format credential literal, even a fake one (`ghp_`,
+  `github_pat_`, `glpat-`, `LTAI`, `sk-`, `xoxb-`, `AccountKey=`, an AWS key ID,
+  a PEM key body): push protection and secret scanners match the source text,
+  not what the test does with it.
+- Compose the value at run time from fragments that no scanner matches alone,
+  such as `"LTAI" + "5tQw..."`, and split long letter-and-digit runs as well:
+  the detector under test still receives the same bytes.
+- Before pushing a large batch, scan the new commits with the scanner's default
+  rules, not the repository allowlist (for gitleaks, a config holding only
+  `[extend] useDefault = true`): an allowlist that skips test files hides
+  exactly what push protection blocks.
+- A blocked push clears only by rewriting the commits that carry the value or
+  by an explicit bypass: a fix-forward commit leaves the value in history.
+
 ## Numeric thresholds are declared, not invented
 
 Apply the project's threshold, or the documented default when it declares none.
@@ -121,6 +147,18 @@ file-size policy does not apply to SPEC or agent Markdown.
   gate; generated packs and workflows are reviewed before execution. Use
   `auto qa init --local-only --format json` to skip release workflow
   scaffolding.
+- When the SPEC has acceptance criteria and the project has a GUI or command QA
+  surface, run `auto qa go <SPEC-ID> --auto`: it generates intent-anchored
+  scenarios, promotes and compiles them, and hands failures to the loop. The
+  steps are also available one by one (`auto qa scenario generate|promote|
+  compile`). Report uncovered criteria; never invent
+  expected values that no criterion or recording states.
+- When an affected lane fails, hand the failure to `auto qa loop --lane <lane>
+  --agent <platform>` instead of hand-patching tests. The loop triages
+  (`environment | flaky | test_drift | test_defect | product_defect`), fixes on
+  its own branch, and its diff guard refuses any change that moves an expected
+  value. Review and merge the loop branch; a `guard_rejected` or `no_progress`
+  stop goes back to the SPEC or to a human. See the `qa-autopilot` skill.
 
 ## Phase 3.5 — UX verification
 
