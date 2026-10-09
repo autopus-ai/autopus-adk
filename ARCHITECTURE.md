@@ -20,7 +20,7 @@ Autopus-ADK (Agentic Development Kit) is a Go CLI tool that installs the Autopus
 | Lore | `pkg/lore` | 9-trailer decision protocol, query, validation |
 | LSP | `pkg/lsp` | Language server detection, hover, completion, diagnostics |
 | Search | `pkg/search` | Context7 MCP, Exa API, hash-based knowledge search |
-| Orchestra | `pkg/orchestra` | Multi-model orchestration (consensus, pipeline, debate, fastest) with judge-based debate, structured consensus, graceful degradation, subprocess and OMP execution backends, and reliability receipts/failure bundles |
+| Orchestra | `pkg/orchestra` | Multi-model orchestration (consensus, pipeline, debate, fastest) with judge-based debate, structured consensus, graceful degradation, and subprocess and OMP execution backends |
 | Template | `pkg/template` | Go text/template wrapper with custom functions |
 | Detect | `pkg/detect` | Platform binary detection, orchestra provider detection, test runner detection |
 | Version | `pkg/version` | Build metadata (ldflags injection) |
@@ -134,7 +134,6 @@ cmd/auto/main.go
 | Recorder | `pkg/telemetry/recorder.go` | JSONL-based pipeline execution telemetry |
 | Estimator | `pkg/cost/estimator.go` | Token-based cost estimation with 3:1 split ratio |
 | Brainstorm | `internal/cli/orchestra_brainstorm.go` | Multi-provider SCAMPER/HMW brainstorming with divergence-preserving judge and ICE scoring |
-| Reliability Store | `pkg/orchestra/reliability_*.go` | Structured preflight/prompt/collection receipts, sanitized failure bundles, runtime artifact retention |
 | Idea Workflow | `.claude/skills/autopus/idea.md` | Independent idea brainstorming subccommand (`/auto idea`) with BS file output and plan chaining |
 | Experiment Loop | `pkg/experiment/` + `.claude/skills/autopus/experiment.md` | Skill-orchestrated autonomous iteration loop with CLI utility commands for metric execution, git state management, circuit breaking, and simplicity scoring |
 | Workspace Topology | `pkg/setup/{workspace.go,multirepo*.go}` | Single-repo, monorepo, multi-repo workspace detection and cross-repo dependency mapping |
