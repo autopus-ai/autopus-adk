@@ -42,44 +42,6 @@ func TestWriteOrchestraCLIOutput_JSONIncludesTypedReceiptAndMergedResult(t *test
 	assert.NotContains(t, out.String(), `"panes"`)
 }
 
-func TestWriteOrchestraCLIOutput_JSONYield_PreservesSessionContract(t *testing.T) {
-	t.Parallel()
-
-	want := orchestra.YieldOutput{
-		Strategy:  "debate",
-		Rounds:    1,
-		SessionID: "orch-yield-json",
-		Panes: map[string]string{
-			"claude": "surface:41",
-			"codex":  "surface:42",
-		},
-		RoundHistory: []orchestra.YieldRound{{
-			Round: 1,
-			Responses: []orchestra.YieldResponse{{
-				Provider: "claude",
-				Output:   "round one response",
-			}},
-		}},
-	}
-	result := &orchestra.OrchestraResult{
-		Merged: "generic output must not replace the yield contract",
-		RunReceipt: &orchestra.OrchestrationRunReceipt{
-			Schema: orchestra.OrchestrationReceiptSchema,
-		},
-		Yield: &want,
-	}
-	var out bytes.Buffer
-
-	err := writeOrchestraCLIOutput(&out, result, orchestraOutputJSON)
-
-	require.NoError(t, err)
-	var got orchestra.YieldOutput
-	require.NoError(t, json.Unmarshal(out.Bytes(), &got), "stdout must contain exactly one JSON document")
-	assert.Equal(t, want, got)
-	assert.NotContains(t, out.String(), orchestraCLIOutputSchema)
-	assert.NotContains(t, out.String(), "generic output must not replace the yield contract")
-}
-
 func TestWriteOrchestraCLIOutput_JSONFailsClosedWithoutReceipt(t *testing.T) {
 	t.Parallel()
 

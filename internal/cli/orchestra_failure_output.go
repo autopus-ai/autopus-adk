@@ -23,7 +23,6 @@ type orchestraFailureReport struct {
 	EffectiveTimeout ResolvedOrchestraTimeout           `json:"effective_timeout"`
 	FailedProviders  []orchestraFailureProvider         `json:"failed_providers,omitempty"`
 	RetryHints       []string                           `json:"retry_hints,omitempty"`
-	ArtifactDir      string                             `json:"artifact_dir,omitempty"`
 	RunReceipt       *orchestra.OrchestrationRunReceipt `json:"run_receipt,omitempty"` // typed receipt incl. workspace evidence and provider provenance
 }
 
@@ -78,9 +77,6 @@ func saveOrchestraDiagnosticsReport(prefix, command, strategy string, providers 
 		report.RunID = result.RunID
 		report.Duration = result.Duration.Round(time.Millisecond).String()
 		report.Summary = result.Summary
-		if result.Reliability != nil {
-			report.ArtifactDir = result.Reliability.ArtifactDir
-		}
 		for _, fp := range result.FailedProviders {
 			report.FailedProviders = append(report.FailedProviders, orchestraFailureProvider{
 				Name:             fp.Name,

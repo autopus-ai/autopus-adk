@@ -127,7 +127,6 @@ func TestBuildProviderConfigs(t *testing.T) {
 			if tt.expectName == "gemini" {
 				// SPEC-ORCH-021 REQ-014: prompt fills the empty "" slot after --print.
 				assert.Equal(t, []string{"--print", ""}, result[0].Args)
-				assert.Equal(t, defaultProviderStartupTimeout("gemini"), result[0].StartupTimeout)
 			}
 		})
 	}

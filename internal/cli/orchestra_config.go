@@ -111,10 +111,6 @@ func resolveProviders(conf *config.OrchestraConf, commandName string, flagProvid
 	return result
 }
 
-func resolveProviderStartupTimeout(name string) time.Duration {
-	return defaultProviderStartupTimeout(name)
-}
-
 func resolveProviderExecutionTimeout(entry config.ProviderEntry) time.Duration {
 	if entry.Subprocess.Timeout > 0 {
 		return time.Duration(entry.Subprocess.Timeout) * time.Second

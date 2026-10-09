@@ -13,10 +13,21 @@ import (
 )
 
 // random_id.go mints the random identifiers retained code depends on: run and
-// review ids (NewSessionID) and short nonces for run ids, relay directories,
-// and debate sentinels (randomHex).
+// review ids (NewSessionID), the run correlation id of a config that has none
+// (ensureRunID), and short nonces for run ids, relay directories, and debate
+// sentinels (randomHex).
 
 var sessionFallbackCounter atomic.Uint64
+
+// ensureRunID returns cfg.RunID, first assigning a timestamped random one
+// when the caller left it empty.
+func ensureRunID(cfg *OrchestraConfig) string {
+	if cfg.RunID != "" {
+		return cfg.RunID
+	}
+	cfg.RunID = fmt.Sprintf("run-%d-%s", time.Now().UnixMilli(), randomHex())
+	return cfg.RunID
+}
 
 // NewSessionID uses 128 random bits and a collision-resistant fallback if the
 // operating system random source fails.

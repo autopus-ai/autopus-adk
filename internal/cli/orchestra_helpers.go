@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 
@@ -198,7 +197,7 @@ func buildProviderConfigsForRuntime(names []string, quality, effort string) []or
 		// SPEC-ORCH-021 REQ-014/015: gemini (`agy`) --print is a STRING flag taking the prompt
 		// as its value. Pass the prompt in the empty "" slot via PromptViaArgs (injectPromptArg
 		// replaces "" with the prompt) → `agy --print "<prompt>"`.
-		"gemini": {Name: "gemini", Binary: "agy", ModelFamily: "google", Args: []string{"--print", ""}, PromptViaArgs: true, StartupTimeout: defaultProviderStartupTimeout("gemini"), OutputFormat: "text"},
+		"gemini": {Name: "gemini", Binary: "agy", ModelFamily: "google", Args: []string{"--print", ""}, PromptViaArgs: true, OutputFormat: "text"},
 	}
 
 	var result []orchestra.ProviderConfig
@@ -242,7 +241,6 @@ func providerConfigFromEntry(name string, entry config.ProviderEntry) orchestra.
 		Args:             append([]string(nil), entry.Args...),
 		ModelPolicy:      entry.ModelPolicy,
 		PromptViaArgs:    entry.PromptViaArgs,
-		StartupTimeout:   resolveProviderStartupTimeout(name),
 		ExecutionTimeout: resolveProviderExecutionTimeout(entry),
 		SchemaFlag:       entry.Subprocess.SchemaFlag,
 		StdinMode:        entry.Subprocess.StdinMode,
@@ -253,15 +251,6 @@ func providerConfigFromEntry(name string, entry config.ProviderEntry) orchestra.
 // defaultProviders returns the hardcoded default provider list.
 func defaultProviders() []string {
 	return []string{"claude", "codex", "gemini"}
-}
-
-func defaultProviderStartupTimeout(name string) time.Duration {
-	switch name {
-	case "gemini":
-		return 20 * time.Second
-	default:
-		return 0
-	}
 }
 
 // resolveAndValidateThreshold validates the threshold flag and resolves the final value.

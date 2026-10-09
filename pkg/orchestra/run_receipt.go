@@ -245,9 +245,6 @@ func firstNonempty(values ...string) string {
 
 func collectRunArtifacts(result *OrchestraResult) []string {
 	var artifacts []string
-	if result.Reliability != nil {
-		artifacts = appendUniqueName(artifacts, result.Reliability.ArtifactDir)
-	}
 	for _, response := range result.Responses {
 		artifacts = appendUniqueName(artifacts, response.Receipt)
 	}

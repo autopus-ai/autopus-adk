@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **orchestra: pane backend 은퇴 뒤 비어 있던 결과 필드와 reliability store 제거** (2026-10-09,
+  SPEC-PANERM-001 후속): reliability store, yield passthrough, provider startup timeout을 채우거나
+  읽던 코드는 모두 pane backend 파일에 있었고 `88eecc39`(SPEC-PANERM-001 W2)에서 함께 지워졌다. 그
+  뒤로 reliability와 yield 필드는 어느 실행 경로에서도 채워지지 않았고, startup timeout은 CLI가 쓰기만
+  하고 아무도 읽지 않았다. 이번 변경은 남은 코드와 필드를 지우며 CLI 출력은 바뀌지 않는다.
+  - 출력: `--format json` stdout(`orchestration_cli_result.v1`), receipt(`orchestration_run_receipt.v1`,
+    schema version 그대로), `--no-judge`의 `round_history` JSON은 그대로다. 실패·degraded 진단
+    보고서(`.autopus/orchestra/failed-*.json`, `degraded-*.json`)의 `artifact_dir` 키(omitempty), 결과
+    markdown의 `**Artifacts**:` 줄, stderr의 `아티팩트:` 줄은 값이 늘 비어 있어 출력된 적이 없었고
+    이제 코드에서도 빠졌다. receipt의 `terminal_state`는 더 이상 `yielded`를 추론하지 않는다(근거가
+    되던 필드가 늘 비어 있었다). v1 vocabulary의 `yielded`와 gate status 매핑은 남는다.
+  - 파일: `~/.autopus/runtime/orchestra/runs/`(home에 쓸 수 없으면
+    `$TMPDIR/autopus-runtime/orchestra/runs/`)에 receipt와 failure bundle을 쓰고 20개·7일 기준으로
+    정리하던 코드가 사라졌다. pane 은퇴 뒤 이 디렉토리에 새로 쓰는 경로는 없었고, 이제 정리도 하지
+    않는다. 이주: 이전 바이너리가 남긴 디렉토리는 지워도 된다. 다른 구성 요소는 이 경로를 쓰지 않는다.
+  - 설정: `ProviderConfig.StartupTimeout`은 `autopus.yaml` 키가 아니라 provider 이름으로 정한 기본값
+    (gemini 20초)이었으므로 설정 파일은 바뀌지 않는다. provider 실행 timeout
+    (`orchestra.providers.<name>.subprocess.timeout`, `orchestra.timeout_seconds`, `--timeout`)은
+    그대로다.
+  - Go API(breaking, `pkg/orchestra`를 import하는 코드만 해당): 필드 `OrchestraResult.Reliability`,
+    `OrchestraResult.Yield`, `OrchestraConfig.ReliabilityStore`, `ProviderConfig.StartupTimeout`과 타입
+    `ReliabilitySummary`, `FailureBundle`, `ProviderPreflightReceipt`, `PromptTransportReceipt`,
+    `CollectionReceipt`, `ReliabilityEvent`, `ProviderCapabilityReceipt`, `SanitizedArtifact`,
+    `CorrelationIDs`가 사라졌다. `ReliabilityFallbackMode`, `YieldOutput`, `WriteYieldOutput`,
+    `BuildYieldOutputFromResult`, `TerminalYielded`는 남는다. 이주: `Reliability`, `Yield`,
+    `ReliabilityStore`는 늘 nil이었고 `StartupTimeout`은 실행에 쓰이지 않았으므로 그 읽기와 쓰기를
+    지운다.
+
 - **`auto react band`: tier 3의 opt-in 로컬 patch** (2026-10-08, SPEC-SIGMABAND-002): 선택 키
   `health_band.allow_local_patch: true`를 켜면 tier 3으로 열린 episode는 confined 진단이 성공한 뒤
   최대 한 번 로컬 patch를 받는다. read-only provider가 제안한 diff를 검사하고, 저장소 밖 사용자 cache

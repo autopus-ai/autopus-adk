@@ -9,7 +9,7 @@ func finalizeDebateOutcome(result *OrchestraResult, cfg OrchestraConfig) (*Orche
 		result.FreshJudgeSession = freshJudgeSessionFromResponses(result.Responses)
 	}
 	result = finalizeOrchestraResultForConfig(result, cfg)
-	if result == nil || cfg.Strategy != StrategyDebate || cfg.JudgeProvider == "" || cfg.NoJudge || result.Yield != nil {
+	if result == nil || cfg.Strategy != StrategyDebate || cfg.JudgeProvider == "" || cfg.NoJudge {
 		return result, nil
 	}
 	evidenceErr := freshJudgeSessionError(result.FreshJudgeSession)

@@ -44,9 +44,6 @@ func writeOrchestraCLIOutput(w io.Writer, result *orchestra.OrchestraResult, for
 		_, err := fmt.Fprintln(w, result.Merged)
 		return err
 	}
-	if result.Yield != nil {
-		return orchestra.WriteYieldOutput(w, *result.Yield)
-	}
 	if result.RunReceipt == nil || result.RunReceipt.Schema != orchestra.OrchestrationReceiptSchema {
 		return fmt.Errorf("orchestra output: typed %s receipt is required", orchestra.OrchestrationReceiptSchema)
 	}
