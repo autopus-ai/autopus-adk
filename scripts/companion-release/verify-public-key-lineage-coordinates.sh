@@ -194,7 +194,7 @@ readonly A33_LINUX_AMD64_ARCHIVE_SHA256='205f17bbafc9f55ad79243feed67de07ad76c31
 readonly A33_LINUX_ARM64_ARCHIVE_SHA256='49d7cdf6bb1c8685676d1f5805ef945960cb45958e33eb605bbc3815e3cbef3d'
 readonly A33_AMD64_MANIFEST_SHA256='57317da672620d4f5c7ca58358fea8d0c8e87459f5030c8c337a58d872f7fed5'
 readonly A33_ARM64_MANIFEST_SHA256='491a7576c3b3febb03cb0465da99c9b953d2c5fd6edfa725ce393ced807c3fa0'
-readonly A34_REPOSITORY='autopus-ai/autopus-adk' A35_TAG='v0.50.124' A35_VERSION='0.50.124'
+readonly A34_REPOSITORY='autopus-ai/autopus-adk' A35_TAG='v0.50.125' A35_VERSION='0.50.125'
 # A34 shipped the same fifteen-asset set as A33 under the same owner, all
 # measured from the immutable release 402971620. The two manifest digests come
 # from inside the darwin archives, where the companion manifest travels.

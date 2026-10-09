@@ -175,6 +175,7 @@ func TestReleaseSourceValidator_RejectsCoordinateMismatchAndOutsidePolicy(t *tes
 		{name: "failed_A22_tag_96", tag: "v0.50.96", sha: headSHA, message: frozenReleasePhasePolicy},
 		{name: "burned_A23_tag_110", tag: "v0.50.110", sha: headSHA, message: frozenReleasePhasePolicy},
 		{name: "burned_A24_tag_112", tag: "v0.50.112", sha: headSHA, message: frozenReleasePhasePolicy},
+		{name: "burned_A35_tag_124", tag: "v0.50.124", sha: headSHA, message: frozenReleasePhasePolicy},
 	} {
 		output, err := runReleaseSourceValidator(t, dir, test.tag, test.sha)
 		if err == nil || !strings.Contains(output, test.message) {

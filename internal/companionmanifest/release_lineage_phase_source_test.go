@@ -150,8 +150,8 @@ func TestReleaseSourceValidator_A35RejectsCrossTagAnnotatedObjectReplay(t *testi
 	sha := strings.TrimSpace(runGit(t, dir, "rev-parse", "HEAD"))
 	runGit(t, dir, "tag", "-am", "A34 replay object", "v0.50.123")
 	tagObject := strings.TrimSpace(runGit(t, dir, "rev-parse", "refs/tags/v0.50.123"))
-	runGit(t, dir, "update-ref", "refs/tags/v0.50.124", tagObject)
-	output, err := runReleaseSourceValidator(t, dir, "v0.50.124", sha)
+	runGit(t, dir, "update-ref", "refs/tags/v0.50.125", tagObject)
+	output, err := runReleaseSourceValidator(t, dir, "v0.50.125", sha)
 	if err == nil || !strings.Contains(output, "annotated tag object, type, or name headers differ") {
 		t.Fatalf("cross-tag A34 object replay result: %v\n%s", err, output)
 	}

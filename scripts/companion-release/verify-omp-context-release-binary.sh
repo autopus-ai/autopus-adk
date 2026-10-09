@@ -3,7 +3,7 @@ set -euo pipefail
 
 fail() { printf 'OMP context release binary: %s\n' "$1" >&2; exit 1; }
 
-[[ "${COMPANION_RELEASE_TAG:-}" == 'v0.50.124' ]] || exit 0
+[[ "${COMPANION_RELEASE_TAG:-}" == 'v0.50.125' ]] || exit 0
 [[ "${OMP_CONTEXT_STATIC_POLICY_B64:-}" =~ ^[A-Za-z0-9_-]+$ ]] ||
   fail 'compiled static policy is missing or malformed'
 for name in COMPANION_ARTIFACT COMPANION_PLATFORM COMPANION_ARCHITECTURE \

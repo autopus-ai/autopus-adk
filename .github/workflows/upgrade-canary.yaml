@@ -26,12 +26,12 @@ jobs:
           UPGRADE_CANARY_GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          scripts/release-signing/tests/posix-upgrade-canary.sh live 0.50.123 0.50.124
+          scripts/release-signing/tests/posix-upgrade-canary.sh live 0.50.123 0.50.125
           jq -e '
             .mode == "live" and .status == "admitted" and
             .proof == "public asset admission" and
             .previous_public_version == "0.50.123" and
-            .candidate_public_version == "0.50.124" and
+            .candidate_public_version == "0.50.125" and
             .actual_release_executables_verified == true and
             .public_signed_installers_verified == true
           ' "$UPGRADE_CANARY_RECEIPT_DIR/provenance.json" >/dev/null
@@ -68,15 +68,15 @@ jobs:
             .commit.tree.sha == "13dcb08d81c59ad0677e824b0785bc7e1fffcbe7"
           ' <<<"$previous_commit" >/dev/null
 
-          candidate_release=$(gh api 'repos/autopus-ai/autopus-adk/releases/tags/v0.50.124')
-          candidate_ref=$(gh api 'repos/autopus-ai/autopus-adk/git/ref/tags/v0.50.124')
+          candidate_release=$(gh api 'repos/autopus-ai/autopus-adk/releases/tags/v0.50.125')
+          candidate_ref=$(gh api 'repos/autopus-ai/autopus-adk/git/ref/tags/v0.50.125')
           candidate_commit=$(jq -er '.target_commitish | select(test("^[0-9a-f]{40}$"))' \
             <<<"$candidate_release")
           candidate_commit_json=$(gh api "repos/autopus-ai/autopus-adk/commits/$candidate_commit")
           jq -e '
-            .tag_name == "v0.50.124" and .draft == false and
+            .tag_name == "v0.50.125" and .draft == false and
             .prerelease == false and .immutable == true and
-            ([.assets[] | select(.name == "autopus-adk_0.50.124_darwin_arm64.tar.gz" and
+            ([.assets[] | select(.name == "autopus-adk_0.50.125_darwin_arm64.tar.gz" and
               (.digest | type == "string" and test("^sha256:[0-9a-f]{64}$")))] | length) == 1
           ' <<<"$candidate_release" >/dev/null
           candidate_tag_object=$(jq -er '.object.sha | select(test("^[0-9a-f]{40}$"))' \
@@ -91,7 +91,7 @@ jobs:
           candidate_release_id=$(jq -er '.id | select(type == "number" and . > 0)' \
             <<<"$candidate_release")
           candidate_archive_digest=$(jq -er '
-            [.assets[] | select(.name == "autopus-adk_0.50.124_darwin_arm64.tar.gz")][0].digest
+            [.assets[] | select(.name == "autopus-adk_0.50.125_darwin_arm64.tar.gz")][0].digest
           ' <<<"$candidate_release")
 
           jq -n \
@@ -109,7 +109,7 @@ jobs:
               source_commit:"c447badc28e393b19984d2eeea159a81d609acd9",
               source_tree:"13dcb08d81c59ad0677e824b0785bc7e1fffcbe7",
               darwin_arm64_digest:"sha256:4c8809fda4bede93601711892fc91cbcc334cf59a7e0200848b3d4d9b16b2d94"},
-              candidate:{version:"0.50.124",release_id:$candidate_release_id,
+              candidate:{version:"0.50.125",release_id:$candidate_release_id,
               tag_object:$candidate_tag_object,source_commit:$candidate_commit,
               source_tree:$candidate_tree,darwin_arm64_digest:$candidate_archive_digest}}' \
             > "$RECEIPT_DIR/workflow-provenance.json"
@@ -120,7 +120,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: upgrade-canary-0.50.123-to-0.50.124
+          name: upgrade-canary-0.50.123-to-0.50.125
           path: ${{ runner.temp }}/upgrade-canary-live-receipt
           if-no-files-found: error
           retention-days: 30
