@@ -74,11 +74,18 @@ func (claudeDialect) EncodeDeny(decision Decision) ([]byte, error) {
 // openCodeDialect reads the payload the generated OpenCode plugin synthesizes,
 // {"platform","cwd","tool_name","targets"}, with every target in native
 // argument order and move destinations included (REQ-EG-13). The payload's
-// platform field is never consulted.
+// platform field is never consulted. Each target and displaced path comes in
+// every spelling of openCodeSpellings.
 type openCodeDialect struct{}
 
 func (openCodeDialect) Decode(payload []byte) (Call, error) {
-	return decodeOpenCodePayload(payload)
+	call, err := decodeOpenCodePayload(payload)
+	if err != nil {
+		return Call{}, err
+	}
+	call.Targets = openCodeSpellings(call.Targets)
+	call.Displaced = openCodeSpellings(call.Displaced)
+	return call, nil
 }
 
 // EncodeDeny writes {"decision":"deny","reason":...} exactly, without a line
