@@ -166,11 +166,31 @@ differ; there is no unsigned-accept path in either lane. The only harness lane
 entry in `evalRegressionPublicKeys` is its public key; the private key lives
 only in the `adk-harness-eval-signing` Environment secret
 `HARNESS_EVAL_SIGNING_KEY`, which reaches `auto eval harness export` on stdin.
+There is no escrow copy: a lost or exposed key is rotated (below), never
+recovered.
 
 Environments (OPS-ONLY): `adk-harness-eval-agent` holds only the Codex
-credential and `adk-harness-eval-signing` holds only the signing key. Both
-limit deployment branches to `main`; `adk-harness-eval-signing` requires at
-least one reviewer and forbids self-review.
+credential (`CODEX_API_KEY`) and `adk-harness-eval-signing` holds only the
+signing key. Both limit deployment branches to `main`;
+`adk-harness-eval-signing` requires at least one reviewer and forbids
+self-review, except under the single-maintainer exception below.
+
+Single-maintainer exception (operator decision 2026-10-09, SPEC-HARNEVAL-003
+REQ-HR-01): the repository has one maintainer, so the required reviewer of
+`adk-harness-eval-signing` is the sole repo admin (`Insajin`) with
+`prevent_self_review: false`. This does not stop a single compromised
+account: whoever holds that account, or a credential with its rights, can
+dispatch on `main` and approve the signing job alone. The compensating
+controls narrow that path but do not close it: the `main`-only deployment
+branch, the `workflow_dispatch`-only trigger without inputs, the key reaching
+only the export step on stdin, the public Sigstore attestation log of every
+session (detection, not prevention), the `harness-eval` required check on
+`main` (admins can still push directly, `enforce_admins: false`), and the
+rotation below. When a second maintainer exists, add that account as a
+reviewer and restore `prevent_self_review: true`. Both Environments have
+`can_admins_bypass: true`, which per GitHub's documentation lets an admin
+bypass the protection rules; unless it is also set to `false`, the restored
+reviewer rule does not bind admins.
 
 ### Harness lane key rotation
 

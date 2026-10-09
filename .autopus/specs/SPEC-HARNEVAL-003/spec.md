@@ -57,6 +57,17 @@ THE SYSTEM SHALL run the signed live lane only through `workflow_dispatch` on ma
 - job `sign`: `needs: live-eval`, 새 `macos-15` runner, `environment: adk-harness-eval-signing`, `permissions: {contents: read, actions: read, id-token: write, attestations: write}`. 같은 `github.sha`를 checkout해 `auto`를 빌드하고 `auto eval harness export`만 실행한다. export step의 env 이름은 `HARNESS_EVAL_SIGNING_KEY` 하나다. 명령은 `printf '%s' "$HARNESS_EVAL_SIGNING_KEY" | env -u HARNESS_EVAL_SIGNING_KEY auto eval harness export …`다. shell이 읽는 변수와 `env -u`가 지우는 변수가 같으므로, 키는 stdin으로만 들어가고 `auto`와 그 자식 process의 환경에는 없다. 서명한 증거는 업로드 전에 스스로 검증한다(REQ-HR-05).
 - 세 job 모두 `if: github.ref == 'refs/heads/main'`이고, `uses:`는 40-hex SHA로 고정한다. dispatch input은 없다. 동적 값은 `env:`나 파일로만 넘긴다.
 - Environment 보호 규칙(OPS, T10): 두 Environment 모두 deployment branch를 `main`으로 제한한다. `adk-harness-eval-signing`은 required reviewer 1명 이상과 self-review 금지를 둔다.
+- 단일 maintainer 예외(운영자 결정 2026-10-09, `evidence/t10-ops.txt`): repo collaborator가 admin `Insajin` 한 명뿐이어서 두 번째 reviewer 계정을 둘 수 없다. 그래서 `adk-harness-eval-signing`의 required reviewer는 `Insajin` 한 명이고 `prevent_self_review=false`다.
+  - 두 사람 규칙이 막고 이 예외는 막지 못하는 것: 계정 하나의 탈취다. 그 계정이나 그 권한을 가진 자격 증명(예: maintainer host의 `gh` token)을 쥔 행위자는 main에서 dispatch하고 자기 signing job을 승인해 서명 증거를 혼자 만들 수 있다. 두 사람 규칙에서는 다른 계정이 승인해야 sign job이 키를 받는다. dispatch한 사람이 독립 검토 없이 자기 run을 승인하는 실수도 이 예외에서는 걸러지지 않는다. admin은 Trust Model상 이미 신뢰 경계 안이므로 신뢰 경계가 넓어지지는 않는다. 넓어지는 것은 그 계정 하나로 끝나는 공격 경로다.
+  - 보완 통제. 위험을 줄이지만 막지는 않는다:
+    - deployment branch를 두 Environment 모두 `main` 하나로 제한했다. 다른 branch·tag·fork의 workflow는 두 Environment의 secret을 받지 못하므로 서명은 main의 workflow 정의로만 일어난다.
+    - trigger는 `workflow_dispatch` 하나이고 dispatch input이 없으며 run script에 event·input·artifact 값을 보간하지 않는다(S3). PR이나 외부 event로 sign job을 띄우거나 그 명령을 바꿀 수 없다.
+    - 서명키는 sign job의 export step 하나에만 매핑되고 stdin으로만 `auto`에 들어간다(`env -u`, S2). 다른 step과 자식 process의 환경에는 키가 없다.
+    - 모든 세션이 Sigstore 공개 log에 bound·session-result attestation을 남긴다(REQ-HR-07). 혼자 만든 서명 세션도 repo 내부자가 지울 수 없는 기록으로 사후에 드러난다. 이 통제는 탐지이고 예방이 아니다.
+    - main branch protection의 required check `harness-eval`(SPEC-HARNEVAL-001 T14)이 있어 main으로의 PR merge는 결정적 lane을 통과해야 한다. `enforce_admins=false`이므로 admin의 직접 push는 막지 않는다.
+    - 키 회전 runbook(`.github/EVAL_REGRESSION_REQUIRED_CHECK.md`의 Harness lane key rotation)이 있다. 탈취가 의심되면 공개키·`ADKHarnessEvalKeyID`·Environment secret을 한 번에 바꾼다. key id가 binding에 들어 있으므로 회전 전 세션은 새 binding의 window에 들어오지 않는다. 개인키의 escrow 사본은 없으므로 키를 잃으면 복구하지 않고 회전한다.
+  - 복귀 조건: 두 번째 maintainer 계정이 생기면 그 계정을 required reviewer로 더하고 `prevent_self_review=true`로 되돌린다.
+  - 관측(2026-10-09, 바꾸지 않음): 두 Environment 모두 `can_admins_bypass=true`다. GitHub 문서 기준으로 이 값이면 admin이 required reviewer 대기를 우회해 job을 진행시킬 수 있다(이 작업에서 실측하지 않았다). 그래서 복귀할 때 이 값도 `false`로 바꾸지 않으면 두 사람 규칙이 admin 계정 탈취를 막지 못한다. 값 변경은 운영자 결정으로 남긴다.
 
 ### REQ-HR-02 Signer의 trusted protocol 재구성과 결과 재도출
 Priority: Must · EARS: EventDriven
@@ -362,3 +373,9 @@ THE SYSTEM SHALL run a sandbox preflight on the hosted `macos-15` runner before 
 | S2 (medium) 남은 process를 session으로만 찾음 | setsid한 자손, double fork로 launchd에 넘어간 자손이 단계 뒤에 살아남았다. `process_tree`가 단계가 도는 동안 전체 process table을 걸어 자식·group·session을 고정점까지 따라가고, 도달한 process는 setsid·재부모화 뒤에도 pid로 추적한다. sandbox 단계는 그 profile instance가 가두는 process(쓰기 허용 scratch, 부모 거부)를 함께 센다. 모두 SIGKILL한 뒤 다시 걸어 남은 것이 있으면 `observation_failed`다 | REQ-HR-08 process 구조 3단계 |
 | C5 (low) 서명 lane fixture가 T15 schema 전 형식 | `pkg/harneval/testdata/signed-lane`을 `oracle_mode`·`black_box_oracle`(positive control 포함)을 가진 set으로 fake agent runner가 다시 만들고, signer가 `OracleAssertionIDs`로 trusted id를 얻는다. 닿지 않는 signal은 test에 적었다 | S8, Wire Contracts |
 | S2 잔차 (medium) 단일 walk이 한 세대보다 오래 걸림 | 앞 S2 수정 뒤에도 `sweep`이 첫 번째 빈 walk에서 clean으로 끝났다. 한 walk(`proc_pidinfo` 한 바퀴 + pid별 `sandbox_check`)이 한 세대보다 오래 걸려, 매 세대 `fork`+`setsid`로 자신을 다시 exec하는 Go artifact(그리고 no-wait Python fork 체인)가 실제 경로(artifact.sb run 모드, `run_stage(confined=run_root)`)에서 2/3 run으로 `leftover=False`인 채 살아남았다. 결정: run·oracle 단계는 출력만으로 판정해 fork가 필요 없음을 5개 black-box task + A05 positive control calibration(status passed, 변형 전후 판정 불변)과 grader·process_tree test로 확인하고, `artifact.sb` run 모드와 `oracle.sb`에서 `process-fork`를 거부했다(toolchain이 fork하는 build 모드는 유지, thread만 쓰는 Go artifact는 영향 없음). fork가 필요한 build·grader·agent 단계는 `sweep`이 `SETTLE_WALKS`=3회 연속 빈 walk(≥`SETTLE_SECONDS`=0.5s)을 확인해야 clean으로 보고하고, 첫 kill 뒤 sweep이 죽이지 않은 confined process가 새로 보이면 즉시 `observation_failed`로 fail-closed한다. 첫 walk은 POLL 대기 없이 바로 돈다. `leaders` 집합의 노화(pid 재사용 채택 방지)는 적용하지 않았다. 끝난 leader의 session에 나중에 들어온 orphan도 계속 찾는 기존 의미(`ReachTests`가 고정)와 충돌하고, 한 단계 수명 안에 같은 pid가 재사용될 창은 무시할 만하다 | REQ-HR-08 process 구조 3단계, `artifact.sb`, `oracle.sb`, `process_tree.py` |
+
+## Review Resolution (T10 운영 결정, 2026-10-09)
+
+| Finding | 처리 | 위치 |
+|---------|------|------|
+| 단일 maintainer: REQ-HR-01의 self-review 금지를 지킬 두 번째 reviewer 계정이 없다(repo collaborator는 admin `Insajin` 하나) | 운영자 결정으로 `adk-harness-eval-signing`의 required reviewer를 `Insajin` 한 명, `prevent_self_review=false`로 두었다. 이 설정은 두 사람 규칙이 막는 계정 하나의 탈취를 막지 못한다. 보완 통제 여섯 개(main 한정 deployment branch, `workflow_dispatch`만 있는 trigger, export step 하나에 stdin으로만 들어가는 키, Sigstore attestation log, required check `harness-eval`, 키 회전 runbook)와 각 통제가 막지 못하는 범위, 복귀 조건(두 번째 maintainer가 생기면 reviewer 추가와 `prevent_self_review=true`), 관측한 `can_admins_bypass=true`는 REQ-HR-01에 적었다. runbook에도 같은 내용을 적었다. 공개키는 ea0581ce에서 커밋했다 | REQ-HR-01, plan.md T10, `evidence/t10-ops.txt`, `.github/EVAL_REGRESSION_REQUIRED_CHECK.md` |
