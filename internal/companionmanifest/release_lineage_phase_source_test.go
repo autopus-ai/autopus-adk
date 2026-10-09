@@ -145,14 +145,14 @@ func TestReleaseSourceValidator_PhasesPinDirectPredecessorAncestor(t *testing.T)
 	}
 }
 
-func TestReleaseSourceValidator_A34RejectsCrossTagAnnotatedObjectReplay(t *testing.T) {
+func TestReleaseSourceValidator_A35RejectsCrossTagAnnotatedObjectReplay(t *testing.T) {
 	dir := cloneCurrentReleaseRepository(t)
 	sha := strings.TrimSpace(runGit(t, dir, "rev-parse", "HEAD"))
-	runGit(t, dir, "tag", "-am", "A33 replay object", "v0.50.122")
-	tagObject := strings.TrimSpace(runGit(t, dir, "rev-parse", "refs/tags/v0.50.122"))
-	runGit(t, dir, "update-ref", "refs/tags/v0.50.123", tagObject)
-	output, err := runReleaseSourceValidator(t, dir, "v0.50.123", sha)
+	runGit(t, dir, "tag", "-am", "A34 replay object", "v0.50.123")
+	tagObject := strings.TrimSpace(runGit(t, dir, "rev-parse", "refs/tags/v0.50.123"))
+	runGit(t, dir, "update-ref", "refs/tags/v0.50.124", tagObject)
+	output, err := runReleaseSourceValidator(t, dir, "v0.50.124", sha)
 	if err == nil || !strings.Contains(output, "annotated tag object, type, or name headers differ") {
-		t.Fatalf("cross-tag A33 object replay result: %v\n%s", err, output)
+		t.Fatalf("cross-tag A34 object replay result: %v\n%s", err, output)
 	}
 }

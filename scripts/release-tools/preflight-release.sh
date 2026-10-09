@@ -12,8 +12,8 @@ set -euo pipefail
 umask 077
 
 readonly repository='autopus-ai/autopus-adk'
-readonly release_tag="${1:-v0.50.123}"
-readonly predecessor_tag="${2:-v0.50.122}"
+readonly release_tag="${1:-v0.50.124}"
+readonly predecessor_tag="${2:-v0.50.123}"
 readonly release_ref="refs/tags/${release_tag}"
 readonly version="${release_tag#v}"
 

@@ -100,7 +100,7 @@ func TestCurrentReleaseVerifier_UsesPolicyBoundHistoricalRecovery(t *testing.T) 
 	for _, required := range []string{
 		"OMP_CONTEXT_STATIC_POLICY_B64", "--mode historical",
 		"omp-context-promotion-report.v1.json", "omp-context-promotion-attestation.v2.json",
-		"exactly fifteen A34 normal release assets verified",
+		"exactly fifteen A35 normal release assets verified",
 	} {
 		if !strings.Contains(source, required) {
 			t.Fatalf("current release verifier missing %q", required)
@@ -140,7 +140,7 @@ func assertCurrentReleaseVerifierLog(t *testing.T, path string) {
 	}
 	for _, required := range []string{
 		"companion-manifest-verifier --artifact ", "--platform darwin --architecture arm64",
-		"omp-context-lineage-verifier --lineage ", "--target darwin-arm64 --version 0.50.123",
+		"omp-context-lineage-verifier --lineage ", "--target darwin-arm64 --version 0.50.124",
 		"omp-context-evidence-verifier --mode historical",
 		"--source-repository autopus-ai/autopus-adk",
 		"--candidate-repository autopus-ai/autopus-adk",
