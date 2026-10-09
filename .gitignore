@@ -6,6 +6,8 @@ coverage.out
 *.dylib
 .DS_Store
 *.out
+__pycache__/
+*.pyc
 
 # Autopus-ADK generated/runtime files
 .autopus/*-manifest.json
