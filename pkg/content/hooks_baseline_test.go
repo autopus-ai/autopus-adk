@@ -25,7 +25,10 @@ import (
 // source_commit, the parent of the SPEC's first commit, with
 // config.DefaultFullConfig. There is one file per adapter, listing every hook
 // generator call that adapter makes; omp declares no hook support and makes
-// none. A later SPEC that adds a hook on purpose updates the counts here.
+// none. A later SPEC that adds a hook on purpose updates the counts here, and
+// a deliberate shape fix updates the entries (the Gemini CLI react entry moved
+// to the run_shell_command matcher and a millisecond timeout after
+// source_commit).
 const (
 	hooksBaselineDir    = "testdata/hooks-baseline"
 	hooksBaselineSchema = "autopus.hooks_baseline.v1"

@@ -87,7 +87,7 @@ func (a *Adapter) removeManagedSettingsKeys() error {
 	if err != nil {
 		return err
 	}
-	removeAuthoredLegacyHooks(settings, append(defaultLegacyHookConfigs(), a.configuredLegacyGeminiHooks(cfg)...))
+	removeAuthoredLegacyHooks(settings, authoredLegacyGeminiHooks(a.configuredLegacyGeminiHooks(cfg)))
 	retractStaleCompletionHandlers(settings)
 	currentServers, _ := settings["mcpServers"].(map[string]any)
 	authoredServers, _ := authored["mcpServers"].(map[string]any)
@@ -131,6 +131,16 @@ func retractStaleCompletionHandlers(settings map[string]any) {
 func defaultLegacyHookConfigs() []adapter.HookConfig {
 	hooks, _, _ := pkgcontent.GenerateProjectHookConfigs(config.DefaultFullConfig("autopus"), "gemini", true)
 	return hooks
+}
+
+// authoredLegacyGeminiHooks is every .gemini/settings.json entry shape
+// generation has written for the current hooks: the default and the current
+// configuration's entries, plus the shell-tool shapes earlier releases wrote
+// for them (matcher "Bash", second timeouts), so update and Clean replace or
+// remove those instead of leaving them beside the corrected entries.
+func authoredLegacyGeminiHooks(current []adapter.HookConfig) []adapter.HookConfig {
+	authored := append(defaultLegacyHookConfigs(), current...)
+	return append(authored, pkgcontent.RetiredGeminiHookShapes(authored)...)
 }
 
 // Handler-level subtraction preserves user handlers sharing the same event
