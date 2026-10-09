@@ -65,3 +65,17 @@ func TestVerifyConfiguredPublicKeyReceiptBundle_ProductionA0Tamper_FailsClosed(t
 		})
 	}
 }
+
+// The bundle loader exists only on darwin and linux; elsewhere bundle
+// verification is unsupported, so this test lives with the unix fixtures.
+func TestVerifyConfiguredPublicKeyReceiptBundle_PrivateLoaderUsesBundleAuthority(t *testing.T) {
+	bundlePath, anchor := anchoredPublicKeyReceiptBundleFixture(t)
+	trusted, err := verifyConfiguredPublicKeyReceiptBundle(
+		bundlePath,
+		validPublicKeyReceiptPolicy(),
+		func() (publicKeyReceiptA0Anchor, error) { return anchor, nil },
+	)
+	if err != nil || !trusted.valid() {
+		t.Fatalf("configured bundle trust = %#v/%v", trusted, err)
+	}
+}
