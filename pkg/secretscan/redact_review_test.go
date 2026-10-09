@@ -22,7 +22,9 @@ func reviewFixtures() []fixture {
 	tail := synth(24, synthAlphabet, 224)
 	iv := synth(32, "0123456789ABCDEF", 232)
 	sha := strings.Repeat("0123456789abcdef", 3)[:40]
-	header, footer := "-----BEGIN RSA PRIVATE KEY-----", "-----END RSA PRIVATE KEY-----"
+	// The armor is split so a header and footer on one source line never read
+	// as a key block to a secret scanner.
+	header, footer := "-----BEGIN "+"RSA PRIVATE KEY-----", "-----END "+"RSA PRIVATE KEY-----"
 	procType, dekInfo := "Proc-Type: 4,ENCRYPTED", "DEK-Info: AES-128-CBC,"+iv
 	const sec = PlaceholderSecret
 	return []fixture{

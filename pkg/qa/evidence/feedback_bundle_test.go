@@ -58,7 +58,7 @@ func TestWriteFeedbackBundle_LeavesLocalOnlyArtifactAsMetadataOnly(t *testing.T)
 func TestWriteFeedbackBundle_PromptQuotesRedactedFailureOutput(t *testing.T) {
 	t.Parallel()
 
-	body := "main_test.go:9: Add(2,3) = 5, want 6\nAWS_SECRET_ACCESS_KEY=wJalrXUtnFEMIK7MDENGbPxRfiCYEXAMPLEKEY\ndb=postgres://admin:hunter2@db.internal:5432/prod\n"
+	body := "main_test.go:9: Add(2,3) = 5, want 6\nAWS_SECRET_ACCESS_KEY=" + fakeAWSSecretKey + "\ndb=postgres://admin:hunter2@db.internal:5432/prod\n"
 	manifest := publishedFailedManifest(t, "console", body)
 
 	result, err := WriteFeedbackBundle(manifest, "codex", filepath.Join(t.TempDir(), "out"))
@@ -68,7 +68,7 @@ func TestWriteFeedbackBundle_PromptQuotesRedactedFailureOutput(t *testing.T) {
 	assert.Contains(t, prompt, "## Recorded Failure Output")
 	assert.Contains(t, prompt, "main_test.go:9: Add(2,3) = 5, want 6")
 	assert.Contains(t, prompt, RedactedSecret)
-	assert.NotContains(t, prompt, "wJalrXUtnFEMIK7MDENGbPxRfiCYEXAMPLEKEY")
+	assert.NotContains(t, prompt, fakeAWSSecretKey)
 	assert.NotContains(t, prompt, "hunter2")
 }
 

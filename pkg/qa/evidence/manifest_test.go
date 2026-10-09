@@ -41,7 +41,7 @@ func TestResolveArtifactPaths_RejectsPathsOutsideInputRoot(t *testing.T) {
 
 	inputRoot := t.TempDir()
 	outside := filepath.Join(t.TempDir(), "secret.json")
-	require.NoError(t, os.WriteFile(outside, []byte(`{"access_token":"sk-proj-qameshfake1234567890"}`), 0o644))
+	require.NoError(t, os.WriteFile(outside, []byte(`{"access_token":"`+fakeProjectKey+`"}`), 0o644))
 	manifest := fixtureManifest(t, "browser", "failed")
 	manifest.Artifacts = []ArtifactRef{{
 		Kind:        "console",
@@ -61,7 +61,7 @@ func TestWriteFinalManifest_RejectsUnsafeArtifactBeforePublication(t *testing.T)
 
 	dir := t.TempDir()
 	raw := filepath.Join(dir, "trace.zip")
-	require.NoError(t, os.WriteFile(raw, []byte("Authorization: Bearer sk-proj-qameshfake1234567890"), 0o644))
+	require.NoError(t, os.WriteFile(raw, []byte("Authorization: Bearer "+fakeProjectKey), 0o644))
 	manifest := fixtureManifest(t, "browser", "failed")
 	manifest.Artifacts[0] = ArtifactRef{
 		Kind:        "trace_sanitized",

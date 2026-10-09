@@ -58,7 +58,7 @@ func TestRedactionFailClosed_PublishTimeRedactionMustBeNoOp(t *testing.T) {
 	dir := t.TempDir()
 	observation := successfulObservationEvidence(t)
 	projection := observation.SemanticProjection
-	projection.Root.Name = "sk-proj-qamesh-secret-1234567890"
+	projection.Root.Name = "sk-" + "proj-qamesh-secret-1234567890" // split so no scanner matches the source
 	normalized, err := desktopobserve.NormalizeProjection(*projection, func(value string) (string, error) { return value, nil })
 	require.NoError(t, err)
 	observation.SemanticProjection = &normalized

@@ -201,7 +201,8 @@ func validOMPContextBindingInput(opts ContextDeliveryOptions, delivery ContextDe
 			OwnershipPaths:   []string{"pkg/promptlayer"}, ForbiddenPaths: []string{"pkg/adapter"},
 		},
 		History: []OMPContextHistoryRow{
-			{ID: "old-read", SourceRef: "tool/read-old", Body: "superseded tool body sk-test-secret-123456", Completed: true, Superseded: true},
+			// Split at the provider prefix so no scanner matches the source.
+			{ID: "old-read", SourceRef: "tool/read-old", Body: "superseded tool body sk-" + "test-secret-123456", Completed: true, Superseded: true},
 			{ID: "active-error", SourceRef: "tool/error", Body: "unresolved", Completed: true, Superseded: true, Unresolved: true},
 		},
 		ShadowPlan: &OMPContextShadowPlan{
