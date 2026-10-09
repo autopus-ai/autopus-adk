@@ -9,7 +9,7 @@ usage() {
 }
 [[ $# -eq 3 ]] || usage
 readonly lock_ref=$1 lock_commit=$2 report=$3
-readonly expected_ref='refs/heads/omp-context-evidence-v0.50.124-source'
+readonly expected_ref='refs/heads/omp-context-evidence-v0.50.125-source'
 readonly report_name='omp-context-promotion-report.v1.json'
 
 [[ "$lock_ref" == "$expected_ref" ]] || fail 'lock ref is not exact A35'

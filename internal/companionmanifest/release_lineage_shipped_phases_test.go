@@ -231,7 +231,12 @@ var shippedReleasePhases = []releasePhase{
 		// A35 follows A34 under the same autopus-ai owner on the retained
 		// omp/17.2.7 pin; the predecessor pins are measured from immutable
 		// release 402971620.
-		phase: "A35", tag: "v0.50.124", version: "0.50.124",
+		// v0.50.124 is absent on purpose. It was armed as A35, tagged, and
+		// pushed, but the protected release job failed inside GoReleaser on both
+		// attempts, so no asset was published and the coordinate was burned. A
+		// burned coordinate never enters this table, like v0.50.112 before it.
+		// A35 is v0.50.125.
+		phase: "A35", tag: "v0.50.125", version: "0.50.125",
 		acceptedField: "source-tree",
 		rejects:       "unsignedTag",
 		ancestorSHA:   "c447badc28e393b19984d2eeea159a81d609acd9",

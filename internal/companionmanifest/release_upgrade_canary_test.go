@@ -63,9 +63,9 @@ func TestUpgradeCanary_ManualExactPublicSignedA34ToA35(t *testing.T) {
 	}
 	admission := upgradeCanaryStepNamed(t, workflow, "Admit exact public signed A34 to A35 upgrade")
 	for _, required := range []string{
-		"posix-upgrade-canary.sh live 0.50.123 0.50.124",
+		"posix-upgrade-canary.sh live 0.50.123 0.50.125",
 		`.previous_public_version == "0.50.123"`,
-		`.candidate_public_version == "0.50.124"`,
+		`.candidate_public_version == "0.50.125"`,
 		`.actual_release_executables_verified == true`,
 		`.public_signed_installers_verified == true`,
 	} {
@@ -94,7 +94,7 @@ func TestUpgradeCanary_BindsAvailablePublicPredecessorAndCandidateProvenance(t *
 		"c447badc28e393b19984d2eeea159a81d609acd9",
 		"13dcb08d81c59ad0677e824b0785bc7e1fffcbe7",
 		"sha256:4c8809fda4bede93601711892fc91cbcc334cf59a7e0200848b3d4d9b16b2d94",
-		"releases/tags/v0.50.124", "git/ref/tags/v0.50.123",
+		"releases/tags/v0.50.125", "git/ref/tags/v0.50.123",
 		`schema_version:"autopus-upgrade-canary-provenance.v1"`,
 		"GITHUB_WORKFLOW_REF", "GITHUB_WORKFLOW_SHA", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT",
 	} {
@@ -124,7 +124,7 @@ func TestUpgradeCanary_PinsActionsAndUploadsDiagnosticReceipt(t *testing.T) {
 	}
 	upload := upgradeCanaryStepNamed(t, workflow, "Upload public asset admission receipt")
 	if upload.Uses != "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02" ||
-		upload.With["name"] != "upgrade-canary-0.50.123-to-0.50.124" || upload.With["retention-days"] != 30 {
+		upload.With["name"] != "upgrade-canary-0.50.123-to-0.50.125" || upload.With["retention-days"] != 30 {
 		t.Fatalf("upgrade canary receipt upload = %#v", upload)
 	}
 	if !strings.Contains(raw, "not a\n      # substitute for the immutable public release") {

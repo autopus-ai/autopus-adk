@@ -56,7 +56,7 @@ func TestLineageVerifier_A0BootstrapsWhileA1ThroughA35WithoutLiveEvidenceFailClo
 		{name: "A32", tag: "v0.50.121", message: "missing GITHUB_TOKEN"},
 		{name: "A33", tag: "v0.50.122", message: "missing GITHUB_TOKEN"},
 		{name: "A34", tag: "v0.50.123", message: "missing GITHUB_TOKEN"},
-		{name: "A35", tag: "v0.50.124", message: "missing GITHUB_TOKEN"},
+		{name: "A35", tag: "v0.50.125", message: "missing GITHUB_TOKEN"},
 		{name: "failed_A6_tag_75", tag: "v0.50.75", message: frozenReleasePhasePolicy},
 		{name: "failed_A6_tag_76", tag: "v0.50.76", message: frozenReleasePhasePolicy},
 		{name: "failed_A22_tag_93", tag: "v0.50.93", message: frozenReleasePhasePolicy},
@@ -69,6 +69,7 @@ func TestLineageVerifier_A0BootstrapsWhileA1ThroughA35WithoutLiveEvidenceFailClo
 		{name: "failed_A22_tag_100", tag: "v0.50.100", message: frozenReleasePhasePolicy},
 		{name: "burned_A23_tag_110", tag: "v0.50.110", message: frozenReleasePhasePolicy},
 		{name: "burned_A24_tag_112", tag: "v0.50.112", message: frozenReleasePhasePolicy},
+		{name: "burned_A35_tag_124", tag: "v0.50.124", message: frozenReleasePhasePolicy},
 	}
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {

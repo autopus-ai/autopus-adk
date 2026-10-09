@@ -4,8 +4,8 @@ umask 077
 
 fail() { printf 'current release evidence: %s\n' "$1" >&2; exit 1; }
 readonly RELEASE_REPOSITORY='autopus-ai/autopus-adk'
-readonly RELEASE_VERSION='0.50.124'
-readonly RELEASE_TAG='v0.50.124'
+readonly RELEASE_VERSION='0.50.125'
+readonly RELEASE_TAG='v0.50.125'
 readonly REPORT_NAME='omp-context-promotion-report.v1.json'
 readonly ATTESTATION_NAME='omp-context-promotion-attestation.v2.json'
 readonly LINEAGE_NAME='release-lineage-v1.json'

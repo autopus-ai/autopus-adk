@@ -82,7 +82,7 @@ case "$command" in
     case "$method:$endpoint" in
       GET:repos/autopus-ai/autopus-adk) printf '%s\n' '{"permissions":{"admin":true}}' ;;
       'GET:repos/autopus-ai/autopus-adk/rulesets?includes_parents=true&targets=tag')
-        printf '%s\n' '[{"id":777,"name":"autopus-v0.50.124-release-authority","target":"tag"}]'
+        printf '%s\n' '[{"id":777,"name":"autopus-v0.50.125-release-authority","target":"tag"}]'
         ;;
       GET:repos/autopus-ai/autopus-adk/rulesets/777)
         ruleset_state=$(<"$state/ruleset-state")
@@ -96,12 +96,12 @@ case "$command" in
           *) exit 65 ;;
         esac
         jq -cn --argjson bypass "$bypass" --argjson rules "$rules" \
-          '{id:777,name:"autopus-v0.50.124-release-authority",target:"tag",enforcement:"active",
-            bypass_actors:$bypass,conditions:{ref_name:{include:["refs/tags/v0.50.124"],exclude:[]}},rules:$rules}'
+          '{id:777,name:"autopus-v0.50.125-release-authority",target:"tag",enforcement:"active",
+            bypass_actors:$bypass,conditions:{ref_name:{include:["refs/tags/v0.50.125"],exclude:[]}},rules:$rules}'
         ;;
       PUT:repos/autopus-ai/autopus-adk/rulesets/777)
         [[ -f "$input" ]] || exit 65
-        jq -e '.name == "autopus-v0.50.124-release-authority" and .target == "tag" and
+        jq -e '.name == "autopus-v0.50.125-release-authority" and .target == "tag" and
           .enforcement == "active" and .bypass_actors == [] and
           ([.rules[].type] | sort) == ["creation","deletion","update"]' "$input" >/dev/null || exit 65
         write_count
@@ -126,12 +126,12 @@ case "$command" in
         fi
         jq -c '[.]' "$state/releases.json"
         ;;
-      GET:repos/autopus-ai/autopus-adk/releases/tags/v0.50.124)
-        jq -ce '.[] | select(.tag_name == "v0.50.124")' "$state/releases.json"
+      GET:repos/autopus-ai/autopus-adk/releases/tags/v0.50.125)
+        jq -ce '.[] | select(.tag_name == "v0.50.125")' "$state/releases.json"
         ;;
       POST:repos/autopus-ai/autopus-adk/releases)
-        [[ "$field_tag" == 'v0.50.124' && "$field_target" =~ ^[0-9a-f]{40}$ &&
-           "$field_release_name" == 'v0.50.124' &&
+        [[ "$field_tag" == 'v0.50.125' && "$field_target" =~ ^[0-9a-f]{40}$ &&
+           "$field_release_name" == 'v0.50.125' &&
            "$field_draft" == 'true' && "$field_prerelease" == 'false' ]] || exit 65
         jq -e --arg tag "$field_tag" 'all(.[]; .tag_name != $tag)' \
           "$state/releases.json" >/dev/null || exit 65
@@ -166,16 +166,16 @@ case "$command" in
           '{total_count:($policies[0] | length),branch_policies:$policies[0]}'
         ;;
       POST:repos/autopus-ai/autopus-adk/environments/adk-companion-release/deployment-branch-policies)
-        [[ "$field_name" == 'v0.50.124' && "$field_type" == 'tag' ]] || exit 65
+        [[ "$field_name" == 'v0.50.125' && "$field_type" == 'tag' ]] || exit 65
         write_count
-        jq '[.[] | select(.name != "v0.50.124")] + [{id:596,type:"tag",name:"v0.50.124"}]' \
+        jq '[.[] | select(.name != "v0.50.125")] + [{id:596,type:"tag",name:"v0.50.125"}]' \
           "$state/deployment-policies.json" >"$state/deployment-policies.json.next"
         mv "$state/deployment-policies.json.next" "$state/deployment-policies.json"
         printf '%s\n' 'policy-create' >>"$log"
         if [[ "${MOCK_RELEASE_PREP_POLICY_RESPONSE_LOST:-0}" -eq 1 ]]; then
           exit 75
         fi
-        printf '%s\n' '{"id":596,"type":"tag","name":"v0.50.124"}'
+        printf '%s\n' '{"id":596,"type":"tag","name":"v0.50.125"}'
         ;;
       DELETE:repos/autopus-ai/autopus-adk/environments/adk-companion-release/deployment-branch-policies/596)
         write_count
