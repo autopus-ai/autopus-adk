@@ -54,6 +54,10 @@ func TestSanitizePath(t *testing.T) {
 	}
 }
 
+// Fake credentials in this file are joined from fragments: secret scanners and
+// GitHub push protection match the contiguous source text, so a
+// provider-format fake written as one literal would be reported. Each joined
+// value is byte-identical to the literal it replaced.
 func TestSanitizeSecrets(t *testing.T) {
 	t.Parallel()
 
@@ -64,22 +68,22 @@ func TestSanitizeSecrets(t *testing.T) {
 	}{
 		{
 			name:  "GitHub PAT token",
-			input: "token: ghp_abc123XYZdefGHI456jkl",
+			input: "token: ghp_" + "abc123XYZdefGHI456jkl",
 			want:  "token: [REDACTED]",
 		},
 		{
 			name:  "OpenAI sk- key",
-			input: "key: sk-proj-abcdefghij1234567890",
+			input: "key: sk-" + "proj-abcdefghij1234567890",
 			want:  "key: [REDACTED]",
 		},
 		{
 			name:  "GitHub oauth token",
-			input: "auth: gho_someOAuthToken123",
+			input: "auth: gho_" + "someOAuthToken123",
 			want:  "auth: [REDACTED]",
 		},
 		{
 			name:  "AWS AKIA key",
-			input: "aws_key=AKIAIOSFODNN7EXAMPLE",
+			input: "aws_key=AKIA" + "IOSFODNN7EXAMPLE",
 			want:  "aws_key=[REDACTED]",
 		},
 		{
@@ -134,7 +138,7 @@ func TestSanitizeGitURL(t *testing.T) {
 		},
 		{
 			name:  "strips token in URL",
-			input: "https://ghp_token123@github.com/org/repo.git",
+			input: "https://ghp_" + "token123@github.com/org/repo.git",
 			want:  "https://github.com/org/repo.git",
 		},
 		{

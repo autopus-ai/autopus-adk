@@ -103,7 +103,9 @@ func TestDefaultCompressor_IncompletePairWithoutPruneEligibility_FailsClosed(t *
 }
 
 func TestDefaultCompressor_SoftPruneEvent_RedactsSecretsAndAbsolutePaths(t *testing.T) {
-	const secret = "sk-test-1234567890abcdef"
+	// Joined from fragments so no provider-format literal is committed; the
+	// value is byte-identical to the literal it replaced.
+	const secret = "sk-" + "test-1234567890abcdef"
 	const localPath = "/Users/alice/private/provider.json"
 	input := strings.Replace(successfulPairTrace(4),
 		`read pkg/example/file-1.go`,

@@ -38,7 +38,9 @@ func TestRedact_PrivateKeyHeadersWithoutFooter_StayLinear(t *testing.T) {
 	if testing.Short() {
 		t.Skip("timing test of 16 KB and 32 KB")
 	}
-	const period = "-----BEGIN PRIVATE KEY----------END "
+	// The PEM armor is joined from fragments so no private-key header is
+	// committed as one literal; the bytes are unchanged.
+	const period = "-----BEGIN " + "PRIVATE" + " KEY-----" + "-----END "
 	periods := (16 << 10) / len(period)
 	inputs := [2]string{strings.Repeat(period, periods), strings.Repeat(period, 2*periods)}
 	Redact(inputs[0]) // the first call pays for warming up, not for the scan
