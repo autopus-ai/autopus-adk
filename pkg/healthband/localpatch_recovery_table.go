@@ -139,6 +139,7 @@ func (f lpFacts) derived(loc LocalPatchLocation) bool {
 // changed, whatever the row.
 func (r *lpRecovery) settle(ctx context.Context, facts lpFacts) LocalPatchRecord {
 	c := newLPCleaner(r.opts.Git, r.dir, facts, durationOr(r.opts.GitTimeout, LocalPatchGitTimeout))
+	c.callTimeout = r.opts.gitCallTimeout
 	code := LocalPatchCodeInterrupted
 	switch {
 	case facts.last == "":

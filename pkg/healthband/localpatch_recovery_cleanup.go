@@ -72,7 +72,9 @@ type lpCleaner struct {
 	paths   LocalPatchPaths
 	facts   lpFacts
 	timeout time.Duration
-	kept    []LocalPatchKept
+	// callTimeout is RecoveryOptions.gitCallTimeout; nil keeps timeout.
+	callTimeout func(args []string) time.Duration
+	kept        []LocalPatchKept
 }
 
 // newLPCleaner binds git's worktree removals to <lp> (RemoveRoot), the only
@@ -88,7 +90,13 @@ func (c *lpCleaner) keep(artifact, reason string) {
 
 // run runs one git command of a rule under its own timeout.
 func (c *lpCleaner) run(ctx context.Context, git GitPolicyRunner, args ...string) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(ctx, c.timeout)
+	timeout := c.timeout
+	if c.callTimeout != nil {
+		if own := c.callTimeout(args); own > 0 {
+			timeout = own
+		}
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	return git.Run(ctx, args...)
 }

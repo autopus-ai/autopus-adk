@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"testing"
 	"time"
 
@@ -85,24 +86,58 @@ func TestRecoverLocalPatches_GitCalls_RunOutsideTheStoreLock(t *testing.T) {
 	assert.Zero(t, insideLock, "no git call ran while the store lock was held")
 }
 
-// Not parallel: the short timeout covers every git call, so the test runs
-// without the load of the parallel tests.
+// Only the hanging call has a short timeout. Under load a git call that
+// succeeds can take seconds, and a 2 s GitTimeout on every call stopped the
+// repository resolution instead (recovery_skipped, no result) or a
+// configuration read (kept as git_config_unsafe). Here every other call,
+// the claim, and the step itself have budgets that no load reaches, so the
+// one call that can end at a timeout is the hanging git status.
 func TestRecoverLocalPatches_GitCallPastItsTimeout_KeepsTheWorktree(t *testing.T) {
+	t.Parallel()
+	const (
+		statusTimeout = time.Second
+		stopGrace     = 100 * time.Millisecond
+		hangFor       = 5 * time.Minute // the hanging call's natural end
+	)
 	w := newLPWorld(t, nil)
 	w.claimed(lpLease)
 	w.checkedOut()
-	// git status in the band worktree hangs; every other command runs.
+	// git status in the band worktree hangs; every other command runs real
+	// git, which the trace records.
 	real, err := exec.LookPath("git")
 	require.NoError(t, err)
-	hang := w.f.script("git-hang", "case \" $* \" in *\" status --porcelain \"*) exec sleep 30;; esac\nexec '"+real+"' \"$@\"\n")
+	hang := w.f.script("git-hang", "case \" $* \" in *\" status --porcelain \"*) exec sleep "+
+		strconv.Itoa(int(hangFor/time.Second))+";; esac\nexec '"+real+"' \"$@\"\n")
+	opts := RecoveryOptions{Git: w.git, CacheDir: w.cache, Now: func() time.Time { return lpLease.Add(time.Second) }}
+	opts.Git.Binary, opts.Git.StopGrace = hang, stopGrace
+	opts.GitTimeout, opts.ClaimBudget = 2*time.Minute, 10*time.Minute
+	opts.gitCallTimeout = func(args []string) time.Duration {
+		if args[0] == "status" {
+			return statusTimeout
+		}
+		return 0 // GitTimeout
+	}
+	start := w.mark()
 	began := time.Now()
-	report := w.recover(lpLease.Add(time.Second), func(opts *RecoveryOptions) {
-		opts.Git.Binary, opts.Git.StopGrace, opts.GitTimeout = hang, 100*time.Millisecond, 2*time.Second
-	})
-	assert.Less(t, time.Since(began), 20*time.Second, "the hanging call is stopped at its timeout")
-	require.Len(t, report.Results, 1)
+	// The world's one-minute context also covers its setup, so the step
+	// runs on the test's own context.
+	report, err := w.store.RecoverLocalPatches(t.Context(), opts)
+	elapsed := time.Since(began)
+	require.NoError(t, err)
+
+	require.Len(t, report.Results, 1, "reasons %v", report.Reasons)
 	assert.Equal(t, ClaimFailedPrefix+LocalPatchCodeInterrupted, report.Results[0].Status)
 	assert.Equal(t, []LocalPatchKept{{ArtifactWorktree, KeptWorktreeIncomplete}}, report.Results[0].Kept)
+	// ls-files -s is the last call before git status, which never reached
+	// real git: the stopped call is the hanging one.
+	assert.Equal(t, 1, w.count(start, "ls-files -s -z"), "recovery reached git status")
+	assert.Zero(t, w.count(start, "status"), "git status ran only as the hang")
+	// Wall-clock bounds that hold on any machine: the step lasts at least
+	// until the status timeout's SIGTERM, which load can only delay, and a
+	// status that ran to its natural end would have exited 0 with a clean
+	// worktree that Cleanup Rule 3 removes.
+	assert.GreaterOrEqual(t, elapsed, statusTimeout-stopGrace, "git status held until its timeout")
+	assert.Less(t, elapsed, hangFor, "git status is stopped at its timeout, not waited out")
 	assert.True(t, w.admin())
 	_, err = os.Lstat(w.paths.Worktree)
 	assert.NoError(t, err)
