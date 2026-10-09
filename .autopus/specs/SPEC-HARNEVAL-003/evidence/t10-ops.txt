@@ -82,3 +82,8 @@ Not yet done (T10)
   reconstruction_unavailable until T8, and release-check is T7.
 - The pairing of the committed public key with the HARNESS_EVAL_SIGNING_KEY secret is first proven by
   the sign job's self-verify against the committed allowlist in that run.
+
+== rollback (2026-10-09, operator decision: release gate deferred)
+- secret HARNESS_EVAL_SIGNING_KEY deleted from adk-harness-eval-signing
+- environments adk-harness-eval-signing and adk-harness-eval-agent deleted
+- remaining environments: ["adk-companion-release","AUTOPUS_ADK_CHANNEL_PUBLIC_KEY"]

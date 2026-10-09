@@ -1,6 +1,6 @@
 # SPEC-HARNEVAL-003: 서명된 live 증거와 release 차단
 
-**Status**: approved
+**Status**: approved (release gate deferred 2026-10-09 — see Deferral)
 **Created**: 2026-10-06
 **Domain**: HARNEVAL
 **Module**: autopus-adk
@@ -379,3 +379,14 @@ THE SYSTEM SHALL run a sandbox preflight on the hosted `macos-15` runner before 
 | Finding | 처리 | 위치 |
 |---------|------|------|
 | 단일 maintainer: REQ-HR-01의 self-review 금지를 지킬 두 번째 reviewer 계정이 없다(repo collaborator는 admin `Insajin` 하나) | 운영자 결정으로 `adk-harness-eval-signing`의 required reviewer를 `Insajin` 한 명, `prevent_self_review=false`로 두었다. 이 설정은 두 사람 규칙이 막는 계정 하나의 탈취를 막지 못한다. 보완 통제 여섯 개(main 한정 deployment branch, `workflow_dispatch`만 있는 trigger, export step 하나에 stdin으로만 들어가는 키, Sigstore attestation log, required check `harness-eval`, 키 회전 runbook)와 각 통제가 막지 못하는 범위, 복귀 조건(두 번째 maintainer가 생기면 reviewer 추가와 `prevent_self_review=true`), 관측한 `can_admins_bypass=true`는 REQ-HR-01에 적었다. runbook에도 같은 내용을 적었다. 공개키는 ea0581ce에서 커밋했다 | REQ-HR-01, plan.md T10, `evidence/t10-ops.txt`, `.github/EVAL_REGRESSION_REQUIRED_CHECK.md` |
+
+## Deferral (운영자 결정, 2026-10-09)
+
+운영자는 서명된 live 증거로 release를 막는 gate를 켜지 않기로 했다. 이 저장소는 오픈소스이고 maintainer가 한 명이라, gate를 켜면 release가 유료 Codex API key, protected Environment의 서명 키, run마다 사람의 승인에 묶인다. 기여자와 fork는 그 경로를 쓸 수 없고, SPEC 스스로 live 결과의 통계적 유의성을 주장하지 않으므로 그 신호로 release를 막을 근거도 약하다. 하네스 회귀는 secret 없이 모든 PR에서 도는 SPEC-HARNEVAL-001의 결정적 lane(required check `harness-eval`)이 잡는다.
+
+- 유지: T1–T6, T9, T11–T13, T15의 코드(서명·export·binding·trusted protocol·oracle harness·black-box oracle 5개·`harness-eval-live.yml`). workflow는 `workflow_dispatch` 전용이고 preflight 자리 step에서 `sandbox_preflight_failed`로 멈추며, export의 attestation source는 `reconstruction_unavailable`로 서명하지 않는다. 그래서 secret이 없어도 아무 영향이 없다.
+- 하지 않음: T7(release-check와 release.yaml 차단), T8(attestation 열거·검증), T14(hosted sandbox preflight), T10의 hosted control run.
+- 정리한 운영 설정: `adk-harness-eval-agent`·`adk-harness-eval-signing` Environment와 `HARNESS_EVAL_SIGNING_KEY` secret을 지웠다. allowlist의 harness-lane 공개키(`ADKHarnessEvalKeyID`)는 공개 정보이고 대응하는 개인키가 더는 어디에도 없으므로, 그 key_id로 서명된 증거는 만들어질 수 없다. 다시 켤 때는 새 키를 발급해 회전 절차로 교체한다.
+- probe 흔적: run 37887225368의 bind job이 만든 attestation(Rekor logIndex 3157866428, repo attestation 54199063)이 공개 log에 남아 있다. binding digest와 run key만 담고 secret은 없다.
+- 다시 켜는 조건: 두 번째 maintainer(two-person rule)와 live 비용을 감당할 재원이 생길 때. 그때 T8 → T14 → T7 순서로 구현하고, `prevent_self_review=true`, Environment의 `can_admins_bypass=false`로 되돌린다.
+
