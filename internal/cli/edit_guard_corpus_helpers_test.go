@@ -65,6 +65,10 @@ func corpusProject(t *testing.T) string {
 	t.Setenv("AUTOPUS_EDIT_GUARD", "")
 	root, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
+	// Root-local git hooks are only written into a real gitdir (see
+	// adapter.SupportsRootGitHooks), and the corpus covers them.
+	require.NoError(t, os.MkdirAll(filepath.Join(root, ".git"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".git", "HEAD"), []byte("ref: refs/heads/main\n"), 0o644))
 	runEditGuardCLI(t, "init", "--dir", root, "--project", "corpus", "--platforms", corpusPlatforms)
 	if src := os.Getenv(corpusManifestEnv); src != "" {
 		generated, err := filepath.Glob(filepath.Join(root, ".autopus", "*-manifest.json"))
