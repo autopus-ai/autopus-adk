@@ -7,6 +7,6 @@ package secretscan
 // nothing from it, so a race run checks a tenth of the corpus.
 const corpusScale = 10
 
-// slowdown multiplies the timing bounds. The race detector slowed the 128 KB
-// timing input of Redact about 23-fold.
+// slowdown multiplies the timing bounds. The race detector slowed Redact of
+// private key headers about 23-fold.
 const slowdown = 25
