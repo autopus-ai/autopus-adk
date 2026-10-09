@@ -3,7 +3,9 @@ package rulecond
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"io"
+	"io/fs"
 	"os"
 	"strconv"
 	"strings"
@@ -31,6 +33,9 @@ const (
 	// repo-writable, so its size is chosen by whoever can write the checkout; a
 	// decimal index below maxStickyIndex never comes close to this bound.
 	maxCounterBytes = 64
+	// counterOpenAttempts bounds the counter open when it reports a missing
+	// name; see openCounter.
+	counterOpenAttempts = 3
 )
 
 // StickyStateKey derives the state filename for a session identifier.
@@ -129,12 +134,24 @@ func bumpCounter(state *os.Root, name string) (int, bool) {
 // path stays inside the state directory while the bytes also live outside it;
 // the stat is taken from the open descriptor, which is the inode the write would
 // land on.
+//
+// The open is retried when it reports a missing name. On darwin an os.Root
+// (openat) O_CREAT open that races another creator of the same name can fail
+// with ENOENT although the directory handle is live, and a counter name is
+// shared: every payload without a session_id reaches the digest of the empty
+// string. By the next attempt the name exists, so that open no longer creates
+// (the same race SPEC-EDITGUARD-001 T15 measured on the edit guard's store
+// lock). Every attempt goes through the same handle, and the checks below
+// apply to the descriptor the open returns.
 func openCounter(state *os.Root, name string) (*os.File, bool) {
 	if info, err := state.Lstat(name); err == nil && !info.Mode().IsRegular() {
 		return nil, false
 	}
 
 	file, err := state.OpenFile(name, os.O_RDWR|os.O_CREATE, stickyStateFilePerm)
+	for attempt := 1; errors.Is(err, fs.ErrNotExist) && attempt < counterOpenAttempts; attempt++ {
+		file, err = state.OpenFile(name, os.O_RDWR|os.O_CREATE, stickyStateFilePerm)
+	}
 	if err != nil {
 		return nil, false
 	}
