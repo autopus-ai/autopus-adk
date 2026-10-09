@@ -23,7 +23,7 @@ import (
 // whose global configuration the test controls and whose trace2.eventTarget
 // only band commands write (band strips every GIT_* variable, so
 // GIT_TRACE2_EVENT could not reach them), a bin directory of marker scripts
-// in front of PATH, and a marker directory.
+// in front of PATH, a marker directory, and a git template directory.
 type gpFixture struct {
 	t        *testing.T
 	root     string
@@ -42,6 +42,9 @@ func newGPFixture(t *testing.T) *gpFixture {
 	f := &gpFixture{t: t, root: root, bin: filepath.Join(root, "bin"), markers: filepath.Join(root, "markers")}
 	require.NoError(t, os.MkdirAll(f.bin, 0o700))
 	require.NoError(t, os.MkdirAll(f.markers, 0o700))
+	for _, dir := range []string{"hooks", "info"} {
+		require.NoError(t, os.MkdirAll(filepath.Join(f.template(), dir), 0o700))
+	}
 	// Setup git starts no background maintenance that could race a test.
 	f.setupEnv = f.home("setup-home", "[maintenance]\n\tauto = false\n[gc]\n\tauto = 0\n", "")
 	return f
@@ -49,6 +52,11 @@ func newGPFixture(t *testing.T) *gpFixture {
 
 // home writes a HOME whose .gitconfig is the base configuration plus extra
 // and, when trace is set, a trace2 event target; it returns its environment.
+// Raw git skips the system configuration (GIT_CONFIG_NOSYSTEM), so a runner's
+// /etc/gitconfig cannot run a filter while the test builds or controls a
+// repository: git lfs install --system makes setup's git add start git-lfs,
+// which installs its hooks and .git/lfs. Band strips the variable and still
+// reads the system configuration.
 func (f *gpFixture) home(name, extra, trace string) []string {
 	home := filepath.Join(f.root, name)
 	require.NoError(f.t, os.MkdirAll(filepath.Join(home, ".config"), 0o700))
@@ -60,8 +68,15 @@ func (f *gpFixture) home(name, extra, trace string) []string {
 	return []string{
 		"PATH=" + f.bin + string(os.PathListSeparator) + os.Getenv("PATH"),
 		"HOME=" + home, "XDG_CONFIG_HOME=" + filepath.Join(home, ".config"), "TMPDIR=" + os.TempDir(),
+		"GIT_CONFIG_NOSYSTEM=1",
 	}
 }
+
+// template is the git template directory of every repository that repo
+// initializes: empty hooks and info directories, so a repository gets the
+// usual layout but no hook or other file of the runner's default template,
+// GIT_TEMPLATE_DIR, or init.templateDir.
+func (f *gpFixture) template() string { return filepath.Join(f.root, "git-template") }
 
 // script writes an executable shell script into the bin directory.
 func (f *gpFixture) script(name, body string) string {
@@ -108,7 +123,7 @@ func (f *gpFixture) gitErr(env []string, dir string, args ...string) (string, er
 // and the commit.
 func (f *gpFixture) repo(name string, files map[string]string) (string, string) {
 	dir := filepath.Join(f.root, name)
-	f.git(f.setupEnv, f.root, "init", "-q", dir)
+	f.git(f.setupEnv, f.root, "init", "-q", "--template="+f.template(), dir)
 	f.writeFiles(dir, files)
 	f.git(f.setupEnv, dir, "add", "-A")
 	f.git(f.setupEnv, dir, "-c", "core.hooksPath=/dev/null", "commit", "-q", "-m", "base")

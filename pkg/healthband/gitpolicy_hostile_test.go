@@ -76,9 +76,13 @@ new file mode 100644
 +package foo
 `
 
-func newGPHostile(t *testing.T) *gpHostile {
+// newGPHostile builds the repository; runner is the environment through which
+// a CI runner's git reaches raw git (setup and control), such as
+// GIT_CONFIG_SYSTEM. Band strips every GIT_* variable, so none reaches it.
+func newGPHostile(t *testing.T, runner ...string) *gpHostile {
 	t.Helper()
 	f := newGPFixture(t)
+	f.setupEnv = append(f.setupEnv, runner...)
 	h := &gpHostile{gpFixture: f, bandTrace: filepath.Join(f.root, "trace-band.json"),
 		controlTrace: filepath.Join(f.root, "trace-control.json")}
 	h.repo, h.base = f.repo("repo", map[string]string{
@@ -117,7 +121,7 @@ func newGPHostile(t *testing.T) *gpHostile {
 		filepath.Join(f.bin, "gmark") + " clean\n\tsmudge = " + filepath.Join(f.bin, "gmark") +
 		" smudge\n[diff]\n\texternal = " + filepath.Join(f.bin, "extdiff") +
 		"\n[author]\n\temail = global@example.invalid\n"
-	h.controlEnv = f.home("control-home", global, h.controlTrace)
+	h.controlEnv = append(f.home("control-home", global, h.controlTrace), runner...)
 	h.bandEnv = append(f.home("band-home", global, h.bandTrace),
 		"GIT_DIR="+filepath.Join(h.repo, ".git"), "GIT_WORK_TREE="+h.repo,
 		"GIT_INDEX_FILE="+filepath.Join(h.repo, ".git", "index"),
