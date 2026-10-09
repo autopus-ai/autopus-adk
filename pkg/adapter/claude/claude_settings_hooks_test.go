@@ -130,3 +130,53 @@ func TestPrepareSettingsMapping_GuardEntryIsIdempotentBesideAMixedUserEntry(t *t
 	  {"matcher": "Edit|Write|MultiEdit", "hooks": [{"type": "command", "command": "./mixed-hook.sh"}]}
 	]`, canonical(t, hooksOf(t, retracted)["PreToolUse"]), "flag off keeps both user handlers")
 }
+
+// TestIsManagedClaudeHookCommand_CompoundUserCommandsAreNotOwned: a handler
+// that starts with a generated script or invocation and then chains its own
+// shell work, or passes arguments generation never emitted, is the user's.
+// Retracting it would delete that work and, once no settings file names the
+// script any more, the script with it.
+func TestIsManagedClaudeHookCommand_CompoundUserCommandsAreNotOwned(t *testing.T) {
+	t.Parallel()
+
+	for _, command := range []string{
+		".claude/hooks/autopus/hook-claude-stop.sh && ./audit-log.sh",
+		`"${CLAUDE_PROJECT_DIR:-.}"/.claude/hooks/autopus/hook-gemini-afteragent.sh | tee log`,
+		`"${CLAUDE_PROJECT_DIR:-.}"/.claude/hooks/autopus/hook-claude-sessionstart.sh; ./notify.sh`,
+		".claude/hooks/autopus/hook-claude-stop.sh --verbose",
+		".claude/hooks/autopus/my-own-hook.sh",
+		`"${CLAUDE_PROJECT_DIR:-.}"/.claude/hooks/autopus/my-own-hook.sh`,
+		"auto react check --quiet && ./notify.sh",
+		"auto check --hygiene --arch --quiet --staged --warn-only || ./fallback.sh",
+		"auto rules fire --event PreToolUse; ./mine.sh",
+		"auto rules sticky --event UserPromptSubmit | ./filter.sh",
+		"AUTOPUS_TASKCREATED_DEFAULT_MODE=warn .claude/hooks/task-created-validate.sh && ./audit.sh",
+		"AUTOPUS_TASKCREATED_DEFAULT_MODE=warn ./scripts/mine.sh",
+		".claude/hooks/task-created-validate.sh > /tmp/task.log",
+	} {
+		assert.False(t, isManagedClaudeHookCommand(command), "user command: %q", command)
+	}
+}
+
+// TestIsManagedClaudeHookCommand_GeneratedShapesStayOwned is the other side:
+// every command line generation has written, the retired group S launchers
+// included, is still retracted.
+func TestIsManagedClaudeHookCommand_GeneratedShapesStayOwned(t *testing.T) {
+	t.Parallel()
+
+	for _, command := range []string{
+		".claude/hooks/autopus/hook-claude-stop.sh",
+		`"${CLAUDE_PROJECT_DIR:-.}"/.claude/hooks/autopus/hook-claude-sessionstart.sh`,
+		`"${CLAUDE_PROJECT_DIR:-.}"/.claude/hooks/autopus/hook-gemini-afteragent.sh`,
+		"auto check --hygiene --arch --quiet --staged --warn-only",
+		"auto react check --quiet",
+		"auto rules fire --event PreToolUse",
+		"auto rules sticky --event UserPromptSubmit",
+		"AUTOPUS_TASKCREATED_DEFAULT_MODE=warn .claude/hooks/task-created-validate.sh",
+		"AUTOPUS_TASKCREATED_DEFAULT_MODE=enforce .claude/hooks/task-created-validate.sh",
+		".claude/hooks/task-created-validate.sh",
+		guardCommandLine,
+	} {
+		assert.True(t, isManagedClaudeHookCommand(command), "generated command: %q", command)
+	}
+}

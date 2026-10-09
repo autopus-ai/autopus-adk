@@ -99,7 +99,7 @@ func IsStaleCompletionHookCommand(platform, command string) bool {
 			}
 		}
 	}
-	if strings.ContainsAny(trimmed, ";&|<>`\n\t ") || strings.Contains(trimmed, "$(") {
+	if HasShellOperator(trimmed) || strings.ContainsAny(trimmed, " \t") {
 		return false
 	}
 	unquoted := strings.TrimRight(trimmed, `"'`)
@@ -110,6 +110,17 @@ func IsStaleCompletionHookCommand(platform, command string) bool {
 		}
 	}
 	return false
+}
+
+// HasShellOperator reports whether a hook command line chains further shell
+// work: a list or pipeline separator (`;`, `&`, `|`, a newline), a redirection
+// (`<`, `>`), or a command substitution (`$(`, a backtick). Generation emits
+// only two command shapes that carry operators, the edit guard's exit mask and
+// the group S launcher forms, and ownership predicates match those exactly
+// before asking this. Any other command with an operator does work of its own
+// besides the Autopus invocation it may start with, so it is a user command.
+func HasShellOperator(command string) bool {
+	return strings.ContainsAny(command, ";&|<>`\n") || strings.Contains(command, "$(")
 }
 
 // RetractHookHandlers removes every handler whose command owned matches from a

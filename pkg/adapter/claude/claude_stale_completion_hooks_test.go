@@ -123,3 +123,57 @@ func TestClaudeClean_AcceptsAManifestThatStillRecordsGroupSScripts(t *testing.T)
 	assert.NotContains(t, hooks, "SessionStart", "Clean retracts the group S handlers too")
 	assert.Len(t, hooks["Stop"], 2, "and keeps the user entry and the user half of the mixed entry")
 }
+
+// A user handler that runs a group S script and then its own work is not a
+// generated hook. Update keeps it, keeps the script it still names, and agrees
+// with the predicate `auto doctor` reports by, so doctor never lists a handler
+// update leaves alone or misses one update deletes.
+func TestClaudeUpdate_KeepsCompoundUserHandlersAndTheirScripts(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	writeStaleClaudeWorkspace(t, root)
+	const (
+		stopThenAudit = ".claude/hooks/autopus/hook-claude-stop.sh && ./audit-log.sh"
+		afterAgentTee = `"${CLAUDE_PROJECT_DIR:-.}"/.claude/hooks/autopus/hook-gemini-afteragent.sh | tee log`
+	)
+	settings := readStaleClaudeSettings(t, root)
+	hooks := settings["hooks"].(map[string]any)
+	hooks["Stop"] = append(hooks["Stop"].([]any), map[string]any{"matcher": "audit", "hooks": []any{
+		map[string]any{"type": "command", "command": stopThenAudit, "timeout": float64(30)},
+	}})
+	hooks["Notification"] = []any{map[string]any{"hooks": []any{
+		map[string]any{"type": "command", "command": afterAgentTee, "timeout": float64(30)},
+	}}}
+	data, err := json.MarshalIndent(settings, "", "  ")
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".claude", "settings.json"), data, 0o644))
+
+	cfg := config.DefaultFullConfig("compound")
+	_, err = claude.NewWithRoot(root).Update(context.Background(), cfg)
+	require.NoError(t, err)
+
+	got := readStaleClaudeSettings(t, root)["hooks"].(map[string]any)
+	assert.Contains(t, got["Stop"], map[string]any{"matcher": "audit", "hooks": []any{
+		map[string]any{"type": "command", "command": stopThenAudit, "timeout": float64(30)},
+	}}, "the compound Stop handler keeps its command, matcher, and timeout")
+	assert.Equal(t, []any{map[string]any{"hooks": []any{
+		map[string]any{"type": "command", "command": afterAgentTee, "timeout": float64(30)},
+	}}}, got["Notification"], "the piped handler stays")
+	for _, kept := range []string{".claude/hooks/autopus/hook-claude-stop.sh", ".claude/hooks/autopus/hook-gemini-afteragent.sh"} {
+		assert.FileExists(t, filepath.Join(root, filepath.FromSlash(kept)), "a script a kept handler runs stays")
+	}
+	assert.NoFileExists(t, filepath.Join(root, ".claude", "hooks", "autopus", "hook-claude-sessionstart.sh"),
+		"a script no handler names any more is still removed")
+	for _, command := range []string{stopThenAudit, afterAgentTee} {
+		assert.False(t, adapter.IsStaleCompletionHookCommand("claude-code", command),
+			"doctor must not report a handler update keeps: %q", command)
+	}
+
+	before, err := os.ReadFile(filepath.Join(root, ".claude", "settings.json"))
+	require.NoError(t, err)
+	_, err = claude.NewWithRoot(root).Update(context.Background(), cfg)
+	require.NoError(t, err)
+	after, err := os.ReadFile(filepath.Join(root, ".claude", "settings.json"))
+	require.NoError(t, err)
+	assert.Equal(t, string(before), string(after), "a second update leaves the settings byte-identical")
+}
