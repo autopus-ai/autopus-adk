@@ -53,8 +53,13 @@ var staleHookSources = []staleHookSource{
 // are not listed. User-level and local settings are reported apart: update
 // never edits them.
 type retiredOrchestraReport struct {
-	legacyKeys     []string
-	staleHooks     []string // "<file> <event> <script>" members, then script paths
+	legacyKeys []string
+	staleHooks []string // "<file> <event> <script>" members, then script paths
+	// openCodeHeld lists the staleHooks scripts that opencode.json names while
+	// opencode is not configured. Only the opencode update edits that file and
+	// every update keeps a script a settings file names, so no update removes
+	// them until the user does (W-mix).
+	openCodeHeld   []string
 	userLevelHooks []string
 	localHooks     []string
 	opencodeErr    error // effectivePluginConfig rejected opencode.json
@@ -78,7 +83,11 @@ func collectRetiredOrchestraReport(dir string, cfg *config.HarnessConfig) retire
 			report.opencodeErr = err
 		}
 	}
-	report.staleHooks = append(sortedUniqueStrings(members), sortedUniqueStrings(scripts)...)
+	listed := sortedUniqueStrings(scripts)
+	report.staleHooks = append(sortedUniqueStrings(members), listed...)
+	if !slices.Contains(cfg.Platforms, "opencode") {
+		report.openCodeHeld = scriptsOnlyOpenCodeConfigNames(dir, listed)
+	}
 	if home, err := os.UserHomeDir(); err == nil && !sameDirectory(home, dir) {
 		var user []string
 		for _, source := range staleHookSources {
@@ -166,6 +175,33 @@ func staleOpenCodeMembers(dir string) (entries, scripts []string, err error) {
 	return entries, adapter.PresentStaleCompletionScripts(dir, loaded), err
 }
 
+// scriptsOnlyOpenCodeConfigNames returns the present scripts that an update
+// keeps because opencode.json names them, read by the function every update
+// plans its script removes with. The other settings files are planned empty,
+// as the updates of the configured platforms leave their stale handlers, so a
+// script that stays is named by opencode.json alone (a settings file that
+// cannot be read keeps every script, as it does for update).
+func scriptsOnlyOpenCodeConfigNames(dir string, scripts []string) []string {
+	if len(scripts) == 0 {
+		return nil
+	}
+	var others []adapter.TransactionWrite
+	for _, source := range append(slices.Clone(staleHookSources), localStaleHookSource) {
+		others = append(others, adapter.TransactionWrite{Path: source.file})
+	}
+	removed := map[string]bool{}
+	for _, remove := range adapter.StaleCompletionScriptRemoves(dir, scripts, others) {
+		removed[remove.Path] = true
+	}
+	var held []string
+	for _, script := range scripts {
+		if !removed[script] {
+			held = append(held, script)
+		}
+	}
+	return held
+}
+
 func sameDirectory(a, b string) bool {
 	absA, errA := filepath.Abs(a)
 	absB, errB := filepath.Abs(b)
@@ -186,6 +222,7 @@ type retiredOrchestraFinding struct {
 	id, label, pass, remedy string
 	members                 []string
 	advisory                bool
+	updateKeepsAll          bool // no update removes any member
 }
 
 // detail is the finding's sentence for both doctor modes. Its members come
@@ -203,11 +240,16 @@ func (report retiredOrchestraReport) opencodeConfigError() string {
 }
 
 func (report retiredOrchestraReport) findings() []retiredOrchestraFinding {
+	staleRemedy := retiredOrchestraRemedy
+	if len(report.openCodeHeld) > 0 {
+		staleRemedy = openCodeHeldStaleHooksRemedy(report.openCodeHeld)
+	}
 	return []retiredOrchestraFinding{
 		{id: legacyOrchestraConfigCheckID, label: "legacy orchestra keys", pass: "no legacy orchestra keys in autopus.yaml",
 			remedy: retiredOrchestraRemedy, members: report.legacyKeys},
 		{id: staleCompletionHooksCheckID, label: "stale completion hooks", pass: "no stale completion hooks",
-			remedy: retiredOrchestraRemedy, members: report.staleHooks},
+			remedy: staleRemedy, members: report.staleHooks,
+			updateKeepsAll: len(report.openCodeHeld) > 0 && len(report.openCodeHeld) == len(report.staleHooks)},
 		{id: userLevelStaleHooksCheckID, label: "user-level stale completion hooks",
 			remedy: userLevelStaleHooksRemedy, members: report.userLevelHooks, advisory: true},
 		{id: localStaleHooksCheckID, label: "local stale completion hooks",
@@ -236,12 +278,14 @@ func (r *doctorJSONReport) collectRetiredOrchestraChecks(dir string, cfg *config
 	}
 }
 
-// checkRetiredOrchestraText prints the report and returns false while a
-// project member remains; user-level findings never fail the run.
-func checkRetiredOrchestraText(out io.Writer, dir string, cfg *config.HarnessConfig) bool {
+// checkRetiredOrchestraText prints the report. healthy is false while a
+// project member remains; user-level findings never fail the run. updateFixes
+// is true while a remaining member is one `auto update` removes, so the
+// summary names update only when running it changes something.
+func checkRetiredOrchestraText(out io.Writer, dir string, cfg *config.HarnessConfig) (healthy, updateFixes bool) {
 	tui.SectionHeader(out, "Retired Orchestra Surface")
 	report := collectRetiredOrchestraReport(dir, cfg)
-	healthy := true
+	healthy = true
 	for _, finding := range report.findings() {
 		if len(finding.members) == 0 {
 			if finding.pass != "" {
@@ -255,6 +299,7 @@ func checkRetiredOrchestraText(out io.Writer, dir string, cfg *config.HarnessCon
 		}
 		tui.Bullet(out, "remedy: "+finding.remedy)
 		healthy = healthy && finding.advisory
+		updateFixes = updateFixes || !finding.advisory && !finding.updateKeepsAll
 	}
-	return healthy
+	return healthy, updateFixes
 }

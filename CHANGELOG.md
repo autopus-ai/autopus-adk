@@ -31,6 +31,16 @@ All notable changes to this project will be documented in this file.
     `BuildYieldOutputFromResult`, `TerminalYielded`는 남는다. 이주: `Reliability`, `Yield`,
     `ReliabilityStore`는 늘 nil이었고 `StartupTimeout`은 실행에 쓰이지 않았으므로 그 읽기와 쓰기를
     지운다.
+- **`auto doctor`: 설정되지 않은 opencode의 `opencode.json`이 붙잡은 stale 스크립트에 맞는 remedy를 낸다**
+  (2026-10-09): claude-code만 설정된 프로젝트에서 `opencode.json`이 plugin으로
+  `.claude/hooks/autopus/hook-opencode-complete.ts`를 불러오면, `auto update`는 opencode가 설정되지 않아
+  그 파일을 고치지 않고 설정 파일이 아직 부르는 스크립트를 남긴다. 그래서 몇 번을 돌려도 `.ts`가 남는데
+  `doctor.stale_completion_hooks`는 remedy `run "auto update"`를, 결과 상자는 `run 'auto update'`를 냈다.
+  이제 그런 스크립트가 있으면 remedy가 `opencode is not configured, so auto update never edits
+  opencode.json and keeps the scripts it loads (<script>): remove those plugin entries from opencode.json by
+  hand or run "auto platform add opencode", then run "auto update"`가 되고, 남은 항목이 그 스크립트뿐이면
+  결과 상자도 update를 권하지 않는다. check ID와 warn 판정은 그대로다.
+
 - **`auto doctor --json`과 은퇴 키 rewrite 오류가 사용자 파일의 bidi·제어 문자를 escape한다** (2026-10-09,
   보안 감사 후속): text 출력은 이미 escape했지만 `doctor --json`의 `doctor.legacy_orchestra_config`·
   `doctor.stale_completion_hooks` detail과 `opencode_config_error` 필드는 provider 이름, settings 명령,
