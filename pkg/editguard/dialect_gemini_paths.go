@@ -21,7 +21,9 @@ import (
 // is set for an absolute replace path, which the host decodes before it
 // resolves the `..` in it (bundle chunk-7LQRUKPT.js:307921 and 308375), so
 // that spelling is judged too; write_file and a relative replace path are
-// resolved before they are decoded.
+// resolved before they are decoded. Every decoded spelling is decoded again
+// until it stops changing (decodedRounds), so a host that decodes a path
+// once more than 0.52.0 does is covered as well.
 func geminiSpellings(cwd, raw string, decodesFirst bool) []string {
 	var spellings []string
 	add := func(p string) {
@@ -34,21 +36,43 @@ func geminiSpellings(cwd, raw string, decodesFirst bool) []string {
 		add(base)
 		if converted, ok := fileURLPath(base); ok {
 			add(converted)
-			if decoded, ok := decodeURIComponent(converted); ok {
+			for _, decoded := range decodedRounds(converted) {
 				add(decoded)
 			}
 		}
-		if decoded, ok := decodeURIComponent(lexicalAbs(cwd, base)); ok {
+		for _, decoded := range decodedRounds(lexicalAbs(cwd, base)) {
 			add(decoded)
 		}
-		if decoded, ok := decodeURIComponent(base); ok && decodesFirst {
-			add(lexicalAbs(cwd, decoded))
+		if decodesFirst {
+			for _, decoded := range decodedRounds(base) {
+				add(lexicalAbs(cwd, decoded))
+			}
 		}
 	}
 	if len(spellings) == 0 {
 		return bases[:1] // an empty path: the malformed entry is dropped
 	}
 	return spellings
+}
+
+// maxDecodeRounds bounds decodedRounds: a path is decoded at most this often.
+const maxDecodeRounds = 4
+
+// decodedRounds returns s percent-decoded once, then that result decoded
+// again, and so on while a round decodes and changes the path, at most
+// maxDecodeRounds rounds. A round that finds no escape, or escapes that do not
+// decode, ends it.
+func decodedRounds(s string) []string {
+	var rounds []string
+	for len(rounds) < maxDecodeRounds {
+		decoded, ok := decodeURIComponent(s)
+		if !ok || decoded == s {
+			break
+		}
+		rounds = append(rounds, decoded)
+		s = decoded
+	}
+	return rounds
 }
 
 // geminiBases are the spellings resolveDefensiveToolPath may return: the path
