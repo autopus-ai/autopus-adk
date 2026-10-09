@@ -82,7 +82,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          go test -race -count=1 -timeout=20m \
+          # internal/cli alone ran 1181s of this budget on main (2026-10-09);
+          # the per-binary timeout must not be the job's binding limit.
+          go test -race -count=1 -timeout=30m \
             -skip "$PROCESS_HEAVY_TESTS" \
             -coverprofile=coverage-shared.out ./...
           mode="$(head -n 1 coverage-shared.out)"
