@@ -188,8 +188,18 @@ type retiredOrchestraFinding struct {
 	advisory                bool
 }
 
+// detail is the finding's sentence for both doctor modes. Its members come
+// from user files (provider keys, settings event names, commands), and
+// encoding/json leaves a bidi override, DEL, or C1 control in the bytes it
+// writes, so the sentence is escaped for the JSON report as for the terminal.
 func (f retiredOrchestraFinding) detail() string {
-	return f.label + ": " + strings.Join(f.members, ", ")
+	return terminalSafe(f.label + ": " + strings.Join(f.members, ", "))
+}
+
+// opencodeConfigError is the rejection of opencode.json as both doctor modes
+// print it; the message can carry the project path.
+func (report retiredOrchestraReport) opencodeConfigError() string {
+	return terminalSafe(report.opencodeErr.Error())
 }
 
 func (report retiredOrchestraReport) findings() []retiredOrchestraFinding {
@@ -217,7 +227,7 @@ func (r *doctorJSONReport) collectRetiredOrchestraChecks(dir string, cfg *config
 		check := jsonCheck{ID: finding.id, Severity: "warning", Status: "warn", Detail: finding.detail(),
 			Fields: map[string]string{"remedy": finding.remedy}}
 		if finding.id == staleCompletionHooksCheckID && report.opencodeErr != nil {
-			check.Fields["opencode_config_error"] = report.opencodeErr.Error()
+			check.Fields["opencode_config_error"] = report.opencodeConfigError()
 		}
 		if !finding.advisory {
 			r.status = jsonStatusWarn
@@ -239,9 +249,9 @@ func checkRetiredOrchestraText(out io.Writer, dir string, cfg *config.HarnessCon
 			}
 			continue
 		}
-		tui.SKIP(out, terminalSafe(finding.detail()))
+		tui.SKIP(out, finding.detail())
 		if finding.id == staleCompletionHooksCheckID && report.opencodeErr != nil {
-			tui.Bullet(out, "opencode.json: "+terminalSafe(report.opencodeErr.Error()))
+			tui.Bullet(out, "opencode.json: "+report.opencodeConfigError())
 		}
 		tui.Bullet(out, "remedy: "+finding.remedy)
 		healthy = healthy && finding.advisory
