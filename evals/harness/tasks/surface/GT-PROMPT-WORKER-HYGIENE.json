@@ -1,0 +1,109 @@
+{
+  "schema_version": "harness_golden_task.v1",
+  "id": "GT-PROMPT-WORKER-HYGIENE",
+  "kind": "surface",
+  "category": "prompt_contract",
+  "intent": "Every platform gives dispatched workers the same shared-scratch hygiene rules and the same secret-shaped fixture rule.",
+  "outcome": "The Worker hygiene section of the delegation reference and the Secret-shaped fixtures section of the verification reference are byte-identical on Claude, Codex, Antigravity (plugin and legacy), OpenCode, and OMP, and carry the scratch-root, process, disk, and provider-literal rules.",
+  "variants": [],
+  "assertions": [
+    {
+      "kind": "section_parity",
+      "files": [
+        {
+          "platform": "claude-code",
+          "path": ".claude/skills/agent-pipeline/references/delegation.md"
+        },
+        {
+          "platform": "codex",
+          "path": ".codex/skills/codex-agent-pipeline/references/delegation.md"
+        },
+        {
+          "platform": "antigravity-cli",
+          "path": ".agents/plugins/autopus/skills/agent-pipeline/references/delegation.md"
+        },
+        {
+          "platform": "antigravity-cli",
+          "path": ".gemini/skills/autopus/agent-pipeline/references/delegation.md"
+        },
+        {
+          "platform": "opencode",
+          "path": ".agents/skills/agent-pipeline/references/delegation.md"
+        },
+        {
+          "platform": "omp",
+          "path": ".omp/skills/agent-pipeline/references/delegation.md"
+        }
+      ],
+      "heading": "## Worker hygiene"
+    },
+    {
+      "kind": "section_parity",
+      "files": [
+        {
+          "platform": "claude-code",
+          "path": ".claude/skills/agent-pipeline/references/verification.md"
+        },
+        {
+          "platform": "codex",
+          "path": ".codex/skills/codex-agent-pipeline/references/verification.md"
+        },
+        {
+          "platform": "antigravity-cli",
+          "path": ".agents/plugins/autopus/skills/agent-pipeline/references/verification.md"
+        },
+        {
+          "platform": "antigravity-cli",
+          "path": ".gemini/skills/autopus/agent-pipeline/references/verification.md"
+        },
+        {
+          "platform": "opencode",
+          "path": ".agents/skills/agent-pipeline/references/verification.md"
+        },
+        {
+          "platform": "omp",
+          "path": ".omp/skills/agent-pipeline/references/verification.md"
+        }
+      ],
+      "heading": "## Secret-shaped fixtures"
+    },
+    {
+      "kind": "contains",
+      "platform": "claude-code",
+      "path": ".claude/skills/agent-pipeline/references/delegation.md",
+      "needle": "Never run `rm -rf` or `chmod -R` on the shared scratch root"
+    },
+    {
+      "kind": "contains",
+      "platform": "claude-code",
+      "path": ".claude/skills/agent-pipeline/references/delegation.md",
+      "needle": "Kill only process IDs you started, never by name or path pattern"
+    },
+    {
+      "kind": "contains",
+      "platform": "claude-code",
+      "path": ".claude/skills/agent-pipeline/references/delegation.md",
+      "needle": "Check free disk with `df` before a heavy build or test suite"
+    },
+    {
+      "kind": "contains",
+      "platform": "claude-code",
+      "path": ".claude/skills/agent-pipeline/references/verification.md",
+      "needle": "Never commit a provider-format credential literal, even a fake one"
+    },
+    {
+      "kind": "contains",
+      "platform": "claude-code",
+      "path": ".claude/skills/agent-pipeline/references/verification.md",
+      "needle": "Before pushing a large batch, scan the new commits with the scanner's default"
+    }
+  ],
+  "provenance": {
+    "kind": "manual",
+    "ref": "content/skills/references/agent-pipeline/delegation.md, content/skills/references/agent-pipeline/verification.md"
+  },
+  "status": {
+    "state": "active",
+    "reason": ""
+  }
+}

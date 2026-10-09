@@ -1,7 +1,7 @@
 {
   "schema_version": "harness_eval_baseline.v1",
   "set_version": "1",
-  "set_digest": "30e33b6bb444e7f297ae45c93ebf894c5c5934573473f4fe08599a64f4d7b7b2",
+  "set_digest": "5cc3d5004a9c09465f1b0b436aed892b96fa97b3fa93712da1c753b8972fd3a2",
   "rows": [
     {
       "id": "GT-AGENT-A01",
@@ -227,6 +227,13 @@
       "state": "active",
       "result": "pass",
       "expectation_digest": "d122daa76648f637046eaef5b01f2fac6b06d46b476106ad6509c42a28507431"
+    },
+    {
+      "id": "GT-PROMPT-WORKER-HYGIENE",
+      "kind": "surface",
+      "state": "active",
+      "result": "pass",
+      "expectation_digest": "a47044a0a7057207956631aa5cdaa33f772f7ff392be027e8cef931a4054cac0"
     },
     {
       "id": "GT-PROMPT-WORKER-RECEIPT",
