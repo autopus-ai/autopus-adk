@@ -1,7 +1,3 @@
----
-name: auto-worktree-isolation
----
-
 # Worktree Isolation Skill
 
 Worktree isolation for parallel executor agents in the multi-agent subagent pipeline, on a surface whose subagents have no isolated-workspace option: a dispatched worker reads, writes, and runs commands in whatever checkout it is pointed at. To keep parallel writers apart, the supervisor creates one git worktree per parallel task, dispatches the worker into it, and merges the task branches back into the working branch (Phase 2.1) before Gate 2 validation.
