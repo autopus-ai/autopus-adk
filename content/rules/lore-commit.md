@@ -52,6 +52,7 @@ Related: <SPEC-ID, issue, or related change>
 - Sign with `🐙 Autopus <noreply@autopus.co>`
 - NEVER add `Co-Authored-By` trailers. `lore.forbidden_trailers` defaults to `[Co-Authored-By]`, so the commit-msg hook rejects them, and generated Claude Code settings clear its commit attribution to match. Set `forbidden_trailers: []` to allow them.
 - When committing from Codex, build the full Lore message first and use `git commit -F <message-file>` so trailers and sign-off are preserved exactly.
+- The installed `auto` can lag the source it was built from. When its validator rejects a type this rule names (for example `merge(<scope>)`), commit with a type it accepts and say so in the body instead of bypassing the hook: `--no-verify` also skips the sign-off and trailer checks.
 
 ## Merge and Squash Commits
 
