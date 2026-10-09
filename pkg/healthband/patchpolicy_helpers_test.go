@@ -54,6 +54,13 @@ func newPolicyRepo(t *testing.T, files []baseFile) *policyRepo {
 	t.Helper()
 	dir, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
+	return newPolicyRepoAt(t, dir, files)
+}
+
+// newPolicyRepoAt is newPolicyRepo in dir, an empty real directory, for a
+// base whose files name their own absolute path.
+func newPolicyRepoAt(t *testing.T, dir string, files []baseFile) *policyRepo {
+	t.Helper()
 	repo := &policyRepo{dir: dir, home: t.TempDir()}
 	repo.git(t, nil, "init", "-q", "-b", "main")
 	for _, kv := range [][2]string{{"core.symlinks", "false"}, {"user.name", "fixture"}, {"user.email", "fixture@example.invalid"}} {

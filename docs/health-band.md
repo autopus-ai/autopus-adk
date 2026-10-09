@@ -457,6 +457,23 @@ such as `git_version_unsupported:2.43`), because git 2.44 added
 `refs/remotes/origin/<default branch>`, otherwise `refs/heads/<default branch>`
 (`base_unavailable` when neither exists); band fetches nothing.
 
+Band also refuses (`failed:path_denied`) a patch to a source that a build or
+an IDE sync of the base runs: the directory of a Rust proc-macro crate
+(`[lib] proc-macro = true`), a custom `build = "<path>"` script with its
+directory (for a script in the crate root, and for `build.rs`, the root's other
+`.rs` files), every crate that a build script or a proc-macro crate depends on
+by path, transitively, every `[patch]` and `[replace]` path, and every directory
+that a Gradle settings file names with `includeBuild`. Band reads these from the
+`Cargo.toml`, `settings.gradle`, and `settings.gradle.kts` files of the base
+commit, never of the patch, and reads at most 1,024 of them, 256 KiB each and
+8 MiB in all, shallowest first. A manifest past a bound, one that is not a
+regular file or does not parse, and a settings file with an `includeBuild` that
+does not name its directory with a plain string denies its own directory tree
+instead, the whole repository for one at the root. Code that a build reaches
+another way, such as `#[path]` or `include!`, an included build that a settings
+plugin or an applied script declares, or a script that `package.json` or a
+Bazel rule runs, is not covered: read the whole patch before any build.
+
 ### Limits
 
 - Retention cap: at most 5 kept keys per repository. Every `<lp>/<key>/`

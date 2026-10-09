@@ -49,12 +49,15 @@ var gitPolicyForms = []gitPolicyForm{
 	{tokens: []string{"symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD"}},
 	{tokens: []string{"symbolic-ref", "-q", "--no-recurse", "<band-ref>"}},
 	{tokens: []string{"check-ref-format", "--branch", "<branch>"}},
+	// The base listing with modes, OIDs, and sizes: the checkout preflight,
+	// and Patch Policy items 3-4 (folded collisions against every tracked
+	// path and directory) and 6 (the base manifests of RR-7).
 	{tokens: []string{"ls-tree", "-r", "-l", "-z", "<oid>"}},
 	{tokens: []string{"ls-tree", "-r", "-z", "--name-only", "<oid>"}},
-	// The base listing with modes of Patch Policy items 3-4 (folded
-	// collisions against every tracked path and directory).
-	{tokens: []string{"ls-tree", "-r", "-z", "<oid>"}},
 	{tokens: []string{"ls-tree", "-z", "<oid>", "--", "<literal-path>"}},
+	// Patch Policy item 6 reads the base manifests by the listing's blob
+	// OIDs, one per stdin line; cat-file applies no filter or textconv.
+	{tokens: []string{"cat-file", "--batch"}},
 	{tokens: []string{"check-attr", "-z", "<source>", "filter", "--", gitPolicyPathsToken}},
 	{tokens: []string{"apply", "--numstat", "--summary", "-z", "--check"}},
 	{tokens: []string{"read-tree", "<oid>"}, index: gitIndexRequired},

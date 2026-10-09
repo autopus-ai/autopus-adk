@@ -111,6 +111,12 @@ All notable changes to this project will be documented in this file.
     진단과 patch 요청을 실행할 수 있다(이전에는 구독 로그인이나 `CLAUDE_CODE_OAUTH_TOKEN`만 됐다).
     `ANTHROPIC_BASE_URL` 등 다른 `ANTHROPIC_*` 변수는 여전히 버린다. key가 설정돼 있으면 claude가
     구독 대신 그 key를 쓸 수 있으므로, 구독으로 과금하려면 band 실행 환경에서 key를 지운다.
+  - Patch Policy는 build나 IDE sync가 실행하는 소스도 `path_denied`로 거부한다(RR-7). base commit의
+    `Cargo.toml`과 `settings.gradle(.kts)`를 읽어 proc-macro crate 디렉토리, `build = "<path>"` 빌드
+    스크립트와 그 디렉토리, 빌드 스크립트·proc-macro crate의 path 의존성(전이적으로), `[patch]`·`[replace]`
+    경로, Gradle `includeBuild` 디렉토리를 막는다. 최대 1,024개·파일당 256 KiB·합계 8 MiB를 얕은 것부터
+    읽고, 한도를 넘거나 읽을 수 없는 manifest와 문자열이 아닌 `includeBuild`는 그 디렉토리 트리를
+    막는다(fail closed). `#[path]`·`include!`, settings plugin이 선언한 included build 등은 다루지 않는다.
 
 - **`auto react band`: tier 3의 opt-in 로컬 patch** (2026-10-08, SPEC-SIGMABAND-002): 선택 키
   `health_band.allow_local_patch: true`를 켜면 tier 3으로 열린 episode는 confined 진단이 성공한 뒤
