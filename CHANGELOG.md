@@ -86,6 +86,12 @@ All notable changes to this project will be documented in this file.
     같은 판정으로만 회수하므로 doctor가 보고하는 handler와 update가 지우는 handler가 같다. codex는
     `statusMessage` 표식이 붙은 복합 command도 회수하지 않는다. edit guard command(`out=$(auto guard edit
     ...`)는 그대로 접두로 소유한다.
+  - Gemini CLI 훅: `.gemini/settings.json`의 arch·react 검사 entry가 Gemini 셸 도구만 고르는 matcher
+    `^run_shell_command$`와 millisecond timeout(30000, 60000)을 쓴다. Gemini CLI(0.52.0 확인)는 timeout을
+    millisecond로 읽고 matcher를 tool 이름에 대한 정규식으로 검사하므로, 이전 `Bash` matcher entry는
+    한 번도 실행되지 않았고 timeout 30·60은 30·60 ms였다. 이제 Gemini CLI에서 셸 명령마다 두 검사가
+    실행된다. `auto update`는 이전 릴리스가 쓴 entry를 새 entry로 바꾸고 옆에 남기지 않으며, `auto clean`은
+    두 형태를 모두 지운다. 다른 플랫폼의 timeout은 그대로 초 단위다.
 
 - **`auto react band`: tier 3의 opt-in 로컬 patch** (2026-10-08, SPEC-SIGMABAND-002): 선택 키
   `health_band.allow_local_patch: true`를 켜면 tier 3으로 열린 episode는 confined 진단이 성공한 뒤

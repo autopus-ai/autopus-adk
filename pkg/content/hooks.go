@@ -45,9 +45,10 @@ func GenerateHookConfigs(cfg config.HooksConf, platform string, supportsHooks bo
 }
 
 // generateCLIHooks는 CLI 훅 설정을 생성한다.
-// Event names and tool matchers are translated per-platform. Claude Code uses
-// PreToolUse/PostToolUse with Bash, Antigravity uses the same event names with
-// run_command, and legacy Gemini CLI used BeforeTool/AfterTool.
+// Event names, tool matchers, and timeout units are translated per-platform.
+// Claude Code uses PreToolUse/PostToolUse with Bash, Antigravity uses the same
+// event names with run_command, and legacy Gemini CLI uses BeforeTool/AfterTool
+// with run_shell_command and millisecond timeouts (hooks_gemini.go).
 func generateCLIHooks(cfg config.HooksConf, platform string) ([]adapter.HookConfig, error) {
 	var hooks []adapter.HookConfig
 	pre := translateHookEvent("PreToolUse", platform)
@@ -60,7 +61,7 @@ func generateCLIHooks(cfg config.HooksConf, platform string) ([]adapter.HookConf
 			Matcher: commandMatcher,
 			Type:    "command",
 			Command: translateHookCommand("auto check --hygiene --arch --quiet --staged --warn-only", pre, platform),
-			Timeout: 30,
+			Timeout: translateHookTimeout(30, platform),
 		})
 	}
 
@@ -78,7 +79,7 @@ func generateCLIHooks(cfg config.HooksConf, platform string) ([]adapter.HookConf
 			Matcher: commandMatcher,
 			Type:    "command",
 			Command: translateHookCommand("auto react check --quiet", post, platform),
-			Timeout: 60,
+			Timeout: translateHookTimeout(60, platform),
 		})
 	}
 
@@ -88,7 +89,7 @@ func generateCLIHooks(cfg config.HooksConf, platform string) ([]adapter.HookConf
 			Matcher: commandMatcher,
 			Type:    "command",
 			Command: translateHookCommand("auto react check --quiet", post, platform),
-			Timeout: 60,
+			Timeout: translateHookTimeout(60, platform),
 		})
 	}
 
@@ -134,8 +135,14 @@ func translateHookEvent(claudeEvent, platform string) string {
 }
 
 func translateHookMatcher(claudeMatcher, platform string) string {
-	if claudeMatcher == "Bash" && platform == "antigravity-cli" {
+	if claudeMatcher != "Bash" {
+		return claudeMatcher
+	}
+	switch {
+	case platform == "antigravity-cli":
 		return "run_command"
+	case isGeminiHookPlatform(platform):
+		return geminiShellMatcher
 	}
 	return claudeMatcher
 }

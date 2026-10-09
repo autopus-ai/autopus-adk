@@ -29,10 +29,10 @@
       "react_hooks": [
         {
           "event": "AfterTool",
-          "matcher": "Bash",
+          "matcher": "^run_shell_command$",
           "type": "command",
           "command": "auto react check --quiet",
-          "timeout": 60
+          "timeout": 60000
         }
       ],
       "git_hooks": [

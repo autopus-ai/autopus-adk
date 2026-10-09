@@ -118,7 +118,7 @@ func filterUnsupportedAntigravityPermissions(perms *adapter.PermissionSet) *adap
 
 func applyAntigravityHooksAndPermissions(settings map[string]any, hooks []adapter.HookConfig, perms *adapter.PermissionSet) {
 	if len(hooks) > 0 {
-		removeAuthoredLegacyHooks(settings, append(defaultLegacyHookConfigs(), hooks...))
+		removeAuthoredLegacyHooks(settings, authoredLegacyGeminiHooks(hooks))
 		hooksMap, _ := settings["hooks"].(map[string]any)
 		if hooksMap == nil {
 			hooksMap = make(map[string]any)
