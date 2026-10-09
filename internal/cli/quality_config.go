@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"reflect"
 	"regexp"
 	"strings"
 
@@ -61,6 +60,9 @@ func saveQualityScalar(dir string, cfg *config.HarnessConfig, key, value string)
 
 	updated, err := updateQualityScalar(data, key, value)
 	if err != nil {
+		return err
+	}
+	if err := verifyQualityLineEdit(data, updated, "quality."+key); err != nil {
 		return err
 	}
 	if err := validateQualityYAML(updated, cfg); err != nil {
@@ -181,9 +183,22 @@ func replaceQualityScalarLine(data []byte, lineIdx int, key, value string) ([]by
 	if matches == nil {
 		return nil, fmt.Errorf("quality.%s line has unsupported format", key)
 	}
-	lines[lineIdx] = matches[1] + encodedValue + matches[3] + carriage + newline
+	// Only the scalar content is replaced. The value's anchor and tag stay, so
+	// a later alias of the anchor keeps binding to this node instead of an
+	// earlier anchor of the same name; verifyQualityLineEdit refuses the edit
+	// when that alias would change.
+	properties := qualityValuePropertiesRE.FindString(matches[2])
+	if properties != "" && strings.TrimRight(properties, " \t") == properties {
+		properties += " "
+	}
+	lines[lineIdx] = matches[1] + properties + encodedValue + matches[3] + carriage + newline
 	return []byte(strings.Join(lines, "")), nil
 }
+
+// qualityValuePropertiesRE matches the node properties that lead the value of
+// a one-line mapping entry: at most one anchor and one tag, in either order,
+// each followed by blanks or the end of the value.
+var qualityValuePropertiesRE = regexp.MustCompile(`^(?:(?:&[0-9A-Za-z_-]+|!\S*)(?:[ \t]+|$)){1,2}`)
 
 func encodeQualityScalar(value string) (string, error) {
 	encoded, err := yaml.Marshal(value)
@@ -236,22 +251,6 @@ func detectConfigNewline(data []byte) string {
 		return "\r\n"
 	}
 	return "\n"
-}
-
-func validateQualityYAML(data []byte, expected *config.HarnessConfig) error {
-	var parsed config.HarnessConfig
-	if err := yaml.Unmarshal(data, &parsed); err != nil {
-		return fmt.Errorf("validate written config: %w", err)
-	}
-	candidate := *expected
-	candidate.Quality = parsed.Quality
-	if err := candidate.Validate(); err != nil {
-		return fmt.Errorf("validate written config: %w", err)
-	}
-	if !reflect.DeepEqual(candidate.Quality, expected.Quality) {
-		return fmt.Errorf("validate written config: quality fields changed unexpectedly")
-	}
-	return nil
 }
 
 // @AX:WARN [AUTO]: This atomic persistence path contains nine filesystem and cleanup decision branches. @AX:SPEC SPEC-PROVIDER-QUALITY-001
