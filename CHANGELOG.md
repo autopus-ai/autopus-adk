@@ -76,6 +76,16 @@ All notable changes to this project will be documented in this file.
   두 prompt(session_id가 없는 payload는 모두 같은 counter를 쓴다)가 겹치면 os.Root O_CREAT open이
   ENOENT로 실패해 그 prompt의 sticky 주입이 조용히 빠지던 문제를, edit guard store lock과 같은 최대 3번
   재시도로 고친다.
+- **생성 surface와 훅 정리** (2026-10-09):
+  - hook 소유권: `auto update`와 `auto clean`이 `.claude/settings.json`·`.codex/hooks.json`에서 지울
+    Autopus handler를 경로 접두가 아니라 생성기가 실제로 쓴 command 형태로 고른다. 생성된 스크립트나
+    `auto` 명령 뒤에 `&&`, `|`, `;` 같은 셸 연산자로 사용자 작업을 붙인 handler(예:
+    `.claude/hooks/autopus/hook-claude-stop.sh && ./audit-log.sh`), 생성하지 않은 인자를 붙인 실행,
+    `.claude/hooks/autopus/` 아래에 둔 사용자 스크립트는 사용자 handler로 남고, 그 handler가 부르는
+    스크립트도 남는다. 은퇴한 completion hook handler는 `auto doctor`의 `doctor.stale_completion_hooks`와
+    같은 판정으로만 회수하므로 doctor가 보고하는 handler와 update가 지우는 handler가 같다. codex는
+    `statusMessage` 표식이 붙은 복합 command도 회수하지 않는다. edit guard command(`out=$(auto guard edit
+    ...`)는 그대로 접두로 소유한다.
 
 - **`auto react band`: tier 3의 opt-in 로컬 patch** (2026-10-08, SPEC-SIGMABAND-002): 선택 키
   `health_band.allow_local_patch: true`를 켜면 tier 3으로 열린 episode는 confined 진단이 성공한 뒤
@@ -209,8 +219,7 @@ All notable changes to this project will be documented in this file.
     user-level 설정(`~/.claude/settings.json` 등)과 `.claude/settings.local.json`은 고치지 않고,
     그 파일이 아직 부르는 스크립트도 남긴다. handler가 생성된 실행 형태 그대로이거나 경로 하나뿐일
     때만 회수하고, `;`, `&&`, `||`, `|`, `$(`, backtick 같은 셸 연산자나 인터프리터·인자가 붙은
-    사용자 command는 스크립트와 함께 남긴다. 단, claude·codex 설정의 기존(B부터의) 접두 규칙은
-    생성 경로로 시작하는 복합 command(예: `.../hook-claude-stop.sh && ./audit.sh`)를 여전히 회수한다. 두 번째 update는 회수할 것이 없어 stale hook과 그
+    사용자 command는 스크립트와 함께 남긴다. 두 번째 update는 회수할 것이 없어 stale hook과 그
     handler를 더 바꾸지 않는다. transaction이 다시 쓰는 파일은 기존 권한(예: 0600 `opencode.json`)을
     유지한다.
   - `auto doctor`(text, `--json`)는 `doctor.legacy_orchestra_config`(`legacy orchestra keys:

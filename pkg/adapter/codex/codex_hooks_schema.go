@@ -122,19 +122,47 @@ func mergeHookCategories(existing, autopus hooksDoc) hooksDoc {
 	return result
 }
 
+// isAutopusHookHandler reports whether a hooks.json handler is Autopus-owned.
+// A handler that names a group S completion script (SPEC-PANERM-001) is owned
+// exactly when its command is a launch generation wrote, the predicate `auto
+// doctor` reports by, whatever marker it carries: a user command that runs the
+// script and then its own work keeps both. Other handlers are owned by the
+// Autopus marker or status message, which also covers shapes an earlier
+// release generated, or by a current generated command line, but never when
+// the command chains further shell work; only the edit-guard line carries
+// operators of its own.
 func isAutopusHookHandler(handler hookHandler) bool {
-	if handler.Autopus || handler.StatusMessage == autopusHookStatusMessage {
-		return true
-	}
 	command := strings.TrimSpace(handler.Command)
-	return command == "auto check --hygiene --arch --quiet --staged --warn-only" ||
-		command == "auto react check --quiet" ||
+	if namesStaleCompletionScript(command) {
+		return adapter.IsStaleCompletionHookCommand(adapterName, command) || command == legacyCodexStopHookCommand
+	}
+	switch {
+	case strings.HasPrefix(command, codexEditGuardCommandPrefix):
 		// The edit-guard command line (SPEC-EDITGUARD-001) stays managed even
 		// without its status message, so regeneration never runs it twice.
-		strings.HasPrefix(command, codexEditGuardCommandPrefix) ||
-		strings.Contains(command, "/.codex/hooks/autopus/hook-codex-") ||
-		strings.Contains(command, ".claude/hooks/autopus/hook-codex-") ||
-		adapter.IsStaleCompletionHookCommand(adapterName, command)
+		return true
+	case adapter.HasShellOperator(command):
+		return false
+	}
+	return handler.Autopus || handler.StatusMessage == autopusHookStatusMessage ||
+		command == "auto check --hygiene --arch --quiet --staged --warn-only" ||
+		command == "auto react check --quiet"
+}
+
+// legacyCodexStopHookCommand is the Stop command Codex generation registered
+// while its completion hook still lived in the Claude hook directory, before
+// the Codex adapter installed its own copy under .codex/hooks/autopus/.
+const legacyCodexStopHookCommand = ".claude/hooks/autopus/hook-codex-stop.sh"
+
+// namesStaleCompletionScript reports whether command mentions the path of any
+// platform's group S script.
+func namesStaleCompletionScript(command string) bool {
+	for _, script := range adapter.AllStaleCompletionHookScripts() {
+		if strings.Contains(command, script) {
+			return true
+		}
+	}
+	return false
 }
 
 // codexEditGuardCommandPrefix anchors the registered edit-guard command line.
