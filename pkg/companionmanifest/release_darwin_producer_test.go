@@ -25,7 +25,7 @@ func TestDarwinReleaseProducer_TrustGatesPrecedeManifestAndReceipt(t *testing.T)
 	}
 	wantEvents := []string{
 		"developer_id_sign", "notary_container", "accepted_notarization",
-		"identity_verification", "execution_smoke", "manifest_signature",
+		"identity_verification", "notarization_ticket", "execution_smoke", "manifest_signature",
 	}
 	if got := strings.Fields(string(events)); !reflect.DeepEqual(got, wantEvents) {
 		t.Fatalf("release events = %v, want %v", got, wantEvents)
@@ -198,15 +198,24 @@ func fakeCodesign(t *testing.T, args []string) {
 		return
 	}
 	if containsArgument(args, "--verify") {
-		for _, required := range []string{
-			"--check-notarization",
-			`-R=identifier "co.autopus.adk" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] exists and certificate leaf[field.1.2.840.113635.100.6.1.13] exists and certificate leaf[subject.OU] = "GP2PFA2PUV" and notarized`,
-		} {
-			if !containsArgument(args, required) {
-				t.Fatalf("codesign verification arguments missing %q: %v", required, args)
-			}
+		if !containsArgument(args, "--check-notarization") {
+			t.Fatalf("codesign verification arguments missing %q: %v", "--check-notarization", args)
 		}
-		appendDarwinReleaseEvent(t, "identity_verification")
+		// The producer checks the offline identity requirement once, then the
+		// full requirement with its notarized clause until the ticket resolves.
+		switch {
+		case containsArgument(args, "-R="+darwinSigningRequirement):
+			appendDarwinReleaseEvent(t, "identity_verification")
+		case containsArgument(args, "-R="+darwinSigningRequirement+" and notarized"):
+			if scenario == "ticket_lag" && !darwinReleaseEventSeen(t, "notarization_ticket_pending") {
+				appendDarwinReleaseEvent(t, "notarization_ticket_pending")
+				os.Exit(1)
+			}
+			appendDarwinReleaseEvent(t, "notarization_ticket")
+			return
+		default:
+			t.Fatalf("codesign verification requirement is not the release requirement: %v", args)
+		}
 		if scenario == "identity_failure" {
 			for index := 1; index <= 9; index++ {
 				fmt.Fprintf(os.Stderr, "fixture verification diagnostic %d\n", index)

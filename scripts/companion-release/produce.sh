@@ -170,12 +170,14 @@ uuid_pattern='^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[1-5][0-9A-Fa-f]{3}-[89ABab][0-9A-F
   || notary_fail 'notarization was not Accepted with a valid submission UUID'
 
 designated_requirement='identifier "co.autopus.adk" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] exists and certificate leaf[field.1.2.840.113635.100.6.1.13] exists and certificate leaf[subject.OU] = "GP2PFA2PUV" and notarized'
-if ! "$codesign_tool" --verify --strict --all-architectures --verbose=2 \
-  --check-notarization "-R=$designated_requirement" "$artifact_path" \
-  >"$identity_details" 2>&1; then
-  report_codesign_diagnostic 'codesign verify' "$identity_details"
-  fail 'code-sign designated requirement verification failed'
-fi
+# Identity, anchor and team fail at once. Only the notarized clause is retried:
+# Apple's ticket lookup can lag an Accepted verdict (v0.50.124 release).
+for notarization_wait in - 0 10 20 30 45 60; do
+  [[ "$notarization_wait" == - ]] && requirement=${designated_requirement% and notarized} || { /bin/sleep "$notarization_wait"; requirement=$designated_requirement; }
+  "$codesign_tool" --verify --strict --all-architectures --verbose=2 --check-notarization "-R=$requirement" "$artifact_path" >"$identity_details" 2>&1 && { [[ "$notarization_wait" == - ]] || break; continue; }
+  [[ "$notarization_wait" != - && "$notarization_wait" != 60 ]] && continue
+  report_codesign_diagnostic 'codesign verify' "$identity_details"; fail 'code-sign designated requirement verification failed'
+done
 "$codesign_tool" -dv --verbose=4 "$artifact_path" >"$identity_details" 2>&1 \
   || fail 'code-sign identity inspection failed'
 grep -Fqx 'Identifier=co.autopus.adk' "$identity_details" \
