@@ -63,7 +63,7 @@ func TestRenderAgentFiles_FailsOnBlockedDir(t *testing.T) {
 	require.NoError(t, os.WriteFile(agentDir, []byte("blocker"), 0444))
 
 	a := NewWithRoot(dir)
-	_, err := a.renderAgentFiles()
+	_, err := a.renderAgentFiles(config.DefaultFullConfig("error-test"))
 	assert.Error(t, err)
 }
 
@@ -102,7 +102,7 @@ func TestRenderAgentFiles_WriteFileBlocked(t *testing.T) {
 	require.NoError(t, os.MkdirAll(filepath.Join(agentDir, "executor.md"), 0755))
 
 	a := NewWithRoot(dir)
-	_, err := a.renderAgentFiles()
+	_, err := a.renderAgentFiles(config.DefaultFullConfig("error-test"))
 	assert.Error(t, err)
 }
 
