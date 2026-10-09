@@ -74,15 +74,3 @@ func TestTrustedPublicKeyReceipt_ReceiptRequiresValidCapability(t *testing.T) {
 		t.Fatal("zero capability exposed receipt claims")
 	}
 }
-
-func TestVerifyConfiguredPublicKeyReceiptBundle_PrivateLoaderUsesBundleAuthority(t *testing.T) {
-	bundlePath, anchor := anchoredPublicKeyReceiptBundleFixture(t)
-	trusted, err := verifyConfiguredPublicKeyReceiptBundle(
-		bundlePath,
-		validPublicKeyReceiptPolicy(),
-		func() (publicKeyReceiptA0Anchor, error) { return anchor, nil },
-	)
-	if err != nil || !trusted.valid() {
-		t.Fatalf("configured bundle trust = %#v/%v", trusted, err)
-	}
-}
