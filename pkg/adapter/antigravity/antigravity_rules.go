@@ -108,7 +108,10 @@ func (a *Adapter) prepareRuleMappings(cfg *config.HarnessConfig) ([]adapter.File
 
 // expandContentImports replaces `@import content/rules/<name>.md` lines with
 // the body of the referenced embedded content file (frontmatter stripped).
-// Lines that do not match the directive pass through unchanged.
+// Lines that do not match the directive pass through unchanged. Every content
+// rule opens with its own H1, so a template that already wrote a title keeps
+// it and the imported body's opening title is dropped: the generated rule has
+// one H1 whether or not its template titles itself.
 func expandContentImports(rendered string) (string, error) {
 	const prefix = "@import content/rules/"
 	if !strings.Contains(rendered, prefix) {
@@ -116,6 +119,7 @@ func expandContentImports(rendered string) (string, error) {
 	}
 
 	var out strings.Builder
+	titled, fenced := false, false
 	scanner := bufio.NewScanner(strings.NewReader(rendered))
 	scanner.Buffer(make([]byte, 64*1024), 1024*1024)
 	for scanner.Scan() {
@@ -127,11 +131,23 @@ func expandContentImports(rendered string) (string, error) {
 			if err != nil {
 				return "", fmt.Errorf("read embedded %s: %w", target, err)
 			}
-			out.WriteString(stripFrontmatter(string(body)))
+			imported := stripFrontmatter(string(body))
+			if titled {
+				imported = dropLeadingTitle(imported)
+			} else {
+				titled = strings.HasPrefix(strings.TrimLeft(imported, "\n"), "# ")
+			}
+			out.WriteString(imported)
 			if !strings.HasSuffix(out.String(), "\n") {
 				out.WriteString("\n")
 			}
 			continue
+		}
+		switch {
+		case strings.HasPrefix(trimmed, "```"):
+			fenced = !fenced
+		case !fenced && strings.HasPrefix(line, "# "):
+			titled = true
 		}
 		out.WriteString(line)
 		out.WriteString("\n")
@@ -140,6 +156,21 @@ func expandContentImports(rendered string) (string, error) {
 		return "", err
 	}
 	return out.String(), nil
+}
+
+// dropLeadingTitle removes the H1 that opens an imported body, after any
+// leading blank lines, together with the blank line that follows it. A body
+// that does not open with a title is returned unchanged.
+func dropLeadingTitle(body string) string {
+	rest := strings.TrimLeft(body, "\n")
+	if !strings.HasPrefix(rest, "# ") {
+		return body
+	}
+	_, after, found := strings.Cut(rest, "\n")
+	if !found {
+		return ""
+	}
+	return strings.TrimPrefix(after, "\n")
 }
 
 // stripFrontmatter removes YAML frontmatter (--- ... ---) so the imported body

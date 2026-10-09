@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -161,4 +162,46 @@ func TestAntigravityRulesDoNotContainBrokenImport(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(loreData), "Constraint:",
 		"lore-commit should include the imported structured trailer spec")
+}
+
+// TestAntigravityRules_EachRuleHasOneTitle: a rule template that titles itself
+// and then imports a content rule that carries its own H1 used to render two
+// titles. Every generated rule, the plugin mirror included, keeps exactly one
+// H1 outside code fences.
+func TestAntigravityRules_EachRuleHasOneTitle(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	_, err := antigravity.NewWithRoot(dir).Generate(context.Background(), config.DefaultFullConfig("test-project"))
+	require.NoError(t, err)
+
+	for _, rulesDir := range []string{
+		filepath.Join(dir, ".gemini", "rules", "autopus"),
+		filepath.Join(dir, ".agents", "plugins", "autopus", "rules"),
+	} {
+		entries, err := os.ReadDir(rulesDir)
+		require.NoError(t, err)
+		require.NotEmpty(t, entries)
+		for _, entry := range entries {
+			data, err := os.ReadFile(filepath.Join(rulesDir, entry.Name()))
+			require.NoError(t, err)
+			assert.Len(t, markdownTitles(string(data)), 1, "%s/%s titles: %q", rulesDir, entry.Name(), markdownTitles(string(data)))
+		}
+	}
+}
+
+// markdownTitles returns the H1 lines of a markdown body outside fenced code.
+func markdownTitles(body string) []string {
+	var titles []string
+	fenced := false
+	for _, line := range strings.Split(body, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "```") {
+			fenced = !fenced
+			continue
+		}
+		if !fenced && strings.HasPrefix(line, "# ") {
+			titles = append(titles, line)
+		}
+	}
+	return titles
 }
