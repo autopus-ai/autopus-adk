@@ -86,6 +86,14 @@ Record actual dispatch count and the native agents used. Follow up with the
 same revivable worker through `hub`; an isolated worker whose workspace has
 been released needs a new assignment. Only the parent owns `todo`.
 
+A worker that stops at its turn limit returns a partial result; the turn-budget
+rule every assignment carries (`references/delegation.md`, Worker hygiene)
+keeps that rare. Never treat a partial result as a completed phase or feed it to
+the next phase. Follow up once with a narrowed instruction (finish and write the
+artifact, minimal further exploration), through `hub` or as a new assignment as
+above; if that run is partial again, stop and hand the phase to the user with
+what was produced.
+
 ## Context and Models
 
 Keep required core/SPEC bodies complete and hash-verified. Ordinary
