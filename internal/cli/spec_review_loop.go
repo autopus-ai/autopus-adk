@@ -65,8 +65,7 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 			return nil, fmt.Errorf("리뷰 필수 문서 전달 실패: %w", err)
 		}
 
-		// WorkingDir is the review's project root: the OMP review backend and
-		// the reliability receipts read it.
+		// WorkingDir is the review's project root: the OMP review backend reads it.
 		workingDir, _ := os.Getwd()
 		orchCfg := orchestra.OrchestraConfig{
 			Providers:           p.providers,
