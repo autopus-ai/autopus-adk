@@ -17,7 +17,7 @@
 - [x] T11: `[NEW] scripts/benchmarks/harness/prepare_grader.py`, `grader.sb` — trusted module cache(`go mod download`, `go.sum` 검증, 읽기 전용)와 warm build cache, trial별 APFS clone, 두 방향 calibration과 세션 끝 재calibration, 거부 시 protocol·`calibration.json` 기록 (REQ-HE-08, REQ-HE-09).
 - [x] T12: `[NEW] scripts/benchmarks/harness/golden.py`, `test_golden.py`, `run.py --mode golden` — workspace revision, 시작 전 거부, 신호 매핑, `sandbox-exec` grader, `env -i` 허용 목록, trusted parser(`expected_tests`, 1 MiB), 리터럴 `forbidden_construct`, credential을 codex 프로세스에만 전달, process group 종료, trusted runner만 record 작성 (REQ-HE-07, REQ-HE-08).
 - [x] T13: `[NEW] scripts/benchmarks/harness/surface_driver/main.go`와 빌드 helper — `git archive` + `go build -trimpath` + version ldflags, v0.50.122 bootstrap test (REQ-HE-07).
-- [ ] T14: OPS-ONLY. `harness-eval`을 main required status check로 등록하고 `gh api` 출력을 증거로 남긴다 (REQ-HE-05, CD-3).
+- [x] T14: OPS-ONLY. `harness-eval`을 main required status check로 등록하고 `gh api` 출력을 증거로 남긴다 (REQ-HE-05, CD-3).
 - [x] T15: brownfield 회귀 검증(S15)과 coverage 85% 이상 확인 (CD-6).
 
 ## Implementation Strategy

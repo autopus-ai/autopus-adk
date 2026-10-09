@@ -1,0 +1,6 @@
+SPEC-HARNEVAL-001 T14 — harness-eval required status check on main
+date: 2026-10-09T03:40:53Z
+commit with green CI: 2ef35f17 (CI run and Security Scan success; check-run harness-eval success, app github-actions)
+command: gh api -X PUT repos/autopus-ai/autopus-adk/branches/main/protection (required_status_checks.checks=[{context: harness-eval, app_id: 15368}], strict=false, enforce_admins=false, required_pull_request_reviews=null, restrictions=null, allow_force_pushes=false, allow_deletions=false)
+verification (gh api repos/autopus-ai/autopus-adk/branches/main/protection):
+{"allow_deletions":false,"allow_force_pushes":false,"checks":[{"app_id":15368,"context":"harness-eval"}],"enforce_admins":false,"strict":false}
