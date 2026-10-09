@@ -92,6 +92,15 @@ All notable changes to this project will be documented in this file.
     한 번도 실행되지 않았고 timeout 30·60은 30·60 ms였다. 이제 Gemini CLI에서 셸 명령마다 두 검사가
     실행된다. `auto update`는 이전 릴리스가 쓴 entry를 새 entry로 바꾸고 옆에 남기지 않으며, `auto clean`은
     두 형태를 모두 지운다. 다른 플랫폼의 timeout은 그대로 초 단위다.
+  - worktree-isolation skill(Gemini CLI·Antigravity, OpenCode): Claude Code 전용인 `Agent(...,
+    isolation = "worktree")` 호출과 존재하지 않는 `auto pipeline worktree` 명령을 지시하던 본문을, 이
+    표면에 맞는 절차로 바꾼다. subagent가 감독 세션의 checkout을 그대로 쓰므로 supervisor가 병렬 task마다
+    `git -c gc.auto=0 worktree add -b worktree/<SPEC-ID>/<task-id> .autopus/worktrees/<SPEC-ID>/<task-id> HEAD`로
+    worktree를 만들고(파일 도구가 workspace 밖에 닿지 못해 프로젝트 안에 두고 `.git/info/exclude`로
+    가린다), worker는 그 경로 안에서만 작업하고 task branch에 commit한 뒤 `worktree_path`·`branch`를
+    돌려준다. slot 상한 5, `fifo_task_id` 대기열, `worktree_isolation_unavailable` fail-closed, slot
+    회수 terminal state, ID 순 Phase 2.1 merge 계약은 그대로다. Claude Code·Codex·OMP 본문은 바뀌지
+    않는다.
 
 - **`auto react band`: tier 3의 opt-in 로컬 patch** (2026-10-08, SPEC-SIGMABAND-002): 선택 키
   `health_band.allow_local_patch: true`를 켜면 tier 3으로 열린 episode는 confined 진단이 성공한 뒤

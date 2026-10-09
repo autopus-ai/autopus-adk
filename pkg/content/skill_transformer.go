@@ -137,7 +137,15 @@ func (t *SkillTransformer) TransformForPlatformWithOptions(platform string, opts
 		}
 
 		report.Compatible = append(report.Compatible, s.meta.Name)
-		filtered := rewriteCanonicalSkillReferences(s.body, opts.ResolveSkillRef)
+		body := s.body
+		native, ok, err := nativeSkillBody(s.meta.Name, platform)
+		if err != nil {
+			return nil, nil, err
+		}
+		if ok {
+			body = native
+		}
+		filtered := rewriteCanonicalSkillReferences(body, opts.ResolveSkillRef)
 		filtered = ReplacePlatformReferences(filtered, platform)
 		result = append(result, TransformedSkill{
 			Name:        s.meta.Name,
