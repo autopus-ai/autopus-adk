@@ -254,9 +254,6 @@ func runOrchestraCommand(
 		}
 		fmt.Fprintf(os.Stderr, "상태: degraded\n")
 	}
-	if result.Reliability != nil && result.Reliability.ArtifactDir != "" {
-		fmt.Fprintf(os.Stderr, "아티팩트: %s\n", result.Reliability.ArtifactDir)
-	}
 	fmt.Fprintf(os.Stderr, "\n요약: %s (총 %s)\n", result.Summary, result.Duration.Round(1e6))
 	return nil
 }

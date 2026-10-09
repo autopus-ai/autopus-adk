@@ -8,7 +8,11 @@ const (
 	TerminalCompleted = "completed"
 	TerminalBlocked   = "blocked"
 	TerminalSkipped   = "skipped"
-	TerminalYielded   = "yielded"
+	// TerminalYielded stays in the orchestration_run_receipt.v1 vocabulary
+	// and still maps to gate status "yielded" when a caller sets it. Nothing
+	// infers it since the pane backend's yield passthrough retired
+	// (SPEC-PANERM-001).
+	TerminalYielded = "yielded"
 )
 
 const (
@@ -149,9 +153,6 @@ func inferJudgeStatus(result *OrchestraResult) string {
 }
 
 func inferTerminalState(result *OrchestraResult) string {
-	if result.Yield != nil {
-		return TerminalYielded
-	}
 	if result.JudgeStatus == JudgeFailed || (result.DispatchCount > 0 && len(result.UsableProviders) == 0) {
 		return TerminalBlocked
 	}

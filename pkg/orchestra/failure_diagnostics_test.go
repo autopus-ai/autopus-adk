@@ -39,7 +39,7 @@ func TestBuildFailedProvider_ClassifiesTimeoutAndCapacity(t *testing.T) {
 	t.Parallel()
 
 	timeoutFailure := buildFailedProvider(
-		ProviderConfig{Name: "claude", StartupTimeout: 30 * time.Millisecond},
+		ProviderConfig{Name: "claude"},
 		&ProviderResponse{
 			Provider: "claude",
 			TimedOut: true,

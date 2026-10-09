@@ -11,9 +11,6 @@ import (
 )
 
 func writeOrchestraPrimaryOutput(w io.Writer, result *orchestra.OrchestraResult, noJudge bool, sessionID string) (bool, error) {
-	if result.Yield != nil {
-		return true, orchestra.WriteYieldOutput(w, *result.Yield)
-	}
 	if noJudge && len(result.RoundHistory) > 0 {
 		output := orchestra.BuildYieldOutputFromResult(result, sessionID)
 		return true, orchestra.WriteYieldOutput(w, output)
@@ -23,7 +20,7 @@ func writeOrchestraPrimaryOutput(w io.Writer, result *orchestra.OrchestraResult,
 
 // saveOrchestraResult writes orchestra results to a timestamped markdown file
 // under .autopus/orchestra/. Returns the file path on success.
-// @AX:WARN: [AUTO] high-branch artifact writer — result, diagnostics, reliability, and receipt projections converge here
+// @AX:WARN: [AUTO] high-branch artifact writer — result, diagnostics, and receipt projections converge here
 // @AX:REASON: [AUTO] more than eight conditional branches determine which externally visible artifacts are persisted
 func saveOrchestraResult(command, strategy string, providers []string, timeout ResolvedOrchestraTimeout, result *orchestra.OrchestraResult) (string, error) {
 	dir := ".autopus/orchestra"
@@ -51,9 +48,6 @@ func saveOrchestraResult(command, strategy string, providers []string, timeout R
 	}
 	if resultIsDegraded(result) {
 		header += "**Status**: degraded  \n"
-	}
-	if result.Reliability != nil && result.Reliability.ArtifactDir != "" {
-		header += fmt.Sprintf("**Artifacts**: %s  \n", result.Reliability.ArtifactDir)
 	}
 	header += "\n---\n\n"
 

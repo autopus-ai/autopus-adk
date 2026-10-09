@@ -173,15 +173,13 @@ func TestSaveOrchestraDiagnosticsReport_WritesJSON(t *testing.T) {
 	assert.Equal(t, []string{"increase timeout"}, report.RetryHints)
 }
 
-// A yielded session belonged to the retired pane backend, and the cleanup
-// command it pointed at is a retirement stub (SPEC-PANERM-001), so a failure
-// report must not persist either handle.
-func TestSaveOrchestraFailureReport_BlockedYield_OmitsRetiredCleanupHandle(t *testing.T) {
+// The cleanup command a blocked pane session pointed at is a retirement stub
+// (SPEC-PANERM-001), so a failure report must not persist it.
+func TestSaveOrchestraFailureReport_Blocked_OmitsRetiredCleanupHandle(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
 	result := sampleFailedResult()
 	result.TerminalState = orchestra.TerminalBlocked
-	result.Yield = &orchestra.YieldOutput{SessionID: "orch-report-recover"}
 
 	path, err := saveOrchestraFailureReport(
 		"brainstorm", "debate", []string{"claude", "codex"},
@@ -191,14 +189,13 @@ func TestSaveOrchestraFailureReport_BlockedYield_OmitsRetiredCleanupHandle(t *te
 
 	raw, err := os.ReadFile(path)
 	require.NoError(t, err)
-	assert.NotContains(t, string(raw), "orch-report-recover")
 	assert.NotContains(t, string(raw), "cleanup_command")
 	assert.NotContains(t, string(raw), "auto orchestra cleanup")
 }
 
 // The stderr diagnostics of a blocked run must not point at the retired
 // `auto orchestra cleanup` stub (SPEC-PANERM-001).
-func TestRunOrchestraCommand_BlockedYield_OmitsRetiredCleanupCommand(t *testing.T) {
+func TestRunOrchestraCommand_Blocked_OmitsRetiredCleanupCommand(t *testing.T) {
 	t.Chdir(t.TempDir())
 	originalRun := runOrchestraExecute
 	t.Cleanup(func() { runOrchestraExecute = originalRun })
@@ -209,7 +206,6 @@ func TestRunOrchestraCommand_BlockedYield_OmitsRetiredCleanupCommand(t *testing.
 			DegradedReasons:     []string{"provider_quorum"},
 			ConfiguredProviders: []string{"claude", "gemini"},
 			QuorumRequired:      2,
-			Yield:               &orchestra.YieldOutput{SessionID: "orch-command-recover"},
 			FailedProviders: []orchestra.FailedProvider{
 				{Name: "claude", FailureClass: "timeout", Error: "deadline exceeded"},
 				{Name: "gemini", FailureClass: "timeout", Error: "deadline exceeded"},
@@ -226,7 +222,6 @@ func TestRunOrchestraCommand_BlockedYield_OmitsRetiredCleanupCommand(t *testing.
 
 	require.Error(t, runErr)
 	assert.Contains(t, stderr, "오케스트레이션 진단:")
-	assert.NotContains(t, stderr, "orch-command-recover")
 	assert.NotContains(t, stderr, "auto orchestra cleanup")
 }
 

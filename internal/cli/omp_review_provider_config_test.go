@@ -51,8 +51,7 @@ func TestProviderConfigFromEntry_EmptyBackendPreservesLegacyMapping(t *testing.T
 
 	assert.Equal(t, orchestra.ProviderConfig{
 		Name: "custom", Binary: "custom-cli", Args: []string{"--print"},
-		ModelPolicy: "user-pinned", PromptViaArgs: true,
-		StartupTimeout: resolveProviderStartupTimeout("custom"), ExecutionTimeout: 17 * time.Second,
+		ModelPolicy: "user-pinned", PromptViaArgs: true, ExecutionTimeout: 17 * time.Second,
 		SchemaFlag: "--schema", StdinMode: "file", OutputFormat: "text",
 	}, got)
 }
