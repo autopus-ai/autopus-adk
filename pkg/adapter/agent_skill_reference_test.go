@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	openCodeAgentSkillsRe = regexp.MustCompile("(?m)^Use the following Autopus skills when they fit the task: (.+)\\.$")
+	openCodeAgentSkillsRe = regexp.MustCompile(`(?m)^Use the following Autopus skills when they fit the task: (.+)\.$`)
 	codexAgentSkillsRe    = regexp.MustCompile(`(?m)^- Skills reference: (.+)$`)
 	backtickedNameRe      = regexp.MustCompile("`([^`]+)`")
 )
