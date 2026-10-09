@@ -188,12 +188,12 @@ IMPORTANT: 이 단계는 반드시 orchestra CLI 호출을 먼저 시도해야 �
 
 **debate 호출 (기본)**:
 ```bash
-auto orchestra brainstorm "{structured idea}" --strategy debate --providers {providers} --rounds 2 --judge {invoking_provider} --no-detach --format json
+auto orchestra brainstorm "{structured idea}" --strategy debate --providers {providers} --rounds 2 --judge {invoking_provider} --format json
 ```
 
 **다른 strategy 호출**:
 ```bash
-auto orchestra brainstorm "{structured idea}" --strategy {strategy} --providers {providers} --no-detach --format json
+auto orchestra brainstorm "{structured idea}" --strategy {strategy} --providers {providers} --format json
 ```json
 {
   "i": "Dispatching bounded OMP work",

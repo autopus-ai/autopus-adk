@@ -79,13 +79,13 @@ For every review, resolve `RISK_TIER`, `STRATEGY`, and `PROVIDERS` from the
 user flags and configuration. Forward explicit values unchanged:
 
 ```bash
-auto orchestra review {review paths} --risk-tier {RISK_TIER} --strategy {STRATEGY} --providers {PROVIDERS} --no-detach --format json
+auto orchestra review {review paths} --risk-tier {RISK_TIER} --strategy {STRATEGY} --providers {PROVIDERS} --format json
 ```
 
 Omit `--providers` only when the user did not supply it. The orchestra review
 must return `schema=orchestration_cli_result.v1` with an embedded
-`receipt.schema=orchestration_run_receipt.v1`; reject detached job IDs or
-untyped prose at this synchronous gate. The review is discovery: freeze its
+`receipt.schema=orchestration_run_receipt.v1`; reject untyped prose at this
+gate. The review is discovery: freeze its
 actionable findings, preserve dissent, and treat an
 unresolved Critical security/correctness finding as `critical_veto=true`.
 After a fixer closes the checklist, run deterministic validation and a focused

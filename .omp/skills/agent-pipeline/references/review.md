@@ -8,6 +8,10 @@ Deterministic checks, QA evidence, build and test results, canary evidence, and
 the reviewer and security findings are authoritative. Provider fan-out is
 advisory evidence and never overrides them.
 
+Re-run the probes and checks a verdict rests on instead of trusting earlier
+evidence: a prior round's PASS, a worker's `verification` lines, and a pasted
+log are claims until they run again on the current input.
+
 Correctness, security, data-loss, and acceptance findings outrank complexity
 findings. A complexity finding must name a concrete deletion, reuse, or
 simplification; a vague "this feels complex" is not a finding.

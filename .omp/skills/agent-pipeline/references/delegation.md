@@ -48,6 +48,14 @@ Overlapping ownership is not resolved at merge time; it is resolved by making
 the units sequential. A file-ownership conflict always forces sequential
 execution, even where isolation is available.
 
+Parallel slices meet only at seams the supervisor names before dispatch:
+
+- Give every shared type, constant, and registration line (a registry entry, a
+  switch case, a table row) exactly one owning slice: two slices adding it
+  collide at merge or define it twice.
+- Keep each seam a narrow interface named after the SPEC's terms: a wide or
+  ad hoc seam lets slices drift apart while each still compiles alone.
+
 ## Parallel versus sequential
 
 | Condition | Execution | Isolation |
@@ -89,10 +97,16 @@ Where the legacy external worktree pipeline is still in use:
 Sequential units integrate immediately after each unit completes, before the
 next dependent unit starts.
 
+Never hand-merge a generated or derived artifact (a golden baseline, a digest,
+a snapshot golden): regenerate it from the merged tree with its own tool and
+check that the diff holds only the intended rows. A textual merge of two
+digests matches neither input, even when git reports no conflict.
+
 Confirm shared interface ownership and dependency edges before each dispatch
 wave. A finished worker message is not acceptance: validate the returned receipt,
-inspect the actual changed paths against the supervisor's assignment, and verify
-the integrated result before dependent work proceeds. The marked receipt parser
+inspect the actual changed paths against the supervisor's assignment, then build
+and test the merged tree before the next wave or any dependent unit starts,
+because slices that pass alone do not prove their union. The marked receipt parser
 checks declared ownership consistency; it does not prove the actual filesystem
 diff or grant permissions. Literal roots and trailing `/**` scopes are accepted;
 do not use other glob patterns in canonical worker receipts.
@@ -164,6 +178,32 @@ The five required return fields are in the skill entrypoint under
 restated per worker. The exact payload shapes for dispatch, follow-up
 messaging, and the parent-owned checklist are in `references/coordination.md` —
 open it only when you are about to make those calls.
+
+## Worker hygiene
+
+Every dispatch prompt carries these rules. A worker that cannot keep one stops
+and reports instead of working around it.
+
+- Write temporary files only under a scratch subdirectory you created for this
+  unit: the shared scratch root holds other workers' live files.
+- Never run `rm -rf` or `chmod -R` on the shared scratch root, and never delete a
+  file you did not create: a sibling loses its work without seeing an error.
+- Kill only process IDs you started, never by name or path pattern: a pattern
+  also matches a sibling's build or test run.
+- Delete your large copies (`git archive` trees, module caches, built binaries)
+  when the unit ends: they fill the disk every worker shares.
+- Check free disk with `df` before a heavy build or test suite, and stop with a
+  report below 5 GiB: a full disk fails every running worker with misleading
+  errors.
+- Commit each finished unit as it lands and write the report before about 75%
+  of the turn budget is spent: a worker cut off at its limit hands back only
+  what it committed. A partial result then follows the skill entry's
+  partial-result rule.
+- Build a credential-shaped test value from fragments, never as one literal:
+  see Secret-shaped fixtures in `references/verification.md`.
+- Name every deviation from the SPEC and every decision the SPEC did not make in
+  the receipt: an unreported one surfaces only in review, after dependent work
+  has built on it.
 
 ## Follow-up and failure
 
