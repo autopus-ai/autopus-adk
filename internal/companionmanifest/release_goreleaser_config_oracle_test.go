@@ -41,7 +41,7 @@ func validateProductionGoReleaserWiring(source string) error {
 			continue
 		}
 		buildFound = true
-		if countString(build.Env, "GOTOOLCHAIN=go1.26.6") != 1 {
+		if countString(build.Env, "GOTOOLCHAIN=go1.26.9") != 1 {
 			return errors.New("auto build Go toolchain pin differs")
 		}
 		if countString(build.Env, "GOENV=off") != 1 {

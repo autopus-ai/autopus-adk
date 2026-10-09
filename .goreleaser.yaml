@@ -11,7 +11,7 @@ builds:
     mod_timestamp: "{{ .CommitTimestamp }}"
     env:
       - CGO_ENABLED=0
-      - GOTOOLCHAIN=go1.26.6
+      - GOTOOLCHAIN=go1.26.9
       - GOENV=off
     goos:
       - linux
