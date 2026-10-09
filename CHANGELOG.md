@@ -31,6 +31,19 @@ All notable changes to this project will be documented in this file.
     `BuildYieldOutputFromResult`, `TerminalYielded`는 남는다. 이주: `Reliability`, `Yield`,
     `ReliabilityStore`는 늘 nil이었고 `StartupTimeout`은 실행에 쓰이지 않았으므로 그 읽기와 쓰기를
     지운다.
+- **`auto quality`: 줄 편집이 YAML anchor를 지워 alias를 다시 묶지 않는다** (2026-10-09, 보안 감사
+  후속): `auto quality <preset>`, `auto quality supervisor`, `auto quality provider`는 `autopus.yaml`의
+  한 줄만 고치는데, key와 주석만 남기고 값 전체를 바꿔 `quality.default: &a balanced`의 anchor `&a`를
+  지웠다. 그러면 뒤의 alias(예: `orchestra.providers.codex.binary: *a`)가 앞의 같은 이름 anchor
+  (`&a /tmp/evil`)로 다시 묶여, `auto quality ultra` 뒤에 codex binary가 `/tmp/evil`이 됐다. provider
+  override를 지우는 `inherit`도 같은 방식으로 anchor를 지웠다. 쓰기 전 검사는 Quality 필드만 비교해
+  이를 놓쳤다.
+  - 바꾸는 값의 anchor와 tag(`&a`, `!!str`)는 남기고 scalar만 바꾼다.
+  - 편집 결과는 quality 블록을 뺀 나머지가 alias가 가리키는 값까지 원래와 같고 `config.Load`처럼
+    읽힐 때만 쓴다(section writer와 같은 검사). 아니면 파일을 바꾸지 않고 `refuse to write
+    quality.<key>: the edit would also change data outside the quality block ...` 오류로 끝난다. quality
+    블록 밖의 alias가 바꾸는 값의 anchor를 가리키거나 quality 블록 전체를 alias로 복사한 파일이
+    여기에 해당한다. 이주: 그 alias 자리에 값을 직접 쓰거나 anchor를 다른 키로 옮긴 뒤 다시 실행한다.
 
 - **`auto react band`: tier 3의 opt-in 로컬 patch** (2026-10-08, SPEC-SIGMABAND-002): 선택 키
   `health_band.allow_local_patch: true`를 켜면 tier 3으로 열린 episode는 confined 진단이 성공한 뒤

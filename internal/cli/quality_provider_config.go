@@ -67,6 +67,9 @@ func persistQualityProvider(
 	if err != nil {
 		return err
 	}
+	if err := verifyQualityLineEdit(data, updated, "quality.providers."+provider); err != nil {
+		return err
+	}
 	if err := validateQualityYAML(updated, cfg); err != nil {
 		return err
 	}
