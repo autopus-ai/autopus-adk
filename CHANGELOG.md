@@ -31,6 +31,14 @@ All notable changes to this project will be documented in this file.
     `BuildYieldOutputFromResult`, `TerminalYielded`는 남는다. 이주: `Reliability`, `Yield`,
     `ReliabilityStore`는 늘 nil이었고 `StartupTimeout`은 실행에 쓰이지 않았으므로 그 읽기와 쓰기를
     지운다.
+- **`auto doctor --json`과 은퇴 키 rewrite 오류가 사용자 파일의 bidi·제어 문자를 escape한다** (2026-10-09,
+  보안 감사 후속): text 출력은 이미 escape했지만 `doctor --json`의 `doctor.legacy_orchestra_config`·
+  `doctor.stale_completion_hooks` detail과 `opencode_config_error` 필드는 provider 이름, settings 명령,
+  프로젝트 경로를 그대로 담았다. encoding/json은 C0 제어 문자만 escape하므로 U+202E(bidi override),
+  DEL, C1 제어 문자가 출력 바이트에 남아 JSON을 터미널이나 CI 로그로 볼 때 줄을 뒤집어 보이게 할 수
+  있었다. 이제 두 모드가 같은 escape(`a\u202eb`)를 쓴다. `autopus.yaml`의 은퇴 키를 지우는 rewrite가
+  실패할 때(`auto update`, `auto quality`) 오류에 넣는 키 경로도 escape한다.
+
 - **`auto quality`: 줄 편집이 YAML anchor를 지워 alias를 다시 묶지 않는다** (2026-10-09, 보안 감사
   후속): `auto quality <preset>`, `auto quality supervisor`, `auto quality provider`는 `autopus.yaml`의
   한 줄만 고치는데, key와 주석만 남기고 값 전체를 바꿔 `quality.default: &a balanced`의 anchor `&a`를

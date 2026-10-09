@@ -51,7 +51,8 @@ func pruneRetiredConfig(data []byte) ([]byte, []string, error) {
 		}
 	}
 	if err != nil {
-		return nil, nil, fmt.Errorf("remove retired orchestra keys %s: %w", strings.Join(paths, ", "), err)
+		// The paths name user keys, and the error reaches the terminal.
+		return nil, nil, fmt.Errorf("remove retired orchestra keys %s: %w", terminalSafe(strings.Join(paths, ", ")), err)
 	}
 	return encoded, paths, nil
 }

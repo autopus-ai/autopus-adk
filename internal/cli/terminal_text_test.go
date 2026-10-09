@@ -7,6 +7,9 @@ package cli
 
 import (
 	"bytes"
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -62,4 +65,48 @@ func TestUpdateMigrationsAndDoctor_EscapeControlRunesFromUserFiles(t *testing.T)
 	require.NoError(t, persistUpdateConfigMigrations(&out, dir, &config.HarnessConfig{}, false))
 	assert.NotContains(t, out.String(), "\x1b")
 	assert.True(t, strings.Contains(out.String(), `orchestra.providers.\x1b]0;PWNED\a\x1b[2K.pane_args`), out.String())
+}
+
+// doctor --json carries the same user-derived members as the text report, and
+// encoding/json escapes C0 controls but leaves a bidi override, DEL, or C1
+// control in the bytes, so the JSON check escapes them the way the text does.
+func TestRetiredOrchestraChecks_JSONEscapesUnprintableRunesFromUserFiles(t *testing.T) {
+	isolateDoctorEnv(t)
+	root := filepath.Join(t.TempDir(), "proj\u202ex")
+	require.NoError(t, os.Mkdir(root, 0o755))
+	writeDoctorFixture(t, root, map[string]string{
+		"autopus.yaml":          "orchestra:\n  providers:\n    \"a\\u202Eb\\x7F\":\n      pane_args: []\n",
+		".claude/settings.json": `{"hooks":{"Stop\u202e":[{"hooks":[{"command":".claude/hooks/autopus/hook-claude-stop.sh"}]}]}}`,
+	})
+	require.NoError(t, os.Mkdir(filepath.Join(root, "opencode.json"), 0o755), "a config update cannot read")
+
+	report := doctorJSONReport{status: jsonStatusOK}
+	report.collectRetiredOrchestraChecks(root, doctorConfigFor("claude-code", "opencode"))
+
+	byID := map[string]jsonCheck{}
+	for _, check := range report.checks {
+		byID[check.ID] = check
+	}
+	assert.Equal(t, `legacy orchestra keys: orchestra.providers.a\u202eb\x7f.pane_args`,
+		byID[legacyOrchestraConfigCheckID].Detail)
+	stale := byID[staleCompletionHooksCheckID]
+	assert.Equal(t, `stale completion hooks: .claude/settings.json Stop\u202e `+claudeStopScript, stale.Detail)
+	assert.Contains(t, stale.Fields["opencode_config_error"], `proj\u202ex`)
+	encoded, err := json.Marshal(report.checks)
+	require.NoError(t, err)
+	assert.NotContains(t, string(encoded), "\u202e")
+	assert.NotContains(t, string(encoded), "\x7f")
+}
+
+func TestPruneRetiredConfig_RewriteErrorEscapesTheUserPath(t *testing.T) {
+	t.Parallel()
+	// The flow entry cannot be cut by lines, and the reserved block's empty
+	// explicit key does not survive yaml.v3's re-encode, so the rewrite fails
+	// and names the retired path it could not remove.
+	data := anchorTestBase + "future_extension: {? : v}\norchestra:\n  providers:\n    \"a\\u202Eb\": {pane_args: []}\n"
+
+	_, _, err := pruneRetiredConfig([]byte(data))
+
+	require.ErrorContains(t, err, `remove retired orchestra keys orchestra.providers.a\u202eb.pane_args`)
+	assert.NotContains(t, err.Error(), "\u202e")
 }
