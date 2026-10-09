@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/insajin/autopus-adk/pkg/adapter"
 	"github.com/insajin/autopus-adk/pkg/adapter/antigravity"
@@ -106,6 +107,14 @@ func run(args []string, stdout io.Writer) error {
 	cfg.Platforms = append([]string(nil), platforms...)
 	if err := config.Save(o.output, cfg); err != nil {
 		return fmt.Errorf("config: %w", err)
+	}
+	// Like harneval.Generate, stand for a repository root: adapters write
+	// root-local git hooks only into a gitdir holding HEAD.
+	if err := os.MkdirAll(filepath.Join(o.output, ".git"), 0o755); err != nil {
+		return fmt.Errorf("gitdir: %w", err)
+	}
+	if err := os.WriteFile(filepath.Join(o.output, ".git", "HEAD"), []byte("ref: refs/heads/main\n"), 0o644); err != nil {
+		return fmt.Errorf("gitdir: %w", err)
 	}
 	ctx := context.Background()
 	for _, g := range generators(o, catalog) {
