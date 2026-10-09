@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/insajin/autopus-adk/pkg/adapter"
+	"github.com/insajin/autopus-adk/pkg/config"
 	pkgcontent "github.com/insajin/autopus-adk/pkg/content"
 	"github.com/insajin/autopus-adk/templates"
 )
@@ -17,14 +18,14 @@ const agentsTemplateDir = "gemini/agents"
 
 // renderAgentFiles renders transformed agent templates from templates/gemini/agents/
 // to .gemini/agents/autopus/ and returns file mappings.
-func (a *Adapter) renderAgentFiles() ([]adapter.FileMapping, error) {
+func (a *Adapter) renderAgentFiles(cfg *config.HarnessConfig) ([]adapter.FileMapping, error) {
 	targetRelDir := filepath.Join(".gemini", "agents", "autopus")
 	absTargetDir := filepath.Join(a.root, targetRelDir)
 	if err := os.MkdirAll(absTargetDir, 0755); err != nil {
 		return nil, fmt.Errorf("gemini agents directory creation failed: %w", err)
 	}
 
-	mappings, err := a.prepareAgentMappings()
+	mappings, err := a.prepareAgentMappings(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +46,9 @@ func (a *Adapter) renderAgentFiles() ([]adapter.FileMapping, error) {
 // prepareAgentMappings reads pre-transformed agent templates and returns file mappings
 // without writing to disk. Uses templates/gemini/agents/*.md.tmpl which have
 // tool references already mapped (Agent() → @agent, .claude/ → .gemini/, etc).
-func (a *Adapter) prepareAgentMappings() ([]adapter.FileMapping, error) {
+// The templates list every source skill, so each `skills:` list is narrowed to
+// the skills this configuration installs on the Gemini surface.
+func (a *Adapter) prepareAgentMappings(cfg *config.HarnessConfig) ([]adapter.FileMapping, error) {
 	var files []adapter.FileMapping
 
 	entries, err := templates.FS.ReadDir(agentsTemplateDir)
@@ -63,6 +66,7 @@ func (a *Adapter) prepareAgentMappings() ([]adapter.FileMapping, error) {
 			return nil, fmt.Errorf("gemini agent template read failed %s: %w", entry.Name(), err)
 		}
 		rendered := pkgcontent.NormalizeAgentReferences(string(data), "gemini")
+		rendered = pkgcontent.FilterDeclaredSkills(rendered, "gemini", cfg)
 
 		// Strip .tmpl extension for the output filename
 		outputName := strings.TrimSuffix(entry.Name(), ".tmpl")

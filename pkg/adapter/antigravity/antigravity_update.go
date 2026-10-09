@@ -85,7 +85,7 @@ func (a *Adapter) prepareFiles(cfg *config.HarnessConfig) ([]adapter.FileMapping
 	files = append(files, ruleMappings...)
 
 	if cfg.IsFullMode() {
-		agentMappings, err := a.prepareAgentMappings()
+		agentMappings, err := a.prepareAgentMappings(cfg)
 		if err != nil {
 			return nil, err
 		}

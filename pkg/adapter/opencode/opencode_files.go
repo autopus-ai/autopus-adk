@@ -38,7 +38,7 @@ func (a *Adapter) prepareFiles(_ context.Context, cfg *config.HarnessConfig) ([]
 	if err := appendFiles(a.prepareSkillMappings(cfg)); err != nil {
 		return nil, err
 	}
-	if err := appendFiles(a.prepareAgentMappings()); err != nil {
+	if err := appendFiles(a.prepareAgentMappings(cfg)); err != nil {
 		return nil, err
 	}
 	if err := appendFiles(a.prepareCommandMappings(cfg)); err != nil {

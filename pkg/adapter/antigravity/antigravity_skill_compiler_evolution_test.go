@@ -131,7 +131,9 @@ func TestAntigravityAgents_ProjectNativeToolsWithoutChangingBodyOrSkills(t *test
 
 	assert.Equal(t, wantTools, native.Frontmatter.Tools)
 	assert.Equal(t, wantTools, mirror.Frontmatter.Tools)
-	assert.Equal(t, []string{"tdd", "ddd", "debugging", "ast-refactoring"}, native.Frontmatter.Skills)
+	// ddd and ast-refactoring are long-tail skills the default split surface
+	// does not install, so the declaration names only what Gemini received.
+	assert.Equal(t, []string{"tdd", "debugging"}, native.Frontmatter.Skills)
 	assert.Equal(t, native.Frontmatter.Skills, mirror.Frontmatter.Skills)
 	assert.Contains(t, native.Body, "# Executor Agent")
 	assert.Contains(t, native.Body, "Phase 1.5 Test Constraint")

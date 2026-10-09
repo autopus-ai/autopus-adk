@@ -8,6 +8,7 @@ import (
 
 	"github.com/insajin/autopus-adk/pkg/adapter"
 	"github.com/insajin/autopus-adk/pkg/config"
+	pkgcontent "github.com/insajin/autopus-adk/pkg/content"
 	"github.com/insajin/autopus-adk/templates"
 )
 
@@ -42,6 +43,7 @@ func (a *Adapter) generateAgents(cfg *config.HarnessConfig) ([]adapter.FileMappi
 		rendered = normalizeCodexHelperPaths(rendered)
 		rendered = normalizeCodexToolingBody(rendered)
 		rendered = normalizeCodexAgentContracts(rendered)
+		rendered = pkgcontent.FilterSkillsReferenceLine(rendered, adapterName, cfg)
 
 		targetPath := filepath.Join(a.root, ".codex", "agents", agentFile)
 		if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
@@ -91,6 +93,7 @@ func (a *Adapter) prepareAgentFiles(cfg *config.HarnessConfig) ([]adapter.FileMa
 		rendered = normalizeCodexHelperPaths(rendered)
 		rendered = normalizeCodexToolingBody(rendered)
 		rendered = normalizeCodexAgentContracts(rendered)
+		rendered = pkgcontent.FilterSkillsReferenceLine(rendered, adapterName, cfg)
 
 		files = append(files, adapter.FileMapping{
 			TargetPath:      filepath.Join(".codex", "agents", agentFile),

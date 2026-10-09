@@ -115,7 +115,7 @@ func (a *Adapter) Generate(_ context.Context, cfg *config.HarnessConfig) (*adapt
 
 	// Copy agent content files (full mode)
 	if cfg.IsFullMode() {
-		agentFiles, err := a.renderAgentFiles()
+		agentFiles, err := a.renderAgentFiles(cfg)
 		if err != nil {
 			return nil, fmt.Errorf("제미니 에이전트 파일 복사 실패: %w", err)
 		}

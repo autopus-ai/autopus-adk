@@ -97,3 +97,49 @@ func filterDeclaredSkillItems(
 	}
 	return kept, i
 }
+
+// FilterInstalledSkillNames keeps, in order, the names the compiler installs
+// for the platform (IsInstalledSkill). Agent renderers that list skills outside
+// a `skills:` frontmatter key filter their list with it.
+func FilterInstalledSkillNames(names []string, platform string, cfg *config.HarnessConfig) []string {
+	kept := make([]string, 0, len(names))
+	for _, name := range names {
+		if IsInstalledSkill(name, platform, cfg) {
+			kept = append(kept, name)
+		}
+	}
+	return kept
+}
+
+// skillsReferencePrefix opens the Codex agent operational-defaults line that
+// buildCodexInstructions writes from the agent's source skills.
+const skillsReferencePrefix = "- Skills reference: "
+
+// FilterSkillsReferenceLine rewrites every `- Skills reference:` line of a
+// rendered agent so it names only skills the compiler installs for the
+// platform, and drops a line that names none, for the reason FilterDeclaredSkills
+// gives.
+func FilterSkillsReferenceLine(content, platform string, cfg *config.HarnessConfig) string {
+	if !strings.Contains(content, skillsReferencePrefix) {
+		return content
+	}
+	lines := strings.Split(content, "\n")
+	out := make([]string, 0, len(lines))
+	for _, line := range lines {
+		list, ok := strings.CutPrefix(line, skillsReferencePrefix)
+		if !ok {
+			out = append(out, line)
+			continue
+		}
+		var names []string
+		for _, name := range strings.Split(list, ",") {
+			if name = strings.TrimSpace(name); name != "" {
+				names = append(names, name)
+			}
+		}
+		if kept := FilterInstalledSkillNames(names, platform, cfg); len(kept) > 0 {
+			out = append(out, skillsReferencePrefix+strings.Join(kept, ", "))
+		}
+	}
+	return strings.Join(out, "\n")
+}

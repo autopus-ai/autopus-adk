@@ -101,6 +101,11 @@ All notable changes to this project will be documented in this file.
     돌려준다. slot 상한 5, `fifo_task_id` 대기열, `worktree_isolation_unavailable` fail-closed, slot
     회수 terminal state, ID 순 Phase 2.1 merge 계약은 그대로다. Claude Code·Codex·OMP 본문은 바뀌지
     않는다.
+  - agent의 skill 참조: Gemini CLI·Antigravity agent의 `skills:` 목록, OpenCode agent의 "Use the following
+    Autopus skills" 줄, Codex agent의 `- Skills reference:` 줄이 그 표면에 실제로 설치되는 skill만 적는다.
+    기본 split 설정에서 executor는 `tdd`, `debugging`만 적고, 설치되지 않는 `ddd`, `ast-refactoring`,
+    `grilling`, `docker` 같은 long-tail 이름은 빠진다. `skills.compiler.bundles`나 `explicit_skills`로 그
+    skill을 설치하면 참조도 다시 생긴다(Claude Code는 이미 이렇게 동작했다).
 
 - **`auto react band`: tier 3의 opt-in 로컬 patch** (2026-10-08, SPEC-SIGMABAND-002): 선택 키
   `health_band.allow_local_patch: true`를 켜면 tier 3으로 열린 episode는 confined 진단이 성공한 뒤
