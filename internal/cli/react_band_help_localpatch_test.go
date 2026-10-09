@@ -28,6 +28,7 @@ var bandLocalPatchDocRequired = []string{
 	"band runs the claude named by health_band.local_patch_provider as a CLI subprocess whatever its orchestra " +
 		"backend, while orchestra keeps that backend",
 	"The expected deployment is the claude CLI signed in with a Claude subscription (claude auth login); it needs no API key.",
+	"An API-key-only deployment exports ANTHROPIC_API_KEY for the band run instead.",
 	"Upgrade every auto binary that reads this autopus.yaml before you set health_band.allow_local_patch or " +
 		"health_band.local_patch_provider: a binary without SPEC-SIGMABAND-002 rejects a file that sets either key.",
 }

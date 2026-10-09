@@ -24,28 +24,32 @@ func lpBakeShellVars(script string, vars map[string]string) string {
 	return head + "\n" + assignments.String() + body
 }
 
-// Provider Contract item 6 (Phase 4 review, both reviewers): the confined
+// Provider Contract item 8 (Phase 4 review, both reviewers): the confined
 // claude starts from an allowlist, not from the inherited environment minus
 // a deny list, so the variables of an agent session that runs band, of an
-// IDE bridge, or of the user's shell never reach it.
+// IDE bridge, or of the user's shell never reach it. ANTHROPIC_API_KEY is
+// on the allowlist since the 2026-10-09 follow-up, so an API-key-only
+// deployment can run a confined request; ANTHROPIC_BASE_URL is not.
 
 // lpPollutedEnv are inherited variables that no confined request may see,
 // each with a synthetic value: an outer claude session's markers, socket,
-// and token, an IDE and MCP bridge, NODE_OPTIONS, an SSH agent, an API key
-// with its base URL, and the credentials and GIT_* variables of 001's list.
+// and token, an IDE and MCP bridge, NODE_OPTIONS, an SSH agent, an API base
+// URL that would redirect the API key, and the credentials and GIT_*
+// variables of 001's list.
 var lpPollutedEnv = []string{
 	"CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT", "CLAUDE_CODE_SESSION_ID", "CLAUDE_CODE_CHILD_SESSION",
 	"CLAUDE_CODE_MESSAGING_SOCKET", "CLAUDE_CODE_MESSAGING_TOKEN", "CLAUDE_CODE_SSE_PORT", "CLAUDE_PID", "CLAUDE_EFFORT",
 	"ORCA_AGENT_HOOK_TOKEN", "ORCA_AGENT_HOOK_ENDPOINT", "ENABLE_IDE_INTEGRATION", "MCP_TIMEOUT", "NODE_OPTIONS",
-	"SSH_AUTH_SOCK", "ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL", "GH_TOKEN", "AWS_SECRET_ACCESS_KEY", "GIT_DIR", "LP_UNLISTED",
+	"SSH_AUTH_SOCK", "ANTHROPIC_BASE_URL", "GH_TOKEN", "AWS_SECRET_ACCESS_KEY", "GIT_DIR", "LP_UNLISTED",
 }
 
 // lpKeptEnv are allowlisted variables that reach the confined claude with
 // their values: the claude configuration directory, the headless OAuth
-// token, the proxy variables in both letter cases, a locale, an XDG
-// directory, the time zone, and the TLS trust variables.
+// token, the API key of an API-key-only deployment, the proxy variables in
+// both letter cases, a locale, an XDG directory, the time zone, and the TLS
+// trust variables.
 var lpKeptEnv = map[string]string{
-	"CLAUDE_CONFIG_DIR": "/synthetic/claude-config", "CLAUDE_CODE_OAUTH_TOKEN": "synthetic-oauth",
+	"CLAUDE_CONFIG_DIR": "/synthetic/claude-config", "CLAUDE_CODE_OAUTH_TOKEN": "synthetic-oauth", "ANTHROPIC_API_KEY": "synthetic-api-key",
 	"HTTPS_PROXY": "http://proxy.invalid:3128", "https_proxy": "http://proxy.invalid:3128", "NO_PROXY": "localhost",
 	"no_proxy": "localhost", "LC_ALL": "C", "XDG_CONFIG_HOME": "/synthetic/xdg", "TZ": "UTC",
 	"SSL_CERT_FILE": "/synthetic/ca.pem", "SSL_CERT_DIR": "/synthetic/certs", "NODE_EXTRA_CA_CERTS": "/synthetic/extra.pem",
@@ -56,8 +60,8 @@ var lpKeptEnv = map[string]string{
 func lpAllowedEnvName(name string) bool {
 	exact := []string{
 		"PATH", "HOME", "USER", "LOGNAME", "SHELL", "TMPDIR", "LANG", "TERM", "TZ", "CLAUDE_CONFIG_DIR", "CLAUDE_CODE_OAUTH_TOKEN",
-		"HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy", "SSL_CERT_FILE", "SSL_CERT_DIR",
-		"NODE_EXTRA_CA_CERTS", "PWD", "SHLVL", "_", "OLDPWD",
+		"ANTHROPIC_API_KEY", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy", "SSL_CERT_FILE",
+		"SSL_CERT_DIR", "NODE_EXTRA_CA_CERTS", "PWD", "SHLVL", "_", "OLDPWD",
 	}
 	return slices.Contains(exact, name) || strings.HasPrefix(name, "LC_") || strings.HasPrefix(name, "XDG_")
 }

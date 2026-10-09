@@ -75,7 +75,8 @@ Local patch (tier 3, opt-in)
   set, band runs the claude named by health_band.local_patch_provider as a
   CLI subprocess whatever its orchestra backend, while orchestra keeps that
   backend. The expected deployment is the claude CLI signed in with a Claude
-  subscription (claude auth login); it needs no API key.
+  subscription (claude auth login); it needs no API key. An API-key-only
+  deployment exports ANTHROPIC_API_KEY for the band run instead.
 
   A refused or failed claim ends failed:<code>, keeps the BS, removes what
   it created unless it cannot prove an artifact its own and unchanged, and
