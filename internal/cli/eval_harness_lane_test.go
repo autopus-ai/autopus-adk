@@ -52,7 +52,9 @@ func strictLine(t *testing.T, path string, at time.Time, trusted map[string]ed25
 // TestEvalHarnessLane_S1_LanesRejectEachOtherWithRealValues: harness lane
 // evidence from the export's signer verifies only under the harness policy,
 // and evidence of the Autopus lane, signed under its real lane values, does
-// not verify under the harness policy, though both keys are trusted.
+// not verify under the harness policy, though both keys are trusted. Against
+// the committed allowlist, which holds the real key of each lane, the lanes
+// still reject each other's evidence, and a test key verifies in neither.
 func TestEvalHarnessLane_S1_LanesRejectEachOtherWithRealValues(t *testing.T) {
 	t.Parallel()
 	harnessPub, harnessPriv, _ := exportKey(t)
@@ -77,16 +79,22 @@ func TestEvalHarnessLane_S1_LanesRejectEachOtherWithRealValues(t *testing.T) {
 	assert.Equal(t, "eval-regression: attestation_policy_mismatch\n", strictLine(t, autopus, at, trusted, harneval.LanePolicy(binding)))
 	assert.Equal(t, "eval-regression: regression_blocked (version="+autopusLane.SourceRevision+")\n", strictLine(t, autopus, at, trusted, autopusLane),
 		"the Autopus control evidence itself verifies in its own lane")
-	assert.Equal(t, "eval-regression: signature_key_unknown\n",
-		strictLine(t, harness, at, evalregression.CommittedEvalRegressionPublicKeys(), harneval.LanePolicy(binding)),
-		"the committed allowlist trusts no test key")
+
+	committed := evalregression.CommittedEvalRegressionPublicKeys()
+	assert.Equal(t, "eval-regression: attestation_policy_mismatch\n", strictLine(t, harness, at, committed, autopusLane))
+	assert.Equal(t, "eval-regression: attestation_policy_mismatch\n", strictLine(t, autopus, at, committed, harneval.LanePolicy(binding)))
+	assert.Equal(t, "eval-regression: signature_invalid\n", strictLine(t, harness, at, committed, harneval.LanePolicy(binding)),
+		"the committed harness lane key does not verify a test key's signature")
+	assert.Equal(t, "eval-regression: signature_invalid\n", strictLine(t, autopus, at, committed, autopusLane),
+		"the committed promotion key does not verify a test key's signature")
 }
 
 // TestEvalHarnessLane_S12_SelfVerificationUsesTheCommittedAllowlist: the
-// production export trusts exactly the committed allowlist, so evidence
-// signed with any other key than the committed ADKHarnessEvalKeyID entry stops
-// as self_verify_failed and nothing is left to upload; the same run with its
-// key allowlisted self-verifies and succeeds.
+// production export trusts exactly the committed allowlist, whose
+// ADKHarnessEvalKeyID entry is the operator's harness lane key, so evidence
+// signed with any other key stops as self_verify_failed: signature_invalid and
+// nothing is left to upload; the same run with its key allowlisted
+// self-verifies and succeeds.
 func TestEvalHarnessLane_S12_SelfVerificationUsesTheCommittedAllowlist(t *testing.T) {
 	t.Parallel()
 	pub, _, key := exportKey(t)
@@ -97,7 +105,7 @@ func TestEvalHarnessLane_S12_SelfVerificationUsesTheCommittedAllowlist(t *testin
 	got := runExport(t, production, key, exportArgs(out)...)
 
 	assert.Equal(t, 1, got.code)
-	assert.Contains(t, got.stderr, "harness-eval: export refused: self_verify_failed: signature_key_unknown")
+	assert.Contains(t, got.stderr, "harness-eval: export refused: self_verify_failed: signature_invalid")
 	assert.Empty(t, got.stdout)
 	assert.NoDirExists(t, out)
 

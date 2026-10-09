@@ -63,6 +63,9 @@ type EvalRegressionAttestationPolicyV2 struct {
 const (
 	evalRegressionPromotionKeyID        = "autopus-eval-staging-to-main-2026-07"
 	evalRegressionPromotionPublicKeyB64 = "D6euTz5IarNy68TfJ4tdzOwVomIXoiDEzEtefKmprz8="
+	// evalRegressionHarnessPublicKeyB64 is the public half of the harness lane
+	// signer, allowlisted under ADKHarnessEvalKeyID (SPEC-HARNEVAL-003 T10).
+	evalRegressionHarnessPublicKeyB64 = "onPT0WydtQRPPSx13eSKsAcW5GeBvjwDF+fz8xILMNs="
 )
 
 func mustEvalRegressionPublicKey(encoded string) ed25519.PublicKey {
@@ -90,11 +93,21 @@ func mustEvalRegressionPublicKey(encoded string) ed25519.PublicKey {
 //     Its only runtime signing source is the Autopus main-promotion GitHub
 //     Environment. An optional encrypted recovery escrow may retain a
 //     controlled copy; repositories, Railway variables, and logs must not.
+//   - The ADK harness-eval signer (SPEC-HARNEVAL-003) is scoped to
+//     ADKHarnessEvalKeyID. Its private key exists only as the
+//     HARNESS_EVAL_SIGNING_KEY secret of the adk-harness-eval-signing GitHub
+//     Environment and reaches the signer on stdin. There is no escrow copy: a
+//     lost or exposed key is replaced by a rotation, never recovered.
+//   - Each lane key_id holds a different public key, and every strict policy
+//     pins its lane's key_id: evidence of one lane is attestation_policy_mismatch
+//     in the other, and evidence a signer relabels with the other lane's key_id
+//     fails that lane's public key as signature_invalid.
 //   - Any key_id absent from this map is rejected as signature_key_unknown, and
 //     an absent attestation is rejected as artifact_unsigned. There is no
 //     unsigned-accept path.
 var evalRegressionPublicKeys = map[string]ed25519.PublicKey{
 	evalRegressionPromotionKeyID: mustEvalRegressionPublicKey(evalRegressionPromotionPublicKeyB64),
+	ADKHarnessEvalKeyID:          mustEvalRegressionPublicKey(evalRegressionHarnessPublicKeyB64),
 }
 
 // CommittedEvalRegressionPublicKeys returns a defensive copy of the committed

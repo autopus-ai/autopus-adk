@@ -1,6 +1,7 @@
 package evalregression
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	"encoding/base64"
 	"encoding/json"
@@ -112,13 +113,19 @@ func TestEvalRegressionLiveGateE2EReasons(t *testing.T) {
 	})
 }
 
-// committedKeyIDs is the exact key id set of the committed allowlist
-// (SPEC-HARNEVAL-003 Existing Test Changes, L120 and L138). The harness lane
-// key id ADKHarnessEvalKeyID joins it together with its public key when the
-// key is issued (T10); until then the promotion key is the only entry.
-var committedKeyIDs = []string{"autopus-eval-staging-to-main-2026-07"}
+// promotionKeyID is the Autopus staging-to-main lane key id.
+const promotionKeyID = "autopus-eval-staging-to-main-2026-07"
 
-func allowlistKeyIDs(keys map[string]ed25519.PublicKey) []string {
+// committedPublicKeys is the exact committed allowlist (SPEC-HARNEVAL-003
+// Existing Test Changes, L120 and L138): the Autopus promotion key and the
+// harness lane key under ADKHarnessEvalKeyID (issued in T10), each as base64
+// of its 32-byte ed25519 public key. A rotation changes this table on purpose.
+var committedPublicKeys = map[string]string{
+	promotionKeyID:      "D6euTz5IarNy68TfJ4tdzOwVomIXoiDEzEtefKmprz8=",
+	ADKHarnessEvalKeyID: "onPT0WydtQRPPSx13eSKsAcW5GeBvjwDF+fz8xILMNs=",
+}
+
+func allowlistKeyIDs[V any](keys map[string]V) []string {
 	ids := make([]string, 0, len(keys))
 	for id := range keys {
 		ids = append(ids, id)
@@ -127,38 +134,36 @@ func allowlistKeyIDs(keys map[string]ed25519.PublicKey) []string {
 	return ids
 }
 
+// requireCommittedAllowlist fails unless keys is exactly committedPublicKeys.
+func requireCommittedAllowlist(t *testing.T, keys map[string]ed25519.PublicKey, when string) {
+	t.Helper()
+	if got, want := allowlistKeyIDs(keys), allowlistKeyIDs(committedPublicKeys); !slices.Equal(got, want) {
+		t.Fatalf("%s: committed allowlist key ids = %v, want %v", when, got, want)
+	}
+	for keyID, want := range committedPublicKeys {
+		if len(keys[keyID]) != ed25519.PublicKeySize {
+			t.Fatalf("%s: committed public key %q length = %d, want %d", when, keyID, len(keys[keyID]), ed25519.PublicKeySize)
+		}
+		if got := base64.StdEncoding.EncodeToString(keys[keyID]); got != want {
+			t.Fatalf("%s: committed public key %q = %q, want %q", when, keyID, got, want)
+		}
+	}
+}
+
 func TestCommittedAllowlistContainsPromotionKeyAndIsDefensiveForE2E(t *testing.T) {
-	const (
-		wantKeyID        = "autopus-eval-staging-to-main-2026-07"
-		wantPublicKeyB64 = "D6euTz5IarNy68TfJ4tdzOwVomIXoiDEzEtefKmprz8="
-	)
-
 	keys := CommittedEvalRegressionPublicKeys()
-	if got := allowlistKeyIDs(keys); !slices.Equal(got, committedKeyIDs) {
-		t.Fatalf("committed allowlist key ids = %v, want %v", got, committedKeyIDs)
-	}
-	publicKey, present := keys[wantKeyID]
-	if !present {
-		t.Fatalf("committed allowlist missing promotion key_id %q", wantKeyID)
-	}
-	if len(publicKey) != ed25519.PublicKeySize {
-		t.Fatalf("committed public key length = %d, want %d", len(publicKey), ed25519.PublicKeySize)
-	}
-	if got := base64.StdEncoding.EncodeToString(publicKey); got != wantPublicKeyB64 {
-		t.Fatalf("committed public key = %q, want %q", got, wantPublicKeyB64)
+	requireCommittedAllowlist(t, keys, "first read")
+	// Each lane policy pins its own key id, and that only separates the lanes
+	// while the ids hold different keys: under one shared key, evidence one
+	// signer relabels with the other lane's key id and values would verify there.
+	if bytes.Equal(keys[promotionKeyID], keys[ADKHarnessEvalKeyID]) {
+		t.Fatal("the promotion and harness lane key ids hold the same public key")
 	}
 
-	publicKey[0] ^= 0xff
-	delete(keys, wantKeyID)
+	for keyID := range committedPublicKeys {
+		keys[keyID][0] ^= 0xff
+	}
+	delete(keys, promotionKeyID)
 	keys["egl-should-not-stick"] = ed25519.PublicKey("attacker")
-	again := CommittedEvalRegressionPublicKeys()
-	if got := allowlistKeyIDs(again); !slices.Equal(got, committedKeyIDs) {
-		t.Fatalf("committed allowlist mutated through defensive copy: key ids = %v, want %v", got, committedKeyIDs)
-	}
-	if _, present := again["egl-should-not-stick"]; present {
-		t.Fatalf("committed allowlist accepted injected key through defensive copy")
-	}
-	if got := base64.StdEncoding.EncodeToString(again[wantKeyID]); got != wantPublicKeyB64 {
-		t.Fatalf("committed public key mutated through defensive copy: got %q, want %q", got, wantPublicKeyB64)
-	}
+	requireCommittedAllowlist(t, CommittedEvalRegressionPublicKeys(), "after mutating the defensive copy")
 }
