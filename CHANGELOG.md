@@ -62,6 +62,20 @@ All notable changes to this project will be documented in this file.
     quality.<key>: the edit would also change data outside the quality block ...` 오류로 끝난다. quality
     블록 밖의 alias가 바꾸는 값의 anchor를 가리키거나 quality 블록 전체를 alias로 복사한 파일이
     여기에 해당한다. 이주: 그 alias 자리에 값을 직접 쓰거나 anchor를 다른 키로 옮긴 뒤 다시 실행한다.
+- **edit guard: 호스트 경로 정규화 parity 보강** (2026-10-09, SPEC-EDITGUARD-001 후속):
+  - Gemini CLI `replace`: correctPath 검색이 고른 파일을 host가 한 번 더 percent-decode하고 `..`를
+    resolve하므로, guard도 검색 경로의 decode된 철자마다 같은 검색을 한다(결과가 더 바뀌지 않을 때까지,
+    최대 4번). 이름에 `%2E`·`%2f`·`%2e%2e` 같은 escape가 든 workspace 파일로 generated 파일이나 잠긴
+    테스트를 우회하던 경로가 막힌다. literal 철자도 같은 횟수까지 반복 decode해 판정한다.
+  - OpenCode: 모든 target과 displaced 경로를 보낸 그대로, TAB·CR을 지운 철자(Codex가 쓰는 철자), 앞의
+    `~`·`~/`를 home 디렉터리로 펼친 철자로 함께 판정한다. 2.0.10 파일 도구가 `~`를 펼치는데 guard가 이를
+    cwd 아래 `~`로 읽어 허용하던 경로가 막힌다.
+  - 남은 한계(보이지 않는 디렉터리와 보낸 경로에 걸친 escape, decode된 부분의 symlink, live 호스트
+    미측정 항목)는 `docs/edit-guard.md` Limitations에 있다.
+- **sticky rule counter: 동시 첫 생성 경합 수정** (2026-10-09): darwin에서 같은 counter를 처음 만드는
+  두 prompt(session_id가 없는 payload는 모두 같은 counter를 쓴다)가 겹치면 os.Root O_CREAT open이
+  ENOENT로 실패해 그 prompt의 sticky 주입이 조용히 빠지던 문제를, edit guard store lock과 같은 최대 3번
+  재시도로 고친다.
 
 - **`auto react band`: tier 3의 opt-in 로컬 patch** (2026-10-08, SPEC-SIGMABAND-002): 선택 키
   `health_band.allow_local_patch: true`를 켜면 tier 3으로 열린 episode는 confined 진단이 성공한 뒤
