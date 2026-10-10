@@ -78,7 +78,7 @@ orchestra:
     providers:
         claude:
             backend: omp
-            model: anthropic/claude-opus-5-5:max
+            model: anthropic/claude-fable-5-1:max
             subprocess:
                 timeout: 900
         codex:
