@@ -207,6 +207,8 @@ func newUpdateCmd() *cobra.Command {
 				}
 			}
 
+			// The composition step, before the supervisor migration saves cfg (SPEC-MODELUX-001 REQ-MUX-13).
+			snapshot := updateComposeStep(cmd, dir, cfg, composeGate{Yes: yesFlag, Check: checkOnly})
 			ctx := cmd.Context()
 			supervisorMigrated, supervisorErr := migrateLegacyCodexSupervisorPolicy(dir, cfg)
 			if supervisorErr != nil {
@@ -225,7 +227,7 @@ func newUpdateCmd() *cobra.Command {
 			reportUpdateTargets(cmd.OutOrStdout(), cfg.Platforms, addedPlatforms)
 			for _, p := range cfg.Platforms {
 				fmt.Fprintf(cmd.OutOrStdout(), "  → Updating %s...\n", updatePlatformLabel(p))
-				supported, updateErr := updateHarnessPlatform(ctx, dir, p, effectiveCfg)
+				supported, updateErr := updateHarnessPlatformWith(ctx, dir, p, effectiveCfg, snapshot)
 				if !supported {
 					fmt.Fprintf(cmd.OutOrStdout(), "  경고: 알 수 없는 플랫폼 %q, 건너뜀\n", p)
 					continue
