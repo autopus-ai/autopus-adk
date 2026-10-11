@@ -54,8 +54,8 @@ names another preset, the step first asks whether that tool follows (y
 removes the override). With --apply a confirmed change regenerates the
 harness from the same catalog read; otherwise run ` + "`auto update`" + `.
 
-Every write to the quality block except ` + "`auto quality provider`" + ` refuses,
-leaving autopus.yaml unchanged, while that block holds a ${NAME} value of a
+The composition step and the per-tool editors refuse to write, leaving
+autopus.yaml unchanged, while the quality block holds a ${NAME} value of a
 set environment variable or a YAML alias or merge key; edit it by hand then.`
 
 func newQualityCmd() *cobra.Command {

@@ -59,13 +59,21 @@ func composeCandidate(cfg *config.HarnessConfig, plan composeBindingPlan) *confi
 }
 
 // persistComposeBinding writes plan to dir's autopus.yaml through the writer
-// it names (REQ-MUX-08). Both writers run the raw-source precheck and leave
+// it names (REQ-MUX-08). Both run the raw-source precheck first and leave
 // the file and cfg as they were on refusal (errQualityWriteRefused) or
 // failure; after a write cfg.Quality holds the values written, so the same
 // run generates from them.
 func persistComposeBinding(dir string, cfg *config.HarnessConfig, plan composeBindingPlan) error {
 	switch plan.Writer {
 	case composeWriterLine:
+		// The one-line writer itself runs no precheck: the subcommands that
+		// take arguments keep their behavior (REQ-MUX-16), and a validated
+		// preset name it writes carries no expanded value. The composition
+		// step still refuses what saveQualityBlock refuses, whichever writer
+		// its plan takes.
+		if err := precheckQualityWriteFile(dir); err != nil {
+			return err
+		}
 		// saveQualityDefault sets the default on the config it receives
 		// before it writes, so it gets a copy that a refusal can discard.
 		staged := *cfg

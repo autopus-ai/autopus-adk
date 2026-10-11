@@ -1,8 +1,9 @@
 package cli
 
-// SPEC-MODELUX-001 REQ-MUX-08, acceptance S13: both quality writers refuse a
-// quality block that carries an environment value or a YAML reference, and
-// keep the file byte-identical.
+// SPEC-MODELUX-001 REQ-MUX-08, acceptance S13: the composition step's writes
+// refuse a quality block that carries an environment value or a YAML
+// reference and keep the file byte-identical, while the one-line subcommands
+// keep their behavior (REQ-MUX-16).
 
 import (
 	"crypto/rand"
@@ -84,21 +85,66 @@ func TestSaveQualityBlock_RefusesEnvValuesAndReferencesAndKeepsTheFile(t *testin
 	}
 }
 
-func TestQualitySetCmd_RefusesEnvValuesAndReferencesInQuality(t *testing.T) {
+// The composition step's line write runs the same precheck (REQ-MUX-08), so a
+// composition refuses a reference file whichever writer its plan takes.
+func TestPersistComposeBinding_LineWrite_RefusesEnvValuesAndReferencesInQuality(t *testing.T) {
 	for name, fixture := range blockRefusalFixtures(t) {
 		t.Run(name, func(t *testing.T) {
 			setPresetNote(t, fixture.setEnv)
 			dir := writeBlockFixture(t, fixture.content)
 			want := sha256.Sum256([]byte(fixture.content))
+			cfg, err := config.LoadPreview(dir)
+			require.NoError(t, err)
 
-			err := runQualityCommand(t, filepath.Join(dir, "autopus.yaml"), "ultra")
+			err = persistComposeBinding(dir, cfg, composeBindingPlan{Writer: composeWriterLine, Default: "ultra"})
 
-			require.Error(t, err)
+			require.ErrorIs(t, err, errQualityWriteRefused)
 			assert.Equal(t, qualityWriteRefusalText, err.Error())
 			written := readBlockFixture(t, dir)
-			assert.Equal(t, want, sha256.Sum256([]byte(written)), "the line writer leaves the file byte-identical")
+			assert.Equal(t, want, sha256.Sum256([]byte(written)), "the line write leaves the file byte-identical")
 			assert.NotContains(t, written, presetNoteSecret)
+			assert.Equal(t, "balanced", cfg.Quality.Default, "a refused write leaves the caller's config alone")
 		})
+	}
+}
+
+// REQ-MUX-16 keeps the subcommands that take arguments as they were: their
+// one-line writer replaces or inserts a validated preset name or policy, which
+// cannot carry an expanded value, and verifyQualityLineEdit already refuses an
+// edit that would rebind an alias. So they still edit a file whose quality
+// block holds a YAML reference, changing that one line alone.
+func TestQualityLineCommands_EditAReferenceFileAsBefore(t *testing.T) {
+	base := "project_name: demo\nmode: full\nplatforms: [claude-code]\n"
+	fixtures := map[string]string{
+		"anchor and alias inside quality": blockInnerAlias,
+		"agents alias inside quality": base + "quality:\n  default: balanced\n  presets:\n" +
+			"    balanced:\n      agents: &base\n        planner: opus\n" +
+			"    ultra:\n      description: u\n    fast:\n      agents: *base\n",
+		"merge key with an inline mapping": base + "quality:\n  default: balanced\n  presets:\n" +
+			"    balanced:\n      <<: {description: b}\n    ultra:\n      description: u\n",
+		"F1 with the variable unset": blockLeakAlias,
+	}
+	commands := map[string]struct {
+		args []string
+		line string
+	}{
+		"auto quality ultra": {args: []string{"ultra"}, line: "  default: ultra\n"},
+		"auto quality supervisor inherit": {
+			args: []string{"supervisor", "inherit"},
+			line: "  default: balanced\n  supervisor_model_policy: inherit\n",
+		},
+	}
+	for name, content := range fixtures {
+		for command, tc := range commands {
+			t.Run(name+"/"+command, func(t *testing.T) {
+				setPresetNote(t, false)
+				dir := writeBlockFixture(t, content)
+
+				require.NoError(t, runQualityCommand(t, filepath.Join(dir, "autopus.yaml"), tc.args...))
+
+				assert.Equal(t, strings.Replace(content, "  default: balanced\n", tc.line, 1), readBlockFixture(t, dir))
+			})
+		}
 	}
 }
 

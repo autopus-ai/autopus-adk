@@ -1332,11 +1332,10 @@ and print at most one line naming previous-version presets; `--plan`, `--preview
 skip the step. `auto quality --apply` regenerates right after a confirmed change, and
 `auto quality show --agents` prints the table read-only on any stdin.
 
-`auto quality <preset>`, `set`, `supervisor`, the composition step, and the per-tool editors refuse
-to write, and leave the file unchanged, while the quality block holds a `${NAME}` value of a set
-environment variable or a YAML alias or merge key. The composition step and the per-tool editors
-rewrite only the quality block: every byte outside it stays identical, comments inside it are not
-kept.
+The composition step and the per-tool editors refuse to write, and leave the file unchanged, while
+the quality block holds a `${NAME}` value of a set environment variable or a YAML alias or merge
+key. They rewrite only the quality block: every byte outside it stays identical, comments inside it
+are not kept.
 
 ### Execution Modes
 

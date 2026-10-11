@@ -57,10 +57,7 @@ func saveQualityScalar(dir string, cfg *config.HarnessConfig, key, value string)
 	if data, _, err = pruneRetiredConfig(data); err != nil {
 		return err
 	}
-	// The write precheck of saveQualityBlock (SPEC-MODELUX-001 REQ-MUX-08).
-	if _, err := readQualityWriteSource(data); err != nil {
-		return err
-	}
+
 	updated, err := updateQualityScalar(data, key, value)
 	if err != nil {
 		return err

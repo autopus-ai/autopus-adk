@@ -3,6 +3,8 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"reflect"
 
 	"gopkg.in/yaml.v3"
@@ -10,9 +12,10 @@ import (
 	"github.com/insajin/autopus-adk/pkg/config"
 )
 
-// errQualityWriteRefused is the refusal of every quality writer when the
-// quality block of autopus.yaml cannot serve as a write source
-// (SPEC-MODELUX-001 REQ-MUX-08). The file stays as it is.
+// errQualityWriteRefused is the refusal of saveQualityBlock, and of the
+// composition step's line write, when the quality block of autopus.yaml
+// cannot serve as a write source (SPEC-MODELUX-001 REQ-MUX-08). The file
+// stays as it is.
 var errQualityWriteRefused = errors.New(
 	"quality 블록에 환경 변수 값이나 YAML 참조(alias·merge)가 섞여 있어 자동으로 쓰지 않습니다. autopus.yaml을 직접 고치세요.")
 
@@ -64,6 +67,24 @@ func readQualityWriteSource(data []byte) (*qualityWriteSource, error) {
 		return nil, errQualityWriteRefused
 	}
 	return source, nil
+}
+
+// precheckQualityWriteFile runs the write precheck on dir's autopus.yaml the
+// way saveQualityBlock reads it, for a writer that runs none of its own. A
+// missing file passes: the writer creates it from code defaults.
+func precheckQualityWriteFile(dir string) error {
+	data, err := os.ReadFile(filepath.Join(dir, "autopus.yaml"))
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("read config: %w", err)
+	}
+	if data, _, err = pruneRetiredConfig(data); err != nil {
+		return err
+	}
+	_, err = readQualityWriteSource(data)
+	return err
 }
 
 // rawQuality decodes the quality node without environment expansion. Every

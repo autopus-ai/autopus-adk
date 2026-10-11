@@ -70,6 +70,9 @@ func TestQualityHelp_LongDocumentsGroupsTableAndBinding(t *testing.T) {
 		"never modified",
 		"`auto quality show --agents`",
 		"--apply",
+		// Only the composition writes refuse a reference file; the subcommands
+		// that take arguments keep their behavior (REQ-MUX-16).
+		"The composition step and the per-tool editors refuse to write",
 	} {
 		assert.Contains(t, help, want)
 	}
@@ -117,6 +120,14 @@ func TestInitHelp_LongDocumentsTheRoleGroupChoice(t *testing.T) {
 	assert.True(t, found, "auto init must have --yes and inherit --quality")
 }
 
+// composeDocRefusal names who refuses a reference file in each README
+// locale: the composition step and the per-tool editors, never the
+// subcommands that take arguments (REQ-MUX-16).
+var composeDocRefusal = map[string]string{
+	"en": "The composition step and the per-tool editors refuse to write",
+	"ko": "구성 단계와 도구별 편집기는 quality 블록에",
+}
+
 // TestComposeDocs_ReadmesDocumentGroupsTableBindingAndUpdate checks README.md
 // in English and docs/README.ko.md in Korean, in the words the step prints in
 // that locale.
@@ -138,6 +149,7 @@ func TestComposeDocs_ReadmesDocumentGroupsTableBindingAndUpdate(t *testing.T) {
 			// The native balanced table names the models generation writes.
 			"`" + config.ClaudeSonnetModel + "`",
 			"`" + config.CodexLunaModel + "`",
+			composeDocRefusal[lang],
 		}, composeDocUpdateRules...) {
 			assert.Contains(t, doc, want, "%s is missing %q", path, want)
 		}
@@ -186,9 +198,8 @@ func TestComposeDocs_GeneratedSkillsTellHowToChangeAgentModels(t *testing.T) {
 }
 
 // TestComposeDocs_ChangelogDocumentsTheFeatureAndTheWriterChange checks the
-// Korean CHANGELOG entry, including the line writer precheck that now refuses
-// `auto quality <preset>` and `auto quality supervisor` on a quality block
-// holding a YAML reference.
+// Korean CHANGELOG entry, including the refusal of the composition writes and
+// the per-tool editor on a quality block holding a YAML reference.
 func TestComposeDocs_ChangelogDocumentsTheFeatureAndTheWriterChange(t *testing.T) {
 	t.Parallel()
 
@@ -203,8 +214,7 @@ func TestComposeDocs_ChangelogDocumentsTheFeatureAndTheWriterChange(t *testing.T
 		"`agent=tier`",
 		"`quality.presets.custom`",
 		"`auto quality show --agents`",
-		"`auto quality <preset>`",
-		"`auto quality supervisor`",
+		"구성 쓰기와 도구별 편집기 저장은",
 		errQualityWriteRefused.Error(),
 	}, composeDocUpdateRules...) {
 		assert.Contains(t, changelog, want, "CHANGELOG.md is missing %q", want)

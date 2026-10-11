@@ -1218,10 +1218,9 @@ description은 바꾸지 않고, 그 이름으로 묶일 구성은 `custom`으�
 씁니다. `--plan`, `--preview`, `--dry-run`에는 이 단계가 없습니다. `auto quality --apply`는 확인
 직후 재생성하고, `auto quality show --agents`는 어떤 stdin에서도 표를 읽기 전용으로 출력합니다.
 
-`auto quality <preset>`, `set`, `supervisor`, 구성 단계, 도구별 편집기는 quality 블록에 설정된
-환경 변수의 `${NAME}` 값이나 YAML alias·merge key가 있으면 쓰지 않고 파일을 그대로 둡니다. 구성
-단계와 도구별 편집기는 quality 블록만 다시 쓰므로 블록 밖 bytes는 그대로이고, 블록 안 주석은
-유지되지 않습니다.
+구성 단계와 도구별 편집기는 quality 블록에 설정된 환경 변수의 `${NAME}` 값이나 YAML alias·merge
+key가 있으면 쓰지 않고 파일을 그대로 둡니다. 둘 다 quality 블록만 다시 쓰므로 블록 밖 bytes는
+그대로이고, 블록 안 주석은 유지되지 않습니다.
 
 ### 실행 모드
 

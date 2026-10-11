@@ -62,16 +62,13 @@ All notable changes to this project will be documented in this file.
   - `auto quality show --agents`: 기존 `show` 줄은 그대로이고, 그 뒤에 같은 표를 읽기 전용으로 출력한다.
     TTY가 아닌 stdin에서도 돈다.
   - 화면 문구는 시스템 locale이 `ko`면 한국어, 아니면 영어다. 파일에 쓰는 값은 locale과 무관하다.
-  - quality 쓰기 사전 검사(동작 변경): 구성 쓰기와 도구별 편집기 저장은 env 확장 없이 읽은 raw `quality`에
-    이번 변경만 더해 quality 블록만 다시 쓴다. 블록 밖 bytes는 그대로다(도구별 편집기는 지금까지 문서
-    전체를 다시 encode해 블록 밖의 빈 줄과 들여쓰기도 바꿨다). 블록 안 주석과 서식은 유지되지 않으며(값은
-    그대로) 구성 단계의 미리보기가 이를 알린다. 쓰기 전에 quality 블록이 설정된 환경 변수의 `${NAME}` 값을
-    담거나 YAML alias·merge key를 쓰면 `quality 블록에 환경 변수 값이나 YAML 참조(alias·merge)가 섞여 있어
+  - quality 쓰기 사전 검사: 구성 쓰기와 도구별 편집기 저장은 env 확장 없이 읽은 raw `quality`에 이번
+    변경만 더해 quality 블록만 다시 쓴다. 블록 밖 bytes는 그대로다(도구별 편집기는 지금까지 문서 전체를
+    다시 encode해 블록 밖의 빈 줄과 들여쓰기도 바꿨다). 블록 안 주석과 서식은 유지되지 않으며(값은 그대로)
+    구성 단계의 미리보기가 이를 알린다. 쓰기 전에 quality 블록이 설정된 환경 변수의 `${NAME}` 값을 담거나
+    YAML alias·merge key를 쓰면 `quality 블록에 환경 변수 값이나 YAML 참조(alias·merge)가 섞여 있어
     자동으로 쓰지 않습니다. autopus.yaml을 직접 고치세요.`로 거부하고 파일을 바꾸지 않는다. loader가 펼친
-    값(token 등)이 tracked 파일에 남는 경로를 막기 위해서다. 한 줄만 고치는 `auto quality <preset>`,
-    `auto quality set`, `auto quality supervisor`와 전역 메뉴도 같은 사전 검사를 거치므로, quality 블록에
-    alias·merge key나 설정된 환경 변수의 `${NAME}`이 있는 파일에서는 이제 쓰지 않고 거부한다.
-    `auto quality provider`는 그대로다. 이주: 그 자리에 값을 직접 쓴 뒤 다시 실행한다.
+    값(token 등)이 tracked 파일에 남는 경로를 막기 위해서다.
 
 - **orchestra: pane backend 은퇴 뒤 비어 있던 결과 필드와 reliability store 제거** (2026-10-09,
   SPEC-PANERM-001 후속): reliability store, yield passthrough, provider startup timeout을 채우거나
