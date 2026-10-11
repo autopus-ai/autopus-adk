@@ -1,0 +1,19 @@
+Group                Agent                Tier             Claude Code    Codex            OMP               OpenCode          Antigravity
+Design·Judgment      planner              opus             opus · max     6.1-sol · xhigh  platform default  platform default  platform default
+Design·Judgment      architect            opus             opus · max     6.1-sol · xhigh  platform default  platform default  platform default
+Design·Judgment      spec-writer          opus             opus · max     6.1-sol · xhigh  platform default  platform default  platform default
+Design·Judgment      security-auditor     opus             opus · max     6.1-sol · xhigh  platform default  platform default  platform default
+Implementation       executor             opus             opus · max     6.1-sol · xhigh  platform default  platform default  platform default
+Implementation       debugger             opus             opus · max     6.1-sol · xhigh  platform default  platform default  platform default
+Implementation       deep-worker          default(opus)    opus · max     6.1-sol · xhigh  platform default  platform default  platform default
+Implementation       devops               opus             opus · max     6.1-sol · xhigh  platform default  platform default  platform default
+Implementation       frontend-specialist  default(sonnet)  sonnet · high  6.1-sol · xhigh  platform default  platform default  platform default
+Implementation       perf-engineer        default(sonnet)  sonnet · high  6.1-sol · xhigh  platform default  platform default  platform default
+Verification·Review  reviewer             opus             opus · max     6.1-sol · xhigh  platform default  platform default  platform default
+Verification·Review  validator            opus             opus · max     6.1-sol · xhigh  platform default  platform default  platform default
+Verification·Review  tester               opus             opus · max     6.1-sol · xhigh  platform default  platform default  platform default
+Verification·Review  ux-validator         default(sonnet)  sonnet · high  6.1-sol · xhigh  platform default  platform default  platform default
+Exploration·Support  explorer             opus             opus · max     6.1-sol · xhigh  platform default  platform default  platform default
+Exploration·Support  annotator            default(sonnet)  sonnet · high  6.1-sol · xhigh  platform default  platform default  platform default
+Codex catalog: read · 0 substituted
+Codex default session: 6-astra · ultra

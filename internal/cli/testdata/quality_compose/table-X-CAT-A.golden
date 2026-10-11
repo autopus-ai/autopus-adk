@@ -1,0 +1,19 @@
+그룹       에이전트             등급              Claude Code    Codex            OMP            OpenCode       Antigravity
+설계·판단  planner              opus              opus · max     6.1-sol · xhigh  플랫폼 기본값  플랫폼 기본값  플랫폼 기본값
+설계·판단  architect            opus              opus · max     6.1-sol · xhigh  플랫폼 기본값  플랫폼 기본값  플랫폼 기본값
+설계·판단  spec-writer          opus              opus · max     6.1-sol · xhigh  플랫폼 기본값  플랫폼 기본값  플랫폼 기본값
+설계·판단  security-auditor     opus              opus · max     6.1-sol · xhigh  플랫폼 기본값  플랫폼 기본값  플랫폼 기본값
+구현       executor             opus              opus · max     6.1-sol · xhigh  플랫폼 기본값  플랫폼 기본값  플랫폼 기본값
+구현       debugger             opus              opus · max     6.1-sol · xhigh  플랫폼 기본값  플랫폼 기본값  플랫폼 기본값
+구현       deep-worker          기본값(opus)      opus · max     6.1-sol · xhigh  플랫폼 기본값  플랫폼 기본값  플랫폼 기본값
+구현       devops               opus              opus · max     6.1-sol · xhigh  플랫폼 기본값  플랫폼 기본값  플랫폼 기본값
+구현       frontend-specialist  기본값(sonnet)    sonnet · high  6.1-sol · xhigh  플랫폼 기본값  플랫폼 기본값  플랫폼 기본값
+구현       perf-engineer        기본값(sonnet)    sonnet · high  6.1-sol · xhigh  플랫폼 기본값  플랫폼 기본값  플랫폼 기본값
+검증·리뷰  reviewer             opus              opus · max     6.1-sol · xhigh  플랫폼 기본값  플랫폼 기본값  플랫폼 기본값
+검증·리뷰  validator            opus              opus · max     6.1-sol · xhigh  플랫폼 기본값  플랫폼 기본값  플랫폼 기본값
+검증·리뷰  tester               잘못된 값→sonnet  sonnet · high  6.1-sol · xhigh  플랫폼 기본값  플랫폼 기본값  플랫폼 기본값
+검증·리뷰  ux-validator         기본값(sonnet)    sonnet · high  6.1-sol · xhigh  플랫폼 기본값  플랫폼 기본값  플랫폼 기본값
+탐색·보조  explorer             opus              opus · max     6.1-sol · xhigh  플랫폼 기본값  플랫폼 기본값  플랫폼 기본값
+탐색·보조  annotator            기본값(sonnet)    sonnet · high  6.1-sol · xhigh  플랫폼 기본값  플랫폼 기본값  플랫폼 기본값
+Codex catalog: 읽음 · 대체 0칸
+Codex 기본 세션: 6-astra · ultra

@@ -1,0 +1,18 @@
+그룹       에이전트             등급    Claude Code        Codex
+설계·판단  planner              fable   fable-5-1 · max    6-astra · max (미확인)
+설계·판단  architect            fable   fable-5-1 · max    6-astra · max (미확인)
+설계·판단  spec-writer          fable   fable-5-1 · max    6-astra · max (미확인)
+설계·판단  security-auditor     fable   fable-5-1 · max    6-astra · max (미확인)
+구현       executor             sonnet  sonnet-5-5 · max   6-luna · max (미확인)
+구현       debugger             fable   fable-5-1 · max    6-astra · max (미확인)
+구현       deep-worker          fable   fable-5-1 · max    6-astra · max (미확인)
+구현       devops               sonnet  sonnet-5-5 · max   6-luna · max (미확인)
+구현       frontend-specialist  sonnet  sonnet-5-5 · max   6-luna · max (미확인)
+구현       perf-engineer        sonnet  sonnet-5-5 · max   6-luna · max (미확인)
+검증·리뷰  reviewer             fable   fable-5-1 · max    6-astra · max (미확인)
+검증·리뷰  validator            sonnet  sonnet-5-5 · high  6-luna · max (미확인)
+검증·리뷰  tester               sonnet  sonnet-5-5 · max   6-luna · max (미확인)
+검증·리뷰  ux-validator         sonnet  sonnet-5-5 · high  6-luna · max (미확인)
+탐색·보조  explorer             sonnet  sonnet-5-5 · high  6-luna · max (미확인)
+탐색·보조  annotator            sonnet  sonnet-5-5 · high  6-luna · max (미확인)
+Codex catalog: 읽지 못함
