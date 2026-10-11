@@ -35,7 +35,9 @@ func saveQualityBlock(dir string, cfg *config.HarnessConfig, edit func(*config.Q
 	if err != nil {
 		return fmt.Errorf("read config: %w", err)
 	}
-	// The retired orchestra keys never ride along (SPEC-PANERM-001 REQ-10).
+	// The retired orchestra keys never ride along (SPEC-PANERM-001 REQ-10);
+	// the placeholder baseline stays the bytes on disk.
+	onDisk := data
 	if data, _, err = pruneRetiredConfig(data); err != nil {
 		return err
 	}
@@ -75,7 +77,7 @@ func saveQualityBlock(dir string, cfg *config.HarnessConfig, edit func(*config.Q
 	if err := validateQualityYAML(updated, &expected); err != nil {
 		return err
 	}
-	if err := verifyQualityPlaceholders(data, updated, candidate); err != nil {
+	if err := verifyQualityPlaceholders(onDisk, updated, candidate); err != nil {
 		return err
 	}
 	if err := atomicWriteQualityConfig(path, updated); err != nil {

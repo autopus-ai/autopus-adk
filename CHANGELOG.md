@@ -70,7 +70,11 @@ All notable changes to this project will be documented in this file.
     자동으로 쓰지 않습니다. autopus.yaml을 직접 고치세요.`로 거부하고 파일을 바꾸지 않는다. loader가 펼친
     값(token 등)이 tracked 파일에 남는 경로를 막기 위해서다. escape(`"\x24{NAME}"`)나 `!!binary`로 적어
     loader가 펼치지 않던 값을 다시 쓰면 `${NAME}`이 그대로 적혀 다음 읽기에서 펼쳐지므로, 그런 쓰기도 같은
-    문구로 거부한다. YAML이 줄바꿈으로 읽는 문자(단독 CR, U+0085, U+2028, U+2029)가 있는 파일은 블록의 줄
+    문구로 거부한다. 같은 placeholder가 다른 자리로 옮겨 가는 쓰기도 거부한다. 은퇴한 orchestra 키를 지우려면
+    문서 전체를 다시 encode해야 하는 파일(값이 다 빠지는 mapping, flow 형태)에서 그 encode가 같은 식으로
+    `${NAME}`을 새로 펼치게 만들면, 구성 단계, 도구별 편집기, `auto quality <preset>`·`set`·`supervisor`·
+    `provider`, `auto update`의 정리 모두 오류로 끝나고 파일을 바꾸지 않는다(은퇴한 키는 직접 지운다).
+    YAML이 줄바꿈으로 읽는 문자(단독 CR, U+0085, U+2028, U+2029)가 있는 파일은 블록의 줄
     범위를 알 수 없으므로 미리보기가 쓰지 않는다고 알리고, 확인해도 쓰지 않는다(`auto update`는 경고 한
     줄을 남기고 계속한다).
 

@@ -72,6 +72,23 @@ func TestSaveQualityBlock_RefusesToActivateAnInactivePlaceholder(t *testing.T) {
 	}
 }
 
+// Placeholders are compared where they land, not only by name: the active
+// ${PRESET_NOTE} agent key of the custom preset the edit overwrites cannot
+// vouch for the escaped description the rewrite would activate (F1-b).
+func TestSaveQualityBlock_RefusesToMoveAnActivePlaceholder(t *testing.T) {
+	setPresetNote(t, false)
+	content := blockPlaceholderFixture("", `"\x24{PRESET_NOTE}"`) +
+		"    custom:\n      agents:\n        ${PRESET_NOTE}: opus\n"
+	dir := writeBlockFixture(t, content)
+	cfg, err := config.LoadPreview(dir)
+	require.NoError(t, err)
+
+	err = saveQualityBlock(dir, cfg, compositionCustomEdit)
+
+	require.ErrorIs(t, err, errQualityWriteRefused)
+	assert.Equal(t, content, readBlockFixture(t, dir))
+}
+
 // A placeholder the block already spells out keeps its text and its count,
 // and one only in a comment of the block goes with the comment: neither is a
 // placeholder the rewrite activates.

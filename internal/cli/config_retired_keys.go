@@ -12,6 +12,13 @@ import (
 	"github.com/insajin/autopus-adk/pkg/config"
 )
 
+// errRetiredPruneActivatesPlaceholder refuses a retired-key rewrite whose
+// re-encoded document would hold a ${NAME} placeholder config.Load expands
+// that the original did not: yaml.Marshal spells a value written "\x24{NAME}"
+// or as !!binary in plain text.
+var errRetiredPruneActivatesPlaceholder = errors.New("re-encoding autopus.yaml would turn a value written " +
+	"with a YAML escape or tag into a ${NAME} placeholder that config loading expands; remove the retired keys by hand")
+
 // pruneRetiredConfig removes the retired orchestra keys (SPEC-PANERM-001 group
 // K) from raw autopus.yaml bytes and returns the result with the concrete
 // dotted paths it removed, in byte order. Bytes that hold none come back
@@ -23,7 +30,10 @@ import (
 // though not blank lines or indentation widths (REQ-10). A retired entry that
 // defines a YAML anchor is refused (config.ErrRetiredKeyAnchor), and either
 // rewrite must parse back to the pruned tree with every alias resolving to the
-// same data, or nothing is returned.
+// same data, or nothing is returned. A rewrite that would let config.Load
+// expand a placeholder where data holds none, such as a value written
+// "\x24{NAME}" that the re-encode spells ${NAME}, is refused with
+// errRetiredPruneActivatesPlaceholder (SPEC-MODELUX-001 REQ-MUX-08).
 func pruneRetiredConfig(data []byte) ([]byte, []string, error) {
 	var doc yaml.Node
 	if err := yaml.Unmarshal(data, &doc); err != nil {
@@ -37,24 +47,41 @@ func pruneRetiredConfig(data []byte) ([]byte, []string, error) {
 	if len(paths) == 0 {
 		return data, nil, nil
 	}
-	if cut, ok := cutRetiredEntryLines(data, removedYAMLEntries(&doc, entries)); ok {
-		var check yaml.Node
-		if yaml.Unmarshal(cut, &check) == nil && sameYAMLData(&check, &doc) {
-			return cut, paths, nil
-		}
-	}
-	encoded, err := yaml.Marshal(&doc)
+	pruned, err := rewriteRetiredConfig(data, &doc, entries)
 	if err == nil {
-		var check yaml.Node
-		if err = yaml.Unmarshal(encoded, &check); err == nil && !sameYAMLData(&check, &doc) {
-			err = errors.New("the re-encoded document does not parse back to the same data")
+		if activated, checkErr := placeholdersActivated(data, pruned); checkErr != nil || activated {
+			err = errRetiredPruneActivatesPlaceholder
 		}
 	}
 	if err != nil {
 		// The paths name user keys, and the error reaches the terminal.
 		return nil, nil, fmt.Errorf("remove retired orchestra keys %s: %w", terminalSafe(strings.Join(paths, ", ")), err)
 	}
-	return encoded, paths, nil
+	return pruned, paths, nil
+}
+
+// rewriteRetiredConfig returns data without the entries the prune detached
+// from doc: their lines cut when that parses back to doc, otherwise doc
+// re-encoded.
+func rewriteRetiredConfig(data []byte, doc *yaml.Node, entries []yamlMappingEntry) ([]byte, error) {
+	if cut, ok := cutRetiredEntryLines(data, removedYAMLEntries(doc, entries)); ok {
+		var check yaml.Node
+		if yaml.Unmarshal(cut, &check) == nil && sameYAMLData(&check, doc) {
+			return cut, nil
+		}
+	}
+	encoded, err := yaml.Marshal(doc)
+	if err != nil {
+		return nil, err
+	}
+	var check yaml.Node
+	if err := yaml.Unmarshal(encoded, &check); err != nil {
+		return nil, err
+	}
+	if !sameYAMLData(&check, doc) {
+		return nil, errors.New("the re-encoded document does not parse back to the same data")
+	}
+	return encoded, nil
 }
 
 // pruneRetiredConfigFile removes the retired orchestra keys from dir's
