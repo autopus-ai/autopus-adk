@@ -5,7 +5,8 @@ package cli
 // preview's comment count split the bytes at \n only. Their line numbers
 // then disagree, and a file holding such a character before quality made
 // both index past the end of the lines and crash `auto update` before it
-// generated anything. Such a file is refused, the preview says so, and no
+// generated anything. Every composition writer, block and line, refuses
+// such a file, the preview says so whichever writer the plan takes, and no
 // path panics.
 
 import (
@@ -104,6 +105,26 @@ func TestQualityBlockRange_RefusesLinesOutsideTheText(t *testing.T) {
 		_, _, err := qualityBlockRange(lines, root, 0)
 		assert.Error(t, err, name)
 		root.Content[0].Line, root.Content[2].Line = 1, 3
+	}
+}
+
+// The preview says a confirmed write is refused whichever writer the plan
+// takes: the composition line write refuses such a file too (N1).
+func TestDescribeComposeBinding_LineBreakTheSpliceCannotSee_NoticesTheRefusalForEveryWriter(t *testing.T) {
+	t.Parallel()
+	cfg := config.DefaultFullConfig("p")
+	start := newQualityComposition(cfg.Quality, composeGroupsSources(t))
+	plans := map[composeWriter]composeBindingPlan{
+		composeWriterLine:  planComposeBinding(cfg, start, composeBindEdited(t, start, composeBindCurrent("ultra").Agents)),
+		composeWriterBlock: planComposeBinding(cfg, start, composeBindEdited(t, start, map[string]string{"planner": "haiku"})),
+	}
+	source := []byte("project_name: demo\n# a\rb\nquality:\n  default: balanced\n")
+	for writer, plan := range plans {
+		require.Equal(t, writer, plan.Writer)
+
+		lines := describeComposeBinding(cfg, plan, driftGenerationSnapshot{}, source, "ko")
+
+		assert.Contains(t, lines, composeBindTextFor("ko").blockUnreadable, "writer %v", writer)
 	}
 }
 

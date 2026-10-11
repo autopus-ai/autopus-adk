@@ -23,8 +23,8 @@ type composeBindText struct {
 	supervisor     string // before, after
 	givesUp        map[string]string
 	blockRewrite   string // comment lines
-	// blockUnreadable replaces blockRewrite when the block's lines cannot be
-	// located, which the writer refuses.
+	// blockUnreadable is the notice for a file whose lines cannot be located,
+	// which every writer refuses; it replaces blockRewrite.
 	blockUnreadable string
 }
 
@@ -88,10 +88,12 @@ func composeBindTextFor(lang string) composeBindText {
 // autopus.yaml key the write changes, then each effect outside the table —
 // the Codex default session when quality manages it and it moves, what a
 // custom binding gives up (C6), and for a block write the comment lines of
-// source, the current autopus.yaml bytes, that the rewrite drops. A nil
-// source means no file is rewritten (init saves its in-memory config whole),
-// so the notice is left out. snapshot is the run's Codex catalog. A plan that
-// writes nothing has no lines.
+// source, the current autopus.yaml bytes, that the rewrite drops. A source
+// holding a line break the splice cannot see gets the refusal notice instead,
+// whichever writer the plan takes. A nil source means no file is rewritten
+// (init saves its in-memory config whole), so neither notice is shown.
+// snapshot is the run's Codex catalog. A plan that writes nothing has no
+// lines.
 func describeComposeBinding(
 	cfg *config.HarnessConfig,
 	plan composeBindingPlan,
@@ -128,7 +130,11 @@ func describeComposeBinding(
 	if notice, ok := text.givesUp[plan.GivesUp]; ok {
 		lines = append(lines, notice)
 	}
-	if plan.Writer == composeWriterBlock && source != nil {
+	switch {
+	case source != nil && hasYAMLOnlyLineBreak(source):
+		// Every writer, the line write included, refuses such a file.
+		lines = append(lines, text.blockUnreadable)
+	case plan.Writer == composeWriterBlock && source != nil:
 		if comments, ok := qualityBlockCommentLines(source); ok {
 			lines = append(lines, fmt.Sprintf(text.blockRewrite, comments))
 		} else {
