@@ -58,13 +58,15 @@ func newQualitySupervisorCmd(apply *bool) *cobra.Command {
 }
 
 func newQualityShowCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:     "show",
 		Aliases: []string{"status"},
 		Short:   "Show current quality mode and supervisor policy",
 		Args:    cobra.NoArgs,
 		RunE:    runQualityShow,
 	}
+	cmd.Flags().Bool("agents", false, "Also print the agent × platform model table, read-only")
+	return cmd
 }
 
 func newQualitySetCmd(apply *bool) *cobra.Command {
@@ -91,6 +93,9 @@ func runQualityShow(cmd *cobra.Command, _ []string) error {
 	writeOMPRoleModelPolicyStatus(out, cfg.RoleModelPolicy)
 	fmt.Fprintf(out, "config = %s\n", filepath.Join(dir, "autopus.yaml"))
 	fmt.Fprintf(out, "available = %s\n", strings.Join(orderedQualityPresets(cfg), ", "))
+	if agents, _ := cmd.Flags().GetBool("agents"); agents {
+		return writeQualityAgentTable(cmd, cfg)
+	}
 	return nil
 }
 

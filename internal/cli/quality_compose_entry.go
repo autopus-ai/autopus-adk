@@ -19,7 +19,9 @@ var errQualityNeedsTerminal = errors.New(
 // table drawn from one Codex catalog probe, the GAP 1 status, and one
 // question that also takes `t` and the existing target names, which the
 // router hands to the target menu and the per-tool, OMP, and global editors
-// unchanged. A confirmed change with --apply regenerates the harness with the
+// unchanged. An edit that rebinds the composition first asks whether each
+// provider override follows it (REQ-MUX-20), so the preview already shows the
+// answer. A confirmed change with --apply regenerates the harness with the
 // snapshot the table read, so the generated agents equal the approved
 // preview (REQ-MUX-19). A refused or failed write returns its error and
 // applies nothing.
@@ -39,7 +41,7 @@ func runQualityComposeEntry(
 	}
 	router := qualityComposeRouter{cmd: cmd, dir: dir, cfg: cfg, apply: apply, deps: deps}
 	session := newComposeSession(dir, cfg, sources, composeLanguage(), composeSessionFile, router)
-	result, err := session.run(cmd)
+	result, err := withComposeOverrideQuestion(cmd, session).run(cmd)
 	if err != nil || result.Outcome != composeDriverApplied || !apply {
 		return err
 	}
@@ -53,4 +55,17 @@ func runQualityComposeEntry(
 func qualityComposeInteractive(cmd *cobra.Command) bool {
 	file, ok := cmd.InOrStdin().(*os.File)
 	return !ok || file != os.Stdin || composeTTYProbe()
+}
+
+// writeQualityAgentTable prints the composition table of cfg for
+// `auto quality show --agents` (REQ-MUX-21). It reads no input and writes
+// nothing; its one Codex catalog probe is the composition step's, so every
+// Claude Code and Codex cell is what generation would write now.
+func writeQualityAgentTable(cmd *cobra.Command, cfg *config.HarnessConfig) error {
+	sources, err := loadComposeAgentSources()
+	if err != nil {
+		return err
+	}
+	snapshot := captureComposeSnapshot(commandContext(cmd), cfg)
+	return buildComposeTable(cfg, snapshot, sources).render(cmd.OutOrStdout(), composeLanguage(), nil)
 }
