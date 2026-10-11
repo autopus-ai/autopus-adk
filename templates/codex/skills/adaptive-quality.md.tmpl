@@ -43,6 +43,19 @@ auto quality provider claude inherit --apply
 `--apply` refreshes only that configured platform; `auto quality <mode> --apply` continues to
 refresh every configured platform.
 
+### Per-agent composition
+
+Individual agent tiers change through the composition step of `auto quality` without arguments
+(also asked by every interactive `auto update`). It shows the agent × platform table — Claude Code
+and Codex cells are the generated model and effort, the OMP column is the requested route before
+OMP's catalog check — and edits one tier per role group (`g`: Design·Judgment, Implementation,
+Verification·Review, Exploration·Support) or per agent (`a`, `agent=tier`). Only a confirmed `y`
+writes: a result equal to the current Balanced or Ultra default binds that preset, and anything else
+is saved as `quality.presets.custom`. `u` updates previous-version default presets; a customized
+preset is never modified. `auto quality show --agents` prints the table read-only. The step needs
+an interactive terminal, so an agent points the operator to it; generated agent files are
+overwritten on regeneration and are never hand-edited to change a model.
+
 ## Complexity Assessment Criteria
 
 The planner assesses each task before spawning an agent. Complexity describes the nature of the work, not its size: file count and line count are not criteria.

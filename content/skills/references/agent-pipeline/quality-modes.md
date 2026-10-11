@@ -35,6 +35,11 @@ a cheaper model than the one the definition resolves.
   stays intact.
 - An agent that is not defined in the selected preset keeps its authored
   frontmatter defaults.
+- The operator changes a role's tier with `auto quality` (role groups or
+  `agent=tier` lines), which writes the preset; `auto quality --apply` or
+  `auto update` then regenerates the definitions. Point the operator there
+  instead of editing a generated agent definition, which regeneration
+  overwrites.
 
 Platform projection notes live with the `adaptive-quality` skill; this pipeline
 consumes the resolved pair rather than re-deriving it.

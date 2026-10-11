@@ -91,6 +91,17 @@ CLI에서는 `claude-code`도 `claude`의 alias로 허용하지만 YAML에는 ca
 `quality.default`를 바꾸고 구성된 모든 플랫폼을 갱신합니다. 한 번의 실행에 지정한
 `--quality`는 두 persisted provider override보다 우선하며 YAML은 수정하지 않습니다.
 
+### 에이전트별 모델 구성
+
+에이전트 하나하나의 등급은 인자 없는 `auto quality`의 구성 단계에서 바꿉니다. 대화형 `auto update`도
+매번 같은 질문을 합니다. 에이전트×플랫폼 표를 보고 역할 그룹 4개(설계·판단, 구현, 검증·리뷰,
+탐색·보조)마다 등급을 고르거나(`g`) `agent=tier` 줄로 하나씩 고친 뒤(`a`), `*`가 붙은 미리보기를
+`y`로 확인할 때만 씁니다. 최신 `balanced`·`ultra` 기본값과 같은 결과는 그 프리셋을 고르고, 그 밖의
+결과는 `quality.presets.custom`에 씁니다. 이전 버전 기본 프리셋은 `u`로 갱신하고, 사용자가 고친
+프리셋은 바꾸지 않습니다. 표만 보려면 `auto quality show --agents`를 씁니다. 이 단계는 대화형
+터미널이 필요하므로 에이전트는 사용자에게 안내하고, 생성된 에이전트 파일은 재생성 때 덮어쓰이므로
+모델을 바꾸려고 직접 고치지 않습니다.
+
 ### Claude Fable 5.1 / Opus 5.5 / Sonnet 5.5 기본 경로
 
 Autopus는 공통 모델 티어를 `fable` > `opus` > `sonnet` > `haiku` 순서로

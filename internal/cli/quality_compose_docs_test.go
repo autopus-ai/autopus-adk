@@ -128,6 +128,48 @@ func TestComposeDocs_ReadmesDocumentGroupsTableBindingAndUpdate(t *testing.T) {
 	}
 }
 
+// TestComposeDocs_GeneratedSkillsTellHowToChangeAgentModels covers the
+// generated-surface half of S18: the skills that explain quality modes point
+// to the composition step in their locale, and every generated template says
+// what its content source says, so `make generate-templates` has nothing left
+// to carry.
+func TestComposeDocs_GeneratedSkillsTellHowToChangeAgentModels(t *testing.T) {
+	t.Parallel()
+
+	skills := map[string]struct {
+		lang  string
+		paths []string
+	}{
+		"adaptive-quality": {lang: "en", paths: []string{
+			"content/skills/adaptive-quality.md",
+			"templates/codex/skills/adaptive-quality.md.tmpl",
+			"templates/gemini/skills/adaptive-quality/SKILL.md.tmpl",
+		}},
+		"using-autopus": {lang: "ko", paths: []string{
+			"content/skills/using-autopus.md",
+			"templates/codex/skills/using-autopus.md.tmpl",
+			"templates/gemini/skills/using-autopus/SKILL.md.tmpl",
+		}},
+	}
+	for name, skill := range skills {
+		for _, path := range skill.paths {
+			doc := flowText(readRepoFile(t, strings.Split(path, "/")...))
+			for _, group := range composeRoleGroups {
+				assert.Contains(t, doc, group.Label(skill.lang), "%s (%s) is missing a group label", path, name)
+			}
+			for _, want := range []string{
+				"`agent=tier`", "`quality.presets.custom`", "`auto quality show --agents`",
+			} {
+				assert.Contains(t, doc, want, "%s (%s) is missing %q", path, name, want)
+			}
+		}
+	}
+	pipeline := flowText(readRepoFile(t, "content", "skills", "references", "agent-pipeline", "quality-modes.md"))
+	for _, want := range []string{"`auto quality`", "`agent=tier`", "regeneration overwrites"} {
+		assert.Contains(t, pipeline, want, "agent-pipeline quality-modes.md is missing %q", want)
+	}
+}
+
 func TestInitHelp_LongDocumentsTheRoleGroupChoice(t *testing.T) {
 	t.Parallel()
 
