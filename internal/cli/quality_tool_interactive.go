@@ -43,9 +43,13 @@ func runQualityToolInteractive(
 		return nil
 	}
 
-	preset, err := readQualityToolPresetName(cmd, qualityToolPresetName(tool))
+	preset, ok, err := readQualityToolPresetName(cmd, cfg, qualityToolPresetName(tool))
 	if err != nil {
 		return err
+	}
+	if !ok {
+		fmt.Fprintln(out, "Cancelled; no settings changed.")
+		return nil
 	}
 	candidate := withQualityToolPreset(cfg, tool, preset, agents)
 	previewRows, err := qualityToolAgentRows(candidate, tool.provider)
@@ -137,24 +141,55 @@ func readQualityToolEdits(cmd *cobra.Command, agents map[string]string) (int, er
 	}
 }
 
-func readQualityToolPresetName(cmd *cobra.Command, fallback string) (string, error) {
+// readQualityToolPresetName asks for the preset the tool's tiers are stored
+// under; Enter keeps fallback. A customized built-in preset is never
+// overwritten (SPEC-MODELUX-001 REQ-MUX-12): its name is refused and asked
+// for again, and the third refusal in a row, or input that ends after a
+// refusal, cancels with ok false. A current or historical built-in name stays
+// an explicit target.
+func readQualityToolPresetName(cmd *cobra.Command, cfg *config.HarnessConfig, fallback string) (string, bool, error) {
 	out := cmd.OutOrStdout()
-	fmt.Fprintf(out, "Preset name [%s]: ", fallback)
-	line, err := bufio.NewReader(cmd.InOrStdin()).ReadString('\n')
-	if err != nil && err != io.EOF {
-		return "", fmt.Errorf("read preset name: %w", err)
+	reader := bufio.NewReader(cmd.InOrStdin())
+	for range composeDriverMaxInvalid {
+		fmt.Fprintf(out, "Preset name [%s]: ", fallback)
+		line, err := reader.ReadString('\n')
+		if err != nil && err != io.EOF {
+			return "", false, fmt.Errorf("read preset name: %w", err)
+		}
+		name := strings.TrimSpace(line)
+		if name == "" {
+			name = fallback
+		} else if !config.IsValidQualityPresetName(name) {
+			return "", false, fmt.Errorf(
+				"invalid quality preset name %q (use 1-64 ASCII letters, digits, hyphens, or underscores)",
+				name,
+			)
+		}
+		if !qualityToolPresetCustomized(cfg.Quality, name) {
+			return name, true, nil
+		}
+		fmt.Fprintln(out, qualityToolCustomizedRefusal(name))
+		if err != nil {
+			return "", false, nil
+		}
 	}
-	name := strings.TrimSpace(line)
-	if name == "" {
-		return fallback, nil
+	return "", false, nil
+}
+
+// qualityToolPresetCustomized reports a built-in preset the operator changed
+// by hand: writing the tool's tiers under its name would replace those values.
+func qualityToolPresetCustomized(quality config.QualityConf, name string) bool {
+	status, builtin := config.ClassifyBuiltinQualityPreset(quality, name)
+	return builtin && status.Class == config.BuiltinQualityPresetCustomized
+}
+
+// qualityToolCustomizedRefusal is the refusal in the operator's locale
+// (REQ-MUX-22). Only balanced and ultra can be refused, and both take 는.
+func qualityToolCustomizedRefusal(name string) string {
+	if composeLanguage() == "ko" {
+		return fmt.Sprintf("사용자 수정 프리셋 %s는 덮어쓰지 않습니다. 다른 이름을 입력하세요.", name)
 	}
-	if !config.IsValidQualityPresetName(name) {
-		return "", fmt.Errorf(
-			"invalid quality preset name %q (use 1-64 ASCII letters, digits, hyphens, or underscores)",
-			name,
-		)
-	}
-	return name, nil
+	return fmt.Sprintf("Customized preset %s is not overwritten. Enter another name.", name)
 }
 
 func readQualityToolConfirmation(cmd *cobra.Command) (bool, error) {
