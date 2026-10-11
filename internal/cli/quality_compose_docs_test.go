@@ -6,6 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/insajin/autopus-adk/pkg/config"
 )
 
 // SPEC-MODELUX-001 REQ-MUX-23 / S18: the help of auto quality, auto update,
@@ -87,6 +89,43 @@ func TestUpdateHelp_LongDocumentsTheCompositionQuestionRules(t *testing.T) {
 	}
 	assert.Contains(t, help, "-y")
 	assert.NotNil(t, update.Flags().ShorthandLookup("y"), "auto update has no -y shorthand")
+}
+
+// composeDocUpdateRules are the update question rules every document states:
+// the flags that keep the step from reading stdin and the preview flags that
+// skip it.
+var composeDocUpdateRules = []string{
+	"Enter", "`--yes`", "`-y`", "`--auto`", "`--check`", "`CI`", "`--workspace`",
+	"`--plan`", "`--preview`", "`--dry-run`",
+}
+
+// TestComposeDocs_ReadmesDocumentGroupsTableBindingAndUpdate covers the README
+// half of S18: README.md in English and docs/README.ko.md in Korean carry the
+// role groups, the table columns, the binding, the update question rules, the
+// GAP 1 classes, and the OMP requested-route scope, in the words the step
+// prints in that locale.
+func TestComposeDocs_ReadmesDocumentGroupsTableBindingAndUpdate(t *testing.T) {
+	t.Parallel()
+
+	for path, lang := range map[string]string{"README.md": "en", "docs/README.ko.md": "ko"} {
+		doc := flowText(readRepoFile(t, strings.Split(path, "/")...))
+		for _, want := range append(composeDocGroups(lang), composeDocLabels(lang)...) {
+			assert.Contains(t, doc, want, "%s is missing %q", path, want)
+		}
+		for _, want := range append([]string{
+			composeTextFor(lang).Question,
+			"`agent=tier`",
+			"`quality.presets.custom`",
+			"`quality.default: custom`",
+			"`auto quality show --agents`",
+			"`auto quality --apply`",
+			// The native balanced table names the models generation writes.
+			"`" + config.ClaudeSonnetModel + "`",
+			"`" + config.CodexLunaModel + "`",
+		}, composeDocUpdateRules...) {
+			assert.Contains(t, doc, want, "%s is missing %q", path, want)
+		}
+	}
 }
 
 func TestInitHelp_LongDocumentsTheRoleGroupChoice(t *testing.T) {

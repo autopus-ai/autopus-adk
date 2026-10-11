@@ -590,9 +590,9 @@ For everyday model setup, run:
 auto quality
 ```
 
-`auto quality` first asks which surface to configure: the shared quality mode or one coding tool's agent models. Only tools whose generated agents carry a model are offered — Claude Code, Codex, and OMP; Antigravity CLI and OpenCode inherit the session model and are named as such instead of being silently omitted.
+`auto quality` opens the agent model composition first ([Per-agent model composition](#per-agent-model-composition)). Answer `t` there, or a target name such as `claude-code`, to configure one surface instead: the shared quality mode or one coding tool's agent models. Only tools whose generated agents carry a model are offered — Claude Code, Codex, and OMP; Antigravity CLI and OpenCode inherit the session model and are named as such instead of being silently omitted.
 
-**Claude Code / Codex**: the wizard prints every agent with its relative tier and the concrete model that tier becomes on that tool, takes `agent=tier` edits (`fable`, `opus`, `sonnet`, `haiku`), previews the result, and on `y` stores the edits as a `quality.presets.<name>` entry bound through `quality.providers.<tool>`. Each tool keeps its own preset, so moving Claude Code's executor to `fable` leaves Codex where it was. `quality.default` never changes. Run `auto update` (or `auto quality --apply`) to regenerate the agent files.
+**Claude Code / Codex**: the wizard prints every agent with its relative tier and the concrete model that tier becomes on that tool, takes `agent=tier` edits (`fable`, `opus`, `sonnet`, `haiku`), previews the result, and on `y` stores the edits as a `quality.presets.<name>` entry bound through `quality.providers.<tool>`. Each tool keeps its own preset, so moving Claude Code's executor to `fable` leaves Codex where it was. `quality.default` never changes. A customized `balanced` or `ultra` preset is not overwritten: the editor refuses that name and cancels after three refusals. Run `auto update` (or `auto quality --apply`) to regenerate the agent files.
 
 **OMP**: choose **balanced/ultra → GPT/Claude**, or **custom** to pick an installed model per bundled agent. The custom path still anchors a family for the agents you do not pin, lists the installed catalog with each model's thinking levels, and labels every prompt with the capability that agent's route requires. A model the catalog says cannot serve that capability is refused at the prompt with the models that can. Review the compact agent/model/thinking table and type `y` to apply.
 
@@ -1226,6 +1226,8 @@ auto quality provider codex balanced --apply # Codex only
 auto quality provider claude inherit --apply # Remove the Claude override
 auto quality supervisor inherit --apply  # Use the user's Codex model for the primary session
 auto quality show                     # Show the persisted mode and supervisor policy
+auto quality show --agents            # Also print the agent × platform model table, read-only
+auto quality                          # Compose per-agent tiers by role group (interactive)
 ```
 
 Projects using both Claude Code and Codex can select their modes independently:
@@ -1267,8 +1269,8 @@ Claude Code and Codex share the standard balanced role matrix with OMP:
 | Native agent group | Claude Code balanced | Codex balanced |
 |---|---|---|
 | planner, architect, spec-writer, reviewer, security-auditor, debugger, deep-worker | `claude-fable-5-1` / `max` | `gpt-6-astra` / `max` |
-| executor, tester, devops, frontend-specialist, perf-engineer | `claude-sonnet-5` / `max` | `gpt-5.6-luna` / `max` |
-| explorer, annotator, validator, ux-validator | `claude-sonnet-5` / `high` | `gpt-5.6-luna` / `max` |
+| executor, tester, devops, frontend-specialist, perf-engineer | `claude-sonnet-5-5` / `max` | `gpt-6-luna` / `max` |
+| explorer, annotator, validator, ux-validator | `claude-sonnet-5-5` / `high` | `gpt-6-luna` / `max` |
 
 The native files are `.claude/agents/autopus/*.md` (`model`, `effort`) and
 `.codex/agents/*.toml` (`model`, `model_reasoning_effort`).
@@ -1286,6 +1288,55 @@ Claude Ultra emits max for its Fable/Opus agents; Codex Ultra uses Astra/max and
 Supervisors still inherit by default; quality-managed Codex supervisors use Astra/ultra in Ultra
 and Astra/xhigh in Balanced. Native multi-provider review defaults to Fable 5.1/max and Astra/max
 in both modes, while explicit provider model/effort pins remain untouched.
+
+#### Per-agent model composition
+
+`auto quality` without arguments, every interactive `auto update`, and the `auto init` quality step
+share one composition step. It shows one row per agent and one column per installed platform:
+
+| Column | Cell |
+|---|---|
+| Tier | the tier generation uses; `default(<tier>)` when the preset omits the agent, `invalid→<tier>` for an unknown value |
+| Claude Code | the `model · effort` written to `.claude/agents/autopus/<agent>.md` |
+| Codex | the `model · effort` written to `.codex/agents/<agent>.toml`, resolved from one Codex catalog read that the same run also generates from |
+| OMP | the route the selected OMP profile requests, headed `requested route · before catalog check` (`platform default` without a profile); OMP's own catalog check at generation can still lower it |
+| OpenCode, Antigravity | `platform default`: their agents carry no model |
+
+A `quality.providers.claude` or `quality.providers.codex` override labels its column
+`override: <preset>`. Edits go through four role groups that exist only on screen and are never
+written to `autopus.yaml`:
+
+| Role group | Agents |
+|---|---|
+| Design·Judgment | planner, architect, spec-writer, security-auditor |
+| Implementation | executor, debugger, deep-worker, devops, frontend-specialist, perf-engineer |
+| Verification·Review | reviewer, validator, tester, ux-validator |
+| Exploration·Support | explorer, annotator |
+
+At `Change the composition?`, `g` picks one tier per group (Enter keeps a group, mixed ones
+included), `a` takes `agent=tier` lines, and `u` (shown only when one exists) updates
+previous-version defaults to the current ones without changing `quality.default`. The preview marks
+every changed cell with `*` and lists every key it writes; only `y` writes. A result equal to the
+current `balanced` or `ultra` default binds that preset, writing the preset too when it is missing or
+a previous-version copy; any other result is saved as `quality.presets.custom` with
+`quality.default: custom`. Each written `balanced` and `ultra` preset is classified by its exact agent
+map: `current default`, `previous-version default (can update)` (a default an earlier release
+wrote), or `customized (N differ)` (anything else, partial maps included). A customized preset's
+agents and description are never modified; a composition that would bind it is saved as `custom`.
+
+`auto update` asks once on every interactive run, after its project settings prompts. Enter, input
+end, or three invalid answers keep `autopus.yaml` byte-identical; a confirmed change is generated in
+the same run, so the agent files equal the preview. `--yes`/`-y`, `--auto`, `--check`, a `CI` value
+other than empty, `0`, or `false`, non-TTY input, and `--workspace` neither ask nor change anything
+and print at most one line naming previous-version presets; `--plan`, `--preview`, and `--dry-run`
+skip the step. `auto quality --apply` regenerates right after a confirmed change, and
+`auto quality show --agents` prints the table read-only on any stdin.
+
+`auto quality <preset>`, `set`, `supervisor`, the composition step, and the per-tool editors refuse
+to write, and leave the file unchanged, while the quality block holds a `${NAME}` value of a set
+environment variable or a YAML alias or merge key. The composition step and the per-tool editors
+rewrite only the quality block: every byte outside it stays identical, comments inside it are not
+kept.
 
 ### Execution Modes
 

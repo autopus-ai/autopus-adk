@@ -508,9 +508,9 @@ Oh My Pi 참고:
 auto quality
 ```
 
-`auto quality`는 먼저 무엇을 설정할지 묻습니다. 공용 품질 모드 또는 한 코딩 도구의 에이전트 모델입니다. 생성 에이전트가 모델을 갖는 도구만 목록에 올립니다 — Claude Code, Codex, OMP. Antigravity CLI와 OpenCode는 세션 모델을 상속하므로 조용히 빼는 대신 그렇게 표시합니다.
+`auto quality`는 먼저 에이전트 모델 구성 단계를 엽니다([에이전트별 모델 구성](#에이전트별-모델-구성)). 그 질문에 `t`나 `claude-code` 같은 대상 이름을 입력하면 한 곳만 설정합니다. 공용 품질 모드 또는 한 코딩 도구의 에이전트 모델입니다. 생성 에이전트가 모델을 갖는 도구만 목록에 올립니다 — Claude Code, Codex, OMP. Antigravity CLI와 OpenCode는 세션 모델을 상속하므로 조용히 빼는 대신 그렇게 표시합니다.
 
-**Claude Code / Codex**: 에이전트별 상대 티어와 그 티어가 해당 도구에서 어떤 구체 모델이 되는지 함께 보여 주고, `agent=tier`(`fable`, `opus`, `sonnet`, `haiku`) 형식으로 수정합니다. 미리보기를 확인하고 `y`를 입력하면 `quality.presets.<name>`으로 저장하고 `quality.providers.<tool>`로 연결합니다. 도구별로 preset이 따로 있으므로 Claude Code의 executor를 `fable`로 올려도 Codex는 그대로입니다. `quality.default`는 바뀌지 않습니다. 생성 파일에 반영하려면 `auto update`(또는 `auto quality --apply`)를 실행하세요.
+**Claude Code / Codex**: 에이전트별 상대 티어와 그 티어가 해당 도구에서 어떤 구체 모델이 되는지 함께 보여 주고, `agent=tier`(`fable`, `opus`, `sonnet`, `haiku`) 형식으로 수정합니다. 미리보기를 확인하고 `y`를 입력하면 `quality.presets.<name>`으로 저장하고 `quality.providers.<tool>`로 연결합니다. 도구별로 preset이 따로 있으므로 Claude Code의 executor를 `fable`로 올려도 Codex는 그대로입니다. `quality.default`는 바뀌지 않습니다. 사용자가 고친 `balanced`·`ultra` 프리셋은 덮어쓰지 않습니다. 편집기는 그 이름을 거절하고 3번째 거절에서 취소합니다. 생성 파일에 반영하려면 `auto update`(또는 `auto quality --apply`)를 실행하세요.
 
 **OMP**: **balanced/ultra → GPT/Claude**를 고르거나, **custom**으로 기본 에이전트별 설치 모델을 직접 지정합니다. custom도 지정하지 않은 에이전트를 위해 기준 계열을 먼저 고르고, 설치된 카탈로그와 각 모델의 thinking 단계를 보여 주며, 각 질문에 그 에이전트 경로가 요구하는 capability를 함께 표시합니다. 카탈로그가 해당 capability를 선언하지 않은 모델은 그 자리에서 거절하고 가능한 모델을 알려 줍니다. 마지막 역할·모델·추론 강도 표를 확인하고 `y`를 입력하면 적용합니다.
 
@@ -1113,6 +1113,8 @@ auto quality provider codex balanced --apply # Codex에만 적용
 auto quality provider claude inherit --apply # Claude override 제거
 auto quality supervisor inherit --apply  # Codex 주 세션에서 사용자 기본 모델을 사용
 auto quality show                     # 저장된 품질 모드와 주 세션 정책 확인
+auto quality show --agents            # 에이전트×플랫폼 모델 표도 읽기 전용으로 출력
+auto quality                          # 역할 그룹별로 에이전트 등급 구성 (대화형)
 ```
 
 Claude Code와 Codex를 함께 쓰는 프로젝트는 품질 모드를 서로 다르게 지정할 수 있습니다.
@@ -1154,8 +1156,8 @@ Claude Code와 Codex도 OMP와 같은 표준 Balanced 역할표를 사용합니�
 | 네이티브 에이전트 그룹 | Claude Code balanced | Codex balanced |
 |---|---|---|
 | planner, architect, spec-writer, reviewer, security-auditor, debugger, deep-worker | `claude-fable-5-1` / `max` | `gpt-6-astra` / `max` |
-| executor, tester, devops, frontend-specialist, perf-engineer | `claude-sonnet-5` / `max` | `gpt-5.6-luna` / `max` |
-| explorer, annotator, validator, ux-validator | `claude-sonnet-5` / `high` | `gpt-5.6-luna` / `max` |
+| executor, tester, devops, frontend-specialist, perf-engineer | `claude-sonnet-5-5` / `max` | `gpt-6-luna` / `max` |
+| explorer, annotator, validator, ux-validator | `claude-sonnet-5-5` / `high` | `gpt-6-luna` / `max` |
 
 실제 생성 파일은 `.claude/agents/autopus/*.md`의 `model`·`effort`와
 `.codex/agents/*.toml`의 `model`·`model_reasoning_effort`입니다.
@@ -1174,6 +1176,52 @@ Claude Ultra의 Fable/Opus는 max, Codex Ultra는 Astra/max와 Sol/xhigh입니�
 Ultra에서 Astra/ultra, Balanced에서 Astra/xhigh를 사용합니다.
 네이티브 멀티프로바이더 리뷰 기본값은 두 모드 모두 Fable 5.1/max와 Astra/max이며,
 명시적인 provider 모델·추론 강도 지정은 보존합니다.
+
+#### 에이전트별 모델 구성
+
+인자 없는 `auto quality`, 대화형 `auto update`, `auto init`의 품질 단계는 같은 구성 단계를
+씁니다. 에이전트마다 한 행, 설치된 플랫폼마다 한 열인 표를 보여 줍니다.
+
+| 열 | 칸 |
+|---|---|
+| 등급 | 생성에 쓰이는 등급. 프리셋에 없으면 `기본값(<tier>)`, 잘못된 값이면 `잘못된 값→<tier>` |
+| Claude Code | `.claude/agents/autopus/<agent>.md`에 쓰일 `model · effort` |
+| Codex | `.codex/agents/<agent>.toml`에 쓰일 `model · effort`. 이번 실행에서 한 번 읽은 Codex catalog로 해석하고, 같은 실행의 생성도 그 결과를 씁니다 |
+| OMP | 선택한 OMP profile이 요청하는 route. 머리말은 `요청 route · catalog 확인 전`이고 profile이 없으면 `플랫폼 기본값`입니다. 생성 때 OMP catalog 확인이 route를 낮출 수 있습니다 |
+| OpenCode, Antigravity | `플랫폼 기본값` (에이전트 파일에 모델이 없음) |
+
+`quality.providers.claude`나 `quality.providers.codex` override가 있으면 그 열 머리말은
+`개별 설정: <preset>`입니다. 편집은 역할 그룹 4개로 합니다. 그룹은 화면에만 있고
+`autopus.yaml`에 쓰지 않습니다.
+
+| 역할 그룹 | 에이전트 |
+|---|---|
+| 설계·판단 | planner, architect, spec-writer, security-auditor |
+| 구현 | executor, debugger, deep-worker, devops, frontend-specialist, perf-engineer |
+| 검증·리뷰 | reviewer, validator, tester, ux-validator |
+| 탐색·보조 | explorer, annotator |
+
+`구성을 바꿀까요?`에서 `g`는 그룹마다 등급을 고르고(Enter는 섞인 그룹도 그대로 둠), `a`는
+`agent=tier` 줄을 받고, `u`(그런 프리셋이 있을 때만 보임)는 이전 버전 기본값을 최신 기본값으로
+갱신하며 `quality.default`는 그대로 둡니다. 미리보기는 바뀐 칸에 `*`를 붙이고 쓰는 키를 모두
+보여 주며, `y`일 때만 씁니다. 결과가 최신 `balanced`나 `ultra` 기본값과 같으면 그 프리셋을
+고르고, 그 프리셋이 없거나 이전 버전 사본이면 프리셋도 씁니다. 그 밖의 결과는
+`quality.presets.custom`과 `quality.default: custom`으로 저장합니다. 파일의 `balanced`와 `ultra`는
+agents가 정확히 같은지로 `현재 기본값`, `이전 버전 기본값 (갱신 가능)`(예전 릴리스가 쓴 기본값),
+`사용자 수정 (N개 다름)`(그 밖, 일부만 쓴 맵 포함)으로 나눕니다. 사용자 수정 프리셋의 agents와
+description은 바꾸지 않고, 그 이름으로 묶일 구성은 `custom`으로 저장합니다.
+
+`auto update`는 대화형 실행마다 프로젝트 설정 질문 뒤에 한 번 묻습니다. Enter, 입력 끝, 잘못된 답
+3번은 `autopus.yaml`을 byte 단위로 그대로 두고, 확인한 변경은 같은 실행에서 생성되므로 에이전트
+파일이 미리보기와 같습니다. `--yes`/`-y`, `--auto`, `--check`, 비어 있지 않고 `0`·`false`가 아닌
+`CI`, TTY가 아닌 입력, `--workspace`는 묻지도 바꾸지도 않고 이전 버전 프리셋 안내만 한 줄 이하로
+씁니다. `--plan`, `--preview`, `--dry-run`에는 이 단계가 없습니다. `auto quality --apply`는 확인
+직후 재생성하고, `auto quality show --agents`는 어떤 stdin에서도 표를 읽기 전용으로 출력합니다.
+
+`auto quality <preset>`, `set`, `supervisor`, 구성 단계, 도구별 편집기는 quality 블록에 설정된
+환경 변수의 `${NAME}` 값이나 YAML alias·merge key가 있으면 쓰지 않고 파일을 그대로 둡니다. 구성
+단계와 도구별 편집기는 quality 블록만 다시 쓰므로 블록 밖 bytes는 그대로이고, 블록 안 주석은
+유지되지 않습니다.
 
 ### 실행 모드
 
