@@ -29,7 +29,7 @@ type InitWizardResult struct {
 	CommentsLang string
 	CommitsLang  string
 	AILang       string
-	Quality      string
+	Quality      string // ultra, balanced, or QualityRoleGroups
 	ReviewGate   bool
 	Methodology  string
 	UsageProfile string
@@ -151,6 +151,12 @@ func buildLangStep(num, total int, r *InitWizardResult) *huh.Form {
 	).WithTheme(AutopusTheme()).WithWidth(bannerWidth + 10)
 }
 
+// QualityRoleGroups is the quality step's third choice (SPEC-MODELUX-001
+// REQ-MUX-15). It is not a preset name: init hands it to the role-group
+// composition step, which starts from the balanced default and saves a
+// preset the Binding Contract chooses.
+const QualityRoleGroups = "role-groups"
+
 // buildQualityStep creates the quality mode selection step.
 func buildQualityStep(num, total int, r *InitWizardResult) *huh.Form {
 	title := fmt.Sprintf("[%d/%d] Quality Mode", num, total)
@@ -159,13 +165,25 @@ func buildQualityStep(num, total int, r *InitWizardResult) *huh.Form {
 		huh.NewGroup(
 			huh.NewSelect[string]().
 				Title(title).
-				Options(
-					huh.NewOption("Ultra — strict review, high coverage", "ultra"),
-					huh.NewOption("Balanced — pragmatic defaults", "balanced"),
-				).
+				Options(qualityOptions(DetectSystemLang())...).
 				Value(&r.Quality),
 		),
 	).WithTheme(AutopusTheme()).WithWidth(bannerWidth + 10)
+}
+
+// qualityOptions lists the quality step's choices. The role-group label is
+// Korean for ko and English for every other locale, as the composition step
+// that follows it is.
+func qualityOptions(lang string) []huh.Option[string] {
+	roleGroups := "Compose by role — choose a tier for each role group"
+	if lang == "ko" {
+		roleGroups = "역할별 직접 구성 — 역할 그룹마다 등급을 고릅니다"
+	}
+	return []huh.Option[string]{
+		huh.NewOption("Ultra — strict review, high coverage", "ultra"),
+		huh.NewOption("Balanced — pragmatic defaults", "balanced"),
+		huh.NewOption(roleGroups, QualityRoleGroups),
+	}
 }
 
 // buildReviewGateStep creates the review gate confirmation step.

@@ -7,6 +7,7 @@ var (
 	TestDefaultResult        = defaultResult
 	TestBuildLangStep        = buildLangStep
 	TestBuildQualityStep     = buildQualityStep
+	TestQualityOptions       = qualityOptions
 	TestBuildReviewGateStep  = buildReviewGateStep
 	TestBuildMethodologyStep = buildMethodologyStep
 	TestBuildProfileStep     = buildProfileStep

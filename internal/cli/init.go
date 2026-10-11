@@ -96,8 +96,9 @@ func newInitCmd() *cobra.Command {
 
 			// Step 1: Configuration Wizard
 			tui.Step(out, 1, 5, "Configuration Wizard")
-			if !yes && isStdinTTY() {
-				result, err := tui.RunInitWizard(tui.InitWizardOpts{
+			var snapshot driftGenerationSnapshot
+			if !yes && composeTTYProbe() {
+				result, err := runInitWizard(tui.InitWizardOpts{
 					Quality:         quality,
 					NoReviewGate:    noReviewGate,
 					Platforms:       platformList,
@@ -117,7 +118,7 @@ func newInitCmd() *cobra.Command {
 				cfg.Language.Comments = result.CommentsLang
 				cfg.Language.Commits = result.CommitsLang
 				cfg.Language.AIResponses = result.AILang
-				cfg.Quality.Default = result.Quality
+				snapshot = runInitComposeStep(cmd, dir, cfg, quality, result.Quality)
 				cfg.Spec.ReviewGate.Enabled = result.ReviewGate
 				if result.ReviewGate {
 					cfg.Spec.ReviewGate.Providers = providerNames
@@ -184,7 +185,7 @@ func newInitCmd() *cobra.Command {
 			tui.Step(out, 3, 5, "Platform Files")
 			ctx := context.Background()
 			if err := saveConfigWithGenerationRollback(dir, cfg, func() error {
-				return generatePlatformFiles(ctx, dir, cfg, cmd)
+				return generatePlatformFilesWith(ctx, dir, cfg, cmd, snapshot)
 			}); err != nil {
 				return fmt.Errorf("플랫폼 설정 적용 실패: %w", err)
 			}

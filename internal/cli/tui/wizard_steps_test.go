@@ -107,3 +107,27 @@ func TestBuildProfileStep(t *testing.T) {
 	result := &tui.InitWizardResult{}
 	assert.NotNil(t, tui.TestBuildProfileStep(1, 5, result))
 }
+
+// TestQualityOptions_OfferRoleGroupsThird pins the quality step's choices
+// (SPEC-MODELUX-001 REQ-MUX-15): ultra and balanced keep their values, and a
+// third choice hands init to the role-group composition step. Its label
+// follows the operator's locale: Korean for ko, English otherwise.
+func TestQualityOptions_OfferRoleGroupsThird(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "role-groups", tui.QualityRoleGroups)
+
+	labels := map[string]string{
+		"ko": "역할별 직접 구성 — 역할 그룹마다 등급을 고릅니다",
+		"en": "Compose by role — choose a tier for each role group",
+		"ja": "Compose by role — choose a tier for each role group",
+	}
+	for lang, label := range labels {
+		options := tui.TestQualityOptions(lang)
+		require.Len(t, options, 3, lang)
+		values := []string{options[0].Value, options[1].Value, options[2].Value}
+		assert.Equal(t, []string{"ultra", "balanced", tui.QualityRoleGroups}, values, lang)
+		assert.Equal(t, "Ultra — strict review, high coverage", options[0].Key, lang)
+		assert.Equal(t, "Balanced — pragmatic defaults", options[1].Key, lang)
+		assert.Equal(t, label, options[2].Key, lang)
+	}
+}
