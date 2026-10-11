@@ -36,11 +36,7 @@ func (t composeTable) layout(lang string, before *composeTable) composeTableLayo
 		}
 	}
 	for _, row := range t.rows {
-		group := composeTableGroups[row.group]
-		label := group.en
-		if lang == "ko" {
-			label = group.ko
-		}
+		label := composeRoleGroups[row.group].Label(lang)
 		old, compared := previous[row.agent]
 		mark := func(text string, changed bool) string {
 			if compared && changed {

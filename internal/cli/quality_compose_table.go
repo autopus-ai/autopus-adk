@@ -7,24 +7,6 @@ import (
 	"github.com/insajin/autopus-adk/pkg/config"
 )
 
-// composeTableGroup is one UI-only role group as the composition table lists
-// it. The Role Group Contract owns the order and membership; this copy only
-// orders the rows.
-type composeTableGroup struct {
-	ko, en  string
-	members []string
-}
-
-// composeTableGroups orders the table rows by the Role Group Contract.
-var composeTableGroups = []composeTableGroup{
-	{ko: "설계·판단", en: "Design·Judgment", members: []string{"planner", "architect", "spec-writer", "security-auditor"}},
-	{ko: "구현", en: "Implementation", members: []string{
-		"executor", "debugger", "deep-worker", "devops", "frontend-specialist", "perf-engineer",
-	}},
-	{ko: "검증·리뷰", en: "Verification·Review", members: []string{"reviewer", "validator", "tester", "ux-validator"}},
-	{ko: "탐색·보조", en: "Exploration·Support", members: []string{"explorer", "annotator"}},
-}
-
 // composeTablePlatforms is the fixed column order of the platform columns.
 var composeTablePlatforms = []string{"claude-code", "codex", "omp", "opencode", "antigravity-cli"}
 
@@ -117,8 +99,9 @@ func buildComposeTable(
 		table.supervisor, table.supervisorManaged = codex.ResolveSupervisorProfile(quality, catalog)
 	}
 	ompRoute := composeTableOMPRoutes(cfg)
-	for index, group := range composeTableGroups {
-		for _, agent := range group.members {
+	// Rows follow the Role Group Contract: group order, then member order.
+	for index, group := range composeRoleGroups {
+		for _, agent := range group.Agents {
 			source := sources[agent]
 			model, effort := quality.ClaudeAgentProfile(agent, source.FallbackTier)
 			resolution, err := codex.ResolveAgentProfile(

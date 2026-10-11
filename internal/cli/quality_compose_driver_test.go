@@ -77,7 +77,7 @@ func TestComposeDriverSession_RefreshAppliesOnlyOnYes(t *testing.T) {
 			assert.Contains(t, out, driverRefreshQuestion)
 			assert.Equal(t, 1, planner.refreshes)
 			assert.Len(t, table.previews, 1)
-			assert.Contains(t, out, "미리보기 (아직 바뀌지 않음)   * = 바뀌는 칸\n[preview]\n"+
+			assert.Contains(t, out, "미리보기 (아직 바뀌지 않음)\n[preview]\n"+
 				"바뀌는 설정:\n  quality.presets.ultra ← 최신 기본값\n"+driverConfirm)
 			if applies {
 				assert.Equal(t, composeDriverApplied, result.Outcome)

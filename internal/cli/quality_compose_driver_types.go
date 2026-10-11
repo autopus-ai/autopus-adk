@@ -14,7 +14,8 @@ const composeDriverMaxInvalid = 3
 // methods resolve the Claude Code and Codex cells with the run's snapshot,
 // so the table cannot show a catalog the same run's generation does not see.
 // When a cell refuses Codex generation, the drawn table carries the
-// `Codex 생성이 실패합니다` line itself.
+// `Codex 생성이 실패합니다` line itself, and a preview carries its own
+// `* = 바뀌는 칸` legend, so the driver repeats neither.
 type composeDriverTable interface {
 	// Table writes the table of cfg.
 	Table(out io.Writer, cfg *config.HarnessConfig, snapshot driftGenerationSnapshot) error
