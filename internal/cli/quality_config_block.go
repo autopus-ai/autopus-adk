@@ -20,8 +20,10 @@ import (
 // a quality block whose raw decode differs from what config.Load reads or
 // that holds an alias or merge key, then splices the re-encoded block into
 // the original bytes, so every byte outside the block stays identical. The
-// result must pass verifyQualityLineEdit and validateQualityYAML before the
-// atomic replace; on any failure the file and cfg are left as they were. An
+// result must pass verifyQualityLineEdit, validateQualityYAML, and
+// verifyQualityPlaceholders, which refuses a rewrite that would spell out a
+// placeholder the loader then expands, before the atomic replace; on any
+// failure the file and cfg are left as they were. An
 // edit that changes no value writes nothing and leaves cfg alone. After a
 // write, cfg.Quality, when cfg is not nil, holds the quality written.
 func saveQualityBlock(dir string, cfg *config.HarnessConfig, edit func(*config.QualityConf) error) error {
@@ -71,6 +73,9 @@ func saveQualityBlock(dir string, cfg *config.HarnessConfig, edit func(*config.Q
 		return err
 	}
 	if err := validateQualityYAML(updated, &expected); err != nil {
+		return err
+	}
+	if err := verifyQualityPlaceholders(data, updated, candidate); err != nil {
 		return err
 	}
 	if err := atomicWriteQualityConfig(path, updated); err != nil {

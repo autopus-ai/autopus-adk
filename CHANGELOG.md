@@ -68,7 +68,9 @@ All notable changes to this project will be documented in this file.
     구성 단계의 미리보기가 이를 알린다. 쓰기 전에 quality 블록이 설정된 환경 변수의 `${NAME}` 값을 담거나
     YAML alias·merge key를 쓰면 `quality 블록에 환경 변수 값이나 YAML 참조(alias·merge)가 섞여 있어
     자동으로 쓰지 않습니다. autopus.yaml을 직접 고치세요.`로 거부하고 파일을 바꾸지 않는다. loader가 펼친
-    값(token 등)이 tracked 파일에 남는 경로를 막기 위해서다.
+    값(token 등)이 tracked 파일에 남는 경로를 막기 위해서다. escape(`"\x24{NAME}"`)나 `!!binary`로 적어
+    loader가 펼치지 않던 값을 다시 쓰면 `${NAME}`이 그대로 적혀 다음 읽기에서 펼쳐지므로, 그런 쓰기도 같은
+    문구로 거부한다.
 
 - **orchestra: pane backend 은퇴 뒤 비어 있던 결과 필드와 reliability store 제거** (2026-10-09,
   SPEC-PANERM-001 후속): reliability store, yield passthrough, provider startup timeout을 채우거나
