@@ -17,12 +17,9 @@ import (
 // supervisor_model_policy quality, five platforms, no role_model_policy).
 const composeTableTestdata = "testdata/quality_compose"
 
-// composeTableCatalogs lists the catalog fixtures in acceptance order. CAT-C
-// is a failed probe, which freezes an empty snapshot.
-var composeTableCatalogs = []string{"CAT-A", "CAT-B", "CAT-C", "CAT-D"}
-
 // composeTableSnapshot returns the run snapshot one catalog fixture freezes,
-// exactly as captureComposeSnapshot would after probing that catalog.
+// exactly as captureComposeSnapshot would after probing that catalog. CAT-C is
+// a failed probe, which freezes an empty snapshot.
 func composeTableSnapshot(t *testing.T, catalog string) driftGenerationSnapshot {
 	t.Helper()
 	if catalog == "CAT-C" {

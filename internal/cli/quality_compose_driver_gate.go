@@ -34,12 +34,12 @@ func composeCITruthy(value string) bool {
 }
 
 // composeGate holds the facts of a run that decide whether its composition
-// step may read stdin (Update Prompt Contract).
+// step may read stdin (Update Prompt Contract). A --workspace update runs
+// every repository's update with --yes, so Yes covers it.
 type composeGate struct {
-	Yes       bool // --yes, -y, or --auto
-	Check     bool // --check without --self, where the project update continues
-	Preview   bool // --plan, --preview, or --dry-run
-	Workspace bool // a --workspace update
+	Yes     bool // --yes, -y, or --auto
+	Check   bool // --check without --self, where the project update continues
+	Preview bool // --plan, --preview, or --dry-run
 }
 
 // composeMode is how a run handles its composition step.
@@ -58,7 +58,7 @@ func (g composeGate) mode() composeMode {
 	switch {
 	case g.Preview:
 		return composeModeSilent
-	case g.Yes, g.Check, g.Workspace, !composeTTYProbe(), composeCITruthy(composeCIEnv()):
+	case g.Yes, g.Check, !composeTTYProbe(), composeCITruthy(composeCIEnv()):
 		return composeModeNotice
 	}
 	return composeModeAsk

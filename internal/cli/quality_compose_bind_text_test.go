@@ -131,7 +131,7 @@ func TestDescribeComposeBinding_NoWrite_HasNoLines(t *testing.T) {
 	dir, cfg := composeBindSaved(t, nil)
 	start := composeBindStart(t, cfg)
 
-	assert.Empty(t, composeBindDescribe(t, dir, cfg, planComposeBinding(cfg, start, start.Clone()), "ko"))
+	assert.Empty(t, composeBindDescribe(t, dir, cfg, planComposeBinding(cfg, start, composeBindEdited(t, start, nil)), "ko"))
 }
 
 func TestDescribeComposeBinding_ControlCharactersInADefaultName_AreEscaped(t *testing.T) {

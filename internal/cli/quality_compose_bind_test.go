@@ -50,13 +50,15 @@ func composeBindStart(t *testing.T, cfg *config.HarnessConfig) qualityCompositio
 	return newQualityComposition(cfg.Quality, composeGroupsSources(t))
 }
 
-// composeBindEdited applies agents to a copy of start as advanced edits.
+// composeBindEdited applies agents to a copy of start as advanced edits; no
+// agents is an unedited copy.
 func composeBindEdited(t *testing.T, start qualityComposition, agents map[string]string) qualityComposition {
 	t.Helper()
-	edited := start.Clone()
-	for agent, tier := range agents {
-		_, _, err := edited.ApplyAssignment(agent + "=" + tier)
+	edited := qualityComposition{tiers: start.Agents()}
+	for name, value := range agents {
+		agent, tier, err := parseQualityToolTierAssignment(name + "=" + value)
 		require.NoError(t, err)
+		edited.tiers[agent] = tier
 	}
 	return edited
 }
@@ -73,7 +75,7 @@ func composeBindHB2(t *testing.T) map[string]string {
 // composeBindS6 is acceptance S6's group edit on D: 구현 = sonnet, 탐색·보조 = haiku.
 func composeBindS6(t *testing.T, start qualityComposition) qualityComposition {
 	t.Helper()
-	edited := start.Clone()
+	edited := composeBindEdited(t, start, nil)
 	require.NoError(t, edited.SetGroupTier(composeRoleGroups[1], "sonnet"))
 	require.NoError(t, edited.SetGroupTier(composeRoleGroups[3], "haiku"))
 	return edited
@@ -104,7 +106,7 @@ func TestPlanComposeBinding_EditedEqualsStart_WritesNothing(t *testing.T) {
 	for name, cfg := range map[string]*config.HarnessConfig{"D": d, "B2": b2, "R": repo} {
 		start := composeBindStart(t, cfg)
 		// g and Enter four times: every group kept.
-		plan := planComposeBinding(cfg, start, start.Clone())
+		plan := planComposeBinding(cfg, start, composeBindEdited(t, start, nil))
 		assert.Equal(t, composeWriterNone, plan.Writer, name)
 		assert.Empty(t, plan.Presets, name)
 		assert.Empty(t, plan.Default, name)
@@ -112,7 +114,7 @@ func TestPlanComposeBinding_EditedEqualsStart_WritesNothing(t *testing.T) {
 
 	start := composeBindStart(t, repo)
 	before := readBlockFixture(t, repoDir)
-	plan := planComposeBinding(repo, start, start.Clone())
+	plan := planComposeBinding(repo, start, composeBindEdited(t, start, nil))
 	assert.Equal(t, before, composeBindPersist(t, repoDir, repo, plan))
 }
 
@@ -195,7 +197,7 @@ func TestPlanComposeBinding_CurrentDefaultOverCustomizedBuiltin_PersistsAsCustom
 	})
 	original := rawQualityOf(t, readBlockFixture(t, dir)).Presets["balanced"]
 	start := composeBindStart(t, cfg)
-	require.Equal(t, "fable", start.Tier("tester"))
+	require.Equal(t, "fable", start.Agents()["tester"])
 
 	plan := planComposeBinding(cfg, start, composeBindEdited(t, start, map[string]string{"tester": "sonnet"}))
 

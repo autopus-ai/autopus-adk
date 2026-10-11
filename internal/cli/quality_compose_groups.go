@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 	"maps"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -46,18 +45,6 @@ func (g composeRoleGroup) Label(lang string) string {
 	return g.en
 }
 
-// composeGroupOf returns the group an agent belongs to, so an advanced edit
-// can show the group display it just changed.
-func composeGroupOf(agent string) (composeRoleGroup, bool) {
-	name := config.NormalizeAgentName(agent)
-	for _, group := range composeRoleGroups {
-		if slices.Contains(group.Agents, name) {
-			return group, true
-		}
-	}
-	return composeRoleGroup{}, false
-}
-
 // qualityComposition is the per-agent tier state of one composition session,
 // keyed by canonical agent name. It only ever holds names from the tier
 // vocabulary, so a preset written from it cannot carry a value the loader
@@ -81,19 +68,9 @@ func newQualityComposition(quality config.QualityConf, sources map[string]compos
 	return qualityComposition{tiers: tiers}
 }
 
-// Tier returns the agent's tier in this composition.
-func (c qualityComposition) Tier(agent string) string {
-	return c.tiers[config.NormalizeAgentName(agent)]
-}
-
 // Agents returns a detached agent → tier map of every canonical agent.
 func (c qualityComposition) Agents() map[string]string {
 	return maps.Clone(c.tiers)
-}
-
-// Clone returns a composition that shares no state with c.
-func (c qualityComposition) Clone() qualityComposition {
-	return qualityComposition{tiers: maps.Clone(c.tiers)}
 }
 
 // Equal reports whether both compositions assign every agent the same tier.
@@ -113,19 +90,6 @@ func (c *qualityComposition) SetGroupTier(group composeRoleGroup, tier string) e
 		c.tiers[agent] = canonical
 	}
 	return nil
-}
-
-// ApplyAssignment applies one advanced `agent=tier` line (REQ-MUX-04). The
-// per-tool editor's parser validates it, so both editors accept and reject
-// the same lines with the same messages; a rejected line keeps every earlier
-// edit.
-func (c *qualityComposition) ApplyAssignment(line string) (agent, tier string, err error) {
-	agent, tier, err = parseQualityToolTierAssignment(line)
-	if err != nil {
-		return "", "", err
-	}
-	c.tiers[agent] = tier
-	return agent, tier, nil
 }
 
 // GroupDisplay renders the group's tier (REQ-MUX-03): the tier name when every
@@ -151,27 +115,4 @@ func (c qualityComposition) GroupDisplay(group composeRoleGroup, lang string) st
 		mixed = "혼합"
 	}
 	return mixed + " (" + strings.Join(parts, " · ") + ")"
-}
-
-// parseComposeGroupAnswer reads one answer to a group question
-// (`1) fable 2) opus 3) sonnet 4) haiku [Enter] 그대로`): a menu number in
-// config.QualityTiers() order or a tier name. keep reports an empty answer,
-// which leaves the group as it is; any other answer is an error the caller
-// re-asks on.
-func parseComposeGroupAnswer(answer string) (tier string, keep bool, err error) {
-	trimmed := strings.TrimSpace(answer)
-	if trimmed == "" {
-		return "", true, nil
-	}
-	tiers := config.QualityTiers()
-	for i, candidate := range tiers {
-		if trimmed == strconv.Itoa(i+1) {
-			return candidate, false, nil
-		}
-	}
-	if canonical, ok := config.NormalizeQualityTier(trimmed); ok {
-		return canonical, false, nil
-	}
-	return "", false, fmt.Errorf("unknown choice %q (choose 1-%d or one of: %s)",
-		trimmed, len(tiers), strings.Join(tiers, ", "))
 }

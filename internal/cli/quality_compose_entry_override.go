@@ -69,14 +69,7 @@ func withComposeOverrideQuestion(cmd *cobra.Command, session composeDriverSessio
 // the override question between the binding plan and its description, so
 // the Codex default session line is resolved without a removed override.
 func (p composeOverridePlanner) PlanEdit(edited map[string]string) (composeDriverPlan, error) {
-	composition := qualityComposition{tiers: maps.Clone(edited)}
-	var binding composeBindingPlan
-	if p.refresh == nil {
-		binding = planComposeBinding(p.run.cfg, p.start(), composition)
-	} else {
-		start := newQualityComposition(p.refresh.Candidate.Quality, p.run.sources)
-		binding = planComposeBindingAfter(p.run.cfg, *p.refresh, start, composition)
-	}
+	binding, composition := p.bind(edited)
 	if binding.Writer == composeWriterNone {
 		return composeDriverPlan{NoChange: true}, nil
 	}

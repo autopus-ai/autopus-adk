@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/insajin/autopus-adk/pkg/config"
 )
 
 const (
@@ -207,4 +209,35 @@ func TestComposeDriverSession_EditorNeverMutatesThePlannerStart(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, start, planner.start)
+}
+
+// composeDriverTierAnswer reads one group answer the driver has already
+// trimmed: a menu number in config.QualityTiers() order or a tier name.
+func TestComposeDriverTierAnswer_TakesAMenuNumberOrATierName(t *testing.T) {
+	t.Parallel()
+	tiers := config.QualityTiers()
+	for answer, want := range map[string]string{
+		"1": "fable", "2": "opus", "3": "sonnet", "4": "haiku", "Opus": "opus", "haiku": "haiku",
+	} {
+		tier, ok := composeDriverTierAnswer(answer, tiers)
+		assert.True(t, ok, answer)
+		assert.Equal(t, want, tier, answer)
+	}
+	for _, answer := range []string{"0", "5", "gpt", "1)"} {
+		_, ok := composeDriverTierAnswer(answer, tiers)
+		assert.False(t, ok, answer)
+	}
+}
+
+// The advanced step and the per-tool editor share one `agent=tier` parser, so
+// both refuse the same malformed lines.
+func TestParseQualityToolTierAssignment_RejectsMalformedLines(t *testing.T) {
+	t.Parallel()
+	for _, line := range []string{"bogus=fable", "planner", "planner=", "=opus", "tester=gpt"} {
+		_, _, err := parseQualityToolTierAssignment(line)
+		assert.Error(t, err, line)
+	}
+	agent, tier, err := parseQualityToolTierAssignment("Security_Auditor=Opus")
+	require.NoError(t, err)
+	assert.Equal(t, [2]string{"security-auditor", "opus"}, [2]string{agent, tier})
 }

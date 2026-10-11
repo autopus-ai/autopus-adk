@@ -63,21 +63,6 @@ func TestComposeRoleGroups_ContractOrder_CoversEveryCanonicalAgentOnce(t *testin
 	}
 }
 
-func TestComposeGroupOf_CanonicalAgent_ReturnsItsGroup(t *testing.T) {
-	t.Parallel()
-
-	group, ok := composeGroupOf("debugger")
-	require.True(t, ok)
-	assert.Equal(t, "구현", group.Label("ko"))
-
-	group, ok = composeGroupOf("Security_Auditor")
-	require.True(t, ok, "workflow spelling folds onto the agent name")
-	assert.Equal(t, "Design·Judgment", group.Label("en"))
-
-	_, ok = composeGroupOf("gpt-writer")
-	assert.False(t, ok)
-}
-
 func TestNewQualityComposition_StartsFromEffectiveTiers(t *testing.T) {
 	t.Parallel()
 	sources := composeGroupsSources(t)
@@ -116,9 +101,9 @@ func TestNewQualityComposition_StartsFromEffectiveTiers(t *testing.T) {
 
 	// B2 writes debugger: sonnet, yet the runtime places it on the top rung.
 	assert.Equal(t, "sonnet", b2.Presets["balanced"].Agents["debugger"])
-	assert.Equal(t, "fable", newQualityComposition(b2, sources).Tier("debugger"))
+	assert.Equal(t, "fable", newQualityComposition(b2, sources).Agents()["debugger"])
 	// R omits deep-worker; its embedded source declares opus.
-	assert.Equal(t, "opus", newQualityComposition(repo, sources).Tier("deep-worker"))
+	assert.Equal(t, "opus", newQualityComposition(repo, sources).Agents()["deep-worker"])
 }
 
 func TestNewQualityComposition_ProviderOverrideDoesNotMoveTheGlobalStart(t *testing.T) {
@@ -129,112 +114,54 @@ func TestNewQualityComposition_ProviderOverrideDoesNotMoveTheGlobalStart(t *test
 
 	composition := newQualityComposition(quality, composeGroupsSources(t))
 
-	assert.Equal(t, "fable", composition.Tier("planner"))
+	assert.Equal(t, "fable", composition.Agents()["planner"])
 }
 
-func TestQualityComposition_GroupSelectionAndAdvancedEdits(t *testing.T) {
+// The driver edits a composition map through composeSessionGroups: a group
+// selection sets every member, an advanced edit sets one agent, and each
+// group display is recomputed from the map it is handed (S3).
+func TestComposeSessionGroups_EditsRecomputeTheGroupDisplay(t *testing.T) {
 	t.Parallel()
-	composition := newQualityComposition(config.DefaultFullConfig("p").Quality, composeGroupsSources(t))
-
-	// S3: g, Enter, 3, Enter, 4.
-	for i, answer := range []string{"", "3", "", "4"} {
-		tier, keep, err := parseComposeGroupAnswer(answer)
-		require.NoError(t, err)
-		if keep {
-			continue
+	composition := newQualityComposition(config.DefaultFullConfig("p").Quality, composeGroupsSources(t)).Agents()
+	displays := func(lang string) []string {
+		var shown []string
+		for _, group := range (composeSessionGroups{lang: lang}).Groups(composition) {
+			shown = append(shown, group.Display)
 		}
-		require.NoError(t, composition.SetGroupTier(composeRoleGroups[i], tier))
+		return shown
 	}
-	assert.Equal(t, []string{"fable", "sonnet", "혼합 (fable 1 · sonnet 3)", "haiku"},
-		composeGroupsDisplays(composition, "ko"))
+	groups := composeSessionGroups{lang: "ko"}
 
-	agent, tier, err := composition.ApplyAssignment("debugger=opus")
-	require.NoError(t, err)
-	assert.Equal(t, [2]string{"debugger", "opus"}, [2]string{agent, tier})
-	assert.Equal(t, "혼합 (opus 1 · sonnet 5)", composition.GroupDisplay(composeRoleGroups[1], "ko"))
+	// g, Enter, 3, Enter, 4.
+	groups.SetGroupTier(composition, 1, "sonnet")
+	groups.SetGroupTier(composition, 3, "haiku")
+	assert.Equal(t, []string{"fable", "sonnet", "혼합 (fable 1 · sonnet 3)", "haiku"}, displays("ko"))
 
-	_, _, err = composition.ApplyAssignment("tester=gpt")
-	require.EqualError(t, err, `unknown tier "gpt" (choose one of: fable, opus, sonnet, haiku)`)
-	assert.Equal(t, "opus", composition.Tier("debugger"), "a rejected line keeps earlier edits")
-	assert.Equal(t, "sonnet", composition.Tier("tester"))
-
-	_, _, err = composition.ApplyAssignment("explorer=fable")
-	require.NoError(t, err)
-	assert.Equal(t, "혼합 (fable 1 · haiku 1)", composition.GroupDisplay(composeRoleGroups[3], "ko"))
-	assert.Equal(t, "mixed (fable 1 · haiku 1)", composition.GroupDisplay(composeRoleGroups[3], "en"))
-}
-
-func TestQualityComposition_RejectedAssignment_LeavesStateUnchanged(t *testing.T) {
-	t.Parallel()
-	composition := newQualityComposition(config.DefaultFullConfig("p").Quality, composeGroupsSources(t))
-	before := composition.Clone()
-
-	for _, line := range []string{"bogus=fable", "planner", "planner=", "=opus"} {
-		_, _, err := composition.ApplyAssignment(line)
-		assert.Error(t, err, line)
-	}
-
-	assert.True(t, composition.Equal(before))
+	composition["debugger"] = "opus"
+	assert.Equal(t, "혼합 (opus 1 · sonnet 5)", displays("ko")[1])
+	composition["explorer"] = "fable"
+	assert.Equal(t, "혼합 (fable 1 · haiku 1)", displays("ko")[3])
+	assert.Equal(t, "mixed (fable 1 · haiku 1)", displays("en")[3])
 }
 
 func TestQualityComposition_SetGroupTier_RejectsUnknownTier(t *testing.T) {
 	t.Parallel()
 	composition := newQualityComposition(config.DefaultFullConfig("p").Quality, composeGroupsSources(t))
-	before := composition.Clone()
+	before := composition.Agents()
 
 	err := composition.SetGroupTier(composeRoleGroups[0], "gpt")
 
 	require.Error(t, err)
-	assert.True(t, composition.Equal(before))
+	assert.Equal(t, before, composition.Agents())
 }
 
-func TestQualityComposition_CloneAndAgents_AreDetached(t *testing.T) {
+func TestQualityComposition_Agents_IsDetached(t *testing.T) {
 	t.Parallel()
 	composition := newQualityComposition(config.DefaultFullConfig("p").Quality, composeGroupsSources(t))
-	clone := composition.Clone()
-	require.True(t, composition.Equal(clone))
 
-	require.NoError(t, clone.SetGroupTier(composeRoleGroups[3], "haiku"))
 	agents := composition.Agents()
 	agents["planner"] = "haiku"
 
-	assert.False(t, composition.Equal(clone))
-	assert.Equal(t, "sonnet", composition.Tier("explorer"))
-	assert.Equal(t, "fable", composition.Tier("planner"))
+	assert.Equal(t, "fable", composition.Agents()["planner"])
 	assert.Len(t, agents, len(config.CanonicalAgentNames()))
-}
-
-func TestParseComposeGroupAnswer(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		answer   string
-		wantTier string
-		wantKeep bool
-		wantErr  bool
-	}{
-		{answer: "1", wantTier: "fable"},
-		{answer: "2", wantTier: "opus"},
-		{answer: " 3 \n", wantTier: "sonnet"},
-		{answer: "4", wantTier: "haiku"},
-		{answer: "Opus", wantTier: "opus"},
-		{answer: "haiku\r\n", wantTier: "haiku"},
-		{answer: "", wantKeep: true},
-		{answer: "  \n", wantKeep: true},
-		{answer: "0", wantErr: true},
-		{answer: "5", wantErr: true},
-		{answer: "gpt", wantErr: true},
-		{answer: "1)", wantErr: true},
-	}
-	for _, tt := range tests {
-		tier, keep, err := parseComposeGroupAnswer(tt.answer)
-		if tt.wantErr {
-			assert.Error(t, err, "answer %q", tt.answer)
-			assert.False(t, keep, "answer %q", tt.answer)
-			continue
-		}
-		require.NoError(t, err, "answer %q", tt.answer)
-		assert.Equal(t, tt.wantTier, tier, "answer %q", tt.answer)
-		assert.Equal(t, tt.wantKeep, keep, "answer %q", tt.answer)
-	}
 }

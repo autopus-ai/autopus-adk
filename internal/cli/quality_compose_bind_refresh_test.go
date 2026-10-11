@@ -191,7 +191,7 @@ func TestPlanComposeBindingAfter_NoEditOnTopOfRefresh_IsTheRefresh(t *testing.T)
 	require.True(t, ok)
 	start := composeBindStart(t, refresh.Candidate)
 
-	plan := planComposeBindingAfter(cfg, refresh, start, start.Clone())
+	plan := planComposeBindingAfter(cfg, refresh, start, composeBindEdited(t, start, nil))
 
 	assert.Equal(t, refresh.Writer, plan.Writer)
 	assert.Equal(t, refresh.Default, plan.Default)

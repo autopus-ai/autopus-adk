@@ -127,12 +127,18 @@ func (p *composeSessionPlanner) Start() map[string]string {
 }
 
 func (p *composeSessionPlanner) PlanEdit(edited map[string]string) (composeDriverPlan, error) {
+	return p.driverPlan(p.bind(edited))
+}
+
+// bind plans the binding of edited: from the loaded start, or on top of the
+// `u` refresh once PlanRefresh ran.
+func (p *composeSessionPlanner) bind(edited map[string]string) (composeBindingPlan, qualityComposition) {
 	composition := qualityComposition{tiers: maps.Clone(edited)}
 	if p.refresh == nil {
-		return p.driverPlan(planComposeBinding(p.run.cfg, p.start(), composition), composition)
+		return planComposeBinding(p.run.cfg, p.start(), composition), composition
 	}
 	start := newQualityComposition(p.refresh.Candidate.Quality, p.run.sources)
-	return p.driverPlan(planComposeBindingAfter(p.run.cfg, *p.refresh, start, composition), composition)
+	return planComposeBindingAfter(p.run.cfg, *p.refresh, start, composition), composition
 }
 
 func (p *composeSessionPlanner) PlanRefresh() (composeDriverPlan, error) {
