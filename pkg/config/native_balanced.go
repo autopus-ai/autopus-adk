@@ -47,28 +47,13 @@ func defaultBalancedAgentTiers() map[string]string {
 	return agents
 }
 
-// These exact layouts were shipped as complete default presets. A partial
-// map or any different value is user customization, not an upgrade marker.
-var historicalBalancedDefaults = []map[string]string{
-	{
-		"architect": "fable", "planner": "fable", "security-auditor": "fable",
-		"debugger": "opus", "deep-worker": "opus", "executor": "opus",
-		"reviewer": "opus", "spec-writer": "opus",
-		"annotator": "sonnet", "devops": "sonnet", "explorer": "sonnet",
-		"frontend-specialist": "sonnet", "perf-engineer": "sonnet",
-		"tester": "sonnet", "ux-validator": "sonnet", "validator": "sonnet",
-	},
-	{
-		"architect": "opus", "debugger": "sonnet", "devops": "sonnet",
-		"executor": "sonnet", "explorer": "sonnet", "planner": "opus",
-		"reviewer": "sonnet", "security-auditor": "opus", "spec-writer": "opus",
-		"tester": "sonnet", "validator": "sonnet",
-	},
-}
-
+// isHistoricalBalancedDefault reports whether agents is a shipped balanced
+// layout the runtime keeps on the standard placement (registry rows marked
+// runtimeStandard). A partial map or any different value is user
+// customization, not an upgrade marker.
 func isHistoricalBalancedDefault(agents map[string]string) bool {
-	for _, previous := range historicalBalancedDefaults {
-		if maps.Equal(agents, previous) {
+	for _, row := range historicalQualityPresets {
+		if row.preset == "balanced" && row.runtimeStandard && maps.Equal(agents, row.agents) {
 			return true
 		}
 	}
