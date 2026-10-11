@@ -70,7 +70,9 @@ All notable changes to this project will be documented in this file.
     자동으로 쓰지 않습니다. autopus.yaml을 직접 고치세요.`로 거부하고 파일을 바꾸지 않는다. loader가 펼친
     값(token 등)이 tracked 파일에 남는 경로를 막기 위해서다. escape(`"\x24{NAME}"`)나 `!!binary`로 적어
     loader가 펼치지 않던 값을 다시 쓰면 `${NAME}`이 그대로 적혀 다음 읽기에서 펼쳐지므로, 그런 쓰기도 같은
-    문구로 거부한다.
+    문구로 거부한다. YAML이 줄바꿈으로 읽는 문자(단독 CR, U+0085, U+2028, U+2029)가 있는 파일은 블록의 줄
+    범위를 알 수 없으므로 미리보기가 쓰지 않는다고 알리고, 확인해도 쓰지 않는다(`auto update`는 경고 한
+    줄을 남기고 계속한다).
 
 - **orchestra: pane backend 은퇴 뒤 비어 있던 결과 필드와 reliability store 제거** (2026-10-09,
   SPEC-PANERM-001 후속): reliability store, yield passthrough, provider startup timeout을 채우거나

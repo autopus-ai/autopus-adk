@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"strings"
@@ -37,7 +38,10 @@ func spliceQualityBlock(data []byte, source *qualityWriteSource, quality config.
 	lines := strings.SplitAfter(string(data), "\n")
 	start, end := len(lines), len(lines)
 	if source.keyIndex >= 0 {
-		start, end = qualityBlockRange(lines, root, source.keyIndex)
+		start, end, err = qualityBlockRange(lines, root, source.keyIndex)
+		if err != nil {
+			return nil, err
+		}
 		// The byte order mark of a file that opens with quality is not part
 		// of the block.
 		if start == 0 && strings.HasPrefix(lines[0], utf8ByteOrderMark) {
@@ -58,7 +62,12 @@ func spliceQualityBlock(data []byte, source *qualityWriteSource, quality config.
 
 // encodedQualityBlock cuts the quality block out of a document that yaml.v3
 // encoded, by the same boundary rule that locates the block being replaced.
+// yaml.v3 writes U+2028 and U+2029 inside a value unescaped, so a quality
+// value holding one is refused like a file holding one.
 func encodedQualityBlock(encoded []byte) (string, error) {
+	if hasYAMLOnlyLineBreak(encoded) {
+		return "", errQualityLineBreakRefused
+	}
 	var doc yaml.Node
 	if err := yaml.Unmarshal(encoded, &doc); err != nil || len(doc.Content) == 0 {
 		return "", errors.New("autopus_config_marshal_failed")
@@ -69,7 +78,10 @@ func encodedQualityBlock(encoded []byte) (string, error) {
 			continue
 		}
 		lines := strings.SplitAfter(string(encoded), "\n")
-		start, end := qualityBlockRange(lines, root, i)
+		start, end, err := qualityBlockRange(lines, root, i)
+		if err != nil {
+			return "", err
+		}
 		block := strings.Join(lines[start:end], "")
 		if !strings.HasSuffix(block, "\n") {
 			block += "\n"
@@ -85,7 +97,7 @@ func encodedQualityBlock(encoded []byte) (string, error) {
 // document when the entry is the last one. Blank lines and column-one
 // comments at the end of that range belong to whatever follows, so they stay
 // outside; a column-one comment followed by an indented child stays inside.
-func qualityBlockRange(lines []string, root *yaml.Node, keyIndex int) (int, int) {
+func qualityBlockRange(lines []string, root *yaml.Node, keyIndex int) (int, int, error) {
 	start := root.Content[keyIndex].Line - 1
 	end := len(lines)
 	if keyIndex+2 < len(root.Content) {
@@ -93,10 +105,15 @@ func qualityBlockRange(lines []string, root *yaml.Node, keyIndex int) (int, int)
 	} else if marker := yamlDocumentMarkerLine(lines, start+1); marker >= 0 {
 		end = marker
 	}
+	// The node lines name lines of the text only when both count line breaks
+	// alike (hasYAMLOnlyLineBreak); never index past the text when they do not.
+	if start < 0 || end > len(lines) || start >= end {
+		return 0, 0, errQualityBlockLines
+	}
 	for end > start+1 && isQualityBlockTrailer(lines[end-1]) {
 		end--
 	}
-	return start, end
+	return start, end, nil
 }
 
 // yamlDocumentMarkerLine returns the index of the first line at or after from
@@ -111,6 +128,25 @@ func yamlDocumentMarkerLine(lines []string, from int) int {
 		}
 	}
 	return -1
+}
+
+// errQualityBlockLines refuses a splice whose block range falls outside the
+// lines of the text it cuts.
+var errQualityBlockLines = errors.New(
+	"refuse to write quality: the quality block's lines do not fall inside autopus.yaml; edit autopus.yaml by hand")
+
+// hasYAMLOnlyLineBreak reports whether data holds a character yaml.v3 counts
+// as a line break that a split at \n does not: a CR outside a CRLF pair,
+// U+0085, U+2028, or U+2029. Node line numbers of such data do not name the
+// lines strings.SplitAfter(data, "\n") returns.
+func hasYAMLOnlyLineBreak(data []byte) bool {
+	for i, b := range data {
+		if b == '\r' && (i+1 == len(data) || data[i+1] != '\n') {
+			return true
+		}
+	}
+	return bytes.Contains(data, []byte("\u0085")) || bytes.Contains(data, []byte("\u2028")) ||
+		bytes.Contains(data, []byte("\u2029"))
 }
 
 func isQualityBlockTrailer(line string) bool {

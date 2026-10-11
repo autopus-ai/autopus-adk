@@ -25,6 +25,9 @@ type composeBindText struct {
 	supervisor     string // before, after
 	givesUp        map[string]string
 	blockRewrite   string // comment lines
+	// blockUnreadable replaces blockRewrite when the block's lines cannot be
+	// located, which the writer refuses.
+	blockUnreadable string
 }
 
 var composeBindTexts = map[string]composeBindText{
@@ -47,6 +50,8 @@ var composeBindTexts = map[string]composeBindText{
 			"ultra":    "custom은 ultra effort 사다리를 받지 않음",
 		},
 		blockRewrite: "quality 블록을 다시 씁니다: 블록 안 주석 %d줄과 서식은 유지되지 않습니다(값은 그대로)",
+		blockUnreadable: "quality 블록의 줄 범위를 읽을 수 없어(단독 CR, U+0085, U+2028, U+2029 같은 줄바꿈 문자) " +
+			"확인해도 쓰지 않습니다",
 	},
 	"en": {
 		presetKinds: map[composePresetWriteKind]string{
@@ -67,6 +72,8 @@ var composeBindTexts = map[string]composeBindText{
 			"ultra":    "custom does not get the ultra effort ladder",
 		},
 		blockRewrite: "the quality block is rewritten: its %d comment lines and layout are not kept (values are)",
+		blockUnreadable: "the quality block's lines cannot be located (a line break such as a lone CR, U+0085, " +
+			"U+2028, or U+2029), so confirming writes nothing",
 	},
 }
 
@@ -124,7 +131,11 @@ func describeComposeBinding(
 		lines = append(lines, notice)
 	}
 	if plan.Writer == composeWriterBlock && source != nil {
-		lines = append(lines, fmt.Sprintf(text.blockRewrite, qualityBlockCommentLines(source)))
+		if comments, ok := qualityBlockCommentLines(source); ok {
+			lines = append(lines, fmt.Sprintf(text.blockRewrite, comments))
+		} else {
+			lines = append(lines, text.blockUnreadable)
+		}
 	}
 	return lines
 }
@@ -219,11 +230,15 @@ func composeBindDisplay(value string) string {
 // qualityBlockCommentLines counts the comment lines inside the top-level
 // quality block of data, whole-line and trailing alike, by the boundary rule
 // saveQualityBlock splices with — exactly the comments a block rewrite drops.
-// Unparsable data or data without the block counts 0.
-func qualityBlockCommentLines(data []byte) int {
+// Unparsable data or data without the block counts 0. ok is false when the
+// block's lines cannot be located, a file the writer refuses (F2).
+func qualityBlockCommentLines(data []byte) (count int, ok bool) {
+	if hasYAMLOnlyLineBreak(data) {
+		return 0, false
+	}
 	var doc yaml.Node
 	if yaml.Unmarshal(data, &doc) != nil || len(doc.Content) == 0 || doc.Content[0].Kind != yaml.MappingNode {
-		return 0
+		return 0, true
 	}
 	root := doc.Content[0]
 	for i := 0; i+1 < len(root.Content); i += 2 {
@@ -231,7 +246,10 @@ func qualityBlockCommentLines(data []byte) int {
 			continue
 		}
 		lines := strings.SplitAfter(string(data), "\n")
-		start, end := qualityBlockRange(lines, root, i)
+		start, end, err := qualityBlockRange(lines, root, i)
+		if err != nil {
+			return 0, false
+		}
 		commented := map[int]bool{}
 		for line := start; line < end; line++ {
 			if strings.HasPrefix(strings.TrimSpace(lines[line]), "#") {
@@ -240,9 +258,9 @@ func qualityBlockCommentLines(data []byte) int {
 		}
 		markQualityLineComments(root.Content[i], start, end, commented)
 		markQualityLineComments(root.Content[i+1], start, end, commented)
-		return len(commented)
+		return len(commented), true
 	}
-	return 0
+	return 0, true
 }
 
 // markQualityLineComments records the lines in [start, end) that carry a

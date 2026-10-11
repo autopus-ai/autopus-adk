@@ -19,6 +19,15 @@ import (
 var errQualityWriteRefused = errors.New(
 	"quality 블록에 환경 변수 값이나 YAML 참조(alias·merge)가 섞여 있어 자동으로 쓰지 않습니다. autopus.yaml을 직접 고치세요.")
 
+// errQualityLineBreakRefused is the refusal of the same writers when
+// autopus.yaml holds a character yaml.v3 reads as a line break that a split
+// at \n does not see: a CR outside a CRLF pair, U+0085, U+2028, or U+2029
+// (security review F2). The node line numbers then do not name the lines
+// the splice cuts, so nothing is written.
+var errQualityLineBreakRefused = errors.New(
+	"autopus.yaml에 YAML이 줄바꿈으로 읽는 문자(단독 CR, U+0085, U+2028, U+2029)가 있어 quality 블록을 자동으로 " +
+		"쓰지 않습니다. autopus.yaml을 직접 고치세요.")
+
 // qualityWriteSource is the quality section of autopus.yaml bytes that a
 // writer may build on. config.Load expands ${NAME} across the whole text
 // before it decodes, so the loaded quality can hold an operator's environment
@@ -37,9 +46,13 @@ type qualityWriteSource struct {
 }
 
 // readQualityWriteSource runs the write precheck on data, the autopus.yaml
-// bytes after pruneRetiredConfig. It returns errQualityWriteRefused when the
-// raw quality differs from the loaded one or holds a YAML reference.
+// bytes after pruneRetiredConfig. It returns errQualityLineBreakRefused when
+// data holds a line break the splice cannot see, and errQualityWriteRefused
+// when the raw quality differs from the loaded one or holds a YAML reference.
 func readQualityWriteSource(data []byte) (*qualityWriteSource, error) {
+	if hasYAMLOnlyLineBreak(data) {
+		return nil, errQualityLineBreakRefused
+	}
 	source := &qualityWriteSource{keyIndex: -1}
 	if err := yaml.Unmarshal(data, &source.doc); err != nil {
 		return nil, fmt.Errorf("parse config: %w", err)

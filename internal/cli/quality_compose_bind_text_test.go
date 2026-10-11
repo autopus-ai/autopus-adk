@@ -175,9 +175,18 @@ quality:   # managed by auto
 workflow:
   coverage_threshold: 85 # outer trailing
 `
-	assert.Equal(t, 4, qualityBlockCommentLines([]byte(fixture)))
-	assert.Equal(t, 1, qualityBlockCommentLines([]byte(blockHandPrefix+blockHandQuality+blockHandSuffix)))
-	assert.Equal(t, 1, qualityBlockCommentLines([]byte(blockColumnPrefix+blockColumnQuality+blockColumnSuffix)))
-	assert.Equal(t, 0, qualityBlockCommentLines([]byte(blockAbsentPrefix)))
-	assert.Equal(t, 0, qualityBlockCommentLines([]byte("quality: [")))
+	for want, data := range map[int][]string{
+		4: {fixture},
+		1: {blockHandPrefix + blockHandQuality + blockHandSuffix, blockColumnPrefix + blockColumnQuality + blockColumnSuffix},
+		0: {blockAbsentPrefix, "quality: ["},
+	} {
+		for _, text := range data {
+			count, ok := qualityBlockCommentLines([]byte(text))
+			assert.True(t, ok, text)
+			assert.Equal(t, want, count, text)
+		}
+	}
+	// A line break the split at \n does not see leaves the block unlocated.
+	_, ok := qualityBlockCommentLines([]byte("# a\rb\n" + fixture))
+	assert.False(t, ok)
 }
