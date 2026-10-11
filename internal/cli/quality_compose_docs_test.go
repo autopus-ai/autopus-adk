@@ -11,10 +11,12 @@ import (
 )
 
 // SPEC-MODELUX-001 REQ-MUX-23 / S18: the help of auto quality, auto update,
-// and auto init documents the role groups, the table, the binding, and the
-// update question rules. Every statement below comes from the code that
-// prints it, so renaming a group, moving an agent, or rewording a label
-// fails here until the documents follow.
+// and auto init, README.md, docs/README.ko.md, the generated quality skills,
+// and CHANGELOG.md document the role groups, the table, the binding, the
+// update question rules, the GAP 1 classes, and the OMP requested-route
+// scope. Every statement below comes from the code that prints it, so
+// renaming a group, moving an agent, or rewording a label fails here until
+// the documents follow.
 
 // composeDocGroups returns each role group's label and its members in
 // display order, as the composition step prints them.
@@ -39,6 +41,14 @@ func composeDocLabels(lang string) []string {
 		text.StatusHistorical,
 		strings.Replace(text.StatusCustomized, "%d", "N", 1),
 	}
+}
+
+// composeDocUpdateRules are the update question rules every document states:
+// the flags that keep the step from reading stdin and the preview flags that
+// skip it.
+var composeDocUpdateRules = []string{
+	"Enter", "`--yes`", "`-y`", "`--auto`", "`--check`", "`CI`", "`--workspace`",
+	"`--plan`", "`--preview`", "`--dry-run`",
 }
 
 func TestQualityHelp_LongDocumentsGroupsTableAndBinding(t *testing.T) {
@@ -91,19 +101,25 @@ func TestUpdateHelp_LongDocumentsTheCompositionQuestionRules(t *testing.T) {
 	assert.NotNil(t, update.Flags().ShorthandLookup("y"), "auto update has no -y shorthand")
 }
 
-// composeDocUpdateRules are the update question rules every document states:
-// the flags that keep the step from reading stdin and the preview flags that
-// skip it.
-var composeDocUpdateRules = []string{
-	"Enter", "`--yes`", "`-y`", "`--auto`", "`--check`", "`CI`", "`--workspace`",
-	"`--plan`", "`--preview`", "`--dry-run`",
+func TestInitHelp_LongDocumentsTheRoleGroupChoice(t *testing.T) {
+	t.Parallel()
+
+	initCmd, _, err := NewRootCmd().Find([]string{"init"})
+	require.NoError(t, err)
+	help := flowText(initCmd.Long)
+	for _, group := range composeRoleGroups {
+		assert.Contains(t, help, group.Label("ko"))
+	}
+	for _, want := range []string{"역할별 직접 구성", "balanced", "y로 확인", "--yes", "--quality"} {
+		assert.Contains(t, help, want)
+	}
+	found := initCmd.Flags().Lookup("yes") != nil && initCmd.InheritedFlags().Lookup("quality") != nil
+	assert.True(t, found, "auto init must have --yes and inherit --quality")
 }
 
-// TestComposeDocs_ReadmesDocumentGroupsTableBindingAndUpdate covers the README
-// half of S18: README.md in English and docs/README.ko.md in Korean carry the
-// role groups, the table columns, the binding, the update question rules, the
-// GAP 1 classes, and the OMP requested-route scope, in the words the step
-// prints in that locale.
+// TestComposeDocs_ReadmesDocumentGroupsTableBindingAndUpdate checks README.md
+// in English and docs/README.ko.md in Korean, in the words the step prints in
+// that locale.
 func TestComposeDocs_ReadmesDocumentGroupsTableBindingAndUpdate(t *testing.T) {
 	t.Parallel()
 
@@ -128,11 +144,10 @@ func TestComposeDocs_ReadmesDocumentGroupsTableBindingAndUpdate(t *testing.T) {
 	}
 }
 
-// TestComposeDocs_GeneratedSkillsTellHowToChangeAgentModels covers the
-// generated-surface half of S18: the skills that explain quality modes point
-// to the composition step in their locale, and every generated template says
-// what its content source says, so `make generate-templates` has nothing left
-// to carry.
+// TestComposeDocs_GeneratedSkillsTellHowToChangeAgentModels checks that the
+// skills explaining quality modes point to the composition step in their
+// locale, in the content source and in each template generated from it, and
+// that the agent-pipeline quality reference does too.
 func TestComposeDocs_GeneratedSkillsTellHowToChangeAgentModels(t *testing.T) {
 	t.Parallel()
 
@@ -170,10 +185,10 @@ func TestComposeDocs_GeneratedSkillsTellHowToChangeAgentModels(t *testing.T) {
 	}
 }
 
-// TestComposeDocs_ChangelogDocumentsTheFeatureAndTheWriterChange covers the
-// CHANGELOG half of S18 in the Korean the CHANGELOG is written in, including
-// the line writer precheck that now refuses `auto quality <preset>` and
-// `auto quality supervisor` on a quality block holding a YAML reference.
+// TestComposeDocs_ChangelogDocumentsTheFeatureAndTheWriterChange checks the
+// Korean CHANGELOG entry, including the line writer precheck that now refuses
+// `auto quality <preset>` and `auto quality supervisor` on a quality block
+// holding a YAML reference.
 func TestComposeDocs_ChangelogDocumentsTheFeatureAndTheWriterChange(t *testing.T) {
 	t.Parallel()
 
@@ -194,20 +209,4 @@ func TestComposeDocs_ChangelogDocumentsTheFeatureAndTheWriterChange(t *testing.T
 	}, composeDocUpdateRules...) {
 		assert.Contains(t, changelog, want, "CHANGELOG.md is missing %q", want)
 	}
-}
-
-func TestInitHelp_LongDocumentsTheRoleGroupChoice(t *testing.T) {
-	t.Parallel()
-
-	initCmd, _, err := NewRootCmd().Find([]string{"init"})
-	require.NoError(t, err)
-	help := flowText(initCmd.Long)
-	for _, group := range composeRoleGroups {
-		assert.Contains(t, help, group.Label("ko"))
-	}
-	for _, want := range []string{"역할별 직접 구성", "balanced", "y로 확인", "--yes", "--quality"} {
-		assert.Contains(t, help, want)
-	}
-	found := initCmd.Flags().Lookup("yes") != nil && initCmd.InheritedFlags().Lookup("quality") != nil
-	assert.True(t, found, "auto init must have --yes and inherit --quality")
 }
