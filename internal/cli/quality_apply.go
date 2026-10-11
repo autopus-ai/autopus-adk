@@ -44,12 +44,13 @@ func applyQualityHarnessPlatformsUsing(
 
 	for _, platform := range platforms {
 		supported, err := update(commandContext(cmd), dir, platform, cfg)
+		// Platform tokens and adapter errors can carry text from autopus.yaml.
 		if !supported {
-			fmt.Fprintf(out, "  skipped unknown platform: %s\n", platform)
+			fmt.Fprintf(out, "  skipped unknown platform: %s\n", terminalSafe(platform))
 			continue
 		}
 		if err != nil {
-			fmt.Fprintf(out, "  failed %s: %v\n", platform, err)
+			fmt.Fprintf(out, "  failed %s: %s\n", terminalSafe(platform), terminalSafe(err.Error()))
 			failures = append(failures, fmt.Sprintf("%s: %v", platform, err))
 			continue
 		}

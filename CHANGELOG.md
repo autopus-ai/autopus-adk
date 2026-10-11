@@ -62,6 +62,9 @@ All notable changes to this project will be documented in this file.
   - `auto quality show --agents`: 기존 `show` 줄은 그대로이고, 그 뒤에 같은 표를 읽기 전용으로 출력한다.
     TTY가 아닌 stdin에서도 돈다.
   - 화면 문구는 시스템 locale이 `ko`면 한국어, 아니면 영어다. 파일에 쓰는 값은 locale과 무관하다.
+    `autopus.yaml`에서 온 글자(프리셋 description, agent key, 플랫폼 오류)는 표, 메뉴, `--apply` 실패 줄,
+    stderr의 `Error: ...`에서 제어·서식 문자(ESC, OSC 52, RLO 등)를 escape해 쓴다. 오류의 줄바꿈과 탭은
+    그대로다.
   - quality 쓰기 사전 검사: 구성 쓰기와 도구별 편집기 저장은 env 확장 없이 읽은 raw `quality`에 이번
     변경만 더해 quality 블록만 다시 쓴다. 블록 밖 bytes는 그대로다(도구별 편집기는 지금까지 문서 전체를
     다시 encode해 블록 밖의 빈 줄과 들여쓰기도 바꿨다). 블록 안 주석과 서식은 유지되지 않으며(값은 그대로)

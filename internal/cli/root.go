@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -190,12 +191,22 @@ func Execute() {
 	config.SetRetiredKeyReporter(notice.report)
 	ctx := withConfigNotice(context.Background(), notice)
 
-	if err := NewRootCmd().ExecuteContext(ctx); err != nil {
-		code := exitCodeForError(err)
-		if isJSONFatalError(err) {
-			os.Exit(code)
-		}
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+	if code, failed := runRootCommand(ctx, NewRootCmd(), os.Stderr); failed {
 		os.Exit(code)
 	}
+}
+
+// runRootCommand runs root and, when it fails, writes its error to stderr unless
+// a JSON envelope already reported it. It returns the exit code and whether
+// the command failed. An error can carry text from a user file, so it is
+// printed through terminalSafeMultiline.
+func runRootCommand(ctx context.Context, root *cobra.Command, stderr io.Writer) (int, bool) {
+	err := root.ExecuteContext(ctx)
+	if err == nil {
+		return 0, false
+	}
+	if !isJSONFatalError(err) {
+		fmt.Fprintf(stderr, "Error: %s\n", terminalSafeMultiline(err.Error()))
+	}
+	return exitCodeForError(err), true
 }

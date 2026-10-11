@@ -35,3 +35,19 @@ func terminalSafe(s string) string {
 	}
 	return b.String()
 }
+
+// terminalSafeMultiline is terminalSafe for text whose line breaks and tabs
+// are part of its layout, such as an error a command returns: \n and \t
+// stay, and every other control or format character, CR included, is spelled
+// out.
+func terminalSafeMultiline(s string) string {
+	lines := strings.Split(s, "\n")
+	for i, line := range lines {
+		fields := strings.Split(line, "\t")
+		for j, field := range fields {
+			fields[j] = terminalSafe(field)
+		}
+		lines[i] = strings.Join(fields, "\t")
+	}
+	return strings.Join(lines, "\n")
+}

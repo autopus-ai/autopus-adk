@@ -38,13 +38,14 @@ func (c *HarnessConfig) validateModelSelectionConfig() error {
 	for presetName, preset := range c.Quality.Presets {
 		for agentName, tier := range preset.Agents {
 			if !validModelTiers[tier] {
-				return fmt.Errorf("quality.presets[%s].agents[%s]: unknown model tier %q", presetName, agentName, tier)
+				// The keys are free text from autopus.yaml; %q keeps them printable.
+				return fmt.Errorf("quality.presets[%q].agents[%q]: unknown model tier %q", presetName, agentName, tier)
 			}
 		}
 	}
 	for providerName, provider := range c.Orchestra.Providers {
 		if provider.ModelPolicy != "" && provider.ModelPolicy != ProviderModelPolicyQuality && provider.ModelPolicy != ProviderModelPolicyPinned {
-			return fmt.Errorf("orchestra.providers[%s].model_policy %q is invalid: must be quality or pinned", providerName, provider.ModelPolicy)
+			return fmt.Errorf("orchestra.providers[%q].model_policy %q is invalid: must be quality or pinned", providerName, provider.ModelPolicy)
 		}
 	}
 	return nil
