@@ -17,24 +17,23 @@ var ErrCodexNativePlacementUnavailable = errors.New(
 	"Codex 카탈로그가 관리형 native balanced 프로필을 지원하지 않음",
 )
 
-// resolveCodexPlacement resolves a native balanced profile against the probed
-// catalog. Three outcomes are possible:
+// resolveCodexPlacement resolves a native balanced profile against a catalog
+// snapshot. Three outcomes are possible:
 //
 //   - the catalog advertises the exact model and effort: use it;
 //   - the catalog could not be read (offline, unauthenticated, malformed): keep
-//     the requested profile verbatim and report it as unverified, because an
-//     absent catalog is no evidence that the model is absent;
+//     the requested profile verbatim as unverified, because an absent catalog
+//     is no evidence that the model is absent;
 //   - the catalog was read and offers something else: fail, so generation stops
 //     before a single file is written.
-func (a *Adapter) resolveCodexPlacement(requested config.CodexProfile) (config.CodexProfileResolution, error) {
-	resolution := config.ResolveCodexProfile(requested, a.codexCatalogJSON)
+func resolveCodexPlacement(requested config.CodexProfile, snapshot []byte) (config.CodexProfileResolution, error) {
+	resolution := config.ResolveCodexProfile(requested, snapshot)
 	if !resolution.Fallback {
 		return resolution, nil
 	}
 	if resolution.Reason == config.CodexResolutionCatalogUnknown {
 		resolution.Effective = requested
 		resolution.Fallback = false
-		a.reportCodexPlacementUnverified(requested, resolution.CatalogError)
 		return resolution, nil
 	}
 	return resolution, fmt.Errorf("%w: %s/%s (카탈로그 제공: %s, reason=%s)",

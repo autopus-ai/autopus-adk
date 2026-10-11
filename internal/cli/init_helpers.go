@@ -11,7 +11,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/insajin/autopus-adk/internal/cli/tui"
 	"github.com/insajin/autopus-adk/pkg/config"
 	"github.com/insajin/autopus-adk/pkg/detect"
 )
@@ -28,20 +27,7 @@ var legacyRootGeneratedGitignorePatterns = map[string]string{
 
 // generatePlatformFiles는 플랫폼별 파일을 생성한다.
 func generatePlatformFiles(ctx context.Context, dir string, cfg *config.HarnessConfig, cmd *cobra.Command) error {
-	effectiveCfg := applyFlagCC21Overrides(cfg, globalFlagsFromContext(cmd.Context()))
-
-	for _, p := range cfg.Platforms {
-		descriptor, ok := lookupPlatformDescriptor(p)
-		if !ok {
-			tui.Warnf(cmd.OutOrStdout(), "알 수 없는 플랫폼 %q, 건너뜀", p)
-			continue
-		}
-		if _, err := descriptor.Generate(ctx, dir, effectiveCfg); err != nil {
-			return fmt.Errorf("플랫폼 %q 파일 생성 실패: %w", p, err)
-		}
-		tui.Success(cmd.OutOrStdout(), p)
-	}
-	return nil
+	return generatePlatformFilesWith(ctx, dir, cfg, cmd, driftGenerationSnapshot{})
 }
 
 // detectDefaultPlatforms returns installed, ADK-supported platforms in a stable order.

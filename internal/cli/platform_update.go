@@ -15,12 +15,7 @@ func updateHarnessPlatform(
 	platform string,
 	cfg *config.HarnessConfig,
 ) (bool, error) {
-	descriptor, ok := lookupPlatformDescriptor(platform)
-	if !ok {
-		return false, nil
-	}
-	_, err := descriptor.Update(ctx, dir, cfg)
-	return true, err
+	return updateHarnessPlatformWith(ctx, dir, platform, cfg, driftGenerationSnapshot{})
 }
 
 func newlyDetectedPlatforms(cfg *config.HarnessConfig) []string {

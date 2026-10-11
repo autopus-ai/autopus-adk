@@ -24,13 +24,26 @@ func applyQualityHarnessPlatforms(
 	platforms []string,
 	retryCommand string,
 ) error {
+	return applyQualityHarnessPlatformsUsing(cmd, dir, cfg, platforms, retryCommand, qualityPlatformUpdater)
+}
+
+// applyQualityHarnessPlatformsUsing owns the apply report so every caller,
+// whichever updater it passes, prints the same lines.
+func applyQualityHarnessPlatformsUsing(
+	cmd *cobra.Command,
+	dir string,
+	cfg *config.HarnessConfig,
+	platforms []string,
+	retryCommand string,
+	update func(context.Context, string, string, *config.HarnessConfig) (bool, error),
+) error {
 	out := cmd.OutOrStdout()
 	updated := 0
 	var failures []string
 	codexApplied := false
 
 	for _, platform := range platforms {
-		supported, err := qualityPlatformUpdater(commandContext(cmd), dir, platform, cfg)
+		supported, err := update(commandContext(cmd), dir, platform, cfg)
 		if !supported {
 			fmt.Fprintf(out, "  skipped unknown platform: %s\n", platform)
 			continue

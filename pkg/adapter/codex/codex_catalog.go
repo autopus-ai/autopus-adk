@@ -42,20 +42,14 @@ func (c codexRenderContext) CodexSupervisorModel() string {
 	if !c.adapter.codexCatalogProbed {
 		return c.HarnessConfig.CodexSupervisorModel()
 	}
-	if !c.Quality.ManagesSupervisorModel() {
-		return ""
-	}
-	return c.resolve(c.Quality.CodexSupervisorProfile()).Effective.Model
+	return c.resolveSupervisor().Effective.Model
 }
 
 func (c codexRenderContext) CodexSupervisorEffort() string {
 	if !c.adapter.codexCatalogProbed {
 		return c.HarnessConfig.CodexSupervisorEffort()
 	}
-	if !c.Quality.ManagesSupervisorModel() {
-		return ""
-	}
-	return c.resolve(c.Quality.CodexSupervisorProfile()).Effective.Effort
+	return c.resolveSupervisor().Effective.Effort
 }
 
 // CodexAgentModel and CodexAgentEffort answer the agent TOML templates. Both
@@ -85,25 +79,34 @@ func (c codexRenderContext) CodexAgentEffort(agentName, fallbackTier, declaredEf
 	return resolution.Effective.Effort, nil
 }
 
-// resolveAgent resolves one managed agent profile against the probed catalog.
-// The standard native balanced placement is a routing decision rather than a
-// preference: answering it with a lower model or effort would hand the agent a
-// weaker rung than the policy names, so that path refuses substitution. Every
-// other profile — Ultra, a hand-edited tier, a non-canonical agent — keeps the
-// ordered availability fallback it has always had.
+// resolveAgent resolves one managed agent profile against the probed catalog
+// through ResolveAgentProfile, the decision the composition table shares, and
+// adds only the diagnostic output. A refused placement reports nothing here:
+// its error stops the template and carries the explanation.
 func (c codexRenderContext) resolveAgent(
 	agentName, fallbackTier, declaredEffort string,
 ) (config.CodexProfileResolution, error) {
-	requested := c.Quality.CodexAgentProfile(agentName, fallbackTier, declaredEffort)
-	if _, placed := c.Quality.NativeBalancedAgentCandidate(config.QualityProviderCodex, agentName); placed {
-		return c.adapter.resolveCodexPlacement(requested)
+	resolution, err := ResolveAgentProfile(
+		c.Quality, c.adapter.codexCatalogJSON, agentName, fallbackTier, declaredEffort,
+	)
+	if err != nil {
+		return resolution, err
 	}
-	return c.resolve(requested), nil
+	if codexPlacementUnverified(resolution) {
+		c.adapter.reportCodexPlacementUnverified(resolution.Requested, resolution.CatalogError)
+		return resolution, nil
+	}
+	c.adapter.reportCodexFallback(resolution)
+	return resolution, nil
 }
 
-func (c codexRenderContext) resolve(requested config.CodexProfile) config.CodexProfileResolution {
-	resolution := config.ResolveCodexProfile(requested, c.adapter.codexCatalogJSON)
-	c.adapter.reportCodexFallback(resolution)
+// resolveSupervisor resolves the managed root session profile, answering with
+// an empty profile when quality leaves the root model to the user.
+func (c codexRenderContext) resolveSupervisor() config.CodexProfileResolution {
+	resolution, managed := ResolveSupervisorProfile(c.Quality, c.adapter.codexCatalogJSON)
+	if managed {
+		c.adapter.reportCodexFallback(resolution)
+	}
 	return resolution
 }
 
