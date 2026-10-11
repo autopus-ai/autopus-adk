@@ -106,43 +106,10 @@ func applyClaudeAgentProfile(cfg *config.HarnessConfig, filename, content string
 }
 
 // claudeAgentProfile resolves one agent's frontmatter model and reasoning
-// effort. The standard balanced placement addresses exact model ids so Claude
-// Code routes the top rung to the frontier model instead of whichever release
-// the tier alias currently points at; every other preset — Ultra, a custom
-// preset, or a per-agent tier the user moved off the standard rung — keeps
-// projecting the relative tier alias.
+// effort through the shared quality projection, so the composition table and
+// this generator read the same mapping.
 func claudeAgentProfile(cfg *config.HarnessConfig, agent, fallbackTier string) (model, effort string) {
-	if candidate, ok := cfg.Quality.NativeBalancedAgentCandidate(config.QualityProviderClaude, agent); ok {
-		return nativeClaudeModelID(candidate.Selector), candidate.Thinking
-	}
-	tier := cfg.Quality.AgentTier(config.QualityProviderClaude, agent, fallbackTier)
-	return tier, claudeAgentEffort(cfg.Quality.EffectiveMode(config.QualityProviderClaude), tier)
+	return cfg.Quality.ClaudeAgentProfile(agent, fallbackTier)
 }
 
-// nativeClaudeModelID drops the routing provider prefix from a role model
-// selector, leaving the model id the Claude CLI itself accepts.
-func nativeClaudeModelID(selector string) string {
-	if _, model, found := strings.Cut(selector, "/"); found {
-		return model
-	}
-	return selector
-}
-
-func claudeAgentEffort(mode, tier string) string {
-	switch tier {
-	case "haiku":
-		return ""
-	case "fable":
-		return "max"
-	case "opus":
-		if mode == "ultra" {
-			return "max"
-		}
-		return "high"
-	default:
-		if mode == "ultra" {
-			return "high"
-		}
-		return "medium"
-	}
-}
+func claudeAgentEffort(mode, tier string) string { return config.ClaudeAgentEffort(mode, tier) }
