@@ -103,11 +103,13 @@ Priority: Must · EARS: Ubiquitous
 THE SYSTEM SHALL build every written quality value from the raw `quality` node decoded without environment expansion, SHALL refuse the write when that raw decode differs from the loaded quality section or when the quality subtree contains an alias node or a merge key, SHALL write `quality.default` alone through `saveQualityDefault` and every other change through `[NEW] saveQualityBlock`, and SHALL splice only the top-level `quality` block into the original bytes, so that no environment-expanded value is written and every byte outside that block stays identical.
 
 - 이유(F-001): `project_name: &note '${PRESET_NOTE}'`와 `quality.presets.balanced.description: *note`처럼 quality 밖 anchor를 참조하면 quality 블록 안에는 `${`가 없다. 그런데 loader가 펼친 `cfg.Quality`를 다시 쓰면 펼쳐진 값이 파일에 남는다. 그래서 문자열 검사가 아니라 쓰기 원천을 바꾼다.
-- 사전 검사(line writer와 block writer 공통, 쓰기 전):
+- 사전 검사(구성 단계의 line 쓰기와 block writer, 쓰기 전). 인자를 받는 기존 한 줄 명령(`auto quality <preset>`, `supervisor`)과 전역 메뉴의 line writer에는 걸지 않고 base 동작을 유지한다(REQ-MUX-16, review R1):
   1. raw decode: 원본 bytes를 yaml.v3 Node로 읽고, root `quality` 값 node를 env 확장 없이 `config.QualityConf`로 decode한다. 원본은 `pruneRetiredConfig`(SPEC-PANERM-001 REQ-10)를 적용한 뒤의 bytes다.
   2. 불일치 거부: raw decode가 loader가 읽은 quality(`config.LoadPreview`)와 deep-equal이 아니면 쓰지 않는다. 설정된 환경 변수의 `${NAME}`이 quality 값에 직접 있든 alias·merge로 들어오든 모두 여기 걸린다.
   3. 참조 거부: quality subtree 안에 alias node(`*x`)나 merge key(`<<`)가 있으면 쓰지 않는다. 다시 encode하면 참조가 사본으로 바뀌어 의미가 달라진다. 환경 변수가 설정되지 않아 2번을 통과하는 참조도 여기서 막는다.
   4. 거부 출력: `quality 블록에 환경 변수 값이나 YAML 참조(alias·merge)가 섞여 있어 자동으로 쓰지 않습니다. autopus.yaml을 직접 고치세요.` 파일은 그대로다.
+  5. 비활성 placeholder 보존(security F1): 원본에서 loader가 펼치지 않던 글자(escape된 `\x24{`, `!!binary`, 주석 안 `${NAME}` 등)가 쓰기 결과의 quality 데이터에서 새 `${NAME}` placeholder가 되면 거부한다.
+  6. 줄바꿈 문자 거부(security F2): 원본이나 encode 결과에 U+2028, U+2029, U+0085, 단독 CR이 있으면 `errQualityLineBreakRefused`로 거부하고 파일은 그대로다.
   설정되지 않은 변수의 `${NAME}`이 quality 값에 직접 있으면(참조 없음) 2번과 3번을 통과한다. 이때는 raw 값이 그대로 다시 쓰이므로 placeholder 글자가 보존된다.
 - block 쓰기 순서: (1) 사전 검사를 통과한 raw quality에 이번 변경(binding, 갱신, 도구별 편집기의 프리셋과 binding)만 더해 후보를 만든다. (2) `replaceAutopusConfigSection`으로 후보를 encode하고 검증한다. (3) encode 결과에서 같은 경계 규칙으로 quality 블록을 잘라 원본 범위에 넣는다. (4) `verifyQualityLineEdit(원본, 결과, "quality")`와 `validateQualityYAML(결과, 후보)`(후보는 raw 기반)를 통과해야 한다. (5) atomic replace. 어느 단계든 실패하면 원본 bytes는 그대로다.
 - 블록 경계(R05): root mapping에서 `quality` 다음에 오는 key node의 줄 직전까지가 후보 범위다. 다음 key가 없으면 파일 끝까지이고, 문서 표시 줄(`---`, `...`)이 먼저 오면 그 줄 직전까지다. 후보 범위 끝에 이어진 빈 줄과 1열 주석 줄은 다음 key의 머리 주석으로 보고 블록 밖에 둔다. quality 자식 사이에 있는 1열 주석(뒤에 들여쓴 자식이 이어짐)은 블록 안이다. root가 flow mapping이면 쓰지 않는다. 원본이 CRLF면 새 블록도 CRLF다. 블록이 없으면 파일 끝에 붙인다.
@@ -274,7 +276,7 @@ THE SYSTEM SHALL document the role groups, table columns, binding rules, update 
 
 - `quality.default`가 이미 결과의 이름이면 그 줄은 쓰지 않는다. 다른 프리셋(예전 `custom`, 사용자 프리셋 `fast`)은 지우지 않고 값도 바꾸지 않는다.
 - `u` 갱신: historical인 built-in 프리셋마다 `quality.presets.<name>`의 agents와 description을 최신 기본값으로 바꾼다. `quality.default`는 그대로이고, writer는 block이다.
-- 모든 쓰기는 REQ-MUX-08의 사전 검사를 먼저 통과해야 한다.
+- 구성 단계의 모든 쓰기(line, block)는 REQ-MUX-08의 사전 검사를 먼저 통과해야 한다.
 
 ### Update Prompt Contract
 
@@ -372,7 +374,7 @@ T15에서 전체 suite로 확인한다. 바뀌는 test가 생기면 요구사항
 
 | Finding | 처리 | 위치 |
 |---------|------|------|
-| MUX-R01 / F-001 (security) quality 밖 placeholder anchor를 alias로 참조하면 펼쳐진 값이 써진다 | 쓰기 원천을 env 확장 없는 raw quality decode로 바꿨다. raw와 loader 값이 다르거나 alias·merge가 있으면 거부한다. line writer에도 같은 사전 검사를 둔다. 같은 writer를 쓰던 도구별 편집기도 위임한다(C20) | Trust Model, REQ-MUX-08, S13 |
+| MUX-R01 / F-001 (security) quality 밖 placeholder anchor를 alias로 참조하면 펼쳐진 값이 써진다 | 쓰기 원천을 env 확장 없는 raw quality decode로 바꿨다. raw와 loader 값이 다르거나 alias·merge가 있으면 거부한다. 구성 단계의 line 쓰기에도 같은 사전 검사를 둔다(기존 한 줄 명령은 base 동작 유지, review R1). 같은 writer를 쓰던 도구별 편집기도 위임한다(C20) | Trust Model, REQ-MUX-08, S13 |
 | MUX-R02 표와 생성 값 불일치(Codex catalog, OMP degrade) | Codex 칸은 생성기의 해석 함수와 run 단위 catalog snapshot으로 계산하고, 같은 run의 생성이 같은 snapshot을 쓴다. OMP 칸은 요청 route로 범위를 명시했다. 대체·거부·catalog 없음 표기를 정했다 | REQ-MUX-05, REQ-MUX-19, Table Cell Contract, S5, S19 |
 | MUX-R03 customized 프리셋 byte 불변과 block 재encode 충돌 | 보존 단위를 값(agents, description)으로 바꿨다. byte 불변은 유지 경로(파일 전체), block 밖, line writer의 `default:` 밖으로 한정했다. 미리보기가 서식 변화를 알린다 | REQ-MUX-06, REQ-MUX-12, INV-MUX-03, S9, S13 |
 | MUX-R04 override 질문이 승인 뒤에 나온다 | 질문을 미리보기 전으로 옮겨 후보에 반영한다 | REQ-MUX-06, REQ-MUX-20, S15 |
