@@ -48,12 +48,13 @@ func runUpdateComposeStep(
 	return result.Snapshot
 }
 
-// warnUpdateCompose prints the step's one warning line. Control characters
-// are spelled out, so a multi-line error still takes one line.
+// warnUpdateCompose prints the step's one warning line. terminalSafe spells
+// out control and format characters, so a multi-line error still takes one
+// line and cannot drive the terminal.
 func warnUpdateCompose(out io.Writer, lang string, err error) {
 	prefix := "warning"
 	if lang == "ko" {
 		prefix = "경고"
 	}
-	fmt.Fprintf(out, "  %s: %s\n", prefix, composeDriverEscape(err.Error()))
+	fmt.Fprintf(out, "  %s: %s\n", prefix, terminalSafe(err.Error()))
 }

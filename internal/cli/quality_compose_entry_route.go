@@ -125,7 +125,8 @@ func runQualityGlobalMenu(cmd *cobra.Command, dir string, cfg *config.HarnessCon
 		if preset == cfg.Quality.Default {
 			marker = "*"
 		}
-		desc := strings.TrimSpace(cfg.Quality.Presets[preset].Description)
+		// A description is free text from autopus.yaml (REQ-MUX-05).
+		desc := terminalSafe(strings.TrimSpace(cfg.Quality.Presets[preset].Description))
 		if desc != "" {
 			fmt.Fprintf(out, "  %s %d) %s - %s\n", marker, i+1, preset, desc)
 		} else {

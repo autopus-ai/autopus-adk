@@ -182,7 +182,7 @@ func (d *composeDriverState) preview(plan composeDriverPlan) error {
 	}
 	fmt.Fprintln(d.out, d.Text.ChangesHeading)
 	for _, change := range plan.Changes {
-		fmt.Fprintf(d.out, "  %s\n", composeDriverEscape(change))
+		fmt.Fprintf(d.out, "  %s\n", terminalSafe(change))
 	}
 	return nil
 }

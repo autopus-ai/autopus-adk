@@ -117,7 +117,7 @@ func (p composeOverridePlanner) askOverrides(candidate *config.HarnessConfig) []
 			!containsPlatform(candidate.Platforms, qualityProviderPlatform(column.provider)) {
 			continue
 		}
-		fmt.Fprintf(out, text.question+"\n", column.label, column.provider, composeDriverEscape(override))
+		fmt.Fprintf(out, text.question+"\n", column.label, column.provider, terminalSafe(override))
 		fmt.Fprint(out, "> ")
 		line, err := reader.ReadString('\n')
 		answer := strings.ToLower(strings.TrimSpace(line))

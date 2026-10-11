@@ -3,9 +3,7 @@ package cli
 import (
 	"fmt"
 	"slices"
-	"strconv"
 	"strings"
-	"unicode"
 
 	"gopkg.in/yaml.v3"
 
@@ -118,7 +116,7 @@ func describeComposeBinding(
 		lines = append(lines, fmt.Sprintf(text.presetUpdate, write.Name, detail))
 	}
 	if plan.Default != "" {
-		from := composeBindDisplay(cfg.Quality.Default)
+		from := terminalSafe(cfg.Quality.Default)
 		if from == "" {
 			from = text.noDefault
 		}
@@ -215,16 +213,6 @@ func composeAgentChangeText(from, to map[string]string, text composeBindText) st
 		parts = append(parts, text.removed+" "+strings.Join(removed, ", "))
 	}
 	return strings.Join(parts, " · ")
-}
-
-// composeBindDisplay escapes control characters of a YAML-sourced name before
-// it reaches the terminal (REQ-MUX-05).
-func composeBindDisplay(value string) string {
-	if strings.IndexFunc(value, unicode.IsControl) < 0 {
-		return value
-	}
-	quoted := strconv.Quote(value)
-	return quoted[1 : len(quoted)-1]
 }
 
 // qualityBlockCommentLines counts the comment lines inside the top-level

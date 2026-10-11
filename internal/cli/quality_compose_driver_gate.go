@@ -4,9 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 	"strings"
-	"unicode"
 
 	"github.com/spf13/cobra"
 
@@ -111,7 +109,7 @@ func composeDriverHistorical(quality config.QualityConf) []string {
 // quality.default and the GAP 1 label of each written built-in preset. An
 // absent preset carries no label.
 func composeDriverStatus(quality config.QualityConf, text composeText) string {
-	parts := []string{"quality.default = " + composeDriverEscape(quality.Default)}
+	parts := []string{"quality.default = " + terminalSafe(quality.Default)}
 	for _, name := range composeDriverBuiltins {
 		status, _ := config.ClassifyBuiltinQualityPreset(quality, name)
 		switch status.Class {
@@ -124,19 +122,4 @@ func composeDriverStatus(quality config.QualityConf, text composeText) string {
 		}
 	}
 	return strings.Join(parts, "   ")
-}
-
-// composeDriverEscape spells out control characters, so a value that came
-// from autopus.yaml cannot write terminal control sequences (REQ-MUX-05).
-func composeDriverEscape(value string) string {
-	var escaped strings.Builder
-	for _, r := range value {
-		if unicode.IsControl(r) {
-			quoted := strconv.QuoteRune(r)
-			escaped.WriteString(quoted[1 : len(quoted)-1])
-			continue
-		}
-		escaped.WriteRune(r)
-	}
-	return escaped.String()
 }
