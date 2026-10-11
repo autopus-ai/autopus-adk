@@ -108,14 +108,11 @@ func TestPersistComposeBinding_LineWrite_RefusesEnvValuesAndReferencesInQuality(
 	}
 }
 
-// REQ-MUX-16 keeps the subcommands that take arguments as they were: their
-// one-line writer replaces or inserts a validated preset name or policy, which
-// cannot carry an expanded value, and verifyQualityLineEdit already refuses an
-// edit that would rebind an alias. So they still edit a file whose quality
-// block holds a YAML reference, changing that one line alone.
-func TestQualityLineCommands_EditAReferenceFileAsBefore(t *testing.T) {
+// lineReferenceFixtures are files whose quality block holds a YAML reference
+// that the one-line writer edits as it always has.
+func lineReferenceFixtures() map[string]string {
 	base := "project_name: demo\nmode: full\nplatforms: [claude-code]\n"
-	fixtures := map[string]string{
+	return map[string]string{
 		"anchor and alias inside quality": blockInnerAlias,
 		"agents alias inside quality": base + "quality:\n  default: balanced\n  presets:\n" +
 			"    balanced:\n      agents: &base\n        planner: opus\n" +
@@ -124,6 +121,14 @@ func TestQualityLineCommands_EditAReferenceFileAsBefore(t *testing.T) {
 			"    balanced:\n      <<: {description: b}\n    ultra:\n      description: u\n",
 		"F1 with the variable unset": blockLeakAlias,
 	}
+}
+
+// REQ-MUX-16 keeps the subcommands that take arguments as they were: their
+// one-line writer replaces or inserts a validated preset name or policy, which
+// cannot carry an expanded value, and verifyQualityLineEdit already refuses an
+// edit that would rebind an alias. So they still edit a file whose quality
+// block holds a YAML reference, changing that one line alone.
+func TestQualityLineCommands_EditAReferenceFileAsBefore(t *testing.T) {
 	commands := map[string]struct {
 		args []string
 		line string
@@ -134,7 +139,7 @@ func TestQualityLineCommands_EditAReferenceFileAsBefore(t *testing.T) {
 			line: "  default: balanced\n  supervisor_model_policy: inherit\n",
 		},
 	}
-	for name, content := range fixtures {
+	for name, content := range lineReferenceFixtures() {
 		for command, tc := range commands {
 			t.Run(name+"/"+command, func(t *testing.T) {
 				setPresetNote(t, false)
@@ -208,4 +213,24 @@ func TestSaveQualityBlock_WithoutAConfigFileAnEditErrorCreatesNothing(t *testing
 	require.ErrorIs(t, err, os.ErrInvalid)
 	_, statErr := os.Stat(filepath.Join(dir, "autopus.yaml"))
 	assert.ErrorIs(t, statErr, os.ErrNotExist)
+}
+
+// The global menu, which the composition prompt hands `global` to, writes
+// through the same one-line writer and keeps its behavior too: only the
+// default line changes (review N2).
+func TestQualityGlobalMenu_EditsAReferenceFileAsBefore(t *testing.T) {
+	for name, content := range lineReferenceFixtures() {
+		t.Run(name, func(t *testing.T) {
+			stubDriverProbes(t, true, "")
+			setComposeLanguage(t, "en")
+			setPresetNote(t, false)
+			dir := writeBlockFixture(t, content)
+
+			out, err := runQualityCompose(t, dir, strings.NewReader("global\nultra\n"))
+
+			require.NoError(t, err, out)
+			assert.Contains(t, out, "quality.default = ultra\n")
+			assert.Equal(t, strings.Replace(content, "  default: balanced\n", "  default: ultra\n", 1), readBlockFixture(t, dir))
+		})
+	}
 }
