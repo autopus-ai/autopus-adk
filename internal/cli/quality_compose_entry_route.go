@@ -53,10 +53,12 @@ func (r qualityComposeRouter) Targets() []string {
 // Route runs target's editor as the target menu did once that target was
 // chosen; the empty target is `t`, which opens the menu first. A tool editor
 // reached by name first names the platforms without per-agent models, as the
-// menu it skips would have.
-func (r qualityComposeRouter) Route(target string) error {
+// menu it skips would have. With --apply the editor generates with snapshot,
+// the one the composition table read.
+func (r qualityComposeRouter) Route(target string, snapshot driftGenerationSnapshot) error {
+	apply := qualityEditorApply{enabled: r.apply, snapshot: snapshot}
 	if target == "" {
-		return runQualityTargetMenu(r.cmd, r.dir, r.cfg, r.apply, r.deps)
+		return runQualityTargetMenu(r.cmd, r.dir, r.cfg, apply, r.deps)
 	}
 	names := qualityTargetNames(r.cfg)
 	if index, err := strconv.Atoi(target); err == nil && index >= 1 && index <= len(names) {
@@ -65,7 +67,21 @@ func (r qualityComposeRouter) Route(target string) error {
 	if target != "global" {
 		writeInheritOnlyQualityToolNote(r.cmd.OutOrStdout(), r.cfg)
 	}
-	return runQualityTarget(r.cmd, r.dir, r.cfg, target, r.apply, r.deps)
+	return runQualityTarget(r.cmd, r.dir, r.cfg, target, apply, r.deps)
+}
+
+// qualityEditorApply is the --apply of an editor the composition prompt
+// hands input to. It regenerates with the snapshot the composition table
+// read, so the run reads the Codex catalog once and generates what the table
+// showed (REQ-MUX-19).
+type qualityEditorApply struct {
+	enabled  bool
+	snapshot driftGenerationSnapshot
+}
+
+// run regenerates the harness after the editor's confirmed write.
+func (a qualityEditorApply) run(cmd *cobra.Command, dir string, cfg *config.HarnessConfig, retryCommand string) error {
+	return applyQualityHarnessWith(cmd, dir, cfg, retryCommand, a.snapshot)
 }
 
 // runQualityTargetMenu is the guided flow `auto quality` ran before the
@@ -75,7 +91,7 @@ func runQualityTargetMenu(
 	cmd *cobra.Command,
 	dir string,
 	cfg *config.HarnessConfig,
-	apply bool,
+	apply qualityEditorApply,
 	deps ompPlatformDependencies,
 ) error {
 	if len(configuredQualityModelTools(cfg)) == 0 {
@@ -95,7 +111,7 @@ func runQualityTarget(
 	dir string,
 	cfg *config.HarnessConfig,
 	target string,
-	apply bool,
+	apply qualityEditorApply,
 	deps ompPlatformDependencies,
 ) error {
 	for _, tool := range configuredQualityModelTools(cfg) {
@@ -111,7 +127,7 @@ func runQualityTarget(
 }
 
 // runQualityGlobalMenu chooses quality.default among the configured presets.
-func runQualityGlobalMenu(cmd *cobra.Command, dir string, cfg *config.HarnessConfig, apply bool) error {
+func runQualityGlobalMenu(cmd *cobra.Command, dir string, cfg *config.HarnessConfig, apply qualityEditorApply) error {
 	options := orderedQualityPresets(cfg)
 	if len(options) == 0 {
 		return fmt.Errorf("quality presets are not configured")
@@ -143,8 +159,8 @@ func runQualityGlobalMenu(cmd *cobra.Command, dir string, cfg *config.HarnessCon
 		return err
 	}
 	fmt.Fprintf(out, "quality.default = %s\n", choice)
-	if apply {
-		return applyQualityHarness(cmd, dir, cfg, "auto quality "+choice+" --apply")
+	if apply.enabled {
+		return apply.run(cmd, dir, cfg, "auto quality "+choice+" --apply")
 	}
 	return nil
 }

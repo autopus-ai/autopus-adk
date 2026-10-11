@@ -182,15 +182,18 @@ type driverFakeTools struct {
 	cmd     *cobra.Command
 	targets []string
 	routes  []string
-	read    []string
-	reads   int // lines each route reads
-	err     error
+	// snapshots holds the snapshot each route received.
+	snapshots []driftGenerationSnapshot
+	read      []string
+	reads     int // lines each route reads
+	err       error
 }
 
 func (f *driverFakeTools) Targets() []string { return f.targets }
 
-func (f *driverFakeTools) Route(target string) error {
+func (f *driverFakeTools) Route(target string, snapshot driftGenerationSnapshot) error {
 	f.routes = append(f.routes, target)
+	f.snapshots = append(f.snapshots, snapshot)
 	reader := bufio.NewReader(f.cmd.InOrStdin())
 	for range f.reads {
 		line, _ := reader.ReadString('\n')

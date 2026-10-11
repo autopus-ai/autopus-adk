@@ -77,8 +77,9 @@ type composeDriverTools interface {
 	Targets() []string
 	// Route runs the editor of target as chooseQualityTarget does once that
 	// target is chosen. The empty target is the `t` key: the existing target
-	// menu asks first.
-	Route(target string) error
+	// menu asks first. snapshot is the catalog snapshot the table read; an
+	// editor's --apply generates with it, so the run reads the catalog once.
+	Route(target string, snapshot driftGenerationSnapshot) error
 }
 
 // composeDriverOutcome is how a composition session ended.

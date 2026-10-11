@@ -207,6 +207,9 @@ func TestComposeDriverSession_ToolsRouteThroughTheSharedReader(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, composeDriverRouted, result.Outcome)
 			assert.Equal(t, tc.routes, tools.routes)
+			assert.True(t, result.Snapshot.codexCatalogFixed)
+			assert.Equal(t, []driftGenerationSnapshot{result.Snapshot}, tools.snapshots,
+				"the editor gets the snapshot the table read")
 			assert.Equal(t, tc.read, tools.read)
 			assert.Contains(t, out.String(), driverToolsQuestion)
 			assert.Empty(t, planner.edits)

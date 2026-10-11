@@ -21,7 +21,7 @@ func runQualityToolInteractive(
 	dir string,
 	cfg *config.HarnessConfig,
 	tool qualityModelTool,
-	apply bool,
+	apply qualityEditorApply,
 ) error {
 	out := cmd.OutOrStdout()
 	rows, err := qualityToolAgentRows(cfg, tool.provider)
@@ -73,8 +73,8 @@ func runQualityToolInteractive(
 	}
 	fmt.Fprintf(out, "quality.presets.%s written; quality.providers.%s = %s\n",
 		preset, tool.provider, preset)
-	if apply {
-		return applyQualityHarness(cmd, dir, cfg, "auto quality --apply")
+	if apply.enabled {
+		return apply.run(cmd, dir, cfg, "auto quality --apply")
 	}
 	fmt.Fprintln(out, "Run `auto update` to regenerate the agent files with these models.")
 	return nil

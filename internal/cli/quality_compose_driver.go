@@ -100,7 +100,7 @@ func (d *composeDriverState) menu() (composeDriverResult, error) {
 			return d.compose(d.advancedStep)
 		}
 		if target, ok := d.toolTarget(answer); ok {
-			return composeDriverResult{Outcome: composeDriverRouted, Snapshot: d.snapshot}, d.Tools.Route(target)
+			return composeDriverResult{Outcome: composeDriverRouted, Snapshot: d.snapshot}, d.Tools.Route(target, d.snapshot)
 		}
 	}
 	fmt.Fprintln(d.out, d.Text.InvalidKeep)

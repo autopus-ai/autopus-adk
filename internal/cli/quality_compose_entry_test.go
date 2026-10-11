@@ -117,6 +117,29 @@ func TestQualityCompose_RoutesTargetsToTheExistingEditors(t *testing.T) {
 	}
 }
 
+// An editor reached from the composition prompt regenerates with --apply
+// from the snapshot the table read, so the run reads the Codex catalog once
+// and the adapters never probe for themselves (REQ-MUX-19, review A4).
+func TestQualityCompose_RoutedEditorsApplyWithTheRunSnapshot(t *testing.T) {
+	for name, input := range map[string]string{
+		"global":                  "global\n1\n",
+		"t opens the target menu": "t\nglobal\n1\n",
+		"claude-code tool editor": "claude-code\nexecutor=fable\n\n\ny\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			run := newComposeUpdateRun(t, true, "")
+			dir, _ := composeSessionProject(t, "D")
+
+			out, err := runQualityCompose(t, dir, strings.NewReader(input), "--apply")
+
+			require.NoError(t, err, out)
+			assert.Contains(t, out, "quality.applied_platforms = 2\n")
+			assert.Len(t, *run.probes, 1, "one catalog read per run")
+			assert.False(t, run.adapterProbed(t), "the apply must read the run's snapshot")
+		})
+	}
+}
+
 // A process stdin that is not a terminal keeps the existing error: nothing is
 // read, no table is drawn, and no catalog is probed.
 func TestQualityCompose_NonTerminalStdinKeepsTheExistingError(t *testing.T) {
