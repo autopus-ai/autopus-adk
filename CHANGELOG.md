@@ -4,6 +4,75 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **`auto init`·`auto update`·`auto quality`: 에이전트별 모델 구성 단계** (2026-10-12,
+  SPEC-MODELUX-001): 지금까지 에이전트별 등급은 `auto quality` 안의 도구별 16행 `agent=tier` 편집기에서만
+  바꿀 수 있었고, 플랫폼마다 실제로 어떤 모델이 도는지 한 화면에서 볼 수 없었다. 또 init이 그때의 기본
+  프리셋을 파일에 통째로 쓰고 loader는 코드 기본값과 병합하지 않아, 예전 버전이 쓴 `balanced`·`ultra`는
+  새 등급(fable)과 16개 에이전트 체계를 받지 못했다. 이제 세 진입점이 같은 구성 단계를 쓴다.
+  - 구성 표: 에이전트마다 한 행, 등급 열, 설치된 플랫폼마다 한 열(Claude Code, Codex, OMP, OpenCode,
+    Antigravity 순서)이다. Claude Code와 Codex 칸은 이번 실행의 생성기가 쓸 `model · effort`다. Codex 칸은
+    실행마다 한 번 읽은 catalog(최대 5초)로 해석하고 같은 실행의 생성도 그 결과를 쓰므로, 표와 생성 파일이
+    다른 catalog를 보지 않는다. OMP 칸은 선택한 OMP profile의 요청 route이고 머리말은
+    `요청 route · catalog 확인 전`이다. OMP catalog가 실제로 고르는 모델은 보여 주지 않으며, route가
+    낮아지면 생성 때 기존 degraded-route 안내가 알린다. OpenCode와 Antigravity는 에이전트 파일에 모델이
+    없으므로 `플랫폼 기본값`이다. `quality.providers.claude`·`quality.providers.codex` override가 있으면 그
+    열은 override로 계산하고 머리말에 `개별 설정: <preset>`을 쓴다.
+  - 편집: 화면에만 있는 역할 그룹 4개 — 설계·판단(planner, architect, spec-writer, security-auditor),
+    구현(executor, debugger, deep-worker, devops, frontend-specialist, perf-engineer), 검증·리뷰(reviewer,
+    validator, tester, ux-validator), 탐색·보조(explorer, annotator) — 마다 등급을 고르거나(`g`, 섞인 그룹은
+    `혼합 (fable 2 · sonnet 4)`처럼 보이고 Enter면 그대로) 고급(`a`)에서 `agent=tier` 줄로 하나씩 바꾼다.
+    그룹 이름은 `autopus.yaml`에 쓰지 않는다. 시작 구성은 지금 생성되는 등급이다. 바뀐 칸에 `*`가 붙은
+    적용 후 표와 바뀌는 키 목록을 보고 `y`/`yes`로 답할 때만 쓴다(`e`는 계속 편집, 그 밖의 답은 취소).
+    손대지 않고 끝내면 아무것도 쓰지 않는다.
+  - binding: 결과가 최신 `balanced`나 `ultra` 기본값과 같으면 그 프리셋을 고르고, 그 프리셋이 없거나
+    이전 버전 사본이면 프리셋도 최신 기본값으로 쓴다. 그 밖의 결과는 `quality.presets.custom`(16개 전부,
+    description `역할 그룹 구성`)과 `quality.default: custom`이다. 쓰는 키는 `quality.default`와
+    `quality.presets.<name>`의 `description`·`agents`뿐이고, 아래 override 제거 말고는 `quality.providers`를
+    쓰지 않는다. 다른 프리셋은 지우거나 바꾸지 않는다.
+  - 이전 버전 기본값 판별(GAP 1): 파일의 `balanced`·`ultra`를 agents 맵이 정확히 같은지로 `현재 기본값`,
+    `이전 버전 기본값 (갱신 가능)`(출하된 예전 기본 배치 중 하나, description은 보지 않음),
+    `사용자 수정 (N개 다름)`(그 밖, 일부만 쓴 맵과 잘못된 등급 포함)으로 나눈다. `u`는 이전 버전 기본값인
+    프리셋을 모두 최신 기본값으로 한 번에 고쳐 쓰고 `quality.default`는 그대로 둔다. 런타임이 이미 표준
+    배치로 해석하던 balanced는 미리보기에 `모델 변화 없음, YAML만 정리`로 보인다. 런타임 해석은 바뀌지
+    않는다.
+  - 사용자 수정 보호: 사용자가 고친 `balanced`·`ultra`의 agents와 description 값은 이 기능의 어떤
+    쓰기에서도 바뀌지 않는다. 그 이름으로 묶일 결과는 `custom`으로 저장되고, `auto quality`의 도구별
+    편집기도 그 이름을 받으면 `사용자 수정 프리셋 <name>은 덮어쓰지 않습니다. 다른 이름을 입력하세요.`를
+    쓰고 다시 묻는다(3번이면 취소).
+  - `auto init`: 대화형 wizard의 품질 단계에 세 번째 선택지 `역할별 직접 구성`이 생겼다. balanced 기본값에서
+    시작하고, 확인하면 그 구성으로 `autopus.yaml`을 쓰고 같은 catalog snapshot으로 생성한다. 유지하거나
+    취소하면 balanced로 진행한다. Ultra나 Balanced를 고르면 질문 없이 표만 보여 준다. `--yes`, TTY가 아닌
+    입력, `--quality`는 그대로다(표도 없다).
+  - `auto update`: 대화형 터미널에서는 프로젝트 설정 질문 뒤, 플랫폼 생성 전에 표와 프리셋 상태를 보여 주고
+    매 실행 `구성을 바꿀까요?`를 한 번 묻는다. Enter, 입력 끝, 잘못된 답 3번은 `autopus.yaml`을 byte 단위로
+    그대로 둔다. 확인한 변경은 같은 실행의 생성에 들어가 생성 파일이 승인한 표와 같다. `--yes`/`-y`,
+    `--auto`, `--check`(`--self` 없이), 비어 있지 않고 `0`·`false`가 아닌 `CI`, TTY가 아닌 입력,
+    `--workspace`는 stdin을 읽지 않고 아무것도 바꾸지 않으며, 이전 버전 기본값이 있을 때만 `참고: <이름>
+    프리셋이 이전 버전 기본값입니다. 대화형 auto update 또는 auto quality에서 갱신할 수 있습니다.` 한 줄을
+    쓴다. `--plan`·`--preview`·`--dry-run` 출력은 바뀌지 않는다. 쓰기가 거부되거나 실패하면 원본을 그대로
+    두고 경고 한 줄을 남긴 뒤 update를 계속한다.
+  - `auto quality`(인자 없음): 구성 단계가 먼저 열린다. 같은 질문에서 `t`(도구별 설정)나 기존 대상 이름
+    `global`, `claude-code`, `codex`, `omp`로 기존 편집기에 바로 간다. `--apply`면 확인한 변경을 표와 같은
+    catalog snapshot으로 재생성한다(`quality.applied_platforms = N`). 쓰기가 거부되면 오류로 끝나고 아무것도
+    적용하지 않는다.
+  - provider override: `quality.providers.claude`나 `quality.providers.codex`가 새 전역 구성과 다른 프리셋을
+    가리키면, `auto quality`와 `auto update`는 미리보기 전에 `Codex도 새 구성을 따를까요?
+    (quality.providers.codex = <preset> 제거) [y/N]`처럼 묻고 답을 미리보기에 먼저 반영한다. `y`일 때만 그
+    항목 하나를 지운다.
+  - `auto quality show --agents`: 기존 `show` 줄은 그대로이고, 그 뒤에 같은 표를 읽기 전용으로 출력한다.
+    TTY가 아닌 stdin에서도 돈다.
+  - 화면 문구는 시스템 locale이 `ko`면 한국어, 아니면 영어다. 파일에 쓰는 값은 locale과 무관하다.
+  - quality 쓰기 사전 검사(동작 변경): 구성 쓰기와 도구별 편집기 저장은 env 확장 없이 읽은 raw `quality`에
+    이번 변경만 더해 quality 블록만 다시 쓴다. 블록 밖 bytes는 그대로다(도구별 편집기는 지금까지 문서
+    전체를 다시 encode해 블록 밖의 빈 줄과 들여쓰기도 바꿨다). 블록 안 주석과 서식은 유지되지 않으며(값은
+    그대로) 구성 단계의 미리보기가 이를 알린다. 쓰기 전에 quality 블록이 설정된 환경 변수의 `${NAME}` 값을
+    담거나 YAML alias·merge key를 쓰면 `quality 블록에 환경 변수 값이나 YAML 참조(alias·merge)가 섞여 있어
+    자동으로 쓰지 않습니다. autopus.yaml을 직접 고치세요.`로 거부하고 파일을 바꾸지 않는다. loader가 펼친
+    값(token 등)이 tracked 파일에 남는 경로를 막기 위해서다. 한 줄만 고치는 `auto quality <preset>`,
+    `auto quality set`, `auto quality supervisor`와 전역 메뉴도 같은 사전 검사를 거치므로, quality 블록에
+    alias·merge key나 설정된 환경 변수의 `${NAME}`이 있는 파일에서는 이제 쓰지 않고 거부한다.
+    `auto quality provider`는 그대로다. 이주: 그 자리에 값을 직접 쓴 뒤 다시 실행한다.
+
 - **orchestra: pane backend 은퇴 뒤 비어 있던 결과 필드와 reliability store 제거** (2026-10-09,
   SPEC-PANERM-001 후속): reliability store, yield passthrough, provider startup timeout을 채우거나
   읽던 코드는 모두 pane backend 파일에 있었고 `88eecc39`(SPEC-PANERM-001 W2)에서 함께 지워졌다. 그

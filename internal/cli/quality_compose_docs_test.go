@@ -170,6 +170,32 @@ func TestComposeDocs_GeneratedSkillsTellHowToChangeAgentModels(t *testing.T) {
 	}
 }
 
+// TestComposeDocs_ChangelogDocumentsTheFeatureAndTheWriterChange covers the
+// CHANGELOG half of S18 in the Korean the CHANGELOG is written in, including
+// the line writer precheck that now refuses `auto quality <preset>` and
+// `auto quality supervisor` on a quality block holding a YAML reference.
+func TestComposeDocs_ChangelogDocumentsTheFeatureAndTheWriterChange(t *testing.T) {
+	t.Parallel()
+
+	changelog := flowText(readRepoFile(t, "CHANGELOG.md"))
+	for _, want := range append(composeDocGroups("ko"), composeDocLabels("ko")...) {
+		assert.Contains(t, changelog, want, "CHANGELOG.md is missing %q", want)
+	}
+	for _, want := range append([]string{
+		"SPEC-MODELUX-001",
+		composeTextFor("ko").Question,
+		"역할별 직접 구성",
+		"`agent=tier`",
+		"`quality.presets.custom`",
+		"`auto quality show --agents`",
+		"`auto quality <preset>`",
+		"`auto quality supervisor`",
+		errQualityWriteRefused.Error(),
+	}, composeDocUpdateRules...) {
+		assert.Contains(t, changelog, want, "CHANGELOG.md is missing %q", want)
+	}
+}
+
 func TestInitHelp_LongDocumentsTheRoleGroupChoice(t *testing.T) {
 	t.Parallel()
 
