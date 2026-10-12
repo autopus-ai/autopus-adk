@@ -250,9 +250,12 @@ func validateSafety(profile string, safety RoleSafetyPolicyConf) error {
 	return nil
 }
 
+// validSelector accepts provider/model. The selector reaches the OMP CLI as
+// its own argv element, so neither half may start with '-'.
 func validSelector(selector string) bool {
 	parts := strings.Split(selector, "/")
 	return len(parts) == 2 && parts[0] != "" && parts[1] != "" &&
+		!strings.HasPrefix(parts[0], "-") && !strings.HasPrefix(parts[1], "-") &&
 		validPolicyToken(parts[0]) && validPolicyToken(parts[1])
 }
 
