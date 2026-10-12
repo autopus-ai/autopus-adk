@@ -147,6 +147,7 @@ Then 표의 planner 행은 `opus · max`, `6.1-sol · xhigh`이고 `*`가 없으
 And update 뒤 `planner.md`는 `model: opus`, `effort: max`, `planner.toml`은 `model = "gpt-6.1-sol"`, `model_reasoning_effort = "xhigh"`이고, autopus.yaml SHA-256은 같다
 
 ### S21: 실제 터미널 smoke
+- 종결(2026-10-12): 2026-10-12 1차 smoke에서 줄 입력 UX와 SHA oracle 문제가 드러났다(사용자 피드백 → SPEC-MODELUX-002). oracle은 SPEC-MODELUX-002 REQ-MUX2-13으로 고쳤고, 실제 TTY 확인은 SPEC-MODELUX-002 S20(`.autopus/specs/SPEC-MODELUX-002/evidence/manual-smoke-002.txt`)이 닫는다.
 Priority: Must
 Given macOS 터미널(실제 TTY), 이 branch로 만든 `auto`, `git init`한 빈 temp dir이 있다
 When `auto init --platforms claude-code,codex`에서 huh quality 단계의 `역할별 직접 구성`을 고르고 줄 프롬프트에 `g`, Enter, `3`, Enter, Enter, `y`를 입력한다. 이어서 `auto update`를 실행하고 Enter를 누른다

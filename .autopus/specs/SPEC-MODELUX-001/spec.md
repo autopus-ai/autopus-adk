@@ -1,6 +1,6 @@
 # SPEC-MODELUX-001: 에이전트별 모델 구성 UX — 역할 그룹, 플랫폼별 실제 모델 표, 오래된 프리셋 안전 갱신
 
-**Status**: approved
+**Status**: implemented
 **Created**: 2026-10-10
 **Revision**: 1 (spec review REJECT 1회 반영, `## Review Resolution (rev 1)`)
 **Domain**: MODELUX

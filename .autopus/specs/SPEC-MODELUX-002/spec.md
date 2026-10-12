@@ -1,6 +1,6 @@
 # SPEC-MODELUX-002: 에이전트 모델 구성 UX v2 — 화살표 선택 폼, 도구별 실제 모델 탭, OMP 지정, update 감지 플랫폼 표
 
-**Status**: approved
+**Status**: implemented
 **Created**: 2026-10-12
 **Domain**: MODELUX
 **Module**: autopus-adk
