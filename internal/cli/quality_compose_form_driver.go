@@ -120,7 +120,13 @@ func (f *composeFormRun) refresh() error {
 	if err != nil || !again {
 		return err
 	}
-	return f.compose(planner, newComposeAllToolsLabeler(planner), plan.Composition)
+	return f.compose(f.withOverrideQuestion(planner), newComposeAllToolsLabeler(planner), plan.Composition)
+}
+
+// withOverrideQuestion asks, before the preview of a 모든 도구 같게 edit,
+// whether each provider override follows it (REQ-MUX2-18).
+func (f *composeFormRun) withOverrideQuestion(planner *composeSessionPlanner) composeDriverPlanner {
+	return composeOverridePlanner{composeSessionPlanner: planner, cmd: f.cmd, form: true}
 }
 
 // edit asks the tool tab and runs the chosen tab from its start.
@@ -139,7 +145,7 @@ func (f *composeFormRun) edit() error {
 		}
 	}
 	planner := f.allToolsPlanner()
-	return f.compose(planner, newComposeAllToolsLabeler(planner), planner.Start())
+	return f.compose(f.withOverrideQuestion(planner), newComposeAllToolsLabeler(planner), planner.Start())
 }
 
 // chooseTab asks the tool tab (REQ-MUX2-04): 모든 도구 같게, whose answer is

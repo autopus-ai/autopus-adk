@@ -53,6 +53,11 @@ var composeOverrideProviders = []struct{ provider, label string }{
 type composeOverridePlanner struct {
 	*composeSessionPlanner
 	cmd *cobra.Command
+	// form asks through a huh Confirm whose default is no and joins a
+	// confirmed removal to the composition write, one quality block edit
+	// that leaves both or neither (SPEC-MODELUX-002 REQ-MUX2-18). The line
+	// driver asks a line and removes afterwards through the provider writer.
+	form bool
 }
 
 // withComposeOverrideQuestion adds the override question to a session built
@@ -73,9 +78,15 @@ func (p composeOverridePlanner) PlanEdit(edited map[string]string) (composeDrive
 	if binding.Writer == composeWriterNone {
 		return composeDriverPlan{NoChange: true}, nil
 	}
-	followers := p.askOverrides(binding.Candidate)
+	followers, err := p.askOverrides(binding.Candidate)
+	if err != nil {
+		return composeDriverPlan{}, err
+	}
 	for _, provider := range followers {
 		delete(binding.Candidate.Quality.Providers, provider)
+	}
+	if p.form && len(followers) > 0 {
+		binding.Writer = composeWriterBlock
 	}
 	plan, err := p.driverPlan(binding, composition)
 	if err != nil || len(followers) == 0 {
@@ -84,6 +95,10 @@ func (p composeOverridePlanner) PlanEdit(edited map[string]string) (composeDrive
 	text := composeOverrideTextFor(p.run.lang)
 	for _, provider := range followers {
 		plan.Changes = append(plan.Changes, fmt.Sprintf(text.removed, provider))
+	}
+	if p.form {
+		plan.Apply = func() error { return p.persistJoined(binding, followers) }
+		return plan, nil
 	}
 	write := plan.Apply
 	plan.Apply = func() error {
@@ -96,9 +111,10 @@ func (p composeOverridePlanner) PlanEdit(edited map[string]string) (composeDrive
 }
 
 // askOverrides asks about every installed provider whose override is in
-// force and names another preset than the new global binding. Only y or yes
-// follows; Enter, input end, and any other answer keep the override.
-func (p composeOverridePlanner) askOverrides(candidate *config.HarnessConfig) []string {
+// force and names another preset than the new global binding. On the line
+// driver only y or yes follows; Enter, input end, and any other answer keep
+// the override. A form defaults to no the same way; Ctrl+C ends the step.
+func (p composeOverridePlanner) askOverrides(candidate *config.HarnessConfig) ([]string, error) {
 	text := composeOverrideTextFor(p.run.lang)
 	out := p.cmd.OutOrStdout()
 	reader := bufio.NewReader(p.cmd.InOrStdin())
@@ -110,7 +126,18 @@ func (p composeOverridePlanner) askOverrides(candidate *config.HarnessConfig) []
 			!containsPlatform(candidate.Platforms, qualityProviderPlatform(column.provider)) {
 			continue
 		}
-		fmt.Fprintf(out, text.question+"\n", column.label, column.provider, terminalSafe(override))
+		question := fmt.Sprintf(text.question, column.label, column.provider, terminalSafe(override))
+		if p.form {
+			follow, err := composeConfirm(p.cmd, strings.TrimSuffix(question, " [y/N]"))
+			if err != nil {
+				return nil, err
+			}
+			if follow {
+				followers = append(followers, column.provider)
+			}
+			continue
+		}
+		fmt.Fprintln(out, question)
 		fmt.Fprint(out, "> ")
 		line, err := reader.ReadString('\n')
 		answer := strings.ToLower(strings.TrimSpace(line))
@@ -121,7 +148,27 @@ func (p composeOverridePlanner) askOverrides(candidate *config.HarnessConfig) []
 			followers = append(followers, column.provider)
 		}
 	}
-	return followers
+	return followers, nil
+}
+
+// persistJoined writes the composition and the confirmed removals in one
+// edit: one saveQualityBlock splice and atomic replace for a file, which
+// leaves the file and cfg as they were on refusal or failure, and for init
+// one change of its config after the plan's built-in checks.
+func (p composeOverridePlanner) persistJoined(binding composeBindingPlan, followers []string) error {
+	edit := func(quality *config.QualityConf) error {
+		if err := binding.apply(quality); err != nil {
+			return err
+		}
+		for _, provider := range followers {
+			delete(quality.Providers, provider)
+		}
+		return nil
+	}
+	if p.run.writer == composeSessionMemory {
+		return edit(&p.run.cfg.Quality)
+	}
+	return saveQualityBlock(p.run.dir, p.run.cfg, edit)
 }
 
 // removeOverrides drops each confirmed override after the composition write,
