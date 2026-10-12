@@ -118,8 +118,11 @@ func readOMPQualityFamily(cmd *cobra.Command) (string, error) {
 	return readQualityChoice(cmd, []string{"gpt", "claude"})
 }
 
+// renderOMPQualitySummary prints the plan's route per native agent. Profile
+// names, selectors, and thinking levels come from autopus.yaml and the
+// catalog, so every cell goes through terminalSafe.
 func renderOMPQualitySummary(out io.Writer, preview ompProfileApplyPreviewPayload) {
-	fmt.Fprintf(out, "\nOMP %s — model preview (no changes yet)\n", preview.Name)
+	fmt.Fprintf(out, "\nOMP %s — model preview (no changes yet)\n", terminalSafe(preview.Name))
 	table := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)
 	fmt.Fprintln(table, "Agent\tModel\tThinking")
 	for _, row := range preview.Agents {
@@ -131,7 +134,7 @@ func renderOMPQualitySummary(out io.Writer, preview ompProfileApplyPreviewPayloa
 		if row.Availability != ompProfileAvailabilityAvailable {
 			model, thinking = row.RequestedSelector+" (unavailable)", row.RequestedThinking
 		}
-		fmt.Fprintf(table, "%s\t%s\t%s\n", name, model, thinking)
+		fmt.Fprintf(table, "%s\t%s\t%s\n", terminalSafe(name), terminalSafe(model), terminalSafe(thinking))
 	}
 	_ = table.Flush()
 	if len(preview.Persisted.Agents) > 0 {

@@ -80,7 +80,7 @@ func readOMPCustomAgentPins(
 			pin += ":" + thinking
 		}
 		pins = append(pins, pin)
-		fmt.Fprintf(out, "  %s\n", pin)
+		fmt.Fprintf(out, "  %s\n", terminalSafe(pin))
 	}
 	return pins, nil
 }
@@ -199,12 +199,14 @@ func sortedOMPCustomModelChoices(choices []ompCustomModelChoice) []ompCustomMode
 	return choices
 }
 
+// renderOMPCustomModelChoices prints the installed models. Catalog text
+// reaches the terminal only through terminalSafe.
 func renderOMPCustomModelChoices(out io.Writer, choices []ompCustomModelChoice) {
 	table := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)
 	fmt.Fprintln(table, "#\tModel\tThinking")
 	for index, choice := range choices {
 		fmt.Fprintf(table, "%d\t%s\t%s\n",
-			index+1, choice.selector(), strings.Join(choice.Thinking, ","))
+			index+1, terminalSafe(choice.selector()), terminalSafe(strings.Join(choice.Thinking, ",")))
 	}
 	_ = table.Flush()
 }
