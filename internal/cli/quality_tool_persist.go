@@ -36,22 +36,26 @@ func saveQualityToolPreset(
 	if len(agents) == 0 {
 		return fmt.Errorf("preset %q would assign no agent a tier", preset)
 	}
-	written := config.QualityPreset{
+	return saveQualityBlock(dir, cfg, func(quality *config.QualityConf) error {
+		setQualityToolPreset(quality, tool, preset, agents)
+		return nil
+	})
+}
+
+// setQualityToolPreset sets the two keys a tool's custom tiers take: the
+// preset holding them, with the tool's description, and the binding of the
+// tool to it. The values come from the tier vocabulary and the tool alone,
+// never from a loaded config.
+func setQualityToolPreset(quality *config.QualityConf, tool qualityModelTool, preset string, agents map[string]string) {
+	if quality.Presets == nil {
+		quality.Presets = make(map[string]config.QualityPreset, 1)
+	}
+	quality.Presets[preset] = config.QualityPreset{
 		Description: tool.label + " custom agent tiers",
 		Agents:      maps.Clone(agents),
 	}
-	return saveQualityBlock(dir, cfg, func(quality *config.QualityConf) error {
-		if quality.Presets == nil {
-			quality.Presets = make(map[string]config.QualityPreset, 1)
-		}
-		quality.Presets[preset] = config.QualityPreset{
-			Description: written.Description,
-			Agents:      maps.Clone(written.Agents),
-		}
-		if quality.Providers == nil {
-			quality.Providers = make(map[string]string, 1)
-		}
-		quality.Providers[tool.provider] = preset
-		return nil
-	})
+	if quality.Providers == nil {
+		quality.Providers = make(map[string]string, 1)
+	}
+	quality.Providers[tool.provider] = preset
 }
