@@ -248,10 +248,19 @@ func (f *composeFormRun) apply(plan composeDriverPlan) {
 
 // choosePreset asks quality.default among the configured presets, the
 // current default first selected, and writes another choice through the
-// line writer on a detached copy: cfg follows only a successful write.
+// line writer on a detached copy: cfg follows only a successful write. A
+// default that names no configured preset, such as an empty one, gets a
+// keep option of its own, so Enter never writes the first preset.
 func (f *composeFormRun) choosePreset() error {
 	current := f.Config.Quality.Default
 	var options []composeOption[string]
+	if _, configured := f.Config.Quality.Presets[current]; !configured {
+		shown := current
+		if shown == "" {
+			shown = f.form.PresetNone
+		}
+		options = append(options, composeOption[string]{f.form.Keep + " — " + shown, current})
+	}
 	for _, name := range orderedQualityPresets(f.Config) {
 		label := name
 		if description := strings.TrimSpace(f.Config.Quality.Presets[name].Description); description != "" {
