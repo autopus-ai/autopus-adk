@@ -1337,6 +1337,14 @@ the quality block holds a `${NAME}` value of a set environment variable or a YAM
 key. They rewrite only the quality block: every byte outside it stays identical, comments inside it
 are not kept.
 
+In a terminal the step runs as huh forms, like the init wizard: arrow keys and Enter choose, and scripted or piped input keeps the line prompts above. The menu offers keep, update to the latest defaults (only when a built-in preset is a previous-version default), edit the composition, and, in `auto quality`, choose the default preset. **edit the composition** opens a tool tab:
+
+- **same for all tools** is the role-group composition above; every tier option names the cells each tool would get, for example `opus — Claude Code: opus-5-5 · high | Codex: 6.1-sol · xhigh`.
+- **Claude Code** and **Codex** change only that tool. Options read `<cells>  [<tier>]`, such as `6.1-sol · xhigh  [opus]`, and the result is saved as `quality.presets.<provider>-custom` (all 16 agents) with `quality.providers.<provider>: <provider>-custom`. Binaries older than v0.50.88 ignore `quality.providers`.
+- **OMP** appears in `auto update` and `auto quality` when the platforms saved in autopus.yaml include omp, and in `auto init` when the platforms this init chose include omp. It pins one installed model and thinking level per native OMP agent, previews the plan's real routes, and writes through the existing OMP profile writer; init keeps the choice in its config and writes it with the platform files.
+
+A Claude label names the model slug (`opus-5-5`), while the table cell is the frontmatter value the generator writes (`opus`, or an exact ID such as `fable-5-1`). `auto update` also shows a column for every platform it detected in this run and generates them from the same catalog read. Ctrl+C in a form ends `auto update` with a non-zero exit before any generation, cancels `auto init` before it writes any file, and leaves `auto quality` without an error.
+
 ### Execution Modes
 
 | Flag | Mode | Description |

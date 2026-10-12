@@ -15,4 +15,12 @@ const updateCmdLong = "설치된 하네스 파일을 업데이트합니다.\n\n"
 	"autopus.yaml을 그대로 둡니다. u는 이전 버전 기본 프리셋 갱신, g는 역할 그룹 4개, a는 에이전트별 등급이고\n" +
 	"(auto quality --help), 바뀐 칸에 *가 붙은 미리보기를 y로 확인해야만 쓰며 같은 실행의 생성 파일이 그 미리보기와\n" +
 	"같습니다. --yes(-y), --auto, --check, CI(비어 있지 않고 0·false가 아닌 값), TTY가 아닌 입력, --workspace는\n" +
-	"묻지도 바꾸지도 않고 이전 버전 기본값 안내만 한 줄 씁니다. --plan/--preview/--dry-run에는 이 단계가 없습니다."
+	"묻지도 바꾸지도 않고 이전 버전 기본값 안내만 한 줄 씁니다. --plan/--preview/--dry-run에는 이 단계가 없습니다.\n\n" +
+	"대화형 터미널(입력이 프로세스 stdin이고 stdin·stdout이 모두 터미널, Windows는 Windows Terminal 등)에서는 이\n" +
+	"단계가 init wizard와 같은 화살표와 Enter 폼입니다. 메뉴는 유지 · 최신 기본값으로 갱신 · 구성 편집이고, 구성\n" +
+	"편집은 도구 탭(모든 도구 같게, 설치된 Claude Code·Codex, autopus.yaml에 저장된 platforms에 omp가 있으면 OMP)을\n" +
+	"엽니다. 선택지는 그 도구의 실제 모델과 effort를 보여 줍니다. Claude 라벨은 모델 slug(opus-5-5)이고 표 칸은\n" +
+	"생성될 frontmatter 값(opus)입니다. Claude Code·Codex 탭의 결과는 quality.presets.<provider>-custom과\n" +
+	"quality.providers.<provider>에 저장되고, OMP 탭은 native agent별 모델을 기존 OMP writer로 씁니다. 표에는 이번\n" +
+	"update가 감지한 플랫폼의 열도 나옵니다. 폼에서 Ctrl+C는 update 전체를 끝냅니다(생성 없음, 0이 아닌 종료).\n" +
+	"파이프나 스크립트 입력은 위의 줄 질문 그대로입니다."

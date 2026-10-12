@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **구성 단계 v2: 화살표·Enter 폼, 도구별 실제 모델 탭, OMP 지정, update 감지 플랫폼 열** (2026-10-12,
+  SPEC-MODELUX-002): 실제 터미널에서 구성 단계가 줄 입력이라 화살표가 `^[[C`로 찍혔고, 선택지가 등급 이름뿐이라
+  Claude 전용으로 읽혔으며, Codex·OMP를 따로 정할 수 없었고, update가 감지해 더한 플랫폼이 표에 없었다.
+  - 입력: 명령 입력이 프로세스 stdin이고 stdin·stdout이 터미널이면 init wizard와 같은 huh 폼이다(화살표와 Enter).
+    `cmd.SetIn` reader, pipe, Windows legacy console은 SPEC-MODELUX-001 줄 driver 그대로다. 폼은 명령의
+    stdout에 그리므로 `auto update 2>err.log`에서도 터미널에 보인다.
+  - 메뉴: 유지 · 최신 기본값으로 갱신 · 구성 편집 · 기본 프리셋 고르기(`auto quality`만). 적용·취소 뒤 표를 다시
+    그리고 다시 묻는다. Codex catalog는 run당 한 번 읽는다.
+  - 도구 탭: 모든 도구 같게(SPEC-MODELUX-001 등급 구성, 선택지에 `opus — Claude Code: opus-5-5 · high | Codex:
+    6.1-sol · xhigh`처럼 도구별 실제 모델), Claude Code·Codex(그 도구만, 선택지 `<cells>  [<tier>]`, 결과는
+    `quality.presets.<provider>-custom`과 `quality.providers.<provider>`, 예: `codex-custom`), OMP 탭(native agent별
+    설치 모델과 thinking, plan의 실제 route 미리보기; update·quality는 기존 OMP writer로 쓴 뒤 같은 run의 설정을
+    파일에서 다시 읽어 맞추고, init은 같은 검사를 거친 메모리 설정을 init 저장으로 쓴다). Claude 라벨은
+    slug(`opus-5-5`), 표 칸은 frontmatter 값(`opus`)이다. 모든 도구 같게 편집이 provider override를 만나면 미리보기 전에
+    따를지 묻고, 확인한 제거는 구성과 같은 quality 블록 쓰기 하나로 남는다.
+  - update: 이번 run이 감지한 플랫폼의 열을 표에 넣고 같은 catalog snapshot으로 생성한다. 폼에서 Ctrl+C는 update
+    전체를 생성 전에 끝내고(0이 아닌 종료), init은 파일 없이 취소하며, quality는 오류 없이 끝난다.
+  - 알려진 동작: 시작할 때 터미널에 OSC 11 배경색 query(`ESC ] 11 ; ?`)가 나간다. bubbletea v1.3.6 `tea_init.go`의
+    package `init()`이 `lipgloss.HasDarkBackground()`를 부르기 때문이고, 우리 package는 그보다 먼저 초기화될 수 없다.
+    bubbletea를 `replace`하면 `go install …@version`이 막히고 배경을 고정하면 밝은 터미널의 색이 틀어지므로 프로그램
+    안에서 고치지 않는다. 근본 해결은 huh·bubbletea v2 이전이다.
 - **`auto init`·`auto update`·`auto quality`: 에이전트별 모델 구성 단계** (2026-10-12,
   SPEC-MODELUX-001): 지금까지 에이전트별 등급은 `auto quality` 안의 도구별 16행 `agent=tier` 편집기에서만
   바꿀 수 있었고, 플랫폼마다 실제로 어떤 모델이 도는지 한 화면에서 볼 수 없었다. 또 init이 그때의 기본

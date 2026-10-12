@@ -1222,6 +1222,14 @@ description은 바꾸지 않고, 그 이름으로 묶일 구성은 `custom`으�
 key가 있으면 쓰지 않고 파일을 그대로 둡니다. 둘 다 quality 블록만 다시 쓰므로 블록 밖 bytes는
 그대로이고, 블록 안 주석은 유지되지 않습니다.
 
+터미널에서는 이 단계가 init wizard와 같은 huh 폼입니다. 화살표와 Enter로 고르고, 스크립트나 파이프 입력은 위의 줄 질문 그대로입니다. 메뉴는 유지 · 최신 기본값으로 갱신(built-in 프리셋이 이전 버전 기본값일 때만) · 구성 편집 · 기본 프리셋 고르기(`auto quality`만)입니다. **구성 편집**은 도구 탭을 엽니다.
+
+- **모든 도구 같게**는 위의 역할 그룹 구성입니다. 등급 선택지마다 도구별 칸을 보여 줍니다. 예: `opus — Claude Code: opus-5-5 · high | Codex: 6.1-sol · xhigh`.
+- **Claude Code**와 **Codex**는 그 도구만 바꿉니다. 선택지는 `<cells>  [<tier>]`(예: `6.1-sol · xhigh  [opus]`)이고, 결과는 `quality.presets.<provider>-custom`(16개 에이전트 전부)과 `quality.providers.<provider>: <provider>-custom`으로 저장됩니다. v0.50.88보다 오래된 auto는 `quality.providers`를 읽지 않습니다.
+- **OMP**는 `auto update`·`auto quality`에서 autopus.yaml에 저장된 platforms에 omp가 있을 때, `auto init`에서 이번 init에서 고른 platforms에 omp가 있을 때 나옵니다. native OMP agent마다 설치된 모델과 thinking 단계를 고르고, plan의 실제 route를 미리 보인 뒤 기존 OMP profile writer로 씁니다. init은 선택을 설정에 넣고 플랫폼 파일 생성 때 함께 씁니다.
+
+Claude 라벨은 모델 slug(`opus-5-5`)이고, 표 칸은 생성기가 쓰는 frontmatter 값(`opus`, 또는 `fable-5-1` 같은 정확한 ID)입니다. `auto update`는 이번 실행에서 감지한 플랫폼의 열도 보여 주고 같은 catalog 읽기로 생성합니다. 폼에서 Ctrl+C는 `auto update`를 생성 전에 0이 아닌 종료로 끝내고, `auto init`은 파일을 쓰기 전에 취소하며, `auto quality`는 오류 없이 끝냅니다.
+
 ### 실행 모드
 
 | 플래그 | 모드 | 설명 |
