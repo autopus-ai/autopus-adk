@@ -14,10 +14,9 @@ import (
 const initComposeStart = "balanced"
 
 // runInitComposeStepCancellable is the composition step of an interactive
-// `auto init`
-// (SPEC-MODELUX-001 REQ-MUX-15). It runs once the wizard returned choice, its
-// quality answer, sets cfg.Quality for the save that follows, and returns the
-// Codex catalog snapshot the same run must generate with.
+// `auto init` (SPEC-MODELUX-001 REQ-MUX-15). It runs once the wizard returned
+// choice, its quality answer, sets cfg.Quality for the save that follows,
+// and returns the Codex catalog snapshot the same run must generate with.
 //
 // balanced and ultra draw the table of that choice read-only. The third
 // choice starts the shared editor from the current balanced default; a
