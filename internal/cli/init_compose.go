@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"errors"
+
 	"github.com/spf13/cobra"
 
 	"github.com/insajin/autopus-adk/internal/cli/tui"
@@ -11,7 +13,8 @@ import (
 // one init proceeds with when the operator keeps or cancels.
 const initComposeStart = "balanced"
 
-// runInitComposeStep is the composition step of an interactive `auto init`
+// runInitComposeStepCancellable is the composition step of an interactive
+// `auto init`
 // (SPEC-MODELUX-001 REQ-MUX-15). It runs once the wizard returned choice, its
 // quality answer, sets cfg.Quality for the save that follows, and returns the
 // Codex catalog snapshot the same run must generate with.
@@ -24,17 +27,19 @@ const initComposeStart = "balanced"
 // and this step with it: the run reads nothing, draws nothing, and its zero
 // snapshot makes each adapter probe for itself as before. The step never
 // fails init: an error leaves the one warning line update prints, and init
-// goes on with the config as it stands.
-func runInitComposeStep(
+// goes on with the config as it stands. Ctrl+C in a composition form
+// (SPEC-MODELUX-002 REQ-MUX2-14) is the exception: it reports cancelled, and
+// init stops before it writes any file.
+func runInitComposeStepCancellable(
 	cmd *cobra.Command,
 	dir string,
 	cfg *config.HarnessConfig,
 	flagQuality string,
 	choice string,
-) driftGenerationSnapshot {
+) (driftGenerationSnapshot, bool) {
 	if flagQuality != "" {
 		cfg.Quality.Default = choice
-		return driftGenerationSnapshot{}
+		return driftGenerationSnapshot{}, false
 	}
 	composing := choice == tui.QualityRoleGroups
 	if composing {
@@ -45,7 +50,7 @@ func runInitComposeStep(
 	sources, err := loadComposeAgentSources()
 	if err != nil {
 		warnUpdateCompose(cmd.OutOrStdout(), lang, err)
-		return driftGenerationSnapshot{}
+		return driftGenerationSnapshot{}, false
 	}
 	session := newComposeSession(dir, cfg, sources, lang, composeSessionMemory, nil)
 	var snapshot driftGenerationSnapshot
@@ -56,10 +61,13 @@ func runInitComposeStep(
 	} else {
 		snapshot, err = session.show(cmd)
 	}
+	if errors.Is(err, errComposeInterrupted) {
+		return snapshot, true
+	}
 	if err != nil {
 		warnUpdateCompose(cmd.OutOrStdout(), lang, err)
 	}
-	return snapshot
+	return snapshot, false
 }
 
 // runInitComposeDriver asks through huh forms when the Input Mode Contract

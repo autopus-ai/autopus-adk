@@ -41,7 +41,34 @@ func runQualityComposeEntry(
 	}
 	router := qualityComposeRouter{cmd: cmd, dir: dir, cfg: cfg, apply: apply, deps: deps}
 	session := newComposeSession(dir, cfg, sources, composeLanguage(), composeSessionFile, router)
+	if composeFormsProbe(cmd) {
+		return runQualityComposeForms(cmd, dir, cfg, apply, deps, session)
+	}
 	result, err := withComposeOverrideQuestion(cmd, session).run(cmd)
+	if err != nil || result.Outcome != composeDriverApplied || !apply {
+		return err
+	}
+	return applyQualityHarnessWith(cmd, dir, cfg, "auto quality "+cfg.Quality.Default+" --apply", result.Snapshot)
+}
+
+// runQualityComposeForms is `auto quality`'s form flow (SPEC-MODELUX-002):
+// its menu adds 기본 프리셋 고르기, and its OMP tab runs on deps. A confirmed
+// change with --apply regenerates the harness with the snapshot every table
+// of the run read. Ctrl+C ends the command without an error and without
+// --apply; an OMP write the run could not read back returns its error, also
+// without --apply (REQ-MUX2-11, REQ-MUX2-14).
+func runQualityComposeForms(
+	cmd *cobra.Command,
+	dir string,
+	cfg *config.HarnessConfig,
+	apply bool,
+	deps ompPlatformDependencies,
+	session composeDriverSession,
+) error {
+	result, err := session.runForms(cmd, composeFormOptions{Presets: true, OMP: &composeOMPTab{deps: deps}})
+	if errors.Is(err, errComposeInterrupted) {
+		return nil
+	}
 	if err != nil || result.Outcome != composeDriverApplied || !apply {
 		return err
 	}

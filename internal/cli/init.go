@@ -124,7 +124,11 @@ func newInitCmd() *cobra.Command {
 				cfg.Language.Comments = result.CommentsLang
 				cfg.Language.Commits = result.CommitsLang
 				cfg.Language.AIResponses = result.AILang
-				snapshot = runInitComposeStep(cmd, dir, cfg, quality, result.Quality)
+				var cancelled bool
+				if snapshot, cancelled = runInitComposeStepCancellable(cmd, dir, cfg, quality, result.Quality); cancelled {
+					fmt.Fprintln(out, "  init cancelled.")
+					return nil
+				}
 				cfg.Spec.ReviewGate.Enabled = result.ReviewGate
 				if result.ReviewGate {
 					cfg.Spec.ReviewGate.Providers = providerNames

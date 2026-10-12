@@ -44,6 +44,11 @@ type composeGate struct {
 	// detection order (SPEC-MODELUX-002 Platform View Contract). The table,
 	// the tool tab, and the run's Codex snapshot see them; no write does.
 	Detected []string
+	// Abort, when set, receives the error that ends the whole update
+	// (REQ-MUX2-14, REQ-MUX2-11): Ctrl+C in a form, or an OMP write the step
+	// could not read back. The update returns it before its supervisor
+	// migration and every platform generation.
+	Abort *error
 }
 
 // composeMode is how a run handles its composition step.

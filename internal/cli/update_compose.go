@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"io"
 
@@ -42,10 +43,23 @@ func runUpdateComposeStep(
 	// REQ-MUX-20 applies to every editing entry point, not only `auto quality`.
 	session = withComposeOverrideQuestion(cmd, session)
 	result, err := runUpdateComposeDriver(cmd, gate, session)
-	if err != nil {
+	switch {
+	case composeEndsTheRun(err):
+		if gate.Abort != nil {
+			*gate.Abort = err
+		}
+	case err != nil:
 		warnUpdateCompose(cmd.OutOrStdout(), lang, err)
 	}
 	return result.Snapshot
+}
+
+// composeEndsTheRun reports a step error that ends the command instead of
+// leaving a warning: Ctrl+C in a form, whose line the form flow printed, or
+// an OMP write it could not read back, whose line it printed too.
+func composeEndsTheRun(err error) bool {
+	var reload composeReloadError
+	return errors.Is(err, errComposeInterrupted) || errors.As(err, &reload)
 }
 
 // runUpdateComposeDriver asks through huh forms when the run asks and the
