@@ -51,7 +51,7 @@ func runInitComposeStep(
 	var snapshot driftGenerationSnapshot
 	if composing {
 		var result composeDriverResult
-		result, err = session.run(cmd)
+		result, err = runInitComposeDriver(cmd, session)
 		snapshot = result.Snapshot
 	} else {
 		snapshot, err = session.show(cmd)
@@ -60,4 +60,16 @@ func runInitComposeStep(
 		warnUpdateCompose(cmd.OutOrStdout(), lang, err)
 	}
 	return snapshot
+}
+
+// runInitComposeDriver asks through huh forms when the Input Mode Contract
+// picks them (SPEC-MODELUX-002 REQ-MUX2-01), with init's OMP tab, which plans
+// init's config in memory (REQ-MUX2-22); otherwise it is the
+// SPEC-MODELUX-001 line driver.
+func runInitComposeDriver(cmd *cobra.Command, session composeDriverSession) (composeDriverResult, error) {
+	if !composeFormsProbe(cmd) {
+		return session.run(cmd)
+	}
+	tab := &composeOMPTab{deps: normalizeOMPPlatformDependencies(initComposeOMPDeps), memory: true}
+	return session.runForms(cmd, composeFormOptions{OMP: tab})
 }

@@ -122,6 +122,21 @@ func planOMPProfile(
 		return ompProfileApplyPreviewPayload{}, err
 	}
 	defer snapshot.Close()
+	return planOMPProfileForConfig(ctx, cfg, opts, runner)
+}
+
+// planOMPProfileForConfig plans opts against cfg, which it prepares in place
+// exactly as apply would, and writes nothing. planOMPProfile hands it the
+// config verified against the file snapshot; init hands it a detached copy
+// of the config it has not saved yet (SPEC-MODELUX-002 REQ-MUX2-22). The
+// catalog, attestation, capability, and blocker rules are the same either
+// way.
+func planOMPProfileForConfig(
+	ctx context.Context,
+	cfg *config.HarnessConfig,
+	opts ompProfileApplyOptions,
+	runner omp.OMPModelCatalogRunner,
+) (ompProfileApplyPreviewPayload, error) {
 	resolution, err := resolveOMPProfileProposal(ctx, cfg, opts, runner)
 	if err != nil {
 		return ompProfileApplyPreviewPayload{}, err

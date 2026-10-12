@@ -28,6 +28,10 @@ const ompCustomMode = "custom"
 // composeOMPTab is the OMP tab of one run (OMP Tab Contract).
 type composeOMPTab struct {
 	deps ompPlatformDependencies
+	// memory plans init's config, which no file holds yet (REQ-MUX2-22):
+	// a confirmed choice goes into that config, and init's save and OMP
+	// generation write and activate it.
+	memory bool
 }
 
 // composeReloadError is an OMP write the run could not read back
@@ -94,7 +98,7 @@ func (f *composeFormRun) omp() error {
 	if err != nil {
 		return f.ompFailed(err)
 	}
-	preview, err := planOMPProfile(commandContext(f.cmd), f.shared.dir, opts, runner)
+	preview, candidate, err := f.ompPlan(opts, runner)
 	if err != nil {
 		return f.ompFailed(err)
 	}
@@ -102,14 +106,30 @@ func (f *composeFormRun) omp() error {
 	if len(preview.Blockers) > 0 {
 		return f.ompFailed(ompProfileUnavailableError{blockers: preview.Blockers})
 	}
-	return f.ompConfirm(opts, runner)
+	return f.ompConfirm(opts, runner, candidate)
+}
+
+// ompPlan plans opts through planOMPProfile for update and quality, and on
+// a detached copy of init's config for init, whose candidate
+// role_model_policy it also returns.
+func (f *composeFormRun) ompPlan(opts ompProfileApplyOptions, runner omp.OMPModelCatalogRunner) (ompProfileApplyPreviewPayload, config.RoleModelPolicyConf, error) {
+	if f.options.OMP.memory {
+		return planInitOMP(commandContext(f.cmd), f.shared.cfg, opts, runner)
+	}
+	preview, err := planOMPProfile(commandContext(f.cmd), f.shared.dir, opts, runner)
+	return preview, config.RoleModelPolicyConf{}, err
 }
 
 // ompFailed ends the tab on a refusal, a failed plan, or an unreadable
-// catalog with one warning line; Ctrl+C still ends the step.
+// catalog with one warning line naming the cause; init first says that OMP
+// models can be set after init instead (REQ-MUX2-23). Ctrl+C still ends the
+// step.
 func (f *composeFormRun) ompFailed(err error) error {
 	if errors.Is(err, errComposeInterrupted) {
 		return err
+	}
+	if f.options.OMP.memory && composeOMPCatalogFailure(err) {
+		fmt.Fprintln(f.out, f.form.InitOMPUnavailable)
 	}
 	f.warn(err)
 	return nil
@@ -141,7 +161,7 @@ func (f *composeFormRun) ompPins(runner omp.OMPModelCatalogRunner) ([]string, er
 		err = ompCatalogUnavailableError{reason: "no_usable_model"}
 	}
 	if err != nil {
-		return nil, err
+		return nil, composeOMPCatalogError{err: err}
 	}
 	pins := map[string]string{}
 	for {
@@ -212,17 +232,22 @@ func (f *composeFormRun) ompPin(agent string, choices []ompCustomModelChoice) (s
 }
 
 // ompConfirm asks the confirmation, whose default cancels, after the notice
-// that the OMP writer re-encodes the whole file.
-func (f *composeFormRun) ompConfirm(opts ompProfileApplyOptions, runner omp.OMPModelCatalogRunner) error {
-	fmt.Fprintln(f.out, f.form.OMPRewrite)
+// that the OMP writer re-encodes the whole file; init has no file yet.
+func (f *composeFormRun) ompConfirm(opts ompProfileApplyOptions, runner omp.OMPModelCatalogRunner, candidate config.RoleModelPolicyConf) error {
+	if !f.options.OMP.memory {
+		fmt.Fprintln(f.out, f.form.OMPRewrite)
+	}
 	apply, err := composeSelect(f.cmd, f.form.Confirm, "",
 		[]composeOption[bool]{{f.form.ConfirmCancel, false}, {f.form.ConfirmApply, true}}, false)
 	if err != nil {
 		return err
 	}
-	if !apply {
+	switch {
+	case !apply:
 		fmt.Fprintln(f.out, f.Text.Cancelled)
 		return nil
+	case f.options.OMP.memory:
+		return f.ompApplyInit(candidate)
 	}
 	return f.ompApply(opts, runner)
 }
