@@ -127,11 +127,12 @@ When 세 명령의 `--help`를 실행하고 문서를 읽는다
 Then effort 편집, `efforts`의 옛 바이너리 한계, OMP Autopus 기본값, `agent_source: native`와 v0.50.127 제거, migration이 있고 `quality_compose_docs_test.go`가 고정한 문장이 그대로이며 `make generate-templates` 뒤 반영 안 된 diff가 없다
 ### S20: efforts 보존
 Priority: Must
-Given S4가 끝난 파일, D + `quality.default: custom`과 custom(16개 등급, `efforts: {executor: xhigh}`)인 파일, H의 balanced에 `efforts: {planner: high}`를 더한 파일, D의 balanced에 `efforts: {planner: high}`를 더하고 `custom`이 없는 파일(넷째)이 있다
-When 첫 파일에서 Claude Code 탭 설계·판단 opus를 적용하고, 둘째에서 모든 도구 같게 → 역할 그룹 → 설계·판단 opus → 적용, 셋째에서 최신 기본값으로 갱신 → 적용, 넷째에서 모든 도구 같게 → 역할 그룹 → 구현 haiku → 나머지 Enter → 적용을 고른다
+Given S4가 끝난 파일, D + `quality.default: custom`과 custom(16개 등급, `efforts: {executor: xhigh}`)인 파일, H의 balanced에 `efforts: {planner: high}`를 더한 파일, D의 balanced에 `efforts: {planner: high}`를 더하고 `custom`이 없는 파일(넷째), `quality.default: custom`이고 custom = D의 balanced 기본 등급에서 구현 그룹만 haiku이며 `efforts: {executor: xhigh}`인 파일(다섯째)이 있다
+When 첫 파일에서 Claude Code 탭 설계·판단 opus를 적용하고, 둘째에서 모든 도구 같게 → 역할 그룹 → 설계·판단 opus → 적용, 셋째에서 최신 기본값으로 갱신 → 적용, 넷째에서 모든 도구 같게 → 역할 그룹 → 구현 haiku → 나머지 Enter → 적용을 고른다. 다섯째에서 모든 도구 같게 → 역할 그룹 → 구현을 balanced 기본 등급으로 → 나머지 Enter → 적용, 셋째 사본에서 모든 도구 같게 → 에이전트별로 H와 최신 balanced가 다른 에이전트만 최신 등급으로 → 완료 → 적용을 고른다. 또 `composeBindTarget`을 efforts가 있는 P(`custom`)와 Current·Historical·Absent로 분류되는 built-in 결과로 직접 부른다
 Then 첫 파일의 codex-custom efforts는 네 에이전트 `high` 그대로이고 planner.toml은 `high` 그대로다
 And 둘째의 미리보기에서 executor 칸에 `*`가 없고 적용 뒤 custom efforts는 `{executor: xhigh}`, executor.md는 `effort: xhigh`다. 셋째는 갱신 뒤 balanced가 최신 등급이고 efforts는 `{planner: high}`이며 planner.md는 `effort: high`다
 And 넷째는 `custom`을 새로 만들고 그 efforts는 `{planner: high}`이며 바뀌는 설정에 `quality.presets.custom.efforts 옮겨 씀 (1개 에이전트)`가 있다. 미리보기의 planner 칸에는 `*`가 없고 planner.md는 `model: fable`, `effort: high`, planner.toml은 `model = "gpt-6-astra"`, `model_reasoning_effort = "high"`로 실행 전과 같다
+And 다섯째는 결과 등급이 balanced 기본과 같아도 `quality.default: custom`에 머물고 custom 등급은 balanced 기본, efforts는 `{executor: xhigh}`이며 executor.md는 `effort: xhigh`이고 `quality.presets.balanced` bytes는 실행 전과 같다. 셋째 사본은 balanced를 Historical 갱신으로 최신 등급에 맞추고 efforts `{planner: high}`를 남기며 `custom`을 만들지 않는다. 직접 호출은 세 분류 모두 `custom`과 P의 efforts를 돌려준다
 ### S21: task route와 degraded 판정
 Priority: Must
 Given OPX, OPX + `agents.task` pin(`openai-codex/gpt-6-astra:high`)인 사본, OP와 OPX를 NO catalog로 돌리는 사본이 있다
@@ -155,10 +156,10 @@ And 결과를 `evidence/manual-smoke-003.txt`에 남긴다. 동의가 없거나 
 ### S24: 프로필과 섞인 상태의 사용자 `task.disabledAgents` 편집
 Priority: Must
 Given O3를 OPM으로 `auto update --yes`한 project(파일에 `task.disabledAgents`와 프로필 key)와 그 사본 두 개가 있다
-When 첫 project에서 `task.disabledAgents`를 `[scout]`로 고쳐 `auto update --yes`와 `auto doctor`를 실행하고, 이어 `config_mode: overlay`로 바꿔 update, 다시 값을 `[scout, security-reviewer, sonic]`로 되돌려 update한다. 첫 사본에서는 그 key를 지우고 update, 둘째 사본에서는 그 key를 고치면서 첫 줄에 `# team note`도 더해 update한다
+When 첫 project에서 `task.disabledAgents`를 `[scout]`로 고쳐 `auto update --yes`와 `auto doctor`를 실행하고, 이어 `config_mode: overlay`로 바꿔 update, 다시 값을 `[scout, security-reviewer, sonic]`로 되돌려 update한다. 첫 사본에서는 그 key를 지우고 update한 뒤 `config_mode: overlay`로 바꿔 update, 다시 update 두 번, `auto clean`을 차례로 실행하고, 둘째 사본에서는 그 key를 고치면서 첫 줄에 `# team note`도 더해 update한다
 Then 첫 update는 종료 코드 0이고 `.omp/config.yml` SHA-256이 사용자가 고친 뒤와 같으며 `task.agentModelOverrides`는 17개 key 그대로다. ledger는 `agent_surface_user_owned`를 담고 출력에 `task.disabledAgents를 사용자가 정해 두어` 줄, doctor에 `agents:disabled_agents_user_owned`가 있다
 And overlay 전환 뒤 파일은 preimage와 `task.disabledAgents: [scout]`이고 프로필 key가 없다. 값을 되돌린 update 뒤 ledger에 사용자 소유 표시가 없고 그 key의 owner가 `agent_surface`다
-And 첫 사본은 update 뒤 파일에 `task.disabledAgents`가 없고 SHA-256이 사용자가 지운 뒤와 같다. 둘째 사본은 `managed_key_conflict`로 끝나고 `.omp/config.yml`과 ledger bytes가 실행 전과 같다
+And 첫 사본은 첫 update 뒤 파일에 `task.disabledAgents`가 없고 SHA-256이 사용자가 지운 뒤와 같다. overlay 전환 update 뒤 `.omp/config.yml`은 없고(ADK가 만든 파일) ledger는 사용자 소유 표시만 담으며, 그 뒤 두 번의 update 뒤에도 `.omp/config.yml`이 없고 ledger bytes가 같다. `auto clean` 뒤 ledger가 없다. 둘째 사본은 `managed_key_conflict`로 끝나고 `.omp/config.yml`과 ledger bytes가 실행 전과 같다
 ## Oracle Acceptance Notes
 
 - Must 시나리오는 concrete 값을 판정한다: 선택지 목록과 순서, 라벨, 바뀌는 설정 줄, frontmatter·TOML 값, override key 집합과 값, 실행 횟수, SHA-256, 오류 문구. 파일 존재나 종료 코드만으로 닫는 Must는 없다.

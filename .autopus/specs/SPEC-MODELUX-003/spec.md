@@ -2,7 +2,7 @@
 
 **Status**: draft
 **Created**: 2026-10-12
-**Revised**: 2026-10-13 (review round 1 F-001–F-020, round 2 F-002·F-008·F-013·F-021·F-022)
+**Revised**: 2026-10-13 (review round 1 F-001–F-020, round 2 F-002·F-008·F-013·F-021·F-022, round 3 F-002·F-008·F-023)
 **Domain**: MODELUX
 **Module**: autopus-adk
 **Release**: v0.50.126. 작업 branch는 `feat/modelux-003`이고 기준은 `v0.50.125`(dd6d6ea2, origin/main)다. v0.50.125는 SPEC-MODELUX-001·002로 이미 발행됐다.
@@ -105,7 +105,7 @@ Priority: Must · EARS: EventDriven
 WHEN OMP files are generated, THEN THE SYSTEM SHALL compute the project claim set of the Claim Set Contract, apply it with one MergeOMPProjectManagedConfig call over the ledger preimage and one ledger update inside the OMP transaction, keep task enabled, leave a user-owned `task.disabledAgents` unchanged while reporting `agents:disabled_agents_user_owned` as degraded, and restore every byte of `.omp/config.yml`, the ledger, the manifest, and the agent files when the transaction fails.
 
 - plain `omp`는 overlay를 읽지 않고 project `.omp/config.yml`을 읽으므로(S:466140-466160) 이 claim은 config_mode와 무관하게 `.omp/config.yml`에 간다. task를 끄면 이름 없는 dispatch가 preflight에서 실패한다(S:526773, P4). 새 파일은 0600이다(`omp.go:230-233`).
-- 사용자가 `task.disabledAgents`만 고치면 프로필 claim이 함께 있어도 사용자 소유로 넘기고 값을 되돌리지 않는다(Claim Set Contract의 사용자 편집 행, S24).
+- 사용자가 `task.disabledAgents`만 고치면 프로필 claim이 함께 있어도 사용자 소유로 넘기고 값을 되돌리지 않는다(Claim Set Contract의 사용자 편집 행, S24). 그 표시는 C가 비어 release해도 표시만 남은 ledger로 남는다.
 
 ### REQ-MUX3-11 Autopus 이름 route
 Priority: Must · EARS: StateDriven
@@ -188,7 +188,7 @@ THE SYSTEM SHALL render every OMP surface that names an agent through the OMP Re
 | 자리 | 규칙 |
 |---|---|
 | `composeBindingPlan.set`, `composeCandidate`(`quality_compose_bind_write.go:29-52`) | 복사하는 프리셋의 efforts를 그대로 옮긴다 |
-| 모든 도구 같게의 binding 프리셋(`composeBindTarget`, `quality_compose_bind.go:164-174`: built-in과 맞지 않으면 고정 이름 `custom`) | 쓰는 이름(`custom`이든 맞은 built-in이든)과 무관하게 편집 전 전역 binding 프리셋(`quality.EffectiveMode("")`)의 efforts를 모든 에이전트에 그대로 옮긴다. 등급이 바뀐 에이전트도 옮긴다(도구별 탭 effort Select의 기본 `그대로`와 같다). 옮긴 것이 있으면 바뀌는 설정 줄 `quality.presets.<name>.efforts 옮겨 씀 (N개 에이전트)`를 쓴다 |
+| 모든 도구 같게의 binding(`composeBindTarget`, `quality_compose_bind.go:143-174`) | 편집 전 전역 binding 프리셋 P(`quality.EffectiveMode("")`)에 efforts가 없으면 지금 동작 그대로다. P에 efforts가 있을 때: 결과가 P 자신인 built-in의 최신 기본 등급이고 P가 Historical이면 그 갱신으로 등급·description만 바꾸고 efforts를 남긴다(`u` 갱신 행과 같다). 결과가 다른 built-in X의 기본 등급과 같으면 Current(쓰기 없음)·Historical(갱신)·Absent(새로 씀) 분기를 타지 않고 `custom`에 묶는다. built-in 항목은 사용자가 넣지 않은 efforts를 받지 않고, 분류(`ClassifyBuiltinQualityPreset`, Agents만 비교)는 바뀌지 않는다. `custom`에는 P의 efforts를 모든 에이전트에 옮긴다(등급이 바뀐 에이전트 포함, 도구별 탭 effort Select의 기본 `그대로`와 같다). P와 다른 이름에 옮기면 `quality.presets.<name>.efforts 옮겨 씀 (N개 에이전트)`를 쓴다 |
 | 도구별 미리보기(`withQualityToolPreset`, `quality_tool_interactive.go:207-222`)와 저장(`setQualityToolPreset`, `quality_tool_persist.go:49-61`) | 작업 구성의 efforts(기존 + 이번 편집) |
 | 최신 기본값 갱신(`u`, `ClassifyBuiltinQualityPreset` 분류는 그대로) | 등급과 description만 최신으로 바꾸고 efforts는 옮긴다 |
 | `config.Save`, raw quality writer | typed 필드라 그대로 왕복한다 |
@@ -224,11 +224,12 @@ THE SYSTEM SHALL render every OMP surface that names an agent through the OMP Re
 | ledger | 기존 `.autopus/omp-model-project-ownership-v1.json` 하나, 원본 preimage 하나. claim마다 owner(`profile` 또는 `agent_surface`, `[NEW]` 필드) |
 | claim 집합 C | project-managed 프로필이면 그 `ManagedKeys` 전부 ∪ autopus 모드이고 사용자 소유가 아니면 `task.disabledAgents = [scout, security-reviewer, sonic]`(FullArrayOwnership) |
 | 적용 | C가 비지 않으면 생성마다 preimage 위에 C 전부로 `MergeOMPProjectManagedConfig` 한 번, config mapping 하나, ledger 갱신 하나. model integration이 없어도 mapping을 만든다(`omp.go:208-216` gate 변경, `omp_model_integration_project.go:14-99`의 수 검사는 프로필 claim에만) |
-| C가 빔 | ledger가 있으면 release: preimage를 복원하고(ADK가 만든 파일이면 삭제) ledger를 지운다(`omp_rooted_lifecycle_config.go:64-83`을 C 기준으로) |
+| C가 빔 | ledger가 있으면 release: preimage를 복원하고(ADK가 만든 파일이면 삭제) claim을 모두 지운다. 사용자 소유 표시가 없으면 ledger를 지우고, 있으면 표시만 담은 ledger(claim·preimage·commitment 없음)를 남긴다(`omp_rooted_lifecycle_config.go:64-83`을 C 기준으로) |
+| 표시만 남은 ledger | 관리하는 key가 없으므로 `.omp/config.yml`을 읽지도 쓰지도 않는다. C에 프로필 claim이 다시 생기면 현재 파일을 새 preimage로 잡고 표시를 그대로 둔다. native 모드에서도 표시는 남는다 |
 | 사용자가 C 밖을 고침 | C에 `profile` claim이 있으면 지금처럼 `managed_key_conflict`이고 아무것도 쓰지 않는다(`task.disabledAgents`를 같이 고쳤어도 같다). C가 `agent_surface`뿐이면 아래 `task.disabledAgents` 판정을 먼저 하고, 새 preimage = 현재 파일에서 ADK claim key만 preimage 값으로 되돌린 것으로 다시 잡고 적용한다 |
 | 사용자가 `task.disabledAgents`만 고침(지움 포함) | 판정: 현재 파일의 그 key를 ADK가 마지막으로 쓴 값으로 바꾼(없으면 같은 자리에 넣은) bytes의 commitment가 `LastEmittedCommitment`(`omp_model_integration_ownership_rooted.go:49-62`)와 같으면 그 key만 바뀐 것이다. 프로필 claim이 있든 없든 사용자 소유로 넘긴다: 새 preimage = 원본 preimage에 사용자 값(지웠으면 삭제), C에서 그 key를 빼고, ledger에 `[NEW] agent_surface_user_owned`를 남기며, 파일 bytes는 그대로 두고 안내 1줄과 degraded를 낸다. 그 뒤의 merge·전환·release는 새 preimage를 쓰므로 사용자 값을 되돌리지 않는다 |
-| 사용자 소유 표시가 있음 | 그 key를 claim하지 않는다. 사용자 값이 `[scout, security-reviewer, sonic]`과 같아지면 표시를 지우고 다시 claim한다 |
-| clean | `agent_surface`만 있는 ledger는 receipt 없이 release와 같게 복원한다(`omp_model_integration_clean.go:14-32` 조건 변경) |
+| 사용자 소유 표시가 있음 | 그 key를 claim하지 않는다. 표시는 release·전환·native 뒤에도 남고 `auto clean`만 지운다. 사용자 값이 `[scout, security-reviewer, sonic]`과 같아지면 현재 파일을 preimage로 잡고 표시를 지운 뒤 다시 claim한다 |
+| clean | `agent_surface`만 있는 ledger는 receipt 없이 release와 같게 복원한다. 표시만 남은 ledger는 파일을 바꾸지 않고 지운다(`omp_model_integration_clean.go:14-32` 조건 변경) |
 | 실패 | OMP transaction 실패는 `.omp/config.yml`, ledger, manifest, agent 파일을 실행 전 bytes로 되돌린다(기존 rooted transaction). 활성화 실패는 기존 복원이다 |
 | allowlist | `task.disabledAgents`는 프로필 `managed_keys`에 넣지 않는다(`role_model_policy_validate.go:174-190` 그대로). `agent_surface` claim은 adapter가 만든다 |
 
