@@ -189,6 +189,9 @@ func (f *composeFormRun) compose(planner composeDriverPlanner, labeler composeLa
 			return err
 		}
 		plan, err := planner.PlanEdit(edited)
+		if errors.Is(err, errComposeInterrupted) {
+			return err
+		}
 		if err != nil {
 			f.warn(err)
 			return nil
