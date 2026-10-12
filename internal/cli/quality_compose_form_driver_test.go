@@ -155,3 +155,24 @@ func TestComposeForms_ToolTabListsTheInstalledTools(t *testing.T) {
 		})
 	}
 }
+
+// S15 through the form flow: a preset name and description from
+// autopus.yaml reach the status line, the menu screen, and the default
+// preset select only in their terminalSafe spelling.
+func TestComposeForms_PresetTextFromTheFileIsTerminalSafe(t *testing.T) {
+	composeSessionCatalog(t, "CAT-A")
+	dir := writeComposeFixture(t, "claude-code", "codex")
+	cfg, err := config.Load(dir)
+	require.NoError(t, err)
+	name := "fast\u202e\u200b"
+	cfg.Quality.Presets[name] = config.QualityPreset{Description: "note \x1b]0;owned\a", Agents: map[string]string{"planner": "haiku"}}
+	cfg.Quality.Default = name
+	session := newComposeSession(dir, cfg, composeSessionSources(t), "ko", composeSessionFile, nil)
+
+	_, out, err := runComposeForms(t, session, composeFormOptions{Presets: true}, "3\n", "\n", "\n")
+
+	require.NoError(t, err)
+	assert.Contains(t, out, "quality.default = "+terminalSafe(name))
+	assert.Contains(t, out, terminalSafe(name)+" — note \\x1b]0;owned\\a (현재)\n")
+	assertNoTerminalControls(t, out)
+}
