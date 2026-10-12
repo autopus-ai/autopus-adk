@@ -41,7 +41,7 @@
 
 ## 5. 범위 밖
 
-프로필 없는 프로젝트의 등급 기반 OMP route(Q1), native 경로 제거, frontmatter concrete model과 OMP role alias, `모든 도구 같게` 탭의 effort, 줄 driver 변경, OMP writer 재encode 변경, 프로필 claim의 conflict 규칙 변경, OpenCode·Antigravity effort, OMP 버전별 `/review` schema 추적.
+프로필 없는 프로젝트의 등급 기반 OMP route(Q1), native 경로 제거, frontmatter concrete model과 OMP role alias, `모든 도구 같게` 탭의 effort, 줄 driver 변경, OMP writer 재encode 변경, 프로필 claim key와 claim 밖 편집의 conflict 규칙 변경(`task.disabledAgents`만 바뀐 경우는 사용자 소유로 넘긴다), OpenCode·Antigravity effort, OMP 버전별 `/review` schema 추적.
 
 ## 6. 성공 기준
 

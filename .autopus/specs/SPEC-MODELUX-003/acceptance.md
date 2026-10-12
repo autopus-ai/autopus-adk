@@ -1,7 +1,7 @@
 # SPEC-MODELUX-003 수락 기준
 ## Test Scenarios
 
-fixture는 모두 temp project 안에 만든다. 폼 test는 SPEC-MODELUX-002처럼 `composeFormsProbe`를 true로, `composeRunForm`을 huh accessible runner로 두고 입력을 `testing/iotest.OneByteReader`로 준다. "X를 고른다"는 그 라벨의 번호 입력이고 Enter는 기본값이다. OMP는 `ompCLIFakeRunner`(catalog·plan), `platformOMPModelRunner`에 `ompModelDoctorE2ERunner`(생성·`config get` 되읽기), `omp_model_activation_rpc_test.go`의 `RunWithInput` fake(RPC 되읽기), 호출을 세는 activate stub을 쓴다. 나머지는 실제 명령(`NewRootCmd`)과 실제 adapter `Generate`·`Update`다. 기준 바이너리는 `v0.50.125`(dd6d6ea2)로 만든 `auto`다. 실제 터미널은 S17·S23에서만 쓴다.
+fixture는 모두 temp project 안에 만든다. 폼 test는 SPEC-MODELUX-002처럼 `composeFormsProbe`를 true로, `composeRunForm`을 huh accessible runner로 두고 입력을 `testing/iotest.OneByteReader`로 준다. "X를 고른다"는 그 라벨의 번호 입력이고 Enter는 기본값이다. OMP는 `ompCLIFakeRunner`(catalog·plan), `platformOMPModelRunner`에 `ompModelDoctorE2ERunner`(생성·`config get` 되읽기), `omp_model_activation_rpc_test.go`의 `RunWithInput` fake(RPC 되읽기), 호출을 세는 activate stub을 쓴다. transaction 쓰기 실패는 test 전용 `ompRootedWriteFailureHook`(nil 기본)으로 준다. 나머지는 실제 명령(`NewRootCmd`)과 실제 adapter `Generate`·`Update`다. 기준 바이너리는 `v0.50.125`(dd6d6ea2)로 만든 `auto`다. 실제 터미널은 S17·S23에서만 쓴다.
 
 - D, O3, CAT-A, H, IO: SPEC-MODELUX-002 `acceptance.md`와 같다. 따로 적지 않으면 Codex catalog는 CAT-E다.
 - CAT-E: `gpt-6-astra`·`gpt-6-luna`는 `low`–`max` 다섯 단계, `gpt-6.1-sol`은 `low`·`medium`·`high`·`xhigh`를 보고하는 `codex debug models` JSON.
@@ -127,23 +127,24 @@ When 세 명령의 `--help`를 실행하고 문서를 읽는다
 Then effort 편집, `efforts`의 옛 바이너리 한계, OMP Autopus 기본값, `agent_source: native`와 v0.50.127 제거, migration이 있고 `quality_compose_docs_test.go`가 고정한 문장이 그대로이며 `make generate-templates` 뒤 반영 안 된 diff가 없다
 ### S20: efforts 보존
 Priority: Must
-Given S4가 끝난 파일, D + `quality.default: custom`과 custom(16개 등급, `efforts: {executor: xhigh}`)인 파일, H의 balanced에 `efforts: {planner: high}`를 더한 파일이 있다
-When 첫 파일에서 Claude Code 탭 설계·판단 opus를 적용하고, 둘째에서 모든 도구 같게 → 역할 그룹 → 설계·판단 opus → 적용, 셋째에서 최신 기본값으로 갱신 → 적용을 고른다
+Given S4가 끝난 파일, D + `quality.default: custom`과 custom(16개 등급, `efforts: {executor: xhigh}`)인 파일, H의 balanced에 `efforts: {planner: high}`를 더한 파일, D의 balanced에 `efforts: {planner: high}`를 더하고 `custom`이 없는 파일(넷째)이 있다
+When 첫 파일에서 Claude Code 탭 설계·판단 opus를 적용하고, 둘째에서 모든 도구 같게 → 역할 그룹 → 설계·판단 opus → 적용, 셋째에서 최신 기본값으로 갱신 → 적용, 넷째에서 모든 도구 같게 → 역할 그룹 → 구현 haiku → 나머지 Enter → 적용을 고른다
 Then 첫 파일의 codex-custom efforts는 네 에이전트 `high` 그대로이고 planner.toml은 `high` 그대로다
 And 둘째의 미리보기에서 executor 칸에 `*`가 없고 적용 뒤 custom efforts는 `{executor: xhigh}`, executor.md는 `effort: xhigh`다. 셋째는 갱신 뒤 balanced가 최신 등급이고 efforts는 `{planner: high}`이며 planner.md는 `effort: high`다
+And 넷째는 `custom`을 새로 만들고 그 efforts는 `{planner: high}`이며 바뀌는 설정에 `quality.presets.custom.efforts 옮겨 씀 (1개 에이전트)`가 있다. 미리보기의 planner 칸에는 `*`가 없고 planner.md는 `model: fable`, `effort: high`, planner.toml은 `model = "gpt-6-astra"`, `model_reasoning_effort = "high"`로 실행 전과 같다
 ### S21: task route와 degraded 판정
 Priority: Must
 Given OPX, OPX + `agents.task` pin(`openai-codex/gpt-6-astra:high`)인 사본, OP와 OPX를 NO catalog로 돌리는 사본이 있다
 When 각각 `config.Load` 뒤 `auto update --yes`를 실행한다
 Then OPX는 `omp_native_agent_conflict` 없이 읽히고 override는 executor `openai-codex/gpt-6-astra:max`, tester `openai-codex/gpt-6.1-sol:xhigh`, task와 planner는 프로필 planner route 값이다
-And task pin 사본은 task와 자기 pin이 없는 나머지 12개 task 접힘 역할이 `openai-codex/gpt-6-astra:high`이고 executor·tester는 자기 pin이다
+And task pin 사본은 자기 pin이 없는 11개 task 접힘 역할(annotator, architect, debugger, deep-worker, devops, frontend-specialist, perf-engineer, planner, spec-writer, ux-validator, validator)과 task, 모두 12개 key가 `openai-codex/gpt-6-astra:high`이고 executor·tester는 자기 pin이다
 And NO의 OP는 성공하고 openai 파생 route 에이전트는 override에 없으며 그 파일에 `thinkingLevel`이 있다. NO의 OPX는 `required_route_unresolved`와 `executor`를 담은 오류로 실패하고 OMP 파일 bytes가 실행 전과 같다
 ### S22: claim 집합 전환과 복원
 Priority: Must
 Given `.omp/config.yml`이 없는 O3가 있다
-When 차례로 (a) `auto update --yes`, (b) OPM으로 바꿔 update, (c) `config_mode: overlay`로 바꿔 update, (d) `.omp/config.yml` 첫 줄에 `# team note`를 더해 update, (e) `.omp` 디렉터리를 읽기 전용으로 두고 update, (f) 권한을 되돌리고 `agent_source: native`로 update, 별도 (a) 상태 사본에서 `auto clean`을 실행한다
+When 차례로 (a) `auto update --yes`, (b) OPM으로 바꿔 update, (c) `config_mode: overlay`로 바꿔 update, (d) `.omp/config.yml` 첫 줄에 `# team note`를 더해 update, (e) autopus.yaml을 OPM으로 바꿔(프로필 key가 더해지고 route 에이전트의 `thinkingLevel`이 빠지는 실제 변경) `ompRootedWriteFailureHook`이 plan의 마지막 write에서 실패하게 한 채 update하고 autopus.yaml을 (d)의 내용으로 되돌린 뒤, (f) seam을 끄고 `agent_source: native`로 update, 별도 (a) 상태 사본에서 `auto clean`을 실행한다
 Then (a) 파일은 `task.disabledAgents`뿐이고 ledger preimage는 missing이다. (b) 파일은 `task.disabledAgents`와 프로필 key(`task.agentModelOverrides` 17개 key 포함)이고 ledger는 두 owner를 담는다. (c) 파일은 다시 `task.disabledAgents`뿐이다
-And (d) 뒤 파일은 `# team note`와 `task.disabledAgents`를 담고 ledger preimage가 `# team note`를 담는다. (e)는 오류로 끝나고 `.omp/config.yml`, ledger, manifest, agent 파일 bytes가 (d) 뒤와 같다
+And (d) 뒤 파일은 `# team note`와 `task.disabledAgents`를 담고 ledger preimage가 `# team note`를 담는다. (e)는 오류로 끝나고 transaction journal에 실패 전에 끝난 write가 1개 이상 있으며(실제 transaction이 열렸다), `.omp/config.yml`, ledger, manifest, `.omp/agents`, overlay 파일 bytes가 (d) 뒤와 같다
 And (f) 뒤 `.omp/config.yml`은 `# team note`만 담고 ledger가 없으며, clean 사본은 `.omp/config.yml`과 ledger가 없다
 ### S23: 동의 뒤 live dispatch와 `/review`
 Priority: Must
@@ -151,6 +152,13 @@ Given S17 project와 사용자의 모델 호출 동의, OMP 탭에서 planner th
 When `PI_CONFIG_FILES`를 준 `omp`에서 planner에게 한 줄 작업을 보내고, 작은 diff에 `/review`를 한 번 실행한다
 Then planner subagent의 model과 thinking이 override `<selector>:low`와 같고, `/review` 출력에 `Patch is correct` 또는 `Patch is incorrect`와 confidence가 있다
 And 결과를 `evidence/manual-smoke-003.txt`에 남긴다. 동의가 없거나 막히면 PASS로 닫지 않고 CD-2를 남긴다
+### S24: 프로필과 섞인 상태의 사용자 `task.disabledAgents` 편집
+Priority: Must
+Given O3를 OPM으로 `auto update --yes`한 project(파일에 `task.disabledAgents`와 프로필 key)와 그 사본 두 개가 있다
+When 첫 project에서 `task.disabledAgents`를 `[scout]`로 고쳐 `auto update --yes`와 `auto doctor`를 실행하고, 이어 `config_mode: overlay`로 바꿔 update, 다시 값을 `[scout, security-reviewer, sonic]`로 되돌려 update한다. 첫 사본에서는 그 key를 지우고 update, 둘째 사본에서는 그 key를 고치면서 첫 줄에 `# team note`도 더해 update한다
+Then 첫 update는 종료 코드 0이고 `.omp/config.yml` SHA-256이 사용자가 고친 뒤와 같으며 `task.agentModelOverrides`는 17개 key 그대로다. ledger는 `agent_surface_user_owned`를 담고 출력에 `task.disabledAgents를 사용자가 정해 두어` 줄, doctor에 `agents:disabled_agents_user_owned`가 있다
+And overlay 전환 뒤 파일은 preimage와 `task.disabledAgents: [scout]`이고 프로필 key가 없다. 값을 되돌린 update 뒤 ledger에 사용자 소유 표시가 없고 그 key의 owner가 `agent_surface`다
+And 첫 사본은 update 뒤 파일에 `task.disabledAgents`가 없고 SHA-256이 사용자가 지운 뒤와 같다. 둘째 사본은 `managed_key_conflict`로 끝나고 `.omp/config.yml`과 ledger bytes가 실행 전과 같다
 ## Oracle Acceptance Notes
 
 - Must 시나리오는 concrete 값을 판정한다: 선택지 목록과 순서, 라벨, 바뀌는 설정 줄, frontmatter·TOML 값, override key 집합과 값, 실행 횟수, SHA-256, 오류 문구. 파일 존재나 종료 코드만으로 닫는 Must는 없다.

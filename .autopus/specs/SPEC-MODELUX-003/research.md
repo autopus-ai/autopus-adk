@@ -1,6 +1,6 @@
 # SPEC-MODELUX-003 리서치
 
-branch `feat/modelux-003`, 기준 `v0.50.125`(dd6d6ea2, origin/main, SPEC-MODELUX-001·002 포함)에서 읽었다. `git diff --stat 93dbb564 dd6d6ea2 -- '*.go'`가 비어 있어 초안의 줄 번호가 main에서도 같다. OMP 사실은 omp 18.6.1 실행 파일의 `strings -n 8` 덤프(`S:<줄>`)와 scratch probe다(`evidence/probe-omp-18.6.1.md`). Revision 1은 review round 1(F-001–F-020)을 반영했다(`## Review Round 1`). 확인하지 못한 것은 `미확인`이다.
+branch `feat/modelux-003`, 기준 `v0.50.125`(dd6d6ea2, origin/main, SPEC-MODELUX-001·002 포함)에서 읽었다. `git diff --stat 93dbb564 dd6d6ea2 -- '*.go'`가 비어 있어 초안의 줄 번호가 main에서도 같다. OMP 사실은 omp 18.6.1 실행 파일의 `strings -n 8` 덤프(`S:<줄>`)와 scratch probe다(`evidence/probe-omp-18.6.1.md`). Revision 1은 review round 1(F-001–F-020)을, revision 2는 round 2의 미해결 5건(F-002, F-008, F-013, F-021, F-022)을 반영했다(`## Review Round 1`, `## Review Round 2`). 확인하지 못한 것은 `미확인`이다.
 ## 기존 코드 분석
 ### effort (Claude·Codex)
 - `pkg/config/schema.go:24-27` `QualityPreset{Description, Agents}`(290줄). strict decode `loader_strict.go:26-50`은 v0.50.113부터라(SPEC-MODELUX-002 research "도구별 저장 값") 새 key를 쓴 파일은 v0.50.113–v0.50.125가 읽지 못한다. 그 이전 바이너리의 동작은 미확인.
@@ -34,14 +34,14 @@ branch `feat/modelux-003`, 기준 `v0.50.125`(dd6d6ea2, origin/main, SPEC-MODELU
 | 결정 | 선택 | 기각한 대안 | 근거와 trade-off |
 |---|---|---|---|
 | effort 저장 | `quality.presets.<name>.efforts.<agent>`, 값 다섯 단계, load 검증 | 에이전트별 ID, `quality.providers.omp` | 사용자 결정. ≤ v0.50.125는 못 읽고 처음 쓸 때 한 줄 안내 |
-| effort 보존 | 프리셋을 복사·재작성·미리보기·갱신하는 모든 자리가 efforts를 옮긴다. 갱신은 등급·description만 바꾼다 | `setQualityToolPreset`만 고치기 | F-013. 한 자리라도 빠지면 미리보기 ≠ 생성 |
+| effort 보존 | 프리셋을 복사·재작성·미리보기·갱신하는 모든 자리가 efforts를 옮긴다. 갱신은 등급·description만 바꾼다. 모든 도구 같게가 `custom`을 새로 만들어도 편집 전 binding 프리셋의 efforts를 모든 에이전트에 옮긴다 | `setQualityToolPreset`만 고치기, 등급이 그대로인 에이전트만 옮기기 | F-013. 한 자리라도 빠지면 미리보기 ≠ 생성. 등급이 바뀐 에이전트의 effort를 버리면 effort를 건드리지 않은 편집이 effort를 바꾼다(REQ-MUX3-20) |
 | 명시 effort와 표준 배치 | 명시 effort가 있으면 그 에이전트는 표준 배치를 떠난다 | 배치 model 유지 | `native_balanced.go:20-24`와 같은 규칙. Codex 배치는 대체를 거부한다(`codex_resolve.go:13-20`) |
 | haiku | 에이전트마다 판정. 그룹 Select는 haiku가 아닌 멤버로 묻고 모두 haiku면 묻지 않는다 | 그룹 전체 생략 | F-009 |
 | 폼 test 입력 | 기존 폼 test는 새 effort Select마다 Enter 한 번을 더하고 단언은 둔다 | 기존 입력 bytes 고정 | F-014. 불변은 줄 driver와 effort 없는 생성 결과로 좁힌다 |
 | OMP effort | 기존 pin thinking. 탭은 pin 없이 먼저 plan해 기본값과 selector를 얻는다 | quality effort 번역 | F-008. OMP probe는 탭 진입당 pre-plan과 확인 전 plan 2회다 |
 | OMP 에이전트 | 16개 파일, model 없음. `thinkingLevel`은 이번 생성의 override에 없는 에이전트만 선언 effort | concrete model, role alias, 항상 thinkingLevel | 사용자 결정. override와 겹치지 않아 우선순위가 무관해진다(F-018) |
 | reviewer | P0 bundled `output`과 같은 golden | schema 없이 대체 | `/review` verdict 보존. 정합성은 golden test가, 런타임은 S23이 닫는다 |
-| native 끄기 | Claim Set Contract: ledger 하나, preimage 하나, claim 집합 = 프로필 key ∪ `task.disabledAgents`, merge 한 번 | 별도 merge, overlay에만 | F-002. plain 세션은 overlay를 읽지 않는다 |
+| native 끄기 | Claim Set Contract: ledger 하나, preimage 하나, claim 집합 = 프로필 key ∪ `task.disabledAgents`, merge 한 번. 사용자가 그 key만 고치면 프로필 claim이 있어도 사용자 소유로 넘겨 preimage에 사용자 값을 넣는다 | 별도 merge, overlay에만, key별 commitment로 ledger 형식 변경 | F-002. plain 세션은 overlay를 읽지 않는다. 판정은 기존 whole-file commitment를 그대로 쓰고 그 key만 ADK 값으로 바꿔 비교한다 |
 | route | 정규 16개 + task. task는 ① task pin ② planner pin ③ 프로필 planner route. 접힘 검증은 native 모드만 | `OMPNativeAgentRoute("task")` 재사용 | F-001. 에이전트별 탭이 pin을 흔하게 만든다 |
 | 렌더 mode | OMP 렌더 진입점이 모두 mode를 받고 기본은 autopus. native는 OMP adapter가 명시 | 새 함수 하나 추가 | F-015. 생성 산출물이 oracle |
 | 되돌리기 key | `role_model_policy.agent_source: native` | `future_extension`, CLI flag | route key owner가 `role_model_policy`. 정책 존재 판정(L22-25)에 넣지 않는다 |
@@ -74,6 +74,14 @@ branch `feat/modelux-003`, 기준 `v0.50.125`(dd6d6ea2, origin/main, SPEC-MODELU
 | F-018 | thinking 질문 제거, reviewer golden, S23과 Completion Debt |
 | F-019 | 백업 사실 정정, 기존 transaction 백업 재사용 |
 | F-020 | REQ-MUX3-02, 06, 11을 `WHERE … THEN` 형식으로 |
+## Review Round 2
+| ID | 반영 |
+|---|---|
+| F-002 | 섞인 상태에서 `task.disabledAgents`만 바뀐 판정, 사용자 소유 전환·표시·재claim(Claim Set Contract, S24) |
+| F-008 | 탭이 더하는 catalog 읽기는 pre-plan 1회, 기존 경로의 횟수는 단언하지 않음(REQ-MUX3-13) |
+| F-013 | 모든 도구 같게의 `custom`에도 편집 전 binding 프리셋 efforts를 옮김(Efforts Preservation Contract, S20 넷째) |
+| F-021 | S22(e)는 내용을 바꿔 실제 transaction을 열고 `ompRootedWriteFailureHook`으로 마지막 write를 실패시킴 |
+| F-022 | S21 task pin 사본은 11개 역할 + task = 12개 key |
 ## Plan Intent Ledger
 Clarification Ledger unavailable. 입력은 planning context의 사용자 결정 표(answered)와 Q1 답(2026-10-13)이다.
 
@@ -89,7 +97,7 @@ Clarification Ledger unavailable. 입력은 planning context의 사용자 결정
 - User-visible outcome: Claude Code·Codex 탭에서 등급과 effort를 그 도구의 유효 값으로 고르고 같은 run의 생성 파일이 미리보기와 같다. OMP 탭은 thinking을 고른다. OMP 프로젝트는 기본으로 Autopus 에이전트 16개를 쓰고 scout·security-reviewer·sonic은 꺼지며 reviewer는 Autopus reviewer다. 프로필이 있으면 route가 16개 이름 + task로 활성화·되읽기된다. `auto update`가 옮기고 `agent_source: native`가 되돌린다.
 - Mandatory requirements: REQ-MUX3-01–17, 20, 21 (Must). REQ-MUX3-18, 19는 Should.
 - Explicit non-goals: `spec.md` `## Outcome Boundary`.
-- Completion evidence: Must S1–S17, S20–S23 PASS, `auto eval harness run`, coverage 85% 이상, 300줄, `GOOS=windows GOARCH=amd64 go build ./...`, `evidence/manual-smoke-003.txt`(S17, S23), `auto spec validate --strict`.
+- Completion evidence: Must S1–S17, S20–S24 PASS, `auto eval harness run`, coverage 85% 이상, 300줄, `GOOS=windows GOARCH=amd64 go build ./...`, `evidence/manual-smoke-003.txt`(S17, S23), `auto spec validate --strict`.
 ## Visual Planning Brief
 흐름도와 wireframe은 `plan.md`이고 `wireframe intent: assumed`다. 요구사항으로 묶는 것은 Effort Option Contract와 순서·기본값뿐이다.
 ## Technology Stack Decision
@@ -113,16 +121,16 @@ Clarification Ledger unavailable. 입력은 planning context의 사용자 결정
 | INV-MUX3-03 | "Labels show real values" | 라벨·미리보기·생성 effort가 같다 | 라벨, 표, frontmatter, TOML | S3, S4, S20 |
 | INV-MUX3-04 | "do NOT put concrete models into frontmatter" | `.omp/agents`에 model 없음, route는 override로만 | agent 파일, override | S7, S9 |
 | INV-MUX3-05 | "keyed by the 16 Autopus names" | override key = 정규 16 + task, task는 Route Contract 규칙 | `task.agentModelOverrides` | S9, S21 |
-| INV-MUX3-06 | "keep user-authored .omp/agents files" | manifest 밖 파일·사용자 소유 key bytes 불변 | SHA | S8, S22 |
+| INV-MUX3-06 | "keep user-authored .omp/agents files" | manifest 밖 파일·사용자 소유 key bytes 불변 | SHA | S8, S22, S24 |
 | INV-MUX3-07 | "agent_source: native restores" | native 뒤 OMP 표면 = v0.50.125가 agent_source 없는 같은 파일로 만든 것 | 파일 목록, bytes | S13 |
 | INV-MUX3-08 | "Absent → automatic" + 보존 | 기존 efforts는 다른 편집·갱신에서 그대로 | quality key | S5, S20 |
-| INV-MUX3-09 | "disable via task.disabledAgents" | claim 집합 전환 뒤 파일 = preimage + 남은 claim | `.omp/config.yml`, ledger | S22 |
+| INV-MUX3-09 | "disable via task.disabledAgents" | claim 집합 전환 뒤 파일 = preimage + 남은 claim | `.omp/config.yml`, ledger | S22, S24 |
 ## Feature Coverage Map
 | Outcome slice | Covered by | Status |
 |---------------|------------|--------|
 | effort 저장·해석·보존·폼 | REQ-MUX3-01–05, 20 / S1–S5, S20 | covered |
 | OMP 파일·reviewer·사용자 파일·렌더 | REQ-MUX3-07–09, 21 / S7, S8, S14 | covered |
-| claim·route·소비처·OMP 탭 | REQ-MUX3-10–13 / S9–S11, S15, S21, S22 | covered |
+| claim·route·소비처·OMP 탭 | REQ-MUX3-10–13 / S9–S11, S15, S21, S22, S24 | covered |
 | migration·rollback·안전·smoke | REQ-MUX3-06, 14–17 / S6, S12, S13, S16, S17, S23 | covered |
 ## Completion Debt
 | Item | Blocks | Required resolution |
@@ -155,21 +163,22 @@ These are optional improvements and do not block sync completion.
 - Reviewer should focus on: Claim Set 전환과 복원, task 규칙과 load 검증, degraded 판정, 렌더 mode 전파, efforts 보존, 그리고 Completion Debt only.
 ## Open Risks
 - R1: CD-1·CD-2(live 미확인). R3: RPC 되읽기 5회 → 17회(exec runner). R4: 기존 test 변경(27개 중 단언 4개 파일).
-- R5: user-level `disabledAgents`와 project 값의 병합 미확인. R6: OMP가 claude-plugins agent도 발견한다(S:524490). R7: ledger에 owner 필드를 더할 때 v0.50.125가 그 ledger를 읽는지 미확인(T5가 먼저 확인, 안 되면 새 ledger 이름).
+- R5: user-level `disabledAgents`와 project 값의 병합 미확인. R6: OMP가 claude-plugins agent도 발견한다(S:524490). R7: ledger에 owner 필드를 더할 때 v0.50.125가 그 ledger를 읽는지 미확인(T5가 먼저 확인, 안 되면 새 ledger 이름). R8: `task.disabledAgents`만 바뀐 판정은 ADK의 삽입 위치와 encoding이 결정적이라는 가정이다(A3).
 ## Self-Verify Summary
 - Q-CORR-01 | status: PASS | attempt: 2 | files: research.md, spec.md, plan.md | reason: 백업 사실(F-019)과 Generate 인용(F-006)을 고쳤고 v0.50.125에서 줄 번호를 다시 확인했다
 - Q-CORR-02 | status: PASS | attempt: 2 | files: spec.md, plan.md, research.md | reason: 새 함수·필드·파일·golden·evidence는 [NEW]다
 - Q-CORR-03 | status: PASS | attempt: 2 | files: spec.md, acceptance.md | reason: StateDriven 세 개를 parser regex의 WHERE … THEN 형식으로 고쳤다
 - Q-CORR-04 | status: PASS | attempt: 1 | files: research.md | reason: Reference Discipline이 existing, history·binary·docs, [NEW]를 나눈다
 - Q-COMP-01 | status: PASS | attempt: 1 | files: spec.md, plan.md, acceptance.md, research.md, prd.md | reason: 계약, 계획, oracle, 근거, 요약이 나뉜다
-- Q-COMP-02 | status: PASS | attempt: 2 | files: plan.md | reason: effort 보존, claim lifecycle, 렌더 경로, 소비처를 owner가 있는 task로 옮겼다
+- Q-COMP-02 | status: PASS | attempt: 3 | files: plan.md | reason: effort 보존, claim lifecycle, 렌더 경로, 소비처를 owner가 있는 task로 옮겼고 섞인 상태의 사용자 편집·실패 seam(T5)과 `custom` 새 이름 경로(T10)를 더했다
 - Q-COMP-03 | status: PASS | attempt: 1 | files: spec.md | reason: REQ마다 조건과 관측 대상이 있다
-- Q-COMP-04 | status: PASS | attempt: 2 | files: spec.md, research.md | reason: 결정 표와 Q1 답을 REQ와 non-goal로 옮겼다
-- Q-COMP-05 | status: PASS | attempt: 2 | files: research.md, acceptance.md | reason: INV-MUX3-01–09가 S1–S23의 bytes·key·목록 oracle에 이어진다(S21, S22 추가)
+- Q-COMP-04 | status: PASS | attempt: 3 | files: spec.md, research.md | reason: 결정 표와 Q1 답을 REQ와 non-goal로 옮겼고 REQ-MUX3-10의 사용자 소유 약속을 섞인 상태까지 계약으로 닫았다
+- Q-COMP-05 | status: PASS | attempt: 3 | files: research.md, acceptance.md | reason: INV-MUX3-01–09가 S1–S24 oracle에 이어진다. S22(e)는 실제 transaction 실패를, S24는 섞인 상태 사용자 편집을, S20 넷째는 `custom` 새 이름을 판정한다
 - Q-COMP-06 | status: PASS | attempt: 1 | files: spec.md | reason: Traceability Matrix가 REQ 21개를 잇는다
 - Q-COMP-07 | status: PASS | attempt: 2 | files: research.md | reason: live 미확인 둘을 CD-1·CD-2로 남겼다
 - Q-COMP-08 | status: PASS | attempt: 2 | files: plan.md | reason: A1 PASS, A2·A3 not-run 이유, 백업 진술 재분류
 - Q-FEAS-01 | status: PASS | attempt: 2 | files: spec.md, plan.md | reason: Claim Set Contract와 task 규칙을 owner 파일에 묶었다
+- Q-FEAS-03 | status: PASS | attempt: 2 | files: acceptance.md, plan.md | reason: S22(e)는 내용 변경과 test 전용 실패 seam으로 실제로 실패하고, S21 key 수를 12개로 고쳤으며, probe 횟수는 단언하지 않는다
 - Q-SEC-01 | status: PASS | attempt: 1 | files: spec.md | reason: 사용자 파일·설정을 쓰지 않는 규칙과 terminalSafe가 Trust Model에 있다
 - Q-SEC-02 | status: PASS | attempt: 2 | files: spec.md, acceptance.md | reason: 사용자 파일·key는 S8·S22가 SHA로 판정한다
 - Q-COH-01 | status: PASS | attempt: 1 | files: spec.md, research.md | reason: 구성 흐름과 OMP 표면 하나로 모인다

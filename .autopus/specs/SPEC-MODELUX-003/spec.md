@@ -2,7 +2,7 @@
 
 **Status**: draft
 **Created**: 2026-10-12
-**Revised**: 2026-10-13 (review round 1, F-001–F-020)
+**Revised**: 2026-10-13 (review round 1 F-001–F-020, round 2 F-002·F-008·F-013·F-021·F-022)
 **Domain**: MODELUX
 **Module**: autopus-adk
 **Release**: v0.50.126. 작업 branch는 `feat/modelux-003`이고 기준은 `v0.50.125`(dd6d6ea2, origin/main)다. v0.50.125는 SPEC-MODELUX-001·002로 이미 발행됐다.
@@ -25,8 +25,8 @@ SPEC-MODELUX-002 smoke 뒤 사용자가 두 가지를 요청했다. "effort도 �
   - `.omp/agents` frontmatter의 concrete model이나 OMP role alias(`@slow` 등)
   - `모든 도구 같게` 탭의 effort 편집, 줄 driver(SPEC-MODELUX-001)의 키·문구 변경
   - OMP writer(`replaceAutopusConfigSection`)의 문서 전체 재encode 변경, OpenCode·Antigravity effort
-  - OMP 버전마다 `/review` schema 따라가기(18.6.1 golden을 고정한다), 프로필 claim의 `managed_key_conflict` 규칙 변경
-- Completion evidence: Must S1–S17, S20–S23 PASS, `auto eval harness run`, 신규·변경 package coverage 85% 이상, 신규·변경 소스 파일 300줄 이하, `GOOS=windows GOARCH=amd64 go build ./...`, `evidence/manual-smoke-003.txt`(S17, S23), `auto spec validate --strict`. `research.md` `## Completion Debt`의 CD-1·CD-2가 남아 있으면 완료가 아니다.
+  - OMP 버전마다 `/review` schema 따라가기(18.6.1 golden을 고정한다), 프로필 claim key와 claim 밖 사용자 편집에 대한 `managed_key_conflict` 규칙 변경(`task.disabledAgents`만 바뀐 경우는 이 SPEC의 Claim Set Contract가 새로 정한다)
+- Completion evidence: Must S1–S17, S20–S24 PASS, `auto eval harness run`, 신규·변경 package coverage 85% 이상, 신규·변경 소스 파일 300줄 이하, `GOOS=windows GOARCH=amd64 go build ./...`, `evidence/manual-smoke-003.txt`(S17, S23), `auto spec validate --strict`. `research.md` `## Completion Debt`의 CD-1·CD-2가 남아 있으면 완료가 아니다.
 
 ## Trust Model
 
@@ -105,6 +105,7 @@ Priority: Must · EARS: EventDriven
 WHEN OMP files are generated, THEN THE SYSTEM SHALL compute the project claim set of the Claim Set Contract, apply it with one MergeOMPProjectManagedConfig call over the ledger preimage and one ledger update inside the OMP transaction, keep task enabled, leave a user-owned `task.disabledAgents` unchanged while reporting `agents:disabled_agents_user_owned` as degraded, and restore every byte of `.omp/config.yml`, the ledger, the manifest, and the agent files when the transaction fails.
 
 - plain `omp`는 overlay를 읽지 않고 project `.omp/config.yml`을 읽으므로(S:466140-466160) 이 claim은 config_mode와 무관하게 `.omp/config.yml`에 간다. task를 끄면 이름 없는 dispatch가 preflight에서 실패한다(S:526773, P4). 새 파일은 0600이다(`omp.go:230-233`).
+- 사용자가 `task.disabledAgents`만 고치면 프로필 claim이 함께 있어도 사용자 소유로 넘기고 값을 되돌리지 않는다(Claim Set Contract의 사용자 편집 행, S24).
 
 ### REQ-MUX3-11 Autopus 이름 route
 Priority: Must · EARS: StateDriven
@@ -122,7 +123,7 @@ Priority: Must · EARS: EventDriven
 WHEN the OMP tab runs in autopus mode, THEN THE SYSTEM SHALL plan the profile once without pins before the method select, return to the menu with no write when that plan reports a blocker, offer 역할 그룹 and 에이전트별 over the 16 canonical agents, list the profile default and the installed models that every affected agent accepts under the existing tab's catalog rule, ask a thinking select over the levels the chosen model reports with the pre-plan's thinking as the profile default, pin the pre-plan's effective selector when only the thinking changes, and persist through the SPEC-MODELUX-002 OMP paths.
 
 - catalog 규칙: catalog에 capability metadata가 없으면 지금 탭처럼 `installedOMPCustomModelChoices`가 안내와 함께 표시용 catalog를 쓰고 모든 model을 보인다. capability 목록이 있는 model은 영향받는 모든 에이전트의 capability를 덮을 때만 보인다(`quality_omp_custom.go:102-159`).
-- OMP catalog probe는 탭 진입당 pre-plan과 확인 전 plan 2회다. REQ-MUX3-16의 run당 1회 규칙은 Codex snapshot에 관한 것이다. update·quality는 `applyOMPProfile`과 cfg 동기화, init은 메모리 경로(SPEC-MODELUX-002 REQ-MUX2-11, 22, 23)다. native 모드와 줄 OMP 편집기는 그대로다.
+- 이 탭이 더하는 catalog 읽기는 pin 없는 pre-plan 1회다. 모델 목록(`installedOMPCustomModelChoices`, `quality_compose_omp.go:159`), 확인 전 plan, `applyOMPProfile`의 재해석(`platform_omp_profile_apply.go:190` → `platform_omp_profile_effective.go:60`), 활성화 Update의 `prepareModelIntegration`은 기존 경로라 그대로 두고 탭 진입당 읽기 횟수는 단언하지 않는다. REQ-MUX3-16의 run당 1회 규칙은 Codex snapshot에 관한 것이다. update·quality는 `applyOMPProfile`과 cfg 동기화, init은 메모리 경로(SPEC-MODELUX-002 REQ-MUX2-11, 22, 23)다. native 모드와 줄 OMP 편집기는 그대로다.
 
 ### REQ-MUX3-14 update migration
 Priority: Must · EARS: EventDriven
@@ -142,7 +143,7 @@ THE SYSTEM SHALL keep every SPEC-MODELUX-001 and SPEC-MODELUX-002 safety propert
 ### REQ-MUX3-17 test seam과 수동 smoke
 Priority: Must · EARS: Ubiquitous
 
-THE SYSTEM SHALL run every new path through the existing seams (composeRunForm, composeFormsProbe, ompModelDoctorE2ERunner, platformOMPModelRunner, ompCLIFakeRunner, the RunWithInput fake of `omp_model_activation_rpc_test.go`) and SHALL record the real-terminal smoke S17 and the consented live check S23 in `evidence/manual-smoke-003.txt`.
+THE SYSTEM SHALL run every new path through the existing seams (composeRunForm, composeFormsProbe, ompModelDoctorE2ERunner, platformOMPModelRunner, ompCLIFakeRunner, the RunWithInput fake of `omp_model_activation_rpc_test.go`, the test-only `[NEW] ompRootedWriteFailureHook`) and SHALL record the real-terminal smoke S17 and the consented live check S23 in `evidence/manual-smoke-003.txt`.
 
 ### REQ-MUX3-18 locale
 Priority: Should · EARS: Ubiquitous
@@ -187,7 +188,7 @@ THE SYSTEM SHALL render every OMP surface that names an agent through the OMP Re
 | 자리 | 규칙 |
 |---|---|
 | `composeBindingPlan.set`, `composeCandidate`(`quality_compose_bind_write.go:29-52`) | 복사하는 프리셋의 efforts를 그대로 옮긴다 |
-| 모든 도구 같게의 편집 프리셋(`quality_compose_bind.go:173`) | 같은 이름의 기존 프리셋 efforts를 옮긴다. 새 이름이면 없다 |
+| 모든 도구 같게의 binding 프리셋(`composeBindTarget`, `quality_compose_bind.go:164-174`: built-in과 맞지 않으면 고정 이름 `custom`) | 쓰는 이름(`custom`이든 맞은 built-in이든)과 무관하게 편집 전 전역 binding 프리셋(`quality.EffectiveMode("")`)의 efforts를 모든 에이전트에 그대로 옮긴다. 등급이 바뀐 에이전트도 옮긴다(도구별 탭 effort Select의 기본 `그대로`와 같다). 옮긴 것이 있으면 바뀌는 설정 줄 `quality.presets.<name>.efforts 옮겨 씀 (N개 에이전트)`를 쓴다 |
 | 도구별 미리보기(`withQualityToolPreset`, `quality_tool_interactive.go:207-222`)와 저장(`setQualityToolPreset`, `quality_tool_persist.go:49-61`) | 작업 구성의 efforts(기존 + 이번 편집) |
 | 최신 기본값 갱신(`u`, `ClassifyBuiltinQualityPreset` 분류는 그대로) | 등급과 description만 최신으로 바꾸고 efforts는 옮긴다 |
 | `config.Save`, raw quality writer | typed 필드라 그대로 왕복한다 |
@@ -224,8 +225,9 @@ THE SYSTEM SHALL render every OMP surface that names an agent through the OMP Re
 | claim 집합 C | project-managed 프로필이면 그 `ManagedKeys` 전부 ∪ autopus 모드이고 사용자 소유가 아니면 `task.disabledAgents = [scout, security-reviewer, sonic]`(FullArrayOwnership) |
 | 적용 | C가 비지 않으면 생성마다 preimage 위에 C 전부로 `MergeOMPProjectManagedConfig` 한 번, config mapping 하나, ledger 갱신 하나. model integration이 없어도 mapping을 만든다(`omp.go:208-216` gate 변경, `omp_model_integration_project.go:14-99`의 수 검사는 프로필 claim에만) |
 | C가 빔 | ledger가 있으면 release: preimage를 복원하고(ADK가 만든 파일이면 삭제) ledger를 지운다(`omp_rooted_lifecycle_config.go:64-83`을 C 기준으로) |
-| 사용자가 C 밖을 고침 | C에 `profile` claim이 있으면 지금처럼 `managed_key_conflict`. C가 `agent_surface`뿐이면 새 preimage = 현재 파일에서 ADK claim key만 preimage 값으로 되돌린 것으로 다시 잡고 적용한다 |
-| 사용자가 `task.disabledAgents`를 고침 | 사용자 소유다. C에서 빼고 안내 1줄과 degraded. 그래서 C가 비면 파일을 그대로 두고 ledger만 지운다 |
+| 사용자가 C 밖을 고침 | C에 `profile` claim이 있으면 지금처럼 `managed_key_conflict`이고 아무것도 쓰지 않는다(`task.disabledAgents`를 같이 고쳤어도 같다). C가 `agent_surface`뿐이면 아래 `task.disabledAgents` 판정을 먼저 하고, 새 preimage = 현재 파일에서 ADK claim key만 preimage 값으로 되돌린 것으로 다시 잡고 적용한다 |
+| 사용자가 `task.disabledAgents`만 고침(지움 포함) | 판정: 현재 파일의 그 key를 ADK가 마지막으로 쓴 값으로 바꾼(없으면 같은 자리에 넣은) bytes의 commitment가 `LastEmittedCommitment`(`omp_model_integration_ownership_rooted.go:49-62`)와 같으면 그 key만 바뀐 것이다. 프로필 claim이 있든 없든 사용자 소유로 넘긴다: 새 preimage = 원본 preimage에 사용자 값(지웠으면 삭제), C에서 그 key를 빼고, ledger에 `[NEW] agent_surface_user_owned`를 남기며, 파일 bytes는 그대로 두고 안내 1줄과 degraded를 낸다. 그 뒤의 merge·전환·release는 새 preimage를 쓰므로 사용자 값을 되돌리지 않는다 |
+| 사용자 소유 표시가 있음 | 그 key를 claim하지 않는다. 사용자 값이 `[scout, security-reviewer, sonic]`과 같아지면 표시를 지우고 다시 claim한다 |
 | clean | `agent_surface`만 있는 ledger는 receipt 없이 release와 같게 복원한다(`omp_model_integration_clean.go:14-32` 조건 변경) |
 | 실패 | OMP transaction 실패는 `.omp/config.yml`, ledger, manifest, agent 파일을 실행 전 bytes로 되돌린다(기존 rooted transaction). 활성화 실패는 기존 복원이다 |
 | allowlist | `task.disabledAgents`는 프로필 `managed_keys`에 넣지 않는다(`role_model_policy_validate.go:174-190` 그대로). `agent_surface` claim은 adapter가 만든다 |
@@ -273,7 +275,7 @@ THE SYSTEM SHALL render every OMP surface that names an agent through the OMP Re
 |---|---|---|
 | effort Select | `<그룹 또는 에이전트> effort` · `그대로 — <현재>` · 단계 라벨 `(자동)` | `<group or agent> effort` · `keep — <current>` · `(automatic)` |
 | Codex 안내 | `Codex catalog를 읽지 못해 effort는 자동입니다` | `Codex catalog unreadable; effort stays automatic` |
-| 바뀌는 설정 | `quality.presets.<p>-custom.efforts 새로 씀 (N개 에이전트)` / `고쳐 씀` / `지움`, `quality.presets.*.efforts는 v0.50.126보다 오래된 auto가 읽지 못합니다` | `… efforts written (N agents)` / `rewritten` / `removed`, `auto older than v0.50.126 cannot read quality.presets.*.efforts` |
+| 바뀌는 설정 | `quality.presets.<p>-custom.efforts 새로 씀 (N개 에이전트)` / `고쳐 씀` / `지움`, `quality.presets.*.efforts는 v0.50.126보다 오래된 auto가 읽지 못합니다`, `quality.presets.<name>.efforts 옮겨 씀 (N개 에이전트)` | `… efforts written (N agents)` / `rewritten` / `removed`, `auto older than v0.50.126 cannot read quality.presets.*.efforts`, `quality.presets.<name>.efforts carried (N agents)` |
 | OMP thinking | `프로필 기본값 (<thinking>)` | `profile default (<thinking>)` |
 | 사용자 파일 | `.omp/agents/<agent>.md는 사용자 파일이라 그대로 둡니다` | `.omp/agents/<agent>.md is a user file; left unchanged` |
 | disabledAgents | `.omp/config.yml의 task.disabledAgents를 사용자가 정해 두어 scout, security-reviewer, sonic을 끄지 않았습니다` | `task.disabledAgents in .omp/config.yml is user-owned; scout, security-reviewer, and sonic stay enabled` |
@@ -292,7 +294,7 @@ OMP 기본값이 바뀌므로 0건이 아니다. 목록은 `research.md` `### �
 
 - `pkg/config`: `schema.go`(+1줄), `[NEW] quality_effort.go`(+test), `schema_model_selection.go`, `quality_effective.go`, `native_balanced.go`, `codex_profile.go`, `role_model_policy.go`(+1줄), `[NEW] omp_agent_source.go`(+test), `role_model_policy_validate.go`, `[NEW] role_model_policy_autopus_agents.go`(+test), `quality_preset_history.go`(갱신 경로가 이 package면).
 - `pkg/content`: `[NEW] agent_transformer_omp_render.go`(+test), `skill_transformer_replace.go`, `skill_transformer_replace_omp.go`, `skill_transformer_replace_omp_render.go`, `skill_resources.go`, `skill_transformer.go`, `agent_transformer_mapping.go`, `generate.go`. `templates/shared/omp-agent-pipeline.md.tmpl`.
-- `pkg/adapter/omp`: `[NEW] omp_agents.go`(+test), `[NEW] omp_agent_surface_claim.go`(+test), `omp.go`, `omp_rooted_lifecycle.go`, `omp_rooted_lifecycle_config.go`, `omp_model_integration_project.go`, `omp_model_integration_ownership_rooted.go`, `omp_model_integration_clean.go`, `omp_model_integration_bridge.go`, `omp_model_projection.go`, `omp_model_projection_overlay.go`, `omp_model_integration_degraded.go`, `omp_model_routing_compile.go`, `omp_model_doctor_projection.go`, `omp_skills.go`, `omp_rules.go`, `omp_workflow_render.go`, `[NEW] testdata/omp-18.6.1-reviewer-output.yaml`.
+- `pkg/adapter/omp`: `[NEW] omp_agents.go`(+test), `[NEW] omp_agent_surface_claim.go`(+test), `omp.go`, `omp_rooted_lifecycle.go`, `omp_rooted_lifecycle_config.go`, `omp_rooted_transaction.go`(test 전용 실패 seam), `omp_model_integration_project.go`, `omp_model_integration_ownership_rooted.go`, `omp_model_integration_clean.go`, `omp_model_integration_bridge.go`, `omp_model_projection.go`, `omp_model_projection_overlay.go`, `omp_model_integration_degraded.go`, `omp_model_routing_compile.go`, `omp_model_doctor_projection.go`, `omp_skills.go`, `omp_rules.go`, `omp_workflow_render.go`, `[NEW] testdata/omp-18.6.1-reviewer-output.yaml`.
 - `internal/cli`: `[NEW] quality_compose_effort.go`(+test), `[NEW] quality_compose_form_effort.go`(+test), `quality_compose_form_edit.go`, `quality_compose_tool.go`, `quality_tool_persist.go`, `quality_tool_interactive.go`, `quality_compose_bind.go`, `quality_compose_bind_write.go`, `quality_compose_form_text.go`, `[NEW] quality_compose_omp_autopus.go`(+test), `quality_compose_omp.go`(분기 몇 줄), `platform_omp_agent_catalog.go`, `platform_omp_projection_build.go`, `platform_omp_profile_preview.go`, `pipeline_backend_omp_models.go`, `pipeline_backend_orca_models.go`, `doctor_omp_model_routing_probe.go`, `quality_compose_table.go`, `[NEW] platform_omp_agent_migration.go`(+test).
 - 문서: README, CHANGELOG(v0.50.126), help 상수. 증거: `evidence/probe-omp-18.6.1.md`, `[NEW] evidence/manual-smoke-003.txt`. 신규·변경 소스는 300줄 이하이고, 292·290줄 파일에는 호출 몇 줄만 더한다.
 
@@ -321,7 +323,7 @@ OMP 기본값이 바뀌므로 0건이 아니다. 목록은 `research.md` `### �
 | REQ-MUX3-07 | T4 | S7 | INV-MUX3-04 |
 | REQ-MUX3-08 | T4 | S7, S23 | INV-MUX3-04 |
 | REQ-MUX3-09 | T4 | S8 | INV-MUX3-06 |
-| REQ-MUX3-10 | T5 | S7, S8, S22 | INV-MUX3-06, INV-MUX3-09 |
+| REQ-MUX3-10 | T5 | S7, S8, S22, S24 | INV-MUX3-06, INV-MUX3-09 |
 | REQ-MUX3-11 | T3, T6 | S9, S21 | INV-MUX3-04, INV-MUX3-05 |
 | REQ-MUX3-12 | T6, T7 | S15, S21 | INV-MUX3-05 |
 | REQ-MUX3-13 | T11 | S10, S11 | INV-MUX3-02 |
