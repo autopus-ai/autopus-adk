@@ -155,7 +155,7 @@ WHEN a composition form returns huh.ErrUserAborted, THEN THE SYSTEM SHALL write 
 - 중단 줄은 `중단했습니다. 구성을 더 바꾸지 않습니다.`(en: `Interrupted; the composition is not changed further.`)다. 메뉴 반복 중 앞에서 이미 적용한 쓰기는 그대로 남는다.
 - update는 SPEC-MODELUX-001 줄 driver에서 Ctrl+C가 명령 전체를 끝냈던 것과 같게 한다(통합 결정, 2026-10-12). 이미 저장된 migration과 이 run에서 앞서 승인한 쓰기는 남고, 생성은 다음 `auto update`가 한다.
 - 단계는 `[NEW] composeGate.Abort`(error pointer)에 `[NEW] errComposeInterrupted`를 적고 update.go가 그것을 돌려준다. `updateComposeStep`의 시그니처는 그대로라서 `update_compose_helpers_test.go:143-146`의 wrapper가 그대로 컴파일된다. update.go는 `Long`을 옮겨 13줄이 빈 뒤 4줄이 는다.
-- init은 기존 `runInitComposeStep`의 시그니처를 그대로 두고, `[NEW] runInitComposeStepCancellable`이 취소 여부를 더 돌려준다. init.go에 더하는 줄은 4줄 이하다.
+- init은 `runInitComposeStep`을 취소 여부를 더 돌려주는 `[NEW] runInitComposeStepCancellable`로 바꾼다. 옛 함수의 호출자는 init.go 하나였고 참조하는 test는 없어서, 옛 이름을 호출자 없는 wrapper로 남기면 unused lint에 걸린다(구현 중 결정). init.go에 더하는 줄은 4줄 이하다.
 
 ### REQ-MUX2-15 줄 driver 불변
 Priority: Must · EARS: Ubiquitous
@@ -254,7 +254,8 @@ THE SYSTEM SHALL document arrow-key forms, the tool tab, the per-tool binding, t
 
 - 편집 결과가 시작과 같으면 `변경 없음`을 쓰고 메뉴로 돌아간다. 쓰지 않는다.
 - 메뉴는 돌아올 때마다 표를 다시 그린다. 다시 그린 표는 방금 쓴 값(cfg 동기화)과 같은 snapshot으로 계산한다.
-- 쓰기가 거부되거나 실패하면 기준 상태(REQ-MUX2-03)가 그대로이고 경고 1줄(`warnUpdateCompose`와 같은 형식)을 쓴 뒤 메뉴로 돌아간다. 경로별 보장은 Write Safety Contract다.
+- 쓰기가 거부되거나 실패하면 기준 상태(REQ-MUX2-03)가 그대로이고 경고 1줄(`warnUpdateCompose`와 같은 형식)을 쓴 뒤 메뉴로 돌아간다. 경로별 보장은 Write Safety Contract다. 탭의 plan이 autopus.yaml을 읽지 못해도 같다.
+- Ctrl+C가 아닌 폼 실행 실패(huh 오류)는 단계를 끝내지만 명령을 끝내지 않는다. update는 경고 1줄 뒤 플랫폼 생성까지 계속하고, `composeGate.Abort`가 없는 호출도 명령을 끝낼 오류를 버리지 않고 같은 경고로 남긴다(구현 중 결정, review F4).
 
 ### Label Contract
 
@@ -277,7 +278,7 @@ THE SYSTEM SHALL document arrow-key forms, the tool tab, the per-tool binding, t
 | 결과 | 파일 쓰기(update, quality) | 메모리 쓰기(init) | 바뀌는 설정 줄 |
 |---|---|---|---|
 | 시작과 같음 | 없음(`변경 없음`) | 없음 | - |
-| 시작과 다름 | `saveQualityToolPreset(dir, cfg, tool, "<p>-custom", agents)`: `quality.presets.<p>-custom` ← description `<label> custom agent tiers`, 정규 에이전트 16개 전부의 등급 / `quality.providers.<p>` ← `<p>-custom` | `cfg.Quality`에 같은 두 key | `quality.presets.<p>-custom`의 SPEC-MODELUX-001 문구(`composePresetNew`·`composePresetRewrite`·`composePresetOverwrite`, `quality_compose_bind_text.go:34-37`: 없으면 `새로 씀`, 그 도구의 binding이면 `고쳐 씀`, 있지만 binding이 아니면 `덮어씀`), `quality.providers.<p> <이전 값 또는 없음> → <p>-custom`, 도구의 mode가 balanced였으면 `<p>-custom은 balanced 표준 배치를 받지 않음`, 파일 쓰기면 SPEC-MODELUX-001의 블록 재작성 안내, `quality.providers는 v0.50.88보다 오래된 auto가 읽지 않습니다` |
+| 시작과 다름 | `saveQualityToolPreset(dir, cfg, tool, "<p>-custom", agents)`: `quality.presets.<p>-custom` ← description `<label> custom agent tiers`, 정규 에이전트 16개 전부의 등급 / `quality.providers.<p>` ← `<p>-custom` | `cfg.Quality`에 같은 두 key | `quality.presets.<p>-custom`의 SPEC-MODELUX-001 문구(`composePresetNew`·`composePresetRewrite`·`composePresetOverwrite`, `quality_compose_bind_text.go:34-37`: 없으면 `새로 씀`, 그 도구의 binding이면 `고쳐 씀`, 있지만 binding이 아니면 `덮어씀`), `quality.providers.<p> <이전 값 또는 없음> → <p>-custom`(binding이 이미 `<p>-custom`이면 쓰지 않는다), 관리되는 Codex 기본 세션이 바뀌면 SPEC-MODELUX-001의 `Codex 기본 세션: <전> → <후>`(구현 중 결정: 예 ultra에서 `codex-custom`으로 옮기면 `6-astra · ultra → 6-astra · xhigh`), 도구의 mode가 balanced였으면 `<p>-custom은 balanced 표준 배치를 받지 않음`, 파일 쓰기면 SPEC-MODELUX-001의 블록 재작성 안내, `quality.providers는 v0.50.88보다 오래된 auto가 읽지 않습니다` |
 
 - `<p>`와 `<label>`: `claude`·`Claude Code`, `codex`·`Codex`. 이름은 `qualityToolPresetName`이 정한다.
 - 시작은 `quality.ForProvider(<p>).EffectiveAgentTier(agent, fallback)` 16개다. fallback은 SPEC-MODELUX-001과 같은 embedded agent source다.
@@ -342,7 +343,7 @@ THE SYSTEM SHALL document arrow-key forms, the tool tab, the per-tool binding, t
 바꾸는 기존 test는 0건으로 예상한다.
 
 1. 기존 test는 `cmd.SetIn`으로 입력을 주므로 Input Mode Contract상 줄 driver로 돈다. 줄 driver, 도구별 편집기, OMP 편집기, 전역 메뉴의 코드는 그대로다.
-2. `updateComposeStep`과 `runInitComposeStep`의 시그니처는 바꾸지 않는다. 감지 목록과 중단은 `composeGate`의 새 field(`Detected`, `Abort`)로, init 취소는 새 함수로 넘긴다. `update_compose_helpers_test.go:143-146`의 wrapper는 그대로 컴파일된다. `composeGate`를 field 이름으로 만드는 literal은 그대로 컴파일된다.
+2. `updateComposeStep`의 시그니처는 바꾸지 않는다. 감지 목록과 중단은 `composeGate`의 새 field(`Detected`, `Abort`)로 넘긴다. init 취소는 `runInitComposeStep`을 바꾼 `runInitComposeStepCancellable`이 돌려준다(이 이름을 부르는 기존 test는 없다). `update_compose_helpers_test.go:143-146`의 wrapper는 그대로 컴파일된다. `composeGate`를 field 이름으로 만드는 literal은 그대로 컴파일된다.
 3. 도움말은 문장을 더하기만 한다. `quality_compose_docs_test.go`가 고정한 문장은 지우지 않는다.
 4. `planOMPProfile`은 파일을 읽은 뒤 `planOMPProfileForConfig`를 부르도록 바뀌지만 출력은 같다. 기존 OMP profile·편집기 test가 그대로 통과해야 한다. `platformOMPModelRunner`는 nil이 기본이라 기존 OMP 생성 경로는 그대로다.
 5. 위험(미확인, R1): 기존 update test가 플랫폼 감지를 고정하지 않으면, CLI가 설치된 기계에서는 감지 열이 표에 더해진다. CI(감지 0)는 영향이 없다. T2에서 이 기계로 먼저 돌려 본다. 단언이 바뀌면 기존 test 파일은 고치지 않고 test helper에서 감지를 고정하고, 이 절에 적어 review를 받는다.
@@ -356,7 +357,8 @@ THE SYSTEM SHALL document arrow-key forms, the tool tab, the per-tool binding, t
 - `[NEW] internal/cli/quality_compose_form_text.go`(+test): Form Text.
 - `[NEW] internal/cli/quality_compose_tool.go`(+test): Per-Tool Binding Contract(시작, 후보, 바뀌는 줄, 파일·메모리 저장).
 - `[NEW] internal/cli/quality_compose_omp.go`(+test): OMP Tab Contract, update·quality의 cfg 동기화, init 메모리 경로(분리 사본 plan, placeholder 검사, `RoleModelPolicy` 교체), `updateComposeOMPDeps`, `initComposeOMPDeps`.
-- `[NEW] internal/cli/update_help.go`: update `Long` 도움말.
+- `[NEW] internal/cli/update_help.go`, `[NEW] internal/cli/init_help.go`, `[NEW] internal/cli/quality_help.go`: update·init·quality `Long` 도움말 상수. init.go와 quality.go가 도움말 문장으로 커지지 않게 update와 같은 방식으로 옮겼다(구현 중 결정).
+- `[NEW] internal/cli/quality_compose_omp_init.go`: init 메모리 경로(분리 사본 plan, placeholder 검사, `initComposeOMPDeps`). `quality_compose_omp.go`의 300줄 제한 때문에 나눴다.
 - 기존 파일 변경: `quality_compose_session.go`(view), `quality_compose_snapshot.go`(view로 캡처), `quality_compose_driver_gate.go`(`composeGate.Detected`), `quality_compose_entry.go`(폼 경로), `quality_compose_entry_override.go`(질문 함수 주입), `update_compose.go`, `init_compose.go`(`runInitComposeStepCancellable`, OMP 탭 노출), `init.go`(4줄 이하), `update.go`(도움말 참조, `Detected`·`Abort`, 중단 반환, 감지 생성 호출. `Long`을 옮긴 뒤 290줄 안팎), `platform_update.go`(`updateDetectedHarnessPlatformsWith`), `platform_catalog.go`(snapshot을 묶은 descriptor, OMP descriptor의 `[NEW] platformOMPModelRunner`), `platform_omp_profile_apply.go`(`[NEW] planOMPProfileForConfig` 추출, 출력 불변).
 - 문서: `README.md`, `CHANGELOG.md`(v0.50.125), init·quality 도움말. 증거: `evidence/probe-a1.md`(probe A1, 경로 치환), `[NEW] evidence/manual-smoke-002.txt`(S20).
 - 모든 신규·변경 소스 파일은 300줄 이하다.
