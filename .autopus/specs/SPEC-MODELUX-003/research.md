@@ -1,6 +1,6 @@
 # SPEC-MODELUX-003 리서치
 
-branch `feat/modelux-003`, 기준 `v0.50.125`(dd6d6ea2, origin/main, SPEC-MODELUX-001·002 포함)에서 읽었다. `git diff --stat 93dbb564 dd6d6ea2 -- '*.go'`가 비어 있어 초안의 줄 번호가 main에서도 같다. OMP 사실은 omp 18.6.1 실행 파일의 `strings -n 8` 덤프(`S:<줄>`)와 scratch probe다(`evidence/probe-omp-18.6.1.md`). Revision 1은 review round 1(F-001–F-020)을, revision 2·3은 round 2·3의 미해결 건(F-002, F-008, F-013, F-021, F-022, F-023)을 반영했다(`## Review Round 1`–`## Review Round 3`). 확인하지 못한 것은 `미확인`이다.
+branch `feat/modelux-003`, 기준 `v0.50.125`(dd6d6ea2, origin/main, SPEC-MODELUX-001·002 포함)에서 읽었다. `git diff --stat 93dbb564 dd6d6ea2 -- '*.go'`가 비어 있어 초안의 줄 번호가 main에서도 같다. OMP 사실은 omp 18.6.1 실행 파일의 `strings -n 8` 덤프(`S:<줄>`)와 scratch probe다(`evidence/probe-omp-18.6.1.md`). Revision 1은 review round 1(F-001–F-020)을, revision 2–4는 round 2–4의 미해결 건(F-002, F-008, F-013, F-021, F-022, F-023)을 반영했다(`## Review Round 1`–`## Review Round 4`). 확인하지 못한 것은 `미확인`이다.
 ## 기존 코드 분석
 ### effort (Claude·Codex)
 - `pkg/config/schema.go:24-27` `QualityPreset{Description, Agents}`(290줄). strict decode `loader_strict.go:26-50`은 v0.50.113부터라(SPEC-MODELUX-002 research "도구별 저장 값") 새 key를 쓴 파일은 v0.50.113–v0.50.125가 읽지 못한다. 그 이전 바이너리의 동작은 미확인.
@@ -41,7 +41,7 @@ branch `feat/modelux-003`, 기준 `v0.50.125`(dd6d6ea2, origin/main, SPEC-MODELU
 | OMP effort | 기존 pin thinking. 탭은 pin 없이 먼저 plan해 기본값과 selector를 얻는다 | quality effort 번역 | F-008. 탭이 더하는 catalog 읽기는 pin 없는 pre-plan 1회이고 기존 경로의 읽기 횟수는 단언하지 않는다 |
 | OMP 에이전트 | 16개 파일, model 없음. `thinkingLevel`은 이번 생성의 override에 없는 에이전트만 선언 effort | concrete model, role alias, 항상 thinkingLevel | 사용자 결정. override와 겹치지 않아 우선순위가 무관해진다(F-018) |
 | reviewer | P0 bundled `output`과 같은 golden | schema 없이 대체 | `/review` verdict 보존. 정합성은 golden test가, 런타임은 S23이 닫는다 |
-| native 끄기 | Claim Set Contract: ledger 하나, preimage 하나, claim 집합 = 프로필 key ∪ `task.disabledAgents`, merge 한 번. 사용자가 그 key만 고치면 프로필 claim이 있어도 사용자 소유로 넘겨 preimage에 사용자 값을 넣고, 그 표시는 release 뒤에도 표시만 남은 ledger로 남는다 | 별도 merge, overlay에만, key별 commitment로 ledger 형식 변경 | F-002. plain 세션은 overlay를 읽지 않는다. 판정은 기존 whole-file commitment를 그대로 쓰고 그 key만 ADK 값으로 바꿔 비교한다 |
+| native 끄기 | Claim Set Contract: ledger 하나, preimage 하나, claim 집합 = 프로필 key ∪ `task.disabledAgents`, merge 한 번. 사용자가 그 key만 고치면 프로필 claim이 있어도 사용자 소유로 넘겨 preimage에 사용자 값을 넣고, 그 표시는 release 뒤에도 표시만 남은 ledger로 남는다. 처음 claim할 때 다른 값이 이미 있으면 처음부터 사용자 소유다 | 별도 merge, overlay에만, key별 commitment로 ledger 형식 변경 | F-002. plain 세션은 overlay를 읽지 않는다. 판정은 기존 whole-file commitment를 그대로 쓰고 그 key만 ADK 값으로 바꿔 비교한다 |
 | route | 정규 16개 + task. task는 ① task pin ② planner pin ③ 프로필 planner route. 접힘 검증은 native 모드만 | `OMPNativeAgentRoute("task")` 재사용 | F-001. 에이전트별 탭이 pin을 흔하게 만든다 |
 | 렌더 mode | OMP 렌더 진입점이 모두 mode를 받고 기본은 autopus. native는 OMP adapter가 명시 | 새 함수 하나 추가 | F-015. 생성 산출물이 oracle |
 | 되돌리기 key | `role_model_policy.agent_source: native` | `future_extension`, CLI flag | route key owner가 `role_model_policy`. 정책 존재 판정(L22-25)에 넣지 않는다 |
@@ -88,6 +88,10 @@ branch `feat/modelux-003`, 기준 `v0.50.125`(dd6d6ea2, origin/main, SPEC-MODELU
 | F-002 | 사용자 소유 표시는 C가 비어 release해도 표시만 남은 ledger로 남고 `auto clean`만 지운다(Claim Set Contract, S24 첫 사본) |
 | F-008 | 설계 결정 행을 pre-plan 1회·횟수 미단언으로 맞춤 |
 | F-023 | `composeBindTarget` built-in 분기: P에 efforts가 있으면 다른 built-in 대신 `custom`, 같은 이름 Historical만 갱신(Efforts Preservation Contract, S20 다섯째) |
+## Review Round 4
+| ID | 반영 |
+|---|---|
+| F-002 | 첫 claim 판정(이미 있는 다른 값은 처음부터 사용자 소유·표시, 같은 값은 preimage와 같게 claim)과 표시만 남은 ledger의 읽기 전용 판단(Claim Set Contract, S8 UC·UC2) |
 ## Plan Intent Ledger
 Clarification Ledger unavailable. 입력은 planning context의 사용자 결정 표(answered)와 Q1 답(2026-10-13)이다.
 

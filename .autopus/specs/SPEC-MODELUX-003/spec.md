@@ -2,7 +2,7 @@
 
 **Status**: draft
 **Created**: 2026-10-12
-**Revised**: 2026-10-13 (review round 1 F-001–F-020, round 2 F-002·F-008·F-013·F-021·F-022, round 3 F-002·F-008·F-023)
+**Revised**: 2026-10-13 (review round 1 F-001–F-020, round 2 F-002·F-008·F-013·F-021·F-022, round 3 F-002·F-008·F-023, round 4 F-002)
 **Domain**: MODELUX
 **Module**: autopus-adk
 **Release**: v0.50.126. 작업 branch는 `feat/modelux-003`이고 기준은 `v0.50.125`(dd6d6ea2, origin/main)다. v0.50.125는 SPEC-MODELUX-001·002로 이미 발행됐다.
@@ -221,21 +221,22 @@ THE SYSTEM SHALL render every OMP surface that names an agent through the OMP Re
 
 | 항목 | 규칙 |
 |---|---|
-| ledger | 기존 `.autopus/omp-model-project-ownership-v1.json` 하나, 원본 preimage 하나. claim마다 owner(`profile` 또는 `agent_surface`, `[NEW]` 필드) |
-| claim 집합 C | project-managed 프로필이면 그 `ManagedKeys` 전부 ∪ autopus 모드이고 사용자 소유가 아니면 `task.disabledAgents = [scout, security-reviewer, sonic]`(FullArrayOwnership) |
+| ledger | 기존 `.autopus/omp-model-project-ownership-v1.json` 하나, 원본 preimage 하나. claim마다 owner(`profile` 또는 `agent_surface`, `[NEW]` 필드)와 사용자 소유 표시(`[NEW] agent_surface_user_owned`) |
+| claim 집합 C | project-managed 프로필이면 그 `ManagedKeys` 전부 ∪ autopus 모드이고 사용자 소유(표시가 있거나 아래 첫 claim 판정이 사용자 값으로 본 경우)가 아니면 `task.disabledAgents = [scout, security-reviewer, sonic]`(FullArrayOwnership) |
+| 첫 claim에서 그 key가 이미 있음 | ledger에 그 key의 claim도 표시도 없는데 `.omp/config.yml`에 `task.disabledAgents`가 이미 있으면 값으로 판정한다. `[scout, security-reviewer, sonic]`과 다르면 처음부터 사용자 소유다: C에 넣지 않고 표시를 쓰며(C가 그 밖에 비면 표시만 남은 ledger를 만들고, 프로필 claim이 있으면 그 ledger에 함께 둔다), 파일 bytes는 그대로 두고 `사용자가 정해 두어` 안내 1줄과 degraded를 낸다. 그 key는 C에 없으므로 claim 목록에 오르지 않고, 그래서 소유 key의 prior 재계산(`omp_model_integration_project.go:60-70`)과 `applyOMPManagedClaim`의 prior 지문 비교(`omp_model_activation_project.go:167`, 불일치면 `managed_key_conflict`)에 닿지 않는다. 값이 그 집합과 같으면 현재 값을 preimage 값으로 보고 그대로 claim한다(prior = 현재 지문이라 충돌하지 않고 값은 그대로다. release는 그 값이 든 preimage를 복원하므로 key가 남는다) |
 | 적용 | C가 비지 않으면 생성마다 preimage 위에 C 전부로 `MergeOMPProjectManagedConfig` 한 번, config mapping 하나, ledger 갱신 하나. model integration이 없어도 mapping을 만든다(`omp.go:208-216` gate 변경, `omp_model_integration_project.go:14-99`의 수 검사는 프로필 claim에만) |
 | C가 빔 | ledger가 있으면 release: preimage를 복원하고(ADK가 만든 파일이면 삭제) claim을 모두 지운다. 사용자 소유 표시가 없으면 ledger를 지우고, 있으면 표시만 담은 ledger(claim·preimage·commitment 없음)를 남긴다(`omp_rooted_lifecycle_config.go:64-83`을 C 기준으로) |
-| 표시만 남은 ledger | 관리하는 key가 없으므로 `.omp/config.yml`을 읽지도 쓰지도 않는다. C에 프로필 claim이 다시 생기면 현재 파일을 새 preimage로 잡고 표시를 그대로 둔다. native 모드에서도 표시는 남는다 |
+| 표시만 남은 ledger | 관리하는 key가 없다. autopus 모드에서는 표시를 판단하려고 `.omp/config.yml`을 읽기만 하고, 아래 재claim이 아니면 쓰지 않는다. C에 프로필 claim이 다시 생기면 현재 파일을 새 preimage로 잡고 표시를 그대로 둔다. native 모드에서도 표시는 남는다 |
 | 사용자가 C 밖을 고침 | C에 `profile` claim이 있으면 지금처럼 `managed_key_conflict`이고 아무것도 쓰지 않는다(`task.disabledAgents`를 같이 고쳤어도 같다). C가 `agent_surface`뿐이면 아래 `task.disabledAgents` 판정을 먼저 하고, 새 preimage = 현재 파일에서 ADK claim key만 preimage 값으로 되돌린 것으로 다시 잡고 적용한다 |
 | 사용자가 `task.disabledAgents`만 고침(지움 포함) | 판정: 현재 파일의 그 key를 ADK가 마지막으로 쓴 값으로 바꾼(없으면 같은 자리에 넣은) bytes의 commitment가 `LastEmittedCommitment`(`omp_model_integration_ownership_rooted.go:49-62`)와 같으면 그 key만 바뀐 것이다. 프로필 claim이 있든 없든 사용자 소유로 넘긴다: 새 preimage = 원본 preimage에 사용자 값(지웠으면 삭제), C에서 그 key를 빼고, ledger에 `[NEW] agent_surface_user_owned`를 남기며, 파일 bytes는 그대로 두고 안내 1줄과 degraded를 낸다. 그 뒤의 merge·전환·release는 새 preimage를 쓰므로 사용자 값을 되돌리지 않는다 |
-| 사용자 소유 표시가 있음 | 그 key를 claim하지 않는다. 표시는 release·전환·native 뒤에도 남고 `auto clean`만 지운다. 사용자 값이 `[scout, security-reviewer, sonic]`과 같아지면 현재 파일을 preimage로 잡고 표시를 지운 뒤 다시 claim한다 |
+| 사용자 소유 표시가 있음 | 그 key를 claim하지 않는다. 표시는 release·전환·native 뒤에도 남고 `auto clean`만 지운다. 생성마다 현재 값을 읽어(표시만 남은 ledger도 같다) 사용자 값이 `[scout, security-reviewer, sonic]`과 같아지면 현재 파일을 preimage로 잡고 표시를 지운 뒤 다시 claim한다 |
 | clean | `agent_surface`만 있는 ledger는 receipt 없이 release와 같게 복원한다. 표시만 남은 ledger는 파일을 바꾸지 않고 지운다(`omp_model_integration_clean.go:14-32` 조건 변경) |
 | 실패 | OMP transaction 실패는 `.omp/config.yml`, ledger, manifest, agent 파일을 실행 전 bytes로 되돌린다(기존 rooted transaction). 활성화 실패는 기존 복원이다 |
 | allowlist | `task.disabledAgents`는 프로필 `managed_keys`에 넣지 않는다(`role_model_policy_validate.go:174-190` 그대로). `agent_surface` claim은 adapter가 만든다 |
 
 | 전환 | `.omp/config.yml` 결과 |
 |---|---|
-| 없음 → autopus(프로필 없음 또는 overlay) | preimage + `task.disabledAgents`. 새 파일은 0600 |
+| 없음 → autopus(프로필 없음 또는 overlay) | preimage + `task.disabledAgents`. 새 파일은 0600. 그 key가 이미 다른 값이면 바꾸지 않고 표시만 남은 ledger를 만든다(첫 claim 행) |
 | autopus + project-managed 프로필 | preimage + 프로필 key + `task.disabledAgents`(merge 한 번) |
 | project-managed → overlay 또는 프로필 해제 | preimage + `task.disabledAgents` |
 | → native | C가 비면 preimage 복원(없던 파일이면 삭제), 아니면 preimage + 프로필 key |

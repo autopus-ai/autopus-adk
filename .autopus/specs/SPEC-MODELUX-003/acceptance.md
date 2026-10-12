@@ -7,7 +7,7 @@ fixture는 모두 temp project 안에 만든다. 폼 test는 SPEC-MODELUX-002처
 - CAT-E: `gpt-6-astra`·`gpt-6-luna`는 `low`–`max` 다섯 단계, `gpt-6.1-sol`은 `low`·`medium`·`high`·`xhigh`를 보고하는 `codex debug models` JSON.
 - OP: O3 + `role_model_policy {version: v1, profile: balanced, family: openai}`. OPM: OP + `config_mode: project-managed`. OP2: OP + `agents.task` pin(`openai-codex/gpt-6-astra`, `max`). OP3: OP + `agents.sonic` pin. OPX: OP + `agents.executor` pin `openai-codex/gpt-6-astra:max`과 `agents.tester` pin `openai-codex/gpt-6.1-sol:xhigh`, planner pin 없음.
 - ML: metadata 없는 OMP catalog `ompCLIProfileNativeCatalogJSON()`. MR: metadata가 있는 `ompCLIBalancedCatalogJSON()`. NO: `openai-codex` model을 뺀 OMP catalog.
-- NM: v0.50.125 바이너리로 `auto init --yes --platforms claude-code,codex,omp`를 한 project. UF: 빈 dir에 manifest에 없는 `.omp/agents/reviewer.md`(`---\nname: reviewer\ndescription: mine\n---\nmine\n`). UC: O3 + `.omp/config.yml` = `task:\n  disabledAgents:\n    - browser\n`.
+- NM: v0.50.125 바이너리로 `auto init --yes --platforms claude-code,codex,omp`를 한 project. UF: 빈 dir에 manifest에 없는 `.omp/agents/reviewer.md`(`---\nname: reviewer\ndescription: mine\n---\nmine\n`). UC: O3 + `.omp/config.yml` = `task:\n  disabledAgents:\n    - browser\n`. UC2: O3 + `.omp/config.yml` = `task:\n  disabledAgents:\n    - scout\n    - security-reviewer\n    - sonic\n`(ledger 없음).
 ### S1: effort key 읽기와 거부
 Priority: Must
 Given D, D + `quality.providers.claude: claude-custom`과 claude-custom(16개 `sonnet`, `efforts: {planner: xhigh}`), 값만 `hihg`인 사본, key만 `not-an-agent`인 사본이 있다
@@ -54,10 +54,10 @@ And reviewer.md의 `output`은 `testdata/omp-18.6.1-reviewer-output.yaml`과 dee
 And OMP manifest에 `.omp/agents/` 16개, `.omp/config.yml`은 0600이고 `task.disabledAgents: [scout, security-reviewer, sonic]`, ledger가 그 key를 `agent_surface`로 담는다. 두 번째 실행 뒤 OMP 파일 SHA-256이 같다
 ### S8: 사용자 파일과 사용자 소유 설정
 Priority: Must
-Given UF, UC, S7이 끝난 뒤 사용자가 `.omp/agents/executor.md` 끝에 한 줄을 더한 project가 있다
-When UF에서 `auto init --yes --platforms claude-code,codex,omp`(Generate) 뒤 `auto update --yes`(Update), UC와 셋째에서 `auto update --yes`, UC에서 `auto doctor`를 실행한다
+Given UF, UC, UC2, S7이 끝난 뒤 사용자가 `.omp/agents/executor.md` 끝에 한 줄을 더한 project가 있다
+When UF에서 `auto init --yes --platforms claude-code,codex,omp`(Generate) 뒤 `auto update --yes`(Update), UC와 셋째에서 `auto update --yes`(UC는 두 번), UC에서 `auto doctor`, UC2에서 `auto update --yes` 뒤 `agent_source: native`로 다시 update를 실행한다
 Then UF의 reviewer.md는 두 실행 뒤 모두 SHA-256이 같고 생성 파일은 15개, 출력에 `.omp/agents/reviewer.md는 사용자 파일이라 그대로 둡니다`가 있으며 manifest에 reviewer 항목이 없다
-And UC의 `.omp/config.yml`은 SHA-256이 같고 출력에 `task.disabledAgents를 사용자가 정해 두어` 줄, update 종료 코드 0, doctor 상태 `degraded`와 blocker `agents:disabled_agents_user_owned`가 있다
+And UC의 `.omp/config.yml`은 SHA-256이 같고 출력에 `task.disabledAgents를 사용자가 정해 두어` 줄, update 종료 코드 0, doctor 상태 `degraded`와 blocker `agents:disabled_agents_user_owned`가 있다. UC의 ledger는 claim 없이 사용자 소유 표시만 담고, 두 번째 update 뒤에도 `.omp/config.yml`과 ledger bytes가 같다. UC2는 `managed_key_conflict` 없이 claim되어 ledger가 그 key를 `agent_surface`로 담고 값은 그대로이며, native update 뒤에도 그 key는 preimage에 있던 값이라 남는다
 And 셋째의 `.autopus/backup/<id>/transaction/omp/.omp/agents/executor.md`는 사용자가 고친 bytes이고 `.omp/agents/executor.md`는 생성 내용이다
 ### S9: Autopus 이름 route와 되읽기
 Priority: Must
