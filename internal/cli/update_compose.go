@@ -41,11 +41,23 @@ func runUpdateComposeStep(
 	session := newComposeSession(dir, cfg, sources, lang, composeSessionFile, nil).withDetected(gate.Detected)
 	// REQ-MUX-20 applies to every editing entry point, not only `auto quality`.
 	session = withComposeOverrideQuestion(cmd, session)
-	result, err := runComposeStep(cmd, gate, session)
+	result, err := runUpdateComposeDriver(cmd, gate, session)
 	if err != nil {
 		warnUpdateCompose(cmd.OutOrStdout(), lang, err)
 	}
 	return result.Snapshot
+}
+
+// runUpdateComposeDriver asks through huh forms when the run asks and the
+// Input Mode Contract picks forms (SPEC-MODELUX-002 REQ-MUX2-01), with the
+// OMP tab on updateComposeOMPDeps; otherwise it is the SPEC-MODELUX-001
+// step, line driver and gate included.
+func runUpdateComposeDriver(cmd *cobra.Command, gate composeGate, session composeDriverSession) (composeDriverResult, error) {
+	if gate.mode() != composeModeAsk || !composeFormsProbe(cmd) {
+		return runComposeStep(cmd, gate, session)
+	}
+	tab := &composeOMPTab{deps: normalizeOMPPlatformDependencies(updateComposeOMPDeps)}
+	return session.runForms(cmd, composeFormOptions{OMP: tab})
 }
 
 // warnUpdateCompose prints the step's one warning line. terminalSafe spells

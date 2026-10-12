@@ -12,6 +12,8 @@ import (
 type composeFormOptions struct {
 	// Presets offers 기본 프리셋 고르기, which only `auto quality` has.
 	Presets bool
+	// OMP is the run's OMP tab; nil leaves OMP out of the tool tab.
+	OMP *composeOMPTab
 }
 
 // composeFormChoice is one menu choice.
@@ -35,6 +37,8 @@ type composeFormRun struct {
 	options composeFormOptions
 	// applied reports a write of this run that succeeded.
 	applied bool
+	// ompNoticed reports that the detected-only OMP notice was printed.
+	ompNoticed bool
 }
 
 // runForms runs the form flow of a session newComposeSession built
@@ -125,6 +129,9 @@ func (f *composeFormRun) edit() error {
 	if err != nil {
 		return err
 	}
+	if platform == "omp" {
+		return f.omp()
+	}
 	for _, tool := range qualityModelTools {
 		if tool.provider != "" && tool.platform == platform {
 			planner := composeToolPlanner{run: f.shared, tool: tool}
@@ -136,16 +143,20 @@ func (f *composeFormRun) edit() error {
 }
 
 // chooseTab asks the tool tab (REQ-MUX2-04): 모든 도구 같게, whose answer is
-// "", then Claude Code and Codex when the display view installs them.
-// OpenCode and Antigravity bind no model and never appear, and a tab of one
-// option is skipped.
+// "", then Claude Code and Codex when the display view installs them, and
+// OMP by the OMP Tab Contract. OpenCode and Antigravity bind no model and
+// never appear, and a tab of one option is skipped.
 func (f *composeFormRun) chooseTab() (string, error) {
+	f.noteDetectedOMP()
 	options := []composeOption[string]{{f.form.TabAll, ""}}
 	view := f.shared.view()
 	for _, tool := range qualityModelTools {
 		if tool.provider != "" && containsPlatform(view.Platforms, tool.platform) {
 			options = append(options, composeOption[string]{tool.label, tool.platform})
 		}
+	}
+	if f.ompOffered() {
+		options = append(options, composeOption[string]{"OMP", "omp"})
 	}
 	if len(options) == 1 {
 		return "", nil

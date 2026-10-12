@@ -39,6 +39,12 @@ type platformDescriptor struct {
 	rollbackPlatforms []string
 }
 
+// platformOMPModelRunner, when set, replaces the omp executable the OMP
+// platform's model integration runs: its catalog probe and the read-back of
+// the config it wrote. Tests set it to drive a real OMP generation; nil keeps
+// the exec runner.
+var platformOMPModelRunner omp.OMPModelCatalogRunner
+
 var lifecyclePlatformCatalog = [...]platformDescriptor{
 	{
 		name: "claude-code",
@@ -85,7 +91,11 @@ var lifecyclePlatformCatalog = [...]platformDescriptor{
 	{
 		name: "omp",
 		newAdapter: func(root string, _ platformAdapterOptions) adapter.PlatformAdapter {
-			return omp.NewWithRoot(root)
+			ompAdapter := omp.NewWithRoot(root)
+			if platformOMPModelRunner != nil {
+				return ompAdapter.WithModelIntegrationRunner(platformOMPModelRunner)
+			}
+			return ompAdapter
 		},
 		clean: func(ctx context.Context, root string) (platformCleanReceipt, error) {
 			receipt, err := omp.NewWithRoot(root).CleanWithReceipt(ctx)
