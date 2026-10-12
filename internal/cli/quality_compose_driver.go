@@ -56,7 +56,7 @@ func (s composeDriverSession) start(cmd *cobra.Command) *composeDriverState {
 	return &composeDriverState{
 		composeDriverSession: s,
 		out:                  cmd.OutOrStdout(),
-		snapshot:             captureComposeSnapshot(ctx, s.Config),
+		snapshot:             captureComposeSnapshot(ctx, s.snapshotConfig()),
 	}
 }
 

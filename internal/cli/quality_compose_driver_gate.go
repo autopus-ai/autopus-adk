@@ -40,6 +40,10 @@ type composeGate struct {
 	Yes     bool // --yes, -y, or --auto
 	Check   bool // --check without --self, where the project update continues
 	Preview bool // --plan, --preview, or --dry-run
+	// Detected lists the platforms this update adds after the step, in
+	// detection order (SPEC-MODELUX-002 Platform View Contract). The table,
+	// the tool tab, and the run's Codex snapshot see them; no write does.
+	Detected []string
 }
 
 // composeMode is how a run handles its composition step.

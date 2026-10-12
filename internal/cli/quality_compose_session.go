@@ -53,7 +53,29 @@ func newComposeSession(
 		Planner: &composeSessionPlanner{run: run},
 		Tools:   tools,
 		Text:    composeTextFor(lang),
+		shared:  run,
 	}
+}
+
+// withDetected adds the platforms an update detected to the session's
+// display view (SPEC-MODELUX-002 REQ-MUX2-12): the table, the run's Codex
+// snapshot, and every plan see them, while every write and sync still
+// targets the loaded config.
+func (s composeDriverSession) withDetected(platforms []string) composeDriverSession {
+	if s.shared != nil {
+		s.shared.detected = slices.Clone(platforms)
+	}
+	return s
+}
+
+// snapshotConfig is the config the run's Codex snapshot is captured from:
+// the display view of a real session, so a detected Codex is probed once
+// with the rest.
+func (s composeDriverSession) snapshotConfig() *config.HarnessConfig {
+	if s.shared == nil {
+		return s.Config
+	}
+	return s.shared.view()
 }
 
 // composeSessionRun is the state the table and the planner of one run share.
@@ -63,9 +85,32 @@ type composeSessionRun struct {
 	sources map[string]composeAgentSource
 	lang    string
 	writer  composeSessionWriter
+	// detected lists the platforms the run adds after the step (update only).
+	detected []string
 	// snapshot is the catalog snapshot of the last table drawn. The driver
 	// draws the table before it plans anything.
 	snapshot driftGenerationSnapshot
+}
+
+// view is the run's display view (Platform View Contract): a fresh shallow
+// copy of the loaded config whose platforms are the configured ones followed
+// by the detected ones. Tables, tabs, labels, and plans read it; no writer
+// receives it, so a write can never persist a platform the update has not
+// generated yet. Without detected platforms it shows cfg.Platforms.
+func (r *composeSessionRun) view() *config.HarnessConfig {
+	return r.viewOf(r.cfg)
+}
+
+// viewOf is view for any config of the run, such as a plan's candidate.
+func (r *composeSessionRun) viewOf(cfg *config.HarnessConfig) *config.HarnessConfig {
+	view := *cfg
+	view.Platforms = slices.Clone(cfg.Platforms)
+	for _, platform := range r.detected {
+		if !containsPlatform(view.Platforms, platform) {
+			view.Platforms = append(view.Platforms, platform)
+		}
+	}
+	return &view
 }
 
 // composeSessionTable draws the Table Cell Contract table through
@@ -74,15 +119,15 @@ type composeSessionTable struct{ run *composeSessionRun }
 
 func (t composeSessionTable) Table(out io.Writer, cfg *config.HarnessConfig, snapshot driftGenerationSnapshot) error {
 	t.run.snapshot = snapshot
-	return buildComposeTable(cfg, snapshot, t.run.sources).render(out, t.run.lang, nil)
+	return buildComposeTable(t.run.viewOf(cfg), snapshot, t.run.sources).render(out, t.run.lang, nil)
 }
 
 // Preview marks every cell whose raw value differs from start's table; both
 // tables come from the same binary and the same snapshot (REQ-MUX-19).
 func (t composeSessionTable) Preview(out io.Writer, start, candidate *config.HarnessConfig, snapshot driftGenerationSnapshot) error {
 	t.run.snapshot = snapshot
-	before := buildComposeTable(start, snapshot, t.run.sources)
-	return buildComposeTable(candidate, snapshot, t.run.sources).render(out, t.run.lang, &before)
+	before := buildComposeTable(t.run.viewOf(start), snapshot, t.run.sources)
+	return buildComposeTable(t.run.viewOf(candidate), snapshot, t.run.sources).render(out, t.run.lang, &before)
 }
 
 // composeSessionGroups presents composeRoleGroups over the driver's
@@ -135,14 +180,14 @@ func (p *composeSessionPlanner) PlanEdit(edited map[string]string) (composeDrive
 func (p *composeSessionPlanner) bind(edited map[string]string) (composeBindingPlan, qualityComposition) {
 	composition := qualityComposition{tiers: maps.Clone(edited)}
 	if p.refresh == nil {
-		return planComposeBinding(p.run.cfg, p.start(), composition), composition
+		return planComposeBinding(p.run.view(), p.start(), composition), composition
 	}
 	start := newQualityComposition(p.refresh.Candidate.Quality, p.run.sources)
-	return planComposeBindingAfter(p.run.cfg, *p.refresh, start, composition), composition
+	return planComposeBindingAfter(p.run.view(), *p.refresh, start, composition), composition
 }
 
 func (p *composeSessionPlanner) PlanRefresh() (composeDriverPlan, error) {
-	plan, ok := planComposeRefresh(p.run.cfg)
+	plan, ok := planComposeRefresh(p.run.view())
 	if !ok {
 		return composeDriverPlan{}, errors.New("no built-in quality preset is a previous-version default")
 	}
@@ -163,7 +208,7 @@ func (p *composeSessionPlanner) driverPlan(plan composeBindingPlan, composition 
 	return composeDriverPlan{
 		Candidate:   plan.Candidate,
 		Composition: composition.Agents(),
-		Changes:     describeComposeBinding(p.run.cfg, plan, p.run.snapshot, source, p.run.lang),
+		Changes:     describeComposeBinding(p.run.view(), plan, p.run.snapshot, source, p.run.lang),
 		Apply:       func() error { return p.run.persist(plan) },
 	}, nil
 }

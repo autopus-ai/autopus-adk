@@ -114,4 +114,7 @@ type composeDriverSession struct {
 	Tools composeDriverTools
 	// Text is the operator's locale text when left zero.
 	Text composeText
+	// shared is the state of a session newComposeSession built; it is nil for
+	// a session assembled from fakes.
+	shared *composeSessionRun
 }

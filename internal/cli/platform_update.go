@@ -34,13 +34,19 @@ func appendDetectedPlatforms(cfg *config.HarnessConfig) []string {
 	return added
 }
 
-func updateDetectedHarnessPlatforms(
+// updateDetectedHarnessPlatformsWith adds each detected platform to cfg,
+// generates it, and saves the config one platform at a time, with adapters
+// that read the run's Codex catalog snapshot: a detected Codex then writes
+// the cells the composition table showed instead of probing a catalog of its
+// own. The zero snapshot keeps each adapter's own probe.
+func updateDetectedHarnessPlatformsWith(
 	ctx context.Context,
 	dir string,
 	cfg *config.HarnessConfig,
 	platforms []string,
 	flags globalFlags,
 	out io.Writer,
+	snapshot driftGenerationSnapshot,
 ) (*config.HarnessConfig, int, bool, []string) {
 	current := cfg
 	updated := 0
@@ -53,6 +59,7 @@ func updateDetectedHarnessPlatforms(
 			platformErrors = append(platformErrors, fmt.Sprintf("%s: unsupported platform", platform))
 			continue
 		}
+		descriptor = descriptor.withSnapshot(snapshot)
 		fmt.Fprintf(out, "  → Updating %s...\n", updatePlatformLabel(platform))
 		candidate, err := cloneHarnessConfig(current)
 		if err == nil {

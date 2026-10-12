@@ -214,7 +214,7 @@ func newUpdateCmd() *cobra.Command {
 			}
 
 			// The composition step, before the supervisor migration saves cfg (SPEC-MODELUX-001 REQ-MUX-13).
-			snapshot := updateComposeStep(cmd, dir, cfg, composeGate{Yes: yesFlag, Check: checkOnly})
+			snapshot := updateComposeStep(cmd, dir, cfg, composeGate{Yes: yesFlag, Check: checkOnly, Detected: addedPlatforms})
 			ctx := cmd.Context()
 			supervisorMigrated, supervisorErr := migrateLegacyCodexSupervisorPolicy(dir, cfg)
 			if supervisorErr != nil {
@@ -252,8 +252,8 @@ func newUpdateCmd() *cobra.Command {
 			var addedUpdated int
 			var addedCodexUpdated bool
 			var addedErrors []string
-			cfg, addedUpdated, addedCodexUpdated, addedErrors = updateDetectedHarnessPlatforms(
-				ctx, dir, cfg, addedPlatforms, globalFlagsFromContext(cmd.Context()), cmd.OutOrStdout(),
+			cfg, addedUpdated, addedCodexUpdated, addedErrors = updateDetectedHarnessPlatformsWith(
+				ctx, dir, cfg, addedPlatforms, globalFlagsFromContext(cmd.Context()), cmd.OutOrStdout(), snapshot,
 			)
 			updated += addedUpdated
 			codexUpdated = codexUpdated || addedCodexUpdated
