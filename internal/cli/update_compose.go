@@ -43,12 +43,11 @@ func runUpdateComposeStep(
 	// REQ-MUX-20 applies to every editing entry point, not only `auto quality`.
 	session = withComposeOverrideQuestion(cmd, session)
 	result, err := runUpdateComposeDriver(cmd, gate, session)
-	switch {
-	case composeEndsTheRun(err):
-		if gate.Abort != nil {
-			*gate.Abort = err
-		}
-	case err != nil:
+	// A run-ending error goes to the gate's Abort slot; a caller without one
+	// still gets the warning line instead of losing the error.
+	if composeEndsTheRun(err) && gate.Abort != nil {
+		*gate.Abort = err
+	} else if err != nil {
 		warnUpdateCompose(cmd.OutOrStdout(), lang, err)
 	}
 	return result.Snapshot

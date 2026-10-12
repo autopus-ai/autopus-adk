@@ -1,10 +1,14 @@
 package cli
 
 // SPEC-MODELUX-002 Phase 4 fixes: Enter at the default preset select never
-// writes when quality.default names no configured preset (security L1).
+// writes when quality.default names no configured preset (security L1), and
+// an update step without an Abort slot still reports the error that would
+// have ended the run (review F4).
 
 import (
+	"errors"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -32,4 +36,33 @@ func TestComposeForms_EmptyDefaultEnterAtThePresetSelectWritesNothing(t *testing
 	assert.Contains(t, out, "기본 프리셋을 고르세요 \n1. 그대로 — 없음\n2. ultra — ")
 	assert.NotContains(t, out, "quality.default = ultra\n")
 	assert.Equal(t, before, composeSessionHash(t, dir))
+}
+
+// With an Abort slot the run-ending error goes there and no warning is
+// printed; without one it is not dropped silently but warned once.
+func TestUpdateComposeStep_RunEndingErrorWithoutAbortIsWarned(t *testing.T) {
+	for _, withAbort := range []bool{true, false} {
+		newComposeUpdateRun(t, true, "")
+		abortComposeFormAt(t, 1)
+		dir := writeComposeFixture(t, "claude-code", "codex")
+		cfg, err := config.Load(dir)
+		require.NoError(t, err)
+		cmd, out := newComposeTestCommand()
+		cmd.SetIn(formInput())
+		gate := composeGate{}
+		var abort error
+		if withAbort {
+			gate.Abort = &abort
+		}
+
+		runUpdateComposeStep(cmd, dir, cfg, gate)
+
+		warnings := strings.Count(out.String(), "  경고: composition interrupted\n")
+		if withAbort {
+			assert.True(t, errors.Is(abort, errComposeInterrupted), "%v", abort)
+			assert.Zero(t, warnings, out.String())
+			continue
+		}
+		assert.Equal(t, 1, warnings, out.String())
+	}
 }
