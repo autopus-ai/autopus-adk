@@ -49,14 +49,10 @@ func RunInitWizard(opts InitWizardOpts) (*InitWizardResult, error) {
 		return result, nil
 	}
 
-	// Windows safety: huh/bubbletea may hang on cmd.exe or non-Windows Terminal.
-	// Detect by checking TERM_PROGRAM or WT_SESSION (Windows Terminal sets these).
-	if runtime.GOOS == "windows" {
-		if os.Getenv("WT_SESSION") == "" && os.Getenv("TERM_PROGRAM") == "" {
-			fmt.Fprintln(os.Stderr, "  TUI wizard not supported in this terminal. Using defaults.")
-			fmt.Fprintln(os.Stderr, "  Tip: use Windows Terminal or run with --yes flag.")
-			return result, nil
-		}
+	if !FormsSupported(runtime.GOOS, os.Getenv) {
+		fmt.Fprintln(os.Stderr, "  TUI wizard not supported in this terminal. Using defaults.")
+		fmt.Fprintln(os.Stderr, "  Tip: use Windows Terminal or run with --yes flag.")
+		return result, nil
 	}
 
 	steps := buildStepList(opts)
@@ -71,6 +67,14 @@ func RunInitWizard(opts InitWizardOpts) (*InitWizardResult, error) {
 	}
 
 	return result, nil
+}
+
+// FormsSupported reports whether huh forms can run in this terminal.
+// huh/bubbletea may hang on cmd.exe or another legacy Windows console, so
+// on Windows forms need Windows Terminal (WT_SESSION) or a terminal that
+// sets TERM_PROGRAM. getenv is os.Getenv outside tests.
+func FormsSupported(goos string, getenv func(string) string) bool {
+	return goos != "windows" || getenv("WT_SESSION") != "" || getenv("TERM_PROGRAM") != ""
 }
 
 // stepBuilder is a function that creates a huh form for a given step.
