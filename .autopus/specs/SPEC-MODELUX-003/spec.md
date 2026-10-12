@@ -1,6 +1,6 @@
 # SPEC-MODELUX-003: 에이전트별 effort 편집과 OMP 기본값을 Autopus 에이전트로
 
-**Status**: draft
+**Status**: approved
 **Created**: 2026-10-12
 **Revised**: 2026-10-13 (review round 1 F-001–F-020, round 2 F-002·F-008·F-013·F-021·F-022, round 3 F-002·F-008·F-023, round 4 F-002)
 **Domain**: MODELUX
