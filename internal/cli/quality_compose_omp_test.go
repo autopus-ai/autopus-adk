@@ -99,6 +99,7 @@ func TestComposeOMPTab_FailedReReadEndsTheStep(t *testing.T) {
 
 	var reload composeReloadError
 	require.ErrorAs(t, err, &reload)
+	assert.Equal(t, "OMP settings were applied but could not be re-read: disk gone", err.Error())
 	assert.Contains(t, out, "OMP 설정은 적용됐지만 다시 읽지 못했습니다: disk gone\n")
 	assert.Equal(t, "balanced", rawRoleModelPolicyOf(t, readBlockFixture(t, dir)).Profile)
 }

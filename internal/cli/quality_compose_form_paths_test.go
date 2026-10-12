@@ -98,3 +98,33 @@ func composeD(t *testing.T) string {
 	t.Helper()
 	return writeComposeFixture(t, "claude-code", "codex")
 }
+
+// composeNativeOMPCatalog is the catalog shape an installed omp prints:
+// exact selectors, display names, and thinking levels, but no family or
+// capability metadata.
+const composeNativeOMPCatalog = `{"models":[
+	{"provider":"anthropic","id":"claude-fable-5-1","selector":"anthropic/claude-fable-5-1","name":"Claude Fable 5.1","contextWindow":200000,"reasoning":true,"thinking":["high","max"],"input":["text"]},
+	{"provider":"openai-codex","id":"gpt-6-astra","selector":"openai-codex/gpt-6-astra","name":"GPT-6 Astra","contextWindow":272000,"reasoning":true,"thinking":["max"],"input":["text"]},
+	{"provider":"openai-codex","id":"gpt-6-luna","selector":"openai-codex/gpt-6-luna","name":"GPT-6 Luna","contextWindow":272000,"reasoning":true,"thinking":["high","max"],"input":["text"]}
+]}`
+
+// Over the catalog an installed omp prints, the model select lists every
+// installed model, and the pin is attested against the built-in
+// declarations, planned, and applied through the OMP writer.
+func TestComposeOMPTab_NativeCatalogListsEveryModelAndApplies(t *testing.T) {
+	composeSessionCatalog(t, "CAT-A")
+	dir := composeO3(t)
+	deps, activations := composeOMPDeps([]byte(composeNativeOMPCatalog))
+
+	out, err := runComposeOMPForms(t, dir, deps, "2\n", "4\n", "4\n", "1\n", "5\n", "3\n", "\n", "2\n", "\n")
+
+	require.NoError(t, err, out)
+	assert.Contains(t, out, "The installed catalog reports no family or capability metadata")
+	assert.Contains(t, out, "4. openai-codex/gpt-6-luna\n", "no capability filter without metadata")
+	assert.Contains(t, out, "OMP models applied. Start a new OMP session to use them.\n")
+	assert.Equal(t, 1, activations.calls)
+	policy := rawRoleModelPolicyOf(t, readBlockFixture(t, dir))
+	require.Len(t, policy.Agents["task"].Candidates, 1)
+	candidate := policy.Agents["task"].Candidates[0]
+	assert.Equal(t, []string{"openai-codex/gpt-6-astra", "max"}, []string{candidate.Selector, candidate.Thinking})
+}
