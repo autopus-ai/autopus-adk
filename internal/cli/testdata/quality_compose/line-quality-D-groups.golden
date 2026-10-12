@@ -1,0 +1,59 @@
+
+에이전트 모델 구성 ────────────────────────────────────────
+quality.default = balanced   ultra: 현재 기본값   balanced: 현재 기본값
+그룹       에이전트             등급    Claude Code        Codex
+설계·판단  planner              fable   fable-5-1 · max    6-astra · max
+설계·판단  architect            fable   fable-5-1 · max    6-astra · max
+설계·판단  spec-writer          fable   fable-5-1 · max    6-astra · max
+설계·판단  security-auditor     fable   fable-5-1 · max    6-astra · max
+구현       executor             sonnet  sonnet-5-5 · max   6-luna · max
+구현       debugger             fable   fable-5-1 · max    6-astra · max
+구현       deep-worker          fable   fable-5-1 · max    6-astra · max
+구현       devops               sonnet  sonnet-5-5 · max   6-luna · max
+구현       frontend-specialist  sonnet  sonnet-5-5 · max   6-luna · max
+구현       perf-engineer        sonnet  sonnet-5-5 · max   6-luna · max
+검증·리뷰  reviewer             fable   fable-5-1 · max    6-astra · max
+검증·리뷰  validator            sonnet  sonnet-5-5 · high  6-luna · max
+검증·리뷰  tester               sonnet  sonnet-5-5 · max   6-luna · max
+검증·리뷰  ux-validator         sonnet  sonnet-5-5 · high  6-luna · max
+탐색·보조  explorer             sonnet  sonnet-5-5 · high  6-luna · max
+탐색·보조  annotator            sonnet  sonnet-5-5 · high  6-luna · max
+Codex catalog: 읽음 · 대체 0칸
+구성을 바꿀까요? [Enter] 유지 · g) 역할 그룹 · a) 고급 · t) 도구별 설정
+> 역할 그룹마다 등급을 고르세요 (Enter = 그대로)
+설계·판단  planner, architect, spec-writer, security-auditor  현재: fable
+  1) fable 2) opus 3) sonnet 4) haiku [Enter] 그대로
+> 구현  executor, debugger, deep-worker, devops, frontend-specialist, perf-engineer  현재: 혼합 (fable 2 · sonnet 4)
+  1) fable 2) opus 3) sonnet 4) haiku [Enter] 그대로
+> 검증·리뷰  reviewer, validator, tester, ux-validator  현재: 혼합 (fable 1 · sonnet 3)
+  1) fable 2) opus 3) sonnet 4) haiku [Enter] 그대로
+> 탐색·보조  explorer, annotator  현재: sonnet
+  1) fable 2) opus 3) sonnet 4) haiku [Enter] 그대로
+> 
+미리보기 (아직 바뀌지 않음)
+그룹       에이전트             등급     Claude Code       Codex
+설계·판단  planner              fable    fable · max*      6-astra · max
+설계·판단  architect            fable    fable · max*      6-astra · max
+설계·판단  spec-writer          fable    fable · max*      6-astra · max
+설계·판단  security-auditor     fable    fable · max*      6-astra · max
+구현       executor             sonnet   sonnet · medium*  6-luna · max
+구현       debugger             sonnet*  sonnet · medium*  6-luna · max*
+구현       deep-worker          sonnet*  sonnet · medium*  6-luna · max*
+구현       devops               sonnet   sonnet · medium*  6-luna · max
+구현       frontend-specialist  sonnet   sonnet · medium*  6-luna · max
+구현       perf-engineer        sonnet   sonnet · medium*  6-luna · max
+검증·리뷰  reviewer             fable    fable · max*      6-astra · max
+검증·리뷰  validator            sonnet   sonnet · medium*  6-luna · max
+검증·리뷰  tester               sonnet   sonnet · medium*  6-luna · max
+검증·리뷰  ux-validator         sonnet   sonnet · medium*  6-luna · max
+탐색·보조  explorer             haiku*   haiku · -*        6-luna · medium*
+탐색·보조  annotator            haiku*   haiku · -*        6-luna · medium*
+Codex catalog: 읽음 · 대체 0칸
+* = 바뀌는 칸
+바뀌는 설정:
+  quality.presets.custom 새로 씀 (16개 에이전트)
+  quality.default balanced → custom
+  custom은 balanced 표준 배치를 받지 않음
+  quality 블록을 다시 씁니다: 블록 안 주석 0줄과 서식은 유지되지 않습니다(값은 그대로)
+적용할까요? [y/N] · e) 계속 편집
+> 취소했습니다. 설정을 바꾸지 않았습니다.
