@@ -7,7 +7,8 @@ fixture는 모두 temp project 안에 만든다. 폼 test는 `composeFormsProbe`
 - D, R, P, O1, O2, X, K, H, W, CAT-A, CAT-B, CAT-D: SPEC-MODELUX-001 `acceptance.md`와 같다. D는 `config.DefaultFullConfig("p")`를 `config.Save`한 파일(platforms `claude-code, codex`, balanced current, `supervisor_model_policy: inherit`)이다. P는 D에 `quality.providers.codex: codex-custom`(16개 모두 `haiku`)을 더한 파일이다. 따로 적지 않으면 catalog는 CAT-A다.
 - D1: D에서 platforms를 `claude-code`로 줄인 파일. N: platforms가 `opencode`, `antigravity-cli`뿐인 파일.
 - O3: D에 platform `omp`를 더해 `config.Save`한 파일(`role_model_policy` 없음). OMP runner는 기존 `ompCLIFakeRunner{catalog: ompCLIBalancedCatalogJSON()}`, activate는 호출 횟수와 받은 cfg를 기록하는 stub이다.
-- DP: D에 감지 플랫폼 `opencode`, `omp`가 있는 실행. DC: D1에 감지 플랫폼 `codex`가 있는 실행. 감지는 PATH의 가짜 실행 파일로 만든다(`omp`는 `--version`에 답한다). DC의 가짜 `codex`는 호출을 기록하고 `debug models`에 CAT-D를 낸다. 감지를 PATH로 고정하는 기존 test 방식이 있는지는 미확인이고, 없으면 `[NEW]` 감지 seam을 test helper에 둔다.
+- DP: D에 감지 플랫폼 `opencode`, `omp`가 있는 실행. DC: D1에 감지 플랫폼 `codex`가 있는 실행. 감지는 PATH의 가짜 실행 파일로 만든다(`omp`는 `--version`에 답한다). DC의 가짜 `codex`는 호출을 기록하고 `debug models`에 CAT-D를 낸다. 기존 test는 `t.Setenv("PATH", …)`와 `writeFakeOMPBinary`(`omp_identity_gate_test.go:15-24`)로 감지를 고정한다.
+- IO: 빈 temp project에서 `auto init --dir <dir> --platforms claude-code,codex,omp`, wizard seam 결과 `role-groups`. OMP catalog runner는 `initComposeOMPDeps`, OMP 생성 runner는 test 전용 `platformOMPModelRunner`로 준다. 생성용 가짜는 설정 되읽기에 답해야 하고, internal/cli에서 만들 수 있는지는 미확인이다(`research.md` `## OMP test seam 조사`).
 
 ### S1: 입력 방식 선택과 줄 driver 불변
 Priority: Must
@@ -31,7 +32,7 @@ Given D, D1, N, O3, DP가 있다
 When D, D1, N, O3은 `auto quality`에서, DP는 `auto update`에서 구성 편집을 고른다. O3과 같은 platforms(`claude-code, codex, omp`)로 init의 역할별 직접 구성도 실행한다
 Then D의 탭은 `1. 모든 도구 같게`, `2. Claude Code`, `3. Codex`이고, O3은 여기에 `4. OMP`가 더해진다. D1의 탭은 `1. 모든 도구 같게`, `2. Claude Code`다
 And DP의 탭은 D와 같고(omp는 감지만 됐다) 출력에 `OMP는 이번 update에서 새로 설치됩니다. 모델은 다음 auto update나 auto quality에서 지정할 수 있습니다.`가 한 번 있다. 어느 탭에도 OpenCode와 Antigravity가 없다
-And N은 탭 없이 바로 방식 Select가 나온다. init의 탭은 D와 같고 출력에 `OMP 모델은 init 뒤 auto quality에서 지정할 수 있습니다.`가 한 번 있다
+And N은 탭 없이 바로 방식 Select가 나온다. init의 탭은 O3과 같고(`4. OMP` 포함) init OMP 안내 줄은 없다
 
 ### S4: 모든 도구 같게의 실제 모델 라벨과 binding
 Priority: Must
@@ -137,6 +138,22 @@ And `auto update`의 표에는 `+ 새 플랫폼 감지`에 나온 플랫폼의 �
 And `auto quality`의 OMP 요약에 native agent 5행의 실제 route가 있고, 적용 뒤 파일에 `role_model_policy.profile: balanced`, `family: openai`가 있다. 설치된 `omp` catalog가 blocker를 내면 그 출력과 SHA-256 불변을 대신 기록한다
 And 원본 transcript와, OSC·CSI를 지운 비교용 사본을 함께 `evidence/manual-smoke-002.txt`에 남긴다
 
+### S21: init의 OMP 탭은 메모리 config로 같은 검사를 거쳐 저장된다
+Priority: Must
+Given IO 조건의 빈 temp project 세 개, 폼 seam, `initComposeOMPDeps`의 runner `ompCLIFakeRunner{catalog: ompCLIBalancedCatalogJSON()}`, `platformOMPModelRunner`의 가짜 runner, 호출을 세는 `deps.activate` stub이 있다
+When 첫 project에서 구성 편집 → OMP → 에이전트별 지정 (balanced 위에) → GPT를 고르고, 목록에서 task → `openai-codex/gpt-6-astra` → thinking `max` → 완료, 확인에서 적용, 메뉴에서 유지를 고른다. 둘째 project는 `ompCLIBalancedCatalogWithout(t, "openai-codex/gpt-6-astra")` catalog로 OMP → balanced → GPT를 고른다. 셋째로 selector에 `${HOME}`이 든 후보 `role_model_policy`를 init 분기의 검사에 직접 넣는다
+Then 첫 project의 미리보기는 `OMP balanced — model preview (no changes yet)`이고 `task*` 행에 `openai-codex/gpt-6-astra`와 `max`가 있다. 적용 뒤 `OMP 모델 선택을 init 설정에 넣었습니다. 파일 생성 때 함께 씁니다.`가 나온다
+And 첫 project의 init이 끝난 autopus.yaml에서 `role_model_policy.profile`은 `balanced`, `family`는 `openai`, `agents.task.candidates`는 selector `openai-codex/gpt-6-astra`, thinking `max`, family `openai` 하나이고 나머지 native agent는 `agents`에 없다. `deps.activate`는 0회이고, OMP 생성은 `platformOMPModelRunner` 가짜 runner로 돌아 `models --json --no-extensions` 호출을 기록한다. `.claude/agents/autopus/planner.md`와 `.codex/agents/planner.toml`도 생성된다
+And 둘째 project는 `omp_profile_candidate_unavailable`과 `task`를 출력하고 확인 없이 메뉴로 돌아가며, 끝난 autopus.yaml에 `role_model_policy` key가 없다. 셋째 입력은 `role_model_policy_placeholder_unsupported`로 거부되고 init cfg의 `RoleModelPolicy`는 그대로다
+And 같은 cfg로 부른 `planOMPProfileForConfig`의 결과는, 같은 내용을 autopus.yaml로 쓴 project에서 부른 `planOMPProfile`의 결과와 deep-equal이다
+
+### S22: init에서 OMP catalog를 읽지 못하면 안내하고 계속한다
+Priority: Must
+Given IO 조건의 빈 temp project, 폼 seam, `initComposeOMPDeps`와 `platformOMPModelRunner`에 같은 `ompCLIFakeRunner{fail: true}`가 있다
+When 구성 편집 → OMP → balanced → GPT를 고르고, 다시 구성 편집 → OMP → 에이전트별 지정 (balanced 위에) → GPT를 고른 뒤 메뉴에서 유지를 고른다
+Then 두 번 모두 `OMP catalog를 읽지 못해 지금은 OMP 모델을 지정할 수 없습니다. init 뒤 auto quality에서 지정할 수 있습니다.`와 원인 한 줄이 나오고 메뉴로 돌아간다
+And init은 종료 코드 0으로 끝나고 autopus.yaml에 `role_model_policy` key가 없으며, `.claude/agents/autopus/planner.md`와 `.codex/agents/planner.toml`이 생성된다. profile이 빈 OMP 생성은 model integration을 건너뛰므로(`omp_model_integration.go:38-40`) `platformOMPModelRunner` 호출은 0회다
+
 ### S16: override 질문 폼
 Priority: Should
 Given P가 있다
@@ -170,4 +187,5 @@ And README와 v0.50.125 CHANGELOG에 같은 내용이 있고, `quality_compose_d
 - 모든 Must 시나리오는 concrete expected output을 갖는다. 라벨 문자열, 선택지 번호 목록, 칸 값, 머리말, 바뀌는 설정 줄, 안내·중단·거부 문구, SHA-256과 블록 bytes 동일성, 파일 key 값, 생성 파일의 `model`·`effort`, probe·activate·폼 실행 횟수다. 파일 존재나 종료 상태만으로 닫는 Must 시나리오는 없다.
 - 라벨의 oracle은 같은 snapshot으로 돈 실제 adapter `Generate`다(S14). Claude 라벨의 모델은 slug라서 frontmatter와 직접 같지 않다. S14가 그 대응 규칙(`ClaudeModelForTier`)을 oracle로 쓴다.
 - 기대 값은 2026-10-12에 코드를 읽고 계산했다(`codex_profile.go:105-124`, `quality_effective.go:28-65`, `quality_tier.go:94-114`, `role_model_policy_balanced.go:21-69`, `content/agents/*.md`의 effort, `quality_compose_table_render.go:107-171`). 실행으로 확인한 것은 probe A1뿐이다. 코드 사실과 다르면 test가 아니라 이 SPEC을 고친다.
+- S21의 OMP 생성 확인(가짜 runner 기록)은 설정 되읽기에 답하는 가짜 runner가 있어야 한다(R4). 못 만들면 그 문장은 "저장 직전 init cfg의 `role_model_policy`가 위 값과 같다"로 바꾸고 review에 알린다. S22에서 profile이 빈 OMP 생성이 runner 밖에서 `omp`를 실행하는지는 미확인이다.
 - S11과 S20의 블록 경계는 SPEC-MODELUX-001 REQ-MUX-08 규칙이다. probe A1은 같은 경계를 `quality:` 줄부터 다음 1열 key 직전까지로 잘라 비교했다.
