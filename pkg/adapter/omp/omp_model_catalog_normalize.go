@@ -8,6 +8,7 @@ import (
 	"io"
 	"sort"
 	"strings"
+	"unicode"
 
 	"github.com/insajin/autopus-adk/pkg/config"
 )
@@ -198,12 +199,16 @@ func normalizeOMPNativeThinking(values []string) ([]string, bool) {
 	return normalized, true
 }
 
+// safeOMPModelToken accepts a provider or model token of an installed
+// catalog. The token reaches selectors, the generated OMP config, and the
+// terminal, so a C0 or C1 control, a format character such as a bidi
+// override or a zero-width space, and a space separator are all refused.
 func safeOMPModelToken(value string) bool {
 	if value == "" || strings.TrimSpace(value) != value || strings.Contains(value, "/") {
 		return false
 	}
 	for _, char := range value {
-		if char < 0x21 || char == 0x7f {
+		if char < 0x21 || unicode.IsControl(char) || unicode.In(char, unicode.Cf) || unicode.IsSpace(char) {
 			return false
 		}
 	}
