@@ -40,6 +40,7 @@ SPEC-MODELUX-001이 init, update, quality에 넣은 구성 단계는 줄 입력�
 | 도구별 | 도구 탭 먼저. 설치된 도구만. OpenCode·Antigravity는 고르지 않음. 도구별 실제 모델 이름 | 라벨은 후보 config의 표 칸(REQ-MUX2-05, 06) |
 | 저장 | 기존 per-provider binding, 새 key 없음 | 상대 등급 저장, 이름은 기존 `<provider>-custom`(REQ-MUX2-07) |
 | OMP | 이번에 지정 가능, 기존 OMP 경로 재사용. init에서도 지정(2026-10-12 추가 결정): 메모리 config로 plan·검증, init의 `config.Save`가 쓰고, catalog가 없으면 안내 후 계속 | 기존 OMP 편집기의 폼 판. update·quality는 `applyOMPProfile`과 cfg 동기화, init은 `[NEW] planOMPProfileForConfig`와 placeholder 검사(REQ-MUX2-10, 11, 22, 23) |
+| Ctrl+C (통합 결정, review 뒤) | update의 폼에서 Ctrl+C는 명령 전체를 끝낸다(줄 driver와 같게) | 중단 줄, 0이 아닌 종료, 생성 없음, 저장된 migration은 남음. init은 `init cancelled.`, quality는 오류 없이 반환(REQ-MUX2-14) |
 | 출하 | v0.50.125, 범위를 좁게, 새 secret·승인·유료 CI 없음 | sibling 없음, 새 의존성 없음 |
 
 ## 5. 범위 밖

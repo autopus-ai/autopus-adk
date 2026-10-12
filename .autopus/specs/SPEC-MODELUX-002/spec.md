@@ -16,25 +16,25 @@ SPEC-MODELUX-001의 실제 터미널 smoke(S21) 뒤 사용자가 세 가지를 �
 
 ## Outcome Boundary
 
-- Outcome Lock 원문은 `research.md` `## Outcome Lock`에 있다. 요약: 실제 터미널의 `auto init`, `auto update`, `auto quality`에서 구성 단계를 화살표와 Enter로 다룬다. 도구 탭에서 `모든 도구 같게`, Claude Code, Codex, OMP를 고르고, 선택지에는 그 도구의 실제 모델과 effort가 보인다. Claude·Codex 결과는 `quality.providers.<p>: <p>-custom`으로 저장되고 같은 run의 생성 파일이 승인한 미리보기와 같다. OMP는 세 진입점 모두에서 설치된 catalog로 native agent별로 고르고 실제 route 미리보기를 확인한 뒤 저장된다(update·quality는 기존 OMP writer, init은 같은 검사를 거친 메모리 config와 init의 저장, catalog를 못 읽으면 안내 후 계속). update 표에는 감지 플랫폼 열도 있다. 유지하면 quality 블록과 `role_model_policy`가 byte 단위로 그대로다. 줄 입력은 SPEC-MODELUX-001과 똑같다.
-- Mandatory requirements: REQ-MUX2-01 ~ REQ-MUX2-17, REQ-MUX2-22, REQ-MUX2-23 (Must). REQ-MUX2-18 ~ REQ-MUX2-21은 Should다.
+- Outcome Lock 원문은 `research.md` `## Outcome Lock`에 있다. 요약: 실제 터미널의 `auto init`, `auto update`, `auto quality`에서 구성 단계를 화살표와 Enter로 다룬다. 도구 탭에서 `모든 도구 같게`, Claude Code, Codex, OMP를 고르고, 선택지에는 그 도구의 실제 모델과 effort가 보인다. Claude·Codex 결과는 `quality.providers.<p>: <p>-custom`으로 저장되고 같은 run의 생성 파일이 승인한 미리보기와 같다. OMP는 세 진입점 모두에서 설치된 catalog로 native agent별로 고르고 실제 route 미리보기를 확인한 뒤 저장된다(update·quality는 기존 OMP writer, init은 같은 검사를 거친 메모리 config와 init의 저장, catalog를 못 읽으면 안내 후 계속). update 표에는 감지 플랫폼 열도 있다. 유지, 취소, 실패에서는 이 단계가 아무것도 쓰지 않으므로 파일 변화는 감지와 기존 migration뿐이다. 줄 입력은 SPEC-MODELUX-001과 똑같다.
+- Mandatory requirements: REQ-MUX2-01 ~ REQ-MUX2-18, REQ-MUX2-22, REQ-MUX2-23 (Must). REQ-MUX2-19 ~ REQ-MUX2-21은 Should다.
 - Explicit non-goals:
   - SPEC-MODELUX-001 줄 driver의 키, 문구, 라우팅 변경과 기존 줄 편집기(도구별, OMP, 전역 메뉴) 제거
   - 새 YAML key, 에이전트별 provider 모델 ID 저장
-  - OMP를 quality 등급에 묶기(`모든 도구 같게`가 OMP를 바꾸는 것), 표 OMP 칸의 catalog 반영 route
+  - 등급 편집으로 OMP profile·pin을 직접 바꾸거나 새 등급 연동을 더하기, 표 OMP 칸의 catalog 반영 route. built-in `ultra` OMP profile이 `quality.presets.ultra`에서 route를 파생하는 기존 동작은 그대로라서, ultra 프리셋을 바꾸는 쓰기는 OMP 요청 route도 바꿀 수 있고 표에 `*`로 보인다(SPEC-MODELUX-001 REQ-MUX-11)
   - update에서 이번 run에 처음 감지된 OMP 지정(init의 OMP 지정은 REQ-MUX2-22다)
   - OMP pin 해제(inherit) 선택지, 여러 도구를 한 번의 쓰기로 묶기
   - OMP writer(`replaceAutopusConfigSection`)가 문서 전체를 다시 encode하는 기존 동작 변경
   - huh·bubbletea·lipgloss major 이전, OSC 11 query 제거
   - OpenCode·Antigravity 에이전트별 모델
-- Completion evidence: `acceptance.md`의 Must 시나리오(S1–S15, S20–S22) PASS, 기존 test 수정 0건, `auto eval harness run` 통과, 신규·변경 package coverage 85% 이상, 신규·변경 소스 파일 300줄 이하, `GOOS=windows GOARCH=amd64 go build ./...`, 수동 터미널 smoke 기록(`evidence/manual-smoke-002.txt`, S20), `auto spec validate --strict` 통과.
+- Completion evidence: `acceptance.md`의 Must 시나리오(S1–S16, S20–S22) PASS, 기존 test 수정 0건, `auto eval harness run` 통과, 신규·변경 package coverage 85% 이상, 신규·변경 소스 파일 300줄 이하, `GOOS=windows GOARCH=amd64 go build ./...`, 수동 터미널 smoke 기록(`evidence/manual-smoke-002.txt`, S20), `auto spec validate --strict` 통과.
 
 ## Trust Model
 
 - SPEC-MODELUX-001 Trust Model을 그대로 따른다. `autopus.yaml`은 반쯤 신뢰한다. writer는 loader가 펼친 값을 쓰기 원천으로 쓰지 않는다.
 - 비신뢰 입력이 하나 더 있다. OMP catalog 출력(`omp models --json`)이다. 기존 정규화(`installedOMPCustomModelChoices`)를 지난 selector만 선택지가 된다. init은 이 selector를 담은 후보를 `config.Save`로 새로 쓰므로, 저장 전에 파일 경로와 같은 placeholder 검사를 한다(REQ-MUX2-22).
 - 폼 라벨에 들어가는 글자 중 autopus.yaml(프리셋 이름, description, override 이름), Codex catalog, OMP catalog에서 온 것은 모두 `terminalSafe`를 거친다. huh는 라벨을 그대로 터미널에 그리기 때문이다.
-- 출력은 터미널, `autopus.yaml`, 생성 파일, 수동 smoke 기록 하나다. 새 로그나 artifact는 없다.
+- 출력은 터미널, `autopus.yaml`, 생성 파일, 수동 smoke 기록과 probe 증거다. 새 로그나 artifact는 없다. 증거 파일은 커밋 전에 `$HOME`, scratch 경로, 사용자 이름을 placeholder로 바꾼다.
 
 ## Requirements
 
@@ -45,6 +45,7 @@ WHERE the composition step asks interactively, THEN THE SYSTEM SHALL drive every
 
 - 판정은 Input Mode Contract다. 비대화형과 preview는 SPEC-MODELUX-001 그대로 이 단계에 들어오지 않는다(REQ-MUX-14). 폼은 그 판정 뒤의 묻는 경로에서만 열린다.
 - `auto quality`가 TTY가 아닌 stdin에서 내는 기존 오류(`interactive quality selection requires a TTY; use an explicit quality or profile command`)는 그대로다.
+- 폼은 판정한 스트림에 묶는다. huh `NewForm`의 기본 출력은 `os.Stderr`라서(huh form.go:112) 그대로 두면 `auto update 2>err.log`에서 폼이 파일로 간다. 그래서 runner가 `WithInput(cmd.InOrStdin())`와 `WithOutput(cmd.OutOrStdout())`를 건다(REQ-MUX2-17).
 
 ### REQ-MUX2-02 폼 표시와 터미널 안전
 Priority: Must · EARS: Ubiquitous
@@ -61,6 +62,7 @@ WHEN the form driver runs, THEN THE SYSTEM SHALL probe the Codex catalog once fo
 
 - 선택지와 순서는 Form Flow Contract다. `최신 기본값으로 갱신`은 built-in 프리셋이 historical일 때만, `기본 프리셋 고르기`는 `auto quality`에서만 있다.
 - 유지 경로의 입력은 Enter 1회다. 반복해도 catalog probe는 run당 1회이고, 같은 run의 생성은 그 snapshot을 쓴다.
+- 기준 상태(baseline)는 이 run에서 마지막으로 성공한 쓰기 뒤의 파일과 cfg다. 쓰기가 없었으면 run 시작 상태다. 유지, 취소, 변경 없음, 거부, 쓰기 실패, catalog 실패, Ctrl+C는 기준 상태를 바꾸지 않고, 앞서 승인한 쓰기를 되돌리지도 않는다.
 
 ### REQ-MUX2-04 도구 탭
 Priority: Must · EARS: EventDriven
@@ -108,6 +110,7 @@ WHEN a form edit or refresh is pending, THEN THE SYSTEM SHALL print the after-ta
 - 표와 바뀌는 설정 줄은 SPEC-MODELUX-001 REQ-MUX-06과 같은 함수로 폼 밖에 출력한다. 도구별 탭의 줄은 Per-Tool Binding Contract에 있다.
 - `u` 갱신의 미리보기에서 `계속 편집`은 `모든 도구 같게`의 방식 선택으로 간다(SPEC-MODELUX-001 planner가 갱신 위에 묶는다).
 - 취소 출력은 SPEC-MODELUX-001과 같은 `취소했습니다. 설정을 바꾸지 않았습니다.`이고, 메뉴로 돌아간다.
+- 쓰기 경로마다 staging, 쓰기, 실패 시 보존 방법은 Write Safety Contract다.
 
 ### REQ-MUX2-10 OMP 탭
 Priority: Must · EARS: EventDriven
@@ -120,10 +123,11 @@ WHEN the tab is OMP, THEN THE SYSTEM SHALL ask the OMP profile, the model family
 ### REQ-MUX2-11 OMP 저장 경로와 동기화
 Priority: Must · EARS: Ubiquitous
 
-THE SYSTEM SHALL persist a confirmed OMP tab choice of auto update and auto quality only through newOMPProfileApplyOptions and applyOMPProfile, SHALL write and activate nothing when the plan reports a blocker or an existing OMP source check refuses, and SHALL set the loaded config's role_model_policy to the written value before any later save or generation of the same run.
+THE SYSTEM SHALL persist a confirmed OMP tab choice of auto update and auto quality only through newOMPProfileApplyOptions and applyOMPProfile, SHALL write and activate nothing when the plan reports a blocker or an existing OMP source check refuses, and SHALL set the loaded config's role_model_policy to the value re-read from the written file before any later save or generation of the same run, ending the run with an error instead when that re-read fails.
 
 - catalog 확인, pin 계열 증명, placeholder 거부(`validateOMPProfileSource`, `replaceAutopusConfigSection`의 placeholder guard), 활성화 실패 rollback은 기존 경로가 한다. 이 SPEC은 그 규칙을 바꾸지 않는다.
-- 동기화는 쓰기 뒤 `config.LoadPreview(dir)`의 `RoleModelPolicy`를 cfg에 넣는 것이다. role policy에는 placeholder가 없음이 쓰기 전에 검사됐다. 동기화가 없으면 update의 뒤 `config.Save`와 OMP 재생성, `auto quality --apply`가 옛 선택으로 덮는다(`research.md` OMP 조사 7).
+- 동기화는 쓰기 뒤 `[NEW] composeReloadConfig`(기본 `config.LoadPreview`)로 다시 읽은 `RoleModelPolicy`를 cfg에 넣는 것이다. role policy에는 placeholder가 없음이 쓰기 전에 검사됐다. 동기화가 없으면 update의 뒤 `config.Save`와 OMP 재생성, `auto quality --apply`가 옛 선택으로 덮는다(`research.md` OMP 조사 8).
+- 되읽기가 실패하면 파일은 이미 쓰이고 활성화됐으므로 되돌리지 않는다. Form Text의 OMP 되읽기 실패 줄을 쓰고, update는 `composeGate.Abort`로 뒤 저장과 생성 없이 오류로 끝나며, quality는 `--apply` 없이 오류를 돌려준다. 옛 cfg로 계속하지 않는다.
 - OMP 쓰기는 문서 전체를 다시 encode한다(기존 동작). 확인 화면 위에 `OMP 설정은 autopus.yaml 전체를 다시 씁니다: 주석과 서식이 바뀔 수 있습니다(값은 그대로)`를 쓴다.
 
 ### REQ-MUX2-12 update 감지 플랫폼
@@ -134,21 +138,23 @@ WHEN auto update will add detected platforms, THEN THE SYSTEM SHALL compute the 
 - 결함 1의 수정이다. 감지 목록은 update.go가 이미 계산한 `addedPlatforms`이고, `[NEW] composeGate.Detected`로 넘긴다. `updateComposeStep`의 시그니처는 그대로다.
 - 감지 플랫폼 생성은 `[NEW] updateDetectedHarnessPlatformsWith`가 run snapshot으로 만든 adapter로 한다. zero snapshot이면 지금처럼 adapter가 스스로 probe한다.
 
-### REQ-MUX2-13 유지 경로는 quality와 OMP 설정을 바꾸지 않는다
+### REQ-MUX2-13 유지 경로에서 이 단계는 쓰지 않는다
 Priority: Must · EARS: Unwanted
 
-IF the operator keeps, cancels, interrupts, or makes no change, THEN THE SYSTEM SHALL leave the quality block bytes and the role_model_policy bytes of autopus.yaml unchanged, so that the run changes the file only through platform detection and the existing update migrations.
+IF the operator keeps, cancels, interrupts, or makes no change, or a write, catalog read, or plan fails, THEN THE SYSTEM SHALL perform no write in the composition step beyond the writes already confirmed in the run, so that autopus.yaml differs from the baseline only through platform detection and the existing update migrations.
 
 - 결함 2의 수정이다. SPEC-MODELUX-001 S21의 "파일 SHA 불변" oracle은 감지가 없는 경우에만 맞다. probe P1에서 감지 저장은 `platforms` 3줄만 더했고 quality 블록 bytes는 같았다(`research.md` `## Probe P1`).
+- 판정 조건: `config.Save`로 만든(canonical) 파일은 감지 저장 뒤에도 quality 블록 bytes가 같다(probe A1). 손으로 쓴 파일(주석, 다른 들여쓰기, key 순서)은 감지 저장의 `config.Save`가 파일 전체를 다시 쓰므로 bytes 대신 env 없이 decode한 quality와 `role_model_policy` 값이 기준 상태와 같다. 감지와 migration이 없으면 어떤 파일이든 SHA-256이 같다. `config.Save`의 전체 재작성은 SPEC-MODELUX-001부터의 non-goal이다.
 - 블록 경계는 SPEC-MODELUX-001 REQ-MUX-08 규칙(root mapping의 다음 key 직전)이다.
 
 ### REQ-MUX2-14 Ctrl+C
 Priority: Must · EARS: EventDriven
 
-WHEN a composition form returns huh.ErrUserAborted, THEN THE SYSTEM SHALL write nothing further in the step, print the interruption line, and end the step: init then prints `init cancelled.` and writes no file, update continues as on keep, and auto quality returns without error.
+WHEN a composition form returns huh.ErrUserAborted, THEN THE SYSTEM SHALL write nothing further, print the interruption line, and end the command: auto update returns an error with a non-zero exit before the supervisor migration and every platform generation, auto init prints `init cancelled.` and writes no file, and auto quality returns without error.
 
 - 중단 줄은 `중단했습니다. 구성을 더 바꾸지 않습니다.`(en: `Interrupted; the composition is not changed further.`)다. 메뉴 반복 중 앞에서 이미 적용한 쓰기는 그대로 남는다.
-- update가 멈추지 않고 계속하는 이유: SPEC-MODELUX-001 REQ-MUX-13은 이 단계 때문에 update가 실패하지 않는다고 약속했다. 계속 생성하는 값은 유지하거나 승인한 구성뿐이다.
+- update는 SPEC-MODELUX-001 줄 driver에서 Ctrl+C가 명령 전체를 끝냈던 것과 같게 한다(통합 결정, 2026-10-12). 이미 저장된 migration과 이 run에서 앞서 승인한 쓰기는 남고, 생성은 다음 `auto update`가 한다.
+- 단계는 `[NEW] composeGate.Abort`(error pointer)에 `[NEW] errComposeInterrupted`를 적고 update.go가 그것을 돌려준다. `updateComposeStep`의 시그니처는 그대로라서 `update_compose_helpers_test.go:143-146`의 wrapper가 그대로 컴파일된다. update.go는 `Long`을 옮겨 13줄이 빈 뒤 4줄이 는다.
 - init은 기존 `runInitComposeStep`의 시그니처를 그대로 두고, `[NEW] runInitComposeStepCancellable`이 취소 여부를 더 돌려준다. init.go에 더하는 줄은 4줄 이하다.
 
 ### REQ-MUX2-15 줄 driver 불변
@@ -170,7 +176,7 @@ Priority: Must · EARS: Ubiquitous
 
 THE SYSTEM SHALL run every composition form through the injectable composeRunForm and decide the input mode through the injectable composeFormsProbe, so that tests drive the real huh fields in accessible mode over scripted input while the rest of each command runs for real.
 
-- `[NEW] composeRunForm func(cmd *cobra.Command, form *huh.Form) error`의 기본값은 `form.Run()`이다. test는 `form.WithAccessible(true).WithInput(cmd.InOrStdin()).WithOutput(cmd.OutOrStdout()).Run()`을 쓰고 입력을 `testing/iotest.OneByteReader`로 준다. huh accessible `PromptString`이 질문마다 Scanner를 새로 만들어 앞을 읽기 때문이다(`research.md`).
+- `[NEW] composeRunForm func(cmd *cobra.Command, form *huh.Form) error`의 기본값은 `form.WithInput(cmd.InOrStdin()).WithOutput(cmd.OutOrStdout()).Run()`이다. test는 `form.WithAccessible(true).WithInput(cmd.InOrStdin()).WithOutput(cmd.OutOrStdout()).Run()`을 쓰고 입력을 `testing/iotest.OneByteReader`로 준다. huh accessible `PromptString`이 질문마다 Scanner를 새로 만들어 앞을 읽기 때문이다(`research.md`).
 - `[NEW] composeFormsProbe func(cmd *cobra.Command) bool`의 기본값은 Input Mode Contract의 판정이다. Ctrl+C test는 runner가 `huh.ErrUserAborted`를 돌려주게 한다.
 
 ### REQ-MUX2-22 init의 OMP 탭: 메모리 경로
@@ -182,22 +188,25 @@ WHEN the operator confirms an OMP tab choice during auto init, THEN THE SYSTEM S
 - `[NEW] planOMPProfileForConfig(ctx, cfg, opts, runner)`는 지금 `planOMPProfile`이 파일을 읽은 뒤 하는 일(`resolveOMPProfileProposal`과 미리보기 payload)을 그대로 꺼낸 함수다. `planOMPProfile`은 파일을 읽고 이 함수를 부르도록 바뀌며 출력은 같다. 모델 목록(`installedOMPCustomModelChoices`, `requireOMPCustomCapability`), pin 계열 증명, blocker 규칙은 update·quality와 같은 함수다.
 - placeholder 검사: 후보 `role_model_policy`를 yaml node로 만들어 기존 `yamlNodeContainsOMPProfilePlaceholder`로 본다. 걸리면 `role_model_policy_placeholder_unsupported`로 거부한다. 파일 경로의 `validateOMPProfileSource`와 같은 규칙이다.
 - 활성화는 `deps.activate`가 아니라 init의 OMP 생성이다. 생성이 실패하면 `saveConfigWithGenerationRollback`이 autopus.yaml과 플랫폼 파일을 되돌리고 init은 기존처럼 `플랫폼 설정 적용 실패`로 끝난다.
-- catalog runner는 `[NEW] initComposeOMPDeps`(기본 `defaultOMPPlatformDependencies()`)의 `newRunner`다. init 종단 test의 OMP 생성은 test 전용 `[NEW] platformOMPModelRunner`(nil이면 지금과 같음)로 가짜 runner를 쓴다(`research.md` `## OMP test seam 조사`).
+- catalog runner는 `[NEW] initComposeOMPDeps`(기본 `defaultOMPPlatformDependencies()`)의 `newRunner`다. init 종단 test의 OMP 생성은 test 전용 `[NEW] platformOMPModelRunner`(nil이면 지금과 같음)에 기존 `ompModelDoctorE2ERunner`(`doctor_omp_model_routing_e2e_test.go:110-146`: `--version`, catalog, `--config` 파일을 읽는 `config get`에 답한다)를 넣어 실제 OMP 생성과 되읽기까지 돌린다.
 
 ### REQ-MUX2-23 init에서 OMP catalog를 읽지 못함
 Priority: Must · EARS: Unwanted
 
-IF the installed OMP catalog cannot be read while the OMP tab of auto init lists models or plans a profile, THEN THE SYSTEM SHALL print the init OMP hint and the cause, leave role_model_policy unset, and return to the menu so that init continues.
+IF the installed OMP catalog cannot be read while the OMP tab of auto init lists models or plans a profile, THEN THE SYSTEM SHALL print the init OMP hint and the cause, leave role_model_policy as the baseline holds it, and return to the menu so that init continues.
 
 - 안내는 Form Text의 init OMP 줄이고, 원인은 terminalSafe를 거친 오류 한 줄이다.
-- catalog는 읽었지만 route를 쓸 수 없는 blocker는 REQ-MUX2-22의 거부다. 두 경우 모두 쓰는 것이 없다.
+- 오류 분류(구성으로 구별된다): 안내는 catalog를 읽는 호출(`installedOMPCustomModelChoices`, plan 안의 `probeInstalledOMPCatalogForProfile`)이 돌려준 runner 실행 오류, `ompCatalogUnavailableError`, catalog 정규화 실패다. 거부(REQ-MUX2-22)는 `ompProfilePlanError`, `ompProfileUnavailableError`(blocker), `omp_profile_validation_failed`, `role_model_policy_placeholder_unsupported`다. 어느 쪽도 쓰지 않는다.
+- 기준 상태: 같은 init에서 앞서 OMP를 적용했으면 그 선택이 남는다. 처음부터 없었을 때만 `role_model_policy`가 없다.
 
 ### REQ-MUX2-18 override 질문 폼
-Priority: Should · EARS: StateDriven
+Priority: Must · EARS: StateDriven
 
-WHERE a provider override exists and a 모든 도구 같게 edit changes the global binding, THEN THE SYSTEM SHALL ask the SPEC-MODELUX-001 REQ-MUX-20 question as a huh confirm whose default is no, before the preview.
+WHERE a provider override exists and a 모든 도구 같게 edit changes the global binding, THEN THE SYSTEM SHALL ask the SPEC-MODELUX-001 REQ-MUX-20 question as a huh confirm whose default is no, before the preview, and SHALL remove a confirmed override in the same saveQualityBlock edit as the composition write.
 
-- 질문 문구와 후보 반영 규칙은 SPEC-MODELUX-001과 같다. 줄 입력은 기존 `askOverrides` 그대로다.
+- 질문 문구와 후보 반영 규칙은 SPEC-MODELUX-001과 같다. 줄 입력은 기존 `askOverrides`와 두 번의 쓰기(`removeQualityProvider`) 그대로다.
+- 폼 흐름은 구성과 override 제거를 block 쓰기 하나로 묶는다. 실패하면 둘 다 남지 않는다. 제거가 있으면 writer는 line이 아니라 block이다.
+- Must로 올렸다(review R11). REQ-MUX2-01이 모든 질문을 폼으로 요구하므로, 이것이 없으면 폼 흐름 안에 줄 질문이 남는다.
 
 ### REQ-MUX2-19 OSC 11 기록
 Priority: Should · EARS: Ubiquitous
@@ -241,11 +250,11 @@ THE SYSTEM SHALL document arrow-key forms, the tool tab, the per-tool binding, t
 | 에이전트별 | 목록 Select → 값 Select 반복 | 목록: 완료 + 정규 에이전트 16개(그룹 순서) / 값: 그대로 + 등급 4개 | 목록: 완료 / 값: 그대로 | 완료: 미리보기 |
 | 미리보기 | 폼 밖 출력: after-table(`*`), 바뀌는 설정 줄 | - | - | 확인 |
 | 확인 | Select `적용할까요?` | 취소 · 적용 · 계속 편집 | 취소 | 적용: 쓰기 → 메뉴 / 취소: 메뉴 / 계속 편집: 같은 탭의 방식 |
-| 기본 프리셋 | Select | `orderedQualityPresets` 순서, `<name> — <description>`, 현재 default에 `(현재)` | 현재 default | 기존 `saveQualityDefault` → `quality.default = <name>` → 메뉴 |
+| 기본 프리셋 | Select | `orderedQualityPresets` 순서, `<name> — <description>`, 현재 default에 `(현재)` | 현재 default | `persistComposeBinding`의 line 경우처럼 `precheckQualityWriteFile` 뒤 cfg 분리 사본으로 `saveQualityDefault`, 성공한 뒤에만 cfg를 맞추고 `quality.default = <name>` → 메뉴 |
 
 - 편집 결과가 시작과 같으면 `변경 없음`을 쓰고 메뉴로 돌아간다. 쓰지 않는다.
 - 메뉴는 돌아올 때마다 표를 다시 그린다. 다시 그린 표는 방금 쓴 값(cfg 동기화)과 같은 snapshot으로 계산한다.
-- 쓰기가 거부되거나 실패하면 원본은 그대로이고 경고 1줄(`warnUpdateCompose`와 같은 형식)을 쓴 뒤 메뉴로 돌아간다.
+- 쓰기가 거부되거나 실패하면 기준 상태(REQ-MUX2-03)가 그대로이고 경고 1줄(`warnUpdateCompose`와 같은 형식)을 쓴 뒤 메뉴로 돌아간다. 경로별 보장은 Write Safety Contract다.
 
 ### Label Contract
 
@@ -260,7 +269,7 @@ THE SYSTEM SHALL document arrow-key forms, the tool tab, the per-tool binding, t
 | `<cells>` | 영향받는 에이전트(그룹 멤버나 에이전트 하나)의 칸을 멤버 순서로, 같은 글자는 한 번만, ` / `로 잇는다 | - |
 
 - 선택하면 변화가 없는 선택지(작업 구성과 같은 등급)는 변화 없는 config(읽어 온 config나 작업 후보)의 칸을 보인다.
-- 라벨은 모두 `terminalSafe`를 거친다. locale에 따라 바뀌는 글자는 `그대로`/`keep`, `완료`/`done`뿐이다.
+- 라벨은 모두 `terminalSafe`를 거친다. locale과 무관한 것은 모델 ID, effort, 저장 등급뿐이다. `그대로`/`keep`, `완료`/`done`, 상태 표기(`(대체)`/`(substitute)`, `생성 거부`/`generation refused` 등)는 Table Cell Contract의 locale 규칙을 따른다.
 - 표 칸은 SPEC-MODELUX-001 C16 그대로 frontmatter 값(alias와 정확한 ID 구별)이다. Claude 라벨의 모델은 slug다(예: 라벨 `opus-5-5 · high`, 표 칸 `opus · high`). help와 README가 이 차이를 설명한다.
 
 ### Per-Tool Binding Contract
@@ -268,7 +277,7 @@ THE SYSTEM SHALL document arrow-key forms, the tool tab, the per-tool binding, t
 | 결과 | 파일 쓰기(update, quality) | 메모리 쓰기(init) | 바뀌는 설정 줄 |
 |---|---|---|---|
 | 시작과 같음 | 없음(`변경 없음`) | 없음 | - |
-| 시작과 다름 | `saveQualityToolPreset(dir, cfg, tool, "<p>-custom", agents)`: `quality.presets.<p>-custom` ← description `<label> custom agent tiers`, 정규 에이전트 16개 전부의 등급 / `quality.providers.<p>` ← `<p>-custom` | `cfg.Quality`에 같은 두 key | `quality.presets.<p>-custom 새로 씀 (16개 에이전트)` 또는 `quality.presets.<p>-custom 다시 씀 (16개 에이전트)`, `quality.providers.<p> <이전 값 또는 없음> → <p>-custom`, 도구의 mode가 balanced였으면 `<p>-custom은 balanced 표준 배치를 받지 않음`, 파일 쓰기면 SPEC-MODELUX-001의 블록 재작성 안내, `quality.providers는 v0.50.88보다 오래된 auto가 읽지 않습니다` |
+| 시작과 다름 | `saveQualityToolPreset(dir, cfg, tool, "<p>-custom", agents)`: `quality.presets.<p>-custom` ← description `<label> custom agent tiers`, 정규 에이전트 16개 전부의 등급 / `quality.providers.<p>` ← `<p>-custom` | `cfg.Quality`에 같은 두 key | `quality.presets.<p>-custom`의 SPEC-MODELUX-001 문구(`composePresetNew`·`composePresetRewrite`·`composePresetOverwrite`, `quality_compose_bind_text.go:34-37`: 없으면 `새로 씀`, 그 도구의 binding이면 `고쳐 씀`, 있지만 binding이 아니면 `덮어씀`), `quality.providers.<p> <이전 값 또는 없음> → <p>-custom`, 도구의 mode가 balanced였으면 `<p>-custom은 balanced 표준 배치를 받지 않음`, 파일 쓰기면 SPEC-MODELUX-001의 블록 재작성 안내, `quality.providers는 v0.50.88보다 오래된 auto가 읽지 않습니다` |
 
 - `<p>`와 `<label>`: `claude`·`Claude Code`, `codex`·`Codex`. 이름은 `qualityToolPresetName`이 정한다.
 - 시작은 `quality.ForProvider(<p>).EffectiveAgentTier(agent, fallback)` 16개다. fallback은 SPEC-MODELUX-001과 같은 embedded agent source다.
@@ -304,6 +313,16 @@ THE SYSTEM SHALL document arrow-key forms, the tool tab, the per-tool binding, t
 | OMP 탭 노출 | update·quality는 읽어 온 cfg의 `platforms`, init은 init cfg의 `platforms` |
 | 감지 플랫폼 생성 | `updateDetectedHarnessPlatformsWith`가 run snapshot으로 만든 adapter |
 
+### Write Safety Contract
+
+| 경로 | 쓰기 전 | 쓰기 | 실패하면 |
+|---|---|---|---|
+| 모든 도구 같게 line(`quality.default`), 기본 프리셋 | `precheckQualityWriteFile`, cfg 분리 사본 | 기존 line writer `saveQualityDefault`(`quality_config.go:24-75`) | 파일과 cfg가 기준 상태 그대로. cfg는 성공 뒤에만 맞춘다 |
+| 모든 도구 같게 block, 도구별 탭, 폼의 override 제거 | `saveQualityBlock`의 raw decode·참조 거부·placeholder 검사 | quality 블록 splice + 기존 atomic 교체(temp 파일 → rename) 한 번 | 원본 bytes와 cfg 그대로. 구성과 override 제거는 같이 남거나 같이 안 남는다 |
+| OMP(update·quality) | `loadOMPProfileConfig` snapshot, `validateOMPProfileSource`, plan의 blocker | `marshalAutopusConfig` → snapshot `Replace` → 활성화 | 활성화 실패는 원본 bytes 복원(`platform_omp_profile_apply.go:198-222`). 되읽기 실패는 이 run의 뒤 저장·생성 중단(REQ-MUX2-11) |
+| OMP(init), init의 quality 쓰기 | 분리 사본 plan, placeholder 검사, `plan.apply`의 built-in 상태 확인 | init cfg만 바꾸고 init의 `saveConfigWithGenerationRollback`이 저장·생성 | autopus.yaml과 플랫폼 파일을 생성 전 snapshot으로 복원(`platform_lifecycle.go:128-150`, 기존 test `init_multi_platform_rollback_test.go`) |
+| 감지 플랫폼 저장(update, 기존) | 플랫폼별 사본 | `updatePlatformThenSave` | 기존 동작(플랫폼 파일 복원) |
+
 ### Form Text (ko / en)
 
 | 자리 | ko | en |
@@ -315,6 +334,7 @@ THE SYSTEM SHALL document arrow-key forms, the tool tab, the per-tool binding, t
 | 확인 | `적용할까요?`: 취소 · 적용 · 계속 편집 | `Apply?`: cancel · apply · keep editing |
 | OMP | `OMP 구성`: 돌아가기 · 에이전트별 지정 (balanced 위에) / `모델 계열` / 프로필 기본값 | `OMP models`: back · pin per agent (on balanced) / `Model family` / profile default |
 | 중단 | `중단했습니다. 구성을 더 바꾸지 않습니다.` | `Interrupted; the composition is not changed further.` |
+| OMP 되읽기 실패 | `OMP 설정은 적용됐지만 다시 읽지 못했습니다: <원인>` | `OMP settings were applied but could not be re-read: <cause>` |
 | init OMP | 안내 `OMP catalog를 읽지 못해 지금은 OMP 모델을 지정할 수 없습니다. init 뒤 auto quality에서 지정할 수 있습니다.` / 적용 `OMP 모델 선택을 init 설정에 넣었습니다. 파일 생성 때 함께 씁니다.` | `Could not read the OMP catalog, so OMP models cannot be set now; set them after init with auto quality.` / `OMP model choice added to the init config; it is written with the platform files.` |
 
 ## Existing Test Changes
@@ -322,7 +342,7 @@ THE SYSTEM SHALL document arrow-key forms, the tool tab, the per-tool binding, t
 바꾸는 기존 test는 0건으로 예상한다.
 
 1. 기존 test는 `cmd.SetIn`으로 입력을 주므로 Input Mode Contract상 줄 driver로 돈다. 줄 driver, 도구별 편집기, OMP 편집기, 전역 메뉴의 코드는 그대로다.
-2. `updateComposeStep`과 `runInitComposeStep`의 시그니처는 바꾸지 않는다. 감지 목록은 `composeGate`의 새 field로, init 취소는 새 함수로 넘긴다. `composeGate`를 field 이름으로 만드는 literal은 그대로 컴파일된다.
+2. `updateComposeStep`과 `runInitComposeStep`의 시그니처는 바꾸지 않는다. 감지 목록과 중단은 `composeGate`의 새 field(`Detected`, `Abort`)로, init 취소는 새 함수로 넘긴다. `update_compose_helpers_test.go:143-146`의 wrapper는 그대로 컴파일된다. `composeGate`를 field 이름으로 만드는 literal은 그대로 컴파일된다.
 3. 도움말은 문장을 더하기만 한다. `quality_compose_docs_test.go`가 고정한 문장은 지우지 않는다.
 4. `planOMPProfile`은 파일을 읽은 뒤 `planOMPProfileForConfig`를 부르도록 바뀌지만 출력은 같다. 기존 OMP profile·편집기 test가 그대로 통과해야 한다. `platformOMPModelRunner`는 nil이 기본이라 기존 OMP 생성 경로는 그대로다.
 5. 위험(미확인, R1): 기존 update test가 플랫폼 감지를 고정하지 않으면, CLI가 설치된 기계에서는 감지 열이 표에 더해진다. CI(감지 0)는 영향이 없다. T2에서 이 기계로 먼저 돌려 본다. 단언이 바뀌면 기존 test 파일은 고치지 않고 test helper에서 감지를 고정하고, 이 절에 적어 review를 받는다.
@@ -337,8 +357,8 @@ THE SYSTEM SHALL document arrow-key forms, the tool tab, the per-tool binding, t
 - `[NEW] internal/cli/quality_compose_tool.go`(+test): Per-Tool Binding Contract(시작, 후보, 바뀌는 줄, 파일·메모리 저장).
 - `[NEW] internal/cli/quality_compose_omp.go`(+test): OMP Tab Contract, update·quality의 cfg 동기화, init 메모리 경로(분리 사본 plan, placeholder 검사, `RoleModelPolicy` 교체), `updateComposeOMPDeps`, `initComposeOMPDeps`.
 - `[NEW] internal/cli/update_help.go`: update `Long` 도움말.
-- 기존 파일 변경: `quality_compose_session.go`(view), `quality_compose_snapshot.go`(view로 캡처), `quality_compose_driver_gate.go`(`composeGate.Detected`), `quality_compose_entry.go`(폼 경로), `quality_compose_entry_override.go`(질문 함수 주입), `update_compose.go`, `init_compose.go`(`runInitComposeStepCancellable`, OMP 탭 노출), `init.go`(4줄 이하), `update.go`(도움말 참조, `Detected`, 감지 생성 호출. 줄 수가 늘지 않는다), `platform_update.go`(`updateDetectedHarnessPlatformsWith`), `platform_catalog.go`(snapshot을 묶은 descriptor, OMP descriptor의 `[NEW] platformOMPModelRunner`), `platform_omp_profile_apply.go`(`[NEW] planOMPProfileForConfig` 추출, 출력 불변).
-- 문서: `README.md`, `CHANGELOG.md`(v0.50.125), init·quality 도움말. 수동 smoke 기록 `evidence/manual-smoke-002.txt`.
+- 기존 파일 변경: `quality_compose_session.go`(view), `quality_compose_snapshot.go`(view로 캡처), `quality_compose_driver_gate.go`(`composeGate.Detected`), `quality_compose_entry.go`(폼 경로), `quality_compose_entry_override.go`(질문 함수 주입), `update_compose.go`, `init_compose.go`(`runInitComposeStepCancellable`, OMP 탭 노출), `init.go`(4줄 이하), `update.go`(도움말 참조, `Detected`·`Abort`, 중단 반환, 감지 생성 호출. `Long`을 옮긴 뒤 290줄 안팎), `platform_update.go`(`updateDetectedHarnessPlatformsWith`), `platform_catalog.go`(snapshot을 묶은 descriptor, OMP descriptor의 `[NEW] platformOMPModelRunner`), `platform_omp_profile_apply.go`(`[NEW] planOMPProfileForConfig` 추출, 출력 불변).
+- 문서: `README.md`, `CHANGELOG.md`(v0.50.125), init·quality 도움말. 증거: `evidence/probe-a1.md`(probe A1, 경로 치환), `[NEW] evidence/manual-smoke-002.txt`(S20).
 - 모든 신규·변경 소스 파일은 300줄 이하다.
 
 ## Related SPECs
