@@ -83,7 +83,8 @@ func marshalAutopusConfig(original []byte, cfg *config.HarnessConfig) ([]byte, e
 // retired orchestra keys are the one exception among the siblings: they are
 // dropped, so no writer carries them forward (SPEC-PANERM-001 REQ-10). The
 // result is returned only once it parses back to the rewritten tree, every
-// alias resolving to the same data, and loads as config.Load would load it.
+// alias resolving to the same data, loads as config.Load would load it, and
+// activates no ${NAME} placeholder the original kept literal.
 func replaceAutopusConfigSection(original []byte, key string, section any) ([]byte, error) {
 	document, _, err := parseAutopusConfigDocument(original)
 	if err != nil {
@@ -127,5 +128,13 @@ func replaceAutopusConfigSection(original []byte, key string, section any) ([]by
 	if _, err := config.ParseConfig(encoded); err != nil {
 		return nil, fmt.Errorf("autopus_config_rewrite_invalid: %w", err)
 	}
+	if activated, err := placeholdersActivated(original, encoded); err != nil || activated {
+		return nil, errRewriteActivatesPlaceholder
+	}
 	return encoded, nil
 }
+
+// errRewriteActivatesPlaceholder refuses a section rewrite whose re-encoded
+// document would hold a ${NAME} placeholder config.Load expands at a path the
+// original did not: yaml.Marshal spells "\x24{NAME}" or !!binary in plain text.
+var errRewriteActivatesPlaceholder = errors.New("autopus_config_rewrite_activates_placeholder")

@@ -24,6 +24,9 @@ func spliceQualityBlock(data []byte, source *qualityWriteSource, quality config.
 			"start at column 1; edit autopus.yaml by hand")
 	}
 	encoded, err := replaceAutopusConfigSection(data, "quality", quality)
+	if errors.Is(err, errRewriteActivatesPlaceholder) {
+		return nil, errQualityWriteRefused
+	}
 	if err != nil {
 		return nil, err
 	}
