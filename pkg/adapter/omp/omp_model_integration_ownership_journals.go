@@ -46,6 +46,12 @@ func loadOMPTransactionJournalsAt(
 	return journals, nil
 }
 
+// cleanupOMPConfigRollbackArtifactsIfUnowned removes the .omp/config.yml
+// backups the transaction journals recorded once no ledger claims the file:
+// ADK owns none of it then, so it keeps no copies of it. One copy is the
+// exception: the backup of the newest committed transaction that removed the
+// ledger, which holds the bytes that release replaced. It stays until a later
+// release replaces it, so a release can still be undone by hand.
 func (workspace *ompRootedWorkspace) cleanupOMPConfigRollbackArtifactsIfUnowned() error {
 	if _, err := workspace.lstat(OMPModelProjectOwnershipRelativePath); err == nil {
 		return nil
@@ -53,28 +59,27 @@ func (workspace *ompRootedWorkspace) cleanupOMPConfigRollbackArtifactsIfUnowned(
 		return nil
 	}
 	entries, err := workspace.readDir(filepath.Join(".autopus", "txns"))
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil
-	}
 	if err != nil {
 		return nil
 	}
-	var cleanupErr error
+	var journals []adapter.TransactionJournal
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
 		}
 		journalRel := filepath.Join(".autopus", "txns", entry.Name(), "journal.json")
 		data, _, readErr := workspace.readOwnerOnlyFile(journalRel, 4<<20)
-		if readErr != nil {
-			continue
-		}
 		var journal adapter.TransactionJournal
-		if json.Unmarshal(data, &journal) != nil {
-			continue
+		if readErr == nil && json.Unmarshal(data, &journal) == nil {
+			journals = append(journals, journal)
 		}
+	}
+	keep := ompNewestReleaseConfigBackup(journals)
+	var cleanupErr error
+	for _, journal := range journals {
 		for _, journalEntry := range journal.Entries {
-			if filepath.ToSlash(journalEntry.Path) != configFile || journalEntry.BackupPath == "" {
+			if filepath.ToSlash(journalEntry.Path) != configFile || journalEntry.BackupPath == "" ||
+				journalEntry.BackupPath == keep {
 				continue
 			}
 			backup, pathErr := cleanOMPRootedPath(journalEntry.BackupPath)
@@ -93,4 +98,36 @@ func (workspace *ompRootedWorkspace) cleanupOMPConfigRollbackArtifactsIfUnowned(
 		}
 	}
 	return cleanupErr
+}
+
+// ompNewestReleaseConfigBackup is the .omp/config.yml backup of the newest
+// committed journal that removed the ledger, or "" when there is none.
+func ompNewestReleaseConfigBackup(journals []adapter.TransactionJournal) string {
+	var newest *adapter.TransactionJournal
+	for i := range journals {
+		journal := &journals[i]
+		if journal.Status != adapter.TransactionStatusCommitted || !journalRemovesOMPProjectLedger(*journal) ||
+			newest != nil && journal.CreatedAt <= newest.CreatedAt {
+			continue
+		}
+		newest = journal
+	}
+	if newest == nil {
+		return ""
+	}
+	for _, entry := range newest.Entries {
+		if filepath.ToSlash(entry.Path) == configFile {
+			return entry.BackupPath
+		}
+	}
+	return ""
+}
+
+func journalRemovesOMPProjectLedger(journal adapter.TransactionJournal) bool {
+	for _, entry := range journal.Entries {
+		if filepath.ToSlash(entry.Path) == OMPModelProjectOwnershipRelativePath && entry.Operation == "remove" {
+			return true
+		}
+	}
+	return false
 }
