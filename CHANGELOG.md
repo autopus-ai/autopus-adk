@@ -33,6 +33,13 @@ All notable changes to this project will be documented in this file.
     `autopus.yaml`은 쓰지 않는다. manifest에 없는 같은 이름 파일은 사용자 파일이라 그대로 둔다. 사용자가 다른 값으로
     정한 `task.disabledAgents`는 사용자 소유라 바꾸지 않고, 안내 1줄과 doctor의 `agents:disabled_agents_user_owned`
     (degraded)로 알린다. 그 표시는 `auto clean`만 지운다.
+  - doctor·안전: manifest에 없는 정규 `.omp/agents/<name>.md`는 OMP가 Autopus 정의 대신 쓰므로 doctor가 degraded와
+    `agents:autopus_agent_user_file`을 낸다. managed parser가 안전하게 읽지 못하는 `.omp/config.yml`(symlink, 잘못된
+    YAML, 여러 문서, alias, flow 형식)은 쓰지 않는다. update는 `task.disabledAgents: …` 줄 대신 `.omp/config.yml을
+    안전하게 읽지 못해(…) task.disabledAgents를 쓰지 않았습니다` 줄을, doctor는 사용자 소유와 다른
+    `agents:project_config_unclaimable`을 낸다. ledger가 `.omp/config.yml`을 놓은 뒤에는 그 파일의 백업을 지우되,
+    ledger를 놓은 가장 최근 committed transaction의 rollback artifact 하나는 다음 release까지 `.autopus/backup/`
+    아래 남겨 release를 손으로 되돌릴 수 있게 한다.
   - 되돌리기: `role_model_policy.agent_source: native`가 v0.50.126 동안 bundled 5개 방식을 되살린다(생성 파일
     prune, `task.disabledAgents` 복원). key와 native 경로는 v0.50.127에서 제거할 예정이고, 다른 값은
     `role_model_policy.agent_source_invalid`다. 바이너리를 내리는 것은 되돌리기가 아니다. v0.50.125는 새 agent
