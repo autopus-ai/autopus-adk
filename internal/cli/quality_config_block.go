@@ -136,5 +136,9 @@ func normalizeQualityConf(quality *config.QualityConf) {
 			preset.Agents = nil
 			quality.Presets[name] = preset
 		}
+		if preset.Efforts != nil && len(preset.Efforts) == 0 {
+			preset.Efforts = nil
+			quality.Presets[name] = preset
+		}
 	}
 }

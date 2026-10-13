@@ -16,6 +16,7 @@ import (
 type composeBindText struct {
 	presetKinds    map[composePresetWriteKind]string // name, agent count
 	presetUpdate   string                            // name, detail
+	effortsMoved   string                            // name, agent count (SPEC-MODELUX-003 REQ-MUX3-20)
 	noModelChange  string
 	added, removed string
 	defaultChange  string // from, to
@@ -37,6 +38,7 @@ var composeBindTexts = map[string]composeBindText{
 			composePresetRefresh:   "quality.presets.%s 최신 기본값으로 갱신 (%d개 에이전트)",
 		},
 		presetUpdate:  "quality.presets.%s 최신 기본값으로 갱신: %s",
+		effortsMoved:  "quality.presets.%s.efforts 옮겨 씀 (%d개 에이전트)",
 		noModelChange: "모델 변화 없음, YAML만 정리",
 		added:         "추가",
 		removed:       "제거",
@@ -59,6 +61,7 @@ var composeBindTexts = map[string]composeBindText{
 			composePresetRefresh:   "quality.presets.%s refreshed to the current default (%d agents)",
 		},
 		presetUpdate:  "quality.presets.%s refreshed to the current default: %s",
+		effortsMoved:  "quality.presets.%s.efforts carried (%d agents)",
 		noModelChange: "no model change, YAML cleanup only",
 		added:         "added",
 		removed:       "removed",
@@ -109,6 +112,9 @@ func describeComposeBinding(
 	for _, write := range plan.Presets {
 		if write.Kind != composePresetUpdate {
 			lines = append(lines, fmt.Sprintf(text.presetKinds[write.Kind], write.Name, len(write.Preset.Agents)))
+			if write.Carried > 0 {
+				lines = append(lines, fmt.Sprintf(text.effortsMoved, write.Name, write.Carried))
+			}
 			continue
 		}
 		detail := text.noModelChange

@@ -203,14 +203,16 @@ func readQualityToolConfirmation(cmd *cobra.Command) (bool, error) {
 
 // withQualityToolPreset returns a detached config carrying the candidate
 // preset, so the preview resolves through the same config API as the generator
-// without mutating the config a cancelled session leaves behind.
+// without mutating the config a cancelled session leaves behind. The per-tool
+// editor edits tiers only, so the candidate keeps the efforts the tool's
+// preset stores (SPEC-MODELUX-003 REQ-MUX3-20).
 func withQualityToolPreset(
 	cfg *config.HarnessConfig,
 	tool qualityModelTool,
 	preset string,
 	agents map[string]string,
 ) *config.HarnessConfig {
-	return withQualityToolPresetEfforts(cfg, tool, preset, agents, nil)
+	return withQualityToolPresetEfforts(cfg, tool, preset, agents, qualityToolEfforts(cfg.Quality, tool))
 }
 
 // withQualityToolPresetEfforts is withQualityToolPreset whose candidate

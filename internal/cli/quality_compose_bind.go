@@ -65,6 +65,9 @@ type composePresetWrite struct {
 	// runtimeStandard marks a historical balanced layout that
 	// NativeBalancedAgentCandidate keeps on the standard placement.
 	runtimeStandard bool
+	// Carried counts the efforts this write moves from the binding preset
+	// to another name (SPEC-MODELUX-003 REQ-MUX3-20), for the preview line.
+	Carried int
 }
 
 // composeBindingPlan is the write one confirmed composition makes.
@@ -140,12 +143,21 @@ func composePlanWriter(plan composeBindingPlan) composeWriter {
 // preset write that binding needs, if any. A composition equal to a current
 // built-in default binds that name — keeping the standard balanced placement
 // and the ultra effort ladder custom would lose — unless the operator
-// customized that preset, whose values are never replaced.
+// customized that preset, whose values are never replaced. When the binding
+// preset P stores efforts (SPEC-MODELUX-003 REQ-MUX3-20), only P's own
+// built-in branch stays open, a historical refresh of which keeps them; any
+// other result binds custom carrying P's efforts, so a built-in never takes
+// efforts the operator did not put there.
 func composeBindTarget(quality config.QualityConf, edited qualityComposition) (string, *composePresetWrite) {
+	bound := quality.EffectiveMode("")
+	carried := qualityViewEfforts(quality, "")
 	for _, name := range composeBuiltinPresets {
 		current := composeCurrentPreset(name)
 		if !maps.Equal(edited.tiers, current.Agents) {
 			continue
+		}
+		if len(carried) > 0 && name != bound {
+			break
 		}
 		// The built-in defaults differ from each other, so at most one matches.
 		status, _ := config.ClassifyBuiltinQualityPreset(quality, name)
@@ -164,14 +176,20 @@ func composeBindTarget(quality config.QualityConf, edited qualityComposition) (s
 	kind := composePresetNew
 	if _, exists := quality.Presets[composeCustomPreset]; exists {
 		kind = composePresetOverwrite
-		if quality.EffectiveMode("") == composeCustomPreset {
+		if bound == composeCustomPreset {
 			kind = composePresetRewrite
 		}
 	}
-	return composeCustomPreset, &composePresetWrite{
+	write := &composePresetWrite{
 		Name: composeCustomPreset, Kind: kind,
-		Preset: config.QualityPreset{Description: composeCustomDescription, Agents: edited.Agents()},
+		Preset: config.QualityPreset{
+			Description: composeCustomDescription, Agents: edited.Agents(), Efforts: presetEfforts(carried),
+		},
 	}
+	if bound != composeCustomPreset {
+		write.Carried = len(carried)
+	}
+	return composeCustomPreset, write
 }
 
 // composeGivenUpMode names the built-in mode a custom binding replaces.

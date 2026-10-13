@@ -10,8 +10,8 @@ import (
 // apply is the saveQualityBlock edit of the plan. It first checks every
 // planned built-in write against the raw quality the writer decoded, then
 // sets the plan's values, which come only from code defaults and the tier
-// vocabulary — never from a loaded config. Init applies a confirmed plan to
-// its in-memory config the same way before saving.
+// and effort vocabularies — never from a loaded config. Init applies a
+// confirmed plan to its in-memory config the same way before saving.
 func (p composeBindingPlan) apply(quality *config.QualityConf) error {
 	for _, write := range p.Presets {
 		if write.expect == "" {
@@ -26,14 +26,23 @@ func (p composeBindingPlan) apply(quality *config.QualityConf) error {
 	return nil
 }
 
+// set writes the plan's presets and default. A refresh, by `u` or by a
+// binding, replaces the tiers and description only and keeps the efforts
+// the preset it replaces holds (SPEC-MODELUX-003 REQ-MUX3-20); every other
+// write stores the efforts its plan carries.
 func (p composeBindingPlan) set(quality *config.QualityConf) {
 	if len(p.Presets) > 0 && quality.Presets == nil {
 		quality.Presets = make(map[string]config.QualityPreset, len(p.Presets))
 	}
 	for _, write := range p.Presets {
+		efforts := write.Preset.Efforts
+		if write.Kind == composePresetRefresh || write.Kind == composePresetUpdate {
+			efforts = quality.Presets[write.Name].Efforts
+		}
 		quality.Presets[write.Name] = config.QualityPreset{
 			Description: write.Preset.Description,
 			Agents:      maps.Clone(write.Preset.Agents),
+			Efforts:     presetEfforts(efforts),
 		}
 	}
 	if p.Default != "" {
@@ -52,6 +61,7 @@ func composeCandidate(cfg *config.HarnessConfig, plan composeBindingPlan) *confi
 		candidate.Quality.Presets[name] = config.QualityPreset{
 			Description: preset.Description,
 			Agents:      maps.Clone(preset.Agents),
+			Efforts:     maps.Clone(preset.Efforts),
 		}
 	}
 	plan.set(&candidate.Quality)

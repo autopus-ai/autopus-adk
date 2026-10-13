@@ -10,6 +10,9 @@ import (
 // saveQualityToolPreset stores one tool's custom tier map as a quality preset
 // and binds the tool to it. Writing the preset without the binding would leave
 // the tool on its previous mode, so both land in the same file replacement.
+// The per-tool editor edits tiers only, so the preset keeps the efforts the
+// tool's preset stores, read from the raw quality the edit receives
+// (SPEC-MODELUX-003 REQ-MUX3-20).
 //
 // The write goes through saveQualityBlock (SPEC-MODELUX-001 REQ-MUX-08): the
 // edit adds only this preset and this binding to the raw quality section, so
@@ -24,11 +27,13 @@ func saveQualityToolPreset(
 	preset string,
 	agents map[string]string,
 ) error {
-	return saveQualityToolPresetEfforts(dir, cfg, tool, preset, agents, nil)
+	return saveQualityToolPresetWith(dir, cfg, tool, preset, agents, func(quality config.QualityConf) map[string]string {
+		return qualityToolEfforts(quality, tool)
+	})
 }
 
-// saveQualityToolPresetEfforts is saveQualityToolPreset whose preset also
-// stores efforts, the explicit efforts of a tool tab's working composition
+// saveQualityToolPresetEfforts is saveQualityToolPreset whose preset stores
+// efforts, the explicit efforts of a tool tab's working composition
 // (SPEC-MODELUX-003 REQ-MUX3-04), in the same one block edit.
 func saveQualityToolPresetEfforts(
 	dir string,
@@ -36,6 +41,21 @@ func saveQualityToolPresetEfforts(
 	tool qualityModelTool,
 	preset string,
 	agents, efforts map[string]string,
+) error {
+	return saveQualityToolPresetWith(dir, cfg, tool, preset, agents, func(config.QualityConf) map[string]string {
+		return efforts
+	})
+}
+
+// saveQualityToolPresetWith validates the write and performs it with the
+// efforts effortsOf answers for the raw quality being edited.
+func saveQualityToolPresetWith(
+	dir string,
+	cfg *config.HarnessConfig,
+	tool qualityModelTool,
+	preset string,
+	agents map[string]string,
+	effortsOf func(config.QualityConf) map[string]string,
 ) error {
 	if !config.IsValidQualityPresetName(preset) {
 		return fmt.Errorf(
@@ -50,7 +70,7 @@ func saveQualityToolPresetEfforts(
 		return fmt.Errorf("preset %q would assign no agent a tier", preset)
 	}
 	return saveQualityBlock(dir, cfg, func(quality *config.QualityConf) error {
-		setQualityToolPreset(quality, tool, preset, agents, efforts)
+		setQualityToolPreset(quality, tool, preset, agents, effortsOf(*quality))
 		return nil
 	})
 }
@@ -86,9 +106,15 @@ func presetEfforts(efforts map[string]string) map[string]string {
 // qualityToolEfforts returns the explicit efforts tool's effective preset
 // stores, each a vocabulary level as AgentEffort reads it, or nil for none.
 func qualityToolEfforts(quality config.QualityConf, tool qualityModelTool) map[string]string {
+	return qualityViewEfforts(quality, tool.provider)
+}
+
+// qualityViewEfforts is qualityToolEfforts for any provider view; "" is the
+// global binding every tool without an override follows.
+func qualityViewEfforts(quality config.QualityConf, provider string) map[string]string {
 	var efforts map[string]string
 	for _, agent := range config.CanonicalAgentNames() {
-		if effort, ok := quality.AgentEffort(tool.provider, agent); ok {
+		if effort, ok := quality.AgentEffort(provider, agent); ok {
 			if efforts == nil {
 				efforts = make(map[string]string)
 			}
