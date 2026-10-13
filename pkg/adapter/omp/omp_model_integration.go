@@ -61,14 +61,14 @@ func (a *Adapter) prepareModelIntegration(
 	}
 	DegradeUnservedDerivedOMPRoutes(profile, probe.Catalog, routes)
 	routing := CompileOMPModelRouting(OMPModelRoutingInput{
-		Catalog: probe.Catalog, CatalogReason: probe.Reason, Routes: routes,
+		Catalog: probe.Catalog, CatalogReason: probe.Reason, Routes: routes, AgentSource: profile.AgentSource,
 	})
 	projected, err := projectOMPIntegrationAgents(probe.Catalog, routes, routing)
 	if err != nil {
 		return nil, err
 	}
 	a.reportDegradedModelRoutes(ompDegradedRoutesNotice(probe.Catalog, routes, routing))
-	projection, err := CompileOMPModelProjection(OMPModelProjectionInput{Agents: projected})
+	projection, err := CompileOMPModelProjection(OMPModelProjectionInput{Agents: projected, AgentSource: profile.AgentSource})
 	if err != nil {
 		return nil, err
 	}

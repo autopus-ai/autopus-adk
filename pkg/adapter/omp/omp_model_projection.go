@@ -11,6 +11,9 @@ import (
 // resolver into OMP-native config.
 type OMPModelProjectionInput struct {
 	Agents []OMPProjectionAgent
+	// AgentSource is the source the agents are served by. Empty infers it
+	// from the agent names, as the routing compile does.
+	AgentSource string
 }
 
 // OMPProjectionAgent is one native OMP agent whose route already resolved.
@@ -38,6 +41,8 @@ type OMPProjectionCandidate struct {
 type OMPModelProjection struct {
 	FallbackChains []OMPFallbackChainProjection
 	Agents         []OMPAgentModelProjection
+	// AgentSource is the source the agents were compiled for.
+	AgentSource string `json:"-"`
 }
 
 type OMPFallbackChainProjection struct {
@@ -53,27 +58,33 @@ type OMPAgentModelProjection struct {
 	EffectiveSelector string
 }
 
-// CompileOMPModelProjection orders resolved native agents canonically. At most
-// one entry per bundled agent survives, because OMP resolves
+// CompileOMPModelProjection orders resolved agents in the served set's order.
+// At most one entry per agent survives, because OMP resolves
 // task.agentModelOverrides by exact agent name.
 func CompileOMPModelProjection(input OMPModelProjectionInput) (OMPModelProjection, error) {
-	agents, err := validateOMPProjectionAgents(input.Agents)
+	names := make([]string, 0, len(input.Agents))
+	for _, agent := range input.Agents {
+		names = append(names, agent.Agent)
+	}
+	source := ompServedAgentSource(input.AgentSource, names)
+	agents, err := validateOMPProjectionAgents(input.Agents, source)
 	if err != nil {
 		return OMPModelProjection{}, err
 	}
 
 	projection := OMPModelProjection{
-		Agents: make([]OMPAgentModelProjection, 0, len(agents)),
+		Agents:      make([]OMPAgentModelProjection, 0, len(agents)),
+		AgentSource: source,
 	}
 	fallbacksBySelector := make(map[string][]string)
-	for _, native := range config.OMPNativeAgentNames() {
-		resolved, selected := agents[native]
+	for _, served := range config.OMPAgentNames(source) {
+		resolved, selected := agents[served]
 		if !selected {
 			continue
 		}
 		selector := formatOMPProjectedSelector(resolved.Selector, resolved.Thinking)
 		projection.Agents = append(projection.Agents, OMPAgentModelProjection{
-			Agent: native, Role: resolved.Role, Capability: resolved.Capability,
+			Agent: served, Role: resolved.Role, Capability: resolved.Capability,
 			Thinking: resolved.Thinking, EffectiveSelector: selector,
 		})
 		if len(resolved.Fallbacks) == 0 {
@@ -100,6 +111,7 @@ func CompileOMPModelProjection(input OMPModelProjectionInput) (OMPModelProjectio
 
 func validateOMPProjectionAgents(
 	inputs []OMPProjectionAgent,
+	servedSource string,
 ) (map[string]OMPProjectionAgent, error) {
 	agents := make(map[string]OMPProjectionAgent, len(inputs))
 	for _, input := range inputs {
@@ -108,7 +120,7 @@ func validateOMPProjectionAgents(
 			return nil, fmt.Errorf("agent_role_unmapped: %q", input.Agent)
 		}
 		resolved, err := config.ResolveOMPPolicyAgent(source)
-		if err != nil || !config.OMPNativeAgentGovernedBy(source, input.Agent) {
+		if err != nil || !ompProjectionAgentGovernedBy(servedSource, source, input.Agent) {
 			return nil, fmt.Errorf("agent_role_unmapped: %q", input.Agent)
 		}
 		if input.Capability != resolved.Capability {
@@ -129,6 +141,25 @@ func validateOMPProjectionAgents(
 		agents[input.Agent] = input
 	}
 	return agents, nil
+}
+
+// ompProjectionAgentGovernedBy reports whether the role row source may carry
+// the model of agent. Native agents follow the collapse; an Autopus agent is
+// carried by its own row, and task by the planner row it borrows.
+func ompProjectionAgentGovernedBy(servedSource, source, agent string) bool {
+	if servedSource == config.OMPAgentSourceNative {
+		return config.OMPNativeAgentGovernedBy(source, agent)
+	}
+	if agent == config.OMPAutopusDefaultAgent {
+		representative, err := config.OMPNativeAgentRepresentative(agent)
+		return err == nil && representative == source
+	}
+	for _, canonical := range config.CanonicalAgentNames() {
+		if canonical == agent {
+			return source == agent
+		}
+	}
+	return false
 }
 
 func validateOMPProjectedSelector(selector, thinking string) error {

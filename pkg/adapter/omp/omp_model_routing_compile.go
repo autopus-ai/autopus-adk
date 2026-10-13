@@ -14,6 +14,9 @@ type OMPModelRoutingInput struct {
 	CatalogReason  string                          `json:"catalog_reason"`
 	Routes         map[string]OMPModelRouteRequest `json:"routes"`
 	ExecutorFamily string                          `json:"executor_family,omitempty"`
+	// AgentSource is the source the routes serve; it orders the resolutions
+	// and picks the family anchor. Empty infers it from the route names.
+	AgentSource string `json:"-"`
 }
 
 type OMPModelRoutingCompilation struct {
@@ -26,26 +29,34 @@ type ompRoutingWorkItem struct {
 	request OMPModelRouteRequest
 }
 
-// ompRoutingExecutorFamilyAnchor is the native agent whose resolved family
-// anchors family-diversity comparisons: it is the bundled agent that carries
-// implementation work, so a dissent route asking for a distinct family is
-// asking to differ from this one.
-const ompRoutingExecutorFamilyAnchor = "task"
+// ompRoutingExecutorFamilyAnchor is the agent whose resolved family anchors
+// family-diversity comparisons: the one that carries implementation work, so
+// a dissent route asking for a distinct family is asking to differ from it.
+// Native mode runs implementation on the bundled task agent; autopus mode on
+// the executor agent.
+func ompRoutingExecutorFamilyAnchor(source string) string {
+	if source == config.OMPAgentSourceNative {
+		return "task"
+	}
+	return "executor"
+}
 
 // CompileOMPModelRouting returns canonical native agent order independent of
 // map order.
 // @AX:ANCHOR [AUTO] @AX:SPEC: SPEC-OMP-004: canonical routing compilation has three production callers.
 // @AX:REASON [AUTO]: model integration, doctor projection, and CLI probing require identical ordering and resolution digests.
 func CompileOMPModelRouting(input OMPModelRoutingInput) OMPModelRoutingCompilation {
-	items := canonicalOMPRoutingWorkItems(input.Routes)
+	source := ompServedAgentSource(input.AgentSource, ompRouteAgentNames(input.Routes))
+	ranks := ompRoutingAgentRanks(source)
+	items := canonicalOMPRoutingWorkItems(input.Routes, ranks)
 	resolutions := make([]OMPModelRouteResolution, 0, len(items))
 	executorFamily := input.ExecutorFamily
 	preResolved := make(map[string]OMPModelRouteResolution, 1)
+	anchor := ompRoutingExecutorFamilyAnchor(source)
 
 	if executorFamily == "" {
 		for _, item := range items {
-			if item.request.Agent != ompRoutingExecutorFamilyAnchor &&
-				item.routeID != ompRoutingExecutorFamilyAnchor {
+			if item.request.Agent != anchor && item.routeID != anchor {
 				continue
 			}
 			resolved := ResolveOMPModelRoute(input.Catalog, input.CatalogReason, item.request)
@@ -72,7 +83,7 @@ func CompileOMPModelRouting(input OMPModelRoutingInput) OMPModelRoutingCompilati
 		resolutions = append(resolutions, resolved)
 	}
 	sort.SliceStable(resolutions, func(i, j int) bool {
-		left, right := ompRoutingAgentRank(resolutions[i].Agent), ompRoutingAgentRank(resolutions[j].Agent)
+		left, right := ompRoutingAgentRank(ranks, resolutions[i].Agent), ompRoutingAgentRank(ranks, resolutions[j].Agent)
 		if left != right {
 			return left < right
 		}
@@ -84,13 +95,13 @@ func CompileOMPModelRouting(input OMPModelRoutingInput) OMPModelRoutingCompilati
 	}
 }
 
-func canonicalOMPRoutingWorkItems(routes map[string]OMPModelRouteRequest) []ompRoutingWorkItem {
+func canonicalOMPRoutingWorkItems(routes map[string]OMPModelRouteRequest, ranks map[string]int) []ompRoutingWorkItem {
 	items := make([]ompRoutingWorkItem, 0, len(routes))
 	for routeID, request := range routes {
 		items = append(items, ompRoutingWorkItem{routeID: routeID, request: request})
 	}
 	sort.Slice(items, func(i, j int) bool {
-		left, right := ompRoutingAgentRank(items[i].request.Agent), ompRoutingAgentRank(items[j].request.Agent)
+		left, right := ompRoutingAgentRank(ranks, items[i].request.Agent), ompRoutingAgentRank(ranks, items[j].request.Agent)
 		if left != right {
 			return left < right
 		}
@@ -99,23 +110,55 @@ func canonicalOMPRoutingWorkItems(routes map[string]OMPModelRouteRequest) []ompR
 	return items
 }
 
-// ompRoutingAgentRanks orders routes by bundled OMP agent position so the
+// ompRoutingAgentRanks orders routes by the served agent position so the
 // compiled resolution list is stable regardless of route map insertion order
 // and independent of which ADK role supplied a route's candidates.
-var ompRoutingAgentRanks = func() map[string]int {
-	agents := config.OMPNativeAgentNames()
+func ompRoutingAgentRanks(source string) map[string]int {
+	agents := config.OMPAgentNames(source)
 	ranks := make(map[string]int, len(agents))
 	for index, agent := range agents {
 		ranks[agent] = index
 	}
 	return ranks
-}()
+}
 
-func ompRoutingAgentRank(agent string) int {
-	if rank, ok := ompRoutingAgentRanks[agent]; ok {
+func ompRoutingAgentRank(ranks map[string]int, agent string) int {
+	if rank, ok := ranks[agent]; ok {
 		return rank
 	}
-	return len(ompRoutingAgentRanks)
+	return len(ranks)
+}
+
+func ompRouteAgentNames(routes map[string]OMPModelRouteRequest) []string {
+	names := make([]string, 0, len(routes))
+	for _, route := range routes {
+		names = append(names, route.Agent)
+	}
+	return names
+}
+
+// ompServedAgentSource is the source a route or projection set was built for.
+// Generation always names it; an unnamed set is native when it holds an agent
+// only the bundled registry has, autopus when it holds a canonical agent only
+// Autopus serves, and native otherwise, which is how it behaved before.
+func ompServedAgentSource(declared string, agents []string) string {
+	if declared != "" {
+		return config.EffectiveOMPAgentSource(declared)
+	}
+	canonical := make(map[string]bool, 16)
+	for _, agent := range config.CanonicalAgentNames() {
+		canonical[agent] = true
+	}
+	source := config.OMPAgentSourceNative
+	for _, agent := range agents {
+		switch {
+		case agent == "scout" || agent == "security-reviewer" || agent == "sonic":
+			return config.OMPAgentSourceNative
+		case canonical[agent] && agent != "reviewer":
+			source = config.OMPAgentSourceAutopus
+		}
+	}
+	return source
 }
 
 func digestOMPModelRouting(resolutions []OMPModelRouteResolution) string {

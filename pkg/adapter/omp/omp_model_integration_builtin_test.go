@@ -169,7 +169,7 @@ func TestOMPModelIntegration_ReceiptRowsAreKeyedByBundledAgent(t *testing.T) {
 
 	files, err := NewWithRoot(t.TempDir()).
 		WithModelIntegrationRunner(newBuiltinTierIntegrationRunner()).
-		prepareFiles(context.Background(), builtinIntegrationConfig("ultra"))
+		prepareFiles(context.Background(), nativeClaimConfig(builtinIntegrationConfig("ultra")))
 	require.NoError(t, err)
 
 	var receipt OMPModelResolutionReceipt
@@ -233,7 +233,7 @@ func prepareBuiltinIntegration(t *testing.T, preset string) *ompModelIntegration
 
 func prepareBuiltinIntegrationForFamily(t *testing.T, preset, family string) *ompModelIntegration {
 	t.Helper()
-	cfg := builtinIntegrationConfigForFamily(preset, family)
+	cfg := nativeClaimConfig(builtinIntegrationConfigForFamily(preset, family))
 	require.NoError(t, cfg.Validate())
 	integration, err := NewWithRoot(t.TempDir()).
 		WithModelIntegrationRunner(newBuiltinTierIntegrationRunner()).

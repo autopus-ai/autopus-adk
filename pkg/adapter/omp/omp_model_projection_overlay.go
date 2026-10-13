@@ -6,6 +6,22 @@ import (
 	"github.com/insajin/autopus-adk/pkg/config"
 )
 
+// ompOverridableAgent accepts a name task.agentModelOverrides may key under
+// the source: a bundled agent in native mode, a generated agent or task in
+// autopus mode.
+func ompOverridableAgent(source, agent string) error {
+	if source == config.OMPAgentSourceNative {
+		_, err := config.OMPNativeAgentRepresentative(agent)
+		return err
+	}
+	for _, served := range config.OMPAutopusAgentNames() {
+		if served == agent {
+			return nil
+		}
+	}
+	return fmt.Errorf("unknown Autopus OMP agent %q", agent)
+}
+
 // OMPModelOverlayFromProjection is the explicit bridge into config activation.
 // It returns detached maps so activation cannot mutate the compiled projection.
 func OMPModelOverlayFromProjection(
@@ -15,8 +31,13 @@ func OMPModelOverlayFromProjection(
 		AgentModelOverrides: make(map[string]string, len(projection.Agents)),
 		FallbackChains:      make(map[string][]string, len(projection.FallbackChains)),
 	}
+	names := make([]string, 0, len(projection.Agents))
 	for _, agent := range projection.Agents {
-		if _, err := config.OMPNativeAgentRepresentative(agent.Agent); err != nil {
+		names = append(names, agent.Agent)
+	}
+	source := ompServedAgentSource(projection.AgentSource, names)
+	for _, agent := range projection.Agents {
+		if err := ompOverridableAgent(source, agent.Agent); err != nil {
 			return OMPModelOverlayProjection{}, err
 		}
 		if _, duplicate := overlay.AgentModelOverrides[agent.Agent]; duplicate {

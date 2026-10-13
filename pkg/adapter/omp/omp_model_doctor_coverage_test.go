@@ -18,6 +18,7 @@ func TestCompileOMPModelDoctorActivationExpectation_IsDeterministicAndConcrete(t
 	t.Parallel()
 
 	profile := integrationHarnessConfig(config.RoleModelConfigModeOverlay).RoleModelPolicy.Profiles["p1"]
+	profile.AgentSource = config.OMPAgentSourceNative
 	catalog, reason := NormalizeOMPModelCatalog(newModelIntegrationRunner().catalog, 16*1024)
 	require.Equal(t, "catalog_ready", reason)
 

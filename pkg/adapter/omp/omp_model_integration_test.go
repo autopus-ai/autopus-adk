@@ -225,6 +225,7 @@ func TestBridgeOMPIntegrationRoutes_KeysRoutesByBundledAgent(t *testing.T) {
 	t.Parallel()
 
 	profile := integrationHarnessConfig("overlay").RoleModelPolicy.Profiles["p1"]
+	profile.AgentSource = config.OMPAgentSourceNative
 	profile.FamilyDiversity.Roles = []string{config.OMPAgentRoleName("reviewer")}
 	routes, err := bridgeOMPIntegrationRoutes(profile)
 	if err != nil {

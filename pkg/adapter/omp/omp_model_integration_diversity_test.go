@@ -16,7 +16,7 @@ import (
 func TestOMPModelIntegration_FamilyDiversityDisabledStillActivates(t *testing.T) {
 	t.Parallel()
 
-	cfg := integrationHarnessConfig("overlay")
+	cfg := nativeClaimConfig(integrationHarnessConfig("overlay"))
 	profile := cfg.RoleModelPolicy.Profiles["p1"]
 	profile.FamilyDiversity = config.FamilyDiversityPolicyConf{}
 	cfg.RoleModelPolicy.Profiles["p1"] = profile

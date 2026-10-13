@@ -73,3 +73,26 @@ func validateOMPAgentRoutes(profile RoleModelProfileConf) error {
 	}
 	return validateOMPAutopusAgentRoutes(profile)
 }
+
+// OMPAgentNames lists the agents this resolved profile routes.
+func (c RoleModelProfileConf) OMPAgentNames() []string {
+	return OMPAgentNames(c.AgentSource)
+}
+
+// OMPAgentRoute resolves one served agent's route under the profile's source:
+// the Route Contract in autopus mode, the native collapse otherwise.
+func (c RoleModelProfileConf) OMPAgentRoute(agent string) (OMPPolicyAgentRoute, RoleCapabilityRouteConf, error) {
+	if c.OMPNativeAgentSource() {
+		return c.OMPNativeAgentRoute(agent)
+	}
+	return c.OMPAutopusAgentRoute(agent)
+}
+
+// OMPAgentOperatorPinned reports a route the operator chose explicitly, which
+// must never fall back to the runtime default.
+func (c RoleModelProfileConf) OMPAgentOperatorPinned(agent string) bool {
+	if c.OMPNativeAgentSource() {
+		return c.OMPNativeAgentOperatorPinned(agent)
+	}
+	return c.OMPAutopusAgentOperatorPinned(agent)
+}

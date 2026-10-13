@@ -43,7 +43,7 @@ grep: `rg -l 'OMPNativeAgentNames|OMPNativeAgentForRole|OMPNativeAgentRepresenta
 | `pkg/adapter/omp/omp_model_integration_builtin_test.go` | fixture | selector·receipt가 native 5개다 |
 | `pkg/adapter/omp/omp_model_integration_diversity_test.go` | fixture | receipt가 native 5행이다 |
 | `pkg/adapter/omp/omp_model_integration_test.go` | fixture | 은퇴 dir(L144)과 native 5 route(L163, L231) |
-| `pkg/adapter/omp/omp_model_projection_test.go` | option | native 이름 projection(L226) |
+| `pkg/adapter/omp/omp_model_projection_test.go` | 무변경 | native 이름 projection(L226). T6에서 source를 비워 둔 projection은 agent 이름으로 native를 추론하므로 option이 필요 없었다 |
 | `pkg/adapter/omp/omp_native_agent_prompt_test.go` | fixture, option | `generatedOMPBodies`는 native 생성, 템플릿 정규화는 native option |
 | `pkg/adapter/omp/omp_native_registry_test.go` | 전환 | L27 생성 파일에 `.omp/agents` 없음. 같은 파일의 은퇴·백업 test는 fixture |
 | `pkg/adapter/omp/omp_native_task_hub_contract_test.go` | 무변경 | L140은 주석, live test다 |

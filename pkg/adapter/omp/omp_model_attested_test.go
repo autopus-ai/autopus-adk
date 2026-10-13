@@ -119,7 +119,7 @@ func TestProbeOMPModelCatalogForProfile_OperatorAttestationDoesNotOverrideOtherF
 func TestOMPModelIntegration_OperatorAttestationIsBoundIntoReceipt(t *testing.T) {
 	t.Parallel()
 
-	cfg := integrationHarnessConfig(config.RoleModelConfigModeOverlay)
+	cfg := nativeClaimConfig(integrationHarnessConfig(config.RoleModelConfigModeOverlay))
 	profile := cfg.RoleModelPolicy.Profiles["p1"]
 	profile.CatalogTrust = config.RoleModelCatalogTrustOperatorAttested
 	cfg.RoleModelPolicy.Profiles["p1"] = profile

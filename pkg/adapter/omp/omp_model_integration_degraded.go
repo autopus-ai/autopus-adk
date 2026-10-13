@@ -26,14 +26,14 @@ func DegradeUnservedDerivedOMPRoutes(
 	if !profile.Builtin {
 		return
 	}
-	for native, request := range routes {
+	for agent, request := range routes {
 		if !request.Required || request.DegradedAction != "" || len(request.Candidates) == 0 ||
-			profile.OMPNativeAgentOperatorPinned(native) ||
+			profile.OMPAgentOperatorPinned(agent) ||
 			len(ompUnavailableCandidateProviders(catalog, request)) != len(ompCandidateProviders(request)) {
 			continue
 		}
 		request.DegradedAction = ompRuntimeDefaultAction
-		routes[native] = request
+		routes[agent] = request
 	}
 }
 
