@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/insajin/autopus-adk/pkg/config"
 	"github.com/insajin/autopus-adk/pkg/content"
 )
 
@@ -35,8 +36,9 @@ func TestReplacePlatformReferencesOMP_CollapsesEveryRetiredRoleOntoBundledAgents
 		t.Run(role, func(t *testing.T) {
 			t.Parallel()
 
-			got := content.ReplacePlatformReferences(
+			got := content.ReplacePlatformReferencesWith(
 				`Agent(subagent_type = "`+role+`", task = "Do the work.")`, "omp",
+				content.PlatformReferenceOptions{OMPAgentSource: config.OMPAgentSourceNative},
 			)
 
 			if want != `"agent": "`+role+`"` {

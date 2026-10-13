@@ -28,6 +28,7 @@ func generatedOMPBodies(t *testing.T) map[string]string {
 	root := t.TempDir()
 	cfg := config.DefaultFullConfig("omp-native-agents")
 	cfg.Platforms = []string{"omp"}
+	cfg.RoleModelPolicy.AgentSource = config.OMPAgentSourceNative
 	require.NoError(t, config.Save(root, cfg))
 	generated, err := NewWithRoot(root).Generate(context.Background(), cfg)
 	require.NoError(t, err)

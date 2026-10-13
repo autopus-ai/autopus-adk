@@ -61,7 +61,7 @@ func firstOMPFieldValue(match []string) string {
 	return ""
 }
 
-func renderOMPTaskBatch(dispatches []ompLegacyDispatch) string {
+func renderOMPTaskBatch(dispatches []ompLegacyDispatch, native bool) string {
 	var b strings.Builder
 	b.WriteString("```json\n{\n")
 	b.WriteString("  \"i\": \"Dispatching bounded OMP work\",\n")
@@ -69,7 +69,7 @@ func renderOMPTaskBatch(dispatches []ompLegacyDispatch) string {
 	b.WriteString("  \"tasks\": [\n")
 	for i, dispatch := range dispatches {
 		role := strings.TrimSpace(dispatch.agent)
-		agent := ompNativeDispatchAgent(role)
+		agent := ompDispatchAgent(role, native)
 		name := role
 		if name == "" {
 			name = "Worker"
@@ -98,6 +98,35 @@ func renderOMPTaskBatch(dispatches []ompLegacyDispatch) string {
 	}
 	b.WriteString("  ]\n}\n```")
 	return b.String()
+}
+
+// ompDispatchAgent resolves a legacy dispatch role to the OMP agent the
+// source serves: the Autopus agent of the role, or in native mode the bundled
+// agent it collapses onto.
+func ompDispatchAgent(role string, native bool) string {
+	if native {
+		return ompNativeDispatchAgent(role)
+	}
+	return ompAutopusDispatchAgent(role)
+}
+
+// ompAutopusDispatchAgent keeps each canonical role's own name. task is the
+// unnamed default and stays implicit; scout and security-reviewer are disabled
+// in autopus mode, so a source that names them reaches the role that replaces
+// them, and sonic, which nothing replaces, falls to the default.
+func ompAutopusDispatchAgent(role string) string {
+	switch role = strings.TrimSpace(role); role {
+	case "", ompNativeDefaultAgent, "sonic":
+		return ""
+	case "scout":
+		return "explorer"
+	case "security-reviewer":
+		return "security-auditor"
+	}
+	if isOMPSafeIdentifier(role) {
+		return role
+	}
+	return ""
 }
 
 // ompNativeDispatchAgent resolves a legacy dispatch role to the OMP agent that

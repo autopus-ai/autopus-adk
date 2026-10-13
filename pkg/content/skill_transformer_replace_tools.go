@@ -4,7 +4,7 @@ import "strings"
 
 // replaceAgentCalls converts Agent(subagent_type="X", task="Y") to platform syntax.
 // Reuses agentMappingRe from agent_transformer_mapping.go.
-func replaceAgentCalls(line string, platform string) string {
+func replaceAgentCalls(line string, platform string, ompNative bool) string {
 	return agentMappingRe.ReplaceAllStringFunc(line, func(match string) string {
 		sub := agentMappingRe.FindStringSubmatch(match)
 		if len(sub) < 2 {
@@ -33,7 +33,7 @@ func replaceAgentCalls(line string, platform string) string {
 			}
 			return `task tool → subagent_type="` + name + `"`
 		case "omp":
-			return renderOMPTaskBatch([]ompLegacyDispatch{{agent: name, task: task}})
+			return renderOMPTaskBatch([]ompLegacyDispatch{{agent: name, task: task}}, ompNative)
 		default:
 			return match
 		}

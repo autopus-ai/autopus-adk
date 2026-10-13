@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	contentfs "github.com/insajin/autopus-adk/content"
+	"github.com/insajin/autopus-adk/pkg/config"
 	"github.com/insajin/autopus-adk/pkg/content"
 )
 
@@ -251,7 +252,8 @@ Agent(
   task = "Review the implementation.",
   subagent_type = "reviewer"
 )`
-	got := content.ReplacePlatformReferences(input, "omp")
+	got := content.ReplacePlatformReferencesWith(input, "omp",
+		content.PlatformReferenceOptions{OMPAgentSource: config.OMPAgentSourceNative})
 
 	for _, field := range []string{
 		`"i"`, `"context"`, `"tasks"`, `"name"`, `"agent"`, `"task"`,

@@ -53,7 +53,7 @@ Before dispatch, inspect the tools actually exposed by this runtime. Use their
 current schemas rather than copying static payloads. If the selected topology
 requires an unavailable tool, report that blocker; never simulate dispatch.
 
-OMP registers five agents: `scout`, `reviewer`, `security-reviewer`, `task`,
+{{if eq .RoleModelPolicy.AgentSource "native"}}OMP registers five agents: `scout`, `reviewer`, `security-reviewer`, `task`,
 and `sonic`. There is no Autopus-specific agent to select, so pick by what the
 work needs:
 
@@ -66,7 +66,23 @@ work needs:
   planning, validation, or review to it.
 
 The role a worker plays belongs in its assignment text, not in an agent name.
-State the responsibility, scope, and exit condition in the task itself.
+{{else}}OMP serves this project's 16 Autopus agents from `.omp/agents/`:
+`annotator`, `architect`, `debugger`, `deep-worker`, `devops`, `executor`,
+`explorer`, `frontend-specialist`, `perf-engineer`, `planner`, `reviewer`,
+`security-auditor`, `spec-writer`, `tester`, `ux-validator`, and `validator`.
+Select the agent of the role a worker plays:
+
+- `planner`, `architect`, and `spec-writer` plan and design; `executor`,
+  `debugger`, `tester`, and the other implementation roles write code.
+- `explorer` is read-only exploration only. Never give it work that writes.
+- `reviewer`, `validator`, and `security-auditor` review and verify; keep them
+  off implementation.
+- Omitting the agent runs the bundled `task` agent, the default for work no
+  role fits. `scout`, `security-reviewer`, and `sonic` are disabled through
+  `task.disabledAgents`; never select them.
+
+The agent field names the role; the assignment text still states its scope.
+{{end}}State the responsibility, scope, and exit condition in the task itself.
 
 Batch independent owned slices together. Native OMP owns isolated worktree
 creation, integration, and cleanup. Request isolation only if the current
