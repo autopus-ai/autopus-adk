@@ -4,6 +4,40 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **v0.50.126: 에이전트별 effort 편집, OMP 기본 에이전트를 Autopus 16개로** (2026-10-13, SPEC-MODELUX-003):
+  구성 폼은 등급만 바꿀 수 있어 effort를 저장할 곳이 없었고, OMP는 bundled agent 5개에 16개 역할이 접혀 역할마다
+  모델과 thinking을 따로 줄 수 없었다.
+  - effort: Claude Code·Codex 탭에서 그룹·에이전트의 등급 Select마다 그 도구의 effort Select가 이어진다. 기본은
+    그대로이고, Claude는 `low`·`medium`·`high`·`xhigh`·`max`(haiku 에이전트 제외), Codex는 영향받는 에이전트의
+    model이 run catalog에서 보고하는 단계의 교집합만 보인다. 라벨은 그 단계가 만드는 칸이고 자동 단계에 `(자동)`이
+    붙는다. catalog를 못 읽으면 Select 대신 `Codex catalog를 읽지 못해 effort는 자동입니다` 한 줄이다. 자동과 같은
+    단계는 저장하지 않고, 나머지는 등급과 함께 `quality.presets.<provider>-custom.efforts`(정규 에이전트 이름 → 다섯
+    단계)에 쓴다. 바뀌는 설정에 `quality.presets.<provider>-custom.efforts 새로 씀 (N개 에이전트)`(`고쳐 씀`, `지움`)이
+    나온다. OMP 탭은 thinking을 묻고 `프로필 기본값 (<thinking>)`에서 시작한다.
+  - 호환: `quality.presets.*.efforts`나 `role_model_policy.agent_source`를 쓴 파일은 v0.50.126보다 오래된 auto가
+    읽지 못한다. 파일의 첫 efforts를 쓰는 미리보기에 `quality.presets.*.efforts는 v0.50.126보다 오래된 auto가 읽지
+    못합니다` 줄이 나온다. efforts가 없는 파일은 v0.50.125와 같게 읽고 같은 bytes로 생성한다. 정규 이름이 아닌
+    key나 다섯 단계 밖의 값은 `quality.presets.<name>.efforts.<agent>: effort_invalid "<value>"`처럼 key 경로와 값을
+    담은 오류로 로드에 실패한다.
+  - 해석과 보존: 명시 effort는 그 에이전트를 balanced 표준 배치에서 떼고 Claude `effort:`(haiku 제외)와 Codex
+    `model_reasoning_effort`(같은 catalog로 해석)로 생성된다. 다른 편집, `u` 갱신, 도구별 줄 editor는 저장된
+    efforts를 지우지 않는다. 모든 도구 같게는 binding 프리셋의 efforts를 다른 built-in에 쓰지 않고 `custom`으로
+    옮기며(`quality.presets.custom.efforts 옮겨 씀 (N개 에이전트)`), 같은 이름의 이전 버전 기본값만 제자리 갱신한다.
+  - OMP 기본값: 생성이 `.omp/agents/<agent>.md` 16개(manifest 소유, `model` 없음, route가 없는 에이전트만 선언
+    effort의 `thinkingLevel`)를 만들고 project `.omp/config.yml`에 `task.disabledAgents: [scout, security-reviewer,
+    sonic]`을 claim한다. `task`는 이름 없는 dispatch의 기본이라 켜 두고, `reviewer`는 omp 18.6.1 bundled reviewer의
+    `output` schema를 가진 Autopus reviewer가 대신한다. 프로필이 있으면 `task.agentModelOverrides`가 16개 이름과
+    `task`를 key로 기존 활성화·증명·되읽기·복원을 탄다. 프로필이 없으면 세션 모델을 상속한다.
+  - migration: `auto update`가 `+ .omp/agents/<agent>.md` 줄, `task.disabledAgents: scout, security-reviewer,
+    sonic`, `OMP는 이제 Autopus 에이전트 16개를 씁니다.` 안내를 미리 보이고 OMP transaction 하나로 옮긴다.
+    `autopus.yaml`은 쓰지 않는다. manifest에 없는 같은 이름 파일은 사용자 파일이라 그대로 둔다. 사용자가 다른 값으로
+    정한 `task.disabledAgents`는 사용자 소유라 바꾸지 않고, 안내 1줄과 doctor의 `agents:disabled_agents_user_owned`
+    (degraded)로 알린다. 그 표시는 `auto clean`만 지운다.
+  - 되돌리기: `role_model_policy.agent_source: native`가 v0.50.126 동안 bundled 5개 방식을 되살린다(생성 파일
+    prune, `task.disabledAgents` 복원). key와 native 경로는 v0.50.127에서 제거할 예정이고, 다른 값은
+    `role_model_policy.agent_source_invalid`다. 바이너리를 내리는 것은 되돌리기가 아니다. v0.50.125는 새 agent
+    surface 필드가 든 project ownership ledger(`.autopus/omp-model-project-ownership-v1.json`)를 거부한다.
+  - 알려진 동작: 폼 시작 때의 OSC 11 배경색 query(SPEC-MODELUX-002 항목)는 그대로다.
 - **구성 단계 v2: 화살표·Enter 폼, 도구별 실제 모델 탭, OMP 지정, update 감지 플랫폼 열** (2026-10-12,
   SPEC-MODELUX-002): 실제 터미널에서 구성 단계가 줄 입력이라 화살표가 `^[[C`로 찍혔고, 선택지가 등급 이름뿐이라
   Claude 전용으로 읽혔으며, Codex·OMP를 따로 정할 수 없었고, update가 감지해 더한 플랫폼이 표에 없었다.

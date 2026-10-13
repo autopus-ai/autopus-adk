@@ -6,7 +6,7 @@ fixture는 모두 temp project 안에 만든다. 폼 test는 SPEC-MODELUX-002처
 - D, O3, CAT-A, H, IO: SPEC-MODELUX-002 `acceptance.md`와 같다. 따로 적지 않으면 Codex catalog는 CAT-E다.
 - CAT-E: `gpt-6-astra`·`gpt-6-luna`는 `low`–`max` 다섯 단계, `gpt-6.1-sol`은 `low`·`medium`·`high`·`xhigh`를 보고하는 `codex debug models` JSON.
 - OP: O3 + `role_model_policy {version: v1, profile: balanced, family: openai}`. OPM: OP + `config_mode: project-managed`. OP2: OP + `agents.task` pin(`openai-codex/gpt-6-astra`, `max`). OP3: OP + `agents.sonic` pin. OPX: OP + `agents.executor` pin `openai-codex/gpt-6-astra:max`과 `agents.tester` pin `openai-codex/gpt-6.1-sol:xhigh`, planner pin 없음.
-- ML: metadata 없는 OMP catalog `ompCLIProfileNativeCatalogJSON()`. MR: metadata가 있는 `ompCLIBalancedCatalogJSON()`. NO: `openai-codex` model을 뺀 OMP catalog.
+- ML: metadata 없는 OMP catalog. `ompCLIProfileNativeCatalogJSON()`의 model 4개를 설치된 omp가 출력하는 모양(provider·id·selector·name·thinking, family·capability 없음)으로 쓴 `composeOMPCatalogML`이다(`internal/cli/quality_compose_omp_autopus_test.go`). `ompCLIProfileNativeCatalogJSON()` 자체는 기존 탭의 catalog 규칙이 읽는 표시 필드가 없어 쓰지 않는다(구현 중 확인). MR: metadata가 있는 `ompCLIBalancedCatalogJSON()`. NO: `openai-codex` model을 뺀 OMP catalog.
 - NM: v0.50.125 바이너리로 `auto init --yes --platforms claude-code,codex,omp`를 한 project. UF: 빈 dir에 manifest에 없는 `.omp/agents/reviewer.md`(`---\nname: reviewer\ndescription: mine\n---\nmine\n`). UC: O3 + `.omp/config.yml` = `task:\n  disabledAgents:\n    - browser\n`. UC2: O3 + `.omp/config.yml` = `task:\n  disabledAgents:\n    - scout\n    - security-reviewer\n    - sonic\n`(ledger 없음).
 ### S1: effort key 읽기와 거부
 Priority: Must

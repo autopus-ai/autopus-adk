@@ -23,4 +23,13 @@ const updateCmdLong = "설치된 하네스 파일을 업데이트합니다.\n\n"
 	"생성될 frontmatter 값(opus)입니다. Claude Code·Codex 탭의 결과는 quality.presets.<provider>-custom과\n" +
 	"quality.providers.<provider>에 저장되고, OMP 탭은 native agent별 모델을 기존 OMP writer로 씁니다. 표에는 이번\n" +
 	"update가 감지한 플랫폼의 열도 나옵니다. 폼에서 Ctrl+C는 update 전체를 끝냅니다(생성 없음, 0이 아닌 종료).\n" +
-	"파이프나 스크립트 입력은 위의 줄 질문 그대로입니다."
+	"파이프나 스크립트 입력은 위의 줄 질문 그대로입니다.\n\n" +
+	"Claude Code·Codex 탭은 등급 Select마다 그 도구의 effort Select를 이어 묻습니다. 기본은 그대로이고, Claude는\n" +
+	"low·medium·high·xhigh·max(haiku 에이전트 제외), Codex는 catalog가 보고하는 단계만 보이며, 자동과 같은 단계는\n" +
+	"저장하지 않습니다. 고른 effort는 quality.presets.<provider>-custom.efforts에 쓰고, 이 key가 있는 파일은\n" +
+	"v0.50.126보다 오래된 auto가 읽지 못합니다. efforts가 없는 파일의 생성 결과는 그대로입니다.\n\n" +
+	"OMP는 v0.50.126부터 기본으로 Autopus 에이전트 16개를 .omp/agents에 만들고 scout·security-reviewer·sonic을\n" +
+	"task.disabledAgents로 끕니다(task는 유지). 기존 프로젝트는 미리보기에 + .omp/agents/<agent>.md 줄과 안내가\n" +
+	"나오고 autopus.yaml은 쓰지 않습니다. manifest에 없는 같은 이름 파일과 사용자가 정한 task.disabledAgents는\n" +
+	"그대로 둡니다. OMP 탭은 기본 mode에서 Autopus 에이전트 16개에 pin합니다. role_model_policy.agent_source: native로\n" +
+	"v0.50.126 동안 이전 방식을 고를 수 있습니다(v0.50.127 제거 예정). 바이너리를 내리는 대신 이 key로 되돌리세요."

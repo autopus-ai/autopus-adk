@@ -58,4 +58,17 @@ result is saved as quality.presets.<provider>-custom with
 quality.providers.<provider>; the OMP tab pins one installed model per native
 agent through the OMP writer and shows the plan's real routes first. Ctrl+C
 in a form ends the command without writing more. Scripted or piped input
-keeps the line prompts above.`
+keeps the line prompts above.
+
+On the Claude Code and Codex tabs every tier select is followed by that
+tool's effort select (SPEC-MODELUX-003). keep is the default; Claude Code
+offers low, medium, high, xhigh, and max and leaves haiku agents out, Codex
+offers the levels the catalog reports for the agents' models, and the
+automatic level is marked (automatic) and stores nothing. Chosen efforts are
+written to quality.presets.<provider>-custom.efforts, which auto older than
+v0.50.126 cannot read; a file without efforts generates exactly as before.
+The OMP tab asks thinking instead, starting at profile default (<thinking>).
+OMP serves the 16 Autopus agents from .omp/agents by default, disables
+scout, security-reviewer, and sonic, and the OMP tab pins those 16 agents;
+role_model_policy.agent_source: native keeps the five bundled agents during
+v0.50.126 (removal planned in v0.50.127).`
