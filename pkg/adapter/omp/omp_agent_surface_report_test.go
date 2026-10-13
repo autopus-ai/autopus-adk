@@ -51,3 +51,29 @@ func TestInspectOMPAgentSurface_ReportsAnADKClaim(t *testing.T) {
 	assert.False(t, report.DisabledAgentsUserOwned)
 	assert.Len(t, report.RecordedAgents, 16)
 }
+
+// Code review LOW: a project config the managed parser refuses is not the
+// user's choice of task.disabledAgents. The report names it on its own, and
+// generation still leaves the file alone.
+func TestInspectOMPAgentSurface_ReportsAnUnclaimableConfigApart(t *testing.T) {
+	for name, content := range map[string]string{
+		"alias":          "base: &base [browser]\ntask:\n  disabledAgents: *base\n",
+		"flow parent":    "task: {hidden: true}\n",
+		"multi-document": "model: keep-me\n---\nother: value\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			project := newClaimProject(t)
+			project.write(configFile, content)
+
+			project.mustRun("generate", configForOMP())
+			report, err := InspectOMPAgentSurface(project.root, configForOMP())
+
+			require.NoError(t, err)
+			assert.True(t, report.ProjectConfigUnclaimable)
+			assert.False(t, report.DisabledAgentsUserOwned, "the user chose no value")
+			assert.False(t, report.DisabledAgentsClaimed)
+			after, _ := project.read(configFile)
+			assert.Equal(t, content, after)
+		})
+	}
+}

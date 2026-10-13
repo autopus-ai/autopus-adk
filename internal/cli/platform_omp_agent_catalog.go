@@ -76,7 +76,8 @@ func buildOMPAgentCatalog(root string, cfg *config.HarnessConfig) ([]ompEffectiv
 // buildOMPAutopusAgentCatalog projects one inherited baseline row per agent
 // autopus mode serves. A generated definition under its own name is the agent,
 // not a shadow; a missing one, a user file OMP serves in its place, and a
-// user-owned task.disabledAgents, which keeps three bundled agents enabled,
+// task.disabledAgents left unwritten, because the project config cannot be
+// read safely or the user owns it, which keeps three bundled agents enabled,
 // are the degradations an operator has to see.
 func buildOMPAutopusAgentCatalog(root string, cfg *config.HarnessConfig) ([]ompEffectiveModelProjection, ompAgentCatalogSummary) {
 	agents := config.OMPAutopusAgentNames()
@@ -107,6 +108,8 @@ func buildOMPAutopusAgentCatalog(root string, cfg *config.HarnessConfig) ([]ompE
 		summary.Status, summary.Reason = "degraded", "autopus_agent_missing"
 	case len(report.UserAgentFiles) > 0:
 		summary.Status, summary.Reason = "degraded", "autopus_agent_user_file"
+	case report.ProjectConfigUnclaimable:
+		summary.Status, summary.Reason = "degraded", "project_config_unclaimable"
 	case report.DisabledAgentsUserOwned:
 		summary.Status, summary.Reason = "degraded", "disabled_agents_user_owned"
 	}

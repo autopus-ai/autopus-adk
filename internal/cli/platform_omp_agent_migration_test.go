@@ -212,6 +212,16 @@ func TestOMPAgentSurfaceLines(t *testing.T) {
 	assert.Equal(t, []string{en.sonic}, ompAgentSurfaceLines(migrated, sonic, true, en))
 	assert.Equal(t, "warning: role_model_policy.agents.sonic pins a model, but autopus mode disables sonic, so no agent receives it", en.sonic)
 
+	unclaimable := autopus
+	unclaimable.ProjectConfigUnclaimable = true
+	lines = ompAgentSurfaceLines(unclaimable, cfg, true, ko)
+	assert.Contains(t, lines, ko.unclaimable)
+	assert.NotContains(t, lines, ko.userOwned)
+	assert.NotContains(t, lines, "task.disabledAgents: scout, security-reviewer, sonic")
+	assert.Equal(t, "task.disabledAgents was not written: .omp/config.yml cannot be read safely "+
+		"(a symlink, invalid YAML, several documents, an alias, or a flow-style mapping); "+
+		"scout, security-reviewer, and sonic stay enabled", en.unclaimable)
+
 	native := omp.OMPAgentSurfaceReport{Source: config.OMPAgentSourceNative, RecordedAgents: []string{"planner"}, DisabledAgentsClaimed: true}
 	assert.Equal(t, []string{"- .omp/agents/planner.md", "task.disabledAgents restored"}, ompAgentSurfaceLines(native, cfg, true, en))
 	assert.Empty(t, ompAgentSurfaceLines(native, cfg, false, en))

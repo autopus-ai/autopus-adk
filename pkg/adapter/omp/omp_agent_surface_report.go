@@ -25,6 +25,11 @@ type OMPAgentSurfaceReport struct {
 	// DisabledAgentsUserOwned reports task.disabledAgents as the user's, so
 	// scout, security-reviewer, and sonic stay enabled in autopus mode.
 	DisabledAgentsUserOwned bool
+	// ProjectConfigUnclaimable reports a .omp/config.yml ADK never claimed
+	// and cannot read safely (a symlink, invalid YAML, several documents, an
+	// alias, or a flow-style mapping): generation leaves it untouched, so the
+	// three bundled agents stay enabled, though the user chose no value.
+	ProjectConfigUnclaimable bool
 	// DisabledAgentsClaimed reports ADK's own claim of task.disabledAgents.
 	DisabledAgentsClaimed bool
 }
@@ -67,7 +72,8 @@ func InspectOMPAgentSurface(root string, cfg *config.HarnessConfig) (report OMPA
 		return report, err
 	}
 	_, claimed := state.ownership.agentSurfaceKey()
-	report.DisabledAgentsUserOwned = state.userOwned
+	report.ProjectConfigUnclaimable = state.unclaimable
+	report.DisabledAgentsUserOwned = state.userOwned && !state.unclaimable
 	report.DisabledAgentsClaimed = state.ledger && claimed
 	return report, nil
 }

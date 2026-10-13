@@ -98,6 +98,27 @@ func TestOMPAgentCatalog_ReportsAUserAgentFile(t *testing.T) {
 	assert.Contains(t, projection.Blockers, "agents:autopus_agent_user_file")
 }
 
+// Code review LOW: a project config ADK cannot read safely is reported for
+// what it is, not as a task.disabledAgents the user chose.
+func TestOMPAgentCatalog_ReportsAnUnclaimableProjectConfig(t *testing.T) {
+	root := t.TempDir()
+	cfg := config.DefaultFullConfig("omp-autopus-unclaimable")
+	cfg.Platforms = []string{"omp"}
+	require.NoError(t, config.Save(root, cfg))
+	path := filepath.Join(root, ".omp", "config.yml")
+	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o700))
+	require.NoError(t, os.WriteFile(path, []byte("base: &base [browser]\ntask:\n  disabledAgents: *base\n"), 0o600))
+	_, err := omp.NewWithRoot(root).Generate(context.Background(), cfg)
+	require.NoError(t, err)
+
+	projection := buildOMPPlatformProjection(context.Background(), root, &ompCLIFakeRunner{}, configTimeForOMPAgentCatalog())
+
+	assert.Equal(t, "degraded", projection.Models.AgentCatalogStatus)
+	assert.Equal(t, "project_config_unclaimable", projection.Models.AgentCatalogReason)
+	assert.Contains(t, projection.Blockers, "agents:project_config_unclaimable")
+	assert.NotContains(t, projection.Blockers, "agents:disabled_agents_user_owned")
+}
+
 // S15: in autopus mode every pipeline phase runs on the agent of its own
 // role, so the receipt is read by that name and an omitted one fails closed.
 func TestPipelineOMPPhaseModels_ReadTheAutopusAgentOfEachPhase(t *testing.T) {
