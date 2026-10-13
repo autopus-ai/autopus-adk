@@ -19,6 +19,11 @@ func (c RoleModelPolicyConf) Validate() error {
 }
 
 func (c RoleModelPolicyConf) validateForQuality(quality QualityConf) error {
+	// agent_source chooses the OMP agent registry, not a route, so it is
+	// checked on its own and never makes the policy count as configured.
+	if err := validateOMPAgentSource(c.AgentSource); err != nil {
+		return err
+	}
 	if c.Version == "" && c.Profile == "" && c.Family == "" &&
 		c.ConfigMode == "" && len(c.Profiles) == 0 && len(c.Agents) == 0 {
 		return nil
@@ -46,10 +51,11 @@ func (c RoleModelPolicyConf) validateForQuality(quality QualityConf) error {
 		if err := validateRoleModelProfile(name, effective); err != nil {
 			return err
 		}
-		// The native OMP registry has one slot per bundled agent, so a policy
+		// Native mode has one registry slot per bundled agent, so a policy
 		// whose operator-written routes cannot collapse into it is rejected
-		// here rather than halfway through generation.
-		if err := validateOMPNativeAgentCollapse(effective); err != nil {
+		// here rather than halfway through generation. Autopus mode routes
+		// each agent under its own name and only needs every route to resolve.
+		if err := validateOMPAgentRoutes(effective); err != nil {
 			return err
 		}
 	}
@@ -68,7 +74,8 @@ func (c RoleModelPolicyConf) validateForQuality(quality QualityConf) error {
 // SelectedRoleModelProfileForQuality. Re-wrapping such a profile as a declared
 // document would reclassify its derived per-agent rows as operator intent and
 // reject every built-in profile on a native-agent conflict nobody wrote, so
-// provenance travels with the profile instead of being recomputed.
+// provenance and the agent source travel with the profile instead of being
+// recomputed.
 func ValidateResolvedRoleModelProfile(name string, profile RoleModelProfileConf) error {
 	if !IsValidQualityPresetName(name) {
 		return fmt.Errorf("role_model_policy.profile_name_invalid: %q", name)
@@ -76,7 +83,7 @@ func ValidateResolvedRoleModelProfile(name string, profile RoleModelProfileConf)
 	if err := validateRoleModelProfile(name, profile); err != nil {
 		return err
 	}
-	return validateOMPNativeAgentCollapse(profile)
+	return validateOMPAgentRoutes(profile)
 }
 
 // @AX:WARN [AUTO]: role-model profile validation contains 11 if branches.

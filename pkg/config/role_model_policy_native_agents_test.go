@@ -181,7 +181,7 @@ func TestOMPNativeAgentRoute_RefusesConflictingOperatorOverrides(t *testing.T) {
 	t.Parallel()
 
 	policy := RoleModelPolicyConf{
-		Version: RoleModelPolicyVersionV1, Profile: "balanced",
+		Version: RoleModelPolicyVersionV1, Profile: "balanced", AgentSource: OMPAgentSourceNative,
 		Agents: map[string]RoleAgentOverrideConf{
 			"executor": {Candidates: []RoleModelCandidateConf{
 				{Selector: "anthropic/" + ClaudeHaikuModel, Thinking: "low", Family: "anthropic"},
@@ -244,6 +244,7 @@ func TestOMPNativeAgentRoute_CustomProfileOverridesAreOperatorIntent(t *testing.
 	t.Parallel()
 
 	policy := validRoleModelPolicyFixture()
+	policy.AgentSource = OMPAgentSourceNative
 	profile := policy.Profiles["p1"]
 	profile.Agents = map[string]RoleAgentOverrideConf{
 		"tester": {Candidates: []RoleModelCandidateConf{

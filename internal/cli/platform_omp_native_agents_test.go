@@ -20,7 +20,7 @@ import (
 // A row naming one would tell the operator to configure an agent OMP does not
 // register.
 func TestOMPProfilePlanNamesOnlyBundledAgents(t *testing.T) {
-	root, runner := writeOMPBalancedProject(t)
+	root, runner := writeOMPNativeBalancedProject(t)
 
 	payload := planOMPProfileJSON(t, root, runner, "balanced")
 
@@ -49,7 +49,7 @@ func TestOMPProfilePlanNamesOnlyBundledAgents(t *testing.T) {
 // exploration must never claim the reasoning model. Both would be silent
 // quality changes introduced by the collapse itself.
 func TestOMPProfilePlanNeverDowngradesReasoningOntoMechanicalAgents(t *testing.T) {
-	root, runner := writeOMPBalancedProject(t)
+	root, runner := writeOMPNativeBalancedProject(t)
 
 	payload := planOMPProfileJSON(t, root, runner, "balanced")
 
@@ -75,7 +75,7 @@ func TestOMPProfilePlanNeverDowngradesReasoningOntoMechanicalAgents(t *testing.T
 // pinned model still has to satisfy the capability the row carries, so `task`
 // takes a deep-reasoning model rather than any available selector.
 func TestOMPProfilePlanAcceptsNativeAgentOverride(t *testing.T) {
-	root, runner := writeOMPBalancedProject(t)
+	root, runner := writeOMPNativeBalancedProject(t)
 
 	payload := planOMPProfileJSON(
 		t, root, runner, "balanced", "--agent", "task=anthropic/claude-fable-5-1:max",
@@ -94,7 +94,7 @@ func TestOMPProfilePlanAcceptsNativeAgentOverride(t *testing.T) {
 // the declared tie-break, and the row reports it, so the operator can see which
 // entry governs instead of guessing which model was dropped.
 func TestOMPProfilePlanResolvesCollapsingRoutesThroughTheRepresentative(t *testing.T) {
-	root, runner := writeOMPBalancedProject(t)
+	root, runner := writeOMPNativeBalancedProject(t)
 
 	payload := planOMPProfileJSON(
 		t, root, runner, "balanced",
@@ -111,7 +111,7 @@ func TestOMPProfilePlanResolvesCollapsingRoutesThroughTheRepresentative(t *testi
 // Without the representative row nothing ranks the disagreeing entries, so the
 // plan refuses and names them rather than discarding one at random.
 func TestOMPProfilePlanRefusesConflictingRoutesForOneBundledAgent(t *testing.T) {
-	root, runner := writeOMPBalancedProject(t)
+	root, runner := writeOMPNativeBalancedProject(t)
 	before, err := os.ReadFile(filepath.Join(root, autopusConfigName))
 	require.NoError(t, err)
 	dir := root
@@ -137,7 +137,7 @@ func TestOMPProfilePlanRefusesConflictingRoutesForOneBundledAgent(t *testing.T) 
 // The same selector written twice for two collapsing roles is redundant, not
 // contradictory: there is only one model to apply, so it applies.
 func TestOMPProfilePlanAcceptsAgreeingRoutesForOneBundledAgent(t *testing.T) {
-	root, runner := writeOMPBalancedProject(t)
+	root, runner := writeOMPNativeBalancedProject(t)
 
 	payload := planOMPProfileJSON(
 		t, root, runner, "balanced",
@@ -261,4 +261,16 @@ func orderedOMPPhaseReceiptAgents(selectors map[string]string) []string {
 	}
 	sort.Strings(rest)
 	return append(ordered, rest...)
+}
+
+// writeOMPNativeBalancedProject is writeOMPBalancedProject with the v0.50.125
+// agent source: every collapse contract above is a native-mode contract.
+func writeOMPNativeBalancedProject(t *testing.T) (string, *ompCLIFakeRunner) {
+	t.Helper()
+	root := t.TempDir()
+	cfg := config.DefaultFullConfig("omp-balanced")
+	cfg.Platforms = []string{"omp"}
+	cfg.RoleModelPolicy.AgentSource = config.OMPAgentSourceNative
+	require.NoError(t, config.Save(root, cfg))
+	return root, &ompCLIFakeRunner{catalog: ompCLIBalancedCatalogJSON()}
 }

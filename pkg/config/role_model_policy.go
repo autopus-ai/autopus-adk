@@ -27,6 +27,9 @@ type RoleModelPolicyConf struct {
 	ConfigMode string                           `yaml:"config_mode,omitempty"`
 	Agents     map[string]RoleAgentOverrideConf `yaml:"agents,omitempty"`
 	Profiles   map[string]RoleModelProfileConf  `yaml:"profiles,omitempty"`
+	// AgentSource selects the OMP agent registry (omp_agent_source.go). It is
+	// not routing, so it never makes the policy count as configured.
+	AgentSource string `yaml:"agent_source,omitempty"`
 }
 
 // RoleModelProfileConf owns capability routes, per-agent overrides, and
@@ -54,6 +57,11 @@ type RoleModelProfileConf struct {
 	// runtime default instead of failing the whole generation. Resolution
 	// fills this in; it is never read from or written to YAML.
 	Builtin bool `yaml:"-"`
+
+	// AgentSource is the policy's effective OMP agent source, so every
+	// consumer of a resolved profile serves the same agent set. Resolution
+	// fills this in; it is never read from or written to YAML.
+	AgentSource string `yaml:"-"`
 }
 
 // RoleManagedKeyClaimConf proves complete ownership of one project config key.
@@ -199,6 +207,7 @@ func (c RoleModelPolicyConf) SelectedRoleModelProfileForQuality(quality QualityC
 	}
 	profile = profile.withRootAgentOverlay(c.Agents)
 	profile.OperatorAgents = operator
+	profile.AgentSource = c.OMPAgentSource()
 	return name, profile, true
 }
 
