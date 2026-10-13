@@ -117,3 +117,18 @@ func TestRenderOMPAgentDefinition_EncodesScalarsAndRefusesUnknownThinking(t *tes
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "turbo")
 }
+
+// Security review I1: thinkingLevel goes through the YAML scalar encoder like
+// every other frontmatter value, so a level a YAML 1.1 reader takes for a
+// boolean (`off`) stays a string, and ordinary levels keep their bytes.
+func TestRenderOMPAgentDefinition_EncodesThinkingLevelAsAScalar(t *testing.T) {
+	t.Parallel()
+	planner := ompAgentSource(t, "planner")
+	for level, line := range map[string]string{"off": `thinkingLevel: "off"`, "max": "thinkingLevel: max"} {
+		rendered, err := content.RenderOMPAgentDefinition(planner, content.OMPAgentDefinitionOptions{ThinkingLevel: level})
+
+		require.NoError(t, err)
+		assert.Contains(t, rendered, "\n"+line+"\n")
+		assert.Equal(t, level, ompDefinitionFrontmatter(t, rendered)["thinkingLevel"])
+	}
+}

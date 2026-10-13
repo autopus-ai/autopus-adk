@@ -115,7 +115,7 @@ func RenderOMPAgentDefinition(src AgentSource, opts OMPAgentDefinitionOptions) (
 		}
 	}
 	if opts.ThinkingLevel != "" {
-		fmt.Fprintf(&sb, "thinkingLevel: %s\n", opts.ThinkingLevel)
+		fmt.Fprintf(&sb, "thinkingLevel: %s\n", OMPYAMLScalar(opts.ThinkingLevel))
 	}
 	if src.Meta.Name == ompReviewerAgent {
 		output, err := ompIndentedYAMLBlock(ompReviewerOutputSchema)
