@@ -20,6 +20,40 @@ branch `feat/modelux-003`, 기준 `v0.50.125`(dd6d6ea2, origin/main, SPEC-MODELU
 ### 기존 test (F-007, T1 grep 실행 결과: 27개 파일, 49건)
 - `internal/cli/`: doctor_omp_model_routing_e2e, omp_dispatch, omp_platform_boundary, platform_omp_agent_catalog, platform_omp_native_agents, platform_omp_profile_preview, quality_compose_table, update_gitignore. `pkg/adapter/`: latest_cli_omp_contract, parity. `pkg/adapter/omp/`: omp_acceptance_surface, omp_latest_contract, omp_model_activation_rpc, omp_model_attested, omp_model_doctor_coverage, omp_model_integration_builtin, omp_model_integration_diversity, omp_model_integration, omp_model_projection, omp_native_agent_prompt, omp_native_registry, omp_native_task_hub_contract, omp_rules_live. `pkg/config/`: omp_native_agents, role_model_policy_native_agents. `pkg/content/`: omp_normalization, skill_transformer_replace_omp(모두 `_test.go`).
 - 기본값 전환 단언(fixture로 못 지킨다): `latest_cli_omp_contract_test.go:24,29`(`.omp/agents` 없음, `.omp/config.yml` manifest 아님), `omp_acceptance_surface_test.go:52,151`, `omp_latest_contract_test.go:30`, `omp_native_registry_test.go:27`. 나머지 23개는 T1이 파일마다 native fixture·native option·무변경으로 나눈다.
+### T1 분류 (OMP agent source)
+grep: `rg -l 'OMPNativeAgentNames|OMPNativeAgentForRole|OMPNativeAgentRepresentative|ompRetiredAgentDir|\.omp/agents|native_agent_shadowed|There is no Autopus' -g '*_test.go' internal pkg`(27개, 53줄; 2026-10-13 5f51ba23). 분류는 넷이다. **전환**: 그 단언만 autopus 기대값으로 바꾸고 같은 파일에 `agent_source: native` 사본으로 옛 단언을 지킨다(규칙 1). **fixture**: fixture에 `agent_source: native`(Go fixture는 `RoleModelPolicy.AgentSource`) 한 줄, 단언 무변경(규칙 2). **option**: 렌더·compile 함수에 native option, 단언 무변경(규칙 2). **무변경**.
+
+| 파일 | 분류 | 이유 |
+|---|---|---|
+| `internal/cli/doctor_omp_model_routing_e2e_test.go` | fixture | `report.Roles`가 native 5개다(L85) |
+| `internal/cli/omp_dispatch_test.go` | 전환 | L40 preview의 `.omp/agents` 0개가 autopus에서 16개다. grep 목록의 4개 밖에서 T1이 찾은 전환 단언이다 |
+| `internal/cli/omp_platform_boundary_test.go` | 무변경 | gitignore 디렉터리 형식 단언(`.omp/agents/`는 이미 있다) |
+| `internal/cli/platform_omp_agent_catalog_test.go` | fixture | catalog 5행·`native_agent_shadowed`는 native 계약이다 |
+| `internal/cli/platform_omp_native_agents_test.go` | fixture | plan이 bundled 5개만 이름 짓는 native 계약이다 |
+| `internal/cli/platform_omp_profile_preview_test.go` | fixture | 미리보기 행이 registry 순서 5개다(L73, L262) |
+| `internal/cli/quality_compose_table_test.go` | fixture | OMP 칸 = `OMPNativeAgentRoute`(MODELUX-002 S5) |
+| `internal/cli/update_gitignore_test.go` | 무변경 | 패턴 전달만 본다 |
+| `pkg/adapter/latest_cli_omp_contract_test.go` | 전환 | L24 `.omp/agents` 없음, L29-30 `.omp/config.yml` 없음 |
+| `pkg/adapter/parity_test.go` | 무변경 | 경로 분류표다 |
+| `pkg/adapter/omp/omp_acceptance_surface_test.go` | 전환 | L40-42·L52·L56·L151·L155의 agent 0개와 `.omp/config.yml` 없음 |
+| `pkg/adapter/omp/omp_latest_contract_test.go` | 전환 | L30-33. 같은 파일의 `PreservesUserBaseConfigWhenNoManagedClaimsExist`는 claim 없는 native 계약이라 fixture |
+| `pkg/adapter/omp/omp_model_activation_rpc_test.go` | 무변경 | L168은 RPC 단위 test의 selector 자료다 |
+| `pkg/adapter/omp/omp_model_attested_test.go` | fixture | receipt가 native 5행이다(L138) |
+| `pkg/adapter/omp/omp_model_doctor_coverage_test.go` | option | doctor activation expectation이 native 5 key다(L47) |
+| `pkg/adapter/omp/omp_model_integration_builtin_test.go` | fixture | selector·receipt가 native 5개다 |
+| `pkg/adapter/omp/omp_model_integration_diversity_test.go` | fixture | receipt가 native 5행이다 |
+| `pkg/adapter/omp/omp_model_integration_test.go` | fixture | 은퇴 dir(L144)과 native 5 route(L163, L231) |
+| `pkg/adapter/omp/omp_model_projection_test.go` | option | native 이름 projection(L226) |
+| `pkg/adapter/omp/omp_native_agent_prompt_test.go` | fixture, option | `generatedOMPBodies`는 native 생성, 템플릿 정규화는 native option |
+| `pkg/adapter/omp/omp_native_registry_test.go` | 전환 | L27 생성 파일에 `.omp/agents` 없음. 같은 파일의 은퇴·백업 test는 fixture |
+| `pkg/adapter/omp/omp_native_task_hub_contract_test.go` | 무변경 | L140은 주석, live test다 |
+| `pkg/adapter/omp/omp_rules_live_test.go` | 무변경 | ignore 패턴 자료다 |
+| `pkg/config/omp_native_agents_test.go` | 무변경 | native 접힘 함수는 그대로 남는다 |
+| `pkg/config/role_model_policy_native_agents_test.go` | fixture | L180·L243의 load 시 `omp_native_agent_conflict`는 native 모드만 낸다 |
+| `pkg/content/omp_normalization_test.go` | 무변경 | 경로 정규화는 mode와 무관하다 |
+| `pkg/content/skill_transformer_replace_omp_test.go` | option | L242-267 task batch의 native 접힘(`"agent": "executor"` 없음) |
+
+- grep 밖에서 구현 중 깨지는 test는 같은 네 분류로 이 표에 더하고, 더한 task의 커밋 본문에 이유를 적는다.
 ## OMP probe 결과 (`evidence/probe-omp-18.6.1.md`)
 | ID | 질문 | 결과 |
 |---|---|---|
