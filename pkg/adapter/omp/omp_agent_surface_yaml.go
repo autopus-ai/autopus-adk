@@ -103,8 +103,20 @@ func applyOMPAgentSurfacePrior(data []byte, prior string) ([]byte, error) {
 
 // removeOMPManagedPath cuts one key's entry, then any parent mapping the cut
 // left without entries, so a file ADK created for the key alone becomes empty
-// again instead of keeping a bare parent line.
+// again instead of keeping a bare parent line. The result is re-read before
+// it is returned: anything but that removal is managed_key_conflict.
 func removeOMPManagedPath(data []byte, segments []string) ([]byte, error) {
+	cut, err := cutOMPManagedPath(data, segments)
+	if err != nil {
+		return nil, err
+	}
+	if err := verifyOMPManagedEdit(data, cut, []ompManagedEdit{{path: segments, remove: true}}); err != nil {
+		return nil, err
+	}
+	return cut, nil
+}
+
+func cutOMPManagedPath(data []byte, segments []string) ([]byte, error) {
 	for depth := len(segments); depth > 0; depth-- {
 		document, err := parseOMPManagedDocument(data)
 		if err != nil {
