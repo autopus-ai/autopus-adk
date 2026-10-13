@@ -8,6 +8,21 @@ branch `feat/modelux-003`, 기준 `v0.50.125`(dd6d6ea2, origin/main, SPEC-MODELU
 - 프리셋을 다시 만드는 자리(F-013): `internal/cli/quality_compose_bind.go:173`(편집 프리셋), `quality_compose_bind_write.go:29-34`(`composeBindingPlan.set`)·`:47-52`(`composeCandidate`), `quality_tool_interactive.go:207-222`(`withQualityToolPreset`, 미리보기), `quality_tool_persist.go:49-61`(`setQualityToolPreset`). 모두 `{Description, Agents}`만 쓴다. 분류 `pkg/config/quality_preset_history.go:116` `ClassifyBuiltinQualityPreset`은 Agents만 비교한다.
 - 폼: 등급 Select뿐이다(`quality_compose_form_edit.go:12-57`). 300줄 근처: `quality_compose_form_driver.go` 290, `quality_compose_omp.go` 292, `schema.go` 290.
 - Claude Code 문서(2026-10-12): `effort`는 `low`·`medium`·`high`·`xhigh`·`max`, model마다 다르고 없으면 세션 effort. Fable 5.1·Opus 5.5·Sonnet 5.5는 다섯 단계, 지원하지 않는 단계는 그 아래로 돈다. Haiku 4.5는 표에 없다.
+### T1 분류 (effort 폼, T2·T9·T10)
+측정: effort Select에 임시 계측(`[DEBUG-e7c1]`, 커밋 전 제거)을 넣고 폼을 쓰는 기존 test 19개 파일의 test마다 따로 돌려 effort Select가 열린 수를 셌다(2026-10-13, 5f51ba23 기준 test). 15개 test(7개 파일)가 Claude Code·Codex 탭을 지나 effort Select를 연다. T2와 T10은 기존 test를 바꾸지 않는다(efforts 없는 fixture의 동작이 같다). 분류는 셋이다. **Enter**: 새 effort Select마다 입력에 Enter 하나(규칙 3). **abort 위치**: n번째 폼에서 Ctrl+C를 주는 test가 effort Select 4개만큼 위치를 옮겨 전과 같은 폼을 가리킨다(규칙 3의 같은 조정, 단언 무변경). **무변경**.
+
+| 파일 | 분류 | 이유 |
+|---|---|---|
+| `internal/cli/quality_compose_form_review_test.go` | Enter | 공유 입력 `composeFormS5`에 4개(이 변수를 쓰는 5개 파일 11개 test가 함께 맞는다). `UnchangedEditWritesNothing` 4개, `CancelAfterAWriteKeepsThatWrite`의 Claude 탭 4개 |
+| `internal/cli/quality_compose_form_edit_test.go` | Enter | `ClaudeAgentEditBindsClaudeCustom`의 executor 값 뒤 1개 |
+| `internal/cli/quality_compose_form_entry_test.go` | Enter, abort 위치 | `ClaudeAgentApplyGeneratesThePreview` 1개. `InterruptEndsWithoutError`는 확인 Select가 8번째에서 12번째가 되어 8→12 |
+| `internal/cli/quality_compose_form_driver_test.go` | Enter | `AppliedEditRedrawsTheTableAndAsksAgain`의 Codex 탭 4개 |
+| `internal/cli/update_compose_form_test.go` | Enter, abort 위치 | `KeepPathsWriteNothing`의 "Codex groups unchanged" 4개. `InterruptAfterAWriteKeepsTheWrite`는 쓰기 뒤 메뉴가 9번째에서 13번째가 되어 9→13 |
+| `internal/cli/init_compose_form_test.go`, `quality_compose_form_locale_test.go` | 무변경 | `composeFormS5`로 함께 맞는다 |
+| `internal/cli/quality_compose_form_paths_test.go` | 무변경 | 도구 탭 경우의 abort가 첫 effort Select 전(4·5번째)이다 |
+| `internal/cli/quality_compose_line_golden_test.go`, `quality_compose_driver*_test.go` | 무변경 | 줄 driver에는 effort 질문이 없다(규칙 4). golden bytes 동일 |
+| `internal/cli/quality_compose_form_labels_test.go`, `quality_compose_tool*_test.go`, `quality_compose_form_refusal_test.go` | 무변경 | labeler·planner를 직접 부르고 폼 Select가 없다. 함수 signature를 유지했다 |
+| `internal/cli/quality_tool_interactive_test.go`, `quality_compose_bind*_test.go`, `quality_config_block*_test.go` | 무변경 | efforts 없는 fixture라 쓰기 결과가 같다 |
 ### OMP native 구조
 - 접힘 `pkg/config/omp_native_agents.go:6-63`, route key `role_model_policy_native_agents.go:13`·`:77-101`·`:118-162`(대표가 pin되지 않은 채 접히는 pin이 다르면 `omp_native_agent_conflict`, F-001), load 검증 `role_model_policy_validate.go:52-54`와 `:72-80`(모드와 무관하게 접힘 검증), managed key allowlist `:174-190`(`task.disabledAgents` 없음). built-in 프로필은 16개 에이전트마다 route를 만든다(`role_model_policy_builtin.go:3-11`, `:42-47`, `:214-240`).
 - 접힘 소비처(production, grep 16개 파일): `pkg/config` 두 파일, `pkg/content/skill_transformer_replace_omp_render.go:103-124`, `pkg/adapter/omp/`의 `omp_model_integration_bridge.go:31-113`, `omp_model_projection.go:59-132`(L69, L111), `omp_model_routing_compile.go:33,105-112`, `omp_model_projection_overlay.go:19`(대표를 모르는 이름은 `unknown native OMP agent`), `omp_model_integration_degraded.go:21-37`(`OMPNativeAgentOperatorPinned(native)`), `internal/cli/`의 `platform_omp_agent_catalog.go:42-79`, `platform_omp_profile_preview.go:90-94`, `pipeline_backend_omp_models.go:75-110`, `pipeline_backend_orca_models.go`, `doctor_omp_model_routing_probe.go`, `quality_compose_table.go`, `quality_omp_custom.go:57-58`, `quality_compose_omp.go:169,193`. `omp_model_doctor_projection.go`, `omp_model_integration_activation.go:115,192-210`은 override key를 그대로 쓴다.
