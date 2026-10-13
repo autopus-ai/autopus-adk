@@ -91,6 +91,7 @@ grep: `rg -l 'OMPNativeAgentNames|OMPNativeAgentForRole|OMPNativeAgentRepresenta
 | `internal/cli/quality_omp_custom_test.go` (T7) | fixture | 줄 OMP 편집기 계약(SPEC: 그대로). autopus에서 같은 catalog는 task 접힘 없이 역할마다 route가 필요하다 |
 | `internal/cli/init_compose_omp_test.go` (T7) | 전환(T11) | init은 config를 새로 만들어 native fixture를 줄 수 없다. S21 init 두 test는 T11에서 autopus 탭 입력(에이전트별 → planner)과 기대값(`agents.planner`, 되읽기 `planner`·`task`)으로 바꿨고, native 사본은 둘 수 없다 |
 | `pkg/content/skill_transformer_replace_omp_collapse_test.go` (T8) | option | 은퇴한 역할 이름이 bundled 5개로 접히는 native 렌더 계약이다. `ReplacePlatformReferencesWith`에 native option을 주고 단언은 그대로다. autopus 렌더는 `skill_transformer_replace_omp_mode_test.go`가 판정한다 |
+| `pkg/adapter/omp/omp_workflow_parity_test.go` (리뷰 LOW) | option | `TestOMP002_S7_ValidateReportsMissingAndTamperedManagedSets`가 `prepareRuleMappings(cfg)`에 그 test의 cfg를 넘긴다. 단언은 그대로다 |
 ## OMP probe 결과 (`evidence/probe-omp-18.6.1.md`)
 | ID | 질문 | 결과 |
 |---|---|---|

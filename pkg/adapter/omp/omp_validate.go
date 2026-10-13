@@ -52,7 +52,7 @@ func (a *Adapter) validateInstalledSurface(ctx context.Context) ([]adapter.Valid
 	if err != nil {
 		return findings, err
 	}
-	rules, err := a.prepareRuleMappings()
+	rules, err := a.prepareRuleMappings(cfg)
 	if err != nil {
 		return findings, err
 	}

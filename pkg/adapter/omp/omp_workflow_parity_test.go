@@ -232,7 +232,7 @@ func TestOMP002_S7_ValidateReportsMissingAndTamperedManagedSets(t *testing.T) {
 	a := NewWithRoot(dir)
 	cfg := configForOMP()
 
-	rules, err := a.prepareRuleMappings()
+	rules, err := a.prepareRuleMappings(cfg)
 	require.NoError(t, err)
 	commands, err := a.prepareCommandMappings(cfg)
 	require.NoError(t, err)

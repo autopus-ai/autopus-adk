@@ -214,7 +214,7 @@ func (a *Adapter) prepareFilesAt(
 	}
 
 	// 1. Rules
-	if err := appendFiles(a.prepareRuleMappings()); err != nil {
+	if err := appendFiles(a.prepareRuleMappings(cfg)); err != nil {
 		return nil, err
 	}
 	// 2. Skills

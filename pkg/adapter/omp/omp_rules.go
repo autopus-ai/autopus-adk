@@ -8,6 +8,7 @@ import (
 
 	contentfs "github.com/insajin/autopus-adk/content"
 	"github.com/insajin/autopus-adk/pkg/adapter"
+	"github.com/insajin/autopus-adk/pkg/config"
 	pkgcontent "github.com/insajin/autopus-adk/pkg/content"
 )
 
@@ -31,7 +32,10 @@ const (
 	ompRuleFilePrefix = "autopus-"
 )
 
-func (a *Adapter) prepareRuleMappings() ([]adapter.FileMapping, error) {
+// prepareRuleMappings renders every embedded rule for OMP in cfg's agent
+// source, the mode skills and workflows render dispatch text in, so native
+// rules stay what v0.50.125 wrote.
+func (a *Adapter) prepareRuleMappings(cfg *config.HarnessConfig) ([]adapter.FileMapping, error) {
 	entries, err := contentfs.FS.ReadDir("rules")
 	if err != nil {
 		return nil, fmt.Errorf("rules 디렉터리 읽기 실패: %w", err)
@@ -46,16 +50,10 @@ func (a *Adapter) prepareRuleMappings() ([]adapter.FileMapping, error) {
 		if readErr != nil {
 			return nil, fmt.Errorf("rule 파일 읽기 실패 %s: %w", entry.Name(), readErr)
 		}
-		content := pkgcontent.ReplacePlatformReferences(string(data), "omp")
-		if entry.Name() == "deferred-tools.md" {
-			content = ompDeferredToolsRule
+		content, renderErr := renderOMPRule(entry.Name(), data, cfg)
+		if renderErr != nil {
+			return nil, renderErr
 		}
-
-		transformed, transErr := pkgcontent.TransformRuleForOMP(content)
-		if transErr != nil {
-			return nil, fmt.Errorf("rule 변환 실패 %s: %w", entry.Name(), transErr)
-		}
-		content = transformed
 
 		relPath := filepath.Join(filepath.FromSlash(ompRuleDir), ompRuleFilePrefix+entry.Name())
 		files = append(files, adapter.FileMapping{
@@ -66,4 +64,17 @@ func (a *Adapter) prepareRuleMappings() ([]adapter.FileMapping, error) {
 		})
 	}
 	return files, nil
+}
+
+// renderOMPRule renders one embedded rule for OMP in cfg's agent source.
+func renderOMPRule(name string, data []byte, cfg *config.HarnessConfig) (string, error) {
+	content := pkgcontent.ReplacePlatformReferencesWith(string(data), "omp", ompPlatformReferences(cfg))
+	if name == "deferred-tools.md" {
+		content = ompDeferredToolsRule
+	}
+	transformed, err := pkgcontent.TransformRuleForOMP(content)
+	if err != nil {
+		return "", fmt.Errorf("rule 변환 실패 %s: %w", name, err)
+	}
+	return transformed, nil
 }
