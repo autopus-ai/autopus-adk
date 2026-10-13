@@ -63,6 +63,7 @@ func generatePlatformFilesWith(
 			tui.Warnf(cmd.OutOrStdout(), "알 수 없는 플랫폼 %q, 건너뜀", p)
 			continue
 		}
+		reportOMPAgentSurface(cmd.OutOrStdout(), dir, p, effectiveCfg, false)
 		if _, err := platformAdapter.Generate(ctx, effectiveCfg); err != nil {
 			return fmt.Errorf("플랫폼 %q 파일 생성 실패: %w", p, err)
 		}

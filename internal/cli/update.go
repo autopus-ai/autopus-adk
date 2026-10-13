@@ -160,6 +160,7 @@ func newUpdateCmd() *cobra.Command {
 				preview.Items = appendConfigPreviewItem(preview.Items, dir, configReasons)
 
 				printPreview(cmd.OutOrStdout(), "auto update", preview.Hint, preview.Items)
+				reportOMPAgentSurface(cmd.OutOrStdout(), dir, "omp", effectiveCfg, true)
 				return nil
 			}
 
@@ -224,6 +225,7 @@ func newUpdateCmd() *cobra.Command {
 			reportUpdateTargets(cmd.OutOrStdout(), cfg.Platforms, addedPlatforms)
 			for _, p := range cfg.Platforms {
 				fmt.Fprintf(cmd.OutOrStdout(), "  → Updating %s...\n", updatePlatformLabel(p))
+				reportOMPAgentSurface(cmd.OutOrStdout(), dir, p, effectiveCfg, true)
 				supported, updateErr := updateHarnessPlatformWith(ctx, dir, p, effectiveCfg, snapshot)
 				if !supported {
 					fmt.Fprintf(cmd.OutOrStdout(), "  경고: 알 수 없는 플랫폼 %q, 건너뜀\n", p)
