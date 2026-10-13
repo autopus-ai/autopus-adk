@@ -43,6 +43,9 @@ func (c *HarnessConfig) validateModelSelectionConfig() error {
 			}
 		}
 	}
+	if err := c.validateQualityPresetEfforts(); err != nil {
+		return err
+	}
 	for providerName, provider := range c.Orchestra.Providers {
 		if provider.ModelPolicy != "" && provider.ModelPolicy != ProviderModelPolicyQuality && provider.ModelPolicy != ProviderModelPolicyPinned {
 			return fmt.Errorf("orchestra.providers[%q].model_policy %q is invalid: must be quality or pinned", providerName, provider.ModelPolicy)

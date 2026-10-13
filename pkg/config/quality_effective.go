@@ -23,13 +23,18 @@ func (q QualityConf) EffectiveAgentTier(agent, fallbackTier string) string {
 // balanced placement addresses exact model ids so Claude Code routes the top
 // rung to the frontier model instead of whichever release the tier alias
 // currently points at; every other preset — Ultra, a custom preset, or a
-// per-agent tier the user moved off the standard rung — keeps projecting the
-// relative tier alias.
+// per-agent tier or effort the user moved off the standard rung — keeps
+// projecting the relative tier alias. An explicit effort replaces the
+// automatic one except on haiku, which takes no effort line
+// (SPEC-MODELUX-003 REQ-MUX3-02).
 func (q QualityConf) ClaudeAgentProfile(agent, fallbackTier string) (model, effort string) {
 	if candidate, ok := q.NativeBalancedAgentCandidate(QualityProviderClaude, agent); ok {
 		return nativeClaudeModelID(candidate.Selector), candidate.Thinking
 	}
 	tier := q.AgentTier(QualityProviderClaude, agent, fallbackTier)
+	if explicit, ok := q.AgentEffort(QualityProviderClaude, agent); ok && tier != "haiku" {
+		return tier, explicit
+	}
 	return tier, ClaudeAgentEffort(q.EffectiveMode(QualityProviderClaude), tier)
 }
 

@@ -101,11 +101,23 @@ func (q QualityConf) CodexOrchestraEffort() string { return q.CodexOrchestraProf
 // CodexAgentProfile maps an agent onto its managed Codex model and effort. A
 // canonical agent under the standard native balanced placement takes both from
 // the shared role matrix; everyone else keeps the relative tier ladder that
-// Ultra, custom presets, and non-canonical agents resolve through.
+// Ultra, custom presets, and non-canonical agents resolve through, whose
+// effort slot an explicit preset effort replaces (SPEC-MODELUX-003
+// REQ-MUX3-02). The generator resolves the result against the run's catalog.
 func (q QualityConf) CodexAgentProfile(agentName, fallbackTier, declaredEffort string) CodexProfile {
 	if profile, ok := q.nativeBalancedCodexProfile(agentName); ok {
 		return profile
 	}
+	profile := q.codexLadderProfile(agentName, fallbackTier, declaredEffort)
+	if explicit, ok := q.AgentEffort(QualityProviderCodex, agentName); ok {
+		profile.Effort = explicit
+	}
+	return profile
+}
+
+// codexLadderProfile is the relative tier ladder: the model of the agent's
+// tier, Ultra raising every tier below opus to opus, with the rung's effort.
+func (q QualityConf) codexLadderProfile(agentName, fallbackTier, declaredEffort string) CodexProfile {
 	tier := q.codexAgentTier(agentName, fallbackTier)
 	if q.codexQualityMode() == "ultra" && tier != "fable" && tier != "opus" {
 		tier = "opus"

@@ -20,10 +20,11 @@ type LanguageConf struct {
 	AIResponses string `yaml:"ai_responses"` // AI 응답 언어
 }
 
-// QualityPreset defines a named quality configuration with agent mappings.
+// QualityPreset defines a named quality configuration: agent tiers and explicit agent efforts.
 type QualityPreset struct {
 	Description string            `yaml:"description,omitempty"`
 	Agents      map[string]string `yaml:"agents,omitempty"`
+	Efforts     map[string]string `yaml:"efforts,omitempty"`
 }
 
 // QualityConf holds quality preset definitions and provider-specific defaults.

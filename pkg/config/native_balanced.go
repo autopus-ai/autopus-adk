@@ -4,7 +4,8 @@ import "maps"
 
 // NativeBalancedAgentCandidate projects the same role matrix used by OMP onto
 // the native Claude/Codex agent defaults. A different explicit tier retains
-// the existing custom-tier path; an override never changes a sibling's route.
+// the existing custom-tier path, and so does any explicit effort
+// (SPEC-MODELUX-003 REQ-MUX3-02); an override never changes a sibling's route.
 // Historical complete default layouts remain standard without rewriting YAML.
 func (q QualityConf) NativeBalancedAgentCandidate(provider, agent string) (RoleModelCandidateConf, bool) {
 	provider, ok := NormalizeQualityProvider(provider)
@@ -22,6 +23,9 @@ func (q QualityConf) NativeBalancedAgentCandidate(provider, agent string) (RoleM
 		if !valid || (tier != balancedTierForRung(rung) && !isHistoricalBalancedDefault(agents)) {
 			return RoleModelCandidateConf{}, false
 		}
+	}
+	if _, explicit := q.AgentEffort(provider, agent); explicit {
+		return RoleModelCandidateConf{}, false
 	}
 	family := builtinRoleModelFamilyAnthropic
 	if provider == QualityProviderCodex {
