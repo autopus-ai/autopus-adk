@@ -16,6 +16,7 @@ type composeFormText struct {
 	OMPFamily, OMPProfileDefault, OMPThinking         string // OMPThinking: %s, the agent
 	OMPRewrite, OMPDetectedOnly                       string
 	OMPReloadFailed                                   string // %s: the cause
+	OMPThinkingDefault                                string // %s: the pre-plan thinking (SPEC-MODELUX-003)
 	InitOMPUnavailable, InitOMPApplied                string
 	Interrupted                                       string
 }
@@ -33,6 +34,7 @@ var composeFormTextKO = composeFormText{
 	OMPRewrite:         "OMP 설정은 autopus.yaml 전체를 다시 씁니다: 주석과 서식이 바뀔 수 있습니다(값은 그대로)",
 	OMPDetectedOnly:    "OMP는 이번 update에서 새로 설치됩니다. 모델은 다음 auto update나 auto quality에서 지정할 수 있습니다.",
 	OMPReloadFailed:    "OMP 설정은 적용됐지만 다시 읽지 못했습니다: %s",
+	OMPThinkingDefault: "프로필 기본값 (%s)",
 	InitOMPUnavailable: "OMP catalog를 읽지 못해 지금은 OMP 모델을 지정할 수 없습니다. init 뒤 auto quality에서 지정할 수 있습니다.",
 	InitOMPApplied:     "OMP 모델 선택을 init 설정에 넣었습니다. 파일 생성 때 함께 씁니다.",
 	Interrupted:        "중단했습니다. 구성을 더 바꾸지 않습니다.",
@@ -51,6 +53,7 @@ var composeFormTextEN = composeFormText{
 	OMPRewrite:         "OMP settings rewrite all of autopus.yaml: comments and layout may change (values do not)",
 	OMPDetectedOnly:    "OMP is installed by this update; set its models with the next auto update or auto quality.",
 	OMPReloadFailed:    "OMP settings were applied but could not be re-read: %s",
+	OMPThinkingDefault: "profile default (%s)",
 	InitOMPUnavailable: "Could not read the OMP catalog, so OMP models cannot be set now; set them after init with auto quality.",
 	InitOMPApplied:     "OMP model choice added to the init config; it is written with the platform files.",
 	Interrupted:        "Interrupted; the composition is not changed further.",

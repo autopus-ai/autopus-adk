@@ -84,6 +84,9 @@ func (f *composeFormRun) omp() error {
 	if err != nil {
 		return err
 	}
+	if mode == ompCustomMode && f.shared.cfg.RoleModelPolicy.OMPAgentSource() == config.OMPAgentSourceAutopus {
+		return f.ompAutopus(name, family, runner)
+	}
 	var pins []string
 	if mode == ompCustomMode {
 		if pins, err = f.ompPins(runner); err != nil {

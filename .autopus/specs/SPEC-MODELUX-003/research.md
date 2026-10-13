@@ -74,7 +74,7 @@ grep: `rg -l 'OMPNativeAgentNames|OMPNativeAgentForRole|OMPNativeAgentRepresenta
 | `internal/cli/quality_compose_table_fixture_test.go` (T7) | fixture | MODELUX-002의 O1·O2는 v0.50.125 OMP fixture라 native 한 줄을 더했다. 표 golden(`quality_compose_table_golden_test.go`)·표 test는 무변경으로 통과한다 |
 | `internal/cli/quality_compose_omp_test.go`, `quality_compose_form_paths_test.go`(composeO3 사용), `quality_compose_form_entry_test.go`, `update_compose_form_test.go`, `update_compose_omp_test.go` (T7) | fixture | MODELUX-002 OMP 탭은 bundled 5개 탭이다. autopus 탭은 T11의 새 test가 판정한다 |
 | `internal/cli/quality_omp_custom_test.go` (T7) | fixture | 줄 OMP 편집기 계약(SPEC: 그대로). autopus에서 같은 catalog는 task 접힘 없이 역할마다 route가 필요하다 |
-| `internal/cli/init_compose_omp_test.go` (T7) | 전환(T11) | init은 config를 새로 만들어 native fixture를 줄 수 없다. S21 init 두 test는 T11의 autopus 탭 입력·기대값으로 바꾸고, native 사본은 둘 수 없다 |
+| `internal/cli/init_compose_omp_test.go` (T7) | 전환(T11) | init은 config를 새로 만들어 native fixture를 줄 수 없다. S21 init 두 test는 T11에서 autopus 탭 입력(에이전트별 → planner)과 기대값(`agents.planner`, 되읽기 `planner`·`task`)으로 바꿨고, native 사본은 둘 수 없다 |
 | `pkg/content/skill_transformer_replace_omp_collapse_test.go` (T8) | option | 은퇴한 역할 이름이 bundled 5개로 접히는 native 렌더 계약이다. `ReplacePlatformReferencesWith`에 native option을 주고 단언은 그대로다. autopus 렌더는 `skill_transformer_replace_omp_mode_test.go`가 판정한다 |
 ## OMP probe 결과 (`evidence/probe-omp-18.6.1.md`)
 | ID | 질문 | 결과 |
