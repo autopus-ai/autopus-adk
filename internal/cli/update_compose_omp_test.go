@@ -47,7 +47,7 @@ func TestUpdateComposeStep_OMPPinSyncsTheLoadedConfig(t *testing.T) {
 	useAccessibleComposeForms(t)
 	deps, activations := composeOMPDeps(ompCLIBalancedCatalogJSON())
 	useComposeUpdateOMPDeps(t, deps)
-	dir := writeComposeFixture(t, "claude-code", "codex", "omp")
+	dir := writeNativeComposeFixture(t, "claude-code", "codex", "omp")
 	cfg, err := config.Load(dir)
 	require.NoError(t, err)
 	cmd, out := newComposeTestCommand()
@@ -76,7 +76,7 @@ func TestUpdateCompose_OMPPinSurvivesTheDetectionSaveAndGeneration(t *testing.T)
 	deps, activations := composeOMPDeps(ompCLIBalancedCatalogJSON())
 	useComposeUpdateOMPDeps(t, deps)
 	usePlatformOMPModelRunner(t, &ompModelDoctorE2ERunner{catalog: ompCLIProfileNativeCatalogJSON()})
-	dir := writeComposeFixture(t, "claude-code", "codex", "omp")
+	dir := writeNativeComposeFixture(t, "claude-code", "codex", "omp")
 
 	out, err := runComposeUpdate(t, formInput("2\n", "4\n", "4\n", "1\n", "5\n", "2\n", "1\n", "\n", "2\n", "\n"), "--dir", dir)
 

@@ -67,6 +67,7 @@ func TestOMPStatusNoOptInReportsBundledRegistryAndBareStatusIsCompatible(t *test
 	root := t.TempDir()
 	cfg := config.DefaultFullConfig("omp-status")
 	cfg.Platforms = []string{"omp"}
+	cfg.RoleModelPolicy.AgentSource = config.OMPAgentSourceNative
 	require.NoError(t, config.Save(root, cfg))
 	runner := &ompCLIFakeRunner{catalog: ompCLIReadyCatalogJSON()}
 	deps := normalizeOMPPlatformDependencies(ompPlatformDependencies{

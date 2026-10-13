@@ -101,6 +101,7 @@ func TestOMPAgentCatalog_TreatsSymlinkedDefinitionAsShadow(t *testing.T) {
 // native override key. No alias appears because none is emitted any more.
 func TestOMPAgentCatalog_SelectedRoutingOverlaysNativeOverrideAndExactSelector(t *testing.T) {
 	root, runner, _ := writeSelectedOMPProfile(t)
+	markOMPProjectNative(t, root)
 	projection := buildOMPPlatformProjection(context.Background(), root, runner, configTimeForOMPAgentCatalog())
 	natives := config.OMPNativeAgentNames()
 	require.Len(t, projection.Models.Models, len(natives))
@@ -146,6 +147,7 @@ func writeOMPConfigOnlyWorkspace(t *testing.T) string {
 	root := t.TempDir()
 	cfg := config.DefaultFullConfig("omp-agent-catalog")
 	cfg.Platforms = []string{"omp"}
+	cfg.RoleModelPolicy.AgentSource = config.OMPAgentSourceNative
 	require.NoError(t, config.Save(root, cfg))
 	return root
 }

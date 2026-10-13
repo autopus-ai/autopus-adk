@@ -72,6 +72,7 @@ func TestOMPModelDoctor_S7_EmitsOneRoleCheckPerAgent(t *testing.T) {
 	cfg.Quality.Default = "ultra"
 	cfg.RoleModelPolicy = config.RoleModelPolicyConf{
 		Version: config.RoleModelPolicyVersionV1, Profile: "ultra", Family: "anthropic",
+		AgentSource: config.OMPAgentSourceNative,
 	}
 	runner := &ompModelDoctorE2ERunner{catalog: ompModelDoctorPresetCatalogJSON()}
 	_, err := omp.NewWithRoot(root).WithModelIntegrationRunner(runner).

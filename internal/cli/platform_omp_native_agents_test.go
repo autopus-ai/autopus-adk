@@ -164,6 +164,7 @@ func TestOMPProfileAgentOverrideRejectsNamesNoRegistryHas(t *testing.T) {
 // refuse a receipt that omits an agent a phase needs.
 func TestPipelineOMPPhaseModelsCollapseOntoBundledAgents(t *testing.T) {
 	projectDir := t.TempDir()
+	writeNativeOMPProjectConfig(t, projectDir)
 	writeOMPNativePhaseReceipt(t, projectDir, map[string]string{
 		"scout": "provider/scout-model", "reviewer": "provider/review-model",
 		"security-reviewer": "provider/security-model", "task": "provider/task-model",
@@ -184,6 +185,7 @@ func TestPipelineOMPPhaseModelsCollapseOntoBundledAgents(t *testing.T) {
 
 func TestPipelineOMPPhaseModelsRejectReceiptMissingARequiredAgent(t *testing.T) {
 	projectDir := t.TempDir()
+	writeNativeOMPProjectConfig(t, projectDir)
 	writeOMPNativePhaseReceipt(t, projectDir, map[string]string{
 		"scout": "provider/scout-model", "task": "provider/task-model",
 		"sonic": "provider/sonic-model",
@@ -199,6 +201,7 @@ func TestPipelineOMPPhaseModelsRejectReceiptMissingARequiredAgent(t *testing.T) 
 // loader must fail loudly rather than invent a selector for a missing agent.
 func TestPipelineOMPPhaseModelsRejectRetiredRoleKeyedReceipt(t *testing.T) {
 	projectDir := t.TempDir()
+	writeNativeOMPProjectConfig(t, projectDir)
 	writeOMPNativePhaseReceipt(t, projectDir, map[string]string{
 		"planner": "provider/plan-model", "tester": "provider/test-model",
 		"executor": "provider/implement-model", "validator": "provider/validate-model",

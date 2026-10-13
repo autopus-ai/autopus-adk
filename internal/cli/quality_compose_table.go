@@ -205,6 +205,17 @@ func composeTableOMPRoutes(cfg *config.HarnessConfig) func(string) composeTableO
 	if !ok {
 		return unresolved
 	}
+	if !profile.OMPNativeAgentSource() {
+		// Autopus mode routes each agent under its own name.
+		return func(agent string) composeTableOMPCell {
+			_, route, err := profile.OMPAutopusAgentRoute(agent)
+			if err != nil || len(route.Candidates) == 0 {
+				return composeTableOMPCell{unresolved: true}
+			}
+			first := route.Candidates[0]
+			return composeTableOMPCell{native: agent, selector: first.Selector, thinking: first.Thinking}
+		}
+	}
 	return func(agent string) composeTableOMPCell {
 		native, err := config.OMPNativeAgentForRole(agent)
 		if err != nil {

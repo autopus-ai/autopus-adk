@@ -16,6 +16,7 @@ import (
 // base profile instead of inventing a route for them.
 func TestQualityOMPWizardCustomPinsChosenModelPerBundledAgent(t *testing.T) {
 	dir, runner := qualityOMPWizardFixture(t)
+	markOMPProjectNative(t, dir)
 	runner.catalog = ompCLIBalancedCatalogJSON()
 
 	// custom -> task: model 3 (openai-codex/gpt-6-astra) at thinking max;

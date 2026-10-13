@@ -19,6 +19,7 @@ import (
 // observed metadata. Without this, --agent is unusable on a real installation.
 func TestOMPProfilePlanAcceptsAgentPinOnNativeCatalogWithoutSemanticMetadata(t *testing.T) {
 	root, runner := writeOMPBalancedProject(t)
+	markOMPProjectNative(t, root)
 	runner.catalog = ompCLIProfileNativeCatalogJSON()
 	strict, reason := omp.NormalizeOMPModelCatalog(runner.catalog, 1<<20)
 	require.Equal(t, "catalog_metadata_insufficient", reason)
@@ -130,7 +131,7 @@ func TestOMPProfilePlanAttestsPinFromExplicitProfileDeclaration(t *testing.T) {
 	cfg := config.DefaultFullConfig("omp-native-custom")
 	cfg.Platforms = []string{"omp"}
 	cfg.RoleModelPolicy = config.RoleModelPolicyConf{
-		Version: config.RoleModelPolicyVersionV1, Profile: "house",
+		Version: config.RoleModelPolicyVersionV1, Profile: "house", AgentSource: config.OMPAgentSourceNative,
 		Profiles: map[string]config.RoleModelProfileConf{
 			"house": nativeOMPHouseProfile(),
 		},

@@ -262,5 +262,15 @@ func seedUserState(root string) error {
 	if err := os.WriteFile(filepath.Join(claudeDir, "statusline-user-command.txt"), []byte("echo drift-seed\n"), 0o644); err != nil {
 		return err
 	}
+	// The OMP project config holds the user's keys next to the claims ADK
+	// merges in, and the ownership ledger commits to them: neither is a pure
+	// function of templates and config.
+	ompDir := filepath.Join(root, ".omp")
+	if err := os.MkdirAll(ompDir, 0o700); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(ompDir, "config.yml"), []byte("theme: drift-seed\n"), 0o600); err != nil {
+		return err
+	}
 	return os.WriteFile(filepath.Join(root, "CLAUDE.md"), []byte("# user preface\n"), 0o644)
 }

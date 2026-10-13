@@ -15,7 +15,7 @@ func buildOMPPlatformProjection(
 	now time.Time,
 ) ompPlatformProjection {
 	projection := defaultOMPPlatformProjection()
-	rows, agentCatalog := buildOMPAgentCatalog(root)
+	rows, agentCatalog := buildOMPAgentCatalog(root, nil)
 	projection.Models = newOMPModelOperatorProjection(rows, agentCatalog)
 	if now.IsZero() {
 		now = time.Now().UTC()
@@ -39,6 +39,8 @@ func buildOMPPlatformProjection(
 		return projection
 	}
 	projection.Configured = true
+	rows, agentCatalog = buildOMPAgentCatalog(root, cfg)
+	projection.Models = newOMPModelOperatorProjection(rows, agentCatalog)
 	projection.Models = buildOMPModelOperatorProjection(ctx, root, cfg, runner, projection.Models)
 	projection.Context = buildOMPContextOperatorProjection(ctx, root, cfg, runner, now)
 	projection.ChildRuntime.EvidenceSource = projection.Context.EvidenceSource
@@ -135,9 +137,10 @@ func buildOMPContextOperatorProjection(
 
 func collectOMPOperatorBlockers(projection ompPlatformProjection) []string {
 	var blockers []string
-	// OMP owns the bundled agent registry, so a missing local definition is the
-	// expected state and never blocks. A project file that shadows a bundled
-	// agent is a real degradation the operator has to see.
+	// In native mode OMP owns the bundled agent registry, so a missing local
+	// definition is the expected state and a project file that shadows a
+	// bundled agent is the degradation. In autopus mode a missing generated
+	// definition and a user-owned task.disabledAgents are.
 	if projection.Models.AgentCatalogStatus == "degraded" {
 		blockers = appendUniqueOMPBlocker(blockers, "agents:"+projection.Models.AgentCatalogReason)
 	}

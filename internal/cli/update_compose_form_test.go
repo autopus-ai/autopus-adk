@@ -143,7 +143,7 @@ func TestUpdateComposeForms_FailedOMPReReadEndsTheUpdate(t *testing.T) {
 	original := composeReloadConfig
 	t.Cleanup(func() { composeReloadConfig = original })
 	composeReloadConfig = func(string) (*config.HarnessConfig, error) { return nil, errors.New("disk gone") }
-	dir := writeComposeFixture(t, "claude-code", "codex", "omp")
+	dir := writeNativeComposeFixture(t, "claude-code", "codex", "omp")
 
 	out, err := runComposeUpdate(t, formInput(composeUpdateS8...), "--dir", dir)
 

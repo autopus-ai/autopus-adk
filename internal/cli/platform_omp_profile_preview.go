@@ -64,6 +64,7 @@ type ompProfileApplyPreviewPayload struct {
 	Persisted          ompProfilePersistedPayload       `json:"persisted" yaml:"persisted"`
 	Agents             []ompProfileAgentPreviewPayload  `json:"agents" yaml:"agents"`
 	Blockers           []string                         `json:"blockers" yaml:"blockers"`
+	Warnings           []string                         `json:"warnings,omitempty" yaml:"warnings,omitempty"`
 }
 
 type ompProfileUnavailableError struct {
@@ -75,10 +76,11 @@ func (e ompProfileUnavailableError) Error() string {
 }
 
 // buildOMPProfileAgentPreview projects one compiled routing resolution per
-// bundled native OMP agent in registry order, together with the blockers that
-// must stop an apply before it writes anything. OMP registers five agents, so
-// several logical roles collapse onto one row; the policy owns that collapse
-// and rejects two operator-written routes that land on the same agent.
+// agent the profile's source serves, in rank order, together with the
+// blockers that must stop an apply before it writes anything. In native mode
+// OMP registers five agents, so several logical roles collapse onto one row;
+// the policy owns that collapse and rejects two operator-written routes that
+// land on the same agent. In autopus mode every agent has its own row.
 func buildOMPProfileAgentPreview(
 	effective ompProfileEffectiveConfig,
 	catalog omp.OMPModelCatalog,
@@ -87,11 +89,11 @@ func buildOMPProfileAgentPreview(
 	for _, resolution := range compileOMPModelDoctorRouting(effective.profile, catalog).Resolutions {
 		resolved[resolution.Agent] = resolution
 	}
-	natives := config.OMPNativeAgentNames()
-	rows := make([]ompProfileAgentPreviewPayload, 0, len(natives))
+	agents := effective.profile.OMPAgentNames()
+	rows := make([]ompProfileAgentPreviewPayload, 0, len(agents))
 	blockers := make([]string, 0)
-	for _, native := range natives {
-		policy, route, err := effective.profile.OMPNativeAgentRoute(native)
+	for _, native := range agents {
+		policy, route, err := effective.profile.OMPAgentRoute(native)
 		if err != nil {
 			blockers = append(blockers, err.Error())
 			continue
@@ -181,7 +183,18 @@ func newOMPProfileApplyPreviewPayload(
 		},
 		Agents:   resolution.agents,
 		Blockers: append([]string(nil), resolution.blockers...),
+		Warnings: ompProfileRouteWarnings(effective.profile),
 	}
+}
+
+// ompProfileRouteWarnings names pins the served agent set cannot route:
+// autopus mode disables sonic, so an agents.sonic pin reaches no agent.
+func ompProfileRouteWarnings(profile config.RoleModelProfileConf) []string {
+	if profile.OMPNativeAgentSource() || !profile.OperatorAgents["sonic"] ||
+		len(profile.Agents["sonic"].Candidates) == 0 {
+		return nil
+	}
+	return []string{"role_model_policy.agents.sonic pins a model, but autopus mode disables sonic, so no agent receives it"}
 }
 
 // renderOMPProfileApplyPreviewText prints every agent route plus the exact
@@ -212,6 +225,9 @@ func renderOMPProfileApplyPreviewText(cmd *cobra.Command, payload ompProfileAppl
 	_, _ = fmt.Fprintf(
 		out, "Blockers: %s\n", ompProfileDisplayValue(strings.Join(payload.Blockers, "; "), "none"),
 	)
+	for _, warning := range payload.Warnings {
+		_, _ = fmt.Fprintf(out, "Warning: %s\n", warning)
+	}
 }
 
 func renderOMPProfileAgentPreviewRow(out io.Writer, row ompProfileAgentPreviewPayload) {

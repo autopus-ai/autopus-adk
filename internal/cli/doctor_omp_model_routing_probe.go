@@ -124,10 +124,10 @@ func buildOMPModelDoctorInput(
 }
 
 // compileOMPModelDoctorRouting mirrors the generation bridge for doctor rows:
-// one route per bundled native OMP agent, keyed by the native name, carrying
-// the semantic role and capability of the logical role that supplied it. A
-// native agent whose governing role the profile does not declare is skipped so
-// a partial profile still reports.
+// one route per agent the profile's source serves, keyed by the name OMP binds
+// a model to, carrying the semantic role and capability of the logical role
+// that supplied it. An agent whose route the profile cannot resolve is skipped
+// so a partial profile still reports.
 func compileOMPModelDoctorRouting(
 	profile config.RoleModelProfileConf,
 	catalog omp.OMPModelCatalog,
@@ -139,14 +139,14 @@ func compileOMPModelDoctorRouting(
 			diverseRoles[role] = struct{}{}
 		}
 	}
-	for _, native := range config.OMPNativeAgentNames() {
-		policy, route, err := profile.OMPNativeAgentRoute(native)
+	for _, agent := range profile.OMPAgentNames() {
+		policy, route, err := profile.OMPAgentRoute(agent)
 		if err != nil {
 			continue
 		}
 		_, preferDistinctFamily := diverseRoles[policy.Role]
 		request := omp.OMPModelRouteRequest{
-			Agent: native, Role: policy.Role, Capability: policy.Capability,
+			Agent: agent, Role: policy.Role, Capability: policy.Capability,
 			Required: route.Required, DegradedAction: route.DegradedAction,
 			PreferDistinctExecutorFamily: preferDistinctFamily,
 		}
@@ -155,11 +155,11 @@ func compileOMPModelDoctorRouting(
 				Selector: candidate.Selector, Thinking: candidate.Thinking, Family: candidate.Family,
 			})
 		}
-		routes[native] = request
+		routes[agent] = request
 	}
 	omp.DegradeUnservedDerivedOMPRoutes(profile, catalog, routes)
 	return omp.CompileOMPModelRouting(omp.OMPModelRoutingInput{
-		Catalog: catalog, CatalogReason: "catalog_ready", Routes: routes,
+		Catalog: catalog, CatalogReason: "catalog_ready", Routes: routes, AgentSource: profile.AgentSource,
 	})
 }
 

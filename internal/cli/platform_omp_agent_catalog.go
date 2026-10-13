@@ -8,10 +8,13 @@ import (
 	"github.com/insajin/autopus-adk/pkg/config"
 )
 
-// ompNativeAgentRegistrySource names where OMP agents come from. Autopus
-// installs no agent definition file, so a row's identity is the bundled
-// registry entry, never a generated document.
+// ompNativeAgentRegistrySource names where OMP agents come from in native
+// mode, and where task comes from in autopus mode: the bundled registry.
 const ompNativeAgentRegistrySource = "omp_bundled_registry"
+
+// ompAutopusAgentRegistrySource names the generated .omp/agents definitions
+// autopus mode serves the canonical agents from.
+const ompAutopusAgentRegistrySource = "autopus_generated"
 
 type ompAgentCatalogSummary struct {
 	Status   string
@@ -39,7 +42,10 @@ func newOMPModelOperatorProjection(
 // OMP agent. Nothing is counted on disk because Autopus installs no agent
 // definition: the only locally observable fact is whether a project file
 // shadows a bundled agent, which is reported instead of guessed at.
-func buildOMPAgentCatalog(root string) ([]ompEffectiveModelProjection, ompAgentCatalogSummary) {
+func buildOMPAgentCatalog(root string, cfg *config.HarnessConfig) ([]ompEffectiveModelProjection, ompAgentCatalogSummary) {
+	if cfg != nil && cfg.RoleModelPolicy.OMPAgentSource() == config.OMPAgentSourceAutopus {
+		return buildOMPAutopusAgentCatalog(root, cfg)
+	}
 	natives := config.OMPNativeAgentNames()
 	rows := make([]ompEffectiveModelProjection, 0, len(natives))
 	summary := ompAgentCatalogSummary{
@@ -63,6 +69,43 @@ func buildOMPAgentCatalog(root string) ([]ompEffectiveModelProjection, ompAgentC
 	}
 	if summary.Shadowed > 0 {
 		summary.Status, summary.Reason = "degraded", "native_agent_shadowed"
+	}
+	return rows, summary
+}
+
+// buildOMPAutopusAgentCatalog projects one inherited baseline row per agent
+// autopus mode serves. A generated definition under its own name is the agent,
+// not a shadow; a missing one and a user-owned task.disabledAgents, which keeps
+// three bundled agents enabled, are the degradations an operator has to see.
+func buildOMPAutopusAgentCatalog(root string, cfg *config.HarnessConfig) ([]ompEffectiveModelProjection, ompAgentCatalogSummary) {
+	agents := config.OMPAutopusAgentNames()
+	rows := make([]ompEffectiveModelProjection, 0, len(agents))
+	summary := ompAgentCatalogSummary{
+		Expected: len(agents), Source: ompAutopusAgentRegistrySource,
+		Status: "ready", Reason: "autopus_agent_registry",
+	}
+	for _, agent := range agents {
+		source := ompAutopusAgentRegistrySource
+		if agent == config.OMPAutopusDefaultAgent {
+			source = ompNativeAgentRegistrySource
+		}
+		row := ompEffectiveModelProjection{
+			Agent: agent, ModelSource: "inherit", Source: source, ConfigSource: "inherited",
+			Status: "inherited", Reason: "profile_not_selected", FallbackAttempts: []ompFallbackProjection{},
+		}
+		if policy, err := config.ResolveOMPPolicyAgent(agent); err == nil {
+			row.Role, row.Capability = policy.Role, policy.Capability
+		}
+		rows = append(rows, row)
+	}
+	report, err := omp.InspectOMPAgentSurface(root, cfg)
+	switch {
+	case err != nil:
+		summary.Status, summary.Reason = "degraded", "agent_surface_unreadable"
+	case len(report.MissingAgents) > 0:
+		summary.Status, summary.Reason = "degraded", "autopus_agent_missing"
+	case report.DisabledAgentsUserOwned:
+		summary.Status, summary.Reason = "degraded", "disabled_agents_user_owned"
 	}
 	return rows, summary
 }

@@ -61,6 +61,7 @@ func orcaCanonicalModelRoles() []ompadapter.OMPModelRoleReceipt {
 // opaque model id and effort cross to orca.
 func TestLoadPipelineOrcaPhaseLaunch_UsesModelAndEffortNotSelector(t *testing.T) {
 	root := t.TempDir()
+	writeNativeOMPProjectConfig(t, root)
 	writePipelineOrcaModelReceipt(t, root, orcaCanonicalModelRoles())
 
 	launches, err := loadPipelineOrcaPhaseLaunch(root)
@@ -83,6 +84,7 @@ func TestLoadPipelineOrcaPhaseLaunch_UsesModelAndEffortNotSelector(t *testing.T)
 func TestLoadPipelineOrcaPhaseLaunch_FailsClosed(t *testing.T) {
 	t.Run("unknown provider", func(t *testing.T) {
 		root := t.TempDir()
+		writeNativeOMPProjectConfig(t, root)
 		roles := orcaCanonicalModelRoles()
 		roles[0] = orcaModelRole("task", "mystery-vendor", "mystery-1", "high")
 		writePipelineOrcaModelReceipt(t, root, roles)
@@ -93,6 +95,7 @@ func TestLoadPipelineOrcaPhaseLaunch_FailsClosed(t *testing.T) {
 
 	t.Run("incomplete phase coverage", func(t *testing.T) {
 		root := t.TempDir()
+		writeNativeOMPProjectConfig(t, root)
 		writePipelineOrcaModelReceipt(t, root, orcaCanonicalModelRoles()[:1])
 
 		_, err := loadPipelineOrcaPhaseLaunch(root)
@@ -105,6 +108,7 @@ func TestLoadPipelineOrcaPhaseLaunch_FailsClosed(t *testing.T) {
 // and it is detected before any receipt is read.
 func TestNewPipelineOrcaBackendForRun_ChecksOrcaBeforeAnythingElse(t *testing.T) {
 	root := t.TempDir()
+	writeNativeOMPProjectConfig(t, root)
 	writePipelineOrcaModelReceipt(t, root, orcaCanonicalModelRoles())
 	resolved := resolvedPipelineSpec{Dir: root, Path: filepath.Join(root, "spec.md"), SnapshotHash: "snap"}
 

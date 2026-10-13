@@ -72,6 +72,10 @@ func loadPipelineOMPPhaseModelsWithAuthority(
 	if receipt.OMPVersion != observedVersion {
 		return nil, fmt.Errorf("OMP model receipt version does not match installed executable")
 	}
+	source, err := ompPipelineAgentSource(projectDir)
+	if err != nil {
+		return nil, err
+	}
 	models := make(map[pipeline.PhaseID]string, len(ompPipelinePhaseRoles))
 	selectors := make(map[string]string, len(receipt.Roles))
 	for _, role := range receipt.Roles {
@@ -80,24 +84,49 @@ func loadPipelineOMPPhaseModelsWithAuthority(
 		}
 		selectors[role.Agent] = role.Selector
 	}
-	// Several phases legitimately share one bundled agent, so the receipt is
-	// keyed by native agent and a phase resolves through the same collapse the
-	// generated workflows use. A phase whose agent the receipt omits fails
-	// closed instead of inheriting an unrelated selector.
+	// In native mode several phases legitimately share one bundled agent, so
+	// a phase resolves through the same collapse the generated workflows use;
+	// in autopus mode each phase runs on the agent of its own role. A phase
+	// whose agent the receipt omits fails closed instead of inheriting an
+	// unrelated selector.
 	for role, phase := range ompPipelinePhaseRoles {
-		native, err := config.OMPNativeAgentForRole(role)
+		agent, err := ompPipelinePhaseAgent(role, source)
 		if err != nil {
 			return nil, err
 		}
-		selector, resolved := selectors[native]
+		selector, resolved := selectors[agent]
 		if !resolved || strings.TrimSpace(selector) == "" {
-			return nil, fmt.Errorf(
-				"OMP model receipt has no route for native agent %s required by phase %s", native, phase,
-			)
+			return nil, ompPipelineMissingRouteError(source, agent, phase)
 		}
 		models[phase] = selector
 	}
 	return models, nil
+}
+
+// ompPipelineAgentSource reads the agent source the project's OMP files were
+// generated for; the receipt alone cannot tell a retired role-keyed receipt
+// from an autopus one.
+func ompPipelineAgentSource(projectDir string) (string, error) {
+	cfg, err := config.LoadPreview(projectDir)
+	if err != nil {
+		return "", err
+	}
+	return cfg.RoleModelPolicy.OMPAgentSource(), nil
+}
+
+// ompPipelinePhaseAgent names the OMP agent that runs a phase's role.
+func ompPipelinePhaseAgent(role, source string) (string, error) {
+	if source == config.OMPAgentSourceNative {
+		return config.OMPNativeAgentForRole(role)
+	}
+	return role, nil
+}
+
+func ompPipelineMissingRouteError(source, agent string, phase pipeline.PhaseID) error {
+	if source == config.OMPAgentSourceNative {
+		return fmt.Errorf("OMP model receipt has no route for native agent %s required by phase %s", agent, phase)
+	}
+	return fmt.Errorf("OMP model receipt has no route for agent %s required by phase %s", agent, phase)
 }
 
 // ompPipelinePhaseRoles maps each canonical pipeline phase onto the logical

@@ -57,7 +57,7 @@ func runComposeOMPForms(t *testing.T, dir string, deps ompPlatformDependencies, 
 // next already reads the synced role_model_policy.
 func TestComposeOMPTab_PinAppliesThroughTheOMPWriterAndSyncs(t *testing.T) {
 	composeSessionCatalog(t, "CAT-A")
-	dir := writeComposeFixture(t, "claude-code", "codex", "omp")
+	dir := writeNativeComposeFixture(t, "claude-code", "codex", "omp")
 	before := readBlockFixture(t, dir)
 	deps, activations := composeOMPDeps(ompCLIBalancedCatalogJSON())
 
@@ -89,7 +89,7 @@ func TestComposeOMPTab_PinAppliesThroughTheOMPWriterAndSyncs(t *testing.T) {
 // ends the step with the reload error; the file keeps the applied policy.
 func TestComposeOMPTab_FailedReReadEndsTheStep(t *testing.T) {
 	composeSessionCatalog(t, "CAT-A")
-	dir := writeComposeFixture(t, "claude-code", "codex", "omp")
+	dir := writeNativeComposeFixture(t, "claude-code", "codex", "omp")
 	deps, _ := composeOMPDeps(ompCLIBalancedCatalogJSON())
 	original := composeReloadConfig
 	t.Cleanup(func() { composeReloadConfig = original })
@@ -164,7 +164,7 @@ func TestComposeOMPTab_DetectedOnlyOMPGetsTheNoticeOnce(t *testing.T) {
 
 func composeO3(t *testing.T) string {
 	t.Helper()
-	return writeComposeFixture(t, "claude-code", "codex", "omp")
+	return writeNativeComposeFixture(t, "claude-code", "codex", "omp")
 }
 
 // writeComposeO4 is O3 with a role_model_policy whose family line reads

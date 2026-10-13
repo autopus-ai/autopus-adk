@@ -69,6 +69,12 @@ grep: `rg -l 'OMPNativeAgentNames|OMPNativeAgentForRole|OMPNativeAgentRepresenta
 | `pkg/adapter/omp/omp_acceptance_ownership_test.go` (T5) | fixture | legacy marker config migration 계약 |
 | `pkg/adapter/omp/omp_model_integration_lifecycle_test.go` (T5) | fixture | project-managed → overlay에서 config가 사라지는 v0.50.125 release 계약. autopus는 S22(c)가 `task.disabledAgents`만 남는 것을 판정한다 |
 | `pkg/adapter/omp/omp_latest_contract_test.go` (T5) | fixture | `AllowsMissingBaseConfigButRejectsWeakSensitivePermissions`는 base config가 없는 plain install 계약이다 |
+| `internal/cli/pipeline_backend_omp_security_test.go`, `pipeline_backend_orca_models_test.go` (T7) | fixture | native 접힘 receipt 자료다. phase agent는 이제 project config의 source로 정하므로 receipt fixture에 native config 한 줄을 더했다 |
+| `internal/cli/platform_omp_profile_native_test.go`, `platform_omp_status_test.go` (T7) | fixture | bundled registry 행·접힌 task 행의 native 계약이다 |
+| `internal/cli/quality_compose_table_fixture_test.go` (T7) | fixture | MODELUX-002의 O1·O2는 v0.50.125 OMP fixture라 native 한 줄을 더했다. 표 golden(`quality_compose_table_golden_test.go`)·표 test는 무변경으로 통과한다 |
+| `internal/cli/quality_compose_omp_test.go`, `quality_compose_form_paths_test.go`(composeO3 사용), `quality_compose_form_entry_test.go`, `update_compose_form_test.go`, `update_compose_omp_test.go` (T7) | fixture | MODELUX-002 OMP 탭은 bundled 5개 탭이다. autopus 탭은 T11의 새 test가 판정한다 |
+| `internal/cli/quality_omp_custom_test.go` (T7) | fixture | 줄 OMP 편집기 계약(SPEC: 그대로). autopus에서 같은 catalog는 task 접힘 없이 역할마다 route가 필요하다 |
+| `internal/cli/init_compose_omp_test.go` (T7) | 전환(T11) | init은 config를 새로 만들어 native fixture를 줄 수 없다. S21 init 두 test는 T11의 autopus 탭 입력·기대값으로 바꾸고, native 사본은 둘 수 없다 |
 ## OMP probe 결과 (`evidence/probe-omp-18.6.1.md`)
 | ID | 질문 | 결과 |
 |---|---|---|

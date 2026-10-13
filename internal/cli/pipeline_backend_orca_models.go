@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	ompadapter "github.com/insajin/autopus-adk/pkg/adapter/omp"
-	"github.com/insajin/autopus-adk/pkg/config"
 	"github.com/insajin/autopus-adk/pkg/orcarun"
 	"github.com/insajin/autopus-adk/pkg/pipeline"
 )
@@ -56,6 +55,10 @@ func loadPipelineOrcaPhaseLaunch(projectDir string) (map[pipeline.PhaseID]orcaru
 		}
 		return nil, err
 	}
+	source, err := ompPipelineAgentSource(projectDir)
+	if err != nil {
+		return nil, err
+	}
 	rows := make(map[string]ompadapter.OMPModelRoleReceipt, len(receipt.Roles))
 	for _, row := range receipt.Roles {
 		if previous, duplicate := rows[row.Agent]; duplicate && previous.Selector != row.Selector {
@@ -65,15 +68,13 @@ func loadPipelineOrcaPhaseLaunch(projectDir string) (map[pipeline.PhaseID]orcaru
 	}
 	launches := make(map[pipeline.PhaseID]orcarun.Launch, len(ompPipelinePhaseRoles))
 	for role, phase := range ompPipelinePhaseRoles {
-		native, err := config.OMPNativeAgentForRole(role)
+		native, err := ompPipelinePhaseAgent(role, source)
 		if err != nil {
 			return nil, err
 		}
 		row, resolved := rows[native]
 		if !resolved {
-			return nil, fmt.Errorf(
-				"OMP model receipt has no route for native agent %s required by phase %s", native, phase,
-			)
+			return nil, ompPipelineMissingRouteError(source, native, phase)
 		}
 		agent, known := pipelineOrcaProviderAgents[row.Provider]
 		if !known {

@@ -77,6 +77,7 @@ func composeTableFixture(t *testing.T, name string) *config.HarnessConfig {
 		case "O1":
 			cfg.Platforms = append(cfg.Platforms, "omp")
 			cfg.RoleModelPolicy.Profile = "balanced"
+			cfg.RoleModelPolicy.AgentSource = config.OMPAgentSourceNative
 		case "K":
 			cfg.Quality.Presets["custom"] = config.QualityPreset{Description: "역할 그룹 구성", Agents: composeTableK}
 			cfg.Quality.Default = "custom"
@@ -94,6 +95,7 @@ func composeTableFixture(t *testing.T, name string) *config.HarnessConfig {
 			cfg.Platforms = []string{"claude-code", "codex"}
 		case "O2":
 			cfg.RoleModelPolicy.Profile = "ultra"
+			cfg.RoleModelPolicy.AgentSource = config.OMPAgentSourceNative
 		case "X":
 			ultra := cfg.Quality.Presets["ultra"]
 			cfg.Quality.Presets["ultra"] = withComposeTableAgents(ultra, ultra.Agents, map[string]string{"tester": "gpt"})

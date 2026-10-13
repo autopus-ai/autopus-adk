@@ -53,6 +53,7 @@ func TestLoadPipelineOMPPhaseModels_RequiresExactInstalledVersion(t *testing.T) 
 		t.Skip("fixture executable uses a POSIX launcher")
 	}
 	projectDir := t.TempDir()
+	writeNativeOMPProjectConfig(t, projectDir)
 	writePipelineOMPModelReceipt(t, projectDir, "omp/17.1.8")
 
 	models, err := loadPipelineOMPPhaseModels(projectDir, writePipelineOMPVersionFixture(t, "omp/17.1.8"))
