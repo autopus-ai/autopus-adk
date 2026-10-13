@@ -1,6 +1,7 @@
 package omp
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"sort"
 
@@ -144,7 +145,11 @@ func nextOMPClaimLedger(
 	if claimDA || !hasProfile {
 		original, originalMissing = state.preimage, state.preimageMissing
 	}
-	ownership, _, err := newOMPModelProjectOwnership(original, originalMissing, emission.bytes, fingerprints)
+	start := newOMPModelProjectOwnership
+	if !hasProfile {
+		start = newOMPAgentSurfaceOwnership
+	}
+	ownership, _, err := start(original, originalMissing, emission.bytes, fingerprints)
 	if err != nil {
 		return ompModelProjectOwnership{}, nil, err
 	}
@@ -176,4 +181,67 @@ func requireOMPProjectReleaseReceiptAt(workspace *ompRootedWorkspace, ownership 
 		return fmt.Errorf("managed_key_conflict: project ownership receipt mismatch")
 	}
 	return nil
+}
+
+// newOMPAgentSurfaceOwnership starts a ledger that claims only the agent
+// surface. Its salt is derived from the preimage, so the same project state
+// always yields the same ledger bytes and a generated tree stays a pure
+// function of its inputs. The salt hides nothing here that the owner-only
+// transaction backups of the same preimage do not already hold, and no
+// transaction chain is walked back to this ledger's origin.
+func newOMPAgentSurfaceOwnership(
+	original []byte,
+	originalMissing bool,
+	emitted []byte,
+	fingerprints map[string]string,
+) (ompModelProjectOwnership, []byte, error) {
+	salt := sha256.Sum256(append(append([]byte("autopus.omp.agent-surface-salt.v1\x00"),
+		ompModelProjectCommitmentMarker(originalMissing)...), original...))
+	return newOMPModelProjectOwnershipWithSalt(salt[:], original, originalMissing, emitted, fingerprints)
+}
+
+func validOMPModelProjectKeyOwner(key ompModelProjectOwnedKey) bool {
+	switch key.Owner {
+	case "":
+		return key.PriorFingerprint == ""
+	case ompAgentSurfaceOwner:
+		return key.Path == ompDisabledAgentsKey && validOMPModelHash(key.PriorFingerprint)
+	}
+	return false
+}
+
+// markerOnly reports a ledger that only remembers a user-owned
+// task.disabledAgents: it manages no key and so restores nothing.
+func (o ompModelProjectOwnership) markerOnly() bool {
+	return o.AgentSurfaceUserOwned && o.AgentSurfaceEmitted == nil && o.Salt == "" &&
+		o.OriginalCommitment == "" && o.InitialEmittedCommitment == "" && o.LastEmittedCommitment == "" &&
+		!o.OriginalMissing && len(o.InitialManagedKeys) == 0 && len(o.ManagedKeys) == 0
+}
+
+func newOMPMarkerOnlyOwnership() (ompModelProjectOwnership, []byte, error) {
+	return canonicalOMPModelProjectOwnership(ompModelProjectOwnership{AgentSurfaceUserOwned: true})
+}
+
+func (o ompModelProjectOwnership) agentSurfaceKey() (ompModelProjectOwnedKey, bool) {
+	return ompAgentSurfaceKeyIn(o.ManagedKeys)
+}
+
+func ompAgentSurfaceKeyIn(keys []ompModelProjectOwnedKey) (ompModelProjectOwnedKey, bool) {
+	for _, key := range keys {
+		if key.Owner == ompAgentSurfaceOwner {
+			return key, true
+		}
+	}
+	return ompModelProjectOwnedKey{}, false
+}
+
+// hasProfileClaims reports a ledger whose preimage is only recoverable from
+// the transaction chain, because a profile claim may own any key's value.
+func (o ompModelProjectOwnership) hasProfileClaims() bool {
+	for _, key := range o.ManagedKeys {
+		if key.Owner == "" {
+			return true
+		}
+	}
+	return false
 }

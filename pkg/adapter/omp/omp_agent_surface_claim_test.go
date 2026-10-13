@@ -221,3 +221,17 @@ func TestOMPClaimSet_SkipsAConfigTheParserRefuses(t *testing.T) {
 		assert.NotZero(t, info.Mode()&os.ModeSymlink, "the link itself is left in place")
 	})
 }
+
+// A fresh generation is a pure function of templates, config, and the
+// existing files: two projects in the same state get the same ledger bytes.
+func TestOMPClaimSet_AgentSurfaceLedgerIsDeterministic(t *testing.T) {
+	first, second := newClaimProject(t), newClaimProject(t)
+	for _, project := range []*claimProject{first, second} {
+		project.write(configFile, "theme:\n  dark: user-theme\n")
+		project.mustRun("generate", configForOMP())
+	}
+	left, ok := first.read(OMPModelProjectOwnershipRelativePath)
+	require.True(t, ok)
+	right, _ := second.read(OMPModelProjectOwnershipRelativePath)
+	assert.Equal(t, left, right)
+}

@@ -80,6 +80,16 @@ func newOMPModelProjectOwnership(
 	if _, err := rand.Read(saltBytes); err != nil {
 		return ompModelProjectOwnership{}, nil, fmt.Errorf("generate project ownership salt: %w", err)
 	}
+	return newOMPModelProjectOwnershipWithSalt(saltBytes, original, originalMissing, emitted, fingerprints)
+}
+
+func newOMPModelProjectOwnershipWithSalt(
+	saltBytes []byte,
+	original []byte,
+	originalMissing bool,
+	emitted []byte,
+	fingerprints map[string]string,
+) (ompModelProjectOwnership, []byte, error) {
 	keys := ompModelProjectOwnedKeys(fingerprints)
 	ownership := ompModelProjectOwnership{
 		SchemaVersion: ompModelProjectOwnershipSchema,
@@ -208,52 +218,6 @@ func validateOMPModelProjectOwnership(ownership ompModelProjectOwnership) error 
 	return nil
 }
 
-func validOMPModelProjectKeyOwner(key ompModelProjectOwnedKey) bool {
-	switch key.Owner {
-	case "":
-		return key.PriorFingerprint == ""
-	case ompAgentSurfaceOwner:
-		return key.Path == ompDisabledAgentsKey && validOMPModelHash(key.PriorFingerprint)
-	}
-	return false
-}
-
-// markerOnly reports a ledger that only remembers a user-owned
-// task.disabledAgents: it manages no key and so restores nothing.
-func (o ompModelProjectOwnership) markerOnly() bool {
-	return o.AgentSurfaceUserOwned && o.AgentSurfaceEmitted == nil && o.Salt == "" &&
-		o.OriginalCommitment == "" && o.InitialEmittedCommitment == "" && o.LastEmittedCommitment == "" &&
-		!o.OriginalMissing && len(o.InitialManagedKeys) == 0 && len(o.ManagedKeys) == 0
-}
-
-func newOMPMarkerOnlyOwnership() (ompModelProjectOwnership, []byte, error) {
-	return canonicalOMPModelProjectOwnership(ompModelProjectOwnership{AgentSurfaceUserOwned: true})
-}
-
-func (o ompModelProjectOwnership) agentSurfaceKey() (ompModelProjectOwnedKey, bool) {
-	return ompAgentSurfaceKeyIn(o.ManagedKeys)
-}
-
-func ompAgentSurfaceKeyIn(keys []ompModelProjectOwnedKey) (ompModelProjectOwnedKey, bool) {
-	for _, key := range keys {
-		if key.Owner == ompAgentSurfaceOwner {
-			return key, true
-		}
-	}
-	return ompModelProjectOwnedKey{}, false
-}
-
-// hasProfileClaims reports a ledger whose preimage is only recoverable from
-// the transaction chain, because a profile claim may own any key's value.
-func (o ompModelProjectOwnership) hasProfileClaims() bool {
-	for _, key := range o.ManagedKeys {
-		if key.Owner == "" {
-			return true
-		}
-	}
-	return false
-}
-
 func decodeOMPModelProjectSalt(value string) ([]byte, error) {
 	decoded, err := hex.DecodeString(value)
 	if err != nil || len(decoded) != 32 {
@@ -263,12 +227,16 @@ func decodeOMPModelProjectSalt(value string) ([]byte, error) {
 }
 
 func ompModelProjectCommitment(salt, data []byte, missing bool) string {
-	marker := []byte("present\x00")
-	if missing {
-		marker = []byte("missing\x00")
-	}
-	payload := append(append(append([]byte("autopus.omp.project-commitment.v1\x00"), salt...), marker...), data...)
+	payload := append(append(append([]byte("autopus.omp.project-commitment.v1\x00"), salt...),
+		ompModelProjectCommitmentMarker(missing)...), data...)
 	return OMPModelSHA256(payload)
+}
+
+func ompModelProjectCommitmentMarker(missing bool) []byte {
+	if missing {
+		return []byte("missing\x00")
+	}
+	return []byte("present\x00")
 }
 
 func ompModelProjectOwnedKeys(values map[string]string) []ompModelProjectOwnedKey {
