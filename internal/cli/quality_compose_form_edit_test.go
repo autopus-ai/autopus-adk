@@ -75,7 +75,7 @@ func TestComposeForms_ClaudeAgentEditBindsClaudeCustom(t *testing.T) {
 	dir := writeComposeFixture(t, "claude-code", "codex")
 
 	_, out, err := runComposeForms(t, newComposeFormSession(t, dir), composeFormOptions{Presets: true},
-		"2\n", "2\n", "2\n", "6\n", "3\n", "\n", "2\n", "\n")
+		"2\n", "2\n", "2\n", "6\n", "3\n", "\n", "\n", "2\n", "\n")
 
 	require.NoError(t, err)
 	lists := strings.Split(out, "에이전트를 고르세요 \n")

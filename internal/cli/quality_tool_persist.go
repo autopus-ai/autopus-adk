@@ -24,6 +24,19 @@ func saveQualityToolPreset(
 	preset string,
 	agents map[string]string,
 ) error {
+	return saveQualityToolPresetEfforts(dir, cfg, tool, preset, agents, nil)
+}
+
+// saveQualityToolPresetEfforts is saveQualityToolPreset whose preset also
+// stores efforts, the explicit efforts of a tool tab's working composition
+// (SPEC-MODELUX-003 REQ-MUX3-04), in the same one block edit.
+func saveQualityToolPresetEfforts(
+	dir string,
+	cfg *config.HarnessConfig,
+	tool qualityModelTool,
+	preset string,
+	agents, efforts map[string]string,
+) error {
 	if !config.IsValidQualityPresetName(preset) {
 		return fmt.Errorf(
 			"invalid quality preset name %q (use 1-64 ASCII letters, digits, hyphens, or underscores)",
@@ -37,25 +50,50 @@ func saveQualityToolPreset(
 		return fmt.Errorf("preset %q would assign no agent a tier", preset)
 	}
 	return saveQualityBlock(dir, cfg, func(quality *config.QualityConf) error {
-		setQualityToolPreset(quality, tool, preset, agents)
+		setQualityToolPreset(quality, tool, preset, agents, efforts)
 		return nil
 	})
 }
 
 // setQualityToolPreset sets the two keys a tool's custom tiers take: the
-// preset holding them, with the tool's description, and the binding of the
-// tool to it. The values come from the tier vocabulary and the tool alone,
-// never from a loaded config.
-func setQualityToolPreset(quality *config.QualityConf, tool qualityModelTool, preset string, agents map[string]string) {
+// preset holding them and efforts, with the tool's description, and the
+// binding of the tool to it. The values come from the tier and effort
+// vocabularies and the tool alone, never from a loaded config.
+func setQualityToolPreset(quality *config.QualityConf, tool qualityModelTool, preset string, agents, efforts map[string]string) {
 	if quality.Presets == nil {
 		quality.Presets = make(map[string]config.QualityPreset, 1)
 	}
 	quality.Presets[preset] = config.QualityPreset{
 		Description: tool.label + " custom agent tiers",
 		Agents:      maps.Clone(agents),
+		Efforts:     presetEfforts(efforts),
 	}
 	if quality.Providers == nil {
 		quality.Providers = make(map[string]string, 1)
 	}
 	quality.Providers[tool.provider] = preset
+}
+
+// presetEfforts is the efforts value a written preset holds: a copy, or nil
+// for none, which the omitempty encoding writes as no key at all.
+func presetEfforts(efforts map[string]string) map[string]string {
+	if len(efforts) == 0 {
+		return nil
+	}
+	return maps.Clone(efforts)
+}
+
+// qualityToolEfforts returns the explicit efforts tool's effective preset
+// stores, each a vocabulary level as AgentEffort reads it, or nil for none.
+func qualityToolEfforts(quality config.QualityConf, tool qualityModelTool) map[string]string {
+	var efforts map[string]string
+	for _, agent := range config.CanonicalAgentNames() {
+		if effort, ok := quality.AgentEffort(tool.provider, agent); ok {
+			if efforts == nil {
+				efforts = make(map[string]string)
+			}
+			efforts[agent] = effort
+		}
+	}
+	return efforts
 }

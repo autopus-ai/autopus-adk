@@ -79,7 +79,7 @@ func TestComposeForms_AppliedEditRedrawsTheTableAndAsksAgain(t *testing.T) {
 	session := newComposeFormSession(t, dir)
 
 	result, out, err := runComposeForms(t, session, composeFormOptions{Presets: true},
-		"2\n", "3\n", "\n", "3\n", "\n", "\n", "\n", "2\n", "\n")
+		"2\n", "3\n", "\n", "3\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "2\n", "\n")
 
 	require.NoError(t, err)
 	assert.Equal(t, composeDriverApplied, result.Outcome)

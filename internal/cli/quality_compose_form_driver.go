@@ -140,8 +140,8 @@ func (f *composeFormRun) edit() error {
 	}
 	for _, tool := range qualityModelTools {
 		if tool.provider != "" && tool.platform == platform {
-			planner := composeToolPlanner{run: f.shared, tool: tool}
-			return f.compose(planner, newComposeToolLabeler(f.shared, tool), planner.Start())
+			planner, labeler := newComposeToolTab(f.shared, tool)
+			return f.compose(planner, labeler, planner.Start())
 		}
 	}
 	planner := f.allToolsPlanner()

@@ -19,6 +19,7 @@ type composeFormText struct {
 	OMPThinkingDefault                                string // %s: the pre-plan thinking (SPEC-MODELUX-003)
 	InitOMPUnavailable, InitOMPApplied                string
 	Interrupted                                       string
+	EffortAuto, EffortUnread                          string // SPEC-MODELUX-003 effort select
 }
 
 var composeFormTextKO = composeFormText{
@@ -38,6 +39,8 @@ var composeFormTextKO = composeFormText{
 	InitOMPUnavailable: "OMP catalog를 읽지 못해 지금은 OMP 모델을 지정할 수 없습니다. init 뒤 auto quality에서 지정할 수 있습니다.",
 	InitOMPApplied:     "OMP 모델 선택을 init 설정에 넣었습니다. 파일 생성 때 함께 씁니다.",
 	Interrupted:        "중단했습니다. 구성을 더 바꾸지 않습니다.",
+	EffortAuto:         "(자동)",
+	EffortUnread:       "Codex catalog를 읽지 못해 effort는 자동입니다",
 }
 
 var composeFormTextEN = composeFormText{
@@ -57,6 +60,8 @@ var composeFormTextEN = composeFormText{
 	InitOMPUnavailable: "Could not read the OMP catalog, so OMP models cannot be set now; set them after init with auto quality.",
 	InitOMPApplied:     "OMP model choice added to the init config; it is written with the platform files.",
 	Interrupted:        "Interrupted; the composition is not changed further.",
+	EffortAuto:         "(automatic)",
+	EffortUnread:       "Codex catalog unreadable; effort stays automatic",
 }
 
 // composeFormTextFor returns Korean for ko and English for every other

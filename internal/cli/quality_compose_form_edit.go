@@ -7,8 +7,9 @@ import (
 
 // groups asks one select per role group in Role Group Contract order, each
 // option labelled with the cells its candidate resolves (REQ-MUX2-05,
-// REQ-MUX2-06). Keeping a group leaves its members' tiers; each later
-// group's labels already include the earlier answers.
+// REQ-MUX2-06), and on a tool tab the group's effort select after it
+// (SPEC-MODELUX-003 REQ-MUX3-03). Keeping a group leaves its members' tiers;
+// each later group's labels already include the earlier answers.
 func (f *composeFormRun) groups(working map[string]string, labeler composeLabeler) (map[string]string, error) {
 	edited := maps.Clone(working)
 	for _, group := range composeRoleGroups {
@@ -22,14 +23,18 @@ func (f *composeFormRun) groups(working map[string]string, labeler composeLabele
 				edited[agent] = tier
 			}
 		}
+		if err := f.effort(labeler, edited, group.Label(f.shared.lang), group.Agents); err != nil {
+			return nil, err
+		}
 	}
 	return edited, nil
 }
 
 // agents lists the 16 canonical agents in Role Group Contract order behind
-// 완료, asks the picked agent's value, and lists again with every label
-// refreshed, since one agent's tier can move the binding and with it the
-// other agents' cells (REQ-MUX2-08). 완료 ends the edit.
+// 완료, asks the picked agent's value, on a tool tab its effort, and lists
+// again with every label refreshed, since one agent's tier can move the
+// binding and with it the other agents' cells (REQ-MUX2-08). 완료 ends the
+// edit.
 func (f *composeFormRun) agents(working map[string]string, labeler composeLabeler) (map[string]string, error) {
 	edited := maps.Clone(working)
 	for {
@@ -52,6 +57,9 @@ func (f *composeFormRun) agents(working map[string]string, labeler composeLabele
 		}
 		if tier != "" {
 			edited[agent] = tier
+		}
+		if err := f.effort(labeler, edited, agent, []string{agent}); err != nil {
+			return nil, err
 		}
 	}
 }

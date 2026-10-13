@@ -16,7 +16,7 @@ import (
 
 // composeFormS5 answers S5 up to its confirmation: 구성 편집, Codex, 역할
 // 그룹, 설계·판단 on opus, the other groups kept.
-var composeFormS5 = []string{"2\n", "3\n", "\n", "3\n", "\n", "\n", "\n"}
+var composeFormS5 = []string{"2\n", "3\n", "\n", "3\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n"}
 
 func composeFormLines(head []string, tail ...string) []string {
 	return append(append([]string(nil), head...), tail...)
@@ -61,7 +61,7 @@ func TestComposeForms_UnchangedEditWritesNothing(t *testing.T) {
 	before := composeSessionHash(t, dir)
 
 	_, out, err := runComposeForms(t, newComposeFormSession(t, dir), composeFormOptions{Presets: true},
-		"2\n", "3\n", "\n", "\n", "\n", "\n", "\n", "\n")
+		"2\n", "3\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n")
 
 	require.NoError(t, err)
 	assert.Contains(t, out, "변경 없음\n")
@@ -81,7 +81,7 @@ func TestComposeForms_CancelAfterAWriteKeepsThatWrite(t *testing.T) {
 	dir := writeComposeFixture(t, "claude-code", "codex")
 
 	_, out, err := runComposeForms(t, newComposeFormSession(t, dir), composeFormOptions{Presets: true},
-		composeFormLines(composeFormS5, "2\n", "2\n", "2\n", "\n", "3\n", "\n", "\n", "\n", "\n", "\n")...)
+		composeFormLines(composeFormS5, "2\n", "2\n", "2\n", "\n", "3\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n")...)
 
 	require.NoError(t, err)
 	assert.Contains(t, out, "취소했습니다. 설정을 바꾸지 않았습니다.\n")

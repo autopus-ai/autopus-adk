@@ -210,6 +210,17 @@ func withQualityToolPreset(
 	preset string,
 	agents map[string]string,
 ) *config.HarnessConfig {
+	return withQualityToolPresetEfforts(cfg, tool, preset, agents, nil)
+}
+
+// withQualityToolPresetEfforts is withQualityToolPreset whose candidate
+// preset also stores efforts (SPEC-MODELUX-003 REQ-MUX3-04).
+func withQualityToolPresetEfforts(
+	cfg *config.HarnessConfig,
+	tool qualityModelTool,
+	preset string,
+	agents, efforts map[string]string,
+) *config.HarnessConfig {
 	candidate := *cfg
 	presets := make(map[string]config.QualityPreset, len(cfg.Quality.Presets)+1)
 	for name, value := range cfg.Quality.Presets {
@@ -219,7 +230,7 @@ func withQualityToolPreset(
 	for agent, tier := range agents {
 		tiers[agent] = tier
 	}
-	presets[preset] = config.QualityPreset{Agents: tiers}
+	presets[preset] = config.QualityPreset{Agents: tiers, Efforts: presetEfforts(efforts)}
 	providers := make(map[string]string, len(cfg.Quality.Providers)+1)
 	for provider, value := range cfg.Quality.Providers {
 		providers[provider] = value

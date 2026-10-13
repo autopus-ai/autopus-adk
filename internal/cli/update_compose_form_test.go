@@ -68,7 +68,7 @@ func TestUpdateComposeForms_KeepPathsWriteNothing(t *testing.T) {
 		{"R keep", func(t *testing.T) string { return cloneComposeProject(t, settled) }, []string{"\n"}},
 		{"O3 keep", composeO3, []string{"\n"}},
 		{"W2 keep", writeComposeW2, []string{"\n"}},
-		{"Codex groups unchanged", composeO3, []string{"2\n", "3\n", "\n", "\n", "\n", "\n", "\n", "\n"}},
+		{"Codex groups unchanged", composeO3, []string{"2\n", "3\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n"}},
 		{"Codex edit cancelled", composeO3, composeFormLines(composeFormS5, "\n", "\n")},
 		{"OMP without a pin", composeO3, []string{"2\n", "4\n", "4\n", "1\n", "\n", "\n"}},
 	}
@@ -122,7 +122,7 @@ func TestUpdateComposeForms_InterruptEndsTheUpdate(t *testing.T) {
 // S12: a write the run applied before Ctrl+C stays in the file.
 func TestUpdateComposeForms_InterruptAfterAWriteKeepsTheWrite(t *testing.T) {
 	newComposeUpdateRun(t, true, "")
-	abortComposeFormAt(t, 9)
+	abortComposeFormAt(t, 13)
 	dir := writeComposeFixture(t, "claude-code", "codex")
 
 	out, err := runComposeUpdate(t, formInput(composeFormLines(composeFormS5, "2\n")...), "--dir", dir)

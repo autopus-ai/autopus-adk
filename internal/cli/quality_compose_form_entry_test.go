@@ -81,7 +81,7 @@ func TestQualityComposeForms_ClaudeAgentApplyGeneratesThePreview(t *testing.T) {
 	useAccessibleComposeForms(t)
 	dir := writeComposeFixture(t, "claude-code", "codex")
 
-	out, err := runQualityForms(t, dir, nil, formInput("2\n", "2\n", "2\n", "6\n", "3\n", "\n", "2\n", "\n"), "--apply")
+	out, err := runQualityForms(t, dir, nil, formInput("2\n", "2\n", "2\n", "6\n", "3\n", "\n", "\n", "2\n", "\n"), "--apply")
 
 	require.NoError(t, err, out)
 	claudeMarks, codexMarks := assertGeneratedEqualsTable(t, dir, plainComposeHeaders(composeRenderedTable(t, out, composeFormPreviewMarker)))
@@ -114,7 +114,7 @@ func TestQualityComposeForms_SubstituteIsLabelledPreviewedAndGenerated(t *testin
 // without a write.
 func TestQualityComposeForms_InterruptEndsWithoutError(t *testing.T) {
 	newComposeUpdateRun(t, true, "")
-	abortComposeFormAt(t, 8)
+	abortComposeFormAt(t, 12)
 	dir := writeComposeFixture(t, "claude-code", "codex")
 	before := composeSessionHash(t, dir)
 

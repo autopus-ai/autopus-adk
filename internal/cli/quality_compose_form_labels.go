@@ -20,6 +20,8 @@ type composeLabeler struct {
 	platform string
 	// candidate returns the config a composition leaves once it is written.
 	candidate func(composition map[string]string) *config.HarnessConfig
+	// effort is a tool tab's effort state (SPEC-MODELUX-003), nil on 모든 도구 같게.
+	effort *composeEffortTab
 }
 
 // newComposeAllToolsLabeler labels the 모든 도구 같게 tab: a composition's
@@ -34,7 +36,8 @@ func newComposeAllToolsLabeler(planner *composeSessionPlanner) composeLabeler {
 
 // newComposeToolLabeler labels tool's tab by the Per-Tool Binding Contract.
 func newComposeToolLabeler(run *composeSessionRun, tool qualityModelTool) composeLabeler {
-	return composeLabeler{run: run, platform: tool.platform, candidate: run.toolCandidate(tool)}
+	_, labeler := newComposeToolTab(run, tool)
+	return labeler
 }
 
 // groupOptions are the options of one role group's select: keep, whose value
