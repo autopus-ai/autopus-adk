@@ -77,6 +77,27 @@ func TestOMPAgentCatalog_ReportsAUserOwnedDisabledAgents(t *testing.T) {
 	assert.Contains(t, projection.Blockers, "agents:disabled_agents_user_owned")
 }
 
+// Security review I3: a canonical agent file the manifest does not record is
+// the user's, and OMP serves it in place of the Autopus definition, which the
+// doctor reports as degraded.
+func TestOMPAgentCatalog_ReportsAUserAgentFile(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, ".omp", "agents", "reviewer.md")
+	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o700))
+	require.NoError(t, os.WriteFile(path, []byte("---\nname: reviewer\ndescription: mine\n---\nmine\n"), 0o600))
+	cfg := config.DefaultFullConfig("omp-autopus-user-file")
+	cfg.Platforms = []string{"omp"}
+	require.NoError(t, config.Save(root, cfg))
+	_, err := omp.NewWithRoot(root).Generate(context.Background(), cfg)
+	require.NoError(t, err)
+
+	projection := buildOMPPlatformProjection(context.Background(), root, &ompCLIFakeRunner{}, configTimeForOMPAgentCatalog())
+
+	assert.Equal(t, "degraded", projection.Models.AgentCatalogStatus)
+	assert.Equal(t, "autopus_agent_user_file", projection.Models.AgentCatalogReason)
+	assert.Contains(t, projection.Blockers, "agents:autopus_agent_user_file")
+}
+
 // S15: in autopus mode every pipeline phase runs on the agent of its own
 // role, so the receipt is read by that name and an omitted one fails closed.
 func TestPipelineOMPPhaseModels_ReadTheAutopusAgentOfEachPhase(t *testing.T) {
