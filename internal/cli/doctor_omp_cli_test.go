@@ -26,6 +26,20 @@ const (
 	ompDoctorRawPayload     = "RAW-OMP-PROVIDER-PAYLOAD"
 )
 
+// agent_source: native keeps the v0.50.125 doctor fixture surface, where
+// OMP registers its own agents.
+func TestOMP002_S10_DoctorFixtureNativeSourceWritesNoAgents(t *testing.T) {
+	root := t.TempDir()
+	cfg := config.DefaultFullConfig("omp-doctor-cli")
+	cfg.Platforms = []string{"omp"}
+	cfg.RoleModelPolicy.AgentSource = config.OMPAgentSourceNative
+	require.NoError(t, config.Save(root, cfg))
+	_, err := omp.NewWithRoot(root).Generate(context.Background(), cfg)
+	require.NoError(t, err)
+	assert.NoDirExists(t, filepath.Join(root, ".omp", "agents"),
+		"OMP registers its own agents; a generated file there would shadow one")
+}
+
 func TestOMP002_S10_DoctorCLIProjectsStableOMPChecksInTextAndJSON(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("hermetic fake omp uses a POSIX shell script")
@@ -37,8 +51,8 @@ func TestOMP002_S10_DoctorCLIProjectsStableOMPChecksInTextAndJSON(t *testing.T) 
 	require.NoError(t, config.Save(root, cfg))
 	_, err := omp.NewWithRoot(root).Generate(context.Background(), cfg)
 	require.NoError(t, err)
-	assert.NoDirExists(t, filepath.Join(root, ".omp", "agents"),
-		"OMP registers its own agents; a generated file there would shadow one")
+	assert.FileExists(t, filepath.Join(root, ".omp", "agents", "reviewer.md"),
+		"the default source generates the Autopus agents, the reviewer included")
 
 	logPath := installHermeticOMPDoctorCLI(t)
 	healthyText, healthyEnvelope := runOMPDoctorEntrypoints(t, root)

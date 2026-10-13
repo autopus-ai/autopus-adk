@@ -44,12 +44,30 @@ func TestGeneratePreviewMappings_OMPResolvesToAdapter(t *testing.T) {
 		}
 	}
 	assert.Equal(t, 14, surfaces["rules"], "omp preview must plan 14 rules")
-	assert.Equal(t, 0, surfaces["agents"], "omp reuses its bundled agents, so none are planned")
+	assert.Equal(t, 16, surfaces["agents"], "the default source plans one definition per canonical agent")
 	assert.Equal(t, 20, surfaces["commands"], "omp preview must plan 20 commands")
 
 	_, unknownErr := generatePreviewMappings(context.Background(), t.TempDir(), ompDispatchConfig("omp"), "not-a-platform")
 	require.Error(t, unknownErr, "the unknown-platform branch must still reject a bogus identifier")
 	assert.Contains(t, unknownErr.Error(), "알 수 없는 플랫폼")
+}
+
+// agent_source: native keeps the v0.50.125 preview: omp reuses its bundled
+// agents, so none are planned.
+func TestGeneratePreviewMappings_OMPNativeSourcePlansNoAgents(t *testing.T) {
+	t.Parallel()
+
+	cfg := ompDispatchConfig("omp")
+	cfg.RoleModelPolicy.AgentSource = config.OMPAgentSourceNative
+	files, err := generatePreviewMappings(context.Background(), t.TempDir(), cfg, "omp")
+	require.NoError(t, err)
+	agents := 0
+	for _, file := range files {
+		if strings.HasPrefix(filepath.ToSlash(file.TargetPath), ".omp/agents/") {
+			agents++
+		}
+	}
+	assert.Equal(t, 0, agents, "omp reuses its bundled agents, so none are planned")
 }
 
 // TestPreviewPruneRoots_MatchOMPApplyPath is the omp half of the B1 symmetry

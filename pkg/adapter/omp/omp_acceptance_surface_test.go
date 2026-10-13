@@ -49,11 +49,29 @@ func TestOMPAcceptance_S6_RuleAndAgentCounts(t *testing.T) {
 
 	assert.Equal(t, 14, countPathsWithPrefix(paths, ompRuleDir+"/"+ompRuleFilePrefix),
 		"manifest must record 14 rules as .omp/rules/autopus-*.md")
-	assert.Equal(t, 0, countPathsWithPrefix(paths, ".omp/agents/"),
-		"agent definitions are OMP's own; a managed file there would shadow a bundled agent")
+	assert.Equal(t, 16, countPathsWithPrefix(paths, ".omp/agents/"),
+		"the default source records one generated definition per canonical agent")
 	assert.Equal(t, len(workflowSpecs), countPathsWithPrefix(paths, ".omp/commands/"))
 	assert.Greater(t, countPathsWithPrefix(paths, ".omp/skills/"), len(workflowSpecs))
 	assert.NotContains(t, paths, configFile)
+}
+
+// agent_source: native keeps the v0.50.125 surface the default-source
+// assertions above replaced: no agent definitions and no base config.
+func TestOMPAcceptance_NativeSourceKeepsTheBundledSurface(t *testing.T) {
+	dir := t.TempDir()
+	cfg := config.DefaultFullConfig("omp-acceptance")
+	cfg.Platforms = []string{"opencode", "omp"}
+	cfg.RoleModelPolicy.AgentSource = config.OMPAgentSourceNative
+	require.NoError(t, config.Save(dir, cfg))
+	_, err := NewWithRoot(dir).Generate(context.Background(), cfg)
+	require.NoError(t, err)
+
+	paths := manifestPaths(t, dir)
+	assert.Equal(t, 0, countPathsWithPrefix(paths, ".omp/agents/"),
+		"agent definitions are OMP's own; a managed file there would shadow a bundled agent")
+	assert.NotContains(t, paths, configFile)
+	assert.NoFileExists(t, filepath.Join(dir, configFile))
 }
 
 // TestOMPAcceptance_S5_NoClaudeShadowing covers REQ-008 and the InstallHooks contract.
@@ -148,7 +166,7 @@ func TestOMPAcceptance_S4_OwnershipBoundaryAndManifestScope(t *testing.T) {
 
 	paths := manifestPaths(t, dir)
 	assert.Equal(t, 14, countPathsWithPrefix(paths, ompRuleDir+"/"+ompRuleFilePrefix))
-	assert.Equal(t, 0, countPathsWithPrefix(paths, ".omp/agents/"))
+	assert.Equal(t, 16, countPathsWithPrefix(paths, ".omp/agents/"))
 	assert.Equal(t, len(workflowSpecs), countPathsWithPrefix(paths, ".omp/commands/"))
 	assert.Greater(t, countPathsWithPrefix(paths, ".omp/skills/"), len(workflowSpecs))
 	assert.NotContains(t, paths, configFile)

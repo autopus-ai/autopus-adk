@@ -17,11 +17,17 @@ const (
 	cliBinary   = "omp"
 	adapterVer  = "1.0.0"
 
-	// ompRetiredAgentDir held one generated definition per ADK role until the
-	// native cutover. OMP now serves every Autopus workflow from its bundled
-	// registry, so nothing is written here and every manifest-recorded file
-	// left over is retired.
-	ompRetiredAgentDir = ".omp/agents"
+	// ompAgentDir holds one generated definition per canonical agent in
+	// autopus mode, the default. OMP discovers project definitions before its
+	// bundled ones and the first name wins, so the generated reviewer replaces
+	// the bundled reviewer; scout, security-reviewer, and sonic are disabled
+	// through task.disabledAgents instead of being shadowed.
+	ompAgentDir = ".omp/agents"
+
+	// ompRetiredAgentDir is the same directory seen from agent_source: native,
+	// where OMP serves every workflow from its bundled registry: nothing is
+	// written there and every manifest-recorded definition left over is retired.
+	ompRetiredAgentDir = ompAgentDir
 )
 
 // Adapter is the oh-my-pi (omp) platform adapter.
@@ -83,10 +89,24 @@ func (a *Adapter) Generate(ctx context.Context, cfg *config.HarnessConfig) (pf *
 		return nil, err
 	}
 
-	pf = &adapter.PlatformFiles{Files: files, Checksum: adapter.Checksum(fmt.Sprintf("%d", len(files)))}
+	oldManifest, err := loadOMPManifestAt(workspace, adapterName)
+	if err != nil {
+		return nil, fmt.Errorf("매니페스트 로드 실패: %w", err)
+	}
 	resolveMode := a.fileModeResolverAt(workspace)
+	owned := make([]adapter.FileMapping, 0, len(files))
 	writes := make([]adapter.TransactionWrite, 0, len(files))
 	for _, file := range files {
+		// A same-name agent definition the manifest does not record is the
+		// user's: it is neither overwritten nor adopted into the manifest.
+		userFile, err := ompUserAgentFileAt(workspace, file, oldManifest)
+		if err != nil {
+			return nil, err
+		}
+		if userFile {
+			continue
+		}
+		owned = append(owned, file)
 		perm := resolveMode(file.TargetPath)
 		unchanged, err := ompRootedMappingUnchanged(workspace, file, perm)
 		if err != nil {
@@ -98,17 +118,16 @@ func (a *Adapter) Generate(ctx context.Context, cfg *config.HarnessConfig) (pf *
 			})
 		}
 	}
+	pf = &adapter.PlatformFiles{Files: owned, Checksum: adapter.Checksum(fmt.Sprintf("%d", len(owned)))}
 	manifest := adapter.ManifestFromFiles(adapterName, pf)
-	oldManifest, err := loadOMPManifestAt(workspace, adapterName)
-	if err != nil {
-		return nil, fmt.Errorf("매니페스트 로드 실패: %w", err)
-	}
-	// A re-init over an install that still records .omp/agents would orphan
-	// the retired ADK agent definitions: OMP resolves task agents by exact
-	// name, so a stale project file keeps shadowing the bundled agent of the
-	// same name forever. Only manifest-recorded paths are eligible, so a user
-	// agent OMP never wrote is never touched, and the rooted transaction
-	// snapshots each removal before deleting it.
+	// In native mode a re-init over an install that still records
+	// .omp/agents would orphan the retired ADK agent definitions: OMP resolves
+	// task agents by exact name, so a stale project file keeps shadowing the
+	// bundled agent of the same name forever. Autopus mode regenerates the
+	// recorded definitions, so the diff retires none of them. Only
+	// manifest-recorded paths are eligible, so a user agent OMP never wrote is
+	// never touched, and the rooted transaction snapshots each removal before
+	// deleting it.
 	removes := adapter.TransactionRemovesFromManifestDiff(
 		adapter.BuildManifestDiff(oldManifest, files, []string{ompRetiredAgentDir}), false,
 	)
@@ -200,6 +219,12 @@ func (a *Adapter) prepareFilesAt(
 	// 3. Commands
 	if err := appendFiles(a.prepareCommandMappings(cfg)); err != nil {
 		return nil, err
+	}
+	// 3a. Agent definitions (autopus mode only; native reuses the bundled registry)
+	if cfg.RoleModelPolicy.OMPAgentSource() == config.OMPAgentSourceAutopus {
+		if err := appendFiles(prepareOMPAgentMappings(ompRoutedAgentNames(modelIntegration))); err != nil {
+			return nil, err
+		}
 	}
 	// 4. Native context bridge (explicit OMP context-policy opt-in only)
 	if err := appendFiles(prepareOMPContextBridgeMappings(cfg)); err != nil {

@@ -54,6 +54,12 @@ grep: `rg -l 'OMPNativeAgentNames|OMPNativeAgentForRole|OMPNativeAgentRepresenta
 | `pkg/content/skill_transformer_replace_omp_test.go` | option | L242-267 task batch의 native 접힘(`"agent": "executor"` 없음) |
 
 - grep 밖에서 구현 중 깨지는 test는 같은 네 분류로 이 표에 더하고, 더한 task의 커밋 본문에 이유를 적는다.
+
+| 더한 파일 (task) | 분류 | 이유 |
+|---|---|---|
+| `internal/cli/doctor_omp_cli_test.go` (T4) | 전환 | L40 생성 뒤 `.omp/agents` 없음. native 사본 `TestOMP002_S10_DoctorFixtureNativeSourceWritesNoAgents` |
+| `pkg/adapter/omp/omp_test.go` (T4) | 전환 | L57 `.omp/agents` 없음. native 사본 `TestOMP_S4_S5_S6_Lifecycle_NativeSource` |
+| `pkg/adapter/omp/omp_validate_model_integration_test.go` (T4) | 전환 | L23 routing 뒤 `.omp/agents` 없음. native 사본 `TestOMPValidate_NativeSourceModelIntegrationGeneratedSurfaceIsClean` |
 ## OMP probe 결과 (`evidence/probe-omp-18.6.1.md`)
 | ID | 질문 | 결과 |
 |---|---|---|

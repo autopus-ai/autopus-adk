@@ -23,6 +23,31 @@ func TestFreshOMPUsesBundledAgentsWithoutProjectShadows(t *testing.T) {
 	require.NoError(t, config.Save(root, cfg))
 	files, err := a.Generate(context.Background(), cfg)
 	require.NoError(t, err)
+	agentFiles := 0
+	for _, file := range files.Files {
+		if strings.HasPrefix(filepath.ToSlash(file.TargetPath), ".omp/agents/") {
+			agentFiles++
+		}
+	}
+	assert.Equal(t, 16, agentFiles, "the default source generates the canonical agents")
+	assert.DirExists(t, filepath.Join(root, ".omp", "agents"))
+	findings, err := a.Validate(context.Background())
+	require.NoError(t, err)
+	for _, finding := range findings {
+		assert.NotEqual(t, "error", finding.Level, "%+v", finding)
+	}
+}
+
+// agent_source: native keeps the v0.50.125 contract: the bundled registry
+// serves every workflow and no project definition shadows it.
+func TestFreshNativeOMPUsesBundledAgentsWithoutProjectShadows(t *testing.T) {
+	root := t.TempDir()
+	a := NewWithRoot(root)
+	cfg := configForOMP()
+	cfg.RoleModelPolicy.AgentSource = config.OMPAgentSourceNative
+	require.NoError(t, config.Save(root, cfg))
+	files, err := a.Generate(context.Background(), cfg)
+	require.NoError(t, err)
 	for _, file := range files.Files {
 		assert.False(t, strings.HasPrefix(filepath.ToSlash(file.TargetPath), ".omp/agents/"))
 	}
@@ -40,6 +65,7 @@ func TestOMPRegenerationRetiresOwnedAgentsAndBacksUpEdits(t *testing.T) {
 			root := t.TempDir()
 			a := NewWithRoot(root)
 			cfg := configForOMP()
+			cfg.RoleModelPolicy.AgentSource = config.OMPAgentSourceNative
 			require.NoError(t, config.Save(root, cfg))
 			_, err := a.Generate(context.Background(), cfg)
 			require.NoError(t, err)

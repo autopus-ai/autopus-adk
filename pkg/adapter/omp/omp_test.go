@@ -54,7 +54,7 @@ func TestOMP_S4_S5_S6_Lifecycle(t *testing.T) {
 
 	// Check S6: generated native files without an unnecessary base config.
 	assert.NoFileExists(t, filepath.Join(dir, configFile))
-	assert.NoDirExists(t, filepath.Join(dir, ".omp", "agents"))
+	assert.FileExists(t, filepath.Join(dir, ".omp", "agents", "executor.md"))
 	assert.FileExists(t, filepath.Join(dir, ".omp", "skills", "auto", "SKILL.md"))
 	assert.FileExists(t, filepath.Join(dir, ".omp", "commands", "auto.md"))
 	assert.FileExists(t, filepath.Join(dir, ompRuleDir, ompRuleFilePrefix+"branding.md"))
@@ -66,6 +66,22 @@ func TestOMP_S4_S5_S6_Lifecycle(t *testing.T) {
 	err = a.Clean(context.Background())
 	require.NoError(t, err)
 	assert.NoFileExists(t, filepath.Join(dir, ".omp", "agents", "executor.md"))
+	assert.NoFileExists(t, filepath.Join(dir, ompRuleDir, ompRuleFilePrefix+"branding.md"))
+}
+
+// agent_source: native keeps the v0.50.125 lifecycle surface.
+func TestOMP_S4_S5_S6_Lifecycle_NativeSource(t *testing.T) {
+	dir := t.TempDir()
+	a := NewWithRoot(dir)
+	cfg := config.DefaultFullConfig("omp-test")
+	cfg.Platforms = []string{"omp"}
+	cfg.RoleModelPolicy.AgentSource = config.OMPAgentSourceNative
+
+	_, err := a.Generate(context.Background(), cfg)
+	require.NoError(t, err)
+	assert.NoFileExists(t, filepath.Join(dir, configFile))
+	assert.NoDirExists(t, filepath.Join(dir, ".omp", "agents"))
+	require.NoError(t, a.Clean(context.Background()))
 	assert.NoFileExists(t, filepath.Join(dir, ompRuleDir, ompRuleFilePrefix+"branding.md"))
 }
 

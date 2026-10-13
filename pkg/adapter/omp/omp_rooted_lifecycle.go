@@ -108,6 +108,13 @@ func resolveOMPUpdateActionAt(
 		return "", fmt.Errorf("inspect OMP update target %s: %w", file.TargetPath, err)
 	}
 	exists := err == nil
+	if exists && isOMPAgentDefinitionPath(file.TargetPath) {
+		// An agent definition the manifest does not record is the user's:
+		// skipping keeps its bytes and keeps it out of the manifest.
+		if _, managed := managedOMPFile(old, file.TargetPath); !managed {
+			return adapter.ActionSkip, nil
+		}
+	}
 	if old == nil {
 		if exists {
 			return adapter.ActionOverwrite, nil
@@ -131,6 +138,14 @@ func resolveOMPUpdateActionAt(
 		}
 	}
 	return adapter.ActionBackup, nil
+}
+
+func managedOMPFile(manifest *adapter.Manifest, path string) (adapter.ManifestFile, bool) {
+	if manifest == nil {
+		return adapter.ManifestFile{}, false
+	}
+	file, managed := manifest.Files[path]
+	return file, managed
 }
 
 func (a *Adapter) buildUpdateTransactionPlanAt(

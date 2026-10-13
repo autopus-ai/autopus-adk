@@ -114,7 +114,9 @@ func TestOMPModelIntegration_ConnectsPolicyCatalogProjectionAndReceipt(t *testin
 	runner := newModelIntegrationRunner()
 	clock := func() time.Time { return time.Date(2026, 8, 2, 12, 0, 0, 0, time.UTC) }
 	a := NewWithRoot(root).WithModelIntegrationRunner(runner).WithModelIntegrationClock(clock)
-	files, err := a.prepareFiles(context.Background(), integrationHarnessConfig("overlay"))
+	cfg := integrationHarnessConfig("overlay")
+	cfg.RoleModelPolicy.AgentSource = config.OMPAgentSourceNative
+	files, err := a.prepareFiles(context.Background(), cfg)
 	if err != nil {
 		t.Fatalf("prepare opt-in files: %v", err)
 	}

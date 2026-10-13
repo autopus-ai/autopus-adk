@@ -20,6 +20,27 @@ func TestOMPValidate_ModelIntegrationGeneratedSurfaceIsClean(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, findings, "Validate must expect exactly what Generate emitted")
 	assert.FileExists(t, filepath.Join(root, OMPModelReceiptRelativePath))
+	entries, err := os.ReadDir(filepath.Join(root, ".omp", "agents"))
+	require.NoError(t, err)
+	assert.Len(t, entries, 16, "the default source generates the canonical agent registry")
+}
+
+// agent_source: native keeps the v0.50.125 contract that model routing
+// creates no project agent registry.
+func TestOMPValidate_NativeSourceModelIntegrationGeneratedSurfaceIsClean(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	cfg := integrationHarnessConfig(config.RoleModelConfigModeProjectManaged)
+	cfg.RoleModelPolicy.AgentSource = config.OMPAgentSourceNative
+	require.NoError(t, config.Save(root, cfg))
+	adapterUnderTest := NewWithRoot(root).WithModelIntegrationRunner(newModelIntegrationRunner())
+	_, err := adapterUnderTest.Generate(context.Background(), cfg)
+	require.NoError(t, err)
+	findings, err := adapterUnderTest.Validate(context.Background())
+	require.NoError(t, err)
+	assert.Empty(t, findings, "Validate must expect exactly what Generate emitted")
+	assert.FileExists(t, filepath.Join(root, OMPModelReceiptRelativePath))
 	assert.NoDirExists(t, filepath.Join(root, ".omp", "agents"),
 		"model routing must not create a project agent registry")
 }
