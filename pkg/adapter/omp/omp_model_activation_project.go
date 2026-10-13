@@ -176,9 +176,9 @@ func applyOMPManagedClaim(data []byte, claim OMPManagedKeyClaim) ([]byte, string
 	}
 	var updated []byte
 	if location.exists {
-		updated, err = replaceOMPManagedEntry(data, location.key, valueNode)
+		updated, err = replaceOMPManagedEntry(data, document, location.key, valueNode)
 	} else {
-		updated, err = insertOMPManagedEntry(data, location.mapping, segments[location.missingIndex:], valueNode)
+		updated, err = insertOMPManagedEntry(data, document, location.mapping, segments[location.missingIndex:], valueNode)
 	}
 	if err != nil {
 		return nil, "", err

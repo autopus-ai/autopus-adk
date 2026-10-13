@@ -117,7 +117,7 @@ func removeOMPManagedPath(data []byte, segments []string) ([]byte, error) {
 		if !location.exists || (depth < len(segments) && !ompEmptyManagedValue(location.value)) {
 			return data, nil
 		}
-		start, end, err := ompManagedEntrySpan(data, location.key)
+		start, end, err := ompManagedEntrySpan(data, document, location.key)
 		if err != nil {
 			return nil, err
 		}
