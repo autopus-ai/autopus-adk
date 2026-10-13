@@ -41,7 +41,7 @@ All notable changes to this project will be documented in this file.
     그대로 두고 `…마지막으로 쓴 그대로 둡니다` 줄을 내며, 그동안 clean은 `project_config_unclaimable`로 거부한다.
     ledger가 `.omp/config.yml`을 놓은 뒤에는 그 파일의 백업을 지우되, ledger를 놓은 가장 최근 committed
     transaction의 rollback artifact 하나는 다음 release까지 `.autopus/backup/` 아래 남겨 release를 손으로 되돌릴 수
-    있게 한다.
+    있게 한다. `auto clean`은 검증된 preimage로 복원하므로 config의 rollback artifact를 남기지 않는다.
   - 되돌리기: `role_model_policy.agent_source: native`가 v0.50.126 동안 bundled 5개 방식을 되살린다(생성 파일
     prune, `task.disabledAgents` 복원). key와 native 경로는 v0.50.127에서 제거할 예정이고, 다른 값은
     `role_model_policy.agent_source_invalid`다. 바이너리를 내리는 것은 되돌리기가 아니다. v0.50.125는 새 agent
