@@ -60,6 +60,15 @@ grep: `rg -l 'OMPNativeAgentNames|OMPNativeAgentForRole|OMPNativeAgentRepresenta
 | `internal/cli/doctor_omp_cli_test.go` (T4) | 전환 | L40 생성 뒤 `.omp/agents` 없음. native 사본 `TestOMP002_S10_DoctorFixtureNativeSourceWritesNoAgents` |
 | `pkg/adapter/omp/omp_test.go` (T4) | 전환 | L57 `.omp/agents` 없음. native 사본 `TestOMP_S4_S5_S6_Lifecycle_NativeSource` |
 | `pkg/adapter/omp/omp_validate_model_integration_test.go` (T4) | 전환 | L23 routing 뒤 `.omp/agents` 없음. native 사본 `TestOMPValidate_NativeSourceModelIntegrationGeneratedSurfaceIsClean` |
+| 위 전환 파일의 `.omp/config.yml` 단언 (T5) | 전환 | `omp_acceptance_surface` L41-42·L56·L172, `omp_latest_contract` L32-33, `omp_test` L56, `latest_cli_omp_contract` L29-30. autopus 기본은 `task.disabledAgents`를 claim하므로 config가 있고 manifest가 기록한다. 옛 단언은 T4가 더한 native 사본이 지킨다 |
+| `pkg/adapter/omp/omp_security_config_test.go` (T5) | fixture | `PreservesOrdinaryUserConfig`·`ReplacesStaleManagedSection`은 claim 없는 plain install 계약이다(`nativeConfigForOMP`) |
+| `pkg/adapter/omp/omp_security_test.go` (T5) | fixture | `TestOMPClean_PreservesUserConfigKeys`의 "plain OMP generation must not own user config" |
+| `pkg/adapter/omp/omp_workflow_parity_test.go` (T5) | fixture | `TestOMP002_S5_PlainConfigRemainsByteIdentical` |
+| `pkg/adapter/omp/omp_phase4_findings_test.go` (T5) | fixture | `TestOMPConfigMarkerSpan_PlainLifecyclePreservesUserConfig` |
+| `pkg/adapter/omp/omp_context_bridge_test.go` (T5) | fixture | `NoOptInPreservesExactPreparedFiles`: autopus 생성은 ledger salt가 run마다 달라 두 prepare 결과를 bytes로 비교할 수 없다 |
+| `pkg/adapter/omp/omp_acceptance_ownership_test.go` (T5) | fixture | legacy marker config migration 계약 |
+| `pkg/adapter/omp/omp_model_integration_lifecycle_test.go` (T5) | fixture | project-managed → overlay에서 config가 사라지는 v0.50.125 release 계약. autopus는 S22(c)가 `task.disabledAgents`만 남는 것을 판정한다 |
+| `pkg/adapter/omp/omp_latest_contract_test.go` (T5) | fixture | `AllowsMissingBaseConfigButRejectsWeakSensitivePermissions`는 base config가 없는 plain install 계약이다 |
 ## OMP probe 결과 (`evidence/probe-omp-18.6.1.md`)
 | ID | 질문 | 결과 |
 |---|---|---|

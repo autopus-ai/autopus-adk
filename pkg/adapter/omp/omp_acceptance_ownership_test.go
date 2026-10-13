@@ -73,7 +73,10 @@ func TestOMPAcceptance_NativeSurfacesDoNotYieldToOtherPlatforms(t *testing.T) {
 }
 
 func TestOMPAcceptance_LegacyManifestPathsArePrunedWithoutDeletingUserConfig(t *testing.T) {
-	root := generateForPlatforms(t, "omp")
+	root := t.TempDir()
+	require.NoError(t, config.Save(root, nativeConfigForOMP()))
+	_, generateErr := NewWithRoot(root).Generate(context.Background(), nativeConfigForOMP())
+	require.NoError(t, generateErr)
 	legacySkill := ".agents/skills/legacy/SKILL.md"
 	legacyCommand := ".agents/commands/auto.md"
 	legacyConfig := markerBeginYml + "\nskills:\n  customDirectories:\n    - .agents/skills\n" + markerEndYml + "\n"

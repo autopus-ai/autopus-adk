@@ -55,12 +55,14 @@ func migrateOMPLegacyBridgeConfigAt(
 }
 
 // releaseOMPProjectManagedConfigAt restores the ledger preimage of
-// .omp/config.yml when the new file set no longer manages it, which happens
-// when the profile leaves project-managed mode. The legacy migration above
-// keeps the file out of the prune set, so without this step the managed keys
-// would stay behind while the ownership ledger is pruned, and the next
-// project-managed apply would fail on a prior-fingerprint mismatch. A config
-// that drifted from the last emitted bytes fails closed exactly like Clean.
+// .omp/config.yml when the new file set no longer manages it: the claim set
+// became empty because the profile left project-managed mode, native mode
+// dropped the agent surface claim, or the user took task.disabledAgents over.
+// The legacy migration above keeps the file out of the prune set, so without
+// this step the managed keys would stay behind while the ownership ledger is
+// pruned, and the next claim would fail on a prior-fingerprint mismatch. A
+// config that drifted from the last emitted bytes fails closed exactly like
+// Clean.
 func (a *Adapter) releaseOMPProjectManagedConfigAt(
 	workspace *ompRootedWorkspace,
 	files []adapter.FileMapping,
@@ -80,6 +82,28 @@ func (a *Adapter) releaseOMPProjectManagedConfigAt(
 	return append(writes, adapter.TransactionWrite{
 		Path: configFile, Content: state.preimage, Perm: state.mode.Perm(),
 	}), removes, nil
+}
+
+// ompReleasedLedgerRemoves removes a recorded ledger the new file set no
+// longer carries. Update's manifest diff prunes it through the prune roots;
+// Generate retires only agent definitions, so it asks for this explicitly.
+func ompReleasedLedgerRemoves(
+	oldManifest *adapter.Manifest,
+	files []adapter.FileMapping,
+	removes []adapter.TransactionRemove,
+) []adapter.TransactionRemove {
+	if oldManifest == nil || ompMappingsContainPath(files, OMPModelProjectOwnershipRelativePath) {
+		return removes
+	}
+	if _, recorded := oldManifest.Files[OMPModelProjectOwnershipRelativePath]; !recorded {
+		return removes
+	}
+	for _, remove := range removes {
+		if filepath.ToSlash(remove.Path) == OMPModelProjectOwnershipRelativePath {
+			return removes
+		}
+	}
+	return append(removes, adapter.TransactionRemove{Path: OMPModelProjectOwnershipRelativePath})
 }
 
 func ompMappingsContainPath(files []adapter.FileMapping, path string) bool {

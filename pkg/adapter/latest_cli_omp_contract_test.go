@@ -31,8 +31,8 @@ func assertOMPLatestCLIContract(t *testing.T, fixture latestCLIFixture) {
 		assert.Greater(t, counts[root], 0, ".omp/%s must be manifest-owned", root)
 	}
 	assert.Equal(t, 16, counts["agents"], "the default source owns one definition per canonical agent")
-	assert.False(t, manifestHas(manifest, ".omp/config.yml"))
-	assert.NoFileExists(t, filepath.Join(fixture.root, ".omp", "config.yml"))
+	assert.True(t, manifestHas(manifest, ".omp/config.yml"), "the default source claims task.disabledAgents")
+	assert.FileExists(t, filepath.Join(fixture.root, ".omp", "config.yml"))
 
 	assertOMPReadinessProviderFree(t, fixture.root)
 }

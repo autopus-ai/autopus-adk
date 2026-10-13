@@ -2,15 +2,15 @@ package omp
 
 import (
 	"fmt"
-	"os"
-	"sort"
 	"strings"
 
 	"github.com/insajin/autopus-adk/pkg/adapter"
 )
 
-// @AX:WARN [AUTO]: project config merge has high branch complexity.
-// @AX:REASON [AUTO]: ownership, journal, YAML merge, conflict, backup, and transaction preparation paths converge here.
+// mergeOMPIntegratedProjectConfig merges the project-managed profile's claims
+// and, in autopus mode, the agent surface claim over the one ledger preimage.
+// The claim count check stays with the profile claims: the agent surface
+// claim is the adapter's own and is never declared in managed_keys.
 func (i *ompModelIntegration) mergeOMPIntegratedProjectConfig(
 	workspace *ompRootedWorkspace,
 	mapping adapter.FileMapping,
@@ -21,82 +21,18 @@ func (i *ompModelIntegration) mergeOMPIntegratedProjectConfig(
 			"managed_key_claim_required: expected=%d actual=%d", len(values), len(i.profile.ManagedKeys),
 		)
 	}
-	ownership, managed, err := readOMPModelProjectOwnershipAt(workspace)
+	plan, err := planOMPClaimSetAt(workspace, &ompProfileClaims{
+		values: values, claims: i.profile.ManagedKeys,
+	}, i.claimSurface)
 	if err != nil {
 		return mapping, adapter.FileMapping{}, "", err
 	}
-	original, originalMissing, currentMode, err := readOMPModelProjectConfigAt(workspace)
-	if err != nil {
-		return mapping, adapter.FileMapping{}, "", err
+	if plan.config == nil || plan.ledger == nil {
+		return mapping, adapter.FileMapping{}, "", fmt.Errorf("managed_key_claim_required: project claim set is empty")
 	}
-	base := append([]byte(nil), original...)
-	if originalMissing {
-		base = nil
-	}
-	if managed {
-		if _, err := validateCurrentOMPModelProjectConfigAt(workspace, ownership); err != nil {
-			return mapping, adapter.FileMapping{}, "", err
-		}
-		original, originalMissing, _, err = loadOMPModelProjectOriginalPreimageAt(workspace, ownership)
-		if err != nil {
-			return mapping, adapter.FileMapping{}, "", err
-		}
-		base = append([]byte(nil), original...)
-		if originalMissing {
-			base = nil
-		}
-	}
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	claims := make([]OMPManagedKeyClaim, 0, len(keys))
-	for _, key := range keys {
-		claim, ok := i.profile.ManagedKeys[key]
-		if !ok {
-			return mapping, adapter.FileMapping{}, "", fmt.Errorf("managed_key_claim_required: %s", key)
-		}
-		prior := claim.PriorFingerprint
-		if managed && ompModelProjectOwnedPath(ownership.ManagedKeys, key) {
-			prior, err = fingerprintOMPManagedPath(base, key)
-			if err != nil {
-				return mapping, adapter.FileMapping{}, "", err
-			}
-		}
-		claims = append(claims, OMPManagedKeyClaim{
-			Path: key, Value: values[key], Complete: claim.Complete,
-			FullArrayOwnership: claim.FullArrayOwnership,
-			PriorFingerprint:   prior,
-		})
-	}
-	mode := os.FileMode(0o600)
-	if currentMode != 0 {
-		mode = currentMode
-	}
-	result, err := MergeOMPProjectManagedConfig(OMPProjectManagedInput{
-		Existing: base, Mode: mode, Claims: claims,
-	})
-	if err != nil {
-		return mapping, adapter.FileMapping{}, "", err
-	}
-	mapping.Content = append([]byte(nil), result.Bytes...)
-	mapping.Checksum = adapter.Checksum(string(mapping.Content))
-	var ownershipData []byte
-	if managed {
-		ownership, ownershipData, err = updateOMPModelProjectOwnership(
-			ownership, mapping.Content, result.ManagedFingerprints,
-		)
-	} else {
-		ownership, ownershipData, err = newOMPModelProjectOwnership(
-			original, originalMissing, mapping.Content, result.ManagedFingerprints,
-		)
-	}
-	if err != nil {
-		return mapping, adapter.FileMapping{}, "", err
-	}
-	ledger := ompIntegratedMapping(OMPModelProjectOwnershipRelativePath, ownershipData)
-	return mapping, ledger, ownership.LedgerDigest, nil
+	merged := *plan.config
+	merged.TargetPath, merged.OverwritePolicy = mapping.TargetPath, mapping.OverwritePolicy
+	return merged, *plan.ledger, plan.ledgerDigest, nil
 }
 
 func fingerprintOMPManagedPath(data []byte, path string) (string, error) {

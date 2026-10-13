@@ -12,6 +12,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/insajin/autopus-adk/pkg/adapter"
+	"github.com/insajin/autopus-adk/pkg/config"
 )
 
 func TestOMPConfigMarkerSpan_RejectsUserTopLevelKeyAndValueOutsideSpan(t *testing.T) {
@@ -48,21 +49,23 @@ func TestOMPConfigMarkerSpan_PlainLifecyclePreservesUserConfig(t *testing.T) {
 	t.Run("generate", func(t *testing.T) {
 		root := t.TempDir()
 		configPath := writeOMPConfig(t, root, hostile)
-		_, err := NewWithRoot(root).Generate(context.Background(), configForOMP())
+		_, err := NewWithRoot(root).Generate(context.Background(), nativeConfigForOMP())
 		require.NoError(t, err)
 		assertFileBytesOMP(t, configPath, hostile)
 	})
 
 	for _, operation := range []string{"update", "clean"} {
 		t.Run(operation, func(t *testing.T) {
-			root := generateOMPOnly(t)
+			root := t.TempDir()
+			require.NoError(t, config.Save(root, nativeConfigForOMP()))
+			_, err := NewWithRoot(root).Generate(context.Background(), nativeConfigForOMP())
+			require.NoError(t, err)
 			configPath := filepath.Join(root, configFile)
 			require.NoError(t, os.WriteFile(configPath, []byte(hostile), 0o600))
 			managedCommand := filepath.Join(root, ".omp", "commands", "auto.md")
 
-			var err error
 			if operation == "update" {
-				_, err = NewWithRoot(root).Update(context.Background(), configForOMP())
+				_, err = NewWithRoot(root).Update(context.Background(), nativeConfigForOMP())
 			} else {
 				err = NewWithRoot(root).Clean(context.Background())
 			}

@@ -215,7 +215,7 @@ func TestOMP002_S5_PlainConfigRemainsByteIdentical(t *testing.T) {
 			require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
 			require.NoError(t, os.WriteFile(path, []byte(original), 0o600))
 
-			_, err := NewWithRoot(dir).Generate(context.Background(), configForOMP())
+			_, err := NewWithRoot(dir).Generate(context.Background(), nativeConfigForOMP())
 			require.NoError(t, err)
 			after, readErr := os.ReadFile(path)
 			require.NoError(t, readErr)

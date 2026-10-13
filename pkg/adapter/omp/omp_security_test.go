@@ -31,6 +31,7 @@ func TestOMPClean_PreservesUserConfigKeys(t *testing.T) {
 
 	harness := config.DefaultFullConfig("omp-sec")
 	harness.Platforms = []string{"omp"}
+	harness.RoleModelPolicy.AgentSource = config.OMPAgentSourceNative
 	require.NoError(t, config.Save(dir, harness))
 	_, err := NewWithRoot(dir).Generate(context.Background(), harness)
 	require.NoError(t, err)

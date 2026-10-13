@@ -16,6 +16,8 @@ type ompModelIntegration struct {
 	probe       OMPModelCatalogProbeResult
 	routing     OMPModelRoutingCompilation
 	projection  OMPModelProjection
+	// claimSurface is autopus mode: the project claim set adds task.disabledAgents.
+	claimSurface bool
 }
 
 // WithModelIntegrationRunner injects metadata and config-readback execution.

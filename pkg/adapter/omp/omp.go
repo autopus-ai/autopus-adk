@@ -131,6 +131,11 @@ func (a *Adapter) Generate(ctx context.Context, cfg *config.HarnessConfig) (pf *
 	removes := adapter.TransactionRemovesFromManifestDiff(
 		adapter.BuildManifestDiff(oldManifest, files, []string{ompRetiredAgentDir}), false,
 	)
+	writes, removes, err = a.releaseOMPProjectManagedConfigAt(workspace, files, writes, removes)
+	if err != nil {
+		return nil, err
+	}
+	removes = ompReleasedLedgerRemoves(oldManifest, files, removes)
 	if len(writes) == 0 && len(removes) == 0 &&
 		ompRootedManifestUnchanged(workspace, oldManifest, manifest) {
 		manifest = nil
@@ -230,10 +235,25 @@ func (a *Adapter) prepareFilesAt(
 	if err := appendFiles(prepareOMPContextBridgeMappings(cfg)); err != nil {
 		return nil, err
 	}
-	// 5. Runtime/model claims. A plain OMP install needs no base config.
+	// 5. Runtime/model claims and the project claim set. The claim set merges
+	// once per generation: inside finalize for a project-managed profile,
+	// which owns more keys of the same file, and here otherwise, even with no
+	// model integration, because autopus mode claims task.disabledAgents on
+	// its own. A native install without a profile still writes no base config.
+	claimSurface := cfg.RoleModelPolicy.OMPAgentSource() == config.OMPAgentSourceAutopus
+	projectManaged := modelIntegration != nil &&
+		modelIntegration.profile.ConfigMode == config.RoleModelConfigModeProjectManaged
+	if !projectManaged {
+		claimSet, claimErr := planOMPClaimSetAt(workspace, nil, claimSurface)
+		if claimErr != nil {
+			return nil, claimErr
+		}
+		files = append(files, claimSet.mappings()...)
+	}
 	if modelIntegration != nil {
+		modelIntegration.claimSurface = claimSurface
 		var configMapping adapter.FileMapping
-		if modelIntegration.profile.ConfigMode == config.RoleModelConfigModeProjectManaged {
+		if projectManaged {
 			configMapping, err = a.prepareConfigMappingAt(workspace, cfg)
 			if err != nil {
 				return nil, err

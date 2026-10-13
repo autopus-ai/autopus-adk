@@ -7,10 +7,9 @@ import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
-	"sort"
-	"strings"
 
 	"github.com/insajin/autopus-adk/pkg/adapter"
+	"github.com/insajin/autopus-adk/pkg/config"
 )
 
 func readOMPModelProjectOwnershipAt(workspace *ompRootedWorkspace) (ompModelProjectOwnership, bool, error) {
@@ -51,14 +50,50 @@ func validateCurrentOMPModelProjectConfigAt(
 	ownership ompModelProjectOwnership,
 ) ([]byte, error) {
 	current, missing, _, err := readOMPModelProjectConfigAt(workspace)
-	if err != nil || missing {
+	if err != nil {
 		return nil, fmt.Errorf("managed_key_conflict: current project config is unavailable")
 	}
-	salt, err := decodeOMPModelProjectSalt(ownership.Salt)
-	if err != nil || ompModelProjectCommitment(salt, current, false) != ownership.LastEmittedCommitment {
+	anchor, _, err := ompProjectConfigAnchor(current, missing, ownership)
+	if err != nil {
+		return nil, err
+	}
+	if anchor == nil {
+		if missing {
+			return nil, fmt.Errorf("managed_key_conflict: current project config is unavailable")
+		}
 		return nil, fmt.Errorf("managed_key_conflict: current project config differs from last emitted bytes")
 	}
 	return current, nil
+}
+
+// ompProjectConfigAnchor returns the bytes ADK last emitted when the current
+// file is them, or is them with only task.disabledAgents changed; edited
+// reports the second case. Any other difference returns nil: an edit outside
+// the claim set that the transaction chain cannot be walked back from.
+func ompProjectConfigAnchor(
+	current []byte,
+	missing bool,
+	ownership ompModelProjectOwnership,
+) (anchor []byte, edited bool, err error) {
+	salt, err := decodeOMPModelProjectSalt(ownership.Salt)
+	if err != nil {
+		return nil, false, err
+	}
+	if !missing && ompModelProjectCommitment(salt, current, false) == ownership.LastEmittedCommitment {
+		return current, false, nil
+	}
+	if _, claimed := ownership.agentSurfaceKey(); !claimed && !ownership.AgentSurfaceUserOwned {
+		return nil, false, nil
+	}
+	value, present := any(config.OMPAutopusDisabledAgents()), true
+	if emitted := ownership.AgentSurfaceEmitted; emitted != nil {
+		value, present = emitted.Value, emitted.Present
+	}
+	canonical, renderErr := setOMPDisabledAgents(current, value, present)
+	if renderErr != nil || ompModelProjectCommitment(salt, canonical, false) != ownership.LastEmittedCommitment {
+		return nil, false, nil
+	}
+	return canonical, true, nil
 }
 
 func loadOMPModelProjectOriginalPreimageAt(
@@ -76,19 +111,46 @@ func loadOMPModelProjectOriginalPreimageAt(
 	wantLedgerChecksum := adapter.Checksum(string(originData))
 	hasOrigin := false
 	for _, journal := range journals {
-		hasOrigin = hasOrigin || journalContainsOriginLedger(journal, wantLedgerChecksum)
+		hasOrigin = hasOrigin || journalContainsOriginLedger(journal, wantLedgerChecksum) ||
+			journalWritesOMPProjectLedger(journal)
 	}
 	if !hasOrigin {
 		return nil, false, 0, fmt.Errorf("project ownership origin transaction missing")
 	}
-	current, err := validateCurrentOMPModelProjectConfigAt(workspace, ownership)
+	current, missing, _, err := readOMPModelProjectConfigAt(workspace)
 	if err != nil {
 		return nil, false, 0, err
 	}
+	anchor, _, err := ompProjectConfigAnchor(current, missing, ownership)
+	if err != nil || anchor == nil {
+		_, validateErr := validateCurrentOMPModelProjectConfigAt(workspace, ownership)
+		return nil, false, 0, validateErr
+	}
+	return walkOMPModelProjectPreimageAt(workspace, ownership, journals, wantLedgerChecksum, anchor)
+}
+
+// walkOMPModelProjectPreimageAt follows the exact-byte chain of committed
+// config writes back from anchor to the origin whose salted commitment the
+// ledger holds. The origin is the transaction that created this ledger, or
+// one that re-based it on a file that already existed: the commitment, not
+// the journal shape, proves which before-bytes are the preimage. A claim of
+// task.disabledAgents recorded at the origin is restored to its preimage
+// state first, because the re-based file may already carry ADK's value.
+// @AX:WARN [AUTO]: preimage chain recovery has high branch complexity.
+// @AX:REASON [AUTO]: exact-byte chain links, origin evidence, rollback artifacts, and commitment checks must all fail closed.
+func walkOMPModelProjectPreimageAt(
+	workspace *ompRootedWorkspace,
+	ownership ompModelProjectOwnership,
+	journals []*adapter.TransactionJournal,
+	wantLedgerChecksum string,
+	anchor []byte,
+) ([]byte, bool, fs.FileMode, error) {
 	salt, err := decodeOMPModelProjectSalt(ownership.Salt)
 	if err != nil {
 		return nil, false, 0, err
 	}
+	initialSurface, surfaceClaimed := ompAgentSurfaceKeyIn(ownership.InitialManagedKeys)
+	current := anchor
 	for _, journal := range journals {
 		var configEntry *adapter.TransactionJournalEntry
 		currentChecksum := adapter.Checksum(string(current))
@@ -103,8 +165,9 @@ func loadOMPModelProjectOriginalPreimageAt(
 			continue
 		}
 		origin := journalContainsOriginLedger(journal, wantLedgerChecksum)
+		rebase := !origin && journalWritesOMPProjectLedger(journal)
 		if configEntry.MissingBefore {
-			if !origin || !ownership.OriginalMissing {
+			if !(origin || rebase) || !ownership.OriginalMissing {
 				return nil, false, 0, fmt.Errorf("project ownership preimage mismatch")
 			}
 			return nil, true, 0, nil
@@ -139,97 +202,35 @@ func loadOMPModelProjectOriginalPreimageAt(
 			return nil, false, 0, fmt.Errorf("read project ownership preimage: %w", err)
 		}
 		current = before
-		if !origin {
+		if !origin && !rebase {
 			continue
 		}
-		if ownership.OriginalMissing ||
-			ompModelProjectCommitment(salt, current, false) != ownership.OriginalCommitment {
+		candidate := current
+		if surfaceClaimed {
+			if candidate, err = applyOMPAgentSurfacePrior(current, initialSurface.PriorFingerprint); err != nil {
+				return nil, false, 0, err
+			}
+		}
+		switch {
+		case ownership.OriginalMissing && ompBlankConfig(candidate):
+			return nil, true, fs.FileMode(configEntry.Mode), nil
+		case !ownership.OriginalMissing &&
+			ompModelProjectCommitment(salt, candidate, false) == ownership.OriginalCommitment:
+			return candidate, false, fs.FileMode(configEntry.Mode), nil
+		case origin:
 			return nil, false, 0, fmt.Errorf("project ownership preimage mismatch")
 		}
-		return current, false, fs.FileMode(configEntry.Mode), nil
 	}
 	return nil, false, 0, fmt.Errorf("project ownership origin transaction missing")
 }
 
-func loadOMPTransactionJournalsAt(
-	workspace *ompRootedWorkspace,
-	platform string,
-) ([]*adapter.TransactionJournal, error) {
-	entries, err := workspace.readDir(filepath.Join(".autopus", "txns"))
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("transaction journal dir read: %w", err)
-	}
-	var journals []*adapter.TransactionJournal
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		rel := filepath.Join(".autopus", "txns", entry.Name(), "journal.json")
-		data, _, readErr := workspace.readOwnerOnlyFile(rel, 4<<20)
-		if readErr != nil {
-			continue
-		}
-		var journal adapter.TransactionJournal
-		if json.Unmarshal(data, &journal) != nil || journal.Status != adapter.TransactionStatusCommitted ||
-			(platform != "" && journal.Platform != platform) {
-			continue
-		}
-		journal.Path = filepath.ToSlash(rel)
-		journals = append(journals, &journal)
-	}
-
-	sort.Slice(journals, func(i, j int) bool { return journals[i].CreatedAt > journals[j].CreatedAt })
-	return journals, nil
-}
-
-func (workspace *ompRootedWorkspace) cleanupOMPConfigRollbackArtifactsIfUnowned() error {
-	if _, err := workspace.lstat(OMPModelProjectOwnershipRelativePath); err == nil {
-		return nil
-	} else if !errors.Is(err, fs.ErrNotExist) {
-		return nil
-	}
-	entries, err := workspace.readDir(filepath.Join(".autopus", "txns"))
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil
-	}
-	if err != nil {
-		return nil
-	}
-	var cleanupErr error
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		journalRel := filepath.Join(".autopus", "txns", entry.Name(), "journal.json")
-		data, _, readErr := workspace.readOwnerOnlyFile(journalRel, 4<<20)
-		if readErr != nil {
-			continue
-		}
-		var journal adapter.TransactionJournal
-		if json.Unmarshal(data, &journal) != nil {
-			continue
-		}
-		for _, journalEntry := range journal.Entries {
-			if filepath.ToSlash(journalEntry.Path) != configFile || journalEntry.BackupPath == "" {
-				continue
-			}
-			backup, pathErr := cleanOMPRootedPath(journalEntry.BackupPath)
-			if pathErr != nil ||
-				!strings.HasPrefix(filepath.ToSlash(backup), ".autopus/backup/") {
-				continue
-			}
-			if removeErr := workspace.remove(backup, false); removeErr != nil &&
-				!errors.Is(removeErr, fs.ErrNotExist) {
-				cleanupErr = errors.Join(cleanupErr, removeErr)
-				continue
-			}
-			if parentErr := workspace.removeEmptyParents(filepath.Dir(backup)); parentErr != nil {
-				cleanupErr = errors.Join(cleanupErr, parentErr)
-			}
+// journalWritesOMPProjectLedger reports a transaction that wrote the ledger,
+// the one shape a re-based origin can have.
+func journalWritesOMPProjectLedger(journal *adapter.TransactionJournal) bool {
+	for _, entry := range journal.Entries {
+		if filepath.ToSlash(entry.Path) == OMPModelProjectOwnershipRelativePath && entry.AfterChecksum != "" {
+			return true
 		}
 	}
-	return cleanupErr
+	return false
 }

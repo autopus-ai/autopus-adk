@@ -126,7 +126,10 @@ func (tx *ompRootedTransaction) apply(plan adapter.TransactionPlan) error {
 			return err
 		}
 	}
-	for _, write := range plan.Writes {
+	for index, write := range plan.Writes {
+		if err := tx.injectedWriteFailure(write.Path, index, len(plan.Writes)); err != nil {
+			return err
+		}
 		if err := tx.writeFile(write); err != nil {
 			return err
 		}

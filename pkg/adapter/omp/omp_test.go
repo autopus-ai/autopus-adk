@@ -53,7 +53,7 @@ func TestOMP_S4_S5_S6_Lifecycle(t *testing.T) {
 	assert.NotNil(t, pf)
 
 	// Check S6: generated native files without an unnecessary base config.
-	assert.NoFileExists(t, filepath.Join(dir, configFile))
+	assert.FileExists(t, filepath.Join(dir, configFile))
 	assert.FileExists(t, filepath.Join(dir, ".omp", "agents", "executor.md"))
 	assert.FileExists(t, filepath.Join(dir, ".omp", "skills", "auto", "SKILL.md"))
 	assert.FileExists(t, filepath.Join(dir, ".omp", "commands", "auto.md"))

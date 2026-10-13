@@ -1,9 +1,6 @@
 package omp
 
-import (
-	"fmt"
-	"os"
-)
+import "os"
 
 type ompProjectCleanState struct {
 	preimage []byte
@@ -11,22 +8,31 @@ type ompProjectCleanState struct {
 	mode     os.FileMode
 }
 
+// prepareOMPProjectCleanStateAt returns what releasing the project claim set
+// restores, or nil when no ledger manages a key. A ledger with profile claims
+// keeps the receipt proof it always needed; one with only the agent surface
+// claim has no receipt, and a ledger holding only the user-ownership mark
+// restores nothing.
 func (a *Adapter) prepareOMPProjectCleanStateAt(workspace *ompRootedWorkspace) (*ompProjectCleanState, error) {
 	ownership, exists, err := readOMPModelProjectOwnershipAt(workspace)
-	if err != nil || !exists {
+	if err != nil || !exists || ownership.markerOnly() {
 		return nil, err
 	}
-	if _, err := validateCurrentOMPModelProjectConfigAt(workspace, ownership); err != nil {
-		return nil, err
+	if ownership.hasProfileClaims() {
+		if _, err := validateCurrentOMPModelProjectConfigAt(workspace, ownership); err != nil {
+			return nil, err
+		}
+		if err := requireOMPProjectReleaseReceiptAt(workspace, ownership); err != nil {
+			return nil, err
+		}
 	}
-	receipt, reason := readOMPModelDoctorReceiptAt(workspace)
-	if reason != "" || receipt.ConfigSource != "project-managed" ||
-		receipt.ProjectOwnershipDigest != ownership.LedgerDigest {
-		return nil, fmt.Errorf("managed_key_conflict: project ownership receipt mismatch")
-	}
-	preimage, missing, mode, err := loadOMPModelProjectOriginalPreimageAt(workspace, ownership)
+	state, err := evaluateOMPClaimSetAt(workspace, false)
 	if err != nil {
 		return nil, err
 	}
-	return &ompProjectCleanState{preimage: preimage, missing: missing, mode: mode}, nil
+	mode := state.preimageMode
+	if mode == 0 {
+		mode = ompConfigFileMode
+	}
+	return &ompProjectCleanState{preimage: state.preimage, missing: state.preimageMissing, mode: mode}, nil
 }

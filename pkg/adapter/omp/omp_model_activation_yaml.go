@@ -95,7 +95,10 @@ func parseOMPManagedDocument(data []byte) (*yaml.Node, error) {
 	}
 	decoder := yaml.NewDecoder(bytes.NewReader(data))
 	var document yaml.Node
-	if err := decoder.Decode(&document); err != nil {
+	if err := decoder.Decode(&document); err == io.EOF {
+		// Only comments: an empty mapping a claim can be appended to.
+		return &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}, nil
+	} else if err != nil {
 		return nil, fmt.Errorf("managed config YAML is invalid: %w", err)
 	}
 	var extra yaml.Node

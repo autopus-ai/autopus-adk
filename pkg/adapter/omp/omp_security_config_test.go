@@ -109,6 +109,14 @@ func configForOMP() *config.HarnessConfig {
 	return cfg
 }
 
+// nativeConfigForOMP is configForOMP on the v0.50.125 agent source, whose
+// plain install claims no project config key.
+func nativeConfigForOMP() *config.HarnessConfig {
+	cfg := configForOMP()
+	cfg.RoleModelPolicy.AgentSource = config.OMPAgentSourceNative
+	return cfg
+}
+
 // TestOMPGenerate_PreservesOrdinaryUserConfig guards the default no-ownership contract.
 func TestOMPGenerate_PreservesOrdinaryUserConfig(t *testing.T) {
 	t.Parallel()
@@ -116,7 +124,7 @@ func TestOMPGenerate_PreservesOrdinaryUserConfig(t *testing.T) {
 	dir := t.TempDir()
 	cfgPath := writeOMPConfig(t, dir, "disabledProviders:\n  - anthropic\nmodel: local\n")
 
-	_, err := NewWithRoot(dir).Generate(context.Background(), configForOMP())
+	_, err := NewWithRoot(dir).Generate(context.Background(), nativeConfigForOMP())
 	require.NoError(t, err)
 
 	after, readErr := os.ReadFile(cfgPath)
@@ -219,9 +227,9 @@ func TestOMPUpdate_ReplacesStaleManagedSection(t *testing.T) {
 	cfgPath := writeOMPConfig(t, dir, stale)
 
 	adapterUnderTest := NewWithRoot(dir)
-	_, err := adapterUnderTest.Generate(context.Background(), configForOMP())
+	_, err := adapterUnderTest.Generate(context.Background(), nativeConfigForOMP())
 	require.NoError(t, err, "a stale managed section must not block regeneration")
-	_, err = adapterUnderTest.Update(context.Background(), configForOMP())
+	_, err = adapterUnderTest.Update(context.Background(), nativeConfigForOMP())
 	require.NoError(t, err, "nor must it block update")
 
 	after, readErr := os.ReadFile(cfgPath)

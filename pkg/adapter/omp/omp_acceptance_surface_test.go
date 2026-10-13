@@ -38,8 +38,8 @@ func countPathsWithPrefix(paths []string, prefix string) int {
 
 func TestOMPAcceptance_PlainInstallOmitsBaseConfig(t *testing.T) {
 	dir := generateOMPOnly(t)
-	assert.NoFileExists(t, filepath.Join(dir, configFile))
-	assert.NotContains(t, manifestPaths(t, dir), configFile)
+	assert.FileExists(t, filepath.Join(dir, configFile), "the default source claims task.disabledAgents")
+	assert.Contains(t, manifestPaths(t, dir), configFile)
 }
 
 // TestOMPAcceptance_S6_RuleAndAgentCounts covers REQ-002/REQ-005 surface scope.
@@ -53,7 +53,7 @@ func TestOMPAcceptance_S6_RuleAndAgentCounts(t *testing.T) {
 		"the default source records one generated definition per canonical agent")
 	assert.Equal(t, len(workflowSpecs), countPathsWithPrefix(paths, ".omp/commands/"))
 	assert.Greater(t, countPathsWithPrefix(paths, ".omp/skills/"), len(workflowSpecs))
-	assert.NotContains(t, paths, configFile)
+	assert.Contains(t, paths, configFile)
 }
 
 // agent_source: native keeps the v0.50.125 surface the default-source
@@ -169,7 +169,7 @@ func TestOMPAcceptance_S4_OwnershipBoundaryAndManifestScope(t *testing.T) {
 	assert.Equal(t, 16, countPathsWithPrefix(paths, ".omp/agents/"))
 	assert.Equal(t, len(workflowSpecs), countPathsWithPrefix(paths, ".omp/commands/"))
 	assert.Greater(t, countPathsWithPrefix(paths, ".omp/skills/"), len(workflowSpecs))
-	assert.NotContains(t, paths, configFile)
+	assert.Contains(t, paths, configFile)
 	for _, forbidden := range []string{".agents/skills/", ".agents/commands/", ".agents/plugins/", ".agents/hooks.json"} {
 		assert.Equal(t, 0, countPathsWithPrefix(paths, forbidden),
 			"manifest must not record a foreign path under %s", forbidden)

@@ -158,11 +158,11 @@ export default function autopusContextBridge(pi: BridgeAPI): void {
 
 func TestOMPContextBridge_NoOptInPreservesExactPreparedFiles(t *testing.T) {
 	adapterUnderTest := NewWithRoot(t.TempDir())
-	baseline := configForOMP()
+	baseline := nativeConfigForOMP()
 	baselineFiles, err := adapterUnderTest.prepareFiles(context.Background(), baseline)
 	require.NoError(t, err)
 
-	catalogOnly := configForOMP()
+	catalogOnly := nativeConfigForOMP()
 	catalogOnly.OMPContextPolicy.Profiles = map[string]config.OMPContextProfileConf{
 		"bridge": {},
 	}

@@ -117,14 +117,14 @@ func TestOMPModelIntegration_ProjectManagedToOverlayRestoresPreimageAndRoundTrip
 	path := filepath.Join(root, configFile)
 	runner := newModelIntegrationRunner()
 	a := NewWithRoot(root).WithModelIntegrationRunner(runner)
-	if _, err := a.Generate(context.Background(), integrationHarnessConfig("project-managed")); err != nil {
+	if _, err := a.Generate(context.Background(), nativeClaimConfig(integrationHarnessConfig("project-managed"))); err != nil {
 		t.Fatalf("project-managed Generate: %v", err)
 	}
 	if _, err := os.Stat(path); err != nil {
 		t.Fatalf("project-managed apply did not write %s: %v", configFile, err)
 	}
 
-	if _, err := a.Update(context.Background(), integrationHarnessConfig("overlay")); err != nil {
+	if _, err := a.Update(context.Background(), nativeClaimConfig(integrationHarnessConfig("overlay"))); err != nil {
 		t.Fatalf("switch to overlay: %v", err)
 	}
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
@@ -134,7 +134,7 @@ func TestOMPModelIntegration_ProjectManagedToOverlayRestoresPreimageAndRoundTrip
 		t.Fatalf("overlay switch kept the ownership ledger (err=%v)", err)
 	}
 
-	if _, err := a.Update(context.Background(), integrationHarnessConfig("project-managed")); err != nil {
+	if _, err := a.Update(context.Background(), nativeClaimConfig(integrationHarnessConfig("project-managed"))); err != nil {
 		t.Fatalf("switch back to project-managed: %v", err)
 	}
 	got, err := os.ReadFile(path)
