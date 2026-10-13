@@ -2,7 +2,7 @@
 
 **Status**: approved
 **Created**: 2026-10-12
-**Revised**: 2026-10-13 (review round 1 F-001–F-020, round 2 F-002·F-008·F-013·F-021·F-022, round 3 F-002·F-008·F-023, round 4 F-002)
+**Revised**: 2026-10-13 (review round 1 F-001–F-020, round 2 F-002·F-008·F-013·F-021·F-022, round 3 F-002·F-008·F-023, round 4 F-002; 구현 리뷰 뒤 S21 NO catalog 판정을 provider 단위 degrade로 정정)
 **Domain**: MODELUX
 **Module**: autopus-adk
 **Release**: v0.50.126. 작업 branch는 `feat/modelux-003`이고 기준은 `v0.50.125`(dd6d6ea2, origin/main)다. v0.50.125는 SPEC-MODELUX-001·002로 이미 발행됐다.

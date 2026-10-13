@@ -139,7 +139,7 @@ Given OPX, OPX + `agents.task` pin(`openai-codex/gpt-6-astra:high`)인 사본, O
 When 각각 `config.Load` 뒤 `auto update --yes`를 실행한다
 Then OPX는 `omp_native_agent_conflict` 없이 읽히고 override는 executor `openai-codex/gpt-6-astra:max`, tester `openai-codex/gpt-6.1-sol:xhigh`, task와 planner는 프로필 planner route 값이다
 And task pin 사본은 자기 pin이 없는 11개 task 접힘 역할(annotator, architect, debugger, deep-worker, devops, frontend-specialist, perf-engineer, planner, spec-writer, ux-validator, validator)과 task, 모두 12개 key가 `openai-codex/gpt-6-astra:high`이고 executor·tester는 자기 pin이다
-And degrade 판정은 provider 단위다. cross-family route가 있는 ultra/anthropic 프로필을 anthropic login 없이 돌린 사본은 성공하고, 내려간 provider의 파생 route 에이전트는 override에 없으며 그 파일에 `thinkingLevel`이 있다. 내장 balanced/openai는 모든 route가 openai-codex라 NO에서 전부 내려가 `task.agentModelOverrides must not be empty`로 실패하며, 이는 native 모드와 v0.50.125의 동작과 같다(REQ-MUX3-21). NO의 OPX는 `required_route_unresolved`와 `executor`를 담은 오류로 실패하고 OMP 파일 bytes가 실행 전과 같다
+And degrade 판정은 provider 단위다. cross-family route가 있는 ultra/anthropic 프로필을 anthropic login 없이 돌린 사본은 성공하고, 내려간 provider의 파생 route 에이전트는 override에 없으며 그 파일에 `thinkingLevel`이 있다. 내장 balanced/openai는 모든 route가 openai-codex라 NO에서 전부 내려가 `task.agentModelOverrides must not be empty`로 실패하며, 이는 native 모드와 v0.50.125의 동작과 같다. 기존 활성화 경로가 빈 override를 거부하기 때문이다(REQ-MUX3-11·12·15·16). NO의 OPX는 `required_route_unresolved`와 `executor`를 담은 오류로 실패하고 OMP 파일 bytes가 실행 전과 같다
 ### S22: claim 집합 전환과 복원
 Priority: Must
 Given `.omp/config.yml`이 없는 O3가 있다
