@@ -1,6 +1,7 @@
 package omp
 
 import (
+	"errors"
 	"io/fs"
 	"os"
 
@@ -45,6 +46,9 @@ type ompClaimSetState struct {
 	// claim on such a file still fails with readErr, as it always has.
 	unclaimable bool
 	readErr     error
+	// frozen reports a recorded claim over a file that now holds a line break
+	// the editor cannot place: the file and the ledger stay as they are.
+	frozen bool
 }
 
 // evaluateOMPClaimSetAt decides whose task.disabledAgents is and what a
@@ -62,12 +66,16 @@ func evaluateOMPClaimSetAt(workspace *ompRootedWorkspace, claimSurface bool) (om
 		state.value, state.present, err = ompDisabledAgentsIn(state.current)
 	}
 	if err != nil {
-		if !unclaimed {
+		switch {
+		case unclaimed:
+			// A file ADK never claimed and cannot parse safely (a symlink,
+			// invalid YAML, several documents) is not read further or written.
+			state.unclaimable, state.userOwned, state.readErr = true, true, err
+		case errors.Is(err, errOMPYAMLOnlyLineBreak):
+			state.unclaimable, state.frozen, state.readErr = true, true, err
+		default:
 			return state, err
 		}
-		// A file ADK never claimed and cannot parse safely (a symlink,
-		// invalid YAML, several documents) is not read further or written.
-		state.unclaimable, state.userOwned, state.readErr = true, true, err
 		return state, nil
 	}
 	state.preimageMode = state.currentMode
@@ -197,6 +205,9 @@ func planOMPClaimSetAt(
 	state, err := evaluateOMPClaimSetAt(workspace, claimSurface)
 	if err != nil {
 		return ompClaimSetPlan{}, err
+	}
+	if state.frozen {
+		return planFrozenOMPClaimSetAt(workspace, state, profile)
 	}
 	plan := ompClaimSetPlan{state: state}
 	if state.unclaimable {

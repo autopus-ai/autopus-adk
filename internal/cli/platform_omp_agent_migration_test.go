@@ -219,8 +219,15 @@ func TestOMPAgentSurfaceLines(t *testing.T) {
 	assert.NotContains(t, lines, ko.userOwned)
 	assert.NotContains(t, lines, "task.disabledAgents: scout, security-reviewer, sonic")
 	assert.Equal(t, "task.disabledAgents was not written: .omp/config.yml cannot be read safely "+
-		"(a symlink, invalid YAML, several documents, an alias, or a flow-style mapping); "+
-		"scout, security-reviewer, and sonic stay enabled", en.unclaimable)
+		"(a symlink, invalid YAML, several documents, an alias, a flow-style mapping, "+
+		"or a lone CR, NEL, LS, or PS line break); scout, security-reviewer, and sonic stay enabled", en.unclaimable)
+	frozen := unclaimable
+	frozen.RecordedAgents, frozen.DisabledAgentsClaimed = recorded, true
+	assert.Equal(t, []string{ko.kept}, ompAgentSurfaceLines(frozen, cfg, true, ko), "a recorded claim stays as it is")
+	frozenNative := frozen
+	frozenNative.Source = config.OMPAgentSourceNative
+	assert.NotContains(t, ompAgentSurfaceLines(frozenNative, cfg, true, ko), ko.restored, "nothing is restored")
+	assert.Contains(t, ompAgentSurfaceLines(frozenNative, cfg, true, ko), ko.kept)
 
 	native := omp.OMPAgentSurfaceReport{Source: config.OMPAgentSourceNative, RecordedAgents: []string{"planner"}, DisabledAgentsClaimed: true}
 	assert.Equal(t, []string{"- .omp/agents/planner.md", "task.disabledAgents restored"}, ompAgentSurfaceLines(native, cfg, true, en))

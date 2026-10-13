@@ -90,6 +90,9 @@ func clearOMPManagedFlowStyle(node *yaml.Node) {
 }
 
 func parseOMPManagedDocument(data []byte) (*yaml.Node, error) {
+	if ompYAMLOnlyLineBreak(data) {
+		return nil, errOMPYAMLOnlyLineBreak
+	}
 	if len(bytes.TrimSpace(data)) == 0 {
 		return &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}, nil
 	}

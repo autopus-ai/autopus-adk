@@ -119,6 +119,42 @@ func TestOMPAgentCatalog_ReportsAnUnclaimableProjectConfig(t *testing.T) {
 	assert.NotContains(t, projection.Blockers, "agents:disabled_agents_user_owned")
 }
 
+// Security re-check N1: a project config holding a line break ADK does not
+// edit fails no run, keeps its bytes, and is reported as unclaimable, both
+// before the first claim and under a recorded one.
+func TestOMPAgentCatalog_ReportsAConfigWithAYAMLOnlyLineBreak(t *testing.T) {
+	for name, claimFirst := range map[string]bool{"first claim": false, "recorded claim": true} {
+		t.Run(name, func(t *testing.T) {
+			root := t.TempDir()
+			cfg := config.DefaultFullConfig("omp-autopus-line-break")
+			cfg.Platforms = []string{"omp"}
+			require.NoError(t, config.Save(root, cfg))
+			path := filepath.Join(root, ".omp", "config.yml")
+			require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o700))
+			content := []byte("note: \"a\u2028b\"\ntheme: dark\n")
+			if claimFirst {
+				require.NoError(t, os.WriteFile(path, []byte("theme: dark\n"), 0o600))
+				_, err := omp.NewWithRoot(root).Generate(context.Background(), cfg)
+				require.NoError(t, err)
+				claimed, err := os.ReadFile(path)
+				require.NoError(t, err)
+				content = append([]byte("note: \"a\u2028b\"\n"), claimed...)
+			}
+			require.NoError(t, os.WriteFile(path, content, 0o600))
+
+			_, err := omp.NewWithRoot(root).Update(context.Background(), cfg)
+
+			require.NoError(t, err)
+			after, err := os.ReadFile(path)
+			require.NoError(t, err)
+			assert.Equal(t, string(content), string(after))
+			projection := buildOMPPlatformProjection(context.Background(), root, &ompCLIFakeRunner{}, configTimeForOMPAgentCatalog())
+			assert.Equal(t, "project_config_unclaimable", projection.Models.AgentCatalogReason)
+			assert.Contains(t, projection.Blockers, "agents:project_config_unclaimable")
+		})
+	}
+}
+
 // S15: in autopus mode every pipeline phase runs on the agent of its own
 // role, so the receipt is read by that name and an omitted one fails closed.
 func TestPipelineOMPPhaseModels_ReadTheAutopusAgentOfEachPhase(t *testing.T) {

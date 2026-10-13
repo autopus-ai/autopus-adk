@@ -25,10 +25,12 @@ type OMPAgentSurfaceReport struct {
 	// DisabledAgentsUserOwned reports task.disabledAgents as the user's, so
 	// scout, security-reviewer, and sonic stay enabled in autopus mode.
 	DisabledAgentsUserOwned bool
-	// ProjectConfigUnclaimable reports a .omp/config.yml ADK never claimed
-	// and cannot read safely (a symlink, invalid YAML, several documents, an
-	// alias, or a flow-style mapping): generation leaves it untouched, so the
-	// three bundled agents stay enabled, though the user chose no value.
+	// ProjectConfigUnclaimable reports a .omp/config.yml ADK cannot read
+	// safely (a symlink, invalid YAML, several documents, an alias, a
+	// flow-style mapping, or a lone CR, NEL, LS, or PS line break):
+	// generation leaves it untouched. Unclaimed, the three bundled agents
+	// stay enabled, though the user chose no value; a recorded claim
+	// (DisabledAgentsClaimed) stays as ADK last wrote it.
 	ProjectConfigUnclaimable bool
 	// DisabledAgentsClaimed reports ADK's own claim of task.disabledAgents.
 	DisabledAgentsClaimed bool

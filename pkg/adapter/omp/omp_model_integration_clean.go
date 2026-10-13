@@ -30,6 +30,10 @@ func (a *Adapter) prepareOMPProjectCleanStateAt(workspace *ompRootedWorkspace) (
 	if err != nil {
 		return nil, err
 	}
+	if state.frozen {
+		// What the claim would restore cannot be placed in the file as it is.
+		return nil, state.readErr
+	}
 	mode := state.preimageMode
 	if mode == 0 {
 		mode = ompConfigFileMode
