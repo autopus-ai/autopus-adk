@@ -216,6 +216,14 @@ func TestOMPUpdate_S11_PinsOnlyFailsClosedOnAMissingProvider(t *testing.T) {
 	assert.Equal(t, agentsBefore, agentsAfter)
 }
 
+// The conversion line carries no particle that depends on the profile name.
+func TestComposeOMPConvertLine_IsParticleFree(t *testing.T) {
+	assert.Equal(t, "OMP 프로필 ultra의 route를 에이전트별 지정으로 옮깁니다. 바꾸지 않은 에이전트의 route는 그대로입니다.",
+		fmt.Sprintf(composeFormTextKO.OMPConvert, "ultra"))
+	assert.Equal(t, "Moving the routes of OMP profile ultra to per-agent pins; unchanged agents keep their routes.",
+		fmt.Sprintf(composeFormTextEN.OMPConvert, "ultra"))
+}
+
 func composeOMPKeys(values map[string]string) []string {
 	keys := make([]string, 0, len(values))
 	for key := range values {

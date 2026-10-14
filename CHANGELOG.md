@@ -35,7 +35,7 @@ All notable changes to this project will be documented in this file.
     선언에 있는 설치 model만 안내 1줄과 함께 보인다. 결과는 프로필 없는 pin(`role_model_policy: {version: v1, agents:
     …}`)이고 `task`는 자기 pin이 없으면 planner를 따른다(`planner를 따름`). 미리보기에 `프로필 없는
     role_model_policy.agents는 v0.50.126보다 오래된 auto가 읽지 못합니다` 줄이 나온다. 프로필 설정 위에서 적용하면
-    `OMP 프로필 <name>을 에이전트별 지정으로 옮깁니다. …` 줄과 확인 뒤 pin으로 옮긴다. 바꾸지 않은 에이전트와 `task`는
+    `OMP 프로필 <name>의 route를 에이전트별 지정으로 옮깁니다. …` 줄과 확인 뒤 pin으로 옮긴다. 바꾸지 않은 에이전트와 `task`는
     route가 그대로이고, `scout`·`security-reviewer`·`sonic` key는 펼친 뒤 지우며, ultra 프로필의 `quality.presets.ultra`
     연동은 끝난다. native mode, 줄 OMP 편집기, `auto platform omp profile apply`는 그대로 프로필을 쓴다.
   - migration: `auto update`가 `+ .omp/agents/<agent>.md` 줄, `task.disabledAgents: scout, security-reviewer,

@@ -167,7 +167,7 @@ And 첫 사본은 첫 update 뒤 파일에 `task.disabledAgents`가 없고 SHA-2
 Priority: Must
 Given OP, OPT, IO 생성 runner, ML catalog, 각 파일로 한 번 `auto update --yes`해 기록한 override 값이 있다
 When (1) OP에서 `auto quality` → OMP → 역할 그룹 → 설계·판단·구현·검증·리뷰 Enter → 탐색·보조 `OMP 세션 모델 그대로` → 적용 → 유지를 고르고, OP 사본에서는 같은 입력 뒤 확인에서 취소한다. (2) OPT에서 같은 편집을 적용한다. (3) 다른 OP 사본에서 설계·판단 `anthropic/claude-fable-5-1` → thinking `high`, 탐색·보조 세션 모델로 적용한 뒤 다시 OMP → 에이전트별 → `task` → `planner를 따름` → 완료 → 적용한다
-Then (1) 각 그룹 Select의 `그대로` 라벨은 pin 없는 pre-plan의 effective `provider/model · thinking`이고 미리보기 위에 `OMP 프로필 balanced를 에이전트별 지정으로 옮깁니다. 바꾸지 않은 에이전트의 route는 그대로입니다.`가 있다. 적용 뒤 `profile`·`family`와 `agents.task`가 없고 agents key는 explorer와 annotator를 뺀 14개이며 각 candidates는 변환 전 그 에이전트 route의 candidate 전부와 같다. override에서 그 14개와 task의 값은 기록한 값과 같고 explorer·annotator key는 없다. 취소한 사본은 SHA-256이 같다
+Then (1) 각 그룹 Select의 `그대로` 라벨은 pin 없는 pre-plan의 effective `provider/model · thinking`이고 미리보기 위에 `OMP 프로필 balanced의 route를 에이전트별 지정으로 옮깁니다. 바꾸지 않은 에이전트의 route는 그대로입니다.`가 있다. 적용 뒤 `profile`·`family`와 `agents.task`가 없고 agents key는 explorer와 annotator를 뺀 14개이며 각 candidates는 변환 전 그 에이전트 route의 candidate 전부와 같다. override에서 그 14개와 task의 값은 기록한 값과 같고 explorer·annotator key는 없다. 취소한 사본은 SHA-256이 같다
 And (2) 뒤 `agents.task`는 `openai-codex/gpt-6-astra:max`로 남고, override의 task와 planner 값은 기록한 변환 전 값(서로 다름)과 같다
 And (3) 첫 적용 뒤 `agents.task`가 변환 전 task route의 candidate로 생기고 override의 task 값은 기록한 OP 값과 같으며 planner는 `anthropic/claude-fable-5-1:high`다. 에이전트별 목록에 `task — <그 route>`가 있고, `planner를 따름` 적용 뒤 `agents.task`가 없고 task 값은 `anthropic/claude-fable-5-1:high`다
 And NO catalog로 연 OP 사본은 pre-plan blocker의 오류 줄 뒤 방식 Select 없이 메뉴로 돌아가고 activate 0회, SHA-256이 같다

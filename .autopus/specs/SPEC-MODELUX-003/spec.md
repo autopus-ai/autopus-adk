@@ -330,7 +330,7 @@ WHEN the operator applies an OMP tab edit over a profile-based policy in autopus
 | 바뀌는 설정 | `quality.presets.<p>-custom.efforts 새로 씀 (N개 에이전트)` / `고쳐 씀` / `지움`, `quality.presets.*.efforts는 v0.50.126보다 오래된 auto가 읽지 못합니다`, `quality.presets.<name>.efforts 옮겨 씀 (N개 에이전트)` | `… efforts written (N agents)` / `rewritten` / `removed`, `auto older than v0.50.126 cannot read quality.presets.*.efforts`, `quality.presets.<name>.efforts carried (N agents)` |
 | OMP model | `OMP 세션 모델 그대로` · 현재 `OMP 세션 모델` · `<provider>/<model> · <thinking>` · `planner를 따름` | `keep the OMP session model` · `OMP session model` · `<provider>/<model> · <thinking>` · `follow planner` |
 | OMP metadata 안내 | `설치된 OMP catalog에 family·capability 정보가 없어 Autopus가 증명할 수 있는 model만 보입니다` | `The installed OMP catalog has no family or capability metadata; only models Autopus can attest are listed` |
-| OMP 변환 | `OMP 프로필 <name>을 에이전트별 지정으로 옮깁니다. 바꾸지 않은 에이전트의 route는 그대로입니다.` | `Moving OMP profile <name> to per-agent pins; unchanged agents keep their routes.` |
+| OMP 변환 | `OMP 프로필 <name>의 route를 에이전트별 지정으로 옮깁니다. 바꾸지 않은 에이전트의 route는 그대로입니다.` | `Moving the routes of OMP profile <name> to per-agent pins; unchanged agents keep their routes.` |
 | OMP 옛 바이너리 | `프로필 없는 role_model_policy.agents는 v0.50.126보다 오래된 auto가 읽지 못합니다` | `auto older than v0.50.126 cannot read role_model_policy.agents without a profile` |
 | 사용자 파일 | `.omp/agents/<agent>.md는 사용자 파일이라 그대로 둡니다` | `.omp/agents/<agent>.md is a user file; left unchanged` |
 | disabledAgents | `.omp/config.yml의 task.disabledAgents를 사용자가 정해 두어 scout, security-reviewer, sonic을 끄지 않았습니다` | `task.disabledAgents in .omp/config.yml is user-owned; scout, security-reviewer, and sonic stay enabled` |

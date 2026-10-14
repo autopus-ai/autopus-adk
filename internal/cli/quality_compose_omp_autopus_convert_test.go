@@ -74,7 +74,7 @@ func TestComposeOMPAutopus_S25_ConvertsTheProfileOnApply(t *testing.T) {
 			}
 		}
 		assert.Contains(t, out, composeOMPDesignGroup+" \n1. 그대로 — "+strings.Join(labels, ", ")+"\n")
-		convert := strings.Index(out, "OMP 프로필 balanced을 에이전트별 지정으로 옮깁니다. 바꾸지 않은 에이전트의 route는 그대로입니다.")
+		convert := strings.Index(out, "OMP 프로필 balanced의 route를 에이전트별 지정으로 옮깁니다. 바꾸지 않은 에이전트의 route는 그대로입니다.")
 		require.GreaterOrEqual(t, convert, 0)
 		assert.Less(t, convert, strings.Index(out, "OMP pins-only — model preview"))
 		policy := rawRoleModelPolicyOf(t, readBlockFixture(t, dir))
