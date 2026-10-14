@@ -115,20 +115,28 @@ func decodeStrict(data []byte, out any) ([]string, error) {
 		// required fields with a clearer message than a decoder error would.
 		return nil, nil
 	}
+	retired := pruneToleratedKeys(&doc)
+	if err := decodeNodeKnownFields(&doc, out); err != nil {
+		return nil, fmt.Errorf("%w (unknown keys are rejected: fix the typo or delete the key)", err)
+	}
+	return retired, nil
+}
+
+// pruneToleratedKeys drops from a parsed autopus.yaml the removed and
+// reserved keys, the only ones strict decoding tolerates, and returns the
+// retired orchestra paths among them in byte order.
+func pruneToleratedKeys(doc *yaml.Node) []string {
 	var retired []string
 	for _, key := range removedConfigKeys {
-		pruned := pruneNodePaths(&doc, strings.Split(key, "."))
+		pruned := pruneNodePaths(doc, strings.Split(key, "."))
 		if slices.Contains(retiredOrchestraConfigKeys, key) {
 			retired = append(retired, pruned...)
 		}
 	}
 	for _, key := range reservedConfigKeys {
-		pruneNodePaths(&doc, []string{key})
+		pruneNodePaths(doc, []string{key})
 	}
-	if err := decodeNodeKnownFields(&doc, out); err != nil {
-		return nil, fmt.Errorf("%w (unknown keys are rejected: fix the typo or delete the key)", err)
-	}
-	return sortedUniquePaths(retired), nil
+	return sortedUniquePaths(retired)
 }
 
 // decodeNodeKnownFields decodes node into out exactly as a Decoder with

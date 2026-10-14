@@ -24,36 +24,38 @@ const placeholderShapeRule = "a placeholder value may only replace the scalar it
 // parsed once with every placeholder replaced by a token and once expanded,
 // and the two trees must have one shape. A value with a line break is
 // refused before either parse. Every refusal names variables, never a value.
-func expandConfigPlaceholders(raw []byte) ([]byte, error) {
+// The tokens of a file with a placeholder come back with the expanded bytes,
+// for the checks that read where a placeholder lands.
+func expandConfigPlaceholders(raw []byte) ([]byte, *placeholderTokens, error) {
 	if !envVarPattern.Match(raw) {
-		return raw, nil
+		return raw, nil, nil
 	}
 	tokens := tokenizePlaceholders(raw)
 	for _, name := range tokens.names {
 		if value, set := os.LookupEnv(name); set && strings.ContainsAny(value, placeholderLineBreaks) {
-			return nil, fmt.Errorf("config.placeholder_line_break: ${%s} expands to a value with a line break, "+
+			return nil, nil, fmt.Errorf("config.placeholder_line_break: ${%s} expands to a value with a line break, "+
 				"and a placeholder in autopus.yaml takes a one-line value", name)
 		}
 	}
 	expanded := []byte(expandEnvVars(string(raw)))
 	var tokenized, parsed yaml.Node
 	if err := yaml.Unmarshal(tokens.text, &tokenized); err != nil {
-		return nil, fmt.Errorf("config.placeholder_shape_changed: autopus.yaml does not parse with %s unexpanded (%s), "+
+		return nil, nil, fmt.Errorf("config.placeholder_shape_changed: autopus.yaml does not parse with %s unexpanded (%s), "+
 			"so the shape the values give it cannot be checked", placeholderList(tokens.names), tokens.restore(err.Error()))
 	}
 	// The expanded parse error is never shown: it can quote the value.
 	if yaml.Unmarshal(expanded, &parsed) != nil {
-		return nil, fmt.Errorf("config.placeholder_shape_changed: expanding %s breaks the YAML of autopus.yaml; %s",
+		return nil, nil, fmt.Errorf("config.placeholder_shape_changed: expanding %s breaks the YAML of autopus.yaml; %s",
 			placeholderList(tokens.names), placeholderShapeRule)
 	}
 	if node, path := tokens.mismatch(&tokenized, &parsed, ""); node != nil {
 		if path == "" {
 			path = "the document root"
 		}
-		return nil, fmt.Errorf("config.placeholder_shape_changed: expanding %s changes the YAML shape of autopus.yaml at %s; %s",
+		return nil, nil, fmt.Errorf("config.placeholder_shape_changed: expanding %s changes the YAML shape of autopus.yaml at %s; %s",
 			placeholderList(tokens.namesIn(node)), path, placeholderShapeRule)
 	}
-	return expanded, nil
+	return expanded, tokens, nil
 }
 
 // placeholderTokens is a raw autopus.yaml in which every placeholder

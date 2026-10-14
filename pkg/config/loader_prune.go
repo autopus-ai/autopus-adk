@@ -156,15 +156,19 @@ func countMappingKeys(node *yaml.Node, name string) int {
 }
 
 // ParseConfig decodes raw autopus.yaml bytes through the steps Load applies to
-// the file it reads: env placeholders expanded, strict decoding with the
+// the file it reads: env placeholders expanded where their values keep the
+// file's shape and fill no model candidate, strict decoding with the
 // removed and reserved keys tolerated, missing defaults applied, platform
 // names normalized, and Validate. It reads and writes no file and reports no
 // retired key. A raw-node writer runs it on the bytes it is about to write, so
 // a rewrite that Load would reject never lands.
 func ParseConfig(data []byte) (*HarnessConfig, error) {
-	expanded, err := expandConfigPlaceholders(data)
+	expanded, tokens, err := expandConfigPlaceholders(data)
 	if err != nil {
 		return nil, fmt.Errorf("parse config: %w", err)
+	}
+	if err := rejectRoleModelCandidatePlaceholders(tokens, expanded); err != nil {
+		return nil, fmt.Errorf("validate config: %w", err)
 	}
 	var cfg HarnessConfig
 	if _, err := decodeStrict(expanded, &cfg); err != nil {

@@ -1,134 +1,111 @@
 package config
 
 import (
-	"bytes"
 	"fmt"
-	"regexp"
-	"strings"
+	"sort"
 
 	"gopkg.in/yaml.v3"
 )
 
-// placeholderSentinel stands in for every ${NAME} the loader would expand
-// while the raw file is checked. A plain alphanumeric token keeps a flow
-// mapping, a key, a tag, or a block scalar around it intact, so the checked
-// tree has the shape the expanded file will have.
-const placeholderSentinel = "AutopusPlaceholderSentinel"
-
-// rejectRoleModelCandidatePlaceholders refuses a ${NAME} placeholder in any
-// model candidate of role_model_policy before the loader expands the file
-// (security review P4): a candidate's selector, thinking, family, or one of
-// its keys would otherwise come from the environment. Keys and values under
-// every `candidates` are checked, aliases are followed wherever they are
-// anchored, and the refusal names the path only, never a value. The root
-// profile and family keep the SPEC-MODELUX-002 behaviour: they load, and the
-// OMP writer refuses to rewrite them.
-func rejectRoleModelCandidatePlaceholders(raw []byte) error {
-	if !bytes.Contains(raw, []byte("${")) {
+// rejectRoleModelCandidatePlaceholders refuses a ${NAME} placeholder that
+// fills a model candidate of role_model_policy, or a key anywhere in it
+// (security review P4): a candidate's selector, thinking, or family, or an
+// agent, profile, or capability name, would otherwise come from the
+// environment. tokens is the file expandConfigPlaceholders checked, so the
+// tokenized tree has the shape of the expanded one. It is pruned as
+// decodeStrict prunes and decoded with merge keys and aliases resolved, so a
+// candidate is read where the decoder puts it: a root merge from a reserved
+// block, a merge inside the policy or a candidate, and an anchored list all
+// land in the policy. The root profile and family keep the SPEC-MODELUX-002
+// behaviour: they load, and the OMP writer refuses to rewrite them. The
+// refusal names the path, a key spelled as its placeholder, never a value.
+func rejectRoleModelCandidatePlaceholders(tokens *placeholderTokens, expanded []byte) error {
+	if tokens == nil {
 		return nil
 	}
-	substituted := envVarPattern.ReplaceAll(raw, []byte(placeholderSentinel))
 	var document yaml.Node
-	if yaml.Unmarshal(substituted, &document) != nil || len(document.Content) == 0 {
-		// Even with every placeholder replaced the file does not parse, so its
-		// expanded shape is unknown: a placeholder anywhere in role_model_policy
-		// is refused rather than left to the decoder.
-		if roleModelPolicyBlockHasPlaceholder(raw) {
-			return fmt.Errorf("role_model_policy.candidate_placeholder_unsupported: role_model_policy does not parse with its placeholders")
+	if err := yaml.Unmarshal(tokens.text, &document); err != nil || document.Kind == 0 {
+		return nil
+	}
+	// A token is plain text: an explicit tag on it would make the decode
+	// below fail on the token rather than show where it lands.
+	tokens.untag(&document)
+	pruneToleratedKeys(&document)
+	var decoded struct {
+		Policy any `yaml:"role_model_policy"`
+	}
+	if document.Decode(&decoded) != nil {
+		// Untagged, the tokenized file fails only on its structure, which
+		// the expanded file shares, and its strict decode then stops the
+		// load. Should the expanded file still hold a policy, it is refused.
+		var policy struct {
+			Policy any `yaml:"role_model_policy"`
+		}
+		if yaml.Unmarshal(expanded, &policy) == nil && policy.Policy != nil {
+			return fmt.Errorf("role_model_policy.candidate_placeholder_unsupported: " +
+				"role_model_policy does not decode with its placeholders unexpanded")
 		}
 		return nil
 	}
-	root := document.Content[0]
-	for i := 0; i+1 < len(root.Content); i += 2 {
-		if root.Content[i].Value == "role_model_policy" {
-			walk := roleModelPlaceholderWalk{visited: map[roleModelPlaceholderVisit]bool{}}
-			return walk.find(root.Content[i+1], "role_model_policy", false)
+	return tokens.candidatePlaceholder(decoded.Policy, "role_model_policy", false)
+}
+
+// untag makes every scalar that holds a token a plain string.
+func (p *placeholderTokens) untag(node *yaml.Node) {
+	if node.Kind == yaml.ScalarNode && p.holds(node.Value) {
+		node.Tag = "!!str"
+		node.Style &^= yaml.TaggedStyle
+	}
+	for _, child := range node.Content {
+		p.untag(child)
+	}
+}
+
+// candidatePlaceholder returns the refusal for the first token under value,
+// in key order, that lands in a key or in a candidate.
+func (p *placeholderTokens) candidatePlaceholder(value any, path string, candidate bool) error {
+	switch typed := value.(type) {
+	case map[string]any:
+		general := make(map[any]any, len(typed))
+		for key, item := range typed {
+			general[key] = item
 		}
-	}
-	return nil
-}
-
-type roleModelPlaceholderVisit struct {
-	node      *yaml.Node
-	candidate bool
-}
-
-type roleModelPlaceholderWalk struct {
-	visited map[roleModelPlaceholderVisit]bool
-}
-
-func (w roleModelPlaceholderWalk) find(node *yaml.Node, path string, candidate bool) error {
-	visit := roleModelPlaceholderVisit{node: node, candidate: candidate}
-	if node == nil || w.visited[visit] {
-		return nil
-	}
-	w.visited[visit] = true
-	switch node.Kind {
-	case yaml.AliasNode:
-		return w.find(node.Alias, path, candidate)
-	case yaml.MappingNode:
-		for i := 0; i+1 < len(node.Content); i += 2 {
-			key := node.Content[i]
-			if candidate && roleModelPlaceholderIn(key) {
-				return roleModelPlaceholderError(path + ".<key>")
+		return p.candidatePlaceholder(general, path, candidate)
+	case map[any]any:
+		keys := make([]string, 0, len(typed))
+		items := make(map[string]any, len(typed))
+		for key, item := range typed {
+			spelled := fmt.Sprint(key)
+			keys = append(keys, spelled)
+			items[spelled] = item
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			child := path + "." + p.restore(key)
+			if p.holds(key) {
+				return roleModelPlaceholderError(child)
 			}
-			inner := candidate || key.Value == "candidates"
-			if err := w.find(node.Content[i+1], path+"."+roleModelPlaceholderLabel(key.Value), inner); err != nil {
+			if path == "role_model_policy" && (key == "profile" || key == "family") {
+				continue
+			}
+			if err := p.candidatePlaceholder(items[key], child, candidate || key == "candidates"); err != nil {
 				return err
 			}
 		}
-	case yaml.SequenceNode:
-		for index, item := range node.Content {
-			if err := w.find(item, fmt.Sprintf("%s[%d]", path, index), candidate); err != nil {
+	case []any:
+		for index, item := range typed {
+			if err := p.candidatePlaceholder(item, fmt.Sprintf("%s[%d]", path, index), candidate); err != nil {
 				return err
 			}
 		}
-	case yaml.ScalarNode:
-		if candidate && roleModelPlaceholderIn(node) {
+	case string:
+		if candidate && p.holds(typed) {
 			return roleModelPlaceholderError(path)
 		}
 	}
 	return nil
 }
 
-// roleModelPlaceholderIn reports a scalar holding a placeholder the loader
-// would expand, or a literal "${" a quoted escape produced.
-func roleModelPlaceholderIn(node *yaml.Node) bool {
-	return node.Kind == yaml.ScalarNode &&
-		(strings.Contains(node.Value, placeholderSentinel) || strings.Contains(node.Value, "${"))
-}
-
-func roleModelPlaceholderLabel(value string) string {
-	if strings.Contains(value, placeholderSentinel) || strings.Contains(value, "${") {
-		return "<key>"
-	}
-	return value
-}
-
 func roleModelPlaceholderError(path string) error {
 	return fmt.Errorf("role_model_policy.candidate_placeholder_unsupported: %s", path)
-}
-
-var roleModelPolicyLine = regexp.MustCompile(`(?m)^role_model_policy\s*:`)
-
-// roleModelPolicyBlockHasPlaceholder reports ${ in the role_model_policy
-// block of a raw file: the top-level key's line through the line before the
-// next top-level key. A file that names role_model_policy only inside a flow
-// document counts as a match, since its block cannot be told apart.
-func roleModelPolicyBlockHasPlaceholder(raw []byte) bool {
-	location := roleModelPolicyLine.FindIndex(raw)
-	if location == nil {
-		return bytes.Contains(raw, []byte("role_model_policy"))
-	}
-	block := raw[location[0]:]
-	lines := bytes.Split(block, []byte("\n"))
-	for index, line := range lines {
-		if index > 0 && len(line) > 0 && line[0] != ' ' && line[0] != '\t' && line[0] != '#' && line[0] != '-' {
-			break
-		}
-		if bytes.Contains(line, []byte("${")) {
-			return true
-		}
-	}
-	return false
 }

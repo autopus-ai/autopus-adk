@@ -38,7 +38,7 @@ func LoadLoreSection(dir string) (LoreConf, error) {
 	var envelope struct {
 		Lore *LoreConf `yaml:"lore"`
 	}
-	expanded, err := expandConfigPlaceholders(data)
+	expanded, _, err := expandConfigPlaceholders(data)
 	if err != nil {
 		return LoreConf{}, fmt.Errorf("parse config: %w", err)
 	}

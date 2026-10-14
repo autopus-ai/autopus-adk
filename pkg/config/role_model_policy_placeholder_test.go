@@ -7,8 +7,10 @@ package config
 // SPEC-MODELUX-002 behaviour (loaded, and refused by the OMP writer).
 
 import (
+	"encoding/base64"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -69,6 +71,55 @@ func TestLoad_RefusesCandidatePlaceholdersInEveryShape(t *testing.T) {
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "role_model_policy.candidate_placeholder_unsupported")
 			assert.NotContains(t, err.Error(), "AbC123secret")
+		})
+	}
+}
+
+// Security re-check P4 (decode): the check reads the policy as the decoder
+// builds it, so a candidate a merge key brings in, at the root from a
+// reserved block or inside the policy or a candidate, an anchored candidate
+// list, and an explicitly tagged candidate value are refused where they
+// land, and so is an agent name taken from the environment. ParseConfig
+// refuses as Load does.
+func TestLoad_RefusesCandidatePlaceholdersWhereTheDecoderPutsThem(t *testing.T) {
+	t.Setenv("OMP_PIN", "sk-proj-AbC123secret")
+	t.Setenv("OMP_KEY", "executor")
+	t.Setenv("OMP_B64", base64.StdEncoding.EncodeToString([]byte("sk-proj-AbC123secret")))
+	pin := "{selector: \"${OMP_PIN}/m\", thinking: high, family: anthropic}"
+	policy := "role_model_policy:\n  version: v1\n  agents:\n    executor:\n      candidates: [" + pin + "]\n"
+	nested := "  " + strings.ReplaceAll(strings.TrimSuffix(policy, "\n"), "\n", "\n  ") + "\n"
+	executor := "role_model_policy.agents.executor.candidates[0].selector"
+	for name, row := range map[string]struct{ text, path string }{
+		"root merge from future_extension":   {"future_extension: &X\n" + nested + "<<: *X\n", executor},
+		"root merge from operator_extension": {"operator_extension: &X\n" + nested + "<<: *X\n", executor},
+		"root merge list":                    {"future_extension: &X\n" + nested + "<<: [*X]\n", executor},
+		"merge inside the policy": {"future_extension:\n  p: &P\n    agents:\n      executor:\n        candidates: [" + pin + "]\n" +
+			"role_model_policy:\n  version: v1\n  <<: *P\n", executor},
+		"merge into a candidate": {"future_extension:\n  base: &base " + pin + "\n" +
+			"role_model_policy:\n  version: v1\n  agents:\n    executor:\n      candidates:\n        - <<: *base\n", executor},
+		"anchored candidate list": {"future_extension:\n  list: &list [" + pin + "]\n" +
+			"role_model_policy:\n  version: v1\n  agents:\n    executor:\n      candidates: *list\n", executor},
+		"profile agent override": {"role_model_policy:\n  version: v1\n  profile: p1\n  profiles:\n    p1:\n      agents:\n" +
+			"        executor:\n          candidates: [" + pin + "]\n", "role_model_policy.profiles.p1.agents.executor.candidates[0].selector"},
+		"explicit tag": {"role_model_policy:\n  version: v1\n  agents:\n    executor:\n" +
+			"      candidates: [{selector: !!binary ${OMP_B64}, thinking: high, family: anthropic}]\n", executor},
+		"agent name from env": {"role_model_policy:\n  version: v1\n  agents:\n    ${OMP_KEY}:\n" +
+			"      candidates: [{selector: anthropic/claude-opus-5-5, thinking: high, family: anthropic}]\n",
+			"role_model_policy.agents.${OMP_KEY}"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			dir := writePlaceholderPolicy(t, row.text)
+			data, err := os.ReadFile(filepath.Join(dir, configFileName))
+			require.NoError(t, err)
+
+			_, loadErr := LoadPreview(dir)
+			_, parseErr := ParseConfig(data)
+
+			for _, err := range []error{loadErr, parseErr} {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "role_model_policy.candidate_placeholder_unsupported: "+row.path)
+				assert.NotContains(t, err.Error(), "AbC123secret")
+			}
 		})
 	}
 }

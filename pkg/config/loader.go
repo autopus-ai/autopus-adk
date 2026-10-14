@@ -65,11 +65,11 @@ func loadConfig(dir string, persistNormalization bool) (*HarnessConfig, bool, er
 		return nil, false, fmt.Errorf("read config: %w", err)
 	}
 
-	expanded, err := expandConfigPlaceholders(data)
+	expanded, tokens, err := expandConfigPlaceholders(data)
 	if err != nil {
 		return nil, false, fmt.Errorf("parse config %s: %w", path, err)
 	}
-	if err := rejectRoleModelCandidatePlaceholders(data); err != nil {
+	if err := rejectRoleModelCandidatePlaceholders(tokens, expanded); err != nil {
 		return nil, false, fmt.Errorf("validate config: %w", err)
 	}
 
