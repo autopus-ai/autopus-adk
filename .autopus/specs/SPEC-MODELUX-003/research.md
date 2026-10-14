@@ -1,6 +1,6 @@
 # SPEC-MODELUX-003 리서치
 
-branch `feat/modelux-003`, 기준 `v0.50.125`(dd6d6ea2, origin/main, SPEC-MODELUX-001·002 포함)에서 읽었다. `git diff --stat 93dbb564 dd6d6ea2 -- '*.go'`가 비어 있어 초안의 줄 번호가 main에서도 같다. OMP 사실은 omp 18.6.1 실행 파일의 `strings -n 8` 덤프(`S:<줄>`)와 scratch probe다(`evidence/probe-omp-18.6.1.md`). Revision 1은 review round 1(F-001–F-020)을, revision 2–4는 round 2–4의 미해결 건(F-002, F-008, F-013, F-021, F-022, F-023)을 반영했다(`## Review Round 1`–`## Review Round 4`). 확인하지 못한 것은 `미확인`이다.
+branch `feat/modelux-003`, 기준 `v0.50.125`(dd6d6ea2, origin/main, SPEC-MODELUX-001·002 포함)에서 읽었다. `git diff --stat 93dbb564 dd6d6ea2 -- '*.go'`가 비어 있어 초안의 줄 번호가 main에서도 같다. OMP 사실은 omp 18.6.1 실행 파일의 `strings -n 8` 덤프(`S:<줄>`)와 scratch probe다(`evidence/probe-omp-18.6.1.md`). Revision 1은 review round 1(F-001–F-020)을, revision 2–4는 round 2–4의 미해결 건(F-002, F-008, F-013, F-021, F-022, F-023)을 반영했다(반영표 `evidence/review-rounds.md`). revision 5는 S17 smoke 뒤 OMP 탭 결정(2026-10-14)을 반영했다(`## S17 뒤 수정`). 확인하지 못한 것은 `미확인`이다.
 ## 기존 코드 분석
 ### effort (Claude·Codex)
 - `pkg/config/schema.go:24-27` `QualityPreset{Description, Agents}`(290줄). strict decode `loader_strict.go:26-50`은 v0.50.113부터라(SPEC-MODELUX-002 research "도구별 저장 값") 새 key를 쓴 파일은 v0.50.113–v0.50.125가 읽지 못한다. 그 이전 바이너리의 동작은 미확인.
@@ -43,7 +43,7 @@ branch `feat/modelux-003`, 기준 `v0.50.125`(dd6d6ea2, origin/main, SPEC-MODELU
 | 명시 effort와 표준 배치 | 명시 effort가 있으면 그 에이전트는 표준 배치를 떠난다 | 배치 model 유지 | `native_balanced.go:20-24`와 같은 규칙. Codex 배치는 대체를 거부한다(`codex_resolve.go:13-20`) |
 | haiku | 에이전트마다 판정. 그룹 Select는 haiku가 아닌 멤버로 묻고 모두 haiku면 묻지 않는다 | 그룹 전체 생략 | F-009 |
 | 폼 test 입력 | 기존 폼 test는 새 effort Select마다 Enter 한 번을 더하고 단언은 둔다 | 기존 입력 bytes 고정 | F-014. 불변은 줄 driver와 effort 없는 생성 결과로 좁힌다 |
-| OMP effort | 기존 pin thinking. 탭은 pin 없이 먼저 plan해 기본값과 selector를 얻는다 | quality effort 번역 | F-008. 탭이 더하는 catalog 읽기는 pin 없는 pre-plan 1회이고 기존 경로의 읽기 횟수는 단언하지 않는다 |
+| OMP effort | pin의 thinking, 고른 model이 보고한 단계만 묻는다. 시작 값은 지금 pin 또는 프로필의 pre-plan route | quality effort 번역 | F-008·S17 뒤 수정. 탭이 더하는 catalog 읽기는 시작 값이 프로필일 때의 pre-plan 1회이고 기존 경로의 읽기 횟수는 단언하지 않는다 |
 | OMP 에이전트 | 16개 파일, model 없음. `thinkingLevel`은 이번 생성의 override에 없는 에이전트만 선언 effort | concrete model, role alias, 항상 thinkingLevel | 사용자 결정. override와 겹치지 않아 우선순위가 무관해진다(F-018) |
 | reviewer | P0 bundled `output`과 같은 golden | schema 없이 대체 | `/review` verdict 보존. 정합성은 golden test가, 런타임은 S23이 닫는다 |
 | native 끄기 | Claim Set Contract: ledger 하나, preimage 하나, claim 집합 = 프로필 key ∪ `task.disabledAgents`, merge 한 번. 사용자가 그 key만 고치면 프로필 claim이 있어도 사용자 소유로 넘겨 preimage에 사용자 값을 넣고, 그 표시는 release 뒤에도 표시만 남은 ledger로 남는다. 처음 claim할 때 다른 값이 이미 있으면 처음부터 사용자 소유다 | 별도 merge, overlay에만, key별 commitment로 ledger 형식 변경 | F-002. plain 세션은 overlay를 읽지 않는다. 판정은 기존 whole-file commitment를 그대로 쓰고 그 key만 ADK 값으로 바꿔 비교한다 |
@@ -56,47 +56,22 @@ branch `feat/modelux-003`, 기준 `v0.50.125`(dd6d6ea2, origin/main, SPEC-MODELU
 ## Superseded Decisions
 - 61f72bb0(SPEC-ADK-MINIMALITY-DISCIPLINE-001)의 "OMP는 native agent를 재사용"을 기본값에서 뒤집는다. native는 v0.50.126 한 릴리스 동안 opt-in이다.
 - SPEC-MODELUX-002 REQ-MUX2-10 "지정 단위 native 5개"와 non-goal "새 YAML key"는 autopus 모드에서 바뀐다. 결정 표의 "v0.50.125 출하"는 그 릴리스가 먼저 나가 v0.50.126이 됐다.
-## Review Round 1
-| ID | 반영 |
-|---|---|
-| F-001 | task 규칙, 접힘 검증 native 한정, autopus 검증(REQ-MUX3-11, Route Contract, T3, S21) |
-| F-002 | Claim Set Contract, 전환·release·clean·실패 복원(REQ-MUX3-10, 15, T5, S22) |
-| F-003 | Agent Set Contract에 production 소비처 전부, degraded 규칙(REQ-MUX3-12, T6, S21) |
-| F-004 | S9는 `config get` 한 번의 17 key record, RPC 17회는 `RunWithInput` fake |
-| F-005 | S13 기준 run은 v0.50.125 바이너리로 agent_source 줄 없는 파일 |
-| F-006 | REQ-MUX3-09에 Generate 쓰기 loop와 Update resolver 두 자리 |
-| F-007 | 27개 목록과 기본값 전환 단언 4개 파일(위 `### 기존 test`) |
-| F-008 | OMP 탭 pre-plan과 blocker 처리(REQ-MUX3-13, S11) |
-| F-009 | 그룹 effort Select는 haiku가 아닌 멤버로 |
-| F-010 | 기각 근거를 attestation 비용으로, 주석 2곳 갱신(T4, T5) |
-| F-011 | header: branch `feat/modelux-003`, v0.50.126 |
-| F-012 | REQ-MUX3-09: 디스크 checksum과 manifest 기록 checksum 비교 |
-| F-013 | Efforts Preservation Contract(REQ-MUX3-20, T10, S20) |
-| F-014 | 폼 test 입력 규칙, 불변 범위 축소(REQ-MUX3-16, S16) |
-| F-015 | OMP Render Mode Contract, 템플릿 문장, 실제 Generate oracle(REQ-MUX3-21, T8, S14) |
-| F-016 | metadata 없는 catalog 규칙(REQ-MUX3-13, S10) |
-| F-017 | S17을 plain 세션과 `PI_CONFIG_FILES` 세션으로 나눔 |
-| F-018 | thinking 질문 제거, reviewer golden, S23과 Completion Debt |
-| F-019 | 백업 사실 정정, 기존 transaction 백업 재사용 |
-| F-020 | REQ-MUX3-02, 06, 11을 `WHERE … THEN` 형식으로 |
-## Review Round 2
-| ID | 반영 |
-|---|---|
-| F-002 | 섞인 상태에서 `task.disabledAgents`만 바뀐 판정, 사용자 소유 전환·표시·재claim(Claim Set Contract, S24) |
-| F-008 | 탭이 더하는 catalog 읽기는 pre-plan 1회, 기존 경로의 횟수는 단언하지 않음(REQ-MUX3-13) |
-| F-013 | 모든 도구 같게의 `custom`에도 편집 전 binding 프리셋 efforts를 옮김(Efforts Preservation Contract, S20 넷째) |
-| F-021 | S22(e)는 내용을 바꿔 실제 transaction을 열고 `ompRootedWriteFailureHook`으로 마지막 write를 실패시킴 |
-| F-022 | S21 task pin 사본은 11개 역할 + task = 12개 key |
-## Review Round 3
-| ID | 반영 |
-|---|---|
-| F-002 | 사용자 소유 표시는 C가 비어 release해도 표시만 남은 ledger로 남고 `auto clean`만 지운다(Claim Set Contract, S24 첫 사본) |
-| F-008 | 설계 결정 행을 pre-plan 1회·횟수 미단언으로 맞춤 |
-| F-023 | `composeBindTarget` built-in 분기: P에 efforts가 있으면 다른 built-in 대신 `custom`, 같은 이름 Historical만 갱신(Efforts Preservation Contract, S20 다섯째) |
-## Review Round 4
-| ID | 반영 |
-|---|---|
-| F-002 | 첫 claim 판정(이미 있는 다른 값은 처음부터 사용자 소유·표시, 같은 값은 preimage와 같게 claim)과 표시만 남은 ledger의 읽기 전용 판단(Claim Set Contract, S8 UC·UC2) |
+## Review Rounds
+round 1–4 반영표는 `evidence/review-rounds.md`에 옮겼다.
+## S17 뒤 수정 (2026-10-14)
+사용자 피드백: "omp의 경우 claude, gpt 계열 이렇게 나누기보다는 멀티프로바이더를 자유롭게 선택할 수 있어야 맞는 것 같은데". 결정(answered): (1) autopus 모드 OMP 탭은 프로필·family 단계 없이 Claude·Codex 탭처럼 역할 그룹 4개(+ 에이전트별)에서 provider가 섞인 설치 model을 고르고, 첫 선택지는 `OMP 세션 모델 그대로`(pin 없음, override key 없음, frontmatter thinking)다. thinking은 고른 model이 지원하는 단계만. 프로필은 꼭 필요할 때만 내부 구현으로 둔다. (2) 목록은 증명된 model만이고, metadata 없는 catalog면 built-in 선언으로 증명할 수 있는 것만 보이며 한 줄로 알린다.
+- 지금은 프로필이 필수다. root `agents`는 프로필이 없으면 `agents_require_profile`로 거부되고(`pkg/config/role_model_policy_validate_agents.go:17-37`), 프로필이 없으면 model integration을 건너뛴다(`pkg/adapter/omp/omp_model_integration.go:39-41`). apply option도 프로필 이름이 필요하다(`internal/cli/platform_omp_profile_options.go:43-64`, `profile_name_invalid`). 지금 탭은 프로필과 family를 묻고 그 프로필로 pre-plan한다(`quality_compose_omp.go:70-88`, `quality_compose_omp_autopus.go:30-81`).
+- 버전은 비면 v1이다(`role_model_policy.go:124-129`). root pin은 선택된 프로필 위에 얹힌다(`:179-213`, `OperatorAgents`). autopus route ③은 `AgentRoute`가 route를 못 찾으면 오류이고 load 검증은 16개가 모두 해석되기를 요구한다(`role_model_policy_autopus_agents.go:23-99`).
+- metadata 없는 catalog의 pin은 선택된 프로필 이름의 built-in matrix(모든 family)로 family를 증명한다(`internal/cli/platform_omp_profile_declarations.go:1-98`, 선언 밖 model은 fail-closed). 프로필 이름이 없으면 선언이 비므로 pins-only는 built-in 프로필 전부의 합집합이 필요하다. 지금 목록은 설치 model 전부를 보이고 증명은 plan에서 실패한다(`quality_omp_custom.go:133-159`).
+- 활성화가 쓰는 값은 늘 `task.agentModelOverrides`, `retry.fallbackChains`, `retry.modelFallback`이다(`omp_model_integration_activation.go:106-122`). pins-only의 project-managed claim은 built-in과 같은 `builtinRoleModelManagedKeys(mode)`(`role_model_policy_builtin.go:194-210`)로 수 검사(`omp_model_integration_project.go:19-21`)를 맞춘다. 프로필이 없으면 doctor는 `disabled/profile_not_selected`다(`platform_omp_agent_catalog.go:24-36`). 역할 그룹은 설계·판단 4, 구현 6, 검증·리뷰 4, 탐색·보조 2다(`quality_compose_groups.go:25-35`).
+
+| 결정 | 선택 | 기각한 대안 | 근거와 trade-off |
+|---|---|---|---|
+| 저장 | pins-only: `role_model_policy {version: v1, agents}`, `profile`·`family` 없음. 새 key 없음 | 숨은 built-in 프로필 이름(`profile: pins`) | 사용자가 프로필을 원하지 않는다. 대가: 프로필 없는 `agents`는 v0.50.125 이하가 거부한다(미리보기 한 줄) |
+| route | pin된 에이전트와 Route Contract task 행만 override key, 나머지는 key 없음 | 프로필 route로 채우기 | 사용자 결정 1. Route Contract ③이 pins-only에서 "없음"이 된다 |
+| 증명 | strict catalog 보고 또는 built-in 선언 합집합(balanced·ultra × anthropic·openai) | 선언 없는 model도 목록에 | 사용자 결정 2. 지금의 fail-closed 증명을 그대로 쓴다 |
+| 기존 프로필 설정 | 시작 값은 pre-plan route. 저장은 pins-only로 바꾸고, 바꾸지 않은 에이전트는 그 route의 candidate 전부를 pin으로 옮긴다. 변환 줄과 확인을 거친다 | 프로필 유지 + pin, 따로 묻기 | 바꾸지 않은 에이전트의 route가 그대로다. 대가: ultra의 quality 연동과 family diversity 힌트는 고정된다 |
+| 다른 경로 | 줄 OMP 편집기, `auto platform omp profile apply`, native 탭은 프로필 그대로 | 모두 pins-only로 | 줄 driver 불변(REQ-MUX3-16)과 native 불변 |
 ## Plan Intent Ledger
 Clarification Ledger unavailable. 입력은 planning context의 사용자 결정 표(answered)와 Q1 답(2026-10-13)이다.
 
@@ -106,13 +81,14 @@ Clarification Ledger unavailable. 입력은 planning context의 사용자 결정
 | OMP agents · native built-ins | answered | REQ-MUX3-07–12, 21, P4 |
 | rollback · release | answered (release는 v0.50.126로 이동) | REQ-MUX3-06, 15, header |
 | 프로필 없는 프로젝트(Q1) | answered: 세션 모델 상속 | non-goal |
+| OMP 탭 멀티프로바이더·프로필 없는 pin(S17 뒤, 2026-10-14) | answered | REQ-MUX3-13, 22, 23 |
 ## Question Audit
-- question_transport: coordinator · question_count: 1 · unresolved_fields: none. Q1은 2026-10-13 사용자가 세션 모델 상속으로 정했다.
+- question_transport: coordinator · question_count: 2 · unresolved_fields: none. Q1은 2026-10-13 사용자가 세션 모델 상속으로, S17 뒤 OMP 탭은 2026-10-14 사용자가 멀티프로바이더·증명된 model만으로 정했다.
 ## Outcome Lock
-- User-visible outcome: Claude Code·Codex 탭에서 등급과 effort를 그 도구의 유효 값으로 고르고 같은 run의 생성 파일이 미리보기와 같다. OMP 탭은 thinking을 고른다. OMP 프로젝트는 기본으로 Autopus 에이전트 16개를 쓰고 scout·security-reviewer·sonic은 꺼지며 reviewer는 Autopus reviewer다. 프로필이 있으면 route가 16개 이름 + task로 활성화·되읽기된다. `auto update`가 옮기고 `agent_source: native`가 되돌린다.
-- Mandatory requirements: REQ-MUX3-01–17, 20, 21 (Must). REQ-MUX3-18, 19는 Should.
+- User-visible outcome: Claude Code·Codex 탭에서 등급과 effort를 그 도구의 유효 값으로 고르고 같은 run의 생성 파일이 미리보기와 같다. OMP 탭은 thinking을 고른다. OMP 프로젝트는 기본으로 Autopus 에이전트 16개를 쓰고 scout·security-reviewer·sonic은 꺼지며 reviewer는 Autopus reviewer다. 프로필이 있으면 route가 16개 이름 + task로 활성화·되읽기된다. `auto update`가 옮기고 `agent_source: native`가 되돌린다. OMP 탭은 프로필·family 없이 provider가 섞인 증명된 model과 `OMP 세션 모델 그대로`에서 고르고 결과는 프로필 없는 pin으로 저장된다.
+- Mandatory requirements: REQ-MUX3-01–17, 20–23 (Must). REQ-MUX3-18, 19는 Should.
 - Explicit non-goals: `spec.md` `## Outcome Boundary`.
-- Completion evidence: Must S1–S17, S20–S24 PASS, `auto eval harness run`, coverage 85% 이상, 300줄, `GOOS=windows GOARCH=amd64 go build ./...`, `evidence/manual-smoke-003.txt`(S17, S23), `auto spec validate --strict`.
+- Completion evidence: Must S1–S17, S20–S25 PASS, `auto eval harness run`, coverage 85% 이상, 300줄, `GOOS=windows GOARCH=amd64 go build ./...`, `evidence/manual-smoke-003.txt`(S17, S23), `auto spec validate --strict`.
 ## Visual Planning Brief
 흐름도와 wireframe은 `plan.md`이고 `wireframe intent: assumed`다. 요구사항으로 묶는 것은 Effort Option Contract와 순서·기본값뿐이다.
 ## Technology Stack Decision
@@ -140,10 +116,13 @@ Clarification Ledger unavailable. 입력은 planning context의 사용자 결정
 | INV-MUX3-07 | "agent_source: native restores" | native 뒤 OMP 표면 = v0.50.125가 agent_source 없는 같은 파일로 만든 것 | 파일 목록, bytes | S13 |
 | INV-MUX3-08 | "Absent → automatic" + 보존 | 기존 efforts는 다른 편집·갱신에서 그대로 | quality key | S5, S20 |
 | INV-MUX3-09 | "disable via task.disabledAgents" | claim 집합 전환 뒤 파일 = preimage + 남은 claim, C가 비어도 사용자 소유 표시는 남음 | `.omp/config.yml`, ledger | S22, S24 |
+| INV-MUX3-10 | "OMP 세션 모델 그대로" | pin 없는 에이전트는 override key가 없고 frontmatter `thinkingLevel`을 갖는다 | override, agent 파일 | S10, S25 |
+| INV-MUX3-11 | "preserve unchanged agents' effective routes" | 변환 뒤 바꾸지 않은 에이전트의 override 값 = 변환 전 | override 값 | S25 |
 ## Feature Coverage Map
 | Outcome slice | Covered by | Status |
 |---------------|------------|--------|
 | effort 저장·해석·보존·폼 | REQ-MUX3-01–05, 20 / S1–S5, S20 | covered |
+| OMP 멀티프로바이더 탭·pins-only·변환 | REQ-MUX3-13, 22, 23 / S10, S11, S25 | covered |
 | OMP 파일·reviewer·사용자 파일·렌더 | REQ-MUX3-07–09, 21 / S7, S8, S14 | covered |
 | claim·route·소비처·OMP 탭 | REQ-MUX3-10–13 / S9–S11, S15, S21, S22, S24 | covered |
 | migration·rollback·안전·smoke | REQ-MUX3-06, 14–17 / S6, S12, S13, S16, S17, S23 | covered |
@@ -164,13 +143,13 @@ These are optional improvements and do not block sync completion.
 ## Sibling SPEC Decision
 | Decision | Reason | Sibling SPEC IDs |
 |----------|--------|------------------|
-| none | effort와 OMP 에이전트는 같은 구성 흐름이다. task 14개라 기준(25개 초과 task이면서 40개 초과 파일)을 넘지 않는다(파일은 test 포함 약 60개) | None |
+| none | effort와 OMP 에이전트는 같은 구성 흐름이다. task 16개라 기준(25개 초과 task이면서 40개 초과 파일)을 넘지 않는다(파일은 test 포함 약 70개) | None |
 ## Reference Discipline
 | Reference | Type | Verification |
 |-----------|------|--------------|
 | 위 `pkg/config`, `pkg/content`, `pkg/adapter/{omp,codex,claude}`, `internal/cli`, `templates/shared`, `pkg/spec` 경로 | existing | Read, grep, `rg`(2026-10-13, v0.50.125) |
 | `61f72bb0^` 생성기, omp 18.6.1 덤프, Claude Code 문서 | existing (history, binary, docs) | `git show`, `strings`, WebFetch |
-| `QualityPreset.Efforts`, `AgentEffort`, `RoleModelPolicyConf.AgentSource`, `ReplacePlatformReferencesWith`, `validateOMPAutopusAgentRoutes`, `quality_effort*.go`, `omp_agent_source.go`, `omp_agents.go`, `omp_agent_surface_claim.go`, `role_model_policy_autopus_agents.go`, `quality_compose_form_effort.go`, `quality_compose_omp_autopus.go`, `testdata/omp-18.6.1-reviewer-output.yaml`, `evidence/manual-smoke-003.txt` | [NEW] planned addition | 부재 확인(grep) |
+| `QualityPreset.Efforts`, `AgentEffort`, `RoleModelPolicyConf.AgentSource`, `ReplacePlatformReferencesWith`, `validateOMPAutopusAgentRoutes`, `quality_effort*.go`, `omp_agent_source.go`, `omp_agents.go`, `omp_agent_surface_claim.go`, `role_model_policy_autopus_agents.go`, `role_model_policy_pins.go`, `PinsOnlyRoleModelProfile`, `ompBuiltinDeclaredFamilies`, `quality_compose_form_effort.go`, `quality_compose_omp_autopus.go`, `testdata/omp-18.6.1-reviewer-output.yaml`, `evidence/manual-smoke-003.txt` | [NEW] planned addition | 부재 확인(grep) |
 ## Reviewer Brief
 - Intended scope: effort key·해석·보존·폼, OMP 기본 agent source(16개 생성, claim 집합, route, 소비처, 렌더 mode), migration과 rollback.
 - Explicit non-goals: 프로필 없는 자동 route(Q1), native 경로 제거, OMP writer 재encode 변경, OpenCode·Antigravity effort, 줄 driver 변경.
@@ -178,7 +157,7 @@ These are optional improvements and do not block sync completion.
 - Reviewer should focus on: Claim Set 전환과 복원, task 규칙과 load 검증, degraded 판정, 렌더 mode 전파, efforts 보존, 그리고 Completion Debt only.
 ## Open Risks
 - R1: CD-1·CD-2(live 미확인). R3: RPC 되읽기 5회 → 17회(exec runner). R4: 기존 test 변경(27개 중 단언 4개 파일).
-- R5: user-level `disabledAgents`와 project 값의 병합 미확인. R6: OMP가 claude-plugins agent도 발견한다(S:524490). R7: ledger에 owner 필드를 더할 때 v0.50.125가 그 ledger를 읽는지 미확인(T5가 먼저 확인, 안 되면 새 ledger 이름). R8: `task.disabledAgents`만 바뀐 판정은 ADK의 삽입 위치와 encoding이 결정적이라는 가정이다(A3).
+- R5: user-level `disabledAgents`와 project 값의 병합 미확인. R6: OMP가 claude-plugins agent도 발견한다(S:524490). R7: ledger에 owner 필드를 더할 때 v0.50.125가 그 ledger를 읽는지 미확인(T5가 먼저 확인, 안 되면 새 ledger 이름). R8: `task.disabledAgents`만 바뀐 판정은 ADK의 삽입 위치와 encoding이 결정적이라는 가정이다(A3). R9: pins-only가 기존 plan·쓰기·활성화·되읽기·claim 경로를 그대로 탄다는 것은 구현 확인 전이다(T15). R10: task(이름 없는 dispatch)는 planner pin을 따른다(Route Contract).
 ## Self-Verify Summary
 - Q-CORR-01 | status: PASS | attempt: 2 | files: research.md, spec.md, plan.md | reason: 백업 사실(F-019)과 Generate 인용(F-006)을 고쳤고 v0.50.125에서 줄 번호를 다시 확인했다
 - Q-CORR-02 | status: PASS | attempt: 2 | files: spec.md, plan.md, research.md | reason: 새 함수·필드·파일·golden·evidence는 [NEW]다
@@ -187,7 +166,7 @@ These are optional improvements and do not block sync completion.
 - Q-COMP-01 | status: PASS | attempt: 1 | files: spec.md, plan.md, acceptance.md, research.md, prd.md | reason: 계약, 계획, oracle, 근거, 요약이 나뉜다
 - Q-COMP-02 | status: PASS | attempt: 3 | files: plan.md | reason: effort 보존, claim lifecycle, 렌더 경로, 소비처를 owner가 있는 task로 옮겼고 섞인 상태의 사용자 편집·실패 seam(T5)과 `custom` 새 이름 경로(T10)를 더했다
 - Q-COMP-03 | status: PASS | attempt: 1 | files: spec.md | reason: REQ마다 조건과 관측 대상이 있다
-- Q-COMP-04 | status: PASS | attempt: 3 | files: spec.md, research.md | reason: 결정 표와 Q1 답을 REQ와 non-goal로 옮겼고 REQ-MUX3-10의 사용자 소유 약속을 섞인 상태까지 계약으로 닫았다
+- Q-COMP-04 | status: PASS | attempt: 4 | files: spec.md, research.md | reason: 결정 표, Q1 답, S17 뒤 OMP 탭 결정 둘을 REQ(13, 22, 23)와 non-goal로 옮겼고 REQ-MUX3-10의 사용자 소유 약속을 섞인 상태까지 닫았다
 - Q-COMP-05 | status: PASS | attempt: 3 | files: research.md, acceptance.md | reason: INV-MUX3-01–09가 S1–S24 oracle에 이어진다. S22(e)는 실제 transaction 실패를, S24는 섞인 상태 사용자 편집과 release 뒤 표시 유지를, S20 넷째·다섯째는 `custom` 새 이름과 built-in 분기를 판정한다
 - Q-COMP-06 | status: PASS | attempt: 1 | files: spec.md | reason: Traceability Matrix가 REQ 21개를 잇는다
 - Q-COMP-07 | status: PASS | attempt: 2 | files: research.md | reason: live 미확인 둘을 CD-1·CD-2로 남겼다

@@ -2,7 +2,7 @@
 
 ## Tasks
 
-기준은 `v0.50.125`(dd6d6ea2)이고 branch는 `feat/modelux-003`이다. 순서: T1 → (T2, T3) → T5의 probe A3 → T4·T5·T6(T3 뒤) → T7·T8(T6 뒤) → T9·T10(T2 뒤) → T11(T6, T9 뒤) → T12(T4, T5 뒤) → T13 → T14. 292·290줄 파일(`quality_compose_omp.go`, `quality_compose_form_driver.go`, `schema.go`)에는 호출 몇 줄만 더한다.
+기준은 `v0.50.125`(dd6d6ea2)이고 branch는 `feat/modelux-003`이다. 순서: T1 → (T2, T3) → T5의 probe A3 → T4·T5·T6(T3 뒤) → T7·T8(T6 뒤) → T9·T10(T2 뒤) → T11(T6, T9 뒤) → T12(T4, T5 뒤) → T13 → T14. 292·290줄 파일(`quality_compose_omp.go`, `quality_compose_form_driver.go`, `schema.go`)에는 호출 몇 줄만 더한다. S17 뒤 수정(2026-10-14)은 T15(T3 뒤) → T16(T15 뒤) → T11(T16 뒤)이다.
 
 - [ ] T1: 기존 test 분류. `research.md` `### 기존 test`의 27개 파일마다 기본값 전환 단언·native fixture·native option·폼 입력 Enter·무변경 중 하나를 정해 research에 붙인다. 소스 변경 없음 (REQ-MUX3-16).
 - [ ] T2: effort 설정. 소유: `pkg/config/schema.go`(+1줄), `[NEW] pkg/config/quality_effort.go`(+test), `schema_model_selection.go`, `quality_effective.go`, `native_balanced.go`, `codex_profile.go`. `QualityPreset.Efforts`, load 검증 오류 문구, `AgentEffort`, 명시 effort는 표준 배치를 떠남, Claude haiku 제외, Codex 사다리 자리 교체 (REQ-MUX3-01, 02).
@@ -14,10 +14,12 @@
 - [ ] T8: 렌더 mode. 소유: `pkg/content/skill_transformer_replace.go`, `skill_transformer_replace_omp.go`, `skill_transformer_replace_omp_render.go`, `skill_resources.go`, `skill_transformer.go`, `agent_transformer_mapping.go`, `generate.go`, `pkg/adapter/omp/omp_skills.go`, `omp_rules.go`, `omp_workflow_render.go`, `templates/shared/omp-agent-pipeline.md.tmpl`. `[NEW] ReplacePlatformReferencesWith`, 기본은 autopus, OMP adapter는 cfg mode를 넘긴다. cfg 없이 만든 OMP 텍스트가 native 생성에 쓰이는지 먼저 확인하고, 쓰이면 adapter가 원천에서 다시 렌더한다 (REQ-MUX3-21).
 - [ ] T9: effort 폼(Claude·Codex). 소유: `[NEW] internal/cli/quality_compose_effort.go`(+test), `[NEW] quality_compose_form_effort.go`(+test), `quality_compose_form_edit.go`, `quality_compose_tool.go`, `quality_tool_persist.go`, `quality_compose_form_text.go`. Effort Option Contract, 등급 Select 뒤 effort Select, `(자동)`, 자동과 같으면 저장 안 함, 바뀌는 설정 줄, 옛 바이너리 줄, init 메모리 경로 (REQ-MUX3-03, 04, 05).
 - [ ] T10: efforts 보존. 소유: `internal/cli/quality_compose_bind.go`(L143-174, `composeBindTarget`의 built-in 분기 포함), `quality_compose_bind_write.go`(L29-52), `quality_tool_interactive.go`(L207-222), 갱신 경로 파일(`pkg/config/quality_preset_history.go` 또는 그 호출자). Efforts Preservation Contract 5행. 모든 도구 같게는 편집 전 binding 프리셋에 efforts가 있으면 다른 built-in의 Current·Historical·Absent 분기를 타지 않고 `custom`에 묶어 efforts를 옮기며, 같은 이름의 Historical 갱신만 built-in에 efforts를 남긴다 (REQ-MUX3-20).
-- [ ] T11: OMP 탭(autopus). 소유: `[NEW] internal/cli/quality_compose_omp_autopus.go`(+test), `quality_compose_omp.go`(분기). pin 없는 pre-plan과 blocker 처리, 역할 그룹·에이전트별, metadata 없는 catalog 규칙, thinking 교집합, thinking만 바꾸면 pre-plan selector로 pin, 기존 적용·동기화·init 경로. catalog 읽기 횟수는 단언하지 않는다(탭이 더하는 읽기는 pre-plan 1회) (REQ-MUX3-13).
+- [ ] T11: OMP 탭(autopus) 다시 쓰기. 소유: `internal/cli/quality_compose_omp_autopus.go`(+test), `quality_compose_omp.go`(L70-88: autopus 모드는 profile·family Select를 건너뛴다), `quality_compose_form_text.go`. OMP Autopus Tab Contract 전부: 시작 값(pin 또는 프로필 pre-plan route), 방식, 그룹·에이전트별 model Select(`그대로`, `OMP 세션 모델 그대로`, 증명된 model), thinking, 미리보기의 변환·옛 바이너리 줄, 확인. catalog 읽기 횟수는 단언하지 않는다 (REQ-MUX3-13, 23).
 - [ ] T12: migration과 되돌리기 출력. 소유: `[NEW] internal/cli/platform_omp_agent_migration.go`(+test). 미리보기 줄, 사용자 파일 줄, `sonic` pin 경고, native 줄. autopus.yaml을 쓰지 않음을 고정한다 (REQ-MUX3-14, 15).
 - [ ] T13: Should. Form Text ko/en, help·README·CHANGELOG v0.50.126(`efforts` 한계, Autopus 기본, `agent_source: native`와 v0.50.127 제거). 생성 표면은 `content/`·`templates/` 수정 뒤 `make generate-templates` (REQ-MUX3-18, 19).
 - [ ] T14: 회귀와 smoke. `go test ./pkg/... ./internal/cli/...` 필터 없이, `git diff --stat v0.50.125 -- '*_test.go'`가 T1 분류와 맞는지, `auto eval harness run`, coverage 85%, 300줄, `GOOS=windows GOARCH=amd64 go build ./...`, golangci-lint. S17을 실제 터미널에서, S23을 사용자 동의 뒤 실행하고 `evidence/manual-smoke-003.txt`에 경로를 치환해 남긴다. 둘 중 하나라도 빠지면 CD-1·CD-2가 남는다 (REQ-MUX3-16, 17).
+- [ ] T15: 프로필 없는 pin(config·adapter). 소유: `pkg/config/role_model_policy_validate_agents.go`(L17-37, autopus 모드에서 프로필 없는 `agents` 허용), `role_model_policy.go`(L179-213, pins-only 선택), `role_model_policy_autopus_agents.go`(L23-99, ③ 없음 허용), `[NEW] pkg/config/role_model_policy_pins.go`(+test, `PinsOnlyRoleModelProfile`), `pkg/adapter/omp/omp_model_integration.go`(L39-41 gate), `omp_model_integration_bridge.go`(route 없는 에이전트 건너뜀), `omp_model_doctor_projection.go`, `internal/cli/platform_omp_agent_catalog.go`(L24-36, `pins-only` 표기). Pins-only Policy Contract의 load·활성화·override·degrade·receipt 행 (REQ-MUX3-22).
+- [ ] T16: 증명 목록과 프로필 없는 plan·apply·변환. 소유: `internal/cli/platform_omp_profile_declarations.go`(`[NEW] ompBuiltinDeclaredFamilies`), `quality_omp_custom.go`(L133-159, 선언 교집합과 안내 문구), `platform_omp_profile_options.go`(L43-64, 프로필 없는 option), `platform_omp_profile_effective.go`, `platform_omp_profile_plan.go`, `platform_omp_profile_apply.go`(프로필 없는 proposal·plan·apply와 변환 결과 policy), `quality_compose_omp_init.go`(init 메모리 경로). Pins-only Policy Contract의 증명·변환·옛 바이너리 행 (REQ-MUX3-13, 22, 23).
 
 ## Implementation Strategy
 
@@ -38,8 +40,8 @@ flowchart TD
   EOK -->|"예"| EFF["effort Select: 그대로 (기본) · 단계 · (자동)"]
   EFF --> NEXT --> PV["미리보기: 표 *, efforts 줄"] --> OK{"적용할까요?"}
   OK -->|"적용"| W["saveQualityBlock: <p>-custom tiers + efforts"]
-  TAB -->|"OMP (autopus)"| PRE["pin 없는 pre-plan (blocker면 메뉴)"]
-  PRE --> OG["역할 그룹 · 에이전트별 (16개)"] --> OM["model · thinking"] --> OP["plan 미리보기 (17 route)"] --> OA["applyOMPProfile 또는 init 메모리"]
+  TAB -->|"OMP (autopus)"| PRE["시작 값: 지금 pin 또는 프로필 route (프로필이면 pre-plan)"]
+  PRE --> OG["역할 그룹 · 에이전트별 (16개)"] --> OM["그대로 · OMP 세션 모델 그대로 · 증명된 model(모든 provider) → thinking"] --> OP["plan 미리보기 (pin된 에이전트 + task)"] --> OA["pins-only 저장, 기존 쓰기·활성화"]
   UPD["OMP 생성"] --> SRC{"agent_source"}
   SRC -->|"없음 · autopus"| GEN[".omp/agents 16개, claim 집합 merge 1회, 17 override 활성화"]
   SRC -->|"native"| NAT["prune, claim 집합에서 disabledAgents 제거, native 5 route"]
@@ -56,18 +58,23 @@ Wireframe A: Codex 탭 설계·판단(fixture D, CAT-E)
 ┃   6.1-sol · low   6.1-sol · medium   6.1-sol · high   6.1-sol · xhigh (자동)
 ```
 
-Wireframe B: OMP 탭 에이전트별 thinking(fixture OP)
+Wireframe B: OMP 탭 설계·판단 그룹(fixture O3, metadata 없는 catalog)
 
 ```text
-┃ planner thinking
-┃ > 프로필 기본값 (<pre-plan thinking>)
-┃   model이 보고한 단계들
+설치된 OMP catalog에 family·capability 정보가 없어 Autopus가 증명할 수 있는 model만 보입니다
+┃ 설계·판단 — planner, architect, spec-writer, security-auditor
+┃ > 그대로 — OMP 세션 모델
+┃   OMP 세션 모델 그대로
+┃   anthropic/claude-opus-5-5
+┃   openai-codex/gpt-6-astra
+┃ 설계·판단 thinking (anthropic/claude-opus-5-5)
+┃ > high   (그 model이 보고한 단계만)
 ```
 
 ## Feature Completion Scope
 
 - 이 SPEC 하나가 Outcome Lock을 닫는다. T2·T9·T10은 effort, T3–T8·T11·T12는 OMP agent source, T1·T14는 회귀와 smoke, T13은 Should다.
-- 승인된 sibling 의존성은 없다. 규모는 task 14개(25개 이하), 소스 파일 test 포함 약 60개다. Completion Debt CD-1·CD-2는 T14의 S17·S23 기록으로만 닫힌다.
+- 승인된 sibling 의존성은 없다. 규모는 task 16개(25개 이하), 소스 파일 test 포함 약 70개다. Completion Debt CD-1·CD-2는 T14의 S17·S23 기록으로만 닫힌다.
 
 ## Risk-First Integration Probe
 
@@ -94,6 +101,8 @@ Wireframe B: OMP 탭 에이전트별 thinking(fixture OP)
 | 이름별 override의 dispatch 적용과 `/review` verdict | implementation_assumption | S23, CD-2 |
 | 합친 claim 집합의 merge·release·clean | implementation_assumption | A3, S22 |
 | 섞인 상태에서 그 key만 바뀐 판정과 사용자 소유 전환 | implementation_assumption | A3, S24 |
+| 프로필 없는 pin이 기존 plan·쓰기·활성화·되읽기·claim 경로를 그대로 탄다 | implementation_assumption | T15, S10, S25 |
+| 지금은 프로필이 필수다(`agents_require_profile`, integration gate) | verified_fact | `role_model_policy_validate_agents.go:21-23`, `omp_model_integration.go:39-41` Read |
 
 ## Gate Applicability
 

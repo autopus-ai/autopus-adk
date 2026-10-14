@@ -2,7 +2,7 @@
 
 **Status**: approved
 **Created**: 2026-10-12
-**Revised**: 2026-10-13 (review round 1 F-001–F-020, round 2 F-002·F-008·F-013·F-021·F-022, round 3 F-002·F-008·F-023, round 4 F-002; 구현 리뷰 뒤 S21 NO catalog 판정을 provider 단위 degrade로 정정)
+**Revised**: 2026-10-13 (review round 1 F-001–F-020, round 2 F-002·F-008·F-013·F-021·F-022, round 3 F-002·F-008·F-023, round 4 F-002; 구현 리뷰 뒤 S21 NO catalog 판정을 provider 단위 degrade로 정정; 2026-10-14 S17 smoke 뒤 OMP 탭 멀티프로바이더·프로필 없는 pin: REQ-MUX3-13 개정, REQ-MUX3-22, 23 추가)
 **Domain**: MODELUX
 **Module**: autopus-adk
 **Release**: v0.50.126. 작업 branch는 `feat/modelux-003`이고 기준은 `v0.50.125`(dd6d6ea2, origin/main)다. v0.50.125는 SPEC-MODELUX-001·002로 이미 발행됐다.
@@ -15,18 +15,21 @@ SPEC-MODELUX-002 smoke 뒤 사용자가 두 가지를 요청했다. "effort도 �
 
 이 SPEC은 두 가지를 한다. (1) Claude Code·Codex 탭에서 등급과 함께 effort를 그 도구가 받는 값으로 고르고 `quality.presets.<name>.efforts`에 저장한다. 값이 없으면 지금의 자동 effort다. OMP 탭은 thinking을 고른다. (2) OMP의 기본 agent source를 Autopus로 바꾼다. 정규 16개 에이전트를 `.omp/agents/<agent>.md`로 만들고, scout·security-reviewer·sonic은 `task.disabledAgents`로 끄고, reviewer는 같은 이름의 Autopus reviewer가 대신하며, task는 이름 없는 dispatch의 기본값이라 켜 둔다. 프로필이 있으면 route는 16개 이름과 task를 key로 한 `task.agentModelOverrides`로 기존 활성화·증명·되읽기 경로를 탄다. 이전 방식은 v0.50.126 한 릴리스 동안 `role_model_policy.agent_source: native`로 고를 수 있다.
 
+S17 smoke 뒤(2026-10-14) 사용자가 OMP 탭을 다시 정했다: "omp의 경우 claude, gpt 계열 이렇게 나누기보다는 멀티프로바이더를 자유롭게 선택할 수 있어야 맞는 것 같은데". autopus 모드 OMP 탭은 프로필과 family를 묻지 않고, 역할 그룹(또는 에이전트별)마다 provider가 섞인 증명된 설치 model이나 `OMP 세션 모델 그대로`를 고른다. 결과는 프로필 없는 pin으로 저장되고 pin된 에이전트만 override key를 받는다.
+
 ## Outcome Boundary
 
 - Outcome Lock 원문은 `research.md` `## Outcome Lock`이다.
-- Mandatory requirements: REQ-MUX3-01 ~ REQ-MUX3-17, REQ-MUX3-20, REQ-MUX3-21 (Must). REQ-MUX3-18, 19는 Should.
+- Mandatory requirements: REQ-MUX3-01 ~ REQ-MUX3-17, REQ-MUX3-20 ~ REQ-MUX3-23 (Must). REQ-MUX3-18, 19는 Should.
 - Explicit non-goals:
   - 프로필(`role_model_policy.profile`)이 없는 프로젝트에 quality 등급으로 OMP route를 자동으로 만들기(non-goal, (사용자 결정 2026-10-13: 세션 모델 상속. 프로필이 없으면 부모 세션 모델을 상속하고 frontmatter에 thinking만 쓴다))
   - native 경로와 `agent_source` key 제거(v0.50.127, Evolution Idea)
   - `.omp/agents` frontmatter의 concrete model이나 OMP role alias(`@slow` 등)
   - `모든 도구 같게` 탭의 effort 편집, 줄 driver(SPEC-MODELUX-001)의 키·문구 변경
+  - 줄 OMP 편집기, `auto platform omp profile apply`, native 모드 OMP 탭의 프로필 경로 변경(그대로 프로필을 쓴다)
   - OMP writer(`replaceAutopusConfigSection`)의 문서 전체 재encode 변경, OpenCode·Antigravity effort
   - OMP 버전마다 `/review` schema 따라가기(18.6.1 golden을 고정한다), 프로필 claim key와 claim 밖 사용자 편집에 대한 `managed_key_conflict` 규칙 변경(`task.disabledAgents`만 바뀐 경우는 이 SPEC의 Claim Set Contract가 새로 정한다)
-- Completion evidence: Must S1–S17, S20–S24 PASS, `auto eval harness run`, 신규·변경 package coverage 85% 이상, 신규·변경 소스 파일 300줄 이하, `GOOS=windows GOARCH=amd64 go build ./...`, `evidence/manual-smoke-003.txt`(S17, S23), `auto spec validate --strict`. `research.md` `## Completion Debt`의 CD-1·CD-2가 남아 있으면 완료가 아니다.
+- Completion evidence: Must S1–S17, S20–S25 PASS, `auto eval harness run`, 신규·변경 package coverage 85% 이상, 신규·변경 소스 파일 300줄 이하, `GOOS=windows GOARCH=amd64 go build ./...`, `evidence/manual-smoke-003.txt`(S17, S23), `auto spec validate --strict`. `research.md` `## Completion Debt`의 CD-1·CD-2가 남아 있으면 완료가 아니다.
 
 ## Trust Model
 
@@ -120,10 +123,11 @@ THE SYSTEM SHALL derive every OMP agent consumer listed in the Agent Set Contrac
 ### REQ-MUX3-13 OMP 탭 (autopus)
 Priority: Must · EARS: EventDriven
 
-WHEN the OMP tab runs in autopus mode, THEN THE SYSTEM SHALL plan the profile once without pins before the method select, return to the menu with no write when that plan reports a blocker, offer 역할 그룹 and 에이전트별 over the 16 canonical agents, list the profile default and the installed models that every affected agent accepts under the existing tab's catalog rule, ask a thinking select over the levels the chosen model reports with the pre-plan's thinking as the profile default, pin the pre-plan's effective selector when only the thinking changes, and persist through the SPEC-MODELUX-002 OMP paths.
+WHEN the OMP tab runs in autopus mode, THEN THE SYSTEM SHALL ask no profile or family, offer 역할 그룹 and 에이전트별 over the 16 canonical agents, list for each selection 그대로, OMP 세션 모델 그대로, and the attested installed models of every provider by the OMP Autopus Tab Contract, ask a thinking select over only the levels the chosen model reports, start from the current pins or the current profile's effective routes, and persist the result as a pins-only policy through the existing OMP plan, write, and activation paths.
 
-- catalog 규칙: catalog에 capability metadata가 없으면 지금 탭처럼 `installedOMPCustomModelChoices`가 안내와 함께 표시용 catalog를 쓰고 모든 model을 보인다. capability 목록이 있는 model은 영향받는 모든 에이전트의 capability를 덮을 때만 보인다(`quality_omp_custom.go:102-159`).
-- 이 탭이 더하는 catalog 읽기는 pin 없는 pre-plan 1회다. 모델 목록(`installedOMPCustomModelChoices`, `quality_compose_omp.go:159`), 확인 전 plan, `applyOMPProfile`의 재해석(`platform_omp_profile_apply.go:190` → `platform_omp_profile_effective.go:60`), 활성화 Update의 `prepareModelIntegration`은 기존 경로라 그대로 두고 탭 진입당 읽기 횟수는 단언하지 않는다. REQ-MUX3-16의 run당 1회 규칙은 Codex snapshot에 관한 것이다. update·quality는 `applyOMPProfile`과 cfg 동기화, init은 메모리 경로(SPEC-MODELUX-002 REQ-MUX2-11, 22, 23)다. native 모드와 줄 OMP 편집기는 그대로다.
+- 증명 규칙: strict catalog면 family·capability를 보고하고 영향받는 모든 에이전트의 capability를 덮는 model만, metadata 없는 catalog면 설치 model 중 built-in 선언에 있는 것만 보이고 안내 1줄을 쓴다. `installedOMPCustomModelChoices`(`quality_omp_custom.go:133-159`)가 지금 설치 model 전부를 보이는 것을 이 규칙으로 좁힌다.
+- 이 탭이 더하는 catalog 읽기는 시작 값이 프로필일 때의 pin 없는 pre-plan 1회다. 모델 목록, 확인 전 plan, `applyOMPProfile`의 재해석(`platform_omp_profile_apply.go:190` → `platform_omp_profile_effective.go:60`), 활성화 Update는 기존 경로라 탭 진입당 읽기 횟수는 단언하지 않는다. REQ-MUX3-16의 run당 1회 규칙은 Codex snapshot에 관한 것이다.
+- update·quality는 기존 OMP 쓰기(`applyOMPProfile`과 cfg 동기화), init은 메모리 경로(SPEC-MODELUX-002 REQ-MUX2-11, 22, 23)다. native 모드 탭, 줄 OMP 편집기(`runOMPQualityInteractive`), `auto platform omp profile apply`는 지금처럼 프로필을 쓴다.
 
 ### REQ-MUX3-14 update migration
 Priority: Must · EARS: EventDriven
@@ -165,6 +169,18 @@ Priority: Must · EARS: Ubiquitous
 
 THE SYSTEM SHALL render every OMP surface that names an agent through the OMP Render Mode Contract, so that in autopus mode generated skills, rules, commands, workflows, agent bodies, and the pipeline template dispatch canonical agent names and never select scout, security-reviewer, or sonic, while native mode renders byte-identical to v0.50.125.
 
+### REQ-MUX3-22 프로필 없는 pin
+Priority: Must · EARS: StateDriven
+
+WHERE role_model_policy holds agent pins without a profile in autopus mode, THEN THE SYSTEM SHALL load the policy, route only the pinned agents and task by the Route Contract through the Pins-only Policy Contract, emit no override key for any other agent, attest every pin against the installed catalog or the built-in declarations, and fail closed when a pinned model is unavailable, while native mode keeps rejecting agents without a profile.
+
+- `agents_require_profile`(`role_model_policy_validate_agents.go:21-23`)는 native 모드에만 남는다. integration gate(`omp_model_integration.go:39-41`)는 프로필과 agents가 모두 없을 때만 건너뛴다.
+
+### REQ-MUX3-23 프로필 설정의 변환
+Priority: Must · EARS: EventDriven
+
+WHEN the operator applies an OMP tab edit over a profile-based policy in autopus mode, THEN THE SYSTEM SHALL write a pins-only policy in which every agent the operator did not change keeps all candidates of its previous effective route, every agent set to the OMP session model has no pin, and the legacy native keys are expanded into per-agent pins and removed, SHALL print the conversion line before the confirmation, and SHALL leave the file unchanged when the operator cancels.
+
 ## Contracts
 
 ### Effort Option Contract
@@ -173,7 +189,7 @@ THE SYSTEM SHALL render every OMP surface that names an agent through the OMP Re
 |---|---|---|---|
 | Claude Code | `low`, `medium`, `high`, `xhigh`, `max`. haiku 등급 에이전트는 대상에서 빠진다 | Claude Code 문서(Fable 5.1·Opus 5.5·Sonnet 5.5) | 영향받는 에이전트가 모두 haiku |
 | Codex | 영향받는 모든 에이전트의 후보 model(run snapshot으로 해석한 effective model)의 `supported_reasoning_levels` 교집합 ∩ 위 다섯 단계 | `codex_profile.go:66-75`, `codex_profile_resolve.go:30-33` | snapshot을 못 읽음(안내 1줄) 또는 교집합이 빔 |
-| OMP | 고른 model이 보고한 thinking 단계. 프로필 기본값이면 pre-plan의 effective model. 그룹은 교집합 | SPEC-MODELUX-002 OMP Tab Contract | 단계가 하나 이하 |
+| OMP | 고른 model이 보고한 thinking 단계만(OMP Autopus Tab Contract) | installed catalog | 단계가 하나 이하, `OMP 세션 모델 그대로` |
 
 ### Effort Storage Contract
 
@@ -241,14 +257,45 @@ THE SYSTEM SHALL render every OMP surface that names an agent through the OMP Re
 | project-managed → overlay 또는 프로필 해제 | preimage + `task.disabledAgents` |
 | → native | C가 비면 preimage 복원(없던 파일이면 삭제), 아니면 preimage + 프로필 key |
 
+### OMP Autopus Tab Contract
+
+| 단계 | 형식 | 선택지(순서) | 기본값 | 다음 |
+|---|---|---|---|---|
+| 시작 값 | 폼 밖 | 지금 policy가 pins-only면 그 pin, 프로필이 있으면 pin 없는 pre-plan의 effective route, policy가 없으면 모두 `OMP 세션 모델` | - | 방식 |
+| 방식 | Select `어떻게 고칠까요?` | 역할 그룹 · 에이전트별 | 역할 그룹 | 편집 |
+| 역할 그룹 | Role Group Contract 순서(설계·판단, 구현, 검증·리뷰, 탐색·보조)로 그룹마다 model Select, 제목 `<그룹> — <멤버>` | `그대로 — <현재>` · `OMP 세션 모델 그대로` · 증명된 설치 model(`provider/model`, provider와 model 이름순, 모든 provider가 섞인다) | 그대로 | thinking |
+| 에이전트별 | 목록 Select → model Select 반복 | 목록: 완료 + 16개(`<agent> — <현재>`) / model: 위와 같다 | 완료 / 그대로 | 완료: 미리보기 |
+| thinking | Select(고른 model이 보고한 단계가 둘 이상일 때) | 그 model이 보고한 단계만 | 현재 thinking이 목록에 있으면 그것, 아니면 첫 단계 | 다음 그룹 |
+| 미리보기 | 폼 밖: 기존 요약(`renderOMPQualitySummary`), 변환 줄(REQ-MUX3-23), 옛 바이너리 줄 | - | - | 확인 |
+| 확인 | Select `적용할까요?` | 취소 · 적용 | 취소 | 적용: 기존 OMP 쓰기 경로 → 메뉴 |
+
+- `<현재>`는 pin이나 route가 있으면 `provider/model · thinking`, 없으면 `OMP 세션 모델`이다. `OMP 세션 모델 그대로`는 그 에이전트의 pin을 지우고 thinking을 묻지 않는다.
+- 증명된 model: REQ-MUX3-13의 규칙. 그룹은 영향받는 모든 에이전트가 받는 model만 보인다. 결과가 시작과 같으면 `변경 없음`이고 쓰지 않는다. pin이 하나도 남지 않으면 `role_model_policy`의 `profile`·`family`·`agents`를 지우고, 남는 field가 없으면 key 전체를 지운다.
+- 프로필·family 단계는 autopus 모드에서 묻지 않는다. 시작 값을 얻는 pre-plan이 blocker를 내면 오류 줄 뒤 방식 Select 없이 메뉴로 돌아가고 쓰거나 활성화하지 않는다. native 모드는 SPEC-MODELUX-002 OMP Tab Contract 그대로다.
+
+### Pins-only Policy Contract
+
+| 항목 | 규칙 |
+|---|---|
+| 저장 YAML | `role_model_policy: {version: v1, agents: {<agent>: {candidates: [{selector, thinking, family}]}}}`. 기존 `config_mode`, `agent_source`는 둔다. `profile`·`family`는 쓰지 않는다. 새 key는 없다 |
+| load 검증 | autopus 모드는 프로필 없는 `agents`를 받는다. key는 정규 16, task, scout, security-reviewer, sonic 중 하나이고 candidates가 필요하다(`role_model_policy_validate_agents.go:32-34`). native 모드는 `agents_require_profile` 그대로 |
+| 활성화 | `[NEW] config.PinsOnlyRoleModelProfile(configMode)`(operator-attested, capability route 없음, `ManagedKeys` = `builtinRoleModelManagedKeys(mode)`) 위에 root pin을 얹고 지금 경로(catalog probe, bridge, compile, projection, overlay 또는 claim 집합, 활성화, 되읽기, rollback)를 탄다 |
+| override | pin된 에이전트와 Route Contract의 task 행만 key를 갖는다. 나머지는 key가 없어 세션 모델을 상속하고 frontmatter `thinkingLevel`(선언 effort)을 갖는다(REQ-MUX3-07) |
+| 증명 | pin의 family는 strict catalog의 보고나 built-in 선언 합집합(`[NEW] ompBuiltinDeclaredFamilies`: built-in 프로필 balanced·ultra × family anthropic·openai의 모든 candidate selector)으로 증명한다. 둘 다 아니면 plan blocker다(`platform_omp_profile_declarations.go`의 fail-closed) |
+| degrade | 모든 route가 operator pin이라 provider가 없으면 `required_route_unresolved`로 실패하고 아무것도 쓰지 않는다. degrade할 파생 route가 없어 override가 비는 일도 없다(빈 override는 기존 활성화가 거부한다, S21) |
+| receipt·doctor | profile 칸은 예약 표기 `[NEW] pins-only`(autopus.yaml에 쓰지 않는다). doctor는 `disabled/profile_not_selected`(`platform_omp_agent_catalog.go:24-36`) 대신 pin된 에이전트 행을 보인다 |
+| 옛 바이너리 | 프로필 없는 `agents`는 v0.50.125 이하가 `agents_require_profile`로 거부한다. 쓰기 전 미리보기에 한 줄 |
+| 변환(REQ-MUX3-23) | 프로필 기반 policy를 이 탭에서 고치면 바꾸지 않은 에이전트에 그 effective route의 candidate 전부를 pin으로 옮기고, 세션 모델로 고른 에이전트는 key를 두지 않으며, `agents.task`·`scout`·`security-reviewer`·`sonic`은 에이전트별 pin으로 펼친 뒤 지우고, `profile`·`family`를 지운다. ultra의 quality 연동과 family diversity 힌트는 고정되므로 변환 줄이 알린다 |
+| 다른 경로 | 줄 OMP 편집기, `auto platform omp profile apply`, native 모드 탭은 지금처럼 프로필을 쓰고, 그 결과(프로필 + pin)도 그대로 읽힌다 |
+
 ### Route Contract
 
 | 대상 | route |
 |---|---|
-| 정규 에이전트 A | ① `agents.A` pin ② N = `OMPNativeAgentForRole(A)`가 A와 다르고 `agents.N` pin이 있으면 그 pin(task → 13개 역할, scout → explorer, security-reviewer → security-auditor) ③ 프로필이 A에 만든 route |
-| task | ① `agents.task` pin ② `agents.planner` pin ③ 프로필의 planner route. 다른 접히는 역할의 pin은 task에 쓰지 않는다 |
+| 정규 에이전트 A | ① `agents.A` pin ② N = `OMPNativeAgentForRole(A)`가 A와 다르고 `agents.N` pin이 있으면 그 pin(task → 13개 역할, scout → explorer, security-reviewer → security-auditor) ③ 프로필이 A에 만든 route. pins-only면 ③은 없다: route와 override key가 없고 세션 모델을 상속한다 |
+| task | ① `agents.task` pin ② `agents.planner` pin ③ 프로필의 planner route(pins-only면 없음). 다른 접히는 역할의 pin은 task에 쓰지 않는다 |
 | scout, security-reviewer, sonic | route 없음. `agents.sonic` pin은 받을 에이전트가 없어 미리보기에 경고 1줄 |
-| load 검증 | autopus: `validateOMPAutopusAgentRoutes`(key는 정규 16, task, scout, security-reviewer, sonic 중 하나, route마다 해석 가능). native: `validateOMPNativeAgentCollapse` |
+| load 검증 | autopus: `validateOMPAutopusAgentRoutes`(key는 정규 16, task, scout, security-reviewer, sonic 중 하나, route마다 해석 가능, pins-only면 route가 없는 에이전트를 허용). native: `validateOMPNativeAgentCollapse`와 `agents_require_profile` |
 | degraded | ①② route는 operator pin이라 provider가 없으면 실패한다. ③만 지금 규칙으로 runtime default가 될 수 있다 |
 | 충돌 | autopus 모드는 `omp_native_agent_conflict`를 내지 않는다 |
 
@@ -278,7 +325,10 @@ THE SYSTEM SHALL render every OMP surface that names an agent through the OMP Re
 | effort Select | `<그룹 또는 에이전트> effort` · `그대로 — <현재>` · 단계 라벨 `(자동)` | `<group or agent> effort` · `keep — <current>` · `(automatic)` |
 | Codex 안내 | `Codex catalog를 읽지 못해 effort는 자동입니다` | `Codex catalog unreadable; effort stays automatic` |
 | 바뀌는 설정 | `quality.presets.<p>-custom.efforts 새로 씀 (N개 에이전트)` / `고쳐 씀` / `지움`, `quality.presets.*.efforts는 v0.50.126보다 오래된 auto가 읽지 못합니다`, `quality.presets.<name>.efforts 옮겨 씀 (N개 에이전트)` | `… efforts written (N agents)` / `rewritten` / `removed`, `auto older than v0.50.126 cannot read quality.presets.*.efforts`, `quality.presets.<name>.efforts carried (N agents)` |
-| OMP thinking | `프로필 기본값 (<thinking>)` | `profile default (<thinking>)` |
+| OMP model | `OMP 세션 모델 그대로` · 현재 `OMP 세션 모델` · `<provider>/<model> · <thinking>` | `keep the OMP session model` · `OMP session model` · `<provider>/<model> · <thinking>` |
+| OMP metadata 안내 | `설치된 OMP catalog에 family·capability 정보가 없어 Autopus가 증명할 수 있는 model만 보입니다` | `The installed OMP catalog has no family or capability metadata; only models Autopus can attest are listed` |
+| OMP 변환 | `OMP 프로필 <name>을 에이전트별 지정으로 옮깁니다. 바꾸지 않은 에이전트의 route는 그대로입니다.` | `Moving OMP profile <name> to per-agent pins; unchanged agents keep their routes.` |
+| OMP 옛 바이너리 | `프로필 없는 role_model_policy.agents는 v0.50.126보다 오래된 auto가 읽지 못합니다` | `auto older than v0.50.126 cannot read role_model_policy.agents without a profile` |
 | 사용자 파일 | `.omp/agents/<agent>.md는 사용자 파일이라 그대로 둡니다` | `.omp/agents/<agent>.md is a user file; left unchanged` |
 | disabledAgents | `.omp/config.yml의 task.disabledAgents를 사용자가 정해 두어 scout, security-reviewer, sonic을 끄지 않았습니다` | `task.disabledAgents in .omp/config.yml is user-owned; scout, security-reviewer, and sonic stay enabled` |
 | migration | `OMP는 이제 Autopus 에이전트 16개를 씁니다. v0.50.126 동안 role_model_policy.agent_source: native로 되돌릴 수 있습니다.` | `OMP now uses the 16 Autopus agents; set role_model_policy.agent_source: native to go back during v0.50.126.` |
@@ -294,15 +344,15 @@ OMP 기본값이 바뀌므로 0건이 아니다. 목록은 `research.md` `### �
 
 ## 생성 파일 상세
 
-- `pkg/config`: `schema.go`(+1줄), `[NEW] quality_effort.go`(+test), `schema_model_selection.go`, `quality_effective.go`, `native_balanced.go`, `codex_profile.go`, `role_model_policy.go`(+1줄), `[NEW] omp_agent_source.go`(+test), `role_model_policy_validate.go`, `[NEW] role_model_policy_autopus_agents.go`(+test), `quality_preset_history.go`(갱신 경로가 이 package면).
+- `pkg/config`: `schema.go`(+1줄), `[NEW] quality_effort.go`(+test), `schema_model_selection.go`, `quality_effective.go`, `native_balanced.go`, `codex_profile.go`, `role_model_policy.go`(+1줄), `[NEW] omp_agent_source.go`(+test), `role_model_policy_validate.go`, `[NEW] role_model_policy_autopus_agents.go`(+test), `quality_preset_history.go`(갱신 경로가 이 package면), `role_model_policy_validate_agents.go`, `role_model_policy.go`(선택 프로필), `[NEW] role_model_policy_pins.go`(+test).
 - `pkg/content`: `[NEW] agent_transformer_omp_render.go`(+test), `skill_transformer_replace.go`, `skill_transformer_replace_omp.go`, `skill_transformer_replace_omp_render.go`, `skill_resources.go`, `skill_transformer.go`, `agent_transformer_mapping.go`, `generate.go`. `templates/shared/omp-agent-pipeline.md.tmpl`.
-- `pkg/adapter/omp`: `[NEW] omp_agents.go`(+test), `[NEW] omp_agent_surface_claim.go`(+test), `omp.go`, `omp_rooted_lifecycle.go`, `omp_rooted_lifecycle_config.go`, `omp_rooted_transaction.go`(test 전용 실패 seam), `omp_model_integration_project.go`, `omp_model_integration_ownership_rooted.go`, `omp_model_integration_clean.go`, `omp_model_integration_bridge.go`, `omp_model_projection.go`, `omp_model_projection_overlay.go`, `omp_model_integration_degraded.go`, `omp_model_routing_compile.go`, `omp_model_doctor_projection.go`, `omp_skills.go`, `omp_rules.go`, `omp_workflow_render.go`, `[NEW] testdata/omp-18.6.1-reviewer-output.yaml`.
-- `internal/cli`: `[NEW] quality_compose_effort.go`(+test), `[NEW] quality_compose_form_effort.go`(+test), `quality_compose_form_edit.go`, `quality_compose_tool.go`, `quality_tool_persist.go`, `quality_tool_interactive.go`, `quality_compose_bind.go`, `quality_compose_bind_write.go`, `quality_compose_form_text.go`, `[NEW] quality_compose_omp_autopus.go`(+test), `quality_compose_omp.go`(분기 몇 줄), `platform_omp_agent_catalog.go`, `platform_omp_projection_build.go`, `platform_omp_profile_preview.go`, `pipeline_backend_omp_models.go`, `pipeline_backend_orca_models.go`, `doctor_omp_model_routing_probe.go`, `quality_compose_table.go`, `[NEW] platform_omp_agent_migration.go`(+test).
+- `pkg/adapter/omp`: `[NEW] omp_agents.go`(+test), `[NEW] omp_agent_surface_claim.go`(+test), `omp.go`, `omp_rooted_lifecycle.go`, `omp_rooted_lifecycle_config.go`, `omp_rooted_transaction.go`(test 전용 실패 seam), `omp_model_integration_project.go`, `omp_model_integration_ownership_rooted.go`, `omp_model_integration_clean.go`, `omp_model_integration.go`(gate), `omp_model_integration_bridge.go`, `omp_model_projection.go`, `omp_model_projection_overlay.go`, `omp_model_integration_degraded.go`, `omp_model_routing_compile.go`, `omp_model_doctor_projection.go`, `omp_skills.go`, `omp_rules.go`, `omp_workflow_render.go`, `[NEW] testdata/omp-18.6.1-reviewer-output.yaml`.
+- `internal/cli`: `[NEW] quality_compose_effort.go`(+test), `[NEW] quality_compose_form_effort.go`(+test), `quality_compose_form_edit.go`, `quality_compose_tool.go`, `quality_tool_persist.go`, `quality_tool_interactive.go`, `quality_compose_bind.go`, `quality_compose_bind_write.go`, `quality_compose_form_text.go`, `[NEW] quality_compose_omp_autopus.go`(+test), `quality_compose_omp.go`(분기 몇 줄), `quality_omp_custom.go`, `quality_compose_omp_init.go`, `platform_omp_profile_declarations.go`, `platform_omp_profile_options.go`, `platform_omp_profile_effective.go`, `platform_omp_profile_plan.go`, `platform_omp_profile_apply.go`, `platform_omp_agent_catalog.go`, `platform_omp_projection_build.go`, `platform_omp_profile_preview.go`, `pipeline_backend_omp_models.go`, `pipeline_backend_orca_models.go`, `doctor_omp_model_routing_probe.go`, `quality_compose_table.go`, `[NEW] platform_omp_agent_migration.go`(+test).
 - 문서: README, CHANGELOG(v0.50.126), help 상수. 증거: `evidence/probe-omp-18.6.1.md`, `[NEW] evidence/manual-smoke-003.txt`. 신규·변경 소스는 300줄 이하이고, 292·290줄 파일에는 호출 몇 줄만 더한다.
 
 ## Related SPECs
 
-- SPEC-MODELUX-002(v0.50.125): 바뀌는 점은 넷이다. (1) REQ-MUX2-10 "지정 단위 native 5개"는 autopus 모드에서 16개다. (2) non-goal "새 YAML key"를 사용자 결정으로 뒤집는다(`efforts`, `agent_source`). (3) Per-Tool Binding Contract의 프리셋 쓰기와 복사가 efforts를 담는다. (4) 폼 test 입력에 effort Select의 Enter가 더해진다. 줄 driver(REQ-MUX2-15)와 OMP 쓰기 경로(REQ-MUX2-11, 22, 23)는 그대로다.
+- SPEC-MODELUX-002(v0.50.125): 바뀌는 점은 넷이다. (1) REQ-MUX2-10 "지정 단위 native 5개"는 autopus 모드에서 16개다. (2) non-goal "새 YAML key"를 사용자 결정으로 뒤집는다(`efforts`, `agent_source`). (3) Per-Tool Binding Contract의 프리셋 쓰기와 복사가 efforts를 담는다. (4) 폼 test 입력에 effort Select의 Enter가 더해진다. (5) autopus 모드 OMP 탭은 OMP Tab Contract의 profile·계열 단계를 쓰지 않고(OMP Autopus Tab Contract), 프로필 없는 pin을 저장한다(REQ-MUX3-22). 줄 driver(REQ-MUX2-15)와 OMP 쓰기 경로(REQ-MUX2-11, 22, 23)는 그대로다.
 - SPEC-MODELUX-001(v0.50.125): 등급, Binding Contract, raw writer를 그대로 쓴다.
 - SPEC-ADK-MINIMALITY-DISCIPLINE-001(61f72bb0): OMP native 재사용 결정을 기본값에서 대체한다. native는 v0.50.126 동안 `agent_source: native`로 남는다.
 - SPEC-OMP-001(16개 생성), SPEC-OMP-005(`@autopus_<agent>` alias, 은퇴): 생성은 되살리고 alias는 되살리지 않는다. SPEC-OMP-006 review backend의 `reviewer` 의존은 S15 receipt가 확인한다.
@@ -328,7 +378,7 @@ OMP 기본값이 바뀌므로 0건이 아니다. 목록은 `research.md` `### �
 | REQ-MUX3-10 | T5 | S7, S8, S22, S24 | INV-MUX3-06, INV-MUX3-09 |
 | REQ-MUX3-11 | T3, T6 | S9, S21 | INV-MUX3-04, INV-MUX3-05 |
 | REQ-MUX3-12 | T6, T7 | S15, S21 | INV-MUX3-05 |
-| REQ-MUX3-13 | T11 | S10, S11 | INV-MUX3-02 |
+| REQ-MUX3-13 | T11, T16 | S10, S11, S17, S25 | INV-MUX3-02, INV-MUX3-10 |
 | REQ-MUX3-14 | T12 | S12 | INV-MUX3-06 |
 | REQ-MUX3-15 | T5, T12 | S13, S22 | INV-MUX3-07, INV-MUX3-09 |
 | REQ-MUX3-16 | T1, T14 | S16 | INV-MUX3-01 |
@@ -337,3 +387,5 @@ OMP 기본값이 바뀌므로 0건이 아니다. 목록은 `research.md` `### �
 | REQ-MUX3-19 | T13 | S19 | - |
 | REQ-MUX3-20 | T10 | S5, S20 | INV-MUX3-03, INV-MUX3-08 |
 | REQ-MUX3-21 | T8 | S14 | INV-MUX3-04 |
+| REQ-MUX3-22 | T15, T16 | S10, S11 | INV-MUX3-05, INV-MUX3-10 |
+| REQ-MUX3-23 | T11, T16 | S25 | INV-MUX3-11 |
