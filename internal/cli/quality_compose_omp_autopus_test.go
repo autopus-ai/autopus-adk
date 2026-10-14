@@ -1,35 +1,31 @@
 package cli
 
-// SPEC-MODELUX-003 T11 (REQ-MUX3-13; acceptance S10, S11): in autopus mode
-// the OMP tab plans the profile once without pins before the method select,
-// offers role groups and per-agent pins over the 16 canonical agents, and
-// writes through the SPEC-MODELUX-002 OMP paths.
+// SPEC-MODELUX-003 T11 (REQ-MUX3-13, 22; acceptance S10, S11): in autopus
+// mode the OMP tab asks no profile or family, offers role groups and
+// per-agent pins over the 16 canonical agents with attested installed models
+// of every provider, and saves a pins-only policy through the OMP paths.
 
 import (
 	"context"
 	"crypto/sha256"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
-	"sort"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 
+	"github.com/insajin/autopus-adk/pkg/adapter/omp"
 	"github.com/insajin/autopus-adk/pkg/config"
 )
-
-const composeOMPMetadataNotice = "The installed catalog reports no family or capability metadata; " +
-	"a pin is attested against the built-in declarations.\n"
 
 // composeOMPCatalogML is ML: the four models of
 // ompCLIProfileNativeCatalogJSON in the shape an installed omp prints, with
 // no family or capability metadata. ompCLIProfileNativeCatalogJSON itself
-// lacks the display fields the native tab's catalog rule reads.
+// lacks the display fields the tab's catalog rule reads.
 const composeOMPCatalogML = `{"models":[
 	{"provider":"anthropic","id":"claude-fable-5-1","selector":"anthropic/claude-fable-5-1","name":"Claude Fable 5.1","contextWindow":200000,"reasoning":true,"thinking":["high","max"],"input":["text"]},
 	{"provider":"anthropic","id":"claude-sonnet-5-5","selector":"anthropic/claude-sonnet-5-5","name":"Claude Sonnet 5.5","contextWindow":200000,"reasoning":true,"thinking":["high","max"],"input":["text"]},
@@ -37,58 +33,12 @@ const composeOMPCatalogML = `{"models":[
 	{"provider":"openai-codex","id":"gpt-6-luna","selector":"openai-codex/gpt-6-luna","name":"GPT-6 Luna","contextWindow":272000,"reasoning":true,"thinking":["high","max"],"input":["text"]}
 ]}`
 
-// composeOMPDesignGroup is the title of the 설계·판단 model select.
 const composeOMPDesignGroup = "설계·판단 — planner, architect, spec-writer, security-auditor"
 
-// writeComposeOP writes OP: O3 on the default autopus source with
-// role_model_policy {v1, balanced, openai}.
-func writeComposeOP(t *testing.T) string {
-	t.Helper()
-	dir := t.TempDir()
-	cfg := composeFixtureConfig("claude-code", "codex", "omp")
-	cfg.RoleModelPolicy = config.RoleModelPolicyConf{
-		Version: config.RoleModelPolicyVersionV1, Profile: "balanced", Family: "openai",
-	}
-	require.NoError(t, config.Save(dir, cfg))
-	return dir
-}
-
-// composeOMPPrePlan is the pin-less balanced plan of dir: the routes the
-// tab's pre-plan reads, keyed by agent.
-func composeOMPPrePlan(t *testing.T, dir string, catalog []byte) map[string]ompProfileAgentPreviewPayload {
-	t.Helper()
-	opts, err := newOMPProfileApplyOptions("balanced", "openai", nil, false, false)
-	require.NoError(t, err)
-	preview, err := planOMPProfile(context.Background(), dir, opts, &ompCLIFakeRunner{catalog: catalog})
-	require.NoError(t, err)
-	require.Empty(t, preview.Blockers)
-	rows := make(map[string]ompProfileAgentPreviewPayload, len(preview.Agents))
-	for _, row := range preview.Agents {
-		rows[row.Agent] = row
-	}
-	return rows
-}
-
-// composeOMPCatalogWithoutProvider is NO: the balanced catalog without
-// provider's models.
-func composeOMPCatalogWithoutProvider(t *testing.T, provider string) []byte {
-	t.Helper()
-	var raw struct {
-		Models []map[string]any `json:"models"`
-	}
-	require.NoError(t, json.Unmarshal(ompCLIBalancedCatalogJSON(), &raw))
-	raw.Models = slices.DeleteFunc(raw.Models, func(model map[string]any) bool { return model["provider"] == provider })
-	encoded, err := json.Marshal(raw)
-	require.NoError(t, err)
-	return encoded
-}
-
-func composeOMPFileSum(t *testing.T, dir string) [32]byte {
-	t.Helper()
-	body, err := os.ReadFile(filepath.Join(dir, "autopus.yaml"))
-	require.NoError(t, err)
-	return sha256.Sum256(body)
-}
+var (
+	composeOMPDesignAgents = []string{"planner", "architect", "spec-writer", "security-auditor"}
+	composeOMPBuildAgents  = []string{"executor", "debugger", "deep-worker", "devops", "frontend-specialist", "perf-engineer"}
+)
 
 func composeOMPOptionList(options ...string) string {
 	var list strings.Builder
@@ -98,130 +48,178 @@ func composeOMPOptionList(options ...string) string {
 	return list.String()
 }
 
-// S10: a role group's model and thinking pin every member, the model select
-// follows the catalog rule, and the write activates once.
-func TestComposeOMPAutopus_S10_RoleGroupPinsEveryMember(t *testing.T) {
-	for name, row := range map[string]struct {
-		catalog []byte
-		notice  bool
-		models  []string
-	}{
-		"ML": {[]byte(composeOMPCatalogML), true, []string{
-			"anthropic/claude-fable-5-1", "anthropic/claude-sonnet-5-5", "openai-codex/gpt-6-astra", "openai-codex/gpt-6-luna",
-		}},
-		"MR": {ompCLIBalancedCatalogJSON(), false, []string{"anthropic/claude-fable-5-1", "openai-codex/gpt-6-astra"}},
-	} {
-		t.Run(name, func(t *testing.T) {
-			composeSessionCatalog(t, "CAT-A")
-			dir := writeComposeOP(t)
-			deps, activations := composeOMPDeps(row.catalog)
-			astra := fmt.Sprintf("%d\n", slices.Index(row.models, "openai-codex/gpt-6-astra")+2)
-			// 구성 편집, OMP, 에이전트별 지정, GPT, 역할 그룹, 설계·판단 model and
-			// thinking max, Enter for the other three groups' model and
-			// thinking, 적용, 유지.
-			lines := []string{"2\n", "4\n", "4\n", "1\n", "1\n", astra, "3\n", "\n", "\n", "\n", "\n", "\n", "\n", "2\n", "\n"}
-
-			out, err := runComposeOMPForms(t, dir, deps, lines...)
-
-			require.NoError(t, err, out)
-			models := composeOMPOptionList(append([]string{"프로필 기본값"}, row.models...)...)
-			assert.Contains(t, out, composeOMPDesignGroup+" \n"+models)
-			if row.notice {
-				assert.Contains(t, out, composeOMPMetadataNotice+composeOMPDesignGroup)
-			} else {
-				assert.NotContains(t, out, composeOMPMetadataNotice)
-			}
-			assert.Contains(t, out, "설계·판단 thinking \n1. 프로필 기본값 (")
-			policy := rawRoleModelPolicyOf(t, readBlockFixture(t, dir))
-			agents := make([]string, 0, len(policy.Agents))
-			for agent, override := range policy.Agents {
-				agents = append(agents, agent)
-				require.Len(t, override.Candidates, 1, agent)
-				candidate := override.Candidates[0]
-				assert.Equal(t, []string{"openai-codex/gpt-6-astra", "max", "openai"},
-					[]string{candidate.Selector, candidate.Thinking, candidate.Family}, agent)
-			}
-			sort.Strings(agents)
-			assert.Equal(t, []string{"architect", "planner", "security-auditor", "spec-writer"}, agents)
-			assert.Equal(t, 1, activations.calls)
-		})
-	}
+func composeOMPFileSum(t *testing.T, dir string) [32]byte {
+	t.Helper()
+	body, err := os.ReadFile(filepath.Join(dir, "autopus.yaml"))
+	require.NoError(t, err)
+	return sha256.Sum256(body)
 }
 
-// S11: the thinking select offers the pre-plan's thinking as the profile
-// default, a thinking-only change pins the pre-plan's selector, and a
-// pre-plan blocker ends the tab before the method select.
-func TestComposeOMPAutopus_S11_PrePlanAndThinkingOnly(t *testing.T) {
-	t.Run("OP", func(t *testing.T) {
+// composeOMPS10Policy is the policy S10 saves.
+func composeOMPS10Policy() config.RoleModelPolicyConf {
+	agents := map[string]config.RoleModelCandidateConf{}
+	for _, agent := range composeOMPDesignAgents {
+		agents[agent] = pinFable
+	}
+	for _, agent := range composeOMPBuildAgents {
+		agents[agent] = pinAstra
+	}
+	return config.RoleModelPolicyConf{Version: config.RoleModelPolicyVersionV1, Agents: pinsOf(agents)}
+}
+
+func writeComposePinsFixture(t *testing.T, policy config.RoleModelPolicyConf) string {
+	t.Helper()
+	dir := t.TempDir()
+	cfg := composeFixtureConfig("claude-code", "codex", "omp")
+	cfg.RoleModelPolicy = policy
+	require.NoError(t, config.Save(dir, cfg))
+	return dir
+}
+
+// composeOMPActivated generates OMP with cfg through the IO runner and
+// returns the task.agentModelOverrides it activated.
+func composeOMPActivated(t *testing.T, dir string, cfg *config.HarnessConfig) map[string]string {
+	t.Helper()
+	runner := &ompModelDoctorE2ERunner{catalog: ompCLIProfileNativeCatalogJSON()}
+	_, err := omp.NewWithRoot(dir).WithModelIntegrationRunner(runner).Generate(context.Background(), cfg)
+	require.NoError(t, err)
+	body, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(omp.DefaultOMPModelOverlayPath)))
+	require.NoError(t, err)
+	var overlay struct {
+		Task struct {
+			Overrides map[string]string `yaml:"agentModelOverrides"`
+		} `yaml:"task"`
+	}
+	require.NoError(t, yaml.Unmarshal(body, &overlay))
+	return overlay.Task.Overrides
+}
+
+// S10: role groups mix providers, the catalog rule lists attested models
+// only, and the result is a pins-only policy whose activation routes the
+// pinned agents and task alone.
+func TestComposeOMPAutopus_S10_MultiProviderRoleGroups(t *testing.T) {
+	composeSessionCatalog(t, "CAT-A")
+	dir := writeComposeFixture(t, "claude-code", "codex", "omp")
+	deps, activations := composeOMPDeps([]byte(composeOMPCatalogML2))
+	// 구성 편집, OMP, 역할 그룹, 설계·판단 fable → high, 구현 astra → max,
+	// 검증·리뷰 Enter, 탐색·보조 세션 모델, 적용, 유지.
+	lines := []string{"2\n", "4\n", "1\n", "3\n", "1\n", "6\n", "2\n", "\n", "2\n", "2\n", "\n"}
+
+	out, err := runComposeOMPForms(t, dir, deps, lines...)
+
+	require.NoError(t, err, out)
+	assert.NotContains(t, out, composeFormTextKO.OMP+" \n", "no profile Select")
+	assert.NotContains(t, out, composeFormTextKO.OMPFamily, "no family Select")
+	models := composeOMPOptionList("그대로 — OMP 세션 모델", "OMP 세션 모델 그대로",
+		"anthropic/claude-fable-5-1", "anthropic/claude-opus-5-5", "anthropic/claude-sonnet-5-5",
+		"openai-codex/gpt-6-astra", "openai-codex/gpt-6-luna")
+	assert.Contains(t, out, composeOMPDesignGroup+" \n"+models)
+	assert.NotContains(t, out, "example/foo-1")
+	assert.Equal(t, 1, strings.Count(out, composeFormTextKO.OMPAttestedOnly+"\n"))
+	assert.Less(t, strings.Index(out, composeFormTextKO.OMPAttestedOnly), strings.Index(out, composeOMPDesignGroup))
+	assert.Contains(t, out, "설계·판단 thinking \n"+composeOMPOptionList("high", "max"))
+	assert.Less(t, strings.Index(out, composeFormTextKO.OMPOldBinary), strings.Index(out, "OMP pins-only — model preview"))
+	assert.Equal(t, 1, activations.calls)
+	want := composeOMPS10Policy()
+	assert.Equal(t, want, rawRoleModelPolicyOf(t, readBlockFixture(t, dir)))
+
+	overrides := composeOMPActivated(t, dir, activations.cfgs[0])
+
+	keys := append(append([]string{"task"}, composeOMPDesignAgents...), composeOMPBuildAgents...)
+	assert.ElementsMatch(t, keys, composeOMPKeys(overrides))
+	assert.Equal(t, "anthropic/claude-fable-5-1:high", overrides["task"], "task follows the planner pin")
+	explorer, err := os.ReadFile(filepath.Join(dir, ".omp", "agents", "explorer.md"))
+	require.NoError(t, err)
+	assert.Contains(t, string(explorer), "\nthinkingLevel: medium\n")
+	planner, err := os.ReadFile(filepath.Join(dir, ".omp", "agents", "planner.md"))
+	require.NoError(t, err)
+	assert.NotContains(t, string(planner), "thinkingLevel")
+}
+
+// S11: a pins-only start lists each agent's pin, the thinking default is the
+// current level, a strict catalog filters by capability without the note,
+// and native mode refuses the policy at load.
+func TestComposeOMPAutopus_S11_StartThinkingAndCatalogRules(t *testing.T) {
+	t.Run("per agent", func(t *testing.T) {
 		composeSessionCatalog(t, "CAT-A")
-		dir := writeComposeOP(t)
-		pre := composeOMPPrePlan(t, dir, ompCLIBalancedCatalogJSON())["planner"]
-		levels := []string{"high", "max"}
-		level := levels[slices.IndexFunc(levels, func(l string) bool { return l != pre.EffectiveThinking })]
-		deps, activations := composeOMPDeps(ompCLIBalancedCatalogJSON())
-		// 구성 편집, OMP, 에이전트별 지정, GPT, 에이전트별, planner, 프로필
-		// 기본값, L, 완료, 적용, 유지.
-		pick := fmt.Sprintf("%d\n", slices.Index(levels, level)+2)
-		lines := []string{"2\n", "4\n", "4\n", "1\n", "2\n", "2\n", "\n", pick, "\n", "2\n", "\n"}
+		dir := writeComposePinsFixture(t, composeOMPS10Policy())
+		before := composeOMPFileSum(t, dir)
+		deps, activations := composeOMPDeps([]byte(composeOMPCatalogML2))
+		// 구성 편집, OMP, 에이전트별, planner, fable, thinking Enter, 완료, 유지.
+		lines := []string{"2\n", "4\n", "2\n", "2\n", "3\n", "\n", "\n", "\n"}
 
 		out, err := runComposeOMPForms(t, dir, deps, lines...)
 
 		require.NoError(t, err, out)
-		assert.Less(t, strings.Index(out, composeFormTextKO.Method), strings.Index(out, "planner thinking"))
-		assert.Contains(t, out, "planner thinking \n"+
-			composeOMPOptionList("프로필 기본값 ("+pre.EffectiveThinking+")", "high", "max"))
-		assert.Contains(t, out, "planner — "+pre.EffectiveSelector+":"+level+"\n")
-		policy := rawRoleModelPolicyOf(t, readBlockFixture(t, dir))
-		require.Len(t, policy.Agents, 1)
-		require.Len(t, policy.Agents["planner"].Candidates, 1)
-		candidate := policy.Agents["planner"].Candidates[0]
-		assert.Equal(t, []string{pre.EffectiveSelector, level}, []string{candidate.Selector, candidate.Thinking})
-		assert.Equal(t, 1, activations.calls)
-	})
-	t.Run("NO copy", func(t *testing.T) {
-		composeSessionCatalog(t, "CAT-A")
-		dir := writeComposeOP(t)
-		before := composeOMPFileSum(t, dir)
-		deps, activations := composeOMPDeps(composeOMPCatalogWithoutProvider(t, "openai-codex"))
-
-		out, err := runComposeOMPForms(t, dir, deps, "2\n", "4\n", "4\n", "1\n", "\n")
-
-		require.NoError(t, err, out)
-		assert.Contains(t, out, "  경고: omp_profile_candidate_unavailable")
-		assert.NotContains(t, out, composeFormTextKO.Method)
+		assert.Contains(t, out, "planner — anthropic/claude-fable-5-1 · high\n")
+		assert.Contains(t, out, "explorer — OMP 세션 모델\n")
+		assert.Contains(t, out, "planner thinking \n"+composeOMPOptionList("high", "max"))
+		assert.Contains(t, out, composeTextKO.NoChange+"\n", "Enter kept high, the current level")
 		assert.Zero(t, activations.calls)
 		assert.Equal(t, before, composeOMPFileSum(t, dir))
 	})
+	t.Run("strict catalog", func(t *testing.T) {
+		composeSessionCatalog(t, "CAT-A")
+		dir := writeComposePinsFixture(t, composeOMPS10Policy())
+		deps, _ := composeOMPDeps(ompCLIBalancedCatalogJSON())
+		lines := []string{"2\n", "4\n", "1\n", "\n", "\n", "\n", "\n", "\n"}
+
+		out, err := runComposeOMPForms(t, dir, deps, lines...)
+
+		require.NoError(t, err, out)
+		assert.NotContains(t, out, composeFormTextKO.OMPAttestedOnly)
+		assert.Contains(t, out, composeOMPDesignGroup+" \n"+composeOMPOptionList("그대로 — anthropic/claude-fable-5-1 · high",
+			"OMP 세션 모델 그대로", "anthropic/claude-fable-5-1", "openai-codex/gpt-6-astra"))
+	})
+	t.Run("native mode", func(t *testing.T) {
+		policy := composeOMPS10Policy()
+		policy.AgentSource = config.OMPAgentSourceNative
+		dir := writeComposePinsFixture(t, config.RoleModelPolicyConf{})
+		data, err := os.ReadFile(filepath.Join(dir, "autopus.yaml"))
+		require.NoError(t, err)
+		encoded, err := yaml.Marshal(map[string]any{"role_model_policy": policy})
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "autopus.yaml"), append(data, encoded...), 0o644))
+
+		_, err = config.LoadPreview(dir)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "role_model_policy.agents_require_profile")
+	})
 }
 
-// The edit's level and pin rules (Effort Option Contract, OMP row).
-func TestOMPAutopusEdit_LevelsAndPins(t *testing.T) {
-	edit := &ompAutopusEdit{
-		routes: map[string]ompAutopusRoute{
-			"planner":   {selector: "p/a", thinking: "high"},
-			"architect": {selector: "p/b", thinking: "max"},
-		},
-		choices: []ompCustomModelChoice{
-			{Provider: "p", Model: "a", Thinking: []string{"low", "high", "max"}},
-			{Provider: "p", Model: "b", Thinking: []string{"high", "max"}},
-			{Provider: "p", Model: "c", Thinking: []string{"low", "medium"}},
-		},
-		pins: map[string]string{},
+// S11 (4): a pinned model the catalog lacks fails the update closed and
+// leaves every OMP file as it was.
+func TestOMPUpdate_S11_PinsOnlyFailsClosedOnAMissingProvider(t *testing.T) {
+	dir := writeComposePinsFixture(t, composeOMPS10Policy())
+	cfg, err := config.LoadPreview(dir)
+	require.NoError(t, err)
+	composeOMPActivated(t, dir, cfg)
+	overlay := filepath.Join(dir, filepath.FromSlash(omp.DefaultOMPModelOverlayPath))
+	before, err := os.ReadFile(overlay)
+	require.NoError(t, err)
+	agentsBefore, err := os.ReadFile(filepath.Join(dir, ".omp", "agents", "executor.md"))
+	require.NoError(t, err)
+	without := &ompModelDoctorE2ERunner{catalog: []byte(`{"models":[
+		{"provider":"anthropic","id":"claude-fable-5-1","thinking":["high","max"],"available":true}]}`)}
+
+	_, err = omp.NewWithRoot(dir).WithModelIntegrationRunner(without).Update(context.Background(), cfg)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "required_route_unresolved")
+	assert.Regexp(t, `required_route_unresolved: (executor|debugger|deep-worker|devops|frontend-specialist|perf-engineer)`, err.Error())
+	after, err := os.ReadFile(overlay)
+	require.NoError(t, err)
+	assert.Equal(t, before, after)
+	agentsAfter, err := os.ReadFile(filepath.Join(dir, ".omp", "agents", "executor.md"))
+	require.NoError(t, err)
+	assert.Equal(t, agentsBefore, agentsAfter)
+}
+
+func composeOMPKeys(values map[string]string) []string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
 	}
-	group := []string{"planner", "architect"}
-
-	levels, keep := edit.levels("", group)
-	assert.Equal(t, []string{"high", "max"}, levels, "the profile default intersects the pre-plan models")
-	assert.True(t, keep)
-	levels, keep = edit.levels("p/c", group)
-	assert.Equal(t, []string{"low", "medium"}, levels)
-	assert.False(t, keep, "neither pre-plan thinking is a level of p/c")
-	assert.Equal(t, "high, max", edit.defaultThinking(group))
-
-	edit.set(group, "", "max")
-	assert.Equal(t, map[string]string{"planner": "p/a:max"}, edit.pins, "architect already runs max")
-	edit.set(group, "p/b", "")
-	assert.Equal(t, map[string]string{"planner": "p/b:high", "architect": "p/b:max"}, edit.pins)
-	edit.set([]string{"planner"}, "", "")
-	assert.Equal(t, []string{"architect=p/b:max"}, edit.ordered())
+	return keys
 }

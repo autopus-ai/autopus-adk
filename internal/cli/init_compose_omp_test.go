@@ -22,11 +22,14 @@ import (
 	"github.com/insajin/autopus-adk/pkg/config"
 )
 
-// composeInitS21 answers S21 in init on the autopus OMP tab
-// (SPEC-MODELUX-003 T11): 구성 편집, OMP, 에이전트별 지정, GPT, 에이전트별,
+// composeInitS21 answers S21 in init on the autopus OMP tab, which asks no
+// profile or family (SPEC-MODELUX-003 T11): 구성 편집, OMP, 에이전트별,
 // planner, openai-codex/gpt-6-astra, max, 완료, 적용, 유지. Init's menu has
 // no default preset choice.
-var composeInitS21 = []string{"2\n", "4\n", "4\n", "1\n", "2\n", "2\n", "3\n", "3\n", "\n", "2\n", "\n"}
+var composeInitS21 = []string{"2\n", "4\n", "2\n", "2\n", "4\n", "2\n", "\n", "2\n", "\n"}
+
+// composeInitS21Plan is composeInitS21 up to its plan, without 적용 and 유지.
+var composeInitS21Plan = composeInitS21[:len(composeInitS21)-2]
 
 // newComposeInitOMPRun is the environment of one form-driven init on Claude
 // Code, Codex, and OMP: the update run's seams, the role-groups wizard
@@ -61,13 +64,13 @@ func TestInitComposeOMP_PinIsSavedAndGeneratedByInit(t *testing.T) {
 	require.NoError(t, err, out)
 	assert.Contains(t, out, "어느 도구를 바꿀까요? \n1. 모든 도구 같게\n2. Claude Code\n3. Codex\n4. OMP\n")
 	assert.NotContains(t, out, composeFormTextKO.InitOMPUnavailable)
-	assert.Contains(t, out, "OMP balanced — model preview (no changes yet)\n")
+	assert.Contains(t, out, "OMP pins-only — model preview (no changes yet)\n")
 	assert.Regexp(t, `(?m)^planner\*\s+openai-codex/gpt-6-astra\s+max$`, out)
 	assert.NotContains(t, out, composeFormTextKO.OMPRewrite)
 	assert.Contains(t, out, composeFormTextKO.InitOMPApplied+"\n")
 	policy := rawRoleModelPolicyOf(t, readBlockFixture(t, dir))
-	assert.Equal(t, "balanced", policy.Profile)
-	assert.Equal(t, "openai", policy.Family)
+	assert.Empty(t, policy.Profile)
+	assert.Empty(t, policy.Family)
 	require.Len(t, policy.Agents, 1)
 	require.Len(t, policy.Agents["planner"].Candidates, 1)
 	candidate := policy.Agents["planner"].Candidates[0]
@@ -88,16 +91,17 @@ func TestInitComposeOMP_PinIsSavedAndGeneratedByInit(t *testing.T) {
 }
 
 // S21, second project: a blocker refuses without a confirmation, and init
-// goes on without a role_model_policy.
+// goes on without a role_model_policy. The tab lists only installed models,
+// so the pinned model goes missing between the list and the plan.
 func TestInitComposeOMP_BlockerRefusesAndInitContinues(t *testing.T) {
-	deps, _ := composeOMPDeps(ompCLIBalancedCatalogWithout(t, "openai-codex/gpt-6-astra"))
-	newComposeInitOMPRun(t, deps, &ompCLIFakeRunner{fail: true})
+	catalogs := &composeShiftingCatalog{first: ompCLIBalancedCatalogJSON(), later: ompCLIBalancedCatalogWithout(t, "openai-codex/gpt-6-astra")}
+	newComposeInitOMPRun(t, ompPlatformDependencies{newRunner: func() omp.OMPModelCatalogRunner { return catalogs }}, &ompCLIFakeRunner{fail: true})
 
-	dir, out, err := runComposeInitOMP(t, "2\n", "4\n", "2\n", "1\n", "\n")
+	dir, out, err := runComposeInitOMP(t, composeFormLines(composeInitS21Plan, "\n")...)
 
 	require.NoError(t, err, out)
 	assert.Contains(t, out, "omp_profile_candidate_unavailable")
-	assert.Contains(t, out, "agent=task")
+	assert.Contains(t, out, "agent=planner")
 	assert.NotContains(t, out, "적용할까요?")
 	assert.NotContains(t, readBlockFixture(t, dir), "role_model_policy")
 }
@@ -194,7 +198,7 @@ func TestInitComposeOMP_UnreadableCatalogHintsAndInitContinues(t *testing.T) {
 		generation := &ompCLIFakeRunner{fail: true}
 		newComposeInitOMPRun(t, deps, generation)
 
-		dir, out, err := runComposeInitOMP(t, "2\n", "4\n", "2\n", "1\n", "2\n", "4\n", "4\n", "1\n", "\n")
+		dir, out, err := runComposeInitOMP(t, "2\n", "4\n", "1\n", "2\n", "4\n", "2\n", "\n")
 
 		require.NoError(t, err, out)
 		assert.Equal(t, 2, strings.Count(out, composeFormTextKO.InitOMPUnavailable+"\n"), out)
@@ -210,11 +214,30 @@ func TestInitComposeOMP_UnreadableCatalogHintsAndInitContinues(t *testing.T) {
 		newComposeInitOMPRun(t, ompPlatformDependencies{newRunner: runners.newRunner},
 			&ompModelDoctorE2ERunner{catalog: ompCLIProfileNativeCatalogJSON()})
 
-		dir, out, err := runComposeInitOMP(t, "2\n", "4\n", "2\n", "1\n", "2\n", "2\n", "4\n", "4\n", "1\n", "\n")
+		dir, out, err := runComposeInitOMP(t, composeFormLines(composeInitS21Plan, "2\n", "2\n", "4\n", "1\n", "\n")...)
 
 		require.NoError(t, err, out)
 		assert.Equal(t, 1, strings.Count(out, composeFormTextKO.InitOMPUnavailable+"\n"), out)
 		policy := rawRoleModelPolicyOf(t, readBlockFixture(t, dir))
-		assert.Equal(t, []string{"balanced", "openai"}, []string{policy.Profile, policy.Family})
+		assert.Empty(t, policy.Profile)
+		assert.Equal(t, "openai-codex/gpt-6-astra", policy.Agents["planner"].Candidates[0].Selector)
 	})
+}
+
+// composeShiftingCatalog answers the first catalog read with first and every
+// later one with later, as an installation whose model goes away would.
+type composeShiftingCatalog struct {
+	first, later []byte
+	reads        int
+}
+
+func (c *composeShiftingCatalog) Run(ctx context.Context, executable string, args ...string) ([]byte, error) {
+	catalog := c.later
+	if strings.Join(args, " ") == "models --json --no-extensions" {
+		c.reads++
+		if c.reads == 1 {
+			catalog = c.first
+		}
+	}
+	return (&ompCLIFakeRunner{catalog: catalog}).Run(ctx, executable, args...)
 }

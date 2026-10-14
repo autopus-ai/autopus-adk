@@ -21,6 +21,7 @@ import (
 func TestComposeOMPTab_ExplicitProfileIsNotAskedAFamily(t *testing.T) {
 	composeSessionCatalog(t, "CAT-A")
 	dir, _, _ := writeSelectedOMPProfile(t)
+	markOMPProjectNative(t, dir)
 	before := composeSessionHash(t, dir)
 	deps, activations := composeOMPDeps(ompCLIReadyCatalogJSON())
 

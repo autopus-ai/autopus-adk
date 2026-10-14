@@ -68,6 +68,9 @@ func (f *composeFormRun) noteDetectedOMP() {
 // agent. The plan's routes are shown before the confirmation; a blocker or
 // a refused source ends the tab with nothing written or activated.
 func (f *composeFormRun) omp() error {
+	if f.shared.cfg.RoleModelPolicy.OMPAgentSource() == config.OMPAgentSourceAutopus {
+		return f.ompAutopus() // SPEC-MODELUX-003 OMP Autopus Tab Contract: no profile or family
+	}
 	note := fmt.Sprintf(f.form.OMPCurrent, f.ompPolicySummary())
 	mode, err := composeSelect(f.cmd, f.form.OMP, note, []composeOption[string]{
 		{f.form.OMPBack, ""}, {"balanced", "balanced"}, {"ultra", "ultra"}, {f.form.OMPPin, ompCustomMode},
@@ -83,9 +86,6 @@ func (f *composeFormRun) omp() error {
 	family, err := f.ompFamily(name)
 	if err != nil {
 		return err
-	}
-	if mode == ompCustomMode && f.shared.cfg.RoleModelPolicy.OMPAgentSource() == config.OMPAgentSourceAutopus {
-		return f.ompAutopus(name, family, runner)
 	}
 	var pins []string
 	if mode == ompCustomMode {
