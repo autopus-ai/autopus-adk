@@ -153,4 +153,3 @@ func TestPinsOnlyPolicy_NativeRefusalNamesTheWayOut(t *testing.T) {
 	assert.Contains(t, err.Error(), "role_model_policy.agents_require_profile")
 	assert.Contains(t, err.Error(), "set role_model_policy.profile, or remove agent_source: native")
 }
-
