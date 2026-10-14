@@ -83,3 +83,22 @@ func TestOMPModelIntegration_PinsOnlyFailsClosedOnAMissingModel(t *testing.T) {
 	assert.Contains(t, err.Error(), "executor")
 	assert.Equal(t, before, claimSnapshot(t, p))
 }
+
+// Route Contract rule (2) on a metadata-light catalog: a task pin folds onto
+// the roles native mode collapses into task, and the attestation declares it
+// under each of those roles' capabilities, so the fold activates.
+func TestOMPModelIntegration_AttestsATaskPinFoldedOntoTheRoles(t *testing.T) {
+	p := newClaimProject(t)
+	p.runner = newBuiltinTierIntegrationRunner()
+	cfg := builtinIntegrationConfigForFamily("balanced", "openai")
+	cfg.RoleModelPolicy.Agents = map[string]config.RoleAgentOverrideConf{"task": {Candidates: []config.RoleModelCandidateConf{
+		{Selector: "openai-codex/" + config.CodexAstraModel, Thinking: "max", Family: "openai"},
+	}}}
+
+	p.mustRun("generate", cfg)
+
+	overrides := ompWrittenOverrides(t, p)
+	for _, agent := range []string{"annotator", "executor", "validator", "task"} {
+		assert.Equal(t, "openai-codex/"+config.CodexAstraModel+":max", overrides[agent], agent)
+	}
+}

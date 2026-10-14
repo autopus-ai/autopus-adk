@@ -124,6 +124,18 @@ func ompOperatorAttestedDeclarations(
 			return nil, false
 		}
 	}
+	if !profile.OMPNativeAgentSource() {
+		// In autopus mode a pin can govern agents other than its key (Route
+		// Contract rule 2: a task pin routes the roles native mode collapses
+		// into task), so every served route is declared under the capability
+		// of the agent it routes.
+		for _, served := range profile.OMPAgentNames() {
+			identity, route, err := profile.OMPAgentRoute(served)
+			if err != nil || !declareOMPOperatorAttestedCandidates(declarations, identity.Capability, route.Candidates) {
+				return nil, false
+			}
+		}
+	}
 	return declarations, true
 }
 
