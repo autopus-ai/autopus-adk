@@ -55,6 +55,19 @@ func newPipelineOMPManagedActiveCandidate(
 	}, nil
 }
 
+// pipelineOMPPhaseModelsComplete reports a model for every canonical phase. A
+// pins-only policy leaves unpinned phases on the OMP session model, which one
+// model-scoped managed active lease cannot express, so such a run keeps the
+// canonical path for every phase (SPEC-MODELUX-003 review A2).
+func pipelineOMPPhaseModelsComplete(phaseModels map[pipeline.PhaseID]string) bool {
+	for _, phase := range ompPipelinePhaseRoles {
+		if strings.TrimSpace(phaseModels[phase]) == "" {
+			return false
+		}
+	}
+	return true
+}
+
 func pipelineOMPActiveModelScope(phaseModels map[pipeline.PhaseID]string) (string, string, error) {
 	if len(phaseModels) == 0 {
 		return "", "", errors.New("empty model scope")

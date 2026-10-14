@@ -180,6 +180,9 @@ func (backend *pipelineOMPBackend) Execute(
 	if backend.closed {
 		return response, errors.New("pipeline: OMP backend is closed")
 	}
+	if backend.mode == pipelineOMPRunModeUnknown && !pipelineOMPPhaseModelsComplete(backend.config.PhaseModels) {
+		backend.mode = pipelineOMPRunModeCanonical
+	}
 	if backend.mode != pipelineOMPRunModeCanonical && backend.config.ManagedActive != nil && !backend.config.managedInner {
 		candidate, candidateErr := newPipelineOMPManagedActiveCandidate(
 			snapshot, backend.config.PhaseModels[request.PhaseID], backend.config.PhaseModels,

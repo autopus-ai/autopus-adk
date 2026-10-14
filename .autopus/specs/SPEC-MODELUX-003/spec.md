@@ -290,6 +290,7 @@ WHEN the operator applies an OMP tab edit over a profile-based policy in autopus
 | receipt·doctor | profile 칸은 예약 표기 `[NEW] pins-only`(autopus.yaml에 쓰지 않는다). 이 이름은 예약이라 `profiles.pins-only`나 `profile: pins-only`는 load에서 `role_model_policy.profile_name_reserved`, `auto platform omp profile apply`에서 `profile_name_reserved`로 거부한다. doctor는 `disabled/profile_not_selected`(`platform_omp_agent_catalog.go:24-36`) 대신 pin된 에이전트 행을 보인다 |
 | 옛 바이너리 | 프로필 없는 `agents`는 v0.50.125 이하가 `agents_require_profile`로 거부한다. 쓰기 전 미리보기에 한 줄 |
 | 변환(REQ-MUX3-23) | 프로필 기반 policy를 이 탭에서 고치면 바꾸지 않은 에이전트에 그 effective route의 candidate 전부를 pin으로 옮기고, 세션 모델로 고른 에이전트는 key를 두지 않으며, `scout`·`security-reviewer`·`sonic` key와 13개 역할에 접히던 `agents.task`는 에이전트별 pin으로 펼친다. `scout`·`security-reviewer`·`sonic` key는 지우고, `agents.task`는 변환 전 task route가 변환 뒤 planner route와 다르면 그 route로 남기고 같으면 지운다. `profile`·`family`를 지운다. ultra의 quality 연동과 family diversity 힌트는 고정되므로 변환 줄이 알린다 |
+| pipeline | pin 없는 phase는 세션 모델을 상속한다(phase model 없음). managed active run은 한 model scope를 모든 phase에 묶으므로 phase model이 하나라도 없으면 그 run은 처음부터 canonical 경로를 쓴다. Orca(phase마다 명시 agent)와 context observe-session(implement phase model 필요)은 그 phase에 pin이 없으면 fail closed다 |
 | 다른 경로 | 줄 OMP 편집기, `auto platform omp profile apply`, native 모드 탭은 지금처럼 프로필을 쓰고, 그 결과(프로필 + pin)도 그대로 읽힌다 |
 
 ### Route Contract
