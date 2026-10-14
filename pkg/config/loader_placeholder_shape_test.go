@@ -54,10 +54,10 @@ func TestLoad_RefusesAPlaceholderValueThatReshapesTheFile(t *testing.T) {
 		"anchor on a scalar":   {"&a " + shapeSecret, shapeBinary, shapeChanged + "orchestra.providers.claude.binary;"},
 		"tag on a scalar":      {"!!str " + shapeSecret, shapeBinary, shapeChanged + "orchestra.providers.claude.binary;"},
 		"merge key from a key": {"<<", "orchestra:\n  providers:\n    ${SHAPE_VALUE}: {binary: x}\n", shapeChanged + "orchestra.providers;"},
-		"colliding keys": {"claude", "orchestra:\n  providers:\n    claude: {binary: a}\n    ${SHAPE_VALUE}: {binary: b}\n",
+		"colliding keys": {"zqprovider", "orchestra:\n  providers:\n    zqprovider: {binary: a}\n    ${SHAPE_VALUE}: {binary: b}\n",
 			shapeChanged + "orchestra.providers;"},
 		"value that breaks the YAML": {shapeSecret + ": x", shapeBinary, shapeBroken},
-		"placeholder in an alias name": {"base", "future_extension:\n  a: &base x\n  b: *${SHAPE_VALUE}\n",
+		"placeholder in an alias name": {"zqanchor", "future_extension:\n  a: &zqanchor x\n  b: *${SHAPE_VALUE}\n",
 			shapeNoParse + " (yaml: unknown anchor '${SHAPE_VALUE}' referenced)"},
 		"placeholder the YAML cannot parse around": {shapeSecret, "role_model_policy:\n  version: v1\n  agents:\n" +
 			"    executor:\n      candidates:\n        - selector: [${SHAPE_VALUE}\n", shapeNoParse},
