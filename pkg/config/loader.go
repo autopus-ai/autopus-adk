@@ -65,21 +65,24 @@ func loadConfig(dir string, persistNormalization bool) (*HarnessConfig, bool, er
 		return nil, false, fmt.Errorf("read config: %w", err)
 	}
 
+	expanded, err := expandConfigPlaceholders(data)
+	if err != nil {
+		return nil, false, fmt.Errorf("parse config %s: %w", path, err)
+	}
 	if err := rejectRoleModelCandidatePlaceholders(data); err != nil {
 		return nil, false, fmt.Errorf("validate config: %w", err)
 	}
-	expanded := expandEnvVars(string(data))
 
 	var cfg HarnessConfig
 	// Strict: an unrecognised key is a typo, and Save re-marshals the struct,
 	// so accepting it silently loses the user's line while looking like a
 	// working setting. Keys that are deliberately tolerated are named in
 	// removedConfigKeys and reservedConfigKeys, never inferred from absence.
-	retired, err := decodeStrict([]byte(expanded), &cfg)
+	retired, err := decodeStrict(expanded, &cfg)
 	if err != nil {
 		return nil, false, fmt.Errorf("parse config %s: %w", path, err)
 	}
-	applyMissingDefaults(&cfg, []byte(expanded))
+	applyMissingDefaults(&cfg, expanded)
 
 	normalized := MigratePlatformNames(&cfg)
 	if persistNormalization && normalized {

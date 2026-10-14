@@ -162,7 +162,10 @@ func countMappingKeys(node *yaml.Node, name string) int {
 // retired key. A raw-node writer runs it on the bytes it is about to write, so
 // a rewrite that Load would reject never lands.
 func ParseConfig(data []byte) (*HarnessConfig, error) {
-	expanded := []byte(expandEnvVars(string(data)))
+	expanded, err := expandConfigPlaceholders(data)
+	if err != nil {
+		return nil, fmt.Errorf("parse config: %w", err)
+	}
 	var cfg HarnessConfig
 	if _, err := decodeStrict(expanded, &cfg); err != nil {
 		return nil, fmt.Errorf("parse config: %w", err)

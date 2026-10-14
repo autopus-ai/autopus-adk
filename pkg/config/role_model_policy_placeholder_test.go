@@ -48,9 +48,11 @@ func TestLoad_RefusesAPlaceholderInARoleModelCandidate(t *testing.T) {
 }
 
 // Security re-check P4: the check sees the tree the expanded file will have.
-// A placeholder that breaks the raw YAML (an unquoted flow mapping), one
-// reached through an alias from outside role_model_policy, and one in a key
-// under candidates are all refused, and the refusal never echoes the value.
+// A placeholder in an unquoted flow mapping, one reached through an alias
+// from outside role_model_policy, and one in a key under candidates are all
+// refused, and the refusal never echoes the value. A placeholder the YAML
+// cannot parse around is refused by the shape guard
+// (loader_placeholder_shape_test.go).
 func TestLoad_RefusesCandidatePlaceholdersInEveryShape(t *testing.T) {
 	t.Setenv("OMP_PIN", "sk-proj-AbC123secret")
 	t.Setenv("OMP_KEY", "thinking")
@@ -60,7 +62,6 @@ func TestLoad_RefusesCandidatePlaceholdersInEveryShape(t *testing.T) {
 		"alias":         "x-anchor: &sel \"${OMP_PIN}/m\"\n" + head + "        - selector: *sel\n          thinking: high\n          family: anthropic\n",
 		"key from env":  head + "        - selector: anthropic/claude-opus-5-5\n          ${OMP_KEY}: high\n          family: anthropic\n",
 		"secret key":    head + "        - selector: anthropic/claude-opus-5-5\n          thinking: high\n          family: anthropic\n          ${OMP_PIN}: x\n",
-		"unparseable":   head + "        - selector: [${OMP_PIN}\n",
 	} {
 		t.Run(name, func(t *testing.T) {
 			_, err := LoadPreview(writePlaceholderPolicy(t, policy))
