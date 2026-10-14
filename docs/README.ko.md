@@ -589,7 +589,7 @@ OMP는 `role_model_policy.agents`로 재정의하며 Ultra와 사용자 OMP 프�
 OMP 프로필 선택은 `quality.default`, 독립 Claude/Codex 설정, 주 세션의 native 모델 역할을
 바꾸지 않습니다. `auto quality show`에서 OMP 선택을 별도로 확인할 수 있습니다.
 
-OMP 정책은 특정 프로바이더에 종속되지 않으며 이름 있는 프로필을 선택하기 전에는 활성화되지 않습니다. 기존 설정을 직접 소유하지 않는 `overlay` 모드를 우선 사용하세요. 내장 프로필은 배포된 operator-attested 선언과 설치된 카탈로그의 교집합으로 검증합니다. 사용자 프로필은 의미 메타데이터가 있으면 strict 모드를 사용하고, 없으면 정확한 selector·family·capability·thinking을 검토한 뒤 operator-attested 모드를 선택하세요. 사용자 프로필 예시: `role_model_policy`의 model candidate 안(selector, thinking, family, key, YAML alias로 닿는 곳 포함)에 있는 `${NAME}` placeholder는 path만 담은 `role_model_policy.candidate_placeholder_unsupported`로 로드에 실패하고, root `profile`·`family`의 placeholder는 지금처럼 읽힙니다.
+OMP 정책은 특정 프로바이더에 종속되지 않으며 이름 있는 프로필을 선택하기 전에는 활성화되지 않습니다. 기존 설정을 직접 소유하지 않는 `overlay` 모드를 우선 사용하세요. 내장 프로필은 배포된 operator-attested 선언과 설치된 카탈로그의 교집합으로 검증합니다. 사용자 프로필은 의미 메타데이터가 있으면 strict 모드를 사용하고, 없으면 정확한 selector·family·capability·thinking을 검토한 뒤 operator-attested 모드를 선택하세요. `role_model_policy`의 model candidate 안(selector, thinking, family, key, YAML alias로 닿는 곳 포함)에 있는 `${NAME}` placeholder는 path만 담은 `role_model_policy.candidate_placeholder_unsupported`로 로드에 실패하고, root `profile`·`family`의 placeholder는 지금처럼 읽힙니다. placeholder 값은 이제 `autopus.yaml`의 YAML 구조를 바꿀 수 없어, 그렇게 바꿀 값(예: placeholder가 따옴표 밖에 있을 때 `[`, `{`, `!`, `&`, `*`로 시작하거나 `: `를 담은 값)이나 줄바꿈이 든 값, placeholder에 붙인 `!!str` 밖의 명시 tag는 값이 아니라 변수 이름을 적은 오류로 로드에 실패하며, `'${NAME}'`처럼 작은따옴표로 감싼 placeholder는 `'`가 없는 인쇄 가능한 한 줄 값을 글자 그대로 넘깁니다. 사용자 프로필 예시:
 
 ```yaml
 role_model_policy:

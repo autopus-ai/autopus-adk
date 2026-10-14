@@ -22,6 +22,11 @@ All notable changes to this project will be documented in this file.
     `role_model_policy` model candidate 안(selector, thinking, family, key, YAML alias로 닿는 곳 포함)의 `${NAME}`은
     path만 담은 `role_model_policy.candidate_placeholder_unsupported`로 로드에 실패하고, root `profile`·`family`의
     placeholder는 지금처럼 읽힌다.
+    placeholder 값은 이제 `autopus.yaml`의 YAML 구조를 바꾸지 못해, 그렇게 바꿀 값(예: 따옴표 밖 placeholder의 값이
+    `[`, `{`, `!`, `&`, `*`로 시작하거나 `: `를 담을 때)이나 줄바꿈이 든 값, placeholder에 붙인 `!!str` 밖의 명시 tag는
+    값이 아니라 변수 이름을 적은 `config.placeholder_shape_changed`·`config.placeholder_line_break`·
+    `config.placeholder_tag_unsupported`로 로드에 실패하고, `'${NAME}'`처럼 작은따옴표로 감싼 placeholder는 `'`가 없는
+    인쇄 가능한 한 줄 값을 글자 그대로 넘긴다.
   - 해석과 보존: 명시 effort는 그 에이전트를 balanced 표준 배치에서 떼고 Claude `effort:`(haiku 제외)와 Codex
     `model_reasoning_effort`(같은 catalog로 해석)로 생성된다. 다른 편집, `u` 갱신, 도구별 줄 editor는 저장된
     efforts를 지우지 않는다. 모든 도구 같게는 binding 프리셋의 efforts를 다른 built-in에 쓰지 않고 `custom`으로
