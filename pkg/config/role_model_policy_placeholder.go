@@ -27,17 +27,15 @@ func rejectRoleModelCandidatePlaceholders(tokens *placeholderTokens, expanded []
 	if err := yaml.Unmarshal(tokens.text, &document); err != nil || document.Kind == 0 {
 		return nil
 	}
-	// A token is plain text: an explicit tag on it would make the decode
-	// below fail on the token rather than show where it lands.
-	tokens.untag(&document)
 	pruneToleratedKeys(&document)
 	var decoded struct {
 		Policy any `yaml:"role_model_policy"`
 	}
 	if document.Decode(&decoded) != nil {
-		// Untagged, the tokenized file fails only on its structure, which
-		// the expanded file shares, and its strict decode then stops the
-		// load. Should the expanded file still hold a policy, it is refused.
+		// A token carries no tag but !!str (noteSecrets), so the tokenized
+		// file fails only on its structure, which the expanded file shares,
+		// and its strict decode then stops the load. Should the expanded
+		// file still hold a policy, it is refused.
 		var policy struct {
 			Policy any `yaml:"role_model_policy"`
 		}
@@ -48,17 +46,6 @@ func rejectRoleModelCandidatePlaceholders(tokens *placeholderTokens, expanded []
 		return nil
 	}
 	return tokens.candidatePlaceholder(decoded.Policy, "role_model_policy", false)
-}
-
-// untag makes every scalar that holds a token a plain string.
-func (p *placeholderTokens) untag(node *yaml.Node) {
-	if node.Kind == yaml.ScalarNode && p.holds(node.Value) {
-		node.Tag = "!!str"
-		node.Style &^= yaml.TaggedStyle
-	}
-	for _, child := range node.Content {
-		p.untag(child)
-	}
 }
 
 // candidatePlaceholder returns the refusal for the first token under value,

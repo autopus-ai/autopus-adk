@@ -7,7 +7,6 @@ package config
 // SPEC-MODELUX-002 behaviour (loaded, and refused by the OMP writer).
 
 import (
-	"encoding/base64"
 	"os"
 	"path/filepath"
 	"strings"
@@ -78,13 +77,13 @@ func TestLoad_RefusesCandidatePlaceholdersInEveryShape(t *testing.T) {
 // Security re-check P4 (decode): the check reads the policy as the decoder
 // builds it, so a candidate a merge key brings in, at the root from a
 // reserved block or inside the policy or a candidate, an anchored candidate
-// list, and an explicitly tagged candidate value are refused where they
-// land, and so is an agent name taken from the environment. ParseConfig
-// refuses as Load does.
+// list, and a candidate value tagged !!str are refused where they land, and
+// so is an agent name taken from the environment. ParseConfig refuses as
+// Load does. Any other tag on a placeholder is refused before
+// (loader_placeholder_spell_test.go).
 func TestLoad_RefusesCandidatePlaceholdersWhereTheDecoderPutsThem(t *testing.T) {
 	t.Setenv("OMP_PIN", "sk-proj-AbC123secret")
 	t.Setenv("OMP_KEY", "executor")
-	t.Setenv("OMP_B64", base64.StdEncoding.EncodeToString([]byte("sk-proj-AbC123secret")))
 	pin := "{selector: \"${OMP_PIN}/m\", thinking: high, family: anthropic}"
 	policy := "role_model_policy:\n  version: v1\n  agents:\n    executor:\n      candidates: [" + pin + "]\n"
 	nested := "  " + strings.ReplaceAll(strings.TrimSuffix(policy, "\n"), "\n", "\n  ") + "\n"
@@ -101,8 +100,8 @@ func TestLoad_RefusesCandidatePlaceholdersWhereTheDecoderPutsThem(t *testing.T) 
 			"role_model_policy:\n  version: v1\n  agents:\n    executor:\n      candidates: *list\n", executor},
 		"profile agent override": {"role_model_policy:\n  version: v1\n  profile: p1\n  profiles:\n    p1:\n      agents:\n" +
 			"        executor:\n          candidates: [" + pin + "]\n", "role_model_policy.profiles.p1.agents.executor.candidates[0].selector"},
-		"explicit tag": {"role_model_policy:\n  version: v1\n  agents:\n    executor:\n" +
-			"      candidates: [{selector: !!binary ${OMP_B64}, thinking: high, family: anthropic}]\n", executor},
+		"string tag": {"role_model_policy:\n  version: v1\n  agents:\n    executor:\n" +
+			"      candidates: [{selector: !!str \"${OMP_PIN}/m\", thinking: high, family: anthropic}]\n", executor},
 		"agent name from env": {"role_model_policy:\n  version: v1\n  agents:\n    ${OMP_KEY}:\n" +
 			"      candidates: [{selector: anthropic/claude-opus-5-5, thinking: high, family: anthropic}]\n",
 			"role_model_policy.agents.${OMP_KEY}"},

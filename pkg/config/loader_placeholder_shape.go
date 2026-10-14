@@ -23,9 +23,11 @@ const placeholderShapeRule = "a placeholder value may only replace the scalar it
 // an anchor, a tagged value, or a merge key, even on one line. The file is
 // parsed once with every placeholder replaced by a token and once expanded,
 // and the two trees must have one shape. A value with a line break is
-// refused before either parse. Every refusal names variables, never a value.
+// refused before either parse, and so is an explicit tag other than !!str on
+// a placeholder (noteSecrets). Every refusal names variables, never a value.
 // The tokens of a file with a placeholder come back with the expanded bytes,
-// for the checks that read where a placeholder lands.
+// for the checks that read where a placeholder lands and for the errors that
+// would quote a value it put there (spellDecodeError, spellError).
 func expandConfigPlaceholders(raw []byte) ([]byte, *placeholderTokens, error) {
 	if !envVarPattern.Match(raw) {
 		return raw, nil, nil
@@ -49,11 +51,11 @@ func expandConfigPlaceholders(raw []byte) ([]byte, *placeholderTokens, error) {
 			placeholderList(tokens.names), placeholderShapeRule)
 	}
 	if node, path := tokens.mismatch(&tokenized, &parsed, ""); node != nil {
-		if path == "" {
-			path = "the document root"
-		}
 		return nil, nil, fmt.Errorf("config.placeholder_shape_changed: expanding %s changes the YAML shape of autopus.yaml at %s; %s",
-			placeholderList(tokens.namesIn(node)), path, placeholderShapeRule)
+			placeholderList(tokens.namesIn(node)), placeholderPath(path), placeholderShapeRule)
+	}
+	if err := tokens.noteSecrets(&tokenized, &parsed); err != nil {
+		return nil, nil, err
 	}
 	return expanded, tokens, nil
 }
@@ -64,9 +66,10 @@ func expandConfigPlaceholders(raw []byte) ([]byte, *placeholderTokens, error) {
 // the text around a short plain value, and its random prefix keeps the file
 // itself from spelling one.
 type placeholderTokens struct {
-	text   []byte
-	names  []string
-	prefix string
+	text    []byte
+	names   []string
+	prefix  string
+	secrets []placeholderSecret
 }
 
 func tokenizePlaceholders(raw []byte) *placeholderTokens {
@@ -166,10 +169,7 @@ func (p *placeholderTokens) mismatch(tokenized, expanded *yaml.Node, path string
 		case yaml.SequenceNode:
 			child = fmt.Sprintf("%s[%d]", path, i)
 		case yaml.MappingNode:
-			child = p.restore(tokenized.Content[i-i%2].Value)
-			if path != "" {
-				child = path + "." + child
-			}
+			child = joinPlaceholderPath(path, p.restore(tokenized.Content[i-i%2].Value))
 		}
 		if node, at := p.mismatch(tokenized.Content[i], expanded.Content[i], child); node != nil {
 			return node, at

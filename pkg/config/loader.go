@@ -78,7 +78,7 @@ func loadConfig(dir string, persistNormalization bool) (*HarnessConfig, bool, er
 	// so accepting it silently loses the user's line while looking like a
 	// working setting. Keys that are deliberately tolerated are named in
 	// removedConfigKeys and reservedConfigKeys, never inferred from absence.
-	retired, err := decodeStrict(expanded, &cfg)
+	retired, err := decodeStrict(expanded, &cfg, tokens)
 	if err != nil {
 		return nil, false, fmt.Errorf("parse config %s: %w", path, err)
 	}
@@ -96,9 +96,9 @@ func loadConfig(dir string, persistNormalization bool) (*HarnessConfig, bool, er
 	}
 
 	if err := cfg.Validate(); err != nil {
-		return nil, false, fmt.Errorf("validate config: %w", err)
+		return nil, false, fmt.Errorf("validate config: %w", tokens.spellError(err))
 	}
-	reportRetiredKeys(retired)
+	reportRetiredKeys(tokens.spellPaths(retired))
 	return &cfg, normalized, nil
 }
 

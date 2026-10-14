@@ -38,12 +38,12 @@ func LoadLoreSection(dir string) (LoreConf, error) {
 	var envelope struct {
 		Lore *LoreConf `yaml:"lore"`
 	}
-	expanded, _, err := expandConfigPlaceholders(data)
+	expanded, tokens, err := expandConfigPlaceholders(data)
 	if err != nil {
 		return LoreConf{}, fmt.Errorf("parse config: %w", err)
 	}
 	if err := yaml.Unmarshal(expanded, &envelope); err != nil {
-		return LoreConf{}, fmt.Errorf("parse config: %w", err)
+		return LoreConf{}, fmt.Errorf("parse config: %w", tokens.spellDecodeError(err))
 	}
 	if envelope.Lore == nil {
 		return defaults, nil

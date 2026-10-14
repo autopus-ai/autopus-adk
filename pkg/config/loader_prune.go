@@ -171,13 +171,13 @@ func ParseConfig(data []byte) (*HarnessConfig, error) {
 		return nil, fmt.Errorf("validate config: %w", err)
 	}
 	var cfg HarnessConfig
-	if _, err := decodeStrict(expanded, &cfg); err != nil {
+	if _, err := decodeStrict(expanded, &cfg, tokens); err != nil {
 		return nil, fmt.Errorf("parse config: %w", err)
 	}
 	applyMissingDefaults(&cfg, expanded)
 	MigratePlatformNames(&cfg)
 	if err := cfg.Validate(); err != nil {
-		return nil, fmt.Errorf("validate config: %w", err)
+		return nil, fmt.Errorf("validate config: %w", tokens.spellError(err))
 	}
 	return &cfg, nil
 }

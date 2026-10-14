@@ -99,16 +99,18 @@ func PruneRetiredKeys(doc *yaml.Node) []string {
 // internal/cli/workflow_context_runtime_managed_rpc_authority.go. Deliberately
 // removed keys are pruned from the parsed document first so only genuinely
 // unknown keys fail, and the pruned document is decoded as parsed, never
-// re-encoded, so every error names a line of the user's file. It returns the
-// retired orchestra paths it pruned, in byte order; the other removed and
-// reserved keys are dropped silently.
-func decodeStrict(data []byte, out any) ([]string, error) {
+// re-encoded, so every error names a line of the user's file. An error that
+// would quote a value a placeholder of tokens put there spells the
+// placeholder instead (spellDecodeError). It returns the retired orchestra
+// paths it pruned, in byte order; the other removed and reserved keys are
+// dropped silently.
+func decodeStrict(data []byte, out any, tokens *placeholderTokens) ([]string, error) {
 	var doc yaml.Node
 	// yaml.Unmarshal reads only the first document of a multi-document file
 	// and ignores the rest without an error, as B's loader did; the node it
 	// fills keeps the lines of the user's file for every later error.
 	if err := yaml.Unmarshal(data, &doc); err != nil {
-		return nil, err
+		return nil, tokens.spellDecodeError(err)
 	}
 	if doc.Kind == 0 {
 		// An empty file declares no keys at all. Validate reports the missing
@@ -117,7 +119,7 @@ func decodeStrict(data []byte, out any) ([]string, error) {
 	}
 	retired := pruneToleratedKeys(&doc)
 	if err := decodeNodeKnownFields(&doc, out); err != nil {
-		return nil, fmt.Errorf("%w (unknown keys are rejected: fix the typo or delete the key)", err)
+		return nil, fmt.Errorf("%w (unknown keys are rejected: fix the typo or delete the key)", tokens.spellDecodeError(err))
 	}
 	return retired, nil
 }
