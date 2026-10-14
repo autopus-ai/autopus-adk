@@ -21,8 +21,10 @@ import (
 // 디스크에 쓰지 않으며(Load 는 정규화 결과를 기록한다), lore 이외의 어떤
 // 블록도 해석하지 않는다. 설정 유효성은 auto doctor 가 소유한다.
 //
-// 파일이 없으면 기본값을 준다. YAML 이 깨진 경우에만 실패하는데, 그때는
-// 트레일러 요구를 조용히 낮추는 것보다 멈추는 편이 옳다.
+// 파일이 없으면 기본값을 준다. YAML 이 깨졌거나, 환경 변수 placeholder 가
+// 파일의 YAML 구조를 바꾸거나 줄바꿈·허용되지 않은 tag 를 담으면 실패한다
+// (config.Load 와 같은 guard). 그때는 트레일러 요구를 조용히 낮추는 것보다
+// 멈추는 편이 옳다.
 func LoadLoreSection(dir string) (LoreConf, error) {
 	defaults := DefaultFullConfig(filepath.Base(dir)).Lore
 

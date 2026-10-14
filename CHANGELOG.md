@@ -27,6 +27,8 @@ All notable changes to this project will be documented in this file.
     값이 아니라 변수 이름을 적은 `config.placeholder_shape_changed`·`config.placeholder_line_break`·
     `config.placeholder_tag_unsupported`로 로드에 실패하고, `'${NAME}'`처럼 작은따옴표로 감싼 placeholder는 `'`가 없는
     인쇄 가능한 한 줄 값을 글자 그대로 넘긴다.
+    env 하나로 목록이나 mapping을 넣던 설정(예: `args: ${ARGS}`에 `[--a, --b]`)은 목록을 YAML로 쓰고 항목마다
+    placeholder를 두도록 바꿔야 한다.
   - 해석과 보존: 명시 effort는 그 에이전트를 balanced 표준 배치에서 떼고 Claude `effort:`(haiku 제외)와 Codex
     `model_reasoning_effort`(같은 catalog로 해석)로 생성된다. 다른 편집, `u` 갱신, 도구별 줄 editor는 저장된
     efforts를 지우지 않는다. 모든 도구 같게는 binding 프리셋의 efforts를 다른 built-in에 쓰지 않고 `custom`으로
