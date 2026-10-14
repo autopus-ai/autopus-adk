@@ -19,6 +19,9 @@ All notable changes to this project will be documented in this file.
     못합니다` 줄이 나온다. efforts가 없는 파일은 v0.50.125와 같게 읽고 같은 bytes로 생성한다. 정규 이름이 아닌
     key나 다섯 단계 밖의 값은 `quality.presets.<name>.efforts.<agent>: effort_invalid "<value>"`처럼 key 경로와 값을
     담은 오류로 로드에 실패한다.
+    `role_model_policy` model candidate 안(selector, thinking, family, key, YAML alias로 닿는 곳 포함)의 `${NAME}`은
+    path만 담은 `role_model_policy.candidate_placeholder_unsupported`로 로드에 실패하고, root `profile`·`family`의
+    placeholder는 지금처럼 읽힌다.
   - 해석과 보존: 명시 effort는 그 에이전트를 balanced 표준 배치에서 떼고 Claude `effort:`(haiku 제외)와 Codex
     `model_reasoning_effort`(같은 catalog로 해석)로 생성된다. 다른 편집, `u` 갱신, 도구별 줄 editor는 저장된
     efforts를 지우지 않는다. 모든 도구 같게는 binding 프리셋의 efforts를 다른 built-in에 쓰지 않고 `custom`으로
@@ -41,6 +44,9 @@ All notable changes to this project will be documented in this file.
     pipeline phase는 세션 모델로 돌고, 그런 run은 managed active 대신 canonical 경로를 쓴다. Orca와 context
     observe-session은 그 phase에 pin이 없으면 fail closed다. `agent_source: native`에서 프로필 없는 agents는
     `role_model_policy.agents_require_profile`로 거부되고, 오류가 프로필을 정하거나 `agent_source: native`를 지우라고 알린다.
+    metadata가 없는 catalog에서 지금 프로필의 route가 built-in 선언 밖의 model을 쓰면 탭은 시작할 때 `이 catalog에서는
+    Autopus가 증명할 수 없는 model이라 그대로 두면 적용이 막힙니다: <models>. 프로필 그대로 고치려면 줄 OMP 편집기나
+    auto platform omp profile apply를 쓰세요`를 쓴다.
   - migration: `auto update`가 `+ .omp/agents/<agent>.md` 줄, `task.disabledAgents: scout, security-reviewer,
     sonic`, `OMP는 이제 Autopus 에이전트 16개를 씁니다.` 안내를 미리 보이고 OMP transaction 하나로 옮긴다.
     `autopus.yaml`은 쓰지 않는다. manifest에 없는 같은 이름 파일은 사용자 파일이라 그대로 둔다. 사용자가 다른 값으로
