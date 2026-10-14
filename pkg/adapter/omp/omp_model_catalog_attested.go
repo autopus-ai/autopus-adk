@@ -45,8 +45,15 @@ func normalizeOMPOperatorAttestedCatalog(
 	if len(*raw.Models) == 0 {
 		return OMPModelCatalog{}, "catalog_empty"
 	}
-	declarations, ok := ompOperatorAttestedDeclarations(profile)
-	if !ok {
+	var declarations map[string]ompOperatorAttestedDeclaration
+	if profile.PinsOnly {
+		var reason string
+		if declarations, reason = ompPinsOnlyAttestedDeclarations(profile); reason != "" {
+			return OMPModelCatalog{}, reason
+		}
+	} else if declared, ok := ompOperatorAttestedDeclarations(profile); ok {
+		declarations = declared
+	} else {
 		return OMPModelCatalog{}, "catalog_invalid"
 	}
 
@@ -89,6 +96,39 @@ func normalizeOMPOperatorAttestedCatalog(
 	return canonicalOMPModelCatalog(models)
 }
 
+// ompPinsOnlyAttestedDeclarations declares a pins-only profile's routes for a
+// catalog without family metadata (security review P1). A pin vouches for
+// nothing: its model must be one a built-in profile names (else
+// pin_model_unattested), and the built-in family is the attested one, so a
+// pin claiming another family fails here as pin_family_mismatch.
+func ompPinsOnlyAttestedDeclarations(
+	profile config.RoleModelProfileConf,
+) (map[string]ompOperatorAttestedDeclaration, string) {
+	builtin := config.BuiltinRoleModelSelectorFamilies()
+	declarations := make(map[string]ompOperatorAttestedDeclaration)
+	for _, served := range profile.OMPAgentNames() {
+		identity, route, err := profile.OMPAgentRoute(served)
+		if err != nil {
+			return nil, "catalog_invalid"
+		}
+		candidates := make([]config.RoleModelCandidateConf, 0, len(route.Candidates))
+		for _, candidate := range route.Candidates {
+			family, declared := builtin[candidate.Selector]
+			switch {
+			case !declared:
+				return nil, "pin_model_unattested"
+			case candidate.Family != family:
+				return nil, "pin_family_mismatch"
+			}
+			candidates = append(candidates, candidate)
+		}
+		if !declareOMPOperatorAttestedCandidates(declarations, identity.Capability, candidates) {
+			return nil, "catalog_invalid"
+		}
+	}
+	return declarations, ""
+}
+
 // ompOperatorAttestedDeclarations collects every candidate a closed profile
 // declares, from capability routes and agent overrides alike, so attested
 // metadata covers each selector the routing resolver may pick.
@@ -96,11 +136,7 @@ func ompOperatorAttestedDeclarations(
 	profile config.RoleModelProfileConf,
 ) (map[string]ompOperatorAttestedDeclaration, bool) {
 	capabilities := config.OMPProviderNeutralCapabilities()
-	if profile.PinsOnly {
-		// A pins-only profile declares only its pins, each under the
-		// capability of the agent it pins.
-		capabilities = nil
-	} else if len(profile.Capabilities) != len(capabilities) {
+	if len(profile.Capabilities) != len(capabilities) {
 		return nil, false
 	}
 	declarations := make(map[string]ompOperatorAttestedDeclaration)

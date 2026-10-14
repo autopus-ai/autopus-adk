@@ -93,3 +93,17 @@ func (c RoleModelProfileConf) ompPinsOnlyAgentNames() []string {
 	}
 	return names
 }
+
+// BuiltinRoleModelSelectorFamilies is the family of every model a built-in
+// profile can name: each built-in family's model for every quality tier. On a
+// catalog without family metadata it is the only attestation a pins-only pin
+// has; a pin never attests its own model or family.
+func BuiltinRoleModelSelectorFamilies() map[string]string {
+	families := make(map[string]string)
+	for _, family := range builtinModelFamilies {
+		for _, tier := range qualityTiers {
+			families[family.provider+"/"+family.modelForTier(tier)] = family.family
+		}
+	}
+	return families
+}

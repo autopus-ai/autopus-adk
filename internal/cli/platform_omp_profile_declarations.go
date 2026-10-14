@@ -38,20 +38,12 @@ func ompProfileDeclaredFamilies(
 	return declared
 }
 
-// ompBuiltinDeclaredFamilies is the family of every selector a built-in
-// profile declares, balanced and ultra under each anchor family: the models
-// a pins-only pin can be attested by when the catalog reports no family
-// (SPEC-MODELUX-003 Pins-only Policy Contract).
-func ompBuiltinDeclaredFamilies(quality config.QualityConf, configMode string) map[string]string {
-	declared := make(map[string]string)
-	for _, name := range []string{"balanced", "ultra"} {
-		for _, family := range config.RoleModelFamilies() {
-			if profile, ok := config.BuiltinRoleModelProfile(name, quality, family, configMode); ok {
-				collectOMPProfileCandidateFamilies(declared, profile)
-			}
-		}
-	}
-	return declared
+// ompBuiltinDeclaredFamilies is the family of every model a built-in profile
+// can name: the only attestation a pins-only pin has when the catalog reports
+// no family (SPEC-MODELUX-003 Pins-only Policy Contract). The adapter attests
+// with the same set, so the tab never lists a model the run would refuse.
+func ompBuiltinDeclaredFamilies() map[string]string {
+	return config.BuiltinRoleModelSelectorFamilies()
 }
 
 func collectOMPProfileCandidateFamilies(

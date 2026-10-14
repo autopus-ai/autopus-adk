@@ -47,8 +47,7 @@ func (f *composeFormRun) ompAutopus() error {
 	if err != nil {
 		return err
 	}
-	declared := ompBuiltinDeclaredFamilies(f.shared.cfg.Quality, f.shared.cfg.RoleModelPolicy.ConfigMode)
-	tab.choices, err = installedOMPAttestedModelChoices(commandContext(f.cmd), f.out, runner, declared, f.form.OMPAttestedOnly)
+	tab.choices, err = installedOMPAttestedModelChoices(commandContext(f.cmd), f.out, runner, ompBuiltinDeclaredFamilies(), f.form.OMPAttestedOnly)
 	if err == nil && len(tab.choices) == 0 {
 		err = ompCatalogUnavailableError{reason: "no_usable_model"}
 	}

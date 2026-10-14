@@ -8,6 +8,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -52,7 +53,7 @@ func writeOMPPinsProject(t *testing.T, policy config.RoleModelPolicyConf) string
 }
 
 func TestOMPBuiltinDeclaredFamilies_NamesEveryBuiltinModel(t *testing.T) {
-	declared := ompBuiltinDeclaredFamilies(config.QualityConf{}, "")
+	declared := ompBuiltinDeclaredFamilies()
 
 	for selector, family := range map[string]string{
 		"anthropic/claude-opus-5-5": "anthropic", "anthropic/claude-fable-5-1": "anthropic",
@@ -65,7 +66,7 @@ func TestOMPBuiltinDeclaredFamilies_NamesEveryBuiltinModel(t *testing.T) {
 }
 
 func TestInstalledOMPAttestedModelChoices_ListsOnlyAttestableModels(t *testing.T) {
-	declared := ompBuiltinDeclaredFamilies(config.QualityConf{}, "")
+	declared := ompBuiltinDeclaredFamilies()
 	var out bytes.Buffer
 
 	light, err := installedOMPAttestedModelChoices(context.Background(), &out,
@@ -190,4 +191,22 @@ func TestOMPPinsOnlyTarget_ConvertsAProfileByTheTaskRule(t *testing.T) {
 	own := ompPinsOnlyTarget(ompAgentRoutes{"task": {pinAstra}}, ompAgentRoutes{}, false, true, nil)
 	assert.Equal(t, []config.RoleModelCandidateConf{pinAstra}, own["task"].Candidates, "a pins-only task pin stays")
 	assert.Empty(t, ompPinsOnlyTarget(ompAgentRoutes{"task": {pinAstra}}, ompAgentRoutes{}, false, false, nil))
+}
+
+// Security review P1: a pin already in autopus.yaml vouches for nothing. On a
+// catalog without family metadata a hand-written unknown model is a blocker
+// naming the agent and model, never an attested route.
+func TestPlanOMPPinsOnly_ExistingPinsDoNotAttestThemselves(t *testing.T) {
+	foo := config.RoleModelCandidateConf{Selector: "example/foo-1", Thinking: "high", Family: "example"}
+	root := writeOMPPinsProject(t, config.RoleModelPolicyConf{
+		Version: config.RoleModelPolicyVersionV1, Agents: pinsOf(map[string]config.RoleModelCandidateConf{"executor": foo}),
+	})
+	opts, err := newOMPPinsOnlyApplyOptions(pinsOf(map[string]config.RoleModelCandidateConf{"executor": foo, "planner": pinFable}))
+	require.NoError(t, err)
+
+	preview, err := planOMPProfile(context.Background(), root, opts, &ompCLIFakeRunner{catalog: []byte(composeOMPCatalogML2)})
+
+	require.NoError(t, err)
+	assert.Contains(t, preview.Blockers, "agent=executor reason=agent_override_model_undeclared:example/foo-1")
+	assert.NotContains(t, strings.Join(preview.Blockers, " "), "planner")
 }

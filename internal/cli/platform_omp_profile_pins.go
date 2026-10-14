@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 
@@ -42,25 +43,27 @@ func newOMPPinsOnlyApplyOptions(pins map[string]config.RoleAgentOverrideConf) (o
 }
 
 // resolveOMPPinsOnlyProposal prepares the pins-only policy in cfg and plans
-// it: the families every pin may carry come from the policy as it stood and
-// the built-in declarations, so a pin neither attests stops the plan.
+// it. A pin is attested by what the strict catalog reports, or on a catalog
+// without metadata only by the built-in declarations: no pin, existing or new,
+// vouches for itself (security review P1), so one nothing attests is a
+// blocker naming the agent and model.
 func resolveOMPPinsOnlyProposal(
 	ctx context.Context,
 	cfg *config.HarnessConfig,
 	opts ompProfileApplyOptions,
 	runner omp.OMPModelCatalogRunner,
 ) (ompProfileResolution, error) {
-	declared := ompProfileDeclaredFamilies(cfg.RoleModelPolicy, cfg.Quality, cfg.RoleModelPolicy.Profile)
-	for selector, family := range ompBuiltinDeclaredFamilies(cfg.Quality, cfg.RoleModelPolicy.ConfigMode) {
-		if _, seen := declared[selector]; !seen {
-			declared[selector] = family
-		}
-	}
+	declared := ompBuiltinDeclaredFamilies()
 	effective, err := prepareOMPPinsOnlyConfig(cfg, opts)
 	if err != nil || effective.empty {
 		return ompProfileResolution{effective: effective}, err
 	}
 	probe, err := probeInstalledOMPCatalogForProfile(ctx, runner, effective.profile)
+	var unavailable ompCatalogUnavailableError
+	if errors.As(err, &unavailable) && (unavailable.reason == "pin_model_unattested" || unavailable.reason == "pin_family_mismatch") {
+		blockers := ompPinsOnlyAttestationBlockers(effective.profile, omp.OMPModelCatalog{}, declared)
+		return ompProfileResolution{effective: effective, probe: probe, blockers: blockers}, nil
+	}
 	if err != nil {
 		return ompProfileResolution{}, err
 	}
