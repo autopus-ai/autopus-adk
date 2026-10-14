@@ -37,6 +37,9 @@ func (c RoleModelPolicyConf) validateForQuality(quality QualityConf) error {
 	if _, ok := effectiveBuiltinRoleModelConfigMode(c.ConfigMode); !ok {
 		return fmt.Errorf("role_model_policy.config_mode_invalid: %q", c.ConfigMode)
 	}
+	if err := c.validateReservedProfileName(); err != nil {
+		return err
+	}
 	if err := c.validateRootAgentOverlay(); err != nil {
 		return err
 	}

@@ -210,3 +210,12 @@ func TestPlanOMPPinsOnly_ExistingPinsDoNotAttestThemselves(t *testing.T) {
 	assert.Contains(t, preview.Blockers, "agent=executor reason=agent_override_model_undeclared:example/foo-1")
 	assert.NotContains(t, strings.Join(preview.Blockers, " "), "planner")
 }
+
+// Security review P3: profile apply refuses the reserved name before it reads
+// anything.
+func TestNewOMPProfileApplyOptions_RefusesThePinsOnlyName(t *testing.T) {
+	_, err := newOMPProfileApplyOptions(config.PinsOnlyRoleModelProfileName, "", nil, false, false)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "profile_name_reserved")
+}

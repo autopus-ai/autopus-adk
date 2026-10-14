@@ -54,6 +54,9 @@ func newOMPProfileApplyOptions(
 	if !config.IsValidQualityPresetName(name) {
 		return ompProfileApplyOptions{}, ompProfilePlanError{reason: "profile_name_invalid"}
 	}
+	if name == config.PinsOnlyRoleModelProfileName {
+		return ompProfileApplyOptions{}, ompProfilePlanError{reason: "profile_name_reserved"}
+	}
 	canonicalFamily, err := normalizeOMPRoleModelFamily(family)
 	if err != nil {
 		return ompProfileApplyOptions{}, err

@@ -36,6 +36,16 @@ func PinsOnlyRoleModelProfile(configMode string) RoleModelProfileConf {
 	}
 }
 
+// validateReservedProfileName refuses a profile that takes the name a
+// pins-only policy resolves under, which receipts and doctor output show.
+func (c RoleModelPolicyConf) validateReservedProfileName() error {
+	_, defined := c.Profiles[PinsOnlyRoleModelProfileName]
+	if c.Profile == PinsOnlyRoleModelProfileName || defined {
+		return fmt.Errorf("role_model_policy.profile_name_reserved: %q", PinsOnlyRoleModelProfileName)
+	}
+	return nil
+}
+
 // pinsOnly reports a policy that pins agents without naming a profile.
 func (c RoleModelPolicyConf) pinsOnly() bool {
 	return c.Profile == "" && len(c.Agents) > 0

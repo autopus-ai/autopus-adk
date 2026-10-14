@@ -124,3 +124,19 @@ func TestProfilePolicy_KeepsRuleTwoBesideAPinsOnlyPeer(t *testing.T) {
 	assert.Equal(t, OMPAutopusDefaultAgent, key.Key)
 	assert.Equal(t, []RoleModelCandidateConf{pinOpus}, route.Candidates)
 }
+
+// Security review P3: pins-only is the reserved name of a pins-only policy in
+// receipts and doctor output, so no profile may take it.
+func TestPinsOnlyPolicy_ReservesTheProfileName(t *testing.T) {
+	defined := RoleModelPolicyConf{Version: RoleModelPolicyVersionV1, Profile: "balanced",
+		Profiles: map[string]RoleModelProfileConf{PinsOnlyRoleModelProfileName: {}}}
+	selected := RoleModelPolicyConf{Version: RoleModelPolicyVersionV1, Profile: PinsOnlyRoleModelProfileName}
+	for name, policy := range map[string]RoleModelPolicyConf{"defined": defined, "selected": selected} {
+		t.Run(name, func(t *testing.T) {
+			err := policy.Validate()
+
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), `role_model_policy.profile_name_reserved: "pins-only"`)
+		})
+	}
+}
