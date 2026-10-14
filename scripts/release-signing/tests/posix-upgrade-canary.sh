@@ -8,6 +8,8 @@ FIXTURE_ROOT="$REPO_ROOT/testdata/upgrade/v0.50.108"
 FIXTURE_VERSION=0.50.109-canary
 DEFAULT_PREVIOUS=0.50.108
 DEFAULT_CANDIDATE=0.50.109
+# shellcheck source=scripts/release-signing/tests/posix-upgrade-canary-omp.sh
+. "$TESTS_DIR/posix-upgrade-canary-omp.sh"
 
 fail() {
     printf 'upgrade-canary: FAIL: %s\n' "$*" >&2
@@ -65,6 +67,9 @@ assert_legacy_fixture() {
     assert_legacy_paths
     assert_contains "$PROJECT/.omp/config.yml" 'customDirectories:'
     assert_contains "$PROJECT/.omp/config.yml" '.agents/skills'
+    # v0.50.108 generated .omp/agents/<role>.md and, under a role-model
+    # profile, pinned each through a retired modelRoles alias.
+    assert_contains "$PROJECT/.omp/agents/executor.md" "model: '@autopus_executor'"
 }
 
 assert_public_previous_fixture() {
@@ -88,7 +93,6 @@ assert_current_surface() {
     assert_contains "$PROJECT/.codex/config.toml" '[features.multi_agent_v2]'
     assert_file "$PROJECT/.omp/skills/auto/SKILL.md"
     assert_file "$PROJECT/.omp/commands/auto.md"
-    assert_absent "$PROJECT/.omp/agents/executor.md"
 
     assert_absent "$PROJECT/.claude/skills/autopus/auto-go.md"
     assert_absent "$PROJECT/.codex/prompts/auto.md"
@@ -101,7 +105,12 @@ assert_current_surface() {
     assert_not_contains "$PROJECT/.omp/config.yml" '.agents/skills'
     assert_not_contains "$PROJECT/.omp/config.yml" '# AUTOPUS:BEGIN'
     assert_file "$PROJECT/.autopus/omp-manifest.json"
-    assert_not_contains "$PROJECT/.autopus/omp-manifest.json" '".omp/config.yml"'
+    if candidate_generates_agents; then
+        assert_autopus_agent_surface
+    else
+        assert_absent "$PROJECT/.omp/agents/executor.md"
+        assert_not_contains "$PROJECT/.autopus/omp-manifest.json" '".omp/config.yml"'
+    fi
     assert_not_contains "$PROJECT/.autopus/omp-manifest.json" '.agents/skills/'
     cmp -s "$PROJECT/user-sentinel.txt" "$SENTINEL_EXPECTED" ||
         fail 'user sentinel changed during upgrade'
