@@ -19,9 +19,9 @@ type ompAgentSurfaceText struct {
 
 var ompAgentSurfaceTextKO = ompAgentSurfaceText{
 	userFile:  "%s는 사용자 파일이라 그대로 둡니다",
-	userOwned: ".omp/config.yml의 task.disabledAgents를 사용자가 정해 두어 scout, security-reviewer, sonic을 끄지 않았습니다",
+	userOwned: ".omp/config.yml의 task.disabledAgents를 사용자가 정해 두어 scout, security-reviewer, sonic, designer, librarian을 끄지 않았습니다",
 	unclaimable: ".omp/config.yml을 안전하게 읽지 못해(symlink, 잘못된 YAML, 여러 문서, alias, flow 형식, " +
-		"단독 CR·NEL·LS·PS 줄바꿈) task.disabledAgents를 쓰지 않았습니다. scout, security-reviewer, sonic이 켜져 있습니다",
+		"단독 CR·NEL·LS·PS 줄바꿈) task.disabledAgents를 쓰지 않았습니다. scout, security-reviewer, sonic, designer, librarian이 켜져 있습니다",
 	kept: ".omp/config.yml에 ADK가 고치지 않는 줄바꿈(단독 CR, NEL, LS, PS)이 있어 task.disabledAgents를 " +
 		"마지막으로 쓴 그대로 둡니다. 파일을 다시 읽을 수 있으면 이어서 관리합니다",
 	migration: "OMP는 이제 Autopus 에이전트 16개를 씁니다. v0.50.126 동안 role_model_policy.agent_source: native로 되돌릴 수 있습니다.",
@@ -31,10 +31,10 @@ var ompAgentSurfaceTextKO = ompAgentSurfaceText{
 
 var ompAgentSurfaceTextEN = ompAgentSurfaceText{
 	userFile:  "%s is a user file; left unchanged",
-	userOwned: "task.disabledAgents in .omp/config.yml is user-owned; scout, security-reviewer, and sonic stay enabled",
+	userOwned: "task.disabledAgents in .omp/config.yml is user-owned; scout, security-reviewer, sonic, designer, and librarian stay enabled",
 	unclaimable: "task.disabledAgents was not written: .omp/config.yml cannot be read safely " +
 		"(a symlink, invalid YAML, several documents, an alias, a flow-style mapping, " +
-		"or a lone CR, NEL, LS, or PS line break); scout, security-reviewer, and sonic stay enabled",
+		"or a lone CR, NEL, LS, or PS line break); scout, security-reviewer, sonic, designer, and librarian stay enabled",
 	kept: "task.disabledAgents is left as last written: .omp/config.yml holds a lone CR, NEL, LS, or PS " +
 		"line break, which ADK does not edit; it is managed again once the file reads cleanly",
 	migration: "OMP now uses the 16 Autopus agents; set role_model_policy.agent_source: native to go back during v0.50.126.",

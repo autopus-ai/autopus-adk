@@ -72,20 +72,20 @@ func TestRemoveOMPManagedPath_KeepsEveryLayoutWhole(t *testing.T) {
 func TestSetOMPDisabledAgents_RendersTheKeyInEveryLayout(t *testing.T) {
 	for name, row := range map[string]struct{ in, want string }{
 		"indentless default": {
-			"task:\n  disabledAgents:\n  - scout\n  - security-reviewer\n  - sonic\n",
+			"task:\n  disabledAgents:\n  - scout\n  - security-reviewer\n  - sonic\n  - designer\n  - librarian\n",
 			claimSurfaceOnly,
 		},
 		"indentless value before a sibling": {
 			"task:\n  disabledAgents:\n  - browser\n  keep: yes\n",
-			"task:\n  disabledAgents:\n    - scout\n    - security-reviewer\n    - sonic\n  keep: yes\n",
+			"task:\n  disabledAgents:\n    - scout\n    - security-reviewer\n    - sonic\n    - designer\n    - librarian\n  keep: yes\n",
 		},
 		"insert into a four-space mapping": {
 			"theme: dark\ntask:\n    keep: yes\n",
-			"theme: dark\ntask:\n    keep: yes\n    disabledAgents:\n      - scout\n      - security-reviewer\n      - sonic\n",
+			"theme: dark\ntask:\n    keep: yes\n    disabledAgents:\n      - scout\n      - security-reviewer\n      - sonic\n      - designer\n      - librarian\n",
 		},
 		"insert after an indentless sibling": {
 			"task:\n  hidden:\n  - browser\n",
-			"task:\n  hidden:\n  - browser\n  disabledAgents:\n    - scout\n    - security-reviewer\n    - sonic\n",
+			"task:\n  hidden:\n  - browser\n  disabledAgents:\n    - scout\n    - security-reviewer\n    - sonic\n    - designer\n    - librarian\n",
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -99,7 +99,7 @@ func TestSetOMPDisabledAgents_RendersTheKeyInEveryLayout(t *testing.T) {
 
 // The release preimage of a reformatted claim drops only the key.
 func TestApplyOMPAgentSurfacePrior_RemovesAnIndentlessClaim(t *testing.T) {
-	in := "theme: dark\ntask:\n  disabledAgents:\n  - scout\n  - security-reviewer\n  - sonic\nother: 2\n"
+	in := "theme: dark\ntask:\n  disabledAgents:\n  - scout\n  - security-reviewer\n  - sonic\n  - designer\n  - librarian\nother: 2\n"
 
 	got, err := applyOMPAgentSurfacePrior([]byte(in), OMPMissingManagedValueFingerprint())
 

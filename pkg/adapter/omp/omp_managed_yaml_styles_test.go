@@ -11,13 +11,24 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
+
+	"github.com/insajin/autopus-adk/pkg/config"
 )
 
 const (
-	claimIndentless      = "theme: dark\ntask:\n  disabledAgents:\n  - scout\n  - security-reviewer\n  - sonic\n"
-	claimIndentlessFirst = "task:\n  disabledAgents:\n  - scout\n  - security-reviewer\n  - sonic\n"
+	claimIndentless      = "theme: dark\ntask:\n  disabledAgents:\n  - scout\n  - security-reviewer\n  - sonic\n  - designer\n  - librarian\n"
+	claimIndentlessFirst = "task:\n  disabledAgents:\n  - scout\n  - security-reviewer\n  - sonic\n  - designer\n  - librarian\n"
 	claimFourSpace       = "theme: dark\ntask:\n    keep: yes\n"
 )
+
+// claimDefaultAgents is the default set as the claim YAML decodes it.
+func claimDefaultAgents() []any {
+	var value []any
+	for _, agent := range config.OMPAutopusDisabledAgents() {
+		value = append(value, agent)
+	}
+	return value
+}
 
 func claimYAML(t *testing.T, data string) map[string]any {
 	t.Helper()
@@ -51,7 +62,7 @@ func TestOMPClaimSet_ReleasesAnIndentlessClaimBesideAUserKey(t *testing.T) {
 	p := newClaimProject(t)
 	p.write(configFile, "theme: dark\n")
 	p.mustRun("generate", configForOMP())
-	p.write(configFile, "theme: dark\ntask:\n  enabled: true\n  disabledAgents:\n  - scout\n  - security-reviewer\n  - sonic\n")
+	p.write(configFile, "theme: dark\ntask:\n  enabled: true\n  disabledAgents:\n  - scout\n  - security-reviewer\n  - sonic\n  - designer\n  - librarian\n")
 
 	p.mustRun("generate", nativeConfigForOMP())
 
@@ -72,7 +83,7 @@ func TestOMPClaimSet_KeepsClaimingAnIndentlessClaim(t *testing.T) {
 	document := claimYAML(t, after)
 	assert.Equal(t, "dark", document["theme"])
 	assert.Equal(t, 1, document["extra"])
-	assert.Equal(t, []any{"scout", "security-reviewer", "sonic"}, claimDisabledAgents(t, after))
+	assert.Equal(t, claimDefaultAgents(), claimDisabledAgents(t, after))
 }
 
 // Clean restores the preimage of a reformatted claim.
@@ -97,10 +108,10 @@ func TestOMPClaimSet_FirstClaimOverAnIndentlessDefault(t *testing.T) {
 	p.mustRun("generate", configForOMP())
 
 	claimed, _ := p.read(configFile)
-	assert.Equal(t, []any{"scout", "security-reviewer", "sonic"}, claimDisabledAgents(t, claimed))
+	assert.Equal(t, claimDefaultAgents(), claimDisabledAgents(t, claimed))
 	p.mustRun("generate", nativeConfigForOMP())
 	released, _ := p.read(configFile)
-	assert.Equal(t, []any{"scout", "security-reviewer", "sonic"}, claimDisabledAgents(t, released))
+	assert.Equal(t, claimDefaultAgents(), claimDisabledAgents(t, released))
 }
 
 // A four-space project gets the claim inside its own mapping and gets its
@@ -112,7 +123,7 @@ func TestOMPClaimSet_FourSpaceLayoutRoundTrips(t *testing.T) {
 	p.mustRun("generate", configForOMP())
 
 	claimed, _ := p.read(configFile)
-	assert.Equal(t, claimFourSpace+"    disabledAgents:\n      - scout\n      - security-reviewer\n      - sonic\n", claimed)
+	assert.Equal(t, claimFourSpace+"    disabledAgents:\n      - scout\n      - security-reviewer\n      - sonic\n      - designer\n      - librarian\n", claimed)
 	p.mustRun("generate", nativeConfigForOMP())
 	released, _ := p.read(configFile)
 	assert.Equal(t, claimFourSpace, released)

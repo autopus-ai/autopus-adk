@@ -35,8 +35,10 @@ All notable changes to this project will be documented in this file.
     옮기며(`quality.presets.custom.efforts 옮겨 씀 (N개 에이전트)`), 같은 이름의 이전 버전 기본값만 제자리 갱신한다.
   - OMP 기본값: 생성이 `.omp/agents/<agent>.md` 16개(manifest 소유, `model` 없음, route가 없는 에이전트만 선언
     effort의 `thinkingLevel`)를 만들고 project `.omp/config.yml`에 `task.disabledAgents: [scout, security-reviewer,
-    sonic]`을 claim한다. `task`는 이름 없는 dispatch의 기본이라 켜 두고, `reviewer`는 omp 18.6.1 bundled reviewer의
-    `output` schema를 가진 Autopus reviewer가 대신한다. 프로필이 있으면 `task.agentModelOverrides`가 16개 이름과
+    sonic, designer, librarian]`을 claim한다. 지원하는 omp 버전의 `task`를 뺀 bundled 에이전트 전부이고(18.6.1은 앞의
+    셋, 17.2.7은 `designer`·`librarian`도), 설치된 omp가 번들하지 않는 이름은 아무것도 거르지 않는 항목이다. `task`는
+    이름 없는 dispatch의 기본이라 켜 두고, `reviewer`는 omp 18.6.1 bundled reviewer의 `output` schema를 가진
+    Autopus reviewer가 대신한다. 프로필이 있으면 `task.agentModelOverrides`가 16개 이름과
     `task`를 key로 기존 활성화·증명·되읽기·복원을 탄다. 프로필 없이 pin만 있으면 pin한 에이전트와, 자기 pin이나
     planner pin을 따르는 `task`만 route를 갖고, pin도 없으면 세션 모델을 상속한다.
   - OMP 탭(autopus 모드): 프로필·계열을 묻지 않는다. 지금 pin이나 프로필의 effective route에서 시작해 역할 그룹
@@ -55,8 +57,8 @@ All notable changes to this project will be documented in this file.
     Autopus가 증명할 수 없는 model이라 그대로 두면 적용이 막힙니다: <models>. 프로필 그대로 고치려면 줄 OMP 편집기나
     auto platform omp profile apply를 쓰세요`를 쓴다.
   - migration: `auto update`가 `+ .omp/agents/<agent>.md` 줄, `task.disabledAgents: scout, security-reviewer,
-    sonic`, `OMP는 이제 Autopus 에이전트 16개를 씁니다.` 안내를 미리 보이고 OMP transaction 하나로 옮긴다.
-    `autopus.yaml`은 쓰지 않는다. manifest에 없는 같은 이름 파일은 사용자 파일이라 그대로 둔다. 사용자가 다른 값으로
+    sonic, designer, librarian`, `OMP는 이제 Autopus 에이전트 16개를 씁니다.` 안내를 미리 보이고 OMP transaction 하나로
+    옮긴다. `autopus.yaml`은 쓰지 않는다. manifest에 없는 같은 이름 파일은 사용자 파일이라 그대로 둔다. 사용자가 다른 값으로
     정한 `task.disabledAgents`는 사용자 소유라 바꾸지 않고, 안내 1줄과 doctor의 `agents:disabled_agents_user_owned`
     (degraded)로 알린다. 그 표시는 `auto clean`만 지운다.
   - doctor·안전: manifest에 없는 정규 `.omp/agents/<name>.md`는 OMP가 Autopus 정의 대신 쓰므로 doctor가 degraded와

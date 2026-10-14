@@ -51,8 +51,8 @@ func ompDefaultDisabledAgentsFingerprint() string {
 	return ompDisabledAgentsFingerprint(config.OMPAutopusDisabledAgents(), true)
 }
 
-// ompDisabledAgentsAreDefault reports the value ADK writes: exactly scout,
-// security-reviewer, and sonic, in that order.
+// ompDisabledAgentsAreDefault reports the value ADK writes: exactly
+// config.OMPAutopusDisabledAgents, in that order.
 func ompDisabledAgentsAreDefault(value any, present bool) bool {
 	return present && ompDisabledAgentsFingerprint(value, true) == ompDefaultDisabledAgentsFingerprint()
 }

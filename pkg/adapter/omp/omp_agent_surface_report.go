@@ -23,7 +23,7 @@ type OMPAgentSurfaceReport struct {
 	// MissingAgents are canonical agents with no definition on disk.
 	MissingAgents []string
 	// DisabledAgentsUserOwned reports task.disabledAgents as the user's, so
-	// scout, security-reviewer, and sonic stay enabled in autopus mode.
+	// the bundled agents autopus mode disables stay enabled.
 	DisabledAgentsUserOwned bool
 	// ProjectConfigUnclaimable reports a .omp/config.yml ADK cannot read
 	// safely (a symlink, invalid YAML, several documents, an alias, a

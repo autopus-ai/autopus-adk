@@ -7,7 +7,7 @@
 **Module**: autopus-adk
 **Release**: v0.50.126. 작업 branch는 `feat/modelux-003`이고 기준은 `v0.50.125`(dd6d6ea2, origin/main)다. v0.50.125는 SPEC-MODELUX-001·002로 이미 발행됐다.
 **Predecessor**: SPEC-MODELUX-002(v0.50.125에 포함). 폼 흐름, Label Contract, Per-Tool Binding Contract, OMP Tab Contract, Write Safety Contract는 그 SPEC 정의를 쓴다. 다르면 이 SPEC이 우선하고 차이는 `## Related SPECs`에 적는다.
-**Source PRD**: `prd.md`. 근거, probe, 결정, review 반영은 `research.md`와 `evidence/probe-omp-18.6.1.md`에 있다.
+**Source PRD**: `prd.md`. 근거, probe, 결정, review 반영은 `research.md`, `evidence/probe-omp-18.6.1.md`, `evidence/probe-omp-disabled-agents.md`에 있다.
 
 ## 목적
 
@@ -241,14 +241,14 @@ WHEN the operator applies an OMP tab edit over a profile-based policy in autopus
 | 항목 | 규칙 |
 |---|---|
 | ledger | 기존 `.autopus/omp-model-project-ownership-v1.json` 하나. bytes는 담지 않고 commitment와 지문만 담는다: `original_missing`·`original_commitment`, `last_emitted_commitment`, key마다 `fingerprint`·`prior_fingerprint`·`owner`(`profile` 또는 `agent_surface`), `agent_surface_emitted`(마지막으로 쓴 값), `agent_surface_user_owned`(`omp_model_integration_ownership.go:25-57`). 이 계약의 preimage는 이 기록으로 확인해 다시 얻는 원본 내용(claim key를 prior 값으로 되돌린 파일)이다 |
-| claim 집합 C | project-managed 프로필이면 그 `ManagedKeys` 전부 ∪ autopus 모드이고 사용자 소유(표시가 있거나 아래 첫 claim 판정이 사용자 값으로 본 경우)가 아니면 `task.disabledAgents = [scout, security-reviewer, sonic]`(FullArrayOwnership) |
-| 첫 claim에서 그 key가 이미 있음 | ledger에 그 key의 claim도 표시도 없는데 `.omp/config.yml`에 `task.disabledAgents`가 이미 있으면 값으로 판정한다. `[scout, security-reviewer, sonic]`과 다르면 처음부터 사용자 소유다: C에 넣지 않고 표시를 쓰며(C가 그 밖에 비면 표시만 남은 ledger를 만들고, 프로필 claim이 있으면 그 ledger에 함께 둔다), 파일 bytes는 그대로 두고 `사용자가 정해 두어` 안내 1줄과 degraded를 낸다. 그 key는 C에 없으므로 claim 목록에 오르지 않고, 그래서 소유 key의 prior 재계산(`omp_model_integration_project.go:60-70`)과 `applyOMPManagedClaim`의 prior 지문 비교(`omp_model_activation_project.go:167`, 불일치면 `managed_key_conflict`)에 닿지 않는다. 값이 그 집합과 같으면 현재 값을 preimage 값으로 보고 그대로 claim한다(prior = 현재 지문이라 충돌하지 않고 값은 그대로다. release는 그 값이 든 preimage를 복원하므로 key가 남는다) |
+| claim 집합 C | project-managed 프로필이면 그 `ManagedKeys` 전부 ∪ autopus 모드이고 사용자 소유(표시가 있거나 아래 첫 claim 판정이 사용자 값으로 본 경우)가 아니면 `task.disabledAgents = [scout, security-reviewer, sonic, designer, librarian]`(FullArrayOwnership). 지원하는 omp 버전의 `task`를 뺀 bundled 에이전트 전부다: 18.6.1은 앞의 셋을, 17.2.7은 `designer`·`librarian`도 번들한다. OMP는 task tool의 에이전트를 이름으로 거르므로 설치된 omp가 번들하지 않는 이름은 아무것도 거르지 않는 항목이고, 18.6.1은 그 이름을 경고 없이 읽는다(`evidence/probe-omp-disabled-agents.md`). 순서는 고정이다. 이 값이 emission이자 아래 판정이 비교하는 기본 집합이고, 새 이름은 끝에 붙인다 |
+| 첫 claim에서 그 key가 이미 있음 | ledger에 그 key의 claim도 표시도 없는데 `.omp/config.yml`에 `task.disabledAgents`가 이미 있으면 값으로 판정한다. 위 기본 집합(다섯 이름, 같은 순서)과 다르면 처음부터 사용자 소유다: C에 넣지 않고 표시를 쓰며(C가 그 밖에 비면 표시만 남은 ledger를 만들고, 프로필 claim이 있으면 그 ledger에 함께 둔다), 파일 bytes는 그대로 두고 `사용자가 정해 두어` 안내 1줄과 degraded를 낸다. 그 key는 C에 없으므로 claim 목록에 오르지 않고, 그래서 소유 key의 prior 재계산(`omp_model_integration_project.go:60-70`)과 `applyOMPManagedClaim`의 prior 지문 비교(`omp_model_activation_project.go:167`, 불일치면 `managed_key_conflict`)에 닿지 않는다. 값이 그 집합과 같으면 현재 값을 preimage 값으로 보고 그대로 claim한다(prior = 현재 지문이라 충돌하지 않고 값은 그대로다. release는 그 값이 든 preimage를 복원하므로 key가 남는다) |
 | 적용 | C가 비지 않으면 생성마다 preimage 위에 C 전부로 `MergeOMPProjectManagedConfig` 한 번, config mapping 하나, ledger 갱신 하나. model integration이 없어도 mapping을 만든다(`omp.go:208-216` gate 변경, `omp_model_integration_project.go:14-99`의 수 검사는 프로필 claim에만) |
 | C가 빔 | ledger가 있으면 release: preimage를 복원하고(ADK가 만든 파일이면 삭제) claim을 모두 지운다. 사용자 소유 표시가 없으면 ledger를 지우고, 있으면 표시만 담은 ledger(claim과 commitment 없음)를 남긴다(`omp_rooted_lifecycle_config.go:64-83`을 C 기준으로) |
 | 표시만 남은 ledger | 관리하는 key가 없다. autopus 모드에서는 표시를 판단하려고 `.omp/config.yml`을 읽기만 하고, 아래 재claim이 아니면 쓰지 않는다. C에 프로필 claim이 다시 생기면 현재 파일을 새 preimage로 잡고 표시를 그대로 둔다. native 모드에서도 표시는 남는다 |
 | 사용자가 C 밖을 고침 | C에 `profile` claim이 있으면 지금처럼 `managed_key_conflict`이고 아무것도 쓰지 않는다(`task.disabledAgents`를 같이 고쳤어도 같다). C가 `agent_surface`뿐이면 아래 `task.disabledAgents` 판정을 먼저 하고, 새 preimage = 현재 파일에서 ADK claim key만 preimage 값으로 되돌린 것으로 다시 잡고 적용한다 |
 | 사용자가 `task.disabledAgents`만 고침(지움 포함) | 판정: 현재 파일의 그 key를 ADK가 마지막으로 쓴 값으로 바꾼(없으면 같은 자리에 넣은) bytes의 commitment가 `LastEmittedCommitment`(`omp_model_integration_ownership_rooted.go:49-62`)와 같으면 그 key만 바뀐 것이다. 프로필 claim이 있든 없든 사용자 소유로 넘긴다: 새 preimage = 원본 preimage에 사용자 값(지웠으면 삭제), C에서 그 key를 빼고, ledger에 `[NEW] agent_surface_user_owned`를 남기며, 파일 bytes는 그대로 두고 안내 1줄과 degraded를 낸다. 그 뒤의 merge·전환·release는 새 preimage를 쓰므로 사용자 값을 되돌리지 않는다 |
-| 사용자 소유 표시가 있음 | 그 key를 claim하지 않는다. 표시는 release·전환·native 뒤에도 남고 `auto clean`만 지운다. 생성마다 현재 값을 읽어(표시만 남은 ledger도 같다) 사용자 값이 `[scout, security-reviewer, sonic]`과 같아지면 현재 파일을 preimage로 잡고 표시를 지운 뒤 다시 claim한다 |
+| 사용자 소유 표시가 있음 | 그 key를 claim하지 않는다. 표시는 release·전환·native 뒤에도 남고 `auto clean`만 지운다. 생성마다 현재 값을 읽어(표시만 남은 ledger도 같다) 사용자 값이 기본 집합과 같아지면 현재 파일을 preimage로 잡고 표시를 지운 뒤 다시 claim한다 |
 | clean | `agent_surface`만 있는 ledger는 receipt 없이 release와 같게 복원한다. 표시만 남은 ledger는 파일을 바꾸지 않고 지운다(`omp_model_integration_clean.go:14-32` 조건 변경) |
 | 실패 | OMP transaction 실패는 `.omp/config.yml`, ledger, manifest, agent 파일을 실행 전 bytes로 되돌린다(기존 rooted transaction). 활성화 실패는 기존 복원이다 |
 | allowlist | `task.disabledAgents`는 프로필 `managed_keys`에 넣지 않는다(`role_model_policy_validate.go:174-190` 그대로). `agent_surface` claim은 adapter가 만든다 |
@@ -300,6 +300,7 @@ WHEN the operator applies an OMP tab edit over a profile-based policy in autopus
 | 정규 에이전트 A | ① `agents.A` pin ② 프로필이 있을 때만: N = `OMPNativeAgentForRole(A)`가 A와 다르고 `agents.N` pin이 있으면 그 pin(task → 13개 역할, scout → explorer, security-reviewer → security-auditor) ③ 프로필이 A에 만든 route. pins-only면 ③은 없다: route와 override key가 없고 세션 모델을 상속한다 |
 | task | ① `agents.task` pin ② `agents.planner` pin ③ 프로필의 planner route(pins-only면 없음). 다른 접히는 역할의 pin은 task에 쓰지 않는다 |
 | scout, security-reviewer, sonic | route 없음. `agents.sonic` pin은 받을 에이전트가 없어 미리보기에 경고 1줄 |
+| designer, librarian | route 없음. 어느 mode에서도 route가 없어 `agents.designer`·`agents.librarian` pin은 `agent_role_unmapped`로 로드에 실패한다 |
 | load 검증 | autopus: `validateOMPAutopusAgentRoutes`(key는 정규 16, task, scout, security-reviewer, sonic 중 하나, route마다 해석 가능, pins-only면 route가 없는 에이전트를 허용). native: `validateOMPNativeAgentCollapse`와 `agents_require_profile` |
 | degraded | ①② route는 operator pin이라 provider가 없으면 실패한다. ③만 지금 규칙으로 runtime default가 될 수 있다 |
 | 충돌 | autopus 모드는 `omp_native_agent_conflict`를 내지 않는다 |
@@ -313,13 +314,13 @@ WHEN the operator applies an OMP tab edit over a profile-based policy in autopus
 | dispatch | autopus는 `"agent": "<role>"`, 이름 없는 dispatch는 생략(task). native는 `skill_transformer_replace_omp_render.go:103-124`의 접힘 |
 | 템플릿 | `templates/shared/omp-agent-pipeline.md.tmpl:56-65`의 native 문장을 mode 조건으로 나누고 autopus 문장은 16개 Autopus 에이전트와 task를 고르는 법을 쓴다 |
 | cfg 없는 렌더 | `generate.go:105`처럼 cfg 없이 만든 OMP 텍스트는 autopus다. native 생성은 OMP adapter가 원천에서 다시 렌더한다(T8이 경로를 확인한다) |
-| oracle | 실제 `Adapter.Generate` 산출물. autopus에서 `.omp/` 아래 어느 파일에도 `"agent": "scout"`, `"agent": "security-reviewer"`, `"agent": "sonic"`, `There is no Autopus-specific agent`가 없다. native에서는 v0.50.125와 bytes가 같다 |
+| oracle | 실제 `Adapter.Generate` 산출물. autopus에서 `.omp/` 아래 어느 파일에도 `task.disabledAgents`의 이름(`"agent": "scout"`, `"agent": "security-reviewer"`, `"agent": "sonic"`, `"agent": "designer"`, `"agent": "librarian"`)과 `There is no Autopus-specific agent`가 없다. native에서는 v0.50.125와 bytes가 같다 |
 
 ### Migration Contract
 
 | 경우 | 미리보기 | 쓰기 | autopus.yaml |
 |---|---|---|---|
-| autopus, manifest에 `.omp/agents` 없음 | `+ .omp/agents/<agent>.md` 16줄(사용자 파일은 사용자 파일 줄), `task.disabledAgents: scout, security-reviewer, sonic`, 안내 1줄 | OMP adapter Update 한 transaction: 파일, claim 집합, ledger, 프로필이 있으면 overlay 또는 config와 활성화·되읽기 | 쓰지 않는다 |
+| autopus, manifest에 `.omp/agents` 없음 | `+ .omp/agents/<agent>.md` 16줄(사용자 파일은 사용자 파일 줄), `task.disabledAgents: scout, security-reviewer, sonic, designer, librarian`, 안내 1줄 | OMP adapter Update 한 transaction: 파일, claim 집합, ledger, 프로필이 있으면 overlay 또는 config와 활성화·되읽기 | 쓰지 않는다 |
 | `agent_source: native` | `- .omp/agents/<agent>.md` 줄, `task.disabledAgents 복원` | prune, claim 집합 갱신, native 5 route 활성화 | 사용자가 쓴 값 그대로 |
 | 실패 | - | 기존 transaction 복원과 활성화 실패 복원 | - |
 
@@ -336,7 +337,7 @@ WHEN the operator applies an OMP tab edit over a profile-based policy in autopus
 | OMP 증명 불가 | `이 catalog에서는 Autopus가 증명할 수 없는 model이라 그대로 두면 적용이 막힙니다: <agent>=<model>, …. 프로필 그대로 고치려면 줄 OMP 편집기나 auto platform omp profile apply를 쓰세요` | `Autopus cannot attest these models on this catalog, so applying with them unchanged is blocked: <agent>=<model>, …; the OMP line editor or auto platform omp profile apply keeps editing the profile` |
 | OMP 옛 바이너리 | `프로필 없는 role_model_policy.agents는 v0.50.126보다 오래된 auto가 읽지 못합니다` | `auto older than v0.50.126 cannot read role_model_policy.agents without a profile` |
 | 사용자 파일 | `.omp/agents/<agent>.md는 사용자 파일이라 그대로 둡니다` | `.omp/agents/<agent>.md is a user file; left unchanged` |
-| disabledAgents | `.omp/config.yml의 task.disabledAgents를 사용자가 정해 두어 scout, security-reviewer, sonic을 끄지 않았습니다` | `task.disabledAgents in .omp/config.yml is user-owned; scout, security-reviewer, and sonic stay enabled` |
+| disabledAgents | `.omp/config.yml의 task.disabledAgents를 사용자가 정해 두어 scout, security-reviewer, sonic, designer, librarian을 끄지 않았습니다` | `task.disabledAgents in .omp/config.yml is user-owned; scout, security-reviewer, sonic, designer, and librarian stay enabled` |
 | migration | `OMP는 이제 Autopus 에이전트 16개를 씁니다. v0.50.126 동안 role_model_policy.agent_source: native로 되돌릴 수 있습니다.` | `OMP now uses the 16 Autopus agents; set role_model_policy.agent_source: native to go back during v0.50.126.` |
 
 ## Existing Test Changes
@@ -354,7 +355,7 @@ OMP 기본값이 바뀌므로 0건이 아니다. 목록은 `research.md` `### �
 - `pkg/content`: `[NEW] agent_transformer_omp_render.go`(+test), `skill_transformer_replace.go`, `skill_transformer_replace_omp.go`, `skill_transformer_replace_omp_render.go`, `skill_resources.go`, `skill_transformer.go`, `agent_transformer_mapping.go`, `generate.go`. `templates/shared/omp-agent-pipeline.md.tmpl`.
 - `pkg/adapter/omp`: `[NEW] omp_agents.go`(+test), `[NEW] omp_agent_surface_claim.go`(+test), `omp.go`, `omp_rooted_lifecycle.go`, `omp_rooted_lifecycle_config.go`, `[NEW] omp_rooted_transaction_hook.go`(test 전용 실패 seam), `omp_model_integration_project.go`, `omp_model_integration_ownership_rooted.go`, `omp_model_integration_clean.go`, `omp_model_integration.go`(gate), `omp_model_integration_bridge.go`, `omp_model_projection.go`, `omp_model_projection_overlay.go`, `omp_model_integration_degraded.go`, `omp_model_routing_compile.go`, `omp_model_doctor_projection.go`, `omp_skills.go`, `omp_rules.go`, `omp_workflow_render.go`, `[NEW] testdata/omp-18.6.1-reviewer-output.yaml`.
 - `internal/cli`: `[NEW] quality_compose_effort.go`(+test), `[NEW] quality_compose_form_effort.go`(+test), `quality_compose_form_edit.go`, `quality_compose_tool.go`, `quality_tool_persist.go`, `quality_tool_interactive.go`, `quality_compose_bind.go`, `quality_compose_bind_write.go`, `quality_compose_form_text.go`, `[NEW] quality_compose_omp_autopus.go`(+test), `quality_compose_omp.go`(분기 몇 줄), `quality_omp_custom.go`, `quality_compose_omp_init.go`, `platform_omp_profile_declarations.go`, `platform_omp_profile_options.go`, `platform_omp_profile_effective.go`, `platform_omp_profile_plan.go`, `platform_omp_profile_apply.go`, `platform_omp_agent_catalog.go`, `platform_omp_projection_build.go`, `platform_omp_profile_preview.go`, `pipeline_backend_omp_models.go`, `pipeline_backend_orca_models.go`, `doctor_omp_model_routing_probe.go`, `quality_compose_table.go`, `[NEW] platform_omp_agent_migration.go`(+test).
-- 문서: README, CHANGELOG(v0.50.126), help 상수. 증거: `evidence/probe-omp-18.6.1.md`, `[NEW] evidence/manual-smoke-003.txt`. 신규·변경 소스는 300줄 이하이고, 292·290줄 파일에는 호출 몇 줄만 더한다.
+- 문서: README, CHANGELOG(v0.50.126), help 상수. 증거: `evidence/probe-omp-18.6.1.md`, `[NEW] evidence/probe-omp-disabled-agents.md`, `[NEW] evidence/manual-smoke-003.txt`. 신규·변경 소스는 300줄 이하이고, 292·290줄 파일에는 호출 몇 줄만 더한다.
 
 ## Related SPECs
 

@@ -28,11 +28,11 @@ const updateCmdLong = "설치된 하네스 파일을 업데이트합니다.\n\n"
 	"low·medium·high·xhigh·max(haiku 에이전트 제외), Codex는 catalog가 보고하는 단계만 보이며, 자동과 같은 단계는\n" +
 	"저장하지 않습니다. 고른 effort는 quality.presets.<provider>-custom.efforts에 쓰고, 이 key가 있는 파일은\n" +
 	"v0.50.126보다 오래된 auto가 읽지 못합니다. efforts가 없는 파일의 생성 결과는 그대로입니다.\n\n" +
-	"OMP는 v0.50.126부터 기본으로 Autopus 에이전트 16개를 .omp/agents에 만들고 scout·security-reviewer·sonic을\n" +
-	"task.disabledAgents로 끕니다(task는 유지). 기존 프로젝트는 미리보기에 + .omp/agents/<agent>.md 줄과 안내가\n" +
-	"나오고 autopus.yaml은 쓰지 않습니다. manifest에 없는 같은 이름 파일과 사용자가 정한 task.disabledAgents는\n" +
-	"그대로 둡니다. role_model_policy.agent_source: native로 v0.50.126 동안 이전 방식을 고를 수 있습니다(v0.50.127\n" +
-	"제거 예정). 바이너리를 내리는 대신 이 key로 되돌리세요.\n\n" +
+	"OMP는 v0.50.126부터 기본으로 Autopus 에이전트 16개를 .omp/agents에 만들고 task를 뺀 OMP 기본 에이전트\n" +
+	"(scout·security-reviewer·sonic·designer·librarian)를 task.disabledAgents로 끕니다. 기존 프로젝트는 미리보기에\n" +
+	"+ .omp/agents/<agent>.md 줄과 안내가 나오고 autopus.yaml은 쓰지 않습니다. manifest에 없는 같은 이름 파일과\n" +
+	"사용자가 정한 task.disabledAgents는 그대로 둡니다. role_model_policy.agent_source: native로 v0.50.126 동안 이전\n" +
+	"방식을 고를 수 있습니다(v0.50.127 제거 예정). 바이너리를 내리는 대신 이 key로 되돌리세요.\n\n" +
 	"이 기본 mode의 OMP 탭은 프로필·계열을 묻지 않습니다. 지금 pin이나 프로필 route에서 시작해 역할 그룹 4개나\n" +
 	"에이전트별(자기 pin이 있으면 task 포함)로 그대로 · OMP 세션 모델 그대로 · 모든 provider의 증명된 설치 model을\n" +
 	"고르고, thinking은 고른 model이 보고한 단계만 보입니다. metadata 없는 catalog는 built-in 선언에 있는 model만\n" +

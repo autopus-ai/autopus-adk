@@ -153,7 +153,7 @@ func TestOMPClaimSet_HandsAnEditedDisabledAgentsToTheUserUnderAProfile(t *testin
 	project := newClaimProject(t)
 	project.mustRun("generate", managed())
 	data, _ := project.read(configFile)
-	edited := strings.Replace(data, "    - scout\n    - security-reviewer\n    - sonic\n", "    - scout\n", 1)
+	edited := strings.Replace(data, "    - scout\n    - security-reviewer\n    - sonic\n    - designer\n    - librarian\n", "    - scout\n", 1)
 	require.NotEqual(t, data, edited)
 	project.write(configFile, edited)
 
@@ -190,7 +190,7 @@ func TestOMPClaimSet_DeletedDisabledAgentsStaysDeletedThroughRelease(t *testing.
 	project := newClaimProject(t)
 	project.mustRun("generate", managed())
 	data, _ := project.read(configFile)
-	deleted := strings.Replace(data, "  disabledAgents:\n    - scout\n    - security-reviewer\n    - sonic\n", "", 1)
+	deleted := strings.Replace(data, "  disabledAgents:\n    - scout\n    - security-reviewer\n    - sonic\n    - designer\n    - librarian\n", "", 1)
 	require.NotEqual(t, data, deleted)
 	project.write(configFile, deleted)
 

@@ -78,8 +78,9 @@ Select the agent of the role a worker plays:
 - `reviewer`, `validator`, and `security-auditor` review and verify; keep them
   off implementation.
 - Omitting the agent runs the bundled `task` agent, the default for work no
-  role fits. `scout`, `security-reviewer`, and `sonic` are disabled through
-  `task.disabledAgents`; never select them.
+  role fits. Every other bundled agent (`scout`, `security-reviewer`, `sonic`,
+  `designer`, `librarian`) is disabled through `task.disabledAgents`; never
+  select them.
 
 The agent field names the role; the assignment text still states its scope.
 {{end}}State the responsibility, scope, and exit condition in the task itself.

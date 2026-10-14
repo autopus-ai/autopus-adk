@@ -359,8 +359,8 @@ jobs:
           }
           # The task hub smoke runs on the native agent source; the agent
           # surface smoke proves the default autopus mode on the same binary:
-          # the 16 Autopus agents and task are listed, and the
-          # task.disabledAgents claim hides scout, security-reviewer, and sonic.
+          # exactly the 16 Autopus agents and task are listed, since the
+          # task.disabledAgents claim hides every bundled agent but task.
           (
             export AUTOPUS_OMP_NATIVE_LIVE=1
             export AUTOPUS_OMP_LIVE_EXECUTABLE="$omp_binary"

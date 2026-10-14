@@ -85,7 +85,7 @@ Clarification Ledger unavailable. 입력은 planning context의 사용자 결정
 ## Question Audit
 - question_transport: coordinator · question_count: 2 · unresolved_fields: none. Q1은 2026-10-13 사용자가 세션 모델 상속으로, S17 뒤 OMP 탭은 2026-10-14 사용자가 멀티프로바이더·증명된 model만으로 정했다.
 ## Outcome Lock
-- User-visible outcome: Claude Code·Codex 탭에서 등급과 effort를 그 도구의 유효 값으로 고르고 같은 run의 생성 파일이 미리보기와 같다. OMP 탭은 thinking을 고른다. OMP 프로젝트는 기본으로 Autopus 에이전트 16개를 쓰고 scout·security-reviewer·sonic은 꺼지며 reviewer는 Autopus reviewer다. 프로필이 있으면 route가 16개 이름 + task로 활성화·되읽기된다. `auto update`가 옮기고 `agent_source: native`가 되돌린다. OMP 탭은 프로필·family 없이 provider가 섞인 증명된 model과 `OMP 세션 모델 그대로`에서 고르고 결과는 프로필 없는 pin으로 저장된다.
+- User-visible outcome: Claude Code·Codex 탭에서 등급과 effort를 그 도구의 유효 값으로 고르고 같은 run의 생성 파일이 미리보기와 같다. OMP 탭은 thinking을 고른다. OMP 프로젝트는 기본으로 Autopus 에이전트 16개를 쓰고 task를 뺀 bundled 에이전트(scout·security-reviewer·sonic·designer·librarian)는 꺼지며 reviewer는 Autopus reviewer다. 프로필이 있으면 route가 16개 이름 + task로 활성화·되읽기된다. `auto update`가 옮기고 `agent_source: native`가 되돌린다. OMP 탭은 프로필·family 없이 provider가 섞인 증명된 model과 `OMP 세션 모델 그대로`에서 고르고 결과는 프로필 없는 pin으로 저장된다.
 - Mandatory requirements: REQ-MUX3-01–17, 20–23 (Must). REQ-MUX3-18, 19는 Should.
 - Explicit non-goals: `spec.md` `## Outcome Boundary`.
 - Completion evidence: Must S1–S17, S20–S25 PASS, `auto eval harness run`, coverage 85% 이상, 300줄, `GOOS=windows GOARCH=amd64 go build ./...`, `evidence/manual-smoke-003.txt`(S17, S23), `auto spec validate --strict`.

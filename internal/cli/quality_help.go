@@ -69,9 +69,10 @@ written to quality.presets.<provider>-custom.efforts, which auto older than
 v0.50.126 cannot read; a file without efforts generates exactly as before.
 
 OMP serves the 16 Autopus agents from .omp/agents by default and disables
-scout, security-reviewer, and sonic. In that mode the OMP tab asks no
-profile or family: from the current pins or profile routes it edits the 4
-role groups or each agent (task too while it has its own pin). Each select
+every bundled agent but task (scout, security-reviewer, sonic, designer,
+librarian). In that mode the OMP tab asks no profile or family: from the
+current pins or profile routes it edits the 4 role groups or each agent
+(task too while it has its own pin). Each select
 offers keep, keep the OMP session model, and the installed models of every
 provider that Autopus can attest (a catalog without metadata lists only the
 built-in declared ones); thinking offers only the chosen model's levels.

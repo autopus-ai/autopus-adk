@@ -119,7 +119,7 @@ func TestOMPAgentMigration_S12_S13_UpdateMigratesAndGoesBack(t *testing.T) {
 	for _, agent := range config.CanonicalAgentNames() {
 		assert.Contains(t, first, "    + .omp/agents/"+agent+".md\n")
 	}
-	assert.Contains(t, first, "    task.disabledAgents: scout, security-reviewer, sonic\n")
+	assert.Contains(t, first, "    task.disabledAgents: scout, security-reviewer, sonic, designer, librarian\n")
 	assert.Contains(t, first, "\n    OMP는 이제 Autopus 에이전트 16개를 씁니다.")
 	assert.Less(t, strings.Index(first, "+ .omp/agents/planner.md"), strings.Index(first, "✓ omp updated"),
 		"the lines preview the write")
@@ -204,7 +204,7 @@ func TestOMPAgentSurfaceLines(t *testing.T) {
 	assert.Contains(t, lines, ".omp/agents/reviewer.md는 사용자 파일이라 그대로 둡니다")
 	assert.NotContains(t, lines, "+ .omp/agents/reviewer.md")
 	assert.Contains(t, lines, ko.userOwned)
-	assert.NotContains(t, lines, "task.disabledAgents: scout, security-reviewer, sonic")
+	assert.NotContains(t, lines, "task.disabledAgents: scout, security-reviewer, sonic, designer, librarian")
 
 	migrated := autopus
 	migrated.RecordedAgents, migrated.DisabledAgentsClaimed = recorded, true
@@ -217,10 +217,10 @@ func TestOMPAgentSurfaceLines(t *testing.T) {
 	lines = ompAgentSurfaceLines(unclaimable, cfg, true, ko)
 	assert.Contains(t, lines, ko.unclaimable)
 	assert.NotContains(t, lines, ko.userOwned)
-	assert.NotContains(t, lines, "task.disabledAgents: scout, security-reviewer, sonic")
+	assert.NotContains(t, lines, "task.disabledAgents: scout, security-reviewer, sonic, designer, librarian")
 	assert.Equal(t, "task.disabledAgents was not written: .omp/config.yml cannot be read safely "+
 		"(a symlink, invalid YAML, several documents, an alias, a flow-style mapping, "+
-		"or a lone CR, NEL, LS, or PS line break); scout, security-reviewer, and sonic stay enabled", en.unclaimable)
+		"or a lone CR, NEL, LS, or PS line break); scout, security-reviewer, sonic, designer, and librarian stay enabled", en.unclaimable)
 	frozen := unclaimable
 	frozen.RecordedAgents, frozen.DisabledAgentsClaimed = recorded, true
 	assert.Equal(t, []string{ko.kept}, ompAgentSurfaceLines(frozen, cfg, true, ko), "a recorded claim stays as it is")
@@ -254,7 +254,7 @@ func TestOMPAgentMigration_S8_UserOwnedDisabledAgentsLine(t *testing.T) {
 	second := ompMigrationUpdate(t, dir)
 
 	assert.Contains(t, first, line)
-	assert.NotContains(t, first, "task.disabledAgents: scout, security-reviewer, sonic")
+	assert.NotContains(t, first, "task.disabledAgents: scout, security-reviewer, sonic, designer, librarian")
 	assert.Contains(t, second, line)
 	body, err := os.ReadFile(filepath.Join(dir, ".omp", "config.yml"))
 	require.NoError(t, err)

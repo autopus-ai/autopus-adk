@@ -51,7 +51,7 @@ Given O3와 OP(IO 생성 runner)가 있다
 When 각각 `auto update --yes`를 두 번 실행한다
 Then O3의 `.omp/agents` 이름은 정규 16개와 같고 planner.md는 `name: planner`, content description, `thinkingLevel: max`, 정렬된 `tools`이며 `model` key가 없다. executor는 `thinkingLevel: medium`이고 tools에 `lsp`가 있다
 And reviewer.md의 `output`은 `testdata/omp-18.6.1-reviewer-output.yaml`과 deep-equal이고, OP에서 override가 이름을 담은 에이전트의 파일에는 `thinkingLevel` 줄이 없다
-And OMP manifest에 `.omp/agents/` 16개, `.omp/config.yml`은 0600이고 `task.disabledAgents: [scout, security-reviewer, sonic]`, ledger가 그 key를 `agent_surface`로 담는다. 두 번째 실행 뒤 OMP 파일 SHA-256이 같다
+And OMP manifest에 `.omp/agents/` 16개, `.omp/config.yml`은 0600이고 `task.disabledAgents: [scout, security-reviewer, sonic, designer, librarian]`, ledger가 그 key를 `agent_surface`로 담는다. 두 번째 실행 뒤 OMP 파일 SHA-256이 같다
 ### S8: 사용자 파일과 사용자 소유 설정
 Priority: Must
 Given UF, UC, UC2, S7이 끝난 뒤 사용자가 `.omp/agents/executor.md` 끝에 한 줄을 더한 project가 있다
@@ -84,7 +84,7 @@ And (4)는 `required_route_unresolved`와 구현 그룹 에이전트 이름을 �
 Priority: Must
 Given NM과 그 autopus.yaml의 SHA-256이 있다
 When 이 branch로 `auto update --yes`를 두 번 실행한다
-Then 첫 미리보기에 `+ .omp/agents/planner.md`를 포함한 16줄, `task.disabledAgents: scout, security-reviewer, sonic`, `OMP는 이제 Autopus 에이전트 16개를 씁니다.`로 시작하는 줄이 있다
+Then 첫 미리보기에 `+ .omp/agents/planner.md`를 포함한 16줄, `task.disabledAgents: scout, security-reviewer, sonic, designer, librarian`, `OMP는 이제 Autopus 에이전트 16개를 씁니다.`로 시작하는 줄이 있다
 And 끝난 뒤 16개 파일과 claim이 있고 autopus.yaml SHA-256이 같으며 두 번째 실행은 OMP 파일을 바꾸지 않는다
 ### S13: native로 되돌리고 다시 기본으로
 Priority: Must
@@ -96,7 +96,7 @@ And 되돌린 뒤 OMP 파일 SHA-256 목록은 S12 끝과 같다
 Priority: Must
 Given O3, O3 + `agent_source: native`, `Agent(subagent_type="executor", prompt="a")`·`explorer`·`reviewer`를 담은 본문이 있다
 When 두 project에서 OMP `Adapter.Generate`를 돌리고, 본문을 `ReplacePlatformReferencesWith(body, "omp", autopus)`와 native로 렌더한다
-Then autopus 산출물의 `.omp/` 아래 어느 파일에도 `"agent": "scout"`, `"agent": "security-reviewer"`, `"agent": "sonic"`, `There is no Autopus-specific agent`가 없고, explorer dispatch는 `"agent": "explorer"`, executor는 `"agent": "executor"`다
+Then autopus 산출물의 `.omp/` 아래 어느 파일에도 `"agent": "scout"`, `"agent": "security-reviewer"`, `"agent": "sonic"`, `"agent": "designer"`, `"agent": "librarian"`, `There is no Autopus-specific agent`가 없고, explorer dispatch는 `"agent": "explorer"`, executor는 `"agent": "executor"`다
 And native 산출물은 v0.50.125 바이너리 결과와 bytes가 같고, 본문 렌더는 autopus에서 세 이름을 그대로, native에서 executor는 agent 줄 없이·explorer는 `"agent": "scout"`로 쓴다
 ### S15: doctor catalog와 receipt
 Priority: Must
@@ -116,7 +116,7 @@ Priority: Must
 Given macOS 실제 터미널, 이 branch의 `auto`, omp 18.6.1, `git init`한 빈 temp dir, scratch `CODEX_HOME`, `script -q` 기록이 있다
 When `auto init --platforms claude-code,codex,omp`에서 역할별 직접 구성 → Claude Code → 역할 그룹 → 설계·판단 opus → effort xhigh → 나머지 Enter → 적용 → 유지를 고르고, `auto quality`에서 OMP → 역할 그룹 → 설계·판단 `anthropic/claude-opus-5-5` → 구현 `openai-codex/gpt-6-astra` → 검증·리뷰 Enter → 탐색·보조 `OMP 세션 모델 그대로` → 적용 → 유지를 고른다(thinking은 기본값). plain `omp`를 열어 메시지 없이 `/agents`만 보고, `PI_CONFIG_FILES=$PWD/.autopus/runtime/omp-model-routing-v1.yml omp`로 다시 열어 `/agents`를 본다
 Then planner.md는 `model: opus`, `effort: xhigh`이고 `.omp/agents` 16개, `.omp/config.yml`에 `disabledAgents`가 있다
-And plain `/agents`에 Autopus 16개와 task가 있고 scout, security-reviewer, sonic은 disabled이며 reviewer 설명이 content의 description이다. overlay를 준 `/agents`에서 planner는 anthropic, executor는 openai-codex override 값이고 explorer는 세션 모델이다(blocker면 그 출력을 적고 CD-1을 남긴다)
+And plain `/agents`에 Autopus 16개와 task가 있고 task를 뺀 bundled 에이전트(scout, security-reviewer, sonic, 그 omp가 번들하면 designer, librarian)는 disabled이며 reviewer 설명이 content의 description이다. overlay를 준 `/agents`에서 planner는 anthropic, executor는 openai-codex override 값이고 explorer는 세션 모델이다(blocker면 그 출력을 적고 CD-1을 남긴다)
 And transcript를 `$HOME`, scratch 경로, 사용자 이름을 치환해 `evidence/manual-smoke-003.txt`에 남긴다
 ### S18: locale
 Priority: Should
@@ -159,7 +159,7 @@ And 결과를 `evidence/manual-smoke-003.txt`에 남긴다. 동의가 없거나 
 ### S24: 프로필과 섞인 상태의 사용자 `task.disabledAgents` 편집
 Priority: Must
 Given O3를 OPM으로 `auto update --yes`한 project(파일에 `task.disabledAgents`와 프로필 key)와 그 사본 두 개가 있다
-When 첫 project에서 `task.disabledAgents`를 `[scout]`로 고쳐 `auto update --yes`와 `auto doctor`를 실행하고, 이어 `config_mode: overlay`로 바꿔 update, 다시 값을 `[scout, security-reviewer, sonic]`로 되돌려 update한다. 첫 사본에서는 그 key를 지우고 update한 뒤 `config_mode: overlay`로 바꿔 update, 다시 update 두 번, `auto clean`을 차례로 실행하고, 둘째 사본에서는 그 key를 고치면서 첫 줄에 `# team note`도 더해 update한다
+When 첫 project에서 `task.disabledAgents`를 `[scout]`로 고쳐 `auto update --yes`와 `auto doctor`를 실행하고, 이어 `config_mode: overlay`로 바꿔 update, 다시 값을 `[scout, security-reviewer, sonic, designer, librarian]`로 되돌려 update한다. 첫 사본에서는 그 key를 지우고 update한 뒤 `config_mode: overlay`로 바꿔 update, 다시 update 두 번, `auto clean`을 차례로 실행하고, 둘째 사본에서는 그 key를 고치면서 첫 줄에 `# team note`도 더해 update한다
 Then 첫 update는 종료 코드 0이고 `.omp/config.yml` SHA-256이 사용자가 고친 뒤와 같으며 `task.agentModelOverrides`는 17개 key 그대로다. ledger는 `agent_surface_user_owned`를 담고 출력에 `task.disabledAgents를 사용자가 정해 두어` 줄, doctor에 `agents:disabled_agents_user_owned`가 있다
 And overlay 전환 뒤 파일은 preimage와 `task.disabledAgents: [scout]`이고 프로필 key가 없다. 값을 되돌린 update 뒤 ledger에 사용자 소유 표시가 없고 그 key의 owner가 `agent_surface`다
 And 첫 사본은 첫 update 뒤 파일에 `task.disabledAgents`가 없고 SHA-256이 사용자가 지운 뒤와 같다. overlay 전환 update 뒤 `.omp/config.yml`은 없고(ADK가 만든 파일) ledger는 사용자 소유 표시만 담으며, 그 뒤 두 번의 update 뒤에도 `.omp/config.yml`이 없고 ledger bytes가 같다. `auto clean` 뒤 ledger가 없다. 둘째 사본은 `managed_key_conflict`로 끝나고 `.omp/config.yml`과 ledger bytes가 실행 전과 같다

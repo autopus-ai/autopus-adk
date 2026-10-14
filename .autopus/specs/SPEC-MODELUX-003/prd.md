@@ -18,7 +18,7 @@
 ## 2. 목표
 
 - Claude Code·Codex 탭에서 그룹·에이전트마다 그 도구가 받는 effort를 고르고 `quality.presets.<name>.efforts`에 저장한다. 값이 없으면 지금 자동 effort다. 다른 편집과 갱신은 저장된 effort를 지우지 않는다. OMP 탭은 thinking을 고른다.
-- OMP 기본값을 Autopus 에이전트로 바꾼다: `.omp/agents/<agent>.md` 16개 생성(model 없음), scout·security-reviewer·sonic은 `task.disabledAgents`, reviewer는 OMP `/review`와 맞는 Autopus reviewer, task는 유지. 프로필이 있으면 route는 16개 이름과 task를 key로 한 `task.agentModelOverrides`로 기존 활성화·증명·되읽기 경로를 탄다. 생성되는 OMP 문서와 dispatch도 Autopus 이름을 쓴다.
+- OMP 기본값을 Autopus 에이전트로 바꾼다: `.omp/agents/<agent>.md` 16개 생성(model 없음), task를 뺀 bundled 에이전트(scout·security-reviewer·sonic, 17.2.7은 designer·librarian도)는 `task.disabledAgents`, reviewer는 OMP `/review`와 맞는 Autopus reviewer, task는 유지. 프로필이 있으면 route는 16개 이름과 task를 key로 한 `task.agentModelOverrides`로 기존 활성화·증명·되읽기 경로를 탄다. 생성되는 OMP 문서와 dispatch도 Autopus 이름을 쓴다.
 - (S17 뒤 2026-10-14) autopus 모드 OMP 탭은 프로필·family를 묻지 않는다. 역할 그룹(또는 에이전트별)마다 provider가 섞인 증명된 설치 model이나 `OMP 세션 모델 그대로`를 고르고 thinking은 그 model이 지원하는 단계만이다. 결과는 프로필 없는 pin으로 저장되고 pin된 에이전트만 override key를 받는다. 기존 프로필 설정은 바꾸지 않은 에이전트의 route를 pin으로 옮겨 변환한다.
 - `auto update`가 기존 프로젝트를 옮기고, `role_model_policy.agent_source: native`가 v0.50.126 동안 이전 방식을 되살린다.
 

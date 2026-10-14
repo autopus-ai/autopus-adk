@@ -34,9 +34,9 @@ candidate_generates_agents() {
 # assert_autopus_agent_surface checks the autopus-mode OMP surface: every
 # Autopus agent definition is manifest-owned and named and described by its
 # content, with no model line, since routes go to task.agentModelOverrides,
-# and no retired @autopus_ alias; .omp/config.yml disables the three bundled
-# agents an Autopus agent replaces under a claim, not the retired marker
-# policy.
+# and no retired @autopus_ alias; .omp/config.yml disables every bundled
+# agent but task under a claim, not the retired marker policy. A name the
+# installed omp does not bundle is an inert entry.
 assert_autopus_agent_surface() {
     python3 - "$PROJECT" "$AUTOPUS_AGENTS" <<'PY' || fail 'the Autopus OMP agent surface is not the v0.50.126 shape'
 import json
@@ -71,7 +71,7 @@ if files.get(".omp/config.yml", {}).get("policy") != "always":
     raise SystemExit(".omp/config.yml is not recorded under the claim")
 PY
     assert_contains "$PROJECT/.omp/config.yml" 'disabledAgents:'
-    for bundled in scout security-reviewer sonic; do
+    for bundled in scout security-reviewer sonic designer librarian; do
         assert_contains "$PROJECT/.omp/config.yml" "- $bundled"
     done
 }

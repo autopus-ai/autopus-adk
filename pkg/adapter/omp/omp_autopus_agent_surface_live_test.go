@@ -2,11 +2,12 @@ package omp
 
 // TestOMPAutopusAgentSurfaceLiveSmoke runs the pinned omp over a project
 // generated in the default autopus mode (SPEC-MODELUX-003) and reads the task
-// tool the parent conversation is offered. Project agent discovery must list
-// the 16 Autopus agents and task, and the task.disabledAgents claim in
-// .omp/config.yml must hide the three bundled agents an Autopus agent
-// replaces, with the profile overlay of the live harness in effect. The fake
-// provider answers once, so no child is spawned and no model is called.
+// tool the parent conversation is offered. It must list exactly the 16
+// Autopus agents and task: project agent discovery adds the first, and the
+// task.disabledAgents claim in .omp/config.yml hides every bundled agent but
+// task, the five 17.2.7 bundles beside it, with the profile overlay of the
+// live harness in effect. The fake provider answers once, so no child is
+// spawned and no model is called.
 
 import (
 	"context"
@@ -17,7 +18,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"os/exec"
-	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -73,20 +73,15 @@ func TestOMPAutopusAgentSurfaceLiveSmoke(t *testing.T) {
 		assert.Contains(t, listed, agent, "project agent discovery or the default worker is missing")
 	}
 	for _, agent := range config.OMPAutopusDisabledAgents() {
-		assert.NotContains(t, listed, agent, "task.disabledAgents did not hide a replaced bundled agent")
+		assert.NotContains(t, listed, agent, "task.disabledAgents did not hide a bundled agent")
 	}
+	assert.ElementsMatch(t, config.OMPAutopusAgentNames(), listed, "the task tool lists an agent beyond the Autopus set")
 	require.Equal(t, baseline, snapshotOMPNativeTree(t, scratch), "the session must leave the project byte-identical")
 	require.Empty(t, findOMPNativeResidualArtifacts(t, scratch, profile))
 
-	var others []string
-	for _, agent := range listed {
-		if !slices.Contains(config.OMPAutopusAgentNames(), agent) {
-			others = append(others, agent)
-		}
-	}
 	encoded, err := json.Marshal(map[string]any{
 		"version": version, "listed": len(listed), "autopus_and_task": len(config.OMPAutopusAgentNames()),
-		"disabled_absent": config.OMPAutopusDisabledAgents(), "other_bundled": others,
+		"disabled_absent": config.OMPAutopusDisabledAgents(),
 	})
 	require.NoError(t, err)
 	t.Logf("sanitized_autopus_agent_surface_receipt=%s", encoded)

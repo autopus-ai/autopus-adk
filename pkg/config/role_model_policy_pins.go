@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"slices"
 )
 
 // A pins-only policy pins agents without a profile (SPEC-MODELUX-003
@@ -53,8 +54,10 @@ func (c RoleModelPolicyConf) pinsOnly() bool {
 
 // validatePinsOnlyAgentKeys allows a profile-less agents map in autopus mode
 // only, and only under names that route there: the canonical agents and
-// task. scout, security-reviewer, and sonic name bundled agents autopus mode
+// task. scout, security-reviewer, and sonic name native agents autopus mode
 // disables; their pins only mean something folded onto a profile's roles.
+// designer and librarian are disabled too but route in no mode, so a pin on
+// either stays an unmapped agent.
 func (c RoleModelPolicyConf) validatePinsOnlyAgentKeys() error {
 	if c.OMPAgentSource() != OMPAgentSourceAutopus {
 		// Native mode collapses roles onto bundled agents through a profile's
@@ -63,10 +66,8 @@ func (c RoleModelPolicyConf) validatePinsOnlyAgentKeys() error {
 			"only on top of a profile; set role_model_policy.profile, or remove agent_source: native")
 	}
 	for _, agent := range sortedRoleAgentOverrides(c.Agents) {
-		for _, disabled := range OMPAutopusDisabledAgents() {
-			if agent == disabled {
-				return fmt.Errorf("role_model_policy.agents_native_key_requires_profile: %s", agent)
-			}
+		if slices.Contains(OMPAutopusDisabledAgents(), agent) && slices.Contains(OMPNativeAgentNames(), agent) {
+			return fmt.Errorf("role_model_policy.agents_native_key_requires_profile: %s", agent)
 		}
 	}
 	return nil

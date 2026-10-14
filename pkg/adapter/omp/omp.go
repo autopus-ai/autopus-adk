@@ -20,7 +20,7 @@ const (
 	// ompAgentDir holds one generated definition per canonical agent in
 	// autopus mode, the default. OMP discovers project definitions before its
 	// bundled ones and the first name wins, so the generated reviewer replaces
-	// the bundled reviewer; scout, security-reviewer, and sonic are disabled
+	// the bundled reviewer; every other bundled agent but task is disabled
 	// through task.disabledAgents instead of being shadowed.
 	ompAgentDir = ".omp/agents"
 

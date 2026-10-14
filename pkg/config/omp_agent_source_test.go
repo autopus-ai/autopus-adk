@@ -70,7 +70,10 @@ func TestOMPAgentNames_FollowTheSource(t *testing.T) {
 	assert.Equal(t, autopus, OMPAgentNames(""))
 	assert.Equal(t, []string{"scout", "reviewer", "security-reviewer", "task", "sonic"},
 		OMPAgentNames(OMPAgentSourceNative))
-	assert.Equal(t, []string{"scout", "security-reviewer", "sonic"}, OMPAutopusDisabledAgents())
+	// Every bundled agent but task, across the omp releases ADK supports:
+	// 18.6.1 bundles the first three, 17.2.7 also designer and librarian. A
+	// name the installed omp does not bundle is an inert filter entry.
+	assert.Equal(t, []string{"scout", "security-reviewer", "sonic", "designer", "librarian"}, OMPAutopusDisabledAgents())
 
 	autopus[0] = "mutated"
 	assert.Equal(t, "annotator", OMPAgentNames(OMPAgentSourceAutopus)[0], "callers get a copy")

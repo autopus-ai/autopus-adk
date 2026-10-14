@@ -13,7 +13,8 @@ import "fmt"
 //
 // A pin is an operator-written override with candidates. Rules (1) and (2) are
 // operator choices and never degrade; only (3) may fall back to the runtime
-// default. scout, security-reviewer, and sonic are disabled and get no route.
+// default. Every other bundled agent is disabled (OMPAutopusDisabledAgents)
+// and gets no route.
 // A pins-only profile has neither rule (2) for the roles nor rule (3): an
 // agent without a pin has no route (ErrOMPAgentUnrouted).
 

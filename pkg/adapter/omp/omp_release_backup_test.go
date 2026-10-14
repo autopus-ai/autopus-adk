@@ -48,7 +48,7 @@ func TestOMPRelease_KeepsTheConfigBackupOfTheNewestRelease(t *testing.T) {
 			p := newClaimProject(t)
 			p.write(configFile, "theme: dark\napiKey: user-secret-shape\n")
 			p.mustRun(operation, configForOMP())
-			edited := "theme: dark\napiKey: user-secret-shape\ntask:\n  disabledAgents:\n  - scout\n  - security-reviewer\n  - sonic\n"
+			edited := "theme: dark\napiKey: user-secret-shape\ntask:\n  disabledAgents:\n  - scout\n  - security-reviewer\n  - sonic\n  - designer\n  - librarian\n"
 			p.write(configFile, edited)
 
 			p.mustRun(operation, nativeConfigForOMP())
