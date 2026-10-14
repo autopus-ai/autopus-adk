@@ -306,7 +306,7 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Run pinned OMP native task hub and rule delivery smokes
+      - name: Run pinned OMP native task hub, agent surface, and rule delivery smokes
         shell: bash
         run: |
           set -euo pipefail
@@ -332,8 +332,8 @@ jobs:
           /bin/chmod 0555 "$omp_binary"
           [[ "$("$omp_binary" --version)" == 'omp/17.2.7' ]]
           # `go test -run '^Name$'` exits 0 with "no tests to run" when the
-          # selector matches nothing, and both smokes t.Skip themselves when
-          # AUTOPUS_OMP_* or the omp binary do not reach them. Either way this
+          # selector matches nothing, and every smoke t.Skips itself when
+          # AUTOPUS_OMP_* or the omp binary do not reach it. Either way this
           # job would report a verified live probe having executed nothing, so
           # assert the selector inventory before the run the way the
           # process-heavy selector is asserted above, then require an explicit
@@ -357,10 +357,15 @@ jobs:
               return 1
             fi
           }
+          # The task hub smoke runs on the native agent source; the agent
+          # surface smoke proves the default autopus mode on the same binary:
+          # the 16 Autopus agents and task are listed, and the
+          # task.disabledAgents claim hides scout, security-reviewer, and sonic.
           (
             export AUTOPUS_OMP_NATIVE_LIVE=1
             export AUTOPUS_OMP_LIVE_EXECUTABLE="$omp_binary"
             live_smoke TestOMPNativeTaskHubLiveSmoke ./pkg/adapter/omp
+            live_smoke TestOMPAutopusAgentSurfaceLiveSmoke ./pkg/adapter/omp
           )
           # The rule-delivery oracle resolves `omp` from PATH, so publish the same
           # verified binary under its plain name instead of downloading it twice.

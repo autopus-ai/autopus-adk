@@ -16,6 +16,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/insajin/autopus-adk/pkg/config"
 )
 
 type ompNativeLiveReceipt struct {
@@ -42,7 +44,10 @@ func TestOMPNativeTaskHubLiveSmoke(t *testing.T) {
 		t.Setenv(key, ompNativeCredential)
 	}
 	executable := resolveOMPNativeLiveExecutable(t)
-	scratch := generateOMPOnly(t)
+	// The batch names the bundled scout and reviewer, so the project is the
+	// native agent source's: autopus mode replaces reviewer and disables
+	// scout (TestOMPAutopusAgentSurfaceLiveSmoke covers that surface).
+	scratch := generateOMPOnlyNative(t)
 	baseline := snapshotOMPNativeTree(t, scratch)
 
 	provider := newOMPNativeProvider(t)
@@ -101,6 +106,17 @@ func TestOMPNativeTaskHubLiveSmoke(t *testing.T) {
 		}
 	}
 	t.Logf("sanitized_native_task_hub_receipt=%s", encoded)
+}
+
+// generateOMPOnlyNative is generateOMPOnly on the native agent source.
+func generateOMPOnlyNative(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	cfg := nativeConfigForOMP()
+	require.NoError(t, config.Save(dir, cfg))
+	_, err := NewWithRoot(dir).Generate(context.Background(), cfg)
+	require.NoError(t, err)
+	return dir
 }
 
 func resolveOMPNativeLiveExecutable(t *testing.T) string {
