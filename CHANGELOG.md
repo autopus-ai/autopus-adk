@@ -13,7 +13,7 @@ All notable changes to this project will be documented in this file.
     붙는다. catalog를 못 읽으면 Select 대신 `Codex catalog를 읽지 못해 effort는 자동입니다` 한 줄이다. 자동과 같은
     단계는 저장하지 않고, 나머지는 등급과 함께 `quality.presets.<provider>-custom.efforts`(정규 에이전트 이름 → 다섯
     단계)에 쓴다. 바뀌는 설정에 `quality.presets.<provider>-custom.efforts 새로 씀 (N개 에이전트)`(`고쳐 씀`, `지움`)이
-    나온다. OMP 탭은 thinking을 묻고 `프로필 기본값 (<thinking>)`에서 시작한다.
+    나온다.
   - 호환: `quality.presets.*.efforts`나 `role_model_policy.agent_source`를 쓴 파일은 v0.50.126보다 오래된 auto가
     읽지 못한다. 파일의 첫 efforts를 쓰는 미리보기에 `quality.presets.*.efforts는 v0.50.126보다 오래된 auto가 읽지
     못합니다` 줄이 나온다. efforts가 없는 파일은 v0.50.125와 같게 읽고 같은 bytes로 생성한다. 정규 이름이 아닌
@@ -27,7 +27,17 @@ All notable changes to this project will be documented in this file.
     effort의 `thinkingLevel`)를 만들고 project `.omp/config.yml`에 `task.disabledAgents: [scout, security-reviewer,
     sonic]`을 claim한다. `task`는 이름 없는 dispatch의 기본이라 켜 두고, `reviewer`는 omp 18.6.1 bundled reviewer의
     `output` schema를 가진 Autopus reviewer가 대신한다. 프로필이 있으면 `task.agentModelOverrides`가 16개 이름과
-    `task`를 key로 기존 활성화·증명·되읽기·복원을 탄다. 프로필이 없으면 세션 모델을 상속한다.
+    `task`를 key로 기존 활성화·증명·되읽기·복원을 탄다. 프로필 없이 pin만 있으면 pin한 에이전트와, 자기 pin이나
+    planner pin을 따르는 `task`만 route를 갖고, pin도 없으면 세션 모델을 상속한다.
+  - OMP 탭(autopus 모드): 프로필·계열을 묻지 않는다. 지금 pin이나 프로필의 effective route에서 시작해 역할 그룹
+    4개나 에이전트별(자기 pin이 있으면 `task` 포함)로 `그대로` · `OMP 세션 모델 그대로` · 모든 provider의 증명된 설치
+    model(`provider/model`)을 고르고, thinking은 고른 model이 보고한 단계만 보인다. metadata가 없는 catalog는 built-in
+    선언에 있는 설치 model만 안내 1줄과 함께 보인다. 결과는 프로필 없는 pin(`role_model_policy: {version: v1, agents:
+    …}`)이고 `task`는 자기 pin이 없으면 planner를 따른다(`planner를 따름`). 미리보기에 `프로필 없는
+    role_model_policy.agents는 v0.50.126보다 오래된 auto가 읽지 못합니다` 줄이 나온다. 프로필 설정 위에서 적용하면
+    `OMP 프로필 <name>을 에이전트별 지정으로 옮깁니다. …` 줄과 확인 뒤 pin으로 옮긴다. 바꾸지 않은 에이전트와 `task`는
+    route가 그대로이고, `scout`·`security-reviewer`·`sonic` key는 펼친 뒤 지우며, ultra 프로필의 `quality.presets.ultra`
+    연동은 끝난다. native mode, 줄 OMP 편집기, `auto platform omp profile apply`는 그대로 프로필을 쓴다.
   - migration: `auto update`가 `+ .omp/agents/<agent>.md` 줄, `task.disabledAgents: scout, security-reviewer,
     sonic`, `OMP는 이제 Autopus 에이전트 16개를 씁니다.` 안내를 미리 보이고 OMP transaction 하나로 옮긴다.
     `autopus.yaml`은 쓰지 않는다. manifest에 없는 같은 이름 파일은 사용자 파일이라 그대로 둔다. 사용자가 다른 값으로

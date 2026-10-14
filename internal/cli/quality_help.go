@@ -67,8 +67,19 @@ offers the levels the catalog reports for the agents' models, and the
 automatic level is marked (automatic) and stores nothing. Chosen efforts are
 written to quality.presets.<provider>-custom.efforts, which auto older than
 v0.50.126 cannot read; a file without efforts generates exactly as before.
-The OMP tab asks thinking instead, starting at profile default (<thinking>).
-OMP serves the 16 Autopus agents from .omp/agents by default, disables
-scout, security-reviewer, and sonic, and the OMP tab pins those 16 agents;
+
+OMP serves the 16 Autopus agents from .omp/agents by default and disables
+scout, security-reviewer, and sonic. In that mode the OMP tab asks no
+profile or family: from the current pins or profile routes it edits the 4
+role groups or each agent (task too while it has its own pin). Each select
+offers keep, keep the OMP session model, and the installed models of every
+provider that Autopus can attest (a catalog without metadata lists only the
+built-in declared ones); thinking offers only the chosen model's levels.
+The result is saved as pins without a profile (role_model_policy:
+{version: v1, agents: ...}), and task follows planner unless pinned.
+Applying over a profile converts it after a preview line and the
+confirmation: unchanged agents and task keep their routes, and an ultra
+profile stops following quality.presets.ultra. Native mode, the OMP line
+editor, and auto platform omp profile apply keep profiles;
 role_model_policy.agent_source: native keeps the five bundled agents during
 v0.50.126 (removal planned in v0.50.127).`

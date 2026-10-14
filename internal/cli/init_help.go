@@ -19,4 +19,7 @@ const initCmdLong = "코딩 CLI에 Autopus 하네스를 설치합니다. autopus
 	"에이전트 제외, Codex는 catalog가 보고하는 단계만). 자동과 다른 effort는 quality.presets.<provider>-custom.efforts에\n" +
 	"넣고, 이 key가 있는 파일은 v0.50.126보다 오래된 auto가 읽지 못합니다. omp를 고르면 Autopus 에이전트 16개를\n" +
 	".omp/agents에 만들고 scout·security-reviewer·sonic을 task.disabledAgents로 끕니다(task는 유지). 프로필이 없으면\n" +
-	"세션 모델을 상속합니다. role_model_policy.agent_source: native는 v0.50.126 동안 bundled 5개 방식을 고릅니다."
+	"세션 모델을 상속합니다. role_model_policy.agent_source: native는 v0.50.126 동안 bundled 5개 방식을 고릅니다.\n\n" +
+	"이 기본 mode의 OMP 탭은 프로필·계열을 묻지 않고 역할 그룹 4개나 에이전트별로 그대로 · OMP 세션 모델 그대로 ·\n" +
+	"모든 provider의 증명된 설치 model을 고르며, thinking은 고른 model이 보고한 단계만 보입니다. 결과는 프로필 없는\n" +
+	"pin(role_model_policy: {version: v1, agents: …})이고 task는 자기 pin이 없으면 planner를 따릅니다."

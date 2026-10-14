@@ -31,5 +31,12 @@ const updateCmdLong = "설치된 하네스 파일을 업데이트합니다.\n\n"
 	"OMP는 v0.50.126부터 기본으로 Autopus 에이전트 16개를 .omp/agents에 만들고 scout·security-reviewer·sonic을\n" +
 	"task.disabledAgents로 끕니다(task는 유지). 기존 프로젝트는 미리보기에 + .omp/agents/<agent>.md 줄과 안내가\n" +
 	"나오고 autopus.yaml은 쓰지 않습니다. manifest에 없는 같은 이름 파일과 사용자가 정한 task.disabledAgents는\n" +
-	"그대로 둡니다. OMP 탭은 기본 mode에서 Autopus 에이전트 16개에 pin합니다. role_model_policy.agent_source: native로\n" +
-	"v0.50.126 동안 이전 방식을 고를 수 있습니다(v0.50.127 제거 예정). 바이너리를 내리는 대신 이 key로 되돌리세요."
+	"그대로 둡니다. role_model_policy.agent_source: native로 v0.50.126 동안 이전 방식을 고를 수 있습니다(v0.50.127\n" +
+	"제거 예정). 바이너리를 내리는 대신 이 key로 되돌리세요.\n\n" +
+	"이 기본 mode의 OMP 탭은 프로필·계열을 묻지 않습니다. 지금 pin이나 프로필 route에서 시작해 역할 그룹 4개나\n" +
+	"에이전트별(자기 pin이 있으면 task 포함)로 그대로 · OMP 세션 모델 그대로 · 모든 provider의 증명된 설치 model을\n" +
+	"고르고, thinking은 고른 model이 보고한 단계만 보입니다. metadata 없는 catalog는 built-in 선언에 있는 model만\n" +
+	"보입니다. 결과는 프로필 없는 pin(role_model_policy: {version: v1, agents: …})이고 task는 자기 pin이 없으면\n" +
+	"planner를 따릅니다. 프로필 설정 위에서 적용하면 변환 줄과 확인 뒤 pin으로 옮기고, 바꾸지 않은 에이전트와 task는\n" +
+	"route가 그대로이며 ultra 프로필의 quality.presets.ultra 연동은 끝납니다. native mode, 줄 OMP 편집기,\n" +
+	"auto platform omp profile apply는 그대로 프로필을 씁니다."
