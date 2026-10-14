@@ -19,6 +19,7 @@ type composeFormText struct {
 	OMPSessionKeep, OMPSessionModel, OMPFollowPlanner string // SPEC-MODELUX-003 OMP Autopus Tab
 	OMPAttestedOnly, OMPOldBinary                     string
 	OMPConvert                                        string // %s: the profile
+	OMPProfileUnattested                              string // %s: agent=model pairs
 	InitOMPUnavailable, InitOMPApplied                string
 	Interrupted                                       string
 	EffortAuto, EffortUnread                          string // SPEC-MODELUX-003 effort select
@@ -38,9 +39,11 @@ var composeFormTextKO = composeFormText{
 	OMPDetectedOnly: "OMP는 이번 update에서 새로 설치됩니다. 모델은 다음 auto update나 auto quality에서 지정할 수 있습니다.",
 	OMPReloadFailed: "OMP 설정은 적용됐지만 다시 읽지 못했습니다: %s",
 	OMPSessionKeep:  "OMP 세션 모델 그대로", OMPSessionModel: "OMP 세션 모델", OMPFollowPlanner: "planner를 따름",
-	OMPAttestedOnly:    "설치된 OMP catalog에 family·capability 정보가 없어 Autopus가 증명할 수 있는 model만 보입니다",
-	OMPOldBinary:       "프로필 없는 role_model_policy.agents는 v0.50.126보다 오래된 auto가 읽지 못합니다",
-	OMPConvert:         "OMP 프로필 %s의 route를 에이전트별 지정으로 옮깁니다. 바꾸지 않은 에이전트의 route는 그대로입니다.",
+	OMPAttestedOnly: "설치된 OMP catalog에 family·capability 정보가 없어 Autopus가 증명할 수 있는 model만 보입니다",
+	OMPOldBinary:    "프로필 없는 role_model_policy.agents는 v0.50.126보다 오래된 auto가 읽지 못합니다",
+	OMPConvert:      "OMP 프로필 %s의 route를 에이전트별 지정으로 옮깁니다. 바꾸지 않은 에이전트의 route는 그대로입니다.",
+	OMPProfileUnattested: "이 catalog에서는 Autopus가 증명할 수 없는 model이라 그대로 두면 적용이 막힙니다: %s. " +
+		"프로필 그대로 고치려면 줄 OMP 편집기나 auto platform omp profile apply를 쓰세요",
 	InitOMPUnavailable: "OMP catalog를 읽지 못해 지금은 OMP 모델을 지정할 수 없습니다. init 뒤 auto quality에서 지정할 수 있습니다.",
 	InitOMPApplied:     "OMP 모델 선택을 init 설정에 넣었습니다. 파일 생성 때 함께 씁니다.",
 	Interrupted:        "중단했습니다. 구성을 더 바꾸지 않습니다.",
@@ -62,9 +65,11 @@ var composeFormTextEN = composeFormText{
 	OMPDetectedOnly: "OMP is installed by this update; set its models with the next auto update or auto quality.",
 	OMPReloadFailed: "OMP settings were applied but could not be re-read: %s",
 	OMPSessionKeep:  "keep the OMP session model", OMPSessionModel: "OMP session model", OMPFollowPlanner: "follow planner",
-	OMPAttestedOnly:    "The installed OMP catalog has no family or capability metadata; only models Autopus can attest are listed",
-	OMPOldBinary:       "auto older than v0.50.126 cannot read role_model_policy.agents without a profile",
-	OMPConvert:         "Moving the routes of OMP profile %s to per-agent pins; unchanged agents keep their routes.",
+	OMPAttestedOnly: "The installed OMP catalog has no family or capability metadata; only models Autopus can attest are listed",
+	OMPOldBinary:    "auto older than v0.50.126 cannot read role_model_policy.agents without a profile",
+	OMPConvert:      "Moving the routes of OMP profile %s to per-agent pins; unchanged agents keep their routes.",
+	OMPProfileUnattested: "Autopus cannot attest these models on this catalog, so applying with them unchanged is blocked: %s; " +
+		"the OMP line editor or auto platform omp profile apply keeps editing the profile",
 	InitOMPUnavailable: "Could not read the OMP catalog, so OMP models cannot be set now; set them after init with auto quality.",
 	InitOMPApplied:     "OMP model choice added to the init config; it is written with the platform files.",
 	Interrupted:        "Interrupted; the composition is not changed further.",

@@ -264,7 +264,7 @@ WHEN the operator applies an OMP tab edit over a profile-based policy in autopus
 
 | 단계 | 형식 | 선택지(순서) | 기본값 | 다음 |
 |---|---|---|---|---|
-| 시작 값 | 폼 밖 | 지금 policy가 pins-only면 그 pin, 프로필이 있으면 pin 없는 pre-plan의 effective route, policy가 없으면 모두 `OMP 세션 모델` | - | 방식 |
+| 시작 값 | 폼 밖 | 지금 policy가 pins-only면 그 pin, 프로필이 있으면 pin 없는 pre-plan의 effective route, policy가 없으면 모두 `OMP 세션 모델`. 이어 설치 model 목록을 읽는다(metadata 없는 catalog면 안내 1줄). 프로필 시작이고 metadata 없는 catalog인데 시작 route에 built-in 선언에 없는 model이 있으면 Form Text `OMP 증명 불가` 줄로 `agent=model`을 알린다 | - | 방식 |
 | 방식 | Select `어떻게 고칠까요?` | 역할 그룹 · 에이전트별 | 역할 그룹 | 편집 |
 | 역할 그룹 | Role Group Contract 순서(설계·판단, 구현, 검증·리뷰, 탐색·보조)로 그룹마다 model Select, 제목 `<그룹> — <멤버>` | `그대로 — <현재>` · `OMP 세션 모델 그대로` · 증명된 설치 model(`provider/model`, provider와 model 이름순, 모든 provider가 섞인다) | 그대로 | thinking |
 | 에이전트별 | 목록 Select → model Select 반복 | 목록: 완료 + 16개(`<agent> — <현재>`) + `agents.task`가 있으면 `task — <현재>` / model: 위와 같고, `task`는 `OMP 세션 모델 그대로` 대신 `planner를 따름`(pin을 지운다) | 완료 / 그대로 | 완료: 미리보기 |
@@ -333,6 +333,7 @@ WHEN the operator applies an OMP tab edit over a profile-based policy in autopus
 | OMP model | `OMP 세션 모델 그대로` · 현재 `OMP 세션 모델` · `<provider>/<model> · <thinking>` · `planner를 따름` | `keep the OMP session model` · `OMP session model` · `<provider>/<model> · <thinking>` · `follow planner` |
 | OMP metadata 안내 | `설치된 OMP catalog에 family·capability 정보가 없어 Autopus가 증명할 수 있는 model만 보입니다` | `The installed OMP catalog has no family or capability metadata; only models Autopus can attest are listed` |
 | OMP 변환 | `OMP 프로필 <name>의 route를 에이전트별 지정으로 옮깁니다. 바꾸지 않은 에이전트의 route는 그대로입니다.` | `Moving the routes of OMP profile <name> to per-agent pins; unchanged agents keep their routes.` |
+| OMP 증명 불가 | `이 catalog에서는 Autopus가 증명할 수 없는 model이라 그대로 두면 적용이 막힙니다: <agent>=<model>, …. 프로필 그대로 고치려면 줄 OMP 편집기나 auto platform omp profile apply를 쓰세요` | `Autopus cannot attest these models on this catalog, so applying with them unchanged is blocked: <agent>=<model>, …; the OMP line editor or auto platform omp profile apply keeps editing the profile` |
 | OMP 옛 바이너리 | `프로필 없는 role_model_policy.agents는 v0.50.126보다 오래된 auto가 읽지 못합니다` | `auto older than v0.50.126 cannot read role_model_policy.agents without a profile` |
 | 사용자 파일 | `.omp/agents/<agent>.md는 사용자 파일이라 그대로 둡니다` | `.omp/agents/<agent>.md is a user file; left unchanged` |
 | disabledAgents | `.omp/config.yml의 task.disabledAgents를 사용자가 정해 두어 scout, security-reviewer, sonic을 끄지 않았습니다` | `task.disabledAgents in .omp/config.yml is user-owned; scout, security-reviewer, and sonic stay enabled` |

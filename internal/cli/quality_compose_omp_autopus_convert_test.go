@@ -8,6 +8,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -212,4 +213,36 @@ func TestComposeOMPAutopus_DegradedProfileRoutesStopTheConversion(t *testing.T) 
 	assert.NotContains(t, out, composeFormTextKO.Method)
 	assert.Zero(t, activations.calls)
 	assert.Equal(t, before, composeOMPFileSum(t, dir))
+}
+
+// Review N2: a profile whose routes name a model no built-in profile
+// declares cannot be converted on a metadata-light catalog (Pins-only
+// attestation). The tab says so at its start, naming the agents and model,
+// and points at the paths that keep editing the profile, instead of failing
+// only at the final plan.
+func TestComposeOMPAutopus_NamesUnattestableProfileModelsAtStart(t *testing.T) {
+	composeSessionCatalog(t, "CAT-A")
+	fable := config.RoleModelCandidateConf{Selector: "anthropic/claude-fable-5-1", Thinking: "high", Family: "anthropic"}
+	foo := config.RoleModelCandidateConf{Selector: "example/foo-1", Thinking: "high", Family: "example"}
+	capabilities := map[string]config.RoleCapabilityRouteConf{}
+	for _, capability := range config.OMPProviderNeutralCapabilities() {
+		candidate := fable
+		if capability == config.CapabilityVisionDesign {
+			candidate = foo
+		}
+		capabilities[capability] = config.RoleCapabilityRouteConf{Required: true, Candidates: []config.RoleModelCandidateConf{candidate}}
+	}
+	dir := writeComposePinsFixture(t, config.RoleModelPolicyConf{Version: config.RoleModelPolicyVersionV1, Profile: "team",
+		Profiles: map[string]config.RoleModelProfileConf{"team": {
+			ConfigMode: config.RoleModelConfigModeOverlay, CatalogTrust: config.RoleModelCatalogTrustOperatorAttested, Capabilities: capabilities,
+		}}})
+	deps, _ := composeOMPDeps([]byte(composeOMPCatalogML2))
+
+	out, err := runComposeOMPForms(t, dir, deps, "2\n", "4\n", "1\n", "\n", "\n", "\n", "\n", "\n")
+
+	require.NoError(t, err, out)
+	line := fmt.Sprintf(composeFormTextKO.OMPProfileUnattested, "frontend-specialist=example/foo-1, ux-validator=example/foo-1")
+	assert.Contains(t, out, line+"\n")
+	assert.Less(t, strings.Index(out, line), strings.Index(out, composeFormTextKO.Method))
+	assert.Contains(t, line, "auto platform omp profile apply")
 }

@@ -198,7 +198,7 @@ func TestInitComposeOMP_UnreadableCatalogHintsAndInitContinues(t *testing.T) {
 		generation := &ompCLIFakeRunner{fail: true}
 		newComposeInitOMPRun(t, deps, generation)
 
-		dir, out, err := runComposeInitOMP(t, "2\n", "4\n", "1\n", "2\n", "4\n", "2\n", "\n")
+		dir, out, err := runComposeInitOMP(t, "2\n", "4\n", "2\n", "4\n", "\n")
 
 		require.NoError(t, err, out)
 		assert.Equal(t, 2, strings.Count(out, composeFormTextKO.InitOMPUnavailable+"\n"), out)
@@ -214,7 +214,7 @@ func TestInitComposeOMP_UnreadableCatalogHintsAndInitContinues(t *testing.T) {
 		newComposeInitOMPRun(t, ompPlatformDependencies{newRunner: runners.newRunner},
 			&ompModelDoctorE2ERunner{catalog: ompCLIProfileNativeCatalogJSON()})
 
-		dir, out, err := runComposeInitOMP(t, composeFormLines(composeInitS21Plan, "2\n", "2\n", "4\n", "1\n", "\n")...)
+		dir, out, err := runComposeInitOMP(t, composeFormLines(composeInitS21Plan, "2\n", "2\n", "4\n", "\n")...)
 
 		require.NoError(t, err, out)
 		assert.Equal(t, 1, strings.Count(out, composeFormTextKO.InitOMPUnavailable+"\n"), out)

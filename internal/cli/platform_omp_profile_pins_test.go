@@ -69,10 +69,11 @@ func TestInstalledOMPAttestedModelChoices_ListsOnlyAttestableModels(t *testing.T
 	declared := ompBuiltinDeclaredFamilies()
 	var out bytes.Buffer
 
-	light, err := installedOMPAttestedModelChoices(context.Background(), &out,
+	light, metadataLight, err := installedOMPAttestedModelChoices(context.Background(), &out,
 		&ompCLIFakeRunner{catalog: []byte(composeOMPCatalogML2)}, declared, "NOTE")
 
 	require.NoError(t, err)
+	assert.True(t, metadataLight)
 	assert.Equal(t, "NOTE\n", out.String())
 	var selectors []string
 	for _, choice := range light {
@@ -84,10 +85,11 @@ func TestInstalledOMPAttestedModelChoices_ListsOnlyAttestableModels(t *testing.T
 	}, selectors)
 
 	out.Reset()
-	strict, err := installedOMPAttestedModelChoices(context.Background(), &out,
+	strict, strictLight, err := installedOMPAttestedModelChoices(context.Background(), &out,
 		&ompCLIFakeRunner{catalog: ompCLIBalancedCatalogJSON()}, declared, "NOTE")
 
 	require.NoError(t, err)
+	assert.False(t, strictLight)
 	assert.Empty(t, out.String())
 	require.Len(t, strict, 4)
 	assert.Equal(t, "anthropic", strict[0].Family)

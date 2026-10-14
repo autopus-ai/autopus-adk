@@ -42,17 +42,22 @@ func (f *composeFormRun) ompAutopus() error {
 	if err != nil {
 		return f.ompFailed(err)
 	}
-	perAgent, err := composeSelect(f.cmd, f.form.Method, "",
-		[]composeOption[bool]{{f.form.MethodGroups, false}, {f.form.MethodAgents, true}}, false)
-	if err != nil {
-		return err
-	}
-	tab.choices, err = installedOMPAttestedModelChoices(commandContext(f.cmd), f.out, runner, ompBuiltinDeclaredFamilies(), f.form.OMPAttestedOnly)
-	if err == nil && len(tab.choices) == 0 {
+	declared := ompBuiltinDeclaredFamilies()
+	choices, light, err := installedOMPAttestedModelChoices(commandContext(f.cmd), f.out, runner, declared, f.form.OMPAttestedOnly)
+	if err == nil && len(choices) == 0 {
 		err = ompCatalogUnavailableError{reason: "no_usable_model"}
 	}
 	if err != nil {
 		return f.ompFailed(composeOMPCatalogError{err: err})
+	}
+	tab.choices = choices
+	if unattested := tab.unattested(declared); light && tab.profile != "" && unattested != "" {
+		fmt.Fprintf(f.out, f.form.OMPProfileUnattested+"\n", terminalSafe(unattested))
+	}
+	perAgent, err := composeSelect(f.cmd, f.form.Method, "",
+		[]composeOption[bool]{{f.form.MethodGroups, false}, {f.form.MethodAgents, true}}, false)
+	if err != nil {
+		return err
 	}
 	step := f.ompAutopusGroups
 	if perAgent {

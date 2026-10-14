@@ -1,6 +1,9 @@
 package cli
 
 import (
+	"slices"
+	"strings"
+
 	"github.com/insajin/autopus-adk/pkg/adapter/omp"
 	"github.com/insajin/autopus-adk/pkg/config"
 )
@@ -53,6 +56,21 @@ func (f *composeFormRun) ompAutopusStart(runner omp.OMPModelCatalogRunner) (*omp
 		tab.final[agent] = tab.start[agent]
 	}
 	return tab, nil
+}
+
+// unattested names every start route candidate no built-in profile
+// declares as agent=model, the routes a metadata-light catalog cannot attest
+// once they are pins; "" when there is none.
+func (tab *ompAutopusTab) unattested(declared map[string]string) string {
+	var pairs []string
+	for _, agent := range config.OMPAutopusAgentNames() {
+		for _, candidate := range tab.start[agent] {
+			if pair := agent + "=" + candidate.Selector; declared[candidate.Selector] == "" && !slices.Contains(pairs, pair) {
+				pairs = append(pairs, pair)
+			}
+		}
+	}
+	return strings.Join(pairs, ", ")
 }
 
 func (tab *ompAutopusTab) setStart(agent string, candidates []config.RoleModelCandidateConf, selector, thinking string) {

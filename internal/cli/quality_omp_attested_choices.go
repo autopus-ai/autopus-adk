@@ -13,16 +13,17 @@ import (
 // models with their reported family and capabilities, or on a metadata-light
 // catalog only the models declared names, under the declared family, after
 // one note line. Every provider is listed together, ordered by selector.
+// light reports the metadata-light catalog, where only declarations attest.
 func installedOMPAttestedModelChoices(
 	ctx context.Context,
 	out io.Writer,
 	runner omp.OMPModelCatalogRunner,
 	declared map[string]string,
 	note string,
-) ([]ompCustomModelChoice, error) {
+) (choices []ompCustomModelChoice, light bool, err error) {
 	strict, display, _, err := readInstalledOMPModelChoices(ctx, runner)
 	if err != nil || display == nil {
-		return strict, err
+		return strict, false, err
 	}
 	fmt.Fprintln(out, note)
 	attested := make([]ompCustomModelChoice, 0, len(display))
@@ -32,7 +33,7 @@ func installedOMPAttestedModelChoices(
 			attested = append(attested, choice)
 		}
 	}
-	return attested, nil
+	return attested, true, nil
 }
 
 // readInstalledOMPModelChoices reads what the installation ships: the strict
