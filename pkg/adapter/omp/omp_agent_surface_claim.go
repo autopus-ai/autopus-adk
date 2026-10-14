@@ -62,6 +62,9 @@ func evaluateOMPClaimSetAt(workspace *ompRootedWorkspace, claimSurface bool) (om
 	}
 	unclaimed := !state.ledger || state.ownership.markerOnly()
 	state.current, state.currentMissing, state.currentMode, err = readOMPModelProjectConfigAt(workspace)
+	if err == nil && unclaimed {
+		state.current, state.currentMissing, err = withoutOMPLegacyBridgeAt(workspace, state.current, state.currentMissing)
+	}
 	if err == nil {
 		state.value, state.present, err = ompDisabledAgentsIn(state.current)
 	}

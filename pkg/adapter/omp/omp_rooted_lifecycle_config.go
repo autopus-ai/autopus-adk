@@ -54,6 +54,35 @@ func migrateOMPLegacyBridgeConfigAt(
 	return writes, removes, nil
 }
 
+// withoutOMPLegacyBridgeAt returns the project config a first claim starts
+// from: current without the bridge block a pre-v0.50.118 release managed in
+// it, while the manifest still records the file under that marker policy.
+// migrateOMPLegacyBridgeConfigAt strips the block only when nothing claims
+// the file, so without this the claim would keep the retired bridge, land
+// inside its markers, and make the bridge part of what a release restores. A
+// file that held only the block counts as missing, as that migration removes
+// it.
+func withoutOMPLegacyBridgeAt(workspace *ompRootedWorkspace, current []byte, missing bool) ([]byte, bool, error) {
+	if missing {
+		return current, missing, nil
+	}
+	manifest, err := loadOMPManifestAt(workspace, adapterName)
+	if err != nil || manifest == nil {
+		return current, missing, err
+	}
+	if previous, managed := manifest.Files[configFile]; !managed || previous.Policy != adapter.OverwriteMarker {
+		return current, missing, nil
+	}
+	remainder, found, err := stripOMPManagedDocument(string(current))
+	if err != nil || !found {
+		return current, missing, err
+	}
+	if strings.TrimSpace(remainder) == "" {
+		return nil, true, nil
+	}
+	return []byte(remainder), false, nil
+}
+
 // releaseOMPProjectManagedConfigAt restores the ledger preimage of
 // .omp/config.yml when the new file set no longer manages it: the claim set
 // became empty because the profile left project-managed mode, native mode
