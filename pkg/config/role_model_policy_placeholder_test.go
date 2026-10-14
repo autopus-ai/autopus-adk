@@ -47,6 +47,31 @@ func TestLoad_RefusesAPlaceholderInARoleModelCandidate(t *testing.T) {
 	}
 }
 
+// Security re-check P4: the check sees the tree the expanded file will have.
+// A placeholder that breaks the raw YAML (an unquoted flow mapping), one
+// reached through an alias from outside role_model_policy, and one in a key
+// under candidates are all refused, and the refusal never echoes the value.
+func TestLoad_RefusesCandidatePlaceholdersInEveryShape(t *testing.T) {
+	t.Setenv("OMP_PIN", "sk-proj-AbC123secret")
+	t.Setenv("OMP_KEY", "thinking")
+	head := "role_model_policy:\n  version: v1\n  agents:\n    executor:\n      candidates:\n"
+	for name, policy := range map[string]string{
+		"unquoted flow": head + "        - {selector: ${OMP_PIN}/m, thinking: high, family: anthropic}\n",
+		"alias":         "x-anchor: &sel \"${OMP_PIN}/m\"\n" + head + "        - selector: *sel\n          thinking: high\n          family: anthropic\n",
+		"key from env":  head + "        - selector: anthropic/claude-opus-5-5\n          ${OMP_KEY}: high\n          family: anthropic\n",
+		"secret key":    head + "        - selector: anthropic/claude-opus-5-5\n          thinking: high\n          family: anthropic\n          ${OMP_PIN}: x\n",
+		"unparseable":   head + "        - selector: [${OMP_PIN}\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := LoadPreview(writePlaceholderPolicy(t, policy))
+
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "role_model_policy.candidate_placeholder_unsupported")
+			assert.NotContains(t, err.Error(), "AbC123secret")
+		})
+	}
+}
+
 func TestLoad_KeepsRootRoleModelPolicyPlaceholders(t *testing.T) {
 	t.Setenv("OMP_FAMILY", "openai")
 	dir := writePlaceholderPolicy(t, "role_model_policy:\n  version: v1\n  profile: balanced\n  family: ${OMP_FAMILY}\n")
