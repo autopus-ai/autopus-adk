@@ -39,7 +39,8 @@ All notable changes to this project will be documented in this file.
     route가 그대로이고, `scout`·`security-reviewer`·`sonic` key는 펼친 뒤 지우며, ultra 프로필의 `quality.presets.ultra`
     연동은 끝난다. native mode, 줄 OMP 편집기, `auto platform omp profile apply`는 그대로 프로필을 쓴다. pin 없는
     pipeline phase는 세션 모델로 돌고, 그런 run은 managed active 대신 canonical 경로를 쓴다. Orca와 context
-    observe-session은 그 phase에 pin이 없으면 fail closed다.
+    observe-session은 그 phase에 pin이 없으면 fail closed다. `agent_source: native`에서 프로필 없는 agents는
+    `role_model_policy.agents_require_profile`로 거부되고, 오류가 프로필을 정하거나 `agent_source: native`를 지우라고 알린다.
   - migration: `auto update`가 `+ .omp/agents/<agent>.md` 줄, `task.disabledAgents: scout, security-reviewer,
     sonic`, `OMP는 이제 Autopus 에이전트 16개를 씁니다.` 안내를 미리 보이고 OMP transaction 하나로 옮긴다.
     `autopus.yaml`은 쓰지 않는다. manifest에 없는 같은 이름 파일은 사용자 파일이라 그대로 둔다. 사용자가 다른 값으로

@@ -140,3 +140,17 @@ func TestPinsOnlyPolicy_ReservesTheProfileName(t *testing.T) {
 		})
 	}
 }
+
+// Review A3: native mode refuses agents without a profile and says how to
+// get a valid policy back.
+func TestPinsOnlyPolicy_NativeRefusalNamesTheWayOut(t *testing.T) {
+	policy := pinsOnlyPolicy(map[string]RoleModelCandidateConf{"planner": pinOpus})
+	policy.AgentSource = OMPAgentSourceNative
+
+	err := policy.Validate()
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "role_model_policy.agents_require_profile")
+	assert.Contains(t, err.Error(), "set role_model_policy.profile, or remove agent_source: native")
+}
+

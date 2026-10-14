@@ -57,7 +57,10 @@ func (c RoleModelPolicyConf) pinsOnly() bool {
 // disables; their pins only mean something folded onto a profile's roles.
 func (c RoleModelPolicyConf) validatePinsOnlyAgentKeys() error {
 	if c.OMPAgentSource() != OMPAgentSourceAutopus {
-		return fmt.Errorf("role_model_policy.agents_require_profile")
+		// Native mode collapses roles onto bundled agents through a profile's
+		// routes, so a pin needs one there.
+		return fmt.Errorf("role_model_policy.agents_require_profile: agent_source: native routes agents " +
+			"only on top of a profile; set role_model_policy.profile, or remove agent_source: native")
 	}
 	for _, agent := range sortedRoleAgentOverrides(c.Agents) {
 		for _, disabled := range OMPAutopusDisabledAgents() {
