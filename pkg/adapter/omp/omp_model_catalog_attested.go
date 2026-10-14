@@ -96,7 +96,11 @@ func ompOperatorAttestedDeclarations(
 	profile config.RoleModelProfileConf,
 ) (map[string]ompOperatorAttestedDeclaration, bool) {
 	capabilities := config.OMPProviderNeutralCapabilities()
-	if len(profile.Capabilities) != len(capabilities) {
+	if profile.PinsOnly {
+		// A pins-only profile declares only its pins, each under the
+		// capability of the agent it pins.
+		capabilities = nil
+	} else if len(profile.Capabilities) != len(capabilities) {
 		return nil, false
 	}
 	declarations := make(map[string]ompOperatorAttestedDeclaration)

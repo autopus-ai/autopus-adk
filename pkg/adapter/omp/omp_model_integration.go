@@ -38,7 +38,9 @@ func (a *Adapter) prepareModelIntegration(
 	ctx context.Context,
 	cfg *config.HarnessConfig,
 ) (*ompModelIntegration, error) {
-	if cfg.RoleModelPolicy.Profile == "" {
+	// A pins-only policy (SPEC-MODELUX-003 REQ-MUX3-22) has no profile but
+	// still routes its pinned agents.
+	if cfg.RoleModelPolicy.Profile == "" && len(cfg.RoleModelPolicy.Agents) == 0 {
 		return nil, nil
 	}
 	if err := cfg.RoleModelPolicy.Validate(); err != nil {

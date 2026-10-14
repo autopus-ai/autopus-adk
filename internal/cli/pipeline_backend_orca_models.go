@@ -55,7 +55,9 @@ func loadPipelineOrcaPhaseLaunch(projectDir string) (map[pipeline.PhaseID]orcaru
 		}
 		return nil, err
 	}
-	source, err := ompPipelineAgentSource(projectDir)
+	// Orca launches every phase on an explicit agent, so a pins-only policy
+	// that leaves a phase on the session model still fails closed here.
+	source, _, err := ompPipelineAgentSource(projectDir)
 	if err != nil {
 		return nil, err
 	}

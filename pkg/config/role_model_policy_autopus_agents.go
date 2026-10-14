@@ -14,6 +14,8 @@ import "fmt"
 // A pin is an operator-written override with candidates. Rules (1) and (2) are
 // operator choices and never degrade; only (3) may fall back to the runtime
 // default. scout, security-reviewer, and sonic are disabled and get no route.
+// A pins-only profile has neither rule (2) for the roles nor rule (3): an
+// agent without a pin has no route (ErrOMPAgentUnrouted).
 
 // OMPAutopusAgentRoute resolves one agent served in autopus mode. Native in
 // the result is the agent itself, the task.agentModelOverrides key OMP reads;
@@ -30,6 +32,11 @@ func (c RoleModelProfileConf) OMPAutopusAgentRoute(
 	identity, err := ResolveOMPPolicyAgent(agent)
 	if err != nil {
 		return OMPPolicyAgentRoute{}, RoleCapabilityRouteConf{}, err
+	}
+	if c.PinsOnly {
+		identity.Key, identity.Native = key, agent
+		candidates := append([]RoleModelCandidateConf(nil), c.Agents[key].Candidates...)
+		return identity, RoleCapabilityRouteConf{Required: true, Candidates: candidates}, nil
 	}
 	route, err := c.AgentRoute(agent)
 	if err != nil {
@@ -63,6 +70,9 @@ func (c RoleModelProfileConf) ompAutopusAgentRouteKey(agent string) (string, err
 				return key, nil
 			}
 		}
+		if c.PinsOnly {
+			return "", ErrOMPAgentUnrouted
+		}
 		return "planner", nil
 	}
 	if _, canonical := capabilityBySourceAgent[agent]; !canonical {
@@ -70,6 +80,9 @@ func (c RoleModelProfileConf) ompAutopusAgentRouteKey(agent string) (string, err
 	}
 	if c.ompOperatorPinned(agent) {
 		return agent, nil
+	}
+	if c.PinsOnly {
+		return "", ErrOMPAgentUnrouted
 	}
 	if native, err := OMPNativeAgentForRole(agent); err == nil && native != agent && c.ompOperatorPinned(native) {
 		return native, nil
@@ -82,7 +95,8 @@ func (c RoleModelProfileConf) ompOperatorPinned(key string) bool {
 }
 
 // validateOMPAutopusAgentRoutes accepts any agents key the policy can name and
-// requires a route for every agent autopus mode serves. It never reports a
+// requires a route for every agent the profile routes: all of autopus mode's
+// agents, or the pinned ones of a pins-only profile. It never reports a
 // native conflict: no two agents share a registry slot here.
 func validateOMPAutopusAgentRoutes(profile RoleModelProfileConf) error {
 	for _, agent := range sortedRoleAgentOverrides(profile.Agents) {
@@ -90,7 +104,7 @@ func validateOMPAutopusAgentRoutes(profile RoleModelProfileConf) error {
 			return err
 		}
 	}
-	for _, agent := range OMPAutopusAgentNames() {
+	for _, agent := range profile.OMPAgentNames() {
 		if _, _, err := profile.OMPAutopusAgentRoute(agent); err != nil {
 			return err
 		}

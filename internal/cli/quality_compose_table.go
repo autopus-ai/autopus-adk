@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/insajin/autopus-adk/pkg/adapter/codex"
@@ -190,11 +191,12 @@ func composeTableProviderOverride(quality config.QualityConf, provider string) s
 }
 
 // composeTableOMPRoutes returns the requested-route lookup the OMP generator
-// starts from: no route without a selected profile, and an unresolved cell
-// wherever the generator itself would fail before reaching the catalog.
+// starts from: no route without a selected profile or pin, and an unresolved
+// cell wherever the generator itself would fail before reaching the catalog.
+// An agent a pins-only policy does not pin keeps the session model.
 func composeTableOMPRoutes(cfg *config.HarnessConfig) func(string) composeTableOMPCell {
 	policy := cfg.RoleModelPolicy
-	if policy.Profile == "" {
+	if policy.Profile == "" && len(policy.Agents) == 0 {
 		return func(string) composeTableOMPCell { return composeTableOMPCell{} }
 	}
 	unresolved := func(string) composeTableOMPCell { return composeTableOMPCell{unresolved: true} }
@@ -209,6 +211,9 @@ func composeTableOMPRoutes(cfg *config.HarnessConfig) func(string) composeTableO
 		// Autopus mode routes each agent under its own name.
 		return func(agent string) composeTableOMPCell {
 			_, route, err := profile.OMPAutopusAgentRoute(agent)
+			if errors.Is(err, config.ErrOMPAgentUnrouted) {
+				return composeTableOMPCell{}
+			}
 			if err != nil || len(route.Candidates) == 0 {
 				return composeTableOMPCell{unresolved: true}
 			}

@@ -62,6 +62,12 @@ type RoleModelProfileConf struct {
 	// consumer of a resolved profile serves the same agent set. Resolution
 	// fills this in; it is never read from or written to YAML.
 	AgentSource string `yaml:"-"`
+
+	// PinsOnly marks the profile of a policy that pins agents without a
+	// profile (PinsOnlyRoleModelProfile): only pinned agents and task have a
+	// route. Resolution fills this in; it is never read from or written to
+	// YAML.
+	PinsOnly bool `yaml:"-"`
 }
 
 // RoleManagedKeyClaimConf proves complete ownership of one project config key.
@@ -201,6 +207,9 @@ func (c RoleModelPolicyConf) SelectedRoleModelProfileForQuality(quality QualityC
 	operator := operatorRoleAgentKeys(declared, c.Agents)
 	if !ok && name != "" {
 		profile, ok = BuiltinRoleModelProfile(name, quality, c.Family, c.ConfigMode)
+	}
+	if name == "" && c.pinsOnly() && c.OMPAgentSource() == OMPAgentSourceAutopus {
+		name, profile, ok = PinsOnlyRoleModelProfileName, PinsOnlyRoleModelProfile(c.ConfigMode), true
 	}
 	if !ok {
 		return name, RoleModelProfileConf{}, false

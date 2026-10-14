@@ -74,8 +74,12 @@ func validateOMPAgentRoutes(profile RoleModelProfileConf) error {
 	return validateOMPAutopusAgentRoutes(profile)
 }
 
-// OMPAgentNames lists the agents this resolved profile routes.
+// OMPAgentNames lists the agents this resolved profile routes: the mode's
+// whole set, or only the pinned agents and task for a pins-only profile.
 func (c RoleModelProfileConf) OMPAgentNames() []string {
+	if c.PinsOnly && !c.OMPNativeAgentSource() {
+		return c.ompPinsOnlyAgentNames()
+	}
 	return OMPAgentNames(c.AgentSource)
 }
 

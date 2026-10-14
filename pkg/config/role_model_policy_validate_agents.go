@@ -11,15 +11,18 @@ import (
 // candidate rules; only the reported scope differs.
 
 // validateRootAgentOverlay checks the root per-agent overlay on its own terms:
-// it needs a profile to overlay, one matrix agent per key, and candidates that
-// satisfy the shared route rules. Trust-level rules run afterwards against the
+// it needs a profile to overlay, except for a pins-only policy in autopus
+// mode, one matrix agent per key, and candidates that satisfy the shared
+// route rules. Trust-level rules run afterwards against the
 // overlaid profile, where the effective catalog trust is known.
 func (c RoleModelPolicyConf) validateRootAgentOverlay() error {
 	if len(c.Agents) == 0 {
 		return nil
 	}
 	if c.Profile == "" {
-		return fmt.Errorf("role_model_policy.agents_require_profile")
+		if err := c.validatePinsOnlyAgentKeys(); err != nil {
+			return err
+		}
 	}
 	for _, agent := range sortedRoleAgentOverrides(c.Agents) {
 		override := c.Agents[agent]

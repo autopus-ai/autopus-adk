@@ -72,7 +72,7 @@ func loadPipelineOMPPhaseModelsWithAuthority(
 	if receipt.OMPVersion != observedVersion {
 		return nil, fmt.Errorf("OMP model receipt version does not match installed executable")
 	}
-	source, err := ompPipelineAgentSource(projectDir)
+	source, pinsOnly, err := ompPipelineAgentSource(projectDir)
 	if err != nil {
 		return nil, err
 	}
@@ -95,6 +95,11 @@ func loadPipelineOMPPhaseModelsWithAuthority(
 			return nil, err
 		}
 		selector, resolved := selectors[agent]
+		if !resolved && pinsOnly {
+			// A pins-only policy routes only what it pins; this phase's
+			// agent keeps the OMP session model.
+			continue
+		}
 		if !resolved || strings.TrimSpace(selector) == "" {
 			return nil, ompPipelineMissingRouteError(source, agent, phase)
 		}
@@ -104,14 +109,15 @@ func loadPipelineOMPPhaseModelsWithAuthority(
 }
 
 // ompPipelineAgentSource reads the agent source the project's OMP files were
-// generated for; the receipt alone cannot tell a retired role-keyed receipt
-// from an autopus one.
-func ompPipelineAgentSource(projectDir string) (string, error) {
+// generated for, and whether its policy pins agents without a profile; the
+// receipt alone cannot tell a retired role-keyed receipt from an autopus one.
+func ompPipelineAgentSource(projectDir string) (string, bool, error) {
 	cfg, err := config.LoadPreview(projectDir)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
-	return cfg.RoleModelPolicy.OMPAgentSource(), nil
+	policy := cfg.RoleModelPolicy
+	return policy.OMPAgentSource(), policy.Profile == "" && len(policy.Agents) > 0, nil
 }
 
 // ompPipelinePhaseAgent names the OMP agent that runs a phase's role.

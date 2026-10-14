@@ -40,7 +40,7 @@ func (c RoleModelPolicyConf) validateForQuality(quality QualityConf) error {
 	if err := c.validateRootAgentOverlay(); err != nil {
 		return err
 	}
-	if c.Profile != "" {
+	if c.Profile != "" || c.pinsOnly() {
 		// The overlaid profile is what OMP consumes, so trust, attestation,
 		// and route closure are checked against it rather than the profile as
 		// written.
@@ -89,6 +89,9 @@ func ValidateResolvedRoleModelProfile(name string, profile RoleModelProfileConf)
 // @AX:WARN [AUTO]: role-model profile validation contains 11 if branches.
 // @AX:REASON [AUTO]: version, capability, agent override, trust, diversity, and managed-key constraints must all agree.
 func validateRoleModelProfile(name string, profile RoleModelProfileConf) error {
+	if profile.PinsOnly {
+		return validatePinsOnlyRoleModelProfile(name, profile)
+	}
 	if profile.ConfigMode != RoleModelConfigModeOverlay && profile.ConfigMode != RoleModelConfigModeProjectManaged {
 		return fmt.Errorf("role_model_policy.profiles[%s].config_mode_invalid: %q", name, profile.ConfigMode)
 	}

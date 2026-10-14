@@ -139,6 +139,7 @@ func TestRoleModelPolicy_RootAgentOverlay_FailsClosed(t *testing.T) {
 		{"no selected profile", func(p *RoleModelPolicyConf) {
 			p.Profile = ""
 			delete(p.Profiles, "p1")
+			p.AgentSource = OMPAgentSourceNative
 		}, "role_model_policy.agents_require_profile"},
 		{"unknown agent", func(p *RoleModelPolicyConf) {
 			p.Agents["future-agent"] = overlayCandidate("acme/model", "high", "acme")
