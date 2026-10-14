@@ -5,8 +5,8 @@ fixture는 모두 temp project 안에 만든다. 폼 test는 SPEC-MODELUX-002처
 
 - D, O3, CAT-A, H, IO: SPEC-MODELUX-002 `acceptance.md`와 같다. 따로 적지 않으면 Codex catalog는 CAT-E다.
 - CAT-E: `gpt-6-astra`·`gpt-6-luna`는 `low`–`max` 다섯 단계, `gpt-6.1-sol`은 `low`·`medium`·`high`·`xhigh`를 보고하는 `codex debug models` JSON.
-- OP: O3 + `role_model_policy {version: v1, profile: balanced, family: openai}`. OPM: OP + `config_mode: project-managed`. OP2: OP + `agents.task` pin(`openai-codex/gpt-6-astra`, `max`). OP3: OP + `agents.sonic` pin. OPX: OP + `agents.executor` pin `openai-codex/gpt-6-astra:max`과 `agents.tester` pin `openai-codex/gpt-6.1-sol:xhigh`, planner pin 없음. OPT: OP + `agents.planner` pin `anthropic/claude-opus-5-5:high`(family `anthropic`)과 `agents.task` pin `openai-codex/gpt-6-astra:max`.
-- ML: metadata 없는 OMP catalog. `ompCLIProfileNativeCatalogJSON()`의 model 4개를 설치된 omp가 출력하는 모양(provider·id·selector·name·thinking, family·capability 없음)으로 쓴 `composeOMPCatalogML`이다(`internal/cli/quality_compose_omp_autopus_test.go`). `ompCLIProfileNativeCatalogJSON()` 자체는 기존 탭의 catalog 규칙이 읽는 표시 필드가 없어 쓰지 않는다(구현 중 확인). MR: metadata가 있는 `ompCLIBalancedCatalogJSON()`. ML2: ML에 `anthropic/claude-opus-5-5`와 `openai-codex/gpt-6-astra`(둘 다 thinking `high`·`max` 포함)와 built-in 선언에 없는 `example/foo-1`을 둔 catalog. NO: `openai-codex` model을 뺀 OMP catalog.
+- OP: O3 + `role_model_policy {version: v1, profile: balanced, family: openai}`. OPM: OP + `config_mode: project-managed`. OP2: OP + `agents.task` pin(`openai-codex/gpt-6-astra`, `max`). OP3: OP + `agents.sonic` pin. OPX: OP + `agents.executor` pin `openai-codex/gpt-6-astra:max`과 `agents.tester` pin `openai-codex/gpt-6.1-sol:xhigh`, planner pin 없음. OPT: OP + `agents.planner` pin `anthropic/claude-fable-5-1:high`(family `anthropic`)과 `agents.task` pin `openai-codex/gpt-6-astra:max`.
+- ML: metadata 없는 OMP catalog. `ompCLIProfileNativeCatalogJSON()`의 model 4개를 설치된 omp가 출력하는 모양(provider·id·selector·name·thinking, family·capability 없음)으로 쓴 `composeOMPCatalogML`이다(`internal/cli/quality_compose_omp_autopus_test.go`). `ompCLIProfileNativeCatalogJSON()` 자체는 기존 탭의 catalog 규칙이 읽는 표시 필드가 없어 쓰지 않는다(구현 중 확인). MR: metadata가 있는 `ompCLIBalancedCatalogJSON()`. ML2: ML에 `anthropic/claude-opus-5-5`와 `openai-codex/gpt-6-astra`(둘 다 thinking `high`·`max` 포함)와 built-in 선언에 없는 `example/foo-1`을 둔 catalog. NO: `openai-codex` model을 뺀 OMP catalog. S10·S11·S25가 pin하는 `anthropic/claude-fable-5-1`과 `openai-codex/gpt-6-astra`는 ML·ML2와 IO 생성 runner의 catalog(`ompCLIProfileNativeCatalogJSON()`)에 모두 있다.
 - NM: v0.50.125 바이너리로 `auto init --yes --platforms claude-code,codex,omp`를 한 project. UF: 빈 dir에 manifest에 없는 `.omp/agents/reviewer.md`(`---\nname: reviewer\ndescription: mine\n---\nmine\n`). UC: O3 + `.omp/config.yml` = `task:\n  disabledAgents:\n    - browser\n`. UC2: O3 + `.omp/config.yml` = `task:\n  disabledAgents:\n    - scout\n    - security-reviewer\n    - sonic\n`(ledger 없음).
 ### S1: effort key 읽기와 거부
 Priority: Must
@@ -69,15 +69,15 @@ And OP2의 annotator, architect, debugger, deep-worker, devops, executor, fronte
 ### S10: OMP 탭 멀티프로바이더 역할 그룹 (autopus)
 Priority: Must
 Given `role_model_policy`가 없는 O3, ML2 catalog, IO 생성 runner, activate stub이 있다
-When `auto quality`에서 구성 편집 → OMP → 역할 그룹 → 설계·판단 `anthropic/claude-opus-5-5` → thinking `high` → 구현 `openai-codex/gpt-6-astra` → thinking `max` → 검증·리뷰 Enter → 탐색·보조 `OMP 세션 모델 그대로` → 적용 → 유지를 고른다
+When `auto quality`에서 구성 편집 → OMP → 역할 그룹 → 설계·판단 `anthropic/claude-fable-5-1` → thinking `high` → 구현 `openai-codex/gpt-6-astra` → thinking `max` → 검증·리뷰 Enter → 탐색·보조 `OMP 세션 모델 그대로` → 적용 → 유지를 고른다
 Then profile Select와 family Select는 한 번도 열리지 않는다. 각 그룹 model Select는 metadata 안내 1줄 뒤 `그대로 — OMP 세션 모델`, `OMP 세션 모델 그대로`, 그리고 `anthropic/…`과 `openai-codex/…`가 섞인 증명된 model이고 `example/foo-1`은 없다. thinking Select는 그 model이 catalog에 보고한 단계와 같다
-And 미리보기 위에 `프로필 없는 role_model_policy.agents는 v0.50.126보다 오래된 auto가 읽지 못합니다`가 있고, 적용 뒤 `role_model_policy`는 `version: v1`과 `agents`뿐이며 `profile`·`family`가 없다. agents key는 설계·판단 4개(selector `anthropic/claude-opus-5-5`, thinking `high`, family `anthropic`)와 구현 6개(selector `openai-codex/gpt-6-astra`, thinking `max`, family `openai`)다
-And 활성화된 `task.agentModelOverrides` key는 그 10개와 task(`anthropic/claude-opus-5-5:high`, planner pin)뿐이고 검증·리뷰 4개, 탐색·보조 2개, scout, security-reviewer, sonic이 없다. explorer.md에는 `thinkingLevel: medium`이 있고 planner.md에는 `thinkingLevel`이 없으며 activate는 1회다
+And 미리보기 위에 `프로필 없는 role_model_policy.agents는 v0.50.126보다 오래된 auto가 읽지 못합니다`가 있고, 적용 뒤 `role_model_policy`는 `version: v1`과 `agents`뿐이며 `profile`·`family`가 없다. agents key는 설계·판단 4개(selector `anthropic/claude-fable-5-1`, thinking `high`, family `anthropic`)와 구현 6개(selector `openai-codex/gpt-6-astra`, thinking `max`, family `openai`)다
+And 활성화된 `task.agentModelOverrides` key는 그 10개와 task(`anthropic/claude-fable-5-1:high`, planner pin)뿐이고 검증·리뷰 4개, 탐색·보조 2개, scout, security-reviewer, sonic이 없다. explorer.md에는 `thinkingLevel: medium`이 있고 planner.md에는 `thinkingLevel`이 없으며 activate는 1회다
 ### S11: thinking·증명·load 규칙
 Priority: Must
 Given S10이 끝난 파일, 그 파일에 `agent_source: native`를 더한 사본, MR catalog, NO catalog가 있다
-When (1) S10 파일로 OMP → 에이전트별 목록을 읽고 planner → `anthropic/claude-opus-5-5`를 고른다. (2) native 사본을 `config.Load`한다. (3) MR로 OMP → 역할 그룹의 설계·판단 model 목록을 읽는다. (4) NO catalog로 S10 파일을 `auto update --yes`한다
-Then (1) 목록은 `planner — anthropic/claude-opus-5-5 · high`와 `explorer — OMP 세션 모델`을 담고, thinking Select의 선택지는 catalog가 그 model에 보고한 단계와 같으며 기본은 `high`다
+When (1) S10 파일로 OMP → 에이전트별 목록을 읽고 planner → `anthropic/claude-fable-5-1`를 고른다. (2) native 사본을 `config.Load`한다. (3) MR로 OMP → 역할 그룹의 설계·판단 model 목록을 읽는다. (4) NO catalog로 S10 파일을 `auto update --yes`한다
+Then (1) 목록은 `planner — anthropic/claude-fable-5-1 · high`와 `explorer — OMP 세션 모델`을 담고, thinking Select의 선택지는 catalog가 그 model에 보고한 단계와 같으며 기본은 `high`다
 And (2)는 `role_model_policy.agents_require_profile`로 실패한다. (3)은 metadata 안내 없이 네 에이전트의 capability를 모두 선언한 model만 보인다
 And (4)는 `required_route_unresolved`와 구현 그룹 에이전트 이름을 담은 오류로 끝나고 OMP 파일·overlay bytes가 실행 전과 같다
 ### S12: update migration
@@ -146,7 +146,7 @@ And degrade 판정은 provider 단위다. cross-family route가 있는 ultra/ant
 ### S22: claim 집합 전환과 복원
 Priority: Must
 Given `.omp/config.yml`이 없는 O3가 있다
-When 차례로 (a) `auto update --yes`, (b) OPM으로 바꿔 update, (c) `config_mode: overlay`로 바꿔 update, (d) `.omp/config.yml` 첫 줄에 `# team note`를 더해 update, (e) autopus.yaml을 OPM으로 바꿔(프로필 key가 더해지고 route 에이전트의 `thinkingLevel`이 빠지는 실제 변경) `ompRootedWriteFailureHook`이 plan의 마지막 write에서 실패하게 한 채 update하고 autopus.yaml을 (d)의 내용으로 되돌린 뒤, (f) seam을 끄고 `agent_source: native`로 update, 별도 (a) 상태 사본에서 `auto clean`을 실행한다
+When 차례로 (a) `auto update --yes`, (b) OPM으로 바꿔 update, (c) `config_mode: overlay`로 바꿔 update, (d) `.omp/config.yml` 첫 줄에 `# team note`를 더해 update, (e) autopus.yaml을 OPM으로 바꿔(`.omp/config.yml`에 프로필 key가 더해지고 overlay가 지워지며 ledger·manifest를 다시 쓰는 실제 변경. (c)·(d)에서 이미 OP라 agent 파일은 (d) 뒤와 같다) `ompRootedWriteFailureHook`이 plan의 마지막 write에서 실패하게 한 채 update하고 autopus.yaml을 (d)의 내용으로 되돌린 뒤, (f) seam을 끄고 `agent_source: native`로 update, 별도 (a) 상태 사본에서 `auto clean`을 실행한다
 Then (a) 파일은 `task.disabledAgents`뿐이고 ledger preimage는 missing이다. (b) 파일은 `task.disabledAgents`와 프로필 key(`task.agentModelOverrides` 17개 key 포함)이고 ledger는 두 owner를 담는다. (c) 파일은 다시 `task.disabledAgents`뿐이다
 And (d) 뒤 파일은 `# team note`와 `task.disabledAgents`를 담고 ledger preimage가 `# team note`를 담는다. (e)는 오류로 끝나고 transaction journal에 실패 전에 끝난 write가 1개 이상 있으며(실제 transaction이 열렸다), `.omp/config.yml`, ledger, manifest, `.omp/agents`, overlay 파일 bytes가 (d) 뒤와 같다
 And (f) 뒤 `.omp/config.yml`은 `# team note`만 담고 ledger가 없으며, clean 사본은 `.omp/config.yml`과 ledger가 없다
@@ -166,10 +166,10 @@ And 첫 사본은 첫 update 뒤 파일에 `task.disabledAgents`가 없고 SHA-2
 ### S25: 프로필 기반 설정을 새 탭에서 고치기
 Priority: Must
 Given OP, OPT, IO 생성 runner, ML catalog, 각 파일로 한 번 `auto update --yes`해 기록한 override 값이 있다
-When (1) OP에서 `auto quality` → OMP → 역할 그룹 → 설계·판단·구현·검증·리뷰 Enter → 탐색·보조 `OMP 세션 모델 그대로` → 적용 → 유지를 고르고, OP 사본에서는 같은 입력 뒤 확인에서 취소한다. (2) OPT에서 같은 편집을 적용한다. (3) 다른 OP 사본에서 설계·판단 `anthropic/claude-opus-5-5` → thinking `high`, 탐색·보조 세션 모델로 적용한 뒤 다시 OMP → 에이전트별 → `task` → `planner를 따름` → 완료 → 적용한다
+When (1) OP에서 `auto quality` → OMP → 역할 그룹 → 설계·판단·구현·검증·리뷰 Enter → 탐색·보조 `OMP 세션 모델 그대로` → 적용 → 유지를 고르고, OP 사본에서는 같은 입력 뒤 확인에서 취소한다. (2) OPT에서 같은 편집을 적용한다. (3) 다른 OP 사본에서 설계·판단 `anthropic/claude-fable-5-1` → thinking `high`, 탐색·보조 세션 모델로 적용한 뒤 다시 OMP → 에이전트별 → `task` → `planner를 따름` → 완료 → 적용한다
 Then (1) 각 그룹 Select의 `그대로` 라벨은 pin 없는 pre-plan의 effective `provider/model · thinking`이고 미리보기 위에 `OMP 프로필 balanced를 에이전트별 지정으로 옮깁니다. 바꾸지 않은 에이전트의 route는 그대로입니다.`가 있다. 적용 뒤 `profile`·`family`와 `agents.task`가 없고 agents key는 explorer와 annotator를 뺀 14개이며 각 candidates는 변환 전 그 에이전트 route의 candidate 전부와 같다. override에서 그 14개와 task의 값은 기록한 값과 같고 explorer·annotator key는 없다. 취소한 사본은 SHA-256이 같다
 And (2) 뒤 `agents.task`는 `openai-codex/gpt-6-astra:max`로 남고, override의 task와 planner 값은 기록한 변환 전 값(서로 다름)과 같다
-And (3) 첫 적용 뒤 `agents.task`가 변환 전 task route의 candidate로 생기고 override의 task 값은 기록한 OP 값과 같으며 planner는 `anthropic/claude-opus-5-5:high`다. 에이전트별 목록에 `task — <그 route>`가 있고, `planner를 따름` 적용 뒤 `agents.task`가 없고 task 값은 `anthropic/claude-opus-5-5:high`다
+And (3) 첫 적용 뒤 `agents.task`가 변환 전 task route의 candidate로 생기고 override의 task 값은 기록한 OP 값과 같으며 planner는 `anthropic/claude-fable-5-1:high`다. 에이전트별 목록에 `task — <그 route>`가 있고, `planner를 따름` 적용 뒤 `agents.task`가 없고 task 값은 `anthropic/claude-fable-5-1:high`다
 And NO catalog로 연 OP 사본은 pre-plan blocker의 오류 줄 뒤 방식 Select 없이 메뉴로 돌아가고 activate 0회, SHA-256이 같다
 ## Oracle Acceptance Notes
 

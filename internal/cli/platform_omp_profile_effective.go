@@ -27,6 +27,8 @@ type ompProfileEffectiveConfig struct {
 	family     string
 	definition bool
 	overrides  map[string]struct{}
+	// pinsOnly marks a pins-only proposal; empty is one that leaves no pin.
+	pinsOnly, empty bool
 }
 
 // ompProfileResolution is the single proposal both --plan and apply consume.
@@ -46,6 +48,9 @@ func resolveOMPProfileProposal(
 	opts ompProfileApplyOptions,
 	runner omp.OMPModelCatalogRunner,
 ) (ompProfileResolution, error) {
+	if opts.pinsOnly {
+		return resolveOMPPinsOnlyProposal(ctx, cfg, opts, runner)
+	}
 	if !config.IsValidQualityPresetName(opts.name) {
 		return ompProfileResolution{}, ompProfilePlanError{reason: "profile_name_invalid"}
 	}

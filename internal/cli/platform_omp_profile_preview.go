@@ -177,7 +177,7 @@ func newOMPProfileApplyPreviewPayload(
 			Roles:   append([]string(nil), effective.profile.FamilyDiversity.Roles...),
 		},
 		Persisted: ompProfilePersistedPayload{
-			Profile: effective.name, Family: effective.family,
+			Profile: ompPersistedProfileName(effective), Family: effective.family,
 			Agents:            sortedOMPProfileOverriddenAgents(effective.overrides),
 			ProfileDefinition: effective.definition,
 		},
@@ -185,6 +185,14 @@ func newOMPProfileApplyPreviewPayload(
 		Blockers: append([]string(nil), resolution.blockers...),
 		Warnings: ompProfileRouteWarnings(effective.profile),
 	}
+}
+
+// ompPersistedProfileName is the profile apply writes: none for pins only.
+func ompPersistedProfileName(effective ompProfileEffectiveConfig) string {
+	if effective.pinsOnly {
+		return ""
+	}
+	return effective.name
 }
 
 // ompProfileRouteWarnings names pins the served agent set cannot route:

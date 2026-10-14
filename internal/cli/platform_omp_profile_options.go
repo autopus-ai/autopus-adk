@@ -28,6 +28,10 @@ type ompProfileApplyOptions struct {
 	agents   []ompProfileAgentAssignment
 	plan     bool
 	jsonMode bool
+	// pinsOnly replaces the profile, family, and agents with pins exactly:
+	// the autopus-mode OMP tab's pins-only policy (newOMPPinsOnlyApplyOptions).
+	pinsOnly bool
+	pins     map[string]config.RoleAgentOverrideConf
 }
 
 // ompProfileAgentAssignment pins or clears one agent's root-level override.

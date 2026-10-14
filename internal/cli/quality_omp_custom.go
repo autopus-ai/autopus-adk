@@ -32,6 +32,9 @@ type ompCustomModelChoice struct {
 	Model        string
 	Thinking     []string
 	Capabilities []string
+	// Family is the attested family a pins-only pin records: the strict
+	// catalog's report, or the built-in declaration on a metadata-light one.
+	Family string
 }
 
 func (c ompCustomModelChoice) selector() string { return c.Provider + "/" + c.Model }
@@ -135,27 +138,17 @@ func installedOMPCustomModelChoices(
 	cmd *cobra.Command,
 	runner omp.OMPModelCatalogRunner,
 ) ([]ompCustomModelChoice, string, error) {
-	probe, err := probeInstalledOMPCatalog(ctx, runner)
-	version := safeOMPOperatorVersion(probe.Version)
+	strict, display, version, err := readInstalledOMPModelChoices(ctx, runner)
 	switch {
-	case err == nil:
-		return sortedOMPCustomModelChoices(strictOMPCustomModelChoices(probe.Catalog.Models)), version, nil
-	case probe.Reason == ompRawCatalogFallbackReason:
-		body, runErr := runner.Run(ctx, "omp", "models", "--json", "--no-extensions")
-		if runErr != nil {
-			return nil, version, runErr
-		}
-		models, reason := normalizeOMPRawDisplayCatalog(body, ompModelDoctorProbeOutput)
-		if reason != "catalog_ready" {
-			return nil, version, ompCatalogUnavailableError{reason: reason}
-		}
+	case err != nil:
+		return nil, version, err
+	case display != nil:
 		fmt.Fprintln(cmd.OutOrStdout(),
 			"The installed catalog reports no family or capability metadata; "+
 				"a pin is attested against the built-in declarations.")
-		return sortedOMPCustomModelChoices(displayOMPCustomModelChoices(models)), version, nil
-	default:
-		return nil, version, err
+		return display, version, nil
 	}
+	return strict, version, nil
 }
 
 // strictOMPCustomModelChoices keeps only models the installation can run and
@@ -168,7 +161,7 @@ func strictOMPCustomModelChoices(models []omp.OMPModelMetadata) []ompCustomModel
 		}
 		choices = append(choices, ompCustomModelChoice{
 			Provider: model.Provider, Model: model.Model,
-			Thinking: model.Thinking, Capabilities: model.Capabilities,
+			Thinking: model.Thinking, Capabilities: model.Capabilities, Family: model.Family,
 		})
 	}
 	return choices

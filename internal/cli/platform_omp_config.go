@@ -72,6 +72,11 @@ func marshalAutopusConfig(original []byte, cfg *config.HarnessConfig) ([]byte, e
 	if cfg == nil || cfg.Validate() != nil {
 		return nil, errors.New("autopus_config_invalid")
 	}
+	if policy := cfg.RoleModelPolicy; policy.Version == "" && policy.Profile == "" && policy.Family == "" &&
+		policy.ConfigMode == "" && policy.AgentSource == "" && len(policy.Profiles) == 0 && len(policy.Agents) == 0 {
+		// The OMP tab cleared every pin and nothing else is set: the key goes.
+		return replaceAutopusConfigSection(original, "role_model_policy", nil)
+	}
 	return replaceAutopusConfigSection(original, "role_model_policy", cfg.RoleModelPolicy)
 }
 
@@ -92,6 +97,10 @@ func replaceAutopusConfigSection(original []byte, key string, section any) ([]by
 	}
 	if _, err := config.PruneRetiredKeysForRewrite(document); err != nil {
 		return nil, err
+	}
+	if section == nil {
+		removeAutopusConfigKey(document.Content[0], key)
+		return encodeAutopusConfigRewrite(original, document)
 	}
 	sectionData, err := yaml.Marshal(section)
 	if err != nil {
@@ -117,6 +126,23 @@ func replaceAutopusConfigSection(original []byte, key string, section any) ([]by
 			sectionDocument.Content[0],
 		)
 	}
+	return encodeAutopusConfigRewrite(original, document)
+}
+
+// removeAutopusConfigKey drops one top-level key and its value.
+func removeAutopusConfigKey(mapping *yaml.Node, key string) {
+	for index := 0; index+1 < len(mapping.Content); index += 2 {
+		if mapping.Content[index].Value == key {
+			mapping.Content = append(mapping.Content[:index], mapping.Content[index+2:]...)
+			return
+		}
+	}
+}
+
+// encodeAutopusConfigRewrite returns the rewritten document only once it
+// parses back to the same tree, loads as config.Load would load it, and
+// activates no placeholder the original kept literal.
+func encodeAutopusConfigRewrite(original []byte, document *yaml.Node) ([]byte, error) {
 	encoded, err := yaml.Marshal(document)
 	if err != nil {
 		return nil, errors.New("autopus_config_marshal_failed")
