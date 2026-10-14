@@ -17,7 +17,9 @@ jobs:
   test:
     name: test
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # About 12 minutes of steps run before the shared coverage lane, so the
+    # job holds them, the lane's 45m per-binary timeout, and vet.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
@@ -82,9 +84,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # internal/cli alone ran 1181s of this budget on main (2026-10-09);
-          # the per-binary timeout must not be the job's binding limit.
-          go test -race -count=1 -timeout=30m \
+          # internal/cli alone ran 1709s of this budget on main (run
+          # 38315371841, 2026-10-12) and reached the earlier 30m timeout at
+          # 1800s on the SPEC-MODELUX-003 branch (runs 38352421138 through
+          # 38561909086), where pkg/adapter/omp also grew from 484s to about
+          # 1000s. The per-binary timeout must stay above a healthy run of the
+          # slowest package, and the job budget above must hold it.
+          go test -race -count=1 -timeout=45m \
             -skip "$PROCESS_HEAVY_TESTS" \
             -coverprofile=coverage-shared.out ./...
           mode="$(head -n 1 coverage-shared.out)"

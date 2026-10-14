@@ -17,10 +17,12 @@ build:
 # Go의 기본 테스트 타임아웃은 10분이다. 이 저장소에서 internal/cli와
 # internal/companionmanifest는 단독으로도 각각 7분을 넘기므로, 타임아웃 없는
 # `go test ./...`는 병렬 경합이 얹히는 순간 항상 실패한다. CI는 레인마다
-# -timeout을 명시해서 (ci.yaml의 5m/8m/15m/20m/30m) 통과해 왔고, 그래서
-# 로컬 진입점만 깨진 상태로 오래 남아 있었다.
-UNIT_TIMEOUT        ?= 20m
-INTEGRATION_TIMEOUT ?= 30m
+# -timeout을 명시해서 (ci.yaml의 90s~45m) 통과해 왔고, 그래서
+# 로컬 진입점만 깨진 상태로 오래 남아 있었다. UNIT_TIMEOUT과
+# INTEGRATION_TIMEOUT은 ci.yaml 공유 레인(-race, ./...)의 45m를 따른다.
+# internal/cli 하나가 그 레인에서 1709초를 넘겨 썼기 때문이다(2026-10-12).
+UNIT_TIMEOUT        ?= 45m
+INTEGRATION_TIMEOUT ?= 45m
 ISOLATED_TIMEOUT    ?= 10m
 
 # 프로세스가 무거운 테스트는 공유 Go 패키지 스케줄러에서 떼어낸다. ci.yaml이
