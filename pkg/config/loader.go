@@ -65,6 +65,9 @@ func loadConfig(dir string, persistNormalization bool) (*HarnessConfig, bool, er
 		return nil, false, fmt.Errorf("read config: %w", err)
 	}
 
+	if err := rejectRoleModelCandidatePlaceholders(data); err != nil {
+		return nil, false, fmt.Errorf("validate config: %w", err)
+	}
 	expanded := expandEnvVars(string(data))
 
 	var cfg HarnessConfig
