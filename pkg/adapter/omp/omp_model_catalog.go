@@ -115,6 +115,11 @@ func probeOMPModelCatalog(
 		return result
 	}
 	result.Catalog, result.Reason = NormalizeOMPModelCatalog(output, opts.MaxOutput)
+	if profile != nil && profile.PinsOnly && result.Reason != "catalog_metadata_insufficient" {
+		// A pins-only profile takes its trust from the catalog: a strict
+		// catalog's own report attests its pins (security review P2).
+		result.CatalogTrust = config.RoleModelCatalogTrustStrict
+	}
 	if result.Reason == "catalog_metadata_insufficient" &&
 		profile != nil && trust == config.RoleModelCatalogTrustOperatorAttested {
 		result.Catalog, result.Reason = normalizeOMPOperatorAttestedCatalog(output, opts.MaxOutput, *profile)

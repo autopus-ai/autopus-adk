@@ -26,18 +26,25 @@ func ompPinsOnlyTestPolicy() config.RoleModelPolicyConf {
 }
 
 func TestOMPPinsOnly_DoctorShowsThePinnedAgents(t *testing.T) {
+	for name, catalog := range map[string][]byte{"metadata-light": ompCLIProfileNativeCatalogJSON(), "strict": ompCLIBalancedCatalogJSON()} {
+		t.Run(name, func(t *testing.T) { assertOMPPinsOnlyDoctor(t, catalog) })
+	}
+}
+
+func assertOMPPinsOnlyDoctor(t *testing.T, catalog []byte) {
 	root := t.TempDir()
 	cfg := config.DefaultFullConfig("omp-pins-only")
 	cfg.Platforms = []string{"omp"}
 	cfg.RoleModelPolicy = ompPinsOnlyTestPolicy()
 	require.NoError(t, config.Save(root, cfg))
-	generation := &ompModelDoctorE2ERunner{catalog: ompCLIProfileNativeCatalogJSON()}
+	generation := &ompModelDoctorE2ERunner{catalog: catalog}
 	_, err := omp.NewWithRoot(root).WithModelIntegrationRunner(generation).Generate(context.Background(), cfg)
 	require.NoError(t, err)
 
 	projection := buildOMPPlatformProjection(context.Background(), root, generation, configTimeForOMPAgentCatalog())
 
 	assert.True(t, projection.Models.Enabled)
+	assert.True(t, projection.Models.ReceiptVerified, "the receipt matches the catalog it was attested by")
 	assert.Equal(t, config.PinsOnlyRoleModelProfileName, projection.Models.Profile)
 	rows := map[string]ompEffectiveModelProjection{}
 	for _, row := range projection.Models.Models {

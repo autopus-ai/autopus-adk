@@ -70,6 +70,29 @@ func TestOMPModelIntegration_PinsOnlyRoutesOnlyThePinnedAgents(t *testing.T) {
 	}
 }
 
+// Security review P2: on a strict catalog the catalog's own report attests a
+// pins-only pin, so the receipt records strict trust and availability
+// evidence instead of failing on an operator-attested receipt.
+func TestOMPModelIntegration_PinsOnlyActivatesOnAStrictCatalog(t *testing.T) {
+	p := newClaimProject(t)
+	p.runner = newModelIntegrationRunner()
+
+	p.mustRun("generate", pinsOnlyConfig(map[string]config.RoleModelCandidateConf{
+		"planner":  {Selector: "anthropic/alpha-reasoner", Thinking: "high", Family: "anthropic"},
+		"executor": {Selector: "openai/beta-coder", Thinking: "high", Family: "openai"},
+	}))
+
+	overrides := ompWrittenOverrides(t, p)
+	assert.Equal(t, "anthropic/alpha-reasoner:high", overrides["planner"])
+	assert.Equal(t, "openai/beta-coder:high", overrides["executor"])
+	assert.Equal(t, overrides["planner"], overrides["task"])
+	receiptData, ok := p.read(OMPModelReceiptRelativePath)
+	require.True(t, ok)
+	var receipt OMPModelResolutionReceipt
+	require.NoError(t, json.Unmarshal([]byte(receiptData), &receipt))
+	assert.Equal(t, config.RoleModelCatalogTrustStrict, receipt.CatalogTrust)
+}
+
 func TestOMPModelIntegration_PinsOnlyFailsClosedOnAMissingModel(t *testing.T) {
 	p := newClaimProject(t)
 	p.mustRun("generate", configForOMP())
