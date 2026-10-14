@@ -5,7 +5,7 @@ fixture는 모두 temp project 안에 만든다. 폼 test는 SPEC-MODELUX-002처
 
 - D, O3, CAT-A, H, IO: SPEC-MODELUX-002 `acceptance.md`와 같다. 따로 적지 않으면 Codex catalog는 CAT-E다.
 - CAT-E: `gpt-6-astra`·`gpt-6-luna`는 `low`–`max` 다섯 단계, `gpt-6.1-sol`은 `low`·`medium`·`high`·`xhigh`를 보고하는 `codex debug models` JSON.
-- OP: O3 + `role_model_policy {version: v1, profile: balanced, family: openai}`. OPM: OP + `config_mode: project-managed`. OP2: OP + `agents.task` pin(`openai-codex/gpt-6-astra`, `max`). OP3: OP + `agents.sonic` pin. OPX: OP + `agents.executor` pin `openai-codex/gpt-6-astra:max`과 `agents.tester` pin `openai-codex/gpt-6.1-sol:xhigh`, planner pin 없음.
+- OP: O3 + `role_model_policy {version: v1, profile: balanced, family: openai}`. OPM: OP + `config_mode: project-managed`. OP2: OP + `agents.task` pin(`openai-codex/gpt-6-astra`, `max`). OP3: OP + `agents.sonic` pin. OPX: OP + `agents.executor` pin `openai-codex/gpt-6-astra:max`과 `agents.tester` pin `openai-codex/gpt-6.1-sol:xhigh`, planner pin 없음. OPT: OP + `agents.planner` pin `anthropic/claude-opus-5-5:high`(family `anthropic`)과 `agents.task` pin `openai-codex/gpt-6-astra:max`.
 - ML: metadata 없는 OMP catalog. `ompCLIProfileNativeCatalogJSON()`의 model 4개를 설치된 omp가 출력하는 모양(provider·id·selector·name·thinking, family·capability 없음)으로 쓴 `composeOMPCatalogML`이다(`internal/cli/quality_compose_omp_autopus_test.go`). `ompCLIProfileNativeCatalogJSON()` 자체는 기존 탭의 catalog 규칙이 읽는 표시 필드가 없어 쓰지 않는다(구현 중 확인). MR: metadata가 있는 `ompCLIBalancedCatalogJSON()`. ML2: ML에 `anthropic/claude-opus-5-5`와 `openai-codex/gpt-6-astra`(둘 다 thinking `high`·`max` 포함)와 built-in 선언에 없는 `example/foo-1`을 둔 catalog. NO: `openai-codex` model을 뺀 OMP catalog.
 - NM: v0.50.125 바이너리로 `auto init --yes --platforms claude-code,codex,omp`를 한 project. UF: 빈 dir에 manifest에 없는 `.omp/agents/reviewer.md`(`---\nname: reviewer\ndescription: mine\n---\nmine\n`). UC: O3 + `.omp/config.yml` = `task:\n  disabledAgents:\n    - browser\n`. UC2: O3 + `.omp/config.yml` = `task:\n  disabledAgents:\n    - scout\n    - security-reviewer\n    - sonic\n`(ledger 없음).
 ### S1: effort key 읽기와 거부
@@ -165,11 +165,12 @@ And overlay 전환 뒤 파일은 preimage와 `task.disabledAgents: [scout]`이�
 And 첫 사본은 첫 update 뒤 파일에 `task.disabledAgents`가 없고 SHA-256이 사용자가 지운 뒤와 같다. overlay 전환 update 뒤 `.omp/config.yml`은 없고(ADK가 만든 파일) ledger는 사용자 소유 표시만 담으며, 그 뒤 두 번의 update 뒤에도 `.omp/config.yml`이 없고 ledger bytes가 같다. `auto clean` 뒤 ledger가 없다. 둘째 사본은 `managed_key_conflict`로 끝나고 `.omp/config.yml`과 ledger bytes가 실행 전과 같다
 ### S25: 프로필 기반 설정을 새 탭에서 고치기
 Priority: Must
-Given OP(`profile: balanced`, `family: openai`), IO 생성 runner, ML catalog, OP로 한 번 `auto update --yes`해 기록한 override 값이 있다
-When `auto quality`에서 OMP → 역할 그룹 → 설계·판단·구현·검증·리뷰 Enter → 탐색·보조 `OMP 세션 모델 그대로` → 적용 → 유지를 고르고, OP 사본에서는 같은 입력 뒤 확인에서 취소한다
-Then 각 그룹 Select의 `그대로` 라벨은 pin 없는 pre-plan의 effective `provider/model · thinking`이고 미리보기 위에 `OMP 프로필 balanced를 에이전트별 지정으로 옮깁니다. 바꾸지 않은 에이전트의 route는 그대로입니다.`가 있다
-And 적용 뒤 `role_model_policy`에 `profile`·`family`가 없고 agents key는 explorer와 annotator를 뺀 14개이며 각 candidates는 변환 전 그 에이전트 route의 candidate 전부와 같다
-And 활성화된 override에서 그 14개와 task의 값은 기록한 변환 전 값과 같고 explorer·annotator key는 없다. 취소한 사본은 SHA-256이 같다. NO catalog로 연 OP 사본은 pre-plan blocker의 오류 줄 뒤 방식 Select 없이 메뉴로 돌아가고 activate 0회, SHA-256이 같다
+Given OP, OPT, IO 생성 runner, ML catalog, 각 파일로 한 번 `auto update --yes`해 기록한 override 값이 있다
+When (1) OP에서 `auto quality` → OMP → 역할 그룹 → 설계·판단·구현·검증·리뷰 Enter → 탐색·보조 `OMP 세션 모델 그대로` → 적용 → 유지를 고르고, OP 사본에서는 같은 입력 뒤 확인에서 취소한다. (2) OPT에서 같은 편집을 적용한다. (3) 다른 OP 사본에서 설계·판단 `anthropic/claude-opus-5-5` → thinking `high`, 탐색·보조 세션 모델로 적용한 뒤 다시 OMP → 에이전트별 → `task` → `planner를 따름` → 완료 → 적용한다
+Then (1) 각 그룹 Select의 `그대로` 라벨은 pin 없는 pre-plan의 effective `provider/model · thinking`이고 미리보기 위에 `OMP 프로필 balanced를 에이전트별 지정으로 옮깁니다. 바꾸지 않은 에이전트의 route는 그대로입니다.`가 있다. 적용 뒤 `profile`·`family`와 `agents.task`가 없고 agents key는 explorer와 annotator를 뺀 14개이며 각 candidates는 변환 전 그 에이전트 route의 candidate 전부와 같다. override에서 그 14개와 task의 값은 기록한 값과 같고 explorer·annotator key는 없다. 취소한 사본은 SHA-256이 같다
+And (2) 뒤 `agents.task`는 `openai-codex/gpt-6-astra:max`로 남고, override의 task와 planner 값은 기록한 변환 전 값(서로 다름)과 같다
+And (3) 첫 적용 뒤 `agents.task`가 변환 전 task route의 candidate로 생기고 override의 task 값은 기록한 OP 값과 같으며 planner는 `anthropic/claude-opus-5-5:high`다. 에이전트별 목록에 `task — <그 route>`가 있고, `planner를 따름` 적용 뒤 `agents.task`가 없고 task 값은 `anthropic/claude-opus-5-5:high`다
+And NO catalog로 연 OP 사본은 pre-plan blocker의 오류 줄 뒤 방식 Select 없이 메뉴로 돌아가고 activate 0회, SHA-256이 같다
 ## Oracle Acceptance Notes
 
 - Must 시나리오는 concrete 값을 판정한다: 선택지 목록과 순서, 라벨, 바뀌는 설정 줄, frontmatter·TOML 값, override key 집합과 값, 실행 횟수, SHA-256, 오류 문구. 파일 존재나 종료 코드만으로 닫는 Must는 없다.

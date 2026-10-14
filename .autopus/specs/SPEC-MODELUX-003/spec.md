@@ -179,7 +179,9 @@ WHERE role_model_policy holds agent pins without a profile in autopus mode, THEN
 ### REQ-MUX3-23 프로필 설정의 변환
 Priority: Must · EARS: EventDriven
 
-WHEN the operator applies an OMP tab edit over a profile-based policy in autopus mode, THEN THE SYSTEM SHALL write a pins-only policy in which every agent the operator did not change keeps all candidates of its previous effective route, every agent set to the OMP session model has no pin, and the legacy native keys are expanded into per-agent pins and removed, SHALL print the conversion line before the confirmation, and SHALL leave the file unchanged when the operator cancels.
+WHEN the operator applies an OMP tab edit over a profile-based policy in autopus mode, THEN THE SYSTEM SHALL write a pins-only policy in which every agent the operator did not change keeps all candidates of its previous effective route, every agent set to the OMP session model has no pin, the legacy native keys scout, security-reviewer, and sonic are expanded into per-agent pins and removed, and `agents.task` keeps the task route as a pin only when that route differs from the planner route after the conversion, SHALL print the conversion line before the confirmation, and SHALL leave the file unchanged when the operator cancels.
+
+- task: 변환 전 task route(Route Contract task 행)와 변환 뒤 planner route가 다르면 `agents.task`를 그 route의 candidate 전부로 남기고, 같으면 지운다(task는 planner를 따른다). 그래서 변환은 task의 override 값도 바꾸지 않는다. 남은 `agents.task`는 task 자신만 정하고(pins-only에는 Route Contract ②가 없다) 에이전트별 목록에 `task`로 보인다.
 
 ## Contracts
 
@@ -237,11 +239,11 @@ WHEN the operator applies an OMP tab edit over a profile-based policy in autopus
 
 | 항목 | 규칙 |
 |---|---|
-| ledger | 기존 `.autopus/omp-model-project-ownership-v1.json` 하나, 원본 preimage 하나. claim마다 owner(`profile` 또는 `agent_surface`, `[NEW]` 필드)와 사용자 소유 표시(`[NEW] agent_surface_user_owned`) |
+| ledger | 기존 `.autopus/omp-model-project-ownership-v1.json` 하나. bytes는 담지 않고 commitment와 지문만 담는다: `original_missing`·`original_commitment`, `last_emitted_commitment`, key마다 `fingerprint`·`prior_fingerprint`·`owner`(`profile` 또는 `agent_surface`), `agent_surface_emitted`(마지막으로 쓴 값), `agent_surface_user_owned`(`omp_model_integration_ownership.go:25-57`). 이 계약의 preimage는 이 기록으로 확인해 다시 얻는 원본 내용(claim key를 prior 값으로 되돌린 파일)이다 |
 | claim 집합 C | project-managed 프로필이면 그 `ManagedKeys` 전부 ∪ autopus 모드이고 사용자 소유(표시가 있거나 아래 첫 claim 판정이 사용자 값으로 본 경우)가 아니면 `task.disabledAgents = [scout, security-reviewer, sonic]`(FullArrayOwnership) |
 | 첫 claim에서 그 key가 이미 있음 | ledger에 그 key의 claim도 표시도 없는데 `.omp/config.yml`에 `task.disabledAgents`가 이미 있으면 값으로 판정한다. `[scout, security-reviewer, sonic]`과 다르면 처음부터 사용자 소유다: C에 넣지 않고 표시를 쓰며(C가 그 밖에 비면 표시만 남은 ledger를 만들고, 프로필 claim이 있으면 그 ledger에 함께 둔다), 파일 bytes는 그대로 두고 `사용자가 정해 두어` 안내 1줄과 degraded를 낸다. 그 key는 C에 없으므로 claim 목록에 오르지 않고, 그래서 소유 key의 prior 재계산(`omp_model_integration_project.go:60-70`)과 `applyOMPManagedClaim`의 prior 지문 비교(`omp_model_activation_project.go:167`, 불일치면 `managed_key_conflict`)에 닿지 않는다. 값이 그 집합과 같으면 현재 값을 preimage 값으로 보고 그대로 claim한다(prior = 현재 지문이라 충돌하지 않고 값은 그대로다. release는 그 값이 든 preimage를 복원하므로 key가 남는다) |
 | 적용 | C가 비지 않으면 생성마다 preimage 위에 C 전부로 `MergeOMPProjectManagedConfig` 한 번, config mapping 하나, ledger 갱신 하나. model integration이 없어도 mapping을 만든다(`omp.go:208-216` gate 변경, `omp_model_integration_project.go:14-99`의 수 검사는 프로필 claim에만) |
-| C가 빔 | ledger가 있으면 release: preimage를 복원하고(ADK가 만든 파일이면 삭제) claim을 모두 지운다. 사용자 소유 표시가 없으면 ledger를 지우고, 있으면 표시만 담은 ledger(claim·preimage·commitment 없음)를 남긴다(`omp_rooted_lifecycle_config.go:64-83`을 C 기준으로) |
+| C가 빔 | ledger가 있으면 release: preimage를 복원하고(ADK가 만든 파일이면 삭제) claim을 모두 지운다. 사용자 소유 표시가 없으면 ledger를 지우고, 있으면 표시만 담은 ledger(claim과 commitment 없음)를 남긴다(`omp_rooted_lifecycle_config.go:64-83`을 C 기준으로) |
 | 표시만 남은 ledger | 관리하는 key가 없다. autopus 모드에서는 표시를 판단하려고 `.omp/config.yml`을 읽기만 하고, 아래 재claim이 아니면 쓰지 않는다. C에 프로필 claim이 다시 생기면 현재 파일을 새 preimage로 잡고 표시를 그대로 둔다. native 모드에서도 표시는 남는다 |
 | 사용자가 C 밖을 고침 | C에 `profile` claim이 있으면 지금처럼 `managed_key_conflict`이고 아무것도 쓰지 않는다(`task.disabledAgents`를 같이 고쳤어도 같다). C가 `agent_surface`뿐이면 아래 `task.disabledAgents` 판정을 먼저 하고, 새 preimage = 현재 파일에서 ADK claim key만 preimage 값으로 되돌린 것으로 다시 잡고 적용한다 |
 | 사용자가 `task.disabledAgents`만 고침(지움 포함) | 판정: 현재 파일의 그 key를 ADK가 마지막으로 쓴 값으로 바꾼(없으면 같은 자리에 넣은) bytes의 commitment가 `LastEmittedCommitment`(`omp_model_integration_ownership_rooted.go:49-62`)와 같으면 그 key만 바뀐 것이다. 프로필 claim이 있든 없든 사용자 소유로 넘긴다: 새 preimage = 원본 preimage에 사용자 값(지웠으면 삭제), C에서 그 key를 빼고, ledger에 `[NEW] agent_surface_user_owned`를 남기며, 파일 bytes는 그대로 두고 안내 1줄과 degraded를 낸다. 그 뒤의 merge·전환·release는 새 preimage를 쓰므로 사용자 값을 되돌리지 않는다 |
@@ -264,12 +266,13 @@ WHEN the operator applies an OMP tab edit over a profile-based policy in autopus
 | 시작 값 | 폼 밖 | 지금 policy가 pins-only면 그 pin, 프로필이 있으면 pin 없는 pre-plan의 effective route, policy가 없으면 모두 `OMP 세션 모델` | - | 방식 |
 | 방식 | Select `어떻게 고칠까요?` | 역할 그룹 · 에이전트별 | 역할 그룹 | 편집 |
 | 역할 그룹 | Role Group Contract 순서(설계·판단, 구현, 검증·리뷰, 탐색·보조)로 그룹마다 model Select, 제목 `<그룹> — <멤버>` | `그대로 — <현재>` · `OMP 세션 모델 그대로` · 증명된 설치 model(`provider/model`, provider와 model 이름순, 모든 provider가 섞인다) | 그대로 | thinking |
-| 에이전트별 | 목록 Select → model Select 반복 | 목록: 완료 + 16개(`<agent> — <현재>`) / model: 위와 같다 | 완료 / 그대로 | 완료: 미리보기 |
+| 에이전트별 | 목록 Select → model Select 반복 | 목록: 완료 + 16개(`<agent> — <현재>`) + `agents.task`가 있으면 `task — <현재>` / model: 위와 같고, `task`는 `OMP 세션 모델 그대로` 대신 `planner를 따름`(pin을 지운다) | 완료 / 그대로 | 완료: 미리보기 |
 | thinking | Select(고른 model이 보고한 단계가 둘 이상일 때) | 그 model이 보고한 단계만 | 현재 thinking이 목록에 있으면 그것, 아니면 첫 단계 | 다음 그룹 |
 | 미리보기 | 폼 밖: 기존 요약(`renderOMPQualitySummary`), 변환 줄(REQ-MUX3-23), 옛 바이너리 줄 | - | - | 확인 |
 | 확인 | Select `적용할까요?` | 취소 · 적용 | 취소 | 적용: 기존 OMP 쓰기 경로 → 메뉴 |
 
 - `<현재>`는 pin이나 route가 있으면 `provider/model · thinking`, 없으면 `OMP 세션 모델`이다. `OMP 세션 모델 그대로`는 그 에이전트의 pin을 지우고 thinking을 묻지 않는다.
+- 설계·판단 그룹 편집은 planner를 바꾸고 기존 `agents.task`는 바꾸지 않는다. task는 `agents.task`가 없을 때만 planner를 따른다.
 - 증명된 model: REQ-MUX3-13의 규칙. 그룹은 영향받는 모든 에이전트가 받는 model만 보인다. 결과가 시작과 같으면 `변경 없음`이고 쓰지 않는다. pin이 하나도 남지 않으면 `role_model_policy`의 `profile`·`family`·`agents`를 지우고, 남는 field가 없으면 key 전체를 지운다.
 - 프로필·family 단계는 autopus 모드에서 묻지 않는다. 시작 값을 얻는 pre-plan이 blocker를 내면 오류 줄 뒤 방식 Select 없이 메뉴로 돌아가고 쓰거나 활성화하지 않는다. native 모드는 SPEC-MODELUX-002 OMP Tab Contract 그대로다.
 
@@ -278,21 +281,21 @@ WHEN the operator applies an OMP tab edit over a profile-based policy in autopus
 | 항목 | 규칙 |
 |---|---|
 | 저장 YAML | `role_model_policy: {version: v1, agents: {<agent>: {candidates: [{selector, thinking, family}]}}}`. 기존 `config_mode`, `agent_source`는 둔다. `profile`·`family`는 쓰지 않는다. 새 key는 없다 |
-| load 검증 | autopus 모드는 프로필 없는 `agents`를 받는다. key는 정규 16, task, scout, security-reviewer, sonic 중 하나이고 candidates가 필요하다(`role_model_policy_validate_agents.go:32-34`). native 모드는 `agents_require_profile` 그대로 |
+| load 검증 | autopus 모드는 프로필 없는 `agents`를 받는다. key는 정규 16과 task뿐이고(scout·security-reviewer·sonic은 `[NEW] role_model_policy.agents_native_key_requires_profile`) candidates가 필요하다(`role_model_policy_validate_agents.go:32-34`). 남은 `agents.task`는 task 자신만 정한다(Route Contract ②는 프로필이 있을 때만). native 모드는 `agents_require_profile` 그대로 |
 | 활성화 | `[NEW] config.PinsOnlyRoleModelProfile(configMode)`(operator-attested, capability route 없음, `ManagedKeys` = `builtinRoleModelManagedKeys(mode)`) 위에 root pin을 얹고 지금 경로(catalog probe, bridge, compile, projection, overlay 또는 claim 집합, 활성화, 되읽기, rollback)를 탄다 |
 | override | pin된 에이전트와 Route Contract의 task 행만 key를 갖는다. 나머지는 key가 없어 세션 모델을 상속하고 frontmatter `thinkingLevel`(선언 effort)을 갖는다(REQ-MUX3-07) |
 | 증명 | pin의 family는 strict catalog의 보고나 built-in 선언 합집합(`[NEW] ompBuiltinDeclaredFamilies`: built-in 프로필 balanced·ultra × family anthropic·openai의 모든 candidate selector)으로 증명한다. 둘 다 아니면 plan blocker다(`platform_omp_profile_declarations.go`의 fail-closed) |
 | degrade | 모든 route가 operator pin이라 provider가 없으면 `required_route_unresolved`로 실패하고 아무것도 쓰지 않는다. degrade할 파생 route가 없어 override가 비는 일도 없다(빈 override는 기존 활성화가 거부한다, S21) |
 | receipt·doctor | profile 칸은 예약 표기 `[NEW] pins-only`(autopus.yaml에 쓰지 않는다). doctor는 `disabled/profile_not_selected`(`platform_omp_agent_catalog.go:24-36`) 대신 pin된 에이전트 행을 보인다 |
 | 옛 바이너리 | 프로필 없는 `agents`는 v0.50.125 이하가 `agents_require_profile`로 거부한다. 쓰기 전 미리보기에 한 줄 |
-| 변환(REQ-MUX3-23) | 프로필 기반 policy를 이 탭에서 고치면 바꾸지 않은 에이전트에 그 effective route의 candidate 전부를 pin으로 옮기고, 세션 모델로 고른 에이전트는 key를 두지 않으며, `agents.task`·`scout`·`security-reviewer`·`sonic`은 에이전트별 pin으로 펼친 뒤 지우고, `profile`·`family`를 지운다. ultra의 quality 연동과 family diversity 힌트는 고정되므로 변환 줄이 알린다 |
+| 변환(REQ-MUX3-23) | 프로필 기반 policy를 이 탭에서 고치면 바꾸지 않은 에이전트에 그 effective route의 candidate 전부를 pin으로 옮기고, 세션 모델로 고른 에이전트는 key를 두지 않으며, `scout`·`security-reviewer`·`sonic` key와 13개 역할에 접히던 `agents.task`는 에이전트별 pin으로 펼친다. `scout`·`security-reviewer`·`sonic` key는 지우고, `agents.task`는 변환 전 task route가 변환 뒤 planner route와 다르면 그 route로 남기고 같으면 지운다. `profile`·`family`를 지운다. ultra의 quality 연동과 family diversity 힌트는 고정되므로 변환 줄이 알린다 |
 | 다른 경로 | 줄 OMP 편집기, `auto platform omp profile apply`, native 모드 탭은 지금처럼 프로필을 쓰고, 그 결과(프로필 + pin)도 그대로 읽힌다 |
 
 ### Route Contract
 
 | 대상 | route |
 |---|---|
-| 정규 에이전트 A | ① `agents.A` pin ② N = `OMPNativeAgentForRole(A)`가 A와 다르고 `agents.N` pin이 있으면 그 pin(task → 13개 역할, scout → explorer, security-reviewer → security-auditor) ③ 프로필이 A에 만든 route. pins-only면 ③은 없다: route와 override key가 없고 세션 모델을 상속한다 |
+| 정규 에이전트 A | ① `agents.A` pin ② 프로필이 있을 때만: N = `OMPNativeAgentForRole(A)`가 A와 다르고 `agents.N` pin이 있으면 그 pin(task → 13개 역할, scout → explorer, security-reviewer → security-auditor) ③ 프로필이 A에 만든 route. pins-only면 ③은 없다: route와 override key가 없고 세션 모델을 상속한다 |
 | task | ① `agents.task` pin ② `agents.planner` pin ③ 프로필의 planner route(pins-only면 없음). 다른 접히는 역할의 pin은 task에 쓰지 않는다 |
 | scout, security-reviewer, sonic | route 없음. `agents.sonic` pin은 받을 에이전트가 없어 미리보기에 경고 1줄 |
 | load 검증 | autopus: `validateOMPAutopusAgentRoutes`(key는 정규 16, task, scout, security-reviewer, sonic 중 하나, route마다 해석 가능, pins-only면 route가 없는 에이전트를 허용). native: `validateOMPNativeAgentCollapse`와 `agents_require_profile` |
@@ -325,7 +328,7 @@ WHEN the operator applies an OMP tab edit over a profile-based policy in autopus
 | effort Select | `<그룹 또는 에이전트> effort` · `그대로 — <현재>` · 단계 라벨 `(자동)` | `<group or agent> effort` · `keep — <current>` · `(automatic)` |
 | Codex 안내 | `Codex catalog를 읽지 못해 effort는 자동입니다` | `Codex catalog unreadable; effort stays automatic` |
 | 바뀌는 설정 | `quality.presets.<p>-custom.efforts 새로 씀 (N개 에이전트)` / `고쳐 씀` / `지움`, `quality.presets.*.efforts는 v0.50.126보다 오래된 auto가 읽지 못합니다`, `quality.presets.<name>.efforts 옮겨 씀 (N개 에이전트)` | `… efforts written (N agents)` / `rewritten` / `removed`, `auto older than v0.50.126 cannot read quality.presets.*.efforts`, `quality.presets.<name>.efforts carried (N agents)` |
-| OMP model | `OMP 세션 모델 그대로` · 현재 `OMP 세션 모델` · `<provider>/<model> · <thinking>` | `keep the OMP session model` · `OMP session model` · `<provider>/<model> · <thinking>` |
+| OMP model | `OMP 세션 모델 그대로` · 현재 `OMP 세션 모델` · `<provider>/<model> · <thinking>` · `planner를 따름` | `keep the OMP session model` · `OMP session model` · `<provider>/<model> · <thinking>` · `follow planner` |
 | OMP metadata 안내 | `설치된 OMP catalog에 family·capability 정보가 없어 Autopus가 증명할 수 있는 model만 보입니다` | `The installed OMP catalog has no family or capability metadata; only models Autopus can attest are listed` |
 | OMP 변환 | `OMP 프로필 <name>을 에이전트별 지정으로 옮깁니다. 바꾸지 않은 에이전트의 route는 그대로입니다.` | `Moving OMP profile <name> to per-agent pins; unchanged agents keep their routes.` |
 | OMP 옛 바이너리 | `프로필 없는 role_model_policy.agents는 v0.50.126보다 오래된 auto가 읽지 못합니다` | `auto older than v0.50.126 cannot read role_model_policy.agents without a profile` |
