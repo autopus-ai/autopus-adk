@@ -181,6 +181,7 @@ Priority: Must · EARS: EventDriven
 
 WHEN the operator applies an OMP tab edit over a profile-based policy in autopus mode, THEN THE SYSTEM SHALL write a pins-only policy in which every agent the operator did not change keeps all candidates of its previous effective route, every agent set to the OMP session model has no pin, the legacy native keys scout, security-reviewer, and sonic are expanded into per-agent pins and removed, and `agents.task` keeps the task route as a pin only when that route differs from the planner route after the conversion, SHALL print the conversion line before the confirmation, and SHALL leave the file unchanged when the operator cancels.
 
+- degraded route: pin 없는 pre-plan은 built-in route가 runtime default로 떨어지는 경우(`explicit_degraded`)를 blocker로 낸다. 그래서 그런 프로필은 변환하지 않고 오류 줄 뒤 메뉴로 돌아가며, 변환은 route를 말없이 세션 모델로 바꾸지 않는다("바꾸지 않은 에이전트의 route는 그대로"가 늘 참이다).
 - task: 변환 전 task route(Route Contract task 행)와 변환 뒤 planner route가 다르면 `agents.task`를 그 route의 candidate 전부로 남기고, 같으면 지운다(task는 planner를 따른다). 그래서 변환은 task의 override 값도 바꾸지 않는다. 남은 `agents.task`는 task 자신만 정하고(pins-only에는 Route Contract ②가 없다) 에이전트별 목록에 `task`로 보인다.
 
 ## Contracts

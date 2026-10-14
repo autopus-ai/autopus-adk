@@ -194,3 +194,22 @@ func composeOMPCatalogWithoutProvider(t *testing.T, provider string) []byte {
 	require.NoError(t, err)
 	return encoded
 }
+
+// Review A1: the pin-less pre-plan reports a built-in route that falls back
+// to the runtime default as a blocker, so a conversion never drops a route
+// silently: the tab stops before the method select and writes nothing.
+func TestComposeOMPAutopus_DegradedProfileRoutesStopTheConversion(t *testing.T) {
+	composeSessionCatalog(t, "CAT-A")
+	dir := writeComposePinsFixture(t, config.RoleModelPolicyConf{Version: config.RoleModelPolicyVersionV1, Profile: "ultra", Family: "anthropic"})
+	before := composeOMPFileSum(t, dir)
+	deps, activations := composeOMPDeps(composeOMPCatalogWithoutProvider(t, "anthropic"))
+
+	out, err := runComposeOMPForms(t, dir, deps, "2\n", "4\n", "\n")
+
+	require.NoError(t, err, out)
+	assert.Contains(t, out, "omp_profile_candidate_unavailable")
+	assert.Contains(t, out, "reason=explicit_degraded")
+	assert.NotContains(t, out, composeFormTextKO.Method)
+	assert.Zero(t, activations.calls)
+	assert.Equal(t, before, composeOMPFileSum(t, dir))
+}
