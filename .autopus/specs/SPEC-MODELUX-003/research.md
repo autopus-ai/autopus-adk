@@ -129,8 +129,8 @@ Clarification Ledger unavailable. 입력은 planning context의 사용자 결정
 ## Completion Debt
 | Item | Blocks | Required resolution |
 |------|--------|---------------------|
-| CD-1 plain 세션 발견·reviewer 대체·disabled 숨김(live) | REQ-MUX3-07, 10의 런타임 증거 | S17 PASS 기록 |
-| CD-2 이름별 override dispatch와 `/review` verdict(live) | REQ-MUX3-08, 11의 런타임 증거 | S23 PASS 기록(모델 호출, 사용자 동의) |
+| ~~CD-1 plain 세션 발견·reviewer 대체·disabled 숨김(live)~~ | REQ-MUX3-07, 10의 런타임 증거 | 닫힘: 2026-10-15 S17 PASS, `evidence/manual-smoke-003.txt` |
+| CD-2 이름별 override dispatch와 `/review` verdict(live) | REQ-MUX3-08, 11의 런타임 증거 | S23 PASS 기록(모델 호출, 사용자 동의)  — v0.50.126 발행 시점에 열린 채로 남는다 |
 
 결정적 부분(golden, 설정 되읽기, 생성 파일)은 test가 닫는다. 위 두 행은 기록이 남기 전까지 debt이고 blocker나 생략도 PASS로 닫지 않는다.
 ## Evolution Ideas
@@ -156,7 +156,7 @@ These are optional improvements and do not block sync completion.
 - Self-verified: 27개 test 목록, 렌더·ledger·소비처 줄 번호, parser regex, transaction 백업 경로, P0·P3.
 - Reviewer should focus on: Claim Set 전환과 복원, task 규칙과 load 검증, degraded 판정, 렌더 mode 전파, efforts 보존, 그리고 Completion Debt only.
 ## Open Risks
-- R1: CD-1·CD-2(live 미확인). R3: RPC 되읽기 5회 → 17회(exec runner). R4: 기존 test 변경(27개 중 단언 4개 파일).
+- R1: CD-1·CD-2(live 미확인). R3: RPC 되읽기 5회 → 17회(exec runner); S17 smoke 뒤 고유 selector당 1회로 줄였다(30c33af4). R4: 기존 test 변경(27개 중 단언 4개 파일).
 - R5: user-level `disabledAgents`와 project 값의 병합 미확인. R6: OMP가 claude-plugins agent도 발견한다(S:524490). R7: 해결(A3). T5 구현이 ledger에 `owner`·`agent_surface_*` field를 `omitempty`로 더했고 커밋된 `TestOMPClaimSet_*`가 그 ledger로 전환·release·clean을 돈다. v0.50.125는 새 field가 든 ledger를 `DisallowUnknownFields`로 거부한다(fail-closed). 프로필 claim만 있는 ledger는 v0.50.125 bytes 그대로다. R8: `task.disabledAgents`만 바뀐 판정은 ADK의 삽입 위치와 encoding이 결정적이라는 가정이다(A3). R9: pins-only가 기존 plan·쓰기·활성화·되읽기·claim 경로를 그대로 탄다는 것은 구현 확인 전이다(T15). R10: task(이름 없는 dispatch)는 `agents.task`가 없으면 planner pin을 따른다(Route Contract). 변환은 다른 task route를 `agents.task`로 남긴다.
 ## Self-Verify Summary
 - Q-CORR-01 | status: PASS | attempt: 2 | files: research.md, spec.md, plan.md | reason: 백업 사실(F-019)과 Generate 인용(F-006)을 고쳤고 v0.50.125에서 줄 번호를 다시 확인했다

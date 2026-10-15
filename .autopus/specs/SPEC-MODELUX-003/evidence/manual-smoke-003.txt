@@ -1,0 +1,153 @@
+# SPEC-MODELUX-003 S17 manual TTY smoke (macOS, real TTY, omp 18.6.1). No model calls were made.
+# Date: 2026-10-15. Binary: feat/modelux-003 @ ad2bc362 + readback dedupe (30c33af4). Operator: maintainer.
+# Redacted: scratch root -> <scratch>, home -> $HOME, user -> <user>. OSC/CSI stripped; form redraw lines trimmed.
+#
+# Flow: auto init --platforms claude-code,codex,omp -> 역할별 직접 구성 -> 구성 편집 -> OMP -> 역할 그룹,
+#   providers mixed per group (설계·판단 anthropic/opus-5-5:high, 구현 openai-codex/gpt-6.1-sol:medium,
+#   검증·리뷰 anthropic/opus-5-5:xhigh, 탐색·보조 openai-codex/gpt-6.1-sol:low) -> 적용 -> 유지.
+#
+# Checks (PASS):
+#   - Preview printed "OMP pins-only — model preview (no changes yet)" with the older-auto warning line
+#     before the apply prompt; task followed the 설계·판단 pick (anthropic/claude-opus-5-5:high) (REQ-MUX3-22/23).
+#   - autopus.yaml role_model_policy: version v1 + 16 agent pins, no profile.
+#   - .omp/agents: 16 generated files, none has model: or thinkingLevel: (every agent routed);
+#     reviewer.md description is the content description.
+#   - .omp/config.yml task.disabledAgents: scout, security-reviewer, sonic, designer, librarian.
+#   - Overlay /agents (PI_CONFIG_FILES=<scratch>/.../omp-model-routing-v1.yml omp): All agents 20 = Project 16 +
+#     Bundled 4; scout/security-reviewer/sonic disabled (omp 18.6.1 bundles no designer/librarian); task enabled.
+#     Every project agent's model column equals its pin (operator screenshot), task = anthropic/claude-opus-5-5:high.
+#   - explorer is pinned in this run (the operator chose a 탐색·보조 model), so the "explorer = session model" clause
+#     of S17 applies only to unrouted agents and is covered by the automated S17 fixture, not this run.
+#
+# Finding during smoke (fixed in 30c33af4): the OMP step of the previous run (binary ad2bc362) printed nothing for
+#   about 2 minutes on a loaded host (load avg ~50). Cause: activation readback started one `omp --mode rpc` session
+#   per routed agent (17, 4 at a time) though the argv carries only the selector. Now one session per distinct
+#   selector: this composition starts 4 sessions; measured rpc phase ~10s -> ~2s.
+#
+# S23 (live dispatch + /review): not run. Recorded as Completion Debt CD-2.
+
+## overlay /agents (operator screenshot, transcribed)
+annotator            project  openai-codex/gpt-6.1-sol:low
+architect            project  anthropic/claude-opus-5-5:high
+debugger             project  openai-codex/gpt-6.1-sol:medium
+deep-worker          project  openai-codex/gpt-6.1-sol:medium
+devops               project  openai-codex/gpt-6.1-sol:medium
+executor             project  openai-codex/gpt-6.1-sol:medium
+explorer             project  openai-codex/gpt-6.1-sol:low
+frontend-specialist  project  openai-codex/gpt-6.1-sol:medium
+perf-engineer        project  openai-codex/gpt-6.1-sol:medium
+planner              project  anthropic/claude-opus-5-5:high
+reviewer             project  anthropic/claude-opus-5-5:xhigh
+security-auditor     project  anthropic/claude-opus-5-5:high
+spec-writer          project  anthropic/claude-opus-5-5:high
+tester               project  anthropic/claude-opus-5-5:xhigh
+ux-validator         project  anthropic/claude-opus-5-5:xhigh
+validator            project  anthropic/claude-opus-5-5:xhigh
+scout                bundled  (disabled)
+security-reviewer    bundled  (disabled)
+sonic                bundled  (disabled)
+task                 bundled  anthropic/claude-opus-5-5:high
+
+## transcript excerpt: preview and final composition
+auto older than v0.50.126 cannot read role_model_policy.agents without a profile
+OMP pins-only — model preview (no changes yet)
+Agent                 Model                      Thinking
+annotator*            openai-codex/gpt-6.1-sol   low
+architect*            anthropic/claude-opus-5-5  high
+debugger*             openai-codex/gpt-6.1-sol   medium
+deep-worker*          openai-codex/gpt-6.1-sol   medium
+devops*               openai-codex/gpt-6.1-sol   medium
+executor*             openai-codex/gpt-6.1-sol   medium
+explorer*             openai-codex/gpt-6.1-sol   low
+frontend-specialist*  openai-codex/gpt-6.1-sol   medium
+perf-engineer*        openai-codex/gpt-6.1-sol   medium
+planner*              anthropic/claude-opus-5-5  high
+reviewer*             anthropic/claude-opus-5-5  xhigh
+security-auditor*     anthropic/claude-opus-5-5  high
+spec-writer*          anthropic/claude-opus-5-5  high
+tester*               anthropic/claude-opus-5-5  xhigh
+ux-validator*         anthropic/claude-opus-5-5  xhigh
+validator*            anthropic/claude-opus-5-5  xhigh
+task*                 anthropic/claude-opus-5-5  high
+* Your explicit agent overrides are kept.
+Global quality and multi-provider review settings stay unchanged.
+┃ Apply?
+┃ > cancel
+┃   apply
+quality.default = balanced   ultra: current default   balanced: current default
+Group                Agent                Tier    Claude Code (override: claude-custom)  Codex (override: codex-custom)  OMP
+Design·Judgment      planner              fable   opus · high                            6-astra · max                   planner · opus-5-5:high
+Design·Judgment      architect            fable   opus · high                            6-astra · max                   architect · opus-5-5:high
+Design·Judgment      spec-writer          fable   opus · high                            6-astra · max                   spec-writer · opus-5-5:high
+Design·Judgment      security-auditor     fable   opus · high                            6-astra · max                   security-auditor · opus-5-5:high
+Implementation       executor             sonnet  opus · medium                          6.1-sol · medium                executor · 6.1-sol:medium
+Implementation       debugger             fable   opus · medium                          6.1-sol · medium                debugger · 6.1-sol:medium
+Implementation       deep-worker          fable   opus · medium                          6.1-sol · medium                deep-worker · 6.1-sol:medium
+Implementation       devops               sonnet  opus · medium                          6.1-sol · medium                devops · 6.1-sol:medium
+Implementation       frontend-specialist  sonnet  opus · medium                          6.1-sol · medium                frontend-specialist · 6.1-sol:medium
+Implementation       perf-engineer        sonnet  opus · medium                          6.1-sol · medium                perf-engineer · 6.1-sol:medium
+Verification·Review  reviewer             fable   opus · high                            6-astra · medium                reviewer · opus-5-5:xhigh
+Verification·Review  validator            sonnet  opus · high                            6-astra · medium                validator · opus-5-5:xhigh
+Verification·Review  tester               sonnet  opus · high                            6-astra · medium                tester · opus-5-5:xhigh
+Verification·Review  ux-validator         sonnet  opus · high                            6-astra · medium                ux-validator · opus-5-5:xhigh
+Exploration·Support  explorer             sonnet  sonnet · medium                        6.1-sol · low                   explorer · 6.1-sol:low
+Exploration·Support  annotator            sonnet  sonnet · medium                        6.1-sol · low                   annotator · 6.1-sol:low
+Codex catalog: read · 0 substituted
+┃ Change the composition?
+  ✓ created DESIGN.md
+  → [3/5] Platform Files
+  ✓ claude-code
+  [codex] extended skills: 52 compatible, 2 platform-skipped (agent-teams, harness-workflow)
+  ✓ codex
+  ✓ omp
+    • constraints: <scratch>/s17b-proj.2zKf/.autopus/context/constraints.yaml
+  → [4/5] Gitignore
+  → [5/5] Summary
+╭────────────────────────────────────────╮
+│ Summary                                │
+│   Profile         fullstack            │
+│   Quality         balanced             │
+│   Review Gate     true (3 providers)   │
+│   Methodology     tdd                  │
+│   Platforms       claude-code, codex,  │
+│ omp                                    │
+│   Design Context  DESIGN.md            │
+│   Language        comments=en,         │
+│ commits=en, ai=ko                      │
+╰────────────────────────────────────────╯
+  ℹ Claude statusLine: Autopus statusLine enabled
+  ℹ Next: open Autopus Desktop Connect or run 'autopus-desktop-runtime connect' to connect with Autopus server
+  ✓ Autopus harness initialized (full mode)
+
+## overlay file
+task:
+  agentModelOverrides:
+    annotator: openai-codex/gpt-6.1-sol:low
+    architect: anthropic/claude-opus-5-5:high
+    debugger: openai-codex/gpt-6.1-sol:medium
+    deep-worker: openai-codex/gpt-6.1-sol:medium
+    devops: openai-codex/gpt-6.1-sol:medium
+    executor: openai-codex/gpt-6.1-sol:medium
+    explorer: openai-codex/gpt-6.1-sol:low
+    frontend-specialist: openai-codex/gpt-6.1-sol:medium
+    perf-engineer: openai-codex/gpt-6.1-sol:medium
+    planner: anthropic/claude-opus-5-5:high
+    reviewer: anthropic/claude-opus-5-5:xhigh
+    security-auditor: anthropic/claude-opus-5-5:high
+    spec-writer: anthropic/claude-opus-5-5:high
+    task: anthropic/claude-opus-5-5:high
+    tester: anthropic/claude-opus-5-5:xhigh
+    ux-validator: anthropic/claude-opus-5-5:xhigh
+    validator: anthropic/claude-opus-5-5:xhigh
+retry:
+  fallbackChains: {}
+  modelFallback: false
+
+## .omp/config.yml
+task:
+  disabledAgents:
+    - scout
+    - security-reviewer
+    - sonic
+    - designer
+    - librarian
