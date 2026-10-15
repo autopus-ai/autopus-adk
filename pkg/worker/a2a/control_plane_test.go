@@ -22,7 +22,9 @@ func TestDefaultCapabilities(t *testing.T) {
 		CapabilityIterationBudgetV1,
 		CapabilitySignedPolicyV1,
 		CapabilitySignedControlPlaneV1,
+		CapabilityRedlineInstructionsV1,
 	}, DefaultCapabilities())
+	assert.Contains(t, DefaultCapabilities(), "redline_instructions.v1")
 }
 
 func TestSignAndVerifySecurityPolicySignature(t *testing.T) {

@@ -16,6 +16,10 @@ const (
 	CapabilityIterationBudgetV1         = "iteration_budget_v1"
 	CapabilitySignedPolicyV1            = "signed_policy_v1"
 	CapabilitySignedControlPlaneV1      = "signed_control_plane_v1"
+	// CapabilityRedlineInstructionsV1 tells the backend this worker appends a
+	// task's redline_instructions to the prompt it runs, so a reviewer's redline
+	// attempt can be routed here. The dotted id matches the desktop worker card.
+	CapabilityRedlineInstructionsV1 = "redline_instructions.v1"
 )
 
 var defaultCapabilities = []string{
@@ -26,6 +30,7 @@ var defaultCapabilities = []string{
 	CapabilityIterationBudgetV1,
 	CapabilitySignedPolicyV1,
 	CapabilitySignedControlPlaneV1,
+	CapabilityRedlineInstructionsV1,
 }
 
 // DefaultCapabilities returns the worker control-plane capabilities advertised at registration.
