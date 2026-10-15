@@ -99,7 +99,15 @@ func TestOMPModelActivation_S9_AutopusReadsEveryAgentBackOverRPC(t *testing.T) {
 	want := config.OMPAutopusAgentNames()
 	sort.Strings(want)
 	assert.Equal(t, want, agents, "the 16 canonical agents and task, no bundled scout, security-reviewer, or sonic")
-	assert.ElementsMatch(t, selectors, runner.sessions, "one RPC session per routed agent, on its override")
+	distinct := make([]string, 0, len(selectors))
+	seen := make(map[string]bool, len(selectors))
+	for _, selector := range selectors {
+		if !seen[selector] {
+			seen[selector] = true
+			distinct = append(distinct, selector)
+		}
+	}
+	assert.ElementsMatch(t, distinct, runner.sessions, "one RPC session per distinct override selector")
 	reads := 0
 	for _, key := range runner.configGets() {
 		if key == config.OMPNativeAgentModelOverridesKey {

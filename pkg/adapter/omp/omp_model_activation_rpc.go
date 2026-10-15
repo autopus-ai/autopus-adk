@@ -51,7 +51,10 @@ func safeOMPModelRPCSelector(value string) bool {
 // selector in a live OMP session. It proves the selector OMP will apply for
 // that agent is reachable and lands on the exact provider, model, and thinking
 // level Autopus wrote; it does not claim the spawn-time override binding was
-// exercised, which no CLI surface can observe.
+// exercised, which no CLI surface can observe. The session argv carries only
+// the selector, never the agent, so agents sharing a selector share one
+// session: a 16-agent routing with four distinct selectors starts four OMP
+// processes instead of sixteen.
 func readOMPModelAgentSelectorsViaRPC(
 	ctx context.Context,
 	runner ompModelSelectorRPCStateRunner,
@@ -63,6 +66,16 @@ func readOMPModelAgentSelectorsViaRPC(
 		agents = append(agents, agent)
 	}
 	sort.Strings(agents)
+	// The first agent in sorted order names its selector's session in errors.
+	sharers := make(map[string][]string, len(agents))
+	representatives := make([]string, 0, len(agents))
+	for _, agent := range agents {
+		want := expected[agent]
+		if len(sharers[want]) == 0 {
+			representatives = append(representatives, agent)
+		}
+		sharers[want] = append(sharers[want], agent)
+	}
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -73,7 +86,7 @@ func readOMPModelAgentSelectorsViaRPC(
 		resolved = make(map[string]string, len(agents))
 		slots    = make(chan struct{}, ompModelSelectorRPCWorkers)
 	)
-	for _, agent := range agents {
+	for _, agent := range representatives {
 		if ctx.Err() != nil {
 			break
 		}
@@ -92,7 +105,9 @@ func readOMPModelAgentSelectorsViaRPC(
 				}
 				return
 			}
-			resolved[agent] = selector
+			for _, sharer := range sharers[expected[agent]] {
+				resolved[sharer] = selector
+			}
 		}(agent)
 	}
 	wg.Wait()

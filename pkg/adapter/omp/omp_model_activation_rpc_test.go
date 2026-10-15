@@ -204,3 +204,25 @@ func TestReadOMPModelAgentSelectorsViaRPC_FailsWholeReadbackOnOneMismatch(t *tes
 	require.Nil(t, resolved)
 	require.ErrorContains(t, err, "activation agent readback mismatch: sonic")
 }
+
+// Agents that share a selector share one OMP session: the argv names only the
+// selector, so a second session for the same selector proves nothing new.
+func TestReadOMPModelAgentSelectorsViaRPC_StartsOneSessionPerDistinctSelector(t *testing.T) {
+	t.Parallel()
+	selectors := make(map[string]string)
+	for index, agent := range config.OMPNativeAgentNames() {
+		selectors[agent] = []string{
+			"openai-codex/gpt-6.1-sol:high", "anthropic/claude-opus-5-5:xhigh",
+		}[index%2]
+	}
+	selectors["task"] = "openai-codex/gpt-6.1-sol:high"
+	runner := &modelSelectorRPCFakeRunner{selectors: selectors}
+
+	resolved, err := readOMPModelAgentSelectorsViaRPC(
+		context.Background(), runner, "/tmp/config.yml", selectors,
+	)
+
+	require.NoError(t, err)
+	require.Equal(t, selectors, resolved)
+	require.Equal(t, int64(2), runner.rpcCalls.Load())
+}
