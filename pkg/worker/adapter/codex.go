@@ -29,8 +29,7 @@ func (a *CodexAdapter) BuildCommand(ctx context.Context, task TaskConfig) *exec.
 		args = append(args, "--sandbox", safeCodexSandbox(task.Codex.Sandbox))
 		args = appendCodexEvidenceFlags(args, task.Codex)
 	} else {
-		// Legacy workers already run in an externally isolated worktree.
-		args = append(args, "--dangerously-bypass-approvals-and-sandbox")
+		args = append(args, codexWorkerSandboxArgs(task.WorkDir)...)
 	}
 	if task.Prompt != "" {
 		// Read the sensitive task prompt from stdin instead of exposing it
