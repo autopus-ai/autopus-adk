@@ -8,26 +8,26 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func TestReleaseWorkflow_ExactA35ProtectedNormalLane(t *testing.T) {
+func TestReleaseWorkflow_ExactA36ProtectedNormalLane(t *testing.T) {
 	release := readReleaseFile(t, ".github/workflows/release.yaml")
 	for _, required := range []string{
-		"- 'v0.50.125'", "if: github.ref == 'refs/tags/v0.50.125'",
+		"- 'v0.50.126'", "if: github.ref == 'refs/tags/v0.50.126'",
 		"needs: [ci, security, omp-production-evidence]", "adk-companion-release",
-		"Validate exact R2-signed A35 source", "COMPANION_RELEASE_TAG_SIGNATURE_REQUIRED=1",
+		"Validate exact R2-signed A36 source", "COMPANION_RELEASE_TAG_SIGNATURE_REQUIRED=1",
 		"Verify exact sealed release-tag authority",
 		"scripts/companion-release/verify-release-tag-ruleset.sh --sealed-runtime",
 		"Build canonical policy-bearing production candidate", "OMP_CONTEXT_STATIC_POLICY_B64",
 		"Verify fresh K3-signed production evidence",
 		"Reverify active K3 production evidence inside protected environment",
-		"name: omp-context-evidence-v0.50.125", "--mode active",
-		"autopus.adk_release_reservation.v1", "release_tag:\"v0.50.125\"",
+		"name: omp-context-evidence-v0.50.126", "--mode active",
+		"autopus.adk_release_reservation.v1", "release_tag:\"v0.50.126\"",
 		`(.assets | type == "array" and length == 0)`, ".author.id == 204883817",
 		"Verify reserved release was published", ".immutable == true",
 		"COMPANION_RELEASE_ID: ${{ steps.release-reservation.outputs.release-id }}",
 		"OMP_CONTEXT_LINEAGE_VERIFIER=\"$OMP_CONTEXT_LINEAGE_VERIFIER\"",
 	} {
 		if !strings.Contains(release, required) {
-			t.Fatalf("A35 release workflow missing %q", required)
+			t.Fatalf("A36 release workflow missing %q", required)
 		}
 	}
 	protectedSource := strings.Index(release, "name: Validate exact protected release source")
@@ -44,15 +44,15 @@ func TestReleaseWorkflow_ExactA35ProtectedNormalLane(t *testing.T) {
 		t.Fatalf("active evidence gate count = %d, want pre-protected and protected gates",
 			strings.Count(release, "--mode active"))
 	}
-	// v0.50.123 is the A34 predecessor and v0.50.124 is the burned A35 attempt;
-	// neither may survive in the workflow that ships A35.
+	// v0.50.125 is the A35 predecessor and v0.50.124 is the burned A35 attempt;
+	// neither may survive in the workflow that ships A36.
 	for _, forbidden := range []string{
-		"v0.50.123", "v0.50.124", "omp-canonical-bridge-candidate", "omp-context-bridge-release.v1.json",
+		"v0.50.125", "v0.50.124", "omp-canonical-bridge-candidate", "omp-context-bridge-release.v1.json",
 		"adk-key-rotation-v1.json", "adk-key-rotation-v1.sig", "--expected-signing-key-id",
 		"releases/assets/${asset_id}", "--armed", "- 'v*'", "- v*",
 	} {
 		if strings.Contains(release, forbidden) {
-			t.Fatalf("A35 normal release workflow retains forbidden contract %q", forbidden)
+			t.Fatalf("A36 normal release workflow retains forbidden contract %q", forbidden)
 		}
 	}
 }
@@ -60,14 +60,14 @@ func TestReleaseWorkflow_ExactA35ProtectedNormalLane(t *testing.T) {
 func TestReleaseWorkflow_ExactFifteenAssetSet(t *testing.T) {
 	release := readReleaseFile(t, ".github/workflows/release.yaml")
 	assets := []string{
-		"autopus-adk_0.50.125_darwin_amd64.tar.gz",
-		"autopus-adk_0.50.125_darwin_arm64.tar.gz",
-		"autopus-adk_0.50.125_linux_amd64.tar.gz",
-		"autopus-adk_0.50.125_linux_arm64.tar.gz",
-		"autopus-adk_0.50.125_windows_amd64.tar.gz",
-		"autopus-adk_0.50.125_windows_amd64.zip",
-		"autopus-adk_0.50.125_windows_arm64.tar.gz",
-		"autopus-adk_0.50.125_windows_arm64.zip",
+		"autopus-adk_0.50.126_darwin_amd64.tar.gz",
+		"autopus-adk_0.50.126_darwin_arm64.tar.gz",
+		"autopus-adk_0.50.126_linux_amd64.tar.gz",
+		"autopus-adk_0.50.126_linux_arm64.tar.gz",
+		"autopus-adk_0.50.126_windows_amd64.tar.gz",
+		"autopus-adk_0.50.126_windows_amd64.zip",
+		"autopus-adk_0.50.126_windows_arm64.tar.gz",
+		"autopus-adk_0.50.126_windows_arm64.zip",
 		"checksums.txt", "checksums.txt.bundle", "checksums.txt.signatures",
 		"omp-context-promotion-report.v1.json",
 		"omp-context-promotion-attestation.v2.json",

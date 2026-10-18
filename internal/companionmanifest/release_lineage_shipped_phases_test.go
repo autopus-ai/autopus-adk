@@ -250,4 +250,22 @@ var shippedReleasePhases = []releasePhase{
 		pinsReleaseID: true, callerTreeSHA: true, callerReleaseID: true,
 		bridgePredecessor: true,
 	},
+	{
+		// A36 follows A35 under the same autopus-ai owner on the retained
+		// omp/17.2.7 pin; the predecessor pins are measured from immutable
+		// release 410986343.
+		phase: "A36", tag: "v0.50.126", version: "0.50.126",
+		acceptedField: "source-tree",
+		rejects:       "unsignedTag",
+		ancestorSHA:   "dd6d6ea2435d759144ec093b9b464a831f47703d",
+		extraSourceGates: []string{
+			"COMPANION_RELEASE_TAG_SIGNATURE_REQUIRED",
+			"release-tag-signing-2026-q3-r2.pub",
+			"SHA256:7FISPXCi8p7cFEdh4Fcyyp8RPQbXYZwmo3Mxi5+YjrQ",
+			`verify-tag "refs/tags/$GITHUB_REF_NAME"`,
+		},
+		pinsRepository: true, pinsEvidenceSource: true, pinsTagObject: true,
+		pinsReleaseID: true, callerTreeSHA: true, callerReleaseID: true,
+		bridgePredecessor: true,
+	},
 }

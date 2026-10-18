@@ -206,3 +206,19 @@ readonly A22_LINEAGE_SHA256='66f747b6b89f9f483f4d004343b23b30c57e53ca474cc77457c
 readonly A22_LINEAGE_SIGNATURE_SHA256='5273e6b461f3ff21dc44c9bd650c23d84b00cf20f8186b6036812d4be4721ad6'
 readonly A22_UPSTREAM_SHA256='58eb962ccf618fceeb1e48a2d66d6425d47f96dd0ecfff655456846d026e3c4c'
 readonly A22_EXECUTABLE_SHA256='4fd99057e9af024481ee369c849870a3ccecbe19a0546917013b88044d69c864'
+# A23 published a full asset set, so A24 pins every archive rather than the
+# arm64-only subset A22's bridge could offer. Read from release 379595447.
+readonly A23_RELEASE_ID='379595447'
+readonly A23_COMMIT_SHA='954f60a77acb59fd4106537020693fdcadb3d640'
+readonly A23_TREE_SHA='fcd3f2aed498955235ae7807ba031d32a053db09'
+readonly A23_TAG_OBJECT_SHA='b751c5beba4374534b1a73615ff0d6d57bdb4131'
+readonly A23_CHECKSUMS_SHA256='9d315535abe8b67779c7f5fe598aece7b8b60d48b9aa5c8c55b01e02e03a86f2'
+readonly A23_AMD64_ARCHIVE_SHA256='366d3329081649f322ca29a1e33406c7bcf9f08bd490ec740306b5c8bcc12982'
+readonly A23_ARM64_ARCHIVE_SHA256='a0a06284a86dfaf2175b9c8114dc6f5c72bdf4553637605455b44f85cf59973b'
+readonly A23_LINUX_AMD64_ARCHIVE_SHA256='62e979308e09b28fa9976fd65172ed8483ed30b6bd0adcb68071c6fd61853207'
+readonly A23_LINUX_ARM64_ARCHIVE_SHA256='006cc1b8bcd9f4bbbbdaf051a1cef62fb1578747c170a9019934b43d33c495cf'
+# Measured from the two immutable darwin archives of release 379595447: the
+# companion manifest travels inside each bundle, so A24 can pin it exactly
+# rather than leaving the pin empty and skipping the binding check.
+readonly A23_AMD64_MANIFEST_SHA256='7c60a437970e7e7c157386c883ea47cadffbc559af12311726473879b34a4325'
+readonly A23_ARM64_MANIFEST_SHA256='b2a6c5c98a9691ee482748ec7946b0dcd0d10cb7d5c0e11eb83720ca40bd7c3d'

@@ -14,7 +14,7 @@ trap 'rm -rf -- "$temp"' EXIT
 fail() { printf 'OMP context evidence hardening: %s\n' "$1" >&2; exit 1; }
 
 for required in \
-  'omp-context-evidence-v0.50.125' \
+  'omp-context-evidence-v0.50.126' \
   'OMP_CONTEXT_STATIC_POLICY_B64' \
   'omp-context-promotion-report.v1.json' \
   'omp-context-promotion-attestation.v2.json' \
@@ -50,8 +50,8 @@ git -C "$repo" config user.name 'OMP Evidence Fixture'
 git -C "$repo" config user.email 'omp-evidence@example.invalid'
 report="$temp/omp-context-promotion-report.v1.json"
 attestation="$temp/omp-context-promotion-attestation.v2.json"
-printf '{"fixture":"fresh-v0.50.125-report"}' >"$report"
-printf '{"fixture":"fresh-v0.50.125-attestation"}' >"$attestation"
+printf '{"fixture":"fresh-v0.50.126-report"}' >"$report"
+printf '{"fixture":"fresh-v0.50.126-attestation"}' >"$attestation"
 report_blob=$(git -C "$repo" hash-object -w "$report")
 attestation_blob=$(git -C "$repo" hash-object -w "$attestation")
 tree=$(printf '100644 blob %s\t%s\n100644 blob %s\t%s\n' \
@@ -61,8 +61,8 @@ commit=$(printf 'fresh A23 orphan evidence\n' | \
   GIT_AUTHOR_DATE='2026-08-31T00:00:00Z' GIT_COMMITTER_DATE='2026-08-31T00:00:00Z' \
   git -C "$repo" commit-tree "$tree")
 GIT_COMMITTER_DATE='2026-08-31T00:00:01Z' \
-  git -C "$repo" tag -am 'fresh A24 evidence' omp-context-evidence-v0.50.125 "$commit"
-tag_object=$(git -C "$repo" rev-parse refs/tags/omp-context-evidence-v0.50.125)
+  git -C "$repo" tag -am 'fresh A24 evidence' omp-context-evidence-v0.50.126 "$commit"
+tag_object=$(git -C "$repo" rev-parse refs/tags/omp-context-evidence-v0.50.126)
 report_sha=$(shasum -a 256 "$report" | awk '{print $1}')
 attestation_sha=$(shasum -a 256 "$attestation" | awk '{print $1}')
 
@@ -87,18 +87,18 @@ fi
 
 GIT_COMMITTER_DATE='2026-08-31T00:00:02Z' \
   git -C "$repo" tag -am 'stale A22 evidence' omp-context-evidence-v0.50.108 "$commit"
-git -C "$repo" update-ref -d refs/tags/omp-context-evidence-v0.50.125
+git -C "$repo" update-ref -d refs/tags/omp-context-evidence-v0.50.126
 if (cd "$repo" && run_helper "$temp/stale-ref"); then
   fail 'stale v0.50.108 evidence ref passed as A23'
 fi
-git -C "$repo" update-ref refs/tags/omp-context-evidence-v0.50.125 "$tag_object"
+git -C "$repo" update-ref refs/tags/omp-context-evidence-v0.50.126 "$tag_object"
 
-git -C "$repo" update-ref refs/tags/omp-context-evidence-v0.50.125 "$commit"
+git -C "$repo" update-ref refs/tags/omp-context-evidence-v0.50.126 "$commit"
 if (cd "$repo" && run_helper "$temp/lightweight" \
   OMP_CONTEXT_EVIDENCE_TAG_OBJECT_SHA="$commit"); then
   fail 'lightweight evidence tag passed'
 fi
-git -C "$repo" update-ref refs/tags/omp-context-evidence-v0.50.125 "$tag_object"
+git -C "$repo" update-ref refs/tags/omp-context-evidence-v0.50.126 "$tag_object"
 
 extra_blob=$(printf 'drift' | git -C "$repo" hash-object -w --stdin)
 extra_tree=$(printf '100644 blob %s\t%s\n100644 blob %s\t%s\n100644 blob %s\t%s\n' \
@@ -106,8 +106,8 @@ extra_tree=$(printf '100644 blob %s\t%s\n100644 blob %s\t%s\n100644 blob %s\t%s\
   "$report_blob" 'omp-context-promotion-report.v1.json' "$extra_blob" 'stale-policy.json' |
   git -C "$repo" mktree)
 extra_commit=$(printf 'drifted orphan evidence\n' | git -C "$repo" commit-tree "$extra_tree")
-git -C "$repo" tag -fam 'drifted evidence' omp-context-evidence-v0.50.125 "$extra_commit"
-extra_tag=$(git -C "$repo" rev-parse refs/tags/omp-context-evidence-v0.50.125)
+git -C "$repo" tag -fam 'drifted evidence' omp-context-evidence-v0.50.126 "$extra_commit"
+extra_tag=$(git -C "$repo" rev-parse refs/tags/omp-context-evidence-v0.50.126)
 if (cd "$repo" && run_helper "$temp/tree-drift" \
   OMP_CONTEXT_EVIDENCE_TAG_OBJECT_SHA="$extra_tag" \
   OMP_CONTEXT_EVIDENCE_COMMIT_SHA="$extra_commit" \
@@ -117,8 +117,8 @@ fi
 
 parent=$(printf 'parent\n' | git -C "$repo" commit-tree "$tree")
 child=$(printf 'child\n' | git -C "$repo" commit-tree "$tree" -p "$parent")
-git -C "$repo" tag -fam 'parented evidence' omp-context-evidence-v0.50.125 "$child"
-parented_tag=$(git -C "$repo" rev-parse refs/tags/omp-context-evidence-v0.50.125)
+git -C "$repo" tag -fam 'parented evidence' omp-context-evidence-v0.50.126 "$child"
+parented_tag=$(git -C "$repo" rev-parse refs/tags/omp-context-evidence-v0.50.126)
 if (cd "$repo" && run_helper "$temp/parented" \
   OMP_CONTEXT_EVIDENCE_TAG_OBJECT_SHA="$parented_tag" \
   OMP_CONTEXT_EVIDENCE_COMMIT_SHA="$child"); then
@@ -128,10 +128,10 @@ fi
 artifact="$temp/auto"
 printf 'canonical A23 candidate bytes' >"$artifact"
 artifact_sha=$(shasum -a 256 "$artifact" | awk '{print $1}')
-env COMPANION_RELEASE_TAG='v0.50.125' COMPANION_ARTIFACT="$artifact" \
+env COMPANION_RELEASE_TAG='v0.50.126' COMPANION_ARTIFACT="$artifact" \
   COMPANION_PLATFORM='darwin' COMPANION_ARCHITECTURE='arm64' OMP_CONTEXT_STATIC_POLICY_B64='e30' \
   OMP_CONTEXT_CANDIDATE_ARTIFACT_SHA256="$artifact_sha" bash "$binary_helper"
-if env COMPANION_RELEASE_TAG='v0.50.125' COMPANION_ARTIFACT="$artifact" \
+if env COMPANION_RELEASE_TAG='v0.50.126' COMPANION_ARTIFACT="$artifact" \
   COMPANION_PLATFORM='darwin' COMPANION_ARCHITECTURE='arm64' OMP_CONTEXT_STATIC_POLICY_B64='e30' \
   OMP_CONTEXT_CANDIDATE_ARTIFACT_SHA256="$(printf '0%.0s' {1..64})" \
   bash "$binary_helper"; then

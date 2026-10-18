@@ -26,22 +26,9 @@ readonly A20_REPOSITORY='Insajin/autopus-adk' A21_TAG='v0.50.92' A21_VERSION='0.
 readonly A21_REPOSITORY='Insajin/autopus-adk' A22_TAG='v0.50.109' A22_VERSION='0.50.109'
 readonly A22_REPOSITORY='Insajin/autopus-adk' A23_TAG='v0.50.111' A23_VERSION='0.50.111'
 readonly A23_REPOSITORY='Insajin/autopus-adk' A24_TAG='v0.50.113' A24_VERSION='0.50.113'
-# A23 published a full asset set, so A24 pins every archive rather than the
-# arm64-only subset A22's bridge could offer. Read from release 379595447.
-readonly A23_RELEASE_ID='379595447'
-readonly A23_COMMIT_SHA='954f60a77acb59fd4106537020693fdcadb3d640'
-readonly A23_TREE_SHA='fcd3f2aed498955235ae7807ba031d32a053db09'
-readonly A23_TAG_OBJECT_SHA='b751c5beba4374534b1a73615ff0d6d57bdb4131'
-readonly A23_CHECKSUMS_SHA256='9d315535abe8b67779c7f5fe598aece7b8b60d48b9aa5c8c55b01e02e03a86f2'
-readonly A23_AMD64_ARCHIVE_SHA256='366d3329081649f322ca29a1e33406c7bcf9f08bd490ec740306b5c8bcc12982'
-readonly A23_ARM64_ARCHIVE_SHA256='a0a06284a86dfaf2175b9c8114dc6f5c72bdf4553637605455b44f85cf59973b'
-readonly A23_LINUX_AMD64_ARCHIVE_SHA256='62e979308e09b28fa9976fd65172ed8483ed30b6bd0adcb68071c6fd61853207'
-readonly A23_LINUX_ARM64_ARCHIVE_SHA256='006cc1b8bcd9f4bbbbdaf051a1cef62fb1578747c170a9019934b43d33c495cf'
-# Measured from the two immutable darwin archives of release 379595447: the
-# companion manifest travels inside each bundle, so A24 can pin it exactly
-# rather than leaving the pin empty and skipping the binding check.
-readonly A23_AMD64_MANIFEST_SHA256='7c60a437970e7e7c157386c883ea47cadffbc559af12311726473879b34a4325'
-readonly A23_ARM64_MANIFEST_SHA256='b2a6c5c98a9691ee482748ec7946b0dcd0d10cb7d5c0e11eb83720ca40bd7c3d'
+# A23's predecessor pins follow A22's in verify-public-key-lineage-pins.sh,
+# which the lineage verifier sources first. They moved there unchanged when this
+# file reached the 300-line source limit.
 readonly A24_REPOSITORY='Insajin/autopus-adk' A25_TAG='v0.50.114' A25_VERSION='0.50.114'
 # A24 published the same fifteen-asset set as A23, all measured from the
 # immutable release 381657693. The two manifest digests come from inside the
@@ -209,6 +196,21 @@ readonly A34_LINUX_AMD64_ARCHIVE_SHA256='864ee59cfbb076941a5c4bc0839b12fb0c7c2cc
 readonly A34_LINUX_ARM64_ARCHIVE_SHA256='c62d0e10714600d9ce4e9bbdfee668c1e1f828c98489213b1ba8c7f4aed75249'
 readonly A34_AMD64_MANIFEST_SHA256='b45f736729725e62a54cec87dce7841723d7a7aec6269345f2ff05849cd8190d'
 readonly A34_ARM64_MANIFEST_SHA256='b7973fe43ae90398dd14bbc8370822d21be2dbb15df2be31ab760b0abdfa8757'
+readonly A35_REPOSITORY='autopus-ai/autopus-adk' A36_TAG='v0.50.126' A36_VERSION='0.50.126'
+# A35 shipped the same fifteen-asset set as A34 under the same owner, all
+# measured from the immutable release 410986343. The two manifest digests come
+# from inside the darwin archives, where the companion manifest travels.
+readonly A35_RELEASE_ID='410986343'
+readonly A35_COMMIT_SHA='dd6d6ea2435d759144ec093b9b464a831f47703d'
+readonly A35_TREE_SHA='8d6aa0c4cf84f2c806205d3210505d100b863233'
+readonly A35_TAG_OBJECT_SHA='0616d14060c9bbd53d5196faeaa0bc8e108edb2b'
+readonly A35_CHECKSUMS_SHA256='5f2bf32db0d96266a7fc84b9bc652163fe16184ce2a8aaeefbedb637d22e0a48'
+readonly A35_AMD64_ARCHIVE_SHA256='52538f80e3f88c3c530e279ab72ed780c33da7045b3b175337ed6a28f4672513'
+readonly A35_ARM64_ARCHIVE_SHA256='5253996a619c350348870fb240301833e69803b2a2ea5e430c0663ab2aa84747'
+readonly A35_LINUX_AMD64_ARCHIVE_SHA256='0dc07d1e74889dc2b3fd511cd4d3c4a470e34b7d26a30b7f55cdbb08df86ae44'
+readonly A35_LINUX_ARM64_ARCHIVE_SHA256='67c6c9f379b782bb0cea7a39c7a42a6372995e88c8dfbd295e8cfbeb32ee8363'
+readonly A35_AMD64_MANIFEST_SHA256='5a4e5cdc55b479eb1fd1942c5885ba2f4599ed9fe9151aebb1c44b95640e1b98'
+readonly A35_ARM64_MANIFEST_SHA256='79acf762c930a7ad7a1f19f2bf79b2e1dacc31daa8255515f6cd20c2761f0836'
 readonly A0_EVIDENCE_SOURCE='immutable A0 GitHub release'
 
 require_environment GITHUB_REF_NAME
@@ -353,6 +355,11 @@ elif [[ "$GITHUB_REF_NAME" == "$A35_TAG" && "$COMPANION_VERSION" == "$A35_VERSIO
   # A34 shipped the same shape as A33: four archives, checksums, and the
   # companion manifest inside each darwin bundle.
   prior_tag_object="$A34_TAG_OBJECT_SHA" prior_checksums="$A34_CHECKSUMS_SHA256" prior_amd64_archive="$A34_AMD64_ARCHIVE_SHA256" prior_arm64_archive="$A34_ARM64_ARCHIVE_SHA256" prior_linux_amd64_archive="$A34_LINUX_AMD64_ARCHIVE_SHA256" prior_linux_arm64_archive="$A34_LINUX_ARM64_ARCHIVE_SHA256" prior_amd64_manifest="$A34_AMD64_MANIFEST_SHA256" prior_arm64_manifest="$A34_ARM64_MANIFEST_SHA256"
+elif [[ "$GITHUB_REF_NAME" == "$A36_TAG" && "$COMPANION_VERSION" == "$A36_VERSION" ]]; then
+  release_phase='A36' prior_phase='A35' prior_repository="$A35_REPOSITORY" prior_evidence_source='immutable A35 GitHub release' prior_tag="$A35_TAG" prior_version="$A35_VERSION" prior_commit="$A35_COMMIT_SHA" prior_release_id="$A35_RELEASE_ID" prior_tree="$A35_TREE_SHA"
+  # A35 shipped the same shape as A34: four archives, checksums, and the
+  # companion manifest inside each darwin bundle.
+  prior_tag_object="$A35_TAG_OBJECT_SHA" prior_checksums="$A35_CHECKSUMS_SHA256" prior_amd64_archive="$A35_AMD64_ARCHIVE_SHA256" prior_arm64_archive="$A35_ARM64_ARCHIVE_SHA256" prior_linux_amd64_archive="$A35_LINUX_AMD64_ARCHIVE_SHA256" prior_linux_arm64_archive="$A35_LINUX_ARM64_ARCHIVE_SHA256" prior_amd64_manifest="$A35_AMD64_MANIFEST_SHA256" prior_arm64_manifest="$A35_ARM64_MANIFEST_SHA256"
 else
-  fail prior_release_identity_mismatch 'release is outside the frozen A0/A1/A2/A3/A4/A5/A6/A7/A8/A9/A10/A11/A12/A13/A14/A15/A16/A17/A18/A19/A20/A21/A22/A23/A24/A25/A26/A27/A28/A29/A30/A31/A32/A33/A34/A35 policy'
+  fail prior_release_identity_mismatch 'release is outside the frozen A0/A1/A2/A3/A4/A5/A6/A7/A8/A9/A10/A11/A12/A13/A14/A15/A16/A17/A18/A19/A20/A21/A22/A23/A24/A25/A26/A27/A28/A29/A30/A31/A32/A33/A34/A35/A36 policy'
 fi
