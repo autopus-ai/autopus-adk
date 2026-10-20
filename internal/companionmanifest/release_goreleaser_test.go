@@ -72,6 +72,9 @@ func runGoReleaserFixture(
 		}
 	}
 	runFixtureCommand(t, root, "git", "init", "-q")
+	disableReleaseTestGitMaintenance(t, func(arguments ...string) {
+		runFixtureCommand(t, root, "git", arguments...)
+	})
 	runFixtureCommand(t, root, "git", "config", "user.name", "F07 Release Test")
 	runFixtureCommand(t, root, "git", "config", "user.email", "f07@example.invalid")
 	runFixtureCommand(t, root, "git", "remote", "add", "origin", "https://example.invalid/Insajin/autopus-adk.git")

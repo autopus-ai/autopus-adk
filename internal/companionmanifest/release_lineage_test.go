@@ -210,6 +210,42 @@ func configureReleaseTestGit(t *testing.T, dir string) {
 	t.Helper()
 	runGit(t, dir, "config", "user.name", "Release Test")
 	runGit(t, dir, "config", "user.email", "release-test@example.invalid")
+	disableReleaseTestGitMaintenance(t, func(arguments ...string) { runGit(t, dir, arguments...) })
+}
+
+// git commit starts `git maintenance run --auto --detach`, and the detached
+// process can still be writing .git when t.TempDir cleanup removes it: CI run
+// 39372460481 failed TestReleaseSourceValidator_RejectsCoordinateMismatchAndOutsidePolicy
+// with "unlinkat .../repository/.git: directory not empty". gc.auto covers git
+// releases that ran `gc --auto` there instead.
+func disableReleaseTestGitMaintenance(t *testing.T, git func(arguments ...string)) {
+	t.Helper()
+	git("config", "maintenance.auto", "false")
+	git("config", "gc.auto", "0")
+}
+
+func TestReleaseTestRepositoriesCommitWithoutBackgroundMaintenance(t *testing.T) {
+	dir, _ := newMinimalSourceRepository(t)
+	if err := os.WriteFile(filepath.Join(dir, "next"), []byte("next"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, dir, "add", "next")
+	trace := filepath.Join(t.TempDir(), "git-trace")
+	command := exec.Command("git", "commit", "-qm", "next")
+	command.Dir = dir
+	command.Env = append(os.Environ(), "GIT_TRACE="+trace)
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("git commit: %v\n%s", err, output)
+	}
+	body, err := os.ReadFile(trace)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, spawn := range []string{"maintenance run --auto", "gc --auto"} {
+		if strings.Contains(string(body), spawn) {
+			t.Fatalf("a test repository commit started %q in the background", spawn)
+		}
+	}
 }
 
 func runReleaseSourceValidator(t *testing.T, dir, tag, sha string, extraEnvironment ...string) (string, error) {
