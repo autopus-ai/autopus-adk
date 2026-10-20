@@ -12,9 +12,9 @@ fail() { printf 'OMP release canary materialization: %s\n' "$1" >&2; exit 1; }
   || fail 'runner temporary directory is unsafe'
 readonly root="/private/tmp/autopus-adk-omp-canary-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 readonly destination="$root/omp-darwin-arm64"
-readonly staging="$RUNNER_TEMP/omp-v17.2.7-darwin-arm64.download"
+readonly staging="$RUNNER_TEMP/omp-v18.12.3-darwin-arm64.download"
 readonly receipt_staging="$RUNNER_TEMP/omp-canary-cleanup-identity"
-readonly expected='cd2f47545cb3f8eb5e15c91bc9054d73967774652e020b432e294803d1b71ea0'
+readonly expected='f2a657b3320fcafa23055053940a45b26a8d3254e1412a158838013d670d6ec5'
 
 [[ "$(/usr/bin/stat -f '%u:%Sp' /private/tmp)" == '0:drwxrwxrwt' ]] \
   || fail '/private/tmp identity is unsafe'
@@ -29,7 +29,7 @@ readonly expected='cd2f47545cb3f8eb5e15c91bc9054d73967774652e020b432e294803d1b71
 /usr/bin/curl --proto '=https' --proto-redir '=https' --tlsv1.2 \
   --fail --location --silent --show-error \
   --output "$staging" \
-  'https://github.com/can1357/oh-my-pi/releases/download/v17.2.7/omp-darwin-arm64'
+  'https://github.com/can1357/oh-my-pi/releases/download/v18.12.3/omp-darwin-arm64'
 actual=$(/usr/bin/shasum -a 256 "$staging" | /usr/bin/awk '{print $1}')
 [[ "$actual" == "$expected" ]] || fail 'downloaded OMP digest differs'
 /usr/bin/sudo -n /usr/bin/install -m 0555 -o root -g wheel "$staging" "$destination"

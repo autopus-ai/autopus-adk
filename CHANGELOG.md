@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **v0.50.126: release canary의 OMP pin을 17.2.7에서 18.12.3으로 올린다** (2026-10-20): v0.50.126 canary는 call 4에서
+  `managed active OMP usage delta is empty`로 멈췄다. gpt-5.6-sol에 서로 다른 단일 turn 요청을 연달아 보내 보니 네 번째가
+  `Codex is at capacity, please try again later (code=turn_rate_limit_exceeded)`로 끝났다. canary의 call 4가 바로 약 10초 안의
+  네 번째 turn이다. gateway 18.2.10은 이 오류를 content 없고 usage 0인 stop으로 바꿨고, OMP 17.2.7은 그 빈 응답을 다시
+  보낸 뒤 버려 오류가 가려졌다. 같은 날 v0.50.125도 같은 모양으로 실패했으므로 ADK 회귀가 아니다. gpt-6.1-sol은 이
+  한도에 걸리지 않았지만 17.2.7 catalog에 없다. 그래서 `advance-omp-pin.sh 18.12.3 --measure`로 pin을 옮긴다.
+  managed RPC 경로는 코드 변경 없이 18.12.3에서 동작한다. 18.12.3은 아직 reduction floor를 재지 않은 버전이므로, 다음
+  `release-prep.sh --apply`의 40 call cohort가 그 측정이다.
 - **v0.50.126: Antigravity 플러그인 MCP 파일에 고정 버전 rea 항목이 이미 있으면 "등록하지 않았습니다"를 내지 않는다** (2026-10-17):
   Autopus가 쓴 `.agents/plugins/autopus/mcp_config.json`에 사용자가 주석을 달면 엄격한 JSON이 아니어서 user-owned로 남는데,
   agy는 그 안의 `rea-agents@6.5.0` 항목을 그대로 띄운다. 그런데도 REA가 켜진 update마다 등록하지 않았다는 안내가 찍히고

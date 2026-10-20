@@ -392,3 +392,37 @@ warn  upstream latest is v18.1.5; the pin is v17.2.7. Advancing is its own task
       because the reduction floor is measured in the canary, not declared: run
       scripts/release-tools/advance-omp-pin.sh 18.1.5
 ```
+
+## Moved 2026-10-20: omp/18.12.3, unmeasured, for gpt-6.1-sol
+
+The A36 (`v0.50.126`) canary on omp/17.2.7 with `gpt-5.6-sol` stopped at call 4
+with `managed active OMP usage delta is empty`. It was not the pin and not an ADK
+regression: v0.50.125, which passed on 2026-10-12, failed the same way that day.
+Four distinct single-turn `gpt-5.6-sol` requests sent back to back through the
+gateway answered three times and then returned
+`Codex is at capacity, please try again later (code=turn_rate_limit_exceeded)`,
+and canary call 4 is the fourth turn inside about ten seconds. Gateway 18.2.10
+turned that error into an empty `stop` with zero usage, and 17.2.7 retried the
+empty stop and dropped it, which is why the run reported usage, not the limit.
+
+`gpt-6.1-sol` did not hit the limit, but the 17.2.7 catalog has no
+`gpt-6.1-sol`, so the release model needs a newer pin. omp/18.12.3 passed the
+launch contract (`--measure`: asset digest `f2a657b3…`, managed protocol v2),
+ran the unchanged managed RPC path through a 40-call cohort against a loopback
+fake gateway, and passed a live 12-call prefix of the cohort with
+`gpt-6.1-sol`:
+
+| pair | full input | optimized input | optimized compacted |
+|---|---|---|---|
+| 1 | 29891 | 29891 | no |
+| 2 | 54143 | 50352 | yes |
+| 3 | 78395 | 74604 | no |
+| 4 | 102647 | 76482 | yes |
+| 5 | 126899 | 100734 | no |
+| 6 | 151151 | 75600 | yes |
+
+18.12.3 compacts every second optimized call, including the one-turn session
+17.2.7 refused with "Nothing to compact", so the gap widens with history. That
+is a trend, not the verdict: the reduction floor is measured by the next
+`release-prep.sh --apply`. Record its numbers in the `advance-omp-pin.sh`
+table and in `ompContextReductionVerified` either way.
