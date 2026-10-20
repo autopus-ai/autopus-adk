@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **v0.50.126: release canary가 production이 쓰는 context window를 선언하고 `ADK_RELEASE_MODEL_CONTEXT_WINDOW`를 받는다**
+  (2026-10-20): canary가 선언한 window는 evidence의 provider authority digest에 들어간다. production은 그 window로
+  digest를 다시 계산해 일치할 때만 managed active history를 허용한다. 그런데 `release-prep.sh`는 window를
+  `~/.codex/config.toml`에서 읽었다. v0.50.125는 1050000을 묶었고, production은 그 값을 읽지 않고 기본값 262144를
+  쓰므로 active history가 한 번도 허용될 수 없었다. 이제 window는 production 기본값과 같아야 하고, pinned OMP
+  catalog가 그 모델에 주는 window를 넘을 수 없다. `ADK_RELEASE_MODEL_CONTEXT_WINDOW`가 있으면 `~/.codex`보다 먼저
+  쓰므로 사용자 설정을 고치지 않아도 된다. 맞지 않으면 release-prep이 sudo 전에 내보낼 값을 알려 주고 멈춘다.
 - **v0.50.126: release canary의 OMP pin을 17.2.7에서 18.12.3으로 올린다** (2026-10-20): v0.50.126 canary는 call 4에서
   `managed active OMP usage delta is empty`로 멈췄다. gpt-5.6-sol에 서로 다른 단일 turn 요청을 연달아 보내 보니 네 번째가
   `Codex is at capacity, please try again later (code=turn_rate_limit_exceeded)`로 끝났다. canary의 call 4가 바로 약 10초 안의

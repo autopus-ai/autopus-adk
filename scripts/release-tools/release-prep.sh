@@ -149,16 +149,24 @@ provider=$(sed -n 's/.*"provider":"\([^"]*\)".*/\1/p' <<<"$active_policy")
 # either way the model must exist in the pinned OMP catalog, otherwise the
 # canary fails only after sudo with an opaque startup error.
 model=${ADK_RELEASE_MODEL:-$(awk -F'"' '/^model[[:space:]]*=/ { print $2; exit }' "${HOME}/.codex/config.toml")}
-model_context_window=$(awk -F'=' '/^model_context_window[[:space:]]*=/ { gsub(/[^0-9]/, "", $2); print $2; exit }' \
-  "${HOME}/.codex/config.toml")
 [[ -n "$model" ]] || fail 'cannot read the configured model from ~/.codex/config.toml (or set ADK_RELEASE_MODEL)'
-[[ "$model_context_window" =~ ^[0-9]+$ && "$model_context_window" -ge 8192 ]] ||
-  fail 'configured model context window is missing or below the required minimum'
-known_models=$("$omp_executable" models "$provider" --json --no-extensions 2>/dev/null |
-  jq -r '[.. | objects | select(has("id")) | .id] | unique | join(" ")') || known_models=''
+catalog=$("$omp_executable" models "$provider" --json --no-extensions 2>/dev/null) || catalog=''
+known_models=$(jq -r '[.. | objects | select(has("id")) | .id] | unique | join(" ")' <<<"$catalog" 2>/dev/null) ||
+  known_models=''
 [[ -n "$known_models" ]] || fail "pinned OMP ${omp_version} lists no ${provider} models; run '${omp_executable} models refresh'"
 [[ " $known_models " == *" $model "* ]] ||
   fail "model ${model} is not in the pinned OMP ${omp_version} ${provider} catalog (${known_models}); set ADK_RELEASE_MODEL to one of them"
+
+# The declared window is bound into the evidence's provider authority, so it
+# must be the window production computes; ADK_RELEASE_MODEL_CONTEXT_WINDOW sets
+# it without editing ~/.codex/config.toml (see release-prep-window-lib.sh).
+# shellcheck source=release-prep-window-lib.sh
+. scripts/release-tools/release-prep-window-lib.sh
+production_window=$(release_prep_production_window internal/cli/pipeline_omp_context_active_process.go) || exit 1
+window_line=$(release_prep_context_window "$model" "$catalog" "${HOME}/.codex/config.toml" "$production_window") ||
+  exit 1
+model_context_window=${window_line%% *}
+window_origin=${window_line#* }
 
 r2_key="$key_store/release-tag-signing-2026-q3-r2"
 k3_key="$key_store/omp-context-promotion-2026-q3-k3.b64"
@@ -181,8 +189,8 @@ if [[ -n "${OMP_CONTEXT_PROBE_DIR:-}" ]]; then
     "$OMP_CONTEXT_PROBE_DIR" >&2
 fi
 
-printf 'release prep: %s via %s with provider=%s model=%s omp=%s\n' \
-  "$mode" "$gateway_source" "$provider" "$model" "$omp_version" >&2
+printf 'release prep: %s via %s with provider=%s model=%s window=%s (%s) omp=%s\n' \
+  "$mode" "$gateway_source" "$provider" "$model" "$model_context_window" "$window_origin" "$omp_version" >&2
 
 exec scripts/companion-release/prepare-release.sh \
   --endpoint "$ADK_GATEWAY_URL" \
