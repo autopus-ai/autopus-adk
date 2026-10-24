@@ -37,6 +37,18 @@ triggers:
 
 repo 경계, 빌드/릴리스 스크립트, desktop/browser/API surface가 바뀌면 `.autopus/project/workspace.md`의 QA/Journey Pack 대상 리포와 `auto qa init --project-dir <repo>` 명령도 갱신합니다. meta workspace의 root `.autopus/qa/**`는 runtime/generated evidence로 취급합니다.
 
+## 학습 요약과 정리
+
+`.autopus/learnings/pipeline.jsonl`이 있을 때만 커밋 전에 수행합니다. 파일을 직접 고치지 않고 `auto learn`만 씁니다.
+
+```bash
+auto learn prune --days 90
+auto learn summary --top 3
+```
+
+- `Template candidates`는 사용자가 검토할 후보로만 보여 주고, rule·skill·template을 직접 고치지 않습니다.
+- `Intake:` 줄이 나오면 `auto eval harness intake --all-eligible`을 제안만 하고 실행하지 않습니다.
+
 ## LSP 품질 게이트
 
 - 에러: 0 / 경고: 최대 10 / Clean LSP 필요

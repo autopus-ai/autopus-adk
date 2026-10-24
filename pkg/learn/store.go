@@ -165,6 +165,8 @@ func newEntry(id string, entryType EntryType, opts RecordOpts) LearningEntry {
 		Actual:     opts.Actual,
 		Repro:      opts.Repro,
 		Severity:   opts.Severity,
+		Scope:      opts.Scope,
+		Evidence:   evidenceFromOpts(opts),
 	}
 }
 
@@ -190,6 +192,15 @@ func redactEntry(entry LearningEntry) (LearningEntry, error) {
 		}
 		*ev.value = redacted
 	}
+	if entry.Evidence != nil {
+		evidence := *entry.Evidence
+		redacted, _, err := RedactEvidenceField(FieldEvidenceCommand, evidence.Command)
+		if err != nil {
+			return LearningEntry{}, err
+		}
+		evidence.Command = redacted
+		entry.Evidence = &evidence
+	}
 	if err := checkVerbatim(entry); err != nil {
 		return LearningEntry{}, err
 	}
@@ -208,6 +219,9 @@ func checkVerbatim(entry LearningEntry) error {
 	case "", SeverityLow, SeverityMedium, SeverityHigh, SeverityCritical:
 	default:
 		return &FieldError{Field: FieldSeverity, Detail: DetailUnknownValue}
+	}
+	if !validScope(entry.Scope) {
+		return &FieldError{Field: FieldScope, Detail: DetailUnknownValue}
 	}
 	lists := []struct {
 		field EvidenceField

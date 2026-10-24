@@ -47,6 +47,8 @@ func GenerateSummary(store *Store, topN int) (Summary, error) {
 		})
 	}
 
+	addEvidenceSummary(&summary, entries, topN)
+
 	// Identify improvement areas (packages with 2+ entries)
 	for pkg, count := range pkgCounts {
 		if count >= 2 {

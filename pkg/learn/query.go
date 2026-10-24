@@ -12,6 +12,9 @@ const (
 	keywordMatchWeight = 1.0
 	recencyBonusDays   = 30
 	recencyBonus       = 1.0
+	// evidenceBonus ranks a lesson backed by an execution contrast above an
+	// equally relevant one that rests on judgment (SPEC-LEARN-003).
+	evidenceBonus = 1.0
 )
 
 // MatchRelevance scores how relevant an entry is to the given query.
@@ -56,7 +59,14 @@ func MatchRelevance(entry LearningEntry, query RelevanceQuery) float64 {
 		}
 	}
 
-	return score
+	return score + evidenceScore(entry)
+}
+
+func evidenceScore(entry LearningEntry) float64 {
+	if entry.EvidenceKindOf() == EvidenceDeterministic {
+		return evidenceBonus
+	}
+	return 0
 }
 
 // ScoredEntry is one query match with the relevance score that ranked it.
@@ -79,7 +89,9 @@ func QueryRelevant(store *Store, query RelevanceQuery, threshold float64) ([]Lea
 }
 
 // QueryScored is QueryRelevant with each match's score, highest first. A
-// spec-only query has no relevance terms, so every entry of that spec scores 1.
+// spec-only query has no relevance terms, so every entry of that spec scores 1,
+// plus the evidence bonus. A scope filter compares the effective scope, so an
+// entry without one matches project.
 func QueryScored(store *Store, query RelevanceQuery, threshold float64) ([]ScoredEntry, error) {
 	entries, err := store.Read()
 	if err != nil {
@@ -93,9 +105,12 @@ func QueryScored(store *Store, query RelevanceQuery, threshold float64) ([]Score
 		if query.SpecID != "" && e.SpecID != query.SpecID {
 			continue
 		}
+		if query.Scope != "" && e.EffectiveScope() != query.Scope {
+			continue
+		}
 
 		if isSpecOnly {
-			results = append(results, ScoredEntry{e, 1.0})
+			results = append(results, ScoredEntry{e, 1.0 + evidenceScore(e)})
 		} else {
 			s := MatchRelevance(e, query)
 			if s >= threshold {

@@ -41,11 +41,33 @@ func newLearnSummaryCmd() *cobra.Command {
 				fmt.Fprintf(out, "  %-20s %d\n", string(t), count)
 			}
 
+			// SPEC-LEARN-003 lines appear only when they carry something, so a
+			// store without scope or evidence prints what it printed before.
+			if s.ScopeCounts[learn.ScopeProcess] > 0 {
+				fmt.Fprintf(out, "\nScope: process %d, project %d\n", s.ScopeCounts[learn.ScopeProcess], s.ScopeCounts[learn.ScopeProject])
+			}
+			if len(s.EvidenceCounts) > 0 {
+				unspecified := s.TotalEntries - s.EvidenceCounts[learn.EvidenceDeterministic] - s.EvidenceCounts[learn.EvidenceLLMOnly]
+				fmt.Fprintf(out, "\nEvidence: deterministic %d, llm_only %d, unspecified %d\n",
+					s.EvidenceCounts[learn.EvidenceDeterministic], s.EvidenceCounts[learn.EvidenceLLMOnly], unspecified)
+			}
+
 			if len(s.TopPatterns) > 0 {
 				fmt.Fprintln(out, "\nTop patterns:")
 				for _, p := range s.TopPatterns {
 					fmt.Fprintf(out, "  [%dx] %s\n", p.ReuseCount, p.Pattern)
 				}
+			}
+
+			if len(s.TemplateCandidates) > 0 {
+				fmt.Fprintln(out, "\nTemplate candidates (process scope, deterministic evidence; review by hand):")
+				for _, p := range s.TemplateCandidates {
+					fmt.Fprintf(out, "  [%dx] %s\n", p.ReuseCount, p.Pattern)
+				}
+			}
+
+			if s.IntakeEligible > 0 {
+				fmt.Fprintf(out, "\nIntake: %d entries have expected and actual; `auto eval harness intake --all-eligible` proposes golden-task candidates from them.\n", s.IntakeEligible)
 			}
 
 			if len(s.ImprovementAreas) > 0 {

@@ -47,7 +47,8 @@ SPEC 문서를 기반으로 코드를 구현합니다.{{if .IsFullMode}} {{.Meth
 - 구현 전에 `auto workflow context --project-dir <root> --command go --spec-dir <SPEC_DIR> --format json`을 실행해 필수 문서 매니페스트를 생성하고 검증합니다.
 - `AGENTS.md`, `.autopus/project/workspace.md`, 현재 존재하는 architecture 문서, relevant `spec.md`, `plan.md`, `acceptance.md` 전문을 receipt 예산 밖의 비축약 frozen snapshot으로 전달합니다.
 - task별 추가 문서는 context 생성 시 `--required-document <ref>`로 선언하고, binding 검증 시 같은 집합을 `--context-required-document <ref>`로 다시 전달합니다. 선택한 conditional profile도 두 명령에 같은 값으로 전달합니다.
-- scenarios, canary, signatures, learnings는 선택한 command profile이나 현재 task가 명시적으로 요구할 때만 추가합니다.
+- scenarios, canary, signatures는 선택한 command profile이나 현재 task가 명시적으로 요구할 때만 추가합니다.
+- learnings는 파일 전체가 아니라 query 출력만 넣습니다. `.autopus/learnings/pipeline.jsonl`이 있으면 `auto learn query --spec <SPEC_ID> --top 5 --mark-reused`를 실행하고, 출력된 항목만 planner와 executor 입력의 `## Previous Learnings`에 넣습니다(2000 토큰 이하). `--mark-reused`가 넣은 항목을 재사용으로 셉니다. 점수가 높은 항목은 실행 근거(`deterministic`)가 있는 교훈입니다. 파일이 없거나 결과가 없으면 조용히 건너뜁니다. 이것은 optional recall이라 예산이 모자라면 먼저 줄입니다.
 - worker에게 모든 문서와 해시를 전달하고 `context_ack`를 진단 증거로 요청합니다. 전달 무결성은 `context_ack` 문구가 아니라 supervisor가 보유한 필수 reference 집합과 매니페스트 해시로 판정합니다.
 - core/SPEC 문서가 없거나 비어 있거나 읽을 수 없거나, 현재 존재하는 architecture 문서가 안전하게 전달되지 않거나, 매니페스트가 stale·incomplete·wrong-SPEC·hash mismatch 상태이면 provider를 호출하지 않습니다. full Ultra binding을 유지한 채 문서를 복구하거나 task를 분할한 뒤 다시 검증합니다.
 - 토큰 예산으로 줄일 수 있는 것은 memory/knowledge/index의 optional recall뿐입니다. 전체 입력이 128K 안전 한도를 넘으면 필수 문서를 자르지 말고 task를 분할하거나 차단합니다.

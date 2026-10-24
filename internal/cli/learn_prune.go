@@ -15,6 +15,7 @@ import (
 func newLearnPruneCmd() *cobra.Command {
 	var days int
 	var maxAge int
+	var llmOnlyDays int
 
 	cmd := &cobra.Command{
 		Use:   "prune",
@@ -42,7 +43,8 @@ func newLearnPruneCmd() *cobra.Command {
 			}
 
 			// The protected set is computed inside the store lock.
-			removed, kept, err := learn.PruneExcept(store, pruneDays, func() (map[string]bool, error) {
+			policy := learn.PrunePolicy{Days: pruneDays, LLMOnlyDays: llmOnlyDays}
+			result, err := learn.PrunePolicyExcept(store, policy, func() (map[string]bool, error) {
 				return intake.ProtectedLearningIDs(cwd)
 			})
 			var linksErr *intake.RunError
@@ -55,9 +57,14 @@ func newLearnPruneCmd() *cobra.Command {
 				return fmt.Errorf("prune: %w", err)
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(), "Removed %d entries older than %d days.\n", removed, pruneDays)
-			if kept > 0 {
-				fmt.Fprintf(cmd.OutOrStdout(), "Kept %d entries linked to golden-task evals.\n", kept)
+			// The first line keeps its pre-SPEC-LEARN-003 shape; the
+			// llm_only line appears only when that rule removed something.
+			fmt.Fprintf(cmd.OutOrStdout(), "Removed %d entries older than %d days.\n", result.Removed, pruneDays)
+			if result.RemovedLLMOnly > 0 {
+				fmt.Fprintf(cmd.OutOrStdout(), "Of those, %d had llm_only evidence older than %d days.\n", result.RemovedLLMOnly, llmOnlyDays)
+			}
+			if result.KeptProtected > 0 {
+				fmt.Fprintf(cmd.OutOrStdout(), "Kept %d entries linked to golden-task evals.\n", result.KeptProtected)
 			}
 			return nil
 		},
@@ -65,6 +72,7 @@ func newLearnPruneCmd() *cobra.Command {
 
 	cmd.Flags().IntVar(&days, "days", 0, "Remove entries older than this many days")
 	cmd.Flags().IntVar(&maxAge, "max-age", 0, "Remove entries older than this many days (alternative to --days)")
+	cmd.Flags().IntVar(&llmOnlyDays, "llm-only-days", 30, "Also remove entries whose evidence is llm_only once older than this many days (0 turns the rule off)")
 
 	return cmd
 }

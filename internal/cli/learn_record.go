@@ -35,6 +35,10 @@ func newLearnRecordCmd() *cobra.Command {
 		expected   string
 		actual     string
 		repro      string
+		scope      string
+		evidCmd    string
+		beforeExit int
+		afterExit  int
 	)
 
 	cmd := &cobra.Command{
@@ -57,6 +61,16 @@ func newLearnRecordCmd() *cobra.Command {
 				Actual:     actual,
 				Repro:      repro,
 				Severity:   learn.Severity(severity),
+				Scope:      scope,
+				// The kind is derived from these inputs; an exit code
+				// counts only when its flag was given.
+				EvidenceCommand: evidCmd,
+			}
+			if cmd.Flags().Changed("evidence-before-exit") {
+				opts.EvidenceBeforeExit = &beforeExit
+			}
+			if cmd.Flags().Changed("evidence-after-exit") {
+				opts.EvidenceAfterExit = &afterExit
 			}
 			// Refuse an invalid value before touching the project: the store
 			// writer repeats the same checks on every write.
@@ -100,6 +114,10 @@ func newLearnRecordCmd() *cobra.Command {
 	cmd.Flags().StringVar(&severity, "severity", "", "Severity (low|medium|high|critical)")
 	cmd.Flags().StringVar(&expected, "expected", "", "Expected behaviour; no control characters, at most 1024 bytes after secret redaction")
 	cmd.Flags().StringVar(&actual, "actual", "", "Observed behaviour; no control characters, at most 1024 bytes after secret redaction")
+	cmd.Flags().StringVar(&scope, "scope", "", "Lesson scope: process (agent behaviour that may hold in any project) or project (default)")
+	cmd.Flags().StringVar(&evidCmd, "evidence-command", "", "Command behind the lesson, stored as data and never executed; at most 512 bytes after secret redaction")
+	cmd.Flags().IntVar(&beforeExit, "evidence-before-exit", 0, "Exit code of --evidence-command before the change")
+	cmd.Flags().IntVar(&afterExit, "evidence-after-exit", 0, "Exit code of --evidence-command after the change; a non-zero before and zero after make the evidence deterministic")
 	cmd.Flags().StringVar(&repro, "repro", "", "Reproduction command stored as data and never executed; at most 512 bytes after secret redaction")
 
 	_ = cmd.MarkFlagRequired("type")

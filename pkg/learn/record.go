@@ -33,6 +33,8 @@ const (
 	FieldExpected EvidenceField = "expected"
 	FieldActual   EvidenceField = "actual"
 	FieldRepro    EvidenceField = "repro"
+	// FieldEvidenceCommand is the command behind a lesson's evidence.
+	FieldEvidenceCommand EvidenceField = "evidence_command"
 )
 
 // Fields the store writer keeps verbatim instead of redacting. They have no
@@ -41,6 +43,7 @@ const (
 	FieldSeverity EvidenceField = "severity"
 	FieldFiles    EvidenceField = "files"
 	FieldPackages EvidenceField = "packages"
+	FieldScope    EvidenceField = "scope"
 )
 
 // Cap returns the byte cap of the redacted value. An unknown field has cap 0,
@@ -49,7 +52,7 @@ func (f EvidenceField) Cap() int {
 	switch f {
 	case FieldExpected, FieldActual:
 		return 1024
-	case FieldRepro:
+	case FieldRepro, FieldEvidenceCommand:
 		return 512
 	default:
 		return 0

@@ -2463,8 +2463,12 @@ IF any item is unchecked → return to that step. Do NOT report completion.
 WHEN the fix is successfully verified (Step 4 passed), THE SYSTEM SHALL record the fix pattern:
 
 ```bash
-auto learn record --type fix_pattern --files {changed_files} --pattern "{error → root cause → resolution}" --spec-id {SPEC_ID_if_available}
+auto learn record --type fix_pattern --files {changed_files} --pattern "{error → root cause → resolution}" --spec-id {SPEC_ID_if_available} \
+  --scope {project|process} --evidence-command "{the Step 1 reproduction test command}" \
+  --evidence-before-exit {its exit code in Step 1} --evidence-after-exit {its exit code in Step 4}
 ```
+
+The evidence flags record the execution contrast behind the lesson (SPEC-LEARN-003): the store marks the entry `deterministic` only when that command failed before the fix and passed after it, and `llm_only` otherwise. Use the exit codes you observed; never invent them. Use `--scope process` only for a lesson about how the agent works that would hold in any project (for example "reopen produced files to verify them"); a lesson about this repository's code is `project`. A fix without a reproduction test omits the three evidence flags.
 
 If the command fails, report the `auto learn record` error and skip the learning capture. Do NOT append to or edit `.autopus/learnings/pipeline.jsonl` directly: only `auto learn record` redacts secrets before an entry reaches the tracked store.
 
@@ -2790,6 +2794,8 @@ Display a learning summary BEFORE the completion bar:
 ```bash
 auto learn summary --top 3
 ```
+
+Show its `Template candidates` lines (process lessons with deterministic evidence) as candidates for the user to review; never edit rules, skills, or templates from them. When it prints an `Intake:` line, suggest `auto eval harness intake --all-eligible` to the user without running it: promotion into the golden set stays a human step.
 
 The summary covers the whole store: there is no per-sync window. If the command fails, generate the same figures from the JSONL file directly:
 ```

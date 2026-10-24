@@ -109,3 +109,10 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 기록: TUIUX는 v0.50.126에 이미 들어갔고 5절이 보였듯 형식 없는 흐름의 NPD에 TUIUX 코드가 닿지 않으므로, 이 branch tip에서 `TUIUX_WRITE_GOLDENS=1`로 기록했다. writer가 다시 쓴 stdout golden 일곱 개는 `git checkout`으로 되돌려 b08ea644 기록 그대로 두었다.
 - 차이(init 흐름과 update 흐름): `.claude/skills/auto-go/SKILL.md`, `auto-fix/SKILL.md`, `auto-sync/SKILL.md`의 checksum, claude-code manifest의 그 세 entry checksum, claude-code journal의 그 entry `after_checksum`, update 흐름의 backup 사본. 다른 경로는 바뀌지 않았다.
 - 검증: 두 test가 이 golden으로 통과한다.
+
+## 7. SPEC-LEARN-003 재기록 (feat/learn-evidence-scope, 2026-10-24)
+
+- 원인: SPEC-LEARN-003이 Claude `/auto fix` Step 5와 `/auto sync` Target 4.5, Codex `auto-go`·`auto-fix`·`auto-sync` 템플릿에 학습 조회·기록·정리 문구를 더했다. Gemini 템플릿도 바꿨지만 golden 흐름은 Claude와 Codex만 생성한다.
+- 기록: 6절과 같은 방법이다(이 branch tip에서 writer, stdout golden 되돌림).
+- 차이: `.claude/skills/auto-fix`·`auto-sync`, `.codex/skills/codex-auto-go`·`codex-auto-fix`·`codex-auto-sync`의 checksum, 두 manifest의 그 entry, 두 journal의 `after_checksum`, update 흐름의 backup 사본. 다른 경로는 바뀌지 않았다.
+- 검증: 두 test가 이 golden으로 통과한다.

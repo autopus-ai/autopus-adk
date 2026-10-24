@@ -16,6 +16,7 @@ func newLearnQueryCmd() *cobra.Command {
 	var spec string
 	var top int
 	var markReused bool
+	var scope string
 
 	cmd := &cobra.Command{
 		Use:   "query",
@@ -45,6 +46,10 @@ func newLearnQueryCmd() *cobra.Command {
 				Packages: packages,
 				Keywords: keywords,
 				SpecID:   spec,
+				Scope:    scope,
+			}
+			if scope != "" && scope != learn.ScopeProcess && scope != learn.ScopeProject {
+				return fmt.Errorf("unknown scope: must be process or project")
 			}
 
 			entries, err := learn.QueryScored(store, q, 1.0)
@@ -81,6 +86,7 @@ func newLearnQueryCmd() *cobra.Command {
 	cmd.Flags().StringSliceVar(&packages, "packages", nil, "Package names to match against")
 	cmd.Flags().StringSliceVar(&keywords, "keywords", nil, "Keywords to match against")
 	cmd.Flags().StringVar(&spec, "spec", "", "Spec ID to filter by")
+	cmd.Flags().StringVar(&scope, "scope", "", "Only entries of this scope: process or project (an entry without a scope is project)")
 	cmd.Flags().IntVar(&top, "top", 0, "Print only the N best matches (0 prints all)")
 	cmd.Flags().BoolVar(&markReused, "mark-reused", false, "Count the printed entries as reused (for entries a workflow injects into a prompt)")
 

@@ -60,6 +60,28 @@ Step 번호는 `/auto fix` 라우터 본문의 단계입니다. Step 1 재현은
 - 테스트를 만들 수 없는 수정(CLI 전용 등)은 재현 절차를 문서로 남기고, 잠금과 판정 대신 보고에 `lock: not applicable`을 적습니다.
 - Antigravity는 advisory-only lane이라 `.agents/hooks.json`에 edit guard가 없어 편집을 막지 못하지만, unlock 판정은 잠근 뒤 남아 있는 변경을 보고합니다.
 
+## 학습 참조와 기록
+
+`.autopus/learnings/pipeline.jsonl`이 있을 때만 수행하고, 없으면 조용히 건너뜁니다. 파일을 직접 읽거나 고치지 않고 `auto learn`만 씁니다.
+
+- 재현 테스트를 쓰기 전에 관련 학습을 참조합니다. 출력된 항목만 디버깅 맥락에 넣습니다.
+
+  ```bash
+  auto learn query --files {affected_files} --keywords "{error_description}" --top 5 --mark-reused
+  ```
+
+- 수정이 검증되고 잠금을 푼 뒤 수정 패턴을 기록합니다.
+  - 근거 플래그에는 수정 전에 실패한 재현 테스트 명령과, 수정 후 통과한 같은 명령의 실제 exit code를 넣습니다.
+  - 저장소는 실패 뒤 통과일 때만 `deterministic`으로, 나머지는 `llm_only`로 표시합니다(SPEC-LEARN-003). exit code를 지어내지 않습니다.
+  - 어느 프로젝트에서나 통할 에이전트 작업 방식의 교훈만 `process`로, 나머지는 `project`로 기록합니다.
+  - 재현 테스트가 없는 수정은 근거 플래그 세 개를 뺍니다.
+
+  ```bash
+  auto learn record --type fix_pattern --files {changed_files} --pattern "{error → root cause → resolution}" \
+    --scope {project|process} --evidence-command "{reproduction test command}" \
+    --evidence-before-exit {exit code before the fix} --evidence-after-exit {exit code after the fix}
+  ```
+
 ## Change Contract Boundary
 
 - 기존 계약 안의 버그 수정은 `bugfix_existing_contract`입니다. 저위험이며 SPEC 세트가 필요 없습니다. 승인된 SPEC이 해당 동작을 담고 있으면 `auto spec change <SPEC-ID> --class bugfix_existing_contract --ac <AC-ID,...> --surface <path,...> --verify "<command>"`로 계약을 기록합니다.

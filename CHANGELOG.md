@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **learnings가 실행 근거와 범위를 함께 기록하고, 다섯 플랫폼 모두에서 조회·기록된다** (2026-10-24, SPEC-LEARN-003):
+  Harness² 논문의 "실행 비교로 뒷받침될 때만 교훈을 남긴다"와 "범용(에이전트 작업 방식)과 분야 교훈을 나눈다"를 learn 저장소에 들였다.
+  - `auto learn record`에 `--evidence-command`·`--evidence-before-exit`·`--evidence-after-exit`와 `--scope process|project`를 더했다.
+    - 근거 종류는 사용자가 정하지 않고 exit code에서 도출한다. 명령이 수정 전에 실패하고 수정 후 통과했을 때만 `deterministic`이고, 그 밖의 근거는 `llm_only`다. 근거 플래그가 없으면 이전처럼 근거 없는 항목이다.
+    - 근거 명령은 repro와 같은 검사·비밀값 가림·512바이트 상한을 거친다.
+  - `auto learn query`는 `deterministic` 항목에 점수 +1을 준다. `--scope` 필터가 생겼고, scope가 없는 기존 항목은 `project`로 본다.
+  - `auto learn prune`은 `--llm-only-days`(기본 30)로 오래된 `llm_only` 항목을 더 일찍 지운다. 근거 없는 항목과 `deterministic` 항목, eval에 연결된 항목은 영향받지 않는다. 기존 출력 줄은 그대로이고, 이 규칙이 지운 것이 있을 때만 한 줄이 더해진다.
+  - `auto learn summary`는 scope·근거 종류별 개수, 실행 근거가 있는 process 교훈(`Template candidates`, 사람이 검토), harness intake 대상 개수를 보여 준다. 이 줄들은 해당 값이 있을 때만 나온다.
+  - 지금까지 Claude Code 템플릿만 learnings를 썼다. 이제 Codex·OpenCode·OMP(Codex 템플릿 공유)와 Gemini의 `auto-go`·`auto-fix`·`auto-sync`도 학습을 조회(`--top 5 --mark-reused`)하고, 수정 패턴을 근거와 함께 기록하고, sync에서 정리·요약한다. intake와 template 반영은 제안만 하며, 사람이 결정한다.
+  - 호환성: 새 필드가 없는 기존 항목은 점수·정리·요약·intake fingerprint 모두 이전과 같다. 이전 버전 `auto`가 저장소를 다시 쓰면(prune) 새 필드가 사라진다.
 - **learn 저장소의 끊긴 고리 네 개를 잇고, skillevolve가 자리표시 텍스트로 skill을 덮어쓰지 못하게 막는다** (2026-10-24):
   - `auto learn query`가 모든 결과의 점수를 `1.00`으로 찍던 것을 실제 순위 점수로 바꿨다. `--top N`과 `--mark-reused`를 더했다. `/auto go`와 `/auto fix`가 prompt에 넣는 항목만 `reuse_count`를 올리므로, 늘 0이던 sync 요약의 반복 패턴 순위가 실제 재사용을 센다.
   - `/auto sync` 템플릿이 존재하지 않는 `auto learn summary --since-last-sync`를 불러 늘 대체 경로로 떨어지던 것을 `--top 3`으로 고쳤다. 요약은 sync 구간이 아니라 저장소 전체를 센다고 문구도 맞췄다.

@@ -56,6 +56,24 @@ Step 번호는 `/auto fix` 라우터 본문의 단계입니다. Step 1 재현은
 - 테스트를 만들 수 없는 수정(CLI 전용 등)은 재현 절차를 문서로 남기고, 잠금과 판정 대신 보고에 `lock: not applicable`을 적습니다.
 - edit guard가 편집을 막지 못하는 플랫폼에서도 unlock 판정은 잠근 뒤 남아 있는 변경을 보고합니다.
 
+## 학습 참조와 기록
+
+`.autopus/learnings/pipeline.jsonl`이 있을 때만 수행하고, 없으면 조용히 건너뜁니다. 파일을 직접 읽거나 고치지 않고 `auto learn`만 씁니다. 이 명령만 비밀값을 가리고 저장소 규칙을 지킵니다.
+
+- 절차 1 전에 관련 학습을 참조합니다. 출력된 항목만 디버깅 맥락에 넣고, `--mark-reused`가 그 항목들을 재사용으로 셉니다.
+
+  ```bash
+  auto learn query --files {affected_files} --keywords "{error_description}" --top 5 --mark-reused
+  ```
+
+- 절차 8을 마친 뒤 수정 패턴을 기록합니다. 근거 플래그는 절차 2에서 실패한 재현 테스트 명령과 절차 6에서 통과한 같은 명령의 실제 exit code입니다. 저장소는 수정 전 실패와 수정 후 통과가 모두 있을 때만 `deterministic`으로, 나머지는 `llm_only`로 표시합니다(SPEC-LEARN-003). exit code를 지어내지 않습니다. 이 저장소의 코드에 관한 교훈은 `project`, 어느 프로젝트에서나 통할 에이전트 작업 방식의 교훈은 `process`입니다. 재현 테스트가 없는 수정은 근거 플래그 세 개를 빼고 기록합니다.
+
+  ```bash
+  auto learn record --type fix_pattern --files {changed_files} --pattern "{error → root cause → resolution}" \
+    --scope {project|process} --evidence-command "{reproduction test command}" \
+    --evidence-before-exit {exit code at step 2} --evidence-after-exit {exit code at step 6}
+  ```
+
 ## Change Contract Boundary
 
 - 기존 계약 안의 버그 수정은 `bugfix_existing_contract`입니다. 저위험이며 SPEC 세트가 필요 없습니다. 승인된 SPEC이 해당 동작을 담고 있으면 `auto spec change <SPEC-ID> --class bugfix_existing_contract --ac <AC-ID,...> --surface <path,...> --verify "<command>"`로 계약을 기록해 참조 acceptance ID와 검증 계획을 남깁니다.

@@ -30,6 +30,19 @@
 5. CHANGELOG 갱신
 6. Lore 형식 자동 커밋{{end}}
 
+## 학습 요약과 정리
+
+`.autopus/learnings/pipeline.jsonl`이 있을 때만 커밋 전에 수행합니다. 파일을 직접 고치지 않고 `auto learn`만 씁니다.
+
+```bash
+auto learn prune --days 90
+auto learn summary --top 3
+```
+
+- prune은 90일이 지난 항목과, 30일이 지난 `llm_only` 근거 항목을 지웁니다. golden-task eval에 연결된 항목은 남깁니다. 실패하면 오류를 보고하고 저장소를 그대로 둡니다.
+- summary의 `Template candidates`는 실행 근거가 있는 process 교훈입니다. 사용자가 검토할 후보로만 보여 주고, rule·skill·template을 직접 고치지 않습니다.
+- `Intake:` 줄이 나오면 `auto eval harness intake --all-eligible`을 사용자에게 제안만 하고 실행하지 않습니다. golden set 승격은 사람이 합니다.
+
 ## 구조 문서 동기화
 
 구조 변경이 감지되면 다음 문서를 함께 갱신합니다.
