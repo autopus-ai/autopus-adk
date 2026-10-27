@@ -63,7 +63,7 @@ func RenderSkillResources(name, platform string, cfg *config.HarnessConfig) (map
 		body := rewriteCanonicalSkillReferences(string(data), func(ref string) string {
 			return ResolveCatalogSkillRefPath(catalog, ref, platform, cfg)
 		})
-		body = ReplacePlatformReferencesWith(body, platform, PlatformReferenceOptions{OMPAgentSource: ompAgentSourceOf(cfg)})
+		body = ReplacePlatformReferences(body, platform)
 		resources[path.Join(SkillResourceDirName, entry.Name())] = []byte(body)
 	}
 
@@ -105,12 +105,4 @@ func SkillResourceRelPaths(name string) []string {
 	}
 	sort.Strings(names)
 	return names
-}
-
-// ompAgentSourceOf is the declared OMP agent source of cfg, empty without one.
-func ompAgentSourceOf(cfg *config.HarnessConfig) string {
-	if cfg == nil {
-		return ""
-	}
-	return cfg.RoleModelPolicy.AgentSource
 }

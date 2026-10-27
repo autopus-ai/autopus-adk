@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -49,23 +50,28 @@ func TestOMPConfigMarkerSpan_PlainLifecyclePreservesUserConfig(t *testing.T) {
 	t.Run("generate", func(t *testing.T) {
 		root := t.TempDir()
 		configPath := writeOMPConfig(t, root, hostile)
-		_, err := NewWithRoot(root).Generate(context.Background(), nativeConfigForOMP())
+		_, err := NewWithRoot(root).Generate(context.Background(), configForOMP())
 		require.NoError(t, err)
-		assertFileBytesOMP(t, configPath, hostile)
+		// Nothing the user wrote is stripped; only the claim is added.
+		after, readErr := os.ReadFile(configPath)
+		require.NoError(t, readErr)
+		assert.True(t, strings.HasPrefix(string(after), strings.TrimSuffix(hostile, markerEndYml+"\n")), string(after))
+		assert.True(t, strings.HasSuffix(string(after), markerEndYml+"\n"), string(after))
+		assert.Equal(t, config.OMPAutopusDisabledAgents(), toStrings(claimDisabledAgents(t, string(after))))
 	})
 
 	for _, operation := range []string{"update", "clean"} {
 		t.Run(operation, func(t *testing.T) {
 			root := t.TempDir()
-			require.NoError(t, config.Save(root, nativeConfigForOMP()))
-			_, err := NewWithRoot(root).Generate(context.Background(), nativeConfigForOMP())
+			require.NoError(t, config.Save(root, configForOMP()))
+			_, err := NewWithRoot(root).Generate(context.Background(), configForOMP())
 			require.NoError(t, err)
 			configPath := filepath.Join(root, configFile)
 			require.NoError(t, os.WriteFile(configPath, []byte(hostile), 0o600))
 			managedCommand := filepath.Join(root, ".omp", "commands", "auto.md")
 
 			if operation == "update" {
-				_, err = NewWithRoot(root).Update(context.Background(), nativeConfigForOMP())
+				_, err = NewWithRoot(root).Update(context.Background(), configForOMP())
 			} else {
 				err = NewWithRoot(root).Clean(context.Background())
 			}

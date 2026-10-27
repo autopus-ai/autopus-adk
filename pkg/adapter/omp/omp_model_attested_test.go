@@ -119,7 +119,7 @@ func TestProbeOMPModelCatalogForProfile_OperatorAttestationDoesNotOverrideOtherF
 func TestOMPModelIntegration_OperatorAttestationIsBoundIntoReceipt(t *testing.T) {
 	t.Parallel()
 
-	cfg := nativeClaimConfig(integrationHarnessConfig(config.RoleModelConfigModeOverlay))
+	cfg := integrationHarnessConfig(config.RoleModelConfigModeOverlay)
 	profile := cfg.RoleModelPolicy.Profiles["p1"]
 	profile.CatalogTrust = config.RoleModelCatalogTrustOperatorAttested
 	cfg.RoleModelPolicy.Profiles["p1"] = profile
@@ -135,7 +135,7 @@ func TestOMPModelIntegration_OperatorAttestationIsBoundIntoReceipt(t *testing.T)
 	var receipt OMPModelResolutionReceipt
 	require.NoError(t, json.Unmarshal(mapping.Content, &receipt))
 	require.Equal(t, config.RoleModelCatalogTrustOperatorAttested, receipt.CatalogTrust)
-	require.Len(t, receipt.Roles, len(config.OMPNativeAgentNames()))
+	require.Len(t, receipt.Roles, len(config.OMPAutopusAgentNames()))
 	for _, role := range receipt.Roles {
 		require.Equal(t, "operator_attested", role.EvidenceClass, role.Agent)
 		require.NotEmpty(t, role.EffectiveFamily, role.Agent)

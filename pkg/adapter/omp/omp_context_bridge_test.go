@@ -3,6 +3,7 @@ package omp
 import (
 	"context"
 	"encoding/json"
+	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
@@ -158,11 +159,11 @@ export default function autopusContextBridge(pi: BridgeAPI): void {
 
 func TestOMPContextBridge_NoOptInPreservesExactPreparedFiles(t *testing.T) {
 	adapterUnderTest := NewWithRoot(t.TempDir())
-	baseline := nativeConfigForOMP()
+	baseline := configForOMP()
 	baselineFiles, err := adapterUnderTest.prepareFiles(context.Background(), baseline)
 	require.NoError(t, err)
 
-	catalogOnly := nativeConfigForOMP()
+	catalogOnly := configForOMP()
 	catalogOnly.OMPContextPolicy.Profiles = map[string]config.OMPContextProfileConf{
 		"bridge": {},
 	}
@@ -171,7 +172,9 @@ func TestOMPContextBridge_NoOptInPreservesExactPreparedFiles(t *testing.T) {
 
 	// Merely defining a context profile must leave the current generated
 	// surface byte-identical; unrelated prose changes do not alter this invariant.
-	assert.Equal(t, fingerprintOMPFileMappings(t, baselineFiles), fingerprintOMPFileMappings(t, catalogFiles))
+	// The ledger is left out: its salt is fresh on every first claim.
+	assert.Equal(t, fingerprintOMPFileMappings(t, withoutOMPLedgerMapping(baselineFiles)),
+		fingerprintOMPFileMappings(t, withoutOMPLedgerMapping(catalogFiles)))
 	assert.NotContains(t, ompMappingTargets(baselineFiles), ".omp/extensions/autopus-context.ts")
 	assert.NotContains(t, ompMappingTargets(baselineFiles), ompNativePipelineRouteTarget)
 }
@@ -225,6 +228,16 @@ func optedInOMPContextBridgeConfig() *config.HarnessConfig {
 		},
 	}
 	return cfg
+}
+
+func withoutOMPLedgerMapping(files []adapter.FileMapping) []adapter.FileMapping {
+	kept := make([]adapter.FileMapping, 0, len(files))
+	for _, file := range files {
+		if filepath.ToSlash(file.TargetPath) != OMPModelProjectOwnershipRelativePath {
+			kept = append(kept, file)
+		}
+	}
+	return kept
 }
 
 func fingerprintOMPFileMappings(t *testing.T, files []adapter.FileMapping) string {

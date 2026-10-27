@@ -2,13 +2,20 @@ package config
 
 import "fmt"
 
+// The bundled OMP registry outlives agent_source: native, which served it
+// until v0.50.129: a role_model_policy written for it keys pins by the
+// bundled names, the Route Contract's rule (2) routes a canonical agent on
+// the pin of the bundled agent it collapsed onto, and task borrows the
+// planner row.
+
 // OMPNativeAgentNames follows the bundled OMP registry, not the ADK role catalog.
 func OMPNativeAgentNames() []string {
 	return []string{"scout", "reviewer", "security-reviewer", "task", "sonic"}
 }
 
-// OMPNativeAgentForRole maps a workflow responsibility to an existing native
-// agent. Reasoning, implementation, and validation are not delegated to sonic.
+// OMPNativeAgentForRole maps a workflow responsibility to the bundled agent it
+// collapsed onto. Reasoning, implementation, and validation never collapsed
+// onto sonic.
 func OMPNativeAgentForRole(role string) (string, error) {
 	switch role {
 	case "scout", "explorer":
@@ -26,9 +33,9 @@ func OMPNativeAgentForRole(role string) (string, error) {
 	}
 }
 
-// OMPNativeAgentRepresentative selects the built-in quality profile row used
-// for a native agent. General work retains the strong planning model; sonic's
-// model selection does not authorize assigning it reasoning work.
+// OMPNativeAgentRepresentative selects the built-in quality profile row a
+// bundled agent name borrows: task follows planner, and sonic's row does not
+// authorize assigning it reasoning work.
 func OMPNativeAgentRepresentative(agent string) (string, error) {
 	switch agent {
 	case "scout":
@@ -44,20 +51,4 @@ func OMPNativeAgentRepresentative(agent string) (string, error) {
 	default:
 		return "", fmt.Errorf("unknown native OMP agent %q", agent)
 	}
-}
-
-// OMPNativeAgentGovernedBy reports whether a role_model_policy.agents key may
-// carry the model of one bundled agent. A key governs the agent its own role
-// collapses onto, and a representative key additionally governs the agent it
-// stands in for: `validator` work is dispatched to `task`, yet `validator` is
-// also the tier row `sonic` borrows, because no workflow role collapses onto
-// sonic. Both sites that bind a model to a bundled agent - the profile route
-// lookup and the projection validator - decide it here, so a row can never be
-// accepted in one and rejected in the other.
-func OMPNativeAgentGovernedBy(key, native string) bool {
-	if collapsed, err := OMPNativeAgentForRole(key); err == nil && collapsed == native {
-		return true
-	}
-	representative, err := OMPNativeAgentRepresentative(native)
-	return err == nil && representative == key
 }

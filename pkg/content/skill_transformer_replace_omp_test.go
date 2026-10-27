@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	contentfs "github.com/insajin/autopus-adk/content"
-	"github.com/insajin/autopus-adk/pkg/config"
 	"github.com/insajin/autopus-adk/pkg/content"
 )
 
@@ -253,10 +252,9 @@ func TestReplacePlatformReferencesOMP_JobCallsNameBothGenerations(t *testing.T) 
 	}
 }
 
-// An emitted batch may only name an agent OMP registers. The retired per-role
-// names collapse: implementation runs on the bundled default, so it emits no
-// agent field at all, while review keeps the bundled reviewer. The declared
-// role survives as the item name so the dispatch stays auditable.
+// A multi-line legacy dispatch becomes one task batch with an item per call.
+// Each item names the Autopus agent of its role, and the declared role
+// survives as the item name so the dispatch stays auditable.
 func TestReplacePlatformReferencesOMP_S12_MultilineTaskBatch(t *testing.T) {
 	t.Parallel()
 
@@ -269,8 +267,7 @@ Agent(
   task = "Review the implementation.",
   subagent_type = "reviewer"
 )`
-	got := content.ReplacePlatformReferencesWith(input, "omp",
-		content.PlatformReferenceOptions{OMPAgentSource: config.OMPAgentSourceNative})
+	got := content.ReplacePlatformReferences(input, "omp")
 
 	for _, field := range []string{
 		`"i"`, `"context"`, `"tasks"`, `"name"`, `"agent"`, `"task"`,
@@ -281,8 +278,7 @@ Agent(
 		assert.Contains(t, got, field)
 	}
 	assert.NotContains(t, got, `"isolated": true`)
-	assert.NotContains(t, got, `"agent": "executor"`,
-		"OMP registers no executor agent; implementation runs on the bundled default")
+	assert.Contains(t, got, `"agent": "executor"`, "implementation runs on the Autopus executor")
 	assert.Contains(t, got, `"agent": "reviewer"`)
 	assert.Contains(t, got, `"name": "executor-1"`)
 	assert.Contains(t, got, `"name": "reviewer-2"`)

@@ -60,15 +60,15 @@ func TestOMPStatusProjectionReportsStaleCatalogAndMissingReceipt(t *testing.T) {
 	assert.False(t, statusEnvelope.Data.ReceiptVerification.ModelVerified)
 }
 
-// OMP installs its own agents, so a workspace with no project agent file is
-// ready, not blocked. Status reports where the registry comes from instead of
-// counting local definitions that Autopus never writes.
-func TestOMPStatusNoOptInReportsBundledRegistryAndBareStatusIsCompatible(t *testing.T) {
+// A generated workspace without a role profile is ready, not blocked: status
+// reports the Autopus agents it serves without probing OMP.
+func TestOMPStatusNoOptInReportsTheAutopusRegistryAndBareStatusIsCompatible(t *testing.T) {
 	root := t.TempDir()
 	cfg := config.DefaultFullConfig("omp-status")
 	cfg.Platforms = []string{"omp"}
-	cfg.RoleModelPolicy.AgentSource = config.OMPAgentSourceNative
 	require.NoError(t, config.Save(root, cfg))
+	_, err := omp.NewWithRoot(root).Generate(context.Background(), cfg)
+	require.NoError(t, err)
 	runner := &ompCLIFakeRunner{catalog: ompCLIReadyCatalogJSON()}
 	deps := normalizeOMPPlatformDependencies(ompPlatformDependencies{
 		newRunner: func() omp.OMPModelCatalogRunner { return runner },
@@ -81,8 +81,8 @@ func TestOMPStatusNoOptInReportsBundledRegistryAndBareStatusIsCompatible(t *test
 	status.SetArgs([]string{"--dir", root, "--platform", "omp"})
 	require.NoError(t, status.Execute())
 	assert.Contains(t, operatorOut.String(), "Agent registry: status=ready")
-	assert.Contains(t, operatorOut.String(), "source=omp_bundled_registry")
-	assert.Contains(t, operatorOut.String(), "expected=5 shadowed=0")
+	assert.Contains(t, operatorOut.String(), "source=autopus_generated")
+	assert.Contains(t, operatorOut.String(), "expected=18 shadowed=0")
 	assert.NotContains(t, operatorOut.String(), "agent_catalog_incomplete")
 	assert.Contains(t, operatorOut.String(), ompLiveStateLimitation)
 	assert.Contains(t, operatorOut.String(), ompLiveStateNextCommand)
@@ -99,7 +99,7 @@ func TestOMPStatusNoOptInReportsBundledRegistryAndBareStatusIsCompatible(t *test
 	var statusPayload ompPlatformProjection
 	require.NoError(t, json.Unmarshal(statusEnvelope.Data, &statusPayload))
 	assert.Equal(t, "ready", statusPayload.Status)
-	assert.Equal(t, "native_agent_registry", statusPayload.Models.AgentCatalogReason)
+	assert.Equal(t, "autopus_agent_registry", statusPayload.Models.AgentCatalogReason)
 	assert.Equal(t, ompLiveStateLimitation, statusPayload.ChildRuntime.Limitation)
 	assert.Empty(t, runner.calls, "JSON no opt-in must not probe OMP")
 

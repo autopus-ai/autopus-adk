@@ -43,44 +43,6 @@ func TestOMPGenerate_UsesOnlyNativeSkillsAndCommandsWithoutBaseConfig(t *testing
 	assert.Contains(t, frontmatter[1], "goal")
 }
 
-// agent_source: native keeps the v0.50.125 latest surface: no agent
-// definitions and no base config.
-func TestOMPGenerate_NativeSourceUsesOnlyNativeSkillsAndCommandsWithoutBaseConfig(t *testing.T) {
-	root := t.TempDir()
-	cfg := config.DefaultFullConfig("omp-native")
-	cfg.Platforms = []string{"omp"}
-	cfg.RoleModelPolicy.AgentSource = config.OMPAgentSourceNative
-	require.NoError(t, config.Save(root, cfg))
-
-	_, err := NewWithRoot(root).Generate(context.Background(), cfg)
-	require.NoError(t, err)
-
-	paths := manifestPaths(t, root)
-	assert.Equal(t, 0, countPathsWithPrefix(paths, ".omp/agents/"))
-	assert.NotContains(t, paths, configFile)
-	assert.NoFileExists(t, filepath.Join(root, configFile))
-}
-
-func TestOMPGenerate_PreservesUserBaseConfigWhenNoManagedClaimsExist(t *testing.T) {
-	root := t.TempDir()
-	cfg := config.DefaultFullConfig("omp-user-config")
-	cfg.Platforms = []string{"omp"}
-	cfg.RoleModelPolicy.AgentSource = config.OMPAgentSourceNative
-	require.NoError(t, config.Save(root, cfg))
-	path := filepath.Join(root, configFile)
-	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o700))
-	original := []byte("theme:\n  dark: user-theme\n")
-	require.NoError(t, os.WriteFile(path, original, 0o600))
-
-	_, err := NewWithRoot(root).Generate(context.Background(), cfg)
-	require.NoError(t, err)
-
-	actual, err := os.ReadFile(path)
-	require.NoError(t, err)
-	assert.Equal(t, original, actual)
-	assert.NotContains(t, manifestPaths(t, root), configFile)
-}
-
 func TestOMPValidate_DetectsManagedContentTamperingAndSymlinkReplacement(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("symlink fixture")
@@ -123,11 +85,10 @@ func TestOMPValidateExpectedMappings_RejectsSymlinkParentBeforeReading(t *testin
 	assert.Contains(t, findings[0].Message, "symlink")
 }
 
-func TestOMPValidate_AllowsMissingBaseConfigButRejectsWeakSensitivePermissions(t *testing.T) {
+func TestOMPValidate_AcceptsTheClaimedBaseConfigButRejectsWeakSensitivePermissions(t *testing.T) {
 	root := t.TempDir()
 	cfg := config.DefaultFullConfig("omp-latest")
 	cfg.Platforms = []string{"omp"}
-	cfg.RoleModelPolicy.AgentSource = config.OMPAgentSourceNative
 	require.NoError(t, config.Save(root, cfg))
 	_, err := NewWithRoot(root).Generate(context.Background(), cfg)
 	require.NoError(t, err)
@@ -141,6 +102,8 @@ func TestOMPValidate_AllowsMissingBaseConfigButRejectsWeakSensitivePermissions(t
 
 	path := filepath.Join(root, configFile)
 	require.NoError(t, os.WriteFile(path, []byte("tools:\n  intentTracing: true\n"), 0o644))
+	// WriteFile keeps the mode of the claimed file, so widen it explicitly.
+	require.NoError(t, os.Chmod(path, 0o644))
 	findings, err = adapter.Validate(context.Background())
 	require.NoError(t, err)
 	assertOMPValidationFinding(t, findings, configFile, "permission")

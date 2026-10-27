@@ -8,7 +8,6 @@ import (
 
 	contentfs "github.com/insajin/autopus-adk/content"
 	"github.com/insajin/autopus-adk/pkg/adapter"
-	"github.com/insajin/autopus-adk/pkg/config"
 	pkgcontent "github.com/insajin/autopus-adk/pkg/content"
 )
 
@@ -32,10 +31,9 @@ const (
 	ompRuleFilePrefix = "autopus-"
 )
 
-// prepareRuleMappings renders every embedded rule for OMP in cfg's agent
-// source, the mode skills and workflows render dispatch text in, so native
-// rules stay what v0.50.125 wrote.
-func (a *Adapter) prepareRuleMappings(cfg *config.HarnessConfig) ([]adapter.FileMapping, error) {
+// prepareRuleMappings renders every embedded rule for OMP, naming agents the
+// way skills and workflows do.
+func (a *Adapter) prepareRuleMappings() ([]adapter.FileMapping, error) {
 	entries, err := contentfs.FS.ReadDir("rules")
 	if err != nil {
 		return nil, fmt.Errorf("rules 디렉터리 읽기 실패: %w", err)
@@ -50,7 +48,7 @@ func (a *Adapter) prepareRuleMappings(cfg *config.HarnessConfig) ([]adapter.File
 		if readErr != nil {
 			return nil, fmt.Errorf("rule 파일 읽기 실패 %s: %w", entry.Name(), readErr)
 		}
-		content, renderErr := renderOMPRule(entry.Name(), data, cfg)
+		content, renderErr := renderOMPRule(entry.Name(), data)
 		if renderErr != nil {
 			return nil, renderErr
 		}
@@ -66,9 +64,9 @@ func (a *Adapter) prepareRuleMappings(cfg *config.HarnessConfig) ([]adapter.File
 	return files, nil
 }
 
-// renderOMPRule renders one embedded rule for OMP in cfg's agent source.
-func renderOMPRule(name string, data []byte, cfg *config.HarnessConfig) (string, error) {
-	content := pkgcontent.ReplacePlatformReferencesWith(string(data), "omp", ompPlatformReferences(cfg))
+// renderOMPRule renders one embedded rule for OMP.
+func renderOMPRule(name string, data []byte) (string, error) {
+	content := pkgcontent.ReplacePlatformReferences(string(data), "omp")
 	if name == "deferred-tools.md" {
 		content = ompDeferredToolsRule
 	}

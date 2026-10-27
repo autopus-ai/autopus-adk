@@ -16,25 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// An explicit profile of the chosen name is not asked a family, which it
-// would refuse; the plan previews its own routes.
-func TestComposeOMPTab_ExplicitProfileIsNotAskedAFamily(t *testing.T) {
-	composeSessionCatalog(t, "CAT-A")
-	dir, _, _ := writeSelectedOMPProfile(t)
-	markOMPProjectNative(t, dir)
-	before := composeSessionHash(t, dir)
-	deps, activations := composeOMPDeps(ompCLIReadyCatalogJSON())
-
-	out, err := runComposeOMPForms(t, dir, deps, "2\n", "2\n", "2\n", "\n", "\n")
-
-	require.NoError(t, err, out)
-	assert.Contains(t, out, "Keeping the models in your custom profile.\n")
-	assert.NotContains(t, out, "모델 계열")
-	assert.Contains(t, out, "OMP balanced — model preview (no changes yet)\n")
-	assert.Zero(t, activations.calls)
-	assert.Equal(t, before, composeSessionHash(t, dir))
-}
-
 // saveQualityToolPreset refuses a preset name outside the vocabulary, a
 // tool without a provider key, and an empty tier map, and writes nothing.
 func TestSaveQualityToolPreset_RefusesWhatItNeverWrites(t *testing.T) {

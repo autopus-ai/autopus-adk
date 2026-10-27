@@ -12,36 +12,6 @@ import (
 	"github.com/insajin/autopus-adk/pkg/config"
 )
 
-// A per-agent choice must reach the persisted policy as an exact selector for
-// the bundled agent the operator named, and must leave the other agents on the
-// base profile instead of inventing a route for them.
-func TestQualityOMPWizardCustomPinsChosenModelPerBundledAgent(t *testing.T) {
-	dir, runner := qualityOMPWizardFixture(t)
-	markOMPProjectNative(t, dir)
-	runner.catalog = ompCLIBalancedCatalogJSON()
-
-	// custom -> task: model 4 (openai-codex/gpt-6-astra) at thinking max;
-	// every other agent keeps the balanced default.
-	out, err := runQualityOMPWizard(t, dir, "omp\ncustom\ngpt\n\n\n\n4\nmax\n\ny\n", ompPlatformDependencies{
-		newRunner: func() omp.OMPModelCatalogRunner { return runner },
-		activate:  func(context.Context, string, *config.HarnessConfig) error { return nil },
-	})
-	require.NoError(t, err, out)
-	assert.Contains(t, out, "task=openai-codex/gpt-6-astra:max")
-
-	cfg, err := config.LoadPreview(dir)
-	require.NoError(t, err)
-	assert.Equal(t, "balanced", cfg.RoleModelPolicy.Profile)
-	pinned := cfg.RoleModelPolicy.Agents["task"].Candidates
-	require.Len(t, pinned, 1)
-	assert.Equal(t, "openai-codex/gpt-6-astra", pinned[0].Selector)
-	assert.Equal(t, "max", pinned[0].Thinking)
-	for _, agent := range []string{"scout", "reviewer", "security-reviewer", "sonic"} {
-		assert.NotContains(t, cfg.RoleModelPolicy.Agents, agent,
-			"an unpinned agent must stay on the base profile")
-	}
-}
-
 // Pinning nothing is not a change: the wizard must not persist a policy that
 // merely restates the base profile.
 func TestQualityOMPWizardCustomWithoutPinsWritesNothing(t *testing.T) {

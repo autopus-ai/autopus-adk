@@ -15,42 +15,36 @@ const ompModeDispatchBody = "```\n" +
 	"Agent(subagent_type=\"reviewer\", prompt=\"c\")\n" +
 	"```\n"
 
-var ompNativeReferences = content.PlatformReferenceOptions{OMPAgentSource: config.OMPAgentSourceNative}
-
-// S14 (body): autopus mode dispatches each role to its own agent; native
-// collapses executor onto the unnamed task default and explorer onto scout.
-func TestReplacePlatformReferencesWith_OMPDispatchFollowsTheAgentSource(t *testing.T) {
+// S14 (body): every dispatch names the Autopus agent of its own role; none
+// collapses onto a bundled agent the way agent_source: native did before
+// v0.50.129.
+func TestReplacePlatformReferences_OMPDispatchNamesEachRolesOwnAgent(t *testing.T) {
 	t.Parallel()
-	autopus := content.ReplacePlatformReferencesWith(ompModeDispatchBody, "omp", content.PlatformReferenceOptions{})
+	rendered := content.ReplacePlatformReferences(ompModeDispatchBody, "omp")
 	for _, agent := range []string{"executor", "explorer", "reviewer"} {
-		assert.Contains(t, autopus, `"agent": "`+agent+`"`)
+		assert.Contains(t, rendered, `"agent": "`+agent+`"`)
 	}
-	assert.NotContains(t, autopus, `"agent": "scout"`)
-	assert.Equal(t, autopus, content.ReplacePlatformReferences(ompModeDispatchBody, "omp"), "autopus is the default")
-
-	native := content.ReplacePlatformReferencesWith(ompModeDispatchBody, "omp", ompNativeReferences)
-	assert.NotContains(t, native, `"agent": "executor"`)
-	assert.Contains(t, native, `"agent": "scout"`)
-	assert.Contains(t, native, `"agent": "reviewer"`)
+	assert.NotContains(t, rendered, `"agent": "scout"`)
 }
 
 // A bundled name written into a source never reaches an agent autopus mode
 // disables: scout and security-reviewer become the roles that replace them,
-// and sonic falls to the unnamed default.
-func TestReplacePlatformReferencesWith_AutopusNeverDispatchesADisabledAgent(t *testing.T) {
+// and sonic falls to the unnamed default. Agent bodies name the Autopus
+// agents too.
+func TestReplacePlatformReferences_NeverDispatchesADisabledAgent(t *testing.T) {
 	t.Parallel()
 	body := "```\n" +
 		"Agent(subagent_type=\"scout\", prompt=\"a\")\n" +
 		"Agent(subagent_type=\"security-reviewer\", prompt=\"b\")\n" +
 		"Agent(subagent_type=\"sonic\", prompt=\"c\")\n" +
 		"```\n"
-	rendered := content.ReplacePlatformReferencesWith(body, "omp", content.PlatformReferenceOptions{})
+	rendered := content.ReplacePlatformReferences(body, "omp")
 	for _, disabled := range config.OMPAutopusDisabledAgents() {
 		assert.NotContains(t, rendered, `"agent": "`+disabled+`"`)
 	}
 	assert.Contains(t, rendered, `"agent": "explorer"`)
 	assert.Contains(t, rendered, `"agent": "security-auditor"`)
 
-	agent := content.NormalizeAgentReferencesWith("Agent(subagent_type=\"executor\", prompt=\"a\")", "omp", ompNativeReferences)
-	assert.NotContains(t, agent, `"agent": "executor"`, "agent bodies follow the native option too")
+	agent := content.NormalizeAgentReferences("Agent(subagent_type=\"executor\", prompt=\"a\")", "omp")
+	assert.Contains(t, agent, `"agent": "executor"`, "agent bodies dispatch the Autopus agent")
 }

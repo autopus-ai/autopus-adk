@@ -123,20 +123,20 @@ func TestComposeTable_FixtureP_CodexOverrideColumn(t *testing.T) {
 func TestComposeTable_OMPColumnShowsRequestedRoute(t *testing.T) {
 	o1 := composeTableFor(t, "O1", "CAT-A").layout("ko", nil)
 	assert.Equal(t, "OMP (요청 route · catalog 확인 전)", o1.header[5])
-	assert.Equal(t, "task · fable-5-1:max", composeTableRowTexts(t, o1, "executor")[5])
-	assert.Equal(t, "scout · sonnet-5-5:high", composeTableRowTexts(t, o1, "explorer")[5])
+	assert.Equal(t, "executor · sonnet-5-5:max", composeTableRowTexts(t, o1, "executor")[5])
+	assert.Equal(t, "explorer · sonnet-5-5:high", composeTableRowTexts(t, o1, "explorer")[5])
 
 	o2 := composeTableFor(t, "O2", "CAT-A").layout("ko", nil)
 	assert.Equal(t, "OMP (요청 route · catalog 확인 전)", o2.header[5])
-	assert.Equal(t, "task · opus-5-5:xhigh", composeTableRowTexts(t, o2, "executor")[5])
+	assert.Equal(t, "executor · opus-5-5:xhigh", composeTableRowTexts(t, o2, "executor")[5])
 
 	r := composeTableFor(t, "R", "CAT-A").layout("ko", nil)
 	assert.Equal(t, "OMP", r.header[5])
 }
 
 // S5: OMP's oracle is the requested route itself, the first candidate of
-// OMPNativeAgentRoute for the agent's native OMP agent.
-func TestComposeTable_OMPCellsEqualNativeAgentRoute(t *testing.T) {
+// OMPAgentRoute for the agent, which OMP serves under its own name.
+func TestComposeTable_OMPCellsEqualTheAgentRoute(t *testing.T) {
 	for _, fixture := range []string{"O1", "O2"} {
 		t.Run(fixture, func(t *testing.T) {
 			cfg := composeTableFixture(t, fixture)
@@ -146,13 +146,11 @@ func TestComposeTable_OMPCellsEqualNativeAgentRoute(t *testing.T) {
 			_, profile, ok := cfg.RoleModelPolicy.SelectedRoleModelProfileForQuality(cfg.Quality)
 			require.True(t, ok)
 			for _, agent := range config.CanonicalAgentNames() {
-				native, err := config.OMPNativeAgentForRole(agent)
-				require.NoError(t, err)
-				_, route, err := profile.OMPNativeAgentRoute(native)
+				_, route, err := profile.OMPAgentRoute(agent)
 				require.NoError(t, err)
 				require.NotEmpty(t, route.Candidates)
 				want := composeTableOMPCell{
-					native:   native,
+					native:   agent,
 					selector: route.Candidates[0].Selector,
 					thinking: route.Candidates[0].Thinking,
 				}

@@ -37,7 +37,7 @@ func sortedAutopusAgentNames() []string {
 }
 
 // INV-MUX3-05: autopus mode requests one route per canonical agent and one for
-// task, each under its own name with its own identity; native keeps five.
+// task, each under its own name with its own identity.
 func TestBridgeOMPIntegrationRoutes_RoutesEachAutopusAgentUnderItsOwnName(t *testing.T) {
 	t.Parallel()
 	routes, err := bridgeOMPIntegrationRoutes(resolvedIntegrationProfile(t, integrationHarnessConfig("overlay")))
@@ -48,10 +48,6 @@ func TestBridgeOMPIntegrationRoutes_RoutesEachAutopusAgentUnderItsOwnName(t *tes
 	for _, disabled := range config.OMPAutopusDisabledAgents() {
 		assert.NotContains(t, routes, disabled)
 	}
-
-	native, err := bridgeOMPIntegrationRoutes(resolvedIntegrationProfile(t, nativeClaimConfig(integrationHarnessConfig("overlay"))))
-	require.NoError(t, err)
-	assert.Equal(t, []string{"reviewer", "scout", "security-reviewer", "sonic", "task"}, sortedKeys(native))
 }
 
 // S9 (adapter): the overrides key every canonical agent and task, the receipt
@@ -89,36 +85,26 @@ func TestOMPModelIntegration_AutopusOverridesKeyEveryAgentAndTask(t *testing.T) 
 }
 
 // In autopus mode family diversity is measured against the executor agent,
-// the one that carries implementation work; native mode keeps task.
+// the one that carries implementation work; the bundled task agent native
+// mode anchored on before v0.50.129 runs no implementation any more.
 func TestCompileOMPModelRouting_AnchorsFamilyDiversityOnTheServedExecutor(t *testing.T) {
 	t.Parallel()
 	catalog, reason := NormalizeOMPModelCatalog(newModelIntegrationRunner().catalog, 16*1024)
 	require.Equal(t, "catalog_ready", reason)
-	for source, want := range map[string]string{
-		config.OMPAgentSourceAutopus: "anthropic/alpha-reasoner:high",
-		config.OMPAgentSourceNative:  "openai/beta-coder:high",
-	} {
-		cfg := integrationHarnessConfig("overlay")
-		cfg.RoleModelPolicy.AgentSource = source
-		profile := resolvedIntegrationProfile(t, cfg)
-		routes, err := bridgeOMPIntegrationRoutes(profile)
-		require.NoError(t, err)
-		routing := CompileOMPModelRouting(OMPModelRoutingInput{
-			Catalog: catalog, CatalogReason: "catalog_ready", Routes: routes, AgentSource: profile.AgentSource,
-		})
-		for _, resolution := range routing.Resolutions {
-			if resolution.Agent == "reviewer" {
-				assert.Equal(t, want, resolution.EffectiveSelector, source)
-			}
+	profile := resolvedIntegrationProfile(t, integrationHarnessConfig("overlay"))
+	routes, err := bridgeOMPIntegrationRoutes(profile)
+	require.NoError(t, err)
+	routing := CompileOMPModelRouting(OMPModelRoutingInput{
+		Catalog: catalog, CatalogReason: "catalog_ready", Routes: routes,
+	})
+	order := make([]string, 0, len(routing.Resolutions))
+	for _, resolution := range routing.Resolutions {
+		if resolution.Agent == "reviewer" {
+			assert.Equal(t, "anthropic/alpha-reasoner:high", resolution.EffectiveSelector)
 		}
-		if source == config.OMPAgentSourceAutopus {
-			order := make([]string, 0, len(routing.Resolutions))
-			for _, resolution := range routing.Resolutions {
-				order = append(order, resolution.Agent)
-			}
-			assert.Equal(t, config.OMPAutopusAgentNames(), order)
-		}
+		order = append(order, resolution.Agent)
 	}
+	assert.Equal(t, config.OMPAutopusAgentNames(), order)
 }
 
 // Route Contract degraded rule: a built-in route may fall back to the runtime

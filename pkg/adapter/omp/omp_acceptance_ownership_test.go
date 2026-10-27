@@ -74,9 +74,11 @@ func TestOMPAcceptance_NativeSurfacesDoNotYieldToOtherPlatforms(t *testing.T) {
 
 func TestOMPAcceptance_LegacyManifestPathsArePrunedWithoutDeletingUserConfig(t *testing.T) {
 	root := t.TempDir()
-	require.NoError(t, config.Save(root, nativeConfigForOMP()))
-	_, generateErr := NewWithRoot(root).Generate(context.Background(), nativeConfigForOMP())
+	require.NoError(t, config.Save(root, configForOMP()))
+	_, generateErr := NewWithRoot(root).Generate(context.Background(), configForOMP())
 	require.NoError(t, generateErr)
+	// A legacy install predates the agent surface: no ledger, no claim.
+	stripOMPAgentSurface(t, root)
 	legacySkill := ".agents/skills/legacy/SKILL.md"
 	legacyCommand := ".agents/commands/auto.md"
 	legacyConfig := markerBeginYml + "\nskills:\n  customDirectories:\n    - .agents/skills\n" + markerEndYml + "\n"
@@ -106,7 +108,7 @@ func TestOMPAcceptance_LegacyManifestPathsArePrunedWithoutDeletingUserConfig(t *
 	assert.NoFileExists(t, filepath.Join(root, filepath.FromSlash(legacyCommand)))
 	actual, err := os.ReadFile(filepath.Join(root, configFile))
 	require.NoError(t, err)
-	assert.Equal(t, "theme:\n  dark: user-theme\n\n", string(actual))
+	assert.True(t, strings.HasPrefix(string(actual), "theme:\n  dark: user-theme\n\n"), string(actual))
 	assert.NotContains(t, string(actual), "customDirectories")
-	assert.NotContains(t, manifestPaths(t, root), configFile)
+	assert.Equal(t, config.OMPAutopusDisabledAgents(), toStrings(claimDisabledAgents(t, string(actual))))
 }

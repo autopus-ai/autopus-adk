@@ -1,20 +1,20 @@
-그룹       에이전트             등급            Claude Code    Codex            OMP (요청 route · catalog 확인 전)  OpenCode       Antigravity
-설계·판단  planner              opus            opus · max     6.1-sol · xhigh  task · opus-5-5:xhigh               플랫폼 기본값  플랫폼 기본값
-설계·판단  architect            opus            opus · max     6.1-sol · xhigh  task · opus-5-5:xhigh               플랫폼 기본값  플랫폼 기본값
-설계·판단  spec-writer          opus            opus · max     6.1-sol · xhigh  task · opus-5-5:xhigh               플랫폼 기본값  플랫폼 기본값
-설계·판단  security-auditor     opus            opus · max     6.1-sol · xhigh  security-reviewer · 6.1-sol:xhigh   플랫폼 기본값  플랫폼 기본값
-구현       executor             opus            opus · max     6.1-sol · xhigh  task · opus-5-5:xhigh               플랫폼 기본값  플랫폼 기본값
-구현       debugger             opus            opus · max     6.1-sol · xhigh  task · opus-5-5:xhigh               플랫폼 기본값  플랫폼 기본값
-구현       deep-worker          기본값(opus)    opus · max     6.1-sol · xhigh  task · opus-5-5:xhigh               플랫폼 기본값  플랫폼 기본값
-구현       devops               opus            opus · max     6.1-sol · xhigh  task · opus-5-5:xhigh               플랫폼 기본값  플랫폼 기본값
-구현       frontend-specialist  기본값(sonnet)  sonnet · high  6.1-sol · xhigh  task · opus-5-5:xhigh               플랫폼 기본값  플랫폼 기본값
-구현       perf-engineer        기본값(sonnet)  sonnet · high  6.1-sol · xhigh  task · opus-5-5:xhigh               플랫폼 기본값  플랫폼 기본값
-검증·리뷰  reviewer             opus            opus · max     6.1-sol · xhigh  reviewer · 6.1-sol:xhigh            플랫폼 기본값  플랫폼 기본값
-검증·리뷰  validator            opus            opus · max     6.1-sol · xhigh  task · opus-5-5:xhigh               플랫폼 기본값  플랫폼 기본값
-검증·리뷰  tester               opus            opus · max     6.1-sol · xhigh  task · opus-5-5:xhigh               플랫폼 기본값  플랫폼 기본값
-검증·리뷰  ux-validator         기본값(sonnet)  sonnet · high  6.1-sol · xhigh  task · opus-5-5:xhigh               플랫폼 기본값  플랫폼 기본값
-탐색·보조  explorer             opus            opus · max     6.1-sol · xhigh  scout · opus-5-5:xhigh              플랫폼 기본값  플랫폼 기본값
-탐색·보조  annotator            기본값(sonnet)  sonnet · high  6.1-sol · xhigh  task · opus-5-5:xhigh               플랫폼 기본값  플랫폼 기본값
-탐색·보조  reverse-engineer     기본값(opus)    opus · max     6.1-sol · xhigh  task · opus-5-5:xhigh               플랫폼 기본값  플랫폼 기본값
+그룹       에이전트             등급            Claude Code    Codex            OMP (요청 route · catalog 확인 전)    OpenCode       Antigravity
+설계·판단  planner              opus            opus · max     6.1-sol · xhigh  planner · opus-5-5:xhigh              플랫폼 기본값  플랫폼 기본값
+설계·판단  architect            opus            opus · max     6.1-sol · xhigh  architect · opus-5-5:xhigh            플랫폼 기본값  플랫폼 기본값
+설계·판단  spec-writer          opus            opus · max     6.1-sol · xhigh  spec-writer · opus-5-5:xhigh          플랫폼 기본값  플랫폼 기본값
+설계·판단  security-auditor     opus            opus · max     6.1-sol · xhigh  security-auditor · 6.1-sol:xhigh      플랫폼 기본값  플랫폼 기본값
+구현       executor             opus            opus · max     6.1-sol · xhigh  executor · opus-5-5:xhigh             플랫폼 기본값  플랫폼 기본값
+구현       debugger             opus            opus · max     6.1-sol · xhigh  debugger · opus-5-5:xhigh             플랫폼 기본값  플랫폼 기본값
+구현       deep-worker          기본값(opus)    opus · max     6.1-sol · xhigh  deep-worker · opus-5-5:xhigh          플랫폼 기본값  플랫폼 기본값
+구현       devops               opus            opus · max     6.1-sol · xhigh  devops · opus-5-5:xhigh               플랫폼 기본값  플랫폼 기본값
+구현       frontend-specialist  기본값(sonnet)  sonnet · high  6.1-sol · xhigh  frontend-specialist · opus-5-5:xhigh  플랫폼 기본값  플랫폼 기본값
+구현       perf-engineer        기본값(sonnet)  sonnet · high  6.1-sol · xhigh  perf-engineer · opus-5-5:xhigh        플랫폼 기본값  플랫폼 기본값
+검증·리뷰  reviewer             opus            opus · max     6.1-sol · xhigh  reviewer · 6.1-sol:xhigh              플랫폼 기본값  플랫폼 기본값
+검증·리뷰  validator            opus            opus · max     6.1-sol · xhigh  validator · opus-5-5:xhigh            플랫폼 기본값  플랫폼 기본값
+검증·리뷰  tester               opus            opus · max     6.1-sol · xhigh  tester · opus-5-5:xhigh               플랫폼 기본값  플랫폼 기본값
+검증·리뷰  ux-validator         기본값(sonnet)  sonnet · high  6.1-sol · xhigh  ux-validator · opus-5-5:xhigh         플랫폼 기본값  플랫폼 기본값
+탐색·보조  explorer             opus            opus · max     6.1-sol · xhigh  explorer · opus-5-5:xhigh             플랫폼 기본값  플랫폼 기본값
+탐색·보조  annotator            기본값(sonnet)  sonnet · high  6.1-sol · xhigh  annotator · opus-5-5:xhigh            플랫폼 기본값  플랫폼 기본값
+탐색·보조  reverse-engineer     기본값(opus)    opus · max     6.1-sol · xhigh  reverse-engineer · opus-5-5:xhigh     플랫폼 기본값  플랫폼 기본값
 Codex catalog: 읽음 · 대체 0칸
 Codex 기본 세션: 6-astra · ultra

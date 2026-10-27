@@ -17,13 +17,12 @@ func resolvedAutopusProfile(t *testing.T, agents map[string]RoleAgentOverrideCon
 	require.NoError(t, policy.Validate())
 	_, profile, ok := policy.SelectedRoleModelProfileForQuality(QualityConf{})
 	require.True(t, ok)
-	require.False(t, profile.OMPNativeAgentSource())
 	return profile
 }
 
 func autopusRoute(t *testing.T, profile RoleModelProfileConf, agent string) (OMPPolicyAgentRoute, RoleModelCandidateConf) {
 	t.Helper()
-	resolved, route, err := profile.OMPAutopusAgentRoute(agent)
+	resolved, route, err := profile.OMPAgentRoute(agent)
 	require.NoError(t, err, agent)
 	require.NotEmpty(t, route.Candidates, agent)
 	return resolved, route.Candidates[0]
@@ -31,7 +30,7 @@ func autopusRoute(t *testing.T, profile RoleModelProfileConf, agent string) (OMP
 
 // Route Contract (3): without pins every canonical agent takes the route the
 // profile derived for itself, and task takes the planner route.
-func TestOMPAutopusAgentRoute_DerivedRoutesKeepEachAgentsOwnRow(t *testing.T) {
+func TestOMPAgentRoute_DerivedRoutesKeepEachAgentsOwnRow(t *testing.T) {
 	t.Parallel()
 	profile := resolvedAutopusProfile(t, nil)
 	for _, agent := range CanonicalAgentNames() {
@@ -42,7 +41,7 @@ func TestOMPAutopusAgentRoute_DerivedRoutesKeepEachAgentsOwnRow(t *testing.T) {
 		want, err := profile.AgentCandidates(agent)
 		require.NoError(t, err)
 		assert.Equal(t, want[0], first, agent)
-		assert.False(t, profile.OMPAutopusAgentOperatorPinned(agent), agent)
+		assert.False(t, profile.OMPAgentOperatorPinned(agent), agent)
 	}
 	resolved, first := autopusRoute(t, profile, "task")
 	assert.Equal(t, "planner", resolved.Key)
@@ -52,14 +51,15 @@ func TestOMPAutopusAgentRoute_DerivedRoutesKeepEachAgentsOwnRow(t *testing.T) {
 	assert.Equal(t, planner[0], first)
 
 	for _, disabled := range OMPAutopusDisabledAgents() {
-		_, _, err := profile.OMPAutopusAgentRoute(disabled)
+		_, _, err := profile.OMPAgentRoute(disabled)
 		assert.Error(t, err, "%s is disabled and has no route", disabled)
 	}
 }
 
 // OP2 (S9) and the task-pin copy of S21: a pin on the bundled agent a role
-// collapses onto in native mode routes every role without a pin of its own.
-func TestOMPAutopusAgentRoute_ANativeNamePinCoversTheRolesWithoutTheirOwn(t *testing.T) {
+// collapsed onto before v0.50.127, which a policy written for native mode
+// holds, routes every role without a pin of its own.
+func TestOMPAgentRoute_ANativeNamePinCoversTheRolesWithoutTheirOwn(t *testing.T) {
 	t.Parallel()
 	astra := autopusPin("openai-codex/gpt-6-astra", "high")
 	profile := resolvedAutopusProfile(t, map[string]RoleAgentOverrideConf{
@@ -73,7 +73,7 @@ func TestOMPAutopusAgentRoute_ANativeNamePinCoversTheRolesWithoutTheirOwn(t *tes
 		resolved, first := autopusRoute(t, profile, agent)
 		assert.Equal(t, "task", resolved.Key, agent)
 		assert.Equal(t, astra.Candidates[0], first, agent)
-		assert.True(t, profile.OMPAutopusAgentOperatorPinned(agent), agent)
+		assert.True(t, profile.OMPAgentOperatorPinned(agent), agent)
 	}
 	_, executor := autopusRoute(t, profile, "executor")
 	assert.Equal(t, "max", executor.Thinking)
@@ -82,13 +82,13 @@ func TestOMPAutopusAgentRoute_ANativeNamePinCoversTheRolesWithoutTheirOwn(t *tes
 	for _, own := range []string{"explorer", "reviewer", "security-auditor"} {
 		resolved, _ := autopusRoute(t, profile, own)
 		assert.Equal(t, own, resolved.Key, own)
-		assert.False(t, profile.OMPAutopusAgentOperatorPinned(own), own)
+		assert.False(t, profile.OMPAgentOperatorPinned(own), own)
 	}
 }
 
 // scout and security-reviewer pins reach the role that collapsed onto them;
 // a planner pin reaches task, and no other role's pin does.
-func TestOMPAutopusAgentRoute_ScoutReviewerAndPlannerPinsReachTheirAgents(t *testing.T) {
+func TestOMPAgentRoute_ScoutReviewerAndPlannerPinsReachTheirAgents(t *testing.T) {
 	t.Parallel()
 	scout := autopusPin("openai-codex/gpt-6-luna", "low")
 	guard := autopusPin("openai-codex/gpt-6-astra", "max")
@@ -106,24 +106,20 @@ func TestOMPAutopusAgentRoute_ScoutReviewerAndPlannerPinsReachTheirAgents(t *tes
 	resolved, first = autopusRoute(t, profile, "task")
 	assert.Equal(t, "planner", resolved.Key)
 	assert.Equal(t, plan.Candidates[0], first, "task follows the planner pin, not the executor pin")
-	assert.True(t, profile.OMPAutopusAgentOperatorPinned("task"))
+	assert.True(t, profile.OMPAgentOperatorPinned("task"))
 }
 
-// The served agent set and route lookup follow the resolved profile's source.
-func TestOMPAgentRoute_DispatchesOnTheProfileSource(t *testing.T) {
+// A resolved profile serves the Autopus agents and task, each under its own
+// name; no bundled agent but task has a route.
+func TestOMPAgentRoute_ServesTheAutopusAgents(t *testing.T) {
 	t.Parallel()
 	profile := resolvedAutopusProfile(t, nil)
 	assert.Equal(t, OMPAutopusAgentNames(), profile.OMPAgentNames())
 	resolved, _, err := profile.OMPAgentRoute("executor")
 	require.NoError(t, err)
 	assert.Equal(t, "executor", resolved.Native)
-
-	native := RoleModelPolicyConf{Version: RoleModelPolicyVersionV1, Profile: "balanced", Family: "openai", AgentSource: OMPAgentSourceNative}
-	_, nativeProfile, ok := native.SelectedRoleModelProfileForQuality(QualityConf{})
-	require.True(t, ok)
-	assert.Equal(t, OMPNativeAgentNames(), nativeProfile.OMPAgentNames())
-	resolved, _, err = nativeProfile.OMPAgentRoute("task")
+	resolved, _, err = profile.OMPAgentRoute("task")
 	require.NoError(t, err)
 	assert.Equal(t, "planner", resolved.Key)
-	assert.False(t, nativeProfile.OMPAgentOperatorPinned("task"))
+	assert.False(t, profile.OMPAgentOperatorPinned("task"))
 }

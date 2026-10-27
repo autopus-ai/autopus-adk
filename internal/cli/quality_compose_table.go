@@ -41,9 +41,9 @@ type composeTableCodexCell struct {
 	refused    bool
 }
 
-// composeTableOMPCell is the requested route of an agent's native OMP agent: the
-// first candidate before OMP's own catalog is consulted. The zero value means
-// no profile is selected, so OMP keeps its platform default.
+// composeTableOMPCell is the requested route of the OMP agent serving an agent:
+// the first candidate before OMP's own catalog is consulted. The zero value
+// means no profile is selected, so OMP keeps its platform default.
 type composeTableOMPCell struct {
 	native, selector, thinking string
 	unresolved                 bool
@@ -238,30 +238,16 @@ func composeTableOMPRoutes(cfg *config.HarnessConfig) func(string) composeTableO
 	if !ok {
 		return unresolved
 	}
-	if !profile.OMPNativeAgentSource() {
-		// Autopus mode routes each agent under its own name.
-		return func(agent string) composeTableOMPCell {
-			_, route, err := profile.OMPAutopusAgentRoute(agent)
-			if errors.Is(err, config.ErrOMPAgentUnrouted) {
-				return composeTableOMPCell{}
-			}
-			if err != nil || len(route.Candidates) == 0 {
-				return composeTableOMPCell{unresolved: true}
-			}
-			first := route.Candidates[0]
-			return composeTableOMPCell{native: agent, selector: first.Selector, thinking: first.Thinking}
-		}
-	}
+	// Every agent is routed under its own name.
 	return func(agent string) composeTableOMPCell {
-		native, err := config.OMPNativeAgentForRole(agent)
-		if err != nil {
-			return composeTableOMPCell{unresolved: true}
+		_, route, err := profile.OMPAgentRoute(agent)
+		if errors.Is(err, config.ErrOMPAgentUnrouted) {
+			return composeTableOMPCell{}
 		}
-		_, route, err := profile.OMPNativeAgentRoute(native)
 		if err != nil || len(route.Candidates) == 0 {
 			return composeTableOMPCell{unresolved: true}
 		}
 		first := route.Candidates[0]
-		return composeTableOMPCell{native: native, selector: first.Selector, thinking: first.Thinking}
+		return composeTableOMPCell{native: agent, selector: first.Selector, thinking: first.Thinking}
 	}
 }

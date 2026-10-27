@@ -18,7 +18,6 @@ func TestCompileOMPModelDoctorActivationExpectation_IsDeterministicAndConcrete(t
 	t.Parallel()
 
 	profile := integrationHarnessConfig(config.RoleModelConfigModeOverlay).RoleModelPolicy.Profiles["p1"]
-	profile.AgentSource = config.OMPAgentSourceNative
 	catalog, reason := NormalizeOMPModelCatalog(newModelIntegrationRunner().catalog, 16*1024)
 	require.Equal(t, "catalog_ready", reason)
 
@@ -45,7 +44,7 @@ func TestCompileOMPModelDoctorActivationExpectation_IsDeterministicAndConcrete(t
 		names = append(names, agent)
 	}
 	sort.Strings(names)
-	wantAgents := append([]string(nil), config.OMPNativeAgentNames()...)
+	wantAgents := config.OMPAutopusAgentNames()
 	sort.Strings(wantAgents)
 	assert.Equal(t, wantAgents, names)
 }

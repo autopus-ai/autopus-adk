@@ -8,9 +8,9 @@ import (
 )
 
 // mergeOMPIntegratedProjectConfig merges the project-managed profile's claims
-// and, in autopus mode, the agent surface claim over the one ledger preimage.
-// The claim count check stays with the profile claims: the agent surface
-// claim is the adapter's own and is never declared in managed_keys.
+// and the agent surface claim over the one ledger preimage. The claim count
+// check stays with the profile claims: the agent surface claim is the
+// adapter's own and is never declared in managed_keys.
 func (i *ompModelIntegration) mergeOMPIntegratedProjectConfig(
 	workspace *ompRootedWorkspace,
 	mapping adapter.FileMapping,
@@ -23,7 +23,7 @@ func (i *ompModelIntegration) mergeOMPIntegratedProjectConfig(
 	}
 	plan, err := planOMPClaimSetAt(workspace, &ompProfileClaims{
 		values: values, claims: i.profile.ManagedKeys,
-	}, i.claimSurface)
+	})
 	if err != nil {
 		return mapping, adapter.FileMapping{}, "", err
 	}

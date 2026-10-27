@@ -7,8 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/insajin/autopus-adk/pkg/config"
 )
 
 // The operator surfaces read the agent surface without writing: which
@@ -19,16 +17,15 @@ func TestInspectOMPAgentSurface_ReportsFilesAndDisabledAgentsOwnership(t *testin
 	project.write(".omp/agents/reviewer.md", "---\nname: reviewer\ndescription: mine\n---\nmine\n")
 	project.write(configFile, "task:\n  disabledAgents:\n    - browser\n")
 
-	before, err := InspectOMPAgentSurface(project.root, configForOMP())
+	before, err := InspectOMPAgentSurface(project.root)
 	require.NoError(t, err)
-	assert.Equal(t, config.OMPAgentSourceAutopus, before.Source)
 	assert.Empty(t, before.RecordedAgents)
 	assert.Equal(t, []string{"reviewer"}, before.UserAgentFiles)
 	assert.Len(t, before.MissingAgents, 16)
 	assert.True(t, before.DisabledAgentsUserOwned, "a value the user chose is theirs before any claim")
 
 	project.mustRun("generate", configForOMP())
-	after, err := InspectOMPAgentSurface(project.root, configForOMP())
+	after, err := InspectOMPAgentSurface(project.root)
 	require.NoError(t, err)
 	assert.Len(t, after.RecordedAgents, 16)
 	assert.Equal(t, []string{"reviewer"}, after.UserAgentFiles)
@@ -37,7 +34,7 @@ func TestInspectOMPAgentSurface_ReportsFilesAndDisabledAgentsOwnership(t *testin
 	assert.False(t, after.DisabledAgentsClaimed)
 
 	require.NoError(t, os.Remove(filepath.Join(project.root, ".omp", "agents", "validator.md")))
-	missing, err := InspectOMPAgentSurface(project.root, configForOMP())
+	missing, err := InspectOMPAgentSurface(project.root)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"validator"}, missing.MissingAgents)
 }
@@ -45,7 +42,7 @@ func TestInspectOMPAgentSurface_ReportsFilesAndDisabledAgentsOwnership(t *testin
 func TestInspectOMPAgentSurface_ReportsAnADKClaim(t *testing.T) {
 	project := newClaimProject(t)
 	project.mustRun("generate", configForOMP())
-	report, err := InspectOMPAgentSurface(project.root, configForOMP())
+	report, err := InspectOMPAgentSurface(project.root)
 	require.NoError(t, err)
 	assert.True(t, report.DisabledAgentsClaimed)
 	assert.False(t, report.DisabledAgentsUserOwned)
@@ -66,7 +63,7 @@ func TestInspectOMPAgentSurface_ReportsAnUnclaimableConfigApart(t *testing.T) {
 			project.write(configFile, content)
 
 			project.mustRun("generate", configForOMP())
-			report, err := InspectOMPAgentSurface(project.root, configForOMP())
+			report, err := InspectOMPAgentSurface(project.root)
 
 			require.NoError(t, err)
 			assert.True(t, report.ProjectConfigUnclaimable)

@@ -16,7 +16,7 @@ import (
 func TestOMPModelIntegration_FamilyDiversityDisabledStillActivates(t *testing.T) {
 	t.Parallel()
 
-	cfg := nativeClaimConfig(integrationHarnessConfig("overlay"))
+	cfg := integrationHarnessConfig("overlay")
 	profile := cfg.RoleModelPolicy.Profiles["p1"]
 	profile.FamilyDiversity = config.FamilyDiversityPolicyConf{}
 	cfg.RoleModelPolicy.Profiles["p1"] = profile
@@ -29,7 +29,7 @@ func TestOMPModelIntegration_FamilyDiversityDisabledStillActivates(t *testing.T)
 	var receipt OMPModelResolutionReceipt
 	require.NoError(t, json.Unmarshal(
 		integrationMappingsByPath(files)[OMPModelReceiptRelativePath].Content, &receipt))
-	require.Len(t, receipt.Roles, len(config.OMPNativeAgentNames()))
+	require.Len(t, receipt.Roles, len(config.OMPAutopusAgentNames()))
 	for _, role := range receipt.Roles {
 		assert.Equal(t, "not_applicable", role.FamilyDiversity.Status, role.Agent)
 	}

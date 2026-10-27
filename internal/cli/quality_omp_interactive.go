@@ -62,7 +62,7 @@ func runOMPQualityInteractive(cmd *cobra.Command, root string, cfg *config.Harne
 		if family, err = readOMPQualityFamily(cmd); err != nil {
 			return err
 		}
-		if pins, err = readOMPCustomAgentPins(cmd.Context(), cmd, runner, cfg.RoleModelPolicy.OMPAgentSource()); err != nil {
+		if pins, err = readOMPCustomAgentPins(cmd.Context(), cmd, runner); err != nil {
 			return err
 		}
 		if len(pins) == 0 {

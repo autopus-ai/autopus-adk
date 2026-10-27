@@ -153,7 +153,7 @@ func TestMarkOMPReaAnalysisFallbacks_DoctorReportsTheSessionModel(t *testing.T) 
 	routes, err := bridgeOMPIntegrationRoutes(profile)
 	require.NoError(t, err)
 	compilation := CompileOMPModelRouting(OMPModelRoutingInput{
-		Catalog: probe.Catalog, CatalogReason: "catalog_ready", Routes: routes, AgentSource: profile.AgentSource,
+		Catalog: probe.Catalog, CatalogReason: "catalog_ready", Routes: routes,
 	})
 	MarkOMPReaAnalysisFallbacks(profile, &compilation)
 	rows := projectOMPModelDoctorRoles(compilation.Resolutions)

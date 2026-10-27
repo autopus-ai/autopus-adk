@@ -9,8 +9,6 @@ package content
 import (
 	"regexp"
 	"strings"
-
-	"github.com/insajin/autopus-adk/pkg/config"
 )
 
 var openCodeSkillPathRe = regexp.MustCompile(`\.agents/skills/([a-z0-9-]+)\.md`)
@@ -86,41 +84,24 @@ var pathOrder = []string{
 	".claude/",
 }
 
-// PlatformReferenceOptions selects how platform text names agents.
-type PlatformReferenceOptions struct {
-	// OMPAgentSource is the agent source OMP text is rendered for: dispatches
-	// name the Autopus agent of each role unless it is native, which collapses
-	// them onto the five bundled agents as v0.50.125 did.
-	OMPAgentSource string
-}
-
-func (o PlatformReferenceOptions) ompNative() bool {
-	return o.OMPAgentSource == config.OMPAgentSourceNative
-}
-
 // ReplacePlatformReferences replaces Claude-specific references with platform
-// equivalents under the default options: OMP text names the Autopus agents.
+// equivalents. OMP text names the Autopus agent of each role.
 // For Claude platforms, content is returned unchanged (backward compat — S8).
 func ReplacePlatformReferences(body string, platform string) string {
-	return ReplacePlatformReferencesWith(body, platform, PlatformReferenceOptions{})
-}
-
-// ReplacePlatformReferencesWith is ReplacePlatformReferences under opts.
-func ReplacePlatformReferencesWith(body string, platform string, opts PlatformReferenceOptions) string {
 	if platform == "claude" || platform == "claude-code" {
 		return body
 	}
 
 	p := normalizePlatform(platform)
 	if p == "omp" && hasOMPLegacyCoordination(body) {
-		body = NormalizeOMPSemanticReferencesWith(body, opts)
+		body = NormalizeOMPSemanticReferences(body)
 	}
 
 	lines := strings.Split(body, "\n")
 	result := make([]string, 0, len(lines))
 
 	for _, line := range lines {
-		line = replaceAgentCalls(line, platform, opts.ompNative())
+		line = replaceAgentCalls(line, platform)
 		line = replaceMCPCalls(line, platform)
 		line = replacePaths(line, platform)
 		line = replaceWorktreeIsolation(line, platform)
@@ -145,15 +126,10 @@ func ReplacePlatformReferencesWith(body string, platform string, opts PlatformRe
 // pkg/adapter/parity_conditional_test.go), so its branding contract lives in
 // the AGENTS.md marker section and is addressed by heading anchor.
 func NormalizeAgentReferences(body, platform string) string {
-	return NormalizeAgentReferencesWith(body, platform, PlatformReferenceOptions{})
-}
-
-// NormalizeAgentReferencesWith is NormalizeAgentReferences under opts.
-func NormalizeAgentReferencesWith(body, platform string, opts PlatformReferenceOptions) string {
 	p := normalizePlatform(platform)
 	normalized := body
 	if p != "claude" {
-		normalized = ReplacePlatformReferencesWith(normalized, p, opts)
+		normalized = ReplacePlatformReferences(normalized, p)
 	}
 
 	brandingRule := map[string]string{

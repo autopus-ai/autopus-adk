@@ -37,26 +37,6 @@ func claimYAML(t *testing.T, data string) map[string]any {
 	return document
 }
 
-// The user rewrote ADK's claim as an indentless sequence; going native
-// through Generate or Update releases exactly that key.
-func TestOMPClaimSet_ReleasesAnIndentlessClaim(t *testing.T) {
-	for _, operation := range []string{"generate", "update"} {
-		t.Run(operation, func(t *testing.T) {
-			p := newClaimProject(t)
-			p.write(configFile, "theme: dark\n")
-			p.mustRun(operation, configForOMP())
-			p.write(configFile, claimIndentless)
-
-			p.mustRun(operation, nativeConfigForOMP())
-
-			after, _ := p.read(configFile)
-			assert.Equal(t, "theme: dark\n", after)
-			_, ledger := p.ledger()
-			assert.False(t, ledger)
-		})
-	}
-}
-
 // An outside edit next to the reformatted claim stays when it is released.
 func TestOMPClaimSet_ReleasesAnIndentlessClaimBesideAUserKey(t *testing.T) {
 	p := newClaimProject(t)
@@ -64,7 +44,7 @@ func TestOMPClaimSet_ReleasesAnIndentlessClaimBesideAUserKey(t *testing.T) {
 	p.mustRun("generate", configForOMP())
 	p.write(configFile, "theme: dark\ntask:\n  enabled: true\n  disabledAgents:\n  - scout\n  - security-reviewer\n  - sonic\n  - designer\n  - librarian\n  - seance\n")
 
-	p.mustRun("generate", nativeConfigForOMP())
+	p.release()
 
 	after, _ := p.read(configFile)
 	assert.Equal(t, "theme: dark\ntask:\n  enabled: true\n", after)
@@ -109,7 +89,7 @@ func TestOMPClaimSet_FirstClaimOverAnIndentlessDefault(t *testing.T) {
 
 	claimed, _ := p.read(configFile)
 	assert.Equal(t, claimDefaultAgents(), claimDisabledAgents(t, claimed))
-	p.mustRun("generate", nativeConfigForOMP())
+	p.release()
 	released, _ := p.read(configFile)
 	assert.Equal(t, claimDefaultAgents(), claimDisabledAgents(t, released))
 }
@@ -124,7 +104,7 @@ func TestOMPClaimSet_FourSpaceLayoutRoundTrips(t *testing.T) {
 
 	claimed, _ := p.read(configFile)
 	assert.Equal(t, claimFourSpace+"    disabledAgents:\n      - scout\n      - security-reviewer\n      - sonic\n      - designer\n      - librarian\n      - seance\n", claimed)
-	p.mustRun("generate", nativeConfigForOMP())
+	p.release()
 	released, _ := p.read(configFile)
 	assert.Equal(t, claimFourSpace, released)
 }
@@ -149,7 +129,7 @@ func TestOMPClaimSet_AnchorReadsAnIndentlessEditOfTheClaimAlone(t *testing.T) {
 			assert.True(t, ownership.AgentSurfaceUserOwned)
 			after, _ := p.read(configFile)
 			assert.Equal(t, row.edited, after)
-			p.mustRun("generate", nativeConfigForOMP())
+			p.release()
 			released, _ := p.read(configFile)
 			assert.Equal(t, row.edited, released)
 		})

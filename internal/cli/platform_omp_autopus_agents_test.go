@@ -167,7 +167,7 @@ func TestPipelineOMPPhaseModels_ReadTheAutopusAgentOfEachPhase(t *testing.T) {
 		"executor": "provider/implement-model", "validator": "provider/validate-model",
 		"reviewer": "provider/review-model", "task": "provider/task-model",
 	}
-	writeOMPNativePhaseReceipt(t, projectDir, selectors)
+	writeOMPPhaseReceipt(t, projectDir, selectors)
 
 	models, err := loadPipelineOMPPhaseModels(projectDir, writePipelineOMPVersionFixture(t, "omp/17.1.8"))
 	require.NoError(t, err)
@@ -180,7 +180,7 @@ func TestPipelineOMPPhaseModels_ReadTheAutopusAgentOfEachPhase(t *testing.T) {
 	}, models)
 
 	delete(selectors, "executor")
-	writeOMPNativePhaseReceipt(t, projectDir, selectors)
+	writeOMPPhaseReceipt(t, projectDir, selectors)
 	_, err = loadPipelineOMPPhaseModels(projectDir, writePipelineOMPVersionFixture(t, "omp/17.1.8"))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "executor")
@@ -195,7 +195,7 @@ func TestComposeTable_OMPCellIsTheAutopusAgentsOwnRoute(t *testing.T) {
 	_, profile, ok := cfg.RoleModelPolicy.SelectedRoleModelProfileForQuality(cfg.Quality)
 	require.True(t, ok)
 	for _, agent := range config.CanonicalAgentNames() {
-		_, route, err := profile.OMPAutopusAgentRoute(agent)
+		_, route, err := profile.OMPAgentRoute(agent)
 		require.NoError(t, err)
 		want := composeTableOMPCell{native: agent, selector: route.Candidates[0].Selector, thinking: route.Candidates[0].Thinking}
 		assert.Equal(t, want, cell(agent), agent)

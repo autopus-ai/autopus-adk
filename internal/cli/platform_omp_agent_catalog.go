@@ -1,15 +1,12 @@
 package cli
 
 import (
-	"os"
-	"path/filepath"
-
 	"github.com/insajin/autopus-adk/pkg/adapter/omp"
 	"github.com/insajin/autopus-adk/pkg/config"
 )
 
-// ompNativeAgentRegistrySource names where OMP agents come from in native
-// mode, and where task comes from in autopus mode: the bundled registry.
+// ompNativeAgentRegistrySource names where task comes from: the bundled
+// registry.
 const ompNativeAgentRegistrySource = "omp_bundled_registry"
 
 // ompAutopusAgentRegistrySource names the generated .omp/agents definitions
@@ -38,48 +35,13 @@ func newOMPModelOperatorProjection(
 	}
 }
 
-// buildOMPAgentCatalog projects one inherited baseline row per bundled native
-// OMP agent. Nothing is counted on disk because Autopus installs no agent
-// definition: the only locally observable fact is whether a project file
-// shadows a bundled agent, which is reported instead of guessed at.
-func buildOMPAgentCatalog(root string, cfg *config.HarnessConfig) ([]ompEffectiveModelProjection, ompAgentCatalogSummary) {
-	if cfg != nil && cfg.RoleModelPolicy.OMPAgentSource() == config.OMPAgentSourceAutopus {
-		return buildOMPAutopusAgentCatalog(root, cfg)
-	}
-	natives := config.OMPNativeAgentNames()
-	rows := make([]ompEffectiveModelProjection, 0, len(natives))
-	summary := ompAgentCatalogSummary{
-		Expected: len(natives), Source: ompNativeAgentRegistrySource,
-		Status: "ready", Reason: "native_agent_registry",
-	}
-	for _, native := range natives {
-		row := ompEffectiveModelProjection{
-			Agent: native, ModelSource: "inherit", EffectiveSelector: "",
-			Source: ompNativeAgentRegistrySource, ConfigSource: "inherited",
-			Status: "inherited", Reason: "profile_not_selected",
-			Shadowed: shadowsOMPNativeAgent(root, native), FallbackAttempts: []ompFallbackProjection{},
-		}
-		if policy, err := config.ResolveOMPPolicyAgent(native); err == nil {
-			row.Role, row.Capability = policy.Role, policy.Capability
-		}
-		if row.Shadowed {
-			summary.Shadowed++
-		}
-		rows = append(rows, row)
-	}
-	if summary.Shadowed > 0 {
-		summary.Status, summary.Reason = "degraded", "native_agent_shadowed"
-	}
-	return rows, summary
-}
-
-// buildOMPAutopusAgentCatalog projects one inherited baseline row per agent
-// autopus mode serves. A generated definition under its own name is the agent,
-// not a shadow; a missing one, a user file OMP serves in its place, and a
-// task.disabledAgents left unwritten, because the project config cannot be
-// read safely or the user owns it, which keeps three bundled agents enabled,
-// are the degradations an operator has to see.
-func buildOMPAutopusAgentCatalog(root string, cfg *config.HarnessConfig) ([]ompEffectiveModelProjection, ompAgentCatalogSummary) {
+// buildOMPAgentCatalog projects one inherited baseline row per agent OMP
+// serves. A generated definition under its own name is the agent, not a
+// shadow, so Shadowed stays zero; a missing one, a user file OMP serves in
+// its place, and a task.disabledAgents left unwritten, because the project
+// config cannot be read safely or the user owns it, which keeps the bundled
+// agents enabled, are the degradations an operator has to see.
+func buildOMPAgentCatalog(root string) ([]ompEffectiveModelProjection, ompAgentCatalogSummary) {
 	agents := config.OMPAutopusAgentNames()
 	rows := make([]ompEffectiveModelProjection, 0, len(agents))
 	summary := ompAgentCatalogSummary{
@@ -100,7 +62,7 @@ func buildOMPAutopusAgentCatalog(root string, cfg *config.HarnessConfig) ([]ompE
 		}
 		rows = append(rows, row)
 	}
-	report, err := omp.InspectOMPAgentSurface(root, cfg)
+	report, err := omp.InspectOMPAgentSurface(root)
 	switch {
 	case err != nil:
 		summary.Status, summary.Reason = "degraded", "agent_surface_unreadable"
@@ -114,17 +76,6 @@ func buildOMPAutopusAgentCatalog(root string, cfg *config.HarnessConfig) ([]ompE
 		summary.Status, summary.Reason = "degraded", "disabled_agents_user_owned"
 	}
 	return rows, summary
-}
-
-// shadowsOMPNativeAgent reports whether a project definition would override a
-// bundled agent. OMP resolves exact agent names first-wins with the project
-// directory ahead of its own registry, so anything present at that path
-// replaces the bundled agent this projection describes. The path is only
-// stat-ed, never followed or read, so a symlink counts as a shadow too.
-func shadowsOMPNativeAgent(root, native string) bool {
-	definitionPath := filepath.Join(".omp", "agents", native+".md")
-	_, err := os.Lstat(filepath.Join(root, definitionPath))
-	return err == nil
 }
 
 func overlayOMPAgentCatalog(

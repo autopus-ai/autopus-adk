@@ -50,9 +50,8 @@ func planOMPProfileJSON(
 	return payload
 }
 
-func TestOMPProfilePlanPreviewsEveryBundledAgentWithoutWrites(t *testing.T) {
+func TestOMPProfilePlanPreviewsEveryServedAgentWithoutWrites(t *testing.T) {
 	root, runner := writeOMPBalancedProject(t)
-	markOMPProjectNative(t, root)
 	before, err := os.ReadFile(filepath.Join(root, autopusConfigName))
 	require.NoError(t, err)
 	entriesBefore, err := os.ReadDir(root)
@@ -65,22 +64,24 @@ func TestOMPProfilePlanPreviewsEveryBundledAgentWithoutWrites(t *testing.T) {
 	assert.Empty(t, payload.Blockers)
 	assert.Equal(t, ompProfileSourceBuiltin, payload.Source)
 	assert.False(t, payload.Persisted.ProfileDefinition)
-	// One row per bundled OMP agent, in registry order: the preview names what
-	// OMP registers, never the retired per-role agent set.
+	// One row per served agent, in served order: the 17 Autopus agents and
+	// task, each routed under its own row and task under the planner row.
 	agents := make([]string, 0, len(payload.Agents))
 	for _, row := range payload.Agents {
 		agents = append(agents, row.Agent)
 	}
-	assert.Equal(t, config.OMPNativeAgentNames(), agents)
+	assert.Equal(t, config.OMPAutopusAgentNames(), agents)
 	for _, row := range payload.Agents {
 		assert.Equal(t, ompProfileAvailabilityAvailable, row.Availability, row.Agent)
 		assert.NotEmpty(t, row.RequestedSelector, row.Agent)
 		assert.NotEmpty(t, row.Candidates, row.Agent)
 		assert.Equal(t, row.RequestedSelector, row.EffectiveSelector, row.Agent)
 		assert.Equal(t, row.RequestedThinking, row.EffectiveThinking, row.Agent)
-		representative, repErr := config.OMPNativeAgentRepresentative(row.Agent)
-		require.NoError(t, repErr, row.Agent)
-		assert.Equal(t, representative, row.PolicyKey, row.Agent)
+		want := row.Agent
+		if want == config.OMPAutopusDefaultAgent {
+			want = "planner"
+		}
+		assert.Equal(t, want, row.PolicyKey, row.Agent)
 	}
 
 	after, err := os.ReadFile(filepath.Join(root, autopusConfigName))
@@ -91,20 +92,19 @@ func TestOMPProfilePlanPreviewsEveryBundledAgentWithoutWrites(t *testing.T) {
 	assert.Len(t, entriesAfter, len(entriesBefore))
 }
 
-// Collapsing many roles onto one bundled agent must not lower its model: the
-// representative role's rung decides, so `task` keeps the planning model even
-// though implementation and routine roles also run on it.
-func TestOMPProfilePlanKeepsRepresentativeModelForCollapsedAgents(t *testing.T) {
+// Each role keeps its own rung: the roles that represented a bundled agent
+// before v0.50.129 land where that agent did, and task keeps the planning
+// model it borrows.
+func TestOMPProfilePlanKeepsEachRolesRung(t *testing.T) {
 	root, runner := writeOMPBalancedProject(t)
-	markOMPProjectNative(t, root)
 
 	anthropic := planOMPProfileJSON(t, root, runner, "balanced")
-	for _, agent := range []string{"task", "reviewer", "security-reviewer"} {
+	for _, agent := range []string{"task", "reviewer", "security-auditor"} {
 		row := agentPreviewRow(t, anthropic, agent)
 		assert.Equal(t, "anthropic/claude-fable-5-1", row.EffectiveSelector, agent)
 		assert.Equal(t, "max", row.EffectiveThinking, agent)
 	}
-	for _, agent := range []string{"scout", "sonic"} {
+	for _, agent := range []string{"explorer", "validator"} {
 		row := agentPreviewRow(t, anthropic, agent)
 		assert.Equal(t, "anthropic/claude-sonnet-5-5", row.EffectiveSelector, agent)
 		assert.Equal(t, "high", row.EffectiveThinking, agent)
@@ -115,12 +115,12 @@ func TestOMPProfilePlanKeepsRepresentativeModelForCollapsedAgents(t *testing.T) 
 
 	openai := planOMPProfileJSON(t, root, runner, "balanced", "--family", "gpt")
 	assert.Equal(t, "openai", openai.FamilyStored)
-	for _, agent := range []string{"task", "reviewer", "security-reviewer"} {
+	for _, agent := range []string{"task", "reviewer", "security-auditor"} {
 		row := agentPreviewRow(t, openai, agent)
 		assert.Equal(t, "openai-codex/gpt-6-astra", row.EffectiveSelector, agent)
 		assert.Equal(t, "max", row.EffectiveThinking, agent)
 	}
-	for _, agent := range []string{"scout", "sonic"} {
+	for _, agent := range []string{"explorer", "validator"} {
 		row := agentPreviewRow(t, openai, agent)
 		assert.Equal(t, "openai-codex/gpt-6-luna", row.EffectiveSelector, agent)
 		assert.Equal(t, "max", row.EffectiveThinking, agent)
@@ -199,32 +199,28 @@ func TestOMPProfilePlanRejectsUnavailableChoiceInJSONWithoutFakeSuccess(t *testi
 	assert.Empty(t, row.EffectiveSelector)
 }
 
-// A root pin on one logical role wins over the built-in default for every
-// bundled agent it governs, and each row reports which key to edit. `validator`
-// work is dispatched to `task`, and `validator` is also the tier row `sonic`
-// borrows, so one pin moves both rows rather than silently applying to one.
+// A root pin on one logical role wins over the built-in default for the agent
+// it names, and the row reports which key to edit. Before v0.50.129 native
+// mode also moved task and sonic with it; task now follows planner.
 func TestOMPProfilePlanReportsAgentOverrideSourceForRootPin(t *testing.T) {
 	root, runner := writeOMPBalancedProject(t)
-	markOMPProjectNative(t, root)
 
 	payload := planOMPProfileJSON(
 		t, root, runner, "balanced", "--agent", "validator=anthropic/claude-sonnet-5-5:max",
 	)
 
-	for _, native := range []string{"sonic", "task"} {
-		row := agentPreviewRow(t, payload, native)
-		assert.Equal(t, ompProfileSourceAgent, row.Source, native)
-		assert.Equal(t, "validator", row.PolicyKey, native)
-		assert.Equal(t, "anthropic/claude-sonnet-5-5", row.EffectiveSelector, native)
-		assert.Equal(t, "max", row.EffectiveThinking, native)
-	}
+	row := agentPreviewRow(t, payload, "validator")
+	assert.Equal(t, ompProfileSourceAgent, row.Source)
+	assert.Equal(t, "validator", row.PolicyKey)
+	assert.Equal(t, "anthropic/claude-sonnet-5-5", row.EffectiveSelector)
+	assert.Equal(t, "max", row.EffectiveThinking)
+	assert.Equal(t, "planner", agentPreviewRow(t, payload, "task").PolicyKey)
 	assert.Equal(t, []string{"validator"}, payload.Persisted.Agents)
 	assert.Equal(t, ompProfileSourceBuiltin, agentPreviewRow(t, payload, "reviewer").Source)
 }
 
 func TestOMPProfilePlanKeepsExplicitCustomProfileAndItsFallbackVisible(t *testing.T) {
 	root, runner, profile := writeSelectedOMPProfile(t)
-	markOMPProjectNative(t, root)
 	route := profile.Capabilities[config.CapabilityFastValidation]
 	route.Candidates = []config.RoleModelCandidateConf{
 		{Selector: "openai/disabled-coder", Thinking: "high", Family: "openai"},
@@ -240,7 +236,7 @@ func TestOMPProfilePlanKeepsExplicitCustomProfileAndItsFallbackVisible(t *testin
 
 	assert.Equal(t, ompProfileSourceCustom, payload.Source)
 	assert.True(t, payload.Persisted.ProfileDefinition)
-	row := agentPreviewRow(t, payload, "scout")
+	row := agentPreviewRow(t, payload, "explorer")
 	require.Len(t, row.Candidates, 2)
 	assert.Equal(t, "openai/disabled-coder", row.Candidates[0].Selector)
 	assert.Equal(t, "openai/beta-coder", row.EffectiveSelector)
@@ -253,7 +249,6 @@ func TestOMPProfilePlanKeepsExplicitCustomProfileAndItsFallbackVisible(t *testin
 
 func TestOMPProfilePlanTextListsOrderedCandidatesAndSources(t *testing.T) {
 	root, runner := writeOMPBalancedProject(t)
-	markOMPProjectNative(t, root)
 	dir := root
 
 	text := executeOMPSubcommand(
@@ -264,5 +259,5 @@ func TestOMPProfilePlanTextListsOrderedCandidatesAndSources(t *testing.T) {
 	assert.Contains(t, text, "Blockers: none")
 	assert.Contains(t, text, "agent=task")
 	assert.Contains(t, text, "candidates=anthropic/claude-fable-5-1:max")
-	assert.Equal(t, len(config.OMPNativeAgentNames()), strings.Count(text, "\n  candidates="))
+	assert.Equal(t, len(config.OMPAutopusAgentNames()), strings.Count(text, "\n  candidates="))
 }

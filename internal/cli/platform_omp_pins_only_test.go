@@ -74,7 +74,7 @@ func TestOMPPinsOnly_PipelinePhasesWithoutAPinInheritTheSessionModel(t *testing.
 	cfg.Platforms = []string{"omp"}
 	cfg.RoleModelPolicy = ompPinsOnlyTestPolicy()
 	require.NoError(t, config.Save(projectDir, cfg))
-	writeOMPNativePhaseReceipt(t, projectDir, map[string]string{
+	writeOMPPhaseReceipt(t, projectDir, map[string]string{
 		"planner": "provider/plan-model", "executor": "provider/implement-model", "task": "provider/plan-model",
 	})
 

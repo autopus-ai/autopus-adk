@@ -48,11 +48,11 @@ func (a *Adapter) validateInstalledSurface(ctx context.Context) ([]adapter.Valid
 	if err != nil {
 		return findings, err
 	}
-	agents, err := a.expectedOMPAgentMappings(cfg, integration)
+	agents, err := a.expectedOMPAgentMappings(integration)
 	if err != nil {
 		return findings, err
 	}
-	rules, err := a.prepareRuleMappings(cfg)
+	rules, err := a.prepareRuleMappings()
 	if err != nil {
 		return findings, err
 	}

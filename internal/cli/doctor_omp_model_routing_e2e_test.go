@@ -62,7 +62,8 @@ func TestOMPModelDoctor_GeneratedOverlayAndProjectSourcesDetectMutation(t *testi
 }
 
 // TestOMPModelDoctor_S7_EmitsOneRoleCheckPerAgent fixes SPEC-OMP-005 S7: a
-// generated ultra workspace yields sixteen agent-keyed doctor role checks.
+// generated ultra workspace yields one agent-keyed doctor role check per
+// served agent.
 func TestOMPModelDoctor_S7_EmitsOneRoleCheckPerAgent(t *testing.T) {
 	t.Parallel()
 
@@ -72,7 +73,6 @@ func TestOMPModelDoctor_S7_EmitsOneRoleCheckPerAgent(t *testing.T) {
 	cfg.Quality.Default = "ultra"
 	cfg.RoleModelPolicy = config.RoleModelPolicyConf{
 		Version: config.RoleModelPolicyVersionV1, Profile: "ultra", Family: "anthropic",
-		AgentSource: config.OMPAgentSourceNative,
 	}
 	runner := &ompModelDoctorE2ERunner{catalog: ompModelDoctorPresetCatalogJSON()}
 	_, err := omp.NewWithRoot(root).WithModelIntegrationRunner(runner).
@@ -83,7 +83,7 @@ func TestOMPModelDoctor_S7_EmitsOneRoleCheckPerAgent(t *testing.T) {
 	report := omp.CheckOMPModelRoutingDoctor(input)
 	require.Equal(t, "supported", report.Status)
 	require.Equal(t, "fresh", report.Reason)
-	require.Len(t, report.Roles, len(config.OMPNativeAgentNames()))
+	require.Len(t, report.Roles, len(config.OMPAutopusAgentNames()))
 	for _, row := range report.Roles {
 		policy, resolveErr := config.ResolveOMPPolicyAgent(row.Agent)
 		require.NoError(t, resolveErr, row.Agent)
@@ -97,13 +97,13 @@ func TestOMPModelDoctor_S7_EmitsOneRoleCheckPerAgent(t *testing.T) {
 			details = append(details, check.Detail)
 		}
 	}
-	assert.Len(t, details, 5)
+	assert.Len(t, details, len(config.OMPAutopusAgentNames()))
 	joined := strings.Join(details, "\n")
 	assert.Contains(t, joined, "agent=task role=autopus_planner capability=deep_reasoning status=supported")
-	assert.Contains(t, joined, "agent=scout role=autopus_explorer capability=fast_validation status=supported")
+	assert.Contains(t, joined, "agent=explorer role=autopus_explorer capability=fast_validation status=supported")
 	assert.Contains(t, joined, "agent=reviewer role=autopus_reviewer capability=independent_dissent status=supported reason=selected family_diversity=satisfied")
-	// No row may name an agent OMP does not register.
-	for _, retired := range []string{"agent=executor ", "agent=debugger ", "agent=planner ", "agent=validator "} {
+	// No row may name a bundled agent autopus mode disables.
+	for _, retired := range []string{"agent=scout ", "agent=security-reviewer ", "agent=sonic "} {
 		assert.NotContains(t, joined, retired)
 	}
 }

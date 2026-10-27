@@ -14,7 +14,7 @@ import (
 )
 
 // prepareOMPAgentMappings renders one .omp/agents definition per canonical
-// agent for autopus mode. routed names the agents this generation's
+// agent. routed names the agents this generation's
 // task.agentModelOverrides binds: their files declare no thinkingLevel, so
 // the override's thinking is the only one OMP can see. Every other agent
 // declares its source effort and inherits the parent session model.
@@ -103,13 +103,7 @@ func ompUserAgentFileAt(
 // expectedOMPAgentMappings is the agent surface Validate expects: every
 // generated definition except one the user owns, which an unrecorded file on
 // disk is. A recorded definition that went missing stays expected.
-func (a *Adapter) expectedOMPAgentMappings(
-	cfg *config.HarnessConfig,
-	integration *ompModelIntegration,
-) ([]adapter.FileMapping, error) {
-	if cfg.RoleModelPolicy.OMPAgentSource() != config.OMPAgentSourceAutopus {
-		return nil, nil
-	}
+func (a *Adapter) expectedOMPAgentMappings(integration *ompModelIntegration) ([]adapter.FileMapping, error) {
 	mappings, err := prepareOMPAgentMappings(ompRoutedAgentNames(integration))
 	if err != nil {
 		return nil, err

@@ -28,13 +28,13 @@ func CompileOMPModelDoctorActivationExpectation(
 	dropOMPReaAnalysisFallbackRoutes(profile, catalog, routes)
 	DegradeUnservedDerivedOMPRoutes(profile, catalog, routes)
 	routing := CompileOMPModelRouting(OMPModelRoutingInput{
-		Catalog: catalog, CatalogReason: "catalog_ready", Routes: routes, AgentSource: profile.AgentSource,
+		Catalog: catalog, CatalogReason: "catalog_ready", Routes: routes,
 	})
 	agents, err := projectOMPIntegrationAgents(catalog, routes, routing)
 	if err != nil {
 		return OMPModelDoctorActivationExpectation{}, err
 	}
-	projection, err := CompileOMPModelProjection(OMPModelProjectionInput{Agents: agents, AgentSource: profile.AgentSource})
+	projection, err := CompileOMPModelProjection(OMPModelProjectionInput{Agents: agents})
 	if err != nil {
 		return OMPModelDoctorActivationExpectation{}, err
 	}

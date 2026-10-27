@@ -58,9 +58,6 @@ func FormatTransformReport(report *TransformReport) string {
 type SkillTransformOptions struct {
 	ResolveSkillRef func(name string) string
 	AllowSkill      func(meta SkillMeta) bool
-	// References selects how agent references render; the zero value names
-	// the Autopus agents on OMP.
-	References PlatformReferenceOptions
 }
 
 // SkillTransformer loads skill files and transforms them for target platforms.
@@ -149,7 +146,7 @@ func (t *SkillTransformer) TransformForPlatformWithOptions(platform string, opts
 			body = native
 		}
 		filtered := rewriteCanonicalSkillReferences(body, opts.ResolveSkillRef)
-		filtered = ReplacePlatformReferencesWith(filtered, platform, opts.References)
+		filtered = ReplacePlatformReferences(filtered, platform)
 		result = append(result, TransformedSkill{
 			Name:        s.meta.Name,
 			Description: s.meta.Description,

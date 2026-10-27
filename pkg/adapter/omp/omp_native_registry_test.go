@@ -38,42 +38,23 @@ func TestFreshOMPUsesBundledAgentsWithoutProjectShadows(t *testing.T) {
 	}
 }
 
-// agent_source: native keeps the v0.50.125 contract: the bundled registry
-// serves every workflow and no project definition shadows it.
-func TestFreshNativeOMPUsesBundledAgentsWithoutProjectShadows(t *testing.T) {
-	root := t.TempDir()
-	a := NewWithRoot(root)
-	cfg := configForOMP()
-	cfg.RoleModelPolicy.AgentSource = config.OMPAgentSourceNative
-	require.NoError(t, config.Save(root, cfg))
-	files, err := a.Generate(context.Background(), cfg)
-	require.NoError(t, err)
-	for _, file := range files.Files {
-		assert.False(t, strings.HasPrefix(filepath.ToSlash(file.TargetPath), ".omp/agents/"))
-	}
-	assert.NoDirExists(t, filepath.Join(root, ".omp", "agents"))
-	findings, err := a.Validate(context.Background())
-	require.NoError(t, err)
-	for _, finding := range findings {
-		assert.NotEqual(t, "error", finding.Level, "%+v", finding)
-	}
-}
-
+// A regeneration retires a recorded agent definition the canonical set no
+// longer has, backing up the user's edit first, and leaves an agent file the
+// manifest never recorded alone.
 func TestOMPRegenerationRetiresOwnedAgentsAndBacksUpEdits(t *testing.T) {
 	for _, operation := range []string{"generate", "update"} {
 		t.Run(operation, func(t *testing.T) {
 			root := t.TempDir()
 			a := NewWithRoot(root)
 			cfg := configForOMP()
-			cfg.RoleModelPolicy.AgentSource = config.OMPAgentSourceNative
 			require.NoError(t, config.Save(root, cfg))
 			_, err := a.Generate(context.Background(), cfg)
 			require.NoError(t, err)
 			manifest, err := adapter.LoadManifest(root, adapterName)
 			require.NoError(t, err)
 			require.NotNil(t, manifest)
-			body := "---\nname: reviewer\ndescription: Old ADK reviewer.\n---\nOld instructions.\n"
-			oldPath := ".omp/agents/reviewer.md"
+			body := "---\nname: legacy-coder\ndescription: Retired ADK agent.\n---\nOld instructions.\n"
+			oldPath := ".omp/agents/legacy-coder.md"
 			require.NoError(t, os.MkdirAll(filepath.Join(root, ".omp", "agents"), 0o700))
 			require.NoError(t, os.WriteFile(filepath.Join(root, oldPath), []byte(body), 0o600))
 			manifest.Files[oldPath] = adapter.ManifestFile{Checksum: adapter.Checksum(body), Policy: adapter.OverwriteAlways}

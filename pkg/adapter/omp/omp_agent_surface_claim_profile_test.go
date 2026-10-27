@@ -73,7 +73,7 @@ func TestOMPClaimSet_TransitionsReBaseAndRestore(t *testing.T) {
 	assert.Equal(t, before, claimSnapshot(t, project), "a failed transaction restores every byte")
 	assert.GreaterOrEqual(t, rolledBackOMPWrites(t, project.root), 1, "the transaction really opened")
 
-	project.mustRun("update", nativeClaimConfig(configForOMP()))
+	project.release()
 	data, ok := project.read(configFile)
 	require.True(t, ok)
 	assert.Equal(t, "# team note\n", data)

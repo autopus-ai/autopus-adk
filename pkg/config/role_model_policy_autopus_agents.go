@@ -2,31 +2,34 @@ package config
 
 import "fmt"
 
-// In autopus mode OMP registers one generated definition per canonical agent,
-// so a route needs no collapse: every agent is routed under its own name and
-// task, OMP's default for an unnamed dispatch, borrows the planner row. This
-// file owns the Route Contract that replaces the native collapse:
+// OMP registers one generated definition per canonical agent, so a route
+// needs no collapse: every agent is routed under its own name and task, OMP's
+// default for an unnamed dispatch, borrows the planner row. This file owns
+// the Route Contract:
 //
 //	agent A: (1) agents.A pin (2) agents.N pin, where N is the bundled agent A
-//	         collapses onto in native mode and N != A (3) the profile's own route
+//	         collapsed onto before v0.50.127 and N != A (3) the profile's own
+//	         route
 //	task:    (1) agents.task pin (2) agents.planner pin (3) the planner route
 //
 // A pin is an operator-written override with candidates. Rules (1) and (2) are
 // operator choices and never degrade; only (3) may fall back to the runtime
-// default. Every other bundled agent is disabled (OMPAutopusDisabledAgents)
+// default. Rule (2) keeps a policy written for the bundled agents (an
+// agents.scout or agents.task pin over a profile) routing the agents it used
+// to govern. Every other bundled agent is disabled (OMPAutopusDisabledAgents)
 // and gets no route.
 // A pins-only profile has neither rule (2) for the roles nor rule (3): an
 // agent without a pin has no route (ErrOMPAgentUnrouted).
 
-// OMPAutopusAgentRoute resolves one agent served in autopus mode. Native in
-// the result is the agent itself, the task.agentModelOverrides key OMP reads;
-// Key is the agents entry or profile row the candidates came from; Role and
-// Capability are the agent's own identity, so capability matching, family
-// diversity, and audit rows stay real.
-func (c RoleModelProfileConf) OMPAutopusAgentRoute(
+// OMPAgentRoute resolves one agent OMP serves. Native in the result is the
+// agent itself, the task.agentModelOverrides key OMP reads; Key is the agents
+// entry or profile row the candidates came from; Role and Capability are the
+// agent's own identity, so capability matching, family diversity, and audit
+// rows stay real.
+func (c RoleModelProfileConf) OMPAgentRoute(
 	agent string,
 ) (OMPPolicyAgentRoute, RoleCapabilityRouteConf, error) {
-	key, err := c.ompAutopusAgentRouteKey(agent)
+	key, err := c.ompAgentRouteKey(agent)
 	if err != nil {
 		return OMPPolicyAgentRoute{}, RoleCapabilityRouteConf{}, err
 	}
@@ -57,14 +60,15 @@ func (c RoleModelProfileConf) OMPAutopusAgentRoute(
 	return identity, route, nil
 }
 
-// OMPAutopusAgentOperatorPinned reports whether the agent's route is rule (1)
-// or (2) of the Route Contract, an explicit operator choice.
-func (c RoleModelProfileConf) OMPAutopusAgentOperatorPinned(agent string) bool {
-	key, err := c.ompAutopusAgentRouteKey(agent)
+// OMPAgentOperatorPinned reports whether the agent's route is rule (1) or (2)
+// of the Route Contract, an explicit operator choice that must never fall
+// back to the runtime default.
+func (c RoleModelProfileConf) OMPAgentOperatorPinned(agent string) bool {
+	key, err := c.ompAgentRouteKey(agent)
 	return err == nil && c.ompOperatorPinned(key)
 }
 
-func (c RoleModelProfileConf) ompAutopusAgentRouteKey(agent string) (string, error) {
+func (c RoleModelProfileConf) ompAgentRouteKey(agent string) (string, error) {
 	if agent == OMPAutopusDefaultAgent {
 		for _, key := range []string{OMPAutopusDefaultAgent, "planner"} {
 			if c.ompOperatorPinned(key) {
@@ -95,18 +99,18 @@ func (c RoleModelProfileConf) ompOperatorPinned(key string) bool {
 	return c.OperatorAgents[key] && len(c.Agents[key].Candidates) > 0
 }
 
-// validateOMPAutopusAgentRoutes accepts any agents key the policy can name and
+// validateOMPAgentRoutes accepts any agents key the policy can name and
 // requires a route for every agent the profile routes: all of autopus mode's
-// agents, or the pinned ones of a pins-only profile. It never reports a
-// native conflict: no two agents share a registry slot here.
-func validateOMPAutopusAgentRoutes(profile RoleModelProfileConf) error {
+// agents, or the pinned ones of a pins-only profile. No two agents share a
+// registry slot, so two pins never conflict.
+func validateOMPAgentRoutes(profile RoleModelProfileConf) error {
 	for _, agent := range sortedRoleAgentOverrides(profile.Agents) {
 		if _, err := ResolveOMPPolicyAgent(agent); err != nil {
 			return err
 		}
 	}
 	for _, agent := range profile.OMPAgentNames() {
-		if _, _, err := profile.OMPAutopusAgentRoute(agent); err != nil {
+		if _, _, err := profile.OMPAgentRoute(agent); err != nil {
 			return err
 		}
 	}

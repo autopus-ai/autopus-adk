@@ -68,8 +68,8 @@ func TestOMPModelOverlayFromProjection_InvalidCompiledShapeFailsClosed(t *testin
 		edit func(*OMPModelProjection)
 	}{
 		{
-			name: "agent is not bundled", code: "unknown native OMP agent",
-			edit: func(projection *OMPModelProjection) { projection.Agents[0].Agent = "explorer" },
+			name: "agent is not served", code: "unknown Autopus OMP agent",
+			edit: func(projection *OMPModelProjection) { projection.Agents[0].Agent = "scout" },
 		},
 		{
 			name: "duplicate agent override", code: "agent_duplicate",

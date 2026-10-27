@@ -5,7 +5,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -47,14 +46,4 @@ func TestOMPGenerate_AutopusSurfaceNeverSelectsADisabledAgent(t *testing.T) {
 	pipeline := tree[".omp/skills/agent-pipeline/SKILL.md"]
 	assert.Contains(t, pipeline, "17 Autopus agents")
 	assert.Contains(t, pipeline, "`task.disabledAgents`")
-}
-
-// S14 (native): agent_source: native keeps the bundled-registry guidance.
-func TestOMPGenerate_NativePipelineKeepsTheBundledRegistrySentence(t *testing.T) {
-	cfg := configForOMP()
-	cfg.RoleModelPolicy.AgentSource = config.OMPAgentSourceNative
-	pipeline := generatedOMPTree(t, cfg)[".omp/skills/agent-pipeline/SKILL.md"]
-	assert.Contains(t, pipeline, "OMP registers five agents")
-	assert.Contains(t, pipeline, "There is no Autopus-specific agent to select")
-	assert.False(t, strings.Contains(pipeline, "17 Autopus agents"))
 }

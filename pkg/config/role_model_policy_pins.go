@@ -7,11 +7,11 @@ import (
 )
 
 // A pins-only policy pins agents without a profile (SPEC-MODELUX-003
-// REQ-MUX3-22, Pins-only Policy Contract). It exists in autopus mode only:
-// the OMP tab writes it when the operator picks a model per role group or
-// agent from any provider. No capability route backs it, so only the pinned
-// agents and task are routed, each pin carries the family it was attested
-// with, and every other agent keeps the OMP session model.
+// REQ-MUX3-22, Pins-only Policy Contract): the OMP tab writes it when the
+// operator picks a model per role group or agent from any provider. No
+// capability route backs it, so only the pinned agents and task are routed,
+// each pin carries the family it was attested with, and every other agent
+// keeps the OMP session model.
 
 // PinsOnlyRoleModelProfileName is the reserved name a pins-only policy
 // resolves under in receipts and doctor output. It is never written to
@@ -52,19 +52,13 @@ func (c RoleModelPolicyConf) pinsOnly() bool {
 	return c.Profile == "" && len(c.Agents) > 0
 }
 
-// validatePinsOnlyAgentKeys allows a profile-less agents map in autopus mode
-// only, and only under names that route there: the canonical agents and
-// task. scout, security-reviewer, and sonic name native agents autopus mode
-// disables; their pins only mean something folded onto a profile's roles.
-// designer, librarian, and seance are disabled too but route in no mode, so a
-// pin on any of them stays an unmapped agent.
+// validatePinsOnlyAgentKeys allows a profile-less agents map only under names
+// that route there: the canonical agents and task. scout, security-reviewer,
+// and sonic name bundled agents autopus mode disables; their pins only mean
+// something folded onto a profile's roles (Route Contract rule 2). designer,
+// librarian, and seance are disabled too but never routed, so a pin on any of
+// them stays an unmapped agent.
 func (c RoleModelPolicyConf) validatePinsOnlyAgentKeys() error {
-	if c.OMPAgentSource() != OMPAgentSourceAutopus {
-		// Native mode collapses roles onto bundled agents through a profile's
-		// routes, so a pin needs one there.
-		return fmt.Errorf("role_model_policy.agents_require_profile: agent_source: native routes agents " +
-			"only on top of a profile; set role_model_policy.profile, or remove agent_source: native")
-	}
 	for _, agent := range sortedRoleAgentOverrides(c.Agents) {
 		if slices.Contains(OMPAutopusDisabledAgents(), agent) && slices.Contains(OMPNativeAgentNames(), agent) {
 			return fmt.Errorf("role_model_policy.agents_native_key_requires_profile: %s", agent)
@@ -101,7 +95,7 @@ func validatePinsOnlyRoleModelProfile(name string, profile RoleModelProfileConf)
 func (c RoleModelProfileConf) ompPinsOnlyAgentNames() []string {
 	var names []string
 	for _, agent := range OMPAutopusAgentNames() {
-		if _, err := c.ompAutopusAgentRouteKey(agent); err == nil {
+		if _, err := c.ompAgentRouteKey(agent); err == nil {
 			names = append(names, agent)
 		}
 	}

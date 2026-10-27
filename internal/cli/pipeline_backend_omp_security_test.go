@@ -53,14 +53,14 @@ func TestLoadPipelineOMPPhaseModels_RequiresExactInstalledVersion(t *testing.T) 
 		t.Skip("fixture executable uses a POSIX launcher")
 	}
 	projectDir := t.TempDir()
-	writeNativeOMPProjectConfig(t, projectDir)
+	writeOMPProjectConfig(t, projectDir)
 	writePipelineOMPModelReceipt(t, projectDir, "omp/17.1.8")
 
 	models, err := loadPipelineOMPPhaseModels(projectDir, writePipelineOMPVersionFixture(t, "omp/17.1.8"))
 	require.NoError(t, err)
 	assert.Equal(t, map[pipeline.PhaseID]string{
-		pipeline.PhasePlan: "provider/task", pipeline.PhaseTestScaffold: "provider/task",
-		pipeline.PhaseImplement: "provider/task", pipeline.PhaseValidate: "provider/task",
+		pipeline.PhasePlan: "provider/planner", pipeline.PhaseTestScaffold: "provider/tester",
+		pipeline.PhaseImplement: "provider/executor", pipeline.PhaseValidate: "provider/validator",
 		pipeline.PhaseReview: "provider/reviewer",
 	}, models)
 
@@ -198,8 +198,8 @@ func writePipelineOMPModelReceipt(t *testing.T, root, version string) {
 	overlayPath := filepath.Join(root, filepath.FromSlash(ompadapter.DefaultOMPModelOverlayPath))
 	require.NoError(t, os.MkdirAll(filepath.Dir(overlayPath), 0o700))
 	require.NoError(t, os.WriteFile(overlayPath, overlay, 0o600))
-	// The receipt is keyed by the agents OMP actually registers.
-	agents := []string{"scout", "reviewer", "security-reviewer", "task", "sonic"}
+	// The receipt is keyed by the agents OMP serves, one per phase role.
+	agents := []string{"planner", "tester", "executor", "validator", "reviewer", "task"}
 	roles := make([]ompadapter.OMPModelRoleReceipt, 0, len(agents))
 	for _, agent := range agents {
 		roles = append(roles, ompadapter.OMPModelRoleReceipt{

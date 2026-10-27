@@ -115,7 +115,6 @@ func TestOMPModelIntegration_ConnectsPolicyCatalogProjectionAndReceipt(t *testin
 	clock := func() time.Time { return time.Date(2026, 8, 2, 12, 0, 0, 0, time.UTC) }
 	a := NewWithRoot(root).WithModelIntegrationRunner(runner).WithModelIntegrationClock(clock)
 	cfg := integrationHarnessConfig("overlay")
-	cfg.RoleModelPolicy.AgentSource = config.OMPAgentSourceNative
 	files, err := a.prepareFiles(context.Background(), cfg)
 	if err != nil {
 		t.Fatalf("prepare opt-in files: %v", err)
@@ -142,15 +141,15 @@ func TestOMPModelIntegration_ConnectsPolicyCatalogProjectionAndReceipt(t *testin
 			t.Fatalf("missing integrated mapping %q", path)
 		}
 	}
-	for path := range byPath {
-		if strings.HasPrefix(path, ompRetiredAgentDir+"/") {
-			t.Fatalf("generation emitted a retired agent definition %q", path)
+	for _, agent := range config.CanonicalAgentNames() {
+		if _, ok := byPath[OMPAgentDefinitionPath(agent)]; !ok {
+			t.Fatalf("generation emitted no definition for %q", agent)
 		}
 	}
 	overlay := string(byPath[DefaultOMPModelOverlayPath].Content)
 	if !strings.Contains(overlay, "task:\n  agentModelOverrides:\n") ||
 		!strings.Contains(overlay, "task: anthropic/alpha-reasoner:xhigh") {
-		t.Fatalf("native override projection missing:\n%s", overlay)
+		t.Fatalf("override projection missing:\n%s", overlay)
 	}
 	if strings.Contains(overlay, "autopus_") || strings.Contains(overlay, "modelRoles") {
 		t.Fatalf("overlay still carries retired role aliases:\n%s", overlay)
@@ -162,7 +161,7 @@ func TestOMPModelIntegration_ConnectsPolicyCatalogProjectionAndReceipt(t *testin
 	if err := json.Unmarshal(byPath[OMPModelReceiptRelativePath].Content, &receipt); err != nil {
 		t.Fatalf("parse receipt: %v", err)
 	}
-	if receipt.Profile != "p1" || len(receipt.Roles) != len(config.OMPNativeAgentNames()) ||
+	if receipt.Profile != "p1" || len(receipt.Roles) != len(config.OMPAutopusAgentNames()) ||
 		receipt.GeneratedAt != clock() {
 		t.Fatalf("unexpected receipt: profile=%q roles=%d generated=%s", receipt.Profile, len(receipt.Roles), receipt.GeneratedAt)
 	}
@@ -218,40 +217,6 @@ func TestOMPModelIntegration_OptionalAndRuntimeDefaultRoutesInherit(t *testing.T
 				t.Fatalf("model request count = %d", runner.modelRequests)
 			}
 		})
-	}
-}
-
-func TestBridgeOMPIntegrationRoutes_KeysRoutesByBundledAgent(t *testing.T) {
-	t.Parallel()
-
-	profile := integrationHarnessConfig("overlay").RoleModelPolicy.Profiles["p1"]
-	profile.AgentSource = config.OMPAgentSourceNative
-	profile.FamilyDiversity.Roles = []string{config.OMPAgentRoleName("reviewer")}
-	routes, err := bridgeOMPIntegrationRoutes(profile)
-	if err != nil {
-		t.Fatalf("bridge routes: %v", err)
-	}
-	if len(routes) != len(config.OMPNativeAgentNames()) {
-		t.Fatalf("route count = %d, want one per bundled agent", len(routes))
-	}
-	for _, agent := range config.OMPNativeAgentNames() {
-		route, ok := routes[agent]
-		if !ok {
-			t.Fatalf("route missing for agent %q", agent)
-		}
-		resolved, resolveErr := config.ResolveOMPPolicyAgent(agent)
-		if resolveErr != nil {
-			t.Fatal(resolveErr)
-		}
-		if route.Agent != agent || route.Role != resolved.Role || route.Capability != resolved.Capability {
-			t.Fatalf("route %q carries wrong identity: %+v", agent, route)
-		}
-	}
-	if !routes["reviewer"].PreferDistinctExecutorFamily {
-		t.Fatal("configured reviewer role did not request family diversity")
-	}
-	if routes["security-reviewer"].PreferDistinctExecutorFamily {
-		t.Fatal("unconfigured security-auditor role requested family diversity")
 	}
 }
 

@@ -3,8 +3,6 @@ package content
 import (
 	"strconv"
 	"strings"
-
-	"github.com/insajin/autopus-adk/pkg/config"
 )
 
 // ompNativeDefaultAgent is the bundled OMP agent a task runs on when the
@@ -61,7 +59,7 @@ func firstOMPFieldValue(match []string) string {
 	return ""
 }
 
-func renderOMPTaskBatch(dispatches []ompLegacyDispatch, native bool) string {
+func renderOMPTaskBatch(dispatches []ompLegacyDispatch) string {
 	var b strings.Builder
 	b.WriteString("```json\n{\n")
 	b.WriteString("  \"i\": \"Dispatching bounded OMP work\",\n")
@@ -69,7 +67,7 @@ func renderOMPTaskBatch(dispatches []ompLegacyDispatch, native bool) string {
 	b.WriteString("  \"tasks\": [\n")
 	for i, dispatch := range dispatches {
 		role := strings.TrimSpace(dispatch.agent)
-		agent := ompDispatchAgent(role, native)
+		agent := ompAutopusDispatchAgent(role)
 		name := role
 		if name == "" {
 			name = "Worker"
@@ -100,20 +98,13 @@ func renderOMPTaskBatch(dispatches []ompLegacyDispatch, native bool) string {
 	return b.String()
 }
 
-// ompDispatchAgent resolves a legacy dispatch role to the OMP agent the
-// source serves: the Autopus agent of the role, or in native mode the bundled
-// agent it collapses onto.
-func ompDispatchAgent(role string, native bool) string {
-	if native {
-		return ompNativeDispatchAgent(role)
-	}
-	return ompAutopusDispatchAgent(role)
-}
-
-// ompAutopusDispatchAgent keeps each canonical role's own name. task is the
-// unnamed default and stays implicit; scout and security-reviewer are disabled
-// in autopus mode, so a source that names them reaches the role that replaces
-// them, and sonic, which nothing replaces, falls to the default.
+// ompAutopusDispatchAgent resolves a legacy dispatch role to the Autopus agent
+// OMP serves, which keeps each canonical role's own name. task is the unnamed
+// default and stays implicit; scout and security-reviewer are disabled, so a
+// source that names them reaches the role that replaces them, and sonic,
+// which nothing replaces, falls to the default. An author-declared name
+// outside the role catalog is left alone because it may be a genuine project
+// agent, and an unusable token is dropped rather than emitted.
 func ompAutopusDispatchAgent(role string) string {
 	switch role = strings.TrimSpace(role); role {
 	case "", ompNativeDefaultAgent, "sonic":
@@ -122,29 +113,6 @@ func ompAutopusDispatchAgent(role string) string {
 		return "explorer"
 	case "security-reviewer":
 		return "security-auditor"
-	}
-	if isOMPSafeIdentifier(role) {
-		return role
-	}
-	return ""
-}
-
-// ompNativeDispatchAgent resolves a legacy dispatch role to the OMP agent that
-// actually exists. OMP registers five agents, so the retired per-role names
-// collapse onto them; `task` is the bundled default and stays implicit. An
-// author-declared name outside the role catalog is left alone because it may
-// be a genuine project agent, and an unusable token is dropped rather than
-// emitted as a call to an agent nothing registers.
-func ompNativeDispatchAgent(role string) string {
-	role = strings.TrimSpace(role)
-	if role == "" {
-		return ""
-	}
-	if native, err := config.OMPNativeAgentForRole(role); err == nil {
-		if native == ompNativeDefaultAgent {
-			return ""
-		}
-		return native
 	}
 	if isOMPSafeIdentifier(role) {
 		return role

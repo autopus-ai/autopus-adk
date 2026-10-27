@@ -52,24 +52,6 @@ func TestGeneratePreviewMappings_OMPResolvesToAdapter(t *testing.T) {
 	assert.Contains(t, unknownErr.Error(), "알 수 없는 플랫폼")
 }
 
-// agent_source: native keeps the v0.50.125 preview: omp reuses its bundled
-// agents, so none are planned.
-func TestGeneratePreviewMappings_OMPNativeSourcePlansNoAgents(t *testing.T) {
-	t.Parallel()
-
-	cfg := ompDispatchConfig("omp")
-	cfg.RoleModelPolicy.AgentSource = config.OMPAgentSourceNative
-	files, err := generatePreviewMappings(context.Background(), t.TempDir(), cfg, "omp")
-	require.NoError(t, err)
-	agents := 0
-	for _, file := range files {
-		if strings.HasPrefix(filepath.ToSlash(file.TargetPath), ".omp/agents/") {
-			agents++
-		}
-	}
-	assert.Equal(t, 0, agents, "omp reuses its bundled agents, so none are planned")
-}
-
 // TestPreviewPruneRoots_MatchOMPApplyPath is the omp half of the B1 symmetry
 // invariant. previewPruneRoots previously restated a hardcoded omp root list
 // that neither matched nor tracked the adapter, so `auto update --plan`

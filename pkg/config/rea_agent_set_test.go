@@ -147,7 +147,8 @@ func TestNativeBalancedAgentCandidate_HB6ProjectGetsTheAnalysisRung(t *testing.T
 }
 
 // S11 policy matrix: reverse-engineer reasons deeply, owns its own OMP role,
-// and folds onto task when OMP serves its bundled agents.
+// and folds onto task, so an agents.task pin over a profile routes it (Route
+// Contract rule 2).
 func TestReverseEngineer_OMPRoleMatrix(t *testing.T) {
 	t.Parallel()
 	capability, err := OMPAgentCapability("reverse-engineer")
@@ -164,7 +165,6 @@ func TestReverseEngineer_OMPRoleMatrix(t *testing.T) {
 	native, err := OMPNativeAgentForRole("reverse-engineer")
 	require.NoError(t, err)
 	assert.Equal(t, "task", native)
-	assert.True(t, OMPNativeAgentGovernedBy("reverse-engineer", "task"))
 
 	autopus := OMPAutopusAgentNames()
 	require.Len(t, autopus, 18)

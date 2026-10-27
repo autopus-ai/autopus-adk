@@ -9,51 +9,24 @@ import (
 	"github.com/insajin/autopus-adk/pkg/content"
 )
 
-// Every retired ADK role must resolve to a bundled agent, and reasoning roles
-// must never land on the mechanical agent.
-func TestReplacePlatformReferencesOMP_CollapsesEveryRetiredRoleOntoBundledAgents(t *testing.T) {
+// Every canonical role dispatches its own Autopus agent, so no retired
+// per-role name collapses onto a bundled agent any more, and no role lands on
+// the mechanical sonic agent or a disabled bundled agent.
+func TestReplacePlatformReferencesOMP_DispatchesEveryCanonicalRoleUnderItsOwnName(t *testing.T) {
 	t.Parallel()
 
-	cases := map[string]string{
-		"explorer":            `"agent": "scout"`,
-		"reviewer":            `"agent": "reviewer"`,
-		"security-auditor":    `"agent": "security-reviewer"`,
-		"planner":             "",
-		"spec-writer":         "",
-		"architect":           "",
-		"executor":            "",
-		"tester":              "",
-		"validator":           "",
-		"debugger":            "",
-		"deep-worker":         "",
-		"devops":              "",
-		"annotator":           "",
-		"ux-validator":        "",
-		"frontend-specialist": "",
-		"perf-engineer":       "",
-	}
-	for role, want := range cases {
+	for _, role := range config.CanonicalAgentNames() {
 		t.Run(role, func(t *testing.T) {
 			t.Parallel()
 
-			got := content.ReplacePlatformReferencesWith(
+			got := content.ReplacePlatformReferences(
 				`Agent(subagent_type = "`+role+`", task = "Do the work.")`, "omp",
-				content.PlatformReferenceOptions{OMPAgentSource: config.OMPAgentSourceNative},
 			)
 
-			if want != `"agent": "`+role+`"` {
-				// `reviewer` is both a retired role and a bundled agent, so only a
-				// role that has to move must lose its own name.
-				assert.NotContains(t, got, `"agent": "`+role+`"`)
+			assert.Contains(t, got, `"agent": "`+role+`"`)
+			for _, disabled := range config.OMPAutopusDisabledAgents() {
+				assert.NotContains(t, got, `"agent": "`+disabled+`"`)
 			}
-			assert.NotContains(t, got, `"agent": "sonic"`,
-				"sonic is only for an explicit mechanical request")
-			if want == "" {
-				assert.NotContains(t, got, `"agent":`,
-					"the bundled default agent is selected by omitting the field")
-				return
-			}
-			assert.Contains(t, got, want)
 		})
 	}
 }

@@ -159,7 +159,7 @@ func compileOMPModelDoctorRouting(
 	}
 	omp.DegradeUnservedDerivedOMPRoutes(profile, catalog, routes)
 	compilation := omp.CompileOMPModelRouting(omp.OMPModelRoutingInput{
-		Catalog: catalog, CatalogReason: "catalog_ready", Routes: routes, AgentSource: profile.AgentSource,
+		Catalog: catalog, CatalogReason: "catalog_ready", Routes: routes,
 	})
 	// Generation drops the analysis-rung route it cannot serve; doctor and the
 	// plan keep it and read it as the session-model fallback (SPEC-REA-001).

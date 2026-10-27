@@ -72,7 +72,7 @@ func loadPipelineOMPPhaseModelsWithAuthority(
 	if receipt.OMPVersion != observedVersion {
 		return nil, fmt.Errorf("OMP model receipt version does not match installed executable")
 	}
-	source, pinsOnly, err := ompPipelineAgentSource(projectDir)
+	pinsOnly, err := ompPipelinePinsOnly(projectDir)
 	if err != nil {
 		return nil, err
 	}
@@ -80,64 +80,47 @@ func loadPipelineOMPPhaseModelsWithAuthority(
 	selectors := make(map[string]string, len(receipt.Roles))
 	for _, role := range receipt.Roles {
 		if previous, duplicate := selectors[role.Agent]; duplicate && previous != role.Selector {
-			return nil, fmt.Errorf("conflicting OMP model routes for native agent %s", role.Agent)
+			return nil, fmt.Errorf("conflicting OMP model routes for agent %s", role.Agent)
 		}
 		selectors[role.Agent] = role.Selector
 	}
-	// In native mode several phases legitimately share one bundled agent, so
-	// a phase resolves through the same collapse the generated workflows use;
-	// in autopus mode each phase runs on the agent of its own role. A phase
-	// whose agent the receipt omits fails closed instead of inheriting an
-	// unrelated selector.
+	// Each phase runs on the agent of its own role. A phase whose agent the
+	// receipt omits fails closed instead of inheriting an unrelated selector,
+	// which is also what a receipt written for the bundled agents before
+	// v0.50.129 gets until auto update rewrites it.
 	for role, phase := range ompPipelinePhaseRoles {
-		agent, err := ompPipelinePhaseAgent(role, source)
-		if err != nil {
-			return nil, err
-		}
-		selector, resolved := selectors[agent]
+		selector, resolved := selectors[role]
 		if !resolved && pinsOnly {
 			// A pins-only policy routes only what it pins; this phase's
 			// agent keeps the OMP session model.
 			continue
 		}
 		if !resolved || strings.TrimSpace(selector) == "" {
-			return nil, ompPipelineMissingRouteError(source, agent, phase)
+			return nil, ompPipelineMissingRouteError(role, phase)
 		}
 		models[phase] = selector
 	}
 	return models, nil
 }
 
-// ompPipelineAgentSource reads the agent source the project's OMP files were
-// generated for, and whether its policy pins agents without a profile; the
-// receipt alone cannot tell a retired role-keyed receipt from an autopus one.
-func ompPipelineAgentSource(projectDir string) (string, bool, error) {
+// ompPipelinePinsOnly reports whether the project's policy pins agents
+// without a profile, which routes only the pinned phases. Loading the config
+// also refuses a project that still names the removed agent_source: native.
+func ompPipelinePinsOnly(projectDir string) (bool, error) {
 	cfg, err := config.LoadPreview(projectDir)
 	if err != nil {
-		return "", false, err
+		return false, err
 	}
 	policy := cfg.RoleModelPolicy
-	return policy.OMPAgentSource(), policy.Profile == "" && len(policy.Agents) > 0, nil
+	return policy.Profile == "" && len(policy.Agents) > 0, nil
 }
 
-// ompPipelinePhaseAgent names the OMP agent that runs a phase's role.
-func ompPipelinePhaseAgent(role, source string) (string, error) {
-	if source == config.OMPAgentSourceNative {
-		return config.OMPNativeAgentForRole(role)
-	}
-	return role, nil
-}
-
-func ompPipelineMissingRouteError(source, agent string, phase pipeline.PhaseID) error {
-	if source == config.OMPAgentSourceNative {
-		return fmt.Errorf("OMP model receipt has no route for native agent %s required by phase %s", agent, phase)
-	}
+func ompPipelineMissingRouteError(agent string, phase pipeline.PhaseID) error {
 	return fmt.Errorf("OMP model receipt has no route for agent %s required by phase %s", agent, phase)
 }
 
 // ompPipelinePhaseRoles maps each canonical pipeline phase onto the logical
-// role that owns it. The role is then collapsed onto the bundled OMP agent
-// that actually runs it.
+// role that owns it, which is also the OMP agent that runs it.
 var ompPipelinePhaseRoles = map[string]pipeline.PhaseID{
 	"planner": pipeline.PhasePlan, "tester": pipeline.PhaseTestScaffold,
 	"executor": pipeline.PhaseImplement, "validator": pipeline.PhaseValidate,

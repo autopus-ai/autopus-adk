@@ -18,7 +18,7 @@ import (
 )
 
 // ompCustomBaseProfile is the profile a per-agent selection layers onto. A pin
-// governs the agents the operator names; every other bundled agent still needs
+// governs the agents the operator names; every other served agent still needs
 // a route, and the balanced built-in is the one the harness can derive.
 const ompCustomBaseProfile = "balanced"
 
@@ -39,19 +39,17 @@ type ompCustomModelChoice struct {
 
 func (c ompCustomModelChoice) selector() string { return c.Provider + "/" + c.Model }
 
-// readOMPCustomAgentPins asks for one installed model per agent the source
-// serves and returns them in `--agent` form, so the selection travels through
-// the same attestation, preview, and rollback path as the flag. Native asks
-// the bundled agents. Autopus asks the 17 Autopus agents and no bundled name,
-// task included: under the Route Contract's rule (2) a pin on one folds onto
-// every role that collapsed there before v0.50.127 (an agents.task pin reaches
-// fifteen), which is not the per-agent choice the prompt promises; task
-// follows the planner pin instead.
+// readOMPCustomAgentPins asks for one installed model per Autopus agent and
+// returns them in `--agent` form, so the selection travels through the same
+// attestation, preview, and rollback path as the flag. It offers no bundled
+// name, task included: under the Route Contract's rule (2) a pin on one folds
+// onto every role that collapsed there before v0.50.127 (an agents.task pin
+// reaches fifteen), which is not the per-agent choice the prompt promises.
+// task follows the planner pin instead.
 func readOMPCustomAgentPins(
 	ctx context.Context,
 	cmd *cobra.Command,
 	runner omp.OMPModelCatalogRunner,
-	source string,
 ) ([]string, error) {
 	out := cmd.OutOrStdout()
 	choices, version, err := installedOMPCustomModelChoices(ctx, cmd, runner)
@@ -60,13 +58,10 @@ func readOMPCustomAgentPins(
 	}
 	fmt.Fprintf(out, "\nInstalled models (%s)\n", version)
 	renderOMPCustomModelChoices(out, choices)
-	fmt.Fprintf(out, "Pick a model per agent; empty keeps the %s default.\n", ompCustomBaseProfile)
+	fmt.Fprintf(out, "Pick a model per agent; empty keeps the %s default. task follows planner.\n", ompCustomBaseProfile)
 
 	reader := bufio.NewReader(cmd.InOrStdin())
 	agents := config.CanonicalAgentNames()
-	if source == config.OMPAgentSourceNative {
-		agents = config.OMPNativeAgentNames()
-	}
 	pins := make([]string, 0, len(agents))
 	for _, agent := range agents {
 		capability, err := ompCustomAgentCapability(agent)
