@@ -142,9 +142,7 @@ func TestTaskPoller_LargeResponseTruncated(t *testing.T) {
 func TestTaskPoller_ContextCancellation(t *testing.T) {
 	t.Parallel()
 
-	var reqCount atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		reqCount.Add(1)
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("[]"))
 	}))
@@ -153,14 +151,36 @@ func TestTaskPoller_ContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	p := NewTaskPoller(srv.URL, "tok", "ws", func([]byte) {})
 	p.backoff = &AdaptiveBackoff{min: time.Millisecond, max: time.Millisecond, factor: 1, current: time.Millisecond}
+	// Count requests the poller issues, not requests the server reads: a
+	// request sent just before cancel can reach the handler arbitrarily late.
+	sent := &countingTransport{next: http.DefaultTransport}
+	p.client.Transport = sent
 
-	go p.Start(ctx)
-	time.Sleep(20 * time.Millisecond)
+	done := make(chan struct{})
+	go func() {
+		p.Start(ctx)
+		close(done)
+	}()
+	require.Eventually(t, func() bool { return sent.count.Load() > 0 }, 5*time.Second, time.Millisecond,
+		"the poller polls before cancel")
 	cancel()
-	// Wait long enough for the goroutine to observe cancellation and exit.
-	time.Sleep(30 * time.Millisecond)
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Start did not return after cancel")
+	}
 
-	snapshot := reqCount.Load()
+	snapshot := sent.count.Load()
 	time.Sleep(50 * time.Millisecond)
-	assert.Equal(t, snapshot, reqCount.Load(), "no more requests after cancel")
+	assert.Equal(t, snapshot, sent.count.Load(), "no more requests after cancel")
+}
+
+type countingTransport struct {
+	next  http.RoundTripper
+	count atomic.Int32
+}
+
+func (c *countingTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	c.count.Add(1)
+	return c.next.RoundTrip(r)
 }
