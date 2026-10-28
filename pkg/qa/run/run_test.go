@@ -26,8 +26,7 @@ func TestExecuteDryRunDoesNotCreateRunDirectory(t *testing.T) {
 }
 
 func TestExecuteGoJourneyWritesManifestAndRunIndex(t *testing.T) {
-	t.Parallel()
-
+	// Serial: see writeGoProjectFixture.
 	dir := fixtureGoProject(t, true)
 	output := filepath.Join(dir, "runs")
 
@@ -61,8 +60,7 @@ func TestExecuteGoJourneyWritesManifestAndRunIndex(t *testing.T) {
 }
 
 func TestExecuteFailedJourneyWritesFeedback(t *testing.T) {
-	t.Parallel()
-
+	// Serial: see writeGoProjectFixture.
 	dir := fixtureGoProject(t, false)
 	output := filepath.Join(dir, "runs")
 
@@ -170,8 +168,7 @@ func TestBuildPlanUsesDetectedFallbackWhenNoJourneyPackExists(t *testing.T) {
 }
 
 func TestExecuteUsesCompiledScenarioCandidate(t *testing.T) {
-	t.Parallel()
-
+	// Serial: see writeGoProjectFixture.
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.test\n\ngo 1.26\n"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "example_test.go"), []byte("package example\n\nimport \"testing\"\n\nfunc TestExample(t *testing.T) {}\n"), 0o644))
@@ -187,8 +184,7 @@ func TestExecuteUsesCompiledScenarioCandidate(t *testing.T) {
 }
 
 func TestExecutePreservesFailedCheckActualInRunIndex(t *testing.T) {
-	t.Parallel()
-
+	// Serial: see writeGoProjectFixture.
 	dir := fixtureGoProject(t, false)
 	result, err := Execute(Options{ProjectDir: dir, Lane: "fast", Output: filepath.Join(dir, "runs")})
 
@@ -212,8 +208,7 @@ func TestBuildPlanRejectsGeneratedSurfaceOutput(t *testing.T) {
 }
 
 func TestExecuteUsesDetectedFallbackWhenNoJourneyPackExists(t *testing.T) {
-	t.Parallel()
-
+	// Serial: see writeGoProjectFixture.
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.test\n\ngo 1.26\n"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "example_test.go"), []byte("package example\n\nimport \"testing\"\n\nfunc TestExample(t *testing.T) {}\n"), 0o644))
@@ -257,6 +252,12 @@ func fixtureGoProject(t *testing.T, passing bool) string {
 // writeGoProjectFixture is split out so a test can place the fixture under a
 // specific parent (an absolute /Users path, /tmp, a symlinked $TMPDIR) instead
 // of always taking t.TempDir().
+//
+// Executing this fixture runs a real `go test` under a fresh, empty GOCACHE,
+// so every run compiles the testing package and its std dependencies from
+// scratch (~18 CPU-seconds). Tests that execute it stay serial: run in
+// parallel on a small CI runner they starve each other past the command's
+// 60s budget and the run reports "blocked" instead of its real status.
 func writeGoProjectFixture(t *testing.T, dir string, passing bool) {
 	t.Helper()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.test\n\ngo 1.26\n"), 0o644))
