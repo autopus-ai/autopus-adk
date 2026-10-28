@@ -123,3 +123,10 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 기록: 6절과 같은 방법이다(이 branch tip에서 writer를 돌리고, writer가 다시 쓴 `init-in.stdout`은 `git checkout`으로 되돌림).
 - 차이: init 흐름(init-in·init-pipe·init-yes)은 `.mcp.json`, `.codex/config.toml`, 두 manifest, 두 journal의 checksum 6줄씩이다. update 흐름(update-ci·update-yes)은 거기에 두 번째 transaction의 journal 두 줄과 backup 사본 네 줄(`.mcp.json`, `.codex/config.toml`, 두 manifest)을 더한 12줄씩이다. 다른 경로는 바뀌지 않았다.
 - 검증: 기록 전 다섯 흐름이 정확히 이 경로들의 차이로 실패했고, 기록 뒤 test가 통과한다.
+
+## 9. Lore 타입 접두사 정렬 재기록 (fix/lore-type-prefix-consistency, 2026-10-27)
+
+- 원인: 외부 기여 PR #192가 `content/hooks/pre-commit-lore.sh`의 허용 타입을 `auto check --lore`(`internal/cli/check_rules.go` `loreValidTypes`)와 맞추고, `content/rules/lore-commit.md`·`content/skills/lore-commit.md`에 merge·revert 타입과 scope 필수 규칙을 더했다.
+- 기록: 6절과 같은 방법이다(이 branch tip에서 writer, stdout golden 되돌림).
+- 차이: init 흐름은 `.claude/hooks/autopus/pre-commit-lore.sh`, `.claude/hooks/autopus/conditional/lore-commit.md`, claude-code manifest, claude-code journal의 checksum 4줄씩이다. update 흐름은 거기에 두 번째 journal 줄과 backup 사본 세 줄을 더한 8줄씩이다. Codex·Gemini lore skill은 이 흐름이 생성하지 않는다. 다른 경로는 바뀌지 않았다.
+- 검증: 두 test가 이 golden으로 통과한다.

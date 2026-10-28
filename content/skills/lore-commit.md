@@ -37,6 +37,8 @@ Lore 형식으로 의사결정을 커밋 메시지에 기록하는 스킬입니�
 | `docs` | 문서 수정 |
 | `chore` | 빌드, 설정 변경 |
 | `perf` | 성능 개선 |
+| `merge` | 병합 또는 릴리스 통합 커밋 |
+| `revert` | 이전 변경 되돌리기 |
 
 ## Lore 트레일러 태그
 
@@ -93,7 +95,9 @@ Related: SPEC-AUTH-001
 `auto check --lore` 실행 시 다음을 검사합니다:
 - 커밋 메시지 형식 준수 여부
 - Autopus 사인오프 존재 여부
+- 타입은 `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `perf`, `merge`, `revert` 중 하나여야 하며 스코프를 포함해야 합니다.
 
 `auto lore validate` 실행 시 다음을 검사합니다:
 - `required_trailers` 충족 여부
 - `Confidence`, `Scope-risk`, `Reversibility` 값 유효성
+- `Scope-risk`는 `local`, `module`, `system` 중 하나여야 합니다.

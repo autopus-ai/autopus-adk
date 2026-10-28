@@ -42,11 +42,15 @@ Related: <SPEC-ID, issue, or related change>
 | docs | Documentation |
 | chore | Build, config changes |
 | perf | Performance improvement |
+| merge | Merge or release integration commit |
+| revert | Revert a previous change |
 
 ## Rules
 
 - `auto check --lore` enforces a valid Lore type prefix, the Autopus sign-off, and the absence of every trailer in `lore.forbidden_trailers`.
+- The canonical Lore types are `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `perf`, `merge`, and `revert`; each type requires a scope.
 - Structured Lore trailers use the `Constraint` / `Rejected` / `Confidence` / `Scope-risk` / `Reversibility` / `Directive` / `Tested` / `Not-tested` / `Related` protocol.
+- `Scope-risk` must be `local`, `module`, or `system`; any other value is rejected by the validator.
 - Default `autopus.yaml` requires `Constraint` when Lore trailer validation is enabled.
 - `Why` / `Decision` / `Alternatives` trailers are legacy guidance and are no longer the source of truth.
 - Sign with `🐙 Autopus <noreply@autopus.co>`

@@ -9,7 +9,7 @@
 .autopus/backup/<TS>/transaction/
 .autopus/backup/<TS>/transaction/claude-code/
 .autopus/backup/<TS>/transaction/claude-code/.autopus/
-.autopus/backup/<TS>/transaction/claude-code/.autopus/claude-code-manifest.json 22ce1487d450a7ff78dc6119c70bd0df6c1e1ef0149a103582e0033fd31f3e25
+.autopus/backup/<TS>/transaction/claude-code/.autopus/claude-code-manifest.json ce72e7d9f6cf164ecf09d64c77ee4cc2f418b07bc171b7750f0cb0ae84c75fda
 .autopus/backup/<TS>/transaction/claude-code/.autopus/claude-code-permissions.json b9fd4dd0824fb98d4ff3403c011a56b0b66f398788f2dfb24220c1aed87df4e8
 .autopus/backup/<TS>/transaction/claude-code/.claude/
 .autopus/backup/<TS>/transaction/claude-code/.claude/agents/
@@ -38,13 +38,13 @@
 .autopus/backup/<TS>/transaction/claude-code/.claude/hooks/autopus/conditional/
 .autopus/backup/<TS>/transaction/claude-code/.claude/hooks/autopus/conditional/context7-docs.md d6219c7286269d7d3fb6ba8ab366ccdf7dfdfbcbc58e7a0992ed6bdc4706b6ca
 .autopus/backup/<TS>/transaction/claude-code/.claude/hooks/autopus/conditional/doc-storage.md c9953abcbc35580031a81af3bb3bf934c78d642c58bc51f0cab168d09f9182a6
-.autopus/backup/<TS>/transaction/claude-code/.claude/hooks/autopus/conditional/lore-commit.md e1cb239ce7f35790de11d4a38e9a57ad6c54799ac8455c52bdaeb63e694efeac
+.autopus/backup/<TS>/transaction/claude-code/.claude/hooks/autopus/conditional/lore-commit.md a2c3799e353cf3ea2b28533c589ec6f9fbc6cfd68cce3694752f50dcacc10b71
 .autopus/backup/<TS>/transaction/claude-code/.claude/hooks/autopus/conditional/shell-portability.md 99bd84d9f2856af6019567d1542bf8430b9faaabc11a21ec84ae8ee3c2957d5c
 .autopus/backup/<TS>/transaction/claude-code/.claude/hooks/autopus/conditional/spec-quality.md 795340536f685415bc6c3dc28acea0e59cd032f72589a800bb562b0436a3adb1
 .autopus/backup/<TS>/transaction/claude-code/.claude/hooks/autopus/conditional/techstack-freshness.md 8fc0b89240d427f4713b4f9110a138518bea5ee0741421e78cc12bd84b72f562
 .autopus/backup/<TS>/transaction/claude-code/.claude/hooks/autopus/conditional/worktree-safety.md e4d2909fb5ee54688d29de59bfd2c7720ffdfe8fdf8cd9bf3114f2350271895a
 .autopus/backup/<TS>/transaction/claude-code/.claude/hooks/autopus/pre-commit-arch.sh 1b0b1d2babc2a6799bb237a512a0e6d0722009f00e7a0b0845826bc95cc79fa2
-.autopus/backup/<TS>/transaction/claude-code/.claude/hooks/autopus/pre-commit-lore.sh 65b370dcca89a221c86aec13dcd5e7d0589e6c81b76bdba0c9702d10b3c8f527
+.autopus/backup/<TS>/transaction/claude-code/.claude/hooks/autopus/pre-commit-lore.sh a691a829750ce1e38895a340b5c8bd2eb03f5162afa95af5bcd5f528bb97f073
 .autopus/backup/<TS>/transaction/claude-code/.claude/hooks/autopus/react-ci-failure.sh b7089428c63d3fdbdadb141ce50b89289272348b09f9da6212c9c81013946d16
 .autopus/backup/<TS>/transaction/claude-code/.claude/hooks/autopus/react-review.sh 98fc91b3c56b8c9f49cb477163cde5cf51be34f4219821150c147cb03eb10f28
 .autopus/backup/<TS>/transaction/claude-code/.claude/hooks/task-created-validate.sh 8f388b7993fd0deaa3795b614484ec873ad05bf6f0eb108770ad177e18f1b595
@@ -279,7 +279,7 @@
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-worktree-isolation/
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-worktree-isolation/SKILL.md 93ea5dfcf410f5e8b7d83d54a4a8fed152e3a8ca1356bf83af164f06fbbd8104
 .autopus/backup/<TS>/transaction/codex/AGENTS.md 5d951f63f21ebb2e4bbb7209b1b44e917e7bcc4cb90b26a03a5760476f091a71
-.autopus/claude-code-manifest.json 22ce1487d450a7ff78dc6119c70bd0df6c1e1ef0149a103582e0033fd31f3e25
+.autopus/claude-code-manifest.json ce72e7d9f6cf164ecf09d64c77ee4cc2f418b07bc171b7750f0cb0ae84c75fda
 .autopus/claude-code-permissions.json b9fd4dd0824fb98d4ff3403c011a56b0b66f398788f2dfb24220c1aed87df4e8
 .autopus/codex-manifest.json fb57339ae2932f04342d8c845d782d08f8437821c144c34b9bbb00480ddae2b2
 .autopus/context/
@@ -294,8 +294,8 @@
 .autopus/txns/
 .autopus/txns/<TX>-claude-code/
 .autopus/txns/<TX>-claude-code/
-.autopus/txns/<TX>-claude-code/journal.json 7da83f6666eee2c4a6018c7919177f4e8af2b0f05dde859e63aea985765a5ced
-.autopus/txns/<TX>-claude-code/journal.json 93e7e27df940960b692f562ab1df3c4ce866066220aecb167e7ccbffb15bd61f
+.autopus/txns/<TX>-claude-code/journal.json 392cf67ff5136ad6e7f1cf0be4da5bccacb99ae322bc51fd49c6511f0d03d2b2
+.autopus/txns/<TX>-claude-code/journal.json fb22fe73356a0dfa6e743a2700bde34d85f6b587a8ec935ebdb0f90676714757
 .autopus/txns/<TX>-codex/
 .autopus/txns/<TX>-codex/
 .autopus/txns/<TX>-codex/journal.json 03c452d6015fbe2cdbb13f18d9f6e8b2a62f45f2874cf0adfc116e01d3cc33cb
@@ -327,13 +327,13 @@
 .claude/hooks/autopus/conditional/
 .claude/hooks/autopus/conditional/context7-docs.md d6219c7286269d7d3fb6ba8ab366ccdf7dfdfbcbc58e7a0992ed6bdc4706b6ca
 .claude/hooks/autopus/conditional/doc-storage.md c9953abcbc35580031a81af3bb3bf934c78d642c58bc51f0cab168d09f9182a6
-.claude/hooks/autopus/conditional/lore-commit.md e1cb239ce7f35790de11d4a38e9a57ad6c54799ac8455c52bdaeb63e694efeac
+.claude/hooks/autopus/conditional/lore-commit.md a2c3799e353cf3ea2b28533c589ec6f9fbc6cfd68cce3694752f50dcacc10b71
 .claude/hooks/autopus/conditional/shell-portability.md 99bd84d9f2856af6019567d1542bf8430b9faaabc11a21ec84ae8ee3c2957d5c
 .claude/hooks/autopus/conditional/spec-quality.md 795340536f685415bc6c3dc28acea0e59cd032f72589a800bb562b0436a3adb1
 .claude/hooks/autopus/conditional/techstack-freshness.md 8fc0b89240d427f4713b4f9110a138518bea5ee0741421e78cc12bd84b72f562
 .claude/hooks/autopus/conditional/worktree-safety.md e4d2909fb5ee54688d29de59bfd2c7720ffdfe8fdf8cd9bf3114f2350271895a
 .claude/hooks/autopus/pre-commit-arch.sh 1b0b1d2babc2a6799bb237a512a0e6d0722009f00e7a0b0845826bc95cc79fa2
-.claude/hooks/autopus/pre-commit-lore.sh 65b370dcca89a221c86aec13dcd5e7d0589e6c81b76bdba0c9702d10b3c8f527
+.claude/hooks/autopus/pre-commit-lore.sh a691a829750ce1e38895a340b5c8bd2eb03f5162afa95af5bcd5f528bb97f073
 .claude/hooks/autopus/react-ci-failure.sh b7089428c63d3fdbdadb141ce50b89289272348b09f9da6212c9c81013946d16
 .claude/hooks/autopus/react-review.sh 98fc91b3c56b8c9f49cb477163cde5cf51be34f4219821150c147cb03eb10f28
 .claude/hooks/task-created-validate.sh 8f388b7993fd0deaa3795b614484ec873ad05bf6f0eb108770ad177e18f1b595

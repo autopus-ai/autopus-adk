@@ -24,7 +24,8 @@ const (
 
 // loreValidTypes defines allowed Lore commit type prefixes.
 var loreValidTypes = []string{
-	"feat(", "fix(", "refactor(", "test(", "docs(", "chore(", "perf(", "merge(",
+	"feat(", "fix(", "refactor(", "test(", "docs(", "chore(", "perf(",
+	"merge(", "revert(",
 }
 
 // loreSignOff is the required Lore sign-off line.
@@ -190,12 +191,16 @@ func lastCommitMessage(dir string) (string, error) {
 	return msg, nil
 }
 
-// hasValidLoreType reports whether msg starts with a recognised Lore type prefix.
+// hasValidLoreType reports whether msg starts with a valid Lore subject.
 func hasValidLoreType(msg string) bool {
-	for _, t := range loreValidTypes {
-		if strings.HasPrefix(msg, t) {
-			return true
+	firstLine, _, _ := strings.Cut(msg, "\n")
+	for _, prefix := range loreValidTypes {
+		if !strings.HasPrefix(firstLine, prefix) {
+			continue
 		}
+		scope, subject, ok := strings.Cut(strings.TrimPrefix(firstLine, prefix), "): ")
+		return ok && strings.TrimSpace(scope) != "" &&
+			!strings.ContainsAny(scope, "()") && strings.TrimSpace(subject) != ""
 	}
 	return false
 }
