@@ -1,7 +1,39 @@
 # Release v0.50.128 (A37)
 
-Status: coordinate advanced, not published. A37 is `v0.50.128`; nothing in
-this change creates a tag, an evidence object, a release, or a tap commit.
+Status: published 2026-10-29. A37 is `v0.50.128`, immutable release
+`427217669` (Latest, 15 assets, published 2026-10-29T01:54:41Z) from Release
+run `40773521963`. Source commit `842f8bf2` (tree `a13f508c`), tag object
+`04fd5405` (R2 signature verifies). Evidence tag
+`omp-context-evidence-v0.50.128` (object `8c26a1af`, commit `71d7ddf6`),
+ruleset `26072210` sealed (`verify-release-tag-ruleset.sh --sealed` passes),
+deployment tag policy `64707948`, Homebrew Cask `cfe21549`, Upgrade Canary
+`40805745082` passed.
+
+## Publication record
+
+| Time (UTC) | Event |
+|---|---|
+| 2026-10-28 21:37:46 | tag run `40773521963` starts; `omp-production-evidence` finishes 21:38:45 |
+| 2026-10-29 01:47:52 | `adk-companion-release` approval lands and the `release` job starts, about 4h10m after the tag run, well inside the 24-hour window |
+| 2026-10-29 01:54:41 | release `427217669` published, 15 assets |
+| 2026-10-29 01:55:06 | `release` job finishes; the tap moves to `cfe21549` "Publish signed Cask for v0.50.128" |
+
+- `release-prep.sh --apply` printed `release tag ruleset differs from exact
+  sealed authority policy` once, between the tag push and its final JSON.
+  That is the pre-seal probe. The ruleset now has no bypass actor and
+  `--sealed` passes.
+- The Cask's darwin amd64 and arm64 sha256 equal the `checksums.txt` entries
+  (`f4bf3bdb...`, `6f455de9...`).
+- The first Upgrade Canary after publication, run `40805061730`, failed with
+  `legacy path remains: .omp/agents/executor.md`. The release was not at
+  fault. The canary still expected the previous release to generate no OMP
+  agents and no `.omp/config.yml`, which held for v0.50.118 through
+  v0.50.125. v0.50.127 generates both. PR #234 checks the previous surface by
+  version and adds the user setting beside the claimed `task` block instead
+  of replacing the file. Replacing the file hands it to the user, and the
+  update then warns that the bundled agents stay enabled, which is the
+  designed behaviour. Run `40805745082` on that branch installs the public
+  0.50.127 and 0.50.128 releases and passed.
 
 A36 is `v0.50.127`, published on 2026-10-23 as immutable release `421737046`
 (Latest). The burned `v0.50.126` attempt stays recorded as rejected history
