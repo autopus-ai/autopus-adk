@@ -31,7 +31,7 @@ func (a *Adapter) renderConfigDocument(extraPlugins []string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("%s 파싱 실패: %w", configFile, err)
 	}
-	rulePaths, deferred, err := managedRulePaths()
+	rulePaths, deferred, err := managedRulePaths(a.isV2())
 	if err != nil {
 		return "", fmt.Errorf("rule 경로 생성 실패: %w", err)
 	}

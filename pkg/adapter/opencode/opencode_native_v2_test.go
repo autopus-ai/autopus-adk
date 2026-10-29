@@ -16,7 +16,8 @@ import (
 )
 
 // This opt-in fixture uses the real installed host and a deterministic local
-// protocol stub. It verifies native hook dispatch, not model quality/delegation.
+// protocol stub. It verifies native hook dispatch and conditional rule delivery,
+// not model quality/delegation.
 func TestNativeOpenCodeV2HookDispatch(t *testing.T) {
 	if os.Getenv("AUTOPUS_OPENCODE_V2_LIVE") != "1" {
 		t.Skip("set AUTOPUS_OPENCODE_V2_LIVE=1 for installed OpenCode native hook integration")
@@ -29,10 +30,10 @@ func TestNativeOpenCodeV2HookDispatch(t *testing.T) {
 	python, err := exec.LookPath("python3")
 	require.NoError(t, err)
 	root := t.TempDir()
-	plugin, err := renderHookPluginV2([]adapter.HookConfig{
+	plugin, err := renderHookPluginV2WithRules([]adapter.HookConfig{
 		{Event: "PreToolUse", Command: "printf 'before\\n' >> lifecycle.log; test ! -e reject-before", Timeout: 3},
 		{Event: "PostToolUse", Command: "test -f shell-ran && printf 'after\\n' >> lifecycle.log", Timeout: 3},
-	})
+	}, []openCodeConditionalRule{{Name: "native-fixture", Conditions: []string{`\bshell-ran\b`}, Body: "AUTOPUS_NATIVE_RULE_MARKER"}})
 	require.NoError(t, err)
 	pluginDir := filepath.Join(root, ".opencode", "plugins")
 	require.NoError(t, os.MkdirAll(pluginDir, 0700))

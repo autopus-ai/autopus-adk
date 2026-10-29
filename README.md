@@ -574,6 +574,7 @@ OpenCode note:
 - The default `skills.compiler.mode: split` publishes core skills and their required references. Opted-in long-tail bundles use `.opencode/skills/`; workflow-only rules remain readable without loading into every initial prompt.
 - Helper workflows like `/auto status`, `/auto map`, `/auto why`, `/auto verify`, `/auto secure`, `/auto test`, `/auto dev`, and `/auto doctor` are generated as OpenCode-native command wrappers
 - `opencode.json` now registers the managed hook plugin automatically, so `.opencode/plugins/autopus-hooks.js` is live immediately after `auto init` or `auto update`
+- On OpenCode 2.x, the shell-triggered rules (`lore-commit`, `shell-portability`, `worktree-safety`) leave `opencode.json` instructions; the hook plugin adds a rule to a session's system prompt after the first shell command that matches its `condition`
 
 Oh My Pi note:
 - Rules are written flat as `.omp/rules/autopus-<name>.md`. OMP scans each rule root non-recursively, so a nested `rules/autopus/` directory would never reach the session; the `autopus-` filename prefix is the namespace instead

@@ -108,6 +108,13 @@ def main():
             if (root / "lifecycle.log").exists():
                 raise RuntimeError("hook used plugin cwd instead of native session shell workdir")
             report["scenarios"].append({"blocked": blocked, "order": actual.splitlines(), "shell_ran": not blocked})
+        # The shell call fires the conditional rule before its hooks run, so the
+        # generation that reads each tool result carries the rule and the
+        # generation that asked for the call does not.
+        turns = [r for r in stub.requests if r["tools"]]
+        if not any(r["has_result"] for r in turns) or any(r["rule"] != r["has_result"] for r in turns):
+            raise RuntimeError("conditional rule delivery mismatch: " + json.dumps(turns))
+        report["conditional_rule"] = [{"has_result": r["has_result"], "rule": r["rule"]} for r in turns]
         if stub.errors:
             raise RuntimeError("; ".join(stub.errors))
         report["passed"] = True
