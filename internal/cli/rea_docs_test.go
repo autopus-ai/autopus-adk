@@ -44,7 +44,7 @@ func TestReaDocs_ReadmesAndChangelogDocumentEveryItem(t *testing.T) {
 			"v0.50.125 reads the 17-agent presets this release writes as customized",
 			"only reverse-engineer falls back to the session model", "so they do not start on Windows",
 			"**Clean-room flow**", "asks the main-session consent before any runtime capture",
-			"OMP serves the 17 Autopus agents", "OMP now uses the 17 Autopus agents;",
+			"OMP serves the 17 Autopus agents", "OMP now uses the 17 Autopus agents.",
 		},
 		"docs/README.ko.md": {
 			"프로젝트 범위 REA 역공학 MCP", "`--rea`·`--no-rea`", reamcp.NodeRange,

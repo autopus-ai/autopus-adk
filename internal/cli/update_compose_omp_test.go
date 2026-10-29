@@ -11,11 +11,6 @@ import (
 	"github.com/insajin/autopus-adk/pkg/adapter/omp"
 )
 
-// composeUpdateS8 answers S8 in `auto update` over O3: 구성 편집, OMP,
-// 에이전트별 지정, GPT, task, openai-codex/gpt-6-astra, max, 완료, 적용,
-// 유지. The update menu has no default preset choice.
-var composeUpdateS8 = []string{"2\n", "4\n", "4\n", "1\n", "5\n", "3\n", "2\n", "\n", "2\n", "\n"}
-
 // useComposeUpdateOMPDeps replaces the OMP dependencies of the update's
 // composition step for one test.
 func useComposeUpdateOMPDeps(t *testing.T, deps ompPlatformDependencies) {

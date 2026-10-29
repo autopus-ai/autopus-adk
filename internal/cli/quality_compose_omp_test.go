@@ -38,8 +38,6 @@ func composeOMPDeps(catalog []byte) (ompPlatformDependencies, *composeOMPActivat
 	}, activations
 }
 
-const composeOMPHeader = "OMP (요청 route · catalog 확인 전)"
-
 func runComposeOMPForms(t *testing.T, dir string, deps ompPlatformDependencies, lines ...string) (string, error) {
 	t.Helper()
 	options := composeFormOptions{Presets: true, OMP: &composeOMPTab{deps: deps}}
