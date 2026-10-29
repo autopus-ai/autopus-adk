@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/insajin/autopus-adk/pkg/learn"
-	"github.com/insajin/autopus-adk/pkg/qualityloop"
 )
 
 func TestWorkspaceFolderPolicyClassifiesProfileCompatiblePaths(t *testing.T) {
@@ -144,24 +143,6 @@ func TestScanLearningRowsAreProjectionOnly(t *testing.T) {
 	assert.Equal(t, true, record.SourceMetadata["projection_only"])
 	assert.Equal(t, "adk_decision_quality_index", record.SourceMetadata["projection_destination"])
 	assert.Equal(t, false, record.SourceMetadata["canonical_knowledge_hub"])
-}
-
-func TestMemIndexProjectionGuardsClassifyWorkspaceRefsAndCandidateSeverity(t *testing.T) {
-	t.Parallel()
-
-	assert.Equal(t, []string{"w-1", "w-2"}, memindexWorkspaceRefs("qamesh:workspace:w-1/run workspace:w-2#artifact"))
-	assert.False(t, memindexCrossWorkspaceRef("w-1", "qamesh:workspace:w-1/run"))
-	assert.True(t, memindexCrossWorkspaceRef("w-1", "qamesh:workspace:w-2/run"))
-	assert.False(t, memindexCrossWorkspaceRef("", "qamesh:workspace:w-2/run"))
-
-	assert.Equal(t, "high", improvementCandidateSeverity(qualityloop.ImprovementCandidate{Status: qualityloop.StatusBlocked}))
-	assert.Equal(t, "low", improvementCandidateSeverity(qualityloop.ImprovementCandidate{Status: qualityloop.StatusVerified}))
-	assert.Equal(t, "medium", improvementCandidateSeverity(qualityloop.ImprovementCandidate{Status: qualityloop.StatusRouted}))
-
-	assert.True(t, improvementCandidateRedactionReady(qualityloop.RedactionRedacted))
-	assert.True(t, improvementCandidateRedactionReady(qualityloop.RedactionMetadataOnly))
-	assert.True(t, improvementCandidateRedactionReady("not_required"))
-	assert.False(t, improvementCandidateRedactionReady(""))
 }
 
 func TestWorkspaceFolderPolicyHelpersHandleUnknownAndEmptyInputs(t *testing.T) {

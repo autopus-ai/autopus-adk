@@ -42,11 +42,6 @@ func Scan(projectDir string) ([]Record, []Skip, error) {
 		return nil, nil, err
 	}
 	add(qamesh, qameshSkips)
-	qualityLoop, qualityLoopSkips, err := scanImprovementCandidates(abs)
-	if err != nil {
-		return nil, nil, err
-	}
-	add(qualityLoop, qualityLoopSkips)
 	sort.Slice(records, func(i, j int) bool {
 		if records[i].SourceType != records[j].SourceType {
 			return records[i].SourceType < records[j].SourceType

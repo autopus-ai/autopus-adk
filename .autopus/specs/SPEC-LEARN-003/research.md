@@ -62,7 +62,7 @@ These are optional improvements and do not block sync completion.
 |------|----------------------|-------------------|
 | `/auto sync`가 `Template candidates`를 ADK 템플릿 변경 제안(PR 초안)으로 만들기 | 자동 반영은 non-goal이고, 후보가 쌓인 실측이 아직 없다 | process·deterministic 후보가 여러 프로젝트에서 반복된다 |
 | skillevolve가 stub 대신 실제 skill 수정안을 만들고 이 SPEC의 근거로 replay 입력을 채우기 | 생성기와 quality-index 입력 생산자가 없다(PR #214 조사) | skillevolve를 실제로 쓰겠다는 결정 |
-| 운영 코드가 부르지 않는 `pkg/qualityloop`를 이 근거 체계로 흡수하거나 삭제하기 | 범위 밖 정리 작업이다 | 다음 정리 SPEC |
+| 운영 코드가 부르지 않는 `pkg/qualityloop`를 이 근거 체계로 흡수하거나 삭제하기 | 범위 밖 정리 작업이다 | 다음 정리 SPEC — 2026-10-29 삭제함(`chore/remove-qualityloop`) |
 | OpenCode V2 plugin의 `ctx.session.hook("context")`로 lore-commit 등 trigger rule을 조건부로 전달하기 | OpenCode가 늘 로드하는 분량은 22.7KB이고, 그중 약 8KB가 trigger rule이다. bundle을 읽은 정적 근거뿐이라 실행 검증이 필요하다. 2026-10-27 opencode 2.0.10 실측(격리 HOME, `opencode reload` 후 `debug config`, 모델 호출 없음): 설정에는 glob 조건부 전달이 없다. `instructions`의 `{path, globs}` 객체 항목과 최상위 `rules` key는 오류 없이 버려지고, `agent.<name>.instructions`는 provider 요청 body로 옮겨진다. 내장 대안은 read 도구가 읽은 파일의 상위 디렉터리 `AGENTS.md`(루트 제외)를 세션당 한 번 싣는 디렉터리 범위 전달뿐이고, edit·write는 이를 일으키지 않는다. 남은 경로는 plugin v2 tool hook(`execute.after`)에서 경로를 glob과 맞춰 synthetic message로 싣는 것이며, plugin에서 그 API에 닿는지는 확인하지 못했다 | loopback fake provider로 plugin의 system push를 확인 |
 | 근거 명령을 sandbox에서 재실행해 `deterministic`을 확인하기 | 지금은 "확인됐다고 기록됨"이다. 재실행은 비용·안전 결정이 필요하다 | 지어낸 exit code가 실제로 관찰된다 |
 

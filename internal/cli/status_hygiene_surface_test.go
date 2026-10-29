@@ -3,7 +3,6 @@ package cli
 import (
 	"testing"
 
-	"github.com/insajin/autopus-adk/pkg/qualityloop"
 	"github.com/insajin/autopus-adk/pkg/workflow"
 	"github.com/stretchr/testify/assert"
 )
@@ -30,19 +29,9 @@ func driftGateVerdict(rel string) bool {
 	return len(workflow.DetectGeneratedDrift([]string{rel}, false)) > 0
 }
 
-func qualityLoopVerdict(rel string) bool {
-	decision := qualityloop.ValidateCandidateSafety(qualityloop.CandidateDraft{TargetArtifact: rel})
-	for _, code := range decision.ReasonCodes {
-		if code == "generated_surface_mutation_forbidden" {
-			return true
-		}
-	}
-	return false
-}
-
-// CD-6 / S10: the four consumers of the unified surface table keep their
+// CD-6 / S10: the three consumers of the unified surface table keep their
 // current verdict sets on the 13 probe paths.
-func TestSurfaceTable_FourConsumerParity_S10(t *testing.T) {
+func TestSurfaceTable_ThreeConsumerParity_S10(t *testing.T) {
 	t.Parallel()
 	consumers := []struct {
 		name string
@@ -51,8 +40,6 @@ func TestSurfaceTable_FourConsumerParity_S10(t *testing.T) {
 	}{
 		{"drift gate", driftGateVerdict,
 			[]bool{true, false, true, false, false, false, false, false, false, true, false, false, false}},
-		{"qualityloop", qualityLoopVerdict,
-			[]bool{true, true, true, true, true, false, false, true, true, true, false, false, true}},
 		{"status hygiene", isRuntimeUnignoredRisk,
 			[]bool{true, true, true, false, true, false, false, false, false, true, true, true, true}},
 		{"guard namespace", workflow.InEditGuardNamespace,

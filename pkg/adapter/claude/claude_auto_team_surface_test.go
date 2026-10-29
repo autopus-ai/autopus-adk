@@ -23,9 +23,10 @@ import (
 // update, which made the shared task list optional throughout its lifecycle.
 // A later SPEC that edits one of these surfaces on purpose updates the digest:
 // the 2026-10-24 learn-store fix changed the Phase 0.8 learning query to
-// `--top 5 --mark-reused`.
+// `--top 5 --mark-reused`, and the 2026-10-29 qualityloop removal dropped
+// `qualityloop` from the candidate-only signal line.
 const (
-	baseAutoGoWithoutRouteBSHA256 = "e4c015d3a72de7dcd03f280f87c6f02874048fb8a0a008d7f256b2f9d62f1de3"
+	baseAutoGoWithoutRouteBSHA256 = "5f80aea8ead780526b5ed899d53ef438135cd92411292430d7f8a70914130e03"
 	agentTeamsOutsideEntrySHA256  = "4b9cb1206d5b3d7335b933295b1fa31ec8d87e4d21ca425edc514f91fb151bb2"
 
 	autoTeamSectionHeading = "#### Route A Phase 2 Entry: Agent Team Auto-Selection"
