@@ -1,7 +1,8 @@
 # SPEC-LEARN-003: 학습 기록의 실행 근거·범위와 전 플랫폼 조회
 
-**Status**: implemented
+**Status**: completed
 **Created**: 2026-10-24
+**Completed**: 2026-10-29 (v0.50.128)
 **Domain**: LEARN
 **Module**: autopus-adk
 **Release**: v0.50.128. 작업 branch는 `feat/learn-evidence-scope`이고 기준은 `fix/learn-store-defects`(PR #214, 350ce05c)다. 그 PR이 `QueryScored`, `--top`·`--mark-reused`, `MarkReused`, hook의 SPEC ID·파일 기록을 더했다.
