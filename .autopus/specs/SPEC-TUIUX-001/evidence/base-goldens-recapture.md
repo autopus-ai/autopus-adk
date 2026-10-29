@@ -130,3 +130,10 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 기록: 6절과 같은 방법이다(이 branch tip에서 writer, stdout golden 되돌림).
 - 차이: init 흐름은 `.claude/hooks/autopus/pre-commit-lore.sh`, `.claude/hooks/autopus/conditional/lore-commit.md`, claude-code manifest, claude-code journal의 checksum 4줄씩이다. update 흐름은 거기에 두 번째 journal 줄과 backup 사본 세 줄을 더한 8줄씩이다. Codex·Gemini lore skill은 이 흐름이 생성하지 않는다. 다른 경로는 바뀌지 않았다.
 - 검증: 두 test가 이 golden으로 통과한다.
+
+## 10. qualityloop 삭제 재기록 (chore/remove-qualityloop, 2026-10-29)
+
+- 원인: 운영 코드가 부르지 않던 `pkg/qualityloop`를 지우면서 reviewer agent, review skill, auto-go·auto-review 템플릿의 "`qualityloop`/`skillevolve` candidate" 문구를 `skillevolve`만 남기도록 고쳤다.
+- 기록: 6절과 같은 방법이다(이 branch tip에서 writer, stdout golden 되돌림).
+- 차이: `.claude/agents/autopus/reviewer.md`, `.claude/skills/auto-go`·`review`, `.codex/agents/reviewer.toml`, `.codex/skills/codex-auto-go`·`codex-auto-review`·`codex-review`의 checksum, 두 manifest의 그 entry, 두 journal의 `after_checksum`, update 흐름의 backup 사본. 다른 경로는 바뀌지 않았다.
+- 검증: 두 test가 이 golden으로 통과한다.

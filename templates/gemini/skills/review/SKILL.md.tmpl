@@ -136,7 +136,7 @@ Correctness/Security와 Complexity에 배정한다.
 - `Correctness/Security Findings`: behavior, build/test, contract, validation, accessibility, data-safety, security, deterministic oracle, generated-surface hygiene 이슈입니다. 이 findings는 verdict에 대해 authoritative입니다.
 - `Complexity Findings`: avoidable code, unnecessary dependency, duplicate helper, single-use abstraction, scope expansion, simpler native/stdlib path 제안입니다. 적용 가능한 tag는 `delete`, `stdlib`, `native`, `yagni`, `shrink`, `existing-helper`, `existing-dependency` 중 하나 이상입니다.
 - Complexity finding이 correctness, security, accessibility, validation, data-safety requirement와 충돌하면 safety requirement를 우선하고 complexity finding은 downgrade 또는 reject합니다.
-- 반복되는 complexity 신호는 `qualityloop`/`skillevolve` candidate evidence로만 언급할 수 있으며, 적용은 quarantine/replay/approval 이후 별도 흐름에 맡깁니다.
+- 반복되는 complexity 신호는 `skillevolve` candidate evidence로만 언급할 수 있으며, 적용은 quarantine/replay/approval 이후 별도 흐름에 맡깁니다.
 
 ## 리뷰 출력 형식
 

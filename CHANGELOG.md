@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **운영 코드가 부르지 않던 `pkg/qualityloop`를 지운다** (2026-10-29): 이 패키지는 실패 정규화·반복 집계·lifecycle·안전
+  검사를 제공했지만 이를 부르는 운영 코드도, 그것이 읽을 `.autopus/quality-loop/candidates/` 입력을 쓰는 코드도 없었다.
+  memindex의 improvement candidate 수집기(`pkg/memindex/qualityloop.go`), surface table의 qualityloop consumer bit, reviewer
+  agent·review skill·auto-go·auto-review 템플릿의 "`qualityloop`/`skillevolve` candidate" 문구도 함께 정리해 `skillevolve`만
+  남긴다. `auto skill evolve`는 그대로다. SPEC-LEARN-003 research의 "흡수하거나 삭제" 후속을 삭제로 닫는다.
 - **`auto qa run`이 프로젝트의 Go 빌드 캐시를 실행 사이에 재사용한다** (2026-10-29): 명령마다 빈 GOCACHE
   (`.autopus/qa/cache/runs/go-build-*`)를 만들고 끝나면 지웠기 때문에, 매 실행이 testing 패키지와 std 의존성을 처음부터
   컴파일했다(약 CPU 18초). 코어가 적은 기계에서는 명령 기본 예산 60초를 넘겨 `blocked`가 될 수 있었다. 이제 빌드 캐시는

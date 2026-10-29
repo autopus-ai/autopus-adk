@@ -45,9 +45,6 @@ const (
 	// ConsumerStatusHygiene is the extra member set the status hygiene check in
 	// internal/cli adds on top of the drift-gate members.
 	ConsumerStatusHygiene
-	// ConsumerQualityLoop is the generated-surface safety check of
-	// pkg/qualityloop.
-	ConsumerQualityLoop
 )
 
 // Members that a consumer matches with a member-specific rule, named so the
@@ -75,37 +72,36 @@ type SurfaceMember struct {
 const (
 	cDrift   = ConsumerDriftGate
 	cHygiene = ConsumerStatusHygiene
-	cQuality = ConsumerQualityLoop
 )
 
 // surfaceTable is the one categorized list behind the drift gate, the status
-// hygiene check, pkg/qualityloop, and the edit-guard namespace.
+// hygiene check and the edit-guard namespace.
 //
 // Row order is visible to consumers: GeneratedSurfacePrefixes,
 // GeneratedSurfaceExactPaths, and the status-hygiene extra prefixes are this
 // order filtered by consumer, and S10 pins those orders.
 //
-// @AX:ANCHOR [AUTO] @AX:SPEC: SPEC-EDITGUARD-001: single source of the generated, runtime-state, and agent-artifact surface members; four consumers read it.
+// @AX:ANCHOR [AUTO] @AX:SPEC: SPEC-EDITGUARD-001: single source of the generated, runtime-state, and agent-artifact surface members; three consumers read it.
 // @AX:REASON: Adding a generated row outside the seven namespace roots widens what the edit guard can deny, and a category change on an existing row silently moves a path in or out of that namespace.
 var surfaceTable = []SurfaceMember{
-	{".claude/", ShapePrefix, SurfaceGenerated, cDrift | cQuality},
+	{".claude/", ShapePrefix, SurfaceGenerated, cDrift},
 	{".claude/worktrees/", ShapePrefix, SurfaceAgentArtifact, 0},
-	{".codex/", ShapePrefix, SurfaceGenerated, cDrift | cQuality},
-	{".gemini/", ShapePrefix, SurfaceGenerated, cDrift | cQuality},
-	{".opencode/", ShapePrefix, SurfaceGenerated, cDrift | cQuality},
-	{".agents/", ShapePrefix, SurfaceGenerated, cQuality},
+	{".codex/", ShapePrefix, SurfaceGenerated, cDrift},
+	{".gemini/", ShapePrefix, SurfaceGenerated, cDrift},
+	{".opencode/", ShapePrefix, SurfaceGenerated, cDrift},
+	{".agents/", ShapePrefix, SurfaceGenerated, 0},
 	{".agents/plugins/", ShapePrefix, SurfaceGenerated, cDrift},
 	{".agents/commands/", ShapePrefix, SurfaceGenerated, cHygiene},
 	{".agents/skills/", ShapePrefix, SurfaceGenerated, cHygiene},
 	{".omp/", ShapePrefix, SurfaceGenerated, 0},
-	{".autopus/brainstorms/", ShapePrefix, SurfaceAgentArtifact, cDrift | cQuality},
-	{".autopus/orchestra/", ShapePrefix, SurfaceRuntimeState, cDrift | cQuality},
-	{".autopus/plugins/", ShapePrefix, SurfaceGenerated, cDrift | cQuality},
+	{".autopus/brainstorms/", ShapePrefix, SurfaceAgentArtifact, cDrift},
+	{".autopus/orchestra/", ShapePrefix, SurfaceRuntimeState, cDrift},
+	{".autopus/plugins/", ShapePrefix, SurfaceGenerated, cDrift},
 	{".autopus/txns/", ShapePrefix, SurfaceRuntimeState, cDrift},
 	{".autopus/backup/", ShapePrefix, SurfaceRuntimeState, cHygiene},
 	{".autopus/cache/", ShapePrefix, SurfaceRuntimeState, cHygiene},
-	{".autopus/canary/", ShapePrefix, SurfaceRuntimeState, cHygiene | cQuality},
-	{".autopus/design/imports/", ShapePrefix, SurfaceAgentArtifact, cHygiene | cQuality},
+	{".autopus/canary/", ShapePrefix, SurfaceRuntimeState, cHygiene},
+	{".autopus/design/imports/", ShapePrefix, SurfaceAgentArtifact, cHygiene},
 	{".autopus/design/verify/", ShapePrefix, SurfaceRuntimeState, cHygiene},
 	{".autopus/docs/", ShapePrefix, SurfaceRuntimeState, cHygiene},
 	{".autopus/metrics/", ShapePrefix, SurfaceRuntimeState, cHygiene},
@@ -115,18 +111,18 @@ var surfaceTable = []SurfaceMember{
 	{".autopus/qa/gui/", ShapePrefix, SurfaceRuntimeState, cHygiene},
 	{".autopus/qa/releases/", ShapePrefix, SurfaceRuntimeState, cHygiene},
 	{".autopus/qa/runs/", ShapePrefix, SurfaceRuntimeState, cHygiene},
-	{".autopus/runtime/", ShapePrefix, SurfaceRuntimeState, cHygiene | cQuality},
+	{".autopus/runtime/", ShapePrefix, SurfaceRuntimeState, cHygiene},
 	{".autopus/telemetry/", ShapePrefix, SurfaceRuntimeState, cHygiene},
-	{SurfaceAgentsMarketplace, ShapeExact, SurfaceGenerated, cDrift | cQuality},
-	{SurfaceContextSignatures, ShapeExact, SurfaceRuntimeState, cDrift | cQuality},
-	{SurfaceRootConfig, ShapeExact, SurfaceAgentArtifact, cDrift | cQuality},
+	{SurfaceAgentsMarketplace, ShapeExact, SurfaceGenerated, cDrift},
+	{SurfaceContextSignatures, ShapeExact, SurfaceRuntimeState, cDrift},
+	{SurfaceRootConfig, ShapeExact, SurfaceAgentArtifact, cDrift},
 	{".agents/hooks.json", ShapeExact, SurfaceGenerated, cHygiene},
 	{".autopus/audit.jsonl", ShapeExact, SurfaceRuntimeState, cHygiene},
 	{".autopus/state.json", ShapeExact, SurfaceRuntimeState, cHygiene},
 	{".claude.json", ShapeExact, SurfaceRuntimeState, cHygiene},
 	{".mcp.json", ShapeExact, SurfaceAgentArtifact, cHygiene},
-	{SurfaceRootManifests, ShapeRootManifest, SurfaceRuntimeState, cDrift | cHygiene | cQuality},
-	{SurfacePluginCache, ShapeFragment, SurfaceRuntimeState, cQuality},
+	{SurfaceRootManifests, ShapeRootManifest, SurfaceRuntimeState, cDrift | cHygiene},
+	{SurfacePluginCache, ShapeFragment, SurfaceRuntimeState, 0},
 }
 
 // SurfaceTable returns a copy of the categorized surface table in row order.

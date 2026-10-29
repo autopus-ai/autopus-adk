@@ -1645,7 +1645,7 @@ An implementer-introduced constraint broader than the requirement (new ACL, comp
 
 Before implementing, apply the minimality ladder to every unit: `actual need` → `existing code/helper/pattern` → `stdlib/native` → `existing dependency` → `new dependency or abstraction` → `minimum sufficient verification`.
 
-Search existing code, helpers, and patterns before adding a new helper, dependency, or abstraction. `minimum sufficient verification` stays focused on the changed surface while preserving the non-reducible gates: `security`, `validation`, `accessibility`, `data-loss`, `deterministic-oracle`, `generated-surface-hygiene`. The final go handoff carries a receipt for reused existing code/helper/pattern, skipped dependency or abstraction, accepted expansion with evidence, and selected verification. `qualityloop`/`skillevolve` signals are candidate-only.
+Search existing code, helpers, and patterns before adding a new helper, dependency, or abstraction. `minimum sufficient verification` stays focused on the changed surface while preserving the non-reducible gates: `security`, `validation`, `accessibility`, `data-loss`, `deterministic-oracle`, `generated-surface-hygiene`. The final go handoff carries a receipt for reused existing code/helper/pattern, skipped dependency or abstraction, accepted expansion with evidence, and selected verification. `skillevolve` signals are candidate-only.
 
 Implement `inline` units directly in the main session. Dispatch `worker` units with their owned paths, forbidden paths, acceptance criteria, the gate decisions from Step 1.9, and the `{ctx7_docs}` reference documentation from Phase 1.8. Workers skip project-wide formatters, linters, builds, and test suites while fan-out is active and verify only their own surface.
 

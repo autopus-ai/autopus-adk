@@ -71,7 +71,7 @@ Output must separate `Correctness/Security Findings` from `Complexity Findings`.
 - `Correctness/Security Findings`: behavior, build/test, contract, validation, accessibility, data-safety, security, deterministic oracle, and generated-surface hygiene issues. These findings remain authoritative for APPROVE/REQUEST_CHANGES/REJECT.
 - `Complexity Findings`: avoidable code, unnecessary dependency, duplicate helper, single-use abstraction, scope expansion, or simpler native/stdlib path. Use one or more tags from `delete`, `stdlib`, `native`, `yagni`, `shrink`, `existing-helper`, `existing-dependency`.
 - If a Complexity Finding conflicts with correctness, security, accessibility, validation, or data-safety requirements, downgrade or reject the complexity finding and keep the safety requirement authoritative.
-- Repeated complexity signals may be noted as `qualityloop`/`skillevolve` candidate evidence only; they remain quarantined/isolated and are not applied by reviewer.
+- Repeated complexity signals may be noted as `skillevolve` candidate evidence only; they remain quarantined/isolated and are not applied by reviewer.
 
 ## Persistent-Team Role
 
