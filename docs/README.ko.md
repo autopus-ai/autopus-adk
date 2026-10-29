@@ -492,6 +492,7 @@ OpenCode 참고:
 - 기본 `skills.compiler.mode: split`은 핵심 스킬과 필수 참조를 배포합니다. 추가로 선택한 스킬 묶음은 `.opencode/skills/`에 놓으며, 워크플로 전용 규칙은 파일로 유지하되 매 세션 시작 시 읽지 않습니다.
 - `/auto status`, `/auto map`, `/auto why`, `/auto verify`, `/auto secure`, `/auto test`, `/auto dev`, `/auto doctor` 같은 helper workflow도 OpenCode 명령 래퍼로 함께 생성됩니다
 - `opencode.json`이 관리형 hook plugin을 자동 등록하므로 `auto init` 또는 `auto update` 직후 `.opencode/plugins/autopus-hooks.js`가 바로 활성화됩니다
+- OpenCode 2.x에서는 shell 명령으로 발동하는 규칙(`lore-commit`, `shell-portability`, `worktree-safety`)을 `opencode.json` instructions에서 뺍니다. hook plugin이 규칙의 `condition`에 맞는 shell 명령이 처음 실행된 뒤부터 그 세션의 system prompt에 규칙을 넣습니다.
 
 Oh My Pi 참고:
 - 규칙은 `.omp/rules/autopus-<name>.md` 평면 구조로 생성됩니다. OMP는 각 규칙 루트를 비재귀로만 탐색하므로 `rules/autopus/` 같은 하위 디렉터리는 세션에 도달하지 않습니다. 네임스페이스는 디렉터리가 아니라 `autopus-` 파일명 접두사입니다

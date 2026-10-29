@@ -25,6 +25,10 @@ if (scenario === "v1") {
       lookups++
       if (scenario === "missing-session") return {id:sessionID}
       return {id:sessionID,location:{directory:sessionDirectory}}
+    },hook:async (name,callback)=>{
+      assert.equal(name,"context")
+      callbacks.set("session."+name,callback)
+      return {dispose:async()=>{disposed.push("session."+name)}}
     }},
     tool:{hook:async (name,callback)=>{
       if (scenario === "setup-failure" && name === "execute.after") throw new Error("registration failed")
@@ -68,7 +72,7 @@ if (scenario === "v1") {
     }
     if (scenario === "dispose-failure") await assert.rejects(cleanup,/dispose failure/)
     else await cleanup()
-    assert.deepEqual(disposed.sort(),["execute.after","execute.before"])
+    assert.deepEqual(disposed.sort(),["execute.after","execute.before","session.context"])
   }
 }
 console.log("CONTRACT_PASS")

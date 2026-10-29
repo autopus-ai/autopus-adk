@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **OpenCode 2.x가 shell로 발동하는 규칙을 조건에 맞을 때만 싣는다** (2026-10-29): `lore-commit`·`shell-portability`·
+  `worktree-safety`는 Claude Code에서 `condition`에 맞는 shell 명령이 올 때만 dispatcher가 붙이지만, OpenCode에서는
+  `opencode.json` `instructions`에 들어 매 세션 약 7KB를 늘 실었다. 이제 V2에서는 세 규칙을 instructions에서 빼고, 생성
+  hook plugin이 `execute.before`에서 shell 명령을 규칙의 `condition`과 맞춘 뒤 `ctx.session.hook("context")`로 그 세션의
+  이후 generation마다 규칙 본문을 system prompt에 넣는다. 본문 크기 상한과 넘친 규칙의 이름을 남기는 방식은 Claude
+  dispatcher(`rulecond.MaxContextBytes`)와 같다. JavaScript에서 컴파일되지 않는 condition은 그 규칙을 늘 싣는 쪽으로 닫힌다.
+  - tool:bash 외 scope, inline flag·`\A`·`\z`·POSIX class처럼 RE2와 JavaScript가 다르게 읽는 condition을 쓰는 규칙은
+    지금처럼 instructions에 남는다. V1 OpenCode는 바뀌지 않는다.
+  - 검증: 설치된 OpenCode 2.0.10과 loopback provider stub으로 shell 호출을 요청한 generation에는 규칙이 없고 그 결과를 읽는
+    generation에는 있음을 확인했다(`AUTOPUS_OPENCODE_V2_LIVE=1`). 각 condition은 같은 명령 목록에서 Go regexp와 node
+    RegExp가 같은 규칙을 발동하는지 비교한다.
 - **운영 코드가 부르지 않던 `pkg/qualityloop`를 지운다** (2026-10-29): 이 패키지는 실패 정규화·반복 집계·lifecycle·안전
   검사를 제공했지만 이를 부르는 운영 코드도, 그것이 읽을 `.autopus/quality-loop/candidates/` 입력을 쓰는 코드도 없었다.
   memindex의 improvement candidate 수집기(`pkg/memindex/qualityloop.go`), surface table의 qualityloop consumer bit, reviewer

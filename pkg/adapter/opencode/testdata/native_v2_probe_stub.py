@@ -1,5 +1,9 @@
 """Deterministic loopback Chat Completions fixture; never calls a provider."""
 import json
+
+# RULE_MARKER is the body of the conditional rule the native test renders; the
+# stub records whether a request's system prompt carries it.
+RULE_MARKER = "AUTOPUS_NATIVE_RULE_MARKER"
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -35,7 +39,8 @@ class Stub:
                 tools = [t.get("function", {}).get("name") for t in body.get("tools", [])]
                 messages = body.get("messages", [])
                 has_result = any(m.get("role") == "tool" for m in messages)
-                owner.requests.append({"path": self.path, "tools": tools, "has_result": has_result})
+                system = json.dumps([m for m in messages if m.get("role") == "system"])
+                owner.requests.append({"path": self.path, "tools": tools, "has_result": has_result, "rule": RULE_MARKER in system})
                 if len(owner.requests) > 12:
                     owner.errors.append("provider stub request bound exceeded")
                     self.send_error(429)

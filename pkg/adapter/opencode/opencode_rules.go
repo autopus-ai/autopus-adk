@@ -49,7 +49,11 @@ func (a *Adapter) prepareRuleMappings() ([]adapter.FileMapping, error) {
 	return files, nil
 }
 
-func managedRulePaths() (active, deferred []string, err error) {
+// managedRulePaths splits the embedded rules into the instructions OpenCode
+// loads every session and the ones it must not. A skill-scoped rule is loaded
+// only by the skill that references it, and on V2 a rule the hook plugin
+// delivers on a shell match leaves the baseline (pluginDeliversRule).
+func managedRulePaths(v2 bool) (active, deferred []string, err error) {
 	entries, err := contentfs.FS.ReadDir("rules")
 	if err != nil {
 		return nil, nil, err
@@ -69,7 +73,7 @@ func managedRulePaths() (active, deferred []string, err error) {
 			return nil, nil, parseErr
 		}
 		path := toSlash(filepath.Join(".opencode", "rules", "autopus", entry.Name()))
-		if rulecond.Classify(rule) == rulecond.ClassSkillScoped {
+		if rulecond.Classify(rule) == rulecond.ClassSkillScoped || (v2 && pluginDeliversRule(rule)) {
 			deferred = append(deferred, path)
 		} else {
 			active = append(active, path)

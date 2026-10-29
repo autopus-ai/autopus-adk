@@ -20,7 +20,10 @@ if (version === "v1") {
   const callbacks = new Map()
   cleanup = await plugin.default.setup({
     location: { directory: "/wrong/plugin-instance-location" },
-    session: { get: async ({ sessionID }) => ({ id: sessionID, location: { directory } }) },
+    session: {
+      get: async ({ sessionID }) => ({ id: sessionID, location: { directory } }),
+      hook: async () => ({ dispose: async () => {} }),
+    },
     tool: { hook: async (name, callback) => { callbacks.set(name, callback); return { dispose: async () => {} } } },
   })
   before = (event) => callbacks.get("execute.before")(event)

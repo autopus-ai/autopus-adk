@@ -8,9 +8,24 @@ import (
 )
 
 // renderHookPluginV2 renders the V2 native plugin: the shell-tool hooks run
-// for tool shell, and the edit guard for the file-editing tools OpenCode 2.0.10
-// offered in probe A2.
+// for tool shell, the edit guard for the file-editing tools OpenCode 2.0.10
+// offered in probe A2, and the embedded conditional rules on a shell match.
 func renderHookPluginV2(hooks []adapter.HookConfig) (string, error) {
+	rules, err := openCodeConditionalRules()
+	if err != nil {
+		return "", err
+	}
+	return renderHookPluginV2WithRules(hooks, rules)
+}
+
+func renderHookPluginV2WithRules(hooks []adapter.HookConfig, rules []openCodeConditionalRule) (string, error) {
+	if rules == nil {
+		rules = []openCodeConditionalRule{}
+	}
+	encodedRules, err := json.Marshal(rules)
+	if err != nil {
+		return "", err
+	}
 	hooks, guard, err := splitEditGuard(hooks, openCodeGuardToolsV2)
 	if err != nil {
 		return "", err
@@ -38,7 +53,8 @@ func renderHookPluginV2(hooks []adapter.HookConfig) (string, error) {
 		return "", err
 	}
 	return strings.NewReplacer("__BEFORE_HOOKS__", string(encodedBefore), "__AFTER_HOOKS__", string(encodedAfter),
-		"__EDIT_GUARD__", guard, "__GUARD_RUNTIME__", openCodeGuardRuntime).Replace(openCodePluginV2Source), nil
+		"__EDIT_GUARD__", guard, "__GUARD_RUNTIME__", openCodeGuardRuntime,
+		"__CONDITIONAL_RULES__", string(encodedRules), "__RULE_RUNTIME__", openCodeRuleRuntime).Replace(openCodePluginV2Source), nil
 }
 
 // Hook signatures and session.location come from @opencode/plugin 2.0.10.
@@ -52,8 +68,13 @@ const AFTER_HOOKS = __AFTER_HOOKS__
 const OUTPUT_LIMIT = 65536
 // EDIT_GUARD is the generated auto guard edit registration, or null.
 const EDIT_GUARD = __EDIT_GUARD__
+// CONDITIONAL_RULES are the hook-fired rules this plugin delivers instead of
+// opencode.json instructions.
+const CONDITIONAL_RULES = __CONDITIONAL_RULES__
 
 __GUARD_RUNTIME__
+
+__RULE_RUNTIME__
 
 function bounded(promise, milliseconds) {
   let timer
@@ -69,6 +90,7 @@ export default {
     const registrations = []
     const contexts = new Map()
     const running = new Map()
+    const rules = createRuleTracker(CONDITIONAL_RULES)
     let disposed = false
 
     function runCommand(hook, cwd) {
@@ -160,6 +182,7 @@ export default {
           return
         }
         if (event.tool !== "shell") return
+        rules.note(event)
         const key = callKey(event)
         if (contexts.size >= 1024 || contexts.has(key)) throw new Error("Autopus shell hook context limit or duplicate call")
         contexts.set(key, null)
@@ -181,6 +204,11 @@ export default {
         if (!cwd) throw new Error("Autopus shell hook has no verified before context")
         await runHooks(AFTER_HOOKS, cwd)
       }))
+      if (CONDITIONAL_RULES.length > 0) {
+        registrations.push(await ctx.session.hook("context", async (event) => {
+          if (!disposed) rules.inject(event)
+        }))
+      }
     } catch (error) {
       await Promise.all(registrations.map(registration => registration.dispose()))
       throw error
@@ -188,6 +216,7 @@ export default {
     return async () => {
       disposed = true
       contexts.clear()
+      rules.clear()
       for (const stop of running.values()) stop("Autopus hook plugin unloaded")
       await Promise.all(registrations.map(registration => registration.dispose()))
     }
