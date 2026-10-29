@@ -1,7 +1,7 @@
 #!/bin/sh
 # Sourced by posix-upgrade-canary.sh: the OMP agent surface a candidate
-# generates. It uses that script's fail, assert_contains, MODE, NEW_VERSION,
-# and PROJECT.
+# generates. It uses that script's fail, assert_absent, assert_contains,
+# assert_not_contains, MODE, NEW_VERSION, PREVIOUS_VERSION, and PROJECT.
 
 # From v0.50.127 the default autopus mode generates these agent definitions
 # again (SPEC-MODELUX-003); v0.50.118 through v0.50.125 reused OMP's bundled
@@ -29,6 +29,31 @@ version_at_least() {
 # agent definitions. The fixture candidate is built from this source.
 candidate_generates_agents() {
     [ "$MODE" = fixture ] || version_at_least "$NEW_VERSION" "$AUTOPUS_AGENTS_SINCE"
+}
+
+# assert_previous_omp_surface checks the OMP surface the previous public
+# release left: the Autopus agents from v0.50.127, and before that nothing,
+# since v0.50.118 through v0.50.125 reused OMP's bundled agents.
+assert_previous_omp_surface() {
+    if version_at_least "$PREVIOUS_VERSION" "$AUTOPUS_AGENTS_SINCE"; then
+        assert_autopus_agent_surface
+        return
+    fi
+    assert_absent "$PROJECT/.omp/agents/executor.md"
+    assert_absent "$PROJECT/.omp/config.yml"
+    assert_not_contains "$PROJECT/.autopus/omp-manifest.json" '".omp/config.yml"'
+}
+
+# write_user_omp_config adds a user setting to .omp/config.yml the way a user
+# would: beside the claimed task block a v0.50.127 project already has, or as
+# the whole file before that. Replacing a claimed file outright hands it to the
+# user, and the update then leaves the bundled agents enabled.
+write_user_omp_config() {
+    if version_at_least "$PREVIOUS_VERSION" "$AUTOPUS_AGENTS_SINCE"; then
+        printf 'theme:\n  dark: canary-user\n' >> "$PROJECT/.omp/config.yml"
+    else
+        printf 'theme:\n  dark: canary-user\n' > "$PROJECT/.omp/config.yml"
+    fi
 }
 
 # assert_autopus_agent_surface checks the autopus-mode OMP surface: every

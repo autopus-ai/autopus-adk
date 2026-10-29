@@ -134,18 +134,28 @@ func TestUpgradeCanary_PinsActionsAndUploadsDiagnosticReceipt(t *testing.T) {
 
 func TestUpgradeCanary_ModelsPublicV109WithoutManagedOMPConfig(t *testing.T) {
 	raw := readReleaseFile(t, "scripts/release-signing/tests/posix-upgrade-canary.sh")
+	omp := readReleaseFile(t, "scripts/release-signing/tests/posix-upgrade-canary-omp.sh")
 	absence := `assert_absent "$PROJECT/.omp/config.yml"`
 	creation := `printf 'theme:\n  dark: canary-user\n' > "$PROJECT/.omp/config.yml"`
-	if !strings.Contains(raw, absence) {
-		t.Fatalf("upgrade canary does not verify the v0.50.127 OMP config absence")
+	// From v0.50.127 the previous release claims .omp/config.yml, so the user
+	// setting is added beside the claimed block instead of replacing it.
+	appended := `printf 'theme:\n  dark: canary-user\n' >> "$PROJECT/.omp/config.yml"`
+	for _, want := range []string{absence, creation, appended} {
+		if !strings.Contains(omp, want) {
+			t.Fatalf("upgrade canary OMP helper does not contain %q", want)
+		}
 	}
-	if !strings.Contains(raw, creation) {
-		t.Fatalf("upgrade canary does not create the user-owned OMP config fixture")
+	verify, mutate := strings.Index(raw, "assert_public_previous_fixture\n"), strings.Index(raw, "write_user_omp_config\n")
+	if verify < 0 || mutate < 0 {
+		t.Fatal("live mode does not verify the previous fixture and then write the user OMP config")
 	}
-	if strings.Index(raw, absence) > strings.Index(raw, creation) {
-		t.Fatal("upgrade canary verifies the legacy fixture after mutating it")
+	if verify > mutate {
+		t.Fatal("upgrade canary verifies the previous fixture after mutating it")
 	}
-	if strings.Contains(raw, `cat "$PROJECT/.omp/config.yml"`) {
+	if !strings.Contains(raw, "    assert_previous_omp_surface\n") {
+		t.Fatal("the previous fixture check does not verify the previous OMP surface")
+	}
+	if strings.Contains(raw+omp, `cat "$PROJECT/.omp/config.yml"`) {
 		t.Fatal("upgrade canary still reads the absent v0.50.127 OMP config")
 	}
 	if !strings.Contains(
