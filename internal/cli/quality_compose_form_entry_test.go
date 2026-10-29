@@ -7,7 +7,6 @@ package cli
 
 import (
 	"bytes"
-	"errors"
 	"io"
 	"path/filepath"
 	"testing"
@@ -126,23 +125,4 @@ func TestQualityComposeForms_InterruptEndsWithoutError(t *testing.T) {
 	assert.Contains(t, out, "중단했습니다. 구성을 더 바꾸지 않습니다.\n")
 	assert.NotContains(t, out, "quality.applied_platforms")
 	assert.Equal(t, before, composeSessionHash(t, dir))
-}
-
-// S8: an OMP write `auto quality` cannot read back returns its error and
-// applies nothing; the file keeps the applied policy.
-func TestQualityComposeForms_FailedOMPReReadReturnsTheError(t *testing.T) {
-	newComposeUpdateRun(t, true, "")
-	useAccessibleComposeForms(t)
-	deps, _ := composeOMPDeps(ompCLIBalancedCatalogJSON())
-	original := composeReloadConfig
-	t.Cleanup(func() { composeReloadConfig = original })
-	composeReloadConfig = func(string) (*config.HarnessConfig, error) { return nil, errors.New("disk gone") }
-	dir := writeNativeComposeFixture(t, "claude-code", "codex", "omp")
-
-	out, err := runQualityForms(t, dir, &deps, formInput(composeFormLines(composeFormS8, "2\n")...), "--apply")
-
-	require.Error(t, err)
-	assert.Contains(t, out, "OMP 설정은 적용됐지만 다시 읽지 못했습니다: disk gone\n")
-	assert.NotContains(t, out, "quality.applied_platforms")
-	assert.Equal(t, "balanced", rawRoleModelPolicyOf(t, readBlockFixture(t, dir)).Profile)
 }

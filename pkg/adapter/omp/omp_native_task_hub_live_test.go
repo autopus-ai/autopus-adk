@@ -57,10 +57,10 @@ func TestOMPNativeTaskHubLiveSmoke(t *testing.T) {
 		t.Setenv(key, ompNativeCredential)
 	}
 	executable := resolveOMPNativeLiveExecutable(t)
-	// The batch names the bundled scout and reviewer, so the project is the
-	// native agent source's: autopus mode replaces reviewer and disables
-	// scout (TestOMPAutopusAgentSurfaceLiveSmoke covers that surface).
-	scratch := generateOMPOnlyNative(t)
+	// The batch names the bundled scout and reviewer, so the project carries
+	// no agent surface: autopus mode replaces reviewer and disables scout
+	// (TestOMPAutopusAgentSurfaceLiveSmoke covers that surface).
+	scratch := generateOMPOnlyWithoutAgentSurface(t)
 	baseline := snapshotOMPNativeTree(t, scratch)
 
 	provider := newOMPNativeProvider(t)
@@ -134,14 +134,18 @@ func TestOMPNativeTaskHubLiveSmoke(t *testing.T) {
 	t.Logf("sanitized_native_task_hub_receipt=%s", encoded)
 }
 
-// generateOMPOnlyNative is generateOMPOnly on the native agent source.
-func generateOMPOnlyNative(t *testing.T) string {
+// generateOMPOnlyWithoutAgentSurface is generateOMPOnly with the agent
+// surface stripped, the layout agent_source: native left before v0.50.129:
+// no project agent definition and no task.disabledAgents, so OMP serves its
+// bundled registry and the smoke's children are bundled agents.
+func generateOMPOnlyWithoutAgentSurface(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	cfg := nativeConfigForOMP()
+	cfg := configForOMP()
 	require.NoError(t, config.Save(dir, cfg))
 	_, err := NewWithRoot(dir).Generate(context.Background(), cfg)
 	require.NoError(t, err)
+	stripOMPAgentSurface(t, dir)
 	return dir
 }
 

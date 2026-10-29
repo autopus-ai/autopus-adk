@@ -31,14 +31,13 @@ func TestOMPClean_PreservesUserConfigKeys(t *testing.T) {
 
 	harness := config.DefaultFullConfig("omp-sec")
 	harness.Platforms = []string{"omp"}
-	harness.RoleModelPolicy.AgentSource = config.OMPAgentSourceNative
 	require.NoError(t, config.Save(dir, harness))
 	_, err := NewWithRoot(dir).Generate(context.Background(), harness)
 	require.NoError(t, err)
 
 	generated, err := os.ReadFile(cfgPath)
 	require.NoError(t, err)
-	require.Equal(t, original, generated, "plain OMP generation must not own user config")
+	require.Equal(t, string(original)+claimSurfaceOnly, string(generated), "generation adds only the task.disabledAgents claim")
 	require.NotContains(t, string(generated), markerBeginYml)
 
 	// `auto platform remove omp` drops omp before Clean runs.
@@ -49,6 +48,7 @@ func TestOMPClean_PreservesUserConfigKeys(t *testing.T) {
 
 	after, err := os.ReadFile(cfgPath)
 	require.NoError(t, err, ".omp/config.yml must survive Clean because it holds user keys")
+	assert.Equal(t, string(original), string(after), "Clean restores the preimage the claim started from")
 
 	var parsed struct {
 		DisabledProviders []string `yaml:"disabledProviders"`

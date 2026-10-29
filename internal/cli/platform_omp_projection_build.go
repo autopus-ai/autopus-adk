@@ -14,9 +14,9 @@ func buildOMPPlatformProjection(
 	runner omp.OMPModelCatalogRunner,
 	now time.Time,
 ) ompPlatformProjection {
+	// Until a readable config with omp says what OMP is served, the agent
+	// catalog stays not evaluated.
 	projection := defaultOMPPlatformProjection()
-	rows, agentCatalog := buildOMPAgentCatalog(root, nil)
-	projection.Models = newOMPModelOperatorProjection(rows, agentCatalog)
 	if now.IsZero() {
 		now = time.Now().UTC()
 	} else {
@@ -39,7 +39,7 @@ func buildOMPPlatformProjection(
 		return projection
 	}
 	projection.Configured = true
-	rows, agentCatalog = buildOMPAgentCatalog(root, cfg)
+	rows, agentCatalog := buildOMPAgentCatalog(root)
 	projection.Models = newOMPModelOperatorProjection(rows, agentCatalog)
 	projection.Models = buildOMPModelOperatorProjection(ctx, root, cfg, runner, projection.Models)
 	projection.Context = buildOMPContextOperatorProjection(ctx, root, cfg, runner, now)

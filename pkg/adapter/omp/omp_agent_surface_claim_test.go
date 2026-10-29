@@ -106,9 +106,12 @@ func claimDisabledAgents(t *testing.T, data string) []any {
 	return value
 }
 
-func nativeClaimConfig(cfg *config.HarnessConfig) *config.HarnessConfig {
-	cfg.RoleModelPolicy.AgentSource = config.OMPAgentSourceNative
-	return cfg
+// release gives back every claim the project config holds. Since
+// agent_source: native was removed in v0.50.129, clean is the one release:
+// it restores the preimage a claim started from, as native generation did.
+func (p *claimProject) release() {
+	p.t.Helper()
+	require.NoError(p.t, p.adapter().Clean(context.Background()))
 }
 
 // S7: with no project config, autopus mode creates one that only disables the
@@ -176,7 +179,7 @@ func TestOMPClaimSet_ClaimsTheDefaultValueAndReleaseKeepsIt(t *testing.T) {
 	require.True(t, claimed)
 	assert.Equal(t, ompDefaultDisabledAgentsFingerprint(), key.PriorFingerprint)
 
-	project.mustRun("update", nativeClaimConfig(configForOMP()))
+	project.release()
 	data, ok = project.read(configFile)
 	require.True(t, ok)
 	assert.Equal(t, claimSurfaceOnly, data, "the preimage held the key, so it stays")

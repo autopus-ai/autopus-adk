@@ -1,17 +1,12 @@
 package adapter_test
 
 import (
-	"context"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/insajin/autopus-adk/pkg/adapter"
-	"github.com/insajin/autopus-adk/pkg/adapter/omp"
-	"github.com/insajin/autopus-adk/pkg/config"
 )
 
 func assertOMPLatestCLIContract(t *testing.T, fixture latestCLIFixture) {
@@ -35,25 +30,6 @@ func assertOMPLatestCLIContract(t *testing.T, fixture latestCLIFixture) {
 	assert.FileExists(t, filepath.Join(fixture.root, ".omp", "config.yml"))
 
 	assertOMPReadinessProviderFree(t, fixture.root)
-}
-
-// agent_source: native keeps the v0.50.125 OMP surface: bundled agents are
-// never shadowed and a plain install carries no base config.
-func TestLatestCLIContract_OMPNativeSourceKeepsTheBundledRegistry(t *testing.T) {
-	root := t.TempDir()
-	cfg := config.DefaultFullConfig("latest-cli-native")
-	cfg.Platforms = []string{"omp"}
-	cfg.RoleModelPolicy.AgentSource = config.OMPAgentSourceNative
-	require.NoError(t, config.Save(root, cfg))
-	_, err := omp.NewWithRoot(root).Generate(context.Background(), cfg)
-	require.NoError(t, err)
-	manifest, err := adapter.LoadManifest(root, "omp")
-	require.NoError(t, err)
-	for _, path := range manifestPaths(manifest) {
-		assert.False(t, strings.HasPrefix(path, ".omp/agents/"), "bundled agents must not be shadowed")
-	}
-	assert.False(t, manifestHas(manifest, ".omp/config.yml"))
-	assert.NoFileExists(t, filepath.Join(root, ".omp", "config.yml"))
 }
 
 func assertLatestCLIManifestOwnership(t *testing.T, fixture latestCLIFixture) {

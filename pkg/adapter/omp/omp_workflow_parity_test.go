@@ -202,7 +202,7 @@ func mappingContentKeys(files map[string]string) map[string]bool {
 	return out
 }
 
-func TestOMP002_S5_PlainConfigRemainsByteIdentical(t *testing.T) {
+func TestOMP002_S5_PlainConfigKeepsItsBytesBesideTheClaim(t *testing.T) {
 	for _, original := range []string{
 		"model: user-model\n",
 		"model: user-model\nskills:\n  userDirectory: ./private\n",
@@ -216,11 +216,11 @@ func TestOMP002_S5_PlainConfigRemainsByteIdentical(t *testing.T) {
 			require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
 			require.NoError(t, os.WriteFile(path, []byte(original), 0o600))
 
-			_, err := NewWithRoot(dir).Generate(context.Background(), nativeConfigForOMP())
+			_, err := NewWithRoot(dir).Generate(context.Background(), configForOMP())
 			require.NoError(t, err)
 			after, readErr := os.ReadFile(path)
 			require.NoError(t, readErr)
-			assert.Equal(t, original, string(after))
+			assert.Equal(t, original+claimSurfaceOnly, string(after), "only the task.disabledAgents claim is added")
 			info, statErr := os.Stat(path)
 			require.NoError(t, statErr)
 			assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
@@ -233,7 +233,7 @@ func TestOMP002_S7_ValidateReportsMissingAndTamperedManagedSets(t *testing.T) {
 	a := NewWithRoot(dir)
 	cfg := configForOMP()
 
-	rules, err := a.prepareRuleMappings(cfg)
+	rules, err := a.prepareRuleMappings()
 	require.NoError(t, err)
 	commands, err := a.prepareCommandMappings(cfg)
 	require.NoError(t, err)

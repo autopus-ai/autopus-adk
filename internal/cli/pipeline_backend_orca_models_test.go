@@ -47,11 +47,13 @@ func writePipelineOrcaModelReceipt(t *testing.T, root string, roles []ompadapter
 	require.NoError(t, err)
 }
 
-// orcaCanonicalModelRoles keys the receipt by bundled agent. Four phases share
-// `task`, so they legitimately launch the same agent, model, and effort.
+// orcaCanonicalModelRoles keys the receipt by the agent of each phase role.
 func orcaCanonicalModelRoles() []ompadapter.OMPModelRoleReceipt {
 	return []ompadapter.OMPModelRoleReceipt{
-		orcaModelRole("task", "anthropic", "claude-opus-5", "xhigh"),
+		orcaModelRole("planner", "anthropic", "claude-opus-5", "xhigh"),
+		orcaModelRole("tester", "anthropic", "claude-opus-5", "xhigh"),
+		orcaModelRole("executor", "anthropic", "claude-opus-5", "xhigh"),
+		orcaModelRole("validator", "anthropic", "claude-opus-5", "xhigh"),
 		orcaModelRole("reviewer", "google", "gemini-3.5-pro", "low"),
 	}
 }
@@ -61,7 +63,7 @@ func orcaCanonicalModelRoles() []ompadapter.OMPModelRoleReceipt {
 // opaque model id and effort cross to orca.
 func TestLoadPipelineOrcaPhaseLaunch_UsesModelAndEffortNotSelector(t *testing.T) {
 	root := t.TempDir()
-	writeNativeOMPProjectConfig(t, root)
+	writeOMPProjectConfig(t, root)
 	writePipelineOrcaModelReceipt(t, root, orcaCanonicalModelRoles())
 
 	launches, err := loadPipelineOrcaPhaseLaunch(root)
@@ -84,9 +86,9 @@ func TestLoadPipelineOrcaPhaseLaunch_UsesModelAndEffortNotSelector(t *testing.T)
 func TestLoadPipelineOrcaPhaseLaunch_FailsClosed(t *testing.T) {
 	t.Run("unknown provider", func(t *testing.T) {
 		root := t.TempDir()
-		writeNativeOMPProjectConfig(t, root)
+		writeOMPProjectConfig(t, root)
 		roles := orcaCanonicalModelRoles()
-		roles[0] = orcaModelRole("task", "mystery-vendor", "mystery-1", "high")
+		roles[0] = orcaModelRole("planner", "mystery-vendor", "mystery-1", "high")
 		writePipelineOrcaModelReceipt(t, root, roles)
 
 		_, err := loadPipelineOrcaPhaseLaunch(root)
@@ -95,11 +97,11 @@ func TestLoadPipelineOrcaPhaseLaunch_FailsClosed(t *testing.T) {
 
 	t.Run("incomplete phase coverage", func(t *testing.T) {
 		root := t.TempDir()
-		writeNativeOMPProjectConfig(t, root)
+		writeOMPProjectConfig(t, root)
 		writePipelineOrcaModelReceipt(t, root, orcaCanonicalModelRoles()[:1])
 
 		_, err := loadPipelineOrcaPhaseLaunch(root)
-		require.ErrorContains(t, err, "no route for native agent reviewer")
+		require.ErrorContains(t, err, "OMP model receipt has no route for agent")
 	})
 }
 
@@ -108,7 +110,7 @@ func TestLoadPipelineOrcaPhaseLaunch_FailsClosed(t *testing.T) {
 // and it is detected before any receipt is read.
 func TestNewPipelineOrcaBackendForRun_ChecksOrcaBeforeAnythingElse(t *testing.T) {
 	root := t.TempDir()
-	writeNativeOMPProjectConfig(t, root)
+	writeOMPProjectConfig(t, root)
 	writePipelineOrcaModelReceipt(t, root, orcaCanonicalModelRoles())
 	resolved := resolvedPipelineSpec{Dir: root, Path: filepath.Join(root, "spec.md"), SnapshotHash: "snap"}
 

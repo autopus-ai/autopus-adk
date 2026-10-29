@@ -27,8 +27,9 @@ type RoleModelPolicyConf struct {
 	ConfigMode string                           `yaml:"config_mode,omitempty"`
 	Agents     map[string]RoleAgentOverrideConf `yaml:"agents,omitempty"`
 	Profiles   map[string]RoleModelProfileConf  `yaml:"profiles,omitempty"`
-	// AgentSource selects the OMP agent registry (omp_agent_source.go). It is
-	// not routing, so it never makes the policy count as configured.
+	// AgentSource names the OMP agent registry (omp_agent_source.go): absent
+	// or autopus, since native was removed in v0.50.129. It is not routing,
+	// so it never makes the policy count as configured.
 	AgentSource string `yaml:"agent_source,omitempty"`
 }
 
@@ -45,10 +46,9 @@ type RoleModelProfileConf struct {
 
 	// OperatorAgents names the Agents keys an operator actually wrote, either
 	// inside a custom profile or as the root overlay. A built-in profile
-	// derives one route per ADK agent from a tier ladder, and those derived
-	// routes collapse onto a native OMP agent through its representative
-	// instead of conflicting with each other. Resolution fills this in; it is
-	// never read from or written to YAML.
+	// derives one route per ADK agent from a tier ladder, and only a written
+	// key is a pin the Route Contract never degrades. Resolution fills this
+	// in; it is never read from or written to YAML.
 	OperatorAgents map[string]bool `yaml:"-"`
 
 	// Builtin marks a profile derived from a built-in ladder rather than one
@@ -57,11 +57,6 @@ type RoleModelProfileConf struct {
 	// runtime default instead of failing the whole generation. Resolution
 	// fills this in; it is never read from or written to YAML.
 	Builtin bool `yaml:"-"`
-
-	// AgentSource is the policy's effective OMP agent source, so every
-	// consumer of a resolved profile serves the same agent set. Resolution
-	// fills this in; it is never read from or written to YAML.
-	AgentSource string `yaml:"-"`
 
 	// PinsOnly marks the profile of a policy that pins agents without a
 	// profile (PinsOnlyRoleModelProfile): only pinned agents and task have a
@@ -208,7 +203,7 @@ func (c RoleModelPolicyConf) SelectedRoleModelProfileForQuality(quality QualityC
 	if !ok && name != "" {
 		profile, ok = BuiltinRoleModelProfile(name, quality, c.Family, c.ConfigMode)
 	}
-	if name == "" && c.pinsOnly() && c.OMPAgentSource() == OMPAgentSourceAutopus {
+	if name == "" && c.pinsOnly() {
 		name, profile, ok = PinsOnlyRoleModelProfileName, PinsOnlyRoleModelProfile(c.ConfigMode), true
 	}
 	if !ok {
@@ -216,7 +211,6 @@ func (c RoleModelPolicyConf) SelectedRoleModelProfileForQuality(quality QualityC
 	}
 	profile = profile.withRootAgentOverlay(c.Agents)
 	profile.OperatorAgents = operator
-	profile.AgentSource = c.OMPAgentSource()
 	return name, profile, true
 }
 

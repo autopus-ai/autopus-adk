@@ -117,24 +117,26 @@ func TestOMPModelIntegration_ProjectManagedToOverlayRestoresPreimageAndRoundTrip
 	path := filepath.Join(root, configFile)
 	runner := newModelIntegrationRunner()
 	a := NewWithRoot(root).WithModelIntegrationRunner(runner)
-	if _, err := a.Generate(context.Background(), nativeClaimConfig(integrationHarnessConfig("project-managed"))); err != nil {
+	if _, err := a.Generate(context.Background(), integrationHarnessConfig("project-managed")); err != nil {
 		t.Fatalf("project-managed Generate: %v", err)
 	}
 	if _, err := os.Stat(path); err != nil {
 		t.Fatalf("project-managed apply did not write %s: %v", configFile, err)
 	}
 
-	if _, err := a.Update(context.Background(), nativeClaimConfig(integrationHarnessConfig("overlay"))); err != nil {
+	if _, err := a.Update(context.Background(), integrationHarnessConfig("overlay")); err != nil {
 		t.Fatalf("switch to overlay: %v", err)
 	}
-	if _, err := os.Stat(path); !os.IsNotExist(err) {
-		t.Fatalf("overlay switch left %s behind (err=%v)", configFile, err)
+	// Only the agent surface claim is left: the profile keys went back to the
+	// preimage, which had no file.
+	if got, err := os.ReadFile(path); err != nil || string(got) != claimSurfaceOnly {
+		t.Fatalf("overlay switch left more than the agent surface claim (err=%v):\n%s", err, got)
 	}
-	if _, err := os.Stat(filepath.Join(root, OMPModelProjectOwnershipRelativePath)); !os.IsNotExist(err) {
-		t.Fatalf("overlay switch kept the ownership ledger (err=%v)", err)
+	if _, err := os.Stat(filepath.Join(root, OMPModelProjectOwnershipRelativePath)); err != nil {
+		t.Fatalf("overlay switch dropped the agent surface ledger: %v", err)
 	}
 
-	if _, err := a.Update(context.Background(), nativeClaimConfig(integrationHarnessConfig("project-managed"))); err != nil {
+	if _, err := a.Update(context.Background(), integrationHarnessConfig("project-managed")); err != nil {
 		t.Fatalf("switch back to project-managed: %v", err)
 	}
 	got, err := os.ReadFile(path)

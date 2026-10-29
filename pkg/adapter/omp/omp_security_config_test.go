@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -109,27 +110,20 @@ func configForOMP() *config.HarnessConfig {
 	return cfg
 }
 
-// nativeConfigForOMP is configForOMP on the v0.50.125 agent source, whose
-// plain install claims no project config key.
-func nativeConfigForOMP() *config.HarnessConfig {
-	cfg := configForOMP()
-	cfg.RoleModelPolicy.AgentSource = config.OMPAgentSourceNative
-	return cfg
-}
-
-// TestOMPGenerate_PreservesOrdinaryUserConfig guards the default no-ownership contract.
+// TestOMPGenerate_PreservesOrdinaryUserConfig guards the user keys of a
+// project config: generation only adds the task.disabledAgents claim.
 func TestOMPGenerate_PreservesOrdinaryUserConfig(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
 	cfgPath := writeOMPConfig(t, dir, "disabledProviders:\n  - anthropic\nmodel: local\n")
 
-	_, err := NewWithRoot(dir).Generate(context.Background(), nativeConfigForOMP())
+	_, err := NewWithRoot(dir).Generate(context.Background(), configForOMP())
 	require.NoError(t, err)
 
 	after, readErr := os.ReadFile(cfgPath)
 	require.NoError(t, readErr)
-	assert.Equal(t, "disabledProviders:\n  - anthropic\nmodel: local\n", string(after))
+	assert.Equal(t, "disabledProviders:\n  - anthropic\nmodel: local\n"+claimSurfaceOnly, string(after))
 	assert.NotContains(t, string(after), markerBeginYml)
 }
 
@@ -227,13 +221,17 @@ func TestOMPUpdate_ReplacesStaleManagedSection(t *testing.T) {
 	cfgPath := writeOMPConfig(t, dir, stale)
 
 	adapterUnderTest := NewWithRoot(dir)
-	_, err := adapterUnderTest.Generate(context.Background(), nativeConfigForOMP())
+	_, err := adapterUnderTest.Generate(context.Background(), configForOMP())
 	require.NoError(t, err, "a stale managed section must not block regeneration")
-	_, err = adapterUnderTest.Update(context.Background(), nativeConfigForOMP())
+	_, err = adapterUnderTest.Update(context.Background(), configForOMP())
 	require.NoError(t, err, "nor must it block update")
 
+	// Without a legacy manifest entry the old section is the user's: it
+	// stays as written, and only the task.disabledAgents claim is added.
 	after, readErr := os.ReadFile(cfgPath)
 	require.NoError(t, readErr)
-	assert.Equal(t, []byte(stale), after,
-		"without a legacy manifest entry, generation must not claim or rewrite the base config")
+	assert.True(t, strings.HasPrefix(string(after), strings.TrimSuffix(stale, markerEndYml+"\n")), string(after))
+	assert.Contains(t, string(after), "legacyKey: from-an-older-adapter")
+	assert.Contains(t, string(after), markerEndYml)
+	assert.Equal(t, config.OMPAutopusDisabledAgents(), toStrings(claimDisabledAgents(t, string(after))))
 }

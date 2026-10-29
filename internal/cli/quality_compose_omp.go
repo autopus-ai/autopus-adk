@@ -3,8 +3,6 @@ package cli
 import (
 	"errors"
 	"fmt"
-	"slices"
-	"strings"
 
 	"github.com/insajin/autopus-adk/internal/cli/tui"
 	"github.com/insajin/autopus-adk/pkg/adapter/omp"
@@ -21,10 +19,6 @@ var (
 	// tab of `auto update` uses.
 	updateComposeOMPDeps = defaultOMPPlatformDependencies()
 )
-
-// ompCustomMode is the profile choice that pins models per native agent on
-// top of ompCustomBaseProfile.
-const ompCustomMode = "custom"
 
 // composeOMPTab is the OMP tab of one run (OMP Tab Contract).
 type composeOMPTab struct {
@@ -63,54 +57,11 @@ func (f *composeFormRun) noteDetectedOMP() {
 	fmt.Fprintln(f.out, f.form.OMPDetectedOnly)
 }
 
-// omp runs the OMP tab (REQ-MUX2-10) by the OMP editor's rules: the profile,
-// the family unless an explicit profile of that name keeps its own models,
-// and for per-agent pins one installed model and thinking level per native
-// agent. The plan's routes are shown before the confirmation; a blocker or
-// a refused source ends the tab with nothing written or activated.
+// omp runs the OMP tab: the OMP Autopus Tab Contract of SPEC-MODELUX-003,
+// which asks no profile or family. The MODELUX-002 profile tab served the
+// bundled agents of agent_source: native, which v0.50.129 removed.
 func (f *composeFormRun) omp() error {
-	if f.shared.cfg.RoleModelPolicy.OMPAgentSource() == config.OMPAgentSourceAutopus {
-		return f.ompAutopus() // SPEC-MODELUX-003 OMP Autopus Tab Contract: no profile or family
-	}
-	note := fmt.Sprintf(f.form.OMPCurrent, f.ompPolicySummary())
-	mode, err := composeSelect(f.cmd, f.form.OMP, note, []composeOption[string]{
-		{f.form.OMPBack, ""}, {"balanced", "balanced"}, {"ultra", "ultra"}, {f.form.OMPPin, ompCustomMode},
-	}, "")
-	if err != nil || mode == "" {
-		return err
-	}
-	runner := f.options.OMP.deps.newRunner()
-	name := mode
-	if mode == ompCustomMode {
-		name = ompCustomBaseProfile
-	}
-	family, err := f.ompFamily(name)
-	if err != nil {
-		return err
-	}
-	var pins []string
-	if mode == ompCustomMode {
-		if pins, err = f.ompPins(runner); err != nil {
-			return f.ompFailed(err)
-		}
-		if len(pins) == 0 {
-			fmt.Fprintln(f.out, "No agent was pinned; nothing changed.")
-			return nil
-		}
-	}
-	opts, err := newOMPProfileApplyOptions(name, family, pins, false, false)
-	if err != nil {
-		return f.ompFailed(err)
-	}
-	preview, candidate, err := f.ompPlan(opts, runner)
-	if err != nil {
-		return f.ompFailed(err)
-	}
-	renderOMPQualitySummary(f.out, preview)
-	if len(preview.Blockers) > 0 {
-		return f.ompFailed(ompProfileUnavailableError{blockers: preview.Blockers})
-	}
-	return f.ompConfirm(opts, runner, candidate)
+	return f.ompAutopus()
 }
 
 // ompPlan plans opts through planOMPProfile for update and quality, and on
@@ -137,102 +88,6 @@ func (f *composeFormRun) ompFailed(err error) error {
 	}
 	f.warn(err)
 	return nil
-}
-
-// ompFamily asks the family anchoring a built-in derivation, the stored one
-// first selected. An explicit profile of that name keeps its own models and
-// refuses a family, so it is not asked.
-func (f *composeFormRun) ompFamily(name string) (string, error) {
-	policy := f.shared.cfg.RoleModelPolicy
-	if _, explicit := policy.Profiles[name]; explicit {
-		fmt.Fprintln(f.out, "Keeping the models in your custom profile.")
-		return "", nil
-	}
-	stored := "openai"
-	if policy.Family == "anthropic" {
-		stored = "anthropic"
-	}
-	return composeSelect(f.cmd, f.form.OMPFamily, "",
-		[]composeOption[string]{{"GPT", "openai"}, {"Claude", "anthropic"}}, stored)
-}
-
-// ompPins lists the native agents behind 완료 until the operator is done
-// and returns their pins in --agent form and registry order, so the choice
-// travels the attestation, preview, and rollback path the flag does.
-func (f *composeFormRun) ompPins(runner omp.OMPModelCatalogRunner) ([]string, error) {
-	choices, _, err := installedOMPCustomModelChoices(commandContext(f.cmd), f.cmd, runner)
-	if err == nil && len(choices) == 0 {
-		err = ompCatalogUnavailableError{reason: "no_usable_model"}
-	}
-	if err != nil {
-		return nil, composeOMPCatalogError{err: err}
-	}
-	pins := map[string]string{}
-	for {
-		options := []composeOption[string]{{f.form.ListDone, ""}}
-		for _, agent := range config.OMPNativeAgentNames() {
-			label, pinned := pins[agent]
-			if !pinned {
-				label = f.form.OMPProfileDefault
-			}
-			options = append(options, composeOption[string]{agent + " — " + label, agent})
-		}
-		agent, err := composeSelect(f.cmd, f.form.List, "", options, "")
-		if err != nil {
-			return nil, err
-		}
-		if agent == "" {
-			break
-		}
-		pin, err := f.ompPin(agent, choices)
-		if err != nil {
-			return nil, err
-		}
-		delete(pins, agent)
-		if pin != "" {
-			pins[agent] = pin
-		}
-	}
-	var ordered []string
-	for _, agent := range config.OMPNativeAgentNames() {
-		if pin, ok := pins[agent]; ok {
-			ordered = append(ordered, agent+"="+pin)
-		}
-	}
-	return ordered, nil
-}
-
-// ompPin asks agent's model among the installed models that can serve its
-// route, the catalog's whole list when it carries no capability metadata,
-// then the thinking level when the model reports more than one. The
-// profile default keeps the agent unpinned.
-func (f *composeFormRun) ompPin(agent string, choices []ompCustomModelChoice) (string, error) {
-	capability, err := ompCustomAgentCapability(agent)
-	if err != nil {
-		return "", err
-	}
-	options := []composeOption[string]{{f.form.OMPProfileDefault, ""}}
-	for _, choice := range choices {
-		if requireOMPCustomCapability(choice, true, capability, choices) == nil {
-			options = append(options, composeOption[string]{choice.selector(), choice.selector()})
-		}
-	}
-	selector, err := composeSelect(f.cmd, agent+" ("+capability+")", "", options, "")
-	if err != nil || selector == "" {
-		return "", err
-	}
-	choice := choices[slices.IndexFunc(choices, func(c ompCustomModelChoice) bool { return c.selector() == selector })]
-	thinking := choice.Thinking[0]
-	if len(choice.Thinking) > 1 {
-		levels := make([]composeOption[string], 0, len(choice.Thinking))
-		for _, level := range choice.Thinking {
-			levels = append(levels, composeOption[string]{level, level})
-		}
-		if thinking, err = composeSelect(f.cmd, fmt.Sprintf(f.form.OMPThinking, agent), "", levels, thinking); err != nil {
-			return "", err
-		}
-	}
-	return selector + ":" + thinking, nil
 }
 
 // ompConfirm asks the confirmation, whose default cancels, after the notice
@@ -274,23 +129,4 @@ func (f *composeFormRun) ompApply(opts ompProfileApplyOptions, runner omp.OMPMod
 	f.shared.cfg.RoleModelPolicy = reloaded.RoleModelPolicy
 	f.applied = true
 	return nil
-}
-
-// ompPolicySummary is the current role_model_policy in one line for the
-// profile select's note: profile, family, and every pin, or the platform
-// default without a profile.
-func (f *composeFormRun) ompPolicySummary() string {
-	policy := f.shared.cfg.RoleModelPolicy
-	if policy.Profile == "" {
-		return composeTableLabelsFor(f.shared.lang).platformDefault
-	}
-	parts := []string{policy.Profile}
-	if policy.Family != "" {
-		parts = append(parts, policy.Family)
-	}
-	for _, agent := range sortedOMPProfileOverriddenAgents(ompProfileOverriddenAgents(&policy)) {
-		candidate := policy.Agents[agent].Candidates[0]
-		parts = append(parts, agent+"="+candidate.Selector+":"+candidate.Thinking)
-	}
-	return strings.Join(parts, " · ")
 }

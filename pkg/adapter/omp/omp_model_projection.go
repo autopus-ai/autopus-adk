@@ -11,12 +11,9 @@ import (
 // resolver into OMP-native config.
 type OMPModelProjectionInput struct {
 	Agents []OMPProjectionAgent
-	// AgentSource is the source the agents are served by. Empty infers it
-	// from the agent names, as the routing compile does.
-	AgentSource string
 }
 
-// OMPProjectionAgent is one native OMP agent whose route already resolved.
+// OMPProjectionAgent is one served OMP agent whose route already resolved.
 // Agents without a resolved route are absent and inherit runtime defaults.
 // Role and Capability carry the semantic ADK identity the route was resolved
 // under; they are audit provenance and are never emitted to OMP config.
@@ -36,13 +33,11 @@ type OMPProjectionCandidate struct {
 }
 
 // OMPModelProjection is the canonical OMP-native representation consumed by
-// config activation. It binds concrete selectors to bundled agent names; no
-// role alias and no generated agent definition stands between the two.
+// config activation. It binds concrete selectors to the names OMP serves: a
+// generated Autopus agent or task; no role alias stands between the two.
 type OMPModelProjection struct {
 	FallbackChains []OMPFallbackChainProjection
 	Agents         []OMPAgentModelProjection
-	// AgentSource is the source the agents were compiled for.
-	AgentSource string `json:"-"`
 }
 
 type OMPFallbackChainProjection struct {
@@ -62,22 +57,14 @@ type OMPAgentModelProjection struct {
 // At most one entry per agent survives, because OMP resolves
 // task.agentModelOverrides by exact agent name.
 func CompileOMPModelProjection(input OMPModelProjectionInput) (OMPModelProjection, error) {
-	names := make([]string, 0, len(input.Agents))
-	for _, agent := range input.Agents {
-		names = append(names, agent.Agent)
-	}
-	source := ompServedAgentSource(input.AgentSource, names)
-	agents, err := validateOMPProjectionAgents(input.Agents, source)
+	agents, err := validateOMPProjectionAgents(input.Agents)
 	if err != nil {
 		return OMPModelProjection{}, err
 	}
 
-	projection := OMPModelProjection{
-		Agents:      make([]OMPAgentModelProjection, 0, len(agents)),
-		AgentSource: source,
-	}
+	projection := OMPModelProjection{Agents: make([]OMPAgentModelProjection, 0, len(agents))}
 	fallbacksBySelector := make(map[string][]string)
-	for _, served := range config.OMPAgentNames(source) {
+	for _, served := range config.OMPAutopusAgentNames() {
 		resolved, selected := agents[served]
 		if !selected {
 			continue
@@ -109,10 +96,7 @@ func CompileOMPModelProjection(input OMPModelProjectionInput) (OMPModelProjectio
 	return projection, nil
 }
 
-func validateOMPProjectionAgents(
-	inputs []OMPProjectionAgent,
-	servedSource string,
-) (map[string]OMPProjectionAgent, error) {
+func validateOMPProjectionAgents(inputs []OMPProjectionAgent) (map[string]OMPProjectionAgent, error) {
 	agents := make(map[string]OMPProjectionAgent, len(inputs))
 	for _, input := range inputs {
 		source, roleErr := config.OMPRoleAgent(input.Role)
@@ -120,7 +104,7 @@ func validateOMPProjectionAgents(
 			return nil, fmt.Errorf("agent_role_unmapped: %q", input.Agent)
 		}
 		resolved, err := config.ResolveOMPPolicyAgent(source)
-		if err != nil || !ompProjectionAgentGovernedBy(servedSource, source, input.Agent) {
+		if err != nil || !ompProjectionAgentGovernedBy(source, input.Agent) {
 			return nil, fmt.Errorf("agent_role_unmapped: %q", input.Agent)
 		}
 		if input.Capability != resolved.Capability {
@@ -144,12 +128,9 @@ func validateOMPProjectionAgents(
 }
 
 // ompProjectionAgentGovernedBy reports whether the role row source may carry
-// the model of agent. Native agents follow the collapse; an Autopus agent is
-// carried by its own row, and task by the planner row it borrows.
-func ompProjectionAgentGovernedBy(servedSource, source, agent string) bool {
-	if servedSource == config.OMPAgentSourceNative {
-		return config.OMPNativeAgentGovernedBy(source, agent)
-	}
+// the model of agent: an Autopus agent is carried by its own row, and task by
+// the planner row it borrows. No bundled agent but task is served.
+func ompProjectionAgentGovernedBy(source, agent string) bool {
 	if agent == config.OMPAutopusDefaultAgent {
 		representative, err := config.OMPNativeAgentRepresentative(agent)
 		return err == nil && representative == source

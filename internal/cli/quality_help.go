@@ -55,7 +55,7 @@ autopus.yaml include omp. Every option names the models and efforts that
 tool would get; a Claude label names the model slug (opus-5-5) while the
 table cell is the frontmatter value (opus). A Claude Code or Codex tab
 result is saved as quality.presets.<provider>-custom with
-quality.providers.<provider>; the OMP tab pins one installed model per native
+quality.providers.<provider>; the OMP tab pins one installed model per
 agent through the OMP writer and shows the plan's real routes first. Ctrl+C
 in a form ends the command without writing more. Scripted or piped input
 keeps the line prompts above.
@@ -68,9 +68,9 @@ automatic level is marked (automatic) and stores nothing. Chosen efforts are
 written to quality.presets.<provider>-custom.efforts, which auto older than
 v0.50.127 cannot read; a file without efforts generates exactly as before.
 
-OMP serves the 17 Autopus agents from .omp/agents by default and disables
-every bundled agent but task (scout, security-reviewer, sonic, designer,
-librarian, seance). In that mode the OMP tab asks no profile or family: from the
+OMP serves the 17 Autopus agents from .omp/agents and disables every bundled
+agent but task (scout, security-reviewer, sonic, designer, librarian,
+seance). The OMP tab asks no profile or family: from the
 current pins or profile routes it edits the 4 role groups or each agent
 (task too while it has its own pin). Each select
 offers keep, keep the OMP session model, and the installed models of every
@@ -80,10 +80,10 @@ The result is saved as pins without a profile (role_model_policy:
 {version: v1, agents: ...}), and task follows planner unless pinned.
 Applying over a profile converts it after a preview line and the
 confirmation: unchanged agents and task keep their routes, and an ultra
-profile stops following quality.presets.ultra. Native mode, the OMP line
-editor, and auto platform omp profile apply keep profiles;
-role_model_policy.agent_source: native keeps the five bundled agents through
-v0.50.128 (removal planned in v0.50.129).
+profile stops following quality.presets.ultra. The OMP line editor and auto
+platform omp profile apply keep profiles. role_model_policy.agent_source:
+native was removed in v0.50.129 and fails to load: delete the key, then run
+auto update to restore the Autopus agents.
 
 The tool tab ends with Multi-provider review while spec.review_gate is
 enabled, autopus.yaml holds at least two orchestra.providers entries, and CI

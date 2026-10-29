@@ -57,30 +57,26 @@ func loadPipelineOrcaPhaseLaunch(projectDir string) (map[pipeline.PhaseID]orcaru
 	}
 	// Orca launches every phase on an explicit agent, so a pins-only policy
 	// that leaves a phase on the session model still fails closed here.
-	source, _, err := ompPipelineAgentSource(projectDir)
-	if err != nil {
+	// Loading the config refuses the removed agent_source: native.
+	if _, err := ompPipelinePinsOnly(projectDir); err != nil {
 		return nil, err
 	}
 	rows := make(map[string]ompadapter.OMPModelRoleReceipt, len(receipt.Roles))
 	for _, row := range receipt.Roles {
 		if previous, duplicate := rows[row.Agent]; duplicate && previous.Selector != row.Selector {
-			return nil, fmt.Errorf("conflicting orca model routes for native agent %s", row.Agent)
+			return nil, fmt.Errorf("conflicting orca model routes for agent %s", row.Agent)
 		}
 		rows[row.Agent] = row
 	}
 	launches := make(map[pipeline.PhaseID]orcarun.Launch, len(ompPipelinePhaseRoles))
 	for role, phase := range ompPipelinePhaseRoles {
-		native, err := ompPipelinePhaseAgent(role, source)
-		if err != nil {
-			return nil, err
-		}
-		row, resolved := rows[native]
+		row, resolved := rows[role]
 		if !resolved {
-			return nil, ompPipelineMissingRouteError(source, native, phase)
+			return nil, ompPipelineMissingRouteError(role, phase)
 		}
 		agent, known := pipelineOrcaProviderAgents[row.Provider]
 		if !known {
-			return nil, fmt.Errorf("no orca agent is defined for provider %q (agent %s)", row.Provider, native)
+			return nil, fmt.Errorf("no orca agent is defined for provider %q (agent %s)", row.Provider, role)
 		}
 		if strings.TrimSpace(row.Model) == "" {
 			return nil, fmt.Errorf("orca model route for phase %s has no provider model id", phase)

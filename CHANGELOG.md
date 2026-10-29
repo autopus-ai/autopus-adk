@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **`role_model_policy.agent_source: native`를 제거한다** (2026-10-27): v0.50.127이 예고하고 v0.50.128까지 남겨 둔
+  native 경로(17개 역할을 omp bundled 에이전트 다섯으로 모으는 v0.50.125 surface)를 지운다. 이 key를 그대로 둔
+  `autopus.yaml`은 `role_model_policy.agent_source_removed`로 로드에 실패하고, 오류는 key를 지운 뒤 `auto update`를
+  실행하라고 안내한다. 그 update가 `task.disabledAgents`를 다시 claim하고 `.omp/agents/` 17개를 쓴다. 조용히 autopus로
+  바꾸지 않는 이유는 native를 고른 사용자가 surface가 바뀐 것을 모른 채 쓰게 되기 때문이다. `agent_source: autopus`와
+  key 생략은 그대로이고, `auto update` 미리보기의 "native로 되돌릴 수 있습니다" 문구도 지운다. native 시절 프로젝트를
+  옮기는 claim·ledger 논리(`OMPAutopusRetiredDisabledAgents` 포함)는 남긴다.
 - **OMP custom 품질 편집기가 autopus 모드에서 Autopus 에이전트 17개를 묻는다** (2026-10-27): `auto quality`의 OMP
   custom 줄 편집기는 모드와 상관없이 bundled 이름 다섯(scout·reviewer·security-reviewer·task·sonic)을 물었다. 기본 autopus
   모드에서 그 이름에 건 pin은 Route Contract 규칙 (2)로 예전에 그 에이전트로 모이던 역할 전부에 적용되어, task를 고르면

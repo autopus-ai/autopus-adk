@@ -38,7 +38,7 @@ func TestOMPClaimSet_FirstClaimSkipsAConfigWithAYAMLOnlyLineBreak(t *testing.T) 
 			assert.Equal(t, content, after)
 			_, ledger := p.ledger()
 			assert.False(t, ledger)
-			report, err := InspectOMPAgentSurface(p.root, configForOMP())
+			report, err := InspectOMPAgentSurface(p.root)
 			require.NoError(t, err)
 			assert.True(t, report.ProjectConfigUnclaimable)
 		})
@@ -46,7 +46,7 @@ func TestOMPClaimSet_FirstClaimSkipsAConfigWithAYAMLOnlyLineBreak(t *testing.T) 
 }
 
 // A recorded claim over a file the user then gave such a break is kept as it
-// stands, in autopus and native mode, until the file can be read again.
+// stands until the file can be read again.
 func TestOMPClaimSet_KeepsARecordedClaimOverAYAMLOnlyLineBreak(t *testing.T) {
 	for name, content := range ompYAMLOnlyBreaks {
 		t.Run(name, func(t *testing.T) {
@@ -58,28 +58,21 @@ func TestOMPClaimSet_KeepsARecordedClaimOverAYAMLOnlyLineBreak(t *testing.T) {
 			edited := content + claimed[len("theme: dark\n"):]
 			p.write(configFile, edited)
 
-			for _, run := range []struct {
-				operation string
-				native    bool
-			}{{"generate", false}, {"update", false}, {"update", true}, {"generate", true}} {
-				cfg := configForOMP()
-				if run.native {
-					cfg = nativeConfigForOMP()
-				}
-				p.mustRun(run.operation, cfg)
+			for _, operation := range []string{"generate", "update", "update", "generate"} {
+				p.mustRun(operation, configForOMP())
 				after, _ := p.read(configFile)
-				assert.Equal(t, edited, after, "%s native=%v", run.operation, run.native)
+				assert.Equal(t, edited, after, operation)
 				ledgerAfter, ok := p.read(OMPModelProjectOwnershipRelativePath)
 				assert.True(t, ok)
 				assert.Equal(t, ledgerBefore, ledgerAfter)
 			}
-			report, err := InspectOMPAgentSurface(p.root, configForOMP())
+			report, err := InspectOMPAgentSurface(p.root)
 			require.NoError(t, err)
 			assert.True(t, report.ProjectConfigUnclaimable)
 			assert.True(t, report.DisabledAgentsClaimed)
 
 			p.write(configFile, claimed)
-			p.mustRun("generate", nativeConfigForOMP())
+			p.release()
 			released, _ := p.read(configFile)
 			assert.Equal(t, "theme: dark\n", released, "the claim is released once the file reads again")
 		})

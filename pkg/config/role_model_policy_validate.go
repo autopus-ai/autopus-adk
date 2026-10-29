@@ -19,8 +19,9 @@ func (c RoleModelPolicyConf) Validate() error {
 }
 
 func (c RoleModelPolicyConf) validateForQuality(quality QualityConf) error {
-	// agent_source chooses the OMP agent registry, not a route, so it is
-	// checked on its own and never makes the policy count as configured.
+	// agent_source names the OMP agent registry, not a route, so it is
+	// checked on its own, first, and never makes the policy count as
+	// configured.
 	if err := validateOMPAgentSource(c.AgentSource); err != nil {
 		return err
 	}
@@ -54,10 +55,9 @@ func (c RoleModelPolicyConf) validateForQuality(quality QualityConf) error {
 		if err := validateRoleModelProfile(name, effective); err != nil {
 			return err
 		}
-		// Native mode has one registry slot per bundled agent, so a policy
-		// whose operator-written routes cannot collapse into it is rejected
-		// here rather than halfway through generation. Autopus mode routes
-		// each agent under its own name and only needs every route to resolve.
+		// Every agent is routed under its own name, so a policy only needs
+		// every route to resolve; one that cannot is rejected here rather
+		// than halfway through generation.
 		if err := validateOMPAgentRoutes(effective); err != nil {
 			return err
 		}
@@ -75,10 +75,9 @@ func (c RoleModelPolicyConf) validateForQuality(quality QualityConf) error {
 
 // ValidateResolvedRoleModelProfile validates a profile already resolved through
 // SelectedRoleModelProfileForQuality. Re-wrapping such a profile as a declared
-// document would reclassify its derived per-agent rows as operator intent and
-// reject every built-in profile on a native-agent conflict nobody wrote, so
-// provenance and the agent source travel with the profile instead of being
-// recomputed.
+// document would reclassify its derived per-agent rows as operator intent,
+// which turns every derived route into a pin, so provenance travels with the
+// profile instead of being recomputed.
 func ValidateResolvedRoleModelProfile(name string, profile RoleModelProfileConf) error {
 	if !IsValidQualityPresetName(name) {
 		return fmt.Errorf("role_model_policy.profile_name_invalid: %q", name)

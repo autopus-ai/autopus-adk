@@ -81,7 +81,7 @@ func (a *Adapter) renderTemplateWorkflowSkill(spec workflowSpec, cfg *config.Har
 	if strings.TrimSpace(body) == "" {
 		body = rendered
 	}
-	body = normalizeOMPWorkflowBodyWith(body, ompPlatformReferences(cfg))
+	body = normalizeOMPWorkflowBody(body)
 	body = injectOMPExecutionOwnerControl(body, spec.Name)
 	body = injectOMPTeamMultiControl(body, spec.Name)
 	body = injectOMPInvocation(body, spec.Name)
@@ -109,7 +109,6 @@ func (a *Adapter) prepareExtendedSkillMappings(cfg *config.HarnessConfig) ([]ada
 			return meta.Visibility != pkgcontent.SkillVisibilityExplicitOnly ||
 				skillCompilerExplicitlySelects(cfg, meta.Name)
 		},
-		References: ompPlatformReferences(cfg),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("omp skill transform 실패: %w", err)
@@ -134,12 +133,12 @@ func (a *Adapter) prepareExtendedSkillMappings(cfg *config.HarnessConfig) ([]ada
 			if readErr != nil {
 				return nil, fmt.Errorf("read OMP native skill %s: %w", skill.Name, readErr)
 			}
-			// The pipeline template names the agents of the served source.
+			// The template renders against cfg like the workflow skills do.
 			rendered, renderErr := a.engine.RenderString(string(raw), cfg)
 			if renderErr != nil {
 				return nil, fmt.Errorf("render OMP native skill %s: %w", skill.Name, renderErr)
 			}
-			body = pkgcontent.NormalizeOMPSemanticReferencesWith(rendered, ompPlatformReferences(cfg))
+			body = pkgcontent.NormalizeOMPSemanticReferences(rendered)
 		}
 		outputName := pkgcontent.ResolveCatalogSkillOutputName(skill.Name, "omp")
 		body = normalizeOMPExecutionOwnerContract(body)
@@ -218,12 +217,4 @@ func containsString(slice []string, s string) bool {
 func ompSkillFrontmatter(name, description string) string {
 	return fmt.Sprintf("name: %s\ndescription: %s\ncompatibility: omp",
 		pkgcontent.OMPYAMLScalar(name), pkgcontent.OMPYAMLScalar(description))
-}
-
-// ompPlatformReferences renders OMP text for the config's agent source.
-func ompPlatformReferences(cfg *config.HarnessConfig) pkgcontent.PlatformReferenceOptions {
-	if cfg == nil {
-		return pkgcontent.PlatformReferenceOptions{}
-	}
-	return pkgcontent.PlatformReferenceOptions{OMPAgentSource: cfg.RoleModelPolicy.AgentSource}
 }

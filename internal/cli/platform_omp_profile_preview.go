@@ -198,8 +198,7 @@ func ompPersistedProfileName(effective ompProfileEffectiveConfig) string {
 // ompProfileRouteWarnings names pins the served agent set cannot route:
 // autopus mode disables sonic, so an agents.sonic pin reaches no agent.
 func ompProfileRouteWarnings(profile config.RoleModelProfileConf) []string {
-	if profile.OMPNativeAgentSource() || !profile.OperatorAgents["sonic"] ||
-		len(profile.Agents["sonic"].Candidates) == 0 {
+	if !profile.OperatorAgents["sonic"] || len(profile.Agents["sonic"].Candidates) == 0 {
 		return nil
 	}
 	return []string{"role_model_policy.agents.sonic pins a model, but autopus mode disables sonic, so no agent receives it"}

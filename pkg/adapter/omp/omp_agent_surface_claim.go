@@ -10,10 +10,12 @@ import (
 )
 
 // The Claim Set Contract keeps one ledger and one preimage for .omp/config.yml.
-// The claim set C is the project-managed profile's managed keys plus, in
-// autopus mode, task.disabledAgents unless the user owns it. Plain `omp`
-// reads the project file, not the overlay, so the agent surface claim goes to
-// .omp/config.yml whatever the profile's config mode is.
+// The claim set C is the project-managed profile's managed keys plus
+// task.disabledAgents unless the user owns it. Plain `omp` reads the project
+// file, not the overlay, so the agent surface claim goes to .omp/config.yml
+// whatever the profile's config mode is. A project that holds no claim - one
+// generated before v0.50.127, or released by agent_source: native before
+// v0.50.129 - is claimed the way a first generation is.
 
 // ompClaimSetState is one reading of the project config and its ledger.
 type ompClaimSetState struct {
@@ -52,8 +54,9 @@ type ompClaimSetState struct {
 }
 
 // evaluateOMPClaimSetAt decides whose task.disabledAgents is and what a
-// release restores. claimSurface is autopus mode: only it decides about a
-// value it finds the first time, or claims a restored default set again.
+// release restores. claimSurface is a generation, which claims: only it
+// decides about a value it finds the first time, or claims a restored default
+// set again. A release (clean) reads the same state without claiming.
 func evaluateOMPClaimSetAt(workspace *ompRootedWorkspace, claimSurface bool) (ompClaimSetState, error) {
 	var state ompClaimSetState
 	var err error
@@ -210,9 +213,8 @@ func (p ompClaimSetPlan) mappings() []adapter.FileMapping {
 func planOMPClaimSetAt(
 	workspace *ompRootedWorkspace,
 	profile *ompProfileClaims,
-	claimSurface bool,
 ) (ompClaimSetPlan, error) {
-	state, err := evaluateOMPClaimSetAt(workspace, claimSurface)
+	state, err := evaluateOMPClaimSetAt(workspace, true)
 	if err != nil {
 		return ompClaimSetPlan{}, err
 	}
@@ -232,7 +234,7 @@ func planOMPClaimSetAt(
 		}
 		return plan, nil
 	}
-	claimDA := claimSurface && !state.userOwned
+	claimDA := !state.userOwned
 	if profile == nil && state.ledger && state.ownership.hasProfileClaims() {
 		if err := requireOMPProjectReleaseReceiptAt(workspace, state.ownership); err != nil {
 			return plan, err

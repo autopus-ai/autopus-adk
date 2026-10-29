@@ -17,8 +17,6 @@ type ompModelIntegration struct {
 	probe       OMPModelCatalogProbeResult
 	routing     OMPModelRoutingCompilation
 	projection  OMPModelProjection
-	// claimSurface is autopus mode: the project claim set adds task.disabledAgents.
-	claimSurface bool
 }
 
 // WithModelIntegrationRunner injects metadata and config-readback execution.
@@ -65,7 +63,7 @@ func (a *Adapter) prepareModelIntegration(
 	reaFallback := dropOMPReaAnalysisFallbackRoutes(profile, probe.Catalog, routes)
 	DegradeUnservedDerivedOMPRoutes(profile, probe.Catalog, routes)
 	routing := CompileOMPModelRouting(OMPModelRoutingInput{
-		Catalog: probe.Catalog, CatalogReason: probe.Reason, Routes: routes, AgentSource: profile.AgentSource,
+		Catalog: probe.Catalog, CatalogReason: probe.Reason, Routes: routes,
 	})
 	projected, err := projectOMPIntegrationAgents(probe.Catalog, routes, routing)
 	if err != nil {
@@ -73,7 +71,7 @@ func (a *Adapter) prepareModelIntegration(
 	}
 	adapter.ReportReaFallbacks(ctx, ompReaFallbackFacts(reaFallback)...)
 	a.reportDegradedModelRoutes(ompDegradedRoutesNotice(probe.Catalog, routes, routing))
-	projection, err := CompileOMPModelProjection(OMPModelProjectionInput{Agents: projected, AgentSource: profile.AgentSource})
+	projection, err := CompileOMPModelProjection(OMPModelProjectionInput{Agents: projected})
 	if err != nil {
 		return nil, err
 	}

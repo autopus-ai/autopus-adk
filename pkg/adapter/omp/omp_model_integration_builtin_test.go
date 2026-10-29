@@ -24,9 +24,8 @@ const (
 )
 
 // TestOMPModelIntegration_UltraBuiltinProjectsRepresentativeTiers proves the
-// derived ultra profile keeps each bundled agent on the preset rung of the ADK
-// role that represents it, so collapsing to five agents never lowers the
-// reasoning tier of the general worker.
+// derived ultra profile keeps each agent on the preset rung of its own ADK
+// role, and task on the planner rung it borrows.
 func TestOMPModelIntegration_UltraBuiltinProjectsRepresentativeTiers(t *testing.T) {
 	t.Parallel()
 
@@ -36,29 +35,29 @@ func TestOMPModelIntegration_UltraBuiltinProjectsRepresentativeTiers(t *testing.
 	assert.Equal(t, []string{"autopus_reviewer", "autopus_security_auditor"},
 		integration.profile.FamilyDiversity.Roles)
 
-	assert.Equal(t, map[string]string{
-		"scout":             builtinOpus,
-		"reviewer":          builtinAstra,
-		"security-reviewer": builtinAstra,
-		"task":              builtinFable,
-		"sonic":             builtinOpus,
-	}, builtinSelectorsByAgent(integration.projection))
+	assertBuiltinSelectors(t, integration.projection, map[string]string{
+		"explorer":         builtinOpus,
+		"reviewer":         builtinAstra,
+		"security-auditor": builtinAstra,
+		"task":             builtinFable,
+		"validator":        builtinOpus,
+	})
 }
 
-// The balanced built-in is an explicit matrix: every bundled agent lands on
+// The balanced built-in is an explicit matrix: every served agent lands on
 // one exact model at one exact thinking level in the selected family.
 func TestOMPModelIntegration_BalancedBuiltinProjectsTheExplicitMatrix(t *testing.T) {
 	t.Parallel()
 
 	integration := prepareBuiltinIntegration(t, "balanced")
 	assert.False(t, integration.profile.FamilyDiversity.Enabled)
-	assert.Equal(t, map[string]string{
-		"scout":             builtinSonnetHigh,
-		"reviewer":          builtinFable,
-		"security-reviewer": builtinFable,
-		"task":              builtinFable,
-		"sonic":             builtinSonnetHigh,
-	}, builtinSelectorsByAgent(integration.projection))
+	assertBuiltinSelectors(t, integration.projection, map[string]string{
+		"explorer":         builtinSonnetHigh,
+		"reviewer":         builtinFable,
+		"security-auditor": builtinFable,
+		"task":             builtinFable,
+		"validator":        builtinSonnetHigh,
+	})
 }
 
 // A single exact candidate per agent must reach the emitted config as an
@@ -108,28 +107,28 @@ func TestOMPModelIntegration_BalancedBuiltinBlocksOnUnsupportedThinking(t *testi
 	assert.Empty(t, entries, "a blocked balanced route must not touch the project")
 }
 
-// Selecting the openai family moves every bundled agent, review included:
+// Selecting the openai family moves every served agent, review included:
 // dissent is an orchestra provider setting, not a routing one.
 func TestOMPModelIntegration_BalancedBuiltinFollowsSelectedFamily(t *testing.T) {
 	t.Parallel()
 
 	integration := prepareBuiltinIntegrationForFamily(t, "balanced", "openai")
 	selectors := builtinSelectorsByAgent(integration.projection)
-	require.Len(t, selectors, len(config.OMPNativeAgentNames()))
+	require.Len(t, selectors, len(config.OMPAutopusAgentNames()))
 	assert.Equal(t, builtinAstra, selectors["task"])
 	assert.Equal(t, builtinAstra, selectors["reviewer"])
-	assert.Equal(t, builtinAstra, selectors["security-reviewer"])
-	assert.Equal(t, builtinLunaMax, selectors["scout"])
-	assert.Equal(t, builtinLunaMax, selectors["sonic"])
+	assert.Equal(t, builtinAstra, selectors["security-auditor"])
+	assert.Equal(t, builtinLunaMax, selectors["explorer"])
+	assert.Equal(t, builtinLunaMax, selectors["validator"])
 	for agent, selector := range selectors {
 		assert.True(t, strings.HasPrefix(selector, "openai-codex/"), agent)
 	}
 }
 
-// The emitted overlay binds models to bundled agent names only. No autopus_*
+// The emitted overlay binds models to served agent names only. No autopus_*
 // model role and no OMP native model role key may appear: the retired aliases
 // existed solely to bind generated agent definitions.
-func TestOMPModelIntegration_EmitsNativeAgentOverridesWithoutRoleAliases(t *testing.T) {
+func TestOMPModelIntegration_EmitsAgentOverridesWithoutRoleAliases(t *testing.T) {
 	t.Parallel()
 
 	integration := prepareBuiltinIntegration(t, "ultra")
@@ -141,7 +140,7 @@ func TestOMPModelIntegration_EmitsNativeAgentOverridesWithoutRoleAliases(t *test
 		keys = append(keys, agent)
 	}
 	sort.Strings(keys)
-	want := append([]string(nil), config.OMPNativeAgentNames()...)
+	want := config.OMPAutopusAgentNames()
 	sort.Strings(want)
 	assert.Equal(t, want, keys)
 
@@ -155,32 +154,31 @@ func TestOMPModelIntegration_EmitsNativeAgentOverridesWithoutRoleAliases(t *test
 	require.NoError(t, err)
 	rendered := string(activation)
 	assert.Contains(t, rendered, "task:\n  agentModelOverrides:\n")
-	assert.Contains(t, rendered, "security-reviewer: "+builtinAstra)
+	assert.Contains(t, rendered, "security-auditor: "+builtinAstra)
 	assert.Contains(t, rendered, "task: "+builtinFable)
 	assert.NotContains(t, rendered, "modelRoles")
 	assert.NotContains(t, rendered, "autopus_")
 	assert.NotContains(t, rendered, "@")
 }
 
-// The receipt carries one operator-attested row per bundled agent, keeping
+// The receipt carries one operator-attested row per served agent, keeping
 // the semantic ADK role as provenance.
-func TestOMPModelIntegration_ReceiptRowsAreKeyedByBundledAgent(t *testing.T) {
+func TestOMPModelIntegration_ReceiptRowsAreKeyedByServedAgent(t *testing.T) {
 	t.Parallel()
 
 	files, err := NewWithRoot(t.TempDir()).
 		WithModelIntegrationRunner(newBuiltinTierIntegrationRunner()).
-		prepareFiles(context.Background(), nativeClaimConfig(builtinIntegrationConfig("ultra")))
+		prepareFiles(context.Background(), builtinIntegrationConfig("ultra"))
 	require.NoError(t, err)
 
 	var receipt OMPModelResolutionReceipt
 	require.NoError(t, json.Unmarshal(
 		integrationMappingsByPath(files)[OMPModelReceiptRelativePath].Content, &receipt))
-	require.Len(t, receipt.Roles, len(config.OMPNativeAgentNames()))
+	require.Len(t, receipt.Roles, len(config.OMPAutopusAgentNames()))
 	byAgent := make(map[string]OMPModelRoleReceipt, len(receipt.Roles))
 	for _, role := range receipt.Roles {
 		resolved, resolveErr := config.ResolveOMPPolicyAgent(role.Agent)
 		require.NoError(t, resolveErr, role.Agent)
-		assert.Equal(t, role.Agent, resolved.Native, role.Agent)
 		assert.Equal(t, resolved.Role, role.RequestedRole, role.Agent)
 		assert.Equal(t, role.RequestedRole, role.EffectiveRole, role.Agent)
 		assert.Equal(t, resolved.Capability, role.Capability, role.Agent)
@@ -189,8 +187,8 @@ func TestOMPModelIntegration_ReceiptRowsAreKeyedByBundledAgent(t *testing.T) {
 	}
 	assert.Equal(t, "anthropic/"+config.ClaudeFableModel, byAgent["task"].Selector)
 	assert.Equal(t, "max", byAgent["task"].Thinking)
-	assert.Equal(t, "anthropic/"+config.ClaudeOpusModel, byAgent["scout"].Selector)
-	assert.Equal(t, "xhigh", byAgent["scout"].Thinking)
+	assert.Equal(t, "anthropic/"+config.ClaudeOpusModel, byAgent["explorer"].Selector)
+	assert.Equal(t, "xhigh", byAgent["explorer"].Thinking)
 	assert.Equal(t, "satisfied", byAgent["reviewer"].FamilyDiversity.Status)
 	assert.Equal(t, "not_applicable", byAgent["task"].FamilyDiversity.Status)
 }
@@ -233,7 +231,7 @@ func prepareBuiltinIntegration(t *testing.T, preset string) *ompModelIntegration
 
 func prepareBuiltinIntegrationForFamily(t *testing.T, preset, family string) *ompModelIntegration {
 	t.Helper()
-	cfg := nativeClaimConfig(builtinIntegrationConfigForFamily(preset, family))
+	cfg := builtinIntegrationConfigForFamily(preset, family)
 	require.NoError(t, cfg.Validate())
 	integration, err := NewWithRoot(t.TempDir()).
 		WithModelIntegrationRunner(newBuiltinTierIntegrationRunner()).
@@ -241,6 +239,16 @@ func prepareBuiltinIntegrationForFamily(t *testing.T, preset, family string) *om
 	require.NoError(t, err)
 	require.NotNil(t, integration)
 	return integration
+}
+
+// assertBuiltinSelectors checks the agents that represented a bundled agent
+// before v0.50.129, each now on its own row.
+func assertBuiltinSelectors(t *testing.T, projection OMPModelProjection, want map[string]string) {
+	t.Helper()
+	selectors := builtinSelectorsByAgent(projection)
+	for agent, selector := range want {
+		assert.Equal(t, selector, selectors[agent], agent)
+	}
 }
 
 func builtinSelectorsByAgent(projection OMPModelProjection) map[string]string {

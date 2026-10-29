@@ -13,9 +13,10 @@ import (
 // and the update's migration lines both come from it, so they agree with
 // what generation decides.
 type OMPAgentSurfaceReport struct {
-	// Source is the effective agent source of the config.
-	Source string
-	// RecordedAgents are canonical agents whose definition the manifest records.
+	// RecordedAgents are canonical agents whose definition the manifest
+	// records. None is the state a project generated before v0.50.127, or
+	// under the retired agent_source: native, leaves: the next update
+	// migrates it.
 	RecordedAgents []string
 	// UserAgentFiles are canonical agents with a definition on disk the
 	// manifest does not record: generation leaves those files alone.
@@ -36,12 +37,9 @@ type OMPAgentSurfaceReport struct {
 	DisabledAgentsClaimed bool
 }
 
-// InspectOMPAgentSurface reads the agent surface of root for cfg.
-func InspectOMPAgentSurface(root string, cfg *config.HarnessConfig) (report OMPAgentSurfaceReport, returnErr error) {
-	if cfg == nil {
-		return OMPAgentSurfaceReport{}, fmt.Errorf("하네스 설정이 필요합니다")
-	}
-	report.Source = cfg.RoleModelPolicy.OMPAgentSource()
+// InspectOMPAgentSurface reads the agent surface of root as the next
+// generation would decide it.
+func InspectOMPAgentSurface(root string) (report OMPAgentSurfaceReport, returnErr error) {
 	workspace, err := openOMPRootedWorkspace(root)
 	if err != nil {
 		return report, err
@@ -69,7 +67,7 @@ func InspectOMPAgentSurface(root string, cfg *config.HarnessConfig) (report OMPA
 			report.RecordedAgents = append(report.RecordedAgents, agent)
 		}
 	}
-	state, err := evaluateOMPClaimSetAt(workspace, report.Source == config.OMPAgentSourceAutopus)
+	state, err := evaluateOMPClaimSetAt(workspace, true)
 	if err != nil {
 		return report, err
 	}

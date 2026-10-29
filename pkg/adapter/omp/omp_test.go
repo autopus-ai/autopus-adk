@@ -69,22 +69,6 @@ func TestOMP_S4_S5_S6_Lifecycle(t *testing.T) {
 	assert.NoFileExists(t, filepath.Join(dir, ompRuleDir, ompRuleFilePrefix+"branding.md"))
 }
 
-// agent_source: native keeps the v0.50.125 lifecycle surface.
-func TestOMP_S4_S5_S6_Lifecycle_NativeSource(t *testing.T) {
-	dir := t.TempDir()
-	a := NewWithRoot(dir)
-	cfg := config.DefaultFullConfig("omp-test")
-	cfg.Platforms = []string{"omp"}
-	cfg.RoleModelPolicy.AgentSource = config.OMPAgentSourceNative
-
-	_, err := a.Generate(context.Background(), cfg)
-	require.NoError(t, err)
-	assert.NoFileExists(t, filepath.Join(dir, configFile))
-	assert.NoDirExists(t, filepath.Join(dir, ".omp", "agents"))
-	require.NoError(t, a.Clean(context.Background()))
-	assert.NoFileExists(t, filepath.Join(dir, ompRuleDir, ompRuleFilePrefix+"branding.md"))
-}
-
 func TestOMP_S10_S11_Ownership(t *testing.T) {
 	mixed := PruneRoots(&config.HarnessConfig{Platforms: []string{"opencode", "codex", "omp"}})
 	for _, root := range []string{".omp/skills", ".omp/commands", ".agents/commands"} {

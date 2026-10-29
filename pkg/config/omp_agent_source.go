@@ -2,15 +2,19 @@ package config
 
 import "fmt"
 
-// OMP agent sources. Autopus is the default: OMP is served the 17 canonical
+// OMP agent sources. Autopus is the only one: OMP is served the 17 canonical
 // Autopus agents as generated .omp/agents files, and every bundled agent but
-// task is disabled. Native restores the v0.50.125
-// surface, where every role collapses onto the five bundled agents. Native is
-// kept through v0.50.128, which changes the autopus surface again (seance),
-// and is removed in v0.50.129.
+// task is disabled. agent_source: native restored the v0.50.125 surface, where
+// every role collapsed onto the five bundled agents, and was removed in
+// v0.50.129. A config that still declares it fails to load with
+// agent_source_removed instead of being served the autopus surface without a
+// word; an explicit agent_source: autopus stays valid.
 const (
 	OMPAgentSourceAutopus = "autopus"
-	OMPAgentSourceNative  = "native"
+
+	// ompAgentSourceRemovedNative is the retired value, recognized only to
+	// refuse it with the way back.
+	ompAgentSourceRemovedNative = "native"
 
 	// OMPAutopusDefaultAgent is the bundled agent OMP runs a dispatch that
 	// names no agent on. It stays enabled in autopus mode, otherwise every
@@ -18,36 +22,8 @@ const (
 	OMPAutopusDefaultAgent = "task"
 )
 
-// EffectiveOMPAgentSource maps a declared agent_source onto the source OMP is
-// served with: anything but an explicit native is autopus.
-func EffectiveOMPAgentSource(declared string) string {
-	if declared == OMPAgentSourceNative {
-		return OMPAgentSourceNative
-	}
-	return OMPAgentSourceAutopus
-}
-
-// OMPAgentSource returns the policy's effective OMP agent source.
-func (c RoleModelPolicyConf) OMPAgentSource() string {
-	return EffectiveOMPAgentSource(c.AgentSource)
-}
-
-// OMPNativeAgentSource reports whether a resolved profile serves the bundled
-// agents. A profile that was not resolved through a policy is autopus.
-func (c RoleModelProfileConf) OMPNativeAgentSource() bool {
-	return c.AgentSource == OMPAgentSourceNative
-}
-
-// OMPAgentNames returns the agent names a source routes, in rank order: the
-// canonical agents and then task for autopus, the bundled registry for native.
-func OMPAgentNames(source string) []string {
-	if EffectiveOMPAgentSource(source) == OMPAgentSourceNative {
-		return OMPNativeAgentNames()
-	}
-	return OMPAutopusAgentNames()
-}
-
-// OMPAutopusAgentNames returns the 17 canonical agents followed by task.
+// OMPAutopusAgentNames returns the 17 canonical agents followed by task, the
+// agents autopus mode serves in rank order.
 func OMPAutopusAgentNames() []string {
 	return append(CanonicalAgentNames(), OMPAutopusDefaultAgent)
 }
@@ -79,45 +55,27 @@ func OMPAutopusRetiredDisabledAgents() [][]string {
 	}
 }
 
+// validateOMPAgentSource accepts an absent or explicit autopus source. The
+// removed native value gets its own error, which says what to do, so it is
+// never mistaken for a typo.
 func validateOMPAgentSource(declared string) error {
 	switch declared {
-	case "", OMPAgentSourceAutopus, OMPAgentSourceNative:
+	case "", OMPAgentSourceAutopus:
 		return nil
+	case ompAgentSourceRemovedNative:
+		return fmt.Errorf("role_model_policy.agent_source_removed: %q was removed in v0.50.129; "+
+			"delete role_model_policy.agent_source from autopus.yaml, then run auto update "+
+			"to restore the Autopus agent surface", declared)
 	}
 	return fmt.Errorf("role_model_policy.agent_source_invalid: %q", declared)
 }
 
-// validateOMPAgentRoutes runs the route check of the profile's own source.
-func validateOMPAgentRoutes(profile RoleModelProfileConf) error {
-	if profile.OMPNativeAgentSource() {
-		return validateOMPNativeAgentCollapse(profile)
-	}
-	return validateOMPAutopusAgentRoutes(profile)
-}
-
-// OMPAgentNames lists the agents this resolved profile routes: the mode's
-// whole set, or only the pinned agents and task for a pins-only profile.
+// OMPAgentNames lists the agents this resolved profile routes: every agent
+// autopus mode serves, or only the pinned agents and task for a pins-only
+// profile.
 func (c RoleModelProfileConf) OMPAgentNames() []string {
-	if c.PinsOnly && !c.OMPNativeAgentSource() {
+	if c.PinsOnly {
 		return c.ompPinsOnlyAgentNames()
 	}
-	return OMPAgentNames(c.AgentSource)
-}
-
-// OMPAgentRoute resolves one served agent's route under the profile's source:
-// the Route Contract in autopus mode, the native collapse otherwise.
-func (c RoleModelProfileConf) OMPAgentRoute(agent string) (OMPPolicyAgentRoute, RoleCapabilityRouteConf, error) {
-	if c.OMPNativeAgentSource() {
-		return c.OMPNativeAgentRoute(agent)
-	}
-	return c.OMPAutopusAgentRoute(agent)
-}
-
-// OMPAgentOperatorPinned reports a route the operator chose explicitly, which
-// must never fall back to the runtime default.
-func (c RoleModelProfileConf) OMPAgentOperatorPinned(agent string) bool {
-	if c.OMPNativeAgentSource() {
-		return c.OMPNativeAgentOperatorPinned(agent)
-	}
-	return c.OMPAutopusAgentOperatorPinned(agent)
+	return OMPAutopusAgentNames()
 }

@@ -84,21 +84,23 @@ func TestPinsOnlyPolicy_ManagesTheBuiltinKeysInProjectManagedMode(t *testing.T) 
 }
 
 func TestPinsOnlyPolicy_LoadRules(t *testing.T) {
+	// Before v0.50.129 native mode refused agents without a profile; the
+	// removed key now fails first, with the way back.
 	native := pinsOnlyPolicy(map[string]RoleModelCandidateConf{"planner": pinOpus})
-	native.AgentSource = OMPAgentSourceNative
+	native.AgentSource = "native"
 	unattested := pinsOnlyPolicy(map[string]RoleModelCandidateConf{"planner": {Selector: pinOpus.Selector, Thinking: "high"}})
 	empty := RoleModelPolicyConf{Version: RoleModelPolicyVersionV1, Agents: map[string]RoleAgentOverrideConf{"planner": {}}}
 	for name, row := range map[string]struct {
 		policy RoleModelPolicyConf
 		want   string
 	}{
-		"native mode":       {native, "role_model_policy.agents_require_profile"},
+		"native mode":       {native, "role_model_policy.agent_source_removed"},
 		"scout":             {pinsOnlyPolicy(map[string]RoleModelCandidateConf{"scout": pinOpus}), "role_model_policy.agents_native_key_requires_profile: scout"},
 		"security-reviewer": {pinsOnlyPolicy(map[string]RoleModelCandidateConf{"security-reviewer": pinOpus}), "role_model_policy.agents_native_key_requires_profile: security-reviewer"},
 		"sonic":             {pinsOnlyPolicy(map[string]RoleModelCandidateConf{"sonic": pinOpus}), "role_model_policy.agents_native_key_requires_profile: sonic"},
-		// designer, librarian, and seance are disabled too, but no mode routes
-		// them, so a pin on any of them stays an unmapped agent rather than a
-		// native key.
+		// designer, librarian, and seance are disabled too, but nothing ever
+		// routed them, so a pin on any of them stays an unmapped agent rather
+		// than a native key.
 		"designer":      {pinsOnlyPolicy(map[string]RoleModelCandidateConf{"designer": pinOpus}), "role_model_policy.agents[designer].agent_role_unmapped"},
 		"librarian":     {pinsOnlyPolicy(map[string]RoleModelCandidateConf{"librarian": pinOpus}), "role_model_policy.agents[librarian].agent_role_unmapped"},
 		"seance":        {pinsOnlyPolicy(map[string]RoleModelCandidateConf{"seance": pinOpus}), "role_model_policy.agents[seance].agent_role_unmapped"},
@@ -145,17 +147,4 @@ func TestPinsOnlyPolicy_ReservesTheProfileName(t *testing.T) {
 			assert.Contains(t, err.Error(), `role_model_policy.profile_name_reserved: "pins-only"`)
 		})
 	}
-}
-
-// Review A3: native mode refuses agents without a profile and says how to
-// get a valid policy back.
-func TestPinsOnlyPolicy_NativeRefusalNamesTheWayOut(t *testing.T) {
-	policy := pinsOnlyPolicy(map[string]RoleModelCandidateConf{"planner": pinOpus})
-	policy.AgentSource = OMPAgentSourceNative
-
-	err := policy.Validate()
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "role_model_policy.agents_require_profile")
-	assert.Contains(t, err.Error(), "set role_model_policy.profile, or remove agent_source: native")
 }

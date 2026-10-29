@@ -25,7 +25,7 @@ var ompHubMentionRe = regexp.MustCompile("`hub`|hub with \\{|\\bhub (?:send|wait
 // an 18.3+ session is told to call a tool it does not have.
 func TestGeneratedOMPGuidancePairsHubWithItsReplacement(t *testing.T) {
 	for name, cfg := range map[string]*config.HarnessConfig{
-		"autopus agents": configForOMP(), "native agents": nativeConfigForOMP(),
+		"autopus agents": configForOMP(),
 	} {
 		t.Run(name, func(t *testing.T) {
 			root := t.TempDir()

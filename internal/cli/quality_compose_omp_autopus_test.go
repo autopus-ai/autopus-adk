@@ -140,7 +140,7 @@ func TestComposeOMPAutopus_S10_MultiProviderRoleGroups(t *testing.T) {
 
 // S11: a pins-only start lists each agent's pin, the thinking default is the
 // current level, a strict catalog filters by capability without the note,
-// and native mode refuses the policy at load.
+// and the removed native mode refuses the policy at load.
 func TestComposeOMPAutopus_S11_StartThinkingAndCatalogRules(t *testing.T) {
 	t.Run("per agent", func(t *testing.T) {
 		composeSessionCatalog(t, "CAT-A")
@@ -174,9 +174,9 @@ func TestComposeOMPAutopus_S11_StartThinkingAndCatalogRules(t *testing.T) {
 			"OMP 세션 모델 그대로", "anthropic/claude-fable-5-1", "anthropic/claude-opus-5-5",
 			"openai-codex/gpt-6-astra", "openai-codex/gpt-6.1-sol"))
 	})
-	t.Run("native mode", func(t *testing.T) {
+	t.Run("removed native mode", func(t *testing.T) {
 		policy := composeOMPS10Policy()
-		policy.AgentSource = config.OMPAgentSourceNative
+		policy.AgentSource = "native"
 		dir := writeComposePinsFixture(t, config.RoleModelPolicyConf{})
 		data, err := os.ReadFile(filepath.Join(dir, "autopus.yaml"))
 		require.NoError(t, err)
@@ -187,7 +187,7 @@ func TestComposeOMPAutopus_S11_StartThinkingAndCatalogRules(t *testing.T) {
 		_, err = config.LoadPreview(dir)
 
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "role_model_policy.agents_require_profile")
+		assert.Contains(t, err.Error(), "role_model_policy.agent_source_removed")
 	})
 }
 

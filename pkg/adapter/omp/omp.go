@@ -17,17 +17,12 @@ const (
 	cliBinary   = "omp"
 	adapterVer  = "1.0.0"
 
-	// ompAgentDir holds one generated definition per canonical agent in
-	// autopus mode, the default. OMP discovers project definitions before its
-	// bundled ones and the first name wins, so the generated reviewer replaces
-	// the bundled reviewer; every other bundled agent but task is disabled
-	// through task.disabledAgents instead of being shadowed.
+	// ompAgentDir holds one generated definition per canonical agent. OMP
+	// discovers project definitions before its bundled ones and the first
+	// name wins, so the generated reviewer replaces the bundled reviewer;
+	// every other bundled agent but task is disabled through
+	// task.disabledAgents instead of being shadowed.
 	ompAgentDir = ".omp/agents"
-
-	// ompRetiredAgentDir is the same directory seen from agent_source: native,
-	// where OMP serves every workflow from its bundled registry: nothing is
-	// written there and every manifest-recorded definition left over is retired.
-	ompRetiredAgentDir = ompAgentDir
 )
 
 // Adapter is the oh-my-pi (omp) platform adapter.
@@ -120,16 +115,15 @@ func (a *Adapter) Generate(ctx context.Context, cfg *config.HarnessConfig) (pf *
 	}
 	pf = &adapter.PlatformFiles{Files: owned, Checksum: adapter.Checksum(fmt.Sprintf("%d", len(owned)))}
 	manifest := adapter.ManifestFromFiles(adapterName, pf)
-	// In native mode a re-init over an install that still records
-	// .omp/agents would orphan the retired ADK agent definitions: OMP resolves
-	// task agents by exact name, so a stale project file keeps shadowing the
-	// bundled agent of the same name forever. Autopus mode regenerates the
-	// recorded definitions, so the diff retires none of them. Only
-	// manifest-recorded paths are eligible, so a user agent OMP never wrote is
-	// never touched, and the rooted transaction snapshots each removal before
-	// deleting it.
+	// A re-init over an install that records an agent definition this
+	// generation no longer writes would orphan it: OMP resolves task agents
+	// by exact name, so a stale project file keeps serving under that name
+	// forever. Every canonical definition is regenerated, so the diff retires
+	// only what the canonical set dropped. Only manifest-recorded paths are
+	// eligible, so a user agent OMP never wrote is never touched, and the
+	// rooted transaction snapshots each removal before deleting it.
 	removes := adapter.TransactionRemovesFromManifestDiff(
-		adapter.BuildManifestDiff(oldManifest, files, []string{ompRetiredAgentDir}), false,
+		adapter.BuildManifestDiff(oldManifest, files, []string{ompAgentDir}), false,
 	)
 	writes, removes, err = a.releaseOMPProjectManagedConfigAt(workspace, files, writes, removes)
 	if err != nil {
@@ -214,7 +208,7 @@ func (a *Adapter) prepareFilesAt(
 	}
 
 	// 1. Rules
-	if err := appendFiles(a.prepareRuleMappings(cfg)); err != nil {
+	if err := appendFiles(a.prepareRuleMappings()); err != nil {
 		return nil, err
 	}
 	// 2. Skills
@@ -225,11 +219,9 @@ func (a *Adapter) prepareFilesAt(
 	if err := appendFiles(a.prepareCommandMappings(cfg)); err != nil {
 		return nil, err
 	}
-	// 3a. Agent definitions (autopus mode only; native reuses the bundled registry)
-	if cfg.RoleModelPolicy.OMPAgentSource() == config.OMPAgentSourceAutopus {
-		if err := appendFiles(prepareOMPAgentMappings(ompRoutedAgentNames(modelIntegration))); err != nil {
-			return nil, err
-		}
+	// 3a. Agent definitions, one per canonical agent
+	if err := appendFiles(prepareOMPAgentMappings(ompRoutedAgentNames(modelIntegration))); err != nil {
+		return nil, err
 	}
 	// 4. Native context bridge (explicit OMP context-policy opt-in only)
 	if err := appendFiles(prepareOMPContextBridgeMappings(cfg)); err != nil {
@@ -238,20 +230,17 @@ func (a *Adapter) prepareFilesAt(
 	// 5. Runtime/model claims and the project claim set. The claim set merges
 	// once per generation: inside finalize for a project-managed profile,
 	// which owns more keys of the same file, and here otherwise, even with no
-	// model integration, because autopus mode claims task.disabledAgents on
-	// its own. A native install without a profile still writes no base config.
-	claimSurface := cfg.RoleModelPolicy.OMPAgentSource() == config.OMPAgentSourceAutopus
+	// model integration, because task.disabledAgents is claimed on its own.
 	projectManaged := modelIntegration != nil &&
 		modelIntegration.profile.ConfigMode == config.RoleModelConfigModeProjectManaged
 	if !projectManaged {
-		claimSet, claimErr := planOMPClaimSetAt(workspace, nil, claimSurface)
+		claimSet, claimErr := planOMPClaimSetAt(workspace, nil)
 		if claimErr != nil {
 			return nil, claimErr
 		}
 		files = append(files, claimSet.mappings()...)
 	}
 	if modelIntegration != nil {
-		modelIntegration.claimSurface = claimSurface
 		var configMapping adapter.FileMapping
 		if projectManaged {
 			configMapping, err = a.prepareConfigMappingAt(workspace, cfg)

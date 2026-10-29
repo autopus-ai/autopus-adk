@@ -20,8 +20,8 @@ const initCmdLong = "코딩 CLI에 Autopus 하네스를 설치합니다. autopus
 	"넣고, 이 key가 있는 파일은 v0.50.127보다 오래된 auto가 읽지 못합니다. omp를 고르면 Autopus 에이전트 17개를\n" +
 	".omp/agents에 만들고 task를 뺀 OMP 기본 에이전트(scout·security-reviewer·sonic·designer·librarian·seance)를\n" +
 	"task.disabledAgents로 끕니다. 프로필이 없으면 세션 모델을 상속합니다. role_model_policy.agent_source: native는\n" +
-	"v0.50.128까지 bundled 5개 방식을 고릅니다.\n\n" +
-	"이 기본 mode의 OMP 탭은 프로필·계열을 묻지 않고 역할 그룹 4개나 에이전트별로 그대로 · OMP 세션 모델 그대로 ·\n" +
+	"v0.50.129에서 제거되어 로드에 실패합니다.\n\n" +
+	"OMP 탭은 프로필·계열을 묻지 않고 역할 그룹 4개나 에이전트별로 그대로 · OMP 세션 모델 그대로 ·\n" +
 	"모든 provider의 증명된 설치 model을 고르며, thinking은 고른 model이 보고한 단계만 보입니다. 결과는 프로필 없는\n" +
 	"pin(role_model_policy: {version: v1, agents: …})이고 task는 자기 pin이 없으면 planner를 따릅니다.\n\n" +
 	"wizard의 Review Gate가 예이고 orchestra.providers가 둘 이상이며 CI가 아니면 도구 탭 마지막에 멀티프로바이더\n" +

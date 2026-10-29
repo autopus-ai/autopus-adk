@@ -55,20 +55,7 @@ Before dispatch, inspect the tools actually exposed by this runtime. Use their
 current schemas rather than copying static payloads. If the selected topology
 requires an unavailable tool, report that blocker; never simulate dispatch.
 
-{{if eq .RoleModelPolicy.AgentSource "native"}}OMP registers five agents: `scout`, `reviewer`, `security-reviewer`, `task`,
-and `sonic`. There is no Autopus-specific agent to select, so pick by what the
-work needs:
-
-- `task` runs planning, implementation, debugging, test authoring, and UX work.
-  It is the default for every writing slice; omitting the agent selects it.
-- `scout` is read-only exploration only. Never give it work that writes.
-- `reviewer` and `security-reviewer` keep their built-in review boundaries; use
-  them for review and security findings, not for implementation.
-- `sonic` is only for an explicit mechanical request. Never route reasoning,
-  planning, validation, or review to it.
-
-The role a worker plays belongs in its assignment text, not in an agent name.
-{{else}}OMP serves this project's 17 Autopus agents from `.omp/agents/`:
+OMP serves this project's 17 Autopus agents from `.omp/agents/`:
 `annotator`, `architect`, `debugger`, `deep-worker`, `devops`, `executor`,
 `explorer`, `frontend-specialist`, `perf-engineer`, `planner`,
 `reverse-engineer`, `reviewer`, `security-auditor`, `spec-writer`, `tester`,
@@ -87,7 +74,7 @@ The role a worker plays belongs in its assignment text, not in an agent name.
   select them.
 
 The agent field names the role; the assignment text still states its scope.
-{{end}}State the responsibility, scope, and exit condition in the task itself.
+State the responsibility, scope, and exit condition in the task itself.
 
 Batch independent owned slices together. Native OMP owns isolated worktree
 creation, integration, and cleanup. Request isolation only if the current

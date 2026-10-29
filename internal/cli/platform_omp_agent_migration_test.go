@@ -92,71 +92,6 @@ func ompMigrationAgentFiles(t *testing.T, dir string) []string {
 	return names
 }
 
-// S12 and S13: NM migrates on the first update and stays on the second; a
-// hand-written agent_source: native returns to NM's OMP files, and dropping
-// it again returns to the migrated files. autopus.yaml is never written.
-func TestOMPAgentMigration_S12_S13_UpdateMigratesAndGoesBack(t *testing.T) {
-	newComposeUpdateRun(t, false, "")
-	usePlatformOMPModelRunner(t, &ompCLIFakeRunner{fail: true})
-	dir := t.TempDir()
-	cfg := config.DefaultFullConfig("nm")
-	cfg.Platforms = []string{"omp"}
-	require.NoError(t, config.Save(dir, nativeOMPConfig(cfg)))
-	ompMigrationUpdate(t, dir)
-	settled, err := config.LoadPreview(dir)
-	require.NoError(t, err)
-	settled.RoleModelPolicy.AgentSource = ""
-	require.NoError(t, config.Save(dir, settled))
-	yamlPath := filepath.Join(dir, "autopus.yaml")
-	nmYAML, err := os.ReadFile(yamlPath)
-	require.NoError(t, err)
-	require.NotContains(t, string(nmYAML), "role_model_policy")
-	nm := ompMigrationFileSums(t, dir)
-	require.Empty(t, ompMigrationAgentFiles(t, dir), "NM is the v0.50.125 OMP layout")
-
-	first := ompMigrationUpdate(t, dir)
-
-	for _, agent := range config.CanonicalAgentNames() {
-		assert.Contains(t, first, "    + .omp/agents/"+agent+".md\n")
-	}
-	assert.Contains(t, first, "    task.disabledAgents: scout, security-reviewer, sonic, designer, librarian, seance\n")
-	assert.Contains(t, first, "\n    OMP는 이제 Autopus 에이전트 17개를 씁니다.")
-	assert.Less(t, strings.Index(first, "+ .omp/agents/planner.md"), strings.Index(first, "✓ omp updated"),
-		"the lines preview the write")
-	assert.Len(t, ompMigrationAgentFiles(t, dir), 17)
-	ompConfig, err := os.ReadFile(filepath.Join(dir, ".omp", "config.yml"))
-	require.NoError(t, err)
-	assert.Contains(t, string(ompConfig), "disabledAgents")
-	assert.FileExists(t, filepath.Join(dir, filepath.FromSlash(omp.OMPModelProjectOwnershipRelativePath)))
-	afterYAML, err := os.ReadFile(yamlPath)
-	require.NoError(t, err)
-	assert.Equal(t, sha256.Sum256(nmYAML), sha256.Sum256(afterYAML), "the migration does not write autopus.yaml")
-	migrated := ompMigrationFileSums(t, dir)
-
-	second := ompMigrationUpdate(t, dir)
-
-	assert.NotContains(t, second, "+ .omp/agents/")
-	assert.NotContains(t, second, "OMP는 이제")
-	assert.Equal(t, migrated, ompMigrationFileSums(t, dir), "a second update changes no OMP file")
-
-	require.NoError(t, os.WriteFile(yamlPath, append(append([]byte(nil), nmYAML...),
-		"role_model_policy:\n  agent_source: native\n"...), 0o644))
-	native := ompMigrationUpdate(t, dir)
-
-	assert.Contains(t, native, "    - .omp/agents/planner.md\n")
-	assert.Equal(t, 17, strings.Count(native, "    - .omp/agents/"))
-	assert.Contains(t, native, "    task.disabledAgents 복원\n")
-	assert.Empty(t, ompMigrationAgentFiles(t, dir))
-	assert.NoFileExists(t, filepath.Join(dir, ".omp", "config.yml"))
-	assert.NoFileExists(t, filepath.Join(dir, filepath.FromSlash(omp.OMPModelProjectOwnershipRelativePath)))
-	assert.Equal(t, nm, ompMigrationFileSums(t, dir), "native returns to the v0.50.125 OMP files")
-
-	require.NoError(t, os.WriteFile(yamlPath, nmYAML, 0o644))
-	ompMigrationUpdate(t, dir)
-
-	assert.Equal(t, migrated, ompMigrationFileSums(t, dir), "dropping the line returns to the migrated files")
-}
-
 // S8: init (Generate) and update both name a user file and leave it alone.
 func TestOMPAgentMigration_S8_UserFileLineInInitAndUpdate(t *testing.T) {
 	newComposeUpdateRun(t, false, "")
@@ -195,7 +130,7 @@ func TestOMPAgentSurfaceLines(t *testing.T) {
 	}}}
 	recorded := config.CanonicalAgentNames()
 	ko, en := ompAgentSurfaceTextKO, ompAgentSurfaceTextEN
-	autopus := omp.OMPAgentSurfaceReport{Source: config.OMPAgentSourceAutopus}
+	autopus := omp.OMPAgentSurfaceReport{}
 
 	owned := autopus
 	owned.UserAgentFiles, owned.DisabledAgentsUserOwned = []string{"reviewer"}, true
@@ -224,14 +159,13 @@ func TestOMPAgentSurfaceLines(t *testing.T) {
 	frozen := unclaimable
 	frozen.RecordedAgents, frozen.DisabledAgentsClaimed = recorded, true
 	assert.Equal(t, []string{ko.kept}, ompAgentSurfaceLines(frozen, cfg, true, ko), "a recorded claim stays as it is")
-	frozenNative := frozen
-	frozenNative.Source = config.OMPAgentSourceNative
-	assert.NotContains(t, ompAgentSurfaceLines(frozenNative, cfg, true, ko), ko.restored, "nothing is restored")
-	assert.Contains(t, ompAgentSurfaceLines(frozenNative, cfg, true, ko), ko.kept)
 
-	native := omp.OMPAgentSurfaceReport{Source: config.OMPAgentSourceNative, RecordedAgents: []string{"planner"}, DisabledAgentsClaimed: true}
-	assert.Equal(t, []string{"- .omp/agents/planner.md", "task.disabledAgents restored"}, ompAgentSurfaceLines(native, cfg, true, en))
-	assert.Empty(t, ompAgentSurfaceLines(native, cfg, false, en))
+	migrating := autopus
+	lines = ompAgentSurfaceLines(migrating, cfg, true, en)
+	assert.Contains(t, lines, "task.disabledAgents: scout, security-reviewer, sonic, designer, librarian, seance")
+	assert.Equal(t, "OMP now uses the 17 Autopus agents.", lines[len(lines)-1], "the migration names no way back")
+	assert.Equal(t, "OMP는 이제 Autopus 에이전트 17개를 씁니다.", ko.migration)
+	assert.NotContains(t, ompAgentSurfaceLines(migrating, cfg, false, en), en.migration, "init is no migration")
 	assert.Equal(t, en, ompAgentSurfaceTextFor("en"))
 	assert.Equal(t, ko, ompAgentSurfaceTextFor("ko"))
 }

@@ -53,17 +53,11 @@ func splitOMPFrontmatter(content string) (string, string) {
 }
 
 func normalizeOMPWorkflowBody(body string) string {
-	return normalizeOMPWorkflowBodyWith(body, pkgcontent.PlatformReferenceOptions{})
-}
-
-// normalizeOMPWorkflowBodyWith renders a workflow body for the agent source
-// the generation serves.
-func normalizeOMPWorkflowBodyWith(body string, refs pkgcontent.PlatformReferenceOptions) string {
 	body = strings.NewReplacer(
 		"@auto ", "/auto ",
 		"@auto-", "/auto-",
 	).Replace(body)
-	body = pkgcontent.ReplacePlatformReferencesWith(body, "omp", refs)
+	body = pkgcontent.ReplacePlatformReferences(body, "omp")
 	body = normalizeOMPTeamMultiContract(body)
 	body = normalizeOMPExecutionOwnerContract(body)
 	body = dedupeOMPReference(body, ".omp/skills/agent-pipeline/SKILL.md")

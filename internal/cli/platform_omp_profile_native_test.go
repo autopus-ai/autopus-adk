@@ -19,7 +19,6 @@ import (
 // observed metadata. Without this, --agent is unusable on a real installation.
 func TestOMPProfilePlanAcceptsAgentPinOnNativeCatalogWithoutSemanticMetadata(t *testing.T) {
 	root, runner := writeOMPBalancedProject(t)
-	markOMPProjectNative(t, root)
 	runner.catalog = ompCLIProfileNativeCatalogJSON()
 	strict, reason := omp.NormalizeOMPModelCatalog(runner.catalog, 1<<20)
 	require.Equal(t, "catalog_metadata_insufficient", reason)
@@ -34,7 +33,7 @@ func TestOMPProfilePlanAcceptsAgentPinOnNativeCatalogWithoutSemanticMetadata(t *
 
 	assert.Empty(t, payload.Blockers)
 	assert.Empty(t, payload.Writes)
-	row := agentPreviewRow(t, payload, "task")
+	row := agentPreviewRow(t, payload, "executor")
 	assert.Equal(t, "executor", row.PolicyKey)
 	assert.Equal(t, ompProfileSourceAgent, row.Source)
 	assert.Equal(t, "openai-codex/gpt-6-astra", row.EffectiveSelector)
@@ -131,7 +130,7 @@ func TestOMPProfilePlanAttestsPinFromExplicitProfileDeclaration(t *testing.T) {
 	cfg := config.DefaultFullConfig("omp-native-custom")
 	cfg.Platforms = []string{"omp"}
 	cfg.RoleModelPolicy = config.RoleModelPolicyConf{
-		Version: config.RoleModelPolicyVersionV1, Profile: "house", AgentSource: config.OMPAgentSourceNative,
+		Version: config.RoleModelPolicyVersionV1, Profile: "house",
 		Profiles: map[string]config.RoleModelProfileConf{
 			"house": nativeOMPHouseProfile(),
 		},
@@ -145,7 +144,7 @@ func TestOMPProfilePlanAttestsPinFromExplicitProfileDeclaration(t *testing.T) {
 
 	assert.Equal(t, ompProfileSourceCustom, payload.Source)
 	assert.Empty(t, payload.Blockers)
-	row := agentPreviewRow(t, payload, "task")
+	row := agentPreviewRow(t, payload, "validator")
 	assert.Equal(t, "validator", row.PolicyKey)
 	assert.Equal(t, "anthropic/claude-sonnet-5-5", row.EffectiveSelector)
 	assert.Equal(t, "anthropic", row.EffectiveFamily)

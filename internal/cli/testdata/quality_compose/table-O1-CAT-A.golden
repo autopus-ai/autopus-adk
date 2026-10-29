@@ -1,19 +1,19 @@
 그룹       에이전트             등급    Claude Code        Codex            OMP (요청 route · catalog 확인 전)
-설계·판단  planner              fable   fable-5-1 · max    6-astra · max    task · fable-5-1:max
-설계·판단  architect            fable   fable-5-1 · max    6-astra · max    task · fable-5-1:max
-설계·판단  spec-writer          fable   fable-5-1 · max    6-astra · max    task · fable-5-1:max
-설계·판단  security-auditor     fable   fable-5-1 · max    6-astra · max    security-reviewer · fable-5-1:max
-구현       executor             sonnet  sonnet-5-5 · max   6-luna · max     task · fable-5-1:max
-구현       debugger             fable   fable-5-1 · max    6-astra · max    task · fable-5-1:max
-구현       deep-worker          fable   fable-5-1 · max    6-astra · max    task · fable-5-1:max
-구현       devops               sonnet  sonnet-5-5 · max   6-luna · max     task · fable-5-1:max
-구현       frontend-specialist  sonnet  sonnet-5-5 · max   6-luna · max     task · fable-5-1:max
-구현       perf-engineer        sonnet  sonnet-5-5 · max   6-luna · max     task · fable-5-1:max
+설계·판단  planner              fable   fable-5-1 · max    6-astra · max    planner · fable-5-1:max
+설계·판단  architect            fable   fable-5-1 · max    6-astra · max    architect · fable-5-1:max
+설계·판단  spec-writer          fable   fable-5-1 · max    6-astra · max    spec-writer · fable-5-1:max
+설계·판단  security-auditor     fable   fable-5-1 · max    6-astra · max    security-auditor · fable-5-1:max
+구현       executor             sonnet  sonnet-5-5 · max   6-luna · max     executor · sonnet-5-5:max
+구현       debugger             fable   fable-5-1 · max    6-astra · max    debugger · fable-5-1:max
+구현       deep-worker          fable   fable-5-1 · max    6-astra · max    deep-worker · fable-5-1:max
+구현       devops               sonnet  sonnet-5-5 · max   6-luna · max     devops · sonnet-5-5:max
+구현       frontend-specialist  sonnet  sonnet-5-5 · max   6-luna · max     frontend-specialist · sonnet-5-5:max
+구현       perf-engineer        sonnet  sonnet-5-5 · max   6-luna · max     perf-engineer · sonnet-5-5:max
 검증·리뷰  reviewer             fable   fable-5-1 · max    6-astra · max    reviewer · fable-5-1:max
-검증·리뷰  validator            sonnet  sonnet-5-5 · high  6-luna · max     task · fable-5-1:max
-검증·리뷰  tester               sonnet  sonnet-5-5 · max   6-luna · max     task · fable-5-1:max
-검증·리뷰  ux-validator         sonnet  sonnet-5-5 · high  6-luna · max     task · fable-5-1:max
-탐색·보조  explorer             sonnet  sonnet-5-5 · high  6-luna · max     scout · sonnet-5-5:high
-탐색·보조  annotator            sonnet  sonnet-5-5 · high  6-luna · max     task · fable-5-1:max
-탐색·보조  reverse-engineer     opus    opus-5-5 · high    6.1-sol · xhigh  task · fable-5-1:max
+검증·리뷰  validator            sonnet  sonnet-5-5 · high  6-luna · max     validator · sonnet-5-5:high
+검증·리뷰  tester               sonnet  sonnet-5-5 · max   6-luna · max     tester · sonnet-5-5:max
+검증·리뷰  ux-validator         sonnet  sonnet-5-5 · high  6-luna · max     ux-validator · sonnet-5-5:high
+탐색·보조  explorer             sonnet  sonnet-5-5 · high  6-luna · max     explorer · sonnet-5-5:high
+탐색·보조  annotator            sonnet  sonnet-5-5 · high  6-luna · max     annotator · sonnet-5-5:high
+탐색·보조  reverse-engineer     opus    opus-5-5 · high    6.1-sol · xhigh  reverse-engineer · opus-5-5:high
 Codex catalog: 읽음 · 대체 0칸

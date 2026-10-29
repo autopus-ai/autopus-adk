@@ -18,10 +18,12 @@ type ompFallbackProjection struct {
 	Reason   string `json:"reason"`
 }
 
-// ompEffectiveModelProjection is one bundled native OMP agent's model state.
-// Agent is a native OMP name; Role and Capability record the logical role that
+// ompEffectiveModelProjection is one served OMP agent's model state. Agent is
+// the name OMP resolves; Role and Capability record the logical role that
 // supplied the route. ModelSource names the native config key that carries the
-// selection, or "inherit" when OMP's own configuration governs it.
+// selection, or "inherit" when OMP's own configuration governs it. Shadowed is
+// kept in the JSON for compatibility and stays false: a generated definition
+// is the agent, and a user file is reported as autopus_agent_user_file.
 type ompEffectiveModelProjection struct {
 	Agent             string                  `json:"agent"`
 	Role              string                  `json:"role"`
@@ -130,7 +132,7 @@ func defaultOMPPlatformProjection() ompPlatformProjection {
 			Status: "disabled", Reason: "profile_not_selected", CatalogStatus: "not_probed",
 			CatalogReason: "profile_not_selected", ReceiptStatus: "not_applicable",
 			AgentCatalogStatus: "not_evaluated", AgentCatalogReason: "platform_not_evaluated",
-			AgentCatalogSource: ompNativeAgentRegistrySource,
+			AgentCatalogSource: ompAutopusAgentRegistrySource,
 			Models:             []ompEffectiveModelProjection{},
 		},
 		Context: ompContextOperatorProjection{

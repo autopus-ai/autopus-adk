@@ -192,9 +192,7 @@ func TestComposeNavBack_S13TabsGoBackToTheToolTab(t *testing.T) {
 		lines   []string
 		header  string
 	}{
-		{"(a) O3 first form", composeO3Autopus, ompML2, []string{"2\n", "4\n", "b\n", "b\n", "\n"}, "OMP"},
-		{"(b) O3N model form", composeO3, ompCLIBalancedCatalogJSON(), []string{"2\n", "4\n", "4\n", "\n", "5\n", "b\n", "b\n", "\n"}, "OMP"},
-		{"(b2) O3N agent list", composeO3, ompCLIBalancedCatalogJSON(), []string{"2\n", "4\n", "4\n", "\n", "b\n", "b\n", "\n"}, "OMP"},
+		{"(a) O3 first form", composeO3, ompML2, []string{"2\n", "4\n", "b\n", "b\n", "\n"}, "OMP"},
 		{"(c) RV first form", tuiuxReviewRV, []byte(reviewCatalogCATG), []string{"2\n", "5\n", "b\n", "b\n", "\n"}, "멀티프로바이더 리뷰"},
 		{"(d) RV second form", tuiuxReviewRV, []byte(reviewCatalogCATG), []string{"2\n", "5\n", "\n", "b\n", "b\n", "\n"}, "멀티프로바이더 리뷰"},
 	}
@@ -219,16 +217,9 @@ func TestComposeNavBack_S13TabsGoBackToTheToolTab(t *testing.T) {
 	}
 	t.Run("shown-again tool tab selects the tab", func(t *testing.T) {
 		newTUIUXEnv(t, true, "")
-		out, _ := tuiuxOMPRun(t, composeO3Autopus(t), ompML2, "2\n", "4\n", "b\n", "\n", "b\n", "b\n", "\n")
+		out, _ := tuiuxOMPRun(t, composeO3(t), ompML2, "2\n", "4\n", "b\n", "\n", "b\n", "b\n", "\n")
 		assert.Equal(t, 2, strings.Count(out, "quality · 모델 구성 › 구성 편집 › OMP\n"), "Enter on the tool tab opened OMP again")
 	})
-}
-
-// composeO3Autopus is O3 with the autopus agent source, the OMP tab of
-// SPEC-MODELUX-003.
-func composeO3Autopus(t *testing.T) string {
-	t.Helper()
-	return writeComposeFixture(t, "claude-code", "codex", "omp")
 }
 
 // tuiuxReviewRV is RV: R3, whose review tab lists three OMP providers.

@@ -10,7 +10,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -70,7 +69,6 @@ func TestUpdateComposeForms_KeepPathsWriteNothing(t *testing.T) {
 		{"W2 keep", writeComposeW2, []string{"\n"}},
 		{"Codex groups unchanged", composeO3, []string{"2\n", "3\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n"}},
 		{"Codex edit cancelled", composeO3, composeFormLines(composeFormS5, "\n", "\n")},
-		{"OMP without a pin", composeO3, []string{"2\n", "4\n", "4\n", "1\n", "\n", "\n"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -131,26 +129,4 @@ func TestUpdateComposeForms_InterruptAfterAWriteKeepsTheWrite(t *testing.T) {
 	assert.Contains(t, out, "구성을 적용했습니다.\n")
 	assert.NotContains(t, out, "→ Updating")
 	assert.Equal(t, "codex-custom", composeBindLoad(t, dir).Quality.Providers["codex"])
-}
-
-// S8: an OMP write the update cannot read back ends the update with an
-// error before every generation; the file keeps the applied policy.
-func TestUpdateComposeForms_FailedOMPReReadEndsTheUpdate(t *testing.T) {
-	newComposeDetectRun(t, "codex", "omp")
-	useAccessibleComposeForms(t)
-	deps, _ := composeOMPDeps(ompCLIBalancedCatalogJSON())
-	useComposeUpdateOMPDeps(t, deps)
-	original := composeReloadConfig
-	t.Cleanup(func() { composeReloadConfig = original })
-	composeReloadConfig = func(string) (*config.HarnessConfig, error) { return nil, errors.New("disk gone") }
-	dir := writeNativeComposeFixture(t, "claude-code", "codex", "omp")
-
-	out, err := runComposeUpdate(t, reaEnter(formInput(composeUpdateS8...)), "--dir", dir)
-
-	var reload composeReloadError
-	require.ErrorAs(t, err, &reload)
-	assert.Contains(t, out, "OMP 설정은 적용됐지만 다시 읽지 못했습니다: disk gone\n")
-	assert.NotContains(t, out, "→ Updating")
-	assert.False(t, strings.Contains(out, "Update complete"))
-	assert.Equal(t, "balanced", rawRoleModelPolicyOf(t, readBlockFixture(t, dir)).Profile)
 }

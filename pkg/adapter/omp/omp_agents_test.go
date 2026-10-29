@@ -15,7 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 
-	"github.com/insajin/autopus-adk/pkg/adapter"
 	"github.com/insajin/autopus-adk/pkg/config"
 )
 
@@ -181,20 +180,4 @@ func TestOMPUpdate_BacksUpAnEditedGeneratedAgent(t *testing.T) {
 	backup, err := os.ReadFile(backups[0])
 	require.NoError(t, err)
 	assert.Equal(t, edited, backup)
-}
-
-// agent_source: native keeps the v0.50.125 surface, which has no agent files.
-func TestOMPGenerate_NativeSourceWritesNoAgentFiles(t *testing.T) {
-	root := t.TempDir()
-	cfg := configForOMP()
-	cfg.RoleModelPolicy.AgentSource = config.OMPAgentSourceNative
-	require.NoError(t, config.Save(root, cfg))
-	_, err := NewWithRoot(root).Generate(context.Background(), cfg)
-	require.NoError(t, err)
-	assert.NoDirExists(t, filepath.Join(root, ".omp", "agents"))
-	manifest, err := adapter.LoadManifest(root, adapterName)
-	require.NoError(t, err)
-	for path := range manifest.Files {
-		assert.False(t, strings.HasPrefix(filepath.ToSlash(path), ".omp/agents/"), path)
-	}
 }
