@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **`auto qa run`이 프로젝트의 Go 빌드 캐시를 실행 사이에 재사용한다** (2026-10-29): 명령마다 빈 GOCACHE
+  (`.autopus/qa/cache/runs/go-build-*`)를 만들고 끝나면 지웠기 때문에, 매 실행이 testing 패키지와 std 의존성을 처음부터
+  컴파일했다(약 CPU 18초). 코어가 적은 기계에서는 명령 기본 예산 60초를 넘겨 `blocked`가 될 수 있었다. 이제 빌드 캐시는
+  `.autopus/qa/cache/go-build` 하나를 프로젝트 안에서 공유하고 실행이 끝나도 지우지 않는다. go 명령이 동시 사용과 오래된
+  항목 정리를 맡는다. 이전 버전이 남긴 `runs/go-build-*`는 24시간이 지나면 지운다. 같은 fixture를 test 파일만 고쳐 다시
+  실행하면 5.9초에서 0.19초로 줄었다. `go test` 결과 캐시는 go 기본 동작 그대로다.
 - **`role_model_policy.agent_source: native`를 제거한다** (2026-10-27): v0.50.127이 예고하고 v0.50.128까지 남겨 둔
   native 경로(17개 역할을 omp bundled 에이전트 다섯으로 모으는 v0.50.125 surface)를 지운다. 이 key를 그대로 둔
   `autopus.yaml`은 `role_model_policy.agent_source_removed`로 로드에 실패하고, 오류는 key를 지운 뒤 `auto update`를
