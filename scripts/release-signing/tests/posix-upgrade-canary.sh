@@ -78,12 +78,8 @@ assert_public_previous_fixture() {
     assert_contains "$PROJECT/.codex/config.toml" '[features.multi_agent_v2]'
     assert_file "$PROJECT/.omp/skills/auto/SKILL.md"
     assert_file "$PROJECT/.omp/commands/auto.md"
-    # v0.50.118 already reuses OMP's native agents instead of generating
-    # .omp/agents/<role>.md, so the previous public release must not emit one.
-    assert_absent "$PROJECT/.omp/agents/executor.md"
-    assert_absent "$PROJECT/.omp/config.yml"
     assert_file "$PROJECT/.autopus/omp-manifest.json"
-    assert_not_contains "$PROJECT/.autopus/omp-manifest.json" '".omp/config.yml"'
+    assert_previous_omp_surface
     assert_not_contains "$PROJECT/.autopus/omp-manifest.json" '.agents/skills/'
 }
 
@@ -283,7 +279,7 @@ case "$MODE" in
             }
         assert_public_previous_fixture
         printf 'AUTOPUS-UPGRADE-CANARY-USER-SENTINEL\n' > "$PROJECT/user-sentinel.txt"
-        printf 'theme:\n  dark: canary-user\n' > "$PROJECT/.omp/config.yml"
+        write_user_omp_config
         (
             cd "$REPO_ROOT"
             VERSION=$NEW_VERSION sh ./install.sh
