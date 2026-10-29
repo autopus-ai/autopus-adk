@@ -253,11 +253,12 @@ func fixtureGoProject(t *testing.T, passing bool) string {
 // specific parent (an absolute /Users path, /tmp, a symlinked $TMPDIR) instead
 // of always taking t.TempDir().
 //
-// Executing this fixture runs a real `go test` under a fresh, empty GOCACHE,
-// so every run compiles the testing package and its std dependencies from
-// scratch (~18 CPU-seconds). Tests that execute it stay serial: run in
-// parallel on a small CI runner they starve each other past the command's
-// 60s budget and the run reports "blocked" instead of its real status.
+// Executing this fixture runs a real `go test` under the fixture project's own
+// GOCACHE, which starts empty in a new t.TempDir, so every test compiles the
+// testing package and its std dependencies from scratch (~18 CPU-seconds).
+// Tests that execute it stay serial: run in parallel on a small CI runner they
+// starve each other past the command's 60s budget and the run reports
+// "blocked" instead of its real status.
 func writeGoProjectFixture(t *testing.T, dir string, passing bool) {
 	t.Helper()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.test\n\ngo 1.26\n"), 0o644))

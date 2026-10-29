@@ -53,31 +53,25 @@ func managedGoCachePaths(projectDir string) goCachePaths {
 	}
 }
 
+// prepareCommandGoCache returns the project's managed Go caches. The build
+// cache is shared across runs and never removed by a run: the go command keeps
+// GOCACHE safe for concurrent use and trims it itself, while a per-run empty
+// cache recompiles the standard library on every run and can exhaust the
+// command timeout on a cold machine.
 func prepareCommandGoCache(projectDir string) (*commandGoCache, error) {
 	paths := managedGoCachePaths(projectDir)
 	if err := prepareManagedCacheRoot(paths); err != nil {
 		return prepareFallbackCommandGoCache(paths.ProjectDir)
 	}
-	runsRoot := filepath.Join(paths.Root, "runs")
-	if err := os.MkdirAll(runsRoot, 0o755); err != nil {
+	paths.GoBuild = filepath.Join(paths.Root, "go-build")
+	if err := os.MkdirAll(paths.GoBuild, 0o755); err != nil {
 		return prepareFallbackCommandGoCache(paths.ProjectDir)
 	}
-	if err := validateNoSymlinkComponents(paths.ProjectDir, runsRoot); err != nil {
+	if err := validateNoSymlinkComponents(paths.ProjectDir, paths.GoBuild); err != nil {
 		return prepareFallbackCommandGoCache(paths.ProjectDir)
 	}
-	cleanupStaleCommandGoCaches(runsRoot, time.Now())
-	goBuild, err := os.MkdirTemp(runsRoot, "go-build-")
-	if err != nil {
-		return prepareFallbackCommandGoCache(paths.ProjectDir)
-	}
-	paths.GoBuild = goBuild
-	return &commandGoCache{
-		Paths: paths,
-		cleanup: func() {
-			_ = os.RemoveAll(goBuild)
-			_ = os.Remove(runsRoot)
-		},
-	}, nil
+	removeLegacyRunGoCaches(filepath.Join(paths.Root, "runs"), time.Now())
+	return &commandGoCache{Paths: paths}, nil
 }
 
 func prepareManagedCacheRoot(paths goCachePaths) error {
@@ -145,6 +139,18 @@ func validateNoSymlinkComponents(base, target string) error {
 		}
 	}
 	return nil
+}
+
+// removeLegacyRunGoCaches removes the per-run build caches that earlier
+// releases created under runsRoot. A cache younger than
+// staleCommandGoCacheAge may still belong to a run of an older binary, so it
+// is left for a later pass.
+func removeLegacyRunGoCaches(runsRoot string, now time.Time) {
+	if err := validateNoSymlinkComponents(filepath.Dir(runsRoot), runsRoot); err != nil {
+		return
+	}
+	cleanupStaleCommandGoCaches(runsRoot, now)
+	_ = os.Remove(runsRoot)
 }
 
 func cleanupStaleCommandGoCaches(runsRoot string, now time.Time) {

@@ -11,25 +11,39 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCommandGoCacheIsUniqueAndCleanupPreservesModules(t *testing.T) {
+func TestCommandGoCacheIsSharedAcrossRunsAndSurvivesCleanup(t *testing.T) {
 	projectDir := t.TempDir()
 	first, err := prepareCommandGoCache(projectDir)
 	require.NoError(t, err)
 	second, err := prepareCommandGoCache(projectDir)
 	require.NoError(t, err)
-	t.Cleanup(first.Cleanup)
-	t.Cleanup(second.Cleanup)
 
-	require.NotEqual(t, first.Paths.GoBuild, second.Paths.GoBuild)
+	require.Equal(t, first.Paths.GoBuild, second.Paths.GoBuild)
+	assert.Equal(t, filepath.Join(first.Paths.Root, "go-build"), first.Paths.GoBuild)
+	buildSentinel := filepath.Join(first.Paths.GoBuild, "keep")
 	moduleSentinel := filepath.Join(first.Paths.GoMod, "keep")
-	secondSentinel := filepath.Join(second.Paths.GoBuild, "keep")
+	require.NoError(t, os.WriteFile(buildSentinel, []byte("warm"), 0o644))
 	require.NoError(t, os.WriteFile(moduleSentinel, []byte("module"), 0o644))
-	require.NoError(t, os.WriteFile(secondSentinel, []byte("active"), 0o644))
 
 	first.Cleanup()
-	assert.NoDirExists(t, first.Paths.GoBuild)
+	second.Cleanup()
+	assert.FileExists(t, buildSentinel)
 	assert.FileExists(t, moduleSentinel)
-	assert.FileExists(t, secondSentinel)
+}
+
+func TestCommandGoCacheRemovesStaleLegacyRunCaches(t *testing.T) {
+	projectDir := t.TempDir()
+	runsRoot := filepath.Join(managedGoCachePaths(projectDir).Root, "runs")
+	stale := filepath.Join(runsRoot, "go-build-stale")
+	require.NoError(t, os.MkdirAll(stale, 0o755))
+	old := time.Now().Add(-staleCommandGoCacheAge - time.Hour)
+	require.NoError(t, os.Chtimes(stale, old, old))
+
+	cache, err := prepareCommandGoCache(projectDir)
+	require.NoError(t, err)
+	t.Cleanup(cache.Cleanup)
+	assert.NoDirExists(t, stale)
+	assert.NoDirExists(t, runsRoot)
 }
 
 func TestCommandGoCacheFallsBackWithoutFollowingManagedSymlink(t *testing.T) {
