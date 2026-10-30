@@ -19,7 +19,7 @@ func writeAgentSourceConfig(t *testing.T, policy string) string {
 
 // agentSourceRemovedError is the whole load error for agent_source: native,
 // written out so the test is the specification of what the operator reads.
-const agentSourceRemovedError = `role_model_policy.agent_source_removed: "native" was removed in v0.50.129; ` +
+const agentSourceRemovedError = `role_model_policy.agent_source_removed: "native" was removed in v0.50.130; ` +
 	`delete role_model_policy.agent_source from autopus.yaml, then run auto update to restore the Autopus agent surface`
 
 // S6: agent_source is checked where it is declared. Absent and autopus both
@@ -43,7 +43,7 @@ func TestLoad_AgentSourceAcceptsAbsentAndAutopus(t *testing.T) {
 	assert.Contains(t, err.Error(), `role_model_policy.agent_source_invalid: "nativ"`)
 }
 
-// v0.50.129 removed agent_source: native. A config that still declares it
+// v0.50.130 removed agent_source: native. A config that still declares it
 // fails to load, with or without a profile and in preview too, instead of
 // being served the autopus surface without a word; the error names the
 // release, the key to delete, and auto update as the way back.
@@ -124,7 +124,7 @@ func TestOMPAutopusAgentNames_AreTheCanonicalAgentsAndTask(t *testing.T) {
 }
 
 // OPX: two task-collapsing pins that disagree and no planner pin. Before
-// v0.50.129 native mode had one task slot and refused it; every agent is now
+// v0.50.130 native mode had one task slot and refused it; every agent is now
 // routed under its own name, so the policy loads.
 func opxPolicy(source string) RoleModelPolicyConf {
 	return RoleModelPolicyConf{

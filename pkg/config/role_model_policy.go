@@ -28,7 +28,7 @@ type RoleModelPolicyConf struct {
 	Agents     map[string]RoleAgentOverrideConf `yaml:"agents,omitempty"`
 	Profiles   map[string]RoleModelProfileConf  `yaml:"profiles,omitempty"`
 	// AgentSource names the OMP agent registry (omp_agent_source.go): absent
-	// or autopus, since native was removed in v0.50.129. It is not routing,
+	// or autopus, since native was removed in v0.50.130. It is not routing,
 	// so it never makes the policy count as configured.
 	AgentSource string `yaml:"agent_source,omitempty"`
 }

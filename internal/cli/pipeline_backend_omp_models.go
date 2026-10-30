@@ -87,7 +87,7 @@ func loadPipelineOMPPhaseModelsWithAuthority(
 	// Each phase runs on the agent of its own role. A phase whose agent the
 	// receipt omits fails closed instead of inheriting an unrelated selector,
 	// which is also what a receipt written for the bundled agents before
-	// v0.50.129 gets until auto update rewrites it.
+	// v0.50.130 gets until auto update rewrites it.
 	for role, phase := range ompPipelinePhaseRoles {
 		selector, resolved := selectors[role]
 		if !resolved && pinsOnly {

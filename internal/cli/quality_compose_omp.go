@@ -59,7 +59,7 @@ func (f *composeFormRun) noteDetectedOMP() {
 
 // omp runs the OMP tab: the OMP Autopus Tab Contract of SPEC-MODELUX-003,
 // which asks no profile or family. The MODELUX-002 profile tab served the
-// bundled agents of agent_source: native, which v0.50.129 removed.
+// bundled agents of agent_source: native, which v0.50.130 removed.
 func (f *composeFormRun) omp() error {
 	return f.ompAutopus()
 }

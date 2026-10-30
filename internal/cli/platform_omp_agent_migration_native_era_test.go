@@ -1,6 +1,6 @@
 package cli
 
-// SPEC-MODELUX-003 S12 and S13 after v0.50.129 removed agent_source: native.
+// SPEC-MODELUX-003 S12 and S13 after v0.50.130 removed agent_source: native.
 // A project last updated under native holds what one generated before
 // v0.50.127 holds: no recorded agent definition and no claim. The next update
 // migrates it, the removed key fails the update with the way back, and

@@ -3,7 +3,7 @@ package config
 import "fmt"
 
 // The bundled OMP registry outlives agent_source: native, which served it
-// until v0.50.129: a role_model_policy written for it keys pins by the
+// until v0.50.130: a role_model_policy written for it keys pins by the
 // bundled names, the Route Contract's rule (2) routes a canonical agent on
 // the pin of the bundled agent it collapsed onto, and task borrows the
 // planner row.

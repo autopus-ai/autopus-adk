@@ -107,7 +107,7 @@ func claimDisabledAgents(t *testing.T, data string) []any {
 }
 
 // release gives back every claim the project config holds. Since
-// agent_source: native was removed in v0.50.129, clean is the one release:
+// agent_source: native was removed in v0.50.130, clean is the one release:
 // it restores the preimage a claim started from, as native generation did.
 func (p *claimProject) release() {
 	p.t.Helper()
