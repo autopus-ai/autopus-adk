@@ -6,7 +6,7 @@ import "fmt"
 // Autopus agents as generated .omp/agents files, and every bundled agent but
 // task is disabled. agent_source: native restored the v0.50.125 surface, where
 // every role collapsed onto the five bundled agents, and was removed in
-// v0.50.129. A config that still declares it fails to load with
+// v0.50.130. A config that still declares it fails to load with
 // agent_source_removed instead of being served the autopus surface without a
 // word; an explicit agent_source: autopus stays valid.
 const (
@@ -63,7 +63,7 @@ func validateOMPAgentSource(declared string) error {
 	case "", OMPAgentSourceAutopus:
 		return nil
 	case ompAgentSourceRemovedNative:
-		return fmt.Errorf("role_model_policy.agent_source_removed: %q was removed in v0.50.129; "+
+		return fmt.Errorf("role_model_policy.agent_source_removed: %q was removed in v0.50.130; "+
 			"delete role_model_policy.agent_source from autopus.yaml, then run auto update "+
 			"to restore the Autopus agent surface", declared)
 	}

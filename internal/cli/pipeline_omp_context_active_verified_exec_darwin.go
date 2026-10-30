@@ -93,7 +93,7 @@ func newPipelineOMPVerifiedDarwinCommand(
 		cmd = exec.Command(path, args...)
 	}
 	return &pipelineOMPVerifiedExecCommand{
-		cmd: cmd, parentFD: file, expected: expected, gateContext: ctx,
+		cmd: cmd, parentFD: file, expected: expected, gateContext: ctx, traceUntilExit: boundContext,
 	}, nil
 }
 
@@ -151,7 +151,15 @@ func (command *pipelineOMPVerifiedExecCommand) Start() error {
 	); err != nil {
 		return command.failDarwinGate(errors.New("verify managed active OMP live image"), err)
 	}
-	if err := syscall.PtraceDetach(command.cmd.Process.Pid); err != nil {
+	if command.traceUntilExit {
+		// A bounded probe exits on its own, so it stays traced: no detach, which
+		// newer kernels can leave stuck (see releasePipelineOMPDarwinTrace).
+		if err := continuePipelineOMPDarwinTrace(command.cmd.Process.Pid); err != nil {
+			return command.failDarwinGate(errors.New("continue verified managed active OMP trace"), err)
+		}
+		return nil
+	}
+	if err := releasePipelineOMPDarwinTrace(gateCtx, command.cmd.Process.Pid); err != nil {
 		return command.failDarwinGate(errors.New("detach verified managed active OMP trace"), err)
 	}
 	return nil
@@ -242,11 +250,7 @@ func killPipelineOMPDarwinTrace(cmd *exec.Cmd) error {
 }
 
 func continuePipelineOMPDarwinTrace(pid int) error {
-	_, _, errno := syscall.Syscall6(syscall.SYS_PTRACE, syscall.PT_CONTINUE, uintptr(pid), 1, 0, 0, 0)
-	if errno != 0 {
-		return errno
-	}
-	return nil
+	return continuePipelineOMPDarwinTraceWithSignal(pid, 0)
 }
 
 func verifyPipelineOMPDarwinLiveExecutable(

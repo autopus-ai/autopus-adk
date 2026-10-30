@@ -84,7 +84,7 @@ func TestPinsOnlyPolicy_ManagesTheBuiltinKeysInProjectManagedMode(t *testing.T) 
 }
 
 func TestPinsOnlyPolicy_LoadRules(t *testing.T) {
-	// Before v0.50.129 native mode refused agents without a profile; the
+	// Before v0.50.130 native mode refused agents without a profile; the
 	// removed key now fails first, with the way back.
 	native := pinsOnlyPolicy(map[string]RoleModelCandidateConf{"planner": pinOpus})
 	native.AgentSource = "native"

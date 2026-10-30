@@ -294,7 +294,12 @@ var shippedReleasePhases = []releasePhase{
 	{
 		// A38 follows A37 under the same autopus-ai owner; the predecessor pins
 		// are measured from immutable release 427217669.
-		phase: "A38", tag: "v0.50.129", version: "0.50.129",
+		// v0.50.129 is absent on purpose. It was armed as A38, tagged, and
+		// pushed, but its final signed companion execution smoke failed on the
+		// macOS 15.8.2 hosted image, so no asset was published and the
+		// coordinate was burned. A burned coordinate never enters this table,
+		// like v0.50.124 and v0.50.126 before it. A38 is v0.50.130.
+		phase: "A38", tag: "v0.50.130", version: "0.50.130",
 		acceptedField: "source-tree",
 		rejects:       "unsignedTag",
 		ancestorSHA:   "842f8bf286aa4c26554cc0d29f3c79c412069a0b",

@@ -1,6 +1,8 @@
 # Release v0.50.129 (A38)
 
-Status: coordinate moved, not yet published. A37 is `v0.50.128`, published on
+Status: **burned 2026-10-30, never published.** A38 moved to `v0.50.130`; see
+[Burned on 2026-10-30](#burned-on-2026-10-30) and
+[release-v0.50.130.md](release-v0.50.130.md). A37 is `v0.50.128`, published on
 2026-10-29 as immutable release `427217669` (Latest); see
 [release-v0.50.128.md](release-v0.50.128.md).
 
@@ -111,3 +113,58 @@ sudo -v && scripts/release-tools/release-prep.sh --apply
   generated surface (OpenCode conditional rules, the security audit section,
   the removed `agent_source` native path), so a canary failure on the
   *previous* surface expectations is a canary fix, not a release fault.
+
+## Burned on 2026-10-30
+
+`v0.50.129` was armed as A38 and applied, and nothing was published. The
+coordinate is burned and carried to `v0.50.130`
+([release-v0.50.130.md](release-v0.50.130.md)). The objects below are
+immutable history: do not move, delete, or reuse any of them.
+
+| Object | Value |
+|---|---|
+| Release tag `v0.50.129` | tag object `c9fb24309f43d5912da0e5f86a62d20b102c5ee8` -> commit `fd7009109c5915bdf0e6dfab8b37a502ef764f4d`, tree `46c6d8b3fa42ec29463125ba78f740016d979f7e` |
+| Evidence tag `omp-context-evidence-v0.50.129` | tag object `7eca49082b781c29efdae434dde54345b9e73eff` -> commit `d86e8ff620160778827cb7a48d5d310465ea7934` |
+| Draft release | `428858942`, zero assets, never published; Latest stays `427217669` (`v0.50.128`) |
+| Ruleset `autopus-v0.50.129-release-authority` | `26187534` |
+| Deployment tag policy `v0.50.129` | `64879249` |
+| Release run | `41035414211` |
+
+`release-prep.sh --apply` reconciled at about 09:42Z. Every CI, security, and
+`omp-production-evidence` job of run `41035414211` passed, and the protected
+`release` job was approved. Attempt 1 (10:16Z) and attempt 2 (10:47Z, a
+`--failed` rerun) both failed in `Run GoReleaser` at the darwin/arm64 post
+hook:
+
+```
+companion release execution smoke: verified OMP smoke command failed: exit status 255
+(stderr: "Error: workflow context-runtime verified-exec-smoke: authority-free OMP
+version probe failed: managed active OMP version probe failed signal: trace/BPT trap ")
+companion release: final signed companion execution smoke failed
+```
+
+Both attempts ran on the hosted image `macos-15-arm64/20261028.0489`, which is
+macOS 15.8.2 (24H232). The `v0.50.128` release job ran on
+`macos-15-arm64/20260907.0337` (macOS 15.7.9).
+
+### Cause
+
+The Darwin verified-exec gate starts `sandbox-exec` under `PT_TRACE_ME`,
+checks the live image at each exec `SIGTRAP` stop, and releases the child with
+`PT_DETACH`. On macOS 15.8.2 and 26.6.2 that detach redelivers the exec stop's
+pending `SIGTRAP` to the now-untraced child, which dies of it. The OMP binary
+is not involved: `/bin/echo` dies the same way.
+
+A standalone replica of the gate, run on the probe branch
+`probe/macos158-ptrace`:
+
+| Run | Image | Plain exec | Exec gate with `PT_DETACH` |
+|---|---|---|---|
+| `41044538480` | macOS 15.7.9 (5 runners) | pass | pass |
+| `41044538480` | macOS 15.8.2 (1 runner) | pass | `signal: trace/BPT trap` for `omp` and `/bin/echo`, as the runner user and as `nobody` |
+| `41130737478` | `macos-26-arm64/20261026.0455`, macOS 26.6.2 (3 runners) | pass | `signal: trace/BPT trap` |
+| local | macOS 26.5.2 | pass | pass |
+
+A rerun cannot help once the pool serves 15.8.2, and moving the job to
+`macos-26` does not help either. The tag pins source `fd700910`, so the fix
+needs a new source commit and therefore a new coordinate.

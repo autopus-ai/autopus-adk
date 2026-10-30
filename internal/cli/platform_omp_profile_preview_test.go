@@ -93,7 +93,7 @@ func TestOMPProfilePlanPreviewsEveryServedAgentWithoutWrites(t *testing.T) {
 }
 
 // Each role keeps its own rung: the roles that represented a bundled agent
-// before v0.50.129 land where that agent did, and task keeps the planning
+// before v0.50.130 land where that agent did, and task keeps the planning
 // model it borrows.
 func TestOMPProfilePlanKeepsEachRolesRung(t *testing.T) {
 	root, runner := writeOMPBalancedProject(t)
@@ -200,7 +200,7 @@ func TestOMPProfilePlanRejectsUnavailableChoiceInJSONWithoutFakeSuccess(t *testi
 }
 
 // A root pin on one logical role wins over the built-in default for the agent
-// it names, and the row reports which key to edit. Before v0.50.129 native
+// it names, and the row reports which key to edit. Before v0.50.130 native
 // mode also moved task and sonic with it; task now follows planner.
 func TestOMPProfilePlanReportsAgentOverrideSourceForRootPin(t *testing.T) {
 	root, runner := writeOMPBalancedProject(t)

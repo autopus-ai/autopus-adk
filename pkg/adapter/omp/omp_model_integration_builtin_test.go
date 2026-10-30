@@ -242,7 +242,7 @@ func prepareBuiltinIntegrationForFamily(t *testing.T, preset, family string) *om
 }
 
 // assertBuiltinSelectors checks the agents that represented a bundled agent
-// before v0.50.129, each now on its own row.
+// before v0.50.130, each now on its own row.
 func assertBuiltinSelectors(t *testing.T, projection OMPModelProjection, want map[string]string) {
 	t.Helper()
 	selectors := builtinSelectorsByAgent(projection)
