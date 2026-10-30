@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **보안 감사에 자율 공격 대비 점검을 더한다** (2026-10-30): `security-audit` 스킬의 OWASP Top 10 점검은 사람이
+  한 번씩 시도하는 공격을 기준으로 해서, 자율 AI 에이전트가 요청을 기계 속도로 대량 반복할 때 드러나는 약점을 따로
+  묻지 않았다. 이제 스킬에 "자율 공격 대비 점검" 절이 있고, `security-auditor` 감사 범위와 출력이 이를 따른다.
+  - 점검 항목: 인증 경로 일관성, 자격 증명 스터핑(IP 외 계정·디바이스 단위 레이트 리밋, 유출 비밀번호 대조), 노출면과
+    알려진 취약점(CISA KEV 우선), 오류·응답으로 새는 정보(계정 존재 추론 포함), 대량 열거와 객체 접근.
+  - 서비스에 LLM·에이전트 기능이 있을 때만 프롬프트 인젝션, 도구 권한, 모델 출력 이스케이프, 설정 속 자격 증명을 본다.
+  - 로그 보존·탐지·미끼 자격 증명·자동 차단은 코드로 판정할 수 없으므로 발견 사항이 아니라 "운영 설계 질문"으로 낸다.
+  - 이 절은 OWASP Top 10 점검에 더하는 것이다. 발견 수를 제한할 때도 이 절의 항목 때문에 OWASP 점검의 발견을 빼지 않는다.
+  - 근거는 OWASP ASVS 5.0.0 요구사항 ID와 MITRE ATLAS v2026.10 항목 ID로 적었다. 항목 선정은 공개된 자율 공격
+    방어 가이드를 참고했지만 문장은 새로 썼다. Claude Code·Codex·Gemini 사본에 같은 내용이 들어간다.
+
 - **OpenCode 2.x가 shell로 발동하는 규칙을 조건에 맞을 때만 싣는다** (2026-10-29): `lore-commit`·`shell-portability`·
   `worktree-safety`는 Claude Code에서 `condition`에 맞는 shell 명령이 올 때만 dispatcher가 붙이지만, OpenCode에서는
   `opencode.json` `instructions`에 들어 매 세션 약 7KB를 늘 실었다. 이제 V2에서는 세 규칙을 instructions에서 빼고, 생성

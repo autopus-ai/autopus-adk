@@ -2,9 +2,9 @@
 .agents/plugins/
 .agents/plugins/marketplace.json 7bac9f0f7c15eecf46023308f334e2122d112d03aa7b498f9e01adabd48ac03c
 .autopus/
-.autopus/claude-code-manifest.json e3b8a5968b38edbffe9ae4459a8bb44e5f56706370d076043e3e7abb1805028c
+.autopus/claude-code-manifest.json 288173483832dcf6a9612cc49f9c14b38c06163685612d301202258e8dcccca2
 .autopus/claude-code-permissions.json b9fd4dd0824fb98d4ff3403c011a56b0b66f398788f2dfb24220c1aed87df4e8
-.autopus/codex-manifest.json ce808ccf48d6daca5d5fb802eef1594c877472f07a821b82f8dfa8f673c4e242
+.autopus/codex-manifest.json 58b1b7bb8e1c5a16f7f2b66b34eaaa0d6dfcd8874a9fb7d570e3f183eb6e98e0
 .autopus/context/
 .autopus/context/constraints.yaml d8b3a0714389a30b7aca1986fbb71235900e14c9dddfe50fdbbb758698d0b26e
 .autopus/plugins/
@@ -16,9 +16,9 @@
 .autopus/plugins/auto/skills/auto/SKILL.md 5404914d8ab7f5a0e4560439b365b85e60813e14304d4565dd8893830b165595
 .autopus/txns/
 .autopus/txns/<TX>-claude-code/
-.autopus/txns/<TX>-claude-code/journal.json 3333753586a23d91005b1c9a7e990336ef6404ce5bddde09fa66796277675ee5
+.autopus/txns/<TX>-claude-code/journal.json e96902dc346ace457b430f356211f56e7b2e53eccb4aa9d349668212dbadc8e8
 .autopus/txns/<TX>-codex/
-.autopus/txns/<TX>-codex/journal.json f99854c8c2803c7486a022c7490ee0aff569e4e49d91cd0cdb630f8c7e10f746
+.autopus/txns/<TX>-codex/journal.json 2f68cd8e67e8beadfb49c8828df9f6bdc116552d808e305bc5d022ca20f0fb76
 .claude/
 .claude/agents/
 .claude/agents/autopus/
@@ -34,7 +34,7 @@
 .claude/agents/autopus/planner.md 6de1b7f2915543237d5b6e183a5dc23d65a5ae9e8654524b894a819fc11c13e7
 .claude/agents/autopus/reverse-engineer.md 676d298334250c1cea04706ffaa535b404aea2425cc8528b3d05919ded0667d4
 .claude/agents/autopus/reviewer.md f10dd23fb8d7b21cd4deaddf094629ecb62cba2761601f3e9f443c10fda50670
-.claude/agents/autopus/security-auditor.md 7ba138c17383b951e2dffb59e8d1b87598fa30b947a7d5de2ba943f8bae2341e
+.claude/agents/autopus/security-auditor.md 479191eaae771bed690e784baeaf659f0f9a5387c7b6a35c564b8df37dc76913
 .claude/agents/autopus/spec-writer.md 82f8cec61f41acbbd4edae7e9249251d0aa8bc5c43badbfa4b8ad02aa288976f
 .claude/agents/autopus/tester.md ee9917d9588f899b6a3df0cb021411f6c982081658fe5cf12f0271cf61f94214
 .claude/agents/autopus/ux-validator.md bdc07c0f214b90454c8a6155177f1bf9b2de34ac0443e31aa643a43d6924530e
@@ -143,7 +143,7 @@
 .claude/skills/review/
 .claude/skills/review/SKILL.md 5732e00d7aae91b5cf8c9626c1e93e90b471d5a2ded1946d95798cd1ca841990
 .claude/skills/security-audit/
-.claude/skills/security-audit/SKILL.md ee79febb2e5217ee4c9592733eaa0f7da84d903abcdce4ed415cd37832336e1e
+.claude/skills/security-audit/SKILL.md f9dee950a966f053d8e2efa990a848e7c95166beb25c3055a9e8532140a10f7e
 .claude/skills/spec-review/
 .claude/skills/spec-review/SKILL.md 3968abdd29fa16b1a59011d0d544eabb196f36de7ea3e0a81056c5bf8803cf68
 .claude/skills/tdd/
@@ -176,7 +176,7 @@
 .codex/agents/planner.toml feebe0006680cad174f006beedcdc15fe54a51fc783b4fae94a72b91c4f5f6ae
 .codex/agents/reverse-engineer.toml 5c07e810bc996f2f5eb584ca7b786c87e44579bed62f52b1f796827270d19a51
 .codex/agents/reviewer.toml cd90f94c38c7d821bfe43dea1295758b3287bddfb9b268cf1b94de739e2d4d50
-.codex/agents/security-auditor.toml b1414a67e6fa6b7f7c5c8428744cddc80a25c5a8ec17ed89ee48b5df4bd579cd
+.codex/agents/security-auditor.toml 9d119ea092b7d048ea695414d7910c8169ab665b1ecb895e5be003f0a68dad82
 .codex/agents/spec-writer.toml 6f7eb2ab0e8fe441ed28dc5e82918f65cb08f747a7fe7c3c8f89f0c9e19df6ae
 .codex/agents/tester.toml 36e0b2516db29afcd0a986f4f458bc1b7fdd4d9c4446dc7a4d4202d7af44df0d
 .codex/agents/ux-validator.toml f0cc33a5bd218462eab5bf69806a95aea376d07744ee53e683a8b2f155be39cb
@@ -258,7 +258,7 @@
 .codex/skills/codex-review/
 .codex/skills/codex-review/SKILL.md 405843d8741565e7ebb377dea695ab27090ccb88256eb7053a4ce52b4084be1f
 .codex/skills/codex-security-audit/
-.codex/skills/codex-security-audit/SKILL.md dfed438c914a6b3e649076b0026912f3ba4ebd03f3e77c0caa92d7e67288937d
+.codex/skills/codex-security-audit/SKILL.md cdc1082922051165299c55463fdeb9a70c661a91492f0d398a47d49eae770014
 .codex/skills/codex-spec-review/
 .codex/skills/codex-spec-review/SKILL.md 14523a3ed247daa37e1dc450352dfe4849dd6da7bac9af4e1b5bfd8360480ddd
 .codex/skills/codex-tdd/
