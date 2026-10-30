@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
     알려진 취약점(CISA KEV 우선), 오류·응답으로 새는 정보(계정 존재 추론 포함), 대량 열거와 객체 접근.
   - 서비스에 LLM·에이전트 기능이 있을 때만 프롬프트 인젝션, 도구 권한, 모델 출력 이스케이프, 설정 속 자격 증명을 본다.
   - 로그 보존·탐지·미끼 자격 증명·자동 차단은 코드로 판정할 수 없으므로 발견 사항이 아니라 "운영 설계 질문"으로 낸다.
+  - 이 절은 OWASP Top 10 점검에 더하는 것이다. 발견 수를 제한할 때도 이 절의 항목 때문에 OWASP 점검의 발견을 빼지 않는다.
   - 근거는 OWASP ASVS 5.0.0 요구사항 ID와 MITRE ATLAS v2026.10 항목 ID로 적었다. 항목 선정은 공개된 자율 공격
     방어 가이드를 참고했지만 문장은 새로 썼다. Claude Code·Codex·Gemini 사본에 같은 내용이 들어간다.
 
