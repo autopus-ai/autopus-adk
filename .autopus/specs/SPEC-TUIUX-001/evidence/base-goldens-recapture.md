@@ -137,3 +137,10 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 기록: 6절과 같은 방법이다(이 branch tip에서 writer, stdout golden 되돌림).
 - 차이: `.claude/agents/autopus/reviewer.md`, `.claude/skills/auto-go`·`review`, `.codex/agents/reviewer.toml`, `.codex/skills/codex-auto-go`·`codex-auto-review`·`codex-review`의 checksum, 두 manifest의 그 entry, 두 journal의 `after_checksum`, update 흐름의 backup 사본. 다른 경로는 바뀌지 않았다.
 - 검증: 두 test가 이 golden으로 통과한다.
+
+## 11. 자율 공격 대비 점검 재기록 (feat/security-audit-autonomous-lens, 2026-10-30)
+
+- 원인: `security-audit` 스킬에 "자율 공격 대비 점검" 절을, `security-auditor` agent에 감사 범위와 "운영 설계 질문" 출력을 더했다.
+- 기록: 6절과 같은 방법이다(이 branch tip에서 writer, stdout golden 되돌림).
+- 차이: `.claude/agents/autopus/security-auditor.md`, `.claude/skills/security-audit`, `.codex/agents/security-auditor.toml`, `.codex/skills/codex-security-audit`의 checksum, 두 manifest의 그 entry, 두 journal의 `after_checksum`, update 흐름의 backup 사본. 다른 경로는 바뀌지 않았다.
+- 검증: 두 test가 이 golden으로 통과한다.

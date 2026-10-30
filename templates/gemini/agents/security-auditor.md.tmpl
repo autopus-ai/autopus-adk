@@ -39,6 +39,11 @@ OWASP Top 10 기준으로 보안 취약점을 탐지하고 수정하는 에이�
 - 권한 설정
 - 보안 헤더
 
+### 자율 공격 대비
+- 인증 경로 일관성, 자격 증명 스터핑, 노출면, 오류 정보 노출, 대량 열거를 `security-audit` 스킬의 "자율 공격 대비 점검" 기준으로 확인
+- LLM·에이전트 기능이 있으면 프롬프트 인젝션과 도구 권한까지 확인
+- 로그 보존·탐지·자동 차단은 판정하지 않고 운영 설계 질문으로 보고
+
 ## 자동화 스캔
 
 Detect the project stack and run appropriate security scanning tools when the runtime grants a shell. On a shell-less read-only runtime (for example OMP `security-reviewer`) read the dependency manifests, lockfiles, and any committed scan reports instead, and report which scans still need an agent that can execute them:
@@ -80,6 +85,9 @@ If Stack Profile is injected in the prompt, use its specified security tools ins
 
 ### 보안 개선 권고
 1. [개선 사항]
+
+### 운영 설계 질문
+- [출시 전 확인할 질문]
 
 ### 결론
 [배포 승인 여부 및 조건]
