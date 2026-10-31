@@ -156,7 +156,7 @@ THE SYSTEM SHALL record the identity of each root and candidate at scan time, SH
 **REQ-DISK-TRIM-06**
 Priority: Must
 Type: Unwanted
-IF a root (cache or work dir) does not exist, THEN THE SYSTEM SHALL report that consumer unavailable, evaluate the other root, and exit 0 for a dry run; IF a root exists but resolves to `/`, the user's home directory, or the project directory, is a relative path, is not owned by the current uid, or (for the cache root) lacks the `README` marker, THEN THE SYSTEM SHALL delete nothing from either root, print `disk trim: refused: <root> is not an acceptable <cache|work dir> root (<reason>)`, and exit 1.
+IF a root (cache or work dir) does not exist, THEN THE SYSTEM SHALL report that consumer unavailable, evaluate the other root, and exit 0 for a dry run; IF a root exists but resolves to `/`, the user's home directory, or the project directory, is a relative path, is not owned by the current uid (a sticky work dir root excepted, REQ-DISK-TRIM-10), or (for the cache root) lacks the `README` marker, THEN THE SYSTEM SHALL delete nothing from either root, print `disk trim: refused: <root> is not an acceptable <cache|work dir> root (<reason>)`, and exit 1.
 
 **REQ-DISK-TRIM-07**
 Priority: Must
@@ -176,7 +176,7 @@ THE SYSTEM SHALL emit for every run (dry run, apply, inactive, refused) a JSON `
 **REQ-DISK-TRIM-10**
 Priority: Must
 Type: Ubiquitous
-THE SYSTEM SHALL require each root and each candidate to be owned by the current uid, SHALL skip a candidate owned by another uid as `skipped_owner` without deleting anything under it, and SHALL treat a root owned by another uid as refused under REQ-DISK-TRIM-06.
+THE SYSTEM SHALL require each root and each candidate to be owned by the current uid, except that a work dir root owned by another uid is accepted when it is a directory with the sticky bit set (the shared `/tmp` of Linux, used when `$GOTMPDIR` and `$TMPDIR` are unset), SHALL skip a candidate owned by another uid as `skipped_owner` without deleting anything under it, and SHALL treat any other root owned by another uid as refused under REQ-DISK-TRIM-06.
 
 ### Worktrees
 
