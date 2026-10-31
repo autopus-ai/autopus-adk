@@ -272,3 +272,29 @@ func TestDiskTrim_StickyWorkDirRootOfAnotherUID(t *testing.T) {
 	assert.Equal(t, "disk trim: refused: "+f.work+" is not an acceptable work dir root (not owned by uid "+strconv.Itoa(uid)+")\n", refused.stderr)
 	assert.Empty(t, refused.stdout)
 }
+
+// REQ-DISK-TRIM-06/10: a work dir root another uid owns without the sticky
+// bit refuses the whole run, so the cache root, though acceptable and full
+// of candidates, loses nothing either. /usr, root-owned and not sticky on
+// darwin and linux, serves as that root and is only listed.
+func TestDiskTrim_NonStickyForeignWorkDirRootRefusesBothRoots(t *testing.T) {
+	info, err := os.Lstat("/usr")
+	if err != nil || !info.IsDir() || info.Mode()&os.ModeSticky != 0 || os.Getuid() <= 0 {
+		t.Skip("needs a root-owned, non-sticky /usr and a non-root uid")
+	}
+	f := newDiskS5(t, true)
+	withDiskSeams(t, f)
+	withDiskFree(t, gib(100), diskDataMount)
+	t.Setenv("GOTMPDIR", "/usr")
+	project := writeDiskProject(t, "")
+	before := diskTree(t, f.cache)
+	want := "disk trim: refused: /usr is not an acceptable work dir root (not owned by uid " + strconv.Itoa(os.Getuid()) + ")\n"
+
+	for _, args := range [][]string{{"--ci", "idle"}, {"--ci", "idle", "--apply"}} {
+		run := runDiskCLI(t, append([]string{"disk", "trim", "--dir", project}, args...)...)
+		assert.Equal(t, 1, run.code, args)
+		assert.Equal(t, want, run.stderr, args)
+		assert.Empty(t, run.stdout, args)
+	}
+	assert.Equal(t, before, diskTree(t, f.cache))
+}
