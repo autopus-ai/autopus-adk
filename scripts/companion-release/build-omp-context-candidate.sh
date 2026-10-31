@@ -6,8 +6,8 @@ fail() { printf 'OMP context candidate build: %s\n' "$1" >&2; exit 1; }
 
 [[ $# == 1 ]] || fail 'usage: build-omp-context-candidate.sh OUTPUT'
 readonly output=$1
-readonly expected_tag='v0.50.130'
-readonly expected_version='0.50.130'
+readonly expected_tag='v0.50.131'
+readonly expected_version='0.50.131'
 readonly expected_go_toolchain='go1.27.3'
 [[ "${COMPANION_RELEASE_TAG:-}" == "$expected_tag" ]] || fail 'release tag is not exact A38'
 [[ "${GITHUB_SHA:-}" =~ ^[0-9a-f]{40}$ ]] || fail 'source commit is malformed'

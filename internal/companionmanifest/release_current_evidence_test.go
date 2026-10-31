@@ -140,7 +140,7 @@ func assertCurrentReleaseVerifierLog(t *testing.T, path string) {
 	}
 	for _, required := range []string{
 		"companion-manifest-verifier --artifact ", "--platform darwin --architecture arm64",
-		"omp-context-lineage-verifier --lineage ", "--target darwin-arm64 --version 0.50.130",
+		"omp-context-lineage-verifier --lineage ", "--target darwin-arm64 --version 0.50.131",
 		"omp-context-evidence-verifier --mode historical",
 		"--source-repository autopus-ai/autopus-adk",
 		"--candidate-repository autopus-ai/autopus-adk",

@@ -298,8 +298,12 @@ var shippedReleasePhases = []releasePhase{
 		// pushed, but its final signed companion execution smoke failed on the
 		// macOS 15.8.2 hosted image, so no asset was published and the
 		// coordinate was burned. A burned coordinate never enters this table,
-		// like v0.50.124 and v0.50.126 before it. A38 is v0.50.130.
-		phase: "A38", tag: "v0.50.130", version: "0.50.130",
+		// like v0.50.124 and v0.50.126 before it. v0.50.130 is absent too: it
+		// was tagged and its release run passed tag CI except macos-runtime,
+		// where the post-detach stall of the ptrace gate hung a child on macOS
+		// 15.8.2. Fixing that needed new source, so it was burned before any
+		// approval. A38 is v0.50.131.
+		phase: "A38", tag: "v0.50.131", version: "0.50.131",
 		acceptedField: "source-tree",
 		rejects:       "unsignedTag",
 		ancestorSHA:   "842f8bf286aa4c26554cc0d29f3c79c412069a0b",

@@ -23,10 +23,10 @@ mkdir -m 0700 "$state" "$temp/bin"
 install -m 0700 "$tests_dir/testdata/mock-tap-gh.sh" "$temp/bin/gh"
 checksums="$temp/checksums.txt"
 {
-  printf '%064d  autopus-adk_0.50.130_darwin_amd64.tar.gz\n' 1
-  printf '%064d  autopus-adk_0.50.130_darwin_arm64.tar.gz\n' 2
-  printf '%064d  autopus-adk_0.50.130_linux_amd64.tar.gz\n' 3
-  printf '%064d  autopus-adk_0.50.130_linux_arm64.tar.gz\n' 4
+  printf '%064d  autopus-adk_0.50.131_darwin_amd64.tar.gz\n' 1
+  printf '%064d  autopus-adk_0.50.131_darwin_arm64.tar.gz\n' 2
+  printf '%064d  autopus-adk_0.50.131_linux_amd64.tar.gz\n' 3
+  printf '%064d  autopus-adk_0.50.131_linux_arm64.tar.gz\n' 4
 } >"$checksums"
 
 # A38 updates only the Cask from the exact A37 tap head and keeps Formula frozen.
@@ -52,9 +52,9 @@ jq -n --arg content "$(base64 <"$temp/frozen-formula.rb" | tr -d '\r\n')" \
 jq -n --arg sha "$prior_tap_commit" '{ref:"refs/heads/main",object:{type:"commit",sha:$sha,url:"https://example.invalid/prior-commit"}}' \
   >"$state/branch.json"
 cp "$state/formula.json" "$temp/formula-before.json"
-bridge_env=(PATH="$temp/bin:$PATH" MOCK_TAP_STATE="$state" GITHUB_REF_NAME=v0.50.130
+bridge_env=(PATH="$temp/bin:$PATH" MOCK_TAP_STATE="$state" GITHUB_REF_NAME=v0.50.131
   MOCK_TAP_PRIOR_COMMIT="$prior_tap_commit"
-  COMPANION_VERSION=0.50.130 COMPANION_HOMEBREW_POLICY=cask-only
+  COMPANION_VERSION=0.50.131 COMPANION_HOMEBREW_POLICY=cask-only
   COMPANION_CHECKSUMS_PATH="$checksums" HOMEBREW_TAP_TOKEN=fixture)
 env "${bridge_env[@]}" bash "$script_dir/publish-homebrew-formula-bridge.sh"
 [[ "$(<"$state/ref-update.calls")" == 1 &&
