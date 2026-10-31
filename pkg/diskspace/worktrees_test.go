@@ -170,5 +170,9 @@ func TestShellQuoteAndTristateJSON(t *testing.T) {
 	data, err := json.Marshal([]Tristate{True, False, Unknown})
 	require.NoError(t, err)
 	assert.Equal(t, `[true,false,"unknown"]`, string(data))
+	var back []Tristate
+	require.NoError(t, json.Unmarshal(data, &back))
+	assert.Equal(t, []Tristate{True, False, Unknown}, back)
+	assert.Error(t, json.Unmarshal([]byte(`["maybe"]`), &back))
 	assert.Equal(t, "/a?b?c", DisplayPath("/a\tb\x7fc"))
 }

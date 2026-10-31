@@ -3,6 +3,7 @@ package diskspace
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -57,6 +58,21 @@ func (t Tristate) MarshalJSON() ([]byte, error) {
 	default:
 		return []byte(`"unknown"`), nil
 	}
+}
+
+// UnmarshalJSON reads what MarshalJSON writes.
+func (t *Tristate) UnmarshalJSON(data []byte) error {
+	switch string(data) {
+	case "true":
+		*t = True
+	case "false":
+		*t = False
+	case `"unknown"`:
+		*t = Unknown
+	default:
+		return fmt.Errorf("tristate %s is not true, false, or \"unknown\"", data)
+	}
+	return nil
 }
 
 // Worktree is one entry of `git worktree list --porcelain -z`.
