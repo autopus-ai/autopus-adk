@@ -774,15 +774,15 @@ jobs:
             exit 1
           fi
 
-      - name: Test Darwin ptrace exec gate on the hosted kernel
+      - name: Test Darwin verified exec gate on the hosted kernel
         shell: bash
         run: |
           set -euo pipefail
-          # The release smoke is the only other place the real ptrace gate runs
-          # on macOS, and it runs after the tag is immutable: v0.50.129 burned
-          # when macOS 15.8.2 started killing every detached child with the
-          # redelivered exec SIGTRAP. These tests run the gate on whatever
-          # kernel this hosted image ships, so a kernel change fails a PR.
+          # The release smoke is the only other place the real Darwin gate runs
+          # on macOS, and it runs after the tag is immutable: v0.50.129 and
+          # v0.50.130 burned when macOS 15.8.2 broke the former ptrace gate.
+          # These tests run the gate on whatever kernel this hosted image
+          # ships, so a kernel change fails a PR.
           sw_vers -productVersion
           filter='^TestPipelineOMPVerifiedExecCommand_'
           minimum=9

@@ -16,10 +16,10 @@ func TestReleaseWorkflow_A38PublishesFreshPolicyOwnedK3Evidence(t *testing.T) {
 	current := readReleaseFile(t, "scripts/companion-release/verify-current-release.sh")
 	combined := release + "\n" + config + "\n" + current
 	for _, required := range []string{
-		"refs/tags/v0.50.130",
-		"RELEASE_VERSION='0.50.130'",
+		"refs/tags/v0.50.131",
+		"RELEASE_VERSION='0.50.131'",
 		"omp-production-evidence",
-		"omp-context-evidence-v0.50.130",
+		"omp-context-evidence-v0.50.131",
 		"OMP_CONTEXT_STATIC_POLICY_B64",
 		"omp-context-promotion-report.v1.json",
 		"omp-context-promotion-attestation.v2.json",

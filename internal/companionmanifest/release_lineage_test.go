@@ -178,6 +178,7 @@ func TestReleaseSourceValidator_RejectsCoordinateMismatchAndOutsidePolicy(t *tes
 		{name: "burned_A35_tag_124", tag: "v0.50.124", sha: headSHA, message: frozenReleasePhasePolicy},
 		{name: "burned_A36_tag_126", tag: "v0.50.126", sha: headSHA, message: frozenReleasePhasePolicy},
 		{name: "burned_A38_tag_129", tag: "v0.50.129", sha: headSHA, message: frozenReleasePhasePolicy},
+		{name: "burned_A38_tag_130", tag: "v0.50.130", sha: headSHA, message: frozenReleasePhasePolicy},
 	} {
 		output, err := runReleaseSourceValidator(t, dir, test.tag, test.sha)
 		if err == nil || !strings.Contains(output, test.message) {

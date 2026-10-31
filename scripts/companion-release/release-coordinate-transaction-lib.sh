@@ -10,6 +10,16 @@ retry() {
   return 1
 }
 scope_json() { gh variable list "$@" --json name,value; }
+# Every page of the environment's deployment policies as one object. An
+# unpaginated read sees only the first 30 by name; v0.50.130 was the 31st.
+deployment_policies_json() {
+  local pages
+  pages=$(gh api --paginate --slurp \
+    "repos/${repository}/environments/${environment_name}/deployment-branch-policies?per_page=100") || return 1
+  jq -ce 'select(type == "array" and length > 0 and all(.[]; (.total_count | type) == "number" and (.branch_policies | type) == "array"))
+    | {total_count: .[0].total_count, branch_policies: (map(.branch_policies) | add)}
+    | select(.total_count == (.branch_policies | length))' <<<"$pages"
+}
 load_release_for_tag() {
   local releases count
   releases=$(gh api --paginate --slurp \
@@ -183,7 +193,7 @@ rollback_coordinates() {
   done
   if [[ -n "$created_policy_id" ]]; then
     retry gh api --method DELETE "repos/${repository}/environments/${environment_name}/deployment-branch-policies/${created_policy_id}" >/dev/null 2>&1 || rollback_failed=1
-    current_policies=$(gh api "repos/${repository}/environments/${environment_name}/deployment-branch-policies") || rollback_failed=1
+    current_policies=$(deployment_policies_json) || rollback_failed=1
     if [[ -n "${current_policies:-}" ]] && ! jq -e --argjson id "$created_policy_id" '.branch_policies | all(.id != $id)' <<<"$current_policies" >/dev/null; then rollback_failed=1; fi
   fi
   if [[ "$policy_creation_ambiguous" -eq 1 ]]; then
@@ -250,8 +260,7 @@ verify_coordinates() {
     jq -e --arg name "$name" 'all(.[]; .name != $name)' <<<"$environment_variables" >/dev/null ||
       return 1
   done
-  policies=$(gh api "repos/${repository}/environments/${environment_name}/deployment-branch-policies") ||
-    return 1
+  policies=$(deployment_policies_json) || return 1
   jq -e --arg tag "$release_tag" \
     '[.branch_policies[] | select(.type == "tag" and .name == $tag)] | length == 1' \
     <<<"$policies" >/dev/null

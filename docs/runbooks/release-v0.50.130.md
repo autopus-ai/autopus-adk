@@ -1,7 +1,10 @@
 # Release v0.50.130 (A38)
 
-Status: coordinate re-bound, not yet published. A37 is `v0.50.128`, immutable
-release `427217669` (Latest); see [release-v0.50.128.md](release-v0.50.128.md).
+Status: **burned 2026-10-31, never approved.** The coordinate moved to
+`v0.50.131`; see [release-v0.50.131.md](release-v0.50.131.md) and
+[Burned on 2026-10-31](#burned-on-2026-10-31) below. A37 is `v0.50.128`,
+immutable release `427217669` (Latest); see
+[release-v0.50.128.md](release-v0.50.128.md).
 
 > **PREDECESSOR ATTEMPT BURNED 2026-10-30.** `v0.50.129` is failed release
 > history. The R2-signed tag object `c9fb24309f43d5912da0e5f86a62d20b102c5ee8`
@@ -113,3 +116,57 @@ sudo -v && scripts/release-tools/release-prep.sh --apply
   the generated surface (OpenCode conditional rules, the security audit
   section, the removed `agent_source` native path), so a canary failure on the
   *previous* surface expectations is a canary fix, not a release fault.
+
+## Burned on 2026-10-31
+
+Append-only record. `v0.50.130` was tagged and its tag CI ran, but the
+protected `release` job was never approved, so nothing was published and the
+Homebrew tap never moved.
+
+| Item | Value |
+|---|---|
+| Release tag `v0.50.130` | R2-signed object `db7e966d062685570224d14d77a90b09b949d2ca`, source `e346c6470d6c150bdfdd7d207fbf6fd0a4c69779` (tree `1894e68da04c300dc9a97f5b930a28026604b45c`) |
+| Evidence tag `omp-context-evidence-v0.50.130` | object `79b0c134be1dd22b3b1a43b695518a902bbefca5`, commit `e5a267fbbe9a9676950885218fc00ce1f0bfd714` |
+| GitHub release | `429605860`, unpublished draft |
+| Ruleset | `26247047` (`autopus-v0.50.130-release-authority`) |
+| Deployment tag policy | `64975392` (`v0.50.130`) |
+| Release run | `41148530560` |
+
+None of these may be moved, deleted, recreated, or reused.
+
+### First `--apply`: exit 75 on a paginated read
+
+`--preflight` passed on `e346c647`. The first `--apply` created the evidence
+tag and its prep lock, then stopped with `release coordinate publish: tag
+policy response is invalid` and exit 75 (`rollback incomplete; prep lock
+retained for reconciliation`). `publish-release-coordinates.sh` and
+`release-coordinate-transaction-lib.sh` read `deployment-branch-policies`
+without pagination, so they saw only GitHub's default first page of 30. The
+environment held 58 policies; sorted by name, `v0.50.130` was the 31st, so the
+publisher found no policy, tried to create the one that already existed
+(`64975392`, made before `--preflight` as this runbook required), and could
+not parse the answer. `verify-release-tag-ruleset.sh` reads with
+`?per_page=100` and had passed.
+
+With the user's approval the policy of the burned `v0.50.129` (`64879249`)
+was deleted, which moved `v0.50.130` onto the first page (57 policies, 30th by
+name). The retained retry of `--apply` on the same source then committed: tag
+object `db7e966d`, draft `429605860`. The readers are fixed in `v0.50.131`
+(see its runbook).
+
+### Release run 41148530560: macos-runtime stalled on macOS 15.8.2
+
+Tag CI failed `ci / macos-runtime` on the hosted image
+`macos-15-arm64/20261028.0489` (macOS 15.8.2):
+`TestPipelineOMPVerifiedExecCommand_DarwinGateDetachesLongRunningChild` timed
+out with `gated child pid 25940 did not finish after the gate released it`.
+That is the post-detach stall the PR #241 gate fix accepted as roughly 0.5%
+per long-running launch: after `PT_DETACH` from the `SIGCONT` stop the child
+sometimes stays in `S<` and neither `SIGCONT`, `SIGSTOP`+`SIGCONT`, nor
+`PT_ATTACH` wakes it. The same release path runs the long-running RPC smoke
+under that gate, and users' managed OMP launches carry the same risk.
+
+The user chose to remove the stall before releasing rather than rerun the
+failed job and hope. That needs new source, and the tag is immutable, so
+`v0.50.130` is burned and the release job was never approved. A38 moves to
+`v0.50.131`.

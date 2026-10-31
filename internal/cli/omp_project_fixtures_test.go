@@ -8,7 +8,7 @@ import (
 	"github.com/insajin/autopus-adk/pkg/config"
 )
 
-// The v0.50.125 OMP contracts ran on agent_source: native until v0.50.130
+// The v0.50.125 OMP contracts ran on agent_source: native until v0.50.131
 // removed it; every fixture here is on the one source left, autopus.
 
 // writeOMPProjectConfig gives a bare receipt fixture the config its receipt

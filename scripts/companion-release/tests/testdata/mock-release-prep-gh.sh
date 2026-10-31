@@ -56,7 +56,7 @@ case "$command" in
     esac
     ;;
   api)
-    method=GET endpoint='' input='' field_name='' field_type='' field_tag='' field_target='' field_release_name='' field_body='' field_draft='' field_prerelease=''
+    paginate=0 slurp=0 method=GET endpoint='' input='' field_name='' field_type='' field_tag='' field_target='' field_release_name='' field_body='' field_draft='' field_prerelease=''
     while [[ $# -gt 0 ]]; do
       case "$1" in
         --method) method=$2; shift 2 ;;
@@ -75,6 +75,8 @@ case "$command" in
           ;;
         --jq) shift 2 ;;
         --silent) shift ;;
+        --paginate) paginate=1; shift ;;
+        --slurp) slurp=1; shift ;;
         -*) shift ;;
         *) [[ -z "$endpoint" ]] && endpoint=$1; shift ;;
       esac
@@ -82,7 +84,7 @@ case "$command" in
     case "$method:$endpoint" in
       GET:repos/autopus-ai/autopus-adk) printf '%s\n' '{"permissions":{"admin":true}}' ;;
       'GET:repos/autopus-ai/autopus-adk/rulesets?includes_parents=true&targets=tag')
-        printf '%s\n' '[{"id":777,"name":"autopus-v0.50.130-release-authority","target":"tag"}]'
+        printf '%s\n' '[{"id":777,"name":"autopus-v0.50.131-release-authority","target":"tag"}]'
         ;;
       GET:repos/autopus-ai/autopus-adk/rulesets/777)
         ruleset_state=$(<"$state/ruleset-state")
@@ -96,12 +98,12 @@ case "$command" in
           *) exit 65 ;;
         esac
         jq -cn --argjson bypass "$bypass" --argjson rules "$rules" \
-          '{id:777,name:"autopus-v0.50.130-release-authority",target:"tag",enforcement:"active",
-            bypass_actors:$bypass,conditions:{ref_name:{include:["refs/tags/v0.50.130"],exclude:[]}},rules:$rules}'
+          '{id:777,name:"autopus-v0.50.131-release-authority",target:"tag",enforcement:"active",
+            bypass_actors:$bypass,conditions:{ref_name:{include:["refs/tags/v0.50.131"],exclude:[]}},rules:$rules}'
         ;;
       PUT:repos/autopus-ai/autopus-adk/rulesets/777)
         [[ -f "$input" ]] || exit 65
-        jq -e '.name == "autopus-v0.50.130-release-authority" and .target == "tag" and
+        jq -e '.name == "autopus-v0.50.131-release-authority" and .target == "tag" and
           .enforcement == "active" and .bypass_actors == [] and
           ([.rules[].type] | sort) == ["creation","deletion","update"]' "$input" >/dev/null || exit 65
         write_count
@@ -126,12 +128,12 @@ case "$command" in
         fi
         jq -c '[.]' "$state/releases.json"
         ;;
-      GET:repos/autopus-ai/autopus-adk/releases/tags/v0.50.130)
-        jq -ce '.[] | select(.tag_name == "v0.50.130")' "$state/releases.json"
+      GET:repos/autopus-ai/autopus-adk/releases/tags/v0.50.131)
+        jq -ce '.[] | select(.tag_name == "v0.50.131")' "$state/releases.json"
         ;;
       POST:repos/autopus-ai/autopus-adk/releases)
-        [[ "$field_tag" == 'v0.50.130' && "$field_target" =~ ^[0-9a-f]{40}$ &&
-           "$field_release_name" == 'v0.50.130' &&
+        [[ "$field_tag" == 'v0.50.131' && "$field_target" =~ ^[0-9a-f]{40}$ &&
+           "$field_release_name" == 'v0.50.131' &&
            "$field_draft" == 'true' && "$field_prerelease" == 'false' ]] || exit 65
         jq -e --arg tag "$field_tag" 'all(.[]; .tag_name != $tag)' \
           "$state/releases.json" >/dev/null || exit 65
@@ -162,20 +164,30 @@ case "$command" in
         fi
         ;;
       GET:repos/autopus-ai/autopus-adk/environments/adk-companion-release/deployment-branch-policies|GET:repos/autopus-ai/autopus-adk/environments/adk-companion-release/deployment-branch-policies\?per_page=100)
-        jq -n --slurpfile policies "$state/deployment-policies.json" \
-          '{total_count:($policies[0] | length),branch_policies:$policies[0]}'
+        # Pages like GitHub: sorted by name, 30 per page unless per_page says
+        # otherwise, and only the first page without --paginate.
+        per_page=30
+        [[ "$endpoint" == *'?per_page=100' ]] && per_page=100
+        pages=$(jq -c --argjson size "$per_page" '
+          sort_by(.name) as $sorted | ($sorted | length) as $total |
+          [range(0; ([$total, 1] | max); $size) |
+            {total_count:$total, branch_policies:$sorted[.:(. + $size)]}]
+        ' "$state/deployment-policies.json")
+        if [[ "$paginate" -eq 0 ]]; then jq -c '.[0]' <<<"$pages"
+        elif [[ "$slurp" -eq 1 ]]; then printf '%s\n' "$pages"
+        else jq -c '.[]' <<<"$pages"; fi
         ;;
       POST:repos/autopus-ai/autopus-adk/environments/adk-companion-release/deployment-branch-policies)
-        [[ "$field_name" == 'v0.50.130' && "$field_type" == 'tag' ]] || exit 65
+        [[ "$field_name" == 'v0.50.131' && "$field_type" == 'tag' ]] || exit 65
         write_count
-        jq '[.[] | select(.name != "v0.50.130")] + [{id:596,type:"tag",name:"v0.50.130"}]' \
+        jq '[.[] | select(.name != "v0.50.131")] + [{id:596,type:"tag",name:"v0.50.131"}]' \
           "$state/deployment-policies.json" >"$state/deployment-policies.json.next"
         mv "$state/deployment-policies.json.next" "$state/deployment-policies.json"
         printf '%s\n' 'policy-create' >>"$log"
         if [[ "${MOCK_RELEASE_PREP_POLICY_RESPONSE_LOST:-0}" -eq 1 ]]; then
           exit 75
         fi
-        printf '%s\n' '{"id":596,"type":"tag","name":"v0.50.130"}'
+        printf '%s\n' '{"id":596,"type":"tag","name":"v0.50.131"}'
         ;;
       DELETE:repos/autopus-ai/autopus-adk/environments/adk-companion-release/deployment-branch-policies/596)
         write_count

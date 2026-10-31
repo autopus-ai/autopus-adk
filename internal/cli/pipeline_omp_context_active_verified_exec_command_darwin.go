@@ -19,7 +19,4 @@ type pipelineOMPVerifiedExecCommand struct {
 	afterInheritedDarwinStart func()
 	inheritedDarwinPath       bool
 	inheritedDarwinPrivate    bool
-	// traceUntilExit keeps a context-bound (short, self-exiting) probe traced
-	// instead of detaching it.
-	traceUntilExit bool
 }

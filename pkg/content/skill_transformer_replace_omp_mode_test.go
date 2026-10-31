@@ -17,7 +17,7 @@ const ompModeDispatchBody = "```\n" +
 
 // S14 (body): every dispatch names the Autopus agent of its own role; none
 // collapses onto a bundled agent the way agent_source: native did before
-// v0.50.130.
+// v0.50.131.
 func TestReplacePlatformReferences_OMPDispatchNamesEachRolesOwnAgent(t *testing.T) {
 	t.Parallel()
 	rendered := content.ReplacePlatformReferences(ompModeDispatchBody, "omp")

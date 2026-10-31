@@ -25,7 +25,7 @@ readonly evidence_ref="refs/tags/${evidence_tag}" prep_lock_ref="refs/heads/${ev
 readonly hex40='^[0-9a-f]{40}$' hex64='^[0-9a-f]{64}$'
 [[ "$repository" == 'autopus-ai/autopus-adk' ]] || fail 'repository is not production authority'
 [[ "$environment_name" == 'adk-companion-release' ]] || fail 'environment is not protected release authority'
-[[ "$release_tag" == 'v0.50.130' ]] || fail 'release tag is not exact A38'
+[[ "$release_tag" == 'v0.50.131' ]] || fail 'release tag is not exact A38'
 for value in "$source_commit" "$source_tree" "$evidence_tag_object" "$evidence_commit" "$evidence_tree"; do
   [[ "$value" =~ $hex40 ]] || fail 'Git coordinate is malformed'
 done
@@ -109,7 +109,7 @@ exec 9<&-
 seal_release_tag_ruleset() {
   local summaries ruleset_id ruleset seal_payload
   summaries=$(gh api "repos/${repository}/rulesets?includes_parents=true&targets=tag") || return 1
-  ruleset_id=$(jq -er --arg name 'autopus-v0.50.130-release-authority' \
+  ruleset_id=$(jq -er --arg name 'autopus-v0.50.131-release-authority' \
     '[.[] | select(.name == $name and .target == "tag")] |
      if length == 1 then .[0].id else error("ruleset is missing or ambiguous") end' \
     <<<"$summaries") || return 1
@@ -177,7 +177,7 @@ if [[ -n "$remote_release" ]]; then
   exit 0
 fi
 scripts/companion-release/verify-release-tag-ruleset.sh --armed ||
-  fail 'exact armed v0.50.130 tag ruleset or environment is unavailable'
+  fail 'exact armed v0.50.131 tag ruleset or environment is unavailable'
 [[ "$prep_lock_commit" =~ $hex40 ]] || fail 'publishing requires exact evidence prep lock commit'
 lock_report="$temp_dir/lock-report.json"
 git cat-file blob "${evidence_commit}:omp-context-promotion-report.v1.json" >"$lock_report"; chmod 0600 "$lock_report"
@@ -208,7 +208,7 @@ env "${tag_git_config[@]}" git -C "$signing_probe" tag -s release-signing-probe 
 env "${tag_git_config[@]}" git -C "$signing_probe" verify-tag refs/tags/release-signing-probe >/dev/null
 scope_json --repo "$repository" >"$repository_snapshot"
 scope_json --repo "$repository" --env "$environment_name" >"$environment_snapshot"
-gh api "repos/${repository}/environments/${environment_name}/deployment-branch-policies" >"$policy_snapshot"
+deployment_policies_json >"$policy_snapshot" || fail 'deployment policy snapshot is incomplete'
 jq -e 'length <= 500 and ([.[].name] | length) == ([.[].name] | unique | length)' "$repository_snapshot" >/dev/null || fail 'repository variable snapshot is incomplete or ambiguous'
 jq -e 'length <= 100 and ([.[].name] | length) == ([.[].name] | unique | length)' "$environment_snapshot" >/dev/null || fail 'environment variable snapshot is incomplete or ambiguous'
 chmod 0600 "$repository_snapshot" "$environment_snapshot" "$policy_snapshot"; snapshots_ready=1; coordinates_started=1

@@ -11,7 +11,7 @@ import (
 func TestReleaseWorkflow_ExactA38ProtectedNormalLane(t *testing.T) {
 	release := readReleaseFile(t, ".github/workflows/release.yaml")
 	for _, required := range []string{
-		"- 'v0.50.130'", "if: github.ref == 'refs/tags/v0.50.130'",
+		"- 'v0.50.131'", "if: github.ref == 'refs/tags/v0.50.131'",
 		"needs: [ci, security, omp-production-evidence]", "adk-companion-release",
 		"Validate exact R2-signed A38 source", "COMPANION_RELEASE_TAG_SIGNATURE_REQUIRED=1",
 		"Verify exact sealed release-tag authority",
@@ -19,8 +19,8 @@ func TestReleaseWorkflow_ExactA38ProtectedNormalLane(t *testing.T) {
 		"Build canonical policy-bearing production candidate", "OMP_CONTEXT_STATIC_POLICY_B64",
 		"Verify fresh K3-signed production evidence",
 		"Reverify active K3 production evidence inside protected environment",
-		"name: omp-context-evidence-v0.50.130", "--mode active",
-		"autopus.adk_release_reservation.v1", "release_tag:\"v0.50.130\"",
+		"name: omp-context-evidence-v0.50.131", "--mode active",
+		"autopus.adk_release_reservation.v1", "release_tag:\"v0.50.131\"",
 		`(.assets | type == "array" and length == 0)`, ".author.id == 204883817",
 		"Verify reserved release was published", ".immutable == true",
 		"COMPANION_RELEASE_ID: ${{ steps.release-reservation.outputs.release-id }}",
@@ -45,10 +45,10 @@ func TestReleaseWorkflow_ExactA38ProtectedNormalLane(t *testing.T) {
 			strings.Count(release, "--mode active"))
 	}
 	// v0.50.128 is the A37 predecessor, v0.50.124 is the burned A35 attempt,
-	// v0.50.126 is the burned A36 attempt, and v0.50.129 is the burned A38
-	// attempt; none may survive in the workflow that ships A38.
+	// v0.50.126 is the burned A36 attempt, and v0.50.129 and v0.50.130 are the
+	// burned A38 attempts; none may survive in the workflow that ships A38.
 	for _, forbidden := range []string{
-		"v0.50.128", "v0.50.124", "v0.50.126", "v0.50.129",
+		"v0.50.128", "v0.50.124", "v0.50.126", "v0.50.129", "v0.50.130",
 		"omp-canonical-bridge-candidate", "omp-context-bridge-release.v1.json",
 		"adk-key-rotation-v1.json", "adk-key-rotation-v1.sig", "--expected-signing-key-id",
 		"releases/assets/${asset_id}", "--armed", "- 'v*'", "- v*",
@@ -62,14 +62,14 @@ func TestReleaseWorkflow_ExactA38ProtectedNormalLane(t *testing.T) {
 func TestReleaseWorkflow_ExactFifteenAssetSet(t *testing.T) {
 	release := readReleaseFile(t, ".github/workflows/release.yaml")
 	assets := []string{
-		"autopus-adk_0.50.130_darwin_amd64.tar.gz",
-		"autopus-adk_0.50.130_darwin_arm64.tar.gz",
-		"autopus-adk_0.50.130_linux_amd64.tar.gz",
-		"autopus-adk_0.50.130_linux_arm64.tar.gz",
-		"autopus-adk_0.50.130_windows_amd64.tar.gz",
-		"autopus-adk_0.50.130_windows_amd64.zip",
-		"autopus-adk_0.50.130_windows_arm64.tar.gz",
-		"autopus-adk_0.50.130_windows_arm64.zip",
+		"autopus-adk_0.50.131_darwin_amd64.tar.gz",
+		"autopus-adk_0.50.131_darwin_arm64.tar.gz",
+		"autopus-adk_0.50.131_linux_amd64.tar.gz",
+		"autopus-adk_0.50.131_linux_arm64.tar.gz",
+		"autopus-adk_0.50.131_windows_amd64.tar.gz",
+		"autopus-adk_0.50.131_windows_amd64.zip",
+		"autopus-adk_0.50.131_windows_arm64.tar.gz",
+		"autopus-adk_0.50.131_windows_arm64.zip",
 		"checksums.txt", "checksums.txt.bundle", "checksums.txt.signatures",
 		"omp-context-promotion-report.v1.json",
 		"omp-context-promotion-attestation.v2.json",

@@ -52,8 +52,8 @@ contains "$prep" 'verify-release-tag-ruleset.sh --armed'
 contains "$prep" 'verify-release-tag-ruleset.sh --sealed'
 contains "$publisher" 'verify-release-tag-ruleset.sh --armed'
 contains "$publisher" 'verify-release-tag-ruleset.sh --sealed'
-contains "$tag_ruleset_gate" "ruleset_name='autopus-v0.50.130-release-authority'"
-contains "$tag_ruleset_gate" "release_ref='refs/tags/v0.50.130'"
+contains "$tag_ruleset_gate" "ruleset_name='autopus-v0.50.131-release-authority'"
+contains "$tag_ruleset_gate" "release_ref='refs/tags/v0.50.131'"
 contains "$tag_ruleset_gate" 'usage: verify-release-tag-ruleset.sh --armed|--sealed|--sealed-runtime'
 contains "$tag_ruleset_gate" 'actor_type:"User"'
 contains "$tag_ruleset_gate" 'else .bypass_actors == [] end'
@@ -63,6 +63,8 @@ contains "$tag_ruleset_gate" '.can_admins_bypass == false'
 contains "$tag_ruleset_gate" 'required_reviewers'
 contains "$tag_ruleset_gate" 'if [[ "$mode" != '\''sealed-runtime'\'' ]]'
 contains "$tag_ruleset_gate" 'deployment-branch-policies?per_page=100'
+contains "$tag_ruleset_gate" 'gh api --paginate --slurp'
+contains "$publisher" "deployment_policies_json >\"\$policy_snapshot\""
 contains "$tag_ruleset_gate" 'select(.type == "tag" and .name == $tag)'
 # The tap coordinates advance with every publication, so pinning their exact
 # value here only forces a second edit; the publisher already enforces them
@@ -90,9 +92,9 @@ for workflow in "$release" "$recovery"; do
   contains "$workflow" 'COMPANION_SOURCE_PIN_REQUIRED=1'
   contains "$workflow" 'verify-release-tag-ruleset.sh --sealed-runtime'
 done
-contains "$release" "- 'v0.50.130'"
-contains "$release" "if: github.ref == 'refs/tags/v0.50.130'"
-contains "$recovery" "if: github.ref == 'refs/tags/v0.50.130'"
+contains "$release" "- 'v0.50.131'"
+contains "$release" "if: github.ref == 'refs/tags/v0.50.131'"
+contains "$recovery" "if: github.ref == 'refs/tags/v0.50.131'"
 not_contains "$release" 'canonical-full-bridge'
 not_contains "$recovery" 'canonical-full bridge'
 not_contains "$release" 'omp-context-bridge-release.v1.json'
@@ -102,8 +104,8 @@ for workflow in "$release" "$recovery"; do
   contains "$workflow" 'GITHUB_REF_NAME="$GITHUB_REF_NAME"'
   contains "$workflow" 'COMPANION_VERSION="${GITHUB_REF_NAME#v}"'
 done
-contains "$release" "'autopus-adk_0.50.130_darwin_amd64.tar.gz'"
-contains "$release" "'autopus-adk_0.50.130_darwin_arm64.tar.gz'"
+contains "$release" "'autopus-adk_0.50.131_darwin_amd64.tar.gz'"
+contains "$release" "'autopus-adk_0.50.131_darwin_arm64.tar.gz'"
 contains "$producer_receipt" 'v0.50.109 0.50.109 A22'
 contains "$producer_receipt" 'v0.50.111 0.50.111 A23'
 contains "$producer_receipt" 'v0.50.113 0.50.113 A24'
@@ -125,11 +127,13 @@ contains "$producer_receipt" 'v0.50.127 0.50.127 A36'
 not_contains "$producer_receipt" 'v0.50.126 0.50.126'
 # v0.50.129 was armed as A38 and burned; a burned coordinate never enters the table.
 not_contains "$producer_receipt" 'v0.50.129 0.50.129'
+# v0.50.130 was armed as A38 and burned as well.
+not_contains "$producer_receipt" 'v0.50.130 0.50.130'
 contains "$producer_receipt" 'v0.50.128 0.50.128 A37'
-contains "$producer_receipt" 'v0.50.130 0.50.130 A38'
+contains "$producer_receipt" 'v0.50.131 0.50.131 A38'
 contains "$producer_receipt" "fail 'public_key_receipt_release_identity_mismatch'"
-contains "$homebrew_bridge" "readonly RELEASE_TAG='v0.50.130'"
-contains "$homebrew_bridge" "readonly RELEASE_VERSION='0.50.130'"
+contains "$homebrew_bridge" "readonly RELEASE_TAG='v0.50.131'"
+contains "$homebrew_bridge" "readonly RELEASE_VERSION='0.50.131'"
 contains "$release" 'timeout-minutes: 60'
 contains "$recovery" 'timeout-minutes: 20'
 
@@ -140,8 +144,8 @@ for workflow in "$release" "$recovery"; do
   workflow_token_index=$(grep -n 'name: Create Homebrew tap token' "$workflow" | cut -d: -f1)
   (( workflow_evidence_index < workflow_token_index )) || fail 'tap token precedes release evidence'
 done
-contains "$current_release_gate" "readonly RELEASE_TAG='v0.50.130'"
-contains "$current_release_gate" "readonly RELEASE_VERSION='0.50.130'"
+contains "$current_release_gate" "readonly RELEASE_TAG='v0.50.131'"
+contains "$current_release_gate" "readonly RELEASE_VERSION='0.50.131'"
 contains "$current_release_gate" '.target_commitish == $commit'
 contains "$current_release_gate" '.immutable == true'
 contains "$current_release_gate" '(.assets | length) == ($expected | length)'
@@ -188,5 +192,6 @@ bash "$tests_dir/release-omp-context-evidence-hardening-test.sh"
 bash "$tests_dir/release-prep-hardening-test.sh"
 bash "$tests_dir/release-prep-environment-inheritance-test.sh"
 bash "$tests_dir/release-prep-window-test.sh"
+bash "$tests_dir/release-deployment-policy-pagination-test.sh"
 
 printf 'release hardening test: PASS\n'

@@ -7,9 +7,9 @@ usage() { printf '%s\n' 'usage: verify-release-tag-ruleset.sh --armed|--sealed|-
 case "$1" in --armed) mode=armed ;; --sealed) mode=sealed ;; --sealed-runtime) mode=sealed-runtime ;; *) usage ;; esac
 readonly mode
 readonly repository='autopus-ai/autopus-adk'
-readonly ruleset_name='autopus-v0.50.130-release-authority'
-readonly release_tag='v0.50.130'
-readonly release_ref='refs/tags/v0.50.130'
+readonly ruleset_name='autopus-v0.50.131-release-authority'
+readonly release_tag='v0.50.131'
+readonly release_ref='refs/tags/v0.50.131'
 readonly release_actor_id=204883817
 readonly environment_name='adk-companion-release'
 for tool in gh jq; do command -v "$tool" >/dev/null || fail "${tool} is unavailable"; done
@@ -46,13 +46,14 @@ if [[ "$mode" != 'sealed-runtime' ]]; then
     ([.protection_rules[] | select(.type == "branch_policy")] | length) == 1
   ' <<<"$environment" >/dev/null ||
     fail 'protected release environment differs from exact authority policy'
-  deployment_policies=$(gh api \
+  deployment_policies=$(gh api --paginate --slurp \
     "repos/${repository}/environments/${environment_name}/deployment-branch-policies?per_page=100") ||
     fail 'cannot inspect protected release deployment policies'
   jq -e --arg tag "$release_tag" '
-    type == "object" and (.total_count | type) == "number" and
-    (.branch_policies | type) == "array" and .total_count == (.branch_policies | length) and
-    ([.branch_policies[] | select(.type == "tag" and .name == $tag)] | length) == 1
+    type == "array" and length > 0 and
+    all(.[]; (.total_count | type) == "number" and (.branch_policies | type) == "array") and
+    .[0].total_count == ([.[].branch_policies[]] | length) and
+    ([.[].branch_policies[] | select(.type == "tag" and .name == $tag)] | length) == 1
   ' <<<"$deployment_policies" >/dev/null ||
     fail 'protected release environment lacks the exact deployment tag policy'
 fi
