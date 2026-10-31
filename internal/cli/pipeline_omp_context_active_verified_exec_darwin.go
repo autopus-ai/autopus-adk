@@ -20,6 +20,7 @@ const (
 	pipelineOMPVerifiedDarwinMaxPath             = 1024
 	pipelineOMPVerifiedDarwinMaxRegions          = 256
 	pipelineOMPVerifiedDarwinGateTimeout         = 5 * time.Second
+	pipelineOMPVerifiedDarwinLivePoll            = time.Millisecond
 	pipelineOMPVerifiedDarwinVMProtectionExecute = 0x4
 )
 
@@ -93,12 +94,26 @@ func newPipelineOMPVerifiedDarwinCommand(
 		cmd = exec.Command(path, args...)
 	}
 	return &pipelineOMPVerifiedExecCommand{
-		cmd: cmd, parentFD: file, expected: expected, gateContext: ctx, traceUntilExit: boundContext,
+		cmd: cmd, parentFD: file, expected: expected, gateContext: ctx,
 	}, nil
 }
 
-// @AX:WARN [AUTO]: Darwin verified execution startup contains 15 if branches.
-// @AX:REASON [AUTO]: sandbox ptrace startup coordinates executable identity, two exec stops, timeout, cleanup, continuation, and detach failures.
+// @AX:WARN [AUTO]: Darwin verified execution startup contains many fail-closed branches.
+// @AX:REASON [AUTO]: sandboxed startup coordinates executable identity before launch, live-image identity after launch, timeout, and cleanup.
+//
+// Start launches the sandboxed child untraced and verifies the image the kernel
+// actually mapped. The gate used to stop the child at each exec with ptrace,
+// but macOS 15.8.2 and 26.6.2 broke every way of letting a traced child run:
+// PT_DETACH from the exec stop redelivered SIGTRAP and killed it (v0.50.129
+// release run 41035414211), detaching from a later SIGCONT stop left about one
+// child in two hundred asleep for good (v0.50.130 release run 41148530560),
+// and staying the tracer froze multi-threaded children that take signals.
+//
+// The target file is verified before launch; once sandbox-exec has exec'd it,
+// the live executable region's vnode and digest are verified, then the file
+// again. Any mismatch kills the process group. A target swapped between the
+// checks can run inside the sandbox until the live check kills it; writing it
+// needs the same uid and the private 0700 runtime root.
 func (command *pipelineOMPVerifiedExecCommand) Start() error {
 	if command == nil || command.cmd == nil || command.parentFD == nil || command.expected.info == nil {
 		return errors.New("verified managed active OMP command is unavailable")
@@ -106,14 +121,15 @@ func (command *pipelineOMPVerifiedExecCommand) Start() error {
 	if command.inheritedDarwinPath {
 		return command.startDarwinInheritedPath()
 	}
-	sandboxPath, sandboxIdentity, err := canonicalPipelineOMPExecutable(command.cmd.Path)
-	if err != nil || sandboxPath != "/usr/bin/sandbox-exec" {
+	sandboxPath, _, err := canonicalPipelineOMPExecutable(command.cmd.Path)
+	target := command.parentTargetPath()
+	if err != nil || sandboxPath != "/usr/bin/sandbox-exec" || target == "" ||
+		(command.cmd.SysProcAttr != nil && command.cmd.SysProcAttr.Ptrace) {
 		return errors.Join(errors.New("managed active Darwin sandbox executable is unavailable"), command.Close())
 	}
-	if command.cmd.SysProcAttr == nil {
-		command.cmd.SysProcAttr = &syscall.SysProcAttr{}
+	if err := verifyPipelineOMPExecutable(target, command.expected); err != nil {
+		return errors.Join(err, command.Close())
 	}
-	command.cmd.SysProcAttr.Ptrace = true
 	startErr := command.cmd.Start()
 	closeErr := command.Close()
 	if startErr != nil {
@@ -128,41 +144,43 @@ func (command *pipelineOMPVerifiedExecCommand) Start() error {
 	}
 	gateCtx, cancel := context.WithTimeout(gateCtx, pipelineOMPVerifiedDarwinGateTimeout)
 	defer cancel()
-	if err := command.waitDarwinExecStop(gateCtx); err != nil {
-		return command.failDarwinGate(errors.New("observe Darwin executable exec stop"), err)
-	}
-	if err := verifyPipelineOMPDarwinLiveExecutable(command.cmd.Process.Pid, sandboxPath, sandboxIdentity); err != nil {
-		return command.failDarwinGate(errors.New("verify Darwin executable live image"), err)
-	}
 	if command.afterFirstDarwinStop != nil {
 		command.afterFirstDarwinStop()
 	}
 	if gateCtx.Err() != nil {
 		return command.failDarwinGate(errors.New("Darwin executable identity gate canceled"), gateCtx.Err())
 	}
-	if err := continuePipelineOMPDarwinTrace(command.cmd.Process.Pid); err != nil {
-		return command.failDarwinGate(errors.New("continue Darwin sandbox trace"), err)
-	}
-	if err := command.waitDarwinExecStop(gateCtx); err != nil {
-		return command.failDarwinGate(errors.New("observe managed active OMP exec stop"), err)
-	}
-	if err := verifyPipelineOMPDarwinLiveExecutable(
-		command.cmd.Process.Pid, command.parentTargetPath(), command.expected,
-	); err != nil {
+	if err := command.awaitDarwinLiveTarget(gateCtx, target); err != nil {
 		return command.failDarwinGate(errors.New("verify managed active OMP live image"), err)
 	}
-	if command.traceUntilExit {
-		// A bounded probe exits on its own, so it stays traced: no detach, which
-		// newer kernels can leave stuck (see releasePipelineOMPDarwinTrace).
-		if err := continuePipelineOMPDarwinTrace(command.cmd.Process.Pid); err != nil {
-			return command.failDarwinGate(errors.New("continue verified managed active OMP trace"), err)
-		}
-		return nil
-	}
-	if err := releasePipelineOMPDarwinTrace(gateCtx, command.cmd.Process.Pid); err != nil {
-		return command.failDarwinGate(errors.New("detach verified managed active OMP trace"), err)
+	if err := verifyPipelineOMPExecutable(target, command.expected); err != nil {
+		return command.failDarwinGate(errors.New("managed active OMP identity changed after launch"), err)
 	}
 	return nil
+}
+
+// awaitDarwinLiveTarget polls until sandbox-exec has exec'd the target and then
+// verifies the mapped image. A child that already exited cannot be inspected;
+// its file identity is still checked after launch by the caller.
+func (command *pipelineOMPVerifiedExecCommand) awaitDarwinLiveTarget(ctx context.Context, target string) error {
+	pid := command.cmd.Process.Pid
+	for {
+		_, path, err := pipelineOMPDarwinLiveExecutableRegion(pid)
+		if err == nil && filepath.Clean(path) == filepath.Clean(target) {
+			return verifyPipelineOMPDarwinLiveExecutable(pid, target, command.expected)
+		}
+		if err == nil && filepath.Clean(path) != "/usr/bin/sandbox-exec" {
+			return errors.New("Darwin live executable is neither the sandbox nor the target")
+		}
+		if err != nil && pipelineOMPDarwinChildExited(pid) {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(pipelineOMPVerifiedDarwinLivePoll):
+		}
+	}
 }
 
 func (command *pipelineOMPVerifiedExecCommand) startDarwinInheritedPath() error {
@@ -201,56 +219,14 @@ func (command *pipelineOMPVerifiedExecCommand) parentTargetPath() string {
 	return ""
 }
 
-func (command *pipelineOMPVerifiedExecCommand) waitDarwinExecStop(ctx context.Context) error {
-	pid := command.cmd.Process.Pid
-	stopKill := context.AfterFunc(ctx, func() { _ = killPipelineOMPDarwinTrace(command.cmd) })
-	defer stopKill()
-	for {
-		var status syscall.WaitStatus
-		observed, err := syscall.Wait4(pid, &status, syscall.WUNTRACED, nil)
-		if errors.Is(err, syscall.EINTR) {
-			continue
-		}
-		if err != nil || observed != pid || !status.Stopped() || status.StopSignal() != syscall.SIGTRAP {
-			return errors.Join(errors.New("unexpected Darwin ptrace stop"), err, ctx.Err())
-		}
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
-		return nil
-	}
-}
-
 func (command *pipelineOMPVerifiedExecCommand) failDarwinGate(errs ...error) error {
-	killErr := killPipelineOMPDarwinTrace(command.cmd)
+	killErr := terminateWorkflowContextManagedRPCProcessGroup(command.cmd)
 	waitErr := command.cmd.Wait()
 	var exitErr *exec.ExitError
 	if errors.As(waitErr, &exitErr) || errors.Is(waitErr, syscall.ECHILD) {
 		waitErr = nil
 	}
 	return errors.Join(append(errs, killErr, waitErr)...)
-}
-
-func killPipelineOMPDarwinTrace(cmd *exec.Cmd) error {
-	if cmd == nil || cmd.Process == nil || cmd.Process.Pid <= 0 {
-		return nil
-	}
-	_, _, ptraceErr := syscall.Syscall6(
-		syscall.SYS_PTRACE, syscall.PT_KILL, uintptr(cmd.Process.Pid), 1, 0, 0, 0,
-	)
-	killErr := terminateWorkflowContextManagedRPCProcessGroup(cmd)
-	var ptraceFailure error
-	if ptraceErr != 0 && ptraceErr != syscall.ESRCH {
-		ptraceFailure = ptraceErr
-	}
-	if errors.Is(killErr, syscall.ESRCH) || (ptraceErr == 0 && errors.Is(killErr, syscall.EPERM)) {
-		killErr = nil
-	}
-	return errors.Join(ptraceFailure, killErr)
-}
-
-func continuePipelineOMPDarwinTrace(pid int) error {
-	return continuePipelineOMPDarwinTraceWithSignal(pid, 0)
 }
 
 func verifyPipelineOMPDarwinLiveExecutable(

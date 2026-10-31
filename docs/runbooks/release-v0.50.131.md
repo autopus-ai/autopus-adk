@@ -27,9 +27,17 @@ Two things, in order.
 
 **Prerequisites in the same PR as this coordinate move:**
 
-- The Darwin verified-exec gate no longer detaches long-running children: it
-  stays their tracer and forwards their signals until they exit (main session
-  change in `internal/cli`). Without it, a release job scheduled on a 15.8.2
+- The Darwin verified-exec gate no longer uses ptrace. On 15.8.2 and 26.6.2
+  every way of releasing a traced child failed: detaching from the exec stop
+  killed it with the redelivered SIGTRAP, detaching from a later SIGCONT stop
+  stalled about one child in two hundred, and staying the tracer froze
+  multi-threaded children that take signals (the Go RPC fixtures). The gate
+  now verifies the target file before launch, the live image the kernel
+  mapped once sandbox-exec has exec'd it (vnode and digest), and the file
+  again, and kills the process group on any mismatch. The user accepted the
+  trade-off: a target swapped between the checks can run inside the sandbox
+  until the live check kills it, which needs the same uid and the private
+  0700 runtime root. Without this change a release job scheduled on a 15.8.2
   or 26.6.2 runner can burn `v0.50.131` the same way.
 - Every deployment-branch-policy read is paginated:
   `publish-release-coordinates.sh` and `release-coordinate-transaction-lib.sh`
