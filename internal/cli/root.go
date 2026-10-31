@@ -124,6 +124,9 @@ func NewRootCmd() *cobra.Command {
 	// the /auto fix workflow runs `auto fix lock|unlock`.
 	root.AddCommand(newGuardCmd())
 	root.AddCommand(newFixCmd())
+	// SPEC-DISK-001: generated guidance runs `auto disk check` before heavy
+	// steps and stops on its exit 3.
+	root.AddCommand(newDiskCmd())
 
 	return root
 }

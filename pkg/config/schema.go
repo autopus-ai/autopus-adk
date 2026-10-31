@@ -91,6 +91,7 @@ type HarnessConfig struct {
 	Hints            HintsConf            `yaml:"hints,omitempty"`
 	Workflow         WorkflowConf         `yaml:"workflow,omitempty"`
 	HealthBand       HealthBandConf       `yaml:"health_band,omitempty"`
+	Disk             DiskConf             `yaml:"disk,omitempty"`
 	Runtime          RuntimeConf          `yaml:"-"`
 }
 
@@ -270,7 +271,7 @@ func (c *HarnessConfig) Validate() error {
 	if err := c.Codex.Validate(); err != nil {
 		return err
 	}
-	return nil
+	return c.Disk.Validate()
 }
 
 // IsFullMode는 Full 모드 여부를 반환한다. 항상 true를 반환한다.
