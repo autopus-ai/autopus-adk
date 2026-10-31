@@ -32,6 +32,10 @@ NOT applied when:
 - `--team` mode (Agent Teams manages isolation independently)
 - Tasks with `Mode = "sequential"` (use main worktree)
 
+## Disk Preflight
+
+Before spawning parallel executors, run `auto disk check --need 10` once and stop the fan-out with a report when it exits 3. Each worktree adds a checkout, build output, and test caches on a disk every worker shares, and a full disk fails all of them with misleading errors.
+
 ## Agent Tool Usage (R1)
 
 For parallel tasks in Phase 2, add `isolation: "worktree"` to Agent() calls:

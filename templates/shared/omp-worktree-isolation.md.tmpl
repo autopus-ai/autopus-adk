@@ -40,7 +40,9 @@ Before fan-out:
 3. detect exact overlap and directory-prefix containment;
 4. serialize tasks that share a generated artifact, migration directory, package manifest, lockfile,
    schema registry, or other mutable authority;
-5. put cross-task interfaces in top-level `context` before dispatch.
+5. put cross-task interfaces in top-level `context` before dispatch;
+6. run `auto disk check --need 10` and stop the fan-out with a report when it exits 3, because
+   every isolated item adds a checkout and build output to a disk the other items share.
 
 A maximum of five isolated implementation items may be active in one wave. Queue overflow by
 task id. This policy is stricter than OMP's session-wide semaphore and prevents excessive

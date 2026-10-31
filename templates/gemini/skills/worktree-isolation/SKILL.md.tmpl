@@ -30,7 +30,7 @@ exclude="$(git rev-parse --git-path info/exclude)"
 grep -qxF '.autopus/worktrees/' "$exclude" || printf '%s\n' '.autopus/worktrees/' >> "$exclude"
 ```
 
-Before dispatching a parallel task, create its worktree on its own branch from the current working-branch commit:
+Before dispatching a parallel task, run `auto disk check --need 10` and stop the fan-out when it exits 3: every worktree adds a checkout, build output, and test caches on a disk the other workers share. Then create its worktree on its own branch from the current working-branch commit:
 
 ```bash
 git -c gc.auto=0 worktree add -b worktree/SPEC-XXX-001/T1 .autopus/worktrees/SPEC-XXX-001/T1 HEAD
