@@ -168,3 +168,12 @@ A standalone replica of the gate, run on the probe branch
 A rerun cannot help once the pool serves 15.8.2, and moving the job to
 `macos-26` does not help either. The tag pins source `fd700910`, so the fix
 needs a new source commit and therefore a new coordinate.
+
+### 2026-10-31: deployment tag policy 64879249 deleted
+
+With the user's approval, the `v0.50.129` deployment tag policy `64879249` was
+deleted so that the `v0.50.130` policy fell on the first page the unpaginated
+coordinate publisher read (see
+[release-v0.50.130.md](release-v0.50.130.md#burned-on-2026-10-31)). A burned
+tag never deploys, so the deletion also closes the approval path of release
+run `41035414211`. Everything else above is unchanged.
