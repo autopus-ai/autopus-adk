@@ -212,3 +212,20 @@ func TestQualityReview_RefusesWhatTheTabRefuses(t *testing.T) {
 		require.EqualError(t, err, composeReviewTextEN.NamesRefused, "%v", args)
 	}
 }
+
+// A target the line splice writer cannot edit safely refuses the edit with
+// the tab's write-refused line, after the change lines, and writes nothing.
+func TestQualityReview_WriteRefusalLeavesTheFile(t *testing.T) {
+	useQualityReviewSeams(t)
+	dir := writeReviewR3(t)
+	replaceReviewFile(t, dir, "        providers: [claude, codex, gemini]\n",
+		"        providers:\n            - claude\n            # keep codex\n            - codex\n            - gemini\n")
+	before := readReviewFile(t, dir)
+
+	out, _, err := runQualityReview(t, dir, nil, "off", "gemini")
+
+	require.EqualError(t, err, "The review settings in autopus.yaml cannot be edited safely; nothing was written: spec.review_gate.providers")
+	assert.Contains(t, out, "  spec.review_gate.providers [claude, codex, gemini] → [claude, codex]\n")
+	assert.NotContains(t, out, "Composition applied.")
+	assert.Equal(t, before, readReviewFile(t, dir))
+}

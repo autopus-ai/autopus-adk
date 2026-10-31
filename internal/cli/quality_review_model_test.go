@@ -147,6 +147,22 @@ func TestQualityReviewModel_AgyCLIRow(t *testing.T) {
 		"install OMP to switch it to the OMP backend")
 }
 
+// An id listed without a suffix is both a model and the name of its group.
+func TestQualityReviewModel_AgyIDThatNamesAGroup(t *testing.T) {
+	useQualityReviewSeams(t, "agy")
+	useAgyModels(t, "gemini-3.1-pro\tGemini 3.1 Pro\ngemini-3.1-pro-high\tGemini 3.1 Pro (High)\n", nil)
+	dir := writeReviewRL(t)
+
+	out, _, err := runQualityReview(t, dir, nil, "model", "gemini", "gemini-3.1-pro", "--dry-run")
+	require.NoError(t, err, out)
+	assert.Contains(t, out, "--model none → gemini-3.1-pro\n")
+	out, _, err = runQualityReview(t, dir, nil, "model", "gemini", "gemini-3.1-pro", "--effort", "high", "--dry-run")
+	require.NoError(t, err, out)
+	assert.Contains(t, out, "--model none → gemini-3.1-pro-high\n")
+	_, _, err = runQualityReview(t, dir, nil, "model", "gemini", "gemini-3.1-pro", "--effort", "low")
+	require.EqualError(t, err, "gemini-3.1-pro does not take effort low for gemini (accepted: high)")
+}
+
 // A target value written as a placeholder keeps the provider as it is, and
 // the expanded value never reaches the error (REQ-RVM-26).
 func TestQualityReviewModel_PlaceholderValueStays(t *testing.T) {

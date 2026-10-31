@@ -30,7 +30,9 @@ func newQualityReviewModelCmd(apply *bool, deps ompPlatformDependencies) *cobra.
 
 // runQualityReviewModel changes one provider's model the way the tab's model
 // select does: only a model the provider's list attests, read from the same
-// source, and never a provider the tab would not ask (REQ-RVM-26).
+// source, and never a value the tab leaves alone (REQ-RVM-26). Unlike the
+// tab it also takes a provider that takes no part, whose model orchestra
+// commands still use.
 func runQualityReviewModel(cmd *cobra.Command, apply *bool, deps ompPlatformDependencies, name, model, effort string, dryRun bool) error {
 	e, err := startQualityReviewEdit(cmd, apply)
 	if err != nil {
@@ -151,7 +153,9 @@ func (e *qualityReviewEdit) agyModel(name string, models []reviewCLIModel, model
 		if effort == "" && m.ID == e.working.CLI[name].Model || effort != "" && m.Suffix == effort {
 			return m.ID, nil
 		}
-		suffixes = append(suffixes, m.Suffix)
+		if m.Suffix != "" {
+			suffixes = append(suffixes, m.Suffix)
+		}
 	}
 	if effort == "" {
 		return group[0].ID, nil
