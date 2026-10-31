@@ -47,6 +47,15 @@ type SpecDocument struct {
 	Requirements       []Requirement // 요구사항 목록
 	AcceptanceCriteria []Criterion   // 인수 기준 목록
 	RawContent         string        // spec.md 원문 (review prompt에 전문 포함용)
+	// Profile selects the authoring profile: empty for the full SPEC set,
+	// ProfileLean for the reduced set a low-risk change may take.
+	Profile string
+	// ChangeClass is the declared gates.ChangeKind; the lean profile requires
+	// a low-risk class.
+	ChangeClass string
+	// Surface lists the paths a lean SPEC declares it will change; a path
+	// covers itself and everything beneath it.
+	Surface []string
 }
 
 // ValidationError는 검증 오류이다.

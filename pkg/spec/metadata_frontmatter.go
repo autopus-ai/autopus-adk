@@ -98,3 +98,18 @@ func splitLegacyField(line string) (label, value string, ok bool) {
 	value = strings.TrimSpace(matches[2])
 	return label, value, value != ""
 }
+
+// parseFrontmatterList reads a one-line list value, either `a, b` or the flow
+// form `[a, b]`, trimming quotes and dropping empty entries.
+func parseFrontmatterList(value string) []string {
+	value = strings.TrimSpace(value)
+	value = strings.TrimSuffix(strings.TrimPrefix(value, "["), "]")
+	var items []string
+	for _, item := range strings.Split(value, ",") {
+		item = strings.Trim(strings.TrimSpace(item), `"'`+"`")
+		if item != "" {
+			items = append(items, item)
+		}
+	}
+	return items
+}

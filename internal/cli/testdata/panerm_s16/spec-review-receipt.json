@@ -61,6 +61,30 @@
       "readiness": "skipped",
       "excluded": false
     }
+  ],
+  "started_at": "<volatile>",
+  "duration_ms": "<volatile>",
+  "rounds": [
+    {
+      "revision": 0,
+      "started_at": "<volatile>",
+      "duration_ms": "<volatile>",
+      "providers": [
+        {
+          "provider": "claude",
+          "duration_ms": "<volatile>"
+        },
+        {
+          "provider": "codex",
+          "duration_ms": "<volatile>"
+        },
+        {
+          "provider": "claude (judge)",
+          "role": "judge",
+          "duration_ms": "<volatile>"
+        }
+      ]
+    }
   ]
 }
 

@@ -22,6 +22,7 @@ func newSpecCmd() *cobra.Command {
 	cmd.AddCommand(newSpecReviewCmd())
 	cmd.AddCommand(newSpecGatesCmd())
 	cmd.AddCommand(newSpecChangeCmd())
+	cmd.AddCommand(newSpecTimingCmd())
 	return cmd
 }
 

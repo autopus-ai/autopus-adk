@@ -92,12 +92,16 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 		if watchdog := specReviewWatchdogForConfig(orchCfg); watchdog > 0 {
 			reviewCtx, cancel = context.WithTimeout(p.ctx, time.Duration(watchdog)*time.Second)
 		}
+		roundStarted := time.Now()
 		result, err := specReviewRunOrchestra(reviewCtx, orchCfg)
 		cancel()
+		round := newSpecReviewRoundTiming(revision, roundStarted, time.Since(roundStarted), result)
+		printSpecReviewRoundTiming(os.Stderr, round)
 		if err != nil {
 			return nil, fmt.Errorf("리뷰 실행 실패: %w", err)
 		}
 		if p.runtimeEvidence != nil {
+			p.runtimeEvidence.Rounds = append(p.runtimeEvidence.Rounds, round)
 			p.runtimeEvidence.RunID = orchCfg.RunID
 			if result.RunReceipt != nil && result.RunReceipt.RunID != "" {
 				p.runtimeEvidence.RunID = result.RunReceipt.RunID
