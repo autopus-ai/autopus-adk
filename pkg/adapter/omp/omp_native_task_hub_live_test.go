@@ -135,7 +135,7 @@ func TestOMPNativeTaskHubLiveSmoke(t *testing.T) {
 }
 
 // generateOMPOnlyWithoutAgentSurface is generateOMPOnly with the agent
-// surface stripped, the layout agent_source: native left before v0.50.130:
+// surface stripped, the layout agent_source: native left before v0.50.131:
 // no project agent definition and no task.disabledAgents, so OMP serves its
 // bundled registry and the smoke's children are bundled agents.
 func generateOMPOnlyWithoutAgentSurface(t *testing.T) string {

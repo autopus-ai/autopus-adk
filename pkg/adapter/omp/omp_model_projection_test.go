@@ -222,7 +222,7 @@ func ompProjectionFixture(t *testing.T) OMPModelProjectionInput {
 		config.CapabilityIndependentDissent:     {Selector: "anthropic/alpha-reasoner", Thinking: "high"},
 		config.CapabilityDeterministicTransform: {Selector: "openai/beta-coder", Thinking: "high"},
 	}
-	// The agents that represented the five bundled agents before v0.50.130,
+	// The agents that represented the five bundled agents before v0.50.131,
 	// in their old fixture order: task stays at index 3.
 	names := []string{"explorer", "reviewer", "security-auditor", "task", "validator"}
 	agents := make([]OMPProjectionAgent, 0, len(names))

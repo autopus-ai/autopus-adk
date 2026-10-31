@@ -1,6 +1,6 @@
 package omp
 
-// v0.50.130 removed agent_source: native. A project last updated under it
+// v0.50.131 removed agent_source: native. A project last updated under it
 // holds what a project generated before v0.50.127 holds: no recorded agent
 // definition and no claim, native generation having pruned the one and
 // released the other. Once the key is deleted, the next update must migrate

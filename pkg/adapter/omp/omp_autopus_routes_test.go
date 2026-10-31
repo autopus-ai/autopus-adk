@@ -86,7 +86,7 @@ func TestOMPModelIntegration_AutopusOverridesKeyEveryAgentAndTask(t *testing.T) 
 
 // In autopus mode family diversity is measured against the executor agent,
 // the one that carries implementation work; the bundled task agent native
-// mode anchored on before v0.50.130 runs no implementation any more.
+// mode anchored on before v0.50.131 runs no implementation any more.
 func TestCompileOMPModelRouting_AnchorsFamilyDiversityOnTheServedExecutor(t *testing.T) {
 	t.Parallel()
 	catalog, reason := NormalizeOMPModelCatalog(newModelIntegrationRunner().catalog, 16*1024)

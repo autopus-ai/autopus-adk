@@ -31,7 +31,7 @@ const updateCmdLong = "설치된 하네스 파일을 업데이트합니다.\n\n"
 	"OMP는 v0.50.127부터 기본으로 Autopus 에이전트 17개를 .omp/agents에 만들고 task를 뺀 OMP 기본 에이전트\n" +
 	"(scout·security-reviewer·sonic·designer·librarian·seance)를 task.disabledAgents로 끕니다. 기존 프로젝트는 미리보기에\n" +
 	"+ .omp/agents/<agent>.md 줄과 안내가 나오고 autopus.yaml은 쓰지 않습니다. manifest에 없는 같은 이름 파일과\n" +
-	"사용자가 정한 task.disabledAgents는 그대로 둡니다. role_model_policy.agent_source: native는 v0.50.130에서\n" +
+	"사용자가 정한 task.disabledAgents는 그대로 둡니다. role_model_policy.agent_source: native는 v0.50.131에서\n" +
 	"제거되어 로드에 실패합니다. 그 key를 지우고 auto update를 실행하면 Autopus 에이전트로 돌아갑니다.\n\n" +
 	"OMP 탭은 프로필·계열을 묻지 않습니다. 지금 pin이나 프로필 route에서 시작해 역할 그룹 4개나\n" +
 	"에이전트별(자기 pin이 있으면 task 포함)로 그대로 · OMP 세션 모델 그대로 · 모든 provider의 증명된 설치 model을\n" +

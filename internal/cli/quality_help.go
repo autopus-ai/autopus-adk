@@ -82,7 +82,7 @@ Applying over a profile converts it after a preview line and the
 confirmation: unchanged agents and task keep their routes, and an ultra
 profile stops following quality.presets.ultra. The OMP line editor and auto
 platform omp profile apply keep profiles. role_model_policy.agent_source:
-native was removed in v0.50.130 and fails to load: delete the key, then run
+native was removed in v0.50.131 and fails to load: delete the key, then run
 auto update to restore the Autopus agents.
 
 The tool tab ends with Multi-provider review while spec.review_gate is

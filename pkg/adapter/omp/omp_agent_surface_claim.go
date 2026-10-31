@@ -15,7 +15,7 @@ import (
 // file, not the overlay, so the agent surface claim goes to .omp/config.yml
 // whatever the profile's config mode is. A project that holds no claim - one
 // generated before v0.50.127, or released by agent_source: native before
-// v0.50.130 - is claimed the way a first generation is.
+// v0.50.131 - is claimed the way a first generation is.
 
 // ompClaimSetState is one reading of the project config and its ledger.
 type ompClaimSetState struct {
