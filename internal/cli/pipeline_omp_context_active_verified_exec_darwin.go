@@ -167,7 +167,12 @@ func (command *pipelineOMPVerifiedExecCommand) awaitDarwinLiveTarget(ctx context
 	for {
 		_, path, err := pipelineOMPDarwinLiveExecutableRegion(pid)
 		if err == nil && filepath.Clean(path) == filepath.Clean(target) {
-			return verifyPipelineOMPDarwinLiveExecutable(pid, target, command.expected)
+			verifyErr := verifyPipelineOMPDarwinLiveExecutable(pid, target, command.expected)
+			if verifyErr != nil && pipelineOMPDarwinChildExited(pid) {
+				// The image vanished between the two region reads.
+				return nil
+			}
+			return verifyErr
 		}
 		if err == nil && filepath.Clean(path) != "/usr/bin/sandbox-exec" {
 			return errors.New("Darwin live executable is neither the sandbox nor the target")
@@ -221,6 +226,10 @@ func (command *pipelineOMPVerifiedExecCommand) parentTargetPath() string {
 
 func (command *pipelineOMPVerifiedExecCommand) failDarwinGate(errs ...error) error {
 	killErr := terminateWorkflowContextManagedRPCProcessGroup(command.cmd)
+	if errors.Is(killErr, syscall.EPERM) && pipelineOMPDarwinChildExited(command.cmd.Process.Pid) {
+		// A group left with only the exited child refuses the signal.
+		killErr = nil
+	}
 	waitErr := command.cmd.Wait()
 	var exitErr *exec.ExitError
 	if errors.As(waitErr, &exitErr) || errors.Is(waitErr, syscall.ECHILD) {
