@@ -58,6 +58,15 @@ preset is never modified. `auto quality show --agents` prints the table read-onl
 an interactive terminal, so an agent points the operator to it; generated agent files are
 overwritten on regeneration and are never hand-edited to change a model.
 
+### Multi-provider review models
+
+`auto spec review` and orchestra commands run each `orchestra.providers` entry with the model and
+effort autopus.yaml gives it. `auto quality review` shows them; `auto quality review model <provider>
+<model> [--effort <effort>]`, `on`/`off <provider>...`, and `judge <provider|none>` change them
+with the checks of the Multi-provider review tab: only a model the provider's catalog attests, at
+least two providers taking part, and the settings that change printed first (`--dry-run` writes
+nothing). These need no terminal, so an agent can run them; a refused value lists the accepted ones.
+
 ## Complexity Assessment Criteria
 
 The planner assesses each task before spawning an agent. Complexity describes the nature of the work, not its size: file count and line count are not criteria.

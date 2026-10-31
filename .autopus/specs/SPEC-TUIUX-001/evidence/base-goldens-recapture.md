@@ -158,3 +158,10 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 기록: 이 branch tip에서 writer를 돌렸다. 바뀐 줄은 TUIUX 코드가 아니라 이 branch가 의도한 출력이므로 tip에서 기록한 `quality-no-tty.stdout`을 그대로 두었다. writer가 다시 쓴 `init-in.stdout`(단언하지 않는 TUIUX 확인 화면)은 `git checkout`으로 되돌렸다.
 - 차이: `quality-no-tty.stdout`에 위 한 줄이 TTY 오류 앞에 더해졌다(fixture D는 리뷰 게이트가 켜져 있고 provider가 셋이다). init-yes·update-yes·update-ci는 이 환경의 PATH에 provider가 없어 Review Gate가 꺼지므로(`false (0 providers)`) 안내 줄이 없다. quality-line-b와 init-pipe는 대화형 경로다. 이 다섯 stdout과 NPD 일곱 개는 바뀌지 않았다.
 - 검증: 두 test가 이 golden으로 통과한다. stdout golden 가운데 b08ea644 기록과 다른 것은 이 한 줄뿐이다.
+
+## 14. 품질 스킬의 auto quality review 재기록 (fix/review-model-ux, 2026-11-01)
+
+- 원인: `adaptive-quality`·`using-autopus` 스킬에 터미널 없이 리뷰 model을 보고 바꾸는 `auto quality review` 절을 더했다. Codex·Gemini 템플릿은 `go run ./cmd/generate-templates`로 다시 만들었다.
+- 기록: 6절과 같은 방법이다(이 branch tip에서 writer, stdout golden 되돌림). 되돌린 stdout은 13절의 `quality-no-tty.stdout`을 포함해 직전 commit의 기록 그대로다.
+- 차이: `.claude/skills/using-autopus`, `.codex/skills/codex-using-autopus`의 checksum, 두 manifest의 그 entry, 두 journal의 `after_checksum`, update 흐름의 backup 사본. `adaptive-quality`는 기본 compact catalog가 생성하지 않아 이 흐름에 없다. 다른 경로는 바뀌지 않았다.
+- 검증: 두 test가 이 golden으로 통과한다.
