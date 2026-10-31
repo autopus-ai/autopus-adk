@@ -147,7 +147,7 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 
 ## 12. SPEC lean profile 재기록 (feat/spec-plan-latency, 2026-10-31)
 
-- 원인: plan 워크플로의 Compact Path Gate에 저위험 신규 SPEC용 lean profile 분기를 더하고, spec-writer agent에 "Lean Profile" 절을 더했다.
+- 원인: plan 워크플로의 Compact Path Gate에 저위험 신규 SPEC용 lean profile 분기를 더하고, spec-writer agent에 "Lean Profile" 절을 더했다. 뒤이은 커밋이 같은 파일에 `surface` 선언 요구를 더해 다시 기록했다.
 - 기록: 6절과 같은 방법이다(이 branch tip에서 writer, stdout golden 되돌림).
 - 차이: `.claude/agents/autopus/spec-writer.md`, `.claude/skills/auto-plan`, `.codex/agents/spec-writer.toml`, `.codex/skills/codex-auto-plan`의 checksum, 두 manifest의 그 entry, 두 journal의 `after_checksum`, update 흐름의 backup 사본. 다른 경로는 바뀌지 않았다.
 - 검증: 두 test가 이 golden으로 통과한다.

@@ -87,10 +87,68 @@ func TestValidateSpecSet_FullProfileStillRequiresFullSet(t *testing.T) {
 	assertValidationError(t, spec.ValidateSpecSet(specDir, doc), "plan.md", "Risk-First Integration Probe")
 }
 
+func TestValidateSpecSet_LeanProfileRequiresDeclaredSurface(t *testing.T) {
+	t.Parallel()
+
+	specDir, doc := writeAuthoringPreflightSpec(t, leanSpecFilesWithSurface("bugfix_existing_contract", ""))
+	assertValidationError(t, spec.ValidateSpecSet(specDir, doc), "spec.md", "surface")
+}
+
+// A self-declared low-risk class is checked against the declared paths with
+// the classifier auto spec gates applies to the real change set.
+func TestValidateSpecSet_LeanSurfaceContradictingTheClassIsRefused(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]struct{ class, surface, reason string }{
+		"security path":       {"bugfix_existing_contract", "internal/auth/session.go", "security_or_data_surface_in_change_set"},
+		"two module roots":    {"bugfix_existing_contract", "internal/cli/a.go, pkg/spec/b.go", "multi_domain_change_set"},
+		"docs_only with code": {"docs_only", "README.md, internal/cli/spec_timing.go", "declared_docs_only_touches_code"},
+		"test_only with code": {"test_only", "internal/cli/spec_timing.go", "declared_test_only_touches_production_source"},
+	}
+	for name, tc := range cases {
+		tc := tc
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			specDir, doc := writeAuthoringPreflightSpec(t, leanSpecFilesWithSurface(tc.class, tc.surface))
+			assertValidationError(t, spec.ValidateSpecSet(specDir, doc), "spec.md", tc.reason)
+			assert.False(t, doc.LeanEligible())
+		})
+	}
+}
+
+func TestParseSpecMetadata_SurfaceAcceptsFlowAndPlainLists(t *testing.T) {
+	t.Parallel()
+
+	for _, value := range []string{"[a/b.go, 'c/d.go']", "a/b.go,c/d.go,", "`a/b.go`, \"c/d.go\""} {
+		doc := spec.ParseSpecMetadata("---\nid: SPEC-X-001\nsurface: " + value + "\n---\n")
+		assert.Equal(t, []string{"a/b.go", "c/d.go"}, doc.Surface, value)
+	}
+}
+
 func leanSpecFiles(class string) map[string]string {
+	return leanSpecFilesWithSurface(class, leanSurfaceFor(class))
+}
+
+// leanSurfaceFor returns a surface consistent with class, so a fixture fails
+// only for the reason its test names.
+func leanSurfaceFor(class string) string {
+	switch class {
+	case "test_only":
+		return "internal/cli/spec_review_timing_test.go"
+	case "docs_only":
+		return "docs/guide/timing.md"
+	default:
+		return "internal/cli/spec_timing.go, internal/cli/spec_review_timing_test.go"
+	}
+}
+
+func leanSpecFilesWithSurface(class, surface string) map[string]string {
 	header := "profile: lean\n"
 	if class != "" {
 		header += "change_class: " + class + "\n"
+	}
+	if surface != "" {
+		header += "surface: " + surface + "\n"
 	}
 	return map[string]string{
 		"spec.md": `# SPEC-LEAN-001: Lean Fix
@@ -145,4 +203,21 @@ Then expected stderr contains "1m30s"
 - Reviewer should focus on: correctness only.
 `,
 	}
+}
+
+// A prose mention of a heading must neither stand in for the section nor
+// shadow the real section that follows it.
+func TestValidateSpecSet_InlineHeadingMentionIsNotTheSection(t *testing.T) {
+	t.Parallel()
+
+	shadowed := strings.Replace(validPlanMD(), "## Implementation Strategy\n",
+		"## Implementation Strategy\n\nT1 fills the `## Risk-First Integration Probe` rows A1 and A2.\n", 1)
+	specDir, doc := writeAuthoringPreflightSpec(t, map[string]string{"plan.md": shadowed})
+	for _, e := range spec.ValidateSpecSet(specDir, doc) {
+		assert.NotEqual(t, "error", e.Level, "unexpected error: %s", e.Message)
+	}
+
+	mentionOnly := strings.Replace(validResearchMD(), "## Reviewer Brief", "Reviewer notes (see `## Reviewer Brief`)", 1)
+	specDir, doc = writeAuthoringPreflightSpec(t, map[string]string{"research.md": mentionOnly})
+	assertValidationError(t, spec.ValidateSpecSet(specDir, doc), "research.md", "Reviewer Brief")
 }

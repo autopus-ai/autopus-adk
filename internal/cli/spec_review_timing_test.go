@@ -52,7 +52,7 @@ func TestPrintSpecReviewRoundTiming_NamesJudgeAndTimeouts(t *testing.T) {
 		DurationMS: 372_400,
 		Providers: []specReviewProviderTiming{
 			{Provider: "codex", DurationMS: 340_000, TimedOut: true},
-			{Provider: "claude", Role: "judge", DurationMS: 31_600},
+			{Provider: "claude (judge)", Role: "judge", DurationMS: 31_600},
 		},
 	})
 
@@ -87,14 +87,14 @@ func TestApplyLeanReviewProfile(t *testing.T) {
 		wantMin       int
 	}{
 		{"full SPEC keeps the panel", &spec.SpecDocument{}, nil, nil, "codex", 2},
-		{"lean SPEC uses the judge as its single reviewer", &spec.SpecDocument{Profile: "lean", ChangeClass: "test_only"}, nil, []string{"codex"}, "", 1},
-		{"explicit providers win", &spec.SpecDocument{Profile: "lean", ChangeClass: "docs_only"}, []string{"gemini", "claude"}, []string{"gemini", "claude"}, "codex", 2},
+		{"lean SPEC uses the judge as its single reviewer", &spec.SpecDocument{Profile: "lean", ChangeClass: "test_only", Surface: []string{"internal/cli/x_test.go"}}, nil, []string{"codex"}, "", 1},
+		{"explicit providers win", &spec.SpecDocument{Profile: "lean", ChangeClass: "docs_only", Surface: []string{"docs/x.md"}}, []string{"gemini", "claude"}, []string{"gemini", "claude"}, "codex", 2},
 		{"mislabelled high-risk lean keeps the panel", &spec.SpecDocument{Profile: "lean", ChangeClass: "feature"}, nil, nil, "codex", 2},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var out bytes.Buffer
-			gate, opts := applyLeanReviewProfile(tt.doc, full, specReviewOptions{providers: tt.flagProviders}, &out)
+			gate, opts, _ := applyLeanReviewProfile(tt.doc, full, specReviewOptions{providers: tt.flagProviders}, &out)
 			assert.Equal(t, tt.wantProviders, opts.providers)
 			assert.Equal(t, tt.wantJudge, gate.Judge)
 			assert.Equal(t, tt.wantMin, gate.MinProviders)
@@ -102,10 +102,29 @@ func TestApplyLeanReviewProfile(t *testing.T) {
 	}
 }
 
-func TestLeanSpecReviewer_FallsBackToFirstProvider(t *testing.T) {
-	assert.Equal(t, "claude", leanSpecReviewer(config.ReviewGateConf{Providers: []string{"claude", "codex"}, Judge: "opencode"}))
-	assert.Equal(t, "gemini", leanSpecReviewer(config.ReviewGateConf{Judge: "gemini"}))
-	assert.Equal(t, "", leanSpecReviewer(config.ReviewGateConf{}))
+func TestLeanSpecReviewers_OrdersJudgeFirstThenConfiguredProviders(t *testing.T) {
+	assert.Equal(t, []string{"codex", "claude", "gemini"},
+		leanSpecReviewers(config.ReviewGateConf{Providers: []string{"claude", "codex", "gemini"}, Judge: "codex"}))
+	assert.Equal(t, []string{"claude", "codex"},
+		leanSpecReviewers(config.ReviewGateConf{Providers: []string{"claude", "codex"}, Judge: "opencode"}))
+	assert.Equal(t, []string{"gemini"}, leanSpecReviewers(config.ReviewGateConf{Judge: "gemini"}))
+	assert.Empty(t, leanSpecReviewers(config.ReviewGateConf{}))
+}
+
+func TestApplyLeanReviewProfile_ReturnsRemainingReviewersAsFallbacks(t *testing.T) {
+	doc := &spec.SpecDocument{Profile: "lean", ChangeClass: "test_only", Surface: []string{"internal/cli/x_test.go"}}
+	gate := config.ReviewGateConf{Providers: []string{"claude", "codex", "gemini"}, Judge: "claude"}
+	var out bytes.Buffer
+	_, opts, fallbacks := applyLeanReviewProfile(doc, gate, specReviewOptions{}, &out)
+	assert.Equal(t, []string{"claude"}, opts.providers)
+	assert.Equal(t, []string{"codex", "gemini"}, fallbacks)
+}
+
+func TestSpecReviewProviderUnavailable(t *testing.T) {
+	assert.True(t, specReviewProviderUnavailable(nil, assert.AnError))
+	assert.True(t, specReviewProviderUnavailable(&spec.ReviewResult{LoopStatus: spec.LoopStatusProviderUnavailable}, nil))
+	assert.False(t, specReviewProviderUnavailable(&spec.ReviewResult{LoopStatus: spec.LoopStatusConverged}, nil))
+	assert.False(t, specReviewProviderUnavailable(nil, nil))
 }
 
 func TestPrintSpecTiming_ReadsReceiptEvidence(t *testing.T) {

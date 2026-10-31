@@ -131,7 +131,7 @@ func validateSectionSet(files map[string]string, required map[string][]string) [
 	for _, name := range []string{"spec.md", "plan.md", "acceptance.md", "research.md"} {
 		sections := required[name]
 		for _, section := range sections {
-			if !strings.Contains(files[name], section) {
+			if !hasSection(files[name], section) {
 				errs = append(errs, ValidationError{
 					Field:   name,
 					Message: fmt.Sprintf("authoring preflight 섹션 누락: %s", section),

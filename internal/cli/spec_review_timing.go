@@ -53,7 +53,8 @@ func printSpecReviewRoundTiming(w io.Writer, round specReviewRoundTiming) {
 	for _, provider := range round.Providers {
 		label := provider.Provider
 		if provider.Role == "judge" {
-			label = "judge:" + label
+			// Judge responses are named "<provider> (judge)"; show the role once.
+			label = "judge:" + strings.TrimSuffix(label, " (judge)")
 		}
 		entry := fmt.Sprintf("%s %s", label, formatSpecReviewDuration(provider.DurationMS))
 		if provider.TimedOut {

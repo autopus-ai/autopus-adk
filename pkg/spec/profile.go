@@ -56,7 +56,32 @@ func validateProfile(doc *SpecDocument) []ValidationError {
 			Level:   "error",
 		}}
 	}
-	return nil
+	return validateLeanSurface(doc, kind)
+}
+
+// validateLeanSurface checks the declared class against the paths the SPEC
+// says it will change, with the same deterministic classifier `auto spec
+// gates` applies to the real change set later. A self-declared low-risk class
+// cannot hide a security/data path, a public contract, production code in two
+// module roots, or code under a docs/test-only declaration.
+func validateLeanSurface(doc *SpecDocument, kind gates.ChangeKind) []ValidationError {
+	if len(doc.Surface) == 0 {
+		return []ValidationError{{
+			Field:   "spec.md",
+			Message: "lean profile은 frontmatter surface에 변경할 경로 목록이 필요합니다 (예: surface: internal/cli/foo.go, internal/cli/foo_test.go)",
+			Level:   "error",
+		}}
+	}
+	risk := gates.AssessChange(kind, gates.Classify(doc.Surface, nil), false)
+	if !risk.Escalated() {
+		return nil
+	}
+	return []ValidationError{{
+		Field: "spec.md",
+		Message: fmt.Sprintf("lean profile 거절: 선언한 surface가 %s로 판정됩니다 (%s); profile을 지우고 full SPEC set을 작성하세요",
+			risk.EffectiveClass, strings.Join(risk.Reasons, ", ")),
+		Level: "error",
+	}}
 }
 
 // validateLeanSpecSet is the strict preflight of a lean SPEC set. The checks
@@ -74,7 +99,7 @@ func validateLeanSpecSet(files map[string]string) []ValidationError {
 // validateLeanTraceability keeps the full invariant cross-check when the author
 // chose to write an inventory, and otherwise only requires trace rows.
 func validateLeanTraceability(files map[string]string) []ValidationError {
-	if strings.Contains(files["research.md"], "## Semantic Invariant Inventory") {
+	if hasSection(files["research.md"], "## Semantic Invariant Inventory") {
 		return validateTraceability(files["spec.md"], files["research.md"], files["acceptance.md"])
 	}
 	var errs []ValidationError

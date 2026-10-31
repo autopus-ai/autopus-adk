@@ -753,10 +753,10 @@ Before authoring any document, decide whether this work needs a SPEC set at all.
 1. Classify the request as one of `test_only`, `docs_only`, `small_ui`, `bugfix_existing_contract`, `feature`, `multi_domain`, `security_or_data`.
 2. WHEN the class is low risk (the first four) AND an existing SPEC already covers the outcome, run `auto spec change <SPEC-ID> --class <class> --ac <AC-ID,...> --surface <path,...> --verify "<command>" [--json]`, stop the plan pipeline, report the written `change.md`, and route the user to `/auto go <SPEC-ID>`.
 3. WHEN that command reports `escalate_to_full_spec`, record the reason and continue with the full pipeline below.
-4. WHEN the class is low risk AND no SPEC covers the outcome, set `LEAN = true` and `SKIP_PRD = true`, then continue with the pipeline below on the lean profile: spec-writer writes `profile: lean` and `change_class: <class>` in the spec.md frontmatter and only the lean section floor, and `auto spec review` runs one reviewer with no judge.
+4. WHEN the class is low risk AND no SPEC covers the outcome, set `LEAN = true` and `SKIP_PRD = true`, then continue with the pipeline below on the lean profile: spec-writer writes `profile: lean`, `change_class: <class>`, and `surface: <paths>` in the spec.md frontmatter and only the lean section floor, and `auto spec review` runs one reviewer with no judge.
 5. WHEN the class is `feature`, `multi_domain`, or `security_or_data`, continue with the full pipeline. High-risk work additionally requires at least one executable `## Risk-First Integration Probe` row before broad implementation.
 
-The lean profile is a size decision, not a gate waiver: `auto spec validate --strict` refuses `profile: lean` with a high-risk or missing `change_class`, and `auto spec review` falls back to the full panel for such a SPEC. Escalate to the full profile as soon as an escalation trigger below appears.
+The lean profile is a size decision, not a gate waiver: `auto spec validate --strict` refuses `profile: lean` with a high-risk or missing `change_class`, a missing `surface`, or a surface the path classifier reads as higher risk than the class; `auto spec review` falls back to the full panel for such a SPEC; and `auto spec gates` escalates a lean SPEC whose real change set leaves its surface. Escalate to the full profile as soon as an escalation trigger below appears.
 
 Risk is never decided by file count: an auth/billing/data/migration/security path, production code spanning two module roots, or a new exported API or contract escalates on its own. The safety gates are identical on both paths — `security`, `validation`, `data_loss`, `deterministic_oracle`, plus `accessibility`/`ux_verification` for a UI surface and the race and coverage thresholds.
 
@@ -870,7 +870,7 @@ Agent(
     Authoring profile: {`lean` with change class <class> when LEAN is true, otherwise `full`}
 
     Lean profile contract (only when the authoring profile is `lean`; it replaces items 1-23 below):
-    L1. Write `profile: lean` and `change_class: <class>` in the spec.md frontmatter.
+    L1. Write `profile: lean`, `change_class: <class>`, and `surface: <path, path>` (the files or directories this change will touch) in the spec.md frontmatter. `auto spec validate` classifies the surface with the same rules `auto spec gates` applies to the real change set, and `auto spec gates` escalates the work to the full profile when it leaves that surface.
     L2. Write only spec.md `## Outcome Boundary`, `## Requirements`, `## Traceability Matrix`; plan.md `## Tasks`; acceptance.md `## Test Scenarios` with concrete expected outputs; research.md `## Outcome Lock` and `## Reviewer Brief`. Add another section only when this change needs it.
     L3. Keep the whole set short: a lean SPEC that needs more than about 150 lines is not low risk, so switch to the full profile and say why.
     L4. Then run item 24.

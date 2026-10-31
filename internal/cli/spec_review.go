@@ -145,7 +145,7 @@ func runSpecReviewWithOptions(ctx context.Context, specID, strategy string, time
 	}
 
 	gate := cfg.Spec.ReviewGate
-	gate, opts = applyLeanReviewProfile(doc, gate, opts, os.Stderr)
+	gate, opts, leanFallbacks := applyLeanReviewProfile(doc, gate, opts, os.Stderr)
 	if strategy == "" {
 		strategy = gate.Strategy
 	}
@@ -162,17 +162,6 @@ func runSpecReviewWithOptions(ctx context.Context, specID, strategy string, time
 	threshold := gate.VerdictThreshold
 	if threshold <= 0 {
 		threshold = 0.67
-	}
-
-	// Gate, project, and probe every provider before context delivery and
-	// before any provider executes (SPEC-REVIEWRO-001).
-	plan, err := planSpecReviewProviders(ctx, cfg, gate.Judge, opts, flags.MultiMode, requestedTimeout)
-	if err != nil {
-		return err
-	}
-	contextDelivery, err := prepareSpecReviewContextDelivery(specDir, plan.Providers, opts)
-	if err != nil {
-		return fmt.Errorf("리뷰 문서 전달 범위 확인 실패: %w", err)
 	}
 
 	// Collect code context once. Limit is derived adaptively from the number of
@@ -192,25 +181,28 @@ func runSpecReviewWithOptions(ctx context.Context, specID, strategy string, time
 	priorFindings, _ := spec.LoadFindings(specDir)
 
 	runtimeEvidence := &specReviewRuntimeEvidence{StartedAt: reviewStarted, Profile: doc.Profile}
-	loopParams := specReviewLoopParams{
-		ctx:             ctx,
-		specID:          specID,
-		specDir:         specDir,
-		strategy:        strategy,
-		timeout:         timeout,
-		maxRevisions:    maxRevisions,
-		threshold:       threshold,
-		gate:            gate,
-		providers:       plan.Providers,
-		judgeConfig:     plan.Judge,
-		configuredNames: append([]string(nil), plan.Names...),
-		codeContext:     codeContext,
-		contextDelivery: contextDelivery,
-		runtimeEvidence: runtimeEvidence,
-		preflight:       plan.Preflight,
+	var finalResult *spec.ReviewResult
+	for {
+		finalResult, err = runSpecReviewAttempt(ctx, cfg, gate, opts, flags.MultiMode, requestedTimeout, specReviewLoopParams{
+			ctx:             ctx,
+			specID:          specID,
+			specDir:         specDir,
+			strategy:        strategy,
+			timeout:         timeout,
+			maxRevisions:    maxRevisions,
+			threshold:       threshold,
+			gate:            gate,
+			codeContext:     codeContext,
+			runtimeEvidence: runtimeEvidence,
+		}, doc, priorFindings)
+		// A lean review has one reviewer, so a provider outage would fail the
+		// whole review; fall back to the next configured provider instead.
+		if len(leanFallbacks) == 0 || !specReviewProviderUnavailable(finalResult, err) {
+			break
+		}
+		fmt.Fprintf(os.Stderr, "lean 리뷰어 %v 실행 실패 — %s로 다시 리뷰합니다\n", opts.providers, leanFallbacks[0])
+		opts.providers, leanFallbacks = []string{leanFallbacks[0]}, leanFallbacks[1:]
 	}
-
-	finalResult, err := runSpecReviewLoop(loopParams, doc, priorFindings)
 	if err != nil {
 		return err
 	}

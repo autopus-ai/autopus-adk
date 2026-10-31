@@ -21,7 +21,7 @@ func TestLeanProfileSurfaceParity(t *testing.T) {
 	root := templateRoot()
 	e := tmpl.New()
 	cfg := config.DefaultFullConfig("lean-project")
-	tokens := []string{"profile: lean", "change_class: <class>"}
+	tokens := []string{"profile: lean", "change_class: <class>", "surface: <"}
 
 	paths := map[string]string{
 		"spec-writer-content":      filepath.Join(root, "..", "content", "agents", "spec-writer.md"),

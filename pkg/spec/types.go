@@ -53,6 +53,9 @@ type SpecDocument struct {
 	// ChangeClass is the declared gates.ChangeKind; the lean profile requires
 	// a low-risk class.
 	ChangeClass string
+	// Surface lists the paths a lean SPEC declares it will change; a path
+	// covers itself and everything beneath it.
+	Surface []string
 }
 
 // ValidationError는 검증 오류이다.

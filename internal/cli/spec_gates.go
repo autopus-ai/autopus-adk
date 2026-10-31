@@ -81,10 +81,15 @@ absent.`,
 			if err != nil {
 				return err
 			}
+			lean := loadLeanGatesSpec(target.SpecDir)
+			if declared == "" && lean != nil {
+				declared = gates.ChangeKind(lean.ChangeClass)
+			}
+			change, outside := assessLeanGatesChange(lean, gates.AssessChange(declared, classification, newContract), paths)
 			receipt := gates.Decide(gates.DecisionInput{
 				SpecID:                     target.SpecID,
 				Classification:             classification,
-				Change:                     gates.AssessChange(declared, classification, newContract),
+				Change:                     change,
 				AnnotationRequested:        annotationRequested,
 				AnnotationReferenceMissing: referenceMissing,
 				Prior:                      prior,
@@ -103,6 +108,7 @@ absent.`,
 				return writeGatesJSON(cmd.OutOrStdout(), receipt)
 			}
 			printGateDecisions(cmd.OutOrStdout(), receipt, receiptPath)
+			printLeanGatesEscalation(cmd.OutOrStdout(), lean, change, outside)
 			return nil
 		},
 	}

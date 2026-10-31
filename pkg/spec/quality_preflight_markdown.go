@@ -3,7 +3,7 @@ package spec
 import "strings"
 
 func sectionBody(content, heading string) string {
-	idx := strings.Index(content, heading)
+	idx := headingIndex(content, heading)
 	if idx < 0 {
 		return ""
 	}
@@ -13,6 +13,27 @@ func sectionBody(content, heading string) string {
 		body = body[:next]
 	}
 	return strings.TrimSpace(body)
+}
+
+// headingIndex returns the offset of heading where it opens a line, either
+// alone or followed by a space, or -1. A backticked mention of the heading in
+// prose is not the section, so a plain substring search would read the
+// sentence after the mention as the section body.
+func headingIndex(content, heading string) int {
+	offset := 0
+	for _, line := range strings.SplitAfter(content, "\n") {
+		trimmed := strings.TrimRight(line, "\r\n \t")
+		if trimmed == heading || strings.HasPrefix(trimmed, heading+" ") {
+			return offset
+		}
+		offset += len(line)
+	}
+	return -1
+}
+
+// hasSection reports whether content opens a line with heading.
+func hasSection(content, heading string) bool {
+	return headingIndex(content, heading) >= 0
 }
 
 func tableRows(section string) [][]string {

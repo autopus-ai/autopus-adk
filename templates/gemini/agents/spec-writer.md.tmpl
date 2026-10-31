@@ -33,10 +33,10 @@ Do not author a four-document SPEC set for work that qualifies for the compact c
 
 A low-risk class (`test_only`, `docs_only`, `small_ui`, `bugfix_existing_contract`) with no SPEC covering the outcome gets a lean SPEC set, not the full one. Use it only when the caller passes the lean authoring profile or the class is plainly low risk; any escalation trigger (auth/billing/data/migration/security path, two module roots, new exported API or contract) means the full profile.
 
-- spec.md frontmatter carries `profile: lean` and `change_class: <class>`.
+- spec.md frontmatter carries `profile: lean`, `change_class: <class>`, and `surface: <path, path>`: the files or directories the change will touch. Read the code first so the surface is real; `auto spec validate` classifies it with the path rules `auto spec gates` applies to the real change set, and work that leaves it is escalated to the full profile.
 - Write only: spec.md `## Outcome Boundary`, `## Requirements`, `## Traceability Matrix`; plan.md `## Tasks`; acceptance.md `## Test Scenarios` with concrete expected outputs; research.md `## Outcome Lock`, `## Reviewer Brief`. Skip the work-procedure sections below (3.25 to 3.35, Visual Planning Brief, Self-Verify Summary) unless this change needs one.
 - Keep the set to about 150 lines. Needing more is a sign the change is not low risk: switch to the full profile and record why.
-- `auto spec validate --strict` still runs and refuses a lean profile with a high-risk or missing class.
+- `auto spec validate --strict` still runs and refuses a lean profile with a high-risk or missing class, a missing surface, or a surface that reads as higher risk than the class.
 
 ## SPEC Markdown 크기 정책
 
