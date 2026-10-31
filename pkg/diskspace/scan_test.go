@@ -10,6 +10,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/insajin/autopus-adk/pkg/config"
 )
 
 func entriesByRel(entries []Entry) map[string]Entry {
@@ -176,4 +178,54 @@ func TestWalkAllocated_DoesNotFollowSymlinks(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.InDelta(t, 64*KiB, total, 4*blockTolerance)
+}
+
+// REQ-DISK-TRIM-04: the reviewer's repro, a project directory named
+// go-build2 holding main.go under a mis-set $GOTMPDIR, is not a candidate
+// even when idle; a directory shaped as Go makes them still is. The project,
+// home, and working directories are refused by path whatever their shape.
+func TestScanWorkDirs_OnlyGoShapedDirsOutsideProtectedPaths(t *testing.T) {
+	t.Parallel()
+	work, now := workDirFixture(t, "go-build1", "go-build7")
+	a := &aged{now: now}
+	a.file(filepath.Join(work, "go-build2", "main.go"), KiB, 400*time.Minute)
+	a.stamp(filepath.Join(work, "go-build2"), 400*time.Minute)
+	require.NoError(t, os.MkdirAll(filepath.Join(work, "go-build3", "b002"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(work, "go-build4", "b01"), 0o755))
+	require.NoError(t, os.Symlink(filepath.Join(work, "go-build1", "b001"), filepath.Join(work, "go-build5")))
+	require.NoError(t, os.MkdirAll(filepath.Join(work, "go-build6"), 0o755))
+	require.NoError(t, a.err)
+	root := Locator{Home: testHome, UID: os.Getuid()}.inspect(KindWorkDir, work)
+
+	scan := ScanWorkDirs(root, filepath.Join(work, "go-build2"), filepath.Join(work, "go-build7"))
+
+	problems := map[string]string{}
+	for _, dir := range scan.Dirs {
+		problems[dir.Rel] = dir.Problem
+	}
+	assert.Equal(t, map[string]string{"go-build1": "", "go-build2": ProblemShape, "go-build3": "", "go-build4": ProblemShape,
+		"go-build6": "", "go-build7": ProblemShape}, problems)
+	plan := BuildPlan(PlanInput{Now: now, FreeBytes: 100 * GiB, Config: config.DiskConf{}.Effective(), CI: forcedIdle, UID: os.Getuid(), WorkDirs: scan})
+	assert.Equal(t, 3, plan.Skipped.Shape)
+	assert.Equal(t, []string{"go-build1"}, selected(plan)[RuleWorkDirs])
+	assert.Equal(t, 1, scan.IdleDirs(now, 360), "a dir that is not shaped as Go makes them is not counted idle")
+}
+
+// REQ-DISK-WT-02: every rune strconv.IsPrint rejects, bidirectional
+// overrides included, and every invalid UTF-8 byte is shown as '?', and such
+// a path withholds its suggestion.
+func TestDisplayPath_ReplacesEveryNonPrintable(t *testing.T) {
+	t.Parallel()
+	for path, want := range map[string]string{
+		"/plain/wt-a":        "/plain/wt-a",
+		"/a b/é/日本":          "/a b/é/日本",
+		"/tab\there":         "/tab?here",
+		"/bidi\u202egnp.exe": "/bidi?gnp.exe",
+		"/zero\u200bwidth":   "/zero?width",
+		"/bad\xffbyte":       "/bad?byte",
+		"/del\x7f":           "/del?",
+	} {
+		assert.Equal(t, want, DisplayPath(path), path)
+		assert.Equal(t, want != path, removalSuggestion(path, "main", 0) == SuggestionWithheld, path)
+	}
 }

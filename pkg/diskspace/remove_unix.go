@@ -50,7 +50,7 @@ func idOf(st *unix.Stat_t) FileID { return FileID{Dev: uint64(st.Dev), Ino: uint
 // remove deletes one candidate relative to the root. A cache entry sits in a
 // <xx> directory that is opened without following a link and must be on the
 // root's device.
-func (h *rootHandle) remove(c Candidate, uid int, hook func(rule, rel string)) outcome {
+func (h *rootHandle) remove(c Candidate, uid int, hooks removeHooks) outcome {
 	parent, name := h.fd, c.Rel
 	if dir, base, ok := strings.Cut(c.Rel, "/"); ok {
 		fd, err := unix.Openat(h.fd, dir, dirOpenFlags, 0)
@@ -68,9 +68,9 @@ func (h *rootHandle) remove(c Candidate, uid int, hook func(rule, rel string)) o
 		parent, name = fd, base
 	}
 	if c.Dir {
-		return removeDirCandidate(parent, name, c, h.dev, uid, hook)
+		return removeDirCandidate(parent, name, c, h.dev, uid, hooks)
 	}
-	return removeFileCandidate(parent, name, c, uid, hook)
+	return removeFileCandidate(parent, name, c, uid, hooks.beforeRemove)
 }
 
 func openOutcome(err error) outcome {
@@ -128,8 +128,10 @@ func removeFileCandidate(parent int, name string, c Candidate, uid int, hook fun
 
 // removeDirCandidate pre-walks the directory and skips it whole on any
 // symlink, special file, or device change before deleting anything, then
-// removes it bottom-up, re-identifying each directory as it goes.
-func removeDirCandidate(parent int, name string, c Candidate, rootDev uint64, uid int, hook func(rule, rel string)) outcome {
+// removes it bottom-up, re-identifying each directory as it goes. The walk
+// opens the candidate by name again, so the directory it walked must be the
+// one the re-check verified, or the candidate changed in between.
+func removeDirCandidate(parent int, name string, c Candidate, rootDev uint64, uid int, hooks removeHooks) outcome {
 	st, o, ok := checkTop(parent, name, c, uid)
 	if !ok {
 		return o
@@ -137,18 +139,25 @@ func removeDirCandidate(parent int, name string, c Candidate, rootDev uint64, ui
 	if uint64(st.Dev) != rootDev {
 		return outcomeDevice
 	}
+	if hooks.beforeWalk != nil {
+		hooks.beforeWalk(c.Rule, c.Rel)
+	}
 	walk := preWalk{rootDev: rootDev}
 	tree, err := walk.dir(parent, name, 1)
 	switch {
+	case walk.top != (FileID{}) && walk.top != c.ID:
+		return outcomeChanged
 	case walk.problem == ProblemSymlink:
 		return outcomeSymlink
 	case walk.problem == ProblemDevice:
 		return outcomeDevice
+	case walk.top == (FileID{}) && isNotExist(err):
+		return outcomeVanished
 	case err != nil || walk.problem != "" || walk.newest > c.Newest.UnixNano():
 		return outcomeChanged
 	}
-	if hook != nil {
-		hook(c.Rule, c.Rel)
+	if hooks.beforeRemove != nil {
+		hooks.beforeRemove(c.Rule, c.Rel)
 	}
 	if err := removeTree(parent, tree); err != nil {
 		if errors.Is(err, os.ErrNotExist) {

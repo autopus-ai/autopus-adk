@@ -32,6 +32,9 @@ type preWalk struct {
 	entries int
 	newest  int64
 	problem string
+	// top is the identity of the directory the walk opened at its top, which
+	// must be the candidate the re-check just verified.
+	top FileID
 }
 
 func (w *preWalk) dir(parent int, name string, depth int) (dirNode, error) {
@@ -46,6 +49,9 @@ func (w *preWalk) dir(parent int, name string, depth int) (dirNode, error) {
 	var st unix.Stat_t
 	if err := unix.Fstat(fd, &st); err != nil {
 		return dirNode{}, err
+	}
+	if depth == 1 {
+		w.top = idOf(&st)
 	}
 	if uint64(st.Dev) != w.rootDev {
 		return dirNode{}, w.stop(ProblemDevice)
@@ -65,26 +71,36 @@ func (w *preWalk) dir(parent int, name string, depth int) (dirNode, error) {
 			return dirNode{}, err
 		}
 		w.see(&cst)
-		switch cst.Mode & unix.S_IFMT {
-		case unix.S_IFREG:
-			node.files = append(node.files, fileNode{name: child, id: idOf(&cst)})
-		case unix.S_IFDIR:
-			if uint64(cst.Dev) != w.rootDev {
-				return dirNode{}, w.stop(ProblemDevice)
-			}
-			if depth >= treeMaxDepth {
-				return dirNode{}, w.stop(ProblemUnbounded)
-			}
-			sub, err := w.dir(fd, child, depth+1)
-			if err != nil {
-				return dirNode{}, err
-			}
-			node.dirs = append(node.dirs, sub)
-		default:
-			return dirNode{}, w.stop(ProblemSymlink)
+		if problem := childProblem(&cst, w.rootDev, depth); problem != "" {
+			return dirNode{}, w.stop(problem)
 		}
+		if cst.Mode&unix.S_IFMT == unix.S_IFREG {
+			node.files = append(node.files, fileNode{name: child, id: idOf(&cst)})
+			continue
+		}
+		sub, err := w.dir(fd, child, depth+1)
+		if err != nil {
+			return dirNode{}, err
+		}
+		node.dirs = append(node.dirs, sub)
 	}
 	return node, nil
+}
+
+// childProblem says why an entry found at depth makes its candidate
+// undeletable, or "": a symlink or special file, any file or directory on
+// another device than the root, or a directory past the depth bound.
+func childProblem(st *unix.Stat_t, rootDev uint64, depth int) string {
+	kind := st.Mode & unix.S_IFMT
+	switch {
+	case kind != unix.S_IFREG && kind != unix.S_IFDIR:
+		return ProblemSymlink
+	case uint64(st.Dev) != rootDev:
+		return ProblemDevice
+	case kind == unix.S_IFDIR && depth >= treeMaxDepth:
+		return ProblemUnbounded
+	}
+	return ""
 }
 
 func (w *preWalk) stop(problem string) error {

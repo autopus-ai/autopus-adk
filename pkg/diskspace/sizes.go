@@ -19,6 +19,9 @@ const (
 	ProblemSymlink   = "symlink"
 	ProblemDevice    = "device"
 	ProblemUnbounded = "unbounded"
+	// ProblemShape marks a go-build<digits> directory that is not shaped
+	// like a Go work dir, or that is the project, home, or working directory.
+	ProblemShape = "shape"
 )
 
 // FileID is the identity of a path: its (dev, ino) pair.

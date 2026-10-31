@@ -61,6 +61,7 @@ type Skipped struct {
 	Symlink   RootCounts `json:"symlink"`
 	Device    RootCounts `json:"device"`
 	Owner     int        `json:"owner"`
+	Shape     int        `json:"shape"`
 	Unbounded int        `json:"unbounded"`
 }
 
@@ -146,6 +147,8 @@ func BuildPlan(in PlanInput) Plan {
 	workDirs := RulePlan{ID: RuleWorkDirs, IdleMinutes: in.Config.WorkDirIdleMinutes}
 	for _, dir := range in.WorkDirs.Dirs {
 		switch {
+		case dir.Problem == ProblemShape:
+			plan.Skipped.Shape++
 		case dir.Problem == ProblemUnbounded:
 			plan.Skipped.Unbounded++
 		case isIdle(in.Now, dir.Newest, workDirs.IdleMinutes):

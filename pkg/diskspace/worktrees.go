@@ -151,7 +151,7 @@ func (s WorktreeScan) Bytes() (total, cargo int64) {
 }
 
 func git(ctx context.Context, run Runner, dir string, args ...string) ([]byte, error) {
-	return run(ctx, dir, "git", append([]string{"--no-optional-locks"}, args...)...)
+	return run(ctx, dir, nil, "git", append([]string{"--no-optional-locks"}, args...)...)
 }
 
 func parseWorktreePorcelain(out []byte) []Worktree {

@@ -81,8 +81,13 @@ func DetectCI(ctx context.Context, lister ProcessLister, names []string, overrid
 	return CIStatus{State: CIIdle, Source: CISourceProcesses}
 }
 
+// executableBase is the basename of a lister row. ps prints some processes'
+// names in parentheses, so one surrounding pair is stripped first.
 func executableBase(executable string) string {
 	executable = strings.TrimSpace(executable)
+	if len(executable) >= 2 && executable[0] == '(' && executable[len(executable)-1] == ')' {
+		executable = executable[1 : len(executable)-1]
+	}
 	if i := strings.LastIndex(executable, "/"); i >= 0 {
 		return executable[i+1:]
 	}
@@ -107,7 +112,7 @@ func SystemProcessLister(run Runner) ProcessLister {
 type psLister struct{ run Runner }
 
 func (p psLister) Executables(ctx context.Context) ([]string, error) {
-	out, err := p.run(ctx, "", "ps", "-axo", "comm=")
+	out, err := p.run(ctx, "", nil, "ps", "-axo", "comm=")
 	if err != nil {
 		return nil, fmt.Errorf("ps -axo comm=: %w", err)
 	}

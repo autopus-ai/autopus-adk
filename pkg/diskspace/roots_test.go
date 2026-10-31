@@ -20,7 +20,7 @@ func TestLocatorCache_GOCACHEWinsWithoutAGoSubprocess(t *testing.T) {
 	t.Setenv("GOCACHE", link)
 	recorder := &execRecorder{}
 
-	root := Locator{Run: recorder.run, UID: os.Getuid()}.Cache(context.Background())
+	root := Locator{Run: recorder.run, Home: testHome, UID: os.Getuid()}.Cache(context.Background())
 
 	assert.True(t, root.Available(), root.Message)
 	assert.Equal(t, f.cache, root.Path)
@@ -34,11 +34,13 @@ func TestLocatorCache_UnsetAsksGoEnvOnce(t *testing.T) {
 	t.Setenv("GOCACHE", "")
 	recorder := &execRecorder{answers: map[string]string{"go env GOCACHE": f.cache + "\n"}}
 
-	root := Locator{Run: recorder.run, UID: os.Getuid()}.Cache(context.Background())
+	root := Locator{Run: recorder.run, Home: testHome, UID: os.Getuid()}.Cache(context.Background())
 
 	assert.Equal(t, f.cache, root.Path)
 	assert.True(t, root.Available(), root.Message)
 	assert.Equal(t, []string{"go env GOCACHE"}, recorder.calls)
+	assert.Equal(t, [][]string{{"GOTOOLCHAIN=local", "GOWORK=off"}}, recorder.envs,
+		"a toolchain line in a go.mod or go.work above the temp dir must not switch toolchains")
 }
 
 // REQ-DISK-STATUS-02: without an answer from go, os.UserCacheDir()/go-build;
@@ -51,13 +53,13 @@ func TestLocatorCache_FallbacksAndOff(t *testing.T) {
 	require.NoError(t, err)
 	want := filepath.Join(userCache, "go-build")
 
-	root := Locator{Run: (&execRecorder{}).run}.Cache(context.Background())
+	root := Locator{Run: (&execRecorder{}).run, Home: testHome}.Cache(context.Background())
 	assert.Equal(t, Root{Kind: KindCache, Path: want, Reason: ReasonRootMissing, Message: "cache root " + want + " does not exist"}, root)
 
 	off := &execRecorder{answers: map[string]string{"go env GOCACHE": "off\n"}}
-	assert.Equal(t, ReasonGOCACHEOff, Locator{Run: off.run}.Cache(context.Background()).Reason)
+	assert.Equal(t, ReasonGOCACHEOff, Locator{Run: off.run, Home: testHome}.Cache(context.Background()).Reason)
 	t.Setenv("GOCACHE", "off")
-	assert.Equal(t, Root{Kind: KindCache, Reason: ReasonGOCACHEOff, Message: "GOCACHE=off"}, Locator{Run: off.run}.Cache(context.Background()))
+	assert.Equal(t, Root{Kind: KindCache, Reason: ReasonGOCACHEOff, Message: "GOCACHE=off"}, Locator{Run: off.run, Home: testHome}.Cache(context.Background()))
 }
 
 // REQ-DISK-TRIM-06/TRIM-10: every refusal names the root, its kind, and the
@@ -116,7 +118,7 @@ func TestLocatorWorkDir_PrefersGOTMPDIR(t *testing.T) {
 	dir := canonicalTempDir(t)
 	link := filepath.Join(canonicalTempDir(t), "tmp-link")
 	require.NoError(t, os.Symlink(dir, link))
-	l := Locator{UID: os.Getuid()}
+	l := Locator{Home: testHome, UID: os.Getuid()}
 
 	t.Setenv("GOTMPDIR", link)
 	assert.Equal(t, dir, l.WorkDir().Path)
@@ -127,31 +129,44 @@ func TestLocatorWorkDir_PrefersGOTMPDIR(t *testing.T) {
 	assert.Equal(t, dir, l.WorkDir().Path)
 }
 
-// REQ-DISK-TRIM-10: a sticky work dir root another uid owns is accepted;
-// the same directory as a cache root, and a foreign root without the sticky
-// bit, stay refused. The real /tmp, root-owned and sticky, is only read.
-func TestLocatorInspect_AcceptsAStickyForeignWorkDirRoot(t *testing.T) {
+// REQ-DISK-TRIM-10: only a sticky work dir root owned by uid 0 may belong
+// to another uid. A sticky directory any other uid owns stays refused, since
+// its owner may rename entries in it; the real /tmp, root-owned and sticky,
+// is only read.
+func TestLocatorInspect_StickyWorkDirRootMustBeRootOwned(t *testing.T) {
 	t.Parallel()
 	sticky := canonicalTempDir(t)
-	require.NoError(t, os.WriteFile(filepath.Join(sticky, "README"), []byte("x"), 0o644))
 	require.NoError(t, os.Chmod(sticky, 0o777|os.ModeSticky))
 	info, err := os.Lstat(sticky)
 	require.NoError(t, err)
 	require.NotZero(t, info.Mode()&os.ModeSticky, "the fixture root must carry the sticky bit")
-	foreign := Locator{UID: os.Getuid() + 1}
+	uid := os.Getuid()
 
-	work := foreign.inspect(KindWorkDir, sticky)
-	assert.True(t, work.Available(), work.Message)
-	assert.False(t, work.Refused)
-	assert.Equal(t, ReasonNotOwned, foreign.inspect(KindCache, sticky).Reason, "the cache root rule is unchanged")
-	assert.Equal(t, ReasonNotOwned, foreign.inspect(KindWorkDir, canonicalTempDir(t)).Reason, "no sticky bit, no exception")
+	refused := Locator{Home: testHome, UID: uid + 1}.inspect(KindWorkDir, sticky)
+	assert.Equal(t, []any{true, ReasonNotOwned}, []any{refused.Refused, refused.Reason})
+	assert.True(t, Locator{Home: testHome, UID: uid}.inspect(KindWorkDir, sticky).Available(), "an own sticky root is plainly accepted")
 
 	tmp, err := filepath.EvalSymlinks("/tmp")
 	require.NoError(t, err)
 	tmpInfo, err := os.Lstat(tmp)
 	require.NoError(t, err)
-	if statOf(tmpInfo).uid == os.Getuid() || tmpInfo.Mode()&os.ModeSticky == 0 {
-		t.Skip("/tmp is not a sticky directory another uid owns here")
+	if statOf(tmpInfo).uid != 0 || tmpInfo.Mode()&os.ModeSticky == 0 || uid == 0 {
+		t.Skip("/tmp is not a root-owned sticky directory, or the test runs as root")
 	}
-	assert.True(t, Locator{UID: os.Getuid()}.inspect(KindWorkDir, "/tmp").Available())
+	assert.True(t, Locator{Home: testHome, UID: uid}.inspect(KindWorkDir, "/tmp").Available())
+	assert.Equal(t, ReasonNotAGoBuildCache, Locator{Home: testHome, UID: uid}.inspect(KindCache, "/tmp").Reason)
+}
+
+// REQ-DISK-TRIM-06: without a known home directory every existing root is
+// refused, and a cache root's README marker is judged before its owner.
+func TestLocatorInspect_HomeUnknownAndREADMEBeforeOwner(t *testing.T) {
+	t.Parallel()
+	f := sharedS5(t)
+	for _, kind := range []string{KindCache, KindWorkDir} {
+		root := Locator{UID: os.Getuid()}.inspect(kind, f.work)
+		assert.Equal(t, []any{true, ReasonHomeUnknown, f.work + " is not an acceptable " + kind + " root (home directory unknown)"},
+			[]any{root.Refused, root.Reason, root.Message}, kind)
+	}
+	foreignNoREADME := Locator{Home: testHome, UID: os.Getuid() + 1}.inspect(KindCache, f.work)
+	assert.Equal(t, ReasonNotAGoBuildCache, foreignNoREADME.Reason)
 }

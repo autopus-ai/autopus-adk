@@ -31,6 +31,7 @@ const (
 	ReasonProjectDirectory  = "project_directory"
 	ReasonNotOwned          = "not_owned"
 	ReasonNotAGoBuildCache  = "not_a_go_build_cache"
+	ReasonHomeUnknown       = "home_unknown"
 	ReasonRootChanged       = "root_changed"
 	ReasonNotAGitRepository = "not_a_git_repository"
 	ReasonGitUnavailable    = "git_unavailable"
@@ -55,7 +56,9 @@ type Root struct {
 // Available reports whether the consumer can be read.
 func (r Root) Available() bool { return r.Reason == "" }
 
-// Locator holds the process facts root resolution checks against.
+// Locator holds the process facts root resolution checks against. An empty
+// Home means the home directory could not be determined, which refuses every
+// root (REQ-DISK-TRIM-06).
 type Locator struct {
 	Run        Runner
 	Home       string
@@ -93,13 +96,17 @@ func (l Locator) WorkDir() Root {
 	return l.inspect(KindWorkDir, raw)
 }
 
-// goEnvCache asks the go command. It runs in the temp directory so that a
-// go.mod naming a newer toolchain cannot make it download one; GOCACHE comes
-// from the environment and go.env, never from a module.
+// goEnvEnv keeps `go env GOCACHE` on the local toolchain: without it a
+// toolchain line in a go.mod or go.work above the working directory makes
+// the go command download and exec another toolchain (REQ-DISK-TRIM-07).
+// GOCACHE itself comes from the environment and go.env, never from a module.
+var goEnvEnv = []string{"GOTOOLCHAIN=local", "GOWORK=off"}
+
+// goEnvCache asks the go command for the cache it would use.
 func goEnvCache(ctx context.Context, run Runner) string {
 	ctx, cancel := context.WithTimeout(ctx, goEnvTimeout)
 	defer cancel()
-	out, err := run(ctx, os.TempDir(), "go", "env", "GOCACHE")
+	out, err := run(ctx, os.TempDir(), goEnvEnv, "go", "env", "GOCACHE")
 	if err != nil {
 		return ""
 	}
@@ -131,25 +138,31 @@ func (l Locator) inspect(kind, raw string) Root {
 	st := statOf(info)
 	root.ID = st.id
 	switch {
+	case l.Home == "":
+		return l.refuse(root, ReasonHomeUnknown, "home directory unknown")
 	case !info.IsDir():
 		return l.refuse(root, ReasonNotADirectory, "not a directory")
 	case canonical == filepath.Dir(canonical):
 		return l.refuse(root, ReasonFilesystemRoot, "file system root")
-	case l.Home != "" && canonical == canonicalOrSelf(l.Home):
+	case canonical == canonicalOrSelf(l.Home):
 		return l.refuse(root, ReasonHomeDirectory, "home directory")
 	case l.ProjectDir != "" && canonical == canonicalOrSelf(l.ProjectDir):
 		return l.refuse(root, ReasonProjectDirectory, "project directory")
-	case st.known && st.uid != l.UID && !(kind == KindWorkDir && info.Mode()&os.ModeSticky != 0):
-		// A sticky work dir root, such as the shared /tmp of Linux, may
-		// belong to another uid: in it only an entry's owner can delete the
-		// entry, and a trim deletes only candidates the uid owns, counting
-		// the rest as skipped_owner (REQ-DISK-TRIM-10).
-		return l.refuse(root, ReasonNotOwned, "not owned by uid "+strconv.Itoa(l.UID))
 	}
+	// The README marker is checked before the owner, so a foreign directory
+	// that is not a cache is named for what it is.
 	if kind == KindCache {
 		if marker, err := os.Lstat(filepath.Join(canonical, "README")); err != nil || !marker.Mode().IsRegular() {
 			return l.refuse(root, ReasonNotAGoBuildCache, "no README marker")
 		}
+	}
+	// Only a work dir root owned by uid 0 with the sticky bit, the shared
+	// /tmp of Linux, may belong to another uid: in it only an entry's owner
+	// can delete or rename the entry, and a trim deletes only candidates the
+	// uid owns. The owner of any other sticky directory may rename entries
+	// in it, so that root is refused (REQ-DISK-TRIM-10).
+	if st.known && st.uid != l.UID && !(kind == KindWorkDir && st.uid == 0 && info.Mode()&os.ModeSticky != 0) {
+		return l.refuse(root, ReasonNotOwned, "not owned by uid "+strconv.Itoa(l.UID))
 	}
 	return root
 }

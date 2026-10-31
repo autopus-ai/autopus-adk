@@ -4,22 +4,26 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"os"
 	"os/exec"
 )
 
 // Runner runs an external program in dir (the current directory when empty)
-// and returns its standard output. Every program the package starts goes
-// through a Runner, so a test can record them all: the package runs no go
-// subprocess other than `go env GOCACHE`, and never `go clean`
-// (REQ-DISK-TRIM-07).
-type Runner func(ctx context.Context, dir, name string, args ...string) ([]byte, error)
+// with env added to the inherited environment, and returns its standard
+// output. Every program the package starts goes through a Runner, so a test
+// can record them all: the package runs no go subprocess other than
+// `go env GOCACHE`, and never `go clean` (REQ-DISK-TRIM-07).
+type Runner func(ctx context.Context, dir string, env []string, name string, args ...string) ([]byte, error)
 
 // ExecRunner starts real processes. Standard error is discarded, as
 // runSyncGit does in internal/cli: git and go can print absolute paths and
 // credentials embedded in remotes there.
-func ExecRunner(ctx context.Context, dir, name string, args ...string) ([]byte, error) {
+func ExecRunner(ctx context.Context, dir string, env []string, name string, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = dir
+	if len(env) > 0 {
+		cmd.Env = append(os.Environ(), env...)
+	}
 	var stdout bytes.Buffer
 	cmd.Stdout = &stdout
 	err := cmd.Run()

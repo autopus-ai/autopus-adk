@@ -203,28 +203,36 @@ func TestApply_RefusesPathsOutsideTheShapes(t *testing.T) {
 	assert.Equal(t, before, snapshot(t, f.cache, f.work, f.outside))
 }
 
-// REQ-DISK-TRIM-10: in a sticky work dir root, the uid's own idle work dir
-// is deleted and one the scan reports as another uid's is skipped as owner
-// and left in place. Files of another uid cannot be created without
-// privileges, so the foreign dir's owner is set on its scanned entry.
-func TestApply_StickyWorkDirRootDeletesOnlyOwnCandidates(t *testing.T) {
+// workDirFixture builds go-build<N> work dirs shaped as Go makes them, every
+// mtime 400 minutes old, under a fresh root.
+func workDirFixture(t *testing.T, names ...string) (string, time.Time) {
+	t.Helper()
 	work := filepath.Join(canonicalTempDir(t), "tmp")
 	a := &aged{now: time.Now().Truncate(time.Second)}
-	for _, name := range []string{"go-build1", "go-build2"} {
+	for _, name := range names {
 		a.file(filepath.Join(work, name, "b001", "pkg.a"), MiB, 400*time.Minute)
 		a.stamp(filepath.Join(work, name, "b001"), 400*time.Minute)
 		a.stamp(filepath.Join(work, name), 400*time.Minute)
 	}
 	require.NoError(t, a.err)
+	return work, a.now
+}
+
+// REQ-DISK-TRIM-10: in a shared work dir root the uid's own idle work dir is
+// deleted and one the scan reports as another uid's is skipped as owner and
+// left in place. Files of another uid cannot be created without privileges,
+// so the foreign dir's owner is set on its scanned entry.
+func TestApply_SharedWorkDirRootDeletesOnlyOwnCandidates(t *testing.T) {
+	work, now := workDirFixture(t, "go-build1", "go-build2")
 	require.NoError(t, os.Chmod(work, 0o777|os.ModeSticky))
 	uid := os.Getuid()
-	root := Locator{UID: uid + 1}.inspect(KindWorkDir, work)
+	root := Locator{Home: testHome, UID: uid}.inspect(KindWorkDir, work)
 	require.True(t, root.Available(), root.Message)
 	scan := ScanWorkDirs(root)
 	require.Len(t, scan.Dirs, 2)
 	scan.Dirs[1].UID = uid + 1
 
-	plan := BuildPlan(PlanInput{Now: a.now, FreeBytes: 100 * GiB, Config: config.DiskConf{}.Effective(), CI: forcedIdle, UID: uid, WorkDirs: scan})
+	plan := BuildPlan(PlanInput{Now: now, FreeBytes: 100 * GiB, Config: config.DiskConf{}.Effective(), CI: forcedIdle, UID: uid, WorkDirs: scan})
 	result := Apply(plan, ApplyOptions{WorkDir: root, UID: uid})
 
 	assert.Equal(t, 1, plan.Skipped.Owner)
@@ -232,4 +240,32 @@ func TestApply_StickyWorkDirRootDeletesOnlyOwnCandidates(t *testing.T) {
 	assert.Equal(t, 1, result.Skipped.Owner)
 	assert.NoDirExists(t, filepath.Join(work, "go-build1"))
 	assert.FileExists(t, filepath.Join(work, "go-build2", "b001", "pkg.a"))
+}
+
+// REQ-DISK-TRIM-05: a directory candidate swapped between its second Lstat
+// and its pre-walk is skipped as changed: the walk opened another directory
+// than the one verified, so neither is touched.
+func TestApply_DirectorySwappedBeforeThePreWalkIsChanged(t *testing.T) {
+	work, now := workDirFixture(t, "go-build1")
+	root := Locator{Home: testHome, UID: os.Getuid()}.inspect(KindWorkDir, work)
+	plan := BuildPlan(PlanInput{Now: now, FreeBytes: 100 * GiB, Config: config.DiskConf{}.Effective(), CI: forcedIdle,
+		UID: os.Getuid(), WorkDirs: ScanWorkDirs(root)})
+	require.Len(t, plan.Rules[len(plan.Rules)-1].Candidates, 1)
+	parked := filepath.Join(filepath.Dir(work), "parked")
+	swapped := filepath.Join(work, "go-build1")
+
+	// The swapped-in tree is older than the original, so only the identity
+	// of the walked directory, not its mtimes, can tell the two apart.
+	result := Apply(plan, ApplyOptions{WorkDir: root, UID: os.Getuid(), BeforeWalk: func(_, rel string) {
+		require.NoError(t, os.Rename(swapped, parked))
+		a := &aged{now: now}
+		a.file(filepath.Join(swapped, "b001", "other.a"), KiB, 500*time.Minute)
+		a.stamp(filepath.Join(swapped, "b001"), 500*time.Minute)
+		a.stamp(swapped, 500*time.Minute)
+		require.NoError(t, a.err)
+	}})
+
+	assert.Equal(t, Counters{SkippedChanged: 1}, result.Total)
+	assert.FileExists(t, filepath.Join(swapped, "b001", "other.a"))
+	assert.FileExists(t, filepath.Join(parked, "b001", "pkg.a"))
 }

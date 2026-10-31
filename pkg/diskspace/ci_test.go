@@ -34,6 +34,8 @@ func TestDetectCI_MatchesBasenamesOnly(t *testing.T) {
 		{"suffixed name", rows("/opt/actions-runner/bin/Runner.Worker.old", "/bin/zsh"), CIStatus{State: CIIdle, Source: CISourceProcesses}},
 		{"command line mention", rows("/bin/zsh -c ps | grep Runner.Worker"), CIStatus{State: CIIdle, Source: CISourceProcesses}},
 		{"bare comm", rows("Runner.Worker"), CIStatus{State: CIRunning, Running: true, Source: CISourceProcesses}},
+		{"ps parentheses", rows("(Runner.Worker)"), CIStatus{State: CIRunning, Running: true, Source: CISourceProcesses}},
+		{"only one pair stripped", rows("((Runner.Worker))"), CIStatus{State: CIIdle, Source: CISourceProcesses}},
 		{"lister error", failing, CIStatus{State: CIUnknown, Running: true, Source: CISourceProcesses, Reason: "ps: not permitted"}},
 	} {
 		assert.Equal(t, tc.want, DetectCI(context.Background(), tc.lister, names, ""), tc.name)

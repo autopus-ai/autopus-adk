@@ -242,7 +242,7 @@ func writeTrimText(w io.Writer, d diskTrimData) {
 	for _, extra := range []struct {
 		name  string
 		count int
-	}{{"skipped_device", sk.Device.Total()}, {"skipped_owner", sk.Owner}, {"skipped_unbounded", sk.Unbounded}} {
+	}{{"skipped_device", sk.Device.Total()}, {"skipped_owner", sk.Owner}, {"skipped_shape", sk.Shape}, {"skipped_unbounded", sk.Unbounded}} {
 		if extra.count > 0 {
 			fmt.Fprintf(w, "  %s=%d\n", extra.name, extra.count)
 		}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/user"
 	"path/filepath"
 	"time"
 
@@ -37,6 +38,14 @@ var (
 	diskRunner       = diskspace.Runner(diskspace.ExecRunner)
 	diskLister       = diskspace.SystemProcessLister
 	diskBeforeRemove func(rule, rel string)
+	// diskUserHome reads the home directory from the user database, the
+	// fallback when $HOME is empty.
+	diskUserHome = func() string {
+		if u, err := user.Current(); err == nil {
+			return u.HomeDir
+		}
+		return ""
+	}
 )
 
 // newDiskCmd builds the `auto disk` namespace (SPEC-DISK-001).
@@ -153,27 +162,29 @@ type diskSurvey struct {
 	plan      diskspace.Plan
 }
 
+// surveyDisk resolves both roots, scans the ones that are acceptable (a
+// refused root is never walked), detects CI, and builds the plan.
 func surveyDisk(ctx context.Context, dc diskContext, ciOverride string) diskSurvey {
 	s := diskSurvey{dc: dc, now: diskNow(), uid: diskUID()}
-	home, _ := os.UserHomeDir()
+	home := diskHome()
+	cwd, _ := os.Getwd()
 	locator := diskspace.Locator{Run: diskRunner, Home: home, ProjectDir: dc.projectDir, UID: s.uid}
 	s.cacheRoot, s.workRoot = locator.Cache(ctx), locator.WorkDir()
-	s.cache = diskspace.ScanCache(scannable(s.cacheRoot))
-	s.work = diskspace.ScanWorkDirs(scannable(s.workRoot))
+	s.cache = diskspace.ScanCache(s.cacheRoot)
+	s.work = diskspace.ScanWorkDirs(s.workRoot, dc.projectDir, home, cwd)
 	s.ci = diskspace.DetectCI(ctx, diskLister(diskRunner), dc.disk.CIProcessNames, ciOverride)
 	s.plan = diskspace.BuildPlan(diskspace.PlanInput{Now: s.now, FreeBytes: dc.space.AvailBytes, Config: dc.disk,
 		CI: s.ci, UID: s.uid, Cache: s.cache, WorkDirs: s.work})
 	return s
 }
 
-// scannable lets the scan read a root refused only because another uid owns
-// it, so the report counts the candidates a trim would skip there. Any other
-// refused root, which can be / or $HOME, is never walked.
-func scannable(root diskspace.Root) diskspace.Root {
-	if root.Refused && root.Reason == diskspace.ReasonNotOwned {
-		root.Reason, root.Refused = "", false
+// diskHome is $HOME, else the home directory of the user database, else ""
+// when neither is known, which refuses every root (REQ-DISK-TRIM-06).
+func diskHome() string {
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		return home
 	}
-	return root
+	return diskUserHome()
 }
 
 // refused is the first refused root, the cache before the work dir.

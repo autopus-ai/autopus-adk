@@ -18,4 +18,4 @@ func openRootHandle(Root) (*rootHandle, error) {
 
 func (h *rootHandle) close() {}
 
-func (h *rootHandle) remove(Candidate, int, func(rule, rel string)) outcome { return outcomeFailed }
+func (h *rootHandle) remove(Candidate, int, removeHooks) outcome { return outcomeFailed }

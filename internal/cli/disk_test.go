@@ -167,7 +167,8 @@ func newDiskS5(t *testing.T, light bool) diskS5 {
 	a.stamp(filepath.Join(f.work, "go-build222"), 400*m)
 	a.file(filepath.Join(f.outside, "linked", "big.bin"), 2*diskspace.MiB, 500*m)
 	a.link(filepath.Join(f.outside, "linked"), filepath.Join(f.work, "go-build333"))
-	a.file(filepath.Join(f.work, "go-build555", "pkg.a"), 100*diskspace.KiB, 100*m)
+	a.file(filepath.Join(f.work, "go-build555", "b001", "pkg.a"), 100*diskspace.KiB, 100*m)
+	a.stamp(filepath.Join(f.work, "go-build555", "b001"), 100*m)
 	a.stamp(filepath.Join(f.work, "go-build555"), 100*m)
 	for _, dir := range []string{"msgmcp-railway-roles1", "notes"} {
 		require.NoError(t, os.MkdirAll(filepath.Join(f.work, dir), 0o755))
@@ -177,17 +178,19 @@ func newDiskS5(t *testing.T, light bool) diskS5 {
 }
 
 // diskRecorder is the diskRunner seam of a test: it records every program a
-// disk command starts, answers `go env GOCACHE` from goCache, and runs git
-// without the developer's git configuration.
+// disk command starts with the environment it adds, answers `go env GOCACHE`
+// from goCache, and runs git without the developer's git configuration.
 type diskRecorder struct {
 	mu      sync.Mutex
 	calls   []string
+	envs    [][]string
 	goCache string
 }
 
-func (r *diskRecorder) run(ctx context.Context, dir, name string, args ...string) ([]byte, error) {
+func (r *diskRecorder) run(ctx context.Context, dir string, env []string, name string, args ...string) ([]byte, error) {
 	r.mu.Lock()
 	r.calls = append(r.calls, strings.Join(append([]string{name}, args...), " "))
+	r.envs = append(r.envs, env)
 	r.mu.Unlock()
 	switch {
 	case name == "go" && strings.Join(args, " ") == "env GOCACHE" && r.goCache != "":

@@ -47,8 +47,15 @@ type ApplyOptions struct {
 	UID     int
 	// BeforeRemove, when set, runs right before a candidate's destructive
 	// step: before a file's second Lstat, after a directory's pre-walk.
-	// Tests use it to race the trim the way a concurrent build would.
+	// BeforeWalk runs between a directory's second Lstat and its pre-walk.
+	// Tests use them to race the trim the way a concurrent build would.
 	BeforeRemove func(rule, rel string)
+	BeforeWalk   func(rule, rel string)
+}
+
+// removeHooks are the ApplyOptions seams a removal calls.
+type removeHooks struct {
+	beforeWalk, beforeRemove func(rule, rel string)
 }
 
 // ApplyResult is what Apply did.
@@ -114,7 +121,7 @@ func removeWith(handle *rootHandle, c Candidate, workDir bool, opts ApplyOptions
 	if handle == nil || workDir && (!c.Dir || !workDirName.MatchString(c.Rel)) || !workDir && !isCacheEntry(c.Rel) {
 		return outcomeFailed
 	}
-	return handle.remove(c, opts.UID, opts.BeforeRemove)
+	return handle.remove(c, opts.UID, removeHooks{beforeWalk: opts.BeforeWalk, beforeRemove: opts.BeforeRemove})
 }
 
 func (r *ApplyResult) record(counters *Counters, c Candidate, workDir bool, o outcome) {

@@ -140,7 +140,8 @@ func buildS5(base string) (s5Fixture, error) {
 	a.stamp(filepath.Join(f.work, "go-build222"), 400*minute)
 	a.file(filepath.Join(f.outside, "linked", "big.bin"), 2*MiB, 500*minute)
 	a.link(filepath.Join(f.outside, "linked"), filepath.Join(f.work, "go-build333"))
-	a.file(filepath.Join(f.work, "go-build555", "pkg.a"), 100*KiB, 100*minute)
+	a.file(filepath.Join(f.work, "go-build555", "b001", "pkg.a"), 100*KiB, 100*minute)
+	a.stamp(filepath.Join(f.work, "go-build555", "b001"), 100*minute)
 	a.stamp(filepath.Join(f.work, "go-build555"), 100*minute)
 	for _, dir := range []string{"msgmcp-railway-roles1", "notes"} {
 		if a.err == nil {
@@ -156,10 +157,14 @@ func (f s5Fixture) entry(n int) string { return f.h[n][:2] + "/" + f.h[n] + "-d"
 
 func (f s5Fixture) path(rel string) string { return filepath.Join(f.cache, filepath.FromSlash(rel)) }
 
+// testHome is the home directory the test Locators know: an empty one
+// would refuse every root (REQ-DISK-TRIM-06).
+const testHome = "/nonexistent-home-of-diskspace-tests"
+
 // roots are the fixture roots as the Locator would resolve them.
 func (f s5Fixture) roots(t *testing.T) (Root, Root) {
 	t.Helper()
-	l := Locator{UID: os.Getuid()}
+	l := Locator{Home: testHome, UID: os.Getuid()}
 	return l.inspect(KindCache, f.cache), l.inspect(KindWorkDir, f.work)
 }
 
@@ -189,18 +194,21 @@ func snapshot(t *testing.T, roots ...string) map[string]string {
 	return out
 }
 
-// execRecorder is a Runner that records every program it is asked to start
-// and answers from a table keyed by the joined command line.
+// execRecorder is a Runner that records every program it is asked to start,
+// with the environment it adds, and answers from a table keyed by the joined
+// command line.
 type execRecorder struct {
 	mu      sync.Mutex
 	calls   []string
+	envs    [][]string
 	answers map[string]string
 }
 
-func (r *execRecorder) run(_ context.Context, _ string, name string, args ...string) ([]byte, error) {
+func (r *execRecorder) run(_ context.Context, _ string, env []string, name string, args ...string) ([]byte, error) {
 	line := strings.Join(append([]string{name}, args...), " ")
 	r.mu.Lock()
 	r.calls = append(r.calls, line)
+	r.envs = append(r.envs, env)
 	r.mu.Unlock()
 	if out, ok := r.answers[line]; ok {
 		return []byte(out), nil

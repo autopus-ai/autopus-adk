@@ -81,8 +81,33 @@ func TestRemoveDirCandidate_SkipsAnExecutableEntryHoldingASymlink(t *testing.T) 
 	parent, dev := openDir(t, filepath.Join(f.cache, "ff"))
 	before := snapshot(t, f.path(f.entry(10)))
 
-	got := removeDirCandidate(parent, filepath.Base(h10.Rel), Candidate{Entry: h10, Rule: RuleLargeFiles}, dev, os.Getuid(), nil)
+	got := removeDirCandidate(parent, filepath.Base(h10.Rel), Candidate{Entry: h10, Rule: RuleLargeFiles}, dev, os.Getuid(), removeHooks{})
 
 	assert.Equal(t, outcomeSymlink, got)
 	assert.Equal(t, before, snapshot(t, f.path(f.entry(10))))
 }
+
+// REQ-DISK-TRIM-05: any pre-walked entry on another device than the root,
+// a regular file as much as a directory, skips its candidate.
+func TestChildProblem_RulesPerEntryKind(t *testing.T) {
+	t.Parallel()
+	entry := func(kind uint32) *unix.Stat_t {
+		st := &unix.Stat_t{}
+		setMode(&st.Mode, kind)
+		return st
+	}
+	dev := uint64(entry(unix.S_IFREG).Dev)
+	assert.Equal(t, "", childProblem(entry(unix.S_IFREG), dev, 1))
+	assert.Equal(t, "", childProblem(entry(unix.S_IFDIR), dev, 1))
+	assert.Equal(t, ProblemDevice, childProblem(entry(unix.S_IFREG), dev+1, 1), "a file on another device")
+	assert.Equal(t, ProblemDevice, childProblem(entry(unix.S_IFDIR), dev+1, 1), "a directory on another device")
+	assert.Equal(t, ProblemUnbounded, childProblem(entry(unix.S_IFDIR), dev, treeMaxDepth))
+	assert.Equal(t, "", childProblem(entry(unix.S_IFREG), dev, treeMaxDepth), "the depth bound is for directories")
+	for _, kind := range []uint32{unix.S_IFLNK, unix.S_IFIFO, unix.S_IFSOCK, unix.S_IFCHR} {
+		assert.Equal(t, ProblemSymlink, childProblem(entry(kind), dev, 1), kind)
+	}
+}
+
+// setMode stores a file type in Stat_t.Mode, which is uint16 on darwin and
+// uint32 on linux.
+func setMode[T uint16 | uint32](mode *T, kind uint32) { *mode = T(kind) }

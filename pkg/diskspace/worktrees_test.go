@@ -20,10 +20,10 @@ var hermeticGitEnv = []string{
 }
 
 // hermeticRunner is ExecRunner without the developer's git configuration.
-func hermeticRunner(ctx context.Context, dir, name string, args ...string) ([]byte, error) {
+func hermeticRunner(ctx context.Context, dir string, env []string, name string, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), hermeticGitEnv...)
+	cmd.Env = append(append(os.Environ(), hermeticGitEnv...), env...)
 	var stdout bytes.Buffer
 	cmd.Stdout = &stdout
 	err := cmd.Run()
@@ -32,7 +32,7 @@ func hermeticRunner(ctx context.Context, dir, name string, args ...string) ([]by
 
 func gitT(t *testing.T, dir string, args ...string) string {
 	t.Helper()
-	out, err := hermeticRunner(context.Background(), dir, "git", args...)
+	out, err := hermeticRunner(context.Background(), dir, nil, "git", args...)
 	require.NoError(t, err, "git %v in %s", args, dir)
 	return string(out)
 }

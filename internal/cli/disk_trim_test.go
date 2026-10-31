@@ -157,4 +157,5 @@ func TestDiskTrim_AsksGoEnvOnlyWhenGOCACHEIsUnset(t *testing.T) {
 	require.Equal(t, 0, run.code, run.stderr)
 	assert.Contains(t, run.stdout, "roots: cache="+f.cache+" ")
 	assert.Equal(t, []string{"go env GOCACHE"}, recorder.calls)
+	assert.Equal(t, [][]string{{"GOTOOLCHAIN=local", "GOWORK=off"}}, recorder.envs)
 }
