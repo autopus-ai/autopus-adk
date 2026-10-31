@@ -78,7 +78,8 @@ func fireStickyRules(event string, stdin io.Reader, stdout, stderr io.Writer) {
 	// Any residual error stays swallowed. StickyFire already contracts to return
 	// nil, and discarding it here keeps that contract from being one refactor
 	// away from a non-zero exit.
-	_ = rulecond.StickyFire(root, event, stickyCadence(root), stdin, stdout, stderr)
+	cadence, lang := stickySettings(root)
+	_ = rulecond.StickyFireWithLanguage(root, event, cadence, lang, stdin, stdout, stderr)
 }
 
 // resolveStickyRoot walks up from start to the nearest ancestor holding a
@@ -95,19 +96,25 @@ func resolveStickyRoot(start string) (string, bool) {
 	return resolveRootWithMarkers(start, stickyRootMarkers)
 }
 
-// stickyCadence reads the configured prompt cadence for the resolved project.
+// stickySettings reads the configured prompt cadence and language values for
+// the resolved project.
 //
-// A config that fails to load resolves to the shipped default rather than to an
-// error: this runs before every user turn under the exit-zero contract, so a
-// malformed autopus.yaml must degrade to the default cadence instead of
-// suppressing the rules the SPEC exists to keep present. Returning the unset
-// value leaves the default itself stated once, in ResolveStickyCadence.
-func stickyCadence(root string) int {
+// A config that fails to load resolves to the shipped default cadence and no
+// language values rather than to an error: this runs before every user turn
+// under the exit-zero contract, so a malformed autopus.yaml must degrade to the
+// default cadence instead of suppressing the rules the SPEC exists to keep
+// present. Returning the unset value leaves the default itself stated once, in
+// ResolveStickyCadence.
+func stickySettings(root string) (int, rulecond.StickyLanguage) {
 	// LoadPreview, not Load: a hook that runs before every prompt must not
 	// rewrite the project's autopus.yaml as a side effect.
 	cfg, err := config.LoadPreview(root)
 	if err != nil {
-		return 0
+		return 0, rulecond.StickyLanguage{}
 	}
-	return config.StickyCadence(cfg)
+	return config.StickyCadence(cfg), rulecond.StickyLanguage{
+		Comments:    cfg.Language.Comments,
+		Commits:     cfg.Language.Commits,
+		AIResponses: cfg.Language.AIResponses,
+	}
 }

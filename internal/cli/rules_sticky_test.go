@@ -275,3 +275,25 @@ func TestRulesList_StickyColumnAndCadenceAreInspectable(t *testing.T) {
 	assert.Contains(t, cadenceLine, "8",
 		"with no autopus.yaml the effective cadence resolves to the default of 8")
 }
+
+// Issue #245: the configured language values travel with the sticky
+// language-policy body, so a long session keeps the response language.
+func TestRulesSticky_AttachesConfiguredLanguageValues(t *testing.T) {
+	dir := stickyProjectRoot(t, "LANG-BODY")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "autopus.yaml"), []byte(
+		"mode: full\nproject_name: lang\nplatforms: [claude-code]\nlanguage:\n  comments: en\n  commits: en\n  ai_responses: ko\n"), 0o644))
+
+	stdout, stderr := runRulesSticky(t, dir, cliStickyPayload("S-lang", "hi"))
+
+	var payload struct {
+		HookSpecificOutput struct {
+			AdditionalContext string `json:"additionalContext"`
+		} `json:"hookSpecificOutput"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &payload))
+	context := payload.HookSpecificOutput.AdditionalContext
+	assert.Contains(t, context, "LANG-BODY")
+	assert.Contains(t, context, "- code_comments: en (English)\n- commit_messages: en (English)\n- ai_responses: ko (Korean)\n")
+	assert.Contains(t, context, "Write every message to the user in ko (Korean)")
+	assert.Empty(t, stderr)
+}

@@ -73,6 +73,15 @@ func ResolveStickyCadence(configured int) int {
 // @AX:ANCHOR [AUTO] @AX:SPEC: SPEC-STICKYRULE-001: advisory sticky entry point — the generated UserPromptSubmit hook and internal/cli/rules_sticky.go depend on the exit-zero contract and on stdout being written only once, whole.
 // @AX:REASON: The deferred recover is an enforced barrier: an unrecovered Go panic terminates the process with exit status 2, which on this event discards the prompt the user just typed.
 func StickyFire(root, event string, cadence int, stdin io.Reader, stdout, stderr io.Writer) (err error) {
+	return StickyFireWithLanguage(root, event, cadence, StickyLanguage{}, stdin, stdout, stderr)
+}
+
+// StickyFireWithLanguage is StickyFire that also attaches the configured
+// language values to the language-policy rule. It keeps the same exit-zero
+// contract.
+func StickyFireWithLanguage(
+	root, event string, cadence int, lang StickyLanguage, stdin io.Reader, stdout, stderr io.Writer,
+) (err error) {
 	defer func() {
 		// REQ-STICKYRULE-FIRE-11: suppress the whole defect class, including a
 		// panic, and leave no error behind. Partial stdout cannot leak because
@@ -81,13 +90,13 @@ func StickyFire(root, event string, cadence int, stdin io.Reader, stdout, stderr
 		err = nil
 	}()
 
-	stickyRun(root, event, cadence, stdin, stdout, stderr)
+	stickyRun(root, event, cadence, lang, stdin, stdout, stderr)
 	return nil
 }
 
 // stickyRun is the ordered pipeline StickyFire wraps in its exit barrier. Each
 // early return is a whole-run benign case: no stdout, no stderr, no error.
-func stickyRun(root, event string, cadence int, stdin io.Reader, stdout, stderr io.Writer) {
+func stickyRun(root, event string, cadence int, lang StickyLanguage, stdin io.Reader, stdout, stderr io.Writer) {
 	if strings.TrimSpace(event) == "" {
 		event = EventUserPromptSubmit
 	}
@@ -120,6 +129,7 @@ func stickyRun(root, event string, cadence int, stdin io.Reader, stdout, stderr 
 	if len(entries) == 0 {
 		return
 	}
+	entries = attachLanguageValues(entries, lang)
 
 	var payloadBuf bytes.Buffer
 	if writeOutput(&payloadBuf, event, assembleStickyContext(entries)) != nil {
