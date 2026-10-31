@@ -177,6 +177,9 @@ func runDoctorText(cmd *cobra.Command, opts doctorOptions) error {
 	// Context weight is advisory: it warns on an over-weight context catalog
 	// but never fails harness health, so its result does not touch allOK.
 	checkContextWeight(out, opts.dir)
+	// The disk row is advisory too: free space below the floor is a reason to
+	// run `auto disk status`, not a broken harness.
+	checkDiskText(out, opts.dir, cfg)
 
 	hygiene := collectStatusHygiene(opts.dir)
 	renderHygieneText(out, hygiene)
