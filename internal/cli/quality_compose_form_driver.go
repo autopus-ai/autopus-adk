@@ -44,6 +44,9 @@ type composeFormRun struct {
 	applied bool
 	// ompNoticed reports that the detected-only OMP notice was printed.
 	ompNoticed bool
+	// reviewResult is the line that ended the review tab, printed again under
+	// the next menu table; entering any tab drops it.
+	reviewResult string
 	// nav is the run's position for each form's frame (SPEC-TUIUX-001).
 	nav *composeNav
 }
@@ -172,6 +175,7 @@ func (f *composeFormRun) edit() error {
 // runTab runs one tab as a stage of the header path.
 func (f *composeFormRun) runTab(tab composeOption[string]) error {
 	defer f.nav.enter(tab.label)()
+	f.reviewResult = ""
 	switch tab.value {
 	case "omp":
 		return f.omp()
