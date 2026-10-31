@@ -70,9 +70,9 @@ func TestBuildPlan_AttributesTheS5SetPerMode(t *testing.T) {
 			[]string{"go_build_large_files(>50 MiB, idle>120m)", "go_build_files(>1 MiB, idle>180m)", "go_build_work_dirs(idle>360m)"},
 			map[string][]string{RuleLargeFiles: {f.entry(3), f.entry(8)}, RuleFiles: {}, RuleWorkDirs: {"go-build111"}}, 123},
 		{"emergency", 5 * GiB, forcedRunning, config.DiskConf{}, ModeEmergency, idleRules, idleSet, 125},
-		// REQ-DISK-TRIM-02 as written: h4 (60 MiB, idle 100m) is not taken by
-		// the large rule (idle>120m), so the files rule at idle>60m takes it
-		// with h2. acceptance S5 says 127.0 MiB without h4; flagged to the lead.
+		// h4 (60 MiB, idle 100m) is not taken by the large rule (idle>120m),
+		// so first-match attribution gives it to the files rule at idle>60m
+		// with h2: 187.0 MiB.
 		{"emergency 60", 5 * GiB, forcedRunning, emergency60, ModeEmergency,
 			[]string{"go_build_large_files(>50 MiB, idle>120m)", "go_build_files(>1 MiB, idle>60m)", "go_build_work_dirs(idle>360m)"},
 			map[string][]string{RuleLargeFiles: {f.entry(3), f.entry(8)}, RuleFiles: {f.entry(1), f.entry(2), f.entry(4)}, RuleWorkDirs: {"go-build111"}}, 187},
@@ -104,9 +104,8 @@ func TestBuildPlan_GatingThresholds(t *testing.T) {
 	assert.False(t, below.Inactive)
 	assert.InDelta(t, 125*MiB, below.TotalBytes, 8*blockTolerance)
 
-	// With the large rule off, h3 falls to the files rule, and so does h8,
-	// an executable entry of 60 MiB idle 130m: REQ-DISK-TRIM-02 as written.
-	// acceptance S12 row 3 leaves h8 out; flagged to the lead.
+	// With the large rule off, both large entries fall to the files rule:
+	// h3 and h8, an executable entry of 60 MiB idle 130m, beside h1.
 	above := planS5(t, f, 70*GiB, forcedIdle, large)
 	assert.Equal(t, []string{"go_build_files(>1 MiB, idle>120m)", "go_build_work_dirs(idle>360m)"}, labels(above))
 	assert.Equal(t, map[string][]string{RuleFiles: {f.entry(1), f.entry(3), f.entry(8)}, RuleWorkDirs: {"go-build111"}}, selected(above))

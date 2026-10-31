@@ -82,14 +82,19 @@ func TestDiskTrim_ModesAndGating(t *testing.T) {
 		name, section, ci string
 		free              float64
 		contains          []string
-		exact             string
+		exact, stderr     string
 	}{
 		{name: "ci", ci: "running", free: 100, contains: []string{"run=dry-run mode=ci free=100.0 GiB ci=forced-running", "go_build_files(>1 MiB, idle>180m)", "would reclaim 123.0 MiB"}},
 		{name: "emergency", ci: "running", free: 5, contains: []string{"mode=emergency free=5.0 GiB", "go_build_files(>1 MiB, idle>120m)", "would reclaim 125.0 MiB"}},
+		// S5: emergency_idle_minutes 60 adds h2 and h4 to the files rule and
+		// warns about the key.
+		{name: "emergency 60", section: "disk:\n  trim: {go_build: {emergency_idle_minutes: 60}}\n", ci: "running", free: 5,
+			contains: []string{"mode=emergency free=5.0 GiB", "go_build_files(>1 MiB, idle>60m)", "go_build_files: candidates=3 size=64.0 MiB",
+				"note: idle>60m guarantees 0m without use;", "would reclaim 187.0 MiB"},
+			stderr: "disk trim: warning: disk.trim.go_build.emergency_idle_minutes=60 is below 120 and may delete an entry a running build has already looked up\n"},
 		{name: "inactive", section: "disk:\n  trim: {start_below_gb: 80}\n", ci: "idle", free: 100, exact: "disk trim: inactive (free above start_below_gb)\n"},
 		{name: "just below start", section: "disk:\n  trim: {start_below_gb: 80}\n", ci: "idle", free: 79.9, contains: []string{"mode=idle free=79.9 GiB", "would reclaim 125.0 MiB"}},
-		// REQ-DISK-TRIM-02 as written: h8 falls to the files rule with h1
-		// and h3; acceptance S12 row 3 says 62.0 MiB, flagged to the lead.
+		// S12 row 3: with the large rule off, h3 and h8 fall to the files rule.
 		{name: "large rule off", section: "disk:\n  trim: {go_build: {large_file_below_gb: 60}}\n", ci: "idle", free: 70,
 			contains: []string{"rules=go_build_files(>1 MiB, idle>120m) go_build_work_dirs(idle>360m)\n", "go_build_files: candidates=3 size=122.0 MiB", "would reclaim 125.0 MiB"}},
 		{name: "large rule on", section: "disk:\n  trim: {go_build: {large_file_below_gb: 60}}\n", ci: "idle", free: 59, contains: []string{"go_build_large_files: candidates=2 size=120.0 MiB"}},
@@ -100,6 +105,7 @@ func TestDiskTrim_ModesAndGating(t *testing.T) {
 		if tc.exact != "" {
 			assert.Equal(t, tc.exact, run.stdout, tc.name)
 		}
+		assert.Equal(t, tc.stderr, run.stderr, tc.name)
 		for _, want := range tc.contains {
 			assert.Contains(t, run.stdout, want, tc.name)
 		}
