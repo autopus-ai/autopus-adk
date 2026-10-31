@@ -139,7 +139,11 @@ func (l Locator) inspect(kind, raw string) Root {
 		return l.refuse(root, ReasonHomeDirectory, "home directory")
 	case l.ProjectDir != "" && canonical == canonicalOrSelf(l.ProjectDir):
 		return l.refuse(root, ReasonProjectDirectory, "project directory")
-	case st.known && st.uid != l.UID:
+	case st.known && st.uid != l.UID && !(kind == KindWorkDir && info.Mode()&os.ModeSticky != 0):
+		// A sticky work dir root, such as the shared /tmp of Linux, may
+		// belong to another uid: in it only an entry's owner can delete the
+		// entry, and a trim deletes only candidates the uid owns, counting
+		// the rest as skipped_owner (REQ-DISK-TRIM-10).
 		return l.refuse(root, ReasonNotOwned, "not owned by uid "+strconv.Itoa(l.UID))
 	}
 	if kind == KindCache {

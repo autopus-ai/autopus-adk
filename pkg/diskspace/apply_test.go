@@ -202,3 +202,34 @@ func TestApply_RefusesPathsOutsideTheShapes(t *testing.T) {
 	assert.Equal(t, Counters{Failed: 9}, result.Total)
 	assert.Equal(t, before, snapshot(t, f.cache, f.work, f.outside))
 }
+
+// REQ-DISK-TRIM-10: in a sticky work dir root, the uid's own idle work dir
+// is deleted and one the scan reports as another uid's is skipped as owner
+// and left in place. Files of another uid cannot be created without
+// privileges, so the foreign dir's owner is set on its scanned entry.
+func TestApply_StickyWorkDirRootDeletesOnlyOwnCandidates(t *testing.T) {
+	work := filepath.Join(canonicalTempDir(t), "tmp")
+	a := &aged{now: time.Now().Truncate(time.Second)}
+	for _, name := range []string{"go-build1", "go-build2"} {
+		a.file(filepath.Join(work, name, "b001", "pkg.a"), MiB, 400*time.Minute)
+		a.stamp(filepath.Join(work, name, "b001"), 400*time.Minute)
+		a.stamp(filepath.Join(work, name), 400*time.Minute)
+	}
+	require.NoError(t, a.err)
+	require.NoError(t, os.Chmod(work, 0o777|os.ModeSticky))
+	uid := os.Getuid()
+	root := Locator{UID: uid + 1}.inspect(KindWorkDir, work)
+	require.True(t, root.Available(), root.Message)
+	scan := ScanWorkDirs(root)
+	require.Len(t, scan.Dirs, 2)
+	scan.Dirs[1].UID = uid + 1
+
+	plan := BuildPlan(PlanInput{Now: a.now, FreeBytes: 100 * GiB, Config: config.DiskConf{}.Effective(), CI: forcedIdle, UID: uid, WorkDirs: scan})
+	result := Apply(plan, ApplyOptions{WorkDir: root, UID: uid})
+
+	assert.Equal(t, 1, plan.Skipped.Owner)
+	assert.Equal(t, 1, result.Rules[RuleWorkDirs].Deleted)
+	assert.Equal(t, 1, result.Skipped.Owner)
+	assert.NoDirExists(t, filepath.Join(work, "go-build1"))
+	assert.FileExists(t, filepath.Join(work, "go-build2", "b001", "pkg.a"))
+}

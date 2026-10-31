@@ -126,3 +126,32 @@ func TestLocatorWorkDir_PrefersGOTMPDIR(t *testing.T) {
 	t.Setenv("TMPDIR", link)
 	assert.Equal(t, dir, l.WorkDir().Path)
 }
+
+// REQ-DISK-TRIM-10: a sticky work dir root another uid owns is accepted;
+// the same directory as a cache root, and a foreign root without the sticky
+// bit, stay refused. The real /tmp, root-owned and sticky, is only read.
+func TestLocatorInspect_AcceptsAStickyForeignWorkDirRoot(t *testing.T) {
+	t.Parallel()
+	sticky := canonicalTempDir(t)
+	require.NoError(t, os.WriteFile(filepath.Join(sticky, "README"), []byte("x"), 0o644))
+	require.NoError(t, os.Chmod(sticky, 0o777|os.ModeSticky))
+	info, err := os.Lstat(sticky)
+	require.NoError(t, err)
+	require.NotZero(t, info.Mode()&os.ModeSticky, "the fixture root must carry the sticky bit")
+	foreign := Locator{UID: os.Getuid() + 1}
+
+	work := foreign.inspect(KindWorkDir, sticky)
+	assert.True(t, work.Available(), work.Message)
+	assert.False(t, work.Refused)
+	assert.Equal(t, ReasonNotOwned, foreign.inspect(KindCache, sticky).Reason, "the cache root rule is unchanged")
+	assert.Equal(t, ReasonNotOwned, foreign.inspect(KindWorkDir, canonicalTempDir(t)).Reason, "no sticky bit, no exception")
+
+	tmp, err := filepath.EvalSymlinks("/tmp")
+	require.NoError(t, err)
+	tmpInfo, err := os.Lstat(tmp)
+	require.NoError(t, err)
+	if statOf(tmpInfo).uid == os.Getuid() || tmpInfo.Mode()&os.ModeSticky == 0 {
+		t.Skip("/tmp is not a sticky directory another uid owns here")
+	}
+	assert.True(t, Locator{UID: os.Getuid()}.inspect(KindWorkDir, "/tmp").Available())
+}

@@ -239,3 +239,36 @@ func TestDiskStatusAndTrim_UnsupportedOS(t *testing.T) {
 		assert.Empty(t, run.stdout, sub)
 	}
 }
+
+// REQ-DISK-TRIM-06/10: a sticky work dir root another uid owns, like the
+// shared /tmp of Linux, is trimmed rather than refused, and its candidates
+// of that other uid are skipped as owner; without the sticky bit the same
+// root is refused. The cache is off so only the work dir root is judged.
+func TestDiskTrim_StickyWorkDirRootOfAnotherUID(t *testing.T) {
+	f := newDiskS5(t, true)
+	withDiskSeams(t, f)
+	withDiskFree(t, gib(100), diskDataMount)
+	t.Setenv("GOCACHE", "off")
+	uid := os.Getuid() + 1
+	previous := diskUID
+	diskUID = func() int { return uid }
+	t.Cleanup(func() { diskUID = previous })
+	project := writeDiskProject(t, "")
+	require.NoError(t, os.Chmod(f.work, 0o777|os.ModeSticky))
+	before := diskTree(t, f.work)
+
+	run := runDiskCLI(t, "disk", "trim", "--dir", project, "--ci", "idle", "--apply")
+
+	require.Equal(t, 0, run.code, run.stderr)
+	assert.Contains(t, run.stdout, "  roots: cache=gocache_off work="+f.work+"\n")
+	assert.Contains(t, run.stdout, "  skipped_owner=1\n")
+	assert.Equal(t, "disk trim: reclaimed 0 B (deleted=0 skipped_changed=0 skipped_symlink=1 skipped_device=0 skipped_owner=1 vanished=0 failed=0)",
+		diskSummary(run.stdout))
+	assert.Equal(t, before, diskTree(t, f.work))
+
+	require.NoError(t, os.Chmod(f.work, 0o755))
+	refused := runDiskCLI(t, "disk", "trim", "--dir", project, "--ci", "idle")
+	assert.Equal(t, 1, refused.code)
+	assert.Equal(t, "disk trim: refused: "+f.work+" is not an acceptable work dir root (not owned by uid "+strconv.Itoa(uid)+")\n", refused.stderr)
+	assert.Empty(t, refused.stdout)
+}
