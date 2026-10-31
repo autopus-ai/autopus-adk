@@ -1,7 +1,40 @@
 # Release v0.50.131 (A38)
 
-Status: coordinate re-bound, not yet published. A37 is `v0.50.128`, immutable
-release `427217669` (Latest); see [release-v0.50.128.md](release-v0.50.128.md).
+Status: published 2026-10-31. A38 is `v0.50.131`, immutable release
+`429669574` (Latest, 15 assets, published 2026-10-31T03:11:32Z) from Release
+run `41160129755`. Source commit `b27d93ab` (tree `fe829831`), tag object
+`a2c7b479`. Evidence tag `omp-context-evidence-v0.50.131` (object `e3a14ccc`,
+commit `93374883`), ruleset `26253379` sealed (`verify-release-tag-ruleset.sh
+--sealed` passes), deployment tag policy `64983926`, Homebrew Cask `1e3daa5d`,
+Upgrade Canary `41163380746` passed. A37 is `v0.50.128`, immutable release
+`427217669`; see [release-v0.50.128.md](release-v0.50.128.md).
+
+## Publication record
+
+| Time (UTC) | Event |
+|---|---|
+| 2026-10-31 02:27:59 | tag run `41160129755` starts; `omp-production-evidence` finishes 02:29:02; all 21 CI, security, and evidence jobs pass, including `ci / macos-runtime` on macOS 15.8.2 |
+| 2026-10-31 03:05:31 | `adk-companion-release` approval lands and the `release` job starts, about 37 minutes after the tag run |
+| 2026-10-31 03:11:32 | release `429669574` published, 15 assets; the final signed companion execution smoke passed with the ptrace-free Darwin gate |
+| 2026-10-31 03:11:45 | the tap moves to `1e3daa5d` "Publish signed Cask for v0.50.131" |
+| 2026-10-31 03:11:55 | `release` job finishes |
+| 2026-10-31 03:12:54 | Upgrade Canary `41163380746` dispatched on `v0.50.131`; passes 03:13:30 |
+
+- `release-prep.sh --preflight` and `--apply` ran from the user's terminal
+  (`sudo -v` in the same terminal before each, since `--preflight` drops the
+  authorization). The single `--apply` committed on the first try; the
+  paginated policy reads found `v0.50.131` past the first page.
+- `--apply` printed `release tag ruleset differs from exact sealed authority
+  policy` once, the pre-seal probe. The ruleset now has no bypass actor and
+  `--sealed` passes.
+- `--apply` also printed two `getcwd: cannot access parent directories`
+  warnings during the final production canary, as `v0.50.130` did. They come
+  from a shell started as the unprivileged canary user in a directory it
+  cannot read and did not fail anything.
+- The Cask's darwin amd64 and arm64 sha256 equal the `checksums.txt` entries
+  (`34a574ad...`, `b568e224...`).
+- The Upgrade Canary passed on its first run; the previous-surface
+  expectations from PR #234 still hold for `0.50.128 -> 0.50.131`.
 
 > **PREDECESSOR ATTEMPTS BURNED.** `v0.50.129` (2026-10-30) and `v0.50.130`
 > (2026-10-31) are failed release history. Their tags, evidence tags, drafts,
