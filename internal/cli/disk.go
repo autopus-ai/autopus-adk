@@ -17,6 +17,13 @@ import (
 // measurement failure stays exit 1, so a caller can tell the two apart.
 const exitCodeDiskInsufficient = 3
 
+// JSON error codes shared by the disk commands.
+const (
+	diskCodeProjectInvalid    = "disk_project_invalid"
+	diskCodeConfigInvalid     = "disk_config_invalid"
+	diskCodeMeasurementFailed = "disk_measurement_failed"
+)
+
 // diskFree measures free space; tests substitute it to fix the reading.
 var diskFree = diskspace.Free
 
@@ -24,7 +31,7 @@ var diskFree = diskspace.Free
 func newDiskCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:           "disk",
-		Short:         "Read the disk budget of a shared machine and gate heavy steps on it",
+		Short:         "Read the disk budget of a shared machine, gate heavy steps on it, and trim the Go build cache",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
@@ -53,13 +60,14 @@ type diskContext struct {
 
 // loadDiskContext resolves the project directory, loads its disk budget
 // through LoadPreview, which never writes autopus.yaml (REQ-DISK-CFG-03), and
-// measures free space on the file system that holds the project.
-func loadDiskContext(cmd *cobra.Command, flags diskFlags, jsonMode bool) (diskContext, error) {
+// measures free space on the file system that holds the project. sub names
+// the command in its failure lines.
+func loadDiskContext(cmd *cobra.Command, flags diskFlags, jsonMode bool, sub string) (diskContext, error) {
 	dir := flags.dir
 	if dir == "" {
 		cwd, err := os.Getwd()
 		if err != nil {
-			return diskContext{}, diskFail(cmd, jsonMode, 1, "disk_project_invalid", fmt.Sprintf("disk: current directory is unavailable: %v", err), nil)
+			return diskContext{}, diskFail(cmd, jsonMode, 1, diskCodeProjectInvalid, fmt.Sprintf("disk %s: current directory is unavailable: %v", sub, err), nil)
 		}
 		dir = cwd
 	}
@@ -71,23 +79,23 @@ func loadDiskContext(cmd *cobra.Command, flags diskFlags, jsonMode bool) (diskCo
 		}
 	}
 	if err != nil {
-		return diskContext{}, diskFail(cmd, jsonMode, 1, "disk_project_invalid", fmt.Sprintf("disk: project directory %s: %v", dir, err), nil)
+		return diskContext{}, diskFail(cmd, jsonMode, 1, diskCodeProjectInvalid, fmt.Sprintf("disk %s: project directory %s: %v", sub, dir, err), nil)
 	}
 	harness, err := config.LoadPreview(abs)
 	if err != nil {
-		return diskContext{}, diskFail(cmd, jsonMode, 1, "disk_config_invalid", "disk: "+err.Error(), nil)
+		return diskContext{}, diskFail(cmd, jsonMode, 1, diskCodeConfigInvalid, fmt.Sprintf("disk %s: %v", sub, err), nil)
 	}
 	space, err := diskFree(abs)
 	if errors.Is(err, diskspace.ErrUnsupported) {
-		return diskContext{}, diskFail(cmd, jsonMode, 1, "disk_unsupported", "disk: "+err.Error(), nil)
+		return diskContext{}, diskFail(cmd, jsonMode, 1, diskCodeMeasurementFailed, "disk: "+err.Error(), nil)
 	}
 	if err != nil {
-		return diskContext{}, diskFail(cmd, jsonMode, 1, "disk_measure_failed", fmt.Sprintf("disk: free space of %s cannot be measured: %v", abs, err), nil)
+		return diskContext{}, diskFail(cmd, jsonMode, 1, diskCodeMeasurementFailed, fmt.Sprintf("disk %s: free space measurement failed: %v", sub, err), nil)
 	}
 	return diskContext{projectDir: abs, disk: harness.Disk.Effective(), space: space}, nil
 }
 
-// diskExit is a disk command failure whose line is already on stderr.
+// diskExit is a disk command failure whose diagnostic is already written.
 type diskExit struct {
 	code int
 	line string
@@ -98,18 +106,20 @@ func (e *diskExit) Error() string { return e.line }
 // ExitCode satisfies exitCoder.
 func (e *diskExit) ExitCode() int { return e.code }
 
-// diskFail ends a disk command with code after writing line, alone, to
-// stderr, and in JSON mode the error envelope to stdout as well. The exact
-// line is the contract (REQ-DISK-CHECK-02, REQ-DISK-FREE-02), so it must not
-// reach the "Error: " printer of runRootCommand: like harnessFailure, the
-// error travels as a jsonFatalError, the already-reported channel that
-// printer skips, and exitCodeForError still finds the code by unwrapping it.
+func (e *diskExit) alreadyReported() {}
+
+// diskFail ends a disk command with code. In text mode it writes line, alone,
+// to stderr; in JSON mode it writes only the error envelope, carrying line as
+// its message, so stderr stays empty. Either way the command reports its own
+// diagnostic, so runRootCommand adds no "Error: " line, and exitCodeForError
+// reads code through the jsonFatalError the envelope path wraps it in
+// (REQ-DISK-CHECK-02, REQ-DISK-FREE-02).
 func diskFail(cmd *cobra.Command, jsonMode bool, code int, errCode, line string, data any) error {
 	line = terminalSafe(line)
-	fmt.Fprintln(cmd.ErrOrStderr(), line)
 	exit := &diskExit{code: code, line: line}
 	if !jsonMode {
-		return &jsonFatalError{cause: exit}
+		fmt.Fprintln(cmd.ErrOrStderr(), line)
+		return exit
 	}
 	if data == nil {
 		data = map[string]any{}

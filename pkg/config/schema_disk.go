@@ -9,7 +9,7 @@ import (
 
 // Disk defaults (SPEC-DISK-001 REQ-DISK-CFG-01). They are the numbers of the
 // go-build trim script the section ports, except that no idle threshold is
-// below DiskSafeIdleMinutes: the script deletes after 60 idle minutes, and
+// below DiskRecommendedIdleMinutes: the script deletes after 60 idle minutes, and
 // probe A1 showed that rule deleting an archive a running build had already
 // looked up, because Go refreshes a reused entry's mtime at most hourly.
 const (
@@ -25,10 +25,11 @@ const (
 	// DiskMinIdleMinutes is Go's mtimeInterval. Below it an idle threshold
 	// cannot tell an abandoned cache entry from one a build reuses.
 	DiskMinIdleMinutes = 60
-	// DiskSafeIdleMinutes is the lowest idle threshold that still leaves an
-	// hour in which the entry is known to be unused. A configured threshold
-	// below it loads, but can delete what a concurrent build already looked up.
-	DiskSafeIdleMinutes = 120
+	// DiskRecommendedIdleMinutes is the lowest idle threshold that still
+	// leaves an hour in which the entry is known to be unused. A configured
+	// threshold below it loads, but can delete what a concurrent build already
+	// looked up, so the disk commands warn about it (REQ-DISK-CFG-04).
+	DiskRecommendedIdleMinutes = 120
 )
 
 // DefaultDiskCIProcessNames names the executable of a running GitHub Actions
@@ -146,10 +147,11 @@ type DiskIdleThreshold struct {
 	Minutes int
 }
 
-// UnsafeIdleThresholds lists, in key order, the idle keys resolved below
-// DiskSafeIdleMinutes, so a command can warn that each can delete an entry a
-// running build has already looked up (REQ-DISK-CFG-04).
-func (e DiskEffective) UnsafeIdleThresholds() []DiskIdleThreshold {
+// BelowRecommendedIdle lists, in key order, the idle keys resolved below
+// DiskRecommendedIdleMinutes with their values, so a command can warn that
+// each may delete an entry a running build has already looked up
+// (REQ-DISK-CFG-04).
+func (e DiskEffective) BelowRecommendedIdle() []DiskIdleThreshold {
 	var unsafe []DiskIdleThreshold
 	for _, idle := range []DiskIdleThreshold{
 		{"disk.trim.go_build.idle_minutes", e.GoBuild.IdleMinutes},
@@ -158,7 +160,7 @@ func (e DiskEffective) UnsafeIdleThresholds() []DiskIdleThreshold {
 		{"disk.trim.go_build.large_file_idle_minutes", e.GoBuild.LargeFileIdleMinutes},
 		{"disk.trim.go_build_work_dirs.idle_minutes", e.WorkDirIdleMinutes},
 	} {
-		if idle.Minutes < DiskSafeIdleMinutes {
+		if idle.Minutes < DiskRecommendedIdleMinutes {
 			unsafe = append(unsafe, idle)
 		}
 	}

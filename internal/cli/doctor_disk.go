@@ -25,10 +25,12 @@ func diagnoseDisk(dir string, cfg *config.HarnessConfig) diskDoctorRow {
 	fields := map[string]string{"floor_bytes": strconv.FormatInt(floor, 10)}
 	space, err := diskFree(dir)
 	if errors.Is(err, diskspace.ErrUnsupported) {
+		fields["reason"] = "unsupported_os"
 		return diskDoctorRow{line: "disk: " + err.Error(), fields: fields}
 	}
 	if err != nil {
-		return diskDoctorRow{line: fmt.Sprintf("disk: free space cannot be measured: %v", err), fields: fields}
+		fields["reason"] = "measurement_failed"
+		return diskDoctorRow{line: fmt.Sprintf("disk: free space measurement failed: %v", err), fields: fields}
 	}
 	fields["free_bytes"] = strconv.FormatInt(space.AvailBytes, 10)
 	fields["mount"] = space.Mount

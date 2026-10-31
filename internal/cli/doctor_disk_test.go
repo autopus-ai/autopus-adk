@@ -128,21 +128,46 @@ func TestDoctorDisk_JSONOverallUnchanged(t *testing.T) {
 	assert.Equal(t, highOK, lowOK)
 }
 
-// REQ-DISK-FREE-02: where free space cannot be measured, the doctor row is a
-// WARN with the same text as the disk commands, not a measurement.
+// S8/REQ-DISK-FREE-02: where free space cannot be measured, the doctor row is
+// a WARN with the text of the disk commands, and the JSON check names the
+// reason beside the floor instead of a measurement.
 func TestDoctorDisk_UnsupportedOSWarns(t *testing.T) {
 	_, cfg := diskDoctorProject(t)
-	withDiskFreeFunc(t, func(string) (diskspace.Space, error) { return diskspace.Space{}, diskspace.UnsupportedOn("windows") })
+	withDiskFreeFunc(t, func(string) (diskspace.Space, error) { return diskspace.Space{}, diskspace.UnsupportedOn("plan9") })
 
 	var buf bytes.Buffer
 	checkDiskText(&buf, t.TempDir(), cfg)
-	assert.Contains(t, buf.String(), "  [WARN] disk: free space measurement is not supported on windows\n")
+	assert.Regexp(t, `\nDisk ─+\n  \[WARN\] disk: free space measurement is not supported on plan9\n`, buf.String())
 
 	report := doctorJSONReport{status: jsonStatusOK}
 	report.collectDiskCheck(t.TempDir(), cfg)
 	require.Len(t, report.checks, 1)
 	assert.Equal(t, "warn", report.checks[0].Status)
-	assert.Equal(t, "disk: free space measurement is not supported on windows", report.checks[0].Detail)
-	assert.Equal(t, map[string]string{"floor_bytes": "48318382080"}, report.checks[0].Fields)
-	assert.Equal(t, jsonStatusOK, report.status)
+	assert.Equal(t, "warning", report.checks[0].Severity)
+	assert.Equal(t, "disk: free space measurement is not supported on plan9", report.checks[0].Detail)
+	assert.Equal(t, map[string]string{"floor_bytes": "48318382080", "reason": "unsupported_os"}, report.checks[0].Fields)
+}
+
+// S8: overall_ok equals a run without the disk check because the check
+// cannot move the envelope status, whatever status the rest of the report
+// reached and whatever the disk row reads.
+func TestDoctorDisk_NeverMovesTheEnvelopeStatus(t *testing.T) {
+	_, cfg := diskDoctorProject(t)
+	seams := map[string]func(string) (diskspace.Space, error){
+		"below": func(string) (diskspace.Space, error) {
+			return diskspace.Space{AvailBytes: gib(9), Mount: diskDataMount}, nil
+		},
+		"above": func(string) (diskspace.Space, error) {
+			return diskspace.Space{AvailBytes: gib(100), Mount: diskDataMount}, nil
+		},
+		"plan9": func(string) (diskspace.Space, error) { return diskspace.Space{}, diskspace.UnsupportedOn("plan9") },
+	}
+	for name, seam := range seams {
+		withDiskFreeFunc(t, seam)
+		for _, status := range []jsonEnvelopeStatus{jsonStatusOK, jsonStatusWarn, jsonStatusError} {
+			report := doctorJSONReport{status: status}
+			report.collectDiskCheck(t.TempDir(), cfg)
+			assert.Equal(t, status, report.status, name)
+		}
+	}
 }

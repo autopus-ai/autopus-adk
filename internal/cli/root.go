@@ -181,6 +181,16 @@ func exitCodeForError(err error) int {
 	return 1
 }
 
+// alreadyReported marks an error whose diagnostic the command already wrote,
+// as an envelope on stdout or as its own line on stderr, so runRootCommand
+// prints nothing more for it; exitCodeForError still reads its exit code.
+type alreadyReported interface{ alreadyReported() }
+
+func isAlreadyReported(err error) bool {
+	var reported alreadyReported
+	return errors.As(err, &reported)
+}
+
 // Execute runs the CLI.
 func Execute() {
 	// Initialize styles with NO_COLOR guard for non-TTY environments.
@@ -200,15 +210,15 @@ func Execute() {
 }
 
 // runRootCommand runs root and, when it fails, writes its error to stderr unless
-// a JSON envelope already reported it. It returns the exit code and whether
-// the command failed. An error can carry text from a user file, so it is
-// printed through terminalSafeMultiline.
+// the command already reported it (alreadyReported). It returns the exit code
+// and whether the command failed. An error can carry text from a user file, so
+// it is printed through terminalSafeMultiline.
 func runRootCommand(ctx context.Context, root *cobra.Command, stderr io.Writer) (int, bool) {
 	err := root.ExecuteContext(ctx)
 	if err == nil {
 		return 0, false
 	}
-	if !isJSONFatalError(err) {
+	if !isAlreadyReported(err) {
 		fmt.Fprintf(stderr, "Error: %s\n", terminalSafeMultiline(err.Error()))
 	}
 	return exitCodeForError(err), true

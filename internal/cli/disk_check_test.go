@@ -18,35 +18,49 @@ import (
 
 const diskS3Section = "disk:\n  min_free_gb: 45\n  reserves: {release: 30, nightly-full: 60}\n"
 
-// diskS3Rows is the ten-row table of acceptance S3.
+// diskS3Rows is the eleven-row table of acceptance S3; freeErr replaces the
+// free-space reading with a measurement error.
 var diskS3Rows = []struct {
-	flags  []string
-	free   float64
-	code   int
-	stdout bool
-	line   string
+	flags   []string
+	free    float64
+	freeErr string
+	code    int
+	stdout  bool
+	jsonErr string
+	line    string
 }{
-	{nil, 9.0, 3, false, "disk check: insufficient free space: 9.0 GiB free, 45.0 GiB required (disk.min_free_gb) on /System/Volumes/Data; free 36.0 GiB or lower the requirement"},
-	{nil, 45.0, 0, true, "disk check: ok: 45.0 GiB free, 45.0 GiB required (disk.min_free_gb) on /System/Volumes/Data"},
-	{[]string{"--need", "30"}, 36.0, 3, false, "disk check: insufficient free space: 36.0 GiB free, 45.0 GiB required (disk.min_free_gb) on /System/Volumes/Data; free 9.0 GiB or lower the requirement"},
-	{[]string{"--need", "50"}, 52.5, 0, true, "disk check: ok: 52.5 GiB free, 50.0 GiB required (--need) on /System/Volumes/Data"},
-	{[]string{"--for", "release"}, 31.0, 3, false, "disk check: insufficient free space: 31.0 GiB free, 45.0 GiB required (disk.min_free_gb) on /System/Volumes/Data; free 14.0 GiB or lower the requirement"},
-	{[]string{"--for", "nightly-full"}, 61.0, 0, true, "disk check: ok: 61.0 GiB free, 60.0 GiB required (disk.reserves.nightly-full) on /System/Volumes/Data"},
-	{[]string{"--for", "nightly-full"}, 59.9, 3, false, "disk check: insufficient free space: 59.9 GiB free, 60.0 GiB required (disk.reserves.nightly-full) on /System/Volumes/Data; free 0.1 GiB or lower the requirement"},
-	{[]string{"--for", "weekly"}, 200.0, 1, false, `disk check: reserve "weekly" is not configured under disk.reserves in autopus.yaml`},
-	{[]string{"--need", "0"}, 200.0, 1, false, "disk check: --need must be a positive number of GiB"},
-	{[]string{"--need", "30", "--for", "release"}, 200.0, 1, false, "disk check: --need and --for are mutually exclusive"},
+	{nil, 9.0, "", 3, false, "disk_insufficient", "disk check: insufficient free space: 9.0 GiB free, 45.0 GiB required (disk.min_free_gb) on /System/Volumes/Data; free 36.0 GiB or lower the requirement"},
+	{nil, 45.0, "", 0, true, "", "disk check: ok: 45.0 GiB free, 45.0 GiB required (disk.min_free_gb) on /System/Volumes/Data"},
+	{[]string{"--need", "30"}, 36.0, "", 3, false, "disk_insufficient", "disk check: insufficient free space: 36.0 GiB free, 45.0 GiB required (disk.min_free_gb) on /System/Volumes/Data; free 9.0 GiB or lower the requirement"},
+	{[]string{"--need", "50"}, 52.5, "", 0, true, "", "disk check: ok: 52.5 GiB free, 50.0 GiB required (--need) on /System/Volumes/Data"},
+	{[]string{"--for", "release"}, 31.0, "", 3, false, "disk_insufficient", "disk check: insufficient free space: 31.0 GiB free, 45.0 GiB required (disk.min_free_gb) on /System/Volumes/Data; free 14.0 GiB or lower the requirement"},
+	{[]string{"--for", "nightly-full"}, 61.0, "", 0, true, "", "disk check: ok: 61.0 GiB free, 60.0 GiB required (disk.reserves.nightly-full) on /System/Volumes/Data"},
+	{[]string{"--for", "nightly-full"}, 59.9, "", 3, false, "disk_insufficient", "disk check: insufficient free space: 59.9 GiB free, 60.0 GiB required (disk.reserves.nightly-full) on /System/Volumes/Data; free 0.1 GiB or lower the requirement"},
+	{[]string{"--for", "weekly"}, 200.0, "", 1, false, "disk_check_invalid", `disk check: reserve "weekly" is not configured under disk.reserves in autopus.yaml`},
+	{[]string{"--need", "0"}, 200.0, "", 1, false, "disk_check_invalid", "disk check: --need must be a positive number of GiB"},
+	{[]string{"--need", "30", "--for", "release"}, 200.0, "", 1, false, "disk_check_invalid", "disk check: --need and --for are mutually exclusive"},
+	{nil, 0, "statfs: permission denied", 1, false, "disk_measurement_failed", "disk check: free space measurement failed: statfs: permission denied"},
+}
+
+// seedDiskS3Row pins the free-space seam to a row's reading or error.
+func seedDiskS3Row(t *testing.T, free float64, freeErr string) {
+	t.Helper()
+	if freeErr == "" {
+		withDiskFree(t, gib(free), diskDataMount)
+		return
+	}
+	withDiskFreeFunc(t, func(string) (diskspace.Space, error) { return diskspace.Space{}, errors.New(freeErr) })
 }
 
 // S3: every row exits with its code and prints exactly its line on its
-// stream, with nothing else on either stream: no "Error: " prefix.
+// stream, with nothing on the other stream and no "Error: " prefix.
 func TestDiskCheck_S3ExitCodesAndLines(t *testing.T) {
 	dir := writeDiskProject(t, diskS3Section)
 	for _, row := range diskS3Rows {
-		withDiskFree(t, gib(row.free), diskDataMount)
+		seedDiskS3Row(t, row.free, row.freeErr)
 		run := runDiskCLI(t, append([]string{"disk", "check", "--dir", dir}, row.flags...)...)
 
-		name := strings.Join(row.flags, " ")
+		name := strings.Join(row.flags, " ") + row.freeErr
 		assert.Equal(t, row.code, run.code, name)
 		if row.stdout {
 			assert.Equal(t, row.line+"\n", run.stdout, name)
@@ -55,37 +69,34 @@ func TestDiskCheck_S3ExitCodesAndLines(t *testing.T) {
 			assert.Equal(t, row.line+"\n", run.stderr, name)
 			assert.Empty(t, run.stdout, name)
 		}
+		assert.NotContains(t, run.stdout+run.stderr, "Error: ", name)
 	}
 }
 
-// S3 JSON: the exit codes are identical, ok maps to status ok and exit 3 to
-// status error with error.code disk_insufficient, and data carries the
-// reading. The stderr line stays, in JSON mode as in text mode.
+// S3 JSON: the exit codes are identical, stderr is empty in every row, the
+// envelope status is ok for exit 0 and error otherwise with the row's code,
+// and data carries the reading.
 func TestDiskCheck_S3JSONMode(t *testing.T) {
 	dir := writeDiskProject(t, diskS3Section)
 	for _, row := range diskS3Rows {
-		withDiskFree(t, gib(row.free), diskDataMount)
+		seedDiskS3Row(t, row.free, row.freeErr)
 		run := runDiskCLI(t, append([]string{"disk", "check", "--dir", dir, "--json"}, row.flags...)...)
 
-		name := strings.Join(row.flags, " ")
+		name := strings.Join(row.flags, " ") + row.freeErr
 		require.Equal(t, row.code, run.code, name)
+		assert.Empty(t, run.stderr, name)
 		envelope := decodeDiskEnvelope(t, run.stdout)
 		if row.code == 0 {
 			assert.Equal(t, "ok", envelope.Status, name)
 			assert.Nil(t, envelope.Error, name)
-			assert.Empty(t, run.stderr, name)
 		} else {
 			assert.Equal(t, "error", envelope.Status, name)
 			require.NotNil(t, envelope.Error, name)
+			assert.Equal(t, row.jsonErr, envelope.Error.Code, name)
 			assert.Equal(t, row.line, envelope.Error.Message, name)
-			assert.Equal(t, row.line+"\n", run.stderr, name)
 		}
 		if row.code == 1 {
-			assert.Equal(t, "disk_invalid_args", envelope.Error.Code, name)
 			continue
-		}
-		if row.code == 3 {
-			assert.Equal(t, "disk_insufficient", envelope.Error.Code, name)
 		}
 		var data map[string]any
 		require.NoError(t, json.Unmarshal(envelope.Data, &data), name)
@@ -113,35 +124,31 @@ func TestDiskCheck_RejectsNonPositiveNeed(t *testing.T) {
 }
 
 // S2/REQ-DISK-FREE-02: without a measurement the command exits 1 with the
-// single unsupported line, in text and JSON mode.
+// single unsupported line; in JSON mode only the envelope reports it.
 func TestDiskCheck_UnsupportedOSIsASingleLine(t *testing.T) {
 	dir := writeDiskProject(t, "")
-	withDiskFreeFunc(t, func(string) (diskspace.Space, error) { return diskspace.Space{}, diskspace.UnsupportedOn("windows") })
+	withDiskFreeFunc(t, func(string) (diskspace.Space, error) { return diskspace.Space{}, diskspace.UnsupportedOn("plan9") })
 
 	run := runDiskCLI(t, "disk", "check", "--dir", dir)
 	assert.Equal(t, 1, run.code)
-	assert.Equal(t, "disk: free space measurement is not supported on windows\n", run.stderr)
+	assert.Equal(t, "disk: free space measurement is not supported on plan9\n", run.stderr)
 	assert.Empty(t, run.stdout)
 
 	run = runDiskCLI(t, "disk", "check", "--dir", dir, "--json")
 	assert.Equal(t, 1, run.code)
-	assert.Equal(t, "disk: free space measurement is not supported on windows\n", run.stderr)
-	assert.Equal(t, "disk_unsupported", decodeDiskEnvelope(t, run.stdout).Error.Code)
+	assert.Empty(t, run.stderr)
+	envelope := decodeDiskEnvelope(t, run.stdout)
+	assert.Equal(t, "disk_measurement_failed", envelope.Error.Code)
+	assert.Equal(t, "disk: free space measurement is not supported on plan9", envelope.Error.Message)
 }
 
-// A failed measurement and an invalid disk section are exit 1, never 3.
-func TestDiskCheck_MeasurementAndConfigFailuresExitOne(t *testing.T) {
-	withDiskFreeFunc(t, func(string) (diskspace.Space, error) {
-		return diskspace.Space{}, errors.New("statfs: input/output error")
-	})
-	run := runDiskCLI(t, "disk", "check", "--dir", writeDiskProject(t, ""))
-	assert.Equal(t, 1, run.code)
-	assert.Contains(t, run.stderr, "cannot be measured: statfs: input/output error")
-
+// An invalid disk section is exit 1 with one stderr line, never exit 3.
+func TestDiskCheck_ConfigFailureExitsOne(t *testing.T) {
 	withDiskFree(t, gib(200), diskDataMount)
-	run = runDiskCLI(t, "disk", "check", "--dir", writeDiskProject(t, "disk:\n  min_free_gb: -1\n"))
+	run := runDiskCLI(t, "disk", "check", "--dir", writeDiskProject(t, "disk:\n  min_free_gb: -1\n"))
 	assert.Equal(t, 1, run.code)
 	assert.Contains(t, run.stderr, "disk.min_free_gb must be >= 0")
+	assert.True(t, strings.HasPrefix(run.stderr, "disk check: "), run.stderr)
 	assert.Equal(t, 1, strings.Count(run.stderr, "\n"), "one stderr line")
 }
 

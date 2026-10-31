@@ -11,7 +11,11 @@ import (
 	"github.com/insajin/autopus-adk/pkg/diskspace"
 )
 
-const diskFloorSource = "disk.min_free_gb"
+const (
+	diskFloorSource      = "disk.min_free_gb"
+	diskCodeCheckInvalid = "disk_check_invalid"
+	diskCodeInsufficient = "disk_insufficient"
+)
 
 // diskCheckData is the JSON data of `auto disk check`.
 type diskCheckData struct {
@@ -63,18 +67,18 @@ func runDiskCheck(cmd *cobra.Command, opts diskCheckOptions) error {
 	}
 	needSet, reserveSet := cmd.Flags().Changed("need"), cmd.Flags().Changed("for")
 	if needSet && reserveSet {
-		return diskFail(cmd, jsonMode, 1, "disk_invalid_args", "disk check: --need and --for are mutually exclusive", nil)
+		return diskFail(cmd, jsonMode, 1, diskCodeCheckInvalid, "disk check: --need and --for are mutually exclusive", nil)
 	}
 	var needBytes int64
 	if needSet {
 		gib, err := strconv.ParseFloat(strings.TrimSpace(opts.need), 64)
 		if err != nil || !(gib > 0) || math.IsInf(gib, 0) {
-			return diskFail(cmd, jsonMode, 1, "disk_invalid_args", "disk check: --need must be a positive number of GiB", nil)
+			return diskFail(cmd, jsonMode, 1, diskCodeCheckInvalid, "disk check: --need must be a positive number of GiB", nil)
 		}
 		// Rounded up: a requirement is never rounded below what was asked.
 		needBytes = int64(math.Ceil(gib * float64(diskspace.GiB)))
 	}
-	dc, err := loadDiskContext(cmd, opts.flags, jsonMode)
+	dc, err := loadDiskContext(cmd, opts.flags, jsonMode, "check")
 	if err != nil {
 		return err
 	}
@@ -85,7 +89,7 @@ func runDiskCheck(cmd *cobra.Command, opts diskCheckOptions) error {
 	case reserveSet:
 		reserveBytes, ok := dc.disk.ReserveBytes(opts.reserve)
 		if !ok {
-			return diskFail(cmd, jsonMode, 1, "disk_invalid_args",
+			return diskFail(cmd, jsonMode, 1, diskCodeCheckInvalid,
 				fmt.Sprintf("disk check: reserve %q is not configured under disk.reserves in autopus.yaml", opts.reserve), nil)
 		}
 		if reserveBytes > data.RequiredBytes {
@@ -98,7 +102,7 @@ func runDiskCheck(cmd *cobra.Command, opts diskCheckOptions) error {
 		line := fmt.Sprintf("disk check: insufficient free space: %s GiB free, %s GiB required (%s) on %s; free %s GiB or lower the requirement",
 			diskspace.GiBString(data.FreeBytes), diskspace.GiBString(data.RequiredBytes), data.Source, data.Mount,
 			diskspace.GiBString(data.DeficitBytes))
-		return diskFail(cmd, jsonMode, exitCodeDiskInsufficient, "disk_insufficient", line, data)
+		return diskFail(cmd, jsonMode, exitCodeDiskInsufficient, diskCodeInsufficient, line, data)
 	}
 	if jsonMode {
 		return writeJSONResult(cmd, jsonStatusOK, data, nil, nil)
