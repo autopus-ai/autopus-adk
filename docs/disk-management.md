@@ -124,7 +124,10 @@ cannot close it. Every dry run prints this as a `note:` line.
 - It refuses a cache root or work-dir root that resolves to `/`, the home
   directory, or the project directory, is relative, is not owned by the current
   user, or (for the cache) lacks Go's `README` marker, and then deletes nothing
-  from either root.
+  from either root. A shared sticky temp directory such as Linux `/tmp` (used
+  when `$GOTMPDIR` and `$TMPDIR` are unset) is accepted as the work-dir root even
+  though root owns it; only the current user's `go-build<N>` directories in it
+  are candidates.
 - It skips a candidate owned by another user (`skipped_owner`).
 - It records each root's and candidate's identity at scan time. Before deleting
   a file it checks the device, inode, size, and mtime again and skips the file
