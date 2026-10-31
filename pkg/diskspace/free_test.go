@@ -84,6 +84,15 @@ func TestFree_FailsOnAMissingPath(t *testing.T) {
 	assert.False(t, errors.Is(err, ErrUnsupported))
 }
 
+// S2: the arithmetic of both kernels on every host; the per-OS statfsSpace
+// tests pin the same numbers against a real Statfs_t.
+func TestAvailBytes_StatfsArithmetic(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, int64(155009024), availBytes(37844, 4096), "darwin: Bavail * Bsize")
+	assert.Equal(t, int64(38752256), availBytes(37844, linuxBlockUnit(1024, 4096)), "linux: Bavail * Frsize")
+	assert.Equal(t, int64(155009024), availBytes(37844, linuxBlockUnit(0, 4096)), "linux: Frsize 0 falls back to Bsize")
+}
+
 // REQ-DISK-FREE-02: the unsupported error names the operating system and
 // stays recognizable to callers.
 func TestUnsupportedOn_NamesTheOS(t *testing.T) {

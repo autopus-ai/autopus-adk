@@ -51,7 +51,7 @@ func TestDiskConf_DefaultsResolveAndStayOutOfSavedConfig(t *testing.T) {
 		LargeFileMB: 50, LargeFileIdleMinutes: 120, LargeFileBelowGB: 0,
 	}, eff.GoBuild)
 	assert.Equal(t, 360, eff.WorkDirIdleMinutes)
-	assert.Empty(t, eff.UnsafeIdleKeys(), "no default idle threshold is below the safe hour")
+	assert.Empty(t, eff.UnsafeIdleThresholds(), "no default idle threshold is below the safe hour")
 
 	require.NoError(t, config.Save(dir, cfg))
 	assert.NotRegexp(t, diskTopLevelKey, readDiskConfig(t, dir), "load-save round trip of defaults")
@@ -158,18 +158,19 @@ func TestDiskConf_EffectiveReturnsCopies(t *testing.T) {
 	assert.Equal(t, []string{"Runner.Worker"}, config.DiskConf{}.Effective().CIProcessNames)
 }
 
-// A threshold between Go's one-hour refresh interval and the safe two hours
-// loads, and is named so a command can warn about it.
-func TestDiskConf_UnsafeIdleKeysNameThresholdsBelowTwoHours(t *testing.T) {
+// S1/REQ-DISK-CFG-04: a threshold from Go's one-hour refresh interval up to
+// two hours loads, and is reported with its value so a command can warn.
+func TestDiskConf_UnsafeIdleThresholdsNameKeysBelowTwoHours(t *testing.T) {
 	t.Parallel()
 	cfg, err := config.LoadPreview(writeDiskConfig(t, "disk:\n  trim:\n"+
-		"    go_build: {idle_minutes: 60, emergency_idle_minutes: 119, ci_idle_minutes: 120}\n"+
-		"    go_build_work_dirs: {idle_minutes: 90}\n"))
+		"    go_build: {idle_minutes: 60, large_file_idle_minutes: 90, emergency_idle_minutes: 119, ci_idle_minutes: 120}\n"+
+		"    go_build_work_dirs: {idle_minutes: 61}\n"))
 	require.NoError(t, err)
 
-	assert.Equal(t, []string{
-		"disk.trim.go_build.idle_minutes",
-		"disk.trim.go_build.emergency_idle_minutes",
-		"disk.trim.go_build_work_dirs.idle_minutes",
-	}, cfg.Disk.Effective().UnsafeIdleKeys())
+	assert.Equal(t, []config.DiskIdleThreshold{
+		{Key: "disk.trim.go_build.idle_minutes", Minutes: 60},
+		{Key: "disk.trim.go_build.emergency_idle_minutes", Minutes: 119},
+		{Key: "disk.trim.go_build.large_file_idle_minutes", Minutes: 90},
+		{Key: "disk.trim.go_build_work_dirs.idle_minutes", Minutes: 61},
+	}, cfg.Disk.Effective().UnsafeIdleThresholds())
 }

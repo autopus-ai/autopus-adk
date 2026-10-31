@@ -28,3 +28,18 @@ var ErrUnsupported = errors.New("free space measurement is not supported")
 func UnsupportedOn(goos string) error {
 	return fmt.Errorf("%w on %s", ErrUnsupported, goos)
 }
+
+// availBytes is the statfs reading df -k derives its Available column from:
+// Bavail blocks of unit bytes.
+func availBytes(bavail uint64, unit int64) int64 {
+	return int64(bavail) * unit
+}
+
+// linuxBlockUnit is the unit Linux counts Bavail in: f_frsize, or f_bsize
+// when f_frsize is 0 (statfs(2)). It is OS-neutral so a darwin host tests it.
+func linuxBlockUnit(frsize, bsize int64) int64 {
+	if frsize > 0 {
+		return frsize
+	}
+	return bsize
+}

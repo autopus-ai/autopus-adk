@@ -19,15 +19,17 @@ func Free(path string) (Space, error) {
 	if err := syscall.Statfs(abs, &st); err != nil {
 		return Space{}, err
 	}
-	unit := int64(st.Frsize)
-	if unit <= 0 {
-		unit = int64(st.Bsize)
-	}
 	mount := "/"
 	if canonical, err := filepath.EvalSymlinks(abs); err == nil {
 		if table, err := os.ReadFile("/proc/self/mounts"); err == nil {
 			mount = longestMount(table, canonical)
 		}
 	}
-	return Space{AvailBytes: int64(st.Bavail) * unit, BlockUnit: unit, Mount: mount}, nil
+	return statfsSpace(&st, mount), nil
+}
+
+// statfsSpace converts a linux statfs reading.
+func statfsSpace(st *syscall.Statfs_t, mount string) Space {
+	unit := linuxBlockUnit(int64(st.Frsize), int64(st.Bsize))
+	return Space{AvailBytes: availBytes(st.Bavail, unit), BlockUnit: unit, Mount: mount}
 }

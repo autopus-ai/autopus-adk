@@ -140,26 +140,29 @@ func (d DiskConf) Effective() DiskEffective {
 	}
 }
 
-// UnsafeIdleKeys lists, in key order, the dotted idle keys resolved below
-// DiskSafeIdleMinutes, so a command can warn that they can break a
-// concurrent build.
-func (e DiskEffective) UnsafeIdleKeys() []string {
-	var keys []string
-	for _, idle := range []struct {
-		key     string
-		minutes int
-	}{
+// DiskIdleThreshold is one resolved idle key and its minutes.
+type DiskIdleThreshold struct {
+	Key     string
+	Minutes int
+}
+
+// UnsafeIdleThresholds lists, in key order, the idle keys resolved below
+// DiskSafeIdleMinutes, so a command can warn that each can delete an entry a
+// running build has already looked up (REQ-DISK-CFG-04).
+func (e DiskEffective) UnsafeIdleThresholds() []DiskIdleThreshold {
+	var unsafe []DiskIdleThreshold
+	for _, idle := range []DiskIdleThreshold{
 		{"disk.trim.go_build.idle_minutes", e.GoBuild.IdleMinutes},
 		{"disk.trim.go_build.ci_idle_minutes", e.GoBuild.CIIdleMinutes},
 		{"disk.trim.go_build.emergency_idle_minutes", e.GoBuild.EmergencyIdleMinutes},
 		{"disk.trim.go_build.large_file_idle_minutes", e.GoBuild.LargeFileIdleMinutes},
 		{"disk.trim.go_build_work_dirs.idle_minutes", e.WorkDirIdleMinutes},
 	} {
-		if idle.minutes < DiskSafeIdleMinutes {
-			keys = append(keys, idle.key)
+		if idle.Minutes < DiskSafeIdleMinutes {
+			unsafe = append(unsafe, idle)
 		}
 	}
-	return keys
+	return unsafe
 }
 
 func diskInt(value *int, fallback int) int {

@@ -18,8 +18,13 @@ func Free(path string) (Space, error) {
 	if err := syscall.Statfs(abs, &st); err != nil {
 		return Space{}, err
 	}
+	return statfsSpace(&st), nil
+}
+
+// statfsSpace converts a darwin statfs reading.
+func statfsSpace(st *syscall.Statfs_t) Space {
 	unit := int64(st.Bsize)
-	return Space{AvailBytes: int64(st.Bavail) * unit, BlockUnit: unit, Mount: cString(st.Mntonname[:])}, nil
+	return Space{AvailBytes: availBytes(st.Bavail, unit), BlockUnit: unit, Mount: cString(st.Mntonname[:])}
 }
 
 // cString reads a NUL-terminated C char array.
