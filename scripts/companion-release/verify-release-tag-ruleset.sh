@@ -46,13 +46,14 @@ if [[ "$mode" != 'sealed-runtime' ]]; then
     ([.protection_rules[] | select(.type == "branch_policy")] | length) == 1
   ' <<<"$environment" >/dev/null ||
     fail 'protected release environment differs from exact authority policy'
-  deployment_policies=$(gh api \
+  deployment_policies=$(gh api --paginate --slurp \
     "repos/${repository}/environments/${environment_name}/deployment-branch-policies?per_page=100") ||
     fail 'cannot inspect protected release deployment policies'
   jq -e --arg tag "$release_tag" '
-    type == "object" and (.total_count | type) == "number" and
-    (.branch_policies | type) == "array" and .total_count == (.branch_policies | length) and
-    ([.branch_policies[] | select(.type == "tag" and .name == $tag)] | length) == 1
+    type == "array" and length > 0 and
+    all(.[]; (.total_count | type) == "number" and (.branch_policies | type) == "array") and
+    .[0].total_count == ([.[].branch_policies[]] | length) and
+    ([.[].branch_policies[] | select(.type == "tag" and .name == $tag)] | length) == 1
   ' <<<"$deployment_policies" >/dev/null ||
     fail 'protected release environment lacks the exact deployment tag policy'
 fi

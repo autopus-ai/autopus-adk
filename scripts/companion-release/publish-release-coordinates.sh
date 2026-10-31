@@ -208,7 +208,7 @@ env "${tag_git_config[@]}" git -C "$signing_probe" tag -s release-signing-probe 
 env "${tag_git_config[@]}" git -C "$signing_probe" verify-tag refs/tags/release-signing-probe >/dev/null
 scope_json --repo "$repository" >"$repository_snapshot"
 scope_json --repo "$repository" --env "$environment_name" >"$environment_snapshot"
-gh api "repos/${repository}/environments/${environment_name}/deployment-branch-policies" >"$policy_snapshot"
+deployment_policies_json >"$policy_snapshot" || fail 'deployment policy snapshot is incomplete'
 jq -e 'length <= 500 and ([.[].name] | length) == ([.[].name] | unique | length)' "$repository_snapshot" >/dev/null || fail 'repository variable snapshot is incomplete or ambiguous'
 jq -e 'length <= 100 and ([.[].name] | length) == ([.[].name] | unique | length)' "$environment_snapshot" >/dev/null || fail 'environment variable snapshot is incomplete or ambiguous'
 chmod 0600 "$repository_snapshot" "$environment_snapshot" "$policy_snapshot"; snapshots_ready=1; coordinates_started=1

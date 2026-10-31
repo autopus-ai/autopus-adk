@@ -63,6 +63,8 @@ contains "$tag_ruleset_gate" '.can_admins_bypass == false'
 contains "$tag_ruleset_gate" 'required_reviewers'
 contains "$tag_ruleset_gate" 'if [[ "$mode" != '\''sealed-runtime'\'' ]]'
 contains "$tag_ruleset_gate" 'deployment-branch-policies?per_page=100'
+contains "$tag_ruleset_gate" 'gh api --paginate --slurp'
+contains "$publisher" "deployment_policies_json >\"\$policy_snapshot\""
 contains "$tag_ruleset_gate" 'select(.type == "tag" and .name == $tag)'
 # The tap coordinates advance with every publication, so pinning their exact
 # value here only forces a second edit; the publisher already enforces them
@@ -190,5 +192,6 @@ bash "$tests_dir/release-omp-context-evidence-hardening-test.sh"
 bash "$tests_dir/release-prep-hardening-test.sh"
 bash "$tests_dir/release-prep-environment-inheritance-test.sh"
 bash "$tests_dir/release-prep-window-test.sh"
+bash "$tests_dir/release-deployment-policy-pagination-test.sh"
 
 printf 'release hardening test: PASS\n'

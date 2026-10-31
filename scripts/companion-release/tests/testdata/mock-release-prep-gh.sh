@@ -56,7 +56,7 @@ case "$command" in
     esac
     ;;
   api)
-    method=GET endpoint='' input='' field_name='' field_type='' field_tag='' field_target='' field_release_name='' field_body='' field_draft='' field_prerelease=''
+    paginate=0 slurp=0 method=GET endpoint='' input='' field_name='' field_type='' field_tag='' field_target='' field_release_name='' field_body='' field_draft='' field_prerelease=''
     while [[ $# -gt 0 ]]; do
       case "$1" in
         --method) method=$2; shift 2 ;;
@@ -75,6 +75,8 @@ case "$command" in
           ;;
         --jq) shift 2 ;;
         --silent) shift ;;
+        --paginate) paginate=1; shift ;;
+        --slurp) slurp=1; shift ;;
         -*) shift ;;
         *) [[ -z "$endpoint" ]] && endpoint=$1; shift ;;
       esac
@@ -162,8 +164,18 @@ case "$command" in
         fi
         ;;
       GET:repos/autopus-ai/autopus-adk/environments/adk-companion-release/deployment-branch-policies|GET:repos/autopus-ai/autopus-adk/environments/adk-companion-release/deployment-branch-policies\?per_page=100)
-        jq -n --slurpfile policies "$state/deployment-policies.json" \
-          '{total_count:($policies[0] | length),branch_policies:$policies[0]}'
+        # Pages like GitHub: sorted by name, 30 per page unless per_page says
+        # otherwise, and only the first page without --paginate.
+        per_page=30
+        [[ "$endpoint" == *'?per_page=100' ]] && per_page=100
+        pages=$(jq -c --argjson size "$per_page" '
+          sort_by(.name) as $sorted | ($sorted | length) as $total |
+          [range(0; ([$total, 1] | max); $size) |
+            {total_count:$total, branch_policies:$sorted[.:(. + $size)]}]
+        ' "$state/deployment-policies.json")
+        if [[ "$paginate" -eq 0 ]]; then jq -c '.[0]' <<<"$pages"
+        elif [[ "$slurp" -eq 1 ]]; then printf '%s\n' "$pages"
+        else jq -c '.[]' <<<"$pages"; fi
         ;;
       POST:repos/autopus-ai/autopus-adk/environments/adk-companion-release/deployment-branch-policies)
         [[ "$field_name" == 'v0.50.131' && "$field_type" == 'tag' ]] || exit 65
