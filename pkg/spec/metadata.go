@@ -46,6 +46,8 @@ func ParseSpecMetadata(content string) SpecDocument {
 	if doc.Title == "" {
 		doc.Title = parseLegacyField(lines, "title")
 	}
+	doc.Profile = strings.ToLower(strings.TrimSpace(frontmatter["profile"]))
+	doc.ChangeClass = strings.ToLower(strings.TrimSpace(frontmatter["change_class"]))
 	if v := frontmatter["status"]; v != "" {
 		doc.Status = strings.ToLower(v)
 	} else if v := parseLegacyField(lines, "status"); v != "" {

@@ -29,6 +29,15 @@ Do not author a four-document SPEC set for work that qualifies for the compact c
 - Author the full set only for `feature`, `multi_domain`, or `security_or_data` work, or when `auto spec change` reported `escalate_to_full_spec`. Carry the escalation reason into `research.md` and give the escalating assumption a `## Risk-First Integration Probe` row.
 - A new exported API or contract always needs the full set. The compact path cannot introduce one.
 
+## Lean Profile
+
+A low-risk class (`test_only`, `docs_only`, `small_ui`, `bugfix_existing_contract`) with no SPEC covering the outcome gets a lean SPEC set, not the full one. Use it only when the caller passes the lean authoring profile or the class is plainly low risk; any escalation trigger (auth/billing/data/migration/security path, two module roots, new exported API or contract) means the full profile.
+
+- spec.md frontmatter carries `profile: lean` and `change_class: <class>`.
+- Write only: spec.md `## Outcome Boundary`, `## Requirements`, `## Traceability Matrix`; plan.md `## Tasks`; acceptance.md `## Test Scenarios` with concrete expected outputs; research.md `## Outcome Lock`, `## Reviewer Brief`. Skip the work-procedure sections below (3.25 to 3.35, Visual Planning Brief, Self-Verify Summary) unless this change needs one.
+- Keep the set to about 150 lines. Needing more is a sign the change is not low risk: switch to the full profile and record why.
+- `auto spec validate --strict` still runs and refuses a lean profile with a high-risk or missing class.
+
 ## SPEC Markdown 크기 정책
 
 SPEC Markdown files under `.autopus/specs/**` are documentation: 줄 수만으로 분할하거나 거절하지 않습니다. 프로젝트 줄 수 한도는 SPEC이 참조하는 구현 소스 코드 파일에만 적용됩니다.

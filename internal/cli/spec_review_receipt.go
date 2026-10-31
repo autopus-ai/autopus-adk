@@ -58,6 +58,13 @@ type specReviewPromotionReceipt struct {
 	// Provider execution policy (SPEC-REVIEWRO-001 REQ-07), omitempty so a
 	// receipt of a run without provider execution keeps its existing bytes.
 	ProviderPolicy []specReviewProviderPolicyRow `json:"provider_policy,omitempty"`
+
+	// Wall-clock evidence of where review time went, and the authoring profile
+	// the review ran under. All omitempty so older receipts keep their bytes.
+	StartedAt     string                  `json:"started_at,omitempty"`
+	DurationMS    int64                   `json:"duration_ms,omitempty"`
+	Rounds        []specReviewRoundTiming `json:"rounds,omitempty"`
+	ReviewProfile string                  `json:"review_profile,omitempty"`
 }
 
 // specReviewProviderPolicyRow records how one reviewer, excluded provider, or
@@ -75,6 +82,9 @@ type specReviewRuntimeEvidence struct {
 	RunID          string
 	FinishedAt     time.Time
 	ProviderPolicy []specReviewProviderPolicyRow
+	StartedAt      time.Time
+	Rounds         []specReviewRoundTiming
+	Profile        string
 }
 
 // applySpecReviewRepeatDiscovery projects the loop's repeat-discovery evidence

@@ -30,6 +30,12 @@ func ValidateSpecSet(specDir string, doc *SpecDocument) []ValidationError {
 		return errs
 	}
 
+	errs = append(errs, validateProfile(doc)...)
+	if doc.IsLean() {
+		errs = append(errs, validateLeanSpecSet(files)...)
+		return append(errs, validateDocLineCap(files)...)
+	}
+
 	errs = append(errs, validateRequiredSections(files)...)
 	errs = append(errs, validateAuthoringPlaceholders(files)...)
 	errs = append(errs, validateTraceability(files["spec.md"], files["research.md"], files["acceptance.md"])...)
@@ -100,25 +106,30 @@ func readSpecValidationFiles(specDir string) (map[string]string, []ValidationErr
 }
 
 func validateRequiredSections(files map[string]string) []ValidationError {
-	required := map[string][]string{
-		"spec.md":       {"## Outcome Boundary", "## Requirements", "## Traceability Matrix"},
-		"plan.md":       {"## Implementation Strategy", "## Visual Planning Brief", "## Feature Completion Scope", probeSectionHeading, "## Tasks"},
-		"acceptance.md": {"## Test Scenarios", "## Oracle Acceptance Notes"},
-		"research.md": {
-			"## Outcome Lock",
-			"## Visual Planning Brief",
-			"## Semantic Invariant Inventory",
-			"## Feature Coverage Map",
-			"## Completion Debt",
-			"## Evolution Ideas",
-			"## Reference Discipline",
-			"## Reviewer Brief",
-			"## Self-Verify Summary",
-		},
-	}
+	return validateSectionSet(files, fullRequiredSections)
+}
 
+var fullRequiredSections = map[string][]string{
+	"spec.md":       {"## Outcome Boundary", "## Requirements", "## Traceability Matrix"},
+	"plan.md":       {"## Implementation Strategy", "## Visual Planning Brief", "## Feature Completion Scope", probeSectionHeading, "## Tasks"},
+	"acceptance.md": {"## Test Scenarios", "## Oracle Acceptance Notes"},
+	"research.md": {
+		"## Outcome Lock",
+		"## Visual Planning Brief",
+		"## Semantic Invariant Inventory",
+		"## Feature Coverage Map",
+		"## Completion Debt",
+		"## Evolution Ideas",
+		"## Reference Discipline",
+		"## Reviewer Brief",
+		"## Self-Verify Summary",
+	},
+}
+
+func validateSectionSet(files map[string]string, required map[string][]string) []ValidationError {
 	var errs []ValidationError
-	for name, sections := range required {
+	for _, name := range []string{"spec.md", "plan.md", "acceptance.md", "research.md"} {
+		sections := required[name]
 		for _, section := range sections {
 			if !strings.Contains(files[name], section) {
 				errs = append(errs, ValidationError{

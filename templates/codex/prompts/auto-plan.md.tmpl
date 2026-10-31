@@ -75,6 +75,7 @@ description: "SPEC 작성 — 코드베이스 분석 후 EARS 요구사항, 구�
 
 - 문서를 작성하기 전에 변경 클래스를 `test_only`, `docs_only`, `small_ui`, `bugfix_existing_contract`, `feature`, `multi_domain`, `security_or_data` 중 하나로 분류합니다.
 - 저위험 클래스(앞의 네 개)이고 기존 SPEC이 이미 그 결과를 담고 있으면 `auto spec change <SPEC-ID> --class <class> --ac <AC-ID,...> --surface <path,...> --verify "<command>"`로 compact `change.md` 하나만 작성하고 plan을 종료한 뒤 `@auto go <SPEC-ID>`로 넘깁니다.
+- 저위험 클래스인데 결과를 담은 기존 SPEC이 없으면 lean profile로 작성합니다: PRD를 생략하고, spec.md frontmatter에 `profile: lean`과 `change_class: <class>`를 쓰고, lean 섹션 하한만 작성합니다. `auto spec review`는 리뷰어 1개, judge 없이 실행됩니다. 승격 사유가 나타나면 즉시 full profile로 전환합니다.
 - `escalate_to_full_spec`이 보고되면 그 이유를 기록하고 4개 SPEC 파일을 작성합니다. `feature`, `multi_domain`, `security_or_data`도 전체 SPEC 세트와 실행 가능한 `## Risk-First Integration Probe` 행을 요구합니다.
 - 위험도는 파일 수로 결정하지 않습니다. auth/billing/data/migration/security 경로, production code가 두 module root에 걸치는 경우, 새 exported API/contract는 각각 단독 승격 사유입니다.
 - 안전 게이트는 두 경로에서 동일합니다: `security`, `validation`, `data_loss`, `deterministic_oracle`, UI surface의 `accessibility`/`ux_verification`, race/coverage 임계값.

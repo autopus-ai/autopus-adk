@@ -118,6 +118,7 @@ func runSpecReview(ctx context.Context, specID, strategy string, timeout int) er
 }
 
 func runSpecReviewWithOptions(ctx context.Context, specID, strategy string, timeout int, opts specReviewOptions) error {
+	reviewStarted := time.Now()
 	resolved, err := spec.ResolveSpecDir(".", specID)
 	if err != nil {
 		return fmt.Errorf("SPEC 로드 실패: %w", err)
@@ -144,6 +145,7 @@ func runSpecReviewWithOptions(ctx context.Context, specID, strategy string, time
 	}
 
 	gate := cfg.Spec.ReviewGate
+	gate, opts = applyLeanReviewProfile(doc, gate, opts, os.Stderr)
 	if strategy == "" {
 		strategy = gate.Strategy
 	}
@@ -189,7 +191,7 @@ func runSpecReviewWithOptions(ctx context.Context, specID, strategy string, time
 	// Load any prior findings (from a previous interrupted run)
 	priorFindings, _ := spec.LoadFindings(specDir)
 
-	runtimeEvidence := &specReviewRuntimeEvidence{}
+	runtimeEvidence := &specReviewRuntimeEvidence{StartedAt: reviewStarted, Profile: doc.Profile}
 	loopParams := specReviewLoopParams{
 		ctx:             ctx,
 		specID:          specID,
