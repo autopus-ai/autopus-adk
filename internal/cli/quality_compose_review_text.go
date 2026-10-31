@@ -48,6 +48,14 @@ type composeReviewText struct {
 	CLIBackend                       string
 	SummaryOff                       string // appended to a provider that takes no part
 	SummaryJudge                     string // %s: the judge
+	// The lines below belong to `auto quality review`.
+	ColBackend      string
+	Accepted        string // %s: the accepted values
+	UnknownProvider string // %s: the name
+	EffortTwice     string // %[1]s: the model argument, %[2]s: the --effort value
+	JudgeFirst      string
+	DryRun          string
+	ApplyRefused    string
 }
 
 var composeReviewTextKO = composeReviewText{
@@ -88,6 +96,13 @@ var composeReviewTextKO = composeReviewText{
 	ReloadFailed:     "리뷰 설정은 적용됐지만 다시 읽지 못했습니다: %s",
 	ColProvider:      "provider", ColReview: "리뷰", ColModel: "model", CLIBackend: "CLI backend",
 	SummaryOff: "(꺼짐)", SummaryJudge: "judge %s",
+	ColBackend:      "backend",
+	Accepted:        "가능한 값: %s",
+	UnknownProvider: "%s는 orchestra.providers에 없는 provider입니다",
+	EffortTwice:     "%[1]s에 이미 단계가 들어 있습니다. --effort %[2]s를 빼거나 같은 단계를 주세요",
+	JudgeFirst:      "먼저 auto quality review judge <provider>로 다른 judge를 고르세요",
+	DryRun:          "--dry-run이라 아무것도 쓰지 않았습니다.",
+	ApplyRefused:    "auto quality review는 autopus.yaml만 바꾸고, auto spec review와 orchestra 명령이 실행할 때 그 값을 읽습니다. --apply를 빼세요",
 }
 
 var composeReviewTextEN = composeReviewText{
@@ -128,6 +143,13 @@ var composeReviewTextEN = composeReviewText{
 	ReloadFailed:     "The review settings were applied but could not be re-read: %s",
 	ColProvider:      "provider", ColReview: "review", ColModel: "model", CLIBackend: "CLI backend",
 	SummaryOff: " (off)", SummaryJudge: "judge %s",
+	ColBackend:      "backend",
+	Accepted:        "accepted: %s",
+	UnknownProvider: "%s is not an orchestra.providers entry",
+	EffortTwice:     "%[1]s already names its level; drop --effort %[2]s or give the same level",
+	JudgeFirst:      "choose another judge first with auto quality review judge <provider>",
+	DryRun:          "--dry-run: nothing written.",
+	ApplyRefused:    "auto quality review changes only autopus.yaml, which auto spec review and orchestra commands read when they run; drop --apply",
 }
 
 // composeReviewTextFor returns Korean for ko and English for every other

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+
+	"github.com/insajin/autopus-adk/pkg/config"
 )
 
 // composeReviewTabValue is the tool tab answer of the review tab; no
@@ -60,4 +62,24 @@ func (f *composeFormRun) writeReviewSummary() {
 		judge = fmt.Sprintf(text.SummaryJudge, gate.Judge)
 	}
 	f.reviewLine(text.Tab + ": " + strings.Join(append(parts, judge), " · "))
+}
+
+// shownModel is how the tab shows name's current model, read only from the
+// raw document so an environment value never shows (REQ-RVM-26): the
+// backend, omp or the CLI binary as written (CLI backend without a raw view),
+// and the model, an OMP selector as written or a CLI `<model> · <effort>`,
+// "" when the file names none.
+func (b reviewBaseline) shownModel(name string, text composeReviewText) (backend, model string) {
+	if b.OMP[name] {
+		return config.ProviderBackendOMP, b.Raw[name].Model
+	}
+	binary := b.binaryText(name)
+	if binary == "" {
+		return text.CLIBackend, ""
+	}
+	value := reviewCLIValueOf(reviewArgsRowFor(b.Binaries[name]), b.Raw[name].Args)
+	if value.Model == "" {
+		return binary, ""
+	}
+	return binary, reviewCLIKeepText(binary, value)
 }

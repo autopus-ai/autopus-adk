@@ -126,7 +126,7 @@ func (f *composeFormRun) reviewModels(tab *reviewTabState) error {
 	text := f.reviewText()
 	noted := false
 	for _, name := range tab.baseline.Visible {
-		if !tab.working.takesPart(name) || f.reviewRawRefused(tab, name) || f.reviewPlaceholderRefused(tab, name) {
+		if !tab.working.takesPart(name) || f.reviewModelRefused(tab, name) {
 			continue
 		}
 		if !tab.working.OMP[name] {
