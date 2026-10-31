@@ -48,8 +48,10 @@ type composeReviewText struct {
 	CLIBackend                       string
 	SummaryOff                       string // appended to a provider that takes no part
 	SummaryJudge                     string // %s: the judge
-	// The lines below belong to `auto quality review`.
+	// The lines below belong to `auto quality review` and to the hint a run
+	// without the tab prints.
 	ColBackend      string
+	Hint            string
 	Accepted        string // %s: the accepted values
 	UnknownProvider string // %s: the name
 	EffortTwice     string // %[1]s: the model argument, %[2]s: the --effort value
@@ -97,6 +99,7 @@ var composeReviewTextKO = composeReviewText{
 	ColProvider:      "provider", ColReview: "리뷰", ColModel: "model", CLIBackend: "CLI backend",
 	SummaryOff: "(꺼짐)", SummaryJudge: "judge %s",
 	ColBackend:      "backend",
+	Hint:            "참고: 리뷰 model은 터미널에서 auto quality로, 또는 auto quality review model <provider> <model>로 바꿉니다.",
 	Accepted:        "가능한 값: %s",
 	UnknownProvider: "%s는 orchestra.providers에 없는 provider입니다",
 	EffortTwice:     "%[1]s에 이미 단계가 들어 있습니다. --effort %[2]s를 빼거나 같은 단계를 주세요",
@@ -144,6 +147,7 @@ var composeReviewTextEN = composeReviewText{
 	ColProvider:      "provider", ColReview: "review", ColModel: "model", CLIBackend: "CLI backend",
 	SummaryOff: " (off)", SummaryJudge: "judge %s",
 	ColBackend:      "backend",
+	Hint:            "Note: change review models with auto quality in a terminal, or with auto quality review model <provider> <model>.",
 	Accepted:        "accepted: %s",
 	UnknownProvider: "%s is not an orchestra.providers entry",
 	EffortTwice:     "%[1]s already names its level; drop --effort %[2]s or give the same level",

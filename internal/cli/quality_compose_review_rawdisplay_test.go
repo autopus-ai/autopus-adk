@@ -9,6 +9,7 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -85,7 +86,7 @@ func TestReviewRawDisplay_PlaceholderJudge(t *testing.T) {
 	run := runReviewForms(t, dir, nil, reviewLines(reviewOpen, []string{"\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n"})...)
 
 	require.NoError(t, run.err, run.out)
-	assert.Contains(t, run.out, "멀티프로바이더 리뷰: claude · codex · gemini · judge ${REVIEW_JUDGE}\n")
+	assert.Contains(t, run.out, strings.TrimSuffix(reviewSummaryR3, "judge claude")+"judge ${REVIEW_JUDGE}\n")
 	assert.Contains(t, run.out, "spec.review_gate의 judge 값이 환경 변수라 이 탭에서 바꾸지 않습니다: ${REVIEW_JUDGE}\n")
 	assert.Contains(t, run.out, "변경 없음\n")
 	assert.NotContains(t, run.out, "judge codex")

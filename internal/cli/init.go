@@ -218,6 +218,10 @@ func newInitCmd() *cobra.Command {
 			if statusLineSummary != "" {
 				tui.Info(out, statusLineSummary)
 			}
+			// A non-interactive init never reaches the review tab.
+			if hint := reviewHint(cfg, composeLanguage()); hint != "" && !interactive {
+				tui.Info(out, hint)
+			}
 			// Context-aware next step guidance (R9)
 			if home, err := os.UserHomeDir(); err == nil {
 				workerConfigPath := filepath.Join(home, ".config", "autopus", "worker.yaml")

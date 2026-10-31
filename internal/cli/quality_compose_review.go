@@ -30,7 +30,7 @@ func (f *composeFormRun) reviewTab() error {
 		attested: newReviewAttestation(),
 	}
 	if !tab.baseline.NamesOK {
-		f.reviewLine(f.reviewText().NamesRefused)
+		f.reviewOutcome(f.reviewText().NamesRefused)
 		return nil
 	}
 	tab.working = tab.baseline.reviewComposition.clone()
@@ -211,7 +211,7 @@ func (f *composeFormRun) reviewJudge(tab *reviewTabState) error {
 // notes, or the existing no-change line (REQ-RVM-09).
 func (f *composeFormRun) reviewPreview(plan reviewPlan) {
 	if !plan.Changed {
-		fmt.Fprintln(f.out, f.Text.NoChange)
+		f.reviewOutcome(f.Text.NoChange)
 		return
 	}
 	fmt.Fprintf(f.out, "\n%s\n", f.Text.PreviewHeading)
@@ -239,7 +239,7 @@ func (f *composeFormRun) reviewConfirm(tab *reviewTabState) (bool, error) {
 	case choice == 2:
 		return true, nil
 	}
-	fmt.Fprintln(f.out, f.Text.Cancelled)
+	f.reviewOutcome(f.Text.Cancelled)
 	return false, nil
 }
 
@@ -258,17 +258,17 @@ func (f *composeFormRun) reviewApply(tab *reviewTabState) error {
 	var reload composeReviewReloadError
 	switch {
 	case errors.As(err, &refusal):
-		f.reviewLine(fmt.Sprintf(f.reviewText().WriteRefused, refusal.key))
+		f.reviewOutcome(fmt.Sprintf(f.reviewText().WriteRefused, refusal.key))
 		return nil
 	case errors.As(err, &reload):
 		f.reviewLine(fmt.Sprintf(f.reviewText().ReloadFailed, reload.err.Error()))
 		return err
 	case err != nil:
-		f.warn(err)
+		f.reviewWarn(err)
 		return nil
 	}
 	f.applied = true
-	fmt.Fprintln(f.out, f.Text.Applied)
+	f.reviewOutcome(f.Text.Applied)
 	return nil
 }
 

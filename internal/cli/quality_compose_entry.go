@@ -2,6 +2,7 @@ package cli
 
 import (
 	"errors"
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -24,7 +25,8 @@ var errQualityNeedsTerminal = errors.New(
 // answer. A confirmed change with --apply regenerates the harness with the
 // snapshot the table read, so the generated agents equal the approved
 // preview (REQ-MUX-19). A refused or failed write returns its error and
-// applies nothing.
+// applies nothing. Without a terminal the error comes after the review hint
+// on stderr, since the review tab is out of reach too.
 func runQualityComposeEntry(
 	cmd *cobra.Command,
 	dir string,
@@ -33,6 +35,9 @@ func runQualityComposeEntry(
 	deps ompPlatformDependencies,
 ) error {
 	if !qualityComposeInteractive(cmd) {
+		if hint := reviewHint(cfg, composeLanguage()); hint != "" {
+			fmt.Fprintln(cmd.ErrOrStderr(), hint)
+		}
 		return errQualityNeedsTerminal
 	}
 	sources, err := loadComposeAgentSources()

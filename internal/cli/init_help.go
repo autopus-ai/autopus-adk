@@ -31,7 +31,9 @@ const initCmdLong = "코딩 CLI에 Autopus 하네스를 설치합니다. autopus
 	"CLI backend의 claude는 --model·--effort, codex는 Codex catalog model의 -m·model_reasoning_effort와 model_policy:\n" +
 	"pinned, agy는 agy models가 보인 id의 --model만 바꾸고, omp가 그 family의 model을 증명하면 OMP backend로 전환할 수\n" +
 	"있습니다. 끈 provider도 orchestra 명령(brainstorm·plan·review·secure)과 auto spec review --multi에서는 계속\n" +
-	"돕니다. 확인 호출을 고르면 provider n개에 요청 1회씩(재시도 포함 최대 3n회 model 호출) 보내고 결과 줄만 씁니다." +
+	"돕니다. 확인 호출을 고르면 provider n개에 요청 1회씩(재시도 포함 최대 3n회 model 호출) 보내고 결과 줄만 씁니다.\n" +
+	"--yes나 TTY가 아닌 입력의 init은 Review Gate가 켜지고 provider가 둘 이상이면 요약 표 뒤에 리뷰 model을 바꾸는 곳\n" +
+	"(터미널의 auto quality, 또는 auto quality review model <provider> <model>)을 한 줄로 알립니다." +
 	"\n\n" + tuiuxInitHelp + "\n\n" + reaInitHelp
 
 // tuiuxInitHelp is init's navigation, frame, and review (SPEC-TUIUX-001).

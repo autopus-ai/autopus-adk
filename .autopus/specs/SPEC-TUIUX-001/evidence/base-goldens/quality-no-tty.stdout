@@ -1,1 +1,2 @@
+참고: 리뷰 model은 터미널에서 auto quality로, 또는 auto quality review model <provider> <model>로 바꿉니다.
 error: interactive quality selection requires a TTY; use an explicit quality or profile command

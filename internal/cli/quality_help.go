@@ -87,8 +87,9 @@ auto update to restore the Autopus agents.
 
 The tool tab ends with Multi-provider review while spec.review_gate is
 enabled, autopus.yaml holds at least two orchestra.providers entries, and CI
-is not set (SPEC-REVMODEL-001); a summary line under the table names the
-review providers and the judge. The tab sets the providers auto spec review
+is not set (SPEC-REVMODEL-001); a summary line under the table names each
+review provider with its model and effort as written, and the judge. The
+tab sets the providers auto spec review
 uses (spec.review_gate.providers), each provider's model and effort, and the
 judge (spec.review_gate.judge). A provider with backend: omp picks an
 installed model Autopus attests for its family and a thinking level
@@ -103,8 +104,11 @@ ${NAME} is left alone. Only those values are rewritten, so comments and
 layout stay. Orchestra commands (brainstorm, plan, review, secure) and
 auto spec review --multi keep every provider. An optional live check sends
 one request to each of n review providers (at most 3n model calls with
-retries) and writes nothing. Without a terminal, ` + "`auto quality review`" + `
-shows and changes the same settings (auto quality review --help).
+retries) and writes nothing. After the tab applies or cancels, its result
+line follows the summary line under the redrawn table. Without a terminal,
+` + "`auto quality review`" + ` shows and changes the same settings
+(auto quality review --help); non-interactive auto init and auto update
+print where review models change.
 
 Every form shows a header with the path that reached it, for example
 quality · Model composition › edit the composition › Codex, the values

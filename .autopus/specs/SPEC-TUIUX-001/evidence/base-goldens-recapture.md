@@ -151,3 +151,10 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 기록: 6절과 같은 방법이다(이 branch tip에서 writer, stdout golden 되돌림).
 - 차이: `.claude/agents/autopus/spec-writer.md`, `.claude/skills/auto-plan`, `.codex/agents/spec-writer.toml`, `.codex/skills/codex-auto-plan`의 checksum, 두 manifest의 그 entry, 두 journal의 `after_checksum`, update 흐름의 backup 사본. 다른 경로는 바뀌지 않았다.
 - 검증: 두 test가 이 golden으로 통과한다.
+
+## 13. 리뷰 model 안내 줄 재기록 (fix/review-model-ux, 2026-10-31)
+
+- 원인: 터미널이 없어 멀티프로바이더 리뷰 탭을 열 수 없는 실행이 리뷰 model을 바꾸는 곳을 한 줄로 알린다. `auto quality`의 TTY 오류는 오류 앞 stderr에 `참고: 리뷰 model은 터미널에서 auto quality로, 또는 auto quality review model <provider> <model>로 바꿉니다.`를 쓴다. 이 줄은 리뷰 설정이 있는 설정(`spec.review_gate.enabled`이고 `orchestra.providers`가 둘 이상)에서만 나온다.
+- 기록: 이 branch tip에서 writer를 돌렸다. 바뀐 줄은 TUIUX 코드가 아니라 이 branch가 의도한 출력이므로 tip에서 기록한 `quality-no-tty.stdout`을 그대로 두었다. writer가 다시 쓴 `init-in.stdout`(단언하지 않는 TUIUX 확인 화면)은 `git checkout`으로 되돌렸다.
+- 차이: `quality-no-tty.stdout`에 위 한 줄이 TTY 오류 앞에 더해졌다(fixture D는 리뷰 게이트가 켜져 있고 provider가 셋이다). init-yes·update-yes·update-ci는 이 환경의 PATH에 provider가 없어 Review Gate가 꺼지므로(`false (0 providers)`) 안내 줄이 없다. quality-line-b와 init-pipe는 대화형 경로다. 이 다섯 stdout과 NPD 일곱 개는 바뀌지 않았다.
+- 검증: 두 test가 이 golden으로 통과한다. stdout golden 가운데 b08ea644 기록과 다른 것은 이 한 줄뿐이다.
