@@ -198,3 +198,18 @@ Optional improvements. They do not block sync completion and carry no identifier
 - Q-COH-01 | status: PASS | attempt: 2 | files: spec.md | reason: one problem, one package, one namespace
 - Q-COH-02 | status: PASS | attempt: 2 | files: research.md | reason: follow-on asks are non-goals listed without identifiers; the safety findings were fixed inside this SPEC
 - Q-COH-03 | status: PASS | attempt: 2 | files: spec.md, research.md | reason: no sibling SPEC
+
+## Security Review Response (security-auditor, 2026-11-01)
+
+| Finding | Severity | Change |
+|---|---|---|
+| M1 `go env GOCACHE` follows a `go.mod`/`go.work` `toolchain` line above the temp dir and downloads/execs a toolchain (reproduced) | medium | REQ-DISK-TRIM-07: run it with `GOTOOLCHAIN=local` and `GOWORK=off` |
+| M2 sticky work-dir root accepted for any owner; a sticky dir's owner can rename any entry into `go-build<N>` | medium | REQ-DISK-TRIM-10: only a uid-0 sticky root is accepted |
+| M3 directory pre-walk re-opens by name and is not tied to the re-verified identity | medium | REQ-DISK-TRIM-05: walked top `(dev, ino)` must equal the candidate identity, else `skipped_changed` |
+| M4 a user directory named `go-build<N>` under a mis-set `$GOTMPDIR` was deleted (reproduced, incl. the project dir) | medium | REQ-DISK-TRIM-04: refuse candidates equal to the project, home, or cwd; require every top-level child to be a `b[0-9]{3,}` directory (verified with `go build -work` and `go test -work`: only `bNNN` children); `skipped_shape` counter |
+| L1 empty `$HOME` silently disables the home refusal | low | REQ-DISK-TRIM-06: fall back to `user.Current`, else refuse as `home_unknown` |
+| L2 a foreign-owned non-cache root is walked before refusal | low | REQ-DISK-TRIM-06: README checked before owner; refused roots are not walked |
+| L3 display sanitiser misses bidi overrides and other non-printables | low | REQ-DISK-WT-02: `strconv.IsPrint` and invalid UTF-8 |
+| L4 `ps` prints `(name)` for some processes; hidepid hides other uids on Linux | low | REQ-DISK-TRIM-08: strip one pair of parentheses; hidepid left documented as a known false-idle path (window narrows 180 to 120 minutes, no boundary loss) |
+| L5 a `go run`/`go test` binary running over 6 h without writes leaves its work dir looking abandoned | low | Not changed in this slice: the running inode survives unlink on unix; recorded as residual risk in docs |
+| I1 a regular file on another device inside a directory candidate was not treated as a device crossing | info | REQ-DISK-TRIM-05: any entry on another device skips the candidate |
