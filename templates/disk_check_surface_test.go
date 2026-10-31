@@ -37,6 +37,7 @@ func TestDiskCheckSurfaceParity(t *testing.T) {
 			require.NoError(t, err)
 			assert.Contains(t, text, "auto disk check --need", "%s should run the disk preflight", path)
 			assert.Contains(t, text, "exits 3", "%s should stop on the insufficient exit code", path)
+			assert.Contains(t, text, "exit 0", "%s should proceed only on success", path)
 		})
 	}
 }

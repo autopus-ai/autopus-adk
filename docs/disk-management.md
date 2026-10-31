@@ -31,12 +31,17 @@ auto disk trim --ci idle         # override CI detection (running | idle)
 
 | Command | 0 | 1 | 3 |
 | --- | --- | --- | --- |
-| `auto disk check` | enough free space | measurement or usage error | insufficient free space |
-| `auto disk trim` | dry run, or apply with no failure | a deletion failed, or the cache root was refused | — |
-| `auto disk status` | report printed | measurement error | — |
+| `auto disk check` | enough free space | measurement failed, or bad flags | insufficient free space |
+| `auto disk trim` | dry run, or apply with no failure | a deletion failed, or a root was refused | — |
+| `auto disk status` | report printed | measurement failed | — |
 
-Free space is measured with `statfs` on the volume that holds the project, the
-same number `df` prints. Linux and macOS are supported; other systems exit 1
+A caller should go on only on exit 0 from `auto disk check`, and stop on 3 and
+on any other non-zero code: a failed measurement is not a pass. In text mode the
+check prints exactly one line; with `--json` it prints only the JSON envelope
+(codes `disk_insufficient`, `disk_check_invalid`, `disk_measurement_failed`).
+
+Free space is measured with `statfs` on the volume that holds the project, from
+the same fields `df` uses. Linux and macOS are supported; other systems exit 1
 with `disk: free space measurement is not supported on <GOOS>`.
 
 ## Configuration
@@ -55,59 +60,82 @@ disk:
     ci_process_names: [Runner.Worker]
     go_build:
       file_mb: 1
-      idle_minutes: 120          # no CI running
-      ci_idle_minutes: 180       # a CI job is running
-      emergency_idle_minutes: 60 # free space below the floor
+      idle_minutes: 120           # no CI running
+      ci_idle_minutes: 180        # a CI job is running
+      emergency_idle_minutes: 120 # free space below the floor
       large_file_mb: 50
-      large_file_idle_minutes: 60
-      large_file_below_gb: 0     # 0 = the large-file rule applies at any free space
+      large_file_idle_minutes: 120
+      large_file_below_gb: 0      # 0 = the large-entry rule applies at any free space
     go_build_work_dirs:
       idle_minutes: 360
 ```
 
-Every `*idle_minutes` value must be at least 60, for the reason below.
+Every `*idle_minutes` value must be at least 60. A value below 120 is accepted
+but `auto disk status` and `auto disk trim` warn about it, for the reason below.
 
 ## How trim decides
 
 The mode is `emergency` when free space is below `min_free_gb`, otherwise `ci`
-when a CI job is running, otherwise `idle`. The mode picks the idle threshold
-for cache entries larger than `file_mb`. Two rules apply in every mode: linked
-executables larger than `large_file_mb` idle beyond `large_file_idle_minutes`
-(a build re-links them when they are missing), and `go-build<N>` work
-directories idle beyond `go_build_work_dirs.idle_minutes` (a running build
-touches its work directory continuously, so a long-idle one was abandoned by a
-killed build).
+when a CI job is running, otherwise `idle`. Three rules are evaluated in a fixed
+order, and a candidate belongs to the first rule it matches, so it is counted
+and deleted once:
 
-CI is detected by an exact executable-name match against
-`ci_process_names`. A command-line substring match would also count the shells
-that mention the name. If the process list cannot be read, trim assumes a CI
-job is running and uses the stricter rule set.
+1. `go_build_large_files`: cache entries larger than `large_file_mb` idle
+   beyond `large_file_idle_minutes`, in every mode.
+2. `go_build_files`: cache entries larger than `file_mb` idle beyond the mode's
+   threshold (`idle_minutes`, `ci_idle_minutes`, or `emergency_idle_minutes`).
+3. `go_build_work_dirs`: `go-build<N>` directories under `$GOTMPDIR` (else the
+   system temp directory) whose newest entry anywhere in the tree is idle
+   beyond `go_build_work_dirs.idle_minutes`. A live build touches files inside
+   its work directory, so the whole tree is checked, not only its top level.
 
-### Why the idle threshold is at least 120 minutes by default
+A cache entry is `<xx>/<64 hex>-d`: a regular file, or, for a cached
+executable, a directory that holds the binary. Go marks an entry used by
+updating that entry's own mtime, so idle time is read from the entry itself and
+the files inside an executable directory are never judged one by one.
+
+CI is detected by an exact executable-name match against `ci_process_names`. A
+command-line substring match would also count the shells that mention the name.
+If the process list cannot be read, trim treats CI as running (`ci=unknown`),
+unless free space is below the floor, where emergency mode still applies.
+
+### Why the idle thresholds default to 120 minutes or more
 
 Go refreshes a cache entry's modification time when the entry is reused, but at
 most once an hour (`mtimeInterval` in `cmd/go/internal/cache`). An entry whose
 mtime is N minutes old is therefore guaranteed unused only for the last N − 60
-minutes. A build looks an entry up and reads the file later, so deleting it in
-between breaks the build with `could not import ... no such file or directory`.
-Go's own cache trimmer subtracts an extra hour from its cutoff for this reason.
+minutes. A build looks an entry up and reads it later, so deleting it in between
+breaks the build with `could not import ... no such file or directory`. Go's own
+cache trimmer subtracts an extra hour from its cutoff for this reason.
 
 A 60-minute threshold leaves no guaranteed window. The SPEC's probe reproduced
 the failure: a held build lost all 21 of its cache files at 61 minutes and
-failed, while a 120-minute threshold deleted nothing and the build passed. The
-`emergency_idle_minutes` default stays at 60 because below the floor a full
-disk fails every running build anyway.
+failed, while a 120-minute threshold deleted nothing and the build passed.
+
+mtime-based trimming narrows this risk; it does not remove it. A build that
+looked an entry up just before the threshold passed can still lose it.
+Re-checking each candidate right before deletion shrinks the window further but
+cannot close it. Every dry run prints this as a `note:` line.
 
 ## What trim never does
 
-- It never runs `go clean`; the only `go` command it runs is `go env GOCACHE`.
-- It deletes only regular files named `<xx>/<64 hex>-d` under the resolved
-  cache root, and only `go-build<N>` directories directly under the work-dir
-  root (`$GOTMPDIR`, else the system temp directory).
-- It refuses a cache root that lacks Go's `README` marker or resolves to `/`,
-  the home directory, or the project directory, and deletes nothing.
-- It deletes through a handle rooted at the cache directory, never follows a
-  symlink, and checks each file again right before removal, skipping any file
-  Go touched since the scan.
-- It never removes worktrees, branches, `target/` directories, scratchpads, or
-  anything outside the two roots above.
+- It never runs `go clean`; the only `go` command it runs is `go env GOCACHE`,
+  and only when `$GOCACHE` is unset.
+- It refuses a cache root or work-dir root that resolves to `/`, the home
+  directory, or the project directory, is relative, is not owned by the current
+  user, or (for the cache) lacks Go's `README` marker, and then deletes nothing
+  from either root.
+- It skips a candidate owned by another user (`skipped_owner`).
+- It records each root's and candidate's identity at scan time. Before deleting
+  a file it checks the device, inode, size, and mtime again and skips the file
+  when any changed (`skipped_changed`). A directory candidate is walked first
+  without following symlinks; any symlink, device change, or special file skips
+  the whole candidate (`skipped_symlink`, `skipped_device`) before anything in it
+  is deleted.
+- It never deletes `README`, `trim.txt`, `log.txt`, or any `-a` file, and never
+  removes worktrees, branches, `target/` directories, scratchpads, or anything
+  outside the two roots.
+
+An apply prints `disk trim: reclaimed <size> (deleted=… skipped_changed=…
+skipped_symlink=… skipped_device=… skipped_owner=… vanished=… failed=…)`; an
+entry that disappeared on its own counts as `vanished`, not as a failure.

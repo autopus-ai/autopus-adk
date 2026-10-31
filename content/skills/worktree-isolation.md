@@ -34,7 +34,7 @@ NOT applied when:
 
 ## Disk Preflight
 
-Before spawning parallel executors, run `auto disk check --need 10` once and stop the fan-out with a report when it exits 3. Each worktree adds a checkout, build output, and test caches on a disk every worker shares, and a full disk fails all of them with misleading errors.
+Before spawning parallel executors, run `auto disk check --need 10` once and fan out only on exit 0; stop with a report when it exits 3 (insufficient free space) or with any other non-zero code (the measurement failed). Each worktree adds a checkout, build output, and test caches on a disk every worker shares, and a full disk fails all of them with misleading errors.
 
 ## Agent Tool Usage (R1)
 

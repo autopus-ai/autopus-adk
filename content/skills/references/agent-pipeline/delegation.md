@@ -192,10 +192,12 @@ and reports instead of working around it.
   also matches a sibling's build or test run.
 - Delete your large copies (`git archive` trees, module caches, built binaries)
   when the unit ends: they fill the disk every worker shares.
-- Run `auto disk check --need 10` before a heavy build or test suite, and stop
-  with a report when it exits 3 (insufficient free space): a full disk fails
-  every running worker with misleading errors. Size `--need` to the step, and
-  fall back to `df` only when the installed `auto` has no `disk` command.
+- Run `auto disk check --need 10` before a heavy build or test suite and go on
+  only on exit 0. Stop with a report when it exits 3 (insufficient free space)
+  or with any other non-zero code (the measurement or configuration failed): a
+  full disk fails every running worker with misleading errors. Size `--need` to
+  the step, and check with `df` instead only when the installed `auto` has no
+  `disk` command.
 - Commit each finished unit as it lands and write the report before about 75%
   of the turn budget is spent: a worker cut off at its limit hands back only
   what it committed. A partial result then follows the skill entry's
