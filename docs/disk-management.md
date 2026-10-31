@@ -88,6 +88,10 @@ and deleted once:
    system temp directory) whose newest entry anywhere in the tree is idle
    beyond `go_build_work_dirs.idle_minutes`. A live build touches files inside
    its work directory, so the whole tree is checked, not only its top level.
+   The name alone is not enough: every top-level child must be a `b001`-style
+   directory, which is all Go creates there, and a directory that is the
+   project, the home directory, or the current directory is never a candidate.
+   A name match that fails these checks is counted as `skipped_shape`.
 
 A cache entry is `<xx>/<64 hex>-d`: a regular file, or, for a cached
 executable, a directory that holds the binary. Go marks an entry used by
@@ -120,14 +124,16 @@ cannot close it. Every dry run prints this as a `note:` line.
 ## What trim never does
 
 - It never runs `go clean`; the only `go` command it runs is `go env GOCACHE`,
-  and only when `$GOCACHE` is unset.
+  only when `$GOCACHE` is unset, and with `GOTOOLCHAIN=local GOWORK=off` so a
+  `go.mod` above the temp directory cannot make it fetch another toolchain.
 - It refuses a cache root or work-dir root that resolves to `/`, the home
   directory, or the project directory, is relative, is not owned by the current
   user, or (for the cache) lacks Go's `README` marker, and then deletes nothing
-  from either root. A shared sticky temp directory such as Linux `/tmp` (used
-  when `$GOTMPDIR` and `$TMPDIR` are unset) is accepted as the work-dir root even
-  though root owns it; only the current user's `go-build<N>` directories in it
-  are candidates.
+  from either root. A root-owned sticky temp directory such as Linux `/tmp` (used
+  when `$GOTMPDIR` and `$TMPDIR` are unset) is accepted as the work-dir root;
+  only the current user's `go-build<N>` directories in it are candidates. A
+  sticky directory owned by another user is refused, because its owner can
+  rename any entry in it.
 - It skips a candidate owned by another user (`skipped_owner`).
 - It records each root's and candidate's identity at scan time. Before deleting
   a file it checks the device, inode, size, and mtime again and skips the file
@@ -142,3 +148,15 @@ cannot close it. Every dry run prints this as a `note:` line.
 An apply prints `disk trim: reclaimed <size> (deleted=… skipped_changed=…
 skipped_symlink=… skipped_device=… skipped_owner=… vanished=… failed=…)`; an
 entry that disappeared on its own counts as `vanished`, not as a failure.
+
+## Known residual risks
+
+- A build that looked a cache entry up just before its idle threshold passed can
+  still lose it (see the idle section above).
+- A `go run` or `go test` binary that runs for longer than
+  `go_build_work_dirs.idle_minutes` without writing to its work directory makes
+  that directory look abandoned. On Unix the running binary survives the
+  unlink, but anything it later writes into its work directory fails.
+- On Linux with `hidepid` mounted, processes of other users are invisible, so a
+  CI job running as another user is not detected; trim then uses the `idle`
+  thresholds instead of the stricter `ci` ones.
