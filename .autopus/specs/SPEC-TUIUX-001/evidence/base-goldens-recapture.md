@@ -165,3 +165,10 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 기록: 6절과 같은 방법이다(이 branch tip에서 writer, stdout golden 되돌림). 되돌린 stdout은 13절의 `quality-no-tty.stdout`을 포함해 직전 commit의 기록 그대로다.
 - 차이: `.claude/skills/using-autopus`, `.codex/skills/codex-using-autopus`의 checksum, 두 manifest의 그 entry, 두 journal의 `after_checksum`, update 흐름의 backup 사본. `adaptive-quality`는 기본 compact catalog가 생성하지 않아 이 흐름에 없다. 다른 경로는 바뀌지 않았다.
 - 검증: 두 test가 이 golden으로 통과한다.
+
+## 15. 디스크 사전 점검 안내 재기록 (feat/disk-management, 2026-11-02)
+
+- 원인: SPEC-DISK-001 REQ-DISK-GUIDE-01이 agent-pipeline의 delegation·verification reference, worktree-isolation 스킬, codex worktree-isolation native 본문에 `auto disk check --need` 사전 점검(exit 0에서만 진행)을 더했다. delegation의 `df`·5 GiB 문구는 대체됐다.
+- 기록: 6절과 같은 방법이다(#247이 들어간 main 위로 rebase한 branch tip에서 writer, stdout golden 되돌림).
+- 차이: `.claude/skills/agent-pipeline/references/delegation.md`·`verification.md`, `.claude/skills/worktree-isolation/SKILL.md`, `.codex/skills/codex-agent-pipeline/references/delegation.md`·`verification.md`, `.codex/skills/codex-worktree-isolation/SKILL.md`의 checksum, 두 manifest의 그 entry, 두 journal의 `after_checksum`, update 흐름의 backup 사본. 다른 경로는 바뀌지 않았다.
+- 검증: 두 test가 이 golden으로 통과한다.
