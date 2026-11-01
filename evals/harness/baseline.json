@@ -1,7 +1,7 @@
 {
   "schema_version": "harness_eval_baseline.v1",
   "set_version": "1",
-  "set_digest": "d42052fbc2367851d952e1efff0345b4e65456a83bd67127ba857faf6ec161a5",
+  "set_digest": "6df123ed645fce9806f7706996ff18093ef29656cb51eb587d3268380c5158f2",
   "rows": [
     {
       "id": "GT-AGENT-A01",
@@ -233,7 +233,7 @@
       "kind": "surface",
       "state": "active",
       "result": "pass",
-      "expectation_digest": "a47044a0a7057207956631aa5cdaa33f772f7ff392be027e8cef931a4054cac0"
+      "expectation_digest": "a30a632ce73de81e5495d8aef9075ada5ca4930067f8384254fca7ee1cf3a7cd"
     },
     {
       "id": "GT-PROMPT-WORKER-RECEIPT",
