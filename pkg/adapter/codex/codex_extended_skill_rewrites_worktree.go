@@ -16,6 +16,10 @@ Parallel writes are safe only with disjoint write ownership. Before dispatch:
 2. Reject same-file, parent/child, generated-output, and migration-number overlap.
 3. Name forbidden paths and the focused verification each worker may run.
 4. Run overlapping writers sequentially.
+5. Run ` + "`auto disk check --need 10`" + ` and dispatch only on exit 0. Stop with a
+   report when it exits 3 (insufficient free space) or with any other non-zero
+   code (the measurement failed): every writer builds and tests on the one disk
+   they share.
 
 Tasks that may create SQL migrations in the same owning repo and migration directory
 share one migration numbering lane and must run sequentially. Assign

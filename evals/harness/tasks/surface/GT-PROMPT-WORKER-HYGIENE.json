@@ -83,7 +83,7 @@
       "kind": "contains",
       "platform": "claude-code",
       "path": ".claude/skills/agent-pipeline/references/delegation.md",
-      "needle": "Check free disk with `df` before a heavy build or test suite"
+      "needle": "Run `auto disk check --need 10` before a heavy build or test suite"
     },
     {
       "kind": "contains",

@@ -74,6 +74,9 @@ func (e *jsonFatalError) Unwrap() error {
 	return e.cause
 }
 
+// alreadyReported satisfies the root.go marker: the envelope is the report.
+func (e *jsonFatalError) alreadyReported() {}
+
 func addJSONFlags(cmd *cobra.Command, jsonOutput *bool, format *string) {
 	cmd.Flags().BoolVar(jsonOutput, "json", false, "Output as JSON")
 	cmd.Flags().StringVar(format, "format", "text", "Output format (text|json)")

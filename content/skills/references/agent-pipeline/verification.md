@@ -17,6 +17,9 @@ a baseline a failure in the final run cannot be told apart from a regression.
 
 ### Full-suite runs on a shared machine
 
+- Run `auto disk check --need 10` first and go on only on exit 0; stop with a
+  report when it exits 3 or with any other non-zero code: a suite that fills the
+  disk fails with errors that look like regressions.
 - Run the full suite serially, never beside another suite, with host agent
   state isolated (an empty `CODEX_HOME` or the platform's equivalent): load and
   host configuration both cause failures the change did not.

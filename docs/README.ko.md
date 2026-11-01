@@ -1472,6 +1472,7 @@ auto sync verify --spec SPEC-HOOK-001 --strict
 | `auto spec gates SPEC-ID --change-class small_ui --json` | gate별 `required/not_applicable/blocked` 판정과 이유 |
 | `auto spec review SPEC-ID --single-pass` | provider round 1회. receipt에 `loop_status`·`blocking_reasons` 기록 |
 | `auto spec timing SPEC-ID` | 마지막 리뷰의 라운드·프로바이더별 소요 시간 (`review-receipt.json` 기준) |
+| `auto disk status` / `check --need 30` / `trim [--apply]` | 공유 머신 디스크 예산: 소비처 관측, 사전 점검(부족하면 exit 3), dry-run이 기본인 Go 빌드 캐시 정리 ([문서](disk-management.md)) |
 | spec.md frontmatter의 `profile: lean` + `change_class: <저위험 클래스>` + `surface: <경로>` | 저위험 신규 작업용 경량 SPEC: 축소된 필수 절, 리뷰어 1개, judge 없음. validate가 surface를 분류하고, `auto spec gates`는 surface를 벗어난 변경을 승격 |
 | `/auto dev "설명"` | 풀 파워: plan(--multi --ultrathink) → go(--team --loop) → sync |
 | `/auto setup` | 프로젝트 컨텍스트 문서 생성/업데이트 |
