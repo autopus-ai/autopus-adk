@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"slices"
 	"strings"
@@ -9,31 +10,34 @@ import (
 	"github.com/insajin/autopus-adk/pkg/detect"
 )
 
-// reviewRawRefused prints the raw view line and reports true when the raw
-// document holds no view of the provider: its file could not be read, or it
-// has no entry for it. Without one the tab can neither tell a placeholder
-// from a value nor show an old value as written, so the provider keeps its
-// model and its backend (REQ-RVM-26).
-func (f *composeFormRun) reviewRawRefused(tab *reviewTabState, name string) bool {
-	if _, ok := tab.baseline.Raw[name]; ok {
-		return false
+// reviewModelRefused prints the refusal line of reviewModelRefusal and
+// reports true when there is one: the provider then gets no model select.
+func (f *composeFormRun) reviewModelRefused(tab *reviewTabState, name string) bool {
+	line := reviewModelRefusal(tab.baseline, tab.working, name, f.reviewText())
+	if line != "" {
+		f.reviewLine(line)
 	}
-	f.reviewLine(fmt.Sprintf(f.reviewText().RawMissing, name))
-	return true
+	return line != ""
 }
 
-// reviewPlaceholderRefused prints the CLI value refusal line and reports true
-// when a value the provider's model select reads or could change is an
-// environment placeholder in the raw document: the OMP model scalar, or a
-// CLI provider's binary, which decides its row, or its model or effort flag
-// value. The provider then keeps every value (REQ-RVM-26); a placeholder in
-// any other args element blocks nothing.
-func (f *composeFormRun) reviewPlaceholderRefused(tab *reviewTabState, name string) bool {
-	raw := tab.baseline.Raw[name]
+// reviewModelRefusal is the line that keeps a provider's model and backend
+// as they are (REQ-RVM-26), or "". The raw view line comes first: when the
+// raw document holds no view of the provider (its file could not be read,
+// or it has no entry for it), nothing can tell a placeholder from a value or
+// show an old value as written. Otherwise the CLI value refusal line names a
+// value the model select reads or could change that is an environment
+// placeholder in the raw document: the OMP model scalar, or a CLI provider's
+// binary, which decides its row, or its model or effort flag value. A
+// placeholder in any other args element blocks nothing.
+func reviewModelRefusal(b reviewBaseline, working reviewComposition, name string, text composeReviewText) string {
+	raw, ok := b.Raw[name]
+	if !ok {
+		return fmt.Sprintf(text.RawMissing, name)
+	}
 	flag, value := "model", raw.Model
-	if !tab.working.OMP[name] {
+	if !working.OMP[name] {
 		flag, value = "", ""
-		row := reviewArgsRowFor(tab.baseline.Binaries[name])
+		row := reviewArgsRowFor(b.Binaries[name])
 		for _, found := range []reviewArgValue{
 			{found: true, spelling: "binary", value: raw.Binary}, findReviewArg(raw.Args, row.model), reviewEffortArg(row, raw.Args),
 		} {
@@ -44,10 +48,9 @@ func (f *composeFormRun) reviewPlaceholderRefused(tab *reviewTabState, name stri
 		}
 	}
 	if !strings.Contains(value, "${") {
-		return false
+		return ""
 	}
-	f.reviewLine(fmt.Sprintf(f.reviewText().CLIValueRefused, name, flag, value))
-	return true
+	return fmt.Sprintf(text.CLIValueRefused, name, flag, value)
 }
 
 // reviewEffortArg is the effort flag value row reads from args.
@@ -73,9 +76,11 @@ const reviewSwitchValue = "\x00omp"
 // prints the reason line.
 func (f *composeFormRun) reviewCLI(tab *reviewTabState, name string) error {
 	text := f.reviewText()
-	binary := tab.baseline.Binaries[name]
-	row := reviewArgsRowFor(binary)
-	models, listed := f.reviewCLIModels(tab, name, row, binary)
+	row := reviewArgsRowFor(tab.baseline.Binaries[name])
+	models, listed, note := reviewCLIModelList(commandContext(f.cmd), tab.baseline, name, f.snapshot, tab.agy, text)
+	if note != "" {
+		f.reviewLine(note)
+	}
 	tab.attested.CLI[name] = models
 	switchTo := f.reviewSwitchChoices(tab, name)
 	if len(models) == 0 && len(switchTo) == 0 {
@@ -124,38 +129,44 @@ func (f *composeFormRun) reviewCLI(tab *reviewTabState, name string) error {
 	return nil
 }
 
-// reviewCLIModels is the model list of a CLI row and whether the row has a
-// source for one: claude's tier models, the run's Codex catalog snapshot
-// (the one the table read), or `agy models` of an agy installed on PATH
-// under its bare name, read once per tab entry. An agy given as a path is
-// never run and prints its reason line; an unreadable source prints its
-// note (REQ-RVM-22, 24).
-func (f *composeFormRun) reviewCLIModels(tab *reviewTabState, name string, row reviewArgsRow, binary string) ([]reviewCLIModel, bool) {
-	switch row.kind {
+// reviewCLIModelList is the model list of name's CLI row, whether the row
+// has a source for one, and the line that source leaves, or "": claude's
+// tier models, the run's Codex catalog snapshot (the one the table read), or
+// `agy models` of an agy installed on PATH under its bare name, read once
+// per agy catalog. An agy given as a path is never run and leaves its reason
+// line; an unreadable source leaves its note (REQ-RVM-22, 24). The tab and
+// `auto quality review model` read the lists the same way.
+func reviewCLIModelList(
+	ctx context.Context,
+	b reviewBaseline,
+	name string,
+	snapshot driftGenerationSnapshot,
+	agy reviewAgyCatalog,
+	text composeReviewText,
+) ([]reviewCLIModel, bool, string) {
+	binary := b.Binaries[name]
+	switch reviewArgsRowFor(binary).kind {
 	case reviewRowClaude:
-		return reviewClaudeModels(), true
+		return reviewClaudeModels(), true, ""
 	case reviewRowCodex:
-		models, ok := reviewCodexModels(f.snapshot)
-		if !ok {
-			f.reviewLine(f.reviewText().CodexNote)
+		if models, ok := reviewCodexModels(snapshot); ok {
+			return models, true, ""
 		}
-		return models, true
+		return nil, true, text.CodexNote
 	case reviewRowAgy:
-		if !agyBareName(binary) {
-			f.reviewLine(fmt.Sprintf(f.reviewText().AgyPath, name, tab.baseline.binaryText(name)))
-			return nil, false
+		switch {
+		case !agyBareName(binary):
+			return nil, false, fmt.Sprintf(text.AgyPath, name, b.binaryText(name))
+		case !detect.IsInstalled(binary):
+			return nil, false, ""
 		}
-		if !detect.IsInstalled(binary) {
-			return nil, false
-		}
-		listed, ok := tab.agy.load(commandContext(f.cmd), binary)
+		listed, ok := agy.load(ctx, binary)
 		if !ok {
-			f.reviewLine(fmt.Sprintf(f.reviewText().AgyNote, name))
-			return nil, true
+			return nil, true, fmt.Sprintf(text.AgyNote, name)
 		}
-		return agyCLIModels(name, listed), true
+		return agyCLIModels(name, listed), true, ""
 	}
-	return nil, false
+	return nil, false, ""
 }
 
 // reviewSwitchChoices is the attested OMP models a CLI provider can switch

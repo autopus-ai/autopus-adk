@@ -41,7 +41,8 @@ const updateCmdLong = "설치된 하네스 파일을 업데이트합니다.\n\n"
 	"route가 그대로이며 ultra 프로필의 quality.presets.ultra 연동은 끝납니다. 줄 OMP 편집기와\n" +
 	"auto platform omp profile apply는 그대로 프로필을 씁니다.\n\n" +
 	"도구 탭의 마지막 선택지는 spec.review_gate.enabled가 켜져 있고 orchestra.providers가 둘 이상이며 CI가 아닐 때\n" +
-	"나오는 멀티프로바이더 리뷰입니다(SPEC-REVMODEL-001). 표 아래 요약 줄이 리뷰 provider와 judge를 보입니다. 탭은\n" +
+	"나오는 멀티프로바이더 리뷰입니다(SPEC-REVMODEL-001). 표 아래 요약 줄이 리뷰 provider마다 원문의 model·effort와\n" +
+	"judge를 보입니다. 탭은 " +
 	"auto spec review에 참여하는 provider(spec.review_gate.providers), provider마다 model과 effort,\n" +
 	"judge(spec.review_gate.judge)를 정합니다. backend: omp provider는 그 family의 증명된 설치 model과\n" +
 	"thinking(orchestra.providers.<p>.model)을, CLI backend의 claude는 Claude 탭 model과 effort(--model·--effort),\n" +
@@ -50,7 +51,10 @@ const updateCmdLong = "설치된 하네스 파일을 업데이트합니다.\n\n"
 	"backend로 전환할 수 있습니다(backend: omp와 model). 미리보기는 바뀐 CLI 값만 autopus.yaml 글자로 보이고 다른 args는 보이지\n" +
 	"않으며, ${NAME}에서 오는 값은 바꾸지 않습니다. 그 값만 바꿔 써서 주석과 서식이 그대로입니다. 끈 provider도\n" +
 	"orchestra 명령(brainstorm·plan·review·secure)과 auto spec review --multi에서는 계속 돕니다. 확인 호출을 고르면\n" +
-	"provider n개에 요청 1회씩(재시도 포함 최대 3n회 model 호출) 보내고 결과 줄만 쓰며 아무것도 저장하지 않습니다." +
+	"provider n개에 요청 1회씩(재시도 포함 최대 3n회 model 호출) 보내고 결과 줄만 쓰며 아무것도 저장하지 않습니다. 탭을\n" +
+	"적용하거나 취소하면 그 결과 줄이 다시 그린 표의 요약 줄 아래에 한 번 더 나옵니다. 탭이 없는 실행(--yes, TTY가 아닌\n" +
+	"입력, CI 등)은 이 탭이 나올 설정이면 리뷰 model을 바꾸는 곳(터미널의 auto quality, 또는 auto quality review model\n" +
+	"<provider> <model>)을 한 줄로 알립니다." +
 	"\n\n" + tuiuxUpdateHelp + "\n\n" + reaUpdateHelp
 
 // tuiuxUpdateHelp is the composition forms' navigation and frame

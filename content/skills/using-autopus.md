@@ -112,6 +112,12 @@ CLI에서는 `claude-code`도 `claude`의 alias로 허용하지만 YAML에는 ca
 터미널이 필요하므로 에이전트는 사용자에게 안내하고, 생성된 에이전트 파일은 재생성 때 덮어쓰이므로
 모델을 바꾸려고 직접 고치지 않습니다.
 
+### 멀티프로바이더 리뷰 model
+
+리뷰 provider의 model은 `auto quality review`로 보고 `auto quality review model <provider> <model> [--effort <effort>]`,
+`on`/`off <provider>...`, `judge <provider|none>`으로 바꿉니다. 리뷰 탭과 같은 검사(증명된 model만, 참여 둘 이상)를
+거치고 바뀌는 설정을 먼저 보이며(`--dry-run`은 쓰지 않음), 터미널이 필요 없어 에이전트가 직접 실행할 수 있습니다.
+
 ### Claude Fable 5.1 / Opus 5.5 / Sonnet 5.5 기본 경로
 
 Autopus는 공통 모델 티어를 `fable` > `opus` > `sonnet` > `haiku` 순서로

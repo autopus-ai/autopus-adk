@@ -2,9 +2,9 @@
 .agents/plugins/
 .agents/plugins/marketplace.json 7bac9f0f7c15eecf46023308f334e2122d112d03aa7b498f9e01adabd48ac03c
 .autopus/
-.autopus/claude-code-manifest.json 4add52fd6cf94481d41bbb63ba6ccbf5b5dcfdeeb16196242296e04273cf47c7
+.autopus/claude-code-manifest.json 1b18561c514cd94b59d3a0d48ef6c58c396ea6f3d682f892c2286df0b6d2ce05
 .autopus/claude-code-permissions.json b9fd4dd0824fb98d4ff3403c011a56b0b66f398788f2dfb24220c1aed87df4e8
-.autopus/codex-manifest.json bedba10fece4e143f1b05658643da84be3178997fb1d8bf3b10c471260211925
+.autopus/codex-manifest.json c9870b953e314013c79ae2088f59a671d54adca085ca0c75bd9b4063fcad0b41
 .autopus/context/
 .autopus/context/constraints.yaml d8b3a0714389a30b7aca1986fbb71235900e14c9dddfe50fdbbb758698d0b26e
 .autopus/plugins/
@@ -16,9 +16,9 @@
 .autopus/plugins/auto/skills/auto/SKILL.md 5404914d8ab7f5a0e4560439b365b85e60813e14304d4565dd8893830b165595
 .autopus/txns/
 .autopus/txns/<TX>-claude-code/
-.autopus/txns/<TX>-claude-code/journal.json 6641e9dfd27c5b6ea6db2c49a28a19aa9adbdec54e94866713a24933b32214b8
+.autopus/txns/<TX>-claude-code/journal.json e65a903b4d92b72574eb9c2596a772136cbedf18bc0ee17e315dfdac1bae14d6
 .autopus/txns/<TX>-codex/
-.autopus/txns/<TX>-codex/journal.json 8eed2aa7182528684e76b777dcf8c00bfa0504006c0bd4c865663365c5c96898
+.autopus/txns/<TX>-codex/journal.json c5426f9c0040837e3557a449ff1b29378f8840bf13c0cd5d86f5ec0f03fcb039
 .claude/
 .claude/agents/
 .claude/agents/autopus/
@@ -151,7 +151,7 @@
 .claude/skills/testing-strategy/
 .claude/skills/testing-strategy/SKILL.md d800ca3548c6048676f9d5509347898537dd7247e1e5db23aefc70d2b52b41c9
 .claude/skills/using-autopus/
-.claude/skills/using-autopus/SKILL.md ea168f9e0ab63a475ea6b018acdabcf1c1cc2f2446961365974d305548ab162f
+.claude/skills/using-autopus/SKILL.md 87ff9b203001f7af46e5895b29d2e86a2eb5918fd1bd4f5754057bb06842d216
 .claude/skills/verification/
 .claude/skills/verification/SKILL.md 17119a3ea275291c793d272692dd1a2cca45841811349db05c55c1199e6a5756
 .claude/skills/worktree-isolation/
@@ -266,7 +266,7 @@
 .codex/skills/codex-testing-strategy/
 .codex/skills/codex-testing-strategy/SKILL.md ec237de8bbfed692a20192868dd5fda5223d2d1c5504070953d49a6cccb6f43d
 .codex/skills/codex-using-autopus/
-.codex/skills/codex-using-autopus/SKILL.md 86dc146f93b6165e60d9e232df5a4c8a279f543dc661f736a99909045be2735f
+.codex/skills/codex-using-autopus/SKILL.md 537c3da78c170ca2ff78fdb15fa66076db9610a5a42cb170af0f7d1da72b489d
 .codex/skills/codex-verification/
 .codex/skills/codex-verification/SKILL.md 79321a33b979f2f07deb2ad4800a98ea0cbcdde89b0f2f636737b9afd92ead7d
 .codex/skills/codex-worktree-isolation/

@@ -37,6 +37,7 @@ func newQualityCmdWithOMPDependencies(deps ompPlatformDependencies) *cobra.Comma
 	cmd.AddCommand(newQualitySetCmd(&apply))
 	cmd.AddCommand(newQualityProviderCmd(&apply))
 	cmd.AddCommand(newQualitySupervisorCmd(&apply))
+	cmd.AddCommand(newQualityReviewCmd(&apply, deps))
 	return cmd
 }
 

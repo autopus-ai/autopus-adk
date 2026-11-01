@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **터미널 없이 멀티프로바이더 리뷰 model을 보고 바꾼다** (2026-10-31): 리뷰 provider의 model은 `auto quality` 구성
+  폼의 멀티프로바이더 리뷰 탭에서만 바꿀 수 있었고, 그 폼은 터미널이 있어야 열렸다. Claude Code 안에서 `! auto update`나
+  `auto quality`를 실행하면 탭에 닿을 수 없었고, 탭에서 바꾼 뒤에도 요약 줄에는 provider 이름만 보였다.
+  - `auto quality review [show] [--json]`은 provider마다 리뷰 참여, backend, autopus.yaml 원문의 model·effort와
+    judge를 보인다.
+  - `auto quality review model <provider> <model> [--effort <effort>]`, `on|off <provider>...`,
+    `judge <provider|none>`은 탭과 같은 검사(provider의 catalog가 증명한 model만, 참여 둘 이상, judge 참여)와 줄
+    splice writer를 쓴다. 바뀌는 설정 줄을 먼저 보이고, 바뀐 것이 없거나 `--dry-run`이면 쓰지 않는다. 받지 않는 값은
+    가능한 값을 적어 exit 1로 거절한다. CLI provider의 OMP backend 전환은 탭에만 있다.
+  - 구성 표 아래 요약 줄이 provider마다 model·effort를 보인다(예: `멀티프로바이더 리뷰: claude claude-opus-5-5 · max ·
+    codex gpt-6-astra · max · gemini agy gemini-3.8-flash-high · judge claude`). 리뷰 탭의 적용·취소·변경 없음 줄은
+    다시 그린 표의 요약 줄 아래에 한 번 더 나온다.
+  - 리뷰 설정이 있으면 비대화형 `auto init`·`auto update`와 터미널 없는 `auto quality`가 리뷰 model을 바꾸는 곳을
+    한 줄로 알린다.
+
 - **보안 감사에 자율 공격 대비 점검을 더한다** (2026-10-30): `security-audit` 스킬의 OWASP Top 10 점검은 사람이
   한 번씩 시도하는 공격을 기준으로 해서, 자율 AI 에이전트가 요청을 기계 속도로 대량 반복할 때 드러나는 약점을 따로
   묻지 않았다. 이제 스킬에 "자율 공격 대비 점검" 절이 있고, `security-auditor` 감사 범위와 출력이 이를 따른다.

@@ -87,8 +87,9 @@ auto update to restore the Autopus agents.
 
 The tool tab ends with Multi-provider review while spec.review_gate is
 enabled, autopus.yaml holds at least two orchestra.providers entries, and CI
-is not set (SPEC-REVMODEL-001); a summary line under the table names the
-review providers and the judge. The tab sets the providers auto spec review
+is not set (SPEC-REVMODEL-001); a summary line under the table names each
+review provider with its model and effort as written, and the judge. The
+tab sets the providers auto spec review
 uses (spec.review_gate.providers), each provider's model and effort, and the
 judge (spec.review_gate.judge). A provider with backend: omp picks an
 installed model Autopus attests for its family and a thinking level
@@ -103,7 +104,11 @@ ${NAME} is left alone. Only those values are rewritten, so comments and
 layout stay. Orchestra commands (brainstorm, plan, review, secure) and
 auto spec review --multi keep every provider. An optional live check sends
 one request to each of n review providers (at most 3n model calls with
-retries) and writes nothing.
+retries) and writes nothing. After the tab applies or cancels, its result
+line follows the summary line under the redrawn table. Without a terminal,
+` + "`auto quality review`" + ` shows and changes the same settings
+(auto quality review --help); non-interactive auto init and auto update
+print where review models change.
 
 Every form shows a header with the path that reached it, for example
 quality · Model composition › edit the composition › Codex, the values
@@ -120,3 +125,45 @@ stays. Esc never undoes a write already applied. In accessible line mode
 Before it writes any file, auto init shows Settings to apply (the answers,
 every changed setting key, and the REA decision) and asks apply, back, or
 cancel (auto init --help).`
+
+// qualityReviewCmdLong is the help of `auto quality review`, the review tab
+// of SPEC-REVMODEL-001 without a terminal.
+const qualityReviewCmdLong = `Show or change, without a terminal, what the Multi-provider review tab of
+auto quality edits: the orchestra.providers that take part in auto spec
+review (spec.review_gate.providers), each provider's model and effort, and
+the judge (spec.review_gate.judge).
+
+  auto quality review [show] [--json]
+  auto quality review model <provider> <model> [--effort <effort>] [--dry-run]
+  auto quality review on <provider>... [--dry-run]
+  auto quality review off <provider>... [--dry-run]
+  auto quality review judge <provider|none> [--dry-run]
+
+show prints, per orchestra provider, whether it takes part, its backend,
+and its model and effort as autopus.yaml writes them, then the judge.
+
+model takes only what the tab offers the provider. A provider with backend:
+omp takes an installed model the OMP catalog attests for its family, as
+<provider>/<model>[:<thinking>]; --effort is the thinking level. A CLI
+provider takes, by its binary: claude a Claude tab model with low to max
+(no effort for haiku), written after --model and --effort; codex a model of
+the Codex catalog with one of its efforts, written after -m and as
+model_reasoning_effort with model_policy: pinned; agy an id agy models lists
+for the provider's family, or that id without its -low, -medium, or -high
+suffix and the suffix as --effort. Without --effort the current effort or
+thinking level stays when the new model takes it. Switching a CLI provider
+to the OMP backend is left to the tab. A refused model lists the accepted
+values.
+
+on and off take several providers at once, so a review below two providers
+can reach two in one edit; they change auto spec review only, while
+orchestra commands and auto spec review --multi keep every provider. judge
+takes a provider that takes part, or none for a review without a judge.
+
+Every edit is checked like the tab's: at least two providers take part,
+the judge takes part, and a changed model is attested. A value taken from
+${NAME} is left alone, as the tab leaves it. The settings that change are
+printed first; nothing is written when nothing changes or with --dry-run.
+Only the changed values are rewritten in autopus.yaml, so comments and
+layout stay. auto spec review and orchestra commands read them when they
+run, so --apply is refused.`

@@ -25,7 +25,7 @@ func reviewFormatVerbs(s string) []string {
 // columns the way autopus.yaml and the runtime spell them.
 var reviewSameInBothLocales = map[string]bool{
 	"Model": true, "Thinking": true, "Judge": true, "ColProvider": true, "ColModel": true,
-	"CLIBackend": true, "SummaryJudge": true, "Effort": true,
+	"CLIBackend": true, "SummaryJudge": true, "Effort": true, "ColBackend": true,
 }
 
 func TestComposeReviewText_EveryStringIsTranslated(t *testing.T) {

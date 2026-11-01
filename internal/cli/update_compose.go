@@ -23,10 +23,11 @@ var updateComposeStep = runUpdateComposeStep
 //
 // An interactive run draws the table from one catalog probe and asks once;
 // every keep path leaves autopus.yaml byte-identical. A non-interactive run
-// reads no stdin, probes nothing, and prints at most the historical notice;
-// its zero snapshot makes each adapter probe for itself as before. The step
-// never fails the update: a refused or failed write keeps the file and
-// leaves one warning line, and the run's snapshot still feeds generation.
+// reads no stdin, probes nothing, and prints at most the historical notice
+// and the review hint, since it has no review tab; its zero snapshot makes
+// each adapter probe for itself as before. The step never fails the update:
+// a refused or failed write keeps the file and leaves one warning line, and
+// the run's snapshot still feeds generation.
 func runUpdateComposeStep(
 	cmd *cobra.Command,
 	dir string,
@@ -44,6 +45,9 @@ func runUpdateComposeStep(
 	// REQ-MUX-20 applies to every editing entry point, not only `auto quality`.
 	session = withComposeOverrideQuestion(cmd, session)
 	result, err := runUpdateComposeDriver(cmd, gate, session)
+	if hint := reviewHint(cfg, lang); hint != "" && gate.mode() == composeModeNotice {
+		fmt.Fprintln(cmd.OutOrStdout(), hint)
+	}
 	// A run-ending error goes to the gate's Abort slot; a caller without one
 	// still gets the warning line instead of losing the error.
 	if composeEndsTheRun(err) && gate.Abort != nil {
