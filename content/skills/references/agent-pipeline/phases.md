@@ -50,6 +50,29 @@ On `--continue`, the saved route must match the newly authorized route before an
 dispatch. A checkpoint without a recorded route counts as full. A mismatch is a
 blocking resume error, not permission to reinterpret prior completed phases.
 
+### Resume
+
+The checkpoint (`pipeline_checkpoint.v2`) keeps, for every completed phase, the
+output later phases read, bound to the SPEC snapshot, the source revision, the
+route, and the outputs before it. A resume restores only records that verify,
+so a resumed phase receives the prompt it would have received. When a record is
+missing, edited, or made for another SPEC or output policy:
+
+- a completed phase that writes nothing outside the pipeline (`plan`,
+  `validate`, `review`) is dispatched again;
+- a completed phase that wrote the working tree (`test_scaffold`, `implement`)
+  is never dispatched again by the resume, which stops before any dispatch with
+  `pipeline: resume blocked:` naming the phase and the reason. Inspect the
+  working tree, then start a fresh run without `--continue`.
+
+A `pipeline_checkpoint.v1` file predates these records and is read as having
+none. Every resume keeps the run's `task_id`, names the run it continues in
+`resumed_from`, and appends that run to `prior_attempts` with its failures and
+dispatches. It also starts each gate's remediation budget and no-progress
+memory fresh and records every reset gate in `resume.remediation_resets`. Each
+of these decisions is printed as a `Pipeline resume:` line; report them with
+the run's result.
+
 ## Phase 1 — Planning
 
 Entry: SPEC (or compact `change.md`) resolved.
@@ -182,6 +205,28 @@ and the threshold policy.
 A FAIL routes precise correction work back to the unit's original owner —
 re-using the same worker id when the worker is still revivable — then
 re-validates. Do not spawn a fresh worker merely to ask a follow-up question.
+
+`auto pipeline run` runs the same loop without a supervisor. The validation
+phase reports each failure as `FAILED_COMMAND:`, `EXPECTED:`, and `ACTUAL:`
+lines before its single `VERDICT:` line, and the review reports each blocking
+finding as `FINDING <ID>: <evidence> | FIX: <condition>`. A typed
+`VERDICT: FAIL` or `VERDICT: REQUEST_CHANGES` goes back to `implement` with a
+`## Remediation Feedback` section carrying those lines and the end of the log,
+secrets redacted. Then `validate` — and after a review rejection, `review` —
+runs again on the changed code, so no verdict from before the fix is reused.
+Besides a pass, the loop ends in one of these ways, none of them a completion:
+
+- `circuit_break_no_progress` (terminal `blocked`): the gate failed again
+  without resolving anything its previous failure reported.
+- terminal `failed_budget`: the gate spent its remediation budget for the run
+  (`validate` 3 cycles, `review` 2).
+- terminal `blocked` with `contract_violation`: a missing, duplicate, or
+  malformed verdict, an invalid worker receipt, or a compaction blocker. It is
+  not re-asked; `--continue` dispatches the failed phase again.
+
+Only a backend failure marked as happening before the request reached the
+model is re-sent, at most twice, after 1 s and 2 s. A timeout, a non-zero exit,
+or any other error stops the run with no further dispatch.
 
 ## Annotation — opt-in only
 
