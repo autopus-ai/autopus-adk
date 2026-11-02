@@ -16,6 +16,10 @@ type diskStatusData struct {
 	Floor       diskFloorData `json:"floor"`
 	Consumers   diskConsumers `json:"consumers"`
 	TrimPreview diskTrimData  `json:"trim_preview"`
+	// SPEC-DISK-002 additions, filled by statusExtras.
+	ReclaimPreview diskReclaimData       `json:"reclaim_preview"`
+	Leases         []diskspace.LeaseInfo `json:"leases"`
+	Trend          *diskspace.Trend      `json:"trend"`
 }
 
 type diskFloorData struct {
@@ -62,6 +66,7 @@ type diskWorktreeData struct {
 	Locked           bool                `json:"locked"`
 	Prunable         bool                `json:"prunable"`
 	Harness          bool                `json:"harness"`
+	Owned            bool                `json:"owned"`
 	Clean            *diskspace.Tristate `json:"clean,omitempty"`
 	Merged           *diskspace.Tristate `json:"merged,omitempty"`
 	Reason           string              `json:"reason,omitempty"`
@@ -107,6 +112,7 @@ func runDiskStatus(cmd *cobra.Command, flags diskFlags, ci string) error {
 	worktrees := diskspace.ScanWorktrees(cmd.Context(), diskRunner, dc.projectDir)
 	scratch := diskspace.ScanScratchpads(diskScratchpad(s.uid), s.now)
 	data := statusData(s, worktrees, scratch)
+	statusExtras(cmd.Context(), s, worktrees, &data)
 	warnings := s.warnings()
 	writeDiskWarnings(cmd, jsonMode, warnings)
 	if jsonMode {
@@ -190,4 +196,5 @@ func writeStatusText(w io.Writer, d diskStatusData, worktrees diskspace.Worktree
 	default:
 		writeTrimText(w, preview)
 	}
+	writeStatusExtrasText(w, d)
 }

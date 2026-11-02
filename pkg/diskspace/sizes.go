@@ -13,6 +13,19 @@ const (
 	treeMaxDepth   = 32
 )
 
+// treeLimits bound a candidate tree walk and say whether a non-directory
+// that is not a regular file is a problem (the go-build trim) or a leaf that
+// removal unlinks as a name without ever following it (SPEC-DISK-002
+// scratchpad reclaim, whose session trees hold symlinks).
+type treeLimits struct {
+	maxEntries int
+	maxDepth   int
+	leafLinks  bool
+}
+
+// strictTree is the SPEC-DISK-001 bound of every trim candidate.
+var strictTree = treeLimits{maxEntries: treeMaxEntries, maxDepth: treeMaxDepth}
+
 // Problems a candidate tree walk can find. Each makes the candidate
 // undeletable: trim reports it under the matching skip counter instead.
 const (
@@ -113,6 +126,11 @@ type treeStat struct {
 // a symlink. Past the bound the sizes are partial and the problem is
 // ProblemUnbounded.
 func inspectTree(path string, info fs.FileInfo, rootDev uint64) treeStat {
+	return inspectTreeWith(path, info, rootDev, strictTree)
+}
+
+// inspectTreeWith is inspectTree under limits.
+func inspectTreeWith(path string, info fs.FileInfo, rootDev uint64, limits treeLimits) treeStat {
 	st := statOf(info)
 	t := treeStat{Bytes: st.alloc, Newest: info.ModTime()}
 	entries := 0
@@ -123,7 +141,7 @@ func inspectTree(path string, info fs.FileInfo, rootDev uint64) treeStat {
 			return
 		}
 		for _, child := range children {
-			if entries++; entries > treeMaxEntries {
+			if entries++; entries > limits.maxEntries {
 				t.flag(ProblemUnbounded)
 				return
 			}
@@ -141,11 +159,11 @@ func inspectTree(path string, info fs.FileInfo, rootDev uint64) treeStat {
 				t.Newest = info.ModTime()
 			}
 			switch {
-			case info.IsDir() && depth >= treeMaxDepth:
+			case info.IsDir() && depth >= limits.maxDepth:
 				t.flag(ProblemUnbounded)
 			case info.IsDir():
 				walk(filepath.Join(path, child.Name()), depth+1)
-			case !info.Mode().IsRegular():
+			case !info.Mode().IsRegular() && !limits.leafLinks:
 				t.flag(ProblemSymlink)
 			}
 		}

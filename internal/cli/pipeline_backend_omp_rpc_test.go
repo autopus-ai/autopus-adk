@@ -53,7 +53,9 @@ func TestMain(m *testing.M) {
 		os.Exit(runPipelineOMPRPCFixture())
 	}
 	reaNodeExec = testReaNodeV24 // SPEC-REA-001: no CLI test runs a real node
-	os.Exit(m.Run())
+	code := m.Run()
+	_ = os.RemoveAll(diskTestStateRoot) // SPEC-DISK-002: see disk_state_guard_test.go
+	os.Exit(code)
 }
 
 func TestPipelineOMPBackend_ReusesRPCSessionAndReturnsExactPhaseOutput(t *testing.T) {

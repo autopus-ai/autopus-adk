@@ -30,6 +30,14 @@ const (
 	// threshold below it loads, but can delete what a concurrent build already
 	// looked up, so the disk commands warn about it (REQ-DISK-CFG-04).
 	DiskRecommendedIdleMinutes = 120
+
+	// DiskMaxIdleMinutes (ten years) and DiskMaxGB (1 PiB) bound every idle
+	// and size key, so no threshold converted to a Duration or to bytes can
+	// overflow int64 and wrap into "always idle" or "never short"
+	// (SPEC-DISK-002 security review M1, L1).
+	DiskMaxIdleMinutes = 5_256_000
+	DiskMaxGB          = 1 << 20
+	diskMaxMB          = DiskMaxGB << 10
 )
 
 // DefaultDiskCIProcessNames names the executable of a running GitHub Actions
@@ -51,6 +59,9 @@ type DiskConf struct {
 	MinFreeGB *int           `yaml:"min_free_gb,omitempty"`
 	Reserves  map[string]int `yaml:"reserves,omitempty"`
 	Trim      DiskTrimConf   `yaml:"trim,omitempty"`
+	// Reclaim and Lease are SPEC-DISK-002 (schema_disk_reclaim.go).
+	Reclaim DiskReclaimConf `yaml:"reclaim,omitempty"`
+	Lease   DiskLeaseConf   `yaml:"lease,omitempty"`
 }
 
 // DiskTrimConf is disk.trim.
@@ -89,6 +100,8 @@ type DiskEffective struct {
 	CIProcessNames     []string
 	GoBuild            DiskGoBuildEffective
 	WorkDirIdleMinutes int
+	Reclaim            DiskReclaimEffective
+	Lease              DiskLeaseEffective
 }
 
 // DiskGoBuildEffective is the resolved disk.trim.go_build.
@@ -138,6 +151,8 @@ func (d DiskConf) Effective() DiskEffective {
 			LargeFileBelowGB:     diskInt(g.LargeFileBelowGB, 0),
 		},
 		WorkDirIdleMinutes: diskInt(d.Trim.GoBuildWorkDirs.IdleMinutes, DefaultDiskWorkDirIdleMinutes),
+		Reclaim:            d.Reclaim.effective(),
+		Lease:              d.Lease.effective(),
 	}
 }
 
@@ -181,6 +196,9 @@ func (d DiskConf) Validate() error {
 	if d.MinFreeGB != nil && *d.MinFreeGB < 0 {
 		return fmt.Errorf("disk.min_free_gb must be >= 0, got %d", *d.MinFreeGB)
 	}
+	if d.MinFreeGB != nil && *d.MinFreeGB > DiskMaxGB {
+		return fmt.Errorf("disk.min_free_gb must be <= %d, got %d", DiskMaxGB, *d.MinFreeGB)
+	}
 	names := make([]string, 0, len(d.Reserves))
 	for name := range d.Reserves {
 		names = append(names, name)
@@ -193,8 +211,17 @@ func (d DiskConf) Validate() error {
 		if d.Reserves[name] < 1 {
 			return fmt.Errorf("disk.reserves.%s must be a positive integer, got %d", name, d.Reserves[name])
 		}
+		if d.Reserves[name] > DiskMaxGB {
+			return fmt.Errorf("disk.reserves.%s must be <= %d, got %d", name, DiskMaxGB, d.Reserves[name])
+		}
 	}
-	return d.Trim.validate()
+	if err := d.Trim.validate(); err != nil {
+		return err
+	}
+	if err := d.Reclaim.validate(); err != nil {
+		return err
+	}
+	return d.Lease.validate()
 }
 
 func (t DiskTrimConf) validate() error {
@@ -207,21 +234,27 @@ func (t DiskTrimConf) validate() error {
 	}
 	g := t.GoBuild
 	for _, bound := range []struct {
-		key   string
-		value *int
-		min   int
+		key      string
+		value    *int
+		min, max int
 	}{
-		{"disk.trim.start_below_gb", t.StartBelowGB, 0},
-		{"disk.trim.go_build.file_mb", g.FileMB, 1},
-		{"disk.trim.go_build.large_file_mb", g.LargeFileMB, 1},
-		{"disk.trim.go_build.large_file_below_gb", g.LargeFileBelowGB, 0},
-		{"disk.trim.go_build.idle_minutes", g.IdleMinutes, DiskMinIdleMinutes},
-		{"disk.trim.go_build.ci_idle_minutes", g.CIIdleMinutes, DiskMinIdleMinutes},
-		{"disk.trim.go_build.emergency_idle_minutes", g.EmergencyIdleMinutes, DiskMinIdleMinutes},
-		{"disk.trim.go_build.large_file_idle_minutes", g.LargeFileIdleMinutes, DiskMinIdleMinutes},
-		{"disk.trim.go_build_work_dirs.idle_minutes", t.GoBuildWorkDirs.IdleMinutes, DiskMinIdleMinutes},
+		{"disk.trim.start_below_gb", t.StartBelowGB, 0, DiskMaxGB},
+		{"disk.trim.go_build.file_mb", g.FileMB, 1, diskMaxMB},
+		{"disk.trim.go_build.large_file_mb", g.LargeFileMB, 1, diskMaxMB},
+		{"disk.trim.go_build.large_file_below_gb", g.LargeFileBelowGB, 0, DiskMaxGB},
+		{"disk.trim.go_build.idle_minutes", g.IdleMinutes, DiskMinIdleMinutes, DiskMaxIdleMinutes},
+		{"disk.trim.go_build.ci_idle_minutes", g.CIIdleMinutes, DiskMinIdleMinutes, DiskMaxIdleMinutes},
+		{"disk.trim.go_build.emergency_idle_minutes", g.EmergencyIdleMinutes, DiskMinIdleMinutes, DiskMaxIdleMinutes},
+		{"disk.trim.go_build.large_file_idle_minutes", g.LargeFileIdleMinutes, DiskMinIdleMinutes, DiskMaxIdleMinutes},
+		{"disk.trim.go_build_work_dirs.idle_minutes", t.GoBuildWorkDirs.IdleMinutes, DiskMinIdleMinutes, DiskMaxIdleMinutes},
 	} {
-		if bound.value == nil || *bound.value >= bound.min {
+		if bound.value == nil {
+			continue
+		}
+		if *bound.value > bound.max {
+			return fmt.Errorf("%s must be <= %d, got %d", bound.key, bound.max, *bound.value)
+		}
+		if *bound.value >= bound.min {
 			continue
 		}
 		if bound.min == DiskMinIdleMinutes {

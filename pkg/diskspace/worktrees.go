@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -265,8 +266,16 @@ func worktreeUsage(path string) (total, cargo int64) {
 	return total - targetsOwn + cargo, cargo
 }
 
+// pipelineWorktreeName is the name pkg/pipeline's WorktreeManager gives the
+// worktrees it creates directly under the system temp dir (os.MkdirTemp with
+// the prefix autopus-worktree-), SPEC-DISK-002 REQ-DISK2-REG-04.
+var pipelineWorktreeName = regexp.MustCompile(`^autopus-worktree-[0-9]+$`)
+
 func isHarnessWorktree(mainPath, path string) bool {
 	mainPath, path = canonicalOrSelf(mainPath), canonicalOrSelf(path)
+	if pipelineWorktreeName.MatchString(filepath.Base(path)) && filepath.Dir(path) == canonicalOrSelf(os.TempDir()) {
+		return true
+	}
 	for _, dir := range harnessWorktreeDirs {
 		if strings.HasPrefix(path, filepath.Join(mainPath, filepath.FromSlash(dir))+string(filepath.Separator)) {
 			return true

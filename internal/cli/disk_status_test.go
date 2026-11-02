@@ -103,7 +103,10 @@ func TestDiskStatus_S4EveryConsumerFromFixtures(t *testing.T) {
 	for _, row := range []string{"  go_build_cache: ", "  go_build_work_dirs: ", "  worktrees: ", "  scratchpads: "} {
 		assert.Equal(t, 1, strings.Count(rows, "\n"+row), row)
 	}
-	assert.True(t, strings.HasSuffix(text.stdout, diskS5Block(f)), text.stdout)
+	before, extras, found := strings.Cut(text.stdout, diskS5Block(f))
+	require.True(t, found, text.stdout)
+	assert.NotEmpty(t, before)
+	assert.True(t, strings.HasPrefix(extras, "disk reclaim: "), "the SPEC-DISK-002 sections follow the trim preview: %q", extras)
 }
 
 // S7: through the real command, exactly three suggestion lines, two quoted
