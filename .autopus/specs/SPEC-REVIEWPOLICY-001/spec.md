@@ -75,7 +75,7 @@ THE SYSTEM SHALL classify findings with one disposition rule set (the blocking-f
 **REQ-RP-POL-04**
 Priority: Must
 Type: Event-driven
-WHEN a judge returns PASS while accepting a blocking finding, or while a reviewer's REJECT vote or non-waived checklist FAIL stands that the judge did not dismiss by a `reject` decision naming that exact item, THEN THE SYSTEM SHALL keep the blocker and resolve REVISE (REJECT for an undismissed REJECT vote) with a blocking reason naming it, and SHALL defer only advisory findings.
+WHEN a judge returns PASS while accepting a blocking finding, or while a reviewer's REJECT vote or non-waived checklist FAIL stands that the judge did not dismiss by a `reject` decision naming that exact item, THEN THE SYSTEM SHALL keep the blocker and resolve REVISE (REJECT for an undismissed REJECT vote) with a blocking reason naming it, SHALL defer only advisory findings, and SHALL record every dismissal (reviewer, scope_ref, reason truncated to 500 runes) under the receipt's `judge.dismissals`.
 
 **REQ-RP-POL-05**
 Priority: Must

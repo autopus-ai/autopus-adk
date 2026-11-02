@@ -83,6 +83,7 @@ func syncReviewedSpecStatusWithReceipt(
 			AcceptedIDs: append([]string{}, result.Judge.AcceptedIDs...),
 			Rationale:   truncateSpecReviewJudgeRationale(result.Judge.Rationale),
 			Reason:      result.Judge.Reason,
+			Dismissals:  truncatedSpecReviewJudgeDismissals(result.Judge.Dismissals),
 		}
 	}
 

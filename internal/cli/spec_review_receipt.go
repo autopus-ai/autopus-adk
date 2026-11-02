@@ -24,6 +24,10 @@ type specReviewJudgeReceipt struct {
 	AcceptedIDs []string `json:"accepted_ids"`
 	Rationale   string   `json:"rationale"`
 	Reason      string   `json:"reason"`
+	// Dismissals are the reviewer blockers the judge cleared by name, each
+	// reason truncated like the rationale (SPEC-REVIEWPOLICY-001
+	// REQ-RP-POL-04); omitted when the judge cleared none.
+	Dismissals []spec.JudgeDismissal `json:"dismissals,omitempty"`
 }
 
 type specReviewPromotionReceipt struct {
@@ -146,6 +150,18 @@ func persistSpecReviewPromotionReceipt(specDir string, receipt specReviewPromoti
 		return "", fmt.Errorf("write SPEC review promotion receipt: %w", err)
 	}
 	return path, nil
+}
+
+func truncatedSpecReviewJudgeDismissals(dismissals []spec.JudgeDismissal) []spec.JudgeDismissal {
+	if len(dismissals) == 0 {
+		return nil
+	}
+	out := make([]spec.JudgeDismissal, len(dismissals))
+	for i, dismissal := range dismissals {
+		dismissal.Reason = truncateSpecReviewJudgeRationale(dismissal.Reason)
+		out[i] = dismissal
+	}
+	return out
 }
 
 func truncateSpecReviewJudgeRationale(value string) string {

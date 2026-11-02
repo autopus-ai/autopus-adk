@@ -5,6 +5,8 @@ package cli
 // a section an eligible lean SPEC may omit does not block it.
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -54,6 +56,41 @@ func TestRunSpecReviewLoop_JudgePassClearsOnlyTheVerdictBlockersItAddresses(t *t
 			assert.Equal(t, tc.policy, result.BlockingReasons[0].Policy)
 		})
 	}
+}
+
+// The receipt keeps every dismissal so a reader can see which reviewer
+// blocker a judge cleared and why; each reason is truncated like the judge
+// rationale.
+func TestSpecReviewReceipt_RecordsJudgeDismissals(t *testing.T) {
+	const specID = "SPEC-DISMISS-RECEIPT-001"
+	specDir := scaffoldReviewSpec(t, t.TempDir(), specID)
+	long := strings.Repeat("r", 600)
+	result := &spec.ReviewResult{
+		SpecID: specID, Verdict: spec.VerdictRevise,
+		BlockingReasons: []spec.BlockingReason{{Policy: spec.BlockingPolicyReviewerChecklist}},
+		Judge: &spec.JudgeSummary{Provider: "claude", Status: "ok", Verdict: "PASS", Dismissals: []spec.JudgeDismissal{
+			{Reviewer: "codex", ScopeRef: "verdict", Reason: "the redesign claim misreads REQ-002"},
+			{Reviewer: "claude", ScopeRef: "Q-COMP-08", Reason: long},
+		}},
+	}
+
+	receipt, err := syncReviewedSpecStatusWithReceipt(specDir, result, false)
+
+	require.NoError(t, err)
+	require.NotNil(t, receipt.Judge)
+	require.Len(t, receipt.Judge.Dismissals, 2)
+	assert.Equal(t, spec.JudgeDismissal{Reviewer: "codex", ScopeRef: "verdict", Reason: "the redesign claim misreads REQ-002"}, receipt.Judge.Dismissals[0])
+	assert.Equal(t, strings.Repeat("r", 500), receipt.Judge.Dismissals[1].Reason)
+	encoded, err := json.Marshal(receipt)
+	require.NoError(t, err)
+	assert.Contains(t, string(encoded), `"dismissals":[{"reviewer":"codex","scope_ref":"verdict"`)
+
+	result.Judge.Dismissals = nil
+	plain, err := syncReviewedSpecStatusWithReceipt(specDir, result, false)
+	require.NoError(t, err)
+	encoded, err = json.Marshal(plain)
+	require.NoError(t, err)
+	assert.NotContains(t, string(encoded), "dismissals")
 }
 
 // Without a judge the same rule holds: a checklist FAIL blocks whatever the
