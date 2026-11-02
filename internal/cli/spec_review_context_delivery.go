@@ -52,12 +52,17 @@ func (delivery *specReviewContextDelivery) buildVerified() (promptlayer.ContextD
 	return receipt, nil
 }
 
+// buildSpecReviewProviderPrompt builds the round prompt and returns the
+// verified context delivery it used, nil for an inline prompt, so the round
+// fingerprint records exactly the delivery the reviewers received and a delta
+// round can carry the same context documents (SPEC-REVIEWREUSE-001
+// REQ-RR-REUSE-01, REQ-RR-DELTA-04).
 func buildSpecReviewProviderPrompt(
 	p specReviewLoopParams,
 	doc *spec.SpecDocument,
 	priorFindings []spec.ReviewFinding,
 	revision int,
-) (string, []spec.ReviewFinding, error) {
+) (string, []spec.ReviewFinding, *promptlayer.ContextDeliveryResult, error) {
 	staticFindings, staticErr := spec.RunSpecContractAnalysis(p.specDir)
 	if staticErr != nil {
 		fmt.Fprintf(os.Stderr, "경고: SPEC static contract analysis 실패: %v\n", staticErr)
@@ -68,12 +73,25 @@ func buildSpecReviewProviderPrompt(
 	}
 	if p.contextDelivery == nil {
 		prompt, err := spec.BuildReviewPromptChecked(doc, p.codeContext, opts)
-		return prompt, staticFindings, err
+		return prompt, staticFindings, nil, err
 	}
 	receipt, err := p.contextDelivery.buildVerified()
 	if err != nil {
-		return "", staticFindings, err
+		return "", staticFindings, nil, err
 	}
 	prompt, err := spec.BuildReviewPromptFromContextDeliveryChecked(doc, p.codeContext, opts, receipt)
-	return prompt, staticFindings, err
+	return prompt, staticFindings, &receipt, err
+}
+
+// specReviewDeliveryDigests maps each source of a verified delivery to the
+// digest of its source file; nil for an inline prompt.
+func specReviewDeliveryDigests(receipt *promptlayer.ContextDeliveryResult) map[string]string {
+	if receipt == nil {
+		return nil
+	}
+	digests := make(map[string]string, len(receipt.RequiredDocuments))
+	for _, document := range receipt.RequiredDocuments {
+		digests[document.SourceRef] = document.SourceHash
+	}
+	return digests
 }

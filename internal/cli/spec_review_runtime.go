@@ -61,6 +61,7 @@ func syncReviewedSpecStatusWithReceipt(
 		receipt.ProviderPolicy = append([]specReviewProviderPolicyRow(nil), runtimeEvidence[0].ProviderPolicy...)
 		receipt.ReviewProfile = runtimeEvidence[0].Profile
 		receipt.Session = runtimeEvidence[0].Session
+		receipt.SpecFingerprint = runtimeEvidence[0].SpecFingerprint
 		applySpecReviewTiming(&receipt, runtimeEvidence[0], evidence.FinishedAt)
 	}
 	receipt.SpecID = result.SpecID
@@ -84,6 +85,8 @@ func syncReviewedSpecStatusWithReceipt(
 			Rationale:   truncateSpecReviewJudgeRationale(result.Judge.Rationale),
 			Reason:      result.Judge.Reason,
 			Dismissals:  truncatedSpecReviewJudgeDismissals(result.Judge.Dismissals),
+			Mode:        result.Judge.Mode,
+			Decisions:   truncatedSpecReviewJudgeDecisions(result.Judge.Decisions),
 		}
 	}
 

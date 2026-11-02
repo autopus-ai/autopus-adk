@@ -139,6 +139,14 @@ func (l *specReviewLedger) finish(endReason string) (*specReviewSessionReceipt, 
 	return l.receiptLocked(), err
 }
 
+// markForcedReview records that this invocation skipped reuse.
+func (l *specReviewLedger) markForcedReview() error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.file.Attempts[l.attempt].ForcedReview = true
+	return l.persistLocked()
+}
+
 // close releases the session lock; the OS releases it too if the process dies.
 func (l *specReviewLedger) close() {
 	if l != nil && l.lock != nil {

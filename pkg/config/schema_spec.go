@@ -46,6 +46,19 @@ type ReviewGateConf struct {
 	// JSON repair, fallback, rounds, and invocations (SPEC-REVIEWPOLICY-001
 	// REQ-RP-BUD-01). Omitted means no limit and writes no key.
 	Budget ReviewBudgetConf `yaml:"budget,omitempty"`
+	// JudgeMode decides when the judge runs: always (the default), only when
+	// reviewers disagree, or only for a contested escalation
+	// (SPEC-REVIEWREUSE-001 REQ-RR-JDG-01). Omitted writes no key.
+	JudgeMode string `yaml:"judge_mode,omitempty"`
+	// VerifyInput selects the full verify input (the default) or the delta
+	// input that links unchanged material to a verified baseline
+	// (SPEC-REVIEWREUSE-001 REQ-RR-DELTA-01). Omitted writes no key.
+	VerifyInput string `yaml:"verify_input,omitempty"`
+	// PinnedModels lists model selectors the operator declares immutable
+	// snapshots. A PASS is reused only when every reviewer and judge
+	// selector is a dated snapshot or listed here (SPEC-REVIEWREUSE-001
+	// REQ-RR-REUSE-04). Omitted writes no key.
+	PinnedModels []string `yaml:"pinned_models,flow,omitempty"`
 }
 
 // ResolveMaxRevisions returns the configured revision budget, falling back to

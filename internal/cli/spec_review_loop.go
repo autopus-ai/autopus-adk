@@ -33,6 +33,17 @@ type specReviewLoopParams struct {
 	// plan is the attempt's resolved review plan; it is printed once the
 	// reviewers are assembled (SPEC-REVIEWPOLICY-001 REQ-RP-PLAN-05).
 	plan *specReviewPlan
+	// judgeMode is the plan's judge mode: none, always, or a conditional
+	// mode that calls the judge only when the round needs it
+	// (SPEC-REVIEWREUSE-001 REQ-RR-JDG-01).
+	judgeMode string
+	// policy, configDigest, and requiredDocuments feed the round
+	// fingerprint (SPEC-REVIEWREUSE-001 REQ-RR-REUSE-01).
+	policy            specReviewPolicyIdentity
+	configDigest      string
+	requiredDocuments []string
+	// verifyInput is full or delta (SPEC-REVIEWREUSE-001 REQ-RR-DELTA-01).
+	verifyInput string
 }
 
 func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFindings []spec.ReviewFinding) (*spec.ReviewResult, error) {
@@ -71,9 +82,27 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 			break
 		}
 
-		prompt, staticFindings, err := buildSpecReviewProviderPrompt(p, doc, priorFindings, revision)
+		prompt, staticFindings, delivery, err := buildSpecReviewProviderPrompt(p, doc, priorFindings, revision)
 		if err != nil {
 			return nil, fmt.Errorf("리뷰 필수 문서 전달 실패: %w", err)
+		}
+		// The round's fingerprint feeds the receipt, the baseline, and the
+		// delta decision (SPEC-REVIEWREUSE-001 REQ-RR-REUSE-01, REQ-RR-DELTA-02).
+		var fp *specReviewFingerprint
+		var sources specReviewRoundSources
+		if p.runtimeEvidence != nil || p.verifyInput == config.ReviewVerifyInputDelta {
+			fp = specReviewRoundFingerprint(p, specReviewDeliveryDigests(delivery))
+			sources = readSpecReviewRoundSources(p, delivery)
+		}
+		if p.runtimeEvidence != nil {
+			p.runtimeEvidence.Fingerprint = fp
+			// The shared rule, never a copy of it: status compares this value
+			// with specDocumentsFingerprint of the SPEC it reads later.
+			p.runtimeEvidence.SpecFingerprint, _ = specDocumentsFingerprint(p.specDir)
+		}
+		prompt, input := chooseSpecReviewInput(p, doc, priorFindings, prompt, fp, sources)
+		if p.verifyInput == config.ReviewVerifyInputDelta {
+			printSpecReviewRoundInput(os.Stderr, input)
 		}
 
 		// WorkingDir is the review's project root: the OMP review backend reads it.
@@ -98,23 +127,11 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 
 		fmt.Fprintf(os.Stderr, "SPEC 리뷰 시작: %s (전략: %s, 리비전: %d)\n", p.specID, p.strategy, revision)
 
-		// Bound the parallel reviewer fan-out and the sequential judge together.
-		reviewCtx, cancel := context.WithCancel(p.ctx)
-		if watchdog := specReviewWatchdogForConfig(orchCfg); watchdog > 0 {
-			reviewCtx, cancel = context.WithTimeout(p.ctx, time.Duration(watchdog)*time.Second)
-		}
-		// The round carries its number for the call ledger and stops at the
-		// session's wall-clock deadline (REQ-RP-BUD-05).
-		reviewCtx, endRound := specReviewRoundContext(reviewCtx, revision)
-		roundStarted := time.Now()
-		result, err := specReviewRunOrchestra(reviewCtx, orchCfg)
-		endRound()
-		cancel()
-		round := newSpecReviewRoundTiming(revision, roundStarted, time.Since(roundStarted), result)
-		printSpecReviewRoundTiming(os.Stderr, round)
+		result, skippedJudge, round, err := runSpecReviewRound(p, orchCfg, doc, revision, priorFindings)
 		if err != nil {
 			return nil, fmt.Errorf("리뷰 실행 실패: %w", err)
 		}
+		round.Input, round.InputReason = input.mode, input.reason
 		if p.runtimeEvidence != nil {
 			p.runtimeEvidence.Rounds = append(p.runtimeEvidence.Rounds, round)
 			p.runtimeEvidence.RunID = orchCfg.RunID
@@ -182,6 +199,12 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 		if merged.Judge != nil && merged.Judge.Status == "ok" {
 			merged.Findings = spec.NormalizeAdvisoryFindings(merged.Findings)
 		}
+		if merged.Judge == nil {
+			merged.Judge = skippedJudge
+		}
+		if merged.Judge != nil {
+			merged.Judge.Mode = p.judgeMode
+		}
 
 		// Repeat discovery runs before scope lock: a restatement of a known
 		// finding must be classified as such, not as a brand-new observation.
@@ -223,6 +246,9 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 		// A mid-pipeline write failure must abort (issue #38).
 		if persistErr := spec.PersistFindingsWithCoverage(p.specDir, merged.Findings, coverages); persistErr != nil {
 			return nil, fmt.Errorf("review findings 저장 실패 (SPEC: %s, revision: %d): %w", p.specID, revision, persistErr)
+		}
+		if !budgetHit && len(reviews) > 0 {
+			recordSpecReviewBaseline(p, revision, sources, input, fp, merged.Findings, os.Stderr)
 		}
 		if persistErr := spec.PersistReview(p.specDir, merged); persistErr != nil {
 			return nil, fmt.Errorf("review.md 저장 실패 (SPEC: %s, revision: %d): %w", p.specID, revision, persistErr)

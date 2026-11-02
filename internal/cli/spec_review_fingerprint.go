@@ -1,0 +1,208 @@
+package cli
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"regexp"
+	"slices"
+	"strings"
+
+	"github.com/insajin/autopus-adk/pkg/config"
+	"github.com/insajin/autopus-adk/pkg/orchestra"
+	"github.com/insajin/autopus-adk/pkg/spec"
+)
+
+const specReviewFingerprintSchema = "spec_review_fingerprint.v1"
+
+// specReviewFingerprint digests every input a review round reads, component
+// by component, so a later invocation can tell an unchanged input from a
+// changed one and name what changed (SPEC-REVIEWREUSE-001 REQ-RR-REUSE-01).
+type specReviewFingerprint struct {
+	Schema     string                       `json:"schema"`
+	Documents  map[string]string            `json:"documents"`
+	References map[string]string            `json:"references,omitempty"`
+	Code       specReviewCodeDigest         `json:"code"`
+	Checklist  string                       `json:"checklist"`
+	Policy     specReviewPolicyIdentity     `json:"policy"`
+	Config     string                       `json:"config"`
+	Delivery   specReviewDeliveryDigest     `json:"delivery"`
+	Contract   string                       `json:"contract"`
+	Providers  []specReviewProviderIdentity `json:"providers"`
+	Evidence   specReviewEvidenceDigest     `json:"evidence"`
+	Complete   bool                         `json:"complete"`
+	Incomplete []string                     `json:"incomplete,omitempty"`
+}
+
+type specReviewCodeDigest struct {
+	Head     string `json:"head"`
+	Worktree string `json:"worktree"`
+	Context  string `json:"context"`
+}
+
+// specReviewPolicyIdentity is every setting that changes what reviewers see
+// or how their answers resolve.
+type specReviewPolicyIdentity struct {
+	Profile             string   `json:"profile"`
+	JudgeMode           string   `json:"judge_mode"`
+	VerifyInput         string   `json:"verify_input"`
+	Strategy            string   `json:"strategy"`
+	VerdictThreshold    float64  `json:"verdict_threshold"`
+	MinProviders        int      `json:"min_providers"`
+	ExcludeFailed       bool     `json:"exclude_failed_from_denom"`
+	MaxRevisions        int      `json:"max_revisions"`
+	PassCriteria        string   `json:"pass_criteria"`
+	DocContextMaxLines  int      `json:"doc_context_max_lines"`
+	ConditionalProfiles []string `json:"conditional_profiles,omitempty"`
+	// PinnedModels are the selectors the operator declared immutable
+	// snapshots (REQ-RR-REUSE-04).
+	PinnedModels []string `json:"pinned_models,omitempty"`
+}
+
+type specReviewProviderIdentity struct {
+	Name        string `json:"name"`
+	Role        string `json:"role"`
+	Backend     string `json:"backend,omitempty"`
+	Binary      string `json:"binary,omitempty"`
+	Model       string `json:"model,omitempty"`
+	Args        string `json:"args"`
+	ModelPolicy string `json:"model_policy,omitempty"`
+	Pinned      bool   `json:"pinned"`
+}
+
+// specReviewDeliveryDigest is how the full input delivers the actual SPEC:
+// the effective auxiliary line budget and the digest of the excerpt it
+// injects for each auxiliary document, which move with the compaction
+// boundary of this SPEC, not of a probe.
+type specReviewDeliveryDigest struct {
+	AuxBudgetLines int               `json:"aux_budget_lines"`
+	Excerpts       map[string]string `json:"excerpts,omitempty"`
+}
+
+type specReviewEvidenceDigest struct {
+	ReviewFindings string `json:"review_findings,omitempty"`
+	ReviewMD       string `json:"review_md,omitempty"`
+}
+
+// specReviewFingerprintInput is what one round reads besides the files.
+type specReviewFingerprintInput struct {
+	projectRoot       string
+	specDir           string
+	codeContext       string
+	requiredDocuments []string
+	delivery          map[string]string
+	policy            specReviewPolicyIdentity
+	configDigest      string
+	reviewers         []orchestra.ProviderConfig
+	judge             *orchestra.ProviderConfig
+}
+
+// specReviewChecklistDigest digests the checklist the prompt injects; tests
+// replace it to simulate a changed checklist.
+var specReviewChecklistDigest = func() (string, error) {
+	body, err := spec.ReviewChecklistBody()
+	if err != nil {
+		return "", err
+	}
+	return spec.SHA256Hex([]byte(body)), nil
+}
+
+func computeSpecReviewFingerprint(in specReviewFingerprintInput) *specReviewFingerprint {
+	fp := &specReviewFingerprint{Schema: specReviewFingerprintSchema, Policy: in.policy, Config: in.configDigest, Contract: specReviewContractDigest()}
+	incomplete := func(format string, args ...any) { fp.Incomplete = append(fp.Incomplete, fmt.Sprintf(format, args...)) }
+	if fp.Config == "" {
+		incomplete("config: unavailable")
+	}
+	budget := spec.ResolveAuxTotalBudget(in.policy.DocContextMaxLines)
+	fp.Delivery = specReviewDeliveryDigest{AuxBudgetLines: budget, Excerpts: spec.AuxDocExcerptDigests(in.specDir, budget)}
+	documents, err := spec.ReviewDocumentDigests(in.specDir)
+	if err != nil {
+		incomplete("documents: %v", err)
+	}
+	fp.Documents = documents
+	fp.References = map[string]string{}
+	for source, digest := range in.delivery {
+		fp.References[source] = digest
+	}
+	for _, path := range in.requiredDocuments {
+		data, err := os.ReadFile(filepath.Join(in.projectRoot, path))
+		if err != nil {
+			incomplete("references: %s unreadable", path)
+			continue
+		}
+		fp.References[path] = spec.SHA256Hex(data)
+	}
+	if len(fp.References) == 0 {
+		fp.References = nil
+	}
+	fp.Code.Context = spec.SHA256Hex([]byte(in.codeContext))
+	fp.Code.Head, fp.Code.Worktree, err = specReviewGitBaseline(in.projectRoot, in.specDir)
+	if err != nil {
+		incomplete("code: %v", err)
+	}
+	if fp.Checklist, err = specReviewChecklistDigest(); err != nil {
+		incomplete("checklist: %v", err)
+	}
+	for _, provider := range in.reviewers {
+		fp.Providers = append(fp.Providers, specReviewProviderIdentityOf(provider, specReviewRoleReviewer, in.policy.PinnedModels))
+	}
+	if in.judge != nil {
+		fp.Providers = append(fp.Providers, specReviewProviderIdentityOf(*in.judge, specReviewRoleJudge, in.policy.PinnedModels))
+	}
+	fp.Complete = len(fp.Incomplete) == 0
+	return fp
+}
+
+func specReviewPolicyIdentityOf(plan specReviewPlan, gate config.ReviewGateConf, strategy string, threshold float64, maxRevisions int, opts specReviewOptions) specReviewPolicyIdentity {
+	return specReviewPolicyIdentity{
+		Profile: plan.Profile, JudgeMode: plan.JudgeMode, VerifyInput: plan.VerifyInput, Strategy: strategy, VerdictThreshold: threshold,
+		MinProviders: gate.MinProviders, ExcludeFailed: gate.ExcludeFailedFromDenom, MaxRevisions: maxRevisions,
+		PassCriteria: spec.SHA256Hex([]byte(gate.PassCriteria)), DocContextMaxLines: gate.DocContextMaxLines,
+		ConditionalProfiles: slices.Clone(opts.conditionalProfiles), PinnedModels: slices.Clone(gate.PinnedModels),
+	}
+}
+
+func specReviewProviderIdentityOf(provider orchestra.ProviderConfig, role string, declared []string) specReviewProviderIdentity {
+	selector := specReviewModelSelector(provider)
+	return specReviewProviderIdentity{
+		Name: provider.Name, Role: role, Backend: provider.Backend, Binary: provider.Binary, Model: selector,
+		Args: spec.SHA256Hex([]byte(strings.Join(provider.Args, "\x00"))), ModelPolicy: provider.ModelPolicy,
+		Pinned: specReviewModelPinned(selector, declared),
+	}
+}
+
+// specReviewModelSelector is the provider's model field, else the value
+// after --model or -m (or --model=) in its arguments.
+func specReviewModelSelector(provider orchestra.ProviderConfig) string {
+	if model := strings.TrimSpace(provider.Model); model != "" {
+		return model
+	}
+	for i, arg := range provider.Args {
+		switch {
+		case (arg == "--model" || arg == "-m") && i+1 < len(provider.Args):
+			return strings.TrimSpace(provider.Args[i+1])
+		case strings.HasPrefix(arg, "--model="):
+			return strings.TrimSpace(strings.TrimPrefix(arg, "--model="))
+		}
+	}
+	return ""
+}
+
+// specReviewSnapshotSuffix matches the calendar-dated snapshot suffix a
+// provider gives an immutable model version: -YYYY-MM-DD (gpt-4o-2024-08-06),
+// -YYYYMMDD (claude-3-5-sonnet-20241022), or @YYYYMMDD (a Vertex id).
+var specReviewSnapshotSuffix = regexp.MustCompile(
+	`(?:-20\d\d-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])|[-@]20\d\d(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01]))$`)
+
+// specReviewModelPinned reports a selector that names one immutable model: a
+// dated snapshot, or a selector the operator declared in
+// spec.review_gate.pinned_models. A digit is not a version: gpt-4o and
+// claude-opus-5-5 are rolling aliases whose target may move between two
+// invocations, so a PASS they produced is never reused (REQ-RR-REUSE-04).
+func specReviewModelPinned(selector string, declared []string) bool {
+	selector = strings.TrimSpace(selector)
+	if selector == "" {
+		return false
+	}
+	return slices.Contains(declared, selector) || specReviewSnapshotSuffix.MatchString(selector)
+}

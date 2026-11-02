@@ -47,9 +47,16 @@ printf '%s\n' "$body"
 `
 
 // s16VolatileFields are the only fields S16 normalizes: timestamps,
-// durations, run ids, process ids, and temp paths (s16Normalize).
+// durations, run ids, process ids, and temp paths (s16Normalize), plus the
+// review fingerprint digests that follow the run (review_md, and
+// review_findings, which holds the timed baseline), the git state (head,
+// worktree), or the ADK build (contract, checklist, and config, the digest of
+// the whole effective configuration, which any new config field changes)
+// rather than the receipt shape (SPEC-REVIEWREUSE-001 REQ-RR-REUSE-01,
+// REQ-RR-DELTA-02).
 var s16VolatileFields = []string{
 	"run_id", "started_at", "ended_at", "finished_at", "generated_at", "created_at", "timestamp", "pid", "duration_ms",
+	"review_md", "review_findings", "head", "worktree", "contract", "checklist", "config",
 }
 
 // s16Invocations are the orchestra goldens: name and auto argv.
@@ -98,6 +105,9 @@ func newS16Workspace(t *testing.T) s16Workspace {
 	// An unknown platform token wins over the process-ancestry scan, so the
 	// host agent runtime never becomes the invoking provider.
 	t.Setenv("AUTOPUS_PLATFORM", "panerm-golden")
+	// The review fingerprint reads git; an enclosing repository must not
+	// leak into the golden.
+	t.Setenv("GIT_CEILING_DIRECTORIES", filepath.Dir(ws.root))
 	for _, key := range []string{"CLAUDECODE", "CODEX", "CODEX_CI", "CODEX_THREAD_ID", "CODEX_MANAGED_BY_NPM", "TMUX",
 		"CMUX_SOCKET_PATH", "CMUX_WORKSPACE_ID", "CMUX_SURFACE_ID", "CMUX_PANE_ID", "CI"} {
 		t.Setenv(key, "")
