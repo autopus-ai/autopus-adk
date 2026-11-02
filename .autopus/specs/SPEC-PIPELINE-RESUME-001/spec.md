@@ -7,7 +7,7 @@
 **Change Class**: security_or_data (persisted checkpoint schema, redaction of persisted and forwarded failure evidence)
 **Source**: ADK improvement brief of 2026-11-01, requirements R2, R3, and R4 (untrusted requirements input, summarized here)
 **Target module**: `autopus-adk/` (this repository)
-**Module ownership**: `pkg/pipeline/**`, `.autopus/specs/SPEC-PIPELINE-RESUME-001/**`; one resume-message helper under `internal/cli/pipeline_run*.go`
+**Module ownership**: `pkg/pipeline/**`, `.autopus/specs/SPEC-PIPELINE-RESUME-001/**`; one resume-message helper under `internal/cli/pipeline_run*.go`; the agent-pipeline `phases.md` and `review.md` references and the TUIUX goldens they change
 **Depends on**: SPEC-ORCH-024 (orchestration run receipt, checkpoint identity and dependency closure), SPEC-OMP-004 (sealed OMP execution view)
 
 ## Purpose
@@ -31,18 +31,19 @@ This SPEC makes every runner share one response contract, turns a failed gate in
 
 ## Outcome Boundary
 
-- Outcome Lock: the canonical engine, `SequentialRunner`, and `ParallelRunner` reject a Go error, nil response, timeout, non-zero exit, or empty output before any verdict is parsed and never run a dependent of the rejected phase; a failed validation or review gate becomes a classified failure whose redacted evidence (failing command, expected and actual result, log excerpt, or finding IDs, evidence, and fix conditions) reaches the implementation phase in a rebuilt prompt, after which every verification downstream of the fix runs again; identical or non-progressing failures stop at the circuit breaker and an exhausted budget ends as `failed_budget`, both keeping outputs and evidence; only a backend failure explicitly marked as a retryable transport failure is re-sent, with bounded backoff; a checkpoint persists each completed phase's dynamic output with schema, policy, producing phase, content hash, and input fingerprint, and a resume restores those outputs into byte-identical prompts, re-dispatches an unverifiable output only when no affected phase writes the working tree, and blocks otherwise with a message naming the phase and the reason; every run carries a task ID that survives resumes, its own run ID, `resumed_from`, and the prior attempts' failures and dispatch usage.
+- Outcome Lock: the canonical engine, `SequentialRunner`, and `ParallelRunner` reject a Go error, nil response, timeout, non-zero exit, or empty output before any verdict is parsed and never run a dependent of the rejected phase; a failed validation or review gate becomes a classified failure whose redacted evidence (failing command, expected and actual result, log excerpt, or finding IDs, evidence, and fix conditions, within stated display bounds that mark every cut) reaches the implementation phase in a rebuilt prompt as a prompt-manifest layer, after which every verification downstream of the fix runs again; no secret survives in any failure string the run stores, forwards, or returns; identical or non-progressing failures stop at the circuit breaker and an exhausted budget ends as `failed_budget`, both keeping outputs and evidence; only a backend failure explicitly marked as a retryable transport failure is re-sent, with bounded backoff; a checkpoint persists each completed phase's dynamic output with schema, policy, producing phase, content hash, and input fingerprint, and a resume restores those outputs into byte-identical prompts, re-dispatches an unverifiable output only when no affected phase writes the working tree, and blocks otherwise with a message naming the phase and the reason; every run carries a task ID that survives resumes, its own run ID, `resumed_from`, and the prior attempts' failures and dispatch usage.
 - Mandatory requirements: REQ-PRR-SCOPE-01 through REQ-PRR-VERIFY-01 below.
 - Explicit non-goals: token or cost accounting (R10); changing `auto pipeline run` result output or status surfaces (R5); keyed integrity (HMAC) of checkpoint files; carrying the remediation budget or the circuit-breaker memory across an explicit resume (the reset is recorded instead); making `StrategyParallel` available to the canonical route; retrying a timeout, a non-zero exit, or an unmarked Go error.
 - Completion evidence: the tests named in `acceptance.md` pass with fake backends, `go test ./pkg/pipeline/... ./internal/cli/...` pass, the source-lines gate passes on the changed Go files, and each reproduction above is a test that failed on `109c7ea4`.
 
 ## Definitions
 
-- Admission: the shared check `admitPhaseResponse` applies to one dispatch: Go error, nil response, `TimedOut`, non-zero `ExitCode`, whitespace-only output, in that order.
+- Admission: the shared check `admitPhaseResponse` applies to one dispatch: Go error, nil response, `TimedOut`, non-zero `ExitCode`, whitespace-only output, in that order. The canonical engine first sets aside a retryable transport failure, which is re-sent and so is not yet the phase's final attempt.
 - Failure kinds: `transport_failure`, `timeout`, `test_failure` (validation output with exactly one `VERDICT: FAIL`), `review_rejection` (review output with exactly one `VERDICT: REQUEST_CHANGES`), `contract_violation` (nil or empty response, invalid worker receipt, compaction blocker, or a missing, duplicate, or malformed verdict), and `cancelled`.
 - Retryable transport failure: a Go error that wraps `pipeline.ErrRetryableTransport`; a backend wraps it only when the request never reached the model.
 - Fix phase: the `implement` phase when it precedes the failed gate on the route, else the gate phase itself.
-- Failure fingerprint: `sha256:` over the kind, the phase, and the sorted signatures — one per failing command (`command`, `expected`, `actual`) or per finding ID, else the normalized redacted excerpt.
+- Signature: a digest of one evidence item's untruncated redacted content — a failing command with its expected and actual values, or a review finding's normalized evidence and fix condition — else of the whole redacted output. Finding IDs are assigned by the reviewing model, carry no stability across reviews, and are labels only.
+- Failure fingerprint: `sha256:` over the kind, the phase, and the sorted signatures.
 - No progress: the new failure of a gate has every signature of that gate's previous failure in this run (identical fingerprints included).
 - Phase output record: `{schema: pipeline_phase_output.v1, phase_id, policy: pipeline_phase_output_policy.v1, attempt, run_id, input_fingerprint, content_hash, content}` where content is the sanitized, compacted output injected into later prompts.
 - Input fingerprint: `sha256:` over schema, policy, SPEC ID, snapshot hash, git commit hash, route version, normalized route, phase ID, gate, sorted dependencies, and the phase ID and content hash of every restorable completed phase before it on the route.
@@ -55,19 +56,19 @@ This SPEC makes every runner share one response contract, turns a failed gate in
 **REQ-PRR-SCOPE-01**
 Priority: Must
 Type: Ubiquitous
-THE SYSTEM SHALL confine changes to `pkg/pipeline/`, `.autopus/specs/SPEC-PIPELINE-RESUME-001/`, and a resume-message helper in `internal/cli/pipeline_run*.go`, SHALL keep `orchestration_run_receipt.v1` and add only optional receipt fields, and SHALL NOT edit generated harness roots.
+THE SYSTEM SHALL confine changes to `pkg/pipeline/`, `.autopus/specs/SPEC-PIPELINE-RESUME-001/`, a resume-message helper in `internal/cli/pipeline_run*.go`, the agent-pipeline references `content/skills/references/agent-pipeline/phases.md` and `review.md` with the TUIUX goldens they change under `.autopus/specs/SPEC-TUIUX-001/evidence/`, SHALL keep `orchestration_run_receipt.v1` and add only optional receipt fields, and SHALL NOT edit generated harness roots.
 
 ### Shared Response Contract (R4)
 
 **REQ-PRR-RESP-01**
 Priority: Must
 Type: Ubiquitous
-THE SYSTEM SHALL apply one admission function in the canonical engine, `SequentialRunner`, and `ParallelRunner` before any gate verdict is parsed, failing a dispatch with `phase <id>: <go error>`, `backend returned nil response`, `backend timed out`, `backend exited with code <n>`, or `backend returned empty output`.
+THE SYSTEM SHALL apply one admission function in the canonical engine, `SequentialRunner`, and `ParallelRunner` before any gate verdict is parsed, failing a dispatch with `phase <id>: <go error>`, `backend returned nil response`, `backend timed out`, `backend exited with code <n>`, or `backend returned empty output`; the canonical engine checks for a retryable transport failure (REQ-PRR-FAIL-02) before admission.
 
 **REQ-PRR-RESP-02**
 Priority: Must
 Type: Unwanted
-IF a dispatch fails admission, THEN THE SYSTEM SHALL return an error for the run, SHALL NOT retry it in the exported runners, SHALL NOT dispatch any phase that depends on it, and SHALL NOT let a `VERDICT: PASS` line in its output change that outcome.
+IF a phase's final dispatch attempt fails admission, THEN THE SYSTEM SHALL return an error for the run, SHALL NOT dispatch any phase that depends on it, and SHALL NOT let a `VERDICT: PASS` line in its output change that outcome; every dispatch of an exported runner is final, a canonical dispatch is final unless REQ-PRR-FAIL-02 re-sends it, and a phase's dependents run only after the phase passes.
 
 **REQ-PRR-RESP-03**
 Priority: Must
@@ -84,22 +85,22 @@ WHEN a canonical dispatch or gate fails, THEN THE SYSTEM SHALL classify it as ex
 **REQ-PRR-FAIL-02**
 Priority: Must
 Type: Event-driven
-WHEN a dispatch fails with a retryable transport failure, THEN THE SYSTEM SHALL re-send the identical request at most two more times after waiting 1 s and then 2 s (doubling, capped at 8 s, cut short by cancellation); a retryable failure after its second re-send, and every failure of any other kind except `test_failure` and `review_rejection`, SHALL stop the run with no further dispatch.
+WHEN a canonical dispatch fails with a retryable transport failure, THEN THE SYSTEM SHALL re-send the same model-visible payload (the prompt and, on OMP, the active prompt and completed history) as a new attempt with the next attempt number and its own sealed binding, at most two more times, after waiting 1 s and then 2 s (doubling, capped at 8 s, cut short by cancellation); a retryable failure after its second re-send, and every failure of any other kind except `test_failure` and `review_rejection`, SHALL stop the run with no further dispatch.
 
 **REQ-PRR-FAIL-03**
 Priority: Must
 Type: Event-driven
-WHEN the validation gate fails with `test_failure` and budget remains, THEN THE SYSTEM SHALL dispatch the fix phase with a prompt rebuilt from its own inputs plus a `## Remediation Feedback` section carrying the failure kind, phase, attempt, fingerprint, each failing command with its expected and actual result, and the last 40 lines (at most 2,000 bytes) of the redacted output.
+WHEN the validation gate fails with `test_failure` and budget remains, THEN THE SYSTEM SHALL dispatch the fix phase with a prompt rebuilt from its own inputs plus a `## Remediation Feedback` section carrying the failure kind, phase, attempt, fingerprint, each failing command with its expected and actual result, and the end of the redacted output, within the bounds of REQ-PRR-FAIL-11.
 
 **REQ-PRR-FAIL-04**
 Priority: Must
 Type: Event-driven
-WHEN the review gate fails with `review_rejection` and budget remains, THEN THE SYSTEM SHALL dispatch the fix phase with the `## Remediation Feedback` section carrying every finding ID with its evidence and fix condition parsed from `FINDING <ID>: <evidence> | FIX: <condition>` lines, and the redacted excerpt.
+WHEN the review gate fails with `review_rejection` and budget remains, THEN THE SYSTEM SHALL dispatch the fix phase with the `## Remediation Feedback` section carrying every finding ID with its evidence and fix condition parsed from `FINDING <ID>: <evidence> | FIX: <condition>` lines, and the redacted excerpt, within the bounds of REQ-PRR-FAIL-11.
 
 **REQ-PRR-FAIL-05**
 Priority: Must
 Type: Ubiquitous
-THE SYSTEM SHALL redact secret patterns to `[REDACTED_SECRET]` and neutralize injection markers in all failure evidence before it is forwarded or persisted, while keeping identifiers, commands, expected and actual values, and finding text.
+THE SYSTEM SHALL redact secret patterns to `[REDACTED_SECRET]` and neutralize injection markers in every failure string it stores, forwards, or returns — failure records, the receipt blocker, transition reasons and phase errors, the blocked sidecar, every `prior_attempts` entry copied from a stored receipt, restored fix feedback, and the message of the error the run returns — while keeping identifiers, commands, expected and actual values, and finding text, and while the returned error keeps its identity for `errors.Is`.
 
 **REQ-PRR-FAIL-06**
 Priority: Must
@@ -121,6 +122,21 @@ Priority: Must
 Type: Event-driven
 WHEN the validation or review gate is dispatched, THEN THE SYSTEM SHALL ask, before the existing final verdict instruction, for `FAILED_COMMAND:`, `EXPECTED:`, and `ACTUAL:` lines (validation) or `FINDING <ID>: <evidence> | FIX: <condition>` lines (review).
 
+**REQ-PRR-FAIL-10**
+Priority: Must
+Type: Event-driven
+WHEN a fix dispatch's prompt is built from the frozen SPEC documents, THEN THE SYSTEM SHALL render its feedback as the ephemeral, not cache-eligible `phase:remediation-feedback` layer of the prompt manifest with source `remediation:<fingerprint>`, beside the `phase:previous:<id>` layers of the outputs it reads.
+
+**REQ-PRR-FAIL-11**
+Priority: Must
+Type: Ubiquitous
+THE SYSTEM SHALL carry in the feedback and the failure record at most 20 evidence items, 400 bytes per field, and the last 40 lines (at most 2,000 bytes) of the output, SHALL mark every cut where it happens (`[truncated: <shown> of <total> bytes shown]`, `<n> more not shown`, `[earlier output omitted: ...]`) and record the left-out item count as `evidence_omitted`, and SHALL compute signatures and the fingerprint from the untruncated redacted values.
+
+**REQ-PRR-FAIL-12**
+Priority: Must
+Type: Ubiquitous
+THE SYSTEM SHALL identify a review finding by its normalized evidence and fix condition (lowercased, whitespace collapsed, `file:line` numbers masked) and never by its reviewer-assigned ID, so a reused ID for a new problem is progress and the same problem under a new ID is not; a finding with neither text is identified by its ID.
+
 ### Phase Outputs and Lineage (R2)
 
 **REQ-PRR-OUT-01**
@@ -131,7 +147,7 @@ WHEN a canonical phase completes, THEN THE SYSTEM SHALL store its phase output r
 **REQ-PRR-OUT-02**
 Priority: Must
 Type: Event-driven
-WHEN a run resumes a checkpoint that passed the SPEC, route, snapshot, and dependency checks, THEN THE SYSTEM SHALL verify each completed phase's record (schema, policy, a single record per phase, content hash, and input fingerprint over the verified records before it) in route order and restore every verified record into the phase prompts and the OMP completed history.
+WHEN a run resumes a checkpoint that passed the SPEC, route, snapshot, and dependency checks, THEN THE SYSTEM SHALL verify each completed phase's record (schema, policy, a single record per phase, content hash, and input fingerprint over the verified records before it) in route order and restore every verified record into the phase prompts — the frozen and the plain prompt path read the same table of prior inputs, so implement receives both plan and test_scaffold on either — and into the OMP completed history.
 
 **REQ-PRR-OUT-03**
 Priority: Must
@@ -170,13 +186,26 @@ Priority: Must
 Type: Ubiquitous
 THE SYSTEM SHALL prove every Must requirement with tests that use fake backends and temporary directories only, and SHALL keep every changed Go file within 300 counted lines.
 
+## Prompt Layer Manifest Contract
+
+This SPEC changes prompt state, so it names the contract it uses: `pipeline.PromptManifest` (`promptlayer.Manifest`) produced by `PhasePromptBuilder.BuildPromptWithManifest` through `promptlayer.Render`, whose entries carry each layer's ID, kind, group, source, content hash, cache eligibility, redaction status, and invalidation reason, never the content.
+
+| Context | Layer | Kind | Cache | Changes when |
+|---|---|---|---|---|
+| Frozen SPEC documents | `phase:spec`, `phase:plan`, `phase:acceptance` | snapshot | when redaction passed | the SPEC snapshot changes, which also invalidates every output record |
+| Restored or produced phase outputs | `phase:previous:<id>` | ephemeral | no | the output changes; a verified resume renders the same hash |
+| Remediation feedback | `phase:remediation-feedback`, source `remediation:<fingerprint>` | ephemeral | no | a new failure is routed; absent outside fix dispatches |
+| Compact route directive | `phase:route:compact-implement` | ephemeral | no | the route changes |
+
+The gate contract (verdict and report-line request) is appended after rendering because it must stay the final instruction and `Render` orders layers by group; it is constant per gate and binary, and changing it requires a new `pipeline_phase_output_policy`. A prompt without a SPEC directory (library use; the CLI always resolves one) renders no manifest: its restored outputs are verified by the record content hash and its feedback is appended as text. Manifest entries hold hashes and redaction status only, so invalidation is observable without exposing raw secrets.
+
 ## Generated And Changed Surfaces
 
 - `[NEW] pkg/pipeline/response_contract.go`: `admitPhaseResponse`, `validatePhaseResponse` (moved from `engine_prompt.go`).
 - `pkg/pipeline/runner.go`, `parallel_dispatch.go`: admission before verdict parsing.
-- `[NEW] pkg/pipeline/phase_failure.go`, `[NEW] phase_failure_report.go`: classification, evidence, fingerprint, feedback rendering.
+- `[NEW] pkg/pipeline/phase_failure.go`, `[NEW] phase_failure_report.go`, `[NEW] phase_failure_feedback.go`, `[NEW] failure_redaction.go`: classification, evidence and signatures, display bounds, feedback rendering and its manifest layer, redaction of stored and returned strings.
 - `[NEW] pkg/pipeline/engine_dispatch.go`, `[NEW] engine_remediation.go`: one dispatch and its admission, transport retry and backoff, phase completion, fix routing, breaker, budget.
-- `pkg/pipeline/engine_run.go`, `engine_prompt.go`, `engine.go`, `omp_execution_view.go`, `phase.go`, `receipt.go`: the remediation loop, gate report request, `ExternalWrites`, optional receipt fields.
+- `pkg/pipeline/engine_run.go`, `engine_prompt.go`, `engine.go`, `phase_prompt.go`, `omp_execution_view.go`, `phase.go`, `receipt.go`: the remediation loop, gate report request, the shared prior-input table and `PhaseContext.Feedback`, `ExternalWrites`, optional receipt fields, redacted reasons and blocker.
 - `[NEW] pkg/pipeline/phase_output.go`, `[NEW] checkpoint_restore.go`, `[NEW] receipt_lineage.go`; `checkpoint.go`, `types.go`, `engine_persist.go`: records, resume plan, lineage, checkpoint v2.
 - `[NEW] internal/cli/pipeline_run_resume.go`: `Pipeline resume:` lines.
 
@@ -202,4 +231,9 @@ THE SYSTEM SHALL prove every Must requirement with tests that use fake backends 
 | REQ-PRR-OUT-04 | T5, T7 | S9 | INV-P08 |
 | REQ-PRR-OUT-05, LIN-01, LIN-02 | T6 | S10 | INV-P09, INV-P10 |
 | REQ-PRR-LIN-03 | T6 | S12 | INV-P10 |
+| REQ-PRR-FAIL-05 (stored, returned, lineage strings) | T3, T6 | S13 | INV-P11 |
+| REQ-PRR-FAIL-11 | T2 | S14 | INV-P13 |
+| REQ-PRR-FAIL-12 | T2 | S15 | INV-P12 |
+| REQ-PRR-FAIL-10 | T3 | S16 | INV-P14 |
+| REQ-PRR-OUT-02, OUT-05 (OMP view) | T5, T6 | S17 | INV-P07 |
 | REQ-PRR-VERIFY-01 | T8 | S11 | INV-P11 |

@@ -60,7 +60,7 @@ Then there are 8 calls (4 implement, 4 validate), the error contains `gate valid
 Priority: Must
 Given an engine whose sleep is recorded instead of waited
 When implement fails twice with an error wrapping `ErrRetryableTransport` and then answers `IMPL`
-Then implement is dispatched three times with identical prompts, the recorded waits are exactly `[1s 2s]`, the run completes, and two failures carry decision `retry_transport`
+Then the calls are `implement, implement, implement, validate, review`, the three implement prompts are identical while their attempt numbers are `1, 2, 3`, the recorded waits are exactly `[1s 2s]`, the run completes, and two failures carry decision `retry_transport`
 When implement always fails that way
 Then there are exactly three implement calls, waits `[1s 2s]`, and the terminal state is `blocked`
 When implement fails once with `connection reset` (unmarked), with `TimedOut: true`, or validate answers `looks fine` with no verdict line
@@ -79,8 +79,8 @@ And on base `109c7ea4` the resumed prompt carried neither marker (test `TestSubp
 ### S8: AC-PRR-008 - Unverifiable outputs are never restored silently
 Priority: Must
 Given the checkpoint of S7's first run
-When it is resumed after one change each: the plan record removed; the plan content edited; the plan content edited with its content hash recomputed; the records replaced by those of another SPEC's run; the plan record's policy set to `pipeline_phase_output_policy.v0`
-Then each resume makes no call, returns an error containing `pipeline: resume blocked:` and `test_scaffold`, plus respectively `no persisted output record`, `content hash mismatch`, `input fingerprint mismatch`, `input fingerprint mismatch`, and `output policy`, leaves the canonical checkpoint byte-identical, and writes a blocked sidecar whose terminal state is `blocked`
+When it is resumed after one change each: the plan record removed; the plan content edited; the plan content edited with its content hash recomputed; the records replaced by those of another SPEC's run; the plan record's policy set to `pipeline_phase_output_policy.v0`; the plan record duplicated; the plan record's schema set to `pipeline_phase_output.v0`
+Then each resume makes no call, returns an error containing `pipeline: resume blocked:` and `test_scaffold`, plus respectively `no persisted output record`, `content hash mismatch`, `input fingerprint mismatch`, `input fingerprint mismatch`, `output policy`, `2 output records for one phase`, and `output schema`, leaves the canonical checkpoint byte-identical, and writes a blocked sidecar whose terminal state is `blocked`
 When a checkpoint whose only completed phase is plan has an edited plan content
 Then plan is dispatched again (calls `plan, test_scaffold, implement, validate, review`), `resume.rerun_phases` is `[plan]`, and a note contains `content hash mismatch` (tests `TestSubprocessEngine_ResumeRejectsUnverifiableOutputs`, `TestSubprocessEngine_ResumeRedispatchesAnUnverifiableReadOnlyPhase`).
 
@@ -110,11 +110,50 @@ When it is resumed and the resumed validation first reports the same failure F a
 Then the resumed calls are `validate, implement, validate, review` and the terminal state is `completed`, because the fresh no-progress memory routes a fix instead of tripping at once
 And `resume.remediation_resets` is exactly one entry with phase `validate`, `budget_per_run` 3, `cycles_spent_before` 1, and `last_failure_fingerprint` F, and a `resume` note contains `starts the validate remediation budget` (test `TestSubprocessEngine_ResumeResetsAndRecordsRemediationBudget`).
 
+### S13: AC-PRR-013 - No secret survives in a stored, forwarded, or returned failure string
+Priority: Must
+Given a compact run whose implement backend fails with an error wrapping a sentinel and carrying `Authorization: Bearer sk-proj-backendsecret0123456789abcdef`
+When the engine runs with a checkpoint directory
+Then `errors.Is(err, sentinel)` holds, the returned message contains `[REDACTED_SECRET]` and not the secret, and neither the marshalled receipt (blocker, transitions, phase errors, failures) nor the checkpoint file contains it
+Given a v1 checkpoint whose stored receipt has that secret in its blocker, a failure summary, and an excerpt
+When it is resumed once with plan and test_scaffold done and once with only plan done
+Then the blocked sidecar of the first and the receipt and checkpoint of the second never contain the secret, and their `prior_attempts` blocker contains `[REDACTED_SECRET]` (tests `TestSubprocessEngine_BackendErrorSecretNeverPersistsOrSurfaces`, `TestSubprocessEngine_ResumeRedactsPriorReceiptSecrets`, `TestRedactError_KeepsIdentityAndRedactsMessage`).
+
+### S14: AC-PRR-014 - Display bounds are marked and never blur a failure
+Priority: Must
+Given 25 failing checks, each with a 1,000-byte actual value
+When the failure is bounded for display
+Then 20 items are carried, `evidence_omitted` is 5, the first actual value ends `[truncated: 400 of 1000 bytes shown]`, and the feedback says `5 more not shown`
+Given two validation failures whose actual values differ only after their 500th byte, or only in the 23rd of 25 items
+When their signatures are compared or the engine meets one after the other
+Then the fingerprints differ, the second failure routes another fix instead of tripping the breaker, the fix prompt contains `[truncated: 400 of 501 bytes shown]`, and an excerpt cut to the last 40 of 61 lines starts `[earlier output omitted: 40 of 61 lines` (tests `TestBoundEvidence_MarksTruncationAndCountsOmittedItems`, `TestFailureSignatures_UseUntruncatedValues`, `TestSubprocessEngine_FailuresBeyondTheDisplayBoundStayDistinct`, `TestFailureExcerpt_MarksOmittedOutput`).
+
+### S15: AC-PRR-015 - A finding is what it says, not its ID
+Priority: Must
+Given a compact run whose review rejects with `FINDING F-1: handler drops ctx cancellation (engine.go:42)`, then with `FINDING F-1: cache key ignores the tenant (cache.go:10)`, then approves
+When the engine runs
+Then the run completes after three reviews with two `remediate` failures of different fingerprints
+Given the second rejection is instead `FINDING F-9: Handler drops ctx cancellation (engine.go:57)` with the same fix condition
+When the engine runs
+Then the calls stop at `implement, validate, review, implement, validate, review` with `circuit_break_no_progress` (tests `TestSubprocessEngine_ReusedFindingIDForANewProblemIsProgress`, `TestSubprocessEngine_RenumberedSameFindingTripsTheBreaker`, `TestFailureSignatures_FindingIdentityIsContentNotID`).
+
+### S16: AC-PRR-016 - Feedback and restored outputs are manifest layers
+Priority: Must
+Given the frozen implement prompt with plan and test_scaffold outputs, built without feedback, with failure A, and with failure B
+When their manifests are compared
+Then `phase:previous:plan` and `phase:previous:test_scaffold` are ephemeral with the same hash in all three, the fix manifests hold an ephemeral, not cache-eligible `phase:remediation-feedback` entry with source `remediation:<fingerprint>`, and `CompareManifests` reports exactly that one entry, with reason `ephemeral_changed` from A to B (test `TestPhasePromptBuilder_FeedbackAndRestoredOutputsAreManifestLayers`).
+
+### S17: AC-PRR-017 - The OMP view carries what a resume restored
+Priority: Must
+Given OMP runs that open each sealed view: one interrupted at implement after plan and test_scaffold, and one compact run interrupted during its fix dispatch
+When each is resumed
+Then the resumed implement view's completed history is the plan then test_scaffold output and equals the interrupted view's, and the resumed fix view's active prompt equals the interrupted one and contains `## Remediation Feedback` and `TestUniqueMarker4711` (tests `TestSubprocessEngine_OMPResumeRestoresCompletedHistory`, `TestSubprocessEngine_OMPResumedFixKeepsItsActivePrompt`).
+
 ### S11: AC-PRR-011 - Scope and size
 Priority: Must
 Given the branch diff against `origin/main`
 When its paths are listed and the source-lines gate runs on the changed Go files
-Then every path is under `pkg/pipeline/`, `.autopus/specs/SPEC-PIPELINE-RESUME-001/`, or `internal/cli/pipeline_run*.go`, and the gate reports no file over 300 counted lines.
+Then every path is under `pkg/pipeline/`, `.autopus/specs/SPEC-PIPELINE-RESUME-001/`, `internal/cli/pipeline_run*.go`, `content/skills/references/agent-pipeline/`, or `.autopus/specs/SPEC-TUIUX-001/evidence/`, none is under a generated harness root, and the gate reports no file over 300 counted lines.
 
 ## Oracle Acceptance Notes
 

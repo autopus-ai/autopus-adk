@@ -40,7 +40,7 @@ Read on 2026-11-02 at base `109c7ea4` (unchanged since the brief's baseline `4a5
 - A malformed or missing verdict is a contract violation and stops the run instead of being re-asked; `--continue` re-dispatches the failed phase on request.
 - The fix goes to `implement`, matching the phase reference; the gate only re-dispatches itself on a route without `implement`.
 - The breaker reuses `RunGateRemediation`'s rule and reason codes over fingerprints instead of importing its exit-code type, which cannot carry a fingerprint; budget per gate is `Phase.MaxRetries` spent across the run.
-- Records hold the sanitized, compacted text that prompts read (probe B1), so restore needs no re-derivation and resumed prompts are byte-identical; `previous` also feeds the legacy prompt path, which closes the same gap there.
+- Records hold the sanitized, compacted text that prompts read (probe B1), so restore needs no re-derivation and resumed prompts are byte-identical; `previous` feeds both prompt paths through one `priorPhaseInputs` table, so the plain prompt carries the same prior outputs as the frozen one.
 - The checkpoint version moves to v2 because a v1 file cannot prove its outputs; v1 stays readable as legacy, and an older binary refuses v2 (probe B3).
 - Unverifiable read-only phases are re-dispatched; any unverifiable phase that writes the working tree blocks, because only the operator can tell whether its earlier writes are still wanted.
 - The remediation budget and breaker memory reset on an explicit resume, which is a user decision; the receipt's `resume.remediation_resets` records each reset gate with the cycles spent before and the fingerprint the breaker last held, and prior failures stay in `prior_attempts`.
@@ -59,7 +59,10 @@ Read on 2026-11-02 at base `109c7ea4` (unchanged since the brief's baseline `4a5
 | INV-P08 | an output that cannot be verified is never restored | integrity gate | resume decision, blocker | AC-PRR-008, AC-PRR-009 |
 | INV-P09 | completed working-tree writes are never repeated automatically | side-effect safety | dispatched phases | AC-PRR-008, AC-PRR-010 |
 | INV-P10 | lineage is append-only across resumes, and a resume's reset of gate budgets is itself recorded | history conservation | task ID, prior attempts, counts, remediation resets | AC-PRR-010, AC-PRR-012 |
-| INV-P11 | secrets never reach persisted or forwarded evidence | redaction | prompts, checkpoint file | AC-PRR-003, AC-PRR-011 |
+| INV-P11 | secrets never reach a stored, forwarded, or returned failure string | redaction | prompts, receipt, checkpoint, sidecar, lineage, returned error | AC-PRR-003, AC-PRR-011, AC-PRR-013 |
+| INV-P12 | a finding is identified by what it says, not by its reviewer-assigned ID | identity rule | fingerprints, breaker decision | AC-PRR-015 |
+| INV-P13 | a display bound never hides a cut nor merges two different failures | bound and marker | feedback text, fingerprints | AC-PRR-014 |
+| INV-P14 | prompt-state changes are visible in the layer manifest without content | manifest observability | manifest entries and changes | AC-PRR-016 |
 
 ## Feature Coverage Map
 
@@ -73,6 +76,9 @@ Read on 2026-11-02 at base `109c7ea4` (unchanged since the brief's baseline `4a5
 | Integrity rejection and legacy | T5, S8, S9 | covered |
 | Lineage and external writes | T6, S10 | covered |
 | Budget reset on explicit resume | T6, S12 | covered |
+| Redaction of every stored and returned string | T2, T3, T6, S13 | covered |
+| Display bounds, finding identity, manifest layers | T2, T3, S14, S15, S16 | covered |
+| OMP view restore | T5, T6, S17 | covered |
 | Status output, usage accounting | R5, R10 work packages | out of scope by Outcome Lock |
 
 ## Completion Debt
@@ -97,14 +103,15 @@ Optional improvements. They do not block sync completion and carry no identifier
 |-----------|------|--------------|
 | `pkg/pipeline/engine_run.go`, `engine_prompt.go`, `engine_persist.go`, `checkpoint.go`, `types.go`, `receipt.go`, `runner.go`, `parallel_dispatch.go`, `omp_execution_view.go`, `phase_prompt.go`, `phase.go`, `phase_gate.go` | existing | read on 2026-11-02 |
 | `internal/cli/pipeline_run.go`, `pipeline.go`, `pipeline_backend.go`, `pipeline_backend_omp.go` | existing | read on 2026-11-02 |
-| `pkg/workflow/remediation.go`, `pkg/promptlayer/context_scan.go` | existing, reused rule and sanitizer | read on 2026-11-02; sanitizer probed (B1) |
+| `pkg/workflow/remediation.go`, `pkg/promptlayer/context_scan.go`, `pkg/promptlayer/layer.go` | existing, reused rule, sanitizer, and manifest renderer | read on 2026-11-02; sanitizer probed (B1) |
+| `content/rules/spec-quality.md` | existing rule this SPEC answers (prompt-state manifest, full checklist) | read on 2026-11-02 |
 | every `[NEW]` file in `spec.md` | planned addition on branch `fix/pipeline-resume-retry-contract` | `go test ./pkg/pipeline/... ./internal/cli/...` |
 
 ## Reviewer Brief
 
 - Intended scope: R4, R3, R2 of the brief for `pkg/pipeline`, plus one CLI message helper.
 - Explicit non-goals: see the Outcome Lock.
-- Self-verified: three reproductions on the base commit, three design probes, traceability over 22 requirements.
+- Self-verified: three reproductions on the base commit, three design probes, traceability over 25 requirements, and the codex review's ten findings answered below.
 - Reviewer should focus on: whether any non-transport failure can still reach a second dispatch; whether invalidation can leave a stale PASS; whether a resume can restore an output it did not verify or re-dispatch a completed working-tree phase; whether evidence can carry a secret into a prompt or the checkpoint.
 
 ## Residual Risks
@@ -113,17 +120,44 @@ Optional improvements. They do not block sync completion and carry no identifier
 - A backend that wraps `ErrRetryableTransport` after its model acted would cause a repeated side effect; the sentinel's contract says it must not.
 - Checkpoints keep their 0644 mode and now carry redacted phase outputs.
 
+## Review Response (codex, 2026-11-02, judge REVISE, 10 accepted)
+
+| Finding | Resolution |
+|---|---|
+| F-PRR-01 raw error text in blocker, transitions, lineage | FAIL-05 covers every stored, forwarded, and returned string; the receipt redacts reasons and blocker itself, lineage copies are redacted, returned errors keep identity; S13 |
+| F-PRR-02 admission versus transport retry | RESP-01/02 make the canonical engine set aside a retryable transport failure before admission; S6 asserts the dependents run after the re-sent phase passes |
+| F-PRR-03 plain prompt carried only the previous output | one `priorPhaseInputs` table for both prompt paths; S7 checks both markers on both paths |
+| F-PRR-04 finding identity by ID | FAIL-12 and the Signature definition; S15 with a reused and a renumbered ID |
+| F-PRR-05 silent truncation | FAIL-11 states the bounds, marks each cut, and keeps signatures untruncated; S14 |
+| F-PRR-06 missing oracles | S8 adds duplicate and schema; S17 opens the OMP views |
+| F-PRR-07 prompt layer manifest | `## Prompt Layer Manifest Contract` in spec.md; FAIL-10 makes feedback a manifest layer; S16 |
+| F-PRR-08 identical request | FAIL-02 names the payload that stays and the attempt that advances; S6 checks attempts 1, 2, 3 |
+| F-PRR-09 checklist record | every Q item below |
+| F-PRR-10 probe class | B3 is an `implementation_assumption` |
+
 ## Self-Verify Summary
 
-- Q-CORR-01 | status: PASS | attempt: 1 | files: spec.md, research.md | reason: every cited symbol and behaviour was read or reproduced on 2026-11-02
+- Q-CORR-01 | status: PASS | attempt: 2 | files: spec.md, research.md | reason: every cited symbol and behaviour was read or reproduced on 2026-11-02, including the manifest renderer
 - Q-CORR-02 | status: PASS | attempt: 1 | files: spec.md, plan.md | reason: new files carry `[NEW]` in Generated And Changed Surfaces and the tasks
 - Q-CORR-03 | status: PASS | attempt: 1 | files: spec.md, acceptance.md | reason: Event-driven requirements use `WHEN ..., THEN`, Unwanted use `IF ..., THEN`, and every scenario is Given/When/Then
 - Q-CORR-04 | status: PASS | attempt: 1 | files: research.md | reason: Reference Discipline separates existing references from `[NEW]` additions with the verification used
-- Q-COMP-01 | status: PASS | attempt: 1 | files: all four | reason: contract, tasks and probes, oracles, and evidence each live in their file
-- Q-COMP-02 | status: PASS | attempt: 1 | files: spec.md, acceptance.md | reason: 22 requirements map to S1–S12 with failure, rejection, legacy, and reset paths
+- Q-COMP-01 | status: PASS | attempt: 2 | files: all four | reason: contract, manifest classification, tasks and probes, oracles, and evidence each live in their file
+- Q-COMP-02 | status: PASS | attempt: 2 | files: spec.md, acceptance.md | reason: 25 requirements map to S1–S17, including OMP restore, duplicate and schema rejection, and both prompt paths
 - Q-COMP-03 | status: PASS | attempt: 1 | files: plan.md | reason: tasks follow the commit order R4, R3, R2 with one verification task
-- Q-COMP-04 | status: PASS | attempt: 1 | files: spec.md, research.md | reason: Outcome Lock states admission, feedback, breaker, restore, and lineage; residual risks are stated
-- Q-COMP-05 | status: PASS | attempt: 1 | files: research.md, spec.md, acceptance.md | reason: INV-P01 to INV-P11 map to requirements, tasks, and Must oracles with exact values
+- Q-COMP-04 | status: PASS | attempt: 2 | files: spec.md, research.md | reason: Outcome Lock adds redaction of every failure string and marked display bounds; S13 and S14 close them
+- Q-COMP-05 | status: PASS | attempt: 2 | files: research.md, spec.md, acceptance.md | reason: INV-P01 to INV-P14 map to requirements, tasks, and Must oracles with exact values, including review identity and request identity
 - Q-COMP-06 | status: PASS | attempt: 1 | files: spec.md, research.md | reason: Traceability Matrix carries the invariant column; Reviewer Brief names the focus areas
 - Q-COMP-07 | status: PASS | attempt: 1 | files: research.md | reason: Completion Debt is empty and Evolution Ideas carry no identifiers
-- Q-COMP-08 | status: PASS | attempt: 1 | files: plan.md | reason: three probe rows executed on the base commit with PASS status and evidence
+- Q-COMP-08 | status: PASS | attempt: 2 | files: plan.md | reason: three probe rows executed on the base commit with PASS status and evidence, each classed `implementation_assumption`
+- Q-FEAS-01 | status: PASS | attempt: 2 | files: plan.md, spec.md | reason: runtime changes in pkg/pipeline carry every promise; the plain prompt path now reads the shared prior-input table T5 names
+- Q-FEAS-02 | status: PASS | attempt: 1 | files: spec.md, plan.md | reason: content/ and pkg/ are the sources; generated roots are not edited and goldens are re-recorded by the writer
+- Q-FEAS-03 | status: PASS | attempt: 1 | files: plan.md | reason: go test, golangci-lint, and source-lines commands exist and ran on 2026-11-02
+- Q-STYLE-01 | status: PASS | attempt: 2 | files: spec.md | reason: FAIL-02 separates the payload that stays from the attempt that advances; no ambiguous modal remains
+- Q-STYLE-02 | status: PASS | attempt: 1 | files: spec.md | reason: every requirement has Priority Must on its own line apart from the EARS type
+- Q-STYLE-03 | status: PASS | attempt: 1 | files: spec.md, acceptance.md | reason: complete sentences and bare Given/When/Then/And steps that the parser reads
+- Q-SEC-01 | status: PASS | attempt: 1 | files: spec.md, research.md | reason: model output, review text, and the brief are untrusted; injection markers are neutralized and the retry sentinel's trust condition is stated
+- Q-SEC-02 | status: PASS | attempt: 2 | files: spec.md, acceptance.md | reason: FAIL-05 redacts every stored, forwarded, and returned failure string while keeping error identity; S13 plants a secret in a backend error and in a stored receipt
+- Q-SEC-03 | status: PASS | attempt: 2 | files: spec.md, research.md | reason: checkpoint, sidecar, and lineage hold redacted, bounded evidence only; manifest entries hold hashes, never content
+- Q-COH-01 | status: PASS | attempt: 1 | files: spec.md | reason: admission, remediation, and resume form one run-and-resume lifecycle of the canonical engine
+- Q-COH-02 | status: PASS | attempt: 1 | files: research.md | reason: R5 and R10 stay explicit non-goals; nothing required is deferred
+- Q-COH-03 | status: PASS | attempt: 1 | files: research.md | reason: no sibling SPEC
