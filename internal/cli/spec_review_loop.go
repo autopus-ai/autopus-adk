@@ -41,6 +41,8 @@ type specReviewLoopParams struct {
 	// (SPEC-REVIEWREUSE-001 REQ-RR-REUSE-01).
 	policy            specReviewPolicyIdentity
 	requiredDocuments []string
+	// verifyInput is full or delta (SPEC-REVIEWREUSE-001 REQ-RR-DELTA-01).
+	verifyInput string
 }
 
 func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFindings []spec.ReviewFinding) (*spec.ReviewResult, error) {
@@ -83,8 +85,20 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 		if err != nil {
 			return nil, fmt.Errorf("리뷰 필수 문서 전달 실패: %w", err)
 		}
+		// The round's fingerprint feeds the receipt, the baseline, and the
+		// delta decision (SPEC-REVIEWREUSE-001 REQ-RR-REUSE-01, REQ-RR-DELTA-02).
+		var fp *specReviewFingerprint
+		var roundDocs map[string]string
+		if p.runtimeEvidence != nil || p.verifyInput == config.ReviewVerifyInputDelta {
+			fp = specReviewRoundFingerprint(p, delivery)
+			roundDocs, _ = spec.ReviewDocumentContents(p.specDir)
+		}
 		if p.runtimeEvidence != nil {
-			p.runtimeEvidence.Fingerprint = specReviewRoundFingerprint(p, delivery)
+			p.runtimeEvidence.Fingerprint = fp
+		}
+		prompt, input := chooseSpecReviewInput(p, doc, priorFindings, prompt, fp)
+		if p.verifyInput == config.ReviewVerifyInputDelta {
+			printSpecReviewRoundInput(os.Stderr, input)
 		}
 
 		// WorkingDir is the review's project root: the OMP review backend reads it.
@@ -113,6 +127,7 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 		if err != nil {
 			return nil, fmt.Errorf("리뷰 실행 실패: %w", err)
 		}
+		round.Input, round.InputReason = input.mode, input.reason
 		if p.runtimeEvidence != nil {
 			p.runtimeEvidence.Rounds = append(p.runtimeEvidence.Rounds, round)
 			p.runtimeEvidence.RunID = orchCfg.RunID
@@ -227,6 +242,9 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 		// A mid-pipeline write failure must abort (issue #38).
 		if persistErr := spec.PersistFindingsWithCoverage(p.specDir, merged.Findings, coverages); persistErr != nil {
 			return nil, fmt.Errorf("review findings 저장 실패 (SPEC: %s, revision: %d): %w", p.specID, revision, persistErr)
+		}
+		if !budgetHit && len(reviews) > 0 {
+			recordSpecReviewBaseline(p, revision, roundDocs, fp, merged.Findings, os.Stderr)
 		}
 		if persistErr := spec.PersistReview(p.specDir, merged); persistErr != nil {
 			return nil, fmt.Errorf("review.md 저장 실패 (SPEC: %s, revision: %d): %w", p.specID, revision, persistErr)

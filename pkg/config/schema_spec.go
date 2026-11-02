@@ -50,6 +50,10 @@ type ReviewGateConf struct {
 	// reviewers disagree, or only for a contested escalation
 	// (SPEC-REVIEWREUSE-001 REQ-RR-JDG-01). Omitted writes no key.
 	JudgeMode string `yaml:"judge_mode,omitempty"`
+	// VerifyInput selects the full verify input (the default) or the delta
+	// input that links unchanged material to a verified baseline
+	// (SPEC-REVIEWREUSE-001 REQ-RR-DELTA-01). Omitted writes no key.
+	VerifyInput string `yaml:"verify_input,omitempty"`
 }
 
 // ResolveMaxRevisions returns the configured revision budget, falling back to

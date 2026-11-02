@@ -66,6 +66,7 @@ func newSpecReviewCmd() *cobra.Command {
 		profile             string
 		judge               string
 		judgeMode           string
+		verifyInput         string
 		maxCalls            int
 		maxMinutes          int
 		extendBudget        bool
@@ -92,6 +93,8 @@ func newSpecReviewCmd() *cobra.Command {
 				judgeSet:              cmd.Flags().Changed("judge"),
 				judgeMode:             judgeMode,
 				judgeModeSet:          cmd.Flags().Changed("judge-mode"),
+				verifyInput:           verifyInput,
+				verifyInputSet:        cmd.Flags().Changed("verify-input"),
 				maxCalls:              maxCalls,
 				maxCallsSet:           cmd.Flags().Changed("max-calls"),
 				maxMinutes:            maxMinutes,
@@ -125,6 +128,9 @@ func newSpecReviewCmd() *cobra.Command {
 	// SPEC-REVIEWREUSE-001 REQ-RR-JDG-01: when the planned judge runs.
 	cmd.Flags().StringVar(&judgeMode, "judge-mode", "",
 		"When the judge runs: always, on_disagreement, or on_escalation (default: spec.review_gate.judge_mode, else always)")
+	// SPEC-REVIEWREUSE-001 REQ-RR-DELTA-01: what a verify round sends.
+	cmd.Flags().StringVar(&verifyInput, "verify-input", "",
+		"Verify round input: full, or delta to send the changes and link unchanged material to the verified baseline (default: spec.review_gate.verify_input, else full)")
 	// SPEC-REVIEWPOLICY-001 REQ-RP-BUD-01, REQ-RP-BUD-08: session budget.
 	cmd.Flags().IntVar(&maxCalls, "max-calls", 0, "Model call limit (> 0) of a new review session, or of the current one with --extend-budget (default: spec.review_gate.budget.max_calls)")
 	cmd.Flags().IntVar(&maxMinutes, "max-minutes", 0, "Active review minutes (> 0) of a new review session, or of the current one with --extend-budget (default: spec.review_gate.budget.max_minutes)")
@@ -255,6 +261,7 @@ func runSpecReviewWithOptions(ctx context.Context, specID, strategy string, time
 			judgeMode:         attemptPlan.JudgeMode,
 			policy:            policy,
 			requiredDocuments: opts.requiredDocuments,
+			verifyInput:       plan.VerifyInput,
 		}, doc, priorFindings)
 		// A lean review has one reviewer, so a provider outage would fail the
 		// whole review; fall back to the next planned provider instead.

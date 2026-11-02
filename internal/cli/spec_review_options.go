@@ -20,6 +20,9 @@ type specReviewOptions struct {
 	// judgeMode is --judge-mode; empty keeps spec.review_gate.judge_mode.
 	judgeMode    string
 	judgeModeSet bool
+	// verifyInput is --verify-input; empty keeps spec.review_gate.verify_input.
+	verifyInput    string
+	verifyInputSet bool
 	// maxCalls and maxMinutes override spec.review_gate.budget for a new
 	// session or, with extendBudget, for the current one. The *Set flags tell
 	// an explicit value from an omitted flag; an explicit value must be > 0.

@@ -18,6 +18,9 @@ import (
 type findingsSidecar struct {
 	Findings     []ReviewFinding `json:"findings"`
 	DocCoverages []DocCoverage   `json:"doc_coverages"`
+	// Baseline is what the last usable round reviewed; PersistReviewBaseline
+	// writes it after the findings (SPEC-REVIEWREUSE-001 REQ-RR-DELTA-02).
+	Baseline *ReviewBaseline `json:"baseline,omitempty"`
 }
 
 // PersistFindings writes the current findings state to review-findings.json.

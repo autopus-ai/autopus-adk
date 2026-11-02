@@ -157,7 +157,7 @@ IF the delta manifest omits a required source, links a source whose current dige
 **REQ-RR-DELTA-06**
 Priority: Must
 Type: Ubiquitous
-THE SYSTEM SHALL record for every round its input (`delta` or `full`) and the reason (`discover`, `configured_full`, `delta`, or the fallback reason) in the receipt's `rounds` entries, SHALL print it before the round's calls, and SHALL reserve every call of a fallback round from the same session budget.
+THE SYSTEM SHALL record for every round its input (`delta` or `full`) and the reason (`discover`, `configured_full`, `delta`, or the fallback reason) in the receipt's `rounds` entries, SHALL print it before the round's calls when `verify_input` is `delta`, and SHALL reserve every call of a fallback round from the same session budget.
 
 **REQ-RR-DELTA-07**
 Priority: Must

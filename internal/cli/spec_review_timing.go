@@ -17,6 +17,10 @@ type specReviewRoundTiming struct {
 	StartedAt  string                     `json:"started_at"`
 	DurationMS int64                      `json:"duration_ms"`
 	Providers  []specReviewProviderTiming `json:"providers,omitempty"`
+	// Input is the round's input, full or delta, and InputReason why
+	// (SPEC-REVIEWREUSE-001 REQ-RR-DELTA-06).
+	Input       string `json:"input,omitempty"`
+	InputReason string `json:"input_reason,omitempty"`
 }
 
 type specReviewProviderTiming struct {
