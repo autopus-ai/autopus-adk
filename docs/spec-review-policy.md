@@ -104,7 +104,9 @@ REJECT vote. An escalation item is a REJECT vote or a critical, `security`,
 by its merge group (category, scope, description prefix, whatever its
 severity), a checklist FAIL by its item id, and the REJECT vote by itself. So
 when one reviewer votes REJECT and the other reports a different data-loss
-finding, both items are contested and the judge runs. A skipped judge is recorded as
+finding, both items are contested and the judge runs. `on_escalation` looks at
+escalation items only: differing ordinary findings or checklist FAILs skip the
+judge there with `no_escalation`. A skipped judge is recorded as
 `judge.status: skipped` with the reason (`single_reviewer`, `consensus_pass`,
 `consensus_block`, `no_escalation`, or `unanimous_escalation`) and printed as
 `SPEC 리뷰 judge 생략: <reason> (<mode>)`. The plan block shows the mode with
@@ -180,10 +182,13 @@ produced a usable review and was not cut by the budget stores a `baseline`
 research.md, and acceptance.md in the sanitized form a complete review input
 delivers (secrets replaced by `[REDACTED_SECRET]`, injection phrases
 neutralized), with the digest of the file (`source_sha256`) and of that form
-(`prompt_sha256`); whether the round delivered each one whole (`delivered`:
-`complete`, or `partial` when the inline prompt compacted it); the digests of
-every other input; and the ids of the findings it left open. The raw document
-text is never stored.
+(`prompt_sha256`); whether the request the round actually sent carried each
+one whole (`delivered`: `complete`, or `partial` when the inline prompt
+compacted it or the round sent a delta request, which carries no document
+whole); the digests of every other input; and the ids of the findings it left
+open. The raw document text is never stored. Because a delta round's baseline
+is all `partial`, delta rounds never chain: the verify round after one reviews
+the full input.
 
 A verify round uses the delta input only if, in this order: a baseline exists;
 its stored documents match their digests and its open ids match the prior
