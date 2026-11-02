@@ -1,6 +1,7 @@
 # Release v0.50.132 (A39)
 
-Status: prepared 2026-11-02, not yet applied. A39 is `v0.50.132`. A38 is
+Status: prepared 2026-11-02 and rebased onto main `ef07deb7` (#258, #257) on
+2026-11-03; not yet applied. A39 is `v0.50.132`. A38 is
 `v0.50.131`, immutable release `429669574` (Latest), published on 2026-10-31;
 see [release-v0.50.131.md](release-v0.50.131.md).
 
@@ -48,8 +49,8 @@ burned A38 tags in the forbidden list and its comment.
 User-facing notes that name `v0.50.131` as the release that removed
 `role_model_policy.agent_source: native` stay as written: `v0.50.131` shipped.
 The CHANGELOG gains `[Unreleased]` entries for the PRs merged since
-`v0.50.131` that had none (#244, #246, #248 to #254), and an entry marked
-pending for #255, which is still open.
+`v0.50.131` that had none (#244, #246, #248 to #254, and #258, which replaced
+#255); #247 and #257 brought their own.
 
 Line counts toward the 300 limit after the move: coordinates 298,
 `validate-source.sh` 240, pins 263. A40 does not fit as-is: the coordinates
@@ -85,33 +86,40 @@ and `v0.50.131`, and `git verify-tag` against the R2 trust root reports a good
 signature. The parent's Cask blob is the previous `PRIOR_CASK_BLOB`
 (`2016dc4f`), so the pin chain continues, the Formula blob is frozen in both
 trees, and `render_homebrew_cask` with the A38 digests reproduces the
-`8dde665a` blob byte for byte. `verify-homebrew-tap-pins.sh` reports a match.
+`8dde665a` blob byte for byte. `verify-homebrew-tap-pins.sh` reports a match,
+and still did on 2026-11-03 after the rebase.
 
 ## Upgrade canary for 0.50.131 -> 0.50.132
 
 Since `v0.50.131`, main changed the generated surface: two managed
 `.gitignore` patterns (`**/.autopus/specs/**/review-session.json` and
 `.review-session.lock`), the agent-pipeline, delegation, and verification
-references, the worktree-isolation skill, the status and init output, and the
-`auto disk` commands with the `doctor.disk.free_space` row. None of them is a
+references, the worktree-isolation skill, the status and init output, the
+`auto disk` commands with the `doctor.disk.free_space` row, and (#258, #257)
+the spec-review, adaptive-quality, and using-autopus skills plus the optional
+`spec.review_gate` keys `judge_mode`, `verify_input`, `pinned_models`,
+`judge_model`, and `judge_effort`. None of them is a
 previous-surface expectation of the canary: the previous-release checks are
 the skill and command files, `.codex/config.toml`, the OMP manifest, and the
 Autopus OMP agent surface that every release since `v0.50.127` generates.
 
-Measured on 2026-11-02 with a scratch copy of `posix-upgrade-canary.sh` whose
-only changes replace the candidate installer with a binary built from
-`27297e2a` as `0.50.132` and keep the work directory for inspection: the
-public signed `0.50.131` installed and
+Measured on 2026-11-02 against main `27297e2a` and again on 2026-11-03
+against main `ef07deb7`, with a scratch copy of `posix-upgrade-canary.sh`
+whose only changes replace the candidate installer with a binary built from
+that main plus this move as `0.50.132` and keep the work directory for
+inspection. Both times the public signed `0.50.131` installed and
 initialised, `assert_public_previous_fixture` passed, the update added the two
 `.gitignore` patterns, and every current-surface, commit-hook, and doctor
-assertion passed (`upgrade-canary: PASS mode=live`). No canary change is
-needed. The run did not cover anything merged after `27297e2a` (for example
-#255), and the signed `0.50.132` assets exist only after publication, so the
-post-publication run below is still required.
+assertion passed (`upgrade-canary: PASS mode=live`). The updated
+`autopus.yaml` carries none of the new `spec.review_gate` keys, and the public
+`0.50.131` binary still loads it (`doctor.config.autopus_yaml` passes). No
+canary change is needed. The run does not cover
+anything merged after `ef07deb7`, and the signed `0.50.132` assets exist only
+after publication, so the post-publication run below is still required.
 
 ## Before `--apply`
 
-| Item | State on 2026-11-02 |
+| Item | State on 2026-11-03 |
 |---|---|
 | Ruleset `autopus-v0.50.132-release-authority` | absent; create it armed (`26253379` for `v0.50.131` is sealed history; `26187534` and `26247047` are the burned `v0.50.129` and `v0.50.130`) |
 | Deployment tag policy `v0.50.132` on `adk-companion-release` | absent; create it (`64983926` is the `v0.50.131` history). The environment holds 57 policies; the `v0.50.130` policy `64975392` that the `v0.50.131` runbook lists as history no longer exists (404) |
