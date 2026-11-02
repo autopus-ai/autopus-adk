@@ -36,7 +36,8 @@
     "merged": 0,
     "accepted_ids": [],
     "rationale": "",
-    "reason": ""
+    "reason": "",
+    "mode": "always"
   },
   "loop_status": "converged",
   "provider_policy": [

@@ -87,6 +87,39 @@ Changed behaviour (SPEC-REVIEWPOLICY-001):
   FAIL now resolves REVISE.
 - `auto spec validate` holds a refused lean declaration to the full section set.
 
+## Judge modes and the merge without a judge
+
+`spec.review_gate.judge_mode` (or `--judge-mode` for one invocation) decides
+when a planned judge runs (SPEC-REVIEWREUSE-001):
+
+| Mode | The judge runs when |
+| --- | --- |
+| `always` (default) | every round with a usable review, as before |
+| `on_disagreement` | at least two usable reviews and their verdicts differ, or a blocking item or an escalation item appears in some reviews but not all |
+| `on_escalation` | at least two usable reviews and an escalation item appears in some but not all |
+
+A blocking item is a blocking finding, a non-waived checklist FAIL, or a
+REJECT vote. An escalation item is a REJECT vote or a critical, `security`,
+`data_loss`, or escape-hatch finding. A skipped judge is recorded as
+`judge.status: skipped` with the reason (`single_reviewer`, `consensus_pass`,
+`consensus_block`, `no_escalation`, or `unanimous_escalation`) and printed as
+`SPEC 리뷰 judge 생략: <reason> (<mode>)`. The plan block shows the mode with
+its condition and counts a conditional judge as `+ judge 0-1` per round.
+
+Without a valid judge (none, skipped, failed, invalid, or refused by the
+budget) the reviewer findings merge deterministically. Findings with the same
+category, scope, and description prefix become one finding with the most
+severe severity, the escape hatch if any member had it, and `Sources` naming
+every reviewer that raised it. A group carrying a critical, `security`,
+`data_loss`, or escape-hatch claim is kept whatever its vote count; other
+groups still need the supermajority. So a reviewer that votes PASS while
+reporting a critical correctness finding, or a minority critical finding beside
+a majority finding, is no longer dropped.
+
+The receipt's `judge` object records `mode` and, for a judge that ran,
+`decisions`: each ruling's id, decision, reviewers, scope, reason (truncated to
+500 characters), and `merge_into`.
+
 ## The review plan
 
 `auto spec review` separates three choices that used to be tangled:

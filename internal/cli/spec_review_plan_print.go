@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/insajin/autopus-adk/pkg/config"
 	"github.com/insajin/autopus-adk/pkg/orchestra"
 	"github.com/insajin/autopus-adk/pkg/spec"
 )
@@ -21,13 +22,17 @@ type specReviewCallBounds struct {
 }
 
 func (p specReviewPlan) callBounds(reviewers int, judge bool) specReviewCallBounds {
-	judgeCalls := 0
+	judgeCalls, expectedJudge := 0, 0
 	if judge {
 		judgeCalls = 1
+		// A conditional judge is 0 or 1 call per round; the bound keeps it.
+		if !specReviewJudgeConditional(p.JudgeMode) {
+			expectedJudge = 1
+		}
 	}
 	upper := reviewers*(1+specReviewJSONRepromptAttempts) + judgeCalls
 	return specReviewCallBounds{
-		ExpectedPerRound: reviewers + judgeCalls,
+		ExpectedPerRound: reviewers + expectedJudge,
 		UpperPerRound:    upper,
 		AttemptUpper:     upper * max(p.MaxRounds, 1) * (1 + len(p.Fallbacks)),
 	}
@@ -80,13 +85,28 @@ func printSpecReviewPlan(w io.Writer, plan specReviewPlan, assembled specReviewP
 	if judge == "" {
 		fmt.Fprintf(w, "  judge: 없음 — %s\n", plan.JudgeReason)
 	} else {
-		fmt.Fprintf(w, "  judge: %s (%s) — %s\n", judge, plan.JudgeMode, plan.JudgeReason)
+		fmt.Fprintf(w, "  judge: %s (%s) — %s\n", judge, specReviewJudgeModeLabel(plan.JudgeMode), plan.JudgeReason)
 	}
 	fmt.Fprintf(w, "  quorum: %s\n", specReviewQuorumLine(plan, len(assembled.Names)))
 	fmt.Fprintf(w, "  라운드: 최대 %d\n", plan.MaxRounds)
-	fmt.Fprintf(w, "  호출: 라운드당 예상 %d, 상한 %d (JSON 재요청 포함) · 이번 실행 상한 %d (fallback %d개 포함)\n",
-		bounds.ExpectedPerRound, bounds.UpperPerRound, bounds.AttemptUpper, len(plan.Fallbacks))
+	expected := fmt.Sprintf("%d", bounds.ExpectedPerRound)
+	if judge != "" && specReviewJudgeConditional(plan.JudgeMode) {
+		expected += " + judge 0-1"
+	}
+	fmt.Fprintf(w, "  호출: 라운드당 예상 %s, 상한 %d (JSON 재요청 포함) · 이번 실행 상한 %d (fallback %d개 포함)\n",
+		expected, bounds.UpperPerRound, bounds.AttemptUpper, len(plan.Fallbacks))
 	return bounds
+}
+
+// specReviewJudgeModeLabel names a conditional mode with its run condition.
+func specReviewJudgeModeLabel(mode string) string {
+	switch mode {
+	case config.ReviewJudgeModeOnDisagreement:
+		return mode + ": 판정이 갈리거나 차단·escalation 항목이 일부 리뷰어에만 있을 때"
+	case config.ReviewJudgeModeOnEscalation:
+		return mode + ": escalation 항목이 일부 리뷰어에만 있을 때"
+	}
+	return mode
 }
 
 func specReviewQuorumLine(plan specReviewPlan, configured int) string {
