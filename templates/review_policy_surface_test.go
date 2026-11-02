@@ -69,6 +69,9 @@ func TestSpecReviewJudgeTemplateCarriesCanonicalVerdictRules(t *testing.T) {
 		assert.Contains(t, string(body), line+"\n")
 	}
 	assert.NotContains(t, string(body), "Otherwise, any accepted critical or major finding requires")
+	// REQ-RP-POL-04: the judge learns the only way to clear a reviewer's
+	// REJECT vote or checklist FAIL.
+	assert.Contains(t, string(body), "`scope_ref` set to `verdict` for the REJECT vote or to the checklist id")
 }
 
 func renderPolicySections(policy spec.ReviewPolicy, sections map[string][]string) string {

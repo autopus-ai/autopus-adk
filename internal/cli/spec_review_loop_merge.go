@@ -186,6 +186,7 @@ func applySpecReviewJudge(
 			Merged:      combined,
 			AcceptedIDs: acceptedJudgeFindingIDs(judgedFindings, accepted),
 			Rationale:   out.Rationale,
+			Dismissals:  specReviewJudgeDismissals(out, aliasToProvider),
 		}
 		merged.Verdict = spec.ReviewVerdict(out.Verdict)
 		// A judge PASS never waives an accepted blocking finding: the finding

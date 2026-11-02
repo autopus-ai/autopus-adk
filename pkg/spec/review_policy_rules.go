@@ -2,8 +2,6 @@ package spec
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -73,13 +71,7 @@ func ApplyReviewChecklistPolicy(specDir string, doc *SpecDocument, outcomes []Ch
 	if len(policy.ChecklistWaivers) == 0 || len(outcomes) == 0 {
 		return outcomes
 	}
-	files := make(map[string]string, len(policy.Documents))
-	for _, name := range policy.Documents {
-		if data, err := os.ReadFile(filepath.Join(specDir, name)); err == nil {
-			files[name] = string(data)
-		}
-	}
-	return policy.ApplyChecklistWaivers(outcomes, files)
+	return policy.ApplyChecklistWaivers(outcomes, policy.readDocuments(specDir))
 }
 
 // writeReviewPolicySection states what the review is for and, for an

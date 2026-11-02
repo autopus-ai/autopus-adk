@@ -46,6 +46,11 @@ REVIEWER-OUTPUT-END
    issue. Do not assign a new ID merely because wording or location changed.
 6. Use only the anonymous labels (`Reviewer A`, `Reviewer B`, and so on). Never
    infer or reveal provider identities.
+7. A reviewer's REJECT vote and each FAIL in a reviewer's `checklist` keep
+   blocking even when you return PASS. To clear one, add an entry with
+   `decision: "reject"`, a non-empty `reason`, `sources` naming that reviewer,
+   and `scope_ref` set to `verdict` for the REJECT vote or to the checklist id
+   (for example `Q-COMP-08`) for that FAIL. Clear nothing you have not checked.
 
 ## Verdict Rules
 

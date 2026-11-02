@@ -177,7 +177,11 @@ type ProviderStatus struct {
 
 // ReviewResult is the aggregated result of a multi-provider review.
 type ReviewResult struct {
-	SpecID            string             // target SPEC ID
+	SpecID string // target SPEC ID
+	// Provider names the reviewer of a single-provider result; empty on the
+	// merged result. A judge dismissal names the reviewer it addresses
+	// (SPEC-REVIEWPOLICY-001 REQ-RP-POL-04).
+	Provider          string             `json:"provider,omitempty"`
 	Verdict           ReviewVerdict      // final verdict
 	Findings          []ReviewFinding    // all findings from all providers
 	ChecklistOutcomes []ChecklistOutcome // structured checklist outcomes from provider responses

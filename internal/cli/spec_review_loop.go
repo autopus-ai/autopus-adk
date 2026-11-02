@@ -175,9 +175,9 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 		// reviewer's, so a judge PASS defers only advisory findings and never
 		// waives a blocking one (SPEC-REVIEWPOLICY-001 REQ-RP-POL-04); then
 		// verify scope lock and deterministic findings run before resolveReviewVerdict.
-		// resolveReviewVerdict may preserve REVISE because of a reviewer
-		// checklist FAIL, but it never turns a judge PASS into REVISE from the
-		// reviewer checklist alone.
+		// resolveReviewVerdict keeps a reviewer REJECT or checklist FAIL
+		// blocking behind a judge PASS unless the judge dismissed that exact
+		// item (REQ-RP-POL-04).
 		applySpecReviewJudge(merged, result, reviewerResponses, p.gate.Judge, revision, priorFindings)
 		if merged.Judge != nil && merged.Judge.Status == "ok" {
 			merged.Findings = spec.NormalizeAdvisoryFindings(merged.Findings)
@@ -194,6 +194,9 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 		}
 		merged.Findings = spec.MergeDeterministicFindings(merged.Findings, staticFindings, priorFindings, revision)
 		merged.Findings = spec.NormalizeAdvisoryFindings(merged.Findings)
+		// An eligible lean SPEC's allowed omissions never block, whether a
+		// reviewer or the judge raised them (REQ-RP-POL-07).
+		merged.Findings = spec.ApplyLeanOmissionPolicy(p.specDir, doc, merged.Findings)
 		merged.Verdict, merged.BlockingReasons = resolveReviewVerdict(merged, reviews)
 
 		// Issue #58/#187: a blocking verdict must name what blocks it. The
