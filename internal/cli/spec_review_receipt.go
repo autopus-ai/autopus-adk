@@ -78,6 +78,10 @@ type specReviewPromotionReceipt struct {
 	// Review session and call ledger of this invocation (SPEC-REVIEWPOLICY-001
 	// REQ-RP-BUD-07). Optional, so receipts written before it still load.
 	Session *specReviewSessionReceipt `json:"session,omitempty"`
+
+	// Fingerprint of the final round's inputs, compared by the next
+	// invocation to decide reuse (SPEC-REVIEWREUSE-001 REQ-RR-REUSE-01).
+	Fingerprint *specReviewFingerprint `json:"fingerprint,omitempty"`
 }
 
 // specReviewProviderPolicyRow records how one reviewer, excluded provider, or
@@ -99,6 +103,8 @@ type specReviewRuntimeEvidence struct {
 	Rounds         []specReviewRoundTiming
 	Profile        string
 	Session        *specReviewSessionReceipt
+	// Fingerprint is the fingerprint of the last round that ran.
+	Fingerprint *specReviewFingerprint
 }
 
 // applySpecReviewRepeatDiscovery projects the loop's repeat-discovery evidence

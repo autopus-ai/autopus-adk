@@ -120,6 +120,37 @@ The receipt's `judge` object records `mode` and, for a judge that ran,
 `decisions`: each ruling's id, decision, reviewers, scope, reason (truncated to
 500 characters), and `merge_into`.
 
+## Reusing a previous result
+
+Every review that runs a round writes a `fingerprint` (`spec_review_fingerprint.v1`)
+into `review-receipt.json`: SHA-256 digests of the SPEC documents (spec.md with
+its status value normalized), the context-delivery sources and
+`--required-document` files, the git `HEAD` and the changed or untracked files
+outside the SPEC directory, the injected code context, the checklist, the
+policy settings, the prompt and schema contract, and each reviewer's and the
+judge's model selector and arguments, plus the digests of `review-findings.json`
+and `review.md` as the review left them.
+
+The next `auto spec review` of the same SPEC compares a fresh fingerprint
+before any readiness probe or model call. It returns the previous result with
+no call when every component matches, the evidence files are unchanged, the
+receipt is at most 168 hours old, and the result is reusable:
+
+| Previous result | Reused as |
+| --- | --- |
+| PASS, `gate_status: passed`, converged, no degraded reason | `converged`, only if every model selector names a version (contains a digit, not `default` or `...latest`) |
+| REJECT, no degraded reason, not cut by the budget or a provider outage | its loop state |
+| REVISE, no degraded reason, `awaiting_changes` or `revisions_exhausted`, blockers that wait for the author | `awaiting_changes` |
+
+A reused run prints `SPEC 리뷰 재사용: ...` with the original run id and time,
+`모델 호출 0회`, and the `--force-review` remedy; it rewrites no review file
+and changes no status, and the session records an attempt with end reason
+`reused`. Otherwise the command prints `리뷰 재사용 안 함: <reasons>` (for
+example `documents: plan.md; code: worktree`) and reviews as usual. A project
+outside git has no code baseline, so it never reuses. `--force-review`
+re-reviews unchanged input against the same session budget and records
+`forced_review: true` on the attempt and in the receipt.
+
 ## The review plan
 
 `auto spec review` separates three choices that used to be tangled:

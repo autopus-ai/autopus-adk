@@ -70,6 +70,7 @@ func newSpecReviewCmd() *cobra.Command {
 		maxMinutes          int
 		extendBudget        bool
 		newSession          bool
+		forceReview         bool
 	)
 
 	cmd := &cobra.Command{
@@ -97,6 +98,7 @@ func newSpecReviewCmd() *cobra.Command {
 				maxMinutesSet:         cmd.Flags().Changed("max-minutes"),
 				extendBudget:          extendBudget,
 				newSession:            newSession,
+				forceReview:           forceReview,
 			})
 		},
 	}
@@ -128,38 +130,10 @@ func newSpecReviewCmd() *cobra.Command {
 	cmd.Flags().IntVar(&maxMinutes, "max-minutes", 0, "Active review minutes (> 0) of a new review session, or of the current one with --extend-budget (default: spec.review_gate.budget.max_minutes)")
 	cmd.Flags().BoolVar(&extendBudget, "extend-budget", false, "Apply the current budget limits to the existing review session, which may be exhausted")
 	cmd.Flags().BoolVar(&newSession, "new-session", false, "Start a new review session linked to the previous one")
+	// SPEC-REVIEWREUSE-001 REQ-RR-REUSE-07: re-review an unchanged input.
+	cmd.Flags().BoolVar(&forceReview, "force-review", false, "Review again even when the previous result for the same input could be reused (spends the session budget)")
 
 	return cmd
-}
-
-type specReviewOptions struct {
-	allowDegraded       bool
-	providers           []string
-	requiredDocuments   []string
-	conditionalProfiles []string
-	// singlePass caps the review at one provider round regardless of
-	// max_revisions or --loop.
-	singlePass bool
-	// skipProviderReadiness runs no readiness probe (--skip-provider-readiness).
-	skipProviderReadiness bool
-	// profile is --profile; empty or "auto" keeps the SPEC's effective profile.
-	profile string
-	// judge is --judge; judgeSet tells an explicit empty value apart from an
-	// omitted flag.
-	judge    string
-	judgeSet bool
-	// judgeMode is --judge-mode; empty keeps spec.review_gate.judge_mode.
-	judgeMode    string
-	judgeModeSet bool
-	// maxCalls and maxMinutes override spec.review_gate.budget for a new
-	// session or, with extendBudget, for the current one. The *Set flags tell
-	// an explicit value from an omitted flag; an explicit value must be > 0.
-	maxCalls      int
-	maxCallsSet   bool
-	maxMinutes    int
-	maxMinutesSet bool
-	extendBudget  bool
-	newSession    bool
 }
 
 // runSpecReview executes the full SPEC review pipeline with REVISE loop.
@@ -251,6 +225,15 @@ func runSpecReviewWithOptions(ctx context.Context, specID, strategy string, time
 	}
 	defer ledger.close()
 	ctx = withSpecReviewLedger(ctx, ledger)
+	policy := specReviewPolicyIdentityOf(plan, gate, strategy, threshold, maxRevisions, opts)
+	// SPEC-REVIEWREUSE-001 REQ-RR-REUSE-02: an unchanged input returns the
+	// previous result before any readiness probe or model call.
+	if reused, err := reuseSpecReviewResult(ctx, specReviewReuseRequest{
+		cfg: cfg, gate: gate, opts: opts, multi: multi, requestedTimeout: requestedTimeout,
+		specID: specID, specDir: specDir, codeContext: codeContext, policy: policy, ledger: ledger,
+	}); err != nil || reused {
+		return err
+	}
 
 	runtimeEvidence := &specReviewRuntimeEvidence{StartedAt: reviewStarted, Profile: specReviewReceiptProfile(plan)}
 	var finalResult *spec.ReviewResult
@@ -258,18 +241,20 @@ func runSpecReviewWithOptions(ctx context.Context, specID, strategy string, time
 	for !ledger.sessionExhausted() {
 		attemptPlan := plan
 		finalResult, err = runSpecReviewAttempt(attemptCtx, cfg, gate, opts, multi, requestedTimeout, specReviewLoopParams{
-			ctx:             attemptCtx,
-			specID:          specID,
-			specDir:         specDir,
-			strategy:        strategy,
-			timeout:         timeout,
-			maxRevisions:    maxRevisions,
-			threshold:       threshold,
-			gate:            gate,
-			codeContext:     codeContext,
-			runtimeEvidence: runtimeEvidence,
-			plan:            &attemptPlan,
-			judgeMode:       attemptPlan.JudgeMode,
+			ctx:               attemptCtx,
+			specID:            specID,
+			specDir:           specDir,
+			strategy:          strategy,
+			timeout:           timeout,
+			maxRevisions:      maxRevisions,
+			threshold:         threshold,
+			gate:              gate,
+			codeContext:       codeContext,
+			runtimeEvidence:   runtimeEvidence,
+			plan:              &attemptPlan,
+			judgeMode:         attemptPlan.JudgeMode,
+			policy:            policy,
+			requiredDocuments: opts.requiredDocuments,
 		}, doc, priorFindings)
 		// A lean review has one reviewer, so a provider outage would fail the
 		// whole review; fall back to the next planned provider instead.
@@ -303,6 +288,7 @@ func runSpecReviewWithOptions(ctx context.Context, specID, strategy string, time
 		if persistErr != nil {
 			return fmt.Errorf("SPEC 상태 업데이트 실패 (SPEC: %s): %w", specID, persistErr)
 		}
+		promotionReceipt.Fingerprint = withSpecReviewEvidence(runtimeEvidence.Fingerprint, specDir)
 		receiptPath, receiptErr := persistSpecReviewPromotionReceipt(specDir, promotionReceipt)
 		if receiptErr != nil {
 			return fmt.Errorf("SPEC review receipt 저장 실패 (SPEC: %s): %w", specID, receiptErr)
