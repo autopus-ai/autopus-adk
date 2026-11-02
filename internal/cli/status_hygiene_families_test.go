@@ -17,6 +17,8 @@ func TestClassifyTrackedIgnoredSeparatesSpecEvidenceFromDocuments(t *testing.T) 
 		".autopus/specs/SPEC-X/review.md",
 		".autopus/specs/SPEC-X/review-findings.json",
 		".autopus/specs/SPEC-X/.self-verify.log",
+		".autopus/specs/SPEC-X/review-session.json",
+		".autopus/specs/SPEC-X/.review-session.lock",
 		".autopus/specs/SPEC-X/spec.md",
 		"backend/.autopus/specs/SPEC-Y/review.md",
 	})
@@ -30,6 +32,8 @@ func TestClassifyTrackedIgnoredSeparatesSpecEvidenceFromDocuments(t *testing.T) 
 		".autopus/specs/SPEC-X/review.md",
 		".autopus/specs/SPEC-X/review-findings.json",
 		".autopus/specs/SPEC-X/.self-verify.log",
+		".autopus/specs/SPEC-X/review-session.json",
+		".autopus/specs/SPEC-X/.review-session.lock",
 		"backend/.autopus/specs/SPEC-Y/review.md",
 	}, byLabel["SPEC review evidence"])
 	assert.Equal(t, []string{".autopus/specs/SPEC-X/spec.md"}, byLabel["canonical SPEC document"])
