@@ -114,12 +114,9 @@ func (e *SubprocessEngine) executePhase(ctx context.Context, state *engineRunSta
 		}
 		state.result.Receipt.DispatchCount++
 		resp, err := e.cfg.Backend.Execute(ctx, request)
-		evidenceErr := err
+		evidenceErr := admitPhaseResponse(phase.ID, resp, err)
 		var output string
 		var workerEnvelope *workerreceipt.Envelope
-		if evidenceErr == nil {
-			evidenceErr = validatePhaseResponse(phase.ID, resp)
-		}
 		if evidenceErr == nil {
 			output = NormalizeOutput(e.cfg.Platform, resp.Output)
 			workerEnvelope, evidenceErr = workerreceipt.ParseMarkedOutput(output)
