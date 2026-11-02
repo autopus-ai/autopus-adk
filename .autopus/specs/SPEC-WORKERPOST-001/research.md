@@ -158,6 +158,13 @@ Optional improvements. They carry no identifiers and do not block completion.
 | WPOST-R11 self-verify dimensions | Q-FEAS, Q-STYLE, Q-SEC, Q-COH lines below |
 | WPOST-R12 BRANCH-01 parsed as Optional | Split into REQ-WPOST-BRANCH-01 and -02; every requirement's parsed EARS type checked against its declared type |
 
+## Review Response (codex round 2, 2026-11-02, judge REVISE, 2 residual)
+
+| Finding | Resolution |
+|---|---|
+| R04 residual: a user part without a password (`secret-token@host:repo.git`, `TOKEN@github.com/org/repo.git`) leaked | Every user part before `@` of a scheme-less or scp-like address is redacted before clipping, `git@host:` included (REQ-WPOST-REPORT-01); S9 checks the error, task result, and host events |
+| R07 residual: list decoding stopped at the first non-string element | Every element is decoded; each non-string one is named by index and the strings still reach the action checks (REQ-WPOST-INPUT-02); S9 row with `["deploy","push",3,false]` |
+
 ## Self-Verify Summary
 
 - Q-CORR-01 | status: PASS | attempt: 2 | files: spec.md, research.md | reason: every cited function and pattern was read at `109c7ea4`; git behaviour is backed by the probes and P1 to P3

@@ -159,7 +159,8 @@ Then the task fails with an error starting `invalid completion_contract: ` and c
 | `{"ref":"feature.lock/x"}` | `invalid branch name` |
 
 And `{"version":"1","required_actions":"push","ref":"a..b","bogus":1,"push_match":"prefix"}` gives one error naming all five problems
-And `{"remote":"https://user:secret@host/repo.git"}` gives an error, a task result, and host events without `secret` or `user:`, and with `<redacted>@`
+And `{"required_actions":["deploy","push",3,false],"forbidden_actions":["push"]}` gives one error naming `required_actions[2]`, `required_actions[3]`, `unsupported action "deploy"`, and `"push" is both required and forbidden`
+And `{"remote":"https://user:secret@host/repo.git"}`, `{"remote":"secret-token@host:repo.git"}`, and `{"remote":"TOKEN@github.com/org/repo.git"}` give an error, a task result, and host events without `secret` or `TOKEN`, and with `<redacted>@`
 And `{"version":1,"required_actions":["Commit"," push "],"ref":"feature/x"}` plans commit and push `required`, branch `none`, ref `refs/heads/feature/x`, remote `origin`, match `exact`, and `ref` `refs/heads/기능+fix` is accepted
 And `{"required_actions":[]}` with the prompt `commit and push` plans all three actions `none`, while a payload without the key plans `commit` `required`
 And for each of 35 names (among them `feature+fix`, `기능/한글`, `@`, `x/y.lock`, `a./b`, `-dash`, `HEAD`), the branch-name rule accepts exactly the names `git check-ref-format --branch` accepts.

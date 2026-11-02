@@ -156,7 +156,7 @@ THE SYSTEM SHALL accept the `completion_contract` object in the task payload, re
 **REQ-WPOST-INPUT-02**
 Priority: Must
 Type: Unwanted
-IF the contract is invalid, or has a `version` other than 1, an action outside `commit`, `push`, and `branch`, an action in both lists, a `remote` not matching `^[A-Za-z0-9][A-Za-z0-9._-]*$`, a `ref` outside `refs/heads/` or with an invalid branch name, an `expected_commit` that is not 40 or 64 hexadecimal characters, or a `push_match` other than `exact` and `contains`, THEN THE SYSTEM SHALL fail the task before any provider runs with one error starting `invalid completion_contract: ` that names every problem, each sender value first stripped of URL credentials, then clipped to 64 bytes and quoted.
+IF the contract is invalid, or has a `version` other than 1, an action outside `commit`, `push`, and `branch`, an action in both lists, a `remote` not matching `^[A-Za-z0-9][A-Za-z0-9._-]*$`, a `ref` outside `refs/heads/` or with an invalid branch name, an `expected_commit` that is not 40 or 64 hexadecimal characters, or a `push_match` other than `exact` and `contains`, THEN THE SYSTEM SHALL fail the task before any provider runs with one error starting `invalid completion_contract: ` that names every problem, each non-string list element by its index while the string elements are still checked as actions, and each sender value first stripped of URL credentials, then clipped to 64 bytes and quoted.
 
 **REQ-WPOST-INPUT-03**
 Priority: Must
@@ -263,7 +263,7 @@ IF a fallback check of level `ambiguous` reaches `unsatisfied`, THEN THE SYSTEM 
 **REQ-WPOST-REPORT-01**
 Priority: Must
 Type: Ubiquitous
-THE SYSTEM SHALL keep credentials out of the report and the task error: fields it sets name a remote only by its configured name, never by URL, and every git message and contract value it quotes has the user and password of each URL, with or without a scheme, replaced with `<redacted>`; a git message is also clipped to its first line and 200 bytes.
+THE SYSTEM SHALL keep credentials out of the report and the task error: fields it sets name a remote only by its configured name, never by URL, and every git message and contract value it quotes has the user part of each URL or scp-like address, with or without a password or a scheme, replaced with `<redacted>`; a git message is also clipped to its first line and 200 bytes.
 
 ### Documentation
 
