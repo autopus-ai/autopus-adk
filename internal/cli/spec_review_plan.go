@@ -16,10 +16,10 @@ import (
 const (
 	specReviewProfileAuto = "auto"
 	specReviewJudgeNone   = "none"
-	// Judge modes. R8 adds conditional modes; the plan prints the mode so a
-	// conditional judge can show its condition without a new plan shape.
+	// Judge modes: none, or one of config.ReviewJudgeModes; the plan prints
+	// the mode with its condition (SPEC-REVIEWREUSE-001 REQ-RR-JDG-01).
 	specReviewJudgeModeNone   = "none"
-	specReviewJudgeModeAlways = "always"
+	specReviewJudgeModeAlways = config.ReviewJudgeModeAlways
 )
 
 // specReviewPlan is the resolved shape of one review attempt: the profile and
@@ -41,6 +41,7 @@ type specReviewPlan struct {
 	Judge          string
 	JudgeMode      string
 	JudgeReason    string
+	VerifyInput    string
 	Quorum         int
 	MaxRounds      int
 	Warnings       []string
@@ -62,6 +63,12 @@ func resolveSpecReviewPlan(
 	}
 	if opts.judgeSet && strings.TrimSpace(opts.judge) == "" {
 		return specReviewPlan{}, fmt.Errorf("--judge needs a provider name or %q", specReviewJudgeNone)
+	}
+	if opts.judgeModeSet && !slices.Contains(config.ReviewJudgeModes, opts.judgeMode) {
+		return specReviewPlan{}, fmt.Errorf("--judge-mode %q: expected one of %s", opts.judgeMode, strings.Join(config.ReviewJudgeModes, ", "))
+	}
+	if opts.verifyInputSet && !slices.Contains(config.ReviewVerifyInputs, opts.verifyInput) {
+		return specReviewPlan{}, fmt.Errorf("--verify-input %q: expected one of %s", opts.verifyInput, strings.Join(config.ReviewVerifyInputs, ", "))
 	}
 	if opts.newSession && opts.extendBudget {
 		return specReviewPlan{}, fmt.Errorf("--new-session and --extend-budget cannot be combined: extend the current session or start a new one")
@@ -96,6 +103,15 @@ func resolveSpecReviewPlan(
 		plan.resolveFullReviewers(gate, opts, multi)
 	}
 	plan.resolveJudge(gate, opts)
+	// SPEC-REVIEWREUSE-001 REQ-RR-DELTA-01: the flag, else the configuration,
+	// else full.
+	plan.VerifyInput = config.ReviewVerifyInputFull
+	if gate.VerifyInput != "" {
+		plan.VerifyInput = gate.VerifyInput
+	}
+	if opts.verifyInputSet {
+		plan.VerifyInput = opts.verifyInput
+	}
 	return plan, nil
 }
 
@@ -149,8 +165,17 @@ func (p *specReviewPlan) resolveJudge(gate config.ReviewGateConf, opts specRevie
 		p.JudgeReason = "spec.review_gate.judge 미설정"
 	}
 	p.JudgeMode = specReviewJudgeModeNone
-	if p.Judge != "" {
-		p.JudgeMode = specReviewJudgeModeAlways
+	if p.Judge == "" {
+		return
+	}
+	// SPEC-REVIEWREUSE-001 REQ-RR-JDG-01: the flag, else the configuration,
+	// else always.
+	p.JudgeMode = specReviewJudgeModeAlways
+	if mode := gate.JudgeMode; mode != "" {
+		p.JudgeMode = mode
+	}
+	if opts.judgeModeSet {
+		p.JudgeMode = opts.judgeMode
 	}
 }
 

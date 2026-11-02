@@ -26,6 +26,8 @@ func TestRunSpecReviewLoop_JudgeOverridesSupermajorityAndRestoresSources(t *test
 		Provider: "claude", Family: "anthropic", Status: "ok", Verdict: "REVISE",
 		Accepted: 1, Rejected: 0, Merged: 0,
 		AcceptedIDs: []string{"F-001"}, Rationale: "reviewed",
+		// SPEC-REVIEWREUSE-001 REQ-RR-JDG-07: the ruling links to its reviewer.
+		Decisions: []spec.JudgeDecision{{Decision: "accept", Reviewers: []string{"claude"}, ScopeRef: "REQ-JUDGE-001"}},
 	}, result.Judge)
 }
 

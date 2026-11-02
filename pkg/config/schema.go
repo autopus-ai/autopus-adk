@@ -271,6 +271,9 @@ func (c *HarnessConfig) Validate() error {
 	if err := c.Spec.ReviewGate.Budget.Validate(); err != nil {
 		return err
 	}
+	if err := c.Spec.ReviewGate.ValidateModes(); err != nil {
+		return err
+	}
 	if err := c.Verify.Validate(); err != nil {
 		return err
 	}

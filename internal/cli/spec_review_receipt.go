@@ -33,6 +33,11 @@ type specReviewJudgeReceipt struct {
 	// reason truncated like the rationale (SPEC-REVIEWPOLICY-001
 	// REQ-RP-POL-04); omitted when the judge cleared none.
 	Dismissals []spec.JudgeDismissal `json:"dismissals,omitempty"`
+	// Mode is the judge mode of the final round, and Decisions the judge's
+	// rulings linked to the reviewers they ruled on, reasons truncated like
+	// the rationale (SPEC-REVIEWREUSE-001 REQ-RR-JDG-07).
+	Mode      string               `json:"mode,omitempty"`
+	Decisions []spec.JudgeDecision `json:"decisions,omitempty"`
 }
 
 type specReviewPromotionReceipt struct {
@@ -78,6 +83,16 @@ type specReviewPromotionReceipt struct {
 	// Review session and call ledger of this invocation (SPEC-REVIEWPOLICY-001
 	// REQ-RP-BUD-07). Optional, so receipts written before it still load.
 	Session *specReviewSessionReceipt `json:"session,omitempty"`
+
+	// Fingerprint of the final round's inputs, compared by the next
+	// invocation to decide reuse (SPEC-REVIEWREUSE-001 REQ-RR-REUSE-01).
+	Fingerprint *specReviewFingerprint `json:"fingerprint,omitempty"`
+
+	// SpecFingerprint is specDocumentsFingerprint of the SPEC documents the
+	// final round read, so status can prove by content that the SPEC is
+	// still what was reviewed (SPEC-STATUSEVIDENCE-001 REQ-SEV-REVIEW-01).
+	// Omitted when no round ran in this invocation.
+	SpecFingerprint string `json:"spec_fingerprint,omitempty"`
 }
 
 // specReviewProviderPolicyRow records how one reviewer, excluded provider, or
@@ -100,6 +115,10 @@ type specReviewRuntimeEvidence struct {
 	JudgeModel     *specReviewJudgeModel // the configured judge model, if any (SPEC-JUDGEMODEL-001)
 	Profile        string
 	Session        *specReviewSessionReceipt
+	// Fingerprint is the fingerprint of the last round that ran, and
+	// SpecFingerprint the shared SPEC fingerprint of the documents it read.
+	Fingerprint     *specReviewFingerprint
+	SpecFingerprint string
 }
 
 // applySpecReviewRepeatDiscovery projects the loop's repeat-discovery evidence
@@ -156,6 +175,18 @@ func persistSpecReviewPromotionReceipt(specDir string, receipt specReviewPromoti
 		return "", fmt.Errorf("write SPEC review promotion receipt: %w", err)
 	}
 	return path, nil
+}
+
+func truncatedSpecReviewJudgeDecisions(decisions []spec.JudgeDecision) []spec.JudgeDecision {
+	if len(decisions) == 0 {
+		return nil
+	}
+	out := make([]spec.JudgeDecision, len(decisions))
+	for i, decision := range decisions {
+		decision.Reason = truncateSpecReviewJudgeRationale(decision.Reason)
+		out[i] = decision
+	}
+	return out
 }
 
 func truncatedSpecReviewJudgeDismissals(dismissals []spec.JudgeDismissal) []spec.JudgeDismissal {

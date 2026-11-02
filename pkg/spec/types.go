@@ -163,6 +163,10 @@ type ReviewFinding struct {
 	LastSeenRev  int             // most recent revision evaluated
 	EscapeHatch  bool            // true if added via critical/security escape hatch in verify mode
 	RepeatOf     string          `json:"RepeatOf,omitempty"` // prior finding ID this finding restates (verify-mode repeat discovery)
+	// Sources names every reviewer that raised the finding, once each in
+	// reviewer order, when a merge combined reports (SPEC-REVIEWREUSE-001
+	// REQ-RR-JDG-05).
+	Sources []string `json:"Sources,omitempty"`
 }
 
 // ProviderStatus captures one reviewer provider's outcome for the Provider
