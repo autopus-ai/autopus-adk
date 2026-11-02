@@ -24,7 +24,15 @@ const (
 	BlockingPolicyJudgeReject       = "judge_reject"
 	BlockingPolicyReviewerChecklist = "reviewer_checklist_fail"
 	BlockingPolicyNoUsableReview    = "no_usable_review"
+	// BlockingPolicyBudgetExhausted is verdict-scoped: the review session
+	// budget stopped the review before it could finish (SPEC-REVIEWPOLICY-001
+	// REQ-RP-BUD-04). It is never a PASS.
+	BlockingPolicyBudgetExhausted = "budget_exhausted"
 )
+
+// DegradedReasonBudgetExhausted marks a round in which the session budget
+// blocked or cancelled a planned call (SPEC-REVIEWPOLICY-001 REQ-RP-BUD-05).
+const DegradedReasonBudgetExhausted = "budget_exhausted"
 
 // Revision-loop termination states, written to review-receipt.json as
 // loop_status so an operator can tell convergence from spinning and knows
@@ -34,6 +42,7 @@ const (
 	LoopStatusAwaitingChanges     = "awaiting_changes"
 	LoopStatusRevisionsExhausted  = "revisions_exhausted"
 	LoopStatusProviderUnavailable = "provider_unavailable"
+	LoopStatusBudgetExhausted     = "budget_exhausted"
 )
 
 // impactCategories name findings whose category alone proves functional impact.

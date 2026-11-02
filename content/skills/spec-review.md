@@ -111,6 +111,9 @@ auto spec review SPEC-PIPE-001
 auto spec review SPEC-AUTH-001 --strategy debate --timeout 180
 auto spec review SPEC-AUTH-001 --strategy debate --providers claude,codex
 auto spec review SPEC-FIX-001 --profile full  # lean SPEC, full panel and judge
+auto spec review SPEC-FIX-001 --max-calls 6   # cap the model calls of a new review session
+auto spec review SPEC-FIX-001 --extend-budget # apply raised limits to the current, exhausted session
+auto spec review SPEC-FIX-001 --new-session   # start a new review session
 auto spec review SPEC-AUTH-001 --allow-degraded  # promote a degraded PASS; recorded as an audit line
 ```
 
@@ -128,6 +131,17 @@ SPEC with the configured panel and judge. An unknown `--profile`,
 before any provider runs. Before the first model call the CLI prints the review
 plan: profile, risk class, reviewers and fallbacks, judge and why, quorum,
 rounds, and the expected and upper-bound call counts.
+
+Every model call of a review (reviewers, JSON repair re-prompts, the judge, a
+lean fallback reviewer, every round) and every later `auto spec review` of the
+same SPEC spends from one review session in `{SPEC_DIR}/review-session.json`.
+An exhausted session makes no model call and reports `loop_status:
+budget_exhausted` with the last verdict and blockers; it never turns into a
+PASS. Re-running does not reset it: only `--extend-budget` (after raising the
+limit) or `--new-session` spends again. The receipt's `session.calls` lists
+every call with its role, reason, provider, model and effort (or `unknown`),
+usage (`actual`, `estimated`, or `unknown`, never 0 for unknown), duration, and
+end reason.
 
 Do not wrap these commands with GNU `timeout` (for example,
 `timeout 540 auto spec review ...`). macOS does not include GNU `timeout` by
@@ -147,6 +161,11 @@ spec:
     min_providers: 0      # 0 = default minimum quorum (majority: len/2+1 of configured providers)
     auto_collect_context: true
     context_max_lines: 0  # unset; adaptive limits are 500/1500/3000 by cited file count
+    budget:               # optional; 0 or absent = no limit for that dimension
+      max_calls: 12       # model calls per review session
+      max_minutes: 30     # active review time across invocations
+      max_tokens: 0       # checked against reported usage only
+      max_cost_usd: 0     # checked against reported cost only
 ```
 
 ## Provider Fallback

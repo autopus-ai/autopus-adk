@@ -104,9 +104,10 @@ func TestRunSpecReview_InvalidCombinationsMakeNoProbeOrCall(t *testing.T) {
 		opts specReviewOptions
 		want []string
 	}{
-		"unknown profile":     {specReviewOptions{profile: "quick"}, []string{"--profile", "auto, full, lean"}},
-		"lean on a full SPEC": {specReviewOptions{profile: "lean"}, []string{"--profile lean"}},
-		"empty judge":         {specReviewOptions{judge: "", judgeSet: true}, []string{"--judge"}},
+		"unknown profile":        {specReviewOptions{profile: "quick"}, []string{"--profile", "auto, full, lean"}},
+		"lean on a full SPEC":    {specReviewOptions{profile: "lean"}, []string{"--profile lean"}},
+		"empty judge":            {specReviewOptions{judge: "", judgeSet: true}, []string{"--judge"}},
+		"extend and new session": {specReviewOptions{extendBudget: true, newSession: true}, []string{"--new-session", "--extend-budget"}},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {

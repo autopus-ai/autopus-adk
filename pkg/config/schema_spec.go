@@ -42,6 +42,10 @@ type ReviewGateConf struct {
 	// derives the majority default (configured/2+1) via spec.DefaultMinProviders at
 	// the consumption site; a positive value overrides it.
 	MinProviders int `yaml:"min_providers,omitempty"`
+	// Budget bounds one logical review session across reviewers, the judge,
+	// JSON repair, fallback, rounds, and invocations (SPEC-REVIEWPOLICY-001
+	// REQ-RP-BUD-01). Omitted means no limit and writes no key.
+	Budget ReviewBudgetConf `yaml:"budget,omitempty"`
 }
 
 // ResolveMaxRevisions returns the configured revision budget, falling back to

@@ -65,6 +65,10 @@ type specReviewPromotionReceipt struct {
 	DurationMS    int64                   `json:"duration_ms,omitempty"`
 	Rounds        []specReviewRoundTiming `json:"rounds,omitempty"`
 	ReviewProfile string                  `json:"review_profile,omitempty"`
+
+	// Review session and call ledger of this invocation (SPEC-REVIEWPOLICY-001
+	// REQ-RP-BUD-07). Optional, so receipts written before it still load.
+	Session *specReviewSessionReceipt `json:"session,omitempty"`
 }
 
 // specReviewProviderPolicyRow records how one reviewer, excluded provider, or
@@ -85,6 +89,7 @@ type specReviewRuntimeEvidence struct {
 	StartedAt      time.Time
 	Rounds         []specReviewRoundTiming
 	Profile        string
+	Session        *specReviewSessionReceipt
 }
 
 // applySpecReviewRepeatDiscovery projects the loop's repeat-discovery evidence

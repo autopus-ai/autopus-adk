@@ -63,6 +63,14 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 			break
 		}
 
+		// SPEC-REVIEWPOLICY-001 REQ-RP-BUD-04: a round starts only when the
+		// session budget can pay for its reviewers; otherwise the last
+		// blockers stand and the review stops as budget_exhausted.
+		if reason := specReviewRoundBudgetBlock(p.ctx, len(p.providers)); reason != "" {
+			finalResult = specReviewBudgetExhaustedResult(finalResult, p.specID, p.specDir, priorFindings, reason)
+			break
+		}
+
 		prompt, staticFindings, err := buildSpecReviewProviderPrompt(p, doc, priorFindings, revision)
 		if err != nil {
 			return nil, fmt.Errorf("리뷰 필수 문서 전달 실패: %w", err)
@@ -95,8 +103,12 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 		if watchdog := specReviewWatchdogForConfig(orchCfg); watchdog > 0 {
 			reviewCtx, cancel = context.WithTimeout(p.ctx, time.Duration(watchdog)*time.Second)
 		}
+		// The round carries its number for the call ledger and stops at the
+		// session's wall-clock deadline (REQ-RP-BUD-05).
+		reviewCtx, endRound := specReviewRoundContext(reviewCtx, revision)
 		roundStarted := time.Now()
 		result, err := specReviewRunOrchestra(reviewCtx, orchCfg)
+		endRound()
 		cancel()
 		round := newSpecReviewRoundTiming(revision, roundStarted, time.Since(roundStarted), result)
 		printSpecReviewRoundTiming(os.Stderr, round)
@@ -201,6 +213,9 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 		// Readiness exclusions merge after the per-revision observation reasons,
 		// which applyObservationIntegrity has just rewritten.
 		applySpecReviewReadiness(merged, p.preflight)
+		// A round the budget cut short is degraded and cannot PASS; it is
+		// marked before it is persisted so review.md and the receipt agree.
+		budgetHit := applySpecReviewBudgetEvidence(p.ctx, merged, revision)
 
 		// A mid-pipeline write failure must abort (issue #38).
 		if persistErr := spec.PersistFindingsWithCoverage(p.specDir, merged.Findings, coverages); persistErr != nil {
@@ -211,6 +226,11 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 		}
 
 		finalResult = merged
+
+		if budgetHit {
+			fmt.Fprintf(os.Stderr, "경고: 리뷰 예산이 이번 라운드의 호출을 막았습니다 — 남은 차단 사유를 보존하고 리뷰를 멈춥니다\n")
+			break
+		}
 
 		if noProviderReviewsSucceeded(reviews, providerStatuses) {
 			merged.LoopStatus = spec.LoopStatusProviderUnavailable

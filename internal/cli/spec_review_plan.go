@@ -63,6 +63,12 @@ func resolveSpecReviewPlan(
 	if opts.judgeSet && strings.TrimSpace(opts.judge) == "" {
 		return specReviewPlan{}, fmt.Errorf("--judge needs a provider name or %q", specReviewJudgeNone)
 	}
+	if opts.newSession && opts.extendBudget {
+		return specReviewPlan{}, fmt.Errorf("--new-session and --extend-budget cannot be combined: extend the current session or start a new one")
+	}
+	if opts.maxCalls < 0 || opts.maxMinutes < 0 {
+		return specReviewPlan{}, fmt.Errorf("--max-calls and --max-minutes must be >= 0")
+	}
 	policy := spec.EffectiveReviewPolicy(doc)
 	if requested == spec.ReviewProfileLean && !policy.Lean() {
 		return specReviewPlan{}, fmt.Errorf("--profile lean: %s is not lean-eligible (%s); remove --profile lean or fix the spec.md frontmatter",

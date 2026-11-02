@@ -2,9 +2,9 @@
 .agents/plugins/
 .agents/plugins/marketplace.json 7bac9f0f7c15eecf46023308f334e2122d112d03aa7b498f9e01adabd48ac03c
 .autopus/
-.autopus/claude-code-manifest.json 01bcf0f57abbe016baa669699847c38dbcc35db144f911845d14e6dfca500eb7
+.autopus/claude-code-manifest.json 80f50f5c80b591e37a885a3aaf4dd5224d0b0676eb4529e5cc166b173c234421
 .autopus/claude-code-permissions.json b9fd4dd0824fb98d4ff3403c011a56b0b66f398788f2dfb24220c1aed87df4e8
-.autopus/codex-manifest.json fb03e0eaa19dab2295934fe2092714e123ecd3e21a0fb9829a09598a3c8cfc15
+.autopus/codex-manifest.json 42dea14b56f83f23a41d2885ae7bf6dd56971cd254a1b3b591c83651cc70b9df
 .autopus/context/
 .autopus/context/constraints.yaml d8b3a0714389a30b7aca1986fbb71235900e14c9dddfe50fdbbb758698d0b26e
 .autopus/plugins/
@@ -16,9 +16,9 @@
 .autopus/plugins/auto/skills/auto/SKILL.md 5404914d8ab7f5a0e4560439b365b85e60813e14304d4565dd8893830b165595
 .autopus/txns/
 .autopus/txns/<TX>-claude-code/
-.autopus/txns/<TX>-claude-code/journal.json 9f8285cf8444ad9ee2026fc29953718e0ea7aac1f88a0762041909838e079d18
+.autopus/txns/<TX>-claude-code/journal.json cd3c69daca02ee7d82dd7cd89a3b42705ed6d4134d8897192874d76fde9b39ff
 .autopus/txns/<TX>-codex/
-.autopus/txns/<TX>-codex/journal.json 690afcee54a8c2a0934c37768a7f4b18f82a123135c98b98c919aea4d6be604e
+.autopus/txns/<TX>-codex/journal.json 20402263a2c1cd32821095834f9b50577c23f90f60bb1457619d4a9ce5f9cf46
 .claude/
 .claude/agents/
 .claude/agents/autopus/
@@ -145,7 +145,7 @@
 .claude/skills/security-audit/
 .claude/skills/security-audit/SKILL.md f9dee950a966f053d8e2efa990a848e7c95166beb25c3055a9e8532140a10f7e
 .claude/skills/spec-review/
-.claude/skills/spec-review/SKILL.md 241986c1b4fbbda8ff8395a6abb263d7c878cf3fb8c4acc032587c4b898b2803
+.claude/skills/spec-review/SKILL.md 129e331a1cd145ef0b538efb1077e03258be174aaf444052e7a98798d8d55c7b
 .claude/skills/tdd/
 .claude/skills/tdd/SKILL.md 210cbceed5bde6bb32c7cd54563ca0155055db4d691847a1098b33e25d3772c1
 .claude/skills/testing-strategy/
@@ -260,7 +260,7 @@
 .codex/skills/codex-security-audit/
 .codex/skills/codex-security-audit/SKILL.md cdc1082922051165299c55463fdeb9a70c661a91492f0d398a47d49eae770014
 .codex/skills/codex-spec-review/
-.codex/skills/codex-spec-review/SKILL.md 42ffea3aec7fcea3f20963a26febf4197db4a8d0f825a3d9773668c7a484f777
+.codex/skills/codex-spec-review/SKILL.md ebddf7a47b6c67486169fd0955960d25e1884b3bc8d60bf5b6aab2067e5973bd
 .codex/skills/codex-tdd/
 .codex/skills/codex-tdd/SKILL.md 11ee5fef10b7d807e445617c2a3770b0f062bb29dfa1695ef07de61dabbc7c29
 .codex/skills/codex-testing-strategy/

@@ -129,3 +129,88 @@ The expected count is one call per reviewer and judge per round. The upper
 bound adds one JSON re-prompt per reviewer, multiplies by the rounds, and by
 every fallback attempt still possible, so it is a ceiling, not a forecast. A
 single-pass review is one round, not one model call.
+
+## The review session budget
+
+Every model call a review makes is one call against one session budget: the
+reviewers, each JSON re-prompt of a malformed reviewer, the judge, a lean
+fallback reviewer, every revision round, and later `auto spec review`
+invocations of the same SPEC. Readiness and capability probes are not model
+calls.
+
+```yaml
+spec:
+  review_gate:
+    budget:
+      max_calls: 12        # model calls in the session
+      max_minutes: 30      # active review time across invocations
+      max_tokens: 400000   # known input + output tokens
+      max_cost_usd: 2.5    # known cost
+```
+
+Every key is optional; absent or 0 means no limit for that dimension, so a
+configuration without the section records the ledger and limits nothing.
+`--max-calls N` and `--max-minutes N` override the configuration for the
+invocation. Calls and minutes are hard limits. Tokens and cost are checked
+before each call against the usage providers reported; a provider that reports
+no usage cannot be held to them, and the plan and receipt say so.
+
+The session lives in `{SPEC_DIR}/review-session.json`
+(`spec_review_session.v1`), next to `review-receipt.json`, guarded by
+`.review-session.lock` so two invocations cannot spend the same budget.
+
+- Each call reserves a slot before it starts and settles after it ends with its
+  duration, usage, model, effort, and end reason. A call that cannot reserve
+  does not start; it is recorded with `started: false`.
+- A round starts only when the remaining calls cover its reviewers. A round in
+  which the budget blocked or cancelled a call ends with `loop_status:
+  budget_exhausted`, the degraded reason `budget_exhausted`, and the blocking
+  reason `budget_exhausted`; it is never a PASS.
+- When the wall-clock budget runs out, in-flight calls are cancelled through
+  their context and recorded with end reason `budget_exhausted`; completed calls
+  and their outputs are kept.
+- A call a crashed process left in flight is recorded as `interrupted` and
+  counted as used.
+
+Session lifecycle:
+
+| Session state | Next invocation |
+| --- | --- |
+| `open` | continues the session with cumulative counts |
+| `budget_exhausted` | makes no model call; reports `budget_exhausted` with the last verdict and blockers |
+| `converged` | starts a new session linked by `previous_session_id` |
+
+The limits are fixed when a session starts. `--extend-budget` applies the
+current limits (configuration and flags) to the open or exhausted session and
+records the extension; `--new-session` starts a new session linked to the old
+one. They cannot be combined. A session file that does not parse, or has an
+unknown schema, stops the review; `--new-session` replaces it.
+
+Usage is `actual` when the provider reported it, `estimated` when the provider
+reported an estimate, and `unknown` otherwise; unknown counters are JSON
+`null`, never 0. Model and effort are the values the provider reported, or
+`unknown`.
+
+`review-receipt.json` keeps every existing field and gains an optional
+`session` object: the session and attempt ids, state, end reason, limits, used
+counters, active wall-clock time (`duration_ms`), notes, and one row per call
+of the invocation, ordered by round, reviewers before the judge, then provider.
+Each row has `call_id` (`<attempt>-r<round>-<provider>-<role>-<n>`, the same on
+every run), `round`, `role`, `reason` (`review`, `verify`, `json_repair`,
+`provider_fallback`, `adjudication`), `provider`, `model`, `effort`, `started`,
+`usage`, `started_at`, `duration_ms`, and `end_reason`. No prompt, output, or
+secret is written. After each run the command prints one line per call and the
+budget:
+
+```
+모델 호출 4회 (세션 orch-…, 시도 a1):
+  a1-r0-claude-reviewer-1 r0 reviewer/review claude 41s completed usage=actual in=18234 out=2210
+  a1-r0-claude-reviewer-2 r0 reviewer/json_repair claude 12s completed usage=actual in=18402 out=1907
+  a1-r0-codex-reviewer-1 r0 reviewer/review codex 5m10s completed usage=unknown
+  a1-r0-claude-judge-1 r0 judge/adjudication claude 33s completed usage=actual in=6120 out=880
+예산: 호출 4/12 · 시간 5m50s/30m0s · 보고된 token 47753 (무제한) · 보고된 비용 $0.0000 (무제한)
+```
+
+Calls with `started: false` were refused by the budget and are not counted;
+`interrupted` calls were left in flight by a process that ended and are
+counted.

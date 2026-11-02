@@ -58,6 +58,7 @@ func runSpecReviewAttempt(
 	params.preflight = plan.Preflight
 	if params.plan != nil {
 		printSpecReviewPlan(os.Stderr, *params.plan, plan)
+		printSpecReviewBudgetLine(os.Stderr, specReviewLedgerFrom(ctx), plan)
 	}
 	return runSpecReviewLoop(params, doc, priorFindings)
 }

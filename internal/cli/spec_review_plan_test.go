@@ -87,6 +87,8 @@ func TestResolveSpecReviewPlan_RefusesInvalidCombinations(t *testing.T) {
 		"lean on a full SPEC":    {"", specReviewOptions{profile: "lean"}, []string{"--profile lean", "lean-eligible"}},
 		"lean on a refused SPEC": {"feature", specReviewOptions{profile: "lean"}, []string{"--profile lean", "feature"}},
 		"empty judge":            {"", specReviewOptions{judge: " ", judgeSet: true}, []string{"--judge"}},
+		"extend and new session": {"", specReviewOptions{extendBudget: true, newSession: true}, []string{"--new-session", "--extend-budget"}},
+		"negative call limit":    {"", specReviewOptions{maxCalls: -1}, []string{"--max-calls"}},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {

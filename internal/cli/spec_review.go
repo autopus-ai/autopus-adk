@@ -65,6 +65,10 @@ func newSpecReviewCmd() *cobra.Command {
 		skipReadiness       bool
 		profile             string
 		judge               string
+		maxCalls            int
+		maxMinutes          int
+		extendBudget        bool
+		newSession          bool
 	)
 
 	cmd := &cobra.Command{
@@ -84,6 +88,10 @@ func newSpecReviewCmd() *cobra.Command {
 				profile:               profile,
 				judge:                 judge,
 				judgeSet:              cmd.Flags().Changed("judge"),
+				maxCalls:              maxCalls,
+				maxMinutes:            maxMinutes,
+				extendBudget:          extendBudget,
+				newSession:            newSession,
 			})
 		},
 	}
@@ -107,6 +115,11 @@ func newSpecReviewCmd() *cobra.Command {
 		"Review profile: auto (the SPEC's effective profile), full (the configured panel), or lean (only for a lean-eligible SPEC)")
 	cmd.Flags().StringVar(&judge, "judge", "",
 		"Judge provider for this review, or none (default: none on lean, spec.review_gate.judge on full)")
+	// SPEC-REVIEWPOLICY-001 REQ-RP-BUD-01, REQ-RP-BUD-08: session budget.
+	cmd.Flags().IntVar(&maxCalls, "max-calls", 0, "Model call limit of a new review session (default: spec.review_gate.budget.max_calls; 0 = no limit)")
+	cmd.Flags().IntVar(&maxMinutes, "max-minutes", 0, "Active review minutes of a new review session (default: spec.review_gate.budget.max_minutes; 0 = no limit)")
+	cmd.Flags().BoolVar(&extendBudget, "extend-budget", false, "Apply the current budget limits to the existing review session, which may be exhausted")
+	cmd.Flags().BoolVar(&newSession, "new-session", false, "Start a new review session linked to the previous one")
 
 	return cmd
 }
@@ -127,6 +140,12 @@ type specReviewOptions struct {
 	// omitted flag.
 	judge    string
 	judgeSet bool
+	// maxCalls and maxMinutes override spec.review_gate.budget for a new
+	// session (or, with extendBudget, for the current one); 0 keeps the config.
+	maxCalls     int
+	maxMinutes   int
+	extendBudget bool
+	newSession   bool
 }
 
 // runSpecReview executes the full SPEC review pipeline with REVISE loop.
@@ -206,12 +225,25 @@ func runSpecReviewWithOptions(ctx context.Context, specID, strategy string, time
 	// Load any prior findings (from a previous interrupted run)
 	priorFindings, _ := spec.LoadFindings(specDir)
 
+	// SPEC-REVIEWPOLICY-001 REQ-RP-BUD-02: every model call of this
+	// invocation spends from the SPEC's review session.
+	ledger, err := openSpecReviewSession(ctx, specReviewSessionRequest{
+		SpecDir: specDir, SpecID: specID, Limits: specReviewRequestedLimits(gate.Budget, opts),
+		Extend: opts.extendBudget, Fresh: opts.newSession, Now: reviewStarted, Warnings: os.Stderr,
+	})
+	if err != nil {
+		return err
+	}
+	defer ledger.close()
+	ctx = withSpecReviewLedger(ctx, ledger)
+
 	runtimeEvidence := &specReviewRuntimeEvidence{StartedAt: reviewStarted, Profile: specReviewReceiptProfile(plan)}
 	var finalResult *spec.ReviewResult
-	for {
+	attemptCtx := ctx
+	for !ledger.sessionExhausted() {
 		attemptPlan := plan
-		finalResult, err = runSpecReviewAttempt(ctx, cfg, gate, opts, multi, requestedTimeout, specReviewLoopParams{
-			ctx:             ctx,
+		finalResult, err = runSpecReviewAttempt(attemptCtx, cfg, gate, opts, multi, requestedTimeout, specReviewLoopParams{
+			ctx:             attemptCtx,
 			specID:          specID,
 			specDir:         specDir,
 			strategy:        strategy,
@@ -231,10 +263,21 @@ func runSpecReviewWithOptions(ctx context.Context, specID, strategy string, time
 		fmt.Fprintf(os.Stderr, "lean 리뷰어 %v 실행 실패 — %s로 다시 리뷰합니다\n", opts.providers, plan.Fallbacks[0])
 		plan = plan.fallback()
 		opts.providers = plan.Reviewers
+		attemptCtx = withSpecReviewFallback(ctx)
 	}
+	if ledger.sessionExhausted() {
+		// REQ-RP-BUD-08: an exhausted session makes no model call; the last
+		// verdict and blockers stand until --extend-budget or --new-session.
+		finalResult = specReviewBudgetExhaustedResult(nil, specID, specDir, priorFindings, "session")
+	}
+	sessionReceipt, finishErr := ledger.finish(specReviewAttemptEndReason(finalResult, err))
 	if err != nil {
 		return err
 	}
+	if finishErr != nil {
+		return fmt.Errorf("리뷰 세션 저장 실패 (SPEC: %s): %w", specID, finishErr)
+	}
+	runtimeEvidence.Session = sessionReceipt
 
 	// Output final result
 	if finalResult != nil {
@@ -252,6 +295,7 @@ func runSpecReviewWithOptions(ctx context.Context, specID, strategy string, time
 		fmt.Printf("판정: %s\n", finalResult.Verdict)
 		printSpecReviewLoopStatus(os.Stdout, finalResult)
 		fmt.Printf("Review receipt: %s\n", receiptPath)
+		printSpecReviewCalls(os.Stdout, sessionReceipt)
 		if len(finalResult.Findings) > 0 {
 			// Issue #44: surface status breakdown instead of raw count so operators
 			// can tell at a glance whether any findings are still open.

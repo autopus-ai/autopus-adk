@@ -161,9 +161,9 @@ And with `budget.max_tokens: 1000`, a session whose known usage is 1500 refuses 
 Priority: Must
 Given `--single-pass`, reviewers claude (`not json` first, valid PASS on repair) and codex, and judge claude
 When the review runs
-Then `review-receipt.json` keeps `schema` `spec_review_promotion_receipt.v1`, `run_id`, `verdict`, and `loop_status`, and its `session.calls` holds 4 rows with call ids `a1-c001` to `a1-c004`, rounds 0, roles and reasons (reviewer, review), (reviewer, json_repair), (reviewer, review), (judge, adjudication) by provider claude, claude, codex, claude in reservation order, each with a non-negative `duration_ms` and end reason `completed`
+Then `review-receipt.json` keeps `schema` `spec_review_promotion_receipt.v1`, `run_id`, `verdict`, and `loop_status`, and its `session.calls` holds 4 rows, ordered by round, reviewers before the judge, then provider, with call ids `a1-r0-claude-reviewer-1`, `a1-r0-claude-reviewer-2`, `a1-r0-codex-reviewer-1`, `a1-r0-claude-judge-1`, roles and reasons (reviewer, review), (reviewer, json_repair), (reviewer, review), (judge, adjudication), each with a non-negative `duration_ms` and end reason `completed`
 And stdout prints 4 call lines, the receipt contains no text of the SPEC body or the provider output, and a receipt written without `session` still loads
-And merging rows `a1-c001`, `a1-c001` (identical), and `a1-c002` counts 2 calls, while a second `a1-c001` with a different duration is reported as a conflict and counted once.
+And merging rows `a1-r0-claude-reviewer-1`, the same row again, and `a1-r0-codex-reviewer-1` counts 2 calls, while a second `a1-r0-claude-reviewer-1` with a different duration is reported as a conflict and counted once.
 
 ### S16: AC-RP-016 - The change stays inside its ownership and size limits
 Priority: Must
