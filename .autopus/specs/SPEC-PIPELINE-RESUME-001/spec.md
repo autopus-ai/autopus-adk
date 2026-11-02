@@ -84,7 +84,7 @@ WHEN a canonical dispatch or gate fails, THEN THE SYSTEM SHALL classify it as ex
 **REQ-PRR-FAIL-02**
 Priority: Must
 Type: Event-driven
-WHEN a dispatch fails with a retryable transport failure, THEN THE SYSTEM SHALL re-send the identical request at most two more times after waiting 1 s and then 2 s (doubling, capped at 8 s, cut short by cancellation), and a failure of any kind other than `test_failure` or `review_rejection` SHALL stop the run with no further dispatch.
+WHEN a dispatch fails with a retryable transport failure, THEN THE SYSTEM SHALL re-send the identical request at most two more times after waiting 1 s and then 2 s (doubling, capped at 8 s, cut short by cancellation); a retryable failure after its second re-send, and every failure of any other kind except `test_failure` and `review_rejection`, SHALL stop the run with no further dispatch.
 
 **REQ-PRR-FAIL-03**
 Priority: Must
@@ -156,7 +156,7 @@ THE SYSTEM SHALL give each run a new `run_id`, keep one `task_id` across every r
 **REQ-PRR-LIN-02**
 Priority: Must
 Type: Ubiquitous
-THE SYSTEM SHALL never re-dispatch a completed external-write phase on resume, whether it is restored or unrestorable.
+THE SYSTEM SHALL never re-dispatch a completed external-write phase as part of restoring a checkpoint, whether it is restored or unrestorable; a fix that a new gate failure in the resumed run routes to it is a new remediation dispatch under REQ-PRR-FAIL-03 and REQ-PRR-FAIL-04.
 
 ### Verification
 
@@ -169,7 +169,8 @@ THE SYSTEM SHALL prove every Must requirement with tests that use fake backends 
 
 - `[NEW] pkg/pipeline/response_contract.go`: `admitPhaseResponse`, `validatePhaseResponse` (moved from `engine_prompt.go`).
 - `pkg/pipeline/runner.go`, `parallel_dispatch.go`: admission before verdict parsing.
-- `[NEW] pkg/pipeline/phase_failure.go`, `[NEW] phase_failure_report.go`, `[NEW] engine_remediation.go`: classification, evidence, feedback, breaker, transport retry.
+- `[NEW] pkg/pipeline/phase_failure.go`, `[NEW] phase_failure_report.go`: classification, evidence, fingerprint, feedback rendering.
+- `[NEW] pkg/pipeline/engine_dispatch.go`, `[NEW] engine_remediation.go`: one dispatch and its admission, transport retry and backoff, phase completion, fix routing, breaker, budget.
 - `pkg/pipeline/engine_run.go`, `engine_prompt.go`, `engine.go`, `omp_execution_view.go`, `phase.go`, `receipt.go`: the remediation loop, gate report request, `ExternalWrites`, optional receipt fields.
 - `[NEW] pkg/pipeline/phase_output.go`, `[NEW] checkpoint_restore.go`, `[NEW] receipt_lineage.go`; `checkpoint.go`, `types.go`, `engine_persist.go`: records, resume plan, lineage, checkpoint v2.
 - `[NEW] internal/cli/pipeline_run_resume.go`: `Pipeline resume:` lines.

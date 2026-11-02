@@ -66,7 +66,7 @@ Then there are exactly three implement calls, waits `[1s 2s]`, and the terminal 
 When implement fails once with `connection reset` (unmarked), with `TimedOut: true`, or validate answers `looks fine` with no verdict line
 Then there is no further dispatch after that failure, no wait, and the failure kind is `transport_failure`, `timeout`, or `contract_violation` respectively
 When the context is cancelled during a wait
-Then the terminal state is `cancelled` (tests `TestEngineTransportRetry_*`).
+Then the terminal state is `cancelled` (tests `TestEngineTransportRetry_*`, `TestSubprocessEngine_NonRetryableFailuresStopWithoutAnotherCall`).
 
 ### S7: AC-PRR-007 - Resume restores the dynamic outputs into the same prompt
 Priority: Must
