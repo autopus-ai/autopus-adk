@@ -106,7 +106,7 @@ Optional improvements. They do not block sync completion and carry no identifier
 
 - Intended scope: two review gate keys, the judge assembly, the plan line and receipt, the `judge` subcommand flags, and the review tab's judge model selects.
 - Explicit non-goals: see the Outcome Lock.
-- Self-verified: the Traceability Matrix, three probes named with their tests, and the acceptance oracles.
+- Self-verified: the Traceability Matrix, three executed probes, and the acceptance oracles as tests.
 - Reviewer should focus on: whether the judge argv can differ from the reviewer argv in anything but model and effort; whether any path applies a judge model chosen for one provider to another; whether a refused value can reach a readiness probe or a call; and whether the line removal can drop anything but the key's own line.
 
 ## Residual Risks
@@ -128,4 +128,4 @@ Optional improvements. They do not block sync completion and carry no identifier
 - Q-COMP-05 | status: PASS | attempt: 1 | files: research.md, acceptance.md | reason: INV-J01 to INV-J07 map to oracles with fixed strings and argv
 - Q-COMP-06 | status: PASS | attempt: 1 | files: spec.md, research.md | reason: Traceability Matrix with invariants; the Reviewer Brief names the focus
 - Q-COMP-07 | status: PASS | attempt: 1 | files: research.md | reason: Completion Debt is empty; residual risks are stated
-- Q-COMP-08 | status: PASS | attempt: 1 | files: plan.md | reason: B1 to B3 name their boundary, oracle, and tests; they are not-run until the implementation lands
+- Q-COMP-08 | status: PASS | attempt: 2 | files: plan.md | reason: B1 to B3 executed as the named tests on 2026-11-02

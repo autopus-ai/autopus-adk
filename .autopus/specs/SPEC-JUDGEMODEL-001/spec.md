@@ -7,7 +7,7 @@
 **Change Class**: feature (two new `autopus.yaml` keys, a changed judge argv at runtime, new CLI flags, and new review tab selects; `feature` is a high-risk class and the surface spans `pkg/config` and `internal/cli`, so the lean profile does not apply)
 **Source**: operator request of 2026-11-02 (the judge should run, for example, claude on opus while the claude reviewer runs sonnet, chosen in the `auto quality` review tab because the commands are long)
 **Target module**: `autopus-adk/` (this repository)
-**Module ownership**: `.autopus/specs/SPEC-JUDGEMODEL-001/**`, `pkg/config/schema_spec.go`, `pkg/config/schema.go`, `[NEW] pkg/config/schema_review_judge_model*.go`, the files of `internal/cli` listed under Generated And Changed Surfaces, `README.md`, `docs/README.ko.md`, `CHANGELOG.md`, `content/skills/{spec-review,using-autopus,adaptive-quality}.md`, the TUIUX goldens they regenerate, and section 96 of `.autopus/specs/SPEC-TUIUX-001/evidence/base-goldens-recapture.md`
+**Module ownership**: `.autopus/specs/SPEC-JUDGEMODEL-001/**`, `pkg/config/schema_spec.go`, `pkg/config/schema.go`, `[NEW] pkg/config/schema_review_judge_model*.go`, the files of `internal/cli` listed under Generated And Changed Surfaces, `README.md`, `docs/README.ko.md`, `CHANGELOG.md`, `content/skills/{spec-review,using-autopus,adaptive-quality}.md` and their copies under `templates/codex/skills/` and `templates/gemini/skills/`, the TUIUX goldens they regenerate, and section 96 of `.autopus/specs/SPEC-TUIUX-001/evidence/base-goldens-recapture.md`
 **Depends on**: SPEC-REVMODEL-001 (review tab, `auto quality review`, line splice writer), SPEC-REVIEWRO-001 (read-only judge assembly), SPEC-REVIEWPOLICY-001 (review plan block)
 
 ## Purpose
@@ -143,7 +143,7 @@ THE SYSTEM SHALL prove every Must requirement with tests over temporary projects
 - `pkg/config/schema_spec.go` (the two fields), `pkg/config/schema.go` (the validation call), `[NEW] pkg/config/schema_review_judge_model.go`.
 - `[NEW] internal/cli/spec_review_judge_model.go`: applies-rule, per-backend application and refusal, plan line, receipt fields; hooks in `spec_review_readonly.go` (`assembleSpecReviewJudge`), `spec_review_readiness.go` (`specReviewProviderPlan.JudgeModel`), `spec_review_plan_print.go` (one call), `spec_review_lean.go` (runtime evidence), `spec_review_receipt.go` (`model`, `effort`, evidence field), `spec_review_runtime.go` (one call).
 - `[NEW] internal/cli/quality_compose_review_judge.go` (tab selects), `[NEW] internal/cli/quality_compose_review_judgemodel.go` (composition value, attestation, targets, change lines, cells, line removal), `[NEW] internal/cli/quality_review_judge.go` (command flags and resolution); `quality_compose_review.go`, `quality_compose_review_plan.go`, `quality_compose_review_raw.go`, `quality_compose_review_write.go`, `quality_compose_review_splice.go`, `quality_compose_review_verify.go`, `quality_compose_review_lines.go`, `quality_compose_review_menu.go`, `quality_compose_review_check.go`, `quality_compose_review_clitab.go`, `quality_compose_review_text.go`, `quality_review.go`, `quality_review_edit.go`, `quality_review_model.go`, `quality_help.go`.
-- `README.md`, `docs/README.ko.md`, `CHANGELOG.md`, the three skill sources, the regenerated TUIUX goldens and recapture section 96.
+- `README.md`, `docs/README.ko.md`, `CHANGELOG.md`, the three skill sources and their Codex and Gemini template copies, the regenerated TUIUX NPD goldens and recapture section 96.
 
 ## Related SPECs
 

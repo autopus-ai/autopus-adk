@@ -33,9 +33,10 @@ Then planning fails before the readiness probe and the backend run, with an erro
 | claude CLI | `anthropic/claude-opus-5-5` | | `is an OMP model selector, but judge claude runs on the CLI backend (claude)` |
 | claude CLI | `claude-opus-5-5` | `turbo` | `is not one of low, medium, high, xhigh, max` |
 | OMP | `claude-opus-5-5` | `max` | `is not a <provider>/<model> selector, which judge claude on the OMP backend needs` |
-| OMP | `openai-codex/gpt-6-astra` | `high` | `is an openai model, but judge claude is anthropic` |
+| OMP | `openai-codex/gpt-6-astra` | `high` | `belongs to the openai family, but judge claude belongs to anthropic` |
 | OMP | `anthropic/claude-opus-5-5:max` | `high` | `already names thinking max` |
 | agy | `gemini-3.1-pro` | `high` | `agy ids carry their effort` |
+| agy | `claude-opus-5-5` | | `is not an agy id of judge gemini's family google` |
 | unknown binary `foo` | `m1` | | `whose model flag Autopus does not know` |
 
 And the expected value of the readiness probe's call count and of the backend's request count is zero (test `TestSpecReviewJudgeModel_RefusedBeforeAnyCall`).
@@ -58,13 +59,13 @@ Then the file is the original with `        judge_model: anthropic/claude-opus-5
 When `auto quality review judge claude --model default` runs
 Then the change lines read `judge_model anthropic/claude-opus-5-5 → reviewer model` and `judge_effort max → none`, and the file is byte-identical to the original
 And after setting the model again, `auto quality review judge codex` clears both keys while changing the judge, and `auto quality review judge none` clears them while writing `judge: ""`
-And on RL `auto quality review judge claude --model claude-opus-5-5` writes `judge_effort: max`, the claude default (test `TestQualityReviewJudge_SetsAndClearsTheJudgeModel`, `TestQualityReviewJudge_CLIEffortDefault`).
+And on RL `auto quality review judge claude --model claude-opus-5-5` writes `judge_effort: max`, the claude default, and a later `--model claude-haiku-4-5` removes the `judge_effort` line (tests `TestQualityReviewJudge_SetsAndClearsTheJudgeModel`, `TestQualityReviewJudge_CLIEffortDefault`).
 
 ### S6: AC-JM-006 - The command refuses what the tab refuses and shows the keys
 Priority: Must
 Given R3 with English text
 When `judge claude --effort max`, `judge none --model x`, `judge claude --model default --effort max`, `judge claude --model anthropic/claude-opus-9`, and `judge claude --model x` over a `judge_model: ${JUDGE_MODEL}` file run
-Then each exits 1 with `--effort needs --model`, `judge none takes no judge model`, `--model default takes no --effort`, `The installed OMP catalog does not attest claude judge model anthropic/claude-opus-9 (accepted: anthropic/claude-fable-5-1 (low, medium, high, max), anthropic/claude-opus-5-5 (high, max))`, and `judge_model of spec.review_gate comes from an environment variable; this tab leaves it: ${JUDGE_MODEL}`, and writes nothing
+Then each exits 1 with `--effort needs --model`, `judge none takes no judge model`, `--model default takes no --effort`, `The installed OMP catalog does not attest claude judge model anthropic/claude-opus-9 (accepted: anthropic/claude-fable-5-1 (high, low, max, medium), anthropic/claude-opus-5-5 (high, max))`, and `judge_model of spec.review_gate comes from an environment variable; this tab leaves it: ${JUDGE_MODEL}`, and writes nothing
 And `auto quality review show` prints `spec.review_gate.judge_model = anthropic/claude-opus-5-5` and `spec.review_gate.judge_effort = max` right after the judge line, `--json` carries `"judge_model"` and `"judge_effort"` with those values, and a file without the keys prints and serializes exactly as before (tests `TestQualityReviewJudge_Refusals`, `TestQualityReviewJudge_ShowListsTheJudgeModel`).
 
 ### S7: AC-JM-007 - The tab picks the judge model of the kept judge
@@ -82,7 +83,7 @@ When the operator chooses judge `codex`, then `openai-codex/gpt-6-luna` and thin
 Then the judge line changes to `codex` and the file gains `judge_model: openai-codex/gpt-6-luna` and `judge_effort: high`
 When the operator then chooses `codex — judge model 고르기` and `리뷰어 model과 같음`, and applies
 Then the model select reads `codex judge model \n1. 그대로 — openai-codex/gpt-6-luna:high\n2. 리뷰어 model과 같음\n3. openai-codex/gpt-6-astra\n4. openai-codex/gpt-6-luna\nEnter`, the preview lists `judge_model openai-codex/gpt-6-luna → 리뷰어 model`, and both key lines are gone
-And the after-error path, cancel, and keeping the judge write nothing (test `TestReviewTab_NewJudgeAsksItsModelAndClears`).
+And cancelling the confirmation, keeping the judge, and keeping its judge model write nothing (tests `TestReviewTab_NewJudgeAsksItsModelAndClears`, `TestReviewTab_JudgeModelKeepAndCancelWriteNothing`).
 
 ### S9: AC-JM-009 - A placeholder judge model is left alone
 Priority: Must
@@ -94,7 +95,7 @@ Then it prints `spec.review_gate의 judge_model 값이 환경 변수라 이 탭�
 Priority: Must
 Given the branch
 When the documents and the change set are read
-Then `auto quality --help`, `auto quality review --help`, `README.md`, `docs/README.ko.md`, and the CHANGELOG's unreleased section each name `spec.review_gate.judge_model`, `judge_effort`, and `SPEC-JUDGEMODEL-001`; the three skill sources name `--model`; and no path under `.claude/`, `.codex/`, `.gemini/`, `.opencode/`, `.omp/`, or `.agents/` changed (test `TestJudgeModelDocs`; scope by `git diff --name-only origin/main`).
+Then `auto quality --help`, `auto quality review --help`, `README.md`, `docs/README.ko.md`, and the CHANGELOG's unreleased section each name `spec.review_gate.judge_model`, `judge_effort`, and `SPEC-JUDGEMODEL-001`; the three skill sources name `judge_model`; and no path under `.claude/`, `.codex/`, `.gemini/`, `.opencode/`, `.omp/`, or `.agents/` changed (test `TestJudgeModelDocs`; scope by `git diff --name-only origin/main`).
 
 ## Oracle Acceptance Notes
 
