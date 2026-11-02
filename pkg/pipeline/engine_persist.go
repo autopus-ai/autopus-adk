@@ -65,6 +65,11 @@ func (e *SubprocessEngine) checkpointForState(state *engineRunState) *Checkpoint
 		GitCommitHash: e.cfg.GitCommitHash, TaskStatus: taskStatus,
 		Receipt: &state.result.Receipt,
 	}
+	for _, phase := range state.phases {
+		if record, ok := state.outputs[phase.ID]; ok && state.statuses[phase.ID] == CheckpointStatusDone {
+			checkpoint.PhaseOutputs = append(checkpoint.PhaseOutputs, record)
+		}
+	}
 	for i := len(state.result.Receipt.Transitions) - 1; i >= 0; i-- {
 		if phaseID := state.result.Receipt.Transitions[i].PhaseID; phaseID != "" {
 			checkpoint.Phase = string(phaseID)

@@ -152,7 +152,8 @@ func completedOMPHistory(phases []Phase, current PhaseID, previous map[PhaseID]s
 		if phase.ID == current {
 			break
 		}
-		if output, ok := previous[phase.ID]; ok {
+		// A phase whose output sanitized to nothing has no history row.
+		if output, ok := previous[phase.ID]; ok && strings.TrimSpace(output) != "" {
 			history = append(history, output)
 		}
 	}

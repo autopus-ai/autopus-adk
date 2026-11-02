@@ -77,14 +77,17 @@ func TestSubprocessEngine_Run_InjectsResultToNextPhase(t *testing.T) {
 	assert.Contains(t, recorder.ReceivedPrompts[1], "plan output")
 }
 
-// TestSubprocessEngine_Run_ResumeFromCheckpoint verifies that when a checkpoint
-// exists, the engine skips already-completed phases (REQ-7).
+// TestSubprocessEngine_Run_ResumeFromCheckpoint verifies that a resume skips
+// a completed phase only when it can restore that phase's output (REQ-7,
+// SPEC-PIPELINE-RESUME-001 REQ-PRR-OUT-04). This checkpoint predates
+// persisted outputs, so plan, which writes nothing, is dispatched again and
+// the receipt says why, instead of resuming with an empty plan.
 func TestSubprocessEngine_Run_ResumeFromCheckpoint(t *testing.T) {
 	t.Parallel()
 
-	// Given: a checkpoint indicating phase 1 (Plan) is done
+	// Given: a legacy checkpoint indicating phase 1 (Plan) is done, without its output
 	cp := &pipeline.Checkpoint{
-		Version:       pipeline.CheckpointVersion,
+		Version:       pipeline.LegacyCheckpointVersionV1,
 		RouteVersion:  pipeline.PipelineRouteVersion,
 		SpecID:        "SPEC-TEST-001",
 		SnapshotHash:  "sha256:resume-fixture",
@@ -96,6 +99,7 @@ func TestSubprocessEngine_Run_ResumeFromCheckpoint(t *testing.T) {
 	}
 	recorder := &FakeBackend{
 		Responses: []string{
+			"plan output",
 			"test scaffold output",
 			"implement output",
 			"VERDICT: PASS",
@@ -115,11 +119,15 @@ func TestSubprocessEngine_Run_ResumeFromCheckpoint(t *testing.T) {
 	// When: Run is called
 	result, err := engine.Run(context.Background())
 
-	// Then: only 4 phases are executed (plan was skipped)
+	// Then: plan is dispatched again rather than skipped with no output
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	assert.Equal(t, 4, recorder.CallCount)
+	assert.Equal(t, 5, recorder.CallCount)
 	assert.Len(t, result.PhaseResults, 5)
+	require.NotNil(t, result.Receipt.Resume)
+	assert.Equal(t, []pipeline.PhaseID{pipeline.PhasePlan}, result.Receipt.Resume.RerunPhases)
+	assert.Empty(t, result.Receipt.Resume.RestoredPhases)
+	assert.Contains(t, strings.Join(result.Receipt.Resume.Notes, "\n"), "predates persisted phase outputs")
 }
 
 // TestSubprocessEngine_Run_DryRun verifies that dry-run mode does not invoke

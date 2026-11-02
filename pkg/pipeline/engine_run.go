@@ -13,6 +13,8 @@ type engineRunState struct {
 	statuses   map[PhaseID]CheckpointStatus
 	// previous holds each completed phase's dynamic output, as later prompts read it.
 	previous map[PhaseID]string
+	// outputs are the records of previous that the checkpoint persists.
+	outputs map[PhaseID]PhaseOutputRecord
 	// attempts counts dispatches per phase; attempt numbers never repeat in a run.
 	attempts map[PhaseID]int
 	// cycles counts the remediation cycles each gate has spent in this run.
@@ -30,8 +32,8 @@ type engineRunState struct {
 // Run executes the canonical dependency-ordered pipeline.
 func (e *SubprocessEngine) Run(ctx context.Context) (result *PipelineResult, runErr error) {
 	requested, effective, strategyErr := effectivePipelineStrategy(e.cfg.Strategy)
-	checkpointErr := e.validateCheckpoint()
-	state := e.newRunState(requested, effective, checkpointErr == nil)
+	plan, checkpointErr := e.planResume()
+	state := e.newRunState(requested, effective, plan, checkpointErr == nil)
 	preflight := true
 	if closer, ok := e.cfg.Backend.(PhaseBackendCloser); ok {
 		defer func() {
@@ -163,7 +165,10 @@ func (e *SubprocessEngine) runDry(state *engineRunState) (*PipelineResult, error
 	return state.result, nil
 }
 
-func (e *SubprocessEngine) newRunState(requested, effective Strategy, restoreCheckpoint bool) *engineRunState {
+// newRunState builds the run's state. An admitted resume plan restores its
+// statuses, verified outputs, and pending fix feedback; any plan links the
+// receipt to the run it resumes.
+func (e *SubprocessEngine) newRunState(requested, effective Strategy, plan *resumePlan, admitted bool) *engineRunState {
 	route := e.cfg.Route
 	if route == "" {
 		route = RouteFull
@@ -175,18 +180,35 @@ func (e *SubprocessEngine) newRunState(requested, effective Strategy, restoreChe
 	statuses := make(map[PhaseID]CheckpointStatus, len(phases))
 	for i, phase := range phases {
 		status := CheckpointStatusPending
-		if restoreCheckpoint && e.cfg.Checkpoint != nil && e.cfg.Checkpoint.TaskStatus[string(phase.ID)] != "" {
-			status = e.cfg.Checkpoint.TaskStatus[string(phase.ID)]
+		if admitted && plan != nil && plan.statuses[phase.ID] != "" {
+			status = plan.statuses[phase.ID]
 		}
 		statuses[phase.ID] = status
 		result.PhaseResults[i] = PhaseResult{PhaseID: phase.ID, Status: status}
 	}
-	return &engineRunState{
+	state := &engineRunState{
 		phases: phases, result: result, statuses: statuses,
 		previous: make(map[PhaseID]string, len(phases)),
+		outputs:  make(map[PhaseID]PhaseOutputRecord, len(phases)),
 		attempts: map[PhaseID]int{}, cycles: map[PhaseID]int{},
 		lastFailure: map[PhaseID]*PhaseFailure{}, feedback: map[PhaseID]*PhaseFailure{},
 	}
+	if plan == nil {
+		return state
+	}
+	state.result.Receipt.inheritLineage(plan.prior)
+	if admitted {
+		for id, record := range plan.records {
+			state.outputs[id] = record
+			state.previous[id] = record.Content
+		}
+		for id, feedback := range plan.feedback {
+			state.feedback[id] = feedback
+		}
+		resume := plan.resume
+		state.result.Receipt.Resume = &resume
+	}
+	return state
 }
 
 // legacyPrevious is the output of the phase just before index on the route,

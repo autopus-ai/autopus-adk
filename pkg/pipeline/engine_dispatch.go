@@ -42,7 +42,7 @@ func (e *SubprocessEngine) dispatch(
 		wrapped := fmt.Errorf("phase %s: %w", phase.ID, err)
 		return dispatchOutcome{}, e.failPhase(state, index, attempt, CheckpointStatusFailed, TerminalBlocked, wrapped)
 	}
-	state.result.Receipt.DispatchCount++
+	state.result.Receipt.countDispatch()
 	resp, execErr := e.cfg.Backend.Execute(ctx, request)
 	outcome := dispatchOutcome{err: admitPhaseResponse(phase.ID, resp, execErr)}
 	if outcome.err == nil {
@@ -97,8 +97,13 @@ func (e *SubprocessEngine) completePhase(
 	if event != nil {
 		state.result.CompactionEvents = append(state.result.CompactionEvents, *event)
 	}
+	// The record holds the text later prompts read, so a resume restores the
+	// same prompt (REQ-PRR-OUT-01); sanitizing it again at prompt time is a
+	// no-op.
+	content := sanitizePromptContent(nextOutput).Content
+	state.outputs[phase.ID] = e.recordPhaseOutput(state, index, attempt, content)
+	state.previous[phase.ID] = content
 	state.statuses[phase.ID] = CheckpointStatusDone
-	state.previous[phase.ID] = nextOutput
 	delete(state.feedback, phase.ID)
 	delete(state.lastFailure, phase.ID)
 	state.result.Receipt.CompletedPhaseCount++

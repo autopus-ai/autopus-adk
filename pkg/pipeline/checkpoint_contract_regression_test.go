@@ -75,17 +75,28 @@ func TestSubprocessEngine_RestoredPhase_PreservesCheckpointReceiptDashboardParit
 	dir := t.TempDir()
 	specID := "SPEC-RESUME-004"
 	snapshot := "sha256:stable"
-	cp := canonicalCheckpoint(specID, snapshot, map[string]pipeline.CheckpointStatus{
-		string(pipeline.PhasePlan): pipeline.CheckpointStatusDone,
-	})
+	config := func(backend pipeline.PhaseBackend, cp *pipeline.Checkpoint) pipeline.EngineConfig {
+		return pipeline.EngineConfig{
+			SpecID: specID, Platform: "codex", Strategy: pipeline.StrategySequential,
+			Backend: backend, Checkpoint: cp, SnapshotHash: snapshot, GitCommitHash: "git-a",
+			RunConfig: pipeline.RunConfig{SpecID: specID, CheckpointDir: dir},
+		}
+	}
+	// The checkpoint comes from a run interrupted after plan, so the plan
+	// output it restores is persisted (SPEC-PIPELINE-RESUME-001 REQ-PRR-OUT-01).
+	interrupted, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	first := &scriptedBackend{scripts: map[pipeline.PhaseID]phaseScript{
+		pipeline.PhaseTestScaffold: cancelOn(1, cancel),
+	}}
+	_, err := pipeline.NewSubprocessEngine(config(first, nil)).Run(interrupted)
+	require.ErrorIs(t, err, context.Canceled)
+	cp, err := pipeline.LoadFile(filepath.Join(dir, specID+".yaml"))
+	require.NoError(t, err)
 	backend := &FakeBackend{Responses: []string{
 		"test output", "implementation output", "VERDICT: PASS", "VERDICT: APPROVE",
 	}}
-	engine := pipeline.NewSubprocessEngine(pipeline.EngineConfig{
-		SpecID: specID, Platform: "codex", Strategy: pipeline.StrategySequential,
-		Backend: backend, Checkpoint: cp, SnapshotHash: snapshot, GitCommitHash: "git-a",
-		RunConfig: pipeline.RunConfig{SpecID: specID, CheckpointDir: dir},
-	})
+	engine := pipeline.NewSubprocessEngine(config(backend, cp))
 
 	result, err := engine.Run(context.Background())
 

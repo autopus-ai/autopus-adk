@@ -70,6 +70,7 @@ func invalidateForRemediation(state *engineRunState, from, to int, failure *Phas
 		}
 		state.statuses[id] = CheckpointStatusPending
 		delete(state.previous, id)
+		delete(state.outputs, id)
 		state.result.PhaseResults[i] = PhaseResult{PhaseID: id, Status: CheckpointStatusPending}
 		state.result.Receipt.transition(id, CheckpointStatusPending, 0, "", reason)
 	}
