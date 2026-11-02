@@ -1,15 +1,19 @@
 # Disk management on a shared machine
 
 `auto disk` gives the harness a disk budget it can read, a preflight it runs
-before heavy steps, an observation command that names what fills the disk, and
-a trim command for the Go build cache. It is written for one machine that hosts
-several agent sessions, their worktrees, and CI runners at once, where a full
-disk fails every running job with errors that look like regressions.
+before heavy steps, an observation command that names what fills the disk, a
+trim command for the Go build cache, a reclaim command for finished work, disk
+leases for parallel heavy commands, an event log, and a low-space alert in
+Claude Code sessions. It is written for one machine that hosts several agent
+sessions, their worktrees, and CI runners at once, where a full disk fails
+every running job with errors that look like regressions.
 
-Defined by SPEC-DISK-001 (GitHub issue #198, first slice). The trim command
-deletes only Go build cache entries and abandoned Go build work directories.
-Nothing else is ever deleted: worktrees are listed as suggestions, and
-scratchpads, VM images, model caches, and other projects are only reported.
+Defined by SPEC-DISK-001 (budget, check, status, trim) and SPEC-DISK-002
+(ledger, reclaim, leases, log, alert), GitHub issue #198. Deletion is limited
+to Go build cache entries, abandoned Go build work directories, worktrees the
+harness owns (see [Reclaim](#reclaim)), and idle Claude Code session
+scratchpads. VM images, model caches, container images, scratch databases, and
+other people's worktrees are only reported, never deleted.
 
 ## Commands
 
@@ -22,6 +26,13 @@ auto disk trim                   # dry run: what would be deleted, and why
 auto disk trim --list            # ... with every candidate path
 auto disk trim --apply           # delete the candidates
 auto disk trim --ci idle         # override CI detection (running | idle)
+auto disk reclaim                # dry run: finished worktrees and idle scratchpads
+auto disk reclaim --apply        # remove them
+auto disk register <worktree>    # record a worktree you created outside the harness dirs
+auto disk release <worktree>     # mark it done; reclaim removes it once clean
+auto disk registry               # list the ownership ledger
+auto disk lease --need 20 -- cargo test --workspace
+auto disk log                    # the latest trims, reclaims, refusals, and alerts
 ```
 
 `auto doctor` adds an advisory `Disk` row: `[OK]` at or above the floor,
@@ -34,6 +45,8 @@ auto disk trim --ci idle         # override CI detection (running | idle)
 | `auto disk check` | enough free space | measurement failed, or bad flags | insufficient free space |
 | `auto disk trim` | dry run, or apply with no failure | a deletion failed, or a root was refused | — |
 | `auto disk status` | report printed | measurement failed | — |
+| `auto disk reclaim` | dry run, or apply with no failure | a removal failed, or the scratchpad root was refused | — |
+| `auto disk lease` | the command's own code (also 1 to 255) | usage, configuration, measurement, or state failure | the wait ran out |
 
 A caller should go on only on exit 0 from `auto disk check`, and stop on 3 and
 on any other non-zero code: a failed measurement is not a pass. In text mode the
@@ -68,9 +81,20 @@ disk:
       large_file_below_gb: 0      # 0 = the large-entry rule applies at any free space
     go_build_work_dirs:
       idle_minutes: 360
+  reclaim:
+    worktree_idle_minutes: 360    # merged, clean, owned worktree idle this long
+    scratchpad_idle_minutes: 1440 # session scratchpad idle this long
+  lease:
+    max_concurrent: 0             # 0 = no count limit; otherwise at most this many leases
+    wait_minutes: 10              # how long a lease waits for space by default
+    reclaim_on_shortage: true     # trim and reclaim once before waiting
 ```
 
-Every `*idle_minutes` value must be at least 60. A value below 120 is accepted
+Every `trim` and `reclaim` `*idle_minutes` value must be at least 60, and
+`lease.max_concurrent` and `lease.wait_minutes` at least 0. Every idle and
+wait value is at most 5256000 (ten years), every `*_gb` value at most 1048576
+(1 PiB), and every `*_mb` value at most 1073741824, so no threshold can
+overflow into "always idle" or "never short". A value below 120 is accepted
 but `auto disk status` and `auto disk trim` warn about it, for the reason below.
 
 ## How trim decides
@@ -149,6 +173,149 @@ An apply prints `disk trim: reclaimed <size> (deleted=… skipped_changed=…
 skipped_symlink=… skipped_device=… skipped_owner=… vanished=… failed=…)`; an
 entry that disappeared on its own counts as `vanished`, not as a failure.
 
+## Reclaim
+
+`auto disk reclaim` removes two kinds of finished work, as a dry run unless
+`--apply` is given.
+
+**Worktrees.** A linked worktree is *owned* when it lives under
+`.autopus/worktrees/`, `.claude/worktrees/`, or `.worktrees/` of its main
+worktree, directly under the system temp dir as `autopus-worktree-<digits>`
+(the pipeline's), or was registered with `auto disk register`. Reclaim removes
+an owned worktree only when the current user owns it, it is clean, unlocked,
+not prunable, does not hold the current directory, has nothing mounted
+inside it (git would delete across the mount), and either its owner
+released it (and it has a branch or its HEAD is merged) or it is merged into
+its base and idle beyond `reclaim.worktree_idle_minutes`. Idle is read from
+the newest file anywhere in the worktree outside `.git` (so a build writing
+deep inside `target/` keeps it active) and its git `HEAD`, `index`, and
+`logs/HEAD`. Right before removal every one of those gates is
+checked again, together with the worktree's identity and HEAD; anything that
+changed is skipped as `skipped_changed`. Git removes the worktree without
+`--force`, so it refuses a dirty or locked one on its own; the branch is
+always kept.
+
+Register a worktree you create anywhere else, and release it when its work is
+merged or abandoned:
+
+```sh
+git worktree add -b fix/x ../wt/fix-x origin/main
+auto disk register ../wt/fix-x --owner "session 0646"
+# ... work, push, merge ...
+auto disk release ../wt/fix-x
+```
+
+**Scratchpads.** A Claude Code session directory
+`/tmp/claude-<uid>/<project slug>/<session uuid>` whose newest entry is idle
+beyond `reclaim.scratchpad_idle_minutes` is removed. The scratchpad root must be
+owned by you and writable by nobody else, or nothing in it is deleted. Inside a
+session, symlinks and other non-directories are unlinked as names and never
+followed; a tree on another device is skipped whole. Loose files at the top of
+the scratchpad root are never touched.
+
+## Leases
+
+`auto disk lease` runs a heavy command only while free space minus the
+reservations of the other running leases, minus its own `--need`, stays at or
+above `disk.min_free_gb`:
+
+```sh
+auto disk lease --need 20 -- cargo build --workspace
+auto disk lease --for release --wait 30m -- make release
+```
+
+When space is short it runs `auto disk trim --apply` and
+`auto disk reclaim --apply` once (`lease.reclaim_on_shortage`), then waits,
+re-checking every 5 seconds, up to `--wait` (default `lease.wait_minutes`), and
+exits 3 if space never came. A refusal because `lease.max_concurrent` leases
+already run does not reclaim anything. The reservation is a locked file that
+the command inherits, so it lasts exactly as long as the command, even when the
+wrapper itself is killed; it is not reduced as the command writes, so admission
+is conservative. A background process the command leaves running inherits the
+reservation too and keeps it until it exits; `auto disk status` marks such a
+lease `orphaned` once the wrapper is gone, so a daemon started under a lease
+(a Gradle or Bazel server, for example) shows up there instead of silently
+holding space. `SIGTERM` and `SIGHUP` are forwarded to the command; `SIGINT`
+is not, because the terminal already sends it to the command. The label shown
+by status and the log is `--label`, or the command's program name. Leases only
+coordinate commands that use them: CI jobs and unwrapped builds still take
+space without asking.
+
+## Events, trend, and alerts
+
+`auto disk log` shows the latest `trim_apply`, `reclaim_apply`,
+`lease_reclaimed`, `lease_refused`, and `low_space_alert` events. `auto disk
+status`, `check`, `lease`, and the alert record a free-space sample at most
+every 5 minutes per volume; `status` prints `free trend: <GiB>/h over
+<duration>` once a sample between 10 minutes and 6 hours old exists.
+
+In Claude Code, the per-prompt sticky hook adds this to the session's context
+on every turn while free space is below the floor:
+
+```text
+Disk alert: 8.2 GiB free on /System/Volumes/Data, below the floor of 10.0 GiB (disk.min_free_gb). Do not start builds, worktrees, or parallel agents until space recovers; run `auto disk status`, then `auto disk reclaim --apply` and `auto disk trim --apply`. If you lead other agents, tell each of them to pause heavy work.
+```
+
+At or above the floor the hook's output is unchanged. Other platforms rely on
+the `auto disk check` preflight in their guidance.
+
+## State directory
+
+The ledger, leases, and logs live in `$XDG_STATE_HOME/autopus/disk` (absolute
+`XDG_STATE_HOME` only), else `~/.local/state/autopus/disk`. Each directory is
+created with mode 0700 and refused when it is a symlink, owned by someone else,
+or writable by group or others. When it is refused, `register`, `release`,
+`registry`, `lease`, and `log` exit 1; `reclaim` still removes harness
+worktrees and scratchpads; `status`, `check`, `trim`, and the alert work
+without recording.
+
+## Running trim and reclaim periodically
+
+The harness installs no scheduler. To run both every 10 minutes, use your
+system's own; replace `auto` with its absolute path when the scheduler's `PATH`
+does not include it, and run from a project directory so its `autopus.yaml`
+applies.
+
+macOS launchd (`~/Library/LaunchAgents/co.autopus.disk.plist`, then
+`launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/co.autopus.disk.plist`):
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>co.autopus.disk</string>
+  <key>ProgramArguments</key>
+  <array><string>/bin/sh</string><string>-c</string>
+    <string>auto disk trim --apply; auto disk reclaim --apply</string></array>
+  <key>StartInterval</key><integer>600</integer>
+</dict>
+</plist>
+```
+
+Linux systemd user units (`~/.config/systemd/user/autopus-disk.service` and
+`.timer`, then `systemctl --user enable --now autopus-disk.timer`):
+
+```ini
+# autopus-disk.service
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'auto disk trim --apply; auto disk reclaim --apply'
+
+# autopus-disk.timer
+[Timer]
+OnUnitActiveSec=10min
+OnBootSec=5min
+[Install]
+WantedBy=timers.target
+```
+
+cron (`crontab -e`):
+
+```cron
+*/10 * * * * auto disk trim --apply; auto disk reclaim --apply
+```
+
 ## Known residual risks
 
 - A build that looked a cache entry up just before its idle threshold passed can
@@ -160,3 +327,15 @@ entry that disappeared on its own counts as `vanished`, not as a failure.
 - On Linux with `hidepid` mounted, processes of other users are invisible, so a
   CI job running as another user is not detected; trim then uses the `idle`
   thresholds instead of the stricter `ci` ones.
+- A process outside the harness that works in an owned, merged, clean worktree
+  without writing to its top two levels or its git metadata for
+  `reclaim.worktree_idle_minutes` loses the worktree. Releasing finished
+  worktrees and keeping the default of six hours bound this.
+- A Claude Code session resumed after `reclaim.scratchpad_idle_minutes` finds
+  its scratchpad gone.
+- A change made to a worktree between reclaim's last check and git's own checks
+  is the remaining race; git still refuses it when the change leaves the
+  worktree dirty.
+- On Linux ext4, a worktree removed by hand and recreated at a registered path
+  can get the old inode back and inherit a released ledger entry. Release or
+  register again after recreating a worktree at the same path.

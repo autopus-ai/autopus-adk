@@ -142,7 +142,7 @@ func removeDirCandidate(parent int, name string, c Candidate, rootDev uint64, ui
 	if hooks.beforeWalk != nil {
 		hooks.beforeWalk(c.Rule, c.Rel)
 	}
-	walk := preWalk{rootDev: rootDev}
+	walk := preWalk{rootDev: rootDev, limits: hooks.tree}
 	tree, err := walk.dir(parent, name, 1)
 	switch {
 	case walk.top != (FileID{}) && walk.top != c.ID:
@@ -169,4 +169,10 @@ func removeDirCandidate(parent int, name string, c Candidate, rootDev uint64, ui
 		return outcomeFailed
 	}
 	return outcomeDeleted
+}
+
+// removeEmptyDir removes a directory directly under the root only when it is
+// empty; rmdir refuses anything else, and a symlink is not a directory.
+func (h *rootHandle) removeEmptyDir(name string) {
+	_ = unix.Unlinkat(h.fd, name, unix.AT_REMOVEDIR)
 }

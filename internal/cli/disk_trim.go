@@ -120,7 +120,10 @@ func runDiskTrim(cmd *cobra.Command, opts diskTrimOptions) error {
 	}
 	data := s.trimData(run, opts.list)
 	if opts.apply && data.Refused == nil && data.Active {
-		data.withApply(diskspace.Apply(s.plan, diskspace.ApplyOptions{Cache: s.cacheRoot, WorkDir: s.workRoot, UID: s.uid, BeforeRemove: diskBeforeRemove}))
+		result := diskspace.Apply(s.plan, diskspace.ApplyOptions{Cache: s.cacheRoot, WorkDir: s.workRoot, UID: s.uid, BeforeRemove: diskBeforeRemove})
+		data.withApply(result)
+		recordDiskEvent(diskspace.Event{Kind: diskspace.EventTrimApply, FreeBytes: dc.space.AvailBytes,
+			ReclaimedBytes: result.Total.DeletedBytes, Count: result.Total.Deleted})
 	}
 	warnings := s.warnings()
 	writeDiskWarnings(cmd, jsonMode, warnings)
