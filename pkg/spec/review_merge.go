@@ -41,14 +41,7 @@ func MergeSupermajority(findings []ReviewFinding, totalProviders int, threshold 
 	if len(findings) == 0 {
 		return nil
 	}
-	type key struct {
-		category          FindingCategory
-		scopeRef          string
-		descriptionPrefix string
-	}
-	groups, order := groupFindings(findings, func(f ReviewFinding) key {
-		return key{category: f.Category, scopeRef: NormalizeScopeRef(f.ScopeRef, ""), descriptionPrefix: normalizedDescriptionPrefix(f.Description)}
-	})
+	groups, order := groupFindings(findings, supermajorityGroupKeyOf)
 	var merged []ReviewFinding
 	for _, k := range order {
 		group := groups[k]
@@ -58,6 +51,28 @@ func MergeSupermajority(findings []ReviewFinding, totalProviders int, threshold 
 		}
 	}
 	return merged
+}
+
+// supermajorityGroupKey is what makes two reviewers' findings one claim in the
+// supermajority merge: the category, the normalized scope, and the
+// normalized description prefix.
+type supermajorityGroupKey struct {
+	category          FindingCategory
+	scopeRef          string
+	descriptionPrefix string
+}
+
+func supermajorityGroupKeyOf(f ReviewFinding) supermajorityGroupKey {
+	return supermajorityGroupKey{category: f.Category, scopeRef: NormalizeScopeRef(f.ScopeRef, ""), descriptionPrefix: normalizedDescriptionPrefix(f.Description)}
+}
+
+// FindingGroupKey is the supermajority group key of a finding as one string,
+// so two reviews can be compared claim by claim: the conditional judge treats
+// findings with equal keys as the same item whatever their severity
+// (SPEC-REVIEWREUSE-001 REQ-RR-JDG-03, REQ-RR-JDG-04).
+func FindingGroupKey(f ReviewFinding) string {
+	key := supermajorityGroupKeyOf(f)
+	return string(key.category) + "\x00" + key.scopeRef + "\x00" + key.descriptionPrefix
 }
 
 func groupFindings[K comparable](findings []ReviewFinding, keyOf func(ReviewFinding) K) (map[K][]ReviewFinding, []K) {

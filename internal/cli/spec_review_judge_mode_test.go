@@ -133,6 +133,8 @@ func TestSpecReviewJudgeMode_OnDisagreementCallsTheJudgeOnlyForADisagreement(t *
 		{"consensus pass", scriptedReply{output: passNoFinding}, scriptedReply{output: passNoFinding}, 0, "skipped", "consensus_pass", "PASS"},
 		{"consensus block", scriptedReply{output: majorX}, scriptedReply{output: majorX}, 0, "skipped", "consensus_block", "REVISE"},
 		{"verdicts differ", scriptedReply{output: passNoFinding}, scriptedReply{output: majorX}, 1, "ok", "", "PASS"},
+		{"different blocking findings", scriptedReply{output: majorX},
+			scriptedReply{output: reviewerWith("REVISE", "major", "correctness", "REQ-002", "Y")}, 1, "ok", "", "PASS"},
 		{"contested escalation", scriptedReply{output: passNoFinding},
 			scriptedReply{output: reviewerWith("PASS", "critical", "security", "REQ-002", "Y")}, 1, "ok", "", "PASS"},
 		{"single reviewer", scriptedReply{output: reviewerWith("REVISE", "major", "correctness", "REQ-001", "X")},
@@ -148,8 +150,10 @@ func TestSpecReviewJudgeMode_OnEscalationCallsTheJudgeOnlyForAContestedEscalatio
 			scriptedReply{output: reviewerWith("REVISE", "major", "completeness", "REQ-001", "X")}, 0, "skipped", "no_escalation", "REVISE"},
 		{"contested critical", scriptedReply{output: passNoFinding},
 			scriptedReply{output: reviewerWith("REVISE", "critical", "correctness", "REQ-001", "X")}, 1, "ok", "", "PASS"},
-		{"unanimous escalation", scriptedReply{output: rejectNoFinding},
-			scriptedReply{output: reviewerWith("REVISE", "minor", "data_loss", "REQ-003", "Z")}, 0, "skipped", "unanimous_escalation", "REJECT"},
+		{"different escalations", scriptedReply{output: rejectNoFinding},
+			scriptedReply{output: reviewerWith("REVISE", "minor", "data_loss", "REQ-003", "Z")}, 1, "ok", "", "REJECT"},
+		{"unanimous escalation", scriptedReply{output: rejectNoFinding}, scriptedReply{output: rejectNoFinding},
+			0, "skipped", "unanimous_escalation", "REJECT"},
 	})
 }
 

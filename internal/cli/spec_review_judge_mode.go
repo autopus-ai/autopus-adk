@@ -39,70 +39,88 @@ func specReviewJudgeConditional(mode string) bool {
 }
 
 // decideSpecReviewJudge returns whether a conditional mode calls the judge
-// for a round with these usable reviews, or why it does not. It only decides
-// whether to spend a call: a skipped judge leaves the deterministic merge,
-// which keeps every escalation claim (REQ-RR-JDG-05).
+// for a round with these usable reviews, or why it does not. Items are
+// compared one by one, so two reviewers that each hold a different
+// escalation contest both of them. It only decides whether to spend a call:
+// a skipped judge leaves the deterministic merge, which keeps every
+// escalation claim (REQ-RR-JDG-05).
 func decideSpecReviewJudge(mode string, reviews []spec.ReviewResult) (bool, string) {
 	if len(reviews) < 2 {
 		return false, specReviewJudgeSkipSingleReviewer
 	}
 	verdicts := map[spec.ReviewVerdict]bool{}
-	blocking, escalation := 0, 0
+	blocking := make([]map[string]bool, 0, len(reviews))
+	escalation := make([]map[string]bool, 0, len(reviews))
 	for _, review := range reviews {
 		verdicts[review.Verdict] = true
-		if reviewHasBlockingItem(review) {
-			blocking++
-		}
-		if reviewHasEscalationItem(review) {
-			escalation++
-		}
+		blockingItems, escalationItems := specReviewItems(review)
+		blocking, escalation = append(blocking, blockingItems), append(escalation, escalationItems)
 	}
-	contested := func(count int) bool { return count > 0 && count < len(reviews) }
 	if mode == config.ReviewJudgeModeOnEscalation {
 		switch {
-		case contested(escalation):
+		case specReviewItemContested(escalation):
 			return true, ""
-		case escalation == 0:
+		case !specReviewAnyItem(escalation):
 			return false, specReviewJudgeSkipNoEscalation
 		}
 		return false, specReviewJudgeSkipUnanimousEscalation
 	}
-	if len(verdicts) > 1 || contested(blocking) || contested(escalation) {
+	if len(verdicts) > 1 || specReviewItemContested(blocking) || specReviewItemContested(escalation) {
 		return true, ""
 	}
-	if blocking == 0 {
+	if !specReviewAnyItem(blocking) {
 		return false, specReviewJudgeSkipConsensusPass
 	}
 	return false, specReviewJudgeSkipConsensusBlock
 }
 
-// reviewHasBlockingItem: an active blocking finding, a checklist FAIL the
-// policy did not waive, or a REJECT vote.
-func reviewHasBlockingItem(review spec.ReviewResult) bool {
+// specReviewItems returns a review's blocking and escalation items, each
+// keyed so the same claim from two reviewers compares equal: a finding by its
+// supermajority group key, a checklist FAIL the policy did not waive by its
+// id, and a REJECT vote by itself. A blocking item is an active blocking
+// finding, such a checklist FAIL, or the REJECT vote; an escalation item is
+// the REJECT vote or an active critical, security, data-loss, or
+// escape-hatch finding.
+func specReviewItems(review spec.ReviewResult) (blocking, escalation map[string]bool) {
+	blocking, escalation = map[string]bool{}, map[string]bool{}
 	if review.Verdict == spec.VerdictReject {
-		return true
+		blocking["verdict:REJECT"], escalation["verdict:REJECT"] = true, true
 	}
 	for _, finding := range review.Findings {
+		key := "finding:" + spec.FindingGroupKey(finding)
 		if spec.IsActiveBlockingFinding(finding) {
-			return true
+			blocking[key] = true
+		}
+		if spec.IsActiveEscalationFinding(finding) {
+			escalation[key] = true
 		}
 	}
 	for _, outcome := range review.ChecklistOutcomes {
 		if outcome.Status == spec.ChecklistStatusFail {
-			return true
+			blocking["checklist:"+outcome.ID] = true
+		}
+	}
+	return blocking, escalation
+}
+
+// specReviewItemContested reports an item that at least one review holds and
+// at least one other does not.
+func specReviewItemContested(sets []map[string]bool) bool {
+	for _, set := range sets {
+		for key := range set {
+			for _, other := range sets {
+				if !other[key] {
+					return true
+				}
+			}
 		}
 	}
 	return false
 }
 
-// reviewHasEscalationItem: a REJECT vote or an active critical, security,
-// data-loss, or escape-hatch finding.
-func reviewHasEscalationItem(review spec.ReviewResult) bool {
-	if review.Verdict == spec.VerdictReject {
-		return true
-	}
-	for _, finding := range review.Findings {
-		if spec.IsActiveEscalationFinding(finding) {
+func specReviewAnyItem(sets []map[string]bool) bool {
+	for _, set := range sets {
+		if len(set) > 0 {
 			return true
 		}
 	}
