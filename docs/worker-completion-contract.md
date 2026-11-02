@@ -12,7 +12,7 @@ The retained worker (`auto worker`, `pkg/worker`) decides whether a task that ra
 | `required_actions` | array | `[]` | Actions the task must leave evidence of: `commit`, `push`, `branch`. |
 | `forbidden_actions` | array | `[]` | Actions the task must not perform. |
 | `remote` | string | `origin` | Configured remote name, matching `^[A-Za-z0-9][A-Za-z0-9._-]*$`. |
-| `ref` | string | none | Target branch, as `refs/heads/<name>` or `<name>`. Other namespaces are rejected. |
+| `ref` | string | none | Target branch, as `refs/heads/<name>` or `<name>`, valid for `git check-ref-format --branch` (non-ASCII and `+` included). Other namespaces are rejected. |
 | `expected_commit` | string | HEAD | Full 40 or 64 character hex SHA the target must hold. |
 | `push_match` | string | `exact` | `exact`: the remote ref's SHA equals the expected commit. `contains`: the remote tip equals it or descends from it. |
 
@@ -20,7 +20,7 @@ Action names are matched case-insensitively. An action in neither list is `not_r
 
 The contract grants nothing. It states what the check demands; the worker never commits, pushes, or fetches to satisfy it, and the task's permissions still come from its signed security policy.
 
-An invalid contract (unknown version, unknown action, an action in both lists, a malformed `remote`, `ref`, `expected_commit`, or `push_match`) fails the task before any provider runs, with an error starting `invalid completion_contract: ` that names every problem.
+Only a payload without the `completion_contract` key uses the fallback. A present key whose value is `null` or not an object, an unknown key (a misspelt one would otherwise drop a requirement), a field of another type or `null`, an unknown version or action, an action in both lists, or a malformed `remote`, `ref`, `expected_commit`, or `push_match` makes the contract invalid. An invalid contract fails the task before any provider runs, with one error starting `invalid completion_contract: ` that names every problem; sender values in it have URL credentials replaced with `<redacted>` before they are quoted.
 
 Workers older than this contract ignore the key and keep their prompt inference.
 
@@ -39,17 +39,21 @@ Version 1 reports, written before the contract, used `passed` and `failed`. The 
 
 ## Checks
 
-The baseline is captured in the task's work directory right before the provider runs: HEAD's commit, the fetch URL of the contract's remote (`git remote get-url`), whether the local branch of `ref` exists, and, when push is forbidden, the remote's branch heads.
+The baseline is captured in the task's work directory right before the provider runs: HEAD's commit, the fetch URL of the contract's remote (`git remote get-url`; a relative local path is made absolute against the work tree, as git resolves it), whether the local branch of `ref` exists, and, when push is forbidden, the remote's branch heads.
 
-- `commit` required: `satisfied` when HEAD moved to a commit that descends from the baseline; `unsatisfied` when HEAD did not move or moved to a commit that does not descend from it; `unknown` without a baseline commit.
+Every lookup ends present, absent, or failed. Absent is only git's own not-found answer or a directory that is not a repository; a lookup that failed (a damaged configuration, a timeout) is never read as absent, so it can only lead to `unknown`. Each check walks an ordered decision table (SPEC-WORKERPOST-001, Decision Tables) and the first matching row decides, so overlapping conditions have one result.
+
+- `commit` required: `satisfied` when HEAD moved to a commit that descends from the baseline; `unsatisfied` when HEAD did not move or moved to a commit that does not descend from it; `unknown` without a baseline commit or with a failed lookup.
 - `commit` forbidden: `satisfied` while HEAD stays at the baseline; `unsatisfied` when HEAD advanced (any forward move counts, including a fast-forward pull); `unknown` when HEAD moved sideways.
-- `push` required: the worker runs `git ls-remote` against the URL recorded at the baseline and reads the line whose ref name equals `ref` exactly. The existence of the branch is never evidence; only its SHA is. Under `contains` the remote tip must be present locally, and ancestry is read with replace objects disabled and refused when a graft file exists. `unknown` covers: no `ref`, a remote without a URL at the baseline, a detached HEAD without `expected_commit`, any lookup failure (network, authentication, timeout), and a `contains` comparison that lacks trustworthy local ancestry.
-- `push` forbidden: `satisfied` while HEAD stays at the baseline. Otherwise `unsatisfied` when a remote branch moved during execution to a commit HEAD gained; a branch that already pointed there at the baseline was pulled, not pushed. Without a baseline snapshot of the remote heads the move is `unknown`.
-- `branch` required: the local branch of `ref` exists and, with `expected_commit`, points at it. `branch` forbidden: that branch did not appear during execution. Both need a `ref`.
+- `push` required: the worker runs `git ls-remote` against the URL recorded at the baseline and reads the line whose ref name equals `ref` exactly. The existence of the branch is never evidence; only its SHA is. Under `contains` the remote tip must already be in the local object store; it is never fetched. `unknown` covers: no `ref`, a remote without a URL at the baseline, a detached HEAD without `expected_commit`, any lookup failure (network, authentication, timeout), and a `contains` comparison that lacks trustworthy local ancestry.
+- `push` forbidden: a remote that appears during execution is `unknown`; a remote absent before and after is `satisfied`; otherwise `satisfied` while HEAD stays at the baseline, and `unsatisfied` when a remote branch moved during execution to a commit HEAD gained. A branch that already pointed there at the baseline was pulled, not pushed. Without a baseline snapshot of the remote heads, or in a shallow repository, the move is `unknown`.
+- `branch` required: the local branch of `ref` exists and, with `expected_commit`, points at it. `branch` forbidden: that branch did not appear during execution. Both need a `ref`, and the branch is looked up by its exact name (`for-each-ref`), never through git's revision shorthand.
 
-The lookup runs in an empty temporary directory, so repository configuration the task may have written (a new remote URL, an `insteadOf` rewrite, a credential helper, `core.sshCommand`) cannot redirect it. The report names remotes, never URLs, and git messages in it have URL credentials replaced with `<redacted>`.
+Ancestry comes only from commit objects in the local store: every command runs with `--no-replace-objects` and `-c core.commitGraph=false`, so neither replace refs nor a rewritten commit-graph can invent a parent. A graft file cannot be switched off, so while one exists every ancestry answer is `unknown`; in a shallow repository a negative answer is `unknown`. Lazy fetch is off (`GIT_NO_LAZY_FETCH=1`, and `GIT_ALLOW_PROTOCOL=none` for every command except the remote lookup), so a partial clone's promisor remote is never contacted.
 
-Verification runs only fixed forms of `rev-parse`, `symbolic-ref -q --short HEAD`, `remote get-url`, `ls-remote`, `merge-base --is-ancestor`, `cat-file -e`, and `rev-list`, and refuses any other command, and any operand that starts with `-`, before a process starts.
+The lookup runs in an empty temporary directory, so repository configuration the task may have written (a new remote URL, an `insteadOf` rewrite, a credential helper, `core.sshCommand`) cannot redirect it. The report names remotes, never URLs, and git messages in it have URL credentials, with or without a scheme, replaced with `<redacted>`.
+
+Verification runs only fixed forms of `rev-parse`, `symbolic-ref -q --short HEAD`, `remote get-url`, `for-each-ref`, `ls-remote`, `merge-base --is-ancestor`, `cat-file -e`, and `rev-list`, with `LC_ALL=C` and `GIT_OPTIONAL_LOCKS=0`, and refuses any other command, and any operand that starts with `-`, before a process starts. It writes no ref, configuration, or object. A local read times out after 30 seconds and a remote lookup after 15; a timeout is a failed lookup.
 
 ## Examples
 
