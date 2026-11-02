@@ -28,7 +28,7 @@ func BuildReviewPrompt(doc *SpecDocument, codeContext string, opts ReviewPromptO
 	}
 	var sb strings.Builder
 
-	sb.WriteString("You are reviewing a SPEC document for correctness, completeness, and feasibility.\n\n")
+	sb.WriteString("You are reviewing a SPEC to decide whether implementation can start from it: check correctness, completeness, and feasibility only as far as they decide that.\n\n")
 	fmt.Fprintf(&sb, "## SPEC: %s — %s\n\n", doc.ID, doc.Title)
 	if opts.RequireCompleteDocuments {
 		injectCompleteContextDocs(&sb, opts.completeDocuments)
@@ -95,6 +95,10 @@ func BuildReviewPrompt(doc *SpecDocument, codeContext string, opts ReviewPromptO
 		InjectChecklistSection(&sb, checklistBody, maxLines)
 		checklistIncluded = true
 	}
+
+	// One policy states the review purpose and any profile allowances before
+	// the verdict rules (SPEC-REVIEWPOLICY-001 REQ-RP-POL-06).
+	writeReviewPolicySection(&sb, EffectiveReviewPolicy(doc))
 
 	if opts.Mode == ReviewModeVerify || len(opts.PriorFindings) > 0 {
 		buildVerifyInstructions(&sb, opts.PriorFindings, opts.PassCriteria, checklistIncluded)
@@ -228,18 +232,21 @@ func writeTrimNoticeInstruction(sb *strings.Builder) {
 	sb.WriteString("If an injected excerpt contains a review-context notice about omitted lines, treat it as prompt-budget metadata, not as a source-document defect or finding evidence.\n")
 }
 
-// writeVerdictRules writes the default or custom verdict decision rules.
+// writeVerdictRules writes the canonical verdict rules the judge and the
+// runtime blocker share. A configured pass_criteria is appended as additional
+// project criteria: it can add requirements but never replace the rules the
+// runtime enforces anyway (SPEC-REVIEWPOLICY-001 REQ-RP-POL-03, POL-06).
 func writeVerdictRules(sb *strings.Builder, passCriteria string) {
-	if passCriteria != "" {
+	sb.WriteString("Apply the following rules to determine your VERDICT:\n")
+	for _, line := range reviewVerdictRuleLines {
+		sb.WriteString(line)
+		sb.WriteString("\n")
+	}
+	if strings.TrimSpace(passCriteria) != "" {
+		sb.WriteString("\nAdditional project criteria (they cannot relax the rules above):\n")
 		sb.WriteString(passCriteria)
 		sb.WriteString("\n")
-		return
 	}
-	sb.WriteString("Apply the following rules to determine your VERDICT:\n")
-	sb.WriteString("- PASS: critical == 0 AND security == 0 AND major <= 2\n")
-	sb.WriteString("- REJECT: critical > 0 OR security > 0\n")
-	sb.WriteString("- REVISE: otherwise (major > 2, or unresolved issues requiring author attention)\n")
-	sb.WriteString("- suggestion findings are advisory; they may be listed, but they do not block PASS by themselves\n")
 }
 
 // writeFindingExamples writes positive and negative few-shot examples for the FINDING format.

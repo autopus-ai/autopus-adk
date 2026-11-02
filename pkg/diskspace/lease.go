@@ -25,6 +25,11 @@ const (
 	// MaxLeaseGiB bounds one lease's need, 1 PiB, so no sum or difference of
 	// needs and free space can overflow int64 (review F-11).
 	MaxLeaseGiB = 1 << 20
+
+	// releaseProbeTries × releaseProbeWait bounds how long Release waits out
+	// a transient holder before leaving the file to the next admission.
+	releaseProbeTries = 50
+	releaseProbeWait  = 5 * time.Millisecond
 )
 
 // LeaseInfo is what a lease file records about its holder.
@@ -57,6 +62,11 @@ func (l *Lease) File() *os.File { return l.file }
 // still share, and an explicit unlock would free a reservation an orphaned
 // build is still filling. A file left behind is discarded by the next
 // admission once its last holder exits. It is safe on a nil Lease.
+//
+// The probe retries for a short while before leaving the file: a fork by
+// another goroutine of this process copies every descriptor, close-on-exec
+// ones included, and holds them until its exec, so a lock can look held for
+// that instant even though no command still runs under it.
 func (l *Lease) Release() {
 	if l == nil || l.file == nil {
 		return
@@ -68,9 +78,17 @@ func (l *Lease) Release() {
 		return
 	}
 	defer probe.Close()
-	if busy, err := oslock.TryLock(probe); err == nil && !busy {
-		_ = os.Remove(l.path)
-		_ = oslock.Unlock(probe)
+	for try := 0; try < releaseProbeTries; try++ {
+		busy, err := oslock.TryLock(probe)
+		if err != nil {
+			return
+		}
+		if !busy {
+			_ = os.Remove(l.path)
+			_ = oslock.Unlock(probe)
+			return
+		}
+		time.Sleep(releaseProbeWait)
 	}
 }
 

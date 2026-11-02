@@ -38,7 +38,7 @@ const (
 var probeStatuses = []string{probeStatusPass, probeStatusFail, probeStatusNotRun}
 
 // validateRiskFirstProbe checks the structure of the plan.md probe table. A
-// missing section is reported by validateRequiredSections, so this validator
+// missing section is reported by the review policy section check, so this validator
 // stays silent in that case instead of emitting a duplicate finding.
 func validateRiskFirstProbe(planMD string) []ValidationError {
 	if !strings.Contains(planMD, probeSectionHeading) {

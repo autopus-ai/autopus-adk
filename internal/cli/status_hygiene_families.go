@@ -7,12 +7,15 @@ import (
 )
 
 // specEvidenceBasenames are the per-revision artifacts `auto review` and the
-// self-verify gate write inside a SPEC directory. gitignorePatterns ignores
-// exactly these three names under `**/.autopus/specs/**`, so any other file in
-// a SPEC directory is canonical documentation that a broader rule swallowed.
+// self-verify gate write inside a SPEC directory, including the review session
+// ledger and its lock (SPEC-REVIEWPOLICY-001). gitignorePatterns ignores
+// exactly these names under `**/.autopus/specs/**`, so any other file in a
+// SPEC directory is canonical documentation that a broader rule swallowed.
 var specEvidenceBasenames = map[string]bool{
 	"review.md":            true,
 	"review-findings.json": true,
+	"review-session.json":  true,
+	".review-session.lock": true,
 	".self-verify.log":     true,
 }
 

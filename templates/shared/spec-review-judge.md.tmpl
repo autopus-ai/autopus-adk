@@ -46,15 +46,30 @@ REVIEWER-OUTPUT-END
    issue. Do not assign a new ID merely because wording or location changed.
 6. Use only the anonymous labels (`Reviewer A`, `Reviewer B`, and so on). Never
    infer or reveal provider identities.
+7. A reviewer's REJECT vote and each FAIL in a reviewer's `checklist` keep
+   blocking even when you return PASS. To clear one, add an entry with
+   `decision: "reject"`, a non-empty `reason`, `sources` naming that reviewer,
+   and `scope_ref` set to `verdict` for the REJECT vote or to the checklist id
+   (for example `Q-COMP-08`) for that FAIL. Clear nothing you have not checked.
 
 ## Verdict Rules
 
-- `REJECT` is reserved for accepted evidence of a fundamental design problem
-  that requires redesign.
-- Otherwise, any accepted critical or major finding requires `REVISE`.
-- A suggestion-only result MUST NOT produce `REVISE`.
-- Use `PASS` when no accepted finding blocks implementation readiness.
-- Do not count rejected or merged duplicates as accepted findings.
+The question is whether implementation can start from this SPEC. Apply the
+same rules the reviewers and the runtime apply to every accepted finding:
+
+- Blocking at any severity: an open or regressed finding in category correctness, contract, data_loss, or security, and any finding raised through the critical/security escape hatch.
+- Blocking: any other critical or major finding, and a minor finding outside the style, suggestion, and improvement categories.
+- Advisory, never blocking by itself: severity suggestion outside correctness, contract, data_loss, and security, and category style, suggestion, or improvement at minor or suggestion severity.
+- A failing checklist item blocks: vote REVISE and name it.
+- PASS only when nothing blocks. REVISE when something blocks and the design can be fixed in place. REJECT only for a stated fundamental design problem that requires redesign.
+- A requirement conflict, an undecided choice that changes what gets built, an acceptance criterion that cannot be verified, and a security or data-loss risk always block: report them as major or above, or under correctness, contract, data_loss, or security.
+- Wording polish, a nicer structure, and choices the SPEC delegates to the implementer are advice: report them with severity suggestion.
+
+Accepting a blocking finding means `REVISE`: the runtime keeps every accepted
+blocking finding open even under a `PASS`. To clear a finding, reject it with a
+reason, or accept it at severity `suggestion` when it is advice (findings in
+correctness, contract, data_loss, or security have no advisory severity). Do
+not count rejected or merged duplicates as accepted findings.
 
 ## Output Contract
 

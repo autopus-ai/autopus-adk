@@ -43,6 +43,10 @@ func runStructuredSpecReviewOrchestra(ctx context.Context, cfg orchestra.Orchest
 	if backend == nil {
 		return nil, fmt.Errorf("spec review: no execution backend configured")
 	}
+	// Every reviewer, JSON repair, and judge call below goes through this one
+	// backend, so metering it meters the whole round (SPEC-REVIEWPOLICY-001
+	// REQ-RP-BUD-03).
+	backend = meterSpecReviewBackend(ctx, backend)
 
 	parser := &orchestra.OutputParser{}
 	start := time.Now()

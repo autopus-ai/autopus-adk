@@ -12,6 +12,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sys/unix"
 )
 
 func freeOf(bytes int64) func() (int64, error) {
@@ -188,4 +189,26 @@ func TestAdmit_SaturatingArithmetic(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, a.Admitted())
 	assert.Equal(t, int64(math.MaxInt64), satAdd(math.MaxInt64-1, 5))
+}
+
+// A descriptor that shares the lease's open file description for a moment,
+// as a sibling goroutine's fork does until its exec, must not leave the
+// released lease file behind.
+func TestLease_ReleaseWaitsOutATransientHolder(t *testing.T) {
+	t.Parallel()
+	state := testState(t)
+	a := admit(t, state, 50*GiB, 30*GiB, 0)
+	require.True(t, a.Admitted())
+	// Close-on-exec, so a helper process a parallel test starts meanwhile
+	// cannot inherit the copy and hold the lock for its whole life.
+	dup, err := unix.FcntlInt(a.Lease.File().Fd(), unix.F_DUPFD_CLOEXEC, 0)
+	require.NoError(t, err)
+	go func() {
+		time.Sleep(30 * time.Millisecond)
+		_ = unix.Close(dup)
+	}()
+	a.Lease.Release()
+	entries, err := os.ReadDir(state.LeasesDir())
+	require.NoError(t, err)
+	assert.Empty(t, entries, "the lease file is removed once the transient holder lets go")
 }

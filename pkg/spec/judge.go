@@ -8,6 +8,19 @@ import (
 	"github.com/insajin/autopus-adk/pkg/orchestra"
 )
 
+// Judge dismissal scopes. A judge clears a reviewer's verdict-scoped blocker
+// only by a `reject` decision with a reason whose scope_ref names it: the
+// reviewer's REJECT vote ("verdict") or one checklist item id.
+const JudgeDismissalVerdict = "verdict"
+
+// JudgeDismissal is a judge's explicit rejection of one reviewer's
+// verdict-scoped blocker (SPEC-REVIEWPOLICY-001 REQ-RP-POL-04).
+type JudgeDismissal struct {
+	Reviewer string `json:"reviewer"`
+	ScopeRef string `json:"scope_ref"`
+	Reason   string `json:"reason"`
+}
+
 // JudgeSummary records the typed judge outcome.
 type JudgeSummary struct {
 	Provider    string   `json:"provider"`
@@ -20,6 +33,22 @@ type JudgeSummary struct {
 	AcceptedIDs []string `json:"accepted_ids,omitempty"`
 	Rationale   string   `json:"rationale,omitempty"`
 	Reason      string   `json:"reason,omitempty"`
+	// Dismissals are the verdict-scoped blockers the judge explicitly
+	// rejected; anything else a reviewer raised outside findings still blocks.
+	Dismissals []JudgeDismissal `json:"dismissals,omitempty"`
+}
+
+// Dismisses reports whether the judge rejected reviewer's blocker scope.
+func (j *JudgeSummary) Dismisses(reviewer, scopeRef string) bool {
+	if j == nil {
+		return false
+	}
+	for _, dismissal := range j.Dismissals {
+		if dismissal.Reviewer == reviewer && strings.EqualFold(strings.TrimSpace(dismissal.ScopeRef), strings.TrimSpace(scopeRef)) {
+			return true
+		}
+	}
+	return false
 }
 
 // JudgedFindingsToReview converts accepted judge findings and applies verify-mode lifecycle transitions.

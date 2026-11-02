@@ -130,7 +130,16 @@ func normalizeStructuredSeverity(severity string) string {
 	}
 }
 
+// normalizeStructuredCategory maps a provider category onto the categories the
+// blocker matrix knows. The impact categories contract and data_loss survive
+// with their own names (SPEC-REVIEWPOLICY-001 REQ-RP-POL-05): collapsing them
+// into completeness made a suggestion-severity data-loss finding advisory on
+// the JSON path while the text path kept blocking it.
 func normalizeStructuredCategory(category string) FindingCategory {
+	switch normalized := normalizedFindingCategory(FindingCategory(category)); normalized {
+	case string(FindingCategoryContract), string(FindingCategoryDataLoss):
+		return FindingCategory(normalized)
+	}
 	switch strings.ToLower(strings.TrimSpace(category)) {
 	case string(FindingCategoryCorrectness):
 		return FindingCategoryCorrectness

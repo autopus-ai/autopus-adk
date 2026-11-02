@@ -51,9 +51,12 @@ CHECKLIST: Q-STYLE-01 | PASS`,
 	assert.Contains(t, stdout, "체크리스트 결과: 3건 (PASS: 2, FAIL: 1, N/A: 0)")
 	assert.Contains(t, stdout, "- [FAIL] Q-COMP-03: acceptance.md에 error path 시나리오 부재")
 
+	// SPEC-REVIEWPOLICY-001 REQ-RP-POL-03 (codex review F-001): a failing
+	// checklist item blocks whatever the reviewer voted, as the canonical rule
+	// line tells reviewers, so the PASS vote no longer approves the SPEC.
 	doc, err := spec.Load(specDir)
 	require.NoError(t, err)
-	assert.Equal(t, "approved", doc.Status)
+	assert.Equal(t, "draft", doc.Status)
 }
 
 func captureStdout(t *testing.T, fn func()) string {

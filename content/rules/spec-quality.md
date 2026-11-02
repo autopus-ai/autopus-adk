@@ -13,7 +13,7 @@ Use this checklist after `spec.md`, `plan.md`, `acceptance.md`, and `research.md
 
 1. Read all four SPEC files as one document set.
 2. For every checklist item, record `PASS`, `FAIL`, or `N/A` with a short reason in natural language.
-3. Keep a visible `## Self-Verify Summary` in `research.md` using `Q-* | status | attempt | files | reason` so reviewers can confirm what changed between retries.
+3. Keep a visible `## Self-Verify Summary` in `research.md` using `Q-* | status | attempt | files | reason` so reviewers can confirm what changed between retries. A qualifying lean SPEC omits it (see Lean Profile Applicability).
 4. If an item fails, fix every affected file required by that dimension. Do not limit edits to the file where the symptom first appeared.
 5. Retry the full checklist up to 2 times.
 6. If failures remain after the second retry, append `## Open Issues` to the end of `spec.md` and list each remaining `Q-* | category | scope | attempt | reason`.
@@ -38,6 +38,16 @@ This checklist reviews a four-document SPEC set. It does not apply to a compact 
 - Risk is never decided by file count. An auth, billing, data, migration, or security path raises the class to `security_or_data`; production code spanning two module roots raises it to `multi_domain`; a new exported API or contract raises it to `feature`.
 - A declared class contradicted by the surface — `test_only` including non-test source, `docs_only` including code, `small_ui` including non-UI source — is `escalate_to_full_spec`. Author the full set and answer this checklist.
 - Reviewing a compact contract means checking the referenced SPEC id, the referenced acceptance-criteria ids, the declared surface against the real diff, and the per-criterion evidence rows. `security`, `validation`, `data_loss`, and `deterministic_oracle` stay `required` on both paths, as do `accessibility` and `ux_verification` for a UI surface.
+
+## Lean Profile Applicability
+
+A `profile: lean` SPEC whose change class and surface qualify is a four-document set reduced to the lean floor. Apply this checklist to what the lean floor carries; the lean allowed omissions are not failures.
+
+- Lean floor: spec.md `## Outcome Boundary`, `## Requirements`, `## Traceability Matrix`; plan.md `## Tasks`; acceptance.md `## Test Scenarios`; research.md `## Outcome Lock`, `## Reviewer Brief`.
+- Lean allowed omissions: plan.md `## Implementation Strategy`, `## Visual Planning Brief`, `## Feature Completion Scope`, `## Risk-First Integration Probe`; acceptance.md `## Oracle Acceptance Notes`; research.md `## Visual Planning Brief`, `## Semantic Invariant Inventory`, `## Minimality Decision Matrix`, `## Feature Coverage Map`, `## Completion Debt`, `## Evolution Ideas`, `## Reference Discipline`, `## Self-Verify Summary`.
+- Q-COMP-08 (Risk-First Integration Probe), Q-COMP-07 (Completion Debt and Evolution Ideas), and Q-CORR-04 (Reference Discipline) are `N/A` while the section they check is absent; a lean SPEC that wrote the section is checked as usual. Q-COMP-05 is judged on concrete acceptance only: an absent Semantic Invariant Inventory is not a FAIL, structural-only acceptance still is.
+- A lean SPEC keeps no `## Self-Verify Summary`; a FAIL that remains after the retries still goes to `## Open Issues`.
+- Every correctness, security, and data-loss item applies unchanged. A `profile: lean` SPEC that does not qualify is held to the full checklist.
 
 ## N/A Status Guidance
 

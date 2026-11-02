@@ -1488,6 +1488,8 @@ auto sync verify --spec SPEC-HOOK-001 --strict
 | `auto spec change SPEC-ID --class small_ui --ac AC-001 --surface path` | 저위험 작업용 짧은 변경 계약. 고위험 클래스는 정식 SPEC으로 escalate |
 | `auto spec gates SPEC-ID --change-class small_ui --json` | gate별 `required/not_applicable/blocked` 판정과 이유 |
 | `auto spec review SPEC-ID --single-pass` | provider round 1회. receipt에 `loop_status`·`blocking_reasons` 기록 |
+| `auto spec review SPEC-ID --profile full` / `--judge <provider\|none>` | review profile과 judge를 provider 선택과 따로 고름. lean SPEC은 `--providers`를 줘도 리뷰어 1명(나머지는 fallback)이며, 실행 전 계획(profile·위험 분류·리뷰어·judge·quorum·호출 상한)을 출력 ([문서](spec-review-policy.md)) |
+| `spec.review_gate.budget` + `auto spec review --max-calls N` / `--extend-budget` / `--new-session` | 리뷰어·JSON 재요청·judge·fallback·라운드·재실행이 SPEC별 리뷰 세션(`review-session.json`) 예산 하나를 나눠 씀. `--max-calls`·`--max-minutes`는 새 세션이나 `--extend-budget`에만 적용(기존 세션과 다른 값은 호출 전 오류). 예산에 잘린 라운드는 `--allow-degraded`로도 PASS·승격이 없고, 소진되면 모델 호출 없이 `budget_exhausted`와 남은 차단 사유를 보고하며, receipt `session.calls`에 호출마다 역할·사유·provider·model·usage(미보고는 `unknown`)·소요·종료 사유 기록 ([문서](spec-review-policy.md)) |
 | `auto spec timing SPEC-ID` | 마지막 리뷰의 라운드·프로바이더별 소요 시간 (`review-receipt.json` 기준) |
 | `auto disk status` / `check --need 30` / `trim [--apply]` | 공유 머신 디스크 예산: 소비처 관측, 사전 점검(부족하면 exit 3), dry-run이 기본인 Go 빌드 캐시 정리 ([문서](disk-management.md)) |
 | spec.md frontmatter의 `profile: lean` + `change_class: <저위험 클래스>` + `surface: <경로>` | 저위험 신규 작업용 경량 SPEC: 축소된 필수 절, 리뷰어 1개, judge 없음. validate가 surface를 분류하고, `auto spec gates`는 surface를 벗어난 변경을 승격 |

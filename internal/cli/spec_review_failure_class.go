@@ -21,6 +21,8 @@ func structuredFailureClass(err error) string {
 		return "provider_model_error"
 	case strings.Contains(msg, "empty output"):
 		return "empty_output"
+	case strings.Contains(msg, "budget exhausted"):
+		return "budget_exhausted"
 	case strings.Contains(msg, "invalid reviewer json"):
 		return "execution_error"
 	default:
@@ -51,6 +53,9 @@ func structuredFailureRemediationText(description, provider string) string {
 	}
 	if strings.Contains(msg, "empty output") {
 		return "Check provider args or prompt transport, then inspect stderr diagnostics before retrying."
+	}
+	if strings.Contains(msg, "budget exhausted") {
+		return "The review session budget refused the call; raise spec.review_gate.budget and pass --extend-budget, or start over with --new-session."
 	}
 	if strings.Contains(msg, "invalid reviewer json") {
 		return "Retry with stricter JSON-only prompting or provider-specific structured output settings."

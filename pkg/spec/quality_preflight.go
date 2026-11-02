@@ -31,12 +31,16 @@ func ValidateSpecSet(specDir string, doc *SpecDocument) []ValidationError {
 	}
 
 	errs = append(errs, validateProfile(doc)...)
-	if doc.IsLean() {
-		errs = append(errs, validateLeanSpecSet(files)...)
+	// The effective policy, not the declared profile, picks the checks: a lean
+	// declaration the profile rules refuse is held to the full set
+	// (SPEC-REVIEWPOLICY-001 REQ-RP-POL-02, REQ-RP-POL-08).
+	policy := EffectiveReviewPolicy(doc)
+	if policy.Lean() {
+		errs = append(errs, validateLeanSpecSet(files, policy.RequiredSections)...)
 		return append(errs, validateDocLineCap(files)...)
 	}
 
-	errs = append(errs, validateRequiredSections(files)...)
+	errs = append(errs, validateSectionSet(files, policy.RequiredSections)...)
 	errs = append(errs, validateAuthoringPlaceholders(files)...)
 	errs = append(errs, validateTraceability(files["spec.md"], files["research.md"], files["acceptance.md"])...)
 	errs = append(errs, validateSelfVerifySummary(files["research.md"])...)
@@ -103,27 +107,6 @@ func readSpecValidationFiles(specDir string) (map[string]string, []ValidationErr
 		files[name] = string(data)
 	}
 	return files, errs
-}
-
-func validateRequiredSections(files map[string]string) []ValidationError {
-	return validateSectionSet(files, fullRequiredSections)
-}
-
-var fullRequiredSections = map[string][]string{
-	"spec.md":       {"## Outcome Boundary", "## Requirements", "## Traceability Matrix"},
-	"plan.md":       {"## Implementation Strategy", "## Visual Planning Brief", "## Feature Completion Scope", probeSectionHeading, "## Tasks"},
-	"acceptance.md": {"## Test Scenarios", "## Oracle Acceptance Notes"},
-	"research.md": {
-		"## Outcome Lock",
-		"## Visual Planning Brief",
-		"## Semantic Invariant Inventory",
-		"## Feature Coverage Map",
-		"## Completion Debt",
-		"## Evolution Ideas",
-		"## Reference Discipline",
-		"## Reviewer Brief",
-		"## Self-Verify Summary",
-	},
 }
 
 func validateSectionSet(files map[string]string, required map[string][]string) []ValidationError {

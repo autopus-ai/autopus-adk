@@ -35,7 +35,7 @@ func repromptStructuredReviewerJSON(
 	repromptReq.Prompt = buildStructuredSpecReviewReprompt(req.Prompt, initialResp, parseErr)
 	fmt.Fprintf(os.Stderr, "SPEC 리뷰 provider JSON 재요청: %s (backend=%s)\n", req.Provider, backend.Name())
 
-	resp, execErr := backend.Execute(ctx, repromptReq)
+	resp, execErr := backend.Execute(withSpecReviewCallReason(ctx, specReviewReasonJSONRepair), repromptReq)
 	if execErr != nil {
 		return resp, fmt.Errorf("reprompt execution failed: %w", execErr)
 	}
