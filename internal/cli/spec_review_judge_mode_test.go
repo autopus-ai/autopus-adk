@@ -57,8 +57,7 @@ func TestSpecReviewJudgeMode_FlagIsValidatedAndPrinted(t *testing.T) {
 	assert.Contains(t, err.Error(), `--judge-mode "maybe": expected one of always, on_disagreement, on_escalation`)
 	assert.Zero(t, backend.count())
 
-	var stderr string
-	stderr = captureSpecReviewStderr(t, func() {
+	stderr := captureSpecReviewStderr(t, func() {
 		_ = captureStdout(t, func() {
 			require.NoError(t, runSpecReviewWithOptions(context.Background(), fixture.specID, "", 0,
 				specReviewOptions{judgeMode: "on_disagreement", judgeModeSet: true}))
