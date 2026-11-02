@@ -88,9 +88,9 @@ When `auto pipeline run <SPEC> --dry-run --platform codex` runs
 Then it prints `Pipeline platform: codex — --platform`, writes `.autopus/pipeline-state/dry-run/<SPEC>.yaml`, leaves the checkpoint and baseline byte for byte, and status still reads the completed run as verified (tests `TestPipelineRunCmd_DryRunKeepsTheLastRealRun`, `TestPipelineRunCmd_AuthorizedCompactContractDispatchesFewerPhases`).
 
 ### S16: AC-SEV-016 - The execution owner comes from the run's receipt
-Given an OMP run whose receipt records backend `orca`, `rpc-canonical-full`, or no dispatch, and an owner sidecar rewritten to `omp`
+Given an OMP run the engine admits for resume whose receipt records backend `orca`, `rpc-canonical-full`, or no dispatch, and an owner sidecar rewritten to `omp`
 When status runs
-Then the resume commands end `--execution-owner orca`, without an owner, and without an owner with the note that the owner is unknown (test `TestStatusEvidence_OwnerComesFromTheRunReceipt`).
+Then the first two offer a resume action whose command ends `--execution-owner orca` or carries no owner flag, and the third offers no resume command and neither a resume nor a new-run action, reading `resume command: none — execution owner unknown: the run recorded no dispatch; check whether omp or orca ran it, then run `auto pipeline run <SPEC> --continue --platform omp --execution-owner <omp|orca>`` (test `TestStatusEvidence_OwnerComesFromTheRunReceipt`).
 
 ### S17: AC-SEV-017 - The newest state root wins
 Given runs of a module SPEC started from its module and later from the workspace root

@@ -72,7 +72,7 @@ WHEN a SPEC has execution evidence, THEN THE SYSTEM SHALL report every execution
 **REQ-SEV-EXEC-02**
 Priority: Must
 Type: Event-driven
-WHEN the last run stopped, THEN THE SYSTEM SHALL report the resume admission — admitted with the phases it restores and dispatches again, or refused with the CLI's or engine's reason — and the checks it covered, and, when admitted, the resume command pinned to the run's platform and execution owner, or a note why no command is offered.
+WHEN the last run stopped, THEN THE SYSTEM SHALL report the resume admission — admitted with the phases it restores and dispatches again, or refused with the CLI's or engine's reason — and the checks it covered, and, when admitted, the resume command pinned to the run's platform and execution owner — or no command when that platform is not one `auto pipeline run` accepts, its CLI is not installed, or an OMP run's execution owner is unknown, with a note that says why and, for an unknown owner, names the command to run once the user has checked which owner ran.
 
 **REQ-SEV-EXEC-03**
 Priority: Must
@@ -92,7 +92,7 @@ WHEN more than one state root holds a SPEC's evidence, THEN THE SYSTEM SHALL rep
 **REQ-SEV-EXEC-06**
 Priority: Must
 Type: Ubiquitous
-THE SYSTEM SHALL read an OMP run's execution owner from that run's receipt, never from the owner sidecar, and SHALL report `unknown` when the receipt records no dispatch.
+THE SYSTEM SHALL read an OMP run's execution owner from that run's receipt, never from the owner sidecar, and SHALL report `unknown` when the receipt records no dispatch, offering then neither a resume command, which would silently run under the default owner, nor a resume or new-run action.
 
 ### Verification Baseline
 
@@ -140,7 +140,7 @@ WHEN `auto pipeline run` resolves its platform, THEN THE SYSTEM SHALL print on s
 **REQ-SEV-NEXT-01**
 Priority: Must
 Type: Ubiquitous
-THE SYSTEM SHALL list next actions in this order — `auto init` without `autopus.yaml`, `auto doctor` without a pipeline platform, at most three SPEC actions ranked resume, new run, re-verify stale, implement, review, re-verify unverified, then `/auto fix` and `/auto plan`, then the optional Desktop connection — each with `auto_run: false`.
+THE SYSTEM SHALL list next actions in this order — `auto init` without `autopus.yaml`, `auto doctor` without a pipeline platform, at most three SPEC actions ranked resume, new run, re-verify stale, implement, review, re-verify unverified (a resumable run whose execution owner is unknown gets none), then `/auto fix` and `/auto plan`, then the optional Desktop connection — each with `auto_run: false`.
 
 **REQ-SEV-NEXT-02**
 Priority: Must
