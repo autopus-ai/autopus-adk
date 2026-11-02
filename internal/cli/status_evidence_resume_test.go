@@ -116,9 +116,10 @@ func TestStatusEvidence_OwnerComesFromTheRunReceipt(t *testing.T) {
 		command string
 		note    string
 	}{
-		"orca":      {backend: "orca", command: "auto pipeline run " + specID + " --continue --platform omp --execution-owner orca"},
-		"omp":       {backend: "rpc-canonical-full", command: "auto pipeline run " + specID + " --continue --platform omp"},
-		"no record": {command: "auto pipeline run " + specID + " --continue --platform omp", note: "execution owner is unknown"},
+		"orca": {backend: "orca", command: "auto pipeline run " + specID + " --continue --platform omp --execution-owner orca"},
+		"omp":  {backend: "rpc-canonical-full", command: "auto pipeline run " + specID + " --continue --platform omp"},
+		"no record": {note: "execution owner unknown: the run recorded no dispatch; check whether omp or orca ran it, " +
+			"then run `auto pipeline run " + specID + " --continue --platform omp --execution-owner <omp|orca>`"},
 	}
 	for name, tc := range cases {
 		f := newStatusFixture(t, "omp")
@@ -139,8 +140,18 @@ func TestStatusEvidence_OwnerComesFromTheRunReceipt(t *testing.T) {
 
 		resume := f.evidence(specID).Execution.Resume
 		require.NotNil(t, resume, name)
+		assert.True(t, resume.Admitted, name)
 		assert.Equal(t, tc.command, resume.Command, name)
-		assert.Contains(t, resume.CommandNote, tc.note, name)
+		assert.Equal(t, tc.note, resume.CommandNote, name)
+		actions := statusActions(t, f.statusJSON())
+		if tc.command == "" {
+			assert.NotContains(t, actions, "resume", "%s: no resume under a guessed owner", name)
+			assert.NotContains(t, actions, "rerun", "%s: no new run that would discard a resumable run", name)
+			assert.Contains(t, f.runStatus(), "resume command: none — "+tc.note, name)
+			continue
+		}
+		require.Contains(t, actions, "resume", name)
+		assert.Equal(t, tc.command, actions["resume"]["command"], name)
 	}
 }
 

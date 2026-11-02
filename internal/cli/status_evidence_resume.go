@@ -65,8 +65,9 @@ func (r *statusEvidenceReader) assessResume(
 
 // resumeCommand builds the command from validated values only: a SPEC ID the
 // pipeline accepts, a known platform, and a known execution owner. It pins
-// the run's platform and owner so a resume does not switch providers because
-// PATH changed (REQ-SEV-NEXT-04).
+// the run's platform and owner so a resume does not switch providers or
+// owners because PATH changed or a default applies (REQ-SEV-EXEC-02,
+// REQ-SEV-NEXT-04). Without a command, the note says why.
 func (r *statusEvidenceReader) resumeCommand(specID string, execution *statusExecution) (string, string) {
 	if err := pipeline.ValidateSpecID(specID); err != nil {
 		return "", "the SPEC ID cannot be passed to a command"
@@ -88,7 +89,10 @@ func (r *statusEvidenceReader) resumeCommand(specID string, execution *statusExe
 	case pipelineExecutionOwnerOMP:
 		return command, ""
 	}
-	return command, "the run recorded no dispatch, so its execution owner is unknown; the command uses the default owner omp"
+	// An owner-less resume would silently run under the default owner omp.
+	// Status names neither owner for the user; they check which ran.
+	return "", "execution owner unknown: the run recorded no dispatch; check whether omp or orca ran it, then run `" +
+		command + " --execution-owner <omp|orca>`"
 }
 
 // recordedExecutionOwner reads which owner ran an OMP run's dispatches from

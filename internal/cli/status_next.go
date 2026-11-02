@@ -142,6 +142,11 @@ func specNextAction(entry specEntry, evidence statusEvidence, env statusEnvironm
 		return action, ok
 	}
 	switch {
+	case evidence.Label == evidenceFailed && execution.ExecutionOwner == "unknown" &&
+		execution.Resume != nil && execution.Resume.Admitted:
+		// The run can resume, but only the user knows under which owner; a new
+		// run would throw its progress away. The evidence note says what to run.
+		return statusNextAction{}, 0, false
 	case evidence.Label == evidenceFailed && execution.Resume != nil && execution.Resume.Command != "":
 		resume := execution.Resume
 		action, ok := pipelineAction("resume", resume.Command, execution.Platform,
