@@ -25,7 +25,9 @@ type Phase struct {
 	DependsOn []PhaseID
 	// Gate is the quality gate applied after this phase completes.
 	Gate GateType
-	// MaxRetries is the maximum number of retry attempts when the gate fails.
+	// MaxRetries bounds how often a failed gate is retried. The canonical
+	// engine spends it on remediation cycles in a run (a fix dispatch followed
+	// by re-verification); the exported runners re-dispatch the phase itself.
 	MaxRetries int
 }
 

@@ -129,7 +129,7 @@ func (e *SubprocessEngine) newPhaseRequest(
 	if e.cfg.Platform != "omp" {
 		return request, nil
 	}
-	activePrompt, err := e.buildOMPActivePhasePrompt(phase)
+	activePrompt, err := e.buildOMPActivePhasePrompt(phase, state.feedback[phase.ID])
 	if err != nil {
 		return PhaseRequest{}, fmt.Errorf("build OMP active phase prompt: %w", err)
 	}

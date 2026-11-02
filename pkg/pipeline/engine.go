@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/insajin/autopus-adk/pkg/worker/compress"
 )
@@ -101,6 +102,8 @@ type PhaseResult struct {
 type SubprocessEngine struct {
 	cfg           EngineConfig
 	promptBuilder *PhasePromptBuilder
+	// sleep waits out a transport backoff; tests replace it to observe waits.
+	sleep func(context.Context, time.Duration) error
 }
 
 func (e *SubprocessEngine) finishBackendLifecycle(
@@ -150,7 +153,7 @@ func NewSubprocessEngine(cfg EngineConfig) *SubprocessEngine {
 		// @AX:NOTE [AUTO]: @AX:SPEC: SPEC-CONTEXT-COMPRESS-001: keepRecent=2 is the default phase-transition compaction policy
 		cfg.Compressor = compress.NewDefaultCompressor(2)
 	}
-	engine := &SubprocessEngine{cfg: cfg}
+	engine := &SubprocessEngine{cfg: cfg, sleep: sleepContext}
 	if cfg.SpecDir != "" {
 		engine.promptBuilder = NewPhasePromptBuilder(cfg.SpecDir)
 		if cfg.Platform == "omp" {

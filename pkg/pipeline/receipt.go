@@ -103,6 +103,10 @@ type OrchestrationRunReceipt struct {
 	Blocker             string               `json:"blocker,omitempty" yaml:"blocker,omitempty"`
 	StartedAt           time.Time            `json:"started_at" yaml:"started_at"`
 	FinishedAt          *time.Time           `json:"finished_at,omitempty" yaml:"finished_at,omitempty"`
+
+	// Failures are this run's classified, redacted failures in order
+	// (SPEC-PIPELINE-RESUME-001 REQ-PRR-FAIL-01).
+	Failures []PhaseFailure `json:"failures,omitempty" yaml:"failures,omitempty"`
 }
 
 func newRunReceipt(specID string, requested, effective Strategy, route PhaseRoute, phases []Phase) OrchestrationRunReceipt {
