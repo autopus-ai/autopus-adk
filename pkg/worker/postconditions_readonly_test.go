@@ -142,6 +142,18 @@ func TestRedactGitMessage(t *testing.T) {
 
 	assert.Equal(t, "fatal: unable to access 'https://<redacted>@h/r.git/': x",
 		redactGitMessage("fatal: unable to access 'https://u:p@h/r.git/': x"))
+	for raw, want := range map[string]string{
+		"fatal: unable to access 'TOKEN@github.com/org/repo.git/': x": "fatal: unable to access '<redacted>@github.com/org/repo.git/': x",
+		"secret-token@host:repo.git":                                  "<redacted>@host:repo.git",
+		"user:pw@host:r.git":                                          "<redacted>@host:r.git",
+		"git@github.com:org/repo.git":                                 "<redacted>@github.com:org/repo.git",
+		"ssh://git@host/x":                                            "ssh://<redacted>@host/x",
+		"remote=TOKEN@host/r.git":                                     "remote=<redacted>@host/r.git",
+		"HEAD@{0} refs/heads/v1@x a@{b}":                              "HEAD@{0} refs/heads/v1@x a@{b}",
+		"no credentials in this message":                              "no credentials in this message",
+	} {
+		assert.Equal(t, want, redactGitMessage(raw), raw)
+	}
 	assert.Equal(t, "first", redactGitMessage("first\nsecond"))
 	assert.Len(t, redactGitMessage(strings.Repeat("é", 300)), gitMessageClip)
 }

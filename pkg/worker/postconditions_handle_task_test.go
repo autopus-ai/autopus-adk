@@ -74,7 +74,9 @@ func TestHandleTask_InvalidContractFailsBeforeProvider(t *testing.T) {
 		`{"version":2}`, `{"required_actions":["deploy"]}`,
 		`{"required_actions":["push"],"forbidden_actions":["push"]}`, `{"ref":"refs/tags/v1"}`,
 		`{"ref":"feature/../x"}`, `{"remote":"-oProxyCommand=x"}`, `{"expected_commit":"abc123"}`, `{"push_match":"prefix"}`,
-		`null`, `[]`, `{"version":"1"}`, `{"remote":"https://user:secret@host/repo.git"}`,
+		`null`, `[]`, `{"version":"1"}`, `{"required_actions":["deploy","push",3,false],"forbidden_actions":["push"]}`,
+		`{"remote":"https://user:secret@host/repo.git"}`, `{"remote":"secret-token@host:repo.git"}`,
+		`{"remote":"TOKEN@github.com/org/repo.git"}`,
 	}
 	for i, contract := range contracts {
 		_, mock, wl := handleTaskFixture(t, resultLine)
@@ -87,9 +89,15 @@ func TestHandleTask_InvalidContractFailsBeforeProvider(t *testing.T) {
 		assert.True(t, strings.HasPrefix(err.Error(), "invalid completion_contract: "), err.Error())
 		assert.Equal(t, a2a.StatusFailed, result.Status)
 		assert.Empty(t, mock.calls, "the provider must not run for %s", contract)
-		assert.NotContains(t, result.Error, "secret")
-		for _, event := range events {
-			assert.NotContains(t, event.Message, "secret")
+		require.NotEmpty(t, events, contract)
+		for _, secret := range []string{"secret", "TOKEN"} {
+			assert.NotContains(t, result.Error, secret, contract)
+			for _, event := range events {
+				assert.NotContains(t, event.Message, secret, contract)
+				if event.Result != nil {
+					assert.NotContains(t, event.Result.ErrorMessage, secret, contract)
+				}
+			}
 		}
 	}
 }

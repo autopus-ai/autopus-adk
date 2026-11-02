@@ -36,10 +36,14 @@ func decodeCompletionContract(raw json.RawMessage) (completionContractMessage, [
 		switch key {
 		case "version":
 			contract.Version, problem = decodeContractInt(key, value)
-		case "required_actions":
-			contract.RequiredActions, problem = decodeContractStrings(key, value)
-		case "forbidden_actions":
-			contract.ForbiddenActions, problem = decodeContractStrings(key, value)
+		case "required_actions", "forbidden_actions":
+			values, listProblems := decodeContractStrings(key, value)
+			problems = append(problems, listProblems...)
+			if key == "required_actions" {
+				contract.RequiredActions = values
+			} else {
+				contract.ForbiddenActions = values
+			}
 		case "remote":
 			contract.Remote, problem = decodeContractString(key, value)
 		case "ref":
@@ -74,20 +78,24 @@ func decodeContractString(key string, value json.RawMessage) (string, string) {
 	return s, ""
 }
 
-func decodeContractStrings(key string, value json.RawMessage) ([]string, string) {
+// decodeContractStrings keeps every string element and names every other
+// one, so the action checks still run on the valid names.
+func decodeContractStrings(key string, value json.RawMessage) ([]string, []string) {
 	var items []json.RawMessage
 	if isJSONNull(value) || json.Unmarshal(value, &items) != nil {
-		return nil, key + " must be an array of strings"
+		return nil, []string{key + " must be an array of strings"}
 	}
 	values := make([]string, 0, len(items))
+	var problems []string
 	for i, item := range items {
 		var s string
 		if isJSONNull(item) || json.Unmarshal(item, &s) != nil {
-			return nil, fmt.Sprintf("%s[%d] must be a string", key, i)
+			problems = append(problems, fmt.Sprintf("%s[%d] must be a string", key, i))
+			continue
 		}
 		values = append(values, s)
 	}
-	return values, ""
+	return values, problems
 }
 
 // isJSONNull reports an explicit null, which encoding/json would otherwise

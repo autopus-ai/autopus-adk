@@ -56,10 +56,13 @@ var postconditionDroppedEnv = map[string]bool{
 }
 
 var (
-	// urlUserinfoPattern matches the credentials of scheme://user:secret@host.
+	// urlUserinfoPattern matches the user part, password included, of
+	// scheme://user[:secret]@host.
 	urlUserinfoPattern = regexp.MustCompile(`([A-Za-z][A-Za-z0-9+.-]*://)[^/@\s'"]+@`)
-	// bareUserinfoPattern matches user:secret@ written without a scheme.
-	bareUserinfoPattern = regexp.MustCompile(`(^|[\s'"(])[^\s/@'":]+:[^\s/@'"]+@`)
+	// bareUserinfoPattern matches the user part of user[:secret]@host written
+	// without a scheme, the scp-like form: a token is often the user name
+	// alone, so every user part goes, the harmless "git" of git@host too.
+	bareUserinfoPattern = regexp.MustCompile(`(^|[\s'"(<=,;])[^\s/@'"<>()=,;]+@([A-Za-z0-9\[])`)
 )
 
 // gitMessageClip bounds a quoted git message (REQ-WPOST-REPORT-01).
@@ -199,11 +202,11 @@ func (g postconditionGit) lsRemote(args ...string) gitResult {
 	return g.run(dir, ceiling, append([]string{"ls-remote"}, args...)...)
 }
 
-// redactCredentials replaces the user and password of every URL, with or
-// without a scheme, by <redacted> (REQ-WPOST-REPORT-01).
+// redactCredentials replaces the user part of every URL and scp-like address,
+// with or without a password or a scheme, by <redacted> (REQ-WPOST-REPORT-01).
 func redactCredentials(text string) string {
 	text = urlUserinfoPattern.ReplaceAllString(text, "${1}<redacted>@")
-	return bareUserinfoPattern.ReplaceAllString(text, "${1}<redacted>@")
+	return bareUserinfoPattern.ReplaceAllString(text, "${1}<redacted>@${2}")
 }
 
 // redactGitMessage keeps the first line of a git message, removes URL

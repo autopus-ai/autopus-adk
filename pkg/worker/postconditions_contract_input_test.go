@@ -50,6 +50,23 @@ func TestPlanContract_RejectsInvalidContracts(t *testing.T) {
 	}
 }
 
+// Every non-string list element is named, and the valid names still go
+// through the action checks, all in one error.
+func TestPlanContract_ReportsEveryListElementProblem(t *testing.T) {
+	t.Parallel()
+
+	_, err := planRaw(t, `{"required_actions":["deploy","push",3,false],"forbidden_actions":["push"]}`, "")
+	require.Error(t, err)
+	assert.True(t, strings.HasPrefix(err.Error(), "invalid completion_contract: "), err.Error())
+	assert.Equal(t, 1, strings.Count(err.Error(), "invalid completion_contract: "))
+	for _, want := range []string{
+		`required_actions[2] must be a string`, `required_actions[3] must be a string`,
+		`unsupported action "deploy"`, `action "push" is both required and forbidden`,
+	} {
+		assert.Contains(t, err.Error(), want)
+	}
+}
+
 func TestPlanContract_ReportsEveryProblemTogether(t *testing.T) {
 	t.Parallel()
 
@@ -68,14 +85,17 @@ func TestPlanContract_ReportsEveryProblemTogether(t *testing.T) {
 func TestPlanContract_RedactsCredentialsInQuotedValues(t *testing.T) {
 	t.Parallel()
 
-	for _, raw := range []string{
-		`{"remote":"https://user:secret@host/repo.git"}`,
-		`{"ref":"refs/tags/https://user:secret@host"}`,
-		`{"required_actions":["user:secret@host:repo.git"]}`,
+	for raw, secret := range map[string]string{
+		`{"remote":"https://user:secret@host/repo.git"}`:     "secret",
+		`{"ref":"refs/tags/https://user:secret@host"}`:       "secret",
+		`{"required_actions":["user:secret@host:repo.git"]}`: "secret",
+		`{"remote":"secret-token@host:repo.git"}`:            "secret-token",
+		`{"remote":"TOKEN@github.com/org/repo.git"}`:         "TOKEN",
+		`{"TOKEN@github.com/org/repo.git":1}`:                "TOKEN",
 	} {
 		_, err := planRaw(t, raw, "")
 		require.Error(t, err, raw)
-		assert.NotContains(t, err.Error(), "secret", raw)
+		assert.NotContains(t, err.Error(), secret, raw)
 		assert.NotContains(t, err.Error(), "user:", raw)
 		assert.Contains(t, err.Error(), "<redacted>@", raw)
 	}

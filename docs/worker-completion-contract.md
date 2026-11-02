@@ -20,7 +20,7 @@ Action names are matched case-insensitively. An action in neither list is `not_r
 
 The contract grants nothing. It states what the check demands; the worker never commits, pushes, or fetches to satisfy it, and the task's permissions still come from its signed security policy.
 
-Only a payload without the `completion_contract` key uses the fallback. A present key whose value is `null` or not an object, an unknown key (a misspelt one would otherwise drop a requirement), a field of another type or `null`, an unknown version or action, an action in both lists, or a malformed `remote`, `ref`, `expected_commit`, or `push_match` makes the contract invalid. An invalid contract fails the task before any provider runs, with one error starting `invalid completion_contract: ` that names every problem; sender values in it have URL credentials replaced with `<redacted>` before they are quoted.
+Only a payload without the `completion_contract` key uses the fallback. A present key whose value is `null` or not an object, an unknown key (a misspelt one would otherwise drop a requirement), a field of another type or `null`, an unknown version or action, an action in both lists, or a malformed `remote`, `ref`, `expected_commit`, or `push_match` makes the contract invalid. An invalid contract fails the task before any provider runs, with one error starting `invalid completion_contract: ` that names every problem, each non-string list element by its index; sender values in it have the user part of any URL or scp-like address (`token@host:repo.git` included) replaced with `<redacted>` before they are quoted.
 
 Workers older than this contract ignore the key and keep their prompt inference.
 
@@ -51,7 +51,7 @@ Every lookup ends present, absent, or failed. Absent is only git's own not-found
 
 Ancestry comes only from commit objects in the local store: every command runs with `--no-replace-objects` and `-c core.commitGraph=false`, so neither replace refs nor a rewritten commit-graph can invent a parent. A graft file cannot be switched off, so while one exists every ancestry answer is `unknown`; in a shallow repository a negative answer is `unknown`. Lazy fetch is off (`GIT_NO_LAZY_FETCH=1`, and `GIT_ALLOW_PROTOCOL=none` for every command except the remote lookup), so a partial clone's promisor remote is never contacted.
 
-The lookup runs in an empty temporary directory, so repository configuration the task may have written (a new remote URL, an `insteadOf` rewrite, a credential helper, `core.sshCommand`) cannot redirect it. The report names remotes, never URLs, and git messages in it have URL credentials, with or without a scheme, replaced with `<redacted>`.
+The lookup runs in an empty temporary directory, so repository configuration the task may have written (a new remote URL, an `insteadOf` rewrite, a credential helper, `core.sshCommand`) cannot redirect it. The report names remotes, never URLs, and git messages in it have the user part of every URL or scp-like address, with or without a password or a scheme, replaced with `<redacted>`.
 
 Verification runs only fixed forms of `rev-parse`, `symbolic-ref -q --short HEAD`, `remote get-url`, `for-each-ref`, `ls-remote`, `merge-base --is-ancestor`, `cat-file -e`, and `rev-list`, with `LC_ALL=C` and `GIT_OPTIONAL_LOCKS=0`, and refuses any other command, and any operand that starts with `-`, before a process starts. It writes no ref, configuration, or object. A local read times out after 30 seconds and a remote lookup after 15; a timeout is a failed lookup.
 
