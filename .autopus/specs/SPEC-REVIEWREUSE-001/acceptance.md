@@ -8,8 +8,7 @@ Every scenario runs against fake backends, a stubbed readiness probe, and tempor
 Priority: Must
 Given configurations with `spec.review_gate.judge_mode` set as below
 When the configuration loads and `auto spec review` plans a review
-Then `on_disagreement` and `on_escalation` load, an omitted key means `always` and a saved default configuration contains no `judge_mode`, and `sometimes` fails with `spec.review_gate.judge_mode must be one of always, on_disagreement, on_escalation, got "sometimes"`
-And `--judge-mode maybe` fails with `--judge-mode "maybe": expected one of always, on_disagreement, on_escalation` before any readiness probe or call
+Then `on_disagreement` and `on_escalation` load, an omitted key means `always` and a saved default configuration contains no `judge_mode`, and `sometimes` fails with `spec.review_gate.judge_mode must be one of always, on_disagreement, on_escalation, got "sometimes"`, and `--judge-mode maybe` fails with `--judge-mode "maybe": expected one of always, on_disagreement, on_escalation` before any readiness probe or call
 And under `on_disagreement` the plan prints `  judge: claude (on_disagreement: 판정이 갈리거나 차단·escalation 항목이 일부 리뷰어에만 있을 때) — spec.review_gate.judge` and `  호출: 라운드당 예상 2 + judge 0-1, 상한 5 (JSON 재요청 포함) · 이번 실행 상한 5 (fallback 0개 포함)`, while under `always` both lines read as on 48607ed2.
 
 ### S2: AC-RR-002 - The always mode keeps today's judge
@@ -47,17 +46,18 @@ Then
 
 ### S5: AC-RR-005 - The deterministic merge keeps minority safety claims with provenance
 Priority: Must
-Given reviewers claude, codex, and gemini, no judge, threshold 0.67, claude and codex voting PASS with no finding
-When gemini votes REVISE with the finding in each row
+Given reviewers claude, codex, and gemini, no judge, and threshold 0.67
+When they answer as in each row
 Then
 
-| gemini finding | verdict on 48607ed2 | verdict now | kept finding |
-|----------------|---------------------|-------------|--------------|
-| `[critical][correctness] REQ-001 Rollback loses committed rows` | PASS | REVISE | severity critical, `Sources` [gemini] |
-| `[minor][data_loss] REQ-001 Purge drops the archive` | PASS | REVISE | `Sources` [gemini] |
-| `[major][completeness] REQ-001 Error path undefined` | PASS | PASS | none (threshold, unchanged) |
+| claude and codex | gemini | on 48607ed2 | now |
+|------------------|--------|-------------|-----|
+| PASS, no finding | PASS with `[critical][correctness] REQ-001 Rollback loses committed rows` | PASS, no finding | REVISE, the finding open with `Sources` [gemini] |
+| PASS, no finding | PASS with `[minor][data_loss] REQ-001 Purge drops the archive` | PASS, no finding | REVISE, the finding open |
+| REVISE with `[major][completeness] REQ-002 Error path undefined` | REVISE with `[critical][correctness] REQ-001 Rollback loses committed rows` | REVISE, only the REQ-002 finding | REVISE, both findings, REQ-002 with `Sources` [claude, codex] |
+| PASS, no finding | REVISE with `[major][completeness] REQ-002 Error path undefined` | REVISE, that finding | unchanged |
 
-And when claude and codex both report `[minor][correctness] REQ-001 Retry is unbounded` and `[critical][correctness] REQ-001 Retry is unbounded` respectively, the merged finding has severity `critical` and `Sources` [claude, codex].
+And `[minor][correctness] REQ-001 Retry is unbounded` from claude with `[critical][correctness] REQ-001 Retry is unbounded` from codex merge into one finding with severity `critical` and `Sources` [claude, codex].
 
 ### S6: AC-RR-006 - A judge that cannot rule never turns a safety claim into PASS
 Priority: Must

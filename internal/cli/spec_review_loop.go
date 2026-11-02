@@ -33,6 +33,10 @@ type specReviewLoopParams struct {
 	// plan is the attempt's resolved review plan; it is printed once the
 	// reviewers are assembled (SPEC-REVIEWPOLICY-001 REQ-RP-PLAN-05).
 	plan *specReviewPlan
+	// judgeMode is the plan's judge mode: none, always, or a conditional
+	// mode that calls the judge only when the round needs it
+	// (SPEC-REVIEWREUSE-001 REQ-RR-JDG-01).
+	judgeMode string
 }
 
 func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFindings []spec.ReviewFinding) (*spec.ReviewResult, error) {
@@ -98,20 +102,7 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 
 		fmt.Fprintf(os.Stderr, "SPEC 리뷰 시작: %s (전략: %s, 리비전: %d)\n", p.specID, p.strategy, revision)
 
-		// Bound the parallel reviewer fan-out and the sequential judge together.
-		reviewCtx, cancel := context.WithCancel(p.ctx)
-		if watchdog := specReviewWatchdogForConfig(orchCfg); watchdog > 0 {
-			reviewCtx, cancel = context.WithTimeout(p.ctx, time.Duration(watchdog)*time.Second)
-		}
-		// The round carries its number for the call ledger and stops at the
-		// session's wall-clock deadline (REQ-RP-BUD-05).
-		reviewCtx, endRound := specReviewRoundContext(reviewCtx, revision)
-		roundStarted := time.Now()
-		result, err := specReviewRunOrchestra(reviewCtx, orchCfg)
-		endRound()
-		cancel()
-		round := newSpecReviewRoundTiming(revision, roundStarted, time.Since(roundStarted), result)
-		printSpecReviewRoundTiming(os.Stderr, round)
+		result, skippedJudge, round, err := runSpecReviewRound(p, orchCfg, doc, revision, priorFindings)
 		if err != nil {
 			return nil, fmt.Errorf("리뷰 실행 실패: %w", err)
 		}
@@ -181,6 +172,12 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 		applySpecReviewJudge(merged, result, reviewerResponses, p.gate.Judge, revision, priorFindings)
 		if merged.Judge != nil && merged.Judge.Status == "ok" {
 			merged.Findings = spec.NormalizeAdvisoryFindings(merged.Findings)
+		}
+		if merged.Judge == nil {
+			merged.Judge = skippedJudge
+		}
+		if merged.Judge != nil {
+			merged.Judge.Mode = p.judgeMode
 		}
 
 		// Repeat discovery runs before scope lock: a restatement of a known

@@ -65,6 +65,7 @@ func newSpecReviewCmd() *cobra.Command {
 		skipReadiness       bool
 		profile             string
 		judge               string
+		judgeMode           string
 		maxCalls            int
 		maxMinutes          int
 		extendBudget        bool
@@ -88,6 +89,8 @@ func newSpecReviewCmd() *cobra.Command {
 				profile:               profile,
 				judge:                 judge,
 				judgeSet:              cmd.Flags().Changed("judge"),
+				judgeMode:             judgeMode,
+				judgeModeSet:          cmd.Flags().Changed("judge-mode"),
 				maxCalls:              maxCalls,
 				maxCallsSet:           cmd.Flags().Changed("max-calls"),
 				maxMinutes:            maxMinutes,
@@ -117,6 +120,9 @@ func newSpecReviewCmd() *cobra.Command {
 		"Review profile: auto (the SPEC's effective profile), full (the configured panel), or lean (only for a lean-eligible SPEC)")
 	cmd.Flags().StringVar(&judge, "judge", "",
 		"Judge provider for this review, or none (default: none on lean, spec.review_gate.judge on full)")
+	// SPEC-REVIEWREUSE-001 REQ-RR-JDG-01: when the planned judge runs.
+	cmd.Flags().StringVar(&judgeMode, "judge-mode", "",
+		"When the judge runs: always, on_disagreement, or on_escalation (default: spec.review_gate.judge_mode, else always)")
 	// SPEC-REVIEWPOLICY-001 REQ-RP-BUD-01, REQ-RP-BUD-08: session budget.
 	cmd.Flags().IntVar(&maxCalls, "max-calls", 0, "Model call limit (> 0) of a new review session, or of the current one with --extend-budget (default: spec.review_gate.budget.max_calls)")
 	cmd.Flags().IntVar(&maxMinutes, "max-minutes", 0, "Active review minutes (> 0) of a new review session, or of the current one with --extend-budget (default: spec.review_gate.budget.max_minutes)")
@@ -142,6 +148,9 @@ type specReviewOptions struct {
 	// omitted flag.
 	judge    string
 	judgeSet bool
+	// judgeMode is --judge-mode; empty keeps spec.review_gate.judge_mode.
+	judgeMode    string
+	judgeModeSet bool
 	// maxCalls and maxMinutes override spec.review_gate.budget for a new
 	// session or, with extendBudget, for the current one. The *Set flags tell
 	// an explicit value from an omitted flag; an explicit value must be > 0.
@@ -260,6 +269,7 @@ func runSpecReviewWithOptions(ctx context.Context, specID, strategy string, time
 			codeContext:     codeContext,
 			runtimeEvidence: runtimeEvidence,
 			plan:            &attemptPlan,
+			judgeMode:       attemptPlan.JudgeMode,
 		}, doc, priorFindings)
 		// A lean review has one reviewer, so a provider outage would fail the
 		// whole review; fall back to the next planned provider instead.

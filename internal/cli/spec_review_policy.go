@@ -20,6 +20,27 @@ func applySpecReviewChecklistPolicy(reviews []spec.ReviewResult, specDir string,
 	}
 }
 
+// specReviewJudgeDecisions lists the judge's rulings in its order, with the
+// anonymous sources restored to provider names (SPEC-REVIEWREUSE-001
+// REQ-RR-JDG-07).
+func specReviewJudgeDecisions(out *orchestra.ReviewJudgeOutput, aliasToProvider map[string]string) []spec.JudgeDecision {
+	if out == nil {
+		return nil
+	}
+	var decisions []spec.JudgeDecision
+	for _, finding := range out.Findings {
+		decision := spec.JudgeDecision{ID: strings.TrimSpace(finding.ID), Decision: finding.Decision,
+			ScopeRef: strings.TrimSpace(finding.ScopeRef), Reason: strings.TrimSpace(finding.Reason), MergeInto: strings.TrimSpace(finding.MergeInto)}
+		for _, source := range finding.Sources {
+			if provider := aliasToProvider[strings.TrimSpace(source)]; provider != "" {
+				decision.Reviewers = append(decision.Reviewers, provider)
+			}
+		}
+		decisions = append(decisions, decision)
+	}
+	return decisions
+}
+
 // specChecklistItemRe matches a quality checklist item id such as Q-COMP-08.
 var specChecklistItemRe = regexp.MustCompile(`(?i)^Q-[A-Z]+-[0-9]+$`)
 

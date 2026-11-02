@@ -46,6 +46,10 @@ type ReviewGateConf struct {
 	// JSON repair, fallback, rounds, and invocations (SPEC-REVIEWPOLICY-001
 	// REQ-RP-BUD-01). Omitted means no limit and writes no key.
 	Budget ReviewBudgetConf `yaml:"budget,omitempty"`
+	// JudgeMode decides when the judge runs: always (the default), only when
+	// reviewers disagree, or only for a contested escalation
+	// (SPEC-REVIEWREUSE-001 REQ-RR-JDG-01). Omitted writes no key.
+	JudgeMode string `yaml:"judge_mode,omitempty"`
 }
 
 // ResolveMaxRevisions returns the configured revision budget, falling back to

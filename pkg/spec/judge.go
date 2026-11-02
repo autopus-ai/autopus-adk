@@ -21,6 +21,21 @@ type JudgeDismissal struct {
 	Reason   string `json:"reason"`
 }
 
+// JudgeDecision is one ruling of the judge on a reviewer finding, linked to
+// the reviewers that raised it (SPEC-REVIEWREUSE-001 REQ-RR-JDG-07).
+type JudgeDecision struct {
+	ID        string   `json:"id,omitempty"`
+	Decision  string   `json:"decision"`
+	Reviewers []string `json:"reviewers,omitempty"`
+	ScopeRef  string   `json:"scope_ref,omitempty"`
+	Reason    string   `json:"reason,omitempty"`
+	MergeInto string   `json:"merge_into,omitempty"`
+}
+
+// Judge statuses beyond the parsed outcome: a conditional judge mode that
+// found nothing to arbitrate records skipped with the reason.
+const JudgeStatusSkipped = "skipped"
+
 // JudgeSummary records the typed judge outcome.
 type JudgeSummary struct {
 	Provider    string   `json:"provider"`
@@ -36,6 +51,10 @@ type JudgeSummary struct {
 	// Dismissals are the verdict-scoped blockers the judge explicitly
 	// rejected; anything else a reviewer raised outside findings still blocks.
 	Dismissals []JudgeDismissal `json:"dismissals,omitempty"`
+	// Mode is the judge mode the round ran under; Decisions are the judge's
+	// rulings in its own order (SPEC-REVIEWREUSE-001 REQ-RR-JDG-07).
+	Mode      string          `json:"mode,omitempty"`
+	Decisions []JudgeDecision `json:"decisions,omitempty"`
 }
 
 // Dismisses reports whether the judge rejected reviewer's blocker scope.
