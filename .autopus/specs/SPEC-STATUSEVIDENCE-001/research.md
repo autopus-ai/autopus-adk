@@ -32,7 +32,7 @@ Read on 2026-11-02 on `feat/status-execution-evidence`, stacked on PR #251 (`bdd
 - The stop reason is the decision that ended the run; remediate and transport retries never end one, so a persistence failure after a routed fix reads `partial_preserved`.
 - Freshness compares a working-tree fingerprint against the run's base commit, not HEAD alone, so committing the verified tree keeps the evidence fresh. Files git skips (assume-unchanged, skip-worktree) make the tree unverifiable rather than unchanged, and `core.fileMode` is forced on so executable-bit changes count.
 - A baseline is evidence only when every field is present and well-formed and its tree paths add up to its fingerprint.
-- Review freshness needs a recorded fingerprint. The current receipt records none and its writer is outside this SPEC, so status reports such reviews stale when a document was written after the receipt and unknown otherwise; mtime never proves a SPEC unchanged.
+- Review freshness needs a recorded fingerprint. The rule lives in one helper, `specDocumentsFingerprint` in `internal/cli/spec_fingerprint.go`, which the verification baseline uses and the review receipt writer of R11 will call, so the writer and the reader cannot drift; a golden test pins its value. Until a receipt carries `spec_fingerprint`, status reports the review stale when a document was written after the receipt and unknown otherwise; mtime never proves a SPEC unchanged.
 - Dry runs persist under `.autopus/pipeline-state/dry-run/`: the engine writes wherever the run's checkpoint directory points, so no engine change is needed.
 - The execution owner comes from the run's dispatch backends because the sidecar is rewritten before admission.
 - Commands carry only values that pass the pipeline's SPEC ID pattern, the platform allowlist, and the owner allowlist; directories are absolute and shell-quoted; strings from receipts lose control characters.
@@ -66,7 +66,7 @@ Read on 2026-11-02 on `feat/status-execution-evidence`, stacked on PR #251 (`bdd
 
 | Item | Blocks | Required resolution |
 |------|--------|---------------------|
-| Review receipts record no SPEC fingerprint | A `fresh` review state for receipts written today; status shows them `stale` or `unknown` | `auto spec review` writes `spec_fingerprint` by this SPEC's fingerprint rule; the writer is outside this SPEC's ownership, pending the lead's decision |
+| Review receipts record no SPEC fingerprint | A `fresh` review state for receipts written before R11; status shows them `stale` or `unknown` | R11 makes the receipt writer record `spec_fingerprint` by calling `specDocumentsFingerprint`; the writer (`internal/cli/spec_review_*`) is outside this SPEC's ownership |
 
 ## Evolution Ideas
 

@@ -5,11 +5,11 @@ Status: draft
 ## Tasks
 
 - T1: `[NEW] internal/cli/status_evidence.go`, `[NEW] status_evidence_roots.go`, `[NEW] status_evidence_resume.go`, `[NEW] status_evidence_verify.go`, `[NEW] status_evidence_review.go` — per-SPEC readers: the newest state root, the checkpoint and blocked sidecar (counts by dispatch, stop reason, owner from the receipt), the resume admission through `pipeline.AdmitResume`, baseline validation and freshness, and the review receipt and session.
-- T2: `[NEW] internal/cli/pipeline_run_baseline.go`, `[NEW] pipeline_run_fingerprint.go` — the SPEC and tree fingerprints with hidden-change detection, baseline validation, and the atomic baseline write after a completed run.
+- T2: `[NEW] internal/cli/spec_fingerprint.go`, `[NEW] pipeline_run_baseline.go`, `[NEW] pipeline_run_fingerprint.go` — the shared SPEC fingerprint helper with a golden test, the tree fingerprint with hidden-change detection, baseline validation, and the atomic baseline write after a completed run.
 - T3: `[NEW] status_evidence_render.go`; `status.go`, `status_json.go` — the evidence lines under each SPEC row, the summary, the JSON contract, and probe injection.
 - T4: `[NEW] status_next.go`, `[NEW] status_next_command.go`, `[NEW] status_next_env.go`; `pipeline_run_flags.go` — next actions with absolute directories, validated and quoted commands, installed CLIs against pipeline platforms, Desktop facts.
 - T5: `pipeline_run.go`, `pipeline_run_resume.go`, `[NEW] pipeline_run_dryrun.go` — counts by dispatch, the stop-reason rule, the platform line, dry-run state apart from the canonical checkpoint; `[NEW] pkg/pipeline/resume_admission.go`.
-- T6: `init.go` — standalone-first steps with the same facts as status actions; re-record the TUIUX goldens, whose writer shows that only the next-step lines of `init-yes.stdout` and `init-pipe.stdout` change (recapture section 18).
+- T6: `init.go` — standalone-first steps with the same facts as status actions; re-record the TUIUX goldens, whose writer shows that only the next-step lines of `init-yes.stdout` and `init-pipe.stdout` change (recapture section 19).
 - T7: README rows; tests with engine-made checkpoints and an injected probe; executed admission probes; `go test ./internal/cli/... ./pkg/pipeline/...`; source-lines gate; scope check.
 
 ## Implementation Strategy

@@ -55,7 +55,7 @@ Given a receipt whose `finished_at` is 10:00 and whose file is dated 12:00
 When it records the current SPEC fingerprint, then a status-line edit, then a plan change
 Then the review reads `review: REVISE (gate blocked, loop revisions_exhausted, run orch-1) at 2026-11-01T10:00:00Z — fresh`, stays fresh, then reads `stale` with `SPEC requirements changed after the review`
 And a receipt without a fingerprint reads `unknown`, stays `unknown` after a change that kept its old modification time, reads `stale` with `SPEC documents written after the review: plan.md` after a newer write, and `unknown` when spec.md is gone
-And sessions and foreign receipts read as in REQ-SEV-REVIEW-02 (tests `TestStatusEvidence_ReviewFreshnessComparesContent`, `TestStatusEvidence_ReviewWithoutFingerprintIsNeverFresh`, `TestStatusEvidence_ReviewSessionIsReadTolerantly`).
+And sessions and foreign receipts read as in REQ-SEV-REVIEW-02, and the fingerprint of a fixed SPEC equals the golden `sha256:52b60a34…` computed outside Go, unchanged by status lines or a missing document read as empty (tests `TestStatusEvidence_ReviewFreshnessComparesContent`, `TestStatusEvidence_ReviewWithoutFingerprintIsNeverFresh`, `TestStatusEvidence_ReviewSessionIsReadTolerantly`, `TestSpecDocumentsFingerprint_PinsTheRule`).
 
 ### S10: AC-SEV-010 - Init leads with standalone use and states each step's facts
 Given `auto init` with platforms `claude-code` and `codex`
