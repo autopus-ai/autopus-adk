@@ -73,3 +73,18 @@ func TestReviewJudgeModel_LineRemoval(t *testing.T) {
 		assert.Equal(t, before, readReviewFile(t, dir), name)
 	}
 }
+
+// An OMP judge model written with its thinking inline and the same
+// judge_effort beside it: show prints both keys as written, while the menu
+// summary names the level once.
+func TestReviewJudgeModel_InlineThinkingShowsOnce(t *testing.T) {
+	useQualityReviewSeams(t)
+	dir := writeReviewR3(t)
+	replaceReviewFile(t, dir, reviewGateTail, reviewGateTail+"        judge_model: anthropic/claude-opus-5-5:max\n        judge_effort: max\n")
+
+	out, _, err := runQualityReview(t, dir, nil, "show")
+	require.NoError(t, err)
+	assert.Contains(t, out, "spec.review_gate.judge_model = anthropic/claude-opus-5-5:max\nspec.review_gate.judge_effort = max\n")
+	line := reviewSummaryLine(newReviewBaseline(reviewLoaderValueKeepCwd(t, dir), readReviewRaw(dir)), composeReviewTextEN)
+	assert.True(t, strings.HasSuffix(line, " · judge claude (anthropic/claude-opus-5-5:max)"), line)
+}

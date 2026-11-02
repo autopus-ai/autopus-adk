@@ -23,9 +23,29 @@ type specReviewJudgeModel struct {
 	Judge, Model, Effort string
 	// ReviewJudge is the judge this review runs (--judge or the plan's).
 	ReviewJudge string
+	// OMP marks a configured judge whose entry runs on the OMP backend,
+	// where judge_model is a selector that may carry its thinking level.
+	OMP bool
 }
 
 func (m specReviewJudgeModel) applies() bool { return m.ReviewJudge == m.Judge }
+
+// effective is the judge model the judge call runs, as the plan block and
+// the receipt name it (SPEC-JUDGEMODEL-001 REQ-JM-RUN-03, RUN-04): on the
+// OMP backend the base selector and the one thinking level judge_model
+// carries or judge_effort gives, which must agree when both are set; on a
+// CLI backend the two values as configured. Only `auto quality review show`
+// and the tab's change lines spell the keys as written.
+func (m specReviewJudgeModel) effective() (model, effort string) {
+	if !m.OMP {
+		return m.Model, m.Effort
+	}
+	base, thinking, ok := orchestra.SplitModelSelector(m.Model)
+	if !ok {
+		return m.Model, m.Effort
+	}
+	return base, cmp.Or(thinking, m.Effort)
+}
 
 // configuredSpecReviewJudgeModel returns the judge model cfg configures for
 // a review whose judge is judge, or nil when the review runs no judge or
@@ -35,22 +55,29 @@ func configuredSpecReviewJudgeModel(cfg *config.HarnessConfig, judge string) *sp
 		return nil
 	}
 	gate := cfg.Spec.ReviewGate
+	configured := strings.TrimSpace(gate.Judge)
 	return &specReviewJudgeModel{
-		Judge: strings.TrimSpace(gate.Judge), Model: gate.JudgeModel, Effort: gate.JudgeEffort, ReviewJudge: judge,
+		Judge: configured, Model: gate.JudgeModel, Effort: gate.JudgeEffort, ReviewJudge: judge,
+		OMP: cfg.Orchestra.Providers[configured].Backend == config.ProviderBackendOMP,
 	}
 }
 
 // judgeModelText names a judge model (SPEC-JUDGEMODEL-001 Definitions):
 // `<model> · <effort>` on a CLI backend, `<model>:<effort>` on the OMP
-// backend, and the model alone without an effort.
+// backend, and the model alone without an effort. An OMP selector that
+// already carries the level effort names, or carries one without effort,
+// names it once.
 func judgeModelText(model, effort string, omp bool) string {
 	switch {
 	case model == "" || effort == "":
 		return model
-	case omp:
-		return model + ":" + effort
+	case !omp:
+		return model + " · " + effort
 	}
-	return model + " · " + effort
+	if _, thinking, ok := orchestra.SplitModelSelector(model); ok && thinking == effort {
+		return model
+	}
+	return model + ":" + effort
 }
 
 // applySpecReviewJudgeModel returns provider, the judge's resolved entry,
@@ -104,10 +131,7 @@ func (m specReviewJudgeModel) ompSelector(judge string) (string, error) {
 				m.Model, cmp.Or(got, "no known"), judge, want)
 		}
 	}
-	if thinking = cmp.Or(thinking, m.Effort); thinking != "" {
-		return model + ":" + thinking, nil
-	}
-	return model, nil
+	return judgeModelText(model, cmp.Or(thinking, m.Effort), true), nil
 }
 
 // cliRefusal refuses a judge model a CLI judge cannot carry: a binary
@@ -144,19 +168,20 @@ func printSpecReviewJudgeModel(w io.Writer, assembled specReviewProviderPlan) {
 	switch {
 	case m == nil || judge == nil:
 	case m.applies():
-		fmt.Fprintf(w, "  judge model: %s — spec.review_gate.judge_model\n",
-			terminalSafe(judgeModelText(m.Model, m.Effort, judge.Backend == config.ProviderBackendOMP)))
+		model, effort := m.effective()
+		fmt.Fprintf(w, "  judge model: %s — spec.review_gate.judge_model\n", terminalSafe(judgeModelText(model, effort, m.OMP)))
 	default:
 		fmt.Fprintf(w, "  judge model: %s의 리뷰어 model — spec.review_gate.judge_model은 judge %s에만 씁니다\n",
 			terminalSafe(judge.Name), terminalSafe(m.Judge))
 	}
 }
 
-// recordSpecReviewJudgeModel names the judge model an applied review ran in
-// the receipt's judge (REQ-JM-RUN-04); any other receipt keeps its bytes.
+// recordSpecReviewJudgeModel names the effective judge model an applied
+// review ran in the receipt's judge (REQ-JM-RUN-04): on the OMP backend the
+// base selector and its thinking level; any other receipt keeps its bytes.
 func recordSpecReviewJudgeModel(judge *specReviewJudgeReceipt, evidence []specReviewRuntimeEvidence) {
 	if judge == nil || len(evidence) == 0 || evidence[0].JudgeModel == nil || !evidence[0].JudgeModel.applies() {
 		return
 	}
-	judge.Model, judge.Effort = evidence[0].JudgeModel.Model, evidence[0].JudgeModel.Effort
+	judge.Model, judge.Effort = evidence[0].JudgeModel.effective()
 }

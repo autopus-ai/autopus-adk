@@ -7,6 +7,9 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -79,22 +82,36 @@ func TestSpecReviewJudgeModel_AssemblyPerBackend(t *testing.T) {
 		assert.NotContains(t, reviewer.Config.Args, "--model")
 		assert.Equal(t, append([]string{"--print", "", "--model", "gemini-3.1-pro-high"}, reviewer.Config.Args[2:]...), judge.Config.Args)
 	})
-	t.Run("omp", func(t *testing.T) {
-		fixture := newReadOnlyReviewFixture(t, func(cfg *config.HarnessConfig) {
-			withJudgeModel("claude", "anthropic/claude-opus-5-5", "max")(cfg)
-			cfg.Spec.ReviewGate.Providers = []string{"claude", "codex"}
-			cfg.Orchestra.Providers["claude"] = config.ProviderEntry{Backend: config.ProviderBackendOMP, Model: "anthropic/claude-fable-5-1:max"}
-		})
-		installFakeOMP(t)
-		installReviewJSONRecorders(t, "codex")
-		backend, stderr := runJudgeModelReview(t, fixture, specReviewOptions{})
+}
 
-		assert.Equal(t, "anthropic/claude-fable-5-1:max", backend.request(t, "claude", "reviewer").Config.Model)
-		judge := backend.request(t, "claude", "judge")
-		assert.Equal(t, "anthropic/claude-opus-5-5:max", judge.Config.Model)
-		assert.Equal(t, "anthropic", judge.Config.ModelFamily)
-		assert.Contains(t, stderr, "  judge model: anthropic/claude-opus-5-5:max — spec.review_gate.judge_model\n")
-	})
+// An OMP judge model in any accepted form — split, thinking inline, or
+// inline with the same judge_effort — runs, prints, and records one
+// effective model: the base selector and its thinking level once
+// (REQ-JM-RUN-03, RUN-04).
+func TestSpecReviewJudgeModel_OMPFormsNormalize(t *testing.T) {
+	for _, form := range [][2]string{
+		{"anthropic/claude-opus-5-5", "max"}, {"anthropic/claude-opus-5-5:max", ""}, {"anthropic/claude-opus-5-5:max", "max"},
+	} {
+		t.Run(form[0]+"+"+form[1], func(t *testing.T) {
+			fixture := newReadOnlyReviewFixture(t, func(cfg *config.HarnessConfig) {
+				withJudgeModel("claude", form[0], form[1])(cfg)
+				cfg.Spec.ReviewGate.Providers = []string{"claude", "codex"}
+				cfg.Orchestra.Providers["claude"] = config.ProviderEntry{Backend: config.ProviderBackendOMP, Model: "anthropic/claude-fable-5-1:max"}
+			})
+			installFakeOMP(t)
+			installReviewJSONRecorders(t, "codex")
+			backend, stderr := runJudgeModelReview(t, fixture, specReviewOptions{})
+
+			assert.Equal(t, "anthropic/claude-fable-5-1:max", backend.request(t, "claude", "reviewer").Config.Model)
+			judge := backend.request(t, "claude", "judge")
+			assert.Equal(t, "anthropic/claude-opus-5-5:max", judge.Config.Model)
+			assert.Equal(t, "anthropic", judge.Config.ModelFamily)
+			assert.Contains(t, stderr, "  judge model: anthropic/claude-opus-5-5:max — spec.review_gate.judge_model\n")
+			receipt := readSpecReviewReceipt(t, fixture.specDir)
+			require.NotNil(t, receipt.Judge)
+			assert.Equal(t, [2]string{"anthropic/claude-opus-5-5", "max"}, [2]string{receipt.Judge.Model, receipt.Judge.Effort})
+		})
+	}
 }
 
 // Without the key, or for another judge, the judge is the reviewer config as
@@ -107,6 +124,14 @@ func TestSpecReviewJudgeModel_AbsentOrOtherJudgeKeepsTheReviewerConfig(t *testin
 	receipt := readSpecReviewReceipt(t, fixture.specDir)
 	require.NotNil(t, receipt.Judge)
 	assert.Empty(t, receipt.Judge.Model+receipt.Judge.Effort)
+	var raw struct {
+		Judge map[string]any `json:"judge"`
+	}
+	data, err := os.ReadFile(filepath.Join(fixture.specDir, "review-receipt.json"))
+	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal(data, &raw))
+	assert.NotContains(t, raw.Judge, "model", "the receipt's judge keeps its keys without judge_model")
+	assert.NotContains(t, raw.Judge, "effort")
 
 	fixture = newReadOnlyReviewFixture(t, withJudgeModel("claude", "claude-opus-5-5", "high"))
 	backend, stderr = runJudgeModelReview(t, fixture, specReviewOptions{judge: "codex", judgeSet: true})
@@ -158,4 +183,13 @@ func TestSpecReviewJudgeModel_PlanLine(t *testing.T) {
 	assert.Equal(t, "  judge model: claude-haiku-4-5 — spec.review_gate.judge_model\n", out.String())
 	assert.Equal(t, "anthropic/claude-opus-5-5:max", judgeModelText("anthropic/claude-opus-5-5", "max", true))
 	assert.Equal(t, "claude-opus-5-5 · max", judgeModelText("claude-opus-5-5", "max", false))
+	for _, effort := range []string{"", "max"} {
+		assert.Equal(t, "anthropic/claude-opus-5-5:max", judgeModelText("anthropic/claude-opus-5-5:max", effort, true), "thinking once")
+		model, thinking := specReviewJudgeModel{Model: "anthropic/claude-opus-5-5:max", Effort: effort, OMP: true}.effective()
+		assert.Equal(t, [2]string{"anthropic/claude-opus-5-5", "max"}, [2]string{model, thinking})
+	}
+	assert.Equal(t, "anthropic/claude-opus-5-5:max:high", judgeModelText("anthropic/claude-opus-5-5:max", "high", true),
+		"a contradiction the review refuses stays visible")
+	model, effort := specReviewJudgeModel{Model: "claude-opus-5-5", Effort: "high"}.effective()
+	assert.Equal(t, [2]string{"claude-opus-5-5", "high"}, [2]string{model, effort}, "a CLI judge model is recorded as configured")
 }
