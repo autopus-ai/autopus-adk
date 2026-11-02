@@ -42,7 +42,7 @@ func TestRunSpecReview_UnchangedInputReturnsThePreviousResult(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			fixture, backend := reuseFixture(t, config.ReviewBudgetConf{}, nil)
+			fixture, backend := reuseFixture(t, config.ReviewBudgetConf{}, snapshotModels)
 			backend.replies["claude/reviewer"] = []scriptedReply{{output: tc.reply}}
 			backend.replies["codex/reviewer"] = []scriptedReply{{output: tc.reply}}
 			runReviewOutput(t, fixture, specReviewOptions{})
@@ -175,30 +175,40 @@ func TestRunSpecReview_AnyChangeOrDamageInvalidatesTheResult(t *testing.T) {
 	}
 }
 
-// S10 last line and REQ-RR-REUSE-04: a PASS reviewed by an unpinned model is
-// reviewed again; a REJECT from the same model is still reused.
+// S10 last lines and REQ-RR-REUSE-04: a PASS reviewed by a rolling alias, with
+// or without a digit, is reviewed again; a REJECT from the same model is still
+// reused; declaring the selectors in pinned_models makes the PASS reusable.
 func TestRunSpecReview_UnpinnedModelBlocksOnlyAReusedPass(t *testing.T) {
 	for _, tc := range []struct {
-		reply string
-		calls int
-	}{{passNoFinding, 4}, {rejectNoFinding, 2}} {
-		fixture, backend := reuseFixture(t, config.ReviewBudgetConf{}, func(cfg *config.HarnessConfig) {
-			// A user-pinned policy keeps the configured alias; otherwise the
-			// quality profile replaces it with a versioned model.
-			entry := cfg.Orchestra.Providers["claude"]
-			entry.Args = []string{"--print", "--model", "opus", "--effort", "max"}
-			entry.ModelPolicy = "pinned"
-			cfg.Orchestra.Providers["claude"] = entry
-		})
-		backend.replies["claude/reviewer"] = []scriptedReply{{output: tc.reply}}
-		backend.replies["codex/reviewer"] = []scriptedReply{{output: tc.reply}}
-		runReviewOutput(t, fixture, specReviewOptions{})
-		_, stderr := runReviewOutput(t, fixture, specReviewOptions{})
+		name, model, reply string
+		declared           []string
+		calls              int
+	}{
+		{"alias pass", "opus", passNoFinding, nil, 4},
+		{"alias reject", "opus", rejectNoFinding, nil, 2},
+		{"digit alias pass", "claude-opus-5-5", passNoFinding, nil, 4},
+		{"declared pass", "claude-opus-5-5", passNoFinding, []string{"claude-opus-5-5", "gpt-5.6-sol-2026-10-01"}, 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fixture, backend := reuseFixture(t, config.ReviewBudgetConf{}, func(cfg *config.HarnessConfig) {
+				snapshotModels(cfg)
+				// The pinned policy keeps the configured alias; otherwise the
+				// quality profile would replace it with a versioned model.
+				entry := cfg.Orchestra.Providers["claude"]
+				entry.Args = []string{"--print", "--model", tc.model, "--effort", "max"}
+				cfg.Orchestra.Providers["claude"] = entry
+				cfg.Spec.ReviewGate.PinnedModels = tc.declared
+			})
+			backend.replies["claude/reviewer"] = []scriptedReply{{output: tc.reply}}
+			backend.replies["codex/reviewer"] = []scriptedReply{{output: tc.reply}}
+			runReviewOutput(t, fixture, specReviewOptions{})
+			_, stderr := runReviewOutput(t, fixture, specReviewOptions{})
 
-		assert.Equal(t, tc.calls, backend.count())
-		if tc.calls == 4 {
-			assert.Contains(t, stderr, "PASS: 모델 alias (claude: opus)")
-		}
+			assert.Equal(t, tc.calls, backend.count())
+			if tc.calls == 4 {
+				assert.Contains(t, stderr, "PASS: 모델 alias (claude: "+tc.model+")")
+			}
+		})
 	}
 }
 

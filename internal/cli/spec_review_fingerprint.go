@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -52,6 +53,9 @@ type specReviewPolicyIdentity struct {
 	PassCriteria        string   `json:"pass_criteria"`
 	DocContextMaxLines  int      `json:"doc_context_max_lines"`
 	ConditionalProfiles []string `json:"conditional_profiles,omitempty"`
+	// PinnedModels are the selectors the operator declared immutable
+	// snapshots (REQ-RR-REUSE-04).
+	PinnedModels []string `json:"pinned_models,omitempty"`
 }
 
 type specReviewProviderIdentity struct {
@@ -143,10 +147,10 @@ func computeSpecReviewFingerprint(in specReviewFingerprintInput) *specReviewFing
 		incomplete("checklist: %v", err)
 	}
 	for _, provider := range in.reviewers {
-		fp.Providers = append(fp.Providers, specReviewProviderIdentityOf(provider, specReviewRoleReviewer))
+		fp.Providers = append(fp.Providers, specReviewProviderIdentityOf(provider, specReviewRoleReviewer, in.policy.PinnedModels))
 	}
 	if in.judge != nil {
-		fp.Providers = append(fp.Providers, specReviewProviderIdentityOf(*in.judge, specReviewRoleJudge))
+		fp.Providers = append(fp.Providers, specReviewProviderIdentityOf(*in.judge, specReviewRoleJudge, in.policy.PinnedModels))
 	}
 	fp.Complete = len(fp.Incomplete) == 0
 	return fp
@@ -157,16 +161,16 @@ func specReviewPolicyIdentityOf(plan specReviewPlan, gate config.ReviewGateConf,
 		Profile: plan.Profile, JudgeMode: plan.JudgeMode, VerifyInput: plan.VerifyInput, Strategy: strategy, VerdictThreshold: threshold,
 		MinProviders: gate.MinProviders, ExcludeFailed: gate.ExcludeFailedFromDenom, MaxRevisions: maxRevisions,
 		PassCriteria: spec.SHA256Hex([]byte(gate.PassCriteria)), DocContextMaxLines: gate.DocContextMaxLines,
-		ConditionalProfiles: slices.Clone(opts.conditionalProfiles),
+		ConditionalProfiles: slices.Clone(opts.conditionalProfiles), PinnedModels: slices.Clone(gate.PinnedModels),
 	}
 }
 
-func specReviewProviderIdentityOf(provider orchestra.ProviderConfig, role string) specReviewProviderIdentity {
+func specReviewProviderIdentityOf(provider orchestra.ProviderConfig, role string, declared []string) specReviewProviderIdentity {
 	selector := specReviewModelSelector(provider)
 	return specReviewProviderIdentity{
 		Name: provider.Name, Role: role, Backend: provider.Backend, Binary: provider.Binary, Model: selector,
 		Args: spec.SHA256Hex([]byte(strings.Join(provider.Args, "\x00"))), ModelPolicy: provider.ModelPolicy,
-		Pinned: specReviewModelPinned(selector),
+		Pinned: specReviewModelPinned(selector, declared),
 	}
 }
 
@@ -187,10 +191,21 @@ func specReviewModelSelector(provider orchestra.ProviderConfig) string {
 	return ""
 }
 
-// specReviewModelPinned reports a selector that names a version: non-empty,
-// with a digit, not default, not ending in latest. An alias such as opus may
-// resolve to a newer model between two invocations (REQ-RR-REUSE-04).
-func specReviewModelPinned(selector string) bool {
-	lower := strings.ToLower(selector)
-	return lower != "" && lower != "default" && !strings.HasSuffix(lower, "latest") && strings.ContainsAny(lower, "0123456789")
+// specReviewSnapshotSuffix matches the calendar-dated snapshot suffix a
+// provider gives an immutable model version: -YYYY-MM-DD (gpt-4o-2024-08-06),
+// -YYYYMMDD (claude-3-5-sonnet-20241022), or @YYYYMMDD (a Vertex id).
+var specReviewSnapshotSuffix = regexp.MustCompile(
+	`(?:-20\d\d-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])|[-@]20\d\d(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01]))$`)
+
+// specReviewModelPinned reports a selector that names one immutable model: a
+// dated snapshot, or a selector the operator declared in
+// spec.review_gate.pinned_models. A digit is not a version: gpt-4o and
+// claude-opus-5-5 are rolling aliases whose target may move between two
+// invocations, so a PASS they produced is never reused (REQ-RR-REUSE-04).
+func specReviewModelPinned(selector string, declared []string) bool {
+	selector = strings.TrimSpace(selector)
+	if selector == "" {
+		return false
+	}
+	return slices.Contains(declared, selector) || specReviewSnapshotSuffix.MatchString(selector)
 }

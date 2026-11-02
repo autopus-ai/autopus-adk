@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sync/atomic"
 	"testing"
 
@@ -45,6 +46,26 @@ func reuseFixture(t *testing.T, budget config.ReviewBudgetConf, edit func(*confi
 	runFixtureGit(t, fixture.root, "init", "-q")
 	commitFixtureRepo(t, fixture.root, "fixture")
 	return fixture, backend
+}
+
+// snapshotModels gives claude and codex calendar-dated snapshot selectors,
+// the only selectors whose PASS may be reused without a declaration
+// (REQ-RR-REUSE-04); the pinned policy keeps the profile from rewriting them.
+func snapshotModels(cfg *config.HarnessConfig) {
+	for name, models := range map[string][2]string{
+		"claude": {"claude-fable-5-1", "claude-fable-5-1-20261015"},
+		"codex":  {"gpt-5.6-sol", "gpt-5.6-sol-2026-10-01"},
+	} {
+		entry := cfg.Orchestra.Providers[name]
+		entry.Args = slices.Clone(entry.Args)
+		for i, arg := range entry.Args {
+			if arg == models[0] {
+				entry.Args[i] = models[1]
+			}
+		}
+		entry.ModelPolicy = config.ProviderModelPolicyPinned
+		cfg.Orchestra.Providers[name] = entry
+	}
 }
 
 // countSpecReviewReadinessProbes counts preflight calls while keeping the

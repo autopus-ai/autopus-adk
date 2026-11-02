@@ -29,7 +29,7 @@ func fileSHA256(t *testing.T, path string) string {
 }
 
 func TestRunSpecReview_ReceiptFingerprintNamesEveryInput(t *testing.T) {
-	fixture, _ := reuseFixture(t, config.ReviewBudgetConf{}, nil)
+	fixture, _ := reuseFixture(t, config.ReviewBudgetConf{}, snapshotModels)
 	before, err := spec.ReviewDocumentDigests(fixture.specDir)
 	require.NoError(t, err)
 
@@ -121,18 +121,28 @@ func TestReusableSpecReviewResult_OnlyCompleteUndegradedResults(t *testing.T) {
 	}
 }
 
+// REQ-RR-REUSE-04: a digit is not a version. Only a calendar-dated snapshot
+// suffix or an operator declaration in spec.review_gate.pinned_models makes
+// a selector pinned; gpt-4o and claude-opus-5-5 are rolling aliases.
 func TestSpecReviewModelSelectorPinned(t *testing.T) {
 	t.Parallel()
 
+	declared := []string{"claude-opus-5-5"}
 	cases := []struct {
 		provider orchestra.ProviderConfig
 		selector string
 		pinned   bool
 	}{
 		{orchestra.ProviderConfig{Args: []string{"--print", "--model", "claude-opus-5-5"}}, "claude-opus-5-5", true},
-		{orchestra.ProviderConfig{Args: []string{"exec", "-m", "gpt-6-astra"}}, "gpt-6-astra", true},
-		{orchestra.ProviderConfig{Args: []string{"--model=gemini-3.8-flash"}}, "gemini-3.8-flash", true},
-		{orchestra.ProviderConfig{Model: "anthropic/claude-sonnet-5-5:high", Args: []string{"--model", "opus"}}, "anthropic/claude-sonnet-5-5:high", true},
+		{orchestra.ProviderConfig{Args: []string{"--print", "--model", "claude-sonnet-5-5"}}, "claude-sonnet-5-5", false},
+		{orchestra.ProviderConfig{Args: []string{"exec", "-m", "gpt-4o"}}, "gpt-4o", false},
+		{orchestra.ProviderConfig{Args: []string{"exec", "-m", "gpt-6-astra"}}, "gpt-6-astra", false},
+		{orchestra.ProviderConfig{Args: []string{"exec", "-m", "gpt-4o-2024-08-06"}}, "gpt-4o-2024-08-06", true},
+		{orchestra.ProviderConfig{Args: []string{"--model=claude-3-5-sonnet-20241022"}}, "claude-3-5-sonnet-20241022", true},
+		{orchestra.ProviderConfig{Model: "claude-3-5-sonnet@20240620"}, "claude-3-5-sonnet@20240620", true},
+		{orchestra.ProviderConfig{Args: []string{"--model=gemini-3.8-flash"}}, "gemini-3.8-flash", false},
+		{orchestra.ProviderConfig{Args: []string{"-m", "gpt-4o-2024-13-06"}}, "gpt-4o-2024-13-06", false},
+		{orchestra.ProviderConfig{Model: "anthropic/claude-sonnet-5-5:high", Args: []string{"--model", "opus"}}, "anthropic/claude-sonnet-5-5:high", false},
 		{orchestra.ProviderConfig{Args: []string{"--model", "opus"}}, "opus", false},
 		{orchestra.ProviderConfig{Args: []string{"--model", "gpt-6-latest"}}, "gpt-6-latest", false},
 		{orchestra.ProviderConfig{Args: []string{"--print"}}, "", false},
@@ -141,6 +151,7 @@ func TestSpecReviewModelSelectorPinned(t *testing.T) {
 	for _, tc := range cases {
 		selector := specReviewModelSelector(tc.provider)
 		assert.Equal(t, tc.selector, selector)
-		assert.Equal(t, tc.pinned, specReviewModelPinned(selector), selector)
+		assert.Equal(t, tc.pinned, specReviewModelPinned(selector, declared), selector)
 	}
+	assert.False(t, specReviewModelPinned("claude-opus-5-5", nil), "undeclared, the same alias is not pinned")
 }

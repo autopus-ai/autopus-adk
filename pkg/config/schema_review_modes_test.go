@@ -52,3 +52,29 @@ func TestReviewGateModes_DefaultConfigWritesNeitherKey(t *testing.T) {
 	assert.False(t, strings.Contains(string(data), "judge_mode"))
 	assert.False(t, strings.Contains(string(data), "verify_input"))
 }
+
+// REQ-RR-REUSE-04: pinned_models declares selectors the operator vouches are
+// immutable snapshots; a rolling selector cannot be declared.
+func TestReviewGatePinnedModels_LoadAndValidate(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := loadReviewBudgetConfig(t, "    pinned_models: [claude-opus-5-5, gpt-6-astra]\n")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"claude-opus-5-5", "gpt-6-astra"}, cfg.Spec.ReviewGate.PinnedModels)
+
+	for value, want := range map[string]string{
+		`["gpt-6-latest"]`: `spec.review_gate.pinned_models[0] "gpt-6-latest" is not a fixed model selector`,
+		`[opus, ""]`:       `spec.review_gate.pinned_models[1] "" is not a fixed model selector`,
+		`[default]`:        `spec.review_gate.pinned_models[0] "default" is not a fixed model selector`,
+	} {
+		_, err := loadReviewBudgetConfig(t, "    pinned_models: "+value+"\n")
+		require.Error(t, err, value)
+		assert.Contains(t, err.Error(), want)
+	}
+
+	dir := t.TempDir()
+	require.NoError(t, Save(dir, DefaultFullConfig("pinned-default")))
+	data, err := os.ReadFile(filepath.Join(dir, "autopus.yaml"))
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), "pinned_models")
+}
