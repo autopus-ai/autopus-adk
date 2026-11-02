@@ -100,7 +100,7 @@ func runPipeline(cmd *cobra.Command, specID string, cfg *pipelineRunConfig) erro
 	if err := pipeline.ValidateStrategy(requestedStrategy); err != nil {
 		return pipelineBlockedError(specID, resolvedSpec.SnapshotHash, gitHash, requestedStrategy, err)
 	}
-	platform := resolvePlatform(cfg.Platform)
+	platform, platformReason := resolvePlatformWith(cfg.Platform, exec.LookPath)
 	flags := globalFlagsFromContext(cmd.Context())
 	projectDir, err := os.Getwd()
 	if err != nil {
@@ -110,6 +110,7 @@ func runPipeline(cmd *cobra.Command, specID string, cfg *pipelineRunConfig) erro
 	projectDir = filepath.Clean(projectDir)
 	route, routeReason := resolvePipelineRoute(projectDir, resolvedSpec.Dir, specID)
 	fmt.Fprintf(cmd.ErrOrStderr(), "Pipeline route: %s — %s\n", route, routeReason)
+	fmt.Fprintf(cmd.ErrOrStderr(), "Pipeline platform: %s — %s\n", pipelinePlatformLabel(platform), platformReason)
 	if platform == "omp" {
 		// REQ-106/INV-105: the read-only tier integrity gate completes here,
 		// before any checkpoint, worktree, Run, worker, or provider session
@@ -189,6 +190,7 @@ func runPipeline(cmd *cobra.Command, specID string, cfg *pipelineRunConfig) erro
 	if err != nil {
 		return fmt.Errorf("pipeline run failed: %w", err)
 	}
+	recordPipelineVerification(cmd.ErrOrStderr(), specID, resolvedSpec.Dir, result)
 
 	if flags.MultiMode && !cfg.DryRun {
 		fmt.Fprintf(cmd.ErrOrStderr(), "Running multi-provider review for %s\n", specID)
@@ -199,7 +201,7 @@ func runPipeline(cmd *cobra.Command, specID string, cfg *pipelineRunConfig) erro
 	if cfg.DryRun {
 		fmt.Fprintf(cmd.OutOrStdout(), "Pipeline dry run: %d phases planned; no backend execution\n", len(result.PhaseResults))
 	} else {
-		fmt.Fprintf(cmd.OutOrStdout(), "Pipeline complete: %d phases executed\n", len(result.PhaseResults))
+		fmt.Fprintln(cmd.OutOrStdout(), pipelineCompletionLine(result))
 	}
 	return nil
 }

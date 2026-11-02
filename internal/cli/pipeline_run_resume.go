@@ -34,3 +34,44 @@ func reportPipelineResume(w io.Writer, result *pipeline.PipelineResult) {
 		fmt.Fprintf(w, "Pipeline resume: %s\n", note)
 	}
 }
+
+// pipelinePhaseCounts separates the phases a run executed from the phases it
+// restored from its checkpoint (SPEC-STATUSEVIDENCE-001 REQ-SEV-RUN-01).
+type pipelinePhaseCounts struct {
+	Executed int `json:"executed"`
+	Restored int `json:"restored"`
+	Failed   int `json:"failed"`
+	Pending  int `json:"pending"`
+}
+
+// countPipelinePhases reads the counts from a run receipt. A restored phase is
+// done without having been dispatched by this run, so it is never executed.
+func countPipelinePhases(receipt pipeline.OrchestrationRunReceipt) pipelinePhaseCounts {
+	restored := map[pipeline.PhaseID]bool{}
+	if receipt.Resume != nil {
+		for _, phase := range receipt.Resume.RestoredPhases {
+			restored[phase] = true
+		}
+	}
+	var counts pipelinePhaseCounts
+	for _, phase := range receipt.Phases {
+		switch {
+		case phase.Status == pipeline.CheckpointStatusDone && restored[phase.PhaseID]:
+			counts.Restored++
+		case phase.Status == pipeline.CheckpointStatusDone:
+			counts.Executed++
+		case phase.Status == pipeline.CheckpointStatusFailed:
+			counts.Failed++
+		default:
+			counts.Pending++
+		}
+	}
+	return counts
+}
+
+// pipelineCompletionLine is the result line of a completed run.
+func pipelineCompletionLine(result *pipeline.PipelineResult) string {
+	counts := countPipelinePhases(result.Receipt)
+	return fmt.Sprintf("Pipeline complete: %d phases executed, %d restored from checkpoint, %d dispatches",
+		counts.Executed, counts.Restored, result.Receipt.DispatchCount)
+}
