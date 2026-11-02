@@ -46,7 +46,7 @@ Observed on 48607ed2:
 - Carried document: a SPEC document the full review input carries: spec.md, plan.md, research.md, and acceptance.md, when present. Other files in the SPEC directory are not part of what a reviewer reads.
 - Required source: anything the full verify input of a round carries: each carried document, the checklist, the code context when one is injected, and each context-delivery source (core, architecture, required reference) when the round's prompt is built from a verified context delivery, which happens only when every reviewer is a GPT provider.
 - Delivered representation: the text a request carries for a carried document: its source passed through `promptlayer.SanitizeContent` with `Required` and `PreserveInjectionEvidence`, as the complete input does (secrets replaced by `[REDACTED_SECRET]`, injection markers neutralized in place). Its SHA-256 is the prompt digest; the SHA-256 of the file is the source digest.
-- Delivered scope: for each carried document a round's full input carried, `complete` when it carried the whole document (a verified context delivery always; an inline prompt for spec.md and for an auxiliary document its injection coverage calls complete) and `partial` otherwise.
+- Delivered scope: for each carried document of a round, `complete` when the request the round actually sent carried the document's whole delivered representation, and `partial` otherwise. A full input from a verified context delivery carries every document complete; an inline full input carries spec.md complete and each auxiliary document as its injection coverage says; a delta request carries none complete, because it sends a changed document as a diff and sections and a linked document not at all.
 - Risk-boundary region: the lines of a document before its first `## ` heading; spec.md `## Outcome Boundary`, `## Definitions`, `## Generated And Changed Surfaces`, `## Related SPECs`; research.md `## Trust Boundary` and `## Outcome Lock`; and any added or removed line that defines a requirement id (`**REQ-...**`) or an acceptance scenario heading (`### S<n>`).
 - Scope closure of a finding: the requirement, acceptance, and scenario ids and the document or heading names in its `scope_ref`, plus every id that shares a spec.md traceability-matrix row with one of them.
 - Attribution unit: the unit a changed line belongs to: the requirement block that holds it (from a `**REQ-...**` line to the next requirement line or heading), else the acceptance scenario section (from a `### S<n>` heading to the next heading), else the line itself within its nearest H2 or H3 heading section. Sibling blocks under one heading are separate units.
@@ -147,7 +147,7 @@ THE SYSTEM SHALL read the optional key `spec.review_gate.verify_input` with valu
 **REQ-RR-DELTA-02**
 Priority: Must
 Type: Event-driven
-WHEN a round produced at least one usable review and the budget did not cut it, THEN THE SYSTEM SHALL store in `review-findings.json` a `baseline` object (schema `spec_review_baseline.v1`) with the run id, revision, and time; for every carried document of the round its `source_sha256`, its delivered representation as `content`, and that representation's `prompt_sha256`, never the raw source; the round's delivered scope as `delivered`; the SHA-256 of every other required source; the code, policy, configuration, and contract digests of REQ-RR-REUSE-01 and a digest of the SPEC-directory markdown files that are not carried documents; and the ids of the findings left open or regressed.
+WHEN a round produced at least one usable review and the budget did not cut it, THEN THE SYSTEM SHALL store in `review-findings.json` a `baseline` object (schema `spec_review_baseline.v1`) with the run id, revision, and time; for every carried document of the round its `source_sha256`, its delivered representation as `content`, and that representation's `prompt_sha256`, never the raw source; the delivered scope of the request the round actually sent as `delivered`, so the baseline a delta round stores records every document `partial`; the SHA-256 of every other required source; the code, policy, configuration, and contract digests of REQ-RR-REUSE-01 and a digest of the SPEC-directory markdown files that are not carried documents; and the ids of the findings left open or regressed.
 
 **REQ-RR-DELTA-03**
 Priority: Must
@@ -217,8 +217,8 @@ THE SYSTEM SHALL pass the commands in `plan.md` `## Verification` with fake back
 | REQ-RR-REUSE-06 | T8 | S10 | INV-RR-08 |
 | REQ-RR-REUSE-07 | T8 | S12 | INV-RR-09 |
 | REQ-RR-DELTA-01 | T9 | S13 | INV-RR-10 |
-| REQ-RR-DELTA-02 | T10 | S14, S16 | INV-RR-10, INV-RR-15 |
-| REQ-RR-DELTA-03 | T11 | S15, S16 | INV-RR-11 |
+| REQ-RR-DELTA-02 | T10 | S14, S16, S22 | INV-RR-10, INV-RR-12, INV-RR-15 |
+| REQ-RR-DELTA-03 | T11 | S15, S16, S22 | INV-RR-11 |
 | REQ-RR-DELTA-04 | T12 | S14, S21 | INV-RR-11, INV-RR-14 |
 | REQ-RR-DELTA-05 | T12 | S17 | INV-RR-12 |
 | REQ-RR-DELTA-06 | T13 | S16 | INV-RR-11 |

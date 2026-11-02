@@ -62,7 +62,7 @@ Provider output stays untrusted, as in SPEC-REVIEWPOLICY-001. The judge decision
 - **Reuse blocking results freely, PASS only with pinned models.** Returning a REJECT or awaiting-changes result is safe because it approves nothing; a PASS is an approval, so it is reused only when every model selector names one immutable model: a dated snapshot, or a selector the operator declares in `pinned_models`. A digit is not a version (`gpt-4o` is an alias of a dated snapshot). The 168-hour limit bounds how long any result stands in for a review.
 - **Fingerprint what is delivered, not what is configured in one place.** The effective configuration is digested whole because a file outside the repository never reaches the git component; the excerpts the full input injects are digested because a probe SPEC cannot show where the actual SPEC is compacted; the contract runs every prompt variant through the production wrapper.
 - **Normalize the status line, exclude review artifacts.** The status promotion and the review files change with every run; hashing them would make every result unreusable.
-- **Delta verify is opt-in, ordered, fail-closed, and self-contained.** Every eligibility condition has a named fallback to the unchanged full builder. Because no reviewer keeps a session, "linked" can only mean "not needed": an unchanged carried document that the baseline round delivered whole and whose sections naming a delta scope id, with its boundary sections, are in the request; every other required source is sent in full, and the manifest check proves each claim. Attribution is per requirement block or scenario, so a sibling block never rides on a neighbour's id.
+- **Delta verify is opt-in, ordered, fail-closed, and self-contained.** Every eligibility condition has a named fallback to the unchanged full builder. Because no reviewer keeps a session, "linked" can only mean "not needed": an unchanged carried document that the baseline round delivered whole and whose sections naming a delta scope id, with its boundary sections, are in the request; every other required source is sent in full, and the manifest check proves each claim. Attribution is per requirement block or scenario, so a sibling block never rides on a neighbour's id. "Delivered whole" is read from the request a round actually sent, so a delta round's baseline is all `partial` and delta rounds never chain: the verify round after one reviews the full input.
 - **Baseline inside the findings sidecar, sanitized.** The baseline describes what the open findings were raised against; storing it there needs no new SPEC-directory file, ignore pattern, or status classification, and it holds the representation a request delivers, never the raw source.
 
 ## Minimality Decision Matrix
@@ -93,7 +93,7 @@ Source clauses summarize the brief, which is untrusted input.
 | INV-RR-09 | reuse makes no call and is never shown as a new review; forced review charged | zero-call and accounting | calls, files, session | S9, S12 |
 | INV-RR-10 | baseline hashes, policy, unresolved ids preserved | record completeness | findings sidecar | S13, S14 |
 | INV-RR-11 | delta carries diff, affected requirements and scenarios, fix evidence; falls back on named conditions | decision table | prompt, input, reason | S14, S15, S16 |
-| INV-RR-12 | every required context included or linked to a verified baseline; full path unchanged | integrity | validation, prompts | S17, S18 |
+| INV-RR-12 | every required context included or linked to a verified baseline; full path unchanged | integrity | validation, prompts | S17, S18, S22 |
 | INV-RR-13 | verification and scope | conservation | commands, paths, sizes | S19, S20 |
 | INV-RR-14 | a stateless reviewer judges a delta request from its text alone | self-containment | delta prompt, manifest | S14, S21 |
 | INV-RR-15 | the baseline and the delta never carry what the complete input withholds | redaction | baseline, diff, sections | S14, S16 |
@@ -158,6 +158,13 @@ Optional improvements. They do not block sync completion and carry no identifier
 | F-006 section-level change attribution | major | accept | attribution unit in Definitions and REQ-RR-DELTA-03, S15 with REQ-001 to REQ-003 under one H2 | `TestPlanDeltaVerify_FallsBackOnTheFirstFailedCondition` (sibling block naming REQ-002) |
 | F-007 call counts ignore the default judge | major | accept | every reuse and delta Given says "no judge"; the tests already ran without a judge, so no code changed | S9 to S12, S14 to S18, S21 Givens |
 
+## Review Response (codex round 2)
+
+| Finding | Severity | Decision | Change | Evidence |
+|---------|----------|----------|--------|----------|
+| F-001 a delta round's baseline claims a whole delivery | major | accept | delivered scope is read from the request a round actually sent; a delta request records every document `partial`, so the next verify reviews the full input (Definitions, REQ-RR-DELTA-02, T10, S22) | `TestRunSpecReview_DeltaRoundBaselineNeverClaimsAWholeDelivery` (round 1 recorded every document `complete` and round 2 linked spec.md before the fix) |
+| F-003 S4 mixes in on_disagreement oracles | major | accept | S3 carries the ordinary blocking-item and `consensus_block` oracles; S4 states `no_escalation`, `unanimous_escalation`, and a contested escalation only; no code change, the decision already compared only escalation items under `on_escalation` | `TestDecideSpecReviewJudge_OnDisagreementComparesBlockingItems`, `TestDecideSpecReviewJudge_OnEscalationComparesOnlyEscalationItems` |
+
 ## Self-Verify Summary
 
 - Q-CORR-01 | status: PASS | attempt: 2 | files: research.md, spec.md | reason: every existing path and symbol was read at 48607ed2 and the request boundary, sanitization, and input-path rows re-read at 27297e2a; probe results recorded
@@ -167,8 +174,8 @@ Optional improvements. They do not block sync completion and carry no identifier
 - Q-COMP-01 | status: PASS | attempt: 1 | files: all four | reason: spec fixes the contract, plan the tasks and probes, acceptance the oracles, research the evidence and decisions
 - Q-COMP-02 | status: PASS | attempt: 2 | files: spec.md, plan.md, acceptance.md | reason: all 23 requirements appear in the matrix with a task and a scenario, S21 and T15 included
 - Q-COMP-03 | status: PASS | attempt: 1 | files: spec.md | reason: each requirement names its observable: call count, judge status, verdict, printed line, JSON field, chosen input, or error text
-- Q-COMP-04 | status: PASS | attempt: 2 | files: spec.md, research.md | reason: Outcome Lock covers R8, R11, R9 end to end, a self-contained sanitized delta and pinned-only PASS reuse included; reviewer-scoped verification is a named non-goal
-- Q-COMP-05 | status: PASS | attempt: 2 | files: research.md, spec.md, plan.md, acceptance.md | reason: INV-RR-01 to INV-RR-16 each map to a requirement, a task, and a Must oracle; contested, attribution, and call counts agree with their oracles
+- Q-COMP-04 | status: PASS | attempt: 3 | files: spec.md, research.md | reason: Outcome Lock covers R8, R11, R9 end to end, a self-contained sanitized delta, a baseline that never claims a whole delivery its request did not make, and pinned-only PASS reuse included; reviewer-scoped verification is a named non-goal
+- Q-COMP-05 | status: PASS | attempt: 3 | files: research.md, spec.md, plan.md, acceptance.md | reason: INV-RR-01 to INV-RR-16 each map to a requirement, a task, and a Must oracle; contested per mode (S3 on_disagreement, S4 on_escalation), attribution, delivered scope across rounds (S22), and call counts agree with their oracles
 - Q-COMP-06 | status: PASS | attempt: 1 | files: spec.md, research.md | reason: Traceability Matrix complete; Reviewer Brief names four focus areas and the non-goals
 - Q-COMP-07 | status: PASS | attempt: 1 | files: research.md | reason: Completion Debt empty; Evolution Ideas carry no identifiers
 - Q-COMP-08 | status: PASS | attempt: 2 | files: plan.md, research.md | reason: A1, A2, and A4 PASS in the probe table with evidence refs, A3 recorded here and pinned by a test; the findings-sidecar compatibility of the new `baseline` key is covered by the T10 test

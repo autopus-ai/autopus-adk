@@ -21,7 +21,7 @@ Then the calls are claude reviewer, codex reviewer, and claude judge with reason
 Priority: Must
 Given `judge_mode: on_disagreement` and a fake judge that returns PASS rejecting every finding with reason `not supported`
 When one round runs per row
-Then the judge calls, judge status and reason, and verdict are as below, and stderr shows `SPEC 리뷰 judge 생략: consensus_pass (on_disagreement)` for the first row
+Then the judge calls, judge status and reason, and verdict are as below, and stderr shows `SPEC 리뷰 judge 생략: consensus_pass (on_disagreement)` for the first row; items are compared by key, so over parsed reviews the judge also runs for two different blocking findings or two different checklist FAIL ids (`Q-CORR-01`, `Q-SEC-01`) and is skipped with `consensus_block` when both reviews hold the same finding or the same FAIL id
 
 | claude | codex | judge calls | judge status | verdict |
 |--------|-------|-------------|--------------|---------|
@@ -36,7 +36,7 @@ Then the judge calls, judge status and reason, and verdict are as below, and std
 Priority: Must
 Given `judge_mode: on_escalation` and the same fake judge
 When one round runs per row
-Then items are compared by key: the fourth row contests both the REJECT vote and the data-loss finding, so the judge runs, and its PASS does not clear the REJECT it did not dismiss by name; over parsed reviews the judge also runs for two different critical findings, two different blocking findings, two different checklist FAIL ids (`Q-CORR-01`, `Q-SEC-01`), and one claim raised `major` by claude and `critical` by codex, and is skipped with `consensus_block` for the same FAIL id or finding in both
+Then only escalation items count, compared by key: with no escalation item the judge is skipped with `no_escalation`, even when ordinary blocking findings or checklist FAIL ids differ; when every review holds the same escalation items it is skipped with `unanimous_escalation`; a contested escalation runs it once, as for the fourth row, whose REJECT vote and data-loss finding are both contested and whose judge PASS does not clear the REJECT it did not dismiss by name, and over parsed reviews for two different critical findings or one claim raised `major` by claude and `critical` by codex
 
 | claude | codex | judge calls | judge status | verdict |
 |--------|-------|-------------|--------------|---------|
@@ -94,15 +94,13 @@ Then the second invocation makes 2 calls and stderr has `리뷰 재사용 안 �
 
 | change | text |
 |--------|------|
-| a line appended to plan.md | `documents: plan.md` |
+| a line appended to plan.md; instead the `--required-document docs/ref.md` content | `documents: plan.md`; `references: docs/ref.md` |
 | a new commit touching `internal/x.go`; instead an uncommitted edit of it | `code: head`; `code: worktree` |
-| the `--required-document docs/ref.md` content | `references: docs/ref.md` |
 | `pass_criteria`; instead the checklist body (stubbed digest) | `policy: pass_criteria`; `checklist` |
 | codex `-m gpt-5.6-sol` to `-m gpt-5.6-sol-pro`; instead claude `--effort max` to `--effort high` | `providers: codex`; `providers: claude` |
 | `review-receipt.json` replaced by `{`; instead `fingerprint.complete` set to false | `receipt: 손상`; `fingerprint: 불완전` |
 | one byte of `review-findings.json`; instead `finished_at` moved 169 hours back | `evidence: review-findings.json`; `168시간 초과` |
-| `doc_context_max_lines` in an external `--config` file, the repository unchanged | `config` and `policy: doc_context_max_lines`, no `code:` reason |
-| one line of the structured response wrapper (stubbed) | exactly `contract` |
+| `doc_context_max_lines` in an external `--config` file, the repository unchanged; instead one line of the structured response wrapper (stubbed) | `config` and `policy: doc_context_max_lines`, no `code:` reason; exactly `contract` |
 
 And a PASS first result whose claude args are `--model opus` is re-reviewed with `PASS: 모델 alias (claude: opus)`, and so is one with `--model claude-opus-5-5`, a rolling alias with digits (`PASS: 모델 alias (claude: claude-opus-5-5)`), while the same PASS with `pinned_models: [claude-opus-5-5, gpt-5.6-sol-2026-10-01]` is reused with 0 calls.
 
@@ -142,8 +140,7 @@ Then
 | change | input | reason |
 |--------|-------|--------|
 | only the REQ-002 and S2 edits, with or without an edit of the REQ-002 traceability row | delta | `delta` |
-| `baseline` removed | full | `missing_baseline` |
-| stored plan.md content edited | full | `baseline_hash_mismatch` |
+| `baseline` removed; instead stored plan.md content edited | full | `missing_baseline`; `baseline_hash_mismatch` |
 | the baseline records plan.md `partial`, or records no delivered scope | full | `incomplete_baseline` |
 | the checklist digest, an uncommitted file outside the SPEC directory, or a new `notes.md` in it | full | `context_changed` |
 | research.md removed | full | `interface_change` |
@@ -151,8 +148,7 @@ Then
 | a line added under `## Outcome Boundary`, or a new `**REQ-004**` block | full | `interface_change` |
 | F-001 `scope_ref` `REQ-999` | full | `unclear_impact` |
 | an edit of REQ-003, which no open finding names, a line naming REQ-002 added inside the REQ-003 block, or an edit of S3 | full | `out_of_scope_change` |
-| no document change | full | `no_change` |
-| 3000 lines added inside the REQ-002 block | full | `no_saving` |
+| no document change; instead 3000 lines added inside the REQ-002 block | full | `no_change`; `no_saving` |
 
 ### S16: AC-RR-016 - Each round states its input and fallbacks spend the same budget
 Priority: Must
@@ -193,8 +189,12 @@ When round 1 sends the delta input
 Then the round-1 request, whose argv holds `--ephemeral` and which no field links to round 0, contains `You have no access to the baseline review or to any earlier conversation`, `WORKSPACE-BODY: errors return E1.`, the code context of `internal/x.go`, the checklist, plan.md's `## Tasks`, spec.md's `## Outcome Boundary`, research.md's `## Outcome Lock`, and `included` manifest entries, contains neither body marker, and is shorter than the round-0 request
 And a finding scoped to `plan.md` puts every section of plan.md, `PLAN-BODY-MARKER` included, into the request.
 
+### S22: AC-RR-022 - A delta round never records a whole delivery
+Priority: Must
+Given no judge, `verify_input: delta`, `max_revisions: 2`, and round 0 opening `F-001` on REQ-002 and `F-002` on S1
+When the author fixes only REQ-002 in spec.md after round 0, round 1 sends the delta input and resolves F-001, and the author then fixes only S1 in acceptance.md
+Then the baseline round 1 stores has revision 1 and every document `partial`, since its request sent spec.md as a diff and sections and the other documents not at all, so round 2 never links spec.md although it is unchanged since round 1: it sends the full input, stderr shows `SPEC 리뷰 입력: full — incomplete_baseline`, and the receipt's third round reads input `full` reason `incomplete_baseline`.
+
 ## Oracle Acceptance Notes
 
-Every Must scenario pairs a concrete input with a concrete expected output: call counts by provider and role, judge status and reason, verdicts and blocking policies, printed lines, JSON fields and digests, chosen input and reason, and error texts. Call counts follow the Given's judge; every reuse and delta scenario names "no judge", so a round costs one call per reviewer. S1 to S7 fix the conditional judge (INV-RR-01 to INV-RR-06), S3 and S4 as decision tables over item keys; S8 to S12 fix reuse (INV-RR-07 to INV-RR-09, INV-RR-16); S13 to S18 and S21 fix delta verify (INV-RR-10 to INV-RR-12, INV-RR-14, INV-RR-15), with S15 as the fallback table in REQ-RR-DELTA-03 order; S19 and S20 fix verification and scope (INV-RR-13).
-
-Tolerance statement: no value has a tolerance; times are compared as recorded strings and digests byte for byte.
+Every Must scenario pairs a concrete input with a concrete expected output: call counts by provider and role, judge status and reason, verdicts and blocking policies, printed lines, JSON fields and digests, chosen input and reason, and error texts. Call counts follow the Given's judge; every reuse and delta scenario names "no judge", so a round costs one call per reviewer. S1 to S7 fix the conditional judge (INV-RR-01 to INV-RR-06), S3 for on_disagreement and S4 for on_escalation as decision tables over item keys; S8 to S12 fix reuse (INV-RR-07 to INV-RR-09, INV-RR-16); S13 to S18, S21, and S22 fix delta verify (INV-RR-10 to INV-RR-12, INV-RR-14, INV-RR-15), with S15 as the fallback table in REQ-RR-DELTA-03 order; S19 and S20 fix verification and scope (INV-RR-13). Tolerance statement: no value has a tolerance; times are compared as recorded strings and digests byte for byte.
