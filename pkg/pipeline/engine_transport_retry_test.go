@@ -18,6 +18,7 @@ type transportFixtureBackend struct {
 	implement func(call int) (*PhaseResponse, error)
 	calls     []PhaseID
 	prompts   []string
+	attempts  []int
 }
 
 func (b *transportFixtureBackend) Execute(_ context.Context, req PhaseRequest) (*PhaseResponse, error) {
@@ -26,6 +27,7 @@ func (b *transportFixtureBackend) Execute(_ context.Context, req PhaseRequest) (
 	call := 0
 	if req.PhaseID == PhaseImplement {
 		b.prompts = append(b.prompts, req.Prompt)
+		b.attempts = append(b.attempts, req.Attempt)
 		call = len(b.prompts)
 	}
 	b.mu.Unlock()
@@ -52,7 +54,9 @@ func newTransportFixtureEngine(backend PhaseBackend) (*SubprocessEngine, *[]time
 	return engine, waits
 }
 
-// S6: a failure marked retryable is re-sent unchanged after 1s and 2s.
+// S6: a failure marked retryable is re-sent after 1s and 2s with the same
+// prompt and a new attempt number, before admission counts it as final; the
+// dependents run only after the phase passes.
 func TestEngineTransportRetry_ResendsTheSameRequestWithBackoff(t *testing.T) {
 	t.Parallel()
 
@@ -68,9 +72,11 @@ func TestEngineTransportRetry_ResendsTheSameRequestWithBackoff(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, TerminalCompleted, result.Receipt.Terminal)
+	assert.Equal(t, []PhaseID{PhaseImplement, PhaseImplement, PhaseImplement, PhaseValidate, PhaseReview}, backend.calls)
 	require.Len(t, backend.prompts, 3)
 	assert.Equal(t, backend.prompts[0], backend.prompts[1])
 	assert.Equal(t, backend.prompts[0], backend.prompts[2])
+	assert.Equal(t, []int{1, 2, 3}, backend.attempts, "each re-send is a new attempt")
 	assert.Equal(t, []time.Duration{time.Second, 2 * time.Second}, *waits)
 	require.Len(t, result.Receipt.Failures, 2)
 	for _, failure := range result.Receipt.Failures {

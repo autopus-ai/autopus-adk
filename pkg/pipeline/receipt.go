@@ -241,6 +241,8 @@ func newRunID() string {
 }
 
 func (r *OrchestrationRunReceipt) transition(phaseID PhaseID, status CheckpointStatus, attempt int, verdict GateVerdict, reason string) {
+	// Reasons reach the checkpoint file; no secret may ride along (REQ-PRR-FAIL-05).
+	reason = redactFailureText(reason)
 	r.Transitions = append(r.Transitions, PhaseTransition{
 		Sequence: len(r.Transitions) + 1,
 		PhaseID:  phaseID,
@@ -266,7 +268,7 @@ func (r *OrchestrationRunReceipt) transition(phaseID PhaseID, status CheckpointS
 func (r *OrchestrationRunReceipt) finish(terminal TerminalState, blocker string) {
 	now := time.Now().UTC()
 	r.Terminal = terminal
-	r.Blocker = blocker
+	r.Blocker = redactFailureText(blocker)
 	r.FinishedAt = &now
 	switch terminal {
 	case TerminalCompleted, TerminalDryRun:

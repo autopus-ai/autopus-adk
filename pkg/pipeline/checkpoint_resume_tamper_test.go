@@ -46,6 +46,12 @@ func TestSubprocessEngine_ResumeRejectsUnverifiableOutputs(t *testing.T) {
 			}},
 		{name: "plan record from another output policy", reason: "output policy",
 			mutate: func(cp *pipeline.Checkpoint) { cp.PhaseOutputs[0].Policy = "pipeline_phase_output_policy.v0" }},
+		{name: "plan record duplicated", reason: "2 output records for one phase",
+			mutate: func(cp *pipeline.Checkpoint) {
+				cp.PhaseOutputs = append([]pipeline.PhaseOutputRecord{cp.PhaseOutputs[0]}, cp.PhaseOutputs...)
+			}},
+		{name: "plan record with another schema", reason: "output schema",
+			mutate: func(cp *pipeline.Checkpoint) { cp.PhaseOutputs[0].Schema = "pipeline_phase_output.v0" }},
 	}
 	for _, tc := range cases {
 		tc := tc

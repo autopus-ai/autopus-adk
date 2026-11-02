@@ -44,6 +44,15 @@ func (e *SubprocessEngine) dispatch(
 	}
 	state.result.Receipt.countDispatch()
 	resp, execErr := e.cfg.Backend.Execute(ctx, request)
+	// A retryable transport failure is recognized before admission: it is
+	// re-sent, so it is not the phase's final attempt (REQ-PRR-RESP-02).
+	if isRetryableTransport(ctx, execErr) {
+		failErr := fmt.Errorf("phase %s: %w", phase.ID, execErr)
+		state.result.Receipt.recordDispatch(e.cfg.Platform, phase.ID, attempt, resp, failErr)
+		return dispatchOutcome{
+			err: failErr, failure: newDispatchFailure(phase, attempt, FailureTransport, true, failErr),
+		}, nil
+	}
 	outcome := dispatchOutcome{err: admitPhaseResponse(phase.ID, resp, execErr)}
 	if outcome.err == nil {
 		outcome.output = NormalizeOutput(e.cfg.Platform, resp.Output)
@@ -55,8 +64,7 @@ func (e *SubprocessEngine) dispatch(
 	}
 	state.result.Receipt.recordDispatch(e.cfg.Platform, phase.ID, attempt, resp, outcome.err)
 	if outcome.err != nil {
-		kind, retryable := classifyDispatchFailure(ctx, resp, execErr)
-		outcome.failure = newDispatchFailure(phase, attempt, kind, retryable, outcome.err)
+		outcome.failure = newDispatchFailure(phase, attempt, classifyDispatchFailure(ctx, resp, execErr), false, outcome.err)
 	}
 	return outcome, nil
 }

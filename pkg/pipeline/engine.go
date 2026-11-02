@@ -117,7 +117,7 @@ func (e *SubprocessEngine) finishBackendLifecycle(
 		return result, runErr
 	}
 	cleanupErr := fmt.Errorf("pipeline: close phase backend: %w", closeErr)
-	joinedErr := errors.Join(runErr, cleanupErr)
+	joinedErr := redactError(errors.Join(runErr, cleanupErr))
 	state.result.Receipt.DegradedReasons = appendUnique(
 		state.result.Receipt.DegradedReasons,
 		"backend_cleanup_failure",
@@ -164,11 +164,14 @@ func NewSubprocessEngine(cfg EngineConfig) *SubprocessEngine {
 }
 
 // @AX:NOTE [AUTO]: magic constant in format string — SPEC/Phase labels are part of prompt contract
-// buildPrompt assembles the prompt for a phase, injecting prior output when available.
-func buildPrompt(specID string, phaseID PhaseID, previousOutput string) string {
+// buildPrompt assembles the prompt of a phase no SPEC directory frames: its
+// identity and every earlier output it reads, as priorPhaseInputs orders them.
+func buildPrompt(specID string, phaseID PhaseID, previous map[PhaseID]string) string {
 	prompt := fmt.Sprintf("SPEC: %s\nPhase: %s", specID, phaseID)
-	if previousOutput != "" {
-		prompt += fmt.Sprintf("\n\nPrevious phase output:\n%s", previousOutput)
+	for _, input := range priorPhaseInputs[phaseID] {
+		if output := previous[input.phase]; output != "" {
+			prompt += "\n\n" + formatSection(input.label, output)
+		}
 	}
 	return prompt
 }

@@ -121,7 +121,7 @@ func (p *resumePlan) attachPendingFeedback() {
 	if failure == nil || p.statuses[failure.RoutedTo] == CheckpointStatusDone {
 		return
 	}
-	copied := *failure
+	copied := redactFailureRecord(*failure)
 	p.feedback[failure.RoutedTo] = &copied
 	p.resume.Notes = append(p.resume.Notes, fmt.Sprintf(
 		"%s resumes the fix routed from the %s %s (fingerprint %s)",

@@ -58,13 +58,19 @@ func (r *OrchestrationRunReceipt) inheritLineage(prior *OrchestrationRunReceipt)
 		r.TaskID = prior.RunID
 	}
 	r.ResumedFrom = prior.RunID
-	r.PriorAttempts = append(append([]RunAttemptRecord(nil), prior.PriorAttempts...), RunAttemptRecord{
+	attempts := append(append([]RunAttemptRecord(nil), prior.PriorAttempts...), RunAttemptRecord{
 		RunID: prior.RunID, ResumedFrom: prior.ResumedFrom, Terminal: prior.Terminal,
 		Blocker: prior.Blocker, DispatchCount: prior.DispatchCount,
 		ProviderReceipts: append([]ProviderRunReceipt{}, prior.ProviderReceipts...),
-		Failures:         append([]PhaseFailure(nil), prior.Failures...),
-		StartedAt:        prior.StartedAt, FinishedAt: prior.FinishedAt,
+		Failures:         prior.Failures, StartedAt: prior.StartedAt, FinishedAt: prior.FinishedAt,
 	})
+	// A stored receipt may come from an older binary or an edit, so every
+	// copied string is redacted again before it is persisted (REQ-PRR-FAIL-05).
+	for i := range attempts {
+		attempts[i].Blocker = redactFailureText(attempts[i].Blocker)
+		attempts[i].Failures = redactFailureRecords(attempts[i].Failures)
+	}
+	r.PriorAttempts = attempts
 	r.CumulativeDispatchCount = r.DispatchCount
 	for _, attempt := range r.PriorAttempts {
 		r.CumulativeDispatchCount += attempt.DispatchCount

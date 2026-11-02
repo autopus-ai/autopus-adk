@@ -1,15 +1,17 @@
 package pipeline
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 	"unicode/utf8"
-
-	"github.com/insajin/autopus-adk/pkg/promptlayer"
 )
 
-// Bounds on the evidence a failure carries forward (REQ-PRR-FAIL-03).
+// Display bounds on the evidence a failure carries forward (REQ-PRR-FAIL-11).
+// Truncation is marked where it happens, and signatures are taken before it.
 const (
 	failureExcerptMaxLines  = 40
 	failureExcerptMaxBytes  = 2000
@@ -22,16 +24,19 @@ const (
 var (
 	findingReportLine = regexp.MustCompile(`^FINDING\s+([A-Za-z0-9][A-Za-z0-9._-]{0,63})\s*:\s*(.*)$`)
 	findingFixMarker  = regexp.MustCompile(`\s*\|\s*FIX:\s*`)
+	fileLineNumbers   = regexp.MustCompile(`(:\d+)+`)
 )
 
 // newGateFailure builds the redacted record of a failed gate from its output.
 func newGateFailure(phase Phase, attempt int, kind FailureKind, output string) *PhaseFailure {
 	redacted := redactFailureText(output)
+	items := parseFailureEvidence(kind, redacted)
 	failure := &PhaseFailure{
 		PhaseID: phase.ID, Attempt: attempt, Kind: kind,
-		Evidence: parseFailureEvidence(kind, redacted),
-		Excerpt:  failureExcerpt(redacted),
+		Signatures: failureSignatures(items, strings.Join(withoutVerdictLines(redacted), "\n")),
+		Excerpt:    failureExcerpt(redacted),
 	}
+	failure.Evidence, failure.EvidenceOmitted = boundEvidence(items)
 	failure.Summary = gateFailureSummary(phase, failure)
 	failure.Fingerprint = failure.fingerprint()
 	return failure
@@ -39,23 +44,17 @@ func newGateFailure(phase Phase, attempt int, kind FailureKind, output string) *
 
 // newDispatchFailure builds the record of a refused dispatch from its error.
 func newDispatchFailure(phase Phase, attempt int, kind FailureKind, retryable bool, err error) *PhaseFailure {
+	message := redactFailureText(err.Error())
 	failure := &PhaseFailure{
 		PhaseID: phase.ID, Attempt: attempt, Kind: kind, Retryable: retryable,
-		Summary: boundText(redactFailureText(err.Error()), failureSummaryMaxBytes),
+		Summary:    boundField(message, failureSummaryMaxBytes),
+		Signatures: failureSignatures(nil, message),
 	}
 	failure.Fingerprint = failure.fingerprint()
 	return failure
 }
 
-// redactFailureText replaces secrets with [REDACTED_SECRET] and neutralizes
-// injection markers while keeping every line, so the evidence a fix needs
-// survives the redaction.
-func redactFailureText(raw string) string {
-	return promptlayer.SanitizeContent(raw, promptlayer.ContextOptions{
-		MaxBytes: len(raw)*2 + 1024, PreserveInjectionEvidence: true,
-	}).Content
-}
-
+// parseFailureEvidence reads every report line, untruncated.
 func parseFailureEvidence(kind FailureKind, text string) []FailureEvidence {
 	var items []FailureEvidence
 	last := func() *FailureEvidence {
@@ -76,45 +75,129 @@ func parseFailureEvidence(kind FailureKind, text string) []FailureEvidence {
 		case kind == FailureReviewRejection:
 			if match := findingReportLine.FindStringSubmatch(line); match != nil {
 				parts := findingFixMarker.Split(match[2], 2)
-				item := FailureEvidence{ID: match[1], Detail: boundText(strings.TrimSpace(parts[0]), failureFieldMaxBytes)}
+				item := FailureEvidence{ID: match[1], Detail: strings.TrimSpace(parts[0])}
 				if len(parts) == 2 {
-					item.Fix = boundText(strings.TrimSpace(parts[1]), failureFieldMaxBytes)
+					item.Fix = strings.TrimSpace(parts[1])
 				}
 				items = append(items, item)
 			}
 		}
 	}
-	if len(items) > failureEvidenceMaxItems {
-		items = items[:failureEvidenceMaxItems]
-	}
 	return items
 }
 
 func reportValue(line, key string) string {
-	return boundText(strings.TrimSpace(strings.TrimPrefix(line, key)), failureFieldMaxBytes)
+	return strings.TrimSpace(strings.TrimPrefix(line, key))
 }
 
-// failureExcerpt keeps the last lines of the redacted output, which is where
-// test runners print the failure, without the verdict line.
-func failureExcerpt(text string) string {
+// failureSignatures identifies a failure by the untruncated content of each
+// evidence item, else by its whole redacted text (REQ-PRR-FAIL-07, -12). A review
+// finding is identified by its normalized evidence and fix condition, never
+// by its ID: the reviewer assigns IDs and may renumber or reuse them.
+func failureSignatures(items []FailureEvidence, fallback string) []string {
+	seen := map[string]bool{}
+	var signatures []string
+	for _, item := range items {
+		signature := "command:" + digestText(item.Command+"\x00"+item.Expected+"\x00"+item.Actual)
+		if item.ID != "" {
+			basis := normalizeFindingText(item.Detail) + "\x00" + normalizeFindingText(item.Fix)
+			if basis == "\x00" {
+				basis = "id:" + item.ID
+			}
+			signature = "finding:" + digestText(basis)
+		}
+		if !seen[signature] {
+			seen[signature] = true
+			signatures = append(signatures, signature)
+		}
+	}
+	if len(signatures) == 0 {
+		signatures = append(signatures, "text:"+digestText(strings.Join(strings.Fields(fallback), " ")))
+	}
+	sort.Strings(signatures)
+	return signatures
+}
+
+// normalizeFindingText lowercases a finding, collapses its whitespace, and
+// masks file:line numbers, which move when a fix edits the file.
+func normalizeFindingText(text string) string {
+	text = fileLineNumbers.ReplaceAllString(strings.ToLower(text), ":#")
+	return strings.Join(strings.Fields(text), " ")
+}
+
+func digestText(text string) string {
+	sum := sha256.Sum256([]byte(text))
+	return hex.EncodeToString(sum[:])
+}
+
+// boundEvidence keeps the first items for display, each field bounded and
+// marked when cut, and counts the items left out.
+func boundEvidence(items []FailureEvidence) ([]FailureEvidence, int) {
+	omitted := 0
+	if len(items) > failureEvidenceMaxItems {
+		omitted = len(items) - failureEvidenceMaxItems
+		items = items[:failureEvidenceMaxItems]
+	}
+	bounded := make([]FailureEvidence, len(items))
+	for i, item := range items {
+		bounded[i] = FailureEvidence{
+			ID: item.ID, Command: boundField(item.Command, failureFieldMaxBytes),
+			Expected: boundField(item.Expected, failureFieldMaxBytes),
+			Actual:   boundField(item.Actual, failureFieldMaxBytes),
+			Detail:   boundField(item.Detail, failureFieldMaxBytes), Fix: boundField(item.Fix, failureFieldMaxBytes),
+		}
+	}
+	if len(bounded) == 0 {
+		bounded = nil
+	}
+	return bounded, omitted
+}
+
+// boundField cuts text to max bytes on a rune boundary and says so.
+func boundField(text string, max int) string {
+	if len(text) <= max {
+		return text
+	}
+	cut := max
+	for cut > 0 && !utf8.RuneStart(text[cut]) {
+		cut--
+	}
+	return text[:cut] + fmt.Sprintf(" [truncated: %d of %d bytes shown]", cut, len(text))
+}
+
+func withoutVerdictLines(text string) []string {
 	var lines []string
 	for _, line := range strings.Split(text, "\n") {
 		if !strings.HasPrefix(strings.TrimSpace(line), "VERDICT") {
 			lines = append(lines, line)
 		}
 	}
-	if len(lines) > failureExcerptMaxLines {
-		lines = lines[len(lines)-failureExcerptMaxLines:]
+	return lines
+}
+
+// failureExcerpt keeps the last lines of the redacted output, which is where
+// test runners print the failure, without the verdict line, and marks any
+// earlier output it leaves out.
+func failureExcerpt(text string) string {
+	lines := withoutVerdictLines(strings.TrimSpace(text))
+	total := len(lines)
+	if total > failureExcerptMaxLines {
+		lines = lines[total-failureExcerptMaxLines:]
 	}
 	excerpt := strings.TrimSpace(strings.Join(lines, "\n"))
-	if len(excerpt) > failureExcerptMaxBytes {
+	cutBytes := len(excerpt) > failureExcerptMaxBytes
+	if cutBytes {
 		cut := len(excerpt) - failureExcerptMaxBytes
 		for cut < len(excerpt) && !utf8.RuneStart(excerpt[cut]) {
 			cut++
 		}
 		excerpt = excerpt[cut:]
 	}
-	return excerpt
+	if total <= failureExcerptMaxLines && !cutBytes {
+		return excerpt
+	}
+	return fmt.Sprintf("[earlier output omitted: %d of %d lines, at most %d bytes, shown]\n%s",
+		min(total, failureExcerptMaxLines), total, failureExcerptMaxBytes, excerpt)
 }
 
 func gateFailureSummary(phase Phase, failure *PhaseFailure) string {
@@ -139,61 +222,5 @@ func gateFailureSummary(phase Phase, failure *PhaseFailure) string {
 	default:
 		summary = "validation reported VERDICT: FAIL"
 	}
-	return boundText(summary, failureSummaryMaxBytes)
-}
-
-// renderRemediationFeedback is the prompt section a fix dispatch receives.
-func renderRemediationFeedback(f *PhaseFailure) string {
-	var b strings.Builder
-	b.WriteString("## Remediation Feedback\n")
-	fmt.Fprintf(&b, "The %s phase failed (%s, attempt %d, fingerprint %s): %s\n",
-		f.PhaseID, f.Kind, f.Attempt, f.Fingerprint, f.Summary)
-	if f.Kind == FailureReviewRejection {
-		b.WriteString("Resolve every finding below. Validation and review run again on the changed code; their earlier results are not reused.\n")
-	} else {
-		fmt.Fprintf(&b, "Fix the cause below. The %s phase runs again on the changed code; its earlier result is not reused.\n", f.PhaseID)
-	}
-	for _, item := range f.Evidence {
-		if item.ID != "" {
-			fmt.Fprintf(&b, "- Finding %s: %s\n", item.ID, item.Detail)
-			if item.Fix != "" {
-				fmt.Fprintf(&b, "  Fix condition: %s\n", item.Fix)
-			}
-			continue
-		}
-		if item.Command != "" {
-			fmt.Fprintf(&b, "- Failing command: %s\n", item.Command)
-		} else {
-			b.WriteString("- Failing check\n")
-		}
-		if item.Expected != "" {
-			fmt.Fprintf(&b, "  Expected: %s\n", item.Expected)
-		}
-		if item.Actual != "" {
-			fmt.Fprintf(&b, "  Actual: %s\n", item.Actual)
-		}
-	}
-	if f.Excerpt != "" {
-		b.WriteString("Log excerpt (secrets redacted):\n")
-		b.WriteString(f.Excerpt)
-	}
-	return strings.TrimRight(b.String(), "\n")
-}
-
-func appendRemediationFeedback(prompt string, feedback *PhaseFailure) string {
-	if feedback == nil {
-		return prompt
-	}
-	return prompt + "\n\n" + renderRemediationFeedback(feedback)
-}
-
-func boundText(text string, max int) string {
-	if len(text) <= max {
-		return text
-	}
-	cut := max
-	for cut > 0 && !utf8.RuneStart(text[cut]) {
-		cut--
-	}
-	return text[:cut]
+	return boundField(summary, failureSummaryMaxBytes)
 }

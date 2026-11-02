@@ -1,36 +1,26 @@
 package pipeline
 
-// buildPhasePrompt assembles a phase prompt. A pending fix dispatch carries
-// its failure feedback before the gate contract, so the verdict instruction
-// stays the final line.
-func (e *SubprocessEngine) buildPhasePrompt(
-	phase Phase, previous map[PhaseID]string, legacyPrevious string, feedback *PhaseFailure,
-) (string, error) {
-	prompt := buildPrompt(e.cfg.SpecID, phase.ID, legacyPrevious)
-	if e.promptBuilder != nil {
-		built, err := e.promptBuilder.BuildPrompt(phase.ID, PhaseContext{
-			PreviousResults: previous, FrozenRequiredDocuments: true, Route: e.cfg.Route,
-		})
-		if err != nil {
-			return "", err
-		}
-		prompt = built
+// buildPhasePrompt assembles a phase prompt. On the frozen SPEC path a fix
+// dispatch's feedback is a manifest layer; without a SPEC directory it is
+// appended. The gate contract stays the final instruction either way.
+func (e *SubprocessEngine) buildPhasePrompt(phase Phase, previous map[PhaseID]string, feedback *PhaseFailure) (string, error) {
+	if e.promptBuilder == nil {
+		prompt := appendRemediationFeedback(buildPrompt(e.cfg.SpecID, phase.ID, previous), feedback)
+		return appendGateContract(prompt, phase.Gate), nil
 	}
-	return appendGateContract(appendRemediationFeedback(prompt, feedback), phase.Gate), nil
+	built, err := e.promptBuilder.BuildPrompt(phase.ID, PhaseContext{
+		PreviousResults: previous, FrozenRequiredDocuments: true, Route: e.cfg.Route, Feedback: feedback,
+	})
+	if err != nil {
+		return "", err
+	}
+	return appendGateContract(built, phase.Gate), nil
 }
 
+// buildOMPActivePhasePrompt is the phase body OMP's managed sessions receive;
+// earlier outputs travel in the completed history instead.
 func (e *SubprocessEngine) buildOMPActivePhasePrompt(phase Phase, feedback *PhaseFailure) (string, error) {
-	prompt := buildPrompt(e.cfg.SpecID, phase.ID, "")
-	if e.promptBuilder != nil {
-		built, err := e.promptBuilder.BuildPrompt(phase.ID, PhaseContext{
-			FrozenRequiredDocuments: true, Route: e.cfg.Route,
-		})
-		if err != nil {
-			return "", err
-		}
-		prompt = built
-	}
-	return appendGateContract(appendRemediationFeedback(prompt, feedback), phase.Gate), nil
+	return e.buildPhasePrompt(phase, nil, feedback)
 }
 
 // Gate report requests (SPEC-PIPELINE-RESUME-001 REQ-PRR-FAIL-09): the lines

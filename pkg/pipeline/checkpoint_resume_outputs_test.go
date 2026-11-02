@@ -50,10 +50,8 @@ func TestSubprocessEngine_ResumeRestoresDynamicOutputs(t *testing.T) {
 			assert.Equal(t, phaseIDs(pipeline.PhaseImplement, pipeline.PhaseValidate, pipeline.PhaseReview), second.calls())
 			interrupted := first.promptsFor(pipeline.PhaseImplement)[0]
 			assert.Equal(t, interrupted, second.promptsFor(pipeline.PhaseImplement)[0])
+			assert.Contains(t, interrupted, planMarker, "implement reads the plan on both prompt paths")
 			assert.Contains(t, interrupted, scaffoldMarker)
-			if withSpecDir {
-				assert.Contains(t, interrupted, planMarker)
-			}
 			require.NotNil(t, result.Receipt.Resume)
 			assert.Equal(t, phaseIDs(pipeline.PhasePlan, pipeline.PhaseTestScaffold), result.Receipt.Resume.RestoredPhases)
 			assert.Empty(t, result.Receipt.Resume.RerunPhases)

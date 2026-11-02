@@ -23,6 +23,9 @@ type resumeFixture struct {
 	snapshot string
 	route    pipeline.PhaseRoute
 	stateDir string
+	// platform defaults to codex; omp needs a SPEC directory and a hex git hash.
+	platform string
+	gitHash  string
 }
 
 // newResumeFixture binds runs to a SPEC directory when withSpecDir is set,
@@ -42,9 +45,13 @@ func newResumeFixture(t *testing.T, specID string, withSpecDir bool) resumeFixtu
 }
 
 func (f resumeFixture) config(backend pipeline.PhaseBackend, cp *pipeline.Checkpoint) pipeline.EngineConfig {
+	platform, gitHash, projectDir := "codex", "git-a", ""
+	if f.platform != "" {
+		platform, gitHash, projectDir = f.platform, f.gitHash, filepath.Dir(f.specDir)
+	}
 	return pipeline.EngineConfig{
-		SpecID: f.specID, SpecDir: f.specDir, Platform: "codex", Backend: backend, Checkpoint: cp,
-		Route: f.route, SnapshotHash: f.snapshot, GitCommitHash: "git-a",
+		ProjectDir: projectDir, SpecID: f.specID, SpecDir: f.specDir, Platform: platform,
+		Backend: backend, Checkpoint: cp, Route: f.route, SnapshotHash: f.snapshot, GitCommitHash: gitHash,
 		RunConfig: pipeline.RunConfig{SpecID: f.specID, CheckpointDir: f.stateDir},
 	}
 }

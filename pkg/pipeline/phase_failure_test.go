@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -21,35 +22,43 @@ func TestClassifyGateFailure_TypedVerdictsOnly(t *testing.T) {
 	assert.Equal(t, FailureContractViolation, classifyGateFailure(GateReview, "VERDICT: FAIL"))
 }
 
-func TestClassifyDispatchFailure_OnlyTheSentinelIsRetryable(t *testing.T) {
+func TestClassifyDispatchFailure_Kinds(t *testing.T) {
 	t.Parallel()
 
 	live := context.Background()
 	cancelled, cancel := context.WithCancel(context.Background())
 	cancel()
 	cases := []struct {
-		name      string
-		ctx       context.Context
-		resp      *PhaseResponse
-		err       error
-		kind      FailureKind
-		retryable bool
+		name string
+		ctx  context.Context
+		resp *PhaseResponse
+		err  error
+		kind FailureKind
 	}{
-		{"marked transport", live, nil, errors.Join(errors.New("dial"), ErrRetryableTransport), FailureTransport, true},
-		{"unmarked transport", live, nil, errors.New("connection reset"), FailureTransport, false},
-		{"provider timeout", live, &PhaseResponse{FailureClass: "timeout"}, errors.New("timed out"), FailureTimeout, false},
-		{"timed out response", live, &PhaseResponse{TimedOut: true, Output: "x"}, nil, FailureTimeout, false},
-		{"provider empty output", live, &PhaseResponse{FailureClass: "empty_output"}, errors.New("empty"), FailureContractViolation, false},
-		{"non-zero exit", live, &PhaseResponse{ExitCode: 3, Output: "x"}, nil, FailureTransport, false},
-		{"nil response", live, nil, nil, FailureContractViolation, false},
-		{"cancelled run", cancelled, nil, ErrRetryableTransport, FailureCancelled, false},
-		{"deadline", live, nil, context.DeadlineExceeded, FailureCancelled, false},
+		{"unmarked transport", live, nil, errors.New("connection reset"), FailureTransport},
+		{"provider timeout", live, &PhaseResponse{FailureClass: "timeout"}, errors.New("timed out"), FailureTimeout},
+		{"timed out response", live, &PhaseResponse{TimedOut: true, Output: "x"}, nil, FailureTimeout},
+		{"provider empty output", live, &PhaseResponse{FailureClass: "empty_output"}, errors.New("empty"), FailureContractViolation},
+		{"non-zero exit", live, &PhaseResponse{ExitCode: 3, Output: "x"}, nil, FailureTransport},
+		{"nil response", live, nil, nil, FailureContractViolation},
+		{"cancelled run", cancelled, nil, ErrRetryableTransport, FailureCancelled},
+		{"deadline", live, nil, context.DeadlineExceeded, FailureCancelled},
 	}
 	for _, tc := range cases {
-		kind, retryable := classifyDispatchFailure(tc.ctx, tc.resp, tc.err)
-		assert.Equal(t, tc.kind, kind, tc.name)
-		assert.Equal(t, tc.retryable, retryable, tc.name)
+		assert.Equal(t, tc.kind, classifyDispatchFailure(tc.ctx, tc.resp, tc.err), tc.name)
 	}
+}
+
+func TestIsRetryableTransport_OnlyTheSentinelInALiveRun(t *testing.T) {
+	t.Parallel()
+
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	marked := fmt.Errorf("dial: %w", ErrRetryableTransport)
+	assert.True(t, isRetryableTransport(context.Background(), marked))
+	assert.False(t, isRetryableTransport(cancelled, marked))
+	assert.False(t, isRetryableTransport(context.Background(), errors.New("dial: connection refused")))
+	assert.False(t, isRetryableTransport(context.Background(), nil))
 }
 
 func TestParseFailureEvidence_ReportLines(t *testing.T) {
@@ -67,11 +76,69 @@ func TestParseFailureEvidence_ReportLines(t *testing.T) {
 	assert.Equal(t, FailureEvidence{ID: "SEC-2", Detail: "token logged at log.go:9", Fix: "drop the field"}, findings[0])
 	assert.Equal(t, FailureEvidence{ID: "F-3", Detail: "no fix given"}, findings[1])
 
-	many := strings.Repeat("FAILED_COMMAND: x\n", failureEvidenceMaxItems+5)
-	assert.Len(t, parseFailureEvidence(FailureTestFailure, many), failureEvidenceMaxItems)
+	long := strings.Repeat("x", 1000)
+	many := strings.Repeat("FAILED_COMMAND: go test\nACTUAL: "+long+"\n", 25)
+	assert.Len(t, parseFailureEvidence(FailureTestFailure, many), 25, "parsing keeps every item untruncated")
 }
 
-func TestFailureExcerpt_KeepsTheTailWithoutTheVerdict(t *testing.T) {
+// S14: the display form says where it was cut and how much was left out.
+func TestBoundEvidence_MarksTruncationAndCountsOmittedItems(t *testing.T) {
+	t.Parallel()
+
+	items := make([]FailureEvidence, 25)
+	for i := range items {
+		items[i] = FailureEvidence{Command: fmt.Sprintf("go test ./p%d", i), Actual: strings.Repeat("y", 1000)}
+	}
+	bounded, omitted := boundEvidence(items)
+
+	require.Len(t, bounded, failureEvidenceMaxItems)
+	assert.Equal(t, 5, omitted)
+	assert.Equal(t, strings.Repeat("y", 400)+" [truncated: 400 of 1000 bytes shown]", bounded[0].Actual)
+	assert.Equal(t, "go test ./p0", bounded[0].Command, "short fields are kept whole")
+	feedback := renderRemediationFeedback(&PhaseFailure{PhaseID: PhaseValidate, Kind: FailureTestFailure,
+		Evidence: bounded, EvidenceOmitted: omitted})
+	assert.Contains(t, feedback, "5 more not shown")
+	assert.Contains(t, feedback, "[truncated: 400 of 1000 bytes shown]")
+}
+
+// S14: two failures that differ only past the display bounds are different
+// failures to the breaker.
+func TestFailureSignatures_UseUntruncatedValues(t *testing.T) {
+	t.Parallel()
+
+	prefix := strings.Repeat("z", 500)
+	tail := func(i int, last string) []FailureEvidence {
+		items := make([]FailureEvidence, 25)
+		for n := range items {
+			items[n] = FailureEvidence{Command: fmt.Sprintf("go test ./p%d", n), Actual: "ok"}
+		}
+		items[i].Actual = prefix + last
+		return items
+	}
+	assert.NotEqual(t, failureSignatures(tail(0, "a"), ""), failureSignatures(tail(0, "b"), ""),
+		"a difference after byte 400 is still a difference")
+	assert.NotEqual(t, failureSignatures(tail(22, "a"), ""), failureSignatures(tail(22, "b"), ""),
+		"a difference in an omitted item is still a difference")
+	assert.Equal(t, failureSignatures(tail(3, "a"), ""), failureSignatures(tail(3, "a"), ""))
+}
+
+// S15: a finding is identified by what it says, not by the reviewer's ID.
+func TestFailureSignatures_FindingIdentityIsContentNotID(t *testing.T) {
+	t.Parallel()
+
+	first := []FailureEvidence{{ID: "F-1", Detail: "Handler drops ctx (engine.go:42)", Fix: "return ctx.Err()"}}
+	renumbered := []FailureEvidence{{ID: "F-7", Detail: "handler  drops ctx (engine.go:57)", Fix: "Return ctx.Err()"}}
+	reused := []FailureEvidence{{ID: "F-1", Detail: "cache key ignores tenant (cache.go:10)", Fix: "include tenant"}}
+	assert.Equal(t, failureSignatures(first, ""), failureSignatures(renumbered, ""),
+		"the same problem under a new ID and moved line is the same finding")
+	assert.NotEqual(t, failureSignatures(first, ""), failureSignatures(reused, ""),
+		"a new problem under a reused ID is a different finding")
+	bare := failureSignatures([]FailureEvidence{{ID: "F-1"}}, "")
+	assert.NotEqual(t, bare, failureSignatures([]FailureEvidence{{ID: "F-2"}}, ""),
+		"a finding with no text falls back to its ID")
+}
+
+func TestFailureExcerpt_MarksOmittedOutput(t *testing.T) {
 	t.Parallel()
 
 	var lines []string
@@ -80,10 +147,15 @@ func TestFailureExcerpt_KeepsTheTailWithoutTheVerdict(t *testing.T) {
 	}
 	lines = append(lines, "last line", "VERDICT: FAIL")
 	excerpt := failureExcerpt(strings.Join(lines, "\n"))
-	assert.Equal(t, failureExcerptMaxLines, len(strings.Split(excerpt, "\n")))
+	excerptLines := strings.Split(excerpt, "\n")
+	assert.Equal(t, "[earlier output omitted: 40 of 61 lines, at most 2000 bytes, shown]", excerptLines[0])
+	assert.Len(t, excerptLines, failureExcerptMaxLines+1)
 	assert.True(t, strings.HasSuffix(excerpt, "last line"))
 	assert.NotContains(t, excerpt, "VERDICT")
-	assert.LessOrEqual(t, len(failureExcerpt(strings.Repeat("é", 3000))), failureExcerptMaxBytes)
+	assert.Equal(t, "short\noutput", failureExcerpt("short\noutput\nVERDICT: FAIL"), "nothing omitted, no marker")
+	wide := failureExcerpt(strings.Repeat("é", 3000))
+	assert.True(t, strings.HasPrefix(wide, "[earlier output omitted:"))
+	assert.LessOrEqual(t, len(wide), failureExcerptMaxBytes+80)
 }
 
 // The breaker trips when a fix resolves nothing, also when the failure grew;
@@ -91,23 +163,37 @@ func TestFailureExcerpt_KeepsTheTailWithoutTheVerdict(t *testing.T) {
 func TestMadeNoProgress(t *testing.T) {
 	t.Parallel()
 
-	failure := func(ids ...string) *PhaseFailure {
-		f := &PhaseFailure{PhaseID: PhaseReview, Kind: FailureReviewRejection}
-		for _, id := range ids {
-			f.Evidence = append(f.Evidence, FailureEvidence{ID: id})
+	review := func(findings ...string) *PhaseFailure {
+		var lines []string
+		for i, finding := range findings {
+			lines = append(lines, fmt.Sprintf("FINDING F-%d: %s | FIX: fix %s", i+1, finding, finding))
 		}
-		f.Fingerprint = f.fingerprint()
-		return f
+		return newGateFailure(Phase{ID: PhaseReview, Gate: GateReview}, 1, FailureReviewRejection,
+			strings.Join(append(lines, "VERDICT: REQUEST_CHANGES"), "\n"))
 	}
-	assert.True(t, madeNoProgress(failure("F-1", "F-2"), failure("F-2", "F-1")))
-	assert.True(t, madeNoProgress(failure("F-1"), failure("F-1", "F-9")))
-	assert.False(t, madeNoProgress(failure("F-1", "F-2"), failure("F-2", "F-3")))
-	assert.False(t, madeNoProgress(nil, failure("F-1")))
+	assert.True(t, madeNoProgress(review("a", "b"), review("b", "a")))
+	assert.True(t, madeNoProgress(review("a"), review("a", "z")))
+	assert.False(t, madeNoProgress(review("a", "b"), review("b", "c")))
+	assert.False(t, madeNoProgress(nil, review("a")))
 	free := func(text string) *PhaseFailure {
-		f := &PhaseFailure{PhaseID: PhaseValidate, Kind: FailureTestFailure, Excerpt: text}
-		f.Fingerprint = f.fingerprint()
-		return f
+		return newGateFailure(Phase{ID: PhaseValidate, Gate: GateValidation}, 1, FailureTestFailure, text+"\nVERDICT: FAIL")
 	}
 	assert.True(t, madeNoProgress(free("panic:  nil map"), free("panic: nil map")))
 	assert.False(t, madeNoProgress(free("panic: nil map"), free("panic: index out of range")))
+}
+
+// S13: a redacted error keeps its identity and loses its secret.
+func TestRedactError_KeepsIdentityAndRedactsMessage(t *testing.T) {
+	t.Parallel()
+
+	sentinel := errors.New("provider rejected the call")
+	raw := fmt.Errorf("%w: Authorization: Bearer sk-live-0123456789abcdef", sentinel)
+	redacted := redactError(raw)
+
+	assert.ErrorIs(t, redacted, sentinel)
+	assert.NotContains(t, redacted.Error(), "sk-live-0123456789abcdef")
+	assert.Contains(t, redacted.Error(), "[REDACTED_SECRET]")
+	clean := errors.New("phase plan: connection reset")
+	assert.Same(t, clean, redactError(clean), "an error with nothing to redact is returned as is")
+	assert.NoError(t, redactError(nil))
 }

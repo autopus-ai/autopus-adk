@@ -5,8 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
-	"sort"
-	"strings"
 )
 
 // ErrRetryableTransport marks a backend failure that happened before the
@@ -68,37 +66,45 @@ type FailureEvidence struct {
 
 // PhaseFailure is the classified evidence of one failed phase attempt. Its
 // text fields are redacted before the record is kept, persisted, or
-// forwarded to a fix dispatch (REQ-PRR-FAIL-05).
+// forwarded to a fix dispatch (REQ-PRR-FAIL-05). Evidence and Excerpt are
+// the bounded, marked display form (REQ-PRR-FAIL-11); Signatures and
+// Fingerprint come from the untruncated redacted evidence.
 type PhaseFailure struct {
-	PhaseID     PhaseID           `json:"phase_id" yaml:"phase_id"`
-	Attempt     int               `json:"attempt" yaml:"attempt"`
-	Kind        FailureKind       `json:"kind" yaml:"kind"`
-	Retryable   bool              `json:"retryable" yaml:"retryable"`
-	Fingerprint string            `json:"fingerprint" yaml:"fingerprint"`
-	Decision    FailureDecision   `json:"decision" yaml:"decision"`
-	RoutedTo    PhaseID           `json:"routed_to,omitempty" yaml:"routed_to,omitempty"`
-	Summary     string            `json:"summary" yaml:"summary"`
-	Evidence    []FailureEvidence `json:"evidence,omitempty" yaml:"evidence,omitempty"`
-	Excerpt     string            `json:"excerpt,omitempty" yaml:"excerpt,omitempty"`
+	PhaseID         PhaseID           `json:"phase_id" yaml:"phase_id"`
+	Attempt         int               `json:"attempt" yaml:"attempt"`
+	Kind            FailureKind       `json:"kind" yaml:"kind"`
+	Retryable       bool              `json:"retryable" yaml:"retryable"`
+	Fingerprint     string            `json:"fingerprint" yaml:"fingerprint"`
+	Signatures      []string          `json:"signatures,omitempty" yaml:"signatures,omitempty"`
+	Decision        FailureDecision   `json:"decision" yaml:"decision"`
+	RoutedTo        PhaseID           `json:"routed_to,omitempty" yaml:"routed_to,omitempty"`
+	Summary         string            `json:"summary" yaml:"summary"`
+	Evidence        []FailureEvidence `json:"evidence,omitempty" yaml:"evidence,omitempty"`
+	EvidenceOmitted int               `json:"evidence_omitted,omitempty" yaml:"evidence_omitted,omitempty"`
+	Excerpt         string            `json:"excerpt,omitempty" yaml:"excerpt,omitempty"`
 }
 
-// classifyDispatchFailure names the kind of a refused dispatch. Only an
-// error wrapping ErrRetryableTransport is retryable: the engine cannot tell
-// whether any other failed backend already wrote files.
-func classifyDispatchFailure(ctx context.Context, resp *PhaseResponse, execErr error) (FailureKind, bool) {
+// isRetryableTransport reports a backend error the canonical engine re-sends
+// before it admits the response: one wrapping ErrRetryableTransport in a run
+// that is still live. The engine cannot tell whether any other failed
+// backend already wrote files, so nothing else is re-sent.
+func isRetryableTransport(ctx context.Context, execErr error) bool {
+	return ctx.Err() == nil && errors.Is(execErr, ErrRetryableTransport)
+}
+
+// classifyDispatchFailure names the kind of a refused dispatch.
+func classifyDispatchFailure(ctx context.Context, resp *PhaseResponse, execErr error) FailureKind {
 	switch {
 	case ctx.Err() != nil, errors.Is(execErr, context.Canceled), errors.Is(execErr, context.DeadlineExceeded):
-		return FailureCancelled, false
+		return FailureCancelled
 	case resp != nil && (resp.TimedOut || resp.FailureClass == "timeout"):
-		return FailureTimeout, false
+		return FailureTimeout
 	case resp != nil && resp.FailureClass == "empty_output":
-		return FailureContractViolation, false
-	case execErr != nil:
-		return FailureTransport, errors.Is(execErr, ErrRetryableTransport)
-	case resp != nil && resp.ExitCode != 0:
-		return FailureTransport, false
+		return FailureContractViolation
+	case execErr != nil, resp != nil && resp.ExitCode != 0:
+		return FailureTransport
 	default:
-		return FailureContractViolation, false
+		return FailureContractViolation
 	}
 }
 
@@ -119,39 +125,11 @@ func classifyGateFailure(gate GateType, output string) FailureKind {
 	return FailureContractViolation
 }
 
-// signatures are the comparable parts of a failure: one per finding ID or
-// failing command, else its whitespace-normalized excerpt or summary.
-func (f *PhaseFailure) signatures() []string {
-	seen := map[string]bool{}
-	var out []string
-	add := func(signature string) {
-		if !seen[signature] {
-			seen[signature] = true
-			out = append(out, signature)
-		}
-	}
-	for _, item := range f.Evidence {
-		switch {
-		case item.ID != "":
-			add("finding:" + item.ID)
-		case item.Command != "" || item.Expected != "" || item.Actual != "":
-			add("command:" + item.Command + "\x00expected:" + item.Expected + "\x00actual:" + item.Actual)
-		}
-	}
-	if len(out) == 0 {
-		basis := f.Excerpt
-		if basis == "" {
-			basis = f.Summary
-		}
-		add("text:" + strings.Join(strings.Fields(basis), " "))
-	}
-	sort.Strings(out)
-	return out
-}
-
+// fingerprint hashes the failure's kind, phase, and signatures, which
+// already identify each evidence item by its untruncated content.
 func (f *PhaseFailure) fingerprint() string {
 	hash := sha256.New()
-	for _, part := range append([]string{string(f.Kind), string(f.PhaseID)}, f.signatures()...) {
+	for _, part := range append([]string{string(f.Kind), string(f.PhaseID)}, f.Signatures...) {
 		_, _ = hash.Write([]byte(part))
 		_, _ = hash.Write([]byte{0})
 	}
@@ -170,11 +148,14 @@ func madeNoProgress(prev, next *PhaseFailure) bool {
 	if prev.Fingerprint == next.Fingerprint {
 		return true
 	}
+	if len(prev.Signatures) == 0 {
+		return false
+	}
 	current := map[string]bool{}
-	for _, signature := range next.signatures() {
+	for _, signature := range next.Signatures {
 		current[signature] = true
 	}
-	for _, signature := range prev.signatures() {
+	for _, signature := range prev.Signatures {
 		if !current[signature] {
 			return false
 		}

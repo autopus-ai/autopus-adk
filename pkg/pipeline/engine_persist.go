@@ -7,6 +7,7 @@ import (
 )
 
 func (e *SubprocessEngine) finishPreflightFailure(state *engineRunState, runErr error) error {
+	runErr = redactError(runErr)
 	state.finish(TerminalBlocked, runErr.Error())
 	var persistErr error
 	if e.cfg.Checkpoint != nil {
@@ -18,6 +19,7 @@ func (e *SubprocessEngine) finishPreflightFailure(state *engineRunState, runErr 
 }
 
 func (e *SubprocessEngine) finishPersistenceFailure(state *engineRunState, runErr error) error {
+	runErr = redactError(runErr)
 	state.result.Receipt.DegradedReasons = appendUnique(state.result.Receipt.DegradedReasons, "persistence_failure")
 	state.finish(TerminalPartialPreserved, runErr.Error())
 	return combinePipelineError(runErr, e.persistRunState(state), "persist partial receipt")

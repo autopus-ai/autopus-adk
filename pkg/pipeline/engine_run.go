@@ -112,7 +112,7 @@ func (e *SubprocessEngine) executePhase(ctx context.Context, state *engineRunSta
 		err := fmt.Errorf("phase %s: negative max retries", phase.ID)
 		return 0, e.failPhase(state, index, 0, CheckpointStatusFailed, TerminalBlocked, err)
 	}
-	prompt, err := e.buildPhasePrompt(phase, state.previous, state.legacyPrevious(index), state.feedback[phase.ID])
+	prompt, err := e.buildPhasePrompt(phase, state.previous, state.feedback[phase.ID])
 	if err != nil {
 		wrapped := fmt.Errorf("phase %s: build prompt: %w", phase.ID, err)
 		return 0, e.failPhase(state, index, 0, CheckpointStatusFailed, TerminalBlocked, wrapped)
@@ -147,9 +147,8 @@ func (e *SubprocessEngine) executePhase(ctx context.Context, state *engineRunSta
 }
 
 func (e *SubprocessEngine) runDry(state *engineRunState) (*PipelineResult, error) {
-	var previousOutput string
 	for i, phase := range state.phases {
-		prompt, err := e.buildPhasePrompt(phase, state.previous, previousOutput, nil)
+		prompt, err := e.buildPhasePrompt(phase, state.previous, nil)
 		if err != nil {
 			wrapped := fmt.Errorf("phase %s: build dry-run prompt: %w", phase.ID, err)
 			return state.result, e.failPhase(state, i, 0, CheckpointStatusFailed, TerminalBlocked, wrapped)
@@ -211,15 +210,6 @@ func (e *SubprocessEngine) newRunState(requested, effective Strategy, plan *resu
 	return state
 }
 
-// legacyPrevious is the output of the phase just before index on the route,
-// which the prompt carries when no SPEC directory frames it.
-func (s *engineRunState) legacyPrevious(index int) string {
-	if index == 0 {
-		return ""
-	}
-	return s.previous[s.phases[index-1].ID]
-}
-
 func (s *engineRunState) nextAttempt(phaseID PhaseID) int {
 	s.attempts[phaseID]++
 	return s.attempts[phaseID]
@@ -233,7 +223,11 @@ func (e *SubprocessEngine) failRun(state *engineRunState, index, attempt int, er
 	return state.result, e.failPhase(state, index, attempt, CheckpointStatusFailed, TerminalBlocked, err)
 }
 
+// failPhase ends the run at a phase. The error keeps its identity for
+// errors.Is, but its message, which the receipt stores and the caller
+// prints, is redacted (REQ-PRR-FAIL-05).
 func (e *SubprocessEngine) failPhase(state *engineRunState, index, attempt int, status CheckpointStatus, terminal TerminalState, err error) error {
+	err = redactError(err)
 	phaseID := state.phases[index].ID
 	state.statuses[phaseID] = status
 	state.result.PhaseResults[index].Status = status
