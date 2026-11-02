@@ -8,6 +8,7 @@ import (
 
 	"github.com/insajin/autopus-adk/pkg/config"
 	"github.com/insajin/autopus-adk/pkg/orchestra"
+	"github.com/insajin/autopus-adk/pkg/spec"
 )
 
 // The judge model of SPEC-JUDGEMODEL-001: spec.review_gate.judge_model and
@@ -178,9 +179,12 @@ func printSpecReviewJudgeModel(w io.Writer, assembled specReviewProviderPlan) {
 
 // recordSpecReviewJudgeModel names the effective judge model an applied
 // review ran in the receipt's judge (REQ-JM-RUN-04): on the OMP backend the
-// base selector and its thinking level; any other receipt keeps its bytes.
+// base selector and its thinking level. A judge a conditional judge mode
+// skipped ran no model (SPEC-REVIEWREUSE-001), so it names none, and any
+// other receipt keeps its bytes.
 func recordSpecReviewJudgeModel(judge *specReviewJudgeReceipt, evidence []specReviewRuntimeEvidence) {
-	if judge == nil || len(evidence) == 0 || evidence[0].JudgeModel == nil || !evidence[0].JudgeModel.applies() {
+	if judge == nil || judge.Status == spec.JudgeStatusSkipped || len(evidence) == 0 || evidence[0].JudgeModel == nil ||
+		!evidence[0].JudgeModel.applies() {
 		return
 	}
 	judge.Model, judge.Effort = evidence[0].JudgeModel.effective()
