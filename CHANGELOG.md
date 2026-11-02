@@ -9,10 +9,12 @@ All notable changes to this project will be documented in this file.
   없었다.
   - 새 key `spec.review_gate.judge_model`·`judge_effort`(선택). 설정된 judge에만 쓰이고, judge 호출은 그 provider 항목에서
     model·effort 값만 리뷰 탭과 같은 방식(claude `--model`·`--effort`, codex `-m`·`model_reasoning_effort`와 pinned,
-    agy `--model`, OMP selector)으로 바꿔 돈다. 리뷰어 호출은 그대로다. key가 없으면 지금과 같다.
+    agy `--model`, OMP selector)으로 바꿔 돈다. 리뷰어 호출은 그대로다. key가 없으면 리뷰 호출·계획 블록·receipt와
+    `auto quality review show` 출력이 지금과 같다(리뷰 탭의 새 선택지와 도움말은 key와 상관없이 바뀐다).
   - backend가 실을 수 없는 값(CLI judge에 OMP selector, OMP judge에 다른 family, agy에 effort 등)은 readiness probe와
     model 호출 전에 `spec review: spec.review_gate.judge_model ...`로 거절한다. 계획 블록은 `judge model: ...` 줄을,
-    `review-receipt.json`은 `judge.model`·`judge.effort`를 남긴다.
+    `review-receipt.json`은 `judge.model`·`judge.effort`를 남긴다. OMP judge는 thinking을 selector에 붙여 쓰든
+    `judge_effort`로 쓰든 계획에 한 번만 보이고 receipt에는 base selector와 thinking으로 남는다.
   - `auto quality review judge <provider|none> [--model <model>|default] [--effort <effort>] [--dry-run]`이 탭과 같은
     목록과 줄 writer로 judge model을 쓰고, `default`나 다른 judge·none은 두 key 줄을 지운다. `show`·`--json`이 judge
     model을 보인다.

@@ -29,6 +29,7 @@
 - Applied inside `assembleSpecReviewJudge`, before the read-only gate: every consumer of the judge config sees the same judge, the projection stays last, and a codex judge with a pinned policy is not re-resolved by the quality profile.
 - Encoding by the tab's own planner (`planReviewArgsEdit`), so the judge argv is exactly what the tab would write for that provider: claude's empty effort drops `--effort` (haiku), codex keeps its effort when none is given, a missing flag is appended as a pair.
 - Validation in three layers: shape at load (cheap, always), backend fit at review time (no catalog read, so a review never pays an OMP catalog refresh or `agy models`), and attestation against the lists when the command or the tab writes it. A hand-written alias such as `opus` therefore runs; a value the backend cannot carry never does.
+- The plan block and the receipt name the effective judge model, not the keys as written: an OMP judge model may carry its thinking inline, alone or beside an equal `judge_effort`, and all three forms ran the same selector, so they print `<base>:<thinking>` once and record the base selector with the thinking level. Show and the tab's change lines stay with the text as written, as for every other review key.
 - Clearing removes the key lines instead of writing `""`: a file that once had a judge model and went back is again loadable by releases without the keys (REQ-JM-COMPAT-01).
 - The tab asks the judge model only after a new judge or through `<judge> — judge model 고르기`, so a pass that keeps the judge asks exactly the selects it asked before.
 
@@ -50,11 +51,11 @@ Go standard library and the packages already used by the review tab (`gopkg.in/y
 
 | ID | source clause | invariant type | affected outputs | acceptance IDs |
 |----|---------------|----------------|------------------|----------------|
-| INV-J01 | absent keys mean today's behaviour, and only a set judge model writes them | default and compatibility | loaded config, saved file, written lines | S1, S5, S8 |
+| INV-J01 | absent keys keep review requests, plan block, receipt, and show output byte for byte (the tab's new option and the help are outside), and only a set judge model writes them | default and compatibility | loaded config, saved file, written lines, receipt keys | S1, S2, S4, S5, S6, S8 |
 | INV-J02 | only the judge call changes | isolation | reviewer argv and model, judge argv and model | S2 |
 | INV-J03 | the judge argv differs from the reviewer argv only in model and effort values, and the projection stays last | argv equivalence | judge argv | S2 |
 | INV-J04 | a value that cannot run or cannot be edited safely never reaches a call or the file | fail before effect | refusals, call counts, file bytes | S3, S6, S9 |
-| INV-J05 | what ran is named | evidence | plan line, receipt fields | S4 |
+| INV-J05 | what ran is named once, in the effective form, whichever form the keys use | evidence | plan line, receipt fields | S4 |
 | INV-J06 | sources only, documented, verified without real providers | scope and verification | changed paths, docs, tests | S10 |
 | INV-J07 | the tab and the command write the same edit for the same choice | single writer | change lines, file text | S5, S7, S8 |
 
@@ -115,6 +116,14 @@ Optional improvements. They do not block sync completion and carry no identifier
 - Review time checks only that the backend can carry the value; a hand-written model the provider does not serve fails at the judge call as a judge failure, as a hand-written reviewer model fails today.
 - PR #255 (SPEC-REVIEWREUSE-001) fingerprints the assembled judge config; because the model is applied during assembly, a changed judge model changes that fingerprint, which a merge must keep.
 
+## Review Response (codex, 2026-11-02, REVISE, 3 findings)
+
+| Finding | Resolution |
+|---|---|
+| F-001 byte identity vs the new tab option | Outcome Lock and REQ-JM-CFG-01 scope byte identity to review requests, plan block, receipt, and `auto quality review [show] [--json]`; the tab's option and select and the help texts are named as outside it; S2 and S7 say so; `TestSpecReviewJudgeModel_AbsentOrOtherJudgeKeepsTheReviewerConfig` checks the receipt's judge keys |
+| F-002 OMP inline thinking in plan and receipt | Effective judge model defined (base selector and one thinking level; a mismatch is refused); REQ-JM-RUN-03/04 and S4 give exact values for the split, inline-only, and inline-plus-equal forms; `TestSpecReviewJudgeModel_OMPFormsNormalize` fails on the raw recording; show and change lines keep the text as written (`TestReviewJudgeModel_InlineThinkingShowsOnce`) |
+| F-003 test files outside Module ownership | Module ownership covers the listed `internal/cli` files, tests included; Generated And Changed Surfaces lists every new test and the two changed regression tests; T7 and S10 check the change set against Module ownership |
+
 ## Self-Verify Summary
 
 - Q-CORR-01 | status: PASS | attempt: 1 | files: spec.md, research.md | reason: every cited function, key, and message was read on 2026-11-02 at 27297e2a
@@ -123,9 +132,10 @@ Optional improvements. They do not block sync completion and carry no identifier
 - Q-CORR-04 | status: PASS | attempt: 1 | files: research.md | reason: Reference Discipline separates existing code, the extended contract, and `[NEW]` additions
 - Q-COMP-01 | status: PASS | attempt: 1 | files: all four | reason: contract, tasks and probes, oracles, and decisions each live in their file
 - Q-COMP-02 | status: PASS | attempt: 1 | files: spec.md, acceptance.md | reason: 16 requirements map to S1–S10, refusals and clearing included
-- Q-COMP-03 | status: PASS | attempt: 1 | files: spec.md | reason: each requirement names its trigger and its output text
-- Q-COMP-04 | status: PASS | attempt: 1 | files: spec.md, research.md | reason: the Outcome Lock covers runtime, command, tab, evidence, and compatibility
-- Q-COMP-05 | status: PASS | attempt: 1 | files: research.md, acceptance.md | reason: INV-J01 to INV-J07 map to oracles with fixed strings and argv
+- Q-COMP-03 | status: PASS | attempt: 2 | files: spec.md | reason: each requirement names its trigger and its output text; the effective judge model fixes one plan and receipt form
+- Q-COMP-04 | status: PASS | attempt: 2 | files: spec.md, research.md | reason: the Outcome Lock covers runtime, command, tab, evidence, and compatibility, with byte identity scoped to what stays unchanged
+- Q-COMP-05 | status: PASS | attempt: 2 | files: research.md, acceptance.md | reason: INV-J01 to INV-J07 map to oracles with fixed strings and argv, the three OMP forms included
 - Q-COMP-06 | status: PASS | attempt: 1 | files: spec.md, research.md | reason: Traceability Matrix with invariants; the Reviewer Brief names the focus
 - Q-COMP-07 | status: PASS | attempt: 1 | files: research.md | reason: Completion Debt is empty; residual risks are stated
 - Q-COMP-08 | status: PASS | attempt: 2 | files: plan.md | reason: B1 to B3 executed as the named tests on 2026-11-02
+- Q-FEAS-02 | status: PASS | attempt: 2 | files: spec.md, plan.md | reason: Module ownership lists every changed path, the internal/cli test files and the two changed regression tests included; T7 checks the change set against it

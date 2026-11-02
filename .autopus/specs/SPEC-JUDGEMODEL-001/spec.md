@@ -2,12 +2,13 @@
 
 **Status**: draft
 **Created**: 2026-11-02
+**Revised**: 2026-11-02 (codex review round 1, REVISE: F-001 scope of byte identity, F-002 OMP normalization, F-003 test ownership)
 **Domain**: JUDGEMODEL
 **Priority**: MEDIUM
 **Change Class**: feature (two new `autopus.yaml` keys, a changed judge argv at runtime, new CLI flags, and new review tab selects; `feature` is a high-risk class and the surface spans `pkg/config` and `internal/cli`, so the lean profile does not apply)
 **Source**: operator request of 2026-11-02 (the judge should run, for example, claude on opus while the claude reviewer runs sonnet, chosen in the `auto quality` review tab because the commands are long)
 **Target module**: `autopus-adk/` (this repository)
-**Module ownership**: `.autopus/specs/SPEC-JUDGEMODEL-001/**`, `pkg/config/schema_spec.go`, `pkg/config/schema.go`, `[NEW] pkg/config/schema_review_judge_model*.go`, the files of `internal/cli` listed under Generated And Changed Surfaces, `README.md`, `docs/README.ko.md`, `CHANGELOG.md`, `content/skills/{spec-review,using-autopus,adaptive-quality}.md` and their copies under `templates/codex/skills/` and `templates/gemini/skills/`, the TUIUX goldens they regenerate, and section 96 of `.autopus/specs/SPEC-TUIUX-001/evidence/base-goldens-recapture.md`
+**Module ownership**: `.autopus/specs/SPEC-JUDGEMODEL-001/**`, `pkg/config/schema_spec.go`, `pkg/config/schema.go`, `[NEW] pkg/config/schema_review_judge_model*.go`, the files of `internal/cli` listed under Generated And Changed Surfaces, source and test files alike, `README.md`, `docs/README.ko.md`, `CHANGELOG.md`, `content/skills/{spec-review,using-autopus,adaptive-quality}.md` and their copies under `templates/codex/skills/` and `templates/gemini/skills/`, the TUIUX goldens they regenerate, and section 96 of `.autopus/specs/SPEC-TUIUX-001/evidence/base-goldens-recapture.md`
 **Depends on**: SPEC-REVMODEL-001 (review tab, `auto quality review`, line splice writer), SPEC-REVIEWRO-001 (read-only judge assembly), SPEC-REVIEWPOLICY-001 (review plan block)
 
 ## Purpose
@@ -25,7 +26,7 @@ This SPEC adds two optional keys, `spec.review_gate.judge_model` and `spec.revie
 
 ## Outcome Boundary
 
-- Outcome Lock: with `judge_model` (and optionally `judge_effort`) set, `auto spec review` runs the configured judge on that model while every reviewer keeps its own; an invalid judge model is refused before any readiness probe or model call; the plan block and `review-receipt.json` name the judge model; `auto quality review judge <provider|none> [--model <model>|default] [--effort <effort>] [--dry-run]` sets, changes, and clears it with the tab's lists, and `auto quality review [show] [--json]` shows it; the review tab offers the judge model right after a new judge and through a `<judge> — judge model 고르기` option, previews it, writes only the changed keys with comments kept, and removes the keys again when the judge model goes back to the reviewer model. Without the keys every output and every call is byte-for-byte today's.
+- Outcome Lock: with `judge_model` (and optionally `judge_effort`) set, `auto spec review` runs the configured judge on that model while every reviewer keeps its own; an invalid judge model is refused before any readiness probe or model call; the plan block and `review-receipt.json` name the judge model; `auto quality review judge <provider|none> [--model <model>|default] [--effort <effort>] [--dry-run]` sets, changes, and clears it with the tab's lists, and `auto quality review [show] [--json]` shows it; the review tab offers the judge model right after a new judge and through a `<judge> — judge model 고르기` option, previews it, writes only the changed keys with comments kept, and removes the keys again when the judge model goes back to the reviewer model. Without the keys, `auto spec review` sends the same provider requests, prints the same plan block, and writes the same receipt bytes, and `auto quality review [show] [--json]` prints the same output, byte for byte. The review tab's `<judge> — judge model 고르기` option and its judge model select after a new judge appear whether or not the keys are set, and the help texts change; neither is part of that byte identity.
 - Mandatory requirements: REQ-JM-SCOPE-01 through REQ-JM-VERIFY-01 below.
 - Explicit non-goals: a judge model for `orchestra.judge` or for orchestra commands (brainstorm, plan, review, secure); judge models of providers other than the configured judge (`--judge <other>` keeps that provider's reviewer model); switching the judge alone to another backend; attesting the judge model against a catalog at review time; a live check of the judge model.
 - Completion evidence: the tests named in `acceptance.md`; `go test ./pkg/config ./pkg/spec ./internal/cli -count=1`; the source-lines gate on the changed Go files; `golangci-lint` on the changed packages; `auto spec validate --strict`.
@@ -34,7 +35,8 @@ This SPEC adds two optional keys, `spec.review_gate.judge_model` and `spec.revie
 
 - Judge model: the pair (`judge_model`, `judge_effort`). Per backend of the judge provider's entry: OMP — `judge_model` is `<provider>/<model>` and `judge_effort` its thinking level, or `judge_model` already carries `:<thinking>`; claude and codex CLI — a model id and an effort of `low`, `medium`, `high`, `xhigh`, `max`, or none; agy — a listed id, which carries its effort, and no `judge_effort`.
 - Applies: the judge model applies to a review when the review's judge (`--judge`, else the plan's) equals `spec.review_gate.judge` and `judge_model` is not empty.
-- Judge model text: `<model> · <effort>` for a CLI judge, `<model>:<effort>` for an OMP judge, `<model>` without an effort.
+- Effective judge model: what the judge call runs. On an OMP judge, the base selector `<provider>/<model>` of `judge_model` and one thinking level: the one `judge_model` carries inline, else `judge_effort`; when both are set they must be equal (a mismatch is refused, REQ-JM-RUN-02). On a CLI judge, `judge_model` and `judge_effort` as configured.
+- Judge model text: `<model> · <effort>` for a CLI judge, `<base selector>:<thinking>` for an OMP judge with its thinking level named once, `<model>` without an effort. The plan block and the receipt use the effective judge model; `auto quality review show` and the tab's change lines spell each key as written.
 - Reviewer model: the model and effort of the judge provider's own `orchestra.providers` entry.
 
 ## Requirements
@@ -51,7 +53,7 @@ THE SYSTEM SHALL change only the files under Module ownership and SHALL NOT edit
 **REQ-JM-CFG-01**
 Priority: Must
 Type: Ubiquitous
-THE SYSTEM SHALL accept the optional keys `spec.review_gate.judge_model` and `spec.review_gate.judge_effort`, both `omitempty`, so a configuration that does not set them loads, saves, and runs exactly as before and a saved default configuration holds neither key.
+THE SYSTEM SHALL accept the optional keys `spec.review_gate.judge_model` and `spec.review_gate.judge_effort`, both `omitempty`, so a configuration that does not set them loads and saves as before, `auto spec review` sends the same provider requests and prints the same plan block and receipt, `auto quality review [show] [--json]` prints the same output, and a saved default configuration holds neither key. The review tab's judge model option and select (REQ-JM-TUI-01) and the help texts are outside this guarantee.
 
 **REQ-JM-CFG-02**
 Priority: Must
@@ -73,12 +75,12 @@ IF a judge model that applies cannot run on the judge's backend — its binary h
 **REQ-JM-RUN-03**
 Priority: Must
 Type: Event-driven
-WHEN the review plan block is printed and `judge_model` is configured, THEN THE SYSTEM SHALL print after the judge line `  judge model: <judge model text> — spec.review_gate.judge_model` when it applies, and `  judge model: <judge>의 리뷰어 model — spec.review_gate.judge_model은 judge <configured judge>에만 씁니다` when the review runs another judge; without `judge_model` or without a judge the block is unchanged.
+WHEN the review plan block is printed and `judge_model` is configured, THEN THE SYSTEM SHALL print after the judge line `  judge model: <judge model text of the effective judge model> — spec.review_gate.judge_model` when it applies (an OMP judge's thinking level once, whichever form the keys use), and `  judge model: <judge>의 리뷰어 model — spec.review_gate.judge_model은 judge <configured judge>에만 씁니다` when the review runs another judge; without `judge_model` or without a judge the block is unchanged.
 
 **REQ-JM-RUN-04**
 Priority: Must
 Type: Event-driven
-WHEN a review whose judge model applied writes `review-receipt.json`, THEN THE SYSTEM SHALL record `judge.model` and `judge.effort` (each omitted when empty) beside `judge.provider`, and SHALL write no such field otherwise.
+WHEN a review whose judge model applied writes `review-receipt.json`, THEN THE SYSTEM SHALL record the effective judge model in the receipt's judge object — `judge.model` the base selector on an OMP judge and the configured model on a CLI judge, `judge.effort` the effective thinking level or effort, each omitted when empty, so `anthropic/claude-opus-5-5:max` alone, with `judge_effort: max`, and `anthropic/claude-opus-5-5` with `judge_effort: max` all record `anthropic/claude-opus-5-5` and `max` — and SHALL write no such field otherwise.
 
 ### Command
 
@@ -143,6 +145,7 @@ THE SYSTEM SHALL prove every Must requirement with tests over temporary projects
 - `pkg/config/schema_spec.go` (the two fields), `pkg/config/schema.go` (the validation call), `[NEW] pkg/config/schema_review_judge_model.go`.
 - `[NEW] internal/cli/spec_review_judge_model.go`: applies-rule, per-backend application and refusal, plan line, receipt fields; hooks in `spec_review_readonly.go` (`assembleSpecReviewJudge`), `spec_review_readiness.go` (`specReviewProviderPlan.JudgeModel`), `spec_review_plan_print.go` (one call), `spec_review_lean.go` (runtime evidence), `spec_review_receipt.go` (`model`, `effort`, evidence field), `spec_review_runtime.go` (one call).
 - `[NEW] internal/cli/quality_compose_review_judge.go` (tab selects), `[NEW] internal/cli/quality_compose_review_judgemodel.go` (composition value, attestation, targets, change lines, cells, line removal), `[NEW] internal/cli/quality_review_judge.go` (command flags and resolution); `quality_compose_review.go`, `quality_compose_review_plan.go`, `quality_compose_review_raw.go`, `quality_compose_review_write.go`, `quality_compose_review_splice.go`, `quality_compose_review_verify.go`, `quality_compose_review_lines.go`, `quality_compose_review_menu.go`, `quality_compose_review_check.go`, `quality_compose_review_clitab.go`, `quality_compose_review_text.go`, `quality_review.go`, `quality_review_edit.go`, `quality_review_model.go`, `quality_help.go`.
+- Tests: `[NEW] pkg/config/schema_review_judge_model_test.go`; `[NEW] internal/cli/spec_review_judge_model_test.go`, `[NEW] spec_review_judge_model_refusal_test.go`, `[NEW] quality_review_judge_test.go`, `[NEW] quality_review_judge_docs_test.go`, `[NEW] quality_compose_review_judgemodel_test.go`, `[NEW] quality_compose_review_judgemodel_unit_test.go`; changed regression tests `internal/cli/quality_compose_review_judge_test.go` (S3b and S9 answer the judge model select a new judge asks) and `internal/cli/quality_compose_review_text_test.go` (`JudgeModel` reads the same in both locales, as `Model` does).
 - `README.md`, `docs/README.ko.md`, `CHANGELOG.md`, the three skill sources and their Codex and Gemini template copies, the regenerated TUIUX NPD goldens and recapture section 96.
 
 ## Related SPECs

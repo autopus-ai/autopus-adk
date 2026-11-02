@@ -20,7 +20,7 @@ Then the reviewer request of claude carries `--model claude-fable-5-1 --effort m
 And with judge codex, `judge_model: gpt-6-luna`, `judge_effort: high` the judge argv carries `-m gpt-6-luna` and `model_reasoning_effort="high"` with `ModelPolicy` pinned, while the codex reviewer argv keeps its own values
 And with judge gemini on agy and `judge_model: gemini-3.1-pro-high` the judge argv appends `--model gemini-3.1-pro-high` and the reviewer argv has no `--model`
 And with R3, judge claude, `judge_model: anthropic/claude-opus-5-5`, `judge_effort: max` the judge request's `Config.Model` is `anthropic/claude-opus-5-5:max` and the reviewer's stays `anthropic/claude-fable-5-1:max`
-And with no `judge_model`, or with `--judge codex` while the key names claude's model, the judge config is exactly the reviewer config, as before (tests `TestSpecReviewJudgeModel_JudgeRequestCarriesItsModel`, `TestSpecReviewJudgeModel_AssemblyPerBackend`, `TestSpecReviewJudgeModel_AbsentOrOtherJudgeKeepsTheReviewerConfig`).
+And with no `judge_model`, or with `--judge codex` while the key names claude's model, the judge config is exactly the reviewer config, as before, and without the key the receipt's judge object holds no `model` or `effort` key (tests `TestSpecReviewJudgeModel_JudgeRequestCarriesItsModel`, `TestSpecReviewJudgeModel_AssemblyPerBackend`, `TestSpecReviewJudgeModel_AbsentOrOtherJudgeKeepsTheReviewerConfig`).
 
 ### S3: AC-JM-003 - A judge model the backend cannot run is refused before any call
 Priority: Must
@@ -47,7 +47,8 @@ Given RL with judge claude, `judge_model: claude-opus-5-5`, `judge_effort: high`
 When the plan block is printed and a review writes its receipt
 Then the expected stdout of the block holds `  judge: claude (always) — spec.review_gate.judge` followed by `  judge model: claude-opus-5-5 · high — spec.review_gate.judge_model`, and the receipt's judge holds `"model": "claude-opus-5-5"` and `"effort": "high"`
 And with `--judge codex` the block reads `  judge model: codex의 리뷰어 model — spec.review_gate.judge_model은 judge claude에만 씁니다` and the receipt's judge has neither field
-And without `judge_model` the block has no `judge model:` line and the receipt has neither field (tests `TestSpecReviewJudgeModel_PlanLine`, `TestSpecReviewJudgeModel_ReceiptFields`).
+And without `judge_model` the block has no `judge model:` line and the receipt has neither field
+And with claude on the OMP backend, each of `judge_model: anthropic/claude-opus-5-5` with `judge_effort: max`, `judge_model: anthropic/claude-opus-5-5:max` alone, and `judge_model: anthropic/claude-opus-5-5:max` with `judge_effort: max` gives the plan line `  judge model: anthropic/claude-opus-5-5:max — spec.review_gate.judge_model`, the receipt's `"model": "anthropic/claude-opus-5-5"` and `"effort": "max"`, and the judge request's `Config.Model` `anthropic/claude-opus-5-5:max` (tests `TestSpecReviewJudgeModel_PlanLine`, `TestSpecReviewJudgeModel_ReceiptFields`, `TestSpecReviewJudgeModel_OMPFormsNormalize`).
 
 ### S5: AC-JM-005 - The command sets, changes, and clears the judge model
 Priority: Must
@@ -66,11 +67,12 @@ Priority: Must
 Given R3 with English text
 When `judge claude --effort max`, `judge none --model x`, `judge claude --model default --effort max`, `judge claude --model anthropic/claude-opus-9`, and `judge claude --model x` over a `judge_model: ${JUDGE_MODEL}` file run
 Then each exits 1 with `--effort needs --model`, `judge none takes no judge model`, `--model default takes no --effort`, `The installed OMP catalog does not attest claude judge model anthropic/claude-opus-9 (accepted: anthropic/claude-fable-5-1 (high, low, max, medium), anthropic/claude-opus-5-5 (high, max))`, and `judge_model of spec.review_gate comes from an environment variable; this tab leaves it: ${JUDGE_MODEL}`, and writes nothing
-And `auto quality review show` prints `spec.review_gate.judge_model = anthropic/claude-opus-5-5` and `spec.review_gate.judge_effort = max` right after the judge line, `--json` carries `"judge_model"` and `"judge_effort"` with those values, and a file without the keys prints and serializes exactly as before (tests `TestQualityReviewJudge_Refusals`, `TestQualityReviewJudge_ShowListsTheJudgeModel`).
+And `auto quality review show` prints `spec.review_gate.judge_model = anthropic/claude-opus-5-5` and `spec.review_gate.judge_effort = max` right after the judge line, `--json` carries `"judge_model"` and `"judge_effort"` with those values, and a file without the keys prints and serializes exactly as before
+And for `judge_model: anthropic/claude-opus-5-5:max` with `judge_effort: max`, show prints both keys as written while the menu summary ends `judge claude (anthropic/claude-opus-5-5:max)` (tests `TestQualityReviewJudge_Refusals`, `TestQualityReviewJudge_ShowListsTheJudgeModel`, `TestReviewJudgeModel_InlineThinkingShowsOnce`).
 
 ### S7: AC-JM-007 - The tab picks the judge model of the kept judge
 Priority: Must
-Given RL on disk with the Korean session and claude on PATH
+Given RL on disk with the Korean session and claude on PATH, a file that sets no judge model key, so the new option appears although the keys are absent (outside the byte identity of the Outcome Lock)
 When the operator keeps participation and models, chooses `claude — judge model 고르기` (option 4), `claude-opus-5-5`, and effort `high`, skips the live check, and applies
 Then the judge select reads `judge \n1. 그대로 — claude\n2. codex\n3. gemini\n4. claude — judge model 고르기\nEnter`, the model select `claude judge model \n1. 그대로 — 리뷰어 model과 같음\n2. claude-fable-5-1\n3. claude-opus-5-5\n4. claude-sonnet-5-5\n5. claude-haiku-4-5\nEnter`, and the effort select `claude judge effort \n1. low\n2. medium\n3. high\n4. xhigh\n5. max\nEnter`
 And the preview lists `  spec.review_gate.judge_model 리뷰어 model → claude-opus-5-5` and `  spec.review_gate.judge_effort 없음 → high`, the note, and the judge cell `judge (claude-opus-5-5 · high) *`
@@ -95,7 +97,7 @@ Then it prints `spec.review_gate의 judge_model 값이 환경 변수라 이 탭�
 Priority: Must
 Given the branch
 When the documents and the change set are read
-Then `auto quality --help`, `auto quality review --help`, `README.md`, `docs/README.ko.md`, and the CHANGELOG's unreleased section each name `spec.review_gate.judge_model`, `judge_effort`, and `SPEC-JUDGEMODEL-001`; the three skill sources name `judge_model`; and no path under `.claude/`, `.codex/`, `.gemini/`, `.opencode/`, `.omp/`, or `.agents/` changed (test `TestJudgeModelDocs`; scope by `git diff --name-only origin/main`).
+Then `auto quality --help`, `auto quality review --help`, `README.md`, `docs/README.ko.md`, and the CHANGELOG's unreleased section each name `spec.review_gate.judge_model`, `judge_effort`, and `SPEC-JUDGEMODEL-001`; the three skill sources name `judge_model`; every path `git diff --name-only origin/main` lists is in Module ownership, the test files of Generated And Changed Surfaces included; and no path under `.claude/`, `.codex/`, `.gemini/`, `.opencode/`, `.omp/`, or `.agents/` changed (test `TestJudgeModelDocs`; scope by `git diff --name-only origin/main` against Module ownership).
 
 ## Oracle Acceptance Notes
 
