@@ -19,14 +19,6 @@ func (d *SpecDocument) IsLean() bool {
 	return d != nil && d.Profile == ProfileLean
 }
 
-// leanRequiredSections is the section floor of a lean SPEC set.
-var leanRequiredSections = map[string][]string{
-	"spec.md":       {"## Outcome Boundary", "## Requirements", "## Traceability Matrix"},
-	"plan.md":       {"## Tasks"},
-	"acceptance.md": {"## Test Scenarios"},
-	"research.md":   {"## Outcome Lock", "## Reviewer Brief"},
-}
-
 // validateProfile refuses an unknown profile and a lean profile whose declared
 // change class is missing or high risk, so a feature, multi-domain or
 // security/data SPEC can never opt out of the full set.
@@ -85,11 +77,12 @@ func validateLeanSurface(doc *SpecDocument, kind gates.ChangeKind) []ValidationE
 }
 
 // validateLeanSpecSet is the strict preflight of a lean SPEC set. The checks
-// that remain are the ones a low-risk change still needs: required sections,
-// unresolved placeholders, traceability rows and concrete acceptance.
-func validateLeanSpecSet(files map[string]string) []ValidationError {
+// that remain are the ones a low-risk change still needs: the lean section
+// floor of the review policy, unresolved placeholders, traceability rows and
+// concrete acceptance.
+func validateLeanSpecSet(files map[string]string, required map[string][]string) []ValidationError {
 	var errs []ValidationError
-	errs = append(errs, validateSectionSet(files, leanRequiredSections)...)
+	errs = append(errs, validateSectionSet(files, required)...)
 	errs = append(errs, validateAuthoringPlaceholders(files)...)
 	errs = append(errs, validateLeanTraceability(files)...)
 	errs = append(errs, validateCompletionDebtSeparation(files["research.md"])...)

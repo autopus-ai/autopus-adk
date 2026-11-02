@@ -112,6 +112,7 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 
 		// Failed or judge responses never contribute to reviewer supermajority.
 		reviews, reviewerResponses := parseSpecReviewerResults(result, p.specID, revision, priorFindings)
+		applySpecReviewChecklistPolicy(reviews, p.specDir, doc)
 
 		// SPEC-SPECREV-001 REQ-VERD-1: build per-provider health from orchestra.
 		configuredNames := specReviewConfiguredNames(p.configuredNames, p.providers)
@@ -155,9 +156,10 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 			ProviderStatuses:  providerStatuses,
 		}
 		// Judge precedence is fixed: a valid judge replaces verdict/findings;
-		// a judge PASS that accepted a non-hard-blocking finding defers it, so
-		// judge acceptance and the runtime blocker matrix agree; then verify
-		// scope lock and deterministic findings run before resolveReviewVerdict.
+		// its accepted findings go through the same disposition rules as a
+		// reviewer's, so a judge PASS defers only advisory findings and never
+		// waives a blocking one (SPEC-REVIEWPOLICY-001 REQ-RP-POL-04); then
+		// verify scope lock and deterministic findings run before resolveReviewVerdict.
 		// resolveReviewVerdict may preserve REVISE because of a reviewer
 		// checklist FAIL, but it never turns a judge PASS into REVISE from the
 		// reviewer checklist alone.

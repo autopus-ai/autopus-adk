@@ -72,6 +72,9 @@
 2. 저위험 클래스(앞의 네 개)이고 기존 SPEC이 이미 그 결과를 담고 있으면 `auto spec change <SPEC-ID> --class <class> --ac <AC-ID,...> --surface <path,...> --verify "<command>" [--json]`을 실행하고 plan 파이프라인을 종료합니다. 생성된 `change.md`를 보고하고 `@auto go <SPEC-ID>`로 넘깁니다.
 3. 이 명령이 `escalate_to_full_spec`을 보고하면 그 이유를 기록하고 아래 전체 파이프라인을 계속합니다.
 4. 저위험 클래스인데 해당 결과를 담은 SPEC이 없으면 `LEAN = true`, `SKIP_PRD = true`로 두고 아래 파이프라인을 lean profile로 진행합니다. spec-writer는 spec.md frontmatter에 `profile: lean`, `change_class: <class>`, `surface: <변경할 경로>`를 쓰고 lean 섹션 하한만 작성하며, `auto spec review`는 리뷰어 1개, judge 없이 실행됩니다. `auto spec validate`가 surface를 경로 분류기로 판정하고, `auto spec gates`는 실제 변경이 surface를 벗어나면 full profile로 승격합니다.
+   - Lean floor: spec.md `## Outcome Boundary`, `## Requirements`, `## Traceability Matrix`; plan.md `## Tasks`; acceptance.md `## Test Scenarios`; research.md `## Outcome Lock`, `## Reviewer Brief`.
+   - Lean allowed omissions: plan.md `## Implementation Strategy`, `## Visual Planning Brief`, `## Feature Completion Scope`, `## Risk-First Integration Probe`; acceptance.md `## Oracle Acceptance Notes`; research.md `## Visual Planning Brief`, `## Semantic Invariant Inventory`, `## Minimality Decision Matrix`, `## Feature Coverage Map`, `## Completion Debt`, `## Evolution Ideas`, `## Reference Discipline`, `## Self-Verify Summary`.
+   - 이후 단계가 요구하는 섹션 중 lean allowed omissions는 full profile에만 적용됩니다. lean SPEC에는 이 변경에 필요할 때만 추가하고 체크리스트를 채우려고 추가하지 않습니다. 리뷰는 이 생략을 finding으로 다루지 않고 `Q-COMP-08`, `Q-COMP-07`, `Q-CORR-04`를 N/A로 답하며, 빠진 인수 조건·보안·데이터 손실 문제는 lean에서도 차단합니다.
 5. 클래스가 `feature`, `multi_domain`, `security_or_data`이면 전체 파이프라인을 진행합니다. 고위험 작업은 광범위한 구현 전에 실행 가능한 `## Risk-First Integration Probe` 행을 최소 하나 요구합니다.
 
 위험도는 파일 수로 결정하지 않습니다. auth/billing/data/migration/security 경로, production code가 두 개 module root에 걸치는 경우, 새 exported API/contract는 각각 단독 승격 사유입니다. 안전 게이트는 두 경로에서 동일하게 유지됩니다: `security`, `validation`, `data_loss`, `deterministic_oracle`, UI surface의 `accessibility`/`ux_verification`, race/coverage 임계값.
@@ -126,6 +129,7 @@ auto orchestra plan '{SHELL_ESCAPED_FROZEN_CONTEXT}' --no-persist --format json
 
 ### Step 2: spec-writer 실행
 
+- LEAN이면 lean floor만 작성합니다. 아래 항목 중 Lean allowed omissions에 속한 섹션은 lean SPEC에 요구하지 않습니다.
 - `--from-idea`가 있으면 `.autopus/brainstorms/BS-{ID}.md`를 찾아 컨텍스트에 포함합니다.
 - BS 파일에 `## Outcome Lock`이 있으면 이를 Primary SPEC의 scope contract로 사용합니다. mandatory requirements는 요구사항으로, completion evidence는 Must acceptance와 sync 완료 판정 근거로, explicit non-goals는 reviewer scope 제약으로 옮깁니다.
 - BS 파일에 `## Evolution Ideas`가 있으면 `research.md`에 advisory로만 보존하고 SPEC ID, task ID, acceptance ID, sibling SPEC, follow-up SPEC로 자동 승격하지 않습니다.
@@ -162,7 +166,7 @@ auto orchestra plan '{SHELL_ESCAPED_FROZEN_CONTEXT}' --no-persist --format json
 - research.md에는 `## Outcome Lock`, `## Completion Debt`, `## Evolution Ideas`, 필요 시 `## Sibling SPEC Decision`을 작성합니다.
 - plan.md 또는 research.md에는 `## Visual Planning Brief`를 작성합니다. 워크플로우/상태 전이에는 Mermaid `flowchart`, 화면/UX에는 저충실도 wireframe, UI가 없는 CLI/API/백엔드 작업에는 sequence/data-flow/command-flow 다이어그램을 사용합니다.
 - `spec-writer`는 `plan.md`에 `## Risk-First Integration Probe`를 작성합니다. 1-3개 행에 `assumption_id`, `class`, `risk`, `boundary`, `input`, `oracle`, `isolation`, `status`, `reason`, `evidence`를 채우고, 가장 위험한 implementation assumption을 직접 이름 붙입니다. 정규 예시는 실제 제한 권한으로 composition root를 부팅하는 경로, browser -> BFF -> API 최소 round trip, logout/cancel/account switch 같은 in-flight 상태 경계입니다.
-- 모든 plan 진술은 `requirement_invariant` / `implementation_assumption` / `verified_fact`로 분류합니다. `status`는 `PASS` / `FAIL` / `not-run`이며, `PASS`는 실제 실행 evidence ref가 있을 때만 기록하고 `not-run`은 반드시 reason을 남기며 PASS로 취급되지 않습니다. doc-only 또는 low-risk SPEC도 섹션을 유지하고 `not-run` 한 행과 `no integration boundary` 이유를 남깁니다.
+- 모든 plan 진술은 `requirement_invariant` / `implementation_assumption` / `verified_fact`로 분류합니다. `status`는 `PASS` / `FAIL` / `not-run`이며, `PASS`는 실제 실행 evidence ref가 있을 때만 기록하고 `not-run`은 반드시 reason을 남기며 PASS로 취급되지 않습니다. doc-only 또는 low-risk full profile SPEC도 섹션을 유지하고 `not-run` 한 행과 `no integration boundary` 이유를 남깁니다. lean profile SPEC은 이 섹션을 생략합니다(lean allowed omission).
 - 구현자가 요구사항보다 넓은 제약(신규 ACL, 호환성 제한, 보안 제한)을 도입하면 scope expansion으로 표시하고 fan-out 전에 기존 런타임에서 probe합니다. 이 표는 `Phase 1.9: Risk-First Probe Gate`가 소비하며, 각 gate는 `required | reusable | not_applicable | blocked`와 이유를 기록합니다. 이 값은 `auto spec gates`가 쓴 `{SPEC_DIR}/gate-applicability.json`에서만 나오고 `reusable`은 exact-input evidence가 일치할 때 classifier만 부여합니다.
 - UX intent wireframe gate: screens, user journeys, navigation/IA, layout, visual hierarchy, component state, interaction, copy, accessibility, responsive behavior, design-system tokens/primitives, or frontend UI files가 관련되면 intent-confirmation wireframe을 이어받고, 사용자가 confirm or adjust 했는지와 `wireframe intent: assumed` / `wireframe intent: deferred` 리스크를 기록합니다.
 - Wireframe은 intent probe이자 communication aid이며 final design이 아닙니다. Outcome Lock, mandatory requirements, acceptance seeds에 연결된 항목만 required scope입니다.
@@ -199,8 +203,8 @@ auto spec review {SPEC-ID} --strategy {STRATEGY}
 - [ ] Step 1.5: PRD 생성 완료 또는 의도적 skip
 - [ ] Step 1.75: explicit top-level `--multi`이면 planning advisory를 정확히 한 번 처리하고 typed receipt를 재사용하거나 graceful fallback 완료; 아니면 미실행
 - [ ] Step 2: spec-writer 실행 완료, Outcome Lock/Feature Coverage Map/Completion Debt 확인, greenfield면 Technology Stack Decision 확인, primary/sibling SPEC-ID 추출
-- [ ] Step 2: Visual Planning Brief에 flowchart, wireframe, sequence/data-flow 중 적절한 설명 자료 포함
-- [ ] Step 2: `plan.md`에 `## Risk-First Integration Probe` 표 작성 완료(1-3개 행, `not-run`은 이유 포함)
+- [ ] Step 2: Visual Planning Brief에 flowchart, wireframe, sequence/data-flow 중 적절한 설명 자료 포함 (LEAN이면 [INTENDED SKIP: lean allowed omission])
+- [ ] Step 2: `plan.md`에 `## Risk-First Integration Probe` 표 작성 완료(1-3개 행, `not-run`은 이유 포함) (LEAN이면 [INTENDED SKIP: lean allowed omission])
 - [ ] Step 2.5: `auto spec validate {SPEC_DIR} --strict` 실행 완료, deterministic authoring preflight 오류 수정 완료
 - [ ] Step 3: 리뷰 게이트 여부 판단 완료
 - [ ] Step 4: review 실행 완료 또는 의도적 skip
@@ -307,7 +311,7 @@ Step 1에서 발견한 실제 코드 엔티티를 기반으로 요구사항을 �
 
 ### Step {{if .IsFullMode}}5.5{{else}}3.5{{end}}: 기능 커버리지 검증
 
-작성된 SPEC 문서 세트가 Outcome Lock 기준으로 닫히는지 확인합니다.
+작성된 SPEC 문서 세트가 Outcome Lock 기준으로 닫히는지 확인합니다. LEAN이면 lean floor만 작성합니다. 아래 항목 중 Lean allowed omissions에 속한 섹션은 lean SPEC에 요구하지 않습니다.
 
 - `research.md`의 `## Semantic Invariant Inventory`가 원 요청의 semantic invariant를 보존하는지 확인합니다.
 - `research.md`의 `## Minimality Decision Matrix`가 actual need, existing code/helper/pattern, stdlib/native, existing dependency, new dependency or abstraction, minimum sufficient verification 판단을 기록하는지 확인합니다.
@@ -344,7 +348,7 @@ Then  [예상 결과]
 
 Steps 1{{if .IsFullMode}}-3{{end}}에서 발견한 모든 내용을 저장합니다.
 이 파일은 세션 간 컨텍스트를 유지하는 핵심 아티팩트입니다.
-반드시 `## Outcome Lock`, `## Semantic Invariant Inventory`, `## Minimality Decision Matrix`, `## Feature Coverage Map`, `## Completion Debt`, `## Evolution Ideas`, `## Reference Discipline`, `## Reviewer Brief`를 포함합니다.
+반드시 `## Outcome Lock`, `## Semantic Invariant Inventory`, `## Minimality Decision Matrix`, `## Feature Coverage Map`, `## Completion Debt`, `## Evolution Ideas`, `## Reference Discipline`, `## Reviewer Brief`를 포함합니다. LEAN이면 lean floor만 작성합니다. 아래 항목 중 Lean allowed omissions에 속한 섹션은 lean SPEC에 요구하지 않습니다.
 `## Minimality Decision Matrix`는 새 dependency/new abstraction 증거와 `minimum sufficient verification` 결정을 포함합니다.
 
 {{if .IsFullMode}}

@@ -34,7 +34,9 @@ Do not author a four-document SPEC set for work that qualifies for the compact c
 A low-risk class (`test_only`, `docs_only`, `small_ui`, `bugfix_existing_contract`) with no SPEC covering the outcome gets a lean SPEC set, not the full one. Use it only when the caller passes the lean authoring profile or the class is plainly low risk; any escalation trigger (auth/billing/data/migration/security path, two module roots, new exported API or contract) means the full profile.
 
 - spec.md frontmatter carries `profile: lean`, `change_class: <class>`, and `surface: <path, path>`: the files or directories the change will touch. Read the code first so the surface is real; `auto spec validate` classifies it with the path rules `auto spec gates` applies to the real change set, and work that leaves it is escalated to the full profile.
-- Write only: spec.md `## Outcome Boundary`, `## Requirements`, `## Traceability Matrix`; plan.md `## Tasks`; acceptance.md `## Test Scenarios` with concrete expected outputs; research.md `## Outcome Lock`, `## Reviewer Brief`. Skip the work-procedure sections below (3.25 to 3.35, Visual Planning Brief, Self-Verify Summary) unless this change needs one.
+- Write only the lean floor, with concrete expected outputs in acceptance. Lean floor: spec.md `## Outcome Boundary`, `## Requirements`, `## Traceability Matrix`; plan.md `## Tasks`; acceptance.md `## Test Scenarios`; research.md `## Outcome Lock`, `## Reviewer Brief`.
+- Lean allowed omissions: plan.md `## Implementation Strategy`, `## Visual Planning Brief`, `## Feature Completion Scope`, `## Risk-First Integration Probe`; acceptance.md `## Oracle Acceptance Notes`; research.md `## Visual Planning Brief`, `## Semantic Invariant Inventory`, `## Minimality Decision Matrix`, `## Feature Coverage Map`, `## Completion Debt`, `## Evolution Ideas`, `## Reference Discipline`, `## Self-Verify Summary`.
+- Steps 3 to 3.35, step 4's full templates, and step 5's Self-Verify Summary ask for these sections on the full profile only. Add one to a lean SPEC only when this change needs it, never to satisfy a checklist: the review treats their absence as allowed and answers the checklist items that only check them (Q-COMP-08, Q-COMP-07, Q-CORR-04) N/A. Missing acceptance, security, and data-loss gaps still block a lean SPEC.
 - Keep the set to about 150 lines. Needing more is a sign the change is not low risk: switch to the full profile and record why.
 - `auto spec validate --strict` still runs and refuses a lean profile with a high-risk or missing class, a missing surface, or a surface that reads as higher risk than the class.
 
@@ -172,7 +174,7 @@ Required ladder rows:
 - 각 행은 `assumption_id`, `class`, `risk`, `boundary`, `input`, `oracle`, `isolation`, `status`, `reason`, `evidence`를 채웁니다.
 - 모든 plan 진술은 `requirement_invariant`, `implementation_assumption`, `verified_fact` 중 하나로 분류합니다. `verified_fact`는 실제 실행으로 확인한 사실에만 사용하고 evidence ref를 함께 남깁니다.
 - `status`는 `PASS`, `FAIL`, `not-run` 중 하나입니다. `PASS`는 실제 실행 evidence ref가 있을 때만 기록하고, `not-run`은 반드시 reason을 남기며 PASS로 승격되지 않습니다.
-- doc-only 또는 low-risk SPEC도 섹션을 유지하고 `not-run` 한 행과 `no integration boundary` 이유를 남깁니다.
+- doc-only 또는 low-risk full profile SPEC도 섹션을 유지하고 `not-run` 한 행과 `no integration boundary` 이유를 남깁니다. lean profile SPEC은 이 섹션을 생략합니다(lean allowed omission).
 - 구현자가 요구사항보다 넓은 제약(신규 ACL, 호환성 제한, 보안 제한)을 도입하면 그것은 scope expansion입니다. 요구사항으로 승격하지 말고 scope expansion으로 표시한 뒤 fan-out 전에 기존 런타임에서 probe하도록 행을 추가합니다.
 - 각 phase gate는 handoff에 `required | reusable | not_applicable | blocked` 적용 여부와 이유를 기록합니다. 이 값은 `auto spec gates`가 쓴 `{SPEC_DIR}/gate-applicability.json`에서만 나오며, `reusable`은 exact-input evidence receipt가 일치할 때 classifier가 부여하는 값이라 에이전트가 스스로 선언하지 않습니다. security, validation, data_loss, deterministic_oracle gate는 `not_applicable`이 될 수 없고, accessibility와 ux_verification은 변경 집합에 UI 경로가 없을 때만 classifier 판단으로 `not_applicable`이 됩니다.
 
@@ -327,7 +329,7 @@ These are optional improvements and do not block sync completion.
 ### 5. 자체 검증 루프
 
 1. `.gemini/rules/autopus/spec-quality.md`의 체크리스트를 읽고 `spec.md`, `plan.md`, `acceptance.md`, `research.md`에 적용합니다.
-2. 판정은 `research.md`의 `## Self-Verify Summary`에 `Q-* | status | attempt | files | reason` 형식으로 남기고, 재검증하면 최신 상태로 갱신합니다.
+2. 판정은 `research.md`의 `## Self-Verify Summary`에 `Q-* | status | attempt | files | reason` 형식으로 남기고, 재검증하면 최신 상태로 갱신합니다. lean profile이면 체크리스트는 적용하되 `## Self-Verify Summary`는 쓰지 않습니다(lean allowed omission). 남은 FAIL은 아래 4번처럼 `## Open Issues`에 남깁니다.
 3. FAIL은 증상이 보인 파일만 고치지 말고 원인 차원이 요구하는 모든 파일을 수정합니다. `[NEW]` 마커가 붙은 planned addition은 코드 정합성 FAIL 대상이 아니며, 기존 참조만 실제 경로·이름을 검증합니다.
 4. 체크리스트는 최대 2회까지 다시 적용하고, 남은 FAIL은 `spec.md` 말미 `## Open Issues`에 `Q-* | category | scope | attempt | reason` 형식으로 기록합니다.
 5. 4개 파일 저장 후 `auto spec validate {SPEC_DIR} --strict`를 실행합니다(로컬 source tree에서는 `go run ./cmd/auto spec validate {SPEC_DIR} --strict`도 가능). deterministic finding이 남아 있으면 provider review로 넘기지 않고 먼저 수정합니다.

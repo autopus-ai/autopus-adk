@@ -172,3 +172,10 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 기록: 6절과 같은 방법이다(#247이 들어간 main 위로 rebase한 branch tip에서 writer, stdout golden 되돌림).
 - 차이: `.claude/skills/agent-pipeline/references/delegation.md`·`verification.md`, `.claude/skills/worktree-isolation/SKILL.md`, `.codex/skills/codex-agent-pipeline/references/delegation.md`·`verification.md`, `.codex/skills/codex-worktree-isolation/SKILL.md`의 checksum, 두 manifest의 그 entry, 두 journal의 `after_checksum`, update 흐름의 backup 사본. 다른 경로는 바뀌지 않았다.
 - 검증: 두 test가 이 golden으로 통과한다.
+
+## 93. SPEC 리뷰 정책 재기록 (feat/spec-review-policy-budget, 2026-11-02)
+
+- 원인: SPEC-REVIEWPOLICY-001 REQ-RP-POL-09가 spec-writer agent, spec-review 스킬, spec-quality 체크리스트, auto-plan 워크플로(Claude·Codex·Gemini)에 lean floor와 lean allowed omissions 줄을 더하고, spec-review 스킬에 리뷰어·judge·runtime이 공유하는 판정 규칙을 적었다. Codex·Gemini 템플릿은 `go run ./cmd/generate-templates`로 다시 만들었다.
+- 기록: 6절과 같은 방법이다(이 branch tip에서 writer, stdout golden 되돌림).
+- 차이: `.claude/agents/autopus/spec-writer.md`, `.claude/skills/auto-plan`·`spec-review`, `.claude/hooks/autopus/conditional/spec-quality.md`, `.codex/agents/spec-writer.toml`, `.codex/skills/codex-auto-plan`·`codex-spec-review`의 checksum, 두 manifest의 그 entry, 두 journal의 `after_checksum`, update 흐름의 backup 사본. 다른 경로는 바뀌지 않았다.
+- 검증: 두 test가 이 golden으로 통과한다.

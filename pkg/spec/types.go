@@ -98,6 +98,11 @@ const (
 	FindingCategoryFeasibility  FindingCategory = "feasibility"
 	FindingCategoryStyle        FindingCategory = "style"
 	FindingCategorySecurity     FindingCategory = "security"
+	// FindingCategoryContract and FindingCategoryDataLoss are impact
+	// categories the blocker matrix treats like correctness: they block at
+	// any severity (pkg/spec/blocking.go).
+	FindingCategoryContract FindingCategory = "contract"
+	FindingCategoryDataLoss FindingCategory = "data_loss"
 )
 
 // ReviewMode determines the review phase behavior.

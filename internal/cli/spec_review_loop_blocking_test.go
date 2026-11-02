@@ -108,11 +108,12 @@ func TestRunSpecReviewLoop_SuggestionSecurityFindingBlocksWithSecurityPolicy(t *
 	assert.Equal(t, spec.BlockingPolicyOpenSecurity, result.BlockingReasons[0].Policy)
 }
 
-// (a) A judge PASS that accepts a non-hard-blocking finding is an explicit
-// non-blocking disposition, so the runtime must converge instead of returning an
-// unexplained REVISE behind a judge PASS.
-func TestRunSpecReviewLoop_JudgePassWithAcceptedMinorConverges(t *testing.T) {
-	result, _ := runJudgeMergeLoop(t, validStructuredJudgeOutput("PASS", "minor"), nil)
+// (a) A judge PASS that accepts an advisory finding converges instead of
+// returning an unexplained REVISE behind a judge PASS. Since
+// SPEC-REVIEWPOLICY-001 only an advisory finding qualifies: an accepted
+// blocking finding stays open (TestRunSpecReviewLoop_JudgePassCannotWaiveBlockingFinding).
+func TestRunSpecReviewLoop_JudgePassWithAcceptedAdvisoryConverges(t *testing.T) {
+	result, _ := runJudgeMergeLoop(t, judgeOutputAccepting("PASS", "minor", "style"), nil)
 
 	assert.Equal(t, spec.VerdictPass, result.Verdict)
 	assert.Empty(t, result.BlockingReasons,

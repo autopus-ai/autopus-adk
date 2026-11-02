@@ -28,6 +28,13 @@ Also prefer the draft's `## Outcome Lock`, `## Completion Debt`, `## Evolution I
 Do not create or request follow-up/sibling SPECs from Evolution Ideas. A sibling SPEC request is valid only when the draft includes a `## Sibling SPEC Decision` with an allowed reason and bounded ownership.
 If the checklist was skipped or obviously not reflected in the draft, call that out as a completeness or style finding before continuing.
 
+A `profile: lean` SPEC whose change class and surface qualify (`auto spec validate` accepts the profile) is held to the lean floor only, and its omissions are not findings:
+
+- Lean floor: spec.md `## Outcome Boundary`, `## Requirements`, `## Traceability Matrix`; plan.md `## Tasks`; acceptance.md `## Test Scenarios`; research.md `## Outcome Lock`, `## Reviewer Brief`.
+- Lean allowed omissions: plan.md `## Implementation Strategy`, `## Visual Planning Brief`, `## Feature Completion Scope`, `## Risk-First Integration Probe`; acceptance.md `## Oracle Acceptance Notes`; research.md `## Visual Planning Brief`, `## Semantic Invariant Inventory`, `## Minimality Decision Matrix`, `## Feature Coverage Map`, `## Completion Debt`, `## Evolution Ideas`, `## Reference Discipline`, `## Self-Verify Summary`.
+- Do not report a missing allowed omission, and do not treat a missing Self-Verify Summary as a skipped checklist. Answer Q-COMP-08, Q-COMP-07, and Q-CORR-04 N/A while the section they check is absent; the CLI records such a FAIL as N/A. Missing acceptance, security, and data-loss gaps still block a lean SPEC.
+- A `profile: lean` SPEC with a high-risk or missing class, a missing surface, or a surface that reads above its class is reviewed against the full profile.
+
 ### Step 1: Load SPEC
 
 Load `.autopus/specs/SPEC-{ID}/spec.md` and extract requirements.
@@ -54,10 +61,17 @@ Run the review via the Orchestra engine with configured providers (claude, gemin
 
 ### Step 4: Verdict
 
+The review answers one question: can implementation start from this SPEC? The reviewer prompt, the judge, and the runtime apply the same disposition rules:
+
+- Blocking at any severity: an open or regressed finding in category correctness, contract, data_loss, or security, and any escape-hatch finding.
+- Blocking: any other critical or major finding, and a minor finding outside the style, suggestion, and improvement categories.
+- Advisory: severity suggestion outside the impact categories, and style, suggestion, or improvement findings below major. Wording, structure, and choices delegated to the implementer are reported as suggestion.
+- A judge PASS never waives an accepted blocking finding; a judge clears a finding only by rejecting it or accepting it at an advisory severity.
+
 Parse results and determine the final verdict:
-- **PASS**: SPEC approved; promote status to "approved" only when observation is complete and the provider quorum is met
-- **REVISE**: Revision required, return with list of findings
-- **REJECT**: Fundamental redesign required
+- **PASS**: nothing blocks; promote status to "approved" only when observation is complete and the provider quorum is met
+- **REVISE**: at least one finding or failing checklist item blocks and the design can be fixed in place; return with list of findings
+- **REJECT**: a reviewer or the judge states a fundamental design problem that requires redesign
 
 A PASS produced under partial observation is a degraded PASS and does not auto-promote status. The verdict is annotated with a degraded reason:
 - `partial_doc_context`: a required auxiliary document was injected below 100 percent coverage because the document set exceeded the total context budget
