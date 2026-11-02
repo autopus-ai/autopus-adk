@@ -26,7 +26,7 @@ func TestStatusEvidence_JSONAndTextAgree(t *testing.T) {
 	f.commit("baseline")
 	f.recordBaseline("SPEC-VER-002", f.completedRun("SPEC-VER-002"))
 	f.stoppedRun("SPEC-RUN-001")
-	fingerprint, err := specRequirementsFingerprint(draftDir)
+	fingerprint, err := specDocumentsFingerprint(draftDir)
 	require.NoError(t, err)
 	writeReviewReceipt(t, f, "SPEC-DRAFT-004", fingerprint, time.Now())
 	f.write(".autopus/specs/SPEC-DRAFT-004/review-session.json",

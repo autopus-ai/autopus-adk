@@ -30,50 +30,6 @@ var (
 	errTreeHidesChanges = errors.New("git hides changes to tracked files")
 )
 
-// verificationSpecDocuments are the SPEC documents a run is bound to, the same
-// four the pipeline snapshot hashes.
-var verificationSpecDocuments = []string{"spec.md", "plan.md", "acceptance.md", "research.md"}
-
-// specRequirementsFingerprint hashes the SPEC documents without their status
-// lines: review promotion and sync rewrite those without changing a
-// requirement, and a status edit must not make verified code look stale.
-func specRequirementsFingerprint(specDir string) (string, error) {
-	hash := sha256.New()
-	for _, name := range verificationSpecDocuments {
-		body, err := os.ReadFile(filepath.Join(specDir, name))
-		if err != nil {
-			if errors.Is(err, fs.ErrNotExist) && name != "spec.md" {
-				continue
-			}
-			return "", err
-		}
-		_, _ = hash.Write([]byte(name))
-		_, _ = hash.Write([]byte{0})
-		_, _ = hash.Write([]byte(withoutStatusLines(string(body))))
-		_, _ = hash.Write([]byte{0})
-	}
-	return "sha256:" + hex.EncodeToString(hash.Sum(nil)), nil
-}
-
-// withoutStatusLines drops the status lines of a document's header, which is
-// everything before its first H2 heading, frontmatter included.
-func withoutStatusLines(body string) string {
-	lines := strings.Split(body, "\n")
-	kept := make([]string, 0, len(lines))
-	header := true
-	for _, line := range lines {
-		if strings.HasPrefix(line, "## ") {
-			header = false
-		}
-		trimmed := strings.ToLower(strings.TrimSpace(line))
-		if header && (strings.HasPrefix(trimmed, "**status**") || strings.HasPrefix(trimmed, "status:")) {
-			continue
-		}
-		kept = append(kept, line)
-	}
-	return strings.Join(kept, "\n")
-}
-
 // workingTreeDigests returns a digest for every path whose working-tree
 // content differs from base or that is untracked and not ignored, keyed by
 // its path from the repository root. Renames are listed as both sides, an

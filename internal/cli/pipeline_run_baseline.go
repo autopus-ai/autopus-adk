@@ -105,7 +105,7 @@ func newPipelineVerificationBaseline(
 	if err != nil {
 		return pipelineVerificationBaseline{}, fmt.Errorf("read git HEAD: %w", err)
 	}
-	specFingerprint, err := specRequirementsFingerprint(specDir)
+	specFingerprint, err := specDocumentsFingerprint(specDir)
 	if err != nil {
 		return pipelineVerificationBaseline{}, fmt.Errorf("fingerprint SPEC documents: %w", err)
 	}

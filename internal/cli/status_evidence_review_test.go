@@ -33,7 +33,7 @@ func TestStatusEvidence_ReviewFreshnessComparesContent(t *testing.T) {
 	const specID = "SPEC-REV-001"
 	f := newStatusFixture(t)
 	specDir := f.writeSpec(specID, "draft")
-	fingerprint, err := specRequirementsFingerprint(specDir)
+	fingerprint, err := specDocumentsFingerprint(specDir)
 	require.NoError(t, err)
 	// The receipt file is written two hours after finished_at.
 	writeReviewReceipt(t, f, specID, fingerprint, time.Date(2026, 11, 1, 12, 0, 0, 0, time.UTC))

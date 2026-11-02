@@ -70,7 +70,7 @@ func TestPipelineBaseline_StatusLinesDoNotChangeTheSpecFingerprint(t *testing.T)
 		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644))
 	}
 	fingerprint := func() string {
-		value, err := specRequirementsFingerprint(dir)
+		value, err := specDocumentsFingerprint(dir)
 		require.NoError(t, err)
 		return value
 	}

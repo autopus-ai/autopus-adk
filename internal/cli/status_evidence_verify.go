@@ -90,7 +90,7 @@ func checkPipelineVerification(
 		return verification.unknown(statusSingleLine(fmt.Sprintf(
 			"verification baseline belongs to run %s, not the last completed run %s", baseline.RunID, latest.RunID)))
 	}
-	specFingerprint, err := specRequirementsFingerprint(specDir)
+	specFingerprint, err := specDocumentsFingerprint(specDir)
 	if err != nil {
 		return verification.unknown(statusSingleLine("SPEC documents unreadable: " + err.Error()))
 	}

@@ -106,7 +106,7 @@ func readStatusReview(baseDir, specDir string) *statusReview {
 // stale — and cannot prove the SPEC unchanged, so the review is unknown,
 // never fresh. A document that cannot be read is unknown too.
 func reviewFreshness(specDir, recorded string, receiptWritten time.Time) (string, []string) {
-	current, err := specRequirementsFingerprint(specDir)
+	current, err := specDocumentsFingerprint(specDir)
 	if err != nil {
 		return freshnessUnknown, []string{statusSingleLine("SPEC documents unreadable: " + err.Error())}
 	}
@@ -187,7 +187,7 @@ func readStatusReviewFile(path string) ([]byte, fs.FileInfo, error) {
 // document that exists but cannot be examined is an error, not unchanged.
 func specDocumentsModifiedAfter(specDir string, t time.Time) ([]string, error) {
 	var changed []string
-	for _, name := range verificationSpecDocuments {
+	for _, name := range specFingerprintDocuments {
 		info, err := os.Stat(filepath.Join(specDir, name))
 		switch {
 		case errors.Is(err, fs.ErrNotExist) && name != "spec.md":
