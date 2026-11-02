@@ -34,3 +34,73 @@ func reportPipelineResume(w io.Writer, result *pipeline.PipelineResult) {
 		fmt.Fprintf(w, "Pipeline resume: %s\n", note)
 	}
 }
+
+// pipelinePhaseCounts separates the phases a run executed from the phases it
+// restored from its checkpoint (SPEC-STATUSEVIDENCE-001 REQ-SEV-RUN-01).
+type pipelinePhaseCounts struct {
+	Executed int `json:"executed"`
+	Restored int `json:"restored"`
+	Failed   int `json:"failed"`
+	Pending  int `json:"pending"`
+}
+
+// countPipelinePhases counts what this run did with each phase. A completed
+// phase is executed when this run dispatched it and restored when it did not:
+// a restored phase that a routed fix sends again counts as executed.
+func countPipelinePhases(receipt pipeline.OrchestrationRunReceipt) pipelinePhaseCounts {
+	dispatched := dispatchedPipelinePhases(receipt)
+	var counts pipelinePhaseCounts
+	for _, phase := range receipt.Phases {
+		switch {
+		case phase.Status == pipeline.CheckpointStatusDone && dispatched[phase.PhaseID]:
+			counts.Executed++
+		case phase.Status == pipeline.CheckpointStatusDone:
+			counts.Restored++
+		case phase.Status == pipeline.CheckpointStatusFailed:
+			counts.Failed++
+		default:
+			counts.Pending++
+		}
+	}
+	return counts
+}
+
+// dispatchedPipelinePhases are the phases this run sent to its backend. Every
+// dispatch starts with an in-progress transition of attempt one or more; a
+// restore records attempt zero.
+func dispatchedPipelinePhases(receipt pipeline.OrchestrationRunReceipt) map[pipeline.PhaseID]bool {
+	dispatched := map[pipeline.PhaseID]bool{}
+	for _, transition := range receipt.Transitions {
+		if transition.PhaseID != "" && transition.Status == pipeline.CheckpointStatusInProgress && transition.Attempt > 0 {
+			dispatched[transition.PhaseID] = true
+		}
+	}
+	return dispatched
+}
+
+// pipelineCompletionLine is the result line of a completed run.
+func pipelineCompletionLine(result *pipeline.PipelineResult) string {
+	counts := countPipelinePhases(result.Receipt)
+	return fmt.Sprintf("Pipeline complete: %d phases executed, %d restored from checkpoint, %d dispatches",
+		counts.Executed, counts.Restored, result.Receipt.DispatchCount)
+}
+
+// pipelineStopReason names what ended a stopped run: its last failure's
+// decision when that decision ends a run in this terminal state, otherwise
+// the terminal state. A remediate or transport-retry decision never ends a
+// run, so a persistence failure right after one reads partial_preserved.
+func pipelineStopReason(receipt pipeline.OrchestrationRunReceipt) string {
+	if n := len(receipt.Failures); n > 0 {
+		decision := receipt.Failures[n-1].Decision
+		ends := map[pipeline.FailureDecision]pipeline.TerminalState{
+			pipeline.DecisionNoProgress:      pipeline.TerminalBlocked,
+			pipeline.DecisionBlocked:         pipeline.TerminalBlocked,
+			pipeline.DecisionBudgetExhausted: pipeline.TerminalFailedBudget,
+			pipeline.DecisionCancelled:       pipeline.TerminalCancelled,
+		}
+		if terminal, ok := ends[decision]; ok && terminal == receipt.Terminal {
+			return string(decision)
+		}
+	}
+	return string(receipt.Terminal)
+}

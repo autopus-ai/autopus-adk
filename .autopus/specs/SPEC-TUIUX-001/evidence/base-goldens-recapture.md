@@ -198,3 +198,11 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 추가 재기록(R10 커밋): spec-review 스킬에 리뷰 세션 예산(`review-session.json`, `--max-calls`·`--extend-budget`·`--new-session`, `spec.review_gate.budget`) 설명을 더해 다시 기록했다. 차이는 `.claude/skills/spec-review`, `.codex/skills/codex-spec-review`의 checksum과 두 manifest·journal 항목뿐이다.
 - 추가 재기록(.gitignore 커밋): 관리 `.gitignore` 패턴(`gitignorePatterns`)에 `**/.autopus/specs/**/review-session.json`과 `**/.autopus/specs/**/.review-session.lock`을 더해 다시 기록했다. 차이는 다섯 NPD의 `.gitignore` checksum 한 줄뿐이고 stdout golden은 바뀌지 않았다.
 - 재기록 시점: main(#249 16절, #251 17절)을 이 branch에 merge한 뒤 다시 기록했다.
+
+## 19. init 다음 단계 안내 재기록 (feat/status-execution-evidence, 2026-11-02)
+
+- 원인: SPEC-STATUSEVIDENCE-001 REQ-SEV-NEXT-03이 `auto init` 요약 뒤의 다음 단계 안내를 바꿨다. worker 설정이 없을 때 Desktop 연결만 권하던 `Next: open Autopus Desktop Connect ...` 줄 대신, 설정된 플랫폼마다의 문법으로 새 작업(`/auto plan`, `$codex-auto-plan`)과 SPEC 없는 작은 수정(`/auto fix`, `$codex-auto-fix`)을 먼저 안내하고, Desktop 연결(`auto connect`)은 마지막 `Optional:` 줄에서 선택 사항으로 안내한다. 단계마다 둘째 줄에 status의 다음 명령과 같은 사실(실행 디렉터리, 실행 위치, provider, 외부 호출, 쓰기)을 적는다. 안내는 설정만 읽고 기계의 설치 상태는 읽지 않는다.
+- 기록: main(#249, #250, #251 merge 포함) 위로 rebase한 이 branch tip에서 writer를 돌렸다. 바뀐 줄은 이 branch가 의도한 출력이므로 `init-yes.stdout`과 `init-pipe.stdout`을 그대로 두었다. writer가 다시 쓴 `init-in.stdout`(단언하지 않는 TUIUX 확인 화면)은 `git checkout`으로 되돌렸다. 실행 디렉터리는 `<DIR>`로 정규화된다. Desktop 단계의 첫 줄은 `cd` 줄이 아닌 `auto connect`만 보인다. 임시 디렉터리 이름에 따라 따옴표가 붙는 `cd` 줄은 golden을 흔들기 때문이다.
+- 차이: 두 stdout에서 `Next:` 한 줄이 여섯 줄(새 작업, 작은 수정, 선택 사항인 Desktop과 각각의 사실 줄)로 바뀌었다. 두 흐름 모두 플랫폼이 `claude-code`, `codex`라 두 문법이 함께 나온다. NPD 일곱 개와 나머지 stdout golden은 바뀌지 않았다.
+- 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`과 `TestInitReview_*`가 이 golden으로 세 번 연속 통과한다.
+- 재기록 시점: main(#252, 18절)을 이 branch에 merge한 뒤 다시 확인했다.

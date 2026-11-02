@@ -696,6 +696,23 @@ split compiler 참고:
 route와 현재 승인된 route가 같아야 합니다. 어노테이션은 `auto spec gates --annotation`으로
 명시적으로 요청하며, 검증·보안·데이터 손실·결정적 오라클 게이트는 유지합니다.
 
+`auto pipeline run`은 고른 플랫폼과 이유를 알리고(`Pipeline platform: claude — first installed
+of claude → codex → agy`), 이번 실행이 dispatch한 단계만 실행한 단계로 셉니다. 복원한 단계를
+수정 단계가 다시 보내면 실행한 단계입니다(`Pipeline complete: 3 phases executed, 2 restored
+from checkpoint, 4 dispatches`). 완료된 실행은 `.autopus/pipeline-state/<SPEC>.verification.json`에
+상태 줄을 뺀 SPEC 문서와, `.autopus` 밖에서 HEAD와 다른 작업 트리 경로를 기록합니다. dry run은
+receipt를 `.autopus/pipeline-state/dry-run/`에 두고 마지막 실제 실행을 덮어쓰지 않습니다.
+`auto status`는 SPEC마다 선언된 상태와 이 근거를 나눠 보입니다. 코드와 SPEC이 유효한 기록과
+같을 때만 `verified`(검증한 트리를 그대로 커밋해도 유지)이고, 달라지면 바뀐 경로와 함께
+`stale`, git이 변경을 숨기거나(assume-unchanged·skip-worktree 파일) 기록이 유효하지 않으면
+`unverified`입니다. 멈춘 실행은 `auto pipeline run <SPEC> --continue`를 받아들일지 엔진에 직접
+묻고(output 기록 검증 포함) 재개가 복원할 단계를 보입니다. 문서만 완료라고 하면
+`documented_only`입니다. 리뷰 근거는 `review-receipt.json`과, 있으면 `review-session.json`에서
+읽고, receipt에 기록된 SPEC 지문이 지금과 같을 때만 fresh입니다. 다음 명령은 단독 사용을 먼저
+안내하고 `/auto plan` 옆에 SPEC 없는 `/auto fix`를 함께 보이며, 명령마다 절대 경로 디렉터리,
+실행 위치, provider, 외부 호출과 쓰기를 적습니다. 명령에는 검증한 값만 들어가고, status는 어느
+명령도 실행하지 않으며, Autopus Desktop은 선택 사항입니다.
+
 `workflow.coverage_threshold`의 기본값은 `85`입니다. 프로젝트나 route가 다른 값을
 선언하면 그 값을 따르고, `0`이면 수치 게이트를 끕니다.
 일반 `auto workflow context`에서 아키텍처 문서는 `--conditional-profile architecture`
@@ -1426,7 +1443,7 @@ auto sync verify --spec SPEC-HOOK-001 --strict
 | `auto lore` | 의사결정 추적 (context / commit / validate / stale) |
 | `auto orchestra` | 멀티 모델 오케스트레이션 (brainstorm / plan / review / secure / run) |
 | `auto setup` | 프로젝트 컨텍스트 문서 (generate / update / validate / status) |
-| `auto status` | SPEC 대시보드 (done / in-progress / draft) |
+| `auto status` | SPEC 대시보드: 문서에 선언된 상태(done / in-progress / draft)와 근거(마지막 pipeline 실행, 현재 코드 기준 검증, 마지막 SPEC 리뷰)를 나눠 보이고, 설치된 AI CLI, `auto pipeline run` 플랫폼, 선택 사항인 Desktop, 실행하지 않는 다음 명령을 함께 보입니다(`--json`도 같은 내용) |
 | `auto telemetry` | 파이프라인 텔레메트리 (record / summary / cost / compare / leadtime — first-slice·critical-path 리드타임과 baseline 회귀 게이트) |
 | `auto skill` | 스킬 관리 (list / info / create) |
 | `auto search` | 지식 검색 (Exa) |
