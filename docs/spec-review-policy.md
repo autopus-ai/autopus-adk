@@ -100,7 +100,11 @@ when a planned judge runs (SPEC-REVIEWREUSE-001):
 
 A blocking item is a blocking finding, a non-waived checklist FAIL, or a
 REJECT vote. An escalation item is a REJECT vote or a critical, `security`,
-`data_loss`, or escape-hatch finding. A skipped judge is recorded as
+`data_loss`, or escape-hatch finding. Items are compared one by one: a finding
+by its merge group (category, scope, description prefix, whatever its
+severity), a checklist FAIL by its item id, and the REJECT vote by itself. So
+when one reviewer votes REJECT and the other reports a different data-loss
+finding, both items are contested and the judge runs. A skipped judge is recorded as
 `judge.status: skipped` with the reason (`single_reviewer`, `consensus_pass`,
 `consensus_block`, `no_escalation`, or `unanimous_escalation`) and printed as
 `SPEC 리뷰 judge 생략: <reason> (<mode>)`. The plan block shows the mode with
@@ -127,9 +131,15 @@ into `review-receipt.json`: SHA-256 digests of the SPEC documents (spec.md with
 its status value normalized), the context-delivery sources and
 `--required-document` files, the git `HEAD` and the changed or untracked files
 outside the SPEC directory, the injected code context, the checklist, the
-policy settings, the prompt and schema contract, and each reviewer's and the
-judge's model selector and arguments, plus the digests of `review-findings.json`
-and `review.md` as the review left them.
+policy settings (`doc_context_max_lines` and `pinned_models` included), the
+whole effective configuration (`config`, so a change in an external `--config`
+file counts too), the auxiliary line budget and the excerpt each auxiliary
+document delivers under it (`delivery`), the prompt contract (every prompt
+variant through the structured response wrapper, the judge prompts, and the JSON
+repair request), and each reviewer's and the judge's model selector and
+arguments, plus the digests of `review-findings.json` and `review.md` as the
+review left them. The receipt also records `spec_fingerprint`, the SPEC
+fingerprint `auto status` compares to tell whether the review is still fresh.
 
 The next `auto spec review` of the same SPEC compares a fresh fingerprint
 before any readiness probe or model call. It returns the previous result with
@@ -138,7 +148,7 @@ receipt is at most 168 hours old, and the result is reusable:
 
 | Previous result | Reused as |
 | --- | --- |
-| PASS, `gate_status: passed`, converged, no degraded reason | `converged`, only if every model selector names a version (contains a digit, not `default` or `...latest`) |
+| PASS, `gate_status: passed`, converged, no degraded reason | `converged`, only if every model selector names one immutable model: a dated snapshot (`-YYYY-MM-DD`, `-YYYYMMDD`, or `@YYYYMMDD`) or a selector listed in `spec.review_gate.pinned_models` |
 | REJECT, no degraded reason, not cut by the budget or a provider outage | its loop state |
 | REVISE, no degraded reason, `awaiting_changes` or `revisions_exhausted`, blockers that wait for the author | `awaiting_changes` |
 
@@ -146,8 +156,18 @@ A reused run prints `SPEC 리뷰 재사용: ...` with the original run id and ti
 `모델 호출 0회`, and the `--force-review` remedy; it rewrites no review file
 and changes no status, and the session records an attempt with end reason
 `reused`. Otherwise the command prints `리뷰 재사용 안 함: <reasons>` (for
-example `documents: plan.md; code: worktree`) and reviews as usual. A project
-outside git has no code baseline, so it never reuses. `--force-review`
+example `documents: plan.md; code: worktree`) and reviews as usual. A digit is
+not a version: `gpt-4o` or `claude-opus-5-5` may move to another model, so a PASS
+from it is reviewed again unless you declare it:
+
+```yaml
+spec:
+  review_gate:
+    pinned_models: [claude-opus-5-5]   # selectors you vouch are immutable
+```
+
+An empty value, `default`, or a value ending in `latest` is refused at load. A
+project outside git has no code baseline, so it never reuses. `--force-review`
 re-reviews unchanged input against the same session budget and records
 `forced_review: true` on the attempt and in the receipt.
 
@@ -156,35 +176,49 @@ re-reviews unchanged input against the same session budget and records
 `spec.review_gate.verify_input: delta` (or `--verify-input delta`) lets a verify
 round send what changed instead of the whole document set. Every round that
 produced a usable review and was not cut by the budget stores a `baseline`
-(`spec_review_baseline.v1`) in `review-findings.json`: the content and digest
-of each SPEC document it read, the digests of every other input (checklist,
-code baseline and context, policy, prompt contract, providers, references),
-and the ids of the findings it left open.
+(`spec_review_baseline.v1`) in `review-findings.json`: each of spec.md, plan.md,
+research.md, and acceptance.md in the sanitized form a complete review input
+delivers (secrets replaced by `[REDACTED_SECRET]`, injection phrases
+neutralized), with the digest of the file (`source_sha256`) and of that form
+(`prompt_sha256`); whether the round delivered each one whole (`delivered`:
+`complete`, or `partial` when the inline prompt compacted it); the digests of
+every other input; and the ids of the findings it left open. The raw document
+text is never stored.
 
 A verify round uses the delta input only if, in this order: a baseline exists;
 its stored documents match their digests and its open ids match the prior
-findings; every non-document input is unchanged; no SPEC document was added or
-removed and no change touches a risk boundary (the header before the first
-`##`, spec.md `## Outcome Boundary`, `## Definitions`, `## Generated And
-Changed Surfaces`, `## Related SPECs`, research.md `## Trust Boundary` and
-`## Outcome Lock`, or a line that opens a requirement or a scenario); every
-open finding's scope resolves in the documents; every changed line lies in the
-scope of an open finding (its ids plus the ids sharing a traceability row);
-something changed; and the delta prompt is shorter than the full one. The
-first failed condition is the reason the round uses the full input instead:
-`missing_baseline`, `baseline_hash_mismatch`, `context_changed`,
-`interface_change`, `unclear_impact`, `out_of_scope_change`, `no_change`, or
-`no_saving`; a manifest that cannot account for a required source is
-`integrity_gap`. A project outside git cannot prove its code unchanged, so it
-always uses the full input.
+findings; the baseline round delivered every document whole; every
+non-document input, the configuration, and any other markdown file in the SPEC
+directory are unchanged; no SPEC document was added or removed; every source
+change shows in the sanitized form; no change touches a risk boundary (the
+header before the first `##`, spec.md `## Outcome Boundary`, `## Definitions`,
+`## Generated And Changed Surfaces`, `## Related SPECs`, research.md
+`## Trust Boundary` and `## Outcome Lock`, or a line that opens a requirement
+or a scenario); every open finding's scope resolves in the documents; every
+changed line belongs to the scope of an open finding, judged per requirement
+block or scenario (a sibling requirement under the same heading is out of scope
+even if it mentions the finding's id) and per line elsewhere; something
+changed; and the delta prompt is shorter than the full one. The first failed
+condition is the reason the round uses the full input instead:
+`missing_baseline`, `baseline_hash_mismatch`, `incomplete_baseline`,
+`context_changed`, `interface_change`, `integrity_gap`, `unclear_impact`,
+`out_of_scope_change`, `no_change`, or `no_saving`; a manifest that cannot
+account for a required source is `integrity_gap` too. A project outside git
+cannot prove its code unchanged, so it always uses the full input.
 
-The delta prompt (`spec_review_delta.v1`) lists every required source with its
-digest as `changed`, `included` (the checklist), or `linked` to the baseline
-run, then the unified diff of each changed document, the full text of every
-section a change touches, the requirement blocks, scenarios, and traceability
-rows the open findings name, and per finding the changes in its scope. It keeps
-the verify instructions, so a delta round still opens a new critical or
-security finding. Each round prints `SPEC 리뷰 입력: delta (baseline <run> r<n>)`
+Every review request starts a fresh provider session, so the delta prompt
+(`spec_review_delta.v1`) is complete in itself and says so. It carries the
+unified diff of each changed document, the full text of every section a change
+touches, of every section in any SPEC document that names an id of the open
+findings or the changes, and of the header and risk-boundary sections of every
+document, the matching traceability rows, per finding the changes in its scope,
+and in full every other source the full input would carry: the checklist, the
+code context, and under a GPT-only panel the context documents. Its manifest
+lists each source with both digests as `changed`, `included`, or `linked`; a
+`linked` document is one the request does not need: unchanged since a baseline
+round that delivered it whole, with every section that names a delta id already
+in the request. It keeps the verify instructions, so a delta round still opens a
+new critical or security finding. Each round prints `SPEC 리뷰 입력: delta (baseline <run> r<n>)`
 or `SPEC 리뷰 입력: full — <reason>`, the receipt's `rounds` record `input` and
 `input_reason`, and a fallback round spends the same session budget. With the
 default `full`, verify rounds send the full input exactly as before.
