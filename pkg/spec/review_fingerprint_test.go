@@ -2,13 +2,15 @@ package spec_test
 
 // SPEC-REVIEWREUSE-001 S8 (REQ-RR-REUSE-01): the document digests cover every
 // SPEC document except review.md, survive the review's own status promotion,
-// and change with any other edit; the prompt contract is stable.
+// and change with any other edit; the prompt contract is stable and covers
+// every prompt variant.
 
 import (
 	"maps"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -49,11 +51,27 @@ func TestReviewDocumentDigests_IgnoreTheStatusPromotionOnly(t *testing.T) {
 	assert.Equal(t, before["plan.md"], changed["plan.md"])
 }
 
-func TestReviewPromptContract_IsStable(t *testing.T) {
+// REQ-RR-REUSE-01: the contract covers every base prompt a request can carry:
+// discover and verify with inline and with complete sanitized documents, and
+// the delta input.
+func TestReviewPromptContractVariants_AreStableAndCoverEveryInput(t *testing.T) {
 	t.Parallel()
 
-	first := spec.ReviewPromptContract()
-	assert.Equal(t, first, spec.ReviewPromptContract())
-	assert.Contains(t, first, "Instructions (Verify Mode)")
-	assert.Contains(t, first, "## SPEC: SPEC-PROBE-001")
+	first := spec.ReviewPromptContractVariants()
+	assert.Equal(t, first, spec.ReviewPromptContractVariants())
+	require.Len(t, first, 5)
+	joined := strings.Join(first, "\x00")
+	for _, want := range []string{
+		"## SPEC: SPEC-PROBE-001",
+		"Instructions (Verify Mode)",
+		"[Review document metadata: source_ref=",
+		"### Required Context Document: `ARCHITECTURE.md`",
+		"### Delta Verify Input (spec_review_delta.v1)",
+		"[REDACTED_SECRET]",
+		"[NEUTRALIZED_INJECTION]",
+	} {
+		assert.Contains(t, joined, want)
+	}
+	assert.NotContains(t, joined, "delta probe:", "the delta probe builds a delta input")
+	assert.NotContains(t, joined, "probe-secret-value-0001")
 }

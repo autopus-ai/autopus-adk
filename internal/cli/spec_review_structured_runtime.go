@@ -169,7 +169,7 @@ func executeStructuredSpecReviewProvider(
 		return outcome
 	}
 
-	prompt := buildStructuredSpecReviewPrompt(cfg.Prompt, embeddedSchema, shouldInlineStructuredReviewSchema(backend, provider))
+	prompt := specReviewStructuredPrompt(cfg.Prompt, embeddedSchema, shouldInlineStructuredReviewSchema(backend, provider))
 	req := orchestra.ProviderRequest{
 		Provider:   provider.Name,
 		Prompt:     prompt,

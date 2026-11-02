@@ -146,13 +146,14 @@ func specReviewDeltaSources(p specReviewLoopParams, delivery *promptlayer.Contex
 
 // specReviewBaselineContext flattens the round fingerprint's non-document
 // components. References inside the SPEC directory are documents and are
-// compared as such; the markdown files a full input does not carry are
-// compared by one digest, so adding, removing, or editing one is a context
-// change.
+// compared as such, and the delivered excerpts follow the documents, so they
+// are left to the delivered-scope check; the markdown files a full input does
+// not carry are compared by one digest, so adding, removing, or editing one is
+// a context change.
 func specReviewBaselineContext(fp *specReviewFingerprint, specDir string) map[string]string {
 	context := map[string]string{
 		"checklist": fp.Checklist, "code.head": fp.Code.Head, "code.worktree": fp.Code.Worktree,
-		"code.context": fp.Code.Context, "contract": fp.Contract,
+		"code.context": fp.Code.Context, "contract": fp.Contract, "config": fp.Config,
 		"policy": specReviewJSONDigest(fp.Policy), "providers": specReviewJSONDigest(fp.Providers),
 	}
 	specRel := filepath.ToSlash(filepath.Join(".autopus", "specs", filepath.Base(specDir))) + "/"

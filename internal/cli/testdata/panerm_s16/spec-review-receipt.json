@@ -200,6 +200,15 @@
       "pass_criteria": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "doc_context_max_lines": 200
     },
+    "config": "<volatile>",
+    "delivery": {
+      "aux_budget_lines": 4000,
+      "excerpts": {
+        "acceptance.md": "c1048e8252884f7441e3629fd8d302ec60a8970064ab55dde2ccb1f870552ea5",
+        "plan.md": "b6092f1ae2a7a14aa87e3633b176c4410290bfee3dbebbd5db592da6e03ef1b7",
+        "research.md": "449b6b6c22ae18de69d06d6ef868b4ab759e50ee75c7ca4c176eb0bad02a2802"
+      }
+    },
     "contract": "<volatile>",
     "providers": [
       {

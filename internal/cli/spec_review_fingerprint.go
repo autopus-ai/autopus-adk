@@ -7,7 +7,6 @@ import (
 	"regexp"
 	"slices"
 	"strings"
-	"sync"
 
 	"github.com/insajin/autopus-adk/pkg/config"
 	"github.com/insajin/autopus-adk/pkg/orchestra"
@@ -26,6 +25,8 @@ type specReviewFingerprint struct {
 	Code       specReviewCodeDigest         `json:"code"`
 	Checklist  string                       `json:"checklist"`
 	Policy     specReviewPolicyIdentity     `json:"policy"`
+	Config     string                       `json:"config"`
+	Delivery   specReviewDeliveryDigest     `json:"delivery"`
 	Contract   string                       `json:"contract"`
 	Providers  []specReviewProviderIdentity `json:"providers"`
 	Evidence   specReviewEvidenceDigest     `json:"evidence"`
@@ -69,6 +70,15 @@ type specReviewProviderIdentity struct {
 	Pinned      bool   `json:"pinned"`
 }
 
+// specReviewDeliveryDigest is how the full input delivers the actual SPEC:
+// the effective auxiliary line budget and the digest of the excerpt it
+// injects for each auxiliary document, which move with the compaction
+// boundary of this SPEC, not of a probe.
+type specReviewDeliveryDigest struct {
+	AuxBudgetLines int               `json:"aux_budget_lines"`
+	Excerpts       map[string]string `json:"excerpts,omitempty"`
+}
+
 type specReviewEvidenceDigest struct {
 	ReviewFindings string `json:"review_findings,omitempty"`
 	ReviewMD       string `json:"review_md,omitempty"`
@@ -82,6 +92,7 @@ type specReviewFingerprintInput struct {
 	requiredDocuments []string
 	delivery          map[string]string
 	policy            specReviewPolicyIdentity
+	configDigest      string
 	reviewers         []orchestra.ProviderConfig
 	judge             *orchestra.ProviderConfig
 }
@@ -96,28 +107,14 @@ var specReviewChecklistDigest = func() (string, error) {
 	return spec.SHA256Hex([]byte(body)), nil
 }
 
-var specReviewContractDigest = sync.OnceValue(func() string {
-	return spec.SHA256Hex([]byte(spec.ReviewPromptContract() + "\x00" + specReviewSchemaContract()))
-})
-
-// specReviewSchemaContract is the structured response contract and reviewer
-// schema the reviewers receive, plus the judge prompt for fixed data.
-func specReviewSchemaContract() string {
-	schema := &orchestra.SchemaBuilder{}
-	reviewer, _ := schema.EmbedInPrompt("reviewer")
-	judgeSchema, _ := schema.EmbedInPrompt("review_judge")
-	judge := ""
-	if builder, err := orchestra.NewPromptBuilder(); err == nil {
-		participants, _ := orchestra.AnonymizeReviewParticipants([]orchestra.ProviderResponse{{Provider: "probe", Output: "{}"}})
-		judge, _ = builder.BuildReviewJudge(orchestra.ReviewJudgeData{SpecID: "SPEC-PROBE-001", Mode: "discover",
-			Participants: participants, SchemaJSON: judgeSchema})
-	}
-	return buildStructuredSpecReviewPrompt("", reviewer, true) + "\x00" + judge
-}
-
 func computeSpecReviewFingerprint(in specReviewFingerprintInput) *specReviewFingerprint {
-	fp := &specReviewFingerprint{Schema: specReviewFingerprintSchema, Policy: in.policy, Contract: specReviewContractDigest()}
+	fp := &specReviewFingerprint{Schema: specReviewFingerprintSchema, Policy: in.policy, Config: in.configDigest, Contract: specReviewContractDigest()}
 	incomplete := func(format string, args ...any) { fp.Incomplete = append(fp.Incomplete, fmt.Sprintf(format, args...)) }
+	if fp.Config == "" {
+		incomplete("config: unavailable")
+	}
+	budget := spec.ResolveAuxTotalBudget(in.policy.DocContextMaxLines)
+	fp.Delivery = specReviewDeliveryDigest{AuxBudgetLines: budget, Excerpts: spec.AuxDocExcerptDigests(in.specDir, budget)}
 	documents, err := spec.ReviewDocumentDigests(in.specDir)
 	if err != nil {
 		incomplete("documents: %v", err)

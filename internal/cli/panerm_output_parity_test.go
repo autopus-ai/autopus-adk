@@ -50,11 +50,13 @@ printf '%s\n' "$body"
 // durations, run ids, process ids, and temp paths (s16Normalize), plus the
 // review fingerprint digests that follow the run (review_md, and
 // review_findings, which holds the timed baseline), the git state (head,
-// worktree), or the ADK build (contract, checklist) rather than the receipt
-// shape (SPEC-REVIEWREUSE-001 REQ-RR-REUSE-01, REQ-RR-DELTA-02).
+// worktree), or the ADK build (contract, checklist, and config, the digest of
+// the whole effective configuration, which any new config field changes)
+// rather than the receipt shape (SPEC-REVIEWREUSE-001 REQ-RR-REUSE-01,
+// REQ-RR-DELTA-02).
 var s16VolatileFields = []string{
 	"run_id", "started_at", "ended_at", "finished_at", "generated_at", "created_at", "timestamp", "pid", "duration_ms",
-	"review_md", "review_findings", "head", "worktree", "contract", "checklist",
+	"review_md", "review_findings", "head", "worktree", "contract", "checklist", "config",
 }
 
 // s16Invocations are the orchestra goldens: name and auto argv.

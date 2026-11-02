@@ -232,11 +232,12 @@ func runSpecReviewWithOptions(ctx context.Context, specID, strategy string, time
 	defer ledger.close()
 	ctx = withSpecReviewLedger(ctx, ledger)
 	policy := specReviewPolicyIdentityOf(plan, gate, strategy, threshold, maxRevisions, opts)
+	configDigest := specReviewConfigDigest(cfg)
 	// SPEC-REVIEWREUSE-001 REQ-RR-REUSE-02: an unchanged input returns the
 	// previous result before any readiness probe or model call.
 	if reused, err := reuseSpecReviewResult(ctx, specReviewReuseRequest{
-		cfg: cfg, gate: gate, opts: opts, multi: multi, requestedTimeout: requestedTimeout,
-		specID: specID, specDir: specDir, codeContext: codeContext, policy: policy, ledger: ledger,
+		cfg: cfg, gate: gate, opts: opts, multi: multi, requestedTimeout: requestedTimeout, specID: specID,
+		specDir: specDir, codeContext: codeContext, policy: policy, configDigest: configDigest, ledger: ledger,
 	}); err != nil || reused {
 		return err
 	}
@@ -260,6 +261,7 @@ func runSpecReviewWithOptions(ctx context.Context, specID, strategy string, time
 			plan:              &attemptPlan,
 			judgeMode:         attemptPlan.JudgeMode,
 			policy:            policy,
+			configDigest:      configDigest,
 			requiredDocuments: opts.requiredDocuments,
 			verifyInput:       plan.VerifyInput,
 		}, doc, priorFindings)

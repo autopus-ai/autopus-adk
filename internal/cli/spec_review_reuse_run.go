@@ -26,6 +26,7 @@ type specReviewReuseRequest struct {
 	specDir          string
 	codeContext      string
 	policy           specReviewPolicyIdentity
+	configDigest     string
 	ledger           *specReviewLedger
 }
 
@@ -73,8 +74,8 @@ func currentSpecReviewFingerprint(ctx context.Context, req specReviewReuseReques
 		return &specReviewFingerprint{Incomplete: []string{"judge: " + err.Error()}}
 	}
 	in := specReviewFingerprintInput{
-		projectRoot: projectRoot, specDir: req.specDir, codeContext: req.codeContext,
-		requiredDocuments: req.opts.requiredDocuments, policy: req.policy, reviewers: reviewers.Providers, judge: judge,
+		projectRoot: projectRoot, specDir: req.specDir, codeContext: req.codeContext, requiredDocuments: req.opts.requiredDocuments,
+		policy: req.policy, configDigest: req.configDigest, reviewers: reviewers.Providers, judge: judge,
 	}
 	delivery, err := prepareSpecReviewContextDelivery(req.specDir, reviewers.Providers, req.opts)
 	if err == nil && delivery != nil {
@@ -95,8 +96,8 @@ func currentSpecReviewFingerprint(ctx context.Context, req specReviewReuseReques
 func specReviewRoundFingerprint(p specReviewLoopParams, delivery map[string]string) *specReviewFingerprint {
 	projectRoot, _ := os.Getwd()
 	return computeSpecReviewFingerprint(specReviewFingerprintInput{
-		projectRoot: projectRoot, specDir: p.specDir, codeContext: p.codeContext, delivery: delivery,
-		requiredDocuments: p.requiredDocuments, policy: p.policy, reviewers: p.providers, judge: p.judgeConfig,
+		projectRoot: projectRoot, specDir: p.specDir, codeContext: p.codeContext, delivery: delivery, requiredDocuments: p.requiredDocuments,
+		policy: p.policy, configDigest: p.configDigest, reviewers: p.providers, judge: p.judgeConfig,
 	})
 }
 

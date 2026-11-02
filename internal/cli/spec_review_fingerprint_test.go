@@ -8,9 +8,11 @@ package cli
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -48,6 +50,9 @@ func TestRunSpecReview_ReceiptFingerprintNamesEveryInput(t *testing.T) {
 	assert.Len(t, fp.Code.Worktree, 64)
 	assert.Len(t, fp.Checklist, 64)
 	assert.Len(t, fp.Contract, 64)
+	assert.Len(t, fp.Config, 64)
+	assert.Equal(t, 4000, fp.Delivery.AuxBudgetLines)
+	assert.Equal(t, []string{"acceptance.md", "plan.md", "research.md"}, slices.Sorted(maps.Keys(fp.Delivery.Excerpts)))
 	require.Len(t, fp.Providers, 2)
 	for _, provider := range fp.Providers {
 		assert.True(t, provider.Pinned, provider.Name)

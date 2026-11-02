@@ -136,6 +136,12 @@ func specReviewFingerprintChanges(previous, current specReviewFingerprint) []str
 	if fields := changedJSONFields(previous.Policy, current.Policy); len(fields) > 0 {
 		reasons = append(reasons, "policy: "+strings.Join(fields, ", "))
 	}
+	if previous.Config != current.Config {
+		reasons = append(reasons, "config")
+	}
+	if names := specReviewDeliveryChanges(previous.Delivery, current.Delivery); len(names) > 0 {
+		reasons = append(reasons, "delivery: "+strings.Join(names, ", "))
+	}
 	if previous.Contract != current.Contract {
 		reasons = append(reasons, "contract")
 	}
@@ -144,6 +150,16 @@ func specReviewFingerprintChanges(previous, current specReviewFingerprint) []str
 	}
 	slices.Sort(reasons)
 	return reasons
+}
+
+// specReviewDeliveryChanges names a changed auxiliary budget and each
+// document whose delivered excerpt changed.
+func specReviewDeliveryChanges(previous, current specReviewDeliveryDigest) []string {
+	var names []string
+	if previous.AuxBudgetLines != current.AuxBudgetLines {
+		names = append(names, "aux_budget_lines")
+	}
+	return append(names, changedDigestKeys(previous.Excerpts, current.Excerpts)...)
 }
 
 func specReviewEvidenceChanges(specDir string, evidence specReviewEvidenceDigest) []string {

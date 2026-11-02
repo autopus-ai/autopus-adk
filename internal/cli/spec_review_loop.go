@@ -37,9 +37,10 @@ type specReviewLoopParams struct {
 	// mode that calls the judge only when the round needs it
 	// (SPEC-REVIEWREUSE-001 REQ-RR-JDG-01).
 	judgeMode string
-	// policy and requiredDocuments feed the round fingerprint
-	// (SPEC-REVIEWREUSE-001 REQ-RR-REUSE-01).
+	// policy, configDigest, and requiredDocuments feed the round
+	// fingerprint (SPEC-REVIEWREUSE-001 REQ-RR-REUSE-01).
 	policy            specReviewPolicyIdentity
+	configDigest      string
 	requiredDocuments []string
 	// verifyInput is full or delta (SPEC-REVIEWREUSE-001 REQ-RR-DELTA-01).
 	verifyInput string
