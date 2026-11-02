@@ -99,6 +99,10 @@ var gitignorePatterns = []string{
 	".autopus/audit.jsonl",
 	"**/.autopus/specs/**/review.md",
 	"**/.autopus/specs/**/review-findings.json",
+	// The review session ledger and its lock (SPEC-REVIEWPOLICY-001) are the
+	// budget state of this machine's `auto spec review` runs, not SPEC content.
+	"**/.autopus/specs/**/review-session.json",
+	"**/.autopus/specs/**/.review-session.lock",
 	"**/.autopus/specs/**/.self-verify.log",
 	"/.claude/",
 	"/.claude.json",

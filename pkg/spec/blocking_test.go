@@ -88,34 +88,36 @@ func TestFindingBlockingPolicy_TruthTable(t *testing.T) {
 	}
 }
 
-// A judge PASS is an explicit disposition for ordinary findings but can never
-// waive a safety blocker.
-func TestIsHardBlockingFinding_JudgePassWaivers(t *testing.T) {
+// SPEC-REVIEWPOLICY-001 REQ-RP-POL-04: a judge PASS waives nothing that blocks
+// without a judge. Before the policy, a minor correctness finding and an
+// empty-severity feasibility finding were judge-waivable while the no-judge
+// path blocked both.
+func TestIsHardBlockingFinding_EqualsTheNoJudgeBlocker(t *testing.T) {
 	t.Parallel()
 
-	waivable := []ReviewFinding{
+	blocking := []ReviewFinding{
 		{Severity: "minor", Category: FindingCategoryCorrectness, Status: FindingStatusOpen},
-		{Severity: "suggestion", Category: FindingCategoryCompleteness, Status: FindingStatusOpen},
 		{Severity: "", Category: FindingCategoryFeasibility, Status: FindingStatusOpen},
-	}
-	for _, f := range waivable {
-		assert.False(t, IsHardBlockingFinding(f), "severity %q category %q", f.Severity, f.Category)
-	}
-
-	hard := []ReviewFinding{
 		{Severity: "critical", Category: FindingCategoryCorrectness, Status: FindingStatusOpen},
 		{Severity: "major", Category: FindingCategoryStyle, Status: FindingStatusOpen},
 		{Severity: "minor", Category: FindingCategorySecurity, Status: FindingStatusOpen},
 		{Severity: "minor", Category: FindingCategoryStyle, Status: FindingStatusOpen, EscapeHatch: true},
 		{Severity: "minor", Category: FindingCategoryCompleteness, Status: FindingStatusRegressed},
+		{Severity: "suggestion", Category: FindingCategoryDataLoss, Status: FindingStatusOpen},
 	}
-	for _, f := range hard {
+	for _, f := range blocking {
 		assert.True(t, IsHardBlockingFinding(f), "severity %q category %q", f.Severity, f.Category)
+		assert.Equal(t, IsActiveBlockingFinding(f), IsHardBlockingFinding(f))
 	}
 
-	assert.False(t, IsHardBlockingFinding(
-		ReviewFinding{Severity: "critical", Category: FindingCategorySecurity, Status: FindingStatusResolved},
-	), "a closed finding is not a blocker regardless of severity")
+	advisory := []ReviewFinding{
+		{Severity: "suggestion", Category: FindingCategoryCompleteness, Status: FindingStatusOpen},
+		{Severity: "minor", Category: FindingCategoryStyle, Status: FindingStatusOpen},
+		{Severity: "critical", Category: FindingCategorySecurity, Status: FindingStatusResolved},
+	}
+	for _, f := range advisory {
+		assert.False(t, IsHardBlockingFinding(f), "severity %q category %q status %q", f.Severity, f.Category, f.Status)
+	}
 }
 
 func TestCollectBlockingReasons_NamesOnlyBlockingFindings(t *testing.T) {

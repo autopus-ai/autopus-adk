@@ -85,6 +85,91 @@
         }
       ]
     }
-  ]
+  ],
+  "session": {
+    "schema": "spec_review_session.v1",
+    "session_id": "<run-id>",
+    "attempt_id": "a1",
+    "attempt_seq": 1,
+    "state": "converged",
+    "end_reason": "converged",
+    "limits": {
+      "max_calls": 0,
+      "max_wall_clock_ms": 0,
+      "max_tokens": 0,
+      "max_cost_usd": 0
+    },
+    "used": {
+      "calls": 3,
+      "known_tokens": 0,
+      "known_cost_usd": 0,
+      "calls_without_tokens": 3,
+      "calls_without_cost": 3,
+      "blocked_calls": 0
+    },
+    "duration_ms": "<volatile>",
+    "calls": [
+      {
+        "call_id": "a1-r0-claude-reviewer-1",
+        "attempt_id": "a1",
+        "round": 0,
+        "role": "reviewer",
+        "reason": "review",
+        "provider": "claude",
+        "model": "unknown",
+        "effort": "unknown",
+        "started": true,
+        "usage": {
+          "status": "unknown",
+          "input_tokens": null,
+          "output_tokens": null,
+          "cost_usd": null
+        },
+        "started_at": "<volatile>",
+        "duration_ms": "<volatile>",
+        "end_reason": "completed"
+      },
+      {
+        "call_id": "a1-r0-codex-reviewer-1",
+        "attempt_id": "a1",
+        "round": 0,
+        "role": "reviewer",
+        "reason": "review",
+        "provider": "codex",
+        "model": "unknown",
+        "effort": "unknown",
+        "started": true,
+        "usage": {
+          "status": "unknown",
+          "input_tokens": null,
+          "output_tokens": null,
+          "cost_usd": null
+        },
+        "started_at": "<volatile>",
+        "duration_ms": "<volatile>",
+        "end_reason": "completed"
+      },
+      {
+        "call_id": "a1-r0-claude-judge-1",
+        "attempt_id": "a1",
+        "round": 0,
+        "role": "judge",
+        "reason": "adjudication",
+        "provider": "claude",
+        "model": "unknown",
+        "effort": "unknown",
+        "started": true,
+        "usage": {
+          "status": "unknown",
+          "input_tokens": null,
+          "output_tokens": null,
+          "cost_usd": null
+        },
+        "started_at": "<volatile>",
+        "duration_ms": "<volatile>",
+        "end_reason": "completed"
+      }
+    ]
+  }
 }
 

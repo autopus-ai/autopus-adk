@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/insajin/autopus-adk/pkg/config"
@@ -135,7 +136,10 @@ func TestRunSpecReviewLoop_NoJudgePreservesLegacyResultShape(t *testing.T) {
 	assert.NotContains(t, string(encoded), `"judge"`)
 }
 
-func TestRunSpecReviewLoop_JudgePassWithNoAcceptedFindingsKeepsPassDespiteReviewerChecklistFails(t *testing.T) {
+// SPEC-REVIEWPOLICY-001 REQ-RP-POL-04 (codex review F-001): a judge PASS with
+// no accepted findings no longer silences the reviewers' checklist FAILs; the
+// judge clears each one only by rejecting that exact item for that reviewer.
+func TestRunSpecReviewLoop_JudgePassKeepsReviewerChecklistFailsUnlessDismissed(t *testing.T) {
 	reviewers := []orchestra.ProviderResponse{
 		{
 			Provider: "claude",
@@ -154,11 +158,26 @@ func TestRunSpecReviewLoop_JudgePassWithNoAcceptedFindingsKeepsPassDespiteReview
 		t, `{"verdict":"PASS","findings":[],"rationale":"no accepted findings"}`,
 		nil, "claude", reviewers,
 	)
-
-	assert.Equal(t, spec.VerdictPass, judged.Verdict)
+	assert.Equal(t, spec.VerdictRevise, judged.Verdict)
+	require.NotEmpty(t, judged.BlockingReasons)
+	assert.Equal(t, spec.BlockingPolicyReviewerChecklist, judged.BlockingReasons[0].Policy)
 	require.NotNil(t, judged.Judge)
 	assert.Equal(t, "ok", judged.Judge.Status)
-	assert.Empty(t, judged.Judge.AcceptedIDs)
+
+	dismissOne := `{"severity":"minor","category":"completeness","scope_ref":"%s","location":"checklist","description":"not supported","suggestion":"none","decision":"reject","reason":"the SPEC carries the evidence","sources":["%s"]}`
+	partial, _ := runJudgeMergeLoopWithResponses(t,
+		`{"verdict":"PASS","findings":[`+fmt.Sprintf(dismissOne, "Q-CORR-01", "Reviewer A")+`],"rationale":"one dismissed"}`,
+		nil, "claude", reviewers)
+	assert.Equal(t, spec.VerdictRevise, partial.Verdict, "codex's Q-CORR-02 FAIL was not addressed")
+
+	cleared, _ := runJudgeMergeLoopWithResponses(t,
+		`{"verdict":"PASS","findings":[`+fmt.Sprintf(dismissOne, "Q-CORR-01", "Reviewer A")+`,`+
+			fmt.Sprintf(dismissOne, "Q-CORR-02", "Reviewer B")+`],"rationale":"both dismissed"}`,
+		nil, "claude", reviewers)
+	assert.Equal(t, spec.VerdictPass, cleared.Verdict)
+	assert.Empty(t, cleared.BlockingReasons)
+	require.Len(t, cleared.Judge.Dismissals, 2)
+	assert.Equal(t, spec.JudgeDismissal{Reviewer: "claude", ScopeRef: "Q-CORR-01", Reason: "the SPEC carries the evidence"}, cleared.Judge.Dismissals[0])
 }
 
 func runJudgeMergeLoop(

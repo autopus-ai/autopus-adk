@@ -24,7 +24,15 @@ const (
 	BlockingPolicyJudgeReject       = "judge_reject"
 	BlockingPolicyReviewerChecklist = "reviewer_checklist_fail"
 	BlockingPolicyNoUsableReview    = "no_usable_review"
+	// BlockingPolicyBudgetExhausted is verdict-scoped: the review session
+	// budget stopped the review before it could finish (SPEC-REVIEWPOLICY-001
+	// REQ-RP-BUD-04). It is never a PASS.
+	BlockingPolicyBudgetExhausted = "budget_exhausted"
 )
+
+// DegradedReasonBudgetExhausted marks a round in which the session budget
+// blocked or cancelled a planned call (SPEC-REVIEWPOLICY-001 REQ-RP-BUD-05).
+const DegradedReasonBudgetExhausted = "budget_exhausted"
 
 // Revision-loop termination states, written to review-receipt.json as
 // loop_status so an operator can tell convergence from spinning and knows
@@ -34,6 +42,7 @@ const (
 	LoopStatusAwaitingChanges     = "awaiting_changes"
 	LoopStatusRevisionsExhausted  = "revisions_exhausted"
 	LoopStatusProviderUnavailable = "provider_unavailable"
+	LoopStatusBudgetExhausted     = "budget_exhausted"
 )
 
 // impactCategories name findings whose category alone proves functional impact.
@@ -114,19 +123,12 @@ func CollectBlockingReasons(findings []ReviewFinding) []BlockingReason {
 }
 
 // IsHardBlockingFinding reports whether a finding blocks even when the judge
-// returned PASS while accepting it. A judge PASS is an explicit non-blocking
-// disposition for ordinary findings, but it can never waive a critical/major
-// severity, a security category, an escape hatch, or a regression of work an
-// earlier revision had already resolved.
+// returned PASS while accepting it. There is one disposition rule set
+// (SPEC-REVIEWPOLICY-001 REQ-RP-POL-03, REQ-RP-POL-04): a finding that blocks
+// without a judge also blocks after a judge PASS, so a judge clears a finding
+// only by rejecting it or by accepting it at an advisory severity, which the
+// impact categories do not have. Before this rule a judge PASS waived a minor
+// correctness finding the no-judge path blocked.
 func IsHardBlockingFinding(f ReviewFinding) bool {
-	if !isOpenOrRegressed(f.Status) {
-		return false
-	}
-	if f.EscapeHatch || f.Status == FindingStatusRegressed {
-		return true
-	}
-	if normalizedFindingCategory(f.Category) == "security" {
-		return true
-	}
-	return isEscalatedSeverity(f.Severity)
+	return IsActiveBlockingFinding(f)
 }

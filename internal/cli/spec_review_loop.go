@@ -30,6 +30,9 @@ type specReviewLoopParams struct {
 	// preflight carries the readiness outcome: excluded reviewers, their
 	// degraded reasons, and the receipt rows (SPEC-REVIEWRO-001).
 	preflight *specReviewPreflight
+	// plan is the attempt's resolved review plan; it is printed once the
+	// reviewers are assembled (SPEC-REVIEWPOLICY-001 REQ-RP-PLAN-05).
+	plan *specReviewPlan
 }
 
 func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFindings []spec.ReviewFinding) (*spec.ReviewResult, error) {
@@ -57,6 +60,14 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 			fmt.Fprintf(os.Stderr,
 				"경고: SPEC 입력이 이전 리비전과 동일합니다 — 프로바이더를 재호출하지 않고 수정 대기 상태로 종료합니다 (SPEC: %s)\n",
 				p.specID)
+			break
+		}
+
+		// SPEC-REVIEWPOLICY-001 REQ-RP-BUD-04: a round starts only when the
+		// session budget can pay for its reviewers; otherwise the last
+		// blockers stand and the review stops as budget_exhausted.
+		if reason := specReviewRoundBudgetBlock(p.ctx, len(p.providers)); reason != "" {
+			finalResult = specReviewBudgetExhaustedResult(finalResult, p.specID, p.specDir, priorFindings, reason)
 			break
 		}
 
@@ -92,8 +103,12 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 		if watchdog := specReviewWatchdogForConfig(orchCfg); watchdog > 0 {
 			reviewCtx, cancel = context.WithTimeout(p.ctx, time.Duration(watchdog)*time.Second)
 		}
+		// The round carries its number for the call ledger and stops at the
+		// session's wall-clock deadline (REQ-RP-BUD-05).
+		reviewCtx, endRound := specReviewRoundContext(reviewCtx, revision)
 		roundStarted := time.Now()
 		result, err := specReviewRunOrchestra(reviewCtx, orchCfg)
+		endRound()
 		cancel()
 		round := newSpecReviewRoundTiming(revision, roundStarted, time.Since(roundStarted), result)
 		printSpecReviewRoundTiming(os.Stderr, round)
@@ -112,6 +127,7 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 
 		// Failed or judge responses never contribute to reviewer supermajority.
 		reviews, reviewerResponses := parseSpecReviewerResults(result, p.specID, revision, priorFindings)
+		applySpecReviewChecklistPolicy(reviews, p.specDir, doc)
 
 		// SPEC-SPECREV-001 REQ-VERD-1: build per-provider health from orchestra.
 		configuredNames := specReviewConfiguredNames(p.configuredNames, p.providers)
@@ -155,12 +171,13 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 			ProviderStatuses:  providerStatuses,
 		}
 		// Judge precedence is fixed: a valid judge replaces verdict/findings;
-		// a judge PASS that accepted a non-hard-blocking finding defers it, so
-		// judge acceptance and the runtime blocker matrix agree; then verify
-		// scope lock and deterministic findings run before resolveReviewVerdict.
-		// resolveReviewVerdict may preserve REVISE because of a reviewer
-		// checklist FAIL, but it never turns a judge PASS into REVISE from the
-		// reviewer checklist alone.
+		// its accepted findings go through the same disposition rules as a
+		// reviewer's, so a judge PASS defers only advisory findings and never
+		// waives a blocking one (SPEC-REVIEWPOLICY-001 REQ-RP-POL-04); then
+		// verify scope lock and deterministic findings run before resolveReviewVerdict.
+		// resolveReviewVerdict keeps a reviewer REJECT or checklist FAIL
+		// blocking behind a judge PASS unless the judge dismissed that exact
+		// item (REQ-RP-POL-04).
 		applySpecReviewJudge(merged, result, reviewerResponses, p.gate.Judge, revision, priorFindings)
 		if merged.Judge != nil && merged.Judge.Status == "ok" {
 			merged.Findings = spec.NormalizeAdvisoryFindings(merged.Findings)
@@ -177,6 +194,9 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 		}
 		merged.Findings = spec.MergeDeterministicFindings(merged.Findings, staticFindings, priorFindings, revision)
 		merged.Findings = spec.NormalizeAdvisoryFindings(merged.Findings)
+		// An eligible lean SPEC's allowed omissions never block, whether a
+		// reviewer or the judge raised them (REQ-RP-POL-07).
+		merged.Findings = spec.ApplyLeanOmissionPolicy(p.specDir, doc, merged.Findings)
 		merged.Verdict, merged.BlockingReasons = resolveReviewVerdict(merged, reviews)
 
 		// Issue #58/#187: a blocking verdict must name what blocks it. The
@@ -196,6 +216,9 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 		// Readiness exclusions merge after the per-revision observation reasons,
 		// which applyObservationIntegrity has just rewritten.
 		applySpecReviewReadiness(merged, p.preflight)
+		// A round the budget cut short is degraded and cannot PASS; it is
+		// marked before it is persisted so review.md and the receipt agree.
+		budgetHit := applySpecReviewBudgetEvidence(p.ctx, merged, revision)
 
 		// A mid-pipeline write failure must abort (issue #38).
 		if persistErr := spec.PersistFindingsWithCoverage(p.specDir, merged.Findings, coverages); persistErr != nil {
@@ -206,6 +229,11 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 		}
 
 		finalResult = merged
+
+		if budgetHit {
+			fmt.Fprintf(os.Stderr, "경고: 리뷰 예산이 이번 라운드의 호출을 막았습니다 — 남은 차단 사유를 보존하고 리뷰를 멈춥니다\n")
+			break
+		}
 
 		if noProviderReviewsSucceeded(reviews, providerStatuses) {
 			merged.LoopStatus = spec.LoopStatusProviderUnavailable

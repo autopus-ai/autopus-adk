@@ -98,6 +98,11 @@ const (
 	FindingCategoryFeasibility  FindingCategory = "feasibility"
 	FindingCategoryStyle        FindingCategory = "style"
 	FindingCategorySecurity     FindingCategory = "security"
+	// FindingCategoryContract and FindingCategoryDataLoss are impact
+	// categories the blocker matrix treats like correctness: they block at
+	// any severity (pkg/spec/blocking.go).
+	FindingCategoryContract FindingCategory = "contract"
+	FindingCategoryDataLoss FindingCategory = "data_loss"
 )
 
 // ReviewMode determines the review phase behavior.
@@ -172,7 +177,11 @@ type ProviderStatus struct {
 
 // ReviewResult is the aggregated result of a multi-provider review.
 type ReviewResult struct {
-	SpecID            string             // target SPEC ID
+	SpecID string // target SPEC ID
+	// Provider names the reviewer of a single-provider result; empty on the
+	// merged result. A judge dismissal names the reviewer it addresses
+	// (SPEC-REVIEWPOLICY-001 REQ-RP-POL-04).
+	Provider          string             `json:"provider,omitempty"`
 	Verdict           ReviewVerdict      // final verdict
 	Findings          []ReviewFinding    // all findings from all providers
 	ChecklistOutcomes []ChecklistOutcome // structured checklist outcomes from provider responses

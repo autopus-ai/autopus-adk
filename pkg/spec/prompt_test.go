@@ -79,8 +79,12 @@ func TestBuildReviewPromptIncludesVerdictRules(t *testing.T) {
 	prompt := BuildReviewPrompt(doc, "", ReviewPromptOptions{})
 
 	assert.Contains(t, prompt, "### Verdict Decision Rules")
-	assert.Contains(t, prompt, "critical == 0")
-	assert.Contains(t, prompt, "major <= 2")
+	// SPEC-REVIEWPOLICY-001: the rules are the canonical lines the judge and
+	// the runtime share; the old "major <= 2 is PASS" rule is gone.
+	for _, line := range ReviewVerdictRuleLines() {
+		assert.Contains(t, prompt, line)
+	}
+	assert.NotContains(t, prompt, "major <= 2")
 	assert.Contains(t, prompt, "PASS")
 	assert.Contains(t, prompt, "REJECT")
 	assert.Contains(t, prompt, "REVISE")

@@ -28,6 +28,7 @@ var loopStatusAdvice = map[string]string{
 	spec.LoopStatusAwaitingChanges:     "SPEC 수정 대기 — 수정 없이 재실행해도 같은 판정입니다",
 	spec.LoopStatusRevisionsExhausted:  "리비전 예산 소진 — 남은 차단 사유를 직접 해결하세요",
 	spec.LoopStatusProviderUnavailable: "프로바이더 실행 실패 — 재실행이 결과를 바꿀 수 있습니다",
+	spec.LoopStatusBudgetExhausted:     "리뷰 예산 소진 — 같은 세션은 --extend-budget, 새 세션은 --new-session으로만 다시 호출합니다",
 }
 
 // printSpecReviewLoopStatus explains the verdict: how the loop ended and which

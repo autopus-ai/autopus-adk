@@ -76,7 +76,11 @@ func TestSyncReviewedSpecStatusWithReceipt_CarriesTimingAndProfile(t *testing.T)
 	assert.Equal(t, "lean", receipt.ReviewProfile)
 }
 
-func TestApplyLeanReviewProfile(t *testing.T) {
+// The lean execution policy as the review plan applies it. Before
+// SPEC-REVIEWPOLICY-001 an explicit --providers switched it off entirely and
+// kept the configured judge and quorum; now provider selection never changes
+// the profile (REQ-RP-PLAN-02).
+func TestApplySpecReviewPlan_LeanPolicySurvivesProviderSelection(t *testing.T) {
 	full := config.ReviewGateConf{Providers: []string{"claude", "codex", "gemini"}, Judge: "codex", MinProviders: 2}
 	tests := []struct {
 		name          string
@@ -88,14 +92,16 @@ func TestApplyLeanReviewProfile(t *testing.T) {
 	}{
 		{"full SPEC keeps the panel", &spec.SpecDocument{}, nil, nil, "codex", 2},
 		{"lean SPEC uses the judge as its single reviewer", &spec.SpecDocument{Profile: "lean", ChangeClass: "test_only", Surface: []string{"internal/cli/x_test.go"}}, nil, []string{"codex"}, "", 1},
-		{"explicit providers win", &spec.SpecDocument{Profile: "lean", ChangeClass: "docs_only", Surface: []string{"docs/x.md"}}, []string{"gemini", "claude"}, []string{"gemini", "claude"}, "codex", 2},
+		{"explicit providers keep the lean policy", &spec.SpecDocument{Profile: "lean", ChangeClass: "docs_only", Surface: []string{"docs/x.md"}}, []string{"gemini", "claude"}, []string{"gemini"}, "", 1},
 		{"mislabelled high-risk lean keeps the panel", &spec.SpecDocument{Profile: "lean", ChangeClass: "feature"}, nil, nil, "codex", 2},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var out bytes.Buffer
-			gate, opts, _ := applyLeanReviewProfile(tt.doc, full, specReviewOptions{providers: tt.flagProviders}, &out)
-			assert.Equal(t, tt.wantProviders, opts.providers)
+			opts := specReviewOptions{providers: tt.flagProviders}
+			plan, err := resolveSpecReviewPlan(tt.doc, full, opts, false, 0)
+			require.NoError(t, err)
+			gate, applied, _ := applySpecReviewPlan(plan, full, opts)
+			assert.Equal(t, tt.wantProviders, applied.providers)
 			assert.Equal(t, tt.wantJudge, gate.Judge)
 			assert.Equal(t, tt.wantMin, gate.MinProviders)
 		})
@@ -111,11 +117,12 @@ func TestLeanSpecReviewers_OrdersJudgeFirstThenConfiguredProviders(t *testing.T)
 	assert.Empty(t, leanSpecReviewers(config.ReviewGateConf{}))
 }
 
-func TestApplyLeanReviewProfile_ReturnsRemainingReviewersAsFallbacks(t *testing.T) {
+func TestApplySpecReviewPlan_ReturnsRemainingReviewersAsFallbacks(t *testing.T) {
 	doc := &spec.SpecDocument{Profile: "lean", ChangeClass: "test_only", Surface: []string{"internal/cli/x_test.go"}}
 	gate := config.ReviewGateConf{Providers: []string{"claude", "codex", "gemini"}, Judge: "claude"}
-	var out bytes.Buffer
-	_, opts, fallbacks := applyLeanReviewProfile(doc, gate, specReviewOptions{}, &out)
+	plan, err := resolveSpecReviewPlan(doc, gate, specReviewOptions{}, false, 0)
+	require.NoError(t, err)
+	_, opts, fallbacks := applySpecReviewPlan(plan, gate, specReviewOptions{})
 	assert.Equal(t, []string{"claude"}, opts.providers)
 	assert.Equal(t, []string{"codex", "gemini"}, fallbacks)
 }

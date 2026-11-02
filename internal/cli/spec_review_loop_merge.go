@@ -186,10 +186,13 @@ func applySpecReviewJudge(
 			Merged:      combined,
 			AcceptedIDs: acceptedJudgeFindingIDs(judgedFindings, accepted),
 			Rationale:   out.Rationale,
+			Dismissals:  specReviewJudgeDismissals(out, aliasToProvider),
 		}
 		merged.Verdict = spec.ReviewVerdict(out.Verdict)
+		// A judge PASS never waives an accepted blocking finding: the finding
+		// stays open and resolveReviewVerdict names it (SPEC-REVIEWPOLICY-001
+		// REQ-RP-POL-04). Advisory findings are deferred by the caller.
 		merged.Findings = judgedFindings
-		reconcileJudgePassAcceptance(merged)
 		return
 	}
 	applyFailedSpecReviewJudgeSummary(merged, result.FailedProviders, judgeProvider)
@@ -247,24 +250,4 @@ func trimSpecReviewJudgeSuffix(provider, fallback string) string {
 		return strings.TrimSpace(fallback)
 	}
 	return provider
-}
-
-// reconcileJudgePassAcceptance aligns judge acceptance with the runtime blocker
-// matrix. A judge PASS is an explicit non-blocking disposition for the findings
-// it accepted, so those findings are deferred instead of silently blocking the
-// verdict a judge just cleared (issue #187: judge PASS plus runtime REVISE with
-// no stated non-finding reason). Hard blockers — critical/major severity, the
-// security category, an escape hatch, or a regression — are never waived: they
-// stay open and surface as stated blocking reasons, which downgrades the verdict
-// in resolveReviewVerdict.
-func reconcileJudgePassAcceptance(result *spec.ReviewResult) {
-	if result == nil || result.Verdict != spec.VerdictPass {
-		return
-	}
-	for i, finding := range result.Findings {
-		if !spec.IsActiveBlockingFinding(finding) || spec.IsHardBlockingFinding(finding) {
-			continue
-		}
-		result.Findings[i].Status = spec.FindingStatusDeferred
-	}
 }

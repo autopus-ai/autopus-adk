@@ -35,32 +35,38 @@ func resolveReviewVerdict(
 }
 
 // verdictScopedBlockingReasons collects the blockers that are not tied to a
-// merged finding. Judge precedence is preserved: when a valid judge produced the
-// verdict, the raw reviewer votes are no longer consulted, so a provider REJECT
-// the judge overruled cannot resurrect itself here.
+// merged finding: a judge REJECT, any usable reviewer's REJECT vote, and any
+// usable reviewer's failing checklist item that the review policy did not
+// waive, whatever that reviewer voted. A valid judge clears a reviewer REJECT
+// or checklist FAIL only by rejecting that exact item; a judge PASS that never
+// addressed it leaves it blocking (SPEC-REVIEWPOLICY-001 REQ-RP-POL-04).
 func verdictScopedBlockingReasons(merged *spec.ReviewResult, reviews []spec.ReviewResult) []spec.BlockingReason {
+	var judge *spec.JudgeSummary
+	var reasons []spec.BlockingReason
 	if judgeVerdictApplied(merged) {
-		if strings.EqualFold(strings.TrimSpace(merged.Judge.Verdict), string(spec.VerdictReject)) {
-			return []spec.BlockingReason{{Policy: spec.BlockingPolicyJudgeReject}}
+		judge = merged.Judge
+		if strings.EqualFold(strings.TrimSpace(judge.Verdict), string(spec.VerdictReject)) {
+			reasons = append(reasons, spec.BlockingReason{Policy: spec.BlockingPolicyJudgeReject})
 		}
-		return nil
 	}
+	rejected, failing := false, false
 	for _, r := range reviews {
-		if r.Verdict == spec.VerdictReject {
-			return []spec.BlockingReason{{Policy: spec.BlockingPolicyProviderReject}}
+		if r.Verdict == spec.VerdictReject && !judge.Dismisses(r.Provider, spec.JudgeDismissalVerdict) {
+			rejected = true
+		}
+		for _, outcome := range r.ChecklistOutcomes {
+			if outcome.Status == spec.ChecklistStatusFail && !judge.Dismisses(r.Provider, outcome.ID) {
+				failing = true
+			}
 		}
 	}
-	if merged.Verdict != spec.VerdictRevise {
-		return nil
+	if rejected {
+		reasons = append(reasons, spec.BlockingReason{Policy: spec.BlockingPolicyProviderReject})
 	}
-	// A reviewer that voted REVISE on a failing checklist item states a blocker
-	// the finding merge does not carry, so it must survive normalization.
-	for _, r := range reviews {
-		if r.Verdict == spec.VerdictRevise && reviewHasFailingChecklist(r.ChecklistOutcomes) {
-			return []spec.BlockingReason{{Policy: spec.BlockingPolicyReviewerChecklist}}
-		}
+	if failing {
+		reasons = append(reasons, spec.BlockingReason{Policy: spec.BlockingPolicyReviewerChecklist})
 	}
-	return nil
+	return reasons
 }
 
 // judgeVerdictApplied reports whether the merged verdict came from a judge whose
@@ -90,15 +96,6 @@ func reviewAwaitsAuthorChanges(result *spec.ReviewResult) bool {
 	}
 	for _, reason := range result.BlockingReasons {
 		if reason.Policy != spec.BlockingPolicyNoUsableReview {
-			return true
-		}
-	}
-	return false
-}
-
-func reviewHasFailingChecklist(outcomes []spec.ChecklistOutcome) bool {
-	for _, outcome := range outcomes {
-		if outcome.Status == spec.ChecklistStatusFail {
 			return true
 		}
 	}
