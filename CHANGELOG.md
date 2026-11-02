@@ -4,6 +4,48 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **(대기: #255 merge 전) SPEC 리뷰에 조건부 judge, 결과 재사용, delta verify를 들인다** (2026-11-02,
+  SPEC-REVIEWREUSE-001): `spec.review_gate.judge_mode`·`--judge-mode`가 `always`(기본, 기존과 같음)·`on_disagreement`·
+  `on_escalation`을 고르고, 조건부 모드는 필요할 때만 같은 예산 안에서 judge를 부른다. 다수결 merge는 모든 모드에서 소수
+  reviewer의 critical·security·data_loss 지적을 버리지 않는다. 입력 지문(`spec_review_fingerprint.v1`)이 같고 168시간
+  안의 재사용 가능한 결과는 모델 호출 없이 돌려주며(`--force-review`로 새로 리뷰), opt-in `--verify-input`이 delta verify를 고른다.
+- **`auto status`가 문서 상태와 실행 근거를 나누고 다음 명령을 안내한다** (2026-11-02, SPEC-STATUSEVIDENCE-001):
+  SPEC마다 선언 상태 옆에 근거 label(unfinished·failed·verified·stale·unverified·documented_only·none)과 실행 근거(run·attempt,
+  종료 상태, 중단 사유, 재개 가능 여부)를 보인다. 문서에 done만 적힌 SPEC은 `documented_only`다. 다음 명령은 실행 위치·
+  provider·외부 호출·쓰기 대상을 적어 보이기만 한다. pipeline 완료 줄은 복원한 단계를 실행한 단계로 세지 않고, `auto init`의
+  Desktop 연결 안내는 맨 끝의 선택 안내로 옮긴다.
+- **SPEC 리뷰 정책을 하나로 묶고 profile과 provider를 나누며 세션 예산을 둔다** (2026-11-02, SPEC-REVIEWPOLICY-001):
+  validator, reviewer·judge 프롬프트, runtime이 compact·lean·full 정책 하나(`docs/spec-review-policy.md`)를 읽는다.
+  `--providers`를 줘도 lean의 reviewer 하나·judge 없음은 그대로이고(`--profile`·`--judge`로 바꾼다), 실행 전에 실행 계획을
+  출력한다. 한 리뷰 세션의 모든 호출이 시간·호출 수 예산을 나눠 쓰고 receipt의 호출 ledger에 남는다(`--max-calls`,
+  `--max-minutes`, `--extend-budget`, `--new-session`; 기본은 제한 없이 기록만). 세션 파일은 managed `.gitignore` 패턴으로 빠진다.
+  - 동작 변경: REJECT는 재설계가 필요할 때만 쓰고, critical 보안 finding은 REVISE가 된다(critical_veto는 그대로). PASS를 낸
+    reviewer라도 면제되지 않은 체크리스트 FAIL이 있으면 REVISE다. `pass_criteria`는 정식 규칙을 대체하지 않고 그 뒤에 더해진다.
+- **pipeline이 재개 산출물을 복원하고 실패 원인을 수정 단계에 넘긴다** (2026-11-02, SPEC-PIPELINE-RESUME-001): 모든 runner가
+  verdict를 읽기 전에 응답 계약(error, nil, timeout, 비정상 종료, 빈 출력)을 검사해 출력의 PASS가 실행 실패를 덮지 못한다. 테스트
+  실패와 리뷰 반려는 원인을 수정 단계에 넘긴 뒤 다시 검증하고, 완료 단계의 출력은 체크포인트에 남아 재개 때 검증 후 복원된다.
+  - 동작 변경: 진전이 없으면 `circuit_break_no_progress`, 예산을 다 쓰면 `failed_budget`으로 끝난다(이전에는 `blocked`).
+    verdict가 없거나 형식이 틀리면 다시 묻지 않고 멈춘다. 체크포인트가 `pipeline_checkpoint.v2`가 되어 이전 바이너리는 읽지
+    못하며, v1 체크포인트는 legacy로 감지해 안내한다.
+- **worker 완료 판정이 명시적 결과 계약과 원격 SHA 대조를 쓴다** (2026-11-02, SPEC-WORKERPOST-001): 작업 입력의
+  `completion_contract`가 있으면 프롬프트를 읽지 않고, push는 실행 전에 고정한 remote에서 정확한 ref의 SHA를 기대 커밋과
+  대조한다. 계약이 없으면 예전처럼 프롬프트에서 추론하되 "do not push" 같은 부정은 요구에서 뺀다.
+  - 동작 변경: 후조건은 `satisfied`·`unsatisfied`·`not_required`·`unknown`이고, 조회 실패나 애매한 기대인 `unknown`은 성공이
+    아니라 실패다. backend가 아직 계약을 보내지 않으므로 애매한 프롬프트의 작업이 예전과 달리 실패할 수 있다.
+    `postconditions.json`은 report version 2다.
+- **공유 머신 디스크를 관리하는 `auto disk`를 들인다** (2026-11-02, SPEC-DISK-001·002): `disk:` 설정(여유 공간 하한, 예약량,
+  정리 규칙)과 `auto disk check|status|trim|reclaim|lease|register|release|registry|log`를 더한다. `check`는 무거운 단계 전에
+  공간을 점검하고(부족하면 exit 3), `trim`은 go-build 캐시와 버려진 작업 디렉터리만, `reclaim`은 끝난 worktree와 오래된 세션
+  scratchpad만 지운다(둘 다 기본 dry-run). `lease --need N -- <cmd>`는 다른 lease의 예약을 뺀 공간이 하한 이상일 때만 명령을
+  시작한다. `auto doctor`에 권고용 Disk 행이, Claude Code 세션에는 공간이 하한 아래인 동안 경보가 붙고, 위임·검증·worktree
+  안내가 무거운 단계 전에 이를 쓰게 한다. lease 해제는 다른 goroutine의 fork 순간 때문에 파일을 남기지 않는다.
+- **매 턴 붙는 language-policy에 설정된 언어 값을 함께 싣는다** (2026-10-31): sticky 본문은 "설정된 언어를 따르라"고만 해서
+  긴 세션에서 응답 언어가 영어로 흘렀다. 이제 `auto rules sticky`가 `autopus.yaml`의 `language.*` 값(짧은 언어 태그일 때만)을
+  붙이고, 응답 언어가 영어가 아니면 영어 출력 직후에도 그 언어를 유지하라는 줄을 더한다. 생성 파일은 바뀌지 않는다.
+- **저위험 신규 SPEC에 lean profile을 두고 리뷰 소요 시간을 기록한다** (2026-10-31): `profile: lean`과 저위험 `change_class`를
+  선언한 SPEC은 축소된 필수 절만 요구하고, 고위험이거나 class가 없으면 `auto spec validate --strict`가 거절한다. lean SPEC
+  리뷰는 reviewer 하나로 judge 없이 돈다. 라운드·provider별 소요 시간을 receipt에 남기고 `auto spec timing <SPEC-ID>`가 요약한다.
+
 - **터미널 없이 멀티프로바이더 리뷰 model을 보고 바꾼다** (2026-10-31): 리뷰 provider의 model은 `auto quality` 구성
   폼의 멀티프로바이더 리뷰 탭에서만 바꿀 수 있었고, 그 폼은 터미널이 있어야 열렸다. Claude Code 안에서 `! auto update`나
   `auto quality`를 실행하면 탭에 닿을 수 없었고, 탭에서 바꾼 뒤에도 요약 줄에는 provider 이름만 보였다.
