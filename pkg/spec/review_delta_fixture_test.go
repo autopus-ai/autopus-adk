@@ -1,7 +1,9 @@
 package spec_test
 
 // Fixture of the SPEC-REVIEWREUSE-001 delta verify tests: a small SPEC whose
-// round 0 opened F-001 on REQ-002, and the author's local fix.
+// round 0 opened F-001 on REQ-002, and the author's local fix. REQ-001 to
+// REQ-003 share one H2 heading, so a change is attributed to its requirement
+// block, never to the heading section around it (REQ-RR-DELTA-03).
 
 import (
 	"maps"
@@ -23,8 +25,6 @@ Delta fixture purpose.
 - In scope: the fixture.
 
 ## Requirements
-
-### Core
 
 **REQ-001**
 Priority: Must

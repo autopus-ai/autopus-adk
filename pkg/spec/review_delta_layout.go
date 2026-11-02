@@ -8,8 +8,9 @@ import (
 var (
 	// requirementDefRe matches the line that opens a requirement block.
 	requirementDefRe = regexp.MustCompile(`^\*\*(REQ-[A-Za-z0-9][A-Za-z0-9-]*)\*\*\s*$`)
-	// scenarioHeadingRe matches an acceptance scenario heading.
-	scenarioHeadingRe = regexp.MustCompile(`^###\s+S\d+\b`)
+	// scenarioHeadingRe matches an acceptance scenario heading and captures
+	// its id.
+	scenarioHeadingRe = regexp.MustCompile(`^###\s+(S\d+)\b`)
 	// scopeIDRe matches the requirement, acceptance, invariant, scenario, and
 	// task ids a finding scope or a traceability row names.
 	scopeIDRe = regexp.MustCompile(`\b(?:REQ|AC|INV)-[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?|\b[ST]\d+\b`)
@@ -60,6 +61,23 @@ func (l docLayout) unitLabel(i int) string {
 		return match[1]
 	}
 	return strings.TrimSpace(strings.TrimLeft(line, "#"))
+}
+
+// unitID is the id of the attribution unit holding line i when that unit is
+// a requirement block or a scenario section, "" for a plain heading section
+// or the header.
+func (l docLayout) unitID(i int) string {
+	start := l.unitStart[i]
+	if start < 0 {
+		return ""
+	}
+	if match := requirementDefRe.FindStringSubmatch(l.lines[start]); match != nil {
+		return match[1]
+	}
+	if match := scenarioHeadingRe.FindStringSubmatch(l.lines[start]); match != nil {
+		return match[1]
+	}
+	return ""
 }
 
 // unitText is the full text of the unit that starts at start.
@@ -172,10 +190,20 @@ func (s findingScope) namesHeading(layout docLayout, i int) bool {
 	return false
 }
 
-// covers reports a changed line this finding's fix may touch.
+// covers reports a changed line this finding's fix may touch. A line is
+// attributed to its unit (REQ-RR-DELTA-03): a line of a requirement block or a
+// scenario section is covered only when that block's own id is in the scope
+// closure, so a sibling block under the same heading never rides on a
+// neighbour, nor on naming the finding's id in its own text. A line of a plain
+// heading section (a table row, a list item) is covered when its heading or
+// the line itself names a closure id. A document or heading the finding's
+// scope names covers every line in it.
 func (s findingScope) covers(document string, layout docLayout, i int) bool {
 	if s.docs[document] || s.namesHeading(layout, i) {
 		return true
+	}
+	if id := layout.unitID(i); id != "" {
+		return s.ids[id]
 	}
 	ids := idList(s.ids)
 	return containsAnyID(layout.unitLabel(i), ids) || containsAnyID(layout.lines[i], ids)

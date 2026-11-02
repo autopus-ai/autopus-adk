@@ -49,6 +49,16 @@ func TestPlanDeltaVerify_FallsBackOnTheFirstFailedCondition(t *testing.T) {
 		{"unrelated requirement edited", func(in *spec.DeltaVerifyInput) {
 			in.Documents["spec.md"] = strings.Replace(in.Documents["spec.md"], "THE SYSTEM SHALL store input.", "THE SYSTEM SHALL store input twice.", 1)
 		}, spec.DeltaReasonOutOfScope},
+		{"sibling requirement naming the finding's requirement", func(in *spec.DeltaVerifyInput) {
+			in.Documents["spec.md"] = strings.Replace(in.Documents["spec.md"], "THE SYSTEM SHALL store input.\n",
+				"THE SYSTEM SHALL store input.\nIt SHALL keep the REQ-002 validation result.\n", 1)
+		}, spec.DeltaReasonOutOfScope},
+		{"sibling scenario edited", func(in *spec.DeltaVerifyInput) {
+			in.Documents["acceptance.md"] = strings.Replace(in.Documents["acceptance.md"], "Then it is stored.", "Then it is stored twice.", 1)
+		}, spec.DeltaReasonOutOfScope},
+		{"traceability row of the finding's requirement", func(in *spec.DeltaVerifyInput) {
+			in.Documents["spec.md"] = strings.Replace(in.Documents["spec.md"], "| REQ-002 | T2 | S2 |", "| REQ-002 | T2, T4 | S2 |", 1)
+		}, spec.DeltaReasonDelta},
 		{"no change", func(in *spec.DeltaVerifyInput) { in.Documents = maps.Clone(base) }, spec.DeltaReasonNoChange},
 	}
 	for _, tc := range cases {

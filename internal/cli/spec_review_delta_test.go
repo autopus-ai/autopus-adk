@@ -182,6 +182,11 @@ func TestRunSpecReview_DeltaFallsBackToTheFullInput(t *testing.T) {
 			localFix(t)(specDir)
 			replaceInFile(t, filepath.Join(specDir, "spec.md"), "THE SYSTEM SHALL store input.", "THE SYSTEM SHALL store input twice.")
 		}, spec.DeltaReasonOutOfScope},
+		"sibling requirement naming REQ-002": {func(t *testing.T, specDir string) {
+			localFix(t)(specDir)
+			replaceInFile(t, filepath.Join(specDir, "spec.md"), "THE SYSTEM SHALL store input.\n",
+				"THE SYSTEM SHALL store input.\nIt SHALL keep the REQ-002 validation result.\n")
+		}, spec.DeltaReasonOutOfScope},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
