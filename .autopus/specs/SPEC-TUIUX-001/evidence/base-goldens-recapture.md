@@ -206,3 +206,10 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 차이: 두 stdout에서 `Next:` 한 줄이 여섯 줄(새 작업, 작은 수정, 선택 사항인 Desktop과 각각의 사실 줄)로 바뀌었다. 두 흐름 모두 플랫폼이 `claude-code`, `codex`라 두 문법이 함께 나온다. NPD 일곱 개와 나머지 stdout golden은 바뀌지 않았다.
 - 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`과 `TestInitReview_*`가 이 golden으로 세 번 연속 통과한다.
 - 재기록 시점: main(#252, 18절)을 이 branch에 merge한 뒤 다시 확인했다.
+
+## 96. judge model 안내 재기록 (feat/review-judge-model, 2026-11-02)
+
+- 원인: SPEC-JUDGEMODEL-001 REQ-JM-DOC-01이 `spec-review` 스킬(리뷰 계획 문단과 설정 예시의 `judge_model`·`judge_effort`)과 `using-autopus` 스킬(멀티프로바이더 리뷰 model 절의 `auto quality review judge <provider> --model ...`)에 judge model 설명을 더했다. `adaptive-quality` 스킬과 Codex·Gemini 템플릿 사본도 같은 글로 고쳤다.
+- 기록: 6절과 같은 방법이다(이 branch tip에서 writer, `init-in.stdout`은 `git checkout`으로 되돌림).
+- 차이: `.claude/skills/spec-review`·`using-autopus`, `.codex/skills/codex-spec-review`·`codex-using-autopus`의 checksum, 두 manifest의 그 entry, 두 journal의 `after_checksum`, update 흐름의 backup 사본. stdout golden과 다른 경로는 바뀌지 않았다.
+- 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`이 이 golden으로 통과한다.

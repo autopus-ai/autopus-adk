@@ -130,7 +130,11 @@ SPEC with the configured panel and judge. An unknown `--profile`,
 `--profile lean` on a SPEC that does not qualify, or an empty `--judge` fails
 before any provider runs. Before the first model call the CLI prints the review
 plan: profile, risk class, reviewers and fallbacks, judge and why, quorum,
-rounds, and the expected and upper-bound call counts.
+rounds, and the expected and upper-bound call counts. With
+`spec.review_gate.judge_model` set, the configured judge runs that model and
+effort (`judge model:` in the plan, `judge.model` in the receipt) while every
+reviewer keeps its own; a value the judge's backend cannot run fails before
+any provider runs.
 
 Every model call of a review (reviewers, JSON repair re-prompts, the judge, a
 lean fallback reviewer, every round) and every later `auto spec review` of the
@@ -157,6 +161,8 @@ spec:
     strategy: debate
     providers: [claude, gemini]
     judge: claude
+    judge_model: claude-opus-5-5  # optional: the judge's own model; reviewers keep theirs
+    judge_effort: max   # optional; with judge_model only
     max_revisions: 2
     min_providers: 0      # 0 = default minimum quorum (majority: len/2+1 of configured providers)
     auto_collect_context: true
