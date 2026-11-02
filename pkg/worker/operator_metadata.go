@@ -12,6 +12,9 @@ import (
 type taskRunMeta struct {
 	TraceID       string
 	CorrelationID string
+	// Postconditions is the completion plan handleTask built for the task
+	// (SPEC-WORKERPOST-001); nil falls back to inference from the prompt.
+	Postconditions *taskPostconditions
 }
 
 func newTaskRunMeta(taskID, correlationID string) taskRunMeta {

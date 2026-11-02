@@ -19,10 +19,10 @@ const codexWorkerSandboxMode = "workspace-write"
 const codexGitCommonDirTimeout = 5 * time.Second
 
 // codexGitCommonDir resolves the repository's shared git directory for a
-// worktree. Worker tasks must commit (the commit postcondition), and in a
-// linked worktree the commit writes objects and refs into that shared
-// directory, which lies outside the worktree. It is a variable so tests can
-// pin it without a repository.
+// worktree. A worker task may be required to commit (the commit
+// postcondition), and in a linked worktree the commit writes objects and refs
+// into that shared directory, which lies outside the worktree. It is a
+// variable so tests can pin it without a repository.
 var codexGitCommonDir = func(workDir string) (string, bool) {
 	if strings.TrimSpace(workDir) == "" {
 		return "", false

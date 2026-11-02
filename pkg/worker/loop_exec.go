@@ -86,7 +86,6 @@ func (wl *WorkerLoop) executeWithParallel(
 ) (adapter.TaskResult, error) {
 	taskID := taskCfg.TaskID
 	startTime := time.Now()
-	baseline := captureExecutionBaseline(taskCfg.WorkDir)
 	requestedWorkDir := taskCfg.WorkDir
 
 	// Record task start in the audit log.
@@ -129,6 +128,11 @@ func (wl *WorkerLoop) executeWithParallel(
 		Execution:     execution,
 	})
 
+	// The baseline is read from the directory the provider will run in, right
+	// before it runs, so a worktree or a queue wait cannot shift it.
+	plan := meta.postconditionPlan(taskCfg.Prompt)
+	baseline := wl.postconditionGit.captureBaseline(taskCfg.WorkDir, plan)
+
 	// Delegate to the core subprocess executor.
 	execCtx, cancelExec := wl.executionContext(ctx, taskID)
 	defer cancelExec()
@@ -142,7 +146,7 @@ func (wl *WorkerLoop) executeWithParallel(
 		}
 		return result, err
 	}
-	artifact, verifyErr := verifyExecutionPostconditions(taskCfg.WorkDir, taskCfg.Prompt, baseline)
+	artifact, verifyErr := wl.postconditionGit.verify(taskCfg.WorkDir, plan, baseline)
 	if artifact.Name != "" {
 		result.Artifacts = append(result.Artifacts, artifact)
 	}
@@ -214,7 +218,8 @@ func (wl *WorkerLoop) executePipelineWithParallel(
 	pe.SetPersistentTask(taskCfg.PersistentTask)
 	pe.SetUsageIdentity(taskCfg.RunID, taskCfg.Attempt, taskCfg.Effort, taskCfg.Role)
 	pe.SetUsageProvenance(taskCfg.ProviderVersion, taskCfg.ModelVersion, taskCfg.RiskPolicy, taskCfg.CacheStratum, taskCfg.ConfigHash)
-	baseline := captureExecutionBaseline(workDir)
+	plan := meta.postconditionPlan(prompt)
+	baseline := wl.postconditionGit.captureBaseline(workDir, plan)
 	pe.SetEnvVars(envVars)
 	pe.SetInterruptRecorder(func(evt AuditEvent) {
 		recordWorkerSafetyEvent(wl, evt)
@@ -235,7 +240,7 @@ func (wl *WorkerLoop) executePipelineWithParallel(
 		}
 		return result, err
 	}
-	artifact, verifyErr := verifyExecutionPostconditions(workDir, prompt, baseline)
+	artifact, verifyErr := wl.postconditionGit.verify(workDir, plan, baseline)
 	if artifact.Name != "" {
 		result.Artifacts = append(result.Artifacts, artifact)
 	}
