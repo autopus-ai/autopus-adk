@@ -123,9 +123,14 @@ func assembleSpecReviewJudge(
 	if judge == "" {
 		return nil, nil
 	}
+	// A judge with a model of its own never reuses its reviewer: its entry is
+	// resolved apart and gets the judge model before the gate, so the
+	// projection stays the final argv mutation (SPEC-JUDGEMODEL-001).
+	judgeModel := configuredSpecReviewJudgeModel(cfg, judge)
+	ownModel := judgeModel != nil && judgeModel.applies()
 	var candidates []orchestra.ProviderConfig
 	for _, reviewer := range reviewers {
-		if reviewer.Name == judge {
+		if reviewer.Name == judge && !ownModel {
 			candidates = []orchestra.ProviderConfig{reviewer}
 			break
 		}
@@ -135,6 +140,13 @@ func assembleSpecReviewJudge(
 			return nil, nil
 		}
 		candidates = resolveProviders(&cfg.Orchestra, "review", []string{judge})
+		if ownModel {
+			judged, err := applySpecReviewJudgeModel(candidates[0], *judgeModel)
+			if err != nil {
+				return nil, err
+			}
+			candidates[0] = judged
+		}
 		if violation := checkReadOnlyProvider(candidates[0]); violation != nil {
 			return nil, specReviewPolicyError(violation, specReviewSourceGateJudge)
 		}

@@ -86,6 +86,7 @@ func syncReviewedSpecStatusWithReceipt(
 			Dismissals:  truncatedSpecReviewJudgeDismissals(result.Judge.Dismissals),
 		}
 	}
+	recordSpecReviewJudgeModel(receipt.Judge, runtimeEvidence)
 
 	doc, err := spec.Load(specDir)
 	if err != nil {

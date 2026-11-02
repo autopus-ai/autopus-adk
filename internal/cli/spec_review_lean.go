@@ -56,6 +56,9 @@ func runSpecReviewAttempt(
 	params.configuredNames = append([]string(nil), plan.Names...)
 	params.contextDelivery = contextDelivery
 	params.preflight = plan.Preflight
+	if params.runtimeEvidence != nil {
+		params.runtimeEvidence.JudgeModel = plan.JudgeModel
+	}
 	if params.plan != nil {
 		printSpecReviewPlan(os.Stderr, *params.plan, plan)
 		printSpecReviewBudgetLine(os.Stderr, specReviewLedgerFrom(ctx), plan)

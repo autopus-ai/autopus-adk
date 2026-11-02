@@ -24,6 +24,11 @@ type specReviewJudgeReceipt struct {
 	AcceptedIDs []string `json:"accepted_ids"`
 	Rationale   string   `json:"rationale"`
 	Reason      string   `json:"reason"`
+	// Model and Effort name the judge model the judge ran when
+	// spec.review_gate.judge_model applied (SPEC-JUDGEMODEL-001
+	// REQ-JM-RUN-04); omitted otherwise, so other receipts keep their bytes.
+	Model  string `json:"model,omitempty"`
+	Effort string `json:"effort,omitempty"`
 	// Dismissals are the reviewer blockers the judge cleared by name, each
 	// reason truncated like the rationale (SPEC-REVIEWPOLICY-001
 	// REQ-RP-POL-04); omitted when the judge cleared none.
@@ -92,6 +97,7 @@ type specReviewRuntimeEvidence struct {
 	ProviderPolicy []specReviewProviderPolicyRow
 	StartedAt      time.Time
 	Rounds         []specReviewRoundTiming
+	JudgeModel     *specReviewJudgeModel // the configured judge model, if any (SPEC-JUDGEMODEL-001)
 	Profile        string
 	Session        *specReviewSessionReceipt
 }

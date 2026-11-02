@@ -52,6 +52,9 @@ type specReviewProviderPlan struct {
 	Providers []orchestra.ProviderConfig
 	Judge     *orchestra.ProviderConfig
 	Preflight *specReviewPreflight
+	// JudgeModel is spec.review_gate's judge model and the judge this review
+	// runs (SPEC-JUDGEMODEL-001); nil when none is configured.
+	JudgeModel *specReviewJudgeModel
 }
 
 // planSpecReviewProviders assembles the read-only reviewers and the judge and
@@ -81,6 +84,7 @@ func planSpecReviewProviders(
 	}
 	return specReviewProviderPlan{
 		Names: reviewers.Names, Providers: preflight.readyReviewers(), Judge: judgeConfig, Preflight: preflight,
+		JudgeModel: configuredSpecReviewJudgeModel(cfg, judge),
 	}, nil
 }
 
