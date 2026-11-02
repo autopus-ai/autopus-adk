@@ -80,3 +80,23 @@ func TestSubprocessEngine_FailuresBeyondTheDisplayBoundStayDistinct(t *testing.T
 	assert.NotEqual(t, result.Receipt.Failures[0].Fingerprint, result.Receipt.Failures[1].Fingerprint)
 	assert.Contains(t, backend.promptsFor(pipeline.PhaseImplement)[1], "[truncated: 400 of 501 bytes shown]")
 }
+
+// S15: findings that differ only in a port are different findings, so the
+// second rejection is progress and the run goes on to approval.
+func TestSubprocessEngine_FindingsThatDifferOnlyInAPortStayDistinct(t *testing.T) {
+	t.Parallel()
+
+	backend := &scriptedBackend{scripts: map[pipeline.PhaseID]phaseScript{
+		pipeline.PhaseReview: answers(
+			reviewRejection("F-1", "client dials localhost:5432 without TLS", "require TLS on the client"),
+			reviewRejection("F-1", "client dials localhost:6379 without TLS", "require TLS on the client"),
+			"VERDICT: APPROVE"),
+	}}
+
+	result, err := compactEngine("SPEC-FINDING-003", backend, "").Run(context.Background())
+
+	require.NoError(t, err)
+	assert.Equal(t, pipeline.TerminalCompleted, result.Receipt.Terminal)
+	require.Len(t, result.Receipt.Failures, 2)
+	assert.NotEqual(t, result.Receipt.Failures[0].Fingerprint, result.Receipt.Failures[1].Fingerprint)
+}

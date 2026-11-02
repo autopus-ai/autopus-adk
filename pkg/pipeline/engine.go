@@ -139,7 +139,7 @@ func (e *SubprocessEngine) finishBackendLifecycle(
 	if persistErr != nil {
 		joinedErr = errors.Join(
 			joinedErr,
-			fmt.Errorf("pipeline: persist backend cleanup receipt: %w", persistErr),
+			fmt.Errorf("pipeline: persist backend cleanup receipt: %w", redactError(persistErr)),
 		)
 	}
 	return result, joinedErr

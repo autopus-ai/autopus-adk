@@ -29,6 +29,8 @@ func combinePipelineError(runErr, persistErr error, label string) error {
 	if persistErr == nil {
 		return runErr
 	}
+	// A persistence error can quote a path or value that holds a secret.
+	persistErr = redactError(persistErr)
 	if runErr == nil {
 		return fmt.Errorf("pipeline: %s: %w", label, persistErr)
 	}

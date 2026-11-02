@@ -50,14 +50,16 @@ func (r *OrchestrationRunReceipt) inheritLineage(prior *OrchestrationRunReceipt)
 	if prior == nil {
 		return
 	}
+	// Identifiers come from a stored receipt too, so they are redacted like
+	// every other copied string (REQ-PRR-FAIL-05).
 	switch {
 	case prior.TaskID != "":
-		r.TaskID = prior.TaskID
+		r.TaskID = redactFailureText(prior.TaskID)
 	case prior.RunID != "":
 		// A receipt written before task IDs existed was the task's first run.
-		r.TaskID = prior.RunID
+		r.TaskID = redactFailureText(prior.RunID)
 	}
-	r.ResumedFrom = prior.RunID
+	r.ResumedFrom = redactFailureText(prior.RunID)
 	attempts := append(append([]RunAttemptRecord(nil), prior.PriorAttempts...), RunAttemptRecord{
 		RunID: prior.RunID, ResumedFrom: prior.ResumedFrom, Terminal: prior.Terminal,
 		Blocker: prior.Blocker, DispatchCount: prior.DispatchCount,
@@ -67,8 +69,7 @@ func (r *OrchestrationRunReceipt) inheritLineage(prior *OrchestrationRunReceipt)
 	// A stored receipt may come from an older binary or an edit, so every
 	// copied string is redacted again before it is persisted (REQ-PRR-FAIL-05).
 	for i := range attempts {
-		attempts[i].Blocker = redactFailureText(attempts[i].Blocker)
-		attempts[i].Failures = redactFailureRecords(attempts[i].Failures)
+		attempts[i] = redactAttemptRecord(attempts[i])
 	}
 	r.PriorAttempts = attempts
 	r.CumulativeDispatchCount = r.DispatchCount

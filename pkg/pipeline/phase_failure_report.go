@@ -24,7 +24,6 @@ const (
 var (
 	findingReportLine = regexp.MustCompile(`^FINDING\s+([A-Za-z0-9][A-Za-z0-9._-]{0,63})\s*:\s*(.*)$`)
 	findingFixMarker  = regexp.MustCompile(`\s*\|\s*FIX:\s*`)
-	fileLineNumbers   = regexp.MustCompile(`(:\d+)+`)
 )
 
 // newGateFailure builds the redacted record of a failed gate from its output.
@@ -116,13 +115,6 @@ func failureSignatures(items []FailureEvidence, fallback string) []string {
 	}
 	sort.Strings(signatures)
 	return signatures
-}
-
-// normalizeFindingText lowercases a finding, collapses its whitespace, and
-// masks file:line numbers, which move when a fix edits the file.
-func normalizeFindingText(text string) string {
-	text = fileLineNumbers.ReplaceAllString(strings.ToLower(text), ":#")
-	return strings.Join(strings.Fields(text), " ")
 }
 
 func digestText(text string) string {

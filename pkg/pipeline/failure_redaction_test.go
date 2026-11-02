@@ -63,9 +63,16 @@ func TestSubprocessEngine_ResumeRedactsPriorReceiptSecrets(t *testing.T) {
 			Receipt: &pipeline.OrchestrationRunReceipt{
 				RunID: "pipeline-older", Terminal: pipeline.TerminalBlocked,
 				Blocker: "phase implement: OPENAI_API_KEY=" + backendSecret,
+				ProviderReceipts: []pipeline.ProviderRunReceipt{{
+					Provider: "codex", Role: "implement", Artifact: "receipt?token=" + backendSecret,
+				}},
 				Failures: []pipeline.PhaseFailure{{
-					PhaseID: pipeline.PhaseImplement, Kind: pipeline.FailureTransport,
+					PhaseID: pipeline.PhaseValidate, Kind: pipeline.FailureTestFailure,
+					Decision: pipeline.DecisionRemediate, RoutedTo: pipeline.PhaseImplement,
 					Summary: "token=" + backendSecret, Excerpt: "Authorization: Bearer " + backendSecret,
+					Evidence: []pipeline.FailureEvidence{{
+						ID: "OPENAI_API_KEY=" + backendSecret, Detail: "planted in a stored finding ID",
+					}},
 				}},
 			},
 		}
@@ -101,4 +108,35 @@ func TestSubprocessEngine_ResumeRedactsPriorReceiptSecrets(t *testing.T) {
 		require.NoError(t, readErr)
 		assert.NotContains(t, string(raw), backendSecret)
 	})
+
+	t.Run("restored fix feedback is redacted", func(t *testing.T) {
+		t.Parallel()
+		fixture := newResumeFixture(t, "SPEC-REDACT-004", false)
+		backend := &scriptedBackend{}
+		_, err := fixture.run(context.Background(), backend, legacy(fixture, pipeline.PhasePlan))
+		require.NoError(t, err)
+		fix := backend.promptsFor(pipeline.PhaseImplement)[0]
+		assert.Contains(t, fix, "## Remediation Feedback", "the stored routed fix is resumed")
+		assert.Contains(t, fix, "planted in a stored finding ID")
+		assert.NotContains(t, fix, backendSecret)
+	})
+}
+
+// S13: a persistence failure that quotes a secret-bearing path surfaces
+// redacted in the error the run returns.
+func TestSubprocessEngine_PersistErrorSecretNeverSurfaces(t *testing.T) {
+	t.Parallel()
+
+	occupied := filepath.Join(t.TempDir(), "OPENAI_API_KEY="+backendSecret)
+	require.NoError(t, os.WriteFile(occupied, []byte("not a directory"), 0o600))
+	engine := pipeline.NewSubprocessEngine(pipeline.EngineConfig{
+		SpecID: "SPEC-REDACT-005", Platform: "codex", Backend: &scriptedBackend{},
+		RunConfig: pipeline.RunConfig{SpecID: "SPEC-REDACT-005", CheckpointDir: occupied},
+	})
+
+	_, err := engine.Run(context.Background())
+
+	require.ErrorContains(t, err, "persist")
+	assert.NotContains(t, err.Error(), backendSecret)
+	assert.Contains(t, err.Error(), "[REDACTED_SECRET]")
 }
