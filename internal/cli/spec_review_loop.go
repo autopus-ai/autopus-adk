@@ -96,6 +96,9 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 		}
 		if p.runtimeEvidence != nil {
 			p.runtimeEvidence.Fingerprint = fp
+			// The shared rule, never a copy of it: status compares this value
+			// with specDocumentsFingerprint of the SPEC it reads later.
+			p.runtimeEvidence.SpecFingerprint, _ = specDocumentsFingerprint(p.specDir)
 		}
 		prompt, input := chooseSpecReviewInput(p, doc, priorFindings, prompt, fp, sources)
 		if p.verifyInput == config.ReviewVerifyInputDelta {

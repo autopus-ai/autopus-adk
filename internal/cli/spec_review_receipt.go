@@ -82,6 +82,12 @@ type specReviewPromotionReceipt struct {
 	// Fingerprint of the final round's inputs, compared by the next
 	// invocation to decide reuse (SPEC-REVIEWREUSE-001 REQ-RR-REUSE-01).
 	Fingerprint *specReviewFingerprint `json:"fingerprint,omitempty"`
+
+	// SpecFingerprint is specDocumentsFingerprint of the SPEC documents the
+	// final round read, so status can prove by content that the SPEC is
+	// still what was reviewed (SPEC-STATUSEVIDENCE-001 REQ-SEV-REVIEW-01).
+	// Omitted when no round ran in this invocation.
+	SpecFingerprint string `json:"spec_fingerprint,omitempty"`
 }
 
 // specReviewProviderPolicyRow records how one reviewer, excluded provider, or
@@ -103,8 +109,10 @@ type specReviewRuntimeEvidence struct {
 	Rounds         []specReviewRoundTiming
 	Profile        string
 	Session        *specReviewSessionReceipt
-	// Fingerprint is the fingerprint of the last round that ran.
-	Fingerprint *specReviewFingerprint
+	// Fingerprint is the fingerprint of the last round that ran, and
+	// SpecFingerprint the shared SPEC fingerprint of the documents it read.
+	Fingerprint     *specReviewFingerprint
+	SpecFingerprint string
 }
 
 // applySpecReviewRepeatDiscovery projects the loop's repeat-discovery evidence

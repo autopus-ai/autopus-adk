@@ -245,6 +245,7 @@
     "incomplete": [
       "code: not a git work tree"
     ]
-  }
+  },
+  "spec_fingerprint": "sha256:c18029d80f83c362c7032b3ba5e1b259d112160c8b0aedffa25fe3b907ebf70f"
 }
 
