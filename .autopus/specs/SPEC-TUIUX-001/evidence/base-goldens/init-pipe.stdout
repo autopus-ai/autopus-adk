@@ -44,5 +44,7 @@ Codex catalog: 읽음 · 대체 0칸
 │ commits=ko, ai=ko                      │
 ╰────────────────────────────────────────╯
   ℹ Claude statusLine: Autopus statusLine enabled
-  ℹ Next: open Autopus Desktop Connect or run 'autopus-desktop-runtime connect' to connect with Autopus server
+  ℹ Next: plan new work with /auto plan "<outcome>" (claude-code) · $codex-auto-plan "<outcome>" (codex)
+  ℹ Next: fix something small without a SPEC with /auto fix "<problem>" (claude-code) · $codex-auto-fix "<problem>" (codex)
+  ℹ Optional: Autopus Desktop connects this project to the Autopus server; the ADK works without it. Connect later from the Desktop app or with `auto connect`.
   ✓ Autopus harness initialized (full mode)

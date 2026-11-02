@@ -9,10 +9,12 @@ import (
 )
 
 type statusJSONData struct {
-	Summary  statusJSONSummary     `json:"summary"`
-	Specs    []statusJSONSpec      `json:"specs,omitempty"`
-	Findings []statusJSONFinding   `json:"findings,omitempty"`
-	Hygiene  *statusHygienePayload `json:"hygiene,omitempty"`
+	Summary     statusJSONSummary     `json:"summary"`
+	Specs       []statusJSONSpec      `json:"specs,omitempty"`
+	Findings    []statusJSONFinding   `json:"findings,omitempty"`
+	Environment *statusEnvironment    `json:"environment,omitempty"`
+	NextActions []statusNextAction    `json:"next_actions,omitempty"`
+	Hygiene     *statusHygienePayload `json:"hygiene,omitempty"`
 }
 
 type statusJSONSummary struct {
@@ -23,6 +25,10 @@ type statusJSONSummary struct {
 	Draft      int `json:"draft"`
 	Other      int `json:"other"`
 	Open       int `json:"open"`
+	// Done counts declared statuses; Verified counts only SPECs whose last
+	// completed run still matches the code (SPEC-STATUSEVIDENCE-001).
+	Verified int            `json:"verified"`
+	Evidence map[string]int `json:"evidence,omitempty"`
 }
 
 type statusJSONSpec struct {
@@ -33,6 +39,8 @@ type statusJSONSpec struct {
 	Status    string `json:"status"`
 	Completed bool   `json:"completed"`
 	Source    string `json:"source,omitempty"`
+	// Evidence keeps execution, verification, and review apart from Status.
+	Evidence *statusEvidence `json:"evidence,omitempty"`
 }
 
 type statusJSONFinding struct {
@@ -51,6 +59,7 @@ func normalizeSpecStatus(status string) string {
 func runStatusJSON(cmd *cobra.Command, dir string) error {
 	specs := scanAllSpecs(dir)
 	data, warnings, checks, status := buildStatusJSONPayload(dir, specs)
+	applyStatusEvidenceJSON(&data, collectStatusReport(dir, specs), &warnings, &status)
 	hygiene := collectStatusHygiene(dir)
 	payload := hygiene.payload()
 	data.Hygiene = &payload

@@ -696,6 +696,20 @@ split compiler 참고:
 route와 현재 승인된 route가 같아야 합니다. 어노테이션은 `auto spec gates --annotation`으로
 명시적으로 요청하며, 검증·보안·데이터 손실·결정적 오라클 게이트는 유지합니다.
 
+`auto pipeline run`은 고른 플랫폼과 이유를 알리고(`Pipeline platform: claude — first installed
+of claude → codex → agy`), checkpoint에서 복원한 단계를 실행한 단계와 따로 셉니다
+(`Pipeline complete: 3 phases executed, 2 restored from checkpoint, 3 dispatches`). 완료된
+실행은 `.autopus/pipeline-state/<SPEC>.verification.json`에 상태 줄을 뺀 SPEC 문서와,
+`.autopus` 밖에서 HEAD와 다른 작업 트리 경로를 기록합니다. `auto status`는 SPEC마다 선언된
+상태와 이 근거를 나눠 보입니다. 코드와 SPEC이 기록과 같을 때만 `verified`(검증한 트리를
+그대로 커밋해도 유지)이고, 달라지면 바뀐 경로와 함께 `stale`, 멈춘 실행은
+`auto pipeline run <SPEC> --continue`가 받아들여질지와 함께 `failed`, 문서만 완료라고 하면
+`documented_only`입니다. 리뷰 근거는 `review-receipt.json`(이후에 SPEC 문서를 쓰면 stale.
+receipt에 내용 지문이 없어 상태 줄만 바꿔도 해당)과, 있으면 `review-session.json`에서
+읽습니다. 다음 명령은 단독 사용을 먼저 안내하고 `/auto plan` 옆에 SPEC 없는 `/auto fix`를
+함께 보이며, 명령마다 실행 위치, provider, 외부 호출과 쓰기를 적습니다. status는 어느
+명령도 실행하지 않고, Autopus Desktop은 선택 사항입니다.
+
 `workflow.coverage_threshold`의 기본값은 `85`입니다. 프로젝트나 route가 다른 값을
 선언하면 그 값을 따르고, `0`이면 수치 게이트를 끕니다.
 일반 `auto workflow context`에서 아키텍처 문서는 `--conditional-profile architecture`
@@ -1426,7 +1440,7 @@ auto sync verify --spec SPEC-HOOK-001 --strict
 | `auto lore` | 의사결정 추적 (context / commit / validate / stale) |
 | `auto orchestra` | 멀티 모델 오케스트레이션 (brainstorm / plan / review / secure / run) |
 | `auto setup` | 프로젝트 컨텍스트 문서 (generate / update / validate / status) |
-| `auto status` | SPEC 대시보드 (done / in-progress / draft) |
+| `auto status` | SPEC 대시보드: 문서에 선언된 상태(done / in-progress / draft)와 근거(마지막 pipeline 실행, 현재 코드 기준 검증, 마지막 SPEC 리뷰)를 나눠 보이고, 설치된 AI CLI, `auto pipeline run` 플랫폼, 선택 사항인 Desktop, 실행하지 않는 다음 명령을 함께 보입니다(`--json`도 같은 내용) |
 | `auto telemetry` | 파이프라인 텔레메트리 (record / summary / cost / compare / leadtime — first-slice·critical-path 리드타임과 baseline 회귀 게이트) |
 | `auto skill` | 스킬 관리 (list / info / create) |
 | `auto search` | 지식 검색 (Exa) |

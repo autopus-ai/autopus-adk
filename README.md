@@ -777,6 +777,22 @@ contradicted authorization retains all five phases. Resume requires the same aut
 route. Annotation is opt-in through `auto spec gates --annotation`; validation, security,
 data-loss, and deterministic-oracle gates remain active.
 
+`auto pipeline run` names its platform and why (`Pipeline platform: claude — first installed
+of claude → codex → agy`) and counts restored phases apart from executed ones
+(`Pipeline complete: 3 phases executed, 2 restored from checkpoint, 3 dispatches`). A
+completed run records `.autopus/pipeline-state/<SPEC>.verification.json`: the SPEC documents
+without their status lines and every working-tree path that differs from HEAD, outside
+`.autopus`. `auto status` keeps each SPEC's declared status apart from that evidence: it
+reports `verified` only while the code and SPEC still match the record (committing the
+verified tree keeps it), `stale` with the changed paths, `failed` with whether
+`auto pipeline run <SPEC> --continue` would be admitted, and `documented_only` when only the
+document says done. Review evidence comes from `review-receipt.json`, stale once a SPEC
+document is written after it (the receipt has no content fingerprint, so a status-only edit
+counts too), and from `review-session.json` when present. Next commands lead with
+standalone use, offer `/auto fix` without a SPEC beside `/auto plan`, and say where each runs,
+which provider it uses, and what it calls and writes; status runs none of them, and Autopus
+Desktop stays optional.
+
 The default `workflow.coverage_threshold` is `85`. An explicit project or route
 threshold overrides it, and `0` turns the numeric gate off. Ordinary
 `auto workflow context` selects architecture through `--conditional-profile architecture`
@@ -1542,7 +1558,7 @@ Every provider runs as a headless subprocess (or through OMP for a `backend: omp
 | `auto lore` | Decision tracking (context / commit / validate / stale) |
 | `auto orchestra` | Multi-model orchestration (brainstorm / plan / review / secure / run) |
 | `auto setup` | Project context documents (generate / update / validate / status) |
-| `auto status` | SPEC dashboard (done / in-progress / draft) |
+| `auto status` | SPEC dashboard: the declared status (done / in-progress / draft) kept apart from evidence — the last pipeline run, verification against the current code, the last SPEC review — plus installed AI CLIs, the `auto pipeline run` platform, optional Desktop, and next commands it never runs (`--json` carries the same) |
 | `auto telemetry` | Pipeline telemetry (record / summary / cost / compare / leadtime — first-slice and critical-path lead time with baseline regression gate) |
 | `auto skill` | Skill management (list / info / create) |
 | `auto search` | Knowledge search (Exa) |

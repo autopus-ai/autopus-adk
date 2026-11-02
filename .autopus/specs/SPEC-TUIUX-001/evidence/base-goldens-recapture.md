@@ -187,3 +187,10 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 차이: `.claude/skills/agent-pipeline/references/phases.md`·`review.md`, `.codex/skills/codex-agent-pipeline/references/phases.md`·`review.md`의 checksum(두 플랫폼이 같은 값), 두 manifest의 그 entry, 두 journal의 `after_checksum`, update 흐름의 backup 사본. quality 두 흐름과 stdout golden은 바뀌지 않았다.
 - 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`과 `TestInitReview_*`가 이 golden으로 통과한다.
 - 재기록 시점: main(#249, 16절)을 이 branch에 merge한 뒤 다시 기록했다.
+
+## 19. init 다음 단계 안내 재기록 (feat/status-execution-evidence, 2026-11-02)
+
+- 원인: SPEC-STATUSEVIDENCE-001 REQ-SEV-NEXT-03이 `auto init` 요약 뒤의 다음 단계 안내를 바꿨다. worker 설정이 없을 때 Desktop 연결만 권하던 `Next: open Autopus Desktop Connect ...` 줄 대신, 설정된 플랫폼마다의 문법으로 새 작업(`/auto plan`, `$codex-auto-plan`)과 SPEC 없는 작은 수정(`/auto fix`, `$codex-auto-fix`)을 먼저 안내하고, Desktop 연결은 마지막 `Optional:` 줄에서 선택 사항으로 안내한다. 이 안내는 기계의 설치 상태를 읽지 않는 고정 문구다.
+- 기록: 17절을 담은 PR #251 branch(main #249 merge 포함) 위로 rebase한 이 branch tip에서 writer를 돌렸다. 바뀐 줄은 이 branch가 의도한 출력이므로 `init-yes.stdout`과 `init-pipe.stdout`을 그대로 두었다. writer가 다시 쓴 `init-in.stdout`(단언하지 않는 TUIUX 확인 화면)은 `git checkout`으로 되돌렸다.
+- 차이: 두 stdout에서 `Next:` 한 줄이 세 줄(새 작업, 작은 수정, 선택 사항인 Desktop)로 바뀌었다. 두 흐름 모두 플랫폼이 `claude-code`, `codex`라 두 문법이 함께 나온다. NPD 일곱 개와 나머지 stdout golden은 바뀌지 않았다.
+- 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`과 `TestInitReview_*`가 이 golden으로 통과한다.

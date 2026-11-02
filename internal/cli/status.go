@@ -223,9 +223,14 @@ func runStatusText(cmd *cobra.Command, dir string) error {
 	out := cmd.OutOrStdout()
 
 	specs := scanAllSpecs(dir)
+	report := collectStatusReport(dir, specs)
 	hygiene := collectStatusHygiene(dir)
 	if len(specs) == 0 {
-		_, _ = fmt.Fprintln(out, "SPEC이 없습니다. `/auto plan`으로 시작하세요.")
+		// A small change needs no SPEC, so an empty project is not sent to
+		// /auto plan alone (SPEC-STATUSEVIDENCE-001 REQ-SEV-NEXT-01).
+		_, _ = fmt.Fprintln(out, "SPEC이 없습니다. 작은 수정은 SPEC 없이 바로 시작하고, 새 기능은 SPEC 계획부터 시작하세요.")
+		renderStatusEnvironment(out, report.env)
+		renderStatusNext(out, report.actions)
 		renderHygieneText(out, hygiene)
 		return nil
 	}
@@ -233,7 +238,7 @@ func runStatusText(cmd *cobra.Command, dir string) error {
 	tui.BannerWithInfo(out, "Project Status", "specs")
 
 	doneCount := 0
-	for _, s := range specs {
+	for i, s := range specs {
 		icon := statusIcon(s.status)
 
 		var iconStyled string
@@ -249,12 +254,19 @@ func runStatusText(cmd *cobra.Command, dir string) error {
 
 		statusStyled := tui.MutedStyle.Render(fmt.Sprintf("%-8s", s.status))
 		idStyled := tui.BoldStyle.Render(fmt.Sprintf("%-14s", s.displayID()))
-		_, _ = fmt.Fprintf(out, "  %s %s %s  %s\n", idStyled, iconStyled, statusStyled, s.title)
+		labelStyled := tui.MutedStyle.Render(fmt.Sprintf("%-15s", report.evidence[i].Label))
+		_, _ = fmt.Fprintf(out, "  %s %s %s  %s  %s\n", idStyled, iconStyled, statusStyled, labelStyled, s.title)
+		renderStatusEvidenceDetails(out, report.evidence[i])
 	}
 
 	_, _ = fmt.Fprintln(out)
-	summary := fmt.Sprintf("전체: %d/%d 완료", doneCount, len(specs))
+	// The declared count is what the documents say; only the evidence line
+	// below can say verified.
+	summary := fmt.Sprintf("전체: %d/%d 완료 (문서에 선언된 상태)", doneCount, len(specs))
 	_, _ = fmt.Fprintf(out, "  %s\n", tui.MutedStyle.Render(summary))
+	_, _ = fmt.Fprintf(out, "  %s\n", tui.MutedStyle.Render(report.evidenceSummaryText()))
+	renderStatusEnvironment(out, report.env)
+	renderStatusNext(out, report.actions)
 	renderHygieneText(out, hygiene)
 	return nil
 }

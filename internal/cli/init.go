@@ -222,20 +222,8 @@ func newInitCmd() *cobra.Command {
 			if hint := reviewHint(cfg, composeLanguage()); hint != "" && !interactive {
 				tui.Info(out, hint)
 			}
-			// Context-aware next step guidance (R9)
-			if home, err := os.UserHomeDir(); err == nil {
-				workerConfigPath := filepath.Join(home, ".config", "autopus", "worker.yaml")
-				if _, err := os.Stat(workerConfigPath); os.IsNotExist(err) {
-					tui.Info(out, "Next: open Autopus Desktop Connect or run 'autopus-desktop-runtime connect' to connect with Autopus server")
-				} else {
-					if containsPlatform(cfg.Platforms, "codex") {
-						tui.Info(out, "Next: Codex에서 `$auto plan ...` 또는 plugin 설치 후 `@auto plan ...` 로 첫 기능을 기획해보세요")
-					} else {
-						tui.Info(out, "Next: /auto plan 으로 첫 기능을 기획해보세요")
-					}
-				}
-			} else {
-				tui.Info(out, "Next: open Autopus Desktop Connect or run 'autopus-desktop-runtime connect' to connect with Autopus server")
+			for _, step := range initNextSteps(cfg.Platforms) {
+				tui.Info(out, step)
 			}
 			tui.Successf(out, "Autopus harness initialized (%s mode)", mode)
 			return nil
@@ -251,6 +239,20 @@ func newInitCmd() *cobra.Command {
 	registerReaFlags(cmd, &reaOn, &reaOff)
 
 	return cmd
+}
+
+// initNextSteps leads with standalone use: new work through a SPEC and a
+// small change without one, in every configured platform's syntax. Autopus
+// Desktop comes last and optional (SPEC-STATUSEVIDENCE-001 REQ-SEV-NEXT-03).
+// The text is static, so it never depends on what this machine has installed.
+func initNextSteps(platforms []string) []string {
+	return []string{
+		"Next: plan new work with " + autoRouteFormsText(autoRouteForms(platforms, "plan", `"<outcome>"`)),
+		"Next: fix something small without a SPEC with " +
+			autoRouteFormsText(autoRouteForms(platforms, "fix", `"<problem>"`)),
+		"Optional: Autopus Desktop connects this project to the Autopus server; the ADK works without it. " +
+			"Connect later from the Desktop app or with `auto connect`.",
+	}
 }
 
 func containsPlatform(platforms []string, target string) bool {
