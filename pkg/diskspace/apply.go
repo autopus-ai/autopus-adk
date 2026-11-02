@@ -56,6 +56,8 @@ type ApplyOptions struct {
 // removeHooks are the ApplyOptions seams a removal calls.
 type removeHooks struct {
 	beforeWalk, beforeRemove func(rule, rel string)
+	// tree bounds the pre-walk of a directory candidate; zero is strictTree.
+	tree treeLimits
 }
 
 // ApplyResult is what Apply did.

@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
-	"github.com/insajin/autopus-adk/pkg/workerreceipt"
 )
 
 type engineRunState struct {
@@ -13,7 +11,18 @@ type engineRunState struct {
 	result     *PipelineResult
 	checkpoint *Checkpoint
 	statuses   map[PhaseID]CheckpointStatus
-	previous   map[PhaseID]string
+	// previous holds each completed phase's dynamic output, as later prompts read it.
+	previous map[PhaseID]string
+	// outputs are the records of previous that the checkpoint persists.
+	outputs map[PhaseID]PhaseOutputRecord
+	// attempts counts dispatches per phase; attempt numbers never repeat in a run.
+	attempts map[PhaseID]int
+	// cycles counts the remediation cycles each gate has spent in this run.
+	cycles map[PhaseID]int
+	// lastFailure is each gate's previous failure in this run, for the breaker.
+	lastFailure map[PhaseID]*PhaseFailure
+	// feedback is the failure a pending fix dispatch carries in its prompt.
+	feedback map[PhaseID]*PhaseFailure
 }
 
 // @AX:ANCHOR [AUTO]: Preserve the sole orchestration entry point for the canonical five-phase route.
@@ -23,8 +32,8 @@ type engineRunState struct {
 // Run executes the canonical dependency-ordered pipeline.
 func (e *SubprocessEngine) Run(ctx context.Context) (result *PipelineResult, runErr error) {
 	requested, effective, strategyErr := effectivePipelineStrategy(e.cfg.Strategy)
-	checkpointErr := e.validateCheckpoint()
-	state := e.newRunState(requested, effective, checkpointErr == nil)
+	plan, checkpointErr := e.planResume()
+	state := e.newRunState(requested, effective, plan, checkpointErr == nil)
 	preflight := true
 	if closer, ok := e.cfg.Backend.(PhaseBackendCloser); ok {
 		defer func() {
@@ -51,12 +60,19 @@ func (e *SubprocessEngine) Run(ctx context.Context) (result *PipelineResult, run
 		return e.runDry(state)
 	}
 
-	var previousOutput string
 	for i, phase := range state.phases {
 		if state.statuses[phase.ID] == CheckpointStatusDone {
 			state.result.PhaseResults[i].Status = CheckpointStatusDone
 			state.result.Receipt.CompletedPhaseCount++
 			state.result.Receipt.transition(phase.ID, CheckpointStatusDone, 0, VerdictPass, "restored from checkpoint")
+		}
+	}
+	// The loop is index-based: a routed fix rewinds it to the fix phase, and
+	// the gates' remediation budgets bound how often that can happen.
+	for i := 0; i < len(state.phases); {
+		phase := state.phases[i]
+		if state.statuses[phase.ID] == CheckpointStatusDone {
+			i++
 			continue
 		}
 		if err := dependenciesDone(phase, state.statuses); err != nil {
@@ -66,11 +82,11 @@ func (e *SubprocessEngine) Run(ctx context.Context) (result *PipelineResult, run
 			return e.failRun(state, i, 0, err)
 		}
 
-		output, err := e.executePhase(ctx, state, i, phase, previousOutput)
+		next, err := e.executePhase(ctx, state, i, phase)
 		if err != nil {
 			return state.result, err
 		}
-		previousOutput = output
+		i = next
 	}
 
 	if state.result.Receipt.DispatchCount == 0 {
@@ -85,110 +101,54 @@ func (e *SubprocessEngine) Run(ctx context.Context) (result *PipelineResult, run
 	return state.result, nil
 }
 
-// @AX:WARN [AUTO]: This phase transaction has more than eight retry, receipt, gate, compaction, and persistence branches.
+// @AX:WARN [AUTO]: This phase transaction has retry, gate, remediation, compaction, and persistence branches.
 // @AX:REASON [AUTO]: Worker receipts must be admitted only after response validation and a passing gate, then persisted exactly once.
-func (e *SubprocessEngine) executePhase(ctx context.Context, state *engineRunState, index int, phase Phase, previousOutput string) (string, error) {
-	maxRetries := phase.MaxRetries
-	if maxRetries < 0 {
+// executePhase dispatches one phase until it passes, routes a fix, or stops
+// the run, and returns the index the loop continues from. Only a retryable
+// transport failure re-sends the same prompt; a failed gate rebuilds the fix
+// phase's prompt with the failure (SPEC-PIPELINE-RESUME-001 REQ-PRR-FAIL-02..04).
+func (e *SubprocessEngine) executePhase(ctx context.Context, state *engineRunState, index int, phase Phase) (int, error) {
+	if phase.MaxRetries < 0 {
 		err := fmt.Errorf("phase %s: negative max retries", phase.ID)
-		return "", e.failPhase(state, index, 0, CheckpointStatusFailed, TerminalBlocked, err)
+		return 0, e.failPhase(state, index, 0, CheckpointStatusFailed, TerminalBlocked, err)
 	}
-	prompt, err := e.buildPhasePrompt(phase, state.previous, previousOutput)
+	prompt, err := e.buildPhasePrompt(phase, state.previous, state.feedback[phase.ID])
 	if err != nil {
 		wrapped := fmt.Errorf("phase %s: build prompt: %w", phase.ID, err)
-		return "", e.failPhase(state, index, 0, CheckpointStatusFailed, TerminalBlocked, wrapped)
+		return 0, e.failPhase(state, index, 0, CheckpointStatusFailed, TerminalBlocked, wrapped)
 	}
-
-	for attempt := 1; attempt <= maxRetries+1; attempt++ {
-		state.statuses[phase.ID] = CheckpointStatusInProgress
-		state.result.Receipt.transition(phase.ID, CheckpointStatusInProgress, attempt, "", "")
-		if err := e.persistRunState(state); err != nil {
-			wrapped := fmt.Errorf("phase %s: persist start: %w", phase.ID, err)
-			return "", e.failPhase(state, index, attempt, CheckpointStatusFailed, TerminalBlocked, wrapped)
-		}
-
-		request, err := e.newPhaseRequest(state, phase, attempt, prompt)
+	for retry := 1; ; retry++ {
+		attempt := state.nextAttempt(phase.ID)
+		outcome, err := e.dispatch(ctx, state, index, phase, attempt, prompt)
 		if err != nil {
-			wrapped := fmt.Errorf("phase %s: %w", phase.ID, err)
-			return "", e.failPhase(state, index, attempt, CheckpointStatusFailed, TerminalBlocked, wrapped)
+			return 0, err
 		}
-		state.result.Receipt.DispatchCount++
-		resp, err := e.cfg.Backend.Execute(ctx, request)
-		evidenceErr := err
-		var output string
-		var workerEnvelope *workerreceipt.Envelope
-		if evidenceErr == nil {
-			evidenceErr = validatePhaseResponse(phase.ID, resp)
-		}
-		if evidenceErr == nil {
-			output = NormalizeOutput(e.cfg.Platform, resp.Output)
-			workerEnvelope, evidenceErr = workerreceipt.ParseMarkedOutput(output)
-			if evidenceErr != nil {
-				evidenceErr = fmt.Errorf("phase %s: worker receipt evidence: %w", phase.ID, evidenceErr)
+		if outcome.failure != nil {
+			if !outcome.failure.Retryable || retry > maxTransportRetries {
+				return 0, e.stopOnFailure(state, index, outcome.failure, outcome.err)
 			}
-		}
-		state.result.Receipt.recordDispatch(e.cfg.Platform, phase.ID, attempt, resp, evidenceErr)
-		if err != nil {
-			terminal := TerminalBlocked
-			status := CheckpointStatusFailed
-			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-				terminal = TerminalCancelled
-				status = CheckpointStatusCancelled
+			if err := e.waitBeforeResend(ctx, state, index, outcome.failure, retry); err != nil {
+				return 0, err
 			}
-			return "", e.failPhase(state, index, attempt, status, terminal, fmt.Errorf("phase %s: %w", phase.ID, err))
-		}
-		if evidenceErr != nil {
-			return "", e.failPhase(state, index, attempt, CheckpointStatusFailed, TerminalBlocked,
-				evidenceErr)
+			continue
 		}
 
-		verdict := EvaluateGate(phase.Gate, output)
+		verdict := EvaluateGate(phase.Gate, outcome.output)
 		state.result.PhaseResults[index] = PhaseResult{
-			PhaseID: phase.ID, Output: output, Verdict: verdict,
+			PhaseID: phase.ID, Output: outcome.output, Verdict: verdict,
 			Status: CheckpointStatusInProgress, Attempts: attempt,
 		}
 		if verdict != VerdictPass {
-			if attempt <= maxRetries {
-				state.result.Receipt.transition(phase.ID, CheckpointStatusInProgress, attempt, verdict, "gate failed; retrying")
-				continue
-			}
-			err := fmt.Errorf("phase %s: gate %s failed after %d attempt(s)", phase.ID, phase.Gate, attempt)
-			return "", e.failPhase(state, index, attempt, CheckpointStatusFailed, TerminalBlocked, err)
+			kind := classifyGateFailure(phase.Gate, outcome.output)
+			return e.handleGateFailure(state, index, phase, newGateFailure(phase, attempt, kind, outcome.output))
 		}
-		if workerEnvelope != nil {
-			state.result.Receipt.WorkerReceipts = append(
-				state.result.Receipt.WorkerReceipts,
-				workerEnvelope.Receipt,
-			)
-		}
-
-		nextOutput, event, err := e.compactPhaseOutput(phase.ID, output)
-		if err != nil {
-			return "", e.failPhase(state, index, attempt, CheckpointStatusFailed, TerminalBlocked, err)
-		}
-		state.result.PhaseResults[index].Status = CheckpointStatusDone
-		state.result.PhaseResults[index].CompactionEvent = event
-		if event != nil {
-			state.result.CompactionEvents = append(state.result.CompactionEvents, *event)
-		}
-		state.statuses[phase.ID] = CheckpointStatusDone
-		state.result.Receipt.CompletedPhaseCount++
-		state.result.Receipt.transition(phase.ID, CheckpointStatusDone, attempt, verdict, "")
-		if err := e.persistRunState(state); err != nil {
-			wrapped := fmt.Errorf("phase %s: persist completion: %w", phase.ID, err)
-			return "", e.finishPersistenceFailure(state, wrapped)
-		}
-		state.previous[phase.ID] = nextOutput
-		return nextOutput, nil
+		return e.completePhase(state, index, phase, attempt, outcome)
 	}
-	err = fmt.Errorf("phase %s: unreachable retry state", phase.ID)
-	return "", e.failPhase(state, index, maxRetries+1, CheckpointStatusFailed, TerminalBlocked, err)
 }
 
 func (e *SubprocessEngine) runDry(state *engineRunState) (*PipelineResult, error) {
-	var previousOutput string
 	for i, phase := range state.phases {
-		prompt, err := e.buildPhasePrompt(phase, state.previous, previousOutput)
+		prompt, err := e.buildPhasePrompt(phase, state.previous, nil)
 		if err != nil {
 			wrapped := fmt.Errorf("phase %s: build dry-run prompt: %w", phase.ID, err)
 			return state.result, e.failPhase(state, i, 0, CheckpointStatusFailed, TerminalBlocked, wrapped)
@@ -204,7 +164,10 @@ func (e *SubprocessEngine) runDry(state *engineRunState) (*PipelineResult, error
 	return state.result, nil
 }
 
-func (e *SubprocessEngine) newRunState(requested, effective Strategy, restoreCheckpoint bool) *engineRunState {
+// newRunState builds the run's state. An admitted resume plan restores its
+// statuses, verified outputs, and pending fix feedback; any plan links the
+// receipt to the run it resumes.
+func (e *SubprocessEngine) newRunState(requested, effective Strategy, plan *resumePlan, admitted bool) *engineRunState {
 	route := e.cfg.Route
 	if route == "" {
 		route = RouteFull
@@ -216,23 +179,55 @@ func (e *SubprocessEngine) newRunState(requested, effective Strategy, restoreChe
 	statuses := make(map[PhaseID]CheckpointStatus, len(phases))
 	for i, phase := range phases {
 		status := CheckpointStatusPending
-		if restoreCheckpoint && e.cfg.Checkpoint != nil && e.cfg.Checkpoint.TaskStatus[string(phase.ID)] != "" {
-			status = e.cfg.Checkpoint.TaskStatus[string(phase.ID)]
+		if admitted && plan != nil && plan.statuses[phase.ID] != "" {
+			status = plan.statuses[phase.ID]
 		}
 		statuses[phase.ID] = status
 		result.PhaseResults[i] = PhaseResult{PhaseID: phase.ID, Status: status}
 	}
-	return &engineRunState{
+	state := &engineRunState{
 		phases: phases, result: result, statuses: statuses,
 		previous: make(map[PhaseID]string, len(phases)),
+		outputs:  make(map[PhaseID]PhaseOutputRecord, len(phases)),
+		attempts: map[PhaseID]int{}, cycles: map[PhaseID]int{},
+		lastFailure: map[PhaseID]*PhaseFailure{}, feedback: map[PhaseID]*PhaseFailure{},
 	}
+	if plan == nil {
+		return state
+	}
+	state.result.Receipt.inheritLineage(plan.prior)
+	if admitted {
+		for id, record := range plan.records {
+			state.outputs[id] = record
+			state.previous[id] = record.Content
+		}
+		for id, feedback := range plan.feedback {
+			state.feedback[id] = feedback
+		}
+		resume := plan.resume
+		state.result.Receipt.Resume = &resume
+	}
+	return state
+}
+
+func (s *engineRunState) nextAttempt(phaseID PhaseID) int {
+	s.attempts[phaseID]++
+	return s.attempts[phaseID]
+}
+
+func (s *engineRunState) recordFailure(failure *PhaseFailure) {
+	s.result.Receipt.Failures = append(s.result.Receipt.Failures, *failure)
 }
 
 func (e *SubprocessEngine) failRun(state *engineRunState, index, attempt int, err error) (*PipelineResult, error) {
 	return state.result, e.failPhase(state, index, attempt, CheckpointStatusFailed, TerminalBlocked, err)
 }
 
+// failPhase ends the run at a phase. The error keeps its identity for
+// errors.Is, but its message, which the receipt stores and the caller
+// prints, is redacted (REQ-PRR-FAIL-05).
 func (e *SubprocessEngine) failPhase(state *engineRunState, index, attempt int, status CheckpointStatus, terminal TerminalState, err error) error {
+	err = redactError(err)
 	phaseID := state.phases[index].ID
 	state.statuses[phaseID] = status
 	state.result.PhaseResults[index].Status = status

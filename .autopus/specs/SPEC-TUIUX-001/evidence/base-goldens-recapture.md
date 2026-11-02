@@ -173,7 +173,22 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 차이: `.claude/skills/agent-pipeline/references/delegation.md`·`verification.md`, `.claude/skills/worktree-isolation/SKILL.md`, `.codex/skills/codex-agent-pipeline/references/delegation.md`·`verification.md`, `.codex/skills/codex-worktree-isolation/SKILL.md`의 checksum, 두 manifest의 그 entry, 두 journal의 `after_checksum`, update 흐름의 backup 사본. 다른 경로는 바뀌지 않았다.
 - 검증: 두 test가 이 golden으로 통과한다.
 
-## 93. SPEC 리뷰 정책 재기록 (feat/spec-review-policy-budget, 2026-11-02)
+## 16. 디스크 회수·lease 안내 재기록 (feat/disk-reclaim, 2026-11-02)
+
+- 원인: SPEC-DISK-002 REQ-DISK2-GUIDE-01이 같은 안내 면에 `auto disk register`·`release`로 harness 밖 worktree를 등록·해제하고, 전체 빌드·테스트를 `auto disk lease --need <GiB> -- <command>`로 돌리고, 디스크 경보나 사전 점검 실패 때 lead가 worker를 멈추게 하는 문장을 더했다.
+- 기록: 6절과 같은 방법이다(이 branch tip에서 writer, stdout golden 되돌림).
+- 차이: 15절과 같은 여섯 생성 파일의 checksum, 두 manifest의 그 entry, 두 journal의 `after_checksum`, update 흐름의 backup 사본. 다른 경로는 바뀌지 않았다.
+- 검증: 두 test가 이 golden으로 통과한다.
+
+## 17. pipeline 수정 루프·재개 안내 재기록 (fix/pipeline-resume-retry-contract, 2026-11-02)
+
+- 원인: SPEC-PIPELINE-RESUME-001(PR #251)이 agent-pipeline reference의 `phases.md`(Gate 2의 `auto pipeline run` 수정·재검증 루프와 `circuit_break_no_progress`·`failed_budget` 종료, Route selection 아래의 `pipeline_checkpoint.v2` 재개)와 `review.md`(Retry budget의 엔진 대응)에 절을 더했다.
+- 기록: 6절과 같은 방법이다(이 branch tip에서 writer). writer가 다시 쓴 `init-in.stdout`(단언하지 않는 TUIUX 확인 화면)은 `git checkout`으로 되돌렸다.
+- 차이: `.claude/skills/agent-pipeline/references/phases.md`·`review.md`, `.codex/skills/codex-agent-pipeline/references/phases.md`·`review.md`의 checksum(두 플랫폼이 같은 값), 두 manifest의 그 entry, 두 journal의 `after_checksum`, update 흐름의 backup 사본. quality 두 흐름과 stdout golden은 바뀌지 않았다.
+- 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`과 `TestInitReview_*`가 이 golden으로 통과한다.
+- 재기록 시점: main(#249, 16절)을 이 branch에 merge한 뒤 다시 기록했다.
+
+## 18. SPEC 리뷰 정책 재기록 (feat/spec-review-policy-budget, 2026-11-02)
 
 - 원인: SPEC-REVIEWPOLICY-001 REQ-RP-POL-09가 spec-writer agent, spec-review 스킬, spec-quality 체크리스트, auto-plan 워크플로(Claude·Codex·Gemini)에 lean floor와 lean allowed omissions 줄을 더하고, spec-review 스킬에 리뷰어·judge·runtime이 공유하는 판정 규칙을 적었다. Codex·Gemini 템플릿은 `go run ./cmd/generate-templates`로 다시 만들었다.
 - 기록: 6절과 같은 방법이다(이 branch tip에서 writer, stdout golden 되돌림).
@@ -182,3 +197,4 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 추가 재기록(R7 커밋): spec-review 스킬의 CLI Usage에 `--profile`·`--judge`와 리뷰 계획 출력 설명을 더해 다시 기록했다. 차이는 `.claude/skills/spec-review`, `.codex/skills/codex-spec-review`의 checksum과 두 manifest·journal 항목뿐이다.
 - 추가 재기록(R10 커밋): spec-review 스킬에 리뷰 세션 예산(`review-session.json`, `--max-calls`·`--extend-budget`·`--new-session`, `spec.review_gate.budget`) 설명을 더해 다시 기록했다. 차이는 `.claude/skills/spec-review`, `.codex/skills/codex-spec-review`의 checksum과 두 manifest·journal 항목뿐이다.
 - 추가 재기록(.gitignore 커밋): 관리 `.gitignore` 패턴(`gitignorePatterns`)에 `**/.autopus/specs/**/review-session.json`과 `**/.autopus/specs/**/.review-session.lock`을 더해 다시 기록했다. 차이는 다섯 NPD의 `.gitignore` checksum 한 줄뿐이고 stdout golden은 바뀌지 않았다.
+- 재기록 시점: main(#249 16절, #251 17절)을 이 branch에 merge한 뒤 다시 기록했다.

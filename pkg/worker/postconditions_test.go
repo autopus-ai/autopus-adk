@@ -1,9 +1,8 @@
 package worker
 
 import (
-	"os"
+	"errors"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -14,36 +13,88 @@ import (
 func TestVerifyExecutionPostconditions_PushBranchMissingFails(t *testing.T) {
 	t.Parallel()
 
-	repo := initGitRepoWithOrigin(t)
-	baseline := captureExecutionBaseline(repo)
+	f := newGitFixture(t)
+	prompt := "create branch autopus-canary-missing, commit changes, and git push origin autopus-canary-missing"
+	plan := f.plan(nil, prompt)
+	base := f.baseline(plan)
+	f.run(f.repo, "checkout", "-q", "-b", "autopus-canary-missing")
+	f.commit("change")
 
-	require.NoError(t, os.WriteFile(filepath.Join(repo, "note.txt"), []byte("change"), 0o644))
-	runGit(t, repo, "checkout", "-b", "autopus-canary-missing")
-	runGit(t, repo, "add", "note.txt")
-	runGit(t, repo, "commit", "-m", "change")
-
-	artifact, err := verifyExecutionPostconditions(repo, "create branch autopus-canary-missing, commit changes, and git push origin autopus-canary-missing", baseline)
+	report, err := f.verify(plan, base)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "remote branch")
-	assert.Equal(t, "postconditions.json", artifact.Name)
+	assert.Equal(t, statusUnsatisfied, findCheck(t, report, actionPush).Status)
 }
 
 func TestVerifyExecutionPostconditions_PushBranchExistsPasses(t *testing.T) {
 	t.Parallel()
 
-	repo := initGitRepoWithOrigin(t)
-	baseline := captureExecutionBaseline(repo)
+	f := newGitFixture(t)
+	prompt := "create branch autopus-canary-pass, commit changes, and git push origin autopus-canary-pass"
+	plan := f.plan(nil, prompt)
+	base := f.baseline(plan)
+	f.run(f.repo, "checkout", "-q", "-b", "autopus-canary-pass")
+	head := f.commit("change")
+	f.run(f.repo, "push", "-q", "-u", "origin", "autopus-canary-pass")
 
-	require.NoError(t, os.WriteFile(filepath.Join(repo, "note.txt"), []byte("change"), 0o644))
-	runGit(t, repo, "checkout", "-b", "autopus-canary-pass")
-	runGit(t, repo, "add", "note.txt")
-	runGit(t, repo, "commit", "-m", "change")
-	runGit(t, repo, "push", "-u", "origin", "autopus-canary-pass")
-
-	artifact, err := verifyExecutionPostconditions(repo, "create branch autopus-canary-pass, commit changes, and git push origin autopus-canary-pass", baseline)
+	report, err := f.verify(plan, base)
 	require.NoError(t, err)
-	assert.Equal(t, "postconditions.json", artifact.Name)
-	assert.Contains(t, artifact.Data, "\"status\":\"passed\"")
+	push := findCheck(t, report, actionPush)
+	assert.Equal(t, statusSatisfied, push.Status)
+	assert.Equal(t, head, push.Observed)
+	assert.Equal(t, statusSatisfied, report.Outcome)
+}
+
+// Reproduction 1 of SPEC-WORKERPOST-001: on 109c7ea4 this read-only prompt
+// failed with "postcondition failed: commit: HEAD did not advance after
+// execution".
+func TestPostconditionRegression_ReadOnlyPromptRequiresNothing(t *testing.T) {
+	t.Parallel()
+
+	f := newGitFixture(t)
+	plan := f.plan(nil, "Review only; do not commit or push")
+	base := f.baseline(plan)
+	repoRefs, remoteRefs := f.refs(f.repo), f.refs(f.bare)
+
+	report, err := f.verify(plan, base)
+	require.NoError(t, err)
+	assert.Equal(t, sourceLegacy, report.Source)
+	assert.Equal(t, statusNotRequired, report.Outcome)
+	for _, name := range []string{actionCommit, actionPush, actionBranch} {
+		assert.Equal(t, statusNotRequired, findCheck(t, report, name).Status, name)
+	}
+	assert.Equal(t, repoRefs, f.refs(f.repo))
+	assert.Equal(t, remoteRefs, f.refs(f.bare))
+}
+
+// Reproduction 2 of SPEC-WORKERPOST-001: on 109c7ea4 the push check passed
+// because the branch existed on origin, although only an older commit was
+// there and the new local commit was never pushed.
+func TestPostconditionRegression_StaleRemoteBranchFailsPush(t *testing.T) {
+	t.Parallel()
+
+	f := newGitFixture(t)
+	f.run(f.repo, "checkout", "-q", "-b", "feature/stale")
+	stale := f.commit("A")
+	f.run(f.repo, "push", "-q", "origin", "feature/stale")
+	plan := f.plan(nil, "commit and git push origin feature/stale")
+	base := f.baseline(plan)
+	fresh := f.commit("B")
+
+	report, err := f.verify(plan, base)
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, errPostconditionFailed))
+	push := findCheck(t, report, actionPush)
+	assert.Equal(t, statusUnsatisfied, push.Status)
+	assert.Equal(t, "refs/heads/feature/stale", push.Ref)
+	assert.Equal(t, fresh, push.Expected)
+	assert.Equal(t, stale, push.Observed)
+
+	f.run(f.repo, "push", "-q", "origin", "feature/stale")
+	report, err = f.verify(plan, base)
+	require.NoError(t, err)
+	assert.Equal(t, statusSatisfied, findCheck(t, report, actionPush).Status)
+	assert.Equal(t, statusSatisfied, findCheck(t, report, actionCommit).Status)
 }
 
 func TestDetectTaskPostconditions_IgnoresFillerWords(t *testing.T) {

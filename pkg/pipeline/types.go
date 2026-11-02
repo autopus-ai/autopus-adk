@@ -37,6 +37,8 @@ type Checkpoint struct {
 	GitCommitHash string                      `yaml:"git_commit_hash"`
 	TaskStatus    map[string]CheckpointStatus `yaml:"task_status"`
 	Receipt       *OrchestrationRunReceipt    `yaml:"receipt,omitempty"`
+	// PhaseOutputs are the completed phases' output records in route order.
+	PhaseOutputs []PhaseOutputRecord `yaml:"phase_outputs,omitempty"`
 	// Stale is set to true when the saved hash differs from the current HEAD.
 	// It is not persisted to disk.
 	Stale bool `yaml:"-"`
@@ -52,6 +54,7 @@ type checkpointYAML struct {
 	GitCommitHash string                   `yaml:"git_commit_hash"`
 	TaskStatus    map[string]string        `yaml:"task_status"`
 	Receipt       *OrchestrationRunReceipt `yaml:"receipt,omitempty"`
+	PhaseOutputs  []PhaseOutputRecord      `yaml:"phase_outputs,omitempty"`
 }
 
 // MarshalYAML serialises the Checkpoint to YAML bytes.
@@ -65,6 +68,7 @@ func (c *Checkpoint) MarshalYAML() ([]byte, error) {
 		GitCommitHash: c.GitCommitHash,
 		TaskStatus:    make(map[string]string, len(c.TaskStatus)),
 		Receipt:       c.Receipt,
+		PhaseOutputs:  c.PhaseOutputs,
 	}
 	for k, v := range c.TaskStatus {
 		raw.TaskStatus[k] = string(v)
@@ -85,6 +89,7 @@ func (c *Checkpoint) UnmarshalYAML(data []byte) error {
 	c.SnapshotHash = raw.SnapshotHash
 	c.GitCommitHash = raw.GitCommitHash
 	c.Receipt = raw.Receipt
+	c.PhaseOutputs = raw.PhaseOutputs
 	if raw.TaskStatus != nil {
 		c.TaskStatus = make(map[string]CheckpointStatus, len(raw.TaskStatus))
 		for k, v := range raw.TaskStatus {

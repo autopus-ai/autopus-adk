@@ -78,8 +78,12 @@ func fireStickyRules(event string, stdin io.Reader, stdout, stderr io.Writer) {
 	// Any residual error stays swallowed. StickyFire already contracts to return
 	// nil, and discarding it here keeps that contract from being one refactor
 	// away from a non-zero exit.
-	cadence, lang := stickySettings(root)
-	_ = rulecond.StickyFireWithLanguage(root, event, cadence, lang, stdin, stdout, stderr)
+	cadence, lang, disk, diskOK := stickySettings(root)
+	opts := rulecond.StickyOptions{Language: lang}
+	if diskOK {
+		opts.Alert = stickyDiskAlert(root, disk)
+	}
+	_ = rulecond.StickyFireWithOptions(root, event, cadence, opts, stdin, stdout, stderr)
 }
 
 // resolveStickyRoot walks up from start to the nearest ancestor holding a
@@ -96,8 +100,10 @@ func resolveStickyRoot(start string) (string, bool) {
 	return resolveRootWithMarkers(start, stickyRootMarkers)
 }
 
-// stickySettings reads the configured prompt cadence and language values for
-// the resolved project.
+// stickySettings reads the configured prompt cadence, language values, and
+// disk budget for the resolved project. diskOK is false when the config did
+// not load: the disk alert is then dropped rather than judged against a
+// default floor (SPEC-DISK-002 REQ-DISK2-ALERT-02).
 //
 // A config that fails to load resolves to the shipped default cadence and no
 // language values rather than to an error: this runs before every user turn
@@ -105,16 +111,16 @@ func resolveStickyRoot(start string) (string, bool) {
 // default cadence instead of suppressing the rules the SPEC exists to keep
 // present. Returning the unset value leaves the default itself stated once, in
 // ResolveStickyCadence.
-func stickySettings(root string) (int, rulecond.StickyLanguage) {
+func stickySettings(root string) (int, rulecond.StickyLanguage, config.DiskEffective, bool) {
 	// LoadPreview, not Load: a hook that runs before every prompt must not
 	// rewrite the project's autopus.yaml as a side effect.
 	cfg, err := config.LoadPreview(root)
 	if err != nil {
-		return 0, rulecond.StickyLanguage{}
+		return 0, rulecond.StickyLanguage{}, config.DiskEffective{}, false
 	}
 	return config.StickyCadence(cfg), rulecond.StickyLanguage{
 		Comments:    cfg.Language.Comments,
 		Commits:     cfg.Language.Commits,
 		AIResponses: cfg.Language.AIResponses,
-	}
+	}, cfg.Disk.Effective(), true
 }

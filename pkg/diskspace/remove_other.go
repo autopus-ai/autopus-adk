@@ -19,3 +19,5 @@ func openRootHandle(Root) (*rootHandle, error) {
 func (h *rootHandle) close() {}
 
 func (h *rootHandle) remove(Candidate, int, removeHooks) outcome { return outcomeFailed }
+
+func (h *rootHandle) removeEmptyDir(string) {}

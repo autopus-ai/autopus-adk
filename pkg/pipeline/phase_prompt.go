@@ -24,6 +24,25 @@ type PhaseContext struct {
 	// the separate scaffold dispatch, so the implementation phase has to
 	// carry the test-first contract itself.
 	Route PhaseRoute
+	// Feedback is the redacted failure a fix dispatch carries. It renders as
+	// the ephemeral phase:remediation-feedback manifest layer.
+	Feedback *PhaseFailure
+}
+
+type priorPhaseInput struct {
+	phase PhaseID
+	label string
+}
+
+// priorPhaseInputs lists, per phase, the earlier outputs its prompt carries.
+// The frozen prompt builder and the plain prompt both read this table, so a
+// phase receives the same dynamic inputs on either path
+// (SPEC-PIPELINE-RESUME-001 REQ-PRR-OUT-02).
+var priorPhaseInputs = map[PhaseID][]priorPhaseInput{
+	PhaseTestScaffold: {{PhasePlan, "Plan Output"}},
+	PhaseImplement:    {{PhasePlan, "Plan Output"}, {PhaseTestScaffold, "Test Scaffold Output"}},
+	PhaseValidate:     {{PhaseImplement, "Implementation Output"}},
+	PhaseReview:       {{PhaseValidate, "Validation Output"}},
 }
 
 // compactImplementDirective keeps test-first work inside the implementation
@@ -105,14 +124,11 @@ func (b *PhasePromptBuilder) BuildPromptWithManifest(phaseID PhaseID, ctx PhaseC
 		if !frozenMode {
 			b.appendFileSectionLayerIfPresent(&layers, "acceptance.md", "Acceptance")
 		}
-		b.injectPriorLayer(&layers, ctx, PhasePlan, "Plan Output")
 
 	case PhaseImplement:
 		if !frozenMode {
 			b.appendFileSectionLayerIfPresent(&layers, "acceptance.md", "Acceptance")
 		}
-		b.injectPriorLayer(&layers, ctx, PhasePlan, "Plan Output")
-		b.injectPriorLayer(&layers, ctx, PhaseTestScaffold, "Test Scaffold Output")
 		if ctx.Route == RouteCompact {
 			layers = append(layers, promptlayer.Layer{
 				ID: "phase:route:compact-implement", Kind: promptlayer.KindEphemeral,
@@ -122,17 +138,16 @@ func (b *PhasePromptBuilder) BuildPromptWithManifest(phaseID PhaseID, ctx PhaseC
 			})
 		}
 
-	case PhaseValidate:
+	case PhaseValidate, PhaseReview:
 		if !frozenMode {
 			b.appendFileSectionLayerIfPresent(&layers, "acceptance.md", "Acceptance")
 		}
-		b.injectPriorLayer(&layers, ctx, PhaseImplement, "Implementation Output")
-
-	case PhaseReview:
-		if !frozenMode {
-			b.appendFileSectionLayerIfPresent(&layers, "acceptance.md", "Acceptance")
-		}
-		b.injectPriorLayer(&layers, ctx, PhaseValidate, "Validation Output")
+	}
+	for _, input := range priorPhaseInputs[phaseID] {
+		b.injectPriorLayer(&layers, ctx, input.phase, input.label)
+	}
+	if ctx.Feedback != nil {
+		layers = append(layers, remediationFeedbackLayer(ctx.Feedback))
 	}
 	if receiptMode {
 		sanitized := sanitizePromptContent(ctx.ContextResult.Prompt)

@@ -1,0 +1,321 @@
+package diskspace
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+)
+
+// WorktreeReclaimInput is what a worktree reclaim scan reads.
+type WorktreeReclaimInput struct {
+	Run         Runner
+	ProjectDir  string
+	Cwd         string
+	Now         time.Time
+	IdleMinutes int
+	UID         int
+	Ledger      []LedgerEntry
+	// Project, when set, is a scan of the project's repository already
+	// taken, so status does not walk every worktree twice.
+	Project *WorktreeScan
+}
+
+// WorktreeReclaimScan is what a worktree reclaim scan selected. Owned names
+// every owned linked worktree it saw, selected or not, for status marking.
+type WorktreeReclaimScan struct {
+	Candidates []ReclaimCandidate
+	Skipped    map[string]int
+	Owned      map[string]bool
+}
+
+// ScanWorktreeReclaim selects owned worktrees (REQ-DISK2-RECLAIM-02) in the
+// repository holding the project directory and in every repository a live
+// ledger entry names. A worktree that is neither a harness worktree nor
+// registered is only counted as not_owned.
+func ScanWorktreeReclaim(ctx context.Context, in WorktreeReclaimInput) WorktreeReclaimScan {
+	out := WorktreeReclaimScan{Skipped: map[string]int{}, Owned: map[string]bool{}}
+	registered := map[string]LedgerEntry{}
+	dirs := []string{in.ProjectDir}
+	for _, entry := range in.Ledger {
+		if entry.Kind == LedgerKindWorktree && entry.Live() {
+			registered[canonicalOrSelf(entry.Path)] = entry
+			dirs = append(dirs, entry.Path)
+		}
+	}
+	cwd := canonicalOrSelf(in.Cwd)
+	seen := map[string]bool{}
+	for i, dir := range dirs {
+		var scan WorktreeScan
+		if i == 0 && in.Project != nil {
+			scan = *in.Project
+		} else {
+			scan = ScanWorktrees(ctx, in.Run, dir)
+		}
+		if !scan.Root.Available() || seen[canonicalOrSelf(scan.Root.Path)] {
+			continue
+		}
+		seen[canonicalOrSelf(scan.Root.Path)] = true
+		for _, item := range scan.Linked() {
+			path := canonicalOrSelf(item.Path)
+			entry, isRegistered := registered[path]
+			if !item.Harness && !isRegistered {
+				out.Skipped[SkipNotOwned]++
+				continue
+			}
+			out.Owned[path] = true
+			if owner := pathOwner(path); owner >= 0 && owner != in.UID {
+				out.Skipped[SkipOwner]++
+				continue
+			}
+			activity, crossed := worktreeActivity(path)
+			if crossed {
+				out.Skipped[SkipDevice]++
+				continue
+			}
+			reason, skip := worktreeVerdict(item, entry, isRegistered, path, cwd, in.Now, in.IdleMinutes, activity)
+			if skip != "" {
+				out.Skipped[skip]++
+				continue
+			}
+			out.Candidates = append(out.Candidates, ReclaimCandidate{
+				Kind: ReclaimWorktree, Path: path, Reason: reason, Bytes: item.Bytes,
+				IdleMinutes: int64(in.Now.Sub(activity) / time.Minute),
+				MainPath:    scan.Root.Path, ID: pathID(path), Head: item.Head, BaseRef: baseRefOf(scan.Base),
+				Cutoff: in.Now.Add(-time.Duration(in.IdleMinutes) * time.Minute),
+			})
+		}
+	}
+	return out
+}
+
+// worktreeVerdict returns the selection reason of an owned worktree, or the
+// skip that keeps it.
+func worktreeVerdict(item Worktree, entry LedgerEntry, registered bool, path, cwd string, now time.Time, idleMinutes int, activity time.Time) (string, string) {
+	switch {
+	case item.Locked:
+		return "", SkipLocked
+	case item.Prunable:
+		return "", SkipPrunable
+	case item.Clean == Unknown:
+		return "", SkipUnknown
+	case item.Clean == False:
+		return "", SkipDirty
+	case cwd == path || strings.HasPrefix(cwd, path+string(filepath.Separator)):
+		return "", SkipCwd
+	case registered && entry.Released():
+		// The branch survives removal, so a released worktree may hold
+		// unmerged commits; a detached one would leave them unreachable.
+		if item.Branch == "" && item.Merged != True {
+			return "", SkipDetached
+		}
+		return ReasonReleased, ""
+	case item.Merged == Unknown:
+		return "", SkipUnknown
+	case item.Merged == False:
+		return "", SkipUnmerged
+	case !isIdle(now, activity, idleMinutes):
+		return "", SkipRecent
+	}
+	return ReasonMergedIdle, ""
+}
+
+// worktreeActivity is the newest mtime of the worktree directory, of every
+// entry below it outside .git, and of its git admin HEAD, index, and
+// logs/HEAD. The whole tree is walked, so a long build that only writes deep
+// inside target/ keeps the worktree active (security review I3). crossed
+// reports an entry on another device: git would delete across that mount,
+// so such a worktree is never reclaimed (security review L5).
+func worktreeActivity(path string) (newest time.Time, crossed bool) {
+	see := func(info os.FileInfo) {
+		if info.ModTime().After(newest) {
+			newest = info.ModTime()
+		}
+	}
+	top, err := os.Lstat(path)
+	if err != nil {
+		return newest, false
+	}
+	see(top)
+	dev := statOf(top).id.Dev
+	var walk func(dir string, depth int)
+	walk = func(dir string, depth int) {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			return
+		}
+		for _, entry := range entries {
+			if depth == 1 && entry.Name() == ".git" {
+				continue
+			}
+			info, err := entry.Info()
+			if err != nil {
+				continue
+			}
+			if st := statOf(info); st.known && st.id.Dev != dev {
+				crossed = true
+				continue
+			}
+			see(info)
+			if info.IsDir() {
+				walk(filepath.Join(dir, entry.Name()), depth+1)
+			}
+		}
+	}
+	walk(path, 1)
+	if admin := worktreeAdminDir(path); admin != "" {
+		for _, name := range []string{"HEAD", "index", filepath.Join("logs", "HEAD")} {
+			if info, err := os.Lstat(filepath.Join(admin, name)); err == nil {
+				see(info)
+			}
+		}
+	}
+	return newest, crossed
+}
+
+// worktreeAdminDir reads the gitdir line of a linked worktree's .git file.
+func worktreeAdminDir(path string) string {
+	data, err := os.ReadFile(filepath.Join(path, ".git"))
+	if err != nil {
+		return ""
+	}
+	dir, ok := strings.CutPrefix(strings.TrimSpace(string(data)), "gitdir: ")
+	if !ok {
+		return ""
+	}
+	if !filepath.IsAbs(dir) {
+		dir = filepath.Join(path, dir)
+	}
+	return dir
+}
+
+func pathID(path string) FileID {
+	if info, err := os.Lstat(path); err == nil {
+		return statOf(info).id
+	}
+	return FileID{}
+}
+
+// pathOwner is the uid owning path, or -1 when it cannot be read.
+func pathOwner(path string) int {
+	if info, err := os.Lstat(path); err == nil {
+		return statOf(info).uid
+	}
+	return -1
+}
+
+// baseRefOf maps a merge-base ladder name back to its ref.
+func baseRefOf(name string) string {
+	for _, rung := range mergeBaseLadder {
+		if rung.name == name {
+			return rung.ref
+		}
+	}
+	return ""
+}
+
+// ApplyWorktrees removes each candidate with `git worktree remove` without
+// --force after re-reading, right before removal, everything that selected
+// it (REQ-DISK2-RECLAIM-03): identity, owner, HEAD, clean state, and, by
+// reason, the merge into the base and the idle cutoff or the live released
+// ledger entry. Anything that no longer holds is skipped_changed. Git
+// refuses a dirty or locked worktree on its own; the branch is kept. A
+// removed worktree's ledger entry is dropped.
+func ApplyWorktrees(ctx context.Context, run Runner, candidates []ReclaimCandidate, state *StateDir, uid int, beforeRemove func(path string)) ReclaimCounters {
+	var counters ReclaimCounters
+	for _, c := range candidates {
+		if beforeRemove != nil {
+			beforeRemove(c.Path)
+		}
+		if o := recheckWorktree(ctx, run, c, state, uid); o != outcomeDeleted {
+			counters.record(ReclaimWorktree, 0, o)
+			continue
+		}
+		if _, err := git(ctx, run, c.MainPath, "worktree", "remove", c.Path); err != nil {
+			counters.record(ReclaimWorktree, 0, outcomeFailed)
+			counters.Failures = append(counters.Failures,
+				fmt.Sprintf("worktree %s: git worktree remove exited %d", c.Path, exitCode(err)))
+			continue
+		}
+		counters.record(ReclaimWorktree, c.Bytes, outcomeDeleted)
+		if state != nil {
+			_ = ForgetWorktree(ctx, *state, c.Path)
+		}
+	}
+	return counters
+}
+
+// recheckWorktree returns outcomeDeleted when the candidate still qualifies.
+func recheckWorktree(ctx context.Context, run Runner, c ReclaimCandidate, state *StateDir, uid int) outcome {
+	info, err := os.Lstat(c.Path)
+	switch {
+	case err != nil && os.IsNotExist(err):
+		return outcomeVanished
+	case err != nil || !info.IsDir() || statOf(info).id != c.ID:
+		return outcomeChanged
+	case statOf(info).uid >= 0 && statOf(info).uid != uid:
+		return outcomeOwner
+	}
+	head, err := git(ctx, run, c.Path, "rev-parse", "HEAD")
+	if err != nil || strings.TrimSpace(string(head)) != c.Head {
+		return outcomeChanged
+	}
+	status, err := git(ctx, run, c.Path, "status", "--porcelain=v1", "-z", "--untracked-files=normal")
+	if err != nil || len(status) != 0 {
+		return outcomeChanged
+	}
+	activity, crossed := worktreeActivity(c.Path)
+	if crossed {
+		return outcomeDevice
+	}
+	switch c.Reason {
+	case ReasonMergedIdle:
+		if c.BaseRef == "" || activity.After(c.Cutoff) {
+			return outcomeChanged
+		}
+		if _, err := git(ctx, run, c.Path, "merge-base", "--is-ancestor", "HEAD", c.BaseRef); err != nil {
+			return outcomeChanged
+		}
+	case ReasonReleased:
+		if !stillReleased(state, c) {
+			return outcomeChanged
+		}
+		// The branch is what keeps the commits reachable once the worktree's
+		// own reflog is gone: still on a branch, or HEAD merged (review r2).
+		_, onBranch := git(ctx, run, c.Path, "symbolic-ref", "-q", "HEAD")
+		if onBranch != nil {
+			if c.BaseRef == "" {
+				return outcomeChanged
+			}
+			if _, err := git(ctx, run, c.Path, "merge-base", "--is-ancestor", "HEAD", c.BaseRef); err != nil {
+				return outcomeChanged
+			}
+		}
+	default:
+		return outcomeFailed
+	}
+	return outcomeDeleted
+}
+
+// stillReleased re-reads the ledger: the entry must still be live, released,
+// and name the same directory.
+func stillReleased(state *StateDir, c ReclaimCandidate) bool {
+	if state == nil {
+		return false
+	}
+	entries, err := LoadLedger(*state)
+	if err != nil {
+		return false
+	}
+	for _, e := range entries {
+		if canonicalOrSelf(e.Path) == c.Path && e.Released() && e.Live() && (FileID{Dev: e.Dev, Ino: e.Ino}) == c.ID {
+			return true
+		}
+	}
+	return false
+}
+
+// IsOwned reports whether path is an owned worktree the scan saw.
+func (s WorktreeReclaimScan) IsOwned(path string) bool { return s.Owned[canonicalOrSelf(path)] }

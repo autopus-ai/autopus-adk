@@ -48,8 +48,9 @@ func NewSequentialRunner(backend PhaseBackend) *SequentialRunner {
 }
 
 // RunPhases executes the given phases sequentially and returns their results.
-// When a phase gate fails it retries up to Phase.MaxRetries times.
-// An error is returned if max retries are exceeded.
+// Every response passes admitPhaseResponse before its verdict is read; a
+// refused response ends the run. When a phase gate fails it retries up to
+// Phase.MaxRetries times. An error is returned if max retries are exceeded.
 func (r *SequentialRunner) RunPhases(ctx context.Context, phases []Phase, cfg RunConfig) ([]PhaseResult, error) {
 	if err := cfg.preflightWorkflowAuthenticity(); err != nil {
 		return nil, err
@@ -94,9 +95,10 @@ func (r *SequentialRunner) runPhaseWithRetry(ctx context.Context, phase Phase, p
 
 	for attempt := 0; ; attempt++ {
 		resp, err := r.backend.Execute(ctx, PhaseRequest{Prompt: prompt, PhaseID: phase.ID})
-		if err != nil {
-			learnHookExecutorError(cfg.LearnStore, cfg.SpecID, phase.ID, err)
-			return PhaseResult{}, fmt.Errorf("phase %s: %w", phase.ID, err)
+		if admitErr := admitPhaseResponse(phase.ID, resp, err); admitErr != nil {
+			// An execution failure is never retried as if it were a gate failure.
+			learnHookExecutorError(cfg.LearnStore, cfg.SpecID, phase.ID, admitErr)
+			return PhaseResult{}, admitErr
 		}
 
 		verdict := EvaluateGate(phase.Gate, resp.Output)

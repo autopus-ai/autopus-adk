@@ -185,6 +185,7 @@ func runPipeline(cmd *cobra.Command, specID string, cfg *pipelineRunConfig) erro
 
 	engine := pipeline.NewSubprocessEngine(engineCfg)
 	result, err := engine.Run(ctx)
+	reportPipelineResume(cmd.ErrOrStderr(), result)
 	if err != nil {
 		return fmt.Errorf("pipeline run failed: %w", err)
 	}

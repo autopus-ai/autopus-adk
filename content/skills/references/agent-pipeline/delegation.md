@@ -198,6 +198,13 @@ and reports instead of working around it.
   full disk fails every running worker with misleading errors. Size `--need` to
   the step, and check with `df` instead only when the installed `auto` has no
   `disk` command.
+- Run a full build or test suite as `auto disk lease --need <GiB> -- <command>`,
+  so parallel workers reserve disk instead of racing for it; exit 3 means the
+  wait ran out. Register a worktree you create outside the harness worktree directories
+  with `auto disk register <path>` and release it with
+  `auto disk release <path>` when the unit ends.
+- As the lead, when a disk alert reaches you or a preflight exits 3, tell every
+  running worker to pause heavy work before you start anything else.
 - Commit each finished unit as it lands and write the report before about 75%
   of the turn budget is spent: a worker cut off at its limit hands back only
   what it committed. A partial result then follows the skill entry's

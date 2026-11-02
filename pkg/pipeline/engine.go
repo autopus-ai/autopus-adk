@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/insajin/autopus-adk/pkg/worker/compress"
 )
@@ -101,6 +102,8 @@ type PhaseResult struct {
 type SubprocessEngine struct {
 	cfg           EngineConfig
 	promptBuilder *PhasePromptBuilder
+	// sleep waits out a transport backoff; tests replace it to observe waits.
+	sleep func(context.Context, time.Duration) error
 }
 
 func (e *SubprocessEngine) finishBackendLifecycle(
@@ -114,7 +117,7 @@ func (e *SubprocessEngine) finishBackendLifecycle(
 		return result, runErr
 	}
 	cleanupErr := fmt.Errorf("pipeline: close phase backend: %w", closeErr)
-	joinedErr := errors.Join(runErr, cleanupErr)
+	joinedErr := redactError(errors.Join(runErr, cleanupErr))
 	state.result.Receipt.DegradedReasons = appendUnique(
 		state.result.Receipt.DegradedReasons,
 		"backend_cleanup_failure",
@@ -136,7 +139,7 @@ func (e *SubprocessEngine) finishBackendLifecycle(
 	if persistErr != nil {
 		joinedErr = errors.Join(
 			joinedErr,
-			fmt.Errorf("pipeline: persist backend cleanup receipt: %w", persistErr),
+			fmt.Errorf("pipeline: persist backend cleanup receipt: %w", redactError(persistErr)),
 		)
 	}
 	return result, joinedErr
@@ -150,7 +153,7 @@ func NewSubprocessEngine(cfg EngineConfig) *SubprocessEngine {
 		// @AX:NOTE [AUTO]: @AX:SPEC: SPEC-CONTEXT-COMPRESS-001: keepRecent=2 is the default phase-transition compaction policy
 		cfg.Compressor = compress.NewDefaultCompressor(2)
 	}
-	engine := &SubprocessEngine{cfg: cfg}
+	engine := &SubprocessEngine{cfg: cfg, sleep: sleepContext}
 	if cfg.SpecDir != "" {
 		engine.promptBuilder = NewPhasePromptBuilder(cfg.SpecDir)
 		if cfg.Platform == "omp" {
@@ -161,11 +164,14 @@ func NewSubprocessEngine(cfg EngineConfig) *SubprocessEngine {
 }
 
 // @AX:NOTE [AUTO]: magic constant in format string — SPEC/Phase labels are part of prompt contract
-// buildPrompt assembles the prompt for a phase, injecting prior output when available.
-func buildPrompt(specID string, phaseID PhaseID, previousOutput string) string {
+// buildPrompt assembles the prompt of a phase no SPEC directory frames: its
+// identity and every earlier output it reads, as priorPhaseInputs orders them.
+func buildPrompt(specID string, phaseID PhaseID, previous map[PhaseID]string) string {
 	prompt := fmt.Sprintf("SPEC: %s\nPhase: %s", specID, phaseID)
-	if previousOutput != "" {
-		prompt += fmt.Sprintf("\n\nPrevious phase output:\n%s", previousOutput)
+	for _, input := range priorPhaseInputs[phaseID] {
+		if output := previous[input.phase]; output != "" {
+			prompt += "\n\n" + formatSection(input.label, output)
+		}
 	}
 	return prompt
 }

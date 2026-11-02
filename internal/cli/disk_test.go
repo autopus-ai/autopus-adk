@@ -214,8 +214,13 @@ func withDiskSeams(t *testing.T, f diskS5) *diskRecorder {
 	recorder := &diskRecorder{}
 	scratch := filepath.Join(f.base, "scratch", "claude-test")
 	prevNow, prevScratch, prevRunner, prevLister := diskNow, diskScratchpad, diskRunner, diskLister
-	t.Cleanup(func() { diskNow, diskScratchpad, diskRunner, diskLister = prevNow, prevScratch, prevRunner, prevLister })
+	prevState := diskStatePath
+	t.Cleanup(func() {
+		diskNow, diskScratchpad, diskRunner, diskLister = prevNow, prevScratch, prevRunner, prevLister
+		diskStatePath = prevState
+	})
 	diskNow = func() time.Time { return f.now }
+	diskStatePath = func() string { return filepath.Join(f.base, "state", "autopus", "disk") }
 	diskScratchpad = func(int) string { return scratch }
 	diskRunner = recorder.run
 	diskLister = func(diskspace.Runner) diskspace.ProcessLister {

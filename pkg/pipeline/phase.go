@@ -25,8 +25,14 @@ type Phase struct {
 	DependsOn []PhaseID
 	// Gate is the quality gate applied after this phase completes.
 	Gate GateType
-	// MaxRetries is the maximum number of retry attempts when the gate fails.
+	// MaxRetries bounds how often a failed gate is retried. The canonical
+	// engine spends it on remediation cycles in a run (a fix dispatch followed
+	// by re-verification); the exported runners re-dispatch the phase itself.
 	MaxRetries int
+	// ExternalWrites marks a phase whose dispatch writes the working tree. A
+	// completed phase that writes is never dispatched again by a resume
+	// (SPEC-PIPELINE-RESUME-001 REQ-PRR-LIN-02).
+	ExternalWrites bool
 }
 
 // @AX:ANCHOR: [AUTO] cross-cutting concern — canonical phase registry consumed by engine, runner, and tests (fan-in >= 3)
@@ -34,8 +40,8 @@ type Phase struct {
 func DefaultPhases() []Phase {
 	return []Phase{
 		{ID: PhasePlan, DependsOn: nil},
-		{ID: PhaseTestScaffold, DependsOn: []PhaseID{PhasePlan}},
-		{ID: PhaseImplement, DependsOn: []PhaseID{PhaseTestScaffold}},
+		{ID: PhaseTestScaffold, DependsOn: []PhaseID{PhasePlan}, ExternalWrites: true},
+		{ID: PhaseImplement, DependsOn: []PhaseID{PhaseTestScaffold}, ExternalWrites: true},
 		{ID: PhaseValidate, DependsOn: []PhaseID{PhaseImplement}, Gate: GateValidation, MaxRetries: 3},
 		{ID: PhaseReview, DependsOn: []PhaseID{PhaseValidate}, Gate: GateReview, MaxRetries: 2},
 	}
@@ -60,7 +66,7 @@ const (
 // the phase prompt), and validation and review keep their gates and retries.
 func CompactPhases() []Phase {
 	return []Phase{
-		{ID: PhaseImplement, DependsOn: nil},
+		{ID: PhaseImplement, DependsOn: nil, ExternalWrites: true},
 		{ID: PhaseValidate, DependsOn: []PhaseID{PhaseImplement}, Gate: GateValidation, MaxRetries: 3},
 		{ID: PhaseReview, DependsOn: []PhaseID{PhaseValidate}, Gate: GateReview, MaxRetries: 2},
 	}

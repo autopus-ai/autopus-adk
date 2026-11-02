@@ -21,6 +21,9 @@ type dirNode struct {
 type fileNode struct {
 	name string
 	id   FileID
+	// kind is the S_IFMT bits the pre-walk saw; only a regular file, or any
+	// non-directory under leafLinks, is ever recorded.
+	kind uint32
 }
 
 // preWalk records a candidate tree through descriptors only: openat with
@@ -29,6 +32,8 @@ type fileNode struct {
 // change, or bound overrun and names it in problem.
 type preWalk struct {
 	rootDev uint64
+	// limits default to strictTree when zero.
+	limits  treeLimits
 	entries int
 	newest  int64
 	problem string
@@ -38,6 +43,9 @@ type preWalk struct {
 }
 
 func (w *preWalk) dir(parent int, name string, depth int) (dirNode, error) {
+	if w.limits.maxEntries == 0 {
+		w.limits = strictTree
+	}
 	fd, err := unix.Openat(parent, name, dirOpenFlags, 0)
 	if err != nil {
 		if errors.Is(err, unix.ELOOP) || errors.Is(err, unix.ENOTDIR) {
@@ -63,7 +71,7 @@ func (w *preWalk) dir(parent int, name string, depth int) (dirNode, error) {
 		return dirNode{}, err
 	}
 	for _, child := range names {
-		if w.entries++; w.entries > treeMaxEntries {
+		if w.entries++; w.entries > w.limits.maxEntries {
 			return dirNode{}, w.stop(ProblemUnbounded)
 		}
 		var cst unix.Stat_t
@@ -71,11 +79,11 @@ func (w *preWalk) dir(parent int, name string, depth int) (dirNode, error) {
 			return dirNode{}, err
 		}
 		w.see(&cst)
-		if problem := childProblem(&cst, w.rootDev, depth); problem != "" {
+		if problem := childProblem(&cst, w.rootDev, depth, w.limits); problem != "" {
 			return dirNode{}, w.stop(problem)
 		}
-		if cst.Mode&unix.S_IFMT == unix.S_IFREG {
-			node.files = append(node.files, fileNode{name: child, id: idOf(&cst)})
+		if kind := uint32(cst.Mode & unix.S_IFMT); kind != unix.S_IFDIR {
+			node.files = append(node.files, fileNode{name: child, id: idOf(&cst), kind: kind})
 			continue
 		}
 		sub, err := w.dir(fd, child, depth+1)
@@ -88,16 +96,17 @@ func (w *preWalk) dir(parent int, name string, depth int) (dirNode, error) {
 }
 
 // childProblem says why an entry found at depth makes its candidate
-// undeletable, or "": a symlink or special file, any file or directory on
-// another device than the root, or a directory past the depth bound.
-func childProblem(st *unix.Stat_t, rootDev uint64, depth int) string {
+// undeletable, or "": a symlink or special file (unless limits make them
+// leaves), any file or directory on another device than the root, or a
+// directory past the depth bound.
+func childProblem(st *unix.Stat_t, rootDev uint64, depth int, limits treeLimits) string {
 	kind := st.Mode & unix.S_IFMT
 	switch {
-	case kind != unix.S_IFREG && kind != unix.S_IFDIR:
+	case kind != unix.S_IFREG && kind != unix.S_IFDIR && !limits.leafLinks:
 		return ProblemSymlink
 	case uint64(st.Dev) != rootDev:
 		return ProblemDevice
-	case kind == unix.S_IFDIR && depth >= treeMaxDepth:
+	case kind == unix.S_IFDIR && depth >= limits.maxDepth:
 		return ProblemUnbounded
 	}
 	return ""
@@ -154,7 +163,7 @@ func removeTree(parent int, node dirNode) error {
 			}
 			return err
 		}
-		if fst.Mode&unix.S_IFMT != unix.S_IFREG || idOf(&fst) != file.id {
+		if uint32(fst.Mode&unix.S_IFMT) != file.kind || idOf(&fst) != file.id {
 			return errTreeChanged
 		}
 		if err := unix.Unlinkat(fd, file.name, 0); err != nil && !isNotExist(err) {

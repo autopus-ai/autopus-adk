@@ -103,12 +103,25 @@ type OrchestrationRunReceipt struct {
 	Blocker             string               `json:"blocker,omitempty" yaml:"blocker,omitempty"`
 	StartedAt           time.Time            `json:"started_at" yaml:"started_at"`
 	FinishedAt          *time.Time           `json:"finished_at,omitempty" yaml:"finished_at,omitempty"`
+
+	// Failures are this run's classified, redacted failures in order
+	// (SPEC-PIPELINE-RESUME-001 REQ-PRR-FAIL-01).
+	Failures []PhaseFailure `json:"failures,omitempty" yaml:"failures,omitempty"`
+
+	// TaskID names the logical task every resume of this run continues;
+	// RunID names this attempt (REQ-PRR-LIN-01).
+	TaskID                  string             `json:"task_id" yaml:"task_id"`
+	ResumedFrom             string             `json:"resumed_from,omitempty" yaml:"resumed_from,omitempty"`
+	PriorAttempts           []RunAttemptRecord `json:"prior_attempts,omitempty" yaml:"prior_attempts,omitempty"`
+	CumulativeDispatchCount int                `json:"cumulative_dispatch_count" yaml:"cumulative_dispatch_count"`
+	Resume                  *ResumeRecord      `json:"resume,omitempty" yaml:"resume,omitempty"`
 }
 
 func newRunReceipt(specID string, requested, effective Strategy, route PhaseRoute, phases []Phase) OrchestrationRunReceipt {
 	receipt := OrchestrationRunReceipt{
 		SchemaVersion:       OrchestrationRunReceiptVersion,
 		RunID:               newRunID(),
+		TaskID:              newTaskID(),
 		RouteID:             "pipeline",
 		RouteVersion:        PipelineRouteVersion,
 		RoutePhaseSet:       route,
@@ -228,6 +241,8 @@ func newRunID() string {
 }
 
 func (r *OrchestrationRunReceipt) transition(phaseID PhaseID, status CheckpointStatus, attempt int, verdict GateVerdict, reason string) {
+	// Reasons reach the checkpoint file; no secret may ride along (REQ-PRR-FAIL-05).
+	reason = redactFailureText(reason)
 	r.Transitions = append(r.Transitions, PhaseTransition{
 		Sequence: len(r.Transitions) + 1,
 		PhaseID:  phaseID,
@@ -253,7 +268,7 @@ func (r *OrchestrationRunReceipt) transition(phaseID PhaseID, status CheckpointS
 func (r *OrchestrationRunReceipt) finish(terminal TerminalState, blocker string) {
 	now := time.Now().UTC()
 	r.Terminal = terminal
-	r.Blocker = blocker
+	r.Blocker = redactFailureText(blocker)
 	r.FinishedAt = &now
 	switch terminal {
 	case TerminalCompleted, TerminalDryRun:
