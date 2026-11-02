@@ -21,13 +21,26 @@ type RunAttemptRecord struct {
 	FinishedAt       *time.Time           `json:"finished_at,omitempty" yaml:"finished_at,omitempty"`
 }
 
-// ResumeRecord states what a resumed run took over from its checkpoint and
-// what it had to dispatch again (SPEC-PIPELINE-RESUME-001 REQ-PRR-OUT-04).
+// ResumeRecord states what a resumed run took over from its checkpoint, what
+// it had to dispatch again, and what it started fresh
+// (SPEC-PIPELINE-RESUME-001 REQ-PRR-OUT-04, REQ-PRR-LIN-03).
 type ResumeRecord struct {
-	CheckpointVersion string    `json:"checkpoint_version" yaml:"checkpoint_version"`
-	RestoredPhases    []PhaseID `json:"restored_phases" yaml:"restored_phases"`
-	RerunPhases       []PhaseID `json:"rerun_phases,omitempty" yaml:"rerun_phases,omitempty"`
-	Notes             []string  `json:"notes,omitempty" yaml:"notes,omitempty"`
+	CheckpointVersion string             `json:"checkpoint_version" yaml:"checkpoint_version"`
+	RestoredPhases    []PhaseID          `json:"restored_phases" yaml:"restored_phases"`
+	RerunPhases       []PhaseID          `json:"rerun_phases,omitempty" yaml:"rerun_phases,omitempty"`
+	RemediationResets []RemediationReset `json:"remediation_resets,omitempty" yaml:"remediation_resets,omitempty"`
+	Notes             []string           `json:"notes,omitempty" yaml:"notes,omitempty"`
+}
+
+// RemediationReset records what an explicit resume reset for one gate: its
+// per-run remediation budget, the cycles the task's earlier attempts spent
+// on it, and the failure fingerprint its no-progress breaker last compared
+// against. The resumed run starts the budget and that memory fresh.
+type RemediationReset struct {
+	PhaseID                PhaseID `json:"phase_id" yaml:"phase_id"`
+	BudgetPerRun           int     `json:"budget_per_run" yaml:"budget_per_run"`
+	CyclesSpentBefore      int     `json:"cycles_spent_before" yaml:"cycles_spent_before"`
+	LastFailureFingerprint string  `json:"last_failure_fingerprint,omitempty" yaml:"last_failure_fingerprint,omitempty"`
 }
 
 // inheritLineage links this run to the run it resumes: one task ID across

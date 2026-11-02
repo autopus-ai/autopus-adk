@@ -2,6 +2,7 @@ package pipeline_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -89,4 +90,44 @@ func TestSubprocessEngine_ResumedFixKeepsItsFeedback(t *testing.T) {
 	assert.Equal(t, interruptedFix, second.promptsFor(pipeline.PhaseImplement)[0])
 	require.NotNil(t, result.Receipt.Resume)
 	assert.Empty(t, result.Receipt.Resume.RestoredPhases)
+}
+
+// S12: an explicit resume starts a gate's remediation budget and no-progress
+// memory fresh and records that it did. The resumed validation reports the
+// same failure that tripped the breaker before, and the fresh memory routes
+// a fix instead of tripping at once.
+func TestSubprocessEngine_ResumeResetsAndRecordsRemediationBudget(t *testing.T) {
+	t.Parallel()
+
+	fixture := newResumeFixture(t, "SPEC-LINEAGE-003", false)
+	fixture.route = pipeline.RouteCompact
+	failure := "FAILED_COMMAND: go test ./x\nEXPECTED: ok\nACTUAL: boom\nVERDICT: FAIL"
+	first := &scriptedBackend{scripts: map[pipeline.PhaseID]phaseScript{
+		pipeline.PhaseImplement: answers("IMPL"),
+		pipeline.PhaseValidate:  answers(failure),
+	}}
+	run1, err := fixture.run(context.Background(), first, nil)
+	require.ErrorContains(t, err, "circuit_break_no_progress")
+	require.Len(t, run1.Receipt.Failures, 2)
+	fingerprint := run1.Receipt.Failures[1].Fingerprint
+
+	second := &scriptedBackend{scripts: map[pipeline.PhaseID]phaseScript{
+		pipeline.PhaseImplement: answers("IMPL_V2"),
+		pipeline.PhaseValidate:  answers(failure, "VERDICT: PASS"),
+	}}
+	run2, err := fixture.run(context.Background(), second, fixture.load(t))
+
+	require.NoError(t, err)
+	assert.Equal(t, pipeline.TerminalCompleted, run2.Receipt.Terminal)
+	assert.Equal(t, phaseIDs(pipeline.PhaseValidate, pipeline.PhaseImplement, pipeline.PhaseValidate,
+		pipeline.PhaseReview), second.calls())
+	require.NotNil(t, run2.Receipt.Resume)
+	assert.Equal(t, []pipeline.RemediationReset{{
+		PhaseID: pipeline.PhaseValidate, BudgetPerRun: 3, CyclesSpentBefore: 1, LastFailureFingerprint: fingerprint,
+	}}, run2.Receipt.Resume.RemediationResets)
+	assert.Contains(t, strings.Join(run2.Receipt.Resume.Notes, "\n"), "starts the validate remediation budget")
+	saved := fixture.load(t)
+	require.NotNil(t, saved.Receipt)
+	require.NotNil(t, saved.Receipt.Resume)
+	assert.Len(t, saved.Receipt.Resume.RemediationResets, 1, "the reset is persisted with the checkpoint")
 }

@@ -52,6 +52,7 @@ func (e *SubprocessEngine) planResume() (*resumePlan, error) {
 		}
 	}
 	plan.attachPendingFeedback()
+	plan.recordRemediationResets(phases)
 	return plan, nil
 }
 
@@ -127,22 +128,57 @@ func (p *resumePlan) attachPendingFeedback() {
 		failure.RoutedTo, failure.PhaseID, failure.Kind, failure.Fingerprint))
 }
 
+// recordRemediationResets names each gate whose remediation budget and
+// no-progress memory this resume starts fresh, with what the earlier
+// attempts had spent on it (REQ-PRR-LIN-03). A resume is an explicit user
+// decision, so the reset is allowed; it is never silent.
+func (p *resumePlan) recordRemediationResets(phases []Phase) {
+	history := lineageFailures(p.prior)
+	for _, phase := range phases {
+		reset := RemediationReset{PhaseID: phase.ID, BudgetPerRun: phase.MaxRetries}
+		for _, failure := range history {
+			if failure.PhaseID != phase.ID {
+				continue
+			}
+			if failure.Decision == DecisionRemediate {
+				reset.CyclesSpentBefore++
+			}
+			if failure.Kind == FailureTestFailure || failure.Kind == FailureReviewRejection {
+				reset.LastFailureFingerprint = failure.Fingerprint
+			}
+		}
+		if reset.LastFailureFingerprint == "" {
+			continue
+		}
+		p.resume.RemediationResets = append(p.resume.RemediationResets, reset)
+		p.resume.Notes = append(p.resume.Notes, fmt.Sprintf(
+			"this resume starts the %s remediation budget (%d per run) and its no-progress memory fresh; "+
+				"earlier attempts spent %d cycle(s), last failure fingerprint %s",
+			phase.ID, reset.BudgetPerRun, reset.CyclesSpentBefore, reset.LastFailureFingerprint))
+	}
+}
+
 // lastRoutedFix is the newest remediate decision across the prior run and
 // the attempts before it.
 func lastRoutedFix(prior *OrchestrationRunReceipt) *PhaseFailure {
-	if prior == nil {
-		return nil
-	}
-	histories := [][]PhaseFailure{prior.Failures}
-	for i := len(prior.PriorAttempts) - 1; i >= 0; i-- {
-		histories = append(histories, prior.PriorAttempts[i].Failures)
-	}
-	for _, failures := range histories {
-		for i := len(failures) - 1; i >= 0; i-- {
-			if failures[i].Decision == DecisionRemediate && failures[i].RoutedTo != "" {
-				return &failures[i]
-			}
+	failures := lineageFailures(prior)
+	for i := len(failures) - 1; i >= 0; i-- {
+		if failures[i].Decision == DecisionRemediate && failures[i].RoutedTo != "" {
+			return &failures[i]
 		}
 	}
 	return nil
+}
+
+// lineageFailures lists the failures of the attempts before the prior run
+// and then the prior run's own, oldest first.
+func lineageFailures(prior *OrchestrationRunReceipt) []PhaseFailure {
+	if prior == nil {
+		return nil
+	}
+	var failures []PhaseFailure
+	for _, attempt := range prior.PriorAttempts {
+		failures = append(failures, attempt.Failures...)
+	}
+	return append(failures, prior.Failures...)
 }
