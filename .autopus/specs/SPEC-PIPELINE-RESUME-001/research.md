@@ -43,7 +43,7 @@ Read on 2026-11-02 at base `109c7ea4` (unchanged since the brief's baseline `4a5
 - Records hold the sanitized, compacted text that prompts read (probe B1), so restore needs no re-derivation and resumed prompts are byte-identical; `previous` also feeds the legacy prompt path, which closes the same gap there.
 - The checkpoint version moves to v2 because a v1 file cannot prove its outputs; v1 stays readable as legacy, and an older binary refuses v2 (probe B3).
 - Unverifiable read-only phases are re-dispatched; any unverifiable phase that writes the working tree blocks, because only the operator can tell whether its earlier writes are still wanted.
-- The remediation budget and breaker memory reset on an explicit resume; prior failures stay visible in `prior_attempts`.
+- The remediation budget and breaker memory reset on an explicit resume, which is a user decision; the receipt's `resume.remediation_resets` records each reset gate with the cycles spent before and the fingerprint the breaker last held, and prior failures stay in `prior_attempts`.
 
 ## Semantic Invariant Inventory
 
@@ -58,7 +58,7 @@ Read on 2026-11-02 at base `109c7ea4` (unchanged since the brief's baseline `4a5
 | INV-P07 | a resumed phase reads exactly what the interrupted run would have given it | equality of prompts | implement prompt | AC-PRR-007 |
 | INV-P08 | an output that cannot be verified is never restored | integrity gate | resume decision, blocker | AC-PRR-008, AC-PRR-009 |
 | INV-P09 | completed working-tree writes are never repeated automatically | side-effect safety | dispatched phases | AC-PRR-008, AC-PRR-010 |
-| INV-P10 | lineage is append-only across resumes | history conservation | task ID, prior attempts, counts | AC-PRR-010 |
+| INV-P10 | lineage is append-only across resumes, and a resume's reset of gate budgets is itself recorded | history conservation | task ID, prior attempts, counts, remediation resets | AC-PRR-010, AC-PRR-012 |
 | INV-P11 | secrets never reach persisted or forwarded evidence | redaction | prompts, checkpoint file | AC-PRR-003, AC-PRR-011 |
 
 ## Feature Coverage Map
@@ -72,6 +72,7 @@ Read on 2026-11-02 at base `109c7ea4` (unchanged since the brief's baseline `4a5
 | Output records and restore | T4, T5, S7 | covered |
 | Integrity rejection and legacy | T5, S8, S9 | covered |
 | Lineage and external writes | T6, S10 | covered |
+| Budget reset on explicit resume | T6, S12 | covered |
 | Status output, usage accounting | R5, R10 work packages | out of scope by Outcome Lock |
 
 ## Completion Debt
@@ -103,7 +104,7 @@ Optional improvements. They do not block sync completion and carry no identifier
 
 - Intended scope: R4, R3, R2 of the brief for `pkg/pipeline`, plus one CLI message helper.
 - Explicit non-goals: see the Outcome Lock.
-- Self-verified: three reproductions on the base commit, three design probes, traceability over 21 requirements.
+- Self-verified: three reproductions on the base commit, three design probes, traceability over 22 requirements.
 - Reviewer should focus on: whether any non-transport failure can still reach a second dispatch; whether invalidation can leave a stale PASS; whether a resume can restore an output it did not verify or re-dispatch a completed working-tree phase; whether evidence can carry a secret into a prompt or the checkpoint.
 
 ## Residual Risks
@@ -119,7 +120,7 @@ Optional improvements. They do not block sync completion and carry no identifier
 - Q-CORR-03 | status: PASS | attempt: 1 | files: spec.md, acceptance.md | reason: Event-driven requirements use `WHEN ..., THEN`, Unwanted use `IF ..., THEN`, and every scenario is Given/When/Then
 - Q-CORR-04 | status: PASS | attempt: 1 | files: research.md | reason: Reference Discipline separates existing references from `[NEW]` additions with the verification used
 - Q-COMP-01 | status: PASS | attempt: 1 | files: all four | reason: contract, tasks and probes, oracles, and evidence each live in their file
-- Q-COMP-02 | status: PASS | attempt: 1 | files: spec.md, acceptance.md | reason: 21 requirements map to S1–S11 with failure, rejection, and legacy paths
+- Q-COMP-02 | status: PASS | attempt: 1 | files: spec.md, acceptance.md | reason: 22 requirements map to S1–S12 with failure, rejection, legacy, and reset paths
 - Q-COMP-03 | status: PASS | attempt: 1 | files: plan.md | reason: tasks follow the commit order R4, R3, R2 with one verification task
 - Q-COMP-04 | status: PASS | attempt: 1 | files: spec.md, research.md | reason: Outcome Lock states admission, feedback, breaker, restore, and lineage; residual risks are stated
 - Q-COMP-05 | status: PASS | attempt: 1 | files: research.md, spec.md, acceptance.md | reason: INV-P01 to INV-P11 map to requirements, tasks, and Must oracles with exact values

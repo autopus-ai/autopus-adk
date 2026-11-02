@@ -103,6 +103,13 @@ Given a compact run whose validation failed with `TestUniqueMarker4711` and whos
 When it is resumed
 Then the resumed first call is implement and its prompt equals the cancelled fix prompt (tests `TestSubprocessEngine_MultipleResumesKeepLineage`, `TestSubprocessEngine_ResumedFixKeepsItsFeedback`).
 
+### S12: AC-PRR-012 - An explicit resume resets gate budgets and records the reset
+Priority: Must
+Given a compact run whose validation failed twice with the same fingerprint F, ending `blocked` at the breaker after one remediation cycle
+When it is resumed and the resumed validation first reports the same failure F and then `VERDICT: PASS`
+Then the resumed calls are `validate, implement, validate, review` and the terminal state is `completed`, because the fresh no-progress memory routes a fix instead of tripping at once
+And `resume.remediation_resets` is exactly one entry with phase `validate`, `budget_per_run` 3, `cycles_spent_before` 1, and `last_failure_fingerprint` F, and a `resume` note contains `starts the validate remediation budget` (test `TestSubprocessEngine_ResumeResetsAndRecordsRemediationBudget`).
+
 ### S11: AC-PRR-011 - Scope and size
 Priority: Must
 Given the branch diff against `origin/main`

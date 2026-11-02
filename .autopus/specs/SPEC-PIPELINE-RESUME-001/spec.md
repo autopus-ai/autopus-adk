@@ -33,7 +33,7 @@ This SPEC makes every runner share one response contract, turns a failed gate in
 
 - Outcome Lock: the canonical engine, `SequentialRunner`, and `ParallelRunner` reject a Go error, nil response, timeout, non-zero exit, or empty output before any verdict is parsed and never run a dependent of the rejected phase; a failed validation or review gate becomes a classified failure whose redacted evidence (failing command, expected and actual result, log excerpt, or finding IDs, evidence, and fix conditions) reaches the implementation phase in a rebuilt prompt, after which every verification downstream of the fix runs again; identical or non-progressing failures stop at the circuit breaker and an exhausted budget ends as `failed_budget`, both keeping outputs and evidence; only a backend failure explicitly marked as a retryable transport failure is re-sent, with bounded backoff; a checkpoint persists each completed phase's dynamic output with schema, policy, producing phase, content hash, and input fingerprint, and a resume restores those outputs into byte-identical prompts, re-dispatches an unverifiable output only when no affected phase writes the working tree, and blocks otherwise with a message naming the phase and the reason; every run carries a task ID that survives resumes, its own run ID, `resumed_from`, and the prior attempts' failures and dispatch usage.
 - Mandatory requirements: REQ-PRR-SCOPE-01 through REQ-PRR-VERIFY-01 below.
-- Explicit non-goals: token or cost accounting (R10); changing `auto pipeline run` result output or status surfaces (R5); keyed integrity (HMAC) of checkpoint files; persisting the remediation budget or the circuit-breaker memory across resumes; making `StrategyParallel` available to the canonical route; retrying a timeout, a non-zero exit, or an unmarked Go error.
+- Explicit non-goals: token or cost accounting (R10); changing `auto pipeline run` result output or status surfaces (R5); keyed integrity (HMAC) of checkpoint files; carrying the remediation budget or the circuit-breaker memory across an explicit resume (the reset is recorded instead); making `StrategyParallel` available to the canonical route; retrying a timeout, a non-zero exit, or an unmarked Go error.
 - Completion evidence: the tests named in `acceptance.md` pass with fake backends, `go test ./pkg/pipeline/... ./internal/cli/...` pass, the source-lines gate passes on the changed Go files, and each reproduction above is a test that failed on `109c7ea4`.
 
 ## Definitions
@@ -158,6 +158,11 @@ Priority: Must
 Type: Ubiquitous
 THE SYSTEM SHALL never re-dispatch a completed external-write phase as part of restoring a checkpoint, whether it is restored or unrestorable; a fix that a new gate failure in the resumed run routes to it is a new remediation dispatch under REQ-PRR-FAIL-03 and REQ-PRR-FAIL-04.
 
+**REQ-PRR-LIN-03**
+Priority: Must
+Type: Event-driven
+WHEN a run resumes a checkpoint whose earlier attempts hold a `test_failure` or `review_rejection` for a gate, THEN THE SYSTEM SHALL start that gate's remediation budget and no-progress memory fresh, and SHALL record the reset in the receipt `resume.remediation_resets` (gate, per-run budget, remediation cycles the earlier attempts spent on it, and its last failure fingerprint) with a matching `resume` note.
+
 ### Verification
 
 **REQ-PRR-VERIFY-01**
@@ -196,4 +201,5 @@ THE SYSTEM SHALL prove every Must requirement with tests that use fake backends 
 | REQ-PRR-OUT-03 | T5 | S8 | INV-P08, INV-P09 |
 | REQ-PRR-OUT-04 | T5, T7 | S9 | INV-P08 |
 | REQ-PRR-OUT-05, LIN-01, LIN-02 | T6 | S10 | INV-P09, INV-P10 |
+| REQ-PRR-LIN-03 | T6 | S12 | INV-P10 |
 | REQ-PRR-VERIFY-01 | T8 | S11 | INV-P11 |

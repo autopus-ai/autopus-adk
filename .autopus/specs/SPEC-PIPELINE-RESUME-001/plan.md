@@ -9,7 +9,7 @@ Status: draft
 - T3 (R3): `[NEW] pkg/pipeline/engine_remediation.go` and the `engine_run.go` loop: index-based phase loop, fix routing to `implement`, invalidation of the fix-to-gate span, circuit breaker, `failed_budget`, transport retry with an injectable sleep; gate report request in `engine_prompt.go`; feedback in the OMP active prompt. Tests with fake backends. Commit `fix(pipeline)`.
 - T4 (R2): `[NEW] pkg/pipeline/phase_output.go` — record, content hash, input fingerprint, verification; `Phase.ExternalWrites`; checkpoint `phase_outputs` and `pipeline_checkpoint.v2` with v1 read as legacy.
 - T5 (R2): `[NEW] pkg/pipeline/checkpoint_restore.go` — resume plan: verify in route order, chain breaks, rerun versus block, notes; restored records feed `previous` and the legacy previous-output path.
-- T6 (R2): `[NEW] pkg/pipeline/receipt_lineage.go` — task ID, `resumed_from`, `prior_attempts`, cumulative dispatch count, pending remediation feedback.
+- T6 (R2): `[NEW] pkg/pipeline/receipt_lineage.go` — task ID, `resumed_from`, `prior_attempts`, cumulative dispatch count, pending remediation feedback, and the recorded reset of each gate's remediation budget and breaker memory on resume.
 - T7: `[NEW] internal/cli/pipeline_run_resume.go` prints `Pipeline resume:` notes; existing resume tests whose fixtures assumed an output-less skip are updated to the new contract. Commit `fix(pipeline)`.
 - T8: package tests, `go test ./pkg/pipeline/... ./internal/cli/...`, source-lines gate over the changed Go files, scope check of the diff.
 
