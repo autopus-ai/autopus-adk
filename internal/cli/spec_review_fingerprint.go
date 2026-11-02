@@ -43,6 +43,7 @@ type specReviewCodeDigest struct {
 type specReviewPolicyIdentity struct {
 	Profile             string   `json:"profile"`
 	JudgeMode           string   `json:"judge_mode"`
+	VerifyInput         string   `json:"verify_input"`
 	Strategy            string   `json:"strategy"`
 	VerdictThreshold    float64  `json:"verdict_threshold"`
 	MinProviders        int      `json:"min_providers"`
@@ -153,7 +154,7 @@ func computeSpecReviewFingerprint(in specReviewFingerprintInput) *specReviewFing
 
 func specReviewPolicyIdentityOf(plan specReviewPlan, gate config.ReviewGateConf, strategy string, threshold float64, maxRevisions int, opts specReviewOptions) specReviewPolicyIdentity {
 	return specReviewPolicyIdentity{
-		Profile: plan.Profile, JudgeMode: plan.JudgeMode, Strategy: strategy, VerdictThreshold: threshold,
+		Profile: plan.Profile, JudgeMode: plan.JudgeMode, VerifyInput: plan.VerifyInput, Strategy: strategy, VerdictThreshold: threshold,
 		MinProviders: gate.MinProviders, ExcludeFailed: gate.ExcludeFailedFromDenom, MaxRevisions: maxRevisions,
 		PassCriteria: spec.SHA256Hex([]byte(gate.PassCriteria)), DocContextMaxLines: gate.DocContextMaxLines,
 		ConditionalProfiles: slices.Clone(opts.conditionalProfiles),

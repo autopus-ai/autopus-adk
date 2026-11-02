@@ -41,6 +41,7 @@ type specReviewPlan struct {
 	Judge          string
 	JudgeMode      string
 	JudgeReason    string
+	VerifyInput    string
 	Quorum         int
 	MaxRounds      int
 	Warnings       []string
@@ -65,6 +66,9 @@ func resolveSpecReviewPlan(
 	}
 	if opts.judgeModeSet && !slices.Contains(config.ReviewJudgeModes, opts.judgeMode) {
 		return specReviewPlan{}, fmt.Errorf("--judge-mode %q: expected one of %s", opts.judgeMode, strings.Join(config.ReviewJudgeModes, ", "))
+	}
+	if opts.verifyInputSet && !slices.Contains(config.ReviewVerifyInputs, opts.verifyInput) {
+		return specReviewPlan{}, fmt.Errorf("--verify-input %q: expected one of %s", opts.verifyInput, strings.Join(config.ReviewVerifyInputs, ", "))
 	}
 	if opts.newSession && opts.extendBudget {
 		return specReviewPlan{}, fmt.Errorf("--new-session and --extend-budget cannot be combined: extend the current session or start a new one")
@@ -99,6 +103,15 @@ func resolveSpecReviewPlan(
 		plan.resolveFullReviewers(gate, opts, multi)
 	}
 	plan.resolveJudge(gate, opts)
+	// SPEC-REVIEWREUSE-001 REQ-RR-DELTA-01: the flag, else the configuration,
+	// else full.
+	plan.VerifyInput = config.ReviewVerifyInputFull
+	if gate.VerifyInput != "" {
+		plan.VerifyInput = gate.VerifyInput
+	}
+	if opts.verifyInputSet {
+		plan.VerifyInput = opts.verifyInput
+	}
 	return plan, nil
 }
 

@@ -151,6 +151,44 @@ outside git has no code baseline, so it never reuses. `--force-review`
 re-reviews unchanged input against the same session budget and records
 `forced_review: true` on the attempt and in the receipt.
 
+## Delta verify
+
+`spec.review_gate.verify_input: delta` (or `--verify-input delta`) lets a verify
+round send what changed instead of the whole document set. Every round that
+produced a usable review and was not cut by the budget stores a `baseline`
+(`spec_review_baseline.v1`) in `review-findings.json`: the content and digest
+of each SPEC document it read, the digests of every other input (checklist,
+code baseline and context, policy, prompt contract, providers, references),
+and the ids of the findings it left open.
+
+A verify round uses the delta input only if, in this order: a baseline exists;
+its stored documents match their digests and its open ids match the prior
+findings; every non-document input is unchanged; no SPEC document was added or
+removed and no change touches a risk boundary (the header before the first
+`##`, spec.md `## Outcome Boundary`, `## Definitions`, `## Generated And
+Changed Surfaces`, `## Related SPECs`, research.md `## Trust Boundary` and
+`## Outcome Lock`, or a line that opens a requirement or a scenario); every
+open finding's scope resolves in the documents; every changed line lies in the
+scope of an open finding (its ids plus the ids sharing a traceability row);
+something changed; and the delta prompt is shorter than the full one. The
+first failed condition is the reason the round uses the full input instead:
+`missing_baseline`, `baseline_hash_mismatch`, `context_changed`,
+`interface_change`, `unclear_impact`, `out_of_scope_change`, `no_change`, or
+`no_saving`; a manifest that cannot account for a required source is
+`integrity_gap`. A project outside git cannot prove its code unchanged, so it
+always uses the full input.
+
+The delta prompt (`spec_review_delta.v1`) lists every required source with its
+digest as `changed`, `included` (the checklist), or `linked` to the baseline
+run, then the unified diff of each changed document, the full text of every
+section a change touches, the requirement blocks, scenarios, and traceability
+rows the open findings name, and per finding the changes in its scope. It keeps
+the verify instructions, so a delta round still opens a new critical or
+security finding. Each round prints `SPEC 리뷰 입력: delta (baseline <run> r<n>)`
+or `SPEC 리뷰 입력: full — <reason>`, the receipt's `rounds` record `input` and
+`input_reason`, and a fallback round spends the same session budget. With the
+default `full`, verify rounds send the full input exactly as before.
+
 ## The review plan
 
 `auto spec review` separates three choices that used to be tangled:

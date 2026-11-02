@@ -84,7 +84,9 @@
           "role": "judge",
           "duration_ms": "<volatile>"
         }
-      ]
+      ],
+      "input": "full",
+      "input_reason": "discover"
     }
   ],
   "session": {
@@ -189,6 +191,7 @@
     "policy": {
       "profile": "full",
       "judge_mode": "always",
+      "verify_input": "full",
       "strategy": "debate",
       "verdict_threshold": 0.67,
       "min_providers": 0,
@@ -226,7 +229,7 @@
       }
     ],
     "evidence": {
-      "review_findings": "ff7e3ee3fc3b4e554699c43248539ac6d1708f348c429fb4615bc8ff6c6445a7",
+      "review_findings": "<volatile>",
       "review_md": "<volatile>"
     },
     "complete": false,
