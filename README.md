@@ -1589,6 +1589,8 @@ Every provider runs as a headless subprocess (or through OMP for a `backend: omp
 | `auto spec review SPEC-ID --single-pass` | One provider round; receipt carries `loop_status` and `blocking_reasons` |
 | `auto spec timing SPEC-ID` | How long the last review took, per round and provider (from `review-receipt.json`) |
 | `auto disk status` / `check --need 30` / `trim [--apply]` | Shared-machine disk budget: consumers, preflight (exit 3 when short), and a dry-run-first Go build cache trim ([docs](docs/disk-management.md)) |
+| `auto disk reclaim [--apply]` / `register` / `release` / `registry` | Remove finished worktrees the harness owns and idle session scratchpads, dry run first ([docs](docs/disk-management.md#reclaim)) |
+| `auto disk lease --need 20 -- <command>` / `log` | Run a heavy command under a machine-wide disk reservation; show trims, reclaims, refusals, and low-space alerts ([docs](docs/disk-management.md#leases)) |
 | `profile: lean` + `change_class: <low-risk class>` + `surface: <paths>` in spec.md frontmatter | Lean SPEC set for new low-risk work: reduced section floor, one reviewer, no judge. The surface is classified at validate time, and `auto spec gates` escalates work that leaves it |
 | `/auto dev "description"` | Full power: plan(--multi --ultrathink) → go(--team --loop) → sync |
 | `/auto setup` | Generate/update project context docs |

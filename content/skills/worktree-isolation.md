@@ -36,6 +36,8 @@ NOT applied when:
 
 Before spawning parallel executors, run `auto disk check --need 10` once and fan out only on exit 0; stop with a report when it exits 3 (insufficient free space) or with any other non-zero code (the measurement failed). Each worktree adds a checkout, build output, and test caches on a disk every worker shares, and a full disk fails all of them with misleading errors.
 
+A worktree created outside the harness worktree directories is registered with `auto disk register <path>` and released with `auto disk release <path>` when its work ends, so `auto disk reclaim` can remove it once it is clean. Run a full build or test suite as `auto disk lease --need <GiB> -- <command>` so parallel workers reserve disk instead of racing for it; exit 3 means the wait ran out. When a disk alert or a failed preflight appears, the lead tells every running worker to pause heavy work.
+
 ## Agent Tool Usage (R1)
 
 For parallel tasks in Phase 2, add `isolation: "worktree"` to Agent() calls:

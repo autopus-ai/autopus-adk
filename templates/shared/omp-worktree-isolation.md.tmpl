@@ -43,7 +43,11 @@ Before fan-out:
 5. put cross-task interfaces in top-level `context` before dispatch;
 6. run `auto disk check --need 10` and fan out only on exit 0; stop with a report when it exits 3
    or with any other non-zero code, because every isolated item adds a checkout and build
-   output to a disk the other items share.
+   output to a disk the other items share;
+7. register a worktree created outside the harness worktree directories with
+   `auto disk register <path>` and release it with `auto disk release <path>` when its work ends, run a
+   full build or test suite as `auto disk lease --need <GiB> -- <command>` (exit 3: the wait ran out),
+   and when a disk alert or a failed preflight appears, tell every running item to pause heavy work.
 
 A maximum of five isolated implementation items may be active in one wave. Queue overflow by
 task id. This policy is stricter than OMP's session-wide semaphore and prevents excessive
