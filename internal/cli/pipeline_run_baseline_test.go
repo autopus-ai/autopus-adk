@@ -144,3 +144,46 @@ func TestPipelineBaseline_RecordedOnlyForCompletedRuns(t *testing.T) {
 	assert.Contains(t, out.String(), "Pipeline verification baseline not recorded: read git HEAD:")
 	assert.NoFileExists(t, filepath.Join(outside, path))
 }
+
+// A baseline that cannot be written leaves the previous one exactly as it
+// was and fails nothing: the run completed, and the reason is reported.
+func TestPipelineBaseline_WriteFailureIsReportedAndAtomic(t *testing.T) {
+	if runtime.GOOS == "windows" || os.Geteuid() == 0 {
+		t.Skip("needs POSIX directory permissions that bind the user")
+	}
+	const specID = "SPEC-BASE-002"
+	f := newStatusFixture(t)
+	f.writeSpec(specID, "approved")
+	f.commit("base")
+	chdirForTest(t, f.root)
+	specDir := filepath.Join(".autopus", "specs", specID)
+	completed := &pipeline.PipelineResult{Receipt: pipeline.OrchestrationRunReceipt{RunID: "run-1", Terminal: pipeline.TerminalCompleted}}
+	var out bytes.Buffer
+	recordPipelineVerification(&out, specID, specDir, completed)
+	path := pipelineVerificationPath(pipelineStateDir, specID)
+	before, err := os.ReadFile(path)
+	require.NoError(t, err)
+
+	require.NoError(t, os.Chmod(pipelineStateDir, 0o500))
+	t.Cleanup(func() { _ = os.Chmod(pipelineStateDir, 0o755) })
+	out.Reset()
+	completed.Receipt.RunID = "run-2"
+	recordPipelineVerification(&out, specID, specDir, completed)
+
+	assert.Contains(t, out.String(), "Pipeline verification baseline not recorded: ")
+	after, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, string(before), string(after), "the previous baseline is untouched")
+}
+
+// A tree whose changes git would hide is never recorded as verified.
+func TestPipelineBaseline_RefusesATreeGitWouldHide(t *testing.T) {
+	t.Parallel()
+	f := newStatusFixture(t)
+	f.write("tracked.go", "package x\n")
+	head := f.commit("base")
+	runGitCommand(t, f.root, "update-index", "--skip-worktree", "tracked.go")
+	_, err := workingTreeDigests(f.root, head)
+	require.ErrorIs(t, err, errTreeHidesChanges)
+	assert.Contains(t, err.Error(), "1 marked assume-unchanged or skip-worktree: tracked.go")
+}

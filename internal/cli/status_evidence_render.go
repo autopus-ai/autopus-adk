@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/insajin/autopus-adk/internal/cli/tui"
-	"github.com/insajin/autopus-adk/pkg/pipeline"
 )
 
 // statusReport is everything status shows beyond the declared SPEC states.
@@ -18,14 +17,14 @@ type statusReport struct {
 	actions  []statusNextAction
 }
 
-func collectStatusReport(dir string, specs []specEntry) statusReport {
-	reader := newStatusEvidenceReader(dir, specs)
+func collectStatusReport(dir string, specs []specEntry, probe statusProbe) statusReport {
+	env := collectStatusEnvironment(dir, probe)
+	reader := newStatusEvidenceReader(dir, specs, env)
 	evidence := make([]statusEvidence, len(specs))
 	for i, entry := range specs {
 		evidence[i] = reader.read(entry)
 	}
-	env := collectStatusEnvironment(dir, newStatusProbe())
-	return statusReport{evidence: evidence, env: env, actions: buildStatusNextActions(dir, specs, evidence, env)}
+	return statusReport{evidence: evidence, env: env, actions: buildStatusNextActions(specs, evidence, env)}
 }
 
 // evidenceCounts counts the SPECs under every label, zeros included.
@@ -63,15 +62,19 @@ func statusEvidenceLines(evidence statusEvidence) []string {
 	var lines []string
 	if execution := evidence.Execution; execution != nil {
 		if execution.Error != "" {
-			lines = append(lines, "run: "+execution.Error)
+			lines = append(lines, "run: "+execution.Error+" · "+execution.Source)
 		} else {
 			lines = append(lines, statusExecutionLines(execution)...)
+		}
+		if len(execution.OtherRoots) > 0 {
+			lines = append(lines, "older evidence also in: "+statusSingleLine(strings.Join(execution.OtherRoots, ", ")))
 		}
 	}
 	if verification := evidence.Verification; verification.State != freshnessNone {
 		line := "verification: " + verification.State
 		if verification.RunID != "" {
-			line += " (run " + verification.RunID + ")"
+			line += fmt.Sprintf(" (run %s, base HEAD %s, recorded %s)", verification.RunID,
+				statusOr(shortCommit(verification.BaseHead), "none"), statusOr(verification.RecordedAt, "never"))
 		}
 		if len(verification.Reasons) > 0 {
 			line += " — " + strings.Join(verification.Reasons, "; ")
@@ -84,24 +87,29 @@ func statusEvidenceLines(evidence statusEvidence) []string {
 	return lines
 }
 
+// statusExecutionLines shows every execution field the JSON carries.
 func statusExecutionLines(execution *statusExecution) []string {
-	terminal := execution.Terminal
-	if terminal == "" {
-		terminal = "no terminal state (still running, killed, or recorded without a run receipt)"
+	attempt := fmt.Sprintf("attempt %d", execution.Attempt)
+	if execution.ResumedFrom != "" {
+		attempt += ", resumed from " + execution.ResumedFrom
+	}
+	platform := statusOr(execution.Platform, "unrecorded")
+	if execution.ExecutionOwner != "" {
+		platform += " (owner " + execution.ExecutionOwner + ")"
+	}
+	result := execution.Terminal
+	if result == "" {
+		result = "no terminal state (still running, killed, or recorded without a run receipt)"
 	}
 	if execution.StopReason != "" && execution.StopReason != execution.Terminal {
-		terminal += " (" + execution.StopReason + ")"
-	}
-	runID := execution.RunID
-	if runID == "" {
-		runID = "unrecorded"
-	}
-	if execution.Attempt > 0 {
-		runID += fmt.Sprintf(" · attempt %d", execution.Attempt)
+		result += " (" + execution.StopReason + ")"
 	}
 	phases := execution.Phases
 	lines := []string{
-		fmt.Sprintf("run: %s · %s", runID, terminal),
+		fmt.Sprintf("run: %s · task %s · %s · route %s · platform %s", statusOr(execution.RunID, "unrecorded"),
+			statusOr(execution.TaskID, "unrecorded"), attempt, statusOr(execution.Route, "unrecorded"), platform),
+		fmt.Sprintf("result: %s · finished %s · base HEAD %s · %s", result, statusOr(execution.FinishedAt, "not recorded"),
+			statusOr(shortCommit(execution.BaseHead), "none"), execution.Source),
 		fmt.Sprintf("phases: %d executed · %d restored · %d failed · %d pending · %d dispatches (%d cumulative)",
 			phases.Executed, phases.Restored, phases.Failed, phases.Pending,
 			execution.Dispatches, execution.CumulativeDispatches),
@@ -112,34 +120,39 @@ func statusExecutionLines(execution *statusExecution) []string {
 	if attempt := execution.BlockedAttempt; attempt != nil {
 		lines = append(lines, "last attempt blocked before dispatch: "+attempt.Blocker)
 	}
-	if pipelineRunStopped(pipeline.TerminalState(execution.Terminal)) {
-		if execution.Resumable {
-			lines = append(lines, fmt.Sprintf("resumable: yes — %s (%s)", execution.ResumeCommand, execution.ResumeReason))
-		} else {
-			lines = append(lines, "resumable: no — "+execution.ResumeReason)
-		}
+	if resume := execution.Resume; resume != nil {
+		lines = append(lines, statusResumeLines(resume)...)
 	}
 	return lines
+}
+
+func statusResumeLines(resume *statusResume) []string {
+	lines := []string{"resumable: no — " + resume.Reason}
+	if resume.Admitted {
+		lines = []string{"resumable: yes — " + statusResumeSummary(resume)}
+		command := resume.Command
+		if command == "" {
+			command = "none — " + resume.CommandNote
+		}
+		lines = append(lines, "resume command: "+command)
+	}
+	return append(lines, "admission checked: "+strings.Join(resume.Checked, ", "))
 }
 
 func statusReviewLines(review *statusReview) []string {
 	var lines []string
 	switch review.State {
-	case freshnessUnknown:
-		lines = append(lines, "review: unknown — "+strings.Join(review.Reasons, "; "))
 	case freshnessNone:
 		lines = append(lines, "review: no review receipt")
 	default:
-		verdict := review.Verdict
-		if verdict == "" {
-			verdict = "no verdict"
-		}
+		verdict := statusOr(review.Verdict, "no verdict")
 		var facts []string
-		if review.GateStatus != "" {
-			facts = append(facts, "gate "+review.GateStatus)
-		}
-		if review.LoopStatus != "" {
-			facts = append(facts, "loop "+review.LoopStatus)
+		for _, fact := range []struct{ name, value string }{
+			{"gate", review.GateStatus}, {"loop", review.LoopStatus}, {"run", review.RunID},
+		} {
+			if fact.value != "" {
+				facts = append(facts, fact.name+" "+fact.value)
+			}
 		}
 		line := "review: " + verdict
 		if len(facts) > 0 {
@@ -191,6 +204,9 @@ func applyStatusEvidenceJSON(
 	data.Summary.Verified, data.Summary.Evidence = counts[evidenceVerified], counts
 	env := report.env
 	data.Environment, data.NextActions = &env, report.actions
+	if data.NextActions == nil {
+		data.NextActions = []statusNextAction{}
+	}
 }
 
 func statusEvidenceFinding(spec statusJSONSpec, evidence statusEvidence) (statusJSONFinding, bool) {
@@ -207,4 +223,11 @@ func statusEvidenceFinding(spec statusJSONSpec, evidence statusEvidence) (status
 		return statusJSONFinding{}, false
 	}
 	return finding, true
+}
+
+func statusOr(value, fallback string) string {
+	if value == "" {
+		return fallback
+	}
+	return value
 }

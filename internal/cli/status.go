@@ -147,6 +147,16 @@ func newStatusCmd() *cobra.Command {
 }
 
 func newStatusCmdWithOMPDependencies(deps ompPlatformDependencies) *cobra.Command {
+	return newStatusCmdWith(deps, defaultStatusProbe())
+}
+
+// newStatusCmdWithProbe builds the status command against a given machine
+// probe, so tests decide what is installed without touching PATH or home.
+func newStatusCmdWithProbe(probe statusProbe) *cobra.Command {
+	return newStatusCmdWith(defaultOMPPlatformDependencies(), probe)
+}
+
+func newStatusCmdWith(deps ompPlatformDependencies, probe statusProbe) *cobra.Command {
 	var (
 		dir        string
 		platform   string
@@ -207,9 +217,9 @@ func newStatusCmdWithOMPDependencies(deps ompPlatformDependencies) *cobra.Comman
 			}
 
 			if jsonMode {
-				return runStatusJSON(cmd, dir)
+				return runStatusJSONWith(cmd, dir, probe)
 			}
-			return runStatusText(cmd, dir)
+			return runStatusTextWith(cmd, dir, probe)
 		},
 	}
 
@@ -220,10 +230,14 @@ func newStatusCmdWithOMPDependencies(deps ompPlatformDependencies) *cobra.Comman
 }
 
 func runStatusText(cmd *cobra.Command, dir string) error {
+	return runStatusTextWith(cmd, dir, defaultStatusProbe())
+}
+
+func runStatusTextWith(cmd *cobra.Command, dir string, probe statusProbe) error {
 	out := cmd.OutOrStdout()
 
 	specs := scanAllSpecs(dir)
-	report := collectStatusReport(dir, specs)
+	report := collectStatusReport(dir, specs, probe)
 	hygiene := collectStatusHygiene(dir)
 	if len(specs) == 0 {
 		// A small change needs no SPEC, so an empty project is not sent to

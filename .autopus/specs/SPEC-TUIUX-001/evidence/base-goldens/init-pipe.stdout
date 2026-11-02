@@ -44,7 +44,10 @@ Codex catalog: 읽음 · 대체 0칸
 │ commits=ko, ai=ko                      │
 ╰────────────────────────────────────────╯
   ℹ Claude statusLine: Autopus statusLine enabled
-  ℹ Next: plan new work with /auto plan "<outcome>" (claude-code) · $codex-auto-plan "<outcome>" (codex)
-  ℹ Next: fix something small without a SPEC with /auto fix "<problem>" (claude-code) · $codex-auto-fix "<problem>" (codex)
-  ℹ Optional: Autopus Desktop connects this project to the Autopus server; the ADK works without it. Connect later from the Desktop app or with `auto connect`.
+  ℹ Next: plan new work as a SPEC before implementing it — /auto plan "<outcome>" (claude-code) · $codex-auto-plan "<outcome>" (codex)
+      in <DIR> · runs in agent_session · provider: the agent session's model · calls: model calls of the agent session · writes: .autopus/specs (a new SPEC)
+  ℹ Next: fix something small without a SPEC: a reproduction test, a focused patch, and its verification — /auto fix "<problem>" (claude-code) · $codex-auto-fix "<problem>" (codex)
+      in <DIR> · runs in agent_session · provider: the agent session's model · calls: model calls of the agent session · writes: the working tree
+  ℹ Optional: connect this machine to the Autopus server through Autopus Desktop; the ADK works without it — auto connect
+      optional · in <DIR> · runs in terminal · provider: none · calls: Autopus server sign-in, workspace selection, and OpenAI OAuth · writes: the local Autopus connection config and credentials
   ✓ Autopus harness initialized (full mode)

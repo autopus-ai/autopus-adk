@@ -95,16 +95,16 @@ func runPipeline(cmd *cobra.Command, specID string, cfg *pipelineRunConfig) erro
 	requestedStrategy := pipeline.Strategy(cfg.Strategy)
 	resolvedSpec, err := resolvePipelineSpec(specID)
 	if err != nil {
-		return pipelineBlockedError(specID, "", gitHash, requestedStrategy, err)
+		return pipelineRunBlockedError(cfg.DryRun, specID, "", gitHash, requestedStrategy, err)
 	}
 	if err := pipeline.ValidateStrategy(requestedStrategy); err != nil {
-		return pipelineBlockedError(specID, resolvedSpec.SnapshotHash, gitHash, requestedStrategy, err)
+		return pipelineRunBlockedError(cfg.DryRun, specID, resolvedSpec.SnapshotHash, gitHash, requestedStrategy, err)
 	}
 	platform, platformReason := resolvePlatformWith(cfg.Platform, exec.LookPath)
 	flags := globalFlagsFromContext(cmd.Context())
 	projectDir, err := os.Getwd()
 	if err != nil {
-		return pipelineBlockedError(specID, resolvedSpec.SnapshotHash, gitHash, requestedStrategy,
+		return pipelineRunBlockedError(cfg.DryRun, specID, resolvedSpec.SnapshotHash, gitHash, requestedStrategy,
 			fmt.Errorf("pipeline: resolve project directory: %w", err))
 	}
 	projectDir = filepath.Clean(projectDir)
@@ -178,7 +178,7 @@ func runPipeline(cmd *cobra.Command, specID string, cfg *pipelineRunConfig) erro
 		GitCommitHash: gitHash,
 		RunConfig: pipeline.RunConfig{
 			SpecID:            specID,
-			CheckpointDir:     pipelineStateDir,
+			CheckpointDir:     pipelineRunStateDir(cfg.DryRun),
 			LearnStore:        learnStore,
 			CoverageThreshold: pipelineCoverageThreshold(projectDir),
 		},

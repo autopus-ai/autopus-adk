@@ -1,10 +1,10 @@
 package cli
 
 import (
-	"fmt"
+	"encoding/json"
 	"os"
 	"path/filepath"
-	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -12,29 +12,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// fixtureEvidence reads one SPEC's evidence the way status does.
-func fixtureEvidence(t *testing.T, f *statusFixture, specID string) statusEvidence {
+// checkVerification asserts one SPEC's label, verification state, and reasons.
+func checkVerification(t *testing.T, f *statusFixture, specID, label, state string, reasons ...string) {
 	t.Helper()
-	specs := scanAllSpecs(f.root)
-	reader := newStatusEvidenceReader(f.root, specs)
-	for _, entry := range specs {
-		if entry.id == specID {
-			return reader.read(entry)
-		}
-	}
-	require.FailNow(t, "SPEC not scanned", specID)
-	return statusEvidence{}
-}
-
-// recordFixtureVerification records the baseline a completed run leaves.
-func recordFixtureVerification(t *testing.T, f *statusFixture, specID, specDir, runID string) {
-	t.Helper()
-	cp := completedRunCheckpoint(specID, specDir, f.head(), runID)
-	f.saveCheckpoint(specID, cp, false)
-	baseline, err := newPipelineVerificationBaseline(f.root, specID, specDir, *cp.Receipt)
-	require.NoError(t, err)
-	stateDir := filepath.Join(f.root, pipelineStateDir)
-	require.NoError(t, writePipelineVerification(pipelineVerificationPath(stateDir, specID), baseline))
+	evidence := f.evidence(specID)
+	assert.Equal(t, label, evidence.Label)
+	assert.Equal(t, state, evidence.Verification.State)
+	assert.Equal(t, reasons, evidence.Verification.Reasons)
 }
 
 // S2: verification stays fresh when the verified tree is committed or only a
@@ -43,102 +27,112 @@ func TestStatusEvidence_VerificationGoesStaleWhenCodeChanges(t *testing.T) {
 	t.Parallel()
 	const specID = "SPEC-VER-001"
 	f := newStatusFixture(t, "claude-code")
-	specDir := f.writeSpec(specID, "approved")
+	f.writeSpec(specID, "approved")
 	f.commit("baseline")
 	f.write("pkg/app/app.go", "package app\n\n// implemented\n")
-	recordFixtureVerification(t, f, specID, specDir, "run-9")
-	check := func(label, state string, reasons ...string) {
-		t.Helper()
-		evidence := fixtureEvidence(t, f, specID)
-		assert.Equal(t, label, evidence.Label)
-		assert.Equal(t, state, evidence.Verification.State)
-		assert.Equal(t, reasons, evidence.Verification.Reasons)
-	}
+	result := f.completedRun(specID)
+	f.recordBaseline(specID, result)
 
-	check("verified", "fresh")
+	checkVerification(t, f, specID, "verified", "fresh")
 	f.commit("commit the verified tree")
-	check("verified", "fresh")
+	checkVerification(t, f, specID, "verified", "fresh")
 
 	f.write("pkg/app/app.go", "package app\n\n// edited after verification\n")
-	check("stale", "stale", "working tree changed since verification: pkg/app/app.go")
+	checkVerification(t, f, specID, "stale", "stale", "working tree changed since verification: pkg/app/app.go")
 	runGitCommand(t, f.root, "checkout", "--", "pkg/app/app.go")
-	check("verified", "fresh")
+	checkVerification(t, f, specID, "verified", "fresh")
 
 	// Review promotion and sync rewrite the status line; that is no change.
 	spec := f.read(".autopus/specs/" + specID + "/spec.md")
 	f.write(".autopus/specs/"+specID+"/spec.md", strings.Replace(spec, "**Status**: approved", "**Status**: completed", 1))
-	check("verified", "fresh")
-	f.write(".autopus/specs/"+specID+"/acceptance.md", f.read(".autopus/specs/"+specID+"/acceptance.md")+"And errors are reported.\n")
-	check("stale", "stale", "SPEC documents changed since verification")
+	checkVerification(t, f, specID, "verified", "fresh")
+	acceptance := f.read(".autopus/specs/" + specID + "/acceptance.md")
+	f.write(".autopus/specs/"+specID+"/acceptance.md", acceptance+"And errors are reported.\n")
+	checkVerification(t, f, specID, "stale", "stale", "SPEC documents changed since verification")
+	f.write(".autopus/specs/"+specID+"/acceptance.md", acceptance)
 
-	require.NoError(t, os.Remove(pipelineVerificationPath(filepath.Join(f.root, pipelineStateDir), specID)))
-	check("unverified", "unknown", "no verification baseline")
-	assert.Contains(t, f.runStatus(), "verification: unknown (run run-9) — no verification baseline")
+	removeIfExists(t, pipelineVerificationPath(filepath.Join(f.root, pipelineStateDir), specID))
+	checkVerification(t, f, specID, "unverified", "unknown", "no verification baseline")
+	assert.Contains(t, f.runStatus(), "verification: unknown (run "+result.Receipt.RunID+
+		", base HEAD none, recorded never) — no verification baseline")
 }
 
-// S5: the JSON and the text carry the same labels, counts, reasons, and next
-// commands.
-func TestStatusEvidence_JSONAndTextAgree(t *testing.T) {
-	stubStatusProbe(t, []string{"codex"}, false, t.TempDir())
-	f := newStatusFixture(t, "claude-code", "codex")
-	runDir := f.writeSpec("SPEC-RUN-001", "approved")
-	f.writeSpec("SPEC-DONE-001", "done")
-	f.writeSpec("SPEC-NEXT-001", "approved")
-	head := f.commit("baseline")
-	f.saveCheckpoint("SPEC-RUN-001", stoppedRunCheckpoint("SPEC-RUN-001", runDir, head), false)
+// A change git would not report — a file marked assume-unchanged or
+// skip-worktree — makes verification unknown, never fresh; an executable-bit
+// change counts even with core.fileMode off.
+func TestStatusEvidence_HiddenChangesAreNeverFresh(t *testing.T) {
+	t.Parallel()
+	const specID = "SPEC-HIDDEN-001"
+	f := newStatusFixture(t, "claude-code")
+	f.writeSpec(specID, "approved")
+	f.write("pkg/app/other.go", "package app\n")
+	f.commit("baseline")
+	f.recordBaseline(specID, f.completedRun(specID))
+	checkVerification(t, f, specID, "verified", "fresh")
 
-	text := f.runStatus()
-	data := f.statusJSON()
-	for _, id := range []string{"SPEC-RUN-001", "SPEC-DONE-001", "SPEC-NEXT-001"} {
-		label := jsonPath(jsonSpec(t, data, id), "evidence", "label").(string)
-		assert.Regexp(t, regexp.QuoteMeta(id)+`\s+\S+ \S+\s+`+label+`\s`, text)
+	for _, flag := range []string{"--assume-unchanged", "--skip-worktree"} {
+		runGitCommand(t, f.root, "update-index", flag, "pkg/app/other.go")
+		f.write("pkg/app/other.go", "package app\n\n// hidden from git diff\n")
+		evidence := f.evidence(specID)
+		assert.Equal(t, "unverified", evidence.Label, flag)
+		require.Len(t, evidence.Verification.Reasons, 1, flag)
+		assert.Contains(t, evidence.Verification.Reasons[0], "git hides changes to tracked files: "+
+			"1 marked assume-unchanged or skip-worktree: pkg/app/other.go", flag)
+		runGitCommand(t, f.root, "update-index", "--no"+strings.TrimPrefix(flag, "-"), "pkg/app/other.go")
+		runGitCommand(t, f.root, "checkout", "--", "pkg/app/other.go")
+		checkVerification(t, f, specID, "verified", "fresh")
 	}
-	execution := jsonPath(jsonSpec(t, data, "SPEC-RUN-001"), "evidence", "execution")
-	assert.Contains(t, text, fmt.Sprintf("run: %v · attempt %v · %v (%v)", jsonPath(execution, "run_id"),
-		jsonPath(execution, "attempt"), jsonPath(execution, "terminal"), jsonPath(execution, "stop_reason")))
-	phases := jsonPath(execution, "phases")
-	assert.Contains(t, text, fmt.Sprintf("phases: %v executed · %v restored · %v failed · %v pending · %v dispatches (%v cumulative)",
-		jsonPath(phases, "executed"), jsonPath(phases, "restored"), jsonPath(phases, "failed"),
-		jsonPath(phases, "pending"), jsonPath(execution, "dispatches"), jsonPath(execution, "cumulative_dispatches")))
-	assert.Contains(t, text, fmt.Sprintf("resumable: yes — %v (%v)", jsonPath(execution, "resume_command"), jsonPath(execution, "resume_reason")))
-	counts, _ := jsonPath(data, "summary", "evidence").(map[string]any)
-	assert.Contains(t, text, fmt.Sprintf("Evidence: %v verified", counts["verified"]))
-	for label, count := range counts {
-		if count.(float64) > 0 {
-			assert.Contains(t, text, fmt.Sprintf("%v %s", count, label))
-		}
+	if runtime.GOOS != "windows" {
+		runGitCommand(t, f.root, "config", "core.fileMode", "false")
+		require.NoError(t, os.Chmod(filepath.Join(f.root, "pkg/app/other.go"), 0o755))
+		checkVerification(t, f, specID, "stale", "stale", "working tree changed since verification: pkg/app/other.go")
 	}
-	env := jsonPath(data, "environment")
-	assert.Contains(t, text, "AI CLIs on PATH: "+joinJSONStrings(jsonPath(env, "installed_clis")))
-	assert.Contains(t, text, "Configured platforms: "+joinJSONStrings(jsonPath(env, "configured_platforms")))
-	assert.Contains(t, text, fmt.Sprintf("auto pipeline run platform: %v — %v",
-		jsonPath(env, "pipeline_platform", "platform"), jsonPath(env, "pipeline_platform", "reason")))
-	actions, _ := data["next_actions"].([]any)
-	require.NotEmpty(t, actions)
-	for _, raw := range actions {
-		action := raw.(map[string]any)
-		assert.Equal(t, false, action["auto_run"])
-		forms, _ := action["forms"].([]any)
-		if len(forms) == 0 {
-			assert.Contains(t, text, action["command"])
-		}
-		for _, form := range forms {
-			assert.Contains(t, text, jsonPath(form, "command"))
-		}
-		assert.Contains(t, text, action["purpose"])
-		assert.Contains(t, text, fmt.Sprintf("runs in %v · provider: %v · calls: %v · writes: %v",
-			action["runs_in"], action["provider"], action["external_calls"], action["writes"]))
-	}
-	assert.Equal(t, "resume", jsonPath(actions[0], "id"))
 }
 
-func joinJSONStrings(value any) string {
-	items, _ := value.([]any)
-	parts := make([]string, len(items))
-	for i, item := range items {
-		parts[i] = fmt.Sprint(item)
+// A baseline that parses but cannot vouch for anything — a missing or
+// malformed field, another SPEC, or tree paths that do not add up to the
+// tree fingerprint — is unknown, never fresh.
+func TestStatusEvidence_InvalidBaselineIsNeverFresh(t *testing.T) {
+	t.Parallel()
+	const specID = "SPEC-BASELINE-001"
+	f := newStatusFixture(t, "claude-code")
+	f.writeSpec(specID, "approved")
+	f.commit("baseline")
+	f.write("pkg/app/app.go", "package app\n\n// implemented\n")
+	f.recordBaseline(specID, f.completedRun(specID))
+	// The tree returns to base, so a baseline without tree_paths would match.
+	runGitCommand(t, f.root, "checkout", "--", "pkg/app/app.go")
+	path := pipelineVerificationPath(filepath.Join(f.root, pipelineStateDir), specID)
+	valid, err := os.ReadFile(path)
+	require.NoError(t, err)
+
+	cases := map[string]struct {
+		mutate func(map[string]any)
+		reason string
+	}{
+		"tree_paths missing": {func(m map[string]any) { delete(m, "tree_paths") }, "tree_paths is missing"},
+		"tree_paths null":    {func(m map[string]any) { m["tree_paths"] = nil }, "tree_paths is missing"},
+		"aggregate mismatch": {func(m map[string]any) { m["tree_fingerprint"] = "sha256:" + strings.Repeat("0", 64) },
+			"tree_fingerprint does not match tree_paths"},
+		"malformed entry": {func(m map[string]any) { m["tree_paths"].(map[string]any)["x.go"] = "sha256:short" },
+			`tree_paths entry "x.go" is malformed`},
+		"base_head is a name":  {func(m map[string]any) { m["base_head"] = "HEAD" }, "base_head is not a commit id"},
+		"another SPEC":         {func(m map[string]any) { m["spec_id"] = "SPEC-OTHER-001" }, `it names "SPEC-OTHER-001"`},
+		"recorded_at missing":  {func(m map[string]any) { delete(m, "recorded_at") }, "recorded_at is missing"},
+		"unrecognized schema":  {func(m map[string]any) { m["schema"] = "pipeline_verification_baseline.v9" }, `unrecognized schema "pipeline_verification_baseline.v9"`},
+		"spec fingerprint bad": {func(m map[string]any) { m["spec_fingerprint"] = "md5:x" }, "spec_fingerprint is not a sha256 digest"},
 	}
-	return strings.Join(parts, ", ")
+	for name, tc := range cases {
+		var baseline map[string]any
+		require.NoError(t, json.Unmarshal(valid, &baseline))
+		tc.mutate(baseline)
+		data, err := json.Marshal(baseline)
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(path, data, 0o600))
+		evidence := f.evidence(specID)
+		assert.Equal(t, "unverified", evidence.Label, name)
+		assert.Equal(t, []string{"verification baseline is invalid: " + tc.reason}, evidence.Verification.Reasons, name)
+	}
 }
 
 // A stopped or unfinished last run outranks older verification, a dry run is

@@ -50,6 +50,9 @@ type statusReviewReceiptDoc struct {
 	Verdict    string `json:"verdict"`
 	GateStatus string `json:"gate_status"`
 	LoopStatus string `json:"loop_status"`
+	// SpecFingerprint is the SPEC documents' fingerprint without their status
+	// lines when the review finished; receipts written before it have none.
+	SpecFingerprint string `json:"spec_fingerprint"`
 }
 
 type statusReviewSessionDoc struct {
@@ -76,32 +79,53 @@ func readStatusReview(baseDir, specDir string) *statusReview {
 	review := &statusReview{Source: relativeStatusPath(baseDir, receiptPath), Session: session}
 	if err != nil {
 		review.State = freshnessUnknown
-		review.Reasons = []string{"review receipt unreadable: " + err.Error()}
+		review.Reasons = []string{statusSingleLine("review receipt unreadable: " + err.Error())}
 		return review
 	}
 	var doc statusReviewReceiptDoc
 	if err := json.Unmarshal(data, &doc); err != nil {
 		review.State = freshnessUnknown
-		review.Reasons = []string{"review receipt unreadable: " + err.Error()}
+		review.Reasons = []string{statusSingleLine("review receipt unreadable: " + err.Error())}
 		return review
 	}
 	if doc.Schema != statusReviewReceiptSchema {
 		review.State = freshnessUnknown
-		review.Reasons = []string{fmt.Sprintf("unrecognized review receipt schema %q", doc.Schema)}
+		review.Reasons = []string{statusSingleLine(fmt.Sprintf("unrecognized review receipt schema %q", doc.Schema))}
 		return review
 	}
-	review.RunID, review.Verdict = doc.RunID, doc.Verdict
-	review.GateStatus, review.LoopStatus, review.FinishedAt = doc.GateStatus, doc.LoopStatus, doc.FinishedAt
-	review.State = freshnessFresh
-	// The receipt records no content fingerprint, so a document written after
-	// the receipt counts as a change even when only its status line moved.
-	// The receipt is written after the review promotes the status, so the
-	// review's own promotion does not count.
-	if changed := specDocumentsModifiedAfter(specDir, info.ModTime()); len(changed) > 0 {
-		review.State = freshnessStale
-		review.Reasons = []string{"SPEC documents changed after the review: " + summarizeStatusPaths(changed)}
-	}
+	review.RunID, review.Verdict = statusSingleLine(doc.RunID), statusSingleLine(doc.Verdict)
+	review.GateStatus, review.LoopStatus = statusSingleLine(doc.GateStatus), statusSingleLine(doc.LoopStatus)
+	review.FinishedAt = statusSingleLine(doc.FinishedAt)
+	review.State, review.Reasons = reviewFreshness(specDir, doc.SpecFingerprint, info.ModTime())
 	return review
+}
+
+// reviewFreshness compares the SPEC with what the review saw (REQ-SEV-REVIEW-01).
+// With a recorded fingerprint the comparison is by content. Without one,
+// status can only observe that a document was written after the receipt —
+// stale — and cannot prove the SPEC unchanged, so the review is unknown,
+// never fresh. A document that cannot be read is unknown too.
+func reviewFreshness(specDir, recorded string, receiptWritten time.Time) (string, []string) {
+	current, err := specRequirementsFingerprint(specDir)
+	if err != nil {
+		return freshnessUnknown, []string{statusSingleLine("SPEC documents unreadable: " + err.Error())}
+	}
+	switch {
+	case recorded != "" && !sha256Digest.MatchString(recorded):
+		return freshnessUnknown, []string{"the receipt's spec_fingerprint is malformed"}
+	case recorded == current:
+		return freshnessFresh, nil
+	case recorded != "":
+		return freshnessStale, []string{"SPEC requirements changed after the review"}
+	}
+	changed, err := specDocumentsModifiedAfter(specDir, receiptWritten)
+	switch {
+	case err != nil:
+		return freshnessUnknown, []string{statusSingleLine("SPEC documents unreadable: " + err.Error())}
+	case len(changed) > 0:
+		return freshnessStale, []string{"SPEC documents written after the review: " + summarizeStatusPaths(changed)}
+	}
+	return freshnessUnknown, []string{"the receipt records no SPEC fingerprint, so an unchanged SPEC cannot be proven"}
 }
 
 func readStatusReviewSession(path string) *statusReviewSession {
@@ -110,16 +134,16 @@ func readStatusReviewSession(path string) *statusReviewSession {
 		return nil
 	}
 	if err != nil {
-		return &statusReviewSession{State: freshnessUnknown, Reason: "review session unreadable: " + err.Error()}
+		return &statusReviewSession{State: freshnessUnknown, Reason: statusSingleLine("review session unreadable: " + err.Error())}
 	}
 	var doc statusReviewSessionDoc
 	if err := json.Unmarshal(data, &doc); err != nil {
-		return &statusReviewSession{State: freshnessUnknown, Reason: "review session unreadable: " + err.Error()}
+		return &statusReviewSession{State: freshnessUnknown, Reason: statusSingleLine("review session unreadable: " + err.Error())}
 	}
 	if doc.Schema != statusReviewSessionSchema {
 		return &statusReviewSession{
 			State:  freshnessUnknown,
-			Reason: fmt.Sprintf("unrecognized review session schema %q", doc.Schema),
+			Reason: statusSingleLine(fmt.Sprintf("unrecognized review session schema %q", doc.Schema)),
 		}
 	}
 	calls := map[string]bool{}
@@ -131,7 +155,7 @@ func readStatusReviewSession(path string) *statusReviewSession {
 		}
 		calls[call.CallID] = true
 	}
-	return &statusReviewSession{State: doc.State, Attempts: len(doc.Attempts), Calls: len(calls) + anonymous}
+	return &statusReviewSession{State: statusSingleLine(doc.State), Attempts: len(doc.Attempts), Calls: len(calls) + anonymous}
 }
 
 // readStatusReviewFile reads a bounded review file without following a
@@ -159,14 +183,20 @@ func readStatusReviewFile(path string) ([]byte, fs.FileInfo, error) {
 	return data, info, nil
 }
 
-// specDocumentsModifiedAfter lists the SPEC documents written after t.
-func specDocumentsModifiedAfter(specDir string, t time.Time) []string {
+// specDocumentsModifiedAfter lists the SPEC documents written after t. A
+// document that exists but cannot be examined is an error, not unchanged.
+func specDocumentsModifiedAfter(specDir string, t time.Time) ([]string, error) {
 	var changed []string
 	for _, name := range verificationSpecDocuments {
 		info, err := os.Stat(filepath.Join(specDir, name))
-		if err == nil && info.ModTime().After(t) {
+		switch {
+		case errors.Is(err, fs.ErrNotExist) && name != "spec.md":
+			continue
+		case err != nil:
+			return nil, err
+		case info.ModTime().After(t):
 			changed = append(changed, name)
 		}
 	}
-	return changed
+	return changed, nil
 }

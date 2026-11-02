@@ -79,9 +79,10 @@ func runPipelineRouteDryRun(t *testing.T, specID string) (map[string]pipeline.Ch
 	cmd.SetArgs([]string{specID, "--dry-run"})
 	require.NoError(t, cmd.Execute())
 
-	cp, err := pipeline.LoadFile(specCheckpointPath(specID))
+	cp, err := pipeline.LoadFile(filepath.Join(pipelineDryRunStateDir, specID+".yaml"))
 	require.NoError(t, err)
-	require.NotNil(t, cp, "a dry run still records what it would dispatch")
+	require.NotNil(t, cp, "a dry run still records what it would dispatch, apart from the canonical checkpoint")
+	assert.NoFileExists(t, specCheckpointPath(specID), "a dry run never writes the canonical checkpoint")
 	return cp.TaskStatus, errOut.String()
 }
 

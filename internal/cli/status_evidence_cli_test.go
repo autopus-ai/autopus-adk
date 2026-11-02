@@ -3,6 +3,7 @@ package cli
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -29,6 +30,7 @@ func TestStatusEvidence_DocumentedDoneWithoutReceiptIsNotVerified(t *testing.T) 
 	data := f.statusJSON()
 	spec := jsonSpec(t, data, "SPEC-DONE-001")
 	assert.Equal(t, "done", spec["status"])
+	assert.Equal(t, true, spec["completed"], "completed keeps meaning the declared status")
 	assert.Equal(t, "documented_only", jsonPath(spec, "evidence", "label"))
 	assert.Equal(t, "none", jsonPath(spec, "evidence", "verification", "state"))
 	assert.Nil(t, jsonPath(spec, "evidence", "execution"))
@@ -36,43 +38,51 @@ func TestStatusEvidence_DocumentedDoneWithoutReceiptIsNotVerified(t *testing.T) 
 	assert.EqualValues(t, 1, jsonPath(data, "summary", "evidence", "documented_only"))
 }
 
-// S3, S6: a stopped run reports its attempt, stop reason, and counts with
-// restored phases apart from executed ones, and is resumable until HEAD moves.
+// S3, S6: a stopped run made by the real engine reports its attempt, stop
+// reason, and counts — a restored phase that a fix dispatched again counts as
+// executed — and the engine's own admission says it can resume.
 func TestStatusEvidence_FailedRunIsResumableUntilHEADMoves(t *testing.T) {
 	t.Parallel()
 	f := newStatusFixture(t, "claude-code")
-	specDir := f.writeSpec("SPEC-RUN-001", "approved")
+	f.probe = stubStatusProbe([]string{"codex"}, false, t.TempDir())
+	f.writeSpec("SPEC-RUN-001", "approved")
 	head := f.commit("baseline")
-	f.saveCheckpoint("SPEC-RUN-001", stoppedRunCheckpoint("SPEC-RUN-001", specDir, head), false)
+	cp := f.stoppedRun("SPEC-RUN-001")
+	receipt := cp.Receipt
 
 	text := f.runStatus()
 	assert.Regexp(t, `SPEC-RUN-001\s+→ approved\s+failed\s`, text)
-	assert.Contains(t, text, "run: run-2 · attempt 2 · blocked (circuit_break_no_progress)")
-	assert.Contains(t, text, "phases: 1 executed · 2 restored · 1 failed · 1 pending · 4 dispatches (7 cumulative)")
-	assert.Contains(t, text, "blocker: validate: the fix resolved nothing")
-	assert.Contains(t, text, "resumable: yes — auto pipeline run SPEC-RUN-001 --continue --platform codex")
+	assert.Contains(t, text, fmt.Sprintf("run: %s · task %s · attempt 2, resumed from %s · route full · platform codex",
+		receipt.RunID, receipt.TaskID, receipt.ResumedFrom))
+	assert.Contains(t, text, fmt.Sprintf("result: blocked (circuit_break_no_progress) · finished %s · base HEAD %s · "+
+		".autopus/pipeline-state/SPEC-RUN-001.yaml", receipt.FinishedAt.UTC().Format(time.RFC3339), head[:12]))
+	assert.Contains(t, text, "phases: 1 executed · 2 restored · 1 failed · 1 pending · 3 dispatches (7 cumulative)")
+	assert.Contains(t, text, "blocker: phase validate: circuit_break_no_progress")
+	assert.Contains(t, text, "resumable: yes — the engine admits it; restores plan, test_scaffold, implement; dispatches again none")
+	assert.Contains(t, text, "resume command: auto pipeline run SPEC-RUN-001 --continue --platform codex")
+	assert.Contains(t, text, "admission checked: git HEAD, SPEC snapshot, checkpoint identity and version, "+
+		"dependencies, route, output records")
 
 	execution := jsonPath(jsonSpec(t, f.statusJSON(), "SPEC-RUN-001"), "evidence", "execution")
-	assert.Equal(t, "blocked", jsonPath(execution, "terminal"))
-	assert.Equal(t, "circuit_break_no_progress", jsonPath(execution, "stop_reason"))
-	assert.Equal(t, "task-1", jsonPath(execution, "task_id"))
-	assert.Equal(t, "run-1", jsonPath(execution, "resumed_from"))
-	assert.EqualValues(t, 2, jsonPath(execution, "attempt"))
-	assert.EqualValues(t, 1, jsonPath(execution, "phases", "executed"))
-	assert.EqualValues(t, 2, jsonPath(execution, "phases", "restored"))
-	assert.EqualValues(t, 1, jsonPath(execution, "phases", "failed"))
-	assert.EqualValues(t, 1, jsonPath(execution, "phases", "pending"))
-	assert.EqualValues(t, 4, jsonPath(execution, "dispatches"))
-	assert.EqualValues(t, 7, jsonPath(execution, "cumulative_dispatches"))
-	assert.Equal(t, true, jsonPath(execution, "resumable"))
-	assert.Equal(t, "auto pipeline run SPEC-RUN-001 --continue --platform codex", jsonPath(execution, "resume_command"))
+	for key, want := range map[string]any{
+		"terminal": "blocked", "stop_reason": "circuit_break_no_progress", "task_id": receipt.TaskID,
+		"resumed_from": receipt.ResumedFrom, "route": "full", "platform": "codex", "base_head": head,
+		"attempt": 2.0, "dispatches": 3.0, "cumulative_dispatches": 7.0, "root": f.root,
+	} {
+		assert.Equal(t, want, jsonPath(execution, key), key)
+	}
+	for key, want := range map[string]float64{"executed": 1, "restored": 2, "failed": 1, "pending": 1} {
+		assert.Equal(t, want, jsonPath(execution, "phases", key), key)
+	}
+	assert.Equal(t, true, jsonPath(execution, "resume", "admitted"))
+	assert.Equal(t, []any{"plan", "test_scaffold", "implement"}, jsonPath(execution, "resume", "restores"))
 
 	f.write("pkg/app/app.go", "package app\n\n// moved on\n")
 	f.commit("move HEAD")
 	text = f.runStatus()
 	assert.Contains(t, text, "resumable: no — HEAD moved since the run; --continue refuses a stale checkpoint")
 	assert.NotContains(t, text, "resumable: yes")
-	assert.Contains(t, text, ". auto pipeline run SPEC-RUN-001\n")
+	assert.Contains(t, text, "cd "+f.root+" && auto pipeline run SPEC-RUN-001 --platform codex\n")
 }
 
 // S3: a blocked sidecar newer than the checkpoint means the last attempt
@@ -80,15 +90,14 @@ func TestStatusEvidence_FailedRunIsResumableUntilHEADMoves(t *testing.T) {
 func TestStatusEvidence_RefusedResumeIsReported(t *testing.T) {
 	t.Parallel()
 	f := newStatusFixture(t, "claude-code")
-	specDir := f.writeSpec("SPEC-RUN-002", "approved")
-	head := f.commit("baseline")
-	f.saveCheckpoint("SPEC-RUN-002", stoppedRunCheckpoint("SPEC-RUN-002", specDir, head), false)
+	f.writeSpec("SPEC-RUN-002", "approved")
+	f.commit("baseline")
+	cp := f.stoppedRun("SPEC-RUN-002")
 	past := time.Now().Add(-time.Hour)
-	canonical := filepath.Join(f.root, ".autopus", "pipeline-state", "SPEC-RUN-002.yaml")
+	canonical := filepath.Join(f.root, pipelineStateDir, "SPEC-RUN-002.yaml")
 	require.NoError(t, os.Chtimes(canonical, past, past))
-	refused := stoppedRunCheckpoint("SPEC-RUN-002", specDir, head)
-	refused.Receipt.Blocker = "pipeline: resume blocked: checkpoint phase route mismatch: saved full, authorized compact"
-	f.saveCheckpoint("SPEC-RUN-002", refused, true)
+	cp.Receipt.Blocker = "pipeline: resume blocked: checkpoint phase route mismatch: saved full, authorized compact"
+	f.saveCheckpoint("SPEC-RUN-002", *cp, true)
 
 	text := f.runStatus()
 	assert.Contains(t, text,
@@ -99,7 +108,7 @@ func TestStatusEvidence_RefusedResumeIsReported(t *testing.T) {
 }
 
 // S4: with no SPEC, a small change is offered without one, beside planning,
-// in the syntax of every configured platform.
+// in the syntax of every configured platform, each in an absolute directory.
 func TestStatusNext_NoSpecOffersWorkWithoutASpec(t *testing.T) {
 	t.Parallel()
 	f := newStatusFixture(t, "claude-code", "codex")
@@ -109,38 +118,19 @@ func TestStatusNext_NoSpecOffersWorkWithoutASpec(t *testing.T) {
 	assert.Contains(t, text, "SPEC이 없습니다")
 	assert.Contains(t, text, `/auto fix "<problem>" (claude-code) · $codex-auto-fix "<problem>" (codex)`)
 	assert.Contains(t, text, `/auto plan "<outcome>" (claude-code) · $codex-auto-plan "<outcome>" (codex)`)
+	assert.Contains(t, text, "in "+f.root+" · runs in agent_session")
 	assert.NotContains(t, text, "`/auto plan`으로 시작하세요")
 
-	actions, _ := f.statusJSON()["next_actions"].([]any)
-	byID := map[string]map[string]any{}
-	for _, raw := range actions {
-		action, _ := raw.(map[string]any)
-		byID[action["id"].(string)] = action
-		assert.Equal(t, false, action["auto_run"])
-	}
+	byID := statusActions(t, f.statusJSON())
 	require.Contains(t, byID, "fix")
 	require.Contains(t, byID, "plan")
+	for id, action := range byID {
+		assert.Equal(t, false, action["auto_run"], id)
+		assert.Equal(t, f.root, action["cwd"], id)
+	}
 	assert.Equal(t, "agent_session", byID["fix"]["runs_in"])
 	assert.Equal(t, `/auto fix "<problem>"`, byID["fix"]["command"])
 	assert.Equal(t, "$codex-auto-fix \"<problem>\"", jsonPath(byID["fix"]["forms"].([]any)[1], "command"))
-}
-
-// S12: status reads; it leaves every project file as it was.
-func TestStatusEvidence_StatusWritesNothing(t *testing.T) {
-	t.Parallel()
-	f := newStatusFixture(t, "claude-code")
-	specDir := f.writeSpec("SPEC-RUN-003", "approved")
-	head := f.commit("baseline")
-	f.saveCheckpoint("SPEC-RUN-003", stoppedRunCheckpoint("SPEC-RUN-003", specDir, head), false)
-	f.write(".autopus/specs/SPEC-RUN-003/review-receipt.json",
-		`{"schema":"spec_review_promotion_receipt.v1","run_id":"r","finished_at":"2026-11-01T00:00:00Z","verdict":"PASS"}`)
-	f.write("pkg/app/app.go", "package app\n\n// uncommitted\n")
-	before := statusTreeSnapshot(t, f.root)
-
-	f.runStatus()
-	f.runStatus("--json")
-
-	assert.Equal(t, before, statusTreeSnapshot(t, f.root))
 }
 
 // statusTreeSnapshot records every project file outside .git with its mode,

@@ -56,10 +56,10 @@ func normalizeSpecStatus(status string) string {
 	return strings.ToLower(strings.TrimSpace(strings.ReplaceAll(status, "_", "-")))
 }
 
-func runStatusJSON(cmd *cobra.Command, dir string) error {
+func runStatusJSONWith(cmd *cobra.Command, dir string, probe statusProbe) error {
 	specs := scanAllSpecs(dir)
 	data, warnings, checks, status := buildStatusJSONPayload(dir, specs)
-	applyStatusEvidenceJSON(&data, collectStatusReport(dir, specs), &warnings, &status)
+	applyStatusEvidenceJSON(&data, collectStatusReport(dir, specs, probe), &warnings, &status)
 	hygiene := collectStatusHygiene(dir)
 	payload := hygiene.payload()
 	data.Hygiene = &payload

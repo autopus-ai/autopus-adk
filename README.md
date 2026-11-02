@@ -778,20 +778,23 @@ route. Annotation is opt-in through `auto spec gates --annotation`; validation, 
 data-loss, and deterministic-oracle gates remain active.
 
 `auto pipeline run` names its platform and why (`Pipeline platform: claude — first installed
-of claude → codex → agy`) and counts restored phases apart from executed ones
-(`Pipeline complete: 3 phases executed, 2 restored from checkpoint, 3 dispatches`). A
-completed run records `.autopus/pipeline-state/<SPEC>.verification.json`: the SPEC documents
-without their status lines and every working-tree path that differs from HEAD, outside
-`.autopus`. `auto status` keeps each SPEC's declared status apart from that evidence: it
-reports `verified` only while the code and SPEC still match the record (committing the
-verified tree keeps it), `stale` with the changed paths, `failed` with whether
-`auto pipeline run <SPEC> --continue` would be admitted, and `documented_only` when only the
-document says done. Review evidence comes from `review-receipt.json`, stale once a SPEC
-document is written after it (the receipt has no content fingerprint, so a status-only edit
-counts too), and from `review-session.json` when present. Next commands lead with
-standalone use, offer `/auto fix` without a SPEC beside `/auto plan`, and say where each runs,
-which provider it uses, and what it calls and writes; status runs none of them, and Autopus
-Desktop stays optional.
+of claude → codex → agy`) and counts a phase as executed only when the run dispatched it, so a
+restored phase that a fix sends again counts as executed (`Pipeline complete: 3 phases
+executed, 2 restored from checkpoint, 4 dispatches`). A completed run records
+`.autopus/pipeline-state/<SPEC>.verification.json`: the SPEC documents without their status
+lines and every working-tree path that differs from HEAD, outside `.autopus`. A dry run keeps
+its receipt in `.autopus/pipeline-state/dry-run/` and never replaces the last real run.
+`auto status` keeps each SPEC's declared status apart from that evidence. It reports `verified`
+only while the code and SPEC still match a valid record (committing the verified tree keeps
+it), `stale` with the changed paths, and `unverified` when git hides changes (assume-unchanged
+or skip-worktree files) or the record is invalid. For a stopped run it asks the engine itself
+whether `auto pipeline run <SPEC> --continue` would be admitted, output records included, and
+names what a resume restores. `documented_only` means only the document says done. Review
+evidence comes from `review-receipt.json` and, when present, `review-session.json`; a review
+is fresh only when the receipt records a SPEC fingerprint that still matches. Next commands
+lead with standalone use, offer `/auto fix` without a SPEC beside `/auto plan`, and give each
+command its absolute directory, where it runs, its provider, and what it calls and writes; they
+carry only validated values, status runs none of them, and Autopus Desktop stays optional.
 
 The default `workflow.coverage_threshold` is `85`. An explicit project or route
 threshold overrides it, and `0` turns the numeric gate off. Ordinary

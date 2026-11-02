@@ -222,8 +222,9 @@ func newInitCmd() *cobra.Command {
 			if hint := reviewHint(cfg, composeLanguage()); hint != "" && !interactive {
 				tui.Info(out, hint)
 			}
-			for _, step := range initNextSteps(cfg.Platforms) {
-				tui.Info(out, step)
+			for _, step := range initNextSteps(cfg, dir) {
+				tui.Info(out, step.headline)
+				_, _ = fmt.Fprintf(out, "      %s\n", step.facts)
 			}
 			tui.Successf(out, "Autopus harness initialized (%s mode)", mode)
 			return nil
@@ -241,18 +242,48 @@ func newInitCmd() *cobra.Command {
 	return cmd
 }
 
+// initNextStep is one step init suggests and what running it involves.
+type initNextStep struct {
+	headline string
+	facts    string
+}
+
 // initNextSteps leads with standalone use: new work through a SPEC and a
 // small change without one, in every configured platform's syntax. Autopus
 // Desktop comes last and optional (SPEC-STATUSEVIDENCE-001 REQ-SEV-NEXT-03).
-// The text is static, so it never depends on what this machine has installed.
-func initNextSteps(platforms []string) []string {
-	return []string{
-		"Next: plan new work with " + autoRouteFormsText(autoRouteForms(platforms, "plan", `"<outcome>"`)),
-		"Next: fix something small without a SPEC with " +
-			autoRouteFormsText(autoRouteForms(platforms, "fix", `"<problem>"`)),
-		"Optional: Autopus Desktop connects this project to the Autopus server; the ADK works without it. " +
-			"Connect later from the Desktop app or with `auto connect`.",
+// Each step says where it runs, its provider, and what it calls and writes,
+// built by the same code as status's next actions. The text depends on the
+// configuration only, never on what this machine has installed.
+func initNextSteps(cfg *config.HarnessConfig, dir string) []initNextStep {
+	env := statusEnvironment{
+		Dir: statusAbsDir(dir), ConfiguredPlatforms: cfg.Platforms,
+		ReviewGate: cfg.Spec.ReviewGate.Enabled, ReviewProviders: cfg.Spec.ReviewGate.Providers,
 	}
+	var steps []initNextStep
+	for _, entry := range []struct {
+		prefix string
+		build  func() (statusNextAction, bool)
+	}{
+		{"Next", func() (statusNextAction, bool) { return planAction(env) }},
+		{"Next", func() (statusNextAction, bool) { return fixAction(env) }},
+		{"Optional", func() (statusNextAction, bool) { return desktopConnectAction(env.Dir) }},
+	} {
+		action, ok := entry.build()
+		if !ok {
+			continue
+		}
+		// The facts line names the directory; init runs there already, so a
+		// terminal step shows its bare command rather than a cd line.
+		command := action.Command
+		if len(action.Forms) > 0 {
+			command = autoRouteFormsText(action.Forms)
+		}
+		steps = append(steps, initNextStep{
+			headline: entry.prefix + ": " + action.Purpose + " — " + command,
+			facts:    statusActionFactsText(action),
+		})
+	}
+	return steps
 }
 
 func containsPlatform(platforms []string, target string) bool {

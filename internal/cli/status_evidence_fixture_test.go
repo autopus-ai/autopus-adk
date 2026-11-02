@@ -3,12 +3,13 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -16,12 +17,13 @@ import (
 )
 
 // statusFixture is a git project with SPECs and pipeline state for the status
-// evidence tests (SPEC-STATUSEVIDENCE-001). It only uses the status command
-// and the pipeline types, so the same tests run against code without the
-// evidence report.
+// evidence tests (SPEC-STATUSEVIDENCE-001). Status sees the machine only
+// through probe, which by default finds no AI CLI, no Desktop helper, and an
+// empty home, so no test depends on what this machine has installed.
 type statusFixture struct {
-	t    *testing.T
-	root string
+	t     *testing.T
+	root  string
+	probe statusProbe
 }
 
 // newStatusFixture makes a committed project. With platforms it also writes
@@ -29,12 +31,34 @@ type statusFixture struct {
 func newStatusFixture(t *testing.T, platforms ...string) *statusFixture {
 	t.Helper()
 	f := &statusFixture{t: t, root: t.TempDir()}
+	f.probe = stubStatusProbe(nil, false, t.TempDir())
 	initTestGitRepo(t, f.root)
 	if len(platforms) > 0 {
 		f.write("autopus.yaml", "mode: full\nproject_name: fixture\nplatforms:\n  - "+strings.Join(platforms, "\n  - ")+"\n")
 	}
 	f.write("pkg/app/app.go", "package app\n")
 	return f
+}
+
+// stubStatusProbe sees exactly these AI CLIs, Desktop helper, and home.
+func stubStatusProbe(installed []string, helperInstalled bool, home string) statusProbe {
+	return statusProbe{
+		lookPath: func(name string) (string, error) {
+			for _, candidate := range installed {
+				if candidate == name {
+					return "/stub/bin/" + name, nil
+				}
+			}
+			return "", exec.ErrNotFound
+		},
+		desktopHelper: func() (string, error) {
+			if helperInstalled {
+				return "/stub/autopus-desktop-runtime", nil
+			}
+			return "", errRuntimeHelperNotFound
+		},
+		homeDir: func() (string, error) { return home, nil },
+	}
 }
 
 func (f *statusFixture) write(rel, body string) {
@@ -82,7 +106,7 @@ func (f *statusFixture) saveCheckpoint(specID string, cp pipeline.Checkpoint, bl
 	if blocked {
 		name = specID + ".blocked.yaml"
 	}
-	dir := filepath.Join(f.root, ".autopus", "pipeline-state")
+	dir := filepath.Join(f.root, pipelineStateDir)
 	require.NoError(f.t, os.MkdirAll(dir, 0o755))
 	require.NoError(f.t, cp.SaveFile(filepath.Join(dir, name)))
 }
@@ -90,7 +114,7 @@ func (f *statusFixture) saveCheckpoint(specID string, cp pipeline.Checkpoint, bl
 // runStatus runs `auto status --dir <root>` with extra arguments.
 func (f *statusFixture) runStatus(args ...string) string {
 	f.t.Helper()
-	cmd := newStatusCmd()
+	cmd := newStatusCmdWithProbe(f.probe)
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
@@ -111,6 +135,20 @@ func (f *statusFixture) statusJSON() map[string]any {
 	out := f.runStatus("--json")
 	require.NoError(f.t, json.Unmarshal([]byte(out), &envelope), out)
 	return envelope.Data
+}
+
+// evidence reads one SPEC's evidence the way status does.
+func (f *statusFixture) evidence(specID string) statusEvidence {
+	f.t.Helper()
+	specs := scanAllSpecs(f.root)
+	reader := newStatusEvidenceReader(f.root, specs, collectStatusEnvironment(f.root, f.probe))
+	for _, entry := range specs {
+		if entry.id == specID {
+			return reader.read(entry)
+		}
+	}
+	require.FailNow(f.t, "SPEC not scanned", specID)
+	return statusEvidence{}
 }
 
 // jsonSpec returns the JSON entry of one SPEC.
@@ -135,56 +173,22 @@ func jsonPath(value any, keys ...string) any {
 	return value
 }
 
-// stoppedRunCheckpoint is attempt 2 of a task: a resume restored plan and
-// test_scaffold, implemented, and stopped in validate when the fix made no
-// progress.
-func stoppedRunCheckpoint(specID, specDir, head string) pipeline.Checkpoint {
-	snapshot, _ := pipeline.SpecSnapshotHash(specDir)
-	finished := time.Date(2026, 11, 2, 9, 0, 0, 0, time.UTC)
-	statuses := map[pipeline.PhaseID]pipeline.CheckpointStatus{
-		pipeline.PhasePlan: pipeline.CheckpointStatusDone, pipeline.PhaseTestScaffold: pipeline.CheckpointStatusDone,
-		pipeline.PhaseImplement: pipeline.CheckpointStatusDone, pipeline.PhaseValidate: pipeline.CheckpointStatusFailed,
-		pipeline.PhaseReview: pipeline.CheckpointStatusPending,
+// statusActions indexes the JSON next actions by id.
+func statusActions(t *testing.T, data map[string]any) map[string]map[string]any {
+	t.Helper()
+	byID := map[string]map[string]any{}
+	actions, _ := data["next_actions"].([]any)
+	for _, raw := range actions {
+		action, _ := raw.(map[string]any)
+		byID[action["id"].(string)] = action
 	}
-	receipt := pipeline.OrchestrationRunReceipt{
-		SchemaVersion: pipeline.OrchestrationRunReceiptVersion, RunID: "run-2", TaskID: "task-1",
-		ResumedFrom: "run-1", RouteVersion: pipeline.PipelineRouteVersion, RoutePhaseSet: pipeline.RouteFull,
-		SpecID: specID, ResolvedProviders: []string{"codex"}, DispatchCount: 4, CumulativeDispatchCount: 7,
-		Terminal: pipeline.TerminalBlocked, Blocker: "validate: the fix resolved nothing",
-		Failures: []pipeline.PhaseFailure{{
-			PhaseID: pipeline.PhaseValidate, Attempt: 2, Decision: pipeline.DecisionNoProgress, Summary: "same failure",
-		}},
-		PriorAttempts: []pipeline.RunAttemptRecord{{RunID: "run-1", Terminal: pipeline.TerminalCancelled, DispatchCount: 3}},
-		Resume: &pipeline.ResumeRecord{
-			CheckpointVersion: pipeline.CheckpointVersion,
-			RestoredPhases:    []pipeline.PhaseID{pipeline.PhasePlan, pipeline.PhaseTestScaffold},
-		},
-		FinishedAt: &finished,
-	}
-	taskStatus := map[string]pipeline.CheckpointStatus{}
-	for _, phase := range pipeline.DefaultPhases() {
-		receipt.Phases = append(receipt.Phases, pipeline.PhaseReceipt{PhaseID: phase.ID, Status: statuses[phase.ID], Gate: phase.Gate})
-		taskStatus[string(phase.ID)] = statuses[phase.ID]
-	}
-	return pipeline.Checkpoint{
-		Version: pipeline.CheckpointVersion, RouteVersion: pipeline.PipelineRouteVersion, SpecID: specID,
-		SnapshotHash: snapshot, GitCommitHash: head, TaskStatus: taskStatus, Receipt: &receipt,
-	}
+	return byID
 }
 
-// completedRunCheckpoint is a completed first run that dispatched every phase
-// once.
-func completedRunCheckpoint(specID, specDir, head, runID string) pipeline.Checkpoint {
-	cp := stoppedRunCheckpoint(specID, specDir, head)
-	receipt := *cp.Receipt
-	receipt.RunID, receipt.ResumedFrom, receipt.PriorAttempts, receipt.Resume = runID, "", nil, nil
-	receipt.Failures, receipt.Blocker, receipt.Terminal = nil, "", pipeline.TerminalCompleted
-	receipt.DispatchCount, receipt.CumulativeDispatchCount = 5, 5
-	receipt.Phases = append([]pipeline.PhaseReceipt(nil), receipt.Phases...)
-	for i := range receipt.Phases {
-		receipt.Phases[i].Status = pipeline.CheckpointStatusDone
-		cp.TaskStatus[string(receipt.Phases[i].PhaseID)] = pipeline.CheckpointStatusDone
+// removeIfExists deletes a file the test no longer wants, tolerating absence.
+func removeIfExists(t *testing.T, path string) {
+	t.Helper()
+	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+		require.NoError(t, err)
 	}
-	cp.Receipt = &receipt
-	return cp
 }

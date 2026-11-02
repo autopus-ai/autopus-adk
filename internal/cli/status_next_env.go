@@ -13,15 +13,14 @@ import (
 )
 
 // statusProbe is what status reads from the machine. Status only looks
-// things up; it never runs a CLI it finds (REQ-SEV-SCOPE-01).
+// things up; it never runs a CLI or helper it finds (REQ-SEV-SCOPE-01).
 type statusProbe struct {
 	lookPath      func(string) (string, error)
 	desktopHelper func() (string, error)
 	homeDir       func() (string, error)
 }
 
-// newStatusProbe returns the machine probe; tests replace it.
-var newStatusProbe = func() statusProbe {
+func defaultStatusProbe() statusProbe {
 	return statusProbe{
 		lookPath:      exec.LookPath,
 		desktopHelper: func() (string, error) { return resolveRuntimeHelper() },
@@ -42,6 +41,7 @@ const (
 // statusEnvironment is the install state next commands are chosen against
 // (REQ-SEV-NEXT-02, REQ-SEV-NEXT-03).
 type statusEnvironment struct {
+	Dir                 string                 `json:"dir"`
 	InstalledCLIs       []string               `json:"installed_clis"`
 	ConfigFound         bool                   `json:"config_found"`
 	ConfigError         string                 `json:"config_error,omitempty"`
@@ -52,13 +52,16 @@ type statusEnvironment struct {
 	Desktop             statusDesktop          `json:"desktop"`
 }
 
-// statusPipelinePlatform is the platform `auto pipeline run` would select
-// without --platform, and how it relates to the project's platforms.
+// statusPipelinePlatform is the platform pipeline commands below use. It is
+// the platform `auto pipeline run` selects without --platform when one of
+// claude, codex, agy is installed; omp runs only when named; with neither,
+// no pipeline command is offered.
 type statusPipelinePlatform struct {
-	Platform   string `json:"platform"`
-	Reason     string `json:"reason"`
-	Configured bool   `json:"configured"`
-	Note       string `json:"note,omitempty"`
+	Platform       string `json:"platform"`
+	Reason         string `json:"reason"`
+	AutoSelectable bool   `json:"auto_selectable"`
+	Configured     bool   `json:"configured"`
+	Note           string `json:"note,omitempty"`
 }
 
 type statusDesktop struct {
@@ -74,8 +77,15 @@ var pipelinePlatformConfigNames = map[string]string{
 	"claude": "claude-code", "codex": "codex", "gemini": "antigravity-cli", "omp": "omp",
 }
 
+const (
+	pipelinePlatformReasonOMPOnly = "claude, codex, and agy are not installed; omp is, and runs only with --platform omp"
+	pipelinePlatformReasonNone    = "no pipeline platform is installed (claude, codex, agy, or omp)"
+)
+
 func collectStatusEnvironment(dir string, probe statusProbe) statusEnvironment {
-	env := statusEnvironment{InstalledCLIs: []string{}, ConfiguredPlatforms: []string{}, ReviewProviders: []string{}}
+	env := statusEnvironment{
+		Dir: statusAbsDir(dir), InstalledCLIs: []string{}, ConfiguredPlatforms: []string{}, ReviewProviders: []string{},
+	}
 	for _, name := range statusAICLIs {
 		if _, err := probe.lookPath(name); err == nil {
 			env.InstalledCLIs = append(env.InstalledCLIs, name)
@@ -92,35 +102,40 @@ func collectStatusEnvironment(dir string, probe statusProbe) statusEnvironment {
 			env.ConfigError = statusSingleLine(err.Error())
 		}
 	}
-	platform, reason := resolvePlatformWith("", probe.lookPath)
-	env.PipelinePlatform = statusPipelinePlatform{Platform: platform, Reason: reason}
-	env.PipelinePlatform.Configured, env.PipelinePlatform.Note = pipelinePlatformFit(platform, reason, env, probe)
+	env.PipelinePlatform = selectStatusPipelinePlatform(env, probe)
 	env.Desktop = collectDesktopState(probe)
 	return env
 }
 
-// pipelinePlatformFit says whether the auto-selected platform is one the
-// project configured and, when it is not, which --platform would use one.
-func pipelinePlatformFit(platform, reason string, env statusEnvironment, probe statusProbe) (bool, string) {
+func selectStatusPipelinePlatform(env statusEnvironment, probe statusProbe) statusPipelinePlatform {
+	platform, reason := resolvePlatformWith("", probe.lookPath)
+	selected := statusPipelinePlatform{Platform: platform, Reason: reason, AutoSelectable: true}
 	if reason == pipelinePlatformReasonFallback {
-		return false, "none of claude, codex, agy is installed, so auto pipeline run cannot start without --platform"
+		selected = statusPipelinePlatform{Reason: pipelinePlatformReasonNone}
+		if _, err := probe.lookPath("omp"); err == nil {
+			selected = statusPipelinePlatform{Platform: "omp", Reason: pipelinePlatformReasonOMPOnly}
+		}
 	}
-	if !env.ConfigFound || env.ConfigError != "" {
-		return false, ""
+	if selected.Platform == "" || !env.ConfigFound || env.ConfigError != "" {
+		return selected
 	}
-	if containsPlatform(env.ConfiguredPlatforms, pipelinePlatformConfigNames[platform]) {
-		return true, ""
+	if containsPlatform(env.ConfiguredPlatforms, pipelinePlatformConfigNames[selected.Platform]) {
+		selected.Configured = true
+		return selected
 	}
 	for _, candidate := range pipelinePlatformOrder {
 		if !containsPlatform(env.ConfiguredPlatforms, pipelinePlatformConfigNames[candidate.provider]) {
 			continue
 		}
 		if _, err := probe.lookPath(candidate.binary); err == nil {
-			return false, fmt.Sprintf("%s is not a configured platform here; pass --platform %s to use %s",
-				platform, candidate.provider, pipelinePlatformLabel(candidate.provider))
+			selected.Note = fmt.Sprintf("%s is not a configured platform here; pass --platform %s to use %s",
+				selected.Platform, candidate.provider, pipelinePlatformLabel(candidate.provider))
+			return selected
 		}
 	}
-	return false, fmt.Sprintf("%s is not a configured platform here, and no configured platform's CLI is installed", platform)
+	selected.Note = fmt.Sprintf("%s is not a configured platform here, and no configured platform's CLI is installed",
+		selected.Platform)
+	return selected
 }
 
 func collectDesktopState(probe statusProbe) statusDesktop {
@@ -146,6 +161,7 @@ func collectDesktopState(probe statusProbe) statusDesktop {
 
 func renderStatusEnvironment(out io.Writer, env statusEnvironment) {
 	tui.SectionHeader(out, "Environment")
+	_, _ = fmt.Fprintf(out, "  Directory: %s\n", statusSingleLine(env.Dir))
 	_, _ = fmt.Fprintf(out, "  AI CLIs on PATH: %s\n", statusListOrNone(env.InstalledCLIs))
 	configured := statusListOrNone(env.ConfiguredPlatforms)
 	switch {
@@ -156,7 +172,11 @@ func renderStatusEnvironment(out io.Writer, env statusEnvironment) {
 	}
 	_, _ = fmt.Fprintf(out, "  Configured platforms: %s\n", configured)
 	platform := env.PipelinePlatform
-	_, _ = fmt.Fprintf(out, "  auto pipeline run platform: %s — %s\n", pipelinePlatformLabel(platform.Platform), platform.Reason)
+	name := "none"
+	if platform.Platform != "" {
+		name = pipelinePlatformLabel(platform.Platform)
+	}
+	_, _ = fmt.Fprintf(out, "  auto pipeline run platform: %s — %s\n", name, platform.Reason)
 	if platform.Note != "" {
 		_, _ = fmt.Fprintf(out, "    note: %s\n", platform.Note)
 	}

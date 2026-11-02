@@ -66,36 +66,33 @@ func checkPipelineVerification(
 	data, err := os.ReadFile(pipelineVerificationPath(stateDir, specID))
 	if errors.Is(err, fs.ErrNotExist) {
 		if completed {
-			return statusVerification{State: freshnessUnknown, Reasons: []string{"no verification baseline"}, RunID: latest.RunID}
+			return statusVerification{
+				State: freshnessUnknown, Reasons: []string{"no verification baseline"}, RunID: statusSingleLine(latest.RunID),
+			}
 		}
 		return statusVerification{State: freshnessNone}
 	}
 	if err != nil {
-		return unknownVerification("verification baseline unreadable: " + err.Error())
+		return unknownVerification(statusSingleLine("verification baseline unreadable: " + err.Error()))
 	}
 	var baseline pipelineVerificationBaseline
 	if err := json.Unmarshal(data, &baseline); err != nil {
-		return unknownVerification("verification baseline unreadable: " + err.Error())
+		return unknownVerification(statusSingleLine("verification baseline unreadable: " + err.Error()))
 	}
-	if baseline.Schema != pipelineVerificationSchema {
-		return unknownVerification(fmt.Sprintf("unrecognized verification baseline schema %q", baseline.Schema))
+	if err := baseline.validate(specID); err != nil {
+		return unknownVerification(statusSingleLine("verification baseline is invalid: " + err.Error()))
 	}
 	verification := statusVerification{
-		RunID: baseline.RunID, BaseHead: baseline.BaseHead,
+		RunID: statusSingleLine(baseline.RunID), BaseHead: baseline.BaseHead,
 		RecordedAt: baseline.RecordedAt.UTC().Format(time.RFC3339),
 	}
-	switch {
-	case baseline.SpecID != specID:
-		return verification.unknown(fmt.Sprintf("verification baseline names %s", baseline.SpecID))
-	case baseline.BaseHead == "" || baseline.SpecFingerprint == "":
-		return verification.unknown("verification baseline is incomplete")
-	case completed && latest.RunID != baseline.RunID:
-		return verification.unknown(fmt.Sprintf(
-			"verification baseline belongs to run %s, not the last completed run %s", baseline.RunID, latest.RunID))
+	if completed && latest.RunID != baseline.RunID {
+		return verification.unknown(statusSingleLine(fmt.Sprintf(
+			"verification baseline belongs to run %s, not the last completed run %s", baseline.RunID, latest.RunID)))
 	}
 	specFingerprint, err := specRequirementsFingerprint(specDir)
 	if err != nil {
-		return verification.unknown("SPEC documents unreadable: " + err.Error())
+		return verification.unknown(statusSingleLine("SPEC documents unreadable: " + err.Error()))
 	}
 	var reasons []string
 	if specFingerprint != baseline.SpecFingerprint {
@@ -104,14 +101,14 @@ func checkPipelineVerification(
 	current, treeErr := cache.digests(root, baseline.BaseHead)
 	if treeErr == nil {
 		if changed := changedTreePaths(baseline.TreePaths, current); len(changed) > 0 {
-			reasons = append(reasons, "working tree changed since verification: "+summarizeStatusPaths(changed))
+			reasons = append(reasons, statusSingleLine("working tree changed since verification: "+summarizeStatusPaths(changed)))
 		}
 	}
 	switch {
 	case len(reasons) > 0:
 		verification.State, verification.Reasons = freshnessStale, reasons
 	case treeErr != nil:
-		return verification.unknown("working tree cannot be compared: " + treeErr.Error())
+		return verification.unknown(statusSingleLine("working tree cannot be compared: " + treeErr.Error()))
 	default:
 		verification.State = freshnessFresh
 	}

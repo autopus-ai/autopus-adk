@@ -1,13 +1,11 @@
 package cli
 
 import (
-	"encoding/json"
-	"errors"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/insajin/autopus-adk/pkg/pipeline"
 )
@@ -38,20 +36,23 @@ type statusEvidence struct {
 	Execution    *statusExecution   `json:"execution,omitempty"`
 	Verification statusVerification `json:"verification"`
 	Review       *statusReview      `json:"review,omitempty"`
-	// stateRoot is the directory whose pipeline state holds this evidence;
-	// pipeline commands for the SPEC run there.
+	// stateRoot is the absolute directory whose pipeline state holds this
+	// evidence; pipeline commands for the SPEC run there.
 	stateRoot string
 }
 
 // statusExecution is the last pipeline run of a SPEC as its receipt records it.
 type statusExecution struct {
 	Source               string                `json:"source"`
+	Root                 string                `json:"root"`
+	OtherRoots           []string              `json:"other_roots,omitempty"`
 	Error                string                `json:"error,omitempty"`
 	RunID                string                `json:"run_id,omitempty"`
 	TaskID               string                `json:"task_id,omitempty"`
 	Attempt              int                   `json:"attempt,omitempty"`
 	ResumedFrom          string                `json:"resumed_from,omitempty"`
 	Platform             string                `json:"platform,omitempty"`
+	ExecutionOwner       string                `json:"execution_owner,omitempty"`
 	Route                string                `json:"route,omitempty"`
 	Terminal             string                `json:"terminal"`
 	StopReason           string                `json:"stop_reason,omitempty"`
@@ -61,9 +62,7 @@ type statusExecution struct {
 	Phases               pipelinePhaseCounts   `json:"phases"`
 	Dispatches           int                   `json:"dispatches"`
 	CumulativeDispatches int                   `json:"cumulative_dispatches"`
-	Resumable            bool                  `json:"resumable"`
-	ResumeReason         string                `json:"resume_reason,omitempty"`
-	ResumeCommand        string                `json:"resume_command,omitempty"`
+	Resume               *statusResume         `json:"resume,omitempty"`
 	BlockedAttempt       *statusBlockedAttempt `json:"blocked_attempt,omitempty"`
 }
 
@@ -78,10 +77,11 @@ type statusBlockedAttempt struct {
 // statusEvidenceReader reads evidence for every SPEC of one status run and
 // caches what SPECs share.
 type statusEvidenceReader struct {
-	baseDir string
-	idCount map[string]int
-	heads   map[string]gitHeadResult
-	trees   treeDigestCache
+	baseDir   string
+	installed map[string]bool
+	idCount   map[string]int
+	heads     map[string]gitHeadResult
+	trees     treeDigestCache
 }
 
 type gitHeadResult struct {
@@ -89,10 +89,13 @@ type gitHeadResult struct {
 	err  error
 }
 
-func newStatusEvidenceReader(baseDir string, specs []specEntry) *statusEvidenceReader {
+func newStatusEvidenceReader(baseDir string, specs []specEntry, env statusEnvironment) *statusEvidenceReader {
 	reader := &statusEvidenceReader{
-		baseDir: baseDir, idCount: map[string]int{},
+		baseDir: statusAbsDir(baseDir), installed: map[string]bool{}, idCount: map[string]int{},
 		heads: map[string]gitHeadResult{}, trees: treeDigestCache{},
+	}
+	for _, name := range env.InstalledCLIs {
+		reader.installed[name] = true
 	}
 	for _, entry := range specs {
 		reader.idCount[entry.id]++
@@ -101,65 +104,53 @@ func newStatusEvidenceReader(baseDir string, specs []specEntry) *statusEvidenceR
 }
 
 func (r *statusEvidenceReader) read(entry specEntry) statusEvidence {
-	specDir := filepath.Dir(entry.path)
-	root := r.stateRootFor(entry)
-	stateDir := filepath.Join(root, pipelineStateDir)
-	evidence := statusEvidence{stateRoot: root}
+	specDir := statusAbsDir(filepath.Dir(entry.path))
+	chosen, others := r.stateRoots(entry)
+	evidence := statusEvidence{stateRoot: chosen.root}
 	var latest *pipeline.OrchestrationRunReceipt
-	checkpointPath := filepath.Join(stateDir, entry.id+".yaml")
-	if cp, err := pipeline.LoadFile(checkpointPath); err == nil {
-		evidence.Execution = r.execution(root, checkpointPath, entry.id, specDir, cp)
-		if cp.Receipt != nil && cp.Receipt.Terminal != pipeline.TerminalDryRun {
-			latest = cp.Receipt
+	switch {
+	case chosen.checkpoint != nil:
+		evidence.Execution = r.execution(chosen, entry.id, specDir)
+		if receipt := chosen.checkpoint.Receipt; receipt != nil && receipt.Terminal != pipeline.TerminalDryRun {
+			latest = receipt
 		}
-	} else if !errors.Is(err, fs.ErrNotExist) {
+	case chosen.loadErr != nil:
 		evidence.Execution = &statusExecution{
-			Source: relativeStatusPath(r.baseDir, checkpointPath), Error: "checkpoint unreadable: " + err.Error(),
+			Source: relativeStatusPath(r.baseDir, chosen.checkpointPath()), Root: chosen.root,
+			Error: statusSingleLine("checkpoint unreadable: " + chosen.loadErr.Error()),
 		}
 	}
-	evidence.Verification = checkPipelineVerification(root, stateDir, entry.id, specDir, latest, r.trees)
+	if evidence.Execution != nil {
+		evidence.Execution.OtherRoots = others
+	}
+	evidence.Verification = checkPipelineVerification(chosen.root, chosen.stateDir(), entry.id, specDir, latest, r.trees)
 	evidence.Review = readStatusReview(r.baseDir, specDir)
 	evidence.Label = evidenceLabel(entry.isDone(), evidence.Execution, evidence.Verification)
 	return evidence
 }
 
-// stateRootFor finds where a SPEC's pipeline state lives: the root holding its
-// .autopus/specs, or the status directory when the run was started there and
-// the SPEC ID names only this SPEC.
-func (r *statusEvidenceReader) stateRootFor(entry specEntry) string {
-	moduleRoot := filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(entry.path))))
-	candidates := []string{moduleRoot}
-	if filepath.Clean(moduleRoot) != filepath.Clean(r.baseDir) && r.idCount[entry.id] == 1 {
-		candidates = append(candidates, r.baseDir)
+func (r *statusEvidenceReader) execution(chosen stateRootCandidate, specID, specDir string) *statusExecution {
+	cp := chosen.checkpoint
+	execution := &statusExecution{
+		Source: relativeStatusPath(r.baseDir, chosen.checkpointPath()), Root: chosen.root,
+		BaseHead: statusSingleLine(cp.GitCommitHash),
 	}
-	for _, root := range candidates {
-		stateDir := filepath.Join(root, pipelineStateDir)
-		for _, name := range []string{entry.id + ".yaml", entry.id + ".verification.json"} {
-			if _, err := os.Stat(filepath.Join(stateDir, name)); err == nil {
-				return root
-			}
-		}
-	}
-	return moduleRoot
-}
-
-func (r *statusEvidenceReader) execution(
-	root, checkpointPath, specID, specDir string,
-	cp *pipeline.Checkpoint,
-) *statusExecution {
-	execution := &statusExecution{Source: relativeStatusPath(r.baseDir, checkpointPath), BaseHead: cp.GitCommitHash}
 	receipt := cp.Receipt
 	if receipt == nil {
 		// A checkpoint without a receipt records no terminal state.
 		return execution
 	}
-	execution.RunID, execution.TaskID, execution.ResumedFrom = receipt.RunID, receipt.TaskID, receipt.ResumedFrom
+	execution.RunID, execution.TaskID = statusSingleLine(receipt.RunID), statusSingleLine(receipt.TaskID)
+	execution.ResumedFrom = statusSingleLine(receipt.ResumedFrom)
 	execution.Attempt = len(receipt.PriorAttempts) + 1
 	if len(receipt.ResolvedProviders) > 0 {
-		execution.Platform = receipt.ResolvedProviders[0]
+		execution.Platform = statusSingleLine(receipt.ResolvedProviders[0])
+	}
+	if execution.Platform == "omp" {
+		execution.ExecutionOwner = recordedExecutionOwner(receipt)
 	}
 	execution.Route = string(pipeline.NormalizeRoute(receipt.RoutePhaseSet))
-	execution.Terminal = string(receipt.Terminal)
+	execution.Terminal = statusSingleLine(string(receipt.Terminal))
 	execution.Blocker = statusSingleLine(receipt.Blocker)
 	if receipt.FinishedAt != nil {
 		execution.FinishedAt = receipt.FinishedAt.UTC().Format(time.RFC3339)
@@ -167,50 +158,11 @@ func (r *statusEvidenceReader) execution(
 	execution.Phases = countPipelinePhases(*receipt)
 	execution.Dispatches, execution.CumulativeDispatches = receipt.DispatchCount, receipt.CumulativeDispatchCount
 	if pipelineRunStopped(receipt.Terminal) {
-		execution.StopReason = string(receipt.Terminal)
-		if n := len(receipt.Failures); n > 0 && receipt.Failures[n-1].Decision != "" {
-			execution.StopReason = string(receipt.Failures[n-1].Decision)
-		}
-		execution.Resumable, execution.ResumeReason = r.assessResume(root, specID, specDir, cp)
-		if execution.Resumable {
-			execution.ResumeReason = "completed phases are restored once their outputs are re-verified"
-			if execution.Phases.Executed+execution.Phases.Restored == 0 {
-				execution.ResumeReason = "no phase completed, so the resume starts from the first phase"
-			}
-			owner := recordedExecutionOwner(filepath.Dir(checkpointPath), specID)
-			execution.ResumeCommand = pipelineResumeCommand(specID, execution.Platform, owner)
-		}
+		execution.StopReason = pipelineStopReason(*receipt)
+		execution.Resume = r.assessResume(chosen.root, specID, specDir, cp, execution)
 	}
-	execution.BlockedAttempt = r.blockedAttempt(checkpointPath, specID)
+	execution.BlockedAttempt = r.blockedAttempt(chosen)
 	return execution
-}
-
-// assessResume predicts whether `auto pipeline run <SPEC> --continue` would be
-// admitted, applying the checks the CLI and engine run before any dispatch,
-// and says why not. Output records are verified only when the run resumes.
-func (r *statusEvidenceReader) assessResume(root, specID, specDir string, cp *pipeline.Checkpoint) (bool, string) {
-	head := r.head(root)
-	if head.err != nil {
-		return false, "git HEAD unavailable; --continue needs it"
-	}
-	if cp.GitCommitHash != head.head {
-		return false, "HEAD moved since the run; --continue refuses a stale checkpoint"
-	}
-	snapshot, err := pipeline.SpecSnapshotHash(specDir)
-	if err != nil {
-		return false, "SPEC documents unreadable: " + err.Error()
-	}
-	if cp.SnapshotHash != "" && cp.SnapshotHash != snapshot {
-		return false, "SPEC documents changed since the run; --continue refuses a changed SPEC"
-	}
-	if err := cp.ValidateResume(specID, pipeline.PipelineRouteVersion, snapshot); err != nil {
-		return false, err.Error()
-	}
-	route, _ := resolvePipelineRoute(root, specDir, specID)
-	if err := cp.ValidateResumeRoute(route); err != nil {
-		return false, err.Error()
-	}
-	return true, ""
 }
 
 func (r *statusEvidenceReader) head(root string) gitHeadResult {
@@ -223,13 +175,13 @@ func (r *statusEvidenceReader) head(root string) gitHeadResult {
 }
 
 // blockedAttempt reports a blocked sidecar written after the checkpoint.
-func (r *statusEvidenceReader) blockedAttempt(checkpointPath, specID string) *statusBlockedAttempt {
-	path := filepath.Join(filepath.Dir(checkpointPath), specID+".blocked.yaml")
+func (r *statusEvidenceReader) blockedAttempt(chosen stateRootCandidate) *statusBlockedAttempt {
+	path := filepath.Join(chosen.stateDir(), chosen.specID+".blocked.yaml")
 	sidecar, err := os.Stat(path)
 	if err != nil {
 		return nil
 	}
-	canonical, err := os.Stat(checkpointPath)
+	canonical, err := os.Stat(chosen.checkpointPath())
 	if err != nil || !sidecar.ModTime().After(canonical.ModTime()) {
 		return nil
 	}
@@ -281,38 +233,29 @@ func pipelineRunStopped(terminal pipeline.TerminalState) bool {
 	}
 }
 
-// pipelineResumeCommand pins the platform and OMP execution owner the run
-// used, so a resume does not switch providers because PATH changed.
-func pipelineResumeCommand(specID, platform, owner string) string {
-	command := "auto pipeline run " + specID + " --continue"
-	if platform != "" {
-		command += " --platform " + platform
-	}
-	if platform == "omp" && owner == pipelineExecutionOwnerOrca {
-		command += " --execution-owner " + owner
-	}
-	return command
-}
-
-// recordedExecutionOwner reads the owner the last OMP run of a SPEC used.
-func recordedExecutionOwner(stateDir, specID string) string {
-	data, err := os.ReadFile(filepath.Join(stateDir, specID+".execution-owner.json"))
-	if err != nil {
-		return ""
-	}
-	var receipt pipelineExecutionOwnerReceipt
-	if json.Unmarshal(data, &receipt) != nil {
-		return ""
-	}
-	return receipt.Owner
-}
-
-// statusSingleLine keeps a receipt string on one bounded line.
+// statusSingleLine makes a string from a receipt or the file system safe to
+// show: control characters become spaces, whitespace collapses, and the
+// result stays on one bounded line.
 func statusSingleLine(text string) string {
+	text = strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) {
+			return ' '
+		}
+		return r
+	}, text)
 	text = strings.Join(strings.Fields(text), " ")
 	const limit = 240
 	if runes := []rune(text); len(runes) > limit {
 		return string(runes[:limit]) + "…"
 	}
 	return text
+}
+
+// statusAbsDir is dir made absolute; status names directories so commands
+// can run from anywhere.
+func statusAbsDir(dir string) string {
+	if abs, err := filepath.Abs(dir); err == nil {
+		return abs
+	}
+	return dir
 }
