@@ -111,8 +111,10 @@ func stampSpecReviewSandboxEvidence(providers []orchestra.ProviderConfig) []orch
 
 // assembleSpecReviewJudge returns the judge through the same gate and
 // projection as the reviewers (REQ-02). A judge that names an assembled
-// reviewer reuses it; otherwise it is resolved separately as an explicit
-// spec.review_gate.judge selection and checked before any of its binaries run.
+// reviewer reuses it, unless spec.review_gate.judge_model gives it a model of
+// its own (SPEC-JUDGEMODEL-001); otherwise it is resolved separately as an
+// explicit spec.review_gate.judge selection and checked before any of its
+// binaries run.
 func assembleSpecReviewJudge(
 	ctx context.Context,
 	cfg *config.HarnessConfig,
