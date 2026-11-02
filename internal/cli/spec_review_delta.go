@@ -175,10 +175,12 @@ func specReviewJSONDigest(value any) string {
 	return spec.SHA256Hex(data)
 }
 
-// recordSpecReviewBaseline stores what a usable, uncut round delivered
-// (REQ-RR-DELTA-02); a failure only costs the next round its delta input.
+// recordSpecReviewBaseline stores what a usable, uncut round delivered with
+// the input it actually sent (REQ-RR-DELTA-02); a failure only costs the next
+// round its delta input.
 func recordSpecReviewBaseline(
-	p specReviewLoopParams, revision int, round specReviewRoundSources, fp *specReviewFingerprint, findings []spec.ReviewFinding, w io.Writer,
+	p specReviewLoopParams, revision int, round specReviewRoundSources, input specReviewRoundInput,
+	fp *specReviewFingerprint, findings []spec.ReviewFinding, w io.Writer,
 ) {
 	if fp == nil || round.documents == nil {
 		return
@@ -190,7 +192,7 @@ func recordSpecReviewBaseline(
 	baseline := &spec.ReviewBaseline{
 		Schema: spec.ReviewBaselineSchema, RunID: runID, Revision: revision,
 		RecordedAt: time.Now().UTC().Format(time.RFC3339), Documents: spec.BaselineDocuments(round.documents),
-		Delivered: specReviewDeliveredScope(round),
+		Delivered: specReviewDeliveredScope(round, input),
 		Context:   specReviewBaselineContext(fp, p.specDir), OpenIDs: spec.OpenFindingIDs(findings),
 	}
 	if err := spec.PersistReviewBaseline(p.specDir, baseline); err != nil {
@@ -198,14 +200,20 @@ func recordSpecReviewBaseline(
 	}
 }
 
-// specReviewDeliveredScope records whether the round's full input carried
-// each SPEC document whole: a verified delivery carries every document
-// complete or fails; an inline prompt carries spec.md whole and each
-// auxiliary document as its injection coverage says (REQ-RR-DELTA-02).
-func specReviewDeliveredScope(round specReviewRoundSources) map[string]string {
+// specReviewDeliveredScope records whether the request the round actually
+// sent carried each SPEC document whole (REQ-RR-DELTA-02). A delta request
+// carries none whole: it sends a changed document as a diff and sections and
+// a linked one not at all, so every document is partial and the next verify
+// round reviews the full input. A full input from a verified delivery carries
+// every document complete or fails; an inline full input carries spec.md
+// whole and each auxiliary document as its injection coverage says.
+func specReviewDeliveredScope(round specReviewRoundSources, input specReviewRoundInput) map[string]string {
 	delivered := make(map[string]string, len(round.documents))
 	for name := range round.documents {
 		delivered[name] = spec.BaselineDeliveredComplete
+		if input.mode == specReviewInputDelta {
+			delivered[name] = spec.BaselineDeliveredPartial
+		}
 	}
 	for _, coverage := range round.coverages {
 		if _, carried := delivered[coverage.Name]; carried && !coverage.Complete {

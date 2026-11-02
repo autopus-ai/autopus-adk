@@ -248,7 +248,7 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 			return nil, fmt.Errorf("review findings 저장 실패 (SPEC: %s, revision: %d): %w", p.specID, revision, persistErr)
 		}
 		if !budgetHit && len(reviews) > 0 {
-			recordSpecReviewBaseline(p, revision, sources, fp, merged.Findings, os.Stderr)
+			recordSpecReviewBaseline(p, revision, sources, input, fp, merged.Findings, os.Stderr)
 		}
 		if persistErr := spec.PersistReview(p.specDir, merged); persistErr != nil {
 			return nil, fmt.Errorf("review.md 저장 실패 (SPEC: %s, revision: %d): %w", p.specID, revision, persistErr)

@@ -91,6 +91,57 @@ func TestRunSpecReview_IncompletelyDeliveredBaselineIsNeverLinked(t *testing.T) 
 	assert.Equal(t, [2]string{"full", spec.DeltaReasonIncompleteBaseline}, [2]string{rounds[1].Input, rounds[1].InputReason})
 }
 
+const (
+	twoFindingsREQ002AndS1 = `{"verdict":"REVISE","summary":"gaps","findings":[` +
+		`{"severity":"major","category":"completeness","scope_ref":"REQ-002","location":"spec.md","description":"error path undefined","suggestion":"define it"},` +
+		`{"severity":"major","category":"completeness","scope_ref":"S1","location":"acceptance.md","description":"accepted outcome vague","suggestion":"state it"}]}`
+	firstResolvedSecondOpen = `{"verdict":"REVISE","summary":"one left","findings":[],"finding_statuses":[` +
+		`{"id":"F-001","status":"resolved","reason":"E1 defined"},{"id":"F-002","status":"open","reason":"still vague"}]}`
+	secondResolved = `{"verdict":"PASS","summary":"ok","findings":[],"finding_statuses":[{"id":"F-002","status":"resolved","reason":"stated"}]}`
+)
+
+// S22: a delta round sends a changed document as a diff and sections and a
+// linked one not at all, so its baseline records every document partial and
+// the next verify round never links what no request carried whole.
+func TestRunSpecReview_DeltaRoundBaselineNeverClaimsAWholeDelivery(t *testing.T) {
+	fixture, backend := deltaFixtureWith(t, func(cfg *config.HarnessConfig) {
+		cfg.Spec.ReviewGate.MaxRevisions = new(2)
+	}, 400, nil)
+	specPath, acceptancePath := filepath.Join(fixture.specDir, "spec.md"), filepath.Join(fixture.specDir, "acceptance.md")
+	for _, provider := range []string{"claude/reviewer", "codex/reviewer"} {
+		backend.replies[provider] = []scriptedReply{{output: twoFindingsREQ002AndS1}, {output: firstResolvedSecondOpen}, {output: secondResolved}}
+	}
+	var calls atomic.Int32
+	var afterDelta *spec.ReviewBaseline
+	backend.onCall = func(orchestra.ProviderRequest) {
+		switch calls.Add(1) {
+		case 2:
+			// Round 0 ends: the author fixes REQ-002 in spec.md only.
+			replaceInFile(t, specPath, "THE SYSTEM SHALL validate input.", "THE SYSTEM SHALL validate input and refuse an empty value with error E1.")
+		case 4:
+			// Round 1 ends: spec.md stays as round 1 left it; S1 is fixed.
+			replaceInFile(t, acceptancePath, "Then it is accepted.", "Then it is accepted and logged.")
+		case 5:
+			afterDelta, _ = spec.LoadReviewBaseline(fixture.specDir)
+		}
+	}
+
+	_, stderr := runReviewOutput(t, fixture, specReviewOptions{})
+
+	require.Equal(t, 6, backend.count())
+	rounds := readSpecReviewReceipt(t, fixture.specDir).Rounds
+	require.Len(t, rounds, 3)
+	assert.Equal(t, [2]string{"delta", "delta"}, [2]string{rounds[1].Input, rounds[1].InputReason})
+	require.NotNil(t, afterDelta)
+	assert.Equal(t, 1, afterDelta.Revision)
+	for _, name := range []string{"spec.md", "acceptance.md", "plan.md", "research.md"} {
+		assert.Equal(t, spec.BaselineDeliveredPartial, afterDelta.Delivered[name], name)
+	}
+	assert.Equal(t, [2]string{"full", spec.DeltaReasonIncompleteBaseline}, [2]string{rounds[2].Input, rounds[2].InputReason})
+	assert.Contains(t, stderr, "SPEC 리뷰 입력: full — incomplete_baseline\n")
+	assert.NotContains(t, backend.requests[4].Prompt, "spec_review_delta.v1")
+}
+
 // S14: a secret the fix deletes and an injection phrase reach neither the
 // stored baseline nor the delta request in raw form.
 func TestRunSpecReview_DeltaBaselineAndRequestStaySanitized(t *testing.T) {
