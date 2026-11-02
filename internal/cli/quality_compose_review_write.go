@@ -47,6 +47,9 @@ type reviewTarget struct {
 	// written marks the list elements the splice writes; nil means all of
 	// them. An args element it leaves keeps its raw scalar and its tag.
 	written []bool
+	// remove deletes the key's line instead of writing a value
+	// (SPEC-JUDGEMODEL-001); a missing key needs nothing.
+	remove bool
 }
 
 // reviewArgsTarget sets a CLI provider's model and effort by row, starting
@@ -62,8 +65,9 @@ func (t reviewTarget) key() string { return strings.Join(t.path, ".") }
 // reviewTargets lists the keys whose working value differs from the
 // baseline, in change line order: spec.review_gate.providers, then per
 // provider its backend, model, model_policy, and args, then
-// spec.review_gate.judge. Nothing equal to the baseline is written; a CLI
-// change writes the flags whose raw value differs from the wanted one.
+// spec.review_gate.judge, judge_model, and judge_effort. Nothing equal to the
+// baseline is written; a CLI change writes the flags whose raw value differs
+// from the wanted one.
 func reviewTargets(b reviewBaseline, working reviewComposition) []reviewTarget {
 	var targets []reviewTarget
 	if !slices.Equal(working.Providers, b.Providers) {
@@ -93,7 +97,7 @@ func reviewTargets(b reviewBaseline, working reviewComposition) []reviewTarget {
 	if working.Judge != b.Judge {
 		targets = append(targets, reviewTarget{path: []string{"spec", "review_gate", "judge"}, value: working.Judge})
 	}
-	return targets
+	return append(targets, reviewJudgeModelTargets(b, working)...)
 }
 
 // saveReviewComposition writes working to dir's autopus.yaml for update and
@@ -151,6 +155,7 @@ func applyReviewCompositionMemory(cfg *config.HarnessConfig, baseline reviewBase
 	candidate.Orchestra.Providers = maps.Clone(cfg.Orchestra.Providers)
 	candidate.Spec.ReviewGate.Providers = slices.Clone(working.Providers)
 	candidate.Spec.ReviewGate.Judge = working.Judge
+	candidate.Spec.ReviewGate.JudgeModel, candidate.Spec.ReviewGate.JudgeEffort = working.JudgeModel.Model, working.JudgeModel.Effort
 	if err := applyReviewEntries(candidate.Orchestra.Providers, baseline, working); err != nil {
 		return err
 	}

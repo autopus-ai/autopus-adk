@@ -87,6 +87,7 @@ func printSpecReviewPlan(w io.Writer, plan specReviewPlan, assembled specReviewP
 	} else {
 		fmt.Fprintf(w, "  judge: %s (%s) — %s\n", judge, specReviewJudgeModeLabel(plan.JudgeMode), plan.JudgeReason)
 	}
+	printSpecReviewJudgeModel(w, assembled)
 	fmt.Fprintf(w, "  quorum: %s\n", specReviewQuorumLine(plan, len(assembled.Names)))
 	fmt.Fprintf(w, "  라운드: 최대 %d\n", plan.MaxRounds)
 	expected := fmt.Sprintf("%d", bounds.ExpectedPerRound)

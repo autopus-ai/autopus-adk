@@ -38,6 +38,9 @@ type reviewRawDocument struct {
 	// Judge is spec.review_gate.judge as written, when HasJudge.
 	Judge    string
 	HasJudge bool
+	// JudgeModel and JudgeEffort are spec.review_gate.judge_model and
+	// judge_effort as written, "" when absent (SPEC-JUDGEMODEL-001).
+	JudgeModel, JudgeEffort string
 }
 
 // reviewRawOf is the view of a config no file holds, such as init's.
@@ -52,7 +55,10 @@ func reviewRawOf(cfg *config.HarnessConfig) map[string]reviewRawProvider {
 // reviewRawDocumentOf is the document of a config no file holds: its own
 // values are what is written.
 func reviewRawDocumentOf(cfg *config.HarnessConfig) *reviewRawDocument {
-	return &reviewRawDocument{Providers: reviewRawOf(cfg), Names: true, Judge: cfg.Spec.ReviewGate.Judge, HasJudge: true}
+	gate := cfg.Spec.ReviewGate
+	return &reviewRawDocument{
+		Providers: reviewRawOf(cfg), Names: true, Judge: gate.Judge, HasJudge: true, JudgeModel: gate.JudgeModel, JudgeEffort: gate.JudgeEffort,
+	}
 }
 
 // readReviewRaw reads the review settings of dir's autopus.yaml as written.
@@ -132,6 +138,7 @@ func readReviewRawGate(root *yaml.Node, raw *reviewRawDocument) bool {
 		}
 		raw.Judge, raw.HasJudge = judge.Value, true
 	}
+	readReviewRawJudgeModel(gate, raw)
 	return true
 }
 

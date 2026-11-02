@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **SPEC 리뷰 judge가 자기 model로 돈다** (2026-11-02, SPEC-JUDGEMODEL-001): `spec.review_gate.judge`는 provider
+  이름뿐이라 judge는 늘 그 provider의 리뷰어 model로 돌았다. claude 리뷰어는 sonnet, claude judge는 opus처럼 나눌 수
+  없었다.
+  - 새 key `spec.review_gate.judge_model`·`judge_effort`(선택). 설정된 judge에만 쓰이고, judge 호출은 그 provider 항목에서
+    model·effort 값만 리뷰 탭과 같은 방식(claude `--model`·`--effort`, codex `-m`·`model_reasoning_effort`와 pinned,
+    agy `--model`, OMP selector)으로 바꿔 돈다. 리뷰어 호출은 그대로다. key가 없으면 리뷰 호출·계획 블록·receipt와
+    `auto quality review show` 출력이 지금과 같다(리뷰 탭의 새 선택지와 도움말은 key와 상관없이 바뀐다).
+  - backend가 실을 수 없는 값(CLI judge에 OMP selector, OMP judge에 다른 family, agy에 effort 등)은 readiness probe와
+    model 호출 전에 `spec review: spec.review_gate.judge_model ...`로 거절한다. 계획 블록은 `judge model: ...` 줄을,
+    `review-receipt.json`은 `judge.model`·`judge.effort`를 남긴다. OMP judge는 thinking을 selector에 붙여 쓰든
+    `judge_effort`로 쓰든 계획에 한 번만 보이고 receipt에는 base selector와 thinking으로 남는다.
+  - judge model은 리뷰 재사용(SPEC-REVIEWREUSE-001) fingerprint의 judge 항목에 들어가, 바꾸면 이전 결과를 쓰지 않고
+    다시 리뷰한다. 조건부 judge가 건너뛴 라운드의 receipt에는 judge model을 남기지 않는다.
+  - `auto quality review judge <provider|none> [--model <model>|default] [--effort <effort>] [--dry-run]`이 탭과 같은
+    목록과 줄 writer로 judge model을 쓰고, `default`나 다른 judge·none은 두 key 줄을 지운다. `show`·`--json`이 judge
+    model을 보인다.
+  - 멀티프로바이더 리뷰 탭: judge Select 끝의 `<judge> — judge model 고르기`나 새 judge가 judge model Select(`그대로`,
+    `리뷰어 model과 같음`, 그 provider의 model 목록)와 thinking·effort를 묻는다. 미리보기 judge 칸과 메뉴 요약 줄이 judge
+    model을 보인다.
+  - 이 key를 모르는 이전 auto는 judge model을 둔 autopus.yaml을 읽지 못한다(strict loader). 그래서 judge model을 고를
+    때만 key를 쓰고, 되돌리면 지운다.
+
 - **터미널 없이 멀티프로바이더 리뷰 model을 보고 바꾼다** (2026-10-31): 리뷰 provider의 model은 `auto quality` 구성
   폼의 멀티프로바이더 리뷰 탭에서만 바꿀 수 있었고, 그 폼은 터미널이 있어야 열렸다. Claude Code 안에서 `! auto update`나
   `auto quality`를 실행하면 탭에 닿을 수 없었고, 탭에서 바꾼 뒤에도 요약 줄에는 provider 이름만 보였다.

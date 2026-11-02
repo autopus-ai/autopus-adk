@@ -111,8 +111,10 @@ func stampSpecReviewSandboxEvidence(providers []orchestra.ProviderConfig) []orch
 
 // assembleSpecReviewJudge returns the judge through the same gate and
 // projection as the reviewers (REQ-02). A judge that names an assembled
-// reviewer reuses it; otherwise it is resolved separately as an explicit
-// spec.review_gate.judge selection and checked before any of its binaries run.
+// reviewer reuses it, unless spec.review_gate.judge_model gives it a model of
+// its own (SPEC-JUDGEMODEL-001); otherwise it is resolved separately as an
+// explicit spec.review_gate.judge selection and checked before any of its
+// binaries run.
 func assembleSpecReviewJudge(
 	ctx context.Context,
 	cfg *config.HarnessConfig,
@@ -123,9 +125,14 @@ func assembleSpecReviewJudge(
 	if judge == "" {
 		return nil, nil
 	}
+	// A judge with a model of its own never reuses its reviewer: its entry is
+	// resolved apart and gets the judge model before the gate, so the
+	// projection stays the final argv mutation (SPEC-JUDGEMODEL-001).
+	judgeModel := configuredSpecReviewJudgeModel(cfg, judge)
+	ownModel := judgeModel != nil && judgeModel.applies()
 	var candidates []orchestra.ProviderConfig
 	for _, reviewer := range reviewers {
-		if reviewer.Name == judge {
+		if reviewer.Name == judge && !ownModel {
 			candidates = []orchestra.ProviderConfig{reviewer}
 			break
 		}
@@ -135,6 +142,13 @@ func assembleSpecReviewJudge(
 			return nil, nil
 		}
 		candidates = resolveProviders(&cfg.Orchestra, "review", []string{judge})
+		if ownModel {
+			judged, err := applySpecReviewJudgeModel(candidates[0], *judgeModel)
+			if err != nil {
+				return nil, err
+			}
+			candidates[0] = judged
+		}
 		if violation := checkReadOnlyProvider(candidates[0]); violation != nil {
 			return nil, specReviewPolicyError(violation, specReviewSourceGateJudge)
 		}

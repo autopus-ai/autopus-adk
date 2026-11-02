@@ -155,30 +155,41 @@ func runQualityReviewToggle(cmd *cobra.Command, apply *bool, on bool, names []st
 	return e.finish(dryRun)
 }
 
-func newQualityReviewJudgeCmd(apply *bool) *cobra.Command {
+func newQualityReviewJudgeCmd(apply *bool, deps ompPlatformDependencies) *cobra.Command {
 	var dryRun bool
+	var flags qualityReviewJudgeFlags
 	cmd := &cobra.Command{
 		Use:   "judge <provider|none>",
-		Short: "Choose the judge of auto spec review, or none for a review without one",
+		Short: "Choose the judge of auto spec review, or none for a review without one, and with --model its own model",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runQualityReviewJudge(cmd, apply, args[0], dryRun)
+			flags.modelSet = cmd.Flags().Changed("model")
+			return runQualityReviewJudge(cmd, apply, deps, args[0], flags, dryRun)
 		},
 	}
+	cmd.Flags().StringVar(&flags.model, "model", "",
+		"The judge's own model, as model takes one for the judge provider, or default for the provider's reviewer model")
+	cmd.Flags().StringVar(&flags.effort, "effort", "", "The judge model's effort, or its thinking level on the OMP backend")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print the settings that change without writing them")
 	return cmd
 }
 
 // runQualityReviewJudge sets spec.review_gate.judge to a provider that
-// takes part, or to none. A judge written as a placeholder stays, with the
-// tab's value refusal line (REQ-RVM-26).
-func runQualityReviewJudge(cmd *cobra.Command, apply *bool, judge string, dryRun bool) error {
+// takes part, or to none, and the judge model the flags give
+// (SPEC-JUDGEMODEL-001). A judge or judge model written as a placeholder
+// stays, with the tab's value refusal line (REQ-RVM-26).
+func runQualityReviewJudge(
+	cmd *cobra.Command, apply *bool, deps ompPlatformDependencies, judge string, flags qualityReviewJudgeFlags, dryRun bool,
+) error {
 	e, err := startQualityReviewEdit(cmd, apply)
 	if err != nil {
 		return err
 	}
 	if raw := e.baseline.RawJudge; strings.Contains(raw, "${") {
 		return fmt.Errorf(e.text.CLIValueRefused, "spec.review_gate", "judge", raw)
+	}
+	if line := reviewJudgeModelRefusal(e.baseline, e.text); line != "" {
+		return errors.New(line)
 	}
 	accepted := slices.DeleteFunc(slices.Clone(e.baseline.Visible), func(name string) bool { return !e.working.takesPart(name) })
 	switch {
@@ -188,6 +199,9 @@ func runQualityReviewJudge(cmd *cobra.Command, apply *bool, judge string, dryRun
 		e.working.Judge = judge
 	default:
 		return e.refusal(fmt.Sprintf(e.text.ErrJudge, judge), append(accepted, qualityReviewNoJudge))
+	}
+	if err := e.judgeModel(flags, normalizeOMPPlatformDependencies(deps)); err != nil {
+		return err
 	}
 	return e.finish(dryRun)
 }

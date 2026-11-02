@@ -91,7 +91,12 @@ is not set (SPEC-REVMODEL-001); a summary line under the table names each
 review provider with its model and effort as written, and the judge. The
 tab sets the providers auto spec review
 uses (spec.review_gate.providers), each provider's model and effort, and the
-judge (spec.review_gate.judge). A provider with backend: omp picks an
+judge (spec.review_gate.judge). The judge select ends with <judge> — choose
+the judge model, and a new judge asks it at once: the judge's own model and
+effort from the same lists (spec.review_gate.judge_model, judge_effort,
+SPEC-JUDGEMODEL-001), which only the judge call of auto spec review uses;
+same as the reviewer model removes both keys, and an auto release without
+the keys refuses a file that sets them. A provider with backend: omp picks an
 installed model Autopus attests for its family and a thinking level
 (orchestra.providers.<p>.model). On a CLI backend, claude picks a Claude tab
 model and effort (--model, --effort), codex a model of the Codex catalog and
@@ -137,10 +142,11 @@ the judge (spec.review_gate.judge).
   auto quality review model <provider> <model> [--effort <effort>] [--dry-run]
   auto quality review on <provider>... [--dry-run]
   auto quality review off <provider>... [--dry-run]
-  auto quality review judge <provider|none> [--dry-run]
+  auto quality review judge <provider|none> [--model <model>|default] [--effort <effort>] [--dry-run]
 
 show prints, per orchestra provider, whether it takes part, its backend,
-and its model and effort as autopus.yaml writes them, then the judge.
+and its model and effort as autopus.yaml writes them, then the judge and
+the judge model (spec.review_gate.judge_model, judge_effort) when set.
 
 model takes only what the tab offers the provider. A provider with backend:
 omp takes an installed model the OMP catalog attests for its family, as
@@ -159,6 +165,13 @@ on and off take several providers at once, so a review below two providers
 can reach two in one edit; they change auto spec review only, while
 orchestra commands and auto spec review --multi keep every provider. judge
 takes a provider that takes part, or none for a review without a judge.
+With --model the judge gets a model of its own (SPEC-JUDGEMODEL-001),
+resolved exactly as model resolves one for that provider, with --effort as
+its effort or thinking level; auto spec review then runs only the judge call
+on it, and every reviewer keeps its model. --model default goes back to the
+reviewer model, and so does choosing another judge or none without --model;
+both remove spec.review_gate.judge_model and judge_effort from autopus.yaml,
+keys an auto release without them refuses.
 
 Every edit is checked like the tab's: at least two providers take part,
 the judge takes part, and a changed model is attested. A value taken from

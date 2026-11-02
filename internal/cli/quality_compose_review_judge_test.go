@@ -36,8 +36,10 @@ func TestReviewTab_S3bTurnedOffJudgeIsChosenAgain(t *testing.T) {
 	dir := writeReviewR3(t)
 	before := readReviewFile(t, dir)
 
+	// A new judge asks its judge model next; Enter keeps the reviewer model
+	// (SPEC-JUDGEMODEL-001 REQ-JM-TUI-01).
 	run := runReviewForms(t, dir, nil, reviewLines(reviewOpen,
-		[]string{"2\n", "\n", "\n", "\n", "\n", "\n", "\n", "2\n", "\n"})...)
+		[]string{"2\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "2\n", "\n"})...)
 
 	require.NoError(t, run.err, run.out)
 	assert.Contains(t, run.out, "judge claude가 꺼져 judge를 다시 고릅니다\njudge \n1. codex\n2. gemini\nEnter")
@@ -96,10 +98,12 @@ func TestReviewTab_S9NoJudgeAndJudgeKeyInsertion(t *testing.T) {
 		assert.NotContains(t, after, "        judge:")
 		assert.Len(t, reviewFileDiff(t, before, after), 1)
 	})
+	// Choosing a judge asks its judge model next; Enter keeps the reviewer
+	// model (SPEC-JUDGEMODEL-001 REQ-JM-TUI-01).
 	t.Run("RN adds the judge key", func(t *testing.T) {
 		dir := writeReviewR3Judge(t, "")
 		before := readReviewFile(t, dir)
-		run := runReviewForms(t, dir, nil, reviewLines(reviewOpen, []string{"\n", "\n", "\n", "\n", "\n", "\n", "3\n", "\n", "2\n", "\n"})...)
+		run := runReviewForms(t, dir, nil, reviewLines(reviewOpen, []string{"\n", "\n", "\n", "\n", "\n", "\n", "3\n", "\n", "\n", "2\n", "\n"})...)
 		require.NoError(t, run.err, run.out)
 		assert.Contains(t, run.out, "  spec.review_gate.judge judge 없음 → codex\n")
 		assert.Equal(t, strings.Replace(before, "        doc_context_max_lines: 200\n",
@@ -109,7 +113,7 @@ func TestReviewTab_S9NoJudgeAndJudgeKeyInsertion(t *testing.T) {
 	t.Run("RE changes the value", func(t *testing.T) {
 		dir := writeReviewR3Judge(t, "        judge: \"\"\n")
 		before := readReviewFile(t, dir)
-		run := runReviewForms(t, dir, nil, reviewLines(reviewOpen, []string{"\n", "\n", "\n", "\n", "\n", "\n", "2\n", "\n", "2\n", "\n"})...)
+		run := runReviewForms(t, dir, nil, reviewLines(reviewOpen, []string{"\n", "\n", "\n", "\n", "\n", "\n", "2\n", "\n", "\n", "2\n", "\n"})...)
 		require.NoError(t, run.err, run.out)
 		assert.Equal(t, [][2]string{{"        judge: \"\"", "        judge: claude"}}, reviewFileDiff(t, before, readReviewFile(t, dir)))
 	})

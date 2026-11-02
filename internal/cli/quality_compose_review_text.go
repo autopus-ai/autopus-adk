@@ -58,6 +58,16 @@ type composeReviewText struct {
 	JudgeFirst      string
 	DryRun          string
 	ApplyRefused    string
+	// The judge model lines of SPEC-JUDGEMODEL-001, in the tab and in
+	// `auto quality review judge`.
+	JudgeModel         string // %s: the judge; the judge model select
+	JudgeModelPick     string // %s: the judge; the judge select's last option
+	JudgeSame          string // the option that goes back to the reviewer model
+	JudgeReviewerModel string // an empty judge model in a change line
+	JudgeModelNote     string
+	JudgeEffortAlone   string
+	JudgeModelNoJudge  string
+	JudgeDefaultEffort string
 }
 
 var composeReviewTextKO = composeReviewText{
@@ -106,6 +116,12 @@ var composeReviewTextKO = composeReviewText{
 	JudgeFirst:      "먼저 auto quality review judge <provider>로 다른 judge를 고르세요",
 	DryRun:          "--dry-run이라 아무것도 쓰지 않았습니다.",
 	ApplyRefused:    "auto quality review는 autopus.yaml만 바꾸고, auto spec review와 orchestra 명령이 실행할 때 그 값을 읽습니다. --apply를 빼세요",
+	JudgeModel:      "%s judge model", JudgeModelPick: "%s — judge model 고르기",
+	JudgeSame: "리뷰어 model과 같음", JudgeReviewerModel: "리뷰어 model",
+	JudgeModelNote:     "judge model은 auto spec review의 judge 호출에만 쓰입니다. judge_model을 모르는 이전 auto는 이 autopus.yaml을 읽지 못합니다",
+	JudgeEffortAlone:   "--effort는 --model과 함께 씁니다",
+	JudgeModelNoJudge:  "judge 없음에는 judge model을 줄 수 없습니다",
+	JudgeDefaultEffort: "--model default는 --effort를 받지 않습니다",
 }
 
 var composeReviewTextEN = composeReviewText{
@@ -154,6 +170,12 @@ var composeReviewTextEN = composeReviewText{
 	JudgeFirst:      "choose another judge first with auto quality review judge <provider>",
 	DryRun:          "--dry-run: nothing written.",
 	ApplyRefused:    "auto quality review changes only autopus.yaml, which auto spec review and orchestra commands read when they run; drop --apply",
+	JudgeModel:      "%s judge model", JudgeModelPick: "%s — choose the judge model",
+	JudgeSame: "same as the reviewer model", JudgeReviewerModel: "reviewer model",
+	JudgeModelNote:     "The judge model applies only to the judge call of auto spec review; an auto release that does not know judge_model refuses this autopus.yaml",
+	JudgeEffortAlone:   "--effort needs --model",
+	JudgeModelNoJudge:  "judge none takes no judge model",
+	JudgeDefaultEffort: "--model default takes no --effort",
 }
 
 // composeReviewTextFor returns Korean for ko and English for every other

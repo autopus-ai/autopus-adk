@@ -30,7 +30,7 @@ func newQualityReviewCmd(apply *bool, deps ompPlatformDependencies) *cobra.Comma
 	cmd.AddCommand(newQualityReviewShowCmd(apply))
 	cmd.AddCommand(newQualityReviewModelCmd(apply, deps))
 	cmd.AddCommand(newQualityReviewToggleCmd(apply, true), newQualityReviewToggleCmd(apply, false))
-	cmd.AddCommand(newQualityReviewJudgeCmd(apply))
+	cmd.AddCommand(newQualityReviewJudgeCmd(apply, deps))
 	return cmd
 }
 
@@ -82,6 +82,7 @@ func runQualityReviewShow(cmd *cobra.Command, apply *bool, asJSON bool) error {
 	out := cmd.OutOrStdout()
 	fmt.Fprintf(out, "spec.review_gate.enabled = %t\n", cfg.Spec.ReviewGate.Enabled)
 	fmt.Fprintf(out, "spec.review_gate.judge = %s\n", terminalSafe(reviewJudgeText(b.RawJudge, text)))
+	writeReviewJudgeModelLines(out, b)
 	writeReviewTable(out, qualityReviewTable(b, text))
 	fmt.Fprintf(out, "config = %s\n", terminalSafe(path))
 	return nil
@@ -119,6 +120,8 @@ type qualityReviewSettings struct {
 	ReviewGateEnabled bool                    `json:"review_gate_enabled"`
 	ReviewProviders   []string                `json:"review_providers"`
 	Judge             string                  `json:"judge"`
+	JudgeModel        string                  `json:"judge_model,omitempty"`
+	JudgeEffort       string                  `json:"judge_effort,omitempty"`
 	Providers         []qualityReviewProvider `json:"providers"`
 }
 
@@ -127,7 +130,7 @@ type qualityReviewSettings struct {
 func qualityReviewData(b reviewBaseline, enabled bool, path string) qualityReviewSettings {
 	data := qualityReviewSettings{
 		Config: path, ReviewGateEnabled: enabled, ReviewProviders: b.Providers, Judge: b.RawJudge,
-		Providers: []qualityReviewProvider{},
+		JudgeModel: b.RawJudgeModel.Model, JudgeEffort: b.RawJudgeModel.Effort, Providers: []qualityReviewProvider{},
 	}
 	if data.ReviewProviders == nil {
 		data.ReviewProviders = []string{}

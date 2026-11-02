@@ -13,6 +13,13 @@ type ReviewGateConf struct {
 	Strategy  string   `yaml:"strategy"`
 	Providers []string `yaml:"providers,flow"`
 	Judge     string   `yaml:"judge"`
+	// JudgeModel and JudgeEffort give the judge a model and effort of its
+	// own: the judge call runs the judge provider's entry with only its model
+	// and effort replaced, and reviewer calls keep the entry as it is
+	// (SPEC-JUDGEMODEL-001 REQ-JM-CFG-01). Omitted runs the judge on the
+	// provider's reviewer model and writes no key.
+	JudgeModel  string `yaml:"judge_model,omitempty"`
+	JudgeEffort string `yaml:"judge_effort,omitempty"`
 	// MaxRevisions caps the revision rounds the SPEC review loop may add after
 	// the first review. nil (key omitted) falls back to the consumer default;
 	// an explicit 0 means no additional revisions, so the review runs exactly

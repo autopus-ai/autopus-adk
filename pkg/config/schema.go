@@ -265,6 +265,9 @@ func (c *HarnessConfig) Validate() error {
 	if err := c.Workflow.Validate(); err != nil {
 		return err
 	}
+	if err := c.Spec.ReviewGate.ValidateJudgeModel(); err != nil {
+		return err
+	}
 	if err := c.Spec.ReviewGate.Budget.Validate(); err != nil {
 		return err
 	}

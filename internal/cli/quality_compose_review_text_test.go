@@ -22,10 +22,12 @@ func reviewFormatVerbs(s string) []string {
 }
 
 // reviewSameInBothLocales are the strings that name keys, selectors, or
-// columns the way autopus.yaml and the runtime spell them.
+// columns the way autopus.yaml and the runtime spell them; JudgeModel titles
+// the judge model select as Model titles the model select
+// (SPEC-JUDGEMODEL-001).
 var reviewSameInBothLocales = map[string]bool{
 	"Model": true, "Thinking": true, "Judge": true, "ColProvider": true, "ColModel": true,
-	"CLIBackend": true, "SummaryJudge": true, "Effort": true, "ColBackend": true,
+	"CLIBackend": true, "SummaryJudge": true, "Effort": true, "ColBackend": true, "JudgeModel": true,
 }
 
 func TestComposeReviewText_EveryStringIsTranslated(t *testing.T) {
