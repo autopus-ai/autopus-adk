@@ -43,14 +43,17 @@ Clarification Ledger unavailable: this SPEC comes from the improvement brief and
 
 ## Trust Boundary
 
-Provider output is untrusted: verdicts, findings, checklist outcomes, and usage numbers come from model processes. The policy never lets provider text relax a rule: an impact category blocks whatever severity the provider wrote, a judge PASS cannot waive a blocking finding, a checklist waiver applies only when the deterministic section check confirms the section is absent, and an unrecognized severity fails closed. Usage numbers are recorded as reported and never used to grant budget; unknown usage is null. The session file and receipt carry identifiers, roles, reasons, provider names, durations, and usage counters only; prompts, outputs, environment values, and secrets never enter them. The session file is written atomically with mode 0600 and guarded by an exclusive lock so two invocations cannot both spend the same remaining budget; a corrupt or unknown-schema file stops the review instead of being treated as an empty session.
+Provider output is untrusted: verdicts, findings, checklist outcomes, and usage numbers come from model processes. The policy never lets provider text relax a rule: an impact category blocks whatever severity the provider wrote, a judge PASS cannot waive a blocking finding or a reviewer REJECT vote or checklist FAIL it did not dismiss by name, a checklist waiver or an omission-only deferral applies only when the deterministic section check confirms the section is absent, and an unrecognized severity fails closed. Usage numbers are recorded as reported and never used to grant budget; unknown usage is null. The session file and the receipt's new `session` object carry identifiers, roles, reasons, provider names, durations, and usage counters only; prompts, provider output, environment values, and secrets never enter them. The receipt's existing fields keep their existing content, including the judge rationale truncated to 500 runes, which predates this SPEC. The session file is written atomically with mode 0600 and guarded by an exclusive lock so two invocations cannot both spend the same remaining budget; a corrupt or unknown-schema file stops the review instead of being treated as an empty session.
 
 ## Design Decisions
 
 - **Keep the runtime truth table and align the texts to it.** The alternative, making every minor finding advisory, would let a mislabelled acceptance gap pass; the chosen rule keeps minor findings outside the style, suggestion, and improvement categories blocking and tells reviewers to use `suggestion` for advice. Behaviour change: a judge PASS no longer waives a minor finding that blocks without a judge (it must reject the finding or downgrade it to `suggestion`, which the impact categories do not allow).
 - **REJECT is a stated redesign, not a severity count.** The reviewer prompt drops `REJECT: critical > 0 OR security > 0` for the judge's wording; a critical security finding still blocks (REVISE) and still sets `critical_veto`.
 - **`pass_criteria` becomes additive.** It never changed the runtime blocker, so replacing the prompt rules only told reviewers something the runtime contradicted.
-- **Checklist waivers are deterministic.** A FAIL becomes N/A only for the three waived items and only when their section is absent; free-text findings about omitted sections are not auto-downgraded (that would need text heuristics that could hide a real blocker) and are prevented in the prompt instead.
+- **Lean waivers are deterministic and narrow.** A checklist FAIL becomes N/A only for the three waived items and only while their section is absent. A free-text finding is deferred as advisory only when it is a non-impact, non-escape-hatch finding whose text names an omitted section that no document contains, says it is missing, and cites no lean-floor section and no requirement or acceptance id; anything else keeps blocking, because reviewer text is untrusted and a false match would hide a real blocker (review F-005).
+- **A judge clears only what it addresses.** A reviewer REJECT vote and a non-waived checklist FAIL block whatever the reviewer voted and behind a judge PASS, unless the judge returns a `reject` entry with a reason naming that exact item (`scope_ref` `verdict` or the checklist id) and that reviewer (review F-001). The judge template states the channel.
+- **The budget flags never silently change a running session.** `--max-calls`/`--max-minutes` take N > 0 and set a new session's limits, or the current one's with `--extend-budget`; a differing value on an existing session is a usage error, a configuration change only warns (review F-003).
+- **`max_minutes` measures review work, not calendar time.** It sums the wall-clock time of invocations that made calls; waiting between invocations and idle invocations cost nothing; an interrupted invocation counts to its last call (review F-004).
 - **Profile selection is a flag; provider selection never changes the profile.** `--profile full` is the explicit way to get a panel for a lean SPEC, replacing the implicit "`--providers` disables lean" rule; the old meaning is announced by a warning.
 - **Meter at the backend seam with context-carried reasons.** `pkg/orchestra` is not owned, so call metadata travels on the context and the wrapper implements the backend-name resolver by delegation.
 - **No default limits.** The brief leaves time and token numbers to measurement; with no budget configured the session only records, so no existing invocation changes. Token and cost limits are checked between calls against known usage because no provider can be stopped mid-call by token count.
@@ -81,7 +84,7 @@ Source clauses summarize the brief, which is untrusted input.
 | INV-RP-06 | writer, review, plan surfaces and generated copies agree | token parity | surface texts, regeneration diff | S6 |
 | INV-RP-07 | explicit providers do not silently disable lean policy; precedence and conflicts defined | precedence ordering | plan fields, warnings, refusals | S7, S8 |
 | INV-RP-08 | printed plan equals actual calls; calls are an upper bound including repair and fallback | count equality and bound | plan block, call counts | S7 |
-| INV-RP-09 | one session budget across roles and invocations, explicit extend versus new session | cumulative counter and state machine | session file, receipt | S9, S10 |
+| INV-RP-09 | one session budget across roles and invocations, explicit extend versus new session | cumulative counter and state machine | session file, receipt | S9, S10, S17, S18 |
 | INV-RP-10 | reservation before start, settlement after, unknown never zero, every sub-call visible once | counting and encoding | ledger rows, JSON nulls, call lines | S11, S14, S15 |
 | INV-RP-11 | exhaustion stops with blockers preserved, never PASS | terminal state | loop status, verdict, blockers | S12, S13 |
 | INV-RP-12 | scope and size limits | conservation | diff paths, line counts | S16 |
@@ -113,6 +116,18 @@ Optional improvements. They do not block sync completion and carry no identifier
 | Default budget limits per profile | The brief asks to set time and token numbers after measurement | Ledger data from real reviews is collected |
 | Show the call ledger in `auto spec timing` | The review command already prints the call lines; `spec_timing.go` is outside the owned glob | User asks for it |
 | Pass the canonical rule lines to the judge through template data instead of a parity test | Needs a field on `orchestra.ReviewJudgeData`, outside this SPEC's ownership | The orchestra owner agrees to the field |
+
+## Review Response (codex, 2026-11-02)
+
+| Finding | Change made |
+|---------|-------------|
+| F-001 (major) verdict-scoped blockers versus the judge | Accepted. Definitions, POL-04, plan T3: a reviewer REJECT or non-waived checklist FAIL blocks whatever its vote and behind a judge PASS unless the judge rejects that exact item; dismissals are recorded on the judge summary; S5 adds the full-SPEC checklist-FAIL oracle, the REJECT oracle, both dismissals, and the PASS-vote FAIL case. |
+| F-002 (major) exhaustion versus PASS | Accepted. BUD-05 rewritten: a round the budget blocks or cuts short resolves REVISE (or REJECT) with `budget_exhausted` and never yields PASS, `gate_status` `passed`, or promotion; the integrity gate refuses `--allow-degraded` for `budget_exhausted`; S11 and S13 assert verdict, gate status, and SPEC status with `--allow-degraded`. |
+| F-003 (major) flag semantics | Accepted. BUD-01 defines the flags (N > 0; new session or with `--extend-budget`; differing value on an existing session is a usage error before any call); S17 runs the flags. |
+| F-004 (major) `max_minutes` time axis | Accepted. Definitions and BUD-01 define the axis as the wall-clock time of invocations that made calls; S18 fixes deadlines on a fake clock, including an idle and an interrupted invocation. |
+| F-005 (major) free-text lean omissions | Accepted. POL-07 adds the narrow deterministic deferral of omission-only findings; S5 covers the omission and four counter-cases. |
+| F-006 (major) output text in receipts | Accepted. BUD-07, S15, and Trust Boundary scope the no-text rule to the new `session` object; existing fields keep their content (judge rationale truncated). |
+| F-007 (suggestion) per-dimension notes | Accepted. BUD-06 and S14 report `max_tokens` and `max_cost_usd` per dimension from calls without reported tokens or cost, whatever their status. |
 
 ## Sibling SPEC Decision
 

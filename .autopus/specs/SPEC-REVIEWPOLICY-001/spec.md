@@ -2,6 +2,7 @@
 
 **Status**: draft
 **Created**: 2026-11-02
+**Revised**: 2026-11-02 (codex review round 1, 7 findings; see research.md `## Review Response (codex, 2026-11-02)`)
 **Domain**: REVIEWPOLICY
 **Priority**: HIGH
 **Change Class**: feature (new review flags, a new persisted session file, new optional config keys)
@@ -39,7 +40,8 @@ All behaviour below was re-read on origin/main 109c7ea4 on 2026-11-02 (`research
 
 - Profile: `compact` (a `change.md` contract against an existing SPEC), `lean` (the reduced four-document set of a new low-risk SPEC), `full` (the complete set). Effective profile of a SPEC: `lean` when `SpecDocument.LeanEligible()` holds, otherwise `full`.
 - Blocking finding: an open or regressed finding whose category is correctness, contract, data_loss, or security at any severity, or that came through the critical/security escape hatch, or whose severity is not `suggestion` outside the style, suggestion, and improvement categories, or whose severity is critical or major inside those categories. Every other finding is advisory.
-- Verdict-scoped blocker: a provider REJECT, a judge REJECT, a failing checklist item of a REVISE vote, no usable review, or an exhausted budget.
+- Verdict-scoped blocker: a judge REJECT, a reviewer REJECT vote, a failing checklist item of any usable reviewer whatever its vote (after the policy waivers), no usable review, or an exhausted budget. A judge clears a reviewer REJECT vote or checklist FAIL only by a `reject` decision with a reason whose `scope_ref` is `verdict` (the vote) or that checklist id and whose `sources` name that reviewer.
+- Session wall-clock (the `max_minutes` axis): the sum, over the session's invocations that made at least one model call, of each invocation's wall-clock time from its start to its finish; an interrupted invocation counts up to the end of its last call. Time between invocations and invocations that made no call are not counted, and parallel calls are not counted twice.
 - Model call: one `ExecutionBackend.Execute` issued by the SPEC review for a reviewer, a JSON repair, or the judge. Readiness probes and capability probes are not model calls.
 - Review session: the logical review of one SPEC, persisted at `{SPEC_DIR}/review-session.json`, spanning CLI invocations (attempts) until it converges, is superseded, or is exhausted.
 - Call reason: `review` (round 0 reviewer), `verify` (later-round reviewer), `json_repair`, `provider_fallback` (reviewer of a lean fallback attempt), `adjudication` (judge).
@@ -73,7 +75,7 @@ THE SYSTEM SHALL classify findings with one disposition rule set (the blocking-f
 **REQ-RP-POL-04**
 Priority: Must
 Type: Event-driven
-WHEN a judge returns PASS while accepting a blocking finding, THEN THE SYSTEM SHALL keep that finding open and resolve REVISE with a blocking reason naming it, and SHALL defer only advisory findings.
+WHEN a judge returns PASS while accepting a blocking finding, or while a reviewer's REJECT vote or non-waived checklist FAIL stands that the judge did not dismiss by a `reject` decision naming that exact item, THEN THE SYSTEM SHALL keep the blocker and resolve REVISE (REJECT for an undismissed REJECT vote) with a blocking reason naming it, and SHALL defer only advisory findings.
 
 **REQ-RP-POL-05**
 Priority: Must
@@ -88,7 +90,7 @@ THE SYSTEM SHALL state in the reviewer prompt that the review answers whether im
 **REQ-RP-POL-07**
 Priority: Must
 Type: Event-driven
-WHEN a reviewer reports FAIL for a checklist item that the effective policy marks not applicable because of an omitted section, and that section is absent from the SPEC documents, THEN THE SYSTEM SHALL record the item as N/A with a reason naming the profile and the section, and the item SHALL NOT produce a `reviewer_checklist_fail` blocker.
+WHEN a reviewer reports FAIL for a checklist item that the effective policy marks not applicable because of an omitted section, and that section is absent from the SPEC documents, THEN THE SYSTEM SHALL record the item as N/A with a reason naming the profile and the section, and the item SHALL NOT produce a `reviewer_checklist_fail` blocker; and WHEN a reviewer or the judge raises a finding whose subject is such an omitted, absent section (a non-impact, non-escape-hatch finding that names the section with a missing marker and cites no lean-floor section and no requirement or acceptance id), THEN THE SYSTEM SHALL defer it as advisory.
 
 **REQ-RP-POL-08**
 Priority: Must
@@ -142,7 +144,7 @@ THE SYSTEM SHALL call exactly the reviewers and judge the printed plan names, an
 **REQ-RP-BUD-01**
 Priority: Must
 Type: Ubiquitous
-THE SYSTEM SHALL read optional `spec.review_gate.budget` keys `max_calls`, `max_minutes`, `max_tokens`, and `max_cost_usd` (absent or 0 meaning no limit for that dimension, all `omitempty`), SHALL accept `--max-calls` and `--max-minutes` as per-invocation overrides, and SHALL fail configuration load with an error naming the dotted key when a value is negative or the cost is not finite.
+THE SYSTEM SHALL read optional `spec.review_gate.budget` keys `max_calls`, `max_minutes` (on the session wall-clock axis defined above), `max_tokens`, and `max_cost_usd` (absent or 0 meaning no limit for that dimension, all `omitempty`), SHALL fail configuration load with an error naming the dotted key when a value is negative or the cost is not finite, and SHALL accept `--max-calls N` and `--max-minutes N` only with N > 0 as the limits of a new session, or of the current session together with `--extend-budget`; on an existing session a flag value that differs from the session's limit SHALL be a usage error naming `--extend-budget` and `--new-session`, raised before any model call, while a configuration change only warns.
 
 **REQ-RP-BUD-02**
 Priority: Must
@@ -162,17 +164,17 @@ WHEN the remaining calls cannot cover the next round's reviewers or the session'
 **REQ-RP-BUD-05**
 Priority: Must
 Type: Event-driven
-WHEN the wall-clock budget runs out while calls are in flight, THEN THE SYSTEM SHALL cancel them through their context, record them with end reason `budget_exhausted`, keep the outputs of calls that completed, and add the degraded reason `budget_exhausted` to any PASS of a round in which a call was blocked or cancelled by the budget.
+WHEN the budget blocks a call of a round or the wall-clock budget runs out while calls are in flight, THEN THE SYSTEM SHALL cancel in-flight calls through their context, record them with end reason `budget_exhausted`, keep the outputs of calls that completed, and resolve that round REVISE (or keep its REJECT) with loop status, blocking reason, and degraded reason `budget_exhausted`; such a review SHALL never yield a final PASS, gate status `passed`, or a status promotion, and `--allow-degraded` SHALL NOT override `budget_exhausted`.
 
 **REQ-RP-BUD-06**
 Priority: Must
 Type: Ubiquitous
-THE SYSTEM SHALL record usage as `actual` when the provider reported it, `estimated` when the provider reported an estimate, and `unknown` otherwise, SHALL write unknown token and cost values as JSON null and never as 0, SHALL enforce token and cost limits only against known usage before starting a call, and SHALL state in the plan and the receipt when an unknown usage makes a token or cost limit unenforceable.
+THE SYSTEM SHALL record usage as `actual` when the provider reported it, `estimated` when the provider reported an estimate, and `unknown` otherwise, SHALL write unknown token and cost values as JSON null and never as 0, SHALL enforce token and cost limits only against known usage before starting a call, and SHALL state in the plan and the receipt, per dimension, when calls without reported tokens make `max_tokens` unenforceable or calls without a reported cost make `max_cost_usd` unenforceable, whatever those calls' usage status.
 
 **REQ-RP-BUD-07**
 Priority: Must
 Type: Ubiquitous
-THE SYSTEM SHALL add to `review-receipt.json` an optional `session` object carrying the session id, attempt id and sequence, session state, attempt end reason, limits, used and remaining values, and one row per call of the attempt with call id, round, role, reason, provider, model and effort or `unknown`, usage, start time, duration, and end reason, SHALL write no prompt text, output text, or secret into it, and SHALL keep every existing receipt field and the loading of receipts without the object.
+THE SYSTEM SHALL add to `review-receipt.json` an optional `session` object carrying the session id, attempt id and sequence, session state, attempt end reason, limits, used values, session wall-clock, notes, and one row per call of the attempt with call id, round, role, reason, provider, model and effort or `unknown`, usage, start time, duration, and end reason, SHALL write no prompt text, provider output text, or secret into that object, and SHALL keep every existing receipt field with its existing content (the judge rationale stays, truncated to 500 runes) and the loading of receipts without the object.
 
 **REQ-RP-BUD-08**
 Priority: Must
@@ -229,7 +231,7 @@ None as siblings. Reused contracts: the lean profile of the compact-change work 
 | REQ-RP-POL-01 | T1 | S1 | INV-RP-01 |
 | REQ-RP-POL-02 | T1, T2 | S2 | INV-RP-02 |
 | REQ-RP-POL-03 | T3 | S3 | INV-RP-03 |
-| REQ-RP-POL-04 | T3 | S3 | INV-RP-03 |
+| REQ-RP-POL-04 | T3 | S3, S5 | INV-RP-03 |
 | REQ-RP-POL-05 | T3 | S3 | INV-RP-03 |
 | REQ-RP-POL-06 | T3 | S4 | INV-RP-04 |
 | REQ-RP-POL-07 | T3 | S5 | INV-RP-05 |
@@ -242,11 +244,11 @@ None as siblings. Reused contracts: the lean profile of the compact-change work 
 | REQ-RP-PLAN-04 | T5 | S8 | INV-RP-07 |
 | REQ-RP-PLAN-05 | T6 | S7 | INV-RP-08 |
 | REQ-RP-PLAN-06 | T6 | S7 | INV-RP-08 |
-| REQ-RP-BUD-01 | T7 | S9 | INV-RP-09 |
+| REQ-RP-BUD-01 | T7, T8 | S9, S17, S18 | INV-RP-09 |
 | REQ-RP-BUD-02 | T8, T9 | S10 | INV-RP-09 |
 | REQ-RP-BUD-03 | T9 | S11 | INV-RP-10 |
 | REQ-RP-BUD-04 | T10 | S12 | INV-RP-11 |
-| REQ-RP-BUD-05 | T10 | S13 | INV-RP-11 |
+| REQ-RP-BUD-05 | T10 | S11, S13 | INV-RP-11 |
 | REQ-RP-BUD-06 | T9 | S14 | INV-RP-10 |
 | REQ-RP-BUD-07 | T11 | S15 | INV-RP-10 |
 | REQ-RP-BUD-08 | T8 | S10, S12 | INV-RP-09 |

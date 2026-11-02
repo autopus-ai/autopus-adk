@@ -34,8 +34,12 @@ a high-risk change cannot skip a full gate by labelling itself lean.
 A review never reports an allowed omission. The quality checklist items that
 only check an omitted section (`Q-COMP-08`, `Q-COMP-07`, `Q-CORR-04`) are
 answered N/A, and when a reviewer still reports FAIL for one of them while the
-section is absent, the CLI records it as N/A with the reason. A lean SPEC that
-did write the section is checked as usual. Missing acceptance, security, and
+section is absent, the CLI records it as N/A with the reason. A finding whose
+only subject is an omitted, absent section is deferred as advisory: it must
+name that section and say it is missing, and it must not be in an impact
+category, use the escape hatch, name a lean-floor section, or cite a
+requirement or acceptance id (`REQ-…`, `AC-…`, `S1`). A lean SPEC that did
+write the section is checked as usual. Missing acceptance, security, and
 data-loss problems block a lean SPEC exactly as they block a full one.
 
 ## What blocks
@@ -52,7 +56,8 @@ rules:
 - Advisory: severity suggestion outside the impact categories, and style,
   suggestion, or improvement findings below major. Wording, a nicer structure,
   and choices delegated to the implementer are reported as suggestion.
-- A failing checklist item in a REVISE vote blocks.
+- A reviewer's REJECT vote blocks, and so does a failing checklist item of any
+  usable reviewer, whatever that reviewer voted.
 - PASS only when nothing blocks; REVISE when something blocks and the design can
   be fixed in place; REJECT only when a reviewer or the judge states a
   fundamental redesign.
@@ -60,7 +65,11 @@ rules:
 A judge PASS never waives an accepted blocking finding: the runtime keeps it
 open and names it. A judge clears a finding by rejecting it with a reason, or
 by accepting it at severity suggestion when it is advice (the impact categories
-have no advisory severity).
+have no advisory severity). A judge PASS also leaves every reviewer REJECT vote
+and checklist FAIL blocking unless the judge dismisses that exact item: an
+entry with `decision: "reject"`, a reason, `sources` naming that reviewer, and
+`scope_ref` `verdict` (the vote) or the checklist id (for example
+`Q-COMP-08`). The receipt lists the dismissals under `judge.dismissals`.
 
 `spec.review_gate.pass_criteria` adds project criteria after these rules; it
 cannot replace them.
@@ -73,6 +82,9 @@ Changed behaviour (SPEC-REVIEWPOLICY-001):
   completeness finding now resolves REVISE instead of PASS.
 - A structured reviewer's `contract` and `data_loss` categories are kept
   instead of becoming `completeness`.
+- A judge PASS no longer overrides a reviewer's REJECT vote or checklist FAIL it
+  did not dismiss, and a reviewer that votes PASS while reporting a checklist
+  FAIL now resolves REVISE.
 - `auto spec validate` holds a refused lean declaration to the full section set.
 
 ## The review plan
@@ -150,10 +162,18 @@ spec:
 
 Every key is optional; absent or 0 means no limit for that dimension, so a
 configuration without the section records the ledger and limits nothing.
-`--max-calls N` and `--max-minutes N` override the configuration for the
-invocation. Calls and minutes are hard limits. Tokens and cost are checked
-before each call against the usage providers reported; a provider that reports
-no usage cannot be held to them, and the plan and receipt say so.
+`--max-calls N` and `--max-minutes N` (N > 0) set the limits of a new session,
+or of the current one together with `--extend-budget`. On an existing session a
+flag value that differs from the session's limit is a usage error that names
+`--extend-budget` and `--new-session` and makes no call; a changed
+configuration only warns. Calls and minutes are hard limits. Minutes are the
+wall-clock time of the invocations that made calls, summed over the session:
+waiting between invocations and an invocation that made no call cost nothing,
+parallel calls are not counted twice, and an interrupted invocation counts up
+to the end of its last call. Tokens and cost are checked before each call
+against the usage providers reported; calls that report no tokens make
+`max_tokens` unenforceable and calls that report no cost make `max_cost_usd`
+unenforceable, and the plan and receipt say so per dimension.
 
 The session lives in `{SPEC_DIR}/review-session.json`
 (`spec_review_session.v1`), next to `review-receipt.json`, guarded by
@@ -165,7 +185,8 @@ The session lives in `{SPEC_DIR}/review-session.json`
 - A round starts only when the remaining calls cover its reviewers. A round in
   which the budget blocked or cancelled a call ends with `loop_status:
   budget_exhausted`, the degraded reason `budget_exhausted`, and the blocking
-  reason `budget_exhausted`; it is never a PASS.
+  reason `budget_exhausted`; it is never a PASS, never `gate_status: passed`,
+  and never promotes the SPEC, and `--allow-degraded` does not override it.
 - When the wall-clock budget runs out, in-flight calls are cancelled through
   their context and recorded with end reason `budget_exhausted`; completed calls
   and their outputs are kept.
@@ -198,9 +219,10 @@ of the invocation, ordered by round, reviewers before the judge, then provider.
 Each row has `call_id` (`<attempt>-r<round>-<provider>-<role>-<n>`, the same on
 every run), `round`, `role`, `reason` (`review`, `verify`, `json_repair`,
 `provider_fallback`, `adjudication`), `provider`, `model`, `effort`, `started`,
-`usage`, `started_at`, `duration_ms`, and `end_reason`. No prompt, output, or
-secret is written. After each run the command prints one line per call and the
-budget:
+`usage`, `started_at`, `duration_ms`, and `end_reason`. The `session` object
+holds no prompt, provider output, or secret; the existing fields keep what they
+held before, including the judge rationale truncated to 500 characters. After
+each run the command prints one line per call and the budget:
 
 ```
 모델 호출 4회 (세션 orch-…, 시도 a1):
