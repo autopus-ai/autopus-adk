@@ -135,6 +135,14 @@ Optional improvements. They do not block sync completion and carry no identifier
 | F-PRR-09 checklist record | every Q item below |
 | F-PRR-10 probe class | B3 is an `implementation_assumption` |
 
+## Review Response (codex round 2, 2026-11-02, judge REVISE, 3 new)
+
+| Finding | Resolution |
+|---|---|
+| Stored evidence IDs and persistence errors kept raw | every string copied from a stored receipt is redacted, identifiers and provider receipt fields included; `combinePipelineError` and the cleanup path redact the persistence error; S13 plants the secret in a stored evidence ID, an artifact, and a persist path |
+| `(:\d+)+` masked ports, times, and statuses | only the line and column after a source location are masked; S15 keeps `localhost:5432` and `localhost:6379` apart and still matches moved line numbers |
+| no OMP oracle for re-send payload identity | S6 opens the OMP views of three re-sends: same prompt, active prompt, and history; attempts and bindings 1, 2, 3 |
+
 ## Self-Verify Summary
 
 - Q-CORR-01 | status: PASS | attempt: 2 | files: spec.md, research.md | reason: every cited symbol and behaviour was read or reproduced on 2026-11-02, including the manifest renderer
@@ -145,7 +153,7 @@ Optional improvements. They do not block sync completion and carry no identifier
 - Q-COMP-02 | status: PASS | attempt: 2 | files: spec.md, acceptance.md | reason: 25 requirements map to S1–S17, including OMP restore, duplicate and schema rejection, and both prompt paths
 - Q-COMP-03 | status: PASS | attempt: 1 | files: plan.md | reason: tasks follow the commit order R4, R3, R2 with one verification task
 - Q-COMP-04 | status: PASS | attempt: 2 | files: spec.md, research.md | reason: Outcome Lock adds redaction of every failure string and marked display bounds; S13 and S14 close them
-- Q-COMP-05 | status: PASS | attempt: 2 | files: research.md, spec.md, acceptance.md | reason: INV-P01 to INV-P14 map to requirements, tasks, and Must oracles with exact values, including review identity and request identity
+- Q-COMP-05 | status: PASS | attempt: 3 | files: research.md, spec.md, acceptance.md | reason: INV-P01 to INV-P14 map to requirements, tasks, and Must oracles with exact values, including review identity across ports and moved lines and the OMP re-send payload
 - Q-COMP-06 | status: PASS | attempt: 1 | files: spec.md, research.md | reason: Traceability Matrix carries the invariant column; Reviewer Brief names the focus areas
 - Q-COMP-07 | status: PASS | attempt: 1 | files: research.md | reason: Completion Debt is empty and Evolution Ideas carry no identifiers
 - Q-COMP-08 | status: PASS | attempt: 2 | files: plan.md | reason: three probe rows executed on the base commit with PASS status and evidence, each classed `implementation_assumption`
@@ -156,7 +164,7 @@ Optional improvements. They do not block sync completion and carry no identifier
 - Q-STYLE-02 | status: PASS | attempt: 1 | files: spec.md | reason: every requirement has Priority Must on its own line apart from the EARS type
 - Q-STYLE-03 | status: PASS | attempt: 1 | files: spec.md, acceptance.md | reason: complete sentences and bare Given/When/Then/And steps that the parser reads
 - Q-SEC-01 | status: PASS | attempt: 1 | files: spec.md, research.md | reason: model output, review text, and the brief are untrusted; injection markers are neutralized and the retry sentinel's trust condition is stated
-- Q-SEC-02 | status: PASS | attempt: 2 | files: spec.md, acceptance.md | reason: FAIL-05 redacts every stored, forwarded, and returned failure string while keeping error identity; S13 plants a secret in a backend error and in a stored receipt
+- Q-SEC-02 | status: PASS | attempt: 3 | files: spec.md, acceptance.md | reason: FAIL-05 redacts every stored, forwarded, and returned failure string, every string copied from a stored receipt, and embedded persistence errors, keeping error identity; S13 plants the secret in each path
 - Q-SEC-03 | status: PASS | attempt: 2 | files: spec.md, research.md | reason: checkpoint, sidecar, and lineage hold redacted, bounded evidence only; manifest entries hold hashes, never content
 - Q-COH-01 | status: PASS | attempt: 1 | files: spec.md | reason: admission, remediation, and resume form one run-and-resume lifecycle of the canonical engine
 - Q-COH-02 | status: PASS | attempt: 1 | files: research.md | reason: R5 and R10 stay explicit non-goals; nothing required is deferred

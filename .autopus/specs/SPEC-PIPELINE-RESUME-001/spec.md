@@ -100,7 +100,7 @@ WHEN the review gate fails with `review_rejection` and budget remains, THEN THE 
 **REQ-PRR-FAIL-05**
 Priority: Must
 Type: Ubiquitous
-THE SYSTEM SHALL redact secret patterns to `[REDACTED_SECRET]` and neutralize injection markers in every failure string it stores, forwards, or returns — failure records, the receipt blocker, transition reasons and phase errors, the blocked sidecar, every `prior_attempts` entry copied from a stored receipt, restored fix feedback, and the message of the error the run returns — while keeping identifiers, commands, expected and actual values, and finding text, and while the returned error keeps its identity for `errors.Is`.
+THE SYSTEM SHALL redact secret patterns to `[REDACTED_SECRET]` and neutralize injection markers in every failure string it stores, forwards, or returns — failure records, the receipt blocker, transition reasons and phase errors, the blocked sidecar, every string copied from a stored receipt into `task_id`, `resumed_from`, or `prior_attempts` (identifiers, provider receipt fields, and evidence IDs included), restored fix feedback, and the message of the error the run returns, persistence errors embedded in it included — while keeping identifiers, commands, expected and actual values, and finding text, and while the returned error keeps its identity for `errors.Is`.
 
 **REQ-PRR-FAIL-06**
 Priority: Must
@@ -135,7 +135,7 @@ THE SYSTEM SHALL carry in the feedback and the failure record at most 20 evidenc
 **REQ-PRR-FAIL-12**
 Priority: Must
 Type: Ubiquitous
-THE SYSTEM SHALL identify a review finding by its normalized evidence and fix condition (lowercased, whitespace collapsed, `file:line` numbers masked) and never by its reviewer-assigned ID, so a reused ID for a new problem is progress and the same problem under a new ID is not; a finding with neither text is identified by its ID.
+THE SYSTEM SHALL identify a review finding by its normalized evidence and fix condition (lowercased, whitespace collapsed, and the `:line` or `:line:col` of a source location masked, a source location being a token with a path separator or a source or text file extension and never a URL authority, so ports, times, and other `:digits` are kept) and never by its reviewer-assigned ID, so a reused ID for a new problem is progress and the same problem under a new ID is not; a finding with neither text is identified by its ID.
 
 ### Phase Outputs and Lineage (R2)
 
@@ -203,7 +203,7 @@ The gate contract (verdict and report-line request) is appended after rendering 
 
 - `[NEW] pkg/pipeline/response_contract.go`: `admitPhaseResponse`, `validatePhaseResponse` (moved from `engine_prompt.go`).
 - `pkg/pipeline/runner.go`, `parallel_dispatch.go`: admission before verdict parsing.
-- `[NEW] pkg/pipeline/phase_failure.go`, `[NEW] phase_failure_report.go`, `[NEW] phase_failure_feedback.go`, `[NEW] failure_redaction.go`: classification, evidence and signatures, display bounds, feedback rendering and its manifest layer, redaction of stored and returned strings.
+- `[NEW] pkg/pipeline/phase_failure.go`, `[NEW] phase_failure_report.go`, `[NEW] phase_failure_feedback.go`, `[NEW] failure_redaction.go`, `[NEW] finding_identity.go`: classification, evidence and signatures, finding normalization, display bounds, feedback rendering and its manifest layer, redaction of stored and returned strings.
 - `[NEW] pkg/pipeline/engine_dispatch.go`, `[NEW] engine_remediation.go`: one dispatch and its admission, transport retry and backoff, phase completion, fix routing, breaker, budget.
 - `pkg/pipeline/engine_run.go`, `engine_prompt.go`, `engine.go`, `phase_prompt.go`, `omp_execution_view.go`, `phase.go`, `receipt.go`: the remediation loop, gate report request, the shared prior-input table and `PhaseContext.Feedback`, `ExternalWrites`, optional receipt fields, redacted reasons and blocker.
 - `[NEW] pkg/pipeline/phase_output.go`, `[NEW] checkpoint_restore.go`, `[NEW] receipt_lineage.go`; `checkpoint.go`, `types.go`, `engine_persist.go`: records, resume plan, lineage, checkpoint v2.

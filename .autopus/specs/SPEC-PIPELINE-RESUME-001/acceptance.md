@@ -60,13 +60,13 @@ Then there are 8 calls (4 implement, 4 validate), the error contains `gate valid
 Priority: Must
 Given an engine whose sleep is recorded instead of waited
 When implement fails twice with an error wrapping `ErrRetryableTransport` and then answers `IMPL`
-Then the calls are `implement, implement, implement, validate, review`, the three implement prompts are identical while their attempt numbers are `1, 2, 3`, the recorded waits are exactly `[1s 2s]`, the run completes, and two failures carry decision `retry_transport`
+Then the calls are `implement, implement, implement, validate, review`, the three implement prompts are identical while their attempt numbers are `1, 2, 3`, on OMP the three sealed views also carry the same active prompt and completed history while their bindings advance through attempts `1, 2, 3`, the recorded waits are exactly `[1s 2s]`, the run completes, and two failures carry decision `retry_transport`
 When implement always fails that way
 Then there are exactly three implement calls, waits `[1s 2s]`, and the terminal state is `blocked`
 When implement fails once with `connection reset` (unmarked), with `TimedOut: true`, or validate answers `looks fine` with no verdict line
 Then there is no further dispatch after that failure, no wait, and the failure kind is `transport_failure`, `timeout`, or `contract_violation` respectively
 When the context is cancelled during a wait
-Then the terminal state is `cancelled` (tests `TestEngineTransportRetry_*`, `TestSubprocessEngine_NonRetryableFailuresStopWithoutAnotherCall`).
+Then the terminal state is `cancelled` (tests `TestEngineTransportRetry_*`, `TestEngineTransportRetry_OMPResendKeepsTheModelVisiblePayload`, `TestSubprocessEngine_NonRetryableFailuresStopWithoutAnotherCall`).
 
 ### S7: AC-PRR-007 - Resume restores the dynamic outputs into the same prompt
 Priority: Must
@@ -115,9 +115,12 @@ Priority: Must
 Given a compact run whose implement backend fails with an error wrapping a sentinel and carrying `Authorization: Bearer sk-proj-backendsecret0123456789abcdef`
 When the engine runs with a checkpoint directory
 Then `errors.Is(err, sentinel)` holds, the returned message contains `[REDACTED_SECRET]` and not the secret, and neither the marshalled receipt (blocker, transitions, phase errors, failures) nor the checkpoint file contains it
-Given a v1 checkpoint whose stored receipt has that secret in its blocker, a failure summary, and an excerpt
+Given a v1 checkpoint whose stored receipt has that secret in its blocker, a provider receipt artifact, and a routed fix's summary, excerpt, and evidence ID
 When it is resumed once with plan and test_scaffold done and once with only plan done
-Then the blocked sidecar of the first and the receipt and checkpoint of the second never contain the secret, and their `prior_attempts` blocker contains `[REDACTED_SECRET]` (tests `TestSubprocessEngine_BackendErrorSecretNeverPersistsOrSurfaces`, `TestSubprocessEngine_ResumeRedactsPriorReceiptSecrets`, `TestRedactError_KeepsIdentityAndRedactsMessage`).
+Then the blocked sidecar of the first and the receipt, checkpoint, and resumed fix prompt of the second never contain the secret, and their `prior_attempts` blocker contains `[REDACTED_SECRET]`
+Given a checkpoint path that quotes the secret and cannot be written
+When the run fails to persist
+Then the returned error contains `[REDACTED_SECRET]` and not the secret (tests `TestSubprocessEngine_BackendErrorSecretNeverPersistsOrSurfaces`, `TestSubprocessEngine_ResumeRedactsPriorReceiptSecrets`, `TestSubprocessEngine_PersistErrorSecretNeverSurfaces`, `TestRedactError_KeepsIdentityAndRedactsMessage`).
 
 ### S14: AC-PRR-014 - Display bounds are marked and never blur a failure
 Priority: Must
@@ -135,7 +138,10 @@ When the engine runs
 Then the run completes after three reviews with two `remediate` failures of different fingerprints
 Given the second rejection is instead `FINDING F-9: Handler drops ctx cancellation (engine.go:57)` with the same fix condition
 When the engine runs
-Then the calls stop at `implement, validate, review, implement, validate, review` with `circuit_break_no_progress` (tests `TestSubprocessEngine_ReusedFindingIDForANewProblemIsProgress`, `TestSubprocessEngine_RenumberedSameFindingTripsTheBreaker`, `TestFailureSignatures_FindingIdentityIsContentNotID`).
+Then the calls stop at `implement, validate, review, implement, validate, review` with `circuit_break_no_progress`
+Given two rejections that differ only in `localhost:5432` against `localhost:6379`
+When the engine runs
+Then the second is progress and the run completes, while `engine.go:42` against `engine.go:57` normalize alike and `status:1`, `10:30`, `api.example.com:443`, and URL ports stay distinct (tests `TestSubprocessEngine_ReusedFindingIDForANewProblemIsProgress`, `TestSubprocessEngine_RenumberedSameFindingTripsTheBreaker`, `TestSubprocessEngine_FindingsThatDifferOnlyInAPortStayDistinct`, `TestFailureSignatures_FindingIdentityIsContentNotID`, `TestNormalizeFindingText_MasksOnlySourceLocations`).
 
 ### S16: AC-PRR-016 - Feedback and restored outputs are manifest layers
 Priority: Must
