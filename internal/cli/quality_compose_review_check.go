@@ -69,6 +69,7 @@ func reviewCandidate(cfg *config.HarnessConfig, b reviewBaseline, working review
 	candidate.Orchestra.Providers = maps.Clone(candidate.Orchestra.Providers)
 	candidate.Spec.ReviewGate.Providers = slices.Clone(working.Providers)
 	candidate.Spec.ReviewGate.Judge = working.Judge
+	candidate.Spec.ReviewGate.JudgeModel, candidate.Spec.ReviewGate.JudgeEffort = working.JudgeModel.Model, working.JudgeModel.Effort
 	// Validation has passed every value, and a value the planner would
 	// still refuse leaves its entry as it was: the check never runs it.
 	_ = applyReviewEntries(candidate.Orchestra.Providers, b, working)

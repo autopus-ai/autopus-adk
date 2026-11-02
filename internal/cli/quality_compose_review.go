@@ -176,11 +176,17 @@ func (f *composeFormRun) reviewModel(tab *reviewTabState, name string, choices [
 // judge takes part or is empty, otherwise the judge-off note and only the
 // participating providers, the first as default. No option turns a judge
 // into judge 없음. A judge written as a placeholder gets the value refusal
-// line instead and stays (REQ-RVM-26).
+// line instead and stays (REQ-RVM-26), as does a judge whose judge model is
+// one. A judge that takes part also offers its judge model last, and a new
+// judge asks its judge model (SPEC-JUDGEMODEL-001 REQ-JM-TUI-01).
 func (f *composeFormRun) reviewJudge(tab *reviewTabState) error {
 	text := f.reviewText()
 	if raw := tab.baseline.RawJudge; strings.Contains(raw, "${") {
 		f.reviewLine(fmt.Sprintf(text.CLIValueRefused, "spec.review_gate", "judge", raw))
+		return nil
+	}
+	if line := reviewJudgeModelRefusal(tab.baseline, text); line != "" {
+		f.reviewLine(line)
 		return nil
 	}
 	current := tab.working.Judge
@@ -189,7 +195,8 @@ func (f *composeFormRun) reviewJudge(tab *reviewTabState) error {
 	case current == "":
 		options = append(options, composeOption[string]{f.form.Keep + " — " + text.NoJudge, ""})
 	case tab.working.takesPart(current):
-		options = append(options, composeOption[string]{f.form.Keep + " — " + tab.baseline.judgeText(current), current})
+		keep := tab.baseline.judgeText(current) + reviewJudgeModelSuffix(tab.baseline, tab.working)
+		options = append(options, composeOption[string]{f.form.Keep + " — " + keep, current})
 	default:
 		f.reviewLine(fmt.Sprintf(text.JudgeOff, tab.baseline.judgeText(current)))
 	}
@@ -199,12 +206,12 @@ func (f *composeFormRun) reviewJudge(tab *reviewTabState) error {
 			options = append(options, composeOption[string]{name, name})
 		}
 	}
+	options = append(options, f.reviewJudgeModelOption(tab)...)
 	judge, err := composeSelect(f.cmd, text.Judge, "", options, options[0].value)
 	if err != nil {
 		return err
 	}
-	tab.working.Judge = judge
-	return nil
+	return f.reviewJudgeAnswer(tab, judge)
 }
 
 // reviewPreview prints the after table, the change lines, and the fixed

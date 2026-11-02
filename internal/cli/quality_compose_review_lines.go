@@ -9,9 +9,10 @@ import (
 
 // reviewChangeLines lists the change lines in Review Tab Contract order —
 // spec.review_gate.providers, then per provider its backend, model,
-// model_policy, and args, then spec.review_gate.judge — and the fixed notes:
-// the commands note when a provider was turned off, the model note when a
-// model or effort changed.
+// model_policy, and args, then spec.review_gate.judge and the judge model
+// keys — and the fixed notes: the commands note when a provider was turned
+// off, the model note when a model or effort changed, and the judge model
+// note when a judge model is set (SPEC-JUDGEMODEL-001).
 func reviewChangeLines(b reviewBaseline, working reviewComposition, text composeReviewText) (changes, notes []string) {
 	turnedOff, modelChanged := false, false
 	if !slices.Equal(working.Providers, b.Providers) {
@@ -26,11 +27,16 @@ func reviewChangeLines(b reviewBaseline, working reviewComposition, text compose
 	if working.Judge != b.Judge {
 		changes = append(changes, "spec.review_gate.judge "+reviewJudgeText(b.RawJudge, text)+" → "+reviewJudgeText(working.Judge, text))
 	}
+	judgeModel, judgeModelSet := reviewJudgeModelChanges(b, working, text)
+	changes = append(changes, judgeModel...)
 	if turnedOff {
 		notes = append(notes, text.CommandsNote)
 	}
 	if modelChanged {
 		notes = append(notes, text.ModelNote)
+	}
+	if judgeModelSet {
+		notes = append(notes, text.JudgeModelNote)
 	}
 	return changes, notes
 }
@@ -123,15 +129,12 @@ func reviewAfterTable(b reviewBaseline, working reviewComposition, text composeR
 				model = reviewCLICellText(binary, value)
 			}
 		}
-		judge := ""
-		if working.Judge == name {
-			judge = text.Judge
-		}
+		judge, judgeChanged := reviewJudgeCell(b, working, name, text)
 		layout.rows = append(layout.rows, []string{
 			name,
 			reviewMarked(state, on != b.takesPart(name)),
 			reviewMarked(model, changed),
-			reviewMarked(judge, (working.Judge == name) != (b.Judge == name)),
+			reviewMarked(judge, judgeChanged),
 		})
 	}
 	return escapeComposeTableLayout(layout)

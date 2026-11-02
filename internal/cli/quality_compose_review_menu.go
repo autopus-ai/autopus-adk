@@ -74,7 +74,7 @@ func reviewSummaryLine(b reviewBaseline, text composeReviewText) string {
 	}
 	judge := text.NoJudge
 	if b.RawJudge != "" {
-		judge = fmt.Sprintf(text.SummaryJudge, b.RawJudge)
+		judge = fmt.Sprintf(text.SummaryJudge, b.RawJudge) + b.summaryJudgeModel()
 	}
 	return text.Tab + ": " + strings.Join(append(parts, judge), " · ")
 }

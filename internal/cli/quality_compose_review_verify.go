@@ -52,7 +52,7 @@ func verifyReviewLineEdit(original, edited []byte, targets []reviewTarget) error
 		case target.isList:
 			want.Spec.ReviewGate.Providers = slices.Clone(target.list)
 		case target.path[0] == "spec":
-			want.Spec.ReviewGate.Judge = target.value
+			setReviewGateTarget(&want.Spec.ReviewGate, target)
 		default:
 			name := target.path[2]
 			entry := want.Orchestra.Providers[name]
@@ -87,10 +87,11 @@ func verifyReviewLineEdit(original, edited []byte, targets []reviewTarget) error
 // heldBy reports a node that holds the planned value: every value the splice
 // writes is a plain string, and every args element it leaves is still a
 // scalar with its raw value, whatever its tag, so a number or a bool next to
-// the target values never refuses the edit (REQ-RVM-25).
+// the target values never refuses the edit (REQ-RVM-25). A removed key is
+// held by its absence (SPEC-JUDGEMODEL-001).
 func (t reviewTarget) heldBy(node *yaml.Node) bool {
-	if node == nil {
-		return false
+	if t.remove || node == nil {
+		return t.remove && node == nil
 	}
 	if !t.isList && t.args == nil {
 		return node.Kind == yaml.ScalarNode && node.ShortTag() == "!!str" && node.Value == t.value

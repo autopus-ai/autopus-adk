@@ -208,6 +208,11 @@ func (f *composeFormRun) reviewSwitch(tab *reviewTabState, name string, choices 
 	tab.attested.OMP[name] = choices
 	tab.working.OMP[name] = true
 	tab.working.Models[name] = selector + ":" + thinking
+	// A judge model is written for its provider's backend, so a judge
+	// that switches goes back to the reviewer model (SPEC-JUDGEMODEL-001).
+	if tab.working.Judge == name {
+		tab.working.JudgeModel = reviewJudgeModel{}
+	}
 	return nil
 }
 

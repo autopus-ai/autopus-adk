@@ -21,12 +21,15 @@ type reviewComposition struct {
 	// CLI is the model and effort of every CLI provider.
 	CLI   map[string]reviewCLIValue
 	Judge string
+	// JudgeModel is spec.review_gate.judge_model and judge_effort
+	// (SPEC-JUDGEMODEL-001).
+	JudgeModel reviewJudgeModel
 }
 
 func (c reviewComposition) clone() reviewComposition {
 	return reviewComposition{
 		Providers: slices.Clone(c.Providers), OMP: maps.Clone(c.OMP), Models: maps.Clone(c.Models),
-		CLI: maps.Clone(c.CLI), Judge: c.Judge,
+		CLI: maps.Clone(c.CLI), Judge: c.Judge, JudgeModel: c.JudgeModel,
 	}
 }
 
@@ -50,6 +53,8 @@ type reviewBaseline struct {
 	// RawJudge is how the judge is written.
 	NamesOK  bool
 	RawJudge string
+	// RawJudgeModel is the judge model as written.
+	RawJudgeModel reviewJudgeModel
 	// Migrated is each CLI provider's args after config.MigrateOrchestraConfig,
 	// which decide its current model and effort (REQ-RVM-25).
 	Migrated map[string][]string
@@ -69,10 +74,12 @@ func newReviewBaseline(cfg *config.HarnessConfig, raw *reviewRawDocument) review
 		reviewComposition: reviewComposition{
 			Providers: slices.Clone(cfg.Spec.ReviewGate.Providers),
 			OMP:       map[string]bool{}, Models: map[string]string{}, CLI: map[string]reviewCLIValue{},
-			Judge: cfg.Spec.ReviewGate.Judge,
+			Judge:      cfg.Spec.ReviewGate.Judge,
+			JudgeModel: reviewJudgeModel{Model: cfg.Spec.ReviewGate.JudgeModel, Effort: cfg.Spec.ReviewGate.JudgeEffort},
 		},
 		Visible:  sortedProviderKeys(cfg.Orchestra.Providers),
 		Binaries: map[string]string{}, Raw: raw.Providers, NamesOK: raw.Names, RawJudge: judge, Migrated: map[string][]string{},
+		RawJudgeModel: reviewJudgeModel{Model: raw.JudgeModel, Effort: raw.JudgeEffort},
 	}
 	migrated := reviewMigratedConfig(cfg)
 	for name, entry := range cfg.Orchestra.Providers {
@@ -193,6 +200,9 @@ func planReviewComposition(b reviewBaseline, working reviewComposition, attested
 	}
 	if working.Judge != "" && !working.takesPart(working.Judge) {
 		return reviewPlan{}, reviewPlanError(fmt.Sprintf(text.ErrJudge, b.judgeText(working.Judge)))
+	}
+	if err := attestReviewJudgeModel(b, working, attested, text); err != nil {
+		return reviewPlan{}, err
 	}
 	for _, name := range b.Visible {
 		var err error

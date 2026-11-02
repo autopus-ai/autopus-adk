@@ -89,6 +89,8 @@ func planReviewSpan(root *yaml.Node, aliased map[*yaml.Node]bool, lines []string
 		switch {
 		case yamlMappingHasMerge(node):
 			return nil, nil, false
+		case key == nil && target.remove:
+			return nil, nil, true
 		case key == nil && target.isList:
 			return nil, nil, false
 		case key == nil && target.args != nil:
@@ -105,6 +107,9 @@ func planReviewSpan(root *yaml.Node, aliased map[*yaml.Node]bool, lines []string
 		case target.args != nil:
 			edits, ok := spliceReviewArgsTarget(key, value, lines, newline, target)
 			return edits, nil, ok
+		case target.remove:
+			edit, ok := removeReviewScalarLine(key, value, lines)
+			return []reviewLineEdit{edit}, nil, ok
 		}
 		edit, ok := spliceReviewScalar(key, value, lines, target.value)
 		return []reviewLineEdit{edit}, nil, ok
