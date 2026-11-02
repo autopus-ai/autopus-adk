@@ -59,6 +59,9 @@ type specReviewSessionAttempt struct {
 	FinishedAt string `json:"finished_at,omitempty"`
 	DurationMS int64  `json:"duration_ms"`
 	EndReason  string `json:"end_reason,omitempty"`
+	// ForcedReview marks an invocation that skipped result reuse with
+	// --force-review (SPEC-REVIEWREUSE-001 REQ-RR-REUSE-07).
+	ForcedReview bool `json:"forced_review,omitempty"`
 }
 
 // specReviewSessionFile is the versioned on-disk session.

@@ -37,6 +37,10 @@ type specReviewLoopParams struct {
 	// mode that calls the judge only when the round needs it
 	// (SPEC-REVIEWREUSE-001 REQ-RR-JDG-01).
 	judgeMode string
+	// policy and requiredDocuments feed the round fingerprint
+	// (SPEC-REVIEWREUSE-001 REQ-RR-REUSE-01).
+	policy            specReviewPolicyIdentity
+	requiredDocuments []string
 }
 
 func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFindings []spec.ReviewFinding) (*spec.ReviewResult, error) {
@@ -75,9 +79,12 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 			break
 		}
 
-		prompt, staticFindings, err := buildSpecReviewProviderPrompt(p, doc, priorFindings, revision)
+		prompt, staticFindings, delivery, err := buildSpecReviewProviderPrompt(p, doc, priorFindings, revision)
 		if err != nil {
 			return nil, fmt.Errorf("리뷰 필수 문서 전달 실패: %w", err)
+		}
+		if p.runtimeEvidence != nil {
+			p.runtimeEvidence.Fingerprint = specReviewRoundFingerprint(p, delivery)
 		}
 
 		// WorkingDir is the review's project root: the OMP review backend reads it.

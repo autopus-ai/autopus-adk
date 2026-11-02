@@ -74,6 +74,8 @@ type specReviewSessionReceipt struct {
 	ExhaustedBy string                 `json:"exhausted_by,omitempty"`
 	Notes       []string               `json:"notes,omitempty"`
 	Calls       []specReviewCallRecord `json:"calls"`
+	// ForcedReview marks an invocation run with --force-review.
+	ForcedReview bool `json:"forced_review,omitempty"`
 }
 
 // mergeSpecReviewCallRows deduplicates rows by (session, call id). An
@@ -184,7 +186,7 @@ func (l *specReviewLedger) receiptLocked() *specReviewSessionReceipt {
 		AttemptSeq: attempt.Seq, State: l.file.State, EndReason: attempt.EndReason, Limits: l.file.Limits,
 		Used: specReviewSessionTotals(l.file.Calls), DurationMS: l.usedWallClockMS(true),
 		ExhaustedBy: l.exhaustionLocked(), Notes: specReviewBudgetNotes(l.file.Limits, l.file.Calls),
-		Calls: []specReviewCallRecord{},
+		Calls: []specReviewCallRecord{}, ForcedReview: attempt.ForcedReview,
 	}
 	for _, call := range l.file.Calls {
 		if call.AttemptID == attempt.AttemptID {
