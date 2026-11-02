@@ -97,14 +97,14 @@ func TestChildProblem_RulesPerEntryKind(t *testing.T) {
 		return st
 	}
 	dev := uint64(entry(unix.S_IFREG).Dev)
-	assert.Equal(t, "", childProblem(entry(unix.S_IFREG), dev, 1))
-	assert.Equal(t, "", childProblem(entry(unix.S_IFDIR), dev, 1))
-	assert.Equal(t, ProblemDevice, childProblem(entry(unix.S_IFREG), dev+1, 1), "a file on another device")
-	assert.Equal(t, ProblemDevice, childProblem(entry(unix.S_IFDIR), dev+1, 1), "a directory on another device")
-	assert.Equal(t, ProblemUnbounded, childProblem(entry(unix.S_IFDIR), dev, treeMaxDepth))
-	assert.Equal(t, "", childProblem(entry(unix.S_IFREG), dev, treeMaxDepth), "the depth bound is for directories")
+	assert.Equal(t, "", childProblem(entry(unix.S_IFREG), dev, 1, strictTree))
+	assert.Equal(t, "", childProblem(entry(unix.S_IFDIR), dev, 1, strictTree))
+	assert.Equal(t, ProblemDevice, childProblem(entry(unix.S_IFREG), dev+1, 1, strictTree), "a file on another device")
+	assert.Equal(t, ProblemDevice, childProblem(entry(unix.S_IFDIR), dev+1, 1, strictTree), "a directory on another device")
+	assert.Equal(t, ProblemUnbounded, childProblem(entry(unix.S_IFDIR), dev, treeMaxDepth, strictTree))
+	assert.Equal(t, "", childProblem(entry(unix.S_IFREG), dev, treeMaxDepth, strictTree), "the depth bound is for directories")
 	for _, kind := range []uint32{unix.S_IFLNK, unix.S_IFIFO, unix.S_IFSOCK, unix.S_IFCHR} {
-		assert.Equal(t, ProblemSymlink, childProblem(entry(kind), dev, 1), kind)
+		assert.Equal(t, ProblemSymlink, childProblem(entry(kind), dev, 1, strictTree), kind)
 	}
 }
 

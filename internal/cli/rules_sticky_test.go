@@ -35,7 +35,23 @@ func runRulesListIn(t *testing.T, dir string) string {
 // runRulesSticky executes `auto rules sticky` in dir and returns stdout/stderr.
 func runRulesSticky(t *testing.T, dir, stdin string) (string, string) {
 	t.Helper()
+	// Free space far above any floor, so the SPEC-DISK-002 alert never joins
+	// the output on a nearly full machine.
+	return runRulesStickyWithFree(t, dir, stdin, gib(100000))
+}
+
+// runRulesStickyWithFree runs the sticky command with free space pinned.
+func runRulesStickyWithFree(t *testing.T, dir, stdin string, free int64) (string, string) {
+	t.Helper()
+	withDiskFree(t, free, "/fixture")
 	t.Chdir(dir)
+	return runRulesStickyNoPin(t, stdin)
+}
+
+// runRulesStickyNoPin runs the sticky command in the current directory with
+// whatever free-space seam the test installed.
+func runRulesStickyNoPin(t *testing.T, stdin string) (string, string) {
+	t.Helper()
 
 	cmd := newRulesCmd()
 	var out, errOut bytes.Buffer

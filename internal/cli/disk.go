@@ -52,11 +52,12 @@ var (
 func newDiskCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:           "disk",
-		Short:         "Read the disk budget of a shared machine, gate heavy steps on it, and trim the Go build cache",
+		Short:         "Read the disk budget of a shared machine, gate heavy steps on it, and reclaim what finished work left",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
-	cmd.AddCommand(newDiskStatusCmd(), newDiskCheckCmd(), newDiskTrimCmd())
+	cmd.AddCommand(newDiskStatusCmd(), newDiskCheckCmd(), newDiskTrimCmd(), newDiskReclaimCmd(),
+		newDiskRegisterCmd(), newDiskReleaseCmd(), newDiskRegistryCmd(), newDiskLeaseCmd(), newDiskLogCmd())
 	return cmd
 }
 

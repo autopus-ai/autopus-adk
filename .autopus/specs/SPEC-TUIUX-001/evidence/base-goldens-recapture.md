@@ -173,9 +173,17 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 차이: `.claude/skills/agent-pipeline/references/delegation.md`·`verification.md`, `.claude/skills/worktree-isolation/SKILL.md`, `.codex/skills/codex-agent-pipeline/references/delegation.md`·`verification.md`, `.codex/skills/codex-worktree-isolation/SKILL.md`의 checksum, 두 manifest의 그 entry, 두 journal의 `after_checksum`, update 흐름의 backup 사본. 다른 경로는 바뀌지 않았다.
 - 검증: 두 test가 이 golden으로 통과한다.
 
-## 92. pipeline 수정 루프·재개 안내 재기록 (fix/pipeline-resume-retry-contract, 2026-11-02)
+## 16. 디스크 회수·lease 안내 재기록 (feat/disk-reclaim, 2026-11-02)
+
+- 원인: SPEC-DISK-002 REQ-DISK2-GUIDE-01이 같은 안내 면에 `auto disk register`·`release`로 harness 밖 worktree를 등록·해제하고, 전체 빌드·테스트를 `auto disk lease --need <GiB> -- <command>`로 돌리고, 디스크 경보나 사전 점검 실패 때 lead가 worker를 멈추게 하는 문장을 더했다.
+- 기록: 6절과 같은 방법이다(이 branch tip에서 writer, stdout golden 되돌림).
+- 차이: 15절과 같은 여섯 생성 파일의 checksum, 두 manifest의 그 entry, 두 journal의 `after_checksum`, update 흐름의 backup 사본. 다른 경로는 바뀌지 않았다.
+- 검증: 두 test가 이 golden으로 통과한다.
+
+## 17. pipeline 수정 루프·재개 안내 재기록 (fix/pipeline-resume-retry-contract, 2026-11-02)
 
 - 원인: SPEC-PIPELINE-RESUME-001(PR #251)이 agent-pipeline reference의 `phases.md`(Gate 2의 `auto pipeline run` 수정·재검증 루프와 `circuit_break_no_progress`·`failed_budget` 종료, Route selection 아래의 `pipeline_checkpoint.v2` 재개)와 `review.md`(Retry budget의 엔진 대응)에 절을 더했다.
 - 기록: 6절과 같은 방법이다(이 branch tip에서 writer). writer가 다시 쓴 `init-in.stdout`(단언하지 않는 TUIUX 확인 화면)은 `git checkout`으로 되돌렸다.
 - 차이: `.claude/skills/agent-pipeline/references/phases.md`·`review.md`, `.codex/skills/codex-agent-pipeline/references/phases.md`·`review.md`의 checksum(두 플랫폼이 같은 값), 두 manifest의 그 entry, 두 journal의 `after_checksum`, update 흐름의 backup 사본. quality 두 흐름과 stdout golden은 바뀌지 않았다.
 - 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`과 `TestInitReview_*`가 이 golden으로 통과한다.
+- 재기록 시점: main(#249, 16절)을 이 branch에 merge한 뒤 다시 기록했다.

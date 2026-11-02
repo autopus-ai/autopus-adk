@@ -82,6 +82,23 @@ func StickyFire(root, event string, cadence int, stdin io.Reader, stdout, stderr
 func StickyFireWithLanguage(
 	root, event string, cadence int, lang StickyLanguage, stdin io.Reader, stdout, stderr io.Writer,
 ) (err error) {
+	return StickyFireWithOptions(root, event, cadence, StickyOptions{Language: lang}, stdin, stdout, stderr)
+}
+
+// StickyOptions are the runtime values the CLI resolves for one firing.
+type StickyOptions struct {
+	Language StickyLanguage
+	// Alert is an advisory paragraph appended after the rule bodies on every
+	// invocation, whether or not any rule is due (SPEC-DISK-002
+	// REQ-DISK2-ALERT-01). Empty leaves the output byte-identical.
+	Alert string
+}
+
+// StickyFireWithOptions is StickyFire with the language values and an alert.
+// It keeps the same exit-zero and write-once contract.
+func StickyFireWithOptions(
+	root, event string, cadence int, opts StickyOptions, stdin io.Reader, stdout, stderr io.Writer,
+) (err error) {
 	defer func() {
 		// REQ-STICKYRULE-FIRE-11: suppress the whole defect class, including a
 		// panic, and leave no error behind. Partial stdout cannot leak because
@@ -90,34 +107,49 @@ func StickyFireWithLanguage(
 		err = nil
 	}()
 
-	stickyRun(root, event, cadence, lang, stdin, stdout, stderr)
+	stickyRun(root, event, cadence, opts, stdin, stdout, stderr)
 	return nil
 }
 
-// stickyRun is the ordered pipeline StickyFire wraps in its exit barrier. Each
-// early return is a whole-run benign case: no stdout, no stderr, no error.
-func stickyRun(root, event string, cadence int, lang StickyLanguage, stdin io.Reader, stdout, stderr io.Writer) {
+// stickyRun assembles the due rule bodies and the alert and writes them once.
+func stickyRun(root, event string, cadence int, opts StickyOptions, stdin io.Reader, stdout, stderr io.Writer) {
 	if strings.TrimSpace(event) == "" {
 		event = EventUserPromptSubmit
 	}
+	context := stickyRulesContext(root, cadence, opts.Language, stdin, stderr)
+	if opts.Alert != "" {
+		if context != "" {
+			context += "\n\n"
+		}
+		context += opts.Alert
+	}
+	var payloadBuf bytes.Buffer
+	if writeOutput(&payloadBuf, event, context) != nil {
+		return
+	}
+	_, _ = stdout.Write(payloadBuf.Bytes())
+}
 
+// stickyRulesContext is the ordered pipeline of the rule bodies. Each early
+// return is a whole-run benign case: no context, no stderr.
+func stickyRulesContext(root string, cadence int, lang StickyLanguage, stdin io.Reader, stderr io.Writer) string {
 	// The manifest is read before the counter is touched, so a project with no
 	// sticky rules never creates state for a session that can never inject.
 	sticky, rejected, ok := loadStickySet(root)
 	if !ok {
-		return
+		return ""
 	}
 
 	payload, decodeErr := decodeStickyPayload(stdin)
 	if decodeErr != nil {
-		return
+		return ""
 	}
 	index, ok := nextPromptIndex(root, payload.SessionID)
 	if !ok {
-		return
+		return ""
 	}
 	if !stickyDue(index, ResolveStickyCadence(cadence)) {
-		return
+		return ""
 	}
 
 	// Diagnostics start only once this invocation is actually due. Reporting a
@@ -127,15 +159,9 @@ func stickyRun(root, event string, cadence int, lang StickyLanguage, stdin io.Re
 
 	entries := readStickyBodies(root, sticky, stderr)
 	if len(entries) == 0 {
-		return
+		return ""
 	}
-	entries = attachLanguageValues(entries, lang)
-
-	var payloadBuf bytes.Buffer
-	if writeOutput(&payloadBuf, event, assembleStickyContext(entries)) != nil {
-		return
-	}
-	_, _ = stdout.Write(payloadBuf.Bytes())
+	return assembleStickyContext(attachLanguageValues(entries, lang))
 }
 
 // loadStickySet reads the sticky array of the manifest at its fixed

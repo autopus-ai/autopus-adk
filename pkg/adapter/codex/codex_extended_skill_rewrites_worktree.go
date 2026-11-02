@@ -19,7 +19,12 @@ Parallel writes are safe only with disjoint write ownership. Before dispatch:
 5. Run ` + "`auto disk check --need 10`" + ` and dispatch only on exit 0. Stop with a
    report when it exits 3 (insufficient free space) or with any other non-zero
    code (the measurement failed): every writer builds and tests on the one disk
-   they share.
+   they share. Run a full build or test suite as
+   ` + "`auto disk lease --need <GiB> -- <command>`" + ` (exit 3: the wait ran out);
+   register a worktree created outside the harness worktree directories with
+   ` + "`auto disk register <path>`" + `, release it with ` + "`auto disk release <path>`" + `
+   when its work ends, and tell every running worker to pause heavy work when a
+   disk alert or a failed preflight appears.
 
 Tasks that may create SQL migrations in the same owning repo and migration directory
 share one migration numbering lane and must run sequentially. Assign
