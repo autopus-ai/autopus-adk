@@ -100,3 +100,9 @@ stop and report:
 Pipeline aborted: failed to resolve <gate> after <N> retries.
 Manual intervention required. Last issue: <issues>
 ```
+
+`auto pipeline run` applies the same rule to a review `VERDICT: REQUEST_CHANGES`:
+the finding lines go back to `implement`, then validation and review run again
+on the changed code. A re-review that still reports every earlier finding stops
+the run as `circuit_break_no_progress`, and a review that spent its budget ends
+it as `failed_budget`; see Gate 2 in `references/phases.md`.

@@ -1,61 +1,46 @@
 package pipeline
 
-import (
-	"fmt"
-	"strings"
+// buildPhasePrompt assembles a phase prompt. On the frozen SPEC path a fix
+// dispatch's feedback is a manifest layer; without a SPEC directory it is
+// appended. The gate contract stays the final instruction either way.
+func (e *SubprocessEngine) buildPhasePrompt(phase Phase, previous map[PhaseID]string, feedback *PhaseFailure) (string, error) {
+	if e.promptBuilder == nil {
+		prompt := appendRemediationFeedback(buildPrompt(e.cfg.SpecID, phase.ID, previous), feedback)
+		return appendGateContract(prompt, phase.Gate), nil
+	}
+	built, err := e.promptBuilder.BuildPrompt(phase.ID, PhaseContext{
+		PreviousResults: previous, FrozenRequiredDocuments: true, Route: e.cfg.Route, Feedback: feedback,
+	})
+	if err != nil {
+		return "", err
+	}
+	return appendGateContract(built, phase.Gate), nil
+}
+
+// buildOMPActivePhasePrompt is the phase body OMP's managed sessions receive;
+// earlier outputs travel in the completed history instead.
+func (e *SubprocessEngine) buildOMPActivePhasePrompt(phase Phase, feedback *PhaseFailure) (string, error) {
+	return e.buildPhasePrompt(phase, nil, feedback)
+}
+
+// Gate report requests (SPEC-PIPELINE-RESUME-001 REQ-PRR-FAIL-09): the lines
+// a failed gate reports are the evidence its fix dispatch receives.
+const (
+	validationReportContract = "If a check fails, report each failure before the verdict line as three lines: " +
+		"FAILED_COMMAND: <exact command>, EXPECTED: <expected result>, ACTUAL: <actual result>."
+	reviewReportContract = "Report each blocking finding before the verdict line as one line: " +
+		"FINDING <ID>: <evidence with file:line> | FIX: <condition that resolves it>."
 )
-
-func (e *SubprocessEngine) buildPhasePrompt(phase Phase, previous map[PhaseID]string, legacyPrevious string) (string, error) {
-	prompt := buildPrompt(e.cfg.SpecID, phase.ID, legacyPrevious)
-	if e.promptBuilder != nil {
-		built, err := e.promptBuilder.BuildPrompt(phase.ID, PhaseContext{
-			PreviousResults: previous, FrozenRequiredDocuments: true, Route: e.cfg.Route,
-		})
-		if err != nil {
-			return "", err
-		}
-		prompt = built
-	}
-	return appendGateContract(prompt, phase.Gate), nil
-}
-
-func (e *SubprocessEngine) buildOMPActivePhasePrompt(phase Phase) (string, error) {
-	prompt := buildPrompt(e.cfg.SpecID, phase.ID, "")
-	if e.promptBuilder != nil {
-		built, err := e.promptBuilder.BuildPrompt(phase.ID, PhaseContext{
-			FrozenRequiredDocuments: true, Route: e.cfg.Route,
-		})
-		if err != nil {
-			return "", err
-		}
-		prompt = built
-	}
-	return appendGateContract(prompt, phase.Gate), nil
-}
 
 func appendGateContract(prompt string, gate GateType) string {
 	switch gate {
 	case GateValidation:
-		return prompt + "\n\nReturn exactly one final line: VERDICT: PASS or VERDICT: FAIL"
+		return prompt + "\n\n" + validationReportContract +
+			"\nReturn exactly one final line: VERDICT: PASS or VERDICT: FAIL"
 	case GateReview:
-		return prompt + "\n\nReturn exactly one final line: VERDICT: APPROVE or VERDICT: REQUEST_CHANGES"
+		return prompt + "\n\n" + reviewReportContract +
+			"\nReturn exactly one final line: VERDICT: APPROVE or VERDICT: REQUEST_CHANGES"
 	default:
 		return prompt
 	}
-}
-
-func validatePhaseResponse(phaseID PhaseID, resp *PhaseResponse) error {
-	if resp == nil {
-		return fmt.Errorf("phase %s: backend returned nil response", phaseID)
-	}
-	if resp.TimedOut {
-		return fmt.Errorf("phase %s: backend timed out", phaseID)
-	}
-	if resp.ExitCode != 0 {
-		return fmt.Errorf("phase %s: backend exited with code %d", phaseID, resp.ExitCode)
-	}
-	if strings.TrimSpace(resp.Output) == "" {
-		return fmt.Errorf("phase %s: backend returned empty output", phaseID)
-	}
-	return nil
 }

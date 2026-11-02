@@ -7,6 +7,7 @@ import (
 )
 
 func (e *SubprocessEngine) finishPreflightFailure(state *engineRunState, runErr error) error {
+	runErr = redactError(runErr)
 	state.finish(TerminalBlocked, runErr.Error())
 	var persistErr error
 	if e.cfg.Checkpoint != nil {
@@ -18,6 +19,7 @@ func (e *SubprocessEngine) finishPreflightFailure(state *engineRunState, runErr 
 }
 
 func (e *SubprocessEngine) finishPersistenceFailure(state *engineRunState, runErr error) error {
+	runErr = redactError(runErr)
 	state.result.Receipt.DegradedReasons = appendUnique(state.result.Receipt.DegradedReasons, "persistence_failure")
 	state.finish(TerminalPartialPreserved, runErr.Error())
 	return combinePipelineError(runErr, e.persistRunState(state), "persist partial receipt")
@@ -27,6 +29,8 @@ func combinePipelineError(runErr, persistErr error, label string) error {
 	if persistErr == nil {
 		return runErr
 	}
+	// A persistence error can quote a path or value that holds a secret.
+	persistErr = redactError(persistErr)
 	if runErr == nil {
 		return fmt.Errorf("pipeline: %s: %w", label, persistErr)
 	}
@@ -64,6 +68,11 @@ func (e *SubprocessEngine) checkpointForState(state *engineRunState) *Checkpoint
 		SpecID: e.cfg.SpecID, SnapshotHash: e.cfg.SnapshotHash,
 		GitCommitHash: e.cfg.GitCommitHash, TaskStatus: taskStatus,
 		Receipt: &state.result.Receipt,
+	}
+	for _, phase := range state.phases {
+		if record, ok := state.outputs[phase.ID]; ok && state.statuses[phase.ID] == CheckpointStatusDone {
+			checkpoint.PhaseOutputs = append(checkpoint.PhaseOutputs, record)
+		}
 	}
 	for i := len(state.result.Receipt.Transitions) - 1; i >= 0; i-- {
 		if phaseID := state.result.Receipt.Transitions[i].PhaseID; phaseID != "" {

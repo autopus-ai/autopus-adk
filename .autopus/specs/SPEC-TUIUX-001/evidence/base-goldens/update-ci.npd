@@ -9,7 +9,7 @@
 .autopus/backup/<TS>/transaction/
 .autopus/backup/<TS>/transaction/claude-code/
 .autopus/backup/<TS>/transaction/claude-code/.autopus/
-.autopus/backup/<TS>/transaction/claude-code/.autopus/claude-code-manifest.json c2f1344bdef12768328befbd2c6819efc74b7728261ab5029c1887a2d9988977
+.autopus/backup/<TS>/transaction/claude-code/.autopus/claude-code-manifest.json 4bcacf84141a216d98f6dca4013fb41e4f10815f1ef19bb2ef0b7aa8608b14af
 .autopus/backup/<TS>/transaction/claude-code/.autopus/claude-code-permissions.json b9fd4dd0824fb98d4ff3403c011a56b0b66f398788f2dfb24220c1aed87df4e8
 .autopus/backup/<TS>/transaction/claude-code/.claude/
 .autopus/backup/<TS>/transaction/claude-code/.claude/agents/
@@ -66,9 +66,9 @@
 .autopus/backup/<TS>/transaction/claude-code/.claude/skills/agent-pipeline/references/coordination.md bd2eaefb80b9bcb6084c70db92337e0300aa5e4d0deb60420fed3a94b89c7d02
 .autopus/backup/<TS>/transaction/claude-code/.claude/skills/agent-pipeline/references/delegation.md ba53eeac35f39cd8b3aae1c95697d6e98b284abfa4620f505c19ee057353524b
 .autopus/backup/<TS>/transaction/claude-code/.claude/skills/agent-pipeline/references/gates.md a360ffde22ab7cc8d31f968ff433433a025bd4744ccaf8e389c8975ec522d86a
-.autopus/backup/<TS>/transaction/claude-code/.claude/skills/agent-pipeline/references/phases.md 4467c63e762de5552ef781c1fab2099f51a871b9707b073bc0eb8a26f288f73b
+.autopus/backup/<TS>/transaction/claude-code/.claude/skills/agent-pipeline/references/phases.md a97a41a2d6a1c1a6b8a1d02ac76cb7f270fd53ac9a7a6c4db918edf961dac7d3
 .autopus/backup/<TS>/transaction/claude-code/.claude/skills/agent-pipeline/references/quality-modes.md 3cc41b356cbca7959cc29a8c38df9ac6defce902a9342eabe32c59933a6e9009
-.autopus/backup/<TS>/transaction/claude-code/.claude/skills/agent-pipeline/references/review.md 5533d90da008d280c6265f32c918f99f24047eefd8c221cce97ead57946fdc04
+.autopus/backup/<TS>/transaction/claude-code/.claude/skills/agent-pipeline/references/review.md c0e5b41dce8d11026d8449956c2e04c3fcf6b9c73ae6f4091bab7623a4113899
 .autopus/backup/<TS>/transaction/claude-code/.claude/skills/agent-pipeline/references/verification.md d1c98c92a8b261be164485320e8e5aae3fe90564110d04d7c1e158f0f55d370e
 .autopus/backup/<TS>/transaction/claude-code/.claude/skills/agent-teams/
 .autopus/backup/<TS>/transaction/claude-code/.claude/skills/agent-teams/SKILL.md cf6aa97c8bbdde752baaabfec7022be3c5f8a74b591f8151b3d122858f1ae04d
@@ -161,7 +161,7 @@
 .autopus/backup/<TS>/transaction/codex/.agents/plugins/
 .autopus/backup/<TS>/transaction/codex/.agents/plugins/marketplace.json 7bac9f0f7c15eecf46023308f334e2122d112d03aa7b498f9e01adabd48ac03c
 .autopus/backup/<TS>/transaction/codex/.autopus/
-.autopus/backup/<TS>/transaction/codex/.autopus/codex-manifest.json 081d920e69d328cbecaf2a0f0dbc583473d05945f61cf11ff2454d48affd8440
+.autopus/backup/<TS>/transaction/codex/.autopus/codex-manifest.json 2ce3089a5731097cce03a873d98604c6f8781fcae87771e9cdc2a759104c71a5
 .autopus/backup/<TS>/transaction/codex/.autopus/plugins/
 .autopus/backup/<TS>/transaction/codex/.autopus/plugins/auto/
 .autopus/backup/<TS>/transaction/codex/.autopus/plugins/auto/.codex-plugin/
@@ -198,9 +198,9 @@
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-agent-pipeline/references/coordination.md bd2eaefb80b9bcb6084c70db92337e0300aa5e4d0deb60420fed3a94b89c7d02
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-agent-pipeline/references/delegation.md ba53eeac35f39cd8b3aae1c95697d6e98b284abfa4620f505c19ee057353524b
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-agent-pipeline/references/gates.md a360ffde22ab7cc8d31f968ff433433a025bd4744ccaf8e389c8975ec522d86a
-.autopus/backup/<TS>/transaction/codex/.codex/skills/codex-agent-pipeline/references/phases.md 4467c63e762de5552ef781c1fab2099f51a871b9707b073bc0eb8a26f288f73b
+.autopus/backup/<TS>/transaction/codex/.codex/skills/codex-agent-pipeline/references/phases.md a97a41a2d6a1c1a6b8a1d02ac76cb7f270fd53ac9a7a6c4db918edf961dac7d3
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-agent-pipeline/references/quality-modes.md 3cc41b356cbca7959cc29a8c38df9ac6defce902a9342eabe32c59933a6e9009
-.autopus/backup/<TS>/transaction/codex/.codex/skills/codex-agent-pipeline/references/review.md 5533d90da008d280c6265f32c918f99f24047eefd8c221cce97ead57946fdc04
+.autopus/backup/<TS>/transaction/codex/.codex/skills/codex-agent-pipeline/references/review.md c0e5b41dce8d11026d8449956c2e04c3fcf6b9c73ae6f4091bab7623a4113899
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-agent-pipeline/references/verification.md d1c98c92a8b261be164485320e8e5aae3fe90564110d04d7c1e158f0f55d370e
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-agent-teams/
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-agent-teams/SKILL.md 9448cd74cf9ba1258c6bd069251915726615978bea270d6dde482849ebacc8f6
@@ -279,9 +279,9 @@
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-worktree-isolation/
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-worktree-isolation/SKILL.md bcd0b849f25b143f38d07254ec3eb79410d3798766211a4e7e947882505e4a91
 .autopus/backup/<TS>/transaction/codex/AGENTS.md 5d951f63f21ebb2e4bbb7209b1b44e917e7bcc4cb90b26a03a5760476f091a71
-.autopus/claude-code-manifest.json c2f1344bdef12768328befbd2c6819efc74b7728261ab5029c1887a2d9988977
+.autopus/claude-code-manifest.json 4bcacf84141a216d98f6dca4013fb41e4f10815f1ef19bb2ef0b7aa8608b14af
 .autopus/claude-code-permissions.json b9fd4dd0824fb98d4ff3403c011a56b0b66f398788f2dfb24220c1aed87df4e8
-.autopus/codex-manifest.json 6a42b8bacf3f9454319cf3bf67aff2b715b0a5e2c026ebbdf785737997a4b399
+.autopus/codex-manifest.json 60083edb6be638626b62390c1fa9c86ead04dd003de332d7add711a93ba4aba6
 .autopus/context/
 .autopus/context/constraints.yaml d8b3a0714389a30b7aca1986fbb71235900e14c9dddfe50fdbbb758698d0b26e
 .autopus/plugins/
@@ -294,12 +294,12 @@
 .autopus/txns/
 .autopus/txns/<TX>-claude-code/
 .autopus/txns/<TX>-claude-code/
-.autopus/txns/<TX>-claude-code/journal.json c5dccce5a330ad25abe2bac455a05e6f79998cc769a63e44f321a45dd3a95097
-.autopus/txns/<TX>-claude-code/journal.json e70f5adef0b16abeb6803f80b8a0b5ac1fdab7256711c548a896524237f3288a
+.autopus/txns/<TX>-claude-code/journal.json 8e5b546ec6da3dbf69a25d1bce41f7e0acb4c0726da9f62b4ed1d763b36690d5
+.autopus/txns/<TX>-claude-code/journal.json bd1f3d28aa90c9c453d69fd784eacc6c23f7964755afea5082b21bd29d2ab3fc
 .autopus/txns/<TX>-codex/
 .autopus/txns/<TX>-codex/
-.autopus/txns/<TX>-codex/journal.json 012e161b9ac770c82f33bbad9f2786e3f4e0c4e81ebd0c2012325ec53dd481da
-.autopus/txns/<TX>-codex/journal.json 51fb2d8c0e8f475006bde95ec389609e9cc300b387f8916eb49dc83c790e7d04
+.autopus/txns/<TX>-codex/journal.json 2981081dce54c2492e51584f95b2f1a865eeae63ad918468819d709641af98fd
+.autopus/txns/<TX>-codex/journal.json 6d78741796a5cb51969919fe946dcd5644d5b1c983d6afd249f657d8891fa853
 .claude/
 .claude/agents/
 .claude/agents/autopus/
@@ -355,9 +355,9 @@
 .claude/skills/agent-pipeline/references/coordination.md bd2eaefb80b9bcb6084c70db92337e0300aa5e4d0deb60420fed3a94b89c7d02
 .claude/skills/agent-pipeline/references/delegation.md ba53eeac35f39cd8b3aae1c95697d6e98b284abfa4620f505c19ee057353524b
 .claude/skills/agent-pipeline/references/gates.md a360ffde22ab7cc8d31f968ff433433a025bd4744ccaf8e389c8975ec522d86a
-.claude/skills/agent-pipeline/references/phases.md 4467c63e762de5552ef781c1fab2099f51a871b9707b073bc0eb8a26f288f73b
+.claude/skills/agent-pipeline/references/phases.md a97a41a2d6a1c1a6b8a1d02ac76cb7f270fd53ac9a7a6c4db918edf961dac7d3
 .claude/skills/agent-pipeline/references/quality-modes.md 3cc41b356cbca7959cc29a8c38df9ac6defce902a9342eabe32c59933a6e9009
-.claude/skills/agent-pipeline/references/review.md 5533d90da008d280c6265f32c918f99f24047eefd8c221cce97ead57946fdc04
+.claude/skills/agent-pipeline/references/review.md c0e5b41dce8d11026d8449956c2e04c3fcf6b9c73ae6f4091bab7623a4113899
 .claude/skills/agent-pipeline/references/verification.md d1c98c92a8b261be164485320e8e5aae3fe90564110d04d7c1e158f0f55d370e
 .claude/skills/agent-teams/
 .claude/skills/agent-teams/SKILL.md cf6aa97c8bbdde752baaabfec7022be3c5f8a74b591f8151b3d122858f1ae04d
@@ -472,9 +472,9 @@
 .codex/skills/codex-agent-pipeline/references/coordination.md bd2eaefb80b9bcb6084c70db92337e0300aa5e4d0deb60420fed3a94b89c7d02
 .codex/skills/codex-agent-pipeline/references/delegation.md ba53eeac35f39cd8b3aae1c95697d6e98b284abfa4620f505c19ee057353524b
 .codex/skills/codex-agent-pipeline/references/gates.md a360ffde22ab7cc8d31f968ff433433a025bd4744ccaf8e389c8975ec522d86a
-.codex/skills/codex-agent-pipeline/references/phases.md 4467c63e762de5552ef781c1fab2099f51a871b9707b073bc0eb8a26f288f73b
+.codex/skills/codex-agent-pipeline/references/phases.md a97a41a2d6a1c1a6b8a1d02ac76cb7f270fd53ac9a7a6c4db918edf961dac7d3
 .codex/skills/codex-agent-pipeline/references/quality-modes.md 3cc41b356cbca7959cc29a8c38df9ac6defce902a9342eabe32c59933a6e9009
-.codex/skills/codex-agent-pipeline/references/review.md 5533d90da008d280c6265f32c918f99f24047eefd8c221cce97ead57946fdc04
+.codex/skills/codex-agent-pipeline/references/review.md c0e5b41dce8d11026d8449956c2e04c3fcf6b9c73ae6f4091bab7623a4113899
 .codex/skills/codex-agent-pipeline/references/verification.md d1c98c92a8b261be164485320e8e5aae3fe90564110d04d7c1e158f0f55d370e
 .codex/skills/codex-agent-teams/
 .codex/skills/codex-agent-teams/SKILL.md 9448cd74cf9ba1258c6bd069251915726615978bea270d6dde482849ebacc8f6

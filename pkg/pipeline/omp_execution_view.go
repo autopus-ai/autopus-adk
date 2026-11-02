@@ -129,7 +129,7 @@ func (e *SubprocessEngine) newPhaseRequest(
 	if e.cfg.Platform != "omp" {
 		return request, nil
 	}
-	activePrompt, err := e.buildOMPActivePhasePrompt(phase)
+	activePrompt, err := e.buildOMPActivePhasePrompt(phase, state.feedback[phase.ID])
 	if err != nil {
 		return PhaseRequest{}, fmt.Errorf("build OMP active phase prompt: %w", err)
 	}
@@ -152,7 +152,8 @@ func completedOMPHistory(phases []Phase, current PhaseID, previous map[PhaseID]s
 		if phase.ID == current {
 			break
 		}
-		if output, ok := previous[phase.ID]; ok {
+		// A phase whose output sanitized to nothing has no history row.
+		if output, ok := previous[phase.ID]; ok && strings.TrimSpace(output) != "" {
 			history = append(history, output)
 		}
 	}

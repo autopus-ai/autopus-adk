@@ -124,7 +124,9 @@ func TestSubprocessEngine_CompactRoute_DispatchesThreePhasesAndResumes(t *testin
 }
 
 // Dropping the scaffold dispatch must not drop the gate it fed: a compact
-// validation phase still fails closed after exhausting its retries.
+// validation failure is routed to a fix and validated again, and a failure
+// the fix does not change still fails closed, at the circuit breaker
+// (SPEC-PIPELINE-RESUME-001 REQ-PRR-FAIL-07).
 func TestSubprocessEngine_CompactRoute_ValidationGateStillRetriesThenBlocks(t *testing.T) {
 	t.Parallel()
 
@@ -138,9 +140,9 @@ func TestSubprocessEngine_CompactRoute_ValidationGateStillRetriesThenBlocks(t *t
 
 	result, err := engine.Run(context.Background())
 
-	require.ErrorContains(t, err, "gate validation failed after 4 attempt(s)")
+	require.ErrorContains(t, err, "circuit_break_no_progress")
 	require.NotNil(t, result)
-	assert.Equal(t, 5, backend.CallCount, "one implementation dispatch plus four gated attempts")
+	assert.Equal(t, 4, backend.CallCount, "implement, validate, the fix dispatch, and the second validation")
 	assert.Equal(t, pipeline.TerminalBlocked, result.Receipt.Terminal)
 }
 

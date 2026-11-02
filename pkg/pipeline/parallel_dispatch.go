@@ -85,12 +85,10 @@ func (r *ParallelRunner) runDependencyPhases(ctx context.Context, phases []Phase
 						return
 					}
 					resp, err := r.backend.Execute(ctx, PhaseRequest{PhaseID: phase.ID, Prompt: prompt})
-					if err != nil {
-						completions <- parallelCompletion{index: index, err: fmt.Errorf("phase %s: %w", phase.ID, err)}
-						return
-					}
-					if resp == nil {
-						completions <- parallelCompletion{index: index, err: fmt.Errorf("phase %s: nil response", phase.ID)}
+					// A refused response is an execution failure: it stops
+					// admission and its dependents never become ready.
+					if err := admitPhaseResponse(phase.ID, resp, err); err != nil {
+						completions <- parallelCompletion{index: index, err: err}
 						return
 					}
 					verdict := EvaluateGate(phase.Gate, resp.Output)

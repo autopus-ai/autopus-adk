@@ -11,8 +11,15 @@ import (
 
 const checkpointFilename = ".autopus-checkpoint.yaml"
 
-// CheckpointVersion identifies the canonical pipeline checkpoint schema.
-const CheckpointVersion = "pipeline_checkpoint.v1"
+// CheckpointVersion identifies the canonical pipeline checkpoint schema. v2
+// carries the phase output records later phases read
+// (SPEC-PIPELINE-RESUME-001 REQ-PRR-OUT-01).
+const CheckpointVersion = "pipeline_checkpoint.v2"
+
+// LegacyCheckpointVersionV1 identifies checkpoints written before phase
+// outputs were persisted. They still load and validate, and a resume reads
+// their completed phases as unrestorable (REQ-PRR-OUT-04).
+const LegacyCheckpointVersionV1 = "pipeline_checkpoint.v1"
 
 // Save writes the checkpoint as YAML to {dir}/.autopus-checkpoint.yaml.
 func (c *Checkpoint) Save(dir string) error {
@@ -101,7 +108,7 @@ func (c *Checkpoint) ValidateResume(specID, routeVersion, snapshotHash string) e
 		specID == "" || routeVersion == "" || snapshotHash == "" {
 		return fmt.Errorf("checkpoint identity is incomplete")
 	}
-	if c.Version != CheckpointVersion {
+	if c.Version != CheckpointVersion && c.Version != LegacyCheckpointVersionV1 {
 		return fmt.Errorf("checkpoint identity version mismatch: saved %s, required %s", c.Version, CheckpointVersion)
 	}
 	if c.SpecID != specID {
