@@ -179,3 +179,4 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 기록: 6절과 같은 방법이다(이 branch tip에서 writer, stdout golden 되돌림).
 - 차이: `.claude/agents/autopus/spec-writer.md`, `.claude/skills/auto-plan`·`spec-review`, `.claude/hooks/autopus/conditional/spec-quality.md`, `.codex/agents/spec-writer.toml`, `.codex/skills/codex-auto-plan`·`codex-spec-review`의 checksum, 두 manifest의 그 entry, 두 journal의 `after_checksum`, update 흐름의 backup 사본. 다른 경로는 바뀌지 않았다.
 - 검증: 두 test가 이 golden으로 통과한다.
+- 추가 재기록(R7 커밋): spec-review 스킬의 CLI Usage에 `--profile`·`--judge`와 리뷰 계획 출력 설명을 더해 다시 기록했다. 차이는 `.claude/skills/spec-review`, `.codex/skills/codex-spec-review`의 checksum과 두 manifest·journal 항목뿐이다.

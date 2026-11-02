@@ -3,40 +3,12 @@ package cli
 import (
 	"context"
 	"fmt"
-	"io"
+	"os"
 	"slices"
 
 	"github.com/insajin/autopus-adk/pkg/config"
 	"github.com/insajin/autopus-adk/pkg/spec"
 )
-
-// applyLeanReviewProfile narrows the review of an eligible lean SPEC to one
-// reviewer with no judge. A low-risk change does not need a three-provider
-// panel and an arbiter; the deterministic preflight and the reviewer's
-// findings still gate promotion. Explicit --providers wins, so an operator can
-// always ask for the full panel. The returned fallbacks are the remaining
-// configured providers, in order, for when the chosen reviewer cannot run.
-func applyLeanReviewProfile(
-	doc *spec.SpecDocument, gate config.ReviewGateConf, opts specReviewOptions, w io.Writer,
-) (config.ReviewGateConf, specReviewOptions, []string) {
-	if doc.IsLean() && !doc.LeanEligible() {
-		fmt.Fprintf(w, "경고: lean profile 조건(change_class %q, surface)을 충족하지 않아 full 리뷰로 진행합니다\n", doc.ChangeClass)
-		return gate, opts, nil
-	}
-	if !doc.LeanEligible() || len(opts.providers) > 0 {
-		return gate, opts, nil
-	}
-	candidates := leanSpecReviewers(gate)
-	if len(candidates) > 0 {
-		opts.providers = []string{candidates[0]}
-		candidates = candidates[1:]
-	}
-	gate.Judge = ""
-	// The quorum of a one-reviewer panel is that reviewer.
-	gate.MinProviders = 1
-	fmt.Fprintf(w, "lean profile (%s): 리뷰어 %v, judge 없음\n", doc.ChangeClass, opts.providers)
-	return gate, opts, candidates
-}
 
 // leanSpecReviewers orders the lean reviewer candidates: the configured judge
 // first when it is also a reviewer, since that is the provider the project
@@ -84,5 +56,8 @@ func runSpecReviewAttempt(
 	params.configuredNames = append([]string(nil), plan.Names...)
 	params.contextDelivery = contextDelivery
 	params.preflight = plan.Preflight
+	if params.plan != nil {
+		printSpecReviewPlan(os.Stderr, *params.plan, plan)
+	}
 	return runSpecReviewLoop(params, doc, priorFindings)
 }

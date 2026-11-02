@@ -74,3 +74,58 @@ Changed behaviour (SPEC-REVIEWPOLICY-001):
 - A structured reviewer's `contract` and `data_loss` categories are kept
   instead of becoming `completeness`.
 - `auto spec validate` holds a refused lean declaration to the full section set.
+
+## The review plan
+
+`auto spec review` separates three choices that used to be tangled:
+
+| Flag | Chooses | Default |
+| --- | --- | --- |
+| `--profile auto\|full\|lean` | the review profile | `auto`: the SPEC's effective profile |
+| `--providers a,b` | the reviewers | the configured reviewers (`spec.review_gate.providers`, plus discovery under `--multi` on a full review) |
+| `--judge <provider\|none>` | the judge | none on lean, `spec.review_gate.judge` on full |
+
+Precedence:
+
+1. Profile: `--profile full` raises a lean SPEC to the full panel. Otherwise the
+   SPEC's effective profile applies. `--profile lean` works only on a SPEC that
+   qualifies for lean.
+2. Reviewers on a lean review: exactly one. With `--providers`, the first name
+   reviews and the remaining names are fallbacks, in order; a provider you did
+   not name never runs. Without `--providers`, the configured judge reviews
+   first when it is also a reviewer, and the other configured reviewers are
+   fallbacks. Quorum is 1.
+3. Reviewers on a full review: `--providers`, else the configuration. Quorum is
+   `min_providers`, or the majority of the configured reviewers.
+4. Judge: `--judge`, else none on lean, else `spec.review_gate.judge`.
+
+Before this policy, `--providers` switched the whole lean policy off, so
+`--providers codex` on a lean SPEC still ran the configured judge. Now a
+setting that changes meaning prints a warning before anything runs:
+`--providers` with more than one name or `--multi` on a lean review (one
+reviewer, the rest fallbacks; ask for a panel with `--profile full`),
+`--judge` on a lean review (adds a judge call per round), and `--profile full`
+on a lean SPEC.
+
+`--profile` with an unknown value, `--profile lean` on a SPEC that does not
+qualify, and an empty `--judge` fail before any readiness probe or model call.
+
+Before the first model call of every attempt (a lean fallback is a new
+attempt) the command prints the plan:
+
+```
+SPEC 리뷰 계획 (SPEC-EXAMPLE-001):
+  profile: lean — spec.md profile: lean (change_class test_only)
+  위험 분류: test_only → test_only (low)
+  리뷰어: claude (spec.review_gate (judge 우선 순서))
+  fallback: codex, gemini
+  judge: 없음 — lean profile 기본값
+  quorum: 1
+  라운드: 최대 3
+  호출: 라운드당 예상 1, 상한 2 (JSON 재요청 포함) · 이번 실행 상한 18 (fallback 2개 포함)
+```
+
+The expected count is one call per reviewer and judge per round. The upper
+bound adds one JSON re-prompt per reviewer, multiplies by the rounds, and by
+every fallback attempt still possible, so it is a ceiling, not a forecast. A
+single-pass review is one round, not one model call.

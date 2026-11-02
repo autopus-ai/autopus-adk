@@ -100,12 +100,24 @@ The same per-document coverage is persisted in the `review-findings.json` sideca
 auto spec review SPEC-PIPE-001
 auto spec review SPEC-AUTH-001 --strategy debate --timeout 180
 auto spec review SPEC-AUTH-001 --strategy debate --providers claude,codex
+auto spec review SPEC-FIX-001 --profile full  # lean SPEC, full panel and judge
 auto spec review SPEC-AUTH-001 --allow-degraded  # promote a degraded PASS; recorded as an audit line
 ```
 
 `--providers` is an explicit comma-separated provider override. Forward the
 user-supplied list unchanged; omit the flag only when the user supplied no
 override.
+
+Provider selection never changes the review profile. `--profile auto|full|lean`
+selects the profile (default `auto`, the SPEC's effective profile) and
+`--judge <provider|none>` the judge. A lean review runs one reviewer: with
+`--providers a,b` reviewer `a` runs and `b` is a fallback, never a panel, and
+no judge runs unless `--judge` names one. Pass `--profile full` to review a lean
+SPEC with the configured panel and judge. An unknown `--profile`,
+`--profile lean` on a SPEC that does not qualify, or an empty `--judge` fails
+before any provider runs. Before the first model call the CLI prints the review
+plan: profile, risk class, reviewers and fallbacks, judge and why, quorum,
+rounds, and the expected and upper-bound call counts.
 
 Do not wrap these commands with GNU `timeout` (for example,
 `timeout 540 auto spec review ...`). macOS does not include GNU `timeout` by

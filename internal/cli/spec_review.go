@@ -63,6 +63,8 @@ func newSpecReviewCmd() *cobra.Command {
 		conditionalProfiles []string
 		singlePass          bool
 		skipReadiness       bool
+		profile             string
+		judge               string
 	)
 
 	cmd := &cobra.Command{
@@ -79,6 +81,9 @@ func newSpecReviewCmd() *cobra.Command {
 				conditionalProfiles:   conditionalProfiles,
 				singlePass:            singlePass,
 				skipProviderReadiness: skipReadiness,
+				profile:               profile,
+				judge:                 judge,
+				judgeSet:              cmd.Flags().Changed("judge"),
 			})
 		},
 	}
@@ -96,6 +101,12 @@ func newSpecReviewCmd() *cobra.Command {
 	cmd.Flags().StringArrayVar(&conditionalProfiles, "conditional-profile", nil, "Declared conditional review context profile")
 	cmd.Flags().BoolVar(&singlePass, "single-pass", false,
 		"Run exactly one provider round: no revision loop, and --loop is ignored")
+	// SPEC-REVIEWPOLICY-001 REQ-RP-PLAN-01: the profile and the judge are
+	// selected separately from the reviewers.
+	cmd.Flags().StringVar(&profile, "profile", specReviewProfileAuto,
+		"Review profile: auto (the SPEC's effective profile), full (the configured panel), or lean (only for a lean-eligible SPEC)")
+	cmd.Flags().StringVar(&judge, "judge", "",
+		"Judge provider for this review, or none (default: none on lean, spec.review_gate.judge on full)")
 
 	return cmd
 }
@@ -110,6 +121,12 @@ type specReviewOptions struct {
 	singlePass bool
 	// skipProviderReadiness runs no readiness probe (--skip-provider-readiness).
 	skipProviderReadiness bool
+	// profile is --profile; empty or "auto" keeps the SPEC's effective profile.
+	profile string
+	// judge is --judge; judgeSet tells an explicit empty value apart from an
+	// omitted flag.
+	judge    string
+	judgeSet bool
 }
 
 // runSpecReview executes the full SPEC review pipeline with REVISE loop.
@@ -145,7 +162,20 @@ func runSpecReviewWithOptions(ctx context.Context, specID, strategy string, time
 	}
 
 	gate := cfg.Spec.ReviewGate
-	gate, opts, leanFallbacks := applyLeanReviewProfile(doc, gate, opts, os.Stderr)
+	// SPEC-SPECREV-002 REQ-003: consume the global --loop flag so the revision
+	// budget honors the loop floor (inert seam otherwise). --single-pass wins
+	// over both the floor and max_revisions (issue #187).
+	maxRevisions := resolveSpecReviewMaxRevisions(gate, flags.LoopMode, opts.singlePass)
+	// SPEC-REVIEWPOLICY-001 REQ-RP-PLAN-02..04: the profile, reviewers, judge,
+	// and quorum are resolved, and contradictions refused, before any
+	// readiness probe or model call.
+	plan, err := resolveSpecReviewPlan(doc, gate, opts, flags.MultiMode, maxRevisions)
+	if err != nil {
+		return err
+	}
+	printSpecReviewPlanWarnings(os.Stderr, plan)
+	gate, opts, _ = applySpecReviewPlan(plan, gate, opts)
+	multi := flags.MultiMode && plan.Profile == spec.ReviewProfileFull
 	if strategy == "" {
 		strategy = gate.Strategy
 	}
@@ -154,10 +184,6 @@ func runSpecReviewWithOptions(ctx context.Context, specID, strategy string, time
 	}
 	requestedTimeout := timeout
 	timeout = resolveSpecReviewTimeout(cfg, timeout)
-	// SPEC-SPECREV-002 REQ-003: consume the global --loop flag so the revision
-	// budget honors the loop floor (inert seam otherwise). --single-pass wins
-	// over both the floor and max_revisions (issue #187).
-	maxRevisions := resolveSpecReviewMaxRevisions(gate, flags.LoopMode, opts.singlePass)
 
 	threshold := gate.VerdictThreshold
 	if threshold <= 0 {
@@ -180,10 +206,11 @@ func runSpecReviewWithOptions(ctx context.Context, specID, strategy string, time
 	// Load any prior findings (from a previous interrupted run)
 	priorFindings, _ := spec.LoadFindings(specDir)
 
-	runtimeEvidence := &specReviewRuntimeEvidence{StartedAt: reviewStarted, Profile: doc.Profile}
+	runtimeEvidence := &specReviewRuntimeEvidence{StartedAt: reviewStarted, Profile: specReviewReceiptProfile(plan)}
 	var finalResult *spec.ReviewResult
 	for {
-		finalResult, err = runSpecReviewAttempt(ctx, cfg, gate, opts, flags.MultiMode, requestedTimeout, specReviewLoopParams{
+		attemptPlan := plan
+		finalResult, err = runSpecReviewAttempt(ctx, cfg, gate, opts, multi, requestedTimeout, specReviewLoopParams{
 			ctx:             ctx,
 			specID:          specID,
 			specDir:         specDir,
@@ -194,14 +221,16 @@ func runSpecReviewWithOptions(ctx context.Context, specID, strategy string, time
 			gate:            gate,
 			codeContext:     codeContext,
 			runtimeEvidence: runtimeEvidence,
+			plan:            &attemptPlan,
 		}, doc, priorFindings)
 		// A lean review has one reviewer, so a provider outage would fail the
-		// whole review; fall back to the next configured provider instead.
-		if len(leanFallbacks) == 0 || !specReviewProviderUnavailable(finalResult, err) {
+		// whole review; fall back to the next planned provider instead.
+		if len(plan.Fallbacks) == 0 || !specReviewProviderUnavailable(finalResult, err) {
 			break
 		}
-		fmt.Fprintf(os.Stderr, "lean 리뷰어 %v 실행 실패 — %s로 다시 리뷰합니다\n", opts.providers, leanFallbacks[0])
-		opts.providers, leanFallbacks = []string{leanFallbacks[0]}, leanFallbacks[1:]
+		fmt.Fprintf(os.Stderr, "lean 리뷰어 %v 실행 실패 — %s로 다시 리뷰합니다\n", opts.providers, plan.Fallbacks[0])
+		plan = plan.fallback()
+		opts.providers = plan.Reviewers
 	}
 	if err != nil {
 		return err

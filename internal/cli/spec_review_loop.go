@@ -30,6 +30,9 @@ type specReviewLoopParams struct {
 	// preflight carries the readiness outcome: excluded reviewers, their
 	// degraded reasons, and the receipt rows (SPEC-REVIEWRO-001).
 	preflight *specReviewPreflight
+	// plan is the attempt's resolved review plan; it is printed once the
+	// reviewers are assembled (SPEC-REVIEWPOLICY-001 REQ-RP-PLAN-05).
+	plan *specReviewPlan
 }
 
 func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFindings []spec.ReviewFinding) (*spec.ReviewResult, error) {

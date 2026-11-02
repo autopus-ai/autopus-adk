@@ -9,7 +9,7 @@
 .autopus/backup/<TS>/transaction/
 .autopus/backup/<TS>/transaction/claude-code/
 .autopus/backup/<TS>/transaction/claude-code/.autopus/
-.autopus/backup/<TS>/transaction/claude-code/.autopus/claude-code-manifest.json d60d35426486723820c4bafc5cd10885fbbe660932785cba755d8eb36d05908f
+.autopus/backup/<TS>/transaction/claude-code/.autopus/claude-code-manifest.json 01bcf0f57abbe016baa669699847c38dbcc35db144f911845d14e6dfca500eb7
 .autopus/backup/<TS>/transaction/claude-code/.autopus/claude-code-permissions.json b9fd4dd0824fb98d4ff3403c011a56b0b66f398788f2dfb24220c1aed87df4e8
 .autopus/backup/<TS>/transaction/claude-code/.claude/
 .autopus/backup/<TS>/transaction/claude-code/.claude/agents/
@@ -137,7 +137,7 @@
 .autopus/backup/<TS>/transaction/claude-code/.claude/skills/security-audit/
 .autopus/backup/<TS>/transaction/claude-code/.claude/skills/security-audit/SKILL.md f9dee950a966f053d8e2efa990a848e7c95166beb25c3055a9e8532140a10f7e
 .autopus/backup/<TS>/transaction/claude-code/.claude/skills/spec-review/
-.autopus/backup/<TS>/transaction/claude-code/.claude/skills/spec-review/SKILL.md 7a142f4972c9c73a46963c96462065a807a5754be6db7c51b136b591310f427f
+.autopus/backup/<TS>/transaction/claude-code/.claude/skills/spec-review/SKILL.md 241986c1b4fbbda8ff8395a6abb263d7c878cf3fb8c4acc032587c4b898b2803
 .autopus/backup/<TS>/transaction/claude-code/.claude/skills/tdd/
 .autopus/backup/<TS>/transaction/claude-code/.claude/skills/tdd/SKILL.md 210cbceed5bde6bb32c7cd54563ca0155055db4d691847a1098b33e25d3772c1
 .autopus/backup/<TS>/transaction/claude-code/.claude/skills/testing-strategy/
@@ -161,7 +161,7 @@
 .autopus/backup/<TS>/transaction/codex/.agents/plugins/
 .autopus/backup/<TS>/transaction/codex/.agents/plugins/marketplace.json 7bac9f0f7c15eecf46023308f334e2122d112d03aa7b498f9e01adabd48ac03c
 .autopus/backup/<TS>/transaction/codex/.autopus/
-.autopus/backup/<TS>/transaction/codex/.autopus/codex-manifest.json c882323c5bfc00a470d1aac07a9263c66add9d17f89c4056e7b9e9cee839961d
+.autopus/backup/<TS>/transaction/codex/.autopus/codex-manifest.json fb03e0eaa19dab2295934fe2092714e123ecd3e21a0fb9829a09598a3c8cfc15
 .autopus/backup/<TS>/transaction/codex/.autopus/plugins/
 .autopus/backup/<TS>/transaction/codex/.autopus/plugins/auto/
 .autopus/backup/<TS>/transaction/codex/.autopus/plugins/auto/.codex-plugin/
@@ -267,7 +267,7 @@
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-security-audit/
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-security-audit/SKILL.md cdc1082922051165299c55463fdeb9a70c661a91492f0d398a47d49eae770014
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-spec-review/
-.autopus/backup/<TS>/transaction/codex/.codex/skills/codex-spec-review/SKILL.md f4105e7d5cf4cee53b7df2b04f0bbde827d7c2b3b208bb49139dee9e2c8cf31f
+.autopus/backup/<TS>/transaction/codex/.codex/skills/codex-spec-review/SKILL.md 42ffea3aec7fcea3f20963a26febf4197db4a8d0f825a3d9773668c7a484f777
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-tdd/
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-tdd/SKILL.md 11ee5fef10b7d807e445617c2a3770b0f062bb29dfa1695ef07de61dabbc7c29
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-testing-strategy/
@@ -279,9 +279,9 @@
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-worktree-isolation/
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-worktree-isolation/SKILL.md 334d6fcea3cef6caab355fde00686fa36bab3ae5cb9889509485ab449c189f86
 .autopus/backup/<TS>/transaction/codex/AGENTS.md 5d951f63f21ebb2e4bbb7209b1b44e917e7bcc4cb90b26a03a5760476f091a71
-.autopus/claude-code-manifest.json d60d35426486723820c4bafc5cd10885fbbe660932785cba755d8eb36d05908f
+.autopus/claude-code-manifest.json 01bcf0f57abbe016baa669699847c38dbcc35db144f911845d14e6dfca500eb7
 .autopus/claude-code-permissions.json b9fd4dd0824fb98d4ff3403c011a56b0b66f398788f2dfb24220c1aed87df4e8
-.autopus/codex-manifest.json a5d04d283336e276bbcf8874ade39f1243f6ea7d33b4c1e6be623d979bf87bb8
+.autopus/codex-manifest.json f879aa02ba85a170c5f9b3018fbb5f0663f8ce72110cc52d0aded31cf183722a
 .autopus/context/
 .autopus/context/constraints.yaml d8b3a0714389a30b7aca1986fbb71235900e14c9dddfe50fdbbb758698d0b26e
 .autopus/plugins/
@@ -294,12 +294,12 @@
 .autopus/txns/
 .autopus/txns/<TX>-claude-code/
 .autopus/txns/<TX>-claude-code/
-.autopus/txns/<TX>-claude-code/journal.json 4e969032cfb686a31e0c893120425013f394ed2037d4a3770547f02293b3ca0b
-.autopus/txns/<TX>-claude-code/journal.json e3a68d5b46da6d58c0273a66125e42b7ffaac8b9c81ffae71dd78083d88d4a1e
+.autopus/txns/<TX>-claude-code/journal.json 6db5c1533c96c304b8c34a78c60356e05e57be3256e230915b04990cb6d15336
+.autopus/txns/<TX>-claude-code/journal.json 9f8285cf8444ad9ee2026fc29953718e0ea7aac1f88a0762041909838e079d18
 .autopus/txns/<TX>-codex/
 .autopus/txns/<TX>-codex/
-.autopus/txns/<TX>-codex/journal.json 09853b17362412761d60e67ede004a155719bcdba048afb41977e61d6883e06f
-.autopus/txns/<TX>-codex/journal.json 9785ed532d843096b74ead0da03be1570cb83c27ae90cd83928587bc051b5f91
+.autopus/txns/<TX>-codex/journal.json 690afcee54a8c2a0934c37768a7f4b18f82a123135c98b98c919aea4d6be604e
+.autopus/txns/<TX>-codex/journal.json bad20411fb37967582d5276915e3fb3a17a5a2e39ad3ca0beb267540a194c93d
 .claude/
 .claude/agents/
 .claude/agents/autopus/
@@ -426,7 +426,7 @@
 .claude/skills/security-audit/
 .claude/skills/security-audit/SKILL.md f9dee950a966f053d8e2efa990a848e7c95166beb25c3055a9e8532140a10f7e
 .claude/skills/spec-review/
-.claude/skills/spec-review/SKILL.md 7a142f4972c9c73a46963c96462065a807a5754be6db7c51b136b591310f427f
+.claude/skills/spec-review/SKILL.md 241986c1b4fbbda8ff8395a6abb263d7c878cf3fb8c4acc032587c4b898b2803
 .claude/skills/tdd/
 .claude/skills/tdd/SKILL.md 210cbceed5bde6bb32c7cd54563ca0155055db4d691847a1098b33e25d3772c1
 .claude/skills/testing-strategy/
@@ -541,7 +541,7 @@
 .codex/skills/codex-security-audit/
 .codex/skills/codex-security-audit/SKILL.md cdc1082922051165299c55463fdeb9a70c661a91492f0d398a47d49eae770014
 .codex/skills/codex-spec-review/
-.codex/skills/codex-spec-review/SKILL.md f4105e7d5cf4cee53b7df2b04f0bbde827d7c2b3b208bb49139dee9e2c8cf31f
+.codex/skills/codex-spec-review/SKILL.md 42ffea3aec7fcea3f20963a26febf4197db4a8d0f825a3d9773668c7a484f777
 .codex/skills/codex-tdd/
 .codex/skills/codex-tdd/SKILL.md 11ee5fef10b7d807e445617c2a3770b0f062bb29dfa1695ef07de61dabbc7c29
 .codex/skills/codex-testing-strategy/
