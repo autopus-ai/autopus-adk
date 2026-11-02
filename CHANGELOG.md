@@ -15,6 +15,8 @@ All notable changes to this project will be documented in this file.
     model 호출 전에 `spec review: spec.review_gate.judge_model ...`로 거절한다. 계획 블록은 `judge model: ...` 줄을,
     `review-receipt.json`은 `judge.model`·`judge.effort`를 남긴다. OMP judge는 thinking을 selector에 붙여 쓰든
     `judge_effort`로 쓰든 계획에 한 번만 보이고 receipt에는 base selector와 thinking으로 남는다.
+  - judge model은 리뷰 재사용(SPEC-REVIEWREUSE-001) fingerprint의 judge 항목에 들어가, 바꾸면 이전 결과를 쓰지 않고
+    다시 리뷰한다. 조건부 judge가 건너뛴 라운드의 receipt에는 judge model을 남기지 않는다.
   - `auto quality review judge <provider|none> [--model <model>|default] [--effort <effort>] [--dry-run]`이 탭과 같은
     목록과 줄 writer로 judge model을 쓰고, `default`나 다른 judge·none은 두 key 줄을 지운다. `show`·`--json`이 judge
     model을 보인다.

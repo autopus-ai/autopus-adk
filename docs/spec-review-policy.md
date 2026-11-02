@@ -124,7 +124,11 @@ a majority finding, is no longer dropped.
 
 The receipt's `judge` object records `mode` and, for a judge that ran,
 `decisions`: each ruling's id, decision, reviewers, scope, reason (truncated to
-500 characters), and `merge_into`.
+500 characters), and `merge_into`. With `spec.review_gate.judge_model` set
+(SPEC-JUDGEMODEL-001) it also records `model` and `effort` of a judge that was
+called — on the OMP backend the base selector and its thinking level, whether
+the key carries the level inline or in `judge_effort` — and a skipped judge
+records neither.
 
 ## Reusing a previous result
 
@@ -139,7 +143,8 @@ file counts too), the auxiliary line budget and the excerpt each auxiliary
 document delivers under it (`delivery`), the prompt contract (every prompt
 variant through the structured response wrapper, the judge prompts, and the JSON
 repair request), and each reviewer's and the judge's model selector and
-arguments, plus the digests of `review-findings.json` and `review.md` as the
+arguments (the judge's after `spec.review_gate.judge_model` replaces its model,
+so changing the judge model reviews again), plus the digests of `review-findings.json` and `review.md` as the
 review left them. The receipt also records `spec_fingerprint`, the SPEC
 fingerprint `auto status` compares to tell whether the review is still fresh.
 
@@ -250,7 +255,10 @@ Precedence:
    fallbacks. Quorum is 1.
 3. Reviewers on a full review: `--providers`, else the configuration. Quorum is
    `min_providers`, or the majority of the configured reviewers.
-4. Judge: `--judge`, else none on lean, else `spec.review_gate.judge`.
+4. Judge: `--judge`, else none on lean, else `spec.review_gate.judge`. The
+   configured judge runs `spec.review_gate.judge_model` and `judge_effort` when
+   they are set (SPEC-JUDGEMODEL-001); any other judge runs its reviewer model,
+   and the plan block says which.
 
 Before this policy, `--providers` switched the whole lean policy off, so
 `--providers codex` on a lean SPEC still ran the configured judge. Now a

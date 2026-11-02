@@ -207,7 +207,7 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`과 `TestInitReview_*`가 이 golden으로 세 번 연속 통과한다.
 - 재기록 시점: main(#252, 18절)을 이 branch에 merge한 뒤 다시 확인했다.
 
-## 96. judge model 안내 재기록 (feat/review-judge-model, 2026-11-02)
+## 20. judge model 안내 재기록 (feat/review-judge-model, 2026-11-02)
 
 - 원인: SPEC-JUDGEMODEL-001 REQ-JM-DOC-01이 `spec-review` 스킬(리뷰 계획 문단과 설정 예시의 `judge_model`·`judge_effort`)과 `using-autopus` 스킬(멀티프로바이더 리뷰 model 절의 `auto quality review judge <provider> --model ...`)에 judge model 설명을 더했다. `adaptive-quality` 스킬과 Codex·Gemini 템플릿 사본도 같은 글로 고쳤다.
 - 기록: 6절과 같은 방법이다(이 branch tip에서 writer, `init-in.stdout`은 `git checkout`으로 되돌림).

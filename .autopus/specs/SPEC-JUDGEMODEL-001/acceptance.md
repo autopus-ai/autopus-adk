@@ -99,6 +99,13 @@ Given the branch
 When the documents and the change set are read
 Then `auto quality --help`, `auto quality review --help`, `README.md`, `docs/README.ko.md`, and the CHANGELOG's unreleased section each name `spec.review_gate.judge_model`, `judge_effort`, and `SPEC-JUDGEMODEL-001`; the three skill sources name `judge_model`; every path `git diff --name-only origin/main` lists is in Module ownership, the test files of Generated And Changed Surfaces included; and no path under `.claude/`, `.codex/`, `.gemini/`, `.opencode/`, `.omp/`, or `.agents/` changed (test `TestJudgeModelDocs`; scope by `git diff --name-only origin/main` against Module ownership).
 
+### S11: AC-JM-011 - The judge model reaches reuse, and a skipped judge names none
+Priority: Must
+Given SPEC-REVIEWREUSE-001's reuse fixture with snapshot reviewer models, judge claude, `judge_model: claude-opus-5-5`, `judge_effort: high`, and `pinned_models: [claude-opus-5-5, claude-sonnet-5-5]`
+When the review runs, runs again unchanged, and runs again after `judge_model` becomes `claude-sonnet-5-5`
+Then the first receipt's fingerprint holds the judge identity of claude with model `claude-opus-5-5` beside the unchanged claude reviewer identity `claude-fable-5-1-20261015`, the second run is reused with no call, and the third reviews again with three more calls, `리뷰 재사용 안 함:` naming `providers: claude`, a judge identity of `claude-sonnet-5-5`, the same reviewer identity, and the receipt's `"model": "claude-sonnet-5-5"`, `"effort": "high"`
+And with `judge_mode: on_disagreement`, two agreeing reviewers skip the judge and the receipt's judge (`status: skipped`) has neither field, while two disagreeing reviewers call the judge with `--model claude-opus-5-5 --effort high` and the receipt names `claude-opus-5-5` and `high`; the plan line `  judge model: claude-opus-5-5 · high — spec.review_gate.judge_model` is printed either way (tests `TestRunSpecReview_JudgeModelChangeInvalidatesReuse`, `TestSpecReviewJudgeModel_SkippedJudgeRecordsNoModel`).
+
 ## Oracle Acceptance Notes
 
 Every oracle is a fixed string, argv, file text, or count. File oracles compare with the original text plus or minus the named lines, so any other changed byte fails. The recording backend returns a valid reviewer or judge answer, so a round reaches the judge.

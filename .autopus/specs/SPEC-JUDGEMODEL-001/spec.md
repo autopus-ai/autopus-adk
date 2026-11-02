@@ -2,14 +2,14 @@
 
 **Status**: draft
 **Created**: 2026-11-02
-**Revised**: 2026-11-02 (codex review round 1, REVISE: F-001 scope of byte identity, F-002 OMP normalization, F-003 test ownership)
+**Revised**: 2026-11-02 (codex review round 1, REVISE: F-001 scope of byte identity, F-002 OMP normalization, F-003 test ownership); 2026-11-03 (merged with SPEC-REVIEWREUSE-001: conditional judge and reuse fingerprint)
 **Domain**: JUDGEMODEL
 **Priority**: MEDIUM
 **Change Class**: feature (two new `autopus.yaml` keys, a changed judge argv at runtime, new CLI flags, and new review tab selects; `feature` is a high-risk class and the surface spans `pkg/config` and `internal/cli`, so the lean profile does not apply)
 **Source**: operator request of 2026-11-02 (the judge should run, for example, claude on opus while the claude reviewer runs sonnet, chosen in the `auto quality` review tab because the commands are long)
 **Target module**: `autopus-adk/` (this repository)
-**Module ownership**: `.autopus/specs/SPEC-JUDGEMODEL-001/**`, `pkg/config/schema_spec.go`, `pkg/config/schema.go`, `[NEW] pkg/config/schema_review_judge_model*.go`, the files of `internal/cli` listed under Generated And Changed Surfaces, source and test files alike, `README.md`, `docs/README.ko.md`, `CHANGELOG.md`, `content/skills/{spec-review,using-autopus,adaptive-quality}.md` and their copies under `templates/codex/skills/` and `templates/gemini/skills/`, the TUIUX goldens they regenerate, and section 96 of `.autopus/specs/SPEC-TUIUX-001/evidence/base-goldens-recapture.md`
-**Depends on**: SPEC-REVMODEL-001 (review tab, `auto quality review`, line splice writer), SPEC-REVIEWRO-001 (read-only judge assembly), SPEC-REVIEWPOLICY-001 (review plan block)
+**Module ownership**: `.autopus/specs/SPEC-JUDGEMODEL-001/**`, `pkg/config/schema_spec.go`, `pkg/config/schema.go`, `[NEW] pkg/config/schema_review_judge_model*.go`, the files of `internal/cli` listed under Generated And Changed Surfaces, source and test files alike, `README.md`, `docs/README.ko.md`, `docs/spec-review-policy.md`, `CHANGELOG.md`, `content/skills/{spec-review,using-autopus,adaptive-quality}.md` and their copies under `templates/codex/skills/` and `templates/gemini/skills/`, the TUIUX goldens they regenerate, and section 20 of `.autopus/specs/SPEC-TUIUX-001/evidence/base-goldens-recapture.md`
+**Depends on**: SPEC-REVMODEL-001 (review tab, `auto quality review`, line splice writer), SPEC-REVIEWRO-001 (read-only judge assembly), SPEC-REVIEWPOLICY-001 (review plan block), SPEC-REVIEWREUSE-001 (conditional judge modes, reuse fingerprint)
 
 ## Purpose
 
@@ -80,7 +80,12 @@ WHEN the review plan block is printed and `judge_model` is configured, THEN THE 
 **REQ-JM-RUN-04**
 Priority: Must
 Type: Event-driven
-WHEN a review whose judge model applied writes `review-receipt.json`, THEN THE SYSTEM SHALL record the effective judge model in the receipt's judge object — `judge.model` the base selector on an OMP judge and the configured model on a CLI judge, `judge.effort` the effective thinking level or effort, each omitted when empty, so `anthropic/claude-opus-5-5:max` alone, with `judge_effort: max`, and `anthropic/claude-opus-5-5` with `judge_effort: max` all record `anthropic/claude-opus-5-5` and `max` — and SHALL write no such field otherwise.
+WHEN a review whose judge model applied writes `review-receipt.json` and its judge was called, THEN THE SYSTEM SHALL record the effective judge model in the receipt's judge object — `judge.model` the base selector on an OMP judge and the configured model on a CLI judge, `judge.effort` the effective thinking level or effort, each omitted when empty, so `anthropic/claude-opus-5-5:max` alone, with `judge_effort: max`, and `anthropic/claude-opus-5-5` with `judge_effort: max` all record `anthropic/claude-opus-5-5` and `max` — and SHALL write no such field otherwise, a judge that a conditional judge mode of SPEC-REVIEWREUSE-001 skipped (`judge.status: skipped`) included.
+
+**REQ-JM-RUN-05**
+Priority: Must
+Type: Ubiquitous
+THE SYSTEM SHALL let the judge model reach every reader of the assembled judge, so the review reuse fingerprint of SPEC-REVIEWREUSE-001 names the judge's effective model in its judge identity and a changed judge model reviews again, while an unchanged one leaves a reusable result reusable.
 
 ### Command
 
@@ -145,14 +150,15 @@ THE SYSTEM SHALL prove every Must requirement with tests over temporary projects
 - `pkg/config/schema_spec.go` (the two fields), `pkg/config/schema.go` (the validation call), `[NEW] pkg/config/schema_review_judge_model.go`.
 - `[NEW] internal/cli/spec_review_judge_model.go`: applies-rule, per-backend application and refusal, plan line, receipt fields; hooks in `spec_review_readonly.go` (`assembleSpecReviewJudge`), `spec_review_readiness.go` (`specReviewProviderPlan.JudgeModel`), `spec_review_plan_print.go` (one call), `spec_review_lean.go` (runtime evidence), `spec_review_receipt.go` (`model`, `effort`, evidence field), `spec_review_runtime.go` (one call).
 - `[NEW] internal/cli/quality_compose_review_judge.go` (tab selects), `[NEW] internal/cli/quality_compose_review_judgemodel.go` (composition value, attestation, targets, change lines, cells, line removal), `[NEW] internal/cli/quality_review_judge.go` (command flags and resolution); `quality_compose_review.go`, `quality_compose_review_plan.go`, `quality_compose_review_raw.go`, `quality_compose_review_write.go`, `quality_compose_review_splice.go`, `quality_compose_review_verify.go`, `quality_compose_review_lines.go`, `quality_compose_review_menu.go`, `quality_compose_review_check.go`, `quality_compose_review_clitab.go`, `quality_compose_review_text.go`, `quality_review.go`, `quality_review_edit.go`, `quality_review_model.go`, `quality_help.go`.
-- Tests: `[NEW] pkg/config/schema_review_judge_model_test.go`; `[NEW] internal/cli/spec_review_judge_model_test.go`, `[NEW] spec_review_judge_model_refusal_test.go`, `[NEW] quality_review_judge_test.go`, `[NEW] quality_review_judge_docs_test.go`, `[NEW] quality_compose_review_judgemodel_test.go`, `[NEW] quality_compose_review_judgemodel_unit_test.go`; changed regression tests `internal/cli/quality_compose_review_judge_test.go` (S3b and S9 answer the judge model select a new judge asks) and `internal/cli/quality_compose_review_text_test.go` (`JudgeModel` reads the same in both locales, as `Model` does).
-- `README.md`, `docs/README.ko.md`, `CHANGELOG.md`, the three skill sources and their Codex and Gemini template copies, the regenerated TUIUX NPD goldens and recapture section 96.
+- Tests: `[NEW] pkg/config/schema_review_judge_model_test.go`; `[NEW] internal/cli/spec_review_judge_model_test.go`, `[NEW] spec_review_judge_model_refusal_test.go`, `[NEW] spec_review_judge_model_reuse_test.go`, `[NEW] quality_review_judge_test.go`, `[NEW] quality_review_judge_docs_test.go`, `[NEW] quality_compose_review_judgemodel_test.go`, `[NEW] quality_compose_review_judgemodel_unit_test.go`; changed regression tests `internal/cli/quality_compose_review_judge_test.go` (S3b and S9 answer the judge model select a new judge asks) and `internal/cli/quality_compose_review_text_test.go` (`JudgeModel` reads the same in both locales, as `Model` does).
+- `README.md`, `docs/README.ko.md`, `docs/spec-review-policy.md`, `CHANGELOG.md`, the three skill sources and their Codex and Gemini template copies, the regenerated TUIUX NPD goldens and recapture section 20.
 
 ## Related SPECs
 
 - SPEC-REVMODEL-001: the review tab, `auto quality review`, the CLI Model Contract, and the line splice writer this SPEC extends; REQ-JM-COMPAT-01 amends its REQ-RVM-15.
 - SPEC-REVIEWRO-001: the read-only gate and projection the judge still passes.
 - SPEC-REVIEWPOLICY-001: the plan block that gains the judge model line.
+- SPEC-REVIEWREUSE-001: the conditional judge modes whose skipped judge records no judge model, and the reuse fingerprint whose judge identity carries the judge model.
 
 ## Traceability Matrix
 
@@ -162,7 +168,8 @@ THE SYSTEM SHALL prove every Must requirement with tests over temporary projects
 | REQ-JM-CFG-01, CFG-02 | T1 | S1 | INV-J01 |
 | REQ-JM-RUN-01 | T2 | S2 | INV-J02, INV-J03 |
 | REQ-JM-RUN-02 | T2 | S3 | INV-J04 |
-| REQ-JM-RUN-03, RUN-04 | T2 | S4 | INV-J05 |
+| REQ-JM-RUN-03, RUN-04 | T2 | S4, S11 | INV-J05 |
+| REQ-JM-RUN-05 | T2 | S11 | INV-J05 |
 | REQ-JM-CLI-01, CLI-02 | T4 | S5 | INV-J01, INV-J07 |
 | REQ-JM-CLI-03, CLI-04 | T4 | S6 | INV-J04 |
 | REQ-JM-TUI-01, TUI-02 | T3, T5 | S7, S8 | INV-J07 |

@@ -114,7 +114,7 @@ Optional improvements. They do not block sync completion and carry no identifier
 
 - An older `auto` refuses a file that sets a judge model (strict loader). The note, the help, and the READMEs say so, and clearing removes the keys.
 - Review time checks only that the backend can carry the value; a hand-written model the provider does not serve fails at the judge call as a judge failure, as a hand-written reviewer model fails today.
-- PR #255 (SPEC-REVIEWREUSE-001) fingerprints the assembled judge config; because the model is applied during assembly, a changed judge model changes that fingerprint, which a merge must keep.
+- SPEC-REVIEWREUSE-001 (merged in #258) fingerprints the assembled judge config through `specReviewJudgeAssembly`; because the model is applied during assembly, the judge identity carries the judge model and a changed judge model reviews again (S11). The whole configuration digest changes too, so the reason names `config` beside `providers: claude`.
 
 ## Review Response (codex, 2026-11-02, REVISE, 3 findings)
 
@@ -123,6 +123,14 @@ Optional improvements. They do not block sync completion and carry no identifier
 | F-001 byte identity vs the new tab option | Outcome Lock and REQ-JM-CFG-01 scope byte identity to review requests, plan block, receipt, and `auto quality review [show] [--json]`; the tab's option and select and the help texts are named as outside it; S2 and S7 say so; `TestSpecReviewJudgeModel_AbsentOrOtherJudgeKeepsTheReviewerConfig` checks the receipt's judge keys |
 | F-002 OMP inline thinking in plan and receipt | Effective judge model defined (base selector and one thinking level; a mismatch is refused); REQ-JM-RUN-03/04 and S4 give exact values for the split, inline-only, and inline-plus-equal forms; `TestSpecReviewJudgeModel_OMPFormsNormalize` fails on the raw recording; show and change lines keep the text as written (`TestReviewJudgeModel_InlineThinkingShowsOnce`) |
 | F-003 test files outside Module ownership | Module ownership covers the listed `internal/cli` files, tests included; Generated And Changed Surfaces lists every new test and the two changed regression tests; T7 and S10 check the change set against Module ownership |
+
+## Merge With SPEC-REVIEWREUSE-001 (2026-11-03)
+
+| Interaction | Resolution |
+|---|---|
+| Reuse fingerprint | The judge identity comes from the assembled judge, so it holds the judge model; S11 and `TestRunSpecReview_JudgeModelChangeInvalidatesReuse` check the identity, the reuse of an unchanged judge model, and the review after a change |
+| Conditional judge modes | A skipped judge made no call, so the receipt names no judge model (REQ-JM-RUN-04); the plan line still names the judge model the judge would run; `TestSpecReviewJudgeModel_SkippedJudgeRecordsNoModel` fails without the guard |
+| Recapture numbering | This branch's section is 20, the next free number after main's 19 |
 
 ## Self-Verify Summary
 
