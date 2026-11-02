@@ -80,7 +80,7 @@ func currentSpecReviewFingerprint(ctx context.Context, req specReviewReuseReques
 	if err == nil && delivery != nil {
 		var receipt promptlayer.ContextDeliveryResult
 		if receipt, err = delivery.buildVerified(); err == nil {
-			in.delivery = specReviewDeliveryDigests(receipt)
+			in.delivery = specReviewDeliveryDigests(&receipt)
 		}
 	}
 	if err != nil {

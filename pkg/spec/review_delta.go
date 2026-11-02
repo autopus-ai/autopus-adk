@@ -12,6 +12,7 @@ const (
 	DeltaReasonDelta                = "delta"
 	DeltaReasonMissingBaseline      = "missing_baseline"
 	DeltaReasonBaselineHashMismatch = "baseline_hash_mismatch"
+	DeltaReasonIncompleteBaseline   = "incomplete_baseline"
 	DeltaReasonContextChanged       = "context_changed"
 	DeltaReasonInterfaceChange      = "interface_change"
 	DeltaReasonUnclearImpact        = "unclear_impact"
@@ -22,10 +23,11 @@ const (
 )
 
 // DeltaVerifyInput is what the eligibility check compares: the baseline, the
-// current SPEC documents and non-document digests, and the prior findings.
+// carried SPEC documents in their delivered representation, the digests of
+// everything else the round reads, and the prior findings.
 type DeltaVerifyInput struct {
 	Baseline  *ReviewBaseline
-	Documents map[string]string
+	Documents map[string]ReviewInputDocument
 	Context   map[string]string
 	Findings  []ReviewFinding
 }
@@ -37,11 +39,13 @@ type DocumentChange struct {
 }
 
 // DeltaPlan is the eligibility outcome. For a delta input it carries the
-// changed documents and what the prompt builder needs to link the rest.
+// changed documents, the delta scope ids, and the layouts the prompt builder
+// and the manifest check read to decide what the request must carry.
 type DeltaPlan struct {
 	Reason   string
 	Changes  []DocumentChange
 	scopes   []findingScope
+	ids      map[string]bool
 	current  map[string]docLayout
 	baseline map[string]docLayout
 }
@@ -57,12 +61,19 @@ func PlanDeltaVerify(in DeltaVerifyInput) DeltaPlan {
 		return fail(DeltaReasonMissingBaseline)
 	}
 	for _, document := range baseline.Documents {
-		if SHA256Hex([]byte(document.Content)) != document.SHA256 {
+		if SHA256Hex([]byte(document.Content)) != document.PromptSHA256 {
 			return fail(DeltaReasonBaselineHashMismatch)
 		}
 	}
 	if !slices.Equal(slices.Sorted(slices.Values(baseline.OpenIDs)), OpenFindingIDs(in.Findings)) {
 		return fail(DeltaReasonBaselineHashMismatch)
+	}
+	// A document the baseline round did not deliver whole was never reviewed
+	// whole, so nothing about it can stand in for sending it.
+	for name := range baseline.Documents {
+		if baseline.Delivered[name] != BaselineDeliveredComplete {
+			return fail(DeltaReasonIncompleteBaseline)
+		}
 	}
 	if !maps.Equal(baseline.Context, in.Context) {
 		return fail(DeltaReasonContextChanged)
@@ -72,18 +83,26 @@ func PlanDeltaVerify(in DeltaVerifyInput) DeltaPlan {
 	}
 	plan := DeltaPlan{current: map[string]docLayout{}, baseline: map[string]docLayout{}}
 	for _, name := range slices.Sorted(maps.Keys(in.Documents)) {
-		old, current := baseline.Documents[name].Content, in.Documents[name]
-		plan.current[name], plan.baseline[name] = layoutDocument(current), layoutDocument(old)
-		if old == current {
+		old, current := baseline.Documents[name], in.Documents[name]
+		plan.current[name], plan.baseline[name] = layoutDocument(current.Content), layoutDocument(old.Content)
+		sameSource, sameContent := old.SourceSHA256 == current.SourceSHA256, old.Content == current.Content
+		if sameSource && sameContent {
 			continue
 		}
-		change := DocumentChange{Name: name, Hunks: buildHunks(diffLines(splitLines(old), splitLines(current)), 3)}
+		// A source change the redaction hides, or a representation change
+		// without one, cannot be shown as a diff of what reviewers read.
+		if sameSource || sameContent {
+			return fail(DeltaReasonIntegrityGap)
+		}
+		hunks := buildHunks(diffLines(splitLines(old.Content), splitLines(current.Content)), 3)
+		plan.Changes = append(plan.Changes, DocumentChange{Name: name, Hunks: hunks})
+	}
+	for _, change := range plan.Changes {
 		for _, hunk := range change.Hunks {
-			if plan.touchesRiskBoundary(name, hunk) {
+			if plan.touchesRiskBoundary(change.Name, hunk) {
 				return fail(DeltaReasonInterfaceChange)
 			}
 		}
-		plan.Changes = append(plan.Changes, change)
 	}
 	for _, finding := range in.Findings {
 		if !isOpenOrRegressed(finding.Status) {
@@ -105,6 +124,7 @@ func PlanDeltaVerify(in DeltaVerifyInput) DeltaPlan {
 	if len(plan.Changes) == 0 {
 		return fail(DeltaReasonNoChange)
 	}
+	plan.ids = plan.deltaScopeIDs()
 	plan.Reason = DeltaReasonDelta
 	return plan
 }

@@ -14,48 +14,80 @@ const (
 	DeltaDeliveryLinked   = "linked"
 )
 
-// DeltaSource is one required source of a delta round and how it reaches the
-// reviewers: its full text, its diff, or a link to the verified baseline.
+// deltaSelfContainedNote tells the reviewer what the request is. Every
+// provider request starts a fresh process with no conversation to restore,
+// so a delta request can only ever be judged from its own text.
+const deltaSelfContainedNote = "This request is complete in itself. You have no access to the baseline review or to any earlier conversation: every review request starts a fresh session. " +
+	"It carries the changes since the baseline, the full current text of every section they touch, of every section that names a delta scope id, and of the boundary sections of every document, and every other required source in full. " +
+	"A source marked linked is not sent: it is unchanged since the baseline round, which delivered it complete, and none of its sections that are not shown here names a delta scope id. " +
+	"Judge only from this request. If a finding's status depends on text that is not here, keep the finding open and name the source you need in its reason.\n"
+
+// DeltaSource is one required source of a delta round as the request
+// declares it: the digest of its source, the digest of the text a request
+// delivers for it, how it reaches the reviewer, why it is linked, and for an
+// included source the delivered text itself.
 type DeltaSource struct {
-	Name     string
-	SHA256   string
-	Delivery string
+	Name         string
+	SourceSHA256 string
+	PromptSHA256 string
+	Delivery     string
+	Reason       string
+	Text         string
 }
 
-// DeltaPromptInput is what the delta prompt is built from. Sources lists the
-// required sources other than the SPEC documents (the checklist, the code
-// context, the context-delivery references) with their delivery.
+// IncludedDeltaSource is a source other than a SPEC document that the
+// request carries in full: the checklist, the code context, or a context
+// delivery reference.
+func IncludedDeltaSource(name, sourceSHA256, text string) DeltaSource {
+	return DeltaSource{Name: name, SourceSHA256: sourceSHA256, PromptSHA256: SHA256Hex([]byte(text)), Delivery: DeltaDeliveryIncluded, Text: text}
+}
+
+// RequiredDeltaSources lists every required source of a delta round with its
+// current digests: the carried SPEC documents, then sources.
+func RequiredDeltaSources(documents map[string]ReviewInputDocument, sources []DeltaSource) []DeltaSource {
+	var required []DeltaSource
+	for _, name := range slices.Sorted(maps.Keys(documents)) {
+		document := documents[name]
+		required = append(required, DeltaSource{Name: name, SourceSHA256: document.SourceSHA256, PromptSHA256: document.PromptSHA256})
+	}
+	return append(required, sources...)
+}
+
+// DeltaPromptInput is what the delta prompt is built from. Sources are the
+// required sources other than the SPEC documents, each included in full.
 type DeltaPromptInput struct {
 	Doc           *SpecDocument
 	Plan          DeltaPlan
 	Baseline      *ReviewBaseline
-	Documents     map[string]string
+	Documents     map[string]ReviewInputDocument
 	Sources       []DeltaSource
 	PriorFindings []ReviewFinding
 	PassCriteria  string
-	Checklist     string
 }
 
-// BuildDeltaVerifyPrompt builds the spec_review_delta.v1 prompt: the changes,
-// the sections they touch, the requirements and scenarios the open findings
-// name, the evidence per finding, and the checklist, with every other source
-// linked to the baseline by digest. It returns the manifest it declared.
+// BuildDeltaVerifyPrompt builds the spec_review_delta.v1 prompt, complete in
+// itself for a reviewer that starts with nothing: the changes as a diff of the
+// delivered representations, the full text of every unit they touch, of every
+// unit naming a delta scope id, and of every boundary unit, the traceability
+// rows, every other required source in full, the evidence per finding, and the
+// verify instructions. It returns the manifest it declared.
 func BuildDeltaVerifyPrompt(in DeltaPromptInput) (string, []DeltaSource) {
 	var sb strings.Builder
-	sb.WriteString("You are verifying the fixes made to a SPEC since its last review, to decide whether implementation can start from it: check the changes and their linked context for correctness, completeness, and feasibility only as far as they decide that.\n\n")
+	sb.WriteString("You are verifying the fixes made to a SPEC since its last review, to decide whether implementation can start from it: check the changes and the context below for correctness, completeness, and feasibility only as far as they decide that.\n\n")
 	fmt.Fprintf(&sb, "## SPEC: %s — %s\n\n", in.Doc.ID, in.Doc.Title)
 	sb.WriteString("### Delta Verify Input (spec_review_delta.v1)\n\n")
 	baselineRef := fmt.Sprintf("baseline %s r%d", in.Baseline.RunID, in.Baseline.Revision)
-	fmt.Fprintf(&sb, "Baseline: run %s, revision %d, recorded %s. Every source marked linked below is byte-identical (SHA-256) to what that review read in full. Review the changes, the sections they touch, and the linked requirements and scenarios.\n\n",
-		in.Baseline.RunID, in.Baseline.Revision, in.Baseline.RecordedAt)
-	manifest := deltaManifest(in)
+	fmt.Fprintf(&sb, "Baseline: run %s, revision %d, recorded %s.\n", in.Baseline.RunID, in.Baseline.Revision, in.Baseline.RecordedAt)
+	sb.WriteString(deltaSelfContainedNote)
+	fmt.Fprintf(&sb, "Delta scope ids: %s\n\n", strings.Join(in.Plan.sortedIDs(), ", "))
+	manifest := deltaManifest(in, baselineRef)
 	sb.WriteString("#### Source Manifest\n\n")
 	for _, source := range manifest {
-		suffix := ""
-		if source.Delivery == DeltaDeliveryLinked {
-			suffix = " (" + baselineRef + ")"
+		fmt.Fprintf(&sb, "- %s source_sha256:%s prompt_sha256:%s %s", source.Name, source.SourceSHA256, source.PromptSHA256, source.Delivery)
+		if source.Reason != "" {
+			fmt.Fprintf(&sb, " (%s)", source.Reason)
 		}
-		fmt.Fprintf(&sb, "- %s sha256:%s %s%s\n", source.Name, source.SHA256, source.Delivery, suffix)
+		sb.WriteString("\n")
 	}
 	sb.WriteString("\n#### Changes\n\n")
 	for _, change := range in.Plan.Changes {
@@ -65,35 +97,75 @@ func BuildDeltaVerifyPrompt(in DeltaPromptInput) (string, []DeltaSource) {
 		}
 		sb.WriteString("```\n\n")
 	}
-	printed := map[string]bool{}
-	sb.WriteString("#### Affected Sections\n\n")
-	for _, change := range in.Plan.Changes {
-		for _, start := range in.Plan.affectedUnits(change) {
-			writeDeltaUnit(&sb, change.Name, in.Plan.current[change.Name], start, printed)
+	writeDeltaUnits(&sb, in.Plan, in.Sources)
+	writeFixEvidence(&sb, in.Plan)
+	checklistIncluded := false
+	for _, source := range in.Sources {
+		if source.Name == "checklist" {
+			sb.WriteString("## Quality Checklist\n\n" + source.Text + "\n\n")
+			checklistIncluded = true
 		}
 	}
-	writeLinkedUnits(&sb, in.Plan, printed)
-	writeFixEvidence(&sb, in.Plan)
-	InjectChecklistSection(&sb, in.Checklist, 0)
 	writeReviewPolicySection(&sb, EffectiveReviewPolicy(in.Doc))
-	buildVerifyInstructions(&sb, in.PriorFindings, in.PassCriteria, true)
+	buildVerifyInstructions(&sb, in.PriorFindings, in.PassCriteria, checklistIncluded)
 	return sb.String(), manifest
 }
 
-func deltaManifest(in DeltaPromptInput) []DeltaSource {
+func deltaManifest(in DeltaPromptInput, baselineRef string) []DeltaSource {
 	changed := map[string]bool{}
 	for _, change := range in.Plan.Changes {
 		changed[change.Name] = true
 	}
 	var manifest []DeltaSource
 	for _, name := range slices.Sorted(maps.Keys(in.Documents)) {
-		delivery := DeltaDeliveryLinked
-		if changed[name] {
-			delivery = DeltaDeliveryChanged
+		document := in.Documents[name]
+		source := DeltaSource{Name: name, SourceSHA256: document.SourceSHA256, PromptSHA256: document.PromptSHA256, Delivery: DeltaDeliveryChanged}
+		if !changed[name] {
+			source.Delivery = DeltaDeliveryLinked
+			source.Reason = baselineRef + ": unchanged and delivered complete in that round; every section of it that names a delta scope id is shown in this request"
 		}
-		manifest = append(manifest, DeltaSource{Name: name, SHA256: SHA256Hex([]byte(in.Documents[name])), Delivery: delivery})
+		manifest = append(manifest, source)
 	}
 	return append(manifest, in.Sources...)
+}
+
+// writeDeltaUnits writes the full text of every unit the request must carry,
+// each once: the touched units, the boundary units, and the scope units with
+// the traceability rows, then every included source but the checklist.
+func writeDeltaUnits(sb *strings.Builder, plan DeltaPlan, sources []DeltaSource) {
+	printed := map[string]bool{}
+	names := slices.Sorted(maps.Keys(plan.current))
+	sb.WriteString("#### Affected Sections\n\n")
+	for _, change := range plan.Changes {
+		for _, start := range plan.affectedUnits(change) {
+			writeDeltaUnit(sb, change.Name, plan.current[change.Name], start, printed)
+		}
+	}
+	sb.WriteString("#### Boundary Sections\n\n")
+	for _, name := range names {
+		for _, start := range plan.boundaryUnits(name) {
+			writeDeltaUnit(sb, name, plan.current[name], start, printed)
+		}
+	}
+	sb.WriteString("#### Scope Sections\n\n")
+	for _, name := range names {
+		for _, start := range plan.scopeUnits(name) {
+			writeDeltaUnit(sb, name, plan.current[name], start, printed)
+		}
+	}
+	if rows := plan.traceabilityRows(); len(rows) > 0 {
+		sb.WriteString("Traceability rows:\n\n" + strings.Join(rows, "\n") + "\n\n")
+	}
+	sb.WriteString("#### Required Context\n\n")
+	for _, source := range sources {
+		switch source.Name {
+		case "checklist":
+		case "code.context":
+			sb.WriteString("##### Existing Code Context\n\n```\n" + source.Text + "\n```\n\n")
+		default:
+			fmt.Fprintf(sb, "##### %s\n\n%s\n\n", source.Name, source.Text)
+		}
+	}
 }
 
 // affectedUnits are the current units of a change: those holding an added
@@ -131,39 +203,7 @@ func writeDeltaUnit(sb *strings.Builder, name string, layout docLayout, start in
 		return
 	}
 	printed[key] = true
-	fmt.Fprintf(sb, "##### %s — %s\n\n%s\n", name, layout.unitLabel(start), layout.unitText(start))
-}
-
-// writeLinkedUnits writes every requirement block and scenario section the
-// open findings' scope closures name, and the traceability rows naming them.
-func writeLinkedUnits(sb *strings.Builder, plan DeltaPlan, printed map[string]bool) {
-	ids := map[string]bool{}
-	for _, scope := range plan.scopes {
-		maps.Copy(ids, scope.ids)
-	}
-	sb.WriteString("#### Linked Requirements and Scenarios\n\n")
-	for _, name := range slices.Sorted(maps.Keys(plan.current)) {
-		layout := plan.current[name]
-		for i := range layout.lines {
-			if layout.unitStart[i] != i {
-				continue
-			}
-			label := layout.unitLabel(i)
-			if ids[label] || ids[strings.SplitN(label, ":", 2)[0]] {
-				writeDeltaUnit(sb, name, layout, i, printed)
-			}
-		}
-	}
-	specLayout := plan.current["spec.md"]
-	var rows []string
-	for i, line := range specLayout.lines {
-		if specLayout.h2[i] == "traceability matrix" && strings.HasPrefix(strings.TrimSpace(line), "|") && containsAnyID(line, idList(ids)) {
-			rows = append(rows, line)
-		}
-	}
-	if len(rows) > 0 {
-		sb.WriteString("Traceability rows:\n\n" + strings.Join(rows, "\n") + "\n\n")
-	}
+	fmt.Fprintf(sb, "##### %s — %s\n\n%s\n", name, layout.unitName(start), layout.unitBody(start))
 }
 
 // writeFixEvidence lists, per open finding, the hunks inside its scope.
@@ -200,33 +240,4 @@ func (p DeltaPlan) hunkTouches(name string, hunk DiffHunk, scope findingScope) b
 		}
 	}
 	return false
-}
-
-// ValidateDeltaManifest proves the delta prompt accounts for every required
-// source (REQ-RR-DELTA-05): each is declared with its current digest, a
-// linked source is byte-identical to the baseline, a changed source carries
-// its diff, and an included source (the checklist) carries its text.
-func ValidateDeltaManifest(manifest []DeltaSource, current, baseline map[string]string, prompt string) error {
-	declared := make(map[string]DeltaSource, len(manifest))
-	for _, source := range manifest {
-		declared[source.Name] = source
-	}
-	for _, name := range slices.Sorted(maps.Keys(current)) {
-		source, ok := declared[name]
-		switch {
-		case !ok:
-			return fmt.Errorf("delta manifest omits %s", name)
-		case source.SHA256 != current[name]:
-			return fmt.Errorf("delta manifest digest of %s is stale", name)
-		case source.Delivery == DeltaDeliveryLinked && baseline[name] != current[name]:
-			return fmt.Errorf("%s is linked but differs from the baseline", name)
-		case source.Delivery == DeltaDeliveryChanged && !strings.Contains(prompt, "##### "+name+"\n\n```diff\n"):
-			return fmt.Errorf("%s is changed but its diff is missing", name)
-		case source.Delivery == DeltaDeliveryIncluded && (name != "checklist" || !strings.Contains(prompt, "## Quality Checklist\n\n")):
-			return fmt.Errorf("%s is included but its text is missing", name)
-		case source.Delivery != DeltaDeliveryLinked && source.Delivery != DeltaDeliveryChanged && source.Delivery != DeltaDeliveryIncluded:
-			return fmt.Errorf("%s has unknown delivery %q", name, source.Delivery)
-		}
-	}
-	return nil
 }

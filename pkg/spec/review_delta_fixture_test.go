@@ -67,13 +67,25 @@ When it is accepted
 Then it is stored.
 `
 
+// deltaDocuments are the raw SPEC documents of round 0. plan.md names T2,
+// which shares the REQ-002 traceability row, in its Tasks section; its Notes
+// section and research.md's name no id of the fix.
 func deltaDocuments() map[string]string {
 	return map[string]string{
 		"spec.md":       deltaSpec,
 		"acceptance.md": deltaAcceptance,
-		"plan.md":       "# Plan\n\n## Tasks\n\n- T1\n- T2\n- T3\n\nPLAN-BODY-MARKER\n",
-		"research.md":   "# Research\n\n## Outcome Lock\n\nLock.\n\nRESEARCH-BODY-MARKER\n",
+		"plan.md":       "# Plan\n\n## Tasks\n\n- T1\n- T2\n- T3\n\n## Notes\n\nPLAN-BODY-MARKER\n",
+		"research.md":   "# Research\n\n## Outcome Lock\n\nLock.\n\n## Notes\n\nRESEARCH-BODY-MARKER\n",
 	}
+}
+
+// inputDocuments is raw in the representation a review request delivers.
+func inputDocuments(raw map[string]string) map[string]spec.ReviewInputDocument {
+	documents := make(map[string]spec.ReviewInputDocument, len(raw))
+	for name, content := range raw {
+		documents[name] = spec.NewReviewInputDocument([]byte(content))
+	}
+	return documents
 }
 
 // deltaFix is the author's local fix of F-001: the REQ-002 statement and the
@@ -86,13 +98,24 @@ func deltaFix(documents map[string]string) map[string]string {
 	return fixed
 }
 
-func deltaBaseline(documents map[string]string) *spec.ReviewBaseline {
+// deltaBaseline is what round 0 recorded: every document delivered complete.
+func deltaBaseline(raw map[string]string) *spec.ReviewBaseline {
+	documents := inputDocuments(raw)
+	delivered := map[string]string{}
+	for name := range documents {
+		delivered[name] = spec.BaselineDeliveredComplete
+	}
 	return &spec.ReviewBaseline{
 		Schema: spec.ReviewBaselineSchema, RunID: "run-1", Revision: 0, RecordedAt: "2026-11-02T09:00:00Z",
-		Documents: spec.BaselineDocuments(documents),
-		Context:   map[string]string{"checklist": "c1", "code.worktree": "w1"},
-		OpenIDs:   []string{"F-001"},
+		Documents: spec.BaselineDocuments(documents), Delivered: delivered,
+		Context: map[string]string{"checklist": "c1", "code.worktree": "w1"},
+		OpenIDs: []string{"F-001"},
 	}
+}
+
+// deltaChecklist is the checklist source of a delta round, sent in full.
+func deltaChecklist() spec.DeltaSource {
+	return spec.IncludedDeltaSource("checklist", "c1", "CHECKLIST-BODY")
 }
 
 func deltaFinding() spec.ReviewFinding {

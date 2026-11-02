@@ -6,11 +6,11 @@ import (
 	"io"
 	"maps"
 	"path/filepath"
-	"slices"
 	"strings"
 	"time"
 
 	"github.com/insajin/autopus-adk/pkg/config"
+	"github.com/insajin/autopus-adk/pkg/promptlayer"
 	"github.com/insajin/autopus-adk/pkg/spec"
 )
 
@@ -30,11 +30,33 @@ type specReviewRoundInput struct {
 	baseline string
 }
 
+// specReviewRoundSources is what a round's full input carried besides the
+// prompt text: its verified context delivery (nil for an inline prompt), its
+// SPEC documents in their delivered representation, and for an inline prompt
+// how much of each auxiliary document it injected, read when the prompt was
+// built.
+type specReviewRoundSources struct {
+	delivery  *promptlayer.ContextDeliveryResult
+	documents map[string]spec.ReviewInputDocument
+	coverages []spec.DocCoverage
+}
+
+// readSpecReviewRoundSources reads the documents and the inline coverage of
+// the round whose prompt was just built from delivery.
+func readSpecReviewRoundSources(p specReviewLoopParams, delivery *promptlayer.ContextDeliveryResult) specReviewRoundSources {
+	sources := specReviewRoundSources{delivery: delivery}
+	sources.documents, _ = spec.ReviewInputDocuments(p.specDir)
+	if delivery == nil {
+		sources.coverages = spec.AuxDocCoverages(p.specDir, spec.ResolveAuxTotalBudget(p.gate.DocContextMaxLines))
+	}
+	return sources
+}
+
 // chooseSpecReviewInput returns the prompt a round sends: the full prompt,
 // or for a verify round under verify_input delta the delta prompt when every
 // eligibility and integrity condition holds (REQ-RR-DELTA-03, REQ-RR-DELTA-05).
 func chooseSpecReviewInput(
-	p specReviewLoopParams, doc *spec.SpecDocument, priorFindings []spec.ReviewFinding, full string, fp *specReviewFingerprint,
+	p specReviewLoopParams, doc *spec.SpecDocument, priorFindings []spec.ReviewFinding, full string, fp *specReviewFingerprint, round specReviewRoundSources,
 ) (string, specReviewRoundInput) {
 	if len(priorFindings) == 0 {
 		return full, specReviewRoundInput{mode: specReviewInputFull, reason: specReviewInputDiscover}
@@ -42,7 +64,7 @@ func chooseSpecReviewInput(
 	if p.verifyInput != config.ReviewVerifyInputDelta {
 		return full, specReviewRoundInput{mode: specReviewInputFull, reason: specReviewInputConfiguredFull}
 	}
-	prompt, baseline, reason := buildSpecReviewDeltaPrompt(p, doc, priorFindings, full, fp)
+	prompt, baseline, reason := buildSpecReviewDeltaPrompt(p, doc, priorFindings, full, fp, round)
 	if reason != spec.DeltaReasonDelta {
 		return full, specReviewRoundInput{mode: specReviewInputFull, reason: reason}
 	}
@@ -50,7 +72,7 @@ func chooseSpecReviewInput(
 }
 
 func buildSpecReviewDeltaPrompt(
-	p specReviewLoopParams, doc *spec.SpecDocument, priorFindings []spec.ReviewFinding, full string, fp *specReviewFingerprint,
+	p specReviewLoopParams, doc *spec.SpecDocument, priorFindings []spec.ReviewFinding, full string, fp *specReviewFingerprint, round specReviewRoundSources,
 ) (string, string, string) {
 	// Without a complete fingerprint the delta cannot prove what did not
 	// change outside the SPEC, so the round reviews the full input.
@@ -61,69 +83,72 @@ func buildSpecReviewDeltaPrompt(
 	if err != nil {
 		return "", "", spec.DeltaReasonMissingBaseline
 	}
-	documents, err := spec.ReviewDocumentContents(p.specDir)
-	if err != nil {
+	if round.documents == nil {
 		return "", "", spec.DeltaReasonIntegrityGap
 	}
-	context := specReviewBaselineContext(fp, p.specDir)
-	plan := spec.PlanDeltaVerify(spec.DeltaVerifyInput{Baseline: baseline, Documents: documents, Context: context, Findings: priorFindings})
+	plan := spec.PlanDeltaVerify(spec.DeltaVerifyInput{
+		Baseline: baseline, Documents: round.documents, Context: specReviewBaselineContext(fp, p.specDir), Findings: priorFindings,
+	})
 	if plan.Reason != spec.DeltaReasonDelta {
 		return "", "", plan.Reason
 	}
-	checklist, err := spec.ReviewChecklistBody()
+	sources, err := specReviewDeltaSources(p, round.delivery)
 	if err != nil {
 		return "", "", spec.DeltaReasonIntegrityGap
 	}
-	current, linked := specReviewDeltaDigests(fp, p, documents, baseline)
-	sources := []spec.DeltaSource{{Name: "checklist", SHA256: fp.Checklist, Delivery: spec.DeltaDeliveryIncluded}}
-	for _, name := range slices.Sorted(maps.Keys(current)) {
-		if _, document := documents[name]; !document && name != "checklist" {
-			sources = append(sources, spec.DeltaSource{Name: name, SHA256: current[name], Delivery: spec.DeltaDeliveryLinked})
-		}
-	}
 	prompt, manifest := spec.BuildDeltaVerifyPrompt(spec.DeltaPromptInput{
-		Doc: doc, Plan: plan, Baseline: baseline, Documents: documents, Sources: sources,
-		PriorFindings: priorFindings, PassCriteria: p.gate.PassCriteria, Checklist: checklist,
+		Doc: doc, Plan: plan, Baseline: baseline, Documents: round.documents, Sources: sources,
+		PriorFindings: priorFindings, PassCriteria: p.gate.PassCriteria,
 	})
 	if len(prompt) >= len(full) {
 		return "", "", spec.DeltaReasonNoSaving
 	}
-	if err := spec.ValidateDeltaManifest(manifest, current, linked, prompt); err != nil {
+	if err := spec.ValidateDeltaManifest(spec.DeltaManifestCheck{
+		Manifest: manifest, Required: spec.RequiredDeltaSources(round.documents, sources), Baseline: baseline, Plan: plan, Prompt: prompt,
+	}); err != nil {
 		return "", "", spec.DeltaReasonIntegrityGap
 	}
 	return prompt, fmt.Sprintf("%s r%d", baseline.RunID, baseline.Revision), spec.DeltaReasonDelta
 }
 
-// specReviewDeltaDigests returns every required source's current digest and
-// its baseline digest, keyed alike: SPEC documents by name, then checklist,
-// code.context when a code context is injected, and reference:<path>.
-func specReviewDeltaDigests(
-	fp *specReviewFingerprint, p specReviewLoopParams, documents map[string]string, baseline *spec.ReviewBaseline,
-) (map[string]string, map[string]string) {
-	current, linked := map[string]string{}, map[string]string{}
-	for name, content := range documents {
-		current[name] = spec.SHA256Hex([]byte(content))
-		linked[name] = baseline.Documents[name].SHA256
+// specReviewDeltaSources are the required sources of a delta round other than
+// the SPEC documents, each carried in full because a reviewer cannot recall
+// them: the checklist, the code context when one is injected, and every
+// context document the round's verified delivery carries (REQ-RR-DELTA-04).
+func specReviewDeltaSources(p specReviewLoopParams, delivery *promptlayer.ContextDeliveryResult) ([]spec.DeltaSource, error) {
+	checklist, err := spec.ReviewChecklistBody()
+	if err != nil {
+		return nil, err
 	}
-	context := specReviewBaselineContext(fp, p.specDir)
-	keys := []string{"checklist"}
+	sources := []spec.DeltaSource{spec.IncludedDeltaSource("checklist", spec.SHA256Hex([]byte(checklist)), strings.TrimSpace(checklist))}
 	if p.codeContext != "" {
-		keys = append(keys, "code.context")
+		sources = append(sources, spec.IncludedDeltaSource("code.context", spec.SHA256Hex([]byte(p.codeContext)), p.codeContext))
 	}
-	for key := range context {
-		if strings.HasPrefix(key, "reference:") {
-			keys = append(keys, key)
+	if delivery == nil {
+		return sources, nil
+	}
+	contents := make(map[string]string, len(delivery.Layers))
+	for _, layer := range delivery.Layers {
+		contents[layer.SourceRef] = layer.Content
+	}
+	for _, document := range delivery.RequiredDocuments {
+		if strings.HasPrefix(document.SourceRef, delivery.SpecDir+"/") {
+			continue
 		}
+		content, ok := contents[document.SourceRef]
+		if !ok || strings.TrimSpace(content) == "" {
+			return nil, fmt.Errorf("context document %s has no delivered body", document.SourceRef)
+		}
+		sources = append(sources, spec.IncludedDeltaSource("reference:"+document.SourceRef, strings.TrimPrefix(document.SourceHash, "sha256:"), content))
 	}
-	for _, key := range keys {
-		current[key], linked[key] = context[key], baseline.Context[key]
-	}
-	return current, linked
+	return sources, nil
 }
 
 // specReviewBaselineContext flattens the round fingerprint's non-document
-// components; references inside the SPEC directory are documents and are
-// compared as such.
+// components. References inside the SPEC directory are documents and are
+// compared as such; the markdown files a full input does not carry are
+// compared by one digest, so adding, removing, or editing one is a context
+// change.
 func specReviewBaselineContext(fp *specReviewFingerprint, specDir string) map[string]string {
 	context := map[string]string{
 		"checklist": fp.Checklist, "code.head": fp.Code.Head, "code.worktree": fp.Code.Worktree,
@@ -136,6 +161,11 @@ func specReviewBaselineContext(fp *specReviewFingerprint, specDir string) map[st
 			context["reference:"+path] = digest
 		}
 	}
+	others := maps.Clone(fp.Documents)
+	for _, name := range spec.CarriedReviewDocuments() {
+		delete(others, name)
+	}
+	context["documents.other"] = specReviewJSONDigest(others)
 	return context
 }
 
@@ -144,10 +174,12 @@ func specReviewJSONDigest(value any) string {
 	return spec.SHA256Hex(data)
 }
 
-// recordSpecReviewBaseline stores what a usable, uncut round reviewed
+// recordSpecReviewBaseline stores what a usable, uncut round delivered
 // (REQ-RR-DELTA-02); a failure only costs the next round its delta input.
-func recordSpecReviewBaseline(p specReviewLoopParams, revision int, documents map[string]string, fp *specReviewFingerprint, findings []spec.ReviewFinding, w io.Writer) {
-	if fp == nil || documents == nil {
+func recordSpecReviewBaseline(
+	p specReviewLoopParams, revision int, round specReviewRoundSources, fp *specReviewFingerprint, findings []spec.ReviewFinding, w io.Writer,
+) {
+	if fp == nil || round.documents == nil {
 		return
 	}
 	runID := ""
@@ -156,12 +188,30 @@ func recordSpecReviewBaseline(p specReviewLoopParams, revision int, documents ma
 	}
 	baseline := &spec.ReviewBaseline{
 		Schema: spec.ReviewBaselineSchema, RunID: runID, Revision: revision,
-		RecordedAt: time.Now().UTC().Format(time.RFC3339), Documents: spec.BaselineDocuments(documents),
-		Context: specReviewBaselineContext(fp, p.specDir), OpenIDs: spec.OpenFindingIDs(findings),
+		RecordedAt: time.Now().UTC().Format(time.RFC3339), Documents: spec.BaselineDocuments(round.documents),
+		Delivered: specReviewDeliveredScope(round),
+		Context:   specReviewBaselineContext(fp, p.specDir), OpenIDs: spec.OpenFindingIDs(findings),
 	}
 	if err := spec.PersistReviewBaseline(p.specDir, baseline); err != nil {
 		fmt.Fprintf(w, "경고: 리뷰 baseline 저장 실패: %v\n", err)
 	}
+}
+
+// specReviewDeliveredScope records whether the round's full input carried
+// each SPEC document whole: a verified delivery carries every document
+// complete or fails; an inline prompt carries spec.md whole and each
+// auxiliary document as its injection coverage says (REQ-RR-DELTA-02).
+func specReviewDeliveredScope(round specReviewRoundSources) map[string]string {
+	delivered := make(map[string]string, len(round.documents))
+	for name := range round.documents {
+		delivered[name] = spec.BaselineDeliveredComplete
+	}
+	for _, coverage := range round.coverages {
+		if _, carried := delivered[coverage.Name]; carried && !coverage.Complete {
+			delivered[coverage.Name] = spec.BaselineDeliveredPartial
+		}
+	}
+	return delivered
 }
 
 func printSpecReviewRoundInput(w io.Writer, input specReviewRoundInput) {

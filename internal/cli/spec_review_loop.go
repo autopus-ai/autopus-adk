@@ -88,15 +88,15 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 		// The round's fingerprint feeds the receipt, the baseline, and the
 		// delta decision (SPEC-REVIEWREUSE-001 REQ-RR-REUSE-01, REQ-RR-DELTA-02).
 		var fp *specReviewFingerprint
-		var roundDocs map[string]string
+		var sources specReviewRoundSources
 		if p.runtimeEvidence != nil || p.verifyInput == config.ReviewVerifyInputDelta {
-			fp = specReviewRoundFingerprint(p, delivery)
-			roundDocs, _ = spec.ReviewDocumentContents(p.specDir)
+			fp = specReviewRoundFingerprint(p, specReviewDeliveryDigests(delivery))
+			sources = readSpecReviewRoundSources(p, delivery)
 		}
 		if p.runtimeEvidence != nil {
 			p.runtimeEvidence.Fingerprint = fp
 		}
-		prompt, input := chooseSpecReviewInput(p, doc, priorFindings, prompt, fp)
+		prompt, input := chooseSpecReviewInput(p, doc, priorFindings, prompt, fp, sources)
 		if p.verifyInput == config.ReviewVerifyInputDelta {
 			printSpecReviewRoundInput(os.Stderr, input)
 		}
@@ -244,7 +244,7 @@ func runSpecReviewLoop(p specReviewLoopParams, doc *spec.SpecDocument, priorFind
 			return nil, fmt.Errorf("review findings 저장 실패 (SPEC: %s, revision: %d): %w", p.specID, revision, persistErr)
 		}
 		if !budgetHit && len(reviews) > 0 {
-			recordSpecReviewBaseline(p, revision, roundDocs, fp, merged.Findings, os.Stderr)
+			recordSpecReviewBaseline(p, revision, sources, fp, merged.Findings, os.Stderr)
 		}
 		if persistErr := spec.PersistReview(p.specDir, merged); persistErr != nil {
 			return nil, fmt.Errorf("review.md 저장 실패 (SPEC: %s, revision: %d): %w", p.specID, revision, persistErr)

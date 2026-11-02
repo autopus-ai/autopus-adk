@@ -7,61 +7,97 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
-	"strings"
+
+	"github.com/insajin/autopus-adk/pkg/promptlayer"
 )
 
 // ReviewBaselineSchema versions the baseline record a delta verify round
 // checks its input against (SPEC-REVIEWREUSE-001 REQ-RR-DELTA-02).
 const ReviewBaselineSchema = "spec_review_baseline.v1"
 
-// ReviewBaseline records what the last usable review round read: the content
-// and digest of every SPEC document, the digests of every other required
-// source and setting, and the findings it left open.
+// Delivered scopes of a baseline document: whether the baseline round's full
+// input carried the whole document or a compaction of it (REQ-RR-DELTA-02).
+const (
+	BaselineDeliveredComplete = "complete"
+	BaselineDeliveredPartial  = "partial"
+)
+
+// ReviewBaseline records what the last usable review round delivered: every
+// SPEC document its full input carries, in the delivered representation and
+// with its digests, whether the round delivered each one complete, the
+// digests of every other required source and setting, and the findings it
+// left open.
 type ReviewBaseline struct {
 	Schema     string                            `json:"schema"`
 	RunID      string                            `json:"run_id"`
 	Revision   int                               `json:"revision"`
 	RecordedAt string                            `json:"recorded_at"`
 	Documents  map[string]ReviewBaselineDocument `json:"documents"`
+	Delivered  map[string]string                 `json:"delivered"`
 	Context    map[string]string                 `json:"context"`
 	OpenIDs    []string                          `json:"open_ids"`
 }
 
-// ReviewBaselineDocument is one SPEC document as the baseline round read it.
+// ReviewBaselineDocument is one SPEC document of the baseline round: the
+// digest of its source file, its delivered representation, and that
+// representation's digest. Content is never the raw source, so a secret the
+// complete input withholds is not copied into review-findings.json.
 type ReviewBaselineDocument struct {
-	SHA256  string `json:"sha256"`
-	Content string `json:"content"`
+	SourceSHA256 string `json:"source_sha256"`
+	PromptSHA256 string `json:"prompt_sha256"`
+	Content      string `json:"content"`
 }
 
-// ReviewDocumentContents reads every *.md file in specDir except review.md.
-func ReviewDocumentContents(specDir string) (map[string]string, error) {
-	entries, err := os.ReadDir(specDir)
-	if err != nil {
-		return nil, err
-	}
-	contents := make(map[string]string, len(entries))
-	for _, entry := range entries {
-		name := entry.Name()
-		if entry.IsDir() || !strings.HasSuffix(name, ".md") || name == "review.md" {
+// ReviewInputDocument is a SPEC document as a review request delivers it.
+type ReviewInputDocument struct {
+	SourceSHA256 string
+	PromptSHA256 string
+	Content      string
+}
+
+// NewReviewInputDocument applies the sanitization of the complete review
+// input (loadCompleteReviewDocuments): secrets redacted, injection markers
+// neutralized in place, whitespace kept. The source digest proves what the
+// file held and the prompt digest what a request carries, so the two are
+// never confused (REQ-RR-DELTA-02, REQ-RR-DELTA-04).
+func NewReviewInputDocument(raw []byte) ReviewInputDocument {
+	sanitized := promptlayer.SanitizeContent(string(raw), promptlayer.ContextOptions{Required: true, PreserveInjectionEvidence: true})
+	return ReviewInputDocument{SourceSHA256: SHA256Hex(raw), PromptSHA256: SHA256Hex([]byte(sanitized.Content)), Content: sanitized.Content}
+}
+
+// CarriedReviewDocuments names the SPEC documents a full review input
+// carries when they exist; any other file in the SPEC directory is not part
+// of what a reviewer reads.
+func CarriedReviewDocuments() []string {
+	return slices.Clone(requiredReviewDocumentNames)
+}
+
+// ReviewInputDocuments reads the carried SPEC documents present in specDir
+// in their delivered representation.
+func ReviewInputDocuments(specDir string) (map[string]ReviewInputDocument, error) {
+	documents := map[string]ReviewInputDocument{}
+	for _, name := range requiredReviewDocumentNames {
+		data, err := os.ReadFile(filepath.Join(specDir, name))
+		if errors.Is(err, os.ErrNotExist) {
 			continue
 		}
-		data, err := os.ReadFile(filepath.Join(specDir, name))
 		if err != nil {
 			return nil, err
 		}
-		contents[name] = string(data)
+		documents[name] = NewReviewInputDocument(data)
 	}
-	return contents, nil
+	return documents, nil
 }
 
-// BaselineDocuments pairs each document with its digest.
-func BaselineDocuments(contents map[string]string) map[string]ReviewBaselineDocument {
-	documents := make(map[string]ReviewBaselineDocument, len(contents))
-	for name, content := range contents {
-		documents[name] = ReviewBaselineDocument{SHA256: SHA256Hex([]byte(content)), Content: content}
+// BaselineDocuments records each delivered document with its digests.
+func BaselineDocuments(documents map[string]ReviewInputDocument) map[string]ReviewBaselineDocument {
+	recorded := make(map[string]ReviewBaselineDocument, len(documents))
+	for name, document := range documents {
+		recorded[name] = ReviewBaselineDocument(document)
 	}
-	return documents
+	return recorded
 }
 
 // OpenFindingIDs lists, sorted, the ids of open or regressed findings.

@@ -62,13 +62,26 @@ const deltaReviewAcceptance = "# Acceptance\n\n## Test Scenarios\n\n### S1: AC-D
 const reviseOnREQ002 = `{"verdict":"REVISE","summary":"gap","findings":[{"severity":"major","category":"completeness","scope_ref":"REQ-002","location":"spec.md","description":"error path undefined","suggestion":"define it"}]}`
 
 // deltaFixture is a git-tracked review project under verify_input delta whose
-// fake reviewers open F-001 on REQ-002 in round 0; edit runs between round 0
-// and round 1, as the author would.
+// fake reviewers open F-001 on REQ-002 in round 0; edit runs during the last
+// round-0 call, before round 1 builds its input, as the author would.
 func deltaFixture(t *testing.T, edit func(specDir string)) (*readOnlyReviewFixture, *scriptedBudgetBackend) {
 	t.Helper()
+	return deltaFixtureWith(t, nil, 400, edit)
+}
+
+// deltaFixtureWith is deltaFixture with a configuration edit and a number of
+// unchanged filler lines in plan.md's and research.md's Notes sections, which
+// name no id of the fix, so a delta request links them.
+func deltaFixtureWith(t *testing.T, configure func(*config.HarnessConfig), filler int, edit func(specDir string)) (*readOnlyReviewFixture, *scriptedBudgetBackend) {
+	t.Helper()
+	reviewers := 0
 	fixture, backend := reuseFixture(t, config.ReviewBudgetConf{}, func(cfg *config.HarnessConfig) {
 		cfg.Spec.ReviewGate.VerifyInput = "delta"
 		cfg.Spec.ReviewGate.MaxRevisions = new(1)
+		if configure != nil {
+			configure(cfg)
+		}
+		reviewers = len(cfg.Spec.ReviewGate.Providers)
 	})
 	write := func(name, body string) {
 		require.NoError(t, os.WriteFile(filepath.Join(fixture.specDir, name), []byte(body), 0o644))
@@ -77,15 +90,15 @@ func deltaFixture(t *testing.T, edit func(specDir string)) (*readOnlyReviewFixtu
 	write("acceptance.md", deltaReviewAcceptance)
 	// The unchanged documents outweigh the checklist and instructions, as in
 	// a real SPEC, so linking them saves input.
-	filler := strings.Repeat("Unchanged planning detail that the baseline round already reviewed.\n", 400)
-	write("plan.md", "# Plan\n\n## Tasks\n\n- T1\n- T2\n- T3\n\nPLAN-BODY-MARKER\n\n"+filler)
-	write("research.md", "# Research\n\n## Outcome Lock\n\nLock.\n\nRESEARCH-BODY-MARKER\n\n"+filler)
+	notes := strings.Repeat("Unchanged planning detail that the baseline round already reviewed.\n", filler)
+	write("plan.md", "# Plan\n\n## Tasks\n\n- T1\n- T2: validate in internal/x.go\n- T3\n\n## Notes\n\nPLAN-BODY-MARKER\n\n"+notes)
+	write("research.md", "# Research\n\n## Outcome Lock\n\nLock.\n\n## Notes\n\nRESEARCH-BODY-MARKER\n\n"+notes)
 	commitFixtureRepo(t, fixture.root, "delta fixture")
 	backend.replies["claude/reviewer"] = []scriptedReply{{output: reviseOnREQ002}, {output: passNoFinding}}
 	backend.replies["codex/reviewer"] = []scriptedReply{{output: reviseOnREQ002}, {output: passNoFinding}}
 	var calls atomic.Int32
 	backend.onCall = func(orchestra.ProviderRequest) {
-		if calls.Add(1) == 2 {
+		if int(calls.Add(1)) == reviewers && edit != nil {
 			edit(fixture.specDir)
 		}
 	}
@@ -140,16 +153,17 @@ func TestRunSpecReview_LocalFixIsVerifiedFromTheDelta(t *testing.T) {
 	assert.Equal(t, []string{"F-001"}, baseline.OpenIDs)
 	ref := baseline.RunID + " r0"
 	round0, round1 := backend.requests[0].Prompt, backend.requests[2].Prompt
+	current := spec.NewReviewInputDocument(readFixtureFile(t, filepath.Join(fixture.specDir, "spec.md")))
 	for _, want := range []string{
 		"### Delta Verify Input (spec_review_delta.v1)",
-		"plan.md sha256:", " linked (baseline " + ref + ")\n", "- checklist sha256:",
+		"- plan.md source_sha256:", " linked (baseline " + ref + ": unchanged", "- checklist source_sha256:",
+		"- spec.md source_sha256:" + current.SourceSHA256 + " prompt_sha256:" + current.PromptSHA256 + " changed\n",
 		"\n-THE SYSTEM SHALL validate input.\n", "\n+THE SYSTEM SHALL validate input and refuse an empty value with error E1.\n",
 		"**REQ-002**\nPriority: Must\n", "### S2: AC-D-002 - Validate\n", "| REQ-002 | T2 | S2 |",
 		"- F-001 [major] REQ-002: error path undefined", "Instructions (Verify Mode)",
 	} {
 		assert.Contains(t, round1, want)
 	}
-	assert.Contains(t, round1, "spec.md sha256:"+spec.SHA256Hex(readFixtureFile(t, filepath.Join(fixture.specDir, "spec.md")))+" changed\n")
 	for _, absent := range []string{"PLAN-BODY-MARKER", "RESEARCH-BODY-MARKER"} {
 		assert.Contains(t, round0, absent)
 		assert.NotContains(t, round1, absent)
