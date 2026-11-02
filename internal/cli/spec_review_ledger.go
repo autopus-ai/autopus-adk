@@ -172,9 +172,12 @@ func (l *specReviewLedger) persistLocked() error {
 	return saveSpecReviewSessionFile(l.specDir, l.file)
 }
 
-// usedWallClockMS sums the active time of every attempt: finished attempts by
-// their duration, an interrupted one up to the end of its last settled call,
-// and, when includeCurrent is set, this invocation so far.
+// usedWallClockMS is the session's max_minutes axis (REQ-RP-BUD-01): the sum
+// of the wall-clock time of the invocations that made at least one call, so
+// the time between invocations and an invocation that called nothing cost
+// nothing, and parallel calls are not counted twice. A finished invocation
+// counts its whole duration, an interrupted one up to the end of its last
+// call, and, when includeCurrent is set, this invocation counts so far.
 func (l *specReviewLedger) usedWallClockMS(includeCurrent bool) int64 {
 	var used int64
 	for index, attempt := range l.file.Attempts {
@@ -183,6 +186,7 @@ func (l *specReviewLedger) usedWallClockMS(includeCurrent bool) int64 {
 			if includeCurrent {
 				used += l.now().Sub(l.attemptStart).Milliseconds()
 			}
+		case !specReviewAttemptCalled(attempt, l.file.Calls):
 		case attempt.FinishedAt != "":
 			used += attempt.DurationMS
 		default:
@@ -190,6 +194,15 @@ func (l *specReviewLedger) usedWallClockMS(includeCurrent bool) int64 {
 		}
 	}
 	return used
+}
+
+func specReviewAttemptCalled(attempt specReviewSessionAttempt, calls []specReviewCallRecord) bool {
+	for _, call := range calls {
+		if call.AttemptID == attempt.AttemptID && call.Started {
+			return true
+		}
+	}
+	return false
 }
 
 func interruptedAttemptMS(attempt specReviewSessionAttempt, calls []specReviewCallRecord) int64 {

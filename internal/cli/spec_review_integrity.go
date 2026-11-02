@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/insajin/autopus-adk/pkg/config"
@@ -70,6 +71,13 @@ type integrityGateDecision struct {
 func evaluateIntegrityGate(reasons []string, allowDegraded bool) integrityGateDecision {
 	if len(reasons) == 0 {
 		return integrityGateDecision{promote: true}
+	}
+	// A review the session budget cut short did not make every planned call,
+	// so no override turns it into an approval (SPEC-REVIEWPOLICY-001
+	// REQ-RP-BUD-05). The loop already resolves such a round as non-PASS; this
+	// keeps the gate itself from ever promoting it.
+	if slices.Contains(reasons, spec.DegradedReasonBudgetExhausted) {
+		return integrityGateDecision{promote: false, reasons: reasons}
 	}
 	if allowDegraded {
 		return integrityGateDecision{promote: true, viaOverride: true, reasons: reasons}

@@ -143,13 +143,18 @@ func saveSpecReviewSessionFile(specDir string, file specReviewSessionFile) error
 
 // specReviewSessionRequest carries what an invocation asks of the session.
 type specReviewSessionRequest struct {
-	SpecDir  string
-	SpecID   string
-	Limits   specReviewBudgetLimits
-	Extend   bool
-	Fresh    bool
-	Now      time.Time
-	Warnings io.Writer
+	SpecDir string
+	SpecID  string
+	// Limits are the configuration with the budget flags applied.
+	Limits specReviewBudgetLimits
+	// FlagCalls and FlagMinutes are --max-calls and --max-minutes, 0 when
+	// omitted. They apply only to a new session or with Extend.
+	FlagCalls   int
+	FlagMinutes int
+	Extend      bool
+	Fresh       bool
+	Now         time.Time
+	Warnings    io.Writer
 }
 
 // openSpecReviewSession takes the session lock, loads or starts the session,
@@ -198,6 +203,11 @@ func resolveSpecReviewSessionFile(req specReviewSessionRequest) (specReviewSessi
 			State: specReviewSessionOpen, PreviousSessionID: previous, CreatedAt: now, Limits: req.Limits,
 		}
 	}
+	if !startNew && !req.Extend {
+		if err := refuseSpecReviewFlagChange(file, req); err != nil {
+			return specReviewSessionFile{}, err
+		}
+	}
 	markSpecReviewInterruptedCalls(&file)
 	seq := len(file.Attempts) + 1
 	attemptID := fmt.Sprintf("a%d", seq)
@@ -233,4 +243,35 @@ func markSpecReviewInterruptedCalls(file *specReviewSessionFile) {
 			file.Attempts[i].EndReason = specReviewCallInterrupted
 		}
 	}
+}
+
+// refuseSpecReviewFlagChange makes a budget flag that differs from the open
+// session's limit a usage error: the limits are fixed when a session starts,
+// so the flag would otherwise be silently ignored (REQ-RP-BUD-01). A
+// configuration change only warns, because it is not an explicit request.
+func refuseSpecReviewFlagChange(file specReviewSessionFile, req specReviewSessionRequest) error {
+	const remedy = "pass --extend-budget to apply it to this session, or --new-session to start a new one"
+	if req.FlagCalls > 0 && req.FlagCalls != file.Limits.MaxCalls {
+		return fmt.Errorf("--max-calls %d differs from the %s limit review session %s started with; %s",
+			req.FlagCalls, formatSpecReviewCallLimit(file.Limits.MaxCalls), file.SessionID, remedy)
+	}
+	if minutes := req.Limits.MaxWallClockMS; req.FlagMinutes > 0 && minutes != file.Limits.MaxWallClockMS {
+		return fmt.Errorf("--max-minutes %d differs from the %s limit review session %s started with; %s",
+			req.FlagMinutes, formatSpecReviewMinuteLimit(file.Limits.MaxWallClockMS), file.SessionID, remedy)
+	}
+	return nil
+}
+
+func formatSpecReviewCallLimit(calls int) string {
+	if calls <= 0 {
+		return "unlimited call"
+	}
+	return fmt.Sprintf("%d-call", calls)
+}
+
+func formatSpecReviewMinuteLimit(ms int64) string {
+	if ms <= 0 {
+		return "unlimited time"
+	}
+	return (time.Duration(ms) * time.Millisecond).String()
 }

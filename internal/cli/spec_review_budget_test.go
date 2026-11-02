@@ -110,7 +110,7 @@ func TestRunSpecReview_WallClockBudgetCancelsInFlightCalls(t *testing.T) {
 	backend.replies["codex/reviewer"] = []scriptedReply{{block: true}}
 
 	started := time.Now()
-	runBudgetReview(t, fixture, specReviewOptions{})
+	runBudgetReview(t, fixture, specReviewOptions{allowDegraded: true})
 
 	assert.Less(t, time.Since(started), 10*time.Second)
 	session := readTestSpecReviewSession(t, fixture.specDir)
@@ -120,7 +120,13 @@ func TestRunSpecReview_WallClockBudgetCancelsInFlightCalls(t *testing.T) {
 		ends[call.Provider] = call.EndReason
 	}
 	assert.Equal(t, map[string]string{"claude": specReviewCallCompleted, "codex": specReviewCallExhausted}, ends)
-	assert.Equal(t, spec.LoopStatusBudgetExhausted, readSpecReviewReceipt(t, fixture.specDir).LoopStatus)
+	receipt := readSpecReviewReceipt(t, fixture.specDir)
+	assert.Equal(t, spec.LoopStatusBudgetExhausted, receipt.LoopStatus)
+	assert.Equal(t, "REVISE", receipt.Verdict, "a round the budget cut short is never a PASS")
+	assert.Equal(t, "blocked", receipt.GateStatus)
+	doc, err := spec.Load(fixture.specDir)
+	require.NoError(t, err)
+	assert.Equal(t, "draft", doc.Status)
 	assert.Equal(t, 2, backend.count(), "no further round")
 }
 
@@ -131,7 +137,8 @@ func TestRunSpecReview_SinglePassShowsEverySubCall(t *testing.T) {
 		cfg.Spec.ReviewGate.Judge = "claude"
 		cfg.Spec.ReviewGate.MaxRevisions = new(3)
 	})
-	backend.replies["claude/reviewer"] = []scriptedReply{{output: "not json at all"}, {output: `{"verdict":"PASS","summary":"ok","findings":[]}`}}
+	backend.replies["claude/reviewer"] = []scriptedReply{{output: "not json at all"}, {output: `{"verdict":"PASS","summary":"REVIEWER-OUTPUT-MARKER","findings":[]}`}}
+	backend.replies["claude/judge"] = []scriptedReply{{output: `{"verdict":"PASS","findings":[],"rationale":"JUDGE-RATIONALE-MARKER"}`}}
 
 	var stdout string
 	captureSpecReviewStderr(t, func() {
@@ -163,8 +170,15 @@ func TestRunSpecReview_SinglePassShowsEverySubCall(t *testing.T) {
 	for _, call := range receipt.Session.Calls {
 		assert.Contains(t, stdout, "  "+call.CallID+" r0 "+call.Role+"/"+call.Reason+" "+call.Provider)
 	}
-	assert.NotContains(t, string(data), "not json at all")
-	assert.NotContains(t, string(data), "이 기능의 목적과 해결하려는 문제를 설명합니다")
+	// F-006: the no-text rule covers the session object; existing receipt
+	// fields keep what they always held (the judge rationale, truncated).
+	session, err := json.Marshal(receipt.Session)
+	require.NoError(t, err)
+	for _, marker := range []string{"not json at all", "REVIEWER-OUTPUT-MARKER", "JUDGE-RATIONALE-MARKER", "이 기능의 목적과 해결하려는 문제를 설명합니다"} {
+		assert.NotContains(t, string(session), marker)
+	}
+	require.NotNil(t, receipt.Judge)
+	assert.Equal(t, "JUDGE-RATIONALE-MARKER", receipt.Judge.Rationale)
 
 	var legacy specReviewPromotionReceipt
 	require.NoError(t, json.Unmarshal([]byte(`{"schema":"spec_review_promotion_receipt.v1","run_id":"r","verdict":"PASS"}`), &legacy))

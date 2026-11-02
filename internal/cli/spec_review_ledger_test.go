@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -137,7 +138,59 @@ func TestSpecReviewLedger_TokenLimitUsesKnownUsageAndNamesTheGap(t *testing.T) {
 	unknown.settle(context.Background(), index, time.Now(), completedResponse(), nil)
 	receipt, err := unknown.finish("revisions_exhausted")
 	require.NoError(t, err)
-	assert.Equal(t, []string{"max_tokens is not enforceable for 1 call with unknown usage"}, receipt.Notes)
+	assert.Equal(t, []string{"max_tokens is not enforceable for 1 call without reported tokens"}, receipt.Notes)
+}
+
+// F-007: the plan names, per limit, the providers that cannot be held to it:
+// codex reports tokens but no cost, and a provider orchestra does not parse
+// reports neither.
+func TestPrintSpecReviewBudgetLine_NamesUnguaranteedLimitsPerDimension(t *testing.T) {
+	ledger := openTestSpecReviewSession(t, t.TempDir(), specReviewBudgetLimits{MaxTokens: 1000, MaxCostUSD: 1})
+	judge := orchestra.ProviderConfig{Name: "claude"}
+	plan := specReviewProviderPlan{
+		Providers: []orchestra.ProviderConfig{{Name: "claude"}, {Name: "codex"}, {Name: "gemini"}},
+		Judge:     &judge,
+	}
+	var out strings.Builder
+	printSpecReviewBudgetLine(&out, ledger, plan)
+
+	assert.Contains(t, out.String(), "  참고: max_tokens 한도는 token을 보고하지 않는 gemini에 보장되지 않습니다\n")
+	assert.Contains(t, out.String(), "  참고: max_cost_usd 한도는 비용을 보고하지 않는 codex, gemini에 보장되지 않습니다\n")
+
+	tokensOnly := openTestSpecReviewSession(t, t.TempDir(), specReviewBudgetLimits{MaxTokens: 1000})
+	out.Reset()
+	printSpecReviewBudgetLine(&out, tokensOnly, specReviewProviderPlan{Providers: []orchestra.ProviderConfig{{Name: "codex"}}})
+	assert.NotContains(t, out.String(), "참고:")
+}
+
+// F-007: a token or cost limit is reported unenforceable per dimension: a
+// cost_only call defeats max_tokens although its status is actual, and a call
+// without a reported cost defeats max_cost_usd.
+func TestSpecReviewLedger_UnenforceableLimitsAreNamedPerDimension(t *testing.T) {
+	in, out, cost := int64(10), int64(5), 0.002
+	tokens := "max_tokens is not enforceable for 1 call without reported tokens"
+	money := "max_cost_usd is not enforceable for 1 call without reported cost"
+	cases := []struct {
+		name  string
+		usage telemetry.UsageEnvelope
+		notes []string
+	}{
+		{"cost only", telemetry.UsageEnvelope{UsageStatus: telemetry.UsageStatusCostOnly, ActualCostUSD: &cost}, []string{tokens}},
+		{"tokens only", telemetry.UsageEnvelope{UsageStatus: telemetry.UsageStatusActual, InputTokensTotal: &in, OutputTokensTotal: &out}, []string{money}},
+		{"partial estimate", telemetry.UsageEnvelope{UsageStatus: telemetry.UsageStatusEstimated, InputTokensTotal: &in}, []string{tokens, money}},
+		{"complete", telemetry.UsageEnvelope{UsageStatus: telemetry.UsageStatusActual, InputTokensTotal: &in, OutputTokensTotal: &out, ActualCostUSD: &cost}, nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ledger := openTestSpecReviewSession(t, t.TempDir(), specReviewBudgetLimits{MaxTokens: 1000, MaxCostUSD: 1})
+			index, err := ledger.reserve(specReviewCallSpec{Role: specReviewRoleReviewer, Provider: "claude"})
+			require.NoError(t, err)
+			ledger.settle(context.Background(), index, time.Now(), completedResponse(tc.usage), nil)
+			receipt, err := ledger.finish("revisions_exhausted")
+			require.NoError(t, err)
+			assert.Equal(t, tc.notes, receipt.Notes)
+		})
+	}
 }
 
 // S10: a second process continues the session cumulatively, and a call a

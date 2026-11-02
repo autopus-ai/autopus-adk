@@ -12,12 +12,16 @@ import (
 )
 
 // specReviewSessionUsageTotals are the cumulative counters of a session.
+// Known tokens and cost sum only reported values; the two "without" counters
+// say per dimension how many settled calls reported nothing for it, whatever
+// their usage status (a cost_only call is actual yet has no tokens).
 type specReviewSessionUsageTotals struct {
-	Calls             int     `json:"calls"`
-	KnownTokens       int64   `json:"known_tokens"`
-	KnownCostUSD      float64 `json:"known_cost_usd"`
-	UnknownUsageCalls int     `json:"unknown_usage_calls"`
-	BlockedCalls      int     `json:"blocked_calls"`
+	Calls              int     `json:"calls"`
+	KnownTokens        int64   `json:"known_tokens"`
+	KnownCostUSD       float64 `json:"known_cost_usd"`
+	CallsWithoutTokens int     `json:"calls_without_tokens"`
+	CallsWithoutCost   int     `json:"calls_without_cost"`
+	BlockedCalls       int     `json:"blocked_calls"`
 }
 
 // specReviewSessionTotals counts started calls (in flight and interrupted
@@ -30,20 +34,24 @@ func specReviewSessionTotals(calls []specReviewCallRecord) specReviewSessionUsag
 			continue
 		}
 		totals.Calls++
-		if call.Usage.Status == "unknown" {
-			if call.EndReason != specReviewCallInFlight {
-				totals.UnknownUsageCalls++
-			}
+		usage := call.Usage
+		if usage.InputTokens != nil {
+			totals.KnownTokens += *usage.InputTokens
+		}
+		if usage.OutputTokens != nil {
+			totals.KnownTokens += *usage.OutputTokens
+		}
+		if usage.CostUSD != nil {
+			totals.KnownCostUSD += *usage.CostUSD
+		}
+		if call.EndReason == specReviewCallInFlight {
 			continue
 		}
-		if call.Usage.InputTokens != nil {
-			totals.KnownTokens += *call.Usage.InputTokens
+		if usage.InputTokens == nil || usage.OutputTokens == nil {
+			totals.CallsWithoutTokens++
 		}
-		if call.Usage.OutputTokens != nil {
-			totals.KnownTokens += *call.Usage.OutputTokens
-		}
-		if call.Usage.CostUSD != nil {
-			totals.KnownCostUSD += *call.Usage.CostUSD
+		if usage.CostUSD == nil {
+			totals.CallsWithoutCost++
 		}
 	}
 	return totals
@@ -187,31 +195,31 @@ func (l *specReviewLedger) receiptLocked() *specReviewSessionReceipt {
 	return receipt
 }
 
-// specReviewBudgetNotes states every token or cost limit unknown usage makes
-// unenforceable (REQ-RP-BUD-06).
+// specReviewBudgetNotes states, per dimension, every token or cost limit that
+// calls without reported values make unenforceable (REQ-RP-BUD-06).
 func specReviewBudgetNotes(limits specReviewBudgetLimits, calls []specReviewCallRecord) []string {
-	unknown := specReviewSessionTotals(calls).UnknownUsageCalls
-	if unknown == 0 {
-		return nil
-	}
-	noun := "calls"
-	if unknown == 1 {
-		noun = "call"
-	}
+	totals := specReviewSessionTotals(calls)
 	var notes []string
-	if limits.MaxTokens > 0 {
-		notes = append(notes, fmt.Sprintf("max_tokens is not enforceable for %d %s with unknown usage", unknown, noun))
+	if limits.MaxTokens > 0 && totals.CallsWithoutTokens > 0 {
+		notes = append(notes, fmt.Sprintf("max_tokens is not enforceable for %s without reported tokens", specReviewCallCount(totals.CallsWithoutTokens)))
 	}
-	if limits.MaxCostUSD > 0 {
-		notes = append(notes, fmt.Sprintf("max_cost_usd is not enforceable for %d %s with unknown usage", unknown, noun))
+	if limits.MaxCostUSD > 0 && totals.CallsWithoutCost > 0 {
+		notes = append(notes, fmt.Sprintf("max_cost_usd is not enforceable for %s without reported cost", specReviewCallCount(totals.CallsWithoutCost)))
 	}
 	return notes
 }
 
+func specReviewCallCount(n int) string {
+	if n == 1 {
+		return "1 call"
+	}
+	return fmt.Sprintf("%d calls", n)
+}
+
 // printSpecReviewBudgetLine ends the plan block with the session budget: the
-// session, what is used and left, and every limit the plan cannot guarantee
-// because a provider of this attempt reports no usage (REQ-RP-PLAN-05,
-// REQ-RP-BUD-06).
+// session, what is used and left, and, per limit, the providers of this
+// attempt the plan cannot hold to it because they do not report that
+// dimension (REQ-RP-PLAN-05, REQ-RP-BUD-06).
 func printSpecReviewBudgetLine(w io.Writer, ledger *specReviewLedger, assembled specReviewProviderPlan) {
 	if ledger == nil {
 		return
@@ -223,34 +231,41 @@ func printSpecReviewBudgetLine(w io.Writer, ledger *specReviewLedger, assembled 
 	for _, note := range receipt.Notes {
 		fmt.Fprintf(w, "  참고: %s\n", note)
 	}
-	if receipt.Limits.MaxTokens <= 0 && receipt.Limits.MaxCostUSD <= 0 {
-		return
-	}
 	providers := append([]orchestra.ProviderConfig(nil), assembled.Providers...)
 	if assembled.Judge != nil {
 		providers = append(providers, *assembled.Judge)
 	}
-	var silent []string
+	var noTokens, noCost []string
 	for _, provider := range providers {
-		if !specReviewProviderReportsUsage(provider) && !slices.Contains(silent, provider.Name) {
-			silent = append(silent, provider.Name)
+		tokens, cost := specReviewProviderUsage(provider)
+		if !tokens && !slices.Contains(noTokens, provider.Name) {
+			noTokens = append(noTokens, provider.Name)
+		}
+		if !cost && !slices.Contains(noCost, provider.Name) {
+			noCost = append(noCost, provider.Name)
 		}
 	}
-	if len(silent) > 0 {
-		fmt.Fprintf(w, "  참고: token·비용 한도는 usage를 보고하지 않는 %s에 보장되지 않습니다; 호출·시간 한도만 보장됩니다\n", strings.Join(silent, ", "))
+	if receipt.Limits.MaxTokens > 0 && len(noTokens) > 0 {
+		fmt.Fprintf(w, "  참고: max_tokens 한도는 token을 보고하지 않는 %s에 보장되지 않습니다\n", strings.Join(noTokens, ", "))
+	}
+	if receipt.Limits.MaxCostUSD > 0 && len(noCost) > 0 {
+		fmt.Fprintf(w, "  참고: max_cost_usd 한도는 비용을 보고하지 않는 %s에 보장되지 않습니다\n", strings.Join(noCost, ", "))
 	}
 }
 
-// specReviewProviderReportsUsage mirrors the providers whose subprocess
-// output orchestra parses for usage (pkg/orchestra/usage.go).
-func specReviewProviderReportsUsage(provider orchestra.ProviderConfig) bool {
-	for _, value := range []string{provider.Name, provider.Binary} {
-		switch strings.ToLower(strings.TrimSpace(value)) {
-		case "claude", "codex":
-			return true
-		}
+// specReviewProviderUsage mirrors which usage dimensions orchestra parses from
+// a provider's subprocess output (pkg/orchestra/usage.go and usage_parse.go):
+// codex reports tokens only, claude tokens and cost, any other provider none.
+func specReviewProviderUsage(provider orchestra.ProviderConfig) (tokens, cost bool) {
+	name := strings.ToLower(strings.TrimSpace(provider.Name))
+	binary := strings.ToLower(strings.TrimSpace(provider.Binary))
+	switch {
+	case name == "codex" || binary == "codex":
+		return true, false
+	case name == "claude" || binary == "claude":
+		return true, true
 	}
-	return false
+	return false, false
 }
 
 // sortSpecReviewCalls orders rows by round, reviewers before the judge, then

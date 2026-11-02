@@ -89,7 +89,9 @@ func newSpecReviewCmd() *cobra.Command {
 				judge:                 judge,
 				judgeSet:              cmd.Flags().Changed("judge"),
 				maxCalls:              maxCalls,
+				maxCallsSet:           cmd.Flags().Changed("max-calls"),
 				maxMinutes:            maxMinutes,
+				maxMinutesSet:         cmd.Flags().Changed("max-minutes"),
 				extendBudget:          extendBudget,
 				newSession:            newSession,
 			})
@@ -116,8 +118,8 @@ func newSpecReviewCmd() *cobra.Command {
 	cmd.Flags().StringVar(&judge, "judge", "",
 		"Judge provider for this review, or none (default: none on lean, spec.review_gate.judge on full)")
 	// SPEC-REVIEWPOLICY-001 REQ-RP-BUD-01, REQ-RP-BUD-08: session budget.
-	cmd.Flags().IntVar(&maxCalls, "max-calls", 0, "Model call limit of a new review session (default: spec.review_gate.budget.max_calls; 0 = no limit)")
-	cmd.Flags().IntVar(&maxMinutes, "max-minutes", 0, "Active review minutes of a new review session (default: spec.review_gate.budget.max_minutes; 0 = no limit)")
+	cmd.Flags().IntVar(&maxCalls, "max-calls", 0, "Model call limit (> 0) of a new review session, or of the current one with --extend-budget (default: spec.review_gate.budget.max_calls)")
+	cmd.Flags().IntVar(&maxMinutes, "max-minutes", 0, "Active review minutes (> 0) of a new review session, or of the current one with --extend-budget (default: spec.review_gate.budget.max_minutes)")
 	cmd.Flags().BoolVar(&extendBudget, "extend-budget", false, "Apply the current budget limits to the existing review session, which may be exhausted")
 	cmd.Flags().BoolVar(&newSession, "new-session", false, "Start a new review session linked to the previous one")
 
@@ -141,11 +143,14 @@ type specReviewOptions struct {
 	judge    string
 	judgeSet bool
 	// maxCalls and maxMinutes override spec.review_gate.budget for a new
-	// session (or, with extendBudget, for the current one); 0 keeps the config.
-	maxCalls     int
-	maxMinutes   int
-	extendBudget bool
-	newSession   bool
+	// session or, with extendBudget, for the current one. The *Set flags tell
+	// an explicit value from an omitted flag; an explicit value must be > 0.
+	maxCalls      int
+	maxCallsSet   bool
+	maxMinutes    int
+	maxMinutesSet bool
+	extendBudget  bool
+	newSession    bool
 }
 
 // runSpecReview executes the full SPEC review pipeline with REVISE loop.
@@ -229,6 +234,7 @@ func runSpecReviewWithOptions(ctx context.Context, specID, strategy string, time
 	// invocation spends from the SPEC's review session.
 	ledger, err := openSpecReviewSession(ctx, specReviewSessionRequest{
 		SpecDir: specDir, SpecID: specID, Limits: specReviewRequestedLimits(gate.Budget, opts),
+		FlagCalls: opts.maxCalls, FlagMinutes: opts.maxMinutes,
 		Extend: opts.extendBudget, Fresh: opts.newSession, Now: reviewStarted, Warnings: os.Stderr,
 	})
 	if err != nil {

@@ -66,8 +66,13 @@ func resolveSpecReviewPlan(
 	if opts.newSession && opts.extendBudget {
 		return specReviewPlan{}, fmt.Errorf("--new-session and --extend-budget cannot be combined: extend the current session or start a new one")
 	}
-	if opts.maxCalls < 0 || opts.maxMinutes < 0 {
-		return specReviewPlan{}, fmt.Errorf("--max-calls and --max-minutes must be >= 0")
+	// An explicit budget flag must name a limit; "no limit" is spelled by
+	// omitting it from the configuration (REQ-RP-BUD-01).
+	if opts.maxCallsSet && opts.maxCalls <= 0 {
+		return specReviewPlan{}, fmt.Errorf("--max-calls must be > 0, got %d; omit the flag to use spec.review_gate.budget.max_calls", opts.maxCalls)
+	}
+	if opts.maxMinutesSet && opts.maxMinutes <= 0 {
+		return specReviewPlan{}, fmt.Errorf("--max-minutes must be > 0, got %d; omit the flag to use spec.review_gate.budget.max_minutes", opts.maxMinutes)
 	}
 	policy := spec.EffectiveReviewPolicy(doc)
 	if requested == spec.ReviewProfileLean && !policy.Lean() {

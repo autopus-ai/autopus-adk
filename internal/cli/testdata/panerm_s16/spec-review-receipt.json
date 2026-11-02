@@ -103,7 +103,8 @@
       "calls": 3,
       "known_tokens": 0,
       "known_cost_usd": 0,
-      "unknown_usage_calls": 3,
+      "calls_without_tokens": 3,
+      "calls_without_cost": 3,
       "blocked_calls": 0
     },
     "duration_ms": "<volatile>",
