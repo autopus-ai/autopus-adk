@@ -1,9 +1,6 @@
 package worker
 
 import (
-	"os"
-	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,107 +10,114 @@ import (
 func TestVerifyExecutionPostconditions_CommitAdvancedPasses(t *testing.T) {
 	t.Parallel()
 
-	repo := initGitRepoWithOrigin(t)
-	baseline := captureExecutionBaseline(repo)
-	require.True(t, baseline.GitRepo)
+	f := newGitFixture(t)
+	plan := f.plan(nil, "please commit the changes")
+	base := f.baseline(plan)
+	require.True(t, base.GitRepo)
+	head := f.commit("advance head")
 
-	require.NoError(t, os.WriteFile(filepath.Join(repo, "change.txt"), []byte("x"), 0o644))
-	runGit(t, repo, "add", "change.txt")
-	runGit(t, repo, "commit", "-m", "advance head")
-
-	artifact, err := verifyExecutionPostconditions(repo, "please commit the changes", baseline)
+	report, err := f.verify(plan, base)
 	require.NoError(t, err)
-	assert.Equal(t, "postconditions.json", artifact.Name)
-	assert.Contains(t, artifact.Data, `"name":"commit"`)
-	assert.Contains(t, artifact.Data, `"status":"passed"`)
+	commit := findCheck(t, report, actionCommit)
+	assert.Equal(t, statusSatisfied, commit.Status)
+	assert.Equal(t, head, commit.Observed)
 }
 
 func TestVerifyExecutionPostconditions_CommitNotAdvancedFails(t *testing.T) {
 	t.Parallel()
 
-	repo := initGitRepoWithOrigin(t)
-	baseline := captureExecutionBaseline(repo)
+	f := newGitFixture(t)
+	plan := f.plan(nil, "remember to commit your work")
+	base := f.baseline(plan)
 
 	// No new commit -> HEAD did not advance.
-	artifact, err := verifyExecutionPostconditions(repo, "remember to commit your work", baseline)
+	report, err := f.verify(plan, base)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "HEAD did not advance")
-	assert.Contains(t, artifact.Data, `"status":"failed"`)
+	assert.Contains(t, err.Error(), "postcondition failed: commit: HEAD did not advance after execution")
+	assert.Equal(t, statusUnsatisfied, findCheck(t, report, actionCommit).Status)
 }
 
 func TestVerifyExecutionPostconditions_BranchExistsPasses(t *testing.T) {
 	t.Parallel()
 
-	repo := initGitRepoWithOrigin(t)
-	baseline := captureExecutionBaseline(repo)
+	f := newGitFixture(t)
+	plan := f.plan(nil, "create branch feature/login")
+	base := f.baseline(plan)
+	f.run(f.repo, "checkout", "-q", "-b", "feature/login")
 
-	runGit(t, repo, "checkout", "-b", "feature/login")
-
-	artifact, err := verifyExecutionPostconditions(repo, "create branch feature/login", baseline)
+	report, err := f.verify(plan, base)
 	require.NoError(t, err)
-	assert.Contains(t, artifact.Data, `"name":"branch"`)
-	assert.Contains(t, artifact.Data, `"status":"passed"`)
+	branch := findCheck(t, report, actionBranch)
+	assert.Equal(t, statusSatisfied, branch.Status)
+	assert.Equal(t, "refs/heads/feature/login", branch.Ref)
 }
 
 func TestVerifyExecutionPostconditions_BranchMissingFails(t *testing.T) {
 	t.Parallel()
 
-	repo := initGitRepoWithOrigin(t)
-	baseline := captureExecutionBaseline(repo)
-
+	f := newGitFixture(t)
 	// Reference a branch that was never created.
-	artifact, err := verifyExecutionPostconditions(repo, "create branch feature/never-made", baseline)
+	plan := f.plan(nil, "create branch feature/never-made")
+	base := f.baseline(plan)
+
+	report, err := f.verify(plan, base)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "branch")
-	assert.Contains(t, artifact.Data, `"status":"failed"`)
+	assert.Contains(t, err.Error(), `local branch "feature/never-made" not found`)
+	assert.Equal(t, statusUnsatisfied, findCheck(t, report, actionBranch).Status)
 }
 
 func TestVerifyExecutionPostconditions_NoBaselineSkips(t *testing.T) {
 	t.Parallel()
 
-	// A non-git directory yields an empty baseline; verification is a no-op.
+	// A plain directory yields an empty baseline; fallback mode stays silent.
+	f := newGitFixture(t)
 	dir := t.TempDir()
-	baseline := captureExecutionBaseline(dir)
-	assert.False(t, baseline.GitRepo)
+	plan := f.plan(nil, "commit and push")
+	base := f.git.captureBaseline(dir, plan)
+	assert.False(t, base.GitRepo)
 
-	artifact, err := verifyExecutionPostconditions(dir, "commit and push", baseline)
+	artifact, err := f.git.verify(dir, plan, base)
 	require.NoError(t, err)
 	assert.Empty(t, artifact.Name)
 }
 
-func TestBranchesForVerification_ExplicitBranchesWin(t *testing.T) {
+func TestVerifyExecutionPostconditions_NoMentionSkips(t *testing.T) {
 	t.Parallel()
 
-	reqs := taskPostconditions{Branches: []string{"release/v1", "hotfix/x"}}
-	got := branchesForVerification(reqs, t.TempDir())
-	assert.Equal(t, []string{"release/v1", "hotfix/x"}, got)
+	f := newGitFixture(t)
+	plan := f.plan(nil, "summarize the README")
+	artifact, err := f.git.verify(f.repo, plan, f.baseline(plan))
+	require.NoError(t, err)
+	assert.Empty(t, artifact.Name)
 }
 
-func TestBranchesForVerification_FallsBackToCurrentBranch(t *testing.T) {
+func TestFallbackPushRef_CurrentBranchAmongNamesWins(t *testing.T) {
 	t.Parallel()
 
-	repo := initGitRepoWithOrigin(t)
-	runGit(t, repo, "checkout", "-b", "feature/topic")
-
-	got := branchesForVerification(taskPostconditions{}, repo)
-	assert.Equal(t, []string{"feature/topic"}, got)
+	plan := taskPostconditions{Branches: []string{"hotfix/x", "release/v1"}}
+	assert.Equal(t, "refs/heads/release/v1", fallbackPushRef(plan, "release/v1"))
 }
 
-func TestBranchesForVerification_SkipsWorkerBranches(t *testing.T) {
+func TestFallbackPushRef_SingleNameWhenCurrentIsWorkerBranch(t *testing.T) {
 	t.Parallel()
 
-	repo := initGitRepoWithOrigin(t)
-	runGit(t, repo, "checkout", "-b", "worker-abc123")
-
-	// Worker-managed branches are excluded from postcondition verification.
-	got := branchesForVerification(taskPostconditions{}, repo)
-	assert.Nil(t, got)
+	// Worker-managed branches are never the target of a fallback push.
+	assert.Equal(t, "refs/heads/feature/x", fallbackPushRef(taskPostconditions{Branches: []string{"feature/x"}}, "worker-abc123"))
+	assert.Equal(t, "", fallbackPushRef(taskPostconditions{}, "worker-abc123"))
 }
 
-func TestBranchesForVerification_NonGitDirReturnsNil(t *testing.T) {
+func TestFallbackPushRef_FallsBackToCurrentBranch(t *testing.T) {
 	t.Parallel()
 
-	assert.Nil(t, branchesForVerification(taskPostconditions{}, t.TempDir()))
+	assert.Equal(t, "refs/heads/feature/topic", fallbackPushRef(taskPostconditions{}, "feature/topic"))
+}
+
+func TestFallbackPushRef_SeveralNamesWithoutCurrentIsUnclear(t *testing.T) {
+	t.Parallel()
+
+	plan := taskPostconditions{Branches: []string{"hotfix/x", "release/v1"}}
+	assert.Equal(t, "", fallbackPushRef(plan, "main"))
+	assert.Equal(t, "", fallbackPushRef(plan, ""))
 }
 
 func TestSanitizeBranchName_RejectsTraversalAndFlags(t *testing.T) {
@@ -129,8 +133,9 @@ func TestDetectTaskPostconditions_DetectsAllIntents(t *testing.T) {
 	t.Parallel()
 
 	reqs := detectTaskPostconditions("commit the change, create a branch release/2.0 and git push to origin")
-	assert.True(t, reqs.CommitRequired)
-	assert.True(t, reqs.PushRequired)
-	assert.True(t, reqs.BranchRequired)
-	assert.Contains(t, strings.Join(reqs.Branches, ","), "release/2.0")
+	assert.Equal(t, levelRequired, reqs.Commit)
+	assert.Equal(t, levelRequired, reqs.Push)
+	assert.Equal(t, levelRequired, reqs.Branch)
+	assert.Contains(t, reqs.Branches, "release/2.0")
+	assert.True(t, reqs.Mentioned)
 }

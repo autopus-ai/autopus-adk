@@ -73,6 +73,7 @@ type WorkerLoop struct {
 	auditLogger       *slogAuditLogger
 	pidLock           *pidlock.Lock
 	zombieReaper      *reaper.Reaper
+	postconditionGit  postconditionGit // zero value: the worker's own git environment
 }
 
 // NewWorkerLoop creates a WorkerLoop with the given configuration.

@@ -40,6 +40,7 @@ type taskPayloadMessage struct {
 	RiskPolicy              string                      `json:"risk_policy,omitempty"`
 	CacheStratum            string                      `json:"cache_stratum,omitempty"`
 	ConfigHash              string                      `json:"config_hash,omitempty"`
+	CompletionContract      *completionContractMessage  `json:"completion_contract,omitempty"`
 }
 
 type redlineInstructionMessage struct {
@@ -131,6 +132,11 @@ func (wl *WorkerLoop) handleTask(ctx context.Context, taskID string, payload jso
 		})
 	}
 	prompt = appendRedlineInstructionsToPrompt(prompt, msg.RedlineInstructions)
+	completion, err := planPayloadPostconditions(msg.CompletionContract, prompt)
+	if err != nil {
+		return failTask(err, adapter.TaskResult{}, msg.SessionID)
+	}
+	taskMeta.Postconditions = completion
 	persistentTask := wl.persistentTaskContext(taskID, msg)
 
 	var model string

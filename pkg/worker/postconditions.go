@@ -1,249 +1,148 @@
 package worker
 
 import (
-	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"os/exec"
-	"regexp"
-	"sort"
 	"strings"
 	"time"
 
 	"github.com/insajin/autopus-adk/pkg/worker/adapter"
 )
 
+// Postcondition states and the report version (SPEC-WORKERPOST-001
+// REQ-WPOST-STATE-01). Version 1 reports used `passed` and `failed`.
+const (
+	statusSatisfied   = "satisfied"
+	statusUnsatisfied = "unsatisfied"
+	statusNotRequired = "not_required"
+	statusUnknown     = "unknown"
+
+	postconditionReportVersion = 2
+)
+
 var (
-	commitIntentPattern  = regexp.MustCompile(`(?i)\bgit\s+commit\b|\bcommit\b`)
-	pushIntentPattern    = regexp.MustCompile(`(?i)\bgit\s+push\b|\bpush\b`)
-	branchIntentPattern  = regexp.MustCompile(`(?i)\bbranch\b`)
-	refsHeadsPattern     = regexp.MustCompile(`refs/heads/([A-Za-z0-9._/-]+)`)
-	branchKeywordPattern = regexp.MustCompile(`(?i)\bbranch(?:\s+(?:named|called))?\s+([A-Za-z0-9._/-]*[/-][A-Za-z0-9._/-]+)\b`)
-	originBranchPattern  = regexp.MustCompile(`(?i)\borigin(?:/|\s+)([A-Za-z0-9._/-]*[/-][A-Za-z0-9._/-]+)\b`)
+	// errPostconditionFailed keeps the pre-contract error prefix for checks
+	// that observed the opposite of what the task required.
+	errPostconditionFailed = errors.New("postcondition failed")
+	// errPostconditionUnverified marks checks that could not be decided; the
+	// task fails rather than completing on an unverified result.
+	errPostconditionUnverified = errors.New("postcondition unverified")
+
 	postconditionTimeout = 5 * time.Second
 )
 
-type executionBaseline struct {
-	GitRepo bool
-	HeadSHA string
-	Branch  string
-}
-
-type taskPostconditions struct {
-	CommitRequired bool
-	PushRequired   bool
-	BranchRequired bool
-	Branches       []string
-}
-
 type postconditionCheck struct {
-	Name   string `json:"name"`
-	Status string `json:"status"`
-	Detail string `json:"detail"`
+	Name        string `json:"name"`
+	Requirement string `json:"requirement"`
+	Status      string `json:"status"`
+	Detail      string `json:"detail"`
+	Remote      string `json:"remote,omitempty"`
+	Ref         string `json:"ref,omitempty"`
+	Expected    string `json:"expected,omitempty"`
+	Observed    string `json:"observed,omitempty"`
+	Match       string `json:"match,omitempty"`
 }
 
 type postconditionReport struct {
+	Version  int                  `json:"version"`
 	Active   bool                 `json:"active"`
+	Source   string               `json:"source"`
+	Outcome  string               `json:"outcome"`
 	Checks   []postconditionCheck `json:"checks,omitempty"`
 	Branches []string             `json:"branches,omitempty"`
 }
 
-func captureExecutionBaseline(workDir string) executionBaseline {
-	headSHA, err := gitOutput(workDir, "rev-parse", "HEAD")
-	if err != nil {
-		return executionBaseline{}
-	}
-	branch, _ := gitOutput(workDir, "branch", "--show-current")
-	return executionBaseline{
-		GitRepo: true,
-		HeadSHA: strings.TrimSpace(headSHA),
-		Branch:  strings.TrimSpace(branch),
-	}
-}
-
-func detectTaskPostconditions(prompt string) taskPostconditions {
-	reqs := taskPostconditions{
-		CommitRequired: commitIntentPattern.MatchString(prompt),
-		PushRequired:   pushIntentPattern.MatchString(prompt),
-		BranchRequired: branchIntentPattern.MatchString(prompt),
-	}
-
-	branches := make(map[string]struct{})
-	for _, pattern := range []*regexp.Regexp{refsHeadsPattern, branchKeywordPattern, originBranchPattern} {
-		matches := pattern.FindAllStringSubmatch(prompt, -1)
-		for _, match := range matches {
-			if len(match) < 2 {
-				continue
-			}
-			branch := sanitizeBranchName(match[1])
-			if branch == "" {
-				continue
-			}
-			branches[branch] = struct{}{}
-		}
-	}
-
-	reqs.Branches = make([]string, 0, len(branches))
-	for branch := range branches {
-		reqs.Branches = append(reqs.Branches, branch)
-	}
-	sort.Strings(reqs.Branches)
-	return reqs
-}
-
-func verifyExecutionPostconditions(workDir, prompt string, baseline executionBaseline) (adapter.Artifact, error) {
-	reqs := detectTaskPostconditions(prompt)
-	if !baseline.GitRepo || (!reqs.CommitRequired && !reqs.PushRequired && !reqs.BranchRequired) {
+// verify judges every action of the plan and returns the postconditions.json
+// artifact. Only the outcomes satisfied and not_required return a nil error
+// (REQ-WPOST-STATE-02). Fallback mode stays silent, as it was before the
+// contract, when the prompt mentions no action or the work directory had no
+// commit before execution (REQ-WPOST-LEGACY-03).
+func (g postconditionGit) verify(workDir string, plan taskPostconditions, base executionBaseline) (adapter.Artifact, error) {
+	if plan.Source != sourceContract && (!base.GitRepo || !plan.Mentioned) {
 		return adapter.Artifact{}, nil
 	}
-
 	report := postconditionReport{
+		Version:  postconditionReportVersion,
 		Active:   true,
-		Branches: append([]string(nil), reqs.Branches...),
+		Source:   plan.Source,
+		Branches: append([]string(nil), plan.Branches...),
 	}
-
-	currentHead, headErr := gitOutput(workDir, "rev-parse", "HEAD")
-	if reqs.CommitRequired {
-		if headErr != nil {
-			report.Checks = append(report.Checks, postconditionCheck{
-				Name:   "commit",
-				Status: "failed",
-				Detail: headErr.Error(),
-			})
-		} else if strings.TrimSpace(currentHead) == baseline.HeadSHA {
-			report.Checks = append(report.Checks, postconditionCheck{
-				Name:   "commit",
-				Status: "failed",
-				Detail: "HEAD did not advance after execution",
-			})
-		} else {
-			report.Checks = append(report.Checks, postconditionCheck{
-				Name:   "commit",
-				Status: "passed",
-				Detail: strings.TrimSpace(currentHead),
-			})
-		}
+	if len(plan.Problems) > 0 {
+		// handleTask rejects such a plan before execution; this keeps a
+		// direct caller from reading an invalid contract as satisfied.
+		report.Checks = []postconditionCheck{{
+			Name: "contract", Requirement: string(levelRequired), Status: statusUnknown,
+			Detail: "invalid completion_contract: " + strings.Join(plan.Problems, "; "),
+		}}
+	} else {
+		report.Checks = append(report.Checks, g.commitCheck(workDir, plan.Commit, base), g.pushCheck(workDir, plan, base))
+		report.Checks = append(report.Checks, g.branchChecks(workDir, plan, base)...)
+		softenAmbiguousChecks(report.Checks)
 	}
-
-	if reqs.BranchRequired {
-		branches := branchesForVerification(reqs, workDir)
-		if len(branches) == 0 {
-			report.Checks = append(report.Checks, postconditionCheck{
-				Name:   "branch",
-				Status: "failed",
-				Detail: "unable to determine target branch",
-			})
-		}
-		for _, branch := range branches {
-			if err := gitRun(workDir, "show-ref", "--verify", "--quiet", "refs/heads/"+branch); err != nil {
-				report.Checks = append(report.Checks, postconditionCheck{
-					Name:   "branch",
-					Status: "failed",
-					Detail: fmt.Sprintf("local branch %q not found", branch),
-				})
-				continue
-			}
-			report.Checks = append(report.Checks, postconditionCheck{
-				Name:   "branch",
-				Status: "passed",
-				Detail: branch,
-			})
-		}
-	}
-
-	if reqs.PushRequired {
-		branches := branchesForVerification(reqs, workDir)
-		if len(branches) == 0 {
-			report.Checks = append(report.Checks, postconditionCheck{
-				Name:   "push",
-				Status: "failed",
-				Detail: "unable to determine pushed branch",
-			})
-		}
-		for _, branch := range branches {
-			if err := gitRun(workDir, "ls-remote", "--exit-code", "--heads", "origin", branch); err != nil {
-				report.Checks = append(report.Checks, postconditionCheck{
-					Name:   "push",
-					Status: "failed",
-					Detail: fmt.Sprintf("remote branch %q not found", branch),
-				})
-				continue
-			}
-			report.Checks = append(report.Checks, postconditionCheck{
-				Name:   "push",
-				Status: "passed",
-				Detail: branch,
-			})
-		}
-	}
+	report.Outcome = postconditionOutcome(report.Checks)
 
 	artifact := adapter.Artifact{
 		Name:     "postconditions.json",
 		MimeType: "application/json",
 		Data:     mustMarshalPostconditionReport(report),
 	}
+	return artifact, postconditionError(report)
+}
 
-	var failures []string
-	for _, check := range report.Checks {
-		if check.Status == "failed" {
-			failures = append(failures, fmt.Sprintf("%s: %s", check.Name, check.Detail))
+// softenAmbiguousChecks turns an unsatisfied fallback check into unknown when
+// the prompt both asked for and declined the action: missing evidence then is
+// not a demand to act (REQ-WPOST-LEGACY-03).
+func softenAmbiguousChecks(checks []postconditionCheck) {
+	for i := range checks {
+		if checks[i].Requirement == string(levelAmbiguous) && checks[i].Status == statusUnsatisfied {
+			checks[i].Status = statusUnknown
+			checks[i].Detail = fmt.Sprintf("the prompt both asks for and declines %s; %s", checks[i].Name, checks[i].Detail)
 		}
 	}
-	if len(failures) > 0 {
-		return artifact, fmt.Errorf("postcondition failed: %s", strings.Join(failures, "; "))
-	}
-	return artifact, nil
 }
 
-func branchesForVerification(reqs taskPostconditions, workDir string) []string {
-	if len(reqs.Branches) > 0 {
-		return append([]string(nil), reqs.Branches...)
+// postconditionOutcome is the first present of unsatisfied, unknown,
+// satisfied, and not_required.
+func postconditionOutcome(checks []postconditionCheck) string {
+	for _, status := range []string{statusUnsatisfied, statusUnknown, statusSatisfied} {
+		for _, check := range checks {
+			if check.Status == status {
+				return status
+			}
+		}
 	}
-	currentBranch, err := gitOutput(workDir, "branch", "--show-current")
-	if err != nil {
+	return statusNotRequired
+}
+
+func postconditionError(report postconditionReport) error {
+	var parts []string
+	for _, check := range report.Checks {
+		switch check.Status {
+		case statusUnsatisfied:
+			parts = append(parts, fmt.Sprintf("%s: %s", check.Name, check.Detail))
+		case statusUnknown:
+			if report.Outcome == statusUnsatisfied {
+				parts = append(parts, fmt.Sprintf("%s (unverified): %s", check.Name, check.Detail))
+			} else {
+				parts = append(parts, fmt.Sprintf("%s: %s", check.Name, check.Detail))
+			}
+		}
+	}
+	switch report.Outcome {
+	case statusUnsatisfied:
+		return fmt.Errorf("%w: %s", errPostconditionFailed, strings.Join(parts, "; "))
+	case statusUnknown:
+		return fmt.Errorf("%w: %s", errPostconditionUnverified, strings.Join(parts, "; "))
+	default:
 		return nil
 	}
-	currentBranch = sanitizeBranchName(currentBranch)
-	if currentBranch == "" || strings.HasPrefix(currentBranch, "worker-") {
-		return nil
-	}
-	return []string{currentBranch}
-}
-
-func sanitizeBranchName(raw string) string {
-	branch := strings.TrimSpace(raw)
-	branch = strings.Trim(branch, "\"'`.,)")
-	if branch == "" {
-		return ""
-	}
-	if strings.Contains(branch, "..") || strings.HasPrefix(branch, "-") {
-		return ""
-	}
-	return branch
-}
-
-func gitOutput(workDir string, args ...string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), postconditionTimeout)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx, "git", args...)
-	cmd.Dir = workDir
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("git %s: %s", strings.Join(args, " "), strings.TrimSpace(string(out)))
-	}
-	return string(out), nil
-}
-
-func gitRun(workDir string, args ...string) error {
-	_, err := gitOutput(workDir, args...)
-	return err
 }
 
 func mustMarshalPostconditionReport(report postconditionReport) string {
 	data, err := json.Marshal(report)
 	if err != nil {
-		return `{"active":true,"checks":[{"name":"marshal","status":"failed","detail":"report serialization failed"}]}`
+		return `{"version":2,"active":true,"outcome":"unknown","checks":[{"name":"marshal","requirement":"required","status":"unknown","detail":"report serialization failed"}]}`
 	}
 	return string(data)
 }
