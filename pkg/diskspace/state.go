@@ -109,7 +109,8 @@ func (s StateDir) WriteFileAtomic(name string, data []byte) error {
 	if err != nil {
 		return err
 	}
-	defer os.Remove(tmp.Name())
+	// After a successful rename the temp name is gone and Remove fails harmlessly.
+	defer func() { _ = os.Remove(tmp.Name()) }()
 	if _, err := tmp.Write(data); err != nil {
 		_ = tmp.Close()
 		return err
