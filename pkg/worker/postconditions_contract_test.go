@@ -8,81 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// S9 (SPEC-WORKERPOST-001): every invalid contract names its problem.
-func TestPlanContract_RejectsInvalidContracts(t *testing.T) {
-	t.Parallel()
-
-	cases := []struct {
-		contract string
-		want     string
-	}{
-		{`{"version":2}`, `unsupported version 2`},
-		{`{"required_actions":["deploy"]}`, `unsupported action "deploy"`},
-		{`{"required_actions":["push"],"forbidden_actions":["push"]}`, `"push" is both required and forbidden`},
-		{`{"ref":"refs/tags/v1"}`, `is not under refs/heads/`},
-		{`{"ref":"feature/../x"}`, `invalid branch name`},
-		{`{"ref":"/feature"}`, `invalid branch name`},
-		{`{"ref":"feature.lock"}`, `invalid branch name`},
-		{`{"remote":"-oProxyCommand=x"}`, `invalid remote`},
-		{`{"expected_commit":"abc123"}`, `expected_commit must be a full`},
-		{`{"push_match":"prefix"}`, `unsupported push_match "prefix"`},
-	}
-	for _, tc := range cases {
-		_, err := planPayloadPostconditions(contractOf(tc.contract), "commit and push")
-		require.Error(t, err, tc.contract)
-		assert.True(t, strings.HasPrefix(err.Error(), "invalid completion_contract: "), err.Error())
-		assert.Contains(t, err.Error(), tc.want, tc.contract)
-	}
-}
-
-func TestPlanContract_ClipsAndQuotesSenderValues(t *testing.T) {
-	t.Parallel()
-
-	long := strings.Repeat("x", 200) + "\nforged line"
-	_, err := planPayloadPostconditions(&completionContractMessage{RequiredActions: []string{long}}, "")
-	require.Error(t, err)
-	assert.NotContains(t, err.Error(), "\n")
-	assert.NotContains(t, err.Error(), "forged line")
-	assert.Contains(t, err.Error(), `"`+strings.Repeat("x", contractValueClip)+`"`)
-}
-
-func TestPlanContract_NormalizesAValidContract(t *testing.T) {
-	t.Parallel()
-
-	plan, err := planPayloadPostconditions(
-		contractOf(`{"version":1,"required_actions":["Commit"," push "],"ref":"feature/x"}`), "")
-	require.NoError(t, err)
-	assert.Equal(t, sourceContract, plan.Source)
-	assert.Equal(t, levelRequired, plan.Commit)
-	assert.Equal(t, levelRequired, plan.Push)
-	assert.Equal(t, levelNone, plan.Branch)
-	assert.Equal(t, "refs/heads/feature/x", plan.Ref)
-	assert.Equal(t, defaultPostconditionRemote, plan.Remote)
-	assert.Equal(t, matchExact, plan.Match)
-
-	sha := strings.Repeat("AB", 20)
-	plan, err = planPayloadPostconditions(&completionContractMessage{
-		Ref: "refs/heads/release/1.0", ExpectedCommit: sha, PushMatch: "Contains", Remote: "upstream",
-	}, "")
-	require.NoError(t, err)
-	assert.Equal(t, "refs/heads/release/1.0", plan.Ref)
-	assert.Equal(t, strings.ToLower(sha), plan.ExpectedCommit)
-	assert.Equal(t, matchContains, plan.Match)
-	assert.Equal(t, "upstream", plan.Remote)
-}
-
-// REQ-WPOST-INPUT-03: a present contract switches prompt inference off.
-func TestPlanContract_PromptIsNotReadWhenAContractExists(t *testing.T) {
-	t.Parallel()
-
-	plan, err := planPayloadPostconditions(contractOf(`{"required_actions":[]}`), "commit and git push origin feature/x")
-	require.NoError(t, err)
-	assert.Equal(t, levelNone, plan.Commit)
-	assert.Equal(t, levelNone, plan.Push)
-	assert.Equal(t, levelNone, plan.Branch)
-	assert.Empty(t, plan.Branches)
-}
-
 // S1: a contract forbidding commit and push completes with no git change and
 // does not depend on the remote being reachable.
 func TestCommitContract_ReadOnlyForbiddenActionsAreSatisfied(t *testing.T) {
@@ -199,4 +124,20 @@ func resetToOrphan(f *gitFixture) {
 
 func branchAt(name string) func(f *gitFixture) {
 	return func(f *gitFixture) { f.run(f.repo, "checkout", "-q", "-b", name) }
+}
+
+// S7: a branch that exists now but whose baseline lookup failed is unknown.
+func TestBranchContract_ForbiddenWithUnknownBaseline(t *testing.T) {
+	t.Parallel()
+
+	f := newGitFixture(t)
+	plan := f.plan(contractOf(`{"forbidden_actions":["branch"],"ref":"feature/new"}`), "")
+	base := f.baseline(plan)
+	require.Equal(t, presenceAbsent, base.RefState)
+	base.RefState = presenceUnknown // the dispatch-time lookup failed
+	f.run(f.repo, "checkout", "-q", "-b", "feature/new")
+
+	report, err := f.verify(plan, base)
+	require.ErrorIs(t, err, errPostconditionUnverified)
+	assert.Equal(t, statusUnknown, findCheck(t, report, actionBranch).Status)
 }

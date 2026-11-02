@@ -67,16 +67,19 @@ func TestHandleTask_ReadOnlyTaskCompletesWithoutGitChanges(t *testing.T) {
 	}
 }
 
-// S9 through the task handler: an invalid contract fails before any provider
-// call.
+// S9 through the task handler: an invalid contract, null included, fails
+// before any provider call, and no credential reaches the result or an event.
 func TestHandleTask_InvalidContractFailsBeforeProvider(t *testing.T) {
 	contracts := []string{
 		`{"version":2}`, `{"required_actions":["deploy"]}`,
 		`{"required_actions":["push"],"forbidden_actions":["push"]}`, `{"ref":"refs/tags/v1"}`,
 		`{"ref":"feature/../x"}`, `{"remote":"-oProxyCommand=x"}`, `{"expected_commit":"abc123"}`, `{"push_match":"prefix"}`,
+		`null`, `[]`, `{"version":"1"}`, `{"remote":"https://user:secret@host/repo.git"}`,
 	}
 	for i, contract := range contracts {
 		_, mock, wl := handleTaskFixture(t, resultLine)
+		var events []HostEvent
+		wl.AddHostObserver(HostObserverFunc(func(event HostEvent) { events = append(events, event) }))
 		payload := `{"prompt":"do the work","completion_contract":` + contract + `}`
 
 		result, err := wl.handleTask(context.Background(), fmt.Sprintf("task-invalid-contract-%d", i), []byte(payload))
@@ -84,6 +87,10 @@ func TestHandleTask_InvalidContractFailsBeforeProvider(t *testing.T) {
 		assert.True(t, strings.HasPrefix(err.Error(), "invalid completion_contract: "), err.Error())
 		assert.Equal(t, a2a.StatusFailed, result.Status)
 		assert.Empty(t, mock.calls, "the provider must not run for %s", contract)
+		assert.NotContains(t, result.Error, "secret")
+		for _, event := range events {
+			assert.NotContains(t, event.Message, "secret")
+		}
 	}
 }
 
@@ -111,7 +118,7 @@ func TestHandleTask_PipelinePathUsesTheContract(t *testing.T) {
 	payload, err := json.Marshal(taskPayloadMessage{
 		Prompt:             "backend-built prompt",
 		PipelinePhases:     []string{"planner"},
-		CompletionContract: &completionContractMessage{RequiredActions: []string{"commit"}},
+		CompletionContract: json.RawMessage(`{"required_actions":["commit"]}`),
 	})
 	require.NoError(t, err)
 

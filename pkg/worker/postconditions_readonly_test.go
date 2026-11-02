@@ -2,6 +2,7 @@ package worker
 
 import (
 	"encoding/json"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -41,7 +42,7 @@ func TestPostconditionGit_RecordedCommandsAreReadOnly(t *testing.T) {
 
 	allowed := map[string]bool{
 		"rev-parse": true, "symbolic-ref": true, "remote get-url": true, "ls-remote": true,
-		"merge-base --is-ancestor": true, "cat-file -e": true, "rev-list": true,
+		"merge-base --is-ancestor": true, "cat-file -e": true, "rev-list": true, "for-each-ref": true,
 	}
 	scenarios := []struct {
 		contract *completionContractMessage
@@ -60,18 +61,19 @@ func TestPostconditionGit_RecordedCommandsAreReadOnly(t *testing.T) {
 		f.commit("B")
 		f.run(f.repo, "push", "-q", "origin", "HEAD:refs/heads/feature/x")
 		f.commit("C")
-		repoRefs, remoteRefs := f.refs(f.repo), f.refs(f.bare)
+		repoDigest, remoteDigest := dirDigest(t, filepath.Join(f.repo, ".git")), dirDigest(t, f.bare)
 
 		_, err := g.verify(f.repo, plan, base)
 		require.Error(t, err, "every scenario leaves at least one check failing")
-		assert.Equal(t, repoRefs, f.refs(f.repo), "verification changed local refs")
-		assert.Equal(t, remoteRefs, f.refs(f.bare), "verification changed remote refs")
+		assert.Equal(t, repoDigest, dirDigest(t, filepath.Join(f.repo, ".git")), "verification wrote into the repository")
+		assert.Equal(t, remoteDigest, dirDigest(t, f.bare), "verification wrote into the remote")
 		require.NotEmpty(t, log.argvs)
+		at := len(postconditionGlobalArgs)
 		for _, argv := range log.argvs {
-			require.Equal(t, "--no-replace-objects", argv[0], "%v", argv)
-			form := argv[1]
-			if len(argv) > 2 && (form == "remote" || form == "merge-base" || form == "cat-file") {
-				form += " " + argv[2]
+			require.Equal(t, postconditionGlobalArgs, argv[:at], "%v", argv)
+			form := argv[at]
+			if len(argv) > at+1 && (form == "remote" || form == "merge-base" || form == "cat-file") {
+				form += " " + argv[at+1]
 			}
 			assert.True(t, allowed[form], "unexpected git invocation %v", argv)
 		}
@@ -142,4 +144,22 @@ func TestRedactGitMessage(t *testing.T) {
 		redactGitMessage("fatal: unable to access 'https://u:p@h/r.git/': x"))
 	assert.Equal(t, "first", redactGitMessage("first\nsecond"))
 	assert.Len(t, redactGitMessage(strings.Repeat("é", 300)), gitMessageClip)
+}
+
+// S11: an unsatisfied and an unknown check together give the outcome
+// unsatisfied, and the error lists both.
+func TestPostconditionReport_MixedOutcomeListsEveryCheck(t *testing.T) {
+	t.Parallel()
+
+	f := newGitFixture(t)
+	f.run(f.repo, "remote", "set-url", "origin", t.TempDir()) // not a repository
+	plan := f.plan(contractOf(`{"required_actions":["commit","push"],"ref":"main"}`), "")
+
+	report, err := f.verify(plan, f.baseline(plan))
+	require.ErrorIs(t, err, errPostconditionFailed)
+	assert.Equal(t, statusUnsatisfied, report.Outcome)
+	assert.Equal(t, statusUnsatisfied, findCheck(t, report, actionCommit).Status)
+	assert.Equal(t, statusUnknown, findCheck(t, report, actionPush).Status)
+	assert.True(t, strings.HasPrefix(err.Error(), "postcondition failed: commit: HEAD did not advance after execution; "), err.Error())
+	assert.Contains(t, err.Error(), "push (unverified): remote lookup failed")
 }

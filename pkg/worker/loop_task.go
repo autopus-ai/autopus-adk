@@ -40,7 +40,7 @@ type taskPayloadMessage struct {
 	RiskPolicy              string                      `json:"risk_policy,omitempty"`
 	CacheStratum            string                      `json:"cache_stratum,omitempty"`
 	ConfigHash              string                      `json:"config_hash,omitempty"`
-	CompletionContract      *completionContractMessage  `json:"completion_contract,omitempty"`
+	CompletionContract      json.RawMessage             `json:"completion_contract,omitempty"`
 }
 
 type redlineInstructionMessage struct {

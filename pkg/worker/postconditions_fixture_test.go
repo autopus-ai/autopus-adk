@@ -1,7 +1,13 @@
 package worker
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -157,8 +163,9 @@ func (l *commandLog) record(argv []string) {
 func (l *commandLog) ran(subcommand string) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	at := len(postconditionGlobalArgs)
 	for _, argv := range l.argvs {
-		if len(argv) > 1 && argv[1] == subcommand {
+		if len(argv) > at && argv[at] == subcommand {
 			return true
 		}
 	}
@@ -179,4 +186,82 @@ func contractOf(raw string) *completionContractMessage {
 		panic(err)
 	}
 	return &c
+}
+
+// dirDigest hashes every entry under dir (path, mode, size, content), so a
+// test can prove that verification wrote nothing: no ref, config, or object.
+func dirDigest(t *testing.T, dir string) string {
+	t.Helper()
+	h := sha256.New()
+	require.NoError(t, filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+		rel, _ := filepath.Rel(dir, path)
+		fmt.Fprintf(h, "%s %v %d\n", rel, info.Mode(), info.Size())
+		if info.Mode().IsRegular() {
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			h.Write(data)
+		}
+		return nil
+	}))
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+// gitPath resolves a path inside the work repository's git directory.
+func (f *gitFixture) gitPath(name string) string {
+	f.t.Helper()
+	return f.run(f.repo, "rev-parse", "--path-format=absolute", "--git-path", name)
+}
+
+// tamperCommitGraph writes a commit-graph in which child's first parent is
+// parent, as a task with write access to the git directory could.
+func (f *gitFixture) tamperCommitGraph(child, parent string) {
+	f.t.Helper()
+	f.run(f.repo, "-c", "commitGraph.generationVersion=1", "commit-graph", "write", "--reachable")
+	path := f.gitPath("objects/info/commit-graph")
+	data, err := os.ReadFile(path)
+	require.NoError(f.t, err)
+	require.Equal(f.t, "CGPH", string(data[:4]))
+	chunks := make(map[string]int)
+	for i := 0; i <= int(data[6]); i++ {
+		at := 8 + 12*i
+		chunks[string(data[at:at+4])] = int(binary.BigEndian.Uint64(data[at+4 : at+12]))
+	}
+	count := int(binary.BigEndian.Uint32(data[chunks["OIDF"]+255*4:]))
+	position := func(oid string) int {
+		raw, err := hex.DecodeString(oid)
+		require.NoError(f.t, err)
+		for i := 0; i < count; i++ {
+			if bytes.Equal(data[chunks["OIDL"]+20*i:chunks["OIDL"]+20*(i+1)], raw) {
+				return i
+			}
+		}
+		require.FailNow(f.t, "commit not in the commit-graph", oid)
+		return -1
+	}
+	entry := chunks["CDAT"] + 36*position(child)
+	binary.BigEndian.PutUint32(data[entry+20:], uint32(position(parent)))
+	level := binary.BigEndian.Uint32(data[entry+28:])
+	binary.BigEndian.PutUint32(data[entry+28:], 5<<2|level&3)
+	require.NoError(f.t, os.Chmod(path, 0o644))
+	require.NoError(f.t, os.WriteFile(path, data, 0o644))
+}
+
+// breakConfig makes every git command in the work repository fail the way a
+// damaged configuration does, and returns the function that repairs it.
+func (f *gitFixture) breakConfig() func() {
+	f.t.Helper()
+	path := filepath.Join(f.repo, ".git", "config")
+	original, err := os.ReadFile(path)
+	require.NoError(f.t, err)
+	require.NoError(f.t, os.WriteFile(path, append(append([]byte(nil), original...), "\n[broken\n"...), 0o644))
+	return func() { require.NoError(f.t, os.WriteFile(path, original, 0o644)) }
 }

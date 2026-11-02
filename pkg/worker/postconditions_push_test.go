@@ -135,7 +135,7 @@ func TestPushContract_LookupFailuresAreUnknown(t *testing.T) {
 	cases := []struct {
 		name    string
 		url     func(t *testing.T) string
-		timeout time.Duration
+		timeout time.Duration // for the remote lookup only
 		detail  string
 	}{
 		{"not a repository", func(t *testing.T) string { return t.TempDir() }, 0, "does not appear to be a git repository"},
@@ -153,7 +153,7 @@ func TestPushContract_LookupFailuresAreUnknown(t *testing.T) {
 			f.commit("B")
 			f.run(f.repo, "push", "-q", "origin", "feature/x")
 			f.run(f.repo, "remote", "set-url", "origin", tc.url(t))
-			f.git.timeout = tc.timeout
+			f.git.remoteTimeout = tc.timeout
 			plan := f.plan(contractOf(`{"required_actions":["push"],"ref":"feature/x"}`), "")
 
 			report, err := f.verify(plan, f.baseline(plan))

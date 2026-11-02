@@ -2,12 +2,12 @@ package worker
 
 import (
 	"fmt"
-	"os"
 	"strings"
 )
 
-// The checks of SPEC-WORKERPOST-001. Each returns exactly one of the four
-// states; a git failure or a missing fact is `unknown`, never `satisfied`.
+// The checks of SPEC-WORKERPOST-001. Each walks its decision table in
+// spec.md top to bottom and the first matching row decides, so overlapping
+// conditions have one result; a lookup that failed is never read as absence.
 
 func withStatus(check postconditionCheck, status, detail string) postconditionCheck {
 	check.Status, check.Detail = status, detail
@@ -21,17 +21,20 @@ func (g postconditionGit) commitCheck(workDir string, level requirementLevel, ba
 		return withStatus(check, statusNotRequired, "the task does not require a commit")
 	}
 	head := g.head(workDir)
-	if head.err != "" {
-		return withStatus(check, statusUnknown, "cannot read HEAD: "+head.err)
-	}
 	check.Observed = head.sha
+	switch {
+	case head.state == presenceUnknown:
+		return withStatus(check, statusUnknown, "cannot read HEAD: "+head.err)
+	case base.Head == presenceUnknown:
+		return withStatus(check, statusUnknown, "the baseline HEAD could not be read: "+base.HeadErr)
+	}
 	if level == levelForbidden {
 		return g.forbiddenCommit(check, workDir, head, base)
 	}
 	switch {
-	case !base.GitRepo:
+	case base.Head == presenceAbsent:
 		return withStatus(check, statusUnknown, "no baseline commit was captured before execution")
-	case head.sha == "":
+	case head.state == presenceAbsent:
 		return withStatus(check, statusUnknown, "HEAD does not resolve to a commit after execution")
 	case head.sha == base.HeadSHA:
 		return withStatus(check, statusUnsatisfied, "HEAD did not advance after execution")
@@ -48,11 +51,11 @@ func (g postconditionGit) commitCheck(workDir string, level requirementLevel, ba
 
 func (g postconditionGit) forbiddenCommit(check postconditionCheck, workDir string, head headInfo, base executionBaseline) postconditionCheck {
 	switch {
-	case !base.GitRepo && head.sha == "":
+	case base.Head == presenceAbsent && head.state == presenceAbsent:
 		return withStatus(check, statusSatisfied, "no commit exists before or after execution")
-	case !base.GitRepo:
+	case base.Head == presenceAbsent:
 		return withStatus(check, statusUnsatisfied, "a HEAD commit "+head.sha+" appeared in a work directory that had none")
-	case head.sha == "":
+	case head.state == presenceAbsent:
 		return withStatus(check, statusUnknown, "HEAD does not resolve to a commit after execution")
 	case head.sha == base.HeadSHA:
 		return withStatus(check, statusSatisfied, "HEAD unchanged at "+head.sha)
@@ -72,7 +75,7 @@ func movedAwayDetail(head, baseline string) string {
 	return fmt.Sprintf("HEAD moved to %s, which does not descend from the baseline %s", head, baseline)
 }
 
-// branchChecks judges the branch action (REQ-WPOST-BRANCH-01, LEGACY-02).
+// branchChecks judges the branch action (REQ-WPOST-BRANCH-01, -02, LEGACY-02).
 func (g postconditionGit) branchChecks(workDir string, plan taskPostconditions, base executionBaseline) []postconditionCheck {
 	check := postconditionCheck{Name: actionBranch, Requirement: string(plan.Branch)}
 	if plan.Branch == levelNone {
@@ -94,23 +97,23 @@ func (g postconditionGit) branchChecks(workDir string, plan taskPostconditions, 
 	return []postconditionCheck{g.forbiddenBranch(check, workDir, plan.Ref, base.RefState)}
 }
 
-func (g postconditionGit) forbiddenBranch(check postconditionCheck, workDir, ref string, before refState) postconditionCheck {
+func (g postconditionGit) forbiddenBranch(check postconditionCheck, workDir, ref string, before presence) postconditionCheck {
 	check.Ref = ref
 	name := strings.TrimPrefix(ref, branchRefPrefix)
 	sha, state, why := g.resolveRef(workDir, ref)
 	check.Observed = sha
 	switch {
-	case state == refUnknown:
-		return withStatus(check, statusUnknown, why)
-	case state == refAbsent:
+	case state == presenceUnknown:
+		return withStatus(check, statusUnknown, "cannot read the local branch: "+why)
+	case state == presenceAbsent:
 		return withStatus(check, statusSatisfied, fmt.Sprintf("local branch %q does not exist", name))
-	case before == refPresent:
+	case before == presencePresent:
 		return withStatus(check, statusSatisfied, fmt.Sprintf("local branch %q existed before execution", name))
-	case before == refAbsent:
+	case before == presenceUnknown:
+		return withStatus(check, statusUnknown, fmt.Sprintf("cannot tell whether local branch %q existed before execution", name))
+	default:
 		return withStatus(check, statusUnsatisfied,
 			fmt.Sprintf("local branch %q was created during execution although branch is forbidden", name))
-	default:
-		return withStatus(check, statusUnknown, fmt.Sprintf("cannot tell whether local branch %q existed before execution", name))
 	}
 }
 
@@ -120,9 +123,9 @@ func (g postconditionGit) localBranchCheck(check postconditionCheck, workDir, re
 	sha, state, why := g.resolveRef(workDir, ref)
 	check.Observed = sha
 	switch {
-	case state == refUnknown:
-		return withStatus(check, statusUnknown, why)
-	case state == refAbsent:
+	case state == presenceUnknown:
+		return withStatus(check, statusUnknown, "cannot read the local branch: "+why)
+	case state == presenceAbsent:
 		return withStatus(check, statusUnsatisfied, fmt.Sprintf("local branch %q not found", name))
 	case expected != "" && sha != expected:
 		return withStatus(check, statusUnsatisfied, fmt.Sprintf("local branch %q is at %s, expected %s", name, sha, expected))
@@ -139,18 +142,12 @@ const (
 	ancestryNo
 )
 
-// isAncestor answers from local objects only. Replace refs are ignored by the
-// runner; a graft file makes any answer untrustworthy, and a shallow boundary
-// makes a negative answer untrustworthy.
+// isAncestor answers from trusted local history only (historyTrust): a
+// negative answer from a shallow repository is unknown.
 func (g postconditionGit) isAncestor(workDir, ancestor, descendant string) (ancestryAnswer, string) {
-	graft, err := g.output(workDir, "rev-parse", "--path-format=absolute", "--git-path", "info/grafts")
-	if err != nil {
-		return ancestryUnknown, "cannot locate the graft file: " + err.Error()
-	}
-	if _, statErr := os.Lstat(graft); statErr == nil {
-		return ancestryUnknown, "the repository has a graft file (info/grafts), so ancestry cannot be trusted"
-	} else if !os.IsNotExist(statErr) {
-		return ancestryUnknown, "cannot inspect the graft file: " + statErr.Error()
+	shallow, untrusted := g.historyTrust(workDir)
+	if untrusted != "" {
+		return ancestryUnknown, untrusted
 	}
 	res := g.run(workDir, nil, "merge-base", "--is-ancestor", ancestor, descendant)
 	switch {
@@ -160,9 +157,9 @@ func (g postconditionGit) isAncestor(workDir, ancestor, descendant string) (ance
 		return ancestryYes, ""
 	case res.code != 1:
 		return ancestryUnknown, fmt.Sprintf("git merge-base exited %d: %s", res.code, res.stderr)
+	case shallow:
+		return ancestryUnknown, "the repository is shallow, so a missing ancestor may lie beyond its boundary"
+	default:
+		return ancestryNo, ""
 	}
-	if shallow, err := g.output(workDir, "rev-parse", "--is-shallow-repository"); err != nil || shallow != "false" {
-		return ancestryUnknown, "the repository may be shallow, so a missing ancestor may lie beyond its boundary"
-	}
-	return ancestryNo, ""
 }

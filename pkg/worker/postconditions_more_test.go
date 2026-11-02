@@ -13,7 +13,7 @@ func TestVerifyExecutionPostconditions_CommitAdvancedPasses(t *testing.T) {
 	f := newGitFixture(t)
 	plan := f.plan(nil, "please commit the changes")
 	base := f.baseline(plan)
-	require.True(t, base.GitRepo)
+	require.Equal(t, presencePresent, base.Head)
 	head := f.commit("advance head")
 
 	report, err := f.verify(plan, base)
@@ -74,7 +74,7 @@ func TestVerifyExecutionPostconditions_NoBaselineSkips(t *testing.T) {
 	dir := t.TempDir()
 	plan := f.plan(nil, "commit and push")
 	base := f.git.captureBaseline(dir, plan)
-	assert.False(t, base.GitRepo)
+	assert.Equal(t, presenceAbsent, base.Head)
 
 	artifact, err := f.git.verify(dir, plan, base)
 	require.NoError(t, err)

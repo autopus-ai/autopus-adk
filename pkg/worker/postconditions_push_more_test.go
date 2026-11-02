@@ -115,6 +115,11 @@ func TestPushContract_ForbiddenPush(t *testing.T) {
 			f.commit("B")
 			f.run(f.repo, "remote", "add", "origin", f.bare)
 		}, statusUnknown, "gained a URL"},
+		// Precedence: a remote that appears mid-run is unknown even though
+		// HEAD never moved.
+		{"remote added while HEAD stays", func(f *gitFixture) {
+			f.run(f.repo, "remote", "remove", "origin")
+		}, func(f *gitFixture) { f.run(f.repo, "remote", "add", "origin", f.bare) }, statusUnknown, "gained a URL"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -151,4 +156,25 @@ func TestPushContract_ForbiddenPushWithoutSnapshotIsUnknown(t *testing.T) {
 	push := findCheck(t, report, actionPush)
 	assert.Equal(t, statusUnknown, push.Status)
 	assert.Contains(t, push.Detail, "no baseline snapshot")
+}
+
+// Precedence: with no remote before or after execution, a commit that
+// appeared in a work directory without one cannot have been published.
+func TestPushContract_ForbiddenPushWithoutRemoteIsSatisfied(t *testing.T) {
+	t.Parallel()
+
+	f := newGitFixture(t)
+	unborn := t.TempDir()
+	f.run(unborn, "init", "-q")
+	plan := f.plan(contractOf(`{"forbidden_actions":["commit","push"]}`), "")
+	base := f.git.captureBaseline(unborn, plan)
+	require.Equal(t, presenceAbsent, base.Head)
+	require.Equal(t, presenceAbsent, base.Remote)
+	f.run(unborn, "commit", "-q", "--allow-empty", "-m", "first")
+
+	artifact, err := f.git.verify(unborn, plan, base)
+	require.ErrorIs(t, err, errPostconditionFailed)
+	report := decodeReport(t, artifact.Data)
+	assert.Equal(t, statusSatisfied, findCheck(t, report, actionPush).Status)
+	assert.Equal(t, statusUnsatisfied, findCheck(t, report, actionCommit).Status)
 }

@@ -29,7 +29,11 @@ var (
 	// task fails rather than completing on an unverified result.
 	errPostconditionUnverified = errors.New("postcondition unverified")
 
-	postconditionTimeout = 5 * time.Second
+	// postconditionLocalTimeout bounds a read of the local repository, which
+	// takes milliseconds unless the machine is overloaded or git hangs.
+	postconditionLocalTimeout = 30 * time.Second
+	// postconditionRemoteTimeout bounds one ls-remote round trip.
+	postconditionRemoteTimeout = 15 * time.Second
 )
 
 type postconditionCheck struct {
@@ -57,9 +61,10 @@ type postconditionReport struct {
 // artifact. Only the outcomes satisfied and not_required return a nil error
 // (REQ-WPOST-STATE-02). Fallback mode stays silent, as it was before the
 // contract, when the prompt mentions no action or the work directory had no
-// commit before execution (REQ-WPOST-LEGACY-03).
+// commit before execution (REQ-WPOST-LEGACY-03); a baseline that could not be
+// read is not a missing one, so it still yields a report.
 func (g postconditionGit) verify(workDir string, plan taskPostconditions, base executionBaseline) (adapter.Artifact, error) {
-	if plan.Source != sourceContract && (!base.GitRepo || !plan.Mentioned) {
+	if plan.Source != sourceContract && (base.Head == presenceAbsent || !plan.Mentioned) {
 		return adapter.Artifact{}, nil
 	}
 	report := postconditionReport{

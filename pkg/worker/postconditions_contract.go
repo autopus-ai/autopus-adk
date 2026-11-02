@@ -1,11 +1,11 @@
 package worker
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
-	"unicode/utf8"
 )
 
 // completionContractMessage is the optional explicit completion contract of a
@@ -54,7 +54,6 @@ const (
 
 var (
 	remoteNamePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
-	branchNamePattern = regexp.MustCompile(`^[A-Za-z0-9._/-]+$`)
 	commitSHAPattern  = regexp.MustCompile(`^(?:[0-9a-f]{40}|[0-9a-f]{64})$`)
 )
 
@@ -84,11 +83,20 @@ func planTaskPostconditions(contract *completionContractMessage, prompt string) 
 	return planFromContract(*contract)
 }
 
-// planPayloadPostconditions plans a received task and rejects an invalid
-// contract before any provider runs (REQ-WPOST-INPUT-02): a result that can
-// never be judged is not worth a model call or a possible publication.
-func planPayloadPostconditions(contract *completionContractMessage, prompt string) (*taskPostconditions, error) {
-	plan := planTaskPostconditions(contract, prompt)
+// planPayloadPostconditions plans a received task from the raw
+// completion_contract value and rejects an invalid contract before any
+// provider runs (REQ-WPOST-INPUT-02): a result that can never be judged is not
+// worth a model call or a possible publication. Only an absent key selects
+// the prompt fallback; null, a non-object, or a wrongly typed field is invalid.
+func planPayloadPostconditions(raw json.RawMessage, prompt string) (*taskPostconditions, error) {
+	var plan taskPostconditions
+	if len(raw) == 0 {
+		plan = detectTaskPostconditions(prompt)
+	} else {
+		contract, problems := decodeCompletionContract(raw)
+		plan = planFromContract(contract)
+		plan.Problems = append(problems, plan.Problems...)
+	}
 	if len(plan.Problems) > 0 {
 		return nil, fmt.Errorf("invalid completion_contract: %s", strings.Join(plan.Problems, "; "))
 	}
@@ -198,32 +206,36 @@ func normalizeContractRef(raw string) (string, string) {
 	return branchRefPrefix + name, ""
 }
 
-// validBranchName accepts a conservative subset of git branch names: nothing
-// git could read as an option, a range, or a lock file.
+// validBranchName ports `git check-ref-format --branch` for a literal name:
+// refs/heads/<name> must be a valid refname (git's check_refname_format), and
+// the name may neither start with "-" nor be HEAD. Non-ASCII and characters
+// such as "+" are valid, as they are for git.
 func validBranchName(name string) bool {
-	if !branchNamePattern.MatchString(name) || strings.Contains(name, "..") {
-		return false
-	}
-	if strings.HasSuffix(name, ".") || strings.HasSuffix(name, ".lock") {
+	if name == "" || name == "HEAD" || strings.HasPrefix(name, "-") || strings.HasSuffix(name, ".") {
 		return false
 	}
 	for _, part := range strings.Split(name, "/") {
-		if part == "" || strings.HasPrefix(part, ".") || strings.HasPrefix(part, "-") {
+		if part == "" || strings.HasPrefix(part, ".") || strings.HasSuffix(part, ".lock") {
 			return false
 		}
+	}
+	var last byte
+	for i := 0; i < len(name); i++ {
+		c := name[i]
+		switch {
+		case c < 0x20 || c == 0x7f || strings.IndexByte(" :?[\\^~*", c) >= 0:
+			return false
+		case c == '.' && last == '.', c == '{' && last == '@':
+			return false
+		}
+		last = c
 	}
 	return true
 }
 
-// quoteClip quotes a sender value for an error message, clipped on a rune
-// boundary, so a payload can neither flood nor forge a log line.
+// quoteClip quotes a sender value for an error message: credentials are
+// removed first, then the value is clipped on a rune boundary and quoted, so a
+// payload can neither leak a secret nor flood or forge a log line.
 func quoteClip(value string) string {
-	if len(value) > contractValueClip {
-		cut := contractValueClip
-		for cut > 0 && !utf8.RuneStart(value[cut]) {
-			cut--
-		}
-		value = value[:cut]
-	}
-	return strconv.Quote(value)
+	return strconv.Quote(clipRunes(redactCredentials(value), contractValueClip))
 }
