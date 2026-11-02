@@ -181,3 +181,4 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 검증: 두 test가 이 golden으로 통과한다.
 - 추가 재기록(R7 커밋): spec-review 스킬의 CLI Usage에 `--profile`·`--judge`와 리뷰 계획 출력 설명을 더해 다시 기록했다. 차이는 `.claude/skills/spec-review`, `.codex/skills/codex-spec-review`의 checksum과 두 manifest·journal 항목뿐이다.
 - 추가 재기록(R10 커밋): spec-review 스킬에 리뷰 세션 예산(`review-session.json`, `--max-calls`·`--extend-budget`·`--new-session`, `spec.review_gate.budget`) 설명을 더해 다시 기록했다. 차이는 `.claude/skills/spec-review`, `.codex/skills/codex-spec-review`의 checksum과 두 manifest·journal 항목뿐이다.
+- 추가 재기록(.gitignore 커밋): 관리 `.gitignore` 패턴(`gitignorePatterns`)에 `**/.autopus/specs/**/review-session.json`과 `**/.autopus/specs/**/.review-session.lock`을 더해 다시 기록했다. 차이는 다섯 NPD의 `.gitignore` checksum 한 줄뿐이고 stdout golden은 바뀌지 않았다.

@@ -39,6 +39,8 @@ __pycache__/
 **/.autopus/specs/**/review.md
 **/.autopus/specs/**/review-findings.json
 **/.autopus/specs/**/review-receipt.json
+**/.autopus/specs/**/review-session.json
+**/.autopus/specs/**/.review-session.lock
 **/.autopus/specs/**/.self-verify.log
 /.claude/
 /.claude.json
