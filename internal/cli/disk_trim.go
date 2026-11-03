@@ -113,7 +113,7 @@ func runDiskTrim(cmd *cobra.Command, opts diskTrimOptions) error {
 	if err != nil {
 		return err
 	}
-	s := surveyDisk(cmd.Context(), dc, opts.ci)
+	s := surveyTrim(cmd.Context(), dc, opts.ci)
 	run := "dry-run"
 	if opts.apply {
 		run = "apply"
