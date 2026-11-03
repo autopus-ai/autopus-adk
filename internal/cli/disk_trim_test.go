@@ -159,3 +159,41 @@ func TestDiskTrim_AsksGoEnvOnlyWhenGOCACHEIsUnset(t *testing.T) {
 	assert.Equal(t, []string{"go env GOCACHE"}, recorder.calls)
 	assert.Equal(t, [][]string{{"GOTOOLCHAIN=local", "GOWORK=off"}}, recorder.envs)
 }
+
+// An inactive trim walks neither root; an active trim and status, whose
+// consumer sizes come from the walk, still do.
+func TestDiskTrim_InactiveSkipsTheWalk(t *testing.T) {
+	f := newDiskS5(t, false)
+	withDiskSeams(t, f)
+	var walks []string
+	scanCache, scanWork := diskScanCache, diskScanWorkDirs
+	t.Cleanup(func() { diskScanCache, diskScanWorkDirs = scanCache, scanWork })
+	diskScanCache = func(root diskspace.Root) diskspace.CacheScan {
+		walks = append(walks, "cache")
+		return scanCache(root)
+	}
+	diskScanWorkDirs = func(root diskspace.Root, protected ...string) diskspace.WorkDirScan {
+		walks = append(walks, "work")
+		return scanWork(root, protected...)
+	}
+	project := writeDiskProject(t, "disk:\n  trim: {start_below_gb: 80}\n")
+	for _, tc := range []struct {
+		name, sub string
+		free      float64
+		walked    bool
+	}{
+		{name: "inactive trim", sub: "trim", free: 100},
+		{name: "active trim", sub: "trim", free: 79.9, walked: true},
+		{name: "inactive status", sub: "status", free: 100, walked: true},
+	} {
+		walks = nil
+		withDiskFree(t, gib(tc.free), diskDataMount)
+		run := runDiskCLI(t, "disk", tc.sub, "--dir", project, "--ci", "idle")
+		require.Equal(t, 0, run.code, tc.name+": "+run.stderr)
+		if tc.walked {
+			assert.Equal(t, []string{"cache", "work"}, walks, tc.name)
+		} else {
+			assert.Empty(t, walks, tc.name)
+		}
+	}
+}

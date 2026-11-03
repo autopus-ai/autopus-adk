@@ -163,16 +163,37 @@ type diskSurvey struct {
 	plan      diskspace.Plan
 }
 
+// diskScanCache and diskScanWorkDirs walk the two roots; tests replace them
+// to observe whether a survey walked at all.
+var (
+	diskScanCache    = diskspace.ScanCache
+	diskScanWorkDirs = diskspace.ScanWorkDirs
+)
+
 // surveyDisk resolves both roots, scans the ones that are acceptable (a
 // refused root is never walked), detects CI, and builds the plan.
 func surveyDisk(ctx context.Context, dc diskContext, ciOverride string) diskSurvey {
+	return survey(ctx, dc, ciOverride, true)
+}
+
+// surveyTrim is surveyDisk for a trim. When start_below_gb keeps every rule
+// off, the plan ignores both scans, so neither root is walked: a scheduled
+// trim above the threshold then costs no walk of a cache that can hold
+// hundreds of thousands of entries.
+func surveyTrim(ctx context.Context, dc diskContext, ciOverride string) diskSurvey {
+	return survey(ctx, dc, ciOverride, !diskspace.TrimInactive(dc.disk, dc.space.AvailBytes))
+}
+
+func survey(ctx context.Context, dc diskContext, ciOverride string, scan bool) diskSurvey {
 	s := diskSurvey{dc: dc, now: diskNow(), uid: diskUID()}
 	home := diskHome()
 	cwd, _ := os.Getwd()
 	locator := diskspace.Locator{Run: diskRunner, Home: home, ProjectDir: dc.projectDir, UID: s.uid}
 	s.cacheRoot, s.workRoot = locator.Cache(ctx), locator.WorkDir()
-	s.cache = diskspace.ScanCache(s.cacheRoot)
-	s.work = diskspace.ScanWorkDirs(s.workRoot, dc.projectDir, home, cwd)
+	if scan {
+		s.cache = diskScanCache(s.cacheRoot)
+		s.work = diskScanWorkDirs(s.workRoot, dc.projectDir, home, cwd)
+	}
 	s.ci = diskspace.DetectCI(ctx, diskLister(diskRunner), dc.disk.CIProcessNames, ciOverride)
 	s.plan = diskspace.BuildPlan(diskspace.PlanInput{Now: s.now, FreeBytes: dc.space.AvailBytes, Config: dc.disk,
 		CI: s.ci, UID: s.uid, Cache: s.cache, WorkDirs: s.work})

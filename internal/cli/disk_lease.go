@@ -170,7 +170,7 @@ func waitForLease(cmd *cobra.Command, dc diskContext, state diskspace.StateDir, 
 // stdout belongs to the command it wraps.
 func leaseShortageReclaim(ctx context.Context, dc diskContext) int64 {
 	var freed int64
-	if s := surveyDisk(ctx, dc, ""); !s.plan.Inactive && s.refused() == nil {
+	if s := surveyTrim(ctx, dc, ""); !s.plan.Inactive && s.refused() == nil {
 		result := diskspace.Apply(s.plan, diskspace.ApplyOptions{Cache: s.cacheRoot, WorkDir: s.workRoot, UID: s.uid})
 		freed += result.Total.DeletedBytes
 		recordDiskEvent(diskspace.Event{Kind: diskspace.EventTrimApply, FreeBytes: dc.space.AvailBytes,

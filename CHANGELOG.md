@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **비활성 `auto disk trim`이 캐시를 훑지 않는다** (2026-11-03): `start_below_gb` 덕분에 아무 규칙도 돌지 않는 trim도
+  Go build cache와 work dir 전체를 먼저 훑었다. launchd에서 10분마다 도는 trim은 I/O가 throttle돼 한 번에 23초에서 1분
+  40초가 걸렸다. 이제 trim과 lease의 공간 부족 회수는 비활성일 때 두 root를 훑지 않는다. 출력은 같다. `auto disk status`는
+  consumer 크기를 보여야 해서 여전히 훑는다.
+
 - **SPEC 리뷰 judge가 자기 model로 돈다** (2026-11-02, SPEC-JUDGEMODEL-001): `spec.review_gate.judge`는 provider
   이름뿐이라 judge는 늘 그 provider의 리뷰어 model로 돌았다. claude 리뷰어는 sonnet, claude judge는 opus처럼 나눌 수
   없었다.
