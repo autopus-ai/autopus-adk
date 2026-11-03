@@ -1,8 +1,38 @@
 # Release v0.50.133 (A40)
 
-Status: prepared 2026-11-03, not published. A40 is `v0.50.133`. A39 is
-`v0.50.132`, immutable release `432079301`; see
-[release-v0.50.132.md](release-v0.50.132.md).
+Status: published 2026-11-03. A40 is `v0.50.133`, immutable release
+`432232109` (Latest, 15 assets, published 2026-11-03T04:47:09Z) from Release
+run `41570135509`. Source commit `f78feef6` (tree `84273957`), tag object
+`3c98be7c`. Evidence tag `omp-context-evidence-v0.50.133` (object `4b2f4b4b`,
+commit `cefb90c3`), ruleset `26415189` sealed (`verify-release-tag-ruleset.sh
+--sealed` passes), deployment tag policy `65295748`, Homebrew Cask `3d3ee5d3`,
+Upgrade Canary `41580279613` passed. A39 is `v0.50.132`, immutable release
+`432079301`; see [release-v0.50.132.md](release-v0.50.132.md).
+
+## Publication record
+
+| Time (UTC) | Event |
+|---|---|
+| 2026-11-03 03:06:03 | tag run `41570135509` starts; the last CI, security, and evidence job finishes 03:33:40 and all pass |
+| 2026-11-03 04:42:42 | `adk-companion-release` approval lands and the `release` job starts |
+| 2026-11-03 04:47:09 | release `432232109` published, 15 assets |
+| 2026-11-03 04:47:20 | the tap moves to `3d3ee5d3` "Publish signed Cask for v0.50.133" |
+| 2026-11-03 04:47:27 | `release` job finishes |
+| 2026-11-03 04:48:54 | Upgrade Canary `41580279613` dispatched on `v0.50.133`; passes 04:49:44 |
+
+- Ruleset `26415189` and deployment tag policy `65295748` were created armed
+  from the user's prompt before `--preflight`; `verify-release-tag-ruleset.sh
+  --armed` passed.
+- `release-prep.sh --apply` ran from the user's terminal and committed on the
+  first try (final production canary 42/42 records in 235s).
+- `--apply` printed `release tag ruleset differs from exact sealed authority
+  policy` once, the pre-seal probe at `prepare-release.sh` line 172, and two
+  `getcwd: cannot access parent directories` warnings from the unprivileged
+  canary user's shell, as `v0.50.132` did. Neither failed anything. The ruleset
+  now has no bypass actor and `--sealed` passes.
+- The Cask's darwin amd64 and arm64 sha256 equal the `checksums.txt` entries
+  (`27c17cc0...`, `07379cf3...`).
+- The Upgrade Canary passed on its first run.
 
 ## Preparation: room in the lineage coordinates
 
