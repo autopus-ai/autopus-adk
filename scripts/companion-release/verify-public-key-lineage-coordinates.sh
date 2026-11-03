@@ -26,7 +26,7 @@ readonly A20_REPOSITORY='Insajin/autopus-adk' A21_TAG='v0.50.92' A21_VERSION='0.
 readonly A21_REPOSITORY='Insajin/autopus-adk' A22_TAG='v0.50.109' A22_VERSION='0.50.109'
 readonly A22_REPOSITORY='Insajin/autopus-adk' A23_TAG='v0.50.111' A23_VERSION='0.50.111'
 readonly A23_REPOSITORY='Insajin/autopus-adk' A24_TAG='v0.50.113' A24_VERSION='0.50.113'
-# The A23 through A27 predecessor pins follow A22's in
+# The A23 through A29 predecessor pins follow A22's in
 # verify-public-key-lineage-pins.sh, which the lineage verifier sources first.
 # They moved there unchanged, block by block, as this file reached the
 # 300-line source limit.
@@ -35,37 +35,7 @@ readonly A25_REPOSITORY='Insajin/autopus-adk' A26_TAG='v0.50.115' A26_VERSION='0
 readonly A26_REPOSITORY='Insajin/autopus-adk' A27_TAG='v0.50.116' A27_VERSION='0.50.116'
 readonly A27_REPOSITORY='Insajin/autopus-adk' A28_TAG='v0.50.117' A28_VERSION='0.50.117'
 readonly A28_REPOSITORY='Insajin/autopus-adk' A29_TAG='v0.50.118' A29_VERSION='0.50.118'
-# A28 published the same fifteen-asset set as A27, all measured from the
-# immutable release 383826825. The two manifest digests come from inside the
-# darwin archives, where the companion manifest travels.
-readonly A28_RELEASE_ID='383826825'
-readonly A28_COMMIT_SHA='620e29a44d004cb199d5f1c22ae92878f9b6930e'
-readonly A28_TREE_SHA='fce0d047ae8cf5c519762fe4ebf530e7ccc01ed1'
-readonly A28_TAG_OBJECT_SHA='edcd4eb98f4e52e8ff868d1f8440cfa0d0c5bc3a'
-readonly A28_CHECKSUMS_SHA256='1a50d39789026708cea1f4d0352f14c244b59bbeddb0afaa52463970ce2684ef'
-readonly A28_AMD64_ARCHIVE_SHA256='0f0fea1f7f16f61f049ebf2ad6d9af789ad8380187d85718ff75d031c538432a'
-readonly A28_ARM64_ARCHIVE_SHA256='3a2dcdf7d0e89ca93dae32f6560b096f3c20903f8a7a7a8407a53f017c50261c'
-readonly A28_LINUX_AMD64_ARCHIVE_SHA256='f44896aef208b2dc819355a7cd89ec3d62c58bf26fe8bccf06528d7da1a08117'
-readonly A28_LINUX_ARM64_ARCHIVE_SHA256='f084d2a4526c295d876b46db3638101a79f44a7344843d487a8db3a83f12e9f7'
-readonly A28_AMD64_MANIFEST_SHA256='9d7e50b0303048707ebde925cfdc2cad95ba411b9069b3832198d6cd7a1b76f4'
-readonly A28_ARM64_MANIFEST_SHA256='78d8d2064ef11f69eab9c29c809d0441f7034db32927415d690cb58bb6c1578c'
 readonly A29_REPOSITORY='autopus-ai/autopus-adk' A30_TAG='v0.50.119' A30_VERSION='0.50.119'
-# A29 is the first release published after the transfer to autopus-ai, so its
-# evidence lives under the new owner. It shipped the same fifteen-asset set as
-# A28, all measured from the immutable release 392314996. The two manifest
-# digests come from inside the darwin archives, where the companion manifest
-# travels.
-readonly A29_RELEASE_ID='392314996'
-readonly A29_COMMIT_SHA='4480c8d2f6c00c205ee838cd4bd20933bfff3597'
-readonly A29_TREE_SHA='84dc6034e9062428e5347fbc6f9827d34f847cf9'
-readonly A29_TAG_OBJECT_SHA='e51f2ead87a39d499733075fa755fc04033d5ac2'
-readonly A29_CHECKSUMS_SHA256='e3526a66a559abf4842c4cd44666c2c68985df6c6013f5b7f9b7e4316bf5a4a6'
-readonly A29_AMD64_ARCHIVE_SHA256='5ec4a60db05e1af3b144dda943fc5221c203ad3b0a008020d990df63985dab63'
-readonly A29_ARM64_ARCHIVE_SHA256='896cc412efcab42b25d88559497f958e861d801da466afac11bed722b014160c'
-readonly A29_LINUX_AMD64_ARCHIVE_SHA256='cb3c6a4241892079baba5c932290a05f67a08a06f27e41f675d90bab1c83b09b'
-readonly A29_LINUX_ARM64_ARCHIVE_SHA256='09d3817e969ae61a9b314d50eb15f5148b07eb6f85fb89d2350c1275d7b87b35'
-readonly A29_AMD64_MANIFEST_SHA256='07621b97f097feb4a2b5057be845e282bfa1e49ecd3976648872b7b346f2198f'
-readonly A29_ARM64_MANIFEST_SHA256='bc235b9aca1fd91ab6077f88c6114f2b129a9e96faaabd76b58b65430f4b2a88'
 readonly A30_REPOSITORY='autopus-ai/autopus-adk' A31_TAG='v0.50.120' A31_VERSION='0.50.120'
 # A30 shipped the same fifteen-asset set as A29 under the same owner, all
 # measured from the immutable release 398256974. The two manifest digests come
