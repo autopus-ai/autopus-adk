@@ -40,6 +40,7 @@ readonly A36_A35_ANCESTOR_SHA='dd6d6ea2435d759144ec093b9b464a831f47703d'
 readonly A37_A36_ANCESTOR_SHA='81186d0c73bb6eb633e52a7cb6a2af23d0f54d12'
 readonly A38_A37_ANCESTOR_SHA='842f8bf286aa4c26554cc0d29f3c79c412069a0b'
 readonly A39_A38_ANCESTOR_SHA='b27d93ab0fababe08152ca18807232075a8d1ac6'
+readonly A40_A39_ANCESTOR_SHA='2b49d429f15be98aecb719e3abefc19a3612a346'
 
 fail() {
   printf 'companion release source: %s\n' "$1" >&2
@@ -91,7 +92,8 @@ case "$GITHUB_REF_NAME" in
   v0.50.128) release_phase='A37' ;;
   v0.50.131) release_phase='A38' ;;
   v0.50.132) release_phase='A39' ;;
-  *) fail 'release tag is outside the frozen A0/A1/A2/A3/A4/A5/A6/A7/A8/A9/A10/A11/A12/A13/A14/A15/A16/A17/A18/A19/A20/A21/A22/A23/A24/A25/A26/A27/A28/A29/A30/A31/A32/A33/A34/A35/A36/A37/A38/A39 policy' ;;
+  v0.50.133) release_phase='A40' ;;
+  *) fail 'release tag is outside the frozen A0/A1/A2/A3/A4/A5/A6/A7/A8/A9/A10/A11/A12/A13/A14/A15/A16/A17/A18/A19/A20/A21/A22/A23/A24/A25/A26/A27/A28/A29/A30/A31/A32/A33/A34/A35/A36/A37/A38/A39/A40 policy' ;;
 esac
 [[ "$GITHUB_REF_TYPE" == 'tag' ]] || fail 'release ref is not a tag'
 [[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]] || fail 'source commit is not exact 40-hex'
@@ -121,7 +123,7 @@ if [[ "$release_phase" == 'A2' || "$release_phase" == 'A3' ||
       "$release_phase" == 'A28' || "$release_phase" == 'A29' ||
       "$release_phase" == 'A30' || "$release_phase" == 'A31' ||
       "$release_phase" == 'A32' || "$release_phase" == 'A33' ||
-      "$release_phase" == 'A34' || "$release_phase" == 'A35' || "$release_phase" == 'A36' || "$release_phase" == 'A37' || "$release_phase" == 'A38' || "$release_phase" == 'A39' ]]; then
+      "$release_phase" == 'A34' || "$release_phase" == 'A35' || "$release_phase" == 'A36' || "$release_phase" == 'A37' || "$release_phase" == 'A38' || "$release_phase" == 'A39' || "$release_phase" == 'A40' ]]; then
   tag_object_type=$(git cat-file -t "refs/tags/$GITHUB_REF_NAME" 2>/dev/null) \
     || fail "cannot resolve exact ${release_phase} tag object"
   [[ "$tag_object_type" == 'tag' ]] \
@@ -178,6 +180,7 @@ if [[ "$release_phase" == 'A2' || "$release_phase" == 'A3' ||
     A37) git merge-base --is-ancestor "$A37_A36_ANCESTOR_SHA" "$GITHUB_SHA" >/dev/null 2>&1 || fail 'A37 source does not contain the immutable A36 release' ;;
     A38) git merge-base --is-ancestor "$A38_A37_ANCESTOR_SHA" "$GITHUB_SHA" >/dev/null 2>&1 || fail 'A38 source does not contain the immutable A37 release' ;;
     A39) git merge-base --is-ancestor "$A39_A38_ANCESTOR_SHA" "$GITHUB_SHA" >/dev/null 2>&1 || fail 'A39 source does not contain the immutable A38 release' ;;
+    A40) git merge-base --is-ancestor "$A40_A39_ANCESTOR_SHA" "$GITHUB_SHA" >/dev/null 2>&1 || fail 'A40 source does not contain the immutable A39 release' ;;
     *) fail "${release_phase} predecessor ancestry pin is not provisioned" ;;
   esac
   # A24 signs with R2 like its predecessors. An earlier commit removed it from
@@ -189,7 +192,7 @@ if [[ "$release_phase" == 'A2' || "$release_phase" == 'A3' ||
         "$release_phase" == 'A28' || "$release_phase" == 'A29' ||
         "$release_phase" == 'A30' || "$release_phase" == 'A31' ||
         "$release_phase" == 'A32' || "$release_phase" == 'A33' ||
-        "$release_phase" == 'A34' || "$release_phase" == 'A35' || "$release_phase" == 'A36' || "$release_phase" == 'A37' || "$release_phase" == 'A38' || "$release_phase" == 'A39' ]]; then
+        "$release_phase" == 'A34' || "$release_phase" == 'A35' || "$release_phase" == 'A36' || "$release_phase" == 'A37' || "$release_phase" == 'A38' || "$release_phase" == 'A39' || "$release_phase" == 'A40' ]]; then
     if [[ "$release_phase" == 'A22' &&
           "${COMPANION_RELEASE_TAG_SIGNATURE_REQUIRED-0}" == '1' ]]; then
       [[ "${ADK_KEY_ROTATION_VERIFIED-}" == '1' ]] ||
