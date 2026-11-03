@@ -90,7 +90,7 @@ orchestra:
                 timeout: 900
         gemini:
             binary: agy
-            args: [--print, ""]
+            args: [--print, "", --model, gemini-4-argon-high]
             prompt_via_args: true
             subprocess:
                 output_format: text
