@@ -77,19 +77,23 @@ orchestra:
     judge: claude
     providers:
         claude:
-            backend: omp
-            model: anthropic/claude-fable-5-1:max
+            binary: claude
+            args: [--print, --model, claude-opus-5-5, --effort, max]
             subprocess:
                 timeout: 900
         codex:
-            backend: omp
-            model: openai-codex/gpt-6-astra:max
+            binary: codex
+            args: [exec, --json, --sandbox, workspace-write, -m, gpt-6-astra, -c, 'model_reasoning_effort="max"']
+            model_policy: quality
             subprocess:
+                schema_flag: --output-schema
                 timeout: 900
         gemini:
-            backend: omp
-            model: google-antigravity/gemini-3.8-flash:high
+            binary: agy
+            args: [--print, ""]
+            prompt_via_args: true
             subprocess:
+                output_format: text
                 timeout: 900
     commands:
         brainstorm:
