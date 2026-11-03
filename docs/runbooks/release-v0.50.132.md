@@ -1,9 +1,39 @@
 # Release v0.50.132 (A39)
 
-Status: prepared 2026-11-02 and rebased onto main `ef07deb7` (#258, #257) on
-2026-11-03; not yet applied. A39 is `v0.50.132`. A38 is
-`v0.50.131`, immutable release `429669574` (Latest), published on 2026-10-31;
-see [release-v0.50.131.md](release-v0.50.131.md).
+Status: published 2026-11-03. A39 is `v0.50.132`, immutable release
+`432079301` (Latest, 15 assets, published 2026-11-03T00:09:03Z) from Release
+run `41545699051`. Source commit `2b49d429` (tree `ed7763a8`), tag object
+`f2e9aae7`. Evidence tag `omp-context-evidence-v0.50.132` (object `e747fe63`,
+commit `d75a4594`), ruleset `26408332` sealed (`verify-release-tag-ruleset.sh
+--sealed` passes), deployment tag policy `65286920`, Homebrew Cask `2b30f6d2`,
+Upgrade Canary `41550927531` passed. A38 is `v0.50.131`, immutable release
+`429669574`; see [release-v0.50.131.md](release-v0.50.131.md).
+
+## Publication record
+
+| Time (UTC) | Event |
+|---|---|
+| 2026-11-02 23:28:29 | tag run `41545699051` starts; `omp-production-evidence` finishes 23:29:38 and `ci / macos-runtime` 23:34:55; all 21 CI, security, and evidence jobs pass |
+| 2026-11-03 00:02:21 | `adk-companion-release` approval lands and the `release` job starts, about 34 minutes after the tag run |
+| 2026-11-03 00:09:03 | release `432079301` published, 15 assets |
+| 2026-11-03 00:09:16 | the tap moves to `2b30f6d2` "Publish signed Cask for v0.50.132" |
+| 2026-11-03 00:09:26 | `release` job finishes |
+| 2026-11-03 00:10:30 | Upgrade Canary `41550927531` dispatched on `v0.50.132`; passes 00:11:01 |
+
+- Ruleset `26408332` and deployment tag policy `65286920` were created armed
+  from the user's prompt before `--preflight`; `verify-release-tag-ruleset.sh
+  --armed` passed. `--preflight` reported `ruleset_state: armed`, 42 canary
+  records, and no remote mutation.
+- `release-prep.sh --apply` ran from the user's terminal and committed on the
+  first try (final production canary 42/42 records in 178s).
+- `--apply` printed `release tag ruleset differs from exact sealed authority
+  policy` once, the pre-seal probe at `prepare-release.sh` line 172, and two
+  `getcwd: cannot access parent directories` warnings from the unprivileged
+  canary user's shell, as `v0.50.131` did. Neither failed anything. The ruleset
+  now has no bypass actor and `--sealed` passes.
+- The Cask's darwin amd64 and arm64 sha256 equal the `checksums.txt` entries
+  (`3db537db...`, `60998788...`).
+- The Upgrade Canary passed on its first run.
 
 ## Coordinate move notes (A38 = v0.50.131 -> A39 = v0.50.132)
 
