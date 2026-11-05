@@ -26,6 +26,9 @@ type ProviderExecution struct {
 	SandboxMode string    `json:"sandbox_mode,omitempty"` // read-only, unverified, workspace-write, or unrestricted
 	StartedAt   time.Time `json:"started_at"`
 	EndedAt     time.Time `json:"ended_at"`
+	// ReapedAfterCompletion marks a provider whose process group was killed
+	// after its terminal result was read, because it did not exit on its own.
+	ReapedAfterCompletion bool `json:"reaped_after_completion,omitempty"`
 }
 
 // newProviderExecution captures launch provenance before the process starts.

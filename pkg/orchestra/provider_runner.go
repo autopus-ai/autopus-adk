@@ -47,7 +47,12 @@ func runProvider(ctx context.Context, provider ProviderConfig, prompt string) (*
 		_ = cmd.Terminate(provider.Name + " fast-fail: " + reason)
 	})
 	stdoutBuf.limit, stderrBuf.limit = provider.MaxOutputBytes, provider.MaxOutputBytes
+	envelope := providerEnvelopeFor(provider.Binary, args)
+	watcher := newCompletionWatcher(envelope)
 	cmd.SetStdout(stdoutBuf)
+	if watcher != nil {
+		cmd.SetStdout(io.MultiWriter(stdoutBuf, watcher))
+	}
 	cmd.SetStderr(stderrBuf)
 	readyMonitor := newResultReadyMonitor(provider, stdoutBuf, stderrBuf)
 
@@ -70,8 +75,8 @@ func runProvider(ctx context.Context, provider ProviderConfig, prompt string) (*
 		}
 		_ = stdinPipe.Close()
 
-		waitErr := waitForCommand(ctx, cmd, provider.Name, waitCh, readyMonitor)
-		return finishProviderResponse(providerResponseArgs{start, provider, detector.Reason(), waitErr, ctx, cmd.ExitCode(), execution},
+		waitErr := waitForCommand(ctx, cmd, provider.Name, waitCh, readyMonitor, watcher.Done())
+		return finishProviderResponse(providerResponseArgs{start, provider, detector.Reason(), waitErr, ctx, cmd.ExitCode(), execution, envelope},
 			stdoutBuf.String(), stderrBuf.String(), lastMessagePath)
 	}
 
@@ -82,8 +87,8 @@ func runProvider(ctx context.Context, provider ProviderConfig, prompt string) (*
 	execution.PID = cmd.PID()
 
 	waitCh := startCommandWait(cmd)
-	waitErr := waitForCommand(ctx, cmd, provider.Name, waitCh, readyMonitor)
-	return finishProviderResponse(providerResponseArgs{start, provider, detector.Reason(), waitErr, ctx, cmd.ExitCode(), execution},
+	waitErr := waitForCommand(ctx, cmd, provider.Name, waitCh, readyMonitor, watcher.Done())
+	return finishProviderResponse(providerResponseArgs{start, provider, detector.Reason(), waitErr, ctx, cmd.ExitCode(), execution, envelope},
 		stdoutBuf.String(), stderrBuf.String(), lastMessagePath)
 }
 
@@ -111,11 +116,15 @@ func startCommandWait(cmd command) <-chan error {
 	return waitCh
 }
 
-func waitForCommand(ctx context.Context, cmd command, providerName string, waitCh <-chan error, readyMonitor *resultReadyMonitor) error {
+// waitForCommand waits for the provider to exit. completed, when non-nil,
+// closes once the provider's terminal result envelope was read; a process
+// still running providerCompletionGrace later is reaped and the wait reports
+// errReapedAfterCompletion instead of running on to the timeout.
+func waitForCommand(ctx context.Context, cmd command, providerName string, waitCh <-chan error, readyMonitor *resultReadyMonitor, completed <-chan struct{}) error {
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 
-	var readyGrace <-chan time.Time
+	var readyGrace, completionGrace <-chan time.Time
 	resultReady := false
 
 	select {
@@ -148,6 +157,13 @@ func waitForCommand(ctx context.Context, cmd command, providerName string, waitC
 			readyGrace = time.After(providerWaitGracePeriod)
 		case <-readyGrace:
 			return errResultReady
+		case <-completed:
+			completed = nil
+			completionGrace = time.After(providerCompletionGrace)
+		case <-completionGrace:
+			_ = cmd.Terminate(providerName + " still running after its result")
+			drainCommandWait(waitCh)
+			return errReapedAfterCompletion
 		}
 	}
 }
