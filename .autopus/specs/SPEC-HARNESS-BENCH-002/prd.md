@@ -279,7 +279,7 @@ harness의 핵심 가치 주장(SPEC 기반 pipeline과 다중 provider 리뷰�
 - **H1**: harness의 `delivered_pass` 수 > native.
 - **H2**: harness의 전체 provider known token > native. 비율을 보고한다.
 - **H3**: harness의 wall time > native.
-- **H4**: 기술 통계로, review finding 중 hidden-test 실패와 대응하는 것의 비율을 보고한다.
+- **H4**: 기술 통계로, harness review finding을 severity·status별로 보고한다(rev 7: finding과 hidden test를 잇는 기계 규칙이 없어 대응 비율은 재지 않는다, `spec.md` REQ-HB2-12).
 
 ### 결정 규칙 초안 (R1)
 
@@ -360,7 +360,7 @@ README 주장은 아래 네 조건을 모두 만족할 때만 허용된다(`clai
 ## 6. Key Q&A
 
 **Q1:** 두 arm의 top-level model과 effort는 무엇인가? (ledger `constraints.model choice` 미해결)
-**A1:** assumed. `claude-opus-5-5`, 같은 `--effort` 값으로 둔다. harness 내부는 `quality.default: ultra`(전 agent opus)와 repo의 review provider 설정을 그대로 쓴다. 틀리면 arm 설정만 바뀌고 구조는 같다. 사전등록 전에 maintainer가 확정한다.
+**A1:** assumed. `claude-opus-5-5`, 같은 `--effort` 값으로 둔다. harness 내부는 `quality.default: ultra`(rev 7 정정: 7 agent는 `fable`, 나머지는 `opus`, `pkg/config/defaults.go:136-144`)와 review provider 설정을 쓴다. rev 7 D1로 review panel은 claude+codex다. 틀리면 arm 설정만 바뀌고 구조는 같다. 사전등록 전에 maintainer가 확정한다.
 
 **Q2:** corpus는 무엇인가?
 **A2:** rev 2 사용자 결정이다. Autopus와 무관한 외부 OSS(Tier 1 Go, 부족하면 Tier 2 Python)에서 2026-06-30 뒤 merge된 PR을 쓴다(rev 3: `spec.md` REQ-HB2-03 window 규칙으로 일반화). ADK reverse-PR은 harness surface와 pinned `auto`가 해답을 담을 수 있어 버렸다.
@@ -369,7 +369,7 @@ README 주장은 아래 네 조건을 모두 만족할 때만 허용된다(`clai
 **A3:** rev 2 사용자 결정이다. 동결된 filter를 통과한 PR을 merge 순으로 세워 앞의 6개를 쓴다. 제외 사유는 모두 사전등록에 남긴다. prompt도 기계적으로 도출한다.
 
 **Q4:** run당 deadline은 얼마인가?
-**A4:** 제안: 두 arm 모두 180분이다. harness는 ultra preset에 provider당 최대 900s의 3-provider debate 리뷰(최대 2 revision)가 있어 60~120분 안팎이 예상되지만 측정값은 아니다. 최악 직렬 총량은 36시간이다. plan 단계에서 확정하고 동결한다.
+**A4:** 제안: 두 arm 모두 180분이다. harness는 ultra preset에 provider당 최대 900s의 debate 리뷰(rev 7 D1: 2-provider, 최대 2 revision)가 있어 60~120분 안팎이 예상되지만 측정값은 아니다. 최악 직렬 총량은 36시간이다. plan 단계에서 확정하고 동결한다.
 
 **Q5:** native arm에서 Claude Code 내장 subagent(Task tool)를 허용하는가?
 **A5:** 제안: 허용한다. "native"는 사용자가 실제로 쓰는 기본 Claude Code이고, 금지하면 native를 인위적으로 약화한다. subagent token은 REQ-HB2-10으로 집계한다.
