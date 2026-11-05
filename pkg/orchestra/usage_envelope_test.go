@@ -1,6 +1,7 @@
 package orchestra
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/insajin/autopus-adk/pkg/telemetry"
@@ -174,5 +175,16 @@ func assertNotDone(t *testing.T, watcher *completionWatcher) {
 	case <-watcher.Done():
 		t.Fatal("watcher fired before a complete result line")
 	default:
+	}
+}
+
+// Blank stdout stays the empty-output failure every caller already
+// classifies, instead of turning into an envelope error.
+func TestUnwrapProviderEnvelope_BlankOutputIsEmptyNotEnvelopeError(t *testing.T) {
+	t.Parallel()
+	for _, kind := range []providerEnvelope{envelopeAgyStream, envelopeAgyJSON, envelopeClaudeJSON} {
+		text, err := unwrapProviderEnvelope(kind, "  \n\t\n")
+		require.NoError(t, err)
+		assert.Empty(t, strings.TrimSpace(text))
 	}
 }

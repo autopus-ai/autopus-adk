@@ -169,7 +169,8 @@ func envelopeName(kind providerEnvelope) string {
 // stdout unchanged for providers without one. When no terminal envelope
 // decodes, raw stdout stays for diagnostics beside the error.
 func unwrapProviderEnvelope(kind providerEnvelope, raw string) (string, error) {
-	if kind == envelopeNone {
+	if kind == envelopeNone || strings.TrimSpace(raw) == "" {
+		// Blank stdout stays the empty-output failure callers classify.
 		return raw, nil
 	}
 	text, err := decodeProviderEnvelope(kind, raw)
