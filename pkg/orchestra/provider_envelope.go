@@ -69,6 +69,27 @@ type agyResult struct {
 	Status   *string         `json:"status"`
 	Response *string         `json:"response"`
 	Usage    *agyUsageCounts `json:"usage"`
+	Denied   []agyDenied     `json:"denied_actions"`
+}
+
+// agyDenied is one tool use agy's permission mode refused during the turn.
+type agyDenied struct {
+	Action      string `json:"action"`
+	DisplayName string `json:"display_name"`
+}
+
+// deniedNames lists the refused actions by display name, or by action kind
+// when agy gives no display name.
+func (r agyResult) deniedNames() []string {
+	names := make([]string, 0, len(r.Denied))
+	for _, denied := range r.Denied {
+		name := strings.TrimSpace(denied.DisplayName)
+		if name == "" {
+			name = strings.TrimSpace(denied.Action)
+		}
+		names = append(names, name)
+	}
+	return names
 }
 
 type agyUsageCounts struct {
@@ -149,6 +170,12 @@ func decodeProviderEnvelope(kind providerEnvelope, raw string) (string, error) {
 	}
 	if agy.Response == nil {
 		return "", fmt.Errorf("agy result has no response")
+	}
+	// In --mode plan agy ends its turn at the first refused tool and still
+	// reports SUCCESS, so an empty answer with refusals names them instead of
+	// surfacing as a bare empty output.
+	if strings.TrimSpace(*agy.Response) == "" && len(agy.Denied) > 0 {
+		return "", fmt.Errorf("agy ended its turn with no answer after denied actions: %s", strings.Join(agy.deniedNames(), ", "))
 	}
 	return *agy.Response, nil
 }

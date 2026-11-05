@@ -134,6 +134,32 @@ func TestSubprocessBackend_AgyNonSuccessResult_Fails(t *testing.T) {
 	assert.Contains(t, err.Error(), "ERROR")
 }
 
+// agy 1.5.0 in --mode plan ends its turn on the first denied tool and reports
+// SUCCESS with an empty response; the failure must name the denied action.
+func TestSubprocessBackend_AgyDeniedActionEmptyResponse_NamesDenial(t *testing.T) {
+	t.Parallel()
+	denied := `{"event":"result","result":{"status":"SUCCESS","response":"","usage":{"input_tokens":17454,"output_tokens":399,"total_tokens":17853},"denied_actions":[{"action":"command","display_name":"RunCommand"}]}}` + "\n"
+	binary := writeFakeAgy(t, denied, "exit 0")
+
+	_, err := NewSubprocessBackendImpl().Execute(context.Background(), ProviderRequest{
+		Provider: "gemini", Prompt: "review", Timeout: time.Minute, Config: agyStreamProvider(binary),
+	})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "denied")
+	assert.Contains(t, err.Error(), "RunCommand")
+}
+
+func TestDecodeProviderEnvelope_AgyDeniedActionWithAnswer_KeepsAnswer(t *testing.T) {
+	t.Parallel()
+	raw := `{"event":"result","result":{"status":"SUCCESS","response":"VERDICT: PASS\n","denied_actions":[{"action":"command","display_name":"RunCommand"}]}}` + "\n"
+
+	text, err := decodeProviderEnvelope(envelopeAgyStream, raw)
+
+	require.NoError(t, err)
+	assert.Equal(t, "VERDICT: PASS\n", text)
+}
+
 func TestRunProvider_AgyResultThenHang_ReapsAndReturnsResult(t *testing.T) {
 	t.Parallel()
 	binary := writeFakeAgy(t, agyStreamFixtureEvents, "sleep 120")
