@@ -24,6 +24,10 @@ func migrateAntigravityGeminiProvider(existing, defaults ProviderEntry, replaceE
 		}
 		changed = true
 	}
+	if migrated, ok := migrateAgyOutputFormat(existing); ok {
+		existing = migrated
+		changed = true
+	}
 	return existing, changed
 }
 

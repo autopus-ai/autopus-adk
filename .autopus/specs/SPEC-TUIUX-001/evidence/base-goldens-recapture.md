@@ -213,3 +213,10 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 기록: 6절과 같은 방법이다(이 branch tip에서 writer, `init-in.stdout`은 `git checkout`으로 되돌림).
 - 차이: `.claude/skills/spec-review`·`using-autopus`, `.codex/skills/codex-spec-review`·`codex-using-autopus`의 checksum, 두 manifest의 그 entry, 두 journal의 `after_checksum`, update 흐름의 backup 사본. stdout golden과 다른 경로는 바뀌지 않았다.
 - 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`이 이 golden으로 통과한다.
+
+## 21. agy stream-json 기본 인자 재기록 (fix/agy-stream-json, 2026-11-05)
+
+- 원인: gemini(agy) orchestra provider 기본 인자에 `--output-format stream-json`을 더했다(`DefaultGeminiProviderEntry`). 생성되는 `autopus.yaml`의 `orchestra.providers.gemini.args`가 `[--print, "", --output-format, stream-json]`이 된다.
+- 기록: 6절과 같은 방법이다(이 branch tip에서 writer, `init-in.stdout`은 HEAD로 되돌림).
+- 차이: 일곱 NPD의 `autopus.yaml` checksum 한 줄씩뿐이다. stdout golden과 다른 경로는 바뀌지 않았다.
+- 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`과 `TestInitReview_*`가 이 golden으로 통과한다.

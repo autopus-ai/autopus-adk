@@ -188,6 +188,7 @@ func buildProviderConfigsForRuntime(names []string, quality, effort string) []or
 		codexEntry = config.ApplyCodexProviderProfile(codexEntry, profile)
 	}
 	claudeEntry := config.DefaultClaudeProviderEntry()
+	geminiEntry := config.DefaultGeminiProviderEntry()
 	knownProviders := map[string]orchestra.ProviderConfig{
 		"claude": {Name: "claude", Binary: claudeEntry.Binary, ModelFamily: "anthropic", Args: upsertClaudeEffortArg(claudeEntry.Args, effort), PromptViaArgs: false},
 		// SPEC-ORCH-021 REQ-014/015: codex subprocess uses `exec --sandbox workspace-write`
@@ -196,8 +197,9 @@ func buildProviderConfigsForRuntime(names []string, quality, effort string) []or
 		"codex": providerConfigFromEntry("codex", codexEntry),
 		// SPEC-ORCH-021 REQ-014/015: gemini (`agy`) --print is a STRING flag taking the prompt
 		// as its value. Pass the prompt in the empty "" slot via PromptViaArgs (injectPromptArg
-		// replaces "" with the prompt) → `agy --print "<prompt>"`.
-		"gemini": {Name: "gemini", Binary: "agy", ModelFamily: "google", Args: []string{"--print", ""}, PromptViaArgs: true, OutputFormat: "text"},
+		// replaces "" with the prompt) → `agy --print "<prompt>" --output-format stream-json`.
+		"gemini": {Name: "gemini", Binary: geminiEntry.Binary, ModelFamily: "google", Args: geminiEntry.Args,
+			PromptViaArgs: geminiEntry.PromptViaArgs, OutputFormat: geminiEntry.Subprocess.OutputFormat},
 	}
 
 	var result []orchestra.ProviderConfig

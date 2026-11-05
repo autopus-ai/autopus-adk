@@ -65,7 +65,7 @@ orchestra:
       model_policy: quality
     gemini:
       binary: agy
-      args: ["--print", ""]
+      args: ["--print", "", "--output-format", "stream-json"]
       prompt_via_args: true
       subprocess:
         output_format: text

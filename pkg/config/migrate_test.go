@@ -216,7 +216,7 @@ func TestMigrateOrchestraConfig_AntigravityMapsToGeminiProvider(t *testing.T) {
 	require.True(t, ok, "gemini provider must exist after migrating antigravity-cli platform")
 	assert.Equal(t, "agy", gemini.Binary, "gemini provider Binary must be 'agy'")
 	// SPEC-ORCH-021 REQ-014: prompt is the value of --print (filled into "" slot).
-	assert.Equal(t, []string{"--print", ""}, gemini.Args, "gemini provider must use the --print value slot")
+	assert.Equal(t, DefaultGeminiProviderEntry().Args, gemini.Args, "gemini provider must use the --print value slot")
 	assert.True(t, gemini.PromptViaArgs, "gemini provider must pass the prompt as the --print value")
 }
 

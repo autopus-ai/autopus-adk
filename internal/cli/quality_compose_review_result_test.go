@@ -28,7 +28,7 @@ const (
 // name, and its model and effort as written; an OMP one its selector.
 func TestReviewSummary_NamesEachProvidersModel(t *testing.T) {
 	dir := writeReviewRL(t, func(cfg *config.HarnessConfig) { cfg.Spec.ReviewGate.Providers = []string{"claude", "codex"} })
-	replaceReviewFile(t, dir, `            args: [--print, ""]`, `            args: [--print, "", --model, gemini-3.8-flash-high]`)
+	replaceReviewFile(t, dir, `            args: [--print, "", --output-format, stream-json]`, `            args: [--print, "", --output-format, stream-json, --model, gemini-3.8-flash-high]`)
 
 	ko := runReviewFormsIn(t, dir, "ko", "\n")
 	en := runReviewFormsIn(t, dir, "en", "\n")

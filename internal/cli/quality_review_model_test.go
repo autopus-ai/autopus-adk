@@ -128,7 +128,7 @@ func TestQualityReviewModel_AgyCLIRow(t *testing.T) {
 
 	out, _, err = runQualityReview(t, dir, nil, "model", "gemini", "gemini-3.8-flash")
 	require.NoError(t, err, out)
-	assert.Equal(t, `args: [--print, "", --model, gemini-3.8-flash-high]`, reviewArgsLine(t, readReviewFile(t, dir), "gemini"))
+	assert.Equal(t, `args: [--print, "", --output-format, stream-json, --model, gemini-3.8-flash-high]`, reviewArgsLine(t, readReviewFile(t, dir), "gemini"))
 	out, _, err = runQualityReview(t, dir, nil, "model", "gemini", "gemini-3.8-flash")
 	require.NoError(t, err)
 	assert.Equal(t, "No changes; nothing written.\n", out, "a group keeps the current id")

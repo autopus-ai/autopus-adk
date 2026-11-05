@@ -116,7 +116,7 @@ func DefaultFullConfig(projectName string) *HarnessConfig {
 				"claude": DefaultClaudeProviderEntry(),
 				// SPEC-ORCH-021 REQ-014/015: prompt is the value of --print (injected into the ""
 				// slot).
-				"gemini": {Binary: "agy", Args: []string{"--print", ""}, PromptViaArgs: true, Subprocess: SubprocessProvConf{OutputFormat: "text", Timeout: GeminiOrchestraTimeoutSeconds}},
+				"gemini": DefaultGeminiProviderEntry(),
 				"codex":  DefaultCodexProviderEntry(),
 			},
 			Commands: map[string]CommandEntry{

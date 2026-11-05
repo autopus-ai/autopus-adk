@@ -71,7 +71,10 @@ func defaultEntryRows() []defaultEntryRow {
 		{name: "c1-codex", platform: "codex", provider: "codex", c1Entry: "codex",
 			atB: defaultEntryDecision{Policy: ProviderModelPolicyQuality, Args: s14ManagedCodexArgs}},
 		{name: "c1-gemini", platform: "antigravity-cli", provider: "gemini", c1Entry: "gemini",
-			atB: defaultEntryDecision{Args: []string{"--print", ""}}},
+			atB: defaultEntryDecision{Args: []string{"--print", ""}},
+			// The text-mode agy default moves onto stream-json: text has no
+			// completion marker and no usage (agy hang after its answer).
+			after: &defaultEntryDecision{Args: DefaultGeminiProviderEntry().Args, Changed: true}},
 		// Historical shipped defaults: B upgrades each onto the managed policy.
 		{name: "historical-canonical-codex", platform: "codex", provider: "codex", legacyQuality: true,
 			entry: "binary: codex\nargs: " + s14HistoricalCodexArgs + "\npane_args: " + s14HistoricalCodexPane + "\n",

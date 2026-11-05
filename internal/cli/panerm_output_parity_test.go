@@ -39,11 +39,19 @@ if [ "$name" = codex ] && [ "$1" = debug ] && [ "$2" = models ]; then
 fi
 cat >/dev/null
 body='{"verdict":"PASS","summary":"fake '"$name"' answer","findings":[],"recommendation":"fake '"$name"' answer"}'
+format=""
 while [ $# -gt 0 ]; do
   if [ "$1" = "--output-last-message" ]; then printf '%s' "$body" > "$2"; fi
+  if [ "$1" = "--output-format" ]; then format="$2"; fi
   shift
 done
-printf '%s\n' "$body"
+# Answer in the envelope the argv asked for, as the real CLIs do.
+escaped=$(printf '%s' "$body" | sed 's/"/\\"/g')
+case "$name:$format" in
+  claude:json) printf '{"type":"result","is_error":false,"result":"%s\\n"}\n' "$escaped" ;;
+  agy:stream-json) printf '{"event":"result","result":{"status":"SUCCESS","response":"%s\\n"}}\n' "$escaped" ;;
+  *) printf '%s\n' "$body" ;;
+esac
 `
 
 // s16VolatileFields are the only fields S16 normalizes: timestamps,

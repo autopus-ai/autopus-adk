@@ -112,6 +112,8 @@
           "agy",
           "--print",
           "",
+          "--output-format",
+          "stream-json",
           "--mode",
           "plan",
           "--sandbox",
