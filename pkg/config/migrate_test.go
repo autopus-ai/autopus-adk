@@ -264,7 +264,7 @@ func TestMigrateOrchestraConfig_AlreadyCorrectConfigNoChange(t *testing.T) {
 				// codex already present with correct args (post-migration state).
 				"claude": {
 					Binary:     "claude",
-					Args:       []string{"--print"},
+					Args:       []string{"--print", "--output-format", "json"},
 					Subprocess: SubprocessProvConf{Timeout: ClaudeOrchestraTimeoutSeconds},
 				},
 				"codex": {

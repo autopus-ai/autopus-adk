@@ -47,6 +47,18 @@ func readLegacyPaneConfig(t *testing.T, name string) []byte {
 	return data
 }
 
+// legacyClaudeArgsLine is the claude argv binary O wrote. It predates the
+// json output format, which `auto update` now adds as a migration.
+const legacyClaudeArgsLine = "            args: [--print, --model, claude-fable-5-1, --effort, max]\n"
+
+// withCurrentClaudeOutputFormat gives a legacy fixture the json output format
+// that migration adds, so a test that needs no other migration to hold keeps
+// that premise while the fixture file stays as binary O wrote it.
+func withCurrentClaudeOutputFormat(data []byte) []byte {
+	return []byte(strings.ReplaceAll(string(data), legacyClaudeArgsLine,
+		"            args: [--print, --model, claude-fable-5-1, --effort, max, --output-format, json]\n"))
+}
+
 func parseYAMLRoot(t *testing.T, data []byte) *yaml.Node {
 	t.Helper()
 	var doc yaml.Node

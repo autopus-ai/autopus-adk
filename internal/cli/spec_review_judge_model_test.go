@@ -46,8 +46,8 @@ func TestSpecReviewJudgeModel_JudgeRequestCarriesItsModel(t *testing.T) {
 	backend, stderr := runJudgeModelReview(t, fixture, specReviewOptions{})
 
 	reviewer, judge := backend.request(t, "claude", "reviewer"), backend.request(t, "claude", "judge")
-	assert.Equal(t, withClaudeReadOnlySuffix("--print", "--model", "claude-fable-5-1", "--effort", "max"), reviewer.Config.Args)
-	assert.Equal(t, withClaudeReadOnlySuffix("--print", "--model", "claude-opus-5-5", "--effort", "high"), judge.Config.Args)
+	assert.Equal(t, withClaudeReadOnlySuffix("--print", "--model", "claude-fable-5-1", "--effort", "max", "--output-format", "json"), reviewer.Config.Args)
+	assert.Equal(t, withClaudeReadOnlySuffix("--print", "--model", "claude-opus-5-5", "--effort", "high", "--output-format", "json"), judge.Config.Args)
 	assert.Equal(t, "--tools=Read,Grep,Glob", judge.Config.Args[len(judge.Config.Args)-1], "the projection stays last")
 	assert.Equal(t, orchestra.SandboxModeReadOnly, judge.Config.SandboxMode)
 	assert.Contains(t, stderr, "  judge: claude (always) — spec.review_gate.judge\n"+

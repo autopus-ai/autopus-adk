@@ -14,7 +14,7 @@ func TestDefaultClaudeProviderEntry_ShipsFrontierModelAtMaxEffort(t *testing.T) 
 	t.Parallel()
 
 	entry := DefaultClaudeProviderEntry()
-	want := []string{"--print", "--model", ClaudeFableModel, "--effort", "max"}
+	want := []string{"--print", "--model", ClaudeFableModel, "--effort", "max", "--output-format", "json"}
 
 	assert.Equal(t, "claude", entry.Binary)
 	assert.Equal(t, want, entry.Args)
@@ -32,13 +32,13 @@ func TestDefaultClaudeProviderEntry_ArgvIsIndependent(t *testing.T) {
 	t.Parallel()
 
 	entry := DefaultClaudeProviderEntry()
-	require.Len(t, entry.Args, 5)
+	require.Len(t, entry.Args, 7)
 	entry.Args[2] = "mutated-subprocess"
 	entry.Args[4] = "mutated-effort"
 
 	fresh := DefaultClaudeProviderEntry()
-	assert.Equal(t, []string{"--print", "--model", ClaudeFableModel, "--effort", "max"}, fresh.Args)
-	assert.Equal(t, []string{"--print", "--model", ClaudeFableModel, "--effort", "max"}, defaultProviderEntries["claude"].Args)
+	assert.Equal(t, []string{"--print", "--model", ClaudeFableModel, "--effort", "max", "--output-format", "json"}, fresh.Args)
+	assert.Equal(t, []string{"--print", "--model", ClaudeFableModel, "--effort", "max", "--output-format", "json"}, defaultProviderEntries["claude"].Args)
 }
 
 // TestUpgradeHistoricalClaudeProviderDefaults covers the migration boundary: a
@@ -48,7 +48,7 @@ func TestUpgradeHistoricalClaudeProviderDefaults(t *testing.T) {
 	t.Parallel()
 
 	current := DefaultClaudeProviderEntry().Args
-	shortFlagCurrent := []string{"-p", "--model", ClaudeFableModel, "--effort", "max"}
+	shortFlagCurrent := []string{"-p", "--model", ClaudeFableModel, "--effort", "max", "--output-format", "json"}
 
 	tests := []struct {
 		name        string

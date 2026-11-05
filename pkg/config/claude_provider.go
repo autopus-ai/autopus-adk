@@ -10,6 +10,13 @@ const (
 	ClaudeOrchestraEffort = "max"
 
 	claudePrintFlag = "--print"
+
+	// ClaudeOutputFormat is the stdout format the shipped Claude orchestra
+	// provider asks for: one type=result object whose result is the answer and
+	// whose usage and modelUsage carry the call's tokens, which text lacks.
+	ClaudeOutputFormat = "json"
+	// claudeLegacyOutputFormat is replaced by migration: it carries no usage.
+	claudeLegacyOutputFormat = "text"
 )
 
 // claudePrintFlags are the print-flag spellings a stored default may carry.
@@ -42,7 +49,7 @@ func claudeDefaultModelArgs() []string {
 func DefaultClaudeProviderEntry() ProviderEntry {
 	return ProviderEntry{
 		Binary:     "claude",
-		Args:       append([]string{claudePrintFlag}, claudeDefaultModelArgs()...),
+		Args:       claudeDefaultArgs(claudePrintFlag),
 		Subprocess: SubprocessProvConf{Timeout: ClaudeOrchestraTimeoutSeconds},
 	}
 }
@@ -54,13 +61,13 @@ func upgradeHistoricalClaudeDefaultArgs(args []string) ([]string, bool) {
 	if len(args) == 0 || !slices.Contains(claudePrintFlags, args[0]) {
 		return args, false
 	}
-	tail := args[1:]
+	tail := withoutDefaultClaudeOutputFormat(args[1:])
 	if !slices.ContainsFunc(historicalClaudeDefaultModelArgs, func(shipped []string) bool {
 		return slices.Equal(tail, shipped)
 	}) {
 		return args, false
 	}
-	return append([]string{args[0]}, claudeDefaultModelArgs()...), true
+	return claudeDefaultArgs(args[0]), true
 }
 
 // upgradeHistoricalClaudeProviderDefaults moves a Claude provider that still

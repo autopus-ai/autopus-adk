@@ -180,7 +180,7 @@ func TestDefaultFullConfig_ClaudeReviewUsesFrontierMax(t *testing.T) {
 	cfg := DefaultFullConfig("test-project")
 	claude, ok := cfg.Orchestra.Providers["claude"]
 	require.True(t, ok, "claude provider must exist")
-	want := []string{"--print", "--model", "claude-fable-5-1", "--effort", "max"}
+	want := []string{"--print", "--model", "claude-fable-5-1", "--effort", "max", "--output-format", "json"}
 	assert.Equal(t, want, claude.Args)
 }
 

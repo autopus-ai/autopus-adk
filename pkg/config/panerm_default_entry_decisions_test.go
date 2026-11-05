@@ -57,6 +57,9 @@ var (
 	s14ManagedCodexArgs = []string{"exec", "--json", "--sandbox", "workspace-write", "-m", CodexAstraModel,
 		"-c", `model_reasoning_effort="max"`}
 	s14ClaudeDefaultArgs = []string{"--print", "--model", ClaudeFableModel, "--effort", ClaudeOrchestraEffort}
+	// s14ClaudeJSONDecision is the shipped claude default after the json output
+	// format joined it; atB stays as recorded.
+	s14ClaudeJSONDecision = defaultEntryDecision{Args: DefaultClaudeProviderEntry().Args, Changed: true}
 )
 
 func defaultEntryRows() []defaultEntryRow {
@@ -67,7 +70,10 @@ func defaultEntryRows() []defaultEntryRow {
 	return []defaultEntryRow{
 		// The A34 default entries of C1: B leaves each one as it is.
 		{name: "c1-claude", platform: "claude-code", provider: "claude", c1Entry: "claude",
-			atB: defaultEntryDecision{Args: s14ClaudeDefaultArgs}},
+			atB: defaultEntryDecision{Args: s14ClaudeDefaultArgs},
+			// The json output format is added to every print-mode claude: text
+			// carries no usage (usage=unknown in spec review).
+			after: &s14ClaudeJSONDecision},
 		{name: "c1-codex", platform: "codex", provider: "codex", c1Entry: "codex",
 			atB: defaultEntryDecision{Policy: ProviderModelPolicyQuality, Args: s14ManagedCodexArgs}},
 		{name: "c1-gemini", platform: "antigravity-cli", provider: "gemini", c1Entry: "gemini",
@@ -90,14 +96,15 @@ func defaultEntryRows() []defaultEntryRow {
 		{name: "historical-claude-opus-high", platform: "claude-code", provider: "claude", legacyQuality: true,
 			entry: "binary: claude\nargs: [--print, --model, opus, --effort, high]\n" +
 				"pane_args: [--print, --model, opus, --effort, high]\n",
-			atB: defaultEntryDecision{Args: s14ClaudeDefaultArgs, Changed: true}},
+			atB:   defaultEntryDecision{Args: s14ClaudeDefaultArgs, Changed: true},
+			after: &s14ClaudeJSONDecision},
 		// The intended changes: the only customization is a retired pane key.
 		// B rewrote the pane argv alone; there is no pane argv left to rewrite.
 		{name: "claude-historical-pane-args-only", platform: "claude-code", provider: "claude", legacyQuality: true,
 			entry: "binary: claude\nargs: [--print, --model, my-model]\npane_args: [-p, --model, opus, --effort, max]\n" +
 				"subprocess:\n  timeout: 480\n",
 			atB:   defaultEntryDecision{Args: []string{"--print", "--model", "my-model"}, Changed: true},
-			after: &defaultEntryDecision{Args: []string{"--print", "--model", "my-model"}}},
+			after: &defaultEntryDecision{Args: []string{"--print", "--model", "my-model", "--output-format", "json"}, Changed: true}},
 		// B kept these as user-owned pinned entries; they now equal a default.
 		{name: "historical-canonical-codex-custom-pane-args", platform: "codex", provider: "codex", legacyQuality: true,
 			entry: "binary: codex\nargs: " + s14HistoricalCodexArgs + "\npane_args: [-m, my-model]\n",

@@ -114,6 +114,9 @@ func migrateKnownProviderDefaults(cfg *HarnessConfig) bool {
 			if existing, migrated = upgradeHistoricalClaudeProviderDefaults(existing); migrated {
 				changed = true
 			}
+			if existing, migrated = migrateClaudeOutputFormat(existing); migrated {
+				changed = true
+			}
 		}
 		if providerName == "gemini" && containsString(cfg.Platforms, "antigravity-cli") {
 			existing, changed = migrateAntigravityGeminiProvider(existing, defaults, true, changed)

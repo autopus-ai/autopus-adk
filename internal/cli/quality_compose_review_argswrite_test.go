@@ -40,8 +40,8 @@ func TestSaveReviewComposition_ClaudeArgsShapes(t *testing.T) {
 		{"block list appends", "            args:\n                - --print # print\n", opusHigh,
 			"            args:\n                - --print # print\n                - --model\n                - claude-opus-5-5\n" +
 				"                - --effort\n                - high\n"},
-		{"empty flow list", "            args: []\n", opusHigh, "            args: [--print, --model, claude-opus-5-5, --effort, high]\n"},
-		{"null value", "            args:\n", opusHigh, "            args: [--print, --model, claude-opus-5-5, --effort, high]\n"},
+		{"empty flow list", "            args: []\n", opusHigh, "            args: [--print, --model, claude-opus-5-5, --effort, high, --output-format, json]\n"},
+		{"null value", "            args:\n", opusHigh, "            args: [--print, --model, claude-opus-5-5, --effort, high, --output-format, json]\n"},
 		{"flow list keeps other tokens", "            args: [--print,  --verbose, --model, 'claude-fable-5-1', --effort, max] # mine\n", opusHigh,
 			"            args: [--print,  --verbose, --model, claude-opus-5-5, --effort, high] # mine\n"},
 	}
@@ -71,7 +71,7 @@ func TestSaveReviewComposition_MissingArgsTakeTheMigratedArgs(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, strings.Replace(before, "                timeout: 480\n        codex:\n",
-		"                timeout: 480\n            args: [--print, --model, claude-sonnet-5-5, --effort, low]\n        codex:\n", 1),
+		"                timeout: 480\n            args: [--print, --model, claude-sonnet-5-5, --effort, low, --output-format, json]\n        codex:\n", 1),
 		readReviewFile(t, dir))
 }
 

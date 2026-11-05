@@ -56,7 +56,7 @@ orchestra:
   providers:
     claude:
       binary: claude
-      args: ["--print", "--model", "claude-fable-5-1", "--effort", "max"]
+      args: ["--print", "--model", "claude-fable-5-1", "--effort", "max", "--output-format", "json"]
       subprocess:
         timeout: 480
     codex:
