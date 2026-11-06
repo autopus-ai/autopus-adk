@@ -17,8 +17,8 @@ package rulecond_test
 
 import (
 	"bytes"
-	"errors"
 	"encoding/json"
+	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
