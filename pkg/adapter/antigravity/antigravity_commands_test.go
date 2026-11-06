@@ -29,7 +29,7 @@ func TestAntigravityGenerateCommands(t *testing.T) {
 
 	// Spot-check core command TOML files; the exhaustive route set is pinned by
 	// TestRouterBudget_FullGenerate_CommandSurfaceCoversEveryFrozenRoute.
-	commands := []string{"plan", "go", "fix", "review", "sync", "idea"}
+	commands := []string{"review", "qa", "verify", "test", "sync", "update", "doctor"}
 	for _, cmd := range commands {
 		cmdPath := filepath.Join(dir, ".gemini", "commands", "auto", cmd+".toml")
 		_, statErr := os.Stat(cmdPath)
@@ -55,21 +55,21 @@ func TestAntigravityCommandTOMLContent(t *testing.T) {
 	assert.Contains(t, autoContent, ".gemini/skills/auto/SKILL.md", "auto.toml should reference auto router skill")
 	assert.Contains(t, autoContent, "test-project", "auto.toml should contain project name")
 
-	// Check plan.toml has prompt field and skill reference
-	planPath := filepath.Join(dir, ".gemini", "commands", "auto", "plan.toml")
+	// Check review.toml has prompt field and skill reference
+	planPath := filepath.Join(dir, ".gemini", "commands", "auto", "review.toml")
 	data, err := os.ReadFile(planPath)
 	require.NoError(t, err)
 	content := string(data)
 
 	assert.Contains(t, content, "prompt", "should have prompt field")
-	assert.Contains(t, content, ".gemini/skills/autopus/auto-plan/SKILL.md",
-		"should reference auto-plan skill")
+	assert.Contains(t, content, ".gemini/skills/autopus/auto-review/SKILL.md",
+		"should reference auto-review skill")
 	assert.Contains(t, content, "test-project", "should contain project name")
 
-	// Check go.toml references auto-go skill
-	goPath := filepath.Join(dir, ".gemini", "commands", "auto", "go.toml")
+	// Check qa.toml references auto-qa skill
+	goPath := filepath.Join(dir, ".gemini", "commands", "auto", "qa.toml")
 	goData, err := os.ReadFile(goPath)
 	require.NoError(t, err)
-	assert.Contains(t, string(goData), "auto-go/SKILL.md",
-		"go.toml should reference auto-go skill")
+	assert.Contains(t, string(goData), "auto-qa/SKILL.md",
+		"qa.toml should reference auto-qa skill")
 }

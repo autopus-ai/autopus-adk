@@ -75,8 +75,8 @@ func TestAntigravityAdapter_Generate_CreatesSkillsWithFrontmatter(t *testing.T) 
 	require.NoError(t, statErr, ".gemini/skills/autopus 디렉터리가 존재해야 함")
 	assert.True(t, info.IsDir())
 
-	// 각 스킬 서브디렉터리의 SKILL.md 확인 (auto-plan, auto-go, auto-fix, auto-sync, auto-review)
-	skills := []string{"auto-plan", "auto-go", "auto-fix", "auto-sync", "auto-review"}
+	// 각 스킬 서브디렉터리의 SKILL.md 확인
+	skills := []string{"auto-review", "auto-qa", "auto-verify", "auto-sync", "auto-doctor"}
 	for _, skill := range skills {
 		skillPath := filepath.Join(dir, ".gemini", "skills", "autopus", skill, "SKILL.md")
 		data, readErr := os.ReadFile(skillPath)
@@ -103,7 +103,7 @@ func TestAntigravityAdapter_Generate_InstallsWorkspacePlugin(t *testing.T) {
 
 	assert.FileExists(t, filepath.Join(dir, ".agents", "plugins", "autopus", "plugin.json"))
 	assert.FileExists(t,
-		filepath.Join(dir, ".agents", "plugins", "autopus", "skills", "auto-plan", "SKILL.md"))
+		filepath.Join(dir, ".agents", "plugins", "autopus", "skills", "auto-review", "SKILL.md"))
 	_, statErr := os.Stat(filepath.Join(dir, ".agents", "skills"))
 	assert.True(t, os.IsNotExist(statErr), "the shared skills root is not this adapter's to create")
 }
@@ -196,7 +196,7 @@ func TestAntigravityAdapter_Generate_WorkflowSkillsAndCommandsStayAligned(t *tes
 	require.NoError(t, err)
 	assert.Contains(t, string(routerSkill), "## Routing Contract")
 
-	for _, name := range []string{"plan", "go", "fix", "review", "sync", "idea", "canary"} {
+	for _, name := range []string{"review", "qa", "verify", "test", "sync", "update", "doctor"} {
 		skillPath := filepath.Join(dir, ".gemini", "skills", "autopus", "auto-"+name, "SKILL.md")
 		cmdPath := filepath.Join(dir, ".gemini", "commands", "auto", name+".toml")
 
@@ -209,35 +209,4 @@ func TestAntigravityAdapter_Generate_WorkflowSkillsAndCommandsStayAligned(t *tes
 		assert.Contains(t, string(cmdData), ".gemini/skills/autopus/auto-"+name+"/SKILL.md")
 	}
 
-	autoIdeaSkill, err := os.ReadFile(filepath.Join(dir, ".gemini", "skills", "autopus", "auto-idea", "SKILL.md"))
-	require.NoError(t, err)
-	assert.Contains(t, string(autoIdeaSkill), "auto orchestra brainstorm")
-	assert.Contains(t, string(autoIdeaSkill), "Clarification Ledger")
-	assert.Contains(t, string(autoIdeaSkill), "Current understanding")
-	assert.Contains(t, string(autoIdeaSkill), "Blocked decision")
-	assert.Contains(t, string(autoIdeaSkill), "Recommended answer")
-	assert.Contains(t, string(autoIdeaSkill), "Question")
-	assert.Contains(t, string(autoIdeaSkill), "Question Audit")
-	assert.Contains(t, string(autoIdeaSkill), "question_transport")
-	assert.Contains(t, string(autoIdeaSkill), "scope_boundary")
-	assert.Contains(t, string(autoIdeaSkill), "brownfield_impact")
-	assert.Contains(t, string(autoIdeaSkill), "Outcome Lock")
-	assert.Contains(t, string(autoIdeaSkill), "Evolution Ideas")
-	assert.Contains(t, string(autoIdeaSkill), "product-discovery")
-	assert.Contains(t, string(autoIdeaSkill), "Visual Brief")
-	assert.Contains(t, string(autoIdeaSkill), "wireframe")
-
-	autoPlanSkill, err := os.ReadFile(filepath.Join(dir, ".gemini", "skills", "autopus", "auto-plan", "SKILL.md"))
-	require.NoError(t, err)
-	assert.Contains(t, string(autoPlanSkill), "Clarification Ledger")
-	assert.Contains(t, string(autoPlanSkill), "Plan Intent Ledger")
-	assert.Contains(t, string(autoPlanSkill), "Question Audit")
-	assert.Contains(t, string(autoPlanSkill), "answered")
-	assert.Contains(t, string(autoPlanSkill), "assumed")
-	assert.Contains(t, string(autoPlanSkill), "deferred")
-	assert.Contains(t, string(autoPlanSkill), "Outcome Lock")
-	assert.Contains(t, string(autoPlanSkill), "Completion Debt")
-	assert.Contains(t, string(autoPlanSkill), "Evolution Ideas")
-	assert.Contains(t, string(autoPlanSkill), "Visual Planning Brief")
-	assert.Contains(t, string(autoPlanSkill), "sequence/data-flow")
 }

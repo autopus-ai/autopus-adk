@@ -14,9 +14,7 @@ import (
 )
 
 var frozenAntigravityAutoRoutes = []string{
-	"setup", "status", "goal", "update", "plan", "go", "fix", "review", "sync",
-	"idea", "map", "why", "verify", "secure", "test", "qa", "dev", "canary", "doctor",
-	"reverse",
+	"update", "review", "sync", "verify", "test", "qa", "doctor",
 }
 
 func TestRouterBudget_FullGenerate_RootIsThinAndAllDetailsExist(t *testing.T) {
@@ -34,7 +32,7 @@ func TestRouterBudget_FullGenerate_RootIsThinAndAllDetailsExist(t *testing.T) {
 		detail := readGeneratedAntigravitySurface(t, root, rel)
 		assert.Contains(t, detail, "name: auto-"+route)
 	}
-	for _, alias := range []string{"browse", "stale", "spec review", "init", "platform"} {
+	for _, alias := range []string{"browse", "init", "platform"} {
 		assert.Contains(t, router, alias, "legacy alias %q must remain routable", alias)
 	}
 	assert.NotContains(t, router, "Triage Process")
@@ -75,7 +73,7 @@ func TestWorkflowSkills_MissingElevenRoutes_AreBoundedContracts(t *testing.T) {
 	_, err := NewWithRoot(root).Generate(context.Background(), config.DefaultFullConfig("route-gaps"))
 	require.NoError(t, err)
 
-	missingBeforeT5 := []string{"setup", "status", "goal", "update", "map", "why", "verify", "secure", "test", "dev", "doctor"}
+	missingBeforeT5 := []string{"update", "verify", "test", "doctor"}
 	for _, route := range missingBeforeT5 {
 		rel := filepath.Join(".gemini", "skills", "autopus", "auto-"+route, "SKILL.md")
 		body := readGeneratedAntigravitySurface(t, root, rel)
@@ -133,8 +131,8 @@ func TestWorkflowSkills_GenerateAndUpdate_DoNotDuplicateCanonicalRouteTargets(t 
 			paths, err := operation.run(t.TempDir())
 			require.NoError(t, err)
 			for _, target := range []string{
-				filepath.Join(".gemini", "skills", "autopus", "auto-setup", "SKILL.md"),
-				filepath.Join(antigravityPluginDir, "skills", "auto-setup", "SKILL.md"),
+				filepath.Join(".gemini", "skills", "autopus", "auto-update", "SKILL.md"),
+				filepath.Join(antigravityPluginDir, "skills", "auto-update", "SKILL.md"),
 			} {
 				assert.Equal(t, 1, countAntigravityPath(paths, target), target)
 			}
@@ -180,15 +178,15 @@ func TestWorkflowSkills_GenerateAndUpdate_RespectRouteAndSharedSkillOwnership(t 
 				filepath.Join(".gemini", "skills", "autopus"),
 				filepath.Join(antigravityPluginDir, "skills"),
 			} {
-				adaptivePath := filepath.Join(base, "adaptive-quality", "SKILL.md")
-				autoGoPath := filepath.Join(base, "auto-go", "SKILL.md")
+				adaptivePath := filepath.Join(base, "testing-strategy", "SKILL.md")
+				autoGoPath := filepath.Join(base, "auto-review", "SKILL.md")
 				assert.Equal(t, 1, countAntigravityPath(paths, adaptivePath), adaptivePath)
 				assert.Equal(t, 1, countAntigravityPath(paths, autoGoPath), autoGoPath)
 
 				adaptive := readGeneratedAntigravitySurface(t, root, adaptivePath)
 				autoGo := readGeneratedAntigravitySurface(t, root, autoGoPath)
-				assert.Equal(t, "adaptive-quality", generatedAntigravitySkillName(adaptivePath, adaptive))
-				assert.Equal(t, "auto-go", generatedAntigravitySkillName(autoGoPath, autoGo))
+				assert.Equal(t, "testing-strategy", generatedAntigravitySkillName(adaptivePath, adaptive))
+				assert.Equal(t, "auto-review", generatedAntigravitySkillName(autoGoPath, autoGo))
 				assert.Contains(t, autoGo, "\nplatform: antigravity-cli\n")
 			}
 		})
