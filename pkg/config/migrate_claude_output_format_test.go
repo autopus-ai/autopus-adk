@@ -42,6 +42,8 @@ func TestMigrateOrchestraConfig_ClaudeOutputFormat(t *testing.T) {
 			[]string{"--print", "--output-format", "json", "--model", "m"}, true},
 		{"explicit stream-json kept", ProviderEntry{Binary: "claude", Args: []string{"--print", "--output-format", "stream-json", "--verbose"}},
 			[]string{"--print", "--output-format", "stream-json", "--verbose"}, false},
+		{"separator keeps the pair a flag", ProviderEntry{Binary: "claude", Args: []string{"-p", "--model", "opus", "--"}},
+			[]string{"-p", "--model", "opus", "--output-format", "json", "--"}, true},
 		{"wrapper binary untouched", ProviderEntry{Binary: "claude-wrapper", Args: []string{"--print", "--model", "m"}},
 			[]string{"--print", "--model", "m"}, false},
 		{"interactive argv untouched", ProviderEntry{Binary: "claude", Args: []string{"--model", "m"}},

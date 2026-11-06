@@ -41,6 +41,12 @@ func TestMigrateOrchestraConfig_AgyOutputFormat(t *testing.T) {
 			[]string{"--print", "", "--output-format=stream-json"}, true},
 		{"explicit json kept", []string{"--print", "", "--output-format", "json"},
 			[]string{"--print", "", "--output-format", "json"}, false},
+		// Flags after `--` are positional: the pair goes before it, once.
+		{"separator keeps the pair a flag", []string{"--print", "", "--model", "m", "--", "x"},
+			[]string{"--print", "", "--model", "m", "--output-format", "stream-json", "--", "x"}, true},
+		// A trailing --print takes the prompt appended after it.
+		{"trailing print keeps its prompt", []string{"--model", "m", "--print"},
+			[]string{"--model", "m", "--output-format", "stream-json", "--print"}, true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

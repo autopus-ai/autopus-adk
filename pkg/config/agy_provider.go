@@ -49,15 +49,16 @@ func outputFormatValue(args []string) (value string, index int, found bool) {
 	return value, index, found
 }
 
-// withOutputFormat sets the --output-format of args to format: it appends the
-// pair when absent and rewrites the value in place when it equals replace.
+// withOutputFormat sets the --output-format of args to format: it adds the
+// pair at outputFormatInsertAt when absent and rewrites the value in place when it equals replace.
 // Every other element, including a user's --model, keeps its place. Any other
 // explicit value is a user choice and is kept.
 func withOutputFormat(args []string, format, replace string) ([]string, bool) {
 	value, index, found := outputFormatValue(args)
 	switch {
 	case !found:
-		return append(slices.Clone(args), OutputFormatFlag, format), true
+		at := outputFormatInsertAt(args)
+		return slices.Insert(slices.Clone(args), at, OutputFormatFlag, format), true
 	case strings.TrimSpace(value) == replace && replace != format:
 		next := slices.Clone(args)
 		if strings.HasPrefix(next[index], OutputFormatFlag+"=") {
@@ -80,4 +81,20 @@ func migrateAgyOutputFormat(entry ProviderEntry) (ProviderEntry, bool) {
 	args, changed := withOutputFormat(entry.Args, AgyOutputFormat, agyLegacyOutputFormat)
 	entry.Args = args
 	return entry, changed
+}
+
+// outputFormatInsertAt is where an absent --output-format pair goes: the end
+// of the flags, which is before a `--` separator (flags after it are
+// positional, so the pair would never be found again and every migration
+// would add another) and before a trailing print flag whose value the prompt
+// fills (agy `--print` with no "" slot takes the prompt appended after it).
+func outputFormatInsertAt(args []string) int {
+	at := slices.Index(args, "--")
+	if at < 0 {
+		at = len(args)
+	}
+	if at > 0 && (args[at-1] == "--print" || args[at-1] == "-p") {
+		at--
+	}
+	return at
 }

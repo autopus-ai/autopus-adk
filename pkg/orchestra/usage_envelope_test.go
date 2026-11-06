@@ -128,6 +128,21 @@ func TestDecodeProviderEnvelope_ClaudeJSON(t *testing.T) {
 	require.Error(t, err)
 }
 
+// `--verbose` beside `--output-format json` prints every message of the call
+// as one array; the result element carries the answer and the usage.
+func TestDecodeProviderEnvelope_ClaudeVerboseArray(t *testing.T) {
+	t.Parallel()
+	raw := `[{"type":"system","subtype":"init"},{"type":"assistant","message":{}},` + claudeJSONFixture + "]\n"
+
+	text, err := decodeProviderEnvelope(envelopeClaudeJSON, raw)
+	require.NoError(t, err)
+	assert.Equal(t, "VERDICT: PASS", text)
+
+	usage, _ := decorateProviderUsage(ProviderConfig{Name: "claude", Binary: "claude"}, "reviewer", 1, raw)
+	require.Len(t, usage, 1)
+	assert.Equal(t, int64(54), *usage[0].OutputTokensTotal)
+}
+
 func TestProviderEnvelopeFor_ReadsTheExecutedArgv(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
