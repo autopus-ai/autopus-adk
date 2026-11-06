@@ -126,12 +126,22 @@ func resolveUsageIdentity(event providerUsageIdentity, fallback usageBinding) us
 	return fallback
 }
 
+// forEachJSONLine visits every JSON line of raw. A line that is a JSON array
+// visits each element instead: `claude --print --output-format json
+// --verbose` prints every message of the call as one array on one line.
 func forEachJSONLine(raw string, visit func([]byte)) {
 	reader := bufio.NewReader(strings.NewReader(raw))
 	for {
 		line, err := reader.ReadString('\n')
-		if strings.TrimSpace(line) != "" {
-			visit([]byte(line))
+		if trimmed := strings.TrimSpace(line); trimmed != "" {
+			var events []json.RawMessage
+			if strings.HasPrefix(trimmed, "[") && json.Unmarshal([]byte(trimmed), &events) == nil {
+				for _, event := range events {
+					visit(event)
+				}
+			} else {
+				visit([]byte(line))
+			}
 		}
 		if err != nil {
 			if err != io.EOF {

@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **리뷰 provider 출력 형식 migration과 claude json 해석의 경계 사례를 고친다** (2026-11-06):
+  - `--`가 있는 claude·agy args에서 migration이 `--output-format` 쌍을 `--` 뒤에 붙였다. 그 뒤의 flag는 positional이라
+    다음 실행에서 쌍을 찾지 못하고 또 붙였고, claude는 그 토큰을 prompt 인자로 받았다. 이제 쌍은 `--` 앞에 한 번만 들어간다.
+  - `--print`가 맨 끝에 있고 `""` 슬롯이 없는 agy args에서는 쌍이 `--print`와 그 뒤에 붙는 prompt 사이에 끼었다. 이제
+    쌍은 `--print` 앞에 들어간다.
+  - claude args에 `--verbose`가 있으면 `--output-format json`이 모든 message를 한 줄 배열로 출력해, 정상 답도 "no result
+    envelope"로 실패했다. 이제 배열의 result 원소에서 답과 usage를 읽는다.
+
 - **balanced 최상위와 claude 리뷰 기본 모델이 Fable에서 Opus로 바뀐다** (2026-11-06): Fable은 이제 Ultra에만 쓴다.
   - balanced 최상위 rung(planner, architect, spec-writer, reviewer, security-auditor, debugger, deep-worker)이
     Claude Code와 OMP anthropic family에서 `claude-fable-5-1`/max 대신 `claude-opus-5-5`/max로 돈다. 새 autopus.yaml의
