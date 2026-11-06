@@ -14,6 +14,7 @@ var coreSkillSet = map[string]bool{
 	"lore-commit":        true,
 	"playwright-cli":     true,
 	"qa-autopilot":       true,
+	"qa-hunt":            true,
 	"review":             true,
 	"testing-strategy":   true,
 	"verification":       true,
