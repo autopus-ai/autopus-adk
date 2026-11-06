@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **세션이 끝나기 전에 바뀐 코드를 빌드하고 테스트한다** (2026-11-07): Claude Code에 `Stop` hook `auto verify stop`을
+  등록한다. 작업 트리가 HEAD와 다르면 바뀐 파일이 속한 toolchain만 돌린다: Go는 `go build ./...`와 바뀐 패키지의
+  `go test`, Node는 lockfile이 가리키는 package manager로 `typecheck`·`test` script, Python은 pytest, Rust는
+  `cargo test`. 실패하면 마지막 60줄과 함께 종료를 막고, 같은 세션에서 세 번 막은 뒤에는 경고만 남기고 끝낸다.
+  통과한 트리가 그대로면 다음 stop에서 다시 돌리지 않는다. 문서만 바뀐 트리, 설치되지 않은 도구는 건너뛴다.
+  `hooks.verify_stop: false`로 등록을 끄고, `AUTOPUS_VERIFY_STOP=off`로 한 세션만 끈다.
+
 - **리뷰 provider 출력 형식 migration과 claude json 해석의 경계 사례를 고친다** (2026-11-06, #271):
   - `--`가 있는 claude·agy args에서 migration이 `--output-format` 쌍을 `--` 뒤에 붙였다. 그 뒤의 flag는 positional이라
     다음 실행에서 쌍을 찾지 못하고 또 붙였고, claude는 그 토큰을 prompt 인자로 받았다. 이제 쌍은 `--` 앞에 한 번만 들어간다.

@@ -74,7 +74,8 @@ func TestClaudeUpdate_RetractsGroupSHandlersAndScripts(t *testing.T) {
 	assert.Equal(t, []any{
 		map[string]any{"matcher": "user-stop", "hooks": []any{map[string]any{"type": "command", "command": "./scripts/user-stop.sh", "timeout": float64(10)}}},
 		map[string]any{"matcher": "mixed", "hooks": []any{map[string]any{"type": "command", "command": "./scripts/notify.sh", "timeout": float64(10)}}},
-	}, hooks["Stop"], "the user entry stays first and the mixed entry keeps only the user handler")
+		map[string]any{"hooks": []any{map[string]any{"type": "command", "command": "auto verify stop", "timeout": float64(600)}}},
+	}, hooks["Stop"], "the user entry stays first, the mixed entry keeps only the user handler, and the verification gate follows")
 
 	settingsBefore, err := os.ReadFile(filepath.Join(root, ".claude", "settings.json"))
 	require.NoError(t, err)

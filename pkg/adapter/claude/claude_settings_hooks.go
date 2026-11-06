@@ -12,6 +12,7 @@ import (
 var managedClaudeHookInvocations = []string{
 	"auto check --hygiene --arch --quiet --staged --warn-only",
 	"auto react check --quiet",
+	"auto verify stop",
 	"auto rules fire ",
 }
 

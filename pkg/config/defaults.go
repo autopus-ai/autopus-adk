@@ -24,6 +24,12 @@ const DefaultEditGuard = true
 
 // IsEditGuardEnabled reports whether hook generation registers the edit guard.
 // An explicit value wins; nil means unset and resolves to DefaultEditGuard.
+// IsVerifyStopEnabled reports whether the verification Stop hook is
+// registered. Unset means on: the gate is the harness's core check.
+func (h HooksConf) IsVerifyStopEnabled() bool {
+	return h.VerifyStop == nil || *h.VerifyStop
+}
+
 func (h HooksConf) IsEditGuardEnabled() bool {
 	if h.EditGuard == nil {
 		return DefaultEditGuard

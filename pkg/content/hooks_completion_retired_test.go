@@ -44,6 +44,9 @@ func TestGenerateProjectHookConfigs_EmitsNoOrchestraCompletionOrReadyHook(t *tes
 		require.NoError(t, err, platform)
 		require.NotEmpty(t, hooks, "%s keeps its other native hooks", platform)
 		for _, hook := range hooks {
+			if hook.Event == "Stop" && hook.Command == "auto verify stop" && (platform == "claude-code" || platform == "claude") {
+				continue // the verification gate, not a completion hook
+			}
 			assert.NotContains(t, []string{"Stop", "SessionStart", "AfterAgent"}, hook.Event, "%s: %+v", platform, hook)
 			assert.NotRegexp(t, `hook-(claude|codex|gemini|opencode)-`, hook.Command, "%s: %+v", platform, hook)
 		}

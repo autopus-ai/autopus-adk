@@ -30,8 +30,11 @@ func TestGenerateProjectHookConfigs_ClaudeTaskCreatedEnabled(t *testing.T) {
 	hooks, gitHooks, err := content.GenerateProjectHookConfigs(cfg, "claude-code", true)
 	require.NoError(t, err)
 	// Expect: TaskCreated hook + SPEC-CONDRULE-001 dispatcher + SPEC-STICKYRULE-001 entry +
-	// SPEC-EDITGUARD-001 guard (unset flag enables it).
-	require.Len(t, hooks, 4)
+	// SPEC-EDITGUARD-001 guard (unset flag enables it) + the verification Stop hook.
+	require.Len(t, hooks, 5)
+	stop := findHook(hooks, "Stop")
+	require.NotNil(t, stop, "expected the verification Stop hook")
+	assert.Equal(t, "auto verify stop", stop.Command)
 	assert.Empty(t, gitHooks)
 	taskCreatedHook := findHook(hooks, "TaskCreated")
 	require.NotNil(t, taskCreatedHook, "expected a TaskCreated hook")
@@ -58,4 +61,27 @@ func TestGenerateProjectHookConfigs_TaskCreatedDisabledOutsideClaude(t *testing.
 	// readiness hooks (SPEC-PANERM-001) leave Codex with no native hook here.
 	assert.Empty(t, hooks, "no hook expected for codex: %v", eventNames(hooks))
 	assert.Empty(t, gitHooks)
+}
+
+func TestGenerateProjectHookConfigs_VerifyStopIsClaudeOnlyAndSwitchable(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.DefaultFullConfig("demo")
+	hooks, _, err := content.GenerateProjectHookConfigs(cfg, "claude-code", true)
+	require.NoError(t, err)
+	stop := findHook(hooks, "Stop")
+	require.NotNil(t, stop, "on by default")
+	assert.Equal(t, 600, stop.Timeout)
+
+	for _, platform := range []string{"codex", "opencode", "antigravity-cli"} {
+		other, _, err := content.GenerateProjectHookConfigs(cfg, platform, true)
+		require.NoError(t, err)
+		assert.Nil(t, findHook(other, "Stop"), platform)
+	}
+
+	off := false
+	cfg.Hooks.VerifyStop = &off
+	hooks, _, err = content.GenerateProjectHookConfigs(cfg, "claude-code", true)
+	require.NoError(t, err)
+	assert.Nil(t, findHook(hooks, "Stop"), "hooks.verify_stop: false removes it")
 }
