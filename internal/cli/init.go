@@ -264,8 +264,8 @@ func initNextSteps(cfg *config.HarnessConfig, dir string) []initNextStep {
 		prefix string
 		build  func() (statusNextAction, bool)
 	}{
-		{"Next", func() (statusNextAction, bool) { return planAction(env) }},
-		{"Next", func() (statusNextAction, bool) { return fixAction(env) }},
+		{"Next", func() (statusNextAction, bool) { return reviewAction(env) }},
+		{"Next", func() (statusNextAction, bool) { return qaAction(env) }},
 		{"Optional", func() (statusNextAction, bool) { return desktopConnectAction(env.Dir) }},
 	} {
 		action, ok := entry.build()

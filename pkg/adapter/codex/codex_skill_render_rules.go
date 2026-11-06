@@ -20,11 +20,10 @@ var codexRuleRefRe = regexp.MustCompile(
 // gaining a fabricated anchor, because an anchor naming a heading the marker
 // section does not contain is the same dangling reference in a new shape.
 var codexAgentsMDAnchors = map[string]string{
-	"branding":            "autopus-branding",
-	"doc-storage":         "document-storage",
-	"language-policy":     "language-policy",
-	"file-size-limit":     "file-size-limit",
-	"subagent-delegation": "subagent-delegation",
+	"branding":        "autopus-branding",
+	"doc-storage":     "document-storage",
+	"language-policy": "language-policy",
+	"file-size-limit": "file-size-limit",
 }
 
 func normalizeCodexHelperPaths(body string) string {

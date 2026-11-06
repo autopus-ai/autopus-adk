@@ -16,6 +16,9 @@ import (
 func PruneRoots() []string {
 	return []string{
 		filepath.ToSlash(filepath.Join(".codex", "skills")),
+		// Agents the generator no longer emits, such as the roles the
+		// verification harness dropped, leave with the manifest record.
+		filepath.ToSlash(filepath.Join(".codex", "agents")),
 		filepath.ToSlash(filepath.Join(".codex", "prompts")),
 		filepath.ToSlash(filepath.Join(".codex", "rules")),
 		filepath.ToSlash(filepath.Join(".agents", "skills")),

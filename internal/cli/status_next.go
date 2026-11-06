@@ -48,7 +48,7 @@ const (
 
 // buildStatusNextActions derives the next commands from the evidence and the
 // install state: setup gaps first, then up to three SPECs that need a run or
-// review, then work with and without a SPEC, then optional Desktop.
+// review, then review and QA of the working tree, then optional Desktop.
 func buildStatusNextActions(specs []specEntry, evidence []statusEvidence, env statusEnvironment) []statusNextAction {
 	var actions []statusNextAction
 	add := func(action statusNextAction, ok bool) {
@@ -71,8 +71,8 @@ func buildStatusNextActions(specs []specEntry, evidence []statusEvidence, env st
 			"none", "no model calls; it runs the installed CLIs' version checks", "none"))
 	}
 	actions = append(actions, specNextActions(specs, evidence, env)...)
-	add(fixAction(env))
-	add(planAction(env))
+	add(reviewAction(env))
+	add(qaAction(env))
 	if env.Desktop.State == desktopInstalled {
 		action, ok := desktopConnectAction(env.Dir)
 		add(action, ok)
@@ -80,22 +80,20 @@ func buildStatusNextActions(specs []specEntry, evidence []statusEvidence, env st
 	return actions
 }
 
-// fixAction is a small change without a SPEC, shared with init.
-func fixAction(env statusEnvironment) (statusNextAction, bool) {
-	return routeAction("fix", `"<problem>"`, env.ConfiguredPlatforms, env.Dir,
-		"fix something small without a SPEC: a reproduction test, a focused patch, and its verification",
-		agentSessionCalls, "the working tree")
+// reviewAction reviews the working tree's changes with execution evidence,
+// shared with init. Review is read-only; it reports findings and writes nothing.
+func reviewAction(env statusEnvironment) (statusNextAction, bool) {
+	return routeAction("review", "", env.ConfiguredPlatforms, env.Dir,
+		"review the current changes and check them with build and test evidence",
+		agentSessionCalls, "none")
 }
 
-// planAction is new work planned as a SPEC, shared with init. Planning runs
-// the SPEC review when the review gate is on.
-func planAction(env statusEnvironment) (statusNextAction, bool) {
-	calls := agentSessionCalls
-	if env.ReviewGate && len(env.ReviewProviders) > 0 {
-		calls += " and, for the SPEC review, " + statusSingleLine(strings.Join(env.ReviewProviders, ", "))
-	}
-	return routeAction("plan", `"<outcome>"`, env.ConfiguredPlatforms, env.Dir,
-		"plan new work as a SPEC before implementing it", calls, ".autopus/specs (a new SPEC)")
+// qaAction plans and runs project QA from the declared journeys, shared with
+// init. Its run evidence lands under .autopus/qa.
+func qaAction(env statusEnvironment) (statusNextAction, bool) {
+	return routeAction("qa", "", env.ConfiguredPlatforms, env.Dir,
+		"plan and run project QA, then report the evidence it collected",
+		agentSessionCalls, ".autopus/qa (QA run evidence)")
 }
 
 // desktopConnectAction is the optional Desktop connection, shared with init.

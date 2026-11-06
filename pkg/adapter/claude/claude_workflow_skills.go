@@ -20,26 +20,13 @@ type claudeWorkflowRoute struct {
 }
 
 var claudeWorkflowRoutes = []claudeWorkflowRoute{
-	{name: "setup", start: "## setup —", end: "## idea —", context: "core + architecture"},
-	{name: "status", start: "## status —", end: "## dev —", context: "core + SPEC index"},
-	{name: "goal", context: "core", customBody: claudeGoalContract},
 	{name: "update", context: "core + workspace", customBody: claudeUpdateContract},
-	{name: "plan", start: "## plan —", end: "## go —", context: "core + architecture + relevant SPEC evidence"},
-	{name: "go", start: "## go —", end: "## verify —", context: "core + selected SPEC + acceptance"},
-	{name: "fix", start: "## fix —", end: "## map —", context: "core + changed scope"},
-	{name: "review", start: "## review —", end: "## secure —", context: "core + changed scope + acceptance"},
-	{name: "sync", start: "## sync —", end: "## why —", context: "core + selected SPEC + workspace"},
-	{name: "idea", start: "## idea —", end: "## plan —", context: "core + relevant product evidence"},
-	{name: "map", start: "## map —", end: "## review —", context: "core + architecture"},
-	{name: "why", start: "## why —", end: "## status —", context: "core + decision references"},
+	{name: "review", start: "## review —", end: "## sync —", context: "core + changed scope + acceptance"},
+	{name: "sync", start: "## sync —", end: "## ADK Management", context: "core + selected SPEC + workspace"},
 	{name: "verify", start: "## verify —", end: "## browse —", context: "core + changed UI scope"},
-	{name: "secure", start: "## secure —", end: "## stale —", context: "core + changed scope + security constraints"},
 	{name: "test", start: "## test —", end: "## qa —", context: "core + scenarios"},
-	{name: "qa", start: "## qa —", end: "## canary —", context: "core + declared QA journey evidence"},
-	{name: "dev", start: "## dev —", end: "## ADK Management —", context: "core + selected SPEC lifecycle"},
-	{name: "canary", start: "## canary —", end: "## fix —", context: "core + canary"},
+	{name: "qa", start: "## qa —", end: "## review —", context: "core + declared QA journey evidence"},
 	{name: "doctor", context: "core + workspace", customBody: claudeDoctorContract},
-	{name: "reverse", context: "core + the named reverse target", customBody: claudeReverseContract},
 }
 
 func isClaudeWorkflowDetailSource(filename string) bool {

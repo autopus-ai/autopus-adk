@@ -140,19 +140,13 @@ func DefaultFullConfig(projectName string) *HarnessConfig {
 			SupervisorModelPolicy: SupervisorModelPolicyInherit,
 			Presets: map[string]QualityPreset{
 				"ultra": {
-					Description: "추론 코어 7개는 Fable, 나머지는 Opus. 최고 품질.",
+					Description: "리뷰는 Fable, UX 검증은 Opus. 최고 품질.",
 					Agents: map[string]string{
-						"architect": "fable", "debugger": "fable", "deep-worker": "fable",
-						"planner": "fable", "reviewer": "fable", "security-auditor": "fable",
-						"spec-writer": "fable",
-						"annotator":   "opus", "devops": "opus", "executor": "opus",
-						"explorer": "opus", "frontend-specialist": "opus",
-						"perf-engineer": "opus", "reverse-engineer": "opus", "tester": "opus",
-						"ux-validator": "opus", "validator": "opus",
+						"reviewer": "fable", "frontend-specialist": "opus", "ux-validator": "opus",
 					},
 				},
 				"balanced": {
-					Description: "기획·리뷰·디버깅은 최상위, 구현·검증은 경량 모델.",
+					Description: "리뷰는 최상위, UX 검증은 경량 모델.",
 					Agents:      defaultBalancedAgentTiers(),
 				},
 			},

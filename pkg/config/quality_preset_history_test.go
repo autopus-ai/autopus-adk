@@ -25,9 +25,11 @@ func TestHistoricalQualityPresets_RowsMatchShippedLayouts(t *testing.T) {
 		"HB5": {preset: "balanced", commit: "001830fd", runtimeStandard: true, agents: shippedBalancedHB5},
 		"HB6": {preset: "balanced", commit: "fbe502c0", runtimeStandard: true, agents: shippedBalancedHB6},
 		"HB7": {preset: "balanced", commit: "28c5bc4d", runtimeStandard: true, agents: shippedBalancedHB7},
+		"HB8": {preset: "balanced", commit: "a04cd8e6", runtimeStandard: true, agents: shippedBalancedHB8},
 		"HU1": {preset: "ultra", commit: "c95806e2", agents: shippedUltraHU1},
 		"HU2": {preset: "ultra", commit: "aaeae52d", agents: shippedUltraHU2},
 		"HU3": {preset: "ultra", commit: "001830fd", agents: shippedUltraHU3},
+		"HU4": {preset: "ultra", commit: "28c5bc4d", agents: shippedUltraHU4},
 	}
 	require.Len(t, historicalQualityPresets, len(want))
 	for _, row := range historicalQualityPresets {
@@ -42,11 +44,12 @@ func TestHistoricalQualityPresets_RowsMatchShippedLayouts(t *testing.T) {
 }
 
 // TestHistoricalQualityPresets_RowInvariants pins the four REQ-MUX-10 row rules:
-// canonical names only, at most one entry per canonical agent (16 until
-// reverse-engineer joined, 17 since), valid tiers, and never the current
-// default, so classification can never confuse a row with an up-to-date file.
+// names an Autopus release generated only (the current agents plus the legacy
+// ones the verification harness dropped), at most one entry per such agent,
+// valid tiers, and never the current default, so classification can never
+// confuse a row with an up-to-date file.
 func TestHistoricalQualityPresets_RowInvariants(t *testing.T) {
-	canonical := CanonicalAgentNames()
+	canonical := append(CanonicalAgentNames(), legacyAgentNames...)
 	for _, row := range historicalQualityPresets {
 		t.Run(row.id, func(t *testing.T) {
 			assert.LessOrEqual(t, len(row.agents), len(canonical))
@@ -110,34 +113,34 @@ func TestClassifyBuiltinQualityPreset_ExactMatchIgnoringDescription(t *testing.T
 	}{
 		{name: "description-only edit of HB2", preset: "balanced",
 			value:     QualityPreset{Description: "my words", Agents: maps.Clone(shippedBalancedHB2)},
-			wantClass: BuiltinQualityPresetHistorical, wantRow: "HB2", wantStd: true, wantDiffers: 8},
+			wantClass: BuiltinQualityPresetHistorical, wantRow: "HB2", wantStd: true, wantDiffers: 3},
 		{name: "HU1 without devops", preset: "ultra", value: QualityPreset{Agents: ultraWithout("devops")},
-			wantClass: BuiltinQualityPresetCustomized, wantDiffers: 13},
+			wantClass: BuiltinQualityPresetCustomized, wantDiffers: 3},
 		{name: "HU1 with an invalid tester tier", preset: "ultra",
 			value:     QualityPreset{Agents: func() map[string]string { a := maps.Clone(shippedUltraHU1); a["tester"] = "gpt"; return a }()},
-			wantClass: BuiltinQualityPresetCustomized, wantDiffers: 13},
+			wantClass: BuiltinQualityPresetCustomized, wantDiffers: 3},
 		{name: "current balanced missing one agent", preset: "balanced",
-			value:     QualityPreset{Agents: currentWith("balanced", "annotator", "")},
+			value:     QualityPreset{Agents: currentWith("balanced", "ux-validator", "")},
 			wantClass: BuiltinQualityPresetCustomized, wantDiffers: 1},
 		{name: "current balanced with one moved agent", preset: "balanced",
-			value:     QualityPreset{Agents: currentWith("balanced", "tester", "fable")},
+			value:     QualityPreset{Agents: currentWith("balanced", "frontend-specialist", "fable")},
 			wantClass: BuiltinQualityPresetCustomized, wantDiffers: 1},
 		{name: "current ultra with a non-canonical spelling", preset: "ultra",
-			value:     QualityPreset{Agents: currentWith("ultra", "tester", "Opus")},
+			value:     QualityPreset{Agents: currentWith("ultra", "ux-validator", "Opus")},
 			wantClass: BuiltinQualityPresetCustomized, wantDiffers: 1},
 		{name: "current ultra with an extra agent", preset: "ultra",
 			value:     QualityPreset{Agents: currentWith("ultra", "my-agent", "opus")},
 			wantClass: BuiltinQualityPresetCustomized, wantDiffers: 0},
 		{name: "balanced written with an ultra row", preset: "balanced",
 			value:     QualityPreset{Agents: maps.Clone(shippedUltraHU2)},
-			wantClass: BuiltinQualityPresetCustomized, wantDiffers: 10},
+			wantClass: BuiltinQualityPresetCustomized, wantDiffers: 2},
 		{name: "ultra written with a balanced row", preset: "ultra",
 			value:     QualityPreset{Agents: maps.Clone(shippedBalancedHB4)},
-			wantClass: BuiltinQualityPresetCustomized, wantDiffers: 16},
+			wantClass: BuiltinQualityPresetCustomized, wantDiffers: 3},
 		{name: "unshipped executor promotion", preset: "balanced", value: QualityPreset{Agents: executorPromotion},
-			wantClass: BuiltinQualityPresetCustomized, wantDiffers: 9},
+			wantClass: BuiltinQualityPresetCustomized, wantDiffers: 3},
 		{name: "preset without agents", preset: "balanced", value: QualityPreset{Description: "empty"},
-			wantClass: BuiltinQualityPresetCustomized, wantDiffers: 17},
+			wantClass: BuiltinQualityPresetCustomized, wantDiffers: 3},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -217,9 +220,9 @@ presets:
 		got[name] = status
 	}
 	assert.Equal(t, BuiltinQualityPresetStatus{
-		Class: BuiltinQualityPresetHistorical, Row: "HB2", RuntimeStandard: true, Differs: 8,
+		Class: BuiltinQualityPresetHistorical, Row: "HB2", RuntimeStandard: true, Differs: 3,
 	}, got["balanced"])
 	assert.Equal(t, BuiltinQualityPresetStatus{
-		Class: BuiltinQualityPresetHistorical, Row: "HU1", Differs: 12,
+		Class: BuiltinQualityPresetHistorical, Row: "HU1", Differs: 3,
 	}, got["ultra"])
 }

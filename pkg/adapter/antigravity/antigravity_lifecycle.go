@@ -30,7 +30,7 @@ const antigravityProbeTimeout = processprobe.DefaultWaitDelay + 2*time.Second
 // expose. They are checked on the native plugin surface because that is the
 // tree `agy` discovers, and on the legacy Gemini tree because Gemini Code
 // Assist installations still read it.
-var antigravityRequiredRoutes = []string{"auto-plan", "auto-go", "auto-fix", "auto-sync", "auto-review"}
+var antigravityRequiredRoutes = []string{"auto-review", "auto-qa", "auto-verify", "auto-test", "auto-sync"}
 
 // Validate checks the validity of installed files.
 func (a *Adapter) Validate(ctx context.Context) ([]adapter.ValidationError, error) {

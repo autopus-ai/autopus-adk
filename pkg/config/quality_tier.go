@@ -1,6 +1,9 @@
 package config
 
-import "strings"
+import (
+	"slices"
+	"strings"
+)
 
 // Canonical Claude slugs for the relative quality tiers. Every Claude-facing
 // projection resolves through these so a tier promotion lands in one place.
@@ -13,11 +16,24 @@ const (
 
 // canonicalAgentNames lists the generated source agents in stable order. This
 // is the authoritative role set: quality presets, Claude frontmatter, cost
-// accounting, and the OMP role matrix all key off exactly these names.
-var canonicalAgentNames = []string{
+// accounting, and the OMP agent definitions all key off exactly these names.
+// The verification harness ships only the review and UX validation roles.
+var canonicalAgentNames = []string{"frontend-specialist", "reviewer", "ux-validator"}
+
+// legacyAgentNames are the agents releases before the verification harness
+// generated. A config written by such a release still names them in quality
+// presets and efforts; loading accepts and ignores those keys instead of
+// failing, since nothing is generated for them any more.
+var legacyAgentNames = []string{
 	"annotator", "architect", "debugger", "deep-worker", "devops", "executor",
-	"explorer", "frontend-specialist", "perf-engineer", "planner", "reverse-engineer",
-	"reviewer", "security-auditor", "spec-writer", "tester", "ux-validator", "validator",
+	"explorer", "perf-engineer", "planner", "reverse-engineer",
+	"security-auditor", "spec-writer", "tester", "validator",
+}
+
+// IsLegacyAgentName reports whether name is an agent an older release
+// generated and this one no longer does.
+func IsLegacyAgentName(name string) bool {
+	return slices.Contains(legacyAgentNames, NormalizeAgentName(name))
 }
 
 // agentNameAliases folds workflow phase-role spelling onto agent file names.

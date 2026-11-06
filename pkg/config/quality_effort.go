@@ -56,7 +56,9 @@ func (c *HarnessConfig) validateQualityPresetEfforts() error {
 		efforts := c.Quality.Presets[presetName].Efforts
 		for _, agent := range slices.Sorted(maps.Keys(efforts)) {
 			value := efforts[agent]
-			if !slices.Contains(canonicalAgentNames, agent) {
+			// A legacy agent's effort routes nothing any more, but a file an
+			// older release wrote with it must keep loading.
+			if !slices.Contains(canonicalAgentNames, agent) && !slices.Contains(legacyAgentNames, agent) {
 				return fmt.Errorf("quality.presets.%s.efforts.%s: agent_invalid %q", presetName, effortKeyText(agent), value)
 			}
 			if !IsQualityEffort(value) {

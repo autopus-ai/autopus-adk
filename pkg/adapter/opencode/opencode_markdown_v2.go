@@ -13,7 +13,7 @@ const openCodeV2NativeContract = `## OpenCode V2 native contract
 Use the advertised native tool catalog. Delegation uses subagent, not a shell
 command. The required input fields are agent, description, and prompt:
 
-` + "```json\n" + `{"agent":"executor","description":"Implement scoped change","prompt":"Read the assigned context, change only owned files, and return verification."}` + "\n```\n" + `
+` + "```json\n" + `{"agent":"reviewer","description":"Review scoped change","prompt":"Read the assigned diff and context, run the relevant checks, and return findings with evidence."}` + "\n```\n" + `
 Only configured subagent-mode agents are eligible. New children need complete
 instructions; they do not inherit the parent's conversation. Foreground calls
 wait for completion. Use background: true only for independent work; completion
