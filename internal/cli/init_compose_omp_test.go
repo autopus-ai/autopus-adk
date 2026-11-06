@@ -84,10 +84,9 @@ func TestInitComposeOMP_PinIsSavedAndGeneratedByInit(t *testing.T) {
 		Value map[string]string `json:"value"`
 	}
 	require.NoError(t, json.Unmarshal(body, &readback))
-	assert.Equal(t, "openai-codex/gpt-6-astra:max", readback.Value["planner"])
 	assert.Equal(t, "openai-codex/gpt-6-astra:max", readback.Value["task"], "task follows the planner pin")
-	assert.FileExists(t, filepath.Join(dir, ".claude", "agents", "autopus", "planner.md"))
-	assert.FileExists(t, filepath.Join(dir, ".codex", "agents", "planner.toml"))
+	assert.FileExists(t, filepath.Join(dir, ".claude", "agents", "autopus", "reviewer.md"))
+	assert.FileExists(t, filepath.Join(dir, ".codex", "agents", "reviewer.toml"))
 }
 
 // S21, second project: a blocker refuses without a confirmation, and init
@@ -157,8 +156,8 @@ func TestInitComposeOMP_FailedGenerationRollsInitBack(t *testing.T) {
 	assert.Contains(t, err.Error(), "플랫폼 설정 적용 실패")
 	assert.True(t, generation.mismatched, "the generation read the routing back")
 	assert.NoFileExists(t, filepath.Join(dir, "autopus.yaml"))
-	assert.NoFileExists(t, filepath.Join(dir, ".claude", "agents", "autopus", "planner.md"))
-	assert.NoFileExists(t, filepath.Join(dir, ".codex", "agents", "planner.toml"))
+	assert.NoFileExists(t, filepath.Join(dir, ".claude", "agents", "autopus", "reviewer.md"))
+	assert.NoFileExists(t, filepath.Join(dir, ".codex", "agents", "reviewer.toml"))
 }
 
 // composeMismatchRunner is ompModelDoctorE2ERunner except that reading the
@@ -204,8 +203,8 @@ func TestInitComposeOMP_UnreadableCatalogHintsAndInitContinues(t *testing.T) {
 		assert.Equal(t, 2, strings.Count(out, composeFormTextKO.InitOMPUnavailable+"\n"), out)
 		assert.Equal(t, 2, strings.Count(out, "  경고: "), out)
 		assert.NotContains(t, readBlockFixture(t, dir), "role_model_policy")
-		assert.FileExists(t, filepath.Join(dir, ".claude", "agents", "autopus", "planner.md"))
-		assert.FileExists(t, filepath.Join(dir, ".codex", "agents", "planner.toml"))
+		assert.FileExists(t, filepath.Join(dir, ".claude", "agents", "autopus", "reviewer.md"))
+		assert.FileExists(t, filepath.Join(dir, ".codex", "agents", "reviewer.toml"))
 		assert.NotEmpty(t, failing.calls, "the tab read the catalog")
 		assert.Empty(t, generation.calls, "an empty profile skips the model integration")
 	})

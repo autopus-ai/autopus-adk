@@ -53,7 +53,7 @@ func TestContentDrift_TamperedWorkflow_WarnCountOne(t *testing.T) {
 	cfg := claudeDriftConfig()
 	generateClaudeInstall(t, dir, cfg)
 
-	wf := filepath.Join(dir, ".claude", "workflows", "route_team.workflow.js")
+	wf := filepath.Join(dir, ".claude", "agents", "autopus", "frontend-specialist.md")
 	original, err := os.ReadFile(wf)
 	require.NoError(t, err)
 	tampered := strings.Replace(string(original), "claude-sonnet-5", "claude-sonnet-4-6", 1)
@@ -64,13 +64,13 @@ func TestContentDrift_TamperedWorkflow_WarnCountOne(t *testing.T) {
 	require.True(t, ok, "claude-code content drift check must be present")
 	assert.Equal(t, 1, res.DriftCount, "exactly one deterministic file drifts")
 	require.Len(t, res.DriftPaths, 1)
-	assert.Contains(t, res.DriftPaths[0], "route_team.workflow.js")
+	assert.Contains(t, res.DriftPaths[0], "frontend-specialist.md")
 
 	check := contentDriftCheck(res)
 	assert.Equal(t, "doctor.drift.content.claude-code", check.ID)
 	assert.Equal(t, "warn", check.Status)
 	assert.Equal(t, "warning", check.Severity)
-	assert.Contains(t, check.Detail, "route_team.workflow.js")
+	assert.Contains(t, check.Detail, "frontend-specialist.md")
 	assert.Contains(t, check.Detail, "auto update")
 }
 

@@ -87,7 +87,8 @@ func TestDoctorJSONReportCollectQualityGateChecks_WarnsOnInvalidPresetAndMissing
 	assert.Equal(t, "pass", report.checks[1].Status)
 	assert.Equal(t, "fail", report.checks[2].Status)
 	assert.Equal(t, "warn", report.checks[3].Status)
-	assert.Equal(t, "pass", report.checks[4].Status)
+	// A fresh config claims no methodology, so the methodology gate skips.
+	assert.Equal(t, "skip", report.checks[4].Status)
 }
 
 func TestDoctorJSONReportCollectPlatformChecks_UnknownPlatform(t *testing.T) {

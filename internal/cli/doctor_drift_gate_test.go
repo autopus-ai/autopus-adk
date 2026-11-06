@@ -40,7 +40,7 @@ func driftInstallWithContentAndOrphan(t *testing.T) (string, *config.HarnessConf
 	cfg := claudeDriftConfig()
 	generateClaudeInstall(t, dir, cfg)
 
-	wf := filepath.Join(dir, ".claude", "workflows", "route_team.workflow.js")
+	wf := filepath.Join(dir, ".claude", "agents", "autopus", "frontend-specialist.md")
 	data, err := os.ReadFile(wf)
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(wf,
@@ -101,24 +101,4 @@ func TestRenderDriftText_CleanInstall_NoSection(t *testing.T) {
 	cfg := &config.HarnessConfig{Platforms: []string{"claude-code"}}
 	renderDriftText(&buf, t.TempDir(), cfg)
 	assert.Empty(t, buf.String(), "no manifests and no source repo → silent skip")
-}
-
-// TestDriftGateRuleDoc_MentionsDriftAndDoctor is the S8 oracle: a content rule
-// doc line documents the drift gate, containing both a drift token and
-// "auto doctor" on the same line.
-func TestDriftGateRuleDoc_MentionsDriftAndDoctor(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join("..", "..", "content", "rules", "doc-storage.md"))
-	require.NoError(t, err)
-
-	found := false
-	for _, line := range strings.Split(string(data), "\n") {
-		lower := strings.ToLower(line)
-		hasDrift := strings.Contains(lower, "drift") || strings.Contains(line, "드리프트")
-		hasDoctor := strings.Contains(lower, "auto doctor")
-		if hasDrift && hasDoctor {
-			found = true
-			break
-		}
-	}
-	assert.True(t, found, "a rule doc line mentions the drift gate alongside auto doctor")
 }

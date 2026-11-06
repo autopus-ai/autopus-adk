@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **하네스를 리뷰·QA·검증 표면으로 줄인다** (2026-11-07): frontier 모델은 계획과 구현을 혼자서도 잘 하므로,
+  다섯 플랫폼 모두 검증 표면만 설치한다.
+  - 라우트는 `review`, `qa`, `verify`, `test`, `sync`, `update`, `doctor`(그리고 `browse` 별칭)만 남는다. `setup`,
+    `status`, `goal`, `plan`, `go`, `fix`, `idea`, `map`, `why`, `secure`, `dev`, `canary`, `reverse`, `spec review`·`stale`
+    별칭, Claude `.claude/workflows/*.js`는 더 이상 설치하지 않는다.
+  - 에이전트는 reviewer, frontend-specialist, ux-validator, 규칙은 language-policy, lore-commit, file-size-limit,
+    스킬은 review, verification, frontend-verify, qa-autopilot, browser-automation, playwright-cli, lore-commit,
+    testing-strategy 여덟 개(모두 core)다. agy의 rea-mcp-guard 규칙은 그대로 둔다.
+  - `auto update`는 manifest에 기록된 삭제 표면을 지운다. codex `.codex/agents`, opencode agents·commands·rules도
+    이제 prune 대상이다. 업데이트하지 않은 설치도 `auto platform remove`로 정리할 수 있다.
+  - balanced·ultra 프리셋은 세 에이전트만 쓴다. v0.50.134의 17개 배치는 HB8·HU4로 등록해 갱신 대상으로 보고,
+    예전 에이전트의 efforts 키는 값만 검사하고 받아들인다. planner·executor 같은 역할은 `auto pipeline`과 OMP
+    task가 아직 쓰므로 세 에이전트 형식 프리셋에서도 v0.50.134 티어를 유지한다.
+  - 새 설정의 `methodology.mode`는 `none`이다. tdd 등을 쓰던 설정은 `auto doctor`·`auto check`에서 실패 대신 안내로
+    보고된다. `auto spec review` 체크리스트는 설치하지 않는 `content/checklists/`에서 읽는다.
+  - `auto spec`, `auto orchestra`, `auto workflow`, `auto pipeline` 같은 CLI 명령은 바이너리에 그대로 있다.
+
 - **세션이 끝나기 전에 바뀐 코드를 빌드하고 테스트한다** (2026-11-07): Claude Code에 `Stop` hook `auto verify stop`을
   등록한다. 작업 트리가 HEAD와 다르면 바뀐 파일이 속한 toolchain만 돌린다: Go는 `go build ./...`와 바뀐 패키지의
   `go test`, Node는 lockfile이 가리키는 package manager로 `typecheck`·`test` script, Python은 pytest, Rust는

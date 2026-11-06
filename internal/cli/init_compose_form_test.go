@@ -47,9 +47,10 @@ func TestInitComposeForms_CodexTabEditIsSavedAndGenerated(t *testing.T) {
 	saved := composeBindLoad(t, dir).Quality
 	assert.Equal(t, "codex-custom", saved.Providers["codex"])
 	assert.Equal(t, "sonnet", saved.Presets["codex-custom"].Agents["planner"])
-	assert.Equal(t, config.CodexProfile{Model: "gpt-6-luna", Effort: "max"}, readComposeCodexProfile(t, dir, "planner"))
-	assert.Equal(t, config.CodexProfile{Model: "gpt-6-astra", Effort: "max"}, readComposeCodexProfile(t, dir, "debugger"))
-	assert.Equal(t, composeTableClaudeCell{model: "claude-opus-5-5", effort: "max"}, readComposeTableClaudeProfile(t, dir, "planner"))
+	// planner is a role, not a generated agent any more; the generated
+	// reviewer keeps its own tier on both tools.
+	assert.Equal(t, config.CodexProfile{Model: "gpt-6-astra", Effort: "max"}, readComposeCodexProfile(t, dir, "reviewer"))
+	assert.Equal(t, composeTableClaudeCell{model: "claude-opus-5-5", effort: "max"}, readComposeTableClaudeProfile(t, dir, "reviewer"))
 	assert.Len(t, *run.probes, 1)
 	assert.False(t, run.adapterProbed(t))
 }
