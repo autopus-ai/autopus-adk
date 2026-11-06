@@ -41,6 +41,10 @@ func s3LearnEntries() []learn.LearningEntry {
 	}
 }
 
+// intakeFixtureTime stamps every intake fixture entry, so candidate output
+// stays byte-stable across runs.
+var intakeFixtureTime = time.Date(2026, 10, 6, 1, 2, 3, 0, time.UTC)
+
 // intakeProject writes entries through the learn store writer below a new
 // project root and returns the root.
 func intakeProject(t *testing.T, entries ...learn.LearningEntry) string {
@@ -49,7 +53,7 @@ func intakeProject(t *testing.T, entries ...learn.LearningEntry) string {
 	store, err := learn.NewStore(root)
 	require.NoError(t, err)
 	for _, entry := range entries {
-		entry.Timestamp = time.Date(2026, 10, 6, 1, 2, 3, 0, time.UTC)
+		entry.Timestamp = intakeFixtureTime
 		require.NoError(t, store.Append(entry))
 	}
 	return root
