@@ -6,72 +6,28 @@ description: "문서 동기화 — 구현 완료 후 코드와 문서를 동기�
 
 **프로젝트**: {{.ProjectName}} | **모드**: {{.Mode}}
 
+## 설명
+
+방금 만든 변경에 맞춰 프로젝트 문서를 갱신합니다. 단계마다 사용자에게 시작을 묻지 않고 진행하며, 리뷰나 QA hunt가 통과한 뒤 자연스럽게 이어집니다.
+
 ## 사용법
 
-SPEC-ID를 인자로 받아 문서를 동기화합니다.
-인자 없이 실행 시 전체 프로젝트를 동기화합니다.
-
-## Codex Notes
-
-- 기본 운영 원칙은 `spawn_agent(...)` 기반 subagent-first 입니다.
-- 메인 세션은 동기화 범위 결정, 상태 갱신, 최종 커밋 판단을 담당합니다.
-- 문서 영향 분석과 검증 정리는 필요 시 서브에이전트에 위임합니다.
-- 사용자가 `--auto` 또는 `--solo`를 명시하지 않았고 현재 Codex 런타임 정책이 암묵적 `spawn_agent(...)` 호출을 제한하면, 진행을 멈추고 하네스 기본값과 제약을 설명한 뒤 서브에이전트 opt-in 또는 `--solo` 확인을 먼저 받아야 합니다.
-- 구조 변경이 감지되면 `ARCHITECTURE.md`, `.autopus/project/workspace.md`, 그리고 나머지 `.autopus/project/*` 문서를 함께 갱신해야 합니다.
-- repo 경계, 빌드/릴리스 스크립트, desktop/browser/API surface가 바뀌면 `workspace.md`의 QA/Journey Pack 대상 리포와 `auto qa init --project-dir <repo>` 명령도 갱신해야 합니다.
-- sync 단계에서 @AX lifecycle 관리(TODO cycle, ANCHOR fan-in, orphan NOTE cleanup)를 수행해야 합니다.
-- full 모드에서는 Lore 2-phase commit 규칙을 적용합니다.
-
-## 동기화 항목
-
-1. SPEC 상태 → completed
-2. API 문서 갱신
-3. 아키텍처 다이어그램 업데이트
-{{if .IsFullMode}}4. Lore 의사결정 기록
-5. CHANGELOG 갱신
-6. Lore 형식 자동 커밋{{end}}
-
-## 품질 게이트
-
-- 에러: 0
-- 경고: 최대 10
-{{if .IsFullMode}}
-## Lore 커밋
-
-동기화 완료 후 Lore 형식으로 자동 커밋합니다.
-- SPEC-ID 있으면: `docs(<scope>): sync SPEC-{ID} 문서 갱신`
-- SPEC-ID 없으면: `docs(sync): 프로젝트 문서 동기화`
-{{end}}
-
-## Completion Gates
-
-sync 완료를 선언하거나 workflow lifecycle bar를 표시하기 전에 아래 gate를 모두 기록합니다.
-
-1. `Context Load` 수행 결과
-2. `SPEC Path Resolution` 결과 (`SPEC_PATH`, `TARGET_MODULE`, `WORKING_DIR`)
-3. `Completion Verdict` 결과
-   - `Outcome Lock` 만족 여부, mandatory requirements 충족 수, Must acceptance 충족 수를 기록합니다.
-   - `Completion Debt`가 하나라도 있으면 SPEC 상태를 `completed`로 바꾸지 말고 blocked reason을 남깁니다.
-   - `Evolution Ideas`는 optional improvement로만 표시하고 자동 follow-up SPEC이나 sibling SPEC으로 추천하지 않습니다.
-4. `@AX Lifecycle Management` 결과
-   - 대상 태그가 없으면 `@AX: no tags found`, annotation 자체를 요청하지 않은 실행이면 `@AX: not requested`로 남깁니다.
-5. Lore 커밋 결과
-   - 변경 사항이 있으면 commit hash를 남깁니다.
-   - 커밋 실패/보류 시 blocked reason을 남기고 sync completed 선언을 금지합니다.
-6. 2-Phase Commit 판단 결과
-7. 완료 배너/다음 단계 출력은 위 gate를 기록한 뒤에만 수행합니다.
-
-## Completion Verdict Format
-
-```markdown
-## Completion Verdict
-- Outcome Lock: satisfied / blocked
-- Mandatory requirements: N/N
-- Must acceptance: N/N
-- Completion Debt: none / {items}
-- Evolution Ideas: surfaced as optional, not scheduled
+```text
+auto sync
+auto sync HEAD~3..HEAD
 ```
 
-## 다음 단계
+## 절차
 
-동기화 완료 후 Evolution Ideas는 선택 제안으로만 보여주고, 배포 검증을 권장합니다: `/auto qa`
+1. 변경 읽기: `git diff HEAD --stat && git status --short`로 범위를 보고 바뀐 소스를 직접 읽습니다. 하네스 경로(`.autopus/`, `.claude/`, `.codex/`, `.gemini/`, `.opencode/`, `.omp/`, `.agents/`)는 건너뜁니다.
+2. 변경이 낡게 만든 문서만 갱신합니다. 프로젝트의 표현과 언어를 따릅니다.
+   - `README.md`: 바뀐 명령·flag·설정·설치·사용법
+   - `ARCHITECTURE.md`: 추가·제거된 package, module, 의존성, 데이터 흐름
+   - `CHANGELOG.md`: unreleased 제목 아래 항목 하나(없으면 제목을 만듭니다). 사용자에게 무엇이 왜 바뀌었는지
+   - `docs/` 아래 문서, 바뀐 공개 API 옆 doc comment
+   - `.autopus/project/*.md`가 있으면 그 내용. `.autopus/project/workspace.md`는 root 역할, 중첩 repo 경계, 생성·런타임 경로, 커밋 정책, QA/Journey Pack 대상 명령이 바뀌었을 때 갱신합니다
+3. 기능을 지어내거나, 상관없는 절을 다시 쓰거나, 문체를 바꾸지 않습니다. 낡은 문서가 없으면 그렇게 말하고 아무것도 바꾸지 않습니다.
+4. 확인: 문서에 적힌 명령·flag·경로·설정 key가 코드에 실제로 있는지 봅니다. 바뀐 명령은 가능하면 `--help`를 돌려 봅니다. 고친 문서의 링크와 파일 참조가 맞는지 봅니다.
+5. 세션이 커밋하는 중이면 문서를 변경과 함께, 또는 `docs(<scope>): ...` 후속 커밋으로 프로젝트 커밋 형식(commit-msg hook이 있으면 Lore)에 맞춰 커밋합니다. push하지 않습니다.
+
+사용자만 정할 수 있는 결정(예: 동작 변경이 breaking인지)이 필요하면 권장안을 맨 앞에 둔 번호 선택지로 묻고 멈춥니다. 그 밖에는 가정을 밝히고 진행합니다.

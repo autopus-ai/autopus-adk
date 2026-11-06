@@ -22,7 +22,7 @@ type claudeWorkflowRoute struct {
 var claudeWorkflowRoutes = []claudeWorkflowRoute{
 	{name: "update", context: "core + workspace", customBody: claudeUpdateContract},
 	{name: "review", start: "## review —", end: "## sync —", context: "core + changed scope + acceptance"},
-	{name: "sync", start: "## sync —", end: "## ADK Management", context: "core + selected SPEC + workspace"},
+	{name: "sync", start: "## sync —", end: "## ADK Management", context: "core + changed scope + project docs"},
 	{name: "verify", start: "## verify —", end: "## browse —", context: "core + changed UI scope"},
 	{name: "test", start: "## test —", end: "## qa —", context: "core + scenarios"},
 	{name: "qa", start: "## qa —", end: "## review —", context: "core + declared QA journey evidence"},

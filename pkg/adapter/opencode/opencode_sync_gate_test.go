@@ -12,7 +12,7 @@ import (
 	"github.com/insajin/autopus-adk/pkg/config"
 )
 
-func TestAdapter_Generate_AutoSyncCarriesCompletionGates(t *testing.T) {
+func TestAdapter_Generate_AutoSyncUpdatesDocsFromTheChange(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	a := NewWithRoot(dir, WithCLIVersion("1.18.7"))
@@ -22,13 +22,12 @@ func TestAdapter_Generate_AutoSyncCarriesCompletionGates(t *testing.T) {
 
 	autoSyncSkill, err := os.ReadFile(filepath.Join(dir, ".agents", "skills", "auto-sync", "SKILL.md"))
 	require.NoError(t, err)
-	assert.Contains(t, string(autoSyncSkill), "## Completion Gates")
-	// Annotation is opt-in, so sync records an explicit outcome either way:
-	// no tags found for a scanned surface, or not requested for a run that
-	// never opted in. A bare "no-op" could not tell those two apart.
-	assert.Contains(t, string(autoSyncSkill), "@AX: no tags found")
-	assert.Contains(t, string(autoSyncSkill), "@AX: not requested")
-	assert.Contains(t, string(autoSyncSkill), "commit hash")
-	assert.Contains(t, string(autoSyncSkill), "현재 OpenCode 런타임 정책")
-	assert.NotContains(t, string(autoSyncSkill), "현재 Codex 런타임 정책")
+	body := string(autoSyncSkill)
+	// Sync reads the diff, updates only the documents the change made stale,
+	// and checks what they name; it no longer gates on SPEC status or @AX tags.
+	assert.Contains(t, body, "git diff HEAD --stat")
+	assert.Contains(t, body, "CHANGELOG.md")
+	assert.Contains(t, body, "--help")
+	assert.NotContains(t, body, "Completion Verdict")
+	assert.NotContains(t, body, "현재 Codex 런타임 정책")
 }
