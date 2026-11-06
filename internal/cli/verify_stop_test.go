@@ -92,3 +92,52 @@ func TestVerifyStop_OffSwitch(t *testing.T) {
 
 	assert.Equal(t, stopHookOutput{}, runStop(t, dir, "off"))
 }
+
+func TestVerifyStop_LargePassingChangeGoesOnToReviewAndQAOnce(t *testing.T) {
+	session := "followup"
+	t.Cleanup(func() { resetStopState(session); _ = os.Remove(stopStateFile(session, "followup")) })
+	var body strings.Builder
+	body.WriteString("package stopgate\n\n// Add sums.\nfunc Add(a, b int) int { return a + b }\n")
+	for i := 0; i < 45; i++ {
+		body.WriteString("\n// Filler documents nothing in particular.\n")
+	}
+	dir := newStopRepo(t, body.String())
+
+	first := runStop(t, dir, session)
+	assert.Equal(t, "block", first.Decision)
+	assert.Contains(t, first.Reason, "qa-explorer")
+	assert.Contains(t, first.Reason, "AskUserQuestion")
+
+	assert.Equal(t, stopHookOutput{}, runStop(t, dir, session), "the same tree is not sent round again")
+
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "add.go"), []byte(body.String()+"\n// one more line\n"), 0o644))
+	assert.Equal(t, stopHookOutput{}, runStop(t, dir, session), "a small fix after the review does not start another round")
+}
+
+func TestVerifyStop_SmallPassingChangeEndsAtGreen(t *testing.T) {
+	session := "small"
+	t.Cleanup(func() { resetStopState(session); _ = os.Remove(stopStateFile(session, "followup")) })
+	dir := newStopRepo(t, "package stopgate\n\n// Add sums.\nfunc Add(a, b int) int { return b + a }\n")
+
+	assert.Equal(t, stopHookOutput{}, runStop(t, dir, session))
+}
+
+func TestVerifyStop_QAOutputAndLogsDoNotGrowTheChange(t *testing.T) {
+	session := "qa-output"
+	t.Cleanup(func() { resetStopState(session); _ = os.Remove(stopStateFile(session, "followup")) })
+	dir := newStopRepo(t, "package stopgate\n\n// Add sums.\nfunc Add(a, b int) int { return b + a }\n")
+	big := strings.Repeat("line\n", 500)
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".autopus", "qa", "hunt"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".autopus", "qa", "hunt", "memory.md"), []byte(big), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "run.log"), []byte(big), 0o644))
+
+	assert.Equal(t, stopHookOutput{}, runStop(t, dir, session), "only source lines count toward a follow-up")
+}
+
+func TestVerifyStop_FollowupRoundsAreBounded(t *testing.T) {
+	session := "rounds"
+	t.Cleanup(func() { _ = os.Remove(stopStateFile(session, "followup")) })
+	assert.True(t, nextFollowup(session, 50))
+	assert.True(t, nextFollowup(session, 100))
+	assert.False(t, nextFollowup(session, 500), "a third round never starts")
+}

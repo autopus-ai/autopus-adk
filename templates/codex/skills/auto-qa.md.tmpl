@@ -12,6 +12,17 @@ description: >
 
 Project-level QA를 QAMESH evidence와 feedback bundle로 연결합니다. 이 스킬은 `auto qa` namespace의 thin routing guidance이며, 실제 결과는 CLI 실행으로만 확인합니다.
 
+## Bug Hunt (default)
+
+Use the hunt when the request is to find bugs, test or playtest what was built, or `/auto qa` arrives with no subcommand or with natural language. QAMESH below is for declared journeys and release evidence.
+
+1. Run the hunt yourself, without asking the user to start it: follow the `qa-hunt` skill in this session (or a `qa-explorer` subagent when available) with the request, the mode (`explore`, `hunt`, `verify`, or `goal`), and the changed scope (`git diff HEAD --stat`). The `qa-hunt` skill holds the procedure: read `.autopus/qa/hunt/memory.md`, write a driver under `.autopus/qa/hunt/drivers/`, drive the running product, and file each suspicion as `.autopus/qa/hunt/findings/<id>/finding.json` plus `repro.sh` (exit 1 while the bug is present, 0 once fixed).
+2. Judge with `auto qa hunt verify`. Only `confirmed` findings are bugs; report `flaky`, `not_reproduced`, and `broken_repro` apart as suspicions.
+3. Fix each confirmed bug in product code, rerun the project tests, and rerun `auto qa hunt verify` until each fixed finding reports `not_reproduced`. Never edit a repro to make it pass.
+4. Finish with confirmed / fixed / remaining counts and the report path `.autopus/qa/hunt/report.md`.
+
+When a fix needs a decision only the user can make, ask it as a multiple-choice question (numbered options), recommendation first. Otherwise proceed and state the assumption.
+
 ## Runner Boundary
 
 - QAMESH is the default project QA orchestration layer.

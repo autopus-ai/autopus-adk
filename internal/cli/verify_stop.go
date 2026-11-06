@@ -34,16 +34,20 @@ type stopHookOutput struct {
 }
 
 func newVerifyStopCmd() *cobra.Command {
-	var budget time.Duration
+	var (
+		budget   time.Duration
+		followup bool
+	)
 	cmd := &cobra.Command{
 		Use:   "stop",
 		Short: "Stop hook: build and test the changed files before the session ends",
 		Long: "Reads the Claude Code Stop hook payload on stdin. When the work tree has changes, runs the " +
 			"build and tests that cover them and blocks the stop with the failure output. Set " +
-			"AUTOPUS_VERIFY_STOP=off to disable.",
+			"AUTOPUS_VERIFY_STOP=off to disable. Once the build passes, a change of 40 or more lines is sent on to " +
+			"the reviewer and qa-explorer agents once (AUTOPUS_FOLLOWUP=off or --followup=false to skip).",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			out := runVerifyStop(cmd, cmd.InOrStdin(), budget)
+			out := runVerifyStop(cmd, cmd.InOrStdin(), budget, followup)
 			data, err := json.Marshal(out)
 			if err != nil {
 				return err
@@ -53,10 +57,11 @@ func newVerifyStopCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().DurationVar(&budget, "budget", 8*time.Minute, "Total time for all verification commands")
+	cmd.Flags().BoolVar(&followup, "followup", true, "After a passing build, send a large enough change on to review and QA hunt once")
 	return cmd
 }
 
-func runVerifyStop(cmd *cobra.Command, stdin io.Reader, budget time.Duration) stopHookOutput {
+func runVerifyStop(cmd *cobra.Command, stdin io.Reader, budget time.Duration, followup bool) stopHookOutput {
 	if strings.EqualFold(os.Getenv("AUTOPUS_VERIFY_STOP"), "off") {
 		return stopHookOutput{}
 	}
@@ -82,6 +87,11 @@ func runVerifyStop(cmd *cobra.Command, stdin io.Reader, budget time.Duration) st
 	if failure == nil {
 		resetStopBlocks(in.SessionID)
 		writeStopState(in.SessionID, "pass", fingerprint)
+		if followup {
+			if lines := verifygate.ChangedLines(cmd.Context(), root, changed); nextFollowup(in.SessionID, lines) {
+				return followupOutput(lines)
+			}
+		}
 		return stopHookOutput{}
 	}
 	summary := fmt.Sprintf("Verification failed: `%s` (%s).\n%s", strings.Join(failure.Step.Argv, " "), failure.Reason, failure.Output)

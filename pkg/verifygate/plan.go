@@ -28,7 +28,7 @@ func Plan(root string, changed []string) []Step {
 				Step{Name: "go test", Argv: append([]string{"go", "test"}, pkgs...), Dir: root})
 		}
 	}
-	if hasExt(changed, ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".vue", ".svelte") {
+	if hasExt(changed, nodeExts...) {
 		steps = append(steps, nodeSteps(root)...)
 	}
 	if hasExt(changed, ".py") && hasPytest(root) {
@@ -94,6 +94,14 @@ func nodeSteps(root string) []Step {
 		}
 	}
 	return steps
+}
+
+var nodeExts = []string{".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".vue", ".svelte"}
+
+// IsSource reports whether a changed file belongs to a toolchain the gate
+// verifies. Only these files count toward the size of a change.
+func IsSource(file string) bool {
+	return hasExt([]string{file}, append([]string{".go", ".py", ".rs"}, nodeExts...)...)
 }
 
 func hasPytest(root string) bool {
