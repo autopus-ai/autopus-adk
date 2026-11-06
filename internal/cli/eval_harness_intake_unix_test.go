@@ -4,9 +4,12 @@ package cli
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -42,10 +45,13 @@ func TestEvalHarnessIntake_S5_IntakeRejectAndPruneNeverRunRepro(t *testing.T) {
 	var out bytes.Buffer
 	prune.SetOut(&out)
 	prune.SetErr(&out)
-	prune.SetArgs([]string{"learn", "prune", "--days", "30"})
+	// The window must cover the fixed fixture date on any wall clock, or the
+	// fixture itself ages into the prune set.
+	days := int(time.Since(intakeFixtureTime).Hours()/24) + 30
+	prune.SetArgs([]string{"learn", "prune", "--days", strconv.Itoa(days)})
 	require.NoError(t, prune.Execute())
 
-	assert.Equal(t, "Removed 0 entries older than 30 days.\n", out.String())
+	assert.Equal(t, fmt.Sprintf("Removed 0 entries older than %d days.\n", days), out.String())
 	assert.Equal(t, "harneval-repro-sentinel", readCandidate(t, root, kept)["repro"], "repro stays data")
 	assert.NoFileExists(t, logPath, "no repro value ran")
 }
