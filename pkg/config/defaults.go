@@ -95,9 +95,11 @@ func DefaultFullConfig(projectName string) *HarnessConfig {
 				MinProviders: 0,
 			},
 		},
+		// The verification harness ships no methodology skill to deliver a
+		// mode, so a fresh config claims none.
 		Methodology: MethodologyConf{
-			Mode:       "tdd",
-			Enforce:    true,
+			Mode:       "none",
+			Enforce:    false,
 			ReviewGate: true,
 		},
 		// EditGuard stays unset so a fresh autopus.yaml carries no key an

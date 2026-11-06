@@ -223,11 +223,11 @@ func tierRequestForProvider(quality config.QualityConf, provider string) execpla
 }
 
 // topClaudeModelForRun returns the strongest Claude slug the requested mode
-// grants any canonical agent. The descending order is expressed with the slugs
+// grants any role the pipeline dispatches. The descending order is expressed with the slugs
 // config exports rather than restating the tier names it keys them by, so no
 // second tier ladder is introduced here.
 func topClaudeModelForRun(quality config.QualityConf) string {
-	agents := config.CanonicalAgentNames()
+	agents := config.RoleNames()
 	for _, model := range []string{
 		config.ClaudeFableModel, config.ClaudeOpusModel,
 		config.ClaudeSonnetModel, config.ClaudeHaikuModel,

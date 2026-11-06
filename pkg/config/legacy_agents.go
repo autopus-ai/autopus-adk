@@ -34,6 +34,14 @@ var legacyRoleTiers = map[string]map[string]string{
 	},
 }
 
+// RoleNames returns the role vocabulary: the generated agents followed by
+// the legacy roles. Work the binary dispatches by role, such as pipeline
+// phases and their cost accounting, resolves over this set, while anything
+// that installs or renders an agent definition uses CanonicalAgentNames.
+func RoleNames() []string {
+	return append(CanonicalAgentNames(), legacyAgentNames...)
+}
+
 // IsLegacyAgentName reports whether name is an agent an older release
 // generated and this one no longer does.
 func IsLegacyAgentName(name string) bool {

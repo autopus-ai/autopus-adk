@@ -82,7 +82,7 @@ func (e *Estimator) EstimatePipelineCost(run telemetry.PipelineRun) float64 {
 // over the roster keeps the token total intact and lets the roles whose tiers
 // differ carry the comparison.
 func (e *Estimator) EstimateQualityComparison(totalTokens int) (ultraCost, balancedCost float64) {
-	agents := config.CanonicalAgentNames()
+	agents := config.RoleNames()
 	perAgent := totalTokens / len(agents)
 	remainder := totalTokens % len(agents)
 

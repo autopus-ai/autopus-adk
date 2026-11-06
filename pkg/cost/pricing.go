@@ -99,7 +99,7 @@ func QualityModeToModels(qualityMode string) map[string]string {
 	}
 	view := quality.WithGlobalOverride(qualityMode)
 
-	names := config.CanonicalAgentNames()
+	names := config.RoleNames()
 	models := make(map[string]string, 2*len(names)+len(workflowRoleAliases))
 	for _, name := range names {
 		models[name] = view.ClaudeAgentModel(name, "")
