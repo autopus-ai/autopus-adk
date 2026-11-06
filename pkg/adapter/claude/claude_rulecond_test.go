@@ -52,11 +52,9 @@ func TestClaudeConditionalSurfaceRoutesEachClassOnce(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.True(t, surface.relocates("lore-commit.md"))
-	assert.True(t, surface.relocates("shell-portability.md"))
-	assert.True(t, surface.relocates("worktree-safety.md"))
 	assert.True(t, surface.relocates(fileSizeLimitRuleFile),
 		"a paths-scoped rule also leaves the verbatim copy path")
-	assert.False(t, surface.relocates("branding.md"),
+	assert.False(t, surface.relocates("language-policy.md"),
 		"an always rule keeps its unchanged copy path")
 
 	for _, file := range surface.mappings {

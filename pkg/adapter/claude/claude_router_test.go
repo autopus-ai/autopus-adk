@@ -53,7 +53,7 @@ func TestRouter_Generate_AutoMDContainsSubcommands(t *testing.T) {
 	content := string(data)
 
 	// 모든 서브커맨드가 포함되어야 함
-	subcommands := []string{"plan", "go", "fix", "map", "review", "secure", "stale", "sync", "why"}
+	subcommands := []string{"review", "qa", "verify", "test", "sync", "update", "doctor"}
 	for _, sub := range subcommands {
 		assert.Contains(t, content, sub, "서브커맨드 %q가 포함되어야 함", sub)
 	}
@@ -79,8 +79,8 @@ func TestRouter_Generate_LiteMode_ExcludesFullOnlyCommands(t *testing.T) {
 	content := string(data)
 
 	// 기본 서브커맨드는 있어야 함
-	assert.Contains(t, content, "plan")
-	assert.Contains(t, content, "fix")
+	assert.Contains(t, content, "review")
+	assert.Contains(t, content, "qa")
 }
 
 // TestRouter_Generate_SkillsUnchanged는 스킬 디렉터리가 여전히 생성되는지 테스트한다.

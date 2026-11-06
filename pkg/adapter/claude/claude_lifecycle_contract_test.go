@@ -142,13 +142,11 @@ func TestUpdate_FullToLitePrunesManagedSkillsAgentsAndWorkflowsOnly(t *testing.T
 	_, err := a.Update(context.Background(), cfg)
 	require.NoError(t, err)
 
-	managedSkill := filepath.Join(root, ".claude", "skills", "tdd", "SKILL.md")
-	managedAgent := filepath.Join(root, ".claude", "agents", "autopus", "executor.md")
-	managedWorkflow := filepath.Join(root, ".claude", "workflows", "route_a.workflow.js")
+	managedSkill := filepath.Join(root, ".claude", "skills", "verification", "SKILL.md")
+	managedAgent := filepath.Join(root, ".claude", "agents", "autopus", "reviewer.md")
 	assert.FileExists(t, managedSkill)
 	assert.FileExists(t, managedAgent)
-	assert.FileExists(t, managedWorkflow)
-	userFile := filepath.Join(root, ".claude", "skills", "tdd", "notes.txt")
+	userFile := filepath.Join(root, ".claude", "skills", "verification", "notes.txt")
 	require.NoError(t, os.WriteFile(userFile, []byte("user"), 0o644))
 
 	cfg.Mode = config.Mode("lite")
@@ -156,7 +154,6 @@ func TestUpdate_FullToLitePrunesManagedSkillsAgentsAndWorkflowsOnly(t *testing.T
 	require.NoError(t, err)
 	assert.NoFileExists(t, managedSkill)
 	assert.NoFileExists(t, managedAgent)
-	assert.NoFileExists(t, managedWorkflow)
 	assert.FileExists(t, userFile)
 }
 
@@ -189,7 +186,7 @@ func TestClean_RetractsManagedEntriesAndPreservesUserContent(t *testing.T) {
 	servers := mcp["mcpServers"].(map[string]any)
 	servers["user-server"] = map[string]any{"command": "user-mcp"}
 	writeJSONFile(t, mcpPath, mcp)
-	userFile := filepath.Join(root, ".claude", "skills", "tdd", "notes.txt")
+	userFile := filepath.Join(root, ".claude", "skills", "verification", "notes.txt")
 	require.NoError(t, os.WriteFile(userFile, []byte("user"), 0o644))
 
 	require.NoError(t, a.Clean(context.Background()))

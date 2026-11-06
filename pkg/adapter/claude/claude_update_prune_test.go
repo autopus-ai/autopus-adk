@@ -20,9 +20,14 @@ import (
 // every session of an already-installed harness, so the prune half of the fix
 // is what actually reclaims it on upgrade.
 var relocatedRuleFiles = []string{
+	"lore-commit.md",
+}
+
+// retiredRuleFiles were relocated too, and the verification harness then
+// stopped shipping them: an upgrade must remove them from both places.
+var retiredRuleFiles = []string{
 	"context7-docs.md",
 	"doc-storage.md",
-	"lore-commit.md",
 	"shell-portability.md",
 	"spec-quality.md",
 	"techstack-freshness.md",
@@ -42,7 +47,7 @@ func seedPreCondruleState(t *testing.T, root string) {
 	require.NoError(t, err)
 	require.NotNil(t, manifest)
 
-	for _, name := range relocatedRuleFiles {
+	for _, name := range append(append([]string(nil), relocatedRuleFiles...), retiredRuleFiles...) {
 		rel := baselineRulePath(name)
 		body := "stale baseline copy of " + name
 		require.NoError(t, os.WriteFile(filepath.Join(root, filepath.FromSlash(rel)), []byte(body), 0o644))
@@ -77,6 +82,10 @@ func TestUpdate_PrunesRelocatedBaselineRules(t *testing.T) {
 			"%s must not survive the upgrade in baseline context", name)
 		assert.FileExists(t, filepath.Join(root, ".claude", "hooks", "autopus", "conditional", name),
 			"%s must remain present as a relocated body", name)
+	}
+	for _, name := range retiredRuleFiles {
+		assert.NoFileExists(t, filepath.Join(root, ".claude", "rules", "autopus", name), "%s is retired", name)
+		assert.NoFileExists(t, filepath.Join(root, ".claude", "hooks", "autopus", "conditional", name), "%s is retired", name)
 	}
 
 	// Safe delete: the transaction snapshots a pruned file before removing it.

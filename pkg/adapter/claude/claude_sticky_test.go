@@ -18,7 +18,7 @@ import (
 const userPromptSubmit = "UserPromptSubmit"
 
 // stickyRuleNames are the two rules REQ-STICKYRULE-MAP-01 designates.
-var stickyRuleNames = []string{"language-policy", "objective-reasoning"}
+var stickyRuleNames = []string{"language-policy"}
 
 // hookEventKeys returns the event keys present in the generated settings file.
 func hookEventKeys(t *testing.T, root string) []string {
@@ -84,7 +84,7 @@ func TestClaudeGenerate_StickySetIsRecordedInTheCompiledManifest(t *testing.T) {
 			"sticky body locations stay relative to the sticky body root")
 	}
 	assert.Equal(t, stickyRuleNames, names,
-		"exactly language-policy and objective-reasoning are sticky")
+		"exactly language-policy is sticky")
 }
 
 // TestClaudeGenerate_StickyHookIsRegisteredOnce is the S16 creation oracle.
