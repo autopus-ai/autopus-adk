@@ -94,14 +94,14 @@ When `{SPEC_DIR}/gate-applicability.json` carries `change_risk.risk_tier`, that 
 
 | Assignment | Balanced | Ultra |
 |-----------|----------|-------|
-| Planning, review, security, debugging, long work | `fable`: planner, architect, spec-writer, reviewer, security-auditor, debugger, deep-worker | same seven-role `fable` core |
+| Planning, review, security, debugging, long work | `opus`: planner, architect, spec-writer, reviewer, security-auditor, debugger, deep-worker | same seven roles on `fable` |
 | Implementation and testing | `sonnet`: executor, tester, devops, frontend-specialist, perf-engineer | `opus` |
 | Routine work | `sonnet`: explorer, annotator, validator, ux-validator | `opus` |
 | Reverse-engineering analysis | `opus`: reverse-engineer | `opus` |
 
 Platform note:
-- Standard balanced uses the same role matrix in Claude Code, Codex, and OMP. Claude emits Fable 5.1/max for the seven-role core, Opus 5.5/high for reverse-engineer, Sonnet 5.5/max for implementation, and Sonnet 5.5/high for routine work. Codex emits Astra/max for the core, Sol/xhigh for reverse-engineer, and Luna/max for every other canonical agent.
-- Explicit nonstandard native agent tiers retain the tier ladder: Claude Fable/Opus/Sonnet/Haiku and Codex Astra/Sol/Luna (sonnet and haiku both run Luna; sonnet at `max`). Ultra remains unchanged. Native multi-provider review defaults to Fable 5.1/max and Astra/max regardless of quality mode; explicit provider pins and effort overrides stay authoritative.
+- Standard balanced uses the same role matrix in Claude Code, Codex, and OMP. Claude emits Opus 5.5/max for the seven-role core, Opus 5.5/high for reverse-engineer, Sonnet 5.5/max for implementation, and Sonnet 5.5/high for routine work. Codex emits Astra/max for the core, Sol/xhigh for reverse-engineer, and Luna/max for every other canonical agent.
+- Explicit nonstandard native agent tiers retain the tier ladder: Claude Fable/Opus/Sonnet/Haiku and Codex Astra/Sol/Luna (sonnet and haiku both run Luna; sonnet at `max`). Fable is Ultra's core tier; Balanced uses it only for an agent explicitly set to `fable`. Native multi-provider review defaults to Opus 5.5/max and Astra/max regardless of quality mode; explicit provider pins and effort overrides stay authoritative.
 - Gemini maps `fable`/`opus`/`sonnet` to `gemini-3.1-pro` and `haiku` to `gemini-3.8-flash`.
 - OpenCode keeps the configured default runtime model; tier changes act as reasoning-profile hints until explicit model overrides are available.
 
@@ -170,6 +170,7 @@ Quality Mode defaults:
 | Any | Fable 5.1 | `max` |
 | Ultra | Opus 5.5 / Opus 5 / Opus 4.8 / Opus 4.7 | `max` |
 | Ultra | Opus 4.6 / Sonnet 5.5 | `high` |
+| Balanced standard | Opus 5.5 seven-role planning/review/debugging core | `max` |
 | Balanced standard | Sonnet 5.5 implementation/testing roles | `max` |
 | Balanced standard | Sonnet 5.5 routine roles | `high` |
 | Balanced custom tier | Opus / Sonnet | `high` / `medium` |
@@ -262,7 +263,7 @@ the annotation to the orchestrator before any `Agent()` call:
 ```
 Task T1: Add authentication to the public API
   → contract change + auth boundary
-  → Complexity: HIGH → strategic profile (fable)
+  → Complexity: HIGH → strategic profile (opus)
 
 Task T2: Update an error message string
   → local mechanical change

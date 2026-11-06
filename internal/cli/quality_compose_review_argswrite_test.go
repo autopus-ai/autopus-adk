@@ -93,7 +93,8 @@ func TestSaveReviewComposition_ArgsRefusals(t *testing.T) {
 			before := readReviewFile(t, dir)
 			baseline := newReviewBaseline(cfg, readReviewRaw(dir))
 			working := baseline.reviewComposition.clone()
-			working.CLI["claude"] = reviewCLIValue{"claude-opus-5-5", "max"}
+			// The baseline is the default opus; any other model is a change.
+			working.CLI["claude"] = reviewCLIValue{"claude-sonnet-5-5", "max"}
 
 			err = saveReviewComposition(dir, cfg, baseline, working)
 

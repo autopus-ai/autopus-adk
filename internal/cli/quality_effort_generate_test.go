@@ -32,7 +32,8 @@ func applyEffortFixture(t *testing.T, cfg *config.HarnessConfig) string {
 }
 
 // B1: balanced with planner at high takes planner off the standard placement
-// on both tools while architect keeps it.
+// on both tools while architect keeps it; planner keeps the top-rung model
+// at the chosen effort.
 func TestQualityEffortApply_B1PlannerAtHigh(t *testing.T) {
 	cfg := composeFixtureConfig("claude-code", "codex")
 	balanced := cfg.Quality.Presets["balanced"]
@@ -41,9 +42,9 @@ func TestQualityEffortApply_B1PlannerAtHigh(t *testing.T) {
 
 	dir := applyEffortFixture(t, cfg)
 
-	assert.Equal(t, composeTableClaudeCell{model: "fable", effort: "high"}, readComposeTableClaudeProfile(t, dir, "planner"))
+	assert.Equal(t, composeTableClaudeCell{model: "claude-opus-5-5", effort: "high"}, readComposeTableClaudeProfile(t, dir, "planner"))
 	assert.Equal(t, config.CodexProfile{Model: "gpt-6-astra", Effort: "high"}, readComposeCodexProfile(t, dir, "planner"))
-	assert.Equal(t, composeTableClaudeCell{model: "claude-fable-5-1", effort: "max"}, readComposeTableClaudeProfile(t, dir, "architect"))
+	assert.Equal(t, composeTableClaudeCell{model: "claude-opus-5-5", effort: "max"}, readComposeTableClaudeProfile(t, dir, "architect"))
 	assert.Equal(t, config.CodexProfile{Model: "gpt-6-astra", Effort: "max"}, readComposeCodexProfile(t, dir, "architect"))
 }
 

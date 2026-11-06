@@ -234,3 +234,14 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 기록: 이 branch tip에서 writer를 돌렸다. 바뀐 줄은 이 branch가 의도한 출력이므로 `quality-line-b.stdout`을 그대로 두었다. writer가 다시 쓴 `init-in.stdout`(단언하지 않는 TUIUX 확인 화면)은 `git checkout`으로 되돌렸다.
 - 차이: `quality-line-b.stdout`의 첫 표 아래 `Codex catalog:` 줄 뒤에 위 한 줄이 더해졌다. init-pipe는 표를 그릴 때 autopus.yaml이 아직 없어 줄이 없고, init-yes·update-yes·update-ci·quality-no-tty는 표를 그리지 않는다. NPD 일곱 개와 나머지 stdout golden은 바뀌지 않았다.
 - 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`이 이 golden으로 통과한다.
+
+## 24. balanced 최상위와 claude 리뷰 기본 모델 Opus 재기록 (feat/balanced-opus-default, 2026-11-06)
+
+- 원인: balanced 최상위 rung의 Anthropic 후보가 `anthropic/claude-fable-5-1`(max)에서 `anthropic/claude-opus-5-5`(max)로, 최상위 등급이 `fable`에서 `opus`로 바뀌었다(`balancedRungCandidates`, `balancedTierForRung`). claude orchestra provider 기본 인자도 `[--print, --model, claude-opus-5-5, --effort, max, --output-format, json]`이 된다(`claudeDefaultModelArgs`). Codex·OpenAI rung과 Ultra는 그대로다.
+- 기록: 6절과 같은 방법이다. 이 branch tip에서 `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`로 writer를 돌리고, writer가 다시 쓴 `init-in.stdout`(단언하지 않는 TUIUX 확인 화면)은 `git checkout`으로 되돌렸다. S16 parity golden은 `AUTOPUS_PANERM_S16_CAPTURE=1 go test ./internal/cli -run TestPanermS16`로 다시 기록했다. quality_compose 표 golden은 `-update-compose-table`로, writer가 없는 `line-quality-D-*.golden`은 저장소 파일을 고치지 않는 `go test -overlay` 사본으로 실제 출력을 써서 다시 기록했다.
+- 차이:
+  - stdout: `init-pipe.stdout`과 `quality-line-b.stdout`의 구성 표에서 최상위 7개 에이전트 줄이 `fable   fable-5-1 · max`에서 `opus    opus-5-5 · max`가 됐다. Codex 칸(`6-astra · max`)은 그대로다. `quality-line-b.stdout`의 리뷰 provider 줄은 `claude-opus-5-5`가 됐다.
+  - NPD: init-in·init-pipe·init-yes·update-yes·update-ci·quality-line-b·quality-no-tty의 `autopus.yaml`, 최상위 7개 `.claude/agents/autopus/*.md`, manifest·journal checksum, 그리고 문서를 고친 `using-autopus` skill checksum이 바뀌었다.
+  - S16: `brainstorm`·`plan`·`recheck`·`review`·`run`·`secure`·`spec-review-receipt` golden의 claude argv와 receipt model이 `claude-opus-5-5`, args hash가 그에 맞는 값이 됐다. 다른 줄은 바뀌지 않았다.
+  - quality_compose: D·B2·H·O1·P 표와 D→K 미리보기, `line-quality-D-global`·`line-quality-D-groups`의 최상위 칸이 opus로 바뀌었다. H(HB1)는 적어 둔 `opus`가 이제 최상위 등급과 같아 표준 배치(`opus-5-5 · max`, `6-astra · max`)를 받는다. K와 D→K 미리보기에서 유지한 opus 최상위 rung 에이전트는 custom에서도 최상위 rung 모델(`opus-5-5 · max`, `6-astra · max`)을 그대로 써서 바뀌는 칸이 아니다.
+- 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`, `TestPanermS16_*`, `TestComposeTable_Golden*`, `TestComposeLineInput_MatchesTheSPECMODELUX001Output`이 이 golden으로 통과한다.

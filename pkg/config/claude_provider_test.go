@@ -7,14 +7,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestDefaultClaudeProviderEntry_ShipsFrontierModelAtMaxEffort pins the native
+// TestDefaultClaudeProviderEntry_ShipsOpusAtMaxEffort pins the native
 // orchestra default: the review, plan, and secure surface runs the top rung of
-// the balanced role matrix at full reasoning depth.
-func TestDefaultClaudeProviderEntry_ShipsFrontierModelAtMaxEffort(t *testing.T) {
+// the balanced role matrix (Opus 5.5) at full reasoning depth.
+func TestDefaultClaudeProviderEntry_ShipsOpusAtMaxEffort(t *testing.T) {
 	t.Parallel()
 
 	entry := DefaultClaudeProviderEntry()
-	want := []string{"--print", "--model", ClaudeFableModel, "--effort", "max", "--output-format", "json"}
+	want := []string{"--print", "--model", ClaudeOpusModel, "--effort", "max", "--output-format", "json"}
 
 	assert.Equal(t, "claude", entry.Binary)
 	assert.Equal(t, want, entry.Args)
@@ -37,8 +37,8 @@ func TestDefaultClaudeProviderEntry_ArgvIsIndependent(t *testing.T) {
 	entry.Args[4] = "mutated-effort"
 
 	fresh := DefaultClaudeProviderEntry()
-	assert.Equal(t, []string{"--print", "--model", ClaudeFableModel, "--effort", "max", "--output-format", "json"}, fresh.Args)
-	assert.Equal(t, []string{"--print", "--model", ClaudeFableModel, "--effort", "max", "--output-format", "json"}, defaultProviderEntries["claude"].Args)
+	assert.Equal(t, []string{"--print", "--model", ClaudeOpusModel, "--effort", "max", "--output-format", "json"}, fresh.Args)
+	assert.Equal(t, []string{"--print", "--model", ClaudeOpusModel, "--effort", "max", "--output-format", "json"}, defaultProviderEntries["claude"].Args)
 }
 
 // TestClaudeProviderFormerDefault covers the former-default boundary: a stored
@@ -69,6 +69,11 @@ func TestClaudeProviderFormerDefault(t *testing.T) {
 			name:      "short print flag spelling is reported",
 			entry:     ProviderEntry{Binary: "claude", Args: []string{"-p", "--model", "opus", "--effort", "max"}},
 			wantModel: "opus", wantOK: true,
+		},
+		{
+			name:      "former fable default is reported",
+			entry:     ProviderEntry{Binary: "claude", Args: []string{"--print", "--model", "claude-fable-5-1", "--effort", "max"}},
+			wantModel: "claude-fable-5-1", wantOK: true,
 		},
 		{name: "current default is not a former default", entry: DefaultClaudeProviderEntry()},
 		{

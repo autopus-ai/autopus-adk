@@ -50,7 +50,8 @@ func TestUpdateComposeForms_DetectedCodexTabEdit(t *testing.T) {
 	saved := composeBindLoad(t, dir)
 	assert.Contains(t, saved.Platforms, "codex")
 	assert.Equal(t, "codex-custom", saved.Quality.Providers["codex"])
-	assert.Equal(t, config.CodexProfile{Model: "gpt-6.1-sol", Effort: "xhigh"}, readComposeCodexProfile(t, dir, "planner"))
+	assert.Equal(t, config.CodexProfile{Model: "gpt-6-luna", Effort: "max"}, readComposeCodexProfile(t, dir, "planner"))
+	assert.Equal(t, config.CodexProfile{Model: "gpt-6-astra", Effort: "max"}, readComposeCodexProfile(t, dir, "debugger"))
 	assert.Len(t, *run.probes, 1)
 	assert.False(t, run.adapterProbed(t))
 }

@@ -47,7 +47,8 @@ func TestOMPProfilePlanAcceptsAgentPinOnNativeCatalogWithoutSemanticMetadata(t *
 }
 
 // A cross-family pin stays attestable because the closed declarations cover
-// every anchor family of the selected built-in name.
+// every anchor family of the selected built-in name and every tier-ladder
+// model: balanced routes no role to Fable, and an explicit Fable pin attests.
 func TestOMPProfileApplyAcceptsCrossFamilyAgentPinOnNativeCatalog(t *testing.T) {
 	root, runner := writeOMPBalancedProject(t)
 	runner.catalog = ompCLIProfileNativeCatalogJSON()

@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **balanced 최상위와 claude 리뷰 기본 모델이 Fable에서 Opus로 바뀐다** (2026-11-06): Fable은 이제 Ultra에만 쓴다.
+  - balanced 최상위 rung(planner, architect, spec-writer, reviewer, security-auditor, debugger, deep-worker)이
+    Claude Code와 OMP anthropic family에서 `claude-fable-5-1`/max 대신 `claude-opus-5-5`/max로 돈다. 새 autopus.yaml의
+    balanced 프리셋은 이 일곱 에이전트를 `opus`로 쓴다. Codex·OpenAI family(`gpt-6-astra`/max)와 다른 rung, Ultra는
+    그대로다.
+  - 리뷰·plan·secure에 쓰는 claude orchestra provider 기본값이 `--print --model claude-opus-5-5 --effort max
+    --output-format json`이 된다.
+  - 손대지 않은 balanced 기본값은 YAML을 고치지 않아도 따라온다. v0.50.126-v0.50.133이 쓴 17개 에이전트 배치를 출하
+    배치 HB7로 등록했고, HB2·HB5·HB6·HB7은 모두 새 표준 배치(Opus 최상위)로 돈다. 일부러 `fable`로 둔 에이전트는
+    출하 배치와 다르므로 그대로 Fable(`fable`/max)이다.
+  - 이전 Fable 기본값을 담은 리뷰 provider 설정(`--model claude-fable-5-1 --effort max`, `--output-format json` 유무와
+    상관없이)은 다시 쓰지 않는다. 일부러 Fable을 고른 설정과 구별할 수 없기 때문이다. 대신 미리보기가 아닌
+    `auto update`가 한 줄로 알린다: "참고: claude 리뷰 provider 모델이 이전 버전 기본값 claude-fable-5-1입니다. 현재
+    기본값은 claude-opus-5-5이며 auto quality review model claude <model>로 바꿀 수 있습니다." 그보다 앞선 기본값
+    `--model opus --effort high|max`는 현재 기본값과 같은 Opus라 더는 알리지 않는다.
+  - 표준 배치를 벗어나도(custom 프리셋, 그룹·에이전트 편집, 에이전트별 effort) 최상위 rung 에이전트(planner, architect,
+    spec-writer, reviewer, security-auditor, debugger, deep-worker)가 `opus` 등급이면 balanced 최상위 rung 모델을
+    그대로 쓴다: Claude `claude-opus-5-5`, Codex `gpt-6-astra`, effort는 max이고 에이전트별 effort가 있으면 그 값이다.
+    그래서 최상위 등급 이름이 `opus`라는 이유로 custom 프리셋에서 opus/high나 Sol로 내려가지 않는다. reverse-engineer와
+    다른 에이전트의 `opus`, 그리고 Ultra는 지금의 tier ladder(Claude opus/high, Codex Sol/xhigh)를 그대로 쓴다.
+    balanced 프리셋에 `opus`로 적힌 HB1·HB4 배치의 최상위 에이전트는 표준 배치(`claude-opus-5-5`/max, `gpt-6-astra`/max)를
+    받는다.
+
 - **비활성 `auto disk trim`이 캐시를 훑지 않는다** (2026-11-03): `start_below_gb` 덕분에 아무 규칙도 돌지 않는 trim도
   Go build cache와 work dir 전체를 먼저 훑었다. launchd에서 10분마다 도는 trim은 I/O가 throttle돼 한 번에 23초에서 1분
   40초가 걸렸다. 이제 trim과 lease의 공간 부족 회수는 비활성일 때 두 root를 훑지 않는다. 출력은 같다. `auto disk status`는

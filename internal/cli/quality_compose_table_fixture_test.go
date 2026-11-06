@@ -46,7 +46,7 @@ var (
 	// composeTableK is the custom preset S6 saves from D with `g`, Enter, `3`,
 	// Enter, `4`, `y`.
 	composeTableK = map[string]string{
-		"architect": "fable", "planner": "fable", "reviewer": "fable", "security-auditor": "fable", "spec-writer": "fable",
+		"architect": "opus", "planner": "opus", "reviewer": "opus", "security-auditor": "opus", "spec-writer": "opus",
 		"debugger": "sonnet", "deep-worker": "sonnet", "devops": "sonnet", "executor": "sonnet",
 		"frontend-specialist": "sonnet", "perf-engineer": "sonnet", "tester": "sonnet", "ux-validator": "sonnet",
 		"validator": "sonnet", "explorer": "haiku", "annotator": "haiku", "reverse-engineer": "haiku",

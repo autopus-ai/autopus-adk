@@ -43,7 +43,7 @@ type historicalQualityPreset struct {
 	commit  string // commit that introduced the layout
 	shipped string // release tags that carried it
 	// runtimeStandard keeps the layout on the standard balanced placement at
-	// runtime. Only HB2, HB5, and HB6 carry it; widening it would change the
+	// runtime. Only HB2, HB5, HB6, and HB7 carry it; widening it would change the
 	// models existing projects already run.
 	runtimeStandard bool
 	agents          map[string]string
@@ -98,6 +98,19 @@ var historicalQualityPresets = []historicalQualityPreset{
 			"architect": "fable", "debugger": "fable", "deep-worker": "fable", "planner": "fable",
 			"reviewer": "fable", "security-auditor": "fable", "spec-writer": "fable",
 			"annotator": "sonnet", "devops": "sonnet", "executor": "sonnet", "explorer": "sonnet",
+			"frontend-specialist": "sonnet", "perf-engineer": "sonnet", "tester": "sonnet",
+			"ux-validator": "sonnet", "validator": "sonnet",
+		},
+	},
+	{
+		// The seventeen-agent default with the seven-role core on Fable, before
+		// Fable became Ultra-only. It follows the Opus top rung.
+		id: "HB7", preset: "balanced", commit: "28c5bc4d", shipped: "v0.50.126-v0.50.133", runtimeStandard: true,
+		agents: map[string]string{
+			"architect": "fable", "debugger": "fable", "deep-worker": "fable", "planner": "fable",
+			"reviewer": "fable", "security-auditor": "fable", "spec-writer": "fable",
+			"reverse-engineer": "opus",
+			"annotator":        "sonnet", "devops": "sonnet", "executor": "sonnet", "explorer": "sonnet",
 			"frontend-specialist": "sonnet", "perf-engineer": "sonnet", "tester": "sonnet",
 			"ux-validator": "sonnet", "validator": "sonnet",
 		},

@@ -101,7 +101,7 @@ func TestOMPProfilePlanKeepsEachRolesRung(t *testing.T) {
 	anthropic := planOMPProfileJSON(t, root, runner, "balanced")
 	for _, agent := range []string{"task", "reviewer", "security-auditor"} {
 		row := agentPreviewRow(t, anthropic, agent)
-		assert.Equal(t, "anthropic/claude-fable-5-1", row.EffectiveSelector, agent)
+		assert.Equal(t, "anthropic/claude-opus-5-5", row.EffectiveSelector, agent)
 		assert.Equal(t, "max", row.EffectiveThinking, agent)
 	}
 	for _, agent := range []string{"explorer", "validator"} {
@@ -142,7 +142,7 @@ func TestOMPProfilePlanOffersSingleCandidatePerBalancedAgent(t *testing.T) {
 
 func TestOMPProfilePlanBlocksWhenPinnedModelIsMissingFromCatalog(t *testing.T) {
 	root, runner := writeOMPBalancedProject(t)
-	runner.catalog = ompCLIBalancedCatalogWithout(t, "anthropic/claude-fable-5-1")
+	runner.catalog = ompCLIBalancedCatalogWithout(t, "anthropic/claude-opus-5-5")
 	before, err := os.ReadFile(filepath.Join(root, autopusConfigName))
 	require.NoError(t, err)
 	dir := root
@@ -258,6 +258,6 @@ func TestOMPProfilePlanTextListsOrderedCandidatesAndSources(t *testing.T) {
 	assert.Contains(t, text, "Writes: 0")
 	assert.Contains(t, text, "Blockers: none")
 	assert.Contains(t, text, "agent=task")
-	assert.Contains(t, text, "candidates=anthropic/claude-fable-5-1:max")
+	assert.Contains(t, text, "candidates=anthropic/claude-opus-5-5:max")
 	assert.Equal(t, len(config.OMPAutopusAgentNames()), strings.Count(text, "\n  candidates="))
 }

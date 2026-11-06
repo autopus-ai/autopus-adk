@@ -2,9 +2,9 @@
 .agents/plugins/
 .agents/plugins/marketplace.json 7bac9f0f7c15eecf46023308f334e2122d112d03aa7b498f9e01adabd48ac03c
 .autopus/
-.autopus/claude-code-manifest.json c0450798446077cc3605e837aec19db2ee3398427dc6d69686713a78cbfb1d7b
+.autopus/claude-code-manifest.json d2929f7ac821d1be6e2748ebd9522d1b9823c9e80bd82e9c7afd53717c933e0d
 .autopus/claude-code-permissions.json b9fd4dd0824fb98d4ff3403c011a56b0b66f398788f2dfb24220c1aed87df4e8
-.autopus/codex-manifest.json 263d0402f6a29a080413054b69199f3d149b30630ccbe3bfc15bb83fcb604c71
+.autopus/codex-manifest.json e3e6b8432e4fea7991a2026a7f2f46f135903e5b0025b796f6d7d38549feb7d8
 .autopus/context/
 .autopus/context/constraints.yaml d8b3a0714389a30b7aca1986fbb71235900e14c9dddfe50fdbbb758698d0b26e
 .autopus/plugins/
@@ -16,26 +16,26 @@
 .autopus/plugins/auto/skills/auto/SKILL.md 5404914d8ab7f5a0e4560439b365b85e60813e14304d4565dd8893830b165595
 .autopus/txns/
 .autopus/txns/<TX>-claude-code/
-.autopus/txns/<TX>-claude-code/journal.json 8702b207e534d4ed0ec452f12a2a77ce93991621d2e36ed45c150299bfa49910
+.autopus/txns/<TX>-claude-code/journal.json 0b6c0dc9b4067f736e15fb39f37c87c11b7b8c488b869fed0aca103b44dc4f08
 .autopus/txns/<TX>-codex/
-.autopus/txns/<TX>-codex/journal.json 277ee205f4d6038fa2314bbb9bea831f265fd700640c079bdd870e0060a90968
+.autopus/txns/<TX>-codex/journal.json 56b64a5900925ce44df3ff9b4265ad59e3e6e115abad22e7b30a279cc3a1add7
 .claude/
 .claude/agents/
 .claude/agents/autopus/
 .claude/agents/autopus/annotator.md 5cb47227135e413c94fc432c38d83c579b340c6ea957020b6bb38cef8d7b4626
-.claude/agents/autopus/architect.md 90dd3894c421085a9af6f46b4f0908d6e5f4eece3819912e2b6c4424a22140a9
-.claude/agents/autopus/debugger.md ea7c9ba13230df02302b0d6b3b4e153080be1e78882b5d25862df6c7deb060d0
-.claude/agents/autopus/deep-worker.md 94fdc020dbbc65d1c42c44f7067a6e090dd181a7a8e5f9b4df4a287783bf180d
+.claude/agents/autopus/architect.md 99a4bbc45b2c1e61d4a59f055778cf3243b90bf6e43d6004fc4483f694cde988
+.claude/agents/autopus/debugger.md 26e5de0c493a65f2611522948ea8164ecdea4df28167d462d990e3b53065cb0e
+.claude/agents/autopus/deep-worker.md 68ca2a68076335a6583c81c87f314027c2a5710cf9871cfb20f043bc2ce72944
 .claude/agents/autopus/devops.md e8b6790cc1fe6fcdf5e88309e1bda514e4d370c159bda0065eb3e2686380417e
 .claude/agents/autopus/executor.md 0279a68a963f2b3a9b560b3d5e41265f2c3cd92088be00183c95ef43db49a983
 .claude/agents/autopus/explorer.md ac2cf16b584f8aafbf2a5e40f14183e9897d1876be0ead592634293d749cd7f5
 .claude/agents/autopus/frontend-specialist.md 7b8b3b27ba522b94de5ef077d9d9a08b1add9175a81519b39e6b10eb27862f23
 .claude/agents/autopus/perf-engineer.md 9ebe799aa80929deae910035599df60a92ce4ee952c67efd31cff39b406b5d1c
-.claude/agents/autopus/planner.md 6de1b7f2915543237d5b6e183a5dc23d65a5ae9e8654524b894a819fc11c13e7
+.claude/agents/autopus/planner.md f31e55cbe4441af8f6d204c8c0c1d26c490417145a56eca822040d00df7c956b
 .claude/agents/autopus/reverse-engineer.md 676d298334250c1cea04706ffaa535b404aea2425cc8528b3d05919ded0667d4
-.claude/agents/autopus/reviewer.md f10dd23fb8d7b21cd4deaddf094629ecb62cba2761601f3e9f443c10fda50670
-.claude/agents/autopus/security-auditor.md 479191eaae771bed690e784baeaf659f0f9a5387c7b6a35c564b8df37dc76913
-.claude/agents/autopus/spec-writer.md 8954959d587d9fe77fe4fb09760494237785dd0533cfd99dfeae07438d70b536
+.claude/agents/autopus/reviewer.md b33f2124d45d2573785fb304839e6703ab23111520924b69a36ec2262dd38639
+.claude/agents/autopus/security-auditor.md 355704a940449f5fb21065538fead1bc250f9f233bea403d2de612cb4204d393
+.claude/agents/autopus/spec-writer.md e8c1e7dc2e406a7fb75fdb38657978152b2eb82a75200dacec6fc74c78de8b91
 .claude/agents/autopus/tester.md ee9917d9588f899b6a3df0cb021411f6c982081658fe5cf12f0271cf61f94214
 .claude/agents/autopus/ux-validator.md bdc07c0f214b90454c8a6155177f1bf9b2de34ac0443e31aa643a43d6924530e
 .claude/agents/autopus/validator.md ef8ce702a81a85642023ba21a6735d25a3a572fce475b450ca72ed412961c5a6
@@ -151,7 +151,7 @@
 .claude/skills/testing-strategy/
 .claude/skills/testing-strategy/SKILL.md d800ca3548c6048676f9d5509347898537dd7247e1e5db23aefc70d2b52b41c9
 .claude/skills/using-autopus/
-.claude/skills/using-autopus/SKILL.md 712766fd176ffe844e2d1762b3ff3418580acbce3d5e719605823b8b22e19f7f
+.claude/skills/using-autopus/SKILL.md d4afd993e9734a8cc0ae3b39d8814575cb876cc6af3515089847bcb3a2bf6d47
 .claude/skills/verification/
 .claude/skills/verification/SKILL.md 17119a3ea275291c793d272692dd1a2cca45841811349db05c55c1199e6a5756
 .claude/skills/worktree-isolation/
@@ -266,7 +266,7 @@
 .codex/skills/codex-testing-strategy/
 .codex/skills/codex-testing-strategy/SKILL.md ec237de8bbfed692a20192868dd5fda5223d2d1c5504070953d49a6cccb6f43d
 .codex/skills/codex-using-autopus/
-.codex/skills/codex-using-autopus/SKILL.md 7cdeb8eac8cdfff1587671b1a91688109401a4e0f95e046278490fde204219a5
+.codex/skills/codex-using-autopus/SKILL.md 28b54af5225ec33e76e6ce68acaf6693b735b280daeb50b1043398189af2ff9a
 .codex/skills/codex-verification/
 .codex/skills/codex-verification/SKILL.md 79321a33b979f2f07deb2ad4800a98ea0cbcdde89b0f2f636737b9afd92ead7d
 .codex/skills/codex-worktree-isolation/
@@ -276,4 +276,4 @@
 AGENTS.md 5d951f63f21ebb2e4bbb7209b1b44e917e7bcc4cb90b26a03a5760476f091a71
 CLAUDE.md bd3b8bb69d45edaf03874711c2f8f0a4e3680cfe8d4b4ea29eabf38da4b2d599
 DESIGN.md b3b2dd95d090a98d487007abf90ecefafe0db03d32d455ce35037707a563b54f
-autopus.yaml 4b09c171870609b31382e150739b9f4e5f3454aac4da7ec11495857b936e82e8
+autopus.yaml bc543ea7455a27e3eb16943ef0a1f3367b585ea65491195c2e5fb6f59d393407

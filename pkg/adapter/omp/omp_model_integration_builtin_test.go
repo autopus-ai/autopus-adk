@@ -16,6 +16,7 @@ import (
 const (
 	builtinFable      = "anthropic/" + config.ClaudeFableModel + ":max"
 	builtinOpus       = "anthropic/" + config.ClaudeOpusModel + ":xhigh"
+	builtinOpusMax    = "anthropic/" + config.ClaudeOpusModel + ":max"
 	builtinSonnet     = "anthropic/" + config.ClaudeSonnetModel + ":medium"
 	builtinSonnetHigh = "anthropic/" + config.ClaudeSonnetModel + ":high"
 	builtinAstra      = "openai-codex/" + config.CodexAstraModel + ":max"
@@ -53,9 +54,9 @@ func TestOMPModelIntegration_BalancedBuiltinProjectsTheExplicitMatrix(t *testing
 	assert.False(t, integration.profile.FamilyDiversity.Enabled)
 	assertBuiltinSelectors(t, integration.projection, map[string]string{
 		"explorer":         builtinSonnetHigh,
-		"reviewer":         builtinFable,
-		"security-auditor": builtinFable,
-		"task":             builtinFable,
+		"reviewer":         builtinOpusMax,
+		"security-auditor": builtinOpusMax,
+		"task":             builtinOpusMax,
 		"validator":        builtinSonnetHigh,
 	})
 }
@@ -264,7 +265,7 @@ func builtinSelectorsByAgent(projection OMPModelProjection) map[string]string {
 func newBuiltinTierIntegrationRunner() *modelIntegrationFakeRunner {
 	return &modelIntegrationFakeRunner{catalog: []byte(`{"models":[
 {"provider":"anthropic","id":"` + config.ClaudeFableModel + `","selector":"anthropic/` + config.ClaudeFableModel + `","thinking":["max"]},
-{"provider":"anthropic","id":"` + config.ClaudeOpusModel + `","selector":"anthropic/` + config.ClaudeOpusModel + `","thinking":["xhigh"]},
+{"provider":"anthropic","id":"` + config.ClaudeOpusModel + `","selector":"anthropic/` + config.ClaudeOpusModel + `","thinking":["xhigh","max"]},
 {"provider":"anthropic","id":"` + config.ClaudeSonnetModel + `","selector":"anthropic/` + config.ClaudeSonnetModel + `","thinking":["medium","high","max"]},
 {"provider":"anthropic","id":"` + config.ClaudeHaikuModel + `","selector":"anthropic/` + config.ClaudeHaikuModel + `","thinking":["low"]},
 {"provider":"openai-codex","id":"` + config.CodexAstraModel + `","selector":"openai-codex/` + config.CodexAstraModel + `","thinking":["max"]},

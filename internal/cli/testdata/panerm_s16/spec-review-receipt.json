@@ -215,8 +215,8 @@
         "name": "claude",
         "role": "reviewer",
         "binary": "claude",
-        "model": "claude-fable-5-1",
-        "args": "b3968c965e8c5bade737c08e18ae713ae2b910756eea82f127d193cad1a4174e",
+        "model": "claude-opus-5-5",
+        "args": "d016c68c447f8282f6e15eb7889ee0532ceda1a3dd4c6e11e8c907436071f53d",
         "pinned": false
       },
       {
@@ -232,8 +232,8 @@
         "name": "claude",
         "role": "judge",
         "binary": "claude",
-        "model": "claude-fable-5-1",
-        "args": "b3968c965e8c5bade737c08e18ae713ae2b910756eea82f127d193cad1a4174e",
+        "model": "claude-opus-5-5",
+        "args": "d016c68c447f8282f6e15eb7889ee0532ceda1a3dd4c6e11e8c907436071f53d",
         "pinned": false
       }
     ],

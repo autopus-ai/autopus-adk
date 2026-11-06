@@ -174,7 +174,7 @@ func TestComposeAgentSources_CodexCells_MatchGeneratedAgentFiles(t *testing.T) {
 			known: map[string]config.CodexProfile{
 				"reviewer":    {Model: "gpt-6-luna", Effort: "high"},
 				"annotator":   {Model: "gpt-6-luna", Effort: "medium"},
-				"deep-worker": {Model: "gpt-6.1-sol", Effort: "xhigh"},
+				"deep-worker": {Model: "gpt-6-astra", Effort: "max"},
 			},
 		},
 	}

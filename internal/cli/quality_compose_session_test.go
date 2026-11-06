@@ -101,11 +101,11 @@ func TestNewComposeSession_FileWriterPreviewsAndWritesTheGroupEdit(t *testing.T)
 	require.Equal(t, composeDriverApplied, result.Outcome)
 	assert.Len(t, *probes, 1)
 	assert.Contains(t, out, "quality.default = balanced   ultra: 현재 기본값   balanced: 현재 기본값\n"+
-		composeSessionGolden(t, "table-D-CAT-A.golden")+claudeReviewLineFable+"\n구성을 바꿀까요?")
+		composeSessionGolden(t, "table-D-CAT-A.golden")+claudeReviewLineDefault+"\n구성을 바꿀까요?")
 	for _, display := range []string{
-		"설계·판단  planner, architect, spec-writer, security-auditor  현재: fable\n",
-		"구현  executor, debugger, deep-worker, devops, frontend-specialist, perf-engineer  현재: 혼합 (fable 2 · sonnet 4)\n",
-		"검증·리뷰  reviewer, validator, tester, ux-validator  현재: 혼합 (fable 1 · sonnet 3)\n",
+		"설계·판단  planner, architect, spec-writer, security-auditor  현재: opus\n",
+		"구현  executor, debugger, deep-worker, devops, frontend-specialist, perf-engineer  현재: 혼합 (opus 2 · sonnet 4)\n",
+		"검증·리뷰  reviewer, validator, tester, ux-validator  현재: 혼합 (opus 1 · sonnet 3)\n",
 		"탐색·보조  explorer, annotator, reverse-engineer  현재: 혼합 (opus 1 · sonnet 2)\n",
 	} {
 		assert.Contains(t, out, display)
@@ -146,7 +146,7 @@ func TestNewComposeSession_MemoryWriterAppliesToTheConfigOnly(t *testing.T) {
 	require.Equal(t, composeDriverApplied, result.Outcome)
 	assert.Contains(t, out, "Change the composition? [Enter] keep · g) role groups · a) advanced\n")
 	assert.Contains(t, out, "Implementation  executor, debugger, deep-worker, devops, frontend-specialist, perf-engineer"+
-		"  current: mixed (fable 2 · sonnet 4)\n")
+		"  current: mixed (opus 2 · sonnet 4)\n")
 	assert.Contains(t, out, "Settings that change:\n"+
 		"  quality.presets.custom written new (17 agents)\n"+
 		"  quality.default balanced → custom\n"+

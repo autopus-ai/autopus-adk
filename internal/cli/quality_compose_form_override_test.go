@@ -15,8 +15,8 @@ import (
 )
 
 // composeFormS16 answers S16 up to the override question over P: 구성 편집,
-// 모든 도구 같게, 역할 그룹, 설계·판단 on opus, the other groups kept.
-var composeFormS16 = []string{"2\n", "1\n", "\n", "3\n", "\n", "\n", "\n"}
+// 모든 도구 같게, 역할 그룹, 설계·판단 on fable, the other groups kept.
+var composeFormS16 = []string{"2\n", "1\n", "\n", "2\n", "\n", "\n", "\n"}
 
 const composeFormOverrideQuestion = "Codex도 새 구성을 따를까요? (quality.providers.codex = codex-custom 제거) [y/N]"
 

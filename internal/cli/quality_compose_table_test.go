@@ -50,7 +50,7 @@ func TestComposeTable_FixtureD_ShowsStandardPlacementCells(t *testing.T) {
 	layout := table.layout("ko", nil)
 
 	assert.Equal(t, []string{"그룹", "에이전트", "등급", "Claude Code", "Codex"}, layout.header)
-	assert.Equal(t, []string{"설계·판단", "planner", "fable", "fable-5-1 · max", "6-astra · max"},
+	assert.Equal(t, []string{"설계·판단", "planner", "opus", "opus-5-5 · max", "6-astra · max"},
 		composeTableRowTexts(t, layout, "planner"))
 	assert.Equal(t, []string{"구현", "executor", "sonnet", "sonnet-5-5 · max", "6-luna · max"},
 		composeTableRowTexts(t, layout, "executor"))
@@ -60,7 +60,7 @@ func TestComposeTable_FixtureD_ShowsStandardPlacementCells(t *testing.T) {
 	assert.Equal(t, []string{"Codex catalog: 읽음 · 대체 0칸"}, layout.footer)
 
 	planner := composeTableAgentRow(t, table, "planner")
-	assert.Equal(t, composeTableClaudeCell{model: "claude-fable-5-1", effort: "max"}, planner.claude)
+	assert.Equal(t, composeTableClaudeCell{model: "claude-opus-5-5", effort: "max"}, planner.claude)
 	assert.Equal(t, config.CodexProfile{Model: "gpt-6-astra", Effort: "max"}, planner.codex.resolution.Effective)
 }
 

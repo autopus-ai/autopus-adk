@@ -45,13 +45,14 @@ var balancedRungByAgent = map[string]balancedRoleRung{
 }
 
 // balancedRungCandidates pins one exact candidate per anchor family and rung.
+// The Anthropic top rung is Opus at max; Fable is reserved for Ultra.
 // A rung never carries a second candidate: ordered availability fallback stays
 // available to hand-written profiles, and this profile declines it so an
 // unavailable model surfaces as a named blocker.
 var balancedRungCandidates = map[string]map[balancedRoleRung]RoleModelCandidateConf{
 	builtinRoleModelFamilyAnthropic: {
 		balancedRungTop: {
-			Selector: "anthropic/" + ClaudeFableModel, Thinking: "max", Family: "anthropic",
+			Selector: "anthropic/" + ClaudeOpusModel, Thinking: "max", Family: "anthropic",
 		},
 		balancedRungImplementation: {
 			Selector: "anthropic/" + ClaudeSonnetModel, Thinking: "max", Family: "anthropic",

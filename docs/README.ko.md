@@ -552,13 +552,14 @@ manifest에 없는 정규 `.omp/agents/<name>.md`가 있으면 OMP가 Autopus �
 
 | 기본 에이전트 (대표 역할) | GPT형 balanced | Claude형 balanced |
 |---|---|---|
-| `task` (planner), `reviewer`, `security-reviewer` (security-auditor) | GPT-6 Astra `max` | Claude Fable 5.1 `max` |
+| `task` (planner), `reviewer`, `security-reviewer` (security-auditor) | GPT-6 Astra `max` | Claude Opus 5.5 `max` |
 | `scout` (explorer), `sonic` (validator) | GPT-5.6 Luna `max` | Claude Sonnet 5 `high` |
 
 일반 reviewer도 선택한 계열을 따릅니다. 멀티프로바이더 리뷰는 별도의
 `orchestra.providers` 정책이며, 이 프로필을 바꿔도 리뷰 모델과 judge는 유지합니다.
-최상위 리뷰 설정은 Fable `max`, Astra `max`, 선택한 Gemini 모델의 최고 지원
-추론 강도를 사용하세요. Gemini 3.1 Pro는 `max`가 없으므로 `high`를 사용합니다.
+기본 리뷰 설정은 Claude Opus 5.5 `max`, Astra `max`입니다. Gemini는 선택한 모델의 최고 지원
+추론 강도를 사용하세요. Gemini 3.1 Pro는 `max`가 없으므로 `high`를 사용합니다. Claude 리뷰를
+Fable로 돌리려면 `auto quality review model claude claude-fable-5-1`로 직접 지정합니다.
 
 Balanced는 낮은 모델로 자동 전환하지 않습니다. 모델이 없거나 추론 강도가 지원되지
 않으면 설정을 쓰기 전에 적용을 차단합니다. 미리보기도 에이전트별 사유를 보여 주고
@@ -1183,7 +1184,7 @@ Claude Code와 Codex도 OMP와 같은 표준 Balanced 역할표를 사용합니�
 
 | 네이티브 에이전트 그룹 | Claude Code balanced | Codex balanced |
 |---|---|---|
-| planner, architect, spec-writer, reviewer, security-auditor, debugger, deep-worker | `claude-fable-5-1` / `max` | `gpt-6-astra` / `max` |
+| planner, architect, spec-writer, reviewer, security-auditor, debugger, deep-worker | `claude-opus-5-5` / `max` | `gpt-6-astra` / `max` |
 | executor, tester, devops, frontend-specialist, perf-engineer | `claude-sonnet-5-5` / `max` | `gpt-6-luna` / `max` |
 | explorer, annotator, validator, ux-validator | `claude-sonnet-5-5` / `high` | `gpt-6-luna` / `max` |
 
@@ -1191,7 +1192,9 @@ Claude Code와 Codex도 OMP와 같은 표준 Balanced 역할표를 사용합니�
 `.codex/agents/*.toml`의 `model`·`model_reasoning_effort`입니다.
 `auto quality balanced --apply`로 함께 적용하거나 위의 provider별 명령을 사용하세요.
 과거 기본 배치와 완전히 일치하는 설정은 YAML을 다시 쓰지 않고 표준 배치로 해석합니다.
+최상위 7개 역할을 Fable에 둔 이전 기본 배치도 그대로 Opus 표준 배치를 받습니다.
 특정 역할을 다른 티어로 지정했거나 사용자 품질 프리셋을 만들었다면 기존 해석을 유지합니다.
+그래서 직접 `fable`로 둔 역할은 Balanced에서도 Fable로 돕니다.
 한 에이전트의 지정값을 바꿔도 다른 역할의 배치는 바뀌지 않습니다.
 
 Codex 카탈로그를 읽을 수 없으면 요청한 표준 모델을 유지하고 미검증임을 알립니다.
@@ -1202,8 +1205,9 @@ Ultra는 기존대로 핵심 7개 역할에 Fable/Astra, 나머지에 Opus/Sol�
 Claude Ultra의 Fable/Opus는 max, Codex Ultra는 Astra/max와 Sol/xhigh입니다.
 주 세션은 기본적으로 사용자 모델을 상속합니다. quality-managed Codex 주 세션만
 Ultra에서 Astra/ultra, Balanced에서 Astra/xhigh를 사용합니다.
-네이티브 멀티프로바이더 리뷰 기본값은 두 모드 모두 Fable 5.1/max와 Astra/max이며,
-명시적인 provider 모델·추론 강도 지정은 보존합니다.
+네이티브 멀티프로바이더 리뷰 기본값은 두 모드 모두 Opus 5.5/max와 Astra/max이며,
+명시적인 provider 모델·추론 강도 지정은 보존합니다. 이전 기본값 `claude-fable-5-1`/max가
+남은 claude 리뷰 provider는 다시 쓰지 않고 `auto update`가 한 줄로 알립니다.
 
 #### 에이전트별 모델 구성
 
@@ -1257,7 +1261,7 @@ key가 있으면 쓰지 않고 파일을 그대로 둡니다. 둘 다 quality �
 - **OMP**는 `auto update`·`auto quality`에서 autopus.yaml에 저장된 platforms에 omp가 있을 때, `auto init`에서 이번 init에서 고른 platforms에 omp가 있을 때 나옵니다. native OMP agent마다 설치된 모델과 thinking 단계를 고르고, plan의 실제 route를 미리 보인 뒤 기존 OMP profile writer로 씁니다. init은 선택을 설정에 넣고 플랫폼 파일 생성 때 함께 씁니다.
 - **멀티프로바이더 리뷰**는 `spec.review_gate.enabled`가 켜져 있고 autopus.yaml에 `orchestra.providers` 항목이 둘 이상이며 `CI`가 아닐 때 마지막 선택지로 나옵니다(SPEC-REVMODEL-001). `auto spec review`를 구성하며, OMP 탭 다음 문단이 설명합니다.
 
-Claude 라벨은 모델 slug(`opus-5-5`)이고, 표 칸은 생성기가 쓰는 frontmatter 값(`opus`, 또는 `fable-5-1` 같은 정확한 ID)입니다. `auto update`는 이번 실행에서 감지한 플랫폼의 열도 보여 주고 같은 catalog 읽기로 생성합니다. 폼에서 Ctrl+C는 `auto update`를 생성 전에 0이 아닌 종료로 끝내고, `auto init`은 파일을 쓰기 전에 취소하며, `auto quality`는 오류 없이 끝냅니다.
+Claude 라벨은 모델 slug(`opus-5-5`)이고, 표 칸은 생성기가 쓰는 frontmatter 값(`opus`, 또는 `claude-opus-5-5` 같은 정확한 ID)입니다. `auto update`는 이번 실행에서 감지한 플랫폼의 열도 보여 주고 같은 catalog 읽기로 생성합니다. 폼에서 Ctrl+C는 `auto update`를 생성 전에 0이 아닌 종료로 끝내고, `auto init`은 파일을 쓰기 전에 취소하며, `auto quality`는 오류 없이 끝냅니다.
 
 **Claude Code**와 **Codex** 탭에서는 그룹이나 에이전트의 등급 Select마다 그 도구의 effort Select가 이어집니다(SPEC-MODELUX-003). 기본은 그대로이고, 다른 선택지는 영향받는 모든 에이전트가 받는 단계입니다. 라벨은 그 단계가 만드는 칸이고 자동 단계에는 `(자동)`이 붙습니다. Claude Code는 `low`·`medium`·`high`·`xhigh`·`max`를 보이고 haiku 에이전트는 대상에서 뺍니다. Codex는 이번 실행의 catalog가 그 에이전트들의 model에 보고하는 단계만 보이고, catalog를 읽지 못하면 Select 없이 `Codex catalog를 읽지 못해 effort는 자동입니다`를 씁니다. 자동과 같은 단계를 받은 에이전트는 저장하지 않고, 나머지는 등급과 함께 `quality.presets.<provider>-custom.efforts`(정규 에이전트 이름 → 다섯 단계)에 씁니다. 미리보기는 `quality.presets.<provider>-custom.efforts 새로 씀 (N개 에이전트)`(또는 `고쳐 씀`, `지움`)를, 파일의 첫 efforts면 `quality.presets.*.efforts는 v0.50.127보다 오래된 auto가 읽지 못합니다`를 보입니다. 명시 effort는 그 에이전트를 balanced 표준 배치에서 떼고 Claude `effort:`(haiku는 쓰지 않음)와 Codex `model_reasoning_effort`(같은 catalog 읽기로 해석)로 생성됩니다. 다른 편집, `u`, 도구별 줄 editor는 저장된 efforts를 지우지 않으며, **모든 도구 같게**는 binding 프리셋의 efforts를 다른 built-in에 쓰지 않고 `custom`으로 옮깁니다(`quality.presets.custom.efforts 옮겨 씀 (N개 에이전트)`). `efforts`가 없는 파일은 이전과 똑같이 읽고 생성합니다. OMP 탭은 effort 대신 역할 그룹이나 에이전트마다 model과 그 thinking을 고릅니다(다음 문단).
 

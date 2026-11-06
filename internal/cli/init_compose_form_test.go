@@ -33,7 +33,7 @@ func TestInitComposeForms_InterruptAtTheToolTabCancelsInit(t *testing.T) {
 }
 
 // The role-groups choice opens the forms; a Codex tab edit with 설계·판단 on
-// opus lands in the autopus.yaml init saves as codex-custom, and the same
+// sonnet lands in the autopus.yaml init saves as codex-custom, and the same
 // run generates it from the catalog its table read, once.
 func TestInitComposeForms_CodexTabEditIsSavedAndGenerated(t *testing.T) {
 	run := newComposeUpdateRun(t, true, "")
@@ -46,9 +46,10 @@ func TestInitComposeForms_CodexTabEditIsSavedAndGenerated(t *testing.T) {
 	assert.Contains(t, out, composeFormTabD)
 	saved := composeBindLoad(t, dir).Quality
 	assert.Equal(t, "codex-custom", saved.Providers["codex"])
-	assert.Equal(t, "opus", saved.Presets["codex-custom"].Agents["planner"])
-	assert.Equal(t, config.CodexProfile{Model: "gpt-6.1-sol", Effort: "xhigh"}, readComposeCodexProfile(t, dir, "planner"))
-	assert.Equal(t, composeTableClaudeCell{model: "claude-fable-5-1", effort: "max"}, readComposeTableClaudeProfile(t, dir, "planner"))
+	assert.Equal(t, "sonnet", saved.Presets["codex-custom"].Agents["planner"])
+	assert.Equal(t, config.CodexProfile{Model: "gpt-6-luna", Effort: "max"}, readComposeCodexProfile(t, dir, "planner"))
+	assert.Equal(t, config.CodexProfile{Model: "gpt-6-astra", Effort: "max"}, readComposeCodexProfile(t, dir, "debugger"))
+	assert.Equal(t, composeTableClaudeCell{model: "claude-opus-5-5", effort: "max"}, readComposeTableClaudeProfile(t, dir, "planner"))
 	assert.Len(t, *run.probes, 1)
 	assert.False(t, run.adapterProbed(t))
 }

@@ -103,12 +103,19 @@ func (q QualityConf) CodexOrchestraEffort() string { return q.CodexOrchestraProf
 // the shared role matrix; everyone else keeps the relative tier ladder that
 // Ultra, custom presets, and non-canonical agents resolve through, whose
 // effort slot an explicit preset effort replaces (SPEC-MODELUX-003
-// REQ-MUX3-02). The generator resolves the result against the run's catalog.
+// REQ-MUX3-02); a top-rung agent on the top tier keeps the top-rung model
+// (topRungLadderCandidate). The generator resolves the result against the
+// run's catalog.
 func (q QualityConf) CodexAgentProfile(agentName, fallbackTier, declaredEffort string) CodexProfile {
 	if profile, ok := q.nativeBalancedCodexProfile(agentName); ok {
 		return profile
 	}
 	profile := q.codexLadderProfile(agentName, fallbackTier, declaredEffort)
+	tier := q.codexAgentTier(agentName, fallbackTier)
+	if candidate, ok := q.topRungLadderCandidate(QualityProviderCodex, agentName, tier); ok {
+		_, model, _ := strings.Cut(candidate.Selector, "/")
+		profile = CodexProfile{Model: model, Effort: normalizeManagedCodexEffort(candidate.Thinking)}
+	}
 	if explicit, ok := q.AgentEffort(QualityProviderCodex, agentName); ok {
 		profile.Effort = explicit
 	}

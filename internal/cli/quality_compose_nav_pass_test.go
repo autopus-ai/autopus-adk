@@ -61,13 +61,13 @@ func TestComposeNavPass_S10RoleGroups(t *testing.T) {
 		assert.Equal(t, control, npd)
 	})
 	t.Run("(b) back past the effort drops low", func(t *testing.T) {
-		out, npd, dir := tuiuxQualityD(t, tuiuxLines(start, []string{"2\n", "2\n", "b\n", "b\n", "3\n", "\n"}, rest, apply)...)
-		_, control, _ := tuiuxQualityD(t, tuiuxLines(start, []string{"3\n", "\n"}, rest, apply)...)
+		out, npd, dir := tuiuxQualityD(t, tuiuxLines(start, []string{"2\n", "2\n", "b\n", "b\n", "4\n", "\n"}, rest, apply)...)
+		_, control, _ := tuiuxQualityD(t, tuiuxLines(start, []string{"4\n", "\n"}, rest, apply)...)
 
 		require.Contains(t, out, "적용할까요? \n")
 		saved := composeBindLoad(t, dir).Quality.Presets["claude-custom"]
 		for _, agent := range composeDesignAgents {
-			assert.Equal(t, "opus", saved.Agents[agent], agent)
+			assert.Equal(t, "sonnet", saved.Agents[agent], agent)
 			assert.NotContains(t, saved.Efforts, agent)
 		}
 		assert.Equal(t, control, npd)

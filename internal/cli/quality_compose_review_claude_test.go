@@ -19,7 +19,7 @@ import (
 	"github.com/insajin/autopus-adk/pkg/config"
 )
 
-const reviewRLClaudeArgs = "            args: [--print, --model, claude-fable-5-1, --effort, max, --output-format, json]"
+const reviewRLClaudeArgs = "            args: [--print, --model, claude-opus-5-5, --effort, max, --output-format, json]"
 
 // reviewAssembledArgs is the argv `auto spec review --providers <provider>`
 // assembles from the loader value of dir. Naming the provider keeps another
@@ -54,17 +54,17 @@ func TestReviewTab_S19ClaudeCLIModelWritesArgs(t *testing.T) {
 	dir := writeReviewRL(t)
 	b1 := readReviewFile(t, dir)
 
-	// participation Enter ×3, claude opus → xhigh, codex Enter, judge Enter, check Enter, 적용, 유지.
+	// participation Enter ×3, claude fable → xhigh, codex Enter, judge Enter, check Enter, 적용, 유지.
 	run := runReviewCLIForms(t, dir, []string{"claude"}, reviewLines(reviewOpen,
-		[]string{"\n", "\n", "\n", "3\n", "4\n", "\n", "\n", "\n", "2\n", "\n"})...)
+		[]string{"\n", "\n", "\n", "2\n", "4\n", "\n", "\n", "\n", "2\n", "\n"})...)
 
 	require.NoError(t, run.err, run.out)
-	assert.Contains(t, run.out, "claude model \n1. 그대로 — claude-fable-5-1 · max\n2. claude-fable-5-1\n3. claude-opus-5-5\n"+
+	assert.Contains(t, run.out, "claude model \n1. 그대로 — claude-opus-5-5 · max\n2. claude-fable-5-1\n3. claude-opus-5-5\n"+
 		"4. claude-sonnet-5-5\n5. claude-haiku-4-5\nEnter")
 	assert.Contains(t, run.out, "claude effort \n1. low\n2. medium\n3. high\n4. xhigh\n5. max\nEnter")
-	assert.Equal(t, [][2]string{{reviewRLClaudeArgs, "            args: [--print, --model, claude-opus-5-5, --effort, xhigh, --output-format, json]"}},
+	assert.Equal(t, [][2]string{{reviewRLClaudeArgs, "            args: [--print, --model, claude-fable-5-1, --effort, xhigh, --output-format, json]"}},
 		reviewFileDiff(t, b1, readReviewFile(t, dir)))
-	assert.True(t, reviewArgsHasRun(reviewAssembledArgs(t, dir, "claude"), "--model", "claude-opus-5-5", "--effort", "xhigh"))
+	assert.True(t, reviewArgsHasRun(reviewAssembledArgs(t, dir, "claude"), "--model", "claude-fable-5-1", "--effort", "xhigh"))
 
 	run = runReviewCLIForms(t, dir, []string{"claude"}, reviewLines(reviewOpen,
 		[]string{"\n", "\n", "\n", "5\n", "\n", "\n", "\n", "2\n", "\n"})...)
@@ -124,14 +124,14 @@ func TestReviewCLI_S26ClaudeValidationAndLines(t *testing.T) {
 	}
 
 	working := baseline.reviewComposition.clone()
-	working.CLI["claude"] = reviewCLIValue{"claude-opus-5-5", "xhigh"}
+	working.CLI["claude"] = reviewCLIValue{"claude-fable-5-1", "xhigh"}
 	plan, err := planReviewComposition(baseline, working, attested, composeReviewTextKO)
 	require.NoError(t, err)
 	assert.Equal(t, []string{
-		"orchestra.providers.claude.args --model claude-fable-5-1 → claude-opus-5-5",
+		"orchestra.providers.claude.args --model claude-opus-5-5 → claude-fable-5-1",
 		"orchestra.providers.claude.args --effort max → xhigh",
 	}, plan.Changes)
-	assert.Equal(t, "claude claude-opus-5-5 · xhigh *", plan.Table.rows[0][2])
+	assert.Equal(t, "claude claude-fable-5-1 · xhigh *", plan.Table.rows[0][2])
 	assert.Equal(t, "codex gpt-6-astra · max", plan.Table.rows[1][2])
 	assert.Equal(t, "agy", plan.Table.rows[2][2])
 
@@ -139,7 +139,7 @@ func TestReviewCLI_S26ClaudeValidationAndLines(t *testing.T) {
 	plan, err = planReviewComposition(baseline, working, attested, composeReviewTextKO)
 	require.NoError(t, err)
 	assert.Equal(t, []string{
-		"orchestra.providers.claude.args --model claude-fable-5-1 → claude-haiku-4-5",
+		"orchestra.providers.claude.args --model claude-opus-5-5 → claude-haiku-4-5",
 		"orchestra.providers.claude.args --effort max → 없음",
 	}, plan.Changes)
 }
@@ -151,7 +151,7 @@ func TestReviewCLI_S26ClaudeValidationAndLines(t *testing.T) {
 func TestReviewTab_NoRawViewKeepsEveryModel(t *testing.T) {
 	t.Setenv("REVIEW_MODEL", "rvm-sentinel-7f3a9c")
 	dir := writeReviewRL(t)
-	replaceReviewFile(t, dir, "--model, claude-fable-5-1,", `--model, "${REVIEW_MODEL}",`)
+	replaceReviewFile(t, dir, "--model, claude-opus-5-5,", `--model, "${REVIEW_MODEL}",`)
 	path := filepath.Join(dir, "autopus.yaml")
 
 	// the menu's default after the refusal.
@@ -187,7 +187,7 @@ func TestReadReviewRaw_NoViewWithoutAReadableFile(t *testing.T) {
 
 	t.Setenv("REVIEW_MODEL", "rvm-sentinel-7f3a9c")
 	dir := writeReviewRL(t)
-	replaceReviewFile(t, dir, "--model, claude-fable-5-1,", `--model, "${REVIEW_MODEL}",`)
+	replaceReviewFile(t, dir, "--model, claude-opus-5-5,", `--model, "${REVIEW_MODEL}",`)
 	assert.Equal(t, []string{"--print", "--model", "${REVIEW_MODEL}", "--effort", "max", "--output-format", "json"}, readReviewRaw(dir).Providers["claude"].Args)
 }
 

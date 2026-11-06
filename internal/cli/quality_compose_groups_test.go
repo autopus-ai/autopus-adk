@@ -78,7 +78,7 @@ func TestNewQualityComposition_StartsFromEffectiveTiers(t *testing.T) {
 		{
 			name:    "D current balanced",
 			quality: config.DefaultFullConfig("p").Quality,
-			want:    []string{"fable", "혼합 (fable 2 · sonnet 4)", "혼합 (fable 1 · sonnet 3)", "혼합 (opus 1 · sonnet 2)"},
+			want:    []string{"opus", "혼합 (opus 2 · sonnet 4)", "혼합 (opus 1 · sonnet 3)", "혼합 (opus 1 · sonnet 2)"},
 		},
 		{
 			name:    "R ultra HU1 with source fallbacks",
@@ -88,7 +88,7 @@ func TestNewQualityComposition_StartsFromEffectiveTiers(t *testing.T) {
 		{
 			name:    "B2 historical balanced keeps the standard placement",
 			quality: b2,
-			want:    []string{"fable", "혼합 (fable 2 · sonnet 4)", "혼합 (fable 1 · sonnet 3)", "혼합 (opus 1 · sonnet 2)"},
+			want:    []string{"opus", "혼합 (opus 2 · sonnet 4)", "혼합 (opus 1 · sonnet 3)", "혼합 (opus 1 · sonnet 2)"},
 		},
 	}
 	for _, tt := range tests {
@@ -101,7 +101,7 @@ func TestNewQualityComposition_StartsFromEffectiveTiers(t *testing.T) {
 
 	// B2 writes debugger: sonnet, yet the runtime places it on the top rung.
 	assert.Equal(t, "sonnet", b2.Presets["balanced"].Agents["debugger"])
-	assert.Equal(t, "fable", newQualityComposition(b2, sources).Agents()["debugger"])
+	assert.Equal(t, "opus", newQualityComposition(b2, sources).Agents()["debugger"])
 	// R omits deep-worker; its embedded source declares opus.
 	assert.Equal(t, "opus", newQualityComposition(repo, sources).Agents()["deep-worker"])
 }
@@ -114,7 +114,7 @@ func TestNewQualityComposition_ProviderOverrideDoesNotMoveTheGlobalStart(t *test
 
 	composition := newQualityComposition(quality, composeGroupsSources(t))
 
-	assert.Equal(t, "fable", composition.Agents()["planner"])
+	assert.Equal(t, "opus", composition.Agents()["planner"])
 }
 
 // The driver edits a composition map through composeSessionGroups: a group
@@ -135,7 +135,7 @@ func TestComposeSessionGroups_EditsRecomputeTheGroupDisplay(t *testing.T) {
 	// g, Enter, 3, Enter, 4.
 	groups.SetGroupTier(composition, 1, "sonnet")
 	groups.SetGroupTier(composition, 3, "haiku")
-	assert.Equal(t, []string{"fable", "sonnet", "혼합 (fable 1 · sonnet 3)", "haiku"}, displays("ko"))
+	assert.Equal(t, []string{"opus", "sonnet", "혼합 (opus 1 · sonnet 3)", "haiku"}, displays("ko"))
 
 	composition["debugger"] = "opus"
 	assert.Equal(t, "혼합 (opus 1 · sonnet 5)", displays("ko")[1])
@@ -162,6 +162,6 @@ func TestQualityComposition_Agents_IsDetached(t *testing.T) {
 	agents := composition.Agents()
 	agents["planner"] = "haiku"
 
-	assert.Equal(t, "fable", composition.Agents()["planner"])
+	assert.Equal(t, "opus", composition.Agents()["planner"])
 	assert.Len(t, agents, len(config.CanonicalAgentNames()))
 }

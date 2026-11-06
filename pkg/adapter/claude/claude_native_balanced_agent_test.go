@@ -26,7 +26,7 @@ type nativeAgentProfile struct {
 // mistake that pushes debugger or deep-worker off the frontier model.
 func balancedNativeProfiles() map[string]nativeAgentProfile {
 	profiles := make(map[string]nativeAgentProfile, 17)
-	frontier := nativeAgentProfile{model: config.ClaudeFableModel, effort: "max"}
+	frontier := nativeAgentProfile{model: config.ClaudeOpusModel, effort: "max"}
 	for _, agent := range []string{
 		"architect", "debugger", "deep-worker", "planner",
 		"reviewer", "security-auditor", "spec-writer",
@@ -77,14 +77,14 @@ func TestClaudeBalancedPlacementFollowsQualityPrecedence(t *testing.T) {
 	globalOnly.Quality.Providers = nil
 	assert.Contains(t,
 		agentFrontmatterLines(t, generateClaudeAgents(t, globalOnly), "debugger.md"),
-		"model: "+config.ClaudeFableModel,
+		"model: "+config.ClaudeOpusModel,
 		"the global balanced default alone must reach native placement")
 
 	providerWins := config.DefaultFullConfig("native-balanced")
 	providerWins.Quality.Default = "ultra"
 	providerWins.Quality.Providers = map[string]string{config.QualityProviderClaude: "balanced"}
 	overridden := agentFrontmatterLines(t, generateClaudeAgents(t, providerWins), "debugger.md")
-	assert.Contains(t, overridden, "model: "+config.ClaudeFableModel,
+	assert.Contains(t, overridden, "model: "+config.ClaudeOpusModel,
 		"a claude provider override must outrank the global default")
 	assert.Contains(t, overridden, "effort: max")
 
@@ -117,7 +117,7 @@ func TestClaudeBalancedCustomAgentTierKeepsSiblingsNative(t *testing.T) {
 	}
 
 	sibling := agentFrontmatterLines(t, agentDir, "deep-worker.md")
-	assert.Contains(t, sibling, "model: "+config.ClaudeFableModel)
+	assert.Contains(t, sibling, "model: "+config.ClaudeOpusModel)
 	assert.Contains(t, sibling, "effort: max")
 }
 

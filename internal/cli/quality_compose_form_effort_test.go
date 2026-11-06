@@ -21,11 +21,13 @@ import (
 )
 
 // composeEffortS3 answers S3 up to the confirmation: 구성 편집, Claude Code,
-// 역할 그룹, 설계·판단 on opus at xhigh, every later tier and effort kept.
+// 역할 그룹, 설계·판단 kept on opus (the standard top rung) at xhigh, every
+// later tier and effort kept.
 var composeEffortS3 = []string{"2\n", "2\n", "\n", "3\n", "5\n", "\n", "\n", "\n", "\n", "\n", "\n"}
 
 // composeEffortS4 answers S4 up to the confirmation over CAT-E: 구성 편집,
-// Codex, 역할 그룹, 설계·판단 on opus at high, every later answer kept.
+// Codex, 역할 그룹, 설계·판단 kept on opus at high, every later answer kept.
+// An explicit effort keeps the top-rung Astra, so the levels are Astra's.
 var composeEffortS4 = []string{"2\n", "3\n", "\n", "3\n", "4\n", "\n", "\n", "\n", "\n", "\n", "\n"}
 
 var composeDesignAgents = []string{"architect", "planner", "security-auditor", "spec-writer"}
@@ -62,15 +64,15 @@ func TestComposeEffortForms_ClaudeGroupEffortIsWrittenAndGenerated(t *testing.T)
 	out := runQualityEffortForms(t, dir, "CAT-A", composeFormLines(composeEffortS3, "2\n", "\n")...)
 
 	assert.Contains(t, out, "설계·판단 effort \n"+
-		"1. 그대로 — opus-5-5 · high\n"+
+		"1. 그대로 — opus-5-5 · max\n"+
 		"2. opus-5-5 · low\n"+
 		"3. opus-5-5 · medium\n"+
-		"4. opus-5-5 · high (자동)\n"+
+		"4. opus-5-5 · high\n"+
 		"5. opus-5-5 · xhigh\n"+
-		"6. opus-5-5 · max\n")
+		"6. opus-5-5 · max (자동)\n")
 	preview := composeRenderedTable(t, out, composeFormPreviewMarker)
 	for _, agent := range composeDesignAgents {
-		assert.Equal(t, "opus · xhigh*", preview[agent]["Claude Code (개별 설정: claude-custom)"], agent)
+		assert.Equal(t, "opus-5-5 · xhigh*", preview[agent]["Claude Code (개별 설정: claude-custom)"], agent)
 	}
 	assert.Contains(t, out, "바뀌는 설정:\n"+
 		"  quality.presets.claude-custom 새로 씀 (17개 에이전트)\n"+
@@ -83,12 +85,12 @@ func TestComposeEffortForms_ClaudeGroupEffortIsWrittenAndGenerated(t *testing.T)
 		"적용할까요? \n")
 	assert.Equal(t, composeEfforts("xhigh", composeDesignAgents...), composeBindLoad(t, dir).Quality.Presets["claude-custom"].Efforts)
 	assertGeneratedEqualsTable(t, dir, plainComposeHeaders(preview))
-	assert.Equal(t, composeTableClaudeCell{model: "opus", effort: "xhigh"}, readComposeTableClaudeProfile(t, dir, "planner"))
+	assert.Equal(t, composeTableClaudeCell{model: "claude-opus-5-5", effort: "xhigh"}, readComposeTableClaudeProfile(t, dir, "planner"))
 	assert.Equal(t, readComposeFile(t, baseline, ".codex", "agents", "planner.toml"), readComposeFile(t, dir, ".codex", "agents", "planner.toml"))
 }
 
-// S4: the Codex tab offers only the levels the catalog reports for Sol, so
-// max is not an option, and the chosen high is stored and generated.
+// S4: the Codex tab offers the levels the catalog reports for the top-rung
+// Astra, and the chosen high is stored and generated on Astra.
 func TestComposeEffortForms_CodexOffersOnlyTheCatalogLevels(t *testing.T) {
 	newComposeUpdateRun(t, true, "")
 	useAccessibleComposeForms(t)
@@ -97,16 +99,17 @@ func TestComposeEffortForms_CodexOffersOnlyTheCatalogLevels(t *testing.T) {
 	out := runQualityEffortForms(t, dir, "CAT-E", composeFormLines(composeEffortS4, "2\n", "\n")...)
 
 	assert.Contains(t, out, "설계·판단 effort \n"+
-		"1. 그대로 — 6.1-sol · xhigh\n"+
-		"2. 6.1-sol · low\n"+
-		"3. 6.1-sol · medium\n"+
-		"4. 6.1-sol · high\n"+
-		"5. 6.1-sol · xhigh (자동)\n"+
+		"1. 그대로 — 6-astra · max\n"+
+		"2. 6-astra · low\n"+
+		"3. 6-astra · medium\n"+
+		"4. 6-astra · high\n"+
+		"5. 6-astra · xhigh\n"+
+		"6. 6-astra · max (자동)\n"+
 		"Enter")
 	assert.Equal(t, composeEfforts("high", composeDesignAgents...), composeBindLoad(t, dir).Quality.Presets["codex-custom"].Efforts)
 	assertGeneratedEqualsTable(t, dir, plainComposeHeaders(composeRenderedTable(t, out, composeFormPreviewMarker)))
-	assert.Equal(t, config.CodexProfile{Model: "gpt-6.1-sol", Effort: "high"}, readComposeCodexProfile(t, dir, "planner"))
-	assert.Equal(t, composeTableClaudeCell{model: "claude-fable-5-1", effort: "max"}, readComposeTableClaudeProfile(t, dir, "planner"))
+	assert.Equal(t, config.CodexProfile{Model: "gpt-6-astra", Effort: "high"}, readComposeCodexProfile(t, dir, "planner"))
+	assert.Equal(t, composeTableClaudeCell{model: "claude-opus-5-5", effort: "max"}, readComposeTableClaudeProfile(t, dir, "planner"))
 }
 
 // S4, the copy: an unreadable catalog prints the notice once and opens no
@@ -117,7 +120,7 @@ func TestComposeEffortForms_UnreadableCodexCatalogAsksNoEffort(t *testing.T) {
 	dir := writeComposeFixture(t, "claude-code", "codex")
 	before := composeSessionHash(t, dir)
 
-	out := runQualityEffortForms(t, dir, "CAT-C", "2\n", "3\n", "\n", "3\n", "\n", "\n", "\n", "\n", "\n")
+	out := runQualityEffortForms(t, dir, "CAT-C", "2\n", "3\n", "\n", "2\n", "\n", "\n", "\n", "\n", "\n")
 
 	assert.Equal(t, 1, strings.Count(out, "Codex catalog를 읽지 못해 effort는 자동입니다\n"), out)
 	assert.NotContains(t, out, " effort \n1. ")
@@ -145,20 +148,21 @@ func TestComposeEffortForms_KeepAndBackToAutomatic(t *testing.T) {
 	assert.NotContains(t, tier, ".efforts ")
 	assert.NotContains(t, tier, "v0.50.127")
 
-	automatic := runQualityEffortForms(t, dir, "CAT-E", "2\n", "3\n", "2\n", "2\n", "\n", "5\n", "1\n", "2\n", "\n")
-	assert.Contains(t, automatic, "planner effort \n1. 그대로 — 6.1-sol · high\n2. 6.1-sol · low\n3. 6.1-sol · medium\n4. 6.1-sol · high\n5. 6.1-sol · xhigh (자동)\n")
+	automatic := runQualityEffortForms(t, dir, "CAT-E", "2\n", "3\n", "2\n", "2\n", "\n", "6\n", "1\n", "2\n", "\n")
+	assert.Contains(t, automatic, "planner effort \n1. 그대로 — 6-astra · high\n2. 6-astra · low\n3. 6-astra · medium\n"+
+		"4. 6-astra · high\n5. 6-astra · xhigh\n6. 6-astra · max (자동)\n")
 	assert.Contains(t, automatic, "  quality.presets.codex-custom.efforts 고쳐 씀 (3개 에이전트)\n")
 	assert.NotContains(t, automatic, "v0.50.127")
 	assert.Equal(t, composeEfforts("high", "architect", "security-auditor", "spec-writer"),
 		composeBindLoad(t, dir).Quality.Presets["codex-custom"].Efforts)
-	assert.Equal(t, config.CodexProfile{Model: "gpt-6.1-sol", Effort: "xhigh"}, readComposeCodexProfile(t, dir, "planner"))
+	assert.Equal(t, config.CodexProfile{Model: "gpt-6-astra", Effort: "max"}, readComposeCodexProfile(t, dir, "planner"))
 }
 
 // S18: the effort select follows the locale; the stored values do not.
 func TestComposeEffortForms_LocaleChangesTheTextOnly(t *testing.T) {
 	for lang, want := range map[string][]string{
-		"en": {"Design·Judgment effort \n1. keep — 6.1-sol · xhigh\n", "5. 6.1-sol · xhigh (automatic)\n"},
-		"ko": {"설계·판단 effort \n1. 그대로 — 6.1-sol · xhigh\n", "5. 6.1-sol · xhigh (자동)\n"},
+		"en": {"Design·Judgment effort \n1. keep — 6-astra · max\n", "6. 6-astra · max (automatic)\n"},
+		"ko": {"설계·판단 effort \n1. 그대로 — 6-astra · max\n", "6. 6-astra · max (자동)\n"},
 	} {
 		t.Run(lang, func(t *testing.T) {
 			newComposeUpdateRun(t, true, "")
@@ -225,7 +229,7 @@ func TestComposeEffortForms_InitSavesAndGeneratesTheEfforts(t *testing.T) {
 	assert.NotContains(t, out, composeToolBlockNotice, "init rewrites no file")
 	assert.Contains(t, out, "  quality.presets.*.efforts는 v0.50.127보다 오래된 auto가 읽지 못합니다\n")
 	assert.Equal(t, composeEfforts("xhigh", composeDesignAgents...), composeBindLoad(t, dir).Quality.Presets["claude-custom"].Efforts)
-	assert.Equal(t, composeTableClaudeCell{model: "opus", effort: "xhigh"}, readComposeTableClaudeProfile(t, dir, "planner"))
+	assert.Equal(t, composeTableClaudeCell{model: "claude-opus-5-5", effort: "xhigh"}, readComposeTableClaudeProfile(t, dir, "planner"))
 }
 
 func readComposeFile(t *testing.T, dir string, parts ...string) string {

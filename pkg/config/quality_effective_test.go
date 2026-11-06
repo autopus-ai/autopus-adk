@@ -34,8 +34,8 @@ func withBalanced(agents map[string]string) QualityConf {
 func TestEffectiveAgentTier_StandardBalancedReportsRungTier(t *testing.T) {
 	q := DefaultFullConfig("effective").Quality
 	want := map[string]string{
-		"planner": "fable", "architect": "fable", "spec-writer": "fable", "security-auditor": "fable",
-		"debugger": "fable", "deep-worker": "fable", "reviewer": "fable",
+		"planner": "opus", "architect": "opus", "spec-writer": "opus", "security-auditor": "opus",
+		"debugger": "opus", "deep-worker": "opus", "reviewer": "opus",
 		"executor": "sonnet", "devops": "sonnet", "frontend-specialist": "sonnet", "perf-engineer": "sonnet",
 		"tester": "sonnet", "validator": "sonnet", "ux-validator": "sonnet", "explorer": "sonnet", "annotator": "sonnet",
 		"reverse-engineer": "opus",
@@ -55,12 +55,13 @@ func TestEffectiveAgentTier_WrittenTierAndFallback(t *testing.T) {
 		want  string
 	}{
 		// HB2 is runtime standard: the generator ignores the written sonnet.
-		{name: "HB2 debugger takes the top rung", q: withBalanced(shippedBalancedHB2), agent: "debugger", want: "fable"},
-		{name: "HB2 planner takes the top rung", q: withBalanced(shippedBalancedHB2), agent: "planner", want: "fable"},
-		// HB1 is classification only: a written off-rung tier keeps its tier.
+		{name: "HB2 debugger takes the top rung", q: withBalanced(shippedBalancedHB2), agent: "debugger", want: "opus"},
+		{name: "HB2 planner takes the top rung", q: withBalanced(shippedBalancedHB2), agent: "planner", want: "opus"},
+		// HB1 is classification only: a written off-rung tier keeps its tier,
+		// and its written opus planner now equals the top rung tier.
 		{name: "HB1 planner keeps opus", q: withBalanced(shippedBalancedHB1), agent: "planner", want: "opus"},
 		{name: "HB1 validator keeps haiku", q: withBalanced(shippedBalancedHB1), agent: "validator", want: "haiku"},
-		{name: "HB1 omitted deep-worker takes its rung", q: withBalanced(shippedBalancedHB1), agent: "deep-worker", want: "fable"},
+		{name: "HB1 omitted deep-worker takes its rung", q: withBalanced(shippedBalancedHB1), agent: "deep-worker", want: "opus"},
 		{name: "ultra written tier", q: repositoryQuality(), agent: "planner", want: "opus"},
 		{name: "ultra omitted agent uses source fallback", q: repositoryQuality(), agent: "deep-worker", want: "opus"},
 		{name: "ultra omitted routine agent uses source fallback", q: repositoryQuality(), agent: "annotator", want: "sonnet"},
@@ -104,17 +105,19 @@ func TestClaudeAgentProfile_MatchesGeneratedFrontmatterValues(t *testing.T) {
 		wantModel  string
 		wantEffort string
 	}{
-		{name: "standard top rung", q: DefaultFullConfig("profile").Quality, agent: "planner", wantModel: "claude-fable-5-1", wantEffort: "max"},
+		{name: "standard top rung", q: DefaultFullConfig("profile").Quality, agent: "planner", wantModel: "claude-opus-5-5", wantEffort: "max"},
 		{name: "standard implementation rung", q: DefaultFullConfig("profile").Quality, agent: "executor", wantModel: "claude-sonnet-5-5", wantEffort: "max"},
 		{name: "standard routine rung", q: DefaultFullConfig("profile").Quality, agent: "validator", wantModel: "claude-sonnet-5-5", wantEffort: "high"},
-		{name: "HB1 planner alias", q: withBalanced(shippedBalancedHB1), agent: "planner", wantModel: "opus", wantEffort: "high"},
+		// HB1's written opus planner equals the opus top rung tier, so it takes
+		// the standard placement.
+		{name: "HB1 planner on the top rung", q: withBalanced(shippedBalancedHB1), agent: "planner", wantModel: "claude-opus-5-5", wantEffort: "max"},
 		{name: "HB1 debugger alias", q: withBalanced(shippedBalancedHB1), agent: "debugger", wantModel: "sonnet", wantEffort: "medium"},
 		{name: "HB1 validator haiku has no effort", q: withBalanced(shippedBalancedHB1), agent: "validator", wantModel: "haiku", wantEffort: ""},
 		{name: "ultra written opus", q: repositoryQuality(), agent: "planner", wantModel: "opus", wantEffort: "max"},
 		{name: "ultra fallback opus", q: repositoryQuality(), agent: "deep-worker", wantModel: "opus", wantEffort: "max"},
 		{name: "ultra fallback sonnet", q: repositoryQuality(), agent: "annotator", wantModel: "sonnet", wantEffort: "high"},
 		{name: "claude override wins", q: claudeUltra, agent: "tester", wantModel: "opus", wantEffort: "max"},
-		{name: "codex override leaves claude alone", q: codexOnly, agent: "planner", wantModel: "claude-fable-5-1", wantEffort: "max"},
+		{name: "codex override leaves claude alone", q: codexOnly, agent: "planner", wantModel: "claude-opus-5-5", wantEffort: "max"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

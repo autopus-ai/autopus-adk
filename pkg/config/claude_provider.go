@@ -35,13 +35,15 @@ var claudePrintFlags = []string{claudePrintFlag, "-p"}
 var historicalClaudeDefaultModelArgs = [][]string{
 	{"--model", "opus", "--effort", "high"},
 	{"--model", "opus", "--effort", "max"},
+	// v0.50.116-v0.50.133; replaced when Fable became Ultra-only.
+	{"--model", "claude-fable-5-1", "--effort", "max"},
 }
 
 // claudeDefaultModelArgs is the model policy tail of the shipped Claude argv.
 // The print flag is prepended per surface so a stored entry keeps whichever
 // spelling it already carries.
 func claudeDefaultModelArgs() []string {
-	return []string{"--model", ClaudeFableModel, "--effort", ClaudeOrchestraEffort}
+	return []string{"--model", ClaudeOpusModel, "--effort", ClaudeOrchestraEffort}
 }
 
 // DefaultClaudeProviderEntry returns the canonical Claude orchestra provider

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"slices"
 	"strings"
 	"testing"
 
@@ -57,7 +58,8 @@ func TestComposeTable_CatalogD_RefusesTopRungPlacements(t *testing.T) {
 }
 
 // S6: the after-table of D's role-group custom marks every Claude cell and
-// exactly five Codex cells, comparing raw values of the same snapshot.
+// exactly five Codex cells, comparing raw values of the same snapshot; the
+// five kept top-rung agents keep their top-rung cells on both tools.
 func TestComposeTable_ChangedCellsCarryStar(t *testing.T) {
 	before := composeTableFor(t, "D", "CAT-A")
 	after := composeTableFor(t, "K", "CAT-A")
@@ -65,13 +67,14 @@ func TestComposeTable_ChangedCellsCarryStar(t *testing.T) {
 
 	var codexMarked []string
 	for _, row := range layout.rows {
-		assert.True(t, strings.HasSuffix(row[3], "*"), "Claude cell of %s", row[1])
+		keptTop := row[2] == "opus" && slices.Contains([]string{"planner", "architect", "spec-writer", "security-auditor", "reviewer"}, row[1])
+		assert.Equal(t, !keptTop, strings.HasSuffix(row[3], "*"), "Claude cell of %s", row[1])
 		if strings.HasSuffix(row[4], "*") {
 			codexMarked = append(codexMarked, row[1])
 		}
 	}
 	assert.ElementsMatch(t, []string{"debugger", "deep-worker", "explorer", "annotator", "reverse-engineer"}, codexMarked)
-	assert.Equal(t, []string{"설계·판단", "planner", "fable", "fable · max*", "6-astra · max"},
+	assert.Equal(t, []string{"설계·판단", "planner", "opus", "opus-5-5 · max", "6-astra · max"},
 		composeTableRowTexts(t, layout, "planner"))
 	assert.Equal(t, []string{"구현", "debugger", "sonnet*", "sonnet · medium*", "6-luna · max*"},
 		composeTableRowTexts(t, layout, "debugger"))

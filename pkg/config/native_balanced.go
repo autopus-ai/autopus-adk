@@ -34,11 +34,32 @@ func (q QualityConf) NativeBalancedAgentCandidate(provider, agent string) (RoleM
 	return balancedRungCandidates[family][rung], true
 }
 
+// topRungLadderCandidate is the rung-aware step of the tier ladder: off the
+// standard placement (a custom preset, an edited tier, or an explicit effort),
+// a top-rung agent whose tier is the balanced top tier keeps the balanced
+// top-rung candidate of the provider's family instead of the generic opus
+// ladder (opus·high, Sol·xhigh). The top tier is named opus, so without this a
+// customization would quietly demote the planning core. Ultra keeps its own
+// ladder, and analysis-rung or other agents on opus keep today's ladder.
+func (q QualityConf) topRungLadderCandidate(provider, agent, tier string) (RoleModelCandidateConf, bool) {
+	provider, ok := NormalizeQualityProvider(provider)
+	if !ok || q.EffectiveMode(provider) == "ultra" {
+		return RoleModelCandidateConf{}, false
+	}
+	rung, known := balancedRungByAgent[NormalizeAgentName(agent)]
+	if !known || rung != balancedRungTop || tier != balancedTierForRung(balancedRungTop) {
+		return RoleModelCandidateConf{}, false
+	}
+	family := builtinRoleModelFamilyAnthropic
+	if provider == QualityProviderCodex {
+		family = builtinRoleModelFamilyOpenAI
+	}
+	return balancedRungCandidates[family][balancedRungTop], true
+}
+
 func balancedTierForRung(rung balancedRoleRung) string {
 	switch rung {
-	case balancedRungTop:
-		return "fable"
-	case balancedRungAnalysis:
+	case balancedRungTop, balancedRungAnalysis:
 		return "opus"
 	default:
 		return "sonnet"
