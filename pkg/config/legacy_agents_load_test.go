@@ -63,3 +63,28 @@ func TestDefaultFullConfig_PresetsNameOnlyTheGeneratedAgents(t *testing.T) {
 	}, presets["ultra"].Agents)
 	assert.Equal(t, []string{"frontend-specialist", "reviewer", "ux-validator"}, CanonicalAgentNames())
 }
+
+// The roles the binary still dispatches keep their v0.50.134 tier under a
+// three-agent built-in preset, and a preset still written in the
+// seventeen-agent format keeps the old reading of an omitted role.
+func TestAgentTier_LegacyRolesUnderBuiltinPresets(t *testing.T) {
+	t.Parallel()
+	q := DefaultFullConfig("legacy-tier").Quality
+	assert.Equal(t, "opus", q.AgentTier(QualityProviderClaude, "planner", "sonnet"))
+	assert.Equal(t, "sonnet", q.AgentTier(QualityProviderClaude, "executor", "haiku"))
+	q.Default = "ultra"
+	assert.Equal(t, "fable", q.AgentTier(QualityProviderClaude, "planner", "sonnet"))
+
+	old := DefaultFullConfig("legacy-format").Quality
+	written := maps.Clone(shippedBalancedHB8)
+	delete(written, "planner")
+	old.Presets["balanced"] = QualityPreset{Agents: written}
+	assert.Equal(t, "haiku", old.AgentTier(QualityProviderClaude, "planner", "haiku"),
+		"a seventeen-agent preset that omits a role takes the caller's fallback")
+
+	custom := DefaultFullConfig("custom").Quality
+	custom.Presets["mine"] = QualityPreset{Agents: map[string]string{"reviewer": "opus"}}
+	custom.Default = "mine"
+	assert.Equal(t, "haiku", custom.AgentTier(QualityProviderClaude, "planner", "haiku"),
+		"a custom preset never borrows the built-in legacy tiers")
+}

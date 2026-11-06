@@ -30,7 +30,7 @@ func TestBalancedDefault_TopRungIsOpusMaxOnClaudeAndAstraOnCodex(t *testing.T) {
 	t.Parallel()
 	q := DefaultFullConfig("opus").Quality
 	for _, agent := range balancedTopRungAgents {
-		assert.Equal(t, "opus", q.Presets["balanced"].Agents[agent], agent)
+		assert.Equal(t, "opus", q.AgentTier(QualityProviderClaude, agent, "sonnet"), agent)
 		model, effort := q.ClaudeAgentProfile(agent, "sonnet")
 		assert.Equal(t, "claude-opus-5-5", model, agent)
 		assert.Equal(t, "max", effort, agent)
@@ -40,7 +40,9 @@ func TestBalancedDefault_TopRungIsOpusMaxOnClaudeAndAstraOnCodex(t *testing.T) {
 	for agent, tier := range q.Presets["balanced"].Agents {
 		assert.NotEqual(t, "fable", tier, "balanced must not place %s on fable", agent)
 	}
-	assert.Equal(t, "fable", q.Presets["ultra"].Agents["architect"], "ultra keeps its Fable core")
+	ultra := q
+	ultra.Default = "ultra"
+	assert.Equal(t, "fable", ultra.AgentTier(QualityProviderClaude, "architect", "sonnet"), "ultra keeps its Fable core")
 }
 
 // An untouched v0.50.126-v0.50.133 balanced layout is a historical shipped
@@ -134,7 +136,9 @@ func TestMigrateOrchestraConfig_KeepsPreviousFableClaudeDefault(t *testing.T) {
 // so every agent sits off the standard placement.
 func customTopRungQuality(efforts map[string]string) QualityConf {
 	q := DefaultFullConfig("custom-top").Quality
-	q.Presets["custom"] = QualityPreset{Agents: defaultBalancedAgentTiers(), Efforts: efforts}
+	// The custom preset spells out every role, as a hand-written copy of the
+	// seventeen-agent layout does.
+	q.Presets["custom"] = QualityPreset{Agents: maps.Clone(shippedBalancedHB8), Efforts: efforts}
 	q.Default = "custom"
 	return q
 }

@@ -72,7 +72,7 @@ func TestBalancedRoleModelProfile_RoutesSeventeenAgentsExactlyPerFamily(t *testi
 			want := balancedRoutesByFamily(family)
 			require.NoError(t, ValidateOMPAgentRoleSet(roleModelOverrideAgents(profile.Agents)),
 				"balanced must route exactly the canonical agent set")
-			require.Len(t, want, len(CanonicalAgentNames()))
+			require.Len(t, want, len(CanonicalAgentNames())+len(legacyAgentNames))
 			for agent, candidate := range want {
 				candidates, err := profile.AgentCandidates(agent)
 				require.NoError(t, err, agent)

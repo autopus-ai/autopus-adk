@@ -34,7 +34,7 @@ var (
 )
 
 func TestPinsOnlyPolicy_RoutesOnlyThePinnedAgentsAndTask(t *testing.T) {
-	policy := pinsOnlyPolicy(map[string]RoleModelCandidateConf{"planner": pinOpus, "executor": pinAstra})
+	policy := pinsOnlyPolicy(map[string]RoleModelCandidateConf{"planner": pinOpus, "reviewer": pinAstra})
 	require.NoError(t, policy.Validate())
 
 	name, profile, ok := policy.SelectedRoleModelProfileForQuality(QualityConf{})
@@ -44,18 +44,19 @@ func TestPinsOnlyPolicy_RoutesOnlyThePinnedAgentsAndTask(t *testing.T) {
 	assert.True(t, profile.PinsOnly)
 	assert.Equal(t, RoleModelCatalogTrustOperatorAttested, profile.EffectiveCatalogTrust())
 	assert.Equal(t, RoleModelConfigModeOverlay, profile.ConfigMode)
-	assert.Equal(t, []string{"executor", "planner", OMPAutopusDefaultAgent}, pinsSorted(profile.OMPAgentNames()))
-	_, planner, err := profile.OMPAgentRoute("planner")
+	// planner is no longer a generated agent: its pin routes task only.
+	assert.Equal(t, []string{"reviewer", OMPAutopusDefaultAgent}, pinsSorted(profile.OMPAgentNames()))
+	_, reviewer, err := profile.OMPAgentRoute("reviewer")
 	require.NoError(t, err)
-	assert.Equal(t, []RoleModelCandidateConf{pinOpus}, planner.Candidates)
-	assert.True(t, planner.Required)
+	assert.Equal(t, []RoleModelCandidateConf{pinAstra}, reviewer.Candidates)
+	assert.True(t, reviewer.Required)
 	policyKey, task, err := profile.OMPAgentRoute(OMPAutopusDefaultAgent)
 	require.NoError(t, err)
 	assert.Equal(t, "planner", policyKey.Key, "task follows the planner pin")
 	assert.Equal(t, []RoleModelCandidateConf{pinOpus}, task.Candidates)
 	_, _, err = profile.OMPAgentRoute("explorer")
 	assert.True(t, errors.Is(err, ErrOMPAgentUnrouted), "an unpinned agent keeps the session model")
-	assert.True(t, profile.OMPAgentOperatorPinned("executor"))
+	assert.True(t, profile.OMPAgentOperatorPinned("reviewer"))
 }
 
 // Route Contract: rule (2) needs a profile, so a task pin routes task alone.
@@ -126,8 +127,8 @@ func TestProfilePolicy_KeepsRuleTwoBesideAPinsOnlyPeer(t *testing.T) {
 
 	require.True(t, ok)
 	assert.False(t, profile.PinsOnly)
-	assert.Len(t, profile.OMPAgentNames(), 18)
-	key, route, err := profile.OMPAgentRoute("executor")
+	assert.Len(t, profile.OMPAgentNames(), len(CanonicalAgentNames())+1)
+	key, route, err := profile.OMPAgentRoute("frontend-specialist")
 	require.NoError(t, err)
 	assert.Equal(t, OMPAutopusDefaultAgent, key.Key)
 	assert.Equal(t, []RoleModelCandidateConf{pinOpus}, route.Candidates)

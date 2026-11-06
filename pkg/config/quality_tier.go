@@ -1,9 +1,6 @@
 package config
 
-import (
-	"slices"
-	"strings"
-)
+import "strings"
 
 // Canonical Claude slugs for the relative quality tiers. Every Claude-facing
 // projection resolves through these so a tier promotion lands in one place.
@@ -19,22 +16,6 @@ const (
 // accounting, and the OMP agent definitions all key off exactly these names.
 // The verification harness ships only the review and UX validation roles.
 var canonicalAgentNames = []string{"frontend-specialist", "reviewer", "ux-validator"}
-
-// legacyAgentNames are the agents releases before the verification harness
-// generated. A config written by such a release still names them in quality
-// presets and efforts; loading accepts and ignores those keys instead of
-// failing, since nothing is generated for them any more.
-var legacyAgentNames = []string{
-	"annotator", "architect", "debugger", "deep-worker", "devops", "executor",
-	"explorer", "perf-engineer", "planner", "reverse-engineer",
-	"security-auditor", "spec-writer", "tester", "validator",
-}
-
-// IsLegacyAgentName reports whether name is an agent an older release
-// generated and this one no longer does.
-func IsLegacyAgentName(name string) bool {
-	return slices.Contains(legacyAgentNames, NormalizeAgentName(name))
-}
 
 // agentNameAliases folds workflow phase-role spelling onto agent file names.
 // Workflow schemas use underscores; agent files and quality presets use hyphens.
@@ -92,12 +73,20 @@ func NormalizeQualityTier(raw string) (string, bool) {
 // decision; provider adapters project it onto their own model vocabulary.
 func (q QualityConf) AgentTier(provider, agentName, fallbackTier string) string {
 	name := NormalizeAgentName(agentName)
-	preset, ok := q.Presets[q.ForProvider(provider).Default]
+	presetName := q.ForProvider(provider).Default
+	preset, ok := q.Presets[presetName]
 	if !ok {
-		preset, ok = q.Presets["balanced"]
+		presetName = "balanced"
+		preset, ok = q.Presets[presetName]
 	}
 	if ok {
 		if tier, valid := NormalizeQualityTier(preset.Agents[name]); valid {
+			return tier
+		}
+		// A built-in preset written in the three-agent format no longer
+		// lists the legacy roles; they keep the tier that preset gave them
+		// before the verification cut.
+		if tier, legacy := legacyRoleTier(presetName, preset.Agents, name); legacy {
 			return tier
 		}
 	}
