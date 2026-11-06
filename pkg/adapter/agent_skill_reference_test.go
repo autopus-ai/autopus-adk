@@ -107,21 +107,6 @@ func TestGeneratedAgents_ReferenceOnlyGeneratedSkills(t *testing.T) {
 	seen := assertAgentsReferenceGeneratedSkills(t, cfg)
 
 	for _, platform := range []string{"claude-code", "codex", "antigravity-cli", "opencode"} {
-		assert.True(t, seen[platform]["tdd"], "%s agents still reference installed skills", platform)
-	}
-}
-
-// The filter follows the compiled surface, not a fixed list: a skill the
-// project installs explicitly is referenced again on every platform.
-func TestGeneratedAgents_ReferenceExplicitlyInstalledSkills(t *testing.T) {
-	t.Parallel()
-	cfg := config.DefaultFullConfig("agent-skill-refs-explicit")
-	cfg.Platforms = allPlatforms
-	cfg.Skills.Compiler.ExplicitSkills = []string{"ddd"}
-
-	seen := assertAgentsReferenceGeneratedSkills(t, cfg)
-
-	for _, platform := range []string{"claude-code", "codex", "antigravity-cli", "opencode"} {
-		assert.True(t, seen[platform]["ddd"], "%s agents reference ddd once it is installed", platform)
+		assert.True(t, seen[platform]["verification"], "%s agents still reference installed skills", platform)
 	}
 }

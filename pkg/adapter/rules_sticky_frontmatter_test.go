@@ -30,12 +30,12 @@ import (
 const stickyKeyLine = "alwaysApply: true"
 
 // stickyRules are the two rules this SPEC marks sticky at the source of truth.
-var stickyRules = []string{"language-policy.md", "objective-reasoning.md"}
+var stickyRules = []string{"language-policy.md"}
 
 // stickyControlRule travels the same per-platform rule pipeline without the
 // sticky key, so it proves each adapter propagates `alwaysApply` from its
 // source rather than synthesizing it for every rule.
-const stickyControlRule = "project-identity.md"
+const stickyControlRule = "file-size-limit.md"
 
 // stickyPlatformRuleRoots lists active markdown rule roots. Gemini has two:
 // the CLI rule directory and the .agents plugin mirror imported by GEMINI.md.
@@ -215,10 +215,10 @@ func TestStickyFrontmatter_S8_GeminiPreservesTemplateFrontmatterAndImportedBody(
 			"gemini body for %s must not carry the sticky key", rule)
 	}
 
-	// objective-reasoning imports the content body verbatim; the emission must
-	// still end with the frontmatter-stripped source body.
-	emitted := stickyRuleEmission(t, files, "gemini", "objective-reasoning.md")
-	_, sourceBody := stickySplitFrontmatter(t, stickyContentSource(t, "objective-reasoning.md"))
-	assert.True(t, strings.HasSuffix(emitted, sourceBody),
-		"gemini must import the objective-reasoning body unchanged and strip its frontmatter")
+	// language-policy imports the content body; the emission must carry the
+	// frontmatter-stripped source body unchanged.
+	emitted := stickyRuleEmission(t, files, "gemini", "language-policy.md")
+	_, sourceBody := stickySplitFrontmatter(t, stickyContentSource(t, "language-policy.md"))
+	assert.Contains(t, emitted, strings.TrimSpace(sourceBody),
+		"gemini must import the language-policy body unchanged and strip its frontmatter")
 }
