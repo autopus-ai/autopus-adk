@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-- **리뷰 provider 출력 형식 migration과 claude json 해석의 경계 사례를 고친다** (2026-11-06):
+- **리뷰 provider 출력 형식 migration과 claude json 해석의 경계 사례를 고친다** (2026-11-06, #271):
   - `--`가 있는 claude·agy args에서 migration이 `--output-format` 쌍을 `--` 뒤에 붙였다. 그 뒤의 flag는 positional이라
     다음 실행에서 쌍을 찾지 못하고 또 붙였고, claude는 그 토큰을 prompt 인자로 받았다. 이제 쌍은 `--` 앞에 한 번만 들어간다.
   - `--print`가 맨 끝에 있고 `""` 슬롯이 없는 agy args에서는 쌍이 `--print`와 그 뒤에 붙는 prompt 사이에 끼었다. 이제

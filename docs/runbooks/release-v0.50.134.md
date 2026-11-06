@@ -86,8 +86,10 @@ Since `v0.50.133`, main gained #264 and #265 (review provider configuration),
 #266 (a SPEC, docs only), #267 (agy and claude review providers on
 machine-readable output, completion reaper, usage records), #268 (a test date
 fix, test only), #269 (the migration no longer rewrites a former-default
-review model), and #270 (balanced top rung and claude review default move to
-Opus). #270 brought its own `[Unreleased]` entry; #267 and #269 get one each in
+review model), #270 (balanced top rung and claude review default move to
+Opus), and #271 (output-format migration around `--` and a trailing `--print`,
+claude `--verbose` json arrays). #270 and #271 brought their own `[Unreleased]`
+entries; #267 and #269 get one each in
 this preparation. `[Unreleased]` is not renamed to a version heading, as in
 earlier releases.
 
