@@ -41,100 +41,58 @@ func TestDefaultClaudeProviderEntry_ArgvIsIndependent(t *testing.T) {
 	assert.Equal(t, []string{"--print", "--model", ClaudeFableModel, "--effort", "max", "--output-format", "json"}, defaultProviderEntries["claude"].Args)
 }
 
-// TestUpgradeHistoricalClaudeProviderDefaults covers the migration boundary: a
-// stored entry that still names a shipped historical default moves onto the
-// current model policy, and everything a user chose deliberately stays put.
-func TestUpgradeHistoricalClaudeProviderDefaults(t *testing.T) {
+// TestClaudeProviderFormerDefault covers the former-default boundary: a stored
+// entry whose model tail equals a shipped former default is reported with its
+// model, and nothing is ever rewritten. A user who deliberately chose
+// `--model opus --effort max` writes the same argv as an untouched old
+// default, so the harness can only tell them, never move them.
+func TestClaudeProviderFormerDefault(t *testing.T) {
 	t.Parallel()
 
-	current := DefaultClaudeProviderEntry().Args
-	shortFlagCurrent := []string{"-p", "--model", ClaudeFableModel, "--effort", "max", "--output-format", "json"}
-
 	tests := []struct {
-		name        string
-		entry       ProviderEntry
-		wantChanged bool
-		wantArgs    []string
+		name      string
+		entry     ProviderEntry
+		wantModel string
+		wantOK    bool
 	}{
 		{
-			name: "historical high default moves to the frontier model",
-			entry: ProviderEntry{
-				Binary: "claude",
-				Args:   []string{"--print", "--model", "opus", "--effort", "high"},
-			},
-			wantChanged: true,
-			wantArgs:    current,
+			name:      "former high default is reported",
+			entry:     ProviderEntry{Binary: "claude", Args: []string{"--print", "--model", "opus", "--effort", "high"}},
+			wantModel: "opus", wantOK: true,
 		},
 		{
-			name: "historical max default moves to the frontier model",
-			entry: ProviderEntry{
-				Binary: "claude",
-				Args:   []string{"--print", "--model", "opus", "--effort", "max"},
-			},
-			wantChanged: true,
-			wantArgs:    current,
+			name:      "former max default is reported",
+			entry:     ProviderEntry{Binary: "claude", Args: []string{"--print", "--model", "opus", "--effort", "max"}},
+			wantModel: "opus", wantOK: true,
 		},
 		{
-			name: "short print flag spelling is preserved",
-			entry: ProviderEntry{
-				Binary: "claude",
-				Args:   []string{"-p", "--model", "opus", "--effort", "max"},
-			},
-			wantChanged: true,
-			wantArgs:    shortFlagCurrent,
+			name:      "short print flag spelling is reported",
+			entry:     ProviderEntry{Binary: "claude", Args: []string{"-p", "--model", "opus", "--effort", "max"}},
+			wantModel: "opus", wantOK: true,
+		},
+		{name: "current default is not a former default", entry: DefaultClaudeProviderEntry()},
+		{
+			name:  "extra flag marks the argv as user configuration",
+			entry: ProviderEntry{Binary: "claude", Args: []string{"--print", "--model", "opus", "--effort", "high", "--verbose"}},
 		},
 		{
-			name:        "current default is left alone",
-			entry:       DefaultClaudeProviderEntry(),
-			wantChanged: false,
-			wantArgs:    current,
+			name:  "full model id is a user choice",
+			entry: ProviderEntry{Binary: "claude", Args: []string{"--print", "--model", "claude-opus-4-8", "--effort", "high"}},
 		},
-		{
-			name: "extra flag marks the argv as user configuration",
-			entry: ProviderEntry{
-				Binary: "claude",
-				Args:   []string{"--print", "--model", "opus", "--effort", "high", "--verbose"},
-			},
-			wantArgs: []string{"--print", "--model", "opus", "--effort", "high", "--verbose"},
-		},
-		{
-			name: "full model id stays pinned",
-			entry: ProviderEntry{
-				Binary: "claude",
-				Args:   []string{"--print", "--model", "claude-opus-4-8", "--effort", "high"},
-			},
-			wantArgs: []string{"--print", "--model", "claude-opus-4-8", "--effort", "high"},
-		},
-		{
-			name:     "model-less print default pins nothing and is not upgraded",
-			entry:    ProviderEntry{Binary: "claude", Args: []string{"--print"}},
-			wantArgs: []string{"--print"},
-		},
+		{name: "model-less print default pins nothing", entry: ProviderEntry{Binary: "claude", Args: []string{"--print"}}},
 		{
 			name: "pinned model policy is an explicit decision",
-			entry: ProviderEntry{
-				Binary:      "claude",
-				ModelPolicy: ProviderModelPolicyPinned,
-				Args:        []string{"--print", "--model", "opus", "--effort", "high"},
-			},
-			wantArgs: []string{"--print", "--model", "opus", "--effort", "high"},
+			entry: ProviderEntry{Binary: "claude", ModelPolicy: ProviderModelPolicyPinned,
+				Args: []string{"--print", "--model", "opus", "--effort", "high"}},
 		},
 		{
 			name: "backend routed entry carries no CLI argv contract",
-			entry: ProviderEntry{
-				Binary:  "claude",
-				Backend: ProviderBackendOMP,
-				Args:    []string{"--print", "--model", "opus", "--effort", "high"},
-			},
-			wantArgs: []string{"--print", "--model", "opus", "--effort", "high"},
+			entry: ProviderEntry{Binary: "claude", Backend: ProviderBackendOMP,
+				Args: []string{"--print", "--model", "opus", "--effort", "high"}},
 		},
 		{
-			name: "wrapper binary owns its own flag contract",
-			entry: ProviderEntry{
-				Binary: "claude-wrapper",
-				Args:   []string{"--print", "--model", "opus", "--effort", "high"},
-			},
-			wantArgs: []string{"--print", "--model", "opus", "--effort", "high"},
+			name:  "wrapper binary owns its own flag contract",
+			entry: ProviderEntry{Binary: "claude-wrapper", Args: []string{"--print", "--model", "opus", "--effort", "high"}},
 		},
 	}
 
@@ -145,10 +103,10 @@ func TestUpgradeHistoricalClaudeProviderDefaults(t *testing.T) {
 
 			beforeArgs := append([]string(nil), tt.entry.Args...)
 
-			got, changed := upgradeHistoricalClaudeProviderDefaults(tt.entry)
+			model, ok := ClaudeProviderFormerDefault(tt.entry)
 
-			assert.Equal(t, tt.wantChanged, changed)
-			assert.Equal(t, tt.wantArgs, got.Args)
+			assert.Equal(t, tt.wantOK, ok)
+			assert.Equal(t, tt.wantModel, model)
 			assert.Equal(t, beforeArgs, tt.entry.Args, "input argv must not be rewritten in place")
 		})
 	}

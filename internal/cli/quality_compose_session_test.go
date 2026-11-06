@@ -101,7 +101,7 @@ func TestNewComposeSession_FileWriterPreviewsAndWritesTheGroupEdit(t *testing.T)
 	require.Equal(t, composeDriverApplied, result.Outcome)
 	assert.Len(t, *probes, 1)
 	assert.Contains(t, out, "quality.default = balanced   ultra: 현재 기본값   balanced: 현재 기본값\n"+
-		composeSessionGolden(t, "table-D-CAT-A.golden")+"구성을 바꿀까요?")
+		composeSessionGolden(t, "table-D-CAT-A.golden")+claudeReviewLineFable+"\n구성을 바꿀까요?")
 	for _, display := range []string{
 		"설계·판단  planner, architect, spec-writer, security-auditor  현재: fable\n",
 		"구현  executor, debugger, deep-worker, devops, frontend-specialist, perf-engineer  현재: 혼합 (fable 2 · sonnet 4)\n",

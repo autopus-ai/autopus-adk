@@ -24,14 +24,14 @@ const (
 var claudePrintFlags = []string{claudePrintFlag, "-p"}
 
 // historicalClaudeDefaultModelArgs lists every model policy tail autopus has
-// shipped as the Claude orchestra default. Only these exact tails are eligible
-// for a default upgrade: a config that still names one is following the harness
-// default, while any other tail — an extra flag, a full model id, a different
-// effort — is a deliberate user choice.
+// shipped as the Claude orchestra default before the current one. A stored
+// argv that still names one is reported, never rewritten: a user who chose
+// `--model opus --effort max` on purpose writes the same argv as an untouched
+// old default, so moving it would silently replace a deliberate model choice.
+// `auto update` prints one notice line instead.
 //
 // The model-less `--print` default from the pre-tier era is deliberately
-// absent. It pins nothing, so upgrading it would introduce a model policy the
-// user never had rather than move one they already accepted.
+// absent. It pins nothing, so there is no former model to report.
 var historicalClaudeDefaultModelArgs = [][]string{
 	{"--model", "opus", "--effort", "high"},
 	{"--model", "opus", "--effort", "max"},
@@ -54,34 +54,26 @@ func DefaultClaudeProviderEntry() ProviderEntry {
 	}
 }
 
-// upgradeHistoricalClaudeDefaultArgs moves an argv from a shipped historical
-// default onto the current default model policy, preserving the print flag
-// spelling. Anything else is returned untouched.
-func upgradeHistoricalClaudeDefaultArgs(args []string) ([]string, bool) {
+// ClaudeProviderFormerDefault reports the model of a stored Claude provider
+// whose argv tail equals a former shipped default, such as `opus` for
+// `--print --model opus --effort max`. Nothing is rewritten.
+//
+// The guards keep the report narrow: a backend-routed entry has no CLI argv,
+// a pinned policy is an explicit model decision, and a wrapper binary is
+// explicit configuration whose flag contract the harness does not own.
+func ClaudeProviderFormerDefault(entry ProviderEntry) (string, bool) {
+	if entry.Backend != "" || entry.ModelPolicy == ProviderModelPolicyPinned || entry.Binary != "claude" {
+		return "", false
+	}
+	args := entry.Args
 	if len(args) == 0 || !slices.Contains(claudePrintFlags, args[0]) {
-		return args, false
+		return "", false
 	}
 	tail := withoutDefaultClaudeOutputFormat(args[1:])
 	if !slices.ContainsFunc(historicalClaudeDefaultModelArgs, func(shipped []string) bool {
 		return slices.Equal(tail, shipped)
 	}) {
-		return args, false
+		return "", false
 	}
-	return claudeDefaultArgs(args[0]), true
-}
-
-// upgradeHistoricalClaudeProviderDefaults moves a Claude provider that still
-// carries a shipped historical default onto the current default model policy.
-//
-// The guards keep the upgrade narrow rather than provider-wide: a backend-routed
-// entry has no CLI argv to rewrite, a pinned policy is an explicit model
-// decision, and a wrapper binary is explicit configuration whose flag contract
-// the harness does not own.
-func upgradeHistoricalClaudeProviderDefaults(entry ProviderEntry) (ProviderEntry, bool) {
-	if entry.Backend != "" || entry.ModelPolicy == ProviderModelPolicyPinned || entry.Binary != "claude" {
-		return entry, false
-	}
-	args, upgraded := upgradeHistoricalClaudeDefaultArgs(entry.Args)
-	entry.Args = args
-	return entry, upgraded
+	return tail[1], true
 }

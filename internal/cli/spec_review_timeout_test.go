@@ -129,6 +129,9 @@ func TestRunSpecReview_CLITimeoutOverridesEveryProviderBudget(t *testing.T) {
 	}
 }
 
+// The review runs the claude model autopus.yaml names: a former default
+// (`--model opus --effort max`) is a model the user may have chosen, so the
+// migration keeps it and only fills in what is missing, here the timeout.
 func TestRunSpecReview_AppliesOrchestraMigrationToClaudeProvider(t *testing.T) {
 	dir := t.TempDir()
 	scaffoldReviewSpec(t, dir, "SPEC-REVIEW-MIGRATE-001")
@@ -157,7 +160,8 @@ func TestRunSpecReview_AppliesOrchestraMigrationToClaudeProvider(t *testing.T) {
 	defer func() { specReviewRunOrchestra = origRunner }()
 
 	require.NoError(t, runSpecReview(context.Background(), "SPEC-REVIEW-MIGRATE-001", "consensus", 0))
-	// The migrated default argv then gets the read-only projection suffix.
-	assert.Equal(t, withClaudeReadOnlySuffix(config.DefaultClaudeProviderEntry().Args...), capturedProvider.Args)
+	// The stored argv, model untouched and output format migrated, then gets
+	// the read-only projection suffix.
+	assert.Equal(t, withClaudeReadOnlySuffix("--print", "--model", "opus", "--effort", "max", "--output-format", "json"), capturedProvider.Args)
 	assert.Equal(t, 480*time.Second, capturedProvider.ExecutionTimeout)
 }

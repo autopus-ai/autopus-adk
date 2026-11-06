@@ -74,7 +74,21 @@ func composeSharedReader(cmd *cobra.Command) *bufio.Reader {
 func (d *composeDriverState) draw() error {
 	fmt.Fprintf(d.out, "\n%s %s\n", d.Text.Title, strings.Repeat("─", 40))
 	fmt.Fprintln(d.out, composeDriverStatus(d.Config.Quality, d.Text))
-	return d.Table.Table(d.out, d.Config, d.snapshot)
+	if err := d.Table.Table(d.out, d.Config, d.snapshot); err != nil {
+		return err
+	}
+	// The review provider model is a separate setting no preset changes.
+	writeClaudeReviewModelLine(d.out, d.dir(), d.Config, d.Text)
+	return nil
+}
+
+// dir is the project directory of a session newComposeSession built, ""
+// for one assembled from fakes.
+func (d *composeDriverState) dir() string {
+	if d.shared == nil {
+		return ""
+	}
+	return d.shared.dir
 }
 
 // menu asks the composition question until it gets a usable answer. Enter

@@ -19,24 +19,52 @@ func claudeMigrationConfig(entry ProviderEntry) *HarnessConfig {
 	}
 }
 
-// TestMigrateOrchestraConfig_UpgradesHistoricalClaudeDefault proves an install
-// still carrying a shipped historical default lands on the current model
-// policy.
-func TestMigrateOrchestraConfig_UpgradesHistoricalClaudeDefault(t *testing.T) {
+// TestMigrateOrchestraConfig_KeepsFormerDefaultClaudeModel proves the
+// migration never moves a stored model: a former shipped default
+// (`--model opus --effort high|max`) cannot be told apart from a user who
+// chose Opus, so the argv stays exactly as written. The rest of the
+// migration, such as the missing timeout, still applies.
+func TestMigrateOrchestraConfig_KeepsFormerDefaultClaudeModel(t *testing.T) {
 	t.Parallel()
 
-	cfg := claudeMigrationConfig(ProviderEntry{
-		Binary: "claude",
-		Args:   []string{"--print", "--model", "opus", "--effort", "high"},
-	})
+	for _, args := range [][]string{
+		{"--print", "--model", "opus", "--effort", "high"},
+		{"--print", "--model", "opus", "--effort", "max"},
+		{"-p", "--model", "opus", "--effort", "max"},
+	} {
+		args := args
+		t.Run(args[0]+" "+args[4], func(t *testing.T) {
+			t.Parallel()
 
-	changed, err := MigrateOrchestraConfig(cfg)
-	require.NoError(t, err)
-	assert.True(t, changed)
+			// The model tail stays; only the #267 output-format piece is added.
+			want := append(append([]string(nil), args...), "--output-format", "json")
+			cfg := claudeMigrationConfig(ProviderEntry{Binary: "claude", Args: args})
 
-	claude := cfg.Orchestra.Providers["claude"]
-	assert.Equal(t, DefaultClaudeProviderEntry().Args, claude.Args)
-	assert.Equal(t, ClaudeOrchestraTimeoutSeconds, claude.Subprocess.Timeout)
+			_, err := MigrateOrchestraConfig(cfg)
+			require.NoError(t, err)
+
+			claude := cfg.Orchestra.Providers["claude"]
+			assert.Equal(t, want, claude.Args)
+			assert.Equal(t, ClaudeOrchestraTimeoutSeconds, claude.Subprocess.Timeout)
+
+			changed, err := MigrateOrchestraConfig(cfg)
+			require.NoError(t, err)
+			assert.False(t, changed, "a rerun must find nothing left to migrate")
+			assert.Equal(t, want, cfg.Orchestra.Providers["claude"].Args)
+		})
+	}
+}
+
+// TestEnsureOrchestraProvider_KeepsFormerDefaultClaudeModel covers the
+// platform add path, which must not move the stored model either.
+func TestEnsureOrchestraProvider_KeepsFormerDefaultClaudeModel(t *testing.T) {
+	t.Parallel()
+
+	args := []string{"--print", "--model", "opus", "--effort", "max"}
+	cfg := claudeMigrationConfig(ProviderEntry{Binary: "claude", Args: append([]string(nil), args...)})
+
+	require.NoError(t, EnsureOrchestraProvider(cfg, "claude"))
+	assert.Equal(t, args, cfg.Orchestra.Providers["claude"].Args)
 }
 
 func TestMigrateOrchestraConfig_ClaudeDefaultIsStableOnRerun(t *testing.T) {

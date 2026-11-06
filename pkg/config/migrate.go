@@ -27,8 +27,8 @@ func defaultProviderEntryForQuality(providerName string, quality QualityConf) (P
 //  1. Classify Codex model policy: exact historical defaults become quality-managed;
 //     every other unmarked provider becomes pinned.
 //  2. Migrate opencode provider entries back to codex.
-//  3. Upgrade a Claude provider still carrying a shipped historical default
-//     argv onto the current default model policy.
+//  3. Leave a Claude provider's model as written, including a former shipped
+//     default; `auto update` reports that one instead (ClaudeProviderFormerDefault).
 //  4. For each platform that maps to a known orchestra provider,
 //     add the provider entry if it is missing.
 //  5. For each orchestra command, ensure every provider in orchestra.Providers
@@ -111,9 +111,6 @@ func migrateKnownProviderDefaults(cfg *HarnessConfig) bool {
 		}
 		if providerName == "claude" {
 			var migrated bool
-			if existing, migrated = upgradeHistoricalClaudeProviderDefaults(existing); migrated {
-				changed = true
-			}
 			if existing, migrated = migrateClaudeOutputFormat(existing); migrated {
 				changed = true
 			}

@@ -20,6 +20,7 @@ quality.default = balanced   ultra: 현재 기본값   balanced: 현재 기본�
 탐색·보조  annotator            sonnet  sonnet-5-5 · high  6-luna · max
 탐색·보조  reverse-engineer     opus    opus-5-5 · high    6.1-sol · xhigh
 Codex catalog: 읽음 · 대체 0칸
+리뷰 provider claude 모델 = claude-fable-5-1 (Claude Code 프리셋과 별개 설정 · 변경: auto quality review model claude <model>)
 구성을 바꿀까요? [Enter] 유지 · g) 역할 그룹 · a) 고급 · t) 도구별 설정
 > 구성을 바꿀까요? [Enter] 유지 · g) 역할 그룹 · a) 고급 · t) 도구별 설정
 > 

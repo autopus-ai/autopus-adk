@@ -227,3 +227,10 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 기록: 6절과 같은 방법이다(이 branch tip에서 writer, `init-in.stdout`은 HEAD로 되돌림).
 - 차이: 일곱 NPD의 `autopus.yaml` checksum 한 줄씩뿐이다. stdout golden과 다른 경로는 바뀌지 않았다.
 - 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`과 `TestInitReview_*`가 이 golden으로 통과한다.
+
+## 23. 리뷰 provider claude 모델 줄 재기록 (fix/claude-review-model-no-silent-upgrade, 2026-11-06)
+
+- 원인: 구성 표를 그릴 때마다 표 아래에 리뷰 provider claude 모델이 Claude Code 프리셋과 별개 설정임을 알리는 한 줄을 더했다(`리뷰 provider claude 모델 = claude-fable-5-1 (Claude Code 프리셋과 별개 설정 · 변경: auto quality review model claude <model>)`). 프리셋의 최상위 Claude 등급과 그 모델의 등급이 다르면 `주의:` 줄이 된다. 모델은 autopus.yaml 원문의 `--model` 값에서만 읽으므로 `${NAME}` 값이나 원문으로 읽을 수 없는 설정에서는 줄이 없다.
+- 기록: 이 branch tip에서 writer를 돌렸다. 바뀐 줄은 이 branch가 의도한 출력이므로 `quality-line-b.stdout`을 그대로 두었다. writer가 다시 쓴 `init-in.stdout`(단언하지 않는 TUIUX 확인 화면)은 `git checkout`으로 되돌렸다.
+- 차이: `quality-line-b.stdout`의 첫 표 아래 `Codex catalog:` 줄 뒤에 위 한 줄이 더해졌다. init-pipe는 표를 그릴 때 autopus.yaml이 아직 없어 줄이 없고, init-yes·update-yes·update-ci·quality-no-tty는 표를 그리지 않는다. NPD 일곱 개와 나머지 stdout golden은 바뀌지 않았다.
+- 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`이 이 golden으로 통과한다.
