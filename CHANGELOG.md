@@ -35,6 +35,22 @@ All notable changes to this project will be documented in this file.
     balanced 프리셋에 `opus`로 적힌 HB1·HB4 배치의 최상위 에이전트는 표준 배치(`claude-opus-5-5`/max, `gpt-6-astra`/max)를
     받는다.
 
+- **이전 기본값 리뷰 model을 마이그레이션이 바꾸지 않는다** (2026-11-06, #269): claude 리뷰 provider argv의 model 꼬리가
+  이전 기본값이면 orchestra 마이그레이션이 그 model을 새 기본값으로 바꿔 썼다. 일부러 같은 값을 고른 설정과 구별할 수
+  없어서, 이제 update·init 재실행·platform 추가·spec review 어느 경로도 model을 바꾸지 않는다. 빠진 timeout 같은 나머지
+  마이그레이션과 출력 형식 마이그레이션은 그대로다. 구성 표 아래(`auto update`·`auto quality`)와 `auto quality show`에
+  "리뷰 provider claude 모델" 줄이 생겨 Claude Code 프리셋과 별개 설정임을 보이고, 프리셋의 최상위 Claude 등급과 다르면
+  "주의:" 줄이 된다. model 값은 autopus.yaml 원문의 `--model`에서만 읽어 `${NAME}` 값은 보이지 않는다.
+
+- **agy·claude 리뷰 provider가 machine-readable 출력으로 돌고 usage를 남긴다** (2026-11-06, #267):
+  - agy는 `--output-format stream-json`으로 돈다. 마지막 result event를 읽은 뒤 5초 안에 끝나지 않으면 프로세스 그룹을
+    정리하고 받은 응답을 성공으로 쓴다. agy 1.5.0이 답한 뒤 끝나지 않아 리뷰가 provider timeout까지 묶이고 답을 버리던
+    문제다. 응답이 비어 있고 거부된 도구(`denied_actions`)가 있으면 빈 출력 대신 그 이름을 담아 실패한다.
+  - claude 기본값은 `--print ... --output-format json`이고, 응답 텍스트는 json envelope의 result, usage는 `modelUsage`
+    합계(subagent 포함)다. 그래서 `auto spec review`가 claude usage를 `unknown`이 아니라 실제 값으로 기록한다.
+  - 기존 autopus.yaml은 출력 형식이 없거나 `text`인 agy·claude 항목만 옮긴다. claude는 print 플래그가 있는 항목만이고,
+    `--model`·`--effort`와 다른 인자, 명시한 `json`·`stream-json`, backend 항목과 wrapper 바이너리는 그대로다.
+
 - **비활성 `auto disk trim`이 캐시를 훑지 않는다** (2026-11-03): `start_below_gb` 덕분에 아무 규칙도 돌지 않는 trim도
   Go build cache와 work dir 전체를 먼저 훑었다. launchd에서 10분마다 도는 trim은 I/O가 throttle돼 한 번에 23초에서 1분
   40초가 걸렸다. 이제 trim과 lease의 공간 부족 회수는 비활성일 때 두 root를 훑지 않는다. 출력은 같다. `auto disk status`는
