@@ -61,9 +61,9 @@ func TestDefaultFullConfig_QualityPresets(t *testing.T) {
 	}
 
 	assert.Equal(t, map[string]string{
-		"architect": "fable", "planner": "fable", "security-auditor": "fable",
-		"debugger": "fable", "deep-worker": "fable",
-		"reviewer": "fable", "spec-writer": "fable", "executor": "sonnet",
+		"architect": "opus", "planner": "opus", "security-auditor": "opus",
+		"debugger": "opus", "deep-worker": "opus",
+		"reviewer": "opus", "spec-writer": "opus", "executor": "sonnet",
 		"annotator": "sonnet", "devops": "sonnet", "explorer": "sonnet",
 		"frontend-specialist": "sonnet", "perf-engineer": "sonnet",
 		"tester": "sonnet", "ux-validator": "sonnet", "validator": "sonnet",
@@ -180,7 +180,7 @@ func TestDefaultFullConfig_ClaudeReviewUsesFrontierMax(t *testing.T) {
 	cfg := DefaultFullConfig("test-project")
 	claude, ok := cfg.Orchestra.Providers["claude"]
 	require.True(t, ok, "claude provider must exist")
-	want := []string{"--print", "--model", "claude-fable-5-1", "--effort", "max", "--output-format", "json"}
+	want := []string{"--print", "--model", "claude-opus-5-5", "--effort", "max", "--output-format", "json"}
 	assert.Equal(t, want, claude.Args)
 }
 

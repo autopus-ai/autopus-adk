@@ -48,7 +48,7 @@ func TestComposeForms_UnreadableFileAtThePlanWarnsAndWritesNothing(t *testing.T)
 	require.NoError(t, os.Chmod(path, 0o000))
 	t.Cleanup(func() { _ = os.Chmod(path, 0o644) })
 
-	_, out, err := runComposeForms(t, session, composeFormOptions{}, "2\n", "1\n", "\n", "3\n", "\n", "\n", "\n", "\n")
+	_, out, err := runComposeForms(t, session, composeFormOptions{}, "2\n", "1\n", "\n", "2\n", "\n", "\n", "\n", "\n")
 
 	require.NoError(t, err)
 	assert.Equal(t, 1, strings.Count(out, "  경고: read config: "), out)

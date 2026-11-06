@@ -69,23 +69,25 @@ func TestComposeEffortOptions_AllHaikuGroupAsksNoEffort(t *testing.T) {
 	assert.Contains(t, out, "적용할까요? \n")
 }
 
-// Codex offers the levels every member's model reports: Sol's four for a
-// group that mixes Sol and Astra. Each member at the chosen level stores it
-// unless that level is its automatic one.
+// Codex offers the levels every member's model reports: Sol's four for
+// 탐색·보조, which mixes Luna and the analysis rung's Sol. Each member at the
+// chosen level stores it unless that level is its automatic one.
 func TestComposeEffortOptions_CodexIntersectsTheMembersLevels(t *testing.T) {
-	dir := writeComposeToolPresetFixture(t, "codex", map[string]string{"planner": "opus"})
+	dir := writeComposeToolPresetFixture(t, "codex", nil)
 
+	// 구성 편집, Codex, 역할 그룹, every tier and effort kept up to 탐색·보조
+	// effort xhigh, 적용.
 	out := runComposeEffortSession(t, dir, "CAT-E",
-		"2\n", "3\n", "\n", "\n", "5\n", "\n", "\n", "\n", "\n", "\n", "\n", "2\n", "\n")
+		"2\n", "3\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "5\n", "2\n", "\n")
 
-	assert.Contains(t, out, "설계·판단 effort \n"+
-		"1. 그대로 — 6.1-sol · xhigh / 6-astra · max\n"+
-		"2. 6.1-sol · low / 6-astra · low\n"+
-		"3. 6.1-sol · medium / 6-astra · medium\n"+
-		"4. 6.1-sol · high / 6-astra · high\n"+
-		"5. 6.1-sol · xhigh / 6-astra · xhigh\n"+
+	assert.Contains(t, out, "탐색·보조 effort \n"+
+		"1. 그대로 — 6-luna · max / 6.1-sol · xhigh\n"+
+		"2. 6-luna · low / 6.1-sol · low\n"+
+		"3. 6-luna · medium / 6.1-sol · medium\n"+
+		"4. 6-luna · high / 6.1-sol · high\n"+
+		"5. 6-luna · xhigh / 6.1-sol · xhigh\n"+
 		"Enter")
-	assert.Equal(t, composeEfforts("xhigh", "architect", "security-auditor", "spec-writer"),
+	assert.Equal(t, composeEfforts("xhigh", "explorer", "annotator"),
 		composeBindLoad(t, dir).Quality.Presets["codex-custom"].Efforts)
 }
 
@@ -132,7 +134,7 @@ func TestComposeEffortOptions_AutomaticChoiceOnTheStartIsNoChange(t *testing.T) 
 func TestComposeEffortOptions_AllToolsTabAsksNoEffort(t *testing.T) {
 	dir := writeComposeFixture(t, "claude-code", "codex")
 
-	out := runComposeEffortSession(t, dir, "CAT-A", "2\n", "1\n", "\n", "3\n", "\n", "\n", "\n", "\n", "\n")
+	out := runComposeEffortSession(t, dir, "CAT-A", "2\n", "1\n", "\n", "2\n", "\n", "\n", "\n", "\n", "\n")
 
 	assert.NotContains(t, out, " effort \n")
 	assert.Contains(t, out, "적용할까요? \n")

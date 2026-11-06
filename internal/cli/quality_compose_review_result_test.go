@@ -33,9 +33,9 @@ func TestReviewSummary_NamesEachProvidersModel(t *testing.T) {
 	ko := runReviewFormsIn(t, dir, "ko", "\n")
 	en := runReviewFormsIn(t, dir, "en", "\n")
 
-	assert.Contains(t, ko, "\n멀티프로바이더 리뷰: claude claude-fable-5-1 · max · codex gpt-6-astra · max · "+
+	assert.Contains(t, ko, "\n멀티프로바이더 리뷰: claude claude-opus-5-5 · max · codex gpt-6-astra · max · "+
 		"gemini(꺼짐) agy gemini-3.8-flash-high · judge claude\n구성을 바꿀까요?")
-	assert.Contains(t, en, "\nMulti-provider review: claude claude-fable-5-1 · max · codex gpt-6-astra · max · "+
+	assert.Contains(t, en, "\nMulti-provider review: claude claude-opus-5-5 · max · codex gpt-6-astra · max · "+
 		"gemini (off) agy gemini-3.8-flash-high · judge claude\nChange the composition?")
 	assert.Contains(t, runReviewFormsIn(t, writeReviewR3(t), "ko", "\n"), "\n"+reviewSummaryR3+"\n구성을 바꿀까요?")
 }

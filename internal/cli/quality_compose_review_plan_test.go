@@ -251,7 +251,7 @@ func TestPlanReviewComposition_CLIBackendCellsAndTerminalSafety(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, []string{"claude", "codex", "gem\x1b[2Jini"}, baseline.Visible)
-	assert.Equal(t, "claude claude-fable-5-1 · max", plan.Table.rows[0][2])
+	assert.Equal(t, "claude claude-opus-5-5 · max", plan.Table.rows[0][2])
 	assert.Equal(t, `gem\x1b[2Jini`, plan.Table.rows[2][0])
 	assert.Equal(t, "켜짐 *", plan.Table.rows[2][1])
 	require.Len(t, plan.Changes, 1)

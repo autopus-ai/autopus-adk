@@ -15,26 +15,33 @@ import (
 // The Claude review provider model and the Claude Code preset are separate
 // settings; these are the lines that say so, as the operator reads them.
 const (
-	claudeReviewLineFable = "리뷰 provider claude 모델 = claude-fable-5-1 " +
+	claudeReviewLineDefault = "리뷰 provider claude 모델 = claude-opus-5-5 " +
 		"(Claude Code 프리셋과 별개 설정 · 변경: auto quality review model claude <model>)"
-	claudeReviewWarnCustom = "주의: Claude Code 프리셋 claude-custom의 최상위 등급은 opus인데 " +
+	claudeReviewLineFormerOpus = "리뷰 provider claude 모델 = opus " +
+		"(Claude Code 프리셋과 별개 설정 · 변경: auto quality review model claude <model>)"
+	claudeReviewWarnCustom = "주의: Claude Code 프리셋 claude-custom의 최상위 등급은 fable인데 " +
+		"리뷰 provider claude 모델은 claude-opus-5-5입니다. 별개 설정이며 auto quality review model claude <model>로 바꿉니다."
+	claudeReviewWarnFormer = "주의: Claude Code 프리셋 balanced의 최상위 등급은 opus인데 " +
 		"리뷰 provider claude 모델은 claude-fable-5-1입니다. 별개 설정이며 auto quality review model claude <model>로 바꿉니다."
-	claudeReviewWarnFormer = "주의: Claude Code 프리셋 balanced의 최상위 등급은 fable인데 " +
-		"리뷰 provider claude 모델은 opus입니다. 별개 설정이며 auto quality review model claude <model>로 바꿉니다."
-	claudeFormerDefaultNotice = "참고: claude 리뷰 provider 모델이 이전 버전 기본값 opus입니다. " +
-		"현재 기본값은 claude-fable-5-1이며 auto quality review model claude <model>로 바꿀 수 있습니다."
+	claudeFormerDefaultNotice = "참고: claude 리뷰 provider 모델이 이전 버전 기본값 claude-fable-5-1입니다. " +
+		"현재 기본값은 claude-opus-5-5이며 auto quality review model claude <model>로 바꿀 수 있습니다."
 )
 
-var claudeFormerDefaultArgs = []string{"--print", "--model", "opus", "--effort", "max"}
+// claudeFormerDefaultArgs is the Fable review default v0.50.116-v0.50.133
+// shipped; claudeFormerOpusArgs is the older Opus one.
+var (
+	claudeFormerDefaultArgs = []string{"--print", "--model", "claude-fable-5-1", "--effort", "max"}
+	claudeFormerOpusArgs    = []string{"--print", "--model", "opus", "--effort", "max"}
+)
 
-// claudeAllOpusConfig is the reported setup: quality.providers.claude names
-// a custom preset with every agent on opus, while the review provider keeps
-// the shipped claude-fable-5-1.
-func claudeAllOpusConfig() *config.HarnessConfig {
+// claudeAllFableConfig is a mismatched setup: quality.providers.claude names
+// a custom preset with every agent on fable, while the review provider keeps
+// the shipped claude-opus-5-5.
+func claudeAllFableConfig() *config.HarnessConfig {
 	cfg := config.DefaultFullConfig("p")
 	agents := map[string]string{}
 	for _, name := range config.CanonicalAgentNames() {
-		agents[name] = "opus"
+		agents[name] = "fable"
 	}
 	cfg.Quality.Presets["claude-custom"] = config.QualityPreset{Agents: agents}
 	cfg.Quality.Providers = map[string]string{config.QualityProviderClaude: "claude-custom"}
@@ -61,9 +68,10 @@ func TestClaudeReviewModelLine_NamesTheSeparateReviewModel(t *testing.T) {
 		cfg  *config.HarnessConfig
 		want string
 	}{
-		{"shipped default agrees with the preset top tier", config.DefaultFullConfig("p"), claudeReviewLineFable},
-		{"all-opus custom preset with the fable review model warns", claudeAllOpusConfig(), claudeReviewWarnCustom},
-		{"former opus review model under balanced warns", withClaudeArgs(config.DefaultFullConfig("p"), claudeFormerDefaultArgs), claudeReviewWarnFormer},
+		{"shipped default agrees with the preset top tier", config.DefaultFullConfig("p"), claudeReviewLineDefault},
+		{"all-fable custom preset with the opus review model warns", claudeAllFableConfig(), claudeReviewWarnCustom},
+		{"former fable review model under balanced warns", withClaudeArgs(config.DefaultFullConfig("p"), claudeFormerDefaultArgs), claudeReviewWarnFormer},
+		{"former opus review model agrees with balanced", withClaudeArgs(config.DefaultFullConfig("p"), claudeFormerOpusArgs), claudeReviewLineFormerOpus},
 		{"model-less print names no model", withClaudeArgs(config.DefaultFullConfig("p"), []string{"--print"}), ""},
 		{"orchestra off has no review provider", disabled, ""},
 		{"backend-routed provider has no CLI model", routed, ""},
@@ -85,16 +93,26 @@ func TestClaudeReviewFormerDefaultNotice_NamesModelDefaultAndCommand(t *testing.
 	writeClaudeReviewFormerDefaultNotice(&out, "", withClaudeArgs(config.DefaultFullConfig("p"), claudeFormerDefaultArgs), text)
 	assert.Equal(t, claudeFormerDefaultNotice+"\n", out.String())
 
-	for _, args := range [][]string{config.DefaultClaudeProviderEntry().Args, {"--print"}, {"--print", "--model", "opus"}} {
+	withJSON := append(append([]string(nil), claudeFormerDefaultArgs...), "--output-format", "json")
+	out.Reset()
+	writeClaudeReviewFormerDefaultNotice(&out, "", withClaudeArgs(config.DefaultFullConfig("p"), withJSON), text)
+	assert.Equal(t, claudeFormerDefaultNotice+"\n", out.String(), "the #267 output-format piece does not hide it")
+
+	// The Opus former defaults already run the current default's model, so
+	// they get no notice; neither does anything that is no former default.
+	for _, args := range [][]string{
+		claudeFormerOpusArgs, {"--print", "--model", "opus", "--effort", "high"},
+		config.DefaultClaudeProviderEntry().Args, {"--print"}, {"--print", "--model", "opus"},
+	} {
 		out.Reset()
 		writeClaudeReviewFormerDefaultNotice(&out, "", withClaudeArgs(config.DefaultFullConfig("p"), args), text)
 		assert.Empty(t, out.String(), "%v", args)
 	}
 }
 
-// A non-preview update over a former default keeps the stored opus argv and
-// prints the notice once; a preview prints nothing of it.
-func TestUpdate_FormerDefaultClaudeReviewModel_NoticesAndKeepsOpus(t *testing.T) {
+// A non-preview update over the former Fable default keeps the stored argv
+// and prints the notice once; a preview prints nothing of it.
+func TestUpdate_FormerDefaultClaudeReviewModel_NoticesAndKeepsFable(t *testing.T) {
 	newComposeUpdateRun(t, false, "")
 	dir, cfg := composeSessionProject(t, "D")
 	require.NoError(t, config.Save(dir, withClaudeArgs(cfg, claudeFormerDefaultArgs)))
@@ -127,7 +145,7 @@ func TestUpdateCompose_InteractiveTableNamesTheClaudeReviewModel(t *testing.T) {
 
 	require.NoError(t, err, out)
 	assert.Contains(t, out, "에이전트 모델 구성")
-	assert.Equal(t, 1, strings.Count(out, claudeReviewLineFable+"\n"), out)
+	assert.Equal(t, 1, strings.Count(out, claudeReviewLineDefault+"\n"), out)
 }
 
 func TestQualityShow_NamesTheClaudeReviewModelAndWarnsOnMismatch(t *testing.T) {
@@ -139,8 +157,9 @@ func TestQualityShow_NamesTheClaudeReviewModelAndWarnsOnMismatch(t *testing.T) {
 		cfg  *config.HarnessConfig
 		want string
 	}{
-		"default":  {config.DefaultFullConfig("p"), claudeReviewLineFable},
-		"mismatch": {claudeAllOpusConfig(), claudeReviewWarnCustom},
+		"default":      {config.DefaultFullConfig("p"), claudeReviewLineDefault},
+		"mismatch":     {claudeAllFableConfig(), claudeReviewWarnCustom},
+		"former fable": {withClaudeArgs(config.DefaultFullConfig("p"), claudeFormerDefaultArgs), claudeReviewWarnFormer},
 	} {
 		t.Run(name, func(t *testing.T) {
 			dir := t.TempDir()
@@ -163,7 +182,7 @@ func TestQualityShow_NamesTheClaudeReviewModelAndWarnsOnMismatch(t *testing.T) {
 func TestQualityShow_ClaudeReviewLineNeverShowsAnEnvironmentValue(t *testing.T) {
 	t.Setenv("REVIEW_MODEL", "rvm-sentinel-7f3a9c")
 	dir := writeReviewRL(t)
-	replaceReviewFile(t, dir, "--model, claude-fable-5-1,", `--model, "${REVIEW_MODEL}",`)
+	replaceReviewFile(t, dir, "--model, claude-opus-5-5,", `--model, "${REVIEW_MODEL}",`)
 
 	root := NewRootCmd()
 	buf := &bytes.Buffer{}

@@ -153,7 +153,7 @@ func TestPlanComposeBinding_Candidate_IsDetachedAndCarriesTheWrite(t *testing.T)
 	assert.Equal(t, "balanced", cfg.Quality.Default, "planning never touches the loaded config")
 	assert.NotContains(t, cfg.Quality.Presets, "custom")
 	plan.Candidate.Quality.Presets["balanced"].Agents["planner"] = "haiku"
-	assert.Equal(t, "fable", cfg.Quality.Presets["balanced"].Agents["planner"])
+	assert.Equal(t, "opus", cfg.Quality.Presets["balanced"].Agents["planner"])
 	// The candidate resolves the edited composition, which is what the preview shows.
 	assert.True(t, newQualityComposition(plan.Candidate.Quality, composeGroupsSources(t)).Equal(edited))
 }

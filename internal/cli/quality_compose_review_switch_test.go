@@ -45,7 +45,7 @@ func TestReviewTab_S8AgyWithoutOMPGetsTheReasonLine(t *testing.T) {
 	assert.Contains(t, passes[1], "변경 없음\n")
 	assert.NotContains(t, run.out, "gemini model \n")
 	assert.NotContains(t, run.out, "OMP backend로 전환\n")
-	assert.Regexp(t, `(?m)^claude\s+켜짐\s+claude claude-fable-5-1 · max\s+judge$`, passes[2])
+	assert.Regexp(t, `(?m)^claude\s+켜짐\s+claude claude-opus-5-5 · max\s+judge$`, passes[2])
 	assert.Regexp(t, `(?m)^codex\s+꺼짐 \*\s+codex gpt-6-astra · max$`, passes[2])
 	assert.Regexp(t, `(?m)^gemini\s+켜짐\s+agy$`, passes[2])
 	after, err := config.Load(dir)
@@ -125,13 +125,13 @@ func TestReviewTab_S26CLIChangeLines(t *testing.T) {
 	dir := writeReviewRL(t)
 	sum := reviewFileSum(t, dir)
 
-	// participation ×3, claude opus → xhigh, codex Enter, gemini gemini-4-argon, judge, check, 취소, 유지.
+	// participation ×3, claude fable → xhigh, codex Enter, gemini gemini-4-argon, judge, check, 취소, 유지.
 	run := runReviewCLIForms(t, dir, []string{"agy"}, reviewLines(reviewOpen,
-		[]string{"\n", "\n", "\n", "3\n", "4\n", "\n", "3\n", "\n", "\n", "\n", "\n"})...)
+		[]string{"\n", "\n", "\n", "2\n", "4\n", "\n", "3\n", "\n", "\n", "\n", "\n"})...)
 
 	require.NoError(t, run.err, run.out)
 	assert.Contains(t, run.out, "바뀌는 설정:\n"+
-		"  orchestra.providers.claude.args --model claude-fable-5-1 → claude-opus-5-5\n"+
+		"  orchestra.providers.claude.args --model claude-opus-5-5 → claude-fable-5-1\n"+
 		"  orchestra.providers.claude.args --effort max → xhigh\n"+
 		"  orchestra.providers.gemini.args --model 없음 → gemini-4-argon-medium\n바뀐 model은")
 	assert.Equal(t, sum, reviewFileSum(t, dir))

@@ -45,9 +45,9 @@ func composeToolNamed(t *testing.T, platform string) qualityModelTool {
 	return qualityModelTool{}
 }
 
-// S4: the 모든 도구 같게 tier options of 설계·판단 in D, CAT-A. fable binds
-// balanced again; opus, sonnet, and haiku bind custom, which gives up the
-// standard placement.
+// S4: the 모든 도구 같게 tier options of 설계·판단 in D, CAT-A. opus binds
+// balanced again; fable, sonnet, and haiku bind custom, which gives up the
+// standard placement. On Codex fable and the standard opus rung both run Astra.
 func TestComposeLabels_AllToolsGroupOptionsNameEachToolsCells(t *testing.T) {
 	planner := newComposeLabelRun(t, "D", "CAT-A")
 	labeler := newComposeAllToolsLabeler(planner)
@@ -55,9 +55,9 @@ func TestComposeLabels_AllToolsGroupOptionsNameEachToolsCells(t *testing.T) {
 	options := labeler.groupOptions(planner.Start(), composeRoleGroups[0], "그대로")
 
 	assert.Equal(t, []string{
-		"그대로 — fable",
+		"그대로 — opus",
 		"fable — Claude Code: fable-5-1 · max | Codex: 6-astra · max",
-		"opus — Claude Code: opus-5-5 · high | Codex: 6.1-sol · xhigh",
+		"opus — Claude Code: opus-5-5 · max | Codex: 6-astra · max",
 		"sonnet — Claude Code: sonnet-5-5 · medium | Codex: 6-luna · max",
 		"haiku — Claude Code: haiku-4-5 · - | Codex: 6-luna · max",
 	}, composeOptionLabels(options))
@@ -77,7 +77,7 @@ func TestComposeLabels_CodexToolGroupOptions(t *testing.T) {
 	assert.Equal(t, []string{
 		"그대로 — 6-astra · max",
 		"6-astra · max  [fable]",
-		"6.1-sol · xhigh  [opus]",
+		"6-astra · max  [opus]",
 		"6-luna · max  [sonnet]",
 		"6-luna · max  [haiku]",
 	}, composeOptionLabels(design))
@@ -93,7 +93,7 @@ func TestComposeLabels_ClaudeToolAgentListAndValues(t *testing.T) {
 	labeler := newComposeToolLabeler(planner.run, tool)
 	working := planner.run.toolStart(tool)
 
-	assert.Equal(t, "planner — fable-5-1 · max", labeler.agentEntry(working, "planner"))
+	assert.Equal(t, "planner — opus-5-5 · max", labeler.agentEntry(working, "planner"))
 	assert.Equal(t, "executor — sonnet-5-5 · max", labeler.agentEntry(working, "executor"))
 	assert.Equal(t, "validator — sonnet-5-5 · high", labeler.agentEntry(working, "validator"))
 	assert.Equal(t, []string{
@@ -107,7 +107,8 @@ func TestComposeLabels_ClaudeToolAgentListAndValues(t *testing.T) {
 	working["executor"] = "opus"
 	assert.Equal(t, "executor — opus-5-5 · high", labeler.agentEntry(working, "executor"))
 	assert.Equal(t, "validator — sonnet-5-5 · medium", labeler.agentEntry(working, "validator"))
-	assert.Equal(t, "planner — fable-5-1 · max", labeler.agentEntry(working, "planner"))
+	// A top-rung agent on opus keeps the top-rung cell under the custom binding.
+	assert.Equal(t, "planner — opus-5-5 · max", labeler.agentEntry(working, "planner"))
 }
 
 // The 모든 도구 같게 agent list names the tier with both tools' cells.
@@ -115,7 +116,7 @@ func TestComposeLabels_AllToolsAgentEntry(t *testing.T) {
 	planner := newComposeLabelRun(t, "D", "CAT-A")
 	labeler := newComposeAllToolsLabeler(planner)
 
-	assert.Equal(t, "planner — fable (Claude Code: fable-5-1 · max | Codex: 6-astra · max)",
+	assert.Equal(t, "planner — opus (Claude Code: opus-5-5 · max | Codex: 6-astra · max)",
 		labeler.agentEntry(planner.Start(), "planner"))
 }
 
@@ -125,9 +126,11 @@ func TestComposeLabels_CodexSubstituteIsNamed(t *testing.T) {
 	tool := composeToolNamed(t, "codex")
 	labeler := newComposeToolLabeler(planner.run, tool)
 
-	options := labeler.groupOptions(planner.run.toolStart(tool), composeRoleGroups[0], "그대로")
+	// The 구현 group's opus moves its non-top-rung members to the Sol rung,
+	// which CAT-B substitutes; debugger and deep-worker keep Astra.
+	options := labeler.groupOptions(planner.run.toolStart(tool), composeRoleGroups[1], "그대로")
 
-	assert.Equal(t, "6-sol · xhigh (대체)  [opus]", options[2].label)
+	assert.Equal(t, "6-sol · xhigh (대체) / 6-astra · max  [opus]", options[2].label)
 }
 
 // S14, oracle: for D and R, both tool tabs, and every group and tier, each

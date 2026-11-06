@@ -92,9 +92,10 @@ func TestDescribeComposeRefresh_BoundHB1_ShowsEveryTransition(t *testing.T) {
 	lines := composeBindDescribe(t, dir, cfg, plan, "en")
 
 	require.Len(t, lines, 2)
-	assert.Equal(t, "quality.presets.balanced refreshed to the current default: architect, planner, "+
-		"security-auditor, spec-writer opus→fable · debugger, reviewer sonnet→fable · explorer, "+
-		"validator haiku→sonnet · added annotator→sonnet, deep-worker→fable, frontend-specialist→sonnet, "+
+	// HB1's opus core already equals the current top rung tier.
+	assert.Equal(t, "quality.presets.balanced refreshed to the current default: "+
+		"debugger, reviewer sonnet→opus · explorer, "+
+		"validator haiku→sonnet · added annotator→sonnet, deep-worker→opus, frontend-specialist→sonnet, "+
 		"perf-engineer→sonnet, reverse-engineer→opus, ux-validator→sonnet", lines[0])
 }
 

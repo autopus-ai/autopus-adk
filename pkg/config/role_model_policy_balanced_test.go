@@ -10,7 +10,7 @@ import (
 // balancedAnthropicRoutes is the agreed OMP balanced matrix under the
 // anthropic anchor: one exact model at one exact thinking level per agent.
 func balancedAnthropicRoutes() map[string]RoleModelCandidateConf {
-	top := builtinCandidate("anthropic/"+ClaudeFableModel, "max", "anthropic")
+	top := builtinCandidate("anthropic/"+ClaudeOpusModel, "max", "anthropic")
 	implementation := builtinCandidate("anthropic/"+ClaudeSonnetModel, "max", "anthropic")
 	routine := builtinCandidate("anthropic/"+ClaudeSonnetModel, "high", "anthropic")
 	analysis := builtinCandidate("anthropic/"+ClaudeOpusModel, "high", "anthropic")
@@ -97,7 +97,7 @@ func TestBalancedRoleModelProfile_DebuggerAndDeepWorkerTakeTheHighestModel(t *te
 		claude, err := anthropic.AgentCandidates(agent)
 		require.NoError(t, err, agent)
 		assert.Equal(t, []RoleModelCandidateConf{
-			builtinCandidate("anthropic/"+ClaudeFableModel, "max", "anthropic"),
+			builtinCandidate("anthropic/"+ClaudeOpusModel, "max", "anthropic"),
 		}, claude, agent)
 
 		codex, err := openai.AgentCandidates(agent)

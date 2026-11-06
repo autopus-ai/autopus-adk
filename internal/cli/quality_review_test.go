@@ -71,7 +71,7 @@ func TestQualityReview_ShowPrintsWhatTheTabShows(t *testing.T) {
 	assert.Equal(t, "spec.review_gate.enabled = true\n"+
 		"spec.review_gate.judge = claude\n"+
 		"provider  review  backend  model\n"+
-		"claude    on      claude   claude-fable-5-1 · max\n"+
+		"claude    on      claude   claude-opus-5-5 · max\n"+
 		"codex     off     codex    gpt-6-astra · max\n"+
 		"gemini    on      omp      google-antigravity/gemini-3.1-pro:high\n"+
 		"config = "+filepath.Join(dir, "autopus.yaml")+"\n", out)
@@ -100,7 +100,7 @@ func TestQualityReview_ShowJSON(t *testing.T) {
 		Config: filepath.Join(dir, "autopus.yaml"), ReviewGateEnabled: true,
 		ReviewProviders: []string{"claude", "gemini"}, Judge: "claude",
 		Providers: []qualityReviewProvider{
-			{Name: "claude", TakesPart: true, Backend: "cli", Binary: "claude", Model: "claude-fable-5-1", Effort: "max"},
+			{Name: "claude", TakesPart: true, Backend: "cli", Binary: "claude", Model: "claude-opus-5-5", Effort: "max"},
 			{Name: "codex", Backend: "cli", Binary: "codex", Model: "gpt-6-astra", Effort: "max"},
 			{Name: "gemini", TakesPart: true, Backend: "omp", Model: "google-antigravity/gemini-3.1-pro", Effort: "high"},
 		},

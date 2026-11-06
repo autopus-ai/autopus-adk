@@ -69,7 +69,7 @@ func TestQualityCompose_OpensTheCompositionStepFirst(t *testing.T) {
 
 	require.NoError(t, err, out)
 	assert.Contains(t, out, "에이전트 모델 구성")
-	assert.Contains(t, out, qualityComposeStatusD+composeSessionGolden(t, "table-D-CAT-A.golden")+claudeReviewLineFable+"\n"+qualityComposeQuestionD)
+	assert.Contains(t, out, qualityComposeStatusD+composeSessionGolden(t, "table-D-CAT-A.golden")+claudeReviewLineDefault+"\n"+qualityComposeQuestionD)
 	assert.Len(t, *run.probes, 1)
 	assert.NotContains(t, out, "quality.applied_platforms", "a kept composition applies nothing")
 	assert.Equal(t, before, composeSessionHash(t, dir))
@@ -195,7 +195,8 @@ func TestQualityCompose_ApplyGeneratesTheApprovedPreviewWithTheRunSnapshot(t *te
 		assert.Equal(t, "haiku", claude.model)
 		assert.Empty(t, claude.effort, "a haiku agent carries no effort line")
 		claudeMarks, codexMarks := assertGeneratedEqualsTable(t, dir, composeRenderedTable(t, out, "미리보기 (아직 바뀌지 않음)"))
-		assert.Equal(t, 17, claudeMarks)
+		// The five kept top-rung agents keep their Claude Code cell.
+		assert.Equal(t, 12, claudeMarks)
 		assert.Equal(t, 5, codexMarks)
 	})
 }

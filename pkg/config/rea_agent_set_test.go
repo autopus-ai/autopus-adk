@@ -97,7 +97,9 @@ func TestClassifyBuiltinQualityPreset_SixteenAgentDefaultsAreHistorical(t *testi
 	hb6, ok := ClassifyBuiltinQualityPreset(balancedOnly(shippedBalancedHB6), "balanced")
 	require.True(t, ok)
 	assert.Equal(t, BuiltinQualityPresetStatus{
-		Class: BuiltinQualityPresetHistorical, Row: "HB6", RuntimeStandard: true, Differs: 1,
+		// Seven fable core agents now differ from the opus top rung, and
+		// reverse-engineer is missing.
+		Class: BuiltinQualityPresetHistorical, Row: "HB6", RuntimeStandard: true, Differs: 8,
 	}, hb6)
 
 	hu3, ok := ClassifyBuiltinQualityPreset(QualityConf{Presets: map[string]QualityPreset{
@@ -120,7 +122,7 @@ func TestClassifyBuiltinQualityPreset_SixteenAgentDefaultsAreHistorical(t *testi
 	status, ok := ClassifyBuiltinQualityPreset(balancedOnly(moved), "balanced")
 	require.True(t, ok)
 	assert.Equal(t, BuiltinQualityPresetCustomized, status.Class)
-	assert.Equal(t, 1, status.Differs)
+	assert.Equal(t, 8, status.Differs)
 }
 
 // S10: a project still holding HB6 keeps the standard placement for its

@@ -58,10 +58,13 @@ const (
 var (
 	s14ManagedCodexArgs = []string{"exec", "--json", "--sandbox", "workspace-write", "-m", CodexAstraModel,
 		"-c", `model_reasoning_effort="max"`}
-	s14ClaudeDefaultArgs = []string{"--print", "--model", ClaudeFableModel, "--effort", ClaudeOrchestraEffort}
-	// s14ClaudeJSONDecision is the shipped claude default after the json output
-	// format joined it; atB stays as recorded.
-	s14ClaudeJSONDecision = defaultEntryDecision{Args: DefaultClaudeProviderEntry().Args, Changed: true}
+	// s14ClaudeDefaultArgs is the claude default C1 recorded (A34 shipped Fable).
+	s14ClaudeDefaultArgs = []string{"--print", "--model", "claude-fable-5-1", "--effort", "max"}
+	// s14ClaudeJSONDecision is that recorded default after the json output
+	// format joined it; atB stays as recorded. The Fable model stays: it is a
+	// former default now, which auto update reports and never rewrites.
+	s14ClaudeJSONDecision = defaultEntryDecision{
+		Args: append(append([]string(nil), s14ClaudeDefaultArgs...), "--output-format", "json"), Changed: true}
 )
 
 func defaultEntryRows() []defaultEntryRow {

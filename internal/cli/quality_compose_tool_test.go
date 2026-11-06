@@ -29,11 +29,12 @@ func newComposeToolRun(t *testing.T, dir string, writer composeSessionWriter) *c
 	return session.shared
 }
 
-// composeS5Edit is S5's Codex tab edit: 설계·판단 on opus.
+// composeS5Edit is S5's Codex tab edit: 설계·판단 on sonnet, off the
+// standard opus top rung.
 func composeS5Edit(start map[string]string) map[string]string {
 	edited := maps.Clone(start)
 	for _, agent := range composeRoleGroups[0].Agents {
-		edited[agent] = "opus"
+		edited[agent] = "sonnet"
 	}
 	return edited
 }
@@ -74,8 +75,8 @@ func TestComposeToolPlanner_CodexEditWritesTheProviderBinding(t *testing.T) {
 	assert.Equal(t, map[string]string{"codex": "codex-custom"}, written.Providers)
 	preset := written.Presets["codex-custom"]
 	assert.Equal(t, "Codex custom agent tiers", preset.Description)
-	want := map[string]string{"architect": "opus", "planner": "opus", "security-auditor": "opus", "spec-writer": "opus",
-		"debugger": "fable", "deep-worker": "fable", "reviewer": "fable", "reverse-engineer": "opus"}
+	want := map[string]string{"architect": "sonnet", "planner": "sonnet", "security-auditor": "sonnet", "spec-writer": "sonnet",
+		"debugger": "opus", "deep-worker": "opus", "reviewer": "opus", "reverse-engineer": "opus"}
 	for _, agent := range []string{"annotator", "devops", "executor", "explorer", "frontend-specialist",
 		"perf-engineer", "tester", "ux-validator", "validator"} {
 		want[agent] = "sonnet"
@@ -86,7 +87,8 @@ func TestComposeToolPlanner_CodexEditWritesTheProviderBinding(t *testing.T) {
 }
 
 // The same run's --apply generates the after-table: only the four edited
-// Codex agents move, and Claude Code keeps its standard placement (S5).
+// Codex agents move; the other top-rung agents keep the top-rung model, and
+// Claude Code keeps its standard placement (S5).
 func TestComposeToolPlanner_AppliedCodexEditGeneratesItsTable(t *testing.T) {
 	dir := writeComposeFixture(t, "claude-code", "codex")
 	run := newComposeToolRun(t, dir, composeSessionFile)
@@ -98,10 +100,10 @@ func TestComposeToolPlanner_AppliedCodexEditGeneratesItsTable(t *testing.T) {
 	cmd, _ := newComposeTestCommand()
 	require.NoError(t, applyQualityHarnessWith(cmd, dir, run.cfg, "auto quality --apply", run.snapshot))
 
-	assert.Equal(t, config.CodexProfile{Model: "gpt-6.1-sol", Effort: "xhigh"}, readComposeCodexProfile(t, dir, "planner"))
+	assert.Equal(t, config.CodexProfile{Model: "gpt-6-luna", Effort: "max"}, readComposeCodexProfile(t, dir, "planner"))
 	assert.Equal(t, config.CodexProfile{Model: "gpt-6-astra", Effort: "max"}, readComposeCodexProfile(t, dir, "debugger"))
 	assert.Equal(t, config.CodexProfile{Model: "gpt-6-luna", Effort: "max"}, readComposeCodexProfile(t, dir, "executor"))
-	assert.Equal(t, composeTableClaudeCell{model: "claude-fable-5-1", effort: "max"},
+	assert.Equal(t, composeTableClaudeCell{model: "claude-opus-5-5", effort: "max"},
 		readComposeTableClaudeProfile(t, dir, "planner"))
 }
 

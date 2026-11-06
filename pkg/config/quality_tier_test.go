@@ -66,7 +66,7 @@ func TestClaudeAgentModelProjectsResolvedTier(t *testing.T) {
 	t.Parallel()
 	quality := DefaultFullConfig("projection").Quality
 
-	assert.Equal(t, ClaudeFableModel, quality.ClaudeAgentModel("planner", ""))
+	assert.Equal(t, ClaudeOpusModel, quality.ClaudeAgentModel("planner", ""))
 	assert.Equal(t, ClaudeSonnetModel, quality.ClaudeAgentModel("executor", ""))
 	assert.Equal(t, ClaudeSonnetModel, quality.ClaudeAgentModel("tester", ""))
 

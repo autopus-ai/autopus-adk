@@ -53,11 +53,12 @@ func TestComposeEffortsCarry_ClaudeEditKeepsTheCodexEfforts(t *testing.T) {
 		q.Providers = map[string]string{config.QualityProviderCodex: "codex-custom"}
 	})
 
-	runComposeCarryForms(t, dir, composeFormLines(composeEffortS3[:4], "\n", "\n", "\n", "\n", "\n", "\n", "\n", "2\n", "\n")...)
+	// 구성 편집, Claude Code, 역할 그룹, 설계·판단 on fable, every later answer kept.
+	runComposeCarryForms(t, dir, "2\n", "2\n", "\n", "2\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "2\n", "\n")
 
 	assert.Equal(t, composeEfforts("high", composeDesignAgents...), composeBindLoad(t, dir).Quality.Presets["codex-custom"].Efforts)
-	assert.Equal(t, config.CodexProfile{Model: "gpt-6.1-sol", Effort: "high"}, readComposeCodexProfile(t, dir, "planner"))
-	assert.Equal(t, "opus", readComposeTableClaudeProfile(t, dir, "planner").model)
+	assert.Equal(t, config.CodexProfile{Model: "gpt-6-astra", Effort: "high"}, readComposeCodexProfile(t, dir, "planner"))
+	assert.Equal(t, "fable", readComposeTableClaudeProfile(t, dir, "planner").model)
 }
 
 // S20, second file: 모든 도구 같게 over a custom binding with executor at
@@ -65,13 +66,13 @@ func TestComposeEffortsCarry_ClaudeEditKeepsTheCodexEfforts(t *testing.T) {
 func TestComposeEffortsCarry_AllToolsEditKeepsTheBindingsEfforts(t *testing.T) {
 	dir := writeComposeEffortsFixture(t, composeEffortsCustomP)
 
-	out, preview := runComposeCarryForms(t, dir, "2\n", "1\n", "\n", "3\n", "\n", "\n", "\n", "2\n", "\n")
+	out, preview := runComposeCarryForms(t, dir, "2\n", "1\n", "\n", "2\n", "\n", "\n", "\n", "2\n", "\n")
 
 	assert.Equal(t, "sonnet · xhigh", preview["executor"]["Claude Code"], "no change mark")
 	assert.NotContains(t, out, ".efforts 옮겨 씀")
 	saved := composeBindLoad(t, dir).Quality
 	assert.Equal(t, map[string]string{"executor": "xhigh"}, saved.Presets["custom"].Efforts)
-	assert.Equal(t, "opus", saved.Presets["custom"].Agents["planner"])
+	assert.Equal(t, "fable", saved.Presets["custom"].Agents["planner"])
 	assert.Equal(t, composeTableClaudeCell{model: "sonnet", effort: "xhigh"}, readComposeTableClaudeProfile(t, dir, "executor"))
 	assertGeneratedEqualsTable(t, dir, preview)
 }
@@ -88,7 +89,7 @@ func TestComposeEffortsCarry_RefreshKeepsTheEfforts(t *testing.T) {
 	balanced := composeBindLoad(t, dir).Quality.Presets["balanced"]
 	assert.Equal(t, composeBindCurrent("balanced").Agents, balanced.Agents)
 	assert.Equal(t, map[string]string{"planner": "high"}, balanced.Efforts)
-	assert.Equal(t, composeTableClaudeCell{model: "fable", effort: "high"}, readComposeTableClaudeProfile(t, dir, "planner"))
+	assert.Equal(t, composeTableClaudeCell{model: "claude-opus-5-5", effort: "high"}, readComposeTableClaudeProfile(t, dir, "planner"))
 }
 
 // S20, fourth file: a new custom made from balanced with planner at high
@@ -101,10 +102,12 @@ func TestComposeEffortsCarry_NewCustomCarriesTheBindingsEfforts(t *testing.T) {
 	out, preview := runComposeCarryForms(t, dir, "2\n", "1\n", "\n", "\n", "5\n", "\n", "\n", "2\n", "\n")
 
 	assert.Contains(t, out, "  quality.presets.custom 새로 씀 (17개 에이전트)\n  quality.presets.custom.efforts 옮겨 씀 (1개 에이전트)\n")
-	assert.Equal(t, "fable · high", preview["planner"]["Claude Code"])
+	// planner's explicit effort leaves the standard placement, yet it keeps
+	// the top-rung model before and after the edit.
+	assert.Equal(t, "opus-5-5 · high", preview["planner"]["Claude Code"])
 	assert.Equal(t, "6-astra · high", preview["planner"]["Codex"])
 	assert.Equal(t, map[string]string{"planner": "high"}, composeBindLoad(t, dir).Quality.Presets["custom"].Efforts)
-	assert.Equal(t, composeTableClaudeCell{model: "fable", effort: "high"}, readComposeTableClaudeProfile(t, dir, "planner"))
+	assert.Equal(t, composeTableClaudeCell{model: "claude-opus-5-5", effort: "high"}, readComposeTableClaudeProfile(t, dir, "planner"))
 	assert.Equal(t, config.CodexProfile{Model: "gpt-6-astra", Effort: "high"}, readComposeCodexProfile(t, dir, "planner"))
 }
 
@@ -122,7 +125,7 @@ func TestComposeEffortsCarry_BuiltinResultStaysOnCustom(t *testing.T) {
 	before := rawQualityOf(t, readBlockFixture(t, dir)).Presets["balanced"]
 
 	runComposeCarryForms(t, dir, "2\n", "1\n", "2\n",
-		"6\n", "4\n", "7\n", "2\n", "8\n", "2\n", "9\n", "4\n", "10\n", "4\n", "11\n", "4\n", "1\n", "2\n", "\n")
+		"6\n", "4\n", "7\n", "3\n", "8\n", "3\n", "9\n", "4\n", "10\n", "4\n", "11\n", "4\n", "1\n", "2\n", "\n")
 
 	saved := composeBindLoad(t, dir).Quality
 	assert.Equal(t, "custom", saved.Default)
@@ -139,8 +142,10 @@ func TestComposeEffortsCarry_EditToTheLatestTiersRefreshesInPlace(t *testing.T) 
 		q.Presets["balanced"] = config.QualityPreset{Agents: maps.Clone(composeTableHB1), Efforts: map[string]string{"planner": "high"}}
 	})
 
+	// HB1's opus core already matches the latest tiers; debugger and reviewer
+	// move to opus, validator and explorer to sonnet.
 	runComposeCarryForms(t, dir, "3\n", "1\n", "2\n",
-		"2\n", "2\n", "3\n", "2\n", "4\n", "2\n", "5\n", "2\n", "7\n", "2\n", "12\n", "2\n", "13\n", "4\n", "16\n", "4\n",
+		"7\n", "3\n", "12\n", "3\n", "13\n", "4\n", "16\n", "4\n",
 		"1\n", "2\n", "\n")
 
 	saved := composeBindLoad(t, dir).Quality

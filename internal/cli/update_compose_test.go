@@ -175,7 +175,8 @@ func TestUpdateCompose_GroupEditGeneratesTheApprovedTable(t *testing.T) {
 	assert.Equal(t, composeTableK, written.Presets["custom"].Agents)
 
 	claudeMarks, codexMarks := assertGeneratedEqualsTable(t, dir, composeRenderedTable(t, out, "미리보기 (아직 바뀌지 않음)"))
-	assert.Equal(t, 17, claudeMarks)
+	// The five kept top-rung agents keep their Claude Code cell.
+	assert.Equal(t, 12, claudeMarks)
 	assert.Equal(t, 5, codexMarks)
 	assert.Equal(t, composeTableClaudeCell{model: "sonnet", effort: "medium"}, readComposeTableClaudeProfile(t, dir, "debugger"))
 	assert.Equal(t, config.CodexProfile{Model: "gpt-6-luna", Effort: "max"}, readComposeCodexProfile(t, dir, "debugger"))
@@ -189,9 +190,10 @@ func TestUpdateCompose_RefusedWriteWarnsOnceAndUpdateContinues(t *testing.T) {
 	path := filepath.Join(dir, "autopus.yaml")
 	data, err := os.ReadFile(path)
 	require.NoError(t, err)
-	require.Equal(t, 2, strings.Count(string(data), "planner: fable"))
-	rewriteComposeFile(t, path, "planner: fable", "planner: &tier fable")
-	rewriteComposeFile(t, path, "planner: fable", "planner: *tier")
+	// balanced and ultra both place reverse-engineer on opus.
+	require.Equal(t, 2, strings.Count(string(data), "reverse-engineer: opus"))
+	rewriteComposeFile(t, path, "reverse-engineer: opus", "reverse-engineer: &tier opus")
+	rewriteComposeFile(t, path, "reverse-engineer: opus", "reverse-engineer: *tier")
 	before := composeSessionHash(t, dir)
 
 	out, err := runComposeUpdate(t, reaEnter(strings.NewReader("g\n\n3\n\n4\ny\n")), "--dir", dir)
@@ -203,7 +205,7 @@ func TestUpdateCompose_RefusedWriteWarnsOnceAndUpdateContinues(t *testing.T) {
 	assert.NotContains(t, out, "구성을 적용했습니다.")
 	assert.Contains(t, out, "Update complete: 2 platform(s) updated")
 	assert.Len(t, *run.probes, 1)
-	assert.Equal(t, composeTableClaudeCell{model: "claude-fable-5-1", effort: "max"}, readComposeTableClaudeProfile(t, dir, "debugger"))
+	assert.Equal(t, composeTableClaudeCell{model: "claude-opus-5-5", effort: "max"}, readComposeTableClaudeProfile(t, dir, "debugger"))
 }
 
 // The supervisor migration saves the whole config after the step, so the
@@ -234,7 +236,7 @@ func TestUpdateCompose_RefusedCodexPlacementFailsTheSameRunsGeneration(t *testin
 	dir := run.settled(t, "D")
 	probes := composeSessionCatalog(t, "CAT-D")
 	planner := composeGeneratedPath(dir, ".claude", "agents", "autopus", "planner.md")
-	rewriteComposeFile(t, planner, "model: claude-fable-5-1", "model: sonnet")
+	rewriteComposeFile(t, planner, "model: claude-opus-5-5", "model: sonnet")
 	before := composeSessionHash(t, dir)
 
 	out, err := runComposeUpdate(t, strings.NewReader("\n"), "--dir", dir)
@@ -250,5 +252,5 @@ func TestUpdateCompose_RefusedCodexPlacementFailsTheSameRunsGeneration(t *testin
 	assert.Empty(t, *run.probes)
 	assert.False(t, run.adapterProbed(t))
 	assert.Equal(t, before, composeSessionHash(t, dir))
-	assert.Equal(t, "claude-fable-5-1", readComposeTableClaudeProfile(t, dir, "planner").model)
+	assert.Equal(t, "claude-opus-5-5", readComposeTableClaudeProfile(t, dir, "planner").model)
 }

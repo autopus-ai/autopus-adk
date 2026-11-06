@@ -123,14 +123,17 @@ func TestInitInteractive_S7bReviewBackKeepsTheComposition(t *testing.T) {
 		}
 		assert.Equal(t, control.npd, got.npd)
 		planner := readComposeCodexProfile(t, got.dir, "planner")
-		assert.NotEqual(t, "gpt-6.1-sol", planner.Model)
 		assert.Equal(t, "low", planner.Effort)
 		assert.Equal(t, readComposeCodexProfile(t, control.dir, "planner"), planner)
+		// reverse-engineer runs the Sol rung, which CAT-B substitutes.
+		analysis := readComposeCodexProfile(t, got.dir, "reverse-engineer")
+		assert.NotEqual(t, "gpt-6.1-sol", analysis.Model)
+		assert.Equal(t, readComposeCodexProfile(t, control.dir, "reverse-engineer"), analysis)
 		assert.Equal(t, 1, strings.Count(got.out, tuiuxDesignStep))
 	})
 	t.Run("(b′) CAT-A twice", func(t *testing.T) {
 		got := run(t, "CAT-A")
-		assert.Equal(t, "gpt-6.1-sol", readComposeCodexProfile(t, got.dir, "planner").Model)
+		assert.Equal(t, "gpt-6.1-sol", readComposeCodexProfile(t, got.dir, "reverse-engineer").Model)
 	})
 }
 
@@ -142,7 +145,9 @@ func TestInitInteractive_S14cMenuBackDropsTheComposition(t *testing.T) {
 	// First entry: Claude Code, 설계·판단 kept, its effort low, the rest
 	// kept, 적용, then the menu's 뒤로.
 	first := tuiuxLines([]string{"2\n", "2\n", "1\n", "\n", "2\n"}, tuiuxEnters(6), []string{"2\n", "b\n"})
-	second := tuiuxLines([]string{"2\n", "3\n", "1\n", "3\n"}, tuiuxEnters(7), []string{"2\n", "\n", "\n"})
+	// Second entry: Codex, 설계·판단 on fable, the rest kept, 적용; codex-custom
+	// keeps reverse-engineer on the Sol ladder.
+	second := tuiuxLines([]string{"2\n", "3\n", "1\n", "2\n"}, tuiuxEnters(7), []string{"2\n", "\n", "\n"})
 	run := func(t *testing.T, catalogs ...string) tuiuxRun {
 		newTUIUXEnv(t, true, "")
 		tuiuxCatalogs(t, catalogs...)
@@ -163,9 +168,9 @@ func TestInitInteractive_S14cMenuBackDropsTheComposition(t *testing.T) {
 		tables := strings.Split(got.out, "에이전트 모델 구성 ─")
 		require.Len(t, tables, 5, "two tables per entry: at the start and after its 적용")
 		assert.Contains(t, tables[2], "Claude Code (개별 설정: claude-custom)")
-		assert.Regexp(t, `(?m)^설계·판단\s+planner\s+fable\s+fable · low\s`, tables[2])
+		assert.Regexp(t, `(?m)^설계·판단\s+planner\s+opus\s+opus-5-5 · low\s`, tables[2])
 		assert.NotContains(t, tables[3], "claude-custom")
-		assert.Regexp(t, `(?m)^설계·판단\s+planner\s+fable\s+fable-5-1 · max\s`, tables[3])
+		assert.Regexp(t, `(?m)^설계·판단\s+planner\s+opus\s+opus-5-5 · max\s`, tables[3])
 		data, err := os.ReadFile(filepath.Join(got.dir, "autopus.yaml"))
 		require.NoError(t, err)
 		assert.NotContains(t, string(data), "claude-custom")
@@ -176,12 +181,12 @@ func TestInitInteractive_S14cMenuBackDropsTheComposition(t *testing.T) {
 		assert.NotContains(t, block, "efforts")
 		assert.Contains(t, block, "\n  quality.providers: codex=codex-custom\n")
 		assert.Equal(t, control.npd, got.npd)
-		planner := readComposeCodexProfile(t, got.dir, "planner")
-		assert.NotEqual(t, "gpt-6.1-sol", planner.Model)
-		assert.Equal(t, readComposeCodexProfile(t, control.dir, "planner"), planner)
+		analysis := readComposeCodexProfile(t, got.dir, "reverse-engineer")
+		assert.NotEqual(t, "gpt-6.1-sol", analysis.Model)
+		assert.Equal(t, readComposeCodexProfile(t, control.dir, "reverse-engineer"), analysis)
 	})
 	t.Run("(c′) CAT-A twice", func(t *testing.T) {
 		got := run(t, "CAT-A")
-		assert.Equal(t, "gpt-6.1-sol", readComposeCodexProfile(t, got.dir, "planner").Model)
+		assert.Equal(t, "gpt-6.1-sol", readComposeCodexProfile(t, got.dir, "reverse-engineer").Model)
 	})
 }

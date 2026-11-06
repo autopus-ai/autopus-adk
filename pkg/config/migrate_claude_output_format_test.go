@@ -9,7 +9,7 @@ import (
 
 func TestDefaultClaudeProviderEntry_RunsJSONOutput(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, []string{"--print", "--model", ClaudeFableModel, "--effort", ClaudeOrchestraEffort,
+	assert.Equal(t, []string{"--print", "--model", ClaudeOpusModel, "--effort", ClaudeOrchestraEffort,
 		"--output-format", "json"}, DefaultClaudeProviderEntry().Args)
 	assert.Equal(t, DefaultClaudeProviderEntry(), DefaultFullConfig("p").Orchestra.Providers["claude"])
 }
@@ -22,8 +22,11 @@ func TestMigrateOrchestraConfig_ClaudeOutputFormat(t *testing.T) {
 		want    []string
 		changed bool
 	}{
-		{"previous default", ProviderEntry{Binary: "claude", Args: []string{"--print", "--model", ClaudeFableModel, "--effort", "max"}},
+		{"pre-json default", ProviderEntry{Binary: "claude", Args: []string{"--print", "--model", ClaudeOpusModel, "--effort", "max"}},
 			DefaultClaudeProviderEntry().Args, true},
+		// The Fable default it replaced keeps its model; only the format is added.
+		{"previous fable default keeps its model", ProviderEntry{Binary: "claude", Args: []string{"--print", "--model", ClaudeFableModel, "--effort", "max"}},
+			[]string{"--print", "--model", ClaudeFableModel, "--effort", "max", "--output-format", "json"}, true},
 		{"custom effort kept", ProviderEntry{Binary: "claude", Args: []string{"--print", "--model", ClaudeFableModel, "--effort", "high"}},
 			[]string{"--print", "--model", ClaudeFableModel, "--effort", "high", "--output-format", "json"}, true},
 		{"pinned model kept", ProviderEntry{Binary: "claude", ModelPolicy: ProviderModelPolicyPinned,

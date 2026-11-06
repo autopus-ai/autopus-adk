@@ -15,7 +15,10 @@ import (
 // profile set declares: the selected profile's own candidates (including any
 // pre-existing explicit root override) plus the built-in matrix of the selected
 // profile name under every anchor family, so a cross-family pin such as
-// anthropic/claude-fable-5-1 stays attestable while --family openai is active.
+// anthropic/claude-opus-5-5 stays attestable while --family openai is active.
+// A built-in name also declares every tier-ladder model a built-in profile can
+// name, the pins-only attestation set: balanced no longer routes any role to
+// anthropic/claude-fable-5-1, and an explicit Fable pin must still attest.
 func ompProfileDeclaredFamilies(
 	policy config.RoleModelPolicyConf,
 	quality config.QualityConf,
@@ -34,6 +37,9 @@ func ompProfileDeclaredFamilies(
 			continue
 		}
 		collectOMPProfileCandidateFamilies(declared, variant)
+	}
+	for selector, family := range ompBuiltinDeclaredFamilies() {
+		collectOMPCandidateFamilies(declared, []config.RoleModelCandidateConf{{Selector: selector, Family: family}})
 	}
 	return declared
 }

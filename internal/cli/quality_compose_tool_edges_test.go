@@ -23,7 +23,7 @@ func TestComposeLabels_AgentEntryWithoutToolColumnsNamesTheTier(t *testing.T) {
 	session := newComposeSession(dir, cfg, composeSessionSources(t), "ko", composeSessionFile, nil)
 	planner := session.Planner.(*composeSessionPlanner)
 
-	assert.Equal(t, "planner — fable", newComposeAllToolsLabeler(planner).agentEntry(planner.Start(), "planner"))
+	assert.Equal(t, "planner — opus", newComposeAllToolsLabeler(planner).agentEntry(planner.Start(), "planner"))
 }
 
 // R binds ultra with supervisor_model_policy quality: a Codex tab edit

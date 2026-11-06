@@ -16,12 +16,12 @@ import (
 // (SPEC-SIGMABAND-002 Local Patch Provider Contract item 3).
 var (
 	sharedDefaultClaudeArgv = []string{
-		"--print", "--model", "claude-fable-5-1", "--effort", "max", "--output-format", "json",
+		"--print", "--model", "claude-opus-5-5", "--effort", "max", "--output-format", "json",
 		"--permission-mode", "plan", "--safe-mode", "--no-session-persistence", "--disable-slash-commands",
 		"--strict-mcp-config", "--tools=Read,Grep,Glob",
 	}
 	confinedDefaultClaudeArgv = []string{
-		"--print", "--model", "claude-fable-5-1", "--effort", "max",
+		"--print", "--model", "claude-opus-5-5", "--effort", "max",
 		"--permission-mode", "plan", "--safe-mode", "--no-session-persistence", "--disable-slash-commands",
 		"--strict-mcp-config", "--output-format", "stream-json", "--verbose", "--restricted", "--tools=Read,Grep,Glob",
 	}

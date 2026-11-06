@@ -27,26 +27,27 @@ func composeFormMarks(t *testing.T, out, column string) int {
 }
 
 // S4 through the form flow over D: the 설계·판단 select names both tools'
-// cells, opus binds custom, the preview marks all 16 Claude cells and the
-// four Codex cells of the group, and the four change lines precede the
-// confirmation.
+// cells, fable binds custom, the preview marks the 14 Claude cells that move
+// (the other three top-rung agents keep the top-rung cell) and no Codex cell
+// (fable and the top rung both run Astra), and the four change lines precede
+// the confirmation.
 func TestComposeForms_AllToolsGroupEditBindsCustom(t *testing.T) {
 	composeSessionCatalog(t, "CAT-A")
 	dir := writeComposeFixture(t, "claude-code", "codex")
 	session := newComposeFormSession(t, dir)
 
 	_, out, err := runComposeForms(t, session, composeFormOptions{Presets: true},
-		"2\n", "1\n", "\n", "3\n", "\n", "\n", "\n", "2\n", "\n")
+		"2\n", "1\n", "\n", "2\n", "\n", "\n", "\n", "2\n", "\n")
 
 	require.NoError(t, err)
 	assert.Contains(t, out, "설계·판단 — planner, architect, spec-writer, security-auditor \n"+
-		"1. 그대로 — fable\n"+
+		"1. 그대로 — opus\n"+
 		"2. fable — Claude Code: fable-5-1 · max | Codex: 6-astra · max\n"+
-		"3. opus — Claude Code: opus-5-5 · high | Codex: 6.1-sol · xhigh\n"+
+		"3. opus — Claude Code: opus-5-5 · max | Codex: 6-astra · max\n"+
 		"4. sonnet — Claude Code: sonnet-5-5 · medium | Codex: 6-luna · max\n"+
 		"5. haiku — Claude Code: haiku-4-5 · - | Codex: 6-luna · max\n")
-	assert.Equal(t, 17, composeFormMarks(t, out, "Claude Code"))
-	assert.Equal(t, 4, composeFormMarks(t, out, "Codex"))
+	assert.Equal(t, 14, composeFormMarks(t, out, "Claude Code"))
+	assert.Equal(t, 0, composeFormMarks(t, out, "Codex"))
 	assert.Contains(t, out, "바뀌는 설정:\n"+
 		"  quality.presets.custom 새로 씀 (17개 에이전트)\n"+
 		"  quality.default balanced → custom\n"+
@@ -58,10 +59,10 @@ func TestComposeForms_AllToolsGroupEditBindsCustom(t *testing.T) {
 	assert.Empty(t, saved.Quality.Providers)
 	agents := saved.Quality.Presets["custom"].Agents
 	for _, agent := range []string{"planner", "architect", "spec-writer", "security-auditor"} {
-		assert.Equal(t, "opus", agents[agent], agent)
+		assert.Equal(t, "fable", agents[agent], agent)
 	}
 	for _, agent := range []string{"debugger", "deep-worker", "reviewer"} {
-		assert.Equal(t, "fable", agents[agent], agent)
+		assert.Equal(t, "opus", agents[agent], agent)
 	}
 	assert.Equal(t, "sonnet", agents["executor"])
 	assert.Equal(t, "custom", session.Config.Quality.Default)
@@ -80,25 +81,26 @@ func TestComposeForms_ClaudeAgentEditBindsClaudeCustom(t *testing.T) {
 	require.NoError(t, err)
 	lists := strings.Split(out, "에이전트를 고르세요 \n")
 	require.Len(t, lists, 3, out)
-	assert.True(t, strings.HasPrefix(lists[1], "1. 완료\n2. planner — fable-5-1 · max\n"), lists[1])
+	assert.True(t, strings.HasPrefix(lists[1], "1. 완료\n2. planner — opus-5-5 · max\n"), lists[1])
 	assert.Contains(t, lists[1], "6. executor — sonnet-5-5 · max\n")
 	assert.Contains(t, lists[1], "13. validator — sonnet-5-5 · high\n")
 	assert.Contains(t, out, "1. 그대로 — sonnet-5-5 · max\n2. fable-5-1 · max  [fable]\n"+
 		"3. opus-5-5 · high  [opus]\n4. sonnet-5-5 · max  [sonnet]\n5. haiku-4-5 · -  [haiku]\n")
 	assert.Contains(t, lists[2], "6. executor — opus-5-5 · high\n")
 	assert.Contains(t, lists[2], "13. validator — sonnet-5-5 · medium\n")
-	assert.Contains(t, lists[2], "2. planner — fable-5-1 · max\n")
+	// planner keeps the top-rung cell under claude-custom.
+	assert.Contains(t, lists[2], "2. planner — opus-5-5 · max\n")
 	header := composeTableHeader(t, out, composeFormPreviewMarker)
 	assert.Contains(t, header, "Claude Code (개별 설정: claude-custom)")
 	preview := composeRenderedTable(t, out, composeFormPreviewMarker)
 	assert.Equal(t, "opus · high*", preview["executor"]["Claude Code (개별 설정: claude-custom)"])
 	assert.Equal(t, "sonnet · medium*", preview["validator"]["Claude Code (개별 설정: claude-custom)"])
-	assert.Equal(t, "fable · max*", preview["planner"]["Claude Code (개별 설정: claude-custom)"])
+	assert.Equal(t, "opus-5-5 · max", preview["planner"]["Claude Code (개별 설정: claude-custom)"])
 	assert.Zero(t, composeFormMarks(t, out, "Codex"))
 	saved := composeBindLoad(t, dir).Quality
 	assert.Equal(t, "claude-custom", saved.Providers["claude"])
 	assert.Equal(t, "Claude Code custom agent tiers", saved.Presets["claude-custom"].Description)
 	assert.Equal(t, "opus", saved.Presets["claude-custom"].Agents["executor"])
-	assert.Equal(t, "fable", saved.Presets["claude-custom"].Agents["planner"])
+	assert.Equal(t, "opus", saved.Presets["claude-custom"].Agents["planner"])
 	assert.Equal(t, "sonnet", saved.Presets["claude-custom"].Agents["validator"])
 }

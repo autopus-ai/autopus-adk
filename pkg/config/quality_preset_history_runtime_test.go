@@ -61,6 +61,8 @@ func TestIsHistoricalBalancedDefault_OnlyRuntimeStandardRowsMatch(t *testing.T) 
 	}{
 		{name: "HB2 stays runtime standard", agents: shippedBalancedHB2, want: true},
 		{name: "HB5 stays runtime standard", agents: shippedBalancedHB5, want: true},
+		{name: "HB6 stays runtime standard", agents: shippedBalancedHB6, want: true},
+		{name: "HB7 stays runtime standard", agents: shippedBalancedHB7, want: true},
 		{name: "HB1 is classification only", agents: shippedBalancedHB1, want: false},
 		{name: "HB4 is classification only", agents: shippedBalancedHB4, want: false},
 		{name: "HU1 is an ultra layout", agents: shippedUltraHU1, want: false},
@@ -81,7 +83,7 @@ func TestIsHistoricalBalancedDefault_OnlyRuntimeStandardRowsMatch(t *testing.T) 
 // the standard placement; every other agent stays on the custom-tier path.
 func TestNativeBalancedAgentCandidate_ClassificationOnlyRowsKeepRuntime(t *testing.T) {
 	const (
-		claudeTop     = "anthropic/claude-fable-5-1@max"
+		claudeTop     = "anthropic/claude-opus-5-5@max"
 		claudeImpl    = "anthropic/claude-sonnet-5-5@max"
 		claudeRoutine = "anthropic/claude-sonnet-5-5@high"
 		codexTop      = "openai-codex/gpt-6-astra@max"
@@ -100,7 +102,10 @@ func TestNativeBalancedAgentCandidate_ClassificationOnlyRowsKeepRuntime(t *testi
 			agents: shippedBalancedHB1,
 			standard: map[string][2]string{
 				"deep-worker": {claudeTop, codexTop},
-				"devops":      {claudeImpl, codexRest}, "executor": {claudeImpl, codexRest},
+				// Their written opus equals the opus top rung tier.
+				"planner": {claudeTop, codexTop}, "architect": {claudeTop, codexTop},
+				"spec-writer": {claudeTop, codexTop}, "security-auditor": {claudeTop, codexTop},
+				"devops": {claudeImpl, codexRest}, "executor": {claudeImpl, codexRest},
 				"frontend-specialist": {claudeImpl, codexRest}, "perf-engineer": {claudeImpl, codexRest},
 				"tester":    {claudeImpl, codexRest},
 				"annotator": {claudeRoutine, codexRest}, "ux-validator": {claudeRoutine, codexRest},
@@ -111,7 +116,10 @@ func TestNativeBalancedAgentCandidate_ClassificationOnlyRowsKeepRuntime(t *testi
 			name:   "HB4",
 			agents: shippedBalancedHB4,
 			standard: map[string][2]string{
-				"devops": {claudeImpl, codexRest}, "frontend-specialist": {claudeImpl, codexRest},
+				"architect": {claudeTop, codexTop}, "deep-worker": {claudeTop, codexTop},
+				"planner": {claudeTop, codexTop}, "security-auditor": {claudeTop, codexTop},
+				"spec-writer": {claudeTop, codexTop},
+				"devops":      {claudeImpl, codexRest}, "frontend-specialist": {claudeImpl, codexRest},
 				"perf-engineer": {claudeImpl, codexRest}, "tester": {claudeImpl, codexRest},
 				"annotator": {claudeRoutine, codexRest}, "explorer": {claudeRoutine, codexRest},
 				"ux-validator": {claudeRoutine, codexRest}, "validator": {claudeRoutine, codexRest},
@@ -138,7 +146,9 @@ func TestNativeBalancedAgentCandidate_ClassificationOnlyRowsKeepRuntime(t *testi
 }
 
 func TestNativeBalancedAgentCandidate_RuntimeStandardRowsTakeEveryRung(t *testing.T) {
-	for name, agents := range map[string]map[string]string{"HB2": shippedBalancedHB2, "HB5": shippedBalancedHB5} {
+	for name, agents := range map[string]map[string]string{
+		"HB2": shippedBalancedHB2, "HB5": shippedBalancedHB5, "HB6": shippedBalancedHB6, "HB7": shippedBalancedHB7,
+	} {
 		t.Run(name, func(t *testing.T) {
 			q := balancedOnly(agents)
 			for _, agent := range CanonicalAgentNames() {

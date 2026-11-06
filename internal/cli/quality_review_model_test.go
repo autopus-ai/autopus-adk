@@ -65,11 +65,11 @@ func TestQualityReviewModel_ClaudeCLIRow(t *testing.T) {
 	dir := writeReviewRL(t)
 	b0 := readReviewFile(t, dir)
 
-	out, _, err := runQualityReview(t, dir, nil, "model", "claude", "claude-opus-5-5")
+	out, _, err := runQualityReview(t, dir, nil, "model", "claude", "claude-fable-5-1")
 	require.NoError(t, err, out)
-	assert.Equal(t, "Settings that change:\n  orchestra.providers.claude.args --model claude-fable-5-1 → claude-opus-5-5\n"+
+	assert.Equal(t, "Settings that change:\n  orchestra.providers.claude.args --model claude-opus-5-5 → claude-fable-5-1\n"+
 		reviewChangedModelNote+"Composition applied.\n", out)
-	assert.Equal(t, [][2]string{{reviewRLClaudeArgs, "            args: [--print, --model, claude-opus-5-5, --effort, max, --output-format, json]"}},
+	assert.Equal(t, [][2]string{{reviewRLClaudeArgs, "            args: [--print, --model, claude-fable-5-1, --effort, max, --output-format, json]"}},
 		reviewFileDiff(t, b0, readReviewFile(t, dir)))
 
 	out, _, err = runQualityReview(t, dir, nil, "model", "claude", "claude-haiku-4-5")

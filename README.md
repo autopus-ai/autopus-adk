@@ -634,13 +634,14 @@ Apply verifies the same routes through the installed OMP catalog and provider-fr
 
 | Bundled agent (representative role) | GPT balanced | Claude balanced |
 |---|---|---|
-| `task` (planner), `reviewer`, `security-reviewer` (security-auditor) | GPT-6 Astra `max` | Claude Fable 5.1 `max` |
+| `task` (planner), `reviewer`, `security-reviewer` (security-auditor) | GPT-6 Astra `max` | Claude Opus 5.5 `max` |
 | `scout` (explorer), `sonic` (validator) | GPT-5.6 Luna `max` | Claude Sonnet 5 `high` |
 
 Ordinary reviewers follow the selected family. Multi-provider review remains a separate
 `orchestra.providers` policy: changing this profile preserves its models and judge.
-For top-model review, keep Fable `max`, Astra `max`, and the selected Gemini model's highest
-supported thinking level (`high` for Gemini 3.1 Pro; it does not expose `max`).
+Default review runs Claude Opus 5.5 `max` and Astra `max`; for Gemini, use the selected model's
+highest supported thinking level (`high` for Gemini 3.1 Pro; it does not expose `max`). To review
+on Fable, set it explicitly with `auto quality review model claude claude-fable-5-1`.
 
 Balanced has no implicit lower-model fallback. Missing models or unsupported thinking block
 apply before writes, and a blocked preview returns nonzero with per-agent reasons.
@@ -1298,15 +1299,17 @@ Claude Code and Codex share the standard balanced role matrix with OMP:
 
 | Native agent group | Claude Code balanced | Codex balanced |
 |---|---|---|
-| planner, architect, spec-writer, reviewer, security-auditor, debugger, deep-worker | `claude-fable-5-1` / `max` | `gpt-6-astra` / `max` |
+| planner, architect, spec-writer, reviewer, security-auditor, debugger, deep-worker | `claude-opus-5-5` / `max` | `gpt-6-astra` / `max` |
 | executor, tester, devops, frontend-specialist, perf-engineer | `claude-sonnet-5-5` / `max` | `gpt-6-luna` / `max` |
 | explorer, annotator, validator, ux-validator | `claude-sonnet-5-5` / `high` | `gpt-6-luna` / `max` |
 
 The native files are `.claude/agents/autopus/*.md` (`model`, `effort`) and
 `.codex/agents/*.toml` (`model`, `model_reasoning_effort`).
 Apply both through `auto quality balanced --apply`, or use the provider-specific commands above.
-Complete historical default layouts receive the standard placement without rewriting their YAML;
-an explicit different agent tier or a custom quality preset keeps its existing interpretation.
+Complete historical default layouts receive the standard placement without rewriting their YAML,
+including the earlier default that put the seven-role core on Fable: it now runs the Opus top rung.
+An explicit different agent tier or a custom quality preset keeps its existing interpretation, so an
+agent you set to `fable` keeps running Fable in Balanced.
 One custom agent does not change its siblings.
 
 Codex retains the exact standard profile with an unverified diagnostic when its native catalog
@@ -1316,8 +1319,9 @@ before writing files instead of substituting an older model or lower effort.
 Ultra is unchanged: its seven-role core uses Fable/Astra, and remaining roles use Opus/Sol.
 Claude Ultra emits max for its Fable/Opus agents; Codex Ultra uses Astra/max and Sol/xhigh.
 Supervisors still inherit by default; quality-managed Codex supervisors use Astra/ultra in Ultra
-and Astra/xhigh in Balanced. Native multi-provider review defaults to Fable 5.1/max and Astra/max
-in both modes, while explicit provider model/effort pins remain untouched.
+and Astra/xhigh in Balanced. Native multi-provider review defaults to Opus 5.5/max and Astra/max
+in both modes, while explicit provider model/effort pins remain untouched. A claude review provider
+still on the former `claude-fable-5-1`/max default is not rewritten; `auto update` prints a notice.
 
 #### Per-agent model composition
 
@@ -1374,7 +1378,7 @@ In a terminal the step runs as huh forms, like the init wizard: arrow keys and E
 - **OMP** appears in `auto update` and `auto quality` when the platforms saved in autopus.yaml include omp, and in `auto init` when the platforms this init chose include omp. It pins one installed model and thinking level per native OMP agent, previews the plan's real routes, and writes through the existing OMP profile writer; init keeps the choice in its config and writes it with the platform files.
 - **Multi-provider review** is the last option while `spec.review_gate.enabled` is true, autopus.yaml holds at least two `orchestra.providers` entries, and `CI` is not set (SPEC-REVMODEL-001). It configures `auto spec review`, as the paragraph after the OMP tab's describes.
 
-A Claude label names the model slug (`opus-5-5`), while the table cell is the frontmatter value the generator writes (`opus`, or an exact ID such as `fable-5-1`). `auto update` also shows a column for every platform it detected in this run and generates them from the same catalog read. Ctrl+C in a form ends `auto update` with a non-zero exit before any generation, cancels `auto init` before it writes any file, and leaves `auto quality` without an error.
+A Claude label names the model slug (`opus-5-5`), while the table cell is the frontmatter value the generator writes (`opus`, or an exact ID such as `claude-opus-5-5`). `auto update` also shows a column for every platform it detected in this run and generates them from the same catalog read. Ctrl+C in a form ends `auto update` with a non-zero exit before any generation, cancels `auto init` before it writes any file, and leaves `auto quality` without an error.
 
 On the **Claude Code** and **Codex** tabs every tier select, for a group or for one agent, is followed by that tool's effort select (SPEC-MODELUX-003). keep is the default; the other options are the levels every affected agent accepts, each labelled with the cells it leaves and `(automatic)` on the automatic one. Claude Code offers `low`, `medium`, `high`, `xhigh`, and `max` and leaves haiku agents out; Codex offers the levels the run's catalog reports for the agents' models, and with an unreadable catalog it asks nothing and prints `Codex catalog unreadable; effort stays automatic`. An agent given its automatic level stores nothing; the rest are written with the tiers to `quality.presets.<provider>-custom.efforts`, a map from canonical agent names to those five levels. The preview lists `quality.presets.<provider>-custom.efforts written (N agents)` (or `rewritten`, `removed`) and, for the file's first efforts map, `auto older than v0.50.127 cannot read quality.presets.*.efforts`. An explicit effort takes the agent off the standard balanced placement and is generated as Claude `effort:` (never for haiku) and as Codex `model_reasoning_effort`, resolved from the same catalog read. Later edits, `u`, and the per-tool line editor keep stored efforts, and **same for all tools** moves a binding preset's efforts into `custom` (`quality.presets.custom.efforts carried (N agents)`) instead of writing them onto another built-in. A file without `efforts` loads and generates exactly as before. The OMP tab picks a model and its thinking per role group or agent instead, as the next paragraph describes.
 

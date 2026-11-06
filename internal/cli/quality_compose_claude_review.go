@@ -41,8 +41,9 @@ func claudeReviewProvider(dir string, cfg *config.HarnessConfig) (config.Provide
 // claudeReviewModelLine is the one line that names the claude review
 // provider model wherever the Claude Code preset is shown, since the preset
 // never changes it. It becomes a warning when the effective Claude Code
-// preset tops out at another tier than that model, such as an all-opus
-// preset next to claude-fable-5-1. It is "" when there is no model to name.
+// preset tops out at another tier than that model, such as balanced (opus)
+// next to the former claude-fable-5-1 default. It is "" when there is no
+// model to name.
 func claudeReviewModelLine(dir string, cfg *config.HarnessConfig, text composeText) string {
 	_, model, ok := claudeReviewProvider(dir, cfg)
 	if !ok {
@@ -68,15 +69,22 @@ func writeClaudeReviewModelLine(out io.Writer, dir string, cfg *config.HarnessCo
 // migration no longer moves that model, because a deliberate choice of the
 // same argv cannot be told apart from an untouched old default; this line
 // tells the operator instead, with the current default and the command that
-// changes it.
+// changes it. A former default on the current default's tier, such as the
+// old `opus` argv next to claude-opus-5-5, already runs that model family,
+// so it gets no notice.
 func writeClaudeReviewFormerDefaultNotice(out io.Writer, dir string, cfg *config.HarnessConfig, text composeText) {
 	entry, _, ok := claudeReviewProvider(dir, cfg)
 	if !ok {
 		return
 	}
 	model, former := config.ClaudeProviderFormerDefault(entry)
-	current, _ := config.ClaudeProviderModel(config.DefaultClaudeProviderEntry())
-	if former {
-		fmt.Fprintf(out, text.ClaudeReviewFormer+"\n", terminalSafe(model), current)
+	if !former {
+		return
 	}
+	current, _ := config.ClaudeProviderModel(config.DefaultClaudeProviderEntry())
+	formerTier, _ := config.ClaudeModelTier(model)
+	if currentTier, _ := config.ClaudeModelTier(current); formerTier == currentTier {
+		return
+	}
+	fmt.Fprintf(out, text.ClaudeReviewFormer+"\n", terminalSafe(model), current)
 }

@@ -96,7 +96,11 @@ func (q QualityConf) ClaudeAgentModel(agentName, fallbackTier string) string {
 	if candidate, standard := q.NativeBalancedAgentCandidate(QualityProviderClaude, agentName); standard {
 		return strings.TrimPrefix(candidate.Selector, "anthropic/")
 	}
-	return ClaudeModelForTier(q.AgentTier(QualityProviderClaude, agentName, fallbackTier))
+	tier := q.AgentTier(QualityProviderClaude, agentName, fallbackTier)
+	if candidate, top := q.topRungLadderCandidate(QualityProviderClaude, agentName, tier); top {
+		return strings.TrimPrefix(candidate.Selector, "anthropic/")
+	}
+	return ClaudeModelForTier(tier)
 }
 
 // ClaudeModelForTier maps a relative tier onto its Claude slug. An unknown tier

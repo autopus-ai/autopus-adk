@@ -15,7 +15,7 @@ func TestClaudeProviderModel_ReadsTheCLIModelFlag(t *testing.T) {
 		want   string
 		wantOK bool
 	}{
-		{name: "shipped default", entry: DefaultClaudeProviderEntry(), want: ClaudeFableModel, wantOK: true},
+		{name: "shipped default", entry: DefaultClaudeProviderEntry(), want: ClaudeOpusModel, wantOK: true},
 		{name: "former default", entry: ProviderEntry{Binary: "claude", Args: []string{"-p", "--model", "opus", "--effort", "max"}}, want: "opus", wantOK: true},
 		{name: "equals spelling", entry: ProviderEntry{Binary: "claude", Args: []string{"--print", "--model=sonnet"}}, want: "sonnet", wantOK: true},
 		{name: "model-less print", entry: ProviderEntry{Binary: "claude", Args: []string{"--print"}}},
@@ -53,18 +53,23 @@ func TestClaudeModelTier_FoldsAliasesAndSlugs(t *testing.T) {
 func TestQualityConf_ClaudeTopTier_FollowsTheEffectiveClaudePreset(t *testing.T) {
 	t.Parallel()
 
-	allOpus := map[string]string{}
+	allSonnet := map[string]string{}
 	for _, name := range CanonicalAgentNames() {
-		allOpus[name] = "opus"
+		allSonnet[name] = "sonnet"
 	}
 	defaults := DefaultFullConfig("p").Quality
 
-	assert.Equal(t, "fable", defaults.ClaudeTopTier(), "shipped balanced puts its top rung on fable")
+	assert.Equal(t, "opus", defaults.ClaudeTopTier(), "shipped balanced puts its top rung on opus")
 
 	custom := defaults
-	custom.Presets = map[string]QualityPreset{"balanced": defaults.Presets["balanced"], "claude-custom": {Agents: allOpus}}
+	custom.Presets = map[string]QualityPreset{"balanced": defaults.Presets["balanced"], "claude-custom": {Agents: allSonnet}}
 	custom.Providers = map[string]string{QualityProviderClaude: "claude-custom"}
-	assert.Equal(t, "opus", custom.ClaudeTopTier())
+	assert.Equal(t, "sonnet", custom.ClaudeTopTier())
+
+	explicitFable := defaults
+	explicitFable.Presets = map[string]QualityPreset{"balanced": {Agents: defaultBalancedAgentTiers()}}
+	explicitFable.Presets["balanced"].Agents["reviewer"] = "fable"
+	assert.Equal(t, "fable", explicitFable.ClaudeTopTier(), "an explicit fable agent tops the preset")
 
 	ultra := defaults
 	ultra.Default = "ultra"

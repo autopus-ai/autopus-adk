@@ -72,7 +72,7 @@ func TestOMPReaFallback_UnservedAnalysisRungInheritsTheSessionModel(t *testing.T
 		"model absent (openai)": func() (*ompModelIntegration, error) {
 			return reaFallbackIntegration(t, "openai", nil, withoutCatalogModel(config.CodexSolModel))
 		},
-		// The fixture lists Opus at xhigh only; the anthropic rung asks high.
+		// The fixture lists Opus at xhigh and max only; the anthropic rung asks high.
 		"thinking unsupported (anthropic)": func() (*ompModelIntegration, error) {
 			return reaFallbackIntegration(t, "anthropic", nil, unchangedCatalog)
 		},

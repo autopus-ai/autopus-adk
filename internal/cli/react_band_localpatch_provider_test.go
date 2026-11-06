@@ -30,8 +30,10 @@ func lpHarness(localPatchProvider, judge, diagnosisProvider string, providers ma
 func TestBandConfinedProvider_Resolve_SubprocessClaude(t *testing.T) {
 	t.Parallel()
 	subprocess := config.ProviderEntry{Binary: "claude", Args: []string{"--print", "--model", "sonnet"}}
+	// The OMP claude model differs from the shipped default, so the model
+	// rule is visible in the argv.
 	allOMP := map[string]config.ProviderEntry{
-		"claude": lpOMPEntry("anthropic/claude-opus-5-5:max"), "codex": lpOMPEntry("openai/gpt-5.5"), "gemini": lpOMPEntry("google/gemini-3"),
+		"claude": lpOMPEntry("anthropic/claude-fable-5-1:max"), "codex": lpOMPEntry("openai/gpt-5.5"), "gemini": lpOMPEntry("google/gemini-3"),
 	}
 	cases := []struct {
 		name    string
@@ -39,15 +41,15 @@ func TestBandConfinedProvider_Resolve_SubprocessClaude(t *testing.T) {
 		head    []string
 	}{
 		{"key with OMP claude takes the model rule", lpHarness("claude", "claude", "", allOMP),
-			[]string{"--print", "--model", "claude-opus-5-5", "--effort", "max"}},
+			[]string{"--print", "--model", "claude-fable-5-1", "--effort", "max"}},
 		{"key wins over diagnosis_provider codex", lpHarness(" claude ", "claude", "codex", allOMP),
-			[]string{"--print", "--model", "claude-opus-5-5", "--effort", "max"}},
+			[]string{"--print", "--model", "claude-fable-5-1", "--effort", "max"}},
 		{"OMP model of another provider keeps the default", lpHarness("claude", "", "", map[string]config.ProviderEntry{"claude": lpOMPEntry("openai/gpt-5.5")}),
-			[]string{"--print", "--model", config.ClaudeFableModel, "--effort", "max"}},
+			[]string{"--print", "--model", config.ClaudeOpusModel, "--effort", "max"}},
 		{"OMP alias model keeps the default", lpHarness("claude", "", "", map[string]config.ProviderEntry{"claude": lpOMPEntry("anthropic/sonnet")}),
-			[]string{"--print", "--model", config.ClaudeFableModel, "--effort", "max"}},
+			[]string{"--print", "--model", config.ClaudeOpusModel, "--effort", "max"}},
 		{"no claude entry takes the shipped default", lpHarness("claude", "", "", nil),
-			[]string{"--print", "--model", config.ClaudeFableModel, "--effort", "max"}},
+			[]string{"--print", "--model", config.ClaudeOpusModel, "--effort", "max"}},
 		{"key with a subprocess entry takes the entry", lpHarness("claude", "", "", map[string]config.ProviderEntry{"claude": subprocess}),
 			[]string{"--print", "--model", "sonnet"}},
 		{"no key: 001's selection of a subprocess claude", lpHarness("", "claude", "", map[string]config.ProviderEntry{"claude": subprocess}),

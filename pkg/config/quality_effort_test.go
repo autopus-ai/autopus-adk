@@ -188,21 +188,22 @@ func TestNativeBalancedAgentCandidate_ExplicitEffortLeavesTheStandardPlacement(t
 		_, standard = q.NativeBalancedAgentCandidate(provider, "architect")
 		assert.True(t, standard, "%s architect", provider)
 	}
-	assert.Equal(t, "fable", q.EffectiveAgentTier("planner", "opus"), "the written tier")
+	assert.Equal(t, "opus", q.EffectiveAgentTier("planner", "opus"), "the written tier")
 }
 
 // S2 (B1): balanced with planner at high projects the tier alias and the
 // effort for Claude, the ladder model at high for Codex, and leaves
-// architect on the standard placement.
+// architect on the standard placement. planner is a top-rung agent on the
+// top tier, so it keeps the top-rung model on both tools at the chosen level.
 func TestClaudeAndCodexAgentProfile_B1PlannerAtHigh(t *testing.T) {
 	t.Parallel()
 	q := DefaultFullConfig("p").Quality
 	q.Presets["balanced"] = withEfforts(q.Presets["balanced"], map[string]string{"planner": "high"})
 
 	model, effort := q.ClaudeAgentProfile("planner", "opus")
-	assert.Equal(t, []string{"fable", "high"}, []string{model, effort})
+	assert.Equal(t, []string{ClaudeOpusModel, "high"}, []string{model, effort})
 	model, effort = q.ClaudeAgentProfile("architect", "opus")
-	assert.Equal(t, []string{ClaudeFableModel, "max"}, []string{model, effort})
+	assert.Equal(t, []string{ClaudeOpusModel, "max"}, []string{model, effort})
 	assert.Equal(t, CodexProfile{Model: CodexAstraModel, Effort: "high"}, q.CodexAgentProfile("planner", "opus", "max"))
 	assert.Equal(t, CodexProfile{Model: CodexAstraModel, Effort: "max"}, q.CodexAgentProfile("architect", "opus", "max"))
 }
@@ -223,7 +224,7 @@ func TestClaudeAndCodexAgentProfile_B2HaikuTakesNoClaudeEffort(t *testing.T) {
 	model, effort = q.ClaudeAgentProfile("annotator", "sonnet")
 	assert.Equal(t, []string{"haiku", ""}, []string{model, effort})
 	model, effort = q.ClaudeAgentProfile("planner", "opus")
-	assert.Equal(t, []string{"fable", "max"}, []string{model, effort}, "an agent without an effort keeps the automatic one")
+	assert.Equal(t, []string{ClaudeOpusModel, "max"}, []string{model, effort}, "an agent without an effort keeps the top-rung automatic one")
 	assert.Equal(t, CodexProfile{Model: CodexLunaModel, Effort: "max"}, q.CodexAgentProfile("executor", "sonnet", "medium"))
 }
 

@@ -93,7 +93,7 @@ func TestDescribeComposeBinding_PresetKinds_NameTheirKeys(t *testing.T) {
 			mutate: func(q *config.QualityConf) {
 				q.Presets["custom"] = config.QualityPreset{Agents: map[string]string{"planner": "haiku"}}
 			},
-			edits: map[string]string{"planner": "opus"},
+			edits: map[string]string{"planner": "fable"},
 			want: []string{
 				"quality.presets.custom 덮어씀 (17개 에이전트)",
 				"quality.default balanced → custom",

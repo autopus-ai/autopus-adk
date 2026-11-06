@@ -112,7 +112,7 @@ func TestEstimatePipelineCost_MultiplePhases(t *testing.T) {
 	// phase2: planner(2000 tokens)
 	// balanced/executor (sonnet-5): (3000/1M*2)+(1000/1M*10) = 0.006+0.010 = 0.016
 	// balanced/validator (sonnet-5): (750/1M*2)+(250/1M*10) = 0.0015+0.0025 = 0.004
-	// balanced/planner (fable-5-1):  (1500/1M*10)+(500/1M*50) = 0.015+0.025 = 0.04
+	// balanced/planner (opus-5-5):   (1500/1M*4)+(500/1M*20) = 0.006+0.010 = 0.016
 	e := cost.NewEstimator("ultra") // estimator mode doesn't matter; pipeline overrides it
 
 	pipeline := telemetry.PipelineRun{
@@ -133,8 +133,8 @@ func TestEstimatePipelineCost_MultiplePhases(t *testing.T) {
 	}
 
 	got := e.EstimatePipelineCost(pipeline)
-	// Independent oracle: $0.016 + $0.004 + $0.040 = $0.060.
-	const wantTotal = 0.060
+	// Independent oracle: $0.016 + $0.004 + $0.016 = $0.036.
+	const wantTotal = 0.036
 
 	if roundTo6(got) != roundTo6(wantTotal) {
 		t.Errorf("EstimatePipelineCost: want %f, got %f", wantTotal, got)

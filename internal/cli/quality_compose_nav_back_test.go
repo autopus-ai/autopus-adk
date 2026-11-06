@@ -112,7 +112,7 @@ func TestComposeNavBack_S11ToolTabMethodAndPreset(t *testing.T) {
 // same answers without Esc apply.
 func TestComposeNavBack_S12ConfirmationEscKeepsEditing(t *testing.T) {
 	newTUIUXEnv(t, true, "")
-	head := tuiuxLines([]string{"2\n", "2\n", "1\n", "3\n"}, tuiuxEnters(7))
+	head := tuiuxLines([]string{"2\n", "2\n", "1\n", "2\n"}, tuiuxEnters(7))
 	out, npd, dir := tuiuxQualityD(t, tuiuxLines(head, []string{"b\n", "1\n"}, tuiuxEnters(8), []string{"2\n", "\n"})...)
 	_, control, _ := tuiuxQualityD(t, tuiuxLines(head, []string{"2\n", "\n"})...)
 
@@ -120,7 +120,7 @@ func TestComposeNavBack_S12ConfirmationEscKeepsEditing(t *testing.T) {
 	assert.Equal(t, 2, strings.Count(out, "적용할까요? \n"))
 	assert.NotContains(t, out, composeTextKO.Cancelled)
 	assert.Equal(t, control, npd)
-	assert.Equal(t, "opus", composeBindLoad(t, dir).Quality.Presets["claude-custom"].Agents["planner"])
+	assert.Equal(t, "fable", composeBindLoad(t, dir).Quality.Presets["claude-custom"].Agents["planner"])
 }
 
 // S12 (b): Esc on the override question is 계속 편집 with the edit kept.

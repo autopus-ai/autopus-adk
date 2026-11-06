@@ -72,7 +72,7 @@ func TestQualityModeToModels_FableRoutesStrategicRoles(t *testing.T) {
 	}{
 		{"ultra", "planner", "claude-fable-5-1"},
 		{"ultra", "executor", "claude-opus-5-5"},
-		{"balanced", "planner", "claude-fable-5-1"},
+		{"balanced", "planner", "claude-opus-5-5"},
 		{"balanced", "executor", "claude-sonnet-5-5"},
 		{"balanced", "tester", "claude-sonnet-5-5"},
 	}
@@ -114,11 +114,11 @@ func TestQualityModeToModels_Balanced(t *testing.T) {
 		agent string
 		model string
 	}{
-		{"planner", "claude-fable-5-1"},
-		{"architect", "claude-fable-5-1"},
+		{"planner", "claude-opus-5-5"},
+		{"architect", "claude-opus-5-5"},
 		{"executor", "claude-sonnet-5-5"},
 		{"tester", "claude-sonnet-5-5"},
-		{"reviewer", "claude-fable-5-1"},
+		{"reviewer", "claude-opus-5-5"},
 		{"validator", "claude-sonnet-5-5"},
 	}
 
@@ -143,7 +143,7 @@ func TestModelForAgent_Known(t *testing.T) {
 	}{
 		{"ultra", "planner", "claude-fable-5-1"},
 		{"ultra", "executor", "claude-opus-5-5"},
-		{"balanced", "planner", "claude-fable-5-1"},
+		{"balanced", "planner", "claude-opus-5-5"},
 		{"balanced", "executor", "claude-sonnet-5-5"},
 		{"balanced", "tester", "claude-sonnet-5-5"},
 		{"balanced", "validator", "claude-sonnet-5-5"},
@@ -171,7 +171,7 @@ func TestModelForAgent_TeamPhaseRoles(t *testing.T) {
 		// Core roles — regression guard.
 		{"ultra", "planner", "claude-fable-5-1"},
 		{"ultra", "executor", "claude-opus-5-5"},
-		{"balanced", "planner", "claude-fable-5-1"},
+		{"balanced", "planner", "claude-opus-5-5"},
 		{"balanced", "executor", "claude-sonnet-5-5"},
 		{"balanced", "tester", "claude-sonnet-5-5"},
 		// Team-phase roles — Ultra mode.
@@ -180,7 +180,7 @@ func TestModelForAgent_TeamPhaseRoles(t *testing.T) {
 		{"ultra", "test_scaffold", "claude-opus-5-5"},
 		// Team-phase roles — Balanced mode.
 		{"balanced", "annotator", "claude-sonnet-5-5"},
-		{"balanced", "security_auditor", "claude-fable-5-1"},
+		{"balanced", "security_auditor", "claude-opus-5-5"},
 		{"balanced", "test_scaffold", "claude-sonnet-5-5"},
 	}
 

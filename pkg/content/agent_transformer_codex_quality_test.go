@@ -42,11 +42,13 @@ func TestTransformAgentForCodex_RendersQualityAwareProfiles(t *testing.T) {
 		forbidEfforts []string
 	}{
 		{
-			name:       "balanced planner keeps custom tier",
+			// planner's explicit opus equals its standard balanced top tier, so it
+			// takes the shared native placement (Astra) instead of the Sol ladder.
+			name:       "balanced planner opus takes the native placement",
 			source:     codexProfileSource("planner", "opus", "max"),
 			quality:    balanced,
-			wantModel:  "gpt-6.1-sol",
-			wantEffort: "xhigh",
+			wantModel:  "gpt-6-astra",
+			wantEffort: "max",
 		},
 		{
 			// executor's explicit tier equals its standard balanced tier, so it
@@ -58,7 +60,7 @@ func TestTransformAgentForCodex_RendersQualityAwareProfiles(t *testing.T) {
 			wantEffort: "max",
 		},
 		{
-			// reviewer's explicit sonnet differs from its standard fable tier,
+			// reviewer's explicit sonnet differs from its standard opus tier,
 			// so that one agent stays on the tier ladder.
 			name:       "balanced reviewer keeps custom sonnet tier on Luna",
 			source:     codexProfileSource("reviewer", "opus", "high"),

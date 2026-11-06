@@ -392,8 +392,8 @@ with the `claude` CLI on `PATH` (`claude auth status` reports `authMethod`
 
 The model is the `--model` of a claude entry without a `backend`, or, for an
 OMP entry, the model ID of an `anthropic/claude-*` selector
-(`anthropic/claude-opus-5-5:max` gives `--model claude-opus-5-5`), otherwise
-`claude-fable-5-1`. claude can retry a refused request on another model and say
+(`anthropic/claude-fable-5-1:max` gives `--model claude-fable-5-1`), otherwise
+`claude-opus-5-5`. claude can retry a refused request on another model and say
 so only in its event stream, so band records the requested and the actual
 model of every request; each flag-on diagnosis BS states them on a
 `Diagnosis model:` line. A diagnosis answered on another model is recorded as
