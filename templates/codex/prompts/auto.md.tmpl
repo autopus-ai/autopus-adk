@@ -1,5 +1,5 @@
 ---
-description: "Autopus 명령 라우터 — setup/status/goal/update/plan/go/fix/review/sync/idea/map/why/verify/secure/test/qa/dev/canary/doctor 서브커맨드를 해석합니다"
+description: "Autopus 명령 라우터 — review/qa/verify/test/sync/update/doctor 서브커맨드를 해석합니다"
 ---
 
 # auto — Autopus Command Router
@@ -10,11 +10,11 @@ description: "Autopus 명령 라우터 — setup/status/goal/update/plan/go/fix/
 
 이 문서는 Codex용 canonical router surface 입니다. shared skill과 parity는 유지하되, 의미 해석은 Codex 규약(`spawn_agent(...)`, `@auto`, `--auto`, `--team`)을 기준으로 하세요. 이 프롬프트는 얇은 진입점이며, 플래그 의미(`--auto`, `--loop`, `--multi`, `--quality`, `--team`, `--solo`)를 축약해서 덮어쓰면 안 됩니다.
 
-`/goal`은 Codex thread-level 목표 기능입니다. `@auto goal`만 `/goal`에 대한 thin wrapper로 처리하고, 다른 workflow에서는 active goal이 있으면 목표/예산을 보존한 채 상세 workflow에 전달하세요.
+`/goal`은 Codex thread-level 목표 기능입니다. active goal이 있으면 목표/예산을 보존한 채 상세 workflow에 전달하세요.
 
 ## Task Triage
 
-- For natural-language implementation requests, assess evidence before loading a planning workflow or dispatching workers. Do not reroute explicit `plan`, `review`, or other routes, or replace requested `--team`, `--multi`, or `--solo` behavior.
+- For natural-language implementation requests, assess evidence before loading a planning workflow or dispatching workers. Do not reroute explicit `review`, `qa`, or other routes, or replace requested `--team`, `--multi`, or `--solo` behavior.
 - `inline`: a bounded, evidenced low-risk change stays in this session with targeted implementation and tests; do not add a default planner or preload unrelated skills.
 - `guided`: incomplete evidence or medium risk calls for focused inspection, then implementation and the verification appropriate to the discovered surface. Inspect uncertainty before treating it as a requirement for a full plan.
 - `planned`: confirmed cross-module work, high risk, or requirements still unclear after inspection use planning and required review. A plan does not itself authorize parallel dispatch.
@@ -36,29 +36,17 @@ shell-wrapper failure and rerun the underlying `auto ...` command without the
 wrapper.
 
 지원 서브커맨드:
-- `setup`: 프로젝트 컨텍스트 생성 워크플로우
-- `status`: SPEC 상태 대시보드 워크플로우
-- `goal`: Codex /goal thin wrapper 워크플로우
 - `update`: 하네스 업데이트 워크플로우
-- `plan`: SPEC 작성 워크플로우
-- `go`: SPEC 구현 워크플로우
-- `fix`: 버그 수정 워크플로우
 - `review`: 코드 리뷰 워크플로우
 - `sync`: 문서 동기화 워크플로우
-- `idea`: 아이디어 브레인스토밍 워크플로우
-- `map`: 코드베이스 분석 워크플로우
-- `why`: 의사결정 근거 조회 워크플로우
 - `verify`: 프론트엔드 UX 검증 워크플로우
-- `secure`: 보안 감사 워크플로우
 - `test`: E2E 시나리오 실행 워크플로우
 - `qa`: QAMESH project QA mesh. Use `auto qa full` as the easiest default for full project QA planning, `auto qa full --bootstrap` when starter files are needed, `auto qa coverage` for evidence coverage summaries, `auto qa profile check` for profile capability readiness, `auto qa init` for release-QA setup, or `auto qa plan`, `auto qa scenario`, `auto qa run`, `auto qa explore`, `auto qa release`, `auto qa evidence`, or `auto qa feedback` according to the requested evidence flow. QAMESH is the default project QA orchestration layer; Playwright is a browser/gui Journey runner adapter when detected, not a competing QA mode. Ask for project, execution, environment/origin, credentials, mobile/cloud, or canary authority choices instead of asking users to choose between QAMESH and Playwright. ADK is a harness; concrete commands, origins, oracles, and artifacts belong in a project-local Journey Pack. Use `auto canary` for post-deploy smoke/status only; `auto qa release` treats `canary-explicit` as a bridge lane for an explicit post-deploy smoke Journey Pack.
-- `dev`: plan → go → sync 오케스트레이션 워크플로우
-- `canary`: 배포 후 상태 점검 워크플로우
 - `doctor`: 하네스 상태 진단 워크플로우
 
 규칙:
-- 첫 토큰이 없는 경우, 사용자의 의도를 위 19개 중 하나로 분류해서 진행합니다. 의도가 명확히 하나로 수렴하지 않으면 active tool list에 `request_user_input`이 있을 때 2-3개의 workflow 선택지를 제시해 사용자의 의도를 확인합니다. Codex App Server client는 같은 선택지 contract를 `tool/requestUserInput`으로 매핑합니다. Codex 질문 tool이 없을 때만 하나의 짧은 plain-text 질문으로 확인합니다.
-- 가능하면 같은 이름의 상세 스킬/프롬프트(`auto-setup`, `auto-status`, `auto-goal`, `auto-update`, `auto-plan`, `auto-go`, `auto-fix`, `auto-review`, `auto-sync`, `auto-idea`, `auto-map`, `auto-why`, `auto-verify`, `auto-secure`, `auto-test`, `auto-qa`, `auto-dev`, `auto-canary`, `auto-doctor`) 의미를 따릅니다.
+- 첫 토큰이 없는 경우, 사용자의 의도를 위 7개 중 하나로 분류해서 진행합니다. 의도가 명확히 하나로 수렴하지 않으면 active tool list에 `request_user_input`이 있을 때 2-3개의 workflow 선택지를 제시해 사용자의 의도를 확인합니다. Codex App Server client는 같은 선택지 contract를 `tool/requestUserInput`으로 매핑합니다. Codex 질문 tool이 없을 때만 하나의 짧은 plain-text 질문으로 확인합니다.
+- 가능하면 같은 이름의 상세 스킬/프롬프트(`auto-update`, `auto-review`, `auto-sync`, `auto-verify`, `auto-test`, `auto-qa`, `auto-doctor`) 의미를 따릅니다.
 - 지원하지 않는 서브커맨드면 지원 목록을 짧게 안내하고 가장 가까운 워크플로우를 제안합니다.
 - Codex 하네스 기본값은 근거에 따른 inline 작업이며, 독립 작업 또는 격리된 검토가 필요하고 native capacity가 확인될 때 `spawn_agent(...)`를 사용합니다.
 - Codex에서 `--auto`가 있으면, 선택한 작업 흐름의 진행에 대한 명시적 승인으로 해석하며, 불필요한 위임을 강제하지 않습니다.

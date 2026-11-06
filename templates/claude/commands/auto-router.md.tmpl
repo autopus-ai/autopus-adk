@@ -35,7 +35,7 @@ ARGUMENTS: $ARGUMENTS
 
 ## Task Triage
 
-- For natural-language implementation requests, assess evidence before loading a planning workflow or dispatching workers. Do not reroute explicit `plan`, `review`, or other routes, or replace requested `--team`, `--multi`, or `--solo` behavior.
+- For natural-language implementation requests, assess evidence before loading a planning workflow or dispatching workers. Do not reroute explicit `review`, `qa`, or other routes, or replace requested `--team`, `--multi`, or `--solo` behavior.
 - `inline`: a bounded, evidenced low-risk change stays in this session with targeted implementation and tests; do not add a default planner or preload unrelated skills.
 - `guided`: incomplete evidence or medium risk calls for focused inspection, then implementation and the verification appropriate to the discovered surface. Inspect uncertainty before treating it as a requirement for a full plan.
 - `planned`: confirmed cross-module work, high risk, or requirements still unclear after inspection use planning and required review. A plan does not itself authorize parallel dispatch.
@@ -65,7 +65,6 @@ ARGUMENTS: $ARGUMENTS
 ## Preserved Aliases
 
 - `browse` loads `.claude/skills/browser-automation/SKILL.md`.
-- `stale` and `spec review` route through `review` with the alias arguments intact.
 - Management aliases `init` and `platform` route through `update`; `doctor` uses its dedicated route.
 - Empty input prints the route and alias inventory. Unknown input reports the nearest route without loading multiple details.
 
