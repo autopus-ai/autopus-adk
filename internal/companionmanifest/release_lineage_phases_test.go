@@ -11,9 +11,9 @@ import (
 // 새 릴리즈는 그 표에 한 행을, release_lineage_shipped_phases_test.go에 한 항목을, 필요하면
 // releasePhasePriorPins에 한 항목을 더하면 된다 — 좌표마다 새 테스트 파일을 만들지 않는다.
 //
-// 표는 두 파일로 나뉜다. 여기 frozenReleasePhases는 A0..A21의 동결된 행이고, 자라는 쪽인
-// A22 이후는 shippedReleasePhases에 있다. 한 파일에 두면 좌표를 올릴 때마다 300줄 상한에
-// 부딪힌다.
+// 표는 세 파일로 나뉜다. 여기 frozenReleasePhases는 A0..A21의 동결된 행이고, A22..A30은
+// settledReleasePhases, 자라는 쪽인 A31 이후는 shippedReleasePhases에 있다. 한 파일에 두면
+// 좌표를 올릴 때마다 300줄 상한에 부딪힌다.
 type releasePhase struct {
 	phase   string
 	tag     string
@@ -58,7 +58,7 @@ func (p releasePhase) priorPhase(t *testing.T) string {
 	return "A" + strconv.Itoa(index-1)
 }
 
-var releasePhases = slices.Concat(frozenReleasePhases, shippedReleasePhases)
+var releasePhases = slices.Concat(frozenReleasePhases, settledReleasePhases, shippedReleasePhases)
 
 var frozenReleasePhases = []releasePhase{
 	{
