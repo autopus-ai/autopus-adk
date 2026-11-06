@@ -12,7 +12,7 @@ func TestExplainSkillSelection(t *testing.T) {
 		name, reason string
 		selected     bool
 	}{
-		{"tdd", "core", true}, {"auto-go", "route", true}, {"unlisted-specialty", "not_selected", false},
+		{"verification", "core", true}, {"auto-go", "route", true}, {"unlisted-specialty", "not_selected", false},
 	}
 	for _, tc := range cases {
 		skill := CatalogSkill{Name: tc.name, CompileTargets: []string{"codex"}}

@@ -4,7 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	contentfs "github.com/insajin/autopus-adk/content"
 	"github.com/insajin/autopus-adk/templates"
 	"github.com/stretchr/testify/require"
 )
@@ -33,17 +32,5 @@ func TestCanonicalRouterTriagePreservesExplicitIntentAndGates(t *testing.T) {
 		data, err := templates.FS.ReadFile(path)
 		require.NoError(t, err)
 		require.Contains(t, string(data), section, "platform triage policy drift: %s", path)
-	}
-}
-
-func TestDelegationTriageRemainsEvidenceAndCapacityBound(t *testing.T) {
-	data, err := contentfs.FS.ReadFile("skills/references/agent-pipeline/delegation.md")
-	require.NoError(t, err)
-	for _, contract := range []string{
-		"auto workflow triage --facts-json <file> --format json",
-		"does not establish native capacity", "independent ready work",
-		"required gates", "--solo", "requested model",
-	} {
-		require.Contains(t, string(data), contract)
 	}
 }

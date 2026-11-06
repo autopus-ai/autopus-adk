@@ -12,21 +12,20 @@ func cfgDefault(platforms ...string) *config.HarnessConfig {
 	return &config.HarnessConfig{Platforms: platforms}
 }
 
-// TestCompactDefault_CoreSurfaceIsTheDeclaredTen pins the default advertised
-// reusable-skill surface. Growing it is a product decision, not a side effect
-// of adding a skill file or renaming a category.
-func TestCompactDefault_CoreSurfaceIsTheDeclaredTen(t *testing.T) {
+// TestCompactDefault_CoreSurfaceIsTheDeclaredEight pins the default advertised
+// reusable-skill surface: the verification harness's eight skills. Growing it
+// is a product decision, not a side effect of adding a skill file or renaming
+// a category.
+func TestCompactDefault_CoreSurfaceIsTheDeclaredEight(t *testing.T) {
 	want := []string{
-		"agent-pipeline",
-		"codebase-design",
-		"debugging",
-		"planning",
+		"browser-automation",
+		"frontend-verify",
+		"lore-commit",
+		"playwright-cli",
+		"qa-autopilot",
 		"review",
-		"tdd",
 		"testing-strategy",
-		"using-autopus",
 		"verification",
-		"worktree-isolation",
 	}
 	if len(coreSkillSet) != len(want) {
 		t.Fatalf("coreSkillSet has %d entries, want exactly %d: %v", len(coreSkillSet), len(want), coreSkillSet)
@@ -83,9 +82,6 @@ func TestCompactDefault_RouteSkillsStayCore(t *testing.T) {
 // surface, so dropping any one scanner from the closure fails this test.
 func TestCompactDefault_ReferencedSkillsStayInstalled(t *testing.T) {
 	reachedVia := map[string]string{
-		"ax-annotation":      "content/agents/annotator.md links to it",
-		"spec-review":        "content/rules/spec-quality.md links to it",
-		"harness-workflow":   "the generated /auto go route template inlines it",
 		"browser-automation": "the generated /auto router template routes browse to it",
 	}
 	for name, why := range reachedVia {
@@ -150,10 +146,11 @@ func TestBundleOptInRoutesLongTailToPlatformSink(t *testing.T) {
 	}
 }
 
-// TestCompactDefault_ShippedSurfaceIsMeaningfullySmaller measures the real
-// shipped catalog rather than a synthetic skill, on every platform. The bar is
-// a halving: anything less means the compaction is nominal.
-func TestCompactDefault_ShippedSurfaceIsMeaningfullySmaller(t *testing.T) {
+// TestCompactDefault_ShippedSurfaceIsTheWholeCatalog measures the real shipped
+// catalog on every platform. The verification harness ships only skills every
+// install needs, so the default surface compiles the whole catalog; a skill
+// the default leaves out means it was added without a core decision.
+func TestCompactDefault_ShippedSurfaceIsTheWholeCatalog(t *testing.T) {
 	catalog, err := embeddedSkillCatalog()
 	if err != nil {
 		t.Fatalf("load embedded catalog: %v", err)
@@ -172,8 +169,8 @@ func TestCompactDefault_ShippedSurfaceIsMeaningfullySmaller(t *testing.T) {
 		if full == 0 {
 			t.Fatalf("%s compiled nothing in full mode; the measurement is broken", platform)
 		}
-		if compact*2 > full {
-			t.Errorf("%s default surface compiles %d of %d skills, want at most half", platform, compact, full)
+		if compact != full {
+			t.Errorf("%s default surface compiles %d of %d skills, want all of them", platform, compact, full)
 		}
 		if compact == 0 {
 			t.Errorf("%s default surface compiles nothing; the core surface was evicted", platform)
@@ -185,16 +182,16 @@ func TestCompactDefault_ShippedSurfaceIsMeaningfullySmaller(t *testing.T) {
 // evict the skills that must remain discoverable.
 func TestCompactDefault_CoreSurfaceStillNative(t *testing.T) {
 	core := CatalogSkill{
-		Name:           "planning",
+		Name:           "review",
 		CompileTargets: []string{"claude", "codex", "gemini", "opencode", "omp"},
 		Visibility:     SkillVisibilityShared,
 	}
 	want := map[string]string{
-		"claude":   ".claude/skills/planning/SKILL.md",
-		"codex":    ".codex/skills/codex-planning/SKILL.md",
-		"gemini":   ".gemini/skills/autopus/planning/SKILL.md",
-		"opencode": ".agents/skills/planning/SKILL.md",
-		"omp":      ".omp/skills/planning/SKILL.md",
+		"claude":   ".claude/skills/review/SKILL.md",
+		"codex":    ".codex/skills/codex-review/SKILL.md",
+		"gemini":   ".gemini/skills/autopus/review/SKILL.md",
+		"opencode": ".agents/skills/review/SKILL.md",
+		"omp":      ".omp/skills/review/SKILL.md",
 	}
 	for platform, target := range want {
 		state := ResolveCatalogSkillState(core, platform, cfgDefault(platform))

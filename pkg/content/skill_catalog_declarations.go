@@ -22,10 +22,20 @@ func IsInstalledSkill(name, platform string, cfg *config.HarnessConfig) bool {
 	}
 	skill, ok := catalog.Get(name)
 	if !ok {
+		skill, ok = longTailFixtureSkills[name]
+	}
+	if !ok {
 		return true
 	}
 	return ResolveCatalogSkillState(skill, platform, cfg).Compiled
 }
+
+// longTailFixtureSkills is empty in the product. The verification harness
+// ships no long-tail skill, so the shipped catalog has no entry the default
+// compiler leaves unwritten; this package's tests register one in an init
+// function, before any test runs, to keep exercising the projection that
+// drops a declared but uninstalled skill.
+var longTailFixtureSkills map[string]CatalogSkill
 
 // FilterDeclaredSkills rewrites the `skills:` frontmatter list of a generated
 // agent contract so it names only skills the compiler installs for the

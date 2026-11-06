@@ -2,6 +2,7 @@ package content
 
 import (
 	"io/fs"
+	"os"
 	"regexp"
 	"strings"
 	"testing"
@@ -36,7 +37,9 @@ func stripOMPTestInventoryGlobs(body string) string {
 
 // TestOMPNormalization_S12_PathPrefixes covers REQ-015 stage-1 prefix mapping.
 func TestOMPNormalization_S12_PathPrefixes(t *testing.T) {
-	raw, err := fs.ReadFile(contentfs.FS, "rules/doc-storage.md")
+	// doc-storage left the product with the verification harness; its last
+	// shipped body is still a real source full of Claude-native paths.
+	raw, err := os.ReadFile("testdata/retired-rules/doc-storage.md")
 	require.NoError(t, err)
 	source := string(raw)
 	require.Contains(t, source, ".claude/", "fixture precondition: source names .claude/")

@@ -26,7 +26,7 @@ import (
 )
 
 // designatedStickyRules is the pair REQ-STICKYRULE-MAP-01 fixes.
-var designatedStickyRules = []string{"language-policy", "objective-reasoning"}
+var designatedStickyRules = []string{"language-policy"}
 
 // embeddedRuleSet parses every rule the harness ships.
 func embeddedRuleSet(t *testing.T) []*rulecond.Rule {

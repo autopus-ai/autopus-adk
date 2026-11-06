@@ -26,11 +26,11 @@ func TestIsInstalledSkill_UnknownAndCatalogNames(t *testing.T) {
 	if IsInstalledSkill("metrics", "claude", cfg) {
 		t.Error("IsInstalledSkill(long-tail metrics) = true, want false under the default compact surface")
 	}
-	if !IsInstalledSkill("tdd", "claude", cfg) {
-		t.Error("IsInstalledSkill(core tdd) = false, want true: core skills are always written")
+	if !IsInstalledSkill("review", "claude", cfg) {
+		t.Error("IsInstalledSkill(core review) = false, want true: core skills are always written")
 	}
 	// An unknown platform installs nothing, so a catalog skill is not declared.
-	if IsInstalledSkill("tdd", "not-a-platform", cfg) {
+	if IsInstalledSkill("review", "not-a-platform", cfg) {
 		t.Error("IsInstalledSkill for an unknown platform = true, want false")
 	}
 }
@@ -45,7 +45,7 @@ func TestIsInstalledSkill_ExplicitOptInRestoresDeclaration(t *testing.T) {
 	if !IsInstalledSkill("metrics", "claude", cfg) {
 		t.Fatal("explicit_skills did not make metrics installed")
 	}
-	const contract = "---\nname: x\nskills:\n  - metrics\n  - tdd\n---\nbody\n"
+	const contract = "---\nname: x\nskills:\n  - metrics\n  - review\n---\nbody\n"
 	got := FilterDeclaredSkills(contract, "claude", cfg)
 	if !strings.Contains(got, "- metrics") {
 		t.Errorf("explicit skill declaration was stripped:\n%s", got)
@@ -60,7 +60,7 @@ func TestFilterDeclaredSkills_DropsUninstalledEntries(t *testing.T) {
 		"name: reviewer\n" +
 		"skills:\n" +
 		"  - metrics\n" +
-		"  - tdd\n" +
+		"  - review\n" +
 		"  - docker\n" +
 		"  - project-authored-skill\n" +
 		"model: opus\n" +
@@ -71,10 +71,10 @@ func TestFilterDeclaredSkills_DropsUninstalledEntries(t *testing.T) {
 
 	got := FilterDeclaredSkills(contract, "claude", cfgDefault("claude"))
 
-	if strings.Contains(got, "- metrics\n  - tdd") || strings.Count(got, "- metrics") != 1 {
+	if strings.Contains(got, "- metrics\n  - review") || strings.Count(got, "- metrics") != 1 {
 		t.Errorf("uninstalled frontmatter entry survived, or the body copy was rewritten:\n%s", got)
 	}
-	wantKept := "skills:\n  - tdd\n  - project-authored-skill\nmodel: opus"
+	wantKept := "skills:\n  - review\n  - project-authored-skill\nmodel: opus"
 	if !strings.Contains(got, wantKept) {
 		t.Errorf("kept entries lost order/indentation; want %q in:\n%s", wantKept, got)
 	}
@@ -151,7 +151,7 @@ func TestFrontmatterEnd_Boundaries(t *testing.T) {
 // TestFilterDeclaredSkillItems_ReturnsNextIndex pins the scanner contract the
 // caller depends on to resume iteration without re-reading an item line.
 func TestFilterDeclaredSkillItems_ReturnsNextIndex(t *testing.T) {
-	lines := []string{"---", "skills:", "  - tdd", "  - metrics", "model: x", "---"}
+	lines := []string{"---", "skills:", "  - review", "  - metrics", "model: x", "---"}
 	cfg := cfgDefault("claude")
 
 	kept, next := filterDeclaredSkillItems(lines, 2, 5, "claude", cfg)
@@ -159,7 +159,7 @@ func TestFilterDeclaredSkillItems_ReturnsNextIndex(t *testing.T) {
 	if next != 4 {
 		t.Errorf("next = %d, want 4 (index of the first non-item line)", next)
 	}
-	if len(kept) != 1 || strings.TrimSpace(kept[0]) != "- tdd" {
+	if len(kept) != 1 || strings.TrimSpace(kept[0]) != "- review" {
 		t.Errorf("kept = %v, want only the installed entry", kept)
 	}
 

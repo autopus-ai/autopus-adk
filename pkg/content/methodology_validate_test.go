@@ -3,7 +3,6 @@ package content_test
 
 import (
 	"errors"
-	"io/fs"
 	"testing"
 	"testing/fstest"
 
@@ -225,7 +224,7 @@ func TestResolveMethodology_ShippedDefinitions(t *testing.T) {
 		t.Run(tc.mode, func(t *testing.T) {
 			t.Parallel()
 
-			def, err := content.ResolveEnforcedMethodology(contentfs.FS, tc.mode, true)
+			def, err := content.ResolveMethodology(contentfs.FS, tc.mode)
 			require.NoError(t, err)
 			require.NotNil(t, def)
 
@@ -235,16 +234,12 @@ func TestResolveMethodology_ShippedDefinitions(t *testing.T) {
 			}
 			assert.Equal(t, tc.wantOrder, order)
 
-			// 교리 전달은 이제 렌더러가 아니라 같은 이름의 스킬이 담당하고,
-			// 리졸버가 그 표면의 존재를 요구한다. 위 ResolveEnforcedMethodology
-			// 성공이 곧 content/skills/<mode>.md 가 있다는 뜻이므로, 여기서는
-			// 그 파일이 규칙을 실을 만큼 비어 있지 않은지만 확인한다.
-			delivery, err := contentfs.FS.Open("skills/" + tc.mode + ".md")
-			require.NoError(t, err, "방법론 교리의 전달 표면이 있어야 한다")
-			t.Cleanup(func() { _ = delivery.Close() })
-			info, err := fs.Stat(contentfs.FS, "skills/"+tc.mode+".md")
-			require.NoError(t, err)
-			assert.Greater(t, info.Size(), int64(0), "전달 표면이 비어 있다")
+			// The verification harness ships no methodology skill, so the
+			// definition still validates but has no delivery surface.
+			_, err = content.ResolveEnforcedMethodology(contentfs.FS, tc.mode, true)
+			var defect *content.MethodologyError
+			require.ErrorAs(t, err, &defect)
+			assert.Equal(t, content.DefectMissingDelivery, defect.Defect)
 		})
 	}
 }

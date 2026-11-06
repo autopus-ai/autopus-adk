@@ -1,6 +1,8 @@
 package content_test
 
 import (
+	"io/fs"
+	"os"
 	"strings"
 	"testing"
 
@@ -12,13 +14,22 @@ import (
 	"github.com/insajin/autopus-adk/pkg/content"
 )
 
+// ompAgentSource returns a shipped agent source or, for a role the
+// verification harness retired, its frozen last-shipped copy under
+// testdata/retired-agents. The renderers still serve any agent source, so the
+// planning and implementation roles keep exercising their tool mappings.
 func ompAgentSource(t *testing.T, name string) content.AgentSource {
 	t.Helper()
-	sources, err := content.LoadAgentSourcesFromFS(contentfs.FS, "agents")
-	require.NoError(t, err)
-	for _, source := range sources {
-		if source.Meta.Name == name {
-			return source
+	for _, root := range []struct {
+		fsys fs.FS
+		dir  string
+	}{{contentfs.FS, "agents"}, {os.DirFS("testdata"), "retired-agents"}} {
+		sources, err := content.LoadAgentSourcesFromFS(root.fsys, root.dir)
+		require.NoError(t, err)
+		for _, source := range sources {
+			if source.Meta.Name == name {
+				return source
+			}
 		}
 	}
 	t.Fatalf("agent source %s missing", name)
