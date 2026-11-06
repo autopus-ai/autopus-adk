@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"os/exec"
+	"slices"
 	"strings"
 )
 
@@ -23,7 +24,22 @@ func ChangedFiles(ctx context.Context, dir string) (root string, files []string,
 	if err != nil {
 		return root, nil, false
 	}
-	return root, parsePorcelainZ(out), true
+	return root, withoutHarnessPaths(parsePorcelainZ(out)), true
+}
+
+// harnessDirs hold harness state and generated platform files. A change
+// there is the harness's own output (QA findings, regenerated skills), not
+// the product change the gate verifies.
+var harnessDirs = []string{".autopus/", ".claude/", ".codex/", ".gemini/", ".opencode/", ".omp/", ".agents/"}
+
+func withoutHarnessPaths(files []string) []string {
+	kept := files[:0]
+	for _, f := range files {
+		if !slices.ContainsFunc(harnessDirs, func(dir string) bool { return strings.HasPrefix(f, dir) }) {
+			kept = append(kept, f)
+		}
+	}
+	return kept
 }
 
 // parsePorcelainZ reads `git status --porcelain=v1 -z` output. A rename or

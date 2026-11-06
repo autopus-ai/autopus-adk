@@ -10,8 +10,9 @@ import (
 	"strings"
 )
 
-// ChangedLines counts added plus deleted lines against HEAD, counting every
-// line of an untracked file as added. Binary files count as zero.
+// ChangedLines counts added plus deleted source lines against HEAD, counting
+// every line of an untracked source file as added. Logs, data, and binaries
+// are not part of the change's size.
 func ChangedLines(ctx context.Context, root string, changed []string) int {
 	total := 0
 	tracked := map[string]bool{}
@@ -22,14 +23,17 @@ func ChangedLines(ctx context.Context, root string, changed []string) int {
 			if len(fields) < 3 {
 				continue
 			}
+			tracked[fields[2]] = true
+			if !IsSource(fields[2]) {
+				continue
+			}
 			added, _ := strconv.Atoi(fields[0])
 			deleted, _ := strconv.Atoi(fields[1])
 			total += added + deleted
-			tracked[fields[2]] = true
 		}
 	}
 	for _, f := range changed {
-		if tracked[f] {
+		if tracked[f] || !IsSource(f) {
 			continue
 		}
 		if data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(f))); err == nil && !bytes.Contains(data, []byte{0}) {

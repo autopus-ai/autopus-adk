@@ -11,6 +11,10 @@ import (
 // sent on to review and QA. Smaller edits end as soon as the build is green.
 const followupMinLines = 40
 
+// followupMaxRounds bounds the review and QA rounds one session runs, so a
+// change that keeps growing cannot keep the session alive forever.
+const followupMaxRounds = 2
+
 // followupReason is what the agent is told to do next once the build and
 // tests pass. It runs the verification half of the harness without the user
 // having to ask for it.
@@ -29,11 +33,16 @@ func nextFollowup(session string, changedLines int) bool {
 	if strings.EqualFold(os.Getenv("AUTOPUS_FOLLOWUP"), "off") || changedLines < followupMinLines {
 		return false
 	}
-	done, _ := strconv.Atoi(readStopState(session, "followup"))
-	if done > 0 && changedLines < done+followupMinLines {
+	state := strings.Fields(readStopState(session, "followup"))
+	done, rounds := 0, 0
+	if len(state) == 2 {
+		done, _ = strconv.Atoi(state[0])
+		rounds, _ = strconv.Atoi(state[1])
+	}
+	if rounds >= followupMaxRounds || (done > 0 && changedLines < done+followupMinLines) {
 		return false
 	}
-	writeStopState(session, "followup", strconv.Itoa(changedLines))
+	writeStopState(session, "followup", fmt.Sprintf("%d %d", changedLines, rounds+1))
 	return true
 }
 

@@ -61,3 +61,10 @@ func TestParsePorcelainZ(t *testing.T) {
 
 	assert.Equal(t, []string{"a.go", "new.go", "b.go"}, parsePorcelainZ(out))
 }
+
+func TestWithoutHarnessPaths(t *testing.T) {
+	t.Parallel()
+	got := withoutHarnessPaths([]string{"main.go", ".autopus/qa/hunt/findings/x/repro.sh", ".claude/settings.json", "docs/a.md"})
+
+	assert.Equal(t, []string{"main.go", "docs/a.md"}, got)
+}
