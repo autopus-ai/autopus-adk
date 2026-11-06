@@ -3,6 +3,8 @@ package codex
 import (
 	"fmt"
 	"strings"
+
+	"github.com/insajin/autopus-adk/pkg/adapter"
 )
 
 type workflowSpec struct {
@@ -47,6 +49,16 @@ var workflowSpecs = []workflowSpec{
 		Name:        "auto-doctor",
 		Description: "상태 진단 — 하네스 설치 상태와 플랫폼 wiring을 점검합니다",
 	},
+}
+
+// allWorkflowNames lists the installed workflows followed by the ones the
+// verification harness retired, for cleanups that must recognize both.
+func allWorkflowNames() []string {
+	names := make([]string, 0, len(workflowSpecs)+len(adapter.RetiredWorkflowRoutes))
+	for _, spec := range workflowSpecs {
+		names = append(names, spec.Name)
+	}
+	return append(names, adapter.RetiredWorkflowRoutes...)
 }
 
 func routerSubcommandCount() int {

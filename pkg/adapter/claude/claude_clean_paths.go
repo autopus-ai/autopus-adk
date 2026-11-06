@@ -61,6 +61,22 @@ func claudeCleanAllowedPaths() (map[string]bool, error) {
 		addSkill(name)
 		allowed[filepath.ToSlash(filepath.Join(".claude", "commands", name+".md"))] = true
 	}
+	// Routes, skills, agents, and rules v0.50.134 installed and this release
+	// retired: an install that was never updated still records them.
+	for _, name := range append(append([]string(nil), adapter.RetiredWorkflowRoutes...), adapter.RetiredSkillNames...) {
+		addSkill(name)
+		allowed[filepath.ToSlash(filepath.Join(".claude", "commands", name+".md"))] = true
+		for _, rel := range adapter.RetiredSkillResources[name] {
+			allowed[filepath.ToSlash(filepath.Join(".claude", "skills", name, rel))] = true
+		}
+	}
+	for _, name := range adapter.RetiredAgentNames {
+		allowed[filepath.ToSlash(filepath.Join(".claude", "agents", "autopus", name+".md"))] = true
+	}
+	for _, name := range adapter.RetiredRuleNames {
+		allowed[filepath.ToSlash(filepath.Join(".claude", "rules", "autopus", name+".md"))] = true
+		allowed[filepath.ToSlash(filepath.Join(".claude", "hooks", "autopus", "conditional", name+".md"))] = true
+	}
 	for _, dir := range []string{"skills", "agents", "rules", "hooks"} {
 		entries, err := contentfs.FS.ReadDir(dir)
 		if err != nil {

@@ -18,60 +18,15 @@ import (
 func TestRenderExtendedSkills(t *testing.T) {
 	t.Parallel()
 	a := NewWithRoot(t.TempDir())
+	// Every skill the verification harness ships has a Codex template, so
+	// the extended renderer, which covers skills without one, writes nothing.
 	files, err := a.renderExtendedSkills(config.DefaultFullConfig("test"))
 	require.NoError(t, err)
-	assert.NotEmpty(t, files)
+	assert.Empty(t, files)
 	for _, f := range files {
 		assert.Contains(t, f.TargetPath, ".codex/skills/")
 		assert.Equal(t, adapter.OverwriteAlways, f.OverwritePolicy)
 	}
-}
-
-func TestNormalizeCodexExtendedSkill_RewritesSpecialSkills(t *testing.T) {
-	t.Parallel()
-	cfg := config.DefaultFullConfig("rewrite-project")
-
-	teams := normalizeCodexExtendedSkill("agent-teams", "placeholder", cfg)
-	assert.Contains(t, teams, "Codex Multi-Agent V2 Team Skill")
-	assert.Contains(t, teams, "same shared cwd and filesystem")
-	assert.Contains(t, teams, "Lead")
-	assert.Contains(t, teams, "followup_task")
-	assert.Contains(t, teams, "target-less `wait_agent()`")
-	assert.NotContains(t, teams, "TeamCreate")
-	assert.NotContains(t, teams, "SendMessage")
-	assert.NotContains(t, teams, "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS")
-
-	// Codex now consumes the canonical pipeline body and appends only a native
-	// execution delta. The rewrite's contract is that delta: keep the shared
-	// body intact, name the tools Codex actually exposes, and state the shared
-	// filesystem consequence that a conversation fork does not solve.
-	pipeline := normalizeCodexExtendedSkill("agent-pipeline", "canonical body marker", cfg)
-	assert.Contains(t, pipeline, "canonical body marker",
-		"the shared body must survive the Codex rewrite, not be replaced by it")
-	for _, tool := range []string{
-		"spawn_agent", "send_message", "followup_task",
-		"wait_agent()", "interrupt_agent", "list_agents",
-	} {
-		assert.Contains(t, pipeline, tool, "the native delta must name %q", tool)
-	}
-	assert.NotContains(t, pipeline, "bypassPermissions")
-	assert.NotContains(t, pipeline, "auto permission detect")
-	for _, foreign := range []string{"TeamCreate", "SendMessage(", "Agent("} {
-		assert.NotContains(t, pipeline, foreign,
-			"the Codex delta must not reintroduce a Claude-only primitive")
-	}
-
-	worktree := normalizeCodexExtendedSkill("worktree-isolation", "placeholder", cfg)
-	assert.Contains(t, worktree, "shared cwd and filesystem")
-	assert.Contains(t, worktree, "disjoint write ownership")
-	assert.Contains(t, worktree, "owned_paths")
-	assert.Contains(t, worktree, "next_required_step")
-	assert.NotContains(t, worktree, "forked workspace")
-
-	prd := normalizeCodexExtendedSkill("prd", "사용자 입력이 불충분할 경우 AskUserQuestion으로 확인:", cfg)
-	assert.NotContains(t, prd, "AskUserQuestion")
-	assert.Contains(t, prd, "request_user_input")
-	assert.Contains(t, prd, "plain-text")
 }
 
 func TestLogTransformReport_Nil(t *testing.T) {

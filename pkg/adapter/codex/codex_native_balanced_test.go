@@ -17,25 +17,10 @@ import (
 // nativeBalancedCodexTOML is the model/effort pair each managed agent file must
 // carry under the standard native balanced placement.
 var nativeBalancedCodexTOML = map[string]config.CodexProfile{
-	"architect.toml":        {Model: config.CodexAstraModel, Effort: config.CodexEffortMax},
-	"debugger.toml":         {Model: config.CodexAstraModel, Effort: config.CodexEffortMax},
-	"deep-worker.toml":      {Model: config.CodexAstraModel, Effort: config.CodexEffortMax},
-	"planner.toml":          {Model: config.CodexAstraModel, Effort: config.CodexEffortMax},
-	"reviewer.toml":         {Model: config.CodexAstraModel, Effort: config.CodexEffortMax},
-	"security-auditor.toml": {Model: config.CodexAstraModel, Effort: config.CodexEffortMax},
-	"spec-writer.toml":      {Model: config.CodexAstraModel, Effort: config.CodexEffortMax},
+	"reviewer.toml": {Model: config.CodexAstraModel, Effort: config.CodexEffortMax},
 
-	"annotator.toml":           {Model: config.CodexLunaModel, Effort: config.CodexEffortMax},
-	"devops.toml":              {Model: config.CodexLunaModel, Effort: config.CodexEffortMax},
-	"executor.toml":            {Model: config.CodexLunaModel, Effort: config.CodexEffortMax},
-	"explorer.toml":            {Model: config.CodexLunaModel, Effort: config.CodexEffortMax},
 	"frontend-specialist.toml": {Model: config.CodexLunaModel, Effort: config.CodexEffortMax},
-	"perf-engineer.toml":       {Model: config.CodexLunaModel, Effort: config.CodexEffortMax},
-	"tester.toml":              {Model: config.CodexLunaModel, Effort: config.CodexEffortMax},
 	"ux-validator.toml":        {Model: config.CodexLunaModel, Effort: config.CodexEffortMax},
-	"validator.toml":           {Model: config.CodexLunaModel, Effort: config.CodexEffortMax},
-
-	"reverse-engineer.toml": {Model: config.CodexSolModel, Effort: config.CodexEffortXHigh},
 }
 
 func TestPrepareAgentFiles_NativeBalancedRendersPolicyPlacement(t *testing.T) {
@@ -84,9 +69,8 @@ func TestPrepareAgentFiles_NativeBalancedCatalogUnknownKeepsExactProfile(t *test
 	assert.Contains(t, report, string(config.CodexResolutionCatalogUnknown))
 	assert.Contains(t, report, config.CodexAstraModel+"/"+config.CodexEffortMax)
 	assert.Contains(t, report, config.CodexLunaModel+"/"+config.CodexEffortMax)
-	assert.Contains(t, report, config.CodexSolModel+"/"+config.CodexEffortXHigh)
-	// Three distinct profiles across seventeen agents, each reported once.
-	assert.Equal(t, 3, strings.Count(report, "\n"))
+	// Two distinct profiles across the three agents, each reported once.
+	assert.Equal(t, 2, strings.Count(report, "\n"))
 }
 
 func TestPrepareAgentFiles_NativeBalancedRefusesCatalogSubstitution(t *testing.T) {
@@ -181,7 +165,7 @@ func TestPrepareAgentFiles_NonPlacementProfilesKeepCatalogFallback(t *testing.T)
 		files, err := a.prepareAgentFiles(cfg)
 		require.NoError(t, err)
 		assertCodexRenderedProfile(t,
-			codexAgentMappingContent(t, files, "executor.toml"),
+			codexAgentMappingContent(t, files, "frontend-specialist.toml"),
 			config.CodexProfile{Model: config.CodexPreviousSolModel, Effort: config.CodexEffortXHigh},
 		)
 	})
@@ -194,18 +178,18 @@ func TestPrepareAgentFiles_NonPlacementProfilesKeepCatalogFallback(t *testing.T)
 		a.codexCatalogJSON = withoutSol
 		a.codexFallbackWriter = nil
 		cfg := config.DefaultFullConfig("custom-tier-fallback")
-		cfg.Quality.Presets["balanced"] = withCodexAgentTier(cfg.Quality.Presets["balanced"], "executor", "opus")
+		cfg.Quality.Presets["balanced"] = withCodexAgentTier(cfg.Quality.Presets["balanced"], "frontend-specialist", "opus")
 
 		files, err := a.prepareAgentFiles(cfg)
 		require.NoError(t, err)
 		assertCodexRenderedProfile(t,
-			codexAgentMappingContent(t, files, "executor.toml"),
+			codexAgentMappingContent(t, files, "frontend-specialist.toml"),
 			config.CodexProfile{Model: config.CodexPreviousSolModel, Effort: config.CodexEffortXHigh},
 		)
 		// The sibling keeps the placement, which the catalog still advertises.
 		assertCodexRenderedProfile(t,
-			codexAgentMappingContent(t, files, "tester.toml"),
-			nativeBalancedCodexTOML["tester.toml"],
+			codexAgentMappingContent(t, files, "ux-validator.toml"),
+			nativeBalancedCodexTOML["ux-validator.toml"],
 		)
 	})
 }
@@ -255,8 +239,8 @@ func TestPrepareFiles_NativeBalancedPreservesUserRootModel(t *testing.T) {
 	assert.Contains(t, rootConfig, `model = "user/private-model"`)
 	assert.Contains(t, rootConfig, `model_reasoning_effort = "low"`)
 	assertCodexRenderedProfile(t,
-		byPath[filepath.Join(".codex", "agents", "executor.toml")],
-		nativeBalancedCodexTOML["executor.toml"],
+		byPath[filepath.Join(".codex", "agents", "frontend-specialist.toml")],
+		nativeBalancedCodexTOML["frontend-specialist.toml"],
 	)
 }
 

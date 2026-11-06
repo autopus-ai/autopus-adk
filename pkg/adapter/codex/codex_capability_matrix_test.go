@@ -81,7 +81,7 @@ func TestCodexCapabilityMatrixProjectsEveryConsumer(t *testing.T) {
 			agentFiles, err := a.generateAgents(cfg)
 			require.NoError(t, err)
 			root := strings.SplitN(string(rootFiles[0].Content), "[agents]", 2)[0]
-			executor := codexAgentMappingContent(t, agentFiles, "executor.toml")
+			executor := codexAgentMappingContent(t, agentFiles, "frontend-specialist.toml")
 			assertCodexRenderedProfile(t, root, tt.rendered)
 			assertCodexRenderedProfile(t, executor, tt.agent)
 
@@ -93,7 +93,7 @@ func TestCodexCapabilityMatrixProjectsEveryConsumer(t *testing.T) {
 			assert.Equal(t, tt.providerReason, providerResolution.Reason)
 
 			rootResolution := config.ResolveCodexProfile(cfg.Quality.CodexSupervisorProfile(), []byte(tt.catalog))
-			agentResolution := config.ResolveCodexProfile(cfg.Quality.CodexAgentProfile("executor", "sonnet", "medium"), []byte(tt.catalog))
+			agentResolution := config.ResolveCodexProfile(cfg.Quality.CodexAgentProfile("frontend-specialist", "sonnet", "medium"), []byte(tt.catalog))
 			assert.Equal(t, tt.supervisorReason, rootResolution.Reason)
 			assert.Equal(t, tt.agentReason, agentResolution.Reason)
 			assert.Equal(t, tt.supervisor, rootResolution.Effective)

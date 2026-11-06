@@ -18,7 +18,7 @@ func TestGenerateAgents(t *testing.T) {
 
 	files, err := a.generateAgents(cfg)
 	require.NoError(t, err)
-	assert.Len(t, files, 17, "should generate 17 TOML agent files")
+	assert.Len(t, files, 3, "should generate 3 TOML agent files")
 
 	for _, f := range files {
 		fullPath := filepath.Join(dir, f.TargetPath)
@@ -85,13 +85,7 @@ func TestGenerateAgents_UltraQualityUsesFableAndOpusProfiles(t *testing.T) {
 	cfg := config.DefaultFullConfig("test-project")
 	cfg.Quality.Default = "ultra"
 	fableAgents := map[string]bool{
-		"architect.toml":        true,
-		"debugger.toml":         true,
-		"deep-worker.toml":      true,
-		"planner.toml":          true,
-		"reviewer.toml":         true,
-		"security-auditor.toml": true,
-		"spec-writer.toml":      true,
+		"reviewer.toml": true,
 	}
 
 	files, err := a.generateAgents(cfg)
@@ -123,7 +117,7 @@ func TestPrepareAgentFiles_NoDiskWrite(t *testing.T) {
 
 	files, err := a.prepareAgentFiles(cfg)
 	require.NoError(t, err)
-	assert.Len(t, files, 17)
+	assert.Len(t, files, 3)
 
 	agentsDir := filepath.Join(dir, ".codex", "agents")
 	_, err = os.Stat(agentsDir)

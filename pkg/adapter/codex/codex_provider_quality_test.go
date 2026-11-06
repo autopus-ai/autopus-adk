@@ -72,8 +72,8 @@ func TestGenerateCodexSurfacesUseCodexProviderOverride(t *testing.T) {
 			for _, file := range agentFiles {
 				byPath[file.TargetPath] = string(file.Content)
 			}
-			planner := byPath[filepath.Join(".codex", "agents", "planner.toml")]
-			tester := byPath[filepath.Join(".codex", "agents", "tester.toml")]
+			planner := byPath[filepath.Join(".codex", "agents", "reviewer.toml")]
+			tester := byPath[filepath.Join(".codex", "agents", "ux-validator.toml")]
 			assert.Contains(t, planner, `model = "`+config.CodexAstraModel+`"`)
 			assert.Contains(t, planner, `model_reasoning_effort = "`+tt.wantPlannerEffort+`"`)
 			assert.Contains(t, tester, `model = "`+tt.wantMidModel+`"`)

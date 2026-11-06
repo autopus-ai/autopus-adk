@@ -29,17 +29,6 @@ func TestCodexAdapter_WorkspacePolicyContextPropagates(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(pluginRouterSkill), ".autopus/project/workspace.md")
 
-	autoSetupSkill, err := os.ReadFile(filepath.Join(dir, ".codex", "skills", "codex-auto-setup", "SKILL.md"))
-	require.NoError(t, err)
-	assert.Contains(t, string(autoSetupSkill), "workspace.md")
-	assert.Contains(t, string(autoSetupSkill), "nested git repo")
-	assert.Contains(t, string(autoSetupSkill), "generated/runtime")
-	assert.Contains(t, string(autoSetupSkill), "auto qa init --project-dir <repo>")
-
-	autoGoSkill, err := os.ReadFile(filepath.Join(dir, ".codex", "skills", "codex-auto-go", "SKILL.md"))
-	require.NoError(t, err)
-	assert.Contains(t, string(autoGoSkill), ".autopus/project/workspace.md")
-
 	autoSyncSkill, err := os.ReadFile(filepath.Join(dir, ".codex", "skills", "codex-auto-sync", "SKILL.md"))
 	require.NoError(t, err)
 	assert.Contains(t, string(autoSyncSkill), ".autopus/project/workspace.md")

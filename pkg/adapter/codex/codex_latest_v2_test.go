@@ -58,17 +58,6 @@ func TestPrepareFiles_UsesNativeUniqueSkillsAndV2Contracts(t *testing.T) {
 		assert.NotContains(t, configBody, legacy)
 	}
 
-	contracts := mappingContent(t, files, ".codex/skills/codex-agent-teams/SKILL.md") +
-		mappingContent(t, files, ".codex/skills/codex-agent-pipeline/SKILL.md") +
-		mappingContent(t, files, ".codex/skills/codex-worktree-isolation/SKILL.md")
-	for _, tool := range []string{"spawn_agent", "send_message", "followup_task", "wait_agent", "interrupt_agent", "list_agents"} {
-		assert.Contains(t, contracts, tool)
-	}
-	for _, obsolete := range []string{"send_input", "resume_agent", "close_agent", "forked workspace", "forked workspace", "auto-merges worktree", "merge worktree branch"} {
-		assert.NotContains(t, contracts, obsolete)
-	}
-	assert.Contains(t, contracts, "shared cwd")
-	assert.Contains(t, contracts, "disjoint write ownership")
 }
 
 // pendingCodexEntrypoint reports whether the mapping set contains the SKILL.md

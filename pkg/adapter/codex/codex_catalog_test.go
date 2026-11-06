@@ -182,7 +182,7 @@ func TestGenerateAgents_AppliesCatalogFallbackProfiles(t *testing.T) {
 			require.NoError(t, err)
 			var planner string
 			for _, file := range files {
-				if file.TargetPath == filepath.Join(".codex", "agents", "planner.toml") {
+				if file.TargetPath == filepath.Join(".codex", "agents", "reviewer.toml") {
 					planner = string(file.Content)
 					break
 				}
