@@ -24,7 +24,8 @@ var updateComposeStep = runUpdateComposeStep
 // An interactive run draws the table from one catalog probe and asks once;
 // every keep path leaves autopus.yaml byte-identical. A non-interactive run
 // reads no stdin, probes nothing, and prints at most the historical notice
-// and the review hint, since it has no review tab; its zero snapshot makes
+// and the review hint, since it has no review tab; any non-preview run also
+// names a claude review model left on a former default; its zero snapshot makes
 // each adapter probe for itself as before. The step never fails the update:
 // a refused or failed write keeps the file and leaves one warning line, and
 // the run's snapshot still feeds generation.
@@ -47,6 +48,11 @@ func runUpdateComposeStep(
 	result, err := runUpdateComposeDriver(cmd, gate, session)
 	if hint := reviewHint(cfg, lang); hint != "" && gate.mode() == composeModeNotice {
 		fmt.Fprintln(cmd.OutOrStdout(), hint)
+	}
+	// A former default review model is reported, never moved (see
+	// config.ClaudeProviderFormerDefault); a preview never reaches this step.
+	if gate.mode() != composeModeSilent {
+		writeClaudeReviewFormerDefaultNotice(cmd.OutOrStdout(), dir, cfg, composeTextFor(lang))
 	}
 	// A run-ending error goes to the gate's Abort slot; a caller without one
 	// still gets the warning line instead of losing the error.

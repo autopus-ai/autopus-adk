@@ -86,6 +86,7 @@ func runQualityShow(cmd *cobra.Command, _ []string) error {
 	out := cmd.OutOrStdout()
 	fmt.Fprintf(out, "quality.default = %s\n", cfg.Quality.Default)
 	writeQualityProviderStatus(out, cfg.Quality, config.QualityProviderClaude)
+	writeClaudeReviewModelLine(out, dir, cfg, currentComposeText())
 	writeQualityProviderStatus(out, cfg.Quality, config.QualityProviderCodex)
 	fmt.Fprintf(out, "quality.supervisor_model_policy = %s\n", cfg.Quality.EffectiveSupervisorModelPolicy())
 	writeOMPRoleModelPolicyStatus(out, cfg.RoleModelPolicy)

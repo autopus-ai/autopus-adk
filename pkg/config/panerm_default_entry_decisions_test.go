@@ -11,7 +11,9 @@ package config
 // entries whose only customizations are retired keys (pane_args and the other
 // pane-era fields): B treated them as user-owned, and with those keys retired
 // nothing distinguishes them from the default entry they otherwise equal, so
-// they now upgrade like it (CHANGELOG, S14).
+// they now upgrade like it (CHANGELOG, S14). A claude entry on a former
+// default model (`--model opus`) also differs: it keeps that model, which a
+// user may have chosen on purpose, and auto update prints a notice instead.
 
 import (
 	"os"
@@ -96,8 +98,11 @@ func defaultEntryRows() []defaultEntryRow {
 		{name: "historical-claude-opus-high", platform: "claude-code", provider: "claude", legacyQuality: true,
 			entry: "binary: claude\nargs: [--print, --model, opus, --effort, high]\n" +
 				"pane_args: [--print, --model, opus, --effort, high]\n",
-			atB:   defaultEntryDecision{Args: s14ClaudeDefaultArgs, Changed: true},
-			after: &s14ClaudeJSONDecision},
+			atB: defaultEntryDecision{Args: s14ClaudeDefaultArgs, Changed: true},
+			// A former default model is no longer moved: a deliberate opus
+			// choice writes the same argv, and auto update reports it instead.
+			// The missing timeout is still filled in, so the file changes.
+			after: &defaultEntryDecision{Args: []string{"--print", "--model", "opus", "--effort", "high", "--output-format", "json"}, Changed: true}},
 		// The intended changes: the only customization is a retired pane key.
 		// B rewrote the pane argv alone; there is no pane argv left to rewrite.
 		{name: "claude-historical-pane-args-only", platform: "claude-code", provider: "claude", legacyQuality: true,

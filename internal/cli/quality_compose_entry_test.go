@@ -69,7 +69,7 @@ func TestQualityCompose_OpensTheCompositionStepFirst(t *testing.T) {
 
 	require.NoError(t, err, out)
 	assert.Contains(t, out, "에이전트 모델 구성")
-	assert.Contains(t, out, qualityComposeStatusD+composeSessionGolden(t, "table-D-CAT-A.golden")+qualityComposeQuestionD)
+	assert.Contains(t, out, qualityComposeStatusD+composeSessionGolden(t, "table-D-CAT-A.golden")+claudeReviewLineFable+"\n"+qualityComposeQuestionD)
 	assert.Len(t, *run.probes, 1)
 	assert.NotContains(t, out, "quality.applied_platforms", "a kept composition applies nothing")
 	assert.Equal(t, before, composeSessionHash(t, dir))

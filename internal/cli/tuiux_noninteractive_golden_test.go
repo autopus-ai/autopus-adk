@@ -14,7 +14,8 @@ package cli
 // backup digests that follow from them changed, and the stdout goldens are
 // still those of b08ea644 (evidence/base-goldens-recapture.md). Later NPD
 // re-records for generated-file changes are listed in its numbered sections;
-// section 13 adds the review hint line to quality-no-tty.stdout.
+// section 13 adds the review hint line to quality-no-tty.stdout, and section
+// 21 the claude review model line to quality-line-b.stdout.
 // TUIUX_WRITE_GOLDENS=1 writes them again: every flow then runs twice more
 // than a second apart, and any difference between the two runs, such as a
 // time field outside the NPD normalization, fails the write. It runs on a

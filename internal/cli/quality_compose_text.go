@@ -36,6 +36,14 @@ type composeText struct {
 	NoChange         string
 	Applied          string
 	Notice           string // %s: the historical preset names
+	// ClaudeReview names the claude review provider model (%s), a setting
+	// separate from the Claude Code preset; ClaudeReviewDiffers replaces it
+	// when the preset (%s) tops out at another tier (%s) than that model
+	// (%s); ClaudeReviewFormer is update's notice for a stored former
+	// default model (%s) next to the current default (%s).
+	ClaudeReview        string
+	ClaudeReviewDiffers string
+	ClaudeReviewFormer  string
 }
 
 // composeTextKO carries the SPEC wording verbatim.
@@ -63,6 +71,11 @@ var composeTextKO = composeText{
 	NoChange:         "변경 없음",
 	Applied:          "구성을 적용했습니다.",
 	Notice:           "참고: %s 프리셋이 이전 버전 기본값입니다. 대화형 auto update 또는 auto quality에서 갱신할 수 있습니다.",
+	ClaudeReview:     "리뷰 provider claude 모델 = %s (Claude Code 프리셋과 별개 설정 · 변경: auto quality review model claude <model>)",
+	ClaudeReviewDiffers: "주의: Claude Code 프리셋 %s의 최상위 등급은 %s인데 리뷰 provider claude 모델은 %s입니다. " +
+		"별개 설정이며 auto quality review model claude <model>로 바꿉니다.",
+	ClaudeReviewFormer: "참고: claude 리뷰 provider 모델이 이전 버전 기본값 %s입니다. " +
+		"현재 기본값은 %s이며 auto quality review model claude <model>로 바꿀 수 있습니다.",
 }
 
 var composeTextEN = composeText{
@@ -89,6 +102,11 @@ var composeTextEN = composeText{
 	NoChange:         "No changes; nothing written.",
 	Applied:          "Composition applied.",
 	Notice:           "Note: previous-version default presets: %s. Update them from an interactive auto update or auto quality.",
+	ClaudeReview:     "claude review provider model = %s (separate from the Claude Code preset · change: auto quality review model claude <model>)",
+	ClaudeReviewDiffers: "Warning: the Claude Code preset %s tops out at %s, but the claude review provider model is %s. " +
+		"They are separate settings; change it with auto quality review model claude <model>.",
+	ClaudeReviewFormer: "Note: the claude review provider model is %s, a previous-version default. " +
+		"The current default is %s; change it with auto quality review model claude <model>.",
 }
 
 // composeTextFor returns Korean text for ko and English for every other
