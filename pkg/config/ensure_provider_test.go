@@ -196,5 +196,5 @@ func TestEnsureOrchestraProvider_MigratesAntigravityLegacyGeminiEntry(t *testing
 	entry := cfg.Orchestra.Providers["gemini"]
 	assert.Equal(t, "agy", entry.Binary)
 	// SPEC-ORCH-021 REQ-014: prompt is the value of --print (filled into "" slot).
-	assert.Equal(t, []string{"--print", ""}, entry.Args)
+	assert.Equal(t, DefaultGeminiProviderEntry().Args, entry.Args)
 }

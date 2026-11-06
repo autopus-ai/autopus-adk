@@ -168,7 +168,7 @@ func TestBuildProviderConfigsForRuntime_AppliesClaudeExplicitEffort(t *testing.T
 	if len(got) != 1 {
 		t.Fatalf("providers = %d, want 1", len(got))
 	}
-	want := []string{"--print", "--model", config.ClaudeFableModel, "--effort", "xhigh"}
+	want := []string{"--print", "--model", config.ClaudeFableModel, "--effort", "xhigh", "--output-format", "json"}
 	if !reflect.DeepEqual(got[0].Args, want) {
 		t.Fatalf("fallback Claude = args %v, want %v", got[0].Args, want)
 	}

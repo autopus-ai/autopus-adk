@@ -35,7 +35,7 @@ func TestMigrateOrchestraConfig_UpgradesHistoricalClaudeDefault(t *testing.T) {
 	assert.True(t, changed)
 
 	claude := cfg.Orchestra.Providers["claude"]
-	assert.Equal(t, []string{"--print", "--model", ClaudeFableModel, "--effort", "max"}, claude.Args)
+	assert.Equal(t, DefaultClaudeProviderEntry().Args, claude.Args)
 	assert.Equal(t, ClaudeOrchestraTimeoutSeconds, claude.Subprocess.Timeout)
 }
 
@@ -53,6 +53,8 @@ func TestMigrateOrchestraConfig_ClaudeDefaultIsStableOnRerun(t *testing.T) {
 // TestMigrateOrchestraConfig_PreservesExplicitClaudeProviders keeps the upgrade
 // narrow. Each entry differs from a shipped default in exactly one way that
 // signals a deliberate user choice, so the migration must leave the argv alone.
+// The json output format is the one piece added to a claude binary: it is the
+// envelope contract, not a model choice.
 func TestMigrateOrchestraConfig_PreservesExplicitClaudeProviders(t *testing.T) {
 	t.Parallel()
 
@@ -97,6 +99,9 @@ func TestMigrateOrchestraConfig_PreservesExplicitClaudeProviders(t *testing.T) {
 			t.Parallel()
 
 			wantArgs := append([]string(nil), tt.entry.Args...)
+			if tt.entry.Binary == "claude" {
+				wantArgs = append(wantArgs, "--output-format", "json")
+			}
 
 			cfg := claudeMigrationConfig(tt.entry)
 			_, err := MigrateOrchestraConfig(cfg)

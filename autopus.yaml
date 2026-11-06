@@ -78,7 +78,7 @@ orchestra:
     providers:
         claude:
             binary: claude
-            args: [--print, --model, claude-opus-5-5, --effort, max]
+            args: [--print, --model, claude-opus-5-5, --effort, max, --output-format, json]
             subprocess:
                 timeout: 900
         codex:
@@ -90,7 +90,7 @@ orchestra:
                 timeout: 900
         gemini:
             binary: agy
-            args: [--print, "", --model, gemini-4-argon-high]
+            args: [--print, "", --model, gemini-4-argon-high, --output-format, stream-json]
             prompt_via_args: true
             subprocess:
                 output_format: text

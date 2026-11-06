@@ -93,7 +93,7 @@ func TestReviewTab_S23AgyModelList(t *testing.T) {
 		require.NoError(t, run.err, run.out)
 		assert.Contains(t, run.out, "gemini model \n1. 그대로 — agy\n2. gemini-3.8-flash\n3. gemini-4-argon\n4. OMP backend로 전환\nEnter")
 		assert.NotContains(t, run.out, "gemini effort")
-		assert.Equal(t, `args: [--print, "", --model, gemini-4-argon-medium]`, reviewArgsLine(t, readReviewFile(t, dir), "gemini"))
+		assert.Equal(t, `args: [--print, "", --output-format, stream-json, --model, gemini-4-argon-medium]`, reviewArgsLine(t, readReviewFile(t, dir), "gemini"))
 	})
 	t.Run("(2) an effort per listed suffix", func(t *testing.T) {
 		useAgyModels(t, reviewAgySample+"gemini-3.8-flash-low\tGemini 3.8 Flash (Low)\n", nil)
@@ -102,7 +102,7 @@ func TestReviewTab_S23AgyModelList(t *testing.T) {
 			[]string{"\n", "\n", "\n", "\n", "\n", "2\n", "2\n", "\n", "\n", "2\n", "\n"})...)
 		require.NoError(t, run.err, run.out)
 		assert.Contains(t, run.out, "gemini effort \n1. high — Gemini 3.8 Flash (High)\n2. low — Gemini 3.8 Flash (Low)\nEnter")
-		assert.Equal(t, `args: [--print, "", --model, gemini-3.8-flash-low]`, reviewArgsLine(t, readReviewFile(t, dir), "gemini"))
+		assert.Equal(t, `args: [--print, "", --output-format, stream-json, --model, gemini-3.8-flash-low]`, reviewArgsLine(t, readReviewFile(t, dir), "gemini"))
 	})
 	for name, variant := range reviewAgyUnreadable {
 		t.Run("(3) "+name, func(t *testing.T) {

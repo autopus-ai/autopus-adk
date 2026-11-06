@@ -1,9 +1,9 @@
 package orchestra
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -55,8 +55,15 @@ func (b *subprocessBackend) Execute(ctx context.Context, req ProviderRequest) (*
 	cmd.SetDir(req.Config.WorkDir)
 	execution := newProviderExecution(req.Config, args, start)
 
-	var stdoutBuf, stderrBuf bytes.Buffer
+	// The buffers are locked: a reaped process tree can leave the exec copy
+	// goroutine writing after the wait gave up on it.
+	var stdoutBuf, stderrBuf syncBuffer
+	envelope := providerEnvelopeFor(req.Config.Binary, args)
+	watcher := newCompletionWatcher(envelope)
 	cmd.SetStdout(&stdoutBuf)
+	if watcher != nil {
+		cmd.SetStdout(io.MultiWriter(&stdoutBuf, watcher))
+	}
 	cmd.SetStderr(&stderrBuf)
 
 	if err := setupStdin(cmd, req); err != nil {
@@ -65,21 +72,28 @@ func (b *subprocessBackend) Execute(ctx context.Context, req ProviderRequest) (*
 
 	waitCh := startCommandWait(cmd)
 	execution.PID = cmd.PID()
-	waitErr := waitForCommand(ctx, cmd, req.Provider, waitCh, nil)
+	waitErr := waitForCommand(ctx, cmd, req.Provider, waitCh, nil, watcher.Done())
 	duration := time.Since(start)
 	execution.finish(duration)
+	execution.markReaped(waitErr)
+	exitCode := cmd.ExitCode()
+	if errors.Is(waitErr, errResultReady) {
+		// The answer was complete before the kill; the signal exit is ours.
+		waitErr, exitCode = nil, 0
+	}
 
 	rawOutput := stdoutBuf.String()
 	usage, usageCapability := decorateProviderUsage(req.Config, req.Role, req.Round, rawOutput)
 	output := rawOutput
 	stderrOutput := stderrBuf.String()
 	output, stderrOutput = applyCodexLastMessageOutput(output, stderrOutput, lastMessagePath)
+	output, envelopeErr := unwrapProviderEnvelope(envelope, output)
 	resp := &ProviderResponse{
 		Provider:        req.Provider,
 		Output:          output,
 		Error:           stderrOutput,
 		Duration:        duration,
-		ExitCode:        cmd.ExitCode(),
+		ExitCode:        exitCode,
 		EmptyOutput:     strings.TrimSpace(output) == "",
 		ExecutedBackend: "subprocess", // REQ-005/F-003: record direct subprocess production
 		Usage:           usage,
@@ -90,6 +104,10 @@ func (b *subprocessBackend) Execute(ctx context.Context, req ProviderRequest) (*
 	if ctx.Err() != nil {
 		resp.TimedOut = true
 		return resp, nil
+	}
+
+	if envelopeErr != nil {
+		return resp, fmt.Errorf("subprocess %s (exit code %d): %w", req.Provider, resp.ExitCode, envelopeErr)
 	}
 
 	if waitErr != nil && resp.ExitCode != 0 {

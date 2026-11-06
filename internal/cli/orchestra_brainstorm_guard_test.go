@@ -28,7 +28,18 @@ fi
 if [ -n "$AUTOPUS_TEST_SLEEP" ] && [ "$name" = "$AUTOPUS_TEST_SLEEPER" ]; then
   sleep "$AUTOPUS_TEST_SLEEP"
 fi
-printf '%s\n' '{"recommendation":"fake '"$name"' answer"}'
+format=""
+prev=""
+for arg in "$@"; do
+  [ "$prev" = "--output-format" ] && format="$arg"
+  prev="$arg"
+done
+# Answer in the envelope the argv asked for, as the real CLIs do.
+case "$name:$format" in
+  agy:stream-json) printf '%s\n' '{"event":"result","result":{"status":"SUCCESS","response":"{\"recommendation\":\"fake agy answer\"}"}}' ;;
+  claude:json) printf '%s\n' '{"type":"result","is_error":false,"result":"{\"recommendation\":\"fake claude answer\"}"}' ;;
+  *) printf '%s\n' '{"recommendation":"fake '"$name"' answer"}' ;;
+esac
 `
 
 type brainstormFixture struct {

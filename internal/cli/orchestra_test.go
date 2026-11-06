@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/insajin/autopus-adk/pkg/config"
 	"github.com/insajin/autopus-adk/pkg/orchestra"
 )
 
@@ -126,7 +127,7 @@ func TestBuildProviderConfigs(t *testing.T) {
 			assert.Equal(t, tt.expectViaArgs, result[0].PromptViaArgs)
 			if tt.expectName == "gemini" {
 				// SPEC-ORCH-021 REQ-014: prompt fills the empty "" slot after --print.
-				assert.Equal(t, []string{"--print", ""}, result[0].Args)
+				assert.Equal(t, config.DefaultGeminiProviderEntry().Args, result[0].Args)
 			}
 		})
 	}

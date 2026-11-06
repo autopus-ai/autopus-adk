@@ -27,7 +27,7 @@ func TestMigrateOrchestraConfig_AntigravityMigratesLegacyGeminiProvider(t *testi
 	assert.True(t, changed)
 	assert.Equal(t, "agy", cfg.Orchestra.Providers["gemini"].Binary)
 	// SPEC-ORCH-021 REQ-014: prompt is the value of --print (filled into "" slot).
-	assert.Equal(t, []string{"--print", ""}, cfg.Orchestra.Providers["gemini"].Args)
+	assert.Equal(t, DefaultGeminiProviderEntry().Args, cfg.Orchestra.Providers["gemini"].Args)
 	// Reconciling the legacy entry must also restore the prompt-via-args contract,
 	// otherwise the prompt is never injected and `agy --print` runs with no value.
 	assert.True(t, cfg.Orchestra.Providers["gemini"].PromptViaArgs)
@@ -63,7 +63,7 @@ func TestMigrateOrchestraConfig_AntigravityReconcilesBarePrintGemini(t *testing.
 
 	gemini := cfg.Orchestra.Providers["gemini"]
 	assert.Equal(t, "agy", gemini.Binary)
-	assert.Equal(t, []string{"--print", ""}, gemini.Args)
+	assert.Equal(t, DefaultGeminiProviderEntry().Args, gemini.Args)
 	assert.True(t, gemini.PromptViaArgs)
 	assert.Equal(t, "text", gemini.Subprocess.OutputFormat)
 }
@@ -115,7 +115,7 @@ func TestMigrateOrchestraConfig_AntigravityPreservesContractGemini(t *testing.T)
 			Providers: map[string]ProviderEntry{
 				"gemini": {
 					Binary:        "agy",
-					Args:          []string{"--print", ""},
+					Args:          DefaultGeminiProviderEntry().Args,
 					PromptViaArgs: true,
 					Subprocess:    SubprocessProvConf{OutputFormat: "text", Timeout: GeminiOrchestraTimeoutSeconds},
 				},
@@ -132,7 +132,7 @@ func TestMigrateOrchestraConfig_AntigravityPreservesContractGemini(t *testing.T)
 	require.NoError(t, err)
 	assert.False(t, changed)
 	gemini := cfg.Orchestra.Providers["gemini"]
-	assert.Equal(t, []string{"--print", ""}, gemini.Args)
+	assert.Equal(t, DefaultGeminiProviderEntry().Args, gemini.Args)
 	assert.True(t, gemini.PromptViaArgs)
 	assert.Equal(t, GeminiOrchestraTimeoutSeconds, gemini.Subprocess.Timeout)
 

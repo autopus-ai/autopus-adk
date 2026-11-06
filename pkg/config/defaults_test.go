@@ -18,7 +18,7 @@ func TestDefaultFullConfig_GeminiPromptViaArgs(t *testing.T) {
 	// SPEC-ORCH-021 REQ-014: --print is a string flag taking the prompt as its
 	// value; the prompt fills the "" slot via PromptViaArgs (injectPromptArg).
 	assert.True(t, gemini.PromptViaArgs, "gemini provider must pass the prompt as the --print value")
-	assert.Equal(t, []string{"--print", ""}, gemini.Args, "gemini provider must use the --print value slot")
+	assert.Equal(t, DefaultGeminiProviderEntry().Args, gemini.Args, "gemini provider must use the --print value slot")
 }
 
 func TestDefaultFullConfig_OtherProvidersPromptViaArgsFalse(t *testing.T) {
@@ -180,7 +180,7 @@ func TestDefaultFullConfig_ClaudeReviewUsesFrontierMax(t *testing.T) {
 	cfg := DefaultFullConfig("test-project")
 	claude, ok := cfg.Orchestra.Providers["claude"]
 	require.True(t, ok, "claude provider must exist")
-	want := []string{"--print", "--model", "claude-fable-5-1", "--effort", "max"}
+	want := []string{"--print", "--model", "claude-fable-5-1", "--effort", "max", "--output-format", "json"}
 	assert.Equal(t, want, claude.Args)
 }
 

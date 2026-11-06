@@ -114,11 +114,23 @@ printf '%s\n' "$@" > "$BAND_FAKE_LOG/$name.argv"
 pwd -P > "$BAND_FAKE_LOG/$name.cwd"
 env > "$BAND_FAKE_LOG/$name.env"
 cat > "$BAND_FAKE_LOG/$name.stdin"
+format=""
+prev=""
+for arg in "$@"; do
+  [ "$prev" = "--output-format" ] && format="$arg"
+  prev="$arg"
+done
 case "$BAND_FAKE_MODE" in
 sleep) exec sleep 5 ;;
 exit3) echo partial; exit 3 ;;
 blank) printf '  \n\t\n' ;;
-*) printf '### Summary\nThe flaky step failed.\n' ;;
+*)
+  # claude --output-format json wraps the answer in one result object.
+  if [ "$name:$format" = "claude:json" ]; then
+    printf '%s\n' '{"type":"result","is_error":false,"result":"### Summary\nThe flaky step failed.\n"}'
+  else
+    printf '### Summary\nThe flaky step failed.\n'
+  fi ;;
 esac
 `
 

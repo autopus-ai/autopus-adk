@@ -57,7 +57,9 @@
           "--model",
           "claude-fable-5-1",
           "--effort",
-          "max"
+          "max",
+          "--output-format",
+          "json"
         ],
         "cwd": "<root>",
         "ended_at": "<volatile>",
@@ -110,7 +112,9 @@
           "--model",
           "claude-fable-5-1",
           "--effort",
-          "max"
+          "max",
+          "--output-format",
+          "json"
         ],
         "cwd": "<root>",
         "ended_at": "<volatile>",

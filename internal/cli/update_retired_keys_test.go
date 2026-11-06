@@ -55,7 +55,10 @@ func isolateUpdateEnv(t *testing.T) {
 
 func TestUpdate_CutsRetiredKeysOnceWhenNoOtherMigrationHolds(t *testing.T) {
 	isolateUpdateEnv(t)
-	input := readLegacyPane(t, "c1.yaml")
+	// C1 predates the claude json output format; give it the format so the
+	// output-format migration does not hold and only group K goes.
+	input := []byte(strings.ReplaceAll(string(readLegacyPane(t, "c1.yaml")),
+		"--effort, max]\n", "--effort, max, --output-format, json]\n"))
 	dir := legacyPaneDir(t, input)
 	path := filepath.Join(dir, "autopus.yaml")
 

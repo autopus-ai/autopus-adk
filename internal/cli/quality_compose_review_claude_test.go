@@ -19,7 +19,7 @@ import (
 	"github.com/insajin/autopus-adk/pkg/config"
 )
 
-const reviewRLClaudeArgs = "            args: [--print, --model, claude-fable-5-1, --effort, max]"
+const reviewRLClaudeArgs = "            args: [--print, --model, claude-fable-5-1, --effort, max, --output-format, json]"
 
 // reviewAssembledArgs is the argv `auto spec review --providers <provider>`
 // assembles from the loader value of dir. Naming the provider keeps another
@@ -62,7 +62,7 @@ func TestReviewTab_S19ClaudeCLIModelWritesArgs(t *testing.T) {
 	assert.Contains(t, run.out, "claude model \n1. 그대로 — claude-fable-5-1 · max\n2. claude-fable-5-1\n3. claude-opus-5-5\n"+
 		"4. claude-sonnet-5-5\n5. claude-haiku-4-5\nEnter")
 	assert.Contains(t, run.out, "claude effort \n1. low\n2. medium\n3. high\n4. xhigh\n5. max\nEnter")
-	assert.Equal(t, [][2]string{{reviewRLClaudeArgs, "            args: [--print, --model, claude-opus-5-5, --effort, xhigh]"}},
+	assert.Equal(t, [][2]string{{reviewRLClaudeArgs, "            args: [--print, --model, claude-opus-5-5, --effort, xhigh, --output-format, json]"}},
 		reviewFileDiff(t, b1, readReviewFile(t, dir)))
 	assert.True(t, reviewArgsHasRun(reviewAssembledArgs(t, dir, "claude"), "--model", "claude-opus-5-5", "--effort", "xhigh"))
 
@@ -71,7 +71,7 @@ func TestReviewTab_S19ClaudeCLIModelWritesArgs(t *testing.T) {
 
 	require.NoError(t, run.err, run.out)
 	assert.NotContains(t, run.out, "claude effort")
-	assert.Equal(t, "args: [--print, --model, claude-haiku-4-5]", reviewArgsLine(t, readReviewFile(t, dir), "claude"))
+	assert.Equal(t, "args: [--print, --model, claude-haiku-4-5, --output-format, json]", reviewArgsLine(t, readReviewFile(t, dir), "claude"))
 }
 
 // S27, T1: a placeholder in another args element stays byte for byte, and
@@ -188,7 +188,7 @@ func TestReadReviewRaw_NoViewWithoutAReadableFile(t *testing.T) {
 	t.Setenv("REVIEW_MODEL", "rvm-sentinel-7f3a9c")
 	dir := writeReviewRL(t)
 	replaceReviewFile(t, dir, "--model, claude-fable-5-1,", `--model, "${REVIEW_MODEL}",`)
-	assert.Equal(t, []string{"--print", "--model", "${REVIEW_MODEL}", "--effort", "max"}, readReviewRaw(dir).Providers["claude"].Args)
+	assert.Equal(t, []string{"--print", "--model", "${REVIEW_MODEL}", "--effort", "max", "--output-format", "json"}, readReviewRaw(dir).Providers["claude"].Args)
 }
 
 // Without a raw view, an unchanged after table cell names only the backend,

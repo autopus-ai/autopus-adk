@@ -47,6 +47,8 @@ func decorateProviderUsage(provider ProviderConfig, role string, round int, raw 
 		receipts = parseCodexUsage(raw, binding)
 	case name == "claude" || binary == "claude":
 		receipts = parseClaudeUsage(raw, binding)
+	case providerBinaryBase(binary) == "agy":
+		receipts = parseAgyUsage(raw, binding)
 	default:
 		supported = false
 	}
@@ -75,13 +77,18 @@ func unavailableUsage(binding usageBinding) telemetry.UsageEnvelope {
 func finishProviderResponse(startArgs providerResponseArgs, rawStdout, rawStderr, lastMessagePath string) (*ProviderResponse, error) {
 	usage, capability := decorateProviderUsage(startArgs.provider, "", 0, rawStdout)
 	stdout, stderr := applyCodexLastMessageOutput(rawStdout, rawStderr, lastMessagePath)
+	stdout, envelopeErr := unwrapProviderEnvelope(startArgs.envelope, stdout)
 	response, err := buildProviderResponse(startArgs.start, startArgs.provider, stdout, stderr,
 		startArgs.fastFailReason, startArgs.waitErr, startArgs.ctx, startArgs.exitCode)
 	if response != nil {
 		response.Usage = usage
 		response.UsageCapability = capability
+		startArgs.execution.markReaped(startArgs.waitErr)
 		startArgs.execution.finish(response.Duration)
 		response.Execution = startArgs.execution
+		if err == nil && envelopeErr != nil && !response.TimedOut {
+			err = fmt.Errorf("%s: %w", startArgs.provider.Name, envelopeErr)
+		}
 	}
 	return response, err
 }
@@ -94,6 +101,7 @@ type providerResponseArgs struct {
 	ctx            context.Context
 	exitCode       int
 	execution      *ProviderExecution
+	envelope       providerEnvelope
 }
 
 func aggregateOrchestraUsage(result *OrchestraResult) {

@@ -33,7 +33,7 @@ func TestPanermS7_UpdatePrunesGroupKAndKeepsTheRest(t *testing.T) {
 	for _, fixture := range []string{"c1.yaml", "c2.yaml"} {
 		t.Run(fixture, func(t *testing.T) {
 			useStaleHookEnv(t, "")
-			input := readLegacyPaneConfig(t, fixture)
+			input := withCurrentClaudeOutputFormat(readLegacyPaneConfig(t, fixture))
 			pruned := groupKPaths(t, input)
 			require.NotEmpty(t, pruned, "%s holds group K keys", fixture)
 			dir := t.TempDir()

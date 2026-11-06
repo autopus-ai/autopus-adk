@@ -69,19 +69,19 @@ func TestQualityReviewModel_ClaudeCLIRow(t *testing.T) {
 	require.NoError(t, err, out)
 	assert.Equal(t, "Settings that change:\n  orchestra.providers.claude.args --model claude-fable-5-1 → claude-opus-5-5\n"+
 		reviewChangedModelNote+"Composition applied.\n", out)
-	assert.Equal(t, [][2]string{{reviewRLClaudeArgs, "            args: [--print, --model, claude-opus-5-5, --effort, max]"}},
+	assert.Equal(t, [][2]string{{reviewRLClaudeArgs, "            args: [--print, --model, claude-opus-5-5, --effort, max, --output-format, json]"}},
 		reviewFileDiff(t, b0, readReviewFile(t, dir)))
 
 	out, _, err = runQualityReview(t, dir, nil, "model", "claude", "claude-haiku-4-5")
 	require.NoError(t, err, out)
 	assert.Contains(t, out, "  orchestra.providers.claude.args --effort max → none\n")
-	assert.Equal(t, "args: [--print, --model, claude-haiku-4-5]", reviewArgsLine(t, readReviewFile(t, dir), "claude"))
+	assert.Equal(t, "args: [--print, --model, claude-haiku-4-5, --output-format, json]", reviewArgsLine(t, readReviewFile(t, dir), "claude"))
 	_, _, err = runQualityReview(t, dir, nil, "model", "claude", "claude-haiku-4-5", "--effort", "high")
 	require.EqualError(t, err, "claude-haiku-4-5 does not take effort high for claude (accepted: none)")
 
 	out, _, err = runQualityReview(t, dir, nil, "model", "claude", "claude-sonnet-5-5")
 	require.NoError(t, err, out)
-	assert.Equal(t, "args: [--print, --model, claude-sonnet-5-5, --effort, max]", reviewArgsLine(t, readReviewFile(t, dir), "claude"))
+	assert.Equal(t, "args: [--print, --model, claude-sonnet-5-5, --output-format, json, --effort, max]", reviewArgsLine(t, readReviewFile(t, dir), "claude"))
 	_, _, err = runQualityReview(t, dir, nil, "model", "claude", "gpt-6-astra")
 	require.ErrorContains(t, err, "gpt-6-astra is not a choice for claude (accepted: claude-fable-5-1 (low, medium, high, xhigh, max), ")
 }
@@ -128,7 +128,7 @@ func TestQualityReviewModel_AgyCLIRow(t *testing.T) {
 
 	out, _, err = runQualityReview(t, dir, nil, "model", "gemini", "gemini-3.8-flash")
 	require.NoError(t, err, out)
-	assert.Equal(t, `args: [--print, "", --model, gemini-3.8-flash-high]`, reviewArgsLine(t, readReviewFile(t, dir), "gemini"))
+	assert.Equal(t, `args: [--print, "", --output-format, stream-json, --model, gemini-3.8-flash-high]`, reviewArgsLine(t, readReviewFile(t, dir), "gemini"))
 	out, _, err = runQualityReview(t, dir, nil, "model", "gemini", "gemini-3.8-flash")
 	require.NoError(t, err)
 	assert.Equal(t, "No changes; nothing written.\n", out, "a group keeps the current id")

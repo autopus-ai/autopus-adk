@@ -43,7 +43,11 @@ type claudeUsageEvent struct {
 		CacheCreationTokens *int64 `json:"cache_creation_input_tokens"`
 		CacheReadTokens     *int64 `json:"cache_read_input_tokens"`
 		OutputTokens        *int64 `json:"output_tokens"`
+		OutputDetails       *struct {
+			ThinkingTokens *int64 `json:"thinking_tokens"`
+		} `json:"output_tokens_details"`
 	} `json:"usage"`
+	ModelUsage map[string]claudeModelUsage `json:"modelUsage"`
 }
 
 // parseCodexUsage extracts only allowlisted usage and identity fields. Provider
@@ -64,7 +68,7 @@ func parseClaudeUsage(raw string, binding usageBinding) []telemetry.UsageEnvelop
 	forEachJSONLine(raw, func(line []byte) {
 		var event claudeUsageEvent
 		if json.Unmarshal(line, &event) != nil || event.Type != "result" ||
-			(event.Usage == nil && event.TotalCostUSD == nil && event.CostUSD == nil) {
+			(event.Usage == nil && len(event.ModelUsage) == 0 && event.TotalCostUSD == nil && event.CostUSD == nil) {
 			return
 		}
 		resolved := resolveUsageIdentity(event.providerUsageIdentity, binding)
@@ -72,20 +76,23 @@ func parseClaudeUsage(raw string, binding usageBinding) []telemetry.UsageEnvelop
 		if actualCost == nil {
 			actualCost = event.CostUSD
 		}
-		var input, cacheCreation, cacheRead, output *int64
-		if event.Usage != nil {
-			input = event.Usage.InputTokens
-			cacheCreation = event.Usage.CacheCreationTokens
-			cacheRead = event.Usage.CacheReadTokens
-			output = event.Usage.OutputTokens
+		counts, ok := sumClaudeModelUsage(event.ModelUsage)
+		if !ok {
+			counts = claudeTopLevelUsage(event)
+		}
+		relation := ""
+		if counts.thinking != nil {
+			// Anthropic output_tokens already include thinking tokens.
+			relation = telemetry.ComponentSubsetOfOutput
 		}
 		receipts = append(receipts, telemetry.NormalizeUsage(telemetry.UsageInput{
 			RunID: resolved.RunID, CallID: resolved.CallID, TaskID: resolved.TaskID,
 			Attempt: resolved.Attempt, Provider: resolved.Provider, Model: resolved.Model,
 			Effort: resolved.Effort, Phase: resolved.Phase, Role: resolved.Role,
 			Source: telemetry.UsageSourceProvider, SourceSchema: "claude.result.v1",
-			UncachedInputTokens: input, CacheCreationInputTokens: cacheCreation,
-			CacheReadInputTokens: cacheRead, OutputTokensTotal: output, ActualCostUSD: actualCost,
+			UncachedInputTokens: counts.input, CacheCreationInputTokens: counts.cacheCreation,
+			CacheReadInputTokens: counts.cacheRead, OutputTokensTotal: counts.output,
+			ReasoningTokens: counts.thinking, ReasoningRelation: relation, ActualCostUSD: actualCost,
 		}))
 	})
 	return receipts

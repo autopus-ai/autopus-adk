@@ -74,7 +74,7 @@ func TestRunSpecReview_RealSubprocessBackendExecutesProjectedArgv(t *testing.T) 
 
 	require.NoError(t, runSpecReviewWithOptions(context.Background(), fixture.specID, "", 0, specReviewOptions{}))
 
-	pClaude := withClaudeReadOnlySuffix("--print", "--model", "claude-fable-5-1", "--effort", "max")
+	pClaude := withClaudeReadOnlySuffix("--print", "--model", "claude-fable-5-1", "--effort", "max", "--output-format", "json")
 	assert.Equal(t, [][]string{pClaude, pClaude}, readRecordedArgvs(t, fixture.evidence, "claude"), "reviewer and judge")
 	codexHead := []string{
 		"exec", "--json", "--sandbox", "read-only", "-m", "gpt-5.6-sol", "-c", `model_reasoning_effort="max"`,
@@ -137,7 +137,7 @@ func TestRunSpecReview_ExplicitPolicyViolationFailsBeforeAnyExecution(t *testing
 // S3 (REQ-02): the judge is projected whether it reuses a reviewer or is
 // resolved separately, and a widening separate judge fails before execution.
 func TestRunSpecReview_JudgeIsProjectedOnBothResolutionPaths(t *testing.T) {
-	pClaude := withClaudeReadOnlySuffix("--print", "--model", "claude-fable-5-1", "--effort", "max")
+	pClaude := withClaudeReadOnlySuffix("--print", "--model", "claude-fable-5-1", "--effort", "max", "--output-format", "json")
 	for _, providers := range [][]string{nil, {"codex"}} {
 		t.Run(strings.Join(append([]string{"reviewers"}, providers...), "-"), func(t *testing.T) {
 			fixture := newReadOnlyReviewFixture(t, nil)
