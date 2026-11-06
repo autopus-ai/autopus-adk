@@ -92,3 +92,32 @@ func TestVerifyStop_OffSwitch(t *testing.T) {
 
 	assert.Equal(t, stopHookOutput{}, runStop(t, dir, "off"))
 }
+
+func TestVerifyStop_LargePassingChangeGoesOnToReviewAndQAOnce(t *testing.T) {
+	session := "followup"
+	t.Cleanup(func() { resetStopState(session); _ = os.Remove(stopStateFile(session, "followup")) })
+	var body strings.Builder
+	body.WriteString("package stopgate\n\n// Add sums.\nfunc Add(a, b int) int { return a + b }\n")
+	for i := 0; i < 45; i++ {
+		body.WriteString("\n// Filler documents nothing in particular.\n")
+	}
+	dir := newStopRepo(t, body.String())
+
+	first := runStop(t, dir, session)
+	assert.Equal(t, "block", first.Decision)
+	assert.Contains(t, first.Reason, "qa-explorer")
+	assert.Contains(t, first.Reason, "AskUserQuestion")
+
+	assert.Equal(t, stopHookOutput{}, runStop(t, dir, session), "the same tree is not sent round again")
+
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "add.go"), []byte(body.String()+"\n// one more line\n"), 0o644))
+	assert.Equal(t, stopHookOutput{}, runStop(t, dir, session), "a small fix after the review does not start another round")
+}
+
+func TestVerifyStop_SmallPassingChangeEndsAtGreen(t *testing.T) {
+	session := "small"
+	t.Cleanup(func() { resetStopState(session); _ = os.Remove(stopStateFile(session, "followup")) })
+	dir := newStopRepo(t, "package stopgate\n\n// Add sums.\nfunc Add(a, b int) int { return b + a }\n")
+
+	assert.Equal(t, stopHookOutput{}, runStop(t, dir, session))
+}
