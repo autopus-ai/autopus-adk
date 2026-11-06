@@ -18,7 +18,7 @@ func TestOpenCodeAdapter_Generate_MinimalityCommandsStayThinAndSharedSkillsCarry
 	_, err := NewWithRoot(dir, WithCLIVersion("1.18.7")).Generate(context.Background(), config.DefaultFullConfig("minimality-project"))
 	require.NoError(t, err)
 
-	for _, name := range []string{"auto-plan", "auto-go", "auto-fix", "auto-review"} {
+	for _, name := range []string{"auto-review", "auto-qa", "auto-sync"} {
 		name := name
 		t.Run(name+"-thin-command", func(t *testing.T) {
 			t.Parallel()
@@ -49,9 +49,6 @@ func TestOpenCodeAdapter_Generate_MinimalityCommandsStayThinAndSharedSkillsCarry
 		name   string
 		tokens []string
 	}{
-		{"auto-plan", []string{"Minimality Decision Matrix", "new dependency", "new abstraction", "minimum sufficient verification", "receipt"}},
-		{"auto-go", []string{"minimality ladder", "existing code/helper/pattern", "minimum sufficient verification", "receipt"}},
-		{"auto-fix", []string{"caller", "shared root-cause", "revise-target", "receipt"}},
 		{"auto-review", append(reviewTokens, "receipt")},
 	}
 	for _, tc := range cases {

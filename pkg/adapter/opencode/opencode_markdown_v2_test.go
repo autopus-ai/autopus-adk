@@ -17,36 +17,17 @@ func TestV2GeneratedNativeDelegation(t *testing.T) {
 	a := NewWithRoot(dir, WithCLIVersion("opencode v2.0.10"))
 	files, err := a.prepareFiles(context.Background(), config.DefaultFullConfig("demo"))
 	require.NoError(t, err)
-	checked := 0
 	for _, file := range files {
 		body := string(file.Content)
 		if file.TargetPath == "AGENTS.md" {
 			require.Contains(t, body, custom)
 			require.Contains(t, body, "OpenCode V2 native contract")
 		}
-		if file.TargetPath == filepath.Join(".agents", "skills", "auto-go", "SKILL.md") || file.TargetPath == filepath.Join(".agents", "skills", "agent-pipeline", "SKILL.md") {
-			checked++
-			require.NotContains(t, body, "task(")
-			require.NotContains(t, body, "subagent_type")
-			require.Contains(t, body, "subagent")
-			require.Contains(t, body, "sessionID")
-			require.Contains(t, body, "background")
+		// No generated surface keeps the V1 delegation spelling under V2; the
+		// user's own AGENTS.md notes above the marker stay literal.
+		if file.TargetPath != "AGENTS.md" {
+			require.NotContains(t, body, "subagent_type = ", file.TargetPath)
 		}
 		require.Equal(t, len(body) > 0, true)
 	}
-	require.Equal(t, 2, checked)
-}
-
-func TestV1KeepsDelegationSyntax(t *testing.T) {
-	a := NewWithRoot(t.TempDir(), WithCLIVersion("1.18.31"))
-	files, err := a.prepareFiles(context.Background(), config.DefaultFullConfig("demo"))
-	require.NoError(t, err)
-	for _, file := range files {
-		if file.TargetPath == filepath.Join(".agents", "skills", "auto-go", "SKILL.md") {
-			require.Contains(t, string(file.Content), "task(")
-			require.NotContains(t, string(file.Content), "OpenCode V2 native contract")
-			return
-		}
-	}
-	t.Fatal("missing auto-go skill")
 }

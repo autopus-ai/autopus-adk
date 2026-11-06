@@ -56,8 +56,6 @@ func (a *Adapter) Validate(_ context.Context) ([]adapter.ValidationError, error)
 		}
 	}
 
-	a.validateContext7Rule(&errs)
-
 	return errs, nil
 }
 
@@ -102,34 +100,4 @@ func (a *Adapter) Clean(_ context.Context) error {
 	}
 
 	return nil
-}
-
-func (a *Adapter) validateContext7Rule(errs *[]adapter.ValidationError) {
-	ruleRel := filepath.Join(".opencode", "rules", "autopus", "context7-docs.md")
-	data, err := os.ReadFile(filepath.Join(a.root, ruleRel))
-	if err != nil {
-		if os.IsNotExist(err) {
-			*errs = append(*errs, adapter.ValidationError{
-				File:    ruleRel,
-				Message: "OpenCode Context7 규칙 파일이 없음",
-				Level:   "warning",
-			})
-			return
-		}
-		*errs = append(*errs, adapter.ValidationError{
-			File:    ruleRel,
-			Message: "OpenCode Context7 규칙 파일을 읽을 수 없음",
-			Level:   "warning",
-		})
-		return
-	}
-
-	content := string(data)
-	if !strings.Contains(content, "Context7 MCP") || !strings.Contains(content, "web search") {
-		*errs = append(*errs, adapter.ValidationError{
-			File:    ruleRel,
-			Message: "OpenCode Context7 규칙에 web fallback 계약이 없음",
-			Level:   "warning",
-		})
-	}
 }

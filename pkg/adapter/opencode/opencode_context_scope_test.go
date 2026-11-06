@@ -20,7 +20,7 @@ func TestUpdateDefersWorkflowRulesAndPreservesUserInstructions(t *testing.T) {
 	_, err := a.Generate(context.Background(), cfg)
 	require.NoError(t, err)
 
-	old := map[string]any{"instructions": []string{"custom-policy.md", ".opencode/rules/autopus/spec-quality.md"}}
+	old := map[string]any{"instructions": []string{"custom-policy.md"}}
 	data, err := json.Marshal(old)
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(filepath.Join(root, configFile), data, 0o600))
@@ -29,10 +29,8 @@ func TestUpdateDefersWorkflowRulesAndPreservesUserInstructions(t *testing.T) {
 	doc := readConfigJSON(t, filepath.Join(root, configFile))
 	instructions := jsonStringSlice(doc["instructions"])
 	assert.Contains(t, instructions, "custom-policy.md")
-	assert.Contains(t, instructions, ".opencode/rules/autopus/branding.md")
-	for _, name := range []string{"context7-docs", "doc-storage", "spec-quality", "techstack-freshness"} {
-		path := ".opencode/rules/autopus/" + name + ".md"
-		assert.NotContains(t, instructions, path, "workflow-only rules are not startup instructions")
-		require.FileExists(t, filepath.Join(root, path), "explicit workflow references remain readable")
-	}
+	assert.Contains(t, instructions, ".opencode/rules/autopus/language-policy.md")
+	// lore-commit is delivered by the plugin hook, not as a startup
+	// instruction, and its body stays readable on disk.
+	require.FileExists(t, filepath.Join(root, ".opencode/rules/autopus/lore-commit.md"))
 }

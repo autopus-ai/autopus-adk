@@ -134,8 +134,7 @@ func injectOpenCodeBrandingBlock(body string) string {
 	}
 
 	block := strings.TrimSpace("## Autopus Branding\n\n" +
-		"When handling this workflow, start the response with the canonical banner " +
-		"(see `.opencode/rules/autopus/branding.md`):\n\n" +
+		"When handling this workflow, start the response with the canonical banner:\n\n" +
 		"```text\n" +
 		"🐙 Autopus ─────────────────────────\n" +
 		"```\n\n" +

@@ -26,7 +26,7 @@ func TestOpenCodeConditionalRules_AreTheShellScopedHookFiredRules(t *testing.T) 
 		assert.NotEmpty(t, rule.Conditions, rule.Name)
 		assert.False(t, strings.HasPrefix(strings.TrimSpace(rule.Body), "---"), "%s body keeps its frontmatter", rule.Name)
 	}
-	assert.Equal(t, []string{"lore-commit", "shell-portability", "worktree-safety"}, names)
+	assert.Equal(t, []string{"lore-commit"}, names)
 }
 
 func TestManagedRulePaths_V2DefersOnlyPluginDeliveredRules(t *testing.T) {
@@ -38,8 +38,6 @@ func TestManagedRulePaths_V2DefersOnlyPluginDeliveredRules(t *testing.T) {
 
 	delivered := []string{
 		".opencode/rules/autopus/lore-commit.md",
-		".opencode/rules/autopus/shell-portability.md",
-		".opencode/rules/autopus/worktree-safety.md",
 	}
 	for _, path := range delivered {
 		assert.Contains(t, v1Active, path)

@@ -9,7 +9,10 @@ import (
 	"github.com/insajin/autopus-adk/content"
 )
 
-const checklistEmbedPath = "rules/spec-quality.md"
+// checklistEmbedPath is where `auto spec review` reads its checklist. It sat
+// under rules/ until the verification harness stopped installing the
+// spec-quality rule; checklists/ is embedded but never installed.
+const checklistEmbedPath = "checklists/spec-quality.md"
 
 // LoadChecklist returns the runtime review checklist content.
 func LoadChecklist(fsys fs.FS) (string, error) {
@@ -74,7 +77,7 @@ func loadChecklistWithFallback(fsys fs.FS, diskPaths []string) (string, string, 
 
 func defaultChecklistDiskPaths() []string {
 	return []string{
-		filepath.Join("content", "rules", "spec-quality.md"),
-		filepath.Join("autopus-adk", "content", "rules", "spec-quality.md"),
+		filepath.Join("content", "checklists", "spec-quality.md"),
+		filepath.Join("autopus-adk", "content", "checklists", "spec-quality.md"),
 	}
 }
