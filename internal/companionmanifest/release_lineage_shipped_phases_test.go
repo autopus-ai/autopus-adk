@@ -201,4 +201,21 @@ var shippedReleasePhases = []releasePhase{
 		pinsReleaseID: true, callerTreeSHA: true, callerReleaseID: true,
 		bridgePredecessor: true,
 	},
+	{
+		// A41 follows A40 under the same autopus-ai owner; the predecessor pins
+		// are measured from immutable release 432232109.
+		phase: "A41", tag: "v0.50.134", version: "0.50.134",
+		acceptedField: "source-tree",
+		rejects:       "unsignedTag",
+		ancestorSHA:   "f78feef6824a58aa534f355f2b49763b9b256bbc",
+		extraSourceGates: []string{
+			"COMPANION_RELEASE_TAG_SIGNATURE_REQUIRED",
+			"release-tag-signing-2026-q3-r2.pub",
+			"SHA256:7FISPXCi8p7cFEdh4Fcyyp8RPQbXYZwmo3Mxi5+YjrQ",
+			`verify-tag "refs/tags/$GITHUB_REF_NAME"`,
+		},
+		pinsRepository: true, pinsEvidenceSource: true, pinsTagObject: true,
+		pinsReleaseID: true, callerTreeSHA: true, callerReleaseID: true,
+		bridgePredecessor: true,
+	},
 }
