@@ -24,7 +24,7 @@ name: auto-qa-autopilot
 
 1. 사용자의 원래 요청을 **그대로** 파일에 저장합니다. 요약하지 말고, 코드나 diff를 섞지 않습니다.
 2. `auto qa intent --request-file <file> --format json`을 실행합니다. 에이전트가 빈 디렉터리에서 요청만 보고 `.autopus/specs/<id>/acceptance.md`(AC-n, Given/When/Then)와 `questions.json`을 씁니다.
-3. `questions`의 각 항목을 객관식 질문로 묻습니다. 선택지는 주어진 그대로, 권장안을 먼저 둡니다. 이 질문들이 요청을 다르게 읽을 수 있는 지점입니다.
+3. `questions`의 각 항목을 객관식으로 묻습니다(Claude Code는 AskUserQuestion). 선택지는 주어진 그대로, 권장안을 먼저 둡니다. 이 질문들이 요청을 다르게 읽을 수 있는 지점입니다.
 4. 답이 권장안과 다르면, 그 항목이 가리키는 기준의 문장만 고칩니다. 다른 기준은 건드리지 않습니다.
 5. `auto qa go <id>`로 시나리오 생성 → 실행 → 분류 → 수정을 이어 갑니다. 기대값은 diff guard가 지킵니다.
 
