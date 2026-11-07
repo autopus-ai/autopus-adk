@@ -34,6 +34,7 @@ func newQACmd() *cobra.Command {
 	cmd.AddCommand(newQAFeedbackCmd())
 	cmd.AddCommand(newQAReleaseReadinessCmd())
 	cmd.AddCommand(newQAIntentCmd())
+	cmd.AddCommand(newQAExecCmd())
 	cmd.AddCommand(newQAGoCmd())
 	cmd.AddCommand(newQALoopCmd())
 	cmd.AddCommand(newQARecordCmd())

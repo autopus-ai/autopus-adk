@@ -1,9 +1,11 @@
 package compile
 
 import (
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/insajin/autopus-adk/pkg/qa/testscenario"
 )
@@ -45,11 +47,17 @@ func fromTestScenarios(projectDir string) []Candidate {
 			})
 			continue
 		}
+		rel, _ := filepath.Rel(projectDir, path)
 		for _, c := range doc.Cases {
-			if c.Automation.Type != testscenario.AutomationCommand || c.Automation.Check == nil {
+			var candidate Candidate
+			switch {
+			case c.Automation.Type == testscenario.AutomationCommand && c.Automation.Check != nil:
+				candidate = testScenarioCandidate(doc.Spec, c, projectDir)
+			case c.Automation.Type == testscenario.AutomationExec && c.Automation.Exec != nil:
+				candidate = execCandidate(doc.Spec, filepath.ToSlash(rel), c, projectDir)
+			default:
 				continue
 			}
-			candidate := testScenarioCandidate(doc.Spec, c, projectDir)
 			// Two files may declare the same spec and case. One journey id
 			// shared by two packs means one result overwrites the other, so
 			// the later file loses visibly instead.
@@ -109,4 +117,44 @@ func slug(value string) string {
 		}
 	}
 	return b.String()
+}
+
+// execCandidate runs an exec case through `auto qa exec`, which builds and
+// runs the product and prints Expected:/Received: lines for any expectation
+// that did not hold, so a failing case triages as a product defect.
+func execCandidate(spec, file string, c testscenario.Case, projectDir string) Candidate {
+	key := sourceTestScenarios + "-" + slug(spec) + "-" + c.ID
+	const adapterID = "custom-command"
+	refs := []string{c.Ac}
+	argv := []string{execProgram(), "qa", "exec", "--file", file, "--case", c.ID}
+	timeout := execJourneyTimeout(c.Automation.Exec.Timeout)
+	candidate := candidateFromCommand(key, adapterID, argv, qameshCheck{
+		Adapter: adapterID, Command: argv, Timeout: timeout, AcceptanceRefs: refs,
+	}, projectDir)
+	candidate.Source = sourceTestScenarios
+	candidate.JourneyID = journeyID(key, adapterID)
+	candidate.Adapter = adapterID
+	candidate.AcceptanceRefs = refs
+	return candidate
+}
+
+// execProgram is the auto binary that compiles the plan. Journeys are planned
+// in process for every run, so the binary that knows `qa exec` is the one
+// running now; an older auto earlier on PATH may not. Inside a test binary it
+// falls back to the name on PATH.
+func execProgram() string {
+	if self, err := os.Executable(); err == nil && filepath.Base(self) == "auto" {
+		return self
+	}
+	return "auto"
+}
+
+// execJourneyTimeout leaves room for the build and the run, each of which
+// the case's own timeout bounds.
+func execJourneyTimeout(caseTimeout string) string {
+	d, err := time.ParseDuration(caseTimeout)
+	if err != nil || d <= 0 {
+		d = time.Minute
+	}
+	return (2*d + 30*time.Second).String()
 }

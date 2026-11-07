@@ -273,3 +273,10 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 기록: `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run 'TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6'`. writer는 이제 단언하는 stdout만 써서 되돌릴 파일이 없다.
 - 차이: NPD 다섯 개에서 `.claude/skills/{auto-qa,qa-autopilot}/SKILL.md`, `.codex/skills/{codex-auto-qa,codex-qa-autopilot}/SKILL.md`와 그 backup, manifest·journal checksum만 바뀌었다. stdout golden은 바뀌지 않았다.
 - 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 이 golden으로 통과한다.
+
+## qa-autopilot 스킬에 exec case 설명 추가 (feat/qa-exec-check, 2026-11-08)
+
+- 원인: `content/skills/qa-autopilot.md`에 CLI 제품을 직접 돌리는 `exec` case와 에이전트 비용 상한 설명을 더했다.
+- 기록: `make generate-templates` 뒤 `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run 'TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6'`.
+- 차이: NPD 다섯 개에서 `qa-autopilot` 스킬(Claude·Codex)과 그 backup, manifest·journal checksum만 바뀌었다. stdout golden은 그대로다.
+- 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.

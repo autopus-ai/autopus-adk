@@ -200,9 +200,9 @@ func BuildPlan(target Target, mode Mode, prompt, outputFile, override string) (P
 	switch target {
 	case TargetClaude:
 		if edit {
-			return Plan{Argv: []string{"claude", "-p", "--permission-mode", "acceptEdits"}, Stdin: prompt}, nil
+			return Plan{Argv: []string{"claude", "-p", "--permission-mode", "acceptEdits", "--max-budget-usd", BudgetUSD()}, Stdin: prompt}, nil
 		}
-		return Plan{Argv: []string{"claude", "-p", "--output-format", "text"}, Stdin: prompt}, nil
+		return Plan{Argv: []string{"claude", "-p", "--output-format", "text", "--max-budget-usd", BudgetUSD()}, Stdin: prompt}, nil
 	case TargetCodex:
 		if outputFile == "" {
 			return Plan{}, requestErr(CodeRequestInvalid, "codex needs an output file for its last message")

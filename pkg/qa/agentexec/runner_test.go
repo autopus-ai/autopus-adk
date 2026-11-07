@@ -83,7 +83,7 @@ func TestRun_Success_PassesWorkDirStdinAndDefaultTimeout(t *testing.T) {
 	resp, err := r.Run(context.Background(), Request{Target: TargetClaude, Mode: ModeEdit, Prompt: "heal it", WorkDir: "/repo"})
 
 	require.NoError(t, err)
-	assert.Equal(t, []string{"claude", "-p", "--permission-mode", "acceptEdits"}, gotArgv)
+	assert.Equal(t, []string{"claude", "-p", "--permission-mode", "acceptEdits", "--max-budget-usd", DefaultBudgetUSD}, gotArgv)
 	assert.Equal(t, "/repo", gotDir)
 	assert.Equal(t, "heal it", gotStdin)
 	assert.WithinDuration(t, start.Add(15*time.Minute), deadline, time.Minute)

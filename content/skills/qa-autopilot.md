@@ -43,6 +43,24 @@ level1_metadata: "intent→scenario 생성, auto qa loop 자가 수리, codegen/
 - 큰 변경은 구현 **전에** 1~4를 하고 구현을 시작합니다. 기준이 코드에 끌려갈 수 없습니다.
 - 이 디렉터리에는 spec.md가 없어 `auto status`의 SPEC 목록에 나오지 않습니다. 요청 원문은 `request.md`에 남습니다.
 
+### CLI·API 없이 도는 제품: exec case
+
+웹 UI가 아닌 제품(CLI, 도구, 파일을 쓰는 프로그램)의 기준은 `exec` case로 검사합니다. command case는 테스트 러너가 0으로 끝났는지만 알아서, 기대값이 구현자가 쓴 테스트 안에 남습니다. exec case는 기대값을 직접 들고 있습니다.
+
+```yaml
+automation:
+  type: exec
+  exec:
+    build: [go, build, -o, $BIN/mywc, ./cmd/mywc]   # 선택. 프로젝트 루트에서 실행
+    argv: [$BIN/mywc, --lines, c.txt]               # files만 든 새 디렉터리에서 실행
+    files: {c.txt: "one\ntwo\nthree"}
+    expect: {exit_code: 0, stdout: "3 c.txt\n"}     # 기준에서 온 값만
+```
+
+- `argv[0]`은 `$BIN/<이름>`, 프로젝트 안의 경로(`./bin/tool`), 또는 허용된 러너(`python3` 등)만 됩니다. 임의의 시스템 명령은 거부합니다.
+- `auto qa exec --file <yaml> --case <id>`가 한 case를 돌립니다. 기대값이 어긋나면 `Expected:`/`Received:`를 출력하고 1로 끝나며, loop는 이를 `product_defect`로 분류합니다. 빌드 실패처럼 돌릴 수 없으면 2로 끝납니다.
+- 에이전트 실행(claude)은 호출마다 `--max-budget-usd` 상한(기본 $5, `AUTOPUS_QA_AGENT_BUDGET_USD`로 변경)을 둡니다.
+
 ## 한 번에: `auto qa go`
 
 ```bash

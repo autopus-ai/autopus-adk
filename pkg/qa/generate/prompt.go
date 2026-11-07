@@ -88,9 +88,21 @@ cases:
     when: action
     then: expected outcome, as stated by the criterion
     automation:
-      type: gui | command | manual
+      type: gui | exec | command | manual
       scenario: <user scenario id>   # gui only
-      check:                         # command only
+      exec:                          # exec only: run the product, check what a user sees
+        build: [go, build, -o, $BIN/tool, ./cmd/tool]   # optional, runs in the project root
+        argv: [$BIN/tool, --flag, input.txt]            # runs in a fresh dir holding only files
+        stdin: ""
+        files: {input.txt: "line one\n"}
+        timeout: 1m
+        expect:                      # at least one; each value must come from the criterion
+          exit_code: 0
+          stdout: "exact output\n"
+          stdout_contains: [substring]
+          stderr_contains: [substring]
+          files: {out.txt: "exact content"}
+      check:                         # command only: a test runner's exit code
         argv: [go, test, ./...]
         cwd: .
         timeout: 2m
@@ -115,7 +127,8 @@ func BuildPrompt(in PromptInput) string {
 	b.WriteString("- Never put secrets in YAML: fill credentials with value_env naming an environment variable the criteria or their test data name.\n")
 	b.WriteString("- Assert visible messages with expect_text. Never give expect_role a name for alert, status, log, marquee, or timer: those roles do not take their name from their text.\n")
 	b.WriteString("- Use literal values for inputs that are not secrets, such as a deliberately wrong password or a search term; do not invent environment variables for them.\n")
-	fmt.Fprintf(&b, "- A command check's argv[0] must be one of: %s.\n", strings.Join(testscenario.CommandAllowlist, ", "))
+	b.WriteString("- For each criterion a user observes by running the product itself (a CLI's output, exit code, or the files it writes), write an exec case: it carries the expected value, so prefer it to a command case, which only learns whether a test runner exited 0.\n")
+	fmt.Fprintf(&b, "- An exec argv[0] must be $BIN/<name> from its build step, a path inside the project such as ./bin/tool, or one of: %s. An exec build[0] and a command check's argv[0] must be one of: %s.\n", strings.Join(testscenario.CommandAllowlist, ", "), strings.Join(testscenario.CommandAllowlist, ", "))
 	b.WriteString("- Unknown keys are rejected, so use only the keys shown in the schemas.\n\n")
 
 	fmt.Fprintf(&b, "Schema %s:\n%s\n", scenario.SchemaVersionV2, fmt.Sprintf(scenarioSchema, spec))
@@ -129,7 +142,7 @@ func BuildPrompt(in PromptInput) string {
 
 func writeJourneys(b *strings.Builder, journeys []JourneyHint) {
 	if len(journeys) == 0 {
-		b.WriteString("Journeys: none declares GUI origins, so use command or manual automation instead of gui cases and user scenarios.\n\n")
+		b.WriteString("Journeys: none declares GUI origins, so use exec, command, or manual automation instead of gui cases and user scenarios.\n\n")
 		return
 	}
 	b.WriteString("Journeys a user scenario may name (id and allowed origin):\n")
