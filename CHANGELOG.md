@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **Stop hook의 후속 리뷰·QA 라운드는 opt-in이 되고 세션당 한 번만 돈다** (2026-11-07): 빌드·테스트 게이트는 그대로
+  기본으로 켜져 있다. 후속 라운드는 `AUTOPUS_FOLLOWUP=on`이나 `auto verify stop --followup`으로 켜고, 켜도 세션당 한
+  번이다(전에는 기본 켜짐, 최대 두 번). Pilot C에서 기본 Claude Code가 이미 푸는 업스트림 Go PR 4개는 통과율 변화 없이
+  비용만 약 14배가 들었고, 두 번째 라운드는 첫 라운드가 고치지 않은 것을 고치지 않았다. 리뷰와 QA hunt는 `/auto review`와
+  `/auto qa`로 직접 부를 수 있다. `AUTOPUS_FOLLOWUP=off`는 그대로 강제로 끈다.
+
 - **구현 하네스 CLI 명령을 help에서 숨긴다** (2026-11-07): 생성되는 스킬·규칙·hook이 부르지 않는 16개(`arch`, `delivery`,
   `effort`, `eval`, `experiment`, `fix`, `hash`, `learn`, `lsp`, `map`, `mem`, `permission`, `pipeline`, `search`, `setup`,
   `telemetry`)가 `auto --help`에서 빠진다. 명령은 그대로 동작한다. deprecated 경고는 실행마다 stderr에 찍혀 그 출력을

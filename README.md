@@ -52,12 +52,13 @@ the change, and it sends the agent back when the change does not hold up.
 | Stage | What runs | When |
 | --- | --- | --- |
 | Build and test | `auto verify stop`: the toolchains of the changed files only | Every time a Claude Code session tries to stop with a changed tree |
-| Review | The `reviewer` agent on `git diff HEAD` | Automatically, after a passing build of 40+ changed source lines |
-| QA bug hunt | The `qa-explorer` agent drives the product; `auto qa hunt verify` re-runs each repro | Same follow-up round, when the change has runnable behavior; or on demand with `/auto qa` |
-| Fix | The working agent fixes blockers and confirmed bugs, then re-runs the tests | Same follow-up round |
+| Review | The `reviewer` agent on `git diff HEAD` | On demand with `/auto review`, or in the opt-in follow-up round |
+| QA bug hunt | The `qa-explorer` agent drives the product; `auto qa hunt verify` re-runs each repro | On demand with `/auto qa`, or in the opt-in follow-up round when the change has runnable behavior |
+| Fix | The working agent fixes blockers and confirmed bugs, then re-runs the tests | Same round |
 
-None of this needs a prompt from you. The agent is told to carry the round through and to ask you
-only for decisions that are really yours, as a multiple-choice question.
+The build and test gate needs no prompt from you. Review and QA cost far more, so they run when you
+ask for them, or automatically once you opt in to the follow-up round. Either way the agent is told
+to ask you only for decisions that are really yours, as a multiple-choice question.
 
 ## The Stop hook: build and test before the session ends
 
@@ -78,7 +79,8 @@ session and the work tree differs from `HEAD`, the hook:
 
 Doc-only changes and tools that are not installed are skipped.
 
-**Follow-up round.** When the build passes and the change has 40 or more changed source lines
+**Follow-up round (opt-in).** With `AUTOPUS_FOLLOWUP=on` (or `auto verify stop --followup`), when
+the build passes and the change has 40 or more changed source lines
 (added plus deleted against `HEAD`, untracked source files included), the hook blocks once more with
 instructions to:
 
@@ -87,8 +89,13 @@ instructions to:
    `auto qa hunt verify`;
 3. fix every blocker and confirmed bug, re-run the tests, and summarize what was checked.
 
-A session gets at most 2 follow-up rounds, and a new round starts only after another 40 lines of
-change, so fixing review findings does not trigger a third.
+A session gets at most one follow-up round, so fixing the review's findings does not start another.
+
+It is off by default because it is expensive. In a small pilot on real upstream Go PRs (5 tasks run on
+both arms, one run each), it multiplied cost about 14x on the four tasks plain Claude Code already
+solved, with no change in pass rate. On a harder task it found and fixed three confirmed robustness bugs
+that the hidden tests did not cover, at about 12x the cost. The build/test gate never had to block.
+Turn the round on where that trade is worth it.
 
 **Opting out.**
 
@@ -96,7 +103,8 @@ change, so fixing review findings does not trigger a third.
 | --- | --- |
 | Don't register the hook | `hooks.verify_stop: false` in `autopus.yaml`, then `auto update` |
 | Disable for one session or shell | `AUTOPUS_VERIFY_STOP=off` |
-| Keep build/test, skip the follow-up round | `AUTOPUS_FOLLOWUP=off`, or `auto verify stop --followup=false` |
+| Turn the follow-up round on | `AUTOPUS_FOLLOWUP=on` (for example in the `env` block of `.claude/settings.json`), or `auto verify stop --followup` |
+| Force it off even where it is on | `AUTOPUS_FOLLOWUP=off` |
 
 The Stop hook is Claude Code only. On the other platforms, run `/auto review` and `/auto qa`
 (or the platform's equivalent, below) yourself.

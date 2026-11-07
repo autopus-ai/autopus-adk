@@ -93,15 +93,47 @@ func TestVerifyStop_OffSwitch(t *testing.T) {
 	assert.Equal(t, stopHookOutput{}, runStop(t, dir, "off"))
 }
 
-func TestVerifyStop_LargePassingChangeGoesOnToReviewAndQAOnce(t *testing.T) {
-	session := "followup"
-	t.Cleanup(func() { resetStopState(session); _ = os.Remove(stopStateFile(session, "followup")) })
+// largeStopChange is a passing edit of more than followupMinLines lines.
+func largeStopChange() string {
 	var body strings.Builder
 	body.WriteString("package stopgate\n\n// Add sums.\nfunc Add(a, b int) int { return a + b }\n")
 	for i := 0; i < 45; i++ {
 		body.WriteString("\n// Filler documents nothing in particular.\n")
 	}
-	dir := newStopRepo(t, body.String())
+	return body.String()
+}
+
+// The follow-up round is opt-in: by default a large passing change ends at
+// green like a small one.
+func TestVerifyStop_FollowupIsOffByDefault(t *testing.T) {
+	t.Setenv("AUTOPUS_FOLLOWUP", "")
+	session := "followup-default"
+	t.Cleanup(func() { resetStopState(session); _ = os.Remove(stopStateFile(session, "followup")) })
+	dir := newStopRepo(t, largeStopChange())
+
+	assert.Equal(t, stopHookOutput{}, runStop(t, dir, session))
+}
+
+func TestVerifyStop_FollowupEnabled(t *testing.T) {
+	for _, tc := range []struct {
+		env  string
+		flag bool
+		want bool
+	}{
+		{"", false, false}, {"", true, true}, {"on", false, true}, {"ON", false, true},
+		{"off", true, false}, {"Off", false, false}, {"maybe", false, false},
+	} {
+		t.Setenv("AUTOPUS_FOLLOWUP", tc.env)
+		assert.Equal(t, tc.want, followupEnabled(tc.flag), "env=%q flag=%v", tc.env, tc.flag)
+	}
+}
+
+func TestVerifyStop_LargePassingChangeGoesOnToReviewAndQAOnce(t *testing.T) {
+	t.Setenv("AUTOPUS_FOLLOWUP", "on")
+	session := "followup"
+	t.Cleanup(func() { resetStopState(session); _ = os.Remove(stopStateFile(session, "followup")) })
+	body := largeStopChange()
+	dir := newStopRepo(t, body)
 
 	first := runStop(t, dir, session)
 	assert.Equal(t, "block", first.Decision)
@@ -110,11 +142,12 @@ func TestVerifyStop_LargePassingChangeGoesOnToReviewAndQAOnce(t *testing.T) {
 
 	assert.Equal(t, stopHookOutput{}, runStop(t, dir, session), "the same tree is not sent round again")
 
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "add.go"), []byte(body.String()+"\n// one more line\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "add.go"), []byte(body+"\n// one more line\n"), 0o644))
 	assert.Equal(t, stopHookOutput{}, runStop(t, dir, session), "a small fix after the review does not start another round")
 }
 
 func TestVerifyStop_SmallPassingChangeEndsAtGreen(t *testing.T) {
+	t.Setenv("AUTOPUS_FOLLOWUP", "on")
 	session := "small"
 	t.Cleanup(func() { resetStopState(session); _ = os.Remove(stopStateFile(session, "followup")) })
 	dir := newStopRepo(t, "package stopgate\n\n// Add sums.\nfunc Add(a, b int) int { return b + a }\n")
@@ -123,6 +156,7 @@ func TestVerifyStop_SmallPassingChangeEndsAtGreen(t *testing.T) {
 }
 
 func TestVerifyStop_QAOutputAndLogsDoNotGrowTheChange(t *testing.T) {
+	t.Setenv("AUTOPUS_FOLLOWUP", "on")
 	session := "qa-output"
 	t.Cleanup(func() { resetStopState(session); _ = os.Remove(stopStateFile(session, "followup")) })
 	dir := newStopRepo(t, "package stopgate\n\n// Add sums.\nfunc Add(a, b int) int { return b + a }\n")
@@ -138,6 +172,6 @@ func TestVerifyStop_FollowupRoundsAreBounded(t *testing.T) {
 	session := "rounds"
 	t.Cleanup(func() { _ = os.Remove(stopStateFile(session, "followup")) })
 	assert.True(t, nextFollowup(session, 50))
-	assert.True(t, nextFollowup(session, 100))
-	assert.False(t, nextFollowup(session, 500), "a third round never starts")
+	assert.False(t, nextFollowup(session, 100), "a second round never starts")
+	assert.False(t, nextFollowup(session, 500))
 }

@@ -43,8 +43,8 @@ func newVerifyStopCmd() *cobra.Command {
 		Short: "Stop hook: build and test the changed files before the session ends",
 		Long: "Reads the Claude Code Stop hook payload on stdin. When the work tree has changes, runs the " +
 			"build and tests that cover them and blocks the stop with the failure output. Set " +
-			"AUTOPUS_VERIFY_STOP=off to disable. Once the build passes, a change of 40 or more lines is sent on to " +
-			"the reviewer and qa-explorer agents, at most twice per session (AUTOPUS_FOLLOWUP=off or --followup=false to skip).",
+			"AUTOPUS_VERIFY_STOP=off to disable. Opt-in with AUTOPUS_FOLLOWUP=on or --followup: once the build passes, " +
+			"a change of 40 or more lines is sent on to the reviewer and qa-explorer agents, once per session.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			out := runVerifyStop(cmd, cmd.InOrStdin(), budget, followup)
@@ -57,7 +57,7 @@ func newVerifyStopCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().DurationVar(&budget, "budget", 8*time.Minute, "Total time for all verification commands")
-	cmd.Flags().BoolVar(&followup, "followup", true, "After a passing build, send a large enough change on to review and QA hunt, at most twice per session")
+	cmd.Flags().BoolVar(&followup, "followup", false, "After a passing build, send a large enough change on to review and QA hunt, once per session (also AUTOPUS_FOLLOWUP=on)")
 	return cmd
 }
 
@@ -87,7 +87,7 @@ func runVerifyStop(cmd *cobra.Command, stdin io.Reader, budget time.Duration, fo
 	if failure == nil {
 		resetStopBlocks(in.SessionID)
 		writeStopState(in.SessionID, "pass", fingerprint)
-		if followup {
+		if followupEnabled(followup) {
 			if lines := verifygate.ChangedLines(cmd.Context(), root, changed); nextFollowup(in.SessionID, lines) {
 				return followupOutput(lines)
 			}

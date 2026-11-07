@@ -11,9 +11,10 @@ import (
 // sent on to review and QA. Smaller edits end as soon as the build is green.
 const followupMinLines = 40
 
-// followupMaxRounds bounds the review and QA rounds one session runs, so a
-// change that keeps growing cannot keep the session alive forever.
-const followupMaxRounds = 2
+// followupMaxRounds bounds the review and QA rounds one session runs. Pilot C
+// (2026-11-07) measured a second round costing about $10 on a 360-line change
+// without fixing anything the first round had not, so one round is the cap.
+const followupMaxRounds = 1
 
 // followupReason is what the agent is told to do next once the build and
 // tests pass. It runs the verification half of the harness without the user
@@ -26,11 +27,25 @@ const followupReason = `The build and tests pass. Before finishing, verify this 
 
 If a fix needs a decision only the user can make (product behavior, scope), ask it with AskUserQuestion as a multiple-choice question with your recommendation first, instead of an open question. Otherwise do not ask; proceed and state your assumption.`
 
+// followupEnabled reports whether the follow-up round is on. It is opt-in:
+// on tasks the session already solves, Pilot C measured it multiplying cost
+// about 14x with no change in pass rate. AUTOPUS_FOLLOWUP=on or --followup
+// turns it on; AUTOPUS_FOLLOWUP=off wins over both.
+func followupEnabled(flag bool) bool {
+	switch strings.ToLower(os.Getenv("AUTOPUS_FOLLOWUP")) {
+	case "off":
+		return false
+	case "on":
+		return true
+	}
+	return flag
+}
+
 // nextFollowup decides whether this passing tree goes on to review and QA.
 // It fires once per followupMinLines of change in a session, so fixing the
 // review's findings does not start another round.
 func nextFollowup(session string, changedLines int) bool {
-	if strings.EqualFold(os.Getenv("AUTOPUS_FOLLOWUP"), "off") || changedLines < followupMinLines {
+	if changedLines < followupMinLines {
 		return false
 	}
 	state := strings.Fields(readStopState(session, "followup"))
