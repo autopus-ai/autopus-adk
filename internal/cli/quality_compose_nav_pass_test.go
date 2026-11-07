@@ -37,44 +37,40 @@ func tuiuxBlockBefore(t *testing.T, out, title string, occurrence int) []string 
 	return nil
 }
 
-const tuiuxBuildGroup = "구현 — executor, "
+const tuiuxVerifyGroup = "검증·리뷰 — reviewer, "
 
 // S10: back inside the role groups pass restores the effort working copy,
 // keeps the earlier answers preselected, and drops the pass at its first form.
 func TestComposeNavPass_S10RoleGroups(t *testing.T) {
 	newTUIUXEnv(t, true, "")
 	start := []string{"2\n", "2\n", "1\n"}
-	rest := tuiuxEnters(6) // the tiers and efforts of 구현, 검증·리뷰, 탐색·보조
+	rest := tuiuxEnters(2) // the tier and effort of 검증·리뷰
 	apply := []string{"2\n", "\n"}
 
 	t.Run("(a) back to the effort keeps low", func(t *testing.T) {
 		out, npd, dir := tuiuxQualityD(t, tuiuxLines(start, []string{"2\n", "2\n", "b\n", "\n"}, rest, apply)...)
 		_, control, _ := tuiuxQualityD(t, tuiuxLines(start, []string{"2\n", "2\n"}, rest, apply)...)
 
-		assert.Equal(t, []string{"지금까지 고른 값", "  설계·판단: fable", "  설계·판단 effort: low"}, tuiuxBlockBefore(t, out, tuiuxBuildGroup, 1))
-		assert.Equal(t, []string{"지금까지 고른 값", "  설계·판단: fable"}, tuiuxBlockBefore(t, out, "설계·판단 effort", 2))
+		assert.Equal(t, []string{"지금까지 고른 값", "  구현: fable", "  구현 effort: low"}, tuiuxBlockBefore(t, out, tuiuxVerifyGroup, 1))
+		assert.Equal(t, []string{"지금까지 고른 값", "  구현: fable"}, tuiuxBlockBefore(t, out, "구현 effort", 2))
 		saved := composeBindLoad(t, dir).Quality.Presets["claude-custom"]
-		for _, agent := range composeDesignAgents {
-			assert.Equal(t, "fable", saved.Agents[agent], agent)
-			assert.Equal(t, "low", saved.Efforts[agent], agent)
-		}
+		assert.Equal(t, "fable", saved.Agents["frontend-specialist"])
+		assert.Equal(t, "low", saved.Efforts["frontend-specialist"])
 		assert.Equal(t, control, npd)
 	})
 	t.Run("(b) back past the effort drops low", func(t *testing.T) {
-		out, npd, dir := tuiuxQualityD(t, tuiuxLines(start, []string{"2\n", "2\n", "b\n", "b\n", "4\n", "\n"}, rest, apply)...)
-		_, control, _ := tuiuxQualityD(t, tuiuxLines(start, []string{"4\n", "\n"}, rest, apply)...)
+		out, npd, dir := tuiuxQualityD(t, tuiuxLines(start, []string{"2\n", "2\n", "b\n", "b\n", "3\n", "\n"}, rest, apply)...)
+		_, control, _ := tuiuxQualityD(t, tuiuxLines(start, []string{"3\n", "\n"}, rest, apply)...)
 
 		require.Contains(t, out, "적용할까요? \n")
 		saved := composeBindLoad(t, dir).Quality.Presets["claude-custom"]
-		for _, agent := range composeDesignAgents {
-			assert.Equal(t, "sonnet", saved.Agents[agent], agent)
-			assert.NotContains(t, saved.Efforts, agent)
-		}
+		assert.Equal(t, "opus", saved.Agents["frontend-specialist"])
+		assert.NotContains(t, saved.Efforts, "frontend-specialist")
 		assert.Equal(t, control, npd)
 	})
 	t.Run("(c) back to the method drops the pass", func(t *testing.T) {
 		before := tuiuxNPD(t, tuiuxFixtureD(t))
-		out, npd, _ := tuiuxQualityD(t, tuiuxLines(start, []string{"2\n", "2\n", "b\n", "b\n", "b\n", "1\n"}, tuiuxEnters(8), []string{"\n"})...)
+		out, npd, _ := tuiuxQualityD(t, tuiuxLines(start, []string{"2\n", "2\n", "b\n", "b\n", "b\n", "1\n"}, tuiuxEnters(4), []string{"\n"})...)
 
 		assert.Equal(t, 1, strings.Count(out, composeTextKO.NoChange+"\n"))
 		assert.Equal(t, 2, strings.Count(out, "어떻게 고칠까요? \n"))
@@ -86,16 +82,17 @@ func TestComposeNavPass_S10RoleGroups(t *testing.T) {
 // with its value in the summary; the effort answer stays.
 func TestComposeNavPass_S11PerAgent(t *testing.T) {
 	newTUIUXEnv(t, true, "")
-	head := []string{"2\n", "2\n", "2\n", "2\n", "3\n", "2\n"} // 구성 편집, Claude Code, 에이전트별, planner, opus, low
+	head := []string{"2\n", "2\n", "2\n", "2\n", "3\n", "2\n"} // 구성 편집, Claude Code, 에이전트별, frontend-specialist, opus, low
 	out, npd, dir := tuiuxQualityD(t, tuiuxLines(head, []string{"b\n", "\n", "1\n", "2\n", "\n"})...)
 	_, control, _ := tuiuxQualityD(t, tuiuxLines(head, []string{"1\n", "2\n", "\n"})...)
 
-	assert.Equal(t, []string{"지금까지 고른 값", "  planner: opus"}, tuiuxBlockBefore(t, out, "planner effort", 2))
-	assert.Empty(t, tuiuxBlockBefore(t, out, "planner ", 1), "a list answer is no summary line")
-	assert.Equal(t, []string{"지금까지 고른 값", "  planner: opus", "  planner effort: low"}, tuiuxBlockBefore(t, out, "에이전트를 고르세요", 2))
+	assert.Equal(t, []string{"지금까지 고른 값", "  frontend-specialist: opus"}, tuiuxBlockBefore(t, out, "frontend-specialist effort", 2))
+	assert.Empty(t, tuiuxBlockBefore(t, out, "frontend-specialist ", 1), "a list answer is no summary line")
+	assert.Equal(t, []string{"지금까지 고른 값", "  frontend-specialist: opus", "  frontend-specialist effort: low"},
+		tuiuxBlockBefore(t, out, "에이전트를 고르세요", 2))
 	saved := composeBindLoad(t, dir).Quality.Presets["claude-custom"]
-	assert.Equal(t, "opus", saved.Agents["planner"])
-	assert.Equal(t, "low", saved.Efforts["planner"])
+	assert.Equal(t, "opus", saved.Agents["frontend-specialist"])
+	assert.Equal(t, "low", saved.Efforts["frontend-specialist"])
 	assert.Equal(t, control, npd)
 }
 
@@ -105,5 +102,5 @@ func TestComposeNavPass_ListShownAgainSelectsTheAgent(t *testing.T) {
 	newTUIUXEnv(t, true, "")
 	out, _, _ := tuiuxQualityD(t, "2\n", "2\n", "2\n", "3\n", "b\n", "\n", "b\n", "1\n", "\n")
 
-	assert.Equal(t, 2, strings.Count(out, "\narchitect \n1. 그대로"), "Enter on the list shown again opened architect")
+	assert.Equal(t, 2, strings.Count(out, "\nreviewer \n1. 그대로"), "Enter on the list shown again opened reviewer")
 }

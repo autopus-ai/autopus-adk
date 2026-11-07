@@ -64,7 +64,7 @@ func TestOMPProfilePlanPreviewsEveryServedAgentWithoutWrites(t *testing.T) {
 	assert.Empty(t, payload.Blockers)
 	assert.Equal(t, ompProfileSourceBuiltin, payload.Source)
 	assert.False(t, payload.Persisted.ProfileDefinition)
-	// One row per served agent, in served order: the 17 Autopus agents and
+	// One row per served agent, in served order: the Autopus agents and
 	// task, each routed under its own row and task under the planner row.
 	agents := make([]string, 0, len(payload.Agents))
 	for _, row := range payload.Agents {
@@ -99,12 +99,12 @@ func TestOMPProfilePlanKeepsEachRolesRung(t *testing.T) {
 	root, runner := writeOMPBalancedProject(t)
 
 	anthropic := planOMPProfileJSON(t, root, runner, "balanced")
-	for _, agent := range []string{"task", "reviewer", "security-auditor"} {
+	for _, agent := range []string{"task", "reviewer"} {
 		row := agentPreviewRow(t, anthropic, agent)
 		assert.Equal(t, "anthropic/claude-opus-5-5", row.EffectiveSelector, agent)
 		assert.Equal(t, "max", row.EffectiveThinking, agent)
 	}
-	for _, agent := range []string{"explorer", "validator"} {
+	for _, agent := range []string{"ux-validator"} {
 		row := agentPreviewRow(t, anthropic, agent)
 		assert.Equal(t, "anthropic/claude-sonnet-5-5", row.EffectiveSelector, agent)
 		assert.Equal(t, "high", row.EffectiveThinking, agent)
@@ -115,12 +115,12 @@ func TestOMPProfilePlanKeepsEachRolesRung(t *testing.T) {
 
 	openai := planOMPProfileJSON(t, root, runner, "balanced", "--family", "gpt")
 	assert.Equal(t, "openai", openai.FamilyStored)
-	for _, agent := range []string{"task", "reviewer", "security-auditor"} {
+	for _, agent := range []string{"task", "reviewer"} {
 		row := agentPreviewRow(t, openai, agent)
 		assert.Equal(t, "openai-codex/gpt-6-astra", row.EffectiveSelector, agent)
 		assert.Equal(t, "max", row.EffectiveThinking, agent)
 	}
-	for _, agent := range []string{"explorer", "validator"} {
+	for _, agent := range []string{"frontend-specialist", "ux-validator"} {
 		row := agentPreviewRow(t, openai, agent)
 		assert.Equal(t, "openai-codex/gpt-6-luna", row.EffectiveSelector, agent)
 		assert.Equal(t, "max", row.EffectiveThinking, agent)
@@ -206,27 +206,27 @@ func TestOMPProfilePlanReportsAgentOverrideSourceForRootPin(t *testing.T) {
 	root, runner := writeOMPBalancedProject(t)
 
 	payload := planOMPProfileJSON(
-		t, root, runner, "balanced", "--agent", "validator=anthropic/claude-sonnet-5-5:max",
+		t, root, runner, "balanced", "--agent", "ux-validator=anthropic/claude-sonnet-5-5:max",
 	)
 
-	row := agentPreviewRow(t, payload, "validator")
+	row := agentPreviewRow(t, payload, "ux-validator")
 	assert.Equal(t, ompProfileSourceAgent, row.Source)
-	assert.Equal(t, "validator", row.PolicyKey)
+	assert.Equal(t, "ux-validator", row.PolicyKey)
 	assert.Equal(t, "anthropic/claude-sonnet-5-5", row.EffectiveSelector)
 	assert.Equal(t, "max", row.EffectiveThinking)
 	assert.Equal(t, "planner", agentPreviewRow(t, payload, "task").PolicyKey)
-	assert.Equal(t, []string{"validator"}, payload.Persisted.Agents)
+	assert.Equal(t, []string{"ux-validator"}, payload.Persisted.Agents)
 	assert.Equal(t, ompProfileSourceBuiltin, agentPreviewRow(t, payload, "reviewer").Source)
 }
 
 func TestOMPProfilePlanKeepsExplicitCustomProfileAndItsFallbackVisible(t *testing.T) {
 	root, runner, profile := writeSelectedOMPProfile(t)
-	route := profile.Capabilities[config.CapabilityFastValidation]
+	route := profile.Capabilities[config.CapabilityIndependentDissent]
 	route.Candidates = []config.RoleModelCandidateConf{
 		{Selector: "openai/disabled-coder", Thinking: "high", Family: "openai"},
 		{Selector: "openai/beta-coder", Thinking: "high", Family: "openai"},
 	}
-	profile.Capabilities[config.CapabilityFastValidation] = route
+	profile.Capabilities[config.CapabilityIndependentDissent] = route
 	cfg, err := config.LoadPreview(root)
 	require.NoError(t, err)
 	cfg.RoleModelPolicy.Profiles["balanced"] = profile
@@ -236,7 +236,7 @@ func TestOMPProfilePlanKeepsExplicitCustomProfileAndItsFallbackVisible(t *testin
 
 	assert.Equal(t, ompProfileSourceCustom, payload.Source)
 	assert.True(t, payload.Persisted.ProfileDefinition)
-	row := agentPreviewRow(t, payload, "explorer")
+	row := agentPreviewRow(t, payload, "qa-explorer")
 	require.Len(t, row.Candidates, 2)
 	assert.Equal(t, "openai/disabled-coder", row.Candidates[0].Selector)
 	assert.Equal(t, "openai/beta-coder", row.EffectiveSelector)

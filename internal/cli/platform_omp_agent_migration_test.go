@@ -118,7 +118,7 @@ func TestOMPAgentMigration_S8_UserFileLineInInitAndUpdate(t *testing.T) {
 	body, err := os.ReadFile(filepath.Join(dir, ".omp", "agents", "reviewer.md"))
 	require.NoError(t, err)
 	assert.Equal(t, userFile, body)
-	assert.Len(t, ompMigrationAgentFiles(t, dir), 17, "16 generated files and the user's")
+	assert.Len(t, ompMigrationAgentFiles(t, dir), len(config.CanonicalAgentNames()), "3 generated files and the user's")
 }
 
 // The lines for every report shape, in both languages.
@@ -135,7 +135,7 @@ func TestOMPAgentSurfaceLines(t *testing.T) {
 	owned := autopus
 	owned.UserAgentFiles, owned.DisabledAgentsUserOwned = []string{"reviewer"}, true
 	lines := ompAgentSurfaceLines(owned, cfg, true, ko)
-	assert.Len(t, lines, 19)
+	assert.Len(t, lines, 6, "three added agents, the user file, the user-owned claim, and the migration")
 	assert.Contains(t, lines, ".omp/agents/reviewer.md는 사용자 파일이라 그대로 둡니다")
 	assert.NotContains(t, lines, "+ .omp/agents/reviewer.md")
 	assert.Contains(t, lines, ko.userOwned)
@@ -163,9 +163,9 @@ func TestOMPAgentSurfaceLines(t *testing.T) {
 	migrating := autopus
 	lines = ompAgentSurfaceLines(migrating, cfg, true, en)
 	assert.Contains(t, lines, "task.disabledAgents: scout, security-reviewer, sonic, designer, librarian, seance")
-	assert.Equal(t, "OMP now uses the 17 Autopus agents.", lines[len(lines)-1], "the migration names no way back")
-	assert.Equal(t, "OMP는 이제 Autopus 에이전트 17개를 씁니다.", ko.migration)
-	assert.NotContains(t, ompAgentSurfaceLines(migrating, cfg, false, en), en.migration, "init is no migration")
+	assert.Equal(t, "OMP now uses the 4 Autopus agents.", lines[len(lines)-1], "the migration names no way back")
+	assert.Equal(t, "OMP는 이제 Autopus 에이전트 4개를 씁니다.", ko.migrationLine())
+	assert.NotContains(t, ompAgentSurfaceLines(migrating, cfg, false, en), en.migrationLine(), "init is no migration")
 	assert.Equal(t, en, ompAgentSurfaceTextFor("en"))
 	assert.Equal(t, ko, ompAgentSurfaceTextFor("ko"))
 }
@@ -207,7 +207,7 @@ func TestOMPAgentMigration_PlanPreviewShowsTheMigration(t *testing.T) {
 	out, err := runComposeUpdate(t, strings.NewReader(""), "--dir", dir, "--plan")
 
 	require.NoError(t, err, out)
-	assert.Contains(t, out, "    + .omp/agents/planner.md\n")
-	assert.Contains(t, out, "    OMP는 이제 Autopus 에이전트 17개를 씁니다.")
+	assert.Contains(t, out, "    + .omp/agents/reviewer.md\n")
+	assert.Contains(t, out, "    OMP는 이제 Autopus 에이전트 4개를 씁니다.")
 	assert.Empty(t, ompMigrationFileSums(t, dir))
 }

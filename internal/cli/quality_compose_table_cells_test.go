@@ -18,8 +18,8 @@ func TestComposeTable_CatalogB_MarksSubstitutes(t *testing.T) {
 	table := composeTableFor(t, "R", "CAT-B")
 	layout := table.layout("ko", nil)
 
-	assert.Equal(t, "6-sol · xhigh (대체)", composeTableRowTexts(t, layout, "planner")[4])
-	assert.Equal(t, []string{"Codex catalog: 읽음 · 대체 17칸", "Codex 기본 세션: 6-astra · ultra"}, layout.footer)
+	assert.Equal(t, "6-sol · xhigh (대체)", composeTableRowTexts(t, layout, "reviewer")[4])
+	assert.Equal(t, []string{"Codex catalog: 읽음 · 대체 4칸", "Codex 기본 세션: 6-astra · ultra"}, layout.footer)
 	assert.False(t, table.codexRefused())
 }
 
@@ -27,18 +27,18 @@ func TestComposeTable_CatalogB_MarksSubstitutes(t *testing.T) {
 // sends everything else to the fallback model.
 func TestComposeTable_CatalogC_UnreadableCatalogNotation(t *testing.T) {
 	r := composeTableFor(t, "R", "CAT-C").layout("ko", nil)
-	assert.Equal(t, "5.6-sol · xhigh (catalog 없음)", composeTableRowTexts(t, r, "planner")[4])
+	assert.Equal(t, "5.6-sol · xhigh (catalog 없음)", composeTableRowTexts(t, r, "reviewer")[4])
 	assert.Equal(t, "Codex catalog: 읽지 못함", r.footer[0])
 	assert.Equal(t, "Codex 기본 세션: 5.6-sol · ultra (catalog 없음)", r.footer[1])
 
 	d := composeTableFor(t, "D", "CAT-C").layout("ko", nil)
-	assert.Equal(t, "6-astra · max (미확인)", composeTableRowTexts(t, d, "planner")[4])
-	assert.Equal(t, "6-luna · max (미확인)", composeTableRowTexts(t, d, "executor")[4])
+	assert.Equal(t, "6-astra · max (미확인)", composeTableRowTexts(t, d, "reviewer")[4])
+	assert.Equal(t, "6-luna · max (미확인)", composeTableRowTexts(t, d, "frontend-specialist")[4])
 	assert.Equal(t, []string{"Codex catalog: 읽지 못함"}, d.footer)
 }
 
-// S19: a read catalog without GPT-6 Astra refuses the seven top-rung standard
-// placements, and the table says the Codex generation fails.
+// S19: a read catalog without GPT-6 Astra refuses the top-rung standard
+// placement (reviewer, the only generated top-rung agent), and the table says the Codex generation fails.
 func TestComposeTable_CatalogD_RefusesTopRungPlacements(t *testing.T) {
 	table := composeTableFor(t, "D", "CAT-D")
 	layout := table.layout("ko", nil)
@@ -49,17 +49,15 @@ func TestComposeTable_CatalogD_RefusesTopRungPlacements(t *testing.T) {
 			refused = append(refused, row[1])
 		}
 	}
-	assert.ElementsMatch(t, []string{
-		"architect", "debugger", "deep-worker", "planner", "reviewer", "security-auditor", "spec-writer",
-	}, refused)
-	assert.Equal(t, "6-luna · max", composeTableRowTexts(t, layout, "executor")[4])
+	assert.ElementsMatch(t, []string{"reviewer"}, refused)
+	assert.Equal(t, "6-luna · max", composeTableRowTexts(t, layout, "frontend-specialist")[4])
 	assert.True(t, table.codexRefused())
 	assert.Equal(t, []string{"Codex catalog: 읽음 · 대체 0칸", "Codex 생성이 실패합니다"}, layout.footer)
 }
 
-// S6: the after-table of D's role-group custom marks every Claude cell and
-// exactly five Codex cells, comparing raw values of the same snapshot; the
-// five kept top-rung agents keep their top-rung cells on both tools.
+// S6: the after-table of D's role-group custom marks every Claude cell but
+// the kept top-rung reviewer's, and only the edited group's Codex cell,
+// comparing raw values of the same snapshot.
 func TestComposeTable_ChangedCellsCarryStar(t *testing.T) {
 	before := composeTableFor(t, "D", "CAT-A")
 	after := composeTableFor(t, "K", "CAT-A")
@@ -67,21 +65,19 @@ func TestComposeTable_ChangedCellsCarryStar(t *testing.T) {
 
 	var codexMarked []string
 	for _, row := range layout.rows {
-		keptTop := row[2] == "opus" && slices.Contains([]string{"planner", "architect", "spec-writer", "security-auditor", "reviewer"}, row[1])
+		keptTop := row[2] == "opus" && slices.Contains([]string{"reviewer"}, row[1])
 		assert.Equal(t, !keptTop, strings.HasSuffix(row[3], "*"), "Claude cell of %s", row[1])
 		if strings.HasSuffix(row[4], "*") {
 			codexMarked = append(codexMarked, row[1])
 		}
 	}
-	assert.ElementsMatch(t, []string{"debugger", "deep-worker", "explorer", "annotator", "reverse-engineer"}, codexMarked)
-	assert.Equal(t, []string{"설계·판단", "planner", "opus", "opus-5-5 · max", "6-astra · max"},
-		composeTableRowTexts(t, layout, "planner"))
-	assert.Equal(t, []string{"구현", "debugger", "sonnet*", "sonnet · medium*", "6-luna · max*"},
-		composeTableRowTexts(t, layout, "debugger"))
-	assert.Equal(t, []string{"구현", "executor", "sonnet", "sonnet · medium*", "6-luna · max"},
-		composeTableRowTexts(t, layout, "executor"))
-	assert.Equal(t, []string{"탐색·보조", "explorer", "haiku*", "haiku · -*", "6-luna · medium*"},
-		composeTableRowTexts(t, layout, "explorer"))
+	assert.ElementsMatch(t, []string{"frontend-specialist"}, codexMarked)
+	assert.Equal(t, []string{"검증·리뷰", "reviewer", "opus", "opus-5-5 · max", "6-astra · max"},
+		composeTableRowTexts(t, layout, "reviewer"))
+	assert.Equal(t, []string{"검증·리뷰", "ux-validator", "sonnet", "sonnet · medium*", "6-luna · max"},
+		composeTableRowTexts(t, layout, "ux-validator"))
+	assert.Equal(t, []string{"구현", "frontend-specialist", "haiku*", "haiku · -*", "6-luna · medium*"},
+		composeTableRowTexts(t, layout, "frontend-specialist"))
 	assert.Equal(t, "* = 바뀌는 칸", layout.footer[len(layout.footer)-1])
 
 	unchanged := after.layout("ko", &after)
@@ -92,8 +88,10 @@ func TestComposeTable_ChangedCellsCarryStar(t *testing.T) {
 	}
 }
 
-// S9: refreshing R's historical presets changes Claude 11 cells and Codex 7.
-func TestComposeTable_HistoricalRefreshMarksElevenClaudeAndSevenCodex(t *testing.T) {
+// S9: refreshing R's historical presets changes every Claude cell, since the
+// ultra default moves each generated agent up a tier, and the Codex cells of
+// the two agents the refresh moves onto fable.
+func TestComposeTable_HistoricalRefreshMarksEveryClaudeAndTwoCodexCells(t *testing.T) {
 	before := composeTableFor(t, "R", "CAT-A")
 	cfg := composeTableFixture(t, "R")
 	defaults := config.DefaultFullConfig("p").Quality.Presets
@@ -111,8 +109,8 @@ func TestComposeTable_HistoricalRefreshMarksElevenClaudeAndSevenCodex(t *testing
 			codexCells++
 		}
 	}
-	assert.Equal(t, 11, claude)
-	assert.Equal(t, 7, codexCells)
+	assert.Equal(t, 4, claude)
+	assert.Equal(t, 2, codexCells)
 }
 
 // REQ-MUX-18: a Claude override names its preset in the Claude header and
@@ -126,8 +124,8 @@ func TestComposeTable_ClaudeOverrideHeader(t *testing.T) {
 
 	assert.Equal(t, "Claude Code (개별 설정: ultra)", layout.header[3])
 	assert.Equal(t, "Codex", layout.header[4])
-	assert.Equal(t, "fable · max", composeTableRowTexts(t, layout, "planner")[3])
-	assert.Equal(t, "6-astra · max", composeTableRowTexts(t, layout, "planner")[4])
+	assert.Equal(t, "fable · max", composeTableRowTexts(t, layout, "reviewer")[3])
+	assert.Equal(t, "6-astra · max", composeTableRowTexts(t, layout, "reviewer")[4])
 
 	cfg.Quality.Providers = map[string]string{config.QualityProviderClaude: "missing"}
 	layout = buildComposeTable(cfg, composeTableSnapshot(t, "CAT-A"), sources).layout("ko", nil)
@@ -155,12 +153,12 @@ func TestComposeTable_EscapesUserDerivedText(t *testing.T) {
 func TestComposeTable_EnglishLabels(t *testing.T) {
 	r := composeTableFor(t, "R", "CAT-A").layout("en", nil)
 	assert.Equal(t, []string{"Group", "Agent", "Tier", "Claude Code", "Codex", "OMP", "OpenCode", "Antigravity"}, r.header)
-	assert.Equal(t, []string{"Implementation", "deep-worker", "default(opus)", "opus · max", "6.1-sol · xhigh",
-		"platform default", "platform default", "platform default"}, composeTableRowTexts(t, r, "deep-worker"))
+	assert.Equal(t, []string{"Verification·Review", "qa-explorer", "default(opus)", "opus · max", "6.1-sol · xhigh",
+		"platform default", "platform default", "platform default"}, composeTableRowTexts(t, r, "qa-explorer"))
 	assert.Equal(t, []string{"Codex catalog: read · 0 substituted", "Codex default session: 6-astra · ultra"}, r.footer)
 
 	x := composeTableFor(t, "X", "CAT-A").layout("en", nil)
-	assert.Equal(t, "invalid→sonnet", composeTableRowTexts(t, x, "tester")[2])
+	assert.Equal(t, "invalid→sonnet", composeTableRowTexts(t, x, "ux-validator")[2])
 }
 
 // Table Cell Contract footer: a project whose installed platforms bind no
@@ -184,7 +182,7 @@ func TestComposeTable_ColumnsAlignInTerminalCells(t *testing.T) {
 	lines := strings.Split(out.String(), "\n")
 
 	offsets := map[int]bool{}
-	for _, line := range lines[:17] {
+	for _, line := range lines[:1+len(config.CanonicalAgentNames())] {
 		prefix, _, found := strings.Cut(line, "  ")
 		require.True(t, found, line)
 		rest := strings.TrimLeft(line[len(prefix):], " ")
@@ -225,8 +223,8 @@ func TestComposeTable_RuntimeDefaultNotationMatchesGeneration(t *testing.T) {
 			table := buildComposeTable(cfg, snapshot, sources)
 			layout := table.layout("ko", nil)
 
-			assert.Equal(t, tc.planner, composeTableRowTexts(t, layout, "planner")[4])
-			assert.Equal(t, []string{"Codex catalog: 읽음 · 대체 17칸", tc.supervisor}, layout.footer)
+			assert.Equal(t, tc.planner, composeTableRowTexts(t, layout, "reviewer")[4])
+			assert.Equal(t, []string{"Codex catalog: 읽음 · 대체 4칸", tc.supervisor}, layout.footer)
 			dir, codexErr := generateComposeTableOracle(t, cfg, snapshot)
 			require.NoError(t, codexErr)
 			for _, row := range table.rows {

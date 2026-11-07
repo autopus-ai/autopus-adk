@@ -17,14 +17,11 @@ const (
 	driverNoChange    = "변경 없음\n"
 )
 
-// driverS6Edit is fixture D after `g`, Enter, `3`, Enter, `4`: implementation
-// becomes sonnet and exploration haiku.
+// driverS6Edit is the start after `g`, `4`, Enter: Implementation becomes
+// haiku and Verification·Review keeps its mixed tiers.
 func driverS6Edit() map[string]string {
 	edited := driverStart()
-	for _, agent := range []string{"executor", "debugger", "deep-worker", "devops", "frontend-specialist", "perf-engineer"} {
-		edited[agent] = "sonnet"
-	}
-	edited["explorer"], edited["annotator"] = "haiku", "haiku"
+	edited["frontend-specialist"] = "haiku"
 	return edited
 }
 
@@ -33,16 +30,15 @@ func driverS6Edit() map[string]string {
 func TestComposeDriverSession_GroupsWithoutEditWriteNothing(t *testing.T) {
 	session, table, planner := newDriverSession(driverConfig("claude-code"))
 
-	result, out, err := runDriver(t, session, "g\n\n\n\n\n")
+	result, out, err := runDriver(t, session, "g\n\n\n")
 
 	require.NoError(t, err)
 	assert.Equal(t, composeDriverKept, result.Outcome)
 	assert.Equal(t, []map[string]string{driverStart()}, planner.edits)
 	assert.Contains(t, out, "역할 그룹마다 등급을 고르세요 (Enter = 그대로)\n"+
-		"설계·판단  planner, architect, spec-writer, security-auditor  현재: fable\n"+driverTierChoices)
-	assert.Contains(t, out, "구현  executor, debugger, deep-worker, devops, frontend-specialist, perf-engineer  "+
-		"현재: sonnet+fable\n")
-	assert.Equal(t, 4, strings.Count(out, driverTierChoices))
+		"구현  frontend-specialist  현재: sonnet\n"+driverTierChoices)
+	assert.Contains(t, out, "검증·리뷰  reviewer, qa-explorer, ux-validator  현재: fable+sonnet\n")
+	assert.Equal(t, 2, strings.Count(out, driverTierChoices))
 	assert.True(t, strings.HasSuffix(out, driverNoChange), out)
 	assert.NotContains(t, out, driverConfirm)
 	assert.Empty(t, table.previews)
@@ -52,7 +48,7 @@ func TestComposeDriverSession_GroupsWithoutEditWriteNothing(t *testing.T) {
 func TestComposeDriverSession_GroupEditAppliesOnYes(t *testing.T) {
 	session, table, planner := newDriverSession(driverConfig("claude-code"))
 
-	result, out, err := runDriver(t, session, "g\n\n3\n\n4\ny\n")
+	result, out, err := runDriver(t, session, "g\n4\n\ny\n")
 
 	require.NoError(t, err)
 	assert.Equal(t, composeDriverApplied, result.Outcome)
@@ -68,17 +64,15 @@ func TestComposeDriverSession_GroupEditAppliesOnYes(t *testing.T) {
 func TestComposeDriverSession_GroupAnswersTakeNumbersOrTiers(t *testing.T) {
 	session, _, planner := newDriverSession(driverConfig("claude-code"))
 
-	_, out, err := runDriver(t, session, "g\nOPUS\nbogus\n9\nfable!\n2\n haiku \ny\n")
+	_, out, err := runDriver(t, session, "g\nbogus\n9\nfable!\n OPUS \ny\n")
 
 	require.NoError(t, err)
 	want := driverStart()
-	for _, agent := range []string{"planner", "architect", "spec-writer", "security-auditor",
-		"reviewer", "validator", "tester", "ux-validator"} {
+	for _, agent := range []string{"reviewer", "qa-explorer", "ux-validator"} {
 		want[agent] = "opus"
 	}
-	want["explorer"], want["annotator"] = "haiku", "haiku"
 	assert.Equal(t, []map[string]string{want}, planner.applied)
-	assert.Equal(t, 6, strings.Count(out, driverTierChoices))
+	assert.Equal(t, 4, strings.Count(out, driverTierChoices))
 	assert.NotContains(t, out, driverInvalidKeep, "a kept group does not end the session")
 }
 
@@ -102,15 +96,15 @@ func TestComposeDriverSession_InputEndInsideGroupsKeeps(t *testing.T) {
 func TestComposeDriverSession_AdvancedKeepsEditsAcrossRejectedLine(t *testing.T) {
 	session, _, planner := newDriverSession(driverConfig("claude-code"))
 
-	_, out, err := runDriver(t, session, "a\ndebugger=opus\ntester=gpt\nexplorer=fable\n\ny\n")
+	_, out, err := runDriver(t, session, "a\nqa-explorer=opus\nreviewer=gpt\nfrontend-specialist=haiku\n\ny\n")
 
 	require.NoError(t, err)
 	assert.Contains(t, out, "고급: 에이전트별 등급 (agent=tier, 빈 줄로 끝)\n")
-	assert.Contains(t, out, "  debugger = opus   구현: sonnet+opus+fable\n")
+	assert.Contains(t, out, "  qa-explorer = opus   검증·리뷰: fable+opus+sonnet\n")
 	assert.Contains(t, out, "  unknown tier \"gpt\" (choose one of: fable, opus, sonnet, haiku)\n")
-	assert.Contains(t, out, "  explorer = fable   탐색·보조: fable+sonnet\n")
+	assert.Contains(t, out, "  frontend-specialist = haiku   구현: haiku\n")
 	want := driverStart()
-	want["debugger"], want["explorer"] = "opus", "fable"
+	want["qa-explorer"], want["frontend-specialist"] = "opus", "haiku"
 	assert.Equal(t, []map[string]string{want}, planner.applied)
 }
 
@@ -120,12 +114,12 @@ func TestComposeDriverSession_AdvancedKeepsEditsAcrossRejectedLine(t *testing.T)
 func TestComposeDriverSession_AdvancedFinishesAtInputEnd(t *testing.T) {
 	session, table, planner := newDriverSession(driverConfig("claude-code"))
 
-	result, out, err := runDriver(t, session, "a\ndebugger=opus")
+	result, out, err := runDriver(t, session, "a\nqa-explorer=opus")
 
 	require.NoError(t, err)
 	assert.Equal(t, composeDriverKept, result.Outcome)
 	want := driverStart()
-	want["debugger"] = "opus"
+	want["qa-explorer"] = "opus"
 	assert.Equal(t, []map[string]string{want}, planner.edits)
 	assert.Len(t, table.previews, 1)
 	assert.Empty(t, planner.applied)
@@ -137,13 +131,13 @@ func TestComposeDriverSession_AdvancedFinishesAtInputEnd(t *testing.T) {
 func TestComposeDriverSession_EditKeepsTheCandidate(t *testing.T) {
 	session, table, planner := newDriverSession(driverConfig("claude-code"))
 
-	result, out, err := runDriver(t, session, "g\n\n3\n\n4\ne\na\ndebugger=opus\n\ny\n")
+	result, out, err := runDriver(t, session, "g\n4\n\ne\na\nqa-explorer=opus\n\ny\n")
 
 	require.NoError(t, err)
 	assert.Equal(t, composeDriverApplied, result.Outcome)
 	assert.Contains(t, out, driverConfirm+"> "+driverEditMenu)
 	second := driverS6Edit()
-	second["debugger"] = "opus"
+	second["qa-explorer"] = "opus"
 	assert.Equal(t, []map[string]string{driverS6Edit(), second}, planner.edits)
 	assert.Equal(t, []map[string]string{second}, planner.applied)
 	assert.Len(t, table.previews, 2)
@@ -154,7 +148,7 @@ func TestComposeDriverSession_EditKeepsTheCandidate(t *testing.T) {
 func TestComposeDriverSession_EditMenuEnterReturnsToThePreview(t *testing.T) {
 	session, table, planner := newDriverSession(driverConfig("claude-code"))
 
-	_, _, err := runDriver(t, session, "g\n\n3\n\n\ne\n\ny\n")
+	_, _, err := runDriver(t, session, "g\n\n3\ne\n\ny\n")
 
 	require.NoError(t, err)
 	assert.Len(t, planner.edits, 1)
@@ -167,7 +161,7 @@ func TestComposeDriverSession_EditMenuEnterReturnsToThePreview(t *testing.T) {
 func TestComposeDriverSession_RefreshThenEditStartsFromTheCandidate(t *testing.T) {
 	session, _, planner := newDriverSession(driverHistoricalConfig("claude-code"))
 
-	_, _, err := runDriver(t, session, "u\ne\ng\n\n\n\n\ny\n")
+	_, _, err := runDriver(t, session, "u\ne\ng\n\n\ny\n")
 
 	require.NoError(t, err)
 	assert.Equal(t, []map[string]string{planner.refreshed}, planner.edits)
@@ -181,9 +175,9 @@ func TestComposeDriverSession_EditMenuKeepPaths(t *testing.T) {
 		input string
 		last  string
 	}{
-		"three invalid answers": {"g\n\n3\n\n\ne\nx\nu\nt\n", driverInvalidKeep},
-		"input end":             {"g\n\n3\n\n\ne\n", driverCancelled},
-		"edit back to start":    {"a\ndebugger=opus\n\ne\na\ndebugger=fable\n\n", driverNoChange},
+		"three invalid answers": {"g\n\n3\ne\nx\nu\nt\n", driverInvalidKeep},
+		"input end":             {"g\n\n3\ne\n", driverCancelled},
+		"edit back to start":    {"a\nqa-explorer=opus\n\ne\na\nqa-explorer=fable\n\n", driverNoChange},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -205,7 +199,7 @@ func TestComposeDriverSession_EditorNeverMutatesThePlannerStart(t *testing.T) {
 	session, _, planner := newDriverSession(driverConfig("claude-code"))
 	start := maps.Clone(planner.start)
 
-	_, _, err := runDriver(t, session, "g\n1\n1\n1\n1\nn\n")
+	_, _, err := runDriver(t, session, "g\n1\n1\nn\n")
 
 	require.NoError(t, err)
 	assert.Equal(t, start, planner.start)
@@ -233,11 +227,13 @@ func TestComposeDriverTierAnswer_TakesAMenuNumberOrATierName(t *testing.T) {
 // both refuse the same malformed lines.
 func TestParseQualityToolTierAssignment_RejectsMalformedLines(t *testing.T) {
 	t.Parallel()
-	for _, line := range []string{"bogus=fable", "planner", "planner=", "=opus", "tester=gpt"} {
+	// security-auditor is a legacy role: no agent file is generated for it,
+	// so a tier for it is refused like an unknown name.
+	for _, line := range []string{"bogus=fable", "reviewer", "reviewer=", "=opus", "reviewer=gpt", "security-auditor=opus"} {
 		_, _, err := parseQualityToolTierAssignment(line)
 		assert.Error(t, err, line)
 	}
-	agent, tier, err := parseQualityToolTierAssignment("Security_Auditor=Opus")
+	agent, tier, err := parseQualityToolTierAssignment("UX_Validator=Opus")
 	require.NoError(t, err)
-	assert.Equal(t, [2]string{"security-auditor", "opus"}, [2]string{agent, tier})
+	assert.Equal(t, [2]string{"ux-validator", "opus"}, [2]string{agent, tier})
 }

@@ -17,11 +17,17 @@ import (
 	"github.com/insajin/autopus-adk/pkg/pipeline"
 )
 
-// ompPinsOnlyTestPolicy pins planner to fable and executor to astra.
+// ompPinsOnlyTestPolicy pins reviewer and planner to fable, executor to
+// astra, and frontend-specialist to luna, which carries vision_design. planner and executor have no
+// agent file; their pins route the work that still dispatches by role: OMP's
+// task follows planner, and the pipeline phases read both.
 func ompPinsOnlyTestPolicy() config.RoleModelPolicyConf {
+	fable := []config.RoleModelCandidateConf{{Selector: "anthropic/claude-fable-5-1", Thinking: "max", Family: "anthropic"}}
+	astra := []config.RoleModelCandidateConf{{Selector: "openai-codex/gpt-6-astra", Thinking: "max", Family: "openai"}}
+	luna := []config.RoleModelCandidateConf{{Selector: "openai-codex/gpt-6-luna", Thinking: "max", Family: "openai"}}
 	return config.RoleModelPolicyConf{Version: config.RoleModelPolicyVersionV1, Agents: map[string]config.RoleAgentOverrideConf{
-		"planner":  {Candidates: []config.RoleModelCandidateConf{{Selector: "anthropic/claude-fable-5-1", Thinking: "max", Family: "anthropic"}}},
-		"executor": {Candidates: []config.RoleModelCandidateConf{{Selector: "openai-codex/gpt-6-astra", Thinking: "max", Family: "openai"}}},
+		"reviewer": {Candidates: fable}, "planner": {Candidates: fable},
+		"frontend-specialist": {Candidates: luna}, "executor": {Candidates: astra},
 	}}
 }
 
@@ -50,11 +56,12 @@ func assertOMPPinsOnlyDoctor(t *testing.T, catalog []byte) {
 	for _, row := range projection.Models.Models {
 		rows[row.Agent] = row
 	}
-	assert.Equal(t, "anthropic/claude-fable-5-1:max", rows["planner"].EffectiveSelector)
-	assert.Equal(t, "openai-codex/gpt-6-astra:max", rows["executor"].EffectiveSelector)
-	assert.Equal(t, "anthropic/claude-fable-5-1:max", rows["task"].EffectiveSelector)
-	assert.Equal(t, "inherited", rows["explorer"].Status)
-	assert.Empty(t, rows["explorer"].EffectiveSelector)
+	assert.Equal(t, "anthropic/claude-fable-5-1:max", rows["reviewer"].EffectiveSelector)
+	assert.Equal(t, "openai-codex/gpt-6-luna:max", rows["frontend-specialist"].EffectiveSelector)
+	assert.Equal(t, "anthropic/claude-fable-5-1:max", rows["task"].EffectiveSelector, "task follows planner's pin")
+	assert.Equal(t, "inherited", rows["ux-validator"].Status)
+	assert.Empty(t, rows["ux-validator"].EffectiveSelector)
+	assert.NotContains(t, rows, "planner", "a legacy role has no agent row")
 }
 
 func TestOMPPinsOnly_TableShowsPinsAndTheSessionModel(t *testing.T) {
@@ -64,8 +71,8 @@ func TestOMPPinsOnly_TableShowsPinsAndTheSessionModel(t *testing.T) {
 
 	cell := composeTableOMPRoutes(cfg)
 
-	assert.Equal(t, composeTableOMPCell{native: "planner", selector: "anthropic/claude-fable-5-1", thinking: "max"}, cell("planner"))
-	assert.Equal(t, composeTableOMPCell{}, cell("explorer"), "the session model, not a route error")
+	assert.Equal(t, composeTableOMPCell{native: "reviewer", selector: "anthropic/claude-fable-5-1", thinking: "max"}, cell("reviewer"))
+	assert.Equal(t, composeTableOMPCell{}, cell("ux-validator"), "the session model, not a route error")
 }
 
 func TestOMPPinsOnly_PipelinePhasesWithoutAPinInheritTheSessionModel(t *testing.T) {

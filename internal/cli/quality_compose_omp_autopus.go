@@ -77,7 +77,7 @@ func (f *composeFormRun) ompAutopus() error {
 // the conversion line when a profile is replaced, the old-binary line when
 // pins remain, then the plan's routes.
 func (f *composeFormRun) ompAutopusApply(tab *ompAutopusTab, runner omp.OMPModelCatalogRunner) error {
-	pins := ompPinsOnlyTarget(tab.start, tab.final, tab.profile != "", tab.ownTask, tab.taskEdit)
+	pins := ompPinsOnlyTarget(tab.start, tab.final, tab.taskEdit)
 	opts, err := newOMPPinsOnlyApplyOptions(pins)
 	if err != nil {
 		return f.ompFailed(err)

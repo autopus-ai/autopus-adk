@@ -159,7 +159,7 @@ func TestComposeDriverSession_FailuresBeforeTheWriteKeep(t *testing.T) {
 	t.Run("edit planner", func(t *testing.T) {
 		session, table, planner := newDriverSession(driverConfig("claude-code"))
 		planner.planErr = errors.New("plan failed")
-		result, _, err := runDriver(t, session, "g\n1\n\n\n\ny\n")
+		result, _, err := runDriver(t, session, "g\n1\n\ny\n")
 		require.EqualError(t, err, "plan failed")
 		assert.Equal(t, composeDriverKept, result.Outcome)
 		assert.Empty(t, table.previews)
@@ -167,9 +167,9 @@ func TestComposeDriverSession_FailuresBeforeTheWriteKeep(t *testing.T) {
 	t.Run("plan without composition", func(t *testing.T) {
 		session, _, planner := newDriverSession(driverHistoricalConfig("claude-code"))
 		planner.refreshed = nil
-		_, _, err := runDriver(t, session, "u\ne\na\ndebugger=opus\n\ny\n")
+		_, _, err := runDriver(t, session, "u\ne\na\nreviewer=opus\n\ny\n")
 		require.NoError(t, err)
-		assert.Equal(t, []map[string]string{{"debugger": "opus"}}, planner.applied)
+		assert.Equal(t, []map[string]string{{"reviewer": "opus"}}, planner.applied)
 	})
 	t.Run("no write", func(t *testing.T) {
 		session, _, planner := newDriverSession(driverHistoricalConfig("claude-code"))
@@ -190,7 +190,7 @@ func TestComposeDriverSession_ToolsRouteThroughTheSharedReader(t *testing.T) {
 		read   []string
 	}{
 		{"t\nglobal\n1\n", []string{""}, []string{"global", "1"}},
-		{"claude-code\nexecutor=fable\n\n", []string{"claude-code"}, []string{"executor=fable", ""}},
+		{"claude-code\nreviewer=fable\n\n", []string{"claude-code"}, []string{"reviewer=fable", ""}},
 		{"CODEX\n\ny\n", []string{"codex"}, []string{"", "y"}},
 		{"omp\nx\nGlobal\n1\n2\n", []string{"global"}, []string{"1", "2"}},
 	}
