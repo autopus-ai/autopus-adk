@@ -137,8 +137,8 @@ func TestConditionSubject_PerTool(t *testing.T) {
 }
 
 // TestClassify_ShippedRules is the REQ-CONDRULE-MAP-01 and REQ-CONDRULE-MAP-02
-// oracle: the exact per-rule classification of the 3 rules the verification
-// harness ships, one per class it still uses.
+// oracle: the exact per-rule classification of the 4 rules the verification
+// harness ships, covering every class it still uses.
 func TestClassify_ShippedRules(t *testing.T) {
 	t.Parallel()
 
@@ -146,6 +146,7 @@ func TestClassify_ShippedRules(t *testing.T) {
 		"lore-commit":     rulecond.ClassHookFired,
 		"file-size-limit": rulecond.ClassPathsScoped,
 		"language-policy": rulecond.ClassAlways,
+		"autonomy":        rulecond.ClassAlways,
 	}
 
 	entries, err := fs.ReadDir(contentfs.FS, "rules")
@@ -170,7 +171,7 @@ func TestClassify_ShippedRules(t *testing.T) {
 	}
 
 	sort.Strings(names)
-	require.Len(t, names, 3, "content/rules must hold the 3 shipped rules")
+	require.Len(t, names, 4, "content/rules must hold the 4 shipped rules")
 	assert.Equal(t, want, got)
 }
 
