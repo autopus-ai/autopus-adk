@@ -31,41 +31,41 @@ func applyEffortFixture(t *testing.T, cfg *config.HarnessConfig) string {
 	return dir
 }
 
-// B1: balanced with planner at high takes planner off the standard placement
-// on both tools while architect keeps it; planner keeps the top-rung model
-// at the chosen effort.
-func TestQualityEffortApply_B1PlannerAtHigh(t *testing.T) {
+// B1: balanced with reviewer at high takes reviewer off the standard
+// placement on both tools while ux-validator keeps it; reviewer keeps the
+// top-rung model at the chosen effort.
+func TestQualityEffortApply_B1ReviewerAtHigh(t *testing.T) {
 	cfg := composeFixtureConfig("claude-code", "codex")
 	balanced := cfg.Quality.Presets["balanced"]
-	balanced.Efforts = map[string]string{"planner": "high"}
+	balanced.Efforts = map[string]string{"reviewer": "high"}
 	cfg.Quality.Presets["balanced"] = balanced
 
 	dir := applyEffortFixture(t, cfg)
 
-	assert.Equal(t, composeTableClaudeCell{model: "claude-opus-5-5", effort: "high"}, readComposeTableClaudeProfile(t, dir, "planner"))
-	assert.Equal(t, config.CodexProfile{Model: "gpt-6-astra", Effort: "high"}, readComposeCodexProfile(t, dir, "planner"))
-	assert.Equal(t, composeTableClaudeCell{model: "claude-opus-5-5", effort: "max"}, readComposeTableClaudeProfile(t, dir, "architect"))
-	assert.Equal(t, config.CodexProfile{Model: "gpt-6-astra", Effort: "max"}, readComposeCodexProfile(t, dir, "architect"))
+	assert.Equal(t, composeTableClaudeCell{model: "claude-opus-5-5", effort: "high"}, readComposeTableClaudeProfile(t, dir, "reviewer"))
+	assert.Equal(t, config.CodexProfile{Model: "gpt-6-astra", Effort: "high"}, readComposeCodexProfile(t, dir, "reviewer"))
+	assert.Equal(t, composeTableClaudeCell{model: "claude-sonnet-5-5", effort: "high"}, readComposeTableClaudeProfile(t, dir, "ux-validator"))
+	assert.Equal(t, config.CodexProfile{Model: "gpt-6-luna", Effort: "max"}, readComposeCodexProfile(t, dir, "ux-validator"))
 }
 
-// B2: claude-custom with executor on opus at xhigh and annotator on haiku at
-// high: the haiku agent writes no effort line.
+// B2: claude-custom with frontend-specialist on opus at xhigh and
+// ux-validator on haiku at high: the haiku agent writes no effort line.
 func TestQualityEffortApply_B2HaikuWritesNoEffortLine(t *testing.T) {
 	cfg := composeFixtureConfig("claude-code", "codex")
 	agents := maps.Clone(cfg.Quality.Presets["balanced"].Agents)
-	agents["executor"], agents["annotator"] = "opus", "haiku"
+	agents["frontend-specialist"], agents["ux-validator"] = "opus", "haiku"
 	cfg.Quality.Presets["claude-custom"] = config.QualityPreset{
 		Description: "Claude Code custom agent tiers",
 		Agents:      agents,
-		Efforts:     map[string]string{"executor": "xhigh", "annotator": "high"},
+		Efforts:     map[string]string{"frontend-specialist": "xhigh", "ux-validator": "high"},
 	}
 	cfg.Quality.Providers = map[string]string{config.QualityProviderClaude: "claude-custom"}
 
 	dir := applyEffortFixture(t, cfg)
 
-	assert.Equal(t, composeTableClaudeCell{model: "opus", effort: "xhigh"}, readComposeTableClaudeProfile(t, dir, "executor"))
-	assert.Equal(t, composeTableClaudeCell{model: "haiku"}, readComposeTableClaudeProfile(t, dir, "annotator"))
-	data, err := os.ReadFile(filepath.Join(dir, ".claude", "agents", "autopus", "annotator.md"))
+	assert.Equal(t, composeTableClaudeCell{model: "opus", effort: "xhigh"}, readComposeTableClaudeProfile(t, dir, "frontend-specialist"))
+	assert.Equal(t, composeTableClaudeCell{model: "haiku"}, readComposeTableClaudeProfile(t, dir, "ux-validator"))
+	data, err := os.ReadFile(filepath.Join(dir, ".claude", "agents", "autopus", "ux-validator.md"))
 	require.NoError(t, err)
 	assert.NotContains(t, string(data), "\neffort:")
 }

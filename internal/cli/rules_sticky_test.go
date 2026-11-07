@@ -22,8 +22,8 @@ import (
 	"github.com/insajin/autopus-adk/pkg/rulecond"
 )
 
-// stickyRuleNames are the two rules REQ-STICKYRULE-MAP-01 designates.
-var stickyRuleNames = []string{"language-policy", "objective-reasoning"}
+// stickyRuleNames are the two shipped rules the listing marks sticky.
+var stickyRuleNames = []string{"language-policy", "autonomy"}
 
 // runRulesListIn executes `auto rules list` with dir as the working directory.
 func runRulesListIn(t *testing.T, dir string) string {

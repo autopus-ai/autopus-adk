@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **구성 화면의 역할 그룹이 생성되는 네 에이전트만 담는다** (2026-11-07): `auto init`·`auto quality`·`auto update`의
+  역할 그룹(g)과 구성 표가 이제 구현(frontend-specialist)과 검증·리뷰(reviewer, qa-explorer, ux-validator) 두 그룹,
+  네 행이다. 전에는 생성하지 않는 레거시 역할 14개가 표에 남고, 설계·판단·탐색·보조 그룹 등급이 빈 칸으로 보였으며, 그룹을
+  고르면 그 역할이 `quality.presets.custom`에 저장되었다. OMP 마이그레이션 안내는 에이전트 수를 생성 에이전트에서 센다.
+  OMP 탭의 task 선택지 "planner를 따름"은 "OMP 세션 모델 그대로"가 된다. planner는 pin을 받지 않으므로 실제로 가는 곳이
+  OMP 세션 모델이다. OMP 탭 저장은 task의 시작 route를 pin으로 남겨, 프로필 변환이나 손으로 쓴 planner pin이 있는 편집에서
+  task가 조용히 세션 모델로 내려가지 않는다.
+
 - **하네스를 리뷰·QA·검증 표면으로 줄인다** (2026-11-07): frontier 모델은 계획과 구현을 혼자서도 잘 하므로,
   다섯 플랫폼 모두 검증 표면만 설치한다.
   - 라우트는 `review`, `qa`, `verify`, `test`, `sync`, `update`, `doctor`(그리고 `browse` 별칭)만 남는다. `setup`,

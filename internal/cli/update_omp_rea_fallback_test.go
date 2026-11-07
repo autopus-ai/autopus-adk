@@ -15,7 +15,7 @@ import (
 	"github.com/insajin/autopus-adk/pkg/config"
 )
 
-const ompReaFallbackLineKO = "  reverse-engineer: openai-codex/gpt-6.1-sol이 OMP catalog에 없어 세션 모델을 씁니다\n"
+const ompReaFallbackLineKO = "  qa-explorer: openai-codex/gpt-6.1-sol이 OMP catalog에 없어 세션 모델을 씁니다\n"
 
 // updateOMPBalancedOpenAI runs `auto update --yes` on an OMP project with the
 // built-in balanced openai profile, OMP answering catalog, and returns the
@@ -49,23 +49,23 @@ func updateOMPBalancedOpenAI(t *testing.T, catalog []byte) (string, map[string]s
 }
 
 // S11 K1 and K2 through a real update: a served analysis rung routes
-// reverse-engineer; a missing one leaves only reverse-engineer on the session
+// qa-explorer; a missing one leaves only qa-explorer on the session
 // model with one fallback line, and every other override stays the same.
 func TestUpdateOMP_AnalysisRungFallbackKeepsEveryOtherRoute(t *testing.T) {
 	native := ompCLIProfileNativeCatalogJSON()
 	out, served, _, err := updateOMPBalancedOpenAI(t, native)
 	require.NoError(t, err, out)
 	assert.Len(t, served, len(config.OMPAutopusAgentNames()))
-	assert.Equal(t, "openai-codex/gpt-6.1-sol:xhigh", served["reverse-engineer"])
+	assert.Equal(t, "openai-codex/gpt-6.1-sol:xhigh", served["qa-explorer"])
 	assert.NotContains(t, out, ompReaFallbackLineKO)
 
 	out, fallback, dir, err := updateOMPBalancedOpenAI(t, ompCLICatalogWithout(t, native, "openai-codex/gpt-6.1-sol"))
 	require.NoError(t, err, out)
 	assert.Equal(t, 1, strings.Count(out, ompReaFallbackLineKO), out)
-	assert.NotContains(t, fallback, "reverse-engineer")
-	delete(served, "reverse-engineer")
+	assert.NotContains(t, fallback, "qa-explorer")
+	delete(served, "qa-explorer")
 	assert.Equal(t, served, fallback)
-	definition, readErr := os.ReadFile(filepath.Join(dir, ".omp", "agents", "reverse-engineer.md"))
+	definition, readErr := os.ReadFile(filepath.Join(dir, ".omp", "agents", "qa-explorer.md"))
 	require.NoError(t, readErr)
 	assert.Contains(t, string(definition), "\nthinkingLevel: high\n")
 	assert.NotContains(t, string(definition), "\nmodel:")

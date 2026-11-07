@@ -59,7 +59,7 @@ func TestQualityOMPWizardCustomRefusesModelMissingTheAgentCapability(t *testing.
 	runner.catalog = ompCLIBalancedCatalogJSON()
 	before := readAutopusConfigTree(t, dir)
 
-	// annotator requires fast_validation; claude-fable-5-1 (1) does not declare it.
+	// frontend-specialist requires vision_design; claude-fable-5-1 (1) does not declare it.
 	_, err := runQualityOMPWizard(t, dir, "omp\ncustom\ngpt\n1\n", ompPlatformDependencies{
 		newRunner: func() omp.OMPModelCatalogRunner { return runner },
 		activate: func(context.Context, string, *config.HarnessConfig) error {
@@ -68,7 +68,7 @@ func TestQualityOMPWizardCustomRefusesModelMissingTheAgentCapability(t *testing.
 		},
 	})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "does not declare fast_validation")
+	assert.Contains(t, err.Error(), "does not declare vision_design")
 	assert.Contains(t, err.Error(), "anthropic/claude-sonnet-5-5")
 	assert.Equal(t, before, readAutopusConfigTree(t, dir))
 }

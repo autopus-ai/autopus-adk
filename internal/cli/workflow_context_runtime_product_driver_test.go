@@ -82,7 +82,7 @@ func TestWorkflowContextManagedRPCProduct_Validation(t *testing.T) {
 			managedProductWriteFile(t, path, []byte("shadow command\n"), 0o600)
 		}},
 		{name: "skill source drift", setup: func(t *testing.T, options *WorkflowContextManagedRPCOptions) {
-			path := filepath.Join(options.ProjectDir, ".omp", "skills", "auto-go", "SKILL.md")
+			path := filepath.Join(options.ProjectDir, ".omp", "skills", "auto", "SKILL.md")
 			managedProductWriteFile(t, path, []byte("shadow skill\n"), 0o600)
 		}},
 		{name: "extra native OMP command", setup: func(t *testing.T, options *WorkflowContextManagedRPCOptions) {

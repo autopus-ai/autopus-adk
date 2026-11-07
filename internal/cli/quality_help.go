@@ -74,7 +74,8 @@ offers keep, keep the OMP session model, and the installed models of every
 provider that Autopus can attest (a catalog without metadata lists only the
 built-in declared ones); thinking offers only the chosen model's levels.
 The result is saved as pins without a profile (role_model_policy:
-{version: v1, agents: ...}), and task without its own pin uses the OMP session model.
+{version: v1, agents: ...}), and task without its own pin uses the OMP
+session model.
 Applying over a profile converts it after a preview line and the
 confirmation: unchanged agents and task keep their routes, and an ultra
 profile stops following quality.presets.ultra. The OMP line editor and auto
