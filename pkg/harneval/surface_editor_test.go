@@ -100,47 +100,6 @@ func (e *surfaceEditor) remove(platform, rel string) {
 	}
 }
 
-// leak writes a copy of one platform's file onto another platform's surface,
-// as an adapter that lost its platform gating would. The target must not be
-// on that surface yet.
-func (e *surfaceEditor) leak(fromPlatform, fromRel, toPlatform, toRel string) {
-	e.t.Helper()
-	for _, surface := range e.surfaces() {
-		data, problem := surfaceFile(surface, fromPlatform, fromRel)
-		require.Empty(e.t, problem, "%s %s is not on the generated surface", fromPlatform, fromRel)
-		require.NotNil(e.t, surface.Owned[toPlatform], "%s generated nothing", toPlatform)
-		require.False(e.t, surface.Owned[toPlatform][toRel], "%s already generates %s", toPlatform, toRel)
-		full := filepath.Join(surface.Root, filepath.FromSlash(toRel))
-		created := missingDirs(e.t, filepath.Dir(full))
-		e.undo = append(e.undo, func() error {
-			delete(surface.Owned[toPlatform], toRel)
-			err := os.Remove(full)
-			for _, dir := range created {
-				err = errors.Join(err, os.Remove(dir))
-			}
-			return err
-		})
-		require.NoError(e.t, os.MkdirAll(filepath.Dir(full), 0o755))
-		require.NoError(e.t, os.WriteFile(full, data, 0o644))
-		surface.Owned[toPlatform][toRel] = true
-	}
-}
-
-// missingDirs lists dir and each missing parent, deepest first, so an undo
-// removes exactly the directories a leak created.
-func missingDirs(t *testing.T, dir string) []string {
-	var missing []string
-	for {
-		_, err := os.Lstat(dir)
-		if err == nil {
-			return missing
-		}
-		require.ErrorIs(t, err, fs.ErrNotExist)
-		missing = append(missing, dir)
-		dir = filepath.Dir(dir)
-	}
-}
-
 // swapVariant makes a variant resolve to another variant's surface, so its
 // tasks are evaluated on bytes generated without its overrides.
 func (e *surfaceEditor) swapVariant(variant, source string) {

@@ -24,27 +24,10 @@ func TestOrchestrationSemanticContract_CodexSourceContainsNoClaudeTeamPrimitives
 	assert.NotEmpty(t, root)
 }
 
-func readContractSurface(t *testing.T, path string) string {
-	t.Helper()
-	data, err := os.ReadFile(path)
-	require.NoError(t, err, "read contract surface %s", path)
-	return string(data)
-}
-
 func readRepoSurface(t *testing.T, relative string) string {
 	t.Helper()
 	path := filepath.Join("..", relative)
 	data, err := os.ReadFile(path)
 	require.NoError(t, err, "read repository surface %s", path)
 	return strings.ReplaceAll(string(data), "\r\n", "\n")
-}
-
-func contractSection(t *testing.T, surface, startMarker, endMarker string) string {
-	t.Helper()
-	start := strings.Index(surface, startMarker)
-	require.NotEqual(t, -1, start, "contract section missing start marker %q", startMarker)
-	section := surface[start:]
-	end := strings.Index(section, endMarker)
-	require.NotEqual(t, -1, end, "contract section missing end marker %q", endMarker)
-	return section[:end]
 }

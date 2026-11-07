@@ -78,21 +78,16 @@ func TestCC21_TC1_AllAgentsHaveEffort(t *testing.T) {
 		}
 	}
 
-	assert.Len(t, agentFiles, 17,
-		"G4 violation: expected exactly 17 agent .md files, got %d", len(agentFiles))
+	assert.Len(t, agentFiles, 4,
+		"G4 violation: expected exactly 4 agent .md files, got %d", len(agentFiles))
 
-	// Verify role-to-effort mapping per spec.md R9.
-	maxEffortRoles := map[string]bool{
-		"spec-writer": true, "planner": true,
-		"security-auditor": true, "architect": true, "deep-worker": true,
-	}
+	// Verify role-to-effort mapping for the agents the verification harness ships.
+	maxEffortRoles := map[string]bool{}
 	highEffortRoles := map[string]bool{
-		"reviewer": true, "reverse-engineer": true,
+		"reviewer": true, "qa-explorer": true,
 	}
 	mediumEffortRoles := map[string]bool{
-		"executor": true, "tester": true, "annotator": true, "validator": true,
-		"devops": true, "explorer": true, "debugger": true, "ux-validator": true,
-		"frontend-specialist": true, "perf-engineer": true,
+		"frontend-specialist": true, "ux-validator": true,
 	}
 
 	for _, path := range agentFiles {

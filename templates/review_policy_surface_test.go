@@ -3,7 +3,6 @@ package templates_test
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -27,29 +26,4 @@ func TestSpecReviewJudgeTemplateCarriesCanonicalVerdictRules(t *testing.T) {
 	// REQ-RP-POL-04: the judge learns the only way to clear a reviewer's
 	// REJECT vote or checklist FAIL.
 	assert.Contains(t, string(body), "`scope_ref` set to `verdict` for the REJECT vote or to the checklist id")
-}
-
-func renderPolicySections(policy spec.ReviewPolicy, sections map[string][]string) string {
-	var parts []string
-	for _, document := range policy.Documents {
-		headings := sections[document]
-		if len(headings) == 0 {
-			continue
-		}
-		quoted := make([]string, len(headings))
-		for i, heading := range headings {
-			quoted[i] = "`" + heading + "`"
-		}
-		parts = append(parts, document+" "+strings.Join(quoted, ", "))
-	}
-	return strings.Join(parts, "; ") + "."
-}
-
-func lineContaining(text, needle string) string {
-	for _, line := range strings.Split(text, "\n") {
-		if strings.Contains(line, needle) {
-			return line
-		}
-	}
-	return ""
 }

@@ -16,7 +16,7 @@ func Fingerprint(root string, changed []string) string {
 	slices.Sort(files)
 	h := sha256.New()
 	for _, f := range files {
-		io.WriteString(h, f)
+		_, _ = io.WriteString(h, f)
 		h.Write([]byte{0})
 		if file, err := os.Open(filepath.Join(root, filepath.FromSlash(f))); err == nil {
 			_, _ = io.Copy(h, file)

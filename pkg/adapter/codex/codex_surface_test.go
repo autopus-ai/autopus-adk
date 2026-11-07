@@ -47,10 +47,3 @@ func TestCodexAdapter_Generate_WorkflowSurfacesUseV2Conventions(t *testing.T) {
 		}
 	}
 }
-
-func readCodexNativeSkill(t *testing.T, root, name string) string {
-	t.Helper()
-	data, err := os.ReadFile(filepath.Join(root, ".codex", "skills", "codex-"+name, "SKILL.md"))
-	require.NoError(t, err)
-	return string(data)
-}

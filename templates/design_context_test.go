@@ -2,7 +2,6 @@ package templates_test
 
 import (
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -112,10 +111,4 @@ func TestDesignContextExamplesMentionTrustLabel(t *testing.T) {
 			assert.Contains(t, result, "Trust: untrusted project data")
 		})
 	}
-}
-
-// normalizeTemplateWhitespace collapses the line wrapping used in prompt bodies
-// so a contract sentence is matched by its words, not by where it was wrapped.
-func normalizeTemplateWhitespace(body string) string {
-	return strings.Join(strings.Fields(body), " ")
 }

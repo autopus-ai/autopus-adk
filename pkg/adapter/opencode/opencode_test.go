@@ -195,21 +195,3 @@ func readConfigJSON(t *testing.T, path string) map[string]any {
 	require.NoError(t, json.Unmarshal(data, &doc))
 	return doc
 }
-
-// readOpenCodeSkillResources concatenates the retrievable resources emitted
-// beside a generated skill. A slim entrypoint is only correct if its detail is
-// actually installed next to it, so an empty directory is a failure.
-func readOpenCodeSkillResources(t *testing.T, root, skill string) string {
-	t.Helper()
-	dir := filepath.Join(root, ".agents", "skills", skill, "references")
-	entries, err := os.ReadDir(dir)
-	require.NoError(t, err, "skill %s must emit its retrievable resources", skill)
-	require.NotEmpty(t, entries)
-	var combined string
-	for _, entry := range entries {
-		data, readErr := os.ReadFile(filepath.Join(dir, entry.Name()))
-		require.NoError(t, readErr)
-		combined += string(data)
-	}
-	return combined
-}

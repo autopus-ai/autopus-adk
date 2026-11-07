@@ -178,7 +178,3 @@ func assertQAMESHGuidance(t *testing.T, body string) {
 	assert.Contains(t, body, "canary-explicit")
 	assert.Contains(t, body, "post-deploy smoke")
 }
-
-func renderOrReadTemplate(e *tmpl.Engine, path string, cfg *config.HarnessConfig) (string, error) {
-	return semanticContractSurface(e, path, cfg)
-}

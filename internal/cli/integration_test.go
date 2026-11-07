@@ -36,15 +36,24 @@ func TestInit_CreatesCorrectFiles(t *testing.T) {
 
 	requiredFiles := []string{
 		"autopus.yaml",
-		".claude/rules/autopus/subagent-delegation.md",
+		".claude/rules/autopus/autonomy.md",
 		".claude/skills/auto/SKILL.md",
-		".claude/skills/auto-go/SKILL.md",
-		".claude/skills/planning/SKILL.md",
-		".claude/agents/autopus/executor.md",
+		".claude/skills/auto-review/SKILL.md",
+		".claude/skills/qa-hunt/SKILL.md",
+		".claude/agents/autopus/reviewer.md",
+		".claude/agents/autopus/qa-explorer.md",
 		".claude/settings.json",
 	}
 	for _, path := range requiredFiles {
 		assert.FileExists(t, filepath.Join(dir, filepath.FromSlash(path)))
+	}
+	// The implementation harness is no longer installed.
+	for _, path := range []string{
+		".claude/skills/auto-go/SKILL.md",
+		".claude/skills/planning/SKILL.md",
+		".claude/agents/autopus/executor.md",
+	} {
+		assert.NoFileExists(t, filepath.Join(dir, filepath.FromSlash(path)))
 	}
 	assert.NoDirExists(t, filepath.Join(dir, ".claude", "skills", "autopus"))
 	assert.NoDirExists(t, filepath.Join(dir, ".claude", "commands", "autopus"))
@@ -74,9 +83,9 @@ func TestInit_CreatesAllContent(t *testing.T) {
 		"autopus.yaml",
 		".claude/rules/autopus/file-size-limit.md",
 		".claude/skills/auto/SKILL.md",
-		".claude/skills/auto-go/SKILL.md",
-		".claude/skills/planning/SKILL.md",
-		".claude/agents/autopus/executor.md",
+		".claude/skills/auto-verify/SKILL.md",
+		".claude/skills/auto-qa/SKILL.md",
+		".claude/agents/autopus/ux-validator.md",
 		".claude/settings.json",
 	}
 	for _, path := range requiredFiles {

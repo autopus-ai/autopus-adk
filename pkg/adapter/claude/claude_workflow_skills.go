@@ -146,14 +146,6 @@ func renderClaudeContextProfile(route claudeWorkflowRoute) string {
 	}
 }
 
-const claudeGoalContract = `- This is a thin wrapper over the Codex thread goal feature; never persist goal state in project files.
-- status: use get_goal and report objective, status, budget, and next required step.
-- create: check for an active goal, then call create_goal with the explicit objective and optional token budget only.
-- complete: call update_goal(status="complete") only when the objective is achieved and no required work remains.
-- blocked: call update_goal(status="blocked") only after the same blocking condition recurs for at least three consecutive goal turns.
-- clear, pause, or resume: use the matching /goal slash command when supported; do not invent local behavior.
-- If goal tools are unavailable, state the runtime limitation and provide the matching /goal fallback.`
-
 const claudeUpdateContract = `1. Detect whether the current directory is the ADK source, a product repo, or a meta workspace.
 2. Preserve user-owned provider/model configuration and forward all update flags unchanged.
 3. Run the canonical update workflow. Never patch installed generated, plugin-cache, or runtime surfaces directly.
