@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **`auto qa intent`: SPEC 없이 사용자 요청에서 수락 기준을 만든다** (2026-11-07): 구현한 세션이 쓴 테스트는 구현과
+  같은 해석을 공유해, 요청을 다르게 읽으면 테스트도 같이 틀린다. `auto qa intent --request-file <file>`은 요청 원문만 빈
+  디렉터리의 에이전트에 넘겨 `.autopus/specs/<id>/acceptance.md`(AC-n, Given/When/Then), 원문 `request.md`, 해석이 갈리는
+  지점의 객관식 질문 `questions.json`을 쓴다. 답을 반영한 뒤 `auto qa go <id>`가 기존 시나리오 생성·실행·분류·diff guard를
+  그대로 쓴다. spec.md가 없어 SPEC 목록에는 나오지 않는다. `/auto qa`와 qa-autopilot 스킬이 이 흐름을 안내하고, 큰 변경은
+  구현 전에 먼저 돌리게 한다.
+
 - **Stop hook의 후속 리뷰·QA 라운드는 opt-in이 되고 세션당 한 번만 돈다** (2026-11-07): 빌드·테스트 게이트는 그대로
   기본으로 켜져 있다. 후속 라운드는 `AUTOPUS_FOLLOWUP=on`이나 `auto verify stop --followup`으로 켜고, 켜도 세션당 한
   번이다(전에는 기본 켜짐, 최대 두 번). Pilot C에서 기본 Claude Code가 이미 푸는 업스트림 Go PR 4개는 통과율 변화 없이

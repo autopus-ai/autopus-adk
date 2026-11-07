@@ -18,6 +18,19 @@ name: auto-qa-autopilot
 
 자가 수리는 **요소를 찾는 방법**(click/fill 대상)만 바꿀 수 있습니다. expect 값, `ac`, `acceptance_refs`를 바꾸는 수리는 diff guard가 거절합니다. UI 문구가 정말 바뀐 것이라면 SPEC 수락 기준을 고치는 것이 맞습니다.
 
+## SPEC 없이: 요청에서 의도 만들기 (`auto qa intent`)
+
+구현한 세션이 쓴 테스트는 구현과 같은 해석을 공유합니다. 요청을 다르게 읽었다면 테스트도 같이 틀립니다. 그래서 기대값은 구현과 독립된 곳, 사용자의 요청에서 다시 뽑습니다.
+
+1. 사용자의 원래 요청을 **그대로** 파일에 저장합니다. 요약하지 말고, 코드나 diff를 섞지 않습니다.
+2. `auto qa intent --request-file <file> --format json`을 실행합니다. 에이전트가 빈 디렉터리에서 요청만 보고 `.autopus/specs/<id>/acceptance.md`(AC-n, Given/When/Then)와 `questions.json`을 씁니다.
+3. `questions`의 각 항목을 객관식 질문로 묻습니다. 선택지는 주어진 그대로, 권장안을 먼저 둡니다. 이 질문들이 요청을 다르게 읽을 수 있는 지점입니다.
+4. 답이 권장안과 다르면, 그 항목이 가리키는 기준의 문장만 고칩니다. 다른 기준은 건드리지 않습니다.
+5. `auto qa go <id>`로 시나리오 생성 → 실행 → 분류 → 수정을 이어 갑니다. 기대값은 diff guard가 지킵니다.
+
+- 큰 변경은 구현 **전에** 1~4를 하고 구현을 시작합니다. 기준이 코드에 끌려갈 수 없습니다.
+- 이 디렉터리에는 spec.md가 없어 `auto status`의 SPEC 목록에 나오지 않습니다. 요청 원문은 `request.md`에 남습니다.
+
 ## 한 번에: `auto qa go`
 
 ```bash
