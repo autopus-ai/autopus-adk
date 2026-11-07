@@ -22,7 +22,7 @@ func TestOMPUpdateTransaction_DeletedManagedFilePreservesManifestClaimAcrossUpda
 	_, err := a.Generate(context.Background(), cfg)
 	require.NoError(t, err)
 
-	relativeRulePath := filepath.Join(ompRuleDir, ompRuleFilePrefix+"branding.md")
+	relativeRulePath := filepath.Join(ompRuleDir, ompRuleFilePrefix+"file-size-limit.md")
 	rulePath := filepath.Join(root, relativeRulePath)
 	originalManifest, err := adapter.LoadManifest(root, adapterName)
 	require.NoError(t, err)

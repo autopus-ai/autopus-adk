@@ -46,7 +46,9 @@ func TestInitReview_S6ShowsTheSettingsBeforeAnyWrite(t *testing.T) {
 	assert.Contains(t, out, strings.Join([]string{
 		"적용할 설정", " 답한 값", "  사용 프로필: Developer", "  언어 설정: 주석 en · 커밋 ko · AI 응답 ko",
 		"  품질 모드: Balanced", "  리뷰 게이트: 끔", "  REA 역공학 MCP: 켬", "  방법론: TDD",
-		" 바뀌는 설정", "  language: ai_responses=ko, comments=en, commits=ko", "  spec.review_gate: enabled=false",
+		" 바뀌는 설정", "  language: ai_responses=ko, comments=en, commits=ko",
+		// New configs default to methodology none, so a TDD answer is a change.
+		"  methodology: enforce=true, mode=tdd", "  spec.review_gate: enabled=false",
 		"  usage_profile: developer", " REA", "  REA MCP: 켬 · 등록", tuiuxReview, tuiuxFooter,
 		"이대로 진행할까요? ", "1. 적용", "2. 뒤로", "3. 취소",
 	}, "\n")+"\n")

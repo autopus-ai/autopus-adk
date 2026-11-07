@@ -26,7 +26,7 @@ for detected visual issues.
 
 ## Input Format
 
-The orchestrator or planner spawns this agent with the following structure:
+The main session spawns this agent with the following structure:
 
 ```
 ## Task

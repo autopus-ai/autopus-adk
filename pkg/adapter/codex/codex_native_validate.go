@@ -24,7 +24,7 @@ func (a *Adapter) validateNativeCodexSurface(errs *[]adapter.ValidationError) {
 	}
 
 	for _, path := range []string{
-		filepath.Join(".codex", "agents", "executor.toml"),
+		filepath.Join(".codex", "agents", "reviewer.toml"),
 		filepath.Join(".codex", "hooks.json"),
 		filepath.Join(".autopus", "plugins", "auto", ".codex-plugin", "plugin.json"),
 	} {

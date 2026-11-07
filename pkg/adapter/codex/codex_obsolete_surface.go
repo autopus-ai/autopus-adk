@@ -34,8 +34,8 @@ func obsoleteCodexSurfacePaths(root string, openCodeOwnsSharedSkills bool) []str
 	// installed it owns those directories, and removing them would delete a
 	// live surface of another platform.
 	if !openCodeOwnsSharedSkills {
-		for _, spec := range workflowSpecs {
-			legacy := ".agents/skills/" + spec.Name
+		for _, name := range allWorkflowNames() {
+			legacy := ".agents/skills/" + name
 			if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(legacy))); err == nil {
 				paths = append(paths, legacy)
 			}

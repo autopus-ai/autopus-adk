@@ -192,15 +192,15 @@ func TestComposeWithSeams_RunSnapshot_GenerationMatchesResolverWithoutSecondProb
 			dir := t.TempDir()
 			cfg := composeSnapshotConfig("ultra", "codex")
 			snapshot := captureComposeSnapshot(context.Background(), cfg)
-			cell, err := codex.ResolveAgentProfile(cfg.Quality, snapshot.codexCatalog, "annotator", "sonnet", "medium")
+			cell, err := codex.ResolveAgentProfile(cfg.Quality, snapshot.codexCatalog, "ux-validator", "sonnet", "medium")
 			require.NoError(t, err)
 
 			output := seam.generate(t, dir, cfg, snapshot)
 
-			generated := readComposeCodexProfile(t, dir, "annotator")
+			generated := readComposeCodexProfile(t, dir, "ux-validator")
 			assert.Equal(t, config.CodexProfile{Model: "gpt-6-sol", Effort: "xhigh"}, generated)
 			assert.Equal(t, cell.Effective, generated)
-			assert.Equal(t, config.CodexProfile{Model: "gpt-6-astra", Effort: "max"}, readComposeCodexProfile(t, dir, "planner"))
+			assert.Equal(t, config.CodexProfile{Model: "gpt-6-astra", Effort: "max"}, readComposeCodexProfile(t, dir, "reviewer"))
 			assert.Len(t, *calls, 1)
 			assert.NotContains(t, composeCodexCalls(t, marker), "debug models")
 			if seam.name == "quality apply" {
@@ -249,7 +249,7 @@ func TestComposeWithSeams_OriginalEntryPoints_AdapterStillProbesItself(t *testin
 
 			entry.generate(t, dir, composeSnapshotConfig("ultra", "codex"))
 
-			assert.Equal(t, config.CodexProfile{Model: "gpt-6.1-sol", Effort: "xhigh"}, readComposeCodexProfile(t, dir, "annotator"))
+			assert.Equal(t, config.CodexProfile{Model: "gpt-6.1-sol", Effort: "xhigh"}, readComposeCodexProfile(t, dir, "ux-validator"))
 			assert.Contains(t, composeCodexCalls(t, marker), "debug models")
 		})
 	}

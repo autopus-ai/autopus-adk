@@ -48,14 +48,9 @@ func TestClaudeAgentDeclaredSkillsFollowTheInstalledSurface(t *testing.T) {
 	t.Parallel()
 
 	compact := config.DefaultFullConfig("agent-declared-skills")
-	compactLines := agentFrontmatterLines(t, generateClaudeAgents(t, compact), "executor.md")
-	assert.Contains(t, compactLines, "  - tdd", "tdd is core and must survive compaction")
-	assert.NotContains(t, compactLines, "  - ddd", "ddd is not installed by default, so the agent must not claim it")
-
-	optIn := config.DefaultFullConfig("agent-declared-skills")
-	optIn.Skills.Compiler.ExplicitSkills = []string{"ddd"}
-	optInLines := agentFrontmatterLines(t, generateClaudeAgents(t, optIn), "executor.md")
-	assert.Contains(t, optInLines, "  - ddd", "opting the skill in must restore the declaration")
+	compactLines := agentFrontmatterLines(t, generateClaudeAgents(t, compact), "reviewer.md")
+	assert.Contains(t, compactLines, "  - review", "review is core and must survive compaction")
+	assert.Contains(t, compactLines, "  - verification", "verification is core and must survive compaction")
 }
 
 // agentFrontmatterLines returns the frontmatter lines of one installed agent.
@@ -84,7 +79,7 @@ func TestClaudeAgentProfileRewriteKeepsFrontmatter(t *testing.T) {
 	t.Parallel()
 	agentDir := generateClaudeAgentsForMode(t, "balanced")
 
-	want := sourceFrontmatterLines(t, "executor.md")
+	want := sourceFrontmatterLines(t, "frontend-specialist.md")
 	for i, line := range want {
 		switch {
 		case strings.HasPrefix(line, "model:"):
@@ -94,7 +89,7 @@ func TestClaudeAgentProfileRewriteKeepsFrontmatter(t *testing.T) {
 		}
 	}
 
-	assert.Equal(t, want, agentFrontmatterLines(t, agentDir, "executor.md"))
+	assert.Equal(t, want, agentFrontmatterLines(t, agentDir, "frontend-specialist.md"))
 }
 
 // TestClaudeAgentModelFollowsUltraPreset proves the preset — not the source
@@ -104,13 +99,13 @@ func TestClaudeAgentModelFollowsUltraPreset(t *testing.T) {
 	t.Parallel()
 	agentDir := generateClaudeAgentsForMode(t, "ultra")
 
-	assert.Contains(t, agentFrontmatterLines(t, agentDir, "planner.md"), "model: fable")
-	assert.Contains(t, agentFrontmatterLines(t, agentDir, "tester.md"), "model: opus")
+	assert.Contains(t, agentFrontmatterLines(t, agentDir, "reviewer.md"), "model: fable")
+	assert.Contains(t, agentFrontmatterLines(t, agentDir, "ux-validator.md"), "model: opus")
 }
 
 func TestClaudeAgentProfileUltraProjectsMaximumEffort(t *testing.T) {
 	t.Parallel()
 	agentDir := generateClaudeAgentsForMode(t, "ultra")
-	assert.Contains(t, agentFrontmatterLines(t, agentDir, "tester.md"), "effort: max")
-	assert.Contains(t, agentFrontmatterLines(t, agentDir, "planner.md"), "effort: max")
+	assert.Contains(t, agentFrontmatterLines(t, agentDir, "ux-validator.md"), "effort: max")
+	assert.Contains(t, agentFrontmatterLines(t, agentDir, "reviewer.md"), "effort: max")
 }

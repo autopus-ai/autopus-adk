@@ -1,7 +1,7 @@
 {
   "schema_version": "harness_eval_baseline.v1",
   "set_version": "1",
-  "set_digest": "6df123ed645fce9806f7706996ff18093ef29656cb51eb587d3268380c5158f2",
+  "set_digest": "73e5a8c52dcaa3a47c92173e1b5986c1d70384993bdc1376b202251f1e1c901e",
   "rows": [
     {
       "id": "GT-AGENT-A01",
@@ -92,14 +92,14 @@
       "kind": "surface",
       "state": "active",
       "result": "pass",
-      "expectation_digest": "aab2a666a6fd548078085805027f3d10abb8c712a80adc9289d7bdf4ab6ba2b8"
+      "expectation_digest": "9d6b65f9cfd1fb1c24fd17bfc95372e523a68da7ea235d99ad345be88ca7d819"
     },
     {
       "id": "GT-AGENT-READONLY-REVIEW",
       "kind": "surface",
       "state": "active",
       "result": "pass",
-      "expectation_digest": "968360b647fedfbcb7bdc6dbfbb88935908266be8d045876d9436f634f238007"
+      "expectation_digest": "289c84d50530cbe8d5918d00c76598c4cc3db7d3feb13e1bc69371380580eaf7"
     },
     {
       "id": "GT-HOOK-ARCH-GATE-ON",
@@ -120,7 +120,7 @@
       "kind": "surface",
       "state": "active",
       "result": "pass",
-      "expectation_digest": "8f83e5aa9a29783a1b67139c5bb7f7a7ae8c2b6d93340c6fcd87517af7beb81b"
+      "expectation_digest": "20b6175ffb5dae2f049435e95ac2652bbc3ccea0436bfb106deff9d8c2139f96"
     },
     {
       "id": "GT-HOOK-COMPLETION-RETIRED",
@@ -177,7 +177,7 @@
       "kind": "surface",
       "state": "active",
       "result": "pass",
-      "expectation_digest": "a3feb1d97b57a3f4ece0c8cfac176ce092d4466ad547d62d799c85fc2e023a9d"
+      "expectation_digest": "09526b1e596ec94714583f262dcafb1d464bb1a31da89c6da9e8470607eaa04e"
     },
     {
       "id": "GT-HYGIENE-SHARED-AGENTS-ROOT",
@@ -189,30 +189,31 @@
     {
       "id": "GT-PROMPT-DELEGATION-RULE",
       "kind": "surface",
-      "state": "active",
+      "state": "retired",
       "result": "pass",
-      "expectation_digest": "88c775b31c277a2eeaeb9731d542cced148c8689da283bf6fa6cb8a33ee3f033"
+      "expectation_digest": "88c775b31c277a2eeaeb9731d542cced148c8689da283bf6fa6cb8a33ee3f033",
+      "retired_reason": "The verification harness retired the subagent-delegation rule with the implementation surface (planning, go, fix, pipeline agents): no platform installs it, so there is no delegation prompt left to pin."
     },
     {
       "id": "GT-PROMPT-PROJECT-IDENTITY",
       "kind": "surface",
       "state": "active",
       "result": "pass",
-      "expectation_digest": "be713c0db59f8b39ebab9a1ef064614d99b1084076fa7fc5ee7e0774e83de3cd"
+      "expectation_digest": "8d56c12a2b52a0cd3129d7642fc46758f59a58783f3070ecce55f03e9ddad522"
     },
     {
       "id": "GT-PROMPT-REVIEW-CONVERGENCE",
       "kind": "surface",
       "state": "active",
       "result": "pass",
-      "expectation_digest": "d6c8805bcddfc6a9d8c4a1575f22578694febccc01c72bebd2d954e6b088f6e8"
+      "expectation_digest": "b7da1b2170c711f96bbdb5a49ba4259b52952a42421196a1eb041d17967420e8"
     },
     {
       "id": "GT-PROMPT-SHELL-PORTABILITY",
       "kind": "surface",
       "state": "active",
       "result": "pass",
-      "expectation_digest": "68629e6822bc8ee3b31cd7405e35ec46e27d05ef5a7cfa7ebcd1a5ce9c89ef65"
+      "expectation_digest": "2865b1c4773e09006d3b68d56dd894a62ab5cf3c49b3411e10a22821c7f4ac8c"
     },
     {
       "id": "GT-PROMPT-THIN-ROUTER",
@@ -231,65 +232,66 @@
     {
       "id": "GT-PROMPT-WORKER-HYGIENE",
       "kind": "surface",
-      "state": "active",
+      "state": "retired",
       "result": "pass",
-      "expectation_digest": "a30a632ce73de81e5495d8aef9075ada5ca4930067f8384254fca7ee1cf3a7cd"
+      "expectation_digest": "a30a632ce73de81e5495d8aef9075ada5ca4930067f8384254fca7ee1cf3a7cd",
+      "retired_reason": "The verification harness retired the implementation workers and the agent pipeline whose prompts carried worker hygiene; the kept reviewer and QA agents do not run as pipeline workers."
     },
     {
       "id": "GT-PROMPT-WORKER-RECEIPT",
       "kind": "surface",
       "state": "active",
       "result": "pass",
-      "expectation_digest": "7852e745a18834b238e44bd60d00e74713bfb4e7c6bf3b4cb2a51109af4cc227"
+      "expectation_digest": "5221571c10261a57caeb8cc48610aa465bbebd2c5959dbdb1067cac8152b2c6a"
     },
     {
       "id": "GT-ROUTE-ALIASES",
       "kind": "surface",
       "state": "active",
       "result": "pass",
-      "expectation_digest": "b2e7b67f13490549432eec165ed7ad70008887c363978955681ff525a589f9c9"
+      "expectation_digest": "07426958ac92ce9ccfd5178325478e058f87279d7d0a39f22890975de5a3c73a"
     },
     {
       "id": "GT-ROUTE-ANTIGRAVITY-COMMANDS",
       "kind": "surface",
       "state": "active",
       "result": "pass",
-      "expectation_digest": "a40451dfe90f2de647036d60729ee788a6ec19e5c23ece503a4679d7ee97d004"
+      "expectation_digest": "42e24ee55b849a5b56a429f47e99173e849a0157449b5aed20a3abbcd45ea000"
     },
     {
       "id": "GT-ROUTE-ANTIGRAVITY-DETAILS",
       "kind": "surface",
       "state": "active",
       "result": "pass",
-      "expectation_digest": "59e4e7a327d72150f29fca393fe5a33e35c8a4f70e5d7efae990e11697a4b813"
+      "expectation_digest": "571434a822bb7c86b9b8217ea1d3b0c27a07a7e490f646bbad945f4f8a2722f9"
     },
     {
       "id": "GT-ROUTE-CLAUDE-DETAILS",
       "kind": "surface",
       "state": "active",
       "result": "pass",
-      "expectation_digest": "7f6f7239e18589f283a223656b21494dfbef9d575c1f01e08639fb9a15519b59"
+      "expectation_digest": "d36691b4a7f638c88b913c7ae3b15c9b5c867779cb50136cc8ae3386e94b228e"
     },
     {
       "id": "GT-ROUTE-CODEX-SKILL-NAMES",
       "kind": "surface",
       "state": "active",
       "result": "pass",
-      "expectation_digest": "f4283446c1ed0fd76e7d05fc73decb00888363d8dcd1949041f13f3314b39977"
+      "expectation_digest": "c0cfa806f3e101e3a9e1a5ee9e48b0a1c36271ec210297e994e3386dd6e02ddc"
     },
     {
       "id": "GT-ROUTE-OMP-EXACT-MAP",
       "kind": "surface",
       "state": "active",
       "result": "pass",
-      "expectation_digest": "10b81ab6fc9334ad3de91b98af0dc121e916eb98eefeb4c709e2460f788f7df0"
+      "expectation_digest": "6bf18b88bccdd5cf3e2712abaa3abb040bbcbd6f9b11aaae4d1d6dd657063b35"
     },
     {
       "id": "GT-ROUTE-OPENCODE-DETAILS",
       "kind": "surface",
       "state": "active",
       "result": "pass",
-      "expectation_digest": "12db7ff5387fa1810b4fcab43ee0cb46af59f8f7211c892538bf35808c602643"
+      "expectation_digest": "169324cd23cf944b141256fe58d0058bcf089403e035b4b74c2b5a87c7d4bf32"
     },
     {
       "id": "GT-SETTINGS-MCP-SERVERS",
@@ -308,9 +310,10 @@
     {
       "id": "GT-SKILL-CLAUDE-NATIVE-ORCHESTRATION",
       "kind": "surface",
-      "state": "active",
+      "state": "retired",
       "result": "pass",
-      "expectation_digest": "0c6c1162487cdf0f7faa1950b2a260a3ff771dfcf225c879167c37675a6c5709"
+      "expectation_digest": "0c6c1162487cdf0f7faa1950b2a260a3ff771dfcf225c879167c37675a6c5709",
+      "retired_reason": "The verification harness retired Route A, route-team workflows, and the agent-teams skill: Claude no longer installs .claude/workflows/*.js and Codex no longer installs codex-agent-teams."
     },
     {
       "id": "GT-SKILL-CODEX-PLUGIN-ENTRY",
@@ -324,7 +327,7 @@
       "kind": "surface",
       "state": "active",
       "result": "pass",
-      "expectation_digest": "7eb45c6a4ac0948d7a7796b57602ce3a2673b61438b76a53057d98c3b81ffc41"
+      "expectation_digest": "34676d14f891d39545931b8667b8b6f061db39a0e2dd12d388f4b342dc847c53"
     },
     {
       "id": "GT-SKILL-UI-CRITIQUE-LOOP",

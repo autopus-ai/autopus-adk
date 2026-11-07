@@ -6,14 +6,14 @@ package config
 const CodexResolutionSessionModel CodexResolutionReason = "session_model"
 
 // CodexReaAnalysisFallback is the Codex counterpart of OMPReaAnalysisFallback
-// (SPEC-REA-001 scope expansion of the Gate 1 decision): reverse-engineer's
-// standard native balanced placement, the analysis rung, falls back to the
+// (SPEC-REA-001 scope expansion of the Gate 1 decision): an analysis-rung
+// agent's standard native balanced placement, the analysis rung, falls back to the
 // Codex session model instead of refusing generation when a read catalog
 // lacks the rung's model or effort. resolution is the catalog's answer for
 // that placement. An unreadable catalog keeps today's unverified placement,
 // and every other rung, custom tier, explicit effort, or Ultra keeps its path.
 func (q QualityConf) CodexReaAnalysisFallback(agent string, resolution CodexProfileResolution) bool {
-	if NormalizeAgentName(agent) != ReverseEngineerAgent {
+	if !IsAnalysisRungAgent(agent) {
 		return false
 	}
 	candidate, placed := q.NativeBalancedAgentCandidate(QualityProviderCodex, agent)

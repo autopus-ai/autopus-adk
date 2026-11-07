@@ -10,6 +10,11 @@ AUTOPUS_AGENTS_SINCE=0.50.127
 AUTOPUS_AGENTS='annotator architect debugger deep-worker devops executor explorer frontend-specialist
 perf-engineer planner reviewer security-auditor spec-writer tester ux-validator validator'
 
+# From v0.51.0 only the verification harness ships: four agents, and the
+# implementation agents a previous release generated are pruned on update.
+VERIFY_SURFACE_SINCE=0.51.0
+VERIFY_AGENTS='frontend-specialist qa-explorer reviewer ux-validator'
+
 # version_at_least VALUE MINIMUM compares two validated x.y.z versions.
 version_at_least() {
     value_major=${1%%.*} value_rest=${1#*.}
@@ -31,12 +36,33 @@ candidate_generates_agents() {
     [ "$MODE" = fixture ] || version_at_least "$NEW_VERSION" "$AUTOPUS_AGENTS_SINCE"
 }
 
+# candidate_ships_verify_surface reports a candidate that installs only the
+# verification harness. The fixture candidate is built from this source.
+candidate_ships_verify_surface() {
+    [ "$MODE" = fixture ] || version_at_least "$NEW_VERSION" "$VERIFY_SURFACE_SINCE"
+}
+
+# assert_candidate_agent_surface checks the agents the candidate generates.
+assert_candidate_agent_surface() {
+    if candidate_ships_verify_surface; then
+        assert_autopus_agent_surface "$VERIFY_AGENTS"
+        assert_absent "$PROJECT/.omp/agents/executor.md"
+        assert_absent "$PROJECT/.omp/agents/planner.md"
+        return
+    fi
+    assert_autopus_agent_surface "$AUTOPUS_AGENTS"
+}
+
 # assert_previous_omp_surface checks the OMP surface the previous public
 # release left: the Autopus agents from v0.50.127, and before that nothing,
 # since v0.50.118 through v0.50.125 reused OMP's bundled agents.
 assert_previous_omp_surface() {
+    if version_at_least "$PREVIOUS_VERSION" "$VERIFY_SURFACE_SINCE"; then
+        assert_autopus_agent_surface "$VERIFY_AGENTS"
+        return
+    fi
     if version_at_least "$PREVIOUS_VERSION" "$AUTOPUS_AGENTS_SINCE"; then
-        assert_autopus_agent_surface
+        assert_autopus_agent_surface "$AUTOPUS_AGENTS"
         return
     fi
     assert_absent "$PROJECT/.omp/agents/executor.md"
@@ -56,14 +82,14 @@ write_user_omp_config() {
     fi
 }
 
-# assert_autopus_agent_surface checks the autopus-mode OMP surface: every
-# Autopus agent definition is manifest-owned and named and described by its
+# assert_autopus_agent_surface AGENTS checks the autopus-mode OMP surface: every
+# named Autopus agent definition is manifest-owned and named and described by its
 # content, with no model line, since routes go to task.agentModelOverrides,
 # and no retired @autopus_ alias; .omp/config.yml disables every bundled
 # agent but task under a claim, not the retired marker policy. A name the
 # installed omp does not bundle is an inert entry.
 assert_autopus_agent_surface() {
-    python3 - "$PROJECT" "$AUTOPUS_AGENTS" <<'PY' || fail 'the Autopus OMP agent surface is not the v0.50.127 shape'
+    python3 - "$PROJECT" "$1" <<'PY' || fail 'the Autopus OMP agent surface is not the v0.50.127 shape'
 import json
 import pathlib
 import sys

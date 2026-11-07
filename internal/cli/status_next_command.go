@@ -50,10 +50,10 @@ func autoRouteForms(platforms []string, route, arg string) []statusCommandForm {
 	}
 	var forms []statusCommandForm
 	if len(slash) > 0 || len(codex) == 0 {
-		forms = append(forms, statusCommandForm{Platforms: slash, Command: "/auto " + route + " " + arg})
+		forms = append(forms, statusCommandForm{Platforms: slash, Command: strings.TrimSpace("/auto " + route + " " + arg)})
 	}
 	if len(codex) > 0 {
-		forms = append(forms, statusCommandForm{Platforms: codex, Command: "$codex-auto-" + route + " " + arg})
+		forms = append(forms, statusCommandForm{Platforms: codex, Command: strings.TrimSpace("$codex-auto-" + route + " " + arg)})
 	}
 	return forms
 }

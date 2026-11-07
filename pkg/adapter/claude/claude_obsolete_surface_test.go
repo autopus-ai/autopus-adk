@@ -55,7 +55,7 @@ func TestUpdate_RemovesRetiredClaudeSurfaceWithoutManifest(t *testing.T) {
 
 	// The relocation target and the native skill layout must both be live.
 	assert.FileExists(t, filepath.Join(root, ".claude", "hooks", "autopus", "conditional", "lore-commit.md"))
-	assert.FileExists(t, filepath.Join(root, ".claude", "skills", "planning", "SKILL.md"))
+	assert.FileExists(t, filepath.Join(root, ".claude", "skills", "verification", "SKILL.md"))
 	// No empty husk left where the retired layout used to live.
 	assert.NoDirExists(t, filepath.Join(root, ".claude", "skills", "autopus"))
 }
@@ -90,7 +90,7 @@ func TestUpdate_PreservesUserFilesInsideClaudePruneRoots(t *testing.T) {
 
 	// A live generated rule shares the directory with the stale copies the
 	// detector removes; it must be emitted, not deleted.
-	assert.FileExists(t, filepath.Join(root, ".claude", "rules", "autopus", "branding.md"))
+	assert.FileExists(t, filepath.Join(root, ".claude", "rules", "autopus", "language-policy.md"))
 }
 
 // TestValidate_ReportsObsoleteClaudeSurface is the doctor half: before this the

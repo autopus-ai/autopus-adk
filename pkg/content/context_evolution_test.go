@@ -56,7 +56,7 @@ func TestShippedSkillContent_CarriesNoCredentialsOrHostPaths(t *testing.T) {
 	t.Parallel()
 
 	forbidden := []string{"sk-proj-", "AKIA", "/Users/", "/home/", "C:\\"}
-	for _, dir := range []string{"skills", "skills/references/agent-pipeline"} {
+	for _, dir := range []string{"skills"} {
 		entries, err := contentfs.FS.ReadDir(dir)
 		require.NoError(t, err)
 		require.NotEmpty(t, entries)

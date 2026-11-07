@@ -12,7 +12,7 @@ import (
 var sourceFallbackTiers = map[string]string{
 	"annotator": "sonnet", "architect": "opus", "debugger": "sonnet", "deep-worker": "opus",
 	"devops": "sonnet", "executor": "sonnet", "explorer": "sonnet", "frontend-specialist": "sonnet",
-	"perf-engineer": "sonnet", "planner": "opus", "reverse-engineer": "opus", "reviewer": "sonnet",
+	"perf-engineer": "sonnet", "planner": "opus", "qa-explorer": "opus", "reverse-engineer": "opus", "reviewer": "sonnet",
 	"security-auditor": "opus", "spec-writer": "opus", "tester": "sonnet", "ux-validator": "sonnet",
 	"validator": "sonnet",
 }
@@ -38,7 +38,7 @@ func TestEffectiveAgentTier_StandardBalancedReportsRungTier(t *testing.T) {
 		"debugger": "opus", "deep-worker": "opus", "reviewer": "opus",
 		"executor": "sonnet", "devops": "sonnet", "frontend-specialist": "sonnet", "perf-engineer": "sonnet",
 		"tester": "sonnet", "validator": "sonnet", "ux-validator": "sonnet", "explorer": "sonnet", "annotator": "sonnet",
-		"reverse-engineer": "opus",
+		"reverse-engineer": "opus", "qa-explorer": "opus",
 	}
 	for _, agent := range CanonicalAgentNames() {
 		assert.Equal(t, want[agent], q.EffectiveAgentTier(agent, sourceFallbackTiers[agent]), agent)

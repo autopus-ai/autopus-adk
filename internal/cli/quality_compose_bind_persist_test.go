@@ -21,14 +21,14 @@ import (
 
 func TestPlanComposeBinding_OtherComposition_WritesCustomAndKeepsOtherPresets(t *testing.T) {
 	t.Parallel()
-	fast := config.QualityPreset{Description: "fast", Agents: map[string]string{"planner": "sonnet", "executor": "haiku"}}
+	fast := config.QualityPreset{Description: "fast", Agents: map[string]string{"reviewer": "sonnet", "frontend-specialist": "haiku"}}
 	dir, cfg := composeBindSaved(t, func(q *config.QualityConf) {
 		q.Presets["fast"] = fast
-		q.Presets["custom"] = config.QualityPreset{Description: "old custom", Agents: map[string]string{"planner": "haiku"}}
+		q.Presets["custom"] = config.QualityPreset{Description: "old custom", Agents: map[string]string{"reviewer": "haiku"}}
 		q.Default = "fast"
 	})
 	start := composeBindStart(t, cfg)
-	edited := composeBindEdited(t, start, map[string]string{"planner": "opus"})
+	edited := composeBindEdited(t, start, map[string]string{"reviewer": "fable"})
 
 	plan := planComposeBinding(cfg, start, edited)
 
@@ -46,12 +46,12 @@ func TestPlanComposeBinding_OtherComposition_WritesCustomAndKeepsOtherPresets(t 
 func TestPlanComposeBinding_BoundCustom_RewritesItWithoutTheDefaultLine(t *testing.T) {
 	t.Parallel()
 	_, cfg := composeBindSaved(t, func(q *config.QualityConf) {
-		q.Presets["custom"] = config.QualityPreset{Agents: map[string]string{"planner": "haiku"}}
+		q.Presets["custom"] = config.QualityPreset{Agents: map[string]string{"reviewer": "haiku"}}
 		q.Default = "custom"
 	})
 	start := composeBindStart(t, cfg)
 
-	plan := planComposeBinding(cfg, start, composeBindEdited(t, start, map[string]string{"planner": "opus"}))
+	plan := planComposeBinding(cfg, start, composeBindEdited(t, start, map[string]string{"reviewer": "fable"}))
 
 	assert.Equal(t, composeWriterBlock, plan.Writer)
 	assert.Empty(t, plan.Default)
@@ -152,8 +152,8 @@ func TestPlanComposeBinding_Candidate_IsDetachedAndCarriesTheWrite(t *testing.T)
 	assert.Equal(t, s6CustomAgents(), plan.Candidate.Quality.Presets["custom"].Agents)
 	assert.Equal(t, "balanced", cfg.Quality.Default, "planning never touches the loaded config")
 	assert.NotContains(t, cfg.Quality.Presets, "custom")
-	plan.Candidate.Quality.Presets["balanced"].Agents["planner"] = "haiku"
-	assert.Equal(t, "opus", cfg.Quality.Presets["balanced"].Agents["planner"])
+	plan.Candidate.Quality.Presets["balanced"].Agents["reviewer"] = "haiku"
+	assert.Equal(t, "opus", cfg.Quality.Presets["balanced"].Agents["reviewer"])
 	// The candidate resolves the edited composition, which is what the preview shows.
 	assert.True(t, newQualityComposition(plan.Candidate.Quality, composeGroupsSources(t)).Equal(edited))
 }
@@ -205,7 +205,7 @@ func TestPersistComposeBinding_RefusedSource_SurfacesTheRefusalAndKeepsTheFile(t
 		// plan takes the line writer; the file itself still holds F3.
 		stage bool
 	}{
-		{name: "block", writer: composeWriterBlock, edits: map[string]string{"planner": "haiku"}},
+		{name: "block", writer: composeWriterBlock, edits: map[string]string{"reviewer": "haiku"}},
 		{name: "line", writer: composeWriterLine, edits: composeBindCurrent("ultra").Agents, stage: true},
 	}
 	for _, tt := range tests {

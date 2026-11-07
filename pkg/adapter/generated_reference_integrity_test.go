@@ -35,39 +35,16 @@ import (
 //   - MENTION — the path only explains ADK internals, so the wording is what
 //     needs cleaning up.
 var danglingReferenceBaseline = map[string]bool{
-	// INSTALL — builtin Tier 1 executor stack profiles. content/profiles/executor/
-	// really holds frontend/go/python/rust/typescript.md, the pipeline selects one
-	// per task, and no adapter installs any of them, so Tier 1 selection is
-	// unreachable in a consumer repo.
-	"content/profiles/executor/{name}.md":  true,
-	"content/profiles/executor/{stack}.md": true,
-
-	// INSTALL or INLINE — PRD and scenario skeletons the plan flow copies to
-	// author prd.md and scenarios.md. The agent needs the body, not the path;
-	// installing them under a rules/skills surface or inlining the section
-	// outlines both close it. Choosing between them is an adapter/manifest
-	// decision, not a wording change.
-	"templates/shared/prd-minimal.md.tmpl":        true,
-	"templates/shared/prd-standard.md.tmpl":       true,
-	"templates/shared/prd-{PRD_MODE}.md.tmpl":     true,
-	"templates/shared/scenarios-api.md.tmpl":      true,
-	"templates/shared/scenarios-cli.md.tmpl":      true,
-	"templates/shared/scenarios-frontend.md.tmpl": true,
-	"templates/shared/scenarios-library.md.tmpl":  true,
-
-	// MENTION — provenance comment in the generated workflow JS naming its
-	// manifest. Nothing reads it at runtime; the header string in
-	// pkg/content/workflow_generate.go should name the ADK repo instead of a
-	// bare path.
-	"content/workflows/route_a.{md":    true,
-	"content/workflows/route_team.{md": true,
+	// Empty: the last baselined references (executor profiles, PRD and
+	// scenario skeletons, workflow JS provenance) lived only on surfaces the
+	// verification harness retired. Keep it empty; fix a new reference instead.
 }
 
 // danglingReferenceOccurrenceCeiling caps total occurrences of baselined
 // references so an existing violation cannot silently multiply across files.
 // It started at 347 occurrences over 32 distinct references before the
 // branding, rule-path, and skill-path sources were fixed.
-const danglingReferenceOccurrenceCeiling = 43
+const danglingReferenceOccurrenceCeiling = 0
 
 // platformGenerators maps an autopus.yaml platform id to its adapter, so a
 // caller can build the installed surface for exactly the platforms a scenario

@@ -45,7 +45,7 @@ func TestUpdateCmd_PlanShowsConfigAndCreatesWithoutWriting(t *testing.T) {
 	assert.Contains(t, output, "opencode.json")
 	assert.Contains(t, output, "[config] update")
 	assert.Contains(t, output, "[config] emit opencode.json")
-	assert.Contains(t, output, "[generated_surface] emit .opencode/agents/annotator.md")
+	assert.Contains(t, output, "[generated_surface] emit .opencode/agents/reviewer.md")
 }
 
 func TestUpdateCmd_PlanShowsSkipAndPreserveWithoutWriting(t *testing.T) {
@@ -166,41 +166,6 @@ func TestUpdateCmd_PlanShowsStatusLineKeepHint(t *testing.T) {
 	assert.Contains(t, output, "--statusline-mode merge or replace")
 }
 
-func TestUpdateCmd_PlanShowsSplitCompilerEmitRetainPruneAndChecksumDiff(t *testing.T) {
-	dir := t.TempDir()
-	configurePreviewBinaries(t, "codex", "opencode")
-	initMixedPreviewHarness(t, dir)
-	installFullSkillLibrary(t, dir)
-
-	assert.FileExists(t, filepath.Join(dir, ".agents", "skills", "metrics", "SKILL.md"), "acceptance S2 baseline: the full library must start with the shared long-tail path before split opt-in")
-
-	cfg, err := loadConfigFromDir(dir)
-	require.NoError(t, err)
-	cfg.Skills.SharedSurface = config.SharedSurfaceCore
-	cfg.Skills.Compiler.Mode = config.SkillCompilerModeSplit
-	// metrics is a `product` bundle skill. Split mode relocates a long-tail
-	// skill only once a bundle selects it; with nothing selected the compact
-	// surface simply drops it and there is no relocation left to preview.
-	cfg.Skills.Compiler.Bundles = []string{"product"}
-	cfg.Skills.Compiler.OpenCodeLongTailTarget = config.SkillLongTailTargetProject
-	cfg.Skills.Compiler.CodexLongTailTarget = config.SkillLongTailTargetPlugin
-	require.NoError(t, config.Save(dir, cfg))
-
-	var out bytes.Buffer
-	updateCmd := newTestRootCmd()
-	updateCmd.SetOut(&out)
-	updateCmd.SetErr(&out)
-	updateCmd.SetArgs([]string{"update", "--dir", dir, "--plan"})
-	require.NoError(t, updateCmd.Execute())
-
-	output := out.String()
-	assert.Contains(t, output, "emit .opencode/skills/metrics/SKILL.md", "acceptance S6/S9: split preview must emit the OpenCode long-tail target path")
-	assert.Contains(t, output, "emit .autopus/plugins/auto/skills/metrics/SKILL.md", "acceptance S7/S9: split preview must emit the Codex plugin-scoped long-tail target path")
-	assert.Contains(t, output, "retain .agents/skills/planning/SKILL.md", "acceptance S3/S9: split preview must retain shared core skills that stay visible")
-	assert.Contains(t, output, "prune .agents/skills/metrics/SKILL.md", "acceptance S4/S9: split preview must expose stale shared artifacts that would be pruned after ownership changes")
-	assert.Contains(t, output, "checksum diff", "acceptance S9: split preview must expose checksum or manifest diffs before apply")
-}
-
 func TestUpdateCmd_PlanKeepsFullCompatibleSharedSkillPathUnderExplicitFullMode(t *testing.T) {
 	dir := t.TempDir()
 	configurePreviewBinaries(t, "codex", "opencode")
@@ -215,9 +180,9 @@ func TestUpdateCmd_PlanKeepsFullCompatibleSharedSkillPathUnderExplicitFullMode(t
 	require.NoError(t, updateCmd.Execute())
 
 	output := out.String()
-	assert.Contains(t, output, "retain .agents/skills/metrics/SKILL.md", "acceptance S2: explicit full mode must keep the existing full-compatible shared skill path when split compiler mode is not enabled")
-	assert.NotContains(t, output, ".opencode/skills/metrics/SKILL.md", "acceptance S2: full mode must not route shared long-tail skills to split OpenCode targets")
-	assert.NotContains(t, output, ".autopus/plugins/auto/skills/metrics/SKILL.md", "acceptance S2: full mode must not route shared long-tail skills to split Codex plugin targets")
+	assert.Contains(t, output, "retain .agents/skills/qa-hunt/SKILL.md", "acceptance S2: explicit full mode must keep the existing full-compatible shared skill path when split compiler mode is not enabled")
+	assert.NotContains(t, output, ".opencode/skills/qa-hunt/SKILL.md", "acceptance S2: full mode must not route shared skills to split OpenCode targets")
+	assert.NotContains(t, output, ".autopus/plugins/auto/skills/qa-hunt/SKILL.md", "acceptance S2: full mode must not route shared skills to split Codex plugin targets")
 }
 
 func TestUpdateCmd_PlanRetainsCodexNativeWorkflowSkills(t *testing.T) {
@@ -238,8 +203,7 @@ func TestUpdateCmd_PlanRetainsCodexNativeWorkflowSkills(t *testing.T) {
 
 	output := out.String()
 	for _, name := range []string{
-		"auto-dev", "auto-doctor", "auto-goal", "auto-map", "auto-secure",
-		"auto-status", "auto-test", "auto-update", "auto-verify", "auto-why",
+		"auto-doctor", "auto-qa", "auto-review", "auto-sync", "auto-test", "auto-update", "auto-verify",
 	} {
 		path := ".codex/skills/codex-" + name + "/SKILL.md"
 		assert.Contains(t, output, "retain "+path)

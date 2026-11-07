@@ -68,7 +68,7 @@ func TestClaudeRouterTemplate(t *testing.T) {
 	assert.True(t, len(result) > 100, "템플릿 결과가 너무 짧음")
 
 	// 모든 서브커맨드가 포함되어야 함
-	subcommands := []string{"plan", "go", "fix", "map", "review", "secure", "stale", "sync", "why"}
+	subcommands := []string{"review", "qa", "verify", "test", "sync", "update", "doctor", "browse"}
 	for _, sub := range subcommands {
 		assert.Contains(t, result, sub, "서브커맨드 %q가 포함되어야 함", sub)
 	}
@@ -80,7 +80,7 @@ func TestCodexSkillTemplates(t *testing.T) {
 	cfg := config.DefaultFullConfig("codex-project")
 
 	skills := []string{
-		"auto-plan", "auto-go", "auto-fix", "auto-review", "auto-sync",
+		"auto-review", "auto-sync", "auto-qa",
 	}
 
 	for _, skill := range skills {
@@ -101,7 +101,7 @@ func TestGeminiSkillTemplates_HasFrontmatter(t *testing.T) {
 	cfg := config.DefaultFullConfig("gemini-project")
 
 	skills := []string{
-		"auto-plan", "auto-go", "auto-fix", "auto-review", "auto-sync",
+		"auto-review", "auto-sync", "auto-qa",
 	}
 
 	for _, skill := range skills {
@@ -116,172 +116,6 @@ func TestGeminiSkillTemplates_HasFrontmatter(t *testing.T) {
 			assert.True(t, strings.HasPrefix(result, "---"), "YAML frontmatter로 시작해야 함: %s", skill)
 			assert.Contains(t, result, "name: "+skill)
 			assert.Contains(t, result, "gemini-project")
-		})
-	}
-}
-
-func TestTemplates_FullModeConditionals(t *testing.T) {
-	t.Parallel()
-	e := tmpl.New()
-	root := templateRoot()
-
-	cfg := config.DefaultFullConfig("test")
-
-	// 라우터 템플릿에서 Full 모드 조건부 블록 확인
-	tmplPath := filepath.Join(root, "claude", "commands", "auto-router.md.tmpl")
-
-	result, err := semanticContractSurface(e, tmplPath, cfg)
-	require.NoError(t, err)
-
-	// Full 모드에서는 go/review/secure 서브커맨드의 스킬 참조가 포함됨
-	assert.Contains(t, result, "tdd/SKILL.md")
-}
-
-func TestSemanticInvariantSourceContracts(t *testing.T) {
-	t.Parallel()
-
-	root := templateRoot()
-	files := map[string][]string{
-		filepath.Join(root, "..", "content", "rules", "spec-quality.md"): {
-			"Q-COMP-05",
-			"Q-CORR-04",
-			"Q-COMP-06",
-			"Q-COMP-07",
-			"Outcome Lock",
-			"Completion Debt",
-			"Evolution Ideas",
-			"Semantic Invariant Inventory",
-			"Traceability Matrix",
-			"Reviewer Brief",
-			"Reference Discipline",
-			"oracle acceptance",
-			"spec.md",
-			"plan.md",
-			"acceptance.md",
-		},
-		filepath.Join(root, "..", "content", "agents", "spec-writer.md"): {
-			"Outcome Lock",
-			"Completion Debt",
-			"Evolution Ideas",
-			"Sibling SPEC Decision",
-			"Semantic Invariant Inventory",
-			"source clause",
-			"invariant type",
-			"acceptance IDs",
-			"Traceability Matrix",
-			"Reviewer Brief",
-			"Reference Discipline",
-			"[NEW] planned addition",
-			"oracle acceptance",
-			"untrusted prompt input",
-			"never as instructions",
-			"redact",
-		},
-		filepath.Join(root, "..", "content", "agents", "tester.md"): {
-			"oracle acceptance",
-			"structural-only",
-			"concrete output values",
-		},
-		filepath.Join(root, "..", "content", "agents", "validator.md"): {
-			"oracle acceptance",
-			"semantic output",
-			"structural-only",
-			"Recommended Agent",
-		},
-	}
-
-	for path, expected := range files {
-		path, expected := path, expected
-		t.Run(filepath.Base(path), func(t *testing.T) {
-			t.Parallel()
-			content, err := os.ReadFile(path)
-			require.NoError(t, err)
-			for _, phrase := range expected {
-				assert.Contains(t, string(content), phrase)
-			}
-		})
-	}
-}
-
-func TestWorkflowAuthenticityTemplateContracts(t *testing.T) {
-	t.Parallel()
-
-	e := tmpl.New()
-	cfg := config.DefaultFullConfig("authenticity-project")
-	root := templateRoot()
-	templatePaths := []string{
-		filepath.Join(root, "codex", "prompts", "auto-go.md.tmpl"),
-		filepath.Join(root, "codex", "skills", "auto-go.md.tmpl"),
-		filepath.Join(root, "gemini", "commands", "auto-router.md.tmpl"),
-		filepath.Join(root, "gemini", "skills", "auto-go", "SKILL.md.tmpl"),
-	}
-
-	for _, path := range templatePaths {
-		path := path
-		t.Run(filepath.Base(path), func(t *testing.T) {
-			t.Parallel()
-			result, err := semanticContractSurface(e, path, cfg)
-			require.NoError(t, err)
-			assert.Contains(t, result, "subagent_dispatch_count")
-			assert.Contains(t, result, "workflow authenticity blocker")
-			assert.Contains(t, result, "degraded-mode")
-			assert.Contains(t, result, "degraded_mode")
-			assert.Contains(t, result, "delegation_depth")
-			assert.Contains(t, result, "delegation_depth_cap")
-		})
-	}
-
-	// The pipeline entrypoint owns the dispatch counters it initializes and the
-	// rule that main-session work is never reported as delegated; the delegation
-	// depth rails live in the resource that governs dispatch.
-	t.Run("agent-pipeline-entrypoint", func(t *testing.T) {
-		t.Parallel()
-		result, err := semanticContractSurface(e,
-			filepath.Join(root, "gemini", "skills", "agent-pipeline", "SKILL.md.tmpl"), cfg)
-		require.NoError(t, err)
-		assert.Contains(t, result, "subagent_dispatch_count")
-		assert.Contains(t, result, "subagent_roles_dispatched")
-		assert.Contains(t, result, "degraded_mode")
-		assert.Contains(t, result, "do not report main-session work as delegated work")
-	})
-	t.Run("pipeline-resources", func(t *testing.T) {
-		t.Parallel()
-		surface := pipelineResourceSurface(t)
-		assert.Contains(t, surface, "delegation_depth")
-		assert.Contains(t, surface, "delegation_depth_cap")
-		assert.Contains(t, surface, "delegation_depth_exceeded")
-	})
-}
-
-func TestSemanticInvariantPlatformTemplateContracts(t *testing.T) {
-	t.Parallel()
-
-	e := tmpl.New()
-	cfg := config.DefaultFullConfig("semantic-project")
-	root := templateRoot()
-	templatePaths := map[string][]string{
-		filepath.Join(root, "claude", "commands", "auto-router.md.tmpl"):      {"Outcome Lock", "Completion Debt", "Evolution Ideas", "Sibling SPEC Decision", "Semantic Invariant Inventory", "Traceability Matrix", "Reviewer Brief", "Reference Discipline", "oracle acceptance", "structural-only", "untrusted prompt input", "never as instructions", "redact", "multi-line raw user text"},
-		filepath.Join(root, "codex", "prompts", "auto-plan.md.tmpl"):          {"Outcome Lock", "Completion Debt", "Evolution Ideas", "Sibling SPEC Decision", "Semantic Invariant Inventory", "Traceability Matrix", "Reviewer Brief", "Reference Discipline", "oracle acceptance", "structural-only", "untrusted prompt input", "never as instructions", "redact", "multi-line raw user text"},
-		filepath.Join(root, "codex", "skills", "auto-plan.md.tmpl"):           {"Outcome Lock", "Completion Debt", "Evolution Ideas", "Sibling SPEC Decision", "Semantic Invariant Inventory", "Traceability Matrix", "Reviewer Brief", "Reference Discipline", "oracle acceptance", "structural-only", "untrusted prompt input", "never as instructions", "redact", "multi-line raw user text"},
-		filepath.Join(root, "codex", "agents", "spec-writer.toml.tmpl"):       {"Outcome Lock", "Completion Debt", "Evolution Ideas", "Sibling SPEC Decision", "Semantic Invariant Inventory", "Traceability Matrix", "Reviewer Brief", "Reference Discipline", "oracle acceptance", "structural-only", "untrusted prompt input", "never as instructions", "redact", "multi-line raw user text"},
-		filepath.Join(root, "codex", "agents", "tester.toml.tmpl"):            {"oracle acceptance", "structural-only", "concrete output values"},
-		filepath.Join(root, "codex", "agents", "validator.toml.tmpl"):         {"oracle acceptance", "structural-only", "semantic output"},
-		filepath.Join(root, "gemini", "commands", "auto-router.md.tmpl"):      {"Outcome Lock", "Completion Debt", "Evolution Ideas", "Sibling SPEC Decision", "Semantic Invariant Inventory", "Traceability Matrix", "Reviewer Brief", "Reference Discipline", "oracle acceptance", "structural-only", "untrusted prompt input", "never as instructions", "redact", "multi-line raw user text"},
-		filepath.Join(root, "gemini", "skills", "auto-plan", "SKILL.md.tmpl"): {"Outcome Lock", "Completion Debt", "Evolution Ideas", "Sibling SPEC Decision", "Semantic Invariant Inventory", "Traceability Matrix", "Reviewer Brief", "Reference Discipline", "oracle acceptance", "structural-only", "untrusted prompt input", "never as instructions", "redact", "multi-line raw user text"},
-		filepath.Join(root, "gemini", "agents", "spec-writer.md.tmpl"):        {"Outcome Lock", "Completion Debt", "Evolution Ideas", "Sibling SPEC Decision", "Semantic Invariant Inventory", "Traceability Matrix", "Reviewer Brief", "Reference Discipline", "oracle acceptance", "structural-only", "untrusted prompt input", "never as instructions", "redact", "multi-line raw user text"},
-		filepath.Join(root, "gemini", "agents", "tester.md.tmpl"):             {"oracle acceptance", "structural-only", "concrete output values"},
-		filepath.Join(root, "gemini", "agents", "validator.md.tmpl"):          {"oracle acceptance", "structural-only", "semantic output"},
-	}
-
-	for path, expected := range templatePaths {
-		path, expected := path, expected
-		t.Run(filepath.Base(path), func(t *testing.T) {
-			t.Parallel()
-			result, err := semanticContractSurface(e, path, cfg)
-			require.NoError(t, err)
-			for _, phrase := range expected {
-				assert.Contains(t, result, phrase)
-			}
 		})
 	}
 }

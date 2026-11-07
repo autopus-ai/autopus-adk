@@ -27,10 +27,8 @@ func TestAntigravityGenerateRules(t *testing.T) {
 	rules := []string{
 		"lore-commit.md",
 		"file-size-limit.md",
-		"subagent-delegation.md",
 		"language-policy.md",
-		"techstack-freshness.md",
-		"shell-portability.md",
+		"rea-mcp-guard.md",
 	}
 	rulesDir := filepath.Join(dir, ".gemini", "rules", "autopus")
 	for _, rule := range rules {
@@ -59,12 +57,12 @@ func TestAntigravityRulesImport(t *testing.T) {
 		"GEMINI.md should have @import for lore-commit")
 	assert.Contains(t, content, "@.agents/plugins/autopus/rules/file-size-limit.md",
 		"GEMINI.md should have @import for file-size-limit")
-	assert.Contains(t, content, "@.agents/plugins/autopus/rules/subagent-delegation.md",
-		"GEMINI.md should have @import for subagent-delegation")
+	assert.NotContains(t, content, "subagent-delegation.md",
+		"GEMINI.md must not import a retired rule")
 	assert.Contains(t, content, "@.agents/plugins/autopus/rules/language-policy.md",
 		"GEMINI.md should have @import for language-policy")
-	assert.Contains(t, content, "@.agents/plugins/autopus/rules/techstack-freshness.md",
-		"GEMINI.md should have @import for techstack-freshness")
+	assert.NotContains(t, content, "techstack-freshness.md",
+		"GEMINI.md must not import a retired rule")
 
 	// agy 1.4.2 inlines only `@[label](path)`; a bare `@path` stays a mention.
 	// The bare form keeps these Gemini CLI imports from loading a second copy
@@ -110,17 +108,6 @@ func TestAntigravityRulesContent(t *testing.T) {
 		filepath.Join(declaredDir, ".gemini", "rules", "autopus", "file-size-limit.md"))
 	require.NoError(t, err)
 	assert.Contains(t, string(declared), "420")
-
-	techstackPath := filepath.Join(dir, ".gemini", "rules", "autopus", "techstack-freshness.md")
-	techstackData, err := os.ReadFile(techstackPath)
-	require.NoError(t, err)
-	assert.Contains(t, string(techstackData), "Technology Stack Decision")
-	assert.Contains(t, string(techstackData), "greenfield")
-
-	shellPortabilityPath := filepath.Join(dir, ".gemini", "rules", "autopus", "shell-portability.md")
-	shellPortabilityData, err := os.ReadFile(shellPortabilityPath)
-	require.NoError(t, err)
-	assert.Contains(t, string(shellPortabilityData), "Do NOT prefix commands with GNU `timeout`")
 }
 
 // TestAntigravityRulesDoNotContainBrokenImport verifies that the generated rule
@@ -138,15 +125,7 @@ func TestAntigravityRulesDoNotContainBrokenImport(t *testing.T) {
 	rules := []string{
 		"lore-commit.md",
 		"file-size-limit.md",
-		"subagent-delegation.md",
 		"language-policy.md",
-		"branding.md",
-		"context7-docs.md",
-		"doc-storage.md",
-		"objective-reasoning.md",
-		"techstack-freshness.md",
-		"worktree-safety.md",
-		"shell-portability.md",
 	}
 	rulesDir := filepath.Join(dir, ".gemini", "rules", "autopus")
 	for _, rule := range rules {

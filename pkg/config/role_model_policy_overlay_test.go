@@ -80,7 +80,7 @@ func TestRoleModelPolicy_RootAgentOverlay_LeavesSourceConfigUntouched(t *testing
 
 	_, anthropic, ok := policy.SelectedRoleModelProfileForQuality(QualityConf{})
 	require.True(t, ok)
-	require.Len(t, anthropic.Agents, len(CanonicalAgentNames()))
+	require.Len(t, anthropic.Agents, len(CanonicalAgentNames())+len(legacyAgentNames))
 
 	policy.Family = "openai"
 	_, openai, ok := policy.SelectedRoleModelProfileForQuality(QualityConf{})

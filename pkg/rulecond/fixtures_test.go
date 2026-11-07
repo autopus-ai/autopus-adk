@@ -18,6 +18,7 @@ package rulecond_test
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -169,13 +170,26 @@ func editRule(name, condition, body string) rulecond.ManifestRule {
 	}
 }
 
-// sourceRuleBody returns the shipped rule body with its frontmatter removed.
+// sourceRuleBody returns the rule body with its frontmatter removed, from the
+// shipped rule or, for a retired one, its frozen copy (see ruleSourceText).
 func sourceRuleBody(t *testing.T, name string) string {
 	t.Helper()
-	raw, err := fs.ReadFile(contentfs.FS, "rules/"+name+".md")
-	require.NoError(t, err)
-	rule, err := rulecond.ParseRule(name+".md", raw)
+	rule, err := rulecond.ParseRule(name+".md", []byte(ruleSourceText(t, name)))
 	require.NoError(t, err)
 	require.NotEmpty(t, rule.Body)
 	return rule.Body
+}
+
+// ruleSourceText returns a rule file verbatim. A shipped rule comes from
+// content/rules; a rule the verification harness retired comes from its
+// frozen last-shipped copy under testdata/retired-rules, so the engine stays
+// exercised with real multi-condition bodies after the rule left the product.
+func ruleSourceText(t *testing.T, name string) string {
+	t.Helper()
+	raw, err := fs.ReadFile(contentfs.FS, "rules/"+name+".md")
+	if errors.Is(err, fs.ErrNotExist) {
+		raw, err = os.ReadFile(filepath.Join("testdata", "retired-rules", name+".md"))
+	}
+	require.NoError(t, err)
+	return string(raw)
 }

@@ -22,6 +22,7 @@ func balancedAnthropicRoutes() map[string]RoleModelCandidateConf {
 		"tester":    implementation,
 		"annotator": routine, "explorer": routine, "ux-validator": routine,
 		"validator": routine, "reverse-engineer": analysis,
+		"qa-explorer": analysis,
 	}
 }
 
@@ -37,6 +38,7 @@ func balancedOpenAIRoutes() map[string]RoleModelCandidateConf {
 		"perf-engineer": worker, "tester": worker,
 		"annotator": worker, "explorer": worker, "ux-validator": worker,
 		"validator": worker, "reverse-engineer": analysis,
+		"qa-explorer": analysis,
 	}
 }
 
@@ -72,7 +74,7 @@ func TestBalancedRoleModelProfile_RoutesSeventeenAgentsExactlyPerFamily(t *testi
 			want := balancedRoutesByFamily(family)
 			require.NoError(t, ValidateOMPAgentRoleSet(roleModelOverrideAgents(profile.Agents)),
 				"balanced must route exactly the canonical agent set")
-			require.Len(t, want, len(CanonicalAgentNames()))
+			require.Len(t, want, len(CanonicalAgentNames())+len(legacyAgentNames))
 			for agent, candidate := range want {
 				candidates, err := profile.AgentCandidates(agent)
 				require.NoError(t, err, agent)

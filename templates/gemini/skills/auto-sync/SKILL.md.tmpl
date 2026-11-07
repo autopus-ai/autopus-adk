@@ -17,66 +17,29 @@ triggers:
 
 ## 설명
 
-구현 완료 후 코드와 문서를 동기화합니다.
+방금 만든 변경에 맞춰 프로젝트 문서를 갱신합니다. 단계마다 사용자에게 시작을 묻지 않고 진행하며, 리뷰나 QA hunt가 통과한 뒤 자연스럽게 이어집니다.
 
 ## 사용법
 
-```
-@auto-sync SPEC-ID
-@auto-sync
-```
-
-## 동기화 대상
-
-1. SPEC 상태 업데이트
-2. API 문서 갱신
-3. 아키텍처 다이어그램
-{{if .IsFullMode}}4. Lore 의사결정 기록
-5. CHANGELOG 갱신
-6. Lore 형식 자동 커밋{{end}}
-
-repo 경계, 빌드/릴리스 스크립트, desktop/browser/API surface가 바뀌면 `.autopus/project/workspace.md`의 QA/Journey Pack 대상 리포와 `auto qa init --project-dir <repo>` 명령도 갱신합니다. meta workspace의 root `.autopus/qa/**`는 runtime/generated evidence로 취급합니다.
-
-## 학습 요약과 정리
-
-`.autopus/learnings/pipeline.jsonl`이 있을 때만 커밋 전에 수행합니다. 파일을 직접 고치지 않고 `auto learn`만 씁니다.
-
-```bash
-auto learn prune --days 90
-auto learn summary --top 3
+```text
+auto sync
+auto sync HEAD~3..HEAD
 ```
 
-- `Template candidates`는 사용자가 검토할 후보로만 보여 주고, rule·skill·template을 직접 고치지 않습니다.
-- `Intake:` 줄이 나오면 `auto eval harness intake --all-eligible`을 제안만 하고 실행하지 않습니다.
+## 절차
 
-## LSP 품질 게이트
+1. 변경 읽기: `git diff HEAD --stat && git status --short`로 범위를 보고 바뀐 소스를 직접 읽습니다. 하네스 경로(`.autopus/`, `.claude/`, `.codex/`, `.gemini/`, `.opencode/`, `.omp/`, `.agents/`)는 건너뜁니다.
+2. 변경이 낡게 만든 문서만 갱신합니다. 프로젝트의 표현과 언어를 따릅니다.
+   - `README.md`: 바뀐 명령·flag·설정·설치·사용법
+   - `ARCHITECTURE.md`: 추가·제거된 package, module, 의존성, 데이터 흐름
+   - `CHANGELOG.md`: unreleased 제목 아래 항목 하나(없으면 제목을 만듭니다). 사용자에게 무엇이 왜 바뀌었는지
+   - `docs/` 아래 문서, 바뀐 공개 API 옆 doc comment
+   - `.autopus/project/*.md`가 있으면 그 내용. `.autopus/project/workspace.md`는 root 역할, 중첩 repo 경계, 생성·런타임 경로, 커밋 정책, QA/Journey Pack 대상 명령이 바뀌었을 때 갱신합니다
+3. 기능을 지어내거나, 상관없는 절을 다시 쓰거나, 문체를 바꾸지 않습니다. 낡은 문서가 없으면 그렇게 말하고 아무것도 바꾸지 않습니다.
+4. 확인: 문서에 적힌 명령·flag·경로·설정 key가 코드에 실제로 있는지 봅니다. 바뀐 명령은 가능하면 `--help`를 돌려 봅니다. 고친 문서의 링크와 파일 참조가 맞는지 봅니다.
+5. 세션이 커밋하는 중이면 문서를 변경과 함께, 또는 `docs(<scope>): ...` 후속 커밋으로 프로젝트 커밋 형식(commit-msg hook이 있으면 Lore)에 맞춰 커밋합니다. push하지 않습니다.
 
-- 에러: 0 / 경고: 최대 10 / Clean LSP 필요
-{{if .IsFullMode}}
-## Lore 커밋
-
-동기화 완료 후 변경 파일을 Lore 형식으로 자동 커밋합니다.
-- SPEC-ID가 있으면: `docs(<scope>): sync SPEC-{ID} 문서 및 상태 갱신`
-- SPEC-ID가 없으면: `docs(sync): 프로젝트 문서 동기화`
-- 구현 코드 포함 시 SPEC 주요 타입(feat, fix 등) 사용
-- 변경 사항 없으면 커밋 생략
-{{end}}
-
-## Completion Verdict Gate
-
-sync 완료를 선언하기 전에 `## Completion Verdict`를 기록합니다.
-
-```markdown
-## Completion Verdict
-- Outcome Lock: satisfied / blocked
-- Mandatory requirements: N/N
-- Must acceptance: N/N
-- Completion Debt: none / {items}
-- Evolution Ideas: surfaced as optional, not scheduled
-```
-
-- `Completion Debt`가 하나라도 있으면 SPEC 상태를 `completed`로 바꾸지 말고 blocked reason을 남깁니다.
-- `Evolution Ideas`는 사용자에게 optional improvement로만 표시하고, 자동 follow-up SPEC이나 sibling SPEC으로 추천하지 않습니다.
+사용자만 정할 수 있는 결정(예: 동작 변경이 breaking인지)이 필요하면 권장안을 맨 앞에 둔 번호 선택지로 묻고 멈춥니다. 그 밖에는 가정을 밝히고 진행합니다.
 
 ## Branding Formats
 
@@ -107,6 +70,6 @@ Field mappings: `{title}` from spec.md, `N/N` = completed/total tasks, `{verdict
 ```
 
 Detection order:
-1. SPEC status `completed` → `🐙 {SPEC-ID} 완료. 다음 기능: /auto plan "기능 설명"`
+1. SPEC status `completed` → `🐙 {SPEC-ID} 완료.`
 2. Existing pending SPECs created by an approved Sibling SPEC Decision exist → recommend next SPEC to implement
 3. Do not recommend or create pending SPECs from Evolution Ideas

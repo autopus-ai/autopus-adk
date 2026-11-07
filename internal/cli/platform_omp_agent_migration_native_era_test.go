@@ -68,11 +68,11 @@ func TestOMPAgentMigration_S12_S13_UpdateMigratesANativeEraProject(t *testing.T)
 		assert.Contains(t, first, "    + .omp/agents/"+agent+".md\n")
 	}
 	assert.Contains(t, first, "    task.disabledAgents: scout, security-reviewer, sonic, designer, librarian, seance\n")
-	assert.Contains(t, first, "\n    OMP는 이제 Autopus 에이전트 17개를 씁니다.\n")
+	assert.Contains(t, first, "\n    OMP는 이제 Autopus 에이전트 4개를 씁니다.\n")
 	assert.NotContains(t, first, "agent_source: native", "the migration offers no way back")
-	assert.Less(t, strings.Index(first, "+ .omp/agents/planner.md"), strings.Index(first, "✓ omp updated"),
+	assert.Less(t, strings.Index(first, "+ .omp/agents/reviewer.md"), strings.Index(first, "✓ omp updated"),
 		"the lines preview the write")
-	assert.Len(t, ompMigrationAgentFiles(t, dir), 17)
+	assert.Len(t, ompMigrationAgentFiles(t, dir), len(config.CanonicalAgentNames()))
 	ompConfig, err := os.ReadFile(filepath.Join(dir, ".omp", "config.yml"))
 	require.NoError(t, err)
 	assert.Contains(t, string(ompConfig), "disabledAgents")

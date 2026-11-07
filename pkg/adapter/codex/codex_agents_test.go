@@ -18,7 +18,7 @@ func TestGenerateAgents(t *testing.T) {
 
 	files, err := a.generateAgents(cfg)
 	require.NoError(t, err)
-	assert.Len(t, files, 17, "should generate 17 TOML agent files")
+	assert.Len(t, files, 4, "should generate 4 TOML agent files")
 
 	for _, f := range files {
 		fullPath := filepath.Join(dir, f.TargetPath)
@@ -56,8 +56,8 @@ func TestGenerateAgents_TOMLContent(t *testing.T) {
 }
 
 // Balanced renders the native placement rather than the agent template's
-// declared effort: the seven reasoning-core roles land on Astra/max and the
-// nine execution roles on Luna/max. This adapter has no probed catalog, so it
+// declared effort: reviewer lands on Astra/max, qa-explorer on Sol/xhigh, and
+// the frontend and UX roles on Luna/max. This adapter has no probed catalog, so it
 // covers the config-only render path; the catalog-verified path is in
 // codex_native_balanced_test.go.
 func TestGenerateAgents_BalancedQualityRendersNativePlacement(t *testing.T) {
@@ -85,13 +85,8 @@ func TestGenerateAgents_UltraQualityUsesFableAndOpusProfiles(t *testing.T) {
 	cfg := config.DefaultFullConfig("test-project")
 	cfg.Quality.Default = "ultra"
 	fableAgents := map[string]bool{
-		"architect.toml":        true,
-		"debugger.toml":         true,
-		"deep-worker.toml":      true,
-		"planner.toml":          true,
-		"reviewer.toml":         true,
-		"security-auditor.toml": true,
-		"spec-writer.toml":      true,
+		"qa-explorer.toml": true,
+		"reviewer.toml":    true,
 	}
 
 	files, err := a.generateAgents(cfg)
@@ -123,7 +118,7 @@ func TestPrepareAgentFiles_NoDiskWrite(t *testing.T) {
 
 	files, err := a.prepareAgentFiles(cfg)
 	require.NoError(t, err)
-	assert.Len(t, files, 17)
+	assert.Len(t, files, 4)
 
 	agentsDir := filepath.Join(dir, ".codex", "agents")
 	_, err = os.Stat(agentsDir)

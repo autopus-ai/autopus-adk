@@ -5,29 +5,6 @@ import (
 	"testing"
 )
 
-// TestSkillResourceRelPaths_MatchesRenderedKeys guards the cheap path listing
-// against drifting from the expensive render: an ownership allowlist built from
-// the paths must cover exactly what RenderSkillResources writes.
-func TestSkillResourceRelPaths_MatchesRenderedKeys(t *testing.T) {
-	rendered, err := RenderSkillResources("agent-pipeline", "claude", cfgDefault("claude"))
-	if err != nil {
-		t.Fatalf("RenderSkillResources: %v", err)
-	}
-	if len(rendered) == 0 {
-		t.Fatal("precondition failed: agent-pipeline ships no reference bodies")
-	}
-
-	paths := SkillResourceRelPaths("agent-pipeline")
-	if !reflect.DeepEqual(paths, SkillResourceNames(rendered)) {
-		t.Errorf("SkillResourceRelPaths = %v, want the rendered keys %v", paths, SkillResourceNames(rendered))
-	}
-	for _, rel := range paths {
-		if got := rel[:len(SkillResourceDirName)]; got != SkillResourceDirName {
-			t.Errorf("resource path %q is not under %q", rel, SkillResourceDirName)
-		}
-	}
-}
-
 // TestSkillResourceNames_IsSortedAndComplete pins deterministic ordering,
 // which is what makes generated file mappings and checksums stable.
 func TestSkillResourceNames_IsSortedAndComplete(t *testing.T) {

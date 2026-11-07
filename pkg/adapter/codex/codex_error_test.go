@@ -44,7 +44,7 @@ func TestGenerate_FailsOnSkillTemplateWriteBlocked(t *testing.T) {
 	dir := t.TempDir()
 	skillsDir := filepath.Join(dir, ".codex", "skills")
 	require.NoError(t, os.MkdirAll(skillsDir, 0755))
-	require.NoError(t, os.MkdirAll(filepath.Join(skillsDir, "codex-auto-plan", "SKILL.md"), 0755))
+	require.NoError(t, os.MkdirAll(filepath.Join(skillsDir, "codex-auto-review", "SKILL.md"), 0755))
 
 	a := NewWithRoot(dir)
 	cfg := config.DefaultFullConfig("test-project")
@@ -138,7 +138,7 @@ func TestGenerateAgents_WriteFileBlocked(t *testing.T) {
 	dir := t.TempDir()
 	agentsDir := filepath.Join(dir, ".codex", "agents")
 	require.NoError(t, os.MkdirAll(agentsDir, 0755))
-	require.NoError(t, os.MkdirAll(filepath.Join(agentsDir, "executor.toml"), 0755))
+	require.NoError(t, os.MkdirAll(filepath.Join(agentsDir, "reviewer.toml"), 0755))
 
 	a := NewWithRoot(dir)
 	cfg := config.DefaultFullConfig("test-project")
@@ -151,7 +151,7 @@ func TestRenderSkillTemplates_WriteFileBlocked(t *testing.T) {
 	dir := t.TempDir()
 	skillsDir := filepath.Join(dir, ".codex", "skills")
 	require.NoError(t, os.MkdirAll(skillsDir, 0755))
-	require.NoError(t, os.MkdirAll(filepath.Join(skillsDir, "codex-auto-plan", "SKILL.md"), 0755))
+	require.NoError(t, os.MkdirAll(filepath.Join(skillsDir, "codex-auto-review", "SKILL.md"), 0755))
 
 	a := NewWithRoot(dir)
 	cfg := config.DefaultFullConfig("test-project")

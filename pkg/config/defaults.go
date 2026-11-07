@@ -24,6 +24,12 @@ const DefaultEditGuard = true
 
 // IsEditGuardEnabled reports whether hook generation registers the edit guard.
 // An explicit value wins; nil means unset and resolves to DefaultEditGuard.
+// IsVerifyStopEnabled reports whether the verification Stop hook is
+// registered. Unset means on: the gate is the harness's core check.
+func (h HooksConf) IsVerifyStopEnabled() bool {
+	return h.VerifyStop == nil || *h.VerifyStop
+}
+
 func (h HooksConf) IsEditGuardEnabled() bool {
 	if h.EditGuard == nil {
 		return DefaultEditGuard
@@ -89,9 +95,11 @@ func DefaultFullConfig(projectName string) *HarnessConfig {
 				MinProviders: 0,
 			},
 		},
+		// The verification harness ships no methodology skill to deliver a
+		// mode, so a fresh config claims none.
 		Methodology: MethodologyConf{
-			Mode:       "tdd",
-			Enforce:    true,
+			Mode:       "none",
+			Enforce:    false,
 			ReviewGate: true,
 		},
 		// EditGuard stays unset so a fresh autopus.yaml carries no key an
@@ -134,19 +142,14 @@ func DefaultFullConfig(projectName string) *HarnessConfig {
 			SupervisorModelPolicy: SupervisorModelPolicyInherit,
 			Presets: map[string]QualityPreset{
 				"ultra": {
-					Description: "추론 코어 7개는 Fable, 나머지는 Opus. 최고 품질.",
+					Description: "리뷰와 QA 탐색은 Fable, UX 검증은 Opus. 최고 품질.",
 					Agents: map[string]string{
-						"architect": "fable", "debugger": "fable", "deep-worker": "fable",
-						"planner": "fable", "reviewer": "fable", "security-auditor": "fable",
-						"spec-writer": "fable",
-						"annotator":   "opus", "devops": "opus", "executor": "opus",
-						"explorer": "opus", "frontend-specialist": "opus",
-						"perf-engineer": "opus", "reverse-engineer": "opus", "tester": "opus",
-						"ux-validator": "opus", "validator": "opus",
+						"reviewer": "fable", "qa-explorer": "fable",
+						"frontend-specialist": "opus", "ux-validator": "opus",
 					},
 				},
 				"balanced": {
-					Description: "기획·리뷰·디버깅은 최상위, 구현·검증은 경량 모델.",
+					Description: "리뷰는 최상위, QA 탐색은 Opus, UX 검증은 경량 모델.",
 					Agents:      defaultBalancedAgentTiers(),
 				},
 			},

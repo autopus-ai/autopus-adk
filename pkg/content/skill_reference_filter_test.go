@@ -14,15 +14,15 @@ import (
 func TestFilterSkillsReferenceLine_KeepsOnlyInstalledSkills(t *testing.T) {
 	t.Parallel()
 	cfg := config.DefaultFullConfig("skills-reference")
-	body := "intro\n- Skills reference: tdd, ddd, debugging, ast-refactoring, my-project-skill\n" +
+	body := "intro\n- Skills reference: review, ddd, debugging, ast-refactoring, my-project-skill\n" +
 		"- Source tool contract: Read\n- Skills reference: ddd, ast-refactoring\nend"
 
 	got := FilterSkillsReferenceLine(body, "codex", cfg)
 
-	assert.Equal(t, "intro\n- Skills reference: tdd, debugging, my-project-skill\n"+
+	assert.Equal(t, "intro\n- Skills reference: review, debugging, my-project-skill\n"+
 		"- Source tool contract: Read\nend", got)
 	assert.Equal(t, "no skills line", FilterSkillsReferenceLine("no skills line", "codex", cfg))
 
 	cfg.Skills.Compiler.ExplicitSkills = []string{"ddd"}
-	assert.Equal(t, []string{"tdd", "ddd"}, FilterInstalledSkillNames([]string{"tdd", "ddd", "ast-refactoring"}, "opencode", cfg))
+	assert.Equal(t, []string{"review", "ddd"}, FilterInstalledSkillNames([]string{"review", "ddd", "ast-refactoring"}, "opencode", cfg))
 }

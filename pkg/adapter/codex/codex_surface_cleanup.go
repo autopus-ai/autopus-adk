@@ -16,6 +16,9 @@ import (
 func PruneRoots() []string {
 	return []string{
 		filepath.ToSlash(filepath.Join(".codex", "skills")),
+		// Agents the generator no longer emits, such as the roles the
+		// verification harness dropped, leave with the manifest record.
+		filepath.ToSlash(filepath.Join(".codex", "agents")),
 		filepath.ToSlash(filepath.Join(".codex", "prompts")),
 		filepath.ToSlash(filepath.Join(".codex", "rules")),
 		filepath.ToSlash(filepath.Join(".agents", "skills")),
@@ -170,9 +173,24 @@ func codexCleanAllowedPaths() (map[string]bool, error) {
 			}
 		}
 	}
-	for _, spec := range workflowSpecs {
-		addSkill(spec.Name)
-		allowed[filepath.ToSlash(filepath.Join(".codex", "prompts", spec.Name+".md"))] = true
+	for _, name := range allWorkflowNames() {
+		addSkill(name)
+		allowed[filepath.ToSlash(filepath.Join(".codex", "prompts", name+".md"))] = true
+	}
+	// Skills, agents, and rules v0.50.134 installed and this release retired.
+	for _, name := range adapter.RetiredSkillNames {
+		addSkill(name)
+		for _, rel := range adapter.RetiredSkillResources[name] {
+			allowed[filepath.ToSlash(filepath.Join(filepath.Dir(codexProjectSkillPath(name)), rel))] = true
+			allowed[filepath.ToSlash(filepath.Join(".agents", "skills", name, rel))] = true
+			allowed[filepath.ToSlash(filepath.Join(".autopus", "plugins", "auto", "skills", name, rel))] = true
+		}
+	}
+	for _, name := range adapter.RetiredAgentNames {
+		allowed[filepath.ToSlash(filepath.Join(".codex", "agents", name+".toml"))] = true
+	}
+	for _, name := range adapter.RetiredRuleNames {
+		allowed[filepath.ToSlash(filepath.Join(".codex", "rules", "autopus", name+".md"))] = true
 	}
 	skills, err := contentfs.FS.ReadDir("skills")
 	if err != nil {

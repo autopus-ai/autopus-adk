@@ -11,9 +11,9 @@ import (
 )
 
 // Both modes persist an orchestra provider at Astra/max. Ultra keeps the tier
-// ladder for agents (fable-tier planner Astra/max, opus-tier executor
-// Sol/xhigh); balanced routes both through the native placement (planner
-// Astra/max, executor Luna/max).
+// ladder for agents (fable-tier reviewer Astra/max, opus-tier frontend-specialist
+// Sol/xhigh); balanced routes both through the native placement (reviewer
+// Astra/max, frontend-specialist Luna/max).
 func TestInitCmd_QualityUltraInheritsCodexSupervisorAndSetsManagedAgents(t *testing.T) {
 	assertInitCodexQualityProfile(t, "ultra", "max", "gpt-6.1-sol", "xhigh", "max")
 }
@@ -37,11 +37,11 @@ func assertInitCodexQualityProfile(t *testing.T, quality, orchestraEffort, execu
 	assert.NotContains(t, rootSection, "\nmodel =")
 	assert.NotContains(t, rootSection, "model_reasoning_effort")
 
-	executor, err := os.ReadFile(filepath.Join(dir, ".codex", "agents", "executor.toml"))
+	executor, err := os.ReadFile(filepath.Join(dir, ".codex", "agents", "frontend-specialist.toml"))
 	require.NoError(t, err)
 	assert.Contains(t, string(executor), `model = "`+executorModel+`"`)
 	assert.Contains(t, string(executor), `model_reasoning_effort = "`+executorEffort+`"`)
-	planner, err := os.ReadFile(filepath.Join(dir, ".codex", "agents", "planner.toml"))
+	planner, err := os.ReadFile(filepath.Join(dir, ".codex", "agents", "reviewer.toml"))
 	require.NoError(t, err)
 	assert.Contains(t, string(planner), `model = "gpt-6-astra"`)
 	assert.Contains(t, string(planner), `model_reasoning_effort = "`+plannerEffort+`"`)

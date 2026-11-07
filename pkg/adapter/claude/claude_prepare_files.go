@@ -105,12 +105,6 @@ func (a *Adapter) prepareFiles(cfg *config.HarnessConfig) ([]adapter.FileMapping
 			return nil, fmt.Errorf("상세 workflow 스킬 준비 실패: %w", err)
 		}
 		files = append(files, workflowSkillFiles...)
-
-		workflowFiles, err := a.workflowFiles(cfg)
-		if err != nil {
-			return nil, err
-		}
-		files = append(files, workflowFiles...)
 	}
 
 	// One finalization seam: every Claude markdown emitter above has produced

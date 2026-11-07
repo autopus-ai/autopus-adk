@@ -74,23 +74,12 @@ func TestOMPAcceptance_S1_RuleFrontmatterPassthrough(t *testing.T) {
 	assert.NotContains(t, loreFM, "name:")
 	assert.NotEmpty(t, strings.TrimSpace(loreBody))
 
-	// branding.md carries no frontmatter at source, so the emitted copy gains a
-	// synthesized description from its title. Without one omp writes the file
-	// but never surfaces the rule in a session.
-	brandingRaw, err := os.ReadFile(filepath.Join(ruleDir, ompRuleFilePrefix+"branding.md"))
-	require.NoError(t, err)
-	branding := string(brandingRaw)
-	brandingFM, brandingBody := splitEmittedFrontmatter(t, branding)
-	assert.Equal(t, "description: Autopus Branding", strings.TrimSpace(brandingFM))
-	assert.Equal(t, "# Autopus Branding", strings.SplitN(strings.TrimSpace(brandingBody), "\n", 2)[0],
-		"the body keeps its original title")
-
 	// Every emitted rule carries a non-empty body (REQ-004) and reaches an omp
 	// session: it is listed in <domain-rules> when it declares a description, or
 	// registered with the TTSR engine when it declares a trigger key. A rule with
 	// neither lands on disk and is never discovered.
 	names := sourceRuleNames(t)
-	assert.Len(t, names, 14, "content/rules must hold exactly 14 rule sources")
+	assert.Len(t, names, 4, "content/rules must hold exactly 4 rule sources")
 	for _, name := range names {
 		data, readErr := os.ReadFile(filepath.Join(ruleDir, ompRuleFilePrefix+name))
 		require.NoError(t, readErr, "rule %s must be emitted", name)
@@ -237,7 +226,7 @@ func TestOMPAcceptance_LegacyRuleNamespaceUpgraded(t *testing.T) {
 		legacyRules[legacyDir+"/"+name] = string(body)
 		delete(manifest.Files, path)
 	}
-	require.Len(t, legacyRules, 14, "the fixture must rewind all 14 rules")
+	require.Len(t, legacyRules, 4, "the fixture must rewind all 4 rules")
 
 	require.NoError(t, os.RemoveAll(filepath.Join(dir, filepath.FromSlash(ompRuleDir))))
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, filepath.FromSlash(legacyDir)), 0o755))
@@ -260,10 +249,10 @@ func TestOMPAcceptance_LegacyRuleNamespaceUpgraded(t *testing.T) {
 	_, err = NewWithRoot(dir).Update(context.Background(), cfg)
 	require.NoError(t, err)
 
-	legacyBranding := filepath.Join(dir, filepath.FromSlash(legacyDir), "branding.md")
-	assert.NoFileExists(t, legacyBranding,
+	legacyRule := filepath.Join(dir, filepath.FromSlash(legacyDir), "file-size-limit.md")
+	assert.NoFileExists(t, legacyRule,
 		"a legacy rule the previous manifest recorded must be pruned")
-	assert.FileExists(t, filepath.Join(dir, ompRuleDir, ompRuleFilePrefix+"branding.md"),
+	assert.FileExists(t, filepath.Join(dir, ompRuleDir, ompRuleFilePrefix+"file-size-limit.md"),
 		"the rule must be re-emitted into the flat .omp/rules namespace")
 
 	survivingUser, err := os.ReadFile(userRule)

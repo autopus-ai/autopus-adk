@@ -76,7 +76,7 @@ func TestQualityCompose_AsksWhetherAnOverrideFollowsBeforeThePreview(t *testing.
 			setComposeLanguage(t, tc.lang)
 			dir := writeComposeProjectP(t)
 
-			out, err := runQualityCompose(t, dir, strings.NewReader("g\n\n3\n\n4\n"+tc.answer+"\ny\n"), "--apply")
+			out, err := runQualityCompose(t, dir, strings.NewReader("g\n\n3\n"+tc.answer+"\ny\n"), "--apply")
 
 			require.NoError(t, err, out)
 			asked := strings.Index(out, tc.question)
@@ -87,11 +87,11 @@ func TestQualityCompose_AsksWhetherAnOverrideFollowsBeforeThePreview(t *testing.
 			written := rawQualityOf(t, readBlockFixture(t, dir))
 			assert.Equal(t, "custom", written.Default)
 			if tc.follows {
-				assert.Equal(t, "6-luna · max*", table["executor"]["Codex"])
+				assert.Equal(t, "6-luna · max*", table["reviewer"]["Codex"])
 				assert.Contains(t, out, tc.removal)
 				assert.Empty(t, written.Providers)
 			} else {
-				assert.Equal(t, "6-luna · medium", table["executor"]["Codex (개별 설정: codex-custom)"])
+				assert.Equal(t, "6-luna · high", table["reviewer"]["Codex (개별 설정: codex-custom)"])
 				assert.NotContains(t, out, tc.removal)
 				assert.Equal(t, map[string]string{config.QualityProviderCodex: "codex-custom"}, written.Providers)
 			}
@@ -124,7 +124,7 @@ func TestQualityCompose_OverrideAnswerReachesTheDefaultSessionLine(t *testing.T)
 			require.NoError(t, config.Save(dir, cfg))
 			before := composeSessionHash(t, dir)
 
-			out, err := runQualityCompose(t, dir, strings.NewReader("a\nplanner=sonnet\n\n"+answer+"\nn\n"))
+			out, err := runQualityCompose(t, dir, strings.NewReader("a\nreviewer=sonnet\n\n"+answer+"\nn\n"))
 
 			require.NoError(t, err, out)
 			assert.Contains(t, out, "Codex도 새 구성을 따를까요? (quality.providers.codex = ultra 제거) [y/N]\n")

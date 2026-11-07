@@ -25,26 +25,12 @@ type nativeAgentProfile struct {
 // map the adapter reads would agree with any rung reshuffle, including a
 // mistake that pushes debugger or deep-worker off the frontier model.
 func balancedNativeProfiles() map[string]nativeAgentProfile {
-	profiles := make(map[string]nativeAgentProfile, 17)
-	frontier := nativeAgentProfile{model: config.ClaudeOpusModel, effort: "max"}
-	for _, agent := range []string{
-		"architect", "debugger", "deep-worker", "planner",
-		"reviewer", "security-auditor", "spec-writer",
-	} {
-		profiles[agent] = frontier
+	return map[string]nativeAgentProfile{
+		"reviewer":            {model: config.ClaudeOpusModel, effort: "max"},
+		"qa-explorer":         {model: config.ClaudeOpusModel, effort: "high"},
+		"frontend-specialist": {model: config.ClaudeSonnetModel, effort: "max"},
+		"ux-validator":        {model: config.ClaudeSonnetModel, effort: "high"},
 	}
-	implementation := nativeAgentProfile{model: config.ClaudeSonnetModel, effort: "max"}
-	for _, agent := range []string{
-		"devops", "executor", "frontend-specialist", "perf-engineer", "tester",
-	} {
-		profiles[agent] = implementation
-	}
-	routine := nativeAgentProfile{model: config.ClaudeSonnetModel, effort: "high"}
-	for _, agent := range []string{"annotator", "explorer", "ux-validator", "validator"} {
-		profiles[agent] = routine
-	}
-	profiles["reverse-engineer"] = nativeAgentProfile{model: config.ClaudeOpusModel, effort: "high"}
-	return profiles
 }
 
 // TestClaudeBalancedAgentsRenderNativeModelIDs is the placement oracle. Every
@@ -76,14 +62,14 @@ func TestClaudeBalancedPlacementFollowsQualityPrecedence(t *testing.T) {
 	globalOnly := config.DefaultFullConfig("native-balanced")
 	globalOnly.Quality.Providers = nil
 	assert.Contains(t,
-		agentFrontmatterLines(t, generateClaudeAgents(t, globalOnly), "debugger.md"),
+		agentFrontmatterLines(t, generateClaudeAgents(t, globalOnly), "reviewer.md"),
 		"model: "+config.ClaudeOpusModel,
 		"the global balanced default alone must reach native placement")
 
 	providerWins := config.DefaultFullConfig("native-balanced")
 	providerWins.Quality.Default = "ultra"
 	providerWins.Quality.Providers = map[string]string{config.QualityProviderClaude: "balanced"}
-	overridden := agentFrontmatterLines(t, generateClaudeAgents(t, providerWins), "debugger.md")
+	overridden := agentFrontmatterLines(t, generateClaudeAgents(t, providerWins), "reviewer.md")
 	assert.Contains(t, overridden, "model: "+config.ClaudeOpusModel,
 		"a claude provider override must outrank the global default")
 	assert.Contains(t, overridden, "effort: max")
@@ -92,7 +78,7 @@ func TestClaudeBalancedPlacementFollowsQualityPrecedence(t *testing.T) {
 	codexOnly.Quality.Default = "ultra"
 	codexOnly.Quality.Providers = map[string]string{config.QualityProviderCodex: "balanced"}
 	assert.Contains(t,
-		agentFrontmatterLines(t, generateClaudeAgents(t, codexOnly), "debugger.md"),
+		agentFrontmatterLines(t, generateClaudeAgents(t, codexOnly), "reviewer.md"),
 		"model: fable",
 		"a codex-only override must leave the Claude surface on ultra")
 }
@@ -105,19 +91,19 @@ func TestClaudeBalancedCustomAgentTierKeepsSiblingsNative(t *testing.T) {
 
 	cfg := config.DefaultFullConfig("native-balanced")
 	preset := cfg.Quality.Presets["balanced"]
-	preset.Agents["debugger"] = "haiku"
+	preset.Agents["reviewer"] = "haiku"
 	cfg.Quality.Presets["balanced"] = preset
 	agentDir := generateClaudeAgents(t, cfg)
 
-	debugger := agentFrontmatterLines(t, agentDir, "debugger.md")
+	debugger := agentFrontmatterLines(t, agentDir, "reviewer.md")
 	assert.Contains(t, debugger, "model: haiku")
 	for _, line := range debugger {
 		assert.Falsef(t, strings.HasPrefix(line, "effort:"),
 			"haiku carries no reasoning effort, got %q", line)
 	}
 
-	sibling := agentFrontmatterLines(t, agentDir, "deep-worker.md")
-	assert.Contains(t, sibling, "model: "+config.ClaudeOpusModel)
+	sibling := agentFrontmatterLines(t, agentDir, "frontend-specialist.md")
+	assert.Contains(t, sibling, "model: "+config.ClaudeSonnetModel)
 	assert.Contains(t, sibling, "effort: max")
 }
 
@@ -130,16 +116,16 @@ func TestClaudeCustomQualityPresetKeepsTierAliases(t *testing.T) {
 	cfg := config.DefaultFullConfig("native-balanced")
 	cfg.Quality.Presets["econo"] = config.QualityPreset{
 		Description: "custom preset",
-		Agents:      map[string]string{"debugger": "fable", "deep-worker": "sonnet"},
+		Agents:      map[string]string{"reviewer": "fable", "frontend-specialist": "sonnet"},
 	}
 	cfg.Quality.Providers = map[string]string{config.QualityProviderClaude: "econo"}
 	agentDir := generateClaudeAgents(t, cfg)
 
-	debugger := agentFrontmatterLines(t, agentDir, "debugger.md")
+	debugger := agentFrontmatterLines(t, agentDir, "reviewer.md")
 	assert.Contains(t, debugger, "model: fable")
 	assert.Contains(t, debugger, "effort: max")
 
-	deepWorker := agentFrontmatterLines(t, agentDir, "deep-worker.md")
+	deepWorker := agentFrontmatterLines(t, agentDir, "frontend-specialist.md")
 	assert.Contains(t, deepWorker, "model: sonnet")
 	assert.Contains(t, deepWorker, "effort: medium")
 }

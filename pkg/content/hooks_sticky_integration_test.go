@@ -25,8 +25,10 @@ import (
 	"github.com/insajin/autopus-adk/pkg/rulecond"
 )
 
-// designatedStickyRules is the pair REQ-STICKYRULE-MAP-01 fixes.
-var designatedStickyRules = []string{"language-policy", "objective-reasoning"}
+// designatedStickyRules is the always-on set the verification harness ships:
+// language-policy (REQ-STICKYRULE-MAP-01) and autonomy, which governs every
+// turn's ask-or-continue decision.
+var designatedStickyRules = []string{"autonomy", "language-policy"}
 
 // embeddedRuleSet parses every rule the harness ships.
 func embeddedRuleSet(t *testing.T) []*rulecond.Rule {

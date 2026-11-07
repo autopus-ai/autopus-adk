@@ -85,7 +85,7 @@ func TestQualityCompose_RoutesTargetsToTheExistingEditors(t *testing.T) {
 		{"global", "global\n1\n", "Select quality mode:", "ultra"},
 		{"t opens the target menu", "t\nglobal\n1\n", "What would you like to configure?", "ultra"},
 		{"menu number of global", "1\n1\n", "Select quality mode:", "ultra"},
-		{"claude-code", "claude-code\nexecutor=fable\n\n\ny\n", "Claude Code — agent models", "balanced"},
+		{"claude-code", "claude-code\nfrontend-specialist=fable\n\n\ny\n", "Claude Code — agent models", "balanced"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -108,7 +108,7 @@ func TestQualityCompose_RoutesTargetsToTheExistingEditors(t *testing.T) {
 			}
 			assert.Equal(t, map[string]string{config.QualityProviderClaude: "claude-custom"}, quality.Providers)
 			assert.Len(t, quality.Presets["claude-custom"].Agents, len(config.CanonicalAgentNames()))
-			assert.Equal(t, "fable", quality.Presets["claude-custom"].Agents["executor"])
+			assert.Equal(t, "fable", quality.Presets["claude-custom"].Agents["frontend-specialist"])
 			beforePrefix, beforeSuffix := qualityBlockOuter(t, original)
 			afterPrefix, afterSuffix := qualityBlockOuter(t, written)
 			assert.Equal(t, beforePrefix, afterPrefix)
@@ -124,7 +124,7 @@ func TestQualityCompose_RoutedEditorsApplyWithTheRunSnapshot(t *testing.T) {
 	for name, input := range map[string]string{
 		"global":                  "global\n1\n",
 		"t opens the target menu": "t\nglobal\n1\n",
-		"claude-code tool editor": "claude-code\nexecutor=fable\n\n\ny\n",
+		"claude-code tool editor": "claude-code\nfrontend-specialist=fable\n\n\ny\n",
 	} {
 		t.Run(name, func(t *testing.T) {
 			run := newComposeUpdateRun(t, true, "")
@@ -170,34 +170,34 @@ func TestQualityCompose_ApplyGeneratesTheApprovedPreviewWithTheRunSnapshot(t *te
 		assert.Contains(t, out, "quality.applied_platforms = 2\n")
 		assert.Len(t, *run.probes, 1)
 		assert.False(t, run.adapterProbed(t), "generation must read the run's snapshot")
-		planner := readComposeTableClaudeProfile(t, dir, "planner")
-		assert.Equal(t, "fable", planner.model)
-		assert.Equal(t, "max", planner.effort)
-		codexPlanner := readComposeCodexProfile(t, dir, "planner")
-		assert.Equal(t, "gpt-6-astra", codexPlanner.Model)
-		assert.Equal(t, "max", codexPlanner.Effort)
+		reviewer := readComposeTableClaudeProfile(t, dir, "reviewer")
+		assert.Equal(t, "fable", reviewer.model)
+		assert.Equal(t, "max", reviewer.effort)
+		codexReviewer := readComposeCodexProfile(t, dir, "reviewer")
+		assert.Equal(t, "gpt-6-astra", codexReviewer.Model)
+		assert.Equal(t, "max", codexReviewer.Effort)
 		assertGeneratedEqualsTable(t, dir, composeRenderedTable(t, out, "미리보기 (아직 바뀌지 않음)"))
 	})
 	t.Run("D group edit", func(t *testing.T) {
 		run := newComposeUpdateRun(t, true, "")
 		dir, _ := composeSessionProject(t, "D")
 
-		out, err := runQualityCompose(t, dir, strings.NewReader("g\n\n3\n\n4\ny\n"), "--apply")
+		out, err := runQualityCompose(t, dir, strings.NewReader("g\n4\n\ny\n"), "--apply")
 
 		require.NoError(t, err, out)
 		assert.Contains(t, out, "quality.applied_platforms = 2\n")
 		assert.Len(t, *run.probes, 1)
 		assert.False(t, run.adapterProbed(t), "generation must read the run's snapshot")
-		explorer := readComposeCodexProfile(t, dir, "explorer")
-		assert.Equal(t, "gpt-6-luna", explorer.Model)
-		assert.Equal(t, "medium", explorer.Effort)
-		claude := readComposeTableClaudeProfile(t, dir, "explorer")
+		edited := readComposeCodexProfile(t, dir, "frontend-specialist")
+		assert.Equal(t, "gpt-6-luna", edited.Model)
+		assert.Equal(t, "medium", edited.Effort)
+		claude := readComposeTableClaudeProfile(t, dir, "frontend-specialist")
 		assert.Equal(t, "haiku", claude.model)
 		assert.Empty(t, claude.effort, "a haiku agent carries no effort line")
 		claudeMarks, codexMarks := assertGeneratedEqualsTable(t, dir, composeRenderedTable(t, out, "미리보기 (아직 바뀌지 않음)"))
-		// The five kept top-rung agents keep their Claude Code cell.
-		assert.Equal(t, 12, claudeMarks)
-		assert.Equal(t, 5, codexMarks)
+		// The kept top-rung reviewer keeps its Claude Code cell.
+		assert.Equal(t, 3, claudeMarks)
+		assert.Equal(t, 1, codexMarks)
 	})
 }
 
@@ -211,7 +211,7 @@ func TestQualityCompose_RefusesTheF001FixtureAndLeaksNothing(t *testing.T) {
 			dir := writeBlockFixture(t, blockLeakAlias)
 			want := sha256.Sum256([]byte(blockLeakAlias))
 
-			out, err := runQualityCompose(t, dir, strings.NewReader("g\n\n3\n\n4\ny\n"), "--apply")
+			out, err := runQualityCompose(t, dir, strings.NewReader("g\n4\n\ny\n"), "--apply")
 
 			require.ErrorIs(t, err, errQualityWriteRefused, out)
 			assert.Equal(t, qualityWriteRefusalText, err.Error())

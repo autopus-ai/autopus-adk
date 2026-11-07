@@ -82,7 +82,7 @@ func TestOMPStatusNoOptInReportsTheAutopusRegistryAndBareStatusIsCompatible(t *t
 	require.NoError(t, status.Execute())
 	assert.Contains(t, operatorOut.String(), "Agent registry: status=ready")
 	assert.Contains(t, operatorOut.String(), "source=autopus_generated")
-	assert.Contains(t, operatorOut.String(), "expected=18 shadowed=0")
+	assert.Contains(t, operatorOut.String(), "expected=5 shadowed=0")
 	assert.NotContains(t, operatorOut.String(), "agent_catalog_incomplete")
 	assert.Contains(t, operatorOut.String(), ompLiveStateLimitation)
 	assert.Contains(t, operatorOut.String(), ompLiveStateNextCommand)

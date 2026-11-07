@@ -52,8 +52,8 @@ func TestE2EInitCodex(t *testing.T) {
 	// Repository-scoped custom prompts were removed from current Codex.
 	assertNoFileExists(t, filepath.Join(dir, ".codex", "prompts"))
 
-	// .codex/agents/ directory must exist with 17 TOML agents (SPEC-PARITY-001: all agents).
-	assertDirHasNFiles(t, filepath.Join(dir, ".codex", "agents"), 17)
+	// .codex/agents/ directory must exist with the 4 TOML agents (SPEC-PARITY-001: all agents).
+	assertDirHasNFiles(t, filepath.Join(dir, ".codex", "agents"), 4)
 
 	// .codex/hooks.json must exist.
 	assertFileExists(t, filepath.Join(dir, ".codex", "hooks.json"))
@@ -65,7 +65,7 @@ func TestE2EInitCodex(t *testing.T) {
 	assertFileExists(t, filepath.Join(dir, ".autopus", "codex-manifest.json"))
 
 	// The native surface includes skills, agents, hooks, config, and plugin data.
-	assert.GreaterOrEqual(t, len(pf.Files), 65,
+	assert.GreaterOrEqual(t, len(pf.Files), 25,
 		"Codex should produce a complete native surface, got %d mappings", len(pf.Files))
 
 	// Validate should pass after Generate.
@@ -211,7 +211,7 @@ func TestE2ECodex_FileCount(t *testing.T) {
 
 	assert.GreaterOrEqual(t, skills, 6, "should have native skill directories")
 	assert.Zero(t, prompts, "current Codex must not generate repository custom prompts")
-	assert.Equal(t, 17, agents, "should have 17 agent files (SPEC-PARITY-001)")
+	assert.Equal(t, 4, agents, "should have 4 agent files (SPEC-PARITY-001)")
 	assert.GreaterOrEqual(t, other, 3, "should have AGENTS.md + hooks.json + .codex/config.toml")
 }
 

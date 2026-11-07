@@ -88,7 +88,8 @@ func TestNativeBalancedAgentCandidate_ClassificationOnlyRowsKeepRuntime(t *testi
 		claudeRoutine = "anthropic/claude-sonnet-5-5@high"
 		codexTop      = "openai-codex/gpt-6-astra@max"
 		codexRest     = "openai-codex/gpt-6-luna@max"
-		// Neither layout names reverse-engineer, so it takes the analysis rung.
+		// Neither layout names reverse-engineer or qa-explorer, so both take the
+		// analysis rung.
 		claudeAnalysis = "anthropic/claude-opus-5-5@high"
 		codexAnalysis  = "openai-codex/gpt-6.1-sol@xhigh"
 	)
@@ -110,6 +111,7 @@ func TestNativeBalancedAgentCandidate_ClassificationOnlyRowsKeepRuntime(t *testi
 				"tester":    {claudeImpl, codexRest},
 				"annotator": {claudeRoutine, codexRest}, "ux-validator": {claudeRoutine, codexRest},
 				"reverse-engineer": {claudeAnalysis, codexAnalysis},
+				"qa-explorer":      {claudeAnalysis, codexAnalysis},
 			},
 		},
 		{
@@ -124,6 +126,7 @@ func TestNativeBalancedAgentCandidate_ClassificationOnlyRowsKeepRuntime(t *testi
 				"annotator": {claudeRoutine, codexRest}, "explorer": {claudeRoutine, codexRest},
 				"ux-validator": {claudeRoutine, codexRest}, "validator": {claudeRoutine, codexRest},
 				"reverse-engineer": {claudeAnalysis, codexAnalysis},
+				"qa-explorer":      {claudeAnalysis, codexAnalysis},
 			},
 		},
 	}

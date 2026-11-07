@@ -41,13 +41,15 @@ func TestOMPGenerate_ExplicitSkillSelectionReachesAllowSkill(t *testing.T) {
 	dir := t.TempDir()
 	cfg := config.DefaultFullConfig("omp-cov")
 	cfg.Platforms = []string{"omp"}
-	cfg.Skills.Compiler.ExplicitSkills = []string{"spec-review"}
+	// Every skill the verification harness ships is core, so the explicit
+	// name is a core one; the closure still runs with an explicit selection.
+	cfg.Skills.Compiler.ExplicitSkills = []string{"qa-hunt"}
 	require.NoError(t, config.Save(dir, cfg))
 
 	pf, err := NewWithRoot(dir).Generate(context.Background(), cfg)
 	require.NoError(t, err)
 	require.NotNil(t, pf)
-	assert.FileExists(t, filepath.Join(dir, ".omp", "skills", "spec-review", "SKILL.md"))
+	assert.FileExists(t, filepath.Join(dir, ".omp", "skills", "qa-hunt", "SKILL.md"))
 }
 
 // TestOMPRenderConfigDocument_AppendsToUnmarkedConfig covers the branch where a
@@ -87,7 +89,7 @@ func TestOMPIsPruneEligible_RejectsEscapingPaths(t *testing.T) {
 	}
 	assert.True(t, isPruneEligible("anything/at/all.md", nil),
 		"an empty root set imposes no restriction")
-	assert.True(t, isPruneEligible(ompRuleDir+"/"+ompRuleFilePrefix+"branding.md", roots))
+	assert.True(t, isPruneEligible(ompRuleDir+"/"+ompRuleFilePrefix+"file-size-limit.md", roots))
 	assert.True(t, isPruneEligible(ompRuleDir+"/mine.md", roots),
 		"containment is prefix-blind: the manifest, not this predicate, spares user files")
 	assert.False(t, isPruneEligible(".omp/RULES.md", roots),
@@ -145,8 +147,8 @@ func TestOMPClean_WithoutHarnessConfig(t *testing.T) {
 	require.NoError(t, os.Remove(filepath.Join(dir, "autopus.yaml")))
 
 	require.NoError(t, NewWithRoot(dir).Clean(context.Background()))
-	assert.NoFileExists(t, filepath.Join(dir, ompRuleDir, ompRuleFilePrefix+"branding.md"))
-	assert.NoFileExists(t, filepath.Join(dir, ".omp", "agents", "executor.md"))
+	assert.NoFileExists(t, filepath.Join(dir, ompRuleDir, ompRuleFilePrefix+"file-size-limit.md"))
+	assert.NoFileExists(t, filepath.Join(dir, ".omp", "agents", "ux-validator.md"))
 }
 
 // TestOMPClean_SkipsAlreadyDeletedManifestPath covers the branch where a user
@@ -155,13 +157,13 @@ func TestOMPClean_SkipsAlreadyDeletedManifestPath(t *testing.T) {
 	t.Parallel()
 
 	dir := generateOMPOnly(t)
-	victim := filepath.Join(dir, ompRuleDir, ompRuleFilePrefix+"branding.md")
+	victim := filepath.Join(dir, ompRuleDir, ompRuleFilePrefix+"file-size-limit.md")
 	require.FileExists(t, victim)
 	require.NoError(t, os.Remove(victim))
 
 	require.NoError(t, NewWithRoot(dir).Clean(context.Background()),
 		"a manifest path the user already deleted must not fail Clean")
-	assert.NoFileExists(t, filepath.Join(dir, ".omp", "agents", "executor.md"))
+	assert.NoFileExists(t, filepath.Join(dir, ".omp", "agents", "ux-validator.md"))
 }
 
 // TestOMPWriteMapping_UnwritableTargetDirectory covers the I/O failure branch.

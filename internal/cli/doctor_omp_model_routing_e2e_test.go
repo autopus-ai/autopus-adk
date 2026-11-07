@@ -100,7 +100,7 @@ func TestOMPModelDoctor_S7_EmitsOneRoleCheckPerAgent(t *testing.T) {
 	assert.Len(t, details, len(config.OMPAutopusAgentNames()))
 	joined := strings.Join(details, "\n")
 	assert.Contains(t, joined, "agent=task role=autopus_planner capability=deep_reasoning status=supported")
-	assert.Contains(t, joined, "agent=explorer role=autopus_explorer capability=fast_validation status=supported")
+	assert.Contains(t, joined, "agent=ux-validator role=autopus_ux_validator capability=vision_design status=supported")
 	assert.Contains(t, joined, "agent=reviewer role=autopus_reviewer capability=independent_dissent status=supported reason=selected family_diversity=satisfied")
 	// No row may name a bundled agent autopus mode disables.
 	for _, retired := range []string{"agent=scout ", "agent=security-reviewer ", "agent=sonic "} {

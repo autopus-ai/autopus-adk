@@ -21,13 +21,13 @@ func TestCompileOMPModelProjection_BindsOneSelectorPerServedAgent(t *testing.T) 
 		dissent  = "anthropic/alpha-reasoner:high"
 	)
 	assert.Equal(t, []OMPAgentModelProjection{
-		{Agent: "explorer", Role: "autopus_explorer", Capability: "fast_validation",
+		{Agent: "frontend-specialist", Role: "autopus_frontend_specialist", Capability: "vision_design",
 			Thinking: "high", EffectiveSelector: coder},
+		{Agent: "qa-explorer", Role: "autopus_qa_explorer", Capability: "independent_dissent",
+			Thinking: "high", EffectiveSelector: dissent},
 		{Agent: "reviewer", Role: "autopus_reviewer", Capability: "independent_dissent",
 			Thinking: "high", EffectiveSelector: dissent},
-		{Agent: "security-auditor", Role: "autopus_security_auditor", Capability: "independent_dissent",
-			Thinking: "high", EffectiveSelector: dissent},
-		{Agent: "validator", Role: "autopus_validator", Capability: "deterministic_transform",
+		{Agent: "ux-validator", Role: "autopus_ux_validator", Capability: "vision_design",
 			Thinking: "high", EffectiveSelector: coder},
 		{Agent: "task", Role: "autopus_planner", Capability: "deep_reasoning",
 			Thinking: "xhigh", EffectiveSelector: reasoner},
@@ -42,19 +42,19 @@ func TestCompileOMPModelProjection_UnresolvedAgentsInheritRuntimeDefaults(t *tes
 	t.Parallel()
 
 	input := ompProjectionFixture(t)
-	input.Agents = ompProjectionWithoutAgents(input.Agents, "reviewer", "security-auditor")
+	input.Agents = ompProjectionWithoutAgents(input.Agents, "reviewer", "qa-explorer")
 	projection, err := CompileOMPModelProjection(input)
 	require.NoError(t, err)
 
 	require.Len(t, projection.Agents, 3)
 	for _, agent := range projection.Agents {
 		assert.NotEqual(t, "reviewer", agent.Agent)
-		assert.NotEqual(t, "security-auditor", agent.Agent)
+		assert.NotEqual(t, "qa-explorer", agent.Agent)
 	}
 	overlay, err := OMPModelOverlayFromProjection(projection)
 	require.NoError(t, err)
 	assert.NotContains(t, overlay.AgentModelOverrides, "reviewer")
-	assert.NotContains(t, overlay.AgentModelOverrides, "security-auditor")
+	assert.NotContains(t, overlay.AgentModelOverrides, "qa-explorer")
 }
 
 func TestCompileOMPModelProjection_AcceptsNativeThinkingLevels(t *testing.T) {
@@ -65,7 +65,7 @@ func TestCompileOMPModelProjection_AcceptsNativeThinkingLevels(t *testing.T) {
 		input.Agents[0].Thinking = thinking
 		projection, err := CompileOMPModelProjection(input)
 		require.NoError(t, err, thinking)
-		require.Equal(t, "explorer", projection.Agents[0].Agent)
+		require.Equal(t, "frontend-specialist", projection.Agents[0].Agent)
 		assert.Equal(t, "openai/beta-coder:"+thinking, projection.Agents[0].EffectiveSelector)
 		assert.Equal(t, thinking, projection.Agents[0].Thinking)
 	}
@@ -79,11 +79,11 @@ func TestOMPModelOverlayFromProjection_ReturnsDetachedOverrides(t *testing.T) {
 	overlay, err := OMPModelOverlayFromProjection(projection)
 	require.NoError(t, err)
 	assert.Equal(t, map[string]string{
-		"explorer":         "openai/beta-coder:high",
-		"reviewer":         "anthropic/alpha-reasoner:high",
-		"security-auditor": "anthropic/alpha-reasoner:high",
-		"task":             "anthropic/alpha-reasoner:xhigh",
-		"validator":        "openai/beta-coder:high",
+		"frontend-specialist": "openai/beta-coder:high",
+		"qa-explorer":         "anthropic/alpha-reasoner:high",
+		"reviewer":            "anthropic/alpha-reasoner:high",
+		"task":                "anthropic/alpha-reasoner:xhigh",
+		"ux-validator":        "openai/beta-coder:high",
 	}, overlay.AgentModelOverrides)
 	assert.Equal(t, []string{"openai/beta-coder:high", "anthropic/omega-reasoner:high"},
 		overlay.FallbackChains["anthropic/alpha-reasoner:xhigh"])
@@ -100,7 +100,7 @@ func TestOMPModelOverlayFromProjection_ReturnsDetachedOverrides(t *testing.T) {
 func TestCompileOMPModelProjection_RejectsAnAgentItsRoleDoesNotGovern(t *testing.T) {
 	t.Parallel()
 
-	for _, agent := range []string{"planner", "executor", "security-auditor", "scout", "security-reviewer", "sonic", "future-agent"} {
+	for _, agent := range []string{"planner", "executor", "ux-validator", "reviewer", "scout", "security-reviewer", "sonic", "future-agent"} {
 		input := ompProjectionFixture(t)
 		input.Agents[0].Agent = agent
 		_, err := CompileOMPModelProjection(input)
@@ -125,7 +125,7 @@ func TestCompileOMPModelProjection_RejectsRoleThatCollapsesElsewhere(t *testing.
 	t.Parallel()
 
 	input := ompProjectionFixture(t)
-	// autopus_reviewer governs the reviewer agent, never explorer.
+	// autopus_reviewer governs the reviewer agent, never frontend-specialist.
 	input.Agents[0].Role = config.OMPAgentRoleName("reviewer")
 	_, err := CompileOMPModelProjection(input)
 	require.Error(t, err)
@@ -218,13 +218,12 @@ func ompProjectionFixture(t *testing.T) OMPModelProjectionInput {
 			{Selector: "openai/beta-coder", Thinking: "high"},
 			{Selector: "anthropic/omega-reasoner", Thinking: "high"},
 		}},
-		config.CapabilityFastValidation:         {Selector: "openai/beta-coder", Thinking: "high"},
-		config.CapabilityIndependentDissent:     {Selector: "anthropic/alpha-reasoner", Thinking: "high"},
-		config.CapabilityDeterministicTransform: {Selector: "openai/beta-coder", Thinking: "high"},
+		config.CapabilityVisionDesign:       {Selector: "openai/beta-coder", Thinking: "high"},
+		config.CapabilityIndependentDissent: {Selector: "anthropic/alpha-reasoner", Thinking: "high"},
 	}
-	// The agents that represented the five bundled agents before v0.50.131,
-	// in their old fixture order: task stays at index 3.
-	names := []string{"explorer", "reviewer", "security-auditor", "task", "validator"}
+	// The four generated agents and task, with task at index 3 as in the
+	// fixture's earlier five-agent order.
+	names := []string{"frontend-specialist", "qa-explorer", "reviewer", "task", "ux-validator"}
 	agents := make([]OMPProjectionAgent, 0, len(names))
 	for _, name := range names {
 		resolved, err := config.ResolveOMPPolicyAgent(name)

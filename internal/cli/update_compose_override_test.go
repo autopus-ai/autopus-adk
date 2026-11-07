@@ -23,7 +23,7 @@ func TestUpdateCompose_AsksWhetherAnOverrideFollowsBeforeThePreview(t *testing.T
 	require.NoError(t, err, out)
 	require.NoError(t, os.RemoveAll(run.codexLog))
 
-	out, err = runComposeUpdate(t, reaEnter(strings.NewReader("g\n\n3\n\n4\ny\ny\n")), "--dir", dir)
+	out, err = runComposeUpdate(t, reaEnter(strings.NewReader("g\n4\n\ny\ny\n")), "--dir", dir)
 
 	require.NoError(t, err, out)
 	question := "Codex도 새 구성을 따를까요? (quality.providers.codex = codex-custom 제거) [y/N]\n"

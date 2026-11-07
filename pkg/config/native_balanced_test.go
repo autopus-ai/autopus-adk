@@ -19,7 +19,7 @@ func TestNativeBalancedAgentCandidateMatchesApprovedRolePlacement(t *testing.T) 
 		require.True(t, ok, agent)
 		codex, ok := q.NativeBalancedAgentCandidate(QualityProviderCodex, agent)
 		require.True(t, ok, agent)
-		if agent == "reverse-engineer" {
+		if agent == "reverse-engineer" || agent == "qa-explorer" {
 			assert.Equal(t, "anthropic/claude-opus-5-5@high", claude.Selector+"@"+claude.Thinking)
 			assert.Equal(t, "openai-codex/gpt-6.1-sol@xhigh", codex.Selector+"@"+codex.Thinking)
 			continue

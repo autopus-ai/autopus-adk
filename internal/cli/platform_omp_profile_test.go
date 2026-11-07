@@ -92,17 +92,17 @@ func TestPlatformOMPProfileApplyPersistsAndRollsBackAtomically(t *testing.T) {
 
 func TestPlatformOMPExplainShowsDisabledUnauthorizedAndMissingFallbacks(t *testing.T) {
 	root, runner, profile := writeSelectedOMPProfile(t)
-	// The collapse leaves no bundled row on coding_tool_use, so the visible
-	// fallback chain has to be attached to a capability a bundled agent routes
-	// through: fast_validation is `scout`'s.
-	route := profile.Capabilities[config.CapabilityFastValidation]
+	// The visible fallback chain has to be attached to a capability a served
+	// agent routes through: independent_dissent is reviewer's and
+	// qa-explorer's, and no served agent routes fast_validation any more.
+	route := profile.Capabilities[config.CapabilityIndependentDissent]
 	route.Candidates = []config.RoleModelCandidateConf{
 		{Selector: "openai/disabled-coder", Thinking: "high", Family: "openai"},
 		{Selector: "openai/unauthorized-coder", Thinking: "high", Family: "openai"},
 		{Selector: "openai/missing-coder", Thinking: "high", Family: "openai"},
 		{Selector: "openai/beta-coder", Thinking: "high", Family: "openai"},
 	}
-	profile.Capabilities[config.CapabilityFastValidation] = route
+	profile.Capabilities[config.CapabilityIndependentDissent] = route
 	cfg, err := config.LoadPreview(root)
 	require.NoError(t, err)
 	cfg.RoleModelPolicy.Profiles["balanced"] = profile

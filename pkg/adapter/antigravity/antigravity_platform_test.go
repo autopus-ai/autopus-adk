@@ -132,15 +132,15 @@ func TestGenerate_CreatesAntigravityPluginSurface(t *testing.T) {
 
 	// Verify plugin-level surface
 	assert.FileExists(t, filepath.Join(dir, ".agents", "plugins", "autopus", "plugin.json"))
-	assert.FileExists(t, filepath.Join(dir, ".agents", "plugins", "autopus", "skills", "auto-plan", "SKILL.md"))
+	assert.FileExists(t, filepath.Join(dir, ".agents", "plugins", "autopus", "skills", "auto-review", "SKILL.md"))
 	assert.FileExists(t, filepath.Join(dir, ".agents", "plugins", "autopus", "rules", "lore-commit.md"))
-	assert.FileExists(t, filepath.Join(dir, ".agents", "plugins", "autopus", "agents", "executor.md"))
+	assert.FileExists(t, filepath.Join(dir, ".agents", "plugins", "autopus", "agents", "reviewer.md"))
 	assert.FileExists(t, filepath.Join(dir, ".agents", "plugins", "autopus", "commands", "auto.toml"))
-	assert.FileExists(t, filepath.Join(dir, ".agents", "plugins", "autopus", "commands", "auto", "plan.toml"))
+	assert.FileExists(t, filepath.Join(dir, ".agents", "plugins", "autopus", "commands", "auto", "review.toml"))
 
-	commandData, err := os.ReadFile(filepath.Join(dir, ".agents", "plugins", "autopus", "commands", "auto", "plan.toml"))
+	commandData, err := os.ReadFile(filepath.Join(dir, ".agents", "plugins", "autopus", "commands", "auto", "review.toml"))
 	require.NoError(t, err)
-	assert.Contains(t, string(commandData), ".agents/plugins/autopus/skills/auto-plan/SKILL.md")
+	assert.Contains(t, string(commandData), ".agents/plugins/autopus/skills/auto-review/SKILL.md")
 
 	autoCommandData, err := os.ReadFile(filepath.Join(dir, ".agents", "plugins", "autopus", "commands", "auto.toml"))
 	require.NoError(t, err)

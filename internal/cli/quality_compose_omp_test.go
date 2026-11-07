@@ -56,7 +56,7 @@ func TestComposeOMPTab_FailedReReadEndsTheStep(t *testing.T) {
 	t.Cleanup(func() { composeReloadConfig = original })
 	composeReloadConfig = func(string) (*config.HarnessConfig, error) { return nil, errors.New("disk gone") }
 
-	out, err := runComposeOMPForms(t, dir, deps, "2\n", "4\n", "1\n", "3\n", "1\n", "6\n", "2\n", "\n", "2\n", "2\n", "\n")
+	out, err := runComposeOMPForms(t, dir, deps, "2\n", "4\n", "1\n", "6\n", "2\n", "3\n", "1\n", "2\n", "\n")
 
 	var reload composeReloadError
 	require.ErrorAs(t, err, &reload)
@@ -75,7 +75,7 @@ func TestComposeOMPTab_DetectedOnlyOMPGetsTheNoticeOnce(t *testing.T) {
 	deps, _ := composeOMPDeps(ompCLIBalancedCatalogJSON())
 
 	_, out, err := runComposeForms(t, session, composeFormOptions{OMP: &composeOMPTab{deps: deps}},
-		"2\n", "\n", "\n", "\n", "\n", "\n", "\n", "2\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n")
+		"2\n", "\n", "\n", "\n", "\n", "2\n", "\n", "\n", "\n", "\n", "\n")
 
 	require.NoError(t, err)
 	assert.Equal(t, 2, strings.Count(out, composeFormTabD), out)

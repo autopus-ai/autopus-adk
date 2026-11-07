@@ -29,6 +29,7 @@ func GenerateProjectHookConfigs(cfg *config.HarnessConfig, platform string, supp
 			return nil, nil, err
 		}
 		hooks = append(hooks, generateCC21Hooks(cfg.Features.CC21, platform)...)
+		hooks = append(hooks, generateVerifyStopHook(cfg.Hooks, platform)...)
 		return hooks, generateGitOnlyHooks(cfg.Hooks), nil
 	}
 	return nil, generateGitHooks(cfg.Hooks), nil
@@ -94,6 +95,18 @@ func generateCLIHooks(cfg config.HooksConf, platform string) ([]adapter.HookConf
 	}
 
 	return appendConditionalDispatcher(hooks, platform)
+}
+
+// verifyStopCommand is the Stop hook that builds and tests the changed files.
+const verifyStopCommand = "auto verify stop"
+
+// generateVerifyStopHook registers the verification gate on Claude Code's
+// Stop event. The timeout covers the command's own default budget.
+func generateVerifyStopHook(cfg config.HooksConf, platform string) []adapter.HookConfig {
+	if (platform != "claude" && platform != "claude-code") || !cfg.IsVerifyStopEnabled() {
+		return nil
+	}
+	return []adapter.HookConfig{{Event: "Stop", Type: "command", Command: verifyStopCommand, Timeout: 600}}
 }
 
 func generateCC21Hooks(cfg config.CC21FeaturesConf, platform string) []adapter.HookConfig {

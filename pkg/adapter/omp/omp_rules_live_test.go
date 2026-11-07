@@ -73,7 +73,7 @@ func TestOMPRules_LiveSessionReceivesEverySourceRule(t *testing.T) {
 	env, err := isolatedOMPLiveEnv(profile, overlay)
 	require.NoError(t, err)
 	expected, identifiers := expectedOMPRuleRoutes(t, workspace)
-	require.Len(t, identifiers, 14, "content/rules must hold exactly 14 rule sources")
+	require.Len(t, identifiers, 4, "content/rules must hold exactly 4 rule sources")
 	prompt := dumpOMPLiveSystemPrompt(t, executable, workspace, overlay, env)
 	listed, bodies := ompDomainRuleListing(t, prompt)
 	registered := registeredOMPTTSRRules(t, executable, workspace, env)

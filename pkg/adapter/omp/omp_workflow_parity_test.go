@@ -25,11 +25,11 @@ func TestOMP002_WorkflowParity_GenerateEmitsCanonicalCommandsAndSkills(t *testin
 		want[spec.Name] = true
 		wantWorkflowTargets[filepath.ToSlash(filepath.Join(".omp", "skills", spec.Name, "SKILL.md"))] = true
 	}
-	require.Len(t, want, 21, "workflowSpecs is the canonical twenty-one-name authority")
+	require.Len(t, want, 8, "workflowSpecs is the canonical eight-name authority")
 	workflow, err := a.prepareWorkflowSkillMappings(configForOMP())
 	require.NoError(t, err)
 	assert.Equal(t, wantWorkflowTargets, mappingTargetSet(workflow),
-		"the workflow emitter, not the extended emitter, must own all twenty-one targets")
+		"the workflow emitter, not the extended emitter, must own all eight targets")
 	extended, err := a.prepareExtendedSkillMappings(configForOMP())
 	require.NoError(t, err)
 	for _, file := range extended {
@@ -41,11 +41,6 @@ func TestOMP002_WorkflowParity_GenerateEmitsCanonicalCommandsAndSkills(t *testin
 	commandBodies := map[string]string{}
 	skills := map[string]string{}
 	seen := map[string]int{}
-	coordinationBodies := map[string]bool{
-		"agent-pipeline":     false,
-		"auto-go":            false,
-		"worktree-isolation": false,
-	}
 	for _, file := range pf.Files {
 		target := filepath.ToSlash(file.TargetPath)
 		seen[target]++
@@ -70,36 +65,11 @@ func TestOMP002_WorkflowParity_GenerateEmitsCanonicalCommandsAndSkills(t *testin
 				assert.NotContains(t, sweepBody, token, "generated body %s retained token %q", target, token)
 			}
 			assert.NotContains(t, body, "````json", "generated body %s contains a malformed nested JSON fence", target)
-			if name := strings.TrimSuffix(strings.TrimPrefix(target, skillPrefix), skillSuffix); name == "agent-pipeline" || name == "auto-go" || name == "worktree-isolation" {
-				coordinationBodies[name] = true
-				if name == "agent-pipeline" || name == "worktree-isolation" {
-					// A no-growth ratchet on the OMP-native core coordination skills:
-					// injected into every OMP session, so the bound equals the current
-					// emitted size and moves only when a runtime contract is genuinely
-					// added. Raised from 392 for the compact change-contract path
-					// (`auto spec change`, the `spec_authoring` gate, declared change
-					// classes) plus merged final verification and `loop_status`.
-					assert.LessOrEqual(t, strings.Count(body, "\n"), 423,
-						"OMP-native core coordination skills must stay bounded")
-					for _, token := range []string{
-						"sonnet", "haiku", `model: "opus"`, "Opus-tier",
-						"bypassPermissions", "acceptEdits", "--dangerously-skip-permissions", "Agent tool",
-					} {
-						assert.NotContains(t, body, token,
-							"OMP-native core skill %s retained foreign execution policy %q", name, token)
-					}
-				}
-			}
 		}
 	}
 	for target, count := range seen {
 		assert.Equal(t, 1, count, "emitted target %q must have duplicate count zero", target)
 	}
-	assert.Equal(t, map[string]bool{
-		"agent-pipeline":     true,
-		"auto-go":            true,
-		"worktree-isolation": true,
-	}, coordinationBodies, "all coordination-heavy generated bodies must be swept")
 	assert.Equal(t, want, commands, "command basenames must equal workflowSpecs")
 	assert.Equal(t, want, mappingContentKeys(skills),
 		"workflow skill basenames must equal workflowSpecs; extended skills are excluded")
@@ -133,24 +103,10 @@ func assertOMPExecutionOwnerSurfaceParity(t *testing.T, commands, skills map[str
 	}{
 		{name: "auto router command", body: commands["auto"]},
 		{name: "auto router skill", body: skills["auto"]},
-		{name: "auto-go command", body: commands["auto-go"]},
-		{name: "auto-go skill", body: skills["auto-go"]},
 	} {
 		assert.Contains(t, surface.body, "--execution-owner omp|orca", "%s lost the exact owner flag", surface.name)
 		assert.NotContains(t, surface.body, "OMP-local", "%s retained a deprecated owner spelling", surface.name)
 		assert.NotContains(t, surface.body, "Orca-supervised", "%s retained a deprecated owner spelling", surface.name)
-	}
-	for _, surface := range []struct {
-		name string
-		body string
-	}{
-		{name: "auto-status command", body: commands["auto-status"]},
-		{name: "auto-status skill", body: skills["auto-status"]},
-	} {
-		assert.Contains(t, surface.body, "execution-owner", "%s lost receipt guidance", surface.name)
-		assert.Contains(t, surface.body, "`hub`", "%s lost the older-OMP hub guidance", surface.name)
-		assert.Contains(t, surface.body, "`read proc://`", "%s lost the OMP 18.3+ job guidance", surface.name)
-		assert.Contains(t, surface.body, "user-session roots", "%s claims external session-root visibility", surface.name)
 	}
 }
 
@@ -239,9 +195,9 @@ func TestOMP002_S7_ValidateReportsMissingAndTamperedManagedSets(t *testing.T) {
 	require.NoError(t, err)
 	removedRule := removeStableMapping(t, dir, rules)
 	removedCommand := removeStableMapping(t, dir, commands)
-	require.NoError(t, os.Remove(filepath.Join(dir, ".omp", "skills", "auto-plan", "SKILL.md")))
+	require.NoError(t, os.Remove(filepath.Join(dir, ".omp", "skills", "auto-qa", "SKILL.md")))
 	require.NoError(t, os.WriteFile(
-		filepath.Join(dir, ".omp", "skills", "auto-go", "SKILL.md"),
+		filepath.Join(dir, ".omp", "skills", "auto-review", "SKILL.md"),
 		[]byte("tampered\n"), 0o600,
 	))
 
@@ -254,7 +210,7 @@ func TestOMP002_S7_ValidateReportsMissingAndTamperedManagedSets(t *testing.T) {
 	joined := strings.Join(details, "\n")
 	assert.Contains(t, joined, "expected="+itoa(len(rules))+" got="+itoa(len(rules)-1))
 	for _, path := range []string{
-		removedRule, removedCommand, ".omp/skills/auto-plan/SKILL.md",
+		removedRule, removedCommand, ".omp/skills/auto-qa/SKILL.md",
 	} {
 		assert.Contains(t, joined, path)
 	}

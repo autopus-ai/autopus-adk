@@ -2,55 +2,36 @@
 .agents/plugins/
 .agents/plugins/marketplace.json 7bac9f0f7c15eecf46023308f334e2122d112d03aa7b498f9e01adabd48ac03c
 .autopus/
-.autopus/claude-code-manifest.json d2929f7ac821d1be6e2748ebd9522d1b9823c9e80bd82e9c7afd53717c933e0d
+.autopus/claude-code-manifest.json 8fccc6a11e5960aa0aafa90b761927ec22108890a1db8faf5b26fb352fa84165
 .autopus/claude-code-permissions.json b9fd4dd0824fb98d4ff3403c011a56b0b66f398788f2dfb24220c1aed87df4e8
-.autopus/codex-manifest.json e3e6b8432e4fea7991a2026a7f2f46f135903e5b0025b796f6d7d38549feb7d8
+.autopus/codex-manifest.json 16373e686e23c6256125b1809a4607373b246b6b36812efb17f59eb46ecdcad9
 .autopus/context/
 .autopus/context/constraints.yaml d8b3a0714389a30b7aca1986fbb71235900e14c9dddfe50fdbbb758698d0b26e
 .autopus/plugins/
 .autopus/plugins/auto/
 .autopus/plugins/auto/.codex-plugin/
-.autopus/plugins/auto/.codex-plugin/plugin.json 744452a513f63c89b04a30acac24b48accc6e5dcfc18bae04f7a9f501d63c71a
+.autopus/plugins/auto/.codex-plugin/plugin.json 53c72f4ae9bb8cdde7e35aa3f1fc7056c7abbbced6f4138931aef5668e50bdd8
 .autopus/plugins/auto/skills/
 .autopus/plugins/auto/skills/auto/
-.autopus/plugins/auto/skills/auto/SKILL.md 5404914d8ab7f5a0e4560439b365b85e60813e14304d4565dd8893830b165595
+.autopus/plugins/auto/skills/auto/SKILL.md e9e18f575d4b3a5eeb711adef95fd8b099c546ae1b5d003d9e3ffa3504f52e09
 .autopus/txns/
 .autopus/txns/<TX>-claude-code/
-.autopus/txns/<TX>-claude-code/journal.json 0b6c0dc9b4067f736e15fb39f37c87c11b7b8c488b869fed0aca103b44dc4f08
+.autopus/txns/<TX>-claude-code/journal.json c0a92534a9b40c3bcec824c2f29e6118f8bb5d10ef40c1f60c569aaa338726be
 .autopus/txns/<TX>-codex/
-.autopus/txns/<TX>-codex/journal.json 56b64a5900925ce44df3ff9b4265ad59e3e6e115abad22e7b30a279cc3a1add7
+.autopus/txns/<TX>-codex/journal.json 1d684d732f99ae2388b0a8900f17e8cee227caba16b2698ef156eaf60a62636b
 .claude/
 .claude/agents/
 .claude/agents/autopus/
-.claude/agents/autopus/annotator.md 5cb47227135e413c94fc432c38d83c579b340c6ea957020b6bb38cef8d7b4626
-.claude/agents/autopus/architect.md 99a4bbc45b2c1e61d4a59f055778cf3243b90bf6e43d6004fc4483f694cde988
-.claude/agents/autopus/debugger.md 26e5de0c493a65f2611522948ea8164ecdea4df28167d462d990e3b53065cb0e
-.claude/agents/autopus/deep-worker.md 68ca2a68076335a6583c81c87f314027c2a5710cf9871cfb20f043bc2ce72944
-.claude/agents/autopus/devops.md e8b6790cc1fe6fcdf5e88309e1bda514e4d370c159bda0065eb3e2686380417e
-.claude/agents/autopus/executor.md 0279a68a963f2b3a9b560b3d5e41265f2c3cd92088be00183c95ef43db49a983
-.claude/agents/autopus/explorer.md ac2cf16b584f8aafbf2a5e40f14183e9897d1876be0ead592634293d749cd7f5
-.claude/agents/autopus/frontend-specialist.md 7b8b3b27ba522b94de5ef077d9d9a08b1add9175a81519b39e6b10eb27862f23
-.claude/agents/autopus/perf-engineer.md 9ebe799aa80929deae910035599df60a92ce4ee952c67efd31cff39b406b5d1c
-.claude/agents/autopus/planner.md f31e55cbe4441af8f6d204c8c0c1d26c490417145a56eca822040d00df7c956b
-.claude/agents/autopus/reverse-engineer.md 676d298334250c1cea04706ffaa535b404aea2425cc8528b3d05919ded0667d4
-.claude/agents/autopus/reviewer.md b33f2124d45d2573785fb304839e6703ab23111520924b69a36ec2262dd38639
-.claude/agents/autopus/security-auditor.md 355704a940449f5fb21065538fead1bc250f9f233bea403d2de612cb4204d393
-.claude/agents/autopus/spec-writer.md e8c1e7dc2e406a7fb75fdb38657978152b2eb82a75200dacec6fc74c78de8b91
-.claude/agents/autopus/tester.md ee9917d9588f899b6a3df0cb021411f6c982081658fe5cf12f0271cf61f94214
-.claude/agents/autopus/ux-validator.md bdc07c0f214b90454c8a6155177f1bf9b2de34ac0443e31aa643a43d6924530e
-.claude/agents/autopus/validator.md ef8ce702a81a85642023ba21a6735d25a3a572fce475b450ca72ed412961c5a6
+.claude/agents/autopus/frontend-specialist.md c80f423dabcbdcba25b11d097c916784c9f50f4e2c2c7b735b194cc466937e96
+.claude/agents/autopus/qa-explorer.md 57df31b35d0b45d2df5ba0135eaa78b65fc80624fb4d548deae3bbb597239344
+.claude/agents/autopus/reviewer.md d9f3d4e8c0e8a3e9b65c8934ad68ccdbf90225875497889dfca56f3e1bcbc868
+.claude/agents/autopus/ux-validator.md b290a17871b6d8066fac03b60a13bb9d452f274ea18103de8c90a8a51b0fc081
 .claude/hooks/
 .claude/hooks/README.md ece7b5b6b999a3cbbc8e194b2d3c02694026b30782cfd937334815b8aad1214c
 .claude/hooks/autopus/
-.claude/hooks/autopus/conditional-rules.json 3a7d5fd1c63372ac6a978915afdb535e4790db4521568b5c67d766b5cd8cbcab
+.claude/hooks/autopus/conditional-rules.json ad4d3d70e9681f5f6e3c1dd665da09378f48912e155f60f0c9b4971ca1739fb7
 .claude/hooks/autopus/conditional/
-.claude/hooks/autopus/conditional/context7-docs.md d6219c7286269d7d3fb6ba8ab366ccdf7dfdfbcbc58e7a0992ed6bdc4706b6ca
-.claude/hooks/autopus/conditional/doc-storage.md c9953abcbc35580031a81af3bb3bf934c78d642c58bc51f0cab168d09f9182a6
 .claude/hooks/autopus/conditional/lore-commit.md a2c3799e353cf3ea2b28533c589ec6f9fbc6cfd68cce3694752f50dcacc10b71
-.claude/hooks/autopus/conditional/shell-portability.md 99bd84d9f2856af6019567d1542bf8430b9faaabc11a21ec84ae8ee3c2957d5c
-.claude/hooks/autopus/conditional/spec-quality.md 014512b095a1b1057a88ac94cfa049469517d3e70d643f2852e7c3b9d4922f9c
-.claude/hooks/autopus/conditional/techstack-freshness.md 8fc0b89240d427f4713b4f9110a138518bea5ee0741421e78cc12bd84b72f562
-.claude/hooks/autopus/conditional/worktree-safety.md e4d2909fb5ee54688d29de59bfd2c7720ffdfe8fdf8cd9bf3114f2350271895a
 .claude/hooks/autopus/pre-commit-arch.sh 1b0b1d2babc2a6799bb237a512a0e6d0722009f00e7a0b0845826bc95cc79fa2
 .claude/hooks/autopus/pre-commit-lore.sh a691a829750ce1e38895a340b5c8bd2eb03f5162afa95af5bcd5f528bb97f073
 .claude/hooks/autopus/react-ci-failure.sh b7089428c63d3fdbdadb141ce50b89289272348b09f9da6212c9c81013946d16
@@ -58,222 +39,94 @@
 .claude/hooks/task-created-validate.sh 8f388b7993fd0deaa3795b614484ec873ad05bf6f0eb108770ad177e18f1b595
 .claude/rules/
 .claude/rules/autopus/
-.claude/rules/autopus/branding.md 1978feb42dda31899896e57b56aa8922e905c9fcd7e84d9f2defa9d2a37a1ac9
-.claude/rules/autopus/deferred-tools.md 59bd5ed0ec64046191784b1eeda7ca4aee11bdaa7190e392ea8c22b4d75f4382
+.claude/rules/autopus/autonomy.md 8338f1c915ed6dec12d1bd399e3e35f58d7e846b73d93406a5dc58a8250f7334
 .claude/rules/autopus/file-size-limit.md c4250d144ef919d17b6edb7ee3f28b9bfa4902bfb5e5fdf0c0e13f0c9a29751c
 .claude/rules/autopus/language-policy.md 7da1d2d97e862b6250d06bbbdba503cccb2faa38b6fc59585a25ea91c5e593c3
-.claude/rules/autopus/objective-reasoning.md e160be9561effe74f0dd27f84a2b0004a12e1ff6513e8af521ffc4b30eb1f316
-.claude/rules/autopus/project-identity.md 8b603c0818ef40468dd6459926eabfcf998fc332824dfc2c83876acf81caa7fd
-.claude/rules/autopus/subagent-delegation.md bbdac32d96ab70643a6330666cd68ecef0414c63cd465ddc12e8eadd434a5ff0
-.claude/settings.json 1c8e8bb46e1e30b42ff424920e5d744bd4ed5e0e74533d18d0b8fa4ccf54d0e0
+.claude/settings.json 511397f51366fcadb82c25486008d5179448b87f3dac79816e1375b2e37e6b2a
 .claude/skills/
-.claude/skills/agent-pipeline/
-.claude/skills/agent-pipeline/SKILL.md 881fc543c8fe1b6baac81e608ef17a320a4aa2e31183a8b8339e64d98202e957
-.claude/skills/agent-pipeline/references/
-.claude/skills/agent-pipeline/references/completion.md b4e22a3b5130208b6638554929579e7aeb267c85a3d8c6d74410d6b9be4e7aff
-.claude/skills/agent-pipeline/references/coordination.md bd2eaefb80b9bcb6084c70db92337e0300aa5e4d0deb60420fed3a94b89c7d02
-.claude/skills/agent-pipeline/references/delegation.md ba53eeac35f39cd8b3aae1c95697d6e98b284abfa4620f505c19ee057353524b
-.claude/skills/agent-pipeline/references/gates.md a360ffde22ab7cc8d31f968ff433433a025bd4744ccaf8e389c8975ec522d86a
-.claude/skills/agent-pipeline/references/phases.md a97a41a2d6a1c1a6b8a1d02ac76cb7f270fd53ac9a7a6c4db918edf961dac7d3
-.claude/skills/agent-pipeline/references/quality-modes.md 3cc41b356cbca7959cc29a8c38df9ac6defce902a9342eabe32c59933a6e9009
-.claude/skills/agent-pipeline/references/review.md c0e5b41dce8d11026d8449956c2e04c3fcf6b9c73ae6f4091bab7623a4113899
-.claude/skills/agent-pipeline/references/verification.md d1c98c92a8b261be164485320e8e5aae3fe90564110d04d7c1e158f0f55d370e
-.claude/skills/agent-teams/
-.claude/skills/agent-teams/SKILL.md cf6aa97c8bbdde752baaabfec7022be3c5f8a74b591f8151b3d122858f1ae04d
-.claude/skills/auto-canary/
-.claude/skills/auto-canary/SKILL.md 1d3f0c0d5448b024ad9aa95f242943ad2b8ae28de8d0684359604930372c08ea
-.claude/skills/auto-dev/
-.claude/skills/auto-dev/SKILL.md 402e52ee5bc14a4e3f711860d3d6cc04b43d9abafc52957b8e075d5cd1ed9dac
 .claude/skills/auto-doctor/
 .claude/skills/auto-doctor/SKILL.md 9796d1b85cf212c04b25af789c6b67febd53a933c791b78e22d9b83b713443ee
-.claude/skills/auto-fix/
-.claude/skills/auto-fix/SKILL.md a767556c733cf1730c8d2ce7f3977e69f343e3997495be327a3bdad9580f1e25
-.claude/skills/auto-go/
-.claude/skills/auto-go/SKILL.md 9f43c7b205c28ea2100d8806de89ec88a1511fcfa546522dd6e1f2d63d772a2b
-.claude/skills/auto-goal/
-.claude/skills/auto-goal/SKILL.md 0dd992f5eb6c27cd5f9f16b678344c5c7f7224a1e42cb95dd26ba221f5ce1ec8
-.claude/skills/auto-idea/
-.claude/skills/auto-idea/SKILL.md 490687e108db7e023c1cf9a003fb8c596d53c5a4b56f4ada1fe2425f0358e26e
-.claude/skills/auto-map/
-.claude/skills/auto-map/SKILL.md 1e84c3d70820d6055ef170d6b36dfa6890d99b1557d243cef8f96360735cf88a
-.claude/skills/auto-plan/
-.claude/skills/auto-plan/SKILL.md 0c5fb3fd47a4d035a4fac164024cf07ea4de3425a524435aa694907ff33ee33b
 .claude/skills/auto-qa/
-.claude/skills/auto-qa/SKILL.md 453bb22b622b480187843bddaa2b41698ea1a688a6d4b532977895f2483414fc
-.claude/skills/auto-reverse/
-.claude/skills/auto-reverse/SKILL.md 3d494f60cdb227bbd7b58c4550d6d2a8cd7764fb29e99596252a6b0b6054cd1a
+.claude/skills/auto-qa/SKILL.md 9f602a7733c89b78124db5b8140bec20a4cdd6c2c02d9b4e9623cf47eca71467
 .claude/skills/auto-review/
-.claude/skills/auto-review/SKILL.md 9ccbafa95dbb5f48bc96b60a986b691a6749ed6e5e4b38c034c5d1ce8a9f8ae8
-.claude/skills/auto-secure/
-.claude/skills/auto-secure/SKILL.md bf12df7e2baa7a56d58f0dcf2afcc33bd58813ed5edf9828fbb7c6505330726a
-.claude/skills/auto-setup/
-.claude/skills/auto-setup/SKILL.md 4e49af06323e3d986c2dadc82162dead4bf80b2620b2b89946a659d299c2bba8
-.claude/skills/auto-status/
-.claude/skills/auto-status/SKILL.md aa9f5ab281455e4ec4668632c5a78acac58c533b130b8fc0399be399101589d7
+.claude/skills/auto-review/SKILL.md eede2abea8c43ff2a1c053aa1ee868a98f367629dbf43063d53cbfc0302f9d4b
 .claude/skills/auto-sync/
-.claude/skills/auto-sync/SKILL.md cf49edd45758038198bdf44e3dd180e0c372163d5c971c716ce61769decaef6b
+.claude/skills/auto-sync/SKILL.md 8799ffed544a5b71210e688acfdcd60026ad941d731b7f8c9fd4843d77c762ff
 .claude/skills/auto-test/
 .claude/skills/auto-test/SKILL.md 445da6559703ef3710d702001589625d141b8cf11d9c115ae5ea37abd2a2054b
 .claude/skills/auto-update/
 .claude/skills/auto-update/SKILL.md ba914806067c3257f8563850f0d3f364e64f392ece1ef220c50c703d7bb540c3
 .claude/skills/auto-verify/
 .claude/skills/auto-verify/SKILL.md 8370225db074b023fa773ec7c437b5b5e849502910218d42ac330ab1749c9688
-.claude/skills/auto-why/
-.claude/skills/auto-why/SKILL.md 10d9f448b7c415d2339213d7d1992a5d194ae5db52c65017c615ba6aec0a3610
 .claude/skills/auto/
-.claude/skills/auto/SKILL.md 7c1fbd3c9e75dd67430f170f6d2aa43d9f552a20f387819e6704cb1307de417c
-.claude/skills/ax-annotation/
-.claude/skills/ax-annotation/SKILL.md 1156b16574f9cad6d38c77e5c159b102c5a7e104d15e9a15d7a9e7c3a5456182
+.claude/skills/auto/SKILL.md f969ed060aa1f1148a0e40122bf77c4122dcab95b215ac55320c80afc26565f0
 .claude/skills/browser-automation/
 .claude/skills/browser-automation/SKILL.md 908527aba77bd48be4b6089762abaaae52bb456cd7a7fb0e30300c2446a21efa
-.claude/skills/codebase-design/
-.claude/skills/codebase-design/SKILL.md 4eb1e68743916dc9201596976d0ec97e63dbbd60e63e4a624f459ffbf01b64ec
-.claude/skills/debugging/
-.claude/skills/debugging/SKILL.md 37d4b7ff8061c45391354db5bebbdc096241c4ba46fc983148952695eab62d29
 .claude/skills/frontend-verify/
-.claude/skills/frontend-verify/SKILL.md cd74937df039e8694831e00b3ef846c84fef1a9970fcca50d342b9226c783b54
-.claude/skills/harness-workflow/
-.claude/skills/harness-workflow/SKILL.md 895d6b9e59eda7c8ac735f68d5dafa52a695b6a2cd49b1dfb599361324126559
-.claude/skills/idea/
-.claude/skills/idea/SKILL.md 31cf9725c8699c9495c5dc7231ba1001b58ee7395758d2a44ca0e9fdee1397b5
-.claude/skills/planning/
-.claude/skills/planning/SKILL.md 32ceb58d6aa133bb09f7dfd376012867a41c4760dffcaa440a81b7c2cba00e4c
-.claude/skills/prd/
-.claude/skills/prd/SKILL.md 0716f6283afa4b58537e7a33f4d136ae97951dccd7765abf37965ec997cfc137
+.claude/skills/frontend-verify/SKILL.md 98e5ec15daa0027180acb6695b59b335006abda309b46f0c8ae8da1d9881099e
+.claude/skills/lore-commit/
+.claude/skills/lore-commit/SKILL.md 7d4af34ac63736c3773867f909dff67e72e12935237d975f653e32571c8984bc
+.claude/skills/playwright-cli/
+.claude/skills/playwright-cli/SKILL.md 6abb5edd9762ac45b36a7fbf5612c857d04890843bbd544885d9772a514e7f36
+.claude/skills/qa-autopilot/
+.claude/skills/qa-autopilot/SKILL.md f894c92e8817b71b1ae17fc1fa74695fed2f2a706e9d42242252095c89c291cd
+.claude/skills/qa-hunt/
+.claude/skills/qa-hunt/SKILL.md 9a4946c523f108213468ce9cf866c9023d8a12a78ca8618678c99f71b76c13a7
 .claude/skills/review/
 .claude/skills/review/SKILL.md 5732e00d7aae91b5cf8c9626c1e93e90b471d5a2ded1946d95798cd1ca841990
-.claude/skills/security-audit/
-.claude/skills/security-audit/SKILL.md f9dee950a966f053d8e2efa990a848e7c95166beb25c3055a9e8532140a10f7e
-.claude/skills/spec-review/
-.claude/skills/spec-review/SKILL.md 3f7910da5b72e2a42f1f3e590f313bb3c4c9a4b068bfbd025425989a11578e29
-.claude/skills/tdd/
-.claude/skills/tdd/SKILL.md 210cbceed5bde6bb32c7cd54563ca0155055db4d691847a1098b33e25d3772c1
 .claude/skills/testing-strategy/
 .claude/skills/testing-strategy/SKILL.md d800ca3548c6048676f9d5509347898537dd7247e1e5db23aefc70d2b52b41c9
-.claude/skills/using-autopus/
-.claude/skills/using-autopus/SKILL.md d4afd993e9734a8cc0ae3b39d8814575cb876cc6af3515089847bcb3a2bf6d47
 .claude/skills/verification/
 .claude/skills/verification/SKILL.md 17119a3ea275291c793d272692dd1a2cca45841811349db05c55c1199e6a5756
-.claude/skills/worktree-isolation/
-.claude/skills/worktree-isolation/SKILL.md 25912dff498cd389a5cf5ea142add7e546b5004b2292acba735d161ee8195545
 .claude/statusline-combined.sh 62219cb455d52cdc2ebcaeacc6e085da074a2c3409410ce152bba93e0d26f01b
 .claude/statusline-user-command.txt e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
 .claude/statusline.sh 98814d06f77ac9f7d0edffbd7977ca9fe06617eda0b964e10c7b6306f41bba94
-.claude/workflows/
-.claude/workflows/route_a.workflow.js 9d3c192a97eea4a4686a9acf6bb47ce93f3b0d91072a8ecd10473f9d7a372bdf
-.claude/workflows/route_team.workflow.js 5e3fc2e8e7363de6d54d08fd339c071b4d9ea426564625f1eee6aebbe4f11539
 .codex/
 .codex/agents/
-.codex/agents/annotator.toml f6e61ad9e2004c0cf48ff9895fa8a748ba53d93eaf9cd2b2436888522b231dbc
-.codex/agents/architect.toml a7b47ef8aa632ed3f8e610301fa6a819080ddb0f2e58e9391df08a52fdbeb796
-.codex/agents/debugger.toml 2fee16272ad581ed2376ec572acee096a63f112d682ca4b4c479d42205d840f4
-.codex/agents/deep-worker.toml 779cf53b409594fb8cdc85026bb4ca59689f55bd7f0a29aee24b753e9325f08c
-.codex/agents/devops.toml 093bf17731563f0ff255143a89eeac4f8472b67794e5c9c38b97ca7b20dfe89e
-.codex/agents/executor.toml a47026014e4c3aaa894e7ce16954a91b057fd6f5c3a1e4ca82ab4197c9f7e855
-.codex/agents/explorer.toml 55031aec7d171f19a2070b21b17065bff54eeb4b747a30184cef07fa99e48764
-.codex/agents/frontend-specialist.toml 394d8b3e513fd8c2f07a457ef2586470b6caced7c0c544603f944654acec1b0e
-.codex/agents/perf-engineer.toml 88cc25709a3a4da10ee44bff34802368e5b62e2fa0d1f14bb1dc3d440f8cb5f7
-.codex/agents/planner.toml feebe0006680cad174f006beedcdc15fe54a51fc783b4fae94a72b91c4f5f6ae
-.codex/agents/reverse-engineer.toml 5c07e810bc996f2f5eb584ca7b786c87e44579bed62f52b1f796827270d19a51
-.codex/agents/reviewer.toml cd90f94c38c7d821bfe43dea1295758b3287bddfb9b268cf1b94de739e2d4d50
-.codex/agents/security-auditor.toml 9d119ea092b7d048ea695414d7910c8169ab665b1ecb895e5be003f0a68dad82
-.codex/agents/spec-writer.toml b76ecfaa2d0a0c6d3acda3aed1f0fea44374205124947b4795bd62b9f46b1b7b
-.codex/agents/tester.toml 36e0b2516db29afcd0a986f4f458bc1b7fdd4d9c4446dc7a4d4202d7af44df0d
-.codex/agents/ux-validator.toml f0cc33a5bd218462eab5bf69806a95aea376d07744ee53e683a8b2f155be39cb
-.codex/agents/validator.toml 7b8715c5a1cfca7451526f28125207adaec353b596fc474732d81802b5c0985c
+.codex/agents/frontend-specialist.toml a46a311d5552616156482e30bb4c9e4599b296f0fd12362cdd35a3ff62d1e8e6
+.codex/agents/qa-explorer.toml 2ce95908884b67a523a5f19972a858482423b89e3878157b157e715bc25b87ff
+.codex/agents/reviewer.toml 716e1278a55b328fd5fede46143f475410b907e2ff8abcff5f887171c2165d78
+.codex/agents/ux-validator.toml 127f9161d0d7b6d1f7423b59ed3e5b3ee0ed13c7c1a0ddab7fec61c42ed1d398
 .codex/config.toml 8848ee167404b36e4b3a29658cc3ca1e66a647b82dd9720730e0dde15f5202b5
 .codex/hooks.json e983dc7d9a9e68af37fed258e9d249c495b6f1b632cb1ea32e3654a69b6289d6
 .codex/skills/
-.codex/skills/codex-agent-pipeline/
-.codex/skills/codex-agent-pipeline/SKILL.md bacd4a40427434fa8a5a7c3e72c57748c20e3d553a15da06f70678aa05dc7f2d
-.codex/skills/codex-agent-pipeline/references/
-.codex/skills/codex-agent-pipeline/references/completion.md b4e22a3b5130208b6638554929579e7aeb267c85a3d8c6d74410d6b9be4e7aff
-.codex/skills/codex-agent-pipeline/references/coordination.md bd2eaefb80b9bcb6084c70db92337e0300aa5e4d0deb60420fed3a94b89c7d02
-.codex/skills/codex-agent-pipeline/references/delegation.md ba53eeac35f39cd8b3aae1c95697d6e98b284abfa4620f505c19ee057353524b
-.codex/skills/codex-agent-pipeline/references/gates.md a360ffde22ab7cc8d31f968ff433433a025bd4744ccaf8e389c8975ec522d86a
-.codex/skills/codex-agent-pipeline/references/phases.md a97a41a2d6a1c1a6b8a1d02ac76cb7f270fd53ac9a7a6c4db918edf961dac7d3
-.codex/skills/codex-agent-pipeline/references/quality-modes.md 3cc41b356cbca7959cc29a8c38df9ac6defce902a9342eabe32c59933a6e9009
-.codex/skills/codex-agent-pipeline/references/review.md c0e5b41dce8d11026d8449956c2e04c3fcf6b9c73ae6f4091bab7623a4113899
-.codex/skills/codex-agent-pipeline/references/verification.md d1c98c92a8b261be164485320e8e5aae3fe90564110d04d7c1e158f0f55d370e
-.codex/skills/codex-agent-teams/
-.codex/skills/codex-agent-teams/SKILL.md 9448cd74cf9ba1258c6bd069251915726615978bea270d6dde482849ebacc8f6
-.codex/skills/codex-auto-canary/
-.codex/skills/codex-auto-canary/SKILL.md 7f0da401999ecfb7d01b635d86c68f5399ff3e585425c4001192e585be7ff2d3
-.codex/skills/codex-auto-dev/
-.codex/skills/codex-auto-dev/SKILL.md 8869d5a98a8397fa1fd7fab8858230df2d9de55921f4379b3d3eecf8e4201a3c
 .codex/skills/codex-auto-doctor/
 .codex/skills/codex-auto-doctor/SKILL.md 18b2d22f98ede268b235110b56fe31fc9dd90c903a811a4ed0224751d77c3640
-.codex/skills/codex-auto-fix/
-.codex/skills/codex-auto-fix/SKILL.md a4216cd08816c72cfd4677776ab2e1ee638c133067b4252b1e18dac6d2eca744
-.codex/skills/codex-auto-go/
-.codex/skills/codex-auto-go/SKILL.md bf64523350adbe3c18a929512bedf6bbb09a3927ba94cc9077583cf83544022d
-.codex/skills/codex-auto-goal/
-.codex/skills/codex-auto-goal/SKILL.md 0fb38532d3016519e02f8a6a1ea5163654f1b6bec554e347ffbc9a709f0e9aca
-.codex/skills/codex-auto-idea/
-.codex/skills/codex-auto-idea/SKILL.md e1c4371583b785ccee80badcf5acab46e1d1e0363c2410c7848059a77af660b1
-.codex/skills/codex-auto-map/
-.codex/skills/codex-auto-map/SKILL.md a571df947d581f324db8201849d5c743e1f49068a4955a487e461dfb2e78642e
-.codex/skills/codex-auto-plan/
-.codex/skills/codex-auto-plan/SKILL.md 78a2c88465addbb5c2266ebc5e4cc8797af7af5f8592106d55c1caaaa2c81697
 .codex/skills/codex-auto-qa/
-.codex/skills/codex-auto-qa/SKILL.md d1a503a6765009f42291535e8007e9e9f492ca87864057bef6fab2aa7dba7c6c
-.codex/skills/codex-auto-reverse/
-.codex/skills/codex-auto-reverse/SKILL.md 565a94ae89b7379391d72b833ed64182fade9da1d0fc11f2e901d5b42eef952b
+.codex/skills/codex-auto-qa/SKILL.md 186bdb711da4c87e84d0ec49c1e1b0f1c1946db84004d7e48951fe0648e9f17c
 .codex/skills/codex-auto-review/
-.codex/skills/codex-auto-review/SKILL.md a3df6b74c0790c59ed5a86f81aac36f77492c7d5939035b0bd8e9f391f752741
-.codex/skills/codex-auto-secure/
-.codex/skills/codex-auto-secure/SKILL.md d28344b4349797c454ce09a63ba2899d911e7691165072568c799e584adb362a
-.codex/skills/codex-auto-setup/
-.codex/skills/codex-auto-setup/SKILL.md eefdd6f3fc775208b546eadeabac7043d92893ea27681fb0468b806cb44fdf76
-.codex/skills/codex-auto-status/
-.codex/skills/codex-auto-status/SKILL.md daf227d100195913c299fc8cf5b5530927a9ac487016dd5271b8bac58e46ece9
+.codex/skills/codex-auto-review/SKILL.md c3157b995f8c1d6604b58bdc2930bef420c20eed772a173d3268f8e2a2588563
 .codex/skills/codex-auto-sync/
-.codex/skills/codex-auto-sync/SKILL.md abb33badc38372d8a358d68b2268c458d034aa943dbdf5c4b38e7d192314d159
+.codex/skills/codex-auto-sync/SKILL.md b648021712145ec3ec0a13913637aafe1dd9e092742627ff10d5fdc7f6ac21d9
 .codex/skills/codex-auto-test/
-.codex/skills/codex-auto-test/SKILL.md 46927074542c4ad49cf2cd44fc4260c28662d727a40121adcfe38f01d1140bfb
+.codex/skills/codex-auto-test/SKILL.md 208b2a63219571ccbaae1ec8ce1a5283ecf12b8a440cf30757ee9daf1ea9005d
 .codex/skills/codex-auto-update/
 .codex/skills/codex-auto-update/SKILL.md 06cbbca10ca762cafab63ebb6478015ceca23db7255dcc6146f09da5ed40f17d
 .codex/skills/codex-auto-verify/
 .codex/skills/codex-auto-verify/SKILL.md 676a517a2fa1ec2d026a115d178a6d28968994efbca3ba07104ce7814a84663a
-.codex/skills/codex-auto-why/
-.codex/skills/codex-auto-why/SKILL.md 438f20ffe8461936e9faf2a27bb0b543a693d42419a1f54aa01a42365b13ed08
 .codex/skills/codex-auto/
-.codex/skills/codex-auto/SKILL.md 355a90e87373a44ae6da31d6d5527753f778c0345619e4dc72638ecc493c99a0
-.codex/skills/codex-ax-annotation/
-.codex/skills/codex-ax-annotation/SKILL.md fbcd7d6458a2e4bfe3ea7e68f2b45c127c68606c3b4c2b967af5c666af811ddc
+.codex/skills/codex-auto/SKILL.md 2d96d91dbc86f54af1da9b01d2cb697a1580b93cd6faf6001040ba2b1f8f7e03
 .codex/skills/codex-browser-automation/
 .codex/skills/codex-browser-automation/SKILL.md b9286c86848cbdc6ec2edba3f49574d7217ea7e185b0e8599b739a56aca4a4b8
-.codex/skills/codex-codebase-design/
-.codex/skills/codex-codebase-design/SKILL.md 0b9c1c84c84e2e447b0cc21993b76aeace8f495421614b4420b261148b8314fd
-.codex/skills/codex-debugging/
-.codex/skills/codex-debugging/SKILL.md 73952d84c36b244bb8a00bca517cc8a545b11dae941a4acb3c08f01a647205be
 .codex/skills/codex-frontend-verify/
-.codex/skills/codex-frontend-verify/SKILL.md ff6b4ff2d3bfb7fb8ac71d13d69a540dff8f305f402daff8ec03dc065c1de359
-.codex/skills/codex-idea/
-.codex/skills/codex-idea/SKILL.md 5296cae0003b2c2721563756eeb98ffacc2188885870ee9f6fc90fab50d74f00
-.codex/skills/codex-planning/
-.codex/skills/codex-planning/SKILL.md fa47bb5d35c4935a92c50f28abb3c2c608c2f4d5bf68978849af27d6694eb76b
-.codex/skills/codex-prd/
-.codex/skills/codex-prd/SKILL.md 3f6d230f9542d8277baa3996fce0305c992a8c78c8672141427ef875b941899d
+.codex/skills/codex-frontend-verify/SKILL.md 76c2a200687cf32e0081205bc1c72b0b0591f69f01f8ad59ad2ebba4dfc85949
+.codex/skills/codex-lore-commit/
+.codex/skills/codex-lore-commit/SKILL.md 3e19ad5f5662a2f86fe02d83ec450e1b4c9ee76cc52e3f9a6ff5d7e2c9bf36d7
+.codex/skills/codex-playwright-cli/
+.codex/skills/codex-playwright-cli/SKILL.md 8cdcd557efa6bb17ec809331a577682a0eaae6e52adea6b064022909ac92348d
+.codex/skills/codex-qa-autopilot/
+.codex/skills/codex-qa-autopilot/SKILL.md 510dc5a90d09a3f32d30b6632f24be10bc2cfc2ad913788d6db9c96db3044a80
+.codex/skills/codex-qa-hunt/
+.codex/skills/codex-qa-hunt/SKILL.md 710d6e09bb769b43f4b597cbb64988c946933fad3c495f10f184526337f36ab5
 .codex/skills/codex-review/
 .codex/skills/codex-review/SKILL.md 405843d8741565e7ebb377dea695ab27090ccb88256eb7053a4ce52b4084be1f
-.codex/skills/codex-security-audit/
-.codex/skills/codex-security-audit/SKILL.md cdc1082922051165299c55463fdeb9a70c661a91492f0d398a47d49eae770014
-.codex/skills/codex-spec-review/
-.codex/skills/codex-spec-review/SKILL.md 26854697b902677cdb2d56bd8a94a8eaf749f9618cc721675d1facbebec1b535
-.codex/skills/codex-tdd/
-.codex/skills/codex-tdd/SKILL.md 11ee5fef10b7d807e445617c2a3770b0f062bb29dfa1695ef07de61dabbc7c29
 .codex/skills/codex-testing-strategy/
 .codex/skills/codex-testing-strategy/SKILL.md ec237de8bbfed692a20192868dd5fda5223d2d1c5504070953d49a6cccb6f43d
-.codex/skills/codex-using-autopus/
-.codex/skills/codex-using-autopus/SKILL.md 28b54af5225ec33e76e6ce68acaf6693b735b280daeb50b1043398189af2ff9a
 .codex/skills/codex-verification/
 .codex/skills/codex-verification/SKILL.md 79321a33b979f2f07deb2ad4800a98ea0cbcdde89b0f2f636737b9afd92ead7d
-.codex/skills/codex-worktree-isolation/
-.codex/skills/codex-worktree-isolation/SKILL.md bcd0b849f25b143f38d07254ec3eb79410d3798766211a4e7e947882505e4a91
 .gitignore f4bcb68a8b040f2884b7ad368238a8efcfc2ad56cd66730b6a8b43c4a53bda20
 .mcp.json c0f8556919cf30b0f10d1fcf91bcd0d346eee5593c54bf2f3497a727bfa137d4
-AGENTS.md 5d951f63f21ebb2e4bbb7209b1b44e917e7bcc4cb90b26a03a5760476f091a71
-CLAUDE.md bd3b8bb69d45edaf03874711c2f8f0a4e3680cfe8d4b4ea29eabf38da4b2d599
+AGENTS.md 3bccf0f9af97957bae70ee71b41b750a1e74ce74d0bc8d0bd85b84d8ee88a7dc
+CLAUDE.md c545ddc92863f8c297a39249698361a128cb1699921531c583adca7813478dc8
 DESIGN.md b3b2dd95d090a98d487007abf90ecefafe0db03d32d455ce35037707a563b54f
-autopus.yaml 4a617c2e50a0e564bb1fef130aafcd50166407588cdc0613743ef160c734ce5d
+autopus.yaml 8b7e6d9bc93c0aadff994826b4a0aa591c09daee84a9accc04f34c7268c79064

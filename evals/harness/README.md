@@ -9,9 +9,9 @@ schema and corpus digest only. The maintainer live lane (T10-T13) runs them.
 | Path | Content |
 |------|---------|
 | `manifest.json` | `harness_golden_set.v1`: active paths, floors, live policy, pins |
-| `baseline.json` | `harness_eval_baseline.v1`, written by `auto eval harness baseline --init` on this tree; 48 rows (35 active and 1 retired surface, 12 agent) |
+| `baseline.json` | `harness_eval_baseline.v1`, written by `auto eval harness baseline --init` on this tree; 48 rows (32 active and 4 retired surface, 12 agent) |
 | `fixtures/codex-models.json` | the pinned Codex model catalog (`pins.codex_model_catalog`) |
-| `tasks/surface/*.json` | 35 active surface tasks and 1 retired tombstone |
+| `tasks/surface/*.json` | 32 active surface tasks and 4 retired tombstones |
 | `tasks/agent/*.json` | 12 active agent tasks, one per benchmark corpus task; 5 of them also carry a black-box oracle |
 | `oracles/<task id>/` | the input fixtures and expected outputs the black-box oracles pin (see Black-box oracles) |
 | `candidates/` | the SPEC-HARNEVAL-002 intake area: open candidates, `promoted/` link records, `rejected/` records; never loaded (see Incident intake) |
@@ -82,11 +82,11 @@ Surface tasks by category:
   GT-HOOK-COMPLETION-RETIRED, GT-HOOK-EDIT-GUARD-ON, GT-HOOK-CLAUDE-RULE-DISPATCH, GT-SETTINGS-MCP-SERVERS,
   GT-SETTINGS-PERMISSION-SCOPE, GT-HOOK-OPENCODE-PLUGIN, GT-HOOK-LORE-COMMIT-MSG
 - `prompt_contract`: GT-PROMPT-TRIAGE-PARITY, GT-PROMPT-THIN-ROUTER, GT-PROMPT-WORKER-RECEIPT,
-  GT-PROMPT-DELEGATION-RULE, GT-PROMPT-SHELL-PORTABILITY, GT-PROMPT-REVIEW-CONVERGENCE,
-  GT-PROMPT-PROJECT-IDENTITY, GT-PROMPT-WORKER-HYGIENE
+  GT-PROMPT-SHELL-PORTABILITY, GT-PROMPT-REVIEW-CONVERGENCE, GT-PROMPT-PROJECT-IDENTITY
+  (GT-PROMPT-DELEGATION-RULE and GT-PROMPT-WORKER-HYGIENE are retired with the implementation surface)
 - `agent_skill_exposure`: GT-AGENT-READONLY-REVIEW, GT-AGENT-PIPELINE-ROLES, GT-SKILL-CORE-CATALOG,
-  GT-SKILL-CLAUDE-NATIVE-ORCHESTRATION, GT-SKILL-CODEX-PLUGIN-ENTRY, GT-SKILL-UI-CRITIQUE-LOOP,
-  GT-SKILL-UI-VISUAL-DETERMINISM
+  GT-SKILL-CODEX-PLUGIN-ENTRY, GT-SKILL-UI-CRITIQUE-LOOP, GT-SKILL-UI-VISUAL-DETERMINISM
+  (GT-SKILL-CLAUDE-NATIVE-ORCHESTRATION is retired with Route A and agent teams)
 - `generated_root_hygiene`: GT-HYGIENE-MANAGED-BLOCKS, GT-HYGIENE-SHARED-AGENTS-ROOT,
   GT-HYGIENE-REFERENCE-INTEGRITY, GT-HYGIENE-GENERATED-SURFACE-SAFETY
 
@@ -248,19 +248,18 @@ without having applied.
 | Row | Defect (the source change it stands for) | Regressed tasks |
 |-----|------------------------------------------|-----------------|
 | M1 | managed PreToolUse rule-dispatch hook removed from `.claude/settings.json` | GT-HOOK-ARCH-GATE-OPT-OUT, GT-HOOK-CLAUDE-RULE-DISPATCH |
-| M2 | Claude router maps `plan` to `auto-go` (`templates/claude/commands/auto-router.md.tmpl`) | GT-ROUTE-CLAUDE-DETAILS |
+| M2 | Claude router maps `review` to `auto-sync` (`templates/claude/commands/auto-router.md.tmpl`) | GT-ROUTE-CLAUDE-DETAILS |
 | M3 | one Task Triage bullet dropped on Antigravity (`templates/gemini/commands/auto-router.md.tmpl`) | GT-PROMPT-TRIAGE-PARITY |
 | M4 | `hooks.pre_commit_arch` ignored: the `false` variant gets the flag-on surface (`pkg/content/hooks.go`) | GT-HOOK-ARCH-GATE-OPT-OUT |
-| M5 | the `tdd` skill no longer exposed on OMP | GT-SKILL-CORE-CATALOG |
+| M5 | the `review` skill no longer exposed on OMP | GT-SKILL-CORE-CATALOG |
 | M6 | reviewer gains Write, Edit (`content/agents/reviewer.md`) | GT-AGENT-READONLY-REVIEW |
-| M7 | harness-workflow loses its claude-only gating (`content/skills/harness-workflow.md`) | GT-SKILL-CLAUDE-NATIVE-ORCHESTRATION |
 | M8 | OpenCode after-hook runs for every tool (`pkg/adapter/opencode/opencode_plugin.go`) | GT-HOOK-OPENCODE-PLUGIN |
 | M9 | Codex marketplace points at `./.autopus/plugins/autopus` (`pkg/adapter/codex/codex_plugin_manifest.go`) | GT-SKILL-CODEX-PLUGIN-ENTRY |
 | M10 | Claude managed-block markers renamed (`pkg/adapter/claude/claude.go`) | GT-HYGIENE-MANAGED-BLOCKS |
-| M11 | OMP `/auto-plan` loads the router instead of the detail (`pkg/adapter/omp/omp_commands.go`) | GT-ROUTE-OMP-EXACT-MAP |
+| M11 | OMP `/auto-review` loads the router instead of the detail (`pkg/adapter/omp/omp_commands.go`) | GT-ROUTE-OMP-EXACT-MAP |
 | M12 | lore-commit loses its hook condition (`content/rules/lore-commit.md`) | GT-HOOK-CLAUDE-RULE-DISPATCH |
 | M13 | Claude Code lane no longer `enforced`, so its edit guard is not registered in `.claude/settings.json` (`pkg/editguard/matrix.go`) | GT-HOOK-EDIT-GUARD-ON |
-| M14 | legacy `/auto:plan` loads `auto-go` (`templates/gemini/commands/auto/plan.toml.tmpl`) | GT-ROUTE-ANTIGRAVITY-COMMANDS |
+| M14 | legacy `/auto:review` loads `auto-sync` (`templates/gemini/commands/auto/review.toml.tmpl`) | GT-ROUTE-ANTIGRAVITY-COMMANDS |
 
 M1-M5 are the five REQ-HE-12 classes. An edit lands on every generated
 variant that holds its target, as a source change would, so M1 also regresses

@@ -25,13 +25,10 @@ func composeInitStatus(preset string) string {
 }
 
 // composeInitCustom is the custom preset S11 saves: the balanced default
-// with the implementation group set to sonnet, written out from the SPEC so
+// with the Verification·Review group set to sonnet, written out from the SPEC so
 // it cannot drift along with the code.
 var composeInitCustom = map[string]string{
-	"architect": "opus", "planner": "opus", "reviewer": "opus", "security-auditor": "opus", "spec-writer": "opus",
-	"debugger": "sonnet", "deep-worker": "sonnet", "devops": "sonnet", "executor": "sonnet",
-	"frontend-specialist": "sonnet", "perf-engineer": "sonnet", "tester": "sonnet", "ux-validator": "sonnet",
-	"validator": "sonnet", "explorer": "sonnet", "annotator": "sonnet", "reverse-engineer": "opus",
+	"frontend-specialist": "sonnet", "reviewer": "sonnet", "qa-explorer": "sonnet", "ux-validator": "sonnet",
 }
 
 // stubInitWizard replaces the huh wizard with one that answers choice in the
@@ -88,7 +85,7 @@ func TestInitCompose_RoleGroupsConfirmSavesCustomAndGeneratesThePreview(t *testi
 	run := newComposeUpdateRun(t, true, "")
 	wizard := stubInitWizard(t, tui.QualityRoleGroups)
 
-	dir, out, err := runComposeInit(t, strings.NewReader("g\n\n3\n\n\ny\n"))
+	dir, out, err := runComposeInit(t, strings.NewReader("g\n\n3\ny\n"))
 
 	require.NoError(t, err, out)
 	assert.Len(t, *wizard, 1)
@@ -98,7 +95,7 @@ func TestInitCompose_RoleGroupsConfirmSavesCustomAndGeneratesThePreview(t *testi
 	assert.False(t, run.adapterProbed(t), "generation must read the run's snapshot")
 
 	start := composeRenderedTable(t, out, composeInitStatus("balanced"))
-	assert.Equal(t, "opus-5-5 · max", start["debugger"]["Claude Code"])
+	assert.Equal(t, "opus-5-5 · max", start["reviewer"]["Claude Code"])
 	written := rawQualityOf(t, readBlockFixture(t, dir))
 	assert.Equal(t, "custom", written.Default)
 	assert.Equal(t, config.QualityPreset{Description: "역할 그룹 구성", Agents: composeInitCustom}, written.Presets["custom"])
@@ -107,14 +104,14 @@ func TestInitCompose_RoleGroupsConfirmSavesCustomAndGeneratesThePreview(t *testi
 	assert.Equal(t, defaults.Presets["ultra"], written.Presets["ultra"])
 
 	// custom gives up the balanced standard placement: every Claude Code cell
-	// but the five kept top-rung agents' leaves its exact model ID; only
-	// debugger and deep-worker change their Codex rung.
+	// leaves its exact model ID; only reviewer and qa-explorer change their
+	// Codex rung.
 	preview := composeRenderedTable(t, out, "미리보기 (아직 바뀌지 않음)")
 	claudeMarks, codexMarks := assertGeneratedEqualsTable(t, dir, preview)
-	assert.Equal(t, 12, claudeMarks)
+	assert.Equal(t, 4, claudeMarks)
 	assert.Equal(t, 2, codexMarks)
-	assert.Equal(t, composeTableClaudeCell{model: "sonnet", effort: "medium"}, readComposeTableClaudeProfile(t, dir, "debugger"))
-	assert.Equal(t, config.CodexProfile{Model: "gpt-6-luna", Effort: "max"}, readComposeCodexProfile(t, dir, "debugger"))
+	assert.Equal(t, composeTableClaudeCell{model: "sonnet", effort: "medium"}, readComposeTableClaudeProfile(t, dir, "reviewer"))
+	assert.Equal(t, config.CodexProfile{Model: "gpt-6-luna", Effort: "max"}, readComposeCodexProfile(t, dir, "reviewer"))
 }
 
 // S11, second run and every other keep path: init goes on with the balanced
@@ -122,7 +119,7 @@ func TestInitCompose_RoleGroupsConfirmSavesCustomAndGeneratesThePreview(t *testi
 // drew.
 func TestInitCompose_RoleGroupsKeepPathsProceedWithBalanced(t *testing.T) {
 	cases := []struct{ name, input, says string }{
-		{"cancel at the confirmation", "g\n\n3\n\n\nn\n", "취소했습니다. 설정을 바꾸지 않았습니다.\n"},
+		{"cancel at the confirmation", "g\n\n3\nn\n", "취소했습니다. 설정을 바꾸지 않았습니다.\n"},
 		{"enter at the question", "\n", ""},
 		{"input end", "", ""},
 	}
@@ -141,7 +138,7 @@ func TestInitCompose_RoleGroupsKeepPathsProceedWithBalanced(t *testing.T) {
 			assert.Equal(t, composeInitDefaultQuality(t), rawQualityOf(t, readBlockFixture(t, dir)))
 			claudeMarks, codexMarks := assertGeneratedEqualsTable(t, dir, composeRenderedTable(t, out, composeInitStatus("balanced")))
 			assert.Zero(t, claudeMarks+codexMarks)
-			assert.Equal(t, composeTableClaudeCell{model: "claude-opus-5-5", effort: "max"}, readComposeTableClaudeProfile(t, dir, "planner"))
+			assert.Equal(t, composeTableClaudeCell{model: "claude-opus-5-5", effort: "max"}, readComposeTableClaudeProfile(t, dir, "reviewer"))
 		})
 	}
 }

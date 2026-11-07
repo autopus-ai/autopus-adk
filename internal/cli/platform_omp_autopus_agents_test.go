@@ -26,13 +26,13 @@ func writeGeneratedAutopusOMPWorkspace(t *testing.T) string {
 	return root
 }
 
-// S15: a generated autopus project projects the 17 canonical agents and task;
+// S15: a generated autopus project projects the canonical agents and task;
 // a generated definition under its own name is never a shadow.
 func TestOMPAgentCatalog_ProjectsTheAutopusAgents(t *testing.T) {
 	root := writeGeneratedAutopusOMPWorkspace(t)
 	projection := buildOMPPlatformProjection(context.Background(), root, &ompCLIFakeRunner{}, configTimeForOMPAgentCatalog())
 
-	assert.Equal(t, 18, projection.Models.ExpectedAgents)
+	assert.Equal(t, len(config.CanonicalAgentNames())+1, projection.Models.ExpectedAgents)
 	assert.Zero(t, projection.Models.ShadowedAgents)
 	assert.Equal(t, "ready", projection.Models.AgentCatalogStatus)
 	assert.Equal(t, "autopus_agent_registry", projection.Models.AgentCatalogReason)
@@ -49,7 +49,7 @@ func TestOMPAgentCatalog_ProjectsTheAutopusAgents(t *testing.T) {
 // S15: a generated definition that went missing is reported, not ignored.
 func TestOMPAgentCatalog_ReportsAMissingAutopusAgent(t *testing.T) {
 	root := writeGeneratedAutopusOMPWorkspace(t)
-	require.NoError(t, os.Remove(filepath.Join(root, ".omp", "agents", "validator.md")))
+	require.NoError(t, os.Remove(filepath.Join(root, ".omp", "agents", "ux-validator.md")))
 	projection := buildOMPPlatformProjection(context.Background(), root, &ompCLIFakeRunner{}, configTimeForOMPAgentCatalog())
 
 	assert.Equal(t, "degraded", projection.Models.AgentCatalogStatus)

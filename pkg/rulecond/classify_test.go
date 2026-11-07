@@ -137,32 +137,22 @@ func TestConditionSubject_PerTool(t *testing.T) {
 }
 
 // TestClassify_ShippedRules is the REQ-CONDRULE-MAP-01 and REQ-CONDRULE-MAP-02
-// oracle: the exact per-rule classification of the 14 shipped rules.
+// oracle: the exact per-rule classification of the 4 rules the verification
+// harness ships, covering every class it still uses.
 func TestClassify_ShippedRules(t *testing.T) {
 	t.Parallel()
 
 	want := map[string]rulecond.Class{
-		"shell-portability":   rulecond.ClassHookFired,
-		"lore-commit":         rulecond.ClassHookFired,
-		"worktree-safety":     rulecond.ClassHookFired,
-		"file-size-limit":     rulecond.ClassPathsScoped,
-		"context7-docs":       rulecond.ClassSkillScoped,
-		"doc-storage":         rulecond.ClassSkillScoped,
-		"spec-quality":        rulecond.ClassSkillScoped,
-		"techstack-freshness": rulecond.ClassSkillScoped,
-		"branding":            rulecond.ClassAlways,
-		"deferred-tools":      rulecond.ClassAlways,
-		"language-policy":     rulecond.ClassAlways,
-		"objective-reasoning": rulecond.ClassAlways,
-		"project-identity":    rulecond.ClassAlways,
-		"subagent-delegation": rulecond.ClassAlways,
+		"lore-commit":     rulecond.ClassHookFired,
+		"file-size-limit": rulecond.ClassPathsScoped,
+		"language-policy": rulecond.ClassAlways,
+		"autonomy":        rulecond.ClassAlways,
 	}
 
 	entries, err := fs.ReadDir(contentfs.FS, "rules")
 	require.NoError(t, err)
 
 	got := map[string]rulecond.Class{}
-	counts := map[rulecond.Class]int{}
 	names := []string{}
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
@@ -178,16 +168,11 @@ func TestClassify_ShippedRules(t *testing.T) {
 		name := strings.TrimSuffix(entry.Name(), ".md")
 		names = append(names, name)
 		got[name] = rulecond.Classify(rule)
-		counts[rulecond.Classify(rule)]++
 	}
 
 	sort.Strings(names)
-	require.Len(t, names, 14, "content/rules must still hold 14 rules")
+	require.Len(t, names, 4, "content/rules must hold the 4 shipped rules")
 	assert.Equal(t, want, got)
-	assert.Equal(t, 3, counts[rulecond.ClassHookFired], "hook-fired count")
-	assert.Equal(t, 1, counts[rulecond.ClassPathsScoped], "paths-scoped count")
-	assert.Equal(t, 4, counts[rulecond.ClassSkillScoped], "skill-scoped count")
-	assert.Equal(t, 6, counts[rulecond.ClassAlways], "always count")
 }
 
 // TestClassify_ShippedHookFiredConditions pins the T7 condition assignment.
@@ -201,8 +186,7 @@ func TestClassify_ShippedHookFiredConditions(t *testing.T) {
 	}
 
 	for name, condition := range want {
-		raw, err := fs.ReadFile(contentfs.FS, "rules/"+name+".md")
-		require.NoError(t, err)
+		raw := []byte(ruleSourceText(t, name))
 		rule, err := rulecond.ParseRule(name+".md", raw)
 		require.NoError(t, err)
 

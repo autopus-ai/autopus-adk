@@ -8,7 +8,7 @@
     {
       "platform": "claude-code",
       "supports_hooks": true,
-      "hook_count": 5,
+      "hook_count": 6,
       "react_hooks": [
         {
           "event": "PostToolUse",

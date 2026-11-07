@@ -24,14 +24,6 @@ func TestWorkflowContextProfiles_GeneratedDetails_MatchS8Matrix(t *testing.T) {
 		excluded []string
 	}{
 		{
-			route: "plan",
-			required: []string{
-				"Required: core workspace policy, architecture, and relevant SPEC evidence.",
-				"Conditional: signatures and learnings only when explicitly declared",
-				"Excluded by default: scenarios and canary.",
-			},
-		},
-		{
 			route: "test",
 			required: []string{
 				"Required: core,test", "Optional: signature,learning", "Excluded: canary",
@@ -41,11 +33,6 @@ func TestWorkflowContextProfiles_GeneratedDetails_MatchS8Matrix(t *testing.T) {
 				"Excluded: canary, signatures, and unrelated learnings.",
 				"Required: core workspace policy and canary.",
 			},
-		},
-		{
-			route:    "canary",
-			required: []string{"Required: core workspace policy, canary, and the declared canary command.", "Excluded: scenarios, signatures, and unrelated learnings."},
-			excluded: []string{"Required: core workspace policy and scenarios."},
 		},
 	}
 

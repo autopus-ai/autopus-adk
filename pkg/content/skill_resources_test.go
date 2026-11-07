@@ -1,7 +1,6 @@
 package content_test
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,47 +10,6 @@ import (
 	"github.com/insajin/autopus-adk/pkg/config"
 	"github.com/insajin/autopus-adk/pkg/content"
 )
-
-// TestRenderSkillResources_PipelineResourcesAreReadable proves the compacted
-// agent-pipeline skill can still reach its split-out bodies: every reference
-// the skill links to comes back as a real, non-empty file keyed by the same
-// relative path the skill body uses.
-func TestRenderSkillResources_PipelineResourcesAreReadable(t *testing.T) {
-	t.Parallel()
-
-	cfg := &config.HarnessConfig{Platforms: []string{"claude"}}
-	resources, err := content.RenderSkillResources("agent-pipeline", "claude", cfg)
-	require.NoError(t, err)
-	require.NotEmpty(t, resources, "agent-pipeline must ship at least one reference body")
-
-	for rel, data := range resources {
-		assert.True(t, strings.HasPrefix(rel, "references/"),
-			"resource key %q must be relative to the skill directory", rel)
-		assert.True(t, strings.HasSuffix(rel, ".md"), "resource key %q must be a markdown file", rel)
-		assert.NotContains(t, rel, "..", "resource key %q must not escape the skill directory", rel)
-		assert.NotContains(t, rel, "\\", "resource key %q must use slash separators", rel)
-		assert.Equal(t, 2, len(strings.Split(rel, "/")),
-			"resource key %q must be exactly references/<file>.md", rel)
-		assert.NotEmpty(t, strings.TrimSpace(string(data)), "resource %q must not be empty", rel)
-	}
-}
-
-// TestRenderSkillResources_TransformsForNativePlatform confirms resources go
-// through the same platform rewriter as the skill body, so a Codex install
-// never reads Claude-only paths out of a reference file.
-func TestRenderSkillResources_TransformsForNativePlatform(t *testing.T) {
-	t.Parallel()
-
-	cfg := &config.HarnessConfig{Platforms: []string{"codex"}}
-	resources, err := content.RenderSkillResources("agent-pipeline", "codex", cfg)
-	require.NoError(t, err)
-	require.NotEmpty(t, resources)
-
-	for rel, data := range resources {
-		assert.NotContains(t, string(data), ".claude/",
-			"resource %q still carries a Claude-native path after codex transformation", rel)
-	}
-}
 
 // TestRenderSkillResources_UnknownSkillIsNotAnError keeps the helper callable
 // from every emitter loop without a per-skill existence check.

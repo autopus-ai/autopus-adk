@@ -23,13 +23,7 @@ import (
 // rules issue #185 made skill-scoped. Together they are what the S7 baseline
 // subtracts from the 14 content rules.
 var stickyRelocatedRules = []string{
-	"context7-docs.md",
-	"doc-storage.md",
 	"lore-commit.md",
-	"shell-portability.md",
-	"spec-quality.md",
-	"techstack-freshness.md",
-	"worktree-safety.md",
 }
 
 func stickyContentRuleNames(t *testing.T) []string {
@@ -97,12 +91,11 @@ func TestStickyFrontmatter_S7_ClaudeRuleSurfaceIsUnchanged(t *testing.T) {
 	assert.ElementsMatch(t, want, got,
 		".claude/rules/autopus must hold every content rule the compiler does not relocate")
 	assert.Contains(t, got, "language-policy.md")
-	assert.Contains(t, got, "objective-reasoning.md")
 
 	if len(relocated) == len(stickyRelocatedRules) {
 		assert.ElementsMatch(t, stickyRelocatedRules, relocated,
-			"the relocated set S7 subtracts must be the hook-fired triple plus the skill-scoped four")
-		assert.Len(t, got, 7, "S7 baseline: 14 content rules minus 7 relocated")
+			"the relocated set S7 subtracts must be the hook-fired lore-commit rule")
+		assert.Len(t, got, 3, "S7 baseline: 4 content rules minus 1 relocated")
 	}
 
 	for _, rule := range stickyRules {
@@ -131,7 +124,7 @@ func TestStickyFrontmatter_MapsExactlyTwoRules(t *testing.T) {
 				}
 			}
 			assert.ElementsMatch(t, stickyRules, sticky,
-				"%s must mark exactly language-policy and objective-reasoning sticky", platform)
+				"%s must mark exactly autonomy and language-policy sticky", platform)
 		})
 	}
 }

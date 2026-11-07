@@ -14,9 +14,7 @@ import (
 )
 
 var frozenAutoRoutes = []string{
-	"setup", "status", "goal", "update", "plan", "go", "fix", "review", "sync",
-	"idea", "map", "why", "verify", "secure", "test", "qa", "dev", "canary", "doctor",
-	"reverse",
+	"update", "review", "sync", "verify", "test", "qa", "doctor",
 }
 
 func TestRouterBudget_FullGenerate_RootIsThinAndEveryRouteHasOneDetail(t *testing.T) {
@@ -34,7 +32,7 @@ func TestRouterBudget_FullGenerate_RootIsThinAndEveryRouteHasOneDetail(t *testin
 		detail := readClaudeSurface(t, root, detailPath)
 		assert.Contains(t, detail, "# auto-"+route)
 	}
-	for _, alias := range []string{"browse", "stale", "spec review", "init", "platform"} {
+	for _, alias := range []string{"browse", "init", "platform"} {
 		assert.Contains(t, router, alias, "legacy alias %q must remain routable", alias)
 	}
 	assert.NotContains(t, router, "Triage Process")

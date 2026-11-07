@@ -134,7 +134,7 @@ func TestShouldCompileCatalogSkill_FullModeAlwaysCompilesShared(t *testing.T) {
 
 func TestShouldCompileCatalogSkill_SplitBundleGating(t *testing.T) {
 	// Core skill compiles even with empty bundle match in split mode.
-	core := CatalogSkill{Name: "planning", CompileTargets: []string{"codex"}, Visibility: SkillVisibilityShared}
+	core := CatalogSkill{Name: "review", CompileTargets: []string{"codex"}, Visibility: SkillVisibilityShared}
 	if !shouldCompileCatalogSkill(core, "codex", cfgSplit([]string{"ops"}, "codex")) {
 		t.Error("core skill must compile in split mode regardless of bundle selection")
 	}
@@ -179,13 +179,13 @@ func TestResolveCatalogSkillTarget_SplitModePaths(t *testing.T) {
 		t.Errorf("split codex long-tail target = %q", cgot)
 	}
 	// Core codex skill goes to repo path.
-	core := CatalogSkill{Name: "planning", CompileTargets: []string{"codex"}, Visibility: SkillVisibilityShared}
-	if g := resolveCatalogSkillTarget(core, "codex", cfgSplit(nil, "codex")); g != ".codex/skills/codex-planning/SKILL.md" {
+	core := CatalogSkill{Name: "review", CompileTargets: []string{"codex"}, Visibility: SkillVisibilityShared}
+	if g := resolveCatalogSkillTarget(core, "codex", cfgSplit(nil, "codex")); g != ".codex/skills/codex-review/SKILL.md" {
 		t.Errorf("split codex core target = %q", g)
 	}
 	// Core opencode skill goes to shared .agents path.
-	ocCore := CatalogSkill{Name: "planning", CompileTargets: []string{"opencode"}, Visibility: SkillVisibilityShared}
-	if g := resolveCatalogSkillTarget(ocCore, "opencode", cfgSplit(nil, "opencode")); g != ".agents/skills/planning/SKILL.md" {
+	ocCore := CatalogSkill{Name: "review", CompileTargets: []string{"opencode"}, Visibility: SkillVisibilityShared}
+	if g := resolveCatalogSkillTarget(ocCore, "opencode", cfgSplit(nil, "opencode")); g != ".agents/skills/review/SKILL.md" {
 		t.Errorf("split opencode core target = %q", g)
 	}
 }
@@ -204,19 +204,19 @@ func TestResolveCatalogSkillState(t *testing.T) {
 		t.Errorf("plugin state = %+v, want compiled but not visible", st)
 	}
 	// Repo-visible target.
-	core := CatalogSkill{Name: "planning", CompileTargets: []string{"codex"}, Visibility: SkillVisibilityShared}
+	core := CatalogSkill{Name: "review", CompileTargets: []string{"codex"}, Visibility: SkillVisibilityShared}
 	st = ResolveCatalogSkillState(core, "codex", cfgFull("codex"))
-	if !st.Compiled || !st.Visible || st.TargetPath != ".codex/skills/codex-planning/SKILL.md" {
+	if !st.Compiled || !st.Visible || st.TargetPath != ".codex/skills/codex-review/SKILL.md" {
 		t.Errorf("core state = %+v, want compiled+visible native repo path", st)
 	}
 }
 
 func TestResolveCatalogSkillRefPath(t *testing.T) {
 	catalog := &SkillCatalog{skills: map[string]CatalogSkill{
-		"planning": {Name: "planning", CompileTargets: []string{"codex"}, Visibility: SkillVisibilityShared},
+		"review": {Name: "review", CompileTargets: []string{"codex"}, Visibility: SkillVisibilityShared},
 	}}
-	got := ResolveCatalogSkillRefPath(catalog, "planning", "codex", cfgFull("codex"))
-	if got != ".codex/skills/codex-planning/SKILL.md" {
+	got := ResolveCatalogSkillRefPath(catalog, "review", "codex", cfgFull("codex"))
+	if got != ".codex/skills/codex-review/SKILL.md" {
 		t.Errorf("ref path for known skill = %q", got)
 	}
 	// Unknown skill falls back to default target.
@@ -232,7 +232,7 @@ func TestResolveCatalogSkillRefPath(t *testing.T) {
 }
 
 func TestSharedSurfaceIncludesSkill(t *testing.T) {
-	core := CatalogSkill{Name: "planning"}
+	core := CatalogSkill{Name: "review"}
 	tail := CatalogSkill{Name: "metrics"}
 	// Core shared surface: only core skills included.
 	cfgCore := cfgFull("codex", "opencode")

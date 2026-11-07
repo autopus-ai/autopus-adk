@@ -127,7 +127,7 @@ func TestClaudeGenerate_ConditionalManifestIsDeterministic(t *testing.T) {
 		assert.Equal(t, "Bash", rule.Matcher)
 		assert.NotEmpty(t, rule.Conditions)
 	}
-	assert.Equal(t, []string{"lore-commit", "shell-portability", "worktree-safety"}, names)
+	assert.Equal(t, []string{"lore-commit"}, names)
 }
 
 func readGeneratedManifest(t *testing.T, root string) []byte {

@@ -31,17 +31,14 @@ func composeGroupsDisplays(c qualityComposition, lang string) []string {
 func TestComposeRoleGroups_ContractOrder_CoversEveryCanonicalAgentOnce(t *testing.T) {
 	t.Parallel()
 
-	// The Role Group Contract table, verbatim.
+	// The Role Group Contract table, restricted to the groups that hold a
+	// generated agent.
 	want := []struct {
 		ko, en string
 		agents []string
 	}{
-		{"설계·판단", "Design·Judgment", []string{"planner", "architect", "spec-writer", "security-auditor"}},
-		{"구현", "Implementation", []string{
-			"executor", "debugger", "deep-worker", "devops", "frontend-specialist", "perf-engineer",
-		}},
-		{"검증·리뷰", "Verification·Review", []string{"reviewer", "validator", "tester", "ux-validator"}},
-		{"탐색·보조", "Exploration·Support", []string{"explorer", "annotator", "reverse-engineer"}},
+		{"구현", "Implementation", []string{"frontend-specialist"}},
+		{"검증·리뷰", "Verification·Review", []string{"reviewer", "qa-explorer", "ux-validator"}},
 	}
 	require.Len(t, composeRoleGroups, len(want))
 	for i, group := range composeRoleGroups {
@@ -78,17 +75,17 @@ func TestNewQualityComposition_StartsFromEffectiveTiers(t *testing.T) {
 		{
 			name:    "D current balanced",
 			quality: config.DefaultFullConfig("p").Quality,
-			want:    []string{"opus", "혼합 (opus 2 · sonnet 4)", "혼합 (opus 1 · sonnet 3)", "혼합 (opus 1 · sonnet 2)"},
+			want:    []string{"sonnet", "혼합 (opus 2 · sonnet 1)"},
 		},
 		{
 			name:    "R ultra HU1 with source fallbacks",
 			quality: repo,
-			want:    []string{"opus", "혼합 (opus 4 · sonnet 2)", "혼합 (opus 3 · sonnet 1)", "혼합 (opus 2 · sonnet 1)"},
+			want:    []string{"sonnet", "혼합 (opus 2 · sonnet 1)"},
 		},
 		{
 			name:    "B2 historical balanced keeps the standard placement",
 			quality: b2,
-			want:    []string{"opus", "혼합 (opus 2 · sonnet 4)", "혼합 (opus 1 · sonnet 3)", "혼합 (opus 1 · sonnet 2)"},
+			want:    []string{"sonnet", "혼합 (opus 2 · sonnet 1)"},
 		},
 	}
 	for _, tt := range tests {
@@ -99,22 +96,25 @@ func TestNewQualityComposition_StartsFromEffectiveTiers(t *testing.T) {
 		})
 	}
 
-	// B2 writes debugger: sonnet, yet the runtime places it on the top rung.
-	assert.Equal(t, "sonnet", b2.Presets["balanced"].Agents["debugger"])
-	assert.Equal(t, "opus", newQualityComposition(b2, sources).Agents()["debugger"])
-	// R omits deep-worker; its embedded source declares opus.
-	assert.Equal(t, "opus", newQualityComposition(repo, sources).Agents()["deep-worker"])
+	// B2 writes reviewer: sonnet, yet the runtime places it on the top rung.
+	assert.Equal(t, "sonnet", b2.Presets["balanced"].Agents["reviewer"])
+	assert.Equal(t, "opus", newQualityComposition(b2, sources).Agents()["reviewer"])
+	// R omits qa-explorer; its embedded source declares opus.
+	assert.NotContains(t, repo.Presets["ultra"].Agents, "qa-explorer")
+	assert.Equal(t, "opus", newQualityComposition(repo, sources).Agents()["qa-explorer"])
+	// No legacy role enters the composition, so none is saved from it.
+	assert.NotContains(t, newQualityComposition(repo, sources).Agents(), "debugger")
 }
 
 func TestNewQualityComposition_ProviderOverrideDoesNotMoveTheGlobalStart(t *testing.T) {
 	t.Parallel()
 	quality := config.DefaultFullConfig("p").Quality
-	quality.Presets["codex-custom"] = config.QualityPreset{Agents: map[string]string{"planner": "haiku"}}
+	quality.Presets["codex-custom"] = config.QualityPreset{Agents: map[string]string{"reviewer": "haiku"}}
 	quality.Providers = map[string]string{config.QualityProviderCodex: "codex-custom"}
 
 	composition := newQualityComposition(quality, composeGroupsSources(t))
 
-	assert.Equal(t, "opus", composition.Agents()["planner"])
+	assert.Equal(t, "opus", composition.Agents()["reviewer"])
 }
 
 // The driver edits a composition map through composeSessionGroups: a group
@@ -132,16 +132,16 @@ func TestComposeSessionGroups_EditsRecomputeTheGroupDisplay(t *testing.T) {
 	}
 	groups := composeSessionGroups{lang: "ko"}
 
-	// g, Enter, 3, Enter, 4.
+	// g, haiku for Implementation, sonnet for Verification·Review.
+	groups.SetGroupTier(composition, 0, "haiku")
 	groups.SetGroupTier(composition, 1, "sonnet")
-	groups.SetGroupTier(composition, 3, "haiku")
-	assert.Equal(t, []string{"opus", "sonnet", "혼합 (opus 1 · sonnet 3)", "haiku"}, displays("ko"))
+	assert.Equal(t, []string{"haiku", "sonnet"}, displays("ko"))
+	assert.Len(t, composition, len(config.CanonicalAgentNames()), "a group edit adds no agent")
 
-	composition["debugger"] = "opus"
-	assert.Equal(t, "혼합 (opus 1 · sonnet 5)", displays("ko")[1])
-	composition["explorer"] = "fable"
-	assert.Equal(t, "혼합 (fable 1 · haiku 2)", displays("ko")[3])
-	assert.Equal(t, "mixed (fable 1 · haiku 2)", displays("en")[3])
+	composition["qa-explorer"] = "fable"
+	assert.Equal(t, "혼합 (fable 1 · sonnet 2)", displays("ko")[1])
+	assert.Equal(t, "mixed (fable 1 · sonnet 2)", displays("en")[1])
+	assert.Equal(t, "haiku", displays("ko")[0])
 }
 
 func TestQualityComposition_SetGroupTier_RejectsUnknownTier(t *testing.T) {
@@ -160,8 +160,8 @@ func TestQualityComposition_Agents_IsDetached(t *testing.T) {
 	composition := newQualityComposition(config.DefaultFullConfig("p").Quality, composeGroupsSources(t))
 
 	agents := composition.Agents()
-	agents["planner"] = "haiku"
+	agents["reviewer"] = "haiku"
 
-	assert.Equal(t, "opus", composition.Agents()["planner"])
+	assert.Equal(t, "opus", composition.Agents()["reviewer"])
 	assert.Len(t, agents, len(config.CanonicalAgentNames()))
 }

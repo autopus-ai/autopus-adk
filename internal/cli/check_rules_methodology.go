@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -49,6 +50,17 @@ func evaluateMethodologyGate(cfg *config.HarnessConfig) methodologyGate {
 	enforce := cfg.Methodology.Enforce
 
 	def, err := content.ResolveEnforcedMethodology(contentfs.FS, mode, enforce)
+	var defect *content.MethodologyError
+	if errors.As(err, &defect) && defect.Defect == content.DefectMissingDelivery {
+		// The verification harness ships no methodology skill. A config an
+		// older release wrote still names one; nothing reads it any more, so
+		// it is reported instead of failing every `auto check` after update.
+		return methodologyGate{
+			Status: methodologyGateSkip,
+			Detail: fmt.Sprintf("methodology: %s — 이 하네스는 방법론 스킬을 설치하지 않아 전달되는 규칙이 없습니다; "+
+				"methodology.mode: none, enforce: false로 바꾸면 이 안내가 사라집니다", mode),
+		}
+	}
 	if err != nil {
 		return methodologyGate{
 			Status: methodologyGateFail,

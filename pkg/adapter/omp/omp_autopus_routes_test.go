@@ -43,7 +43,7 @@ func TestBridgeOMPIntegrationRoutes_RoutesEachAutopusAgentUnderItsOwnName(t *tes
 	routes, err := bridgeOMPIntegrationRoutes(resolvedIntegrationProfile(t, integrationHarnessConfig("overlay")))
 	require.NoError(t, err)
 	assert.Equal(t, sortedAutopusAgentNames(), sortedKeys(routes))
-	assert.Equal(t, config.OMPAgentRoleName("executor"), routes["executor"].Role)
+	assert.Equal(t, config.OMPAgentRoleName("reviewer"), routes["reviewer"].Role)
 	assert.Equal(t, config.OMPAgentRoleName("planner"), routes["task"].Role, "task borrows the planner row")
 	for _, disabled := range config.OMPAutopusDisabledAgents() {
 		assert.NotContains(t, routes, disabled)
@@ -66,7 +66,8 @@ func TestOMPModelIntegration_AutopusOverridesKeyEveryAgentAndTask(t *testing.T) 
 	}
 	require.NoError(t, yaml.Unmarshal(byPath[DefaultOMPModelOverlayPath].Content, &overlay))
 	assert.Equal(t, sortedAutopusAgentNames(), sortedKeys(overlay.Task.AgentModelOverrides))
-	assert.Equal(t, overlay.Task.AgentModelOverrides["planner"], overlay.Task.AgentModelOverrides["task"])
+	// task borrows the planner row, whose capability route is deep_reasoning.
+	assert.Equal(t, "anthropic/alpha-reasoner:xhigh", overlay.Task.AgentModelOverrides["task"])
 
 	var receipt OMPModelResolutionReceipt
 	require.NoError(t, json.Unmarshal(byPath[OMPModelReceiptRelativePath].Content, &receipt))
@@ -84,23 +85,36 @@ func TestOMPModelIntegration_AutopusOverridesKeyEveryAgentAndTask(t *testing.T) 
 	}
 }
 
-// In autopus mode family diversity is measured against the executor agent,
-// the one that carries implementation work; the bundled task agent native
-// mode anchored on before v0.50.131 runs no implementation any more.
-func TestCompileOMPModelRouting_AnchorsFamilyDiversityOnTheServedExecutor(t *testing.T) {
+// In autopus mode family diversity is measured against the agent that carries
+// implementation work. The verification harness generates no executor, so the
+// bundled task agent, which runs every dispatch that names no agent, anchors
+// it: task resolves on anthropic, so the reviewer's dissent skips its
+// anthropic first candidate.
+func TestCompileOMPModelRouting_AnchorsFamilyDiversityOnTaskWithoutAnExecutor(t *testing.T) {
 	t.Parallel()
 	catalog, reason := NormalizeOMPModelCatalog(newModelIntegrationRunner().catalog, 16*1024)
 	require.Equal(t, "catalog_ready", reason)
 	profile := resolvedIntegrationProfile(t, integrationHarnessConfig("overlay"))
 	routes, err := bridgeOMPIntegrationRoutes(profile)
 	require.NoError(t, err)
+	require.NotContains(t, routes, "executor")
+	reviewer := routes["reviewer"]
+	require.True(t, reviewer.PreferDistinctExecutorFamily)
+	reviewer.Candidates = []OMPRoutingCandidate{
+		{Selector: "anthropic/alpha-reasoner", Thinking: "high", Family: "anthropic"},
+		{Selector: "openai/beta-coder", Thinking: "high", Family: "openai"},
+	}
+	routes["reviewer"] = reviewer
 	routing := CompileOMPModelRouting(OMPModelRoutingInput{
 		Catalog: catalog, CatalogReason: "catalog_ready", Routes: routes,
 	})
 	order := make([]string, 0, len(routing.Resolutions))
 	for _, resolution := range routing.Resolutions {
-		if resolution.Agent == "reviewer" {
-			assert.Equal(t, "anthropic/alpha-reasoner:high", resolution.EffectiveSelector)
+		switch resolution.Agent {
+		case "task":
+			assert.Equal(t, "anthropic/alpha-reasoner:xhigh", resolution.EffectiveSelector)
+		case "reviewer":
+			assert.Equal(t, "openai/beta-coder:high", resolution.EffectiveSelector)
 		}
 		order = append(order, resolution.Agent)
 	}
@@ -113,7 +127,7 @@ func TestDegradeUnservedDerivedOMPRoutes_KeepsAutopusPinsFailClosed(t *testing.T
 	t.Parallel()
 	policy := config.RoleModelPolicyConf{
 		Version: config.RoleModelPolicyVersionV1, Profile: "balanced", Family: "openai",
-		Agents: map[string]config.RoleAgentOverrideConf{"executor": {Candidates: []config.RoleModelCandidateConf{
+		Agents: map[string]config.RoleAgentOverrideConf{"reviewer": {Candidates: []config.RoleModelCandidateConf{
 			{Selector: "openai-codex/gpt-6-astra", Thinking: "max", Family: "openai"},
 		}}},
 	}
@@ -125,8 +139,8 @@ func TestDegradeUnservedDerivedOMPRoutes_KeepsAutopusPinsFailClosed(t *testing.T
 	catalog, reason := NormalizeOMPModelCatalog([]byte(`{"models":[{"provider":"google","id":"gamma-vision","family":"google","capabilities":["vision_design"],"thinking":["high"],"auth_enabled":true}]}`), 16*1024)
 	require.Equal(t, "catalog_ready", reason)
 	DegradeUnservedDerivedOMPRoutes(profile, catalog, routes)
-	assert.Empty(t, routes["executor"].DegradedAction, "the executor pin is an operator choice")
-	assert.Equal(t, ompRuntimeDefaultAction, routes["tester"].DegradedAction)
+	assert.Empty(t, routes["reviewer"].DegradedAction, "the reviewer pin is an operator choice")
+	assert.Equal(t, ompRuntimeDefaultAction, routes["qa-explorer"].DegradedAction)
 	assert.Equal(t, ompRuntimeDefaultAction, routes["task"].DegradedAction)
 }
 

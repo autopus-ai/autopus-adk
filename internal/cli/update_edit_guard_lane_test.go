@@ -21,7 +21,7 @@ import (
 )
 
 const claudeLaneDeny = `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny",` +
-	`"permissionDecisionReason":"autopus edit-guard [generated_surface]: .claude/skills/auto-fix/SKILL.md ` +
+	`"permissionDecisionReason":"autopus edit-guard [generated_surface]: .claude/skills/auto/SKILL.md ` +
 	`is generated (manifest .autopus/claude-code-manifest.json, policy always). ` +
 	`Change autopus.yaml or the upstream Autopus source, then run: auto update"}}` + "\n"
 
@@ -46,7 +46,10 @@ func TestEditGuardClaudeLane_RegisteredLineDeniesTheHostPayload(t *testing.T) {
 	fixture, err := os.ReadFile(filepath.Join(moduleRoot, "pkg", "editguard", "testdata", "hostpayload",
 		"claude-code-2.1.289-edit.json"))
 	require.NoError(t, err)
-	payload := strings.NewReplacer("<R>", root, "<TRANSCRIPT>", filepath.Join(root, "t.jsonl")).Replace(string(fixture))
+	// The recorded host payload edits auto-fix, which the verification harness
+	// no longer generates; the router skill is a generated file it still does.
+	payload := strings.NewReplacer("<R>", root, "<TRANSCRIPT>", filepath.Join(root, "t.jsonl"),
+		"/.claude/skills/auto-fix/SKILL.md", "/.claude/skills/auto/SKILL.md").Replace(string(fixture))
 
 	run := func(stdin string) string {
 		cmd := exec.Command(sh, "-c", line)
@@ -59,7 +62,7 @@ func TestEditGuardClaudeLane_RegisteredLineDeniesTheHostPayload(t *testing.T) {
 		return stdout.String()
 	}
 	assert.Equal(t, claudeLaneDeny, run(payload), "a protected edit gets the exact deny encoding")
-	assert.Empty(t, run(strings.Replace(payload, "/.claude/skills/auto-fix/SKILL.md", "/pkg/foo.go", 1)),
+	assert.Empty(t, run(strings.Replace(payload, "/.claude/skills/auto/SKILL.md", "/pkg/foo.go", 1)),
 		"an unprotected edit is allowed by silence")
 }
 

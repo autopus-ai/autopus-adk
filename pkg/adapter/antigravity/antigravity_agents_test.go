@@ -23,7 +23,7 @@ func TestAntigravityGenerateAgents(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify key agent MD files are created in full mode
-	agents := []string{"executor.md", "reviewer.md", "planner.md", "debugger.md", "tester.md"}
+	agents := []string{"reviewer.md", "frontend-specialist.md", "ux-validator.md"}
 	agentDir := filepath.Join(dir, ".gemini", "agents", "autopus")
 	for _, agent := range agents {
 		agentPath := filepath.Join(agentDir, agent)
@@ -42,13 +42,13 @@ func TestAntigravityAgentContent(t *testing.T) {
 	require.NoError(t, err)
 
 	// Check executor.md has YAML frontmatter with name and description
-	executorPath := filepath.Join(dir, ".gemini", "agents", "autopus", "executor.md")
+	executorPath := filepath.Join(dir, ".gemini", "agents", "autopus", "frontend-specialist.md")
 	data, err := os.ReadFile(executorPath)
 	require.NoError(t, err)
 	content := string(data)
 
 	assert.Contains(t, content, "---", "should have YAML frontmatter")
-	assert.Contains(t, content, "name: auto-agent-executor", "should have name field")
+	assert.Contains(t, content, "name: auto-agent-frontend-specialist", "should have name field")
 	assert.Contains(t, content, "description:", "should have description field")
 
 	// Check reviewer.md has TRUST 5 content

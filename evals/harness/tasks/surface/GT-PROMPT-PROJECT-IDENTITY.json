@@ -52,7 +52,7 @@
     {
       "kind": "contains",
       "platform": "antigravity-cli",
-      "path": ".gemini/commands/auto/plan.toml",
+      "path": ".gemini/commands/auto/review.toml",
       "needle": "Project: harness-golden | Mode: full"
     }
   ],

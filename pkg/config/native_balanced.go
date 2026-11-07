@@ -69,9 +69,9 @@ func balancedTierForRung(rung balancedRoleRung) string {
 // defaultBalancedAgentTiers returns a fresh map for caller-owned quality
 // settings. Model IDs and thinking remain defined in the shared role matrix.
 func defaultBalancedAgentTiers() map[string]string {
-	agents := make(map[string]string, len(balancedRungByAgent))
-	for agent, rung := range balancedRungByAgent {
-		agents[agent] = balancedTierForRung(rung)
+	agents := make(map[string]string, len(canonicalAgentNames))
+	for _, agent := range canonicalAgentNames {
+		agents[agent] = balancedTierForRung(balancedRungByAgent[agent])
 	}
 	return agents
 }

@@ -251,25 +251,18 @@ func TestClaudeAdapter_Generate_InstallsRules(t *testing.T) {
 	require.NoError(t, statErr, "rules 디렉터리가 존재해야 함")
 	assert.True(t, info.IsDir())
 
-	// subagent-delegation.md 존재 확인
-	_, statErr = os.Stat(filepath.Join(rulesDir, "subagent-delegation.md"))
-	require.NoError(t, statErr, "subagent-delegation.md가 존재해야 함")
+	// language-policy.md 존재 확인
+	_, statErr = os.Stat(filepath.Join(rulesDir, "language-policy.md"))
+	require.NoError(t, statErr, "language-policy.md가 존재해야 함")
 
 	// file-size-limit.md 존재 확인
 	_, statErr = os.Stat(filepath.Join(rulesDir, "file-size-limit.md"))
 	require.NoError(t, statErr, "file-size-limit.md가 존재해야 함")
 
-	// shell-portability is hook-fired, so its body lives in the conditional
-	// body root and never loads at session start (REQ-CONDRULE-COMPILE-02).
-	bodyDir := filepath.Join(dir, ".claude", "hooks", "autopus", "conditional")
-	shellPortabilityData, err := os.ReadFile(filepath.Join(bodyDir, "shell-portability.md"))
-	require.NoError(t, err, "shell-portability.md가 존재해야 함")
-	assert.Contains(t, string(shellPortabilityData), "Do NOT prefix commands with GNU `timeout`")
-
-	// techstack-freshness is skill-scoped (issue #185): it is one of the four
-	// `/auto`-only rules whose body is relocated so it stops loading at session
-	// start, and the `/auto` skills read it from the conditional body root.
-	techstackData, err := os.ReadFile(filepath.Join(bodyDir, "techstack-freshness.md"))
-	require.NoError(t, err, "techstack-freshness.md가 존재해야 함")
-	assert.Contains(t, string(techstackData), "Technology Stack Decision")
+	// lore-commit is hook-fired, so its body lives in the conditional body
+	// root and never loads at session start (REQ-CONDRULE-COMPILE-02).
+	loreData, err := os.ReadFile(filepath.Join(dir, ".claude", "hooks", "autopus", "conditional", "lore-commit.md"))
+	require.NoError(t, err, "lore-commit.md가 존재해야 함")
+	assert.Contains(t, string(loreData), "Lore")
+	assert.NoFileExists(t, filepath.Join(rulesDir, "lore-commit.md"))
 }

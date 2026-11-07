@@ -50,18 +50,18 @@ func TestComposeTable_FixtureD_ShowsStandardPlacementCells(t *testing.T) {
 	layout := table.layout("ko", nil)
 
 	assert.Equal(t, []string{"그룹", "에이전트", "등급", "Claude Code", "Codex"}, layout.header)
-	assert.Equal(t, []string{"설계·판단", "planner", "opus", "opus-5-5 · max", "6-astra · max"},
-		composeTableRowTexts(t, layout, "planner"))
-	assert.Equal(t, []string{"구현", "executor", "sonnet", "sonnet-5-5 · max", "6-luna · max"},
-		composeTableRowTexts(t, layout, "executor"))
-	assert.Equal(t, []string{"검증·리뷰", "validator", "sonnet", "sonnet-5-5 · high", "6-luna · max"},
-		composeTableRowTexts(t, layout, "validator"))
+	assert.Equal(t, []string{"검증·리뷰", "reviewer", "opus", "opus-5-5 · max", "6-astra · max"},
+		composeTableRowTexts(t, layout, "reviewer"))
+	assert.Equal(t, []string{"구현", "frontend-specialist", "sonnet", "sonnet-5-5 · max", "6-luna · max"},
+		composeTableRowTexts(t, layout, "frontend-specialist"))
+	assert.Equal(t, []string{"검증·리뷰", "ux-validator", "sonnet", "sonnet-5-5 · high", "6-luna · max"},
+		composeTableRowTexts(t, layout, "ux-validator"))
 	// D leaves the root Codex model to the user, so no supervisor line.
 	assert.Equal(t, []string{"Codex catalog: 읽음 · 대체 0칸"}, layout.footer)
 
-	planner := composeTableAgentRow(t, table, "planner")
-	assert.Equal(t, composeTableClaudeCell{model: "claude-opus-5-5", effort: "max"}, planner.claude)
-	assert.Equal(t, config.CodexProfile{Model: "gpt-6-astra", Effort: "max"}, planner.codex.resolution.Effective)
+	reviewer := composeTableAgentRow(t, table, "reviewer")
+	assert.Equal(t, composeTableClaudeCell{model: "claude-opus-5-5", effort: "max"}, reviewer.claude)
+	assert.Equal(t, config.CodexProfile{Model: "gpt-6-astra", Effort: "max"}, reviewer.codex.resolution.Effective)
 }
 
 // S4: rows follow the Role Group Contract order, one per canonical agent.
@@ -73,17 +73,9 @@ func TestComposeTable_RowsFollowRoleGroupOrder(t *testing.T) {
 		groups = append(groups, row[0])
 		agents = append(agents, row[1])
 	}
-	assert.Equal(t, []string{
-		"planner", "architect", "spec-writer", "security-auditor",
-		"executor", "debugger", "deep-worker", "devops", "frontend-specialist", "perf-engineer",
-		"reviewer", "validator", "tester", "ux-validator",
-		"explorer", "annotator", "reverse-engineer",
-	}, agents)
+	assert.Equal(t, []string{"frontend-specialist", "reviewer", "qa-explorer", "ux-validator"}, agents)
 	assert.ElementsMatch(t, config.CanonicalAgentNames(), agents)
-	assert.Equal(t, "설계·판단", groups[0])
-	assert.Equal(t, "구현", groups[4])
-	assert.Equal(t, "검증·리뷰", groups[10])
-	assert.Equal(t, "탐색·보조", groups[15])
+	assert.Equal(t, []string{"구현", "검증·리뷰", "검증·리뷰", "검증·리뷰"}, groups)
 }
 
 // S4: R runs ultra with HU1 written, five platforms, and a quality-managed
@@ -93,12 +85,12 @@ func TestComposeTable_FixtureR_ShowsUltraCellsAndFooter(t *testing.T) {
 
 	assert.Equal(t, []string{"그룹", "에이전트", "등급", "Claude Code", "Codex", "OMP", "OpenCode", "Antigravity"},
 		layout.header)
-	assert.Equal(t, []string{"설계·판단", "planner", "opus", "opus · max", "6.1-sol · xhigh",
-		"플랫폼 기본값", "플랫폼 기본값", "플랫폼 기본값"}, composeTableRowTexts(t, layout, "planner"))
-	assert.Equal(t, []string{"구현", "deep-worker", "기본값(opus)", "opus · max", "6.1-sol · xhigh",
-		"플랫폼 기본값", "플랫폼 기본값", "플랫폼 기본값"}, composeTableRowTexts(t, layout, "deep-worker"))
-	assert.Equal(t, []string{"탐색·보조", "annotator", "기본값(sonnet)", "sonnet · high", "6.1-sol · xhigh",
-		"플랫폼 기본값", "플랫폼 기본값", "플랫폼 기본값"}, composeTableRowTexts(t, layout, "annotator"))
+	assert.Equal(t, []string{"검증·리뷰", "reviewer", "opus", "opus · max", "6.1-sol · xhigh",
+		"플랫폼 기본값", "플랫폼 기본값", "플랫폼 기본값"}, composeTableRowTexts(t, layout, "reviewer"))
+	assert.Equal(t, []string{"검증·리뷰", "qa-explorer", "기본값(opus)", "opus · max", "6.1-sol · xhigh",
+		"플랫폼 기본값", "플랫폼 기본값", "플랫폼 기본값"}, composeTableRowTexts(t, layout, "qa-explorer"))
+	assert.Equal(t, []string{"구현", "frontend-specialist", "기본값(sonnet)", "sonnet · high", "6.1-sol · xhigh",
+		"플랫폼 기본값", "플랫폼 기본값", "플랫폼 기본값"}, composeTableRowTexts(t, layout, "frontend-specialist"))
 	assert.Equal(t, []string{"Codex catalog: 읽음 · 대체 0칸", "Codex 기본 세션: 6-astra · ultra"}, layout.footer)
 }
 
@@ -108,8 +100,8 @@ func TestComposeTable_FixtureP_CodexOverrideColumn(t *testing.T) {
 	layout := composeTableFor(t, "P", "CAT-A").layout("ko", nil)
 
 	assert.Equal(t, []string{"그룹", "에이전트", "등급", "Claude Code", "Codex (개별 설정: codex-custom)"}, layout.header)
-	assert.Equal(t, "6-luna · max", composeTableRowTexts(t, layout, "planner")[4])
-	assert.Equal(t, "6-luna · medium", composeTableRowTexts(t, layout, "executor")[4])
+	assert.Equal(t, "6-luna · high", composeTableRowTexts(t, layout, "qa-explorer")[4])
+	assert.Equal(t, "6-luna · medium", composeTableRowTexts(t, layout, "frontend-specialist")[4])
 	assert.Equal(t, "6-luna · high", composeTableRowTexts(t, layout, "reviewer")[4])
 
 	d := composeTableFor(t, "D", "CAT-A").layout("ko", nil)
@@ -123,12 +115,12 @@ func TestComposeTable_FixtureP_CodexOverrideColumn(t *testing.T) {
 func TestComposeTable_OMPColumnShowsRequestedRoute(t *testing.T) {
 	o1 := composeTableFor(t, "O1", "CAT-A").layout("ko", nil)
 	assert.Equal(t, "OMP (요청 route · catalog 확인 전)", o1.header[5])
-	assert.Equal(t, "executor · sonnet-5-5:max", composeTableRowTexts(t, o1, "executor")[5])
-	assert.Equal(t, "explorer · sonnet-5-5:high", composeTableRowTexts(t, o1, "explorer")[5])
+	assert.Equal(t, "frontend-specialist · sonnet-5-5:max", composeTableRowTexts(t, o1, "frontend-specialist")[5])
+	assert.Equal(t, "ux-validator · sonnet-5-5:high", composeTableRowTexts(t, o1, "ux-validator")[5])
 
 	o2 := composeTableFor(t, "O2", "CAT-A").layout("ko", nil)
 	assert.Equal(t, "OMP (요청 route · catalog 확인 전)", o2.header[5])
-	assert.Equal(t, "executor · opus-5-5:xhigh", composeTableRowTexts(t, o2, "executor")[5])
+	assert.Equal(t, "frontend-specialist · opus-5-5:xhigh", composeTableRowTexts(t, o2, "frontend-specialist")[5])
 
 	r := composeTableFor(t, "R", "CAT-A").layout("ko", nil)
 	assert.Equal(t, "OMP", r.header[5])
@@ -160,15 +152,15 @@ func TestComposeTable_OMPCellsEqualTheAgentRoute(t *testing.T) {
 	}
 }
 
-// S5: an invalid written tier is shown as such, and R's deep-worker shows the
+// S5: an invalid written tier is shown as such, and R's qa-explorer shows the
 // tier generation projects rather than the per-tool table's empty fallback.
 func TestComposeTable_InvalidTierAndSourceFallback(t *testing.T) {
 	x := composeTableFor(t, "X", "CAT-A").layout("ko", nil)
 	assert.Equal(t, []string{"잘못된 값→sonnet", "sonnet · high", "6.1-sol · xhigh"},
-		composeTableRowTexts(t, x, "tester")[2:5])
+		composeTableRowTexts(t, x, "ux-validator")[2:5])
 
 	r := composeTableFor(t, "R", "CAT-A").layout("ko", nil)
-	assert.Equal(t, "opus · max", composeTableRowTexts(t, r, "deep-worker")[3])
+	assert.Equal(t, "opus · max", composeTableRowTexts(t, r, "qa-explorer")[3])
 }
 
 // S4: rendering is deterministic and carries no terminal escape sequences.

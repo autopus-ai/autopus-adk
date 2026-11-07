@@ -2,20 +2,19 @@
 
 # 🐙 Autopus-ADK
 
-### A harness *of* the agents, *by* the agents, *for* the agents.
+### Verify what your AI agent changed by running it.
 
-Make your AI coding tools (Claude Code, Codex, Antigravity CLI, OpenCode, Oh My Pi) work like a real engineering team — with planning, testing, code review, and security audits built in.
-
-**17 agents. 53 skills in the library, a compact default catalog. One config across platforms.**
+Autopus-ADK installs a verification harness into your AI coding CLI (Claude Code, Codex,
+Antigravity CLI, OpenCode, Oh My Pi). Your agent still plans and writes the code. Autopus
+builds it, tests it, reviews the diff, and has a separate QA agent run the product to look for bugs
+before the session ends.
 
 [![GitHub Stars](https://img.shields.io/github/stars/autopus-ai/autopus-adk?style=social)](https://github.com/autopus-ai/autopus-adk/stargazers)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Go Version](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)](https://golang.org)
-[![Platforms](https://img.shields.io/badge/Platforms-5-orange)](#-one-config-five-platforms)
-[![Agents](https://img.shields.io/badge/Agents-17-blueviolet)](#-17-specialized-agents)
-[![Skills](https://img.shields.io/badge/Skills-53-ff69b4)](#-all-commands)
-
-**Paste this command into your AI coding agent's chat (Claude Code, Codex, OpenCode, etc.) — the agent will run it and set up everything automatically. Or run it directly in your terminal.**
+[![Platforms](https://img.shields.io/badge/Platforms-5-orange)](#platforms)
+[![Agents](https://img.shields.io/badge/Agents-4-blueviolet)](#what-gets-installed)
+[![Skills](https://img.shields.io/badge/Skills-9-ff69b4)](#what-gets-installed)
 
 ```bash
 # macOS / Linux
@@ -25,7 +24,7 @@ curl -sSfL https://raw.githubusercontent.com/autopus-ai/autopus-adk/main/install
 powershell -c "irm https://raw.githubusercontent.com/autopus-ai/autopus-adk/main/install.ps1 | iex"
 ```
 
-[Why Autopus](#-the-problem) · [**Core Workflow**](#-the-workflow-three-commands-to-ship) · [Features](#-what-makes-autopus-different) · [Pipeline](#-the-pipeline) · [Security](#-security) · [Docs](#-all-commands)
+[Why](#why-verification-and-not-a-workflow) · [Stop hook](#the-stop-hook-build-and-test-before-the-session-ends) · [QA bug hunt](#qa-bug-hunt) · [Routes](#routes) · [Install](#install) · [Configuration](#configuration) · [Security](#security)
 
 [🇰🇷 한국어](docs/README.ko.md)
 
@@ -33,1842 +32,344 @@ powershell -c "irm https://raw.githubusercontent.com/autopus-ai/autopus-adk/main
 
 ---
 
-## Choose the workflow that fits the change
+## Why verification and not a workflow
 
-Start with one real task in an existing repository. After setup, run `auto doctor`
-in your terminal to check the installed platform wiring.
+Up to v0.50.x, Autopus shipped a full implementation harness: plan/SPEC documents, `/auto go`,
+`/auto fix`, `/auto idea`, 17 agents, and a set of discipline rules. Frontier models (Opus-class)
+now plan and implement well on their own, and that scaffolding mostly added cost.
 
-| Your task | Agent-chat entry point | Expected scope |
+A small pilot pointed the same way. On 4 real upstream PR tasks graded by hidden tests, plain
+Claude Code passed 4/4 in about 17 minutes for $3.00, and the old full harness passed 0/4 in
+about 3.6 hours for at least $37 (a lower bound: its plan stage hit the time cap on every task and
+reported no cost). With n=4, all small Go changes, this is directional, not a benchmark.
+
+What agents still do badly is check their own work. They report "done" on code that does not build,
+tests they did not run, and behavior they never exercised. So the harness now does one job: it runs
+the change, and it sends the agent back when the change does not hold up.
+
+## What it does
+
+| Stage | What runs | When |
 | --- | --- | --- |
-| Reproduce and fix a bug within an existing contract | `@auto fix "describe the failure"` | Reproduction test, focused patch, verification; low-risk fixes do not need a full SPEC set |
-| Review existing changes | `@auto review` | Findings and verification evidence |
-| Build a feature with new requirements | `@auto plan "describe the outcome"`, then `@auto go SPEC-ID` | Explicit acceptance criteria, implementation, applicable gates |
+| Build and test | `auto verify stop`: the toolchains of the changed files only | Every time a Claude Code session tries to stop with a changed tree |
+| Review | The `reviewer` agent on `git diff HEAD` | Automatically, after a passing build of 40+ changed source lines |
+| QA bug hunt | The `qa-explorer` agent drives the product; `auto qa hunt verify` re-runs each repro | Same follow-up round, when the change has runnable behavior; or on demand with `/auto qa` |
+| Fix | The working agent fixes blockers and confirmed bugs, then re-runs the tests | Same follow-up round |
 
-These examples use the Codex plugin router. Native Codex skills use
-`$codex-auto-fix`, `$codex-auto-review`, and the corresponding route names;
-Claude Code and OpenCode use `/auto ...`.
+None of this needs a prompt from you. The agent is told to carry the round through and to ask you
+only for decisions that are really yours, as a multiple-choice question.
 
-Autopus is most useful when a team needs consistent delivery rules across coding
-tools and repositories. A single, short task may need only the coding tool's
-native workflow. Start with the default split skill catalog and expand it when
-needed. See the [harness comparison and evaluation protocol](docs/harness-assessment.md).
+## The Stop hook: build and test before the session ends
 
-To inspect overhead, start with `auto skill audit --dir . --platform codex --json`.
-Use explicit selection policies and replay cases before changing skill exposure,
-and `auto telemetry harness` to compare supplied native/current/reduced runs.
-The [diagnostics guide](docs/harness-efficiency.md) includes runnable examples,
-unknown-value semantics, and read-only verification planning.
+`auto init` registers a Claude Code `Stop` hook, `auto verify stop`. When the agent tries to end the
+session and the work tree differs from `HEAD`, the hook:
 
-See [multiagent coordination](docs/multiagent-coordination.md) for current
-platform boundaries, dependency-aware runner behavior, and worker ownership
-validation. Native subagent availability alone does not establish a team lifecycle
-or workspace isolation in the active session.
+1. Plans commands only for the toolchains the changed files belong to:
+   - **Go**: `go build ./...` and `go test` on the changed packages
+   - **Node**: the `typecheck` and `test` scripts, run with the package manager the lockfile names
+   - **Python**: `python3 -m pytest -q`
+   - **Rust**: `cargo test --quiet`
+2. Runs them within a total budget (`--budget`, default 8m).
+3. On failure, blocks the stop and hands the agent the failing command with the last 60 lines of
+   output.
+4. After 3 blocks in one session, stops blocking and ends with a warning that the build is still
+   failing, so a session cannot loop forever.
+5. Remembers a passing tree. If nothing changed since the last pass, the next stop does not re-run.
 
-`auto doctor agents` inventories installed runtimes without model calls. Explicit
-live collectors for Codex and OpenCode check native lifecycle evidence;
-`auto telemetry team` attributes supervisor/worker usage without adding parent
-rollups twice. See [lifecycle checks and usage](docs/agent-lifecycle.md) for
-execution boundaries, examples, and the recorded live results.
+Doc-only changes and tools that are not installed are skipped.
 
-**What is checked:** CLI gates validate specific artifacts, configuration, and
-results when invoked and configured. Skill instructions guide planning, TDD,
-and review; they do not prove that an agent followed every step. A passing gate
-is evidence for its checked scope, not a guarantee that an application is ready
-for production.
+**Follow-up round.** When the build passes and the change has 40 or more changed source lines
+(added plus deleted against `HEAD`, untracked source files included), the hook blocks once more with
+instructions to:
 
-## 🎬 See It In Action
+1. run the `reviewer` agent on `git diff HEAD` and report only blockers;
+2. if the change has runnable behavior, run `qa-explorer` in hunt mode and judge the findings with
+   `auto qa hunt verify`;
+3. fix every blocker and confirmed bug, re-run the tests, and summarize what was checked.
 
-<p align="center"><img src="demo/hero.gif" width="720" alt="Autopus-ADK demo — version, doctor, platform, status, skills" /></p>
+A session gets at most 2 follow-up rounds, and a new round starts only after another 40 lines of
+change, so fixing review findings does not trigger a third.
 
-```bash
-# Brainstorm with 3 AI models debating each other
-/auto idea "Add OAuth2 with Google and GitHub providers" --multi --ultrathink
+**Opting out.**
 
-# One command does the rest — plan, build with 17 agents, ship with docs
-/auto dev "Add OAuth2 with Google and GitHub providers"
-```
+| Scope | How |
+| --- | --- |
+| Don't register the hook | `hooks.verify_stop: false` in `autopus.yaml`, then `auto update` |
+| Disable for one session or shell | `AUTOPUS_VERIFY_STOP=off` |
+| Keep build/test, skip the follow-up round | `AUTOPUS_FOLLOWUP=off`, or `auto verify stop --followup=false` |
 
-Or if you prefer step-by-step control:
+The Stop hook is Claude Code only. On the other platforms, run `/auto review` and `/auto qa`
+(or the platform's equivalent, below) yourself.
 
-```bash
-/auto plan "Add OAuth2 with Google and GitHub providers" --auto --multi --ultrathink
-/auto go SPEC-AUTH-001 --auto --loop --team
-/auto sync SPEC-AUTH-001
-```
+## QA bug hunt
 
-```
-🐙 Pipeline ─────────────────────────────────────────────
-  ✓ Phase 1:   Planning         planner decomposed 5 tasks
-  ✓ Phase 1.5: Test Scaffold    12 failing tests created (RED)
-  ✓ Phase 2:   Implementation   3 executors with disjoint file ownership
-  ✓ Phase 3:   Testing          coverage: 62% → 91%
-  ✓ Phase 4:   Review           TRUST 5: APPROVE | Security: PASS
-  ───────────────────────────────────────────────────────
-  ✅ 5/5 tasks │ 91% coverage │ 0 security issues │ 4m 32s
-```
+`/auto qa` with no subcommand, or with a plain-language request, starts the **Bug Hunt** section.
+It works the way an AI playtester hunts game bugs: the `qa-explorer` agent reads the code only to
+learn how to operate the product, then actually runs and drives it (CLI, server, UI, library API)
+looking for failures the author did not think of.
 
-> The pipeline output above is illustrative, not a benchmark. Completion depends on the project’s acceptance criteria and executed checks.
+- Every suspicion is filed as `.autopus/qa/hunt/findings/<id>/finding.json` plus `repro.sh`.
+  `repro.sh` exits 1 while the bug is present and 0 once it is fixed.
+- `qa-explorer` writes only under `.autopus/qa/hunt/`. It never edits product code, tests, or
+  config. The author and the checker stay separate.
+- `auto qa hunt verify` re-runs every repro and classifies it:
 
----
+| Verdict | Meaning |
+| --- | --- |
+| `confirmed` | The repro fails every run. This is a bug. |
+| `flaky` | The repro fails on some runs only. |
+| `not_reproduced` | The repro passes. Either it never was a bug, or it is fixed. |
+| `broken_repro` | The repro itself could not run correctly. |
 
-## ⭐ Star History
-
-<p align="center">
-  <a href="https://www.star-history.com/#autopus-ai/autopus-adk&Date">
-    <img
-      src="https://api.star-history.com/svg?repos=autopus-ai/autopus-adk&type=Date"
-      width="720"
-      alt="Star history chart for autopus-ai/autopus-adk"
-    />
-  </a>
-</p>
-
----
-
-## 😤 The Problem
-
-You're using AI coding tools. They're powerful. But...
-
-- 🔄 **Platform lock-in** — Switch from Claude to Codex? Rewrite all your rules and prompts from scratch.
-- 🎲 **Hope-driven development** — "Add auth" → AI writes code, skips tests, ignores security, forgets docs. *Maybe* it works.
-- 🧠 **Amnesia** — Next session, the AI forgets every decision. "Why did we use this pattern?" → silence.
-- 👤 **Solo agent** — One model, one context, one shot. Multi-file refactoring? Good luck.
-
----
-
-## 🧠 The Philosophy: AX — Agent Experience
-
-> **AX** is not "AI Transformation." AX is **Agent Experience** — how AI agents perceive, navigate, and operate within your codebase. Just as UX designs for users and DX designs for developers, **AX designs for agents.**
-
-```mermaid
-flowchart LR
-    UX["🧑 UX\nUser Experience"]
-    DX["👩‍💻 DX\nDeveloper Experience"]
-    AX["🤖 AX\nAgent Experience"]
-
-    UX -->|"designs for"| U["Users"]
-    DX -->|"designs for"| D["Developers"]
-    AX -->|"designs for"| A["AI Agents"]
-
-    style AX fill:#ff6b6b,stroke:#c92a2a,color:#fff
-```
-
-Most AI coding tools are designed around a simple model: **you prompt, it responds.**
-
-Autopus starts from a different question: *What if the agent is the primary audience of your project's documentation?*
-
-Think about onboarding a new engineer. You wouldn't hand them a blank editor and say "build the auth system." You'd give them:
-- An architecture overview so they understand the system
-- Coding conventions so their code fits in
-- Decision history so they don't repeat past mistakes
-- A review process so mistakes get caught before shipping
-
-**AI agents need the same things.** The difference is that every session is their first day.
-
-Autopus is a **harness** — a structured environment that gives agents the context, constraints, and workflows they need to produce code that a senior engineer would approve. Not through hope. Through design.
-
-### Of the agents. By the agents. For the agents.
-
-```mermaid
-flowchart TB
-    subgraph OF ["🧬 Of the Agents"]
-        direction TB
-        O1["17 specialized agents\nform a software team"]
-        O2["Planner · Executor · Tester\nReviewer · Architect · ..."]
-    end
-
-    subgraph BY ["⚡ By the Agents"]
-        direction TB
-        B1["Agents run the pipeline\nautonomously"]
-        B2["Self-healing gates\nParallel worktrees\nMulti-model debate"]
-    end
-
-    subgraph FOR ["🎯 For the Agents"]
-        direction TB
-        F1["Every file, rule, and doc\nis designed for agents to parse"]
-        F2["Project-defined limits · opt-in @AX\nStructured Lore · SPEC format"]
-    end
-
-    OF --> BY --> FOR
-
-    style OF fill:#4c6ef5,stroke:#364fc7,color:#fff
-    style BY fill:#7950f2,stroke:#5f3dc4,color:#fff
-    style FOR fill:#f06595,stroke:#c2255c,color:#fff
-```
-
-| Principle | What It Means |
-|-----------|--------------|
-| **Of the Agents** | 17 specialized agents form a real engineering team — planner, executor, tester, reviewer, security auditor, and more. Not one chatbot. A team. |
-| **By the Agents** | Agents run the pipeline autonomously — self-healing quality gates, parallel worktrees, multi-model debate. Humans set the goal; agents handle the rest. |
-| **For the Agents** | Every file, rule, and document is designed to be parsed by agents, not just read by humans. Structure over prose. That's AX. |
-| **Every Session is Day One** | Agents lose all context between sessions. The harness provides institutional memory — architecture, decisions, conventions — so they start informed, not blank. |
-
-> 🐙 **Autopus doesn't make agents smarter. It makes them informed. That's AX.**
-
----
-
-## 🔥 What Makes Autopus Different
-
-### 📏 Code That Agents Can Actually Read
-
-File size alone does not establish cohesion or correctness. Autopus reports large source files, but enforces a ceiling only when the project sets a positive `architecture.max_file_lines`. Absent or `0` is advisory; keep cohesive code together and split by real responsibility. Repository-specific CI limits remain authoritative.
-
-```
-❌ Traditional:
-   service.go (1,200 lines) → Agent loses context halfway through
-
-✅ Autopus:
-   service.go       (180 lines)  Handler logic
-   service_auth.go  (120 lines)  Auth middleware
-   service_repo.go  (150 lines)  Data access
-   → Every file fits in one context window. Every file has one job.
-```
-
-This isn't just about file size. The entire harness is **agent-readable by design:**
-
-| Layer | How It's Agent-Friendly |
-|-------|------------------------|
-| **Rules** | Structured markdown with IMPORTANT markers — agents parse, not skim |
-| **Skills** | YAML frontmatter with triggers — agents auto-activate the right skill |
-| **Docs** | Tables over paragraphs, checklists over prose — parseable, not readable |
-| **Code** | Clear responsibilities and explicit project limits; no universal line-count ceiling |
-
-> 🐙 **Human-readable is a bonus. Agent-readable is the requirement.**
-
-### 🤖 AI Agents That Form a Team, Not a Chatbot
-
-Autopus doesn't give you one AI assistant — it gives you a **software engineering team of 17 specialized agents** with defined roles, quality gates, and retry logic.
-
-```
-🧠 Planner        →  Decomposes requirements into tasks
-⚡ Executor ×N    →  Implements code in parallel worktrees
-🧪 Tester         →  Writes tests BEFORE code (TDD workflow instruction)
-✅ Validator       →  Checks build, lint, vet
-🔍 Reviewer       →  TRUST 5 code review
-🛡️ Security       →  OWASP Top 10 audit
-📝 Annotator      →  Documents code with @AX tags
-🏗️ Architect      →  System design decisions
-🔬 Deep Worker    →  Long-running autonomous exploration + implementation
-... and 7 more
-```
-
-### ⚔️ AI Models That Debate Each Other (`--multi`)
-
-One model has blind spots. **Three models catch each other's mistakes.**
-
-Every AI model has its own strengths and biases — Claude is thorough but verbose, Codex is fast but sometimes shallow, Gemini brings a different perspective entirely. When you use `--multi`, they don't just work in parallel — they **review, challenge, and build on each other's ideas.**
+Only `confirmed` findings count as bugs; the rest are reported as suspicions. The working agent
+fixes each confirmed bug and re-runs `auto qa hunt verify` until it reports `not_reproduced`. It
+never edits a repro to make it pass.
 
 ```bash
-# Add --multi to any command for multi-model intelligence
-/auto idea "new feature" --multi          # 3 models brainstorm → cross-pollinate → ICE score
-/auto plan "new feature" --multi          # 3-model read-only planning advisory → one SPEC writer → independent review
-/auto go SPEC-ID --multi                  # 3 models debate your code review
+auto qa hunt verify                       # re-run every finding (2 runs each by default)
+auto qa hunt verify --id <id> --runs 3    # one finding, more runs
+auto qa hunt verify --json --fail-on-confirmed   # CI: exit 1 when any bug is confirmed
 ```
 
-```mermaid
-flowchart TB
-    C["🔍 Claude\nIndependent Analysis"] --> D["⚔️ Cross-Pollination\nEach model sees others' ideas"]
-    X["🔍 Codex\nIndependent Analysis"] --> D
-    G["🔍 Gemini\nIndependent Analysis"] --> D
-    D --> R["🔄 Round 2\nAcknowledge · Integrate · Risk"]
-    R --> J["🏛️ Blind Judge\nAnonymized scoring"]
-```
-
-**Why this matters:**
-- A bug that Claude misses, Codex catches. An edge case Codex ignores, Gemini flags.
-- Ideas that one model would never generate emerge from cross-pollination.
-- The blind judge scores anonymized results — no model favoritism.
-- Research shows multi-agent debate produces higher-quality outputs than any single model alone.
-
-> 💡 **`/auto dev` enables `--multi` by default.** Every plan gets multi-model review. Every code review gets cross-checked. You don't have to think about it.
-
-4 strategies: **Consensus** (merge agreements) · **Debate** (adversarial review + judge) · **Pipeline** (chain outputs) · **Fastest** (first wins)
-
-### 🔁 Self-Healing Pipeline (RALF Loop)
-
-Quality gates don't just fail — they **fix themselves and retry.**
-
-```mermaid
-flowchart LR
-    R["🔴 RED\nRun Phase"] --> G["🟢 GREEN\nGate Check"]
-    G -->|PASS| Done["✅ Next Phase"]
-    G -->|FAIL| F["🔧 REFACTOR\nFix Issues"]
-    F --> L["🔁 LOOP\nRetry"]
-    L --> R
-    L -.->|"3× no progress"| CB["⛔ Circuit Break"]
-
-    style R fill:#ff6b6b,stroke:#c92a2a,color:#fff
-    style G fill:#51cf66,stroke:#2b8a3e,color:#fff
-    style F fill:#ffd43b,stroke:#f08c00,color:#000
-    style L fill:#748ffc,stroke:#4263eb,color:#fff
-    style CB fill:#868e96,stroke:#495057,color:#fff
-```
-
-```bash
-/auto go SPEC-AUTH-001 --auto --loop
-```
-
-```
-🐙 RALF [Gate 2] ──────────────────
-  Iteration: 1/5 │ Issues: 3
-  → spawning executor to fix golangci-lint warnings...
-
-🐙 RALF [Gate 2] ──────────────────
-  Iteration: 2/5 │ Issues: 3 → 0
-  Status: PASS ✅
-```
-
-**RALF = RED → GREEN → REFACTOR → LOOP** — TDD principles applied to the pipeline itself. Built-in circuit breaker prevents infinite loops.
-
-### 🌳 Parallel Agents in Isolated Worktrees
-
-The worktree execution path isolates executors in separate Git working directories.
-Codex native workers share one cwd/filesystem: assign disjoint files and serialize
-overlapping edits. The following example applies to the worktree path.
-
-```
-Phase 2: Implementation
-  ├── ⚡ Executor 1 (worktree/T1) → pkg/auth/provider.go     ✓
-  ├── ⚡ Executor 2 (worktree/T2) → pkg/auth/handler.go      ✓
-  └── ⚡ Executor 3 (worktree/T3) → pkg/auth/middleware.go    ✓
-
-Phase 2.1: Merge (task-ID order)
-  ✓ T1 merged → T2 merged → T3 merged → working branch
-```
-
-The worktree path supports up to **5 concurrent worktrees**. File ownership and
-ordered integration reduce conflicts; merges still require verification. Native
-worker capacity depends on the platform and available runtime limits.
-
-### 📜 Lore: Your Codebase Never Forgets
-
-Every commit captures the **why**, not just the what. Queryable forever.
-
-```
-feat(auth): add OAuth2 provider abstraction
-
-Why: Need Google + GitHub support, extensible for future providers
-Decision: Interface-based abstraction over direct SDK usage
-Alternatives: Direct SDK calls (rejected: too coupled)
-Ref: SPEC-AUTH-001
-
-🐙 Autopus <noreply@autopus.co>
-```
-
-9 structured trailers. Query with `auto lore query "why interface?"`. Stale decisions auto-detected after 90 days.
-
-### 🧪 Autonomous Experiment Loop
-
-Let AI iterate autonomously — measure, keep or discard, repeat.
-
-```bash
-/auto experiment --metric "go test -bench=BenchmarkProcess" --direction lower --max-iter 5
-```
-
-```
-🐙 Experiment ───────────────────────
-  Iter 1: baseline  │ 1200 ns/op
-  Iter 2: optimize  │  850 ns/op  ✓ keep (29% improvement)
-  Iter 3: refactor  │  900 ns/op  ✗ discard (regression)
-  Iter 4: cache     │  620 ns/op  ✓ keep (27% improvement)
-  ─────────────────────────────────────
-  Result: 1200 → 620 ns/op (48% improvement)
-```
-
-Built-in **circuit breaker** prevents runaway iterations. **Simplicity scoring** penalizes over-complex solutions. Each iteration is a git commit — easy to review or revert.
-
-> ⚠️ **Status: Experimental** — CLI commands (`auto experiment`) are available but skill-level integration is in progress. Core iteration loop works; full pipeline integration is coming.
-
-### 🧠 Pipeline That Learns From Failures
-
-Autopus pipelines don't just fail — they **remember why** and prevent the same mistake next time.
-
-```
-Gate 2 FAIL: golangci-lint — unused variable in pkg/auth/
-→ Auto-recorded to .autopus/learnings/pipeline.jsonl
-→ Next /auto go: learning injected into executor prompt
-→ Same mistake never repeated
-```
-
-Every pipeline failure is captured as a structured learning entry. On the next run, relevant learnings are automatically injected into agent prompts — giving your pipeline **institutional memory** across sessions.
-
-### 🏥 Post-Deploy Health Check
-
-Deploy first, verify immediately. `canary` runs build verification, E2E tests, and browser health checks against your live deployment.
-
-```bash
-/auto canary                          # Build + E2E + browser auto-verification
-/auto canary --url https://myapp.com  # Target a specific deployment URL
-/auto canary --watch 5m               # Repeat every 5 minutes
-/auto canary --compare                # Compare against previous canary report
-```
-
-Generates `canary.md` with full diagnostics — build status, test results, accessibility scores, and screenshot diffs.
-
-### 🔀 Smart Model Routing
-
-Not every task needs Opus. Autopus analyzes message complexity and routes to the right model automatically.
-
-```
-Simple query     → Haiku  (fast, cheap)
-Code review      → Sonnet (balanced)
-Architecture     → Opus   (deep reasoning)
-```
-
-No configuration needed — the router evaluates token count, code complexity, and domain signals to pick the optimal model. Override anytime with `--quality ultra`.
-
-### 🔌 Provider Connection Wizard
-
-Setting up AI providers shouldn't require reading docs. `auto connect` walks you through a 3-step guided setup.
-
-```bash
-auto connect         # Interactive wizard: server auth → workspace → OpenAI OAuth
-auto connect status  # Deterministic local verify/readiness summary
-```
-
-The current release authenticates with the Autopus server, saves the selected workspace, and completes the OpenAI OAuth handoff. Use `auto connect status` or `auto desktop status --json` to verify the saved local state.
-
-Desktop runtime ownership note:
-- The packaged `autopus-desktop-runtime` source/build/release provenance now lives in `autopus-desktop/runtime-helper/`.
-- ADK keeps `auto connect`, `auto desktop ...`, and `auto worker ...` as harness or compatibility surfaces, but normal desktop runtime shipping no longer depends on an `autopus-adk` checkout.
-
-### 🤖 ADK Worker — Local Agent Execution
-
-ADK Worker runs A2A + MCP hybrid tasks locally with browser login, JWT refresh, and direct platform connectivity.
-No separate bridge daemon or worker API key exchange is required for the default production path.
-
-What it is for:
-- Connecting a local workspace to the Autopus platform worker loop
-- Receiving platform-dispatched tasks and executing them with local tools
-- Reusing the same security, budget, and audit rails as the main harness
-
-What to do today:
-- If you're here for `auto init`, Codex `@auto ...`, or OpenCode `/auto ...`, you can ignore Worker for now
-- `auto worker ...` is an optional advanced surface that is still being rolled out and documented
-
-### 💰 Iteration Budget Management
-
-Workers don't run forever. Each executor gets a tool-call budget — preventing runaway agents while ensuring enough room to complete complex tasks.
-
-### 📦 Context Compression
-
-As pipelines progress through phases, earlier context gets compacted automatically into a fixed schema: Goal, Constraints, Progress, Decisions, Relevant Files, Next Steps, and Critical Context. Tool calls and results are pruned as pairs, unsafe provider payload bodies are omitted, and every applied compaction emits metadata with summary ids, source refs, reason codes, and budget/blocker state.
-
-### 🔄 Pipeline That Never Dies
-
-Crash mid-pipeline? Resume exactly where you left off.
-
-```bash
-/auto go SPEC-AUTH-001 --continue    # Resume from last checkpoint
-```
-
-YAML-based checkpoints save pipeline state after every phase. Stale detection prevents resuming outdated sessions. Combined with `--auto --loop`, you get a **fully resilient autonomous pipeline.**
-
-### 🧪 E2E Scenarios from Your Code
-
-Auto-generate and execute E2E test scenarios — no manual test writing needed.
-
-```bash
-auto test run                    # Run all scenarios
-auto test run -s init --verbose  # Run a specific scenario
-```
-
-Autopus analyzes your codebase (Cobra commands, API routes, frontend pages) and generates typed scenarios with **verification primitives** (`exit_code`, `stdout_contains`, `status_code`, `json_path`, etc.). Incremental sync keeps scenarios up-to-date as code evolves.
-
-### 🌐 Browser Automation — AI Agents That See and Click
-
-AI agents can directly interact with web pages — open URLs, read accessibility trees, click elements, fill forms, and capture screenshots.
-
-```bash
-/auto browse --url https://example.com/settings
-```
-
-```
-- @e1 heading "AI Settings"
-- @e2 button "Provider Mode"
-- @e3 switch "Auto Fallback" [checked]
-- @e7 button "Save"
-```
-
-Terminal-aware: automatically selects `cmux browser` (in cmux) or `agent-browser` (fallback). Snapshot → Act → Verify loop — agents see the page as an accessibility tree and interact by reference.
-
-### 📺 Live Agent Dashboard
-
-On pane-capable team runtimes, each team member can get a terminal pane with real-time log streaming.
-
-```
-┌─ lead ──────────┬─ builder-1 ───────┐
-│ Phase 1: Plan   │ T1: auth.go       │
-│ 5 tasks created │ implementing...   │
-├─ tester ────────┼─ guardian ────────┤
-│ scaffold: 12    │ waiting...        │
-│ RED state ✓     │                   │
-└─────────────────┴───────────────────┘
-```
-
-Works in cmux and tmux. Plain terminals degrade gracefully to log-only output.
-
-### 📚 Auto-Documentation with Context7
-
-Before implementation, Autopus fetches latest library docs automatically — so agents never work with stale API knowledge.
-
-```
-Phase 1.8: Doc Fetch
-  → Detected: cobra v1.9, testify v1.11
-  → Fetched: 2 libraries (6000 tokens)
-  → Injected into executor + tester prompts
-```
-
-Context7 MCP → WebSearch fallback → skip (never blocks pipeline). Adaptive token budget: 1 lib → 5000 tokens, 5 libs → 2000 tokens each.
-
-### 🔧 More Power Tools
-
-| Feature | Command | What It Does |
-|---------|---------|-------------|
-| **Reaction Engine** | `auto react check/apply` | Detects CI failures, analyzes logs, generates fix reports automatically |
-| **Meta-Agent Builder** | `auto agent create` / `auto skill create` | Scaffold custom agents and skills from patterns |
-| **Hard Gate** | `auto check --gate` | Enforce mandatory pipeline gates (mandatory/advisory modes) |
-| **Self-Update** | `auto update --self` | Verified binary update — atomic exchange on Darwin/Linux, `.old` recovery on Windows |
-| **Cost Tracking** | `auto telemetry cost` | Token-based pipeline cost estimation per model |
-| **Issue Reporter** | `auto issue report` | Auto-collect error context, sanitize secrets, create GitHub issues |
-| **Signature Map** | `auto setup` | Extract exported API signatures (Go + TypeScript) via AST analysis |
-| **Test Runner Detection** | `auto init` | Auto-detect jest, vitest, pytest, cargo test frameworks |
-
-### 🌐 One Config, Five Platforms
-
-```bash
-auto init   # auto-detects supported installed AI coding CLIs
-```
-
-One `autopus.yaml` generates **native configuration** for every detected supported platform.
-
-| Platform | What Gets Generated |
-|----------|-------------------|
-| **Claude Code** | `.claude/rules/`, `.claude/skills/<name>/SKILL.md`, `.claude/agents/`, `.claude/workflows/`, `.claude/settings.json`, `CLAUDE.md` |
+Other flags: `--dir` (project root), `--timeout` (per repro run, default 2m).
+
+The rest of `auto qa` (QAMESH journeys, `auto qa run`, `auto qa release`, `auto qa report`, and
+so on) is still available for declared journeys and release evidence. See `auto qa --help`.
+
+## Routes
+
+Run these in your coding agent's chat.
+
+| Route | What it does |
+| --- | --- |
+| `/auto review` | Reviews the changed code against TRUST 5 (Tested, Readable, Unified, Secured, Trackable), with the project's own build, test, and lint commands as evidence. Can fan out to multiple providers. |
+| `/auto qa` | QA bug hunt by default; QAMESH for declared journeys and release evidence. |
+| `/auto verify` | Frontend UX verification: Playwright screenshots plus visual analysis of the changed UI. |
+| `/auto test` | Runs the E2E scenarios in `.autopus/project/scenarios.md` through `auto test run`. |
+| `/auto sync` | Reads the diff and updates only the docs it made stale (README, ARCHITECTURE, CHANGELOG, `docs/`, `.autopus/project/*.md`), then checks that the commands, flags, and paths those docs name exist. No SPEC needed. |
+| `/auto update` | Refreshes the generated harness files. |
+| `/auto doctor` | Checks the installed platform wiring. |
+| `/auto browse` | Alias for the browser-automation skill. |
+
+Platform syntax:
+
+- **Claude Code, Antigravity CLI, Oh My Pi**: `/auto <route>`
+- **OpenCode**: `/auto <route>` or `/auto-<route>`
+- **Codex**: `$codex-auto-<route>`, or `@auto <route>` after installing the generated local plugin from
+  `.agents/plugins/marketplace.json`
+
+## What gets installed
+
+| Kind | Installed |
+| --- | --- |
+| Agents (4) | `reviewer`, `qa-explorer`, `frontend-specialist`, `ux-validator` |
+| Rules (4) | `language-policy`, `lore-commit`, `file-size-limit`, `autonomy` |
+| Skills (9) | `review`, `verification`, `qa-hunt`, `qa-autopilot`, `frontend-verify`, `browser-automation`, `playwright-cli`, `testing-strategy`, `lore-commit` |
+| Routes | `review`, `qa`, `verify`, `test`, `sync`, `update`, `doctor`, plus the `browse` alias |
+| Hooks | Claude Code Stop hook `auto verify stop`; a Lore `commit-msg` git hook |
+
+The `autonomy` rule tells the agent to carry work through without asking permission for each step.
+When a decision really belongs to you, it must ask a multiple-choice question (in Claude Code, the
+`AskUserQuestion` tool with the recommended option first), never an open question. Destructive or
+outward-facing actions (deleting data, force-pushing, deploying, sending messages) still need your
+confirmation.
+
+On Claude Code, `lore-commit` is loaded as a conditional rule when the agent runs a shell command
+rather than as an always-on rule.
+
+### Lore commits
+
+The `commit-msg` hook checks the Lore format: a typed, scoped subject
+(`feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `perf`, `merge`, `revert`), the
+`🐙 Autopus <noreply@autopus.co>` sign-off, the trailers named in `lore.required_trailers`
+(default `Constraint`), and none of the trailers in `lore.forbidden_trailers`
+(default `Co-Authored-By`). `auto check --lore` runs the same check.
+
+### Multi-provider review
+
+`/auto review` can send the review to several provider CLIs through `auto orchestra review`, with
+consensus or debate strategies and a judge. Providers are configured under `orchestra.providers`;
+a new config lists `claude`, `codex`, and `gemini` (the `agy` binary), and a provider can also run
+through OMP (`backend: omp`). Change the review model per provider with
+`auto quality review model <provider> <model>`.
+
+<a id="platforms"></a>
+## Platforms
+
+One `autopus.yaml` generates native files for each supported CLI that `auto init` detects.
+
+| Platform | Generated surface |
+| --- | --- |
+| **Claude Code** | `.claude/agents/autopus/`, `.claude/rules/autopus/`, `.claude/skills/<name>/SKILL.md`, `.claude/hooks/autopus/`, `.claude/settings.json` (Stop hook), `CLAUDE.md` |
 | **Codex** | `.codex/skills/codex-<name>/SKILL.md`, `.codex/agents/`, `.codex/hooks.json`, `.codex/config.toml`, `.agents/plugins/marketplace.json`, `.autopus/plugins/auto/`, `AGENTS.md` |
-| **Antigravity CLI** | `.agents/plugins/autopus/`, `.agents/hooks.json`, plus retained `.gemini/` / `GEMINI.md` compatibility surfaces |
-| **OpenCode** | `.opencode/rules/`, `.opencode/agents/`, `.opencode/commands/`, `.opencode/plugins/`, `.agents/skills/`, `AGENTS.md`, `opencode.json` |
-| **Oh My Pi (OMP)** | `.omp/rules/autopus-*.md`, `.omp/skills/<name>/SKILL.md`, `.omp/commands/`, optional `.omp/extensions/` |
+| **Antigravity CLI** | `.agents/plugins/autopus/`, `.agents/hooks.json`, plus `.gemini/` / `GEMINI.md` compatibility files |
+| **OpenCode** | `.opencode/agents/`, `.opencode/commands/`, `.opencode/rules/`, `.opencode/plugins/`, `.agents/skills/`, `AGENTS.md`, `opencode.json` |
+| **Oh My Pi (OMP)** | `.omp/agents/`, `.omp/rules/autopus-*.md`, `.omp/skills/<name>/SKILL.md`, `.omp/commands/` |
 
-Antigravity discovers the workspace plugin directly. `auto init` and `auto update`
-do not import a project-rendered bundle globally, and no longer emit the unused
-`.agents/commands/` mirror. Inspect the generated bundle with
-`agy plugin validate .agents/plugins/autopus`; this checks structure, not whether
-runtime permissions or hooks have executed. Native user permission settings are preserved.
+`auto platform add|remove|list` manages the platform list. `auto doctor` checks that the generated
+files are wired up. Antigravity also keeps the `rea-mcp-guard` rule for the optional REA
+reverse-engineering MCP, which `auto init` registers when Node fits (`--rea` / `--no-rea`).
 
-The 2026-09-13 compatibility checks used Claude Code 2.1.263, Codex CLI 0.153.4, Antigravity CLI 1.1.26, OpenCode 1.18.7, and OMP 18.1.19. These are observed test versions, not a claim that every newer release or feature is verified. [Codex 0.154.0 worktree support](https://github.com/openai/codex/releases/tag/rust-v0.154.0) remains experimental; the harness does not silently enable experimental topology or replace user permission settings.
+## Install
 
-Codex note:
-- Use `$codex-auto-plan ...`, `$codex-auto-go ...`, or another `$codex-auto-<route>` skill immediately after `auto init` or `auto update`
-- Install the generated local plugin from `.agents/plugins/marketplace.json` (`.autopus/plugins/auto`) to enable the friendlier `@auto ...` syntax
-- The plugin provides the `@auto ...` router. Detailed workflows are unique native skills under `.codex/skills/codex-<name>/SKILL.md`; Autopus does not generate repository `.codex/prompts/` or markdown `.codex/rules/`
-- Multi-agent mode uses `[features.multi_agent_v2]` with the six current collaboration tools and a shared cwd/filesystem; it does not use legacy `send_input`, `resume_agent`, or `close_agent`
-- The requested spawned-worker ceiling is `codex.agents.max_concurrent_threads` in `autopus.yaml` (default 4, range 1–64); the coordinator is not included. `auto update` writes the requested value to `.codex/config.toml`. Namespace selection must be backed by CLI compatibility evidence; an unverified version uses the documented `[agents] max_concurrent_threads_per_session` with the assumption stated. Explicit harness settings survive regeneration. Host and account limits still take precedence.
-- `auto doctor` separates the requested count and the value inspected on disk from the loaded-session and effective limits. Reading a project or user config file does not prove that an active session loaded it. Unobservable session limits remain `unknown`, with the inspection limitation reported. Start a new session after changing configuration; Autopus never interrupts active agents or equates this setting with local build/test concurrency.
-- `.codex/hooks.json` is generated by default, while structural TOML merging preserves unrelated user config
-- `features.multi_agent` is still a live native switch. Explicit `true` and `false` values, including user comments, survive regeneration and cleanup; equality with a current default is not ownership evidence.
-
-OpenCode note:
-- `/auto ...` and direct aliases like `/auto-plan ...` are generated under `.opencode/commands/`
-- Native rule/agent/plugin files live under `.opencode/`, while reusable skills are published under `.agents/skills/`
-- The default `skills.compiler.mode: split` publishes core skills and their required references. Opted-in long-tail bundles use `.opencode/skills/`; workflow-only rules remain readable without loading into every initial prompt.
-- Helper workflows like `/auto status`, `/auto map`, `/auto why`, `/auto verify`, `/auto secure`, `/auto test`, `/auto dev`, and `/auto doctor` are generated as OpenCode-native command wrappers
-- `opencode.json` now registers the managed hook plugin automatically, so `.opencode/plugins/autopus-hooks.js` is live immediately after `auto init` or `auto update`
-- On OpenCode 2.x, the shell-triggered rules (`lore-commit`, `shell-portability`, `worktree-safety`) leave `opencode.json` instructions; the hook plugin adds a rule to a session's system prompt after the first shell command that matches its `condition`
-
-Oh My Pi note:
-- Rules are written flat as `.omp/rules/autopus-<name>.md`. OMP scans each rule root non-recursively, so a nested `rules/autopus/` directory would never reach the session; the `autopus-` filename prefix is the namespace instead
-- Only the manifest-recorded `autopus-` files are ADK-owned. Your own rules in the same directory (`.omp/rules/mine.md`) are left untouched by `auto update` and `auto platform remove omp`
-- `auto init` ignores `.omp/rules/` as a directory pattern. A filename glob such as `.omp/rules/autopus-*.md` would silently remove every generated rule from OMP discovery, which is why the directory form is used. To track your own rule despite the ignore, run `git add -f .omp/rules/mine.md` (gitignore negation does not work inside an ignored directory) or keep it outside `.omp/rules/`
-- OMP uses its priority-100 native `.omp/skills/<name>/SKILL.md` and `.omp/commands/*.md` roots. It does not register `.agents/skills` as a custom directory and does not create a base `.omp/config.yml` unless project-managed settings require one
-- `auto doctor` verifies OMP 18.0.5 through version/help/config metadata and a provider-free RPC handshake. The handshake selects a bootstrap model locally but sends no prompt and performs no provider request
-
-### OMP role routing and context optimization (opt-in)
-
-For everyday model setup, run:
-
-```bash
-auto quality
-```
-
-`auto quality` opens the agent model composition first ([Per-agent model composition](#per-agent-model-composition)). Answer `t` there, or a target name such as `claude-code`, to configure one surface instead: the shared quality mode or one coding tool's agent models. Only tools whose generated agents carry a model are offered — Claude Code, Codex, and OMP; Antigravity CLI and OpenCode inherit the session model and are named as such instead of being silently omitted.
-
-**Claude Code / Codex**: the wizard prints every agent with its relative tier and the concrete model that tier becomes on that tool, takes `agent=tier` edits (`fable`, `opus`, `sonnet`, `haiku`), previews the result, and on `y` stores the edits as a `quality.presets.<name>` entry bound through `quality.providers.<tool>`. Each tool keeps its own preset, so moving Claude Code's executor to `fable` leaves Codex where it was. `quality.default` never changes. A customized `balanced` or `ultra` preset is not overwritten: the editor refuses that name and cancels after three refusals. Run `auto update` (or `auto quality --apply`) to regenerate the agent files.
-
-**OMP**: choose **balanced/ultra → GPT/Claude**, or **custom** to pick an installed model per Autopus agent (the 17 agents; `task` follows the planner pin, and no bundled name is offered because a pin on one would fold onto every role that collapsed there). The custom path still anchors a family for the agents you do not pin, lists the installed catalog with each model's thinking levels, and labels every prompt with the capability that agent's route requires. A model the catalog says cannot serve that capability is refused at the prompt with the models that can. Review the compact agent/model/thinking table and type `y` to apply. This line editor keeps OMP profiles; the composition step's OMP tab in the default autopus mode pins agents without a profile instead ([Per-agent model composition](#per-agent-model-composition)).
-
-Enter, `n`, or EOF at confirmation cancels without changes; `--apply` is not required.
-Existing agent overrides and multi-provider review settings are preserved.
-An explicitly defined custom profile keeps its own model families.
-Start a new OMP session after applying.
-
-Advanced and automation commands remain available:
-
-```bash
-auto platform omp models                 # installed model catalog
-auto platform omp profile apply balanced --family gpt --plan
-auto platform omp profile apply balanced --family gpt
-auto platform omp explain
-auto status --platform omp
-```
-
-When the installed OMP catalog lacks family, capability, or authorization metadata, `models` still returns exact native selectors and thinking support as a `degraded` display-only result. Automatic profile generation and strict routing remain blocked with `catalog_metadata_insufficient`; Autopus does not infer those fields or inspect credentials. A pre-existing explicit profile may instead select `catalog_trust: operator-attested`: Autopus first runs the same bounded strict probe, then uses only the exact intersection of native selectors and operator declarations while keeping auth/keyless unobserved.
-
-Activation verifies every projected `@role` through an OMP RPC `get_state` session loaded with the generated overlay. It sends no prompt and makes no model-provider request; the resulting provider/model/thinking map is bound into the receipt and independently rechecked by `explain`/doctor.
-
-From v0.50.127 OMP serves the 17 Autopus agents by default (SPEC-MODELUX-003, SPEC-REA-001). Generation writes `.omp/agents/<agent>.md` for every canonical agent, owned by the OMP manifest and carrying no `model` field; `thinkingLevel` is the agent's declared effort and appears only when no `task.agentModelOverrides` route names that agent. It also claims `task.disabledAgents: [scout, security-reviewer, sonic, designer, librarian, seance]` in the project `.omp/config.yml`, which plain `omp` reads: every bundled agent but `task` across the omp releases Autopus supports (18.12.3 bundles `scout`, `security-reviewer`, `sonic`, and `seance`; 17.2.7 also `designer` and `librarian`), and a name the installed omp does not bundle is an inert filter entry. The bundled `task` agent stays enabled because an unnamed dispatch runs it, and the generated `reviewer` replaces the bundled one with the `output` schema of the omp 18.6.1 reviewer, so `/review` keeps its verdict. With a role profile, routes are written as `task.agentModelOverrides` keyed by the 17 names and `task` (`task` follows a `task` pin, then a `planner` pin, then the profile's planner route) through the existing activation, attestation, readback, and rollback; without a profile, pins alone (below) route only the pinned agents, and `task` through its own or planner's pin, and with no pin every agent inherits the session model.
-
-`auto update` previews the move once — `+ .omp/agents/<agent>.md` lines, `task.disabledAgents: scout, security-reviewer, sonic, designer, librarian, seance`, and `OMP now uses the 17 Autopus agents.` — and performs it in the OMP adapter's one transaction without writing `autopus.yaml`. An `.omp/agents/<agent>.md` the manifest does not record is a user file and stays byte-identical (`.omp/agents/<agent>.md is a user file; left unchanged`). A `task.disabledAgents` you set to another value is user-owned: Autopus leaves it, prints `task.disabledAgents in .omp/config.yml is user-owned; scout, security-reviewer, sonic, designer, librarian, and seance stay enabled`, and doctor reports `agents:disabled_agents_user_owned` as degraded; only `auto clean` drops that mark.
-
-Doctor's OMP agent catalog turns degraded with `agents:autopus_agent_user_file` while a canonical `.omp/agents/<name>.md` is a user file, because OMP then runs that file instead of the Autopus definition. A project `.omp/config.yml` the managed parser cannot read safely — a symlink, invalid YAML, several documents, an alias, a flow-style mapping, or a lone CR, NEL, LS, or PS line break — is never written: `auto update` prints `task.disabledAgents was not written: .omp/config.yml cannot be read safely (a symlink, invalid YAML, several documents, an alias, a flow-style mapping, or a lone CR, NEL, LS, or PS line break); scout, security-reviewer, sonic, designer, librarian, and seance stay enabled` instead of the `task.disabledAgents: …` preview line, and doctor reports `agents:project_config_unclaimable`, a state distinct from a user-owned value. When a ledger already claims the key and the file then gains such a line break, the file and the ledger stay as they are, `auto update` prints `task.disabledAgents is left as last written: …`, and `auto clean` refuses with `project_config_unclaimable` until the file reads cleanly. Once no ledger claims `.omp/config.yml`, ADK keeps none of the backups its transactions recorded of that file except one: the rollback artifact of the newest committed transaction that released the ledger, applied to the config as that release left it. It stays under `.autopus/backup/` until the next release replaces it, so a release can still be undone by hand; a release that deleted a config ADK had created leaves none, and `auto clean` restores from the verified preimage and leaves no rollback artifact of the config.
-
-`role_model_policy.agent_source: native` was removed in v0.50.131. A config that still sets it fails to load with `role_model_policy.agent_source_removed`; delete the key and run `auto update`, which re-claims `task.disabledAgents` and writes the 17 agent files. `agent_source: autopus` stays valid, any other value fails with `role_model_policy.agent_source_invalid`, and the key alone configures no role model policy.
-
-#### OMP balanced: GPT or Claude family
-
-Select the OMP mode and family together with `profile apply balanced --family gpt|claude`.
-The stored family names are `openai` and `anthropic`; both canonical names are also accepted.
-`--plan` previews the bundled agents, their requested/effective model and thinking, candidate order,
-fallback attempts, and blockers without writing configuration or activating a profile.
-Apply verifies the same routes through the installed OMP catalog and provider-free RPC readback.
-
-| Bundled agent (representative role) | GPT balanced | Claude balanced |
-|---|---|---|
-| `task` (planner), `reviewer`, `security-reviewer` (security-auditor) | GPT-6 Astra `max` | Claude Opus 5.5 `max` |
-| `scout` (explorer), `sonic` (validator) | GPT-5.6 Luna `max` | Claude Sonnet 5 `high` |
-
-Ordinary reviewers follow the selected family. Multi-provider review remains a separate
-`orchestra.providers` policy: changing this profile preserves its models and judge.
-Default review runs Claude Opus 5.5 `max` and Astra `max`; for Gemini, use the selected model's
-highest supported thinking level (`high` for Gemini 3.1 Pro; it does not expose `max`). To review
-on Fable, set it explicitly with `auto quality review model claude claude-fable-5-1`.
-
-Balanced has no implicit lower-model fallback. Missing models or unsupported thinking block
-apply before writes, and a blocked preview returns nonzero with per-agent reasons.
-Native `retry.modelFallback` is false when the profile has no explicit fallback chains.
-
-Override one agent without copying the full profile:
-
-```bash
-auto platform omp profile apply balanced --family gpt --agent executor=openai-codex/gpt-6-astra:max --plan
-auto platform omp profile apply balanced --family gpt --agent executor=openai-codex/gpt-6-astra:max
-auto platform omp profile apply balanced --agent executor=inherit
-```
-
-Repeat `--agent` for multiple agents. Pins are stored in `role_model_policy.agents.<name>.candidates`
-and remain explicit overrides across profile/family changes until cleared with `=inherit`.
-On a native catalog without semantic metadata, a pin must have an exact family declaration
-in the shipped built-in profiles or the selected custom profile; arbitrary unknown models are rejected.
-
-This standard matrix is shared with native Claude Code and Codex. OMP's built-in routes remain
-independent of custom `quality.presets.balanced.agents` tiers; OMP overrides use `role_model_policy.agents`.
-Ultra and custom OMP profile definitions retain their existing behavior.
-An explicit `role_model_policy.profiles.balanced` definition still wins over the built-in;
-`--family` is rejected for such a custom definition instead of silently ignoring it.
-OMP profile selection does not change `quality.default`, standalone Claude/Codex settings,
-or the supervisor's native model roles. `auto quality show` reports OMP's independent selection.
-
-OMP policies are provider-neutral and inactive until a named profile is selected. Prefer the non-destructive `overlay` mode. The built-in profiles use shipped operator-attested declarations intersected with the installed catalog. For a custom profile, use strict mode when semantic catalog metadata is available; otherwise use operator-attested mode only after reviewing its exact selectors, families, capabilities, and thinking levels. A `${NAME}` placeholder anywhere in a `role_model_policy` model candidate — its selector, thinking, family, or a key, also when reached through a YAML alias — fails the load with `role_model_policy.candidate_placeholder_unsupported`, which names the path only, while placeholders in the root `profile` and `family` still load. Placeholder values can no longer change the YAML structure of `autopus.yaml`: a value that would — for example one that starts with `[`, `{`, `!`, `&`, or `*`, or holds `: `, where its placeholder is unquoted — or that holds a line break fails the load with an error that names the variable and never the value, as does an explicit tag other than `!!str` on a placeholder; written as `'${NAME}'`, a placeholder passes any printable one-line value without `'` as the exact string. Custom profile example:
-
-```yaml
-role_model_policy:
-  version: v1
-  profile: omp-balanced
-  profiles:
-    omp-balanced:
-      config_mode: overlay
-      catalog_trust: operator-attested
-      capabilities:
-        deep_reasoning:
-          required: true
-          candidates:
-            - selector: provider-a/reasoner
-              family: family-a
-              thinking: high
-        coding_tool_use:
-          required: true
-          candidates:
-            - selector: provider-a/coder
-              family: family-a
-              thinking: medium
-        fast_validation:
-          required: true
-          candidates:
-            - selector: provider-b/fast
-              family: family-b
-              thinking: medium
-        vision_design:
-          required: true
-          candidates:
-            - selector: provider-b/vision
-              family: family-b
-              thinking: high
-        independent_dissent:
-          required: true
-          candidates:
-            - selector: provider-b/reviewer
-              family: family-b
-              thinking: high
-        deterministic_transform:
-          required: true
-          candidates:
-            - selector: provider-a/transform
-              family: family-a
-              thinking: medium
-      family_diversity:
-        enabled: true
-        roles: [autopus_reviewer, autopus_security_auditor]
-```
-
-- Candidate order is the fallback order. In strict mode, `selector`, `family`, and `thinking` must match observed semantic catalog metadata. In operator-attested mode, selectors must exist in the bounded native catalog and family/capability/thinking come only from the explicit profile; this does not claim that authentication will succeed. The placeholders above are not model recommendations.
-- `safety` is optional. Add explicit `approval_mode` or `isolation_mode` values only after the installed-version capability probe reports support; omission leaves those keys unclaimed.
-- Use `project-managed` only when the project intentionally owns the target OMP keys. Every claimed key needs the observed `prior_fingerprint` and `complete: true`; an array claim such as `retry.fallbackChains` also needs `full_array_ownership: true`.
-
-Context optimization is separately opt-in. The selected profile below keeps history in `shadow` and memory `off`; the active profile is defined but not selected.
-
-```yaml
-omp_context_policy:
-  profile: omp-safe-shadow
-  profiles:
-    omp-safe-shadow:
-      history_mode: shadow
-      memory_mode: off
-      history_target_tokens: 1000
-      fallback: canonical_full
-      capability_policy: probe_required
-      runtime_root_policy: isolated_task_owned
-      mutation_scope: session_overlay
-    omp-active-probed:
-      history_mode: active
-      memory_mode: off
-      history_target_tokens: 1000
-      fallback: canonical_full
-      capability_policy: probe_required
-      runtime_root_policy: isolated_task_owned
-      mutation_scope: session_overlay
-```
-
-- Select `omp-active-probed` only when an exact capability probe succeeds, the runtime is task-owned (`isolated_task_owned`), and a fresh promotion attestation has been recomputed from at least 20 complete balanced AB/BA raw pairs and bound to the exact policy, session/binding, and canary digest. A missing, stale, mismatched, duplicate, or aggregate-only claim remains in `shadow` or is blocked. Use `no_session` only when no session runtime exists.
-- The managed OMP bridge supports long-lived supervisor ACKs, exact canonical reinjection, and same-session compaction/rehydration through the current `compaction.methodOrder` contract. Generation alone still does not activate optimization: `omp-active-probed` remains fail-closed until a fresh task-owned runtime receipt proves the installed lifecycle and cleanup.
-- Memory supports `off` or observation-only `shadow`. Shadow memory requires a `memory_namespace`; memory is never actively injected, and active receipts cannot claim memory injections or document omissions.
-- Model resolution evidence is written to the gitignored runtime artifact `.autopus/omp-model-resolution-v1.json`. Task-scoped context evidence uses `.autopus/runtime/omp-context/<task-id>/<session-id>/receipt.json`.
-- Run `auto doctor` (or `auto doctor --json`) to re-probe the installed CLI and configuration. Receipts must contain neither credentials, prompt bodies, nor absolute paths. Live provider transport checks can incur cost and run only with explicit `auto doctor --provider-smoke` opt-in; a stale receipt is not proof that a current canary passed.
-
-### Codex vs OpenCode
-
-| Topic | Codex | OpenCode |
-|-------|-------|----------|
-| Primary command syntax | `@auto <subcommand> ...` | `/auto <subcommand> ...` |
-| Works immediately after `auto init` | `$codex-auto-<route> ...` native skills | `/auto ...` and `/auto-<subcommand> ...` wrappers |
-| Extra install step | Install the generated local plugin from `.agents/plugins/marketplace.json` only when you want `@auto ...`; native `$codex-auto-<route>` skills need no extra step | No extra router install step. `opencode.json` wires the managed plugin automatically |
-| Generated surface | `.codex/skills/codex-*/`, `.codex/agents/`, `.codex/hooks.json`, `.codex/config.toml`, `.agents/plugins/marketplace.json`, `.autopus/plugins/auto/`, `AGENTS.md` | `.opencode/commands/`, `.opencode/agents/`, `.opencode/rules/`, `.opencode/plugins/`, `.agents/skills/`, `AGENTS.md`, `opencode.json` |
-| What works well today | Native skills, local plugin routing, and Multi-Agent V2 Lead/Builder/Guardian coordination | Native command wrappers, task-based workers, and managed hook plugin wiring |
-| Current boundary | Multi-Agent V2 workers share one cwd/filesystem; parallel writers need disjoint ownership | Claude-style Agent Teams and Workflow primitives are not claimed |
-| Worker surface | `spawn_agent`, `send_message`, `followup_task`, targetless `wait_agent`, `interrupt_agent`, `list_agents` | OpenCode `task(...)` workers |
-
-Split compiler note:
-- `skills.compiler.mode: split` is the default. It publishes the core/dependency set and all `/auto` routes; optional recipes remain available through `auto skill list` and `auto skill info <name>`.
-- Select `skills.compiler.mode: full` to publish the complete compatible library, or choose `bundles` / `explicit_skills`. In split mode, opted-in long-tail skills use `.opencode/skills/` or `.autopus/plugins/auto/skills/`; `opencode_long_tail_target: shared` and `codex_long_tail_target: repo` select native visible locations.
-
-Pipeline entrypoints load their `references/` details only when needed. Ordinary work stays
-inline; independent work, specialist review, or context isolation justifies delegation.
-`auto pipeline run` uses `implement → validate → review` only after one compact contract
-and the actual change set validate as low risk. Missing, ambiguous, malformed, or
-contradicted authorization retains all five phases. Resume requires the same authorized
-route. Annotation is opt-in through `auto spec gates --annotation`; validation, security,
-data-loss, and deterministic-oracle gates remain active.
-
-`auto pipeline run` names its platform and why (`Pipeline platform: claude — first installed
-of claude → codex → agy`) and counts a phase as executed only when the run dispatched it, so a
-restored phase that a fix sends again counts as executed (`Pipeline complete: 3 phases
-executed, 2 restored from checkpoint, 4 dispatches`). A completed run records
-`.autopus/pipeline-state/<SPEC>.verification.json`: the SPEC documents without their status
-lines and every working-tree path that differs from HEAD, outside `.autopus`. A dry run keeps
-its receipt in `.autopus/pipeline-state/dry-run/` and never replaces the last real run.
-`auto status` keeps each SPEC's declared status apart from that evidence. It reports `verified`
-only while the code and SPEC still match a valid record (committing the verified tree keeps
-it), `stale` with the changed paths, and `unverified` when git hides changes (assume-unchanged
-or skip-worktree files) or the record is invalid. For a stopped run it asks the engine itself
-whether `auto pipeline run <SPEC> --continue` would be admitted, output records included, and
-names what a resume restores. `documented_only` means only the document says done. Review
-evidence comes from `review-receipt.json` and, when present, `review-session.json`; a review
-is fresh only when the receipt records a SPEC fingerprint that still matches. Next commands
-lead with standalone use, offer `/auto fix` without a SPEC beside `/auto plan`, and give each
-command its absolute directory, where it runs, its provider, and what it calls and writes; they
-carry only validated values, status runs none of them, and Autopus Desktop stays optional.
-
-The default `workflow.coverage_threshold` is `85`. An explicit project or route
-threshold overrides it, and `0` turns the numeric gate off. Ordinary
-`auto workflow context` selects architecture through `--conditional-profile architecture`
-or `--required-document`; required core/SPEC bodies remain complete and verified.
-The signed OMP canonical-context and release-evidence paths are unchanged.
-
----
-
-## 🚀 Quick Start Guide
-
-Get from zero to your first AI-powered feature in under 5 minutes.
-
-### Step 1 · Install (one line)
-
-> **Paste this command into your AI coding agent's chat** (Claude Code, Codex, OpenCode, etc.) — the agent will run it for you. Or run it directly in your terminal.
-
-```bash
-# macOS / Linux — installs the binary and checks required tools
-cd your-project    # go to your project folder (e.g., cd ~/my-app)
-curl -sSfL https://raw.githubusercontent.com/autopus-ai/autopus-adk/main/install.sh | sh
-
-# Windows (CMD or PowerShell)
-cd your-project
-powershell -c "irm https://raw.githubusercontent.com/autopus-ai/autopus-adk/main/install.ps1 | iex"
-```
-
-**That's it.** The installer installs the `auto` CLI plus an `autopus` alias, checks required tools, skips anything already present, and auto-installs missing essentials like `git`, GitHub CLI, and Antigravity CLI. It does **not** run `auto init` for you.
-
-Platform command syntax:
-- Codex: install the generated local plugin to use `@auto ...`; otherwise invoke `$codex-auto-<route> ...`
-- OpenCode: use `/auto ...` or `/auto-<subcommand> ...`
-- Claude Code / Antigravity CLI / Oh My Pi: use `/auto ...`
-
-> Note: If you run the Windows installer from Git Bash via `powershell -c ...`, restart Git Bash after install so it reloads the updated user `PATH`. The installer prints the exact install directory and a one-line `export PATH=...` fallback for that case.
+Paste the one-liner from the top of this page into your agent's chat, or run it in a terminal. The
+installer installs the `auto` CLI plus an `autopus` alias, checks required tools, and installs
+missing essentials such as `git` and the GitHub CLI. It does not run `auto init`.
 
 <details>
 <summary>Other install methods</summary>
 
 ```bash
-# Homebrew (macOS) — canonical new install
+# Homebrew (macOS)
 brew install --cask Insajin/autopus/auto
 
-# go install (requires Go 1.26+)
+# go install (Go 1.26+)
 go install github.com/insajin/autopus-adk/cmd/auto@latest
 
-# Build from source
+# From source
 git clone https://github.com/autopus-ai/autopus-adk.git
 cd autopus-adk && make build && make install
-
-# After manual install, initialize:
-cd your-project && auto init
 ```
 
-`make install` copies into `$(go env GOPATH)/bin`; pass `INSTALL_DIR=...` for another
-destination. When a signed release install outranks it on `PATH`, the target says so —
-the git hooks keep running that binary. Point them at the build under test with
-`AUTOPUS_BIN=$PWD/bin/auto`.
+`make install` copies into `$(go env GOPATH)/bin`; pass `INSTALL_DIR=...` for another destination.
 
-Homebrew Cask is the canonical Homebrew distribution. If you previously installed the legacy
-Formula, remove it before installing the Cask:
+Installer environment variables: `INSTALL_DIR` (default `/usr/local/bin`), `VERSION` (default latest).
 
-```bash
-brew uninstall --formula auto
-brew install --cask Insajin/autopus/auto
-```
-
-#### Existing installs on Homebrew 6 or later
-
-Homebrew 6 requires explicit trust for non-official taps. A new install using the
-fully qualified command above trusts the ADK cask. An existing installation may
-still lack that trust after upgrading Homebrew. This can interrupt `brew upgrade`
-or automatic `brew cleanup`, even when you are updating another tool. A retained
-ADK tap and old download cache can trigger this after the ADK cask is uninstalled.
-
-Run `auto doctor` from an initialized project to inspect the read-only Homebrew
-trust check (`doctor.homebrew.tap_trust` in `auto doctor --json`). The check reports
-missing cask trust and probe failures separately; `--fix` does not grant trust.
-
-If Homebrew reports `Refusing to load cask insajin/autopus/auto from untrusted tap`,
-trust just the ADK cask, then check cleanup without deleting anything:
-
-```bash
-brew trust --cask insajin/autopus/auto
-brew cleanup --dry-run
-```
-
-For the legacy Formula, use `brew trust --formula insajin/autopus/auto` before the
-uninstall-and-install migration above. These commands grant trust only to the
-named package; there is no need to trust the entire tap or disable Homebrew's
-trust checks. See [Homebrew's Tap Trust documentation](https://docs.brew.sh/Tap-Trust).
-
-If the error follows an upgrade, check the installed version with
-`brew list --versions <package>` before retrying: installation may have succeeded
-before cleanup failed. `HOMEBREW_NO_ENV_HINTS=1` only hides hints and does not fix
-missing trust.
+On Homebrew 6 or later, an existing install may need explicit trust for the ADK cask. If Homebrew
+reports `Refusing to load cask insajin/autopus/auto from untrusted tap`, run
+`brew trust --cask insajin/autopus/auto`. `auto doctor` reports this as
+`doctor.homebrew.tap_trust`.
 
 </details>
 
-<details>
-<summary>Installer options (environment variables)</summary>
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `INSTALL_DIR` | `/usr/local/bin` | Binary install path |
-| `VERSION` | latest | Specific version to install |
-
-</details>
-
-After install, the script explains these commands:
-
-- `auto init`: initialize the current project and generate `autopus.yaml` plus platform files
-- `auto update --self`: update only the `auto` CLI binary
-- `auto update`: refresh the current project's generated rules, skills, agents, and platform files
-
-### Step 2 · Initialize the Project
+Then initialize a project:
 
 ```bash
 cd your-project
-auto init
+auto init          # interactive; --yes for defaults, --platforms claude-code,codex to choose
+auto doctor        # check the installed wiring
 ```
 
-`auto init` scans your machine for supported installed AI coding CLIs (Claude Code, Codex, Antigravity CLI, OpenCode, Oh My Pi) and generates **native configuration** for each one — rules, skills, agents, commands, and platform-specific settings — all from a single `autopus.yaml`.
+Useful `auto init` flags: `--yes`, `--platforms`, `--project`, `--dir`, `--no-review-gate`,
+`--statusline-mode keep|merge|replace`, `--rea` / `--no-rea`.
 
-Claude Code statusline note:
-- If `.claude/settings.json` already has a `statusLine.command`, `auto init` / `auto update` now lets you choose `keep`, `merge`, or `replace` in interactive mode.
-- You can force the same behavior non-interactively with `--statusline-mode keep|merge|replace`.
-
-```
-✓ Detected: claude-code, codex, antigravity-cli, opencode, omp
-✓ Generated: .claude/rules/, .claude/skills/, .claude/agents/, .claude/workflows/, CLAUDE.md
-✓ Generated: .codex/skills/, .codex/agents/, .codex/hooks.json, .codex/config.toml, AGENTS.md
-✓ Generated: .gemini/, GEMINI.md
-✓ Generated: .opencode/, .agents/skills/, AGENTS.md, opencode.json
-✓ Generated: .omp/rules/, .omp/skills/, .omp/commands/, optional .omp/extensions/
-✓ Created: autopus.yaml
-```
-
-### Step 3 · Set Up Project Context (`/auto setup`)
-
-This is the most important step. **AI agents lose all memory between sessions** — every conversation is their first day on the job. `/auto setup` creates the "onboarding documents" that let agents understand your project instantly.
+### Keeping it up to date
 
 ```bash
-/auto setup     # Claude Code, Antigravity CLI, OpenCode, Oh My Pi
-@auto setup     # Codex after local plugin install
-$codex-auto-setup  # Codex native skill before plugin install
+auto update --self   # update the auto binary (publisher signature + SHA256 verified)
+auto update          # regenerate this project's harness files from the installed binary
 ```
 
-This analyzes your codebase and generates 5 context documents:
-
-```
-ARCHITECTURE.md                    # Domains, layers, dependency map
-.autopus/project/product.md       # What this project does, core features
-.autopus/project/structure.md     # Directory layout, package roles, entry points
-.autopus/project/tech.md          # Tech stack, build system, testing strategy
-.autopus/project/scenarios.md     # E2E test scenarios extracted from code
-```
-
-> 💡 **Why this matters:** Without these documents, an AI agent looking at your project is like a new hire with no onboarding — they'll guess at architecture, miss conventions, and reinvent patterns that already exist. With `/auto setup`, every agent session starts informed.
-
-### Optional `DESIGN.md` for UI Work
-
-Frontend verification and review can use a project-local `DESIGN.md` as lightweight design context. `auto init` creates a starter `DESIGN.md` next to `autopus.yaml` without overwriting an existing one, and `auto update` backfills the starter plus the `design:` config block for older harness installs. Keep it short and include the source of truth, palette roles, typography hierarchy, component guardrails, layout/responsive rules, and agent guidance. If a project has no `DESIGN.md` or configured design baseline, `/auto verify`, Phase 3.5, `/auto review`, and `auto orchestra review` continue normally and report `Design context: skipped (not configured)` as a non-error condition.
-
-Design context is only injected for UI-related diffs such as `.tsx`, `.jsx`, CSS-family files, theme/token files, or design-system paths. UI findings check palette-role drift, typography hierarchy drift, component guardrail violations, layout/responsive regressions, and source-of-truth mismatch. Review surfaces remain read-only; they report issues and delegate fixes instead of editing files directly.
-
-Generated platform surfaces are not canonical. Update `autopus-adk` content/templates and run `auto update` to refresh `.claude/*`, `.codex/*`, `.gemini/*`, `.opencode/*`, `.omp/*`, OpenCode-owned `.agents/skills/*`, and plugin surfaces in a target project.
-
-External design references are untrusted until explicitly promoted. `auto design import` stores sanitized artifacts under `.autopus/design/imports/<import-id>/`; it must not replace a human-maintained `DESIGN.md` by default. URL imports are public-HTTPS-only and SSRF-guarded: they reject local/private/metadata targets and unsafe redirects, cap redirects, timeout, and response size, and persist only redacted diagnostics when rejected.
-
-### Step 4 · Build Your First Feature
-
-Now you're ready. Describe what you want in plain language:
-
-```bash
-# 1. Plan — AI creates a full SPEC (requirements, tasks, acceptance criteria)
-/auto plan "Add a health check endpoint at GET /healthz"
-
-# 2. Build — 17 agents handle implementation, testing, and review
-/auto go SPEC-HEALTH-001 --auto
-
-# 3. Ship — Sync docs, update SPEC status, commit with decision history
-/auto sync SPEC-HEALTH-001
-```
-
-```
-╭────────────────────────────────────╮
-│ 🐙 Pipeline Complete!              │
-│ SPEC-HEALTH-001: Health Check      │
-│ Tasks: 3/3 │ Coverage: 92%         │
-│ Review: APPROVE                    │
-╰────────────────────────────────────╯
-```
-
-The workflow connects implementation, verification, and documentation. Confirm
-the project's acceptance criteria and recorded checks before deployment.
-
-### Quick Reference
-
-| What you want | Command |
-|--------------|---------|
-| **Brainstorm an idea** | `/auto idea "description" --multi --ultrathink` |
-| **Full cycle (recommended)** | `/auto dev "description"` |
-| Plan a new feature | `/auto plan "description"` |
-| Implement a SPEC | `/auto go SPEC-ID --auto --loop --team` |
-| Fix a bug (no SPEC needed) | `/auto fix "description"` |
-| Just describe in plain language | `/auto Add 2FA to login page` |
-| Post-deploy health check | `/auto canary` |
-| Code review | `/auto review` |
-| Security audit | `/auto secure` |
-| Resume interrupted pipeline | `/auto go SPEC-ID --continue` |
-| Update docs after changes | `/auto sync SPEC-ID` |
-
-### Keeping Autopus Up to Date
-
-Autopus has two separate update steps. When adopting a new release, run them in order from the
-project you want to refresh.
-
-**1. Binary update** — update the `auto` CLI itself:
-
-```bash
-auto update --self
-```
-
-Downloads the latest release from GitHub and replaces only the CLI binary. The updater included in
-v0.50.73 and later first authenticates `checksums.txt` with the ECDSA P-256 publisher envelope
-`checksums.txt.signatures`, then verifies the archive's SHA256 checksum before extraction. Missing,
-malformed, untrusted, or expired signing data fails closed. This command does not refresh generated
-project files. Check your current version with `auto version`. On macOS, the updater included in
-v0.50.72 and later also preserves the downloaded release bytes and Developer ID signature.
-
-Darwin and Linux stage the new binary on the target filesystem and commit it with an atomic
-exchange. If the kernel or filesystem does not support atomic exchange, the update fails before
-changing the installed binary; use the package manager or reinstall the release manually instead.
-
-Windows preserves the installed binary beside the target as `<binary>.old` while placing the new
-binary. A forced process or power interruption between those two moves can leave the target path
-temporarily absent. Restore it from PowerShell, using the actual installation path, and then rerun
-the update:
-
-```powershell
-Move-Item -LiteralPath "C:\path\to\auto.exe.old" -Destination "C:\path\to\auto.exe"
-auto update --self
-```
-
-If both `auto.exe` and `auto.exe.old` exist, the updater removes `.old` automatically only when its
-own `<binary>.old.autopus-complete` marker proves that the prior installation finished. An unmarked
-or invalid recovery file is never deleted automatically: confirm which binary you want to keep,
-then restore or remove `.old` manually.
-
-> **One-time macOS migration from v0.50.71 or earlier:** Do not use the one-line shortcut below for
-> this migration. Run these commands separately and in order:
->
-> ```bash
-> auto update --self
-> auto update --self --force
-> auto update
-> ```
->
-> The first command is still executed by the legacy updater. It verifies the SHA256 checksum
-> without authenticating the publisher envelope and may replace the downloaded Developer ID
-> signature with an ad hoc signature. After that first hop
-> installs v0.50.72 or later, the second command is executed by the fixed updater now on disk and
-> reinstalls the exact release bytes, restoring the Developer ID signature and
-> `TeamIdentifier=GP2PFA2PUV`. The final `auto update` refreshes the current project's generated
-> files. If the installed CLI is
-> already v0.50.72 or later, future binary self-updates need only one `auto update --self`; run
-> `auto update` afterward when you also need to refresh a project. A fresh Cask install, including a
-> migration from the legacy Formula to the Cask, installs the signed release artifact directly and
-> does not require the two self-update commands.
-
-**2. Harness update** — apply the installed CLI's templates to the current project:
-
-```bash
-auto update
-```
-
-Regenerates rules, skills, agents, and platform-specific files such as `.claude/*`, `.codex/*`,
-`.gemini/*`, `.opencode/*`, `.omp/*`, and OpenCode-owned `.agents/skills/*` from the templates in the installed CLI.
-With `skills.compiler.mode: split`, the update preview/apply flow also manages `.opencode/skills/*`
-and `.autopus/plugins/auto/skills/*`, including stale artifact pruning. Your custom edits outside
-`AUTOPUS:BEGIN`~`AUTOPUS:END` markers are preserved. Newly installed platforms are auto-detected.
-
-If Claude Code already has a user-managed `statusLine.command`, the update flow defaults to preserving it, can merge it with the managed Autopus statusline, or replace it entirely via `--statusline-mode keep|merge|replace`.
-
-**Both at once (when the installed CLI is v0.50.72 or later):**
-
-```bash
-auto update --self && auto update
-```
-
-> **When to update:** `auto update --self` installs the new binary. The release is reflected in the
-> current project's generated surfaces only after the following `auto update` succeeds.
-
-### Autopus Desktop managed launcher
-
-On machines with Autopus Desktop installed, the app owns the `auto` entry on your PATH
-(usually `~/.local/bin/auto`) and replaces it with a small launcher script that brokers every call
-into the Desktop-managed CLI slot. When the app rejects the brokered call, `auto` exits with code
-126 and prints:
-
-```text
-Autopus Desktop managed ADK broker: managed_adk_broker_current_slot_rejected
-```
-
-The CLI itself is still installed. Invoke the managed binary directly — quote the path, it contains
-spaces — or alias it for the session:
-
-```bash
-"$HOME/Library/Application Support/co.autopus.desktop/managed-adk/current/auto" doctor
-alias auto="$HOME/Library/Application Support/co.autopus.desktop/managed-adk/current/auto"
-```
-
-Then run `auto update` from that managed binary, or reinstall Autopus Desktop, so the launcher and
-the managed slot agree again. `auto doctor` reports the launcher as the
-`doctor.launcher.desktop_shim` check — it names the launcher path, the managed slot, and whether the
-managed binary is present.
-
-### Common Scenarios
-
-<details>
-<summary><strong>"I want to fix a bug"</strong></summary>
-
-```bash
-/auto fix "500 error on login page"
-```
-
-The agent automatically:
-1. Writes a reproduction test (confirms failure)
-2. Analyzes root cause
-3. Applies minimal fix
-4. Verifies all tests pass
-
-No SPEC needed — runs immediately.
-</details>
-
-<details>
-<summary><strong>"I want to add a new feature"</strong></summary>
-
-```bash
-# Small feature — SPEC only, skip PRD
-/auto plan "Add GET /healthz health check endpoint" --skip-prd
-
-# Large feature — full PRD + SPEC
-/auto plan "OAuth2 Google + GitHub provider support"
-
-# Exploring an idea first — multi-provider brainstorm
-/auto idea "Should we migrate to microservices?" --multi
-```
-
-`/auto idea` runs multi-provider brainstorming with ICE scoring (Impact, Confidence, Ease), generates a BS file, and can chain directly into `/auto plan`.
-</details>
-
-<details>
-<summary><strong>"I want a code review"</strong></summary>
-
-```bash
-/auto review                    # TRUST 5 review of current changes
-/auto secure                    # OWASP Top 10 security scan
-/auto review --multi            # Multi-model cross-review (debate strategy)
-```
-</details>
-
-<details>
-<summary><strong>"I just want to describe what I need in plain language"</strong></summary>
-
-```bash
-/auto Add 2FA to the login page
-```
-
-Autopus Triage analyzes your request automatically:
-- Complexity assessment (LOW / MEDIUM / HIGH)
-- Impact scope scan
-- Recommended workflow (fix / plan / idea)
-
-```
-🐙 Triage ────────────────────────────
-  Request: "Add 2FA to the login page"
-  Complexity: HIGH → /auto idea --multi (recommended)
-```
-
-For Codex, use `@auto ...` after installing the generated local plugin from `.agents/plugins/marketplace.json`, or invoke `$codex-auto-<route> ...` immediately. The plugin adds only the router; detailed workflow instructions live in unique native `.codex/skills/codex-<name>/SKILL.md` resources.
-</details>
-
----
-
-## 🤖 The Pipeline
-
-### Risk-Sized Execution
-
-Ordinary work stays inline; a validated compact contract uses the three-phase runtime route.
-This diagram illustrates the responsibilities in a full job, not a mandatory agent per phase:
-
-```mermaid
-sequenceDiagram
-    participant S as SPEC
-    participant P as 🧠 Planner
-    participant T as 🧪 Tester
-    participant E as ⚡ Executor ×N
-    participant A as 📝 Annotator
-    participant V as ✅ Validator
-    participant R as 🔍 Reviewer + 🛡️
-
-    S->>P: Phase 1: Task decomposition + agent assignment
-    P->>T: Phase 1.5: Scaffold failing tests (RED)
-
-    rect rgb(230, 245, 255)
-        Note over E: Phase 2: TDD in parallel worktrees
-        T->>E: T1, T2, T3 ... (parallel)
-    end
-
-    opt Explicit annotation request
-        E->>A: Apply requested @AX tags
-        A-->>E: Annotation result
-    end
-    E->>V: Gate 2: Build + lint + vet
-    V->>T: Phase 3: Relevant tests + coverage gate (default 85%)
-    T->>R: Phase 4: TRUST 5 + OWASP audit
-    R-->>S: ✅ APPROVE
-```
-
-### 17 Specialized Agents
-
-| Agent | Role | When |
-|-------|------|------|
-| **Planner** | SPEC decomposition, task assignment, complexity assessment | Phase 1 |
-| **Spec Writer** | Generate spec.md, plan.md, acceptance.md, research.md | `/auto plan` |
-| **Tester** | Test scaffold (RED) + coverage boost (GREEN) | Phase 1.5, 3 |
-| **Executor** | Implementation; native isolation when supported and needed | When delegated |
-| **Annotator** | @AX tag lifecycle management | Explicit request only |
-| **Validator** | Build, vet, lint, file size checks | Gate 2 |
-| **Reviewer** | TRUST 5 code review | Phase 4 |
-| **Security Auditor** | OWASP Top 10 vulnerability scan | Phase 4 |
-| **Architect** | System design, architecture decisions | on-demand |
-| **Debugger** | Reproduction-first bug fixing | `/auto fix` |
-| **DevOps** | CI/CD, Docker, infrastructure | on-demand |
-| **Frontend Specialist** | Playwright E2E + VLM visual regression | Phase 3.5 |
-| **UX Validator** | Frontend component visual validation | Phase 3.5 |
-| **Perf Engineer** | Benchmark, pprof, regression detection | on-demand |
-| **Deep Worker** | Long-running autonomous exploration + implementation | on-demand |
-| **Explorer** | Codebase structure analysis | `/auto map` |
-| **Reverse Engineer** | Behaviour specification from REA tools and read tools only (clean-room) | `/auto reverse` |
-
-### Quality Modes
-
-```bash
-/auto go SPEC-ID --quality ultra      # Premium path for every role; Codex effort varies by role
-/auto go SPEC-ID --quality balanced   # Top-model planning/review/debugging; lighter implementation
-
-auto quality ultra --apply            # Persist Ultra and refresh this project's managed agents
-auto quality balanced --apply         # Persist Balanced and refresh this project's managed agents
-auto quality provider claude ultra --apply   # Claude only (claude-code is also accepted)
-auto quality provider codex balanced --apply # Codex only
-auto quality provider claude inherit --apply # Remove the Claude override
-auto quality supervisor inherit --apply  # Use the user's Codex model for the primary session
-auto quality show                     # Show the persisted mode and supervisor policy
-auto quality show --agents            # Also print the agent × platform model table, read-only
-auto quality                          # Compose per-agent tiers by role group (interactive)
-auto quality review                   # Review providers: part in review, backend, model and effort, judge
-auto quality review model claude claude-opus-5-5 --effort high  # One review provider's model, no terminal needed
-auto quality review off gemini        # Leave a provider out of auto spec review (on adds it back)
-auto quality review judge codex       # Choose the review judge (none for a review without one)
-auto quality review judge claude --model claude-opus-5-5 --effort max  # The judge's own model; reviewers keep theirs (--model default goes back)
-```
-
-Projects using both Claude Code and Codex can select their modes independently:
+`auto update --preview` (also `--plan`, `--dry-run`) lists what would change without writing.
+Your content outside the `AUTOPUS:BEGIN` / `AUTOPUS:END` markers in files like `CLAUDE.md` and
+`AGENTS.md` is kept. Other generated files are overwritten, with the originals backed up under
+`.autopus/backup/<timestamp>/`. `--workspace` also updates nested Git repos in a meta workspace.
+
+### Upgrading from 0.50.x
+
+From v0.51.0 the harness installs only the verification surface described above. Run
+`auto update --self && auto update` in each project:
+
+- `auto update` prunes the retired surface recorded in each platform manifest: the routes `plan`,
+  `go`, `fix`, `idea`, `setup`, `status`, `goal`, `map`, `why`, `secure`, `dev`, `canary`, and
+  `reverse`; the 14 retired agents (planner, executor, tester, architect, spec-writer and the rest);
+  the retired skills and rules (such as `branding`, `subagent-delegation`, `worktree-safety`); and
+  Claude `.claude/workflows/*.js`.
+- An install that is never updated can be cleaned with `auto platform remove <platform>`.
+- New configs default to `methodology.mode: none`. An older config with `tdd` is reported as a
+  notice by `auto doctor` and `auto check`, not as a failure.
+- CLI commands stay in the binary: `auto spec`, `auto pipeline`, `auto orchestra`, `auto workflow`,
+  and the rest of `auto --help` keep working. Only the generated agent-chat surface changed.
+
+## Configuration
+
+Everything lives in `autopus.yaml`. A trimmed example with keys that matter for verification:
 
 ```yaml
-quality:
-  default: balanced
-  providers:
-    claude: ultra
-    codex: balanced
-```
-
-`quality.providers` accepts the canonical keys `claude` and `codex`.
-Custom preset names must be 1–64 ASCII characters, start with a letter or digit,
-and then contain only letters, digits, hyphens, or underscores.
-`quality.default` remains the fallback for providers without an override, so existing
-configuration files keep their behavior. A per-run `--quality` flag is an explicit global
-override and temporarily wins over both persisted provider values without rewriting YAML.
-Provider-specific `--apply` refreshes only that configured platform; the existing global
-`auto quality <mode> --apply` still refreshes every configured platform.
-
-New projects default to `supervisor_model_policy: inherit`, so Autopus does not override the
-user's Codex model for the primary session. Quality mode still controls managed agents and
-quality-managed orchestra providers. Existing projects without this policy keep the legacy
-quality interpretation, while ambiguous markerless root assignments are preserved during migration.
-Run `auto quality supervisor inherit --apply` to explicitly remove a known generated root profile, or
-`auto quality supervisor quality --apply` to opt an unchanged Autopus-managed primary config into the
-Astra profile for the selected quality mode. User-owned project model or effort assignments remain
-preserved and take precedence. Start a new Codex session after applying changes so managed agent
-definitions are reloaded.
-
-GPT/Codex Ultra support in the CLI and Ultra activation in a project are separate. Installing a
-new binary does not enable Ultra. Run `auto update` to refresh the project's generated files, then
-opt in with `auto quality ultra --apply` and start a new Codex session. Any Ultra compact rollout or
-promotion remains separate and is not activated by these update commands.
-
-Claude Code and Codex share the standard balanced role matrix with OMP:
-
-| Native agent group | Claude Code balanced | Codex balanced |
-|---|---|---|
-| planner, architect, spec-writer, reviewer, security-auditor, debugger, deep-worker | `claude-opus-5-5` / `max` | `gpt-6-astra` / `max` |
-| executor, tester, devops, frontend-specialist, perf-engineer | `claude-sonnet-5-5` / `max` | `gpt-6-luna` / `max` |
-| explorer, annotator, validator, ux-validator | `claude-sonnet-5-5` / `high` | `gpt-6-luna` / `max` |
-
-The native files are `.claude/agents/autopus/*.md` (`model`, `effort`) and
-`.codex/agents/*.toml` (`model`, `model_reasoning_effort`).
-Apply both through `auto quality balanced --apply`, or use the provider-specific commands above.
-Complete historical default layouts receive the standard placement without rewriting their YAML,
-including the earlier default that put the seven-role core on Fable: it now runs the Opus top rung.
-An explicit different agent tier or a custom quality preset keeps its existing interpretation, so an
-agent you set to `fable` keeps running Fable in Balanced.
-One custom agent does not change its siblings.
-
-Codex retains the exact standard profile with an unverified diagnostic when its native catalog
-cannot be read. If an observed catalog rejects the requested model or effort, generation stops
-before writing files instead of substituting an older model or lower effort.
-
-Ultra is unchanged: its seven-role core uses Fable/Astra, and remaining roles use Opus/Sol.
-Claude Ultra emits max for its Fable/Opus agents; Codex Ultra uses Astra/max and Sol/xhigh.
-Supervisors still inherit by default; quality-managed Codex supervisors use Astra/ultra in Ultra
-and Astra/xhigh in Balanced. Native multi-provider review defaults to Opus 5.5/max and Astra/max
-in both modes, while explicit provider model/effort pins remain untouched. A claude review provider
-still on the former `claude-fable-5-1`/max default is not rewritten; `auto update` prints a notice.
-
-#### Per-agent model composition
-
-`auto quality` without arguments, every interactive `auto update`, and the `auto init` quality step
-share one composition step. It shows one row per agent and one column per installed platform:
-
-| Column | Cell |
-|---|---|
-| Tier | the tier generation uses; `default(<tier>)` when the preset omits the agent, `invalid→<tier>` for an unknown value |
-| Claude Code | the `model · effort` written to `.claude/agents/autopus/<agent>.md` |
-| Codex | the `model · effort` written to `.codex/agents/<agent>.toml`, resolved from one Codex catalog read that the same run also generates from |
-| OMP | the route the selected OMP profile requests, headed `requested route · before catalog check` (`platform default` without a profile); OMP's own catalog check at generation can still lower it |
-| OpenCode, Antigravity | `platform default`: their agents carry no model |
-
-A `quality.providers.claude` or `quality.providers.codex` override labels its column
-`override: <preset>`. Edits go through four role groups that exist only on screen and are never
-written to `autopus.yaml`:
-
-| Role group | Agents |
-|---|---|
-| Design·Judgment | planner, architect, spec-writer, security-auditor |
-| Implementation | executor, debugger, deep-worker, devops, frontend-specialist, perf-engineer |
-| Verification·Review | reviewer, validator, tester, ux-validator |
-| Exploration·Support | explorer, annotator, reverse-engineer |
-
-At `Change the composition?`, `g` picks one tier per group (Enter keeps a group, mixed ones
-included), `a` takes `agent=tier` lines, and `u` (shown only when one exists) updates
-previous-version defaults to the current ones without changing `quality.default`. The preview marks
-every changed cell with `*` and lists every key it writes; only `y` writes. A result equal to the
-current `balanced` or `ultra` default binds that preset, writing the preset too when it is missing or
-a previous-version copy; any other result is saved as `quality.presets.custom` with
-`quality.default: custom`. Each written `balanced` and `ultra` preset is classified by its exact agent
-map: `current default`, `previous-version default (can update)` (a default an earlier release
-wrote), or `customized (N differ)` (anything else, partial maps included). A customized preset's
-agents and description are never modified; a composition that would bind it is saved as `custom`.
-
-`auto update` asks once on every interactive run, after its project settings prompts. Enter, input
-end, or three invalid answers keep `autopus.yaml` byte-identical; a confirmed change is generated in
-the same run, so the agent files equal the preview. `--yes`/`-y`, `--auto`, `--check`, a `CI` value
-other than empty, `0`, or `false`, non-TTY input, and `--workspace` neither ask nor change anything
-and print at most one line naming previous-version presets; `--plan`, `--preview`, and `--dry-run`
-skip the step. `auto quality --apply` regenerates right after a confirmed change, and
-`auto quality show --agents` prints the table read-only on any stdin.
-
-The composition step and the per-tool editors refuse to write, and leave the file unchanged, while
-the quality block holds a `${NAME}` value of a set environment variable or a YAML alias or merge
-key. They rewrite only the quality block: every byte outside it stays identical, comments inside it
-are not kept.
-
-In a terminal the step runs as huh forms, like the init wizard: arrow keys and Enter choose, and scripted or piped input keeps the line prompts above. The menu offers keep, update to the latest defaults (only when a built-in preset is a previous-version default), edit the composition, and, in `auto quality`, choose the default preset. **edit the composition** opens a tool tab:
-
-- **same for all tools** is the role-group composition above; every tier option names the cells each tool would get, for example `opus — Claude Code: opus-5-5 · high | Codex: 6.1-sol · xhigh`.
-- **Claude Code** and **Codex** change only that tool. Options read `<cells>  [<tier>]`, such as `6.1-sol · xhigh  [opus]`, and the result is saved as `quality.presets.<provider>-custom` (all 17 agents) with `quality.providers.<provider>: <provider>-custom`. Binaries older than v0.50.88 ignore `quality.providers`.
-- **OMP** appears in `auto update` and `auto quality` when the platforms saved in autopus.yaml include omp, and in `auto init` when the platforms this init chose include omp. It pins one installed model and thinking level per native OMP agent, previews the plan's real routes, and writes through the existing OMP profile writer; init keeps the choice in its config and writes it with the platform files.
-- **Multi-provider review** is the last option while `spec.review_gate.enabled` is true, autopus.yaml holds at least two `orchestra.providers` entries, and `CI` is not set (SPEC-REVMODEL-001). It configures `auto spec review`, as the paragraph after the OMP tab's describes.
-
-A Claude label names the model slug (`opus-5-5`), while the table cell is the frontmatter value the generator writes (`opus`, or an exact ID such as `claude-opus-5-5`). `auto update` also shows a column for every platform it detected in this run and generates them from the same catalog read. Ctrl+C in a form ends `auto update` with a non-zero exit before any generation, cancels `auto init` before it writes any file, and leaves `auto quality` without an error.
-
-On the **Claude Code** and **Codex** tabs every tier select, for a group or for one agent, is followed by that tool's effort select (SPEC-MODELUX-003). keep is the default; the other options are the levels every affected agent accepts, each labelled with the cells it leaves and `(automatic)` on the automatic one. Claude Code offers `low`, `medium`, `high`, `xhigh`, and `max` and leaves haiku agents out; Codex offers the levels the run's catalog reports for the agents' models, and with an unreadable catalog it asks nothing and prints `Codex catalog unreadable; effort stays automatic`. An agent given its automatic level stores nothing; the rest are written with the tiers to `quality.presets.<provider>-custom.efforts`, a map from canonical agent names to those five levels. The preview lists `quality.presets.<provider>-custom.efforts written (N agents)` (or `rewritten`, `removed`) and, for the file's first efforts map, `auto older than v0.50.127 cannot read quality.presets.*.efforts`. An explicit effort takes the agent off the standard balanced placement and is generated as Claude `effort:` (never for haiku) and as Codex `model_reasoning_effort`, resolved from the same catalog read. Later edits, `u`, and the per-tool line editor keep stored efforts, and **same for all tools** moves a binding preset's efforts into `custom` (`quality.presets.custom.efforts carried (N agents)`) instead of writing them onto another built-in. A file without `efforts` loads and generates exactly as before. The OMP tab picks a model and its thinking per role group or agent instead, as the next paragraph describes.
-
-In the default autopus mode the **OMP** tab asks no profile or family (SPEC-MODELUX-003). It starts from the current pins, or from the current profile's effective routes (one pin-less plan, whose blocker returns to the menu with nothing written), and asks `role groups` (the four groups above) or `per agent` (the 17 agents, plus `task` while it has its own pin). Every model select offers `keep — <current>`, `keep the OMP session model`, and the installed models of every provider that Autopus can attest, as `provider/model` sorted by provider and model; a group lists only models every member accepts. A strict catalog attests by its family and capability metadata; a catalog without that metadata lists only the installed models the built-in profiles declare, after `The installed OMP catalog has no family or capability metadata; only models Autopus can attest are listed`. The thinking select offers only the levels the chosen model reports. `keep the OMP session model` drops the pin, and for `task` the option reads `follow planner`: task follows planner unless it has its own pin, so the Design·Judgment group moves planner but never an existing `agents.task`. The result is saved through the existing OMP plan, write, and activation as pins without a profile — `role_model_policy: {version: v1, agents: {<agent>: {candidates: [{selector, thinking, family}]}}}`, with `config_mode` and `agent_source` kept — and the preview adds `auto older than v0.50.127 cannot read role_model_policy.agents without a profile`. Only pinned agents get an override, and `task` gets one through its own or planner's pin; the rest inherit the session model, and a pinned model the catalog no longer has fails closed with `required_route_unresolved`. Applying over a profile-based policy prints `Moving the routes of OMP profile <name> to per-agent pins; unchanged agents keep their routes.` before the confirmation: every unchanged agent keeps all candidates of its route, `task` keeps its route (stored as `agents.task` only when it differs from planner's), the legacy `scout`, `security-reviewer`, and `sonic` keys are expanded into per-agent pins and removed, `profile` and `family` go away, and an ultra profile's link to `quality.presets.ultra` ends. Cancelling leaves the file unchanged. The OMP line editor and `auto platform omp profile apply` keep using profiles, and a profile with pins still loads. On a catalog without family or capability metadata, the tab warns at start when the current profile's routes use models outside the built-in declarations: `Autopus cannot attest these models on this catalog, so applying with them unchanged is blocked: <models>; the OMP line editor or auto platform omp profile apply keeps editing the profile`.
-
-The **Multi-provider review** tab sets who reviews in `auto spec review` (SPEC-REVMODEL-001). While the tab is listed, a summary line under the table names each provider with its model and effort as autopus.yaml writes them, and the judge, for example `Multi-provider review: claude claude-opus-5-5 · max · codex gpt-6-astra · max · gemini (off) agy gemini-3.8-flash-high · judge claude`; after the tab applies or cancels, its result line follows that summary under the redrawn table. The tab asks, per `orchestra.providers` entry, whether it takes part (`keep — on` · `turn off`, or `keep — off` · `turn on`); fewer than two participants is an error followed by `choose again` (the selects start again from the current values) or `leave`. Each participating provider with `backend: omp` gets a model select, `keep — <selector>` and the installed models Autopus attests for that provider's family (marked `(not in catalog)` when the current model is missing), then the levels the chosen model reports. A provider on a CLI backend gets the select of its binary, starting from the args the runtime runs (the config after its orchestra migration): `claude` offers the Claude tab models (`claude-fable-5-1`, `claude-opus-5-5`, `claude-sonnet-5-5`, `claude-haiku-4-5`) and `low`–`max` (none for haiku), written as the values after `--model` and `--effort`; `codex` offers the run's Codex catalog models that report at least one of `low`–`max`, with that model's levels, written as `model_policy: pinned` and the values of `-m` and `model_reasoning_effort` so no quality profile overrides them; `agy` offers the ids `agy models` lists for the provider's family, grouped by their `-low`/`-medium`/`-high` suffix and written after `--model`. Every other args element, its order, and its duplicates stay byte for byte. With `omp` installed and its catalog attesting a model of the provider's family, every CLI provider can also pick `switch to the OMP backend`, which adds `backend: omp` and an attested `model` and keeps `binary` and `args`; without a model list or omp the tab says why the model stays. The judge select offers the participating providers; an empty judge stays `keep — no judge`. The judge select ends with `<judge> — choose the judge model`, and choosing another judge asks it at once: `<judge> judge model` offers `keep`, `same as the reviewer model` while one is set, and the models that provider's model select offers, then its thinking or effort; the judge model is written as `spec.review_gate.judge_model` and `judge_effort` (SPEC-JUDGEMODEL-001), the preview's judge cell reads `judge (claude-opus-5-5 · max)`, the summary line `judge claude (claude-opus-5-5 · max)`, and `auto spec review` runs only the judge call on it (its plan block prints `judge model: …`, its receipt `judge.model` and `judge.effort`) while every reviewer keeps its own model. The preview shows the after table and every changed key against the current values; a CLI change shows only the changed flag values, as written in autopus.yaml, and never any other args element, and a target value taken from `${NAME}` is left alone with a line saying so, as is a binary or judge taken from one. Every value the tab and the menu summary show is the text autopus.yaml holds: a provider entry that takes its values from a merge key or an alias keeps its model, provider names the file does not hold as written leave the tab changing nothing, and `agy models` runs only an `agy` found on PATH by name. The tab writes only `spec.review_gate.providers`, `orchestra.providers.<p>.model` (as `<provider>/<model>:<thinking>`), `.args`, `.model_policy`, `.backend`, and `spec.review_gate.judge`, keys v0.50.125 also reads, and, only when a judge model is chosen, `spec.review_gate.judge_model` and `judge_effort`, which an auto release without them refuses; going back to the reviewer model removes both lines. `auto update` and `auto quality` replace just those values in autopus.yaml, so comments and layout stay, and refuse a value they cannot edit safely (a `${NAME}` placeholder, a YAML anchor, alias, or merge key, a block scalar) with `The review settings in autopus.yaml cannot be edited safely; nothing was written: <key>`; `auto init` puts the edit into the config it saves. Turning a provider off changes only `auto spec review`: orchestra commands (brainstorm, plan, review, secure) and `auto spec review --multi` keep every provider. After the preview, the optional live check — `live check — one request for each of <n> providers (at most <3n> model calls with retries)`, default off, also without an edit — sends the `auto doctor --provider-smoke` prompt once to each review provider with a 60-second budget and prints one result line each; it stores nothing, and after a failed provider the confirmation still defaults to cancel. `--yes`, non-terminal, and `CI` runs have no review tab; non-interactive `auto init` and `auto update`, and `auto quality` without a terminal, print one line naming the command below when the review settings exist. Without a terminal, `auto quality review` (or `show`, `--json`) prints each provider's part in review, backend, model, and effort as written, and the judge; `auto quality review model <provider> <model> [--effort <effort>]`, `on <provider>...`, `off <provider>...`, and `judge <provider|none> [--model <model>|default] [--effort <effort>]` change them with the tab's checks and line writer. `model` takes only what the tab offers that provider (an OMP selector as `<provider>/<model>[:<thinking>]`, an agy id or its name without the effort suffix plus `--effort`), keeps the current effort when the new model takes it, and lists the accepted values when it refuses one; every edit prints the settings that change first, and nothing is written when nothing changes or with `--dry-run`.
-
-**Back, chosen values, and stage** (SPEC-TUIUX-001). Every form of the `auto init` wizard (its REA step included), of the composition step in `auto init`, `auto update`, and `auto quality` (every tab), and of the init review shows a header line with the path that reached it, such as `init · 4/6 Review Gate` or `update · Model composition › edit the composition › Codex › role groups`, the values chosen so far (`Chosen so far`) above the form, and the footer `Arrows move · Enter select · Esc back · Ctrl+C cancel` as its last line, all inside the terminal height: a long summary keeps its head line, `… <k> more`, and the latest answers. Esc goes back one form, and a form shown again has the earlier answer selected: a role-group or per-agent edit returns to the form it asked before, the method to the tool tab, the tool tab to the menu, and init's composition menu to the wizard's last step, dropping that composition. Esc on `Apply?` or on the override question keeps editing, and the OMP and Multi-provider review tabs go back to the tool tab as a whole. On a first form (the wizard's first step, the `auto update` and `auto quality` menu) Esc prints `This is the first step; press Ctrl+C to cancel.` and stays. Ctrl+C cancels as before, and Esc never undoes a write already applied. In accessible line mode (`TERM=dumb`) a line `b`, `back`, or `뒤로` is Esc.
-
-Before it writes any file, an interactive `auto init` on the form path shows `Settings to apply`: the answers (`Answers`), every setting key they change (`Changed settings`, the YAML difference from the fresh config, grouped by parent key), and the run's REA decision with its action (`REA MCP: on · add`). It then asks `Proceed with these settings?` with `apply` (the default), `back`, and `cancel`. back resumes the composition menu, with the composition kept, when that step asked forms, and the wizard's last step otherwise; cancel and Ctrl+C print `init cancelled.` and leave the project as it was. The review does not show what comes after it: the orchestra normalization, the statusLine and parent rule prompts and their results, the `features.rea` key written after generation, and the generated files. `--yes`, non-terminal input, and the line prompts (a piped stdout included) have neither back nor the review, and their output is unchanged.
-
-### Execution Modes
-
-| Flag | Mode | Description |
-|------|------|-------------|
-| *(default)* | Inline-first execution | Delegate independent slices or work needing specialist/context isolation |
-| `--team` | Team topology | Platform-native Lead / Builder / Guardian responsibility profile |
-| `--solo` | Single session | No subagents, direct TDD |
-| `--auto --loop` | Full autonomy | RALF self-healing, no human gates |
-| `--multi` | Provider diversity | Provider-diverse planning/review; not execution topology |
-
-OMP keeps these axes separate: `--team` selects the owner-`omp` native `task`/`todo` topology, coordinating through `wait` and `proc://`/`agent://` URLs on OMP 18.3+ or `hub` on older OMP, while `--multi` adds provider-diverse planning and review. `--team --multi` composes both.
-
----
-
-## 📐 The Workflow
-
-### ⚡ The Fast Path — Two Commands
-
-For most features, you only need two commands:
-
-```bash
-# 1. Brainstorm — multi-provider debate + deep analysis
-/auto idea "Add webhook delivery with retry" --multi --ultrathink
-
-# 2. Build & Ship — full autonomous pipeline
-/auto dev "Add webhook delivery with retry"
-```
-
-`/auto idea` runs multi-provider brainstorming (Claude × Codex × Gemini debate) with deep sequential thinking, scores ideas with ICE, and saves the result.
-
-`/auto dev` does the rest — **plan → go → sync** in one shot with all the power flags on by default:
-
-| Stage | What Happens | Flags (auto-applied) |
-|-------|-------------|---------------------|
-| **plan** | PRD + SPEC + multi-provider review | `--auto --multi --ultrathink` |
-| **go** | 17 agents in Agent Teams + self-healing | `--auto --loop --team` |
-| **sync** | Docs + changelog + Lore commit | — |
-
-> 💡 **Don't want the full power?** Use `--solo` for single-session mode, `--no-multi` to skip multi-provider review, or call `plan` / `go` / `sync` individually for fine-grained control.
-
-### 📋 The Manual Path — Three Commands
-
-For more control, run each stage separately:
-
-```mermaid
-flowchart LR
-    PLAN["📋 plan\nDescribe"] -->|SPEC created| GO["🚀 go\nBuild"]
-    GO -->|Code + Tests| SYNC["📦 sync\nShip"]
-```
-
-### 📋 Step 1 · `/auto plan` — Describe What You Want
-
-Turn a plain-English description into a full **SPEC** — requirements, tasks, acceptance criteria, and risk analysis.
-
-```bash
-/auto plan "Add webhook delivery with retry and dead letter queue"
-```
-
-The spec-writer agent produces 5 documents:
-
-```
-.autopus/specs/SPEC-HOOK-001/
-├── prd.md          # Product Requirements Document
-├── spec.md         # EARS-format requirements
-├── plan.md         # Task breakdown + agent assignments
-├── acceptance.md   # Given-When-Then criteria
-└── research.md     # Technical research + risks
-```
-
-Options: `--multi` for a read-only multi-provider planning advisory plus final SPEC review · `--prd-mode minimal` for lightweight PRDs · `--skip-prd` to go straight to SPEC
-
-### 🚀 Step 2 · `/auto go` — Build It
-
-Feed the SPEC to **17 agents** that plan, scaffold tests, implement in parallel, validate, annotate, test, and review — all automatically.
-
-```bash
-/auto go SPEC-HOOK-001 --auto --loop
-```
-
-```
-Phase 1    │ 🧠 Planner         │ SPEC → tasks + agent assignments
-Phase 1.5  │ 🧪 Tester          │ Failing test skeletons (RED)
-Phase 2    │ ⚡ Executor ×N      │ TDD in parallel worktrees
-Optional   │ 📝 Annotator       │ @AX tags only when explicitly requested
-Gate  2    │ ✅ Validator        │ Build + lint + vet
-Phase 3    │ 🧪 Tester          │ Relevant tests + coverage gate (default 85%)
-Phase 4    │ 🔍 Reviewer + 🛡️    │ TRUST 5 + OWASP audit
-```
-
-Options: `--team` for Agent Teams · `--solo` for single-session TDD · `--quality ultra` for the premium execution path · `--multi` for multi-model review
-
-### 📦 Step 3 · `/auto sync` — Ship and Document
-
-Update SPEC status, regenerate project docs, manage @AX tag lifecycle, and commit with structured Lore history.
-
-```bash
-/auto sync SPEC-HOOK-001
-auto sync verify --spec SPEC-HOOK-001 --strict
-```
-
-Before committing, `auto sync verify` creates a read-only staging plan and prints the topology it detected: a multi-repo workspace splits into Phase A (module) and Phase B (meta), while a single Git repository holding `autopus.yaml` — including a linked worktree — yields one commit group. Both topologies exclude generated/runtime, tracked-but-ignored, unclassified, and shell-unsafe paths; a location that is neither fails with an `unsupported topology:` diagnostic under its own exit code. `--spec` limits the plan to workspace-relative files owned by exactly one SPEC host, and `--strict` fails on anything excluded or unrelated.
-
-```
-╭────────────────────────────────────╮
-│ 🐙 Pipeline Complete!              │
-│ SPEC-HOOK-001: Webhook Delivery    │
-│ Tasks: 5/5 │ Coverage: 91%         │
-│ Review: APPROVE                    │
-╰────────────────────────────────────╯
-```
-
-Three commands connect requirements, implementation, and delivery records. Check
-the recorded acceptance and verification results before treating the work as complete.
-
-### 🔍 Reverse Engineering — `/auto reverse`
-
-`auto init` registers the project-scope REA reverse-engineering MCP (`npx -y --prefix=/ rea-agents@6.5.0 mcp`) for Claude Code (`.mcp.json`), Codex (`.codex/config.toml`), and Antigravity (the workspace plugin's `.agents/plugins/autopus/mcp_config.json`, which `agy` starts as `autopus_rea`; `agy` reads no MCP server from `.gemini/settings.json`) by default (SPEC-REA-001). The interactive wizard asks once (default Yes); `--rea` and `--no-rea` decide without asking, and init or update refuses the two together. An existing project is asked once, by an interactive `auto update`; a non-interactive, `--yes`, `--auto`, CI, or workspace run adds nothing and prints one hint naming `auto update --rea`. `--rea` and `--no-rea` cannot be combined with `--workspace`; run them per repository with `--local`.
-
-- **Node**: the entry is written only when `node` is `^22.19.0 || ^24.11.0 || >=26.0.0`, probed once per run the way the server starts (`/bin/bash -l -c 'node --version'`, PATH `node` on Windows) within 5 seconds. Otherwise no entry is added, one Node line is printed, and existing entries and the decision stay.
-- **Where the decision lives**: a managed `rea` entry carries it. `features.rea.enabled` is written only when no entry can (off, Node unmet, or every target file user-owned), and the run that first writes it prints `auto older than v0.50.127 cannot read features.rea` once: the strict loader of v0.50.113–v0.50.125 rejects the key. A `rea` entry you own or pin to another version stays value-identical. Turning REA off also removes the managed entry from target files of unselected platforms, and `auto platform remove <platform>` removes that platform's managed entry.
-- **Project npm config**: `--prefix=/` makes npm read no `.npmrc` from the project or a parent directory and resolve no package from the project tree, so a cloned repository cannot send rea-agents or one of its scoped dependencies to a registry it names. Your own `~/.npmrc` (registry mirror, proxy) still applies and the server still runs in the project directory; a global npmrc under the Node install prefix (`npm config set -g`) is not read for this server. Entries an earlier release wrote without `--prefix=/` are Autopus-managed: the next `auto update` rewrites them, and `--no-rea` or `auto platform remove` removes them.
-- **Windows**: the Claude Code and Antigravity servers start through `/bin/bash -l -c` like the existing servers, so they do not start on Windows.
-- **OMP and OpenCode** get no REA MCP entry; Autopus prints that `npx -y rea-agents@6.5.0 setup` registers REA for the main session only (user scope).
-- **The 17th agent**: `reverse-engineer` is generated on every platform whatever the decision. It uses only REA and read tools (no Write, Edit, or Bash); on Antigravity, where `tools:` neither grants MCP tools one by one nor keeps any subagent from them, it — like every other Autopus agent there, executor included — reaches every REA tool through `call_mcp_tool`. The always-on plugin rule `rea-mcp-guard.md`, which every agy agent loads, keeps `autopus_rea` calls to reverse-engineer and the `/auto reverse` flow, and agy's per-call MCP permission is the backstop: answer `autopus_rea` permission prompts once per call and never with an "always allow" choice, which would cover every subagent. It returns a behaviour specification with item IDs, evidence_id references, and unknowns, never decompiled pseudocode. Balanced places it on opus (Claude `claude-opus-5-5` · `high`, Codex `gpt-6.1-sol` · `xhigh`); when an OMP or Codex catalog lacks that model, only reverse-engineer falls back to the session model with one notice line, and every other rung keeps its blocker. v0.50.125 reads the 17-agent presets this release writes as customized.
-- **Clean-room flow**: `/auto reverse <target> <feature> [--runtime]` dispatches reverse-engineer; asks the main-session consent before any runtime capture that runs or attaches to the target (`allow / decline`, and `--auto` asks too); shows the specification with the proposed owned and test paths (`confirm / revise / stop`); writes only the confirmed specification to `.autopus/reverse/<slug>/behaviour-spec.md`, which the generated `.gitignore` ignores; then runs tester → executor → tester. Dispatch prompts never carry REA results, evidence bundles, or decompiled text. On OMP, `/auto reverse` is an interactive command; the headless managed OMP RPC backend (`/autopus-pipeline`) does not run it.
-- **First start**: the first run downloads rea-agents through `npx`, which took 26 seconds on an idle machine, so the Codex entry sets `startup_timeout_sec = 120`. A start that is cut off mid-download can leave a broken npx cache entry (`connection closed` in Codex, `ERR_MODULE_NOT_FOUND` when run by hand), and every later start fails until it is removed: find its key with `npm cache npx ls` (the line naming `rea-agents@6.5.0`) and run `npm cache npx rm <key>`.
-- **Doctor** reports the decision and its source, the Node verdict, each selected platform's `rea` entry class (`managed`, `absent`, `other_pin`, `user_owned`) with the file it was read from, and the OMP·OpenCode guidance, in text and in `--json` (`data.rea`), without starting the REA server or making a network call.
-
----
-
-## 🎯 TRUST 5 Code Review
-
-Every review scores across 5 dimensions:
-
-| | Dimension | What It Checks |
-|---|-----------|----------------|
-| **T** | Tested | Relevant behavior, edge cases, race checks, and the coverage gate (default 85%) |
-| **R** | Readable | Clear naming, cohesive responsibilities, explicit project limits |
-| **U** | Unified | gofmt, goimports, golangci-lint, consistent patterns |
-| **S** | Secured | OWASP Top 10, no injection, no hardcoded secrets |
-| **T** | Trackable | Meaningful logs, error context, SPEC/Lore references |
-
----
-
-## 📊 Multi-Model Orchestration
-
-| Strategy | How It Works | Best For |
-|----------|-------------|----------|
-| **🤝 Consensus** | Independent answers merged by key agreement | Planning, code review |
-| **⚔️ Debate** | 2-phase adversarial review + judge verdict | Critical decisions, security |
-| **🔗 Pipeline** | Provider N's output → Provider N+1's input | Iterative refinement |
-| **⚡ Fastest** | First completed response wins | Quick queries |
-
-Providers: **Claude** · **Codex** · **Gemini** · **OpenCode** — with graceful degradation.
-
-Every provider runs as a headless subprocess (or through OMP for a `backend: omp` provider), and each command runs all rounds synchronously and prints its result directly. **WebSearch fallback** when Context7 docs are unavailable.
-
----
-
-## 📖 All Commands
-
-<details>
-<summary><strong>CLI Commands</strong> (28 root commands, 110+ total with subcommands)</summary>
-
-| Command | Description |
-|---------|-------------|
-| `auto init` | Initialize harness — detect platforms, generate files |
-| `auto update` | Update harness (preserves user edits via markers) |
-| `auto quality` | Persist/show quality mode, apply managed profiles, choose supervisor model ownership, or show/change multi-provider review models (`auto quality review`) |
-| `auto doctor` | Health diagnostics |
-| `auto platform` | Manage platforms (list / add / remove) |
-| `auto arch` | Architecture analysis (generate / enforce) |
-| `auto spec` | SPEC management (new / validate / review / gates — gate applicability receipt with exact-input evidence reuse) |
-| `auto lore` | Decision tracking (context / commit / validate / stale) |
-| `auto orchestra` | Multi-model orchestration (brainstorm / plan / review / secure / run) |
-| `auto setup` | Project context documents (generate / update / validate / status) |
-| `auto status` | SPEC dashboard: the declared status (done / in-progress / draft) kept apart from evidence — the last pipeline run, verification against the current code, the last SPEC review — plus installed AI CLIs, the `auto pipeline run` platform, optional Desktop, and next commands it never runs (`--json` carries the same) |
-| `auto telemetry` | Pipeline telemetry (record / summary / cost / compare / leadtime — first-slice and critical-path lead time with baseline regression gate) |
-| `auto skill` | Skill management (list / info / create) |
-| `auto search` | Knowledge search (Exa) |
-| `auto docs` | Library documentation lookup (Context7) |
-| `auto design` | Design context and provider docs (context / import / pack / docs / figma) |
-| `auto lsp` | LSP integration (diagnostics / refs / rename / symbols / definition) |
-| `auto verify` | Frontend UX verification (Playwright + VLM) |
-| `auto check` | Harness rule checks (anti-pattern scanning) |
-| `auto hash` | File hashing (xxhash) |
-| `auto issue` | Auto issue reporter (report / list / search) |
-| `auto experiment` | Autonomous experiment loop (init / metric / record / commit / reset / summary / status) |
-| `auto test` | E2E scenario runner (run) |
-| `auto react` | Reaction engine (check / apply) |
-| `auto agent` | Agent management (create / run) |
-| `auto terminal` | Terminal multiplexer management (detect / workspace / split / send / notify) |
-| `auto pipeline` | Pipeline state management and monitoring |
-| `auto permission` | Permission mode detection (bypass / safe) |
-| `auto browse` | Browser automation (cmux browser / agent-browser) |
-| `auto canary` | Post-deploy health check (build + E2E + browser) |
-| `auto connect` | Provider connection wizard (server auth → workspace → OpenAI OAuth) |
-| `auto connect status` | Local verify/readiness summary for saved connect state |
-| `auto update --self` | CLI binary self-update (publisher signature + SHA256) |
-
-</details>
-
-<details>
-<summary><strong>Slash Commands</strong> (inside AI Coding CLI)</summary>
-
-| Command | Description |
-|---------|-------------|
-| `/auto plan "description"` | Create a SPEC for a new feature |
-| `/auto go SPEC-ID` | Implement with full pipeline |
-| `/auto go SPEC-ID --auto --loop` | Fully autonomous + self-healing |
-| `/auto go SPEC-ID --team` | Agent Teams (Lead/Builder/Guardian) |
-| `/auto go SPEC-ID --multi` | Multi-provider orchestration |
-| `/auto fix "bug"` | Reproduction-first bug fix |
-| `/auto review` | TRUST 5 code review |
-| `/auto secure` | OWASP Top 10 security audit |
-| `/auto map` | Codebase structure analysis |
-| `/auto sync SPEC-ID` | Sync docs after implementation |
-| `auto sync verify [--spec SPEC-ID] [--strict]` | Read-only, fail-closed commit plan: one group in a single repo, Phase A/B in a multi-repo workspace |
-| `auto spec change SPEC-ID --class small_ui --ac AC-001 --surface path` | Compact change contract for low-risk work; high-risk classes escalate to a full SPEC |
-| `auto spec gates SPEC-ID --change-class small_ui --json` | Per-gate `required/not_applicable/blocked` applicability with reasons |
-| `auto spec review SPEC-ID --single-pass` | One provider round; receipt carries `loop_status` and `blocking_reasons` |
-| `auto spec timing SPEC-ID` | How long the last review took, per round and provider (from `review-receipt.json`) |
-| `auto disk status` / `check --need 30` / `trim [--apply]` | Shared-machine disk budget: consumers, preflight (exit 3 when short), and a dry-run-first Go build cache trim ([docs](docs/disk-management.md)) |
-| `auto disk reclaim [--apply]` / `register` / `release` / `registry` | Remove finished worktrees the harness owns and idle session scratchpads, dry run first ([docs](docs/disk-management.md#reclaim)) |
-| `auto disk lease --need 20 -- <command>` / `log` | Run a heavy command under a machine-wide disk reservation; show trims, reclaims, refusals, and low-space alerts ([docs](docs/disk-management.md#leases)) |
-| `profile: lean` + `change_class: <low-risk class>` + `surface: <paths>` in spec.md frontmatter | Lean SPEC set for new low-risk work: reduced section floor, one reviewer, no judge. The surface is classified at validate time, and `auto spec gates` escalates work that leaves it |
-| `/auto dev "description"` | Full power: plan(--multi --ultrathink) → go(--team --loop) → sync |
-| `/auto setup` | Generate/update project context docs |
-| `/auto stale` | Detect stale decisions and patterns |
-| `/auto why "question"` | Query decision rationale |
-| `/auto experiment` | Autonomous experiment loop (metric-driven iteration) |
-| `/auto test` | Run E2E scenarios against your project |
-| `/auto go SPEC-ID --continue` | Resume interrupted pipeline from checkpoint |
-| `/auto browse` | Browser automation — open, snapshot, click, verify |
-| `/auto idea "description"` | Multi-provider brainstorm with ICE scoring |
-| `/auto canary` | Post-deploy health check (build + E2E + browser) |
-
-</details>
-
----
-
-## ⚙️ Configuration
-
-<details>
-<summary><strong><code>autopus.yaml</code></strong> — single config for everything</summary>
-
-```yaml
-mode: full                    # full or lite
 project_name: my-project
-platforms:
-  - claude-code
+platforms: [claude-code, codex]
+
+language:
+  comments: en          # code comments
+  commits: en           # commit messages
+  ai_responses: en      # agent replies
 
 architecture:
-  auto_generate: true
-  enforce: true
+  max_file_lines: 300   # optional ceiling for file-size-limit; unset or 0 is advisory
+
+hooks:
+  verify_stop: true     # Claude Code Stop hook (default on when unset)
+  pre_commit_lore: true # Lore commit-msg hook
+  pre_commit_arch: true
 
 lore:
   enabled: true
-  required_trailers: [Why, Decision]
-  stale_threshold_days: 90
-  forbidden_trailers: [Co-Authored-By]  # default; [] allows them
+  required_trailers: [Constraint]
+  forbidden_trailers: [Co-Authored-By]   # default; [] allows them
 
-spec:
-  review_gate:
-    enabled: true
-    strategy: debate
-    providers: [claude, gemini]
-    judge: claude
-    # judge_model: claude-opus-5-5  # optional: the judge's own model; reviewers keep theirs
-    # judge_effort: max
-
-methodology:
-  mode: tdd
-  enforce: true
-
-orchestra:
+orchestra:              # providers for multi-provider review
   enabled: true
   default_strategy: consensus
+  judge: claude
   providers:
     claude:
       binary: claude
     codex:
       binary: codex
-    gemini:
-      binary: agy
-    opencode:
-      binary: opencode
 ```
 
-</details>
+`auto config --help` lists the config subcommands, and `auto quality` picks quality presets and
+review models.
 
-### Agent Team auto-selection
+Presets, per-agent models, OMP model pins, review models, and the REA MCP flags are covered in
+[docs/quality.md](docs/quality.md).
 
-| Setting | Default | Effect |
-|---------|---------|--------|
-| `workflow.auto_team` | absent (= on) | `false` keeps every `/auto go` Phase 2 on subagents. Only a YAML bool (`true`/`false`) loads. |
+## Security
 
-In Claude Code, an `/auto go` run without `--team`, `--workflow`, or `--solo`
-decides once, when it enters Phase 2, whether the first ready wave runs as a
-native Agent Team. It switches only for an interactive session that already
-has `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`, runs Claude Code 2.1.246 or
-newer, and has the `SendMessage` tool and the `Agent` tool's `name` parameter,
-when the plan holds at least two ready worker units with disjoint owned paths.
-Every such run prints one `Agent Team:` line that says why it switched or
-stayed.
+- **Signed releases.** Every release since v0.50.73 ships `checksums.txt` and an ECDSA P-256
+  publisher envelope `checksums.txt.signatures`. The POSIX installer, the Windows installer, and
+  `auto update --self` authenticate the checksum manifest before downloading or extracting, then
+  verify the archive's SHA256. Missing or untrusted signing data fails closed; there is no
+  checksum-only fallback.
+- **Inspect before you install.** Download `install.sh`, read it, then run it:
 
-- Each teammate is a separate Claude session, so a team run uses more tokens.
-  The feature is experimental.
-- Turn it off with `workflow.auto_team: false`, or pass `--solo` for one run.
-- auto 0.50.113 through 0.50.125 refuse an `autopus.yaml` that contains
-  `workflow.auto_team` with any value, `true` included. auto 0.50.112 and older
-  ignore the key, and their `auto update` deletes it. auto never writes the key
-  itself.
-- The version is read from the running binary that `CLAUDE_CODE_EXECPATH` names
-  (`claude` or `claude.exe`), never from `PATH`. Other installs stay on
-  subagents with the `claude_version_unknown` line.
-- The session environment cannot tell a subagent from the top-level session:
-  Claude Code sets `CLAUDE_CODE_CHILD_SESSION=1` for every process a session
-  starts. A session without `SendMessage` or the `Agent` tool's `name`
-  parameter, such as a subagent, prints the `the SendMessage tool or the Agent name parameter is unavailable`
-  line and stays on subagents.
-- The shared task-list tools (`TaskCreate`, `TaskUpdate`, `TaskList`,
-  `TaskGet`) are optional for the automatic team and for `--team`. Current
-  Claude Code releases enable them only in some configurations; without them
-  the lead tracks the units itself and puts each assignment in the teammate's
-  prompt.
-- `auto workflow triage --topology --facts-json <file>` prints the decision
-  without launching an agent or writing a file. Facts it rejects come back as
-  an `invalid_facts` decision whose line names the rejected field.
+  ```bash
+  curl -sSfL https://raw.githubusercontent.com/autopus-ai/autopus-adk/main/install.sh -o install.sh
+  less install.sh && sh install.sh
+  ```
 
----
+- **Trust boundary.** The one-line installers are served from the repository's `main` branch.
+  Publisher verification protects release assets, but it does not authenticate the installer
+  bootstrap itself. A compromise of `main` could replace the verifier.
+- **QA writes stay contained.** `qa-explorer` writes only under `.autopus/qa/hunt/`, and repro
+  scripts run on your machine with your permissions, so read a repro before running it by hand.
+- **No API keys.** Autopus drives the provider CLIs you already have; it does not hold your
+  provider API keys. Network calls happen only in explicit commands such as `auto update --self`,
+  `auto orchestra`, multi-provider review, `auto search`, and `auto connect`.
 
-## 🏗️ Architecture
+## Contributing
 
-```
-autopus-adk/
-├── cmd/auto/           # Entry point
-├── internal/cli/       # 28 Cobra commands (110+ total with subcommands)
-├── pkg/
-│   ├── adapter/        # 4 platform adapters (Claude, Codex, Gemini, OpenCode)
-│   ├── arch/           # Architecture analysis + rule enforcement
-│   ├── browse/         # Browser automation backend (cmux/agent-browser routing)
-│   ├── config/         # Configuration schema + YAML loading
-│   ├── constraint/     # Anti-pattern scanning
-│   ├── content/        # Agent/skill/hook/profile generation + skill activator
-│   ├── cost/           # Token-based cost estimator
-│   ├── detect/         # Platform/framework/permission detection
-│   ├── e2e/            # E2E scenario generation, execution, verification
-│   ├── experiment/     # Autonomous experiment loop (metric, circuit breaker)
-│   ├── issue/          # Auto issue reporter (context collection, sanitization)
-│   ├── lore/           # Decision tracking (9-trailer protocol)
-│   ├── lsp/            # LSP integration
-│   ├── orchestra/      # Multi-model orchestration (4 strategies + brainstorm + debate judge, subprocess and OMP backends)
-│   ├── pipeline/       # Pipeline state persistence + checkpoint + team monitor
-│   ├── search/         # Knowledge search (Context7/Exa) + hash-based search
-│   ├── selfupdate/     # CLI binary self-update (publisher signature, SHA256, transactional replace)
-│   ├── setup/          # Project doc generation + validation
-│   ├── sigmap/         # AST-based API signature extraction (Go + TypeScript)
-│   ├── spec/           # EARS requirement parsing/validation
-│   ├── telemetry/      # Pipeline telemetry (JSONL event recording)
-│   ├── template/       # Go template rendering
-│   ├── terminal/       # Terminal multiplexer adapters (cmux, tmux, plain)
-│   └── version/        # Build metadata
-├── templates/          # Platform-specific templates
-├── content/            # Embedded content (17 agents, 53 skills)
-└── configs/            # Default configuration
-```
-
----
-
-## 🔒 Security
-
-### 🛡️ Supply Chain Attack Protection
-
-> *"A popular Python package with tens of millions of monthly downloads was injected with malicious code. A simple `pip install` could steal SSH keys, AWS credentials, and DB passwords — not from the package you installed, but from somewhere deep in its dependency tree."* — [Andrej Karpathy](https://x.com/karpathy)
-
-AI coding environments make this worse: agents auto-install packages, expand dependency trees, and execute code — all without human review. **Autopus builds defense into the pipeline itself.**
-
-#### How Autopus Protects Your Development Workflow
-
-| Layer | Protection | How |
-|-------|-----------|-----|
-| **Pipeline Gate** | Dependency vulnerability scan at every `/auto go` | Security Auditor agent runs `govulncheck ./...` in Phase 4 |
-| **Secret Detection** | Hardcoded credentials caught before commit | `gitleaks detect` scans all changed files |
-| **Dependency Audit** | Known CVE detection in dependency tree | `go list -m -json all \| nancy sleuth` for Go projects |
-| **Lock File Integrity** | Checksum-verified dependencies | Go's `go.sum` ensures reproducible, tamper-proof builds |
-| **OWASP Top 10** | Injection, auth bypass, SSRF — all checked | Security Auditor covers A01–A10 systematically |
-| **AI Agent Guardrails** | Agents can't blindly install packages | Harness rules constrain agent actions; security gate blocks deploy on FAIL |
-
-#### For Non-Go Projects
-
-The same principles apply when Autopus manages Python, Node.js, or other ecosystems:
-
-```yaml
-# autopus.yaml — configure per-ecosystem security scans
-security:
-  scanners:
-    go: "govulncheck ./..."
-    python: "pip-audit && safety check"
-    node: "npm audit --audit-level=high"
-```
-
-**Best practices enforced by the harness:**
-- **Version pinning** — Lock all dependencies to exact versions (`go.sum`, `package-lock.json`, `requirements.txt`)
-- **Minimal dependencies** — Reuse existing code and native capabilities before adding dependencies or abstractions
-- **Isolation** — Use native isolation when available; shared-workspace writers require disjoint ownership. Conversation forks alone do not isolate files.
-- **No blind installs** — Security Auditor agent flags unknown or unvetted packages before they enter the codebase
-
-### Binary Distribution Safety
-
-Every binary release from v0.50.73 includes **SHA256 checksums** (`checksums.txt`) and an ECDSA
-P-256 publisher envelope (`checksums.txt.signatures`). The current POSIX installer, Windows
-installer, and the self-updater shipped in v0.50.73 or later authenticate the checksum manifest
-before downloading or extracting an archive, then verify the archive checksum. They do not fall
-back to checksum-only installation. The installers reject unsigned v0.50.72-or-earlier releases.
-
-The POSIX path requires OpenSSL plus `sha256sum` or `shasum`; missing verification tools fail
-closed. The Windows path uses the platform CNG implementation and `Get-FileHash`.
-
-**Recommended: Inspect before you install**
+Autopus-ADK is open source under the MIT license. PRs are welcome.
 
 ```bash
-# 1. Download the script first — review it before running
-curl -sSfL https://raw.githubusercontent.com/autopus-ai/autopus-adk/main/install.sh -o install.sh
-less install.sh          # Read what it does
-sh install.sh            # Run only after review
+make test       # tests with race detection
+make lint       # go vet
+make coverage   # coverage report
 ```
 
-**Or verify manually:**
+CI splits the `internal/cli` tests into name-hash shards. A failing job named like
+`test-cli (3/5)` can be re-run locally with `make test-cli-shard SHARD=3/5`.
 
-```bash
-# Download binary + checksums separately
-VERSION=$(curl -s https://api.github.com/repos/autopus-ai/autopus-adk/releases/latest | grep tag_name | sed 's/.*"v\(.*\)".*/\1/')
-curl -LO "https://github.com/autopus-ai/autopus-adk/releases/download/v${VERSION}/autopus-adk_${VERSION}_$(uname -s | tr A-Z a-z)_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz"
-curl -LO "https://github.com/autopus-ai/autopus-adk/releases/download/v${VERSION}/checksums.txt"
+Commits use the Lore format described above. See [CHANGELOG.md](CHANGELOG.md) for release notes.
 
-# Verify SHA256 integrity only (this does not authenticate the publisher)
-shasum -a 256 -c checksums.txt --ignore-missing
-```
+## License
 
-For an authenticated install, use the inspected current installer or the updater shipped in
-v0.50.73 or later; both require a trusted publisher signature before accepting `checksums.txt`.
-
-Trust boundary: the one-line installers are served from the repository's `main` branch. Given
-trusted installer or updater bytes, publisher verification protects release assets delivered by
-GitHub and its CDN. It does not authenticate the installer bootstrap itself. A compromise of
-repository `main` or raw-main delivery can replace the verifier, pins, or download target without
-also compromising the release assets. An independently pinned installer origin is not provided yet.
-
-### What We Don't Do
-
-- No telemetry or analytics collection
-- No network calls except explicit commands (`orchestra`, `search`, `update --self`)
-- No access to your AI provider API keys — Autopus orchestrates CLI tools, not API calls
-
----
-
-## 🤝 Contributing
-
-Autopus-ADK is open source under the MIT license. PRs welcome!
-
-```bash
-make test       # Run tests with race detection
-make lint       # Run go vet
-make coverage   # Generate coverage report
-```
-
-CI runs the unit gate as parallel jobs and splits the `internal/cli` tests into
-name-hash shards. A failing shard job is named like `test-cli (3/5)`; rerun
-exactly that shard locally with the numbers from its name:
-
-```bash
-make test-cli-shard SHARD=3/5
-```
+[MIT](LICENSE)
 
 ---
 
 <div align="center">
 
-**🐙 Autopus** — Of the agents. By the agents. For the agents.
+**🐙 Autopus** — verify what the agent built by running it.
 
 </div>

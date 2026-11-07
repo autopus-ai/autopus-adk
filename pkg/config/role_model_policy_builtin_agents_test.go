@@ -17,7 +17,7 @@ func TestBuiltinRoleModelProfile_UltraProjectsEachAgentTier(t *testing.T) {
 	profile, ok := BuiltinRoleModelProfile("ultra", quality, "anthropic", "")
 	require.True(t, ok)
 	require.NoError(t, validateRoleModelProfile("ultra", profile))
-	require.Len(t, profile.Agents, len(CanonicalAgentNames()))
+	require.Len(t, profile.Agents, len(CanonicalAgentNames())+len(legacyAgentNames))
 	assert.Equal(t, builtinDiversityPolicy(), profile.FamilyDiversity)
 
 	astra := []RoleModelCandidateConf{

@@ -29,7 +29,7 @@ func TestFreshOMPUsesBundledAgentsWithoutProjectShadows(t *testing.T) {
 			agentFiles++
 		}
 	}
-	assert.Equal(t, 17, agentFiles, "the default source generates the canonical agents")
+	assert.Equal(t, 4, agentFiles, "the default source generates the canonical agents")
 	assert.DirExists(t, filepath.Join(root, ".omp", "agents"))
 	findings, err := a.Validate(context.Background())
 	require.NoError(t, err)

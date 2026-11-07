@@ -33,18 +33,21 @@ func TestEvaluateMethodologyGate(t *testing.T) {
 		wantDetail []string
 	}{
 		{
-			name:       "tdd enforced resolves and validates",
+			// The verification harness ships no methodology skill, so a
+			// v0.50.134 config that enforces tdd has nothing to deliver; it is
+			// reported, not failed, so `auto check` keeps passing after update.
+			name:       "tdd enforced is retired, not failed",
 			mode:       "tdd",
 			enforce:    true,
-			wantStatus: methodologyGatePass,
-			wantDetail: []string{"tdd", "enforce: true", "red → green → refactor"},
+			wantStatus: methodologyGateSkip,
+			wantDetail: []string{"tdd", "methodology.mode: none"},
 		},
 		{
-			name:       "ddd declared without enforce still validates",
+			name:       "ddd declared without enforce is retired too",
 			mode:       "ddd",
 			enforce:    false,
-			wantStatus: methodologyGatePass,
-			wantDetail: []string{"ddd", "enforce: false", "analyze → preserve → improve"},
+			wantStatus: methodologyGateSkip,
+			wantDetail: []string{"ddd", "methodology.mode: none"},
 		},
 		{
 			name:       "none without enforce claims nothing",
@@ -123,7 +126,7 @@ func TestCheckMethodology_ValidAndBrokenConfig(t *testing.T) {
 	require.NoError(t, config.Save(valid, methodologyGateConfig("tdd", true)))
 	var validOut bytes.Buffer
 	assert.True(t, checkMethodology(valid, &validOut, false))
-	assert.Contains(t, validOut.String(), "red → green → refactor")
+	assert.Contains(t, validOut.String(), "methodology.mode: none")
 
 	broken := t.TempDir()
 	require.NoError(t, config.Save(broken, methodologyGateConfig("kanban", true)))
@@ -149,10 +152,10 @@ func TestMethodologyGate_DoctorSurfaceParity(t *testing.T) {
 		wantStatus string
 	}{
 		{
-			name:       "valid methodology",
+			name:       "retired methodology",
 			cfg:        methodologyGateConfig("tdd", true),
 			wantTextOK: true,
-			wantStatus: "pass",
+			wantStatus: "skip",
 		},
 		{
 			name:       "unknown mode",

@@ -3,8 +3,6 @@ package codex
 import (
 	"fmt"
 	"strings"
-
-	"github.com/insajin/autopus-adk/templates"
 )
 
 type customWorkflowBody struct {
@@ -23,10 +21,6 @@ func renderCustomWorkflowSkill(spec workflowSpec) (string, bool) {
 // @AX:NOTE: [AUTO] hardcoded workflow dispatch table — adding a new auto-* workflow requires a case here; this switch is the single source of truth for custom workflow rendering
 func customWorkflowBodies(spec workflowSpec) (customWorkflowBody, bool) {
 	switch spec.Name {
-	case "auto-status":
-		return cliWorkflowBody(spec.Name, "SPEC Dashboard", spec.Description, "auto status", "draft / approved / implemented / completed 상태를 요약하고 다음 액션을 제안합니다."), true
-	case "auto-goal":
-		return goalWorkflowBody(spec.Name, spec.Description), true
 	case "auto-update":
 		return updateWorkflowBody(spec.Name, spec.Description), true
 	case "auto-verify":
@@ -35,42 +29,7 @@ func customWorkflowBodies(spec workflowSpec) (customWorkflowBody, bool) {
 		return cliWorkflowBody(spec.Name, "E2E Scenario Runner", spec.Description, "auto test run", "scenario별 PASS / FAIL 결과를 정리하고 실패 시 다음 복구 액션을 제안합니다."), true
 	case "auto-doctor":
 		return cliWorkflowBody(spec.Name, "Harness Diagnostics", spec.Description, "auto doctor", "platform wiring, rules, plugins, dependencies 상태를 요약하고 fix 필요 시 명시합니다."), true
-	case "auto-map":
-		return taskWorkflowBody(spec.Name, "Codebase Structure Analysis", spec.Description, "explorer", "Analyze the requested scope, summarize directory structure, entrypoints, dependencies, and notable files."), true
-	case "auto-secure":
-		return taskWorkflowBody(spec.Name, "Security Audit", spec.Description, "security-auditor", "Audit the requested scope using OWASP Top 10 categories. Focus on exploitable risks, missing tests, and secrets exposure."), true
-	case "auto-why":
-		return whyWorkflowBody(spec.Name, spec.Description), true
-	case "auto-dev":
-		return devWorkflowBody(spec.Name, spec.Description), true
-	case "auto-reverse":
-		return reverseWorkflowBody(spec.Name, spec.Description), true
 	default:
 		return customWorkflowBody{}, false
 	}
-}
-
-// reverseWorkflowBody renders the shared /auto reverse contract. Its consent
-// question and confirmation gate stay in the main Codex session; the
-// reverse-engineer worker only analyses and returns a behaviour specification.
-func reverseWorkflowBody(name, summary string) customWorkflowBody {
-	skill := compose(
-		"# "+name+" — Clean-room Reverse Implementation",
-		"",
-		"## 설명",
-		"",
-		summary,
-		"",
-		"## Codex Invocation",
-		"",
-		"- `@auto reverse <대상> <기능> [--runtime]`",
-		"- `$"+name+" ...`",
-		"- `$auto reverse ...`",
-		"",
-		"## Contract",
-		"",
-		templates.ReverseRouteContract(),
-	)
-
-	return customWorkflowBody{skill: skill}
 }

@@ -83,7 +83,7 @@
     "ref": "content/skills/harness-workflow.md, content/skills/agent-teams.md (platforms), templates/codex/skills/agent-teams.md.tmpl"
   },
   "status": {
-    "state": "active",
-    "reason": ""
+    "state": "retired",
+    "reason": "The verification harness retired Route A, route-team workflows, and the agent-teams skill: Claude no longer installs .claude/workflows/*.js and Codex no longer installs codex-agent-teams."
   }
 }

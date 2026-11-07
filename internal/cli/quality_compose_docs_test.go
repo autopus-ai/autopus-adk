@@ -11,8 +11,7 @@ import (
 )
 
 // SPEC-MODELUX-001 REQ-MUX-23 / S18: the help of auto quality, auto update,
-// and auto init, README.md, docs/README.ko.md, the generated quality skills,
-// and CHANGELOG.md document the role groups, the table, the binding, the
+// and auto init, docs/quality.md, docs/quality.ko.md, and CHANGELOG.md document the role groups, the table, the binding, the
 // update question rules, the GAP 1 classes, and the OMP requested-route
 // scope. Every statement below comes from the code that prints it, so
 // renaming a group, moving an agent, or rewording a label fails here until
@@ -89,7 +88,7 @@ func TestUpdateHelp_LongDocumentsTheCompositionQuestionRules(t *testing.T) {
 	help := flowText(update.Long)
 	assert.Contains(t, help, composeTextFor("ko").Question)
 	for _, want := range []string{
-		"Enter", "u는", "g는 역할 그룹 4개", "a는", "y로 확인", "CI", "TTY", "auto quality --help",
+		"Enter", "u는", "g는 역할 그룹 2개", "a는", "y로 확인", "CI", "TTY", "auto quality --help",
 	} {
 		assert.Contains(t, help, want)
 	}
@@ -120,7 +119,7 @@ func TestInitHelp_LongDocumentsTheRoleGroupChoice(t *testing.T) {
 	assert.True(t, found, "auto init must have --yes and inherit --quality")
 }
 
-// composeDocRefusal names who refuses a reference file in each README
+// composeDocRefusal names who refuses a reference file in each quality
 // locale: the composition step and the per-tool editors, never the
 // subcommands that take arguments (REQ-MUX-16).
 var composeDocRefusal = map[string]string{
@@ -128,13 +127,13 @@ var composeDocRefusal = map[string]string{
 	"ko": "구성 단계와 도구별 편집기는 quality 블록에",
 }
 
-// TestComposeDocs_ReadmesDocumentGroupsTableBindingAndUpdate checks README.md
-// in English and docs/README.ko.md in Korean, in the words the step prints in
+// TestComposeDocs_ReadmesDocumentGroupsTableBindingAndUpdate checks docs/quality.md
+// in English and docs/quality.ko.md in Korean, in the words the step prints in
 // that locale.
 func TestComposeDocs_ReadmesDocumentGroupsTableBindingAndUpdate(t *testing.T) {
 	t.Parallel()
 
-	for path, lang := range map[string]string{"README.md": "en", "docs/README.ko.md": "ko"} {
+	for path, lang := range map[string]string{"docs/quality.md": "en", "docs/quality.ko.md": "ko"} {
 		doc := flowText(readRepoFile(t, strings.Split(path, "/")...))
 		for _, want := range append(composeDocGroups(lang), composeDocLabels(lang)...) {
 			assert.Contains(t, doc, want, "%s is missing %q", path, want)
@@ -153,47 +152,6 @@ func TestComposeDocs_ReadmesDocumentGroupsTableBindingAndUpdate(t *testing.T) {
 		}, composeDocUpdateRules...) {
 			assert.Contains(t, doc, want, "%s is missing %q", path, want)
 		}
-	}
-}
-
-// TestComposeDocs_GeneratedSkillsTellHowToChangeAgentModels checks that the
-// skills explaining quality modes point to the composition step in their
-// locale, in the content source and in each template generated from it, and
-// that the agent-pipeline quality reference does too.
-func TestComposeDocs_GeneratedSkillsTellHowToChangeAgentModels(t *testing.T) {
-	t.Parallel()
-
-	skills := map[string]struct {
-		lang  string
-		paths []string
-	}{
-		"adaptive-quality": {lang: "en", paths: []string{
-			"content/skills/adaptive-quality.md",
-			"templates/codex/skills/adaptive-quality.md.tmpl",
-			"templates/gemini/skills/adaptive-quality/SKILL.md.tmpl",
-		}},
-		"using-autopus": {lang: "ko", paths: []string{
-			"content/skills/using-autopus.md",
-			"templates/codex/skills/using-autopus.md.tmpl",
-			"templates/gemini/skills/using-autopus/SKILL.md.tmpl",
-		}},
-	}
-	for name, skill := range skills {
-		for _, path := range skill.paths {
-			doc := flowText(readRepoFile(t, strings.Split(path, "/")...))
-			for _, group := range composeRoleGroups {
-				assert.Contains(t, doc, group.Label(skill.lang), "%s (%s) is missing a group label", path, name)
-			}
-			for _, want := range []string{
-				"`agent=tier`", "`quality.presets.custom`", "`auto quality show --agents`",
-			} {
-				assert.Contains(t, doc, want, "%s (%s) is missing %q", path, name, want)
-			}
-		}
-	}
-	pipeline := flowText(readRepoFile(t, "content", "skills", "references", "agent-pipeline", "quality-modes.md"))
-	for _, want := range []string{"`auto quality`", "`agent=tier`", "regeneration overwrites"} {
-		assert.Contains(t, pipeline, want, "agent-pipeline quality-modes.md is missing %q", want)
 	}
 }
 

@@ -47,7 +47,7 @@ func TestComposeFormLocale_TextFollowsTheLocaleAndValuesDoNot(t *testing.T) {
 			}
 			preset := composeBindLoad(t, dir).Quality.Presets["codex-custom"]
 			assert.Equal(t, "Codex custom agent tiers", preset.Description)
-			assert.Equal(t, "sonnet", preset.Agents["planner"])
+			assert.Equal(t, "sonnet", preset.Agents["reviewer"])
 		})
 	}
 }

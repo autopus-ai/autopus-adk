@@ -66,10 +66,10 @@ func TestComposeTerminalText_EscapesFormatCharacters(t *testing.T) {
 	assertNoTerminalControls(t, status)
 
 	cfg := config.DefaultFullConfig("p")
-	cfg.Quality.Presets[name] = config.QualityPreset{Agents: map[string]string{"planner": "haiku"}}
+	cfg.Quality.Presets[name] = config.QualityPreset{Agents: map[string]string{"reviewer": "haiku"}}
 	cfg.Quality.Default = name
 	start := newQualityComposition(cfg.Quality, composeGroupsSources(t))
-	plan := planComposeBinding(cfg, start, composeBindEdited(t, start, map[string]string{"planner": "opus"}))
+	plan := planComposeBinding(cfg, start, composeBindEdited(t, start, map[string]string{"reviewer": "fable"}))
 	lines := describeComposeBinding(cfg, plan, driftGenerationSnapshot{}, nil, "en")
 	assert.Contains(t, lines, "quality.default "+terminalSafe(name)+" → custom")
 	assertNoTerminalControls(t, strings.Join(lines, "\n"))

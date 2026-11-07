@@ -15,21 +15,12 @@ import (
 )
 
 // shippedRuleClassification is the S11 expected classification per rule.
+// The verification harness ships four rules and no skill-scoped one.
 var shippedRuleClassification = map[string]string{
-	"branding":            "always",
-	"deferred-tools":      "always",
-	"language-policy":     "always",
-	"objective-reasoning": "always",
-	"project-identity":    "always",
-	"subagent-delegation": "always",
-	"context7-docs":       "skill-scoped",
-	"doc-storage":         "skill-scoped",
-	"spec-quality":        "skill-scoped",
-	"techstack-freshness": "skill-scoped",
-	"file-size-limit":     "paths-scoped",
-	"lore-commit":         "hook-fired",
-	"shell-portability":   "hook-fired",
-	"worktree-safety":     "hook-fired",
+	"autonomy":        "always",
+	"language-policy": "always",
+	"file-size-limit": "paths-scoped",
+	"lore-commit":     "hook-fired",
 }
 
 // runRulesList executes `auto rules list` and returns its stdout.
@@ -68,10 +59,10 @@ func TestRulesList_ClassificationIsInspectable(t *testing.T) {
 		assert.Contains(t, row, want, "rule %s classification", name)
 		counts[want]++
 	}
-	assert.Equal(t, 3, counts["hook-fired"])
+	assert.Equal(t, 1, counts["hook-fired"])
 	assert.Equal(t, 1, counts["paths-scoped"])
-	assert.Equal(t, 4, counts["skill-scoped"])
-	assert.Equal(t, 6, counts["always"])
+	assert.Zero(t, counts["skill-scoped"])
+	assert.Equal(t, 2, counts["always"])
 
 	lore := rowFor(t, output, "lore-commit")
 	assert.Contains(t, lore, "tool:bash", "hook-fired rules print their trigger")
@@ -81,14 +72,8 @@ func TestRulesList_ClassificationIsInspectable(t *testing.T) {
 	fileSize := rowFor(t, output, "file-size-limit")
 	assert.Contains(t, fileSize, ".claude/rules/autopus/file-size-limit.md")
 
-	branding := rowFor(t, output, "branding")
-	assert.Contains(t, branding, ".claude/rules/autopus/branding.md")
-
-	specQuality := rowFor(t, output, "spec-quality")
-	assert.Contains(t, specQuality, ".claude/hooks/autopus/conditional/spec-quality.md",
-		"a skill-scoped rule prints the relocated body destination it actually has")
-	assert.NotContains(t, specQuality, "tool:",
-		"a skill-scoped rule has no runtime trigger to print")
+	autonomy := rowFor(t, output, "autonomy")
+	assert.Contains(t, autonomy, ".claude/rules/autopus/autonomy.md")
 }
 
 // TestRulesFire_MissingManifestExitsZeroWithNoOutput keeps the CLI entry point

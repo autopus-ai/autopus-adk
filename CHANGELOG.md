@@ -4,6 +4,60 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **구성 화면의 역할 그룹이 생성되는 네 에이전트만 담는다** (2026-11-07): `auto init`·`auto quality`·`auto update`의
+  역할 그룹(g)과 구성 표가 이제 구현(frontend-specialist)과 검증·리뷰(reviewer, qa-explorer, ux-validator) 두 그룹,
+  네 행이다. 전에는 생성하지 않는 레거시 역할 14개가 표에 남고, 설계·판단·탐색·보조 그룹 등급이 빈 칸으로 보였으며, 그룹을
+  고르면 그 역할이 `quality.presets.custom`에 저장되었다. OMP 마이그레이션 안내는 에이전트 수를 생성 에이전트에서 센다.
+  OMP 탭의 task 선택지 "planner를 따름"은 "OMP 세션 모델 그대로"가 된다. planner는 pin을 받지 않으므로 실제로 가는 곳이
+  OMP 세션 모델이다. OMP 탭 저장은 task의 시작 route를 pin으로 남겨, 프로필 변환이나 손으로 쓴 planner pin이 있는 편집에서
+  task가 조용히 세션 모델로 내려가지 않는다.
+
+- **하네스를 리뷰·QA·검증 표면으로 줄인다** (2026-11-07): frontier 모델은 계획과 구현을 혼자서도 잘 하므로,
+  다섯 플랫폼 모두 검증 표면만 설치한다.
+  - 라우트는 `review`, `qa`, `verify`, `test`, `sync`, `update`, `doctor`(그리고 `browse` 별칭)만 남는다. `setup`,
+    `status`, `goal`, `plan`, `go`, `fix`, `idea`, `map`, `why`, `secure`, `dev`, `canary`, `reverse`, `spec review`·`stale`
+    별칭, Claude `.claude/workflows/*.js`는 더 이상 설치하지 않는다.
+  - 에이전트는 reviewer, qa-explorer, frontend-specialist, ux-validator 넷, 규칙은 language-policy, lore-commit,
+    file-size-limit, autonomy 넷이다. 스킬은 review, verification, frontend-verify, qa-autopilot, qa-hunt,
+    browser-automation, playwright-cli, lore-commit, testing-strategy 아홉 개(모두 core)다. agy의 rea-mcp-guard 규칙은
+    그대로 둔다.
+  - `auto update`는 manifest에 기록된 삭제 표면을 지운다. codex `.codex/agents`, opencode agents·commands·rules도
+    이제 prune 대상이다. 업데이트하지 않은 설치도 `auto platform remove`로 정리할 수 있다.
+  - balanced·ultra 프리셋은 남은 에이전트만 쓴다. v0.50.134의 17개 배치는 HB8·HU4로 등록해 갱신 대상으로 보고,
+    예전 에이전트의 efforts 키는 값만 검사하고 받아들인다. planner·executor 같은 역할은 `auto pipeline`과 OMP
+    task가 아직 쓰므로 세 에이전트 형식 프리셋에서도 v0.50.134 티어를 유지한다.
+  - 새 설정의 `methodology.mode`는 `none`이다. tdd 등을 쓰던 설정은 `auto doctor`·`auto check`에서 실패 대신 안내로
+    보고된다. `auto spec review` 체크리스트는 설치하지 않는 `content/checklists/`에서 읽는다.
+  - `auto spec`, `auto orchestra`, `auto workflow`, `auto pipeline` 같은 CLI 명령은 바이너리에 그대로 있다.
+
+- **AI가 제품을 직접 돌려 버그를 찾는 QA hunt를 들인다** (2026-11-07): `/auto qa`의 기본 동작이 "Bug Hunt"가 된다.
+  qa-explorer 에이전트가 바뀐 제품을 실제로 실행해 경계값·오류 경로·상태 전이를 공격하고, 찾은 버그마다
+  `.autopus/qa/hunt/<id>/finding.json`과 `repro.sh`(버그가 있으면 exit 1, 고쳐지면 exit 0)를 남긴다. qa-explorer는
+  그 디렉터리 밖에는 쓰지 않는다. `auto qa hunt verify`가 모든 repro를 다시 돌려 confirmed·flaky·not_reproduced·
+  broken_repro로 가르고 결과 보고서를 남긴다. 심어 둔 버그 세 개로 시험했을 때 셋 다 찾았고, 같은
+  실행에서 원래 있던 버그 세 개를 더 찾았다.
+
+- **검증 hook이 큰 변경에는 리뷰와 QA hunt까지 이어서 돈다** (2026-11-07): `auto verify stop`이 빌드·테스트를
+  통과한 뒤 바뀐 source가 40줄 이상이면, 사용자 입력 없이 후속 라운드를 요청한다. 라운드에서는 reviewer가
+  `git diff HEAD`를 보고, qa-explorer가 hunt를 돌리고, `auto qa hunt verify`로 확인된 버그를 고친다. 라운드는 세션당
+  최대 두 번이다. 하네스 경로(`.autopus/`, `.claude/` 등)와 문서는 줄 수에 세지 않는다. `--followup=false`로 끈다.
+
+- **알아서 진행하고 물을 때는 객관식으로 묻는다** (2026-11-07): 새 `autonomy` 규칙(alwaysApply)과 root 문서 지침이,
+  되돌릴 수 있는 결정은 묻지 않고 진행하게 한다. 사용자 결정이 꼭 필요할 때는 Claude Code에서 `AskUserQuestion`
+  (deferred면 `ToolSearch`로 먼저 불러온다)으로, 그 도구가 없는 플랫폼에서는 번호 붙은 선택지로 묻는다. 자유 서술
+  질문은 하지 않는다.
+
+- **`/auto sync`가 SPEC 없이 변경에서 낡은 문서만 갱신한다** (2026-11-07): sync는 `git diff HEAD`를 읽고 변경이
+  낡게 만든 README·CHANGELOG·docs만 고친 뒤, 문서가 이름을 대는 명령과 flag를 `--help`로 확인한다. SPEC 상태
+  게이트와 @AX 태그 처리는 없어졌다. `/auto review`의 게이트도 SPEC 없이 변경 기준으로 돈다.
+
+- **세션이 끝나기 전에 바뀐 코드를 빌드하고 테스트한다** (2026-11-07): Claude Code에 `Stop` hook `auto verify stop`을
+  등록한다. 작업 트리가 HEAD와 다르면 바뀐 파일이 속한 toolchain만 돌린다: Go는 `go build ./...`와 바뀐 패키지의
+  `go test`, Node는 lockfile이 가리키는 package manager로 `typecheck`·`test` script, Python은 pytest, Rust는
+  `cargo test`. 실패하면 마지막 60줄과 함께 종료를 막고, 같은 세션에서 세 번 막은 뒤에는 경고만 남기고 끝낸다.
+  통과한 트리가 그대로면 다음 stop에서 다시 돌리지 않는다. 문서만 바뀐 트리, 설치되지 않은 도구는 건너뛴다.
+  `hooks.verify_stop: false`로 등록을 끄고, `AUTOPUS_VERIFY_STOP=off`로 한 세션만 끈다.
+
 - **리뷰 provider 출력 형식 migration과 claude json 해석의 경계 사례를 고친다** (2026-11-06, #271):
   - `--`가 있는 claude·agy args에서 migration이 `--output-format` 쌍을 `--` 뒤에 붙였다. 그 뒤의 flag는 positional이라
     다음 실행에서 쌍을 찾지 못하고 또 붙였고, claude는 그 토큰을 prompt 인자로 받았다. 이제 쌍은 `--` 앞에 한 번만 들어간다.

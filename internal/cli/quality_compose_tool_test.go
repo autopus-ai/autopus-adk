@@ -29,11 +29,11 @@ func newComposeToolRun(t *testing.T, dir string, writer composeSessionWriter) *c
 	return session.shared
 }
 
-// composeS5Edit is S5's Codex tab edit: 설계·판단 on sonnet, off the
-// standard opus top rung.
+// composeS5Edit is S5's Codex tab edit: 검증·리뷰 on sonnet, which moves
+// reviewer off the standard opus top rung.
 func composeS5Edit(start map[string]string) map[string]string {
 	edited := maps.Clone(start)
-	for _, agent := range composeRoleGroups[0].Agents {
+	for _, agent := range composeRoleGroups[1].Agents {
 		edited[agent] = "sonnet"
 	}
 	return edited
@@ -53,8 +53,9 @@ func TestComposeToolPlanner_CodexEditWritesTheProviderBinding(t *testing.T) {
 	plan, err := planner.PlanEdit(composeS5Edit(planner.Start()))
 
 	require.NoError(t, err)
+	require.False(t, plan.NoChange, "the S5 edit must change the composition")
 	assert.Equal(t, []string{
-		"quality.presets.codex-custom 새로 씀 (17개 에이전트)",
+		"quality.presets.codex-custom 새로 씀 (4개 에이전트)",
 		"quality.providers.codex 없음 → codex-custom",
 		"codex-custom은 balanced 표준 배치를 받지 않음",
 		composeToolBlockNotice,
@@ -75,36 +76,31 @@ func TestComposeToolPlanner_CodexEditWritesTheProviderBinding(t *testing.T) {
 	assert.Equal(t, map[string]string{"codex": "codex-custom"}, written.Providers)
 	preset := written.Presets["codex-custom"]
 	assert.Equal(t, "Codex custom agent tiers", preset.Description)
-	want := map[string]string{"architect": "sonnet", "planner": "sonnet", "security-auditor": "sonnet", "spec-writer": "sonnet",
-		"debugger": "opus", "deep-worker": "opus", "reviewer": "opus", "reverse-engineer": "opus"}
-	for _, agent := range []string{"annotator", "devops", "executor", "explorer", "frontend-specialist",
-		"perf-engineer", "tester", "ux-validator", "validator"} {
-		want[agent] = "sonnet"
-	}
+	want := map[string]string{"frontend-specialist": "sonnet", "reviewer": "sonnet", "qa-explorer": "sonnet", "ux-validator": "sonnet"}
 	assert.Equal(t, want, preset.Agents)
 	assert.Equal(t, written, run.cfg.Quality, "the loaded config follows the written quality")
 	assertStrictQualityBlock(t, after)
 }
 
-// The same run's --apply generates the after-table: only the four edited
-// Codex agents move; the other top-rung agents keep the top-rung model, and
-// Claude Code keeps its standard placement (S5).
+// The same run's --apply generates the after-table: the edited Codex agents
+// move to Luna, the unedited frontend-specialist keeps its cell, and Claude
+// Code keeps its standard placement (S5).
 func TestComposeToolPlanner_AppliedCodexEditGeneratesItsTable(t *testing.T) {
 	dir := writeComposeFixture(t, "claude-code", "codex")
 	run := newComposeToolRun(t, dir, composeSessionFile)
 	planner := composeToolPlanner{run: run, tool: composeToolNamed(t, "codex")}
 	plan, err := planner.PlanEdit(composeS5Edit(planner.Start()))
 	require.NoError(t, err)
+	require.False(t, plan.NoChange, "the S5 edit must change the composition")
 	require.NoError(t, plan.Apply())
 
 	cmd, _ := newComposeTestCommand()
 	require.NoError(t, applyQualityHarnessWith(cmd, dir, run.cfg, "auto quality --apply", run.snapshot))
 
-	assert.Equal(t, config.CodexProfile{Model: "gpt-6-luna", Effort: "max"}, readComposeCodexProfile(t, dir, "planner"))
-	assert.Equal(t, config.CodexProfile{Model: "gpt-6-astra", Effort: "max"}, readComposeCodexProfile(t, dir, "debugger"))
-	assert.Equal(t, config.CodexProfile{Model: "gpt-6-luna", Effort: "max"}, readComposeCodexProfile(t, dir, "executor"))
+	assert.Equal(t, config.CodexProfile{Model: "gpt-6-luna", Effort: "max"}, readComposeCodexProfile(t, dir, "reviewer"))
+	assert.Equal(t, config.CodexProfile{Model: "gpt-6-luna", Effort: "max"}, readComposeCodexProfile(t, dir, "frontend-specialist"))
 	assert.Equal(t, composeTableClaudeCell{model: "claude-opus-5-5", effort: "max"},
-		readComposeTableClaudeProfile(t, dir, "planner"))
+		readComposeTableClaudeProfile(t, dir, "reviewer"))
 }
 
 // An edit equal to the start writes nothing and asks nothing (REQ-MUX2-07).
@@ -125,7 +121,7 @@ func TestComposeToolPlanner_EditEqualToStartIsNoChange(t *testing.T) {
 func TestComposeToolPlanner_PresetKindAndProviderLines(t *testing.T) {
 	bound := t.TempDir()
 	cfg := composeFixtureConfig("claude-code", "codex")
-	cfg.Quality.Presets["codex-custom"] = config.QualityPreset{Description: "codex", Agents: map[string]string{"planner": "haiku"}}
+	cfg.Quality.Presets["codex-custom"] = config.QualityPreset{Description: "codex", Agents: map[string]string{"reviewer": "haiku"}}
 	cfg.Quality.Providers = map[string]string{"codex": "codex-custom"}
 	require.NoError(t, config.Save(bound, cfg))
 	unbound := t.TempDir()
@@ -140,11 +136,11 @@ func TestComposeToolPlanner_PresetKindAndProviderLines(t *testing.T) {
 	}
 
 	boundLines := plan(bound)
-	assert.Equal(t, "quality.presets.codex-custom 고쳐 씀 (17개 에이전트)", boundLines[0])
+	assert.Equal(t, "quality.presets.codex-custom 고쳐 씀 (4개 에이전트)", boundLines[0])
 	assert.NotContains(t, boundLines, "quality.providers.codex codex-custom → codex-custom")
 	assert.NotContains(t, boundLines, "codex-custom은 balanced 표준 배치를 받지 않음")
 	unboundLines := plan(unbound)
-	assert.Equal(t, "quality.presets.codex-custom 덮어씀 (17개 에이전트)", unboundLines[0])
+	assert.Equal(t, "quality.presets.codex-custom 덮어씀 (4개 에이전트)", unboundLines[0])
 	assert.Contains(t, unboundLines, "quality.providers.codex 없음 → codex-custom")
 }
 
@@ -157,7 +153,7 @@ func TestComposeToolPlanner_MemoryWriterSetsTheInitConfig(t *testing.T) {
 	session.shared.snapshot = composeTableSnapshot(t, "CAT-A")
 	planner := composeToolPlanner{run: session.shared, tool: composeToolNamed(t, "claude-code")}
 	edited := planner.Start()
-	edited["executor"] = "opus"
+	edited["frontend-specialist"] = "opus"
 
 	plan, err := planner.PlanEdit(edited)
 	require.NoError(t, err)

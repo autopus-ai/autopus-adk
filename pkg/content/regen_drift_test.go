@@ -104,14 +104,14 @@ func TestDetectTemplateRegenDrift_ContentOnlyEdit_ReportsStaleTemplates(t *testi
 	require.NoError(t, err)
 	assert.Empty(t, stale, "freshly regenerated templates match their content")
 
-	source := filepath.Join(repo, "content", "agents", "explorer.md")
+	source := filepath.Join(repo, "content", "agents", "ux-validator.md")
 	data, err := os.ReadFile(source)
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(source, []byte(strings.TrimRight(string(data), "\n")+"\nExtra guidance line.\n"), 0o644))
 
 	stale, err = DetectTemplateRegenDrift(repo)
 	require.NoError(t, err)
-	assert.Equal(t, []string{"codex/agents/explorer.toml.tmpl", "gemini/agents/explorer.md.tmpl"}, stale)
+	assert.Equal(t, []string{"codex/agents/ux-validator.toml.tmpl", "gemini/agents/ux-validator.md.tmpl"}, stale)
 }
 
 func TestDetectTemplateRegenDrift_MissingContent_ReturnsError(t *testing.T) {

@@ -7,12 +7,8 @@ import "github.com/insajin/autopus-adk/pkg/reamcp"
 const reaHelpSummary = "REA 역공학 MCP(SPEC-REA-001): 새 init은 기본으로 켜고 --rea·--no-rea로 정할 수 있으며, Node\n" +
 	reamcp.NodeRange + "일 때만 Claude Code·Codex·Antigravity에 프로젝트 범위\n" +
 	reaPackage + " MCP를 등록합니다. features.rea.enabled는 managed 항목이 결정을 담지 못할 때만 쓰고,\n" +
-	"이 key가 든 파일은 v0.50.127보다 오래된 auto(v0.50.113–v0.50.125)가 읽지 못합니다. 17번째 에이전트\n" +
-	"reverse-engineer가 더해져 이 버전의 17개 프리셋은 v0.50.125가 사용자 수정으로 보고, balanced analysis rung\n" +
-	"model이 OMP·Codex catalog에 없으면 reverse-engineer만 세션 모델을 씁니다. Claude Code·Antigravity 서버는\n" +
-	"POSIX /bin/bash로 시작해 Windows에서는 돌지 않고, OMP·OpenCode에는 등록하지 않습니다. /auto reverse는 runtime\n" +
-	"capture 전에 메인 세션 동의를 받고, 확인한 행동 명세만 .autopus/reverse/<slug>/behaviour-spec.md에 남겨\n" +
-	"tester·executor에 넘깁니다(clean-room).\n"
+	"이 key가 든 파일은 v0.50.127보다 오래된 auto(v0.50.113–v0.50.125)가 읽지 못합니다. Claude Code·Antigravity\n" +
+	"서버는 POSIX /bin/bash로 시작해 Windows에서는 돌지 않고, OMP·OpenCode에는 등록하지 않습니다.\n"
 
 // reaInitHelp is the REA part of `auto init --help`.
 const reaInitHelp = reaHelpSummary +

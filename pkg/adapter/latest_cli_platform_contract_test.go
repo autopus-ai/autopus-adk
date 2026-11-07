@@ -30,34 +30,18 @@ func assertClaudeLatestCLIContract(t *testing.T, fixture latestCLIFixture) {
 		assert.Equal(t, "SKILL.md", parts[3], path)
 		assert.NotEqual(t, "autopus", parts[2], path)
 	}
-	assert.Greater(t, skillCount, 20)
-	assert.True(t, manifestHas(manifest, ".claude/skills/auto-go/SKILL.md"))
+	// The verification harness installs the router, seven routes, and nine
+	// reusable skills.
+	assert.Equal(t, 17, skillCount)
+	assert.True(t, manifestHas(manifest, ".claude/skills/auto-review/SKILL.md"))
+	assert.False(t, manifestHas(manifest, ".claude/skills/auto-go/SKILL.md"))
 	assert.NoDirExists(t, filepath.Join(fixture.root, ".claude", "skills", "autopus"))
 	assert.NoFileExists(t, filepath.Join(fixture.root, ".claude", "skills", "auto.md"))
+	assert.NoDirExists(t, filepath.Join(fixture.root, ".claude", "workflows"))
 
-	autoGo := readLatestCLISurface(t, fixture, ".claude/skills/auto-go/SKILL.md")
-	active := autoGo +
-		readLatestCLISurface(t, fixture, ".claude/workflows/route_a.workflow.js") +
-		readLatestCLISurface(t, fixture, ".claude/workflows/route_team.workflow.js")
+	review := readLatestCLISurface(t, fixture, ".claude/skills/auto-review/SKILL.md")
 	for _, forbidden := range []string{"TeamCreate", "TeamDelete", "team_name", "team_default"} {
-		assert.NotContains(t, active, forbidden)
-	}
-	for _, required := range []string{
-		"TOPOLOGY_FLAG_COUNT > 1",
-		"[TOPOLOGY ERROR] --team, --workflow, and --solo are mutually exclusive; choose only one.",
-		"Workflow({",
-		`scriptPath: ".claude/workflows/route_a.workflow.js"`,
-		"args: {",
-	} {
-		assert.Contains(t, autoGo, required)
-	}
-
-	deferred := readLatestCLISurface(t, fixture, ".claude/rules/autopus/deferred-tools.md")
-	for _, required := range []string{"SendMessage", "TaskCreate", "TaskUpdate", "TaskList", "TaskGet", "Workflow"} {
-		assert.Contains(t, deferred, required)
-	}
-	for _, removed := range []string{"TeamCreate", "TeamDelete", "TaskOutput", "TaskStop"} {
-		assert.NotContains(t, deferred, removed)
+		assert.NotContains(t, review, forbidden)
 	}
 }
 
@@ -85,7 +69,7 @@ func assertCodexLatestCLIContract(t *testing.T, fixture latestCLIFixture) {
 		assert.True(t, strings.HasPrefix(parts[2], "codex-"), path)
 		assert.Equal(t, "SKILL.md", parts[3], path)
 	}
-	assert.Greater(t, skillCount, 20)
+	assert.Equal(t, 17, skillCount)
 	assert.NoDirExists(t, filepath.Join(fixture.root, ".codex", "prompts"))
 	assert.NoFileExists(t, filepath.Join(fixture.root, ".codex", "skills", "auto.md"))
 
@@ -99,24 +83,6 @@ func assertCodexLatestCLIContract(t *testing.T, fixture latestCLIFixture) {
 	for _, legacy := range []string{"multi_agent =", "max_threads", "max_depth", "job_max_runtime_seconds"} {
 		assert.NotContains(t, configBody, legacy)
 	}
-
-	contracts := readLatestCLISurface(t, fixture, ".codex/skills/codex-agent-teams/SKILL.md") +
-		readLatestCLISurface(t, fixture, ".codex/skills/codex-agent-pipeline/SKILL.md") +
-		readLatestCLISurface(t, fixture, ".codex/skills/codex-worktree-isolation/SKILL.md")
-	for _, tool := range []string{
-		"spawn_agent", "send_message", "followup_task",
-		"wait_agent", "interrupt_agent", "list_agents",
-	} {
-		assert.Contains(t, contracts, tool)
-	}
-	for _, legacy := range []string{
-		"send_input", "resume_agent", "close_agent", "forked workspace",
-		"auto-merges worktree", "merge worktree branch",
-	} {
-		assert.NotContains(t, contracts, legacy)
-	}
-	assert.Contains(t, contracts, "shared cwd")
-	assert.Contains(t, contracts, "disjoint write ownership")
 
 	assert.False(t, manifestHas(manifest, "AGENTS.md"))
 	assert.True(t, manifestHas(fixture.manifests["opencode"], "AGENTS.md"))

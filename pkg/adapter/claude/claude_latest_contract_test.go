@@ -106,10 +106,10 @@ func TestPrepareFiles_ClaudeAgentQualityProjectsModelAndEffortTogether(t *testin
 		wantModel  string
 		wantEffort string
 	}{
-		{name: "balanced standard", mode: "balanced", agent: "tester", wantModel: config.ClaudeSonnetModel, wantEffort: "max"},
-		{name: "balanced top rung", mode: "balanced", agent: "debugger", wantModel: config.ClaudeOpusModel, wantEffort: "max"},
-		{name: "ultra executor", mode: "ultra", agent: "executor", wantModel: "opus", wantEffort: "max"},
-		{name: "ultra planner", mode: "ultra", agent: "planner", wantModel: "fable", wantEffort: "max"},
+		{name: "balanced standard", mode: "balanced", agent: "frontend-specialist", wantModel: config.ClaudeSonnetModel, wantEffort: "max"},
+		{name: "balanced top rung", mode: "balanced", agent: "reviewer", wantModel: config.ClaudeOpusModel, wantEffort: "max"},
+		{name: "ultra frontend-specialist", mode: "ultra", agent: "frontend-specialist", wantModel: "opus", wantEffort: "max"},
+		{name: "ultra reviewer", mode: "ultra", agent: "reviewer", wantModel: "fable", wantEffort: "max"},
 	}
 
 	for _, test := range tests {

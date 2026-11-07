@@ -52,24 +52,6 @@ func generatePlatformRules(t *testing.T, platform string) map[string]string {
 	return rules
 }
 
-// S1: Gemini가 누락 규칙 3종을 실제 내용과 함께 생성 (Must, REQ-001).
-func TestAcceptance_S1_GeminiMissingRulesPresentWithContent(t *testing.T) {
-	rules := generatePlatformRules(t, "gemini")
-
-	deferred, ok := rules["deferred-tools.md"]
-	require.True(t, ok, "deferred-tools.md must be generated")
-	assert.Contains(t, deferred, "# Deferred Tools Loading")
-	assert.Contains(t, deferred, "Antigravity CLI")
-
-	identity, ok := rules["project-identity.md"]
-	require.True(t, ok, "project-identity.md must be generated")
-	assert.Contains(t, identity, "# Project Identity")
-
-	quality, ok := rules["spec-quality.md"]
-	require.True(t, ok, "spec-quality.md must be generated")
-	assert.Contains(t, quality, "SPEC Quality Checklist")
-}
-
 // S2: Gemini 규칙 집합이 content 소스 집합과 정확히 일치 (Must, REQ-001, REQ-002).
 func TestAcceptance_S2_GeminiRuleSetMatchesSource(t *testing.T) {
 	rules := generatePlatformRules(t, "gemini")
@@ -77,53 +59,15 @@ func TestAcceptance_S2_GeminiRuleSetMatchesSource(t *testing.T) {
 	for name := range rules {
 		got = append(got, name)
 	}
-	want := []string{
-		"branding.md", "context7-docs.md", "deferred-tools.md", "doc-storage.md",
-		"file-size-limit.md", "language-policy.md", "lore-commit.md",
-		"objective-reasoning.md", "project-identity.md", "shell-portability.md",
-		"spec-quality.md", "subagent-delegation.md", "techstack-freshness.md",
-		"worktree-safety.md",
-	}
+	want := []string{"autonomy.md", "file-size-limit.md", "language-policy.md", "lore-commit.md"}
 	for name := range platformRuleAdditions["gemini"] {
 		want = append(want, name)
 	}
-	// @AX:NOTE: [AUTO] magic constant — 14 equals the total canonical rule count in content/rules/; update this oracle when source rules are added or removed
-	assert.ElementsMatch(t, want, got, "Gemini rule basenames must equal the 14 content/rules sources plus the documented Antigravity additions")
-	assert.Len(t, got, 14+len(platformRuleAdditions["gemini"]))
+	// @AX:NOTE: [AUTO] magic constant — 4 equals the total canonical rule count in content/rules/; update this oracle when source rules are added or removed
+	assert.ElementsMatch(t, want, got, "Gemini rule basenames must equal the 4 content/rules sources plus the documented Antigravity additions")
+	assert.Len(t, got, 4+len(platformRuleAdditions["gemini"]))
 	// Gemini rule exclusion set must be empty.
 	assert.Empty(t, platformRuleExclusions["gemini"])
-}
-
-func TestAcceptance_TechstackFreshnessSemanticContractParity(t *testing.T) {
-	t.Parallel()
-
-	expected := []string{
-		"current intended source state",
-		"start and end source SHA",
-		"artifact receipts",
-		"installed older app",
-		"concrete immutable version, SHA, or digest",
-		"`latest-stable`",
-		"`repo-compatible-pin`",
-		"`source-exact`",
-		"fail closed",
-		"explicitly offline development",
-	}
-	for _, platform := range []string{"claude", "gemini", "opencode", "omp"} {
-		platform := platform
-		t.Run(platform, func(t *testing.T) {
-			t.Parallel()
-			rule, ok := generatePlatformRules(t, platform)["techstack-freshness.md"]
-			require.True(t, ok, "%s must generate techstack-freshness.md", platform)
-			for _, phrase := range expected {
-				assert.Contains(t, rule, phrase)
-			}
-		})
-	}
-	// The Codex pipeline skill no longer restates this rule: Codex consumes the
-	// canonical slim pipeline body, and its policy carrier is AGENTS.md rather
-	// than a duplicated copy inside the skill. Asserting the duplication here
-	// only pinned the deleted override helper's output.
 }
 
 // S5: platform frontmatter 값이 어댑터 식별자와 일치 (Should, REQ-003).
@@ -154,9 +98,9 @@ func TestAcceptance_S6_ExistingPlatformsBackwardCompatible(t *testing.T) {
 	assert.Empty(t, generatePlatformRules(t, "codex"),
 		"Codex 0.149.1 has no repository markdown-rule surface")
 
-	// Claude, OpenCode, Gemini, and OMP retain their native 14-rule sets.
-	assert.Len(t, generatePlatformRules(t, "claude"), 14, "claude generates exactly 14 rules")
-	assert.Len(t, generatePlatformRules(t, "opencode"), 14, "opencode generates exactly 14 rules")
+	// Claude and OpenCode carry the native 4-rule set.
+	assert.Len(t, generatePlatformRules(t, "claude"), 4, "claude generates exactly 4 rules")
+	assert.Len(t, generatePlatformRules(t, "opencode"), 4, "opencode generates exactly 4 rules")
 }
 
 // S9: 파리티 게이트가 omp를 포함한다 (Must, REQ-012).
@@ -180,14 +124,14 @@ func TestAcceptance_S9_ParityGateCoversOMP(t *testing.T) {
 	assert.Empty(t, platformRuleExclusions["omp"], "omp rule exclusion set must be empty")
 	assert.Empty(t, platformSkillExclusions["omp"], "omp skill exclusion set must be empty")
 
-	// omp covers the full 14-rule source set, and the four incumbents keep the
+	// omp covers the full 4-rule source set, and the four incumbents keep the
 	// counts they reported before omp joined the gate, so the addition is
 	// provably non-regressive.
 	ompRules := generatePlatformRules(t, "omp")
-	assert.Len(t, ompRules, 14, "omp generates exactly 14 rules")
+	assert.Len(t, ompRules, 4, "omp generates exactly 4 rules")
 	for _, platform := range []string{"claude", "gemini", "opencode"} {
-		assert.Len(t, generatePlatformRules(t, platform), 14+len(platformRuleAdditions[platform]),
-			"%s still generates exactly the 14 source rules (plus its documented additions) after omp joins the gate", platform)
+		assert.Len(t, generatePlatformRules(t, platform), 4+len(platformRuleAdditions[platform]),
+			"%s still generates exactly the 4 source rules (plus its documented additions) after omp joins the gate", platform)
 	}
 	assert.Empty(t, generatePlatformRules(t, "codex"),
 		"Codex 0.149.1 carries policy through native skills and AGENTS.md")

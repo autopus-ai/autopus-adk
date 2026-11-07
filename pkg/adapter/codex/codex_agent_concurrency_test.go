@@ -272,24 +272,6 @@ func TestInspectAgentConcurrency_ReportsEveryCeilingInPrecedenceOrder(t *testing
 	assert.Equal(t, "max_concurrent_threads_per_session", inspection.Key)
 }
 
-// The installed team skill must carry the project's own ceiling and the count
-// semantics; a literal 4 misreports a project that raised the limit, and an
-// unstated inclusion rule makes the supervisor over- or under-spawn by one.
-func TestCodexTeamSkill_StatesConfiguredCeilingAndCountSemantics(t *testing.T) {
-	t.Parallel()
-	cfg := config.DefaultFullConfig("concurrency")
-	cfg.Codex.Agents.MaxConcurrentThreads = 8
-
-	body := normalizeCodexExtendedSkill("agent-teams", "placeholder", cfg)
-
-	assert.Contains(t, body, "codex.agents.max_concurrent_threads")
-	assert.Contains(t, body, "**8**")
-	assert.Contains(t, body, "8 workers means up to\n9 agents")
-	assert.Contains(t, body, "not counted")
-	assert.NotContains(t, body, "0.149.1")
-	assert.Contains(t, body, "not** governed by this value")
-}
-
 func TestValidateConfig_AcceptsCeilingInEitherNamespace(t *testing.T) {
 	t.Parallel()
 

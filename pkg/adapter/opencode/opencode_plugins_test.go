@@ -42,7 +42,7 @@ func TestInjectOrchestraPlugin_MergesPluginArray(t *testing.T) {
 	plugins := jsonStringSlice(configDoc["plugin"])
 	assert.Contains(t, plugins, "existing-plugin")
 	assert.Contains(t, plugins, "/path/to/script.js")
-	assert.Contains(t, jsonStringSlice(configDoc["instructions"]), ".opencode/rules/autopus/branding.md")
+	assert.Contains(t, jsonStringSlice(configDoc["instructions"]), ".opencode/rules/autopus/language-policy.md")
 }
 
 func TestAdapter_Generate_WorkflowSkillsUseOpenCodeSurface(t *testing.T) {

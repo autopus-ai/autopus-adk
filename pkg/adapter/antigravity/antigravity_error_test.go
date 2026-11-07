@@ -72,7 +72,7 @@ func TestRenderSkillTemplates_FailsOnBlockedSubdir(t *testing.T) {
 	dir := t.TempDir()
 	skillDir := filepath.Join(dir, ".gemini", "skills", "autopus")
 	require.NoError(t, os.MkdirAll(skillDir, 0755))
-	require.NoError(t, os.WriteFile(filepath.Join(skillDir, "auto-plan"), []byte("blocker"), 0444))
+	require.NoError(t, os.WriteFile(filepath.Join(skillDir, "auto-review"), []byte("blocker"), 0444))
 
 	a := NewWithRoot(dir)
 	cfg := config.DefaultFullConfig("test-project")
@@ -86,7 +86,7 @@ func TestRenderSkillTemplates_WriteFileBlocked(t *testing.T) {
 	skillDir := filepath.Join(dir, ".gemini", "skills", "autopus")
 	require.NoError(t, os.MkdirAll(skillDir, 0755))
 	// Place dir where SKILL.md file should go
-	require.NoError(t, os.MkdirAll(filepath.Join(skillDir, "auto-plan", "SKILL.md"), 0755))
+	require.NoError(t, os.MkdirAll(filepath.Join(skillDir, "auto-review", "SKILL.md"), 0755))
 
 	a := NewWithRoot(dir)
 	cfg := config.DefaultFullConfig("test-project")
@@ -99,7 +99,7 @@ func TestRenderAgentFiles_WriteFileBlocked(t *testing.T) {
 	dir := t.TempDir()
 	agentDir := filepath.Join(dir, ".gemini", "agents", "autopus")
 	require.NoError(t, os.MkdirAll(agentDir, 0755))
-	require.NoError(t, os.MkdirAll(filepath.Join(agentDir, "executor.md"), 0755))
+	require.NoError(t, os.MkdirAll(filepath.Join(agentDir, "reviewer.md"), 0755))
 
 	a := NewWithRoot(dir)
 	_, err := a.renderAgentFiles(config.DefaultFullConfig("error-test"))
@@ -111,7 +111,7 @@ func TestRenderCommandTemplates_WriteFileBlocked(t *testing.T) {
 	dir := t.TempDir()
 	cmdDir := filepath.Join(dir, ".gemini", "commands", "auto")
 	require.NoError(t, os.MkdirAll(cmdDir, 0755))
-	require.NoError(t, os.MkdirAll(filepath.Join(cmdDir, "plan.toml"), 0755))
+	require.NoError(t, os.MkdirAll(filepath.Join(cmdDir, "review.toml"), 0755))
 
 	a := NewWithRoot(dir)
 	cfg := config.DefaultFullConfig("test-project")

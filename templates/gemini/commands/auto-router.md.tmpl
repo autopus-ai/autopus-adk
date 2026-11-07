@@ -35,7 +35,7 @@ ARGUMENTS: $ARGUMENTS
 
 ## Task Triage
 
-- For natural-language implementation requests, assess evidence before loading a planning workflow or dispatching workers. Do not reroute explicit `plan`, `review`, or other routes, or replace requested `--team`, `--multi`, or `--solo` behavior.
+- For natural-language implementation requests, assess evidence before loading a planning workflow or dispatching workers. Do not reroute explicit `review`, `qa`, or other routes, or replace requested `--team`, `--multi`, or `--solo` behavior.
 - `inline`: a bounded, evidenced low-risk change stays in this session with targeted implementation and tests; do not add a default planner or preload unrelated skills.
 - `guided`: incomplete evidence or medium risk calls for focused inspection, then implementation and the verification appropriate to the discovered surface. Inspect uncertainty before treating it as a requirement for a full plan.
 - `planned`: confirmed cross-module work, high risk, or requirements still unclear after inspection use planning and required review. A plan does not itself authorize parallel dispatch.
@@ -54,31 +54,17 @@ ARGUMENTS: $ARGUMENTS
 
 | Route | Load exactly this detail |
 |---|---|
-| `setup` | `.gemini/skills/autopus/auto-setup/SKILL.md` |
-| `status` | `.gemini/skills/autopus/auto-status/SKILL.md` |
-| `goal` | `.gemini/skills/autopus/auto-goal/SKILL.md` |
 | `update` | `.gemini/skills/autopus/auto-update/SKILL.md` |
-| `plan` | `.gemini/skills/autopus/auto-plan/SKILL.md` |
-| `go` | `.gemini/skills/autopus/auto-go/SKILL.md` |
-| `fix` | `.gemini/skills/autopus/auto-fix/SKILL.md` |
 | `review` | `.gemini/skills/autopus/auto-review/SKILL.md` |
 | `sync` | `.gemini/skills/autopus/auto-sync/SKILL.md` |
-| `idea` | `.gemini/skills/autopus/auto-idea/SKILL.md` |
-| `map` | `.gemini/skills/autopus/auto-map/SKILL.md` |
-| `why` | `.gemini/skills/autopus/auto-why/SKILL.md` |
 | `verify` | `.gemini/skills/autopus/auto-verify/SKILL.md` |
-| `secure` | `.gemini/skills/autopus/auto-secure/SKILL.md` |
 | `test` | `.gemini/skills/autopus/auto-test/SKILL.md` |
 | `qa` | `.gemini/skills/autopus/auto-qa/SKILL.md` |
-| `dev` | `.gemini/skills/autopus/auto-dev/SKILL.md` |
-| `canary` | `.gemini/skills/autopus/auto-canary/SKILL.md` |
 | `doctor` | `.gemini/skills/autopus/auto-doctor/SKILL.md` |
-| `reverse` | `.gemini/skills/autopus/auto-reverse/SKILL.md` |
 
 ## Preserved Aliases
 
 - `browse` loads `.gemini/skills/autopus/browser-automation/SKILL.md`.
-- `stale` and `spec review` route through `review` with the alias arguments intact.
 - Management aliases `init` and `platform` route through `update`; `doctor` has its own route.
 - Empty input prints the inventory; unknown input reports the nearest route without loading multiple details.
 

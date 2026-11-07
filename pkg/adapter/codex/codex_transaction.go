@@ -111,13 +111,14 @@ func (a *Adapter) buildUpdateTransactionRemoves(
 }
 
 func (a *Adapter) pluginWorkflowShimRemoves() []adapter.TransactionRemove {
-	removes := make([]adapter.TransactionRemove, 0, len(workflowSpecs))
-	for _, spec := range workflowSpecs {
-		if spec.Name == "auto" {
+	names := allWorkflowNames()
+	removes := make([]adapter.TransactionRemove, 0, len(names))
+	for _, name := range names {
+		if name == "auto" {
 			continue
 		}
 		removes = append(removes, adapter.TransactionRemove{
-			Path:      filepath.Join(".autopus", "plugins", "auto", "skills", spec.Name),
+			Path:      filepath.Join(".autopus", "plugins", "auto", "skills", name),
 			Recursive: true,
 		})
 	}

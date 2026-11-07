@@ -159,48 +159,6 @@ func TestQAMESHScenarioContractGuidance(t *testing.T) {
 	}
 }
 
-func TestAutoGoQAMESHScopeBudgetGuidance(t *testing.T) {
-	t.Parallel()
-
-	e := tmpl.New()
-	cfg := config.DefaultFullConfig("qa-project")
-	root := templateRoot()
-	// Route surfaces carry the full budget rule because they run the lanes.
-	paths := []string{
-		filepath.Join(root, "claude", "commands", "auto-router.md.tmpl"),
-		filepath.Join(root, "codex", "prompts", "auto-go.md.tmpl"),
-		filepath.Join(root, "codex", "skills", "auto-go.md.tmpl"),
-		filepath.Join(root, "gemini", "commands", "auto-router.md.tmpl"),
-		filepath.Join(root, "gemini", "skills", "auto-go", "SKILL.md.tmpl"),
-	}
-	for _, path := range paths {
-		path := path
-		t.Run(filepath.Base(path), func(t *testing.T) {
-			t.Parallel()
-			body, err := renderOrReadTemplate(e, path, cfg)
-			require.NoError(t, err)
-			assert.Contains(t, body, "affected/fast/smoke QAMESH")
-			assert.Contains(t, body, "auto qa plan --lane fast --format json")
-			assert.Contains(t, body, "full GUI/native/release matrix")
-			assert.Contains(t, body, "auto canary")
-			assert.Contains(t, body, "post-deploy smoke/status")
-		})
-	}
-
-	// The pipeline entrypoint defers the lane budget to its verification
-	// resource, which must still name the commands that bound it.
-	t.Run("pipeline-resources", func(t *testing.T) {
-		t.Parallel()
-		surface := pipelineResourceSurface(t)
-		assert.Contains(t, surface, "auto qa plan --lane fast --format json",
-			"the verification resource must name the lane-planning command")
-		assert.Contains(t, surface, "auto canary",
-			"the verification resource must keep canary as a post-deploy gate")
-		assert.Contains(t, surface, "auto qa init --local-only --format json",
-			"the verification resource must keep the local-only scaffold escape hatch")
-	})
-}
-
 func assertQAMESHGuidance(t *testing.T, body string) {
 	t.Helper()
 	assert.Contains(t, body, "QAMESH")
@@ -219,8 +177,4 @@ func assertQAMESHGuidance(t *testing.T, body string) {
 	assert.Contains(t, body, "choose between QAMESH and Playwright")
 	assert.Contains(t, body, "canary-explicit")
 	assert.Contains(t, body, "post-deploy smoke")
-}
-
-func renderOrReadTemplate(e *tmpl.Engine, path string, cfg *config.HarnessConfig) (string, error) {
-	return semanticContractSurface(e, path, cfg)
 }

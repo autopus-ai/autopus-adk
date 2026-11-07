@@ -30,7 +30,6 @@ package rulecond_test
 import (
 	"bytes"
 	"encoding/json"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -39,7 +38,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	contentfs "github.com/insajin/autopus-adk/content"
 	"github.com/insajin/autopus-adk/pkg/rulecond"
 )
 
@@ -201,9 +199,7 @@ func stickyContext(t *testing.T, stdout string) string {
 // sourceRuleFile returns the shipped rule file verbatim, frontmatter included.
 func sourceRuleFile(t *testing.T, name string) string {
 	t.Helper()
-	raw, err := fs.ReadFile(contentfs.FS, "rules/"+name+".md")
-	require.NoError(t, err)
-	return string(raw)
+	return ruleSourceText(t, name)
 }
 
 // injectableBody is the byte-accounting unit of REQ-STICKYRULE-FIRE-05 and

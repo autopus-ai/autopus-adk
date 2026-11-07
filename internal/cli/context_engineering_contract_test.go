@@ -6,31 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	contentfs "github.com/insajin/autopus-adk/content"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestContextEngineering_ContextCatalogDoctorAndScenarioContract(t *testing.T) {
-	t.Run("S5 executable scenario wire is retained", func(t *testing.T) {
-		body, err := contentfs.FS.ReadFile("rules/doc-storage.md")
-		require.NoError(t, err)
-		text := string(body)
-
-		for _, token := range []string{
-			"context catalog",
-			"top-level `Build`",
-			"runnable scenario `Command`",
-			"`Verify`",
-			"`Status`",
-			"index-only",
-		} {
-			assert.True(t, strings.Contains(text, token), "doc-storage is missing %q", token)
-		}
-		assert.False(t, strings.Contains(text, "stale or verbose scenario bodies"),
-			"doc-storage must preserve runnable scenario bodies")
-	})
-
 	t.Run("S6 ContextLoadSet identity is stable", func(t *testing.T) {
 		expected := []contextLoadDoc{
 			{Name: "product.md", RelPath: filepath.Join(".autopus", "project", "product.md"), Cap: 18000},

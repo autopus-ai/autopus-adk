@@ -148,9 +148,9 @@ func TestQualitySupervisorApplyUpdatesActualCodexRootAndAgents(t *testing.T) {
 	rootSection := strings.SplitN(string(configData), "[agents]", 2)[0]
 	assert.Contains(t, rootSection, `model = "gpt-6-astra"`)
 	assert.Contains(t, rootSection, `model_reasoning_effort = "xhigh"`)
-	// tester keeps the native balanced placement, which shows that pinning the
-	// supervisor does not leak into agent models.
-	agentData, err := os.ReadFile(filepath.Join(dir, ".codex", "agents", "tester.toml"))
+	// ux-validator keeps the native balanced placement, which shows that
+	// pinning the supervisor does not leak into agent models.
+	agentData, err := os.ReadFile(filepath.Join(dir, ".codex", "agents", "ux-validator.toml"))
 	require.NoError(t, err)
 	assert.Contains(t, string(agentData), `model = "gpt-6-luna"`)
 	assert.Contains(t, string(agentData), `model_reasoning_effort = "max"`)
@@ -181,21 +181,16 @@ func TestQualityUltraApplyWritesSelectiveCodexAgentEffort(t *testing.T) {
 	root.SetArgs([]string{"--config", filepath.Join(dir, "autopus.yaml"), "quality", "ultra", "--apply"})
 	require.NoError(t, root.Execute())
 
-	// The ultra preset's seven reasoning-core agents are fable tier and render
-	// Astra/max; every other agent is opus tier and renders Sol/xhigh.
+	// The ultra preset's reviewer and qa-explorer are fable tier and render
+	// Astra/max; the other agents are opus tier and render Sol/xhigh.
 	fableAgents := map[string]bool{
-		"architect.toml":        true,
-		"debugger.toml":         true,
-		"deep-worker.toml":      true,
-		"planner.toml":          true,
-		"reviewer.toml":         true,
-		"security-auditor.toml": true,
-		"spec-writer.toml":      true,
+		"qa-explorer.toml": true,
+		"reviewer.toml":    true,
 	}
 	agentDir := filepath.Join(dir, ".codex", "agents")
 	entries, err := os.ReadDir(agentDir)
 	require.NoError(t, err)
-	require.Len(t, entries, 17)
+	require.Len(t, entries, len(config.CanonicalAgentNames()))
 	seenFableAgents := make(map[string]bool, len(fableAgents))
 	for _, entry := range entries {
 		data, readErr := os.ReadFile(filepath.Join(agentDir, entry.Name()))

@@ -170,14 +170,15 @@ func TestComposeDriverStatus_LabelsWrittenBuiltinPresets(t *testing.T) {
 	assert.Equal(t, "quality.default = balanced   ultra: 현재 기본값   balanced: 현재 기본값",
 		composeDriverStatus(driverConfig().Quality, ko))
 
-	// Fixture X: an invalid tier makes ultra customized, 13 agents off the default.
+	// Fixture X: an invalid tier makes ultra customized, all four generated
+	// agents off the default.
 	x := driverHistoricalConfig().Quality
 	ultra := maps.Clone(driverHU1)
-	ultra["tester"] = "gpt"
+	ultra["ux-validator"] = "gpt"
 	x.Presets["ultra"] = config.QualityPreset{Agents: ultra}
 	delete(x.Presets, "balanced")
-	assert.Equal(t, "quality.default = ultra   ultra: 사용자 수정 (13개 다름)", composeDriverStatus(x, ko))
-	assert.Equal(t, "quality.default = ultra   ultra: customized (13 differ)",
+	assert.Equal(t, "quality.default = ultra   ultra: 사용자 수정 (4개 다름)", composeDriverStatus(x, ko))
+	assert.Equal(t, "quality.default = ultra   ultra: customized (4 differ)",
 		composeDriverStatus(x, composeTextFor("en")))
 }
 

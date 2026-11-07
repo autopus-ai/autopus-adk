@@ -1,14 +1,10 @@
 package content
 
 import (
-	"io/fs"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
-	"github.com/insajin/autopus-adk/templates"
 )
 
 // S12: only references whose first `__` segment after `mcp__` is exactly
@@ -51,20 +47,5 @@ func TestIsReaMCPReference_ComparesTheFirstSegmentExactly(t *testing.T) {
 		"mcp__sequential-thinking__x": false,
 	} {
 		assert.Equal(t, want, isReaMCPReference(reference), reference)
-	}
-}
-
-// S12: the generated Codex and Antigravity reverse-engineer templates keep the
-// REA tool references of the agent body verbatim.
-func TestGeneratedReverseEngineerTemplates_KeepREAReferences(t *testing.T) {
-	t.Parallel()
-	for _, path := range []string{
-		"codex/agents/reverse-engineer.toml.tmpl",
-		"gemini/agents/reverse-engineer.md.tmpl",
-	} {
-		data, err := fs.ReadFile(templates.FS, path)
-		require.NoError(t, err, path)
-		assert.Contains(t, string(data), "Claude Code `mcp__rea__<도구>`", path)
-		assert.NotContains(t, string(data), "Context7 MCP with WebSearch fallback", path)
 	}
 }

@@ -33,17 +33,15 @@ func TestAdapter_Generate_RegistersManagedPlugin(t *testing.T) {
 	autoSkill, readErr := os.ReadFile(filepath.Join(dir, ".agents", "skills", "auto", "SKILL.md"))
 	require.NoError(t, readErr)
 	content = string(autoSkill)
-	assert.Contains(t, content, "`status`")
-	assert.Contains(t, content, "`map`")
-	assert.Contains(t, content, "`why`")
-	assert.Contains(t, content, "`verify`")
-	assert.Contains(t, content, "`secure`")
-	assert.Contains(t, content, "`test`")
-	assert.Contains(t, content, "`dev`")
-	assert.Contains(t, content, "`doctor`")
+	for _, route := range []string{"`review`", "`qa`", "`verify`", "`test`", "`sync`", "`update`", "`doctor`"} {
+		assert.Contains(t, content, route)
+	}
+	for _, removed := range []string{"`status`", "`map`", "`why`", "`secure`", "`dev`"} {
+		assert.NotContains(t, content, removed)
+	}
 
 	// The reusable (non-workflow) surface is emitted alongside the routes.
-	assert.FileExists(t, filepath.Join(dir, ".agents", "skills", "planning", "SKILL.md"))
+	assert.FileExists(t, filepath.Join(dir, ".agents", "skills", "verification", "SKILL.md"))
 }
 
 func TestAdapter_Validate_ReportsMissingPluginRegistration(t *testing.T) {

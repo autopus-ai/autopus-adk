@@ -144,12 +144,12 @@ type ompAgentRoutes map[string][]config.RoleModelCandidateConf
 // ompPinsOnlyTarget is the agents map an OMP tab edit saves (REQ-MUX3-23):
 // every canonical agent with a route in final, unchanged ones carrying their
 // start route, which for a profile is that route's candidates in full. task
-// takes the operator's own choice when there is one. Otherwise a profile's
-// task route stays only where it differs from planner's final route, and a
-// pins-only start keeps a task pin it had; task follows planner otherwise.
+// takes the operator's own choice when there is one, and otherwise keeps its
+// start route as a pin: a profile's task route, its own pin, or the planner
+// pin it followed. planner has no agent file and the saved pins never name
+// it, so a task left following planner would drop to the OMP session model.
 func ompPinsOnlyTarget(
 	start, final ompAgentRoutes,
-	fromProfile, startOwnTask bool,
 	taskEdit *[]config.RoleModelCandidateConf,
 ) map[string]config.RoleAgentOverrideConf {
 	target := make(map[string]config.RoleAgentOverrideConf)
@@ -158,16 +158,9 @@ func ompPinsOnlyTarget(
 			target[agent] = config.RoleAgentOverrideConf{Candidates: append([]config.RoleModelCandidateConf(nil), candidates...)}
 		}
 	}
-	var task []config.RoleModelCandidateConf
-	switch {
-	case taskEdit != nil:
+	task := start[config.OMPAutopusDefaultAgent]
+	if taskEdit != nil {
 		task = *taskEdit
-	case fromProfile:
-		if !slices.Equal(start[config.OMPAutopusDefaultAgent], final["planner"]) {
-			task = start[config.OMPAutopusDefaultAgent]
-		}
-	case startOwnTask:
-		task = start[config.OMPAutopusDefaultAgent]
 	}
 	if len(task) > 0 {
 		target[config.OMPAutopusDefaultAgent] = config.RoleAgentOverrideConf{Candidates: append([]config.RoleModelCandidateConf(nil), task...)}

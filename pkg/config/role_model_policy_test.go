@@ -66,6 +66,7 @@ var policyContractMatrix = []struct {
 	{"perf-engineer", "autopus_perf_engineer", CapabilityCodingToolUse},
 	{"planner", "autopus_planner", CapabilityDeepReasoning},
 	{"reverse-engineer", "autopus_reverse_engineer", CapabilityDeepReasoning},
+	{"qa-explorer", "autopus_qa_explorer", CapabilityIndependentDissent},
 	{"reviewer", "autopus_reviewer", CapabilityIndependentDissent},
 	{"security-auditor", "autopus_security_auditor", CapabilityIndependentDissent},
 	{"spec-writer", "autopus_spec_writer", CapabilityDeepReasoning},
@@ -107,10 +108,12 @@ func TestRoleModelPolicy_ProjectionMatrix_IsExact(t *testing.T) {
 	if got := OMPAgentCapabilityMapping(); !reflect.DeepEqual(got, wantCapabilities) {
 		t.Fatalf("agent capability mapping mismatch\ngot:  %#v\nwant: %#v", got, wantCapabilities)
 	}
-	canonical := CanonicalAgentNames()
+	// The matrix is the role vocabulary: the generated agents plus the legacy
+	// roles the binary still dispatches without generating an agent for them.
+	canonical := append(CanonicalAgentNames(), legacyAgentNames...)
 	sort.Strings(canonical)
 	if got := mapKeys(wantRoles); !reflect.DeepEqual(got, canonical) {
-		t.Fatalf("matrix agents %v differ from canonical agents %v", got, canonical)
+		t.Fatalf("matrix agents %v differ from the role vocabulary %v", got, canonical)
 	}
 	if err := ValidateOMPAgentRoleSet(mapKeys(wantRoles)); err != nil {
 		t.Fatalf("exact agent set rejected: %v", err)

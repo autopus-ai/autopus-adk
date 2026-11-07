@@ -66,9 +66,11 @@ func TestDescribeComposeRefresh_R_ShowsPerPresetLines(t *testing.T) {
 	require.True(t, ok)
 
 	assert.Equal(t, []string{
-		"quality.presets.ultra 최신 기본값으로 갱신: architect, debugger, planner, reviewer, security-auditor, " +
-			"spec-writer opus→fable · 추가 annotator→opus, deep-worker→fable, frontend-specialist→opus, " +
-			"perf-engineer→opus, reverse-engineer→opus, ux-validator→opus",
+		// The legacy roles HU1 names leave the preset; without them they keep
+		// their v0.50.134 ultra tiers, so the line names them as removed.
+		"quality.presets.ultra 최신 기본값으로 갱신: reviewer opus→fable · 추가 frontend-specialist→opus, " +
+			"qa-explorer→fable, ux-validator→opus · 제거 architect, debugger, devops, executor, explorer, planner, " +
+			"security-auditor, spec-writer, tester, validator",
 		"quality.presets.balanced 최신 기본값으로 갱신: 모델 변화 없음, YAML만 정리",
 		"quality 블록을 다시 씁니다: 블록 안 주석 0줄과 서식은 유지되지 않습니다(값은 그대로)",
 	}, composeBindDescribe(t, dir, cfg, plan, "ko"))
@@ -92,11 +94,10 @@ func TestDescribeComposeRefresh_BoundHB1_ShowsEveryTransition(t *testing.T) {
 	lines := composeBindDescribe(t, dir, cfg, plan, "en")
 
 	require.Len(t, lines, 2)
-	// HB1's opus core already equals the current top rung tier.
 	assert.Equal(t, "quality.presets.balanced refreshed to the current default: "+
-		"debugger, reviewer sonnet→opus · explorer, "+
-		"validator haiku→sonnet · added annotator→sonnet, deep-worker→opus, frontend-specialist→sonnet, "+
-		"perf-engineer→sonnet, reverse-engineer→opus, ux-validator→sonnet", lines[0])
+		"reviewer sonnet→opus · added frontend-specialist→sonnet, qa-explorer→opus, ux-validator→sonnet · "+
+		"removed architect, debugger, devops, executor, explorer, planner, security-auditor, spec-writer, "+
+		"tester, validator", lines[0])
 }
 
 func TestDescribeComposeRefresh_BoundRuntimeStandardBalanced_MovesNoModel(t *testing.T) {
@@ -123,7 +124,7 @@ func TestDescribeComposeRefresh_UltraFeedsOnlyTheBuiltinOMPProfile(t *testing.T)
 		profile string
 		want    string
 	}{
-		"builtin ultra OMP profile": {profile: "ultra", want: "spec-writer opus→fable"},
+		"builtin ultra OMP profile": {profile: "ultra", want: "reviewer opus→fable"},
 		"no OMP profile":            {profile: "", want: "모델 변화 없음, YAML만 정리"},
 	} {
 		cfg := config.DefaultFullConfig("p")
@@ -160,7 +161,7 @@ func TestPlanComposeBindingAfter_EditsOnTopOfRefresh_KeepTheRefreshInTheSameWrit
 	require.True(t, ok)
 	// `u`, then `e`: the edit menu continues from the refreshed candidate.
 	start := composeBindStart(t, refresh.Candidate)
-	edited := composeBindEdited(t, start, map[string]string{"planner": "sonnet"})
+	edited := composeBindEdited(t, start, map[string]string{"reviewer": "sonnet"})
 
 	plan := planComposeBindingAfter(cfg, refresh, start, edited)
 
@@ -171,7 +172,7 @@ func TestPlanComposeBindingAfter_EditsOnTopOfRefresh_KeepTheRefreshInTheSameWrit
 	assert.Equal(t, []string{
 		"quality.presets.ultra 최신 기본값으로 갱신: 모델 변화 없음, YAML만 정리",
 		"quality.presets.balanced 최신 기본값으로 갱신: 모델 변화 없음, YAML만 정리",
-		"quality.presets.custom 새로 씀 (17개 에이전트)",
+		"quality.presets.custom 새로 씀 (4개 에이전트)",
 		"quality.default ultra → custom",
 		"Codex 기본 세션: 6-astra · ultra → 6-astra · xhigh",
 		"custom은 ultra effort 사다리를 받지 않음",

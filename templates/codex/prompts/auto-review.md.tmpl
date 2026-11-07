@@ -13,7 +13,7 @@ description: "코드 리뷰 — TRUST 5 기준으로 변경된 코드를 리뷰�
 
 가능하면 `.agents/skills/auto-review/SKILL.md` 또는 `@auto review ...` 라우터의 상세 검증 순서를 따르세요.
 
-`@auto go --auto --loop` 내부 review라면 `REQUEST_CHANGES`를 terminal handoff로 취급하지 말고, 열린 findings checklist를 같은 invocation 안의 fixer/executor 단계로 되돌리세요.
+`REQUEST_CHANGES`이면 열린 findings checklist를 그대로 넘기고, 수정 뒤 같은 범위로 다시 리뷰하도록 안내하세요.
 
 Provider fan-out은 risk tier로 결정합니다. `low`/`medium` 변경은 단일 provider 리뷰를 기본으로 하고, `high`/`critical` 변경만 가능한 경우 멀티프로바이더 dissent review를 사용하세요. high/critical인데 provider가 1개뿐이면 실패하지 말고 단일 provider로 폴백하되 degraded evidence를 기록하세요.
 

@@ -12,7 +12,7 @@ import (
 
 // ompAgentSurfaceText is the locale text of the OMP agent lines
 // (SPEC-MODELUX-003 Form Text). The paths and values inside stay the same in
-// both languages.
+// both languages. migration is a format of the generated agent count.
 type ompAgentSurfaceText struct {
 	userFile, userOwned, unclaimable, kept, migration, sonic string
 }
@@ -24,7 +24,7 @@ var ompAgentSurfaceTextKO = ompAgentSurfaceText{
 		"단독 CR·NEL·LS·PS 줄바꿈) task.disabledAgents를 쓰지 않았습니다. scout, security-reviewer, sonic, designer, librarian, seance가 켜져 있습니다",
 	kept: ".omp/config.yml에 ADK가 고치지 않는 줄바꿈(단독 CR, NEL, LS, PS)이 있어 task.disabledAgents를 " +
 		"마지막으로 쓴 그대로 둡니다. 파일을 다시 읽을 수 있으면 이어서 관리합니다",
-	migration: "OMP는 이제 Autopus 에이전트 17개를 씁니다.",
+	migration: "OMP는 이제 Autopus 에이전트 %d개를 씁니다.",
 	sonic:     "경고: role_model_policy.agents.sonic에 model을 지정했지만 autopus 모드는 sonic을 끄므로 그 model을 받는 에이전트가 없습니다",
 }
 
@@ -36,8 +36,14 @@ var ompAgentSurfaceTextEN = ompAgentSurfaceText{
 		"or a lone CR, NEL, LS, or PS line break); scout, security-reviewer, sonic, designer, librarian, and seance stay enabled",
 	kept: "task.disabledAgents is left as last written: .omp/config.yml holds a lone CR, NEL, LS, or PS " +
 		"line break, which ADK does not edit; it is managed again once the file reads cleanly",
-	migration: "OMP now uses the 17 Autopus agents.",
+	migration: "OMP now uses the %d Autopus agents.",
 	sonic:     "warning: role_model_policy.agents.sonic pins a model, but autopus mode disables sonic, so no agent receives it",
+}
+
+// migrationLine names how many agents the migration installs, counted from
+// the generated set so the line cannot outlive a change to it.
+func (t ompAgentSurfaceText) migrationLine() string {
+	return fmt.Sprintf(t.migration, len(config.CanonicalAgentNames()))
 }
 
 func ompAgentSurfaceTextFor(lang string) ompAgentSurfaceText {
@@ -95,7 +101,7 @@ func ompAgentSurfaceLines(report omp.OMPAgentSurfaceReport, cfg *config.HarnessC
 		lines = append(lines, "task.disabledAgents: "+strings.Join(config.OMPAutopusDisabledAgents(), ", "))
 	}
 	if migrating {
-		lines = append(lines, text.migration)
+		lines = append(lines, text.migrationLine())
 	}
 	if len(cfg.RoleModelPolicy.Agents["sonic"].Candidates) > 0 {
 		lines = append(lines, text.sonic)

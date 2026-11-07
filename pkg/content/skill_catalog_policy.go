@@ -5,19 +5,19 @@ import "strings"
 // coreSkillSet is the reusable-skill surface every install advertises by
 // default. Membership is explicit on purpose: a skill enters this set only
 // because every project needs it eagerly listed, never because its category or
-// filename looked important. Everything else stays registered and reachable
+// filename looked important. The verification harness ships only review, QA,
+// and verification skills, and every one of them is core. Everything else stays registered and reachable
 // through skills.compiler bundles / explicit_skills / mode: full.
 var coreSkillSet = map[string]bool{
-	"agent-pipeline":     true,
-	"codebase-design":    true,
-	"debugging":          true,
-	"planning":           true,
+	"browser-automation": true,
+	"frontend-verify":    true,
+	"lore-commit":        true,
+	"playwright-cli":     true,
+	"qa-autopilot":       true,
+	"qa-hunt":            true,
 	"review":             true,
-	"tdd":                true,
 	"testing-strategy":   true,
-	"using-autopus":      true,
 	"verification":       true,
-	"worktree-isolation": true,
 }
 
 // routeSkillPrefix marks the generated `/auto <command>` routes. Routes are the
@@ -30,33 +30,7 @@ func IsRouteSkill(name string) bool {
 	return name == "auto" || strings.HasPrefix(name, routeSkillPrefix)
 }
 
-var bundleOverrides = map[string][]string{
-	"brainstorming":               {"product", "research"},
-	"browser-automation":          {"frontend", "ops"},
-	"ci-cd":                       {"ops"},
-	"competitive-analysis":        {"product", "research"},
-	"context-search":              {"research"},
-	"database":                    {"product"},
-	"docker":                      {"ops"},
-	"double-diamond":              {"product", "research"},
-	"entropy-scan":                {"ops"},
-	"experiment":                  {"research", "ops"},
-	"frontend-skill":              {"frontend"},
-	"frontend-verify":             {"frontend", "quality"},
-	"git-worktrees":               {"ops"},
-	"idea":                        {"product", "research"},
-	"lore-commit":                 {"research"},
-	"make-interfaces-feel-better": {"frontend"},
-	"metrics":                     {"product"},
-	"migration":                   {"ops", "product"},
-	"monitor-patterns":            {"ops"},
-	"performance":                 {"ops"},
-	"playwright-cli":              {"frontend"},
-	"prd":                         {"product"},
-	"product-discovery":           {"product", "research"},
-	"security-audit":              {"ops"},
-	"writing-skills":              {"research"},
-}
+var bundleOverrides = map[string][]string{}
 
 // categoryBundles maps a skill's declared category onto an opt-in bundle. No
 // entry may resolve to "core": category is a hint about topic, and letting it

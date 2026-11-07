@@ -191,6 +191,9 @@ type HooksConf struct {
 	// EditGuard registers the SPEC-EDITGUARD-001 edit guard hook. Read it
 	// through IsEditGuardEnabled; DefaultEditGuard says why unset stays nil.
 	EditGuard *bool `yaml:"edit_guard,omitempty"`
+	// VerifyStop registers the Claude Code Stop hook that builds and tests the
+	// changed files before a session ends. Read it through IsVerifyStopEnabled.
+	VerifyStop *bool `yaml:"verify_stop,omitempty"`
 }
 
 // PermissionsConf는 코딩 CLI 권한 설정이다.

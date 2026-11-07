@@ -37,9 +37,9 @@ func TestUpdateCompose_InteractiveKeepPathsLeaveTheConfigByteIdentical(t *testin
 		t.Run(tc.name, func(t *testing.T) {
 			run := base.rerun(t, true, tc.ci)
 			dir := cloneComposeProject(t, settled)
-			rewriteComposeFile(t, composeGeneratedPath(dir, ".claude", "agents", "autopus", "planner.md"),
+			rewriteComposeFile(t, composeGeneratedPath(dir, ".claude", "agents", "autopus", "reviewer.md"),
 				"model: opus", "model: sonnet")
-			rewriteComposeLine(t, composeGeneratedPath(dir, ".codex", "agents", "planner.toml"),
+			rewriteComposeLine(t, composeGeneratedPath(dir, ".codex", "agents", "reviewer.toml"),
 				"model = ", `model = "gpt-5.5"`)
 			before := composeSessionHash(t, dir)
 
@@ -59,10 +59,10 @@ func TestUpdateCompose_InteractiveKeepPathsLeaveTheConfigByteIdentical(t *testin
 			table := composeRenderedTable(t, out, composeUpdateStatusR)
 			claudeMarks, codexMarks := assertGeneratedEqualsTable(t, dir, table)
 			assert.Zero(t, claudeMarks+codexMarks)
-			assert.Equal(t, "opus · max", table["planner"]["Claude Code"])
-			assert.Equal(t, "6.1-sol · xhigh", table["planner"]["Codex"])
+			assert.Equal(t, "opus · max", table["reviewer"]["Claude Code"])
+			assert.Equal(t, "6.1-sol · xhigh", table["reviewer"]["Codex"])
 			for _, column := range []string{"OMP", "OpenCode", "Antigravity"} {
-				assert.Equal(t, "플랫폼 기본값", table["planner"][column])
+				assert.Equal(t, "플랫폼 기본값", table["reviewer"][column])
 			}
 		})
 	}
@@ -92,7 +92,7 @@ func TestUpdateCompose_NonInteractiveRunsReadNothingAndNoticeOnce(t *testing.T) 
 		t.Run(tc.name, func(t *testing.T) {
 			run := base.rerun(t, tc.tty, tc.ci)
 			dir := cloneComposeProject(t, settled)
-			planner := composeGeneratedPath(dir, ".claude", "agents", "autopus", "planner.md")
+			planner := composeGeneratedPath(dir, ".claude", "agents", "autopus", "reviewer.md")
 			rewriteComposeFile(t, planner, "model: opus", "model: sonnet")
 			before := composeSessionHash(t, dir)
 
@@ -103,7 +103,7 @@ func TestUpdateCompose_NonInteractiveRunsReadNothingAndNoticeOnce(t *testing.T) 
 			assert.Equal(t, 1, strings.Count(out, composeUpdateNotice), out)
 			assert.NotContains(t, out, "에이전트 모델 구성")
 			assert.Empty(t, *run.probes)
-			assert.Equal(t, "opus", readComposeTableClaudeProfile(t, dir, "planner").model,
+			assert.Equal(t, "opus", readComposeTableClaudeProfile(t, dir, "reviewer").model,
 				"the update must still regenerate the platform files")
 		})
 	}
@@ -164,7 +164,7 @@ func TestUpdateCompose_GroupEditGeneratesTheApprovedTable(t *testing.T) {
 	dir, _ := composeSessionProject(t, "D")
 	run := newComposeUpdateRun(t, true, "")
 
-	out, err := runComposeUpdate(t, reaEnter(strings.NewReader("g\n\n3\n\n4\ny\n")), "--dir", dir)
+	out, err := runComposeUpdate(t, reaEnter(strings.NewReader("g\n4\n\ny\n")), "--dir", dir)
 
 	require.NoError(t, err, out)
 	assert.Contains(t, out, "구성을 적용했습니다.\n")
@@ -175,11 +175,11 @@ func TestUpdateCompose_GroupEditGeneratesTheApprovedTable(t *testing.T) {
 	assert.Equal(t, composeTableK, written.Presets["custom"].Agents)
 
 	claudeMarks, codexMarks := assertGeneratedEqualsTable(t, dir, composeRenderedTable(t, out, "미리보기 (아직 바뀌지 않음)"))
-	// The five kept top-rung agents keep their Claude Code cell.
-	assert.Equal(t, 12, claudeMarks)
-	assert.Equal(t, 5, codexMarks)
-	assert.Equal(t, composeTableClaudeCell{model: "sonnet", effort: "medium"}, readComposeTableClaudeProfile(t, dir, "debugger"))
-	assert.Equal(t, config.CodexProfile{Model: "gpt-6-luna", Effort: "max"}, readComposeCodexProfile(t, dir, "debugger"))
+	// The kept top-rung reviewer keeps its Claude Code cell.
+	assert.Equal(t, 3, claudeMarks)
+	assert.Equal(t, 1, codexMarks)
+	assert.Equal(t, composeTableClaudeCell{model: "haiku"}, readComposeTableClaudeProfile(t, dir, "frontend-specialist"))
+	assert.Equal(t, config.CodexProfile{Model: "gpt-6-luna", Effort: "medium"}, readComposeCodexProfile(t, dir, "frontend-specialist"))
 }
 
 // A refused write prints one warning with the writer's text, keeps
@@ -190,13 +190,14 @@ func TestUpdateCompose_RefusedWriteWarnsOnceAndUpdateContinues(t *testing.T) {
 	path := filepath.Join(dir, "autopus.yaml")
 	data, err := os.ReadFile(path)
 	require.NoError(t, err)
-	// balanced and ultra both place reverse-engineer on opus.
-	require.Equal(t, 2, strings.Count(string(data), "reverse-engineer: opus"))
-	rewriteComposeFile(t, path, "reverse-engineer: opus", "reverse-engineer: &tier opus")
-	rewriteComposeFile(t, path, "reverse-engineer: opus", "reverse-engineer: *tier")
+	// balanced places qa-explorer on opus and ultra places ux-validator there.
+	require.Equal(t, 1, strings.Count(string(data), "qa-explorer: opus"))
+	require.Equal(t, 1, strings.Count(string(data), "ux-validator: opus"))
+	rewriteComposeFile(t, path, "qa-explorer: opus", "qa-explorer: &tier opus")
+	rewriteComposeFile(t, path, "ux-validator: opus", "ux-validator: *tier")
 	before := composeSessionHash(t, dir)
 
-	out, err := runComposeUpdate(t, reaEnter(strings.NewReader("g\n\n3\n\n4\ny\n")), "--dir", dir)
+	out, err := runComposeUpdate(t, reaEnter(strings.NewReader("g\n4\n\ny\n")), "--dir", dir)
 
 	require.NoError(t, err, out)
 	assert.Equal(t, before, composeSessionHash(t, dir))
@@ -205,7 +206,7 @@ func TestUpdateCompose_RefusedWriteWarnsOnceAndUpdateContinues(t *testing.T) {
 	assert.NotContains(t, out, "구성을 적용했습니다.")
 	assert.Contains(t, out, "Update complete: 2 platform(s) updated")
 	assert.Len(t, *run.probes, 1)
-	assert.Equal(t, composeTableClaudeCell{model: "claude-opus-5-5", effort: "max"}, readComposeTableClaudeProfile(t, dir, "debugger"))
+	assert.Equal(t, composeTableClaudeCell{model: "claude-opus-5-5", effort: "max"}, readComposeTableClaudeProfile(t, dir, "reviewer"))
 }
 
 // The supervisor migration saves the whole config after the step, so the
@@ -214,7 +215,7 @@ func TestUpdateCompose_ConfirmedWriteSurvivesTheSupervisorMigrationSave(t *testi
 	dir := writeLegacySupervisorUpdateFixture(t, true)
 	run := newComposeUpdateRun(t, true, "")
 
-	out, err := runComposeUpdate(t, reaEnter(strings.NewReader("g\n\n3\n\n4\ny\n")), "--dir", dir)
+	out, err := runComposeUpdate(t, reaEnter(strings.NewReader("g\n4\n\ny\n")), "--dir", dir)
 
 	require.NoError(t, err, out)
 	assert.Contains(t, out, "구성을 적용했습니다.\n")
@@ -225,7 +226,7 @@ func TestUpdateCompose_ConfirmedWriteSurvivesTheSupervisorMigrationSave(t *testi
 	assert.Equal(t, "custom", saved.Quality.Default)
 	assert.Equal(t, composeTableK, saved.Quality.Presets["custom"].Agents)
 	assert.Len(t, *run.probes, 1)
-	assert.Equal(t, config.CodexProfile{Model: "gpt-6-luna", Effort: "max"}, readComposeCodexProfile(t, dir, "debugger"))
+	assert.Equal(t, config.CodexProfile{Model: "gpt-6-luna", Effort: "medium"}, readComposeCodexProfile(t, dir, "frontend-specialist"))
 }
 
 // S19 through update: under CAT-D the table marks the standard placements
@@ -235,7 +236,7 @@ func TestUpdateCompose_RefusedCodexPlacementFailsTheSameRunsGeneration(t *testin
 	run := newComposeUpdateRun(t, true, "")
 	dir := run.settled(t, "D")
 	probes := composeSessionCatalog(t, "CAT-D")
-	planner := composeGeneratedPath(dir, ".claude", "agents", "autopus", "planner.md")
+	planner := composeGeneratedPath(dir, ".claude", "agents", "autopus", "reviewer.md")
 	rewriteComposeFile(t, planner, "model: claude-opus-5-5", "model: sonnet")
 	before := composeSessionHash(t, dir)
 
@@ -245,12 +246,12 @@ func TestUpdateCompose_RefusedCodexPlacementFailsTheSameRunsGeneration(t *testin
 	assert.Contains(t, err.Error(), "플랫폼 업데이트 실패: codex")
 	assert.Contains(t, out, "Codex 생성이 실패합니다\n")
 	table := composeRenderedTable(t, out, "quality.default = balanced   ultra: 현재 기본값   balanced: 현재 기본값")
-	for _, agent := range []string{"architect", "debugger", "deep-worker", "planner", "reviewer", "security-auditor", "spec-writer"} {
+	for _, agent := range []string{"reviewer"} {
 		assert.Equal(t, "생성 거부", table[agent]["Codex"], agent)
 	}
 	assert.Len(t, *probes, 1)
 	assert.Empty(t, *run.probes)
 	assert.False(t, run.adapterProbed(t))
 	assert.Equal(t, before, composeSessionHash(t, dir))
-	assert.Equal(t, "claude-opus-5-5", readComposeTableClaudeProfile(t, dir, "planner").model)
+	assert.Equal(t, "claude-opus-5-5", readComposeTableClaudeProfile(t, dir, "reviewer").model)
 }

@@ -2,6 +2,7 @@ package content_test
 
 import (
 	"io/fs"
+	"os"
 	"regexp"
 	"strings"
 	"testing"
@@ -68,7 +69,9 @@ func ompContentBodies(t *testing.T, dir string) map[string]string {
 func TestReplacePlatformReferencesOMP_S12_NotANoOp(t *testing.T) {
 	t.Parallel()
 
-	raw, err := fs.ReadFile(contentfs.FS, "rules/doc-storage.md")
+	// doc-storage left the product with the verification harness; its last
+	// shipped body is still a real source full of Claude-native paths.
+	raw, err := os.ReadFile("testdata/retired-rules/doc-storage.md")
 	require.NoError(t, err)
 	source := string(raw)
 	require.Contains(t, source, ".claude/", "fixture precondition: the source names .claude/")
