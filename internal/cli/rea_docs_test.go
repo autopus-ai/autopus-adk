@@ -22,7 +22,7 @@ import (
 // session-model fallback, and the /auto reverse clean-room flow left with the
 // reverse-engineer agent and its route.
 var reaDocItemsKo = []string{
-	"새 init은 기본으로 켜고", "--rea", "--no-rea", reamcp.NodeRange,
+	"새 init은 기본으로 끄고", "--rea", "--no-rea", reamcp.NodeRange,
 	"features.rea.enabled는 managed 항목이 결정을 담지 못할 때만", "v0.50.127보다 오래된 auto(v0.50.113–v0.50.125)",
 	"Windows에서는 돌지 않고",
 }

@@ -208,7 +208,7 @@ One `autopus.yaml` generates native files for each supported CLI that `auto init
 
 `auto platform add|remove|list` manages the platform list. `auto doctor` checks that the generated
 files are wired up. Antigravity also keeps the `rea-mcp-guard` rule for the optional REA
-reverse-engineering MCP, which `auto init` registers when Node fits (`--rea` / `--no-rea`).
+reverse-engineering MCP, which `auto init` registers only with `--rea` (or a Yes in the wizard) when Node fits.
 
 ## Install
 

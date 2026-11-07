@@ -40,9 +40,10 @@ func reaStepWanted(opts InitWizardOpts) bool {
 }
 
 // reaDefault is the REA answer before the step runs: the preset decision,
-// else Yes (REQ-REA-02). It never aliases opts.Rea.
+// else No. No shipped agent consumes the REA MCP since v0.51.0, so it is
+// opt-in. It never aliases opts.Rea.
 func reaDefault(opts InitWizardOpts) *bool {
-	answer := true
+	answer := false
 	if opts.Rea != nil {
 		answer = *opts.Rea
 	}

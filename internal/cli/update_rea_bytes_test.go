@@ -65,14 +65,14 @@ func TestUpdateRea_AnswerChangesOnlyTheKeyLines(t *testing.T) {
 	assert.Equal(t, text+"features:\n  rea:\n    enabled: false\n", reaYAML(t, no))
 
 	yes := cloneComposeProject(t, old)
-	out, err = reaUpdate(t, strings.NewReader("\n\n"), yes)
+	out, err = reaUpdate(t, strings.NewReader("y\n\n"), yes)
 	require.NoError(t, err, out)
 	assertReaManagedOnce(t, yes)
 	assert.Equal(t, text, reaYAML(t, yes))
 
 	recorder.stdout = "v20.11.0\n"
 	gate := cloneComposeProject(t, old)
-	out, err = reaUpdate(t, strings.NewReader("\n\n"), gate)
+	out, err = reaUpdate(t, strings.NewReader("y\n\n"), gate)
 	require.NoError(t, err, out)
 	assertReaAbsent(t, gate)
 	assert.Equal(t, text+"features:\n  rea:\n    enabled: true\n", reaYAML(t, gate))

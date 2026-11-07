@@ -120,14 +120,24 @@ func reaYAML(t *testing.T, dir string) string {
 	return string(data)
 }
 
-// S3 (1), (4), (5), (8), (9): non-interactive init turns REA on by default,
+// S3 (1), (4), (5), (8), (9): non-interactive init leaves REA off unless --rea,
 // --no-rea stores false once, both flags fail before any write, and a re-init
 // carries the stored key; --rea over it corrects false to true.
 func TestInitRea_NonInteractiveDecisions(t *testing.T) {
 	reaCLIEnv(t, "v24.11.0\n")
 
+	// REA is opt-in since v0.51.0: a plain --yes leaves it undecided and
+	// registers nothing.
+	undecided := t.TempDir()
+	out, err := reaInit(t, undecided, reaAllTargets, "--yes")
+	require.NoError(t, err, out)
+	assertReaAbsent(t, undecided)
+	assert.NotRegexp(t, `(?m)^\s+rea:`, reaYAML(t, undecided))
+	assert.Zero(t, strings.Count(out, "REA 역공학 MCP를 등록했습니다"), out)
+	assert.Zero(t, strings.Count(out, reaTextKo.OldBinary), out)
+
 	on := t.TempDir()
-	out, err := reaInit(t, on, reaAllTargets, "--yes")
+	out, err = reaInit(t, on, reaAllTargets, "--yes", "--rea")
 	require.NoError(t, err, out)
 	assertReaManagedOnce(t, on)
 	assert.NotRegexp(t, `(?m)^\s+rea:`, reaYAML(t, on))
@@ -197,7 +207,7 @@ func TestInitRea_NodeGateAndGuidance(t *testing.T) {
 	recorder := reaCLIEnv(t, "v20.11.0\n")
 
 	n20 := t.TempDir()
-	out, err := reaInit(t, n20, reaAllTargets, "--yes")
+	out, err := reaInit(t, n20, reaAllTargets, "--yes", "--rea")
 	require.NoError(t, err, out)
 	assertReaAbsent(t, n20)
 	assert.Regexp(t, reaKeyLine(true), reaYAML(t, n20))

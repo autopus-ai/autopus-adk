@@ -59,7 +59,7 @@ func reaCurrentText() reaText {
 }
 
 var reaTextKo = reaText{
-	Question:      "REA 역공학 MCP(" + reaPackage + ")를 이 프로젝트의 Claude Code·Codex·Antigravity에 등록할까요? [Y/n]",
+	Question:      "REA 역공학 MCP(" + reaPackage + ")를 이 프로젝트의 Claude Code·Codex·Antigravity에 등록할까요? [y/N]",
 	Registered:    "REA 역공학 MCP를 등록했습니다: %s (" + reaPackage + ")",
 	Hint:          "REA 역공학 MCP를 아직 정하지 않았습니다. 켜려면 auto update --rea, 끄려면 auto update --no-rea",
 	NodeOutside:   "REA MCP를 등록하지 않았습니다: node %s은 " + reamcp.NodeRange + " 범위가 아닙니다",
@@ -83,7 +83,7 @@ var reaTextKo = reaText{
 }
 
 var reaTextEn = reaText{
-	Question:      "Register the REA reverse-engineering MCP (" + reaPackage + ") for Claude Code, Codex, and Antigravity in this project? [Y/n]",
+	Question:      "Register the REA reverse-engineering MCP (" + reaPackage + ") for Claude Code, Codex, and Antigravity in this project? [y/N]",
 	Registered:    "Registered the REA reverse-engineering MCP: %s (" + reaPackage + ")",
 	Hint:          "REA reverse-engineering MCP is undecided; run auto update --rea to enable or auto update --no-rea to decline",
 	NodeOutside:   "REA MCP not registered: node %s is outside " + reamcp.NodeRange,

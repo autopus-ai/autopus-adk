@@ -251,3 +251,12 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 원인: 구성 화면의 역할 그룹(`composeRoleGroups`)이 생성하지 않는 레거시 역할 14개를 담고 있었다. 그룹은 이제 구현(frontend-specialist)과 검증·리뷰(reviewer, qa-explorer, ux-validator) 두 개다.
 - 기록: `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run 'TestInitReview_S6|TUIUX|Tuiux'`로 writer를 돌리고, 단언하지 않는 `init-in.stdout`은 `git checkout`으로 되돌렸다. quality_compose 표와 줄 입력 golden은 `-update-compose-table`로 다시 썼다(줄 입력 golden도 이제 이 flag로 다시 쓴다).
 - 차이: 구성 표가 네 행(구현 1, 검증·리뷰 3)이 되고 qa-explorer 행이 생겼다. NPD는 `autopus.yaml`과 생성 에이전트 파일·manifest checksum이 바뀌었다. 빈 그룹이나 삭제된 에이전트 행은 없다.
+
+## REA MCP opt-in 재기록 (fix/v051-followups, 2026-11-07)
+
+- 원인: 설치되는 에이전트 중 REA MCP를 쓰는 것이 없어 REA를 opt-in으로 바꿨다. `--yes` init은 이제 REA를 정하지 않은 채로 두고 아무것도 등록하지 않으며(`decideInit`), 정하지 않은 update는 hint 한 줄을 쓴다.
+- 기록: `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`로 writer를 돌리고, 단언하지 않는 `init-in.stdout`은 `git checkout`으로 되돌렸다.
+- 차이:
+  - stdout: `init-yes.stdout`에서 `REA 역공학 MCP를 등록했습니다: …` 줄이 빠지고, `update-yes.stdout`·`update-ci.stdout`에 `REA 역공학 MCP를 아직 정하지 않았습니다. …` hint 줄이 더해졌다. 다른 줄은 그대로다.
+  - NPD: init-yes·update-yes·update-ci의 `.mcp.json`·`.codex/config.toml`과 그 backup, manifest·journal checksum이 rea 항목이 없는 값으로 바뀌었다.
+- 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`이 이 golden으로 통과한다.

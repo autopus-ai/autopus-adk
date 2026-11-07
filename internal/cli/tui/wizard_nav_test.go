@@ -85,7 +85,7 @@ func TestWizardNav_S1BackPreselectsAndKeepsTheValues(t *testing.T) {
 
 	assert.Equal(t, &tui.InitWizardResult{
 		UsageProfile: "fullstack", CommentsLang: "ko", CommitsLang: "en", AILang: "ja",
-		Quality: "ultra", ReviewGate: false, Rea: reaOn(true), Methodology: "none",
+		Quality: "ultra", ReviewGate: false, Rea: reaOn(false), Methodology: "none",
 	}, result)
 	assert.Equal(t, control, result)
 	for header, want := range map[string]int{
@@ -107,7 +107,7 @@ func TestWizardNav_S2BackDropsThePartialStep(t *testing.T) {
 
 	assert.Equal(t, &tui.InitWizardResult{
 		UsageProfile: "fullstack", CommentsLang: "en", CommitsLang: "ko", AILang: "ko",
-		Quality: "balanced", ReviewGate: true, Rea: reaOn(true), Methodology: "tdd",
+		Quality: "balanced", ReviewGate: true, Rea: reaOn(false), Methodology: "tdd",
 	}, result)
 	assert.Equal(t, 2, countLines(out, "init · 1/6 사용 프로필"))
 	for occurrence := 1; occurrence <= 2; occurrence++ {
@@ -130,7 +130,7 @@ func TestWizardNav_S3FirstStepNotice(t *testing.T) {
 			assert.Equal(t, 1, countLines(out, header))
 			assert.Equal(t, &tui.InitWizardResult{
 				UsageProfile: "developer", CommentsLang: "en", CommitsLang: lang, AILang: lang,
-				Quality: "balanced", ReviewGate: true, Rea: reaOn(true), Methodology: "tdd",
+				Quality: "balanced", ReviewGate: true, Rea: reaOn(false), Methodology: "tdd",
 			}, result)
 		})
 	}
@@ -140,7 +140,7 @@ func TestWizardNav_S3FirstStepNotice(t *testing.T) {
 func wizardR() *tui.InitWizardResult {
 	return &tui.InitWizardResult{
 		UsageProfile: "fullstack", CommentsLang: "ko", CommitsLang: "en", AILang: "ja",
-		Quality: "ultra", ReviewGate: false, Rea: reaOn(true), Methodology: "none",
+		Quality: "ultra", ReviewGate: false, Rea: reaOn(false), Methodology: "none",
 	}
 }
 
@@ -155,7 +155,7 @@ func TestWizardNav_S5ResumeStartsAtTheLastStep(t *testing.T) {
 	assert.True(t, strings.HasPrefix(out, "init · 6/6 방법론\n"), out)
 	assert.Equal(t, []string{
 		"지금까지 고른 값", "  사용 프로필: Fullstack", "  언어 설정: 주석 ko · 커밋 en · AI 응답 ja", "  품질 모드: Ultra",
-		"  리뷰 게이트: 끔", "  REA 역공학 MCP: 켬", wizardFooterKO,
+		"  리뷰 게이트: 끔", "  REA 역공학 MCP: 끔", wizardFooterKO,
 	}, linesAfter(t, out, "init · 6/6 방법론", 1, 7))
 
 	result, out = runWizardNav(t, opts, "b\n", "\n", "\n")
@@ -226,11 +226,11 @@ func TestWizardNav_S21DefaultStreams(t *testing.T) {
 func TestWizardAnswerLines_StepsTheWizardAsked(t *testing.T) {
 	w := &tui.InitWizardResult{
 		UsageProfile: "developer", CommentsLang: "en", CommitsLang: "ko", AILang: "ko",
-		Quality: "balanced", ReviewGate: false, Rea: reaOn(true), Methodology: "tdd",
+		Quality: "balanced", ReviewGate: false, Rea: reaOn(false), Methodology: "tdd",
 	}
 	assert.Equal(t, []string{
 		"  사용 프로필: Developer", "  언어 설정: 주석 en · 커밋 ko · AI 응답 ko", "  품질 모드: Balanced",
-		"  리뷰 게이트: 끔", "  REA 역공학 MCP: 켬", "  방법론: TDD",
+		"  리뷰 게이트: 끔", "  REA 역공학 MCP: 끔", "  방법론: TDD",
 	}, tui.WizardAnswerLines(wizardWZ6(), w, "ko"))
 
 	w.Quality = tui.QualityRoleGroups

@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **REA MCP는 opt-in이 된다** (2026-11-07): 설치되는 에이전트 중 REA MCP를 쓰는 것이 없으므로, 새 `auto init`은
+  `--rea`나 wizard의 Yes가 있을 때만 rea-agents를 등록한다. wizard와 대화형 `auto update`의 질문 기본값은 No(`[y/N]`)다.
+  이미 managed 항목이 있거나 `features.rea.enabled: true`를 저장한 프로젝트는 그대로 켜져 있다.
+
+- **`auto status`가 SPEC 계획 대신 검증을 안내한다** (2026-11-07): SPEC이 없는 프로젝트의 첫 줄이 "새 기능은 SPEC
+  계획부터"에서 리뷰·QA 안내로 바뀌고, 명령 설명은 "Show harness status and next verification steps"가 된다.
+
+- **Darwin 실행 게이트가 막 끝난 자식을 거부하지 않는다** (2026-11-07): 커널은 자식의 주소 공간을 내린 뒤에야 그 자식을
+  waitid로 보이게 한다. 그 사이에 live image를 다시 읽으면 "Darwin live executable path mismatch"로 실패했고, 부하가 걸린
+  Mac에서 `TestPipelineOMPVerifiedExecCommand_DarwinGateProbeExitsCleanly`가 30번 중 20번 깨졌다. 이제 image가 사라진
+  자식은 최대 500ms 동안 종료를 기다려 본 뒤 판정한다. 살아 있는 자식의 불일치는 여전히 실패한다(늦게 실패할 뿐이다).
+  같은 부하에서 0/30.
+
 - **구성 화면의 역할 그룹이 생성되는 네 에이전트만 담는다** (2026-11-07): `auto init`·`auto quality`·`auto update`의
   역할 그룹(g)과 구성 표가 이제 구현(frontend-specialist)과 검증·리뷰(reviewer, qa-explorer, ux-validator) 두 그룹,
   네 행이다. 전에는 생성하지 않는 레거시 역할 14개가 표에 남고, 설계·판단·탐색·보조 그룹 등급이 빈 칸으로 보였으며, 그룹을
