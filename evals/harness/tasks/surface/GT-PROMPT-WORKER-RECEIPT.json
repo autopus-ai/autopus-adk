@@ -8,42 +8,6 @@
   "variants": [],
   "assertions": [
     {
-      "kind": "section_parity",
-      "files": [
-        {
-          "platform": "claude-code",
-          "path": ".claude/skills/agent-pipeline/references/coordination.md"
-        },
-        {
-          "platform": "codex",
-          "path": ".codex/skills/codex-agent-pipeline/references/coordination.md"
-        },
-        {
-          "platform": "antigravity-cli",
-          "path": ".agents/plugins/autopus/skills/agent-pipeline/references/coordination.md"
-        },
-        {
-          "platform": "antigravity-cli",
-          "path": ".gemini/skills/autopus/agent-pipeline/references/coordination.md"
-        },
-        {
-          "platform": "opencode",
-          "path": ".agents/skills/agent-pipeline/references/coordination.md"
-        },
-        {
-          "platform": "omp",
-          "path": ".omp/skills/agent-pipeline/references/coordination.md"
-        }
-      ],
-      "heading": "# Native Coordination Payloads"
-    },
-    {
-      "kind": "contains",
-      "platform": "claude-code",
-      "path": ".claude/skills/agent-pipeline/references/coordination.md",
-      "needle": "\"required\": [\"owned_paths\", \"changed_files\", \"verification\", \"blockers\", \"next_required_step\"]"
-    },
-    {
       "kind": "contains",
       "platform": "opencode",
       "path": "AGENTS.md",

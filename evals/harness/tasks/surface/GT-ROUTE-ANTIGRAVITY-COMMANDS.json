@@ -24,51 +24,9 @@
     {
       "kind": "route_detail",
       "platform": "antigravity-cli",
-      "path": ".agents/plugins/autopus/commands/auto/setup.toml",
-      "route": "Load the autopus skill from",
-      "detail": ".agents/plugins/autopus/skills/auto-setup/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".agents/plugins/autopus/commands/auto/status.toml",
-      "route": "Load the autopus skill from",
-      "detail": ".agents/plugins/autopus/skills/auto-status/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".agents/plugins/autopus/commands/auto/goal.toml",
-      "route": "Load the autopus skill from",
-      "detail": ".agents/plugins/autopus/skills/auto-goal/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
       "path": ".agents/plugins/autopus/commands/auto/update.toml",
       "route": "Load the autopus skill from",
       "detail": ".agents/plugins/autopus/skills/auto-update/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".agents/plugins/autopus/commands/auto/plan.toml",
-      "route": "Load the autopus skill from",
-      "detail": ".agents/plugins/autopus/skills/auto-plan/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".agents/plugins/autopus/commands/auto/go.toml",
-      "route": "Load the autopus skill from",
-      "detail": ".agents/plugins/autopus/skills/auto-go/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".agents/plugins/autopus/commands/auto/fix.toml",
-      "route": "Load the autopus skill from",
-      "detail": ".agents/plugins/autopus/skills/auto-fix/SKILL.md"
     },
     {
       "kind": "route_detail",
@@ -87,37 +45,9 @@
     {
       "kind": "route_detail",
       "platform": "antigravity-cli",
-      "path": ".agents/plugins/autopus/commands/auto/idea.toml",
-      "route": "Load the autopus skill from",
-      "detail": ".agents/plugins/autopus/skills/auto-idea/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".agents/plugins/autopus/commands/auto/map.toml",
-      "route": "Load the autopus skill from",
-      "detail": ".agents/plugins/autopus/skills/auto-map/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".agents/plugins/autopus/commands/auto/why.toml",
-      "route": "Load the autopus skill from",
-      "detail": ".agents/plugins/autopus/skills/auto-why/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
       "path": ".agents/plugins/autopus/commands/auto/verify.toml",
       "route": "Load the autopus skill from",
       "detail": ".agents/plugins/autopus/skills/auto-verify/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".agents/plugins/autopus/commands/auto/secure.toml",
-      "route": "Load the autopus skill from",
-      "detail": ".agents/plugins/autopus/skills/auto-secure/SKILL.md"
     },
     {
       "kind": "route_detail",
@@ -136,20 +66,6 @@
     {
       "kind": "route_detail",
       "platform": "antigravity-cli",
-      "path": ".agents/plugins/autopus/commands/auto/dev.toml",
-      "route": "Load the autopus skill from",
-      "detail": ".agents/plugins/autopus/skills/auto-dev/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".agents/plugins/autopus/commands/auto/canary.toml",
-      "route": "Load the autopus skill from",
-      "detail": ".agents/plugins/autopus/skills/auto-canary/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
       "path": ".agents/plugins/autopus/commands/auto/doctor.toml",
       "route": "Load the autopus skill from",
       "detail": ".agents/plugins/autopus/skills/auto-doctor/SKILL.md"
@@ -157,58 +73,9 @@
     {
       "kind": "route_detail",
       "platform": "antigravity-cli",
-      "path": ".agents/plugins/autopus/commands/auto/reverse.toml",
-      "route": "Load the autopus skill from",
-      "detail": ".agents/plugins/autopus/skills/auto-reverse/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".gemini/commands/auto/setup.toml",
-      "route": "Load the autopus skill from",
-      "detail": ".gemini/skills/autopus/auto-setup/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".gemini/commands/auto/status.toml",
-      "route": "Load the autopus skill from",
-      "detail": ".gemini/skills/autopus/auto-status/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".gemini/commands/auto/goal.toml",
-      "route": "Load the autopus skill from",
-      "detail": ".gemini/skills/autopus/auto-goal/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
       "path": ".gemini/commands/auto/update.toml",
       "route": "Load the autopus skill from",
       "detail": ".gemini/skills/autopus/auto-update/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".gemini/commands/auto/plan.toml",
-      "route": "Load the autopus skill from",
-      "detail": ".gemini/skills/autopus/auto-plan/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".gemini/commands/auto/go.toml",
-      "route": "Load the autopus skill from",
-      "detail": ".gemini/skills/autopus/auto-go/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".gemini/commands/auto/fix.toml",
-      "route": "Load the autopus skill from",
-      "detail": ".gemini/skills/autopus/auto-fix/SKILL.md"
     },
     {
       "kind": "route_detail",
@@ -227,37 +94,9 @@
     {
       "kind": "route_detail",
       "platform": "antigravity-cli",
-      "path": ".gemini/commands/auto/idea.toml",
-      "route": "Load the autopus skill from",
-      "detail": ".gemini/skills/autopus/auto-idea/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".gemini/commands/auto/map.toml",
-      "route": "Load the autopus skill from",
-      "detail": ".gemini/skills/autopus/auto-map/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".gemini/commands/auto/why.toml",
-      "route": "Load the autopus skill from",
-      "detail": ".gemini/skills/autopus/auto-why/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
       "path": ".gemini/commands/auto/verify.toml",
       "route": "Load the autopus skill from",
       "detail": ".gemini/skills/autopus/auto-verify/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".gemini/commands/auto/secure.toml",
-      "route": "Load the autopus skill from",
-      "detail": ".gemini/skills/autopus/auto-secure/SKILL.md"
     },
     {
       "kind": "route_detail",
@@ -276,30 +115,9 @@
     {
       "kind": "route_detail",
       "platform": "antigravity-cli",
-      "path": ".gemini/commands/auto/dev.toml",
-      "route": "Load the autopus skill from",
-      "detail": ".gemini/skills/autopus/auto-dev/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".gemini/commands/auto/canary.toml",
-      "route": "Load the autopus skill from",
-      "detail": ".gemini/skills/autopus/auto-canary/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
       "path": ".gemini/commands/auto/doctor.toml",
       "route": "Load the autopus skill from",
       "detail": ".gemini/skills/autopus/auto-doctor/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".gemini/commands/auto/reverse.toml",
-      "route": "Load the autopus skill from",
-      "detail": ".gemini/skills/autopus/auto-reverse/SKILL.md"
     }
   ],
   "provenance": {

@@ -32,24 +32,6 @@
       "kind": "contains",
       "platform": "claude-code",
       "path": ".claude/skills/auto/SKILL.md",
-      "needle": "- `stale` and `spec review` route through `review` with the alias arguments intact."
-    },
-    {
-      "kind": "contains",
-      "platform": "antigravity-cli",
-      "path": ".agents/plugins/autopus/skills/auto/SKILL.md",
-      "needle": "- `stale` and `spec review` route through `review` with the alias arguments intact."
-    },
-    {
-      "kind": "contains",
-      "platform": "antigravity-cli",
-      "path": ".gemini/skills/auto/SKILL.md",
-      "needle": "- `stale` and `spec review` route through `review` with the alias arguments intact."
-    },
-    {
-      "kind": "contains",
-      "platform": "claude-code",
-      "path": ".claude/skills/auto/SKILL.md",
       "needle": "- Management aliases `init` and `platform` route through `update`;"
     },
     {

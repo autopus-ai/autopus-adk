@@ -10,56 +10,8 @@
     {
       "kind": "contains",
       "platform": "codex",
-      "path": ".codex/skills/codex-auto/SKILL.md",
-      "needle": "load the matching detailed workflow surface (`$codex-auto-setup`, `$codex-auto-status`, `$codex-auto-goal`, `$codex-auto-update`, `$codex-auto-plan`, `$codex-auto-go`, `$codex-auto-fix`, `$codex-auto-review`, `$codex-auto-sync`, `$codex-auto-idea`, `$codex-auto-map`, `$codex-auto-why`, `$codex-auto-verify`, `$codex-auto-secure`, `$codex-auto-test`, `$codex-auto-qa`, `$codex-auto-dev`, `$codex-auto-canary`, `$codex-auto-doctor`, `$codex-auto-reverse`) before answering or acting."
-    },
-    {
-      "kind": "contains",
-      "platform": "codex",
-      "path": ".autopus/plugins/auto/skills/auto/SKILL.md",
-      "needle": "load the matching detailed workflow surface (`$codex-auto-setup`, `$codex-auto-status`, `$codex-auto-goal`, `$codex-auto-update`, `$codex-auto-plan`, `$codex-auto-go`, `$codex-auto-fix`, `$codex-auto-review`, `$codex-auto-sync`, `$codex-auto-idea`, `$codex-auto-map`, `$codex-auto-why`, `$codex-auto-verify`, `$codex-auto-secure`, `$codex-auto-test`, `$codex-auto-qa`, `$codex-auto-dev`, `$codex-auto-canary`, `$codex-auto-doctor`, `$codex-auto-reverse`) before answering or acting."
-    },
-    {
-      "kind": "contains",
-      "platform": "codex",
-      "path": ".codex/skills/codex-auto-setup/SKILL.md",
-      "needle": "name: codex-auto-setup\n"
-    },
-    {
-      "kind": "contains",
-      "platform": "codex",
-      "path": ".codex/skills/codex-auto-status/SKILL.md",
-      "needle": "name: codex-auto-status\n"
-    },
-    {
-      "kind": "contains",
-      "platform": "codex",
-      "path": ".codex/skills/codex-auto-goal/SKILL.md",
-      "needle": "name: codex-auto-goal\n"
-    },
-    {
-      "kind": "contains",
-      "platform": "codex",
       "path": ".codex/skills/codex-auto-update/SKILL.md",
       "needle": "name: codex-auto-update\n"
-    },
-    {
-      "kind": "contains",
-      "platform": "codex",
-      "path": ".codex/skills/codex-auto-plan/SKILL.md",
-      "needle": "name: codex-auto-plan\n"
-    },
-    {
-      "kind": "contains",
-      "platform": "codex",
-      "path": ".codex/skills/codex-auto-go/SKILL.md",
-      "needle": "name: codex-auto-go\n"
-    },
-    {
-      "kind": "contains",
-      "platform": "codex",
-      "path": ".codex/skills/codex-auto-fix/SKILL.md",
-      "needle": "name: codex-auto-fix\n"
     },
     {
       "kind": "contains",
@@ -76,32 +28,8 @@
     {
       "kind": "contains",
       "platform": "codex",
-      "path": ".codex/skills/codex-auto-idea/SKILL.md",
-      "needle": "name: codex-auto-idea\n"
-    },
-    {
-      "kind": "contains",
-      "platform": "codex",
-      "path": ".codex/skills/codex-auto-map/SKILL.md",
-      "needle": "name: codex-auto-map\n"
-    },
-    {
-      "kind": "contains",
-      "platform": "codex",
-      "path": ".codex/skills/codex-auto-why/SKILL.md",
-      "needle": "name: codex-auto-why\n"
-    },
-    {
-      "kind": "contains",
-      "platform": "codex",
       "path": ".codex/skills/codex-auto-verify/SKILL.md",
       "needle": "name: codex-auto-verify\n"
-    },
-    {
-      "kind": "contains",
-      "platform": "codex",
-      "path": ".codex/skills/codex-auto-secure/SKILL.md",
-      "needle": "name: codex-auto-secure\n"
     },
     {
       "kind": "contains",
@@ -118,26 +46,8 @@
     {
       "kind": "contains",
       "platform": "codex",
-      "path": ".codex/skills/codex-auto-dev/SKILL.md",
-      "needle": "name: codex-auto-dev\n"
-    },
-    {
-      "kind": "contains",
-      "platform": "codex",
-      "path": ".codex/skills/codex-auto-canary/SKILL.md",
-      "needle": "name: codex-auto-canary\n"
-    },
-    {
-      "kind": "contains",
-      "platform": "codex",
       "path": ".codex/skills/codex-auto-doctor/SKILL.md",
       "needle": "name: codex-auto-doctor\n"
-    },
-    {
-      "kind": "contains",
-      "platform": "codex",
-      "path": ".codex/skills/codex-auto-reverse/SKILL.md",
-      "needle": "name: codex-auto-reverse\n"
     }
   ],
   "provenance": {

@@ -8,36 +8,6 @@
   "variants": [],
   "assertions": [
     {
-      "kind": "section_parity",
-      "files": [
-        {
-          "platform": "claude-code",
-          "path": ".claude/skills/agent-pipeline/references/review.md"
-        },
-        {
-          "platform": "codex",
-          "path": ".codex/skills/codex-agent-pipeline/references/review.md"
-        },
-        {
-          "platform": "antigravity-cli",
-          "path": ".agents/plugins/autopus/skills/agent-pipeline/references/review.md"
-        },
-        {
-          "platform": "antigravity-cli",
-          "path": ".gemini/skills/autopus/agent-pipeline/references/review.md"
-        },
-        {
-          "platform": "opencode",
-          "path": ".agents/skills/agent-pipeline/references/review.md"
-        },
-        {
-          "platform": "omp",
-          "path": ".omp/skills/agent-pipeline/references/review.md"
-        }
-      ],
-      "heading": "# Review Loop"
-    },
-    {
       "kind": "contains",
       "platform": "claude-code",
       "path": ".claude/skills/auto/SKILL.md",

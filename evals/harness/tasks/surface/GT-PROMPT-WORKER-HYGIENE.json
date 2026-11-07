@@ -103,7 +103,7 @@
     "ref": "content/skills/references/agent-pipeline/delegation.md, content/skills/references/agent-pipeline/verification.md"
   },
   "status": {
-    "state": "active",
-    "reason": ""
+    "state": "retired",
+    "reason": "The verification harness retired the implementation workers and the agent pipeline whose prompts carried worker hygiene; the kept reviewer and QA agents do not run as pipeline workers."
   }
 }
