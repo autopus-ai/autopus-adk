@@ -206,7 +206,7 @@ model은 `auto quality review model <provider> <model>`로 바꿉니다.
 
 플랫폼 목록은 `auto platform add|remove|list`로 관리하고, `auto doctor`로 생성 파일이 제대로 연결됐는지
 확인합니다. Antigravity에는 선택 기능인 REA 역공학 MCP를 위한 `rea-mcp-guard` 규칙도 남아 있습니다. REA MCP는
-Node 버전이 맞으면 `auto init`이 등록합니다(`--rea` / `--no-rea`).
+`--rea`(또는 wizard에서 Yes)를 고르고 Node 버전이 맞을 때만 `auto init`이 등록합니다.
 
 <a id="install"></a>
 ## 설치

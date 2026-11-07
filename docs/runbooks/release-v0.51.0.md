@@ -211,7 +211,7 @@ sudo -v && scripts/release-tools/release-prep.sh --apply
 ## Stop conditions
 
 - **Approve the release job within 24 hours of `--apply`.** If the window is
-  missed, do not rerun the job: carry the coordinate to `v0.50.135` and
+  missed, do not rerun the job: carry the coordinate to `v0.51.1` and
   record the burn here.
 - `--apply` exit 75 leaves the prep lock retained on purpose. Inspect the
   remote state, fix only what is outside the source, and retry `--apply` on
@@ -219,7 +219,7 @@ sudo -v && scripts/release-tools/release-prep.sh --apply
 - If the tap head moves off `3d3ee5d3` before publication, re-measure
   `PRIOR_TAP_COMMIT` and `PRIOR_CASK_BLOB` first.
 - The tag is immutable once pushed. If anything mismatches after that, do not
-  move, delete, or reuse `v0.51.0`; carry the coordinate to `v0.50.135`.
+  move, delete, or reuse `v0.51.0`; carry the coordinate to `v0.51.1`.
 - If `ci / macos-runtime` or the final signed companion execution smoke fails
   with `trace/BPT trap` or a gated child that does not finish, record the
   runner image before any rerun.

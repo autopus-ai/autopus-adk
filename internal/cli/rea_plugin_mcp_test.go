@@ -27,7 +27,7 @@ const reaPluginMCPRel = ".agents/plugins/autopus/mcp_config.json"
 func TestReaPluginMCP_InitRegistersInThePluginAndDoctorNamesTheFile(t *testing.T) {
 	reaCLIEnv(t, "v24.11.0\n")
 	dir := t.TempDir()
-	out, err := reaInit(t, dir, reaAllTargets, "--yes")
+	out, err := reaInit(t, dir, reaAllTargets, "--yes", "--rea")
 	require.NoError(t, err, out)
 
 	assert.Equal(t, reaPluginMCPRel, reamcp.TargetRelPath(reamcp.Antigravity))

@@ -1,3 +1,4 @@
+  REA 역공학 MCP를 아직 정하지 않았습니다. 켜려면 auto update --rea, 끄려면 auto update --no-rea
 Update targets (2): claude-code, codex
   → Updating claude-code...
   ✓ claude-code updated

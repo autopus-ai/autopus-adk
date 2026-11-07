@@ -275,8 +275,8 @@ neither back nor the review.
 ## REA MCP init flags
 
 `auto init` registers the project-scope REA reverse-engineering MCP (`rea-agents@6.5.0`) for
-Claude Code, Codex, and Antigravity CLI (SPEC-REA-001). A new init turns it on by default;
-`--rea` and `--no-rea` decide explicitly, and passing both stops before anything is written.
+Claude Code, Codex, and Antigravity CLI (SPEC-REA-001). Since v0.51.0 it is opt-in: a new init leaves it
+off, `--rea` and `--no-rea` decide explicitly, and passing both stops before anything is written.
 Registration happens only when Node is `^22.19.0 || ^24.11.0 || >=26.0.0`. The Claude Code and
 Antigravity servers start through POSIX `/bin/bash`, so they do not start on Windows; OMP and
 OpenCode get no entry.

@@ -49,13 +49,14 @@ func (r *initRea) wizardPreset() *bool {
 
 // decideInit settles the run's decision before the platform writes. answer
 // is the wizard's REA answer on an interactive run and nil otherwise; with no
-// preset, nil means the default, on.
+// preset, nil leaves the project undecided, so nothing is registered. No
+// shipped agent consumes the REA MCP since v0.51.0, so it is opt-in.
 func (r *initRea) decideInit(cmd *cobra.Command, cfg *config.HarnessConfig, answer *bool) {
 	state := r.preset
-	if state == reaUndecided {
-		state = reaOn
-		if answer != nil && !*answer {
-			state = reaOff
+	if state == reaUndecided && answer != nil {
+		state = reaOff
+		if *answer {
+			state = reaOn
 		}
 	}
 	r.decide(reaContext(cmd), cmd.OutOrStdout(), cfg, state)

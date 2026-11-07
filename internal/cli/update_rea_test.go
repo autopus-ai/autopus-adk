@@ -98,9 +98,20 @@ func TestUpdateRea_InteractiveQuestion(t *testing.T) {
 	reaCLIEnv(t, "v24.11.0\n")
 	old := reaOLD(t, reaAllTargets)
 
-	yes := cloneComposeProject(t, old)
+	// Enter takes the default, No, and leaves REA undecided: nothing is
+	// registered and autopus.yaml keeps no key, so the next run asks again.
+	enter := cloneComposeProject(t, old)
 	stubDriverProbes(t, true, "")
-	out, err := reaUpdate(t, strings.NewReader("\n\n"), yes)
+	before := reaSums(t, enter)
+	out, err := reaUpdate(t, strings.NewReader("\n\n"), enter)
+	require.NoError(t, err, out)
+	assert.Equal(t, [3]int{1, 1, 0}, reaCounts(out), out)
+	assertReaAbsent(t, enter)
+	assert.Nil(t, reaKey(t, enter))
+	assert.Equal(t, before, reaSums(t, enter))
+
+	yes := cloneComposeProject(t, old)
+	out, err = reaUpdate(t, strings.NewReader("y\n\n"), yes)
 	require.NoError(t, err, out)
 	assert.Equal(t, [3]int{1, 0, 0}, reaCounts(out), out)
 	assertReaManagedOnce(t, yes)

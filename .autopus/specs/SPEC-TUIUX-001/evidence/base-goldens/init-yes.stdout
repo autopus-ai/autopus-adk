@@ -6,7 +6,6 @@
   → [3/5] Platform Files
   ✓ claude-code
   ✓ codex
-  REA 역공학 MCP를 등록했습니다: .mcp.json, .codex/config.toml (rea-agents@6.5.0)
     • constraints: <DIR>/.autopus/context/constraints.yaml
   → [4/5] Gitignore
   → [5/5] Summary

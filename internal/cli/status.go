@@ -166,7 +166,7 @@ func newStatusCmdWith(deps ompPlatformDependencies, probe statusProbe) *cobra.Co
 
 	cmd := &cobra.Command{
 		Use:   "status",
-		Short: "Show SPEC dashboard",
+		Short: "Show harness status and next verification steps",
 		Long:  "SPEC 디렉터리를 스캔하여 모든 SPEC의 상태를 표시합니다.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			jsonMode, err := resolveJSONMode(jsonOutput, format)
@@ -240,9 +240,9 @@ func runStatusTextWith(cmd *cobra.Command, dir string, probe statusProbe) error 
 	report := collectStatusReport(dir, specs, probe)
 	hygiene := collectStatusHygiene(dir)
 	if len(specs) == 0 {
-		// A small change needs no SPEC, so an empty project is not sent to
-		// /auto plan alone (SPEC-STATUSEVIDENCE-001 REQ-SEV-NEXT-01).
-		_, _ = fmt.Fprintln(out, "SPEC이 없습니다. 작은 수정은 SPEC 없이 바로 시작하고, 새 기능은 SPEC 계획부터 시작하세요.")
+		// The harness verifies work rather than planning it, so an empty
+		// project is pointed at review and QA, not at a SPEC.
+		_, _ = fmt.Fprintln(out, "SPEC이 없습니다. 변경을 마친 뒤 아래 리뷰와 QA로 검증하세요.")
 		renderStatusEnvironment(out, report.env)
 		renderStatusNext(out, report.actions)
 		renderHygieneText(out, hygiene)

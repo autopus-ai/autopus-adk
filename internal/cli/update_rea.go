@@ -38,9 +38,10 @@ func resolveUpdateRea(cmd *cobra.Command, dir string, cfg *config.HarnessConfig,
 // prepare runs before an update's platform writes. It snapshots the target
 // files of the configured and newly detected platforms, then settles an
 // undecided update: a run the compose gate treats as interactive asks the REA
-// question once, default Yes, and applies the answer in this run; every other
-// run reads no stdin and prints the hint. An answer that is neither yes nor
-// no leaves REA undecided.
+// question once, default No, and applies the answer in this run; every other
+// run reads no stdin and prints the hint. Enter, or an answer that is neither
+// yes nor no, leaves REA undecided and autopus.yaml untouched, so the default
+// registers nothing.
 func (r *reaRun) prepare(cmd *cobra.Command, cfg *config.HarnessConfig, gate composeGate) {
 	r.snapshot(append(append([]string{}, cfg.Platforms...), gate.Detected...))
 	if r.state != reaUndecided || !r.active {
@@ -53,7 +54,7 @@ func (r *reaRun) prepare(cmd *cobra.Command, cfg *config.HarnessConfig, gate com
 	}
 	r.line(out, r.text.Question)
 	switch strings.ToLower(readReaAnswer(cmd.InOrStdin())) {
-	case "", "y", "yes":
+	case "y", "yes":
 		r.decide(reaContext(cmd), out, cfg, reaOn)
 	case "n", "no":
 		r.decide(reaContext(cmd), out, cfg, reaOff)

@@ -256,7 +256,7 @@ Ctrl+C를 누르세요.`를 보이고 머뭅니다. Esc는 이미 적용한 쓰�
 ## REA MCP init flag
 
 `auto init`은 Claude Code·Codex·Antigravity CLI에 프로젝트 범위 REA 역공학 MCP(`rea-agents@6.5.0`)를
-등록합니다(SPEC-REA-001). 새 init은 기본으로 켜고, `--rea`·`--no-rea`로 명시적으로 정하며, 둘을 함께
+등록합니다(SPEC-REA-001). v0.51.0부터 opt-in이라 새 init은 기본으로 끄고, `--rea`·`--no-rea`로 명시적으로 정하며, 둘을 함께
 쓰면 아무것도 쓰기 전에 끝납니다. Node가 `^22.19.0 || ^24.11.0 || >=26.0.0`일 때만 등록합니다. Claude
 Code·Antigravity 서버는 POSIX `/bin/bash`로 시작하므로 Windows에서는 시작되지 않습니다.
 OMP·OpenCode에는 항목을 만들지 않습니다.

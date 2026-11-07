@@ -168,7 +168,7 @@ func (command *pipelineOMPVerifiedExecCommand) awaitDarwinLiveTarget(ctx context
 		_, path, err := pipelineOMPDarwinLiveExecutableRegion(pid)
 		if err == nil && filepath.Clean(path) == filepath.Clean(target) {
 			verifyErr := verifyPipelineOMPDarwinLiveExecutable(pid, target, command.expected)
-			if verifyErr != nil && pipelineOMPDarwinChildExited(pid) {
+			if verifyErr != nil && pipelineOMPDarwinChildExitedWithin(pid, pipelineOMPDarwinExitGrace) {
 				// The image vanished between the two region reads.
 				return nil
 			}
@@ -226,7 +226,8 @@ func (command *pipelineOMPVerifiedExecCommand) parentTargetPath() string {
 
 func (command *pipelineOMPVerifiedExecCommand) failDarwinGate(errs ...error) error {
 	killErr := terminateWorkflowContextManagedRPCProcessGroup(command.cmd)
-	if errors.Is(killErr, syscall.EPERM) && pipelineOMPDarwinChildExited(command.cmd.Process.Pid) {
+	if errors.Is(killErr, syscall.EPERM) &&
+		pipelineOMPDarwinChildExitedWithin(command.cmd.Process.Pid, pipelineOMPDarwinExitGrace) {
 		// A group left with only the exited child refuses the signal.
 		killErr = nil
 	}
