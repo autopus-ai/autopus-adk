@@ -39,8 +39,9 @@ Up to v0.50.x, Autopus shipped a full implementation harness: plan/SPEC document
 now plan and implement well on their own, and that scaffolding mostly added cost.
 
 A small pilot pointed the same way. On 4 real upstream PR tasks graded by hidden tests, plain
-Claude Code passed 4/4 and the old full harness passed 0/4, at 10-35x the cost. With n=4 this is
-directional, not a benchmark, but it matched what we saw in daily use.
+Claude Code passed 4/4 in about 17 minutes for $3.00, and the old full harness passed 0/4 in
+about 3.6 hours for at least $37 (a lower bound: its plan stage hit the time cap on every task and
+reported no cost). With n=4, all small Go changes, this is directional, not a benchmark.
 
 What agents still do badly is check their own work. They report "done" on code that does not build,
 tests they did not run, and behavior they never exercised. So the harness now does one job: it runs
