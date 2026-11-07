@@ -1,8 +1,9 @@
 package cli
 
-// SPEC-JUDGEMODEL-001 S10 (REQ-JM-DOC-01): the helps, both READMEs, the
-// CHANGELOG's unreleased section, and the review sections of the skill
-// sources document the judge model.
+// SPEC-JUDGEMODEL-001 S10 (REQ-JM-DOC-01): the helps, docs/quality.md, docs/quality.ko.md, the
+// CHANGELOG's unreleased section document the judge model. The skill sources
+// that also did (spec-review, using-autopus, adaptive-quality) are no longer
+// installed.
 
 import (
 	"strings"
@@ -19,8 +20,8 @@ func TestJudgeModelDocs(t *testing.T) {
 	for _, doc := range []struct{ name, text string }{
 		{"auto quality --help", newQualityCmd().Long},
 		{"auto quality review --help", qualityReviewCmdLong},
-		{"README.md", readRepoFile(t, "README.md")},
-		{"docs/README.ko.md", readRepoFile(t, "docs", "README.ko.md")},
+		{"docs/quality.md", readRepoFile(t, "docs", "quality.md")},
+		{"docs/quality.ko.md", readRepoFile(t, "docs", "quality.ko.md")},
 		{"CHANGELOG.md unreleased", unreleased},
 	} {
 		docWants := wants
@@ -28,10 +29,5 @@ func TestJudgeModelDocs(t *testing.T) {
 			docWants = wants[:3]
 		}
 		assertComposeFormDocs(t, doc.name, doc.text, docWants...)
-	}
-	for _, path := range [][]string{
-		{"content", "skills", "spec-review.md"}, {"content", "skills", "using-autopus.md"}, {"content", "skills", "adaptive-quality.md"},
-	} {
-		assertComposeFormDocs(t, strings.Join(path, "/"), readRepoFile(t, path...), "judge_model")
 	}
 }

@@ -116,7 +116,7 @@ func TestDescribeComposeBinding_LineBreakTheSpliceCannotSee_NoticesTheRefusalFor
 	start := newQualityComposition(cfg.Quality, composeGroupsSources(t))
 	plans := map[composeWriter]composeBindingPlan{
 		composeWriterLine:  planComposeBinding(cfg, start, composeBindEdited(t, start, composeBindCurrent("ultra").Agents)),
-		composeWriterBlock: planComposeBinding(cfg, start, composeBindEdited(t, start, map[string]string{"planner": "haiku"})),
+		composeWriterBlock: planComposeBinding(cfg, start, composeBindEdited(t, start, map[string]string{"reviewer": "haiku"})),
 	}
 	source := []byte("project_name: demo\n# a\rb\nquality:\n  default: balanced\n")
 	for writer, plan := range plans {
@@ -136,7 +136,7 @@ func TestDescribeComposeBinding_LineBreakTheSpliceCannotSee_NoticesTheRefusalFor
 func TestUpdateCompose_LineBreakTheSpliceCannotSee_WarnsAndUpdateContinues(t *testing.T) {
 	base := newComposeUpdateRun(t, true, "")
 	settled := base.settled(t, "R")
-	for name, input := range map[string]string{"u": "u\ny\n", "g": "g\n1\n\n\n\ny\n"} {
+	for name, input := range map[string]string{"u": "u\ny\n", "g": "g\n1\n\ny\n"} {
 		t.Run(name, func(t *testing.T) {
 			run := base.rerun(t, true, "")
 			dir := cloneComposeProject(t, settled)

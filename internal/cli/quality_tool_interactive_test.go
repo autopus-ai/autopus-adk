@@ -43,7 +43,7 @@ func writeQualityToolTestConfig(t *testing.T) string {
 func TestQualityToolWizardWritesPresetAndProviderBinding(t *testing.T) {
 	dir := writeQualityTestConfig(t, "balanced")
 
-	out, err := runQualityToolWizard(t, dir, "claude-code\nexecutor=fable\n\n\ny\n")
+	out, err := runQualityToolWizard(t, dir, "claude-code\nfrontend-specialist=fable\n\n\ny\n")
 	require.NoError(t, err, out)
 
 	cfg, err := config.LoadPreview(dir)
@@ -51,7 +51,7 @@ func TestQualityToolWizardWritesPresetAndProviderBinding(t *testing.T) {
 	assert.Equal(t, "claude-custom", cfg.Quality.Providers[config.QualityProviderClaude])
 	preset, ok := cfg.Quality.Presets["claude-custom"]
 	require.True(t, ok, "the custom preset must be persisted")
-	assert.Equal(t, "fable", preset.Agents["executor"])
+	assert.Equal(t, "fable", preset.Agents["frontend-specialist"])
 	assert.Len(t, preset.Agents, len(config.CanonicalAgentNames()),
 		"an incomplete preset would silently drop unedited agents to the mid tier")
 	assert.Equal(t, "balanced", cfg.Quality.Default,
@@ -69,7 +69,7 @@ func TestQualityToolWizardRejectsUnknownAgentAndTierWithoutLosingEdits(t *testin
 	dir := writeQualityTestConfig(t, "balanced")
 
 	out, err := runQualityToolWizard(
-		t, dir, "claude-code\nnot-an-agent=fable\ntester=turbo\ntester=haiku\n\n\ny\n",
+		t, dir, "claude-code\nnot-an-agent=fable\nux-validator=turbo\nux-validator=haiku\n\n\ny\n",
 	)
 	require.NoError(t, err, out)
 	assert.Contains(t, out, `unknown agent "not-an-agent"`)
@@ -78,7 +78,7 @@ func TestQualityToolWizardRejectsUnknownAgentAndTierWithoutLosingEdits(t *testin
 	cfg, err := config.LoadPreview(dir)
 	require.NoError(t, err)
 	preset := cfg.Quality.Presets["claude-custom"]
-	assert.Equal(t, "haiku", preset.Agents["tester"])
+	assert.Equal(t, "haiku", preset.Agents["ux-validator"])
 	assert.NotContains(t, preset.Agents, "not-an-agent")
 }
 
@@ -89,7 +89,7 @@ func TestQualityToolWizardCancellationWritesNothing(t *testing.T) {
 	path := filepath.Join(dir, "autopus.yaml")
 	before := readQualityFileBytes(t, path)
 
-	out, err := runQualityToolWizard(t, dir, "claude-code\nexecutor=fable\n\n\nn\n")
+	out, err := runQualityToolWizard(t, dir, "claude-code\nfrontend-specialist=fable\n\n\nn\n")
 	require.NoError(t, err, out)
 	assert.Contains(t, out, "Cancelled")
 	assert.Equal(t, before, readQualityFileBytes(t, path))
@@ -111,7 +111,7 @@ func TestQualityToolWizardWithoutEditsWritesNothing(t *testing.T) {
 // Codex would tell the operator a model that tool never receives.
 func TestQualityToolWizardProjectsEachToolsOwnModelVocabulary(t *testing.T) {
 	dir := writeQualityToolTestConfig(t)
-	out, err := runQualityToolWizard(t, dir, "codex\nplanner=haiku\n\n\nn\n")
+	out, err := runQualityToolWizard(t, dir, "codex\nreviewer=haiku\n\n\nn\n")
 	require.NoError(t, err, out)
 	assert.Contains(t, out, config.CodexModelForTier("haiku"))
 	assert.NotContains(t, out, config.ClaudeHaikuModel)

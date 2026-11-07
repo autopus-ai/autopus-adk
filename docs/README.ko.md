@@ -319,6 +319,8 @@ orchestra:              # 멀티프로바이더 리뷰용 provider
 
 설정 하위 명령은 `auto config --help`에서, 품질 프리셋과 리뷰 model 선택은 `auto quality`에서 합니다.
 
+프리셋, 에이전트별 model, OMP model pin, 리뷰 model, REA MCP flag는 [docs/quality.ko.md](quality.ko.md)에 정리했습니다.
+
 <a id="security"></a>
 ## 보안
 

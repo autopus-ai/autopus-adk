@@ -49,40 +49,6 @@
       "kind": "json_path_present",
       "platform": "claude-code",
       "path": ".claude/hooks/autopus/conditional-rules.json",
-      "json_path": "rules[*].body",
-      "value_contains": "shell-portability.md"
-    },
-    {
-      "kind": "file_exists",
-      "platform": "claude-code",
-      "path": ".claude/hooks/autopus/conditional/shell-portability.md"
-    },
-    {
-      "kind": "file_absent",
-      "platform": "claude-code",
-      "path": ".claude/rules/autopus/shell-portability.md"
-    },
-    {
-      "kind": "json_path_present",
-      "platform": "claude-code",
-      "path": ".claude/hooks/autopus/conditional-rules.json",
-      "json_path": "rules[*].body",
-      "value_contains": "worktree-safety.md"
-    },
-    {
-      "kind": "file_exists",
-      "platform": "claude-code",
-      "path": ".claude/hooks/autopus/conditional/worktree-safety.md"
-    },
-    {
-      "kind": "file_absent",
-      "platform": "claude-code",
-      "path": ".claude/rules/autopus/worktree-safety.md"
-    },
-    {
-      "kind": "json_path_present",
-      "platform": "claude-code",
-      "path": ".claude/hooks/autopus/conditional-rules.json",
       "json_path": "sticky[*].body",
       "value_contains": "language-policy.md"
     },
@@ -90,18 +56,6 @@
       "kind": "file_exists",
       "platform": "claude-code",
       "path": ".claude/rules/autopus/language-policy.md"
-    },
-    {
-      "kind": "json_path_present",
-      "platform": "claude-code",
-      "path": ".claude/hooks/autopus/conditional-rules.json",
-      "json_path": "sticky[*].body",
-      "value_contains": "objective-reasoning.md"
-    },
-    {
-      "kind": "file_exists",
-      "platform": "claude-code",
-      "path": ".claude/rules/autopus/objective-reasoning.md"
     }
   ],
   "provenance": {

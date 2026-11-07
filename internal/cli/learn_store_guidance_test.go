@@ -24,9 +24,6 @@ var (
 	learnStoreByHandRe  = regexp.MustCompile(`(?i)\b(directly|manually|by hand)\b`)
 	learnStoreNegatedRe = regexp.MustCompile(`(?i)\b(do not|don't|never|must not|shall not)\b`)
 	markdownHeadingRe   = regexp.MustCompile(`^#{1,6}\s`)
-	learnInvocationRe   = regexp.MustCompile("auto learn (record|prune)([^`\n]*)")
-	learnFlagRe         = regexp.MustCompile(`--([a-z][a-z0-9-]*)`)
-	pruneDaysRe         = regexp.MustCompile(`--days[ =]([^\s]+)`)
 )
 
 // learnGuidanceRoot resolves the module root from this file's location, so the
@@ -114,51 +111,4 @@ func TestLearnStoreGuidance_NoDirectStoreMutation(t *testing.T) {
 	for path, text := range guidanceFiles(t) {
 		assert.Empty(t, directStoreMutations(text), "%s tells the reader to change the learn store by hand", path)
 	}
-}
-
-// TestLearnStoreGuidance_InvocationsUseRealFlags checks every documented
-// `auto learn record|prune` against the real command, and every prune against
-// an integer --days (pflag cannot parse "90d", so a bad flag made the
-// documented direct-edit fallback the real path).
-func TestLearnStoreGuidance_InvocationsUseRealFlags(t *testing.T) {
-	t.Parallel()
-	root := newTestRootCmd()
-	prunes := 0
-	for path, text := range guidanceFiles(t) {
-		for _, m := range learnInvocationRe.FindAllStringSubmatch(text, -1) {
-			sub, args := m[1], m[2]
-			cmd, _, err := root.Find([]string{"learn", sub})
-			require.NoError(t, err)
-			flags := learnFlagRe.FindAllStringSubmatch(args, -1)
-			for _, flag := range flags {
-				assert.NotNil(t, cmd.Flags().Lookup(flag[1]), "%s: `auto learn %s` has no --%s flag", path, sub, flag[1])
-			}
-			// A bare command name in prose is a mention, not an invocation.
-			if sub != "prune" || len(flags) == 0 {
-				continue
-			}
-			prunes++
-			assert.NotContains(t, args, "--max-age", "%s: prune must use --days", path)
-			days := pruneDaysRe.FindStringSubmatch(args)
-			if assert.NotNil(t, days, "%s: prune without --days: %q", path, m[0]) {
-				assert.Regexp(t, `^[0-9]+$`, days[1], "%s: --days takes an integer", path)
-			}
-		}
-	}
-	assert.Positive(t, prunes, "the sync workflow documents at least one prune")
-}
-
-func TestLearnStoreGuidance_SyncTargetPrunesThroughCLIOnly(t *testing.T) {
-	t.Parallel()
-	text := guidanceFiles(t)["templates/claude/commands/auto-workflows.md.tmpl"]
-	start := strings.Index(text, "### [REQUIRED] Sync Target 4.5")
-	require.NotEqual(t, -1, start)
-	section := text[start:]
-	if end := strings.Index(section[1:], "\n### "); end >= 0 {
-		section = section[:end+1]
-	}
-	assert.Contains(t, section, "auto learn prune --days 90")
-	assert.Contains(t, section, "eval_links_unreadable")
-	assert.Contains(t, section, "leave `.autopus/learnings/pipeline.jsonl` unchanged")
-	assert.NotContains(t, section, "remove entries older than 90 days")
 }

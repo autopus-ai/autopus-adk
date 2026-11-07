@@ -2,8 +2,8 @@ package cli
 
 // SPEC-MODELUX-003 T11 (REQ-MUX3-23; acceptance S25): editing a profile-based
 // policy in the autopus OMP tab converts it to pins. Unchanged agents keep
-// their routes, task keeps its own route only where it differs from
-// planner's, and a pre-plan blocker ends the tab before anything is asked.
+// their routes, task keeps its route as a pin since planner takes none, and a
+// pre-plan blocker ends the tab before anything is asked.
 
 import (
 	"context"
@@ -19,9 +19,9 @@ import (
 	"github.com/insajin/autopus-adk/pkg/config"
 )
 
-// composeOMPS25Edit answers 역할 그룹 with Enter for 설계·판단, 구현, and
-// 검증·리뷰, the session model for 탐색·보조, and 적용.
-var composeOMPS25Edit = []string{"2\n", "4\n", "1\n", "\n", "\n", "\n", "2\n", "2\n"}
+// composeOMPS25Edit answers 역할 그룹 with Enter for 구현, the session model
+// for 검증·리뷰, and 적용.
+var composeOMPS25Edit = []string{"2\n", "4\n", "1\n", "\n", "2\n", "2\n"}
 
 // writeComposeOPT is OP with OPT's planner and task pins.
 func writeComposeOPT(t *testing.T) string {
@@ -68,29 +68,29 @@ func TestComposeOMPAutopus_S25_ConvertsTheProfileOnApply(t *testing.T) {
 
 		require.NoError(t, err, out)
 		var labels []string
-		for _, agent := range composeOMPDesignAgents {
+		for _, agent := range composeOMPBuildAgents {
 			label := routes[agent][0].Selector + " · " + routes[agent][0].Thinking
 			if !slices.Contains(labels, label) {
 				labels = append(labels, label)
 			}
 		}
-		assert.Contains(t, out, composeOMPDesignGroup+" \n1. 그대로 — "+strings.Join(labels, ", ")+"\n")
+		assert.Contains(t, out, composeOMPBuildGroup+" \n1. 그대로 — "+strings.Join(labels, ", ")+"\n")
 		convert := strings.Index(out, "OMP 프로필 balanced의 route를 에이전트별 지정으로 옮깁니다. 바꾸지 않은 에이전트의 route는 그대로입니다.")
 		require.GreaterOrEqual(t, convert, 0)
 		assert.Less(t, convert, strings.Index(out, "OMP pins-only — model preview"))
 		policy := rawRoleModelPolicyOf(t, readBlockFixture(t, dir))
 		assert.Empty(t, policy.Profile)
 		assert.Empty(t, policy.Family)
-		assert.NotContains(t, policy.Agents, "task", "task's route equals planner's")
-		assert.Len(t, policy.Agents, 14)
-		for _, agent := range []string{"explorer", "annotator"} {
+		assert.Contains(t, policy.Agents, "task", "planner takes no pin, so task keeps its route")
+		assert.Len(t, policy.Agents, 2)
+		for _, agent := range composeOMPVerifyAgents {
 			assert.NotContains(t, policy.Agents, agent)
 		}
 		for agent, override := range policy.Agents {
 			assert.Equal(t, routes[agent], override.Candidates, agent)
 		}
 		overrides := composeOMPActivated(t, dir, activations.cfgs[0])
-		assert.Len(t, overrides, 15)
+		assert.Len(t, overrides, 2)
 		for agent, value := range overrides {
 			assert.Equal(t, recorded[agent], value, agent)
 		}
@@ -116,15 +116,15 @@ func TestComposeOMPAutopus_S25_ConvertsTheProfileOnApply(t *testing.T) {
 		assert.Equal(t, []config.RoleModelCandidateConf{pinAstra}, policy.Agents["task"].Candidates)
 		overrides := composeOMPActivated(t, dir, activations.cfgs[0])
 		assert.Equal(t, recorded["task"], overrides["task"])
-		assert.Equal(t, recorded["planner"], overrides["planner"])
+		assert.NotContains(t, policy.Agents, "planner", "a legacy role is not among the saved pins")
 	})
-	t.Run("a new planner pin, then task follows planner", func(t *testing.T) {
+	t.Run("a new reviewer pin, then task follows planner", func(t *testing.T) {
 		composeSessionCatalog(t, "CAT-A")
 		dir := writeComposeOPPolicy(t)
 		recorded, routes := composeOMPRecorded(t, dir)
 		deps, activations := composeOMPDeps([]byte(composeOMPCatalogML))
-		// 설계·판단 fable → high, 구현·검증·리뷰 Enter, 탐색·보조 세션 모델, 적용, 유지.
-		lines := []string{"2\n", "4\n", "1\n", "3\n", "1\n", "\n", "\n", "2\n", "2\n", "\n"}
+		// 구현 Enter, 검증·리뷰 fable → high, 적용, 유지.
+		lines := []string{"2\n", "4\n", "1\n", "\n", "3\n", "1\n", "2\n", "\n"}
 
 		out, err := runComposeOMPForms(t, dir, deps, lines...)
 
@@ -133,19 +133,23 @@ func TestComposeOMPAutopus_S25_ConvertsTheProfileOnApply(t *testing.T) {
 		assert.Equal(t, routes["task"], policy.Agents["task"].Candidates, "task keeps the route it had")
 		overrides := composeOMPActivated(t, dir, activations.cfgs[0])
 		assert.Equal(t, recorded["task"], overrides["task"])
-		assert.Equal(t, "anthropic/claude-fable-5-1:high", overrides["planner"])
+		assert.Equal(t, "anthropic/claude-fable-5-1:high", overrides["reviewer"])
 
-		// 구성 편집, OMP, 에이전트별, task, planner를 따름, 완료, 적용, 유지.
+		// 구성 편집, OMP, 에이전트별, task, OMP 세션 모델, 완료, 적용, 유지.
 		taskLine := len(composeRoleGroupAgents()) + 2
 		out, err = runComposeOMPForms(t, dir, deps, "2\n", "4\n", "2\n", itoaLine(taskLine), "2\n", "\n", "2\n", "\n")
 
 		require.NoError(t, err, out)
 		first := routes["task"][0]
 		assert.Contains(t, out, "task — "+first.Selector+" · "+first.Thinking+"\n")
+		// planner takes no pin, so task's session choice says where it lands.
+		assert.Contains(t, out, "task — OMP 세션 모델\n")
+		assert.NotContains(t, out, "planner를 따름")
 		policy = rawRoleModelPolicyOf(t, readBlockFixture(t, dir))
 		assert.NotContains(t, policy.Agents, "task")
 		overrides = composeOMPActivated(t, dir, activations.cfgs[1])
-		assert.Equal(t, "anthropic/claude-fable-5-1:high", overrides["task"])
+		assert.NotContains(t, overrides, "task", "planner has no pin, so task takes the session model")
+		assert.Equal(t, "anthropic/claude-fable-5-1:high", overrides["reviewer"])
 	})
 	t.Run("a pre-plan blocker", func(t *testing.T) {
 		composeSessionCatalog(t, "CAT-A")

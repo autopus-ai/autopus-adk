@@ -33,12 +33,12 @@ func TestReaFallbackLine_FormTextPerCatalogAndLanguage(t *testing.T) {
 
 // Scope expansion of SPEC-REA-001 Gate 1 through a real update: a Codex
 // catalog without gpt-6.1-sol (the fake codex answers CAT-B) generates every
-// file, leaves reverse-engineer on the session model, and prints one line in
+// file, leaves qa-explorer on the session model, and prints one line in
 // the run's language.
 func TestReaFallbackNotice_CodexUpdatePrintsOneLine(t *testing.T) {
 	for lang, line := range map[string]string{
-		"ko": "  reverse-engineer: gpt-6.1-sol/xhigh이 Codex catalog에 없어 세션 모델을 씁니다\n",
-		"en": "  reverse-engineer: gpt-6.1-sol/xhigh not in Codex catalog → session model\n",
+		"ko": "  qa-explorer: gpt-6.1-sol/xhigh이 Codex catalog에 없어 세션 모델을 씁니다\n",
+		"en": "  qa-explorer: gpt-6.1-sol/xhigh not in Codex catalog → session model\n",
 	} {
 		t.Run(lang, func(t *testing.T) {
 			newComposeUpdateRun(t, false, "")
@@ -50,13 +50,13 @@ func TestReaFallbackNotice_CodexUpdatePrintsOneLine(t *testing.T) {
 			require.NoError(t, err, out)
 			assert.Equal(t, 1, strings.Count(out, line), out)
 			assert.NotContains(t, out, "Codex 카탈로그가 관리형 native balanced 프로필을 지원하지 않음")
-			agent, err := os.ReadFile(filepath.Join(dir, ".codex", "agents", "reverse-engineer.toml"))
+			agent, err := os.ReadFile(filepath.Join(dir, ".codex", "agents", "qa-explorer.toml"))
 			require.NoError(t, err)
 			assert.NotContains(t, string(agent), "\nmodel = ")
 			assert.NotContains(t, string(agent), "model_reasoning_effort")
-			planner, err := os.ReadFile(filepath.Join(dir, ".codex", "agents", "planner.toml"))
+			reviewer, err := os.ReadFile(filepath.Join(dir, ".codex", "agents", "reviewer.toml"))
 			require.NoError(t, err)
-			assert.Contains(t, string(planner), `model = "gpt-6-astra"`)
+			assert.Contains(t, string(reviewer), `model = "gpt-6-astra"`)
 		})
 	}
 }
@@ -72,10 +72,10 @@ func TestReaFallbackNotice_InteractiveComposeAndGeneratePrintsOnce(t *testing.T)
 	out, err := runComposeUpdate(t, strings.NewReader("\n"), "--dir", dir)
 
 	require.NoError(t, err, out)
-	line := "reverse-engineer: gpt-6.1-sol/xhigh이 Codex catalog에 없어 세션 모델을 씁니다"
+	line := "qa-explorer: gpt-6.1-sol/xhigh이 Codex catalog에 없어 세션 모델을 씁니다"
 	assert.Equal(t, 1, strings.Count(out, line), out)
 	assert.Contains(t, out, "\n"+line+"\n", "the table footer carries the line")
-	agent, err := os.ReadFile(filepath.Join(dir, ".codex", "agents", "reverse-engineer.toml"))
+	agent, err := os.ReadFile(filepath.Join(dir, ".codex", "agents", "qa-explorer.toml"))
 	require.NoError(t, err)
 	assert.NotContains(t, string(agent), "\nmodel = ", "the generation took the same fallback")
 }

@@ -98,7 +98,7 @@ func TestInstalledOMPAttestedModelChoices_ListsOnlyAttestableModels(t *testing.T
 
 func TestPlanOMPPinsOnly_PlansThePinnedAgentsAndTask(t *testing.T) {
 	root := writeOMPPinsProject(t, config.RoleModelPolicyConf{})
-	opts, err := newOMPPinsOnlyApplyOptions(pinsOf(map[string]config.RoleModelCandidateConf{"planner": pinFable, "executor": pinAstra}))
+	opts, err := newOMPPinsOnlyApplyOptions(pinsOf(map[string]config.RoleModelCandidateConf{"reviewer": pinFable, "frontend-specialist": pinAstra}))
 	require.NoError(t, err)
 
 	preview, err := planOMPProfile(context.Background(), root, opts, &ompCLIFakeRunner{catalog: []byte(composeOMPCatalogML2)})
@@ -112,7 +112,7 @@ func TestPlanOMPPinsOnly_PlansThePinnedAgentsAndTask(t *testing.T) {
 		rows[row.Agent] = row.EffectiveSelector + ":" + row.EffectiveThinking
 	}
 	assert.Equal(t, map[string]string{
-		"planner": "anthropic/claude-fable-5-1:high", "executor": "openai-codex/gpt-6-astra:max", "task": "anthropic/claude-fable-5-1:high",
+		"reviewer": "anthropic/claude-fable-5-1:high", "frontend-specialist": "openai-codex/gpt-6-astra:max",
 	}, rows)
 }
 
@@ -120,7 +120,7 @@ func TestPlanOMPPinsOnly_BlocksAFamilyNothingAttests(t *testing.T) {
 	root := writeOMPPinsProject(t, config.RoleModelPolicyConf{})
 	wrong := pinAstra
 	wrong.Family = "anthropic"
-	opts, err := newOMPPinsOnlyApplyOptions(pinsOf(map[string]config.RoleModelCandidateConf{"executor": wrong}))
+	opts, err := newOMPPinsOnlyApplyOptions(pinsOf(map[string]config.RoleModelCandidateConf{"frontend-specialist": wrong}))
 	require.NoError(t, err)
 
 	preview, err := planOMPProfile(context.Background(), root, opts, &ompCLIFakeRunner{catalog: []byte(composeOMPCatalogML2)})
@@ -135,7 +135,7 @@ func TestApplyOMPPinsOnly_WritesPinsWithoutAProfileAndClearsThemAgain(t *testing
 	runner := &ompCLIFakeRunner{catalog: []byte(composeOMPCatalogML2)}
 	activations := 0
 	activate := func(context.Context, string, *config.HarnessConfig) error { activations++; return nil }
-	opts, err := newOMPPinsOnlyApplyOptions(pinsOf(map[string]config.RoleModelCandidateConf{"planner": pinFable}))
+	opts, err := newOMPPinsOnlyApplyOptions(pinsOf(map[string]config.RoleModelCandidateConf{"reviewer": pinFable}))
 	require.NoError(t, err)
 
 	_, err = applyOMPProfile(context.Background(), root, opts, runner, activate)
@@ -145,7 +145,7 @@ func TestApplyOMPPinsOnly_WritesPinsWithoutAProfileAndClearsThemAgain(t *testing
 	assert.Empty(t, policy.Profile)
 	assert.Empty(t, policy.Family)
 	assert.Equal(t, config.RoleModelPolicyVersionV1, policy.Version)
-	assert.Equal(t, pinsOf(map[string]config.RoleModelCandidateConf{"planner": pinFable}), policy.Agents)
+	assert.Equal(t, pinsOf(map[string]config.RoleModelCandidateConf{"reviewer": pinFable}), policy.Agents)
 
 	cleared, err := newOMPPinsOnlyApplyOptions(nil)
 	require.NoError(t, err)
@@ -161,38 +161,39 @@ func TestApplyOMPPinsOnly_WritesPinsWithoutAProfileAndClearsThemAgain(t *testing
 func TestPlanInitOMPPinsOnly_LeavesInitsConfigAlone(t *testing.T) {
 	cfg := config.DefaultFullConfig("omp-init-pins")
 	cfg.Platforms = []string{"omp"}
-	opts, err := newOMPPinsOnlyApplyOptions(pinsOf(map[string]config.RoleModelCandidateConf{"executor": pinAstra}))
+	opts, err := newOMPPinsOnlyApplyOptions(pinsOf(map[string]config.RoleModelCandidateConf{"frontend-specialist": pinAstra}))
 	require.NoError(t, err)
 
 	_, candidate, err := planInitOMP(context.Background(), cfg, opts, &ompCLIFakeRunner{catalog: []byte(composeOMPCatalogML2)})
 
 	require.NoError(t, err)
-	assert.Equal(t, pinsOf(map[string]config.RoleModelCandidateConf{"executor": pinAstra}), candidate.Agents)
+	assert.Equal(t, pinsOf(map[string]config.RoleModelCandidateConf{"frontend-specialist": pinAstra}), candidate.Agents)
 	assert.Empty(t, candidate.Profile)
 	assert.Equal(t, config.RoleModelPolicyConf{}, cfg.RoleModelPolicy)
 }
 
 // REQ-MUX3-23: unchanged agents keep their whole route, session-model agents
-// lose theirs, and task keeps a route only where it differs from planner's.
+// lose theirs, and task keeps the profile's route: planner takes no pin, so
+// following it would move task to the OMP session model.
 func TestOMPPinsOnlyTarget_ConvertsAProfileByTheTaskRule(t *testing.T) {
 	ladder := []config.RoleModelCandidateConf{pinAstra, {Selector: "openai-codex/gpt-6.1-sol", Thinking: "xhigh", Family: "openai"}}
-	start := ompAgentRoutes{"planner": ladder, "explorer": {pinAstra}, "executor": {pinAstra}, "task": ladder}
-	final := ompAgentRoutes{"planner": ladder, "explorer": nil, "executor": {pinAstra}}
+	start := ompAgentRoutes{"reviewer": ladder, "ux-validator": {pinAstra}, "frontend-specialist": {pinAstra}, "task": ladder}
+	final := ompAgentRoutes{"reviewer": ladder, "ux-validator": nil, "frontend-specialist": {pinAstra}}
 
-	same := ompPinsOnlyTarget(start, final, true, false, nil)
+	converted := ompPinsOnlyTarget(start, final, nil)
 	assert.Equal(t, map[string]config.RoleAgentOverrideConf{
-		"planner": {Candidates: ladder}, "executor": {Candidates: []config.RoleModelCandidateConf{pinAstra}},
-	}, same, "task equals planner, so it follows planner")
-
-	final["planner"] = []config.RoleModelCandidateConf{pinFable}
-	moved := ompPinsOnlyTarget(start, final, true, false, nil)
-	assert.Equal(t, ladder, moved["task"].Candidates, "task keeps the route it had")
+		"reviewer": {Candidates: ladder}, "frontend-specialist": {Candidates: []config.RoleModelCandidateConf{pinAstra}},
+		"task": {Candidates: ladder},
+	}, converted, "task keeps the route it had")
+	assert.NotContains(t, converted, "planner", "a legacy role takes no pin")
 
 	follow := []config.RoleModelCandidateConf{}
-	assert.NotContains(t, ompPinsOnlyTarget(start, final, true, false, &follow), "task", "planner를 따름")
-	own := ompPinsOnlyTarget(ompAgentRoutes{"task": {pinAstra}}, ompAgentRoutes{}, false, true, nil)
-	assert.Equal(t, []config.RoleModelCandidateConf{pinAstra}, own["task"].Candidates, "a pins-only task pin stays")
-	assert.Empty(t, ompPinsOnlyTarget(ompAgentRoutes{"task": {pinAstra}}, ompAgentRoutes{}, false, false, nil))
+	assert.NotContains(t, ompPinsOnlyTarget(start, final, &follow), "task", "planner를 따름")
+	// A pins-only task route, its own pin or the planner pin it followed,
+	// stays: the saved pins drop planner, so following it would move task.
+	own := ompPinsOnlyTarget(ompAgentRoutes{"task": {pinAstra}}, ompAgentRoutes{}, nil)
+	assert.Equal(t, []config.RoleModelCandidateConf{pinAstra}, own["task"].Candidates, "a pins-only task route stays")
+	assert.Empty(t, ompPinsOnlyTarget(ompAgentRoutes{}, ompAgentRoutes{}, nil), "no start route, no task pin")
 }
 
 // Security review P1: a pin already in autopus.yaml vouches for nothing. On a
@@ -201,16 +202,16 @@ func TestOMPPinsOnlyTarget_ConvertsAProfileByTheTaskRule(t *testing.T) {
 func TestPlanOMPPinsOnly_ExistingPinsDoNotAttestThemselves(t *testing.T) {
 	foo := config.RoleModelCandidateConf{Selector: "example/foo-1", Thinking: "high", Family: "example"}
 	root := writeOMPPinsProject(t, config.RoleModelPolicyConf{
-		Version: config.RoleModelPolicyVersionV1, Agents: pinsOf(map[string]config.RoleModelCandidateConf{"executor": foo}),
+		Version: config.RoleModelPolicyVersionV1, Agents: pinsOf(map[string]config.RoleModelCandidateConf{"frontend-specialist": foo}),
 	})
-	opts, err := newOMPPinsOnlyApplyOptions(pinsOf(map[string]config.RoleModelCandidateConf{"executor": foo, "planner": pinFable}))
+	opts, err := newOMPPinsOnlyApplyOptions(pinsOf(map[string]config.RoleModelCandidateConf{"frontend-specialist": foo, "reviewer": pinFable}))
 	require.NoError(t, err)
 
 	preview, err := planOMPProfile(context.Background(), root, opts, &ompCLIFakeRunner{catalog: []byte(composeOMPCatalogML2)})
 
 	require.NoError(t, err)
-	assert.Contains(t, preview.Blockers, "agent=executor reason=agent_override_model_undeclared:example/foo-1")
-	assert.NotContains(t, strings.Join(preview.Blockers, " "), "planner")
+	assert.Contains(t, preview.Blockers, "agent=frontend-specialist reason=agent_override_model_undeclared:example/foo-1")
+	assert.NotContains(t, strings.Join(preview.Blockers, " "), "reviewer")
 }
 
 // Security review P3: profile apply refuses the reserved name before it reads

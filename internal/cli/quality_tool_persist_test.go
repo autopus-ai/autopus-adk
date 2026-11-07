@@ -31,7 +31,7 @@ func TestQualityToolEditor_RefusesTheF001FixtureAndLeaksNothing(t *testing.T) {
 			dir := writeBlockFixture(t, blockLeakAlias)
 			want := sha256.Sum256([]byte(blockLeakAlias))
 
-			out, err := runQualityToolWizard(t, dir, "claude-code\nexecutor=fable\n\n\ny\n")
+			out, err := runQualityToolWizard(t, dir, "claude-code\nfrontend-specialist=fable\n\n\ny\n")
 
 			require.ErrorIs(t, err, errQualityWriteRefused, out)
 			assert.Equal(t, qualityWriteRefusalText, err.Error())
@@ -50,7 +50,7 @@ func TestQualityToolEditor_WritesThroughTheBlockWriterAndKeepsEveryOuterByte(t *
 	original := blockHandPrefix + blockHandQuality + blockHandSuffix
 	dir := writeBlockFixture(t, original)
 
-	out, err := runQualityToolWizard(t, dir, "claude-code\nexecutor=fable\n\n\ny\n")
+	out, err := runQualityToolWizard(t, dir, "claude-code\nfrontend-specialist=fable\n\n\ny\n")
 
 	require.NoError(t, err, out)
 	written := readBlockFixture(t, dir)
@@ -61,7 +61,7 @@ func TestQualityToolEditor_WritesThroughTheBlockWriterAndKeepsEveryOuterByte(t *
 	custom := after.Presets["claude-custom"]
 	assert.Equal(t, "Claude Code custom agent tiers", custom.Description)
 	assert.Len(t, custom.Agents, len(config.CanonicalAgentNames()))
-	assert.Equal(t, "fable", custom.Agents["executor"])
+	assert.Equal(t, "fable", custom.Agents["frontend-specialist"])
 	assert.Equal(t, before.Default, after.Default, "a tool-scoped edit keeps the shared quality mode")
 	for name, preset := range before.Presets {
 		assert.Equal(t, preset, after.Presets[name], "untouched preset %s keeps its raw value", name)
@@ -102,7 +102,7 @@ func TestQualityToolEditor_RefusesACustomizedBuiltinPresetName(t *testing.T) {
 	dir := writeComposeRFixture(t, "C")
 	before := composeSessionHash(t, dir)
 
-	out, err := runQualityToolWizard(t, dir, "claude-code\ndevops=fable\n\nultra\nultra\nultra\n")
+	out, err := runQualityToolWizard(t, dir, "claude-code\nfrontend-specialist=fable\n\nultra\nultra\nultra\n")
 
 	require.NoError(t, err, out)
 	refusal := "사용자 수정 프리셋 ultra는 덮어쓰지 않습니다. 다른 이름을 입력하세요.\n"
@@ -120,7 +120,7 @@ func TestQualityToolEditor_GuardsOnlyCustomizedBuiltins(t *testing.T) {
 	dir := writeComposeRFixture(t, "C")
 	before := composeSessionHash(t, dir)
 
-	out, err := runQualityToolWizard(t, dir, "claude-code\ndevops=fable\n\nultra\nbalanced\nn\n")
+	out, err := runQualityToolWizard(t, dir, "claude-code\nfrontend-specialist=fable\n\nultra\nbalanced\nn\n")
 
 	require.NoError(t, err, out)
 	assert.Contains(t, out, "Customized preset ultra is not overwritten. Enter another name.\n")
@@ -148,7 +148,7 @@ func TestQualityCompose_CustomizedBuiltinBindsCustomAndKeepsItsValues(t *testing
 	out, err := runQualityCompose(t, dir, strings.NewReader(input.String()))
 
 	require.NoError(t, err, out)
-	assert.Contains(t, out, "quality.default = ultra   ultra: 사용자 수정 (13개 다름)   balanced: 이전 버전 기본값 (갱신 가능)\n")
+	assert.Contains(t, out, "quality.default = ultra   ultra: 사용자 수정 (4개 다름)   balanced: 이전 버전 기본값 (갱신 가능)\n")
 	written := rawQualityOf(t, readBlockFixture(t, dir))
 	assert.Equal(t, "custom", written.Default)
 	assert.Equal(t, latest, written.Presets["custom"].Agents)

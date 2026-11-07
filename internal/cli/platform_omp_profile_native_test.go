@@ -28,13 +28,13 @@ func TestOMPProfilePlanAcceptsAgentPinOnNativeCatalogWithoutSemanticMetadata(t *
 
 	payload := planOMPProfileJSON(
 		t, root, runner, "balanced", "--family", "gpt",
-		"--agent", "executor=openai-codex/gpt-6-astra:max",
+		"--agent", "qa-explorer=openai-codex/gpt-6-astra:max",
 	)
 
 	assert.Empty(t, payload.Blockers)
 	assert.Empty(t, payload.Writes)
-	row := agentPreviewRow(t, payload, "executor")
-	assert.Equal(t, "executor", row.PolicyKey)
+	row := agentPreviewRow(t, payload, "qa-explorer")
+	assert.Equal(t, "qa-explorer", row.PolicyKey)
 	assert.Equal(t, ompProfileSourceAgent, row.Source)
 	assert.Equal(t, "openai-codex/gpt-6-astra", row.EffectiveSelector)
 	assert.Equal(t, "max", row.EffectiveThinking)
@@ -79,10 +79,9 @@ func TestOMPProfilePlanBlocksNativeAgentPinWhenThinkingUnsupported(t *testing.T)
 
 	text, err := executeOMPSubcommandExpectingError(
 		t, newPlatformOMPProfileApplyCmd(&dir, ompBalancedDeps(runner, nil)),
-		"balanced", "--family", "gpt", "--agent", "executor=openai-codex/gpt-6-astra:max", "--plan",
+		"balanced", "--family", "gpt", "--agent", "qa-explorer=openai-codex/gpt-6-astra:max", "--plan",
 	)
-	assert.Contains(t, text, "agent=task")
-	assert.Contains(t, text, "policy_key=executor")
+	assert.Contains(t, text, "agent=qa-explorer policy_key=qa-explorer")
 	assert.Contains(t, text, "reason=thinking_unsupported")
 	assert.Contains(t, err.Error(), "omp_profile_candidate_unavailable")
 }
@@ -140,13 +139,13 @@ func TestOMPProfilePlanAttestsPinFromExplicitProfileDeclaration(t *testing.T) {
 	runner := &ompCLIFakeRunner{catalog: ompCLIProfileNativeCatalogJSON()}
 
 	payload := planOMPProfileJSON(
-		t, root, runner, "house", "--agent", "validator=anthropic/claude-sonnet-5-5:high",
+		t, root, runner, "house", "--agent", "ux-validator=anthropic/claude-sonnet-5-5:high",
 	)
 
 	assert.Equal(t, ompProfileSourceCustom, payload.Source)
 	assert.Empty(t, payload.Blockers)
-	row := agentPreviewRow(t, payload, "validator")
-	assert.Equal(t, "validator", row.PolicyKey)
+	row := agentPreviewRow(t, payload, "ux-validator")
+	assert.Equal(t, "ux-validator", row.PolicyKey)
 	assert.Equal(t, "anthropic/claude-sonnet-5-5", row.EffectiveSelector)
 	assert.Equal(t, "anthropic", row.EffectiveFamily)
 }

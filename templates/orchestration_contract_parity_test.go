@@ -14,14 +14,13 @@ func TestOrchestrationSemanticContract_CodexSourceContainsNoClaudeTeamPrimitives
 	t.Parallel()
 
 	root := templateRoot()
-	codexTeam := readRepoSurface(t, filepath.Join("pkg", "adapter", "codex", "codex_extended_skill_rewrites_agents.go"))
-	codexPipeline := readRepoSurface(t, filepath.Join("pkg", "adapter", "codex", "codex_extended_skill_rewrites.go"))
-	surface := codexTeam + codexPipeline
+	// The agent-teams rewrite was retired with the implementation surface;
+	// the remaining Codex rewrites must still avoid Claude team primitives.
+	surface := readRepoSurface(t, filepath.Join("pkg", "adapter", "codex", "codex_extended_skill_rewrites.go"))
 
 	for _, forbidden := range []string{"TeamCreate(", "TeamDelete(", "SendMessage(", "bypassPermissions", "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS"} {
 		assert.NotContains(t, surface, forbidden)
 	}
-	assert.Contains(t, surface, "spawn_agent")
 	assert.NotEmpty(t, root)
 }
 

@@ -22,15 +22,14 @@ func TestInitGuidance_StandaloneFirst(t *testing.T) {
 
 	steps := initNextSteps(cfg, dir)
 	require.Len(t, steps, 3)
-	assert.Equal(t, `Next: plan new work as a SPEC before implementing it — /auto plan "<outcome>" (claude-code) · `+
-		`$codex-auto-plan "<outcome>" (codex)`, steps[0].headline)
+	assert.Equal(t, `Next: review the current changes and check them with build and test evidence — `+
+		`/auto review (claude-code) · $codex-auto-review (codex)`, steps[0].headline)
 	assert.Equal(t, "in "+dir+" · runs in agent_session · provider: the agent session's model · "+
-		"calls: model calls of the agent session and, for the SPEC review, claude, codex · "+
-		"writes: .autopus/specs (a new SPEC)", steps[0].facts)
-	assert.Equal(t, `Next: fix something small without a SPEC: a reproduction test, a focused patch, and its `+
-		`verification — /auto fix "<problem>" (claude-code) · $codex-auto-fix "<problem>" (codex)`, steps[1].headline)
+		"calls: model calls of the agent session · writes: none", steps[0].facts)
+	assert.Equal(t, `Next: plan and run project QA, then report the evidence it collected — `+
+		`/auto qa (claude-code) · $codex-auto-qa (codex)`, steps[1].headline)
 	assert.Equal(t, "in "+dir+" · runs in agent_session · provider: the agent session's model · "+
-		"calls: model calls of the agent session · writes: the working tree", steps[1].facts)
+		"calls: model calls of the agent session · writes: .autopus/qa (QA run evidence)", steps[1].facts)
 	assert.Equal(t, "Optional: connect this machine to the Autopus server through Autopus Desktop; the ADK works "+
 		"without it — auto connect", steps[2].headline)
 	assert.Equal(t, "optional · in "+dir+" · runs in terminal · provider: none · calls: Autopus server sign-in, "+
@@ -40,5 +39,5 @@ func TestInitGuidance_StandaloneFirst(t *testing.T) {
 	}
 
 	cfg.Platforms = nil
-	assert.True(t, strings.HasSuffix(initNextSteps(cfg, dir)[0].headline, `— /auto plan "<outcome>"`))
+	assert.True(t, strings.HasSuffix(initNextSteps(cfg, dir)[0].headline, `— /auto review`))
 }

@@ -17,12 +17,12 @@ import (
 )
 
 // composeEffortsCustomP is the second S20 file's quality: quality.default
-// custom, custom holding D's balanced tiers with executor at xhigh.
+// custom, custom holding D's balanced tiers with frontend-specialist at xhigh.
 func composeEffortsCustomP(q *config.QualityConf) {
 	q.Presets["custom"] = config.QualityPreset{
 		Description: composeCustomDescription,
 		Agents:      maps.Clone(composeBindCurrent("balanced").Agents),
-		Efforts:     map[string]string{"executor": "xhigh"},
+		Efforts:     map[string]string{"frontend-specialist": "xhigh"},
 	}
 	q.Default = "custom"
 }
@@ -58,7 +58,7 @@ func TestComposeBindTarget_EffortsOnPBindCustomForEveryBuiltinClass(t *testing.T
 			assert.Equal(t, "custom", name)
 			require.NotNil(t, write)
 			assert.Equal(t, composePresetRewrite, write.Kind)
-			assert.Equal(t, map[string]string{"executor": "xhigh"}, write.Preset.Efforts)
+			assert.Equal(t, map[string]string{"frontend-specialist": "xhigh"}, write.Preset.Efforts)
 			assert.Equal(t, edited.tiers, write.Preset.Agents)
 			assert.Zero(t, write.Carried, "the efforts stay under the name they came from")
 			status, _ := config.ClassifyBuiltinQualityPreset(cfg.Quality, tc.builtin)
@@ -76,7 +76,7 @@ func TestComposeBindTarget_NoEffortsOnPKeepsTheBuiltinBranches(t *testing.T) {
 		custom.Efforts = nil
 		q.Presets["custom"] = custom
 		ultra := q.Presets["ultra"]
-		ultra.Efforts = map[string]string{"planner": "low"}
+		ultra.Efforts = map[string]string{"reviewer": "low"}
 		q.Presets["ultra"] = ultra
 	})
 
@@ -91,7 +91,7 @@ func TestComposeBindTarget_NoEffortsOnPKeepsTheBuiltinBranches(t *testing.T) {
 func TestComposeBindTarget_HistoricalPRefreshKeepsItsEfforts(t *testing.T) {
 	t.Parallel()
 	dir, cfg := composeBindSaved(t, func(q *config.QualityConf) {
-		q.Presets["balanced"] = config.QualityPreset{Agents: maps.Clone(composeTableHB1), Efforts: map[string]string{"planner": "high"}}
+		q.Presets["balanced"] = config.QualityPreset{Agents: maps.Clone(composeTableHB1), Efforts: map[string]string{"reviewer": "high"}}
 	})
 	start := composeBindStart(t, cfg)
 	edited := qualityComposition{tiers: maps.Clone(composeBindCurrent("balanced").Agents)}
@@ -101,10 +101,10 @@ func TestComposeBindTarget_HistoricalPRefreshKeepsItsEfforts(t *testing.T) {
 	assert.Equal(t, []string{"balanced"}, composeBindPresetNames(plan))
 	assert.Equal(t, composePresetRefresh, plan.Presets[0].Kind)
 	assert.Empty(t, plan.Default)
-	assert.Equal(t, map[string]string{"planner": "high"}, plan.Candidate.Quality.Presets["balanced"].Efforts)
+	assert.Equal(t, map[string]string{"reviewer": "high"}, plan.Candidate.Quality.Presets["balanced"].Efforts)
 	written := rawQualityOf(t, composeBindPersist(t, dir, cfg, plan))
 	assert.Equal(t, composeBindCurrent("balanced").Agents, written.Presets["balanced"].Agents)
-	assert.Equal(t, map[string]string{"planner": "high"}, written.Presets["balanced"].Efforts)
+	assert.Equal(t, map[string]string{"reviewer": "high"}, written.Presets["balanced"].Efforts)
 	assert.NotContains(t, written.Presets, "custom")
 }
 
@@ -114,7 +114,7 @@ func TestPlanComposeBinding_CustomCarriesPEffortsWithTheCarryLine(t *testing.T) 
 	t.Parallel()
 	dir, cfg := composeBindSaved(t, func(q *config.QualityConf) {
 		balanced := q.Presets["balanced"]
-		balanced.Efforts = map[string]string{"planner": "high"}
+		balanced.Efforts = map[string]string{"reviewer": "high"}
 		q.Presets["balanced"] = balanced
 	})
 	start := composeBindStart(t, cfg)
@@ -127,14 +127,14 @@ func TestPlanComposeBinding_CustomCarriesPEffortsWithTheCarryLine(t *testing.T) 
 	assert.Equal(t, 1, plan.Presets[0].Carried)
 	lines := composeBindDescribe(t, dir, cfg, plan, "ko")
 	assert.Equal(t, []string{
-		"quality.presets.custom 새로 씀 (17개 에이전트)",
+		"quality.presets.custom 새로 씀 (4개 에이전트)",
 		"quality.presets.custom.efforts 옮겨 씀 (1개 에이전트)",
 		"quality.default balanced → custom",
 	}, lines[:3])
 	assert.Contains(t, composeBindDescribe(t, dir, cfg, plan, "en"), "quality.presets.custom.efforts carried (1 agents)")
 	written := rawQualityOf(t, composeBindPersist(t, dir, cfg, plan))
-	assert.Equal(t, map[string]string{"planner": "high"}, written.Presets["custom"].Efforts)
-	assert.Equal(t, map[string]string{"planner": "high"}, written.Presets["balanced"].Efforts, "the source keeps its own")
+	assert.Equal(t, map[string]string{"reviewer": "high"}, written.Presets["custom"].Efforts)
+	assert.Equal(t, map[string]string{"reviewer": "high"}, written.Presets["balanced"].Efforts, "the source keeps its own")
 }
 
 // `u` refreshes the tiers and description of a historical built-in and
@@ -142,20 +142,20 @@ func TestPlanComposeBinding_CustomCarriesPEffortsWithTheCarryLine(t *testing.T) 
 func TestPlanComposeRefresh_KeepsTheRefreshedPresetsEfforts(t *testing.T) {
 	t.Parallel()
 	dir, cfg := composeBindSaved(t, func(q *config.QualityConf) {
-		q.Presets["balanced"] = config.QualityPreset{Agents: maps.Clone(composeTableHB1), Efforts: map[string]string{"planner": "high"}}
-		q.Presets["other"] = config.QualityPreset{Agents: map[string]string{"planner": "opus"}, Efforts: map[string]string{"planner": "low"}}
+		q.Presets["balanced"] = config.QualityPreset{Agents: maps.Clone(composeTableHB1), Efforts: map[string]string{"reviewer": "high"}}
+		q.Presets["other"] = config.QualityPreset{Agents: map[string]string{"reviewer": "opus"}, Efforts: map[string]string{"reviewer": "low"}}
 	})
 
 	plan, ok := planComposeRefresh(cfg)
 
 	require.True(t, ok)
-	assert.Equal(t, map[string]string{"planner": "high"}, plan.Candidate.Quality.Presets["balanced"].Efforts)
-	assert.Equal(t, map[string]string{"planner": "low"}, plan.Candidate.Quality.Presets["other"].Efforts)
+	assert.Equal(t, map[string]string{"reviewer": "high"}, plan.Candidate.Quality.Presets["balanced"].Efforts)
+	assert.Equal(t, map[string]string{"reviewer": "low"}, plan.Candidate.Quality.Presets["other"].Efforts)
 	written := rawQualityOf(t, composeBindPersist(t, dir, cfg, plan))
 	assert.Equal(t, composeBindCurrent("balanced").Agents, written.Presets["balanced"].Agents)
 	assert.Equal(t, composeBindCurrent("balanced").Description, written.Presets["balanced"].Description)
-	assert.Equal(t, map[string]string{"planner": "high"}, written.Presets["balanced"].Efforts)
-	assert.Equal(t, map[string]string{"planner": "low"}, written.Presets["other"].Efforts)
+	assert.Equal(t, map[string]string{"reviewer": "high"}, written.Presets["balanced"].Efforts)
+	assert.Equal(t, map[string]string{"reviewer": "low"}, written.Presets["other"].Efforts)
 }
 
 // The raw writer round-trips an empty efforts mapping a hand-edited file
@@ -164,10 +164,10 @@ func TestSaveQualityBlock_EmptyEffortsMappingDoesNotBlockAWrite(t *testing.T) {
 	t.Parallel()
 	_, saved := composeBindSaved(t, nil)
 	text := readBlockFixture(t, composeBindWrittenDir(t, saved))
-	require.Contains(t, text, "                validator: sonnet\n        ultra:\n")
+	require.Contains(t, text, "                ux-validator: sonnet\n        ultra:\n")
 	dir := writeBlockFixture(t, strings.Replace(text,
-		"                validator: sonnet\n        ultra:\n",
-		"                validator: sonnet\n            efforts: {}\n        ultra:\n", 1))
+		"                ux-validator: sonnet\n        ultra:\n",
+		"                ux-validator: sonnet\n            efforts: {}\n        ultra:\n", 1))
 	cfg := composeBindLoad(t, dir)
 	agents := maps.Clone(composeBindCurrent("balanced").Agents)
 

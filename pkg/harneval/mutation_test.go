@@ -30,8 +30,8 @@ const triageInheritBullet = "- Inherit the requested model and reasoning setting
 const claudeEditGuardCommand = `out=$(auto guard edit --platform claude-code) && [ -n "$out" ] && printf '%s\n' "$out"; exit 0`
 
 // seededMutations is the committed mutation table. M1-M5 are the REQ-HE-12
-// classes. M6-M14, with M2-M4, are the source spot-checks recorded in
-// evals/harness/README.md, each written as the surface edit its source change
+// classes. M6 and M8-M14, with M2-M4, are the source spot-checks recorded in
+// evals/harness/README.md (M7 retired with harness-workflow), each written as the surface edit its source change
 // makes; every one regresses the task the spot-check regressed. A row whose
 // target is gone or whose regressed set moves fails until it is reviewed.
 var seededMutations = []seededMutation{
@@ -40,11 +40,11 @@ var seededMutations = []seededMutation{
 		Apply: func(e *surfaceEditor) {
 			e.editJSON("claude-code", ".claude/settings.json", dropHookEntries("PreToolUse", "auto rules fire --event PreToolUse"))
 		}},
-	{ID: "M2", Defect: "the Claude router maps plan to auto-go (auto-router.md.tmpl)",
+	{ID: "M2", Defect: "the Claude router maps review to auto-sync (auto-router.md.tmpl)",
 		Regressed: []string{"GT-ROUTE-CLAUDE-DETAILS"},
 		Apply: func(e *surfaceEditor) {
 			e.replace("claude-code", ".claude/skills/auto/SKILL.md",
-				"| `plan` | `.claude/skills/auto-plan/SKILL.md` |", "| `plan` | `.claude/skills/auto-go/SKILL.md` |")
+				"| `review` | `.claude/skills/auto-review/SKILL.md` |", "| `review` | `.claude/skills/auto-sync/SKILL.md` |")
 		}},
 	{ID: "M3", Defect: "one Task Triage bullet is dropped on Antigravity (gemini auto-router.md.tmpl)",
 		Regressed: []string{"GT-PROMPT-TRIAGE-PARITY"},
@@ -55,19 +55,14 @@ var seededMutations = []seededMutation{
 	{ID: "M4", Defect: "hooks.pre_commit_arch=false is ignored: the variant gets the flag-on surface (pkg/content/hooks.go)",
 		Regressed: []string{"GT-HOOK-ARCH-GATE-OPT-OUT"},
 		Apply:     func(e *surfaceEditor) { e.swapVariant(OverridePreCommitArch+"=false", "") }},
-	{ID: "M5", Defect: "the tdd skill is no longer exposed on OMP",
+	{ID: "M5", Defect: "the review skill is no longer exposed on OMP",
 		Regressed: []string{"GT-SKILL-CORE-CATALOG"},
-		Apply:     func(e *surfaceEditor) { e.remove("omp", ".omp/skills/tdd/SKILL.md") }},
+		Apply:     func(e *surfaceEditor) { e.remove("omp", ".omp/skills/review/SKILL.md") }},
 	{ID: "M6", Defect: "the reviewer gains Write, Edit (content/agents/reviewer.md)",
 		Regressed: []string{"GT-AGENT-READONLY-REVIEW"},
 		Apply: func(e *surfaceEditor) {
 			e.replace("claude-code", ".claude/agents/autopus/reviewer.md",
 				"tools: Read, Grep, Glob, Bash\n", "tools: Read, Write, Edit, Grep, Glob, Bash\n")
-		}},
-	{ID: "M7", Defect: "harness-workflow loses its claude-only gating (content/skills/harness-workflow.md)",
-		Regressed: []string{"GT-SKILL-CLAUDE-NATIVE-ORCHESTRATION"},
-		Apply: func(e *surfaceEditor) {
-			e.leak("claude-code", ".claude/skills/harness-workflow/SKILL.md", "omp", ".omp/skills/harness-workflow/SKILL.md")
 		}},
 	{ID: "M8", Defect: "the OpenCode after-hook runs for every tool (opencode_plugin.go)",
 		Regressed: []string{"GT-HOOK-OPENCODE-PLUGIN"},
@@ -88,10 +83,10 @@ var seededMutations = []seededMutation{
 			e.replace("claude-code", "CLAUDE.md", "<!-- AUTOPUS:BEGIN -->", "<!-- AUTOPUS-ADK:BEGIN -->")
 			e.replace("claude-code", "CLAUDE.md", "<!-- AUTOPUS:END -->", "<!-- AUTOPUS-ADK:END -->")
 		}},
-	{ID: "M11", Defect: "OMP /auto-plan loads the router instead of its detail (omp_commands.go)",
+	{ID: "M11", Defect: "OMP /auto-review loads the router instead of its detail (omp_commands.go)",
 		Regressed: []string{"GT-ROUTE-OMP-EXACT-MAP"},
 		Apply: func(e *surfaceEditor) {
-			e.replace("omp", ".omp/commands/auto-plan.md", "Load exact detail skill `auto-plan`;", "Load exact detail skill `auto`;")
+			e.replace("omp", ".omp/commands/auto-review.md", "Load exact detail skill `auto-review`;", "Load exact detail skill `auto`;")
 		}},
 	{ID: "M12", Defect: "lore-commit loses its hook condition (content/rules/lore-commit.md)",
 		Regressed: []string{"GT-HOOK-CLAUDE-RULE-DISPATCH"},
@@ -104,11 +99,11 @@ var seededMutations = []seededMutation{
 		Apply: func(e *surfaceEditor) {
 			e.editJSON("claude-code", ".claude/settings.json", dropHookEntries("PreToolUse", claudeEditGuardCommand))
 		}},
-	{ID: "M14", Defect: "legacy /auto:plan loads auto-go (gemini commands/auto/plan.toml.tmpl)",
+	{ID: "M14", Defect: "legacy /auto:review loads auto-sync (gemini commands/auto/review.toml.tmpl)",
 		Regressed: []string{"GT-ROUTE-ANTIGRAVITY-COMMANDS"},
 		Apply: func(e *surfaceEditor) {
-			e.replace("antigravity-cli", ".gemini/commands/auto/plan.toml",
-				".gemini/skills/autopus/auto-plan/SKILL.md", ".gemini/skills/autopus/auto-go/SKILL.md")
+			e.replace("antigravity-cli", ".gemini/commands/auto/review.toml",
+				".gemini/skills/autopus/auto-review/SKILL.md", ".gemini/skills/autopus/auto-sync/SKILL.md")
 		}},
 }
 

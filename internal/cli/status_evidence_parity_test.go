@@ -117,7 +117,7 @@ func TestStatusEvidence_JSONAndTextAgree(t *testing.T) {
 		}
 		has(fmt.Sprintf("  %d. %s\n     %s\n     %s\n", i+1, line, action["purpose"], facts))
 	}
-	assert.Equal(t, []string{"resume", "implement", "fix", "plan", "desktop_connect"}, ids)
+	assert.Equal(t, []string{"resume", "implement", "review", "qa", "desktop_connect"}, ids)
 }
 
 func joinJSONStrings(value any) string {

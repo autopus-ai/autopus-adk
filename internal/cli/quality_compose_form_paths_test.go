@@ -25,9 +25,9 @@ func TestComposeForms_InterruptAtEveryFormEndsTheStep(t *testing.T) {
 		{"method", composeD, []string{"2\n", "1\n"}, 3},
 		{"role group", composeD, []string{"2\n", "1\n", "\n"}, 4},
 		{"agent list", composeD, []string{"2\n", "2\n", "2\n"}, 4},
-		{"agent value", composeD, []string{"2\n", "2\n", "2\n", "6\n"}, 5},
+		{"agent value", composeD, []string{"2\n", "2\n", "2\n", "2\n"}, 5},
 		{"default preset", composeD, []string{"3\n"}, 2},
-		{"override question", writeComposeProjectP, composeFormS16, 8},
+		{"override question", writeComposeProjectP, composeFormS16, 6},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

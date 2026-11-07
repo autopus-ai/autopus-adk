@@ -33,20 +33,16 @@ var (
 // driverGroups mirrors the Role Group Contract so the fakes edit realistic
 // compositions.
 var driverGroups = []composeDriverGroup{
-	{Label: "설계·판단", Members: []string{"planner", "architect", "spec-writer", "security-auditor"}},
-	{Label: "구현", Members: []string{"executor", "debugger", "deep-worker", "devops", "frontend-specialist", "perf-engineer"}},
-	{Label: "검증·리뷰", Members: []string{"reviewer", "validator", "tester", "ux-validator"}},
-	{Label: "탐색·보조", Members: []string{"explorer", "annotator"}},
+	{Label: "구현", Members: []string{"frontend-specialist"}},
+	{Label: "검증·리뷰", Members: []string{"reviewer", "qa-explorer", "ux-validator"}},
 }
 
-// driverStart is fixture D's starting composition: the balanced default.
+// driverStart is the starting composition the fakes edit: one tier for the
+// Implementation group and a mixed Verification·Review group.
 func driverStart() map[string]string {
 	return map[string]string{
-		"planner": "fable", "architect": "fable", "spec-writer": "fable", "security-auditor": "fable",
-		"executor": "sonnet", "debugger": "fable", "deep-worker": "fable", "devops": "sonnet",
-		"frontend-specialist": "sonnet", "perf-engineer": "sonnet",
-		"reviewer": "fable", "validator": "sonnet", "tester": "sonnet", "ux-validator": "sonnet",
-		"explorer": "sonnet", "annotator": "sonnet",
+		"frontend-specialist": "sonnet",
+		"reviewer":            "fable", "qa-explorer": "fable", "ux-validator": "sonnet",
 	}
 }
 
@@ -214,7 +210,7 @@ func (r driverFailingReader) Read([]byte) (int, error) {
 func newDriverSession(cfg *config.HarnessConfig) (composeDriverSession, *driverFakeTable, *driverFakePlanner) {
 	table := &driverFakeTable{}
 	planner := &driverFakePlanner{start: driverStart(), refreshed: driverStart()}
-	planner.refreshed["planner"] = "opus"
+	planner.refreshed["reviewer"] = "opus"
 	session := composeDriverSession{
 		Config:  cfg,
 		Table:   table,

@@ -50,8 +50,8 @@ func TestUpdateComposeForms_DetectedCodexTabEdit(t *testing.T) {
 	saved := composeBindLoad(t, dir)
 	assert.Contains(t, saved.Platforms, "codex")
 	assert.Equal(t, "codex-custom", saved.Quality.Providers["codex"])
-	assert.Equal(t, config.CodexProfile{Model: "gpt-6-luna", Effort: "max"}, readComposeCodexProfile(t, dir, "planner"))
-	assert.Equal(t, config.CodexProfile{Model: "gpt-6-astra", Effort: "max"}, readComposeCodexProfile(t, dir, "debugger"))
+	assert.Equal(t, config.CodexProfile{Model: "gpt-6-luna", Effort: "max"}, readComposeCodexProfile(t, dir, "reviewer"))
+	assert.Equal(t, config.CodexProfile{Model: "gpt-6-luna", Effort: "max"}, readComposeCodexProfile(t, dir, "frontend-specialist"))
 	assert.Len(t, *run.probes, 1)
 	assert.False(t, run.adapterProbed(t))
 }
@@ -68,7 +68,7 @@ func TestUpdateComposeForms_KeepPathsWriteNothing(t *testing.T) {
 		{"R keep", func(t *testing.T) string { return cloneComposeProject(t, settled) }, []string{"\n"}},
 		{"O3 keep", composeO3, []string{"\n"}},
 		{"W2 keep", writeComposeW2, []string{"\n"}},
-		{"Codex groups unchanged", composeO3, []string{"2\n", "3\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n"}},
+		{"Codex groups unchanged", composeO3, []string{"2\n", "3\n", "\n", "\n", "\n", "\n", "\n", "\n"}},
 		{"Codex edit cancelled", composeO3, composeFormLines(composeFormS5, "\n", "\n")},
 	}
 	for _, tc := range cases {
@@ -97,7 +97,7 @@ func TestUpdateComposeForms_InterruptEndsTheUpdate(t *testing.T) {
 	dir := run.settled(t, "R")
 	abortComposeFormAt(t, 1)
 	before := composeSessionHash(t, dir)
-	generated := filepath.Join(dir, ".codex", "agents", "planner.toml")
+	generated := filepath.Join(dir, ".codex", "agents", "reviewer.toml")
 	data, err := os.ReadFile(generated)
 	require.NoError(t, err)
 	stamp := time.Now().Add(-time.Hour).Truncate(time.Second)
@@ -121,7 +121,7 @@ func TestUpdateComposeForms_InterruptEndsTheUpdate(t *testing.T) {
 // S12: a write the run applied before Ctrl+C stays in the file.
 func TestUpdateComposeForms_InterruptAfterAWriteKeepsTheWrite(t *testing.T) {
 	newComposeUpdateRun(t, true, "")
-	abortComposeFormAt(t, 13)
+	abortComposeFormAt(t, 9)
 	dir := writeComposeFixture(t, "claude-code", "codex")
 
 	out, err := runComposeUpdate(t, reaEnter(formInput(composeFormLines(composeFormS5, "2\n")...)), "--dir", dir)

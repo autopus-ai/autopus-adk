@@ -321,6 +321,9 @@ orchestra:              # providers for multi-provider review
 `auto config --help` lists the config subcommands, and `auto quality` picks quality presets and
 review models.
 
+Presets, per-agent models, OMP model pins, review models, and the REA MCP flags are covered in
+[docs/quality.md](docs/quality.md).
+
 ## Security
 
 - **Signed releases.** Every release since v0.50.73 ships `checksums.txt` and an ECDSA P-256

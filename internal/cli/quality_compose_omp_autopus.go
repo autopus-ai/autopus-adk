@@ -9,8 +9,10 @@ import (
 	"github.com/insajin/autopus-adk/pkg/config"
 )
 
-// ompAutopusSession is the model choice that drops an agent's pin, and for
-// task, makes it follow planner. No selector is ever this value.
+// ompAutopusSession is the model choice that drops an agent's pin. For task
+// that means following planner, which the saved pins never name, so task
+// lands on the OMP session model like every other agent. No selector is ever
+// this value.
 const ompAutopusSession = "\x00session"
 
 // ompAutopusTab is one run of the autopus-mode OMP tab (SPEC-MODELUX-003
@@ -23,7 +25,7 @@ type ompAutopusTab struct {
 	thinking     map[string]string
 	// profile is the profile an applied edit converts from; ownTask reports
 	// an agents.task the start policy holds, and taskEdit the operator's
-	// choice for it (empty: follow planner).
+	// choice for it (empty: the OMP session model).
 	profile  string
 	ownTask  bool
 	taskEdit *[]config.RoleModelCandidateConf
@@ -77,7 +79,7 @@ func (f *composeFormRun) ompAutopus() error {
 // the conversion line when a profile is replaced, the old-binary line when
 // pins remain, then the plan's routes.
 func (f *composeFormRun) ompAutopusApply(tab *ompAutopusTab, runner omp.OMPModelCatalogRunner) error {
-	pins := ompPinsOnlyTarget(tab.start, tab.final, tab.profile != "", tab.ownTask, tab.taskEdit)
+	pins := ompPinsOnlyTarget(tab.start, tab.final, tab.taskEdit)
 	opts, err := newOMPPinsOnlyApplyOptions(pins)
 	if err != nil {
 		return f.ompFailed(err)
@@ -194,16 +196,12 @@ func (f *composeFormRun) ompAutopusAsk(tab *ompAutopusTab, title, subject string
 	return nil
 }
 
-// modelOptions lists 그대로, the session model (follow planner for task), and
+// modelOptions lists 그대로, the session model, and
 // every installed model all agents accept: on a strict catalog the ones whose
 // capabilities cover each agent's, on a metadata-light one every attested
 // model.
 func (tab *ompAutopusTab) modelOptions(f *composeFormRun, agents []string) ([]composeOption[string], error) {
-	session := f.form.OMPSessionKeep
-	if slices.Equal(agents, []string{config.OMPAutopusDefaultAgent}) {
-		session = f.form.OMPFollowPlanner
-	}
-	options := []composeOption[string]{{f.form.Keep + " — " + tab.label(f, agents), ""}, {session, ompAutopusSession}}
+	options := []composeOption[string]{{f.form.Keep + " — " + tab.label(f, agents), ""}, {f.form.OMPSessionKeep, ompAutopusSession}}
 	capabilities := make([]string, 0, len(agents))
 	for _, agent := range agents {
 		capability, err := ompCustomAgentCapability(agent)
@@ -238,7 +236,7 @@ func (tab *ompAutopusTab) label(f *composeFormRun, agents []string) string {
 }
 
 // set records one answer: a single pin, or none for the session model. task
-// keeps its own edit, which an empty route turns into following planner.
+// keeps its own edit, which an empty route turns into the OMP session model.
 func (tab *ompAutopusTab) set(f *composeFormRun, agents []string, route []config.RoleModelCandidateConf) {
 	for _, agent := range agents {
 		label, thinking := "", ""
@@ -248,9 +246,6 @@ func (tab *ompAutopusTab) set(f *composeFormRun, agents []string, route []config
 		if agent == config.OMPAutopusDefaultAgent {
 			edit := append([]config.RoleModelCandidateConf{}, route...)
 			tab.taskEdit = &edit
-			if label == "" {
-				label = f.form.OMPFollowPlanner
-			}
 		} else {
 			tab.final[agent] = route
 		}

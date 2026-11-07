@@ -10,50 +10,8 @@
     {
       "kind": "contains",
       "platform": "opencode",
-      "path": ".agents/skills/auto/SKILL.md",
-      "needle": "- 서브커맨드를 해석한 뒤에는 반드시 대응하는 상세 스킬(`auto-setup`, `auto-status`, `auto-goal`, `auto-update`, `auto-plan`, `auto-go`, `auto-fix`, `auto-review`, `auto-sync`, `auto-idea`, `auto-map`, `auto-why`, `auto-verify`, `auto-secure`, `auto-test`, `auto-qa`, `auto-dev`, `auto-canary`, `auto-doctor`, `auto-reverse`) 중 하나를 로드합니다."
-    },
-    {
-      "kind": "contains",
-      "platform": "opencode",
-      "path": ".opencode/commands/auto-setup.md",
-      "needle": "Reinterpret it as `/auto setup ...` payload로 다시 해석하고, `skill` 도구로 `auto`를 로드한 뒤 canonical router 규칙을 따르세요."
-    },
-    {
-      "kind": "contains",
-      "platform": "opencode",
-      "path": ".opencode/commands/auto-status.md",
-      "needle": "Reinterpret it as `/auto status ...` payload로 다시 해석하고, `skill` 도구로 `auto`를 로드한 뒤 canonical router 규칙을 따르세요."
-    },
-    {
-      "kind": "contains",
-      "platform": "opencode",
-      "path": ".opencode/commands/auto-goal.md",
-      "needle": "Reinterpret it as `/auto goal ...` payload로 다시 해석하고, `skill` 도구로 `auto`를 로드한 뒤 canonical router 규칙을 따르세요."
-    },
-    {
-      "kind": "contains",
-      "platform": "opencode",
       "path": ".opencode/commands/auto-update.md",
       "needle": "Reinterpret it as `/auto update ...` payload로 다시 해석하고, `skill` 도구로 `auto`를 로드한 뒤 canonical router 규칙을 따르세요."
-    },
-    {
-      "kind": "contains",
-      "platform": "opencode",
-      "path": ".opencode/commands/auto-plan.md",
-      "needle": "Reinterpret it as `/auto plan ...` payload로 다시 해석하고, `skill` 도구로 `auto`를 로드한 뒤 canonical router 규칙을 따르세요."
-    },
-    {
-      "kind": "contains",
-      "platform": "opencode",
-      "path": ".opencode/commands/auto-go.md",
-      "needle": "Reinterpret it as `/auto go ...` payload로 다시 해석하고, `skill` 도구로 `auto`를 로드한 뒤 canonical router 규칙을 따르세요."
-    },
-    {
-      "kind": "contains",
-      "platform": "opencode",
-      "path": ".opencode/commands/auto-fix.md",
-      "needle": "Reinterpret it as `/auto fix ...` payload로 다시 해석하고, `skill` 도구로 `auto`를 로드한 뒤 canonical router 규칙을 따르세요."
     },
     {
       "kind": "contains",
@@ -70,32 +28,8 @@
     {
       "kind": "contains",
       "platform": "opencode",
-      "path": ".opencode/commands/auto-idea.md",
-      "needle": "Reinterpret it as `/auto idea ...` payload로 다시 해석하고, `skill` 도구로 `auto`를 로드한 뒤 canonical router 규칙을 따르세요."
-    },
-    {
-      "kind": "contains",
-      "platform": "opencode",
-      "path": ".opencode/commands/auto-map.md",
-      "needle": "Reinterpret it as `/auto map ...` payload로 다시 해석하고, `skill` 도구로 `auto`를 로드한 뒤 canonical router 규칙을 따르세요."
-    },
-    {
-      "kind": "contains",
-      "platform": "opencode",
-      "path": ".opencode/commands/auto-why.md",
-      "needle": "Reinterpret it as `/auto why ...` payload로 다시 해석하고, `skill` 도구로 `auto`를 로드한 뒤 canonical router 규칙을 따르세요."
-    },
-    {
-      "kind": "contains",
-      "platform": "opencode",
       "path": ".opencode/commands/auto-verify.md",
       "needle": "Reinterpret it as `/auto verify ...` payload로 다시 해석하고, `skill` 도구로 `auto`를 로드한 뒤 canonical router 규칙을 따르세요."
-    },
-    {
-      "kind": "contains",
-      "platform": "opencode",
-      "path": ".opencode/commands/auto-secure.md",
-      "needle": "Reinterpret it as `/auto secure ...` payload로 다시 해석하고, `skill` 도구로 `auto`를 로드한 뒤 canonical router 규칙을 따르세요."
     },
     {
       "kind": "contains",
@@ -112,68 +46,14 @@
     {
       "kind": "contains",
       "platform": "opencode",
-      "path": ".opencode/commands/auto-dev.md",
-      "needle": "Reinterpret it as `/auto dev ...` payload로 다시 해석하고, `skill` 도구로 `auto`를 로드한 뒤 canonical router 규칙을 따르세요."
-    },
-    {
-      "kind": "contains",
-      "platform": "opencode",
-      "path": ".opencode/commands/auto-canary.md",
-      "needle": "Reinterpret it as `/auto canary ...` payload로 다시 해석하고, `skill` 도구로 `auto`를 로드한 뒤 canonical router 규칙을 따르세요."
-    },
-    {
-      "kind": "contains",
-      "platform": "opencode",
       "path": ".opencode/commands/auto-doctor.md",
       "needle": "Reinterpret it as `/auto doctor ...` payload로 다시 해석하고, `skill` 도구로 `auto`를 로드한 뒤 canonical router 규칙을 따르세요."
     },
     {
       "kind": "contains",
       "platform": "opencode",
-      "path": ".opencode/commands/auto-reverse.md",
-      "needle": "Reinterpret it as `/auto reverse ...` payload로 다시 해석하고, `skill` 도구로 `auto`를 로드한 뒤 canonical router 규칙을 따르세요."
-    },
-    {
-      "kind": "contains",
-      "platform": "opencode",
-      "path": ".agents/skills/auto-setup/SKILL.md",
-      "needle": "name: auto-setup\n"
-    },
-    {
-      "kind": "contains",
-      "platform": "opencode",
-      "path": ".agents/skills/auto-status/SKILL.md",
-      "needle": "name: auto-status\n"
-    },
-    {
-      "kind": "contains",
-      "platform": "opencode",
-      "path": ".agents/skills/auto-goal/SKILL.md",
-      "needle": "name: auto-goal\n"
-    },
-    {
-      "kind": "contains",
-      "platform": "opencode",
       "path": ".agents/skills/auto-update/SKILL.md",
       "needle": "name: auto-update\n"
-    },
-    {
-      "kind": "contains",
-      "platform": "opencode",
-      "path": ".agents/skills/auto-plan/SKILL.md",
-      "needle": "name: auto-plan\n"
-    },
-    {
-      "kind": "contains",
-      "platform": "opencode",
-      "path": ".agents/skills/auto-go/SKILL.md",
-      "needle": "name: auto-go\n"
-    },
-    {
-      "kind": "contains",
-      "platform": "opencode",
-      "path": ".agents/skills/auto-fix/SKILL.md",
-      "needle": "name: auto-fix\n"
     },
     {
       "kind": "contains",
@@ -190,32 +70,8 @@
     {
       "kind": "contains",
       "platform": "opencode",
-      "path": ".agents/skills/auto-idea/SKILL.md",
-      "needle": "name: auto-idea\n"
-    },
-    {
-      "kind": "contains",
-      "platform": "opencode",
-      "path": ".agents/skills/auto-map/SKILL.md",
-      "needle": "name: auto-map\n"
-    },
-    {
-      "kind": "contains",
-      "platform": "opencode",
-      "path": ".agents/skills/auto-why/SKILL.md",
-      "needle": "name: auto-why\n"
-    },
-    {
-      "kind": "contains",
-      "platform": "opencode",
       "path": ".agents/skills/auto-verify/SKILL.md",
       "needle": "name: auto-verify\n"
-    },
-    {
-      "kind": "contains",
-      "platform": "opencode",
-      "path": ".agents/skills/auto-secure/SKILL.md",
-      "needle": "name: auto-secure\n"
     },
     {
       "kind": "contains",
@@ -232,26 +88,8 @@
     {
       "kind": "contains",
       "platform": "opencode",
-      "path": ".agents/skills/auto-dev/SKILL.md",
-      "needle": "name: auto-dev\n"
-    },
-    {
-      "kind": "contains",
-      "platform": "opencode",
-      "path": ".agents/skills/auto-canary/SKILL.md",
-      "needle": "name: auto-canary\n"
-    },
-    {
-      "kind": "contains",
-      "platform": "opencode",
       "path": ".agents/skills/auto-doctor/SKILL.md",
       "needle": "name: auto-doctor\n"
-    },
-    {
-      "kind": "contains",
-      "platform": "opencode",
-      "path": ".agents/skills/auto-reverse/SKILL.md",
-      "needle": "name: auto-reverse\n"
     }
   ],
   "provenance": {

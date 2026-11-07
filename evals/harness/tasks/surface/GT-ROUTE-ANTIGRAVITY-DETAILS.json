@@ -11,50 +11,8 @@
       "kind": "route_detail",
       "platform": "antigravity-cli",
       "path": ".agents/plugins/autopus/skills/auto/SKILL.md",
-      "route": "| `setup` |",
-      "detail": ".agents/plugins/autopus/skills/auto-setup/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".agents/plugins/autopus/skills/auto/SKILL.md",
-      "route": "| `status` |",
-      "detail": ".agents/plugins/autopus/skills/auto-status/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".agents/plugins/autopus/skills/auto/SKILL.md",
-      "route": "| `goal` |",
-      "detail": ".agents/plugins/autopus/skills/auto-goal/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".agents/plugins/autopus/skills/auto/SKILL.md",
       "route": "| `update` |",
       "detail": ".agents/plugins/autopus/skills/auto-update/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".agents/plugins/autopus/skills/auto/SKILL.md",
-      "route": "| `plan` |",
-      "detail": ".agents/plugins/autopus/skills/auto-plan/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".agents/plugins/autopus/skills/auto/SKILL.md",
-      "route": "| `go` |",
-      "detail": ".agents/plugins/autopus/skills/auto-go/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".agents/plugins/autopus/skills/auto/SKILL.md",
-      "route": "| `fix` |",
-      "detail": ".agents/plugins/autopus/skills/auto-fix/SKILL.md"
     },
     {
       "kind": "route_detail",
@@ -74,36 +32,8 @@
       "kind": "route_detail",
       "platform": "antigravity-cli",
       "path": ".agents/plugins/autopus/skills/auto/SKILL.md",
-      "route": "| `idea` |",
-      "detail": ".agents/plugins/autopus/skills/auto-idea/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".agents/plugins/autopus/skills/auto/SKILL.md",
-      "route": "| `map` |",
-      "detail": ".agents/plugins/autopus/skills/auto-map/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".agents/plugins/autopus/skills/auto/SKILL.md",
-      "route": "| `why` |",
-      "detail": ".agents/plugins/autopus/skills/auto-why/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".agents/plugins/autopus/skills/auto/SKILL.md",
       "route": "| `verify` |",
       "detail": ".agents/plugins/autopus/skills/auto-verify/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".agents/plugins/autopus/skills/auto/SKILL.md",
-      "route": "| `secure` |",
-      "detail": ".agents/plugins/autopus/skills/auto-secure/SKILL.md"
     },
     {
       "kind": "route_detail",
@@ -123,50 +53,8 @@
       "kind": "route_detail",
       "platform": "antigravity-cli",
       "path": ".agents/plugins/autopus/skills/auto/SKILL.md",
-      "route": "| `dev` |",
-      "detail": ".agents/plugins/autopus/skills/auto-dev/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".agents/plugins/autopus/skills/auto/SKILL.md",
-      "route": "| `canary` |",
-      "detail": ".agents/plugins/autopus/skills/auto-canary/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".agents/plugins/autopus/skills/auto/SKILL.md",
       "route": "| `doctor` |",
       "detail": ".agents/plugins/autopus/skills/auto-doctor/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".agents/plugins/autopus/skills/auto/SKILL.md",
-      "route": "| `reverse` |",
-      "detail": ".agents/plugins/autopus/skills/auto-reverse/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".gemini/skills/auto/SKILL.md",
-      "route": "| `setup` |",
-      "detail": ".gemini/skills/autopus/auto-setup/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".gemini/skills/auto/SKILL.md",
-      "route": "| `status` |",
-      "detail": ".gemini/skills/autopus/auto-status/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".gemini/skills/auto/SKILL.md",
-      "route": "| `goal` |",
-      "detail": ".gemini/skills/autopus/auto-goal/SKILL.md"
     },
     {
       "kind": "route_detail",
@@ -174,27 +62,6 @@
       "path": ".gemini/skills/auto/SKILL.md",
       "route": "| `update` |",
       "detail": ".gemini/skills/autopus/auto-update/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".gemini/skills/auto/SKILL.md",
-      "route": "| `plan` |",
-      "detail": ".gemini/skills/autopus/auto-plan/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".gemini/skills/auto/SKILL.md",
-      "route": "| `go` |",
-      "detail": ".gemini/skills/autopus/auto-go/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".gemini/skills/auto/SKILL.md",
-      "route": "| `fix` |",
-      "detail": ".gemini/skills/autopus/auto-fix/SKILL.md"
     },
     {
       "kind": "route_detail",
@@ -214,36 +81,8 @@
       "kind": "route_detail",
       "platform": "antigravity-cli",
       "path": ".gemini/skills/auto/SKILL.md",
-      "route": "| `idea` |",
-      "detail": ".gemini/skills/autopus/auto-idea/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".gemini/skills/auto/SKILL.md",
-      "route": "| `map` |",
-      "detail": ".gemini/skills/autopus/auto-map/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".gemini/skills/auto/SKILL.md",
-      "route": "| `why` |",
-      "detail": ".gemini/skills/autopus/auto-why/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".gemini/skills/auto/SKILL.md",
       "route": "| `verify` |",
       "detail": ".gemini/skills/autopus/auto-verify/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".gemini/skills/auto/SKILL.md",
-      "route": "| `secure` |",
-      "detail": ".gemini/skills/autopus/auto-secure/SKILL.md"
     },
     {
       "kind": "route_detail",
@@ -263,29 +102,8 @@
       "kind": "route_detail",
       "platform": "antigravity-cli",
       "path": ".gemini/skills/auto/SKILL.md",
-      "route": "| `dev` |",
-      "detail": ".gemini/skills/autopus/auto-dev/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".gemini/skills/auto/SKILL.md",
-      "route": "| `canary` |",
-      "detail": ".gemini/skills/autopus/auto-canary/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".gemini/skills/auto/SKILL.md",
       "route": "| `doctor` |",
       "detail": ".gemini/skills/autopus/auto-doctor/SKILL.md"
-    },
-    {
-      "kind": "route_detail",
-      "platform": "antigravity-cli",
-      "path": ".gemini/skills/auto/SKILL.md",
-      "route": "| `reverse` |",
-      "detail": ".gemini/skills/autopus/auto-reverse/SKILL.md"
     }
   ],
   "provenance": {

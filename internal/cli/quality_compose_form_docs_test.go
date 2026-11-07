@@ -1,7 +1,7 @@
 package cli
 
 // SPEC-MODELUX-002 T10 (REQ-MUX2-19, REQ-MUX2-21; acceptance S18, S19): the
-// three helps, both READMEs, and the v0.50.125 CHANGELOG entry document the
+// three helps, docs/quality.md, docs/quality.ko.md, and the v0.50.125 CHANGELOG entry document the
 // arrow-key forms, the tool tab, the per-tool binding, the OMP tab and where
 // its condition is read, the label notation, Ctrl+C, and the OSC 11 query.
 // They are added to the SPEC-MODELUX-001 text, which its own docs tests
@@ -36,10 +36,10 @@ func TestComposeFormDocs_HelpsDocumentTheForms(t *testing.T) {
 }
 
 func TestComposeFormDocs_ReadmesAndChangelogDocumentTheForms(t *testing.T) {
-	assertComposeFormDocs(t, "README.md", readRepoFile(t, "README.md"),
+	assertComposeFormDocs(t, "docs/quality.md", readRepoFile(t, "docs", "quality.md"),
 		"arrow keys and Enter", "same for all tools", "<provider>-custom", "quality.providers.<provider>",
 		"opus-5-5", "platforms saved in autopus.yaml include omp", "the platforms this init chose include omp", "Ctrl+C")
-	assertComposeFormDocs(t, "docs/README.ko.md", readRepoFile(t, "docs", "README.ko.md"),
+	assertComposeFormDocs(t, "docs/quality.ko.md", readRepoFile(t, "docs", "quality.ko.md"),
 		"화살표와 Enter", "모든 도구 같게", "<provider>-custom", "quality.providers.<provider>",
 		"opus-5-5", "autopus.yaml에 저장된 platforms에 omp", "이번 init에서 고른 platforms에 omp", "Ctrl+C")
 	changelog := readRepoFile(t, "CHANGELOG.md")

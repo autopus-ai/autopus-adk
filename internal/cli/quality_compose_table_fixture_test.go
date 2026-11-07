@@ -43,13 +43,10 @@ var (
 		"executor": "sonnet", "tester": "sonnet", "reviewer": "sonnet", "debugger": "sonnet", "devops": "sonnet",
 		"validator": "sonnet", "explorer": "sonnet",
 	}
-	// composeTableK is the custom preset S6 saves from D with `g`, Enter, `3`,
-	// Enter, `4`, `y`.
+	// composeTableK is the custom preset S6 saves from D with `g`, `4`, Enter,
+	// `y`: Implementation to haiku, Verification·Review kept.
 	composeTableK = map[string]string{
-		"architect": "opus", "planner": "opus", "reviewer": "opus", "security-auditor": "opus", "spec-writer": "opus",
-		"debugger": "sonnet", "deep-worker": "sonnet", "devops": "sonnet", "executor": "sonnet",
-		"frontend-specialist": "sonnet", "perf-engineer": "sonnet", "tester": "sonnet", "ux-validator": "sonnet",
-		"validator": "sonnet", "explorer": "haiku", "annotator": "haiku", "reverse-engineer": "haiku",
+		"frontend-specialist": "haiku", "reviewer": "opus", "qa-explorer": "opus", "ux-validator": "sonnet",
 	}
 )
 
@@ -96,7 +93,7 @@ func composeTableFixture(t *testing.T, name string) *config.HarnessConfig {
 			cfg.RoleModelPolicy.Profile = "ultra"
 		case "X":
 			ultra := cfg.Quality.Presets["ultra"]
-			cfg.Quality.Presets["ultra"] = withComposeTableAgents(ultra, ultra.Agents, map[string]string{"tester": "gpt"})
+			cfg.Quality.Presets["ultra"] = withComposeTableAgents(ultra, ultra.Agents, map[string]string{"ux-validator": "gpt"})
 		case "C":
 			ultra := cfg.Quality.Presets["ultra"]
 			cfg.Quality.Presets["ultra"] = withComposeTableAgents(ultra, ultra.Agents, map[string]string{"devops": "sonnet"})

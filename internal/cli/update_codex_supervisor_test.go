@@ -114,7 +114,7 @@ func TestUpdateCmdPreservesDriftedLegacyCodexSupervisor(t *testing.T) {
 func TestUpdateCmdRollsBackSupervisorPolicyWhenCodexWriteFails(t *testing.T) {
 	dir := writeLegacySupervisorUpdateFixture(t, true)
 	t.Setenv("PATH", t.TempDir())
-	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".codex", "agents", "planner.toml"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".codex", "agents", "reviewer.toml"), 0o755))
 
 	root := NewRootCmd()
 	var out bytes.Buffer

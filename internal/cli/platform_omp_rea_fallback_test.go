@@ -14,7 +14,7 @@ import (
 	"github.com/insajin/autopus-adk/pkg/config"
 )
 
-const ompReaFallbackLine = "reverse-engineer: openai-codex/gpt-6.1-sol not in catalog → session model"
+const ompReaFallbackLine = "qa-explorer: openai-codex/gpt-6.1-sol not in catalog → session model"
 
 // ompCLICatalogWithout drops one selector from an OMP catalog fixture.
 func ompCLICatalogWithout(t *testing.T, catalog []byte, selector string) []byte {
@@ -38,17 +38,17 @@ func ompCLICatalogWithout(t *testing.T, catalog []byte, selector string) []byte 
 func ompReaFallbackRow(t *testing.T, payload ompProfileApplyPreviewPayload) ompProfileAgentPreviewPayload {
 	t.Helper()
 	for _, row := range payload.Agents {
-		if row.Agent == "reverse-engineer" {
+		if row.Agent == "qa-explorer" {
 			return row
 		}
 	}
-	t.Fatal("the plan has no reverse-engineer row")
+	t.Fatal("the plan has no qa-explorer row")
 	return ompProfileAgentPreviewPayload{}
 }
 
-// S11 K1: a catalog serving the analysis rung routes reverse-engineer and
-// prints no fallback line.
-func TestOMPProfilePlan_ServedAnalysisRungRoutesReverseEngineer(t *testing.T) {
+// S11 K1: a catalog serving the analysis rung routes its generated agent,
+// qa-explorer, and prints no fallback line.
+func TestOMPProfilePlan_ServedAnalysisRungRoutesQAExplorer(t *testing.T) {
 	root, runner := writeOMPBalancedProject(t)
 	runner.catalog = ompCLIProfileNativeCatalogJSON()
 
@@ -132,7 +132,7 @@ func TestOMPProfilePlan_FallbackLineFollowsTheLanguage(t *testing.T) {
 
 	payload := planOMPProfileJSON(t, root, runner, "balanced", "--family", "gpt")
 
-	assert.Equal(t, []string{"reverse-engineer: openai-codex/gpt-6.1-sol이 OMP catalog에 없어 세션 모델을 씁니다"},
+	assert.Equal(t, []string{"qa-explorer: openai-codex/gpt-6.1-sol이 OMP catalog에 없어 세션 모델을 씁니다"},
 		payload.Warnings)
 }
 
@@ -150,7 +150,7 @@ func TestOMPDoctorRouting_ReadsTheAnalysisRungFallbackAsSessionModel(t *testing.
 	for _, resolution := range compileOMPModelDoctorRouting(profile, probe.Catalog).Resolutions {
 		statuses[resolution.Agent] = resolution.Status
 	}
-	assert.Equal(t, omp.OMPReaSessionModelStatus, statuses["reverse-engineer"])
-	assert.Equal(t, "selected", statuses["planner"])
-	assert.Equal(t, "selected", statuses["executor"])
+	assert.Equal(t, omp.OMPReaSessionModelStatus, statuses["qa-explorer"])
+	assert.Equal(t, "selected", statuses["reviewer"])
+	assert.Equal(t, "selected", statuses["task"])
 }

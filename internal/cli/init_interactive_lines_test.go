@@ -36,8 +36,8 @@ func TestInitInteractive_DecisionLinesPrintOncePerRun(t *testing.T) {
 	assert.Equal(t, 1, strings.Count(run.out, notice), run.out)
 	assert.Len(t, node.commands, 1, "the Node probe runs once per run")
 	// CAT-B has no gpt-6.1-sol, so each of the three tables would report the
-	// reverse-engineer fallback; the run's fallback notice prints it once.
-	fallback := reaFallbackLine(adapter.ReaFallback{Catalog: "Codex", Agent: "reverse-engineer", Requested: "gpt-6.1-sol/xhigh"}, "ko")
+	// qa-explorer fallback; the run's fallback notice prints it once.
+	fallback := reaFallbackLine(adapter.ReaFallback{Catalog: "Codex", Agent: "qa-explorer", Requested: "gpt-6.1-sol/xhigh"}, "ko")
 	assert.Equal(t, 1, strings.Count(run.out, fallback+"\n"), run.out)
 	_, err := os.Stat(run.dir + "/autopus.yaml")
 	assert.NoError(t, err, "the third review applied")

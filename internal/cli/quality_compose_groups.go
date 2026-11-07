@@ -20,19 +20,14 @@ type composeRoleGroup struct {
 
 // composeRoleGroups lists the groups in contract order, members in display
 // order. Together they cover config.CanonicalAgentNames() exactly once; the
-// coverage test fails as soon as the canonical role set changes.
+// coverage test fails as soon as the canonical role set changes. A contract
+// group with no generated agent (Design·Judgment, Exploration·Support since
+// the verification harness) is left out: its members get no agent file, so
+// a tier picked for them would be saved for nothing.
 var composeRoleGroups = []composeRoleGroup{
-	{ko: "설계·판단", en: "Design·Judgment", Agents: []string{
-		"planner", "architect", "spec-writer", "security-auditor",
-	}},
-	{ko: "구현", en: "Implementation", Agents: []string{
-		"executor", "debugger", "deep-worker", "devops", "frontend-specialist", "perf-engineer",
-	}},
+	{ko: "구현", en: "Implementation", Agents: []string{"frontend-specialist"}},
 	{ko: "검증·리뷰", en: "Verification·Review", Agents: []string{
-		"reviewer", "qa-explorer", "validator", "tester", "ux-validator",
-	}},
-	{ko: "탐색·보조", en: "Exploration·Support", Agents: []string{
-		"explorer", "annotator", "reverse-engineer",
+		"reviewer", "qa-explorer", "ux-validator",
 	}},
 }
 

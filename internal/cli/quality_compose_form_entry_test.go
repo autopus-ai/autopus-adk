@@ -49,11 +49,10 @@ func TestQualityComposeForms_CodexTabApplyGeneratesThePreview(t *testing.T) {
 	require.NoError(t, err, out)
 	assert.Contains(t, out, "quality.applied_platforms = 2")
 	_, codexMarks := assertGeneratedEqualsTable(t, dir, plainComposeHeaders(composeRenderedTable(t, out, composeFormPreviewMarker)))
-	assert.Equal(t, 4, codexMarks)
-	assert.Equal(t, config.CodexProfile{Model: "gpt-6-luna", Effort: "max"}, readComposeCodexProfile(t, dir, "planner"))
-	assert.Equal(t, config.CodexProfile{Model: "gpt-6-astra", Effort: "max"}, readComposeCodexProfile(t, dir, "debugger"))
-	assert.Equal(t, config.CodexProfile{Model: "gpt-6-luna", Effort: "max"}, readComposeCodexProfile(t, dir, "executor"))
-	assert.Equal(t, composeTableClaudeCell{model: "claude-opus-5-5", effort: "max"}, readComposeTableClaudeProfile(t, dir, "planner"))
+	assert.Equal(t, 2, codexMarks)
+	assert.Equal(t, config.CodexProfile{Model: "gpt-6-luna", Effort: "max"}, readComposeCodexProfile(t, dir, "reviewer"))
+	assert.Equal(t, config.CodexProfile{Model: "gpt-6-luna", Effort: "max"}, readComposeCodexProfile(t, dir, "frontend-specialist"))
+	assert.Equal(t, composeTableClaudeCell{model: "claude-opus-5-5", effort: "max"}, readComposeTableClaudeProfile(t, dir, "reviewer"))
 	assert.Len(t, *run.probes, 1)
 	assert.False(t, run.adapterProbed(t))
 }
@@ -64,13 +63,13 @@ func TestQualityComposeForms_AllToolsApplyGeneratesThePreview(t *testing.T) {
 	useAccessibleComposeForms(t)
 	dir := writeComposeFixture(t, "claude-code", "codex")
 
-	out, err := runQualityForms(t, dir, nil, formInput("2\n", "1\n", "\n", "2\n", "\n", "\n", "\n", "2\n", "\n"), "--apply")
+	out, err := runQualityForms(t, dir, nil, formInput("2\n", "1\n", "\n", "2\n", "\n", "2\n", "\n"), "--apply")
 
 	require.NoError(t, err, out)
 	assert.Contains(t, out, "quality.applied_platforms = 2")
 	assertGeneratedEqualsTable(t, dir, plainComposeHeaders(composeRenderedTable(t, out, composeFormPreviewMarker)))
-	assert.Equal(t, composeTableClaudeCell{model: "fable", effort: "max"}, readComposeTableClaudeProfile(t, dir, "planner"))
-	assert.Equal(t, config.CodexProfile{Model: "gpt-6-astra", Effort: "max"}, readComposeCodexProfile(t, dir, "planner"))
+	assert.Equal(t, composeTableClaudeCell{model: "fable", effort: "max"}, readComposeTableClaudeProfile(t, dir, "frontend-specialist"))
+	assert.Equal(t, config.CodexProfile{Model: "gpt-6-astra", Effort: "max"}, readComposeCodexProfile(t, dir, "frontend-specialist"))
 	assert.Equal(t, "custom", composeBindLoad(t, dir).Quality.Default)
 }
 
@@ -80,19 +79,19 @@ func TestQualityComposeForms_ClaudeAgentApplyGeneratesThePreview(t *testing.T) {
 	useAccessibleComposeForms(t)
 	dir := writeComposeFixture(t, "claude-code", "codex")
 
-	out, err := runQualityForms(t, dir, nil, formInput("2\n", "2\n", "2\n", "6\n", "3\n", "\n", "\n", "2\n", "\n"), "--apply")
+	out, err := runQualityForms(t, dir, nil, formInput("2\n", "2\n", "2\n", "2\n", "3\n", "\n", "\n", "2\n", "\n"), "--apply")
 
 	require.NoError(t, err, out)
 	claudeMarks, codexMarks := assertGeneratedEqualsTable(t, dir, plainComposeHeaders(composeRenderedTable(t, out, composeFormPreviewMarker)))
-	// The seven top-rung agents keep the top-rung cell under claude-custom.
-	assert.Equal(t, 10, claudeMarks)
+	// The top-rung reviewer keeps the top-rung cell under claude-custom.
+	assert.Equal(t, 3, claudeMarks)
 	assert.Zero(t, codexMarks)
-	assert.Equal(t, composeTableClaudeCell{model: "opus", effort: "high"}, readComposeTableClaudeProfile(t, dir, "executor"))
-	assert.Equal(t, composeTableClaudeCell{model: "sonnet", effort: "medium"}, readComposeTableClaudeProfile(t, dir, "validator"))
-	assert.Equal(t, config.CodexProfile{Model: "gpt-6-luna", Effort: "max"}, readComposeCodexProfile(t, dir, "executor"))
+	assert.Equal(t, composeTableClaudeCell{model: "opus", effort: "high"}, readComposeTableClaudeProfile(t, dir, "frontend-specialist"))
+	assert.Equal(t, composeTableClaudeCell{model: "sonnet", effort: "medium"}, readComposeTableClaudeProfile(t, dir, "ux-validator"))
+	assert.Equal(t, config.CodexProfile{Model: "gpt-6-luna", Effort: "max"}, readComposeCodexProfile(t, dir, "frontend-specialist"))
 }
 
-// S14: under CAT-B the opus option of 구현 names the substitute its
+// S14: under CAT-B the opus option of 검증·리뷰 names the substitute its
 // non-top-rung members take, the preview marks it, and the generation writes it.
 func TestQualityComposeForms_SubstituteIsLabelledPreviewedAndGenerated(t *testing.T) {
 	newComposeUpdateRun(t, true, "")
@@ -100,27 +99,26 @@ func TestQualityComposeForms_SubstituteIsLabelledPreviewedAndGenerated(t *testin
 	useAccessibleComposeForms(t)
 	dir := writeComposeFixture(t, "claude-code", "codex")
 
-	// 구성 편집, Codex, 역할 그룹, 설계·판단 kept, 구현 on opus, the rest kept, 적용.
-	lines := []string{"2\n", "3\n", "\n", "\n", "\n", "3\n", "\n", "\n", "\n", "\n", "\n", "2\n", "\n"}
+	// 구성 편집, Codex, 역할 그룹, 구현 kept, 검증·리뷰 on opus, 적용.
+	lines := []string{"2\n", "3\n", "\n", "\n", "\n", "3\n", "\n", "2\n", "\n"}
 	out, err := runQualityForms(t, dir, nil, formInput(lines...), "--apply")
 
 	require.NoError(t, err, out)
-	assert.Contains(t, out, "3. 6-sol · xhigh (대체)  [opus]\n")
+	assert.Contains(t, out, "3. 6-astra · max / 6-sol · xhigh (대체)  [opus]\n")
 	preview := composeRenderedTable(t, out, composeFormPreviewMarker)
-	assert.Equal(t, "6-sol · xhigh (대체)*", preview["executor"]["Codex (개별 설정: codex-custom)"])
-	// executor, devops, frontend-specialist, perf-engineer, and the
-	// analysis-rung reverse-engineer run on the substitute; debugger and
-	// deep-worker keep the top-rung Astra.
-	assert.Contains(t, out, "Codex catalog: 읽음 · 대체 5칸\n")
-	assert.Equal(t, config.CodexProfile{Model: "gpt-6-sol", Effort: "xhigh"}, readComposeCodexProfile(t, dir, "executor"))
-	assert.Equal(t, config.CodexProfile{Model: "gpt-6-astra", Effort: "max"}, readComposeCodexProfile(t, dir, "debugger"))
+	assert.Equal(t, "6-sol · xhigh (대체)*", preview["ux-validator"]["Codex (개별 설정: codex-custom)"])
+	// ux-validator and the analysis-rung qa-explorer run on the substitute;
+	// reviewer keeps the top-rung Astra.
+	assert.Contains(t, out, "Codex catalog: 읽음 · 대체 2칸\n")
+	assert.Equal(t, config.CodexProfile{Model: "gpt-6-sol", Effort: "xhigh"}, readComposeCodexProfile(t, dir, "ux-validator"))
+	assert.Equal(t, config.CodexProfile{Model: "gpt-6-astra", Effort: "max"}, readComposeCodexProfile(t, dir, "reviewer"))
 }
 
 // S12: Ctrl+C at the confirmation ends `auto quality` without an error and
 // without a write.
 func TestQualityComposeForms_InterruptEndsWithoutError(t *testing.T) {
 	newComposeUpdateRun(t, true, "")
-	abortComposeFormAt(t, 12)
+	abortComposeFormAt(t, 8)
 	dir := writeComposeFixture(t, "claude-code", "codex")
 	before := composeSessionHash(t, dir)
 

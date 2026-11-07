@@ -1,10 +1,11 @@
 package cli
 
 // SPEC-MODELUX-002 S1 (REQ-MUX2-01, REQ-MUX2-15): scripted line input keeps
-// the SPEC-MODELUX-001 line driver byte for byte. The goldens are the
-// outputs of HEAD 44773355 for the same inputs, with the project directory
-// written <DIR>; the default form probe sees a reader set on the command
-// and never runs a form.
+// the SPEC-MODELUX-001 line driver byte for byte. The goldens were first the
+// outputs of HEAD 44773355 for the same inputs and were rewritten with
+// -update-compose-table when the role groups shrank to the generated agents;
+// the project directory is written <DIR>. The default form probe sees a
+// reader set on the command and never runs a form.
 
 import (
 	"strings"
@@ -40,12 +41,12 @@ func TestComposeLineInput_MatchesTheSPECMODELUX001Output(t *testing.T) {
 		out, err := runComposeUpdate(t, strings.NewReader("\n"), "--dir", dir)
 
 		require.NoError(t, err, out)
-		assert.Equal(t, composeSessionGolden(t, "line-update-R-enter.golden"), strings.ReplaceAll(out, dir, "<DIR>"))
+		assertComposeTableGolden(t, "line-update-R-enter.golden", []byte(strings.ReplaceAll(out, dir, "<DIR>")))
 		assert.Zero(t, *runs)
 	})
 	for golden, input := range map[string]string{
 		"line-quality-D-global.golden": "global\n1\n",
-		"line-quality-D-groups.golden": "g\n\n3\n\n4\nn\n",
+		"line-quality-D-groups.golden": "g\n4\n\nn\n",
 	} {
 		t.Run(golden, func(t *testing.T) {
 			newComposeUpdateRun(t, true, "")
@@ -55,7 +56,7 @@ func TestComposeLineInput_MatchesTheSPECMODELUX001Output(t *testing.T) {
 			out, err := runQualityCompose(t, dir, strings.NewReader(input))
 
 			require.NoError(t, err, out)
-			assert.Equal(t, composeSessionGolden(t, golden), strings.ReplaceAll(out, dir, "<DIR>"))
+			assertComposeTableGolden(t, golden, []byte(strings.ReplaceAll(out, dir, "<DIR>")))
 			assert.Zero(t, *runs)
 		})
 	}

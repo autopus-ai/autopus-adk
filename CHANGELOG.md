@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **구성 화면의 역할 그룹이 생성되는 네 에이전트만 담는다** (2026-11-07): `auto init`·`auto quality`·`auto update`의
+  역할 그룹(g)과 구성 표가 이제 구현(frontend-specialist)과 검증·리뷰(reviewer, qa-explorer, ux-validator) 두 그룹,
+  네 행이다. 전에는 생성하지 않는 레거시 역할 14개가 표에 남고, 설계·판단·탐색·보조 그룹 등급이 빈 칸으로 보였으며, 그룹을
+  고르면 그 역할이 `quality.presets.custom`에 저장되었다. OMP 마이그레이션 안내는 에이전트 수를 생성 에이전트에서 센다.
+  OMP 탭의 task 선택지 "planner를 따름"은 "OMP 세션 모델 그대로"가 된다. planner는 pin을 받지 않으므로 실제로 가는 곳이
+  OMP 세션 모델이다. OMP 탭 저장은 task의 시작 route를 pin으로 남겨, 프로필 변환이나 손으로 쓴 planner pin이 있는 편집에서
+  task가 조용히 세션 모델로 내려가지 않는다.
+
 - **하네스를 리뷰·QA·검증 표면으로 줄인다** (2026-11-07): frontier 모델은 계획과 구현을 혼자서도 잘 하므로,
   다섯 플랫폼 모두 검증 표면만 설치한다.
   - 라우트는 `review`, `qa`, `verify`, `test`, `sync`, `update`, `doctor`(그리고 `browse` 별칭)만 남는다. `setup`,
@@ -42,12 +50,6 @@ All notable changes to this project will be documented in this file.
 - **`/auto sync`가 SPEC 없이 변경에서 낡은 문서만 갱신한다** (2026-11-07): sync는 `git diff HEAD`를 읽고 변경이
   낡게 만든 README·CHANGELOG·docs만 고친 뒤, 문서가 이름을 대는 명령과 flag를 `--help`로 확인한다. SPEC 상태
   게이트와 @AX 태그 처리는 없어졌다. `/auto review`의 게이트도 SPEC 없이 변경 기준으로 돈다.
-
-- **`auto quality`·`auto init` 구성 화면이 남은 에이전트만 보여 준다** (2026-11-07): 역할 그룹이 생성되지 않는 14개
-  역할을 들고 있어, 표에 없는 에이전트 행이 보이고 두 그룹은 빈 티어 `""`로 나왔으며, 그룹 티어를 고르면 그 역할들이
-  저장된 `custom` 프리셋에 들어갔다. 이제 그룹은 구현(frontend-specialist)과 검증·리뷰(reviewer, qa-explorer,
-  ux-validator) 둘이다. OMP 탭에서 task가 planner를 따르던 설정이 프로필 변환·pins-only 편집 뒤 조용히 OMP 세션
-  model로 떨어지던 문제도, task의 시작 route를 pin으로 남겨 고친다.
 
 - **세션이 끝나기 전에 바뀐 코드를 빌드하고 테스트한다** (2026-11-07): Claude Code에 `Stop` hook `auto verify stop`을
   등록한다. 작업 트리가 HEAD와 다르면 바뀐 파일이 속한 toolchain만 돌린다: Go는 `go build ./...`와 바뀐 패키지의

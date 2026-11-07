@@ -72,12 +72,12 @@ func composeBindHB2(t *testing.T) map[string]string {
 	return rawQualityOf(t, blockRepoQuality).Presets["balanced"].Agents
 }
 
-// composeBindS6 is acceptance S6's group edit on D: 구현 = sonnet, 탐색·보조 = haiku.
+// composeBindS6 is acceptance S6's group edit on D: 구현 = haiku,
+// 검증·리뷰 kept.
 func composeBindS6(t *testing.T, start qualityComposition) qualityComposition {
 	t.Helper()
 	edited := composeBindEdited(t, start, nil)
-	require.NoError(t, edited.SetGroupTier(composeRoleGroups[1], "sonnet"))
-	require.NoError(t, edited.SetGroupTier(composeRoleGroups[3], "haiku"))
+	require.NoError(t, edited.SetGroupTier(composeRoleGroups[0], "haiku"))
 	return edited
 }
 
@@ -121,7 +121,7 @@ func TestPlanComposeBinding_EditedEqualsStart_WritesNothing(t *testing.T) {
 func TestPlanComposeBinding_CurrentBalancedFromCustom_WritesOnlyTheDefaultLine(t *testing.T) {
 	t.Parallel()
 	dir, cfg := composeBindSaved(t, func(q *config.QualityConf) {
-		q.Presets["custom"] = config.QualityPreset{Description: "mine", Agents: map[string]string{"planner": "haiku"}}
+		q.Presets["custom"] = config.QualityPreset{Description: "mine", Agents: map[string]string{"reviewer": "haiku"}}
 		q.Default = "custom"
 	})
 	start := composeBindStart(t, cfg)
@@ -193,13 +193,13 @@ func TestPlanComposeBinding_CurrentDefaultOverCustomizedBuiltin_PersistsAsCustom
 	t.Parallel()
 	// S7: balanced customized as the current default plus tester: fable.
 	dir, cfg := composeBindSaved(t, func(q *config.QualityConf) {
-		q.Presets["balanced"].Agents["tester"] = "fable"
+		q.Presets["balanced"].Agents["ux-validator"] = "fable"
 	})
 	original := rawQualityOf(t, readBlockFixture(t, dir)).Presets["balanced"]
 	start := composeBindStart(t, cfg)
-	require.Equal(t, "fable", start.Agents()["tester"])
+	require.Equal(t, "fable", start.Agents()["ux-validator"])
 
-	plan := planComposeBinding(cfg, start, composeBindEdited(t, start, map[string]string{"tester": "sonnet"}))
+	plan := planComposeBinding(cfg, start, composeBindEdited(t, start, map[string]string{"ux-validator": "sonnet"}))
 
 	assert.Equal(t, composeWriterBlock, plan.Writer)
 	assert.Equal(t, "custom", plan.Default)

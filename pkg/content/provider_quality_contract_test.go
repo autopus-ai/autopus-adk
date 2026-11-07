@@ -10,13 +10,14 @@ func TestProviderQualityOperatorDocsExposeIndependentModes(t *testing.T) {
 
 	repoRoot := filepath.Dir(repoContentDir(t))
 	files := map[string][]string{
-		"README.md": {
+		// The quality reference moved out of the READMEs into docs/quality*.md.
+		"docs/quality.md": {
 			"providers:\n    claude: ultra\n    codex: balanced",
-			"Provider-specific `--apply` refreshes only that configured platform",
+			"Provider-specific\n`--apply` refreshes only that platform",
 		},
-		"docs/README.ko.md": {
+		"docs/quality.ko.md": {
 			"providers:\n    claude: ultra\n    codex: balanced",
-			"Provider별 `--apply`는 해당 configured platform만 갱신",
+			"Provider별 `--apply`는 그 플랫폼만",
 		},
 	}
 	for relativePath, fragments := range files {

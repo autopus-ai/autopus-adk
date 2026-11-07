@@ -2,28 +2,15 @@
 에이전트 모델 구성 ────────────────────────────────────────
 quality.default = balanced   ultra: 현재 기본값   balanced: 현재 기본값
 그룹       에이전트             등급    Claude Code        Codex
-설계·판단  planner              opus    opus-5-5 · max     6-astra · max
-설계·판단  architect            opus    opus-5-5 · max     6-astra · max
-설계·판단  spec-writer          opus    opus-5-5 · max     6-astra · max
-설계·판단  security-auditor     opus    opus-5-5 · max     6-astra · max
-구현       executor             sonnet  sonnet-5-5 · max   6-luna · max
-구현       debugger             opus    opus-5-5 · max     6-astra · max
-구현       deep-worker          opus    opus-5-5 · max     6-astra · max
-구현       devops               sonnet  sonnet-5-5 · max   6-luna · max
 구현       frontend-specialist  sonnet  sonnet-5-5 · max   6-luna · max
-구현       perf-engineer        sonnet  sonnet-5-5 · max   6-luna · max
 검증·리뷰  reviewer             opus    opus-5-5 · max     6-astra · max
-검증·리뷰  validator            sonnet  sonnet-5-5 · high  6-luna · max
-검증·리뷰  tester               sonnet  sonnet-5-5 · max   6-luna · max
+검증·리뷰  qa-explorer          opus    opus-5-5 · high    6.1-sol · xhigh
 검증·리뷰  ux-validator         sonnet  sonnet-5-5 · high  6-luna · max
-탐색·보조  explorer             sonnet  sonnet-5-5 · high  6-luna · max
-탐색·보조  annotator            sonnet  sonnet-5-5 · high  6-luna · max
-탐색·보조  reverse-engineer     opus    opus-5-5 · high    6.1-sol · xhigh
 Codex catalog: 읽음 · 대체 0칸
 리뷰 provider claude 모델 = claude-opus-5-5 (Claude Code 프리셋과 별개 설정 · 변경: auto quality review model claude <model>)
 구성을 바꿀까요? [Enter] 유지 · g) 역할 그룹 · a) 고급 · t) 도구별 설정
 > Current quality: balanced
 Select quality mode:
-    1) ultra - 추론 코어 7개는 Fable, 나머지는 Opus. 최고 품질.
-  * 2) balanced - 기획·리뷰·디버깅은 최상위, 구현·검증은 경량 모델.
+    1) ultra - 리뷰와 QA 탐색은 Fable, UX 검증은 Opus. 최고 품질.
+  * 2) balanced - 리뷰는 최상위, QA 탐색은 Opus, UX 검증은 경량 모델.
 Choose: quality.default = ultra

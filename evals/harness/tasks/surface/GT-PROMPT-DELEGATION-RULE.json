@@ -91,7 +91,7 @@
     "ref": "content/rules/subagent-delegation.md"
   },
   "status": {
-    "state": "active",
-    "reason": ""
+    "state": "retired",
+    "reason": "The verification harness retired the subagent-delegation rule with the implementation surface (planning, go, fix, pipeline agents): no platform installs it, so there is no delegation prompt left to pin."
   }
 }

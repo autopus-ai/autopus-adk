@@ -245,3 +245,9 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
   - S16: `brainstorm`·`plan`·`recheck`·`review`·`run`·`secure`·`spec-review-receipt` golden의 claude argv와 receipt model이 `claude-opus-5-5`, args hash가 그에 맞는 값이 됐다. 다른 줄은 바뀌지 않았다.
   - quality_compose: D·B2·H·O1·P 표와 D→K 미리보기, `line-quality-D-global`·`line-quality-D-groups`의 최상위 칸이 opus로 바뀌었다. H(HB1)는 적어 둔 `opus`가 이제 최상위 등급과 같아 표준 배치(`opus-5-5 · max`, `6-astra · max`)를 받는다. K와 D→K 미리보기에서 유지한 opus 최상위 rung 에이전트는 custom에서도 최상위 rung 모델(`opus-5-5 · max`, `6-astra · max`)을 그대로 써서 바뀌는 칸이 아니다.
 - 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`, `TestPanermS16_*`, `TestComposeTable_Golden*`, `TestComposeLineInput_MatchesTheSPECMODELUX001Output`이 이 golden으로 통과한다.
+
+## 역할 그룹을 생성 에이전트로 줄인 뒤 (2026-11-07)
+
+- 원인: 구성 화면의 역할 그룹(`composeRoleGroups`)이 생성하지 않는 레거시 역할 14개를 담고 있었다. 그룹은 이제 구현(frontend-specialist)과 검증·리뷰(reviewer, qa-explorer, ux-validator) 두 개다.
+- 기록: `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run 'TestInitReview_S6|TUIUX|Tuiux'`로 writer를 돌리고, 단언하지 않는 `init-in.stdout`은 `git checkout`으로 되돌렸다. quality_compose 표와 줄 입력 golden은 `-update-compose-table`로 다시 썼다(줄 입력 golden도 이제 이 flag로 다시 쓴다).
+- 차이: 구성 표가 네 행(구현 1, 검증·리뷰 3)이 되고 qa-explorer 행이 생겼다. NPD는 `autopus.yaml`과 생성 에이전트 파일·manifest checksum이 바뀌었다. 빈 그룹이나 삭제된 에이전트 행은 없다.
