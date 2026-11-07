@@ -1,7 +1,7 @@
 package content
 
 // init registers the long-tail catalog skills these tests name for
-// IsInstalledSkill, in the shape v0.50.134 shipped them: registered on every
+// IsInstalledSkill, in the shape v0.50.133 shipped them: registered on every
 // platform, in an opt-in bundle, and not on the default surface.
 func init() {
 	longTailFixtureSkills = map[string]CatalogSkill{}

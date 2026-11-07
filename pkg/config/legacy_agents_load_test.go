@@ -8,13 +8,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// A v0.50.134 autopus.yaml names all seventeen agents in its built-in presets
+// A v0.50.133 autopus.yaml names all seventeen agents in its built-in presets
 // and may set efforts for agents this release no longer generates. It must
 // keep loading, and its untouched presets must classify as shipped layouts so
 // the upgrade is offered instead of being read as a user customization.
 func TestLoad_SeventeenAgentConfigFromV050134StillLoads(t *testing.T) {
 	t.Parallel()
-	// Given: the presets and efforts a v0.50.134 install wrote
+	// Given: the presets and efforts a v0.50.133 install wrote
 	cfg := effortFixture(map[string]string{"planner": "xhigh", "executor": "high", "reviewer": "max"})
 	cfg.Quality.Presets["balanced"] = QualityPreset{Agents: maps.Clone(shippedBalancedHB8)}
 	cfg.Quality.Presets["ultra"] = QualityPreset{Agents: maps.Clone(shippedUltraHU4)}
@@ -65,7 +65,7 @@ func TestDefaultFullConfig_PresetsNameOnlyTheGeneratedAgents(t *testing.T) {
 	assert.Equal(t, []string{"frontend-specialist", "qa-explorer", "reviewer", "ux-validator"}, CanonicalAgentNames())
 }
 
-// The roles the binary still dispatches keep their v0.50.134 tier under a
+// The roles the binary still dispatches keep their v0.50.133 tier under a
 // three-agent built-in preset, and a preset still written in the
 // seventeen-agent format keeps the old reading of an omitted role.
 func TestAgentTier_LegacyRolesUnderBuiltinPresets(t *testing.T) {

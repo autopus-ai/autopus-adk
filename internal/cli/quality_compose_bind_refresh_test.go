@@ -67,7 +67,7 @@ func TestDescribeComposeRefresh_R_ShowsPerPresetLines(t *testing.T) {
 
 	assert.Equal(t, []string{
 		// The legacy roles HU1 names leave the preset; without them they keep
-		// their v0.50.134 ultra tiers, so the line names them as removed.
+		// their v0.50.133 ultra tiers, so the line names them as removed.
 		"quality.presets.ultra 최신 기본값으로 갱신: reviewer opus→fable · 추가 frontend-specialist→opus, " +
 			"qa-explorer→fable, ux-validator→opus · 제거 architect, debugger, devops, executor, explorer, planner, " +
 			"security-auditor, spec-writer, tester, validator",

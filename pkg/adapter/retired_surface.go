@@ -1,7 +1,7 @@
 package adapter
 
 // The verification harness stopped generating the planning and
-// implementation surface that v0.50.134 installed. Update prunes those files
+// implementation surface that v0.50.133 installed. Update prunes those files
 // through each manifest, but Clean and the legacy-shim cleanups still meet
 // them on an install that was never updated, so every adapter recognizes the
 // names below as its own rather than refusing the manifest or leaving them.

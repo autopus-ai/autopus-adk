@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Pruning a route v0.50.134 recorded must not follow a symlink that replaced
+// Pruning a route v0.50.133 recorded must not follow a symlink that replaced
 // its managed directory: the update refuses instead of deleting a file
 // outside the workspace.
 func TestClaudeUpdate_RejectsSymlinkedRetiredRouteDuringPrune(t *testing.T) {

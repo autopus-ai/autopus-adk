@@ -20,7 +20,7 @@ var (
 	}
 )
 
-// The v0.50.134 defaults: the last seventeen-agent layouts before the
+// The v0.50.133 defaults: the last seventeen-agent layouts before the
 // verification harness cut the agents to reviewer and the two UX roles.
 var (
 	shippedBalancedHB8 = map[string]string{

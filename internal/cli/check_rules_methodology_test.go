@@ -34,7 +34,7 @@ func TestEvaluateMethodologyGate(t *testing.T) {
 	}{
 		{
 			// The verification harness ships no methodology skill, so a
-			// v0.50.134 config that enforces tdd has nothing to deliver; it is
+			// v0.50.133 config that enforces tdd has nothing to deliver; it is
 			// reported, not failed, so `auto check` keeps passing after update.
 			name:       "tdd enforced is retired, not failed",
 			mode:       "tdd",
