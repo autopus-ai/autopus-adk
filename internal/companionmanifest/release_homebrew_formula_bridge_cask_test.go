@@ -22,8 +22,8 @@ func TestHomebrewFormulaBridge_A41PinsCaskOnlyTapTransition(t *testing.T) {
 	gitHelper := readReleaseFile(t,
 		"scripts/companion-release/publish-homebrew-formula-bridge-git.sh")
 	for _, required := range []string{
-		"readonly RELEASE_TAG='v0.50.134'",
-		"readonly RELEASE_VERSION='0.50.134'",
+		"readonly RELEASE_TAG='v0.51.0'",
+		"readonly RELEASE_VERSION='0.51.0'",
 		"readonly PRIOR_TAP_COMMIT='3d3ee5d38796cf09d150872153b945470b425850'",
 		"readonly PRIOR_CASK_BLOB='72164d696da3cc08806272e0e83c04252d7bc26e'",
 		"readonly FROZEN_FORMULA_BLOB='" + frozenFormulaBlob + "'",
@@ -103,7 +103,7 @@ func TestHomebrewFormulaBridge_RejectsExecutableCaskStanzas(t *testing.T) {
 			fixture.writeAPIContent(t, "cask.json", strings.Repeat("c", 40), malicious)
 
 			output, err := fixture.run(nil)
-			if err == nil || !strings.Contains(string(output), "published Cask differs from canonical v0.50.134") {
+			if err == nil || !strings.Contains(string(output), "published Cask differs from canonical v0.51.0") {
 				t.Fatalf("%s Cask result: %v\n%s", stanza, err, output)
 			}
 			if got := fixture.updateCount(t, "cask"); got != "0" {

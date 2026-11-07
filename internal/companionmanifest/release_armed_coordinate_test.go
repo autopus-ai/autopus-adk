@@ -73,7 +73,7 @@ func TestArmedReleaseCoordinateSiteCountIsBounded(t *testing.T) {
 		t.Fatalf("armed coordinate now lives in %d places, not %d: %v",
 			len(sites), bounded, sites)
 	}
-	armed := regexp.MustCompile(`v0\.50\.\d+|0\.50\.\d+`)
+	armed := regexp.MustCompile(`v?0\.\d+\.\d+`)
 	for _, site := range sites {
 		if !armed.MatchString(readReleaseFile(t, site)) {
 			t.Fatalf("%s stopped naming a coordinate; "+

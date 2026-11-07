@@ -1,8 +1,17 @@
-# Release v0.50.134 (A41)
+# Release v0.51.0 (A41)
 
-Status: prepared 2026-11-06, not published. A41 is `v0.50.134`. A40 is
-`v0.50.133`, immutable release `432232109`; see
-[release-v0.50.133.md](release-v0.50.133.md).
+Status: prepared 2026-11-06 as `v0.50.134`, retargeted 2026-11-07 to
+`v0.51.0`, not published. A41 is `v0.51.0`. A40 is `v0.50.133`, immutable
+release `432232109`; see [release-v0.50.133.md](release-v0.50.133.md).
+
+`v0.50.134` was never tagged or published. The release that removes the
+implementation harness (plan/go/fix and 13 agents) is a minor version, so the
+unpublished A41 coordinate moves to `v0.51.0` instead of shipping that change
+as a patch. Every pin and fixture that named `v0.50.134` now names `v0.51.0`;
+no other value changed. The per-tag ruleset and deployment policy armed for
+`v0.50.134` (ruleset `26722970`, tag policy `65786937`) stay in place: they
+cover a tag that will never exist and keep anyone from creating it. Arm a new
+pair for `v0.51.0` before preflight, as below.
 
 ## Preparation: room in the lineage coordinates
 
@@ -24,7 +33,7 @@ The first commit makes room without changing any value:
   `A<n>_REPOSITORY`/`TAG`/`VERSION` lines stay in the coordinates file, and the
   pointer comment now says A23 through A30. Sourcing both helpers for every tag
   in the phase table plus `v0.50.124`, `v0.50.126`, `v0.50.129`, `v0.50.130`,
-  `v0.50.134`, and `v0.50.999` (47 tags) dumps byte-identical `A*_`,
+  `v0.51.0`, and `v0.50.999` (47 tags) dumps byte-identical `A*_`,
   `release_phase`, and `prior_*` state before and after the move, the old pins
   file is an exact byte prefix of the new one, and the `readonly` declaration
   multiset of both files is unchanged.
@@ -42,13 +51,13 @@ take another 11-line block (296 + 11 = 307). The preparation for A42 needs a
 second pins helper sourced before the coordinates helper, or another
 structural change. The shipped phase table has room for several more rows.
 
-## Coordinate move notes (A40 = v0.50.133 -> A41 = v0.50.134)
+## Coordinate move notes (A40 = v0.50.133 -> A41 = v0.51.0)
 
-`advance-release-coordinate.sh v0.50.133 A40 v0.50.134 A41` measured
+`advance-release-coordinate.sh v0.50.133 A40 v0.51.0 A41` measured
 `v0.50.133` as published and kept the A40 history rows in place. As for A39
 and A40, these were added by hand before it ran:
 
-- `validate-source.sh`: the `v0.50.134) release_phase='A41'` row,
+- `validate-source.sh`: the `v0.51.0) release_phase='A41'` row,
   `A41_A40_ANCESTOR_SHA` (`f78feef6824a58aa534f355f2b49763b9b256bbc`, the A40
   source commit) and its ancestor case arm, and `A41` in the tag-object and
   R2-signature phase lists and the frozen-policy message.
@@ -56,12 +65,12 @@ and A40, these were added by hand before it ran:
   eleven pins below, and the A41 branch.
 - `verify-public-key-lineage.sh`: `A41` in the three accumulating phase lists.
 
-The script moved its sixteen replace targets to `v0.50.134` and appended
-`v0.50.134 0.50.134 A41` to the receipt table. The rest replays the A40 move
+The script moved its sixteen replace targets to `v0.51.0` and appended
+`v0.51.0 0.51.0 A41` to the receipt table. The rest replays the A40 move
 (`77ebcb4b`) one coordinate forward:
 
 - Phase labels that name the shipped release in the workflows and verifiers.
-- The upgrade canary predecessor: `live 0.50.133 0.50.134` and the A40
+- The upgrade canary predecessor: `live 0.50.133 0.51.0` and the A40
   release id, tag object, commit, tree, and darwin arm64 digest.
 - The preflight predecessor default (`v0.50.133`) and the Homebrew
   `PRIOR_TAP_COMMIT` / `PRIOR_CASK_BLOB` pins (`3d3ee5d3` / `72164d69`).
@@ -127,7 +136,7 @@ the `checksums.txt` entries. `release-homebrew-hardening-test.sh` renders the
 Cask from the A40 digests and reproduces `72164d69` byte for byte, and
 `verify-homebrew-tap-pins.sh` reports a match.
 
-## Upgrade canary for 0.50.133 -> 0.50.134
+## Upgrade canary for 0.50.133 -> 0.51.0
 
 Unlike the A40 move, main changed generated surface since `v0.50.133`: #267
 moves the agy and claude review provider defaults in a generated
@@ -142,14 +151,14 @@ the current surface after `auto update`, the Lore commit hooks, and the
 none of them. The canary's expectations are therefore unchanged.
 
 This was reproduced rather than assumed. Before publication `live 0.50.133
-0.50.134` cannot install the unpublished candidate, so a scratch copy of
+0.51.0` cannot install the unpublished candidate, so a scratch copy of
 `posix-upgrade-canary.sh` (with `posix-upgrade-canary-omp.sh` and `install.sh`
 beside it) replaced only the candidate install block with a `cp` of a branch
 build (`go build -ldflags "-X
-github.com/insajin/autopus-adk/pkg/version.version=0.50.134" ./cmd/auto`). The
+github.com/insajin/autopus-adk/pkg/version.version=0.51.0" ./cmd/auto`). The
 previous release was installed by the real `install.sh` with its signature
 checks. The run printed `upgrade-canary: PASS mode=live`, with provenance
-`previous_public_version 0.50.133`, `candidate_public_version 0.50.134`,
+`previous_public_version 0.50.133`, `candidate_public_version 0.51.0`,
 status `admitted`. `auto update` printed the #270 notes (`previous-version
 default presets: balanced`, and the claude review provider model
 `claude-fable-5-1` is a previous-version default), which the canary does not
@@ -158,12 +167,12 @@ is still required.
 
 ## Before `--apply`
 
-| Item | State on 2026-11-06 |
+| Item | State on 2026-11-07 |
 |---|---|
-| Ruleset `autopus-v0.50.134-release-authority` | **absent**. `26415189` for `v0.50.133` is sealed history. `verify-release-tag-ruleset.sh --armed` from this branch reports the ruleset missing until it is created |
-| Deployment tag policy `v0.50.134` on `adk-companion-release` | **absent**. `65295748` is the `v0.50.133` history; the environment holds 59 policies |
-| `v0.50.134` and `omp-context-evidence-v0.50.134` | absent on origin, and so is `omp-context-evidence-v0.50.134-source` |
-| Draft release named `v0.50.134` | absent; Latest is `432232109` (`v0.50.133`) |
+| Ruleset `autopus-v0.51.0-release-authority` | **absent**. `26415189` for `v0.50.133` is sealed history. `verify-release-tag-ruleset.sh --armed` from this branch reports the ruleset missing until it is created |
+| Deployment tag policy `v0.51.0` on `adk-companion-release` | **absent**. `65295748` is the `v0.50.133` history; the environment holds 59 policies |
+| `v0.51.0` and `omp-context-evidence-v0.51.0` | absent on origin, and so is `omp-context-evidence-v0.51.0-source` |
+| Draft release named `v0.51.0` | absent; Latest is `432232109` (`v0.50.133`) |
 
 Create both authorities in the exact shape `verify-release-tag-ruleset.sh
 --armed` accepts, then verify. Prep seals the ruleset right after the tag
@@ -171,13 +180,13 @@ exists. Never widen an older ruleset to cover the new tag.
 
 ```bash
 gh api -X POST repos/autopus-ai/autopus-adk/rulesets --input - <<'JSON'
-{"name":"autopus-v0.50.134-release-authority","target":"tag","enforcement":"active",
+{"name":"autopus-v0.51.0-release-authority","target":"tag","enforcement":"active",
  "bypass_actors":[{"actor_id":204883817,"actor_type":"User","bypass_mode":"always"}],
- "conditions":{"ref_name":{"include":["refs/tags/v0.50.134"],"exclude":[]}},
+ "conditions":{"ref_name":{"include":["refs/tags/v0.51.0"],"exclude":[]}},
  "rules":[{"type":"creation"},{"type":"update"},{"type":"deletion"}]}
 JSON
 gh api -X POST repos/autopus-ai/autopus-adk/environments/adk-companion-release/deployment-branch-policies \
-  -f name=v0.50.134 -f type=tag
+  -f name=v0.51.0 -f type=tag
 scripts/companion-release/verify-release-tag-ruleset.sh --armed
 ```
 
@@ -210,10 +219,10 @@ sudo -v && scripts/release-tools/release-prep.sh --apply
 - If the tap head moves off `3d3ee5d3` before publication, re-measure
   `PRIOR_TAP_COMMIT` and `PRIOR_CASK_BLOB` first.
 - The tag is immutable once pushed. If anything mismatches after that, do not
-  move, delete, or reuse `v0.50.134`; carry the coordinate to `v0.50.135`.
+  move, delete, or reuse `v0.51.0`; carry the coordinate to `v0.50.135`.
 - If `ci / macos-runtime` or the final signed companion execution smoke fails
   with `trace/BPT trap` or a gated child that does not finish, record the
   runner image before any rerun.
 - After publication, run the Upgrade Canary by hand
-  (`gh workflow run upgrade-canary.yaml --ref v0.50.134`). A failure on the
+  (`gh workflow run upgrade-canary.yaml --ref v0.51.0`). A failure on the
   *previous* surface expectations is a canary fix, not a release fault.
