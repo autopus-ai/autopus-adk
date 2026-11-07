@@ -107,8 +107,8 @@ func TestStatusEvidence_RefusedResumeIsReported(t *testing.T) {
 	assert.Contains(t, jsonPath(attempt, "blocker"), "checkpoint phase route mismatch")
 }
 
-// S4: with no SPEC, a small change is offered without one, beside planning,
-// in the syntax of every configured platform, each in an absolute directory.
+// S4: with no SPEC, review and QA are offered in the syntax of every
+// configured platform, each in an absolute directory.
 func TestStatusNext_NoSpecOffersWorkWithoutASpec(t *testing.T) {
 	t.Parallel()
 	f := newStatusFixture(t, "claude-code", "codex")
@@ -116,21 +116,21 @@ func TestStatusNext_NoSpecOffersWorkWithoutASpec(t *testing.T) {
 
 	text := f.runStatus()
 	assert.Contains(t, text, "SPEC이 없습니다")
-	assert.Contains(t, text, `/auto fix "<problem>" (claude-code) · $codex-auto-fix "<problem>" (codex)`)
-	assert.Contains(t, text, `/auto plan "<outcome>" (claude-code) · $codex-auto-plan "<outcome>" (codex)`)
+	assert.Contains(t, text, `/auto review (claude-code) · $codex-auto-review (codex)`)
+	assert.Contains(t, text, `/auto qa (claude-code) · $codex-auto-qa (codex)`)
 	assert.Contains(t, text, "in "+f.root+" · runs in agent_session")
 	assert.NotContains(t, text, "`/auto plan`으로 시작하세요")
 
 	byID := statusActions(t, f.statusJSON())
-	require.Contains(t, byID, "fix")
-	require.Contains(t, byID, "plan")
+	require.Contains(t, byID, "review")
+	require.Contains(t, byID, "qa")
 	for id, action := range byID {
 		assert.Equal(t, false, action["auto_run"], id)
 		assert.Equal(t, f.root, action["cwd"], id)
 	}
-	assert.Equal(t, "agent_session", byID["fix"]["runs_in"])
-	assert.Equal(t, `/auto fix "<problem>"`, byID["fix"]["command"])
-	assert.Equal(t, "$codex-auto-fix \"<problem>\"", jsonPath(byID["fix"]["forms"].([]any)[1], "command"))
+	assert.Equal(t, "agent_session", byID["qa"]["runs_in"])
+	assert.Equal(t, `/auto qa`, byID["qa"]["command"])
+	assert.Equal(t, "$codex-auto-qa", jsonPath(byID["qa"]["forms"].([]any)[1], "command"))
 }
 
 // statusTreeSnapshot records every project file outside .git with its mode,

@@ -24,7 +24,7 @@ func TestStatusNext_DesktopIsOptional(t *testing.T) {
 	text := f.runStatus()
 	assert.Contains(t, text, "Desktop: not installed (optional; the ADK works standalone)")
 	assert.NotContains(t, text, "auto connect")
-	assert.Contains(t, text, `/auto fix "<problem>" (claude-code)`)
+	assert.Contains(t, text, `/auto review (claude-code)`)
 	data := f.statusJSON()
 	assert.Equal(t, "not_installed", jsonPath(data, "environment", "desktop", "state"))
 	assert.NotContains(t, statusActions(t, data), "desktop_connect")
@@ -169,7 +169,7 @@ func TestStatusNext_EveryCommandNamesItsDirectory(t *testing.T) {
 	require.Contains(t, actions, "implement")
 	assert.Equal(t, filepath.Join(f.root, "mod"), actions["implement"]["cwd"])
 	assert.Equal(t, "$codex-auto-go SPEC-MOD-001", actions["implement"]["command"], "the module routes by its own platforms")
-	assert.Equal(t, `/auto fix "<problem>"`, actions["fix"]["command"], "the workspace routes by its own")
+	assert.Equal(t, `/auto qa`, actions["qa"]["command"], "the workspace routes by its own")
 	for id, action := range actions {
 		cwd, _ := action["cwd"].(string)
 		assert.True(t, filepath.IsAbs(cwd), "%s: cwd %q", id, cwd)
