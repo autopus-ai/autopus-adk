@@ -44,7 +44,7 @@ func newVerifyStopCmd() *cobra.Command {
 		Long: "Reads the Claude Code Stop hook payload on stdin. When the work tree has changes, runs the " +
 			"build and tests that cover them and blocks the stop with the failure output. Set " +
 			"AUTOPUS_VERIFY_STOP=off to disable. Once the build passes, a change of 40 or more lines is sent on to " +
-			"the reviewer and qa-explorer agents once (AUTOPUS_FOLLOWUP=off or --followup=false to skip).",
+			"the reviewer and qa-explorer agents, at most twice per session (AUTOPUS_FOLLOWUP=off or --followup=false to skip).",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			out := runVerifyStop(cmd, cmd.InOrStdin(), budget, followup)
@@ -57,7 +57,7 @@ func newVerifyStopCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().DurationVar(&budget, "budget", 8*time.Minute, "Total time for all verification commands")
-	cmd.Flags().BoolVar(&followup, "followup", true, "After a passing build, send a large enough change on to review and QA hunt once")
+	cmd.Flags().BoolVar(&followup, "followup", true, "After a passing build, send a large enough change on to review and QA hunt, at most twice per session")
 	return cmd
 }
 
