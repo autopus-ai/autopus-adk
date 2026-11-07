@@ -21,8 +21,8 @@ func TestBuildPlan_TargetModeTable_MatchesREQ8(t *testing.T) {
 		stdin  string
 		output string
 	}{
-		{TargetClaude, ModeGenerate, []string{"claude", "-p", "--output-format", "text"}, prompt, ""},
-		{TargetClaude, ModeEdit, []string{"claude", "-p", "--permission-mode", "acceptEdits"}, prompt, ""},
+		{TargetClaude, ModeGenerate, []string{"claude", "-p", "--output-format", "text", "--max-budget-usd", DefaultBudgetUSD}, prompt, ""},
+		{TargetClaude, ModeEdit, []string{"claude", "-p", "--permission-mode", "acceptEdits", "--max-budget-usd", DefaultBudgetUSD}, prompt, ""},
 		{TargetCodex, ModeGenerate, []string{"codex", "exec", "--skip-git-repo-check", "--sandbox", "read-only", "-o", out, "-"}, prompt, out},
 		{TargetCodex, ModeEdit, []string{"codex", "exec", "--skip-git-repo-check", "--sandbox", "workspace-write", "-o", out, "-"}, prompt, out},
 		{TargetGemini, ModeGenerate, []string{"agy", "-p=" + prompt}, "", ""},
@@ -129,4 +129,11 @@ func TestErrors_CarryCodesThroughWrapping(t *testing.T) {
 	assert.Empty(t, ErrorCode(nil))
 	assert.ErrorIs(t, fmt.Errorf("x: %w", &AgentError{Code: CodeFailed, Err: cause}), cause)
 	assert.ErrorIs(t, fmt.Errorf("x: %w", &RequestError{Code: CodeOverrideInvalid, Err: cause}), cause)
+}
+
+func TestBudgetUSD_EnvOverridesOnlyWithAPositiveAmount(t *testing.T) {
+	for env, want := range map[string]string{"": DefaultBudgetUSD, "12.5": "12.5", "0": DefaultBudgetUSD, "-3": DefaultBudgetUSD, "lots": DefaultBudgetUSD} {
+		t.Setenv(BudgetEnv, env)
+		assert.Equal(t, want, BudgetUSD(), "env %q", env)
+	}
 }

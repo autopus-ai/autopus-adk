@@ -92,12 +92,16 @@ func validateAutomation(path, id string, a Automation) error {
 		if a.Check == nil || len(a.Check.Argv) == 0 || strings.TrimSpace(a.Check.Argv[0]) == "" {
 			return invalid(path, codeAutomationInvalid, "case %q: command automation requires check.argv", id)
 		}
+	case AutomationExec:
+		if err := ValidateExec(a.Exec); err != nil {
+			return invalid(path, codeAutomationInvalid, "case %q: %v", id, err)
+		}
 	case AutomationManual:
 		if strings.TrimSpace(a.Reason) == "" {
 			return invalid(path, codeAutomationInvalid, "case %q: manual automation requires a reason", id)
 		}
 	default:
-		return invalid(path, codeAutomationInvalid, "case %q: automation.type must be gui, command, or manual, got %q", id, a.Type)
+		return invalid(path, codeAutomationInvalid, "case %q: automation.type must be gui, command, exec, or manual, got %q", id, a.Type)
 	}
 	return nil
 }

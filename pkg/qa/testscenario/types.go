@@ -52,11 +52,12 @@ type Case struct {
 }
 
 // Automation says how a case is verified. Exactly one payload applies per
-// type: Scenario for gui, Check for command, Reason for manual.
+// type: Scenario for gui, Check for command, Exec for exec, Reason for manual.
 type Automation struct {
 	Type     string `yaml:"type" json:"type"`
 	Scenario string `yaml:"scenario,omitempty" json:"scenario,omitempty"`
 	Check    *Check `yaml:"check,omitempty" json:"check,omitempty"`
+	Exec     *Exec  `yaml:"exec,omitempty" json:"exec,omitempty"`
 	Reason   string `yaml:"reason,omitempty" json:"reason,omitempty"`
 }
 

@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **QA가 CLI 제품을 직접 돌려 기대값을 검사한다 (`exec` case)** (2026-11-07): command case는 테스트 러너의 종료 코드만
+  알아, CLI·도구 제품의 기대값은 구현자가 쓴 테스트 안에만 있었다. 새 `exec` automation은 제품을 빌드하고(`build`, 선택)
+  case의 `files`만 든 새 디렉터리에서 `argv`를 실행한 뒤 종료 코드·stdout·stderr·파일을 `expect`와 비교한다. `argv[0]`은
+  `$BIN/<이름>`, 프로젝트 안 경로, 허용된 러너만 된다. `auto qa exec --file --case`가 한 case를 돌리고, 어긋나면
+  `Expected:`/`Received:`를 내고 1로 끝나 `auto qa loop`가 `product_defect`로 분류한다. `auto qa run`은 exec case를 지금
+  실행 중인 auto 바이너리로 journey에 넣는다. 시나리오 생성 프롬프트는 제품 실행으로 관찰되는 기준에 exec case를 쓰게 한다.
+
+- **QA 에이전트 실행마다 비용 상한을 둔다** (2026-11-07): `auto qa intent`·`scenario generate`·`loop`가 부르는 headless
+  claude에 `--max-budget-usd`(기본 $5, `AUTOPUS_QA_AGENT_BUDGET_USD`)를 붙인다. Pilot C에서 상한 없는 세션 하나가 $42를
+  썼다. codex·agy·opencode에는 같은 flag가 없어 기존 시간 상한만 적용된다.
+
 - **`auto qa intent`: SPEC 없이 사용자 요청에서 수락 기준을 만든다** (2026-11-07): 구현한 세션이 쓴 테스트는 구현과
   같은 해석을 공유해, 요청을 다르게 읽으면 테스트도 같이 틀린다. `auto qa intent --request-file <file>`은 요청 원문만 빈
   디렉터리의 에이전트에 넘겨 `.autopus/specs/<id>/acceptance.md`(AC-n, Given/When/Then), 원문 `request.md`, 해석이 갈리는
