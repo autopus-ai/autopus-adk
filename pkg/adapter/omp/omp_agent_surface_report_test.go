@@ -21,22 +21,22 @@ func TestInspectOMPAgentSurface_ReportsFilesAndDisabledAgentsOwnership(t *testin
 	require.NoError(t, err)
 	assert.Empty(t, before.RecordedAgents)
 	assert.Equal(t, []string{"reviewer"}, before.UserAgentFiles)
-	assert.Len(t, before.MissingAgents, 16)
+	assert.Len(t, before.MissingAgents, 3)
 	assert.True(t, before.DisabledAgentsUserOwned, "a value the user chose is theirs before any claim")
 
 	project.mustRun("generate", configForOMP())
 	after, err := InspectOMPAgentSurface(project.root)
 	require.NoError(t, err)
-	assert.Len(t, after.RecordedAgents, 16)
+	assert.Len(t, after.RecordedAgents, 3)
 	assert.Equal(t, []string{"reviewer"}, after.UserAgentFiles)
 	assert.Empty(t, after.MissingAgents)
 	assert.True(t, after.DisabledAgentsUserOwned)
 	assert.False(t, after.DisabledAgentsClaimed)
 
-	require.NoError(t, os.Remove(filepath.Join(project.root, ".omp", "agents", "validator.md")))
+	require.NoError(t, os.Remove(filepath.Join(project.root, ".omp", "agents", "ux-validator.md")))
 	missing, err := InspectOMPAgentSurface(project.root)
 	require.NoError(t, err)
-	assert.Equal(t, []string{"validator"}, missing.MissingAgents)
+	assert.Equal(t, []string{"ux-validator"}, missing.MissingAgents)
 }
 
 func TestInspectOMPAgentSurface_ReportsAnADKClaim(t *testing.T) {
@@ -46,7 +46,7 @@ func TestInspectOMPAgentSurface_ReportsAnADKClaim(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, report.DisabledAgentsClaimed)
 	assert.False(t, report.DisabledAgentsUserOwned)
-	assert.Len(t, report.RecordedAgents, 17)
+	assert.Len(t, report.RecordedAgents, 4)
 }
 
 // Code review LOW: a project config the managed parser refuses is not the

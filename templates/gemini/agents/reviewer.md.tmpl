@@ -64,7 +64,7 @@ When the changed file set includes UI-related files (`.tsx`, `.jsx`, CSS-family 
 - If design context is present, check for palette-role drift, typography hierarchy drift, component guardrail violations, layout/responsive regressions, source-of-truth mismatch, and invented component props/imports not backed by `auto design docs` provider evidence.
 - If no `DESIGN.md` or configured design baseline is available, report `Design context: skipped (not configured)` as a non-error condition.
 - Treat external imported design references as untrusted supplemental context unless explicitly promoted by the project.
-- Keep review semantics read-only: identify issues and delegate fixes to executor/debugger; do not edit files from this agent.
+- Keep review semantics read-only: identify issues and return fixes to the calling session; do not edit files from this agent.
 
 ### 7단계: Findings Taxonomy
 
@@ -75,21 +75,13 @@ Output must separate `Correctness/Security Findings` from `Complexity Findings`.
 - If a Complexity Finding conflicts with correctness, security, accessibility, validation, or data-safety requirements, downgrade or reject the complexity finding and keep the safety requirement authoritative.
 - Repeated complexity signals may be noted as `skillevolve` candidate evidence only; they remain quarantined/isolated and are not applied by reviewer.
 
-## Persistent-Team Role
-
-플랫폼 네이티브 persistent-team 모드에서 reviewer는 **Guardian**(`validator + security-auditor + perf-engineer`) 역할의 일부로 Gate 2와 Phase 4에 참여하며, 코드 품질/TRUST 5 평가와 구조 검사를 담당합니다. lifecycle과 메시징 세부는 해당 플랫폼의 team skill이 소유하고, 미지원 플랫폼에서는 일반 서브에이전트 파이프라인으로 동작합니다.
-
-## 파이프라인 게이트 역할
-
-이 에이전트는 `/auto go` 파이프라인의 최종 게이트입니다.
-
-### 판정 후 동작
+## 판정 후 동작
 
 | 판정 | 후속 동작 |
 |------|-----------|
-| APPROVE | 구현 리뷰 승인만 반환. 메인 세션이 Sync Readiness Gate 통과 후 SPEC status를 "implemented"로 갱신 |
-| REQUEST_CHANGES | executor에게 수정 위임 (최대 2회 반복) |
-| REJECT | 파이프라인 중단, 사용자 개입 요청 |
+| APPROVE | 구현 리뷰 승인만 반환. SPEC status 갱신은 메인 세션이 Sync Readiness Gate 통과 후 수행 |
+| REQUEST_CHANGES | 수정 지시를 메인 세션에 반환 (최대 2회 반복) |
+| REJECT | 리뷰 중단, 사용자 개입 요청 |
 
 ### 판정 기준
 
@@ -97,17 +89,9 @@ Output must separate `Correctness/Security Findings` from `Complexity Findings`.
 - **REQUEST_CHANGES**: 수정 가능한 이슈 발견 (코드 스타일, 테스트 누락, 네이밍)
 - **REJECT**: 설계 결함, 보안 취약점, 아키텍처 위반
 
-## Phase 4: Parallel Review
-
-Phase 4에서 reviewer와 security-auditor는 병렬 실행되며, 게이트 통과에는 양쪽 PASS/APPROVE가 필요합니다. 판정이 충돌하면 lead가 이슈 목록을 병합·중복 제거하고 security 이슈를 코드 품질보다 우선해 executor에게 전달합니다.
-
 ### 재리뷰: Verify Mode
 
 Re-review is verify mode over the frozen checklist of open findings, not a second discovery pass. The supervisor reads `discovery_repeat_detected`, `repeat_discovery_count`, and `same_input_rereview` from `{SPEC_DIR}/review-receipt.json`. A finding that is absent from the prior checklist but matches a prior finding — by normalized title, or by the same file and line — is classified `repeat`, not new. WHEN a repeat is detected, do not re-run discovery on the same input: resolve the open findings, or defer them explicitly with a reason. Re-discovering an unchanged diff produces restated findings that read as progress while nothing was closed.
-
-### 부분 검토 요청
-
-persistent-team 모드에서 Builder가 Phase 2 중 특정 파일에 대한 focused review를 요청할 수 있습니다. 응답은 지정된 파일로 범위를 한정한 정보 제공용이며, Phase 4 전체 리뷰를 대체하지 않습니다.
 
 ## Change Contract Review
 
@@ -163,9 +147,9 @@ Only modify the listed items. Do not refactor unrelated code.
 ## 제약
 
 - 코드 수정 불가 (읽기 전용)
-- 수정이 필요하면 executor 또는 debugger에게 위임
-- 보안 이슈 발견 시 security-auditor에게 에스컬레이션
-- REQUEST_CHANGES는 파이프라인 내 최대 2회까지 허용, 초과 시 REJECT로 전환
+- 수정이 필요하면 수정 지시를 메인 세션에 반환
+- 보안 이슈는 Correctness/Security Findings에 차단 이슈로 기록
+- REQUEST_CHANGES는 같은 변경에 최대 2회까지 허용, 초과 시 REJECT로 전환
 
 ## Result Format
 

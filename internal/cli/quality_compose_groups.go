@@ -29,7 +29,7 @@ var composeRoleGroups = []composeRoleGroup{
 		"executor", "debugger", "deep-worker", "devops", "frontend-specialist", "perf-engineer",
 	}},
 	{ko: "검증·리뷰", en: "Verification·Review", Agents: []string{
-		"reviewer", "validator", "tester", "ux-validator",
+		"reviewer", "qa-explorer", "validator", "tester", "ux-validator",
 	}},
 	{ko: "탐색·보조", en: "Exploration·Support", Agents: []string{
 		"explorer", "annotator", "reverse-engineer",

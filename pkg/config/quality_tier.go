@@ -14,8 +14,9 @@ const (
 // canonicalAgentNames lists the generated source agents in stable order. This
 // is the authoritative role set: quality presets, Claude frontmatter, cost
 // accounting, and the OMP agent definitions all key off exactly these names.
-// The verification harness ships only the review and UX validation roles.
-var canonicalAgentNames = []string{"frontend-specialist", "reviewer", "ux-validator"}
+// The verification harness ships only the review, exploratory QA, and UX
+// validation roles.
+var canonicalAgentNames = []string{"frontend-specialist", "qa-explorer", "reviewer", "ux-validator"}
 
 // agentNameAliases folds workflow phase-role spelling onto agent file names.
 // Workflow schemas use underscores; agent files and quality presets use hyphens.
@@ -25,6 +26,7 @@ var agentNameAliases = map[string]string{
 	"deep_worker":         "deep-worker",
 	"frontend_specialist": "frontend-specialist",
 	"perf_engineer":       "perf-engineer",
+	"qa_explorer":         "qa-explorer",
 	"reverse_engineer":    "reverse-engineer",
 	"ux_validator":        "ux-validator",
 }

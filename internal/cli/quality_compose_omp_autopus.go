@@ -101,25 +101,43 @@ func (f *composeFormRun) ompAutopusApply(tab *ompAutopusTab, runner omp.OMPModel
 	return f.ompConfirm(opts, runner, candidate)
 }
 
-// ompAutopusGroups asks every role group once, in Role Group Contract order.
+// ompAutopusGroups asks every role group that holds a generated agent once,
+// in Role Group Contract order, about its generated agents only.
 func (f *composeFormRun) ompAutopusGroups(tab *ompAutopusTab) error {
 	for _, group := range composeRoleGroups {
+		agents := ompServedGroupAgents(group)
+		if len(agents) == 0 {
+			continue
+		}
 		label := group.Label(f.shared.lang)
-		if err := f.ompAutopusAsk(tab, label+" — "+strings.Join(group.Agents, ", "), label, group.Agents); err != nil {
+		if err := f.ompAutopusAsk(tab, label+" — "+strings.Join(agents, ", "), label, agents); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// ompAutopusAgents lists the 17 canonical agents, and task when the policy
-// pins it, behind 완료, each with its current model, until the operator is
-// done.
+// ompServedGroupAgents keeps the group members OMP serves an agent for. The
+// tab saves pins for those agents only, so offering a legacy role would
+// record an answer the save drops.
+func ompServedGroupAgents(group composeRoleGroup) []string {
+	canonical := config.CanonicalAgentNames()
+	served := make([]string, 0, len(group.Agents))
+	for _, agent := range group.Agents {
+		if slices.Contains(canonical, agent) {
+			served = append(served, agent)
+		}
+	}
+	return served
+}
+
+// ompAutopusAgents lists the canonical agents, and task when the policy pins
+// it, behind 완료, each with its current model, until the operator is done.
 func (f *composeFormRun) ompAutopusAgents(tab *ompAutopusTab) error {
 	for {
 		options := []composeOption[string]{{f.form.ListDone, ""}}
 		for _, group := range composeRoleGroups {
-			for _, agent := range group.Agents {
+			for _, agent := range ompServedGroupAgents(group) {
 				options = append(options, composeOption[string]{agent + " — " + tab.label(f, []string{agent}), agent})
 			}
 		}

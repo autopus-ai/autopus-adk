@@ -98,7 +98,7 @@ func TestGenerate_PinnedSurfaces_AreHermeticPerVariant(t *testing.T) {
 	arch := Assertion{Kind: AssertJSONPathPresent, Platform: "claude-code", Path: ".claude/settings.json",
 		JSONPath: "hooks.PreToolUse[*].hooks[*].command", ValueContains: strPtr("check --hygiene --arch")}
 	route := Assertion{Kind: AssertRouteDetail, Platform: "claude-code", Path: ".claude/skills/auto/SKILL.md",
-		Route: "`plan`", Detail: ".claude/skills/auto-plan/SKILL.md"}
+		Route: "`review`", Detail: ".claude/skills/auto-review/SKILL.md"}
 	task := Task{ID: "GT-REAL-SURFACE", Kind: KindSurface, Assertions: []Assertion{arch, route}}
 	assert.True(t, EvaluateTask(task, first).Passed, "%v", EvaluateTask(task, first).Failures)
 	task.Variants = []Variant{{Name: "arch-off", Overrides: map[string]bool{OverridePreCommitArch: false}}}

@@ -41,10 +41,10 @@ func ompOPConfig(pins map[string]config.RoleModelCandidateConf) *config.HarnessC
 	return cfg
 }
 
-// ompOPXPins are OPX's executor and tester pins.
+// ompOPXPins are OPX's operator pins, on two served agents.
 var ompOPXPins = map[string]config.RoleModelCandidateConf{
-	"executor": {Selector: "openai-codex/gpt-6-astra", Thinking: "max", Family: "openai"},
-	"tester":   {Selector: "openai-codex/gpt-6.1-sol", Thinking: "xhigh", Family: "openai"},
+	"reviewer":     {Selector: "openai-codex/gpt-6-astra", Thinking: "max", Family: "openai"},
+	"ux-validator": {Selector: "openai-codex/gpt-6.1-sol", Thinking: "xhigh", Family: "openai"},
 }
 
 func ompWrittenOverrides(t *testing.T, p *claimProject) map[string]string {
@@ -108,6 +108,6 @@ func TestOMPUpdate_S21_NOCatalogRefusesAnUnservedPin(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "required_route_unresolved")
-	assert.Contains(t, err.Error(), "executor")
+	assert.Contains(t, err.Error(), "reviewer")
 	assert.Equal(t, before, claimSnapshot(t, p), "the OMP files are as before the run")
 }

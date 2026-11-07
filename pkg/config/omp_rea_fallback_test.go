@@ -7,9 +7,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// S11 (Gate 1): only reverse-engineer on the built-in balanced analysis rung
-// falls back to the session model, and only when the catalog lacks the rung's
-// model or that model's thinking level.
+// S11 (Gate 1): only the agents on the built-in balanced analysis rung
+// (reverse-engineer and qa-explorer) fall back to the session model, and only
+// when the catalog lacks the rung's model or that model's thinking level.
 func TestOMPReaAnalysisFallback_OnlyTheBalancedAnalysisRung(t *testing.T) {
 	t.Parallel()
 	for _, family := range RoleModelFamilies() {
@@ -17,7 +17,8 @@ func TestOMPReaAnalysisFallback_OnlyTheBalancedAnalysisRung(t *testing.T) {
 		require.True(t, ok, family)
 		for _, reason := range []string{"model_unknown", "thinking_unsupported"} {
 			assert.True(t, OMPReaAnalysisFallback(balanced, "reverse-engineer", reason), "%s %s", family, reason)
-			for _, agent := range []string{"planner", "executor", "explorer", "task"} {
+			assert.True(t, OMPReaAnalysisFallback(balanced, "qa-explorer", reason), "qa-explorer %s %s", family, reason)
+			for _, agent := range []string{"planner", "executor", "explorer", "reviewer", "ux-validator", "task"} {
 				assert.False(t, OMPReaAnalysisFallback(balanced, agent, reason), "existing rung %s %s", family, agent)
 			}
 		}

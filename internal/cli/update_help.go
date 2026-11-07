@@ -37,7 +37,7 @@ const updateCmdLong = "설치된 하네스 파일을 업데이트합니다.\n\n"
 	"+ .omp/agents/<agent>.md 줄과 안내가 나오고 autopus.yaml은 쓰지 않습니다. manifest에 없는 같은 이름 파일과\n" +
 	"사용자가 정한 task.disabledAgents는 그대로 둡니다. role_model_policy.agent_source: native는 v0.50.131에서\n" +
 	"제거되어 로드에 실패합니다. 그 key를 지우고 auto update를 실행하면 Autopus 에이전트로 돌아갑니다.\n\n" +
-	"OMP 탭은 프로필·계열을 묻지 않습니다. 지금 pin이나 프로필 route에서 시작해 역할 그룹 4개나\n" +
+	"OMP 탭은 프로필·계열을 묻지 않습니다. 지금 pin이나 프로필 route에서 시작해 생성 에이전트가 있는 역할 그룹이나\n" +
 	"에이전트별(자기 pin이 있으면 task 포함)로 그대로 · OMP 세션 모델 그대로 · 모든 provider의 증명된 설치 model을\n" +
 	"고르고, thinking은 고른 model이 보고한 단계만 보입니다. metadata 없는 catalog는 built-in 선언에 있는 model만\n" +
 	"보입니다. 결과는 프로필 없는 pin(role_model_policy: {version: v1, agents: …})이고 task는 자기 pin이 없으면\n" +

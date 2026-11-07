@@ -18,8 +18,9 @@ import "github.com/insajin/autopus-adk/pkg/config"
 // config.CodexResolutionCatalogUnknown and CatalogError says why. Every other
 // profile — Ultra, a hand-edited tier, a non-canonical agent — keeps the
 // ordered availability fallback of config.ResolveCodexProfile. The one
-// exception is reverse-engineer's analysis rung (config.CodexReaAnalysisFallback):
-// a read catalog that lacks it leaves the agent on the session model.
+// exception is the analysis rung of reverse-engineer and qa-explorer
+// (config.CodexReaAnalysisFallback): a read catalog that lacks it leaves the
+// agent on the session model.
 func ResolveAgentProfile(
 	quality config.QualityConf,
 	snapshot []byte,

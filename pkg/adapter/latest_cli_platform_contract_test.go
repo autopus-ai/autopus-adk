@@ -30,9 +30,9 @@ func assertClaudeLatestCLIContract(t *testing.T, fixture latestCLIFixture) {
 		assert.Equal(t, "SKILL.md", parts[3], path)
 		assert.NotEqual(t, "autopus", parts[2], path)
 	}
-	// The verification harness installs the router, seven routes, and eight
+	// The verification harness installs the router, seven routes, and nine
 	// reusable skills.
-	assert.Equal(t, 16, skillCount)
+	assert.Equal(t, 17, skillCount)
 	assert.True(t, manifestHas(manifest, ".claude/skills/auto-review/SKILL.md"))
 	assert.False(t, manifestHas(manifest, ".claude/skills/auto-go/SKILL.md"))
 	assert.NoDirExists(t, filepath.Join(fixture.root, ".claude", "skills", "autopus"))
@@ -69,7 +69,7 @@ func assertCodexLatestCLIContract(t *testing.T, fixture latestCLIFixture) {
 		assert.True(t, strings.HasPrefix(parts[2], "codex-"), path)
 		assert.Equal(t, "SKILL.md", parts[3], path)
 	}
-	assert.Equal(t, 16, skillCount)
+	assert.Equal(t, 17, skillCount)
 	assert.NoDirExists(t, filepath.Join(fixture.root, ".codex", "prompts"))
 	assert.NoFileExists(t, filepath.Join(fixture.root, ".codex", "skills", "auto.md"))
 

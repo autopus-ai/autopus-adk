@@ -95,7 +95,7 @@ func TestStickyFrontmatter_S7_ClaudeRuleSurfaceIsUnchanged(t *testing.T) {
 	if len(relocated) == len(stickyRelocatedRules) {
 		assert.ElementsMatch(t, stickyRelocatedRules, relocated,
 			"the relocated set S7 subtracts must be the hook-fired lore-commit rule")
-		assert.Len(t, got, 2, "S7 baseline: 3 content rules minus 1 relocated")
+		assert.Len(t, got, 3, "S7 baseline: 4 content rules minus 1 relocated")
 	}
 
 	for _, rule := range stickyRules {
@@ -124,7 +124,7 @@ func TestStickyFrontmatter_MapsExactlyTwoRules(t *testing.T) {
 				}
 			}
 			assert.ElementsMatch(t, stickyRules, sticky,
-				"%s must mark exactly language-policy sticky", platform)
+				"%s must mark exactly autonomy and language-policy sticky", platform)
 		})
 	}
 }

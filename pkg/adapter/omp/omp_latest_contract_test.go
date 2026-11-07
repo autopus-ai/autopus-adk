@@ -25,22 +25,22 @@ func TestOMPGenerate_UsesOnlyNativeSkillsAndCommandsWithoutBaseConfig(t *testing
 	require.NoError(t, err)
 
 	paths := manifestPaths(t, root)
-	assert.Greater(t, countPathsWithPrefix(paths, ".omp/skills/"), 20)
+	assert.Greater(t, countPathsWithPrefix(paths, ".omp/skills/"), len(workflowSpecs))
 	assert.Equal(t, len(workflowSpecs), countPathsWithPrefix(paths, ".omp/commands/"))
-	assert.Equal(t, 17, countPathsWithPrefix(paths, ".omp/agents/"))
-	assert.Equal(t, 14, countPathsWithPrefix(paths, ompRuleDir+"/"+ompRuleFilePrefix))
+	assert.Equal(t, 4, countPathsWithPrefix(paths, ".omp/agents/"))
+	assert.Equal(t, 4, countPathsWithPrefix(paths, ompRuleDir+"/"+ompRuleFilePrefix))
 	assert.Contains(t, paths, configFile)
 	assert.FileExists(t, filepath.Join(root, configFile))
 	for _, path := range paths {
 		assert.False(t, strings.HasPrefix(path, ".agents/skills/"), path)
 		assert.False(t, strings.HasPrefix(path, ".agents/commands/"), path)
 	}
-	goalSkill, err := os.ReadFile(filepath.Join(root, ".omp", "skills", "auto-goal", "SKILL.md"))
+	qaSkill, err := os.ReadFile(filepath.Join(root, ".omp", "skills", "auto-qa", "SKILL.md"))
 	require.NoError(t, err)
-	frontmatter := strings.SplitN(string(goalSkill), "---", 3)
+	frontmatter := strings.SplitN(string(qaSkill), "---", 3)
 	require.Len(t, frontmatter, 3)
 	assert.NotContains(t, frontmatter[1], "Codex")
-	assert.Contains(t, frontmatter[1], "goal")
+	assert.Contains(t, frontmatter[1], "qa")
 }
 
 func TestOMPValidate_DetectsManagedContentTamperingAndSymlinkReplacement(t *testing.T) {

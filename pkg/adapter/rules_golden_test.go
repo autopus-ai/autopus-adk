@@ -18,6 +18,7 @@ import (
 
 // alwaysRuleFiles are the rules that stay unconditional on every platform.
 var alwaysRuleFiles = map[string]bool{
+	"autonomy.md":        true,
 	"language-policy.md": true,
 }
 

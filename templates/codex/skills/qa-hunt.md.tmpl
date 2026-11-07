@@ -1,0 +1,113 @@
+# auto-qa-hunt
+
+# QA Hunt Skill
+
+테스트가 통과해도 버그는 남습니다. 테스트는 작성자가 떠올린 경우만 확인하기 때문입니다. 이 스킬은 만든 것을
+**실제로 실행하고 조작하면서** 작성자가 떠올리지 못한 실패를 찾습니다. 게임을 직접 플레이하며 버그를 찾는
+playtester와 같은 방식입니다.
+
+판정은 에이전트가 하지 않습니다. 에이전트는 의심을 재현 스크립트로 바꾸고, `auto qa hunt verify`가 스크립트를
+다시 돌려 매번 같은 방식으로 실패하는 것만 버그로 인정합니다.
+
+## 요청 종류
+
+| 종류 | 예 | 하는 일 |
+|---|---|---|
+| explore | "결제 흐름을 탐색해" | 기능 하나를 넓게 조작하며 이상한 점을 모은다 |
+| hunt | "이번 변경에서 잘못된 걸 전부 찾아" | 변경된 영역을 중심으로 경계값·오류 경로·조합을 공격한다 |
+| verify | "빈 파일을 넣으면 오류 메시지가 나오는지 확인해" | 주장 하나를 재현 스크립트로 확인한다 |
+| goal | "로그인 후 3번 안에 주문을 끝내" | 목표를 제약 안에서 달성하려 시도하고 막히는 지점을 보고한다 |
+
+## 절차
+
+### 1. 배우기 (memory 먼저)
+
+`.autopus/qa/hunt/memory.md`가 있으면 먼저 읽습니다. 지난 실행에서 배운 빌드·실행 방법, 진입점, 조작 방법,
+알려진 버그, 시간을 낭비한 함정이 들어 있습니다. 없으면 README, 빌드 설정, 진입점 코드를 읽어 직접 알아냅니다.
+
+### 2. driver 만들기
+
+제품을 조작하는 일회용 driver를 `.autopus/qa/hunt/drivers/`에 씁니다. 제품 코드는 고치지 않습니다.
+
+| 제품 | driver |
+|---|---|
+| CLI | 셸 스크립트. 인자·stdin·환경변수·파일 입력을 바꿔 가며 실행하고 exit code·stdout·stderr를 기록 |
+| HTTP API | curl 또는 짧은 스크립트. 정상·누락·잘못된 타입·큰 값·동시 요청 |
+| 웹 UI | `playwright-cli` 스킬. 클릭·입력·뒤로가기·새로고침·느린 네트워크, console error와 실패한 요청 수집 |
+| TUI | `tmux new-session -d` + `send-keys` + `capture-pane`으로 키 입력과 화면 캡처 |
+| 라이브러리 | 공개 API를 부르는 작은 프로그램. 경계값·빈 값·거대한 값·왕복(encode→decode) |
+| 게임·앱 | 엔진이나 앱이 제공하는 자동화 hook, 없으면 입력 이벤트 주입과 화면 캡처 |
+
+### 3. oracle로 이상 감지
+
+"이상하다"는 느낌이 아니라 아래 중 하나에 걸려야 의심으로 남깁니다.
+
+- `crash`: panic, stack trace, segfault, 비정상 종료
+- `error_output`: 정상 입력인데 오류 출력, 또는 오류 입력인데 조용히 성공
+- `hang`: 시간 제한 안에 끝나지 않음
+- `http_5xx`: 서버 오류 응답, 실패한 네트워크 요청
+- `invariant`: 문서·코드·상식에서 나온 불변식 위반 (예: 저장 후 다시 읽으면 같아야 한다, 개수는 음수가 아니다)
+- `spec_mismatch`: README·help·요청 문장이 약속한 동작과 다름
+- `visual`: 깨진 레이아웃, 잘린 글자, 겹친 요소 (스크린샷을 증거로 남기고 `ux-validator`가 판정)
+
+### 4. 재현 스크립트 만들기
+
+의심 하나마다 `.autopus/qa/hunt/findings/<id>/`에 두 파일을 씁니다. `<id>`는 소문자·숫자·`-`입니다.
+
+`repro.sh`는 **버그가 있으면 exit 1, 고쳐졌으면 exit 0**으로 끝나야 합니다. 그 밖의 종료 코드는 스크립트
+자체의 실패로 봅니다. 프로젝트 root에서 실행되고, 사람이 손대지 않아도 처음부터 끝까지 돌아야 합니다.
+hang을 재현할 때는 스크립트 안에서 시간 제한을 걸고 넘기면 exit 1을 냅니다.
+
+```bash
+#!/usr/bin/env bash
+# Bug present -> exit 1. Fixed -> exit 0.
+set -u
+out=$(./bin/app import --file testdata/empty.csv 2>&1); code=$?
+if [ "$code" -ne 0 ] || grep -q panic <<<"$out"; then
+  echo "import of an empty CSV failed: $out"; exit 1
+fi
+exit 0
+```
+
+`finding.json`:
+
+```json
+{
+  "schema": "autopus.qa.hunt.finding.v1",
+  "id": "empty-csv-import-panics",
+  "title": "빈 CSV를 import하면 panic",
+  "severity": "major",
+  "oracle": "crash",
+  "expected": "빈 파일이라는 오류 메시지와 exit 1",
+  "actual": "index out of range panic",
+  "steps": ["./bin/app import --file testdata/empty.csv"],
+  "evidence": [".autopus/qa/hunt/findings/empty-csv-import-panics/output.txt"]
+}
+```
+
+severity는 `critical`(데이터 손실·보안·핵심 흐름 불가), `major`(기능 실패), `minor`(불편·표시 문제)입니다.
+
+### 5. 판정
+
+```bash
+auto qa hunt verify            # 모든 finding의 repro를 두 번씩 다시 실행
+auto qa hunt verify --id <id>  # 하나만
+```
+
+`confirmed`만 버그로 보고합니다. `flaky`는 따로, `not_reproduced`와 `broken_repro`는 의심으로만 적습니다.
+결과는 `.autopus/qa/hunt/report.md`에 남습니다. 고친 뒤 같은 명령을 다시 돌리면 `not_reproduced`로 바뀌어
+수정이 확인됩니다.
+
+### 6. memory 갱신
+
+끝나기 전에 `.autopus/qa/hunt/memory.md`에 다음 실행이 알아야 할 것만 짧게 덧붙입니다: 빌드·실행 명령,
+조작 방법, 쓸모 있던 driver, 막혔던 함정, 확인된 버그 id. 같은 내용을 반복해 쓰지 않습니다.
+
+## 금지 사항
+
+- 제품 코드, 테스트, 설정을 고치지 않습니다. 쓰는 곳은 `.autopus/qa/hunt/` 아래뿐입니다.
+- `auto qa hunt verify`를 거치지 않은 의심을 버그라고 보고하지 않습니다.
+- repro를 통과시키려고 기대값을 바꾸지 않습니다. 기대값이 틀렸다면 finding을 지우고 이유를 적습니다.
+- 외부 서비스에 쓰기 요청을 보내지 않습니다. 결제·메일·배포처럼 되돌릴 수 없는 동작은 로컬 대체물이나
+  dry-run으로만 조작합니다.
+- 비밀값을 finding·memory·증거 파일에 남기지 않습니다.

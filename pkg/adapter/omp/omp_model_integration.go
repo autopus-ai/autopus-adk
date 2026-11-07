@@ -69,7 +69,7 @@ func (a *Adapter) prepareModelIntegration(
 	if err != nil {
 		return nil, err
 	}
-	adapter.ReportReaFallbacks(ctx, ompReaFallbackFacts(reaFallback)...)
+	adapter.ReportReaFallbacks(ctx, reaFallback...)
 	a.reportDegradedModelRoutes(ompDegradedRoutesNotice(probe.Catalog, routes, routing))
 	projection, err := CompileOMPModelProjection(OMPModelProjectionInput{Agents: projected})
 	if err != nil {

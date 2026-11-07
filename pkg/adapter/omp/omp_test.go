@@ -54,10 +54,10 @@ func TestOMP_S4_S5_S6_Lifecycle(t *testing.T) {
 
 	// Check S6: generated native files without an unnecessary base config.
 	assert.FileExists(t, filepath.Join(dir, configFile))
-	assert.FileExists(t, filepath.Join(dir, ".omp", "agents", "executor.md"))
+	assert.FileExists(t, filepath.Join(dir, ".omp", "agents", "ux-validator.md"))
 	assert.FileExists(t, filepath.Join(dir, ".omp", "skills", "auto", "SKILL.md"))
 	assert.FileExists(t, filepath.Join(dir, ".omp", "commands", "auto.md"))
-	assert.FileExists(t, filepath.Join(dir, ompRuleDir, ompRuleFilePrefix+"branding.md"))
+	assert.FileExists(t, filepath.Join(dir, ompRuleDir, ompRuleFilePrefix+"file-size-limit.md"))
 
 	// Check S5: no CLAUDE.md shadowed
 	assert.NoFileExists(t, filepath.Join(dir, ".claude", "CLAUDE.md"))
@@ -65,8 +65,8 @@ func TestOMP_S4_S5_S6_Lifecycle(t *testing.T) {
 	// Check S4: Clean
 	err = a.Clean(context.Background())
 	require.NoError(t, err)
-	assert.NoFileExists(t, filepath.Join(dir, ".omp", "agents", "executor.md"))
-	assert.NoFileExists(t, filepath.Join(dir, ompRuleDir, ompRuleFilePrefix+"branding.md"))
+	assert.NoFileExists(t, filepath.Join(dir, ".omp", "agents", "ux-validator.md"))
+	assert.NoFileExists(t, filepath.Join(dir, ompRuleDir, ompRuleFilePrefix+"file-size-limit.md"))
 }
 
 func TestOMP_S10_S11_Ownership(t *testing.T) {
@@ -107,5 +107,5 @@ func TestOMP_E6_StaleManifestClean(t *testing.T) {
 
 	require.NoError(t, a.Clean(context.Background()))
 	assertFileBytesOMP(t, skillPath, "opencode content")
-	assert.NoFileExists(t, filepath.Join(dir, ".omp", "agents", "executor.md"))
+	assert.NoFileExists(t, filepath.Join(dir, ".omp", "agents", "ux-validator.md"))
 }

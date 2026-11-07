@@ -60,11 +60,11 @@ func TestParity_RelocationConservesRuleCount(t *testing.T) {
 	require.NoError(t, err)
 
 	claudeCounts := countFeatures(claudeFiles)
-	assert.Equal(t, 3, claudeCounts.Rules, "relocation must conserve the claude rule count")
+	assert.Equal(t, 4, claudeCounts.Rules, "relocation must conserve the claude rule count")
 	assert.Zero(t, countFeatures(codexFiles).Rules,
 		"Codex 0.149.1 must not receive inert markdown under .codex/rules")
-	assert.Equal(t, 3+len(platformRuleAdditions["gemini"]), countFeatures(geminiFiles).Rules,
-		"the 3 source rules plus the Antigravity-only REA guard")
+	assert.Equal(t, 4+len(platformRuleAdditions["gemini"]), countFeatures(geminiFiles).Rules,
+		"the 4 source rules plus the Antigravity-only REA guard")
 
 	var baseline, relocated int
 	for _, file := range claudeFiles.Files {
@@ -76,7 +76,7 @@ func TestParity_RelocationConservesRuleCount(t *testing.T) {
 			relocated++
 		}
 	}
-	assert.Equal(t, 2, baseline, "two rules remain in baseline context")
+	assert.Equal(t, 3, baseline, "three rules remain in baseline context")
 	assert.Equal(t, 1, relocated,
 		"the hook-fired lore-commit rule moves under the conditional body root")
 }

@@ -68,7 +68,7 @@ func TestOMPModelIntegration_OperatorPinnedRouteStillFailsClosedWithHint(t *test
 
 	cfg := builtinIntegrationConfig("ultra")
 	cfg.RoleModelPolicy.Agents = map[string]config.RoleAgentOverrideConf{
-		"explorer": {Candidates: []config.RoleModelCandidateConf{
+		"ux-validator": {Candidates: []config.RoleModelCandidateConf{
 			{Selector: "anthropic/" + config.ClaudeSonnetModel, Thinking: "high", Family: "anthropic"},
 		}},
 	}

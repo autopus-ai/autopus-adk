@@ -34,8 +34,9 @@ func TestOMPModelIntegration_PinsOnlyRoutesOnlyThePinnedAgents(t *testing.T) {
 		pins   map[string]config.RoleModelCandidateConf
 	}{
 		"metadata-light catalog": {newBuiltinTierIntegrationRunner(), map[string]config.RoleModelCandidateConf{
-			"planner":  {Selector: "anthropic/" + config.ClaudeOpusModel, Thinking: "xhigh", Family: "anthropic"},
-			"executor": {Selector: "openai-codex/" + config.CodexAstraModel, Thinking: "max", Family: "openai"},
+			// planner is not a generated agent; its pin still routes task.
+			"planner":             {Selector: "anthropic/" + config.ClaudeOpusModel, Thinking: "xhigh", Family: "anthropic"},
+			"frontend-specialist": {Selector: "openai-codex/" + config.CodexAstraModel, Thinking: "max", Family: "openai"},
 		}},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -50,15 +51,17 @@ func TestOMPModelIntegration_PinsOnlyRoutesOnlyThePinnedAgents(t *testing.T) {
 				keys = append(keys, agent)
 			}
 			sort.Strings(keys)
-			assert.Equal(t, []string{"executor", "planner", "task"}, keys)
-			assert.Equal(t, overrides["planner"], overrides["task"], "task follows the planner pin")
-			assert.Equal(t, row.pins["planner"].Selector+":"+row.pins["planner"].Thinking, overrides["planner"])
+			assert.Equal(t, []string{"frontend-specialist", "task"}, keys)
+			assert.Equal(t, row.pins["planner"].Selector+":"+row.pins["planner"].Thinking, overrides["task"],
+				"task follows the planner pin")
+			assert.Equal(t, row.pins["frontend-specialist"].Selector+":"+row.pins["frontend-specialist"].Thinking,
+				overrides["frontend-specialist"])
 			receiptData, ok := p.read(OMPModelReceiptRelativePath)
 			require.True(t, ok)
 			var receipt OMPModelResolutionReceipt
 			require.NoError(t, json.Unmarshal([]byte(receiptData), &receipt))
 			assert.Equal(t, config.PinsOnlyRoleModelProfileName, receipt.Profile)
-			for agent, routed := range map[string]bool{"planner": true, "executor": true, "explorer": false, "reviewer": false} {
+			for agent, routed := range map[string]bool{"frontend-specialist": true, "qa-explorer": false, "reviewer": false, "ux-validator": false} {
 				body, _ := p.read(OMPAgentDefinitionPath(agent))
 				if routed {
 					assert.NotContains(t, body, "\nthinkingLevel: ", agent)
@@ -79,13 +82,13 @@ func TestOMPModelIntegration_PinsOnlyActivatesOnAStrictCatalog(t *testing.T) {
 
 	p.mustRun("generate", pinsOnlyConfig(map[string]config.RoleModelCandidateConf{
 		"planner":  {Selector: "anthropic/alpha-reasoner", Thinking: "high", Family: "anthropic"},
-		"executor": {Selector: "openai/beta-coder", Thinking: "high", Family: "openai"},
+		"reviewer": {Selector: "openai/beta-coder", Thinking: "high", Family: "openai"},
 	}))
 
 	overrides := ompWrittenOverrides(t, p)
-	assert.Equal(t, "anthropic/alpha-reasoner:high", overrides["planner"])
-	assert.Equal(t, "openai/beta-coder:high", overrides["executor"])
-	assert.Equal(t, overrides["planner"], overrides["task"])
+	assert.Equal(t, "openai/beta-coder:high", overrides["reviewer"])
+	assert.Equal(t, "anthropic/alpha-reasoner:high", overrides["task"], "task follows the planner pin")
+	assert.NotContains(t, overrides, "planner", "planner has no generated agent to route")
 	receiptData, ok := p.read(OMPModelReceiptRelativePath)
 	require.True(t, ok)
 	var receipt OMPModelResolutionReceipt
@@ -99,12 +102,12 @@ func TestOMPModelIntegration_PinsOnlyFailsClosedOnAMissingModel(t *testing.T) {
 	before := claimSnapshot(t, p)
 
 	err := p.run("update", pinsOnlyConfig(map[string]config.RoleModelCandidateConf{
-		"executor": {Selector: "openai-codex/" + config.CodexAstraModel, Thinking: "max", Family: "openai"},
+		"reviewer": {Selector: "openai-codex/" + config.CodexAstraModel, Thinking: "max", Family: "openai"},
 	}))
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "required_route_unresolved")
-	assert.Contains(t, err.Error(), "executor")
+	assert.Contains(t, err.Error(), "reviewer")
 	assert.Equal(t, before, claimSnapshot(t, p))
 }
 
@@ -122,7 +125,7 @@ func TestOMPModelIntegration_AttestsATaskPinFoldedOntoTheRoles(t *testing.T) {
 	p.mustRun("generate", cfg)
 
 	overrides := ompWrittenOverrides(t, p)
-	for _, agent := range []string{"annotator", "executor", "validator", "task"} {
+	for _, agent := range []string{"frontend-specialist", "qa-explorer", "ux-validator", "task"} {
 		assert.Equal(t, "openai-codex/"+config.CodexAstraModel+":max", overrides[agent], agent)
 	}
 }
@@ -148,7 +151,7 @@ func TestOMPModelIntegration_PinsOnlyPinsDoNotAttestThemselves(t *testing.T) {
 			p.mustRun("generate", configForOMP())
 			before := claimSnapshot(t, p)
 
-			err := p.run("update", pinsOnlyConfig(map[string]config.RoleModelCandidateConf{"executor": row.pin}))
+			err := p.run("update", pinsOnlyConfig(map[string]config.RoleModelCandidateConf{"reviewer": row.pin}))
 
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), row.reason)

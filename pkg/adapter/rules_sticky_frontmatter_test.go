@@ -29,8 +29,9 @@ import (
 // stickyKeyLine is the exact frontmatter line the sticky contract adds.
 const stickyKeyLine = "alwaysApply: true"
 
-// stickyRules are the two rules this SPEC marks sticky at the source of truth.
-var stickyRules = []string{"language-policy.md"}
+// stickyRules are the rules marked sticky at the source of truth:
+// language-policy (this SPEC) and autonomy (the verification harness).
+var stickyRules = []string{"autonomy.md", "language-policy.md"}
 
 // stickyControlRule travels the same per-platform rule pipeline without the
 // sticky key, so it proves each adapter propagates `alwaysApply` from its

@@ -51,7 +51,7 @@ func TestOMPNativePipelineRoute_MarkdownAutoOwnsInteractiveAndExplicitRouteOwnsH
 		"interactive /auto must dispatch through the current OMP session without spawning a child")
 	require.Equal(t, 0, countLiteral(string(autoBody), `["pipeline", "run"`),
 		"interactive /auto must not enter the headless RPC backend")
-	require.Len(t, commandFileNames(t, root), 21)
+	require.Len(t, commandFileNames(t, root), len(workflowSpecs))
 
 	var headlessCallOwners []string
 	nativeAutoRegistrations := 0

@@ -19,6 +19,9 @@ var platformRuleExclusions = map[string]map[string]bool{
 		"lore-commit.md": true, "objective-reasoning.md": true, "project-identity.md": true,
 		"shell-portability.md": true, "spec-quality.md": true, "subagent-delegation.md": true,
 		"techstack-freshness.md": true, "worktree-safety.md": true,
+		// Codex has no repository markdown-rule surface (S6); autonomy has no
+		// AGENTS.md section either, so codex sessions do not carry it.
+		"autonomy.md": true,
 	},
 	"gemini":   {},
 	"opencode": {},

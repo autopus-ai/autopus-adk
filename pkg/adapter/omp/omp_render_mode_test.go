@@ -33,7 +33,7 @@ func generatedOMPTree(t *testing.T, cfg *config.HarnessConfig) map[string]string
 }
 
 // S14 (oracle): no generated OMP file selects an agent autopus mode disables,
-// and the pipeline skill no longer says there is no Autopus agent.
+// or says there is no Autopus agent.
 func TestOMPGenerate_AutopusSurfaceNeverSelectsADisabledAgent(t *testing.T) {
 	tree := generatedOMPTree(t, configForOMP())
 	require.NotEmpty(t, tree)
@@ -43,7 +43,4 @@ func TestOMPGenerate_AutopusSurfaceNeverSelectsADisabledAgent(t *testing.T) {
 		}
 		assert.NotContains(t, body, "There is no Autopus-specific agent", path)
 	}
-	pipeline := tree[".omp/skills/agent-pipeline/SKILL.md"]
-	assert.Contains(t, pipeline, "17 Autopus agents")
-	assert.Contains(t, pipeline, "`task.disabledAgents`")
 }

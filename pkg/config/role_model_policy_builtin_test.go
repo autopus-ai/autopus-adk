@@ -123,7 +123,7 @@ func TestBuiltinRoleModelProfile_UltraCapabilityDefaultsTakeHighestAgentTier(t *
 			"executor": "opus", "planner": "sonnet", "architect": "sonnet",
 			"spec-writer": "sonnet", "ux-validator": "sonnet",
 			"frontend-specialist": "sonnet", "reviewer": "sonnet",
-			"security-auditor": "sonnet", "reverse-engineer": "sonnet",
+			"security-auditor": "sonnet", "reverse-engineer": "sonnet", "qa-explorer": "sonnet",
 		}}},
 	}
 

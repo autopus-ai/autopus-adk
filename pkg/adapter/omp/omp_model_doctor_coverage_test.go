@@ -78,7 +78,7 @@ func TestCompileOMPModelDoctorActivationExpectation_FailsClosedOnInvalidInputs(t
 		{
 			name: "capability omitted", want: "capability_missing",
 			edit: func(profile *config.RoleModelProfileConf, _ *OMPModelCatalog) {
-				delete(profile.Capabilities, config.CapabilityDeterministicTransform)
+				delete(profile.Capabilities, config.CapabilityVisionDesign)
 			},
 		},
 		{

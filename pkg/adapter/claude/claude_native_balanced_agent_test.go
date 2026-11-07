@@ -27,6 +27,7 @@ type nativeAgentProfile struct {
 func balancedNativeProfiles() map[string]nativeAgentProfile {
 	return map[string]nativeAgentProfile{
 		"reviewer":            {model: config.ClaudeOpusModel, effort: "max"},
+		"qa-explorer":         {model: config.ClaudeOpusModel, effort: "high"},
 		"frontend-specialist": {model: config.ClaudeSonnetModel, effort: "max"},
 		"ux-validator":        {model: config.ClaudeSonnetModel, effort: "high"},
 	}

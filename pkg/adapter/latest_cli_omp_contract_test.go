@@ -25,7 +25,7 @@ func assertOMPLatestCLIContract(t *testing.T, fixture latestCLIFixture) {
 	for _, root := range []string{"skills", "commands", "rules"} {
 		assert.Greater(t, counts[root], 0, ".omp/%s must be manifest-owned", root)
 	}
-	assert.Equal(t, 3, counts["agents"], "the default source owns one definition per canonical agent")
+	assert.Equal(t, 4, counts["agents"], "the default source owns one definition per canonical agent")
 	assert.True(t, manifestHas(manifest, ".omp/config.yml"), "the default source claims task.disabledAgents")
 	assert.FileExists(t, filepath.Join(fixture.root, ".omp", "config.yml"))
 

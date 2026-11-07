@@ -17,7 +17,8 @@ import (
 // nativeBalancedCodexTOML is the model/effort pair each managed agent file must
 // carry under the standard native balanced placement.
 var nativeBalancedCodexTOML = map[string]config.CodexProfile{
-	"reviewer.toml": {Model: config.CodexAstraModel, Effort: config.CodexEffortMax},
+	"reviewer.toml":    {Model: config.CodexAstraModel, Effort: config.CodexEffortMax},
+	"qa-explorer.toml": {Model: config.CodexSolModel, Effort: config.CodexEffortXHigh},
 
 	"frontend-specialist.toml": {Model: config.CodexLunaModel, Effort: config.CodexEffortMax},
 	"ux-validator.toml":        {Model: config.CodexLunaModel, Effort: config.CodexEffortMax},
@@ -69,8 +70,9 @@ func TestPrepareAgentFiles_NativeBalancedCatalogUnknownKeepsExactProfile(t *test
 	assert.Contains(t, report, string(config.CodexResolutionCatalogUnknown))
 	assert.Contains(t, report, config.CodexAstraModel+"/"+config.CodexEffortMax)
 	assert.Contains(t, report, config.CodexLunaModel+"/"+config.CodexEffortMax)
-	// Two distinct profiles across the three agents, each reported once.
-	assert.Equal(t, 2, strings.Count(report, "\n"))
+	assert.Contains(t, report, config.CodexSolModel+"/"+config.CodexEffortXHigh)
+	// Three distinct profiles across the four agents, each reported once.
+	assert.Equal(t, 3, strings.Count(report, "\n"))
 }
 
 func TestPrepareAgentFiles_NativeBalancedRefusesCatalogSubstitution(t *testing.T) {

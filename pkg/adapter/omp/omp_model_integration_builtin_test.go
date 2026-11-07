@@ -19,6 +19,7 @@ const (
 	builtinOpusMax    = "anthropic/" + config.ClaudeOpusModel + ":max"
 	builtinSonnet     = "anthropic/" + config.ClaudeSonnetModel + ":medium"
 	builtinSonnetHigh = "anthropic/" + config.ClaudeSonnetModel + ":high"
+	builtinSonnetMax  = "anthropic/" + config.ClaudeSonnetModel + ":max"
 	builtinAstra      = "openai-codex/" + config.CodexAstraModel + ":max"
 	builtinSol        = "openai-codex/" + config.CodexSolModel + ":xhigh"
 	builtinLunaMax    = "openai-codex/" + config.CodexLunaModel + ":max"
@@ -37,28 +38,31 @@ func TestOMPModelIntegration_UltraBuiltinProjectsRepresentativeTiers(t *testing.
 		integration.profile.FamilyDiversity.Roles)
 
 	assertBuiltinSelectors(t, integration.projection, map[string]string{
-		"explorer":         builtinOpus,
-		"reviewer":         builtinAstra,
-		"security-auditor": builtinAstra,
-		"task":             builtinFable,
-		"validator":        builtinOpus,
+		"frontend-specialist": builtinOpus,
+		"qa-explorer":         builtinAstra,
+		"reviewer":            builtinAstra,
+		"task":                builtinFable,
+		"ux-validator":        builtinOpus,
 	})
 }
 
 // The balanced built-in is an explicit matrix: every served agent lands on
-// one exact model at one exact thinking level in the selected family.
+// one exact model at one exact thinking level in the selected family. This
+// catalog lists Opus without `high`, so qa-explorer's analysis rung falls back
+// to the session model and has no projection entry.
 func TestOMPModelIntegration_BalancedBuiltinProjectsTheExplicitMatrix(t *testing.T) {
 	t.Parallel()
 
 	integration := prepareBuiltinIntegration(t, "balanced")
 	assert.False(t, integration.profile.FamilyDiversity.Enabled)
 	assertBuiltinSelectors(t, integration.projection, map[string]string{
-		"explorer":         builtinSonnetHigh,
-		"reviewer":         builtinOpusMax,
-		"security-auditor": builtinOpusMax,
-		"task":             builtinOpusMax,
-		"validator":        builtinSonnetHigh,
+		"frontend-specialist": builtinSonnetMax,
+		"reviewer":            builtinOpusMax,
+		"task":                builtinOpusMax,
+		"ux-validator":        builtinSonnetHigh,
 	})
+	assert.NotContains(t, builtinSelectorsByAgent(integration.projection), "qa-explorer",
+		"the analysis rung the catalog cannot serve runs on the session model")
 }
 
 // A single exact candidate per agent must reach the emitted config as an
@@ -118,9 +122,9 @@ func TestOMPModelIntegration_BalancedBuiltinFollowsSelectedFamily(t *testing.T) 
 	require.Len(t, selectors, len(config.OMPAutopusAgentNames()))
 	assert.Equal(t, builtinAstra, selectors["task"])
 	assert.Equal(t, builtinAstra, selectors["reviewer"])
-	assert.Equal(t, builtinAstra, selectors["security-auditor"])
-	assert.Equal(t, builtinLunaMax, selectors["explorer"])
-	assert.Equal(t, builtinLunaMax, selectors["validator"])
+	assert.Equal(t, builtinSol, selectors["qa-explorer"])
+	assert.Equal(t, builtinLunaMax, selectors["frontend-specialist"])
+	assert.Equal(t, builtinLunaMax, selectors["ux-validator"])
 	for agent, selector := range selectors {
 		assert.True(t, strings.HasPrefix(selector, "openai-codex/"), agent)
 	}
@@ -155,7 +159,7 @@ func TestOMPModelIntegration_EmitsAgentOverridesWithoutRoleAliases(t *testing.T)
 	require.NoError(t, err)
 	rendered := string(activation)
 	assert.Contains(t, rendered, "task:\n  agentModelOverrides:\n")
-	assert.Contains(t, rendered, "security-auditor: "+builtinAstra)
+	assert.Contains(t, rendered, "qa-explorer: "+builtinAstra)
 	assert.Contains(t, rendered, "task: "+builtinFable)
 	assert.NotContains(t, rendered, "modelRoles")
 	assert.NotContains(t, rendered, "autopus_")
@@ -188,8 +192,8 @@ func TestOMPModelIntegration_ReceiptRowsAreKeyedByServedAgent(t *testing.T) {
 	}
 	assert.Equal(t, "anthropic/"+config.ClaudeFableModel, byAgent["task"].Selector)
 	assert.Equal(t, "max", byAgent["task"].Thinking)
-	assert.Equal(t, "anthropic/"+config.ClaudeOpusModel, byAgent["explorer"].Selector)
-	assert.Equal(t, "xhigh", byAgent["explorer"].Thinking)
+	assert.Equal(t, "anthropic/"+config.ClaudeOpusModel, byAgent["frontend-specialist"].Selector)
+	assert.Equal(t, "xhigh", byAgent["frontend-specialist"].Thinking)
 	assert.Equal(t, "satisfied", byAgent["reviewer"].FamilyDiversity.Status)
 	assert.Equal(t, "not_applicable", byAgent["task"].FamilyDiversity.Status)
 }
@@ -242,8 +246,7 @@ func prepareBuiltinIntegrationForFamily(t *testing.T, preset, family string) *om
 	return integration
 }
 
-// assertBuiltinSelectors checks the agents that represented a bundled agent
-// before v0.50.131, each now on its own row.
+// assertBuiltinSelectors checks each served agent's selector on its own row.
 func assertBuiltinSelectors(t *testing.T, projection OMPModelProjection, want map[string]string) {
 	t.Helper()
 	selectors := builtinSelectorsByAgent(projection)

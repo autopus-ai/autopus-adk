@@ -59,13 +59,13 @@ func TestAcceptance_S2_GeminiRuleSetMatchesSource(t *testing.T) {
 	for name := range rules {
 		got = append(got, name)
 	}
-	want := []string{"file-size-limit.md", "language-policy.md", "lore-commit.md"}
+	want := []string{"autonomy.md", "file-size-limit.md", "language-policy.md", "lore-commit.md"}
 	for name := range platformRuleAdditions["gemini"] {
 		want = append(want, name)
 	}
-	// @AX:NOTE: [AUTO] magic constant — 3 equals the total canonical rule count in content/rules/; update this oracle when source rules are added or removed
-	assert.ElementsMatch(t, want, got, "Gemini rule basenames must equal the 3 content/rules sources plus the documented Antigravity additions")
-	assert.Len(t, got, 3+len(platformRuleAdditions["gemini"]))
+	// @AX:NOTE: [AUTO] magic constant — 4 equals the total canonical rule count in content/rules/; update this oracle when source rules are added or removed
+	assert.ElementsMatch(t, want, got, "Gemini rule basenames must equal the 4 content/rules sources plus the documented Antigravity additions")
+	assert.Len(t, got, 4+len(platformRuleAdditions["gemini"]))
 	// Gemini rule exclusion set must be empty.
 	assert.Empty(t, platformRuleExclusions["gemini"])
 }
@@ -98,9 +98,9 @@ func TestAcceptance_S6_ExistingPlatformsBackwardCompatible(t *testing.T) {
 	assert.Empty(t, generatePlatformRules(t, "codex"),
 		"Codex 0.149.1 has no repository markdown-rule surface")
 
-	// Claude and OpenCode carry the native 3-rule set.
-	assert.Len(t, generatePlatformRules(t, "claude"), 3, "claude generates exactly 3 rules")
-	assert.Len(t, generatePlatformRules(t, "opencode"), 3, "opencode generates exactly 3 rules")
+	// Claude and OpenCode carry the native 4-rule set.
+	assert.Len(t, generatePlatformRules(t, "claude"), 4, "claude generates exactly 4 rules")
+	assert.Len(t, generatePlatformRules(t, "opencode"), 4, "opencode generates exactly 4 rules")
 }
 
 // S9: 파리티 게이트가 omp를 포함한다 (Must, REQ-012).
@@ -124,14 +124,14 @@ func TestAcceptance_S9_ParityGateCoversOMP(t *testing.T) {
 	assert.Empty(t, platformRuleExclusions["omp"], "omp rule exclusion set must be empty")
 	assert.Empty(t, platformSkillExclusions["omp"], "omp skill exclusion set must be empty")
 
-	// omp covers the full 14-rule source set, and the four incumbents keep the
+	// omp covers the full 4-rule source set, and the four incumbents keep the
 	// counts they reported before omp joined the gate, so the addition is
 	// provably non-regressive.
 	ompRules := generatePlatformRules(t, "omp")
-	assert.Len(t, ompRules, 3, "omp generates exactly 3 rules")
+	assert.Len(t, ompRules, 4, "omp generates exactly 4 rules")
 	for _, platform := range []string{"claude", "gemini", "opencode"} {
-		assert.Len(t, generatePlatformRules(t, platform), 3+len(platformRuleAdditions[platform]),
-			"%s still generates exactly the 3 source rules (plus its documented additions) after omp joins the gate", platform)
+		assert.Len(t, generatePlatformRules(t, platform), 4+len(platformRuleAdditions[platform]),
+			"%s still generates exactly the 4 source rules (plus its documented additions) after omp joins the gate", platform)
 	}
 	assert.Empty(t, generatePlatformRules(t, "codex"),
 		"Codex 0.149.1 carries policy through native skills and AGENTS.md")

@@ -12,17 +12,18 @@ func cfgDefault(platforms ...string) *config.HarnessConfig {
 	return &config.HarnessConfig{Platforms: platforms}
 }
 
-// TestCompactDefault_CoreSurfaceIsTheDeclaredEight pins the default advertised
-// reusable-skill surface: the verification harness's eight skills. Growing it
+// TestCompactDefault_CoreSurfaceIsTheDeclaredNine pins the default advertised
+// reusable-skill surface: the verification harness's nine skills. Growing it
 // is a product decision, not a side effect of adding a skill file or renaming
 // a category.
-func TestCompactDefault_CoreSurfaceIsTheDeclaredEight(t *testing.T) {
+func TestCompactDefault_CoreSurfaceIsTheDeclaredNine(t *testing.T) {
 	want := []string{
 		"browser-automation",
 		"frontend-verify",
 		"lore-commit",
 		"playwright-cli",
 		"qa-autopilot",
+		"qa-hunt",
 		"review",
 		"testing-strategy",
 		"verification",

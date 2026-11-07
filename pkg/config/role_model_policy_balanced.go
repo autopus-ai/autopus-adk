@@ -13,8 +13,9 @@ const (
 	balancedRungTop balancedRoleRung = iota
 	balancedRungImplementation
 	balancedRungRoutine
-	// balancedRungAnalysis is reverse-engineer's own rung (SPEC-REA-001): the
-	// opus tier, at the exact model and thinking the native ladders give opus.
+	// balancedRungAnalysis is the rung of reverse-engineer (SPEC-REA-001) and
+	// qa-explorer: the opus tier, at the exact model and thinking the native
+	// ladders give opus.
 	balancedRungAnalysis
 )
 
@@ -41,6 +42,7 @@ var balancedRungByAgent = map[string]balancedRoleRung{
 	"ux-validator": balancedRungRoutine,
 	"validator":    balancedRungRoutine,
 
+	"qa-explorer":      balancedRungAnalysis,
 	"reverse-engineer": balancedRungAnalysis,
 }
 

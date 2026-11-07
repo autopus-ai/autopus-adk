@@ -26,7 +26,7 @@ func OMPNativeAgentForRole(role string) (string, error) {
 		return "security-reviewer", nil
 	case "sonic":
 		return "sonic", nil
-	case "task", "annotator", "architect", "debugger", "deep-worker", "devops", "executor", "frontend-specialist", "perf-engineer", "planner", "reverse-engineer", "spec-writer", "tester", "ux-validator", "validator":
+	case "task", "annotator", "architect", "debugger", "deep-worker", "devops", "executor", "frontend-specialist", "perf-engineer", "planner", "qa-explorer", "reverse-engineer", "spec-writer", "tester", "ux-validator", "validator":
 		return "task", nil
 	default:
 		return "", fmt.Errorf("unknown OMP workflow role %q", role)

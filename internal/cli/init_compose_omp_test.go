@@ -24,9 +24,9 @@ import (
 
 // composeInitS21 answers S21 in init on the autopus OMP tab, which asks no
 // profile or family (SPEC-MODELUX-003 T11): 구성 편집, OMP, 에이전트별,
-// planner, openai-codex/gpt-6-astra, max, 완료, 적용, 유지. Init's menu has
+// reviewer, openai-codex/gpt-6-astra, max, 완료, 적용, 유지. Init's menu has
 // no default preset choice.
-var composeInitS21 = []string{"2\n", "4\n", "2\n", "2\n", "5\n", "2\n", "\n", "2\n", "\n"}
+var composeInitS21 = []string{"2\n", "4\n", "2\n", "3\n", "6\n", "2\n", "\n", "2\n", "\n"}
 
 // composeInitS21Plan is composeInitS21 up to its plan, without 적용 and 유지.
 var composeInitS21Plan = composeInitS21[:len(composeInitS21)-2]
@@ -65,15 +65,15 @@ func TestInitComposeOMP_PinIsSavedAndGeneratedByInit(t *testing.T) {
 	assert.Contains(t, out, "어느 도구를 바꿀까요? \n1. 모든 도구 같게\n2. Claude Code\n3. Codex\n4. OMP\n")
 	assert.NotContains(t, out, composeFormTextKO.InitOMPUnavailable)
 	assert.Contains(t, out, "OMP pins-only — model preview (no changes yet)\n")
-	assert.Regexp(t, `(?m)^planner\*\s+openai-codex/gpt-6-astra\s+max$`, out)
+	assert.Regexp(t, `(?m)^reviewer\*\s+openai-codex/gpt-6-astra\s+max$`, out)
 	assert.NotContains(t, out, composeFormTextKO.OMPRewrite)
 	assert.Contains(t, out, composeFormTextKO.InitOMPApplied+"\n")
 	policy := rawRoleModelPolicyOf(t, readBlockFixture(t, dir))
 	assert.Empty(t, policy.Profile)
 	assert.Empty(t, policy.Family)
 	require.Len(t, policy.Agents, 1)
-	require.Len(t, policy.Agents["planner"].Candidates, 1)
-	candidate := policy.Agents["planner"].Candidates[0]
+	require.Len(t, policy.Agents["reviewer"].Candidates, 1)
+	candidate := policy.Agents["reviewer"].Candidates[0]
 	assert.Equal(t, []string{"openai-codex/gpt-6-astra", "max", "openai"},
 		[]string{candidate.Selector, candidate.Thinking, candidate.Family})
 	assert.Zero(t, activations.calls)
@@ -84,7 +84,7 @@ func TestInitComposeOMP_PinIsSavedAndGeneratedByInit(t *testing.T) {
 		Value map[string]string `json:"value"`
 	}
 	require.NoError(t, json.Unmarshal(body, &readback))
-	assert.Equal(t, "openai-codex/gpt-6-astra:max", readback.Value["task"], "task follows the planner pin")
+	assert.Equal(t, "openai-codex/gpt-6-astra:max", readback.Value["reviewer"], "the reviewer pin reaches the overlay")
 	assert.FileExists(t, filepath.Join(dir, ".claude", "agents", "autopus", "reviewer.md"))
 	assert.FileExists(t, filepath.Join(dir, ".codex", "agents", "reviewer.toml"))
 }
@@ -100,7 +100,7 @@ func TestInitComposeOMP_BlockerRefusesAndInitContinues(t *testing.T) {
 
 	require.NoError(t, err, out)
 	assert.Contains(t, out, "omp_profile_candidate_unavailable")
-	assert.Contains(t, out, "agent=planner")
+	assert.Contains(t, out, "agent=reviewer")
 	assert.NotContains(t, out, "적용할까요?")
 	assert.NotContains(t, readBlockFixture(t, dir), "role_model_policy")
 }
@@ -219,7 +219,7 @@ func TestInitComposeOMP_UnreadableCatalogHintsAndInitContinues(t *testing.T) {
 		assert.Equal(t, 1, strings.Count(out, composeFormTextKO.InitOMPUnavailable+"\n"), out)
 		policy := rawRoleModelPolicyOf(t, readBlockFixture(t, dir))
 		assert.Empty(t, policy.Profile)
-		assert.Equal(t, "openai-codex/gpt-6-astra", policy.Agents["planner"].Candidates[0].Selector)
+		assert.Equal(t, "openai-codex/gpt-6-astra", policy.Agents["reviewer"].Candidates[0].Selector)
 	})
 }
 

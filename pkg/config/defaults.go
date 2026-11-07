@@ -142,13 +142,14 @@ func DefaultFullConfig(projectName string) *HarnessConfig {
 			SupervisorModelPolicy: SupervisorModelPolicyInherit,
 			Presets: map[string]QualityPreset{
 				"ultra": {
-					Description: "리뷰는 Fable, UX 검증은 Opus. 최고 품질.",
+					Description: "리뷰와 QA 탐색은 Fable, UX 검증은 Opus. 최고 품질.",
 					Agents: map[string]string{
-						"reviewer": "fable", "frontend-specialist": "opus", "ux-validator": "opus",
+						"reviewer": "fable", "qa-explorer": "fable",
+						"frontend-specialist": "opus", "ux-validator": "opus",
 					},
 				},
 				"balanced": {
-					Description: "리뷰는 최상위, UX 검증은 경량 모델.",
+					Description: "리뷰는 최상위, QA 탐색은 Opus, UX 검증은 경량 모델.",
 					Agents:      defaultBalancedAgentTiers(),
 				},
 			},

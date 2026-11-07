@@ -5,40 +5,35 @@ import (
 	"github.com/insajin/autopus-adk/pkg/config"
 )
 
-// dropOMPReaAnalysisFallbackRoutes removes reverse-engineer's route when the
-// catalog cannot serve the built-in balanced analysis rung
+// dropOMPReaAnalysisFallbackRoutes removes each analysis-rung agent's route
+// when the catalog cannot serve the built-in balanced analysis rung
 // (config.OMPReaAnalysisFallback, SPEC-REA-001 Gate 1). Without a route the
 // agent gets no task.agentModelOverrides key and no projection entry, so OMP
 // runs it on the session model and its definition keeps its own thinking
 // level. Every other route is left for the existing fail-closed checks. The
-// selectors given up are returned for the notice.
+// structured fallback fact of each route given up is returned for the notice,
+// which the CLI prints in the run's language.
 func dropOMPReaAnalysisFallbackRoutes(
 	profile config.RoleModelProfileConf,
 	catalog OMPModelCatalog,
 	routes map[string]OMPModelRouteRequest,
-) []string {
-	request, ok := routes[config.ReverseEngineerAgent]
-	if !ok || len(request.Candidates) != 1 {
-		return nil
-	}
-	_, reason := matchOMPModelCandidate(catalog.Models, request.Capability, request.Candidates[0])
-	if !config.OMPReaAnalysisFallback(profile, config.ReverseEngineerAgent, reason) {
-		return nil
-	}
-	delete(routes, config.ReverseEngineerAgent)
-	return []string{request.Candidates[0].Selector}
-}
-
-// ompReaFallbackFacts is the structured fallback fact of each selector the
-// analysis rung gave up; the CLI prints them in the run's language.
-func ompReaFallbackFacts(selectors []string) []adapter.ReaFallback {
-	facts := make([]adapter.ReaFallback, 0, len(selectors))
-	for _, selector := range selectors {
-		facts = append(facts, adapter.ReaFallback{
-			Catalog: "OMP", Agent: config.ReverseEngineerAgent, Requested: selector,
+) []adapter.ReaFallback {
+	var dropped []adapter.ReaFallback
+	for _, agent := range config.AnalysisRungAgents() {
+		request, ok := routes[agent]
+		if !ok || len(request.Candidates) != 1 {
+			continue
+		}
+		_, reason := matchOMPModelCandidate(catalog.Models, request.Capability, request.Candidates[0])
+		if !config.OMPReaAnalysisFallback(profile, agent, reason) {
+			continue
+		}
+		delete(routes, agent)
+		dropped = append(dropped, adapter.ReaFallback{
+			Catalog: "OMP", Agent: agent, Requested: request.Candidates[0].Selector,
 		})
 	}
-	return facts
+	return dropped
 }
 
 // OMPReaSessionModelStatus is the routing status of the route generation

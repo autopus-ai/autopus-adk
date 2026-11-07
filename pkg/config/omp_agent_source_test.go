@@ -99,14 +99,14 @@ func TestRoleModelPolicy_AgentSourceAloneIsNotAConfiguredPolicy(t *testing.T) {
 	assert.NoError(t, cfg.RoleModelPolicy.Validate())
 }
 
-// The Autopus set is the 3 canonical agents in canonical order followed by
+// The Autopus set is the 4 canonical agents in canonical order followed by
 // task, OMP's default for a dispatch that names no agent.
 func TestOMPAutopusAgentNames_AreTheCanonicalAgentsAndTask(t *testing.T) {
 	t.Parallel()
 	autopus := OMPAutopusAgentNames()
-	require.Len(t, autopus, 4)
-	assert.Equal(t, []string{"frontend-specialist", "reviewer", "ux-validator"}, autopus[:3])
-	assert.Equal(t, "task", autopus[3])
+	require.Len(t, autopus, 5)
+	assert.Equal(t, []string{"frontend-specialist", "qa-explorer", "reviewer", "ux-validator"}, autopus[:4])
+	assert.Equal(t, "task", autopus[4])
 	// Every bundled agent but task, across the omp releases ADK supports:
 	// 18.12.3 bundles scout, security-reviewer, sonic, and seance; 17.2.7
 	// also designer and librarian. A name the installed omp does not bundle

@@ -69,9 +69,9 @@ func ompReviewerGolden(t *testing.T) any {
 	return golden
 }
 
-// S7 (O3): the default source writes the 17 canonical agents, records each in
+// S7 (O3): the default source writes the 4 canonical agents, records each in
 // the manifest, and regenerates them byte for byte.
-func TestOMPGenerate_WritesTheSeventeenAutopusAgents(t *testing.T) {
+func TestOMPGenerate_WritesTheFourAutopusAgents(t *testing.T) {
 	root := t.TempDir()
 	cfg := configForOMP()
 	require.NoError(t, config.Save(root, cfg))
@@ -79,21 +79,21 @@ func TestOMPGenerate_WritesTheSeventeenAutopusAgents(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, config.CanonicalAgentNames(), ompAgentDirNames(t, root))
-	assert.Equal(t, 17, countPathsWithPrefix(manifestPaths(t, root), ".omp/agents/"))
+	assert.Equal(t, 4, countPathsWithPrefix(manifestPaths(t, root), ".omp/agents/"))
 
-	planner := readOMPAgentFrontmatter(t, root, "planner")
-	assert.Equal(t, "planner", planner["name"])
-	assert.Equal(t, "기능 기획 및 요구사항 분석 전문 에이전트. 사용자 요청을 명확한 요구사항과 구현 계획으로 변환한다.",
-		planner["description"])
-	assert.Equal(t, "max", planner["thinkingLevel"])
+	explorer := readOMPAgentFrontmatter(t, root, "qa-explorer")
+	assert.Equal(t, "qa-explorer", explorer["name"])
+	assert.Equal(t, "만든 것을 실제로 실행·조작하며 버그를 찾는 탐색형 QA 에이전트. 재현 스크립트로 확인된 버그만 보고하고 제품 코드는 고치지 않는다.",
+		explorer["description"])
+	assert.Equal(t, "high", explorer["thinkingLevel"])
 	assert.Equal(t, []any{
-		"bash", "glob", "grep", "mcp__sequential-thinking__sequentialthinking", "read", "web_search",
-	}, planner["tools"])
-	assert.NotContains(t, planner, "model")
+		"bash", "browser", "eval", "glob", "grep", "inspect_image", "read", "write",
+	}, explorer["tools"])
+	assert.NotContains(t, explorer, "model")
 
-	executor := readOMPAgentFrontmatter(t, root, "executor")
-	assert.Equal(t, "medium", executor["thinkingLevel"])
-	assert.Contains(t, executor["tools"], "lsp")
+	frontend := readOMPAgentFrontmatter(t, root, "frontend-specialist")
+	assert.Equal(t, "medium", frontend["thinkingLevel"])
+	assert.Contains(t, frontend["tools"], "lsp")
 
 	reviewer := readOMPAgentFrontmatter(t, root, "reviewer")
 	assert.Equal(t, "high", reviewer["thinkingLevel"])
@@ -112,17 +112,17 @@ func TestOMPGenerate_WritesTheSeventeenAutopusAgents(t *testing.T) {
 // the agents the generation does not route declare one.
 func TestPrepareOMPAgentMappings_DeclareThinkingOnlyForUnroutedAgents(t *testing.T) {
 	t.Parallel()
-	mappings, err := prepareOMPAgentMappings(map[string]bool{"planner": true, "reviewer": true})
+	mappings, err := prepareOMPAgentMappings(map[string]bool{"qa-explorer": true, "reviewer": true})
 	require.NoError(t, err)
-	require.Len(t, mappings, 17)
+	require.Len(t, mappings, 4)
 	byAgent := map[string]string{}
 	for _, mapping := range mappings {
 		byAgent[strings.TrimSuffix(filepath.Base(mapping.TargetPath), ".md")] = string(mapping.Content)
 	}
-	assert.NotContains(t, byAgent["planner"], "thinkingLevel")
+	assert.NotContains(t, byAgent["qa-explorer"], "thinkingLevel")
 	assert.NotContains(t, byAgent["reviewer"], "thinkingLevel")
-	assert.Contains(t, byAgent["architect"], "\nthinkingLevel: max\n")
-	assert.Contains(t, byAgent["executor"], "\nthinkingLevel: medium\n")
+	assert.Contains(t, byAgent["frontend-specialist"], "\nthinkingLevel: medium\n")
+	assert.Contains(t, byAgent["ux-validator"], "\nthinkingLevel: medium\n")
 }
 
 // S8 (UF): a same-name definition the manifest does not record belongs to the
@@ -148,9 +148,9 @@ func TestOMPGenerateAndUpdate_LeaveAnUnrecordedAgentFileUntouched(t *testing.T) 
 		require.NoError(t, readErr)
 		assert.Equal(t, user, data, operation)
 		paths := manifestPaths(t, root)
-		assert.Equal(t, 16, countPathsWithPrefix(paths, ".omp/agents/"), operation)
+		assert.Equal(t, 3, countPathsWithPrefix(paths, ".omp/agents/"), operation)
 		assert.NotContains(t, paths, ".omp/agents/reviewer.md", operation)
-		assert.Len(t, ompAgentDirNames(t, root), 17, operation)
+		assert.Len(t, ompAgentDirNames(t, root), 4, operation)
 	}
 }
 
@@ -162,7 +162,7 @@ func TestOMPUpdate_BacksUpAnEditedGeneratedAgent(t *testing.T) {
 	require.NoError(t, config.Save(root, cfg))
 	_, err := NewWithRoot(root).Generate(context.Background(), cfg)
 	require.NoError(t, err)
-	path := filepath.Join(root, ".omp", "agents", "executor.md")
+	path := filepath.Join(root, ".omp", "agents", "ux-validator.md")
 	generated, err := os.ReadFile(path)
 	require.NoError(t, err)
 	edited := append(append([]byte(nil), generated...), []byte("USER LINE\n")...)
@@ -174,7 +174,7 @@ func TestOMPUpdate_BacksUpAnEditedGeneratedAgent(t *testing.T) {
 	current, err := os.ReadFile(path)
 	require.NoError(t, err)
 	assert.Equal(t, generated, current)
-	backups, err := filepath.Glob(filepath.Join(root, ".autopus", "backup", "*", "transaction", "omp", ".omp", "agents", "executor.md"))
+	backups, err := filepath.Glob(filepath.Join(root, ".autopus", "backup", "*", "transaction", "omp", ".omp", "agents", "ux-validator.md"))
 	require.NoError(t, err)
 	require.Len(t, backups, 1)
 	backup, err := os.ReadFile(backups[0])

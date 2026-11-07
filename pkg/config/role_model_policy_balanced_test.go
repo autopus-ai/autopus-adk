@@ -22,6 +22,7 @@ func balancedAnthropicRoutes() map[string]RoleModelCandidateConf {
 		"tester":    implementation,
 		"annotator": routine, "explorer": routine, "ux-validator": routine,
 		"validator": routine, "reverse-engineer": analysis,
+		"qa-explorer": analysis,
 	}
 }
 
@@ -37,6 +38,7 @@ func balancedOpenAIRoutes() map[string]RoleModelCandidateConf {
 		"perf-engineer": worker, "tester": worker,
 		"annotator": worker, "explorer": worker, "ux-validator": worker,
 		"validator": worker, "reverse-engineer": analysis,
+		"qa-explorer": analysis,
 	}
 }
 

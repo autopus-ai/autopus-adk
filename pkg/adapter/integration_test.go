@@ -52,8 +52,8 @@ func TestE2EInitCodex(t *testing.T) {
 	// Repository-scoped custom prompts were removed from current Codex.
 	assertNoFileExists(t, filepath.Join(dir, ".codex", "prompts"))
 
-	// .codex/agents/ directory must exist with the 3 TOML agents (SPEC-PARITY-001: all agents).
-	assertDirHasNFiles(t, filepath.Join(dir, ".codex", "agents"), 3)
+	// .codex/agents/ directory must exist with the 4 TOML agents (SPEC-PARITY-001: all agents).
+	assertDirHasNFiles(t, filepath.Join(dir, ".codex", "agents"), 4)
 
 	// .codex/hooks.json must exist.
 	assertFileExists(t, filepath.Join(dir, ".codex", "hooks.json"))
@@ -211,7 +211,7 @@ func TestE2ECodex_FileCount(t *testing.T) {
 
 	assert.GreaterOrEqual(t, skills, 6, "should have native skill directories")
 	assert.Zero(t, prompts, "current Codex must not generate repository custom prompts")
-	assert.Equal(t, 3, agents, "should have 3 agent files (SPEC-PARITY-001)")
+	assert.Equal(t, 4, agents, "should have 4 agent files (SPEC-PARITY-001)")
 	assert.GreaterOrEqual(t, other, 3, "should have AGENTS.md + hooks.json + .codex/config.toml")
 }
 

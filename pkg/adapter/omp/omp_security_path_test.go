@@ -25,7 +25,7 @@ func TestOMPClean_DoesNotFollowSymlinkedManifestPath(t *testing.T) {
 	secret := filepath.Join(dir, "outside-secret.txt")
 	require.NoError(t, os.WriteFile(secret, []byte("SUPER-SECRET-VALUE\n"), 0o600))
 
-	victim := filepath.Join(dir, ompRuleDir, ompRuleFilePrefix+"branding.md")
+	victim := filepath.Join(dir, ompRuleDir, ompRuleFilePrefix+"file-size-limit.md")
 	require.NoError(t, os.Remove(victim))
 	require.NoError(t, os.Symlink(secret, victim))
 
@@ -37,7 +37,7 @@ func TestOMPClean_DoesNotFollowSymlinkedManifestPath(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "SUPER-SECRET-VALUE\n", string(data))
 
-	assert.NotContains(t, strings.Join(backupPaths(t, dir), "\n"), "branding.md",
+	assert.NotContains(t, strings.Join(backupPaths(t, dir), "\n"), "file-size-limit.md",
 		"a symlinked manifest path must not be copied into the backup directory")
 	assert.FileExists(t, filepath.Join(dir, ".omp", "commands", "auto.md"), "preflight failure must precede every mutation")
 }
@@ -54,11 +54,11 @@ func TestOMPWriteMapping_RejectsSymlinkedTarget(t *testing.T) {
 
 	linkDir := filepath.Join(root, ompRuleDir)
 	require.NoError(t, os.MkdirAll(linkDir, 0o755))
-	link := filepath.Join(linkDir, ompRuleFilePrefix+"branding.md")
+	link := filepath.Join(linkDir, ompRuleFilePrefix+"file-size-limit.md")
 	require.NoError(t, os.Symlink(outside, link))
 
 	err := writeMapping(root, adapter.FileMapping{
-		TargetPath:      filepath.Join(ompRuleDir, ompRuleFilePrefix+"branding.md"),
+		TargetPath:      filepath.Join(ompRuleDir, ompRuleFilePrefix+"file-size-limit.md"),
 		OverwritePolicy: adapter.OverwriteAlways,
 		Content:         []byte("managed body\n"),
 	})
@@ -107,7 +107,7 @@ func TestOMPClean_DoesNotDeleteThroughParentDirectorySymlink(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "OUTSIDE-WORKSPACE\n", string(data))
 	assert.DirExists(t, outside, "the linked-to directory must survive too")
-	assert.FileExists(t, filepath.Join(dir, ompRuleDir, ompRuleFilePrefix+"branding.md"),
+	assert.FileExists(t, filepath.Join(dir, ompRuleDir, ompRuleFilePrefix+"file-size-limit.md"),
 		"preflight failure must precede every mutation")
 }
 
@@ -121,7 +121,7 @@ func TestOMPClean_SkipsSymlinkedEntryWithoutUnlinking(t *testing.T) {
 	target := filepath.Join(outside, "secret.md")
 	require.NoError(t, os.WriteFile(target, []byte("secret\n"), 0o600))
 
-	link := filepath.Join(dir, ompRuleDir, ompRuleFilePrefix+"branding.md")
+	link := filepath.Join(dir, ompRuleDir, ompRuleFilePrefix+"file-size-limit.md")
 	require.NoError(t, os.Remove(link))
 	require.NoError(t, os.Symlink(target, link))
 
@@ -232,7 +232,7 @@ func TestOMPClean_SkipsWorkspaceInternalParentSymlink(t *testing.T) {
 
 	// Make one entry checksum-mismatched so the old code would have wanted a
 	// backup, then skipped it and deleted anyway.
-	victim := filepath.Join(realDir, ompRuleFilePrefix+"branding.md")
+	victim := filepath.Join(realDir, ompRuleFilePrefix+"file-size-limit.md")
 	require.NoError(t, os.WriteFile(victim, []byte("USER EDITED CONTENT\n"), 0o644))
 
 	require.Error(t, NewWithRoot(dir).Clean(context.Background()))

@@ -26,7 +26,8 @@ Change the composition? takes:
            Design·Judgment: planner, architect, spec-writer, security-auditor
            Implementation: executor, debugger, deep-worker, devops,
              frontend-specialist, perf-engineer
-           Verification·Review: reviewer, validator, tester, ux-validator
+           Verification·Review: reviewer, qa-explorer, validator, tester,
+             ux-validator
            Exploration·Support: explorer, annotator, reverse-engineer
   a      advanced: one agent=tier line per agent, an empty line finishes
   t      per-tool settings; global, claude-code, codex, and omp work too

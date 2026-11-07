@@ -26,6 +26,7 @@ var ompAgentNativeTools = map[string][]string{
 	"debugger":            {"lsp"},
 	"executor":            {"lsp"},
 	"frontend-specialist": {"browser", "eval", "inspect_image", "lsp"},
+	"qa-explorer":         {"browser", "eval", "inspect_image"},
 	"reviewer":            {"lsp"},
 	"ux-validator":        {"browser", "eval", "inspect_image"},
 	"validator":           {"lsp"},

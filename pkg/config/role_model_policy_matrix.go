@@ -47,6 +47,7 @@ var capabilityBySourceAgent = map[string]string{
 	"frontend-specialist": CapabilityVisionDesign,
 	"perf-engineer":       CapabilityCodingToolUse,
 	"planner":             CapabilityDeepReasoning,
+	"qa-explorer":         CapabilityIndependentDissent,
 	"reverse-engineer":    CapabilityDeepReasoning,
 	"reviewer":            CapabilityIndependentDissent,
 	"security-auditor":    CapabilityIndependentDissent,

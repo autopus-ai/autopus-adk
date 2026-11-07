@@ -61,7 +61,7 @@ func TestDefaultFullConfig_QualityPresets(t *testing.T) {
 	}
 
 	assert.Equal(t, map[string]string{
-		"reviewer": "opus", "frontend-specialist": "sonnet", "ux-validator": "sonnet",
+		"reviewer": "opus", "qa-explorer": "opus", "frontend-specialist": "sonnet", "ux-validator": "sonnet",
 	}, balanced.Agents)
 }
 
@@ -78,8 +78,9 @@ func TestDefaultFullConfig_QualityUltraUsesFableAndOpus(t *testing.T) {
 	for _, tier := range ultra.Agents {
 		counts[tier]++
 	}
-	assert.Equal(t, map[string]int{"fable": 1, "opus": 2}, counts)
+	assert.Equal(t, map[string]int{"fable": 2, "opus": 2}, counts)
 	assert.Equal(t, "fable", ultra.Agents["reviewer"])
+	assert.Equal(t, "fable", ultra.Agents["qa-explorer"])
 	// The roles the binary still dispatches keep the ultra Fable core.
 	q := cfg.Quality
 	q.Default = "ultra"

@@ -100,4 +100,5 @@ During review, verify:
 @.agents/plugins/autopus/rules/lore-commit.md
 @.agents/plugins/autopus/rules/file-size-limit.md
 @.agents/plugins/autopus/rules/language-policy.md
+@.agents/plugins/autopus/rules/autonomy.md
 `

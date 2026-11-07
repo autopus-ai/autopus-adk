@@ -26,6 +26,7 @@ const (
 // baselineRuleFiles is the exact S3 baseline set that stays in context at
 // session start after both relocations.
 var baselineRuleFiles = []string{
+	"autonomy.md",
 	"file-size-limit.md",
 	"language-policy.md",
 }

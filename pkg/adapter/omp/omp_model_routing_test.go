@@ -239,13 +239,13 @@ func TestCompileOMPModelRouting_WithMapInsertionVariance_ReturnsStableOrderAndDi
 	t.Parallel()
 	catalog := routingCatalogC1(t)
 	base := map[string]OMPModelRouteRequest{
-		"reviewer":  {Agent: "reviewer", Role: "autopus_reviewer", Capability: "independent_dissent", Required: true, PreferDistinctExecutorFamily: true, Candidates: []OMPRoutingCandidate{{Selector: "openai/beta-coder", Thinking: "high"}, {Selector: "anthropic/alpha-reasoner", Thinking: "high"}}},
-		"executor":  {Agent: "executor", Role: "autopus_executor", Capability: "coding_tool_use", Required: true, Candidates: []OMPRoutingCandidate{{Selector: "openai/beta-coder", Thinking: "high"}}},
-		"validator": {Agent: "validator", Role: "autopus_validator", Capability: "deterministic_transform", Required: true, Candidates: []OMPRoutingCandidate{{Selector: "openai/beta-coder", Thinking: "high"}}},
+		"reviewer":     {Agent: "reviewer", Role: "autopus_reviewer", Capability: "independent_dissent", Required: true, PreferDistinctExecutorFamily: true, Candidates: []OMPRoutingCandidate{{Selector: "openai/beta-coder", Thinking: "high"}, {Selector: "anthropic/alpha-reasoner", Thinking: "high"}}},
+		"task":         {Agent: "task", Role: "autopus_planner", Capability: "deep_reasoning", Required: true, Candidates: []OMPRoutingCandidate{{Selector: "openai/beta-coder", Thinking: "high"}}},
+		"ux-validator": {Agent: "ux-validator", Role: "autopus_ux_validator", Capability: "vision_design", Required: true, Candidates: []OMPRoutingCandidate{{Selector: "google/gamma-vision", Thinking: "high"}}},
 	}
 	var wantDigest string
 	for iteration := 0; iteration < 100; iteration++ {
-		keys := []string{"reviewer", "executor", "validator"}
+		keys := []string{"reviewer", "task", "ux-validator"}
 		rand.New(rand.NewPCG(uint64(iteration), 0)).Shuffle(len(keys), func(i, j int) { keys[i], keys[j] = keys[j], keys[i] }) // #nosec G404 -- deterministic test permutation only.
 		routes := make(map[string]OMPModelRouteRequest, len(keys))
 		for _, key := range keys {
@@ -254,10 +254,10 @@ func TestCompileOMPModelRouting_WithMapInsertionVariance_ReturnsStableOrderAndDi
 		got := CompileOMPModelRouting(OMPModelRoutingInput{Catalog: catalog, CatalogReason: "catalog_ready", Routes: routes})
 		// Served agent order, independent of which ADK role supplied the
 		// candidates and independent of map insertion order.
-		require.Equal(t, []string{"executor", "reviewer", "validator"}, []string{
+		require.Equal(t, []string{"reviewer", "ux-validator", "task"}, []string{
 			got.Resolutions[0].RouteID, got.Resolutions[1].RouteID, got.Resolutions[2].RouteID,
 		})
-		require.Equal(t, "anthropic", got.Resolutions[1].FamilyDiversity.Reviewer)
+		require.Equal(t, "anthropic", got.Resolutions[0].FamilyDiversity.Reviewer)
 		if iteration == 0 {
 			wantDigest = got.ResolutionDigest
 		}

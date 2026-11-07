@@ -30,8 +30,9 @@ func TestLoad_SeventeenAgentConfigFromV050134StillLoads(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, BuiltinQualityPresetStatus{
 		Class: BuiltinQualityPresetHistorical, Row: "HB8", RuntimeStandard: true,
-		// The three generated agents keep the tiers HB8 gave them.
-		Differs: 0,
+		// The three generated agents HB8 named keep its tiers; qa-explorer,
+		// which HB8 predates, is the one absent agent.
+		Differs: 1,
 	}, balanced)
 	ultra, ok := ClassifyBuiltinQualityPreset(loaded.Quality, "ultra")
 	require.True(t, ok)
@@ -51,17 +52,17 @@ func TestLoad_LegacyAgentEffortStillValidatesItsValue(t *testing.T) {
 	assert.Contains(t, err.Error(), `quality.presets.claude-custom.efforts.executor: effort_invalid "hihg"`)
 }
 
-// The current defaults name exactly the three generated agents.
+// The current defaults name exactly the four generated agents.
 func TestDefaultFullConfig_PresetsNameOnlyTheGeneratedAgents(t *testing.T) {
 	t.Parallel()
 	presets := DefaultFullConfig("p").Quality.Presets
 	assert.Equal(t, map[string]string{
-		"reviewer": "opus", "frontend-specialist": "sonnet", "ux-validator": "sonnet",
+		"reviewer": "opus", "qa-explorer": "opus", "frontend-specialist": "sonnet", "ux-validator": "sonnet",
 	}, presets["balanced"].Agents)
 	assert.Equal(t, map[string]string{
-		"reviewer": "fable", "frontend-specialist": "opus", "ux-validator": "opus",
+		"reviewer": "fable", "qa-explorer": "fable", "frontend-specialist": "opus", "ux-validator": "opus",
 	}, presets["ultra"].Agents)
-	assert.Equal(t, []string{"frontend-specialist", "reviewer", "ux-validator"}, CanonicalAgentNames())
+	assert.Equal(t, []string{"frontend-specialist", "qa-explorer", "reviewer", "ux-validator"}, CanonicalAgentNames())
 }
 
 // The roles the binary still dispatches keep their v0.50.134 tier under a

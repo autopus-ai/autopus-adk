@@ -31,6 +31,19 @@ type ompRoutingWorkItem struct {
 // a dissent route asking for a distinct family is asking to differ from it.
 const ompRoutingExecutorFamilyAnchor = "executor"
 
+// ompRoutingFamilyAnchor names the anchor among routes: executor when a route
+// serves it, otherwise task. The verification harness generates no executor,
+// so the bundled task agent, which runs every dispatch that names no agent,
+// carries the implementation work.
+func ompRoutingFamilyAnchor(items []ompRoutingWorkItem) string {
+	for _, item := range items {
+		if item.request.Agent == ompRoutingExecutorFamilyAnchor || item.routeID == ompRoutingExecutorFamilyAnchor {
+			return ompRoutingExecutorFamilyAnchor
+		}
+	}
+	return config.OMPAutopusDefaultAgent
+}
+
 // CompileOMPModelRouting returns the served agent order independent of map
 // order.
 // @AX:ANCHOR [AUTO] @AX:SPEC: SPEC-OMP-004: canonical routing compilation has three production callers.
@@ -41,7 +54,7 @@ func CompileOMPModelRouting(input OMPModelRoutingInput) OMPModelRoutingCompilati
 	resolutions := make([]OMPModelRouteResolution, 0, len(items))
 	executorFamily := input.ExecutorFamily
 	preResolved := make(map[string]OMPModelRouteResolution, 1)
-	anchor := ompRoutingExecutorFamilyAnchor
+	anchor := ompRoutingFamilyAnchor(items)
 
 	if executorFamily == "" {
 		for _, item := range items {
