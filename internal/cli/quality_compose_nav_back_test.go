@@ -112,15 +112,15 @@ func TestComposeNavBack_S11ToolTabMethodAndPreset(t *testing.T) {
 // same answers without Esc apply.
 func TestComposeNavBack_S12ConfirmationEscKeepsEditing(t *testing.T) {
 	newTUIUXEnv(t, true, "")
-	head := tuiuxLines([]string{"2\n", "2\n", "1\n", "2\n"}, tuiuxEnters(7))
-	out, npd, dir := tuiuxQualityD(t, tuiuxLines(head, []string{"b\n", "1\n"}, tuiuxEnters(8), []string{"2\n", "\n"})...)
+	head := tuiuxLines([]string{"2\n", "2\n", "1\n", "2\n"}, tuiuxEnters(3))
+	out, npd, dir := tuiuxQualityD(t, tuiuxLines(head, []string{"b\n", "1\n"}, tuiuxEnters(4), []string{"2\n", "\n"})...)
 	_, control, _ := tuiuxQualityD(t, tuiuxLines(head, []string{"2\n", "\n"})...)
 
 	assert.Equal(t, 2, strings.Count(out, "어떻게 고칠까요? \n"))
 	assert.Equal(t, 2, strings.Count(out, "적용할까요? \n"))
 	assert.NotContains(t, out, composeTextKO.Cancelled)
 	assert.Equal(t, control, npd)
-	assert.Equal(t, "fable", composeBindLoad(t, dir).Quality.Presets["claude-custom"].Agents["planner"])
+	assert.Equal(t, "fable", composeBindLoad(t, dir).Quality.Presets["claude-custom"].Agents["frontend-specialist"])
 }
 
 // S12 (b): Esc on the override question is 계속 편집 with the edit kept.
@@ -133,7 +133,7 @@ func TestComposeNavBack_S12OverrideEscKeepsEditing(t *testing.T) {
 		require.NoError(t, err, out)
 		return out, tuiuxNPD(t, dir)
 	}
-	out, npd := run(tuiuxLines(composeFormS16, []string{"b\n", "\n"}, tuiuxEnters(4), []string{"n\n", "2\n", "\n"})...)
+	out, npd := run(tuiuxLines(composeFormS16, []string{"b\n", "\n"}, tuiuxEnters(2), []string{"n\n", "2\n", "\n"})...)
 	_, control := run(tuiuxLines(composeFormS16, []string{"n\n", "2\n", "\n"})...)
 
 	assert.Equal(t, 2, strings.Count(out, composeFormOverrideQuestion))

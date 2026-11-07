@@ -95,7 +95,7 @@ func TestNewComposeSession_FileWriterPreviewsAndWritesTheGroupEdit(t *testing.T)
 	probes := composeSessionCatalog(t, "CAT-A")
 	session := newComposeSession(dir, cfg, composeSessionSources(t), "ko", composeSessionFile, nil)
 
-	result, out, err := runComposeSession(t, session, "g\n\n3\n\n4\ny\n")
+	result, out, err := runComposeSession(t, session, "g\n4\n\ny\n")
 
 	require.NoError(t, err)
 	require.Equal(t, composeDriverApplied, result.Outcome)
@@ -103,16 +103,14 @@ func TestNewComposeSession_FileWriterPreviewsAndWritesTheGroupEdit(t *testing.T)
 	assert.Contains(t, out, "quality.default = balanced   ultra: 현재 기본값   balanced: 현재 기본값\n"+
 		composeSessionGolden(t, "table-D-CAT-A.golden")+claudeReviewLineDefault+"\n구성을 바꿀까요?")
 	for _, display := range []string{
-		"설계·판단  planner, architect, spec-writer, security-auditor  현재: opus\n",
-		"구현  executor, debugger, deep-worker, devops, frontend-specialist, perf-engineer  현재: 혼합 (opus 2 · sonnet 4)\n",
-		"검증·리뷰  reviewer, validator, tester, ux-validator  현재: 혼합 (opus 1 · sonnet 3)\n",
-		"탐색·보조  explorer, annotator, reverse-engineer  현재: 혼합 (opus 1 · sonnet 2)\n",
+		"구현  frontend-specialist  현재: sonnet\n",
+		"검증·리뷰  reviewer, qa-explorer, ux-validator  현재: 혼합 (opus 2 · sonnet 1)\n",
 	} {
 		assert.Contains(t, out, display)
 	}
 	assert.Contains(t, out, "미리보기 (아직 바뀌지 않음)\n"+composeSessionGolden(t, "preview-D-K-CAT-A.golden")+
 		"바뀌는 설정:\n"+
-		"  quality.presets.custom 새로 씀 (17개 에이전트)\n"+
+		"  quality.presets.custom 새로 씀 (4개 에이전트)\n"+
 		"  quality.default balanced → custom\n"+
 		"  custom은 balanced 표준 배치를 받지 않음\n"+
 		"  quality 블록을 다시 씁니다: 블록 안 주석 0줄과 서식은 유지되지 않습니다(값은 그대로)\n"+
@@ -140,15 +138,15 @@ func TestNewComposeSession_MemoryWriterAppliesToTheConfigOnly(t *testing.T) {
 	cfg.Platforms = []string{"claude-code", "codex"}
 	session := newComposeSession(dir, cfg, composeSessionSources(t), "en", composeSessionMemory, nil)
 
-	result, out, err := runComposeSession(t, session, "g\n\n3\n\n4\ny\n")
+	result, out, err := runComposeSession(t, session, "g\n4\n\ny\n")
 
 	require.NoError(t, err)
 	require.Equal(t, composeDriverApplied, result.Outcome)
 	assert.Contains(t, out, "Change the composition? [Enter] keep · g) role groups · a) advanced\n")
-	assert.Contains(t, out, "Implementation  executor, debugger, deep-worker, devops, frontend-specialist, perf-engineer"+
-		"  current: mixed (opus 2 · sonnet 4)\n")
+	assert.Contains(t, out, "Verification·Review  reviewer, qa-explorer, ux-validator"+
+		"  current: mixed (opus 2 · sonnet 1)\n")
 	assert.Contains(t, out, "Settings that change:\n"+
-		"  quality.presets.custom written new (17 agents)\n"+
+		"  quality.presets.custom written new (4 agents)\n"+
 		"  quality.default balanced → custom\n"+
 		"  custom does not get the balanced standard placement\n"+
 		"Apply? [y/N]")
@@ -167,14 +165,14 @@ func TestNewComposeSession_EditAfterRefreshKeepsTheRefreshInTheOneWrite(t *testi
 	composeSessionCatalog(t, "CAT-A")
 	session := newComposeSession(dir, cfg, composeSessionSources(t), "ko", composeSessionFile, nil)
 
-	result, out, err := runComposeSession(t, session, "u\ne\na\nplanner=sonnet\n\ny\n")
+	result, out, err := runComposeSession(t, session, "u\ne\na\nreviewer=sonnet\n\ny\n")
 
 	require.NoError(t, err)
 	require.Equal(t, composeDriverApplied, result.Outcome)
 	assert.Equal(t, 2, strings.Count(out, "미리보기 (아직 바뀌지 않음)\n"))
 	assert.Contains(t, out, "  quality.presets.ultra 최신 기본값으로 갱신: 모델 변화 없음, YAML만 정리\n"+
 		"  quality.presets.balanced 최신 기본값으로 갱신: 모델 변화 없음, YAML만 정리\n"+
-		"  quality.presets.custom 새로 씀 (17개 에이전트)\n"+
+		"  quality.presets.custom 새로 씀 (4개 에이전트)\n"+
 		"  quality.default ultra → custom\n")
 	written := rawQualityOf(t, readBlockFixture(t, dir))
 	defaults := config.DefaultFullConfig("").Quality.Presets
@@ -182,9 +180,9 @@ func TestNewComposeSession_EditAfterRefreshKeepsTheRefreshInTheOneWrite(t *testi
 	assert.Equal(t, defaults["balanced"], written.Presets["balanced"])
 	assert.Equal(t, "custom", written.Default)
 	custom := written.Presets["custom"].Agents
-	assert.Equal(t, "sonnet", custom["planner"])
-	delete(custom, "planner")
-	expected := maps16Without(defaults["ultra"].Agents, "planner")
+	assert.Equal(t, "sonnet", custom["reviewer"])
+	delete(custom, "reviewer")
+	expected := maps16Without(defaults["ultra"].Agents, "reviewer")
 	assert.Equal(t, expected, custom)
 }
 
@@ -198,7 +196,7 @@ func TestNewComposeSession_ChangeLinesReadTheRunSnapshotAndCancelKeeps(t *testin
 	before := composeSessionHash(t, dir)
 	session := newComposeSession(dir, cfg, composeSessionSources(t), "ko", composeSessionFile, nil)
 
-	result, out, err := runComposeSession(t, session, "a\nplanner=sonnet\n\nn\n")
+	result, out, err := runComposeSession(t, session, "a\nreviewer=sonnet\n\nn\n")
 
 	require.NoError(t, err)
 	assert.Equal(t, composeDriverKept, result.Outcome)

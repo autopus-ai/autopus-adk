@@ -52,7 +52,7 @@ func TestComposeForms_KeepEditingKeepsTheWorkingComposition(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, 2, strings.Count(out, "어떻게 고칠까요? \n"))
-	assert.Contains(t, out, "2. planner — 6-luna · max\n")
+	assert.Contains(t, out, "3. reviewer — 6-luna · max\n")
 }
 
 // S7: keeping every group is no change: no confirmation, nothing written.
@@ -119,6 +119,6 @@ func TestComposeForms_KeepEditingTheRefreshOpensTheAllToolsMethod(t *testing.T) 
 	require.NoError(t, err)
 	assert.NotContains(t, out, "어느 도구를 바꿀까요?")
 	assert.Contains(t, out, "어떻게 고칠까요? \n1. 역할 그룹\n2. 에이전트별\n")
-	assert.Contains(t, out, "설계·판단 — planner, architect, spec-writer, security-auditor \n")
+	assert.Contains(t, out, "구현 — frontend-specialist \n")
 	assert.Equal(t, before, composeSessionHash(t, dir), "input end cancels the bound refresh")
 }

@@ -135,13 +135,16 @@ func TestComposeOMPAutopus_S25_ConvertsTheProfileOnApply(t *testing.T) {
 		assert.Equal(t, recorded["task"], overrides["task"])
 		assert.Equal(t, "anthropic/claude-fable-5-1:high", overrides["reviewer"])
 
-		// 구성 편집, OMP, 에이전트별, task, planner를 따름, 완료, 적용, 유지.
+		// 구성 편집, OMP, 에이전트별, task, OMP 세션 모델, 완료, 적용, 유지.
 		taskLine := len(composeRoleGroupAgents()) + 2
 		out, err = runComposeOMPForms(t, dir, deps, "2\n", "4\n", "2\n", itoaLine(taskLine), "2\n", "\n", "2\n", "\n")
 
 		require.NoError(t, err, out)
 		first := routes["task"][0]
 		assert.Contains(t, out, "task — "+first.Selector+" · "+first.Thinking+"\n")
+		// planner takes no pin, so task's session choice says where it lands.
+		assert.Contains(t, out, "task — OMP 세션 모델\n")
+		assert.NotContains(t, out, "planner를 따름")
 		policy = rawRoleModelPolicyOf(t, readBlockFixture(t, dir))
 		assert.NotContains(t, policy.Agents, "task")
 		overrides = composeOMPActivated(t, dir, activations.cfgs[1])

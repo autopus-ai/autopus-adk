@@ -41,7 +41,7 @@ const updateCmdLong = "설치된 하네스 파일을 업데이트합니다.\n\n"
 	"에이전트별(자기 pin이 있으면 task 포함)로 그대로 · OMP 세션 모델 그대로 · 모든 provider의 증명된 설치 model을\n" +
 	"고르고, thinking은 고른 model이 보고한 단계만 보입니다. metadata 없는 catalog는 built-in 선언에 있는 model만\n" +
 	"보입니다. 결과는 프로필 없는 pin(role_model_policy: {version: v1, agents: …})이고 task는 자기 pin이 없으면\n" +
-	"planner를 따릅니다. 프로필 설정 위에서 적용하면 변환 줄과 확인 뒤 pin으로 옮기고, 바꾸지 않은 에이전트와 task는\n" +
+	"OMP 세션 모델을 씁니다. 프로필 설정 위에서 적용하면 변환 줄과 확인 뒤 pin으로 옮기고, 바꾸지 않은 에이전트와 task는\n" +
 	"route가 그대로이며 ultra 프로필의 quality.presets.ultra 연동은 끝납니다. 줄 OMP 편집기와\n" +
 	"auto platform omp profile apply는 그대로 프로필을 씁니다.\n\n" +
 	"도구 탭의 마지막 선택지는 spec.review_gate.enabled가 켜져 있고 orchestra.providers가 둘 이상이며 CI가 아닐 때\n" +

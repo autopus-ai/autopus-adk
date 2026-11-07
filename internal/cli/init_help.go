@@ -23,7 +23,7 @@ const initCmdLong = "코딩 CLI에 Autopus 하네스를 설치합니다. autopus
 	"v0.50.131에서 제거되어 로드에 실패합니다.\n\n" +
 	"OMP 탭은 프로필·계열을 묻지 않고 생성 에이전트가 있는 역할 그룹이나 에이전트별로 그대로 · OMP 세션 모델 그대로 ·\n" +
 	"모든 provider의 증명된 설치 model을 고르며, thinking은 고른 model이 보고한 단계만 보입니다. 결과는 프로필 없는\n" +
-	"pin(role_model_policy: {version: v1, agents: …})이고 task는 자기 pin이 없으면 planner를 따릅니다.\n\n" +
+	"pin(role_model_policy: {version: v1, agents: …})이고 task는 자기 pin이 없으면 OMP 세션 모델을 씁니다.\n\n" +
 	"wizard의 Review Gate가 예이고 orchestra.providers가 둘 이상이며 CI가 아니면 도구 탭 마지막에 멀티프로바이더\n" +
 	"리뷰가 나옵니다(SPEC-REVMODEL-001). Review Gate 답과 감지한 provider는 구성 단계 전에 들어가고, 탭은 auto spec\n" +
 	"review에 참여하는 provider(spec.review_gate.providers), provider마다 model과 effort, judge(spec.review_gate.judge)를\n" +

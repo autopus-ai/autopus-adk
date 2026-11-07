@@ -29,10 +29,10 @@ func TestLoadComposeAgentSources_EmbeddedContent_CoversEveryCanonicalAgent(t *te
 		assert.True(t, valid, "%s fallback tier %q", agent, source.FallbackTier)
 	}
 	// Known values from content/agents/*.md frontmatter.
-	assert.Equal(t, composeAgentSource{FallbackTier: "opus", CodexEffort: "max"}, sources["planner"])
-	assert.Equal(t, composeAgentSource{FallbackTier: "opus", CodexEffort: "max"}, sources["deep-worker"])
+	assert.Equal(t, composeAgentSource{FallbackTier: "opus", CodexEffort: "high"}, sources["qa-explorer"])
 	assert.Equal(t, composeAgentSource{FallbackTier: "sonnet", CodexEffort: "high"}, sources["reviewer"])
-	assert.Equal(t, composeAgentSource{FallbackTier: "sonnet", CodexEffort: "medium"}, sources["annotator"])
+	assert.Equal(t, composeAgentSource{FallbackTier: "sonnet", CodexEffort: "medium"}, sources["frontend-specialist"])
+	assert.Equal(t, composeAgentSource{FallbackTier: "sonnet", CodexEffort: "medium"}, sources["ux-validator"])
 }
 
 var (
