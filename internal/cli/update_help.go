@@ -32,7 +32,7 @@ const updateCmdLong = "설치된 하네스 파일을 업데이트합니다.\n\n"
 	"low·medium·high·xhigh·max(haiku 에이전트 제외), Codex는 catalog가 보고하는 단계만 보이며, 자동과 같은 단계는\n" +
 	"저장하지 않습니다. 고른 effort는 quality.presets.<provider>-custom.efforts에 쓰고, 이 key가 있는 파일은\n" +
 	"v0.50.127보다 오래된 auto가 읽지 못합니다. efforts가 없는 파일의 생성 결과는 그대로입니다.\n\n" +
-	"OMP는 v0.50.127부터 기본으로 Autopus 에이전트 17개를 .omp/agents에 만들고 task를 뺀 OMP 기본 에이전트\n" +
+	"OMP는 v0.50.127부터 기본으로 Autopus 에이전트를 .omp/agents에 만들고 task를 뺀 OMP 기본 에이전트\n" +
 	"(scout·security-reviewer·sonic·designer·librarian·seance)를 task.disabledAgents로 끕니다. 기존 프로젝트는 미리보기에\n" +
 	"+ .omp/agents/<agent>.md 줄과 안내가 나오고 autopus.yaml은 쓰지 않습니다. manifest에 없는 같은 이름 파일과\n" +
 	"사용자가 정한 task.disabledAgents는 그대로 둡니다. role_model_policy.agent_source: native는 v0.50.131에서\n" +

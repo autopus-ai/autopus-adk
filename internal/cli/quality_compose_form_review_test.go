@@ -15,9 +15,9 @@ import (
 )
 
 // composeFormS5 answers S5 up to its confirmation: 구성 편집, Codex, 역할
-// 그룹, 설계·판단 on sonnet (off the standard opus top rung), the other
-// groups kept.
-var composeFormS5 = []string{"2\n", "3\n", "\n", "4\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n"}
+// 그룹, 구현 kept, 검증·리뷰 on sonnet (which moves reviewer off the standard
+// opus top rung).
+var composeFormS5 = []string{"2\n", "3\n", "\n", "\n", "\n", "4\n", "\n"}
 
 func composeFormLines(head []string, tail ...string) []string {
 	return append(append([]string(nil), head...), tail...)

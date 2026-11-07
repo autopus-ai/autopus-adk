@@ -39,81 +39,80 @@ func runComposeEffortSession(t *testing.T, dir, catalog string, lines ...string)
 	return out
 }
 
-// A haiku agent takes no Claude effort: the group select covers the other
-// members only, and the choice is stored for them alone.
+// The Claude effort select leaves a haiku member out: 검증·리뷰 with
+// ux-validator on haiku offers reviewer's and qa-explorer's opus levels
+// only, and qa-explorer's automatic high stores nothing.
 func TestComposeEffortOptions_ClaudeLeavesHaikuOut(t *testing.T) {
-	dir := writeComposeToolPresetFixture(t, "claude", map[string]string{"annotator": "haiku"})
+	dir := writeComposeToolPresetFixture(t, "claude", map[string]string{"ux-validator": "haiku"})
 
 	out := runComposeEffortSession(t, dir, "CAT-A",
-		"2\n", "2\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "4\n", "2\n", "\n")
+		"2\n", "2\n", "\n", "\n", "\n", "\n", "4\n", "2\n", "\n")
 
-	assert.Contains(t, out, "탐색·보조 effort \n"+
-		"1. 그대로 — sonnet-5-5 · medium / opus-5-5 · high\n"+
-		"2. sonnet-5-5 · low / opus-5-5 · low\n"+
-		"3. sonnet-5-5 · medium / opus-5-5 · medium\n"+
-		"4. sonnet-5-5 · high / opus-5-5 · high\n"+
-		"5. sonnet-5-5 · xhigh / opus-5-5 · xhigh\n"+
-		"6. sonnet-5-5 · max / opus-5-5 · max\n")
-	assert.Equal(t, map[string]string{"explorer": "high"}, composeBindLoad(t, dir).Quality.Presets["claude-custom"].Efforts)
+	assert.Contains(t, out, "검증·리뷰 effort \n"+
+		"1. 그대로 — opus-5-5 · max / opus-5-5 · high\n"+
+		"2. opus-5-5 · low\n"+
+		"3. opus-5-5 · medium\n"+
+		"4. opus-5-5 · high\n"+
+		"5. opus-5-5 · xhigh\n"+
+		"6. opus-5-5 · max\n")
+	assert.Equal(t, map[string]string{"reviewer": "high"}, composeBindLoad(t, dir).Quality.Presets["claude-custom"].Efforts)
 }
 
 // A group whose every member is haiku asks no Claude effort.
 func TestComposeEffortOptions_AllHaikuGroupAsksNoEffort(t *testing.T) {
 	dir := writeComposeFixture(t, "claude-code", "codex")
 
-	out := runComposeEffortSession(t, dir, "CAT-A",
-		"2\n", "2\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "5\n", "\n", "\n")
+	out := runComposeEffortSession(t, dir, "CAT-A", "2\n", "2\n", "\n", "5\n", "\n", "\n", "\n")
 
 	assert.Contains(t, out, "검증·리뷰 effort \n")
-	assert.NotContains(t, out, "탐색·보조 effort")
+	assert.NotContains(t, out, "구현 effort")
 	assert.Contains(t, out, "적용할까요? \n")
 }
 
 // Codex offers the levels every member's model reports: Sol's four for
-// 탐색·보조, which mixes Luna and the analysis rung's Sol. Each member at the
-// chosen level stores it unless that level is its automatic one.
+// 검증·리뷰, which mixes Astra, Luna, and the analysis rung's Sol. Each member
+// at the chosen level stores it unless that level is its automatic one.
 func TestComposeEffortOptions_CodexIntersectsTheMembersLevels(t *testing.T) {
 	dir := writeComposeToolPresetFixture(t, "codex", nil)
 
-	// 구성 편집, Codex, 역할 그룹, every tier and effort kept up to 탐색·보조
+	// 구성 편집, Codex, 역할 그룹, every tier and effort kept up to 검증·리뷰
 	// effort xhigh, 적용.
 	out := runComposeEffortSession(t, dir, "CAT-E",
-		"2\n", "3\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "5\n", "2\n", "\n")
+		"2\n", "3\n", "\n", "\n", "\n", "\n", "5\n", "2\n", "\n")
 
-	assert.Contains(t, out, "탐색·보조 effort \n"+
-		"1. 그대로 — 6-luna · max / 6.1-sol · xhigh\n"+
-		"2. 6-luna · low / 6.1-sol · low\n"+
-		"3. 6-luna · medium / 6.1-sol · medium\n"+
-		"4. 6-luna · high / 6.1-sol · high\n"+
-		"5. 6-luna · xhigh / 6.1-sol · xhigh\n"+
+	assert.Contains(t, out, "검증·리뷰 effort \n"+
+		"1. 그대로 — 6-astra · max / 6.1-sol · xhigh / 6-luna · max\n"+
+		"2. 6-astra · low / 6.1-sol · low / 6-luna · low\n"+
+		"3. 6-astra · medium / 6.1-sol · medium / 6-luna · medium\n"+
+		"4. 6-astra · high / 6.1-sol · high / 6-luna · high\n"+
+		"5. 6-astra · xhigh / 6.1-sol · xhigh / 6-luna · xhigh\n"+
 		"Enter")
-	assert.Equal(t, composeEfforts("xhigh", "explorer", "annotator"),
+	assert.Equal(t, composeEfforts("xhigh", "reviewer", "ux-validator"),
 		composeBindLoad(t, dir).Quality.Presets["codex-custom"].Efforts)
 }
 
-// On the standard placement the automatic level is the one the start
-// shows. A level that equals the custom binding's automatic effort but not
-// the start's is stored where that binding differs (reverse-engineer, on
-// opus), which lands every member on the chosen level, so the choice is what
-// the operator gets.
+// A level is stored where the custom binding's automatic effort differs
+// from it (reviewer and qa-explorer, on opus) and not where it is the
+// binding's automatic one (ux-validator, on the sonnet ladder), which lands
+// every member on the chosen level, so the choice is what the operator gets.
 func TestComposeEffortOptions_AutomaticIsJudgedWhereTheChoiceLands(t *testing.T) {
 	dir := writeComposeFixture(t, "claude-code", "codex")
 
 	out := runComposeEffortSession(t, dir, "CAT-A",
-		"2\n", "2\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "3\n", "2\n", "\n")
+		"2\n", "2\n", "\n", "\n", "\n", "\n", "3\n", "2\n", "\n")
 
-	assert.Contains(t, out, "탐색·보조 effort \n"+
-		"1. 그대로 — sonnet-5-5 · high / opus-5-5 · high\n"+
-		"2. sonnet-5-5 · low / opus-5-5 · low\n"+
-		"3. sonnet-5-5 · medium / opus-5-5 · medium\n"+
-		"4. sonnet-5-5 · high / opus-5-5 · high (자동)\n"+
-		"5. sonnet-5-5 · xhigh / opus-5-5 · xhigh\n"+
-		"6. sonnet-5-5 · max / opus-5-5 · max\n")
+	assert.Contains(t, out, "검증·리뷰 effort \n"+
+		"1. 그대로 — opus-5-5 · max / opus-5-5 · high / sonnet-5-5 · high\n"+
+		"2. opus-5-5 · low / sonnet-5-5 · low\n"+
+		"3. opus-5-5 · medium / sonnet-5-5 · medium\n"+
+		"4. opus-5-5 · high / sonnet-5-5 · high\n"+
+		"5. opus-5-5 · xhigh / sonnet-5-5 · xhigh\n"+
+		"6. opus-5-5 · max / sonnet-5-5 · max\n")
 	saved := composeBindLoad(t, dir).Quality
-	assert.Equal(t, composeEfforts("medium", "reverse-engineer"), saved.Presets["claude-custom"].Efforts)
-	for _, agent := range []string{"explorer", "annotator"} {
-		model, effort := saved.ClaudeAgentProfile(agent, "sonnet")
-		assert.Equal(t, []string{"sonnet", "medium"}, []string{model, effort}, agent)
+	assert.Equal(t, composeEfforts("medium", "reviewer", "qa-explorer"), saved.Presets["claude-custom"].Efforts)
+	for agent, model := range map[string]string{"qa-explorer": "opus", "ux-validator": "sonnet"} {
+		got, effort := saved.ClaudeAgentProfile(agent, "sonnet")
+		assert.Equal(t, []string{model, "medium"}, []string{got, effort}, agent)
 	}
 }
 
@@ -123,9 +122,10 @@ func TestComposeEffortOptions_AutomaticChoiceOnTheStartIsNoChange(t *testing.T) 
 	dir := writeComposeFixture(t, "claude-code", "codex")
 	before := composeSessionHash(t, dir)
 
-	out := runComposeEffortSession(t, dir, "CAT-A",
-		"2\n", "2\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "4\n", "\n")
+	// 구현 effort 6 is sonnet-5-5 · max (자동), the start's own level.
+	out := runComposeEffortSession(t, dir, "CAT-A", "2\n", "2\n", "\n", "\n", "6\n", "\n", "\n", "\n")
 
+	assert.Contains(t, out, "구현 effort \n1. 그대로 — sonnet-5-5 · max\n")
 	assert.Contains(t, out, "변경 없음\n")
 	assert.Equal(t, before, composeSessionHash(t, dir))
 }

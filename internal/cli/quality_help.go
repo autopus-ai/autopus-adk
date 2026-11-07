@@ -23,12 +23,8 @@ Change the composition? takes:
   Enter  keep; nothing is written
   u      update previous-version default presets (shown only when one exists)
   g      one tier (fable, opus, sonnet, haiku) per role group, Enter keeps:
-           Design·Judgment: planner, architect, spec-writer, security-auditor
-           Implementation: executor, debugger, deep-worker, devops,
-             frontend-specialist, perf-engineer
-           Verification·Review: reviewer, qa-explorer, validator, tester,
-             ux-validator
-           Exploration·Support: explorer, annotator, reverse-engineer
+           Implementation: frontend-specialist
+           Verification·Review: reviewer, qa-explorer, ux-validator
   a      advanced: one agent=tier line per agent, an empty line finishes
   t      per-tool settings; global, claude-code, codex, and omp work too
 
@@ -69,10 +65,10 @@ automatic level is marked (automatic) and stores nothing. Chosen efforts are
 written to quality.presets.<provider>-custom.efforts, which auto older than
 v0.50.127 cannot read; a file without efforts generates exactly as before.
 
-OMP serves the 17 Autopus agents from .omp/agents and disables every bundled
+OMP serves the 4 Autopus agents from .omp/agents and disables every bundled
 agent but task (scout, security-reviewer, sonic, designer, librarian,
 seance). The OMP tab asks no profile or family: from the
-current pins or profile routes it edits the 4 role groups or each agent
+current pins or profile routes it edits the 2 role groups or each agent
 (task too while it has its own pin). Each select
 offers keep, keep the OMP session model, and the installed models of every
 provider that Autopus can attest (a catalog without metadata lists only the

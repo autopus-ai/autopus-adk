@@ -15,8 +15,8 @@ import (
 )
 
 // composeFormS16 answers S16 up to the override question over P: 구성 편집,
-// 모든 도구 같게, 역할 그룹, 설계·판단 on fable, the other groups kept.
-var composeFormS16 = []string{"2\n", "1\n", "\n", "2\n", "\n", "\n", "\n"}
+// 모든 도구 같게, 역할 그룹, 구현 on fable, 검증·리뷰 kept.
+var composeFormS16 = []string{"2\n", "1\n", "\n", "2\n", "\n"}
 
 const composeFormOverrideQuestion = "Codex도 새 구성을 따를까요? (quality.providers.codex = codex-custom 제거) [y/N]"
 
@@ -66,7 +66,7 @@ func TestComposeFormOverride_ConfirmedRemovalJoinsTheCompositionWrite(t *testing
 	assert.Contains(t, out, "  quality.providers.codex 제거\n")
 	assert.Contains(t, out, "  "+composeToolBlockNotice+"\n")
 	preview := composeRenderedTable(t, out, composeFormPreviewMarker)
-	assert.True(t, strings.HasSuffix(preview["planner"]["Codex"], "*"), preview["planner"]["Codex"])
+	assert.True(t, strings.HasSuffix(preview["frontend-specialist"]["Codex"], "*"), preview["frontend-specialist"]["Codex"])
 	saved := composeBindLoad(t, dir).Quality
 	assert.Equal(t, "custom", saved.Default)
 	assert.NotContains(t, saved.Providers, "codex")

@@ -62,11 +62,11 @@ func TestUpdateCompose_DetectedCodexJoinsTheTableAndGeneratesFromTheSnapshot(t *
 	require.NoError(t, err, out)
 	assert.Contains(t, out, "  + 새 플랫폼 감지: codex\n")
 	assert.Equal(t, []string{"그룹", "에이전트", "등급", "Claude Code", "Codex"}, composeTableHeader(t, out, composeViewStatusD))
-	assert.Equal(t, "6-astra · max", composeRenderedTable(t, out, composeViewStatusD)["planner"]["Codex"])
+	assert.Equal(t, "6-astra · max", composeRenderedTable(t, out, composeViewStatusD)["reviewer"]["Codex"])
 	assert.Contains(t, out, "Codex catalog: 읽음 · 대체 0칸\n")
 	assert.Len(t, *run.probes, 1)
 	assert.False(t, run.adapterProbed(t), "the detected Codex generation read the run's snapshot")
-	assert.Equal(t, config.CodexProfile{Model: "gpt-6-astra", Effort: "max"}, readComposeCodexProfile(t, dir, "planner"))
+	assert.Equal(t, config.CodexProfile{Model: "gpt-6-astra", Effort: "max"}, readComposeCodexProfile(t, dir, "reviewer"))
 	assert.Equal(t, []string{"claude-code", "codex"}, composeBindLoad(t, dir).Platforms)
 }
 
@@ -139,7 +139,7 @@ func TestUpdateCompose_ConfirmedEditWithDetectedCodexGeneratesThePreview(t *test
 	run := newComposeDetectRun(t, "codex")
 	dir := writeComposeFixture(t, "claude-code")
 
-	out, err := runComposeUpdate(t, reaEnter(strings.NewReader("g\n\n3\n\n4\ny\n")), "--dir", dir)
+	out, err := runComposeUpdate(t, reaEnter(strings.NewReader("g\n4\n\ny\n")), "--dir", dir)
 
 	require.NoError(t, err, out)
 	saved := composeBindLoad(t, dir)
