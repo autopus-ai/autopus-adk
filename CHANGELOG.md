@@ -23,9 +23,9 @@ All notable changes to this project will be documented in this file.
     그대로 둔다.
   - `auto update`는 manifest에 기록된 삭제 표면을 지운다. codex `.codex/agents`, opencode agents·commands·rules도
     이제 prune 대상이다. 업데이트하지 않은 설치도 `auto platform remove`로 정리할 수 있다.
-  - balanced·ultra 프리셋은 남은 에이전트만 쓴다. v0.50.134의 17개 배치는 HB8·HU4로 등록해 갱신 대상으로 보고,
+  - balanced·ultra 프리셋은 남은 에이전트만 쓴다. v0.50.133과 그 뒤 main의 17개 배치는 HB8·HU4로 등록해 갱신 대상으로 보고,
     예전 에이전트의 efforts 키는 값만 검사하고 받아들인다. planner·executor 같은 역할은 `auto pipeline`과 OMP
-    task가 아직 쓰므로 세 에이전트 형식 프리셋에서도 v0.50.134 티어를 유지한다.
+    task가 아직 쓰므로 세 에이전트 형식 프리셋에서도 이전 티어를 유지한다.
   - 새 설정의 `methodology.mode`는 `none`이다. tdd 등을 쓰던 설정은 `auto doctor`·`auto check`에서 실패 대신 안내로
     보고된다. `auto spec review` 체크리스트는 설치하지 않는 `content/checklists/`에서 읽는다.
   - `auto spec`, `auto orchestra`, `auto workflow`, `auto pipeline` 같은 CLI 명령은 바이너리에 그대로 있다.

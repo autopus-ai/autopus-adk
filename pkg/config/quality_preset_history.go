@@ -118,7 +118,7 @@ var historicalQualityPresets = []historicalQualityPreset{
 	{
 		// The last seventeen-agent default, Opus on the seven-role core, before
 		// the verification harness cut the agents to reviewer and the two UX roles.
-		id: "HB8", preset: "balanced", commit: "a04cd8e6", shipped: "v0.50.134", runtimeStandard: true,
+		id: "HB8", preset: "balanced", commit: "a04cd8e6", shipped: "main after v0.50.133 (never released)", runtimeStandard: true,
 		agents: map[string]string{
 			"architect": "opus", "debugger": "opus", "deep-worker": "opus", "planner": "opus",
 			"reviewer": "opus", "security-auditor": "opus", "spec-writer": "opus",
@@ -159,7 +159,7 @@ var historicalQualityPresets = []historicalQualityPreset{
 	{
 		// The seventeen-agent default after reverse-engineer joined, before the
 		// verification harness cut the agents to reviewer and the two UX roles.
-		id: "HU4", preset: "ultra", commit: "28c5bc4d", shipped: "v0.50.126-v0.50.134",
+		id: "HU4", preset: "ultra", commit: "28c5bc4d", shipped: "v0.50.126-v0.50.133",
 		agents: map[string]string{
 			"architect": "fable", "debugger": "fable", "deep-worker": "fable", "planner": "fable",
 			"reviewer": "fable", "security-auditor": "fable", "spec-writer": "fable",

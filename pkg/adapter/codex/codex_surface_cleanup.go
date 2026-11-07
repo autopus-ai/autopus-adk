@@ -177,7 +177,7 @@ func codexCleanAllowedPaths() (map[string]bool, error) {
 		addSkill(name)
 		allowed[filepath.ToSlash(filepath.Join(".codex", "prompts", name+".md"))] = true
 	}
-	// Skills, agents, and rules v0.50.134 installed and this release retired.
+	// Skills, agents, and rules v0.50.133 installed and this release retired.
 	for _, name := range adapter.RetiredSkillNames {
 		addSkill(name)
 		for _, rel := range adapter.RetiredSkillResources[name] {

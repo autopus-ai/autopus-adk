@@ -172,7 +172,7 @@ readonly A39_LINUX_AMD64_ARCHIVE_SHA256='6534ffe5af52e43548beeb0c1a90dc300bcc583
 readonly A39_LINUX_ARM64_ARCHIVE_SHA256='13d4b759809b892cd9b36a815b0f7d00b4e8c88b918e672dbebed917df14ab29'
 readonly A39_AMD64_MANIFEST_SHA256='dd8ed1e4763fee5be5e44c5590d357ef8b5abe968bcfbcf3796d5cc2e5784ef6'
 readonly A39_ARM64_MANIFEST_SHA256='01b152e4f088c652ac22172f43a9d0307386bd475fde214a90eb7ebf93a214e9'
-readonly A40_REPOSITORY='autopus-ai/autopus-adk' A41_TAG='v0.50.134' A41_VERSION='0.50.134'
+readonly A40_REPOSITORY='autopus-ai/autopus-adk' A41_TAG='v0.51.0' A41_VERSION='0.51.0'
 # A40 shipped the same fifteen-asset set as A39 under the same owner, all
 # measured from the immutable release 432232109. The two manifest digests come
 # from inside the darwin archives, where the companion manifest travels.

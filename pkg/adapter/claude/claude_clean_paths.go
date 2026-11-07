@@ -61,7 +61,7 @@ func claudeCleanAllowedPaths() (map[string]bool, error) {
 		addSkill(name)
 		allowed[filepath.ToSlash(filepath.Join(".claude", "commands", name+".md"))] = true
 	}
-	// Routes, skills, agents, and rules v0.50.134 installed and this release
+	// Routes, skills, agents, and rules v0.50.133 installed and this release
 	// retired: an install that was never updated still records them.
 	for _, name := range append(append([]string(nil), adapter.RetiredWorkflowRoutes...), adapter.RetiredSkillNames...) {
 		addSkill(name)
