@@ -169,8 +169,8 @@ is still required.
 
 | Item | State on 2026-11-07 |
 |---|---|
-| Ruleset `autopus-v0.51.0-release-authority` | **absent**. `26415189` for `v0.50.133` is sealed history. `verify-release-tag-ruleset.sh --armed` from this branch reports the ruleset missing until it is created |
-| Deployment tag policy `v0.51.0` on `adk-companion-release` | **absent**. `65295748` is the `v0.50.133` history; the environment holds 59 policies |
+| Ruleset `autopus-v0.51.0-release-authority` | **armed** 2026-11-07, id `26746556`; `verify-release-tag-ruleset.sh --armed` exits 0. `26415189` for `v0.50.133` is sealed history |
+| Deployment tag policy `v0.51.0` on `adk-companion-release` | **present** 2026-11-07, id `65818617`. `65295748` is the `v0.50.133` history |
 | `v0.51.0` and `omp-context-evidence-v0.51.0` | absent on origin, and so is `omp-context-evidence-v0.51.0-source` |
 | Draft release named `v0.51.0` | absent; Latest is `432232109` (`v0.50.133`) |
 
