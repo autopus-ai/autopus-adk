@@ -171,6 +171,11 @@ func writeTUIUXBaseGoldens(t *testing.T) {
 		require.Equal(t, npds[0], npds[1], flow.name)
 		require.Equal(t, outs[0], outs[1], flow.name)
 		require.NoError(t, os.WriteFile(filepath.Join(tuiuxGoldenDir, flow.name+".npd"), []byte(npds[0]), 0o644))
-		require.NoError(t, os.WriteFile(filepath.Join(tuiuxGoldenDir, flow.name+".stdout"), []byte(outs[0]), 0o644))
+		// A flow whose stdout is not asserted prints machine-dependent lines
+		// (Desktop install state, local model catalog), so writing it would
+		// only produce drift to revert by hand.
+		if flow.stdout {
+			require.NoError(t, os.WriteFile(filepath.Join(tuiuxGoldenDir, flow.name+".stdout"), []byte(outs[0]), 0o644))
+		}
 	}
 }

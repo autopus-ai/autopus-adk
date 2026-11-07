@@ -260,3 +260,9 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
   - stdout: `init-yes.stdout`에서 `REA 역공학 MCP를 등록했습니다: …` 줄이 빠지고, `update-yes.stdout`·`update-ci.stdout`에 `REA 역공학 MCP를 아직 정하지 않았습니다. …` hint 줄이 더해졌다. 다른 줄은 그대로다.
   - NPD: init-yes·update-yes·update-ci의 `.mcp.json`·`.codex/config.toml`과 그 backup, manifest·journal checksum이 rea 항목이 없는 값으로 바뀌었다.
 - 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`이 이 golden으로 통과한다.
+
+## writer가 단언하지 않는 stdout을 쓰지 않는다 (ci/darwin-lint-golden, 2026-11-07)
+
+- 원인: writer가 모든 flow의 `.stdout`을 썼다. `init-in`은 stdout을 단언하지 않는 flow(`stdout: false`)라 그 출력에 Desktop 설치 상태나 로컬 모델 catalog 같은 기계 의존 줄이 그대로 들어갔고, 재기록할 때마다 `git checkout`으로 되돌려야 했다.
+- 변경: writer는 `stdout: true`인 flow의 `.stdout`만 쓴다. 어떤 테스트도 읽지 않는 `init-in.stdout`은 지웠다. `init-in.npd`는 `TestInitReview_*`가 읽으므로 그대로다.
+- 검증: `TUIUX_WRITE_GOLDENS=1`로 writer를 돌린 뒤 `git status`에 golden 변경이 없고, `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.

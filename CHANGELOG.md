@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **구현 하네스 CLI 명령을 help에서 숨긴다** (2026-11-07): 생성되는 스킬·규칙·hook이 부르지 않는 16개(`arch`, `delivery`,
+  `effort`, `eval`, `experiment`, `fix`, `hash`, `learn`, `lsp`, `map`, `mem`, `permission`, `pipeline`, `search`, `setup`,
+  `telemetry`)가 `auto --help`에서 빠진다. 명령은 그대로 동작한다. deprecated 경고는 실행마다 stderr에 찍혀 그 출력을
+  읽는 호출자를 깨뜨릴 수 있어 쓰지 않는다. 생성 표면이 아직 부르는 `spec`, `orchestra`, `workflow`, `terminal`, `react`와
+  Desktop이 부르는 `status`는 그대로 보인다.
+
+- **CI lint가 darwin 전용 파일도 검사한다** (2026-11-07): lint는 ubuntu에서 linux 기준으로만 type-check해 Darwin 실행
+  게이트 같은 `//go:build darwin` 파일이 한 번도 검사되지 않았다. 같은 job에 `GOOS=darwin CGO_ENABLED=0` 실행을 더한다.
+
+- **TUIUX golden writer가 단언하지 않는 stdout을 쓰지 않는다** (2026-11-07): writer가 `init-in.stdout`까지 기계 의존
+  출력으로 다시 써서 재기록마다 손으로 되돌려야 했다. 읽는 테스트가 없는 그 파일은 지운다.
+
 - **REA MCP는 opt-in이 된다** (2026-11-07): 설치되는 에이전트 중 REA MCP를 쓰는 것이 없으므로, 새 `auto init`은
   `--rea`나 wizard의 Yes가 있을 때만 rea-agents를 등록한다. wizard와 대화형 `auto update`의 질문 기본값은 No(`[y/N]`)다.
   이미 managed 항목이 있거나 `features.rea.enabled: true`를 저장한 프로젝트는 그대로 켜져 있다.
