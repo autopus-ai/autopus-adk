@@ -266,3 +266,10 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 원인: writer가 모든 flow의 `.stdout`을 썼다. `init-in`은 stdout을 단언하지 않는 flow(`stdout: false`)라 그 출력에 Desktop 설치 상태나 로컬 모델 catalog 같은 기계 의존 줄이 그대로 들어갔고, 재기록할 때마다 `git checkout`으로 되돌려야 했다.
 - 변경: writer는 `stdout: true`인 flow의 `.stdout`만 쓴다. 어떤 테스트도 읽지 않는 `init-in.stdout`은 지웠다. `init-in.npd`는 `TestInitReview_*`가 읽으므로 그대로다.
 - 검증: `TUIUX_WRITE_GOLDENS=1`로 writer를 돌린 뒤 `git status`에 golden 변경이 없고, `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.
+
+## QA 스킬에 `auto qa intent` 흐름 추가 (feat/qa-intent, 2026-11-07)
+
+- 원인: `auto-qa`와 `qa-autopilot` 스킬(Claude·Codex)에 SPEC 없이 요청에서 의도를 만드는 흐름을 더했다.
+- 기록: `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run 'TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6'`. writer는 이제 단언하는 stdout만 써서 되돌릴 파일이 없다.
+- 차이: NPD 다섯 개에서 `.claude/skills/{auto-qa,qa-autopilot}/SKILL.md`, `.codex/skills/{codex-auto-qa,codex-qa-autopilot}/SKILL.md`와 그 backup, manifest·journal checksum만 바뀌었다. stdout golden은 바뀌지 않았다.
+- 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 이 golden으로 통과한다.
