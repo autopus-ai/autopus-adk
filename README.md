@@ -278,8 +278,9 @@ From v0.51.0 the harness installs only the verification surface described above.
 - An install that is never updated can be cleaned with `auto platform remove <platform>`.
 - New configs default to `methodology.mode: none`. An older config with `tdd` is reported as a
   notice by `auto doctor` and `auto check`, not as a failure.
-- CLI commands stay in the binary: `auto spec`, `auto pipeline`, `auto orchestra`, `auto workflow`,
-  and the rest of `auto --help` keep working. Only the generated agent-chat surface changed.
+- CLI commands stay in the binary and keep working. Sixteen implementation-harness commands that no
+  generated skill, rule, or hook calls (`auto pipeline`, `auto fix`, `auto experiment`, `auto learn`, and
+  others) no longer appear in `auto --help`; a later release removes them.
 
 ## Configuration
 

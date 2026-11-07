@@ -276,8 +276,9 @@ v0.51.0부터 하네스는 위에 적은 검증 표면만 설치합니다. 프�
 - 한 번도 업데이트하지 않은 설치는 `auto platform remove <platform>`으로 정리할 수 있습니다.
 - 새 설정의 기본값은 `methodology.mode: none`입니다. `tdd`를 쓰던 예전 설정은 `auto doctor`와 `auto check`에서
   실패가 아니라 안내로 보고됩니다.
-- CLI 명령은 바이너리에 그대로 있습니다. `auto spec`, `auto pipeline`, `auto orchestra`, `auto workflow`를
-  비롯해 `auto --help`의 명령은 계속 동작합니다. 바뀐 것은 에이전트 채팅에 생성되는 표면뿐입니다.
+- CLI 명령은 바이너리에 그대로 있고 계속 동작합니다. 생성되는 스킬·규칙·hook이 부르지 않는 구현 하네스 명령
+  16개(`auto pipeline`, `auto fix`, `auto experiment`, `auto learn` 등)는 `auto --help`에 더 이상 나오지 않고,
+  다음 릴리즈에서 지웁니다.
 
 <a id="configuration"></a>
 ## 설정

@@ -447,7 +447,7 @@ jobs:
   lint:
     name: lint
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
@@ -466,6 +466,15 @@ jobs:
         with:
           version: v2.14.0
           args: --timeout=5m
+
+      # The step above type-checks for linux only, so `//go:build darwin`
+      # files (the Darwin verified-exec gate among them) were never linted.
+      # cgo is off on this runner, so cgo-only darwin files stay excluded.
+      - name: golangci-lint (GOOS=darwin)
+        env:
+          GOOS: darwin
+          CGO_ENABLED: "0"
+        run: golangci-lint run --timeout=10m
 
   static-contracts:
     name: static-contracts
