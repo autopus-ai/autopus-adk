@@ -433,11 +433,7 @@ The provider boundary emits `orchestration_run_receipt.v1` with distinct
 
 #### [REQUIRED] Step 1: Run Automated Gates (MUST call Bash tool)
 
-IMPORTANT: You MUST run automated quality checks via the Bash tool before the TRUST 5 analysis.
-
-```bash
-go test -race ./... && golangci-lint run
-```
+IMPORTANT: You MUST run automated quality checks via the Bash tool before the TRUST 5 analysis. Use the project's own build, test, and lint commands for the changed files (for example `go test ./<changed packages>` plus the repo's linter, `npm run typecheck && npm test`, `pytest`, `cargo test`); read them from the Makefile, package.json scripts, or CI config rather than guessing.
 
 **Fallback rule**: Only if the Bash call returns an error, display the exact error to the user and ask for fallback approval.
 
@@ -450,7 +446,7 @@ Analyze all changed files against each TRUST dimension:
 - **R**eadable: naming, complexity, comments
 - **U**nified: style consistency, patterns
 - **S**ecured: input validation, secrets, OWASP
-- **T**rackable: @AX tags, Lore entries, SPEC refs
+- **T**rackable: commit message and change log entries explain the why
 
 Split output into `Correctness/Security Findings` and `Complexity Findings`. Correctness/security findings cover behavior, build/test, contract, validation, accessibility, data-safety, security, deterministic oracle, and generated-surface hygiene and remain authoritative for the verdict. Complexity findings use tags from `delete`, `stdlib`, `native`, `yagni`, `shrink`, `existing-helper`, `existing-dependency`; reject or downgrade any complexity suggestion that weakens safety. Include a `Decision Receipt` summarizing the authoritative action, complexity action, skipped unsafe simplification, and minimum sufficient verification.
 
@@ -478,7 +474,7 @@ analysis cannot become APPROVE without an explicit audited override.
 
 Before displaying the review verdict, verify ALL steps were executed:
 
-- [ ] Step 1: Bash tool called — `go test -race ./...` and `golangci-lint run` ran (not skipped)
+- [ ] Step 1: Bash tool called — the project's build, test, and lint commands ran (not skipped)
 - [ ] Step 2: TRUST 5 analysis completed for all changed files
 - [ ] Step 3: risk-tiered discovery receipt consumed and focused verification completed
 
@@ -491,236 +487,40 @@ Usage: `/auto review`, `/auto review HEAD~3..HEAD`, `/auto review --pr 123`
 
 ## sync — Synchronize Documentation
 
-Synchronize code and documentation after implementation is complete. Updates SPEC status and related documents.
+Bring the project's documentation in line with the change that was just made. Run it without asking the user to start each step; it follows a passing review or QA hunt naturally.
 
-### [REQUIRED] Sync Target 1: Update SPEC Status
-
-If a SPEC-ID is provided, run SPEC Path Resolution for {SPEC-ID}. Before updating status, write `## Completion Verdict` from the SPEC docs and implementation evidence:
-
-```markdown
-## Completion Verdict
-- Outcome Lock: satisfied / blocked
-- Mandatory requirements: N/N
-- Must acceptance: N/N
-- Completion Debt: none / {items}
-- Evolution Ideas: surfaced as optional, not scheduled
-```
-
-If `Completion Debt` is not `none`, do not update status to `completed`; report the blocked reason and stop before completion guidance. If only `Evolution Ideas` remain, update the resolved SPEC_PATH status to `completed` and surface those ideas as optional, unscheduled suggestions. Use TARGET_MODULE for git operations.
-
-> **⏭ POST-TARGET**: SPEC status updated. NEXT REQUIRED TARGET: Sync Target 2: Project Docs. Do NOT skip to Lore Commit.
-
-### [REQUIRED] Sync Target 2: Update Project Context Documents
-
-Detect structural changes in the codebase and update:
-- `ARCHITECTURE.md` — reflect new packages/dependencies
-- `.autopus/project/structure.md` — reflect directory/file changes
-- `.autopus/project/tech.md` — reflect dependency/build changes
-- `.autopus/project/product.md` — reflect new features/commands
-- `.autopus/project/workspace.md` — reflect root repo role, nested repo boundaries, generated/runtime paths, tracking/commit policy, QA/Journey Pack target command changes
-- `.autopus/project/canary.md` — reflect new health endpoints, pages, deploy config changes
-
-> **⏭ POST-TARGET**: Project docs updated. NEXT REQUIRED TARGET: Sync Target 3: @AX Lifecycle. Do NOT skip to Lore Commit.
-
-### [REQUIRED] Sync Target 3: @AX Tag Lifecycle Management
-
-Manage @AX tag lifecycle (CYCLE tracking, TODO escalation, ANCHOR verification) — see rules below.
-
-> **⏭ POST-TARGET**: @AX lifecycle managed. NEXT REQUIRED TARGET: Sync Target 4: CHANGELOG. Do NOT skip to Lore Commit.
-
-### [REQUIRED] Sync Target 4: Update CHANGELOG.md
-
-Append the change summary to `CHANGELOG.md` (create if absent).
-
-### [REQUIRED] Sync Target 4.5: Learning Summary and Prune (R8, R9)
-
-WHEN `.autopus/learnings/pipeline.jsonl` exists, THE SYSTEM SHALL:
-
-**Step 1: Auto-Prune (R9)**
+### Step 1: Read the change
 
 ```bash
-auto learn prune --days 90
+git diff HEAD --stat && git status --short
 ```
 
-If the command fails (including `eval_links_unreadable`), report the failure and leave `.autopus/learnings/pipeline.jsonl` unchanged. Do NOT read the file directly to remove or rewrite entries: only `auto learn prune` applies the store's retention rules and redacts lines it cannot parse. Display only if entries were pruned:
-```
-정리: {N}개 학습 항목 만료 삭제 (90일 초과)
-```
+Read the changed source, not only the file list. Skip harness paths (`.autopus/`, `.claude/`, `.codex/`, `.gemini/`, `.opencode/`, `.omp/`, `.agents/`).
 
-**Step 2: Learning Summary (R8)**
+### Step 2: Update the documents the change made stale
 
-Display a learning summary BEFORE the completion bar:
+Update only what the change actually invalidated, in the project's own wording and language:
 
-```bash
-auto learn summary --top 3
-```
+- `README.md` — commands, flags, configuration, install or usage steps that changed
+- `ARCHITECTURE.md` — new or removed packages, modules, dependencies, data flow
+- `CHANGELOG.md` — one entry under the unreleased heading (create the heading if absent) that says what changed for a user and why
+- docs under `docs/` and doc comments next to changed public APIs
+- `.autopus/project/*.md` when present (product, structure, tech); update `.autopus/project/workspace.md` when the root role, nested repo boundaries, generated/runtime paths, commit policy, or QA/Journey Pack target commands changed
 
-Show its `Template candidates` lines (process lessons with deterministic evidence) as candidates for the user to review; never edit rules, skills, or templates from them. When it prints an `Intake:` line, suggest `auto eval harness intake --all-eligible` to the user without running it: promotion into the golden set stays a human step.
+Do not invent features, rewrite unrelated sections, or restyle documents. When nothing is stale, say so and change nothing.
 
-The summary covers the whole store: there is no per-sync window. If the command fails, generate the same figures from the JSONL file directly:
-```
-🐙 학습 요약 ────────────────────────
-  전체 기록: {N}개 (gate_fail: {n}, review_issue: {n}, ...)
-  반복 패턴 Top 3:
-    1. "{pattern}" — {reuse_count}회 주입됨
-    2. "{pattern}" — {reuse_count}회
-    3. "{pattern}" — {reuse_count}회
-  개선 영역: {기록이 2개 이상인 package}
-```
+### Step 3: Check
 
-WHERE no learning entries exist, display: `학습 요약: 신규 항목 없음 ✓`
+- Every command, flag, path, and config key a document now names exists in the code. Run a changed command's `--help` when you can.
+- Links and file references in touched documents resolve.
 
-> **⏭ POST-TARGET**: Learning summary displayed. NEXT REQUIRED TARGET: Sync Target 5. Do NOT skip to Completion.
+### Step 4: Commit when the session is committing
 
-### [REQUIRED] Sync Target 5: 2-Phase Lore Commit (MUST call Bash tool)
+If the session commits its work, commit the documentation together with the change or as a follow-up `docs(<scope>): ...` commit in the project's commit format (Lore when `.git/hooks/commit-msg` enforces it). Never push.
 
-IMPORTANT: You MUST run git operations via the Bash tool. Do NOT skip the commit step.
+If a document change needs a decision only the user can make (for example whether a behavior change is breaking), ask it with `AskUserQuestion` as a multiple-choice question, recommendation first; otherwise proceed and state the assumption.
 
-The workspace may use a **meta repo** pattern: the root project directory is a git repo that tracks project-level documents, while each subdirectory can be an independent git repo. Sync commits MUST be split into two phases when this pattern is detected.
-
-**Detection**: Run `git rev-parse --show-toplevel` at root AND at `{TARGET_MODULE}`. If they differ, this is a multi-repo workspace — use 2-Phase Commit. If they are the same (or TARGET_MODULE is '.'), use single-phase commit.
-
-#### Phase A: Module Commit (submodule changes)
-
-WHEN TARGET_MODULE is not '.', commit SPEC and module-specific files to the submodule repo:
-
-```bash
-git -C {TARGET_MODULE} status
-git -C {TARGET_MODULE} add {SPEC_DIR relative to TARGET_MODULE} {module-specific changed files}
-git -C {TARGET_MODULE} diff --cached --quiet || git -C {TARGET_MODULE} commit -m "$(cat <<'EOF'
-docs(<scope>): sync SPEC-{ID} 문서 및 상태 갱신
-
-SPEC 구현 완료에 따른 모듈 내 문서 동기화.
-
-Why: SPEC 구현 완료 후 모듈 문서 일관성 유지
-Decision: 모듈 repo에 SPEC 관련 파일만 커밋
-Ref: SPEC-{ID}
-
-🐙 Autopus <noreply@autopus.co>
-EOF
-)"
-```
-
-#### Phase B: Meta Commit (root-level documents)
-
-WHEN multi-repo workspace is detected, ALWAYS check and commit root-level document changes to the meta repo:
-
-```bash
-git status
-git add ARCHITECTURE.md .autopus/project/ CHANGELOG.md
-git diff --cached --quiet || git commit -m "$(cat <<'EOF'
-docs(meta): sync 루트 프로젝트 문서 갱신
-
-프로젝트 컨텍스트 문서를 최신 코드 상태에 맞게 동기화.
-
-Why: 서브모듈 변경에 따른 루트 문서 일관성 유지
-Decision: meta repo에 프로젝트 전체 문서만 커밋
-
-🐙 Autopus <noreply@autopus.co>
-EOF
-)"
-```
-
-**Phase skip rules:**
-- Phase A: skip when TARGET_MODULE is '.' (root-only sync) or no module files changed
-- Phase B: skip when not a multi-repo workspace, or `git diff --cached --quiet` (no root files changed)
-- Both phases: skip when `git status` reports no changes — print a notice only
-
-### [REQUIRED] Pre-Completion Verification
-
-Before displaying the completion bar, verify ALL sync targets were completed:
-
-- [ ] Sync Target 1: SPEC status updated (or N/A — no SPEC-ID provided)
-- [ ] Sync Target 2: Project context docs updated
-- [ ] Sync Target 3: @AX lifecycle managed
-- [ ] Sync Target 4: CHANGELOG.md updated
-- [ ] Sync Target 4.5: Learning summary and prune — completed (or N/A — no pipeline.jsonl)
-- [ ] Sync Target 5: 2-Phase Lore Commit — Phase A (module) + Phase B (meta) ran (or skipped due to no changes)
-
-IF any item is unchecked → return to that target. Do NOT display Completion Guidance.
-
-### Project Document Update
-
-On sync, detect structural changes in the codebase and update:
-- `ARCHITECTURE.md` — reflect new packages/dependencies
-- `.autopus/project/structure.md` — reflect directory/file changes
-- `.autopus/project/tech.md` — reflect dependency/build changes
-- `.autopus/project/product.md` — reflect new features/commands
-- `.autopus/project/workspace.md` — reflect root repo role, nested repo boundaries, generated/runtime paths, tracking/commit policy, QA/Journey Pack target command changes
-
-Usage: `/auto sync SPEC-ID`, `/auto sync`
-
-### @AX Lifecycle Management
-
-On sync, manage @AX tag lifecycle across the codebase:
-
-#### TODO Cycle Tracking
-1. Find all `@AX:TODO` tags in source files
-2. Increment `@AX:CYCLE:N` counter (or add `@AX:CYCLE:1` if absent)
-3. Escalate to `@AX:WARN` if CYCLE >= 3, adding `@AX:REASON: escalated from TODO after N cycles`
-
-#### ANCHOR Fan-In Verification
-1. Find all `@AX:ANCHOR` tags
-2. Grep for function name references to count callers
-3. If caller count < 3, downgrade to `@AX:NOTE` with updated reason
-
-#### NOTE Cleanup
-1. Find all `@AX:NOTE` tags referencing specific functions
-2. Verify the referenced function still exists in the codebase
-3. Remove orphaned NOTE tags
-
-{{if .IsFullMode}}
-### Lore Commit (2-Phase)
-
-Sync Target 5 handles the actual commits. This section provides additional commit guidelines.
-
-**2-Phase Commit flow:**
-1. **Phase A** — Module repo: SPEC files and module-specific changes → `git -C {TARGET_MODULE} commit`
-2. **Phase B** — Meta repo: root-level project docs → `git commit` (at workspace root)
-
-**Determining which files go where:**
-- Files inside `{TARGET_MODULE}/` → Phase A (module commit)
-- Files at root (`ARCHITECTURE.md`, `.autopus/project/`, `CHANGELOG.md`) → Phase B (meta commit)
-- If implementation code (`.go`, etc.) is included in Phase A: use the primary type from the SPEC (feat, fix, refactor)
-- If only docs changed: use `docs` type for both phases
-
-**Skip commit when:**
-- No changes reported by `git status` in that repo — skip and print a notice only
-{{end}}
-### Completion Guidance
-
-After sync completes, display the workflow lifecycle bar:
-
-```
-🐙 Workflow: {SPEC-ID}
-  ✓ plan  →  ✓ go  →  ● sync
-```
-
-Then display the milestone celebration ResultBox for a completed full cycle:
-
-```
-╭────────────────────────────────────╮
-│ 🐙 파이프라인 완료!                 │
-│ {SPEC-ID}: {title}                 │
-│ 태스크: N/N | 커버리지: N%          │
-│ 리뷰: {verdict}                    │
-╰────────────────────────────────────╯
-```
-
-**Field mappings:**
-- `{SPEC-ID}` — e.g., `SPEC-UX-001`
-- `{title}` — SPEC title from spec.md
-- `N/N` — completed tasks / total tasks from plan.md
-- `N%` — final test coverage (use `N/A` if not applicable or harness-only)
-- `{verdict}` — reviewer verdict (`APPROVE` or `N/A` if review was skipped)
-
-Then show state-aware next step guidance:
-
-```
-다음 단계: 바뀐 동작을 /auto qa 로 다시 확인하세요.
-```
-
-Do not recommend or create pending SPECs from `Evolution Ideas`; they stay visible as optional improvements until the user explicitly promotes one.
+Usage: `/auto sync`, `/auto sync HEAD~3..HEAD`
 
 ---
 
