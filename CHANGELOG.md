@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **응답이 설정한 언어가 아니면 Stop hook이 다시 쓰게 한다** (2026-11-08): `language.ai_responses: ko`인데도 작업 중간의
+  짧은 진행 메시지("Waiting for the internal/cli result.")가 영어로 나갔다. 언어 정책은 지시일 뿐 막는 장치가 없었다.
+  이제 `ai_responses`가 `ko`·`ja`·`zh`이면 Claude Code에 Stop hook `auto verify language`를 등록한다. 마지막 응답의
+  산문(코드 블록·인라인 코드·URL 제외)에서 그 언어의 글자가 라틴 글자의 10% 미만이면 한 번 돌려보낸다. 다시 쓴 응답
+  (`stop_hook_active`)은 막지 않는다. 실제 세션의 응답 2,411개로 돌려 보니 한국어 산문이 있는 응답을 막은 경우도, 영어 응답을
+  통과시킨 경우도 없었다. `hooks.language_stop: false` 또는 `AUTOPUS_LANGUAGE_STOP=off`로 끈다.
+
 - **멈춘 loop 뒤 `auto qa go` 재실행이 시나리오를 되찾고, TypeScript 컴파일 에러도 제품 결함으로 본다** (2026-11-08):
   (1) loop는 생성한 시나리오를 자기 브랜치에만 커밋하므로, 멈춘 뒤 SPEC 없이 `auto qa go`를 다시 돌리면 compile에서
   `no scenarios found`로 멈췄다. 이제 작업 트리에 시나리오가 하나도 없으면 가장 최근 loop 브랜치의 끝에서 시나리오 파일을

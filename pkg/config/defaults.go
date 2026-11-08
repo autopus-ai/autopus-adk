@@ -30,6 +30,13 @@ func (h HooksConf) IsVerifyStopEnabled() bool {
 	return h.VerifyStop == nil || *h.VerifyStop
 }
 
+// IsLanguageStopEnabled reports whether the response-language Stop hook is
+// registered. Unset means on; it only acts when language.ai_responses names
+// a language the check supports.
+func (h HooksConf) IsLanguageStopEnabled() bool {
+	return h.LanguageStop == nil || *h.LanguageStop
+}
+
 func (h HooksConf) IsEditGuardEnabled() bool {
 	if h.EditGuard == nil {
 		return DefaultEditGuard
