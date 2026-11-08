@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **QA loop가 컴파일 안 되는 제품을 고치고, opencode까지 네 에이전트가 끝까지 돈다** (2026-11-08): 남은 과제를 마저 풀었다.
+  (1) exec case의 build가 실패하고 에러가 제품 소스 파일(`./main.go:25:2: ...`)을 가리키면 "돌릴 수 없음"(exit 2)이 아니라
+  `Expected: "the product builds"`로 1을 내, loop가 `product_defect`로 고친다. 존재하지 않는 패키지처럼 제품 파일을 가리키지
+  않는 build 실패는 전처럼 2다. 컴파일 에러와 대소문자 버그를 함께 심은 wordtop은 1회차 build 수정, 2회차 동작 수정,
+  3회차 통과했다. (2) 시나리오 생성 결과가 하나도 쓸 수 없으면 한 번 다시 묻는다(agy가 가끔 YAML이 아닌 답을 낸다).
+  (3) opencode는 생성 프롬프트의 예시 `./cmd/tool`을 그대로 따라 써 모든 case가 실행 전에 실패했다. build가 가리키는
+  `./…` 경로가 프로젝트에 없으면 그 case를 거부하고, 예시를 `.`으로 바꿨다. (4) opencode가 `stdout_lines`가 요구하는 단어를
+  `stdout_not_contains`로 금지한 case를 썼고, 수정 에이전트는 제품이 맞다며 멈췄다. 어떤 출력도 둘을 다 만족할 수 없는
+  expect는 검증에서 거부한다. 이제 claude·codex·agy·opencode 모두 wordtop end-to-end를 통과한다.
+
 - **intent 질문의 답을 기록하고, 시나리오 생성이 그 답을 따른다** (2026-11-08): `auto qa intent`가 낸 질문에 답할 방법이
   acceptance.md를 손으로 고치는 것뿐이었고, `auto qa go --auto`는 답 없는 질문을 말없이 지나쳤다. wordtop 검증에서는
   답하지 않은 "줄 형식" 질문의 권장안(`apple 5`)이 실제 출력(`5 apple`)과 달랐다. 이제 `auto qa intent answer <id> Q1=<n>`

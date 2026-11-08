@@ -89,3 +89,24 @@ func TestEvaluateIn_UnbuiltProjectProgramIsDropped(t *testing.T) {
 	require.Len(t, only.Rejected, 1)
 	assert.Equal(t, CodeExecProgramMissing, only.Rejected[0].Code, "a whole-document reject still names the real cause")
 }
+
+// opencode copied the prompt's ./cmd/tool example into a project with no cmd
+// directory; the build could never succeed, so the case is dropped.
+func TestEvaluateIn_BuildPathMustExist(t *testing.T) {
+	project := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(project, "cmd", "real"), 0o755))
+	withPath := func(id, pkg string) string {
+		c := strings.Replace(goodCase, "shows-top-word", id, 1)
+		return strings.Replace(c, "$BIN/tool, .]", "$BIN/tool, "+pkg+"]", 1)
+	}
+	doc := salvageHeader + withPath("copied-example", "./cmd/wordtop") + withPath("real-package", "./cmd/real") +
+		withPath("all-packages", "./...") + withPath("project-root", "$PROJECT/cmd/real")
+	out := evaluateIn(project, "SPEC-X", []string{"AC-1"}, []string{doc}, nil)
+	require.Len(t, out.TestScenarios, 1)
+	for _, kept := range []string{"real-package", "all-packages", "project-root"} {
+		assert.Contains(t, out.TestScenarios[0].Body, kept)
+	}
+	require.Len(t, out.Rejected, 1)
+	assert.Equal(t, "copied-example", out.Rejected[0].ID)
+	assert.Contains(t, out.Rejected[0].Message, `"./cmd/wordtop", which is not in the project`)
+}

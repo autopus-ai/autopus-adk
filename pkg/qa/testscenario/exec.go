@@ -79,6 +79,9 @@ func ValidateExec(x *Exec) error {
 	if x.Expect.ExitNonzero && x.Expect.ExitCode != nil {
 		return fmt.Errorf("exec.expect sets both exit_code and exit_nonzero; keep one")
 	}
+	if err := contradiction(x.Expect); err != nil {
+		return err
+	}
 	if x.Timeout != "" {
 		if d, err := time.ParseDuration(x.Timeout); err != nil || d <= 0 || d > 10*time.Minute {
 			return fmt.Errorf("exec.timeout %q must be a duration up to 10m", x.Timeout)
@@ -121,4 +124,25 @@ func SafeRelPath(p string) bool {
 	}
 	clean := filepath.Clean(p)
 	return clean != "." && clean != ".." && !strings.HasPrefix(clean, "../")
+}
+
+// contradiction finds a stdout_not_contains entry that another stdout
+// expectation requires: no output could satisfy both, so the case can only
+// fail, and a loop told to fix the product could only stop on it.
+func contradiction(e ExecExpect) error {
+	required := append(append([]string{}, e.StdoutContains...), e.StdoutLines...)
+	if e.Stdout != nil {
+		required = append(required, *e.Stdout)
+	}
+	for _, banned := range e.StdoutNotContains {
+		if banned == "" {
+			return fmt.Errorf("exec.expect.stdout_not_contains has an empty entry, which every output contains")
+		}
+		for _, need := range required {
+			if strings.Contains(need, banned) {
+				return fmt.Errorf("exec.expect.stdout_not_contains %q is part of required output %q; no output satisfies both", banned, need)
+			}
+		}
+	}
+	return nil
 }

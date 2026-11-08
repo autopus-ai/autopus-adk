@@ -20,7 +20,7 @@ func fakeQAGoDeps(order *[]string) autopilot.Deps {
 	return autopilot.Deps{
 		Generate: func(_ context.Context, o generate.Options) (generate.Report, error) {
 			*order = append(*order, "generate")
-			return generate.Report{Spec: o.SpecID, Criteria: 1, Written: []string{"a.yaml"},
+			return generate.Report{Spec: o.SpecID, Criteria: 1, Written: []string{"a.yaml"}, Scenarios: []string{"a"},
 				Coverage: []generate.CriterionCoverage{{ID: "AC-1", Status: "covered_by_user_scenario", Refs: []string{"scenario:a"}}}}, nil
 		},
 		Promote: func(string, promote.Options) (promote.Report, error) {

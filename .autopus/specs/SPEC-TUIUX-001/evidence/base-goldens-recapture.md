@@ -294,3 +294,10 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 기록: `make generate-templates` 뒤 `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run 'TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6'`.
 - 차이: NPD 다섯 개에서 해당 스킬과 그 backup, manifest·journal checksum만 바뀌었다. stdout golden은 그대로다.
 - 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.
+
+## qa-autopilot 스킬에 build 실패 분류 설명 추가 (feat/qa-build-triage, 2026-11-08)
+
+- 원인: `content/skills/qa-autopilot.md`의 `auto qa exec` 종료 코드 설명에 제품 컴파일 에러가 1로 끝난다는 문장을 더했다.
+- 기록: `make generate-templates` 뒤 `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run 'TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6'`.
+- 차이: NPD 다섯 개에서 `qa-autopilot` 스킬과 그 backup, manifest·journal checksum만 바뀌었다. stdout golden은 그대로다.
+- 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.

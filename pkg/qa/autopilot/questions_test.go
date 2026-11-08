@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -56,8 +57,9 @@ func TestRun_AutoRecordsRecommendedAnswers(t *testing.T) {
 	assert.Equal(t, intent.AnsweredByRecommended, qs[0].AnsweredBy)
 }
 
-// When every generated document was rejected the run stops at generation
-// and says so, instead of failing later at compile for the wrong reason.
+// When every generated document was rejected twice the run stops at
+// generation and says so, instead of failing later at compile for the wrong
+// reason.
 func TestRun_AllDocumentsRejectedStopsAtGenerate(t *testing.T) {
 	t.Parallel()
 	c := &calls{}
@@ -71,5 +73,28 @@ func TestRun_AllDocumentsRejectedStopsAtGenerate(t *testing.T) {
 	require.ErrorAs(t, err, &stop)
 	assert.Equal(t, CodeNothingGenerated, stop.Code)
 	assert.Contains(t, stop.Error(), "qa_test_scenario_parse_invalid")
-	assert.Equal(t, []string{"generate"}, c.order)
+	assert.Equal(t, []string{"generate", "generate"}, c.order, "one retry, then stop")
+}
+
+// A first answer with nothing usable is asked again once; a good second
+// answer carries the run on.
+func TestRun_RetriesGenerationOnce(t *testing.T) {
+	t.Parallel()
+	c := &calls{}
+	deps := fakeDeps(c, nil)
+	calls := 0
+	deps.Generate = func(_ context.Context, o generate.Options) (generate.Report, error) {
+		calls++
+		c.order = append(c.order, "generate")
+		if calls == 1 {
+			return generate.Report{Documents: 0}, nil
+		}
+		return generate.Report{Written: []string{"x"}, TestScenarios: []string{o.SpecID}}, nil
+	}
+	var lines []string
+	_, err := Run(context.Background(), Options{ProjectDir: project(t), SpecID: "SPEC-X", Agent: agentexec.TargetGemini, Lane: "fast", Auto: true,
+		Progress: func(stage, line string) { lines = append(lines, stage+": "+line) }}, deps)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"generate", "generate", "promote", "compile", "loop"}, c.order)
+	assert.Contains(t, strings.Join(lines, "\n"), "asking once more")
 }

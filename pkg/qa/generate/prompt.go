@@ -94,7 +94,7 @@ cases:
       type: gui | exec | command | manual
       scenario: <user scenario id>   # gui only
       exec:                          # exec only: run the product, check what a user sees
-        build: [go, build, -o, $BIN/tool, ./cmd/tool]   # optional, runs in the project root
+        build: [go, build, -o, $BIN/tool, .]   # runs in the project root; name a package directory that exists
         argv: [$BIN/tool, --flag, input.txt]            # runs in a fresh dir holding only files
         stdin: ""
         files: {input.txt: "line one\n"}

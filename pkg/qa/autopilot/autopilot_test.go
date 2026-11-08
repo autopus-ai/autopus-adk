@@ -26,7 +26,7 @@ func fakeDeps(c *calls, genErr error) Deps {
 	return Deps{
 		Generate: func(_ context.Context, o generate.Options) (generate.Report, error) {
 			c.order = append(c.order, "generate:"+o.SpecID)
-			return generate.Report{Spec: o.SpecID, Written: []string{"x"}}, genErr
+			return generate.Report{Spec: o.SpecID, Written: []string{"x"}, TestScenarios: []string{o.SpecID}}, genErr
 		},
 		Promote: func(string, promote.Options) (promote.Report, error) {
 			c.order = append(c.order, "promote")
