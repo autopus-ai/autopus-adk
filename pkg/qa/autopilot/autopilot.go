@@ -12,6 +12,7 @@ package autopilot
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"sort"
@@ -133,7 +134,15 @@ func Run(ctx context.Context, opts Options, deps Deps) (Report, error) {
 	}
 	progress(StageCompile, "compiling scenarios")
 	compiled, err := deps.Compile(opts.ProjectDir, false)
-	if err != nil {
+	switch {
+	case err == nil:
+	case noGUIScenarios(err) && hasTestScenarios(opts.ProjectDir):
+		// A CLI or library has no browser scenarios to compile; the run
+		// planner reads its exec and command cases straight from the
+		// test-scenarios files, so the loop still has work.
+		progress(StageCompile, "no GUI scenarios; exec and command cases run from "+testscenario.DirRel)
+		compiled = scenario.Result{}
+	default:
 		return report, &Error{Stage: StageCompile, Code: "qa_go_compile_failed", Err: err}
 	}
 	report.Compiled = len(compiled.Compiled)
@@ -171,6 +180,16 @@ func DetectLane(projectDir string) string {
 		return "fast"
 	}
 	return first
+}
+
+func noGUIScenarios(err error) bool {
+	var v *scenario.ValidationError
+	return errors.As(err, &v) && v.Code == "qa_scenario_none"
+}
+
+func hasTestScenarios(projectDir string) bool {
+	matches, _ := filepath.Glob(filepath.Join(projectDir, testscenario.DirRel, "*.yaml"))
+	return len(matches) > 0
 }
 
 // seedPaths are the QA files the loop commits first: active scenarios and

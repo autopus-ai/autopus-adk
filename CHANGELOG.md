@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **`auto qa go`가 CLI 제품에서 돌고, exec case가 순서·개수·부재를 검사한다** (2026-11-08): 작은 Go CLI에 대소문자를
+  구분하는 버그를 심고 `auto qa intent` → `auto qa go`를 처음부터 돌린 검증에서 두 결함이 나왔다. 첫째, 웹 UI가 없는
+  프로젝트는 브라우저 시나리오가 없어 compile 단계가 `no scenarios found`로 항상 멈췄다. 이제 test-scenarios 파일이 있으면
+  compile을 건너뛰고 loop로 간다. 둘째, `stdout_contains`만으로는 `3 cat / 2 The / 2 the` 같은 틀린 출력도 통과해, 버그를
+  잡을 case가 `manual`로 빠졌다. `expect`에 `stdout_lines`(비어 있지 않은 줄 수가 같고 i번째 줄이 i번째 항목을 포함)와
+  `stdout_not_contains`를 더했고, 시나리오 생성 프롬프트가 줄 형식을 모를 때 이것을 쓰게 한다.
+
 - **QA가 CLI 제품을 직접 돌려 기대값을 검사한다 (`exec` case)** (2026-11-07): command case는 테스트 러너의 종료 코드만
   알아, CLI·도구 제품의 기대값은 구현자가 쓴 테스트 안에만 있었다. 새 `exec` automation은 제품을 빌드하고(`build`, 선택)
   case의 `files`만 든 새 디렉터리에서 `argv`를 실행한 뒤 종료 코드·stdout·stderr·파일을 `expect`와 비교한다. `argv[0]`은

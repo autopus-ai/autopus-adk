@@ -100,6 +100,8 @@ cases:
           exit_code: 0
           stdout: "exact output\n"
           stdout_contains: [substring]
+          stdout_not_contains: [substring]   # must not appear anywhere in stdout
+          stdout_lines: [first, second]      # exactly this many non-empty lines; line i contains entry i
           stderr_contains: [substring]
           files: {out.txt: "exact content"}
       check:                         # command only: a test runner's exit code
@@ -128,6 +130,7 @@ func BuildPrompt(in PromptInput) string {
 	b.WriteString("- Assert visible messages with expect_text. Never give expect_role a name for alert, status, log, marquee, or timer: those roles do not take their name from their text.\n")
 	b.WriteString("- Use literal values for inputs that are not secrets, such as a deliberately wrong password or a search term; do not invent environment variables for them.\n")
 	b.WriteString("- For each criterion a user observes by running the product itself (a CLI's output, exit code, or the files it writes), write an exec case: it carries the expected value, so prefer it to a command case, which only learns whether a test runner exited 0.\n")
+	b.WriteString("- When a criterion fixes the order or number of output entries but not the line format, assert it with stdout_lines rather than writing a manual case; assert what must not appear with stdout_not_contains. stdout_contains alone cannot fail on wrong order, extra entries, or a duplicate.\n")
 	fmt.Fprintf(&b, "- An exec argv[0] must be $BIN/<name> from its build step, a path inside the project such as ./bin/tool, or one of: %s. An exec build[0] and a command check's argv[0] must be one of: %s.\n", strings.Join(testscenario.CommandAllowlist, ", "), strings.Join(testscenario.CommandAllowlist, ", "))
 	b.WriteString("- Unknown keys are rejected, so use only the keys shown in the schemas.\n\n")
 

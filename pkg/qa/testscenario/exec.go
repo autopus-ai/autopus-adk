@@ -36,17 +36,24 @@ type Exec struct {
 
 // ExecExpect holds what the user observes. Each set field is checked; unset
 // fields are not. Stdout is an exact match, the Contains lists are substrings.
+// StdoutLines pins order and count without pinning the line format: stdout
+// must have exactly that many non-empty lines, and line i must contain entry
+// i. It is how "exactly these 3, in this order" is checked when the request
+// never said what a line looks like.
 type ExecExpect struct {
-	ExitCode       *int              `yaml:"exit_code,omitempty" json:"exit_code,omitempty"`
-	Stdout         *string           `yaml:"stdout,omitempty" json:"stdout,omitempty"`
-	StdoutContains []string          `yaml:"stdout_contains,omitempty" json:"stdout_contains,omitempty"`
-	StderrContains []string          `yaml:"stderr_contains,omitempty" json:"stderr_contains,omitempty"`
-	Files          map[string]string `yaml:"files,omitempty" json:"files,omitempty"`
+	ExitCode          *int              `yaml:"exit_code,omitempty" json:"exit_code,omitempty"`
+	Stdout            *string           `yaml:"stdout,omitempty" json:"stdout,omitempty"`
+	StdoutContains    []string          `yaml:"stdout_contains,omitempty" json:"stdout_contains,omitempty"`
+	StdoutNotContains []string          `yaml:"stdout_not_contains,omitempty" json:"stdout_not_contains,omitempty"`
+	StdoutLines       []string          `yaml:"stdout_lines,omitempty" json:"stdout_lines,omitempty"`
+	StderrContains    []string          `yaml:"stderr_contains,omitempty" json:"stderr_contains,omitempty"`
+	Files             map[string]string `yaml:"files,omitempty" json:"files,omitempty"`
 }
 
 // empty reports whether nothing would be checked.
 func (e ExecExpect) empty() bool {
 	return e.ExitCode == nil && e.Stdout == nil && len(e.StdoutContains) == 0 &&
+		len(e.StdoutNotContains) == 0 && len(e.StdoutLines) == 0 &&
 		len(e.StderrContains) == 0 && len(e.Files) == 0
 }
 
