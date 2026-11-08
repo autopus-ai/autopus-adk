@@ -115,20 +115,13 @@ func Run(ctx context.Context, opts Options, deps Deps) (Report, error) {
 		if err := resolveQuestions(opts, progress); err != nil {
 			return report, err
 		}
-		progress(StageGenerate, fmt.Sprintf("generating scenarios from %s with %s", report.Spec, opts.Agent))
-		gen, err := deps.Generate(ctx, generate.Options{ProjectDir: opts.ProjectDir, SpecID: report.Spec, Target: opts.Agent})
+		gen, err := generateOnce(ctx, opts, deps, report.Spec, progress)
 		report.Generate = &gen
 		if err != nil {
-			return report, &Error{Stage: StageGenerate, Code: generate.ErrorCode(err), Err: err}
+			return report, err
 		}
 		if opts.OnGenerated != nil {
 			opts.OnGenerated(gen)
-		}
-		// Everything the agent wrote was rejected: running on would only fail
-		// later at compile, naming the wrong cause.
-		if len(gen.Written) == 0 && len(gen.Rejected) > 0 {
-			return report, &Error{Stage: StageGenerate, Code: CodeNothingGenerated, Err: fmt.Errorf(
-				"all %d document(s) the agent wrote were rejected (first: %s); rerun, or try another --agent", len(gen.Rejected), gen.Rejected[0].Code)}
 		}
 		if !opts.Auto {
 			progress(StageConfirm, "waiting for confirmation")

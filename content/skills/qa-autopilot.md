@@ -60,7 +60,7 @@ automation:
 - 기준이 출력 항목의 순서나 개수는 정하지만 한 줄의 형식은 정하지 않았다면 `manual`로 미루지 말고 `stdout_lines: [the, cat]`를 씁니다. 비어 있지 않은 줄이 정확히 그 수만큼 있고 i번째 줄이 i번째 항목을 포함해야 통과합니다. 나오면 안 되는 값은 `stdout_not_contains`로 검사합니다. 기준이 "에러로 끝난다"고만 하고 코드를 정하지 않았다면 `exit_nonzero: true`를 씁니다. `stdout_contains`만으로는 순서가 틀리거나 항목이 남거나 겹쳐도 실패하지 않습니다.
 - 웹 UI가 없는 프로젝트에서는 `auto qa go`가 브라우저 시나리오 컴파일을 건너뛰고, exec·command case를 test-scenarios 파일에서 바로 돌립니다.
 - `argv[0]`은 `$BIN/<이름>`, 프로젝트 안의 경로(`./bin/tool`), 또는 허용된 러너(`python3` 등)만 됩니다. 임의의 시스템 명령은 거부합니다.
-- `auto qa exec --file <yaml> --case <id>`가 한 case를 돌립니다. 기대값이 어긋나면 `Expected:`/`Received:`를 출력하고 1로 끝나며, loop는 이를 `product_defect`로 분류합니다. 빌드 실패처럼 돌릴 수 없으면 2로 끝납니다.
+- `auto qa exec --file <yaml> --case <id>`가 한 case를 돌립니다. 기대값이 어긋나면 `Expected:`/`Received:`를 출력하고 1로 끝나며, loop는 이를 `product_defect`로 분류합니다. 제품 소스 파일을 가리키는 컴파일 에러도 제품 결함이라 1로 끝납니다. build 경로가 틀린 것처럼 case 자체를 돌릴 수 없으면 2로 끝납니다.
 - 에이전트 실행(claude)은 호출마다 `--max-budget-usd` 상한(기본 $5, `AUTOPUS_QA_AGENT_BUDGET_USD`로 변경)을 둡니다.
 
 ## 한 번에: `auto qa go`

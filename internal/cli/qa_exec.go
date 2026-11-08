@@ -13,8 +13,9 @@ import (
 )
 
 // qaExecExitMismatch is the exit status of a case whose expectations did not
-// hold. Any other failure, such as a build that does not compile, exits 2, so
-// a journey can tell a product verdict from a case that never ran.
+// hold, including a build whose errors name a product source file. Any other
+// failure, such as a build step pointing at a package that does not exist,
+// exits 2, so a journey can tell a product verdict from a case that never ran.
 const (
 	qaExecExitMismatch = 1
 	qaExecExitError    = 2
@@ -28,8 +29,8 @@ func newQAExecCmd() *cobra.Command {
 		Short: "Run one exec test case against the product and check what a user observes",
 		Long: "Loads a qamesh.test-scenarios.v1 file, builds the product if the case asks, runs it in a fresh " +
 			"directory holding only the case's files, and checks the exit code, stdout, stderr, and files the " +
-			"case expects. A failed expectation prints Expected:/Received: lines and exits 1; a case that cannot " +
-			"run exits 2. 'auto qa run' and 'auto qa loop' call this for every exec case.",
+			"case expects. A failed expectation, or a build whose errors name a product source file, prints " +
+			"Expected:/Received: lines and exits 1; a case that cannot run exits 2. 'auto qa run' and 'auto qa loop' call this for every exec case.",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,

@@ -72,6 +72,12 @@ func Run(ctx context.Context, projectDir string, x testscenario.Exec) (Result, e
 			return Result{}, fmt.Errorf("build %s: %w", strings.Join(x.Build, " "), err)
 		}
 		if res.ExitCode != 0 {
+			output := strings.TrimSpace(res.Stderr + "\n" + res.Stdout)
+			if productBuildFailure(project, output) {
+				return Result{ExitCode: res.ExitCode, Stderr: res.Stderr, Mismatches: []Mismatch{
+					{"build", "the product builds", tail(output)},
+				}}, nil
+			}
 			return Result{}, fmt.Errorf("build %s exited %d: %s", strings.Join(x.Build, " "), res.ExitCode, tail(res.Stderr))
 		}
 	}

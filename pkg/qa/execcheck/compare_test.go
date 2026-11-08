@@ -64,3 +64,23 @@ func TestCompare_ExitNonzero(t *testing.T) {
 	both := testscenario.Exec{Argv: []string{"$BIN/tool"}, Expect: testscenario.ExecExpect{ExitNonzero: true, ExitCode: intp(1)}}
 	assert.ErrorContains(t, testscenario.ValidateExec(&both), "keep one")
 }
+
+// opencode wrote stdout_lines [banana, apple, cherry] beside
+// stdout_not_contains [apple,banana,cherry], which YAML reads as three words.
+// No output passes both, so validation refuses the case.
+func TestValidateExec_RefusesContradictoryStdout(t *testing.T) {
+	ok := testscenario.Exec{Build: build(), Argv: []string{"$BIN/tool"}}
+	for _, expect := range []testscenario.ExecExpect{
+		{StdoutLines: []string{"banana", "apple", "cherry"}, StdoutNotContains: []string{"apple", "banana", "cherry"}},
+		{StdoutContains: []string{"5 the"}, StdoutNotContains: []string{"the"}},
+		{Stdout: strp("5 the\n"), StdoutNotContains: []string{"5"}},
+		{ExitCode: intp(0), StdoutNotContains: []string{""}},
+	} {
+		x := ok
+		x.Expect = expect
+		assert.Error(t, testscenario.ValidateExec(&x), "%+v", expect)
+	}
+	x := ok
+	x.Expect = testscenario.ExecExpect{StdoutLines: []string{"the", "cat"}, StdoutNotContains: []string{"The", "THE"}}
+	assert.NoError(t, testscenario.ValidateExec(&x), "case-sensitive absence beside lowercase lines is consistent")
+}

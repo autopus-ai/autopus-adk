@@ -103,12 +103,23 @@ func (e *evaluation) firstUnrunnable(doc testscenario.Document) error {
 	return nil
 }
 
-// caseRunnable rejects an exec case whose program is a project file that
-// does not exist when nothing builds it: every run would fail before the
-// product is reached, and the loop could only stop on it.
+// caseRunnable rejects an exec case that can only fail before reaching the
+// product: a build step naming a project path that does not exist (an agent
+// copying an example such as ./cmd/tool), or, with no build step, a program
+// that is not in the project. Every run of such a case would stop as
+// "cannot run", and the loop could only stop on it.
 func (e *evaluation) caseRunnable(c testscenario.Case) error {
 	x := c.Automation.Exec
-	if e.projectDir == "" || c.Automation.Type != testscenario.AutomationExec || x == nil || len(x.Build) > 0 || len(x.Argv) == 0 {
+	if e.projectDir == "" || c.Automation.Type != testscenario.AutomationExec || x == nil || len(x.Argv) == 0 {
+		return nil
+	}
+	if len(x.Build) > 0 {
+		for _, arg := range x.Build[1:] {
+			if rel, ok := projectPathArg(arg); ok && !e.exists(rel) {
+				return &testscenario.ValidationError{Path: c.ID, Code: CodeExecProgramMissing, Message: fmt.Sprintf(
+					"exec.build names %q, which is not in the project; build the package that holds the program, such as .", arg)}
+			}
+		}
 		return nil
 	}
 	program := x.Argv[0]
@@ -119,9 +130,26 @@ func (e *evaluation) caseRunnable(c testscenario.Case) error {
 		}
 		rel = strings.TrimPrefix(program, "./")
 	}
-	if _, err := os.Stat(filepath.Join(e.projectDir, filepath.FromSlash(rel))); err != nil {
+	if !e.exists(rel) {
 		return &testscenario.ValidationError{Path: c.ID, Code: CodeExecProgramMissing, Message: fmt.Sprintf(
 			"exec.argv[0] %q is not in the project and no build step makes it; add build, such as [go, build, -o, $BIN/<name>, .]", program)}
 	}
 	return nil
+}
+
+// projectPathArg reads a build argument that names a project path: ./x or
+// $PROJECT/x. Output paths under $BIN and bare words are not paths to check.
+func projectPathArg(arg string) (string, bool) {
+	if rel, ok := strings.CutPrefix(arg, testscenario.PlaceholderProject+"/"); ok {
+		return rel, true
+	}
+	if rel, ok := strings.CutPrefix(arg, "./"); ok && rel != "" && !strings.Contains(rel, "...") {
+		return rel, true
+	}
+	return "", false
+}
+
+func (e *evaluation) exists(rel string) bool {
+	_, err := os.Stat(filepath.Join(e.projectDir, filepath.FromSlash(rel)))
+	return err == nil
 }
