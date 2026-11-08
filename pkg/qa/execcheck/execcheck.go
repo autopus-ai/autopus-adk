@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -134,6 +135,16 @@ func compare(want testscenario.ExecExpect, got Result, work string) []Mismatch {
 			out = append(out, Mismatch{"stdout_contains", s, got.Stdout})
 		}
 	}
+	for _, s := range want.StdoutNotContains {
+		if strings.Contains(got.Stdout, s) {
+			out = append(out, Mismatch{"stdout_not_contains", "no " + strconv.Quote(s), got.Stdout})
+		}
+	}
+	if len(want.StdoutLines) > 0 {
+		if lines := nonEmptyLines(got.Stdout); !linesMatch(want.StdoutLines, lines) {
+			out = append(out, Mismatch{"stdout_lines", strings.Join(want.StdoutLines, "\n"), got.Stdout})
+		}
+	}
 	for _, s := range want.StderrContains {
 		if !strings.Contains(got.Stderr, s) {
 			out = append(out, Mismatch{"stderr_contains", s, got.Stderr})
@@ -163,6 +174,30 @@ func WriteReport(w io.Writer, caseID, ac string, r Result) {
 	if !r.Passed() && r.Stderr != "" {
 		fmt.Fprintf(w, "stderr:\n%s\n", tail(r.Stderr))
 	}
+}
+
+// linesMatch reports whether there is one line per entry and each line
+// contains its entry.
+func linesMatch(want, lines []string) bool {
+	if len(want) != len(lines) {
+		return false
+	}
+	for i, w := range want {
+		if !strings.Contains(lines[i], w) {
+			return false
+		}
+	}
+	return true
+}
+
+func nonEmptyLines(s string) []string {
+	var out []string
+	for _, line := range strings.Split(s, "\n") {
+		if strings.TrimSpace(line) != "" {
+			out = append(out, line)
+		}
+	}
+	return out
 }
 
 func expandAll(r *strings.Replacer, in []string) []string {
