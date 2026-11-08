@@ -36,12 +36,14 @@ type Exec struct {
 
 // ExecExpect holds what the user observes. Each set field is checked; unset
 // fields are not. Stdout is an exact match, the Contains lists are substrings.
+// ExitNonzero is "ends with an error" when the request names no exit code.
 // StdoutLines pins order and count without pinning the line format: stdout
 // must have exactly that many non-empty lines, and line i must contain entry
 // i. It is how "exactly these 3, in this order" is checked when the request
 // never said what a line looks like.
 type ExecExpect struct {
 	ExitCode          *int              `yaml:"exit_code,omitempty" json:"exit_code,omitempty"`
+	ExitNonzero       bool              `yaml:"exit_nonzero,omitempty" json:"exit_nonzero,omitempty"`
 	Stdout            *string           `yaml:"stdout,omitempty" json:"stdout,omitempty"`
 	StdoutContains    []string          `yaml:"stdout_contains,omitempty" json:"stdout_contains,omitempty"`
 	StdoutNotContains []string          `yaml:"stdout_not_contains,omitempty" json:"stdout_not_contains,omitempty"`
@@ -52,7 +54,7 @@ type ExecExpect struct {
 
 // empty reports whether nothing would be checked.
 func (e ExecExpect) empty() bool {
-	return e.ExitCode == nil && e.Stdout == nil && len(e.StdoutContains) == 0 &&
+	return e.ExitCode == nil && !e.ExitNonzero && e.Stdout == nil && len(e.StdoutContains) == 0 &&
 		len(e.StdoutNotContains) == 0 && len(e.StdoutLines) == 0 &&
 		len(e.StderrContains) == 0 && len(e.Files) == 0
 }
@@ -74,6 +76,9 @@ func ValidateExec(x *Exec) error {
 	if x.Expect.empty() {
 		return fmt.Errorf("exec.expect must state at least one observable outcome")
 	}
+	if x.Expect.ExitNonzero && x.Expect.ExitCode != nil {
+		return fmt.Errorf("exec.expect sets both exit_code and exit_nonzero; keep one")
+	}
 	if x.Timeout != "" {
 		if d, err := time.ParseDuration(x.Timeout); err != nil || d <= 0 || d > 10*time.Minute {
 			return fmt.Errorf("exec.timeout %q must be a duration up to 10m", x.Timeout)
@@ -85,6 +90,11 @@ func ValidateExec(x *Exec) error {
 				return fmt.Errorf("exec file %q must be a relative path without ..", name)
 			}
 		}
+	}
+	// Checked last so a case with several problems reports the ones above
+	// first; $BIN starts empty, so without a build nothing could be there.
+	if strings.HasPrefix(x.Argv[0], PlaceholderBin+"/") && len(x.Build) == 0 {
+		return fmt.Errorf("exec.argv[0] %q is under $BIN, which starts empty: add a build step that writes it", x.Argv[0])
 	}
 	return nil
 }

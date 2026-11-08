@@ -146,3 +146,19 @@ func TestRun_RejectsBadInput(t *testing.T) {
 	}
 	assert.Empty(t, runner.req.Prompt, "no bad input reaches the agent")
 }
+
+// Options often carry a colon ("e.g.: 5 the"); the prompt asks for quotes,
+// and a quoted or JSON list parses.
+func TestParseOutput_QuotedAndJSONQuestionsParse(t *testing.T) {
+	assert.Contains(t, BuildPrompt("x"), "Put every string in double quotes")
+	criteria := "```acceptance\n### AC-1: x\nGiven a\nWhen b\nThen c\n```\n\n"
+	for _, block := range []string{
+		"- id: \"Q1\"\n  criterion: \"AC-1\"\n  question: \"Layout?\"\n  options: [\"count first (e.g.: 5 the)\", \"word first\"]\n  recommended: 0\n",
+		`[{"id": "Q1", "criterion": "AC-1", "question": "Layout?", "options": ["count first (e.g.: 5 the)", "word first"], "recommended": 0}]` + "\n",
+	} {
+		draft, err := ParseOutput(criteria + "```intent-questions\n" + block + "```\n")
+		require.NoError(t, err)
+		require.Len(t, draft.Questions, 1)
+		assert.Equal(t, "count first (e.g.: 5 the)", draft.Questions[0].Options[0])
+	}
+}

@@ -11,6 +11,7 @@ import (
 
 	"github.com/insajin/autopus-adk/pkg/qa/acceptance"
 	"github.com/insajin/autopus-adk/pkg/qa/agentexec"
+	"github.com/insajin/autopus-adk/pkg/qa/intent"
 	"github.com/insajin/autopus-adk/pkg/qa/journey"
 	"github.com/insajin/autopus-adk/pkg/qa/scaffold"
 	"github.com/insajin/autopus-adk/pkg/qa/scenario"
@@ -37,6 +38,7 @@ const (
 	CodeIDExists               = "qa_generate_id_exists"
 	CodeScenarioRefUnknown     = "qa_generate_scenario_ref_unknown"
 	CodeTestScenariosDuplicate = "qa_generate_test_scenarios_duplicate"
+	CodeExecProgramMissing     = "qa_generate_exec_program_missing"
 )
 
 // Error is a generation failure with a stable reason code.
@@ -119,8 +121,13 @@ func Run(ctx context.Context, opts Options) (Report, error) {
 		report.PromptCriteria = MaxPromptCriteria
 	}
 	existing := existingScenarioIDs(opts.ProjectDir)
+	questions, err := intent.LoadQuestions(opts.ProjectDir, specID)
+	if err != nil {
+		return report, &Error{Code: CodeAcceptanceMissing, Message: err.Error()}
+	}
 	prompt := BuildPrompt(PromptInput{
 		SpecID: specID, Criteria: criteria, ExistingScenarioIDs: existing, Journeys: journeyHints(opts.ProjectDir),
+		Readings: intent.Readings(questions), Undecided: intent.Undecided(questions),
 	})
 	runner := opts.Runner
 	if runner == nil {
@@ -138,7 +145,7 @@ func Run(ctx context.Context, opts Options) (Report, error) {
 	for _, c := range criteria {
 		ids = append(ids, c.ID)
 	}
-	outcome := Evaluate(specID, ids, docs, existing)
+	outcome := evaluateIn(opts.ProjectDir, specID, ids, docs, existing)
 	for _, accepted := range outcome.Scenarios {
 		report.Scenarios = append(report.Scenarios, accepted.ID)
 	}

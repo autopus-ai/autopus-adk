@@ -55,7 +55,7 @@ and report.md, and checks out the original branch again.`,
 	flags.StringVar(&opts.Lane, "lane", "fast", "QA lane to run")
 	flags.StringVar(&opts.Profile, "profile", "", "QA profile (default standalone)")
 	flags.StringVar(&opts.JourneyID, "journey", "", "Limit the loop to one journey id")
-	flags.StringVar(&opts.Agent, "agent", "", "Repair agent: claude, codex, gemini, or opencode")
+	flags.StringVar(&opts.Agent, "agent", "", "Repair agent: claude, codex, gemini (agy), or opencode")
 	flags.IntVar(&opts.MaxIterations, "max-iterations", qaloop.DefaultMaxIterations, "Maximum fix iterations")
 	flags.DurationVar(&opts.AgentTimeout, "agent-timeout", qaloop.DefaultAgentTimeout, "Timeout for one agent run")
 	addJSONFlags(cmd, &opts.JSONOut, &opts.Format)

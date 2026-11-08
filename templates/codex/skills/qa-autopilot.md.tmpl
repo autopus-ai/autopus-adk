@@ -23,8 +23,8 @@
 1. 사용자의 원래 요청을 **그대로** 파일에 저장합니다. 요약하지 말고, 코드나 diff를 섞지 않습니다.
 2. `auto qa intent --request-file <file> --format json`을 실행합니다. 에이전트가 빈 디렉터리에서 요청만 보고 `.autopus/specs/<id>/acceptance.md`(AC-n, Given/When/Then)와 `questions.json`을 씁니다.
 3. `questions`의 각 항목을 객관식으로 묻습니다(Claude Code는 AskUserQuestion). 선택지는 주어진 그대로, 권장안을 먼저 둡니다. 이 질문들이 요청을 다르게 읽을 수 있는 지점입니다.
-4. 답이 권장안과 다르면, 그 항목이 가리키는 기준의 문장만 고칩니다. 다른 기준은 건드리지 않습니다.
-5. `auto qa go <id>`로 시나리오 생성 → 실행 → 분류 → 수정을 이어 갑니다. 기대값은 diff guard가 지킵니다.
+4. 답을 `auto qa intent answer <id> Q1=<n> Q2=<n>`으로 기록합니다(선택지 번호는 1부터). acceptance.md는 고치지 않습니다. 시나리오 생성이 `questions.json`의 답을 확정된 해석으로 읽고, 답 없는 질문은 어느 쪽으로도 단언하지 않습니다.
+5. `auto qa go <id>`로 시나리오 생성 → 실행 → 분류 → 수정을 이어 갑니다. 기대값은 diff guard가 지킵니다. 답 없는 질문이 남아 있으면 `qa go`는 멈춥니다. `--auto`이면 권장안을 `answered_by: recommended`로 기록하고 그 사실을 출력한 뒤 진행합니다.
 
 - 큰 변경은 구현 **전에** 1~4를 하고 구현을 시작합니다. 기준이 코드에 끌려갈 수 없습니다.
 - 이 디렉터리에는 spec.md가 없어 `auto status`의 SPEC 목록에 나오지 않습니다. 요청 원문은 `request.md`에 남습니다.
@@ -43,7 +43,7 @@ automation:
     expect: {exit_code: 0, stdout: "3 c.txt\n"}     # 기준에서 온 값만
 ```
 
-- 기준이 출력 항목의 순서나 개수는 정하지만 한 줄의 형식은 정하지 않았다면 `manual`로 미루지 말고 `stdout_lines: [the, cat]`를 씁니다. 비어 있지 않은 줄이 정확히 그 수만큼 있고 i번째 줄이 i번째 항목을 포함해야 통과합니다. 나오면 안 되는 값은 `stdout_not_contains`로 검사합니다. `stdout_contains`만으로는 순서가 틀리거나 항목이 남거나 겹쳐도 실패하지 않습니다.
+- 기준이 출력 항목의 순서나 개수는 정하지만 한 줄의 형식은 정하지 않았다면 `manual`로 미루지 말고 `stdout_lines: [the, cat]`를 씁니다. 비어 있지 않은 줄이 정확히 그 수만큼 있고 i번째 줄이 i번째 항목을 포함해야 통과합니다. 나오면 안 되는 값은 `stdout_not_contains`로 검사합니다. 기준이 "에러로 끝난다"고만 하고 코드를 정하지 않았다면 `exit_nonzero: true`를 씁니다. `stdout_contains`만으로는 순서가 틀리거나 항목이 남거나 겹쳐도 실패하지 않습니다.
 - 웹 UI가 없는 프로젝트에서는 `auto qa go`가 브라우저 시나리오 컴파일을 건너뛰고, exec·command case를 test-scenarios 파일에서 바로 돌립니다.
 - `argv[0]`은 `$BIN/<이름>`, 프로젝트 안의 경로(`./bin/tool`), 또는 허용된 러너(`python3` 등)만 됩니다. 임의의 시스템 명령은 거부합니다.
 - `auto qa exec --file <yaml> --case <id>`가 한 case를 돌립니다. 기대값이 어긋나면 `Expected:`/`Received:`를 출력하고 1로 끝나며, loop는 이를 `product_defect`로 분류합니다. 빌드 실패처럼 돌릴 수 없으면 2로 끝납니다.

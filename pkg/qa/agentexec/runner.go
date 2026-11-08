@@ -99,7 +99,24 @@ func (r Runner) Run(ctx context.Context, req Request) (Response, error) {
 			resp.Stdout = string(b)
 		}
 	}
-	return resp, classify(runCtx, code, execErr)
+	if err := classify(runCtx, code, execErr); err != nil {
+		return resp, err
+	}
+	return resp, deniedSilently(resp)
+}
+
+// deniedSilently turns agy's "no output produced ... auto-denied" exit 0 into
+// an error. agy stops at the first tool a headless run cannot approve and
+// still exits 0, so without this the caller sees a clean run that did nothing.
+func deniedSilently(resp Response) error {
+	if strings.TrimSpace(resp.Stdout) != "" || !strings.Contains(resp.Stderr, "auto-denied") {
+		return nil
+	}
+	reason := strings.TrimSpace(resp.Stderr)
+	if line, _, ok := strings.Cut(reason, "\n"); ok {
+		reason = line
+	}
+	return &AgentError{Code: CodePermissionDenied, ExitCode: resp.ExitCode, Err: errors.New(reason)}
 }
 
 // classify maps an exit onto the error contract. A clean exit wins even if

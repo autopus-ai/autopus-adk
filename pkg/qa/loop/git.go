@@ -196,10 +196,31 @@ func (g gitRepo) commit(paths []string, message string) (string, error) {
 	if closeErr := file.Close(); writeErr != nil || closeErr != nil {
 		return "", fmt.Errorf("write commit message: %v %v", writeErr, closeErr)
 	}
-	if _, err := g.run("commit", "-q", "-F", file.Name()); err != nil {
+	if _, err := runGit(g.top, append(append([]string{}, g.env...), g.fallbackIdentity()...), "commit", "-q", "-F", file.Name()); err != nil {
 		return "", err
 	}
 	return g.line("rev-parse", "HEAD")
+}
+
+// Loop commits land on a branch the person reviews before merging, so on a
+// machine with no git identity they are signed as the tool rather than
+// failing the whole run. The person's own configuration is never written.
+const (
+	fallbackIdentityName  = "Autopus QA loop"
+	fallbackIdentityEmail = "noreply@autopus.co"
+)
+
+// fallbackIdentity returns identity env only when git cannot resolve one.
+func (g gitRepo) fallbackIdentity() []string {
+	_, authorErr := g.run("var", "GIT_AUTHOR_IDENT")
+	_, committerErr := g.run("var", "GIT_COMMITTER_IDENT")
+	if authorErr == nil && committerErr == nil {
+		return nil
+	}
+	return []string{
+		"GIT_AUTHOR_NAME=" + fallbackIdentityName, "GIT_AUTHOR_EMAIL=" + fallbackIdentityEmail,
+		"GIT_COMMITTER_NAME=" + fallbackIdentityName, "GIT_COMMITTER_EMAIL=" + fallbackIdentityEmail,
+	}
 }
 
 // ensureExcluded adds pattern to the repository's info/exclude once, so loop

@@ -39,8 +39,8 @@ func newQAIntentCmd() *cobra.Command {
 		Long: "Runs an agent CLI headless in an empty directory with only the request text, so the criteria " +
 			"describe what the user asked for rather than what the code does. Writes " +
 			".autopus/specs/<id>/acceptance.md, the verbatim request.md, and questions.json with the points " +
-			"where the request allows more than one reading. Resolve those questions with the user, then run " +
-			"'auto qa go <id>'. The directory has no spec.md, so it is not listed as a SPEC.",
+			"where the request allows more than one reading. Ask the user, record the answers with " +
+			"'auto qa intent answer <id> Q1=<n>', then run 'auto qa go <id>'. The directory has no spec.md, so it is not listed as a SPEC.",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -51,11 +51,12 @@ func newQAIntentCmd() *cobra.Command {
 	cmd.Flags().StringVar(&opts.Request, "request", "", "The user's request, verbatim")
 	cmd.Flags().StringVar(&opts.RequestFile, "request-file", "", "File holding the user's request, verbatim (- for stdin)")
 	cmd.Flags().StringVar(&opts.ID, "id", "", "Intent id such as INTENT-login (default: INTENT-<request hash>)")
-	cmd.Flags().StringVar(&opts.Agent, "agent", "", "Agent CLI to run headless: claude, codex, gemini, or opencode (default: first installed)")
+	cmd.Flags().StringVar(&opts.Agent, "agent", "", "Agent CLI to run headless: claude, codex, gemini (agy), or opencode (default: first installed)")
 	cmd.Flags().DurationVar(&opts.Timeout, "timeout", 10*time.Minute, "Agent run timeout")
 	cmd.Flags().BoolVar(&opts.Force, "force", false, "Replace an existing intent with the same id")
 	cmd.Flags().StringVar(&opts.ProjectDir, "project-dir", ".", "Project directory")
 	addJSONFlags(cmd, &opts.JSONOut, &opts.Format)
+	cmd.AddCommand(newQAIntentAnswerCmd())
 	return cmd
 }
 
@@ -89,7 +90,11 @@ func runQAIntent(cmd *cobra.Command, opts qaIntentOptions) error {
 	if err != nil {
 		return fail(err, payload)
 	}
-	payload.NextSteps = []string{"auto qa go " + report.ID + " --project-dir " + opts.ProjectDir}
+	if len(report.Questions) > 0 {
+		payload.NextSteps = append(payload.NextSteps,
+			"auto qa intent answer "+report.ID+" "+report.Questions[0].ID+"=<n> ... --project-dir "+opts.ProjectDir+" (or --recommended)")
+	}
+	payload.NextSteps = append(payload.NextSteps, "auto qa go "+report.ID+" --project-dir "+opts.ProjectDir)
 	if jsonMode {
 		return writeJSONResult(cmd, jsonStatusOK, payload, nil, nil)
 	}

@@ -133,9 +133,11 @@ func TestValidateExec_ProgramMustBeTheProduct(t *testing.T) {
 		"$BIN/tool": true, "$PROJECT/bin/tool": true, "./bin/tool": true, "bin/tool": true, "python3": true,
 		"/usr/bin/curl": false, "curl": false, "../outside/tool": false, "$BIN/../x": false, "$BIN/": false,
 	} {
-		err := testscenario.ValidateExec(&testscenario.Exec{Argv: []string{argv0}, Expect: ok})
+		err := testscenario.ValidateExec(&testscenario.Exec{Build: build(), Argv: []string{argv0}, Expect: ok})
 		assert.Equal(t, want, err == nil, "%s: %v", argv0, err)
 	}
+	err := testscenario.ValidateExec(&testscenario.Exec{Argv: []string{"$BIN/tool"}, Expect: ok})
+	assert.ErrorContains(t, err, "add a build step", "$BIN starts empty, so a case without a build can never run")
 }
 
 // The report must read as a product defect to the QA loop's triage, or a

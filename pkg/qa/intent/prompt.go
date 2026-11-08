@@ -36,6 +36,7 @@ func BuildPrompt(request string) string {
 	b.WriteString("2. A ```intent-questions block of YAML: a list of the points where the request is genuinely ambiguous, or `[]`.\n")
 	fmt.Fprintf(&b, "   Each item has `id` (Q1, Q2, ...), `criterion` (the AC id it changes), `question`, `options` (2 to 4 short answers),\n")
 	b.WriteString("   and `recommended` (the 0-based index of the option the criterion already uses).\n")
+	b.WriteString("   Put every string in double quotes: an unquoted option such as `count first (e.g.: 5 the)` is not valid YAML. A JSON array is also accepted.\n")
 	b.WriteString("   Ask only about behavior a user would notice. Never ask about implementation.\n")
 	return b.String()
 }

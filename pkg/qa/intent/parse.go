@@ -17,6 +17,10 @@ type Question struct {
 	Question    string   `yaml:"question" json:"question"`
 	Options     []string `yaml:"options" json:"options"`
 	Recommended int      `yaml:"recommended" json:"recommended"`
+	// Answer indexes Options once the question is resolved. The yaml tag is
+	// "-" so an agent's draft can never arrive pre-answered.
+	Answer     *int   `yaml:"-" json:"answer,omitempty"`
+	AnsweredBy string `yaml:"-" json:"answered_by,omitempty"`
 }
 
 // Draft is a parsed and checked agent answer.

@@ -55,6 +55,7 @@ var commonRules = []string{
 	"Do not stage, commit, or switch branches; the harness reviews your diff and commits it.",
 	"Never edit .gitignore, .gitattributes, .git/info/exclude, or step maps (*.spec.map.json).",
 	"Change only what the failure requires. A change outside the allowed paths is reverted and stops the loop.",
+	"Read and edit files only; do not run shell commands. A headless agent cannot be asked to approve a command, some agents stop at the first denied one, and the harness re-runs every failing check after your edit.",
 }
 
 // prompt builds the agent prompt from each journey's repair prompt plus the

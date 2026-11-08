@@ -63,7 +63,7 @@ Journey Pack declares it.`,
 	}
 	flags := cmd.Flags()
 	flags.StringVar(&opts.ProjectDir, "project-dir", ".", "Project directory")
-	flags.StringVar(&opts.Agent, "agent", "", "Agent: claude, codex, gemini, or opencode (default: first installed)")
+	flags.StringVar(&opts.Agent, "agent", "", "Agent: claude, codex, gemini (agy), or opencode (default: first installed)")
 	flags.StringVar(&opts.Lane, "lane", "", "QA lane (default: browser-staging if a pack declares it, else the first declared lane)")
 	flags.IntVar(&opts.MaxIterations, "max-iterations", qaloop.DefaultMaxIterations, "Maximum fix iterations")
 	flags.DurationVar(&opts.AgentTimeout, "agent-timeout", qaloop.DefaultAgentTimeout, "Timeout for one agent run")

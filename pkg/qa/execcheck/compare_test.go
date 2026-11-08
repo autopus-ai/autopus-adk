@@ -54,3 +54,13 @@ func TestCompare_StdoutLinesPinsCountAndOrder(t *testing.T) {
 		assert.Equal(t, pass, len(ms) == 0, "stdout %q", stdout)
 	}
 }
+
+// "Ends with an error" with no code named: any non-zero code holds.
+func TestCompare_ExitNonzero(t *testing.T) {
+	want := testscenario.ExecExpect{ExitNonzero: true}
+	assert.Empty(t, compare(want, Result{ExitCode: 2}, t.TempDir()))
+	assert.Equal(t, []string{"exit_nonzero"}, fields(compare(want, Result{ExitCode: 0}, t.TempDir())))
+
+	both := testscenario.Exec{Argv: []string{"$BIN/tool"}, Expect: testscenario.ExecExpect{ExitNonzero: true, ExitCode: intp(1)}}
+	assert.ErrorContains(t, testscenario.ValidateExec(&both), "keep one")
+}

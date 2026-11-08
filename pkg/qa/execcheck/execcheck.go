@@ -127,6 +127,9 @@ func compare(want testscenario.ExecExpect, got Result, work string) []Mismatch {
 	if want.ExitCode != nil && *want.ExitCode != got.ExitCode {
 		out = append(out, Mismatch{"exit_code", fmt.Sprint(*want.ExitCode), fmt.Sprint(got.ExitCode)})
 	}
+	if want.ExitNonzero && got.ExitCode == 0 {
+		out = append(out, Mismatch{"exit_nonzero", "a non-zero exit code", "0"})
+	}
 	if want.Stdout != nil && *want.Stdout != got.Stdout {
 		out = append(out, Mismatch{"stdout", *want.Stdout, got.Stdout})
 	}

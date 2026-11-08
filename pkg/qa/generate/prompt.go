@@ -44,6 +44,9 @@ type PromptInput struct {
 	Criteria            []acceptance.Criterion
 	ExistingScenarioIDs []string
 	Journeys            []JourneyHint
+	// Readings are answered intent questions; Undecided are open ones.
+	Readings  []string
+	Undecided []string
 }
 
 const scenarioSchema = `schema_version: qamesh.scenario.v2
@@ -97,7 +100,7 @@ cases:
         files: {input.txt: "line one\n"}
         timeout: 1m
         expect:                      # at least one; each value must come from the criterion
-          exit_code: 0
+          exit_code: 0               # or exit_nonzero: true when only "fails" is stated
           stdout: "exact output\n"
           stdout_contains: [substring]
           stdout_not_contains: [substring]   # must not appear anywhere in stdout
@@ -131,6 +134,8 @@ func BuildPrompt(in PromptInput) string {
 	b.WriteString("- Use literal values for inputs that are not secrets, such as a deliberately wrong password or a search term; do not invent environment variables for them.\n")
 	b.WriteString("- For each criterion a user observes by running the product itself (a CLI's output, exit code, or the files it writes), write an exec case: it carries the expected value, so prefer it to a command case, which only learns whether a test runner exited 0.\n")
 	b.WriteString("- When a criterion fixes the order or number of output entries but not the line format, assert it with stdout_lines rather than writing a manual case; assert what must not appear with stdout_not_contains. stdout_contains alone cannot fail on wrong order, extra entries, or a duplicate.\n")
+	b.WriteString("- Never assume the product is already built: an exec case that runs a compiled program needs a build step that writes it, usually into $BIN.\n")
+	b.WriteString("- When a criterion says the command fails or exits with an error but names no code, use exit_nonzero: true; never guess a specific exit code.\n")
 	fmt.Fprintf(&b, "- An exec argv[0] must be $BIN/<name> from its build step, a path inside the project such as ./bin/tool, or one of: %s. An exec build[0] and a command check's argv[0] must be one of: %s.\n", strings.Join(testscenario.CommandAllowlist, ", "), strings.Join(testscenario.CommandAllowlist, ", "))
 	b.WriteString("- Unknown keys are rejected, so use only the keys shown in the schemas.\n\n")
 
@@ -140,7 +145,26 @@ func BuildPrompt(in PromptInput) string {
 	writeJourneys(&b, in.Journeys)
 	writeExisting(&b, in.ExistingScenarioIDs)
 	writeCriteria(&b, in.Criteria)
+	writeReadings(&b, in.Readings, in.Undecided)
 	return b.String()
+}
+
+// writeReadings passes on how the user resolved the request's ambiguities.
+// A resolved reading may be asserted; an undecided one must not be, in
+// either direction, because nobody has said which one the user meant.
+func writeReadings(b *strings.Builder, readings, undecided []string) {
+	if len(readings) > 0 {
+		b.WriteString("\nResolved readings (assert these where a criterion leaves the point open):\n")
+		for _, r := range readings {
+			fmt.Fprintf(b, "- %s\n", bound(r, MaxCriterionChars))
+		}
+	}
+	if len(undecided) > 0 {
+		b.WriteString("\nUndecided points (assert neither option; keep expectations that hold under every option):\n")
+		for _, u := range undecided {
+			fmt.Fprintf(b, "- %s\n", bound(u, MaxCriterionChars))
+		}
+	}
 }
 
 func writeJourneys(b *strings.Builder, journeys []JourneyHint) {

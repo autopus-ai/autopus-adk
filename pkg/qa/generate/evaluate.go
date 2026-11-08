@@ -60,12 +60,15 @@ type Outcome struct {
 }
 
 type evaluation struct {
-	specID    string
-	known     map[string]bool
-	taken     map[string]bool
-	out       Outcome
-	scenarios []scenario.Scenario
-	docs      []testscenario.Document
+	// projectDir, when set, lets a case be checked against the project:
+	// an exec case may not run a project file that is neither there nor built.
+	projectDir string
+	specID     string
+	known      map[string]bool
+	taken      map[string]bool
+	out        Outcome
+	scenarios  []scenario.Scenario
+	docs       []testscenario.Document
 }
 
 // Evaluate checks agent documents against the parsed criteria. criteria are the
@@ -73,7 +76,11 @@ type evaluation struct {
 // new scenario may not reuse but a gui case may reference. Scenarios are judged
 // before test-scenarios so a gui case can point at a scenario from this batch.
 func Evaluate(specID string, criteria, docs, existing []string) Outcome {
-	e := &evaluation{specID: strings.TrimSpace(specID), known: toSet(criteria), taken: toSet(existing)}
+	return evaluateIn("", specID, criteria, docs, existing)
+}
+
+func evaluateIn(projectDir, specID string, criteria, docs, existing []string) Outcome {
+	e := &evaluation{projectDir: projectDir, specID: strings.TrimSpace(specID), known: toSet(criteria), taken: toSet(existing)}
 	e.out = Outcome{Scenarios: []Accepted{}, TestScenarios: []Accepted{}, Rejected: []Rejection{}}
 	type pending struct {
 		index int
@@ -132,9 +139,19 @@ func (e *evaluation) scenario(index int, body string) {
 
 func (e *evaluation) testScenarios(index int, body string) {
 	doc, err := testscenario.ParseBytes(documentName(index), []byte(body))
+	if err == nil {
+		err = e.firstUnrunnable(doc)
+	}
 	if err != nil {
-		e.reject(index, KindTestScenarios, "", validationCode(err), err.Error())
-		return
+		salvaged, salvagedBody, dropped, ok := salvageTestScenarios(documentName(index), body, e.caseRunnable)
+		if !ok {
+			e.reject(index, KindTestScenarios, "", validationCode(err), err.Error())
+			return
+		}
+		for _, d := range dropped {
+			e.reject(index, KindTestScenarios, d.ID, d.Code, "case dropped, the rest of the document kept: "+d.Err)
+		}
+		doc, body = salvaged, salvagedBody
 	}
 	reject := func(code, format string, args ...any) {
 		e.reject(index, KindTestScenarios, doc.Spec, code, fmt.Sprintf(format, args...))
