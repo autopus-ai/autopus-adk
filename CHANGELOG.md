@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **멈춘 loop 뒤 `auto qa go` 재실행이 시나리오를 되찾고, TypeScript 컴파일 에러도 제품 결함으로 본다** (2026-11-08):
+  (1) loop는 생성한 시나리오를 자기 브랜치에만 커밋하므로, 멈춘 뒤 SPEC 없이 `auto qa go`를 다시 돌리면 compile에서
+  `no scenarios found`로 멈췄다. 이제 작업 트리에 시나리오가 하나도 없으면 가장 최근 loop 브랜치의 끝에서 시나리오 파일을
+  작업 트리로만 되살리고(스테이징하지 않고, 있는 파일은 덮지 않는다) 그대로 돈다. 그 브랜치의 제품 수정은 가져오지 않는다.
+  (2) build 실패가 제품 소스를 가리키는지 볼 때 tsc·C# 형식(`src/index.ts(3,7): error TS2322`)을 몰라, TypeScript 제품의
+  컴파일 에러가 "돌릴 수 없음"으로 남았다. 이제 그 형식도 제품 결함으로 분류한다. (3) `auto qa loop`·`auto qa go` 요약의
+  `iterations: 2 of max 1`은 수정 상한을 넘은 것처럼 읽혔다. 마지막 수정 뒤 확인 실행까지 센 것이라
+  `lane runs: 2; fix attempts: 1 of max 1`로 나눠 보인다.
+
 - **QA loop가 컴파일 안 되는 제품을 고치고, opencode까지 네 에이전트가 끝까지 돈다** (2026-11-08): 남은 과제를 마저 풀었다.
   (1) exec case의 build가 실패하고 에러가 제품 소스 파일(`./main.go:25:2: ...`)을 가리키면 "돌릴 수 없음"(exit 2)이 아니라
   `Expected: "the product builds"`로 1을 내, loop가 `product_defect`로 고친다. 존재하지 않는 패키지처럼 제품 파일을 가리키지

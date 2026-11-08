@@ -106,10 +106,13 @@ func runQALoop(cmd *cobra.Command, opts qaLoopOptions, deps qaloop.Deps) error {
 }
 
 func writeQALoopText(w io.Writer, report qaloop.Report) {
-	commits := 0
+	commits, attempts := 0, 0
 	for _, it := range report.Iterations {
 		if it.Commit != "" {
 			commits++
+		}
+		if it.Agent != nil {
+			attempts++
 		}
 	}
 	fmt.Fprintf(w, "qa loop %s: %s\n", report.RunID, report.StopReason)
@@ -122,7 +125,9 @@ func writeQALoopText(w io.Writer, report qaloop.Report) {
 		fmt.Fprintf(w, "loop branch: %s (%d fix commit(s))\n", report.Branch, commits)
 	}
 	fmt.Fprintf(w, "original ref: %s (restored: %t)\n", report.OriginalRef, report.Restored)
-	fmt.Fprintf(w, "iterations: %d of max %d\n", len(report.Iterations), report.MaxIterations)
+	// Max iterations caps fix attempts; the lane runs once more after the
+	// last one to check it, so lane runs can exceed the cap by one.
+	fmt.Fprintf(w, "lane runs: %d; fix attempts: %d of max %d\n", len(report.Iterations), attempts, report.MaxIterations)
 	fmt.Fprintf(w, "report: %s\n", report.ReportPath)
 }
 

@@ -41,6 +41,10 @@ func fakeDeps(c *calls, genErr error) Deps {
 			c.loop = o
 			return qaloop.Report{StopReason: qaloop.StopPassed}, nil
 		},
+		RestoreSeed: func(string, []string) (qaloop.Restored, error) {
+			c.order = append(c.order, "restore")
+			return qaloop.Restored{}, nil
+		},
 	}
 }
 

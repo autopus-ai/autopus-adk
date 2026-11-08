@@ -74,6 +74,9 @@ type Deps struct {
 	Promote  func(string, promote.Options) (promote.Report, error)
 	Compile  func(string, bool) (scenario.Result, error)
 	Loop     func(context.Context, qaloop.Options) (qaloop.Report, error)
+	// RestoreSeed brings back the scenarios of the latest loop branch for a
+	// rerun whose working tree has none.
+	RestoreSeed func(string, []string) (qaloop.Restored, error)
 }
 
 // Report is what one run did, stage by stage.
@@ -137,6 +140,9 @@ func Run(ctx context.Context, opts Options, deps Deps) (Report, error) {
 			return report, &Error{Stage: StagePromote, Code: promote.ErrorCode(err), Err: err}
 		}
 	}
+	if report.Spec == "" && !hasScenarios(opts.ProjectDir) {
+		restoreSeed(opts.ProjectDir, deps, progress)
+	}
 	progress(StageCompile, "compiling scenarios")
 	compiled, err := deps.Compile(opts.ProjectDir, false)
 	switch {
@@ -148,10 +154,9 @@ func Run(ctx context.Context, opts Options, deps Deps) (Report, error) {
 		progress(StageCompile, "no GUI scenarios; exec and command cases run from "+testscenario.DirRel)
 		compiled = scenario.Result{}
 	case noGUIScenarios(err):
-		// The usual way here is a rerun after a stopped loop: the scenarios it
-		// generated were committed on its loop branch, not on this one.
+		// No loop branch had scenarios to restore either.
 		return report, &Error{Stage: StageCompile, Code: "qa_go_compile_failed", Err: fmt.Errorf(
-			"%w; a stopped `auto qa go` keeps its scenarios on its autopus/qa-loop/<run-id> branch: check it out or merge it, or pass a SPEC-ID to generate again", err)}
+			"%w; pass a SPEC-ID to generate scenarios", err)}
 	default:
 		return report, &Error{Stage: StageCompile, Code: "qa_go_compile_failed", Err: err}
 	}
@@ -197,6 +202,26 @@ func noGUIScenarios(err error) bool {
 	return errors.As(err, &v) && v.Code == "qa_scenario_none"
 }
 
+// hasScenarios reports whether any scenario or test-scenario file is in place.
+func hasScenarios(projectDir string) bool {
+	matches, _ := filepath.Glob(filepath.Join(projectDir, scenario.DirRel, "*.yaml"))
+	return len(matches) > 0 || hasTestScenarios(projectDir)
+}
+
+// restoreSeed covers a rerun without a SPEC after a loop stopped: the loop
+// committed its scenarios on its own branch, so the working tree has none.
+// A failed restore is only reported; compile then says what is missing.
+func restoreSeed(projectDir string, deps Deps, progress func(stage, line string)) {
+	restored, err := deps.RestoreSeed(projectDir, []string{scenario.DirRel, testscenario.DirRel})
+	switch {
+	case err != nil:
+		progress(StageCompile, "could not restore scenarios from the last loop branch: "+err.Error())
+	case len(restored.Files) > 0:
+		progress(StageCompile, fmt.Sprintf("restored %d scenario file(s) from %s; the product fixes made there stay on that branch",
+			len(restored.Files), restored.Branch))
+	}
+}
+
 func hasTestScenarios(projectDir string) bool {
 	matches, _ := filepath.Glob(filepath.Join(projectDir, testscenario.DirRel, "*.yaml"))
 	return len(matches) > 0
@@ -238,6 +263,9 @@ func (d Deps) withDefaults() Deps {
 	}
 	if d.Compile == nil {
 		d.Compile = scenario.CompileProject
+	}
+	if d.RestoreSeed == nil {
+		d.RestoreSeed = qaloop.RestoreLastSeed
 	}
 	if d.Loop == nil {
 		d.Loop = func(ctx context.Context, opts qaloop.Options) (qaloop.Report, error) {
