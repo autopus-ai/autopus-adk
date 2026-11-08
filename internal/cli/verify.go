@@ -45,6 +45,7 @@ func newVerifyCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&strictVisualGate, "strict-visual-gate", false, "Fail when the visual gate verdict is FAIL")
 	cmd.Flags().StringVar(&visualCritic, "visual-critic-report", "", "Optional VLM critic JSON report to merge into the visual gate")
 	cmd.AddCommand(newVerifyStopCmd())
+	cmd.AddCommand(newVerifyLanguageCmd())
 
 	return cmd
 }

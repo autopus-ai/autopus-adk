@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/insajin/autopus-adk/pkg/adapter"
 	"github.com/insajin/autopus-adk/pkg/config"
 	"github.com/insajin/autopus-adk/pkg/content"
 )
@@ -84,4 +85,41 @@ func TestGenerateProjectHookConfigs_VerifyStopIsClaudeOnlyAndSwitchable(t *testi
 	hooks, _, err = content.GenerateProjectHookConfigs(cfg, "claude-code", true)
 	require.NoError(t, err)
 	assert.Nil(t, findHook(hooks, "Stop"), "hooks.verify_stop: false removes it")
+}
+
+func TestGenerateProjectHookConfigs_LanguageStopFollowsAIResponses(t *testing.T) {
+	t.Parallel()
+
+	languageStop := func(hooks []adapter.HookConfig) *adapter.HookConfig {
+		for i := range hooks {
+			if hooks[i].Event == "Stop" && hooks[i].Command == "auto verify language" {
+				return &hooks[i]
+			}
+		}
+		return nil
+	}
+	cfg := config.DefaultFullConfig("demo")
+	cfg.Language.AIResponses = "ko"
+	hooks, _, err := content.GenerateProjectHookConfigs(cfg, "claude-code", true)
+	require.NoError(t, err)
+	got := languageStop(hooks)
+	require.NotNil(t, got, "ko responses register the check")
+	assert.Equal(t, 10, got.Timeout)
+	assert.NotNil(t, findHook(hooks, "Stop"), "the verification Stop hook stays")
+
+	codex, _, err := content.GenerateProjectHookConfigs(cfg, "codex", true)
+	require.NoError(t, err)
+	assert.Nil(t, languageStop(codex), "the payload it reads is Claude Code's")
+
+	cfg.Language.AIResponses = "en"
+	hooks, _, err = content.GenerateProjectHookConfigs(cfg, "claude-code", true)
+	require.NoError(t, err)
+	assert.Nil(t, languageStop(hooks), "nothing to check for English")
+
+	cfg.Language.AIResponses = "ko"
+	off := false
+	cfg.Hooks.LanguageStop = &off
+	hooks, _, err = content.GenerateProjectHookConfigs(cfg, "claude-code", true)
+	require.NoError(t, err)
+	assert.Nil(t, languageStop(hooks), "hooks.language_stop: false removes it")
 }

@@ -6,6 +6,7 @@ import (
 
 	"github.com/insajin/autopus-adk/pkg/adapter"
 	"github.com/insajin/autopus-adk/pkg/config"
+	"github.com/insajin/autopus-adk/pkg/langgate"
 )
 
 // GitHookScript는 Git 훅 스크립트이다.
@@ -30,6 +31,7 @@ func GenerateProjectHookConfigs(cfg *config.HarnessConfig, platform string, supp
 		}
 		hooks = append(hooks, generateCC21Hooks(cfg.Features.CC21, platform)...)
 		hooks = append(hooks, generateVerifyStopHook(cfg.Hooks, platform)...)
+		hooks = append(hooks, generateLanguageStopHook(cfg, platform)...)
 		return hooks, generateGitOnlyHooks(cfg.Hooks), nil
 	}
 	return nil, generateGitHooks(cfg.Hooks), nil
@@ -107,6 +109,21 @@ func generateVerifyStopHook(cfg config.HooksConf, platform string) []adapter.Hoo
 		return nil
 	}
 	return []adapter.HookConfig{{Event: "Stop", Type: "command", Command: verifyStopCommand, Timeout: 600}}
+}
+
+// languageStopCommand is the Stop hook that sends a reply back when it is not
+// written in language.ai_responses.
+const languageStopCommand = "auto verify language"
+
+// generateLanguageStopHook registers the response-language check on Claude
+// Code's Stop event, whose payload carries the final reply. It is skipped when
+// the configured language is one the check cannot judge, English included.
+func generateLanguageStopHook(cfg *config.HarnessConfig, platform string) []adapter.HookConfig {
+	if (platform != "claude" && platform != "claude-code") || !cfg.Hooks.IsLanguageStopEnabled() ||
+		!langgate.Supported(cfg.Language.AIResponses) {
+		return nil
+	}
+	return []adapter.HookConfig{{Event: "Stop", Type: "command", Command: languageStopCommand, Timeout: 10}}
 }
 
 func generateCC21Hooks(cfg config.CC21FeaturesConf, platform string) []adapter.HookConfig {

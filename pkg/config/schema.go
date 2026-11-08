@@ -194,6 +194,10 @@ type HooksConf struct {
 	// VerifyStop registers the Claude Code Stop hook that builds and tests the
 	// changed files before a session ends. Read it through IsVerifyStopEnabled.
 	VerifyStop *bool `yaml:"verify_stop,omitempty"`
+	// LanguageStop registers the Claude Code Stop hook that sends a reply
+	// back when it is not in language.ai_responses. Read it through
+	// IsLanguageStopEnabled.
+	LanguageStop *bool `yaml:"language_stop,omitempty"`
 }
 
 // PermissionsConf는 코딩 CLI 권한 설정이다.

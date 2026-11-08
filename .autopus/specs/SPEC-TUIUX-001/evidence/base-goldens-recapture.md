@@ -308,3 +308,10 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 기록: `make generate-templates` 뒤 `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run 'TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6'`.
 - 차이: NPD 다섯 개에서 `qa-autopilot` 스킬과 그 backup, manifest·journal checksum만 바뀌었다. stdout golden은 그대로다.
 - 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.
+
+## 응답 언어 Stop hook 추가 (feat/language-stop-hook, 2026-11-08)
+
+- 원인: `language.ai_responses`가 `ko`인 fixture에서 Claude Code `settings.json`에 Stop hook `auto verify language`가 더해졌다.
+- 기록: `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run 'TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6'`.
+- 차이: NPD 다섯 개에서 `.claude/settings.json`과 manifest·journal checksum만 바뀌었다. stdout golden은 그대로다.
+- 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.
