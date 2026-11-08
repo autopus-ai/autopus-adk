@@ -47,8 +47,11 @@ const (
 	CodeTimeout         = "qa_agent_timeout"
 	CodeOverrideInvalid = "qa_agent_override_invalid"
 	CodeTargetUnknown   = "qa_agent_target_unknown"
-	CodeRequestInvalid  = "qa_agent_request_invalid"
-	CodePromptTooLarge  = "qa_agent_prompt_too_large"
+	// CodePermissionDenied: the agent exited 0 having done nothing because a
+	// tool it needed was denied in headless mode.
+	CodePermissionDenied = "qa_agent_permission_denied"
+	CodeRequestInvalid   = "qa_agent_request_invalid"
+	CodePromptTooLarge   = "qa_agent_prompt_too_large"
 )
 
 // MaxArgvPromptBytes bounds a prompt that travels as one argv element (agy
@@ -152,8 +155,12 @@ func ErrorCode(err error) string {
 // ParseTarget accepts a target name case-insensitively.
 func ParseTarget(s string) (Target, error) {
 	t := Target(strings.ToLower(strings.TrimSpace(s)))
+	if t == "agy" {
+		// The binary's name: people type what they installed.
+		t = TargetGemini
+	}
 	if !t.valid() {
-		return "", requestErr(CodeTargetUnknown, "unknown agent target %q (want claude, codex, gemini, or opencode)", s)
+		return "", requestErr(CodeTargetUnknown, "unknown agent target %q (want claude, codex, gemini (agy), or opencode)", s)
 	}
 	return t, nil
 }

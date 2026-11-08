@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **intent 질문의 답을 기록하고, 시나리오 생성이 그 답을 따른다** (2026-11-08): `auto qa intent`가 낸 질문에 답할 방법이
+  acceptance.md를 손으로 고치는 것뿐이었고, `auto qa go --auto`는 답 없는 질문을 말없이 지나쳤다. wordtop 검증에서는
+  답하지 않은 "줄 형식" 질문의 권장안(`apple 5`)이 실제 출력(`5 apple`)과 달랐다. 이제 `auto qa intent answer <id> Q1=<n>`
+  (또는 `--recommended`)이 답과 답한 주체(`user`/`recommended`)를 `questions.json`에 남기고, 시나리오 생성 프롬프트는
+  답한 질문을 확정된 해석으로, 답 없는 질문을 "어느 쪽으로도 단언하지 말 것"으로 받는다. `auto qa go`는 답 없는 질문이
+  있으면 에이전트를 부르기 전에 멈추고, `--auto`이면 권장안을 `recommended`로 기록하고 그 사실을 출력한 뒤 진행한다.
+  에이전트 초안은 답을 미리 채울 수 없다.
+
+- **codex로 돈 end-to-end 검증에서 나온 결함 셋을 고친다** (2026-11-08): (1) codex는 "에러로 끝난다"를 `exit_code: nonzero`로
+  썼고, 그 한 필드 때문에 20개 case가 든 문서 전체가 버려졌다. 이제 문서가 통째로 실패하면 case를 하나씩 검사해 유효한
+  case는 남기고 틀린 case만 id와 함께 거부한다. `expect`에 코드를 정하지 않은 실패용 `exit_nonzero: true`를 더했다.
+  (2) 생성한 문서가 전부 거부되면 `auto qa go`가 compile에서 엉뚱한 이유(`no scenarios found`)로 멈췄다. 이제 생성 단계에서
+  거부 사유와 함께 멈춘다. (3) `--agent agy`가 거부됐다. 설치된 바이너리 이름이라 `gemini`의 별칭으로 받는다.
+  (4) codex는 build 없이 `argv: [./wordtop]`을 써서 17개 case가 모두 실행 전에 실패했고, loop는 분류할 수 없어 멈췄다.
+  이제 생성 단계에서 build가 없고 프로젝트에 없는 파일을 실행하는 case는 그 case만 거부하고(`qa_generate_exec_program_missing`),
+  build 없이 `$BIN/…`을 실행하는 case는 검증에서 거부한다(`$BIN`은 매번 빈 디렉터리다).
+  (5) agy로 돈 loop는 "제품 수정 에이전트가 아무것도 바꾸지 않았다"로 멈췄다. 원인은 agy가 headless에서 승인받을 수
+  없는 셸 명령을 쓰려다 거부되자 아무 출력 없이 exit 0으로 끝난 것이다. 이제 이 경우를 `qa_agent_permission_denied`
+  오류로 보고, 수정 프롬프트는 명령을 실행하지 말고 파일만 고치라고 한다(검증은 하네스가 다시 돌린다). loop report는
+  에이전트가 실패했거나 아무것도 바꾸지 않았을 때 stdout 끝 2KB(`output_tail`)를 남긴다.
+  (6) loop가 멈춘 뒤 원래 브랜치에서 `auto qa go`를 다시 돌리면, 생성한 시나리오가 loop 브랜치에만 있어 `no scenarios
+  found`로 멈춘다. 이제 그 메시지가 시나리오가 있는 `autopus/qa-loop/<run-id>` 브랜치를 안내한다.
+
+- **git identity가 없는 머신에서도 `auto qa loop`가 커밋한다** (2026-11-08): `git var`로 identity를 확인할 수 없을 때만
+  loop branch 커밋을 `Autopus QA loop <noreply@autopus.co>`로 남긴다. 전에는 시나리오 커밋에서 `Author identity unknown`으로
+  run 전체가 멈췄다. 사용자의 git 설정은 쓰지 않는다.
+
 - **`auto qa go`가 CLI 제품에서 돌고, exec case가 순서·개수·부재를 검사한다** (2026-11-08): 작은 Go CLI에 대소문자를
   구분하는 버그를 심고 `auto qa intent` → `auto qa go`를 처음부터 돌린 검증에서 두 결함이 나왔다. 첫째, 웹 UI가 없는
   프로젝트는 브라우저 시나리오가 없어 compile 단계가 `no scenarios found`로 항상 멈췄다. 이제 test-scenarios 파일이 있으면

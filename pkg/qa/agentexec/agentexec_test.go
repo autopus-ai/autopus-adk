@@ -93,13 +93,13 @@ func TestBuildPlan_InvalidRequest_IsRefused(t *testing.T) {
 func TestParseTarget(t *testing.T) {
 	t.Parallel()
 	for in, want := range map[string]Target{
-		"claude": TargetClaude, " Codex ": TargetCodex, "GEMINI": TargetGemini, "opencode": TargetOpenCode,
+		"claude": TargetClaude, " Codex ": TargetCodex, "GEMINI": TargetGemini, "agy": TargetGemini, "opencode": TargetOpenCode,
 	} {
 		got, err := ParseTarget(in)
 		require.NoError(t, err, in)
 		assert.Equal(t, want, got, in)
 	}
-	for _, in := range []string{"", "agy", "cursor"} {
+	for _, in := range []string{"", "antigravity", "cursor"} {
 		_, err := ParseTarget(in)
 		assert.Equal(t, CodeTargetUnknown, ErrorCode(err), in)
 	}

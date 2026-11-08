@@ -44,5 +44,6 @@ func TestRun_NoScenariosOfAnyKindStillFails(t *testing.T) {
 	var stop *Error
 	require.ErrorAs(t, err, &stop)
 	assert.Equal(t, StageCompile, stop.Stage)
+	assert.Contains(t, stop.Error(), "autopus/qa-loop/<run-id> branch", "the likely place the scenarios went is named")
 	assert.Empty(t, c.order)
 }

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/insajin/autopus-adk/pkg/qa/triage"
 )
@@ -57,6 +58,25 @@ type AgentRecord struct {
 	ExitCode int          `json:"exit_code"`
 	Duration string       `json:"duration"`
 	Error    string       `json:"error,omitempty"`
+	// OutputTail is the end of the agent's stdout, kept only when the call
+	// failed or changed nothing: the two outcomes nobody can explain without
+	// seeing what the agent said.
+	OutputTail string `json:"output_tail,omitempty"`
+}
+
+// maxOutputTail bounds OutputTail.
+const maxOutputTail = 2000
+
+func outputTail(stdout string) string {
+	stdout = strings.TrimSpace(stdout)
+	if len(stdout) <= maxOutputTail {
+		return stdout
+	}
+	cut := len(stdout) - maxOutputTail
+	for cut < len(stdout) && !utf8.RuneStart(stdout[cut]) {
+		cut++
+	}
+	return "…" + stdout[cut:]
 }
 
 func finalStatus(reason StopReason) string {

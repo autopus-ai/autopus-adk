@@ -44,7 +44,7 @@ func newQAScenarioGenerateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&opts.Spec, "spec", "", "SPEC id whose acceptance.md drives generation (required)")
-	cmd.Flags().StringVar(&opts.Agent, "agent", "", "Agent CLI to run headless: claude, codex, gemini, or opencode (required)")
+	cmd.Flags().StringVar(&opts.Agent, "agent", "", "Agent CLI to run headless: claude, codex, gemini (agy), or opencode (required)")
 	cmd.Flags().DurationVar(&opts.Timeout, "timeout", 10*time.Minute, "Agent run timeout")
 	cmd.Flags().StringVar(&opts.ProjectDir, "project-dir", ".", "Project directory")
 	addJSONFlags(cmd, &opts.JSONOut, &opts.Format)

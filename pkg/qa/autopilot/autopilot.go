@@ -37,6 +37,9 @@ const (
 	StageLoop     = "loop"
 )
 
+// CodeNothingGenerated stops a run whose generated documents were all rejected.
+const CodeNothingGenerated = "qa_go_nothing_generated"
+
 // CodeDeclined is returned when the person answered no at the confirmation.
 const CodeDeclined = "qa_go_declined"
 
@@ -109,6 +112,9 @@ func Run(ctx context.Context, opts Options, deps Deps) (Report, error) {
 		}
 	}
 	if report.Spec != "" {
+		if err := resolveQuestions(opts, progress); err != nil {
+			return report, err
+		}
 		progress(StageGenerate, fmt.Sprintf("generating scenarios from %s with %s", report.Spec, opts.Agent))
 		gen, err := deps.Generate(ctx, generate.Options{ProjectDir: opts.ProjectDir, SpecID: report.Spec, Target: opts.Agent})
 		report.Generate = &gen
@@ -117,6 +123,12 @@ func Run(ctx context.Context, opts Options, deps Deps) (Report, error) {
 		}
 		if opts.OnGenerated != nil {
 			opts.OnGenerated(gen)
+		}
+		// Everything the agent wrote was rejected: running on would only fail
+		// later at compile, naming the wrong cause.
+		if len(gen.Written) == 0 && len(gen.Rejected) > 0 {
+			return report, &Error{Stage: StageGenerate, Code: CodeNothingGenerated, Err: fmt.Errorf(
+				"all %d document(s) the agent wrote were rejected (first: %s); rerun, or try another --agent", len(gen.Rejected), gen.Rejected[0].Code)}
 		}
 		if !opts.Auto {
 			progress(StageConfirm, "waiting for confirmation")
@@ -142,6 +154,11 @@ func Run(ctx context.Context, opts Options, deps Deps) (Report, error) {
 		// test-scenarios files, so the loop still has work.
 		progress(StageCompile, "no GUI scenarios; exec and command cases run from "+testscenario.DirRel)
 		compiled = scenario.Result{}
+	case noGUIScenarios(err):
+		// The usual way here is a rerun after a stopped loop: the scenarios it
+		// generated were committed on its loop branch, not on this one.
+		return report, &Error{Stage: StageCompile, Code: "qa_go_compile_failed", Err: fmt.Errorf(
+			"%w; a stopped `auto qa go` keeps its scenarios on its autopus/qa-loop/<run-id> branch: check it out or merge it, or pass a SPEC-ID to generate again", err)}
 	default:
 		return report, &Error{Stage: StageCompile, Code: "qa_go_compile_failed", Err: err}
 	}

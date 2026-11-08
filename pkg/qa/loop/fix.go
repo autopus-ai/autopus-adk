@@ -53,6 +53,7 @@ func (r *runner) fix(ctx context.Context, it *Iteration) *stopState {
 	it.Agent = &AgentRecord{Class: class, Journeys: journeyIDs(verdicts), ExitCode: resp.ExitCode, Duration: duration.Round(time.Millisecond).String()}
 	if agentErr != nil {
 		it.Agent.Error = agentErr.Error()
+		it.Agent.OutputTail = outputTail(resp.Stdout)
 		var failure *agentexec.AgentError
 		if errors.As(agentErr, &failure) {
 			it.Agent.ExitCode = failure.ExitCode
@@ -79,6 +80,7 @@ func (r *runner) fix(ctx context.Context, it *Iteration) *stopState {
 		it.ChangedPaths = append([]string{gitExcludeRel}, changed...)
 	}
 	if len(judged) == 0 {
+		it.Agent.OutputTail = outputTail(resp.Stdout)
 		it.Guard = &GuardVerdict{Reason: "agent changed nothing"}
 		return &stopState{StopNoProgress, CodeNoProgress, fmt.Sprintf("the %s agent changed nothing", class)}
 	}

@@ -152,7 +152,7 @@ func write(dir, request string, draft Draft) error {
 		return err
 	}
 	header := "<!-- intent_source: request. Written by `auto qa intent` from request.md alone, without the code.\n" +
-		"     Edit a criterion only to apply the user's answer to a question in questions.json. -->\n\n"
+		"     Record answers with `auto qa intent answer`; scenario generation reads them from questions.json. -->\n\n"
 	for name, body := range map[string][]byte{
 		"request.md":     []byte(request + "\n"),
 		"questions.json": append(questions, '\n'),
