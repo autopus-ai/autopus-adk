@@ -29,15 +29,17 @@ trap 'rm -rf -- "$temp"' EXIT
 # and attribute ignored, and built with a clean Go environment. Nothing in
 # this checkout's .git (refs, refspecs, replace objects, filters) or in the
 # caller's GOFLAGS, GOWORK, module cache, or proxy settings reaches the build.
-# A caller who controls this account's PATH or shell startup is out of reach
-# of any script; this one does not claim otherwise.
+# A caller who controls this account's PATH or shell startup, or who rewrites
+# the build output in this account's temp directory before its hash is taken,
+# is out of reach of any script; this one does not claim otherwise.
 readonly source_url='https://github.com/autopus-ai/autopus-adk.git'
 go_bin=$(command -v go) || fail 'go is not installed'
 clean_git() {
   /usr/bin/env -i HOME="$temp" PATH=/usr/bin:/bin GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null \
     GIT_NO_REPLACE_OBJECTS=1 GIT_ATTR_NOSYSTEM=1 GIT_TERMINAL_PROMPT=0 /usr/bin/git -C "$temp/repo" "$@"
 }
-/usr/bin/git init --quiet --bare "$temp/repo"
+/usr/bin/env -i HOME="$temp" PATH=/usr/bin:/bin GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null \
+  /usr/bin/git init --quiet --bare --template= "$temp/repo"
 clean_git fetch --quiet --no-tags "$source_url" refs/heads/main
 commit=$(clean_git rev-parse --verify 'FETCH_HEAD^{commit}')
 mkdir "$temp/src"

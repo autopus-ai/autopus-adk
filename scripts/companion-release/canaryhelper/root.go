@@ -44,6 +44,11 @@ func (r *run) prepareRoot() error {
 	if err := setOwnerMode(r.root, 0, 0, 0o755); err != nil {
 		return err
 	}
+	lockFd, err := unix.Open(r.lockPath(), unix.O_WRONLY|unix.O_CREAT|unix.O_EXCL|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0o600)
+	if err != nil {
+		return fmt.Errorf("create the root's lock: %w", err)
+	}
+	_ = unix.Close(lockFd)
 	if err := r.lock(); err != nil {
 		return err
 	}
@@ -82,13 +87,33 @@ func (r *run) checkRoot() error {
 	return nil
 }
 
-// lock serializes state-changing helper calls on one root with an exclusive
-// flock on the root directory. The descriptor is close-on-exec, so the lock
-// ends with the call, including when run-canary or run-nobody execs.
-func (r *run) lock() error {
-	fd, err := unix.Open(r.root, openDir, 0)
+// lockPath is a root-only file prepare-root makes inside the root. Locking
+// the root directory itself would let the canary, which can open any 0755
+// directory, hold the lock and stall or dodge cleanup.
+func (r *run) lockPath() string { return r.root + "/.lock" }
+
+// openLock opens the root's lock file, refusing anything but the root-owned
+// 0600 regular file prepare-root made.
+func (r *run) openLock() (int, error) {
+	fd, err := unix.Open(r.lockPath(), unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
 	if err != nil {
-		return fmt.Errorf("open the isolation root: %w", err)
+		return -1, fmt.Errorf("open the root's lock: %w", err)
+	}
+	var st unix.Stat_t
+	if err := unix.Fstat(fd, &st); err != nil || st.Uid != 0 || st.Mode&unix.S_IFMT != unix.S_IFREG || st.Mode&0o077 != 0 {
+		_ = unix.Close(fd)
+		return -1, errors.New("the root's lock is not the root-only file prepare-root made")
+	}
+	return fd, nil
+}
+
+// lock serializes state-changing helper calls on one root. The descriptor is
+// close-on-exec, so the lock ends with the call, including when run-canary or
+// run-nobody execs.
+func (r *run) lock() error {
+	fd, err := r.openLock()
+	if err != nil {
+		return err
 	}
 	if err := unix.Flock(fd, unix.LOCK_EX); err != nil {
 		_ = unix.Close(fd)

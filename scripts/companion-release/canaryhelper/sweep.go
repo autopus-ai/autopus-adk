@@ -127,6 +127,16 @@ func sweepAccount(name string) error {
 		return nil
 	}
 	if t.uid >= 0 {
+		// Never signal a UID another record also uses.
+		inventory, err := accountInventory()
+		if err != nil {
+			return err
+		}
+		for other, uid := range inventory {
+			if uid == t.uid && other != t.name {
+				return errors.New("another account shares its UID; left alone")
+			}
+		}
 		if err := killUID(t.uid, "KILL"); err != nil {
 			return err
 		}
@@ -147,7 +157,10 @@ func rootsStale(glob string) bool {
 			continue
 		}
 		r, err := newRun(m[1])
-		if err != nil || !r.stale() || r.locked() {
+		if err != nil || r.checkRoot() != nil {
+			continue // only a root this helper made counts as a run in progress
+		}
+		if !r.stale() || r.locked() {
 			return false
 		}
 	}
@@ -163,13 +176,11 @@ func sweepRoot(root string) error {
 	if err != nil || r.checkRoot() != nil || !r.stale() {
 		return nil
 	}
-	fd, err := unix.Open(r.root, openDir, 0)
-	if err != nil {
-		return nil
-	}
-	defer func() { _ = unix.Close(fd) }()
-	if unix.Flock(fd, unix.LOCK_EX|unix.LOCK_NB) != nil {
-		return nil // a helper call is working on it
+	if fd, err := r.openLock(); err == nil {
+		defer func() { _ = unix.Close(fd) }()
+		if unix.Flock(fd, unix.LOCK_EX|unix.LOCK_NB) != nil {
+			return nil // a helper call is working on it
+		}
 	}
 	return r.removeTree()
 }
@@ -188,7 +199,7 @@ func (r *run) stale() bool {
 
 // locked reports whether another helper call holds the root's lock.
 func (r *run) locked() bool {
-	fd, err := unix.Open(r.root, openDir, 0)
+	fd, err := r.openLock()
 	if err != nil {
 		return false
 	}
@@ -221,13 +232,18 @@ func globalLock() (func(), error) {
 	return func() { _ = unix.Close(fd) }, nil
 }
 
-// clearFlags removes user and system immutable and append-only flags from
-// the tree under dirfd, through descriptors, so a canary cannot make its tree
-// undeletable. Only directories and single-link files on the tree's device
-// are touched; a hard link to a file elsewhere keeps its flags.
+// clearFlags removes the flags a canary could set (immutable, append-only)
+// from the tree under dirfd, through descriptors, so it cannot make its tree
+// undeletable. Only entries owned by a one-shot canary UID or nobody, on the
+// tree's device, are touched: their owner could clear those flags itself, so
+// root clearing them grants nothing, and a file linked in from elsewhere with
+// another owner keeps its flags.
 func clearFlags(dirfd int, dev int32) {
+	nobody, _, _ := nobodyIdentity()
 	_ = eachEntry(dirfd, func(e entry) error {
-		if e.fd < 0 || e.stat.Dev != dev || (e.kind == unix.S_IFREG && e.stat.Nlink != 1) {
+		owner := int(e.stat.Uid)
+		canaryOwned := (owner >= canaryUIDMin && owner <= canaryUIDMax) || sameID(owner, nobody)
+		if e.fd < 0 || e.stat.Dev != dev || !canaryOwned {
 			return nil
 		}
 		if e.stat.Flags != 0 {
