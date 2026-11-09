@@ -75,8 +75,11 @@ func validateService(x *Exec) error {
 		if !strings.HasPrefix(r.Path, "/") || strings.Contains(r.Path, "://") {
 			return fmt.Errorf("%s.path %q must be a path on the case's own server, starting with /", where, r.Path)
 		}
-		if r.Expect.empty() {
-			return fmt.Errorf("%s.expect must state at least one observable outcome", where)
+		// A setup request (seeding data before the one that checks) may state
+		// no outcome; it still fails the case if no response comes back. The
+		// last request must check something, so a case always asserts.
+		if r.Expect.empty() && i == len(x.Requests)-1 {
+			return fmt.Errorf("%s.expect must state at least one observable outcome: the last request is what the case checks", where)
 		}
 		required := append([]string{}, r.Expect.BodyContains...)
 		if r.Expect.Body != nil {

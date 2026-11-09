@@ -20,12 +20,12 @@ func TestValidateExec_ServiceCases(t *testing.T) {
 		mutate func(*Exec)
 		want   string
 	}{
-		"url instead of path": {func(x *Exec) { x.Requests[0].Path = "http://example.com/items" }, "must be a path on the case's own server"},
-		"unknown method":      {func(x *Exec) { x.Requests[0].Method = "TRACE" }, "method"},
-		"empty expect":        {func(x *Exec) { x.Requests[0].Expect = HTTPExpect{} }, "requests[0].expect must state"},
-		"top-level expect":    {func(x *Exec) { x.Expect.Stdout = new(string) }, "a case with requests states what it expects on each request"},
-		"stdin":               {func(x *Exec) { x.Stdin = "x" }, "send input to a service as a request body"},
-		"ready not a path":    {func(x *Exec) { x.Ready = "healthz" }, "must be a path"},
+		"url instead of path":  {func(x *Exec) { x.Requests[0].Path = "http://example.com/items" }, "must be a path on the case's own server"},
+		"unknown method":       {func(x *Exec) { x.Requests[0].Method = "TRACE" }, "method"},
+		"empty expect on last": {func(x *Exec) { x.Requests[0].Expect = HTTPExpect{} }, "the last request is what the case checks"},
+		"top-level expect":     {func(x *Exec) { x.Expect.Stdout = new(string) }, "a case with requests states what it expects on each request"},
+		"stdin":                {func(x *Exec) { x.Stdin = "x" }, "send input to a service as a request body"},
+		"ready not a path":     {func(x *Exec) { x.Ready = "healthz" }, "must be a path"},
 		"contradiction": {func(x *Exec) {
 			x.Requests[0].Expect.BodyContains = []string{"apple pie"}
 			x.Requests[0].Expect.BodyNotContains = []string{"apple"}
@@ -61,4 +61,16 @@ func TestValidateExec_RestartStep(t *testing.T) {
 		x := x
 		assert.Error(t, ValidateExec(&x), name)
 	}
+}
+
+// A setup request may state no outcome as long as the last one does.
+func TestValidateExec_SetupRequestNeedsNoExpect(t *testing.T) {
+	t.Parallel()
+	ok := 200
+	x := Exec{Build: []string{"go", "build", "-o", "$BIN/api", "."}, Argv: []string{"$BIN/api"}, Requests: []HTTPRequest{
+		{Method: "POST", Path: "/items", Body: "apple"},
+		{Restart: true},
+		{Method: "GET", Path: "/items", Expect: HTTPExpect{Status: &ok}},
+	}}
+	assert.NoError(t, ValidateExec(&x))
 }
