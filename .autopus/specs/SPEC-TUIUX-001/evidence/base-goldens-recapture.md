@@ -319,6 +319,9 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 ## qa-autopilot 스킬에 `qa exec --all` 회귀 검사 설명 추가 (feat/qa-regression-gate, 2026-11-09)
 
 - 원인: `content/skills/qa-autopilot.md`에 `auto qa exec --all`과 Stop 게이트 연결을 설명하는 항목을 더했다.
+## qa-autopilot 스킬에 `qa mutate` 설명 추가 (feat/qa-mutate, 2026-11-09)
+
+- 원인: `content/skills/qa-autopilot.md`에 `auto qa mutate`를 설명하는 항목을 더했다.
 - 기록: `make generate-templates` 뒤 `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run 'TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6'`.
 - 차이: NPD 다섯 개에서 `qa-autopilot` 스킬과 그 backup, manifest·journal checksum만 바뀌었다. stdout golden은 그대로다.
 - 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.
