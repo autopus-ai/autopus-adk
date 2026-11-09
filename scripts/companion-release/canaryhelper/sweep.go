@@ -19,6 +19,12 @@ import (
 // calling account-create in a loop.
 const maxCanaryAccounts = 2
 
+// User flags from <sys/stat.h>: UF_IMMUTABLE and UF_APPEND.
+const (
+	userImmutable = 0x00000002
+	userAppend    = 0x00000004
+)
+
 // staleAfter is how old a root must be before sweep treats it, and the
 // account named for its nonce, as left behind. A release prep finishes well
 // within it.
@@ -246,8 +252,10 @@ func clearFlags(dirfd int, dev int32) {
 		if e.fd < 0 || e.stat.Dev != dev || !canaryOwned {
 			return nil
 		}
-		if e.stat.Flags != 0 {
-			_ = unix.Fchflags(e.fd, 0)
+		// Only the user flags the owner itself could set and clear; system
+		// flags only root can set stay as they are.
+		if user := e.stat.Flags & (userImmutable | userAppend); user != 0 {
+			_ = unix.Fchflags(e.fd, int(e.stat.Flags&^user))
 		}
 		if e.kind == unix.S_IFDIR {
 			clearFlags(e.fd, dev)
