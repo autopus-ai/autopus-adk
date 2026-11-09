@@ -147,6 +147,14 @@ auto qa hunt verify --json --fail-on-confirmed   # CI: 확인된 버그가 있�
 
 그 밖의 flag: `--dir`(프로젝트 루트), `--timeout`(repro 1회당, 기본 2분).
 
+**시나리오가 버그를 잡는지 재기.** `auto qa mutate`는 제품 소스에 작은 결함을 하나씩 심은 임시 복사본에서
+exec case를 돌리고, 아무 case도 못 잡은 결함을 보고합니다. 원본은 쓰지 않습니다.
+
+```bash
+auto qa mutate                    # 기본 20개, 살아남은 결함을 파일:줄·바뀐 코드·힌트와 출력
+auto qa mutate --max 50 --min-score 0.7   # CI: 잡은 비율이 70% 미만이면 exit 1
+```
+
 `auto qa`의 나머지(QAMESH journey, `auto qa run`, `auto qa release`, `auto qa report` 등)는 선언된 journey와
 릴리스 근거용으로 그대로 있습니다. `auto qa --help`를 보세요.
 

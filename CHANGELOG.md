@@ -10,6 +10,14 @@ All notable changes to this project will be documented in this file.
   경우 마지막 단계로 이것을 돌려, 깨진 동작을 `Expected:`/`Received:`와 함께 막는다. 종료 코드 2는 변경 탓이 아니라
   막지 않는다. 스크래치 프로젝트에서 출력을 바꾼 변경이 막히고 되돌리면 통과하는 것을 확인했다.
 
+- **`auto qa mutate`: 시나리오가 버그를 잡는지 결함을 심어 잰다** (2026-11-09): 지금까지는 시나리오가 통과하면 그만이었고,
+  `stdout_contains`처럼 무엇이든 통과시키는 case는 사람이 버그를 심어 봐야 드러났다. 이제 `auto qa mutate`가 제품 소스에
+  작은 결함(`==`↔`!=`, `<`↔`<=`, `&&`↔`||`, `true`↔`false`, 숫자 ±1)을 하나씩 심은 임시 복사본에서 exec case를 돌린다.
+  어느 case도 실패하지 않은 결함을 `파일:줄`, 바뀐 코드, 힌트와 함께 보고한다. 빌드가 깨진 결함은 점수에서 빼고, 멈춘
+  결함은 잡힌 것으로 센다. 바로 앞 줄의 `!=`로 같을 수 없는 비교의 경계 결함은 같은 프로그램이라 심지 않는다. 네 에이전트가
+  wordtop에 만든 시나리오는 56~69%를 잡았다. claude의 시나리오는 `-n 1` 경계를 검사하지 않았고, 그 case를 하나 더하자
+  두 결함이 잡혀 60%가 73%가 됐다.
+
 - **응답이 설정한 언어가 아니면 Stop hook이 다시 쓰게 한다** (2026-11-08): `language.ai_responses: ko`인데도 작업 중간의
   짧은 진행 메시지("Waiting for the internal/cli result.")가 영어로 나갔다. 언어 정책은 지시일 뿐 막는 장치가 없었다.
   이제 `ai_responses`가 `ko`·`ja`·`zh`이면 Claude Code에 Stop hook `auto verify language`를 등록한다. 마지막 응답의

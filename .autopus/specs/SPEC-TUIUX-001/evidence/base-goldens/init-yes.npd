@@ -2,9 +2,9 @@
 .agents/plugins/
 .agents/plugins/marketplace.json 7bac9f0f7c15eecf46023308f334e2122d112d03aa7b498f9e01adabd48ac03c
 .autopus/
-.autopus/claude-code-manifest.json 92ac1aaf41a3b67b0e0f043d151a2744d608e8b0a819de9c04bd1f28608a7bd0
+.autopus/claude-code-manifest.json c66ed70a47fe53871089b350a12171f393eeca9e6524a8965571623ea70b443b
 .autopus/claude-code-permissions.json b9fd4dd0824fb98d4ff3403c011a56b0b66f398788f2dfb24220c1aed87df4e8
-.autopus/codex-manifest.json 6defc55c2ae57180dc9e0bc30d2840c2242dfd125700b4bbc6c0483492821211
+.autopus/codex-manifest.json 4eb4dd3c34411f0f5fa6998c7b84886b1d5ae4479715159c17966126dada7926
 .autopus/context/
 .autopus/context/constraints.yaml d8b3a0714389a30b7aca1986fbb71235900e14c9dddfe50fdbbb758698d0b26e
 .autopus/plugins/
@@ -16,9 +16,9 @@
 .autopus/plugins/auto/skills/auto/SKILL.md e9e18f575d4b3a5eeb711adef95fd8b099c546ae1b5d003d9e3ffa3504f52e09
 .autopus/txns/
 .autopus/txns/<TX>-claude-code/
-.autopus/txns/<TX>-claude-code/journal.json 906288427675dc1523bfe214c906552a56f6f2372f75825f6d91806da36e74b8
+.autopus/txns/<TX>-claude-code/journal.json 806b111a0e579589afed21eb1e61875c19b9f693a1abd1e0715f9835b0bdc8d5
 .autopus/txns/<TX>-codex/
-.autopus/txns/<TX>-codex/journal.json 98b156428c770476cbb7d9661f694f49adc32d48f4b6ad21d803c3665a4ea27a
+.autopus/txns/<TX>-codex/journal.json ccc5352132ca80b0077d6dcd18a4e9c366b9b644188dbeab3116522f8295e256
 .claude/
 .claude/agents/
 .claude/agents/autopus/
@@ -69,7 +69,7 @@
 .claude/skills/playwright-cli/
 .claude/skills/playwright-cli/SKILL.md 6abb5edd9762ac45b36a7fbf5612c857d04890843bbd544885d9772a514e7f36
 .claude/skills/qa-autopilot/
-.claude/skills/qa-autopilot/SKILL.md 5b27d18d138b5643c83c7ec8fba293d9d11fb38afd04fa0b52d72f53e06ce530
+.claude/skills/qa-autopilot/SKILL.md 2e2c463ef4bafc4544c2eea5d7ae2b7e158da491eeac30cb977d75f05be83a3b
 .claude/skills/qa-hunt/
 .claude/skills/qa-hunt/SKILL.md 9a4946c523f108213468ce9cf866c9023d8a12a78ca8618678c99f71b76c13a7
 .claude/skills/review/
@@ -115,7 +115,7 @@
 .codex/skills/codex-playwright-cli/
 .codex/skills/codex-playwright-cli/SKILL.md 8cdcd557efa6bb17ec809331a577682a0eaae6e52adea6b064022909ac92348d
 .codex/skills/codex-qa-autopilot/
-.codex/skills/codex-qa-autopilot/SKILL.md 9a640fbb628652ee13a881f71a0ff28cdfabf8ab897d12d70913c41146ce9ac1
+.codex/skills/codex-qa-autopilot/SKILL.md 7ecd1c679b2a0de970eedb2d0f9d8ea8951f15b58d952eaf7b4a27bdd3fb0868
 .codex/skills/codex-qa-hunt/
 .codex/skills/codex-qa-hunt/SKILL.md 710d6e09bb769b43f4b597cbb64988c946933fad3c495f10f184526337f36ab5
 .codex/skills/codex-review/
