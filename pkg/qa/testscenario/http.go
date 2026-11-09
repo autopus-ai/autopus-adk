@@ -12,7 +12,11 @@ const PlaceholderPort = "$PORT"
 // HTTPRequest is one request sent to a service case's server. Requests run in
 // order against the same process, so a POST can be read back by a GET.
 type HTTPRequest struct {
-	Method  string            `yaml:"method" json:"method"`
+	// Restart, alone in its entry, stops the server (SIGTERM, then a kill
+	// after five seconds) and starts it again on the same port, so the
+	// requests after it check what the product kept across a restart.
+	Restart bool              `yaml:"restart,omitempty" json:"restart,omitempty"`
+	Method  string            `yaml:"method,omitempty" json:"method,omitempty"`
 	Path    string            `yaml:"path" json:"path"`
 	Headers map[string]string `yaml:"headers,omitempty" json:"headers,omitempty"`
 	Body    string            `yaml:"body,omitempty" json:"body,omitempty"`
@@ -55,6 +59,15 @@ func validateService(x *Exec) error {
 	}
 	for i, r := range x.Requests {
 		where := fmt.Sprintf("exec.requests[%d]", i)
+		if r.Restart {
+			if r.Method != "" || r.Path != "" || r.Body != "" || len(r.Headers) > 0 || !r.Expect.empty() {
+				return fmt.Errorf("%s.restart stands alone: no method, path, body, headers, or expect", where)
+			}
+			if i == 0 || i == len(x.Requests)-1 {
+				return fmt.Errorf("%s.restart needs a request before it and one after it to check", where)
+			}
+			continue
+		}
 		method := strings.ToUpper(strings.TrimSpace(r.Method))
 		if !contains(httpMethods, method) {
 			return fmt.Errorf("%s.method %q must be one of: %s", where, r.Method, strings.Join(httpMethods, ", "))
@@ -62,8 +75,11 @@ func validateService(x *Exec) error {
 		if !strings.HasPrefix(r.Path, "/") || strings.Contains(r.Path, "://") {
 			return fmt.Errorf("%s.path %q must be a path on the case's own server, starting with /", where, r.Path)
 		}
-		if r.Expect.empty() {
-			return fmt.Errorf("%s.expect must state at least one observable outcome", where)
+		// A setup request (seeding data before the one that checks) may state
+		// no outcome; it still fails the case if no response comes back. The
+		// last request must check something, so a case always asserts.
+		if r.Expect.empty() && i == len(x.Requests)-1 {
+			return fmt.Errorf("%s.expect must state at least one observable outcome: the last request is what the case checks", where)
 		}
 		required := append([]string{}, r.Expect.BodyContains...)
 		if r.Expect.Body != nil {

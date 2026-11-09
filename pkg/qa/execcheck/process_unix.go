@@ -25,3 +25,11 @@ func killGroupOnCancel(cmd *exec.Cmd) {
 		return err
 	}
 }
+
+// terminateGroup sends SIGTERM to a service case's process group, so a
+// restart step lets the server shut down cleanly first.
+func terminateGroup(cmd *exec.Cmd) {
+	if cmd.Process != nil {
+		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM)
+	}
+}
