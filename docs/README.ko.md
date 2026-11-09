@@ -71,6 +71,9 @@ $37는 하한입니다. 작은 Go 변경 4건(n=4)이라 벤치마크가 아니�
    - **Node**: lockfile이 가리키는 package manager로 `typecheck`·`test` script
    - **Python**: `python3 -m pytest -q`
    - **Rust**: `cargo test --quiet`
+   - **QA 회귀**: 위 명령이 하나라도 골라졌고 `.autopus/qa/test-scenarios/`에 exec case가 있으면 마지막에
+     `auto qa exec --all`. QA가 한 번 확인한 동작이 이후 변경으로 깨지면 `Expected:`/`Received:`와 함께 막습니다.
+     case 자체를 돌릴 수 없는 경우(종료 코드 2)는 이번 변경 탓이 아니므로 막지 않습니다. CI에서도 같은 명령을 씁니다.
 2. 전체 시간 예산(`--budget`, 기본 8분) 안에서 돌립니다.
 3. 실패하면 종료를 막고, 실패한 명령과 출력의 마지막 60줄을 에이전트에게 넘깁니다.
 4. 한 세션에서 세 번 막은 뒤에는 더 막지 않고, 빌드가 아직 실패한다는 경고를 남기고 끝냅니다. 세션이

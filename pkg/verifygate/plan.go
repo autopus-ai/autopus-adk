@@ -14,6 +14,8 @@ type Step struct {
 	Name string
 	Argv []string
 	Dir  string
+	// PassExit lists exit statuses besides 0 that do not fail the gate.
+	PassExit []int
 }
 
 // Plan picks the build and test commands that cover the changed files. It
@@ -36,6 +38,11 @@ func Plan(root string, changed []string) []Step {
 	}
 	if hasExt(changed, ".rs") && fileExists(filepath.Join(root, "Cargo.toml")) {
 		steps = append(steps, Step{Name: "cargo test", Argv: []string{"cargo", "test", "--quiet"}, Dir: root})
+	}
+	if len(steps) > 0 {
+		if step, ok := qaStep(root); ok {
+			steps = append(steps, step)
+		}
 	}
 	return steps
 }

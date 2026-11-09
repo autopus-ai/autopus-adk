@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **QA 시나리오가 매 변경의 회귀 검사가 된다** (2026-11-09): `auto qa go`로 만든 exec case는 그 명령을 다시 돌릴 때만
+  실행돼서, 고친 동작이 다음 변경에서 다시 깨져도 알 수 없었다. 이제 `auto qa exec --all`이 프로젝트의 exec case를 모두
+  돌린다(어긋남 1, 돌릴 수 없는 case만 있으면 2). Stop hook `auto verify stop`은 제품 코드 변경으로 build·test를 고른
+  경우 마지막 단계로 이것을 돌려, 깨진 동작을 `Expected:`/`Received:`와 함께 막는다. 종료 코드 2는 변경 탓이 아니라
+  막지 않는다. 스크래치 프로젝트에서 출력을 바꾼 변경이 막히고 되돌리면 통과하는 것을 확인했다.
+
 - **응답이 설정한 언어가 아니면 Stop hook이 다시 쓰게 한다** (2026-11-08): `language.ai_responses: ko`인데도 작업 중간의
   짧은 진행 메시지("Waiting for the internal/cli result.")가 영어로 나갔다. 언어 정책은 지시일 뿐 막는 장치가 없었다.
   이제 `ai_responses`가 `ko`·`ja`·`zh`이면 Claude Code에 Stop hook `auto verify language`를 등록한다. 마지막 응답의

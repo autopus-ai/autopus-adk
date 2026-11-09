@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"slices"
 	"strings"
 	"time"
 )
@@ -37,7 +38,8 @@ func Run(ctx context.Context, steps []Step, budget time.Duration) (*Failure, []s
 		var out bytes.Buffer
 		cmd.Stdout, cmd.Stderr = &out, &out
 		err := cmd.Run()
-		if err == nil {
+		var exitErr *exec.ExitError
+		if err == nil || (errors.As(err, &exitErr) && slices.Contains(step.PassExit, exitErr.ExitCode())) {
 			continue
 		}
 		reason := err.Error()
