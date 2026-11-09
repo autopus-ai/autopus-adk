@@ -73,7 +73,7 @@ assert_legacy_fixture() {
 }
 
 assert_public_previous_fixture() {
-    assert_file "$PROJECT/.claude/skills/auto-go/SKILL.md"
+    assert_previous_claude_surface
     assert_file "$PROJECT/.codex/skills/codex-auto/SKILL.md"
     assert_contains "$PROJECT/.codex/config.toml" '[features.multi_agent_v2]'
     assert_file "$PROJECT/.omp/skills/auto/SKILL.md"
