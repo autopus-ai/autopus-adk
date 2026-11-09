@@ -11,7 +11,10 @@ h() { /usr/bin/sudo -n "$helper" "$@"; }
 
 nonce=$(head -c 16 /dev/urandom | xxd -p)
 root="/private/tmp/autopus-adk-release-prep-${nonce}-final"
-work=$(mktemp -d)
+# Made the way prepare-release.sh makes its temp directory, so a path the
+# release passes to the helper is a path this smoke passes too.
+temp_base=${TMPDIR:-/tmp}
+work=$(mktemp -d "${temp_base%/}/canary-helper-smoke.XXXXXX")
 cleanup() {
   h account-kill "$nonce" 1 KILL >/dev/null 2>&1 || true
   h account-delete "$nonce" 1 >/dev/null 2>&1 || true
