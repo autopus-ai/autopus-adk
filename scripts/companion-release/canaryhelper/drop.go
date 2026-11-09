@@ -56,15 +56,23 @@ func dropAndExec(uid, gid int, argv []string, env ...string) error {
 	if err := dropTo(uid, gid); err != nil {
 		return err
 	}
+	// The caller's working directory is usually unreadable to the new
+	// identity; start from / instead of inheriting it.
+	if err := unix.Chdir("/"); err != nil {
+		return err
+	}
 	syscall.Umask(0o077)
 	return syscall.Exec(argv[0], argv, env)
 }
 
 // dropTo leaves root for good: supplementary groups, then group, then user,
-// and verifies nothing of root is left.
+// and verifies nothing of root is left. The supplementary list is set to
+// exactly the primary group: on macOS an empty list lets the kernel resolve
+// group membership dynamically again (nobody would regain everyone,
+// localaccounts, and more), while a non-empty list opts the process out.
 func dropTo(uid, gid int) error {
-	if err := unix.Setgroups([]int{}); err != nil {
-		return errors.New("clear supplementary groups")
+	if err := unix.Setgroups([]int{gid}); err != nil {
+		return errors.New("set supplementary groups")
 	}
 	if err := unix.Setgid(gid); err != nil {
 		return errors.New("set group")
@@ -73,9 +81,10 @@ func dropTo(uid, gid int) error {
 		return errors.New("set user")
 	}
 	groups, err := unix.Getgroups()
-	if err != nil || len(groups) > 1 || (len(groups) == 1 && groups[0] != gid) ||
+	if err != nil || len(groups) != 1 || groups[0] != gid ||
 		os.Getuid() != uid || os.Geteuid() != uid || os.Getgid() != gid || os.Getegid() != gid {
-		return fmt.Errorf("identity verification failed after dropping root")
+		return fmt.Errorf("identity verification failed after dropping root: uid=%d euid=%d gid=%d egid=%d groups=%v err=%v",
+			os.Getuid(), os.Geteuid(), os.Getgid(), os.Getegid(), groups, err)
 	}
 	if unix.Setuid(0) == nil {
 		return errors.New("root could be regained after dropping it")
