@@ -1,0 +1,148 @@
+#!/usr/bin/env bash
+# The A31 through A40 predecessor pins, moved here unchanged and in source
+# order from verify-public-key-lineage-coordinates.sh when that file reached
+# the 300-line source limit and verify-public-key-lineage-pins.sh had no room
+# left for another block. The lineage verifier sources this helper after the
+# pins helper and before the coordinates helper, so every phase sees the same
+# variables. The A<n>_REPOSITORY/TAG/VERSION lines stay in the coordinates
+# file. Published pins are never rewritten.
+# A31 shipped the same fifteen-asset set as A30 under the same owner, all
+# measured from the immutable release 398906327. The two manifest digests come
+# from inside the darwin archives, where the companion manifest travels.
+readonly A31_RELEASE_ID='398906327'
+readonly A31_COMMIT_SHA='b69a8450d6a1c916dfd6e86b254907b4b0c76b78'
+readonly A31_TREE_SHA='9e003120060540c4f361c81d10242970ef7c350b'
+readonly A31_TAG_OBJECT_SHA='cee58b628ee8fe83c449a7d2ed46a2185168a4eb'
+readonly A31_CHECKSUMS_SHA256='9fe21febfccbb5af51f8dfc3bc229d023278b1051e2d5ea98d02f2c324039e50'
+readonly A31_AMD64_ARCHIVE_SHA256='b5a78f7afb4b9ea7e3439e02f7d0dad66dd0d8af2e4e90c9510b7c341ecb1d34'
+readonly A31_ARM64_ARCHIVE_SHA256='2359b595f4fb3857b2e8c0b9ed849df3445586b7c6bd680367d610e2c71a0cdc'
+readonly A31_LINUX_AMD64_ARCHIVE_SHA256='fd2551898babf2c00fe5ec84146876e7750074eb65e878521fb6c770f30cf1e5'
+readonly A31_LINUX_ARM64_ARCHIVE_SHA256='3120e5acd77e996df534b85d6502139d60e4a3070d482e85044f9e2071b1e6db'
+readonly A31_AMD64_MANIFEST_SHA256='7af79e2c3849972f493de69fd563e234d5b147c551f195291a9f10ac9ea5781c'
+readonly A31_ARM64_MANIFEST_SHA256='e321e8556853ff2c0d986cbff385b520fd9602e8722ca4dc6b90261cce240c61'
+# A32 shipped the same fifteen-asset set as A31 under the same owner, all
+# measured from the immutable release 402213224. The two manifest digests come
+# from inside the darwin archives, where the companion manifest travels.
+readonly A32_RELEASE_ID='402213224'
+readonly A32_COMMIT_SHA='8299c8df85bc0e24bfb4d4fbbd71889dceb96986'
+readonly A32_TREE_SHA='2a73b9db4adbaab78c29c37a75e3be8ffa4f365d'
+readonly A32_TAG_OBJECT_SHA='033a3581a00c3566e3d19841fad9cf495c20cfb3'
+readonly A32_CHECKSUMS_SHA256='5c845085e078d0b211335d350b83d2d2fba8d9121ce86c158043921f60e85826'
+readonly A32_AMD64_ARCHIVE_SHA256='6df337b4ff4efb01f4070e941e31df37bb81f647e75b230b826e9ae5c0fd7661'
+readonly A32_ARM64_ARCHIVE_SHA256='de90e3165a504c8c8dbe128114c5f2b9fc9c72890d12d1cc3695c3aea3e7dd17'
+readonly A32_LINUX_AMD64_ARCHIVE_SHA256='ddf313f8b0e0b297086b5b95458d9fa371e921792eff42d5a22bf838a9294e34'
+readonly A32_LINUX_ARM64_ARCHIVE_SHA256='2684b264b9fd95e77001dd77afb6bccb9b474a7bb03a06311d0e802a2b0bab0a'
+readonly A32_AMD64_MANIFEST_SHA256='055b8e868d9f2dc94659322aeff227686dbdd56367cfaa93b1fc870262ae90e2'
+readonly A32_ARM64_MANIFEST_SHA256='7109e5c358a50735ed125ee97715d1576ecf92e40ec8b685139d289552570679'
+# A33 shipped the same fifteen-asset set as A32 under the same owner, all
+# measured from the immutable release 402813712. The two manifest digests come
+# from inside the darwin archives, where the companion manifest travels.
+readonly A33_RELEASE_ID='402813712'
+readonly A33_COMMIT_SHA='c42337f4dcf9592d065130150af18dcc5a16c5b8'
+readonly A33_TREE_SHA='dad6a86e1e493988bc77b8705b3c00c4dd7576a1'
+readonly A33_TAG_OBJECT_SHA='da8d4f31267bd7be0999b232e73623cd2e6f6034'
+readonly A33_CHECKSUMS_SHA256='04ff98b075dd9f314069fb8e42b45c024cc54017f073ccc681dae550f48c5a2f'
+readonly A33_AMD64_ARCHIVE_SHA256='2b6e88c5f64d5c19d28e4d1fdbec15a0aea49031afcded2c28a076fc60b4038e'
+readonly A33_ARM64_ARCHIVE_SHA256='308072559eaaff75f22c1cae11e2939f1672b341ae5957acc22459ed300f882e'
+readonly A33_LINUX_AMD64_ARCHIVE_SHA256='205f17bbafc9f55ad79243feed67de07ad76c3186cfcf272b3321e5b95218f33'
+readonly A33_LINUX_ARM64_ARCHIVE_SHA256='49d7cdf6bb1c8685676d1f5805ef945960cb45958e33eb605bbc3815e3cbef3d'
+readonly A33_AMD64_MANIFEST_SHA256='57317da672620d4f5c7ca58358fea8d0c8e87459f5030c8c337a58d872f7fed5'
+readonly A33_ARM64_MANIFEST_SHA256='491a7576c3b3febb03cb0465da99c9b953d2c5fd6edfa725ce393ced807c3fa0'
+# A34 shipped the same fifteen-asset set as A33 under the same owner, all
+# measured from the immutable release 402971620. The two manifest digests come
+# from inside the darwin archives, where the companion manifest travels.
+readonly A34_RELEASE_ID='402971620'
+readonly A34_COMMIT_SHA='c447badc28e393b19984d2eeea159a81d609acd9'
+readonly A34_TREE_SHA='13dcb08d81c59ad0677e824b0785bc7e1fffcbe7'
+readonly A34_TAG_OBJECT_SHA='8ac711f82b6879b4bbf582de88658315b037a1b7'
+readonly A34_CHECKSUMS_SHA256='f15071f66e5056e5e483a03c85f49ebe1fc4e3cc35df24368ca3ca3f35213538'
+readonly A34_AMD64_ARCHIVE_SHA256='74c48a1686ecbeee155bfdaa002a4f1f2e553d222ec351e196507f7f470be071'
+readonly A34_ARM64_ARCHIVE_SHA256='4c8809fda4bede93601711892fc91cbcc334cf59a7e0200848b3d4d9b16b2d94'
+readonly A34_LINUX_AMD64_ARCHIVE_SHA256='864ee59cfbb076941a5c4bc0839b12fb0c7c2ccd6bd99718ba54774dad81cc6f'
+readonly A34_LINUX_ARM64_ARCHIVE_SHA256='c62d0e10714600d9ce4e9bbdfee668c1e1f828c98489213b1ba8c7f4aed75249'
+readonly A34_AMD64_MANIFEST_SHA256='b45f736729725e62a54cec87dce7841723d7a7aec6269345f2ff05849cd8190d'
+readonly A34_ARM64_MANIFEST_SHA256='b7973fe43ae90398dd14bbc8370822d21be2dbb15df2be31ab760b0abdfa8757'
+# A35 shipped the same fifteen-asset set as A34 under the same owner, all
+# measured from the immutable release 410986343. The two manifest digests come
+# from inside the darwin archives, where the companion manifest travels.
+readonly A35_RELEASE_ID='410986343'
+readonly A35_COMMIT_SHA='dd6d6ea2435d759144ec093b9b464a831f47703d'
+readonly A35_TREE_SHA='8d6aa0c4cf84f2c806205d3210505d100b863233'
+readonly A35_TAG_OBJECT_SHA='0616d14060c9bbd53d5196faeaa0bc8e108edb2b'
+readonly A35_CHECKSUMS_SHA256='5f2bf32db0d96266a7fc84b9bc652163fe16184ce2a8aaeefbedb637d22e0a48'
+readonly A35_AMD64_ARCHIVE_SHA256='52538f80e3f88c3c530e279ab72ed780c33da7045b3b175337ed6a28f4672513'
+readonly A35_ARM64_ARCHIVE_SHA256='5253996a619c350348870fb240301833e69803b2a2ea5e430c0663ab2aa84747'
+readonly A35_LINUX_AMD64_ARCHIVE_SHA256='0dc07d1e74889dc2b3fd511cd4d3c4a470e34b7d26a30b7f55cdbb08df86ae44'
+readonly A35_LINUX_ARM64_ARCHIVE_SHA256='67c6c9f379b782bb0cea7a39c7a42a6372995e88c8dfbd295e8cfbeb32ee8363'
+readonly A35_AMD64_MANIFEST_SHA256='5a4e5cdc55b479eb1fd1942c5885ba2f4599ed9fe9151aebb1c44b95640e1b98'
+readonly A35_ARM64_MANIFEST_SHA256='79acf762c930a7ad7a1f19f2bf79b2e1dacc31daa8255515f6cd20c2761f0836'
+# A36 shipped the same fifteen-asset set as A35 under the same owner, all
+# measured from the immutable release 421737046. The two manifest digests come
+# from inside the darwin archives, where the companion manifest travels.
+readonly A36_RELEASE_ID='421737046'
+readonly A36_COMMIT_SHA='81186d0c73bb6eb633e52a7cb6a2af23d0f54d12'
+readonly A36_TREE_SHA='7f66f3b2394f0df4c696e961cbd70f4be754b6f6'
+readonly A36_TAG_OBJECT_SHA='ac00440870377496345d4b104e8554aef7f62c09'
+readonly A36_CHECKSUMS_SHA256='19234799128ef9e6cf90be1fa00519ac86c02b4df393f6eeff6185256b77d265'
+readonly A36_AMD64_ARCHIVE_SHA256='c45588b9d88362632646039de8b5475823e8164fb8bd86694c134654906cc42d'
+readonly A36_ARM64_ARCHIVE_SHA256='a37e263dafe09966ef25e2705065a4ff04ad781a43fe8db8754daf20b8f702d2'
+readonly A36_LINUX_AMD64_ARCHIVE_SHA256='4ac9204d6087ea63b03b525f7bb4e9f0a0686d6df11174e7eab56f8c16a4c78d'
+readonly A36_LINUX_ARM64_ARCHIVE_SHA256='72aeab8e2f7a49bcc2a028d652281d4588637feb6975fad79b6147c063b9d512'
+readonly A36_AMD64_MANIFEST_SHA256='0db6e95b614709e844800ca00443feeabca56facb433e0c331b675ac918e2041'
+readonly A36_ARM64_MANIFEST_SHA256='1252174cf8b2517d9bbc7cd89f70b5067eb3814d777a44128741b3fbc962f082'
+# A37 shipped the same fifteen-asset set as A36 under the same owner, all
+# measured from the immutable release 427217669. The two manifest digests come
+# from inside the darwin archives, where the companion manifest travels.
+readonly A37_RELEASE_ID='427217669'
+readonly A37_COMMIT_SHA='842f8bf286aa4c26554cc0d29f3c79c412069a0b'
+readonly A37_TREE_SHA='a13f508cd95e6a902b3353d8e08c06dedbfae809'
+readonly A37_TAG_OBJECT_SHA='04fd540532546f2651e63c0de007fbbac1ea3b93'
+readonly A37_CHECKSUMS_SHA256='f8d28b4961e79f54470ddd234dbfa3827b897ce57bc0c64d1da4293b11e4543e'
+readonly A37_AMD64_ARCHIVE_SHA256='f4bf3bdbd1f284d327801c5fd8693d4396b696bd2e83ef1331ee40e5456be605'
+readonly A37_ARM64_ARCHIVE_SHA256='6f455de994198a21b0e36abb71fde92f5aa54905418b6bd4942c8b339d227fe2'
+readonly A37_LINUX_AMD64_ARCHIVE_SHA256='9b96e505b019dba5f26501c92a7053d9f175d1eb2cbd7dd410254ca00cc9003f'
+readonly A37_LINUX_ARM64_ARCHIVE_SHA256='d555b4e0e74b981c0521e50e47a2dda7e1d9952dcf99130a342dbe40d8785845'
+readonly A37_AMD64_MANIFEST_SHA256='6dc134938b0c88bdfa52e374dc27ff4185d5bd8dc9597fc4f8cb1c7a20e0a73c'
+readonly A37_ARM64_MANIFEST_SHA256='2be72a5784bdee43874d41ae69bf29c28bf07f38f9b11afb85092304496953d3'
+# A38 shipped the same fifteen-asset set as A37 under the same owner, all
+# measured from the immutable release 429669574. The two manifest digests come
+# from inside the darwin archives, where the companion manifest travels.
+readonly A38_RELEASE_ID='429669574'
+readonly A38_COMMIT_SHA='b27d93ab0fababe08152ca18807232075a8d1ac6'
+readonly A38_TREE_SHA='fe82983167e9fb284957f3670bb0edd105370f75'
+readonly A38_TAG_OBJECT_SHA='a2c7b4794547f4fb9953d8f9cbc84792c89c051a'
+readonly A38_CHECKSUMS_SHA256='73b6854d8d0e1a016f59be1bd5996ec6208a40ac7ff6b64684ac763e6ed590ae'
+readonly A38_AMD64_ARCHIVE_SHA256='34a574ada880fcf9744253b0e3ee1279ee56f9b9e1775737730b791c80caf552'
+readonly A38_ARM64_ARCHIVE_SHA256='b568e224786b96b0b48088b42e610f8b1170bf3cebc9876ea08b52274cf750ed'
+readonly A38_LINUX_AMD64_ARCHIVE_SHA256='2b5477171c38f8b8cd429452b8a4d60de421ef051f3aac175de69f3da8e8306a'
+readonly A38_LINUX_ARM64_ARCHIVE_SHA256='bf67cab3beb98f9bfec511d55966c3308abea6eb69ecfeee6925b660fb89e27a'
+readonly A38_AMD64_MANIFEST_SHA256='b12036dabe87f34570ac75b0291a2326b9c7fb90ad65ae496b5eef3c4ba0ae98'
+readonly A38_ARM64_MANIFEST_SHA256='f1d65865dc3ee7df02d4b511d8a0e4f375e3c79eaee36a5083ee277c9a48dff1'
+# A39 shipped the same fifteen-asset set as A38 under the same owner, all
+# measured from the immutable release 432079301. The two manifest digests come
+# from inside the darwin archives, where the companion manifest travels.
+readonly A39_RELEASE_ID='432079301'
+readonly A39_COMMIT_SHA='2b49d429f15be98aecb719e3abefc19a3612a346'
+readonly A39_TREE_SHA='ed7763a8eaeb3f0252f687586b0a26c39fe97ab4'
+readonly A39_TAG_OBJECT_SHA='f2e9aae7ec35d7aa327f9bcf4818903088be7d93'
+readonly A39_CHECKSUMS_SHA256='49c24324fde2889d61470232e4b84a336719440f1b1a60adc4692907fe5c3199'
+readonly A39_AMD64_ARCHIVE_SHA256='3db537db44b97862446db3e0a8330dd90933725f6ddb4f62205083dae690f69b'
+readonly A39_ARM64_ARCHIVE_SHA256='60998788805d0a9f970adad8a7bb454fe2ee660fba77c15aceb4398b559ca34f'
+readonly A39_LINUX_AMD64_ARCHIVE_SHA256='6534ffe5af52e43548beeb0c1a90dc300bcc5839f3dfd189dd26f11ca5a1c1fb'
+readonly A39_LINUX_ARM64_ARCHIVE_SHA256='13d4b759809b892cd9b36a815b0f7d00b4e8c88b918e672dbebed917df14ab29'
+readonly A39_AMD64_MANIFEST_SHA256='dd8ed1e4763fee5be5e44c5590d357ef8b5abe968bcfbcf3796d5cc2e5784ef6'
+readonly A39_ARM64_MANIFEST_SHA256='01b152e4f088c652ac22172f43a9d0307386bd475fde214a90eb7ebf93a214e9'
+# A40 shipped the same fifteen-asset set as A39 under the same owner, all
+# measured from the immutable release 432232109. The two manifest digests come
+# from inside the darwin archives, where the companion manifest travels.
+readonly A40_RELEASE_ID='432232109'
+readonly A40_COMMIT_SHA='f78feef6824a58aa534f355f2b49763b9b256bbc'
+readonly A40_TREE_SHA='842739577a0c92ee5de0305f0452ad50f258c72d'
+readonly A40_TAG_OBJECT_SHA='3c98be7c8f5ec29a785c5f687a4bf0fb06dc8340'
+readonly A40_CHECKSUMS_SHA256='987faad8fcc3b141214b79f4d825d55774278f38b432aa212241dd02010f128c'
+readonly A40_AMD64_ARCHIVE_SHA256='27c17cc0bdc2b96d6bd8c35bf1a04757e3315fae49556f1dc8e852b19b4b17b0'
+readonly A40_ARM64_ARCHIVE_SHA256='07379cf39b95f20974905395bd3b03fcea6633d66ac1bc1c428ca69af2767c87'
+readonly A40_LINUX_AMD64_ARCHIVE_SHA256='e6fdfa177f9b1e71871567641823fd87b1160de49cef565fc739c4b784bd70c3'
+readonly A40_LINUX_ARM64_ARCHIVE_SHA256='a6926d12690f85975ffa2c78597d76dc56de34a870545cda9243e3a737d06663'
+readonly A40_AMD64_MANIFEST_SHA256='2740a5e370b1ddb6ef4390f74e15bf4398a2c39bf1d601397fb726e5cbd8ed03'
+readonly A40_ARM64_MANIFEST_SHA256='bff62f1a82fd1f8bd7ef3cca047269134a0035d2036f4e485e080fd25aa5b85e'

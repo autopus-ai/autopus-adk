@@ -240,6 +240,11 @@ func (fixture *executableLineageFixture) writeProvisionedProductionScript(t *tes
 	if err := os.WriteFile(pinsPath, []byte(pinsSource), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	shippedPins := releaseSourceFile(t, "scripts/companion-release/verify-public-key-lineage-shipped-pins.sh")
+	shippedPinsPath := filepath.Join(filepath.Dir(fixture.provisionedScriptPath), "verify-public-key-lineage-shipped-pins.sh")
+	if err := os.WriteFile(shippedPinsPath, shippedPins, 0o600); err != nil {
+		t.Fatal(err)
+	}
 	coordinates := releaseSourceFile(t, "scripts/companion-release/verify-public-key-lineage-coordinates.sh")
 	coordinatesPath := filepath.Join(filepath.Dir(fixture.provisionedScriptPath), "verify-public-key-lineage-coordinates.sh")
 	if err := os.WriteFile(coordinatesPath, coordinates, 0o600); err != nil {

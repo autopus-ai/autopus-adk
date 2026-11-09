@@ -250,7 +250,8 @@ func differentHex(current string, length int) string {
 
 func TestReleasePublicKeyReceipt_ProductionPinsHaveNoRuntimeTestOverride(t *testing.T) {
 	pinsSource := string(releaseSourceFile(t, "scripts/companion-release/verify-public-key-lineage-pins.sh"))
-	runtimeSource := string(releaseSourceFile(t, "scripts/companion-release/verify-public-key-lineage.sh")) + pinsSource
+	runtimeSource := string(releaseSourceFile(t, "scripts/companion-release/verify-public-key-lineage.sh")) + pinsSource +
+		string(releaseSourceFile(t, "scripts/companion-release/verify-public-key-lineage-shipped-pins.sh"))
 	for _, pins := range []map[string]string{
 		immutableA0LineagePins, immutableA1LineagePins, immutableA2LineagePins,
 		immutableA3LineagePins, immutableA4LineagePins, immutableA5LineagePins,
