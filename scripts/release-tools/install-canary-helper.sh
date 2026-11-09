@@ -28,7 +28,7 @@ printf '%s ALL=(root) NOPASSWD: %s\n' "$account" "$destination" >"$temp/rule"
 /usr/sbin/visudo -cqf "$temp/rule" || fail 'the generated sudoers rule does not parse'
 
 printf 'installing %s (sha256 %s)\n' "$destination" "$(shasum -a 256 "$temp/canaryhelper" | awk '{print $1}')"
-printf 'and %s: %s' "$rule" "$(cat "$temp/rule")"
+printf 'and %s: %s\n' "$rule" "$(cat "$temp/rule")"
 /usr/bin/sudo /usr/bin/install -o root -g wheel -m 0755 "$temp/canaryhelper" "$destination"
 /usr/bin/sudo /usr/bin/install -o root -g wheel -m 0440 "$temp/rule" "$rule"
 /usr/bin/sudo /usr/sbin/visudo -cq || fail 'sudoers no longer parses; remove the rule with sudo rm /etc/sudoers.d/autopus-release-canary'
