@@ -95,7 +95,7 @@ func evaluateIn(projectDir, specID string, criteria, docs, existing []string) Ou
 		case testscenario.SchemaVersion:
 			later = append(later, pending{index, body})
 		case "":
-			e.reject(index, "", "", CodeYAMLInvalid, "document is not a YAML mapping with a schema_version")
+			e.reject(index, "", "", CodeYAMLInvalid, "document is not a YAML mapping with a schema_version"+yamlProblem(body))
 		default:
 			e.reject(index, "", "", CodeSchemaUnknown, fmt.Sprintf("schema_version %q is neither %s nor %s", version, scenario.SchemaVersionV2, testscenario.SchemaVersion))
 		}
@@ -259,6 +259,16 @@ func schemaVersion(body string) string {
 		return ""
 	}
 	return strings.TrimSpace(head.SchemaVersion)
+}
+
+// yamlProblem names why a document did not parse, so a retry can tell the
+// agent what to change.
+func yamlProblem(body string) string {
+	var any map[string]any
+	if err := yaml.Unmarshal([]byte(body), &any); err != nil {
+		return ": " + err.Error()
+	}
+	return ""
 }
 
 func validationCode(err error) string {

@@ -98,3 +98,25 @@ func TestRun_RetriesGenerationOnce(t *testing.T) {
 	assert.Equal(t, []string{"generate", "generate", "promote", "compile", "loop"}, c.order)
 	assert.Contains(t, strings.Join(lines, "\n"), "asking once more")
 }
+
+// The retry tells the agent what was wrong instead of asking the same thing,
+// and a final failure names the saved answer.
+func TestRun_RetryCarriesTheRejection(t *testing.T) {
+	t.Parallel()
+	c := &calls{}
+	deps := fakeDeps(c, nil)
+	var feedback []string
+	deps.Generate = func(_ context.Context, o generate.Options) (generate.Report, error) {
+		feedback = append(feedback, o.Feedback)
+		return generate.Report{Documents: 1, ReplyPath: "/p/rejected-reply.txt", Rejected: []generate.Rejection{
+			{Code: generate.CodeYAMLInvalid, Message: "document is not a YAML mapping with a schema_version: yaml: line 5: mapping values are not allowed in this context"},
+		}}, nil
+	}
+	_, err := Run(context.Background(), Options{ProjectDir: project(t), SpecID: "SPEC-X", Agent: agentexec.TargetGemini, Lane: "fast", Auto: true}, deps)
+	var stop *Error
+	require.ErrorAs(t, err, &stop)
+	require.Len(t, feedback, 2)
+	assert.Empty(t, feedback[0])
+	assert.Contains(t, feedback[1], "- qa_generate_yaml_invalid: document is not a YAML mapping with a schema_version: yaml: line 5")
+	assert.Contains(t, stop.Error(), "the last answer is in /p/rejected-reply.txt")
+}

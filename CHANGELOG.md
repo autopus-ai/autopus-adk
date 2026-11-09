@@ -23,6 +23,13 @@ All notable changes to this project will be documented in this file.
   8칸 중 7칸이 통과했고, agy wordtop은 생성 답이 두 번 모두 YAML로 읽히지 않아 실패했다. oracle을 만들 때 opencode의
   수정이 "횟수 출력"을 빼서 실패한 것처럼 보였는데, 요청이 횟수 출력을 정하지 않았으므로 oracle을 줄 순서만 보도록 고쳤다.
 
+- **시나리오 생성 재시도가 거부 이유를 에이전트에게 알려 주고, 쓸 수 없던 답을 남긴다** (2026-11-09): QA 에이전트
+  매트릭스에서 agy가 두 번 연속 YAML로 읽히지 않는 답을 냈는데, 재시도는 같은 프롬프트를 다시 보냈고 답 원문이
+  남지 않아 무엇이 깨졌는지 알 수 없었다. 이제 YAML 파싱 실패 거부에 파서 오류(`line 5: mapping values are not
+  allowed`)를 붙이고, 재시도 프롬프트에 첫 답의 거부 사유를 최대 세 개와 따옴표 규칙을 더한다. 아무것도 받아들여지지
+  않은 답은 `.autopus/qa/generate/<SPEC>/rejected-reply.txt`에 저장하고, 최종 오류가 그 경로를 알려 준다. 재실행한 agy
+  wordtop 두 번은 재시도 없이 통과해서, 이 변경이 그 실패를 줄이는지는 아직 확인하지 못했다.
+
 - **QA 시나리오가 매 변경의 회귀 검사가 된다** (2026-11-09): `auto qa go`로 만든 exec case는 그 명령을 다시 돌릴 때만
   실행돼서, 고친 동작이 다음 변경에서 다시 깨져도 알 수 없었다. 이제 `auto qa exec --all`이 프로젝트의 exec case를 모두
   돌린다(어긋남 1, 돌릴 수 없는 case만 있으면 2). Stop hook `auto verify stop`은 제품 코드 변경으로 build·test를 고른
