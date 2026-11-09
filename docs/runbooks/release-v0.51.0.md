@@ -1,5 +1,15 @@
 # Release v0.51.0 (A41)
 
+**Published 2026-11-09.** Immutable release `439021686` (15 assets, Latest), tag
+object `30a77fb9a291fc33d76db2f6b89d7e1e86f92a27`, source commit
+`ce109c5ae958f86b624bc40e91aaf7f6b1bf0f6d`, tree
+`c857ba9ff2ba14743ba605e9d822c36f4280d048`. Release run `42605328559` passed
+with no environment review (#291), Upgrade Canary `42609327630` passed, ruleset
+`26746556` is sealed, tag policy `65818617`. `--apply` ran through the
+passwordless canary helper (#292), after a first attempt stopped at unstage on
+a `TMPDIR` double slash without publishing anything (#293). The next coordinate
+is A42 = `v0.51.1`; see [release-v0.51.1.md](release-v0.51.1.md).
+
 Status: prepared 2026-11-06 as `v0.50.134`, retargeted 2026-11-07 to
 `v0.51.0`, not published. A41 is `v0.51.0`. A40 is `v0.50.133`, immutable
 release `432232109`; see [release-v0.50.133.md](release-v0.50.133.md).
