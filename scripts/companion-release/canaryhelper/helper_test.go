@@ -197,3 +197,10 @@ func TestChownTreeClearsSetIDBits(t *testing.T) {
 		t.Fatalf("set-id bits survived: %v", info.Mode())
 	}
 }
+
+// nobody's ID arrives as -2 from one call and 4294967294 from another.
+func TestSameIDComparesAsUint32(t *testing.T) {
+	if !sameID(-2, 4294967294) || !sameID(50001, 50001) || sameID(-2, 4294967293) {
+		t.Fatal("IDs must compare as 32-bit unsigned values")
+	}
+}

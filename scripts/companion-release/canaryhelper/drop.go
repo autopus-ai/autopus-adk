@@ -81,8 +81,8 @@ func dropTo(uid, gid int) error {
 		return errors.New("set user")
 	}
 	groups, err := unix.Getgroups()
-	if err != nil || len(groups) != 1 || groups[0] != gid ||
-		os.Getuid() != uid || os.Geteuid() != uid || os.Getgid() != gid || os.Getegid() != gid {
+	if err != nil || len(groups) != 1 || !sameID(groups[0], gid) ||
+		!sameID(os.Getuid(), uid) || !sameID(os.Geteuid(), uid) || !sameID(os.Getgid(), gid) || !sameID(os.Getegid(), gid) {
 		return fmt.Errorf("identity verification failed after dropping root: uid=%d euid=%d gid=%d egid=%d groups=%v err=%v",
 			os.Getuid(), os.Geteuid(), os.Getgid(), os.Getegid(), groups, err)
 	}
@@ -91,3 +91,8 @@ func dropTo(uid, gid int) error {
 	}
 	return nil
 }
+
+// sameID compares two IDs as the kernel's 32-bit uid_t/gid_t. Go reports
+// nobody's -2 as -2 from os.Getuid but as 4294967294 from the account
+// database and getgroups, so a plain int comparison calls them different.
+func sameID(a, b int) bool { return uint32(a) == uint32(b) }
