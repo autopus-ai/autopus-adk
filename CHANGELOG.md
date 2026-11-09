@@ -17,6 +17,12 @@ All notable changes to this project will be documented in this file.
   `qa exec --all`, Stop 게이트, `qa mutate`가 그대로 서버 case를 돈다. 저장한 이름을 대문자로 돌려주는 버그를 심은
   HTTP API로 claude end-to-end를 돌렸다. claude가 `requests` case를 생성했고, loop가 버그를 고쳐 111초 만에 통과했다.
 
+- **배포 전 QA 에이전트 매트릭스** (2026-11-09): 에이전트마다 고유한 결함이 드러났지만 그 확인은 손으로 했다.
+  `scripts/qa-agent-matrix/run.sh`가 claude·codex·agy·opencode × 버그를 심은 fixture 둘(CLI wordtop, HTTP API itemsapi)로
+  intent → 권장 답 → `qa go --auto`를 돌리고, loop 브랜치 끝을 에이전트가 볼 수 없는 oracle 테스트로 판정한다. 첫 실행은
+  8칸 중 7칸이 통과했고, agy wordtop은 생성 답이 두 번 모두 YAML로 읽히지 않아 실패했다. oracle을 만들 때 opencode의
+  수정이 "횟수 출력"을 빼서 실패한 것처럼 보였는데, 요청이 횟수 출력을 정하지 않았으므로 oracle을 줄 순서만 보도록 고쳤다.
+
 - **QA 시나리오가 매 변경의 회귀 검사가 된다** (2026-11-09): `auto qa go`로 만든 exec case는 그 명령을 다시 돌릴 때만
   실행돼서, 고친 동작이 다음 변경에서 다시 깨져도 알 수 없었다. 이제 `auto qa exec --all`이 프로젝트의 exec case를 모두
   돌린다(어긋남 1, 돌릴 수 없는 case만 있으면 2). Stop hook `auto verify stop`은 제품 코드 변경으로 build·test를 고른
