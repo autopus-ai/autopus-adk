@@ -33,7 +33,7 @@ readonly A21_A20_ANCESTOR_SHA='7f44e4f143b2348c02553bab2209088c966f81ae'
 readonly A22_A21_ANCESTOR_SHA='b86fab067599f457261287552c5a9dd86460d7f4'
 readonly A23_A22_ANCESTOR_SHA='67f3def5d4a0a11aadd9e103389de6cc1cafc34e'
 ANCESTORS
-for helper_name in pins coordinates archive assets; do
+for helper_name in pins shipped_pins coordinates archive assets; do
   contains "$lineage" "[[ -f \"\$${helper_name}_helper\" && ! -L \"\$${helper_name}_helper\" ]]"
   contains "$lineage" "source \"\$${helper_name}_helper\""
 done
@@ -234,13 +234,13 @@ done
 temp=$(mktemp -d "${TMPDIR:-/tmp}/release-lineage-helper-gate.XXXXXX")
 cleanup() { local status=$?; rm -rf -- "$temp" || status=$?; return "$status"; }
 trap cleanup EXIT
-for helper in pins coordinates archive; do
+for helper in pins shipped-pins coordinates archive; do
   install -m 0600 "$script_dir/verify-public-key-lineage-${helper}.sh" \
     "$temp/verify-public-key-lineage-${helper}.sh"
 done
 install -m 0700 "$lineage" "$temp/verify-public-key-lineage.sh"
 ln -s -- "$lineage_assets" "$temp/verify-public-key-lineage-assets.sh"
-if output=$(GITHUB_REF_NAME=v0.51.0 PATH="$PATH" \
+if output=$(GITHUB_REF_NAME=v0.51.1 PATH="$PATH" \
   bash "$temp/verify-public-key-lineage.sh" 2>&1); then
   fail 'symlinked lineage asset helper passed'
 fi
