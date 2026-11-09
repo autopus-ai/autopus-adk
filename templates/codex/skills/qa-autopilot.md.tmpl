@@ -47,6 +47,7 @@ automation:
 - 웹 UI가 없는 프로젝트에서는 `auto qa go`가 브라우저 시나리오 컴파일을 건너뛰고, exec·command case를 test-scenarios 파일에서 바로 돌립니다.
 - `argv[0]`은 `$BIN/<이름>`, 프로젝트 안의 경로(`./bin/tool`), 또는 허용된 러너(`python3` 등)만 됩니다. 임의의 시스템 명령은 거부합니다.
 - `auto qa exec --file <yaml> --case <id>`가 한 case를 돌립니다. 기대값이 어긋나면 `Expected:`/`Received:`를 출력하고 1로 끝나며, loop는 이를 `product_defect`로 분류합니다. 제품 소스 파일을 가리키는 컴파일 에러도 제품 결함이라 1로 끝납니다. build 경로가 틀린 것처럼 case 자체를 돌릴 수 없으면 2로 끝납니다.
+- 서버형 제품은 exec case에 `requests`를 씁니다. `argv`가 `$PORT`(환경변수 `PORT`로도 전달)에서 서버를 띄우고, `ready` 경로가 응답하거나 포트가 열릴 때까지 기다린 뒤, 요청을 순서대로 보내고 서버를 내립니다. 요청마다 `expect`에 `status`, `body`, `body_contains`, `body_not_contains`, `headers`를 둡니다. 요청은 그 서버의 경로로만 보낼 수 있습니다. 시작하자마자 죽는 서버는 제품 결함이고, `$PORT`에서 듣지 않는 서버는 case를 돌릴 수 없음(2)입니다.
 - `auto qa exec --all`은 프로젝트의 exec case를 모두 돌리는 회귀 검사입니다. 기대값이 하나라도 어긋나면 1, 어긋난 것 없이 돌릴 수 없는 case만 있으면 2로 끝납니다. Claude Code Stop hook `auto verify stop`이 제품 코드가 바뀔 때마다 이것을 돌리고, CI에서도 그대로 씁니다.
 - `auto qa mutate`는 시나리오가 버그를 실제로 잡는지 잽니다. 제품 소스(테스트 제외)에 작은 결함(비교 뒤집기, 경계 ±1, 불리언 반전)을 하나씩 심은 복사본에서 exec case를 돌리고, 아무 case도 못 잡은 결함을 `파일:줄`과 바뀐 코드, 힌트와 함께 보고합니다. 살아남은 결함마다 그 입력을 다루는 case를 더하거나, 두 값이 같을 수 없어 동작이 같은 결함이면 무시합니다. 원본 프로젝트는 쓰지 않고, `--min-score`로 CI 기준을 둘 수 있습니다.
 - 에이전트 실행(claude)은 호출마다 `--max-budget-usd` 상한(기본 $5, `AUTOPUS_QA_AGENT_BUDGET_USD`로 변경)을 둡니다.

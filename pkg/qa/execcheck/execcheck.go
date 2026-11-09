@@ -96,6 +96,9 @@ func Run(ctx context.Context, projectDir string, x testscenario.Exec) (Result, e
 	if !filepath.IsAbs(argv[0]) && strings.Contains(argv[0], "/") {
 		argv[0] = filepath.Join(project, argv[0])
 	}
+	if x.IsService() {
+		return runService(ctx, timeout, work, argv, x)
+	}
 	res, err := run(ctx, timeout, work, argv, x.Stdin)
 	if err != nil {
 		return Result{}, err

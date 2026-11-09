@@ -9,6 +9,14 @@ All notable changes to this project will be documented in this file.
   시나리오와 수정을 함께 이어받는다(생성·복원·compile은 건너뛴다). 새로 커밋할 것이 없으면 병합할 브랜치로 이어받은
   브랜치를 안내한다. 이전 실행이 버그를 고친 스크래치 프로젝트에서 에이전트 호출 없이 3초 만에 통과했다.
 
+- **서버형 제품도 QA case로 검증한다** (2026-11-09): exec case는 명령을 한 번 돌리고 출력만 봐서, HTTP API처럼 떠 있는
+  서버는 검증할 수 없었다. 이제 exec case에 `requests`를 두면 `argv`가 빈 로컬 포트(`$PORT`, 환경변수 `PORT`)에서 서버를
+  띄우고, `ready` 경로나 포트가 응답할 때까지 기다린 뒤 요청을 순서대로 보내 요청마다 `status`·`body`·`body_contains`·
+  `body_not_contains`·`headers`를 확인하고 서버를 프로세스 그룹째 내린다. 요청은 그 서버의 경로로만 보낼 수 있다.
+  시작하자마자 죽는 서버는 제품 결함, `$PORT`에서 듣지 않는 서버는 돌릴 수 없는 case다. exec를 확장한 것이라
+  `qa exec --all`, Stop 게이트, `qa mutate`가 그대로 서버 case를 돈다. 저장한 이름을 대문자로 돌려주는 버그를 심은
+  HTTP API로 claude end-to-end를 돌렸다. claude가 `requests` case를 생성했고, loop가 버그를 고쳐 111초 만에 통과했다.
+
 - **QA 시나리오가 매 변경의 회귀 검사가 된다** (2026-11-09): `auto qa go`로 만든 exec case는 그 명령을 다시 돌릴 때만
   실행돼서, 고친 동작이 다음 변경에서 다시 깨져도 알 수 없었다. 이제 `auto qa exec --all`이 프로젝트의 exec case를 모두
   돌린다(어긋남 1, 돌릴 수 없는 case만 있으면 2). Stop hook `auto verify stop`은 제품 코드 변경으로 build·test를 고른
