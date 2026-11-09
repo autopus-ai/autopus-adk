@@ -26,7 +26,7 @@ func RestoreLastSeed(projectDir string, dirs []string) (Restored, error) {
 	if err != nil {
 		return Restored{}, err
 	}
-	branch := latestSeededBranch(projectDir)
+	branch := LatestSeededBranch(projectDir)
 	if branch == "" || len(dirs) == 0 {
 		return Restored{}, nil
 	}
@@ -52,9 +52,9 @@ func RestoreLastSeed(projectDir string, dirs []string) (Restored, error) {
 	return Restored{Branch: branch, Files: missing}, nil
 }
 
-// latestSeededBranch reads the loop reports, newest first, and returns the
+// LatestSeededBranch reads the loop reports, newest first, and returns the
 // first branch that carries a seed commit and still exists.
-func latestSeededBranch(projectDir string) string {
+func LatestSeededBranch(projectDir string) string {
 	paths, _ := filepath.Glob(filepath.Join(projectDir, filepath.FromSlash(ReportDirRel), "*", "report.json"))
 	var reports []Report
 	for _, p := range paths {

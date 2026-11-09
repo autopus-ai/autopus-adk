@@ -66,6 +66,9 @@ type Options struct {
 	// OnGenerated, when set, sees the generation report before the
 	// confirmation, so coverage is shown whether or not anyone is asked.
 	OnGenerated func(generate.Report)
+	// Resume starts the loop from the latest loop branch that carries
+	// scenarios, so its scenarios and the fixes made there carry over.
+	Resume bool
 }
 
 // Deps are the steps autopilot calls; nil fields use the real packages.
@@ -77,6 +80,8 @@ type Deps struct {
 	// RestoreSeed brings back the scenarios of the latest loop branch for a
 	// rerun whose working tree has none.
 	RestoreSeed func(string, []string) (qaloop.Restored, error)
+	// LatestBranch names the loop branch --resume starts from.
+	LatestBranch func(string) string
 }
 
 // Report is what one run did, stage by stage.
@@ -113,6 +118,9 @@ func Run(ctx context.Context, opts Options, deps Deps) (Report, error) {
 		if opts.Progress != nil {
 			opts.Progress(stage, line)
 		}
+	}
+	if opts.Resume {
+		return resume(ctx, opts, deps, report, progress)
 	}
 	if report.Spec != "" {
 		if err := resolveQuestions(opts, progress); err != nil {
@@ -263,6 +271,9 @@ func (d Deps) withDefaults() Deps {
 	}
 	if d.Compile == nil {
 		d.Compile = scenario.CompileProject
+	}
+	if d.LatestBranch == nil {
+		d.LatestBranch = qaloop.LatestSeededBranch
 	}
 	if d.RestoreSeed == nil {
 		d.RestoreSeed = qaloop.RestoreLastSeed

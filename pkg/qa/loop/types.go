@@ -82,6 +82,9 @@ type Options struct {
 	SeedPaths []string
 	// SeedMessage is the subject of that commit.
 	SeedMessage string
+	// BaseRef, when set, is where the loop branch starts instead of HEAD: an
+	// earlier loop branch, so its scenarios and fixes carry over.
+	BaseRef string
 }
 
 // RunFunc runs a QA lane. run.Execute fits: it returns an error for a failed
