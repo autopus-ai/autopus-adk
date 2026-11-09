@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **릴리스 root 헬퍼를 더 단단하게 한다** (2026-11-09): 비밀번호 없는 root 헬퍼의 위험을 줄인다.
+  (1) `install-canary-helper.sh`가 체크아웃이 아니라 GitHub main을 빈 임시 저장소로 새로 받아(git 설정·replace ref·
+  attribute 무시) 깨끗한 Go 환경(sumdb 켬, 임시 모듈 캐시)으로 빌드하고, 설치된 파일의 해시를 다시 확인한다.
+  (2) 헬퍼에 `sweep`(6시간 지난 루트와 계정 정리, 진행 중인 run은 잠금으로 건너뜀)과 canary 계정 수 상한(2개, 전역
+  잠금 안에서 확인)을 더했다. sweep은 이름·UID·그룹·셸·홈이 모두 같은 nonce에서 유도된 계정만 지운다. canary가 걸어
+  둔 파일 플래그도 descriptor로 풀고 지운다. (3) `uninstall`과 `ADK_RELEASE_REMOVE_HELPER=1`(성공한 `--apply` 뒤 헬퍼를
+  스스로 지움)로 비밀번호 없는 root 경로를 릴리스 동안만 둘 수 있다. (4) 구조화한 fuzz(링크를 따라 쓰지 않음, 계정
+  유도와 sweep 인식 일치)와 sweep·uninstall 단위 테스트를 더했다. 독립 보안 리뷰를 두 차례 더 거쳤다.
+
 - **릴리스 `--apply`가 대화형 sudo 없이 돈다** (2026-11-09): 로컬 live canary의 root 작업(격리 루트, 일회용 canary 계정,
   프로젝트 반입·반출, 소유권 변경, 권한 낮추기)이 스크립트 곳곳의 `sudo -n` 대신 root 소유 헬퍼 하나
   (`/Library/PrivilegedHelperTools/co.autopus.release-canary`)를 거친다. `scripts/release-tools/install-canary-helper.sh`가

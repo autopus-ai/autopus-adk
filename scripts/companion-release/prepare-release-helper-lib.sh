@@ -21,7 +21,7 @@ verify_canary_helper() {
     path=$parent
   done
   [[ "$(shasum -a 256 "$canary_helper_path" | awk '{print $1}')" == "$(shasum -a 256 "$built" | awk '{print $1}')" ]] ||
-    fail 'the installed release canary helper differs from this source commit; run scripts/release-tools/install-canary-helper.sh again'
+    fail 'the installed release canary helper differs from this source commit; install-canary-helper.sh builds origin/main, so run it again once this commit is main'
   # With no arguments the helper prints its usage and exits 125; sudo itself
   # exits 1 when it would need a password.
   /usr/bin/sudo -n "$canary_helper_path" >/dev/null 2>&1 || status=$?

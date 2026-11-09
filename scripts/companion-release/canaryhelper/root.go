@@ -67,10 +67,7 @@ func (r *run) removeRoot() error {
 	if err := r.checkRoot(); err != nil {
 		return err
 	}
-	if err := os.RemoveAll(r.root); err != nil {
-		return fmt.Errorf("remove the isolation root: %w", err)
-	}
-	return nil
+	return r.removeTree()
 }
 
 // checkRoot verifies the root is the directory prepareRoot made.

@@ -8,7 +8,7 @@ import (
 	"os"
 )
 
-const usage = "usage: canaryhelper prepare-root NONCE | remove-root NONCE | install-exec NONCE auto|omp-darwin-arm64 SOURCE |" +
+const usage = "usage: canaryhelper sweep | uninstall | prepare-root NONCE | remove-root NONCE | install-exec NONCE auto|omp-darwin-arm64 SOURCE |" +
 	" stage NONCE SOURCE | unstage NONCE DESTINATION | chown NONCE canary|nobody ATTEMPT |" +
 	" account-create NONCE ATTEMPT | account-kill NONCE ATTEMPT TERM|KILL | account-delete NONCE ATTEMPT |" +
 	" run-canary NONCE ATTEMPT -- ARGV... | run-nobody NONCE -- ARGS..."
@@ -23,6 +23,12 @@ func dispatch(args []string) error {
 	op, err := callerIdentity()
 	if err != nil {
 		return err
+	}
+	switch {
+	case len(args) == 1 && args[0] == "sweep":
+		return sweep()
+	case len(args) == 1 && args[0] == "uninstall":
+		return uninstall(op)
 	}
 	if len(args) < 2 {
 		return errors.New(usage)
