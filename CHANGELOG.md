@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **릴리스 환경 승인 단계를 없앤다** (2026-11-09): `adk-companion-release` 환경의 승인자는 release actor 본인이었고
+  self-review가 허용돼 있어, 태그 ruleset이 이미 그 actor로 제한한 결정을 한 번 더 누르는 단계였다. 릴리스 권한
+  검증(`verify-release-tag-ruleset.sh`)이 이제 승인자 규칙이 **없음**을 정확히 요구한다. 다시 추가되면 drift로
+  멈춘다. 누가 게시할 수 있는지는 그대로 ruleset의 bypass 목록과 환경의 정확한 태그 정책이 정한다.
+
 - **`auto qa go --resume`이 이전 loop의 수정을 이어받는다** (2026-11-09): SPEC 없는 재실행은 시나리오만 되살려서, 이전
   loop가 이미 고친 버그를 에이전트가 다시 고쳤다. `--resume`은 새 loop 브랜치를 가장 최근 loop 브랜치 끝에서 만들어
   시나리오와 수정을 함께 이어받는다(생성·복원·compile은 건너뛴다). 새로 커밋할 것이 없으면 병합할 브랜치로 이어받은

@@ -33,16 +33,18 @@ jq -e --arg name "$ruleset_name" --arg ref "$release_ref" --arg mode "$mode" \
   ([.rules[].type] | sort) == ["creation","deletion","update"] and
   ([.rules[].type] | unique | length) == 3
 ' <<<"$ruleset" >/dev/null || fail "release tag ruleset differs from exact ${mode} authority policy"
+# The environment carries no reviewer step: the only reviewer was the release
+# actor itself with self-review allowed, so it repeated a decision the tag
+# ruleset already restricts to that actor. Who can publish is still pinned by
+# the ruleset's bypass list and the environment's exact tag policy below; a
+# reviewer rule added back is drift and fails here.
 if [[ "$mode" != 'sealed-runtime' ]]; then
   environment=$(gh api "repos/${repository}/environments/${environment_name}") ||
     fail 'cannot inspect protected release environment'
-  jq -e --argjson actor "$release_actor_id" '
+  jq -e '
     .can_admins_bypass == false and
     .deployment_branch_policy == {protected_branches:false,custom_branch_policies:true} and
-    ([.protection_rules[] | select(.type == "required_reviewers")] | length) == 1 and
-    ([.protection_rules[] | select(.type == "required_reviewers")][0] |
-      .prevent_self_review == false and
-      [.reviewers[] | {type:.type,id:.reviewer.id}] == [{type:"User",id:$actor}]) and
+    ([.protection_rules[] | select(.type == "required_reviewers")] | length) == 0 and
     ([.protection_rules[] | select(.type == "branch_policy")] | length) == 1
   ' <<<"$environment" >/dev/null ||
     fail 'protected release environment differs from exact authority policy'

@@ -202,7 +202,7 @@ if [[ "$failures" -eq 0 ]]; then
          scripts/release-tools/release-prep.sh --apply
        Apply measures/signs evidence, publishes ${release_tag}, and seals its
        ruleset. Do not manually create or push a separate release tag.
-    2. Follow the protected Release workflow and its environment review.
+    2. Follow the Release workflow; it publishes without a review step.
     3. Confirm the tag ruleset is sealed after publication.
     4. Compare the published asset set against the expected 15 names.
     5. Say in the release description that the tag is R2-signed and how to

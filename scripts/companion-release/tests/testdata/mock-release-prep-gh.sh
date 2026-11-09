@@ -160,7 +160,7 @@ case "$command" in
         if [[ "${MOCK_RELEASE_PREP_MASK_ENVIRONMENT:-0}" -eq 1 ]]; then
           printf '%s\n' '{"can_admins_bypass":false,"deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true},"protection_rules":[{"type":"branch_policy"}]}'
         else
-          printf '%s\n' '{"can_admins_bypass":false,"deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true},"protection_rules":[{"type":"required_reviewers","prevent_self_review":false,"reviewers":[{"type":"User","reviewer":{"id":204883817}}]},{"type":"branch_policy"}]}'
+          printf '%s\n' '{"can_admins_bypass":false,"deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true},"protection_rules":[{"type":"branch_policy"}]}'
         fi
         ;;
       GET:repos/autopus-ai/autopus-adk/environments/adk-companion-release/deployment-branch-policies|GET:repos/autopus-ai/autopus-adk/environments/adk-companion-release/deployment-branch-policies\?per_page=100)
