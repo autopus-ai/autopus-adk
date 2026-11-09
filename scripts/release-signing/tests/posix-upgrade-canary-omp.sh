@@ -53,6 +53,18 @@ assert_candidate_agent_surface() {
     assert_autopus_agent_surface "$AUTOPUS_AGENTS"
 }
 
+# assert_previous_claude_surface checks the Claude skills the previous public
+# release left: from v0.51.0 it ships only the verification harness, so its
+# project has auto-review and no auto-go.
+assert_previous_claude_surface() {
+    if version_at_least "$PREVIOUS_VERSION" "$VERIFY_SURFACE_SINCE"; then
+        assert_file "$PROJECT/.claude/skills/auto-review/SKILL.md"
+        assert_absent "$PROJECT/.claude/skills/auto-go/SKILL.md"
+        return
+    fi
+    assert_file "$PROJECT/.claude/skills/auto-go/SKILL.md"
+}
+
 # assert_previous_omp_surface checks the OMP surface the previous public
 # release left: the Autopus agents from v0.50.127, and before that nothing,
 # since v0.50.118 through v0.50.125 reused OMP's bundled agents.
