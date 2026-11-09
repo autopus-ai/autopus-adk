@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **서버형 QA case에 재시작 단계를 더한다** (2026-11-10): HTTP end-to-end에서 에이전트가 "재시작 후에도 저장한 이름이
+  남는가" 같은 기준을 자동화할 수 없어 manual로 남겼다. 이제 `requests` 사이에 `restart: true` 항목을 두면 서버를
+  SIGTERM으로 내리고(5초 안에 안 끝나면 프로세스 그룹째 강제 종료) 같은 포트로 다시 띄운 뒤 준비를 기다린다. 다시
+  뜨지 못하면 그 단계를 가리키는 제품 결함이다. 재시작 항목은 단독이어야 하고, 앞뒤에 요청이 있어야 한다. 파일에 저장하는
+  서버는 재시작 뒤 조회를 통과하고, 메모리에만 두는 서버는 그 조회에서 제품 결함으로 잡히는 것을 확인했다.
+
 - **릴리스 root 헬퍼를 더 단단하게 한다** (2026-11-09): 비밀번호 없는 root 헬퍼의 위험을 줄인다.
   (1) `install-canary-helper.sh`가 체크아웃이 아니라 GitHub main을 빈 임시 저장소로 새로 받아(git 설정·replace ref·
   attribute 무시) 깨끗한 Go 환경(sumdb 켬, 임시 모듈 캐시)으로 빌드하고, 설치된 파일의 해시를 다시 확인한다.

@@ -43,3 +43,22 @@ func TestValidateExec_ServiceCases(t *testing.T) {
 	oneShot := Exec{Argv: []string{"./tool"}, Ready: "/x", Expect: ExecExpect{ExitCode: &ok}}
 	assert.ErrorContains(t, ValidateExec(&oneShot), "exec.ready only applies to a case with requests")
 }
+
+func TestValidateExec_RestartStep(t *testing.T) {
+	t.Parallel()
+	ok := 200
+	get := HTTPRequest{Method: "GET", Path: "/x", Expect: HTTPExpect{Status: &ok}}
+	mk := func(reqs ...HTTPRequest) Exec {
+		return Exec{Build: []string{"go", "build", "-o", "$BIN/api", "."}, Argv: []string{"$BIN/api"}, Requests: reqs}
+	}
+	x := mk(get, HTTPRequest{Restart: true}, get)
+	assert.NoError(t, ValidateExec(&x))
+	for name, x := range map[string]Exec{
+		"restart first":     mk(HTTPRequest{Restart: true}, get),
+		"restart last":      mk(get, HTTPRequest{Restart: true}),
+		"restart with path": mk(get, HTTPRequest{Restart: true, Path: "/x"}, get),
+	} {
+		x := x
+		assert.Error(t, ValidateExec(&x), name)
+	}
+}

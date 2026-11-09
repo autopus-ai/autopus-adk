@@ -51,40 +51,34 @@ func runService(ctx context.Context, timeout time.Duration, work string, argv []
 	}
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
-	cmd.Dir = work
-	cmd.Env = append(os.Environ(), "PORT="+portStr)
-	var output lockedBuffer
-	cmd.Stdout, cmd.Stderr = &output, &output
-	killGroupOnCancel(cmd)
-	if err := cmd.Start(); err != nil {
-		return Result{}, fmt.Errorf("start %s: %w", argv[0], err)
-	}
-	// exited is closed once the server is gone and waitErr is set, so both
-	// the readiness wait and the teardown can observe it.
-	exited := make(chan struct{})
-	var waitErr error
-	go func() {
-		waitErr = cmd.Wait()
-		close(exited)
-	}()
-	defer func() {
-		cancel()
-		<-exited
-	}()
-
 	base := "http://127.0.0.1:" + portStr
 	client := &http.Client{Timeout: 10 * time.Second}
-	if err := waitReady(ctx, client, base, x.Ready, exited, func() error { return waitErr }); err != nil {
-		if exitErr, ok := err.(serverExited); ok {
-			return Result{ExitCode: exitErr.code, Stderr: output.String(), Mismatches: []Mismatch{
-				{"service", "the server starts and serves on $PORT", tail(output.String())},
-			}}, nil
-		}
-		return Result{}, fmt.Errorf("%s: %w (pass $PORT in argv or read the PORT environment variable)", argv[0], err)
+	var output lockedBuffer
+	srv, res, err := startServer(ctx, client, work, argv, portStr, base, x.Ready, &output)
+	if srv == nil {
+		return res, err
 	}
-	res := Result{Mismatches: []Mismatch{}}
+	defer func() { srv.kill() }()
+
+	res = Result{Mismatches: []Mismatch{}}
 	for i, r := range x.Requests {
+		if r.Restart {
+			// The same server comes back on the same port, so a request after
+			// it reads what the product kept across a restart.
+			srv.stop()
+			res.Stdout += fmt.Sprintf("step %d: restarted the server\n", i+1)
+			next, failed, err := startServer(ctx, client, work, argv, portStr, base, x.Ready, &output)
+			if next == nil {
+				if err != nil {
+					return Result{}, err
+				}
+				failed.Mismatches[0].Field = fmt.Sprintf("step %d restart", i+1)
+				failed.Stdout = res.Stdout
+				return failed, nil
+			}
+			srv = next
+			continue
+		}
 		status, header, body, err := send(ctx, client, base, r)
 		label := fmt.Sprintf("request %d %s %s", i+1, strings.ToUpper(r.Method), r.Path)
 		if err != nil {
@@ -96,6 +90,63 @@ func runService(ctx context.Context, timeout time.Duration, work string, argv []
 	}
 	res.Stderr = output.String()
 	return res, nil
+}
+
+// server is one run of the product's server process.
+type server struct {
+	cmd    *exec.Cmd
+	cancel context.CancelFunc
+	exited chan struct{}
+}
+
+// startServer starts argv and waits until it is ready. A server that exits
+// before it is ready returns a product verdict as the Result with a nil
+// server; one that never listens returns an error.
+func startServer(parent context.Context, client *http.Client, work string, argv []string, port, base, ready string, output *lockedBuffer) (*server, Result, error) {
+	ctx, cancel := context.WithCancel(parent)
+	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
+	cmd.Dir = work
+	cmd.Env = append(os.Environ(), "PORT="+port)
+	cmd.Stdout, cmd.Stderr = output, output
+	killGroupOnCancel(cmd)
+	if err := cmd.Start(); err != nil {
+		cancel()
+		return nil, Result{}, fmt.Errorf("start %s: %w", argv[0], err)
+	}
+	// exited is closed once the server is gone and waitErr is set, so both
+	// the readiness wait and the teardown can observe it.
+	srv := &server{cmd: cmd, cancel: cancel, exited: make(chan struct{})}
+	var waitErr error
+	go func() {
+		waitErr = cmd.Wait()
+		close(srv.exited)
+	}()
+	if err := waitReady(ctx, client, base, ready, srv.exited, func() error { return waitErr }); err != nil {
+		srv.kill()
+		if exitErr, ok := err.(serverExited); ok {
+			return nil, Result{ExitCode: exitErr.code, Stderr: output.String(), Mismatches: []Mismatch{
+				{"service", "the server starts and serves on $PORT", tail(output.String())},
+			}}, nil
+		}
+		return nil, Result{}, fmt.Errorf("%s: %w (pass $PORT in argv or read the PORT environment variable)", argv[0], err)
+	}
+	return srv, Result{}, nil
+}
+
+// stop asks the server to shut down the way a person or a supervisor would,
+// and kills its process group if it has not exited within five seconds.
+func (s *server) stop() {
+	terminateGroup(s.cmd)
+	select {
+	case <-s.exited:
+	case <-time.After(5 * time.Second):
+	}
+	s.kill()
+}
+
+func (s *server) kill() {
+	s.cancel()
+	<-s.exited
 }
 
 type serverExited struct{ code int }

@@ -117,6 +117,7 @@ cases:
         #     headers: {Content-Type: application/json}
         #     body: '{"name": "apple"}'
         #     expect: {status: 201}
+        #   - restart: true          # stop and start the server again on the same port
         #   - method: GET
         #     path: /items
         #     expect: {status: 200, body_contains: [apple], body_not_contains: [banana], headers: {Content-Type: json}}
@@ -147,7 +148,7 @@ func BuildPrompt(in PromptInput) string {
 	b.WriteString("- Use literal values for inputs that are not secrets, such as a deliberately wrong password or a search term; do not invent environment variables for them.\n")
 	b.WriteString("- For each criterion a user observes by running the product itself (a CLI's output, exit code, or the files it writes), write an exec case: it carries the expected value, so prefer it to a command case, which only learns whether a test runner exited 0.\n")
 	b.WriteString("- When a criterion fixes the order or number of output entries but not the line format, assert it with stdout_lines rather than writing a manual case; assert what must not appear with stdout_not_contains. stdout_contains alone cannot fail on wrong order, extra entries, or a duplicate.\n")
-	b.WriteString("- For each criterion a client observes from a server the product runs (an HTTP status, a response body, data a later request reads back), write an exec case with requests: argv starts the server on $PORT and each request carries its own expect. Never call curl or another client from argv.\n")
+	b.WriteString("- For each criterion a client observes from a server the product runs (an HTTP status, a response body, data a later request reads back), write an exec case with requests: argv starts the server on $PORT and each request carries its own expect. Never call curl or another client from argv. When a criterion is about what survives a restart, put a `restart: true` entry between the requests that write and the ones that read.\n")
 	b.WriteString("- Never assume the product is already built: an exec case that runs a compiled program needs a build step that writes it, usually into $BIN.\n")
 	b.WriteString("- When a criterion says the command fails or exits with an error but names no code, use exit_nonzero: true; never guess a specific exit code.\n")
 	fmt.Fprintf(&b, "- An exec argv[0] must be $BIN/<name> from its build step, a path inside the project such as ./bin/tool, or one of: %s. An exec build[0] and a command check's argv[0] must be one of: %s.\n", strings.Join(testscenario.CommandAllowlist, ", "), strings.Join(testscenario.CommandAllowlist, ", "))
