@@ -9,7 +9,7 @@ remove_isolation_root() {
      "$(/usr/bin/stat -f '%u:%Lp' "$root")" == '0:755' &&
      "$(/usr/bin/stat -f '%d:%i' "$root")" == "$expected_root_identity" &&
      "$(/usr/bin/stat -f '%d:%i' /private/tmp)" == "$expected_parent_identity" ]] || return 1
-  /usr/bin/sudo -n /bin/rm -rf -- "$root" || return 1
+  canary_helper remove-root "$dispatch_nonce" || return 1
   [[ ! -e "$root" && ! -L "$root" ]]
 }
 invalidate_sudo_authorization() { /usr/bin/sudo -k; }
@@ -146,52 +146,50 @@ cleanup_live_canary_uid() {
 run_canary() {
   local candidate=$1 project=$2 output=$3 label=$4
   local sandbox_args=() root isolated_project isolated_home isolated_tmp
-  local isolated_candidate isolated_omp isolated_uidrunner root_identity record
-  local candidate_sha isolated_candidate_sha uidrunner_sha isolated_uidrunner_sha
-  local canary_status started_at process_status
+  local isolated_candidate isolated_omp root_identity record
+  local candidate_sha isolated_candidate_sha
+  local canary_status started_at process_status canary_attempt
   root="/private/tmp/autopus-adk-release-prep-${dispatch_nonce}-final"
   [[ "$label" == 'final' &&
      "$root" =~ ^/private/tmp/autopus-adk-release-prep-[0-9a-f]{32}-final$ &&
      ! -e "$root" && ! -L "$root" ]] || fail 'isolated canary root is unsafe'
-  /usr/bin/sudo -n /usr/bin/install -d -m 0755 -o root -g wheel "$root"
+  canary_helper prepare-root "$dispatch_nonce"
   root_identity=$(/usr/bin/stat -f '%d:%i' "$root")
   record="${root}|${root_identity}|${private_tmp_identity}"
   isolation_roots+=("$record")
   isolated_project="$root/project"; isolated_home="$root/home"; isolated_tmp="$root/tmp"
   isolated_candidate="$root/auto"; isolated_omp="$root/omp-darwin-arm64"
-  isolated_uidrunner="$root/uidrunner"
-  /usr/bin/sudo -n /usr/bin/install -d -m 0700 -o root -g wheel \
-    "$isolated_project" "$isolated_home" "$isolated_tmp"
-  /usr/bin/sudo -n /bin/cp -R "$project/." "$isolated_project/"
-  /usr/bin/sudo -n /usr/bin/install -m 0555 -o root -g wheel "$candidate" "$isolated_candidate"
-  /usr/bin/sudo -n /usr/bin/install -m 0555 -o root -g wheel "$omp_executable" "$isolated_omp"
-  /usr/bin/sudo -n /usr/bin/install -m 0555 -o root -g wheel "$uidrunner" "$isolated_uidrunner"
+  # The helper reads the project and both executables as this account and
+  # writes them root-owned into the root; it never runs them as root.
+  canary_helper stage "$dispatch_nonce" "$project"
+  canary_helper install-exec "$dispatch_nonce" auto "$candidate" >/dev/null
+  canary_helper install-exec "$dispatch_nonce" omp-darwin-arm64 "$omp_executable" >/dev/null
   candidate_sha=$(shasum -a 256 "$candidate" | awk '{print $1}')
   isolated_candidate_sha=$(shasum -a 256 "$isolated_candidate" | awk '{print $1}')
-  uidrunner_sha=$(shasum -a 256 "$uidrunner" | awk '{print $1}')
-  isolated_uidrunner_sha=$(shasum -a 256 "$isolated_uidrunner" | awk '{print $1}')
   [[ "$candidate_sha" == "$isolated_candidate_sha" &&
-     "$(shasum -a 256 "$isolated_omp" | awk '{print $1}')" == "$expected_omp_sha256" &&
-     "$uidrunner_sha" == "$isolated_uidrunner_sha" ]] ||
+     "$(/usr/bin/stat -f '%u:%Lp' "$isolated_candidate")" == '0:555' &&
+     "$(shasum -a 256 "$isolated_omp" | awk '{print $1}')" == "$expected_omp_sha256" ]] ||
     fail 'root-owned canary executable bytes differ'
   sandbox_args=(--omp "$isolated_omp")
   if [[ "$inherit_parent_sandbox" -eq 1 ]]; then sandbox_args+=(--inherit-parent-sandbox); fi
   if [[ "${probe_enabled:-0}" -eq 1 ]]; then sandbox_args+=(--probe-dir "$isolated_tmp/probe"); fi
-  kill -0 "$sudo_keepalive_pid" >/dev/null 2>&1 || fail 'sudo keepalive stopped before production canary'
+  sudo_keepalive_alive || fail 'sudo keepalive stopped before production canary'
   while :; do
     select_release_canary_account "$isolated_home" ||
       fail 'no safe one-shot live-canary UID is available'
-    /usr/bin/sudo -n /usr/sbin/chown -R "${release_canary_uid}:${release_canary_gid}" \
-      "$isolated_project" "$isolated_home" "$isolated_tmp"
+    canary_helper chown "$dispatch_nonce" canary "$release_canary_attempt"
     verify_release_canary_account ||
       fail 'one-shot live-canary account changed before launch'
     if release_canary_uid_is_process_free "$release_canary_uid"; then break; else process_status=$?; fi
     [[ "$process_status" -eq 1 ]] || fail 'inspect one-shot live-canary UID before launch'
     discard_release_canary_account ||
       fail 'discard one-shot live-canary UID that changed before launch'
-    /usr/bin/sudo -n /usr/sbin/chown -R root:wheel \
-      "$isolated_project" "$isolated_home" "$isolated_tmp"
+    # The tree already belongs to that UID, and the helper never hands a tree
+    # back to root, so a process appearing there after the hand-over stops
+    # the run instead of trying the next UID.
+    fail 'a process appeared under the one-shot live-canary UID after the hand-over'
   done
+  canary_attempt=$release_canary_attempt
   live_canary_started=1
   printf 'companion release prep: %s production canary started (40 sequential provider calls, 20 task pairs)\n' "$label" >&2
   started_at=$SECONDS
@@ -199,7 +197,7 @@ run_canary() {
   if {
     printf '%s\n' "$provider_credential"
     /bin/cat "$input_jsonl"
-  } | /usr/bin/sudo -n "$isolated_uidrunner" "$release_canary_uid" "$release_canary_gid" \
+  } | canary_helper run-canary "$dispatch_nonce" "$release_canary_attempt" -- \
     /usr/bin/env -i PATH='/usr/bin:/bin:/usr/sbin:/sbin' \
     HOME="$isolated_home" TMPDIR="$isolated_tmp" LC_ALL=C /bin/sh -c '
       credential_locator=$1; project=$2; candidate=$3; shift 3
@@ -215,7 +213,7 @@ run_canary() {
     --producer-run-id "$producer_run_id" --producer-run-attempt 1 --candidate-repository "$repository" \
     --policy-id omp-context-active-v1 --oracle-policy-digest "$oracle_policy_digest" --target-git-commit "$source_commit" \
     "${sandbox_args[@]}" | capture_canary_progress "$output" "$label"; then :; else canary_status=$?; fi
-  kill -0 "$sudo_keepalive_pid" >/dev/null 2>&1 || fail 'sudo keepalive stopped during production canary'
+  sudo_keepalive_alive || fail 'sudo keepalive stopped during production canary'
   cleanup_live_canary_uid ||
     fail 'one-shot live-canary UID cleanup is incomplete'
   probe_export_records "$isolated_tmp" "$output" "$label" ||
@@ -223,16 +221,16 @@ run_canary() {
   if [[ "$canary_status" -ne 0 ]]; then canary_failure_receipt "$label" "$canary_status" "$output"; fi
   remove_release_canary_account ||
     fail 'one-shot live-canary account cleanup is incomplete'
-  /usr/bin/sudo -n /usr/sbin/chown -R nobody:nobody \
-    "$isolated_project" "$isolated_home" "$isolated_tmp"
+  canary_helper chown "$dispatch_nonce" nobody "$canary_attempt"
   OMP_CONTEXT_RELEASE_CANARY_ROOT="$root" OMP_CONTEXT_RELEASE_CANARY_EXECUTABLE="$isolated_omp" \
     "$execsmoke" --artifact "$isolated_candidate" --expected-version "${release_tag#v}" \
     --architecture arm64 --timeout 30s
   printf 'companion release prep: %s production canary completed (42/42 records, %ss)\n' \
     "$label" "$((SECONDS - started_at))" >&2
   rm -rf -- "$project"
-  /usr/bin/sudo -n /usr/sbin/chown -R "${runner_uid}:${runner_gid}" "$isolated_project"
-  /usr/bin/sudo -n /bin/mv "$isolated_project" "$project"
+  # A child running as this account writes the copy; root only reads the
+  # canary's tree, and skips hard links and special files in it.
+  canary_helper unstage "$dispatch_nonce" "$project"
   remove_isolation_root "$record" || fail 'isolated canary root cleanup failed'
   assert_source_identity
 }

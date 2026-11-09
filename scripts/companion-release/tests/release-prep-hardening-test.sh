@@ -6,13 +6,13 @@ script_dir=$(cd -- "$tests_dir/.." && pwd)
 publisher="$script_dir/publish-release-coordinates.sh"; prep="$script_dir/prepare-release.sh"
 transaction="$script_dir/release-coordinate-transaction-lib.sh"; prep_lib="$script_dir/prepare-release-runtime-lib.sh"
 user_lib="$script_dir/prepare-release-user-lib.sh"; local_lib="$script_dir/prepare-release-local-lib.sh"
-uidrunner_dir="$script_dir/uidrunner"
+helper_dir="$script_dir/canaryhelper"; helper_lib="$script_dir/prepare-release-helper-lib.sh"
 lock_verifier="$script_dir/verify-release-prep-lock.sh"
 ruleset_verifier="$script_dir/verify-release-tag-ruleset.sh"; mock_gh="$tests_dir/testdata/mock-release-prep-gh.sh"
 fail() { printf 'release prep hardening test: %s\n' "$1" >&2; exit 1; }
 contains() { grep -Fq -- "$2" "$1" || fail "$1 missing $2"; }
 not_contains() { ! grep -Fq -- "$2" "$1" || fail "$1 unexpectedly contains $2"; }
-for file in "$publisher" "$transaction" "$prep" "$prep_lib" "$user_lib" "$local_lib" "$lock_verifier" "$ruleset_verifier" "$mock_gh" \
+for file in "$publisher" "$transaction" "$prep" "$prep_lib" "$user_lib" "$local_lib" "$helper_lib" "$lock_verifier" "$ruleset_verifier" "$mock_gh" \
   "$script_dir/release-tag-signing-2026-q3-r2.pub" "$script_dir/release-tag-signing-2026-q3-r2.fingerprint" \
   "$script_dir/omp-context-promotion-2026-q3-k3.pub"; do
   [[ -f "$file" && ! -L "$file" ]] || fail "missing or unsafe release-prep component $file"
@@ -21,7 +21,11 @@ contains "$prep" 'usage: prepare-release.sh --endpoint URL'; contains "$prep" '(
 contains "$prep" "readonly release_tag='v0.51.0'"; contains "$prep" "expected_go_toolchain='go1.27.3'"
 contains "$prep" "expected_promotion_key_id='omp-context-promotion-2026-q3-k3'"
 contains "$prep" 'prepare-release-user-lib.sh prepare-release-runtime-lib.sh prepare-release-local-lib.sh'
-contains "$prep" 'go build -trimpath -o "$uidrunner" ./scripts/companion-release/uidrunner'
+contains "$prep" 'go build -trimpath -buildvcs=false -o "$canary_helper_built" ./scripts/companion-release/canaryhelper'
+contains "$prep" 'verify_canary_helper "$canary_helper_built"'
+contains "$prep" 'prepare-release-probe-lib.sh prepare-release-helper-lib.sh'
+contains "$helper_lib" "readonly canary_helper_path='/Library/PrivilegedHelperTools/co.autopus.release-canary'"
+contains "$helper_lib" 'differs from this source commit'
 contains "$prep" 'export -n provider_credential'
 not_contains "$prep_lib" '${!credential_locator}'
 contains "$prep" 'unset "$credential_locator"'
@@ -31,11 +35,11 @@ contains "$user_lib" 'readonly release_canary_uid_max=59999'
 contains "$user_lib" 'readonly release_canary_uid_attempts=64'
 contains "$user_lib" '(seed + attempt - 1) % span'
 contains "$user_lib" '/usr/bin/dscl . -list /Users UniqueID'
-contains "$user_lib" '/usr/bin/dscl . -create'
-contains "$user_lib" '/usr/bin/dscl . -delete'
-contains "$user_lib" 'RealName "$release_canary_marker"'
-contains "$user_lib" 'UserShell /usr/bin/false'
-contains "$user_lib" 'IsHidden 1'
+contains "$user_lib" 'canary_helper account-create "$dispatch_nonce" "$release_canary_attempt"'
+contains "$user_lib" 'canary_helper account-delete "$dispatch_nonce" "$release_canary_attempt"'
+contains "$helper_dir/account.go" '{"RealName", a.marker}'; contains "$helper_dir/account.go" '{"UserShell", "/usr/bin/false"}'
+contains "$helper_dir/account.go" '{"IsHidden", "1"}'; contains "$helper_dir/account.go" '"_autopus_v110_%s_%02d"'
+contains "$helper_dir/account.go" 'canaryUIDMin + int((seed+uint64(attempt)-1)%span)'
 contains "$user_lib" 'verify_release_canary_account_ownership || return 1'
 contains "$user_lib" 'release_canary_uid_is_exclusively_owned'
 contains "$user_lib" 'discard_release_canary_account'
@@ -43,6 +47,8 @@ for file in "$prep" "$prep_lib" "$user_lib"; do
   not_contains "$file" 'sudo -n -u'
   not_contains "$file" '/usr/bin/login'
   not_contains "$file" 'pam_'
+  # Root runs only inside the helper, never as a raw command from the shell.
+  not_contains "$file" '/usr/bin/sudo -n /'
 done
 contains "$prep" 'remote_mutations:0'; contains "$prep" 'canary_records:42,provider_calls:40,task_pairs:20'
 contains "$local_lib" '--endpoint "$endpoint" --credential-locator "$credential_locator"'
@@ -52,43 +58,44 @@ contains "$local_lib" 'length == 42'; contains "$local_lib" 'length) == 40'; con
 contains "$prep_lib" 'production canary started (40 sequential provider calls, 20 task pairs)'
 contains "$prep_lib" '([.[] | select(.type == "call")] | length) == 40'
 contains "$prep_lib" '([.[] | select(.type == "call") | .task_id_digest] | unique | length) == 20'
-contains "$prep_lib" 'isolated_uidrunner="$root/uidrunner"'
+contains "$prep_lib" 'canary_helper stage "$dispatch_nonce" "$project"'
 contains "$prep_lib" 'select_release_canary_account "$isolated_home"'
-contains "$prep_lib" 'sudo -n "$isolated_uidrunner" "$release_canary_uid" "$release_canary_gid"'
+contains "$prep_lib" 'canary_helper run-canary "$dispatch_nonce" "$release_canary_attempt" --'
 contains "$prep_lib" 'cleanup_live_canary_uid'
-contains "$user_lib" 'pkill -TERM -u "$release_canary_uid"'
+contains "$user_lib" 'canary_helper account-kill "$dispatch_nonce" "$release_canary_attempt" TERM'
 contains "$user_lib" 'pgrep -u "$1"'
-contains "$prep_lib" 'chown -R nobody:nobody'
+contains "$prep_lib" 'canary_helper chown "$dispatch_nonce" nobody'
+contains "$prep_lib" 'canary_helper unstage "$dispatch_nonce" "$project"'
 contains "$prep_lib" 'remove_release_canary_account'
 contains "$prep_lib" 'printf '\''%s\n'\'' "$provider_credential"'
 contains "$prep_lib" '/bin/cat "$input_jsonl"'
 not_contains "$prep_lib" 'provider-credential'
 not_contains "$prep_lib" 'credential_staging'
 contains "$user_lib" '[[ "$status" -eq 1 ]] && continue'
-runner_install_line=$(grep -nF 'install -m 0555 -o root -g wheel "$uidrunner" "$isolated_uidrunner"' "$prep_lib" | cut -d: -f1)
-runner_hash_line=$(grep -nF 'isolated_uidrunner_sha=' "$prep_lib" | cut -d: -f1)
+runner_install_line=$(grep -nF 'canary_helper install-exec "$dispatch_nonce" auto "$candidate"' "$prep_lib" | cut -d: -f1)
+runner_hash_line=$(grep -nF 'isolated_candidate_sha=' "$prep_lib" | cut -d: -f1)
 selection_line=$(grep -nF 'select_release_canary_account "$isolated_home"' "$prep_lib" | cut -d: -f1)
-selected_chown_line=$(grep -nF 'chown -R "${release_canary_uid}:${release_canary_gid}"' "$prep_lib" | cut -d: -f1)
+selected_chown_line=$(grep -nF 'canary_helper chown "$dispatch_nonce" canary "$release_canary_attempt"' "$prep_lib" | cut -d: -f1)
 final_zero_line=$(grep -nF 'if release_canary_uid_is_process_free "$release_canary_uid"; then break' "$prep_lib" | cut -d: -f1)
 credential_line=$(grep -nF 'printf '\''%s\n'\'' "$provider_credential"' "$prep_lib" | cut -d: -f1)
-runner_exec_line=$(grep -nF 'sudo -n "$isolated_uidrunner" "$release_canary_uid" "$release_canary_gid"' "$prep_lib" | cut -d: -f1)
+runner_exec_line=$(grep -nF 'canary_helper run-canary "$dispatch_nonce" "$release_canary_attempt" --' "$prep_lib" | cut -d: -f1)
 [[ "$runner_install_line" -lt "$runner_hash_line" && "$runner_hash_line" -lt "$selection_line" &&
    "$selection_line" -lt "$selected_chown_line" && "$selected_chown_line" -lt "$final_zero_line" &&
    "$final_zero_line" -lt "$credential_line" && "$credential_line" -lt "$runner_exec_line" ]] ||
   fail 'one-shot UID selection is not immediately before credential launch'
 process_cleanup_line=$(grep -nF 'cleanup_live_canary_uid ||' "$prep_lib" | sed -n '$p' | cut -d: -f1)
 record_cleanup_line=$(grep -nF 'remove_release_canary_account ||' "$prep_lib" | sed -n '$p' | cut -d: -f1)
-nobody_smoke_line=$(grep -nF 'chown -R nobody:nobody' "$prep_lib" | cut -d: -f1)
+nobody_smoke_line=$(grep -nF 'canary_helper chown "$dispatch_nonce" nobody' "$prep_lib" | cut -d: -f1)
 [[ "$process_cleanup_line" -lt "$record_cleanup_line" && "$record_cleanup_line" -lt "$nobody_smoke_line" ]] ||
   fail 'live-canary cleanup does not precede credential-free nobody smoke'
-marker_create_line=$(grep -nF 'dscl . -create "/Users/${release_canary_user}" RealName' "$user_lib" | cut -d: -f1)
-uid_create_line=$(grep -nF 'dscl . -create "/Users/${release_canary_user}" UniqueID' "$user_lib" | cut -d: -f1)
+marker_create_line=$(grep -nF '{"RealName", a.marker}' "$helper_dir/account.go" | cut -d: -f1)
+uid_create_line=$(grep -nF '{"UniqueID", strconv.Itoa(a.uid)}' "$helper_dir/account.go" | cut -d: -f1)
 delete_guard_line=$(grep -nF 'verify_release_canary_account_ownership || return 1' "$user_lib" | sed -n '$p' | cut -d: -f1)
-delete_line=$(grep -nF 'dscl . -delete "/Users/${release_canary_user}"' "$user_lib" | cut -d: -f1)
+delete_line=$(grep -nF 'canary_helper account-delete "$dispatch_nonce"' "$user_lib" | cut -d: -f1)
 [[ "$marker_create_line" -lt "$uid_create_line" && "$delete_guard_line" -lt "$delete_line" ]] ||
   fail 'DirectoryService ownership marker ordering is unsafe'
 repo_root=$(cd -- "$script_dir/../.." && pwd)
-(cd -- "$repo_root" && go run ./cmd/source-lines --max 300 "$prep" "$prep_lib" "$user_lib" "$uidrunner_dir"/*.go \
+(cd -- "$repo_root" && go run ./cmd/source-lines --max 300 "$prep" "$prep_lib" "$user_lib" "$helper_lib" "$helper_dir"/*.go \
   "$tests_dir/release-prep-hardening-test.sh" "$tests_dir/release-runtime-hardening-test.sh" >/dev/null) ||
   fail 'release prep sources exceed 300 code lines'
 contains "$local_lib" '--static-policy-b64 "$static_policy_b64"'; not_contains "$local_lib" '--expected-signing-key-id'

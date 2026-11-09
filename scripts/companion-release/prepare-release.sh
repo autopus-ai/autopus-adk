@@ -61,7 +61,14 @@ readonly runner_gid=$(/usr/bin/id -g)
 readonly private_tmp_identity=$(/usr/bin/stat -f '%d:%i' /private/tmp)
 readonly operator_actor_id=204883817
 if [[ "$operation" == 'apply' ]]; then
-  /usr/bin/sudo -n -v || fail 'noninteractive root authorization is unavailable'
+  # The canary's privileged steps go through the passwordless helper; only
+  # probe mode still needs an interactive sudo timestamp.
+  if [[ -n "${OMP_CONTEXT_PROBE_DIR:-}" ]]; then
+    /usr/bin/sudo -n -v || fail 'probe mode needs noninteractive root authorization; run sudo -v first'
+  else
+    [[ -x /Library/PrivilegedHelperTools/co.autopus.release-canary ]] ||
+      fail 'the release canary helper is not installed; run scripts/release-tools/install-canary-helper.sh'
+  fi
 fi
 [[ -f "$omp_executable" && ! -L "$omp_executable" && -x "$omp_executable" ]] || fail 'OMP executable is unsafe'
 omp_executable=$(cd -- "$(dirname -- "$omp_executable")" && pwd)/$(basename -- "$omp_executable")
@@ -117,7 +124,7 @@ release_canary_user=''; release_canary_uid=''; release_canary_gid=''; release_ca
 release_canary_marker=''; release_canary_attempt=''; release_canary_next_attempt=1
 release_canary_account_created=0
 for runtime_lib_name in prepare-release-user-lib.sh prepare-release-runtime-lib.sh prepare-release-local-lib.sh \
-  prepare-release-probe-lib.sh; do
+  prepare-release-probe-lib.sh prepare-release-helper-lib.sh; do
   staged_runtime_lib="$temp_dir/$runtime_lib_name"
   runtime_lib_blob=$(git rev-parse --verify "${source_commit}:scripts/companion-release/${runtime_lib_name}") ||
     fail "release prep runtime helper ${runtime_lib_name} is absent from the exact source"
@@ -182,10 +189,10 @@ release_count=$(jq '[.[][] | select(.tag_name == "v0.51.0")] | length' <<<"$rele
 [[ "$release_count" == '0' || "$release_present" -eq 1 || -n "$retained_lock_commit" ]] ||
   fail 'GitHub Release exists without its source tag or retained prep lock'
 input_jsonl="$temp_dir/observe-session-input.jsonl"; policy_tool="$temp_dir/auto-policy"
-verifier="$temp_dir/ompcontextverify"; execsmoke="$temp_dir/execsmoke"; uidrunner="$temp_dir/uidrunner"
+verifier="$temp_dir/ompcontextverify"; execsmoke="$temp_dir/execsmoke"; canary_helper_built="$temp_dir/canaryhelper"
 final_candidate="$temp_dir/auto-final"; static_policy_file="$temp_dir/static-policy.b64"
 final_static_policy_file="$temp_dir/final-static-policy.b64"
-readonly input_jsonl policy_tool verifier execsmoke uidrunner final_candidate static_policy_file final_static_policy_file
+readonly input_jsonl policy_tool verifier execsmoke canary_helper_built final_candidate static_policy_file final_static_policy_file
 producer_run_id=$(date -u '+%Y%m%d%H%M%S')
 producer_workflow_ref="local-release-prep@${source_commit}"
 dispatch_nonce=$(printf '%s' "${source_commit}:${producer_run_id}:$$:${temp_dir}" | shasum -a 256 | awk '{print substr($1,1,32)}')
@@ -230,12 +237,15 @@ if [[ "$evidence_present" -eq 1 && "$probe_enabled" -eq 0 ]]; then
   ensure_prep_lock "$verified_report"; publish_coordinates "$evidence_source_commit"; exit 0
 fi
 env GOENV=off GOTOOLCHAIN="$expected_go_toolchain" go build -trimpath -o "$execsmoke" ./scripts/companion-release/execsmoke
-env GOENV=off GOTOOLCHAIN="$expected_go_toolchain" go build -trimpath -o "$uidrunner" ./scripts/companion-release/uidrunner
+env GOENV=off GOTOOLCHAIN="$expected_go_toolchain" go build -trimpath -buildvcs=false -o "$canary_helper_built" ./scripts/companion-release/canaryhelper
+verify_canary_helper "$canary_helper_built"
 probe_build_export_tool
-(
-  while /bin/sleep 30; do /usr/bin/sudo -n -v || exit 1; done
-) &
-sudo_keepalive_pid=$!
+if [[ "$probe_enabled" -eq 1 ]]; then
+  (
+    while /bin/sleep 30; do /usr/bin/sudo -n -v || exit 1; done
+  ) &
+  sudo_keepalive_pid=$!
+fi
 final_project="$temp_dir/final-project"; final_output="$temp_dir/final-output.jsonl"
 extract_project "$final_project"
 run_canary "$final_candidate" "$final_project" "$final_output" final

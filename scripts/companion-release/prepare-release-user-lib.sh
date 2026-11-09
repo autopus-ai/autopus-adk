@@ -137,22 +137,14 @@ create_release_canary_account() {
   release_canary_attempt=$attempt
   release_canary_marker=$(release_canary_account_marker "$attempt" "$uid")
   release_canary_state_is_valid || fail 'one-shot live-canary identity is invalid'
-  if ! /usr/bin/sudo -n /usr/bin/dscl . -create "/Users/${release_canary_user}" RealName "$release_canary_marker"; then
+  # The helper derives the same name, UID, and marker from the nonce and
+  # attempt, refuses a taken name or UID, and sets the marker first.
+  if ! canary_helper account-create "$dispatch_nonce" "$release_canary_attempt"; then
     [[ "$(release_canary_account_value RealName)" == "$release_canary_marker" ]] &&
       release_canary_account_created=1
-    fail 'create owned one-shot live-canary marker'
+    fail 'create owned one-shot live-canary account'
   fi
   release_canary_account_created=1
-  /usr/bin/sudo -n /usr/bin/dscl . -create "/Users/${release_canary_user}" UniqueID "$release_canary_uid" ||
-    fail 'set one-shot live-canary UID'
-  /usr/bin/sudo -n /usr/bin/dscl . -create "/Users/${release_canary_user}" PrimaryGroupID "$release_canary_gid" ||
-    fail 'set one-shot live-canary group'
-  /usr/bin/sudo -n /usr/bin/dscl . -create "/Users/${release_canary_user}" NFSHomeDirectory "$release_canary_home" ||
-    fail 'set one-shot live-canary home'
-  /usr/bin/sudo -n /usr/bin/dscl . -create "/Users/${release_canary_user}" UserShell /usr/bin/false ||
-    fail 'disable one-shot live-canary login shell'
-  /usr/bin/sudo -n /usr/bin/dscl . -create "/Users/${release_canary_user}" IsHidden 1 ||
-    fail 'hide one-shot live-canary account'
   verify_release_canary_account || fail 'one-shot live-canary account differs after creation'
 }
 
@@ -174,7 +166,7 @@ terminate_release_canary_processes() {
     status=$?
   fi
   [[ "$status" -eq 1 ]] || return 1
-  /usr/bin/sudo -n /usr/bin/pkill -TERM -u "$release_canary_uid" || return 1
+  canary_helper account-kill "$dispatch_nonce" "$release_canary_attempt" TERM || return 1
   for attempt in 1 2 3 4 5; do
     /bin/sleep 1
     if release_canary_uid_is_process_free "$release_canary_uid"; then
@@ -184,7 +176,7 @@ terminate_release_canary_processes() {
     fi
     [[ "$status" -eq 1 ]] || return 1
   done
-  /usr/bin/sudo -n /usr/bin/pkill -KILL -u "$release_canary_uid" || return 1
+  canary_helper account-kill "$dispatch_nonce" "$release_canary_attempt" KILL || return 1
   /bin/sleep 1
   release_canary_uid_is_process_free "$release_canary_uid"
 }
@@ -194,7 +186,7 @@ remove_release_canary_account() {
   [[ -n "${release_canary_user:-}" ]] || return 0
   verify_release_canary_account_ownership || return 1
   release_canary_uid_is_process_free "$release_canary_uid" || return 1
-  /usr/bin/sudo -n /usr/bin/dscl . -delete "/Users/${release_canary_user}" || return 1
+  canary_helper account-delete "$dispatch_nonce" "$release_canary_attempt" || return 1
   inventory=$(/usr/bin/dscl . -list /Users) || return 1
   while read -r account_name; do
     [[ "$account_name" != "$release_canary_user" ]] || return 1
