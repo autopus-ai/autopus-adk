@@ -1,5 +1,15 @@
 # Release v0.51.1 (A42)
 
+**Published 2026-11-09.** Immutable release `439292420` (15 assets, Latest), tag
+object `6df9e3dc4ed4deac09d6527ae253bd055c3c9538`, source commit
+`48c4a16538ef4ab829c50b7852f8217477300f53`, tree
+`6e7b9c8b44980ef935deb96fa41e52c87e169196`. Release run `42643567990` passed
+on a rerun (attempt 2) after `ci / test-isolated` hit its 30-minute timeout on
+the first attempt. Upgrade Canary `42657029502` passed after #296 fixed a
+stale previous-surface expectation (the 0.51.0 project no longer ships
+`auto-go`). Ruleset `26860161` is sealed, tag policy `66060511`. The next
+coordinate is A43 = `v0.51.2`; see [release-v0.51.2.md](release-v0.51.2.md).
+
 Status: prepared 2026-11-09, not published. A42 is `v0.51.1`. A41 is
 `v0.51.0`, immutable release `439021686`; see
 [release-v0.51.0.md](release-v0.51.0.md).
