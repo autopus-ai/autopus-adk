@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -74,6 +75,9 @@ type Options struct {
 	Target     agentexec.Target
 	Timeout    time.Duration
 	Runner     AgentRunner
+	// Feedback, when set, tells the agent why its previous answer was
+	// rejected; it is appended to the prompt of a retry.
+	Feedback string
 }
 
 // Report is what one run produced. Problems carries the acceptance parser's
@@ -91,6 +95,9 @@ type Report struct {
 	TestScenarios  []string             `json:"test_scenarios"`
 	Rejected       []Rejection          `json:"rejected"`
 	Coverage       []CriterionCoverage  `json:"coverage"`
+	// ReplyPath holds the agent's raw answer when nothing in it was
+	// accepted, so a rejected answer can be read instead of guessed at.
+	ReplyPath string `json:"reply_path,omitempty"`
 }
 
 // Run parses the SPEC's criteria, asks the agent for documents in generate
@@ -129,6 +136,10 @@ func Run(ctx context.Context, opts Options) (Report, error) {
 		SpecID: specID, Criteria: criteria, ExistingScenarioIDs: existing, Journeys: journeyHints(opts.ProjectDir),
 		Readings: intent.Readings(questions), Undecided: intent.Undecided(questions),
 	})
+	if fb := strings.TrimSpace(opts.Feedback); fb != "" {
+		prompt += "\n\nYour previous answer to this request was rejected:\n" + fb +
+			"\nAnswer again with every document in its own ```yaml fenced block, and double-quote any string that holds a colon, a #, or starts with a special character.\n"
+	}
 	runner := opts.Runner
 	if runner == nil {
 		runner = agentexec.NewRunner()
@@ -154,9 +165,27 @@ func Run(ctx context.Context, opts Options) (Report, error) {
 	}
 	report.Rejected = outcome.Rejected
 	report.Coverage = outcome.Coverage
+	if len(report.Scenarios) == 0 && len(report.TestScenarios) == 0 {
+		report.ReplyPath = saveReply(opts.ProjectDir, specID, resp.Stdout)
+	}
 	written, err := WriteCandidates(opts.ProjectDir, outcome)
 	report.Written = written
 	return report, err
+}
+
+// ReplyDirRel holds the raw answers that yielded nothing, one per SPEC.
+var ReplyDirRel = filepath.Join(".autopus", "qa", "generate")
+
+func saveReply(projectDir, specID, stdout string) string {
+	dir := filepath.Join(projectDir, ReplyDirRel, specID)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return ""
+	}
+	path := filepath.Join(dir, "rejected-reply.txt")
+	if err := os.WriteFile(path, []byte(stdout), 0o644); err != nil {
+		return ""
+	}
+	return path
 }
 
 // existingScenarioIDs lists active and candidate scenario ids. A file that does
