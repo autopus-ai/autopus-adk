@@ -21,8 +21,10 @@ type Report struct {
 	// carries nothing to review, so it is removed instead of left behind.
 	BranchDeleted bool `json:"branch_deleted,omitempty"`
 	// SeedCommit is the commit that added the QA files `auto qa go` generated.
-	SeedCommit    string      `json:"seed_commit,omitempty"`
-	OriginalRef   string      `json:"original_ref"`
+	SeedCommit  string `json:"seed_commit,omitempty"`
+	OriginalRef string `json:"original_ref"`
+	// ResumedFrom is the earlier loop branch this one started from, if any.
+	ResumedFrom   string      `json:"resumed_from,omitempty"`
 	Restored      bool        `json:"original_ref_restored"`
 	Lane          string      `json:"lane"`
 	Agent         string      `json:"agent"`

@@ -124,6 +124,9 @@ func writeQALoopText(w io.Writer, report qaloop.Report) {
 	} else {
 		fmt.Fprintf(w, "loop branch: %s (%d fix commit(s))\n", report.Branch, commits)
 	}
+	if report.ResumedFrom != "" {
+		fmt.Fprintf(w, "resumed from: %s\n", report.ResumedFrom)
+	}
 	fmt.Fprintf(w, "original ref: %s (restored: %t)\n", report.OriginalRef, report.Restored)
 	// Max iterations caps fix attempts; the lane runs once more after the
 	// last one to check it, so lane runs can exceed the cap by one.

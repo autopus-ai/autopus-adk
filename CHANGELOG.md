@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **`auto qa go --resume`이 이전 loop의 수정을 이어받는다** (2026-11-09): SPEC 없는 재실행은 시나리오만 되살려서, 이전
+  loop가 이미 고친 버그를 에이전트가 다시 고쳤다. `--resume`은 새 loop 브랜치를 가장 최근 loop 브랜치 끝에서 만들어
+  시나리오와 수정을 함께 이어받는다(생성·복원·compile은 건너뛴다). 새로 커밋할 것이 없으면 병합할 브랜치로 이어받은
+  브랜치를 안내한다. 이전 실행이 버그를 고친 스크래치 프로젝트에서 에이전트 호출 없이 3초 만에 통과했다.
+
 - **QA 시나리오가 매 변경의 회귀 검사가 된다** (2026-11-09): `auto qa go`로 만든 exec case는 그 명령을 다시 돌릴 때만
   실행돼서, 고친 동작이 다음 변경에서 다시 깨져도 알 수 없었다. 이제 `auto qa exec --all`이 프로젝트의 exec case를 모두
   돌린다(어긋남 1, 돌릴 수 없는 case만 있으면 2). Stop hook `auto verify stop`은 제품 코드 변경으로 build·test를 고른

@@ -82,3 +82,24 @@ func TestQAGoCmd_WithoutSpecSkipsGeneration(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []string{"compile", "loop"}, order)
 }
+
+// A resumed run with nothing new to commit points at the branch it resumed.
+func TestQAGoCmd_ResumeNamesTheResumedBranchToMerge(t *testing.T) {
+	t.Parallel()
+	var order []string
+	deps := fakeQAGoDeps(&order)
+	deps.LatestBranch = func(string) string { return "autopus/qa-loop/qaloop-0" }
+	deps.Loop = func(_ context.Context, o qaloop.Options) (qaloop.Report, error) {
+		order = append(order, "loop:"+o.BaseRef)
+		return qaloop.Report{RunID: "qaloop-1", StopReason: qaloop.StopPassed, Branch: "autopus/qa-loop/qaloop-1",
+			BranchDeleted: true, ResumedFrom: o.BaseRef}, nil
+	}
+	cmd := newQAGoCmdWith(deps)
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{"--resume", "--agent", "claude", "--lane", "fast", "--project-dir", t.TempDir()})
+	require.NoError(t, cmd.Execute())
+	assert.Equal(t, []string{"loop:autopus/qa-loop/qaloop-0"}, order)
+	assert.Contains(t, out.String(), "next: review and merge autopus/qa-loop/qaloop-0")
+}

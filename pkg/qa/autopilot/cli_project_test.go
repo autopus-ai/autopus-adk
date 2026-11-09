@@ -73,3 +73,27 @@ func TestRun_RerunRestoresScenariosFromTheLoopBranch(t *testing.T) {
 	assert.Equal(t, []string{".autopus/qa/test-scenarios/INTENT-x.yaml"}, c.loop.SeedPaths)
 	assert.Contains(t, lines, "restored 1 scenario file(s) from autopus/qa-loop/qaloop-1; the product fixes made there stay on that branch")
 }
+
+// --resume skips generation, restore, and compile and starts the loop from
+// the latest loop branch.
+func TestRun_ResumeStartsTheLoopFromTheLatestBranch(t *testing.T) {
+	t.Parallel()
+	c := &calls{}
+	deps := fakeDeps(c, nil)
+	deps.LatestBranch = func(string) string { return "autopus/qa-loop/qaloop-1" }
+	_, err := Run(context.Background(), Options{ProjectDir: t.TempDir(), Agent: agentexec.TargetClaude, Lane: "fast", Auto: true, Resume: true}, deps)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"loop"}, c.order)
+	assert.Equal(t, "autopus/qa-loop/qaloop-1", c.loop.BaseRef)
+	assert.Empty(t, c.loop.SeedPaths)
+
+	deps.LatestBranch = func(string) string { return "" }
+	_, err = Run(context.Background(), Options{ProjectDir: t.TempDir(), Agent: agentexec.TargetClaude, Lane: "fast", Auto: true, Resume: true}, deps)
+	var stop *Error
+	require.ErrorAs(t, err, &stop)
+	assert.Equal(t, CodeNothingToResume, stop.Code)
+
+	_, err = Run(context.Background(), Options{ProjectDir: t.TempDir(), SpecID: "SPEC-X", Agent: agentexec.TargetClaude, Lane: "fast", Auto: true, Resume: true}, deps)
+	require.ErrorAs(t, err, &stop)
+	assert.Contains(t, stop.Error(), "takes no SPEC-ID")
+}

@@ -95,7 +95,7 @@ auto qa scenario compile
 auto qa loop --lane browser-staging --agent claude
 ```
 
-`auto qa loop`는 깨끗한 tracked 트리에서만 시작하고, `autopus/qa-loop/<run-id>` 브랜치에서 작업한 뒤 원래 브랜치로 돌아옵니다. 결과는 `.autopus/qa/loop/<run-id>/report.md`에 남습니다. 수정을 받아들이려면 그 브랜치를 리뷰하고 병합합니다. 멈춘 뒤 SPEC 없이 `auto qa go`를 다시 돌리면, 작업 트리에 시나리오가 없을 때 가장 최근 loop 브랜치의 시나리오 파일을 작업 트리로 되살려 이어서 돕니다(제품 수정은 그 브랜치에 남습니다).
+`auto qa loop`는 깨끗한 tracked 트리에서만 시작하고, `autopus/qa-loop/<run-id>` 브랜치에서 작업한 뒤 원래 브랜치로 돌아옵니다. 결과는 `.autopus/qa/loop/<run-id>/report.md`에 남습니다. 수정을 받아들이려면 그 브랜치를 리뷰하고 병합합니다. 멈춘 뒤 SPEC 없이 `auto qa go`를 다시 돌리면, 작업 트리에 시나리오가 없을 때 가장 최근 loop 브랜치의 시나리오 파일을 작업 트리로 되살려 이어서 돕니다(제품 수정은 그 브랜치에 남습니다). 이전 수정까지 이어받으려면 `auto qa go --resume`을 씁니다. 새 loop 브랜치를 가장 최근 loop 브랜치 끝에서 만들어, 이미 고친 버그를 다시 고치지 않습니다.
 
 ### 실패 분류와 처리
 

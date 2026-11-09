@@ -121,7 +121,15 @@ func prepare(opts Options, deps Deps) (*runner, error) {
 	if err := g.ensureExcluded("/" + r.prefix + ReportDirRel + "/"); err != nil {
 		return nil, &Error{Code: CodeGitFailed, Message: err.Error()}
 	}
-	if _, err := g.run("switch", "-q", "-c", r.report.Branch); err != nil {
+	switchArgs := []string{"switch", "-q", "-c", r.report.Branch}
+	if base := strings.TrimSpace(opts.BaseRef); base != "" {
+		if _, err := g.line("rev-parse", "--verify", "--quiet", base+"^{commit}"); err != nil {
+			return nil, &Error{Code: CodeInvalidOptions, Message: "no commit to resume from at " + base}
+		}
+		switchArgs = append(switchArgs, base)
+		r.report.ResumedFrom = base
+	}
+	if _, err := g.run(switchArgs...); err != nil {
 		return nil, &Error{Code: CodeGitFailed, Message: err.Error()}
 	}
 	if err := r.commitSeed(); err != nil {
