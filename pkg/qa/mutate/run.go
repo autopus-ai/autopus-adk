@@ -80,7 +80,7 @@ func Run(ctx context.Context, opts Options) (Report, error) {
 	if err != nil {
 		return Report{}, err
 	}
-	defer os.RemoveAll(work)
+	defer func() { _ = os.RemoveAll(work) }()
 	if err := copyFiles(project, work, files); err != nil {
 		return Report{}, err
 	}
@@ -128,7 +128,8 @@ func Run(ctx context.Context, opts Options) (Report, error) {
 	return report, nil
 }
 
-// try plants m, runs the cases until one fails, and restores the file.
+// try plants m, runs the cases until one fails, and restores the file. A
+// restore that fails is an error: every later mutant would run on top of it.
 func try(ctx context.Context, work string, m Mutant, cases []namedCase) (Outcome, error) {
 	path := filepath.Join(work, filepath.FromSlash(m.File))
 	original, err := os.ReadFile(path)
@@ -140,20 +141,27 @@ func try(ctx context.Context, work string, m Mutant, cases []namedCase) (Outcome
 	if err := os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0o644); err != nil {
 		return Outcome{}, err
 	}
-	defer os.WriteFile(path, original, 0o644)
+	out := judge(ctx, work, m, cases)
+	if err := os.WriteFile(path, original, 0o644); err != nil {
+		return Outcome{}, fmt.Errorf("restore %s after a mutant: %w", m.File, err)
+	}
+	return out, nil
+}
+
+func judge(ctx context.Context, work string, m Mutant, cases []namedCase) Outcome {
 	for _, c := range cases {
 		res, err := execcheck.Run(ctx, work, c.exec)
 		switch {
 		case err != nil && strings.Contains(err.Error(), "did not finish within"):
 			// A fault that makes the product hang is one a user notices.
-			return Outcome{Mutant: m, Verdict: Killed, KilledBy: c.id + " (hang)"}, nil
+			return Outcome{Mutant: m, Verdict: Killed, KilledBy: c.id + " (hang)"}
 		case err != nil || buildFailed(res):
-			return Outcome{Mutant: m, Verdict: Invalid}, nil
+			return Outcome{Mutant: m, Verdict: Invalid}
 		case !res.Passed():
-			return Outcome{Mutant: m, Verdict: Killed, KilledBy: c.id}, nil
+			return Outcome{Mutant: m, Verdict: Killed, KilledBy: c.id}
 		}
 	}
-	return Outcome{Mutant: m, Verdict: Survived}, nil
+	return Outcome{Mutant: m, Verdict: Survived}
 }
 
 // buildFailed reports the product verdict execcheck gives a compile error:
