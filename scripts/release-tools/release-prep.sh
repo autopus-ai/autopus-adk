@@ -192,7 +192,13 @@ fi
 printf 'release prep: %s via %s with provider=%s model=%s window=%s (%s) omp=%s\n' \
   "$mode" "$gateway_source" "$provider" "$model" "$model_context_window" "$window_origin" "$omp_version" >&2
 
-exec scripts/companion-release/prepare-release.sh \
+# ADK_RELEASE_REMOVE_HELPER=1 keeps the passwordless canary helper installed
+# only for this release: it is removed after a successful --apply, so the next
+# release needs install-canary-helper.sh (and one password) again.
+remove_helper_after=0
+if [[ "$mode" == '--apply' && "${ADK_RELEASE_REMOVE_HELPER:-0}" == '1' ]]; then remove_helper_after=1; fi
+status=0
+scripts/companion-release/prepare-release.sh \
   --endpoint "$ADK_GATEWAY_URL" \
   --credential-locator "$ADK_CREDENTIAL_LOCATOR" \
   --provider "$provider" \
@@ -202,4 +208,10 @@ exec scripts/companion-release/prepare-release.sh \
   --oracle-policy-digest "$oracle_policy_digest" \
   --tag-signing-key "$r2_key" \
   --promotion-signing-key "$k3_key" \
-  ${extra[@]+"${extra[@]}"} "$mode"
+  ${extra[@]+"${extra[@]}"} "$mode" || status=$?
+if [[ "$status" -eq 0 && "$remove_helper_after" -eq 1 ]]; then
+  /usr/bin/sudo -n /Library/PrivilegedHelperTools/co.autopus.release-canary uninstall ||
+    fail 'the release succeeded but the canary helper could not remove itself; run scripts/release-tools/uninstall-canary-helper.sh'
+  printf 'release prep: the canary helper and its sudoers rule are removed\n' >&2
+fi
+exit "$status"

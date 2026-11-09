@@ -81,6 +81,18 @@ func (r *run) createAccount(a canaryAccount) error {
 	if err := r.checkRoot(); err != nil {
 		return err
 	}
+	unlock, err := globalLock()
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	names, err := accountNames()
+	if err != nil {
+		return err
+	}
+	if canaryAccountCount(names) >= maxCanaryAccounts {
+		return fmt.Errorf("%d one-shot canary accounts already exist; run sweep", maxCanaryAccounts)
+	}
 	inventory, err := accountInventory()
 	if err != nil {
 		return err
@@ -149,6 +161,16 @@ func accountValue(name, attribute string) (string, error) {
 		return strings.Join(strings.Fields(value), " "), nil
 	}
 	return "", errors.New("attribute missing")
+}
+
+// accountNames lists every account record by name, including one that never
+// got a UniqueID, which `-list /Users UniqueID` leaves out.
+func accountNames() ([]string, error) {
+	out, err := exec.Command(dscl, ".", "-list", "/Users").Output()
+	if err != nil {
+		return nil, errors.New("cannot list accounts")
+	}
+	return strings.Fields(string(out)), nil
 }
 
 func accountInventory() (map[string]int, error) {

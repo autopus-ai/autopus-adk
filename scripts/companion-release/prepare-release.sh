@@ -242,6 +242,10 @@ fi
 env GOENV=off GOTOOLCHAIN="$expected_go_toolchain" go build -trimpath -o "$execsmoke" ./scripts/companion-release/execsmoke
 env GOENV=off GOTOOLCHAIN="$expected_go_toolchain" go build -trimpath -buildvcs=false -o "$canary_helper_built" ./scripts/companion-release/canaryhelper
 verify_canary_helper "$canary_helper_built"
+# Accounts and roots an earlier, interrupted run left behind would otherwise
+# count against the helper's account limit. A sweep that cannot finish only
+# warns: what actually stops a run is the limit itself, at account creation.
+canary_helper sweep || printf 'companion release prep: warning: the canary helper could not sweep every leftover\n' >&2
 probe_build_export_tool
 if [[ "$probe_enabled" -eq 1 ]]; then
   (
