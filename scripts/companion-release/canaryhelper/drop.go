@@ -1,0 +1,84 @@
+//go:build darwin
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"syscall"
+
+	"golang.org/x/sys/unix"
+)
+
+// runCanary execs argv as the verified one-shot canary account; runNobody
+// execs it as nobody. The helper drops root before exec, so argv never runs
+// with more than that identity, whoever chose it.
+func (r *run) runCanary(a canaryAccount, argv []string) error {
+	if err := r.checkUntainted(); err != nil {
+		return err
+	}
+	if err := verifyOwned(a); err != nil {
+		return err
+	}
+	return dropAndExec(a.uid, canaryGID, argv, "PATH=/usr/bin:/bin:/usr/sbin:/sbin")
+}
+
+// runNobody runs the candidate installed root-owned in this root as nobody,
+// with arguments only: the helper sets the environment itself and execs the
+// candidate directly. nobody owns the private directories after the canary,
+// so a free-form command or environment would give the operator another
+// writer on that tree.
+func (r *run) runNobody(args []string) error {
+	if err := r.checkUntainted(); err != nil {
+		return err
+	}
+	candidate := filepath.Join(r.root, "auto")
+	if st, err := lstat(candidate); err != nil || st.Uid != 0 || st.Mode&0o7777 != 0o555 {
+		return errors.New("the candidate is not the root-owned 0555 file install-exec made")
+	}
+	uid, gid, err := nobodyIdentity()
+	if err != nil {
+		return err
+	}
+	return dropAndExec(uid, gid, append([]string{candidate}, args...),
+		"HOME="+r.home, "TMPDIR="+r.tmp, "PATH=/usr/bin:/bin", "LANG=C", "LC_ALL=C")
+}
+
+func dropAndExec(uid, gid int, argv []string, env ...string) error {
+	if len(argv) == 0 || !filepath.IsAbs(argv[0]) {
+		return errors.New("the program to run must be an absolute path")
+	}
+	if uid == 0 || gid == 0 {
+		return errors.New("refusing to run as root")
+	}
+	if err := dropTo(uid, gid); err != nil {
+		return err
+	}
+	syscall.Umask(0o077)
+	return syscall.Exec(argv[0], argv, env)
+}
+
+// dropTo leaves root for good: supplementary groups, then group, then user,
+// and verifies nothing of root is left.
+func dropTo(uid, gid int) error {
+	if err := unix.Setgroups([]int{}); err != nil {
+		return errors.New("clear supplementary groups")
+	}
+	if err := unix.Setgid(gid); err != nil {
+		return errors.New("set group")
+	}
+	if err := unix.Setuid(uid); err != nil {
+		return errors.New("set user")
+	}
+	groups, err := unix.Getgroups()
+	if err != nil || len(groups) > 1 || (len(groups) == 1 && groups[0] != gid) ||
+		os.Getuid() != uid || os.Geteuid() != uid || os.Getgid() != gid || os.Getegid() != gid {
+		return fmt.Errorf("identity verification failed after dropping root")
+	}
+	if unix.Setuid(0) == nil {
+		return errors.New("root could be regained after dropping it")
+	}
+	return nil
+}

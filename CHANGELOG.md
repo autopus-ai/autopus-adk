@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **릴리스 `--apply`가 대화형 sudo 없이 돈다** (2026-11-09): 로컬 live canary의 root 작업(격리 루트, 일회용 canary 계정,
+  프로젝트 반입·반출, 소유권 변경, 권한 낮추기)이 스크립트 곳곳의 `sudo -n` 대신 root 소유 헬퍼 하나
+  (`/Library/PrivilegedHelperTools/co.autopus.release-canary`)를 거친다. `scripts/release-tools/install-canary-helper.sh`가
+  헬퍼를 빌드·설치하고 그 파일만 비밀번호 없이 허용하는 sudoers 규칙을 한 번 넣는다. 헬퍼는 어떤 인자도 믿지 않는다:
+  경로는 nonce로 정해진 루트뿐이고, 계정은 nonce·시도 번호로 유도해 marker로 확인하며, 호출자가 만든 실행 파일을 root로
+  돌리지 않는다. 운영자 쪽 파일은 운영자 권한의 자식이 읽고 쓰고, canary가 쓴 트리는 경로가 아니라 descriptor로만 다루며
+  하드 링크·다른 장치·예상 밖 소유자·특수 파일은 건드리지 않고 그 루트를 더 쓰지 못하게 표시한다. 소유권을 넘길 때
+  setuid/setgid를 지운다. `prepare-release`는 설치된 헬퍼가 그 소스 커밋에서 빌드한 것과 같은지(`-buildvcs=false`로
+  재현 가능) 확인하고 다르면 재설치를 안내한다. 독립 보안 리뷰를 네 차례 거쳤고, 같은 리뷰에서 기존 스크립트가 canary가
+쓴 트리에 root로 `chown -R`하던 하드 링크 경로도 함께 닫혔다. `canary-helper-smoke.sh`가 설치 뒤 root 쪽 동작을
+릴리스 없이 끝까지 확인한다. probe 모드만 기존 대화형 sudo를 쓴다.
+
 - **릴리스 환경 승인 단계를 없앤다** (2026-11-09): `adk-companion-release` 환경의 승인자는 release actor 본인이었고
   self-review가 허용돼 있어, 태그 ruleset이 이미 그 actor로 제한한 결정을 한 번 더 누르는 단계였다. 릴리스 권한
   검증(`verify-release-tag-ruleset.sh`)이 이제 승인자 규칙이 **없음**을 정확히 요구한다. 다시 추가되면 drift로
