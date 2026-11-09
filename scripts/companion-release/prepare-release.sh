@@ -105,7 +105,10 @@ readonly tag_fingerprint_file="$repo_root/scripts/companion-release/release-tag-
 [[ -f "$tag_public_key_file" && ! -L "$tag_public_key_file" &&
    -f "$tag_fingerprint_file" && ! -L "$tag_fingerprint_file" ]] || fail 'R2 release tag signer pins are unavailable'
 bootstrap_cleanup() { rm -rf -- "$temp_dir"; }
-temp_dir=$(mktemp -d "${TMPDIR:-/tmp}/companion-release-prep.XXXXXX")
+# macOS sets TMPDIR with a trailing slash; the canary helper accepts only
+# clean absolute paths, so the double slash must not reach it.
+temp_base=${TMPDIR:-/tmp}
+temp_dir=$(mktemp -d "${temp_base%/}/companion-release-prep.XXXXXX")
 readonly temp_dir
 chmod 0700 "$temp_dir"
 trap bootstrap_cleanup EXIT
