@@ -329,6 +329,9 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 ## qa-autopilot 스킬에 `qa go --resume` 설명 추가 (feat/qa-resume, 2026-11-09)
 
 - 원인: `content/skills/qa-autopilot.md`의 재실행 설명에 `--resume`을 더했다.
+## qa-autopilot 스킬에 서버형 case(`requests`) 설명 추가 (feat/qa-http-service, 2026-11-09)
+
+- 원인: `content/skills/qa-autopilot.md`에 서버형 제품용 exec `requests`를 설명하는 항목을 더했다.
 - 기록: `make generate-templates` 뒤 `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run 'TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6'`.
 - 차이: NPD 다섯 개에서 `qa-autopilot` 스킬과 그 backup, manifest·journal checksum만 바뀌었다. stdout golden은 그대로다.
 - 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.

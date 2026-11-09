@@ -31,7 +31,13 @@ type Exec struct {
 	Stdin   string            `yaml:"stdin,omitempty" json:"stdin,omitempty"`
 	Files   map[string]string `yaml:"files,omitempty" json:"files,omitempty"`
 	Timeout string            `yaml:"timeout,omitempty" json:"timeout,omitempty"`
-	Expect  ExecExpect        `yaml:"expect" json:"expect"`
+	Expect  ExecExpect        `yaml:"expect,omitempty" json:"expect,omitempty"`
+	// Requests make the case a service case: argv starts a server on $PORT,
+	// each request is sent to it in order, and the server is stopped after.
+	Requests []HTTPRequest `yaml:"requests,omitempty" json:"requests,omitempty"`
+	// Ready is a path polled until the server answers; without it the case
+	// waits until the port accepts connections.
+	Ready string `yaml:"ready,omitempty" json:"ready,omitempty"`
 }
 
 // ExecExpect holds what the user observes. Each set field is checked; unset
@@ -73,14 +79,23 @@ func ValidateExec(x *Exec) error {
 	if len(x.Build) > 0 && !AllowedCommand(x.Build) {
 		return fmt.Errorf("exec.build[0] %q must be one of: %s", x.Build[0], strings.Join(CommandAllowlist, ", "))
 	}
-	if x.Expect.empty() {
-		return fmt.Errorf("exec.expect must state at least one observable outcome")
-	}
-	if x.Expect.ExitNonzero && x.Expect.ExitCode != nil {
-		return fmt.Errorf("exec.expect sets both exit_code and exit_nonzero; keep one")
-	}
-	if err := contradiction(x.Expect); err != nil {
-		return err
+	if x.IsService() {
+		if err := validateService(x); err != nil {
+			return err
+		}
+	} else {
+		if x.Ready != "" {
+			return fmt.Errorf("exec.ready only applies to a case with requests")
+		}
+		if x.Expect.empty() {
+			return fmt.Errorf("exec.expect must state at least one observable outcome")
+		}
+		if x.Expect.ExitNonzero && x.Expect.ExitCode != nil {
+			return fmt.Errorf("exec.expect sets both exit_code and exit_nonzero; keep one")
+		}
+		if err := contradiction(x.Expect); err != nil {
+			return err
+		}
 	}
 	if x.Timeout != "" {
 		if d, err := time.ParseDuration(x.Timeout); err != nil || d <= 0 || d > 10*time.Minute {
