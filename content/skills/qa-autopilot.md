@@ -61,6 +61,7 @@ automation:
 - 웹 UI가 없는 프로젝트에서는 `auto qa go`가 브라우저 시나리오 컴파일을 건너뛰고, exec·command case를 test-scenarios 파일에서 바로 돌립니다.
 - `argv[0]`은 `$BIN/<이름>`, 프로젝트 안의 경로(`./bin/tool`), 또는 허용된 러너(`python3` 등)만 됩니다. 임의의 시스템 명령은 거부합니다.
 - `auto qa exec --file <yaml> --case <id>`가 한 case를 돌립니다. 기대값이 어긋나면 `Expected:`/`Received:`를 출력하고 1로 끝나며, loop는 이를 `product_defect`로 분류합니다. 제품 소스 파일을 가리키는 컴파일 에러도 제품 결함이라 1로 끝납니다. build 경로가 틀린 것처럼 case 자체를 돌릴 수 없으면 2로 끝납니다.
+- `auto qa exec --all`은 프로젝트의 exec case를 모두 돌리는 회귀 검사입니다. 기대값이 하나라도 어긋나면 1, 어긋난 것 없이 돌릴 수 없는 case만 있으면 2로 끝납니다. Claude Code Stop hook `auto verify stop`이 제품 코드가 바뀔 때마다 이것을 돌리고, CI에서도 그대로 씁니다.
 - 에이전트 실행(claude)은 호출마다 `--max-budget-usd` 상한(기본 $5, `AUTOPUS_QA_AGENT_BUDGET_USD`로 변경)을 둡니다.
 
 ## 한 번에: `auto qa go`

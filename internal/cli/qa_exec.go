@@ -23,19 +23,30 @@ const (
 
 func newQAExecCmd() *cobra.Command {
 	var file, caseID, projectDir string
-	var jsonOut bool
+	var jsonOut, all bool
 	cmd := &cobra.Command{
 		Use:   "exec",
 		Short: "Run one exec test case against the product and check what a user observes",
 		Long: "Loads a qamesh.test-scenarios.v1 file, builds the product if the case asks, runs it in a fresh " +
 			"directory holding only the case's files, and checks the exit code, stdout, stderr, and files the " +
 			"case expects. A failed expectation, or a build whose errors name a product source file, prints " +
-			"Expected:/Received: lines and exits 1; a case that cannot run exits 2. 'auto qa run' and 'auto qa loop' call this for every exec case.",
+			"Expected:/Received: lines and exits 1; a case that cannot run exits 2. 'auto qa run' and 'auto qa loop' call this for every exec case. " +
+			"With --all it runs every exec case in the project, as a regression check for CI and the `auto verify stop` gate.",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			code, err := runQAExec(cmd, projectDir, file, caseID, jsonOut)
+			var code int
+			var err error
+			if all {
+				if file != "" || caseID != "" || jsonOut {
+					code, err = qaExecExitError, fmt.Errorf("--all runs every case; it takes no --file, --case, or --json")
+				} else {
+					code, err = runQAExecAll(cmd, projectDir)
+				}
+			} else {
+				code, err = runQAExec(cmd, projectDir, file, caseID, jsonOut)
+			}
 			if err != nil {
 				fmt.Fprintln(cmd.ErrOrStderr(), "auto qa exec:", err)
 			}
@@ -45,10 +56,11 @@ func newQAExecCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&file, "file", "", "Test-scenarios file, relative to the project (required)")
-	cmd.Flags().StringVar(&caseID, "case", "", "Case id inside the file (required)")
+	cmd.Flags().StringVar(&file, "file", "", "Test-scenarios file, relative to the project (required unless --all)")
+	cmd.Flags().StringVar(&caseID, "case", "", "Case id inside the file (required unless --all)")
 	cmd.Flags().StringVar(&projectDir, "project-dir", ".", "Project directory")
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "Print the observed result as JSON")
+	cmd.Flags().BoolVar(&all, "all", false, "Run every exec case in the project's test-scenarios files")
 	return cmd
 }
 
