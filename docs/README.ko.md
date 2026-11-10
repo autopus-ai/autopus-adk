@@ -68,7 +68,8 @@ $37는 하한입니다. 작은 Go 변경 4건(n=4)이라 벤치마크가 아니�
 
 1. 바뀐 파일이 속한 toolchain의 명령만 고릅니다.
    - **Go**: `go build ./...`, 그리고 바뀐 패키지의 `go test`
-   - **Node**: lockfile이 가리키는 package manager로 `typecheck`·`test` script
+   - **Node**: 프로젝트가 정한 package manager(`packageManager` 필드 → `pnpm-workspace.yaml` → lockfile 순)로
+     `typecheck`·`test` script. pnpm·yarn이 PATH에 없으면 `corepack`으로 실행합니다
    - **Python**: `python3 -m pytest -q`
    - **Rust**: `cargo test --quiet`
    - **QA 회귀**: 위 명령이 하나라도 골라졌고 `.autopus/qa/test-scenarios/`에 exec case가 있으면 마지막에
@@ -80,7 +81,10 @@ $37는 하한입니다. 작은 Go 변경 4건(n=4)이라 벤치마크가 아니�
    끝없이 돌지 않게 하려는 장치입니다.
 5. 통과한 트리를 기억합니다. 마지막 통과 이후 바뀐 것이 없으면 다음 stop에서 다시 돌리지 않습니다.
 
-문서만 바뀐 트리와 설치되지 않은 도구는 건너뜁니다.
+문서만 바뀐 트리와 설치되지 않은 도구는 건너뜁니다. 의존성이 설치되지 않았거나(`node_modules` 없음) script 안의
+명령을 찾지 못한 경우(exit 127)도 코드 실패가 아니라 환경 문제라 종료를 막지 않고 경고만 남기며, 통과로 기록하지
+않아 환경을 고친 뒤 다시 검사합니다. 작업 트리를 바꿀 수 있는 백그라운드 서브에이전트·workflow·teammate가 아직
+돌고 있으면 검증을 다음 종료로 미룹니다.
 
 **후속 라운드(opt-in).** `AUTOPUS_FOLLOWUP=on`(또는 `auto verify stop --followup`)일 때, 빌드가 통과했고 바뀐 소스가 40줄 이상이면(`HEAD` 대비 추가와 삭제의 합, 추적되지 않은
 새 소스 파일 포함) hook이 한 번 더 종료를 막고 다음을 지시합니다.
