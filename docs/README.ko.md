@@ -202,6 +202,7 @@ auto qa mutate --max 50 --min-score 0.7   # CI: 잡은 비율이 70% 미만이�
 | --- | --- |
 | `/auto review` | 바뀐 코드를 TRUST 5(Tested, Readable, Unified, Secured, Trackable) 기준으로 검토하고, 프로젝트의 build·test·lint 명령 결과를 근거로 씁니다. 여러 provider에 나눠 맡길 수 있습니다. |
 | `/auto qa` | 기본은 QA 버그 헌트, 선언된 journey와 릴리스 근거에는 QAMESH. |
+| `/auto secure` | 보안 헌트: `auto secure scan --json`으로 스캐너 단서를 모으고, 바뀐 범위의 위협 모델을 짧게 세운 뒤, 사용자 소유의 로컬·스테이징 대상에 실제 공격을 시도합니다. `auto qa hunt verify`가 재현 스크립트로 확인한 것만 취약점으로 보고하고, 나머지는 "확인되지 않음"으로 따로 적습니다. `--multi`는 `auto orchestra secure`를 더하고, 경로를 주면 범위를 좁힙니다. |
 | `/auto verify` | 프론트엔드 UX 검증: 바뀐 UI의 Playwright 스크린샷과 시각 분석. |
 | `/auto test` | `.autopus/project/scenarios.md`의 E2E 시나리오를 `auto test run`으로 실행. |
 | `/auto sync` | diff를 읽고 그 변경이 낡게 만든 문서(README, ARCHITECTURE, CHANGELOG, `docs/`, `.autopus/project/*.md`)만 고친 뒤, 문서가 이름 붙인 명령·flag·경로가 실제로 있는지 확인합니다. SPEC이 없어도 됩니다. |
@@ -223,8 +224,8 @@ auto qa mutate --max 50 --min-score 0.7   # CI: 잡은 비율이 70% 미만이�
 | --- | --- |
 | 에이전트 (4) | `reviewer`, `qa-explorer`, `frontend-specialist`, `ux-validator` |
 | 규칙 (4) | `language-policy`, `lore-commit`, `file-size-limit`, `autonomy` |
-| 스킬 (9) | `review`, `verification`, `qa-hunt`, `qa-autopilot`, `frontend-verify`, `browser-automation`, `playwright-cli`, `testing-strategy`, `lore-commit` |
-| 라우트 | `review`, `qa`, `verify`, `test`, `sync`, `update`, `doctor`, 그리고 `browse` 별칭 |
+| 스킬 (10) | `review`, `verification`, `qa-hunt`, `secure-hunt`, `qa-autopilot`, `frontend-verify`, `browser-automation`, `playwright-cli`, `testing-strategy`, `lore-commit` |
+| 라우트 | `review`, `qa`, `secure`, `verify`, `test`, `sync`, `update`, `doctor`, 그리고 `browse` 별칭 |
 | Hook | Claude Code Stop hook `auto verify stop`, Lore `commit-msg` git hook |
 
 `autonomy` 규칙은 에이전트가 단계마다 허락을 구하지 말고 일을 끝까지 진행하게 합니다. 결정이 정말

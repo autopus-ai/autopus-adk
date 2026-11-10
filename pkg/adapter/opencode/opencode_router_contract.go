@@ -81,6 +81,7 @@ func thinRouterSkillBody() string {
 		"",
 		"- `verify`, `test`, `qa`, `doctor`는 thin wrapper 성격입니다.",
 		"- `qa`는 QAMESH guidance로 `auto qa init`, `auto qa plan`, `auto qa run`, `auto qa release`, `auto qa evidence`, `auto qa feedback` 중 목적에 맞는 CLI를 실제 실행합니다.",
+		"- `secure`는 `auto secure scan --json`으로 단서를 모으고, 변경 범위 위협 모델을 세운 뒤 재현 스크립트(`auto qa hunt verify`)로 확인된 취약점만 보고합니다. `--multi`일 때만 `auto orchestra secure`를 더합니다.",
 		"- 고정된 서브커맨드만 필요하면 `/auto-review`, `/auto-qa`, `/auto-verify` 같은 direct alias를 우선 사용하는 편이 더 짧고 저렴합니다.",
 	}
 	return strings.Join(sections, "\n")

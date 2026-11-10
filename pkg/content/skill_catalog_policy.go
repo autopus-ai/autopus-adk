@@ -16,6 +16,7 @@ var coreSkillSet = map[string]bool{
 	"qa-autopilot":       true,
 	"qa-hunt":            true,
 	"review":             true,
+	"secure-hunt":        true,
 	"testing-strategy":   true,
 	"verification":       true,
 }

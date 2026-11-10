@@ -1,0 +1,48 @@
+---
+name: auto-secure
+version: "1.0.0"
+description: 보안 헌트 — 스캐너 단서, 변경 범위 위협 모델, 재현 스크립트로 확인된 취약점만 보고합니다
+platform: antigravity-cli
+project: {{.ProjectName}}
+mode: {{.Mode}}
+triggers:
+  - "secure"
+  - "security"
+  - "auto secure scan"
+---
+
+# auto-secure — Security Hunt
+
+**프로젝트**: {{.ProjectName}} | **모드**: {{.Mode}}
+
+Find security vulnerabilities in what was built and report only the ones a reproduction script confirms. Scanner output and code reading are leads, not findings. Follow the `secure-hunt` skill in this session (or a `qa-explorer` subagent told to follow `secure-hunt` when the attack step needs an isolated context).
+
+Safety: attack only the user's own local build or staging target. Never send attack traffic to third-party or production systems, never use destructive payloads against shared data, never exfiltrate credentials, and never print secret values (location and rule id only).
+
+## Pipeline
+
+### [REQUIRED] Step 1: Mechanical scan (MUST call Bash tool)
+
+```bash
+auto secure scan --json
+```
+
+It detects Go/Node/Rust/Python and runs the installed scanners (gitleaks, govulncheck, npm/pnpm/yarn audit, cargo audit, pip-audit); exit 1 means secrets or high/critical results. If the installed `auto` binary has no `secure scan` command, say so and run the available scanners directly (for example `gitleaks detect --redact`, `govulncheck ./...`). Report scanners that could not run. Triage every result for reachability (govulncheck symbol reachability, runtime vs dev dependency, real key vs fixture) before treating it as a lead.
+
+### [REQUIRED] Step 2: Threat model of the changed scope
+
+Start from `git diff HEAD --stat` or the path the user passed. Write a short model: entry points, trust boundaries, assets, and attacker-controlled inputs. Each input → boundary → asset path becomes an attack to try; categories with no path are skipped.
+
+### [OPTIONAL] Step 3: Multi-model pass (`--multi` only)
+
+Only when the user passed `--multi`, run `auto orchestra secure <changed files>`. It is token-heavy, and its output is another set of leads, not findings.
+
+### [REQUIRED] Step 4: Hunt with repro scripts
+
+Attack each path against the running product or code path: injection, authorization bypass and IDOR, path traversal, SSRF, unsafe deserialization, secrets in logs and errors, unsafe defaults, and CI supply chain (`pull_request_target` checking out PR code, self-hosted runners on public repos, untrusted event fields in `run:`). File each suspicion as `.autopus/qa/hunt/findings/sec-<id>/finding.json` plus `repro.sh` (exit 1 while the vulnerability is present, 0 once fixed) and judge with `auto qa hunt verify`. Only `confirmed` findings are vulnerabilities.
+
+### [REQUIRED] Step 5: Report confirmed vs unconfirmed
+
+Report confirmed vulnerabilities with severity (critical/high/medium/low) and its reason, the entry point → boundary → asset path, the repro command, and a structural fix suggestion at the root-cause location. Keep a separate "not confirmed" section: unreachable scanner hits, suspicions that did not reproduce, categories not attacked, scanners not run. Do not fix product code in this route; the user decides what to fix next.
+
+Usage: `/auto secure`, `/auto secure --multi`, `/auto secure <path>`

@@ -45,6 +45,11 @@ var workflowSpecs = []workflowSpec{
 		SkillPath:   "codex/skills/auto-qa.md.tmpl",
 	},
 	{
+		Name:        "auto-secure",
+		Description: "보안 헌트 — 스캐너 단서, 변경 범위 위협 모델, 재현 스크립트로 확인된 취약점만 보고합니다",
+		SkillPath:   "codex/skills/auto-secure.md.tmpl",
+	},
+	{
 		Name:        "auto-doctor",
 		Description: "상태 진단 — 하네스 설치 상태와 플랫폼 wiring을 점검합니다",
 	},

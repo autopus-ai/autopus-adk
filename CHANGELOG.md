@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **보안 검증을 `/auto secure` 라우트와 `secure-hunt` 스킬로 되살린다** (2026-11-11): v0.51.0에서 설치 표면을
+  검증 하네스로 줄이며 `secure` 라우트, `security-audit` 스킬, `security-auditor` 에이전트를 함께 지웠다. 보안 검증은
+  검증 하네스에 속하므로 라우트를 다섯 플랫폼 모두에 다시 설치한다. 다만 예전처럼 OWASP 목록을 풀어 쓰지 않는다.
+  모델은 OWASP를 이미 알기 때문에, 새 `secure-hunt` 스킬은 절차와 판단만 준다. `auto secure scan --json`의 스캐너
+  결과는 단서로만 쓰고 도달성(govulncheck 심볼 도달성 등)을 따진다. 그다음 바뀐 범위의 진입점·신뢰 경계·자산·공격자
+  입력을 짧게 정리하고, 사용자 소유의 로컬·스테이징 대상에 실제 공격을 시도한다. 판정은 `qa-hunt`와 같은 규약의
+  `repro.sh`를 `auto qa hunt verify`로 다시 돌려 하므로 새 판정 코드는 없다. 확인된 취약점과 확인되지 않은 의심은 따로
+  보고한다. `auto orchestra secure`는 `--multi`를 줄 때만 돈다. 오래된 바이너리에 `auto secure scan`이 없으면 그렇다고
+  알리고 설치된 스캐너를 직접 돌린다. `secure-hunt`는 core 스킬이 되고, `security-auditor` 에이전트와 예전
+  `security-audit` 스킬은 되살리지 않는다. 격리된 문맥이 필요하면 `qa-explorer`에 맡긴다.
+
 - **규칙 재주입 hook의 제한 시간을 15초로 늘린다** (2026-11-11): 매 메시지마다 핵심 규칙을 다시 넣는 `auto rules sticky` hook은 평소 0.1초 안에 끝나지만, `auto update --self` 직후 첫 실행은 macOS가 새 바이너리를 검사하는 시간과 머신 부하가 겹쳐 5초 제한을 넘겼다. Claude Code는 제한을 넘긴 hook의 출력을 그 턴에서 버리고 다시 실행하지 않으므로, 그 메시지에는 규칙이 다시 들어가지 않았다. 제한은 hook 프로세스에만 걸리고 모델 추론 시간과는 무관하며, 평소 경로에서는 기다리는 시간이 늘지 않는다. 기존 설치는 `auto update` 뒤 새 세션부터 적용된다.
 
 - **`auto secure scan`으로 이미 있는 보안 스캐너를 한 번에 돌린다** (2026-11-11): 프로젝트마다 gitleaks,

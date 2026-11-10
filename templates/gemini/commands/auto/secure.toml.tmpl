@@ -1,0 +1,7 @@
+description = "Security hunt: scanner leads, threat model, repro-confirmed vulnerabilities"
+prompt = """
+Load the autopus skill from .gemini/skills/autopus/auto-secure/SKILL.md and follow its instructions.
+Pass the user's arguments through: `--multi` enables the optional `auto orchestra secure` pass, and a path narrows the scope.
+Start with `auto secure scan --json`, then threat-model the changed scope, hunt with repro scripts, and judge them with `auto qa hunt verify`.
+Attack only the user's own local or staging target, never print secret values, and report confirmed and unconfirmed findings separately.
+"""

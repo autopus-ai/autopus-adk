@@ -16,7 +16,7 @@ type workflowSpec struct {
 var workflowSpecs = []workflowSpec{
 	{
 		Name:        "auto",
-		Description: "Autopus 명령 라우터 — review/qa/verify/test/sync/update/doctor 서브커맨드를 해석합니다",
+		Description: "Autopus 명령 라우터 — review/qa/secure/verify/test/sync/update/doctor 서브커맨드를 해석합니다",
 	},
 	{
 		Name:        "auto-update",
@@ -44,6 +44,11 @@ var workflowSpecs = []workflowSpec{
 		Name:        "auto-qa",
 		Description: "QAMESH project QA mesh — plan, run, report, and publish deterministic QA evidence",
 		SkillPath:   "codex/skills/auto-qa.md.tmpl",
+	},
+	{
+		Name:        "auto-secure",
+		Description: "보안 헌트 — 스캐너 단서, 변경 범위 위협 모델, 재현 스크립트로 확인된 취약점만 보고합니다",
+		SkillPath:   "codex/skills/auto-secure.md.tmpl",
 	},
 	{
 		Name:        "auto-doctor",

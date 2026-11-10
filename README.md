@@ -164,6 +164,7 @@ Run these in your coding agent's chat.
 | --- | --- |
 | `/auto review` | Reviews the changed code against TRUST 5 (Tested, Readable, Unified, Secured, Trackable), with the project's own build, test, and lint commands as evidence. Can fan out to multiple providers. |
 | `/auto qa` | QA bug hunt by default; QAMESH for declared journeys and release evidence. |
+| `/auto secure` | Security hunt: `auto secure scan --json` for scanner leads, a short threat model of the changed scope, then concrete attacks against your own local or staging target. Only findings whose repro script `auto qa hunt verify` confirms are reported; the rest go to a separate "not confirmed" list. `--multi` adds `auto orchestra secure`; a path narrows the scope. |
 | `/auto verify` | Frontend UX verification: Playwright screenshots plus visual analysis of the changed UI. |
 | `/auto test` | Runs the E2E scenarios in `.autopus/project/scenarios.md` through `auto test run`. |
 | `/auto sync` | Reads the diff and updates only the docs it made stale (README, ARCHITECTURE, CHANGELOG, `docs/`, `.autopus/project/*.md`), then checks that the commands, flags, and paths those docs name exist. No SPEC needed. |
@@ -184,8 +185,8 @@ Platform syntax:
 | --- | --- |
 | Agents (4) | `reviewer`, `qa-explorer`, `frontend-specialist`, `ux-validator` |
 | Rules (4) | `language-policy`, `lore-commit`, `file-size-limit`, `autonomy` |
-| Skills (9) | `review`, `verification`, `qa-hunt`, `qa-autopilot`, `frontend-verify`, `browser-automation`, `playwright-cli`, `testing-strategy`, `lore-commit` |
-| Routes | `review`, `qa`, `verify`, `test`, `sync`, `update`, `doctor`, plus the `browse` alias |
+| Skills (10) | `review`, `verification`, `qa-hunt`, `secure-hunt`, `qa-autopilot`, `frontend-verify`, `browser-automation`, `playwright-cli`, `testing-strategy`, `lore-commit` |
+| Routes | `review`, `qa`, `secure`, `verify`, `test`, `sync`, `update`, `doctor`, plus the `browse` alias |
 | Hooks | Claude Code Stop hook `auto verify stop`; a Lore `commit-msg` git hook |
 
 The `autonomy` rule tells the agent to carry work through without asking permission for each step.
@@ -292,7 +293,7 @@ From v0.51.0 the harness installs only the verification surface described above.
 
 - `auto update` prunes the retired surface recorded in each platform manifest: the routes `plan`,
   `go`, `fix`, `idea`, `setup`, `status`, `goal`, `map`, `why`, `secure`, `dev`, `canary`, and
-  `reverse`; the 14 retired agents (planner, executor, tester, architect, spec-writer and the rest);
+  `reverse` (`secure` later returned as the security hunt route); the 14 retired agents (planner, executor, tester, architect, spec-writer and the rest);
   the retired skills and rules (such as `branding`, `subagent-delegation`, `worktree-safety`); and
   Claude `.claude/workflows/*.js`.
 - An install that is never updated can be cleaned with `auto platform remove <platform>`.

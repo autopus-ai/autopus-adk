@@ -35,7 +35,7 @@ ARGUMENTS: $ARGUMENTS
 
 ## Task Triage
 
-- For natural-language implementation requests, assess evidence before loading a planning workflow or dispatching workers. Do not reroute explicit `review`, `qa`, or other routes, or replace requested `--team`, `--multi`, or `--solo` behavior.
+- For natural-language implementation requests, assess evidence before loading a planning workflow or dispatching workers. Do not reroute explicit `review`, `qa`, `secure`, or other routes, or replace requested `--team`, `--multi`, or `--solo` behavior.
 - `inline`: a bounded, evidenced low-risk change stays in this session with targeted implementation and tests; do not add a default planner or preload unrelated skills.
 - `guided`: incomplete evidence or medium risk calls for focused inspection, then implementation and the verification appropriate to the discovered surface. Inspect uncertainty before treating it as a requirement for a full plan.
 - `planned`: confirmed cross-module work, high risk, or requirements still unclear after inspection use planning and required review. A plan does not itself authorize parallel dispatch.
@@ -60,6 +60,7 @@ ARGUMENTS: $ARGUMENTS
 | `verify` | `.gemini/skills/autopus/auto-verify/SKILL.md` |
 | `test` | `.gemini/skills/autopus/auto-test/SKILL.md` |
 | `qa` | `.gemini/skills/autopus/auto-qa/SKILL.md` |
+| `secure` | `.gemini/skills/autopus/auto-secure/SKILL.md` |
 | `doctor` | `.gemini/skills/autopus/auto-doctor/SKILL.md` |
 
 ## Preserved Aliases

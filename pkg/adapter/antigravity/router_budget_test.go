@@ -14,7 +14,7 @@ import (
 )
 
 var frozenAntigravityAutoRoutes = []string{
-	"update", "review", "sync", "verify", "test", "qa", "doctor",
+	"update", "review", "sync", "verify", "test", "qa", "secure", "doctor",
 }
 
 func TestRouterBudget_FullGenerate_RootIsThinAndAllDetailsExist(t *testing.T) {

@@ -10,7 +10,7 @@ package adapter
 // name.
 var RetiredWorkflowRoutes = []string{
 	"auto-setup", "auto-status", "auto-goal", "auto-plan", "auto-go", "auto-fix",
-	"auto-idea", "auto-map", "auto-why", "auto-secure", "auto-dev", "auto-canary",
+	"auto-idea", "auto-map", "auto-why", "auto-dev", "auto-canary",
 	"auto-reverse",
 }
 
