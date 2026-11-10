@@ -107,6 +107,17 @@ Claude Code가 이미 푸는 네 과제는 통과율 변화 없이 비용만 약
 고치게 합니다. 돌려보낸 메시지에 대한 답은 다시 막지 않습니다. 켜고 끄는 방법은 Claude Code와 같습니다(`hooks.verify_stop`,
 `hooks.language_stop`, `AUTOPUS_VERIFY_STOP=off`). omp의 print 모드(`-p`)는 `agent_end`를 확장에 전달하기 전에 끝나므로,
 이 게이트는 대화형·RPC 세션에서만 동작합니다.
+**테스트 먼저 확인(methodology: tdd).** `methodology.mode: tdd`와 `enforce: true`이면, 빌드와 테스트가 통과한 뒤
+한 단계를 더 봅니다. 바뀐 테스트 파일만 `HEAD`의 소스 위에 얹어 임시 복사본에서 실행하고, 거기서 실패해야
+통과합니다. 변경 전 코드에서 실패하고 변경 후 코드에서 통과했으니 RED → GREEN이 기계적으로 증명됩니다.
+에이전트가 RED 실행을 따로 기록할 필요가 없어 토큰이 늘지 않습니다.
+
+- 소스(Go, JS/TS, Python)가 바뀌었는데 테스트 변경이 없으면 돌려보냅니다.
+- 바뀐 테스트가 변경 전 코드에서도 통과하면, 변경을 검사하지 않는 테스트이므로 돌려보냅니다.
+- 순수 리팩터링, 이름 변경, 생성 파일처럼 검사할 동작이 없으면 응답 끝에 `TDD-exempt: <이유>` 한 줄을 두면 통과합니다.
+- 임시 복사본은 `git archive HEAD`로 만들어 저장소의 worktree·index·ref를 건드리지 않고, node 프로젝트는 설치된
+  `node_modules`를 연결해 씁니다. 실행할 수 없으면 막지 않고 경고만 남깁니다. Rust는 테스트가 소스 안에 있어 대상이 아닙니다.
+- 이 확인만 끄려면 `AUTOPUS_TDD_STOP=off`.
 
 **끄는 방법.**
 
@@ -310,8 +321,8 @@ v0.51.0부터 하네스는 위에 적은 검증 표면만 설치합니다. 프�
   tester, architect, spec-writer 등), 은퇴한 스킬과 규칙(`branding`, `subagent-delegation`, `worktree-safety`
   등), Claude `.claude/workflows/*.js`가 대상입니다.
 - 한 번도 업데이트하지 않은 설치는 `auto platform remove <platform>`으로 정리할 수 있습니다.
-- 새 설정의 기본값은 `methodology.mode: none`입니다. `tdd`를 쓰던 예전 설정은 `auto doctor`와 `auto check`에서
-  실패가 아니라 안내로 보고됩니다.
+- 새 설정의 기본값은 `methodology.mode: none`입니다. `tdd` + `enforce: true`는 `auto verify stop`의 테스트 먼저 확인으로
+  집행되고, 그 밖의 예전 방법론 설정은 `auto doctor`와 `auto check`에서 실패가 아니라 안내로 보고됩니다.
 - CLI 명령은 바이너리에 그대로 있고 계속 동작합니다. 생성되는 스킬·규칙·hook이 부르지 않는 구현 하네스 명령
   16개(`auto pipeline`, `auto fix`, `auto experiment`, `auto learn` 등)는 `auto --help`에 더 이상 나오지 않고,
   다음 릴리즈에서 지웁니다.
