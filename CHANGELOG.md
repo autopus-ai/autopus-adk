@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **긴 작업 에이전트에서 기본 턴 한도를 없앤다** (2026-11-10, #301): 에이전트 정의의 `maxTurns`가 긴 작업을 마무리
+  단계 없이 끊었다. 커밋 직전에 멈추거나 보고서를 한 줄도 남기지 못했고, lead가 매번 다시 깨워야 했다. 재개하면 같은
+  작업에 한도를 다시 쓰므로 비용 상한 역할도 하지 못했다. 이제 qa-explorer(200)·reviewer(120)·frontend-specialist(100)는
+  한도 없이 생성되고(Codex의 `Source max turns`, OpenCode의 `steps`도 빠진다), 짧은 판정만 하는 ux-validator만
+  30을 유지한다. 네 에이전트 지침에 "결과를 먼저 남기고 보강한다", "기다림은 한 명령 안의 sleep 루프로 한다"를 더했고,
+  ux-validator에는 남은 턴이 적으면 새 증거를 열지 말고 판정을 내라는 마무리 규칙을 더했다. 한도가 없어진 에이전트가 다시
+  한도를 갖게 되면 테스트가 실패한다.
+
 - **서버형 QA case에 재시작 단계를 더한다** (2026-11-10): HTTP end-to-end에서 에이전트가 "재시작 후에도 저장한 이름이
   남는가" 같은 기준을 자동화할 수 없어 manual로 남겼다. 이제 `requests` 사이에 `restart: true` 항목을 두면 서버를
   SIGTERM으로 내리고(5초 안에 안 끝나면 프로세스 그룹째 강제 종료) 같은 포트로 다시 띄운 뒤 준비를 기다린다. 다시

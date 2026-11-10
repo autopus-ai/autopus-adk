@@ -57,7 +57,7 @@ The main session spawns this agent with the following structure:
 [Scope limits, auto-fix attempt limit, visual thresholds]
 ```
 
-`Constraints` 기본값은 auto-fix 최대 2회, 스크린샷 DPR 1x입니다. `Design Context`와 `UX Intelligence`는 UI 파일이 변경되고 안전한 소스가 있을 때만 주입되며, 없으면 직접 도출합니다.
+`Constraints` 기본값은 auto-fix 최대 2회, 스크린샷 DPR 1x입니다. 수정 하나를 마칠 때마다 결과(통과·실패·남은 문제)를 보고서에 먼저 적고 다음으로 넘어갑니다. 개발 서버나 테스트 완료는 한 명령 안의 sleep 루프로 기다립니다. `Design Context`와 `UX Intelligence`는 UI 파일이 변경되고 안전한 소스가 있을 때만 주입되며, 없으면 직접 도출합니다.
 
 ## Procedure
 
@@ -238,7 +238,6 @@ Verdict definitions:
 - Source tool contract: Read, Write, Edit, Grep, Glob, Bash
 - Source effort default: medium
 - Source permission intent: bypassPermissions
-- Source max turns: 100
 - File size limit applies only to source code files.
 - SPEC Markdown files under `.autopus/specs/**` are documentation and exempt from the 300-line source code limit.
 - Test coverage target: {{if .IsFullMode}}85{{else}}80{{end}}%+.

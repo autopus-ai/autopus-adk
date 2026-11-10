@@ -9,15 +9,15 @@
 .autopus/backup/<TS>/transaction/
 .autopus/backup/<TS>/transaction/claude-code/
 .autopus/backup/<TS>/transaction/claude-code/.autopus/
-.autopus/backup/<TS>/transaction/claude-code/.autopus/claude-code-manifest.json d20ec1d9a137e89dbbaaca310ef0e88c8b91a5985d5c73735e561c6c8618a7b8
+.autopus/backup/<TS>/transaction/claude-code/.autopus/claude-code-manifest.json c9d8f7e550b7ca62bdf85670089d10df01328d99d1e14ae68650b295db46c9f6
 .autopus/backup/<TS>/transaction/claude-code/.autopus/claude-code-permissions.json b9fd4dd0824fb98d4ff3403c011a56b0b66f398788f2dfb24220c1aed87df4e8
 .autopus/backup/<TS>/transaction/claude-code/.claude/
 .autopus/backup/<TS>/transaction/claude-code/.claude/agents/
 .autopus/backup/<TS>/transaction/claude-code/.claude/agents/autopus/
-.autopus/backup/<TS>/transaction/claude-code/.claude/agents/autopus/frontend-specialist.md c80f423dabcbdcba25b11d097c916784c9f50f4e2c2c7b735b194cc466937e96
-.autopus/backup/<TS>/transaction/claude-code/.claude/agents/autopus/qa-explorer.md 57df31b35d0b45d2df5ba0135eaa78b65fc80624fb4d548deae3bbb597239344
-.autopus/backup/<TS>/transaction/claude-code/.claude/agents/autopus/reviewer.md d9f3d4e8c0e8a3e9b65c8934ad68ccdbf90225875497889dfca56f3e1bcbc868
-.autopus/backup/<TS>/transaction/claude-code/.claude/agents/autopus/ux-validator.md b290a17871b6d8066fac03b60a13bb9d452f274ea18103de8c90a8a51b0fc081
+.autopus/backup/<TS>/transaction/claude-code/.claude/agents/autopus/frontend-specialist.md ff3b875b029a032268bfcf3fd33878141f7aecb233d5f0d5e5d70fd54c5028b8
+.autopus/backup/<TS>/transaction/claude-code/.claude/agents/autopus/qa-explorer.md 878574680d8dfd7c5e5fad06e02cc424fa83e9feee12b54b7cede264f0e61d11
+.autopus/backup/<TS>/transaction/claude-code/.claude/agents/autopus/reviewer.md 3f982f35510034ce5d810d879c1c6ac4118b59b87608d83f68f4acc3d1bb0374
+.autopus/backup/<TS>/transaction/claude-code/.claude/agents/autopus/ux-validator.md 29b5088a7dfda07995d1b00eb8904a9df9d52a099fde3b370f5750d601694a2e
 .autopus/backup/<TS>/transaction/claude-code/.claude/hooks/
 .autopus/backup/<TS>/transaction/claude-code/.claude/hooks/README.md ece7b5b6b999a3cbbc8e194b2d3c02694026b30782cfd937334815b8aad1214c
 .autopus/backup/<TS>/transaction/claude-code/.claude/hooks/autopus/
@@ -80,7 +80,7 @@
 .autopus/backup/<TS>/transaction/codex/.agents/plugins/
 .autopus/backup/<TS>/transaction/codex/.agents/plugins/marketplace.json 7bac9f0f7c15eecf46023308f334e2122d112d03aa7b498f9e01adabd48ac03c
 .autopus/backup/<TS>/transaction/codex/.autopus/
-.autopus/backup/<TS>/transaction/codex/.autopus/codex-manifest.json 8e18d54ffb367722e4c0700e013bae36d6639edfcfcdd052c845b732d759b5f9
+.autopus/backup/<TS>/transaction/codex/.autopus/codex-manifest.json b5b09832c7087a7e80c5dc2da72525175d984798c03b018d86e1257032004f55
 .autopus/backup/<TS>/transaction/codex/.autopus/plugins/
 .autopus/backup/<TS>/transaction/codex/.autopus/plugins/auto/
 .autopus/backup/<TS>/transaction/codex/.autopus/plugins/auto/.codex-plugin/
@@ -90,10 +90,10 @@
 .autopus/backup/<TS>/transaction/codex/.autopus/plugins/auto/skills/auto/SKILL.md e9e18f575d4b3a5eeb711adef95fd8b099c546ae1b5d003d9e3ffa3504f52e09
 .autopus/backup/<TS>/transaction/codex/.codex/
 .autopus/backup/<TS>/transaction/codex/.codex/agents/
-.autopus/backup/<TS>/transaction/codex/.codex/agents/frontend-specialist.toml a46a311d5552616156482e30bb4c9e4599b296f0fd12362cdd35a3ff62d1e8e6
-.autopus/backup/<TS>/transaction/codex/.codex/agents/qa-explorer.toml 2ce95908884b67a523a5f19972a858482423b89e3878157b157e715bc25b87ff
-.autopus/backup/<TS>/transaction/codex/.codex/agents/reviewer.toml 716e1278a55b328fd5fede46143f475410b907e2ff8abcff5f887171c2165d78
-.autopus/backup/<TS>/transaction/codex/.codex/agents/ux-validator.toml 127f9161d0d7b6d1f7423b59ed3e5b3ee0ed13c7c1a0ddab7fec61c42ed1d398
+.autopus/backup/<TS>/transaction/codex/.codex/agents/frontend-specialist.toml cc98f072924693a70b9a200e11e63d0dd6f7bebc63f5682a0759c3427fb1afd0
+.autopus/backup/<TS>/transaction/codex/.codex/agents/qa-explorer.toml cd205b88f3ed94a720b0057b7f46813975c3a19c2cf45162b18df6e62a769e2a
+.autopus/backup/<TS>/transaction/codex/.codex/agents/reviewer.toml 84738e13b41c8aff8d7f345b19965c72de18fc7f725a20d13e3add0a0c2dfe56
+.autopus/backup/<TS>/transaction/codex/.codex/agents/ux-validator.toml 63287213bbabcab30a4fa186bd8eb97b9db4faf430beae52e6bd3c187b0e6be3
 .autopus/backup/<TS>/transaction/codex/.codex/config.toml b42a92847a2ad7afe9eef356eae0fd372eec1a5c92cfeee64aebb0c5853fb8c4
 .autopus/backup/<TS>/transaction/codex/.codex/hooks.json e983dc7d9a9e68af37fed258e9d249c495b6f1b632cb1ea32e3654a69b6289d6
 .autopus/backup/<TS>/transaction/codex/.codex/skills/
@@ -132,9 +132,9 @@
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-verification/
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-verification/SKILL.md 79321a33b979f2f07deb2ad4800a98ea0cbcdde89b0f2f636737b9afd92ead7d
 .autopus/backup/<TS>/transaction/codex/AGENTS.md 3bccf0f9af97957bae70ee71b41b750a1e74ce74d0bc8d0bd85b84d8ee88a7dc
-.autopus/claude-code-manifest.json d20ec1d9a137e89dbbaaca310ef0e88c8b91a5985d5c73735e561c6c8618a7b8
+.autopus/claude-code-manifest.json c9d8f7e550b7ca62bdf85670089d10df01328d99d1e14ae68650b295db46c9f6
 .autopus/claude-code-permissions.json b9fd4dd0824fb98d4ff3403c011a56b0b66f398788f2dfb24220c1aed87df4e8
-.autopus/codex-manifest.json ee3d999ef32c4a644f16dbb923fbbbe3a47707f28bda2bdf7009c28cf5658496
+.autopus/codex-manifest.json a7c764fd132d339cbe82fd647af4c1b1eacb48da57df7663f8fdf1151554cd80
 .autopus/context/
 .autopus/context/constraints.yaml d8b3a0714389a30b7aca1986fbb71235900e14c9dddfe50fdbbb758698d0b26e
 .autopus/plugins/
@@ -147,19 +147,19 @@
 .autopus/txns/
 .autopus/txns/<TX>-claude-code/
 .autopus/txns/<TX>-claude-code/
-.autopus/txns/<TX>-claude-code/journal.json bb1c0da2df15382cb4895cd36007ef23a9f37ed2634333bd438ff349da16e5d0
-.autopus/txns/<TX>-claude-code/journal.json eebcb5a37f8dbda92032d7117636fa6743dc378df5494ba2187a806bb9cf117b
+.autopus/txns/<TX>-claude-code/journal.json 5ccc61d574cd17446be306cc7b637631550471260efef8ac4cc44b1fd137a472
+.autopus/txns/<TX>-claude-code/journal.json f616b930b74f5c846afbfde920b1ab9581381c724006953edd642c982cadd252
 .autopus/txns/<TX>-codex/
 .autopus/txns/<TX>-codex/
-.autopus/txns/<TX>-codex/journal.json 09f1d5d3f8d21fd446ef51babee7a6ec1eaf0c39d09046bacd6d66130e4785a3
-.autopus/txns/<TX>-codex/journal.json 17ec2aa8502995ab25cf8267955de8e238de7e0e422d3243b4f1aeb3c32bc2ec
+.autopus/txns/<TX>-codex/journal.json 2c8a6c9cffca698067a96dd87f01418386be04742731b85c25c5636920f8c79b
+.autopus/txns/<TX>-codex/journal.json 563e2990b15078acad9ed2fffb601d21bec97be9c8ef774a1dc5bf392f684b48
 .claude/
 .claude/agents/
 .claude/agents/autopus/
-.claude/agents/autopus/frontend-specialist.md c80f423dabcbdcba25b11d097c916784c9f50f4e2c2c7b735b194cc466937e96
-.claude/agents/autopus/qa-explorer.md 57df31b35d0b45d2df5ba0135eaa78b65fc80624fb4d548deae3bbb597239344
-.claude/agents/autopus/reviewer.md d9f3d4e8c0e8a3e9b65c8934ad68ccdbf90225875497889dfca56f3e1bcbc868
-.claude/agents/autopus/ux-validator.md b290a17871b6d8066fac03b60a13bb9d452f274ea18103de8c90a8a51b0fc081
+.claude/agents/autopus/frontend-specialist.md ff3b875b029a032268bfcf3fd33878141f7aecb233d5f0d5e5d70fd54c5028b8
+.claude/agents/autopus/qa-explorer.md 878574680d8dfd7c5e5fad06e02cc424fa83e9feee12b54b7cede264f0e61d11
+.claude/agents/autopus/reviewer.md 3f982f35510034ce5d810d879c1c6ac4118b59b87608d83f68f4acc3d1bb0374
+.claude/agents/autopus/ux-validator.md 29b5088a7dfda07995d1b00eb8904a9df9d52a099fde3b370f5750d601694a2e
 .claude/hooks/
 .claude/hooks/README.md ece7b5b6b999a3cbbc8e194b2d3c02694026b30782cfd937334815b8aad1214c
 .claude/hooks/autopus/
@@ -217,10 +217,10 @@
 .claude/statusline.sh 98814d06f77ac9f7d0edffbd7977ca9fe06617eda0b964e10c7b6306f41bba94
 .codex/
 .codex/agents/
-.codex/agents/frontend-specialist.toml a46a311d5552616156482e30bb4c9e4599b296f0fd12362cdd35a3ff62d1e8e6
-.codex/agents/qa-explorer.toml 2ce95908884b67a523a5f19972a858482423b89e3878157b157e715bc25b87ff
-.codex/agents/reviewer.toml 716e1278a55b328fd5fede46143f475410b907e2ff8abcff5f887171c2165d78
-.codex/agents/ux-validator.toml 127f9161d0d7b6d1f7423b59ed3e5b3ee0ed13c7c1a0ddab7fec61c42ed1d398
+.codex/agents/frontend-specialist.toml cc98f072924693a70b9a200e11e63d0dd6f7bebc63f5682a0759c3427fb1afd0
+.codex/agents/qa-explorer.toml cd205b88f3ed94a720b0057b7f46813975c3a19c2cf45162b18df6e62a769e2a
+.codex/agents/reviewer.toml 84738e13b41c8aff8d7f345b19965c72de18fc7f725a20d13e3add0a0c2dfe56
+.codex/agents/ux-validator.toml 63287213bbabcab30a4fa186bd8eb97b9db4faf430beae52e6bd3c187b0e6be3
 .codex/config.toml b42a92847a2ad7afe9eef356eae0fd372eec1a5c92cfeee64aebb0c5853fb8c4
 .codex/hooks.json e983dc7d9a9e68af37fed258e9d249c495b6f1b632cb1ea32e3654a69b6289d6
 .codex/skills/

@@ -4,7 +4,6 @@ description: 만든 것을 실제로 실행·조작하며 버그를 찾는 탐�
 model: opus
 effort: high
 tools: Read, Grep, Glob, Bash, Write
-maxTurns: 200
 skills:
   - qa-hunt
   - browser-automation
@@ -24,6 +23,8 @@ skills:
 - 의심 하나마다 `repro.sh`(버그 있으면 exit 1, 고쳐졌으면 exit 0)와 `finding.json`을 남기고,
   `auto qa hunt verify`로 판정합니다. `confirmed`만 버그로 보고합니다.
 - 시간이 남으면 이미 찾은 버그를 다듬지 말고 아직 건드리지 않은 경로를 조작합니다.
+- 의심을 확인할 때마다 `finding.json`을 바로 남깁니다. 중간에 멈춰도 그때까지 찾은 결과가 디스크에 남아 있어야 합니다.
+- 서버 기동이나 빌드를 기다릴 때는 확인 명령을 여러 번 나눠 부르지 말고, 한 명령 안의 sleep 루프로 기다립니다.
 
 ## 결과 보고
 
