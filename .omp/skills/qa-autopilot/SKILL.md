@@ -1,0 +1,149 @@
+---
+name: qa-autopilot
+description: 수락 기준에서 테스트·사용자 시나리오를 만들고 실행·분류·수정·재검증까지 무인으로 돌리는 QA 자동화 스킬
+compatibility: omp
+---
+
+# QA Autopilot Skill
+
+의도(SPEC 수락 기준, 사람이 확인한 녹화)에서 출발해 시나리오 생성 → 실행 → 실패 분류 → 수정 → 재검증을 무인으로 돌립니다. 근거는 SPEC-QALOOP-001입니다.
+
+## 원칙: 기대값은 의도에서만 온다
+
+코드만 보고 시나리오와 기대값을 지어내면 **지금 동작(버그 포함)을 정답으로 굳힌** 테스트가 됩니다. 그래서 하네스는 아래 세 곳에서 온 기대값만 받습니다.
+
+| `intent_source` | 기대값의 출처 | 조작 단계 |
+|---|---|---|
+| `acceptance` | SPEC acceptance.md. 모든 expect 단계에 `ac` 필수 | 허용 (`@journey`) |
+| `recording` | 사람이 codegen에서 만든 assert, 또는 확인된 에이전트 assert | 허용 (`@journey`) |
+| `baseline` | 탐색 크롤 결과. 회귀 기준일 뿐 정답 증명이 아님 | 금지 (`@explore @baseline`) |
+
+자가 수리는 **요소를 찾는 방법**(click/fill 대상)만 바꿀 수 있습니다. expect 값, `ac`, `acceptance_refs`를 바꾸는 수리는 diff guard가 거절합니다. UI 문구가 정말 바뀐 것이라면 SPEC 수락 기준을 고치는 것이 맞습니다.
+
+## SPEC 없이: 요청에서 의도 만들기 (`auto qa intent`)
+
+구현한 세션이 쓴 테스트는 구현과 같은 해석을 공유합니다. 요청을 다르게 읽었다면 테스트도 같이 틀립니다. 그래서 기대값은 구현과 독립된 곳, 사용자의 요청에서 다시 뽑습니다.
+
+1. 사용자의 원래 요청을 **그대로** 파일에 저장합니다. 요약하지 말고, 코드나 diff를 섞지 않습니다.
+2. `auto qa intent --request-file <file> --format json`을 실행합니다. 에이전트가 빈 디렉터리에서 요청만 보고 `.autopus/specs/<id>/acceptance.md`(AC-n, Given/When/Then)와 `questions.json`을 씁니다.
+3. `questions`의 각 항목을 객관식으로 묻습니다(Claude Code는 ask the user directly). 선택지는 주어진 그대로, 권장안을 먼저 둡니다. 이 질문들이 요청을 다르게 읽을 수 있는 지점입니다.
+4. 답을 `auto qa intent answer <id> Q1=<n> Q2=<n>`으로 기록합니다(선택지 번호는 1부터). acceptance.md는 고치지 않습니다. 시나리오 생성이 `questions.json`의 답을 확정된 해석으로 읽고, 답 없는 질문은 어느 쪽으로도 단언하지 않습니다.
+5. `auto qa go <id>`로 시나리오 생성 → 실행 → 분류 → 수정을 이어 갑니다. 기대값은 diff guard가 지킵니다. 답 없는 질문이 남아 있으면 `qa go`는 멈춥니다. `--auto`이면 권장안을 `answered_by: recommended`로 기록하고 그 사실을 출력한 뒤 진행합니다.
+
+- 큰 변경은 구현 **전에** 1~4를 하고 구현을 시작합니다. 기준이 코드에 끌려갈 수 없습니다.
+- 이 디렉터리에는 spec.md가 없어 `auto status`의 SPEC 목록에 나오지 않습니다. 요청 원문은 `request.md`에 남습니다.
+
+### CLI·API 없이 도는 제품: exec case
+
+웹 UI가 아닌 제품(CLI, 도구, 파일을 쓰는 프로그램)의 기준은 `exec` case로 검사합니다. command case는 테스트 러너가 0으로 끝났는지만 알아서, 기대값이 구현자가 쓴 테스트 안에 남습니다. exec case는 기대값을 직접 들고 있습니다.
+
+```yaml
+automation:
+  type: exec
+  exec:
+    build: [go, build, -o, $BIN/mywc, ./cmd/mywc]   # 선택. 프로젝트 루트에서 실행
+    argv: [$BIN/mywc, --lines, c.txt]               # files만 든 새 디렉터리에서 실행
+    files: {c.txt: "one\ntwo\nthree"}
+    expect: {exit_code: 0, stdout: "3 c.txt\n"}     # 기준에서 온 값만
+```
+
+- 기준이 출력 항목의 순서나 개수는 정하지만 한 줄의 형식은 정하지 않았다면 `manual`로 미루지 말고 `stdout_lines: [the, cat]`를 씁니다. 비어 있지 않은 줄이 정확히 그 수만큼 있고 i번째 줄이 i번째 항목을 포함해야 통과합니다. 나오면 안 되는 값은 `stdout_not_contains`로 검사합니다. 기준이 "에러로 끝난다"고만 하고 코드를 정하지 않았다면 `exit_nonzero: true`를 씁니다. `stdout_contains`만으로는 순서가 틀리거나 항목이 남거나 겹쳐도 실패하지 않습니다.
+- 웹 UI가 없는 프로젝트에서는 `auto qa go`가 브라우저 시나리오 컴파일을 건너뛰고, exec·command case를 test-scenarios 파일에서 바로 돌립니다.
+- `argv[0]`은 `$BIN/<이름>`, 프로젝트 안의 경로(`./bin/tool`), 또는 허용된 러너(`python3` 등)만 됩니다. 임의의 시스템 명령은 거부합니다.
+- `auto qa exec --file <yaml> --case <id>`가 한 case를 돌립니다. 기대값이 어긋나면 `Expected:`/`Received:`를 출력하고 1로 끝나며, loop는 이를 `product_defect`로 분류합니다. 제품 소스 파일을 가리키는 컴파일 에러도 제품 결함이라 1로 끝납니다. build 경로가 틀린 것처럼 case 자체를 돌릴 수 없으면 2로 끝납니다.
+- 서버형 제품은 exec case에 `requests`를 씁니다. `argv`가 `$PORT`(환경변수 `PORT`로도 전달)에서 서버를 띄우고, `ready` 경로가 응답하거나 포트가 열릴 때까지 기다린 뒤, 요청을 순서대로 보내고 서버를 내립니다. 요청마다 `expect`에 `status`, `body`, `body_contains`, `body_not_contains`, `headers`를 둡니다. 요청은 그 서버의 경로로만 보낼 수 있습니다. 시작하자마자 죽는 서버는 제품 결함이고, `$PORT`에서 듣지 않는 서버는 case를 돌릴 수 없음(2)입니다. 요청 사이에 `restart: true` 항목을 두면 서버를 SIGTERM으로 내렸다가(5초 뒤 강제 종료) 같은 포트로 다시 띄워, 재시작 뒤에 남는 데이터를 확인할 수 있습니다.
+- `auto qa exec --all`은 프로젝트의 exec case를 모두 돌리는 회귀 검사입니다. 기대값이 하나라도 어긋나면 1, 어긋난 것 없이 돌릴 수 없는 case만 있으면 2로 끝납니다. Claude Code Stop hook `auto verify stop`이 제품 코드가 바뀔 때마다 이것을 돌리고, CI에서도 그대로 씁니다.
+- `auto qa mutate`는 시나리오가 버그를 실제로 잡는지 잽니다. 제품 소스(테스트 제외)에 작은 결함(비교 뒤집기, 경계 ±1, 불리언 반전)을 하나씩 심은 복사본에서 exec case를 돌리고, 아무 case도 못 잡은 결함을 `파일:줄`과 바뀐 코드, 힌트와 함께 보고합니다. 살아남은 결함마다 그 입력을 다루는 case를 더하거나, 두 값이 같을 수 없어 동작이 같은 결함이면 무시합니다. 원본 프로젝트는 쓰지 않고, `--min-score`로 CI 기준을 둘 수 있습니다.
+- 에이전트 실행(claude)은 호출마다 `--max-budget-usd` 상한(기본 $5, `AUTOPUS_QA_AGENT_BUDGET_USD`로 변경)을 둡니다.
+
+## 한 번에: `auto qa go`
+
+```bash
+auto qa go SPEC-LOGIN-001          # 생성 → 커버리지 확인 → 승격 → 컴파일 → 실행·분류·수정·재검증
+auto qa go SPEC-LOGIN-001 --auto   # 확인 없이 끝까지 무인 (CI·스케줄)
+auto qa go                         # SPEC 없이 기존 시나리오로 실행·수정·재검증만
+```
+
+- `--agent`를 생략하면 설치된 CLI를 claude → codex → agy → opencode 순으로 찾아 씁니다.
+- `--lane`을 생략하면 Journey Pack이 선언한 `browser-staging`을 우선 고릅니다.
+- 생성된 시나리오는 루프 브랜치의 첫 커밋(`test(qa): <SPEC> 시나리오를 추가한다`)이 되고, 수정 커밋이 그 뒤에 쌓입니다. 현재 브랜치는 건드리지 않으므로, 끝나면 루프 브랜치를 리뷰해 병합합니다.
+- 비밀값은 환경변수로 넘기고(`E2E_PASSWORD=... auto qa go ...`), Journey Pack의 `env_allowlist`에 이름을 적어 둡니다.
+
+## 단계별로 나눠 실행
+
+```bash
+# 1. 수락 기준 → 테스트 시나리오 + 사용자 시나리오 후보
+auto qa scenario generate --spec SPEC-XXX-001 --agent claude
+#    출력의 coverage에서 uncovered 기준을 확인합니다.
+
+# 2. 후보 승격 (검증·ac 존재·미확인 에이전트 assert 없음이 조건)
+auto qa scenario promote --all
+
+# 3. 사용자 시나리오 → Playwright spec (+ step map)
+auto qa scenario compile
+
+# 4. 실행 → 재실행(flaky 판별) → 분류 → 수정 → guard → 커밋, 최대 3회
+auto qa loop --lane browser-staging --agent claude
+```
+
+`auto qa loop`는 깨끗한 tracked 트리에서만 시작하고, `autopus/qa-loop/<run-id>` 브랜치에서 작업한 뒤 원래 브랜치로 돌아옵니다. 결과는 `.autopus/qa/loop/<run-id>/report.md`에 남습니다. 수정을 받아들이려면 그 브랜치를 리뷰하고 병합합니다. 멈춘 뒤 SPEC 없이 `auto qa go`를 다시 돌리면, 작업 트리에 시나리오가 없을 때 가장 최근 loop 브랜치의 시나리오 파일을 작업 트리로 되살려 이어서 돕니다(제품 수정은 그 브랜치에 남습니다). 이전 수정까지 이어받으려면 `auto qa go --resume`을 씁니다. 새 loop 브랜치를 가장 최근 loop 브랜치 끝에서 만들어, 이미 고친 버그를 다시 고치지 않습니다.
+
+### 실패 분류와 처리
+
+| 분류 | 판정 근거 | 루프의 처리 |
+|---|---|---|
+| `environment` | setup gap, 연결 거부, 브라우저 미설치, webServer 타임아웃 | 멈추고 보고. 코드를 고치지 않음 |
+| `flaky` | 즉시 재실행에서 통과 | quarantine으로 보고. 루프 실패로 세지 않음 |
+| `test_drift` | 실패 줄이 step map에서 action 단계 | 시나리오의 action 대상만 수리 후 재컴파일 |
+| `test_defect` | 테스트 파일의 문법·타입·모듈 오류, strict-mode 위반 | 테스트 경로만 수정 |
+| `product_defect` | 실패 줄이 expect 단계, 또는 명령 check의 oracle 실패 | 제품 코드만 수정. 테스트·시나리오·SPEC 수정 금지 |
+| `unknown` | 그 외 | 멈추고 보고 |
+
+멈춤 사유는 `passed`, `passed_with_flaky`, `max_iterations`, `no_progress`, `blocked_environment`, `guard_rejected`, `agent_failed` 중 하나입니다.
+
+## 녹화로 시나리오 만들기
+
+### 사람이 직접 클릭
+
+```bash
+auto qa record --origin http://127.0.0.1:3000 --id checkout --journey web-journey
+```
+
+Playwright codegen 창에서 흐름을 진행하고, 툴바의 assert 도구로 확인할 내용을 찍은 뒤 창을 닫으면 v2 `recording` 후보로 변환됩니다. 변환하지 못한 줄은 줄 번호와 함께 보고됩니다.
+
+### 에이전트가 브라우저를 조작
+
+에이전트가 자연어 목표대로 브라우저를 조작할 때는(`playwright-cli` 스킬) 한 동작마다 `qamesh.recording.v1` JSONL 한 줄을 남깁니다.
+
+```jsonl
+{"schema_version":"qamesh.recording.v1","action":"goto","url":"/login","by":"agent"}
+{"action":"fill","target":{"label":"이메일"},"value_env":"E2E_EMAIL","by":"agent"}
+{"action":"click","target":{"role":"button","name":"로그인"},"by":"human"}
+{"expect":"text","value":"환영합니다","by":"agent","ac":"AC-LOGIN-002"}
+```
+
+- 사람이 대신 수행한 단계는 `"by":"human"`으로 적습니다.
+- `ac` 없이 에이전트가 만든 expect는 `confirm: required`로 표시됩니다. 사람이 확인하거나 `ac`를 달기 전까지 승격되지 않습니다(`promote --accept-agent-assertions`로 일괄 확인).
+- 비밀번호 같은 값은 `value_env`로 남기고 YAML에 쓰지 않습니다.
+
+```bash
+auto qa record import --from recording.jsonl --id login --journey web-journey
+```
+
+## 탐색 baseline
+
+```bash
+auto qa discover --origin http://127.0.0.1:3000 --max-pages 20
+```
+
+같은 origin 링크를 `goto`만으로 따라가며 제목·h1/h2·랜드마크를 기록하고 baseline 후보를 만듭니다. 화면이 사라지거나 바뀌는 회귀를 잡는 용도이며, 기능이 맞다는 증명은 아닙니다.
+
+## 에이전트 CLI
+
+`--agent`는 `claude`, `codex`, `gemini`(agy), `opencode`를 받습니다. 다른 실행 방식이 필요하면 `AUTOPUS_QA_AGENT_ARGV='["my-agent","--headless"]'`로 argv를 바꿀 수 있고, 프롬프트는 stdin으로 전달됩니다. CLI가 없으면 실패가 아니라 setup gap(`qa_agent_cli_missing`)으로 보고됩니다.
+
+## 금지 사항
+
+- `pass_fail_authority: ai`로 판정을 에이전트에게 넘기지 않습니다.
+- baseline 시나리오에 조작 단계를 넣지 않습니다. `@explore` 레인의 읽기 전용 보장이 깨집니다.
+- 루프가 거절한 수정을 손으로 다시 적용하지 않습니다. 거절 사유가 기대값 변경이면 SPEC부터 고칩니다.

@@ -28,10 +28,6 @@ These language settings are instructions, not mechanically enforced checks.
 
 ## Core Guidelines
 
-### Subagent Delegation
-
-Work inline unless independent tasks, specialist review, or context isolation justify delegation. Give workers bounded ownership and acceptance criteria; verify their results before integration.
-
 ### File Size Limit
 
 Honor an explicit architecture.max_file_lines ceiling. Absent or zero is advisory: review cohesion before splitting. Documentation and generated files are not source-size inputs.
