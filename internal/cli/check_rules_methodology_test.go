@@ -33,12 +33,19 @@ func TestEvaluateMethodologyGate(t *testing.T) {
 		wantDetail []string
 	}{
 		{
-			// The verification harness ships no methodology skill, so a
-			// v0.50.133 config that enforces tdd has nothing to deliver; it is
-			// reported, not failed, so `auto check` keeps passing after update.
-			name:       "tdd enforced is retired, not failed",
+			// No methodology skill is shipped, but auto verify stop checks
+			// enforced tdd by running the changed tests before the change.
+			name:       "tdd enforced is carried by the stop gate",
 			mode:       "tdd",
 			enforce:    true,
+			wantStatus: methodologyGatePass,
+			wantDetail: []string{"tdd", "auto verify stop"},
+		},
+		{
+			// Without enforce nothing checks it, so it is reported as retired.
+			name:       "tdd without enforce is retired, not failed",
+			mode:       "tdd",
+			enforce:    false,
 			wantStatus: methodologyGateSkip,
 			wantDetail: []string{"tdd", "methodology.mode: none"},
 		},
@@ -126,7 +133,13 @@ func TestCheckMethodology_ValidAndBrokenConfig(t *testing.T) {
 	require.NoError(t, config.Save(valid, methodologyGateConfig("tdd", true)))
 	var validOut bytes.Buffer
 	assert.True(t, checkMethodology(valid, &validOut, false))
-	assert.Contains(t, validOut.String(), "methodology.mode: none")
+	assert.Contains(t, validOut.String(), "auto verify stop")
+
+	retired := t.TempDir()
+	require.NoError(t, config.Save(retired, methodologyGateConfig("ddd", false)))
+	var retiredOut bytes.Buffer
+	assert.True(t, checkMethodology(retired, &retiredOut, false))
+	assert.Contains(t, retiredOut.String(), "methodology.mode: none")
 
 	broken := t.TempDir()
 	require.NoError(t, config.Save(broken, methodologyGateConfig("kanban", true)))
@@ -152,8 +165,14 @@ func TestMethodologyGate_DoctorSurfaceParity(t *testing.T) {
 		wantStatus string
 	}{
 		{
-			name:       "retired methodology",
+			name:       "tdd carried by the stop gate",
 			cfg:        methodologyGateConfig("tdd", true),
+			wantTextOK: true,
+			wantStatus: "pass",
+		},
+		{
+			name:       "retired methodology",
+			cfg:        methodologyGateConfig("ddd", false),
 			wantTextOK: true,
 			wantStatus: "skip",
 		},

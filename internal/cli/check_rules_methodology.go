@@ -51,6 +51,14 @@ func evaluateMethodologyGate(cfg *config.HarnessConfig) methodologyGate {
 
 	def, err := content.ResolveEnforcedMethodology(contentfs.FS, mode, enforce)
 	var defect *content.MethodologyError
+	if errors.As(err, &defect) && defect.Defect == content.DefectMissingDelivery && mode == "tdd" && enforce {
+		// No skill carries the rules, but the Stop gate checks the result:
+		// the changed tests must fail against the code before the change.
+		return methodologyGate{
+			Status: methodologyGatePass,
+			Detail: "methodology: tdd — auto verify stop이 변경된 테스트를 변경 전 코드(HEAD)에서 실행해 먼저 실패하는지 확인합니다",
+		}
+	}
 	if errors.As(err, &defect) && defect.Defect == content.DefectMissingDelivery {
 		// The verification harness ships no methodology skill. A config an
 		// older release wrote still names one; nothing reads it any more, so

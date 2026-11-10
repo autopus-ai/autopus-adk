@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **`methodology: tdd`를 Stop 게이트가 기계적으로 집행한다** (2026-11-10): 방법론 스킬이 은퇴한 뒤 `tdd` +
+  `enforce: true`는 읽는 곳이 없어 `auto doctor` 경고만 남겼다. 예전처럼 에이전트에게 RED 단계를 따르게 하면 토큰만
+  늘었으므로, 이번에는 결과를 확인한다. `auto verify stop`은 빌드와 테스트가 통과한 뒤 바뀐 테스트 파일만 `HEAD`
+  소스 위에 얹은 임시 복사본(`git archive`)에서 실행하고, 거기서 실패해야 통과시킨다. 소스가 바뀌었는데 테스트 변경이
+  없거나, 바뀐 테스트가 변경 전 코드에서도 통과하면 한 번 돌려보낸다. 검사할 동작이 없는 변경은 응답의
+  `TDD-exempt: <이유>` 줄로 통과하고, 실행할 수 없으면 경고만 남긴다. `AUTOPUS_TDD_STOP=off`로 끈다. Go·JS/TS·Python이
+  대상이다. `auto doctor`는 이제 이 설정을 통과로 보고한다. 테스트를 일부러 약하게 만들어 통과시키도록 게이트를 바꾸면
+  테스트가 실패하는 것도 확인했다.
+
 - **긴 작업 에이전트에서 기본 턴 한도를 없앤다** (2026-11-10, #301): 에이전트 정의의 `maxTurns`가 긴 작업을 마무리
   단계 없이 끊었다. 커밋 직전에 멈추거나 보고서를 한 줄도 남기지 못했고, lead가 매번 다시 깨워야 했다. 재개하면 같은
   작업에 한도를 다시 쓰므로 비용 상한 역할도 하지 못했다. 이제 qa-explorer(200)·reviewer(120)·frontend-specialist(100)는
