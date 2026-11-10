@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **규칙 재주입 hook의 제한 시간을 15초로 늘린다** (2026-11-11): 매 메시지마다 핵심 규칙을 다시 넣는 `auto rules sticky` hook은 평소 0.1초 안에 끝나지만, `auto update --self` 직후 첫 실행은 macOS가 새 바이너리를 검사하는 시간과 머신 부하가 겹쳐 5초 제한을 넘겼다. Claude Code는 제한을 넘긴 hook의 출력을 그 턴에서 버리고 다시 실행하지 않으므로, 그 메시지에는 규칙이 다시 들어가지 않았다. 제한은 hook 프로세스에만 걸리고 모델 추론 시간과는 무관하며, 평소 경로에서는 기다리는 시간이 늘지 않는다. 기존 설치는 `auto update` 뒤 새 세션부터 적용된다.
+
 - **`auto secure scan`으로 이미 있는 보안 스캐너를 한 번에 돌린다** (2026-11-11): 프로젝트마다 gitleaks,
   govulncheck, npm/pnpm/yarn audit, cargo audit, pip-audit를 따로 실행하고 출력 형식도 제각각이었다. 이제
   `auto secure scan`이 `--dir`의 파일로 Go·Node·Rust·Python을 알아내고, 설치된 스캐너만 프로젝트 디렉터리에서 시간

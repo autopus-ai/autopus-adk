@@ -349,3 +349,10 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 기록: `make generate-templates` 뒤 `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run 'TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6'`.
 - 차이: NPD 다섯 개에서 네 에이전트의 `.claude/agents/autopus/*.md`·`.codex/agents/*.toml`과 manifest·journal checksum만 바뀌었다. stdout golden은 그대로다.
 - 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.
+
+## sticky hook 제한 시간 15초 (fix/sticky-hook-timeout, 2026-11-11)
+
+- 원인: `pkg/rulecond/compile_sticky.go`의 `stickyHookTimeout`을 5에서 15로 올렸다. `auto update --self` 직후 첫 실행이 macOS의 새 바이너리 검사와 부하로 5초를 넘겨, Claude Code가 그 턴의 hook 출력을 버렸다.
+- 기록: `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run 'TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6'`.
+- 차이: NPD 다섯 개에서 `.claude/settings.json`과 그 backup, manifest·journal checksum만 바뀌었다. stdout golden은 그대로다.
+- 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.

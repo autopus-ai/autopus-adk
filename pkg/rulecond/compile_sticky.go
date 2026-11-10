@@ -11,11 +11,11 @@ import (
 // UserPromptSubmit hook fires once per user turn regardless of tooling.
 //
 // @AX:ANCHOR [AUTO] @AX:SPEC: SPEC-STICKYRULE-001: single source of truth for the sticky hook registration — pkg/content/hooks_conditional.go copies CompiledClaude.Hooks into settings.json under its existing claude-only guard, so this is the only place the command and timeout are stated.
-// @AX:REASON: The 5 second timeout bounds a hook that runs before every user turn; raising it here is the only edit point, and restating the command elsewhere would drift without failing a build.
+// @AX:REASON: The 15 second timeout bounds a hook that runs before every user turn. It is sized for a cold start, the first run after the binary is replaced, because Claude Code drops an overrunning hook for that turn without a retry; the warm path answers in well under a second. Raising it here is the only edit point, and restating the command elsewhere would drift without failing a build.
 const (
 	stickyHookType    = "command"
 	stickyHookCommand = "auto rules sticky --event " + EventUserPromptSubmit
-	stickyHookTimeout = 5
+	stickyHookTimeout = 15
 )
 
 // stickyHook is the single UserPromptSubmit registration. It is emitted only
