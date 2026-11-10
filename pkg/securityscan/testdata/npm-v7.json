@@ -1,0 +1,24 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "fixture-parser": {
+      "name": "fixture-parser",
+      "severity": "high",
+      "isDirect": true,
+      "via": [
+        {"source": 1099001, "name": "fixture-parser", "dependency": "fixture-parser", "title": "Prototype pollution in fixture-parser", "url": "https://github.com/advisories/GHSA-aaaa-bbbb-cccc", "severity": "high", "range": "<2.1.0"}
+      ],
+      "range": "<2.1.0",
+      "fixAvailable": {"name": "fixture-parser", "version": "2.1.0", "isSemVerMajor": false}
+    },
+    "fixture-wrapper": {
+      "name": "fixture-wrapper",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": ["fixture-parser"],
+      "range": "1.0.0 - 1.3.0",
+      "fixAvailable": true
+    }
+  },
+  "metadata": {"vulnerabilities": {"high": 1, "moderate": 1, "total": 2}}
+}

@@ -1,0 +1,2 @@
+{"type":"auditAdvisory","data":{"resolution":{"id":1099003,"path":"fixture-ms"},"advisory":{"id":1099003,"module_name":"fixture-ms","severity":"moderate","title":"Inefficient regex in fixture-ms","url":"https://github.com/advisories/GHSA-jjjj-kkkk-llll","github_advisory_id":"GHSA-jjjj-kkkk-llll","patched_versions":">=2.0.0"}}}
+{"type":"auditSummary","data":{"vulnerabilities":{"moderate":1}}}
