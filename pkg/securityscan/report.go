@@ -33,7 +33,7 @@ func WriteTable(w io.Writer, r Report, failOn FailOn) {
 		}
 		fmt.Fprintf(tw, "%s\t%s\t%s\n", s.Name, s.Status, detail)
 	}
-	tw.Flush()
+	_ = tw.Flush()
 
 	if len(r.Findings) > 0 {
 		fmt.Fprintln(w)
@@ -50,7 +50,7 @@ func WriteTable(w io.Writer, r Report, failOn FailOn) {
 			}
 			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\n", f.Kind, f.Severity, f.ID, target, dash(f.Location), note)
 		}
-		tw.Flush()
+		_ = tw.Flush()
 	}
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, Verdict(r, failOn))

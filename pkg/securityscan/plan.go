@@ -82,7 +82,7 @@ func runGitleaks(ctx context.Context, o Options, path string) ([]Finding, error)
 		return nil, err
 	}
 	report.Close()
-	defer os.Remove(report.Name())
+	defer func() { _ = os.Remove(report.Name()) }()
 	common := []string{"--no-banner", "--redact", "--report-format", "json", "--report-path", report.Name(), "--exit-code", "0"}
 	_, _, probeErr := o.Exec(ctx, o.Dir, path, "dir", "--help")
 	modern := probeErr == nil
