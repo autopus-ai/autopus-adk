@@ -11,6 +11,16 @@ on:
 permissions:
   contents: read
 
+# A newer push to the same pull request supersedes the running check, so it is
+# cancelled. Every other event gets a group of its own run id: main pushes,
+# the weekly schedule, and the release workflow that calls this file through
+# workflow_call are never cancelled or queued behind another run. The literal
+# prefix keeps the group apart from the caller's, which shares github.workflow
+# and github.run_id when this file runs as a reusable workflow.
+concurrency:
+  group: security-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   gitleaks:
     name: Secret Scan
