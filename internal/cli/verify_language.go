@@ -17,10 +17,13 @@ import (
 // languageStopInput is the part of the Claude Code Stop hook payload the
 // language check reads.
 type languageStopInput struct {
-	Cwd                  string `json:"cwd"`
-	TranscriptPath       string `json:"transcript_path"`
-	StopHookActive       bool   `json:"stop_hook_active"`
-	LastAssistantMessage string `json:"last_assistant_message"`
+	Cwd            string `json:"cwd"`
+	TranscriptPath string `json:"transcript_path"`
+	// TurnReplies carries the run's replies directly, for a runtime without a
+	// Claude Code transcript (the omp stop gate extension).
+	TurnReplies          []string `json:"turn_replies"`
+	StopHookActive       bool     `json:"stop_hook_active"`
+	LastAssistantMessage string   `json:"last_assistant_message"`
 }
 
 func newVerifyLanguageCmd() *cobra.Command {
@@ -64,7 +67,10 @@ func runVerifyLanguage(stdin io.Reader) stopHookOutput {
 		return stopHookOutput{}
 	}
 	lang := cfg.Language.AIResponses
-	replies := turnReplies(in.TranscriptPath)
+	replies := in.TurnReplies
+	if len(replies) == 0 {
+		replies = turnReplies(in.TranscriptPath)
+	}
 	if n := len(replies); n == 0 || replies[n-1] != in.LastAssistantMessage {
 		replies = append(replies, in.LastAssistantMessage)
 	}
