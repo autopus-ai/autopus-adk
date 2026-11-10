@@ -81,7 +81,7 @@ func CheckRed(ctx context.Context, root string, changed []string, budget time.Du
 	if err != nil {
 		return RedResult{Verdict: RedUnavailable, Sources: res.Sources, Tests: res.Tests, Detail: err.Error()}
 	}
-	defer os.RemoveAll(scratch)
+	defer func() { _ = os.RemoveAll(scratch) }()
 	if err := exportHead(ctx, root, scratch); err != nil {
 		return RedResult{Verdict: RedUnavailable, Sources: res.Sources, Tests: res.Tests, Detail: "exporting HEAD: " + err.Error()}
 	}
