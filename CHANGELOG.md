@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **`auto verify stop`이 pnpm 모노레포와 실행 불가 상황에서 종료를 막지 않는다** (2026-11-10, #300): pnpm 프로젝트라도
+  lockfile이 아직 없으면 `npm run typecheck`를 돌렸고, script 안의 `pnpm`을 찾지 못해 exit 127로 종료가 막혔다.
+  이제 `packageManager` 필드 → `pnpm-workspace.yaml` → lockfile 순으로 매니저를 정하고, pnpm·yarn이 PATH에 없으면
+  `corepack`으로 실행한다. 의존성 미설치(`node_modules` 없음)와 exit 127은 환경 문제로 보고 경고만 남기며 통과로
+  기록하지 않는다. 작업 트리를 바꿀 수 있는 백그라운드 에이전트(subagent·workflow·teammate)가 돌고 있으면 검증을
+  다음 종료로 미룬다. 셸이나 monitor는 제외해 상시 작업이 검증을 끄지 않게 했다.
+
 - **서버형 QA case에 재시작 단계를 더한다** (2026-11-10): HTTP end-to-end에서 에이전트가 "재시작 후에도 저장한 이름이
   남는가" 같은 기준을 자동화할 수 없어 manual로 남겼다. 이제 `requests` 사이에 `restart: true` 항목을 두면 서버를
   SIGTERM으로 내리고(5초 안에 안 끝나면 프로세스 그룹째 강제 종료) 같은 포트로 다시 띄운 뒤 준비를 기다린다. 다시
