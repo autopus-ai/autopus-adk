@@ -23,8 +23,9 @@ const verifyStopMaxBlocks = 3
 
 // stopHookInput is the part of the Claude Code Stop hook payload the gate reads.
 type stopHookInput struct {
-	SessionID string `json:"session_id"`
-	Cwd       string `json:"cwd"`
+	SessionID            string `json:"session_id"`
+	Cwd                  string `json:"cwd"`
+	LastAssistantMessage string `json:"last_assistant_message"`
 	// BackgroundTasks lists tasks still in flight when the session stops.
 	BackgroundTasks []struct {
 		Type string `json:"type"`
@@ -63,7 +64,9 @@ func newVerifyStopCmd() *cobra.Command {
 		Use:   "stop",
 		Short: "Stop hook: build and test the changed files before the session ends",
 		Long: "Reads the Claude Code Stop hook payload on stdin. When the work tree has changes, runs the " +
-			"build and tests that cover them and blocks the stop with the failure output. Set " +
+			"build and tests that cover them and blocks the stop with the failure output. Under methodology: tdd with " +
+			"enforce: true, the changed tests must also fail against the code before the change (HEAD); a source change " +
+			"without a test change is blocked unless the reply has a `TDD-exempt: <reason>` line. Set " +
 			"AUTOPUS_VERIFY_STOP=off to disable. Opt-in with AUTOPUS_FOLLOWUP=on or --followup: once the build passes, " +
 			"a change of 40 or more lines is sent on to the reviewer and qa-explorer agents, once per session.",
 		Args: cobra.NoArgs,
@@ -108,6 +111,7 @@ func runVerifyStop(cmd *cobra.Command, stdin io.Reader, budget time.Duration, fo
 	if readStopState(in.SessionID, "pass") == fingerprint {
 		return stopHookOutput{}
 	}
+	started := time.Now()
 	failure, skipped := verifygate.Run(cmd.Context(), steps, budget)
 	if failure == nil && len(skipped) > 0 {
 		// Nothing failed, but not everything ran: that is the machine, not
@@ -117,6 +121,9 @@ func runVerifyStop(cmd *cobra.Command, stdin io.Reader, budget time.Duration, fo
 			"; this is an environment problem, not a verdict on the change"}
 	}
 	if failure == nil {
+		if out := redGate(cmd.Context(), in, root, changed, budget-time.Since(started)); out != nil {
+			return *out
+		}
 		resetStopBlocks(in.SessionID)
 		writeStopState(in.SessionID, "pass", fingerprint)
 		if followupEnabled(followup) {

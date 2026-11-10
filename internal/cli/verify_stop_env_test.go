@@ -28,6 +28,9 @@ func runStopPayload(t *testing.T, payload map[string]any) stopHookOutput {
 // and verification waits for the next stop. A long-running shell does not
 // count, or it would turn the gate off for the session.
 func TestVerifyStop_DefersWhileABackgroundAgentWorks(t *testing.T) {
+	resetStopState("bg-agent")
+	resetStopState("bg-shell")
+	t.Cleanup(func() { resetStopState("bg-agent"); resetStopState("bg-shell") })
 	dir := newStopRepo(t, "package stopgate\n\nfunc Add(a, b int) int { return a - b }\n")
 	out := runStopPayload(t, map[string]any{"session_id": "bg-agent", "cwd": dir,
 		"background_tasks": []map[string]any{{"id": "a1", "type": "subagent", "status": "running"}}})
