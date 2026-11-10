@@ -293,8 +293,7 @@ In `no-capture` mode Phase 2 and Phase 3 change: do NOT call `page.screenshot`, 
 ## 통합 방식
 
 - **독립 실행**: `/auto verify` 명령으로 단독 실행
-- **팀 파이프라인**: 서브에이전트/Agent Teams 모드의 Phase 3.5로 선택적 삽입
-  - executor 완료 후, reviewer 실행 전에 자동 트리거
+- **리뷰 전 검증**: 구현을 마친 뒤 `/auto review` 전에 실행
 
 ## 최종 보고서 형식
 

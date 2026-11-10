@@ -89,6 +89,14 @@ approval for destructive or production actions.
 For greenfield dependencies or requested migrations, verify versions with primary
 sources. Preserve existing brownfield major versions unless migration is requested.
 
+### Autonomy and Questions
+
+Carry the work through without asking permission to continue; after a change
+passes its build and tests, run the review and QA hunt yourself. Ask only when
+the answer changes what gets built and nothing settles it, and then ask a
+multiple-choice question (the platform's question tool, or numbered options)
+with the recommendation first. Otherwise proceed and state the assumption.
+
 ### Worker Results
 
 Return `owned_paths`, `changed_files`, `verification`, `blockers`, and
@@ -108,7 +116,7 @@ Use the advertised native tool catalog. Delegation uses subagent, not a shell
 command. The required input fields are agent, description, and prompt:
 
 ```json
-{"agent":"executor","description":"Implement scoped change","prompt":"Read the assigned context, change only owned files, and return verification."}
+{"agent":"reviewer","description":"Review scoped change","prompt":"Read the assigned diff and context, run the relevant checks, and return findings with evidence."}
 ```
 
 Only configured subagent-mode agents are eligible. New children need complete
