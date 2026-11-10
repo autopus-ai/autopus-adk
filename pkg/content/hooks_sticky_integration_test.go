@@ -173,7 +173,7 @@ func TestGenerateProjectHookConfigs_RuleDrivenEntriesAreExactAndClaudeOnly(t *te
 			Matcher: "",
 			Type:    "command",
 			Command: "auto rules sticky --event " + rulecond.EventUserPromptSubmit,
-			Timeout: 5,
+			Timeout: 15,
 		},
 	}
 

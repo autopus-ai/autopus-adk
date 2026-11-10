@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **규칙 재주입 hook의 제한 시간을 15초로 늘린다** (2026-11-11): 매 메시지마다 핵심 규칙을 다시 넣는 `auto rules sticky` hook은 평소 0.1초 안에 끝나지만, `auto update --self` 직후 첫 실행은 macOS가 새 바이너리를 검사하는 시간과 머신 부하가 겹쳐 5초 제한을 넘겼다. Claude Code는 제한을 넘긴 hook의 출력을 그 턴에서 버리고 다시 실행하지 않으므로, 그 메시지에는 규칙이 다시 들어가지 않았다. 제한은 hook 프로세스에만 걸리고 모델 추론 시간과는 무관하며, 평소 경로에서는 기다리는 시간이 늘지 않는다. 기존 설치는 `auto update` 뒤 새 세션부터 적용된다.
+
 - **omp 세션에도 Stop 게이트를 붙인다** (2026-11-10): omp 어댑터는 hook을 설치하지 않아(`SupportsHooks() == false`)
   omp 세션에서는 테스트 검사도 응답 언어 검사도 돌지 않았다. 이제 `auto update`가 프로젝트 확장
   `.omp/extensions/autopus-stop-gate.ts`를 써서, 리드 에이전트의 실행이 끝날 때 `auto verify stop`과

@@ -157,7 +157,7 @@ func TestClaudeGenerate_StickyAndConditionalEntriesCoexistExactly(t *testing.T) 
 	require.Len(t, stickyHooks, 1)
 	assert.Equal(t, "auto rules sticky --event "+userPromptSubmit, stickyHooks[0]["command"])
 	assert.Equal(t, "command", stickyHooks[0]["type"])
-	assert.InDelta(t, 5.0, stickyHooks[0]["timeout"], 0,
+	assert.InDelta(t, 15.0, stickyHooks[0]["timeout"], 0,
 		"REQ-STICKYRULE-COMPILE-01 fixes the timeout of a hook that runs before every user turn")
 
 	var dispatchers []map[string]any
