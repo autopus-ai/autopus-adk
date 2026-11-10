@@ -25,6 +25,7 @@ func secretEdit() string {
 // session end with a warning instead of looping.
 func TestVerifyStop_SecretBlocksOnceWithoutTheValue(t *testing.T) {
 	session := "secret-once"
+	resetStopState(session) // a crashed earlier run may have left state behind
 	t.Cleanup(func() { resetStopState(session) })
 	dir := newStopRepo(t, secretEdit())
 
@@ -44,6 +45,7 @@ func TestVerifyStop_SecretBlocksOnceWithoutTheValue(t *testing.T) {
 // does not depend on there being a build to run.
 func TestVerifyStop_SecretInAConfigFile(t *testing.T) {
 	session := "secret-config"
+	resetStopState(session) // a crashed earlier run may have left state behind
 	t.Cleanup(func() { resetStopState(session) })
 	dir := newStopRepo(t, "")
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "deploy.yaml"), []byte("ci:\n  token: "+stopFakeToken()+"\n"), 0o644))
@@ -70,6 +72,7 @@ func TestVerifyStop_SecretOffByMarkerEnvOrConfig(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			session := "secret-off-" + name
+			resetStopState(session) // a crashed earlier run may have left state behind
 			t.Cleanup(func() { resetStopState(session) })
 			dir := newStopRepo(t, row.edit)
 			row.setup(t, dir)

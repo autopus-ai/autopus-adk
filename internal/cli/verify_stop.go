@@ -187,6 +187,7 @@ func resetStopBlocks(session string) { _ = os.Remove(stopStateFile(session, "blo
 func resetStopState(session string) {
 	resetStopBlocks(session)
 	_ = os.Remove(stopStateFile(session, "pass"))
+	_ = os.Remove(stopStateFile(session, "secrets"))
 }
 
 func describeSkips(skipped []verifygate.Skip) string {
