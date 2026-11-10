@@ -1,0 +1,1 @@
+{"value":"fixture-glob","children":{"ID":"GHSA-gggg-hhhh-iiii","Issue":"ReDoS in fixture-glob","URL":"https://github.com/advisories/GHSA-gggg-hhhh-iiii","Severity":"low","Vulnerable Versions":"<5.0.2","Tree Versions":["5.0.1"],"Dependents":["app@workspace:."]}}

@@ -1,0 +1,16 @@
+{
+  "actions": [],
+  "advisories": {
+    "1099002": {
+      "id": 1099002,
+      "module_name": "fixture-yaml",
+      "severity": "critical",
+      "title": "Code execution in fixture-yaml",
+      "url": "https://github.com/advisories/GHSA-dddd-eeee-ffff",
+      "github_advisory_id": "GHSA-dddd-eeee-ffff",
+      "patched_versions": ">=3.0.1",
+      "findings": [{"version": "3.0.0", "paths": ["app>fixture-yaml"]}]
+    }
+  },
+  "metadata": {"vulnerabilities": {"critical": 1}}
+}

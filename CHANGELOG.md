@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **`auto secure scan`으로 이미 있는 보안 스캐너를 한 번에 돌린다** (2026-11-11): 프로젝트마다 gitleaks,
+  govulncheck, npm/pnpm/yarn audit, cargo audit, pip-audit를 따로 실행하고 출력 형식도 제각각이었다. 이제
+  `auto secure scan`이 `--dir`의 파일로 Go·Node·Rust·Python을 알아내고, 설치된 스캐너만 프로젝트 디렉터리에서 시간
+  제한(`--timeout`) 안에 실행해 결과를 한 가지 모양으로 모은다. 기본은 표, `--json`은 기계용이다. 설치되지 않은
+  도구는 이유를 적고 건너뛰며 그것만으로 실패하지 않는다. 아무것도 설치하지 않는다(pip-audit는 `--no-deps
+  --disable-pip`). secret 값은 출력하지 않는다. gitleaks를 `--redact`로 실행하고 `파일:줄`, 규칙, fingerprint만 보인다.
+  `--fail-on`(기본 `high`)에 닿으면 1, 스캐너가 실패했으면 2로 끝난다. 이 저장소에서 실행하면 gitleaks와
+  govulncheck가 돌아 발견 0건으로 통과한다. 취약한 `golang.org/x/text`를 호출하는 임시 모듈에서는 govulncheck 텍스트
+  출력과 같은 GO-2022-1059 한 건을 보고했다.
+
 - **Stop 게이트가 이번 턴에 더한 자격 증명을 잡는다** (2026-11-11): 에이전트가 토큰이나 개인 키를 코드나 설정 파일에
   붙여 넣어도 빌드와 테스트는 통과하므로 게이트는 그대로 세션을 끝냈다. 이제 `auto verify stop`은 빌드 전에
   `HEAD` 대비 추가된 줄과 gitignore되지 않은 새 파일을 내장 패턴(개인 키 헤더, AWS key id, GitHub·Slack·Stripe·Google

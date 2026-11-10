@@ -383,6 +383,39 @@ orchestra:              # 멀티프로바이더 리뷰용 provider
 프리셋, 에이전트별 model, OMP model pin, 리뷰 model, REA MCP flag는 [docs/quality.ko.md](quality.ko.md)에 정리했습니다.
 
 <a id="security"></a>
+## 보안 스캔
+
+`auto secure scan`은 이미 설치된 보안 스캐너를 실행하고 결과를 하나로 요약합니다.
+
+```bash
+auto secure scan                    # 현재 디렉터리
+auto secure scan --dir ./service --json
+auto secure scan --staged           # gitleaks: stage된 변경만
+auto secure scan --log-opts origin/main..HEAD --fail-on critical
+```
+
+`--dir`의 파일로 생태계를 알아내고, 설치된 스캐너를 실행합니다.
+
+| 스캐너 | 조건 | 명령 |
+| --- | --- | --- |
+| gitleaks | 항상 | git 작업 트리면 `gitleaks git`, 아니면 `gitleaks dir` (8.19 이전 릴리스는 `detect`/`protect`) |
+| govulncheck | `go.mod` | `govulncheck -format json ./...` |
+| npm / pnpm / yarn | `package.json`과 lockfile | `npm audit --json`, `pnpm audit --json`, `yarn audit --json`, `yarn npm audit --json`(Berry) |
+| cargo audit | `Cargo.lock` | `cargo audit --json` |
+| pip-audit | `requirements*.txt` | `pip-audit -f json --no-deps --disable-pip -r ...` |
+
+설치되지 않은 스캐너나, lockfile·requirements 파일이 없는 프로젝트는 이유를 적고 건너뜁니다. 아무것도 설치하지
+않습니다. pip-audit는 환경을 만들지 않고 적힌 버전 그대로 검사합니다. audit 명령과 govulncheck는 advisory
+데이터베이스를 네트워크로 조회합니다. 각 스캐너는 프로젝트 디렉터리에서 시간 제한(`--timeout`, 기본 5분) 안에 돕니다.
+
+발견은 한 가지 모양(`tool`, `kind`(secret 또는 vuln), `id`, `severity`, `package`/`file`, `location`,
+`fixed_version`, `summary`)으로 모입니다. secret 값은 출력하지 않습니다. gitleaks는 `--redact`로 실행하고, 파서는
+`Secret`·`Match` 필드를 읽지 않으며, secret은 `파일:줄`, 규칙, fingerprint(`.gitleaksignore`에 쓰는 형식)로만 보입니다.
+
+종료 코드: 발견이 `--fail-on`에 닿으면 1(기본 `high`: secret 전부, 또는 high·critical 취약점. govulncheck, cargo
+audit, pip-audit는 등급을 주지 않으므로 high로 셉니다), 다른 문제 없이 스캐너가 실패했으면 2, 그 밖에는 0입니다.
+설치된 스캐너가 하나도 없어도 0입니다. `--fail-on`은 `none`, `secret`, `critical`, `high`, `medium`, `low`를 받습니다.
+
 ## 보안
 
 - **서명된 릴리스.** v0.50.73 이후 모든 릴리스에는 `checksums.txt`와 ECDSA P-256 publisher envelope

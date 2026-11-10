@@ -346,6 +346,42 @@ review models.
 Presets, per-agent models, OMP model pins, review models, and the REA MCP flags are covered in
 [docs/quality.md](docs/quality.md).
 
+## Security scan
+
+`auto secure scan` runs the security scanners you already have and prints one summary:
+
+```bash
+auto secure scan                    # current directory
+auto secure scan --dir ./service --json
+auto secure scan --staged           # gitleaks: staged changes only
+auto secure scan --log-opts origin/main..HEAD --fail-on critical
+```
+
+It detects the project's ecosystems from files in `--dir` and runs each scanner that is installed:
+
+| Scanner | When | Command |
+| --- | --- | --- |
+| gitleaks | always | `gitleaks git` in a git work tree, `gitleaks dir` otherwise (`detect`/`protect` on releases before 8.19) |
+| govulncheck | `go.mod` | `govulncheck -format json ./...` |
+| npm / pnpm / yarn | `package.json` and its lockfile | `npm audit --json`, `pnpm audit --json`, `yarn audit --json`, `yarn npm audit --json` (Berry) |
+| cargo audit | `Cargo.lock` | `cargo audit --json` |
+| pip-audit | `requirements*.txt` | `pip-audit -f json --no-deps --disable-pip -r ...` |
+
+A scanner that is not installed, or a project without a lockfile or requirements file, is noted and
+skipped. Nothing is installed: pip-audit checks the pins as written instead of building an environment.
+The audit commands and govulncheck query their advisory databases over the network. Each scanner runs
+with the project as its working directory and a time limit (`--timeout`, default 5m).
+
+Findings share one shape (`tool`, `kind` secret or vuln, `id`, `severity`, `package`/`file`,
+`location`, `fixed_version`, `summary`). Secret values are never printed: gitleaks runs with
+`--redact`, the parser does not keep its `Secret` or `Match` fields, and a secret shows only as
+`file:line`, rule, and fingerprint (the form `.gitleaksignore` takes).
+
+Exit status: 1 when a finding reaches `--fail-on` (default `high`: any secret, or a vulnerability rated
+high or critical; govulncheck, cargo audit, and pip-audit do not grade, so their findings count as high),
+2 when a scanner failed and nothing else did, 0 otherwise, including when no scanner is installed.
+`--fail-on` takes `none`, `secret`, `critical`, `high`, `medium`, or `low`.
+
 ## Security
 
 - **Signed releases.** Every release since v0.50.73 ships `checksums.txt` and an ECDSA P-256

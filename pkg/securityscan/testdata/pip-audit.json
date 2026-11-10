@@ -1,0 +1,8 @@
+{
+  "dependencies": [
+    {"name": "fixture-requests", "version": "2.0.0", "vulns": [{"id": "PYSEC-2099-1", "fix_versions": ["2.0.5", "2.1.0"], "aliases": ["CVE-2099-0002"], "description": "Header injection in fixture-requests."}]},
+    {"name": "fixture-safe", "version": "1.0.0", "vulns": []},
+    {"name": "fixture-local", "skip_reason": "Dependency not found on PyPI"}
+  ],
+  "fixes": []
+}
