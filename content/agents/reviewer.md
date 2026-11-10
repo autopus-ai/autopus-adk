@@ -5,7 +5,6 @@ model: sonnet
 effort: high
 tools: Read, Grep, Glob, Bash
 permissionMode: plan
-maxTurns: 120
 skills:
   - review
   - verification
@@ -150,6 +149,8 @@ Only modify the listed items. Do not refactor unrelated code.
 - 수정이 필요하면 수정 지시를 메인 세션에 반환
 - 보안 이슈는 Correctness/Security Findings에 차단 이슈로 기록
 - REQUEST_CHANGES는 같은 변경에 최대 2회까지 허용, 초과 시 REJECT로 전환
+- 판정과 차단 이슈를 먼저 적고 그 뒤에 근거를 보강한다. 탐색만 하다 결과 없이 끝나는 리뷰는 실패다
+- CI나 테스트 완료를 기다릴 때는 한 명령 안의 sleep 루프로 기다리고, 확인 명령을 턴마다 반복하지 않는다
 
 ## Result Format
 

@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **긴 작업 에이전트에서 기본 턴 한도를 없앤다** (2026-11-10, #301): 에이전트 정의의 `maxTurns`가 긴 작업을 마무리
+  단계 없이 끊었다. 커밋 직전에 멈추거나 보고서를 한 줄도 남기지 못했고, lead가 매번 다시 깨워야 했다. 재개하면 같은
+  작업에 한도를 다시 쓰므로 비용 상한 역할도 하지 못했다. 이제 qa-explorer(200)·reviewer(120)·frontend-specialist(100)는
+  한도 없이 생성되고(Codex의 `Source max turns`, OpenCode의 `steps`도 빠진다), 짧은 판정만 하는 ux-validator만
+  30을 유지한다. 네 에이전트 지침에 "결과를 먼저 남기고 보강한다", "기다림은 한 명령 안의 sleep 루프로 한다"를 더했고,
+  ux-validator에는 남은 턴이 적으면 새 증거를 열지 말고 판정을 내라는 마무리 규칙을 더했다. 한도가 없어진 에이전트가 다시
+  한도를 갖게 되면 테스트가 실패한다.
 - **`auto verify stop`이 pnpm 모노레포와 실행 불가 상황에서 종료를 막지 않는다** (2026-11-10, #300): pnpm 프로젝트라도
   lockfile이 아직 없으면 `npm run typecheck`를 돌렸고, script 안의 `pnpm`을 찾지 못해 exit 127로 종료가 막혔다.
   이제 `packageManager` 필드 → `pnpm-workspace.yaml` → lockfile 순으로 매니저를 정하고, pnpm·yarn이 PATH에 없으면
