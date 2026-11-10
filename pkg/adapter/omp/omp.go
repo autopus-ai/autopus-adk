@@ -223,6 +223,10 @@ func (a *Adapter) prepareFilesAt(
 	if err := appendFiles(prepareOMPAgentMappings(ompRoutedAgentNames(modelIntegration))); err != nil {
 		return nil, err
 	}
+	// 3b. Stop gate extension: the Claude Code Stop hooks for omp sessions
+	if err := appendFiles(prepareStopGateMappings(cfg)); err != nil {
+		return nil, err
+	}
 	// 4. Native context bridge (explicit OMP context-policy opt-in only)
 	if err := appendFiles(prepareOMPContextBridgeMappings(cfg)); err != nil {
 		return nil, err

@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **omp 세션에도 Stop 게이트를 붙인다** (2026-11-10): omp 어댑터는 hook을 설치하지 않아(`SupportsHooks() == false`)
+  omp 세션에서는 테스트 검사도 응답 언어 검사도 돌지 않았다. 이제 `auto update`가 프로젝트 확장
+  `.omp/extensions/autopus-stop-gate.ts`를 써서, 리드 에이전트의 실행이 끝날 때 `auto verify stop`과
+  `auto verify language`를 실행하고 막히면 이유를 followUp 메시지로 돌려보낸다. 실행 결과(`event.messages`)는 세션 전체라
+  마지막 사용자 메시지 이후만 이번 실행의 응답으로 본다. `auto verify language`는 transcript가 없는 런타임을 위해
+  `turn_replies` 입력을 받는다. 실제 omp 18.18.6 RPC 세션에서 실패하는 테스트가 followUp으로 돌아가 차단 한도까지
+  반복되는 것과, 영어 응답이 한 번 돌아가 한국어로 다시 오는 것을 확인했다. print 모드(`-p`)는 `agent_end`를 확장에
+  전달하기 전에 끝나 게이트가 돌지 않는다.
+
 - **응답 언어 hook이 진행 메모까지 검사한다** (2026-11-10): `auto verify language`는 마지막 응답만 읽어서, 도구 호출
   사이에 영어로 쓴 진행 메모는 한 번도 잡지 못했다. 이제 Stop hook payload의 `transcript_path`에서 마지막 프롬프트 이후
   assistant가 쓴 텍스트를 모두 읽어 하나라도 설정한 언어가 아니면 한 번 돌려보낸다. 진행 메모가 걸리면 그 메모의

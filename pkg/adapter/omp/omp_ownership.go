@@ -43,6 +43,7 @@ func ompExclusivePruneRoots() []string {
 		".omp/agents",
 		".omp/skills",
 		".omp/commands",
+		ompStopGateTarget,
 		ompContextBridgeTarget,
 		ompNativePipelineRouteTarget,
 		DefaultOMPModelOverlayPath,

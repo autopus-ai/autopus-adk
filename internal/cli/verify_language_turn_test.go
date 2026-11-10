@@ -99,3 +99,16 @@ func TestRunVerifyLanguage_FinalReplyIsCheckedWithoutTheTranscript(t *testing.T)
 	assert.Contains(t, out.Reason, "your last reply")
 	assert.Equal(t, "block", runVerifyLanguage(turnInput(t, cwd, "", englishNote)).Decision)
 }
+
+// The omp stop gate has no Claude Code transcript and sends the run's
+// replies directly; they are checked the same way.
+func TestRunVerifyLanguage_TurnRepliesFromThePayload(t *testing.T) {
+	cwd := languageProject(t, "ko", nil)
+	last := "두 PR을 모두 병합했습니다."
+	data, err := json.Marshal(languageStopInput{Cwd: cwd, LastAssistantMessage: last, TurnReplies: []string{englishNote, last}})
+	require.NoError(t, err)
+
+	out := runVerifyLanguage(strings.NewReader(string(data)))
+	assert.Equal(t, "block", out.Decision)
+	assert.Contains(t, out.Reason, "Waiting on two things")
+}
