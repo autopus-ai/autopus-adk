@@ -12,6 +12,13 @@ All notable changes to this project will be documented in this file.
   `TDD-exempt: <이유>` 줄로 통과하고, 실행할 수 없으면 경고만 남긴다. `AUTOPUS_TDD_STOP=off`로 끈다. Go·JS/TS·Python이
   대상이다. `auto doctor`는 이제 이 설정을 통과로 보고한다. 테스트를 일부러 약하게 만들어 통과시키도록 게이트를 바꾸면
   테스트가 실패하는 것도 확인했다.
+- **응답 언어 hook이 진행 메모까지 검사한다** (2026-11-10): `auto verify language`는 마지막 응답만 읽어서, 도구 호출
+  사이에 영어로 쓴 진행 메모는 한 번도 잡지 못했다. 이제 Stop hook payload의 `transcript_path`에서 마지막 프롬프트 이후
+  assistant가 쓴 텍스트를 모두 읽어 하나라도 설정한 언어가 아니면 한 번 돌려보낸다. 진행 메모가 걸리면 그 메모의
+  첫 줄을 이유에 담아, 같은 내용을 설정한 언어로 다시 알리게 한다. 도구 출력, 주입된 meta 메시지, subagent sidechain,
+  이전 턴은 검사하지 않는다. transcript는 끝 8MiB만 읽으므로 200MB짜리 세션에서도 3초 안에 끝난다. 실제 세션에서 확인할 때,
+  hook이 등록되기 전에 시작한 세션은 hook을 한 번도 실행하지 않았다는 것도 확인했다. Claude Code는 hook 설정을 세션을
+  시작할 때 읽기 때문이다. README에 재시작 안내를 더했다.
 
 - **긴 작업 에이전트에서 기본 턴 한도를 없앤다** (2026-11-10, #301): 에이전트 정의의 `maxTurns`가 긴 작업을 마무리
   단계 없이 끊었다. 커밋 직전에 멈추거나 보고서를 한 줄도 남기지 못했고, lead가 매번 다시 깨워야 했다. 재개하면 같은

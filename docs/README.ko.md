@@ -123,10 +123,12 @@ Claude Code가 이미 푸는 네 과제는 통과율 변화 없이 비용만 약
 | 켠 곳에서도 강제로 끄기 | `AUTOPUS_FOLLOWUP=off` |
 
 **응답 언어 확인.** `language.ai_responses`가 `ko`·`ja`·`zh`이면 `auto update`가 Stop hook
-`auto verify language`도 등록합니다. 마지막 응답의 산문(코드 블록·인라인 코드·URL 제외)이 그 언어로 쓰이지 않았으면
-한 번 돌려보내 다시 쓰게 합니다. 다시 쓴 응답은 다시 막지 않습니다. 영어 용어가 섞인 한국어 문장은 통과하고,
+`auto verify language`도 등록합니다. 그 턴에 쓴 응답의 산문(코드 블록·인라인 코드·URL 제외)이 그 언어로 쓰이지
+않았으면 한 번 돌려보내 다시 쓰게 합니다. 마지막 응답뿐 아니라 도구 호출 사이의 진행 메모도 transcript에서 읽어
+검사합니다. 진행 메모가 걸리면 그 메모가 무슨 내용이었는지 설정한 언어로 다시 알리게 합니다. 다시 쓴 응답은 다시 막지 않습니다. 영어 용어가 섞인 한국어 문장은 통과하고,
 "Merged."처럼 아주 짧은 응답은 검사하지 않습니다. 끄려면 `hooks.language_stop: false` 뒤 `auto update`,
-한 세션에서만 끄려면 `AUTOPUS_LANGUAGE_STOP=off`.
+한 세션에서만 끄려면 `AUTOPUS_LANGUAGE_STOP=off`. Claude Code는 hook 설정을 세션을 시작할 때 읽으므로,
+`auto update`로 hook을 새로 등록했으면 세션을 다시 시작하거나 `/hooks`에서 확인해야 적용됩니다.
 
 Stop hook은 Claude Code에만 있습니다. 다른 플랫폼에서는 `/auto review`와 `/auto qa`(아래의 플랫폼별
 문법)를 직접 실행하세요.
