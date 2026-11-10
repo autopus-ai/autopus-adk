@@ -198,6 +198,9 @@ type HooksConf struct {
 	// back when it is not in language.ai_responses. Read it through
 	// IsLanguageStopEnabled.
 	LanguageStop *bool `yaml:"language_stop,omitempty"`
+	// SecretStop lets `auto verify stop` send a session back once when its
+	// changes add a credential-shaped line. Read it through IsSecretStopEnabled.
+	SecretStop *bool `yaml:"secret_stop,omitempty"`
 }
 
 // PermissionsConf는 코딩 CLI 권한 설정이다.

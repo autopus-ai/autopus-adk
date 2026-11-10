@@ -108,6 +108,15 @@ Claude Code가 이미 푸는 네 과제는 통과율 변화 없이 비용만 약
 `hooks.language_stop`, `AUTOPUS_VERIFY_STOP=off`). omp의 print 모드(`-p`)는 `agent_end`를 확장에 전달하기 전에 끝나므로,
 이 게이트는 대화형·RPC 세션에서만 동작합니다. OMP context policy를 켠 프로젝트는 `.omp/extensions`를 관리형 런타임의
 고정 확장 두 개(bridge, pipeline route)만으로 잠그므로(SPEC-OMP-004), 이 게이트를 설치하지 않습니다.
+**자격 증명 확인.** 빌드를 돌리기 전에, 이번 턴이 `HEAD`에 더한 줄(추적 파일의 수정과 gitignore되지 않은
+새 파일)을 내장 패턴으로 검사합니다. 개인 키 헤더, AWS access key id, GitHub 토큰(`ghp_`, `gho_`, `ghu_`/`ghs_`,
+`ghr_`, `github_pat_`), Slack 토큰과 webhook, Stripe live 키, Google API 키를 찾고, JWT는 자격 증명 이름의 키에
+대입되거나 bearer 토큰으로 보낼 때만 봅니다. 몇 개를 놓치더라도 잘못 막지 않는 쪽을 택했고, 외부 도구가
+필요 없습니다. 걸리면 값은 빼고 `파일:줄 (규칙)`만 담아 한 번 돌려보내, 값을 환경 변수나 secret 저장소로 옮기게
+합니다. 같은 발견이 다시 나오면 경고만 남겨 반복되지 않습니다. 바이너리 파일, 1MiB가 넘는 파일, 하네스 디렉터리는
+보지 않습니다. 일부러 둔 테스트 fixture는 그 줄에 `autopus:allow-secret`(또는 `gitleaks:allow`) 주석을 달거나
+`.gitleaksignore`에 `file:rule:line`을 적으면 통과합니다.
+
 **테스트 먼저 확인(methodology: tdd).** `methodology.mode: tdd`와 `enforce: true`이면, 빌드와 테스트가 통과한 뒤
 한 단계를 더 봅니다. 바뀐 테스트 파일만 `HEAD`의 소스 위에 얹어 임시 복사본에서 실행하고, 거기서 실패해야
 통과합니다. 변경 전 코드에서 실패하고 변경 후 코드에서 통과했으니 RED → GREEN이 기계적으로 증명됩니다.
@@ -126,6 +135,7 @@ Claude Code가 이미 푸는 네 과제는 통과율 변화 없이 비용만 약
 | --- | --- |
 | hook을 아예 등록하지 않기 | `autopus.yaml`에 `hooks.verify_stop: false`를 두고 `auto update` |
 | 한 세션이나 셸에서만 끄기 | `AUTOPUS_VERIFY_STOP=off` |
+| 자격 증명 확인만 끄기 | `hooks.secret_stop: false`, 또는 `AUTOPUS_SECRET_STOP=off` |
 | 후속 라운드 켜기 | `AUTOPUS_FOLLOWUP=on`(예: `.claude/settings.json`의 `env` 블록), 또는 `auto verify stop --followup` |
 | 켠 곳에서도 강제로 끄기 | `AUTOPUS_FOLLOWUP=off` |
 
@@ -347,6 +357,7 @@ architecture:
 
 hooks:
   verify_stop: true     # Claude Code Stop hook (없으면 켜짐)
+  secret_stop: true     # Stop hook 안의 자격 증명 확인 (없으면 켜짐)
   language_stop: true   # 응답 언어 Stop hook (없으면 켜짐, ai_responses가 ko·ja·zh일 때만)
   pre_commit_lore: true # Lore commit-msg hook
   pre_commit_arch: true

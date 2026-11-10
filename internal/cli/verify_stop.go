@@ -99,6 +99,16 @@ func runVerifyStop(cmd *cobra.Command, stdin io.Reader, budget time.Duration, fo
 	if !ok || len(changed) == 0 {
 		return stopHookOutput{}
 	}
+	block, warning := secretGate(cmd.Context(), in.SessionID, root)
+	if block != nil {
+		return *block
+	}
+	return withSecretWarning(verifyChanged(cmd, in, root, changed, budget, followup), warning)
+}
+
+// verifyChanged builds and tests the changed files, then applies the
+// test-first and follow-up rounds.
+func verifyChanged(cmd *cobra.Command, in stopHookInput, root string, changed []string, budget time.Duration, followup bool) stopHookOutput {
 	steps := verifygate.Plan(root, changed)
 	if len(steps) == 0 {
 		return stopHookOutput{}

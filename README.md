@@ -79,6 +79,17 @@ session and the work tree differs from `HEAD`, the hook:
 
 Doc-only changes and tools that are not installed are skipped.
 
+**Credential check.** Before the build runs, the hook scans the lines this turn adds against `HEAD`
+(tracked edits plus untracked files that are not gitignored) with a small built-in pattern set:
+private key headers, AWS access key ids, GitHub tokens (`ghp_`, `gho_`, `ghu_`/`ghs_`, `ghr_`,
+`github_pat_`), Slack tokens and webhooks, Stripe live keys, Google API keys, and a JWT only when it
+is assigned to a credential-named key or sent as a bearer token. The patterns favor precision over
+recall and need no external tool. A hit blocks the stop once, naming `file:line (rule)` and never the
+value, and asks the agent to move the value to an environment variable or secret storage. The same
+set of hits again only leaves a warning, so the gate does not loop. Binary files, files over 1 MiB,
+and harness directories are skipped. A deliberate fixture passes with an `autopus:allow-secret` (or
+`gitleaks:allow`) comment on the line, or a `file:rule:line` entry in `.gitleaksignore`.
+
 **Follow-up round (opt-in).** With `AUTOPUS_FOLLOWUP=on` (or `auto verify stop --followup`), when
 the build passes and the change has 40 or more changed source lines
 (added plus deleted against `HEAD`, untracked source files included), the hook blocks once more with
@@ -103,6 +114,7 @@ Turn the round on where that trade is worth it.
 | --- | --- |
 | Don't register the hook | `hooks.verify_stop: false` in `autopus.yaml`, then `auto update` |
 | Disable for one session or shell | `AUTOPUS_VERIFY_STOP=off` |
+| Turn off only the credential check | `hooks.secret_stop: false`, or `AUTOPUS_SECRET_STOP=off` |
 | Turn the follow-up round on | `AUTOPUS_FOLLOWUP=on` (for example in the `env` block of `.claude/settings.json`), or `auto verify stop --followup` |
 | Force it off even where it is on | `AUTOPUS_FOLLOWUP=off` |
 
@@ -308,6 +320,7 @@ architecture:
 
 hooks:
   verify_stop: true     # Claude Code Stop hook (default on when unset)
+  secret_stop: true     # credential check inside the Stop hook (default on when unset)
   pre_commit_lore: true # Lore commit-msg hook
   pre_commit_arch: true
 

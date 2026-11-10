@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **Stop 게이트가 이번 턴에 더한 자격 증명을 잡는다** (2026-11-11): 에이전트가 토큰이나 개인 키를 코드나 설정 파일에
+  붙여 넣어도 빌드와 테스트는 통과하므로 게이트는 그대로 세션을 끝냈다. 이제 `auto verify stop`은 빌드 전에
+  `HEAD` 대비 추가된 줄과 gitignore되지 않은 새 파일을 내장 패턴(개인 키 헤더, AWS key id, GitHub·Slack·Stripe·Google
+  토큰, 대입된 JWT)으로 검사하고, 걸리면 값 없이 `파일:줄 (규칙)`만 담아 한 번 돌려보낸다. 같은 발견이 다시 나오면
+  경고만 남긴다. 빌드할 것이 없는 설정 파일 변경도 검사한다. 정밀도를 우선해 placeholder, 문서 예시, `sk_test_` 같은
+  값은 맞추지 않는다. 테스트 fixture는 줄 끝의 `autopus:allow-secret`(또는 `gitleaks:allow`)이나 `.gitleaksignore`
+  fingerprint로 통과한다. `AUTOPUS_SECRET_STOP=off` 또는 `hooks.secret_stop: false`로 끈다. 매처를 끄면 새 테스트
+  세 곳이 실패하는 것도 확인했다.
+
 - **omp 세션에도 Stop 게이트를 붙인다** (2026-11-10): omp 어댑터는 hook을 설치하지 않아(`SupportsHooks() == false`)
   omp 세션에서는 테스트 검사도 응답 언어 검사도 돌지 않았다. 이제 `auto update`가 프로젝트 확장
   `.omp/extensions/autopus-stop-gate.ts`를 써서, 리드 에이전트의 실행이 끝날 때 `auto verify stop`과
