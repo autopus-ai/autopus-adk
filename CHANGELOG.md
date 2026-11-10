@@ -11,6 +11,12 @@ All notable changes to this project will be documented in this file.
   30을 유지한다. 네 에이전트 지침에 "결과를 먼저 남기고 보강한다", "기다림은 한 명령 안의 sleep 루프로 한다"를 더했고,
   ux-validator에는 남은 턴이 적으면 새 증거를 열지 말고 판정을 내라는 마무리 규칙을 더했다. 한도가 없어진 에이전트가 다시
   한도를 갖게 되면 테스트가 실패한다.
+- **`auto verify stop`이 pnpm 모노레포와 실행 불가 상황에서 종료를 막지 않는다** (2026-11-10, #300): pnpm 프로젝트라도
+  lockfile이 아직 없으면 `npm run typecheck`를 돌렸고, script 안의 `pnpm`을 찾지 못해 exit 127로 종료가 막혔다.
+  이제 `packageManager` 필드 → `pnpm-workspace.yaml` → lockfile 순으로 매니저를 정하고, pnpm·yarn이 PATH에 없으면
+  `corepack`으로 실행한다. 의존성 미설치(`node_modules` 없음)와 exit 127은 환경 문제로 보고 경고만 남기며 통과로
+  기록하지 않는다. 작업 트리를 바꿀 수 있는 백그라운드 에이전트(subagent·workflow·teammate)가 돌고 있으면 검증을
+  다음 종료로 미룬다. 셸이나 monitor는 제외해 상시 작업이 검증을 끄지 않게 했다.
 
 - **서버형 QA case에 재시작 단계를 더한다** (2026-11-10): HTTP end-to-end에서 에이전트가 "재시작 후에도 저장한 이름이
   남는가" 같은 기준을 자동화할 수 없어 manual로 남겼다. 이제 `requests` 사이에 `restart: true` 항목을 두면 서버를

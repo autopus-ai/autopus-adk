@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -24,6 +25,26 @@ const verifyStopMaxBlocks = 3
 type stopHookInput struct {
 	SessionID string `json:"session_id"`
 	Cwd       string `json:"cwd"`
+	// BackgroundTasks lists tasks still in flight when the session stops.
+	BackgroundTasks []struct {
+		Type string `json:"type"`
+	} `json:"background_tasks"`
+}
+
+// treeWriters are the background task types that may still be editing the
+// work tree: verifying it now would judge a change that is not finished. A
+// long-running shell or monitor (a dev server, a log tail) is not one, or it
+// would turn the gate off for the whole session.
+var treeWriters = []string{"subagent", "workflow", "teammate"}
+
+func backgroundWriters(in stopHookInput) int {
+	n := 0
+	for _, task := range in.BackgroundTasks {
+		if slices.Contains(treeWriters, task.Type) {
+			n++
+		}
+	}
+	return n
 }
 
 // stopHookOutput is the Stop hook decision. An empty object lets the session end.
@@ -79,11 +100,22 @@ func runVerifyStop(cmd *cobra.Command, stdin io.Reader, budget time.Duration, fo
 	if len(steps) == 0 {
 		return stopHookOutput{}
 	}
+	if n := backgroundWriters(in); n > 0 {
+		return stopHookOutput{SystemMessage: fmt.Sprintf(
+			"auto verify stop: %d background agent task(s) may still be changing the work tree; verification runs at the next stop", n)}
+	}
 	fingerprint := verifygate.Fingerprint(root, changed)
 	if readStopState(in.SessionID, "pass") == fingerprint {
 		return stopHookOutput{}
 	}
-	failure, _ := verifygate.Run(cmd.Context(), steps, budget)
+	failure, skipped := verifygate.Run(cmd.Context(), steps, budget)
+	if failure == nil && len(skipped) > 0 {
+		// Nothing failed, but not everything ran: that is the machine, not
+		// the change, so the stop is not blocked. The tree is not recorded as
+		// passing, so it is checked again once the environment is fixed.
+		return stopHookOutput{SystemMessage: "auto verify stop: could not run " + describeSkips(skipped) +
+			"; this is an environment problem, not a verdict on the change"}
+	}
 	if failure == nil {
 		resetStopBlocks(in.SessionID)
 		writeStopState(in.SessionID, "pass", fingerprint)
@@ -138,6 +170,14 @@ func resetStopBlocks(session string) { _ = os.Remove(stopStateFile(session, "blo
 func resetStopState(session string) {
 	resetStopBlocks(session)
 	_ = os.Remove(stopStateFile(session, "pass"))
+}
+
+func describeSkips(skipped []verifygate.Skip) string {
+	parts := make([]string, 0, len(skipped))
+	for _, s := range skipped {
+		parts = append(parts, fmt.Sprintf("`%s` (%s)", s.Name, s.Reason))
+	}
+	return strings.Join(parts, ", ")
 }
 
 func firstLine(s string) string {

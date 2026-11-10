@@ -42,7 +42,7 @@ func TestPlan_NothingForDocsOnly(t *testing.T) {
 }
 
 func TestPlan_NodeScriptsWithLockfileManager(t *testing.T) {
-	t.Parallel()
+	onPath(t, "pnpm")
 	root := t.TempDir()
 	writeFiles(t, root, map[string]string{
 		"package.json": `{"scripts":{"test":"vitest run","typecheck":"tsc","lint":"eslint"}}`, "pnpm-lock.yaml": "",
