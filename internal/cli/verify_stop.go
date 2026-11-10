@@ -67,7 +67,9 @@ func newVerifyStopCmd() *cobra.Command {
 			"build and tests that cover them and blocks the stop with the failure output. Under methodology: tdd with " +
 			"enforce: true, the changed tests must also fail against the code before the change (HEAD); a source change " +
 			"without a test change is blocked unless the reply has a `TDD-exempt: <reason>` line. Set " +
-			"AUTOPUS_VERIFY_STOP=off to disable. Opt-in with AUTOPUS_FOLLOWUP=on or --followup: once the build passes, " +
+			"AUTOPUS_VERIFY_STOP=off to disable. Before the build, added lines that look like credentials block the stop " +
+			"once, naming file:line and rule but never the value (AUTOPUS_SECRET_STOP=off or hooks.secret_stop: false " +
+			"turns that off). Opt-in with AUTOPUS_FOLLOWUP=on or --followup: once the build passes, " +
 			"a change of 40 or more lines is sent on to the reviewer and qa-explorer agents, once per session.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
