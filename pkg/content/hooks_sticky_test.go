@@ -60,7 +60,7 @@ func TestConditionalDispatcherHooks_StickySetRegistersExactlyOneEntry(t *testing
 	assert.Empty(t, entries[0].Matcher, "UserPromptSubmit takes no matcher")
 	assert.Contains(t, entries[0].Command, "auto rules sticky",
 		"the entry must invoke the sticky runtime")
-	assert.Equal(t, 5, entries[0].Timeout,
+	assert.Equal(t, 15, entries[0].Timeout,
 		"REQ-STICKYRULE-COMPILE-01 fixes the timeout at 5 seconds")
 }
 
@@ -101,7 +101,7 @@ func TestGenerateProjectHookConfigs_ClaudeRegistersTheStickyHook(t *testing.T) {
 		require.Len(t, entries, 1,
 			"%s: the shipped sticky pair registers exactly one UserPromptSubmit entry", platform)
 		assert.Contains(t, entries[0].Command, "auto rules sticky")
-		assert.Equal(t, 5, entries[0].Timeout)
+		assert.Equal(t, 15, entries[0].Timeout)
 		assert.True(t, strings.Contains(entries[0].Command, rulecond.EventUserPromptSubmit),
 			"the command names the event it serves, got %q", entries[0].Command)
 	}

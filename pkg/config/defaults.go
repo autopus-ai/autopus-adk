@@ -22,8 +22,6 @@ const (
 // `edit_guard` line would make every older binary fail to load the file.
 const DefaultEditGuard = true
 
-// IsEditGuardEnabled reports whether hook generation registers the edit guard.
-// An explicit value wins; nil means unset and resolves to DefaultEditGuard.
 // IsVerifyStopEnabled reports whether the verification Stop hook is
 // registered. Unset means on: the gate is the harness's core check.
 func (h HooksConf) IsVerifyStopEnabled() bool {
@@ -37,6 +35,15 @@ func (h HooksConf) IsLanguageStopEnabled() bool {
 	return h.LanguageStop == nil || *h.LanguageStop
 }
 
+// IsSecretStopEnabled reports whether the verification Stop hook checks
+// added lines for credentials. Unset means on; it runs only where the
+// verification Stop hook itself runs.
+func (h HooksConf) IsSecretStopEnabled() bool {
+	return h.SecretStop == nil || *h.SecretStop
+}
+
+// IsEditGuardEnabled reports whether hook generation registers the edit guard.
+// An explicit value wins; nil means unset and resolves to DefaultEditGuard.
 func (h HooksConf) IsEditGuardEnabled() bool {
 	if h.EditGuard == nil {
 		return DefaultEditGuard

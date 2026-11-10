@@ -2,7 +2,7 @@
 .agents/plugins/
 .agents/plugins/marketplace.json 7bac9f0f7c15eecf46023308f334e2122d112d03aa7b498f9e01adabd48ac03c
 .autopus/
-.autopus/claude-code-manifest.json 23edf566ad8b78c52cf095ff93d20a4c4779ac6a6b8ddcf7044e702ba0356c70
+.autopus/claude-code-manifest.json 6d6cd0b7a924f768527c467f104813dd085f91bf08bc99309e8aa01427a9d704
 .autopus/claude-code-permissions.json b9fd4dd0824fb98d4ff3403c011a56b0b66f398788f2dfb24220c1aed87df4e8
 .autopus/codex-manifest.json 3ef7d4ffc67e02da1bb1286b2d2c91c1c6f18b28bae6797890f14e8b8d91cb6a
 .autopus/context/
@@ -16,7 +16,7 @@
 .autopus/plugins/auto/skills/auto/SKILL.md be3dca9114ec39861a0112ef57f94b4495b748cf6ffa02fb50ad1a004d501a7c
 .autopus/txns/
 .autopus/txns/<TX>-claude-code/
-.autopus/txns/<TX>-claude-code/journal.json 608ecdaa9510529e9361161b1e69e99c49940175ecea134a1fe582b9712923d1
+.autopus/txns/<TX>-claude-code/journal.json 0fe861e145d7f7780eee5fb9527bca0c8fb35f88aefda87df3765ba2ccbd02dc
 .autopus/txns/<TX>-codex/
 .autopus/txns/<TX>-codex/journal.json b0e084e0a5f2575fa2816b5b670da4d1ec25042463fe308573fa652cfa9d9768
 .claude/
@@ -42,7 +42,7 @@
 .claude/rules/autopus/autonomy.md 8338f1c915ed6dec12d1bd399e3e35f58d7e846b73d93406a5dc58a8250f7334
 .claude/rules/autopus/file-size-limit.md c4250d144ef919d17b6edb7ee3f28b9bfa4902bfb5e5fdf0c0e13f0c9a29751c
 .claude/rules/autopus/language-policy.md 7da1d2d97e862b6250d06bbbdba503cccb2faa38b6fc59585a25ea91c5e593c3
-.claude/settings.json 478ca9c79d2c921aabec50933868cc8c76627c4848eaed37a711c324e43b3598
+.claude/settings.json b1908cb7c27f0cc06ae5036150f6003b78d336057a53506960f8cb8f9b58db18
 .claude/skills/
 .claude/skills/auto-doctor/
 .claude/skills/auto-doctor/SKILL.md 9796d1b85cf212c04b25af789c6b67febd53a933c791b78e22d9b83b713443ee

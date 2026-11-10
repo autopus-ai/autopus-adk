@@ -15,6 +15,27 @@ All notable changes to this project will be documented in this file.
   알리고 설치된 스캐너를 직접 돌린다. `secure-hunt`는 core 스킬이 되고, `security-auditor` 에이전트와 예전
   `security-audit` 스킬은 되살리지 않는다. 격리된 문맥이 필요하면 `qa-explorer`에 맡긴다.
 
+- **규칙 재주입 hook의 제한 시간을 15초로 늘린다** (2026-11-11): 매 메시지마다 핵심 규칙을 다시 넣는 `auto rules sticky` hook은 평소 0.1초 안에 끝나지만, `auto update --self` 직후 첫 실행은 macOS가 새 바이너리를 검사하는 시간과 머신 부하가 겹쳐 5초 제한을 넘겼다. Claude Code는 제한을 넘긴 hook의 출력을 그 턴에서 버리고 다시 실행하지 않으므로, 그 메시지에는 규칙이 다시 들어가지 않았다. 제한은 hook 프로세스에만 걸리고 모델 추론 시간과는 무관하며, 평소 경로에서는 기다리는 시간이 늘지 않는다. 기존 설치는 `auto update` 뒤 새 세션부터 적용된다.
+
+- **`auto secure scan`으로 이미 있는 보안 스캐너를 한 번에 돌린다** (2026-11-11): 프로젝트마다 gitleaks,
+  govulncheck, npm/pnpm/yarn audit, cargo audit, pip-audit를 따로 실행하고 출력 형식도 제각각이었다. 이제
+  `auto secure scan`이 `--dir`의 파일로 Go·Node·Rust·Python을 알아내고, 설치된 스캐너만 프로젝트 디렉터리에서 시간
+  제한(`--timeout`) 안에 실행해 결과를 한 가지 모양으로 모은다. 기본은 표, `--json`은 기계용이다. 설치되지 않은
+  도구는 이유를 적고 건너뛰며 그것만으로 실패하지 않는다. 아무것도 설치하지 않는다(pip-audit는 `--no-deps
+  --disable-pip`). secret 값은 출력하지 않는다. gitleaks를 `--redact`로 실행하고 `파일:줄`, 규칙, fingerprint만 보인다.
+  `--fail-on`(기본 `high`)에 닿으면 1, 스캐너가 실패했으면 2로 끝난다. 이 저장소에서 실행하면 gitleaks와
+  govulncheck가 돌아 발견 0건으로 통과한다. 취약한 `golang.org/x/text`를 호출하는 임시 모듈에서는 govulncheck 텍스트
+  출력과 같은 GO-2022-1059 한 건을 보고했다.
+
+- **Stop 게이트가 이번 턴에 더한 자격 증명을 잡는다** (2026-11-11): 에이전트가 토큰이나 개인 키를 코드나 설정 파일에
+  붙여 넣어도 빌드와 테스트는 통과하므로 게이트는 그대로 세션을 끝냈다. 이제 `auto verify stop`은 빌드 전에
+  `HEAD` 대비 추가된 줄과 gitignore되지 않은 새 파일을 내장 패턴(개인 키 헤더, AWS key id, GitHub·Slack·Stripe·Google
+  토큰, 대입된 JWT)으로 검사하고, 걸리면 값 없이 `파일:줄 (규칙)`만 담아 한 번 돌려보낸다. 같은 발견이 다시 나오면
+  경고만 남긴다. 빌드할 것이 없는 설정 파일 변경도 검사한다. 정밀도를 우선해 placeholder, 문서 예시, `sk_test_` 같은
+  값은 맞추지 않는다. 테스트 fixture는 줄 끝의 `autopus:allow-secret`(또는 `gitleaks:allow`)이나 `.gitleaksignore`
+  fingerprint로 통과한다. `AUTOPUS_SECRET_STOP=off` 또는 `hooks.secret_stop: false`로 끈다. 매처를 끄면 새 테스트
+  세 곳이 실패하는 것도 확인했다.
+
 - **omp 세션에도 Stop 게이트를 붙인다** (2026-11-10): omp 어댑터는 hook을 설치하지 않아(`SupportsHooks() == false`)
   omp 세션에서는 테스트 검사도 응답 언어 검사도 돌지 않았다. 이제 `auto update`가 프로젝트 확장
   `.omp/extensions/autopus-stop-gate.ts`를 써서, 리드 에이전트의 실행이 끝날 때 `auto verify stop`과

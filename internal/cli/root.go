@@ -84,6 +84,7 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(newStatusCmd())
 	root.AddCommand(newSyncCmd())
 	root.AddCommand(newVerifyCmd())
+	root.AddCommand(newSecureCmd())
 	root.AddCommand(newTelemetryCmd())
 	root.AddCommand(newIssueCmd())
 	root.AddCommand(newCheckCmd())

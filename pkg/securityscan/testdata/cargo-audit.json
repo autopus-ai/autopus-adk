@@ -1,0 +1,16 @@
+{
+  "database": {"advisory-count": 900},
+  "lockfile": {"dependency-count": 120},
+  "vulnerabilities": {
+    "found": true,
+    "count": 1,
+    "list": [
+      {
+        "advisory": {"id": "RUSTSEC-2099-0001", "package": "fixture-tls", "title": "Certificate check bypass in fixture-tls", "cvss": null, "url": "https://rustsec.org/advisories/RUSTSEC-2099-0001"},
+        "versions": {"patched": [">=0.5.3"], "unaffected": []},
+        "package": {"name": "fixture-tls", "version": "0.5.1"}
+      }
+    ]
+  },
+  "warnings": {}
+}
