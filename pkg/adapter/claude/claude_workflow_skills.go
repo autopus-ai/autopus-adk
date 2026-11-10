@@ -25,7 +25,8 @@ var claudeWorkflowRoutes = []claudeWorkflowRoute{
 	{name: "sync", start: "## sync —", end: "## ADK Management", context: "core + changed scope + project docs"},
 	{name: "verify", start: "## verify —", end: "## browse —", context: "core + changed UI scope"},
 	{name: "test", start: "## test —", end: "## qa —", context: "core + scenarios"},
-	{name: "qa", start: "## qa —", end: "## review —", context: "core + declared QA journey evidence"},
+	{name: "qa", start: "## qa —", end: "## secure —", context: "core + declared QA journey evidence"},
+	{name: "secure", start: "## secure —", end: "## review —", context: "core + changed scope + scanner leads"},
 	{name: "doctor", context: "core + workspace", customBody: claudeDoctorContract},
 }
 

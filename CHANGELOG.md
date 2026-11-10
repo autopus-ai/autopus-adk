@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **보안 검증을 `/auto secure` 라우트와 `secure-hunt` 스킬로 되살린다** (2026-11-11): v0.51.0에서 설치 표면을
+  검증 하네스로 줄이며 `secure` 라우트, `security-audit` 스킬, `security-auditor` 에이전트를 함께 지웠다. 보안 검증은
+  검증 하네스에 속하므로 라우트를 다섯 플랫폼 모두에 다시 설치한다. 다만 예전처럼 OWASP 목록을 풀어 쓰지 않는다.
+  모델은 OWASP를 이미 알기 때문에, 새 `secure-hunt` 스킬은 절차와 판단만 준다. `auto secure scan --json`의 스캐너
+  결과는 단서로만 쓰고 도달성(govulncheck 심볼 도달성 등)을 따진다. 그다음 바뀐 범위의 진입점·신뢰 경계·자산·공격자
+  입력을 짧게 정리하고, 사용자 소유의 로컬·스테이징 대상에 실제 공격을 시도한다. 판정은 `qa-hunt`와 같은 규약의
+  `repro.sh`를 `auto qa hunt verify`로 다시 돌려 하므로 새 판정 코드는 없다. 확인된 취약점과 확인되지 않은 의심은 따로
+  보고한다. `auto orchestra secure`는 `--multi`를 줄 때만 돈다. 오래된 바이너리에 `auto secure scan`이 없으면 그렇다고
+  알리고 설치된 스캐너를 직접 돌린다. `secure-hunt`는 core 스킬이 되고, `security-auditor` 에이전트와 예전
+  `security-audit` 스킬은 되살리지 않는다. 격리된 문맥이 필요하면 `qa-explorer`에 맡긴다.
+
 - **omp 세션에도 Stop 게이트를 붙인다** (2026-11-10): omp 어댑터는 hook을 설치하지 않아(`SupportsHooks() == false`)
   omp 세션에서는 테스트 검사도 응답 언어 검사도 돌지 않았다. 이제 `auto update`가 프로젝트 확장
   `.omp/extensions/autopus-stop-gate.ts`를 써서, 리드 에이전트의 실행이 끝날 때 `auto verify stop`과

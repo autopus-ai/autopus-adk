@@ -33,10 +33,10 @@ func TestAdapter_Generate_RegistersManagedPlugin(t *testing.T) {
 	autoSkill, readErr := os.ReadFile(filepath.Join(dir, ".agents", "skills", "auto", "SKILL.md"))
 	require.NoError(t, readErr)
 	content = string(autoSkill)
-	for _, route := range []string{"`review`", "`qa`", "`verify`", "`test`", "`sync`", "`update`", "`doctor`"} {
+	for _, route := range []string{"`review`", "`qa`", "`secure`", "`verify`", "`test`", "`sync`", "`update`", "`doctor`"} {
 		assert.Contains(t, content, route)
 	}
-	for _, removed := range []string{"`status`", "`map`", "`why`", "`secure`", "`dev`"} {
+	for _, removed := range []string{"`status`", "`map`", "`why`", "`dev`"} {
 		assert.NotContains(t, content, removed)
 	}
 

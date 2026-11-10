@@ -79,7 +79,7 @@ func (a *Adapter) renderPluginManifestJSON(cfg *config.HarnessConfig, routerCont
 	doc := pluginManifest{
 		Name:        "auto",
 		Version:     codexPluginVersion(a.pluginBuildVersion(), cfg, routerContent),
-		Description: "Autopus verification router for Codex: review, qa, verify, test, sync, update, and doctor.",
+		Description: "Autopus verification router for Codex: review, qa, secure, verify, test, sync, update, and doctor.",
 		Author:      pluginAuthor{Name: "Autopus", Email: "noreply@autopus.co", URL: "https://autopus.co"},
 		Homepage:    "https://autopus.co",
 		Repository:  "https://github.com/insajin/autopus-adk",
@@ -89,7 +89,7 @@ func (a *Adapter) renderPluginManifestJSON(cfg *config.HarnessConfig, routerCont
 		Interface: pluginInterface{
 			DisplayName:       "Auto",
 			ShortDescription:  "Autopus workflow router for Codex",
-			LongDescription:   "Run the Autopus review/qa/verify/test/sync/update/doctor verification set from Codex with a local plugin plus repository-managed helper docs.",
+			LongDescription:   "Run the Autopus review/qa/secure/verify/test/sync/update/doctor verification set from Codex with a local plugin plus repository-managed helper docs.",
 			DeveloperName:     "Autopus",
 			Category:          "Developer Tools",
 			Capabilities:      []string{"Interactive", "Write"},
