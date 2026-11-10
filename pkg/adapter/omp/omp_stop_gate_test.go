@@ -51,3 +51,14 @@ func TestStopGateTargetIsPruneOwned(t *testing.T) {
 	t.Parallel()
 	assert.Contains(t, ompExclusivePruneRoots(), ompStopGateTarget)
 }
+
+// The context policy opt-in locks .omp/extensions to its managed bridge and
+// route (SPEC-OMP-004), so the gate stays out of it.
+func TestPrepareStopGateMappings_LeavesTheContextPolicySetAlone(t *testing.T) {
+	t.Parallel()
+	cfg := optedInOMPContextBridgeConfig()
+	cfg.Language.AIResponses = "ko"
+	files, err := prepareStopGateMappings(cfg)
+	require.NoError(t, err)
+	assert.Empty(t, files)
+}

@@ -11,7 +11,8 @@ All notable changes to this project will be documented in this file.
   마지막 사용자 메시지 이후만 이번 실행의 응답으로 본다. `auto verify language`는 transcript가 없는 런타임을 위해
   `turn_replies` 입력을 받는다. 실제 omp 18.18.6 RPC 세션에서 실패하는 테스트가 followUp으로 돌아가 차단 한도까지
   반복되는 것과, 영어 응답이 한 번 돌아가 한국어로 다시 오는 것을 확인했다. print 모드(`-p`)는 `agent_end`를 확장에
-  전달하기 전에 끝나 게이트가 돌지 않는다.
+  전달하기 전에 끝나 게이트가 돌지 않는다. OMP context policy를 켠 프로젝트는 관리형 RPC 런타임이 `.omp/extensions`를
+  bridge와 pipeline route 두 개로 잠그므로(SPEC-OMP-004) 게이트를 설치하지 않는다.
 
 - **`methodology: tdd`를 Stop 게이트가 기계적으로 집행한다** (2026-11-10): 방법론 스킬이 은퇴한 뒤 `tdd` +
   `enforce: true`는 읽는 곳이 없어 `auto doctor` 경고만 남겼다. 예전처럼 에이전트에게 RED 단계를 따르게 하면 토큰만

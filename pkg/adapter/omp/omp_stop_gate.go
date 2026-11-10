@@ -32,10 +32,18 @@ func ompStopGateChecks(cfg *config.HarnessConfig) []string {
 // prepareStopGateMappings renders the extension that gives omp sessions the
 // Claude Code Stop hooks. With every check switched off it writes nothing, so
 // a later update prunes a file an earlier one wrote.
+//
+// The OMP context policy opt-in owns .omp/extensions as a locked set: its
+// managed RPC runtime admits only the bridge and the pipeline route
+// (SPEC-OMP-004), and a gate that sends follow-ups would change what that
+// runtime runs. The gate is left out there.
 func prepareStopGateMappings(cfg *config.HarnessConfig) ([]adapter.FileMapping, error) {
 	checks := ompStopGateChecks(cfg)
 	if len(checks) == 0 {
 		return nil, nil
+	}
+	if _, _, selected, err := cfg.OMPContextPolicy.SelectedOMPContextProfile(); err != nil || selected {
+		return nil, err
 	}
 	list, err := json.Marshal(checks)
 	if err != nil {

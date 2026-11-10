@@ -106,7 +106,8 @@ Claude Code가 이미 푸는 네 과제는 통과율 변화 없이 비용만 약
 `auto verify stop`과 `auto verify language`를 같은 입력으로 실행하고, 막히면 그 이유를 followUp 메시지로 돌려보내 이어서
 고치게 합니다. 돌려보낸 메시지에 대한 답은 다시 막지 않습니다. 켜고 끄는 방법은 Claude Code와 같습니다(`hooks.verify_stop`,
 `hooks.language_stop`, `AUTOPUS_VERIFY_STOP=off`). omp의 print 모드(`-p`)는 `agent_end`를 확장에 전달하기 전에 끝나므로,
-이 게이트는 대화형·RPC 세션에서만 동작합니다.
+이 게이트는 대화형·RPC 세션에서만 동작합니다. OMP context policy를 켠 프로젝트는 `.omp/extensions`를 관리형 런타임의
+고정 확장 두 개(bridge, pipeline route)만으로 잠그므로(SPEC-OMP-004), 이 게이트를 설치하지 않습니다.
 **테스트 먼저 확인(methodology: tdd).** `methodology.mode: tdd`와 `enforce: true`이면, 빌드와 테스트가 통과한 뒤
 한 단계를 더 봅니다. 바뀐 테스트 파일만 `HEAD`의 소스 위에 얹어 임시 복사본에서 실행하고, 거기서 실패해야
 통과합니다. 변경 전 코드에서 실패하고 변경 후 코드에서 통과했으니 RED → GREEN이 기계적으로 증명됩니다.
