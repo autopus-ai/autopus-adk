@@ -1,5 +1,15 @@
 # Release v0.51.2 (A43)
 
+**Published 2026-11-10.** Immutable release `439814195` (15 assets, Latest),
+published 2026-11-10T01:13:42Z, tag object
+`83b79d29a8fc82d8a7e38cd1fd122e69bb19f641`, source commit
+`276d4bd16a9aec143688ab19cfd6affd01f28b00`, tree
+`70918efee2ca1a129dc575804359e20bc31a9826`. Release run `42730708180`
+passed. Upgrade Canary `42734413976` (0.51.1 -> 0.51.2) passed with no canary
+change. Ruleset `26903137` is sealed (no bypass actor), tag policy
+`66120453`. The next coordinate is A44 = `v0.51.3`; see
+[release-v0.51.3.md](release-v0.51.3.md).
+
 Status: prepared 2026-11-10, not published. A43 is `v0.51.2`. A42 is
 `v0.51.1`, immutable release `439292420`; see
 [release-v0.51.1.md](release-v0.51.1.md).
