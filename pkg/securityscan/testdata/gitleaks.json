@@ -1,0 +1,32 @@
+[
+  {
+    "RuleID": "generic-api-key",
+    "Description": "Detected a Generic API Key, potentially exposing access to various services.",
+    "StartLine": 12,
+    "EndLine": 12,
+    "StartColumn": 9,
+    "EndColumn": 48,
+    "Match": "api_key = \"fixture-not-a-real-value-0001\"",
+    "Secret": "fixture-not-a-real-value-0001",
+    "File": "config/settings.py",
+    "SymlinkFile": "",
+    "Commit": "9f2c4e1a7b3d5c6e8f0a1b2c3d4e5f6a7b8c9d0e",
+    "Entropy": 4.1,
+    "Author": "dev",
+    "Email": "dev@example.invalid",
+    "Date": "2026-11-01T10:00:00Z",
+    "Message": "add settings",
+    "Tags": [],
+    "Fingerprint": "9f2c4e1a7b3d5c6e8f0a1b2c3d4e5f6a7b8c9d0e:config/settings.py:generic-api-key:12"
+  },
+  {
+    "RuleID": "private-key",
+    "Description": "Identified a Private Key, which may compromise cryptographic security and sensitive data encryption.",
+    "StartLine": 1,
+    "Match": "REDACTED",
+    "Secret": "REDACTED",
+    "File": "deploy/id_fixture",
+    "Commit": "",
+    "Fingerprint": ""
+  }
+]
