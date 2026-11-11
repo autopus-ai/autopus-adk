@@ -27,6 +27,9 @@ const (
 
 	diskMinAutoIntervalMinutes = 5
 
+	// DiskMaxLeaseCPUSlots bounds disk.lease.cpu_slots.
+	DiskMaxLeaseCPUSlots = 4096
+
 	// diskMinReclaimIdleMinutes is the lowest reclaim idle threshold accepted.
 	diskMinReclaimIdleMinutes = 60
 )
@@ -53,6 +56,13 @@ type DiskLeaseConf struct {
 	MaxConcurrent     *int  `yaml:"max_concurrent,omitempty"`
 	WaitMinutes       *int  `yaml:"wait_minutes,omitempty"`
 	ReclaimOnShortage *bool `yaml:"reclaim_on_shortage,omitempty"`
+	// CPUSlots is how many CPU slots `auto disk lease --cpu` shares on this
+	// machine; 0 or absent means the logical CPU count.
+	CPUSlots *int `yaml:"cpu_slots,omitempty"`
+	// Dir is an absolute lease directory shared by several users of one
+	// machine, such as the runner accounts of a self-hosted CI host. Empty
+	// keeps the leases in the current user's state dir.
+	Dir string `yaml:"dir,omitempty"`
 }
 
 // DiskReclaimEffective is the resolved disk.reclaim.
@@ -70,6 +80,9 @@ type DiskLeaseEffective struct {
 	MaxConcurrent     int
 	WaitMinutes       int
 	ReclaimOnShortage bool
+	// CPUSlots 0 means the logical CPU count; Dir "" the per-user state dir.
+	CPUSlots int
+	Dir      string
 }
 
 func (r DiskReclaimConf) effective() DiskReclaimEffective {
@@ -104,6 +117,8 @@ func (l DiskLeaseConf) effective() DiskLeaseEffective {
 		MaxConcurrent:     diskInt(l.MaxConcurrent, DefaultDiskLeaseMaxConcurrent),
 		WaitMinutes:       diskInt(l.WaitMinutes, DefaultDiskLeaseWaitMinutes),
 		ReclaimOnShortage: reclaim,
+		CPUSlots:          diskInt(l.CPUSlots, 0),
+		Dir:               l.Dir,
 	}
 }
 
@@ -132,6 +147,15 @@ func (r DiskReclaimConf) validate() error {
 }
 
 func (l DiskLeaseConf) validate() error {
+	if l.CPUSlots != nil && *l.CPUSlots < 0 {
+		return fmt.Errorf("disk.lease.cpu_slots must be >= 0, got %d", *l.CPUSlots)
+	}
+	if l.CPUSlots != nil && *l.CPUSlots > DiskMaxLeaseCPUSlots {
+		return fmt.Errorf("disk.lease.cpu_slots must be <= %d, got %d", DiskMaxLeaseCPUSlots, *l.CPUSlots)
+	}
+	if l.Dir != "" && !filepath.IsAbs(l.Dir) {
+		return fmt.Errorf("disk.lease.dir must be an absolute path, got %q", l.Dir)
+	}
 	for _, bound := range []struct {
 		key   string
 		value *int

@@ -19,7 +19,10 @@ type diskStatusData struct {
 	// SPEC-DISK-002 additions, filled by statusExtras.
 	ReclaimPreview diskReclaimData       `json:"reclaim_preview"`
 	Leases         []diskspace.LeaseInfo `json:"leases"`
-	Trend          *diskspace.Trend      `json:"trend"`
+	// LeaseWaiters is the CPU queue in order; CPUSlots the machine's slots.
+	LeaseWaiters []diskspace.LeaseInfo `json:"lease_waiters"`
+	CPUSlots     int                   `json:"cpu_slots"`
+	Trend        *diskspace.Trend      `json:"trend"`
 	// Growth ranks the consumers by how much they grew over the last hour
 	// (disk harness upgrade), filled by statusExtras.
 	Growth []diskspace.Growth `json:"growth"`

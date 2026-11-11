@@ -27,10 +27,14 @@ func statusExtras(ctx context.Context, s diskSurvey, worktrees diskspace.Worktre
 		item := &d.Consumers.Worktrees.Items[i]
 		item.Owned = plan.worktrees.IsOwned(item.Path)
 	}
-	d.Leases = []diskspace.LeaseInfo{}
-	if state, err := openDiskState(); err == nil {
-		if live, err := diskspace.LiveLeases(state, false); err == nil && live != nil {
+	d.Leases, d.LeaseWaiters = []diskspace.LeaseInfo{}, []diskspace.LeaseInfo{}
+	d.CPUSlots = leaseCPUSlots(s.dc.disk.Lease)
+	if dir, err := openLeaseDir(s.dc.disk.Lease); err == nil {
+		if live, err := diskspace.LiveLeasesIn(dir, false); err == nil && live != nil {
 			d.Leases = live
+		}
+		if waiters, err := diskspace.LiveWaiters(dir); err == nil && waiters != nil {
+			d.LeaseWaiters = waiters
 		}
 	}
 }
@@ -47,17 +51,7 @@ func writeStatusExtrasText(w io.Writer, d diskStatusData) {
 			fmt.Fprintln(w, terminalSafe("  owned worktree: "+diskspace.DisplayPath(item.Path)))
 		}
 	}
-	if len(d.Leases) == 0 {
-		fmt.Fprintln(w, "disk leases: none")
-	}
-	for _, lease := range d.Leases {
-		line := fmt.Sprintf("disk lease: %s GiB for %s (pid %d, %s)", diskspace.GiBString(lease.NeedBytes),
-			lease.Label, lease.PID, diskNow().Sub(lease.Started).Round(time.Second))
-		if lease.Orphaned {
-			line += "; orphaned: the wrapper exited and a process it started still holds the lease"
-		}
-		fmt.Fprintln(w, terminalSafe(line))
-	}
+	writeLeaseStatusText(w, d.Leases, d.LeaseWaiters, d.CPUSlots)
 	if d.Trend != nil {
 		sign := ""
 		if d.Trend.BytesPerHour >= 0 {
