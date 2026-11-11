@@ -16,11 +16,19 @@ umask 077
 
 fail() { printf 'advance coordinate: %s\n' "$1" >&2; exit 1; }
 usage() {
-  printf '%s\n' 'usage: advance-release-coordinate.sh FROM_TAG FROM_PHASE TO_TAG TO_PHASE' >&2
+  printf '%s\n' 'usage: advance-release-coordinate.sh FROM_TAG FROM_PHASE TO_TAG TO_PHASE [--measurements FILE [record flags]]' >&2
   exit 64
 }
-[[ $# -eq 4 ]] || usage
+[[ $# -ge 4 ]] || usage
 readonly from_tag=$1 from_phase=$2 to_tag=$3 to_phase=$4
+shift 4
+# A published FROM moves only from its measurement (measure-published-release.sh);
+# --measurements and the record flags after it belong to
+# advance-release-coordinate-measured.sh.
+measured_args=("$@")
+if ((${#measured_args[@]})); then
+  [[ "${measured_args[0]}" == '--measurements' && ${#measured_args[@]} -ge 2 ]] || usage
+fi
 [[ "$from_phase" =~ ^A[0-9]+$ ]] || fail 'FROM_PHASE is not a phase label'
 readonly from_version="${from_tag#v}" to_version="${to_tag#v}"
 
@@ -118,6 +126,14 @@ if gh api "repos/${repository}/releases/tags/${from_tag}" \
   --jq 'select(.draft == false and (.assets | length) > 0) | .id' >/dev/null 2>&1; then
   from_published=1
 fi
+if [[ "$from_published" -eq 1 && ${#measured_args[@]} -gt 0 ]]; then
+  # The measured move owns every file below, history included, so it replaces
+  # the rest of this script rather than running beside it.
+  exec "$repo_root/scripts/release-tools/advance-release-coordinate-measured.sh" \
+    "$from_tag" "$from_phase" "$to_tag" "$to_phase" "${measured_args[@]}"
+fi
+[[ ${#measured_args[@]} -eq 0 ]] ||
+  fail "${from_tag} is not published; --measurements is only for a published FROM"
 if [[ "$from_published" -eq 1 ]]; then
   printf '  history  %s is published; its rows stay and %s is added beside them\n' \
     "$from_tag" "$to_tag"
@@ -128,9 +144,11 @@ if [[ "$from_published" -eq 1 ]]; then
     fi
     fail "$(printf '%s\n' \
       "${target} has no ${to_version} declaration and ${from_tag} is published." \
-      "  Add the new phase by hand: its predecessor pins are measured from the" \
-      "  immutable release, not derived from a version string. See" \
-      "  docs/runbooks/omp-pin-advance.md for the measurement pattern.")"
+      "  Its predecessor pins are measured from the immutable release, not derived" \
+      "  from a version string. Measure it and pass the measurement:" \
+      "    scripts/release-tools/measure-published-release.sh ${from_tag} --predecessor-commit SHA >m.json" \
+      "    $0 ${from_tag} ${from_phase} ${to_tag} ${to_phase} --measurements m.json" \
+      "  See docs/runbooks/release-coordinate-move.md.")"
   done
   for target in "${phase_list_files[@]}"; do
     if grep -qF -- "'${to_phase}'" "$target"; then
