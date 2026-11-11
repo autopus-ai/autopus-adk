@@ -13,10 +13,12 @@ readonly release_ref='refs/tags/v0.51.4'
 readonly release_actor_id=204883817
 readonly environment_name='adk-companion-release'
 for tool in gh jq; do command -v "$tool" >/dev/null || fail "${tool} is unavailable"; done
-summaries=$(gh api "repos/${repository}/rulesets?includes_parents=true&targets=tag") ||
+# Rulesets accumulate one per release: an unpaginated read sees only the
+# first 30, and the v0.51.4 ruleset was the 34th. Read every page.
+summaries=$(gh api --paginate --slurp "repos/${repository}/rulesets?includes_parents=true&targets=tag&per_page=100") ||
   fail 'cannot inspect release tag rulesets'
 ruleset_id=$(jq -er --arg name "$ruleset_name" '
-  [.[] | select(.name == $name and .target == "tag")] |
+  [(add // [])[] | select(.name == $name and .target == "tag")] |
   if length == 1 then .[0].id else error("ruleset is missing or ambiguous") end
 ' <<<"$summaries") || fail 'release tag ruleset is missing or ambiguous'
 [[ "$ruleset_id" =~ ^[1-9][0-9]*$ ]] || fail 'release tag ruleset ID is malformed'

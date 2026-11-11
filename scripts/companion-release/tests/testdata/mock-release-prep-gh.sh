@@ -83,8 +83,21 @@ case "$command" in
     done
     case "$method:$endpoint" in
       GET:repos/autopus-ai/autopus-adk) printf '%s\n' '{"permissions":{"admin":true}}' ;;
-      'GET:repos/autopus-ai/autopus-adk/rulesets?includes_parents=true&targets=tag')
-        printf '%s\n' '[{"id":777,"name":"autopus-v0.51.4-release-authority","target":"tag"}]'
+      'GET:repos/autopus-ai/autopus-adk/rulesets?includes_parents=true&targets=tag'|'GET:repos/autopus-ai/autopus-adk/rulesets?includes_parents=true&targets=tag&per_page=100')
+        # Pages like GitHub: 30 per page unless per_page says otherwise, and
+        # only the first page without --paginate. A test may list more
+        # rulesets in $state/rulesets.json; the release ruleset is the default.
+        per_page=30
+        [[ "$endpoint" == *'&per_page=100' ]] && per_page=100
+        if [[ -f "$state/rulesets.json" ]]; then rulesets=$(<"$state/rulesets.json")
+        else rulesets='[{"id":777,"name":"autopus-v0.51.4-release-authority","target":"tag"}]'; fi
+        pages=$(jq -c --argjson size "$per_page" '
+          . as $all | (length) as $total |
+          [range(0; ([$total, 1] | max); $size) | $all[.:(. + $size)]]
+        ' <<<"$rulesets")
+        if [[ "$paginate" -eq 0 ]]; then jq -c '.[0]' <<<"$pages"
+        elif [[ "$slurp" -eq 1 ]]; then printf '%s\n' "$pages"
+        else jq -c '.[]' <<<"$pages"; fi
         ;;
       GET:repos/autopus-ai/autopus-adk/rulesets/777)
         ruleset_state=$(<"$state/ruleset-state")
