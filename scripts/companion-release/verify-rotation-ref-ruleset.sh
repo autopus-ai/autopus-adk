@@ -45,10 +45,11 @@ if [[ "$public_mode" -eq 1 ]]; then
 fi
 
 command -v gh >/dev/null || fail 'gh is unavailable'
-summaries=$(gh api "repos/${repository}/rulesets?includes_parents=true&targets=branch") ||
+summaries=$(gh api --paginate --slurp \
+  "repos/${repository}/rulesets?includes_parents=true&targets=branch&per_page=100") ||
   fail 'cannot inspect rotation ref rulesets'
 ruleset_id=$(jq -er --arg name "$ruleset_name" '
-  [.[] | select(.name == $name and .target == "branch")] |
+  [(add // [])[] | select(.name == $name and .target == "branch")] |
   if length == 1 then .[0].id else error("ruleset is missing or ambiguous") end
 ' <<<"$summaries") || fail 'rotation ref ruleset is missing or ambiguous'
 [[ "$ruleset_id" =~ ^[1-9][0-9]*$ ]] || fail 'rotation ref ruleset ID is malformed'

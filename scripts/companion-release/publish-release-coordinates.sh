@@ -108,9 +108,10 @@ source /dev/fd/9
 exec 9<&-
 seal_release_tag_ruleset() {
   local summaries ruleset_id ruleset seal_payload
-  summaries=$(gh api "repos/${repository}/rulesets?includes_parents=true&targets=tag") || return 1
+  summaries=$(gh api --paginate --slurp \
+    "repos/${repository}/rulesets?includes_parents=true&targets=tag&per_page=100") || return 1
   ruleset_id=$(jq -er --arg name 'autopus-v0.51.4-release-authority' \
-    '[.[] | select(.name == $name and .target == "tag")] |
+    '[(add // [])[] | select(.name == $name and .target == "tag")] |
      if length == 1 then .[0].id else error("ruleset is missing or ambiguous") end' \
     <<<"$summaries") || return 1
   ruleset=$(gh api "repos/${repository}/rulesets/${ruleset_id}") || return 1
