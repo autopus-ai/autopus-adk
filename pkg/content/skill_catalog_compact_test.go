@@ -12,11 +12,11 @@ func cfgDefault(platforms ...string) *config.HarnessConfig {
 	return &config.HarnessConfig{Platforms: platforms}
 }
 
-// TestCompactDefault_CoreSurfaceIsTheDeclaredTwelve pins the default advertised
-// reusable-skill surface: the verification harness's twelve skills. Growing it
+// TestCompactDefault_CoreSurfaceIsTheDeclaredThirteen pins the default advertised
+// reusable-skill surface: the verification harness's thirteen skills. Growing it
 // is a product decision, not a side effect of adding a skill file or renaming
 // a category.
-func TestCompactDefault_CoreSurfaceIsTheDeclaredTwelve(t *testing.T) {
+func TestCompactDefault_CoreSurfaceIsTheDeclaredThirteen(t *testing.T) {
 	want := []string{
 		"browser-automation",
 		"ci-optimize",
@@ -28,6 +28,7 @@ func TestCompactDefault_CoreSurfaceIsTheDeclaredTwelve(t *testing.T) {
 		"qa-hunt",
 		"review",
 		"secure-hunt",
+		"stack-freshness",
 		"testing-strategy",
 		"verification",
 	}

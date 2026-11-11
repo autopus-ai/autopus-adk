@@ -90,6 +90,18 @@ set of hits again only leaves a warning, so the gate does not loop. Binary files
 and harness directories are skipped. A deliberate fixture passes with an `autopus:allow-secret` (or
 `gitleaks:allow`) comment on the line, or a `file:rule:line` entry in `.gitleaksignore`.
 
+**Version check.** Agents pin what they remember from training (`postgres:13`, `"react": "^18"`,
+`go 1.22`, `node:20-alpine`), not what is current. Before the build, the hook reads the manifests this
+turn changed or created (`go.mod`, `package.json`, `requirements*.txt`, `pyproject.toml`, `Cargo.toml`,
+`.nvmrc`, `.python-version`, `.tool-versions`, Dockerfiles, and YAML `image:` keys) and keeps only the
+pins it adds or changes against `HEAD`; an old pin the turn did not touch is never reported. Each one is
+looked up (see [Dependency versions](#dependency-versions)). A pin more than
+`hooks.version_stop.max_major_behind` release lines behind the latest stable (default 0, so any whole line)
+blocks the stop once, naming the item, the chosen and the latest version, and the source. Minor-behind
+pins only warn. A deliberate pin passes with a reply line `version-pin: <name> <reason>`, or a
+`version-pin: <reason>` comment on the manifest line where the format allows comments. Lookups share a
+10-second deadline; an offline, private, or slow registry leaves a warning and never blocks.
+
 **Follow-up round (opt-in).** With `AUTOPUS_FOLLOWUP=on` (or `auto verify stop --followup`), when
 the build passes and the change has 40 or more changed source lines
 (added plus deleted against `HEAD`, untracked source files included), the hook blocks once more with
@@ -115,6 +127,7 @@ Turn the round on where that trade is worth it.
 | Don't register the hook | `hooks.verify_stop: false` in `autopus.yaml`, then `auto update` |
 | Disable for one session or shell | `AUTOPUS_VERIFY_STOP=off` |
 | Turn off only the credential check | `hooks.secret_stop: false`, or `AUTOPUS_SECRET_STOP=off` |
+| Turn off only the version check | `hooks.version_stop: false`, or `AUTOPUS_VERSION_STOP=off`; allow N lines behind with `hooks.version_stop: {max_major_behind: N}` |
 | Turn the follow-up round on | `AUTOPUS_FOLLOWUP=on` (for example in the `env` block of `.claude/settings.json`), or `auto verify stop --followup` |
 | Force it off even where it is on | `AUTOPUS_FOLLOWUP=off` |
 
@@ -185,7 +198,7 @@ Platform syntax:
 | --- | --- |
 | Agents (4) | `reviewer`, `qa-explorer`, `frontend-specialist`, `ux-validator` |
 | Rules (4) | `language-policy`, `lore-commit`, `file-size-limit`, `autonomy` |
-| Skills (12) | `review`, `verification`, `qa-hunt`, `secure-hunt`, `disk-triage`, `ci-optimize`, `qa-autopilot`, `frontend-verify`, `browser-automation`, `playwright-cli`, `testing-strategy`, `lore-commit` |
+| Skills (13) | `review`, `verification`, `qa-hunt`, `secure-hunt`, `disk-triage`, `ci-optimize`, `stack-freshness`, `qa-autopilot`, `frontend-verify`, `browser-automation`, `playwright-cli`, `testing-strategy`, `lore-commit` |
 | Routes | `review`, `qa`, `secure`, `verify`, `test`, `sync`, `update`, `doctor`, plus the `browse` alias |
 | Hooks | Claude Code Stop hook `auto verify stop`; a Lore `commit-msg` git hook |
 
@@ -322,6 +335,7 @@ architecture:
 hooks:
   verify_stop: true     # Claude Code Stop hook (default on when unset)
   secret_stop: true     # credential check inside the Stop hook (default on when unset)
+  version_stop: true    # version check inside the Stop hook; or {max_major_behind: N} (default on, N=0)
   pre_commit_lore: true # Lore commit-msg hook
   pre_commit_arch: true
 
@@ -382,6 +396,40 @@ Exit status: 1 when a finding reaches `--fail-on` (default `high`: any secret, o
 high or critical; govulncheck, cargo audit, and pip-audit do not grade, so their findings count as high),
 2 when a scanner failed and nothing else did, 0 otherwise, including when no scanner is installed.
 `--fail-on` takes `none`, `secret`, `critical`, `high`, `medium`, or `low`.
+
+## Dependency versions
+
+`auto deps` asks the registries instead of the model's memory:
+
+```bash
+auto deps latest npm:react             # 19.x, with the source URL and fetch time
+auto deps latest image:postgres        # Docker Hub official image, numeric release tags only
+auto deps latest toolchain:node        # current and active LTS
+auto deps latest django                # a bare name is resolved through the project's manifests
+auto deps outdated                     # direct deps, toolchain pins, and images vs latest stable
+auto deps outdated --dir ./service --json
+```
+
+| Ecosystem | Source |
+| --- | --- |
+| `go:` modules | `GOPROXY` (default proxy.golang.org) `/@latest` |
+| `npm:` | `dist-tags.latest` from registry.npmjs.org, or the registry a simple `.npmrc` names (global or per scope) |
+| `pypi:` | pypi.org JSON API |
+| `crates:` | crates.io API (`max_stable_version`) |
+| `image:` | Docker Hub tags; `node`, `golang`, and `python` images use the toolchain feeds below |
+| `toolchain:go` | go.dev/dl |
+| `toolchain:node` | nodejs.org/dist/index.json; `engines`, `.nvmrc`, and `node:` images are compared with the active LTS |
+| `toolchain:python` | endoflife.date (release cycles) |
+
+Pre-releases are never "latest". `outdated` classifies each pin as `current`, `minor-behind`,
+`major-behind (N)` (N whole release lines; for Go and Python toolchains and `0.x` packages a minor is a line),
+`unknown`, or `skipped`, and always exits 0. Privacy: a Go module matching `GOPRIVATE`, `GONOPROXY`, or
+`GONOSUMDB` (environment or `go env -w`) is never sent to a proxy, `GOPROXY=off`/`direct` means unknown,
+a PyPI lookup is skipped when `PIP_INDEX_URL` points at a private index, and image references on any
+registry other than Docker Hub, digests, and variables are skipped. Requests time out after 5s each and run
+four at a time. Answers are cached for 24h in `$XDG_STATE_HOME/autopus/deps` (or
+`~/.local/state/autopus/deps`; `AUTOPUS_DEPS_CACHE_DIR` overrides), and `AUTOPUS_DEPS_OFFLINE=1` answers
+from the cache only. The `stack-freshness` skill tells the agent when to look up and how to pin on purpose.
 
 ## Disk space
 

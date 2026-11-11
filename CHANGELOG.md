@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **에이전트가 기억한 옛 버전 대신 현재 버전을 쓰게 한다** (2026-11-11): 하네스 없이 구현하면 에이전트는
+  언어·프레임워크·DB·이미지 버전을 학습 때 기억한 대로 고정한다(`postgres:13`, `"react": "^18"`, `go 1.22`,
+  `node:20-alpine`). 모델에게 부탁하는 대신 결과를 기계적으로 확인한다. 새 `auto deps latest <생태계>:<이름>`은
+  Go 모듈(GOPROXY), npm, PyPI, crates.io, Docker Hub 공식 이미지, Go·Node·Python 툴체인(go.dev, nodejs.org,
+  endoflife.date)에서 pre-release를 뺀 최신 stable을 출처 URL·조회 시각과 함께 보여 주고, Node는 active LTS도
+  보여 준다. `auto deps outdated [--dir] [--json]`은 직접 의존성, 툴체인 고정, Dockerfile·compose·Kubernetes의
+  이미지 태그를 current/minor-behind/major-behind(N)/unknown/skipped로 나눈다. `auto verify stop`은 빌드 전에
+  이번 턴이 HEAD 대비 새로 추가하거나 바꾼 고정만 보고, 최신 stable보다 릴리스 라인이 통째로 뒤처진 항목이 있으면
+  한 번 돌려보낸다(`hooks.version_stop.max_major_behind`, 기본 0). 건드리지 않은 오래된 의존성은 지적하지 않는다.
+  일부러 고른 버전은 답변의 `version-pin: <name> <reason>` 한 줄이나 manifest 줄의 `version-pin:` 주석으로
+  통과한다. 조회는 전체 10초 deadline, 요청당 5초, 동시 4개, 24시간 디스크 캐시로 돌고, 오프라인·사설·느린
+  레지스트리는 경고만 남긴다. `GOPRIVATE`·`GONOPROXY`·`GONOSUMDB`에 걸린 Go 모듈은 공개 proxy로 보내지 않는다.
+  `AUTOPUS_VERSION_STOP=off` 또는 `hooks.version_stop: false`로 끈다. 조회 절차, 메이저 업그레이드 순서, 런타임
+  LTS 기준, 의도된 고정 방법을 담은 `stack-freshness` 스킬을 core 스킬로 설치한다.
+
 - **CI 비용·속도 최적화 스킬 `ci-optimize`를 더한다** (2026-11-11): CI가 느리거나 비쌀 때 에이전트가 일반 기법부터 적용하면 엉뚱한 곳을 고치기 쉽다. 이 스킬은 순서를 준다: jobs API 타임스탬프로 job별 대기·실행 시간과 runner별 점유율을 재고(폐지된 timing API 대신), 병목을 대기·실행·중복·버린 시간으로 분류해 가장 큰 것 하나부터 고친 뒤 같은 방법으로 다시 잰다. PR 한정 concurrency(reusable workflow 접두사 포함), 트리 해시 기준 push 재사용, job 단위 경로 필터와 필수 체크 집계, self-hosted의 host 로컬 캐시와 macOS 과다 할당, 디스크, timeout 위생, public repo fork PR과 `pull_request_target` 경계를 담는다. 측정 스니펫은 실제 저장소에서 돌려 확인했다. core 스킬로 설치한다.
 
 - **디스크 하네스: 무엇이 늘었는지 보여 주고, 공간이 모자랄 때 무거운 명령을 막고, 끝난 작업을 작업 중에

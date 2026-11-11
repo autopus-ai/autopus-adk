@@ -9,7 +9,10 @@ import "strings"
 // and verification skills, and every one of them is core. disk-triage is
 // verification hygiene: a full disk turns every build and test the Stop gate
 // runs into an ENOSPC failure that looks like a code failure, and the disk
-// gate and low-space alert, on by default, point the agent at it. Everything
+// gate and low-space alert, on by default, point the agent at it.
+// stack-freshness is verification too: the version Stop gate, on by default,
+// blocks newly added pins a release line behind and points the agent at the
+// skill for the lookup and the `version-pin:` way out. Everything
 // else stays registered and reachable through skills.compiler bundles /
 // explicit_skills / mode: full.
 var coreSkillSet = map[string]bool{
@@ -23,6 +26,7 @@ var coreSkillSet = map[string]bool{
 	"qa-hunt":            true,
 	"review":             true,
 	"secure-hunt":        true,
+	"stack-freshness":    true,
 	"testing-strategy":   true,
 	"verification":       true,
 }
