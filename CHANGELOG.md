@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **릴리즈 좌표 이동을 측정 한 번과 적용 한 번으로 끝낸다** (2026-11-11): A44, A45, A46 이동은 매번 한 시간쯤
+  손으로 고쳤다. `advance-release-coordinate.sh`가 바꾸는 파일은 replace 대상 16개와 receipt 표뿐이었고, 나머지 26개 파일
+  (validate-source.sh의 phase 행과 ancestor 핀, 계보 선언 핀 11개와 분기, phase 목록, upgrade canary·preflight·
+  Homebrew 전임자 핀, 현재 좌표를 고정한 테스트, runbook 두 개)은 손으로 고쳤다. A46 때는 일괄 치환이 이력 주석
+  ("v0.51.4 ruleset was the 34th")까지 바꿔 되돌려야 했다. 이제 `measure-published-release.sh vX`가 게시된
+  릴리즈를 읽기만 해서 핀을 JSON 하나로 낸다. release id, 게시 시각, asset 수, tag object, commit, tree,
+  checksums.txt와 아카이브 네 개, 아카이브 안 darwin manifest 두 개, 증거 태그, tap head, Cask·Formula blob이
+  들어간다. 내려받은 바이트, API digest, checksums.txt를 서로 대조하고, 태그 서명을 R2 trust root로 검증하고,
+  조상 관계를 확인한다. 하나라도 어긋나면 멈춘다. 그 JSON을
+  `advance-release-coordinate.sh vX A{n} vY A{n+1} --measurements FILE`에 주면 43개 파일을 모두 옮긴다.
+  `advance-release-coordinate-rules.pl`에 파일마다 옮기는 방식을 적었다. 이력 줄은 사건 내용으로 찾아서
+  남긴다. 그다음 템플릿으로 새 runbook을 만들고, 이전 runbook에 gh로 잰 게시 기록을 넣는다. A46 부모
+  `04bafae0`에서 A45 → A46을 다시 돌리면 코드 파일 43개가 실제 커밋 `795a40f9`와 바이트 단위로 같다.
+  게시된 FROM은 측정 없이 옮기지 않는다는 guard는 그대로다. 옮기는 법: `docs/runbooks/release-coordinate-move.md`.
+
 - **로컬은 바뀐 범위만, 전체 스위트는 PR CI가 판정한다** (2026-11-11): 여러 세션과 CI runner가 한 기계를 나눠 쓰는 환경에서 에이전트가 PR CI와 같은 전체 테스트·integration 스위트를 로컬에서 다시 돌려 같은 일을 두 번 하고 다른 작업까지 느리게 했다. verification 스킬에 기준을 둔다: PR CI가 전체 스위트를 돌리는 저장소에서는 로컬에서 바뀐 패키지·RED·바꾼 계약을 겨냥한 테스트·빌드·린트만 돌리고, 전체 스위트는 CI 결과로 판정하며 `Not-tested`에 남긴다. CI가 없거나, CI에서만 나는 실패를 진단하거나, 사용자가 요청할 때는 예외다.
 
 - **`auto disk lease --cpu`가 기계에 여유가 있으면 병렬로, 없으면 우선순위대로 들여보낸다** (2026-11-11):
