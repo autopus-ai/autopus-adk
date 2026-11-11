@@ -203,13 +203,26 @@ publish_cask() {
     .object.sha == $commit and (.object.url | type) == "string" and
     (.object.url | length) > 0
   ' "$ref_response" >/dev/null || fail "Homebrew tap ${label} ref response is invalid"
-  api_json GET "git/ref/heads/${TAP_BRANCH}" '' "$final_ref_response" \
-    'cannot verify the final Homebrew tap branch head'
-  jq -e --arg ref "refs/heads/${TAP_BRANCH}" --arg commit "$new_commit" '
-    type == "object" and .ref == $ref and .object.type == "commit" and
-    .object.sha == $commit and (.object.url | type) == "string" and
-    (.object.url | length) > 0
-  ' "$final_ref_response" >/dev/null || fail "Homebrew tap ${label} head moved after publication"
+  # The ref read lags the PATCH that just succeeded: v0.51.4 published its Cask
+  # at 08:13:08 and this read, the same second, still named the predecessor.
+  # A read that names the predecessor is retried; any other commit is a real
+  # concurrent move and fails at once, as before.
+  for attempt in 1 2 3 4 5 6 7 8 9 10; do
+    api_json GET "git/ref/heads/${TAP_BRANCH}" '' "$final_ref_response" \
+      'cannot verify the final Homebrew tap branch head'
+    if jq -e --arg ref "refs/heads/${TAP_BRANCH}" --arg commit "$new_commit" '
+      type == "object" and .ref == $ref and .object.type == "commit" and
+      .object.sha == $commit and (.object.url | type) == "string" and
+      (.object.url | length) > 0
+    ' "$final_ref_response" >/dev/null; then
+      break
+    fi
+    jq -e --arg ref "refs/heads/${TAP_BRANCH}" --arg prior "$PRIOR_TAP_COMMIT" '
+      type == "object" and .ref == $ref and .object.sha == $prior
+    ' "$final_ref_response" >/dev/null && [[ "$attempt" -lt 10 ]] ||
+      fail "Homebrew tap ${label} head moved after publication"
+    sleep 3
+  done
 
   # The contents API is read-through and lagged behind the ref update we just
   # made: v0.50.113 published the correct Cask at 02:01:47 and this read failed
