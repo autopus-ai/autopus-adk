@@ -530,6 +530,52 @@ status는 이 표본으로 소비자를 증가량 순서로 보여 주고(예: `
 안내하고, 다른 세션의 작업, 백업, VM 디스크, 다른 빌드가 쓰는 캐시처럼 지우기 전에 사용자에게 물어야 할 것을
 알려 줍니다.
 
+## CI: 먼저 재고, 기계는 나눠 쓴다
+
+`auto ci report`는 GitHub Actions 저장소를 바꾸기 전에 잽니다. 사용자의 `gh` 로그인으로 읽기만 하고(`gh`가
+없거나 로그인되지 않았으면 할 일을 알려 주고 끝납니다), jobs API 타임스탬프만 씁니다. `filter=all`로 재실행까지
+세고, 폐지된 `/timing` endpoint는 쓰지 않습니다.
+
+```bash
+auto ci report                          # origin 저장소, 최근 14일, run 200개까지 고르게 표본
+auto ci report --repo owner/name --since 30d --workflow ci.yaml --json
+```
+
+finding은 심각도, 분/일 순서로 정렬되고 근거 수치가 붙습니다. 실행보다 runner 대기가 긴 job, 가장 비싼
+job(중앙값·p90), 실패·취소·재실행 attempt에 쓴 분, 같은 workflow의 성공한 PR run이 이미 시험한 commit tree를
+다시 돈 push run, 새 push 뒤에도 끝까지 돈 PR run, 포화되거나 한쪽으로 몰린 self-hosted runner를 찾습니다.
+로컬 `.github/workflows` lint는 `timeout-minutes`가 없는 job, 취소하는 concurrency group이 없는 PR workflow,
+push·release·`workflow_call` run까지 취소하는 group, fork PR이 닿는 public 저장소의 self-hosted PR job, PR head를
+checkout하는 `pull_request_target`, PR lane과 `runs-on` 라벨을 공유하는 release·publish job을 더합니다. `--json`은
+모든 표를 담습니다. 요청은 `--max-requests`(기본 1000, 동시 4개)로 묶이고 실행 동안만 캐시됩니다. run이
+`--limit-runs`보다 많으면 합계에 보고된 보정 비율을 곱합니다.
+
+**공유 기계의 CPU lease.** GitHub Actions에는 job 우선순위가 없어서, runner 여러 개가 도는 self-hosted 기계의
+진짜 문제는 경합입니다. job마다 `GOMAXPROCS`와 `go test -p`를 전체 코어 수로 잡고, macOS에는 이를 막을 cgroup이
+없습니다. `auto disk lease --cpu N`은 명령 하나에 기계의 CPU 슬롯 N개를 예약합니다. 디스크 예약과 함께 써도 되고
+`--cpu`만 써도 됩니다. 슬롯 수는 기본이 논리 CPU 수이고(`disk.lease.cpu_slots`, 기계별로는
+`AUTOPUS_LEASE_CPU_SLOTS`), 그보다 큰 N은 슬롯 수로 줄입니다. 공유 기계의 admission control입니다. runner는
+job을 계속 병렬로 시작하고, 무거운 단계만 우선순위대로 들어가기를 기다립니다. `--priority interactive|ci|background`로
+class를 정합니다(기본 `ci`. GitHub Actions 안에서는 `GITHUB_EVENT_NAME`을 따라 `pull_request`·`pull_request_target`·
+`merge_group`은 interactive, `schedule`은 background, 나머지는 ci이며, 플래그가 우선합니다). 높은 class가 먼저,
+같은 class 안에서는 선착순으로 들어가고, 대기자는 `disk.lease.aging_minutes`(기본 10, 0이면 끔)마다 class가 한
+단계 올라서 background도 굶지 않습니다. 이미 도는 holder는 끊지 않습니다. `--wait`가 대기를 제한하며 시간이
+다하면 exit 3입니다. 죽은 holder나 대기자는 자리를 내놓습니다. 명령은 `AUTOPUS_LEASE_CPUS=N`과, 따로 정하지
+않았다면 `GOMAXPROCS=N`을 받습니다. `auto disk status`가 holder와, 들어갈 순서대로 대기자의 class, 올라간 class,
+대기 시간을 보여 줍니다.
+
+```yaml
+# .github/workflows/ci.yaml (self-hosted job)
+- name: Test
+  run: auto disk lease --cpu 8 --wait 30m --label test -- sh -c 'go test -p "$AUTOPUS_LEASE_CPUS" ./...'
+```
+
+lease는 기본으로 사용자 자신의 state dir에 있어서 한 사용자의 job끼리만 조율합니다. runner 계정 여러 개가 한
+기계를 쓰면 모두 `AUTOPUS_LEASE_DIR`(예: 각 runner의 `.env`)이나 `disk.lease.dir`로 같은 디렉터리를 가리키게
+합니다. 없는 디렉터리는 `/tmp`처럼 sticky·world-writable로 만들고, 그룹이나 다른 사용자가 쓸 수 있는 기존
+디렉터리는 sticky(`chmod +t`)여야 합니다. lease를 쥘 수 없는 시스템(Windows)에서 `--cpu`만 준 요청은 경고를
+남기고 같은 환경 변수로 명령을 실행합니다.
+
 ## 보안
 
 - **서명된 릴리스.** v0.50.73 이후 모든 릴리스에는 `checksums.txt`와 ECDSA P-256 publisher envelope

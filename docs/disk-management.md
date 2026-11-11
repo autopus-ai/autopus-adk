@@ -88,6 +88,9 @@ disk:
     max_concurrent: 0             # 0 = no count limit; otherwise at most this many leases
     wait_minutes: 10              # how long a lease waits for space by default
     reclaim_on_shortage: true     # trim and reclaim once before waiting
+    cpu_slots: 0                  # CPU slots --cpu shares; 0 = the logical CPU count (at most 4096)
+    dir: ""                       # absolute shared lease dir for several users; "" = your state dir
+    aging_minutes: 10             # a CPU waiter rises one priority class per interval; 0 = no aging
 ```
 
 Every `trim` and `reclaim` `*idle_minutes` value must be at least 60, and
@@ -240,6 +243,37 @@ is not, because the terminal already sends it to the command. The label shown
 by status and the log is `--label`, or the command's program name. Leases only
 coordinate commands that use them: CI jobs and unwrapped builds still take
 space without asking.
+
+### CPU slots
+
+`--cpu N` reserves N CPU slots as well; with `--cpu` alone no `--need` is
+required and the disk floor is not consulted. The machine has
+`AUTOPUS_LEASE_CPU_SLOTS`, else `lease.cpu_slots`, else as many slots as
+logical CPUs, and a larger N is clamped to that. A refused CPU request takes
+a queue ticket (a locked `.wait` file) that records its class and when it
+was queued; no request is admitted while a live ticket ahead of it waits.
+Ahead means a higher effective class (`--priority interactive`, `ci`, or
+`background`; the default is `ci`, or inside GitHub Actions `interactive`
+for `pull_request`, `pull_request_target`, and `merge_group` and
+`background` for `schedule`), or the same class and queued earlier. A
+waiter's effective class rises one step every `lease.aging_minutes`
+(default 10; 0 turns aging off), so background work is reached in at most
+two intervals. A running holder is never preempted.
+A killed holder or waiter releases its lock and is discarded by the next
+admission. When the wait runs out the lease exits 3 with a line such as
+`disk lease: 4 CPUs requested, 2 of 8 slots free after 6 reserved by 2 leases, 1 waiters ahead; waited 30m0s`.
+The command runs with `AUTOPUS_LEASE_CPUS=N` and `GOMAXPROCS=N`; a
+`GOMAXPROCS` you set yourself is kept, and one set by an outer lease is
+replaced. `lease.max_concurrent` counts disk leases only.
+
+Leases live in `leases/` of your state dir. To account for several users of
+one machine (the runner accounts of a CI host), give all of them the same
+`AUTOPUS_LEASE_DIR` or `lease.dir`. A missing directory is created with mode
+1777; an existing one writable by group or others must have the sticky bit,
+so no user can remove a lease another holds. Lease files there are 0644 and
+locked through read-only descriptors. Where no lease can be held (Windows),
+`--cpu` alone prints a warning and runs the command unleased with the same
+environment.
 
 ## Events, trend, and alerts
 

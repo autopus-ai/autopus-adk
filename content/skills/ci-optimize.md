@@ -22,7 +22,16 @@ level1_metadata: "jobs API로 queue·run 시간 분리, runner별 점유율, 낭
 ## 1. 측정 (항상 먼저)
 
 `/repos/{o}/{r}/actions/runs/{id}/timing`과 workflow usage endpoint는 폐지됐습니다. jobs API의 타임스탬프로
-직접 계산합니다.
+직접 계산합니다. 먼저 `auto ci report`를 돌립니다. 아래 표의 지표, 중복·대체된 run, workflow lint를 한 번에
+계산하고 finding을 심각도와 분/일 순서로 정렬합니다. 사용자의 `gh` 로그인으로 읽기만 합니다.
+
+```bash
+auto ci report                                   # origin 저장소, 최근 14일, run 200개까지 고르게 표본
+auto ci report --repo owner/repo --since 30d --workflow ci.yaml --json   # 원 표 전체
+```
+
+출력의 `sample:` 줄에 표본 수와 보정 비율이, `note:` 줄에 요청 예산이나 tree 조회 상한으로 잘린 부분이
+나옵니다. 보고에 그대로 옮깁니다. `auto ci report`가 없는 오래된 바이너리에서는 아래처럼 직접 잽니다.
 
 ```bash
 REPO=owner/repo   # 대상 저장소
@@ -90,6 +99,16 @@ self-hosted의 **기계 점유**로 나눕니다. self-hosted 분은 청구되�
 - 한 기계의 여러 runner는 CPU를 나눠 씁니다. macOS에는 cgroup이 없어 job마다 `GOMAXPROCS`·`go test -p`가
   전체 코어 수로 잡힙니다. runner 수 × job당 병렬도가 코어 수를 크게 넘지 않게 잡고, 바꾼 뒤 p90과 flaky율을
   다시 잽니다. 한 기계 안에서 shard를 늘리면 setup 비용만 shard 수만큼 늘어납니다.
+- GitHub Actions에는 job 우선순위가 없어서(라벨과 concurrency group뿐) 같은 기계의 경합은 기계 쪽의
+  admission control로 나눕니다. runner는 job을 병렬로 시작하고, 무거운 단계만 우선순위대로 들여보냅니다.
+  무거운 단계를 `auto disk lease --cpu N --wait 30m -- <cmd>`로 감싸면 그 기계의 CPU 슬롯 N개를 예약하고,
+  명령에 `AUTOPUS_LEASE_CPUS=N`과(따로 정하지 않았으면) `GOMAXPROCS=N`을 넘깁니다. `go test -p "$AUTOPUS_LEASE_CPUS"`
+  처럼 씁니다. 대기자는 `--priority interactive|ci|background` 순서로, 같은 class 안에서는 선착순으로 들어갑니다.
+  Actions 안에서 기본 class는 이벤트를 따릅니다(PR·merge_group은 interactive, push·dispatch는 ci, schedule은
+  background). 기다린 시간이 `disk.lease.aging_minutes`(기본 10)를 지날 때마다 class가 한 단계 오르므로
+  background도 굶지 않습니다. 이미 도는 holder는 끊지 않습니다. runner 계정이 여러 개면 모두 같은
+  `AUTOPUS_LEASE_DIR`(runner의 `.env`)을 가리키게 해야 서로를 셉니다. 대기열의 class, 대기 시간, 올라간
+  class는 `auto disk status`로 봅니다.
 - 디스크: runner 작업 디렉터리와 캐시가 같은 볼륨이면 여유 공간 부족이 컴파일 오류나 timeout으로 위장합니다.
   `disk-triage` 스킬로 소비처를 확인합니다. 캐시를 통째로 지우는 정리는 콜드 빌드를 만듭니다.
 

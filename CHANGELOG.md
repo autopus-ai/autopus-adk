@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **`auto ci report`로 CI 병목을 재고, `auto disk lease --cpu`로 공유 기계의 CPU를 나눈다** (2026-11-11):
+  CI를 고치기 전에 재는 일은 `gh api`와 jq를 손으로 이어 붙여야 했다. `auto ci report`는 사용자의 `gh` 로그인으로
+  jobs API 타임스탬프(`filter=all`)만 읽어 job별 실행·대기 중앙값/p90, event별 끝-끝 시간, runner별 busy 분/일,
+  실패·취소·재실행 분, PR run이 이미 시험한 tree를 다시 돈 push run, 새 push 뒤에도 끝까지 돈 PR run을 계산하고,
+  로컬 workflow lint(`timeout-minutes` 누락, PR concurrency 누락, push·release·`workflow_call`까지 취소하는 group,
+  fork PR이 닿는 self-hosted job, PR head를 checkout하는 `pull_request_target`, PR lane과 라벨을 공유하는 release
+  job)를 더해 심각도와 분/일 순으로 보여 준다. 요청은 예산(기본 1000)과 동시 4개로 묶이고, run이 많으면 고르게
+  표본을 뽑아 보정 비율을 적는다. GitHub Actions에는 job 우선순위가 없으므로 같은 기계의 경합은 기계에서 나눈다.
+  `auto disk lease --cpu N -- <cmd>`는 CPU 슬롯 N개를 예약하고(기본 슬롯은 논리 CPU 수,
+  `disk.lease.cpu_slots`), 명령에 `AUTOPUS_LEASE_CPUS=N`과 `GOMAXPROCS=N`(이미 정했으면 그대로)을 넘긴다.
+  runner는 job을 병렬로 시작하고 무거운 단계만 우선순위대로 들어간다. `--priority interactive|ci|background`
+  (기본 ci, GitHub Actions에서는 PR·merge_group이 interactive, schedule이 background)가 높은 class부터, 같은 class는
+  선착순으로 들여보내고, 대기자는 `disk.lease.aging_minutes`(기본 10)마다 한 class씩 올라 굶지 않는다. 도는 holder는
+  끊지 않는다.
+  `--wait`가 다하면 exit 3이다. 여러 runner 계정은 `AUTOPUS_LEASE_DIR`나 `disk.lease.dir`로 sticky 공유
+  디렉터리를 함께 쓴다. `auto disk status`는 CPU holder와 대기열을 보여 준다. `--need`·`--for`만 쓰는 기존 디스크
+  lease는 그대로 동작한다. `ci-optimize` 스킬은 `auto ci report`를 첫 단계로, CPU lease를 공유 기계 대책으로
+  안내한다. GitHub Actions 예:
+
+  ```yaml
+  - name: Test
+    run: auto disk lease --cpu 8 --wait 30m --label test -- sh -c 'go test -p "$AUTOPUS_LEASE_CPUS" ./...'
+  ```
+
 - **에이전트가 기억한 옛 버전 대신 현재 버전을 쓰게 한다** (2026-11-11): 하네스 없이 구현하면 에이전트는
   언어·프레임워크·DB·이미지 버전을 학습 때 기억한 대로 고정한다(`postgres:13`, `"react": "^18"`, `go 1.22`,
   `node:20-alpine`). 모델에게 부탁하는 대신 결과를 기계적으로 확인한다. 새 `auto deps latest <생태계>:<이름>`은

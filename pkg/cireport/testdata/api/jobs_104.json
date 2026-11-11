@@ -1,0 +1,14 @@
+{
+  "total_count": 3,
+  "jobs": [
+    {"id": 1041, "run_id": 104, "run_attempt": 1, "name": "build", "workflow_name": "CI", "status": "completed", "conclusion": "failure",
+     "created_at": "2026-11-02T03:00:00Z", "started_at": "2026-11-02T03:00:30Z", "completed_at": "2026-11-02T03:20:30Z",
+     "runner_name": "mac-1", "labels": ["self-hosted", "macOS"]},
+    {"id": 1042, "run_id": 104, "run_attempt": 2, "name": "build", "workflow_name": "CI", "status": "completed", "conclusion": "failure",
+     "created_at": "2026-11-02T03:30:00Z", "started_at": "2026-11-02T03:30:00Z", "completed_at": "2026-11-02T03:50:00Z",
+     "runner_name": "mac-1", "labels": ["self-hosted", "macOS"]},
+    {"id": 1043, "run_id": 104, "run_attempt": 2, "name": "lint", "workflow_name": "CI", "status": "completed", "conclusion": "cancelled",
+     "created_at": "2026-11-02T03:30:00Z", "started_at": "2026-11-02T03:30:00Z", "completed_at": "2026-11-02T03:31:00Z",
+     "runner_name": "GitHub Actions 6", "labels": ["ubuntu-latest"]}
+  ]
+}

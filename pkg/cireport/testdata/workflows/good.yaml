@@ -1,0 +1,14 @@
+name: Good
+on:
+  pull_request:
+  push:
+    branches: [main]
+concurrency:
+  group: good-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - run: go test ./...

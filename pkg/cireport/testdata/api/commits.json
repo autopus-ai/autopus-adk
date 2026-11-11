@@ -1,0 +1,5 @@
+{
+  "aaa": {"sha": "aaa", "tree": {"sha": "t1"}},
+  "bbb": {"sha": "bbb", "tree": {"sha": "t2"}},
+  "ccc": {"sha": "ccc", "tree": {"sha": "t2"}}
+}
