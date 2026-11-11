@@ -69,7 +69,9 @@ func newVerifyStopCmd() *cobra.Command {
 			"without a test change is blocked unless the reply has a `TDD-exempt: <reason>` line. Set " +
 			"AUTOPUS_VERIFY_STOP=off to disable. Before the build, added lines that look like credentials block the stop " +
 			"once, naming file:line and rule but never the value (AUTOPUS_SECRET_STOP=off or hooks.secret_stop: false " +
-			"turns that off). Opt-in with AUTOPUS_FOLLOWUP=on or --followup: once the build passes, " +
+			"turns that off). Dependency, toolchain and image pins this turn adds or bumps that are a full release line behind " +
+			"the latest stable block the stop once, unless the reply has a `version-pin: <name> <reason>` line " +
+			"(AUTOPUS_VERSION_STOP=off or hooks.version_stop: false turns that off). Opt-in with AUTOPUS_FOLLOWUP=on or --followup: once the build passes, " +
 			"a change of 40 or more lines is sent on to the reviewer and qa-explorer agents, once per session.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -108,6 +110,11 @@ func runVerifyStop(cmd *cobra.Command, stdin io.Reader, budget time.Duration, fo
 	if block != nil {
 		return *block
 	}
+	versionBlock, versionWarn := versionGate(cmd.Context(), in, root)
+	if versionBlock != nil {
+		return withSecretWarning(*versionBlock, warning)
+	}
+	warning = joinWarnings(warning, versionWarn)
 	return withSecretWarning(verifyChanged(cmd, in, root, changed, budget, followup), warning)
 }
 
@@ -193,6 +200,8 @@ func resetStopState(session string) {
 	resetStopBlocks(session)
 	_ = os.Remove(stopStateFile(session, "pass"))
 	_ = os.Remove(stopStateFile(session, "secrets"))
+	_ = os.Remove(stopStateFile(session, "versions"))
+	_ = os.Remove(stopStateFile(session, "versions-warn"))
 }
 
 func describeSkips(skipped []verifygate.Skip) string {

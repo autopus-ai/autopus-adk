@@ -9,7 +9,7 @@
 .autopus/backup/<TS>/transaction/
 .autopus/backup/<TS>/transaction/claude-code/
 .autopus/backup/<TS>/transaction/claude-code/.autopus/
-.autopus/backup/<TS>/transaction/claude-code/.autopus/claude-code-manifest.json b379f73c773d94c6e97eb7706f988055cba19efee06c3728d11c86761cf12345
+.autopus/backup/<TS>/transaction/claude-code/.autopus/claude-code-manifest.json 4e5916dcc250923be4f2aca26cff742d1925c2ec62304772dca4825033830fe5
 .autopus/backup/<TS>/transaction/claude-code/.autopus/claude-code-permissions.json b9fd4dd0824fb98d4ff3403c011a56b0b66f398788f2dfb24220c1aed87df4e8
 .autopus/backup/<TS>/transaction/claude-code/.claude/
 .autopus/backup/<TS>/transaction/claude-code/.claude/agents/
@@ -74,6 +74,8 @@
 .autopus/backup/<TS>/transaction/claude-code/.claude/skills/review/SKILL.md 5732e00d7aae91b5cf8c9626c1e93e90b471d5a2ded1946d95798cd1ca841990
 .autopus/backup/<TS>/transaction/claude-code/.claude/skills/secure-hunt/
 .autopus/backup/<TS>/transaction/claude-code/.claude/skills/secure-hunt/SKILL.md 867b2e8331f00c7c119ff843ccb3f5af2edca8e4785931fa937b89890a48a717
+.autopus/backup/<TS>/transaction/claude-code/.claude/skills/stack-freshness/
+.autopus/backup/<TS>/transaction/claude-code/.claude/skills/stack-freshness/SKILL.md 99138f5cfc3bc4cd303ae1049d56df200d301c5a361043eff567104a75e68454
 .autopus/backup/<TS>/transaction/claude-code/.claude/skills/testing-strategy/
 .autopus/backup/<TS>/transaction/claude-code/.claude/skills/testing-strategy/SKILL.md d800ca3548c6048676f9d5509347898537dd7247e1e5db23aefc70d2b52b41c9
 .autopus/backup/<TS>/transaction/claude-code/.claude/skills/verification/
@@ -88,7 +90,7 @@
 .autopus/backup/<TS>/transaction/codex/.agents/plugins/
 .autopus/backup/<TS>/transaction/codex/.agents/plugins/marketplace.json 7bac9f0f7c15eecf46023308f334e2122d112d03aa7b498f9e01adabd48ac03c
 .autopus/backup/<TS>/transaction/codex/.autopus/
-.autopus/backup/<TS>/transaction/codex/.autopus/codex-manifest.json c62de34729e19ff6c7dde9812699a80cbcf0c170f3e30c42a146c7203a9da4c5
+.autopus/backup/<TS>/transaction/codex/.autopus/codex-manifest.json effa914f0337fc552b4f07e47e9e801b01a794e543c63f2559931afe283ea5f9
 .autopus/backup/<TS>/transaction/codex/.autopus/plugins/
 .autopus/backup/<TS>/transaction/codex/.autopus/plugins/auto/
 .autopus/backup/<TS>/transaction/codex/.autopus/plugins/auto/.codex-plugin/
@@ -143,14 +145,16 @@
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-review/SKILL.md 405843d8741565e7ebb377dea695ab27090ccb88256eb7053a4ce52b4084be1f
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-secure-hunt/
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-secure-hunt/SKILL.md 20ab4de155b270afd4c5b5b520212f1dab2a37925efce70f0e1a5adcbe3e87ed
+.autopus/backup/<TS>/transaction/codex/.codex/skills/codex-stack-freshness/
+.autopus/backup/<TS>/transaction/codex/.codex/skills/codex-stack-freshness/SKILL.md 9448320120e25cf8f772188db3a8974c427738a91d560dd0c744e20826724c18
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-testing-strategy/
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-testing-strategy/SKILL.md ec237de8bbfed692a20192868dd5fda5223d2d1c5504070953d49a6cccb6f43d
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-verification/
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-verification/SKILL.md 79321a33b979f2f07deb2ad4800a98ea0cbcdde89b0f2f636737b9afd92ead7d
 .autopus/backup/<TS>/transaction/codex/AGENTS.md 3bccf0f9af97957bae70ee71b41b750a1e74ce74d0bc8d0bd85b84d8ee88a7dc
-.autopus/claude-code-manifest.json b379f73c773d94c6e97eb7706f988055cba19efee06c3728d11c86761cf12345
+.autopus/claude-code-manifest.json 4e5916dcc250923be4f2aca26cff742d1925c2ec62304772dca4825033830fe5
 .autopus/claude-code-permissions.json b9fd4dd0824fb98d4ff3403c011a56b0b66f398788f2dfb24220c1aed87df4e8
-.autopus/codex-manifest.json fa5b4d01d195f12a9965cf553b940dea08b768b83904c264c6afa971db4850f6
+.autopus/codex-manifest.json c0c747486b118c365449a60a29570fb767eaf90ed4449098f2381a0027486989
 .autopus/context/
 .autopus/context/constraints.yaml d8b3a0714389a30b7aca1986fbb71235900e14c9dddfe50fdbbb758698d0b26e
 .autopus/plugins/
@@ -163,12 +167,12 @@
 .autopus/txns/
 .autopus/txns/<TX>-claude-code/
 .autopus/txns/<TX>-claude-code/
-.autopus/txns/<TX>-claude-code/journal.json 34c99f6e978521998122d87134e58ffba45f6bc44c207a014885b064e92c868c
-.autopus/txns/<TX>-claude-code/journal.json 993d90ecb8f5609e40bc6fc0e09417d98c8d6cefde9d234df3252ff9daf6767a
+.autopus/txns/<TX>-claude-code/journal.json b8c086cba204bd4e5ac5208d15d9e466da7963c40cc47b85b12200cc824bde35
+.autopus/txns/<TX>-claude-code/journal.json d7efc74a97ec99cab2f3264340759b812922c7b7eafcee9150afd6de9ac3843b
 .autopus/txns/<TX>-codex/
 .autopus/txns/<TX>-codex/
-.autopus/txns/<TX>-codex/journal.json 8cb21938068b14292b6abcaa4be9b364190fd347f4c2b024689b56c45f8899fd
-.autopus/txns/<TX>-codex/journal.json f5251e49733cbd96e6409e42299f0466441f366b4ffb288b045cccece3cd29dc
+.autopus/txns/<TX>-codex/journal.json a1ecb11436092bdfb7cb704858952a9c6f100932ee27966f97054516f20efa21
+.autopus/txns/<TX>-codex/journal.json b5f735c02205fe63b98cc7911d0ed968d5058cf4e21bb96b0d911aa7d1c8cf96
 .claude/
 .claude/agents/
 .claude/agents/autopus/
@@ -232,6 +236,8 @@
 .claude/skills/review/SKILL.md 5732e00d7aae91b5cf8c9626c1e93e90b471d5a2ded1946d95798cd1ca841990
 .claude/skills/secure-hunt/
 .claude/skills/secure-hunt/SKILL.md 867b2e8331f00c7c119ff843ccb3f5af2edca8e4785931fa937b89890a48a717
+.claude/skills/stack-freshness/
+.claude/skills/stack-freshness/SKILL.md 99138f5cfc3bc4cd303ae1049d56df200d301c5a361043eff567104a75e68454
 .claude/skills/testing-strategy/
 .claude/skills/testing-strategy/SKILL.md d800ca3548c6048676f9d5509347898537dd7247e1e5db23aefc70d2b52b41c9
 .claude/skills/verification/
@@ -286,6 +292,8 @@
 .codex/skills/codex-review/SKILL.md 405843d8741565e7ebb377dea695ab27090ccb88256eb7053a4ce52b4084be1f
 .codex/skills/codex-secure-hunt/
 .codex/skills/codex-secure-hunt/SKILL.md 20ab4de155b270afd4c5b5b520212f1dab2a37925efce70f0e1a5adcbe3e87ed
+.codex/skills/codex-stack-freshness/
+.codex/skills/codex-stack-freshness/SKILL.md 9448320120e25cf8f772188db3a8974c427738a91d560dd0c744e20826724c18
 .codex/skills/codex-testing-strategy/
 .codex/skills/codex-testing-strategy/SKILL.md ec237de8bbfed692a20192868dd5fda5223d2d1c5504070953d49a6cccb6f43d
 .codex/skills/codex-verification/
