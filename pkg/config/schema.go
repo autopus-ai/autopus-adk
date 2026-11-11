@@ -205,6 +205,10 @@ type HooksConf struct {
 	// shell commands while free space is below disk.min_free_gb. Read it
 	// through IsDiskGateEnabled.
 	DiskGate *DiskGateConf `yaml:"disk_gate,omitempty"`
+	// VersionStop lets `auto verify stop` send a session back once when its
+	// changes add or bump a dependency, toolchain or image pin a full release
+	// line behind the latest stable. Read it through IsVersionStopEnabled.
+	VersionStop *VersionStopConf `yaml:"version_stop,omitempty"`
 }
 
 // PermissionsConf는 코딩 CLI 권한 설정이다.
@@ -295,6 +299,9 @@ func (c *HarnessConfig) Validate() error {
 		return err
 	}
 	if err := c.Hooks.DiskGate.validate(); err != nil {
+		return err
+	}
+	if err := c.Hooks.VersionStop.validate(); err != nil {
 		return err
 	}
 	return c.Disk.Validate()
