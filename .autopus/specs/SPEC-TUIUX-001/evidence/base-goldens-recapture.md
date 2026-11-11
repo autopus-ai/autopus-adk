@@ -396,3 +396,10 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 기록: `go run ./cmd/generate-templates` 뒤 `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run 'TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6'`.
 - 차이: NPD 다섯 개에서 `.claude/skills/ci-optimize/SKILL.md`·`.claude/skills/disk-triage/SKILL.md`·`.codex/skills/codex-ci-optimize/SKILL.md`·`.codex/skills/codex-disk-triage/SKILL.md`와 manifest·journal checksum만 바뀌었다. stdout golden은 그대로다.
 - 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.
+
+## verification 스킬의 로컬·CI 검증 범위 (feat/local-verify-scope, 2026-11-11)
+
+- 원인: `content/skills/verification.md`에 PR CI가 전체 스위트를 돌리면 로컬은 바뀐 범위만 검증한다는 절을 더했다.
+- 기록: `go run ./cmd/generate-templates` 뒤 `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run 'TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6'`.
+- 차이: NPD 다섯 개에서 `verification` 스킬과 manifest·journal checksum만 바뀌었다. stdout golden은 그대로다.
+- 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.

@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **로컬은 바뀐 범위만, 전체 스위트는 PR CI가 판정한다** (2026-11-11): 여러 세션과 CI runner가 한 기계를 나눠 쓰는 환경에서 에이전트가 PR CI와 같은 전체 테스트·integration 스위트를 로컬에서 다시 돌려 같은 일을 두 번 하고 다른 작업까지 느리게 했다. verification 스킬에 기준을 둔다: PR CI가 전체 스위트를 돌리는 저장소에서는 로컬에서 바뀐 패키지·RED·바꾼 계약을 겨냥한 테스트·빌드·린트만 돌리고, 전체 스위트는 CI 결과로 판정하며 `Not-tested`에 남긴다. CI가 없거나, CI에서만 나는 실패를 진단하거나, 사용자가 요청할 때는 예외다.
+
 - **`auto disk lease --cpu`가 기계에 여유가 있으면 병렬로, 없으면 우선순위대로 들여보낸다** (2026-11-11):
   24코어·128 GiB 공유 Mac에서 lock 하나로 줄 세운 무거운 작업 다섯 개가, load average 9/24에 메모리 51%가 비어
   있는데도 하나 뒤에서 기다렸다. 슬롯만으로는 한가한 기계와 바쁜 기계를 구별하지 못하고, 다른 세션과 CI runner는
