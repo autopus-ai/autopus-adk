@@ -128,7 +128,7 @@ func runCIReport(cmd *cobra.Command, opts ciReportOptions) error {
 	if err != nil {
 		return fail("ci_report_failed", err.Error())
 	}
-	defer os.RemoveAll(cache)
+	defer func() { _ = os.RemoveAll(cache) }()
 	api, err := ciNewAPI(cmd.Context(), cache, opts.maxRequests)
 	if err != nil {
 		return fail("ci_report_gh", strings.TrimPrefix(err.Error(), "ci report: "))
