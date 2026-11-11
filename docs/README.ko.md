@@ -224,7 +224,7 @@ auto qa mutate --max 50 --min-score 0.7   # CI: 잡은 비율이 70% 미만이�
 | --- | --- |
 | 에이전트 (4) | `reviewer`, `qa-explorer`, `frontend-specialist`, `ux-validator` |
 | 규칙 (4) | `language-policy`, `lore-commit`, `file-size-limit`, `autonomy` |
-| 스킬 (11) | `review`, `verification`, `qa-hunt`, `secure-hunt`, `disk-triage`, `qa-autopilot`, `frontend-verify`, `browser-automation`, `playwright-cli`, `testing-strategy`, `lore-commit` |
+| 스킬 (12) | `review`, `verification`, `qa-hunt`, `secure-hunt`, `disk-triage`, `ci-optimize`, `qa-autopilot`, `frontend-verify`, `browser-automation`, `playwright-cli`, `testing-strategy`, `lore-commit` |
 | 라우트 | `review`, `qa`, `secure`, `verify`, `test`, `sync`, `update`, `doctor`, 그리고 `browse` 별칭 |
 | Hook | Claude Code Stop hook `auto verify stop`, Lore `commit-msg` git hook |
 

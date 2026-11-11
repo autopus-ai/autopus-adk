@@ -14,6 +14,7 @@ import "strings"
 // explicit_skills / mode: full.
 var coreSkillSet = map[string]bool{
 	"browser-automation": true,
+	"ci-optimize":        true,
 	"disk-triage":        true,
 	"frontend-verify":    true,
 	"lore-commit":        true,

@@ -185,7 +185,7 @@ Platform syntax:
 | --- | --- |
 | Agents (4) | `reviewer`, `qa-explorer`, `frontend-specialist`, `ux-validator` |
 | Rules (4) | `language-policy`, `lore-commit`, `file-size-limit`, `autonomy` |
-| Skills (11) | `review`, `verification`, `qa-hunt`, `secure-hunt`, `disk-triage`, `qa-autopilot`, `frontend-verify`, `browser-automation`, `playwright-cli`, `testing-strategy`, `lore-commit` |
+| Skills (12) | `review`, `verification`, `qa-hunt`, `secure-hunt`, `disk-triage`, `ci-optimize`, `qa-autopilot`, `frontend-verify`, `browser-automation`, `playwright-cli`, `testing-strategy`, `lore-commit` |
 | Routes | `review`, `qa`, `secure`, `verify`, `test`, `sync`, `update`, `doctor`, plus the `browse` alias |
 | Hooks | Claude Code Stop hook `auto verify stop`; a Lore `commit-msg` git hook |
 
