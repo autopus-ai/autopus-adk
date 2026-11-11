@@ -22,7 +22,7 @@ const waitSuffix = ".wait"
 type Ticket struct {
 	file *os.File
 	path string
-	seq  int64
+	info LeaseInfo
 }
 
 // Release leaves the queue. It is safe on a nil Ticket and more than once.
@@ -100,7 +100,7 @@ func enqueue(d LeaseDir, info LeaseInfo) (*Ticket, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Ticket{file: file, path: path, seq: info.Seq}, nil
+	return &Ticket{file: file, path: path, info: info}, nil
 }
 
 // LiveLeases lists the leases of the per-user state dir; see LiveLeasesIn.

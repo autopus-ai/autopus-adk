@@ -509,9 +509,15 @@ checkout하는 `pull_request_target`, PR lane과 `runs-on` 라벨을 공유하�
 진짜 문제는 경합입니다. job마다 `GOMAXPROCS`와 `go test -p`를 전체 코어 수로 잡고, macOS에는 이를 막을 cgroup이
 없습니다. `auto disk lease --cpu N`은 명령 하나에 기계의 CPU 슬롯 N개를 예약합니다. 디스크 예약과 함께 써도 되고
 `--cpu`만 써도 됩니다. 슬롯 수는 기본이 논리 CPU 수이고(`disk.lease.cpu_slots`, 기계별로는
-`AUTOPUS_LEASE_CPU_SLOTS`), 그보다 큰 N은 슬롯 수로 줄입니다. 대기자는 선착순으로 들어가고, `--wait`가 대기를
-제한하며 시간이 다하면 exit 3입니다. 죽은 holder나 대기자는 자리를 내놓습니다. 명령은 `AUTOPUS_LEASE_CPUS=N`과,
-따로 정하지 않았다면 `GOMAXPROCS=N`을 받습니다. `auto disk status`가 holder와 대기열을 보여 줍니다.
+`AUTOPUS_LEASE_CPU_SLOTS`), 그보다 큰 N은 슬롯 수로 줄입니다. 공유 기계의 admission control입니다. runner는
+job을 계속 병렬로 시작하고, 무거운 단계만 우선순위대로 들어가기를 기다립니다. `--priority interactive|ci|background`로
+class를 정합니다(기본 `ci`. GitHub Actions 안에서는 `GITHUB_EVENT_NAME`을 따라 `pull_request`·`pull_request_target`·
+`merge_group`은 interactive, `schedule`은 background, 나머지는 ci이며, 플래그가 우선합니다). 높은 class가 먼저,
+같은 class 안에서는 선착순으로 들어가고, 대기자는 `disk.lease.aging_minutes`(기본 10, 0이면 끔)마다 class가 한
+단계 올라서 background도 굶지 않습니다. 이미 도는 holder는 끊지 않습니다. `--wait`가 대기를 제한하며 시간이
+다하면 exit 3입니다. 죽은 holder나 대기자는 자리를 내놓습니다. 명령은 `AUTOPUS_LEASE_CPUS=N`과, 따로 정하지
+않았다면 `GOMAXPROCS=N`을 받습니다. `auto disk status`가 holder와, 들어갈 순서대로 대기자의 class, 올라간 class,
+대기 시간을 보여 줍니다.
 
 ```yaml
 # .github/workflows/ci.yaml (self-hosted job)

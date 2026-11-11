@@ -90,6 +90,7 @@ disk:
     reclaim_on_shortage: true     # trim and reclaim once before waiting
     cpu_slots: 0                  # CPU slots --cpu shares; 0 = the logical CPU count (at most 4096)
     dir: ""                       # absolute shared lease dir for several users; "" = your state dir
+    aging_minutes: 10             # a CPU waiter rises one priority class per interval; 0 = no aging
 ```
 
 Every `trim` and `reclaim` `*idle_minutes` value must be at least 60, and
@@ -249,8 +250,15 @@ space without asking.
 required and the disk floor is not consulted. The machine has
 `AUTOPUS_LEASE_CPU_SLOTS`, else `lease.cpu_slots`, else as many slots as
 logical CPUs, and a larger N is clamped to that. A refused CPU request takes
-a queue ticket (a locked `.wait` file); no request is admitted while an
-earlier live ticket waits, so CPU waiters are served first in, first out.
+a queue ticket (a locked `.wait` file) that records its class and when it
+was queued; no request is admitted while a live ticket ahead of it waits.
+Ahead means a higher effective class (`--priority interactive`, `ci`, or
+`background`; the default is `ci`, or inside GitHub Actions `interactive`
+for `pull_request`, `pull_request_target`, and `merge_group` and
+`background` for `schedule`), or the same class and queued earlier. A
+waiter's effective class rises one step every `lease.aging_minutes`
+(default 10; 0 turns aging off), so background work is reached in at most
+two intervals. A running holder is never preempted.
 A killed holder or waiter releases its lock and is discarded by the next
 admission. When the wait runs out the lease exits 3 with a line such as
 `disk lease: 4 CPUs requested, 2 of 8 slots free after 6 reserved by 2 leases, 1 waiters ahead; waited 30m0s`.

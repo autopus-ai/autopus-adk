@@ -379,7 +379,7 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 
 ## ci-optimize가 auto ci report와 CPU lease를 가리킨다 (feat/ci-report-lease, 2026-11-11)
 
-- 원인: `content/skills/ci-optimize.md`의 측정 절이 `auto ci report`를 첫 단계로 두고, self-hosted 절이 `auto disk lease --cpu`를 안내하도록 고쳤다.
+- 원인: `content/skills/ci-optimize.md`의 측정 절이 `auto ci report`를 첫 단계로 두고, self-hosted 절이 `auto disk lease --cpu`와 우선순위 class·aging을 안내하도록 고쳤다. 두 번 기록했다(CPU lease, 그 뒤 priority 추가).
 - 기록: `go run ./cmd/generate-templates` 뒤 `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run 'TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6'`.
 - 차이: NPD 다섯 개에서 `.claude/skills/ci-optimize/SKILL.md`·`.codex/skills/codex-ci-optimize/SKILL.md`와 manifest·journal checksum만 바뀌었다. stdout golden은 그대로다.
 - 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.

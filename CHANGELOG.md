@@ -12,8 +12,12 @@ All notable changes to this project will be documented in this file.
   fork PR이 닿는 self-hosted job, PR head를 checkout하는 `pull_request_target`, PR lane과 라벨을 공유하는 release
   job)를 더해 심각도와 분/일 순으로 보여 준다. 요청은 예산(기본 1000)과 동시 4개로 묶이고, run이 많으면 고르게
   표본을 뽑아 보정 비율을 적는다. GitHub Actions에는 job 우선순위가 없으므로 같은 기계의 경합은 기계에서 나눈다.
-  `auto disk lease --cpu N -- <cmd>`는 CPU 슬롯 N개를 선착순으로 예약하고(기본 슬롯은 논리 CPU 수,
+  `auto disk lease --cpu N -- <cmd>`는 CPU 슬롯 N개를 예약하고(기본 슬롯은 논리 CPU 수,
   `disk.lease.cpu_slots`), 명령에 `AUTOPUS_LEASE_CPUS=N`과 `GOMAXPROCS=N`(이미 정했으면 그대로)을 넘긴다.
+  runner는 job을 병렬로 시작하고 무거운 단계만 우선순위대로 들어간다. `--priority interactive|ci|background`
+  (기본 ci, GitHub Actions에서는 PR·merge_group이 interactive, schedule이 background)가 높은 class부터, 같은 class는
+  선착순으로 들여보내고, 대기자는 `disk.lease.aging_minutes`(기본 10)마다 한 class씩 올라 굶지 않는다. 도는 holder는
+  끊지 않는다.
   `--wait`가 다하면 exit 3이다. 여러 runner 계정은 `AUTOPUS_LEASE_DIR`나 `disk.lease.dir`로 sticky 공유
   디렉터리를 함께 쓴다. `auto disk status`는 CPU holder와 대기열을 보여 준다. `--need`·`--for`만 쓰는 기존 디스크
   lease는 그대로 동작한다. `ci-optimize` 스킬은 `auto ci report`를 첫 단계로, CPU lease를 공유 기계 대책으로

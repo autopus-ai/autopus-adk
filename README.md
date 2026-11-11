@@ -480,10 +480,16 @@ When runs exceed `--limit-runs`, totals are scaled by the reported factor.
 several runners the real problem is contention: every job sets `GOMAXPROCS` and `go test -p` to the full
 core count, and macOS has no cgroups to stop it. `auto disk lease --cpu N` reserves N of the machine's CPU
 slots for one command, on top of (or instead of) the disk reservation. Slots default to the logical CPU
-count (`disk.lease.cpu_slots`, or `AUTOPUS_LEASE_CPU_SLOTS` per machine); a larger N is clamped. Waiters
-are served first in, first out; `--wait` bounds the wait and exit 3 means it ran out. A holder or waiter
-that dies frees its place. The command runs with `AUTOPUS_LEASE_CPUS=N`, and `GOMAXPROCS=N` unless you set
-your own. `auto disk status` lists the holders and the queue.
+count (`disk.lease.cpu_slots`, or `AUTOPUS_LEASE_CPU_SLOTS` per machine); a larger N is clamped. This is
+admission control for a shared host: runners still start jobs in parallel, and only the heavy phases wait
+to be admitted by priority. `--priority interactive|ci|background` sets the class (default `ci`; inside
+GitHub Actions it follows `GITHUB_EVENT_NAME`: `pull_request`, `pull_request_target`, and `merge_group` are
+interactive, `schedule` is background, everything else ci; the flag wins). The highest class goes first,
+first in, first out within a class, and a waiter rises one class every `disk.lease.aging_minutes`
+(default 10, 0 turns aging off) so background work cannot starve. Running holders are never preempted.
+`--wait` bounds the wait and exit 3 means it ran out. A holder or waiter that dies frees its place. The
+command runs with `AUTOPUS_LEASE_CPUS=N`, and `GOMAXPROCS=N` unless you set your own. `auto disk status`
+lists the holders and the queue in grant order, with each waiter's class, aged class, and wait.
 
 ```yaml
 # .github/workflows/ci.yaml (self-hosted job)

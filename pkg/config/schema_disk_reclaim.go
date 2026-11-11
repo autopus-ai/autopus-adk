@@ -17,6 +17,9 @@ const (
 	DefaultDiskLeaseMaxConcurrent           = 0
 	DefaultDiskLeaseWaitMinutes             = 10
 	DefaultDiskLeaseReclaimOnShortage       = true
+	// DefaultDiskLeaseAgingMinutes lifts a waiting CPU request one priority
+	// class every ten minutes.
+	DefaultDiskLeaseAgingMinutes = 10
 	// DefaultDiskReclaimAuto lets the per-turn Stop hook start a safe reclaim.
 	DefaultDiskReclaimAuto = true
 	// DefaultDiskReclaimAutoIntervalMinutes spaces automatic reclaims.
@@ -63,6 +66,9 @@ type DiskLeaseConf struct {
 	// machine, such as the runner accounts of a self-hosted CI host. Empty
 	// keeps the leases in the current user's state dir.
 	Dir string `yaml:"dir,omitempty"`
+	// AgingMinutes raises a CPU waiter one priority class per interval it
+	// waits, so background work cannot starve; 0 turns aging off.
+	AgingMinutes *int `yaml:"aging_minutes,omitempty"`
 }
 
 // DiskReclaimEffective is the resolved disk.reclaim.
@@ -81,8 +87,9 @@ type DiskLeaseEffective struct {
 	WaitMinutes       int
 	ReclaimOnShortage bool
 	// CPUSlots 0 means the logical CPU count; Dir "" the per-user state dir.
-	CPUSlots int
-	Dir      string
+	CPUSlots     int
+	Dir          string
+	AgingMinutes int
 }
 
 func (r DiskReclaimConf) effective() DiskReclaimEffective {
@@ -119,6 +126,7 @@ func (l DiskLeaseConf) effective() DiskLeaseEffective {
 		ReclaimOnShortage: reclaim,
 		CPUSlots:          diskInt(l.CPUSlots, 0),
 		Dir:               l.Dir,
+		AgingMinutes:      diskInt(l.AgingMinutes, DefaultDiskLeaseAgingMinutes),
 	}
 }
 
@@ -162,6 +170,7 @@ func (l DiskLeaseConf) validate() error {
 	}{
 		{"disk.lease.max_concurrent", l.MaxConcurrent},
 		{"disk.lease.wait_minutes", l.WaitMinutes},
+		{"disk.lease.aging_minutes", l.AgingMinutes},
 	} {
 		if bound.value != nil && *bound.value < 0 {
 			return fmt.Errorf("%s must be >= 0, got %d", bound.key, *bound.value)

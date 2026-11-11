@@ -24,9 +24,13 @@ type AdmitRequest struct {
 	// Ticket is the caller's place in the CPU queue from an earlier refused
 	// attempt; nil on the first attempt. An admission consumes it.
 	Ticket *Ticket
-	Label  string
-	PID    int
-	Now    time.Time
+	// Priority is the class of a CPU request (ParsePriority); empty is ci.
+	// AgingInterval raises a waiter one class per interval; 0 disables it.
+	Priority      string
+	AgingInterval time.Duration
+	Label         string
+	PID           int
+	Now           time.Time
 }
 
 // Admission is the outcome of one attempt. Lease is set only when admitted.
@@ -99,7 +103,15 @@ func AdmitIn(ctx context.Context, d LeaseDir, req AdmitRequest) (Admission, erro
 		var lastSeq int64
 		for _, w := range waiters {
 			lastSeq = max(lastSeq, w.Seq)
-			if req.Ticket == nil || w.Seq < req.Ticket.seq {
+		}
+		// A request without a ticket stands where it would be queued now.
+		self := LeaseInfo{PID: req.PID, Label: req.Label, NeedBytes: max(req.NeedBytes, 0), CPUs: req.CPUs,
+			Seq: lastSeq + 1, Priority: cpuPriority(req), Started: req.Now.UTC()}
+		if req.Ticket != nil {
+			self = req.Ticket.info
+		}
+		for _, w := range waiters {
+			if w.Seq != self.Seq && grantedBefore(w, self, req.Now, req.AgingInterval) {
 				a.Waiting++
 			}
 		}
@@ -108,8 +120,7 @@ func AdmitIn(ctx context.Context, d LeaseDir, req AdmitRequest) (Admission, erro
 			fits = false
 		}
 		if !fits && req.Ticket == nil {
-			a.Ticket, err = enqueue(d, LeaseInfo{PID: req.PID, Label: req.Label, NeedBytes: max(req.NeedBytes, 0),
-				CPUs: req.CPUs, Seq: lastSeq + 1, Started: req.Now.UTC()})
+			a.Ticket, err = enqueue(d, self)
 			return a, err
 		}
 	}
@@ -117,11 +128,22 @@ func AdmitIn(ctx context.Context, d LeaseDir, req AdmitRequest) (Admission, erro
 		return a, nil
 	}
 	a.Lease, err = createLease(d, LeaseInfo{PID: req.PID, Label: req.Label, NeedBytes: req.NeedBytes,
-		CPUs: req.CPUs, Started: req.Now.UTC()})
+		CPUs: req.CPUs, Priority: cpuPriority(req), Started: req.Now.UTC()})
 	if err == nil {
 		req.Ticket.Release()
 	}
 	return a, err
+}
+
+// cpuPriority is the class a lease records: none for a disk-only lease.
+func cpuPriority(req AdmitRequest) string {
+	if req.CPUs <= 0 {
+		return ""
+	}
+	if req.Priority == "" {
+		return PriorityCI
+	}
+	return req.Priority
 }
 
 // admitDisk measures free space and applies the disk budget, recording its

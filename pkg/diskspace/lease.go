@@ -39,6 +39,12 @@ type LeaseInfo struct {
 	CPUs int `json:"cpus,omitempty"`
 	// Seq orders the waiters of the CPU queue; 0 on a lease.
 	Seq int64 `json:"seq,omitempty"`
+	// Priority is the class the CPU request was made with; on a waiter,
+	// Started is when it was queued, the start of its aging.
+	Priority string `json:"priority,omitempty"`
+	// EffectivePriority is the aged class of a waiter, set by RankWaiters
+	// and never stored.
+	EffectivePriority string `json:"effective_priority,omitempty"`
 }
 
 // Lease is a held lease: its file stays flocked until Release, or until the

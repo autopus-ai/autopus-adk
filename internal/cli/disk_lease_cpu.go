@@ -92,6 +92,19 @@ func lookupEnv(env []string, key string) (string, bool) {
 	return value, found
 }
 
+// defaultLeasePriority is the class of a CPU lease without --priority. In
+// GitHub Actions it follows the event, so a PR someone is waiting on goes
+// before a push and a push before a nightly; anywhere else it is ci.
+func defaultLeasePriority(getenv func(string) string) string {
+	switch getenv("GITHUB_EVENT_NAME") {
+	case "pull_request", "pull_request_target", "merge_group":
+		return diskspace.PriorityInteractive
+	case "schedule":
+		return diskspace.PriorityBackground
+	}
+	return diskspace.PriorityCI
+}
+
 // cpuRefusalLine is the timeout line of a CPU wait.
 func cpuRefusalLine(cpus, slots int, a diskspace.Admission, waited time.Duration) string {
 	return fmt.Sprintf("disk lease: %d CPUs requested, %d of %d slots free after %d reserved by %d leases, %d waiters ahead; waited %s",
@@ -115,6 +128,9 @@ func writeLeaseStatusText(w io.Writer, leases, waiters []diskspace.LeaseInfo, sl
 		amount := diskspace.GiBString(lease.NeedBytes) + " GiB"
 		if lease.CPUs > 0 {
 			amount += fmt.Sprintf(", %d CPUs", lease.CPUs)
+			if lease.Priority != "" {
+				amount += " (" + lease.Priority + ")"
+			}
 		}
 		line := fmt.Sprintf("disk lease: %s for %s (pid %d, %s)", amount, lease.Label, lease.PID,
 			diskNow().Sub(lease.Started).Round(time.Second))
@@ -123,8 +139,17 @@ func writeLeaseStatusText(w io.Writer, leases, waiters []diskspace.LeaseInfo, sl
 		}
 		fmt.Fprintln(w, terminalSafe(line))
 	}
+	// waiters arrive in grant order (RankWaiters); each line names its class
+	// and, once aging has lifted it, the class it now competes in.
 	for i, waiter := range waiters {
-		fmt.Fprintln(w, terminalSafe(fmt.Sprintf("lease waiter %d: %d CPUs for %s (pid %d, waiting %s)", i+1,
-			waiter.CPUs, waiter.Label, waiter.PID, diskNow().Sub(waiter.Started).Round(time.Second))))
+		class := ""
+		if waiter.Priority != "" {
+			class = waiter.Priority + ", "
+			if waiter.EffectivePriority != "" && waiter.EffectivePriority != waiter.Priority {
+				class = waiter.Priority + " aged to " + waiter.EffectivePriority + ", "
+			}
+		}
+		fmt.Fprintln(w, terminalSafe(fmt.Sprintf("lease waiter %d: %d CPUs for %s (pid %d, %swaiting %s)", i+1,
+			waiter.CPUs, waiter.Label, waiter.PID, class, diskNow().Sub(waiter.Started).Round(time.Second))))
 	}
 }
