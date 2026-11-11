@@ -119,7 +119,7 @@ func TestDiskReclaim_DryRunThenApply(t *testing.T) {
 
 	applied := runDiskCLI(t, "disk", "reclaim", "--dir", rf.repo, "--apply")
 	require.Equal(t, 0, applied.code, applied.stderr)
-	assert.Contains(t, applied.stdout, "(worktrees=1 scratchpads=1 skipped_changed=0 skipped_symlink=0 skipped_device=0 vanished=0 failed=0)\n")
+	assert.Contains(t, applied.stdout, "(worktrees=1 scratchpads=1 regenerable=0 large_files=0 skipped_changed=0 skipped_symlink=0 skipped_device=0 vanished=0 failed=0)\n")
 	assert.NoDirExists(t, rf.harness)
 	assert.NoDirExists(t, rf.session)
 	assert.DirExists(t, rf.elsewhere)

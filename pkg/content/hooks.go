@@ -72,6 +72,10 @@ func generateCLIHooks(cfg config.HooksConf, platform string) ([]adapter.HookConf
 		hooks = appendEditGuardHook(hooks, platform)
 	}
 
+	if cfg.IsDiskGateEnabled() {
+		hooks = appendDiskGateHook(hooks, platform)
+	}
+
 	// Lore check: not added as PreToolUse hook — it runs via git commit-msg hook only.
 	// Checking lore on every Bash call would fail because it validates the last commit,
 	// not the current action. The commit-msg hook validates the message being committed.

@@ -20,6 +20,9 @@ type diskStatusData struct {
 	ReclaimPreview diskReclaimData       `json:"reclaim_preview"`
 	Leases         []diskspace.LeaseInfo `json:"leases"`
 	Trend          *diskspace.Trend      `json:"trend"`
+	// Growth ranks the consumers by how much they grew over the last hour
+	// (disk harness upgrade), filled by statusExtras.
+	Growth []diskspace.Growth `json:"growth"`
 }
 
 type diskFloorData struct {
@@ -41,14 +44,20 @@ type diskConsumers struct {
 		diskConsumer
 		Base             string             `json:"base,omitempty"`
 		CargoTargetBytes int64              `json:"cargo_target_bytes"`
+		NodeModulesBytes int64              `json:"node_modules_bytes"`
 		Items            []diskWorktreeData `json:"items"`
 	} `json:"worktrees"`
 	Scratchpads struct {
 		diskConsumer
-		Dirs             int   `json:"dirs"`
-		OldestAgeMinutes int64 `json:"oldest_age_minutes"`
-		NewestAgeMinutes int64 `json:"newest_age_minutes"`
+		Dirs             int                   `json:"dirs"`
+		OldestAgeMinutes int64                 `json:"oldest_age_minutes"`
+		NewestAgeMinutes int64                 `json:"newest_age_minutes"`
+		LargeBytes       int64                 `json:"large_bytes"`
+		LargeFiles       []diskspace.LargeFile `json:"large_files"`
 	} `json:"scratchpads"`
+	// Extra are the detected package caches, VM disks, and container stores,
+	// and the disk.consumers.extra_roots entries.
+	Extra []diskspace.ConsumerSize `json:"extra"`
 }
 
 type diskConsumer struct {
@@ -134,6 +143,7 @@ func statusData(s diskSurvey, worktrees diskspace.WorktreeScan, scratch diskspac
 	total, cargo := worktrees.Bytes()
 	c.Worktrees.diskConsumer = consumer(worktrees.Root, total)
 	c.Worktrees.Base, c.Worktrees.CargoTargetBytes, c.Worktrees.Items = worktrees.Base, cargo, []diskWorktreeData{}
+	c.Worktrees.NodeModulesBytes = worktrees.NodeModulesBytes()
 	for _, wt := range worktrees.Items {
 		item := diskWorktreeData{Path: wt.Path, Branch: wt.Branch, Main: wt.Main, Locked: wt.Locked, Prunable: wt.Prunable,
 			Harness: wt.Harness, Reason: wt.Reason, Base: wt.Base, Bytes: wt.Bytes, CargoTargetBytes: wt.CargoTargetBytes, Suggestion: wt.Suggestion}
@@ -145,6 +155,10 @@ func statusData(s diskSurvey, worktrees diskspace.WorktreeScan, scratch diskspac
 	}
 	c.Scratchpads.diskConsumer = consumer(scratch.Root, scratch.Bytes)
 	c.Scratchpads.Dirs, c.Scratchpads.OldestAgeMinutes, c.Scratchpads.NewestAgeMinutes = scratch.Dirs, scratch.OldestAgeMinutes, scratch.NewestAgeMinutes
+	c.Scratchpads.LargeBytes, c.Scratchpads.LargeFiles = scratch.LargeBytes, scratch.LargeFiles
+	if c.Scratchpads.LargeFiles == nil {
+		c.Scratchpads.LargeFiles = []diskspace.LargeFile{}
+	}
 	return d
 }
 
@@ -176,7 +190,8 @@ func writeStatusText(w io.Writer, d diskStatusData, worktrees diskspace.Worktree
 	row("go_build_cache", c.GoBuildCache.diskConsumer, fmt.Sprintf("%d entries (%s)", c.GoBuildCache.Entries, diskspace.DisplayPath(c.GoBuildCache.Root)))
 	row("go_build_work_dirs", c.GoBuildWorkDirs.diskConsumer, fmt.Sprintf("%d dirs, %d idle (%s)", c.GoBuildWorkDirs.Dirs, c.GoBuildWorkDirs.IdleDirs,
 		diskspace.DisplayPath(c.GoBuildWorkDirs.Root)))
-	row("worktrees", c.Worktrees.diskConsumer, fmt.Sprintf("%d linked, cargo target %s", len(worktrees.Linked()), diskspace.SizeString(c.Worktrees.CargoTargetBytes)))
+	row("worktrees", c.Worktrees.diskConsumer, fmt.Sprintf("%d linked, cargo target %s, node_modules %s", len(worktrees.Linked()),
+		diskspace.SizeString(c.Worktrees.CargoTargetBytes), diskspace.SizeString(c.Worktrees.NodeModulesBytes)))
 	for _, wt := range worktrees.Items {
 		switch wt.Suggestion {
 		case "":
@@ -186,8 +201,10 @@ func writeStatusText(w io.Writer, d diskStatusData, worktrees diskspace.Worktree
 			fmt.Fprintf(w, "    %s\n", terminalSafe(wt.Suggestion))
 		}
 	}
-	row("scratchpads", c.Scratchpads.diskConsumer, fmt.Sprintf("%d dirs, oldest %dm, newest %dm (%s)", c.Scratchpads.Dirs,
-		c.Scratchpads.OldestAgeMinutes, c.Scratchpads.NewestAgeMinutes, diskspace.DisplayPath(c.Scratchpads.Root)))
+	row("scratchpads", c.Scratchpads.diskConsumer, fmt.Sprintf("%d dirs, oldest %dm, newest %dm, %d large file(s) %s (%s)", c.Scratchpads.Dirs,
+		c.Scratchpads.OldestAgeMinutes, c.Scratchpads.NewestAgeMinutes, len(c.Scratchpads.LargeFiles),
+		diskspace.SizeString(c.Scratchpads.LargeBytes), diskspace.DisplayPath(c.Scratchpads.Root)))
+	writeExtraConsumersText(w, c.Extra)
 	switch preview := d.TrimPreview; {
 	case !preview.Active:
 		fmt.Fprintln(w, "disk trim: inactive (free above start_below_gb)")

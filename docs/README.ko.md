@@ -224,7 +224,7 @@ auto qa mutate --max 50 --min-score 0.7   # CI: 잡은 비율이 70% 미만이�
 | --- | --- |
 | 에이전트 (4) | `reviewer`, `qa-explorer`, `frontend-specialist`, `ux-validator` |
 | 규칙 (4) | `language-policy`, `lore-commit`, `file-size-limit`, `autonomy` |
-| 스킬 (10) | `review`, `verification`, `qa-hunt`, `secure-hunt`, `qa-autopilot`, `frontend-verify`, `browser-automation`, `playwright-cli`, `testing-strategy`, `lore-commit` |
+| 스킬 (11) | `review`, `verification`, `qa-hunt`, `secure-hunt`, `disk-triage`, `qa-autopilot`, `frontend-verify`, `browser-automation`, `playwright-cli`, `testing-strategy`, `lore-commit` |
 | 라우트 | `review`, `qa`, `secure`, `verify`, `test`, `sync`, `update`, `doctor`, 그리고 `browse` 별칭 |
 | Hook | Claude Code Stop hook `auto verify stop`, Lore `commit-msg` git hook |
 
@@ -416,6 +416,74 @@ auto secure scan --log-opts origin/main..HEAD --fail-on critical
 종료 코드: 발견이 `--fail-on`에 닿으면 1(기본 `high`: secret 전부, 또는 high·critical 취약점. govulncheck, cargo
 audit, pip-audit는 등급을 주지 않으므로 high로 셉니다), 다른 문제 없이 스캐너가 실패했으면 2, 그 밖에는 0입니다.
 설치된 스캐너가 하나도 없어도 0입니다. `--fail-on`은 `none`, `secret`, `critical`, `high`, `medium`, `low`를 받습니다.
+
+## 디스크 공간
+
+에이전트는 빌드하고, 테스트하고, 패키지를 설치하고, worktree를 만듭니다. 한 머신에서 세션 여러 개가 함께
+돌면 여유 공간이 한 시간 안에 수십 GiB씩 오르내릴 수 있습니다. 디스크가 차면 빌드가 `no space left on
+device`로 실패하는데, 이 실패는 코드 문제처럼 보입니다. `auto disk`는 무엇이 늘고 있는지 보여 주고, 공간이
+모자랄 때 무거운 명령이 시작되지 않게 막고, 끝난 작업을 작업 중에 정리합니다.
+
+```bash
+auto disk status                       # 여유 공간, 모든 소비자, 지난 한 시간 동안 늘어난 것
+auto disk check --need 8               # 8 GiB(또는 disk.min_free_gb)가 없으면 exit 3
+auto disk reclaim                      # dry run: 회수 대상 목록
+auto disk reclaim --apply              # 실제로 지운다
+auto disk trim --apply                 # 쉬고 있는 Go 빌드 캐시 항목을 지운다
+auto disk lease --need 8 -- go test ./...   # 머신 전체 예약을 잡고 무거운 단계를 실행한다
+auto disk log                          # trim, reclaim, 경고, 게이트가 한 일
+```
+
+**status가 재는 것.** Go 빌드 캐시와 작업 디렉터리, linked worktree(그 안의 `node_modules`와 Cargo
+`target`), 세션 scratchpad(그 안의 1 GiB 이상 파일), 그리고 내 머신에 있는 것만: Go 모듈 캐시, npm, pnpm,
+yarn, bun, Cargo registry, pip, uv, Gradle, Maven, Xcode DerivedData와 시뮬레이터(macOS), Docker Desktop,
+colima, lima, podman의 VM 디스크, 읽을 수 있을 때 `/var/lib/docker`(Linux). VM 디스크 이미지는 sparse이므로
+할당된 크기를 셉니다. 각 측정에는 시간 예산이 있고, 예산 안에 다 세지 못한 값은 하한으로 표시하며 증가 표에서
+뺍니다. CI 러너 작업 디렉터리처럼 이 머신에만 있는 경로는 `disk.consumers.extra_roots`에 적습니다. 읽을 수
+없는 경로는 0이 아니라 `unreadable`로 보고합니다.
+
+```yaml
+disk:
+  min_free_gb: 10              # 경고, 게이트, lease가 쓰는 바닥선
+  consumers:
+    extra_roots: [/path/to/runner/_work]
+```
+
+status, `auto disk check`, 프롬프트마다 붙는 경고가 실행될 때마다 디스크 상태 디렉터리
+(`$XDG_STATE_HOME/autopus/disk` 또는 `~/.local/state/autopus/disk`)의 작은 고리 버퍼에 표본을 남깁니다.
+status는 이 표본으로 소비자를 증가량 순서로 보여 주고(예: `colima +38.0 GiB in 52m`), Claude Code의 공간 부족
+경고는 가장 많이 늘어난 소비자를 함께 알려 줍니다.
+
+**디스크 게이트(Claude Code).** PreToolUse hook `auto disk gate`가 Bash 호출마다 statfs를 한 번 합니다.
+`disk.min_free_gb` 아래이면 go, cargo, npm, pnpm, yarn, bun, pip, uv, poetry, Gradle, Maven의 빌드·테스트·
+설치, docker와 podman의 build와 `compose up`, xcodebuild, `git worktree add`를 막고, 에이전트에게 멈추고
+`auto disk status`를 본 뒤 회수하거나 기다리라고 알립니다. 하위 에이전트의 도구 호출도 같이 막습니다. `auto`
+명령은 모두 통과하므로, 그래도 돌려야 하는 무거운 작업은 `auto disk lease -- <command>`로 실행합니다. `make`는
+기본으로 막지 않습니다. 무거운 대상은 `hooks.disk_gate.extra_commands: ["make release"]`로 더합니다. 끄려면
+`hooks.disk_gate: false` 또는 `AUTOPUS_DISK_GATE=off`를 씁니다. OMP에는 pre-tool hook이 없고, 다른 플랫폼에는
+아직 게이트를 등록하지 않습니다. 그 플랫폼에서는 무거운 단계 전에 `auto disk check`를 실행합니다.
+
+**회수.** `--apply`를 주지 않으면 모두 dry run이고, 심볼릭 링크는 따라가지 않으며, 스캔 뒤에 바뀐 항목은
+건너뜁니다. `auto disk reclaim`이 지우는 것:
+
+- 위치와 상관없이, HEAD가 기본 원격 브랜치(`origin/HEAD` 또는 `origin/main`)에 들어 있고, 추적하지 않은 파일
+  없이 깨끗하며, `disk.reclaim.worktree_idle_minutes`(기본 360)보다 오래 쉬었고, 실행 중인 어떤 프로세스의
+  작업 디렉터리도 아닌 linked worktree. `git worktree remove`를 `--force` 없이 쓰고 branch는 남깁니다.
+- `claude agent agent-<id> (pid N start T)`로 잠긴 Claude Code agent worktree 중 깨끗하고 merge된 것. 잠근
+  프로세스가 사라졌으면(pid와 시작 시각으로 확인) 바로, 살아 있으면 worktree가 쉬고 있고 그 안에 프로세스가
+  없을 때 잠금을 풀고 지웁니다. dirty하거나 merge되지 않은 worktree는 지우지 않습니다.
+- 쉬고 있는 worktree 안에서 git이 무시하는 `node_modules`, `.next`, `dist`(옆에 `package.json`이 있을 때),
+  Cargo `target`
+- 쉬고 있는 세션 scratchpad. scratchpad 루트의 1 GiB 이상 파일은 백업일 수 있으므로 목록에만 올리고
+  `--include-large-files`를 줄 때만 지웁니다.
+
+**자동 정리(Claude Code).** 매 턴 끝의 Stop hook(`auto verify stop`)이 모든 세션을 통틀어
+`disk.reclaim.auto_interval_minutes`(기본 30)마다 한 번까지 `auto disk reclaim --auto --apply`를
+백그라운드로 시작합니다. merge되고 깨끗한 worktree와 쉬고 있는 재생성 가능 디렉터리만 지우고, scratchpad와
+대용량 파일은 건드리지 않으며, 턴을 늦추지 않습니다. 끄려면 `disk.reclaim.auto: false` 또는
+`AUTOPUS_DISK_AUTO_RECLAIM=off`를 씁니다. `disk-triage` 스킬(core, 기본 설치)은 에이전트에게 같은 순서를
+안내하고, 다른 세션의 작업, 백업, VM 디스크, 다른 빌드가 쓰는 캐시처럼 지우기 전에 사용자에게 물어야 할 것을
+알려 줍니다.
 
 ## 보안
 

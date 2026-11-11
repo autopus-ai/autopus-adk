@@ -57,7 +57,7 @@ func newDiskCmd() *cobra.Command {
 		SilenceErrors: true,
 	}
 	cmd.AddCommand(newDiskStatusCmd(), newDiskCheckCmd(), newDiskTrimCmd(), newDiskReclaimCmd(),
-		newDiskRegisterCmd(), newDiskReleaseCmd(), newDiskRegistryCmd(), newDiskLeaseCmd(), newDiskLogCmd())
+		newDiskRegisterCmd(), newDiskReleaseCmd(), newDiskRegistryCmd(), newDiskLeaseCmd(), newDiskLogCmd(), newDiskGateCmd())
 	return cmd
 }
 

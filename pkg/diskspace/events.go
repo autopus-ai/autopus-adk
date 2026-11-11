@@ -29,6 +29,7 @@ const (
 	EventLeaseReclaimed = "lease_reclaimed"
 	EventLeaseRefused   = "lease_refused"
 	EventLowSpaceAlert  = "low_space_alert"
+	EventAutoReclaim    = "auto_reclaim"
 )
 
 // Event is one line of the event log.

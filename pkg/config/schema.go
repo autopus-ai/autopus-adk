@@ -201,6 +201,10 @@ type HooksConf struct {
 	// SecretStop lets `auto verify stop` send a session back once when its
 	// changes add a credential-shaped line. Read it through IsSecretStopEnabled.
 	SecretStop *bool `yaml:"secret_stop,omitempty"`
+	// DiskGate registers the Claude Code PreToolUse hook that blocks heavy
+	// shell commands while free space is below disk.min_free_gb. Read it
+	// through IsDiskGateEnabled.
+	DiskGate *DiskGateConf `yaml:"disk_gate,omitempty"`
 }
 
 // PermissionsConf는 코딩 CLI 권한 설정이다.
@@ -288,6 +292,9 @@ func (c *HarnessConfig) Validate() error {
 		return err
 	}
 	if err := c.Codex.Validate(); err != nil {
+		return err
+	}
+	if err := c.Hooks.DiskGate.validate(); err != nil {
 		return err
 	}
 	return c.Disk.Validate()

@@ -42,6 +42,7 @@ func TestInit_CreatesCorrectFiles(t *testing.T) {
 		".claude/skills/qa-hunt/SKILL.md",
 		".claude/skills/auto-secure/SKILL.md",
 		".claude/skills/secure-hunt/SKILL.md",
+		".claude/skills/disk-triage/SKILL.md",
 		".claude/agents/autopus/reviewer.md",
 		".claude/agents/autopus/qa-explorer.md",
 		".claude/settings.json",

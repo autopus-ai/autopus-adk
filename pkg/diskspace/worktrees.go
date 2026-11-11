@@ -95,6 +95,10 @@ type Worktree struct {
 	Base             string
 	Bytes            int64
 	CargoTargetBytes int64
+	// NodeModulesBytes totals the node_modules directories in the worktree.
+	NodeModulesBytes int64
+	// LockReason is the reason recorded when the worktree was locked.
+	LockReason string
 	// Suggestion is the removal command an operator may paste for a merged,
 	// clean, unlocked, unprunable linked worktree, or the notice that
 	// replaces it for a path with control characters. Nothing runs it.
@@ -151,6 +155,14 @@ func (s WorktreeScan) Bytes() (total, cargo int64) {
 	return total, cargo
 }
 
+// NodeModulesBytes totals the node_modules of the linked worktrees.
+func (s WorktreeScan) NodeModulesBytes() (total int64) {
+	for _, item := range s.Linked() {
+		total += item.NodeModulesBytes
+	}
+	return total
+}
+
 func git(ctx context.Context, run Runner, dir string, args ...string) ([]byte, error) {
 	return run(ctx, dir, nil, "git", append([]string{"--no-optional-locks"}, args...)...)
 }
@@ -178,6 +190,7 @@ func parseWorktreePorcelain(out []byte) []Worktree {
 			cur.Bare = true
 		case "locked":
 			cur.Locked = true
+			cur.LockReason = value
 		case "prunable":
 			cur.Prunable = true
 		}
@@ -223,7 +236,7 @@ func classifyWorktree(ctx context.Context, run Runner, mainPath, base, baseRef s
 			wt.setReason(ReasonMergeBaseFailed)
 		}
 	}
-	wt.Bytes, wt.CargoTargetBytes = worktreeUsage(wt.Path)
+	wt.Bytes, wt.CargoTargetBytes, wt.NodeModulesBytes = worktreeUsage(wt.Path)
 	if wt.Clean == True && wt.Merged == True && !wt.Locked && !wt.Prunable {
 		wt.Suggestion = removalSuggestion(wt.Path, base, wt.Bytes)
 	}
@@ -235,35 +248,48 @@ func (wt *Worktree) setReason(reason string) {
 	}
 }
 
-// worktreeUsage sizes a worktree and the Cargo target directories in it: a
+// worktreeUsage sizes a worktree, the Cargo target directories in it (a
 // directory named target, at most cargoTargetMaxDepth deep, whose parent
-// holds a regular Cargo.toml. A target found inside another is not counted
-// twice, because the walk does not enter a target it has found.
-func worktreeUsage(path string) (total, cargo int64) {
-	var targets []string
-	var targetsOwn int64
+// holds a regular Cargo.toml), and its node_modules directories (the first
+// one on each path, at the same depth bound). A target or node_modules found
+// is not entered again, so nothing is counted twice.
+func worktreeUsage(path string) (total, cargo, node int64) {
+	var targets, modules []string
+	var ownBytes int64
 	total, err := walkAllocated(path, func(rel string, depth int, info fs.FileInfo, st fileStat) bool {
-		if !info.IsDir() || info.Name() != "target" || depth > cargoTargetMaxDepth {
+		if !info.IsDir() || depth > cargoTargetMaxDepth {
 			return true
 		}
 		dir := filepath.Join(path, filepath.FromSlash(rel))
-		manifest, err := os.Lstat(filepath.Join(filepath.Dir(dir), "Cargo.toml"))
-		if err != nil || !manifest.Mode().IsRegular() {
+		switch info.Name() {
+		case "node_modules":
+			modules = append(modules, dir)
+		case "target":
+			manifest, err := os.Lstat(filepath.Join(filepath.Dir(dir), "Cargo.toml"))
+			if err != nil || !manifest.Mode().IsRegular() {
+				return true
+			}
+			targets = append(targets, dir)
+		default:
 			return true
 		}
-		targets = append(targets, dir)
-		targetsOwn += st.alloc
+		ownBytes += st.alloc
 		return false
 	})
 	if err != nil {
-		return 0, 0
+		return 0, 0, 0
 	}
 	for _, target := range targets {
 		if size, err := walkAllocated(target, nil); err == nil {
 			cargo += size
 		}
 	}
-	return total - targetsOwn + cargo, cargo
+	for _, module := range modules {
+		if size, err := walkAllocated(module, nil); err == nil {
+			node += size
+		}
+	}
+	return total - ownBytes + cargo + node, cargo, node
 }
 
 // pipelineWorktreeName is the name pkg/pipeline's WorktreeManager gives the

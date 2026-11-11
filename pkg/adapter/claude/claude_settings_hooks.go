@@ -23,6 +23,10 @@ var managedClaudeHookInvocations = []string{
 // merely mentions the guard does not.
 const claudeEditGuardCommandPrefix = "out=$(auto guard edit "
 
+// claudeDiskGateCommandPrefix is the disk gate's exit-masking command line,
+// owned the same way.
+const claudeDiskGateCommandPrefix = "out=$(auto disk gate)"
+
 // The TaskCreated hook (features.cc21) runs this script, bare in earlier
 // releases and behind the default-mode assignment since then.
 const (
@@ -64,7 +68,7 @@ func isManagedClaudeHookCommand(command string) bool {
 	switch {
 	case adapter.IsStaleCompletionHookCommand(adapterName, trimmed):
 		return true
-	case strings.HasPrefix(trimmed, claudeEditGuardCommandPrefix):
+	case strings.HasPrefix(trimmed, claudeEditGuardCommandPrefix), strings.HasPrefix(trimmed, claudeDiskGateCommandPrefix):
 		return true
 	case adapter.HasShellOperator(trimmed):
 		return false

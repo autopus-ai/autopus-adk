@@ -19,7 +19,7 @@ func TestDiskConf_ReclaimAndLeaseDefaults(t *testing.T) {
 	require.NoError(t, err)
 	eff := cfg.Disk.Effective()
 
-	assert.Equal(t, config.DiskReclaimEffective{WorktreeIdleMinutes: 360, ScratchpadIdleMinutes: 1440}, eff.Reclaim)
+	assert.Equal(t, config.DiskReclaimEffective{WorktreeIdleMinutes: 360, ScratchpadIdleMinutes: 1440, Auto: true, AutoIntervalMinutes: 30, LargeFileIdleMinutes: 1440}, eff.Reclaim)
 	assert.Equal(t, config.DiskLeaseEffective{MaxConcurrent: 0, WaitMinutes: 10, ReclaimOnShortage: true}, eff.Lease)
 
 	require.NoError(t, config.Save(dir, cfg))
@@ -35,7 +35,7 @@ func TestDiskConf_ReclaimAndLeaseExplicitValues(t *testing.T) {
 	require.NoError(t, err)
 	eff := cfg.Disk.Effective()
 
-	assert.Equal(t, config.DiskReclaimEffective{WorktreeIdleMinutes: 60, ScratchpadIdleMinutes: 90}, eff.Reclaim)
+	assert.Equal(t, config.DiskReclaimEffective{WorktreeIdleMinutes: 60, ScratchpadIdleMinutes: 90, Auto: true, AutoIntervalMinutes: 30, LargeFileIdleMinutes: 1440}, eff.Reclaim)
 	assert.Equal(t, config.DiskLeaseEffective{MaxConcurrent: 2, WaitMinutes: 0, ReclaimOnShortage: false}, eff.Lease)
 }
 

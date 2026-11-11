@@ -80,6 +80,7 @@ func TestGenerateHookConfigs_AllDisabled(t *testing.T) {
 		ReactCIFailure: false,
 		ReactReview:    false,
 		EditGuard:      new(false),
+		DiskGate:       &config.DiskGateConf{Enabled: new(false)},
 	}
 
 	hooks, gitHooks, err := content.GenerateHookConfigs(cfg, "claude", true)
@@ -187,8 +188,8 @@ func TestGenerateHookConfigs_DeduplicatesReactHooks(t *testing.T) {
 	// ReactCIFailure and ReactReview both enabled — dedup keeps only one PostToolUse react hook,
 	// plus the unconditional SPEC-CONDRULE-001 dispatcher, the SPEC-STICKYRULE-001 entry,
 	// and the SPEC-EDITGUARD-001 guard an unset flag enables.
-	require.Len(t, hooks, 4,
-		"expected one deduped react hook plus the dispatcher, sticky, and edit guard hooks")
+	require.Len(t, hooks, 5,
+		"expected one deduped react hook plus the dispatcher, sticky, edit guard, and disk gate hooks")
 	reactHook := findHook(hooks, "PostToolUse")
 	require.NotNil(t, reactHook, "expected a PostToolUse react hook")
 	assert.Equal(t, "auto react check --quiet", reactHook.Command)

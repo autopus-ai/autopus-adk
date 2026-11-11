@@ -31,8 +31,8 @@ func TestGenerateProjectHookConfigs_ClaudeTaskCreatedEnabled(t *testing.T) {
 	hooks, gitHooks, err := content.GenerateProjectHookConfigs(cfg, "claude-code", true)
 	require.NoError(t, err)
 	// Expect: TaskCreated hook + SPEC-CONDRULE-001 dispatcher + SPEC-STICKYRULE-001 entry +
-	// SPEC-EDITGUARD-001 guard (unset flag enables it) + the verification Stop hook.
-	require.Len(t, hooks, 5)
+	// SPEC-EDITGUARD-001 guard and disk gate (unset flags enable them) + the verification Stop hook.
+	require.Len(t, hooks, 6)
 	stop := findHook(hooks, "Stop")
 	require.NotNil(t, stop, "expected the verification Stop hook")
 	assert.Equal(t, "auto verify stop", stop.Command)

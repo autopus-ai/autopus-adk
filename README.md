@@ -185,7 +185,7 @@ Platform syntax:
 | --- | --- |
 | Agents (4) | `reviewer`, `qa-explorer`, `frontend-specialist`, `ux-validator` |
 | Rules (4) | `language-policy`, `lore-commit`, `file-size-limit`, `autonomy` |
-| Skills (10) | `review`, `verification`, `qa-hunt`, `secure-hunt`, `qa-autopilot`, `frontend-verify`, `browser-automation`, `playwright-cli`, `testing-strategy`, `lore-commit` |
+| Skills (11) | `review`, `verification`, `qa-hunt`, `secure-hunt`, `disk-triage`, `qa-autopilot`, `frontend-verify`, `browser-automation`, `playwright-cli`, `testing-strategy`, `lore-commit` |
 | Routes | `review`, `qa`, `secure`, `verify`, `test`, `sync`, `update`, `doctor`, plus the `browse` alias |
 | Hooks | Claude Code Stop hook `auto verify stop`; a Lore `commit-msg` git hook |
 
@@ -382,6 +382,77 @@ Exit status: 1 when a finding reaches `--fail-on` (default `high`: any secret, o
 high or critical; govulncheck, cargo audit, and pip-audit do not grade, so their findings count as high),
 2 when a scanner failed and nothing else did, 0 otherwise, including when no scanner is installed.
 `--fail-on` takes `none`, `secret`, `critical`, `high`, `medium`, or `low`.
+
+## Disk space
+
+Agents build, test, install packages, and create worktrees, and several sessions on one machine can move
+free space by tens of GiB in an hour. When the disk fills, builds fail with `no space left on device`,
+which looks like a code failure. `auto disk` shows what is growing, keeps heavy commands from starting
+while space is short, and cleans up finished work as you go.
+
+```bash
+auto disk status                       # free space, every consumer, and what grew in the last hour
+auto disk check --need 8               # exit 3 when 8 GiB (or disk.min_free_gb) is not free
+auto disk reclaim                      # dry run: what reclaim would remove
+auto disk reclaim --apply              # remove it
+auto disk trim --apply                 # drop idle Go build cache entries
+auto disk lease --need 8 -- go test ./...   # run a heavy step under a machine-wide reservation
+auto disk log                          # what trims, reclaims, alerts, and the gate did
+```
+
+**What status measures.** The Go build cache and work dirs, linked worktrees (with their `node_modules`
+and Cargo `target`), session scratchpads (and files of 1 GiB or more in them), and whichever of these
+exist on your machine: the Go module cache, npm, pnpm, yarn, bun, the Cargo registry, pip, uv, Gradle,
+Maven, Xcode DerivedData and simulators (macOS), Docker Desktop, colima, lima, and podman VM disks, and
+`/var/lib/docker` when readable (Linux). VM disk images are sparse, so their allocated size is what
+counts. Each walk has a time budget; a cut walk is shown as a lower bound and kept out of the growth
+table. Add machine-specific roots, such as a CI runner's work directory, under
+`disk.consumers.extra_roots`; one that cannot be read is reported `unreadable`, never as zero:
+
+```yaml
+disk:
+  min_free_gb: 10              # the floor the alert, the gate, and leases use
+  consumers:
+    extra_roots: [/path/to/runner/_work]
+```
+
+Every status, `auto disk check`, and per-prompt alert adds a sample to a small ring buffer in the disk
+state dir (`$XDG_STATE_HOME/autopus/disk` or `~/.local/state/autopus/disk`). Status then ranks the
+consumers by growth, for example `colima +38.0 GiB in 52m`, and the Claude Code low-space alert names the
+top grower.
+
+**The disk gate (Claude Code).** A PreToolUse hook, `auto disk gate`, makes one statfs per Bash call. Below
+`disk.min_free_gb` it denies builds, tests, and installs of go, cargo, npm, pnpm, yarn, bun, pip, uv,
+poetry, Gradle, and Maven, docker and podman builds and `compose up`, xcodebuild, and `git worktree add`,
+and tells the agent to pause, run `auto disk status`, and reclaim or wait. Subagent tool calls are gated
+too. Every `auto` command passes, so `auto disk lease -- <command>` is how heavy work runs anyway. `make`
+is not matched by default; add heavy targets with `hooks.disk_gate.extra_commands: ["make release"]`.
+Turn the gate off with `hooks.disk_gate: false` or `AUTOPUS_DISK_GATE=off`. OMP has no pre-tool hook, and
+the other platforms do not register the gate yet; run `auto disk check` before heavy steps there.
+
+**Reclaim.** Everything is a dry run unless `--apply` is given, symlinks are never followed, and anything
+that changed since the scan is skipped. `auto disk reclaim` removes:
+
+- linked worktrees anywhere whose HEAD is in the default remote branch (`origin/HEAD` or `origin/main`),
+  clean with no untracked files, idle beyond `disk.reclaim.worktree_idle_minutes` (default 360), and not
+  the working directory of any running process. `git worktree remove` runs without `--force`; the branch
+  is kept.
+- Claude Code agent worktrees, locked as `claude agent agent-<id> (pid N start T)`, when they are clean and
+  merged: right away when the locking process is gone (pid and start time checked), or, while it runs,
+  once the worktree is idle and holds no process. They are unlocked, then removed. A dirty or unmerged
+  worktree is never removed.
+- `node_modules`, `.next`, `dist` (beside a `package.json`) and Cargo `target` directories that git
+  ignores, inside idle worktrees.
+- idle session scratchpads. Files of 1 GiB or more in the scratchpad root are listed but removed only
+  with `--include-large-files`, because they may be backups.
+
+**Automatic cleanup (Claude Code).** The per-turn Stop hook (`auto verify stop`) starts
+`auto disk reclaim --auto --apply` in the background at most once per
+`disk.reclaim.auto_interval_minutes` (default 30) across all your sessions. It removes only merged, clean
+worktrees and idle regenerable directories, never scratchpads or large files, and never delays the turn.
+Turn it off with `disk.reclaim.auto: false` or `AUTOPUS_DISK_AUTO_RECLAIM=off`. The `disk-triage` skill
+(core, installed by default) walks an agent through the same steps and tells it what to ask you before deleting:
+other sessions' work, backups, VM disks, and caches other builds are using.
 
 ## Security
 
