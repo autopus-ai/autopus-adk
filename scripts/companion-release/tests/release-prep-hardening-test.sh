@@ -18,7 +18,7 @@ for file in "$publisher" "$transaction" "$prep" "$prep_lib" "$user_lib" "$local_
   [[ -f "$file" && ! -L "$file" ]] || fail "missing or unsafe release-prep component $file"
 done
 contains "$prep" 'usage: prepare-release.sh --endpoint URL'; contains "$prep" '(--preflight|--apply)'
-contains "$prep" "readonly release_tag='v0.51.3'"; contains "$prep" "expected_go_toolchain='go1.27.3'"
+contains "$prep" "readonly release_tag='v0.51.3'"; contains "$prep" "expected_go_toolchain='go1.27.4'"
 contains "$prep" "expected_promotion_key_id='omp-context-promotion-2026-q3-k3'"
 contains "$prep" 'prepare-release-user-lib.sh prepare-release-runtime-lib.sh prepare-release-local-lib.sh'
 contains "$prep" 'go build -trimpath -buildvcs=false -o "$canary_helper_built" ./scripts/companion-release/canaryhelper'

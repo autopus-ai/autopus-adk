@@ -46,7 +46,7 @@ mkdir "$temp/src"
 clean_git archive "$commit" | /usr/bin/tar -x -C "$temp/src"
 printf 'building from %s main %s\n' "$source_url" "$commit"
 (cd "$temp/src" && /usr/bin/env -i HOME="$temp" PATH="$(dirname "$go_bin"):/usr/bin:/bin" \
-  GOENV=off GOFLAGS= GOWORK=off GOTOOLCHAIN=go1.27.3 \
+  GOENV=off GOFLAGS= GOWORK=off GOTOOLCHAIN=go1.27.4 \
   GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org GOMODCACHE="$temp/mod" GOCACHE="$temp/cache" \
   "$go_bin" build -trimpath -buildvcs=false -o "$temp/canaryhelper" ./scripts/companion-release/canaryhelper)
 built_sha=$(/usr/bin/shasum -a 256 "$temp/canaryhelper" | /usr/bin/awk '{print $1}')

@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **Go toolchain을 1.27.4로 올린다** (2026-11-11): 2026-11-11 공개된 GO-2026-6859(net/http, HTTP/1 서버가 MaxBytesReader 헤더 경합으로 죽음)가 go1.27.3의 `auto` 코드 경로에서 호출되어 Dependency Vulnerability Check가 실패했다. go1.27.4에서 수정됐고, 올린 뒤 govulncheck는 호출되는 취약점 0건이다. 릴리즈 빌드와 canary helper의 toolchain 고정도 함께 옮겼다.
+
 - **`auto ci report`로 CI 병목을 재고, `auto disk lease --cpu`로 공유 기계의 CPU를 나눈다** (2026-11-11):
   CI를 고치기 전에 재는 일은 `gh api`와 jq를 손으로 이어 붙여야 했다. `auto ci report`는 사용자의 `gh` 로그인으로
   jobs API 타임스탬프(`filter=all`)만 읽어 job별 실행·대기 중앙값/p90, event별 끝-끝 시간, runner별 busy 분/일,
