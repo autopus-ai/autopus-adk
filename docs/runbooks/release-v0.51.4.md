@@ -1,5 +1,27 @@
 # Release v0.51.4 (A45)
 
+**Published 2026-11-11.** Immutable release `441368606` (15 assets, Latest),
+published 2026-11-11T08:12:54Z, tag object
+`9130626401937001ccb2366faf62f0f4184534d9`, source commit
+`4312105591a74f79ed3f62a7023423d49a2944f0` (the #319 merge), tree
+`77458576f6e16a10312d5222e08a04e35000efc6`.
+
+Release run `42981720987` concluded `failure`, and only because the final tap
+ref read lagged the PATCH that had just succeeded: `Publish Homebrew Cask`
+failed with "Homebrew tap Cask head moved after publication". The Cask commit
+`dbdafe4b` ("Publish signed Cask for v0.51.4", parent `2c44448e`) landed at
+08:13:08Z, and its four sha256 values equal the `checksums.txt` entries.
+Cask publication is the last step of the release job, so nothing after it
+was skipped (only post-run steps follow). #320 retries that stale read.
+Upgrade Canary `42985845286` (0.51.3 -> 0.51.4) passed. Ruleset `27011377` is
+sealed (no bypass actor), tag policy `66282493`.
+
+The armed-ruleset gate first failed: `autopus-v0.51.4-release-authority` was
+the 34th ruleset and the readers saw only the first page of 30. #319 made
+every ruleset reader paginate, and it merged before `--apply`, so the
+published source contains it. The next coordinate is A46 = `v0.51.5`; see
+[release-v0.51.5.md](release-v0.51.5.md).
+
 Status: prepared 2026-11-11, not published. A45 is `v0.51.4`. A44 is
 `v0.51.3`, immutable release `440878772`; see
 [release-v0.51.3.md](release-v0.51.3.md).
