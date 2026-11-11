@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **CI 비용·속도 최적화 스킬 `ci-optimize`를 더한다** (2026-11-11): CI가 느리거나 비쌀 때 에이전트가 일반 기법부터 적용하면 엉뚱한 곳을 고치기 쉽다. 이 스킬은 순서를 준다: jobs API 타임스탬프로 job별 대기·실행 시간과 runner별 점유율을 재고(폐지된 timing API 대신), 병목을 대기·실행·중복·버린 시간으로 분류해 가장 큰 것 하나부터 고친 뒤 같은 방법으로 다시 잰다. PR 한정 concurrency(reusable workflow 접두사 포함), 트리 해시 기준 push 재사용, job 단위 경로 필터와 필수 체크 집계, self-hosted의 host 로컬 캐시와 macOS 과다 할당, 디스크, timeout 위생, public repo fork PR과 `pull_request_target` 경계를 담는다. 측정 스니펫은 실제 저장소에서 돌려 확인했다. core 스킬로 설치한다.
+
 - **디스크 하네스: 무엇이 늘었는지 보여 주고, 공간이 모자랄 때 무거운 명령을 막고, 끝난 작업을 작업 중에
   정리한다** (2026-11-11): 한 머신에서 에이전트 세션 여러 개가 함께 돌면 여유 공간이 한 시간 안에 수십 GiB씩
   오르내리고, 그 사이 테스트 실행이 ENOSPC로 무효가 된다. 그런데 `auto disk status`는 전체 추세만 보여 줘서

@@ -9,7 +9,7 @@
 .autopus/backup/<TS>/transaction/
 .autopus/backup/<TS>/transaction/claude-code/
 .autopus/backup/<TS>/transaction/claude-code/.autopus/
-.autopus/backup/<TS>/transaction/claude-code/.autopus/claude-code-manifest.json d7d0961914a42d3aacfb77a45f1a3850a3f73a8b57219d6eacbd2e42454886ae
+.autopus/backup/<TS>/transaction/claude-code/.autopus/claude-code-manifest.json b379f73c773d94c6e97eb7706f988055cba19efee06c3728d11c86761cf12345
 .autopus/backup/<TS>/transaction/claude-code/.autopus/claude-code-permissions.json b9fd4dd0824fb98d4ff3403c011a56b0b66f398788f2dfb24220c1aed87df4e8
 .autopus/backup/<TS>/transaction/claude-code/.claude/
 .autopus/backup/<TS>/transaction/claude-code/.claude/agents/
@@ -56,6 +56,8 @@
 .autopus/backup/<TS>/transaction/claude-code/.claude/skills/auto/SKILL.md d41148be604eee91236caf41fdd74444d1426a11cf21419c7b33f272ccb0079a
 .autopus/backup/<TS>/transaction/claude-code/.claude/skills/browser-automation/
 .autopus/backup/<TS>/transaction/claude-code/.claude/skills/browser-automation/SKILL.md 908527aba77bd48be4b6089762abaaae52bb456cd7a7fb0e30300c2446a21efa
+.autopus/backup/<TS>/transaction/claude-code/.claude/skills/ci-optimize/
+.autopus/backup/<TS>/transaction/claude-code/.claude/skills/ci-optimize/SKILL.md e4b68409c056ce0f96d89d49a159b379b95e6f9225f173f58a0dc53bb767dcaa
 .autopus/backup/<TS>/transaction/claude-code/.claude/skills/disk-triage/
 .autopus/backup/<TS>/transaction/claude-code/.claude/skills/disk-triage/SKILL.md e13186c5eca99572ab182dd751c64a8a350ffa9566c0c99a7b05f5831a71fce3
 .autopus/backup/<TS>/transaction/claude-code/.claude/skills/frontend-verify/
@@ -86,7 +88,7 @@
 .autopus/backup/<TS>/transaction/codex/.agents/plugins/
 .autopus/backup/<TS>/transaction/codex/.agents/plugins/marketplace.json 7bac9f0f7c15eecf46023308f334e2122d112d03aa7b498f9e01adabd48ac03c
 .autopus/backup/<TS>/transaction/codex/.autopus/
-.autopus/backup/<TS>/transaction/codex/.autopus/codex-manifest.json 9ada66b036eeabd81e65b8b4feb6a88d3da9047273b609484827fd4225f7712d
+.autopus/backup/<TS>/transaction/codex/.autopus/codex-manifest.json c62de34729e19ff6c7dde9812699a80cbcf0c170f3e30c42a146c7203a9da4c5
 .autopus/backup/<TS>/transaction/codex/.autopus/plugins/
 .autopus/backup/<TS>/transaction/codex/.autopus/plugins/auto/
 .autopus/backup/<TS>/transaction/codex/.autopus/plugins/auto/.codex-plugin/
@@ -123,6 +125,8 @@
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-auto/SKILL.md fa256c219054a5535e9684fa655d6438281c3076b9bfbd1a9173ce7ef5fdfce8
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-browser-automation/
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-browser-automation/SKILL.md b9286c86848cbdc6ec2edba3f49574d7217ea7e185b0e8599b739a56aca4a4b8
+.autopus/backup/<TS>/transaction/codex/.codex/skills/codex-ci-optimize/
+.autopus/backup/<TS>/transaction/codex/.codex/skills/codex-ci-optimize/SKILL.md c6e18530761ccdc24e5e221a47fa6d0d9efa33b84ce04ea7f081db547853df08
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-disk-triage/
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-disk-triage/SKILL.md 35dc737fc3dd8d73b8f0da21a0359bbccd9c6b9d3598086a570452957a8d5752
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-frontend-verify/
@@ -144,9 +148,9 @@
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-verification/
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-verification/SKILL.md 79321a33b979f2f07deb2ad4800a98ea0cbcdde89b0f2f636737b9afd92ead7d
 .autopus/backup/<TS>/transaction/codex/AGENTS.md 3bccf0f9af97957bae70ee71b41b750a1e74ce74d0bc8d0bd85b84d8ee88a7dc
-.autopus/claude-code-manifest.json d7d0961914a42d3aacfb77a45f1a3850a3f73a8b57219d6eacbd2e42454886ae
+.autopus/claude-code-manifest.json b379f73c773d94c6e97eb7706f988055cba19efee06c3728d11c86761cf12345
 .autopus/claude-code-permissions.json b9fd4dd0824fb98d4ff3403c011a56b0b66f398788f2dfb24220c1aed87df4e8
-.autopus/codex-manifest.json 85b295b1affed070c3161153b0aa0d3074796f463f7198139a90b55fa891fbad
+.autopus/codex-manifest.json fa5b4d01d195f12a9965cf553b940dea08b768b83904c264c6afa971db4850f6
 .autopus/context/
 .autopus/context/constraints.yaml d8b3a0714389a30b7aca1986fbb71235900e14c9dddfe50fdbbb758698d0b26e
 .autopus/plugins/
@@ -159,12 +163,12 @@
 .autopus/txns/
 .autopus/txns/<TX>-claude-code/
 .autopus/txns/<TX>-claude-code/
-.autopus/txns/<TX>-claude-code/journal.json e9a5a3c4e180daf5eb57926e37ed7337d3a285f32af29d2e0563622c64ac15f6
-.autopus/txns/<TX>-claude-code/journal.json f2169156b55fc8a5107afffebd1af6dcc06ccbcee2a4090afd1fc144b06a92b1
+.autopus/txns/<TX>-claude-code/journal.json 34c99f6e978521998122d87134e58ffba45f6bc44c207a014885b064e92c868c
+.autopus/txns/<TX>-claude-code/journal.json 993d90ecb8f5609e40bc6fc0e09417d98c8d6cefde9d234df3252ff9daf6767a
 .autopus/txns/<TX>-codex/
 .autopus/txns/<TX>-codex/
-.autopus/txns/<TX>-codex/journal.json 12a95dacdf051de5742c4051919703917d2c29bd45e40967d9b71adbed9c0f39
-.autopus/txns/<TX>-codex/journal.json 1840bbc277a4f8f0119295d072c3f6de11ae7d242bebdda8a4b156b8f604af1b
+.autopus/txns/<TX>-codex/journal.json 8cb21938068b14292b6abcaa4be9b364190fd347f4c2b024689b56c45f8899fd
+.autopus/txns/<TX>-codex/journal.json f5251e49733cbd96e6409e42299f0466441f366b4ffb288b045cccece3cd29dc
 .claude/
 .claude/agents/
 .claude/agents/autopus/
@@ -210,6 +214,8 @@
 .claude/skills/auto/SKILL.md d41148be604eee91236caf41fdd74444d1426a11cf21419c7b33f272ccb0079a
 .claude/skills/browser-automation/
 .claude/skills/browser-automation/SKILL.md 908527aba77bd48be4b6089762abaaae52bb456cd7a7fb0e30300c2446a21efa
+.claude/skills/ci-optimize/
+.claude/skills/ci-optimize/SKILL.md e4b68409c056ce0f96d89d49a159b379b95e6f9225f173f58a0dc53bb767dcaa
 .claude/skills/disk-triage/
 .claude/skills/disk-triage/SKILL.md e13186c5eca99572ab182dd751c64a8a350ffa9566c0c99a7b05f5831a71fce3
 .claude/skills/frontend-verify/
@@ -262,6 +268,8 @@
 .codex/skills/codex-auto/SKILL.md fa256c219054a5535e9684fa655d6438281c3076b9bfbd1a9173ce7ef5fdfce8
 .codex/skills/codex-browser-automation/
 .codex/skills/codex-browser-automation/SKILL.md b9286c86848cbdc6ec2edba3f49574d7217ea7e185b0e8599b739a56aca4a4b8
+.codex/skills/codex-ci-optimize/
+.codex/skills/codex-ci-optimize/SKILL.md c6e18530761ccdc24e5e221a47fa6d0d9efa33b84ce04ea7f081db547853df08
 .codex/skills/codex-disk-triage/
 .codex/skills/codex-disk-triage/SKILL.md 35dc737fc3dd8d73b8f0da21a0359bbccd9c6b9d3598086a570452957a8d5752
 .codex/skills/codex-frontend-verify/
