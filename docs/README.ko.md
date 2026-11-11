@@ -564,11 +564,28 @@ class를 정합니다(기본 `ci`. GitHub Actions 안에서는 `GITHUB_EVENT_NAM
 않았다면 `GOMAXPROCS=N`을 받습니다. `auto disk status`가 holder와, 들어갈 순서대로 대기자의 class, 올라간 class,
 대기 시간을 보여 줍니다.
 
+슬롯만으로는 기계가 한가한지 바쁜지 알 수 없고, 다른 세션과 runner는 lease 없이 기계를 씁니다. 그래서 기계에
+여유가 있으면 무거운 작업을 병렬로 돌리고, 여유가 없으면 우선순위대로 들여보냅니다. 맨 앞 대기자는 슬롯이 비어도
+다음 동안 기다립니다. 1분 load average가 `disk.lease.max_load_ratio` × 논리 CPU 수(기본 0.85)를 넘는 동안(아직
+average에 드러나지 않은 최근 허가분을 더해 세므로 한꺼번에 들어가도 넘치지 않습니다), 가용 메모리에서 도는
+lease들의 `--mem` 예약을 뺀 값이 자기 `--mem SIZE`(예: `8G`, 기본 없음)와 `disk.lease.min_free_mem_gb`(기본 8)의
+합보다 작은 동안, 그리고 macOS에서 커널이 메모리 압력을 critical로 알리는 동안입니다. 값은 프로세스를 띄우지 않고
+읽고(macOS는 `sysctl`, Linux는 `/proc`) 2초 안팎마다 다시 봅니다. 기계별로는 `AUTOPUS_LEASE_MAX_LOAD_RATIO`와
+`AUTOPUS_LEASE_MIN_FREE_MEM_GB`가 키를 덮어씁니다. `auto disk status`는 맨 앞 대기자를 붙잡은 이유를 보여
+줍니다(`waiting: load 22.1 > 20.4`, `waiting: mem 6.2 GiB < 8+4 GiB`). 바닥선과 함께 결코 들어갈 수 없는
+`--mem`은 바로 실패합니다. 도는 lease가 하나도 없는데 load만으로 맨 앞 대기자가 `disk.lease.max_load_wait_minutes`
+(기본 10) 넘게 막히면 한 번에 하나씩 그냥 들여보내고 기록합니다(`lease_forced`). 이런 lease에는 그보다 긴
+`--wait`를 주세요. Windows에는 lease가 없어서 명령을 lease 없이 실행합니다.
+
 ```yaml
 # .github/workflows/ci.yaml (self-hosted job)
 - name: Test
-  run: auto disk lease --cpu 8 --wait 30m --label test -- sh -c 'go test -p "$AUTOPUS_LEASE_CPUS" ./...'
+  run: auto disk lease --cpu 8 --mem 8G --wait 30m --label test -- sh -c 'go test -p "$AUTOPUS_LEASE_CPUS" ./...'
 ```
+
+무거운 작업을 lock 하나로 줄 세우는 셸 wrapper(빌드마다 `flock`)를 쓰고 있다면, wrapper를
+`auto disk lease --cpu N --mem SIZE --priority … -- cmd`로 바꾸세요. lock 하나는 기계가 아무리 한가해도 한 번에
+하나만 돌리지만, lease는 슬롯·load·메모리가 허락하는 만큼 함께 돌립니다.
 
 lease는 기본으로 사용자 자신의 state dir에 있어서 한 사용자의 job끼리만 조율합니다. runner 계정 여러 개가 한
 기계를 쓰면 모두 `AUTOPUS_LEASE_DIR`(예: 각 runner의 `.env`)이나 `disk.lease.dir`로 같은 디렉터리를 가리키게

@@ -539,11 +539,30 @@ first in, first out within a class, and a waiter rises one class every `disk.lea
 command runs with `AUTOPUS_LEASE_CPUS=N`, and `GOMAXPROCS=N` unless you set your own. `auto disk status`
 lists the holders and the queue in grant order, with each waiter's class, aged class, and wait.
 
+Slots alone cannot tell an idle machine from a busy one, and other sessions and runners load it without
+taking a lease. So heavy work runs in parallel when the machine has room, and is admitted by priority
+otherwise: the head waiter also waits while the 1-minute load average is above
+`disk.lease.max_load_ratio` × logical CPUs (default 0.85), counting grants the average does not show yet
+so a burst of admissions cannot overshoot; while available memory minus the `--mem` reservations of
+running leases is below its own `--mem SIZE` (such as `8G`, default none) plus `disk.lease.min_free_mem_gb`
+(default 8); and on macOS while the kernel reports critical memory pressure. Readings are taken without
+spawning a process (`sysctl` on macOS, `/proc` on Linux) and re-checked about every 2 seconds;
+`AUTOPUS_LEASE_MAX_LOAD_RATIO` and `AUTOPUS_LEASE_MIN_FREE_MEM_GB` override the keys per machine. `auto disk
+status` names what holds the head waiter (`waiting: load 22.1 > 20.4`, `waiting: mem 6.2 GiB < 8+4 GiB`).
+A `--mem` that could never fit beside the floor fails at once. When no lease runs and load alone has held
+the head waiter for `disk.lease.max_load_wait_minutes` (default 10), it starts anyway, one at a time, and
+the start is logged (`lease_forced`); give such a lease a `--wait` longer than that. Windows has no
+lease, so this degrades to running the command unleased.
+
 ```yaml
 # .github/workflows/ci.yaml (self-hosted job)
 - name: Test
-  run: auto disk lease --cpu 8 --wait 30m --label test -- sh -c 'go test -p "$AUTOPUS_LEASE_CPUS" ./...'
+  run: auto disk lease --cpu 8 --mem 8G --wait 30m --label test -- sh -c 'go test -p "$AUTOPUS_LEASE_CPUS" ./...'
 ```
+
+Migrating from a shell wrapper that serialises heavy jobs with a single lock (`flock` around every build):
+replace the wrapper with `auto disk lease --cpu N --mem SIZE --priority … -- cmd`. The single lock runs one
+job at a time however idle the machine is; the lease runs as many as the slots, load, and memory allow.
 
 Leases live in your own state dir by default, so they only coordinate one user's jobs. When several
 runner accounts share a machine, point them all at one directory with `AUTOPUS_LEASE_DIR` (for example in

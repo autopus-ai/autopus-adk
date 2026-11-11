@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **`auto disk lease --cpu`가 기계에 여유가 있으면 병렬로, 없으면 우선순위대로 들여보낸다** (2026-11-11):
+  24코어·128 GiB 공유 Mac에서 lock 하나로 줄 세운 무거운 작업 다섯 개가, load average 9/24에 메모리 51%가 비어
+  있는데도 하나 뒤에서 기다렸다. 슬롯만으로는 한가한 기계와 바쁜 기계를 구별하지 못하고, 다른 세션과 CI runner는
+  lease 없이 기계를 쓴다. 이제 맨 앞 대기자는 슬롯이 비어도 1분 load average가 `disk.lease.max_load_ratio`
+  × 논리 CPU(기본 0.85)를 넘는 동안 기다린다. 최근 허가분 중 아직 load average에 드러나지 않은 몫(60초 시간 상수의
+  지수 감쇠)을 더해 세므로 한꺼번에 들어가도 넘치지 않는다. 새 `--mem SIZE`(예: `8G`, 기본 없음)는 메모리를 예약하고,
+  가용 메모리에서 도는 lease들의 `--mem` 예약을 뺀 값이 자기 `--mem`과 `disk.lease.min_free_mem_gb`(기본 8)의
+  합 이상이어야 들어간다. macOS에서는 커널 메모리 압력이 critical인 동안에도 기다린다. 값은 프로세스를 띄우지
+  않고 읽고(macOS `sysctl`의 `vm.loadavg`·`hw.memsize`·`kern.memorystatus_level`, Linux `/proc/loadavg`·
+  `MemAvailable`), 2초 안팎(±25% jitter)마다 다시 본다. 기계별로 `AUTOPUS_LEASE_MAX_LOAD_RATIO`·
+  `AUTOPUS_LEASE_MIN_FREE_MEM_GB`가 키를 덮어쓴다. `auto disk status`와 timeout 줄은 막은 이유를
+  `waiting: load 22.1 > 20.4`, `waiting: mem 6.2 GiB < 8+4 GiB`처럼 보여 준다. 바닥선과 함께 기계 메모리를 넘는
+  `--mem`은 바로 exit 1이다. 도는 lease가 없는데 load만으로 맨 앞 대기자가 `disk.lease.max_load_wait_minutes`
+  (기본 10) 넘게 막히면 한 번에 하나씩 그냥 들여보내고 `lease_forced` 이벤트로 남긴다. 우선순위·aging·FIFO는
+  그대로이고, 값을 읽지 못하면 슬롯만으로 판단한다. Windows는 이전처럼 lease 없이 실행한다. 옮기는 법:
+  무거운 작업을 lock 하나로 줄 세우는 셸 wrapper는 `auto disk lease --cpu N --mem SIZE --priority … -- cmd`로
+  바꾼다. `ci-optimize`·`disk-triage` 스킬도 이 동작을 안내한다.
+
 - **Go toolchain을 1.27.4로 올린다** (2026-11-11): 2026-11-11 공개된 GO-2026-6859(net/http, HTTP/1 서버가 MaxBytesReader 헤더 경합으로 죽음)가 go1.27.3의 `auto` 코드 경로에서 호출되어 Dependency Vulnerability Check가 실패했다. go1.27.4에서 수정됐고, 올린 뒤 govulncheck는 호출되는 취약점 0건이다. 릴리즈 빌드와 canary helper의 toolchain 고정도 함께 옮겼다.
 
 - **`auto ci report`로 CI 병목을 재고, `auto disk lease --cpu`로 공유 기계의 CPU를 나눈다** (2026-11-11):

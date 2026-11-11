@@ -28,9 +28,13 @@ type AdmitRequest struct {
 	// AgingInterval raises a waiter one class per interval; 0 disables it.
 	Priority      string
 	AgingInterval time.Duration
-	Label         string
-	PID           int
-	Now           time.Time
+	// MemBytes is the memory a CPU request reserves (--mem); Load makes
+	// the head waiter also wait for the machine's load and memory.
+	MemBytes int64
+	Load     LoadPolicy
+	Label    string
+	PID      int
+	Now      time.Time
 }
 
 // Admission is the outcome of one attempt. Lease is set only when admitted.
@@ -50,6 +54,12 @@ type Admission struct {
 	CPULimited   bool
 	// Waiting is how many live waiters queued before this request.
 	Waiting int
+	// Machine is the machine check of a head waiter whose slots were free;
+	// nil when it was not reached or the policy has no sampler.
+	Machine *MachineGate
+	// Forced means the lease was admitted despite load: no lease ran and
+	// the waiter had waited LoadPolicy.MaxLoadWait.
+	Forced bool
 	// Ticket is set when a refused CPU request without a ticket was queued;
 	// the caller keeps it and passes it to its next attempts.
 	Ticket *Ticket
@@ -106,7 +116,7 @@ func AdmitIn(ctx context.Context, d LeaseDir, req AdmitRequest) (Admission, erro
 		}
 		// A request without a ticket stands where it would be queued now.
 		self := LeaseInfo{PID: req.PID, Label: req.Label, NeedBytes: max(req.NeedBytes, 0), CPUs: req.CPUs,
-			Seq: lastSeq + 1, Priority: cpuPriority(req), Started: req.Now.UTC()}
+			Seq: lastSeq + 1, Priority: cpuPriority(req), Started: req.Now.UTC(), MemBytes: max(req.MemBytes, 0)}
 		if req.Ticket != nil {
 			self = req.Ticket.info
 		}
@@ -118,6 +128,8 @@ func AdmitIn(ctx context.Context, d LeaseDir, req AdmitRequest) (Admission, erro
 		a.CPULimited = a.ReservedCPUs+req.CPUs > req.CPUSlots
 		if a.CPULimited || a.Waiting > 0 {
 			fits = false
+		} else if fits {
+			fits = admitMachine(&a, req, live, self.Started)
 		}
 		if !fits && req.Ticket == nil {
 			a.Ticket, err = enqueue(d, self)
@@ -128,11 +140,41 @@ func AdmitIn(ctx context.Context, d LeaseDir, req AdmitRequest) (Admission, erro
 		return a, nil
 	}
 	a.Lease, err = createLease(d, LeaseInfo{PID: req.PID, Label: req.Label, NeedBytes: req.NeedBytes,
-		CPUs: req.CPUs, Priority: cpuPriority(req), Started: req.Now.UTC()})
+		CPUs: req.CPUs, Priority: cpuPriority(req), Started: req.Now.UTC(), MemBytes: cpuMem(req)})
 	if err == nil {
 		req.Ticket.Release()
 	}
 	return a, err
+}
+
+// admitMachine applies the load policy to the head waiter, recording the
+// check in a; it reports whether the machine lets the waiter in. Load alone
+// gives way once no lease runs and the waiter has queued MaxLoadWait, so
+// unrelated load never blocks heavy work forever; the forced admissions go
+// one at a time because the next one again needs no lease running.
+func admitMachine(a *Admission, req AdmitRequest, live []LeaseInfo, queued time.Time) bool {
+	s, ok := req.Load.sample()
+	if !ok {
+		return true
+	}
+	gate := req.Load.Gate(s, live, req.MemBytes, req.Now)
+	a.Machine = &gate
+	if !gate.Blocked() {
+		return true
+	}
+	if gate.onlyLoad() && len(live) == 0 && req.Load.MaxLoadWait > 0 && req.Now.Sub(queued) >= req.Load.MaxLoadWait {
+		a.Forced = true
+		return true
+	}
+	return false
+}
+
+// cpuMem is the memory a lease records: none for a disk-only lease.
+func cpuMem(req AdmitRequest) int64 {
+	if req.CPUs <= 0 {
+		return 0
+	}
+	return max(req.MemBytes, 0)
 }
 
 // cpuPriority is the class a lease records: none for a disk-only lease.

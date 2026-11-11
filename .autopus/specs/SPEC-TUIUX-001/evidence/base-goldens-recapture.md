@@ -389,3 +389,10 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 기록: `go run ./cmd/generate-templates` 뒤 `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run 'TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6'`.
 - 차이: NPD 다섯 개에서 `.claude/skills/stack-freshness`·`.codex/skills/codex-stack-freshness` 파일 목록과 manifest·journal checksum만 바뀌었다. stdout golden은 그대로다.
 - 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.
+
+## CPU lease가 load·메모리를 보고 들여보낸다 (feat/lease-load-admission, 2026-11-11)
+
+- 원인: `content/skills/ci-optimize.md`와 `content/skills/disk-triage.md`의 lease 절에 load·메모리 기반 admission(`--mem`, `disk.lease.max_load_ratio`, `min_free_mem_gb`, `max_load_wait_minutes`)과 단일 lock wrapper를 옮기는 법을 더했다.
+- 기록: `go run ./cmd/generate-templates` 뒤 `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run 'TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6'`.
+- 차이: NPD 다섯 개에서 `.claude/skills/ci-optimize/SKILL.md`·`.claude/skills/disk-triage/SKILL.md`·`.codex/skills/codex-ci-optimize/SKILL.md`·`.codex/skills/codex-disk-triage/SKILL.md`와 manifest·journal checksum만 바뀌었다. stdout golden은 그대로다.
+- 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.

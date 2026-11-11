@@ -45,6 +45,12 @@ type LeaseInfo struct {
 	// EffectivePriority is the aged class of a waiter, set by RankWaiters
 	// and never stored.
 	EffectivePriority string `json:"effective_priority,omitempty"`
+	// MemBytes is the memory the lease reserves, or the waiter asks for,
+	// with --mem; 0 reserves none.
+	MemBytes int64 `json:"mem_bytes,omitempty"`
+	// Blocked is why the head waiter waits on the machine, set by
+	// LoadPolicy.ExplainHead and never stored.
+	Blocked string `json:"blocked,omitempty"`
 }
 
 // Lease is a held lease: its file stays flocked until Release, or until the

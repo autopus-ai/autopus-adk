@@ -28,7 +28,7 @@ const (
 var (
 	leaseNumCPU       = runtime.NumCPU
 	leaseCPUSupported = runtime.GOOS == "darwin" || runtime.GOOS == "linux"
-	leaseCPUPoll      = time.Second
+	leaseCPUPoll      = 2 * time.Second
 )
 
 // leaseCPUSlots is the machine's slot count: AUTOPUS_LEASE_CPU_SLOTS, else
@@ -107,8 +107,13 @@ func defaultLeasePriority(getenv func(string) string) string {
 
 // cpuRefusalLine is the timeout line of a CPU wait.
 func cpuRefusalLine(cpus, slots int, a diskspace.Admission, waited time.Duration) string {
-	return fmt.Sprintf("disk lease: %d CPUs requested, %d of %d slots free after %d reserved by %d leases, %d waiters ahead; waited %s",
-		cpus, max(slots-a.ReservedCPUs, 0), slots, a.ReservedCPUs, len(a.Live), a.Waiting, waited.Round(time.Second))
+	reason := ""
+	if a.Machine != nil {
+		reason = a.Machine.Reason()
+	}
+	return fmt.Sprintf("disk lease: %d CPUs requested, %d of %d slots free after %d reserved by %d leases, %d waiters ahead%s; waited %s",
+		cpus, max(slots-a.ReservedCPUs, 0), slots, a.ReservedCPUs, len(a.Live), a.Waiting, machineSuffix(reason),
+		waited.Round(time.Second))
 }
 
 // writeLeaseStatusText prints the live leases and, when any CPU lease or
@@ -127,7 +132,7 @@ func writeLeaseStatusText(w io.Writer, leases, waiters []diskspace.LeaseInfo, sl
 	for _, lease := range leases {
 		amount := diskspace.GiBString(lease.NeedBytes) + " GiB"
 		if lease.CPUs > 0 {
-			amount += fmt.Sprintf(", %d CPUs", lease.CPUs)
+			amount += fmt.Sprintf(", %d CPUs", lease.CPUs) + memText(lease.MemBytes)
 			if lease.Priority != "" {
 				amount += " (" + lease.Priority + ")"
 			}
@@ -149,7 +154,8 @@ func writeLeaseStatusText(w io.Writer, leases, waiters []diskspace.LeaseInfo, sl
 				class = waiter.Priority + " aged to " + waiter.EffectivePriority + ", "
 			}
 		}
-		fmt.Fprintln(w, terminalSafe(fmt.Sprintf("lease waiter %d: %d CPUs for %s (pid %d, %swaiting %s)", i+1,
-			waiter.CPUs, waiter.Label, waiter.PID, class, diskNow().Sub(waiter.Started).Round(time.Second))))
+		fmt.Fprintln(w, terminalSafe(fmt.Sprintf("lease waiter %d: %d CPUs%s for %s (pid %d, %swaiting %s)%s", i+1,
+			waiter.CPUs, memText(waiter.MemBytes), waiter.Label, waiter.PID, class,
+			diskNow().Sub(waiter.Started).Round(time.Second), machineSuffix(waiter.Blocked))))
 	}
 }
