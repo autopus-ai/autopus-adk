@@ -62,6 +62,8 @@ type DiskConf struct {
 	// Reclaim and Lease are SPEC-DISK-002 (schema_disk_reclaim.go).
 	Reclaim DiskReclaimConf `yaml:"reclaim,omitempty"`
 	Lease   DiskLeaseConf   `yaml:"lease,omitempty"`
+	// Consumers names extra roots status measures (schema_disk_reclaim.go).
+	Consumers DiskConsumersConf `yaml:"consumers,omitempty"`
 }
 
 // DiskTrimConf is disk.trim.
@@ -102,6 +104,7 @@ type DiskEffective struct {
 	WorkDirIdleMinutes int
 	Reclaim            DiskReclaimEffective
 	Lease              DiskLeaseEffective
+	ExtraRoots         []string
 }
 
 // DiskGoBuildEffective is the resolved disk.trim.go_build.
@@ -153,6 +156,7 @@ func (d DiskConf) Effective() DiskEffective {
 		WorkDirIdleMinutes: diskInt(d.Trim.GoBuildWorkDirs.IdleMinutes, DefaultDiskWorkDirIdleMinutes),
 		Reclaim:            d.Reclaim.effective(),
 		Lease:              d.Lease.effective(),
+		ExtraRoots:         slices.Clone(d.Consumers.ExtraRoots),
 	}
 }
 
@@ -219,6 +223,9 @@ func (d DiskConf) Validate() error {
 		return err
 	}
 	if err := d.Reclaim.validate(); err != nil {
+		return err
+	}
+	if err := d.Consumers.validate(); err != nil {
 		return err
 	}
 	return d.Lease.validate()

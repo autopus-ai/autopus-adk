@@ -6,8 +6,10 @@ import "time"
 const (
 	KindScratchpad = "scratchpad"
 
-	ReclaimWorktree   = "worktree"
-	ReclaimScratchpad = "scratchpad"
+	ReclaimWorktree    = "worktree"
+	ReclaimScratchpad  = "scratchpad"
+	ReclaimRegenerable = "regenerable"
+	ReclaimLargeFile   = "large_file"
 
 	// ReasonMergedIdle selects a merged, clean, owned worktree idle past the
 	// threshold; ReasonReleased one whose registered owner released it.
@@ -47,6 +49,19 @@ type ReclaimCandidate struct {
 	Head    string    `json:"-"`
 	BaseRef string    `json:"-"`
 	Cutoff  time.Time `json:"-"`
+	// Unlock marks a locked Claude Code agent worktree, unlocked right
+	// before its removal; LockReason is the lock it must still carry.
+	Unlock     bool   `json:"unlock,omitempty"`
+	LockReason string `json:"-"`
+	agentPID   int
+	agentStart string
+	// recheck re-reads, right before removal, the facts only the CLI can
+	// list: process working directories and the locking process.
+	cwds  CwdLister
+	alive AgentAliveFunc
+	// parent is the directory a regenerable or large-file candidate is
+	// removed from, re-identified before removal.
+	parent Root
 	// entry is a scratchpad candidate relative to the scratchpad root.
 	entry Candidate
 }
@@ -55,6 +70,8 @@ type ReclaimCandidate struct {
 type ReclaimCounters struct {
 	Worktrees      int   `json:"worktrees"`
 	Scratchpads    int   `json:"scratchpads"`
+	Regenerable    int   `json:"regenerable"`
+	LargeFiles     int   `json:"large_files"`
 	DeletedBytes   int64 `json:"deleted_bytes"`
 	SkippedChanged int   `json:"skipped_changed"`
 	SkippedSymlink int   `json:"skipped_symlink"`
@@ -69,9 +86,14 @@ type ReclaimCounters struct {
 func (c *ReclaimCounters) record(kind string, bytes int64, o outcome) {
 	switch o {
 	case outcomeDeleted:
-		if kind == ReclaimWorktree {
+		switch kind {
+		case ReclaimWorktree:
 			c.Worktrees++
-		} else {
+		case ReclaimRegenerable:
+			c.Regenerable++
+		case ReclaimLargeFile:
+			c.LargeFiles++
+		default:
 			c.Scratchpads++
 		}
 		c.DeletedBytes += bytes
@@ -94,6 +116,8 @@ func (c *ReclaimCounters) record(kind string, bytes int64, o outcome) {
 func (c *ReclaimCounters) Add(o ReclaimCounters) {
 	c.Worktrees += o.Worktrees
 	c.Scratchpads += o.Scratchpads
+	c.Regenerable += o.Regenerable
+	c.LargeFiles += o.LargeFiles
 	c.DeletedBytes += o.DeletedBytes
 	c.SkippedChanged += o.SkippedChanged
 	c.SkippedSymlink += o.SkippedSymlink

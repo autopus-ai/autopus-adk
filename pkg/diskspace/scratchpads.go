@@ -20,6 +20,20 @@ type ScratchpadScan struct {
 	// newest directory directly under the root; zero when there is none.
 	OldestAgeMinutes int64
 	NewestAgeMinutes int64
+	// LargeFiles are the regular files of at least LargeFileBytes below the
+	// root, and LargeBytes their allocated total.
+	LargeFiles []LargeFile
+	LargeBytes int64
+}
+
+// LargeFileBytes is the size from which a scratchpad file is reported large.
+const LargeFileBytes = GiB
+
+// LargeFile is one large regular file below the scratchpad root.
+type LargeFile struct {
+	Path    string    `json:"path"`
+	Bytes   int64     `json:"bytes"`
+	ModTime time.Time `json:"mod_time"`
 }
 
 // ProductionScratchpadRoot is the scratchpad root of uid outside tests,
@@ -46,7 +60,12 @@ func ScanScratchpads(root string, now time.Time) ScratchpadScan {
 	}
 	scan := ScratchpadScan{Root: Root{Path: root}}
 	var oldest, newest time.Time
-	scan.Bytes, _ = walkAllocated(root, func(_ string, depth int, info fs.FileInfo, _ fileStat) bool {
+	scan.Bytes, _ = walkAllocated(root, func(rel string, depth int, info fs.FileInfo, st fileStat) bool {
+		if info.Mode().IsRegular() && info.Size() >= LargeFileBytes {
+			scan.LargeFiles = append(scan.LargeFiles, LargeFile{Path: filepath.Join(root, filepath.FromSlash(rel)),
+				Bytes: st.alloc, ModTime: info.ModTime()})
+			scan.LargeBytes += st.alloc
+		}
 		if depth == 1 && info.IsDir() {
 			scan.Dirs++
 			if oldest.IsZero() || info.ModTime().Before(oldest) {
