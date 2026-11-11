@@ -8,26 +8,26 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func TestReleaseWorkflow_ExactA44ProtectedNormalLane(t *testing.T) {
+func TestReleaseWorkflow_ExactA45ProtectedNormalLane(t *testing.T) {
 	release := readReleaseFile(t, ".github/workflows/release.yaml")
 	for _, required := range []string{
-		"- 'v0.51.3'", "if: github.ref == 'refs/tags/v0.51.3'",
+		"- 'v0.51.4'", "if: github.ref == 'refs/tags/v0.51.4'",
 		"needs: [ci, security, omp-production-evidence]", "adk-companion-release",
-		"Validate exact R2-signed A44 source", "COMPANION_RELEASE_TAG_SIGNATURE_REQUIRED=1",
+		"Validate exact R2-signed A45 source", "COMPANION_RELEASE_TAG_SIGNATURE_REQUIRED=1",
 		"Verify exact sealed release-tag authority",
 		"scripts/companion-release/verify-release-tag-ruleset.sh --sealed-runtime",
 		"Build canonical policy-bearing production candidate", "OMP_CONTEXT_STATIC_POLICY_B64",
 		"Verify fresh K3-signed production evidence",
 		"Reverify active K3 production evidence inside protected environment",
-		"name: omp-context-evidence-v0.51.3", "--mode active",
-		"autopus.adk_release_reservation.v1", "release_tag:\"v0.51.3\"",
+		"name: omp-context-evidence-v0.51.4", "--mode active",
+		"autopus.adk_release_reservation.v1", "release_tag:\"v0.51.4\"",
 		`(.assets | type == "array" and length == 0)`, ".author.id == 204883817",
 		"Verify reserved release was published", ".immutable == true",
 		"COMPANION_RELEASE_ID: ${{ steps.release-reservation.outputs.release-id }}",
 		"OMP_CONTEXT_LINEAGE_VERIFIER=\"$OMP_CONTEXT_LINEAGE_VERIFIER\"",
 	} {
 		if !strings.Contains(release, required) {
-			t.Fatalf("A44 release workflow missing %q", required)
+			t.Fatalf("A45 release workflow missing %q", required)
 		}
 	}
 	protectedSource := strings.Index(release, "name: Validate exact protected release source")
@@ -44,17 +44,17 @@ func TestReleaseWorkflow_ExactA44ProtectedNormalLane(t *testing.T) {
 		t.Fatalf("active evidence gate count = %d, want pre-protected and protected gates",
 			strings.Count(release, "--mode active"))
 	}
-	// v0.51.2 is the A43 predecessor, v0.50.124 is the burned A35 attempt,
+	// v0.51.3 is the A44 predecessor, v0.50.124 is the burned A35 attempt,
 	// v0.50.126 is the burned A36 attempt, and v0.50.129 and v0.50.130 are the
-	// burned A38 attempts; none may survive in the workflow that ships A44.
+	// burned A38 attempts; none may survive in the workflow that ships A45.
 	for _, forbidden := range []string{
-		"v0.51.2", "v0.50.124", "v0.50.126", "v0.50.129", "v0.50.130",
+		"v0.51.3", "v0.50.124", "v0.50.126", "v0.50.129", "v0.50.130",
 		"omp-canonical-bridge-candidate", "omp-context-bridge-release.v1.json",
 		"adk-key-rotation-v1.json", "adk-key-rotation-v1.sig", "--expected-signing-key-id",
 		"releases/assets/${asset_id}", "--armed", "- 'v*'", "- v*",
 	} {
 		if strings.Contains(release, forbidden) {
-			t.Fatalf("A44 normal release workflow retains forbidden contract %q", forbidden)
+			t.Fatalf("A45 normal release workflow retains forbidden contract %q", forbidden)
 		}
 	}
 }
@@ -62,14 +62,14 @@ func TestReleaseWorkflow_ExactA44ProtectedNormalLane(t *testing.T) {
 func TestReleaseWorkflow_ExactFifteenAssetSet(t *testing.T) {
 	release := readReleaseFile(t, ".github/workflows/release.yaml")
 	assets := []string{
-		"autopus-adk_0.51.3_darwin_amd64.tar.gz",
-		"autopus-adk_0.51.3_darwin_arm64.tar.gz",
-		"autopus-adk_0.51.3_linux_amd64.tar.gz",
-		"autopus-adk_0.51.3_linux_arm64.tar.gz",
-		"autopus-adk_0.51.3_windows_amd64.tar.gz",
-		"autopus-adk_0.51.3_windows_amd64.zip",
-		"autopus-adk_0.51.3_windows_arm64.tar.gz",
-		"autopus-adk_0.51.3_windows_arm64.zip",
+		"autopus-adk_0.51.4_darwin_amd64.tar.gz",
+		"autopus-adk_0.51.4_darwin_arm64.tar.gz",
+		"autopus-adk_0.51.4_linux_amd64.tar.gz",
+		"autopus-adk_0.51.4_linux_arm64.tar.gz",
+		"autopus-adk_0.51.4_windows_amd64.tar.gz",
+		"autopus-adk_0.51.4_windows_amd64.zip",
+		"autopus-adk_0.51.4_windows_arm64.tar.gz",
+		"autopus-adk_0.51.4_windows_arm64.zip",
 		"checksums.txt", "checksums.txt.bundle", "checksums.txt.signatures",
 		"omp-context-promotion-report.v1.json",
 		"omp-context-promotion-attestation.v2.json",
