@@ -454,6 +454,49 @@ Turn it off with `disk.reclaim.auto: false` or `AUTOPUS_DISK_AUTO_RECLAIM=off`. 
 (core, installed by default) walks an agent through the same steps and tells it what to ask you before deleting:
 other sessions' work, backups, VM disks, and caches other builds are using.
 
+## CI: measure first, then share the host
+
+`auto ci report` measures a GitHub Actions repository before anything is changed. It reads through your
+own `gh` login (it fails with what to do when `gh` is missing or logged out), uses only the jobs API
+timestamps (`filter=all`, so reruns count; the retired `/timing` endpoint is not used), and never writes.
+
+```bash
+auto ci report                          # origin repo, last 14 days, up to 200 runs sampled evenly
+auto ci report --repo owner/name --since 30d --workflow ci.yaml --json
+```
+
+It ranks findings by severity, then minutes per day, each with its numbers: jobs that wait longer for a
+runner than they run, the most expensive jobs (median and p90), minutes lost to failed, cancelled, and
+rerun attempts, push runs whose commit tree a successful PR run of the same workflow already tested, PR
+runs that kept running after a newer push, and self-hosted runners that are saturated or unevenly
+loaded. A lint of the local `.github/workflows` adds jobs without `timeout-minutes`, PR workflows without
+a cancelling concurrency group, groups that would also cancel push, release, or `workflow_call` runs,
+public-repo PR jobs on self-hosted runners that fork PRs can reach, `pull_request_target` checking out the
+PR head, and release or publish jobs sharing a `runs-on` label with PR lanes. `--json` carries every table.
+Requests are bounded (`--max-requests`, default 1000; at most 4 at a time) and cached for the run only.
+When runs exceed `--limit-runs`, totals are scaled by the reported factor.
+
+**CPU leases for shared hosts.** GitHub Actions has no job priority, so on a self-hosted machine with
+several runners the real problem is contention: every job sets `GOMAXPROCS` and `go test -p` to the full
+core count, and macOS has no cgroups to stop it. `auto disk lease --cpu N` reserves N of the machine's CPU
+slots for one command, on top of (or instead of) the disk reservation. Slots default to the logical CPU
+count (`disk.lease.cpu_slots`, or `AUTOPUS_LEASE_CPU_SLOTS` per machine); a larger N is clamped. Waiters
+are served first in, first out; `--wait` bounds the wait and exit 3 means it ran out. A holder or waiter
+that dies frees its place. The command runs with `AUTOPUS_LEASE_CPUS=N`, and `GOMAXPROCS=N` unless you set
+your own. `auto disk status` lists the holders and the queue.
+
+```yaml
+# .github/workflows/ci.yaml (self-hosted job)
+- name: Test
+  run: auto disk lease --cpu 8 --wait 30m --label test -- sh -c 'go test -p "$AUTOPUS_LEASE_CPUS" ./...'
+```
+
+Leases live in your own state dir by default, so they only coordinate one user's jobs. When several
+runner accounts share a machine, point them all at one directory with `AUTOPUS_LEASE_DIR` (for example in
+each runner's `.env`) or `disk.lease.dir`. A missing directory is created sticky and world-writable, like
+`/tmp`; an existing one that group or others can write must be sticky (`chmod +t`). Where no lease can be
+held (Windows), `--cpu` alone warns and runs the command with the same environment.
+
 ## Security
 
 - **Signed releases.** Every release since v0.50.73 ships `checksums.txt` and an ECDSA P-256

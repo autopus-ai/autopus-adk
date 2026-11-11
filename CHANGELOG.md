@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **`auto ci report`로 CI 병목을 재고, `auto disk lease --cpu`로 공유 기계의 CPU를 나눈다** (2026-11-11):
+  CI를 고치기 전에 재는 일은 `gh api`와 jq를 손으로 이어 붙여야 했다. `auto ci report`는 사용자의 `gh` 로그인으로
+  jobs API 타임스탬프(`filter=all`)만 읽어 job별 실행·대기 중앙값/p90, event별 끝-끝 시간, runner별 busy 분/일,
+  실패·취소·재실행 분, PR run이 이미 시험한 tree를 다시 돈 push run, 새 push 뒤에도 끝까지 돈 PR run을 계산하고,
+  로컬 workflow lint(`timeout-minutes` 누락, PR concurrency 누락, push·release·`workflow_call`까지 취소하는 group,
+  fork PR이 닿는 self-hosted job, PR head를 checkout하는 `pull_request_target`, PR lane과 라벨을 공유하는 release
+  job)를 더해 심각도와 분/일 순으로 보여 준다. 요청은 예산(기본 1000)과 동시 4개로 묶이고, run이 많으면 고르게
+  표본을 뽑아 보정 비율을 적는다. GitHub Actions에는 job 우선순위가 없으므로 같은 기계의 경합은 기계에서 나눈다.
+  `auto disk lease --cpu N -- <cmd>`는 CPU 슬롯 N개를 선착순으로 예약하고(기본 슬롯은 논리 CPU 수,
+  `disk.lease.cpu_slots`), 명령에 `AUTOPUS_LEASE_CPUS=N`과 `GOMAXPROCS=N`(이미 정했으면 그대로)을 넘긴다.
+  `--wait`가 다하면 exit 3이다. 여러 runner 계정은 `AUTOPUS_LEASE_DIR`나 `disk.lease.dir`로 sticky 공유
+  디렉터리를 함께 쓴다. `auto disk status`는 CPU holder와 대기열을 보여 준다. `--need`·`--for`만 쓰는 기존 디스크
+  lease는 그대로 동작한다. `ci-optimize` 스킬은 `auto ci report`를 첫 단계로, CPU lease를 공유 기계 대책으로
+  안내한다. GitHub Actions 예:
+
+  ```yaml
+  - name: Test
+    run: auto disk lease --cpu 8 --wait 30m --label test -- sh -c 'go test -p "$AUTOPUS_LEASE_CPUS" ./...'
+  ```
+
 - **CI 비용·속도 최적화 스킬 `ci-optimize`를 더한다** (2026-11-11): CI가 느리거나 비쌀 때 에이전트가 일반 기법부터 적용하면 엉뚱한 곳을 고치기 쉽다. 이 스킬은 순서를 준다: jobs API 타임스탬프로 job별 대기·실행 시간과 runner별 점유율을 재고(폐지된 timing API 대신), 병목을 대기·실행·중복·버린 시간으로 분류해 가장 큰 것 하나부터 고친 뒤 같은 방법으로 다시 잰다. PR 한정 concurrency(reusable workflow 접두사 포함), 트리 해시 기준 push 재사용, job 단위 경로 필터와 필수 체크 집계, self-hosted의 host 로컬 캐시와 macOS 과다 할당, 디스크, timeout 위생, public repo fork PR과 `pull_request_target` 경계를 담는다. 측정 스니펫은 실제 저장소에서 돌려 확인했다. core 스킬로 설치한다.
 
 - **디스크 하네스: 무엇이 늘었는지 보여 주고, 공간이 모자랄 때 무거운 명령을 막고, 끝난 작업을 작업 중에
