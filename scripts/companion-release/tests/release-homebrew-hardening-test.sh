@@ -156,6 +156,35 @@ rm -f -- "$state/formula-race-before-ref"
      '6666666666666666666666666666666666666666' ]] \
   || fail 'A45 overwrote a concurrent Formula drift commit'
 
+# The ref read right after the PATCH can lag and still name the predecessor
+# (v0.51.4: the Cask was published at 08:13:08 and this read failed the same
+# second). A stale read is retried; a head that names a third commit is a real
+# concurrent move and still fails.
+reset_update_needed() {
+  jq -n --arg content "$(base64 <"$temp/prior-cask.rb" | tr -d '\r\n')" \
+    --arg sha "$prior_cask_blob" '{sha:$sha,content:$content}' >"$state/cask.json"
+  jq -n --arg content "$(base64 <"$temp/frozen-formula.rb" | tr -d '\r\n')" \
+    '{sha:"4ebc6c38925002dec00759823d4dd847a499818a",content:$content}' >"$state/formula.json"
+  jq -n --arg sha "$prior_tap_commit" '{ref:"refs/heads/main",object:{type:"commit",sha:$sha,url:"https://example.invalid/prior-commit"}}' \
+    >"$state/branch.json"
+}
+reset_update_needed
+touch "$state/stale-final-ref"
+env "${bridge_env[@]}" bash "$script_dir/publish-homebrew-formula-bridge.sh" >/dev/null 2>&1 \
+  || fail 'A45 failed a publication whose final ref read lagged'
+rm -f -- "$state/stale-final-ref" "$state/stale-reads"
+[[ "$(<"$state/ref-update.calls")" == 2 &&
+   "$(jq -er '.object.sha' "$state/branch.json")" == \
+     '3333333333333333333333333333333333333333' ]] \
+  || fail 'A45 did not publish once across a lagging ref read'
+reset_update_needed
+touch "$state/moved-after-ref"
+if env "${bridge_env[@]}" bash "$script_dir/publish-homebrew-formula-bridge.sh" \
+  >/dev/null 2>&1; then
+  fail 'A45 accepted a third commit on the tap head after publication'
+fi
+rm -f -- "$state/moved-after-ref"
+
 # Tap drift must fail before anything irreversible exists. In normal prep that
 # means before the prep lock and coordinate transaction; in the release
 # workflow it means before GoReleaser, because a published immutable release

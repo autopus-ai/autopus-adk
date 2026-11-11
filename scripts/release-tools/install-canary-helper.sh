@@ -22,7 +22,9 @@ readonly destination='/Library/PrivilegedHelperTools/co.autopus.release-canary'
 readonly rule='/etc/sudoers.d/autopus-release-canary'
 temp_base=${TMPDIR:-/tmp}
 temp=$(mktemp -d "${temp_base%/}/install-canary-helper.XXXXXX")
-trap 'rm -rf -- "$temp"' EXIT
+# Go writes the module cache read-only, so a plain rm -rf left the whole
+# toolchain download behind and printed one "Permission denied" per file.
+trap 'chmod -R u+w "$temp" 2>/dev/null || true; rm -rf -- "$temp"' EXIT
 
 # What becomes a passwordless root program is GitHub's main branch, fetched
 # fresh into an empty repository with every git configuration, replace ref,

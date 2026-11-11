@@ -62,6 +62,14 @@ case "$endpoint" in
   *git/ref/heads/main*)
     [[ "$method" == 'GET' ]] || exit 64
     increment branch-get
+    # GitHub's ref read can lag the PATCH that just moved it: serve the
+    # predecessor for the pending number of reads.
+    if [[ -s "$MOCK_TAP_STATE/stale-reads" && "$(<"$MOCK_TAP_STATE/stale-reads")" -gt 0 ]]; then
+      printf '%s\n' "$(( $(<"$MOCK_TAP_STATE/stale-reads") - 1 ))" >"$MOCK_TAP_STATE/stale-reads"
+      jq -n --arg sha "$prior_commit" \
+        '{ref:"refs/heads/main",object:{type:"commit",sha:$sha,url:"https://example.invalid/stale-read"}}'
+      exit 0
+    fi
     if [[ -e "$MOCK_TAP_STATE/idempotent-ref-race" &&
           "$(<"$MOCK_TAP_STATE/branch-get.calls")" == '2' ]]; then
       jq -n '{ref:"refs/heads/main",object:{type:"commit",sha:"4444444444444444444444444444444444444444",url:"https://example.invalid/idempotent-ref-racer"}}' \
@@ -94,6 +102,12 @@ case "$endpoint" in
       >"$MOCK_TAP_STATE/branch.json"
     increment ref-update
     cat "$MOCK_TAP_STATE/branch.json"
+    if [[ -e "$MOCK_TAP_STATE/stale-final-ref" ]]; then
+      printf '2\n' >"$MOCK_TAP_STATE/stale-reads"
+    elif [[ -e "$MOCK_TAP_STATE/moved-after-ref" ]]; then
+      jq -n '{ref:"refs/heads/main",object:{type:"commit",sha:"7777777777777777777777777777777777777777",url:"https://example.invalid/mover"}}' \
+        >"$MOCK_TAP_STATE/branch.json"
+    fi
     ;;
   *git/commits/"$prior_commit"*)
     [[ "$method" == 'GET' ]] || exit 64
