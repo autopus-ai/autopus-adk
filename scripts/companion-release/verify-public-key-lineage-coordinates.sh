@@ -108,6 +108,21 @@ readonly A44_LINUX_AMD64_ARCHIVE_SHA256='6512d19fc2ff316ebecabe749d3c887f57a2be3
 readonly A44_LINUX_ARM64_ARCHIVE_SHA256='3364759308c582118e696342dd6a3852b17a84ac41ed787106249723f6b8ac73'
 readonly A44_AMD64_MANIFEST_SHA256='2db97fd2fbd5e74c992916a3353833b3397b1de187b9c419d57431cfd2c21462'
 readonly A44_ARM64_MANIFEST_SHA256='8e82aba2309f6bc3260515c47c9c8360cc1fed57d4f26b53f9f126b3105ef51d'
+readonly A45_REPOSITORY='autopus-ai/autopus-adk' A46_TAG='v0.51.5' A46_VERSION='0.51.5'
+# A45 shipped the same fifteen-asset set as A44 under the same owner, all
+# measured from the immutable release 441368606. The two manifest digests come
+# from inside the darwin archives, where the companion manifest travels.
+readonly A45_RELEASE_ID='441368606'
+readonly A45_COMMIT_SHA='4312105591a74f79ed3f62a7023423d49a2944f0'
+readonly A45_TREE_SHA='77458576f6e16a10312d5222e08a04e35000efc6'
+readonly A45_TAG_OBJECT_SHA='9130626401937001ccb2366faf62f0f4184534d9'
+readonly A45_CHECKSUMS_SHA256='610ef4032e3b7ce28e4845825c6b55091d5ded8b40c9e2c4ea635c6cd23e1140'
+readonly A45_AMD64_ARCHIVE_SHA256='08c5de85142d36b35f79f09f0d35433c83b2cf5a1b252e3bdc1d40f041fdeb44'
+readonly A45_ARM64_ARCHIVE_SHA256='97d26ea4da3df491e79d0e338eb0ae8d5ef7c529fc09172ebc148dc13464ab92'
+readonly A45_LINUX_AMD64_ARCHIVE_SHA256='c8a71813f4f1c7b6822c2353003bdd60a99adcd07fceeb91237844b18e09698d'
+readonly A45_LINUX_ARM64_ARCHIVE_SHA256='ab90b16f104a9766cde740246f15183c6fc880d2e6cd187b65bac4b67134207d'
+readonly A45_AMD64_MANIFEST_SHA256='380c4b20060924832e223e8841dbc2bb4db57d7fcd7e3dfd2fece9cee613efd5'
+readonly A45_ARM64_MANIFEST_SHA256='18499b51e5bd4413b8ee50223ea4343de036859bc81b4063344a02b9ca6cab95'
 readonly A0_EVIDENCE_SOURCE='immutable A0 GitHub release'
 
 require_environment GITHUB_REF_NAME
@@ -302,6 +317,11 @@ elif [[ "$GITHUB_REF_NAME" == "$A45_TAG" && "$COMPANION_VERSION" == "$A45_VERSIO
   # A44 shipped the same shape as A43: four archives, checksums, and the
   # companion manifest inside each darwin bundle.
   prior_tag_object="$A44_TAG_OBJECT_SHA" prior_checksums="$A44_CHECKSUMS_SHA256" prior_amd64_archive="$A44_AMD64_ARCHIVE_SHA256" prior_arm64_archive="$A44_ARM64_ARCHIVE_SHA256" prior_linux_amd64_archive="$A44_LINUX_AMD64_ARCHIVE_SHA256" prior_linux_arm64_archive="$A44_LINUX_ARM64_ARCHIVE_SHA256" prior_amd64_manifest="$A44_AMD64_MANIFEST_SHA256" prior_arm64_manifest="$A44_ARM64_MANIFEST_SHA256"
+elif [[ "$GITHUB_REF_NAME" == "$A46_TAG" && "$COMPANION_VERSION" == "$A46_VERSION" ]]; then
+  release_phase='A46' prior_phase='A45' prior_repository="$A45_REPOSITORY" prior_evidence_source='immutable A45 GitHub release' prior_tag="$A45_TAG" prior_version="$A45_VERSION" prior_commit="$A45_COMMIT_SHA" prior_release_id="$A45_RELEASE_ID" prior_tree="$A45_TREE_SHA"
+  # A45 shipped the same shape as A44: four archives, checksums, and the
+  # companion manifest inside each darwin bundle.
+  prior_tag_object="$A45_TAG_OBJECT_SHA" prior_checksums="$A45_CHECKSUMS_SHA256" prior_amd64_archive="$A45_AMD64_ARCHIVE_SHA256" prior_arm64_archive="$A45_ARM64_ARCHIVE_SHA256" prior_linux_amd64_archive="$A45_LINUX_AMD64_ARCHIVE_SHA256" prior_linux_arm64_archive="$A45_LINUX_ARM64_ARCHIVE_SHA256" prior_amd64_manifest="$A45_AMD64_MANIFEST_SHA256" prior_arm64_manifest="$A45_ARM64_MANIFEST_SHA256"
 else
-  fail prior_release_identity_mismatch 'release is outside the frozen A0/A1/A2/A3/A4/A5/A6/A7/A8/A9/A10/A11/A12/A13/A14/A15/A16/A17/A18/A19/A20/A21/A22/A23/A24/A25/A26/A27/A28/A29/A30/A31/A32/A33/A34/A35/A36/A37/A38/A39/A40/A41/A42/A43/A44/A45 policy'
+  fail prior_release_identity_mismatch 'release is outside the frozen A0/A1/A2/A3/A4/A5/A6/A7/A8/A9/A10/A11/A12/A13/A14/A15/A16/A17/A18/A19/A20/A21/A22/A23/A24/A25/A26/A27/A28/A29/A30/A31/A32/A33/A34/A35/A36/A37/A38/A39/A40/A41/A42/A43/A44/A45/A46 policy'
 fi
