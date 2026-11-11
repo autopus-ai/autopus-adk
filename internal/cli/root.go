@@ -128,6 +128,9 @@ func NewRootCmd() *cobra.Command {
 	// SPEC-DISK-001: generated guidance runs `auto disk check` before heavy
 	// steps and stops on its exit 3.
 	root.AddCommand(newDiskCmd())
+	// The version Stop gate points agents at `auto deps latest` before they
+	// pick a dependency, toolchain or image version.
+	root.AddCommand(newDepsCmd())
 	hideLegacyHarnessCommands(root)
 
 	return root
