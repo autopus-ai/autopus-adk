@@ -28,8 +28,11 @@ const (
 	EventReclaimApply   = "reclaim_apply"
 	EventLeaseReclaimed = "lease_reclaimed"
 	EventLeaseRefused   = "lease_refused"
-	EventLowSpaceAlert  = "low_space_alert"
-	EventAutoReclaim    = "auto_reclaim"
+	// EventLeaseForced is a CPU lease admitted despite load (no lease ran
+	// for disk.lease.max_load_wait_minutes).
+	EventLeaseForced   = "lease_forced"
+	EventLowSpaceAlert = "low_space_alert"
+	EventAutoReclaim   = "auto_reclaim"
 )
 
 // Event is one line of the event log.

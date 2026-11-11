@@ -20,6 +20,18 @@ const (
 	// DefaultDiskLeaseAgingMinutes lifts a waiting CPU request one priority
 	// class every ten minutes.
 	DefaultDiskLeaseAgingMinutes = 10
+	// DefaultDiskLeaseMaxLoadRatio admits a CPU waiter while the 1-minute
+	// load stays at or under 85% of the logical CPUs.
+	DefaultDiskLeaseMaxLoadRatio = 0.85
+	// DefaultDiskLeaseMinFreeMemGB keeps 8 GiB of memory free after every
+	// --mem reservation.
+	DefaultDiskLeaseMinFreeMemGB = 8
+	// DefaultDiskLeaseMaxLoadWaitMinutes admits the head waiter despite
+	// load after ten minutes with no lease running.
+	DefaultDiskLeaseMaxLoadWaitMinutes = 10
+	// DiskMaxLeaseLoadRatio and DiskMaxLeaseMinFreeMemGB bound the keys.
+	DiskMaxLeaseLoadRatio    = 64.0
+	DiskMaxLeaseMinFreeMemGB = 1 << 20
 	// DefaultDiskReclaimAuto lets the per-turn Stop hook start a safe reclaim.
 	DefaultDiskReclaimAuto = true
 	// DefaultDiskReclaimAutoIntervalMinutes spaces automatic reclaims.
@@ -69,6 +81,15 @@ type DiskLeaseConf struct {
 	// AgingMinutes raises a CPU waiter one priority class per interval it
 	// waits, so background work cannot starve; 0 turns aging off.
 	AgingMinutes *int `yaml:"aging_minutes,omitempty"`
+	// MaxLoadRatio × logical CPUs is the highest 1-minute load at which a
+	// CPU waiter is admitted; 0 turns the load check off.
+	MaxLoadRatio *float64 `yaml:"max_load_ratio,omitempty"`
+	// MinFreeMemGB is the memory that stays free after every --mem
+	// reservation; 0 keeps no floor.
+	MinFreeMemGB *int `yaml:"min_free_mem_gb,omitempty"`
+	// MaxLoadWaitMinutes admits the head waiter despite load once it has
+	// waited this long with no lease running; 0 never forces.
+	MaxLoadWaitMinutes *int `yaml:"max_load_wait_minutes,omitempty"`
 }
 
 // DiskReclaimEffective is the resolved disk.reclaim.
@@ -90,6 +111,11 @@ type DiskLeaseEffective struct {
 	CPUSlots     int
 	Dir          string
 	AgingMinutes int
+	// MaxLoadRatio, MinFreeMemGB, and MaxLoadWaitMinutes are the load- and
+	// memory-aware admission of CPU leases.
+	MaxLoadRatio       float64
+	MinFreeMemGB       int
+	MaxLoadWaitMinutes int
 }
 
 func (r DiskReclaimConf) effective() DiskReclaimEffective {
@@ -120,13 +146,20 @@ func (l DiskLeaseConf) effective() DiskLeaseEffective {
 	if l.ReclaimOnShortage != nil {
 		reclaim = *l.ReclaimOnShortage
 	}
+	ratio := DefaultDiskLeaseMaxLoadRatio
+	if l.MaxLoadRatio != nil {
+		ratio = *l.MaxLoadRatio
+	}
 	return DiskLeaseEffective{
-		MaxConcurrent:     diskInt(l.MaxConcurrent, DefaultDiskLeaseMaxConcurrent),
-		WaitMinutes:       diskInt(l.WaitMinutes, DefaultDiskLeaseWaitMinutes),
-		ReclaimOnShortage: reclaim,
-		CPUSlots:          diskInt(l.CPUSlots, 0),
-		Dir:               l.Dir,
-		AgingMinutes:      diskInt(l.AgingMinutes, DefaultDiskLeaseAgingMinutes),
+		MaxConcurrent:      diskInt(l.MaxConcurrent, DefaultDiskLeaseMaxConcurrent),
+		WaitMinutes:        diskInt(l.WaitMinutes, DefaultDiskLeaseWaitMinutes),
+		ReclaimOnShortage:  reclaim,
+		CPUSlots:           diskInt(l.CPUSlots, 0),
+		Dir:                l.Dir,
+		AgingMinutes:       diskInt(l.AgingMinutes, DefaultDiskLeaseAgingMinutes),
+		MaxLoadRatio:       ratio,
+		MinFreeMemGB:       diskInt(l.MinFreeMemGB, DefaultDiskLeaseMinFreeMemGB),
+		MaxLoadWaitMinutes: diskInt(l.MaxLoadWaitMinutes, DefaultDiskLeaseMaxLoadWaitMinutes),
 	}
 }
 
@@ -164,6 +197,13 @@ func (l DiskLeaseConf) validate() error {
 	if l.Dir != "" && !filepath.IsAbs(l.Dir) {
 		return fmt.Errorf("disk.lease.dir must be an absolute path, got %q", l.Dir)
 	}
+	// Written as a negated range so NaN fails it too.
+	if r := l.MaxLoadRatio; r != nil && !(*r >= 0 && *r <= DiskMaxLeaseLoadRatio) {
+		return fmt.Errorf("disk.lease.max_load_ratio must be from 0 to %g, got %g", DiskMaxLeaseLoadRatio, *r)
+	}
+	if m := l.MinFreeMemGB; m != nil && (*m < 0 || *m > DiskMaxLeaseMinFreeMemGB) {
+		return fmt.Errorf("disk.lease.min_free_mem_gb must be from 0 to %d, got %d", DiskMaxLeaseMinFreeMemGB, *m)
+	}
 	for _, bound := range []struct {
 		key   string
 		value *int
@@ -171,6 +211,7 @@ func (l DiskLeaseConf) validate() error {
 		{"disk.lease.max_concurrent", l.MaxConcurrent},
 		{"disk.lease.wait_minutes", l.WaitMinutes},
 		{"disk.lease.aging_minutes", l.AgingMinutes},
+		{"disk.lease.max_load_wait_minutes", l.MaxLoadWaitMinutes},
 	} {
 		if bound.value != nil && *bound.value < 0 {
 			return fmt.Errorf("%s must be >= 0, got %d", bound.key, *bound.value)

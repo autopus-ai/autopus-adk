@@ -23,7 +23,8 @@ func cpuLeaseProject(t *testing.T, body string, numCPU int) string {
 	prev := leaseNumCPU
 	leaseNumCPU = func() int { return numCPU }
 	t.Cleanup(func() { leaseNumCPU = prev })
-	for _, key := range []string{"AUTOPUS_LEASE_DIR", "AUTOPUS_LEASE_CPU_SLOTS", "AUTOPUS_LEASE_CPUS", "GOMAXPROCS"} {
+	for _, key := range []string{"AUTOPUS_LEASE_DIR", "AUTOPUS_LEASE_CPU_SLOTS", "AUTOPUS_LEASE_CPUS", "GOMAXPROCS",
+		"AUTOPUS_LEASE_MAX_LOAD_RATIO", "AUTOPUS_LEASE_MIN_FREE_MEM_GB"} {
 		t.Setenv(key, "")
 		require.NoError(t, os.Unsetenv(key))
 	}

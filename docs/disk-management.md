@@ -91,6 +91,9 @@ disk:
     cpu_slots: 0                  # CPU slots --cpu shares; 0 = the logical CPU count (at most 4096)
     dir: ""                       # absolute shared lease dir for several users; "" = your state dir
     aging_minutes: 10             # a CPU waiter rises one priority class per interval; 0 = no aging
+    max_load_ratio: 0.85          # admit a CPU waiter while 1-min load <= this x logical CPUs; 0 = off
+    min_free_mem_gb: 8            # memory left free after every --mem reservation; 0 = no floor
+    max_load_wait_minutes: 10     # with no lease running, load alone holds the head waiter this long; 0 = never force
 ```
 
 Every `trim` and `reclaim` `*idle_minutes` value must be at least 60, and
@@ -266,6 +269,51 @@ The command runs with `AUTOPUS_LEASE_CPUS=N` and `GOMAXPROCS=N`; a
 `GOMAXPROCS` you set yourself is kept, and one set by an outer lease is
 replaced. `lease.max_concurrent` counts disk leases only.
 
+### Load and memory
+
+Slots cannot tell an idle machine from a busy one, and work that takes no
+lease (other sessions, CI runners) loads it too. So a CPU waiter at the head
+of the queue, with its slots free, is also held while any of these holds:
+
+- the 1-minute load average plus the in-flight grants is above
+  `lease.max_load_ratio` × logical CPUs (default 0.85; 0 turns it off). The
+  load average is a moving average with a 60-second time constant, so a
+  lease admitted t seconds ago still counts `cpus × e^(-t/60)` on top of it
+  for five minutes: a burst of admissions cannot overshoot before the
+  average catches up;
+- available memory minus the `--mem` reservations of the running leases is
+  below the waiter's own `--mem` plus `lease.min_free_mem_gb` (default 8).
+  `--mem SIZE` takes `8G`, `512M`, or a bare number of GiB, needs `--cpu`,
+  and defaults to none, so only the floor applies;
+- on macOS, `kern.memorystatus_vm_pressure_level` is critical.
+
+macOS is read through `sysctl` with no process spawned: `vm.loadavg`,
+`hw.memsize`, and `kern.memorystatus_level` (the free percentage that
+`memory_pressure` prints, which counts inactive and purgeable pages); where
+that key is missing, free, speculative, and purgeable pages are a lower
+bound. Linux reads `/proc/loadavg` and `MemAvailable` from `/proc/meminfo`
+and has no pressure check. A reading that fails is skipped, so admission
+falls back to slots. `AUTOPUS_LEASE_MAX_LOAD_RATIO` and
+`AUTOPUS_LEASE_MIN_FREE_MEM_GB` override the keys on one machine. A CPU wait
+re-checks about every 2 seconds, with ±25% jitter.
+
+The waiters behind the head wait for it, so priority and aging order the
+admissions exactly as above. `auto disk status` appends what holds the head
+waiter to its line, such as `; waiting: load 22.1 > 20.4` or
+`; waiting: mem 6.2 GiB < 8+4 GiB`, and a timeout line ends the same way.
+A `--mem` that with the floor exceeds the machine's memory fails at once
+with exit 1. When no lease runs and only load has held the head waiter for
+`lease.max_load_wait_minutes` since it was queued, it is admitted anyway,
+prints `disk lease: starting <label> despite load …`, and logs a
+`lease_forced` event; the next forced admission again needs no lease
+running, so they go one at a time. Memory and pressure are never forced.
+Such a lease needs a `--wait` longer than `max_load_wait_minutes`.
+
+Migrating from a shell wrapper that serialises heavy jobs with a single
+lock: replace it with `auto disk lease --cpu N --mem SIZE --priority … --
+cmd`. The single lock runs one job however idle the machine is; the lease
+runs as many as the slots, load, and memory allow.
+
 Leases live in `leases/` of your state dir. To account for several users of
 one machine (the runner accounts of a CI host), give all of them the same
 `AUTOPUS_LEASE_DIR` or `lease.dir`. A missing directory is created with mode
@@ -278,7 +326,7 @@ environment.
 ## Events, trend, and alerts
 
 `auto disk log` shows the latest `trim_apply`, `reclaim_apply`,
-`lease_reclaimed`, `lease_refused`, and `low_space_alert` events. `auto disk
+`lease_reclaimed`, `lease_refused`, `lease_forced`, and `low_space_alert` events. `auto disk
 status`, `check`, `lease`, and the alert record a free-space sample at most
 every 5 minutes per volume; `status` prints `free trend: <GiB>/h over
 <duration>` once a sample between 10 minutes and 6 hours old exists.

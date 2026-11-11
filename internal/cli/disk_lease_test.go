@@ -28,7 +28,10 @@ func leaseProject(t *testing.T, body string) string {
 	state := filepath.Join(t.TempDir(), "state", "autopus", "disk")
 	diskStatePath = func() string { return state }
 	diskLeaseSleep = func(context.Context, time.Duration) {}
-	t.Cleanup(func() { diskStatePath, diskLeaseSleep = prevState, prevSleep })
+	// An idle machine, so the host's real load never decides a test.
+	prevSampler := leaseMachineSampler
+	leaseMachineSampler = idleMachine
+	t.Cleanup(func() { diskStatePath, diskLeaseSleep, leaseMachineSampler = prevState, prevSleep, prevSampler })
 	return dir
 }
 

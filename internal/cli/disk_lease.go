@@ -39,6 +39,7 @@ type diskLeaseOptions struct {
 	need     string
 	reserve  string
 	cpu      int
+	mem      string
 	priority string
 	wait     time.Duration
 	label    string
@@ -52,6 +53,8 @@ type leaseRequest struct {
 	priority string
 	aging    time.Duration
 	slots    int
+	mem      int64
+	load     diskspace.LoadPolicy
 	wait     time.Duration
 	label    string
 }
@@ -64,7 +67,12 @@ const diskLeaseLong = "Runs a heavy command only while free space minus the rese
 	"logical CPU count; a larger N is clamped to it). CPU waiters are admitted by --priority class (interactive, ci, " +
 	"background; in GitHub Actions the default follows GITHUB_EVENT_NAME), first in, first out within a class, and a " +
 	"waiter rises one class every disk.lease.aging_minutes (default 10) so none starves; running holders are never " +
-	"preempted. The command runs " +
+	"preempted. The head waiter also waits while the 1-minute load average, counting grants it does not show yet, is " +
+	"above disk.lease.max_load_ratio (default 0.85) × logical CPUs, while available memory minus the --mem " +
+	"reservations of running leases is below --mem plus disk.lease.min_free_mem_gb (default 8), and on macOS while " +
+	"memory pressure is critical; AUTOPUS_LEASE_MAX_LOAD_RATIO and AUTOPUS_LEASE_MIN_FREE_MEM_GB override the keys. " +
+	"When no lease runs and load alone has held the head waiter for disk.lease.max_load_wait_minutes (default 10), " +
+	"it starts anyway, one at a time. The command runs " +
 	"with AUTOPUS_LEASE_CPUS=N and GOMAXPROCS=N unless GOMAXPROCS is already set. --cpu alone needs no --need. " +
 	"Leases live in the current user's state dir, or in the shared dir AUTOPUS_LEASE_DIR or disk.lease.dir names.\n\n" +
 	"The reservation is held for the whole run and released when the command exits, or when this process dies.\n\n" +
@@ -87,6 +95,7 @@ func newDiskLeaseCmd() *cobra.Command {
 	cmd.Flags().StringVar(&opts.need, "need", "", "GiB the command needs, at least 1")
 	cmd.Flags().StringVar(&opts.reserve, "for", "", "name of a disk.reserves entry in autopus.yaml")
 	cmd.Flags().IntVar(&opts.cpu, "cpu", 0, "CPU slots the command reserves, at least 1")
+	cmd.Flags().StringVar(&opts.mem, "mem", "", "memory the command reserves with --cpu, such as 8G (default none)")
 	cmd.Flags().StringVar(&opts.priority, "priority", "", "CPU queue class: interactive, ci, or background "+
 		"(default ci; in GitHub Actions from GITHUB_EVENT_NAME)")
 	cmd.Flags().DurationVar(&opts.wait, "wait", -1, "how long to wait for space (default disk.lease.wait_minutes)")
@@ -104,6 +113,8 @@ func runDiskLease(cmd *cobra.Command, opts diskLeaseOptions, args []string) erro
 		return usage(fmt.Sprintf("--cpu must be a number of CPU slots from 1 to %d", diskspace.MaxLeaseCPUs))
 	case cmd.Flags().Changed("priority") && !cpuSet:
 		return usage("--priority orders the CPU queue; give it with --cpu <N>")
+	case cmd.Flags().Changed("mem") && !cpuSet:
+		return usage("--mem reserves memory in the CPU queue; give it with --cpu <N>")
 	case cmd.Flags().Changed("wait") && opts.wait < 0:
 		return usage("--wait must not be negative")
 	case cmd.ArgsLenAtDash() != 0 || len(args) == 0:
@@ -148,6 +159,9 @@ func runDiskLease(cmd *cobra.Command, opts diskLeaseOptions, args []string) erro
 		req.slots = leaseCPUSlots(dc.disk.Lease)
 		req.cpus = min(opts.cpu, req.slots)
 		req.aging = time.Duration(dc.disk.Lease.AgingMinutes) * time.Minute
+		if err := resolveLeaseMachine(cmd, opts, dc, &req); err != nil {
+			return err
+		}
 		if req.priority = defaultLeasePriority(os.Getenv); cmd.Flags().Changed("priority") {
 			if req.priority, err = diskspace.ParsePriority(opts.priority); err != nil {
 				return usage(err.Error())
@@ -180,10 +194,6 @@ func waitForLease(cmd *cobra.Command, dc diskContext, dir diskspace.LeaseDir, re
 	ctx := cmd.Context()
 	start := diskNow()
 	reclaimed := !dc.disk.Lease.ReclaimOnShortage
-	poll := diskLeasePoll
-	if req.cpus > 0 {
-		poll = min(poll, leaseCPUPoll)
-	}
 	var ticket *diskspace.Ticket
 	defer func() { ticket.Release() }()
 	for {
@@ -191,7 +201,7 @@ func waitForLease(cmd *cobra.Command, dc diskContext, dir diskspace.LeaseDir, re
 			Free:       func() (int64, error) { space, err := diskFree(dc.projectDir); return space.AvailBytes, err },
 			FloorBytes: dc.disk.FloorBytes(), NeedBytes: req.need, MaxConcurrent: dc.disk.Lease.MaxConcurrent,
 			CPUs: req.cpus, CPUSlots: req.slots, Ticket: ticket, Priority: req.priority, AgingInterval: req.aging,
-			Label: req.label, PID: os.Getpid(), Now: diskNow()})
+			MemBytes: req.mem, Load: req.load, Label: req.label, PID: os.Getpid(), Now: diskNow()})
 		if err != nil {
 			return nil, diskFail(cmd, false, 1, "", "disk lease: "+err.Error(), nil)
 		}
@@ -203,6 +213,9 @@ func waitForLease(cmd *cobra.Command, dc diskContext, dir diskspace.LeaseDir, re
 		}
 		if admission.Admitted() {
 			ticket = nil // consumed by the admission
+			if admission.Forced {
+				reportForcedAdmission(cmd, req, admission)
+			}
 			return admission.Lease, nil
 		}
 		if !reclaimed && admission.DiskShort {
@@ -215,6 +228,10 @@ func waitForLease(cmd *cobra.Command, dc diskContext, dir diskspace.LeaseDir, re
 		waited := diskNow().Sub(start)
 		if waited >= req.wait {
 			return nil, leaseRefused(cmd, dc, req, admission, waited)
+		}
+		poll := diskLeasePoll
+		if req.cpus > 0 {
+			poll = min(poll, leasePollInterval())
 		}
 		diskLeaseSleep(ctx, min(poll, req.wait-waited))
 	}

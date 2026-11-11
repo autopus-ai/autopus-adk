@@ -165,6 +165,8 @@ func probeLease(path string, discard bool) (LeaseInfo, bool) {
 	// is held, so it reserves, but it cannot overflow the sum.
 	info.NeedBytes = min(max(info.NeedBytes, 0), MaxLeaseGiB*GiB)
 	info.CPUs = min(max(info.CPUs, 0), MaxLeaseCPUs)
+	info.MemBytes = min(max(info.MemBytes, 0), MaxLeaseGiB*GiB)
+	info.Blocked = ""
 	info.Orphaned = info.PID > 0 && !processAlive(info.PID)
 	info.Label = CleanLabel(info.Label)
 	return info, true

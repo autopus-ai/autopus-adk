@@ -36,6 +36,8 @@ func statusExtras(ctx context.Context, s diskSurvey, worktrees diskspace.Worktre
 		if waiters, err := diskspace.LiveWaiters(dir); err == nil && waiters != nil {
 			aging := time.Duration(s.dc.disk.Lease.AgingMinutes) * time.Minute
 			d.LeaseWaiters = diskspace.RankWaiters(waiters, diskNow(), aging)
+			// The head waiter says what on the machine holds it, if anything.
+			leaseLoadPolicy(s.dc.disk.Lease).ExplainHead(d.LeaseWaiters, d.Leases, d.CPUSlots, diskNow())
 		}
 	}
 }
