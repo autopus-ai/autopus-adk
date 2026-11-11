@@ -16,6 +16,11 @@ import (
 func statusExtras(ctx context.Context, s diskSurvey, worktrees diskspace.WorktreeScan, d *diskStatusData) {
 	samples := recordDiskSample(s.dc.space)
 	d.Trend = diskspace.ComputeTrend(samples, s.dc.space.Mount, s.now, s.dc.space.AvailBytes)
+	d.Consumers.Extra = measureExtraConsumers(s.dc.disk, statusConsumerBudget)
+	d.Growth = recordConsumerGrowth(consumerBytes(*d), s.now.UTC())
+	if d.Growth == nil {
+		d.Growth = []diskspace.Growth{}
+	}
 	plan := planReclaim(ctx, s.dc, worktrees)
 	d.ReclaimPreview = plan.data(s.dc, "dry-run")
 	for i := range d.Consumers.Worktrees.Items {
@@ -32,9 +37,11 @@ func statusExtras(ctx context.Context, s diskSurvey, worktrees diskspace.Worktre
 
 func writeStatusExtrasText(w io.Writer, d diskStatusData) {
 	r := d.ReclaimPreview
-	fmt.Fprintf(w, "disk reclaim: worktrees=%d (%s) scratchpads=%d (%s); run `auto disk reclaim` for the list\n",
+	fmt.Fprintf(w, "disk reclaim: worktrees=%d (%s) scratchpads=%d (%s) regenerable=%d (%s) large_files=%d (%s); run `auto disk reclaim` for the list\n",
 		len(r.Worktrees.Candidates), diskspace.SizeString(r.Worktrees.Bytes),
-		len(r.Scratchpads.Candidates), diskspace.SizeString(r.Scratchpads.Bytes))
+		len(r.Scratchpads.Candidates), diskspace.SizeString(r.Scratchpads.Bytes),
+		len(r.Regenerable.Candidates), diskspace.SizeString(r.Regenerable.Bytes),
+		len(r.LargeFiles.Candidates), diskspace.SizeString(r.LargeFiles.Bytes))
 	for _, item := range d.Consumers.Worktrees.Items {
 		if item.Owned {
 			fmt.Fprintln(w, terminalSafe("  owned worktree: "+diskspace.DisplayPath(item.Path)))
@@ -59,4 +66,5 @@ func writeStatusExtrasText(w io.Writer, d diskStatusData) {
 		fmt.Fprintf(w, "free trend: %s%s GiB/h over %s\n", sign, diskspace.GiBString(d.Trend.BytesPerHour),
 			(time.Duration(d.Trend.WindowMinutes) * time.Minute).String())
 	}
+	writeGrowthText(w, d.Growth)
 }

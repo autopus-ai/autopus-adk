@@ -26,11 +26,17 @@ func stickyDiskAlert(root string, disk config.DiskEffective) string {
 	// One open, with lock waits bounded well inside the hook's 5 seconds.
 	state, stateErr := openDiskState()
 	state = state.WithLockWait(stickyLockWait)
+	var growth []diskspace.Growth
 	if stateErr == nil {
 		_ = diskspace.RecordSample(state, diskspace.Sample{Time: diskNow().UTC(), FreeBytes: space.AvailBytes, Mount: space.Mount})
+		growth = cheapConsumerGrowth(state, disk, diskNow().UTC())
 	}
 	if space.AvailBytes >= disk.FloorBytes() {
 		return ""
+	}
+	grower := ""
+	if top, ok := diskspace.TopGrower(growth, growthAlertMinBytes); ok {
+		grower = " Top grower: " + diskspace.GrowthPhrase(top, diskNow().UTC()) + "."
 	}
 	if stateErr == nil {
 		_, _ = diskspace.AppendEventUnlessRecent(state, diskspace.Event{Time: diskNow().UTC(),
@@ -39,6 +45,6 @@ func stickyDiskAlert(root string, disk config.DiskEffective) string {
 	return fmt.Sprintf("Disk alert: %s GiB free on %s, below the floor of %s GiB (disk.min_free_gb). "+
 		"Do not start builds, worktrees, or parallel agents until space recovers; run `auto disk status`, "+
 		"then `auto disk reclaim --apply` and `auto disk trim --apply`. "+
-		"If you lead other agents, tell each of them to pause heavy work.",
-		diskspace.GiBString(space.AvailBytes), diskspace.DisplayPath(space.Mount), diskspace.GiBString(disk.FloorBytes()))
+		"If you lead other agents, tell each of them to pause heavy work.%s",
+		diskspace.GiBString(space.AvailBytes), diskspace.DisplayPath(space.Mount), diskspace.GiBString(disk.FloorBytes()), grower)
 }

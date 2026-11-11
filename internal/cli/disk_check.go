@@ -83,6 +83,9 @@ func runDiskCheck(cmd *cobra.Command, opts diskCheckOptions) error {
 		return err
 	}
 	recordDiskSample(dc.space)
+	if state, err := openDiskState(); err == nil {
+		cheapConsumerGrowth(state, dc.disk, diskNow().UTC())
+	}
 	data := diskCheckData{FreeBytes: dc.space.AvailBytes, RequiredBytes: dc.disk.FloorBytes(), Source: diskFloorSource, Mount: dc.space.Mount}
 	switch {
 	case needSet && needBytes > data.RequiredBytes:

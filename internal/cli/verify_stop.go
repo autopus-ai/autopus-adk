@@ -88,14 +88,17 @@ func newVerifyStopCmd() *cobra.Command {
 }
 
 func runVerifyStop(cmd *cobra.Command, stdin io.Reader, budget time.Duration, followup bool) stopHookOutput {
-	if strings.EqualFold(os.Getenv("AUTOPUS_VERIFY_STOP"), "off") {
-		return stopHookOutput{}
-	}
 	var in stopHookInput
 	_ = json.NewDecoder(stdin).Decode(&in)
 	dir := in.Cwd
 	if dir == "" {
 		dir, _ = os.Getwd()
+	}
+	// The automatic disk reclaim rides the per-turn Stop hook: rate limited
+	// and detached, it never adds a build or a walk to the turn.
+	maybeStartAutoReclaim(dir)
+	if strings.EqualFold(os.Getenv("AUTOPUS_VERIFY_STOP"), "off") {
+		return stopHookOutput{}
 	}
 	root, changed, ok := verifygate.ChangedFiles(cmd.Context(), dir)
 	if !ok || len(changed) == 0 {

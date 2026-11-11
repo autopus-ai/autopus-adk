@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **디스크 하네스: 무엇이 늘었는지 보여 주고, 공간이 모자랄 때 무거운 명령을 막고, 끝난 작업을 작업 중에
+  정리한다** (2026-11-11): 한 머신에서 에이전트 세션 여러 개가 함께 돌면 여유 공간이 한 시간 안에 수십 GiB씩
+  오르내리고, 그 사이 테스트 실행이 ENOSPC로 무효가 된다. 그런데 `auto disk status`는 전체 추세만 보여 줘서
+  무엇이 늘었는지 알 수 없었다. 이제 status는 Go 모듈 캐시, npm·pnpm·yarn·bun, Cargo registry, pip·uv,
+  Gradle·Maven, Xcode DerivedData와 시뮬레이터(macOS), Docker Desktop·colima·lima·podman VM 디스크,
+  `/var/lib/docker`(Linux) 가운데 머신에 있는 것만 시간 예산 안에서 잰다. 이 머신에만 있는 경로는
+  `disk.consumers.extra_roots`에 적는다. worktree의 `node_modules`와 scratchpad의 1 GiB 이상 파일도 따로 센다.
+  표본은 고리 버퍼에 남고 소비자는 지난 한 시간 동안의 증가량 순서로 나온다(`colima +38.0 GiB in 52m`). Claude
+  Code의 공간 부족 경고에는 가장 많이 늘어난 소비자가 붙는다. 새 PreToolUse hook `auto disk gate`는 바닥선
+  (`disk.min_free_gb`) 아래에서 빌드·테스트·설치·컨테이너 빌드·`git worktree add`를 막는다. 하위 에이전트의 호출에도
+  적용되며, `auto disk lease -- <command>`는 통과한다. 막을 명령은 `hooks.disk_gate.extra_commands`로 더하고,
+  끄려면 `hooks.disk_gate: false`를 쓴다. `auto disk reclaim`은 기본 원격 브랜치에 들어간 깨끗하고 쉬고 있는
+  linked worktree를 위치와 상관없이 지운다. 실행 중인 프로세스의 작업 디렉터리인 것은 남긴다. 잠근 프로세스가
+  끝났거나 쉬고 있는 Claude Code agent worktree는 깨끗하고 merge된 경우에만 잠금을 풀고 지운다. 쉬고 있는
+  worktree에서 git이 무시하는 `node_modules`·`.next`·`dist`·Cargo `target`도 지운다. 오래된 대용량 scratchpad
+  파일은 목록에만 올리고 `--include-large-files`를 줄 때만 지운다. Stop hook은 모든 세션을 통틀어 30분에 한 번
+  merge된 worktree와 재생성 가능 디렉터리만 백그라운드에서 정리한다(`disk.reclaim.auto`). 새 `disk-triage`
+  스킬(core, 기본 설치)은 증가 표를 먼저 읽고, 내가 만든 재생성 가능한 것만 지우고, 다른 세션의 작업·백업·VM 디스크·
+  공유 캐시는 먼저 물어보라고 안내한다. OMP에는 pre-tool hook이 없어 게이트가 적용되지 않는다. 기존 설치는
+  `auto update` 뒤 새 세션부터 게이트가 등록된다.
+
 - **보안 검증을 `/auto secure` 라우트와 `secure-hunt` 스킬로 되살린다** (2026-11-11): v0.51.0에서 설치 표면을
   검증 하네스로 줄이며 `secure` 라우트, `security-audit` 스킬, `security-auditor` 에이전트를 함께 지웠다. 보안 검증은
   검증 하네스에 속하므로 라우트를 다섯 플랫폼 모두에 다시 설치한다. 다만 예전처럼 OWASP 목록을 풀어 쓰지 않는다.

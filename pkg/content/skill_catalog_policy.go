@@ -6,10 +6,15 @@ import "strings"
 // default. Membership is explicit on purpose: a skill enters this set only
 // because every project needs it eagerly listed, never because its category or
 // filename looked important. The verification harness ships only review, QA,
-// and verification skills, and every one of them is core. Everything else stays registered and reachable
-// through skills.compiler bundles / explicit_skills / mode: full.
+// and verification skills, and every one of them is core. disk-triage is
+// verification hygiene: a full disk turns every build and test the Stop gate
+// runs into an ENOSPC failure that looks like a code failure, and the disk
+// gate and low-space alert, on by default, point the agent at it. Everything
+// else stays registered and reachable through skills.compiler bundles /
+// explicit_skills / mode: full.
 var coreSkillSet = map[string]bool{
 	"browser-automation": true,
+	"disk-triage":        true,
 	"frontend-verify":    true,
 	"lore-commit":        true,
 	"playwright-cli":     true,
