@@ -117,6 +117,16 @@ Claude Code가 이미 푸는 네 과제는 통과율 변화 없이 비용만 약
 보지 않습니다. 일부러 둔 테스트 fixture는 그 줄에 `autopus:allow-secret`(또는 `gitleaks:allow`) 주석을 달거나
 `.gitleaksignore`에 `file:rule:line`을 적으면 통과합니다.
 
+**버전 확인.** 에이전트는 현재 버전이 아니라 학습 때 기억한 버전(`postgres:13`, `"react": "^18"`, `go 1.22`,
+`node:20-alpine`)을 고정합니다. 빌드를 돌리기 전에, 이번 턴이 바꾸거나 새로 만든 manifest(`go.mod`, `package.json`,
+`requirements*.txt`, `pyproject.toml`, `Cargo.toml`, `.nvmrc`, `.python-version`, `.tool-versions`, Dockerfile, YAML의
+`image:` 키)를 읽고 `HEAD` 대비 새로 추가하거나 바꾼 고정만 남깁니다. 이번 턴이 건드리지 않은 오래된 고정은 지적하지
+않습니다. 남은 항목은 레지스트리에서 최신 stable을 조회합니다([의존성 버전](#의존성-버전)). 최신 stable보다
+`hooks.version_stop.max_major_behind`(기본 0, 즉 릴리스 라인 하나라도) 라인을 넘게 뒤처진 항목이 있으면 항목, 고른
+버전, 최신 버전, 출처를 담아 한 번 돌려보냅니다. minor만 뒤처진 항목은 경고만 합니다. 일부러 고른 버전은 답변에
+`version-pin: <name> <reason>` 한 줄을 쓰거나, 주석을 허용하는 형식이면 그 줄에 `version-pin: <reason>` 주석을 달면
+통과합니다. 조회는 모두 합쳐 10초 안에 끝나야 하고, 오프라인·사설·느린 레지스트리는 경고만 남기고 막지 않습니다.
+
 **테스트 먼저 확인(methodology: tdd).** `methodology.mode: tdd`와 `enforce: true`이면, 빌드와 테스트가 통과한 뒤
 한 단계를 더 봅니다. 바뀐 테스트 파일만 `HEAD`의 소스 위에 얹어 임시 복사본에서 실행하고, 거기서 실패해야
 통과합니다. 변경 전 코드에서 실패하고 변경 후 코드에서 통과했으니 RED → GREEN이 기계적으로 증명됩니다.
@@ -136,6 +146,7 @@ Claude Code가 이미 푸는 네 과제는 통과율 변화 없이 비용만 약
 | hook을 아예 등록하지 않기 | `autopus.yaml`에 `hooks.verify_stop: false`를 두고 `auto update` |
 | 한 세션이나 셸에서만 끄기 | `AUTOPUS_VERIFY_STOP=off` |
 | 자격 증명 확인만 끄기 | `hooks.secret_stop: false`, 또는 `AUTOPUS_SECRET_STOP=off` |
+| 버전 확인만 끄기 | `hooks.version_stop: false`, 또는 `AUTOPUS_VERSION_STOP=off`. N 라인까지 허용하려면 `hooks.version_stop: {max_major_behind: N}` |
 | 후속 라운드 켜기 | `AUTOPUS_FOLLOWUP=on`(예: `.claude/settings.json`의 `env` 블록), 또는 `auto verify stop --followup` |
 | 켠 곳에서도 강제로 끄기 | `AUTOPUS_FOLLOWUP=off` |
 
@@ -224,7 +235,7 @@ auto qa mutate --max 50 --min-score 0.7   # CI: 잡은 비율이 70% 미만이�
 | --- | --- |
 | 에이전트 (4) | `reviewer`, `qa-explorer`, `frontend-specialist`, `ux-validator` |
 | 규칙 (4) | `language-policy`, `lore-commit`, `file-size-limit`, `autonomy` |
-| 스킬 (12) | `review`, `verification`, `qa-hunt`, `secure-hunt`, `disk-triage`, `ci-optimize`, `qa-autopilot`, `frontend-verify`, `browser-automation`, `playwright-cli`, `testing-strategy`, `lore-commit` |
+| 스킬 (13) | `review`, `verification`, `qa-hunt`, `secure-hunt`, `disk-triage`, `ci-optimize`, `stack-freshness`, `qa-autopilot`, `frontend-verify`, `browser-automation`, `playwright-cli`, `testing-strategy`, `lore-commit` |
 | 라우트 | `review`, `qa`, `secure`, `verify`, `test`, `sync`, `update`, `doctor`, 그리고 `browse` 별칭 |
 | Hook | Claude Code Stop hook `auto verify stop`, Lore `commit-msg` git hook |
 
@@ -359,6 +370,7 @@ architecture:
 hooks:
   verify_stop: true     # Claude Code Stop hook (없으면 켜짐)
   secret_stop: true     # Stop hook 안의 자격 증명 확인 (없으면 켜짐)
+  version_stop: true    # Stop hook 안의 버전 확인. {max_major_behind: N}도 가능 (없으면 켜짐, N=0)
   language_stop: true   # 응답 언어 Stop hook (없으면 켜짐, ai_responses가 ko·ja·zh일 때만)
   pre_commit_lore: true # Lore commit-msg hook
   pre_commit_arch: true
@@ -416,6 +428,39 @@ auto secure scan --log-opts origin/main..HEAD --fail-on critical
 종료 코드: 발견이 `--fail-on`에 닿으면 1(기본 `high`: secret 전부, 또는 high·critical 취약점. govulncheck, cargo
 audit, pip-audit는 등급을 주지 않으므로 high로 셉니다), 다른 문제 없이 스캐너가 실패했으면 2, 그 밖에는 0입니다.
 설치된 스캐너가 하나도 없어도 0입니다. `--fail-on`은 `none`, `secret`, `critical`, `high`, `medium`, `low`를 받습니다.
+
+## 의존성 버전
+
+`auto deps`는 모델의 기억 대신 레지스트리에 묻습니다.
+
+```bash
+auto deps latest npm:react             # 19.x, 출처 URL과 조회 시각
+auto deps latest image:postgres        # Docker Hub 공식 이미지, 숫자 릴리스 태그만
+auto deps latest toolchain:node        # current와 active LTS
+auto deps latest django                # 생태계 없이 쓰면 프로젝트 manifest에서 찾는다
+auto deps outdated                     # 직접 의존성, 툴체인 고정, 이미지를 최신 stable과 비교
+auto deps outdated --dir ./service --json
+```
+
+| 생태계 | 출처 |
+| --- | --- |
+| `go:` 모듈 | `GOPROXY`(기본 proxy.golang.org)의 `/@latest` |
+| `npm:` | registry.npmjs.org의 `dist-tags.latest`, 또는 단순한 `.npmrc`가 지정한 registry(전역 또는 scope별) |
+| `pypi:` | pypi.org JSON API |
+| `crates:` | crates.io API(`max_stable_version`) |
+| `image:` | Docker Hub 태그. `node`, `golang`, `python` 이미지는 아래 툴체인 출처를 쓴다 |
+| `toolchain:go` | go.dev/dl |
+| `toolchain:node` | nodejs.org/dist/index.json. `engines`, `.nvmrc`, `node:` 이미지는 active LTS와 비교한다 |
+| `toolchain:python` | endoflife.date(릴리스 주기) |
+
+pre-release는 "latest"가 되지 않습니다. `outdated`는 각 고정을 `current`, `minor-behind`, `major-behind (N)`(릴리스
+라인 N개 뒤. Go·Python 툴체인과 `0.x` 패키지는 minor 하나가 한 라인), `unknown`, `skipped`로 나누고 항상 0으로
+끝납니다. 개인정보: `GOPRIVATE`, `GONOPROXY`, `GONOSUMDB`(환경 변수나 `go env -w`)에 걸린 Go 모듈은 proxy로 보내지
+않고, `GOPROXY=off`/`direct`이면 unknown입니다. `PIP_INDEX_URL`이 사설 index를 가리키면 PyPI 조회를 건너뛰고,
+Docker Hub가 아닌 registry의 이미지, digest, 변수는 보지 않습니다. 요청은 각각 5초 timeout으로 네 개씩 돌고,
+답은 `$XDG_STATE_HOME/autopus/deps`(없으면 `~/.local/state/autopus/deps`, `AUTOPUS_DEPS_CACHE_DIR`로 변경)에
+24시간 캐시합니다. `AUTOPUS_DEPS_OFFLINE=1`이면 캐시로만 답합니다. 언제 조회하고 어떻게 의도적으로 고정하는지는
+`stack-freshness` 스킬이 알려 줍니다.
 
 ## 디스크 공간
 

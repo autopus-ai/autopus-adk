@@ -131,6 +131,9 @@ func NewRootCmd() *cobra.Command {
 	// `auto ci report` measures GitHub Actions before the ci-optimize skill
 	// changes anything.
 	root.AddCommand(newCICmd())
+	// The version Stop gate points agents at `auto deps latest` before they
+	// pick a dependency, toolchain or image version.
+	root.AddCommand(newDepsCmd())
 	hideLegacyHarnessCommands(root)
 
 	return root

@@ -1,0 +1,124 @@
+---
+name: stack-freshness
+description: 언어·프레임워크·DB·컨테이너 이미지·런타임 버전을 기억에 의존하지 않고 조회해서 고르고, 일부러 낮은 버전을 쓸 때는 version-pin으로 이유를 남기는 버전 최신성 스킬
+triggers:
+  - stack freshness
+  - latest version
+  - 최신 버전
+  - 버전 선택
+  - 의존성 추가
+  - dependency version
+  - version-pin
+  - auto deps
+category: quality
+level1_metadata: "버전을 고르기 전에 auto deps latest로 조회, 메이저 업그레이드는 마이그레이션 노트와 peer 호환성 확인, 런타임은 active LTS, 의도된 고정은 version-pin: <name> <reason>"
+---
+
+# Stack Freshness Skill
+
+모델이 기억하는 버전은 학습 시점의 버전입니다. 하네스 없이 구현하면 에이전트는 `postgres:13`,
+`"react": "^18"`, `go 1.22`, `node:20-alpine`처럼 기억나는 버전을 그대로 씁니다. 새로 고른 버전이
+처음부터 한두 메이저 뒤처져 있는 셈입니다.
+
+이 스킬의 규칙은 하나입니다. **버전은 기억하지 말고 조회합니다.** 조회 결과는 `auto verify stop`이 같은
+방법으로 다시 확인합니다. 이번 턴에 새로 추가하거나 올린 의존성, 툴체인·런타임 고정, 이미지 태그가 최신
+stable보다 메이저 라인 하나 이상 뒤처지면 Stop hook이 한 번 되돌려 보냅니다. 원래 있던 오래된 의존성은
+건드리지 않았다면 지적하지 않습니다.
+
+## 1. 고르기 전에 조회한다
+
+```bash
+auto deps latest npm:react          # npm
+auto deps latest go:github.com/spf13/cobra
+auto deps latest pypi:django
+auto deps latest crates:serde
+auto deps latest image:postgres     # Docker Hub 공식 이미지
+auto deps latest toolchain:node     # current와 active LTS를 함께 출력
+auto deps latest toolchain:go
+auto deps latest toolchain:python
+auto deps latest react              # 프로젝트 manifest에 있는 이름이면 생태계를 자동으로 찾는다
+```
+
+출력에는 최신 stable 버전(pre-release 제외), 출처 URL, 조회 시각이 들어 있습니다. 답을 못 얻으면
+(오프라인, 사설 레지스트리, timeout) `unknown`이라고 말합니다. 그때는 버전을 지어내지 말고 공식 문서나
+릴리스 페이지에서 확인합니다.
+
+프로젝트 전체를 한 번에 보려면 다음을 씁니다.
+
+```bash
+auto deps outdated            # 직접 의존성, 툴체인 고정, 이미지 태그를 최신 stable과 비교한 표
+auto deps outdated --json     # 자동화용
+```
+
+`major-behind (N)`은 릴리스 라인 N개 뒤라는 뜻입니다. Go와 Python 툴체인은 `1.N`, `3.N` 하나가 한
+라인이고, `0.x` 패키지는 minor가 한 라인입니다.
+
+## 2. 라이브러리 사용법은 공식 문서에서 확인한다
+
+버전만 최신으로 바꾸고 API는 기억대로 쓰면 컴파일은 되지만 deprecated 경로를 타거나 아예 깨집니다.
+Context7 MCP가 연결되어 있으면 `resolve-library-id` → `query-docs`로 그 버전의 문서를 읽고, 없으면
+공식 문서 사이트나 저장소의 CHANGELOG를 읽습니다.
+
+## 3. 메이저 업그레이드는 순서대로
+
+기존 의존성의 메이저를 올릴 때는 다음 순서를 지킵니다.
+
+1. 마이그레이션 가이드와 CHANGELOG의 breaking changes를 읽는다.
+2. peer 호환성을 확인한다. 예: React 메이저와 react-dom, @types/react, 테스트 라이브러리, Next.js의
+   지원 범위. ORM과 DB 드라이버와 DB 서버 버전. 프레임워크가 요구하는 최소 Node/Python/Go 버전.
+3. lockfile까지 갱신하고 빌드와 테스트를 돌린다.
+4. 한 번에 여러 메이저를 건너뛰면 중간 단계의 마이그레이션 노트도 모두 읽는다.
+
+호환성 때문에 최신 라인을 쓸 수 없으면 쓸 수 있는 가장 높은 라인을 고르고 아래처럼 고정 이유를 남깁니다.
+
+## 4. 런타임은 LTS, 라이브러리는 latest stable
+
+| 대상 | 기본 선택 |
+|---|---|
+| Node (`engines`, `.nvmrc`, `node:` 이미지) | active LTS 라인. 홀수 current는 실험용이고, 짝수 current는 LTS가 되기 전까지 피한다 |
+| Go (`go`, `toolchain`, `golang:` 이미지) | 최신 stable minor. Go는 최근 두 minor만 지원한다 |
+| Python (`requires-python`, `.python-version`, `python:` 이미지) | 최신 stable minor. 핵심 의존성이 아직 지원하지 않으면 그 바로 아래 |
+| DB·캐시 이미지 (`postgres`, `mysql`, `redis` …) | 최신 stable 메이저. 관리형 DB와 맞춰야 하면 운영 버전에 고정하고 이유를 남긴다 |
+| 라이브러리 | latest stable. pre-release(`-rc`, `-beta`, `canary`, `next`)는 사용자가 요청할 때만 |
+
+`>=18` 같은 하한만 있는 범위는 최신을 이미 허용하므로 게이트가 막지 않습니다. 라이브러리가 넓은 지원
+범위를 일부러 선언하는 경우가 이것입니다.
+
+## 5. 의도된 고정은 한 줄로 남긴다
+
+낮은 버전이 의도된 선택이면 답변 끝에 항목마다 한 줄을 씁니다. 이유가 없으면 인정되지 않습니다.
+
+```text
+version-pin: postgres 운영 RDS가 15라서 맞춘다
+version-pin: npm:react 사내 디자인 시스템이 아직 18만 지원한다
+```
+
+이름은 `react`, `npm:react`, `postgres`, `postgres:15`, `node`처럼 쓸 수 있습니다. 주석을 허용하는
+manifest라면 해당 줄 끝에 남겨도 됩니다. 다음 사람이 이유를 그 자리에서 볼 수 있어서 더 좋습니다.
+
+```yaml
+    image: postgres:15 # version-pin: 운영 RDS 버전과 맞춘다
+```
+
+```text
+github.com/foo/bar v1.4.0 // version-pin: v1.5가 우리 플러그인 API를 깬다
+```
+
+`package.json`처럼 주석이 없는 형식은 답변의 `version-pin:` 줄을 씁니다.
+
+## 게이트 동작과 끄는 법
+
+- 대상: 이번 턴이 HEAD 대비 추가하거나 바꾼 고정만 본다. 새로 만든 untracked manifest도 포함한다.
+  `testdata/`, `node_modules/`, `vendor/`와 harness 디렉터리는 보지 않는다.
+- 차단: 최신 stable보다 `hooks.version_stop.max_major_behind`(기본 0) 라인을 넘게 뒤처진 항목이 있으면
+  한 번 막는다. 같은 항목 집합이면 다음 stop은 경고로 끝난다. minor 뒤처짐은 경고만 한다.
+- 조회 실패: 오프라인, 사설 레지스트리, 10초 전체 deadline 초과는 경고만 남기고 막지 않는다. 답은 24시간
+  캐시한다. `GOPRIVATE`·`GONOPROXY`·`GONOSUMDB`에 걸린 Go 모듈은 공개 proxy로 보내지 않는다.
+- 끄기: `AUTOPUS_VERSION_STOP=off` 또는 `autopus.yaml`의 `hooks.version_stop: false`. 기준을 느슨하게
+  하려면 `hooks.version_stop: {max_major_behind: 1}`.
+
+## 하지 말 것
+
+- 조회하지 않은 버전을 "최신"이라고 쓰지 않는다.
+- 게이트를 피하려고 `version-pin:` 줄을 이유 없이 붙이지 않는다. 이유는 리뷰어가 읽는다.
+- 사용자가 고정한 기존 버전을 요청 없이 메이저 업그레이드하지 않는다. 이 스킬은 새 선택에 대한 것이다.
