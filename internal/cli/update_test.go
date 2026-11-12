@@ -265,13 +265,19 @@ func TestUpdateCmd_AddsCodexToOrchestraCommands(t *testing.T) {
 	cfgAfter, loadErr := loadConfigFromDir(dir)
 	require.NoError(t, loadErr)
 	for _, cmdName := range []string{"review", "secure"} {
-		entry, ok := cfgAfter.Orchestra.Commands[cmdName]
+		_, ok := cfgAfter.Orchestra.Commands[cmdName]
 		require.True(t, ok, "command %q must exist", cmdName)
-		if cmdName == "review" {
-			// review reviews with the review gate's list, which keeps codex.
-			entry = config.ReviewGateOrchestraView(cfgAfter).Commands["review"]
+		// Judge by the providers the command actually runs: review follows the
+		// review gate's list, and an empty list means every configured provider.
+		view := config.ReviewGateOrchestraView(cfgAfter)
+		names := view.Commands[cmdName].Providers
+		if len(names) == 0 {
+			names = nil
+			for name := range view.Providers {
+				names = append(names, name)
+			}
 		}
-		assert.Contains(t, entry.Providers, "codex",
-			"command %q must include codex after update (R5)", cmdName)
+		assert.Contains(t, names, "codex",
+			"command %q must run codex after update (R5)", cmdName)
 	}
 }
