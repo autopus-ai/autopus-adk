@@ -114,9 +114,8 @@ func runAgentCreate(cmd *cobra.Command, name, description, tools string, write b
 	data := agentTemplateData{
 		Name:        name,
 		Description: description,
-		// TODO: consolidate with pkg/effort.DefaultEffortForRole after T11 lands
-		Effort: defaultEffortForRole(name),
-		Tools:  toolList,
+		Effort:      defaultEffortForRole(name),
+		Tools:       toolList,
 	}
 
 	tmpl, err := template.New("agent").Parse(agentTemplate)
@@ -189,7 +188,6 @@ func parseTools(tools string) []string {
 
 // maxEffortRoles lists Opus-class roles that require max reasoning effort by default.
 // Roles not in a special set default to "medium" (safe fallback).
-// TODO: consolidate with pkg/effort.DefaultEffortForRole after T11 lands
 var maxEffortRoles = map[string]bool{
 	"spec-writer":      true,
 	"planner":          true,
