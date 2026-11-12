@@ -25,16 +25,30 @@ const c1RetiredLine = "  - removed retired orchestra keys from autopus.yaml: fea
 // it reads the text only, independent of the node walk under test.
 func withoutRetiredKeyLines(data string) string {
 	var kept []string
+	commandIndent := -1
 	for _, line := range strings.SplitAfter(data, "\n") {
+		indent := len(line) - len(strings.TrimLeft(line, " "))
+		if commandIndent >= 0 && indent > commandIndent {
+			continue
+		}
+		commandIndent = -1
 		key, _, _ := strings.Cut(strings.TrimSpace(line), ":")
 		switch key {
 		case "pane_args", "interactive_input", "working_patterns", "monitor_pattern_timeout_ms":
+			continue
+		case "plan", "brainstorm":
+			// The retired command defaults go with their whole block.
+			commandIndent = indent
 			continue
 		}
 		kept = append(kept, line)
 	}
 	return strings.Join(kept, "")
 }
+
+// c1RetiredCommandsLine names the retired command defaults C1 still holds.
+const c1RetiredCommandsLine = "  - removed retired orchestra command defaults from autopus.yaml: " +
+	"orchestra.commands.brainstorm, orchestra.commands.plan\n"
 
 func runRetiredKeyUpdate(t *testing.T, dir string, extra ...string) string {
 	t.Helper()
@@ -66,7 +80,9 @@ func TestUpdate_CutsRetiredKeysOnceWhenNoOtherMigrationHolds(t *testing.T) {
 	written, err := os.ReadFile(path)
 	require.NoError(t, err)
 	assert.Equal(t, 1, strings.Count(first, c1RetiredLine), "first update:\n%s", first)
-	assert.Equal(t, withoutRetiredKeyLines(string(input)), string(written), "only the group K lines go")
+	assert.Equal(t, 1, strings.Count(first, c1RetiredCommandsLine), "first update:\n%s", first)
+	assert.Equal(t, withoutRetiredKeyLines(string(input)), string(written),
+		"only the group K lines and the retired command defaults go")
 
 	second := runRetiredKeyUpdate(t, dir)
 	again, err := os.ReadFile(path)

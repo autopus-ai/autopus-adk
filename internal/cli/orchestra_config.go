@@ -154,6 +154,11 @@ func resolveJudge(conf *config.OrchestraConf, commandName string, flagJudge stri
 	return ""
 }
 
+// orchestraCommandDefaultStrategies is the strategy of a command that no
+// longer ships an orchestra.commands default (config.PruneRetiredOrchestraCommands).
+// brainstorm diverges by design, so it keeps debate without a config entry.
+var orchestraCommandDefaultStrategies = map[string]string{"brainstorm": "debate"}
+
 // resolveStrategy determines the strategy to use.
 // Priority order: CLI flag > command-specific config > global default > "consensus".
 func resolveStrategy(conf *config.OrchestraConf, commandName string, flagStrategy string) string {
@@ -163,6 +168,12 @@ func resolveStrategy(conf *config.OrchestraConf, commandName string, flagStrateg
 
 	if cmd, ok := conf.Commands[commandName]; ok && cmd.Strategy != "" {
 		return cmd.Strategy
+	}
+
+	// A command whose shipped config entry was retired keeps the strategy
+	// that entry gave it.
+	if strategy, ok := orchestraCommandDefaultStrategies[commandName]; ok {
+		return strategy
 	}
 
 	if conf.DefaultStrategy != "" {

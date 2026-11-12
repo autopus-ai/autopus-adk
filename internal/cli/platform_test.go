@@ -116,7 +116,7 @@ func TestPlatformAddCodex_UpdatesOrchestraProviders(t *testing.T) {
 		"codex provider must have PromptViaArgs=false after platform add codex")
 
 	// Then: all orchestra commands must include codex
-	for _, cmdName := range []string{"review", "plan", "secure"} {
+	for _, cmdName := range []string{"review", "secure"} {
 		entry, cmdOk := cfg.Orchestra.Commands[cmdName]
 		require.True(t, cmdOk, "orchestra command %q must exist", cmdName)
 		assert.Contains(t, entry.Providers, "codex",

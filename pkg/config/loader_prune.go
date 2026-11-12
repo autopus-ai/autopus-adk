@@ -22,8 +22,14 @@ var ErrRetiredKeyAnchor = errors.New("retired orchestra keys define a YAML ancho
 // anchor, and doc is left unchanged. Loading never needs this: the decoder
 // follows an alias to the node it was parsed with.
 func PruneRetiredKeysForRewrite(doc *yaml.Node) ([]string, error) {
+	return PruneKeyPathsForRewrite(doc, retiredOrchestraConfigKeys)
+}
+
+// PruneKeyPathsForRewrite is PruneRetiredKeysForRewrite for any dotted key
+// paths a writer decided to drop, with the same anchor refusal.
+func PruneKeyPathsForRewrite(doc *yaml.Node, keys []string) ([]string, error) {
 	var anchored []string
-	for _, key := range retiredOrchestraConfigKeys {
+	for _, key := range keys {
 		for _, entry := range matchNodePaths(doc, strings.Split(key, ".")) {
 			anchor := subtreeAnchor(entry.key)
 			if anchor == "" {
@@ -38,7 +44,11 @@ func PruneRetiredKeysForRewrite(doc *yaml.Node) ([]string, error) {
 		return nil, fmt.Errorf("%w: %s; move the anchor to a kept key or delete the key by hand",
 			ErrRetiredKeyAnchor, strings.Join(sortedUniquePaths(anchored), ", "))
 	}
-	return PruneRetiredKeys(doc), nil
+	var pruned []string
+	for _, key := range keys {
+		pruned = append(pruned, pruneNodePaths(doc, strings.Split(key, "."))...)
+	}
+	return sortedUniquePaths(pruned), nil
 }
 
 // subtreeAnchor returns the first anchor that node's subtree defines; aliases

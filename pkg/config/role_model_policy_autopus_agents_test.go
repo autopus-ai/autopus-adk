@@ -67,8 +67,8 @@ func TestOMPAgentRoute_ANativeNamePinCoversTheRolesWithoutTheirOwn(t *testing.T)
 		"executor": autopusPin("openai-codex/gpt-6-astra", "max"),
 		"tester":   autopusPin("openai-codex/gpt-6.1-sol", "xhigh"),
 	})
-	collapsing := []string{"annotator", "architect", "debugger", "deep-worker", "devops",
-		"frontend-specialist", "perf-engineer", "planner", "spec-writer", "ux-validator", "validator", "task"}
+	collapsing := []string{"annotator",
+		"frontend-specialist", "planner", "ux-validator", "validator", "task"}
 	for _, agent := range collapsing {
 		resolved, first := autopusRoute(t, profile, agent)
 		assert.Equal(t, "task", resolved.Key, agent)

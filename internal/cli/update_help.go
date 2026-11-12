@@ -54,7 +54,7 @@ const updateCmdLong = "설치된 하네스 파일을 업데이트합니다.\n\n"
 	"id(--model)를 고르고 args에서는 그 값만 바뀝니다. omp가 그 family의 model을 증명하면 모든 CLI provider를 OMP\n" +
 	"backend로 전환할 수 있습니다(backend: omp와 model). 미리보기는 바뀐 CLI 값만 autopus.yaml 글자로 보이고 다른 args는 보이지\n" +
 	"않으며, ${NAME}에서 오는 값은 바꾸지 않습니다. 그 값만 바꿔 써서 주석과 서식이 그대로입니다. 끈 provider도\n" +
-	"orchestra 명령(brainstorm·plan·review·secure)과 auto spec review --multi에서는 계속 돕니다. 확인 호출을 고르면\n" +
+	"orchestra 명령(review·secure)과 auto spec review --multi에서는 계속 돕니다. 확인 호출을 고르면\n" +
 	"provider n개에 요청 1회씩(재시도 포함 최대 3n회 model 호출) 보내고 결과 줄만 쓰며 아무것도 저장하지 않습니다. 탭을\n" +
 	"적용하거나 취소하면 그 결과 줄이 다시 그린 표의 요약 줄 아래에 한 번 더 나옵니다. 탭이 없는 실행(--yes, TTY가 아닌\n" +
 	"입력, CI 등)은 이 탭이 나올 설정이면 리뷰 model을 바꾸는 곳(터미널의 auto quality, 또는 auto quality review model\n" +

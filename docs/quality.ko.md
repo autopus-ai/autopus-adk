@@ -197,7 +197,7 @@ auto platform omp explain
   수 있습니다.
 - judge(`spec.review_gate.judge`)와, 원하면 judge만 쓰는 model.
 
-provider를 끄면 `auto spec review`만 바뀌고, orchestra 명령(brainstorm·plan·review·secure)과
+provider를 끄면 `auto spec review`만 바뀌고, orchestra 명령(review·secure)과
 `auto spec review --multi`는 모든 provider를 계속 씁니다. 확인 호출을 고르면 리뷰 provider n개에
 요청 1회씩(재시도 포함 최대 3n회 model 호출) 보내고 아무것도 쓰지 않습니다. 미리보기는 바뀐 CLI 값만
 원문 그대로 보이고 다른 args는 보이지 않으며, `${NAME}`에서 오는 값은 바꾸지 않습니다. 바뀐 값만

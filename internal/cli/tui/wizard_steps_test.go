@@ -55,7 +55,7 @@ func TestBuildSteps_ReturnForms(t *testing.T) {
 	result := &tui.InitWizardResult{}
 
 	assert.NotNil(t, tui.TestBuildLangStep(1, 4, result))
-	assert.NotNil(t, tui.TestBuildQualityStep(2, 4, result))
+	assert.NotNil(t, tui.TestBuildQualityStep(2, 4, result, nil))
 	assert.NotNil(t, tui.TestBuildMethodologyStep(4, 4, result))
 
 	// Review gate with and without providers (covers both desc branches)
@@ -121,13 +121,42 @@ func TestQualityOptions_OfferRoleGroupsThird(t *testing.T) {
 		"en": "Compose by role — choose a tier for each role group",
 		"ja": "Compose by role — choose a tier for each role group",
 	}
+	presets := map[string]string{
+		"ultra":    "Ultra — reviewer, qa-explorer: fable · frontend-specialist, ux-validator: opus",
+		"balanced": "Balanced — reviewer, qa-explorer: opus · frontend-specialist, ux-validator: sonnet",
+	}
 	for lang, label := range labels {
-		options := tui.TestQualityOptions(lang)
+		options := tui.TestQualityOptions(lang, presets)
 		require.Len(t, options, 3, lang)
 		values := []string{options[0].Value, options[1].Value, options[2].Value}
 		assert.Equal(t, []string{"ultra", "balanced", tui.QualityRoleGroups}, values, lang)
-		assert.Equal(t, "Ultra — strict review, high coverage", options[0].Key, lang)
-		assert.Equal(t, "Balanced — pragmatic defaults", options[1].Key, lang)
+		assert.Equal(t, presets["ultra"], options[0].Key, lang)
+		assert.Equal(t, presets["balanced"], options[1].Key, lang)
 		assert.Equal(t, label, options[2].Key, lang)
 	}
+}
+
+// Without labels from the caller, the quality step names the presets only:
+// it never claims what a preset sets without reading it.
+func TestQualityOptions_WithoutLabelsNamesThePresets(t *testing.T) {
+	t.Parallel()
+	options := tui.TestQualityOptions("en", nil)
+	assert.Equal(t, "Ultra", options[0].Key)
+	assert.Equal(t, "Balanced", options[1].Key)
+}
+
+// The review gate step says what it enables, multi-CLI review, and names
+// the CLIs init detected; with none it says so instead of describing a human
+// review gate.
+func TestReviewGateDescription_NamesMultiCLIReviewAndDetectedCLIs(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t,
+		"Multi-CLI review: each detected review CLI reviews independently. Detected: claude, codex — enable?",
+		tui.TestReviewGateDescription([]string{"claude", "codex"}))
+	assert.Equal(t,
+		"Multi-CLI review: each detected review CLI reviews independently. Detected: claude (2 or more needed) — enable anyway?",
+		tui.TestReviewGateDescription([]string{"claude"}))
+	assert.Equal(t,
+		"Multi-CLI review: each detected review CLI reviews independently. No review CLI detected (claude, codex, agy) — enable anyway?",
+		tui.TestReviewGateDescription(nil))
 }

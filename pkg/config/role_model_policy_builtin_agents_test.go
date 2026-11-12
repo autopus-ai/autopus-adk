@@ -8,7 +8,7 @@ import (
 )
 
 // S5 (config half): the shipped ultra preset routes every agent on its own
-// tier, so executor stays on opus while debugger runs on fable, and dissent
+// tier, so executor stays on opus while planner runs on fable, and dissent
 // agents take the counterpart ladder.
 func TestBuiltinRoleModelProfile_UltraProjectsEachAgentTier(t *testing.T) {
 	t.Parallel()
@@ -17,7 +17,7 @@ func TestBuiltinRoleModelProfile_UltraProjectsEachAgentTier(t *testing.T) {
 	profile, ok := BuiltinRoleModelProfile("ultra", quality, "anthropic", "")
 	require.True(t, ok)
 	require.NoError(t, validateRoleModelProfile("ultra", profile))
-	require.Len(t, profile.Agents, len(CanonicalAgentNames())+len(legacyAgentNames))
+	require.Len(t, profile.Agents, len(CanonicalAgentNames())+len(dispatchedLegacyRoles))
 	assert.Equal(t, builtinDiversityPolicy(), profile.FamilyDiversity)
 
 	astra := []RoleModelCandidateConf{
@@ -25,14 +25,12 @@ func TestBuiltinRoleModelProfile_UltraProjectsEachAgentTier(t *testing.T) {
 		builtinCandidate("openai-codex/"+CodexSolModel, "xhigh", "openai"),
 	}
 	want := map[string][]RoleModelCandidateConf{
-		"architect": fableAnthropicCandidates(), "debugger": fableAnthropicCandidates(),
-		"deep-worker": fableAnthropicCandidates(), "planner": fableAnthropicCandidates(),
-		"spec-writer": fableAnthropicCandidates(),
-		"reviewer":    astra, "security-auditor": astra,
-		"annotator": opusAnthropicCandidates(), "devops": opusAnthropicCandidates(),
-		"executor": opusAnthropicCandidates(), "explorer": opusAnthropicCandidates(),
-		"frontend-specialist": opusAnthropicCandidates(), "perf-engineer": opusAnthropicCandidates(),
-		"tester": opusAnthropicCandidates(), "ux-validator": opusAnthropicCandidates(),
+		"planner":  fableAnthropicCandidates(),
+		"reviewer": astra, "security-auditor": astra,
+		"annotator": opusAnthropicCandidates(),
+		"executor":  opusAnthropicCandidates(), "explorer": opusAnthropicCandidates(),
+		"frontend-specialist": opusAnthropicCandidates(),
+		"tester":              opusAnthropicCandidates(), "ux-validator": opusAnthropicCandidates(),
 		"validator": opusAnthropicCandidates(),
 	}
 	for agent, candidates := range want {
@@ -41,9 +39,9 @@ func TestBuiltinRoleModelProfile_UltraProjectsEachAgentTier(t *testing.T) {
 		require.NoError(t, err, agent)
 		assert.Equal(t, candidates, got, agent)
 	}
-	// The coding_tool_use default still folds to fable (debugger), but no
-	// coding agent other than debugger/deep-worker resolves through it.
-	assert.Equal(t, fableAnthropicCandidates(), profile.Capabilities[CapabilityCodingToolUse].Candidates)
+	// With debugger and deep-worker out of the matrix, the coding_tool_use
+	// default folds to the highest coding role left: executor and tester on opus.
+	assert.Equal(t, opusAnthropicCandidates(), profile.Capabilities[CapabilityCodingToolUse].Candidates)
 }
 
 // An ultra agent takes its own preset rung: sharing a capability with a higher

@@ -76,7 +76,7 @@ func TestOMPAgentRoute_CustomProfileOverridesAreOperatorIntent(t *testing.T) {
 	profile := policy.Profiles["p1"]
 	profile.Agents = map[string]RoleAgentOverrideConf{
 		"tester":   {Candidates: []RoleModelCandidateConf{fast}},
-		"debugger": {Candidates: []RoleModelCandidateConf{slow}},
+		"validator": {Candidates: []RoleModelCandidateConf{slow}},
 	}
 	policy.Profiles["p1"] = profile
 	if err := policy.Validate(); err != nil {
@@ -86,7 +86,7 @@ func TestOMPAgentRoute_CustomProfileOverridesAreOperatorIntent(t *testing.T) {
 	if !ok {
 		t.Fatal("custom profile unavailable")
 	}
-	for agent, want := range map[string]RoleModelCandidateConf{"tester": fast, "debugger": slow} {
+	for agent, want := range map[string]RoleModelCandidateConf{"tester": fast, "validator": slow} {
 		identity, route, err := resolved.OMPAgentRoute(agent)
 		if err != nil || identity.Key != agent || len(route.Candidates) != 1 || route.Candidates[0] != want {
 			t.Fatalf("%s route = %+v %#v, %v; want its own pin %+v", agent, identity, route.Candidates, err, want)

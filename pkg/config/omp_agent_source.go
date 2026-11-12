@@ -2,7 +2,7 @@ package config
 
 import "fmt"
 
-// OMP agent sources. Autopus is the only one: OMP is served the 17 canonical
+// OMP agent sources. Autopus is the only one: OMP is served the canonical
 // Autopus agents as generated .omp/agents files, and every bundled agent but
 // task is disabled. agent_source: native restored the v0.50.125 surface, where
 // every role collapsed onto the five bundled agents, and was removed in
@@ -22,7 +22,7 @@ const (
 	OMPAutopusDefaultAgent = "task"
 )
 
-// OMPAutopusAgentNames returns the 17 canonical agents followed by task, the
+// OMPAutopusAgentNames returns the canonical agents followed by task, the
 // agents autopus mode serves in rank order.
 func OMPAutopusAgentNames() []string {
 	return append(CanonicalAgentNames(), OMPAutopusDefaultAgent)
@@ -30,7 +30,7 @@ func OMPAutopusAgentNames() []string {
 
 // OMPAutopusDisabledAgents is the task.disabledAgents value autopus mode
 // claims: every bundled agent but task, across the omp releases ADK supports,
-// so OMP offers the 17 Autopus agents and task only. 18.12.3 bundles scout,
+// so OMP offers the Autopus agents and task only. 18.12.3 bundles scout,
 // security-reviewer, sonic, and seance; 17.2.7 also designer and librarian.
 // OMP filters the task tool's agents by name, so a name the installed
 // release does not bundle is an inert entry. reviewer is not in it because

@@ -73,7 +73,7 @@ role_model_policy:
 
 	assertBuiltinRoutes(t, profile, []wantBuiltinRoute{
 		{CapabilityDeepReasoning, fableAnthropicCandidates()},
-		{CapabilityCodingToolUse, fableAnthropicCandidates()},
+		{CapabilityCodingToolUse, opusAnthropicCandidates()},
 		{CapabilityFastValidation, opusAnthropicCandidates()},
 		{CapabilityVisionDesign, opusAnthropicCandidates()},
 		{CapabilityIndependentDissent, []RoleModelCandidateConf{

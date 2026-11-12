@@ -128,21 +128,6 @@ func TestDefaultCodexProviderEntryUsesBalancedProfile(t *testing.T) {
 	)
 }
 
-// TestDefaultFullConfig_BrainstormCommand verifies that DefaultFullConfig includes
-// a brainstorm command entry with debate strategy and all three providers.
-func TestDefaultFullConfig_BrainstormCommand(t *testing.T) {
-	t.Parallel()
-	cfg := DefaultFullConfig("test-project")
-	require.NotNil(t, cfg)
-
-	brainstorm, ok := cfg.Orchestra.Commands["brainstorm"]
-	require.True(t, ok, "brainstorm command must exist in orchestra commands")
-	assert.Equal(t, "debate", brainstorm.Strategy)
-	assert.Contains(t, brainstorm.Providers, "claude")
-	assert.Contains(t, brainstorm.Providers, "codex")
-	assert.Contains(t, brainstorm.Providers, "gemini")
-}
-
 // TestDefaultFullConfig_ClaudeProviderTimeout verifies claude has a per-provider
 // subprocess timeout that exceeds the global orchestra timeout, preventing the
 // 4-minute cutoff observed in issue #55 when running `--model opus --effort high`.

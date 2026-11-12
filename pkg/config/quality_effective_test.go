@@ -55,7 +55,7 @@ func TestEffectiveAgentTier_WrittenTierAndFallback(t *testing.T) {
 		want  string
 	}{
 		// HB2 is runtime standard: the generator ignores the written sonnet.
-		{name: "HB2 debugger takes the top rung", q: withBalanced(shippedBalancedHB2), agent: "debugger", want: "opus"},
+		{name: "HB2 debugger, off the matrix, keeps its written tier", q: withBalanced(shippedBalancedHB2), agent: "debugger", want: "sonnet"},
 		{name: "HB2 planner takes the top rung", q: withBalanced(shippedBalancedHB2), agent: "planner", want: "opus"},
 		// HB1 is classification only: a written off-rung tier keeps its tier,
 		// and its written opus planner now equals the top rung tier.

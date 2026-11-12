@@ -10,8 +10,7 @@ import (
 func TestNativeBalancedAgentCandidateMatchesApprovedRolePlacement(t *testing.T) {
 	q := DefaultFullConfig("native-balanced").Quality
 	top := map[string]bool{
-		"planner": true, "architect": true, "spec-writer": true,
-		"reviewer": true, "security-auditor": true, "debugger": true, "deep-worker": true,
+		"planner": true, "reviewer": true, "security-auditor": true,
 	}
 	routine := map[string]bool{"explorer": true, "annotator": true, "validator": true, "ux-validator": true}
 	for _, agent := range CanonicalAgentNames() {
@@ -61,13 +60,13 @@ func TestNativeBalancedAgentCandidateRecognizesLegacyDefaultWithoutRewritingConf
 		"tester": "sonnet", "validator": "sonnet",
 	}
 	q := QualityConf{Default: "balanced", Presets: map[string]QualityPreset{"balanced": {Agents: agents}}}
-	for _, agent := range []string{"debugger", "deep_worker", "planner", "reviewer", "spec-writer"} {
+	for _, agent := range []string{"planner", "security_auditor"} {
 		profile, ok := q.NativeBalancedAgentCandidate(QualityProviderCodex, agent)
 		require.True(t, ok, agent)
 		assert.Equal(t, "openai-codex/gpt-6-astra", profile.Selector)
 		assert.Equal(t, "max", profile.Thinking)
 	}
-	assert.Equal(t, "sonnet", agents["debugger"])
+	assert.Equal(t, "sonnet", agents["debugger"], "the stored layout is not rewritten")
 	assert.Equal(t, "opus", agents["planner"])
 	assert.Len(t, agents, 11)
 }
@@ -76,16 +75,16 @@ func TestNativeBalancedAgentCandidateRespectsProviderModeAndCustomProfiles(t *te
 	q := DefaultFullConfig("provider-modes").Quality
 	q.Default = "ultra"
 	q.Providers = map[string]string{QualityProviderCodex: "balanced"}
-	_, ok := q.NativeBalancedAgentCandidate(QualityProviderClaude, "debugger")
+	_, ok := q.NativeBalancedAgentCandidate(QualityProviderClaude, "planner")
 	assert.False(t, ok)
-	profile, ok := q.NativeBalancedAgentCandidate(QualityProviderCodex, "debugger")
+	profile, ok := q.NativeBalancedAgentCandidate(QualityProviderCodex, "planner")
 	require.True(t, ok)
 	assert.Equal(t, "max", profile.Thinking)
-	q.Presets["custom"] = QualityPreset{Agents: map[string]string{"debugger": "opus"}}
+	q.Presets["custom"] = QualityPreset{Agents: map[string]string{"planner": "opus"}}
 	q.Providers[QualityProviderCodex] = "custom"
-	_, ok = q.NativeBalancedAgentCandidate(QualityProviderCodex, "debugger")
+	_, ok = q.NativeBalancedAgentCandidate(QualityProviderCodex, "planner")
 	assert.False(t, ok)
-	_, ok = q.NativeBalancedAgentCandidate("omp", "debugger")
+	_, ok = q.NativeBalancedAgentCandidate("omp", "planner")
 	assert.False(t, ok)
 }
 

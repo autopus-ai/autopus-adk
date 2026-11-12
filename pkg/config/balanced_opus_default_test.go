@@ -20,9 +20,10 @@ var shippedBalancedHB7 = map[string]string{
 	"ux-validator": "sonnet", "validator": "sonnet",
 }
 
-var balancedTopRungAgents = []string{
-	"architect", "debugger", "deep-worker", "planner", "reviewer", "security-auditor", "spec-writer",
-}
+// balancedTopRungAgents are the top-rung roles the matrix still routes:
+// reviewer, and planner and security-auditor, which team workflows and OMP's
+// task agent still dispatch.
+var balancedTopRungAgents = []string{"planner", "reviewer", "security-auditor"}
 
 // The balanced top rung runs Opus 5.5 at max on Claude; Fable is Ultra's
 // alone. The Codex top rung keeps Astra at max.
@@ -42,7 +43,7 @@ func TestBalancedDefault_TopRungIsOpusMaxOnClaudeAndAstraOnCodex(t *testing.T) {
 	}
 	ultra := q
 	ultra.Default = "ultra"
-	assert.Equal(t, "fable", ultra.AgentTier(QualityProviderClaude, "architect", "sonnet"), "ultra keeps its Fable core")
+	assert.Equal(t, "fable", ultra.AgentTier(QualityProviderClaude, "planner", "sonnet"), "ultra keeps its Fable core")
 }
 
 // An untouched v0.50.126-v0.50.133 balanced layout is a historical shipped
@@ -91,7 +92,7 @@ func TestNativeBalancedAgentCandidate_ExplicitFableStaysFable(t *testing.T) {
 	assert.Equal(t, "fable", q.EffectiveAgentTier("reviewer", "sonnet"))
 	assert.Equal(t, "claude-fable-5-1", q.ClaudeAgentModel("reviewer", "sonnet"))
 
-	model, effort = q.ClaudeAgentProfile("architect", "sonnet")
+	model, effort = q.ClaudeAgentProfile("planner", "sonnet")
 	assert.Equal(t, "claude-opus-5-5", model)
 	assert.Equal(t, "max", effort)
 }

@@ -136,6 +136,9 @@ func newUpdateCmd() *cobra.Command {
 				configReasons = appendGitignorePreviewReason(configReasons, dir)
 				configReasons = appendConfigPreviewReason(configReasons, rea.previewReason(dir, previewCfg))
 
+				if stale := config.PruneRetiredOrchestraCommands(previewCfg); len(stale) > 0 {
+					configReasons = appendConfigPreviewReason(configReasons, "retired orchestra command defaults: "+strings.Join(stale, ", "))
+				}
 				migrated, migrateErr := config.MigrateOrchestraConfig(previewCfg)
 				if migrateErr != nil {
 					return fmt.Errorf("orchestra 마이그레이션 실패: %w", migrateErr)

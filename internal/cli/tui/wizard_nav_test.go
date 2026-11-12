@@ -249,7 +249,7 @@ func TestWizardNav_SummaryValuesAreTheOptionLabels(t *testing.T) {
 			r := &tui.InitWizardResult{UsageProfile: profile, Methodology: methodology, Quality: "ultra", Rea: reaOn(false)}
 			lines := tui.WizardAnswerLines(wizardWZ6(), r, "en")
 			require.Len(t, lines, len(tui.TestBuildStepList(wizardWZ6())))
-			for i, form := range []*huh.Form{tui.TestBuildProfileStep(1, 6, r), tui.TestBuildQualityStep(3, 6, r), tui.TestBuildMethodologyStep(6, 6, r)} {
+			for i, form := range []*huh.Form{tui.TestBuildProfileStep(1, 6, r), tui.TestBuildQualityStep(3, 6, r, map[string]string{"ultra": "Ultra — u", "balanced": "Balanced — b"}), tui.TestBuildMethodologyStep(6, 6, r)} {
 				var out strings.Builder
 				require.NoError(t, form.WithAccessible(true).WithInput(strings.NewReader("\n")).WithOutput(&out).Run())
 				line := lines[[]int{0, 2, 5}[i]]
