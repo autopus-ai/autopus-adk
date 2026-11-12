@@ -170,9 +170,7 @@ func probeOMPLiveVersion(t *testing.T, executable, profile, overlay string) stri
 	require.NoError(t, configureOMPRPCProcessGroup(cmd))
 
 	output, err := cmd.Output()
-	if err != nil {
-		_ = terminateOMPRPCProcessGroup(cmd)
-	}
+	reapOMPRPCProcessGroup(cmd)
 	require.NoError(t, err)
 	version := strings.TrimSpace(string(output))
 	require.Regexp(t, regexp.MustCompile(`^omp/[0-9]+\.[0-9]+\.[0-9]+$`), version)

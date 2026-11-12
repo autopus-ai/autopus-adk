@@ -197,6 +197,7 @@ func dumpOMPLiveSystemPrompt(t *testing.T, executable, workspace, overlay string
 		_ = stdin.Close()
 		_ = terminateOMPRPCProcessGroup(cmd)
 		_ = cmd.Wait()
+		reapOMPRPCProcessGroup(cmd)
 	}()
 	stream, done := scanOMPRPCFrames(stdout)
 	encoder := json.NewEncoder(stdin)
@@ -261,8 +262,8 @@ func registeredOMPTTSRRules(t *testing.T, executable, workspace string, env []st
 	cmd.Stderr = &stderr
 	hardenOMPRulesLiveCommand(t, cmd, workspace, env)
 	stdout, err := cmd.Output()
+	reapOMPRPCProcessGroup(cmd)
 	if err != nil {
-		_ = terminateOMPRPCProcessGroup(cmd)
 		require.NoError(t, err, "ttsr inspection failed: %s", printableOMPFrame(stderr.Bytes()))
 	}
 	var entries []struct {
