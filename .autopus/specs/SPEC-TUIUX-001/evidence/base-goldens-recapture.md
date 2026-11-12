@@ -424,3 +424,11 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 기록: `go run ./cmd/generate-templates`(변경 없음) 뒤 `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run 'TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6'`.
 - 차이: NPD 다섯 개(init-in, init-pipe, init-yes, update-ci, update-yes)에서 `.claude/settings.json`·`.mcp.json`·`.codex/config.toml`·`.autopus/claude-code-permissions.json`과 manifest·journal checksum만 바뀌었다. stdout golden은 그대로다.
 - 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.
+
+## 대기 루프 규칙과 proc reap 안내 (feat/proc-reap, 2026-11-12)
+
+- 원인: `content/rules/autonomy.md`에 "Waiting on background work" 절(마감 있는 polling, 자기 자신과 맞는 `pgrep -f` 금지)을 더했고, `content/skills/disk-triage.md`에 `auto proc reap` 두 줄을 더했다.
+- 기록: 이 branch tip에서 `go run ./cmd/generate-templates` 뒤 `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run '^(TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6ShowsTheSettingsBeforeAnyWrite)$'`.
+- 차이: NPD 다섯 개(init-in, init-pipe, init-yes, update-ci, update-yes)에서 `.claude/rules/autopus/autonomy.md`, `.claude/skills/disk-triage/SKILL.md`, `.codex/skills/codex-disk-triage/SKILL.md`의 checksum, 두 manifest와 journal checksum, update 흐름의 backup 사본만 바뀌었다. stdout golden은 그대로다.
+- 검증: 두 test가 이 golden으로 통과한다.
+- main 병합: 같은 날 fix/default-permission-hardening(#331)이 같은 NPD 다섯 개를 다시 기록해서, main을 병합한 tree에서 같은 명령으로 다시 기록했다. 두 변경의 checksum이 함께 들어 있다.

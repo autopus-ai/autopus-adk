@@ -532,6 +532,24 @@ status는 이 표본으로 소비자를 증가량 순서로 보여 주고(예: `
 안내하고, 다른 세션의 작업, 백업, VM 디스크, 다른 빌드가 쓰는 캐시처럼 지우기 전에 사용자에게 물어야 할 것을
 알려 줍니다.
 
+## 끝나지 않는 대기 루프
+
+`until ! pgrep -f "job"; do sleep 10; done`으로 기다리는 에이전트는 끝나지 않습니다. `pgrep -f`가 기다리는 셸
+자신의 명령줄과 맞기 때문입니다. 마감 없는 `until grep -q DONE log` 루프는 그 글자가 나오지 않으면 영원히
+기다립니다. 하나하나는 가볍지만 세션을 거치며 쌓입니다. 항상 켜지는 autonomy 규칙이 루프마다 마감을 두고 PID로
+기다리라고 알려 주고, 이미 남은 것은 `auto proc reap`이 정리합니다.
+
+```bash
+auto proc reap                         # dry run: 2시간 넘은 대기 셸과 그 이유
+auto proc reap --older-than 30m --json
+auto proc reap --apply                 # 셸과 sleep 자식에 SIGTERM, --grace(3s) 뒤 SIGKILL
+auto proc reap --session-pid <pid>     # 한 세션의 자손만
+```
+
+대상은 현재 사용자의 sh/bash/zsh/dash/ksh 프로세스 중 `until`/`while` + `sleep` 루프를 돌고 살아 있는 자손이
+`sleep`뿐인 것입니다. 이유는 `self-matching pgrep` 또는 `no deadline, waiting <age>`입니다. 다른 사용자의
+프로세스, sleep 말고 다른 것(빌드, 테스트)을 돌리는 셸, 명령 자신의 조상은 건드리지 않습니다.
+
 ## CI: 먼저 재고, 기계는 나눠 쓴다
 
 `auto ci report`는 GitHub Actions 저장소를 바꾸기 전에 잽니다. 사용자의 `gh` 로그인으로 읽기만 하고(`gh`가

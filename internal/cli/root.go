@@ -134,6 +134,9 @@ func NewRootCmd() *cobra.Command {
 	// The version Stop gate points agents at `auto deps latest` before they
 	// pick a dependency, toolchain or image version.
 	root.AddCommand(newDepsCmd())
+	// `auto proc reap` stops background wait loops that agent sessions left
+	// behind; the autonomy rule tells agents how not to create them.
+	root.AddCommand(newProcCmd())
 	hideLegacyHarnessCommands(root)
 
 	return root
