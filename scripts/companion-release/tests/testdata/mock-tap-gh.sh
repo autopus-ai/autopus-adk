@@ -166,13 +166,13 @@ case "$endpoint" in
   *git/commits*)
     [[ "$method" == 'POST' && -f "$input" ]] || exit 64
     jq -e --arg tree "$target_tree" --arg parent "$prior_commit" '
-      .message == "Publish signed Cask for v0.51.5" and .tree == $tree and
+      .message == "Publish signed Cask for v0.51.6" and .tree == $tree and
       .parents == [$parent]
     ' "$input" >/dev/null || exit 65
     increment commit-create
     jq -n --arg sha "$target_commit" --arg tree "$target_tree" \
       --arg parent "$prior_commit" \
-      '{sha:$sha,message:"Publish signed Cask for v0.51.5",tree:{sha:$tree},
+      '{sha:$sha,message:"Publish signed Cask for v0.51.6",tree:{sha:$tree},
         parents:[{sha:$parent}],url:"https://example.invalid/target-commit"}'
     ;;
   *) exit 64 ;;
