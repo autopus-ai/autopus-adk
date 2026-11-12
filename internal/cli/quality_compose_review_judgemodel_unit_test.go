@@ -27,9 +27,9 @@ func TestReviewJudgeModel_PlannerAndMemoryPath(t *testing.T) {
 	_, err := planReviewComposition(baseline, working, attested, composeReviewTextEN)
 	require.EqualError(t, err, "claude-opus-9 is not a choice for claude judge")
 
-	working.JudgeModel = reviewJudgeModel{Model: "claude-haiku-4-5", Effort: "max"}
+	working.JudgeModel = reviewJudgeModel{Model: "claude-haiku-5-5", Effort: "ultra"}
 	_, err = planReviewComposition(baseline, working, attested, composeReviewTextEN)
-	require.EqualError(t, err, "claude-haiku-4-5 does not take effort max for claude judge")
+	require.EqualError(t, err, "claude-haiku-5-5 does not take effort ultra for claude judge")
 
 	working.Judge = ""
 	working.JudgeModel = reviewJudgeModel{Model: "claude-opus-5-5", Effort: "max"}

@@ -52,14 +52,10 @@ func (e *composeEffortTab) custom(tiers, efforts map[string]string) *config.Harn
 	return withQualityToolPresetEfforts(e.run.view(), e.tool, qualityToolPresetName(e.tool), tiers, efforts)
 }
 
-// affected lists the members an effort select covers: every member on
-// Codex, every non-haiku member on Claude Code, which writes no effort for
-// haiku (Effort Option Contract).
-func (e *composeEffortTab) affected(tiers map[string]string, members []string) []string {
-	if e.tool.provider != config.QualityProviderClaude {
-		return slices.Clone(members)
-	}
-	return slices.DeleteFunc(slices.Clone(members), func(agent string) bool { return tiers[agent] == "haiku" })
+// affected lists the members an effort select covers: every member, haiku
+// included, since Haiku 5.5 takes low through max (Effort Option Contract).
+func (e *composeEffortTab) affected(_ map[string]string, members []string) []string {
+	return slices.Clone(members)
 }
 
 // levels are the Effort Option Contract levels for agents: Claude's five,

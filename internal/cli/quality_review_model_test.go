@@ -58,8 +58,8 @@ func TestQualityReviewModel_OMPRefusalsListTheAcceptedValues(t *testing.T) {
 	assert.Equal(t, before, readReviewFile(t, dir))
 }
 
-// claude keeps its effort unless the model takes none; haiku drops the
-// effort pair, and the next model gets max back (REQ-RVM-21).
+// claude keeps its effort across models, Haiku 5.5 included, and --effort
+// sets it (REQ-RVM-21).
 func TestQualityReviewModel_ClaudeCLIRow(t *testing.T) {
 	useQualityReviewSeams(t)
 	dir := writeReviewRL(t)
@@ -72,16 +72,17 @@ func TestQualityReviewModel_ClaudeCLIRow(t *testing.T) {
 	assert.Equal(t, [][2]string{{reviewRLClaudeArgs, "            args: [--print, --model, claude-fable-5-1, --effort, max, --output-format, json]"}},
 		reviewFileDiff(t, b0, readReviewFile(t, dir)))
 
-	out, _, err = runQualityReview(t, dir, nil, "model", "claude", "claude-haiku-4-5")
+	out, _, err = runQualityReview(t, dir, nil, "model", "claude", "claude-haiku-5-5")
 	require.NoError(t, err, out)
-	assert.Contains(t, out, "  orchestra.providers.claude.args --effort max → none\n")
-	assert.Equal(t, "args: [--print, --model, claude-haiku-4-5, --output-format, json]", reviewArgsLine(t, readReviewFile(t, dir), "claude"))
-	_, _, err = runQualityReview(t, dir, nil, "model", "claude", "claude-haiku-4-5", "--effort", "high")
-	require.EqualError(t, err, "claude-haiku-4-5 does not take effort high for claude (accepted: none)")
+	assert.NotContains(t, out, "--effort max →")
+	assert.Equal(t, "args: [--print, --model, claude-haiku-5-5, --effort, max, --output-format, json]", reviewArgsLine(t, readReviewFile(t, dir), "claude"))
+	out, _, err = runQualityReview(t, dir, nil, "model", "claude", "claude-haiku-5-5", "--effort", "high")
+	require.NoError(t, err, out)
+	assert.Equal(t, "args: [--print, --model, claude-haiku-5-5, --effort, high, --output-format, json]", reviewArgsLine(t, readReviewFile(t, dir), "claude"))
 
 	out, _, err = runQualityReview(t, dir, nil, "model", "claude", "claude-sonnet-5-5")
 	require.NoError(t, err, out)
-	assert.Equal(t, "args: [--print, --model, claude-sonnet-5-5, --output-format, json, --effort, max]", reviewArgsLine(t, readReviewFile(t, dir), "claude"))
+	assert.Equal(t, "args: [--print, --model, claude-sonnet-5-5, --effort, high, --output-format, json]", reviewArgsLine(t, readReviewFile(t, dir), "claude"))
 	_, _, err = runQualityReview(t, dir, nil, "model", "claude", "gpt-6-astra")
 	require.ErrorContains(t, err, "gpt-6-astra is not a choice for claude (accepted: claude-fable-5-1 (low, medium, high, xhigh, max), ")
 }

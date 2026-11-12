@@ -18,6 +18,7 @@ var safeAgentModels = map[string]bool{
 	"claude-sonnet-5-5": true,
 	"claude-sonnet-5":   true,
 	"claude-sonnet-4-6": true,
+	"claude-haiku-5-5":  true,
 	"claude-haiku-4-5":  true,
 	"claude-fable-5":    true,
 	"fable":             true,

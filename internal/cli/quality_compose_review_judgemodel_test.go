@@ -27,7 +27,7 @@ func TestReviewTab_JudgeModelForTheKeptJudge(t *testing.T) {
 	require.NoError(t, run.err, run.out)
 	assert.Contains(t, run.out, "judge \n1. 그대로 — claude\n2. codex\n3. gemini\n4. claude — judge model 고르기\nEnter")
 	assert.Contains(t, run.out, "claude judge model \n1. 그대로 — 리뷰어 model과 같음\n2. claude-fable-5-1\n3. claude-opus-5-5\n"+
-		"4. claude-sonnet-5-5\n5. claude-haiku-4-5\nEnter")
+		"4. claude-sonnet-5-5\n5. claude-haiku-5-5\nEnter")
 	assert.Contains(t, run.out, "claude judge effort \n1. low\n2. medium\n3. high\n4. xhigh\n5. max\nEnter")
 	assert.Contains(t, run.out, "바뀌는 설정:\n  spec.review_gate.judge_model 리뷰어 model → claude-opus-5-5\n"+
 		"  spec.review_gate.judge_effort 없음 → high\n"+composeReviewTextKO.JudgeModelNote+"\n")

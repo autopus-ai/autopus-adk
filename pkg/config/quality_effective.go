@@ -26,8 +26,8 @@ func (q QualityConf) EffectiveAgentTier(agent, fallbackTier string) string {
 // per-agent tier or effort the user moved off the standard rung — keeps
 // projecting the relative tier alias, except a top-rung agent on the top
 // tier, which keeps the top-rung model (topRungLadderCandidate). An explicit
-// effort replaces the automatic one except on haiku, which takes no effort
-// line (SPEC-MODELUX-003 REQ-MUX3-02).
+// effort replaces the automatic one on every tier, haiku included: Haiku 5.5
+// takes low through max (SPEC-MODELUX-003 REQ-MUX3-02).
 func (q QualityConf) ClaudeAgentProfile(agent, fallbackTier string) (model, effort string) {
 	if candidate, ok := q.NativeBalancedAgentCandidate(QualityProviderClaude, agent); ok {
 		return nativeClaudeModelID(candidate.Selector), candidate.Thinking
@@ -40,7 +40,7 @@ func (q QualityConf) ClaudeAgentProfile(agent, fallbackTier string) (model, effo
 		}
 		return nativeClaudeModelID(candidate.Selector), candidate.Thinking
 	}
-	if hasEffort && tier != "haiku" {
+	if hasEffort {
 		return tier, explicit
 	}
 	return tier, ClaudeAgentEffort(q.EffectiveMode(QualityProviderClaude), tier)
@@ -56,8 +56,9 @@ func nativeClaudeModelID(selector string) string {
 }
 
 // ClaudeAgentEffort maps a quality mode and relative tier onto Claude's
-// reasoning effort. Haiku takes no effort line, and only ultra raises the
-// opus and sonnet rungs.
+// reasoning effort. Haiku writes no automatic effort line, leaving the
+// model's own default (medium), and only ultra raises the opus and sonnet
+// rungs.
 func ClaudeAgentEffort(mode, tier string) string {
 	switch tier {
 	case "haiku":

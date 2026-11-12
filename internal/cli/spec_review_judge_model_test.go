@@ -176,11 +176,11 @@ func TestSpecReviewJudgeModel_PlanLine(t *testing.T) {
 	t.Parallel()
 
 	var out strings.Builder
-	m := &specReviewJudgeModel{Judge: "claude", Model: "claude-haiku-4-5", ReviewJudge: "claude"}
+	m := &specReviewJudgeModel{Judge: "claude", Model: "claude-haiku-5-5", ReviewJudge: "claude"}
 	printSpecReviewJudgeModel(&out, specReviewProviderPlan{Judge: &orchestra.ProviderConfig{Name: "claude"}, JudgeModel: m})
 	printSpecReviewJudgeModel(&out, specReviewProviderPlan{JudgeModel: m})
 	printSpecReviewJudgeModel(&out, specReviewProviderPlan{Judge: &orchestra.ProviderConfig{Name: "claude"}})
-	assert.Equal(t, "  judge model: claude-haiku-4-5 — spec.review_gate.judge_model\n", out.String())
+	assert.Equal(t, "  judge model: claude-haiku-5-5 — spec.review_gate.judge_model\n", out.String())
 	assert.Equal(t, "anthropic/claude-opus-5-5:max", judgeModelText("anthropic/claude-opus-5-5", "max", true))
 	assert.Equal(t, "claude-opus-5-5 · max", judgeModelText("claude-opus-5-5", "max", false))
 	for _, effort := range []string{"", "max"} {

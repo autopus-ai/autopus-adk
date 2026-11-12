@@ -49,7 +49,7 @@ func reviewArgsHasRun(args []string, run ...string) bool {
 }
 
 // S19: the model select, the effort select, and the args line written;
-// haiku drops the effort pair and asks no effort.
+// haiku asks its effort like every other Claude model (Haiku 5.5).
 func TestReviewTab_S19ClaudeCLIModelWritesArgs(t *testing.T) {
 	dir := writeReviewRL(t)
 	b1 := readReviewFile(t, dir)
@@ -60,18 +60,18 @@ func TestReviewTab_S19ClaudeCLIModelWritesArgs(t *testing.T) {
 
 	require.NoError(t, run.err, run.out)
 	assert.Contains(t, run.out, "claude model \n1. 그대로 — claude-opus-5-5 · max\n2. claude-fable-5-1\n3. claude-opus-5-5\n"+
-		"4. claude-sonnet-5-5\n5. claude-haiku-4-5\nEnter")
+		"4. claude-sonnet-5-5\n5. claude-haiku-5-5\nEnter")
 	assert.Contains(t, run.out, "claude effort \n1. low\n2. medium\n3. high\n4. xhigh\n5. max\nEnter")
 	assert.Equal(t, [][2]string{{reviewRLClaudeArgs, "            args: [--print, --model, claude-fable-5-1, --effort, xhigh, --output-format, json]"}},
 		reviewFileDiff(t, b1, readReviewFile(t, dir)))
 	assert.True(t, reviewArgsHasRun(reviewAssembledArgs(t, dir, "claude"), "--model", "claude-fable-5-1", "--effort", "xhigh"))
 
 	run = runReviewCLIForms(t, dir, []string{"claude"}, reviewLines(reviewOpen,
-		[]string{"\n", "\n", "\n", "5\n", "\n", "\n", "\n", "2\n", "\n"})...)
+		[]string{"\n", "\n", "\n", "5\n", "3\n", "\n", "\n", "\n", "2\n", "\n"})...)
 
 	require.NoError(t, run.err, run.out)
-	assert.NotContains(t, run.out, "claude effort")
-	assert.Equal(t, "args: [--print, --model, claude-haiku-4-5, --output-format, json]", reviewArgsLine(t, readReviewFile(t, dir), "claude"))
+	assert.Contains(t, run.out, "claude effort \n1. low\n2. medium\n3. high\n4. xhigh\n5. max\nEnter")
+	assert.Equal(t, "args: [--print, --model, claude-haiku-5-5, --effort, high, --output-format, json]", reviewArgsLine(t, readReviewFile(t, dir), "claude"))
 }
 
 // S27, T1: a placeholder in another args element stays byte for byte, and
@@ -100,8 +100,7 @@ func TestReviewTab_S27ClaudePreviewKeepsOtherArgsOut(t *testing.T) {
 		reviewFileDiff(t, before, readReviewFile(t, dir)))
 }
 
-// S26, claude half: a model off the row and an effort haiku does not take
-// are errors; the tab's change lines name only the changed flag values.
+// S26, claude half: a model off the row is an error; the tab's change lines name only the changed flag values.
 func TestReviewCLI_S26ClaudeValidationAndLines(t *testing.T) {
 	cfg := reviewR3Config()
 	reviewRLConfig(cfg)
@@ -113,7 +112,6 @@ func TestReviewCLI_S26ClaudeValidationAndLines(t *testing.T) {
 		wantErr string
 	}{
 		{reviewCLIValue{"claude-opus-9", "max"}, "claude model claude-opus-9는 이 provider의 선택지에 없습니다"},
-		{reviewCLIValue{"claude-haiku-4-5", "high"}, "claude effort high는 claude-haiku-4-5이 받지 않는 단계입니다"},
 	}
 	for _, tc := range cases {
 		working := baseline.reviewComposition.clone()
@@ -135,12 +133,12 @@ func TestReviewCLI_S26ClaudeValidationAndLines(t *testing.T) {
 	assert.Equal(t, "codex gpt-6-astra · max", plan.Table.rows[1][2])
 	assert.Equal(t, "agy", plan.Table.rows[2][2])
 
-	working.CLI["claude"] = reviewCLIValue{"claude-haiku-4-5", ""}
+	working.CLI["claude"] = reviewCLIValue{"claude-haiku-5-5", "high"}
 	plan, err = planReviewComposition(baseline, working, attested, composeReviewTextKO)
 	require.NoError(t, err)
 	assert.Equal(t, []string{
-		"orchestra.providers.claude.args --model claude-opus-5-5 → claude-haiku-4-5",
-		"orchestra.providers.claude.args --effort max → 없음",
+		"orchestra.providers.claude.args --model claude-opus-5-5 → claude-haiku-5-5",
+		"orchestra.providers.claude.args --effort max → high",
 	}, plan.Changes)
 }
 

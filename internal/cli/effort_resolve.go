@@ -136,8 +136,8 @@ func resolveQualityMode(quality, complexity, model string) (EffortResult, error)
 }
 
 // resolveUltraMode applies Ultra-quality effort mapping per spec R2.
-// Haiku 4.5 → strip; current and max-capable legacy Opus/Fable models → max;
-// other models → high.
+// Haiku 4.5 → strip (Haiku 5.5 takes effort); current and max-capable legacy
+// Opus/Fable models → max; other models → high.
 func resolveUltraMode(model string) (EffortResult, error) {
 	normalized := normalizeModelID(model)
 
@@ -200,6 +200,13 @@ func resolveBalancedMode(complexity, model string) (EffortResult, error) {
 			Source: EffortSourceQualityMode,
 			Model:  model,
 			Reason: "balanced mode with sonnet tier",
+		}, nil
+	case "haiku-5-5", "haiku":
+		return EffortResult{
+			Effort: EffortMedium,
+			Source: EffortSourceQualityMode,
+			Model:  model,
+			Reason: "balanced mode with haiku tier",
 		}, nil
 	}
 	if strings.ToLower(complexity) == "high" {

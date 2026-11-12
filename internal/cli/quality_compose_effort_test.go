@@ -39,33 +39,33 @@ func runComposeEffortSession(t *testing.T, dir, catalog string, lines ...string)
 	return out
 }
 
-// The Claude effort select leaves a haiku member out: 검증·리뷰 with
-// ux-validator on haiku offers reviewer's and qa-explorer's opus levels
-// only, and qa-explorer's automatic high stores nothing.
-func TestComposeEffortOptions_ClaudeLeavesHaikuOut(t *testing.T) {
+// The Claude effort select covers a haiku member too, since Haiku 5.5 takes
+// low through max: 검증·리뷰 with ux-validator on haiku offers each level for
+// all three, and qa-explorer's automatic high stores nothing.
+func TestComposeEffortOptions_ClaudeIncludesHaiku(t *testing.T) {
 	dir := writeComposeToolPresetFixture(t, "claude", map[string]string{"ux-validator": "haiku"})
 
 	out := runComposeEffortSession(t, dir, "CAT-A",
 		"2\n", "2\n", "\n", "\n", "\n", "\n", "4\n", "2\n", "\n")
 
 	assert.Contains(t, out, "검증·리뷰 effort \n"+
-		"1. 그대로 — opus-5-5 · max / opus-5-5 · high\n"+
-		"2. opus-5-5 · low\n"+
-		"3. opus-5-5 · medium\n"+
-		"4. opus-5-5 · high\n"+
-		"5. opus-5-5 · xhigh\n"+
-		"6. opus-5-5 · max\n")
-	assert.Equal(t, map[string]string{"reviewer": "high"}, composeBindLoad(t, dir).Quality.Presets["claude-custom"].Efforts)
+		"1. 그대로 — opus-5-5 · max / opus-5-5 · high / haiku-5-5 · -\n"+
+		"2. opus-5-5 · low / haiku-5-5 · low\n"+
+		"3. opus-5-5 · medium / haiku-5-5 · medium\n"+
+		"4. opus-5-5 · high / haiku-5-5 · high\n"+
+		"5. opus-5-5 · xhigh / haiku-5-5 · xhigh\n"+
+		"6. opus-5-5 · max / haiku-5-5 · max\n")
+	assert.Equal(t, map[string]string{"reviewer": "high", "ux-validator": "high"}, composeBindLoad(t, dir).Quality.Presets["claude-custom"].Efforts)
 }
 
-// A group whose every member is haiku asks no Claude effort.
-func TestComposeEffortOptions_AllHaikuGroupAsksNoEffort(t *testing.T) {
+// A group whose every member is haiku still asks its Claude effort.
+func TestComposeEffortOptions_AllHaikuGroupAsksEffort(t *testing.T) {
 	dir := writeComposeFixture(t, "claude-code", "codex")
 
-	out := runComposeEffortSession(t, dir, "CAT-A", "2\n", "2\n", "\n", "5\n", "\n", "\n", "\n")
+	out := runComposeEffortSession(t, dir, "CAT-A", "2\n", "2\n", "\n", "5\n", "\n", "\n", "\n", "\n")
 
 	assert.Contains(t, out, "검증·리뷰 effort \n")
-	assert.NotContains(t, out, "구현 effort")
+	assert.Contains(t, out, "구현 effort \n1. 그대로 — haiku-5-5 · -\n2. haiku-5-5 · low\n")
 	assert.Contains(t, out, "적용할까요? \n")
 }
 

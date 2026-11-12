@@ -91,11 +91,11 @@ func TestQualityReviewJudge_CLIEffortDefault(t *testing.T) {
 		readReviewFile(t, dir))
 	assert.Equal(t, reviewRLClaudeArgs, "            "+reviewArgsLine(t, readReviewFile(t, dir), "claude"), "the reviewer's args stay")
 
-	out, _, err = runQualityReview(t, dir, nil, "judge", "claude", "--model", "claude-haiku-4-5")
+	out, _, err = runQualityReview(t, dir, nil, "judge", "claude", "--model", "claude-haiku-5-5")
 	require.NoError(t, err, out)
-	assert.Contains(t, out, "  spec.review_gate.judge_model claude-opus-5-5 → claude-haiku-4-5\n  spec.review_gate.judge_effort max → none\n")
-	assert.Contains(t, readReviewFile(t, dir), "        judge_model: claude-haiku-4-5\nmethodology:")
-	assert.NotContains(t, readReviewFile(t, dir), "judge_effort")
+	assert.Contains(t, out, "  spec.review_gate.judge_model claude-opus-5-5 → claude-haiku-5-5\n")
+	assert.NotContains(t, out, "judge_effort max →")
+	assert.Contains(t, readReviewFile(t, dir), "        judge_model: claude-haiku-5-5\n        judge_effort: max\n")
 }
 
 func TestQualityReviewJudge_Refusals(t *testing.T) {

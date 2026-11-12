@@ -161,7 +161,7 @@ func (e reviewArgsEdit) written(args []string) []bool {
 
 // planReviewArgsEdit plans setting args to want under row: a named flag whose
 // value differs gets the new value in place, a missing one is appended as a
-// pair, and claude's empty effort (haiku) removes its effort flag. Flags that
+// pair, and claude's empty effort removes its effort flag. Flags that
 // already hold the wanted value produce no operation. A wanted value starting
 // with `-` would read as a flag of its own, so it refuses the edit (false).
 func planReviewArgsEdit(args []string, row reviewArgsRow, want reviewCLIValue) (reviewArgsEdit, bool) {

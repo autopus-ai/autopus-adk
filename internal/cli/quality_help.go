@@ -59,7 +59,7 @@ keeps the line prompts above.
 
 On the Claude Code and Codex tabs every tier select is followed by that
 tool's effort select (SPEC-MODELUX-003). keep is the default; Claude Code
-offers low, medium, high, xhigh, and max and leaves haiku agents out, Codex
+offers low, medium, high, xhigh, and max for every agent, Codex
 offers the levels the catalog reports for the agents' models, and the
 automatic level is marked (automatic) and stores nothing. Chosen efforts are
 written to quality.presets.<provider>-custom.efforts, which auto older than
@@ -150,7 +150,7 @@ model takes only what the tab offers the provider. A provider with backend:
 omp takes an installed model the OMP catalog attests for its family, as
 <provider>/<model>[:<thinking>]; --effort is the thinking level. A CLI
 provider takes, by its binary: claude a Claude tab model with low to max
-(no effort for haiku), written after --model and --effort; codex a model of
+(haiku included), written after --model and --effort; codex a model of
 the Codex catalog with one of its efforts, written after -m and as
 model_reasoning_effort with model_policy: pinned; agy an id agy models lists
 for the provider's family, or that id without its -low, -medium, or -high

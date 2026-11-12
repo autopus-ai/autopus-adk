@@ -131,7 +131,7 @@ key가 있으면 쓰지 않고 `autopus.yaml`을 그대로 둡니다. 그때는 
 
 **Claude Code**와 **Codex** 탭에서는 등급 Select마다 그 도구의 effort Select가 이어집니다
 (SPEC-MODELUX-003). 기본은 그대로이고, Claude Code는 `low`·`medium`·`high`·`xhigh`·`max`를 보이며
-haiku 에이전트는 뺍니다. Codex는 catalog가 그 에이전트들의 model에 보고하는 단계만 보이고, catalog를
+haiku 에이전트도 포함합니다(Haiku 5.5는 effort를 받습니다). Codex는 catalog가 그 에이전트들의 model에 보고하는 단계만 보이고, catalog를
 읽지 못하면 effort를 자동으로 둔다고 알립니다. 자동 단계에는 `(자동)`이 붙고 저장하지 않습니다.
 고른 effort는 `quality.presets.<provider>-custom.efforts`에 쓰이고, 미리보기는 v0.50.127보다 오래된
 auto가 `quality.presets.*.efforts`를 읽지 못한다고 알립니다. `efforts`가 없는 파일은 이전과 똑같이
@@ -207,7 +207,7 @@ claude 리뷰 provider의 기본 model은 고른 preset에서 reviewer 에이전
 - `auto spec review`에 참여하는 provider(`spec.review_gate.providers`). 둘보다 적으면 거부합니다.
 - provider마다 model과 effort. `backend: omp` provider는 그 family에서 Autopus가 증명하는 설치
   model과 thinking을 고릅니다(`orchestra.providers.<p>.model`). CLI backend의 `claude`는 Claude 탭
-  model(`claude-fable-5-1`·`claude-opus-5-5`·`claude-sonnet-5-5`·`claude-haiku-4-5`)과 effort
+  model(`claude-fable-5-1`·`claude-opus-5-5`·`claude-sonnet-5-5`·`claude-haiku-5-5`)과 effort
   (`--model`·`--effort`), `codex`는 Codex catalog model과 그 effort(`-m`·`model_reasoning_effort`,
   `model_policy: pinned`), `agy`는 `agy models`가 보인 id(`--model`)를 고르고, 그 args 값만 바뀝니다.
   omp가 그 family의 model을 증명하면 CLI provider는 OMP backend(`backend: omp`와 `model`)로 전환할

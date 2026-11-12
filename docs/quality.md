@@ -138,7 +138,7 @@ slug (`opus-5-5`), while the table cell is the frontmatter value. Ctrl+C in a fo
 
 On the **Claude Code** and **Codex** tabs every tier select is followed by that tool's effort
 select (SPEC-MODELUX-003). keep is the default; Claude Code offers `low`, `medium`, `high`,
-`xhigh`, and `max` and leaves haiku agents out; Codex offers the levels the catalog reports for
+`xhigh`, and `max` for every agent, haiku included (Haiku 5.5 takes effort); Codex offers the levels the catalog reports for
 the agents' models, and with an unreadable catalog prints `Codex catalog unreadable; effort stays
 automatic`. The automatic level is marked `(automatic)` and stores nothing. Chosen efforts are
 written to `quality.presets.<provider>-custom.efforts`; the preview then warns `auto older than
@@ -223,7 +223,7 @@ effort as written, and the judge. The tab sets:
 - each provider's model and effort. A provider with `backend: omp` picks an installed model
   Autopus attests for its family and a thinking level (`orchestra.providers.<p>.model`). On a CLI
   backend, `claude` picks a Claude tab model (`claude-fable-5-1`, `claude-opus-5-5`,
-  `claude-sonnet-5-5`, `claude-haiku-4-5`) and effort (`--model`, `--effort`), `codex` a model of
+  `claude-sonnet-5-5`, `claude-haiku-5-5`) and effort (`--model`, `--effort`), `codex` a model of
   the Codex catalog and one of its efforts (`-m` and `model_reasoning_effort`, with
   `model_policy: pinned`), and `agy` an id `agy models` lists (`--model`). Only those args values
   change. When omp attests a model of its family, any CLI provider can switch to the OMP backend

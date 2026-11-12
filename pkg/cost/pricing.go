@@ -58,7 +58,13 @@ func DefaultPricingTable() map[string]ModelPricing {
 			InputPricePerMillion:  2.0,
 			OutputPricePerMillion: 10.0,
 		},
+		// Haiku 5.5 list price for prompts of 100K tokens or fewer; longer
+		// prompts cost $0.50 / $2.50 per MTok.
 		config.ClaudeHaikuModel: {
+			InputPricePerMillion:  0.10,
+			OutputPricePerMillion: 0.50,
+		},
+		"claude-haiku-4-5": {
 			InputPricePerMillion:  1.0,
 			OutputPricePerMillion: 5.0,
 		},
