@@ -49,8 +49,12 @@ func TestPanermS7_UpdatePrunesGroupKAndKeepsTheRest(t *testing.T) {
 			for _, token := range []string{"pane_args", "interactive_input", "working_patterns", "monitor_pattern_timeout_ms"} {
 				assert.NotContains(t, string(written), token)
 			}
-			assert.Equal(t, yamlShape(t, input, pruned), yamlShape(t, written, nil),
-				"the written tree must equal the input tree minus exactly the pruned group K entries")
+			// The update also drops the plan and brainstorm defaults these
+			// fixtures still hold as shipped.
+			removed := append(pruned, "orchestra.commands.brainstorm", "orchestra.commands.plan")
+			assert.Equal(t, yamlShape(t, input, removed), yamlShape(t, written, nil),
+				"the written tree must equal the input tree minus exactly the pruned group K entries "+
+					"and the retired command defaults")
 			for _, line := range panermKeptLines {
 				if strings.Contains(string(input), line) {
 					assert.Contains(t, string(written), line, "kept byte for byte")

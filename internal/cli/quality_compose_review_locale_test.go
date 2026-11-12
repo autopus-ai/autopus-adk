@@ -45,7 +45,7 @@ func TestReviewTab_S13SummaryAndEnglishText(t *testing.T) {
 		"gemini google-antigravity/gemini-3.1-pro:high · judge claude\nChange the composition?")
 	assert.Contains(t, enOut, "\nMulti-provider review: claude anthropic/claude-fable-5-1:max · codex openai-codex/gpt-6-astra:max · "+
 		"gemini (off) google-antigravity/gemini-3.1-pro:high · judge claude\nComposition applied.\n")
-	assert.Contains(t, enOut, "Turned-off providers still run in orchestra commands (brainstorm, plan, review, secure) and in auto spec review --multi\n")
+	assert.Contains(t, enOut, "Turned-off providers still run in orchestra commands (review, secure) and in auto spec review --multi\n")
 	assert.Contains(t, enOut, "provider  review  model")
 	assert.NotContains(t, enOut, "리뷰")
 	assert.Equal(t, readReviewFile(t, ko), readReviewFile(t, en))

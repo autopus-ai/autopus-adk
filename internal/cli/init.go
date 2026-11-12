@@ -120,6 +120,7 @@ func newInitCmd() *cobra.Command {
 						Providers:       providerNames,
 						ExistingProfile: existingProfile,
 						Rea:             rea.wizardPreset(),
+						QualityLabels:   initQualityLabels(cfg.Quality),
 					}}
 				var cancelled bool
 				var err error

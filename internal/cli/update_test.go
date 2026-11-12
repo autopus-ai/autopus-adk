@@ -264,7 +264,7 @@ func TestUpdateCmd_AddsCodexToOrchestraCommands(t *testing.T) {
 	// Then: all commands must include codex (R5)
 	cfgAfter, loadErr := loadConfigFromDir(dir)
 	require.NoError(t, loadErr)
-	for _, cmdName := range []string{"review", "plan", "secure"} {
+	for _, cmdName := range []string{"review", "secure"} {
 		entry, ok := cfgAfter.Orchestra.Commands[cmdName]
 		require.True(t, ok, "command %q must exist", cmdName)
 		assert.Contains(t, entry.Providers, "codex",

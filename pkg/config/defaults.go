@@ -142,10 +142,8 @@ func DefaultFullConfig(projectName string) *HarnessConfig {
 				"codex":  DefaultCodexProviderEntry(),
 			},
 			Commands: map[string]CommandEntry{
-				"review":     {Strategy: "debate", Providers: []string{"claude", "codex", "gemini"}},
-				"plan":       {Strategy: "consensus", Providers: []string{"claude", "codex", "gemini"}},
-				"secure":     {Strategy: "consensus", Providers: []string{"claude", "codex", "gemini"}},
-				"brainstorm": {Strategy: "debate", Providers: []string{"claude", "codex", "gemini"}},
+				"review": {Strategy: "debate", Providers: []string{"claude", "codex", "gemini"}},
+				"secure": {Strategy: "consensus", Providers: []string{"claude", "codex", "gemini"}},
 			},
 		},
 		// Ultra keeps the shared tier ladder. Standard balanced placement
@@ -156,14 +154,14 @@ func DefaultFullConfig(projectName string) *HarnessConfig {
 			SupervisorModelPolicy: SupervisorModelPolicyInherit,
 			Presets: map[string]QualityPreset{
 				"ultra": {
-					Description: "리뷰와 QA 탐색은 Fable, UX 검증은 Opus. 최고 품질.",
+					Description: "리뷰·QA 탐색은 Fable, 프론트엔드·UX 검증은 Opus.",
 					Agents: map[string]string{
 						"reviewer": "fable", "qa-explorer": "fable",
 						"frontend-specialist": "opus", "ux-validator": "opus",
 					},
 				},
 				"balanced": {
-					Description: "리뷰는 최상위, QA 탐색은 Opus, UX 검증은 경량 모델.",
+					Description: "리뷰·QA 탐색은 Opus, 프론트엔드·UX 검증은 Sonnet.",
 					Agents:      defaultBalancedAgentTiers(),
 				},
 			},

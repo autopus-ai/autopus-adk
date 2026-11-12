@@ -19,22 +19,15 @@ const (
 	balancedRungAnalysis
 )
 
-// balancedRungByAgent covers every canonical agent exactly once. Debugger and
-// deep-worker share the top rung with the planning and review roles: both
-// routinely have to hold a whole failing system in context at once.
+// balancedRungByAgent covers every generated agent and every legacy role the
+// binary still dispatches (dispatchedLegacyRoles) exactly once.
 var balancedRungByAgent = map[string]balancedRoleRung{
-	"architect":        balancedRungTop,
-	"debugger":         balancedRungTop,
-	"deep-worker":      balancedRungTop,
 	"planner":          balancedRungTop,
 	"reviewer":         balancedRungTop,
 	"security-auditor": balancedRungTop,
-	"spec-writer":      balancedRungTop,
 
-	"devops":              balancedRungImplementation,
 	"executor":            balancedRungImplementation,
 	"frontend-specialist": balancedRungImplementation,
-	"perf-engineer":       balancedRungImplementation,
 	"tester":              balancedRungImplementation,
 
 	"annotator":    balancedRungRoutine,

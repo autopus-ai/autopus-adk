@@ -19,11 +19,12 @@ type OMPPolicyAgentRoute struct {
 	Capability string
 }
 
-// ResolveOMPPolicyAgent accepts either one of the 17 ADK role names or one of
+// ResolveOMPPolicyAgent accepts either one of the matrix role names or one of
 // the five bundled OMP agent names a policy written before v0.50.127 keys its
 // pins by. An ADK name keeps its own role and capability; a bundled name
 // borrows its representative's, because the bundled registry carries no
-// capability of its own. Native is the bundled agent the key collapsed onto,
+// capability of its own, and so does a retired role without a matrix row
+// through the bundled agent it collapsed onto. Native is the bundled agent the key collapsed onto,
 // which the Route Contract's rule (2) reads.
 func ResolveOMPPolicyAgent(key string) (OMPPolicyAgentRoute, error) {
 	native, err := OMPNativeAgentForRole(key)

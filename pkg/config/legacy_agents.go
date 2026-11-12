@@ -12,6 +12,20 @@ var legacyAgentNames = []string{
 	"security-auditor", "spec-writer", "tester", "validator",
 }
 
+// dispatchedLegacyRoles are the legacy roles the binary still routes work to
+// without generating an agent for them, so the OMP role-model matrix and the
+// balanced rungs keep a row for each: team workflow phases run planner,
+// tester, executor, annotator, and security-auditor; `auto pipeline` runs
+// planner, tester, executor, and validator; OMP's bundled task, scout, and
+// sonic agents borrow the planner, explorer, and validator rows; and the
+// REA analysis rung keeps reverse-engineer. The other legacy roles have no
+// consumer and no row: a role_model_policy key that names one still resolves
+// through the bundled agent it collapsed onto (OMPNativeAgentForRole).
+var dispatchedLegacyRoles = []string{
+	"annotator", "executor", "explorer", "planner", "reverse-engineer",
+	"security-auditor", "tester", "validator",
+}
+
 // legacyRoleTiers keeps the tier each legacy role had in the last
 // seventeen-agent built-in presets (HB8, HU4). The role names still route
 // work the binary performs without generating an agent for it: OMP's default

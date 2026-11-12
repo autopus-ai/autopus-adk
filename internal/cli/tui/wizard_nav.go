@@ -80,7 +80,7 @@ func wizardStepValue(kind string, r *InitWizardResult, lang string) string {
 		}
 		return fmt.Sprintf("comments %s · commits %s · AI responses %s", r.CommentsLang, r.CommitsLang, r.AILang)
 	case wizardStepQuality:
-		for _, option := range qualityOptions(lang) {
+		for _, option := range qualityOptions(lang, nil) {
 			if option.Value == r.Quality {
 				label, _, _ := strings.Cut(option.Key, " — ")
 				return label

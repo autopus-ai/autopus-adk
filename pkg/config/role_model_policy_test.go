@@ -56,20 +56,14 @@ var policyContractMatrix = []struct {
 	agent, role, capability string
 }{
 	{"annotator", "autopus_annotator", CapabilityFastValidation},
-	{"architect", "autopus_architect", CapabilityDeepReasoning},
-	{"debugger", "autopus_debugger", CapabilityCodingToolUse},
-	{"deep-worker", "autopus_deep_worker", CapabilityCodingToolUse},
-	{"devops", "autopus_devops", CapabilityCodingToolUse},
 	{"executor", "autopus_executor", CapabilityCodingToolUse},
 	{"explorer", "autopus_explorer", CapabilityFastValidation},
 	{"frontend-specialist", "autopus_frontend_specialist", CapabilityVisionDesign},
-	{"perf-engineer", "autopus_perf_engineer", CapabilityCodingToolUse},
 	{"planner", "autopus_planner", CapabilityDeepReasoning},
 	{"reverse-engineer", "autopus_reverse_engineer", CapabilityDeepReasoning},
 	{"qa-explorer", "autopus_qa_explorer", CapabilityIndependentDissent},
 	{"reviewer", "autopus_reviewer", CapabilityIndependentDissent},
 	{"security-auditor", "autopus_security_auditor", CapabilityIndependentDissent},
-	{"spec-writer", "autopus_spec_writer", CapabilityDeepReasoning},
 	{"tester", "autopus_tester", CapabilityCodingToolUse},
 	{"ux-validator", "autopus_ux_validator", CapabilityVisionDesign},
 	{"validator", "autopus_validator", CapabilityDeterministicTransform},
@@ -110,7 +104,7 @@ func TestRoleModelPolicy_ProjectionMatrix_IsExact(t *testing.T) {
 	}
 	// The matrix is the role vocabulary: the generated agents plus the legacy
 	// roles the binary still dispatches without generating an agent for them.
-	canonical := append(CanonicalAgentNames(), legacyAgentNames...)
+	canonical := append(CanonicalAgentNames(), dispatchedLegacyRoles...)
 	sort.Strings(canonical)
 	if got := mapKeys(wantRoles); !reflect.DeepEqual(got, canonical) {
 		t.Fatalf("matrix agents %v differ from the role vocabulary %v", got, canonical)

@@ -35,6 +35,12 @@ var errRetiredPruneActivatesPlaceholder = errors.New("re-encoding autopus.yaml w
 // "\x24{NAME}" that the re-encode spells ${NAME}, is refused with
 // errRetiredPruneActivatesPlaceholder (SPEC-MODELUX-001 REQ-MUX-08).
 func pruneRetiredConfig(data []byte) ([]byte, []string, error) {
+	return pruneConfigKeys(data, nil)
+}
+
+// pruneConfigKeys is pruneRetiredConfig that also drops the extra dotted key
+// paths a caller decided are stale, with the same rewrite and refusals.
+func pruneConfigKeys(data []byte, extra []string) ([]byte, []string, error) {
 	var doc yaml.Node
 	if err := yaml.Unmarshal(data, &doc); err != nil {
 		return nil, nil, fmt.Errorf("parse config: %w", err)
@@ -44,6 +50,11 @@ func pruneRetiredConfig(data []byte) ([]byte, []string, error) {
 	if err != nil {
 		return nil, nil, err
 	}
+	stale, err := config.PruneKeyPathsForRewrite(&doc, extra)
+	if err != nil {
+		return nil, nil, err
+	}
+	paths = append(paths, stale...)
 	if len(paths) == 0 {
 		return data, nil, nil
 	}
@@ -88,6 +99,12 @@ func rewriteRetiredConfig(data []byte, doc *yaml.Node, entries []yamlMappingEntr
 // autopus.yaml in place and returns the paths it removed. A missing file or
 // one without such keys is not written.
 func pruneRetiredConfigFile(dir string) ([]string, error) {
+	return pruneConfigFileKeys(dir, nil)
+}
+
+// pruneConfigFileKeys is pruneRetiredConfigFile that also drops the extra
+// key paths (pruneConfigKeys).
+func pruneConfigFileKeys(dir string, extra []string) ([]string, error) {
 	path := filepath.Join(dir, "autopus.yaml")
 	data, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
@@ -96,7 +113,7 @@ func pruneRetiredConfigFile(dir string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read config: %w", err)
 	}
-	pruned, paths, err := pruneRetiredConfig(data)
+	pruned, paths, err := pruneConfigKeys(data, extra)
 	if err != nil || len(paths) == 0 {
 		return nil, err
 	}

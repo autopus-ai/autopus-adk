@@ -11,6 +11,6 @@ Codex catalog: 읽음 · 대체 0칸
 구성을 바꿀까요? [Enter] 유지 · g) 역할 그룹 · a) 고급 · t) 도구별 설정
 > Current quality: balanced
 Select quality mode:
-    1) ultra - 리뷰와 QA 탐색은 Fable, UX 검증은 Opus. 최고 품질.
-  * 2) balanced - 리뷰는 최상위, QA 탐색은 Opus, UX 검증은 경량 모델.
+    1) ultra - 리뷰·QA 탐색은 Fable, 프론트엔드·UX 검증은 Opus.
+  * 2) balanced - 리뷰·QA 탐색은 Opus, 프론트엔드·UX 검증은 Sonnet.
 Choose: quality.default = ultra

@@ -15,10 +15,8 @@ func balancedAnthropicRoutes() map[string]RoleModelCandidateConf {
 	routine := builtinCandidate("anthropic/"+ClaudeSonnetModel, "high", "anthropic")
 	analysis := builtinCandidate("anthropic/"+ClaudeOpusModel, "high", "anthropic")
 	return map[string]RoleModelCandidateConf{
-		"architect": top, "debugger": top, "deep-worker": top, "planner": top,
-		"reviewer": top, "security-auditor": top, "spec-writer": top,
-		"devops": implementation, "executor": implementation,
-		"frontend-specialist": implementation, "perf-engineer": implementation,
+		"planner": top, "reviewer": top, "security-auditor": top,
+		"executor": implementation, "frontend-specialist": implementation,
 		"tester":    implementation,
 		"annotator": routine, "explorer": routine, "ux-validator": routine,
 		"validator": routine, "reverse-engineer": analysis,
@@ -32,10 +30,8 @@ func balancedOpenAIRoutes() map[string]RoleModelCandidateConf {
 	worker := builtinCandidate("openai-codex/"+CodexLunaModel, "max", "openai")
 	analysis := builtinCandidate("openai-codex/"+CodexSolModel, "xhigh", "openai")
 	return map[string]RoleModelCandidateConf{
-		"architect": top, "debugger": top, "deep-worker": top, "planner": top,
-		"reviewer": top, "security-auditor": top, "spec-writer": top,
-		"devops": worker, "executor": worker, "frontend-specialist": worker,
-		"perf-engineer": worker, "tester": worker,
+		"planner": top, "reviewer": top, "security-auditor": top,
+		"executor": worker, "frontend-specialist": worker, "tester": worker,
 		"annotator": worker, "explorer": worker, "ux-validator": worker,
 		"validator": worker, "reverse-engineer": analysis,
 		"qa-explorer": analysis,
@@ -57,7 +53,7 @@ func roleModelOverrideAgents(overrides map[string]RoleAgentOverrideConf) []strin
 	return agents
 }
 
-func TestBalancedRoleModelProfile_RoutesSeventeenAgentsExactlyPerFamily(t *testing.T) {
+func TestBalancedRoleModelProfile_RoutesEveryMatrixRoleExactlyPerFamily(t *testing.T) {
 	t.Parallel()
 
 	for _, family := range RoleModelFamilies() {
@@ -74,7 +70,7 @@ func TestBalancedRoleModelProfile_RoutesSeventeenAgentsExactlyPerFamily(t *testi
 			want := balancedRoutesByFamily(family)
 			require.NoError(t, ValidateOMPAgentRoleSet(roleModelOverrideAgents(profile.Agents)),
 				"balanced must route exactly the canonical agent set")
-			require.Len(t, want, len(CanonicalAgentNames())+len(legacyAgentNames))
+			require.Len(t, want, len(CanonicalAgentNames())+len(dispatchedLegacyRoles))
 			for agent, candidate := range want {
 				candidates, err := profile.AgentCandidates(agent)
 				require.NoError(t, err, agent)
@@ -84,29 +80,16 @@ func TestBalancedRoleModelProfile_RoutesSeventeenAgentsExactlyPerFamily(t *testi
 	}
 }
 
-// The rung a debugging or deep-context session lands on is a decision the user
-// made explicitly: both run the highest model at maximum thinking, in either
-// family, and never the implementation rung their capability shares.
-func TestBalancedRoleModelProfile_DebuggerAndDeepWorkerTakeTheHighestModel(t *testing.T) {
+// Roles nothing dispatches any more carry no row in either family's profile.
+func TestBalancedRoleModelProfile_RetiredRolesHaveNoRow(t *testing.T) {
 	t.Parallel()
 
-	anthropic, ok := BuiltinRoleModelProfile("balanced", QualityConf{}, "anthropic", "")
-	require.True(t, ok)
-	openai, ok := BuiltinRoleModelProfile("balanced", QualityConf{}, "openai", "")
-	require.True(t, ok)
-
-	for _, agent := range []string{"debugger", "deep-worker"} {
-		claude, err := anthropic.AgentCandidates(agent)
-		require.NoError(t, err, agent)
-		assert.Equal(t, []RoleModelCandidateConf{
-			builtinCandidate("anthropic/"+ClaudeOpusModel, "max", "anthropic"),
-		}, claude, agent)
-
-		codex, err := openai.AgentCandidates(agent)
-		require.NoError(t, err, agent)
-		assert.Equal(t, []RoleModelCandidateConf{
-			builtinCandidate("openai-codex/"+CodexAstraModel, "max", "openai"),
-		}, codex, agent)
+	for _, family := range RoleModelFamilies() {
+		profile, ok := BuiltinRoleModelProfile("balanced", QualityConf{}, family, "")
+		require.True(t, ok, family)
+		for _, agent := range undispatchedLegacyRoles {
+			assert.NotContains(t, profile.Agents, agent, family)
+		}
 	}
 }
 

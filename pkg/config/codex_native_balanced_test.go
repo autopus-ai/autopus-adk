@@ -11,18 +11,12 @@ import (
 // balanced role matrix: the seven reasoning-core roles anchor on Astra and the
 // nine execution roles on Luna, both at max.
 var nativeBalancedCodexPlacement = map[string]CodexProfile{
-	"architect":        {Model: CodexAstraModel, Effort: CodexEffortMax},
-	"debugger":         {Model: CodexAstraModel, Effort: CodexEffortMax},
-	"deep-worker":      {Model: CodexAstraModel, Effort: CodexEffortMax},
 	"planner":          {Model: CodexAstraModel, Effort: CodexEffortMax},
 	"reviewer":         {Model: CodexAstraModel, Effort: CodexEffortMax},
 	"security-auditor": {Model: CodexAstraModel, Effort: CodexEffortMax},
-	"spec-writer":      {Model: CodexAstraModel, Effort: CodexEffortMax},
 
-	"devops":              {Model: CodexLunaModel, Effort: CodexEffortMax},
 	"executor":            {Model: CodexLunaModel, Effort: CodexEffortMax},
 	"frontend-specialist": {Model: CodexLunaModel, Effort: CodexEffortMax},
-	"perf-engineer":       {Model: CodexLunaModel, Effort: CodexEffortMax},
 	"tester":              {Model: CodexLunaModel, Effort: CodexEffortMax},
 
 	"annotator":    {Model: CodexLunaModel, Effort: CodexEffortMax},
@@ -58,8 +52,6 @@ func TestCodexAgentProfileNativeBalancedFoldsWorkflowRoleSpelling(t *testing.T) 
 
 	assert.Equal(t, nativeBalancedCodexPlacement["security-auditor"],
 		quality.CodexAgentProfile("security_auditor", "opus", CodexEffortMax))
-	assert.Equal(t, nativeBalancedCodexPlacement["deep-worker"],
-		quality.CodexAgentProfile("deep_worker", "opus", CodexEffortMax))
 	assert.Equal(t, nativeBalancedCodexPlacement["frontend-specialist"],
 		quality.CodexAgentProfile("frontend_specialist", "sonnet", CodexEffortMedium))
 }

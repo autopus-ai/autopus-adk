@@ -185,8 +185,8 @@ func TestNativeBalancedAgentCandidate_ExplicitEffortLeavesTheStandardPlacement(t
 	for _, provider := range []string{QualityProviderClaude, QualityProviderCodex} {
 		_, standard := q.NativeBalancedAgentCandidate(provider, "planner")
 		assert.False(t, standard, "%s planner", provider)
-		_, standard = q.NativeBalancedAgentCandidate(provider, "architect")
-		assert.True(t, standard, "%s architect", provider)
+		_, standard = q.NativeBalancedAgentCandidate(provider, "security-auditor")
+		assert.True(t, standard, "%s security-auditor", provider)
 	}
 	assert.Equal(t, "opus", q.EffectiveAgentTier("planner", "opus"), "the written tier")
 }
@@ -202,10 +202,10 @@ func TestClaudeAndCodexAgentProfile_B1PlannerAtHigh(t *testing.T) {
 
 	model, effort := q.ClaudeAgentProfile("planner", "opus")
 	assert.Equal(t, []string{ClaudeOpusModel, "high"}, []string{model, effort})
-	model, effort = q.ClaudeAgentProfile("architect", "opus")
+	model, effort = q.ClaudeAgentProfile("security-auditor", "opus")
 	assert.Equal(t, []string{ClaudeOpusModel, "max"}, []string{model, effort})
 	assert.Equal(t, CodexProfile{Model: CodexAstraModel, Effort: "high"}, q.CodexAgentProfile("planner", "opus", "max"))
-	assert.Equal(t, CodexProfile{Model: CodexAstraModel, Effort: "max"}, q.CodexAgentProfile("architect", "opus", "max"))
+	assert.Equal(t, CodexProfile{Model: CodexAstraModel, Effort: "max"}, q.CodexAgentProfile("security-auditor", "opus", "max"))
 }
 
 // S2 (B2): claude-custom with executor on opus at xhigh and annotator on

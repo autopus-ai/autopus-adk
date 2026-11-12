@@ -15,7 +15,7 @@ import (
 // provider.
 var reviewDocWants = []string{
 	"spec.review_gate.providers", "orchestra.providers.<p>.model", "spec.review_gate.judge",
-	"3n", "CLI backend", "auto spec review --multi", "brainstorm",
+	"3n", "CLI backend", "auto spec review --multi", "secure",
 }
 
 func TestReviewDocs_S14HelpsReadmesAndChangelog(t *testing.T) {

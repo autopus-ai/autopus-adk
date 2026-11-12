@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strings"
 
 	"github.com/charmbracelet/huh"
 )
@@ -23,6 +24,9 @@ type InitWizardOpts struct {
 	Providers       []string // detected orchestra providers
 	ExistingProfile string   // pre-set profile; non-empty skips the profile step
 	Rea             *bool    // pre-set from --rea/--no-rea or an existing decision; non-nil skips the REA step
+	// QualityLabels is the quality step's line per preset (ultra, balanced),
+	// naming the tier each agent gets; a missing line names the preset only.
+	QualityLabels map[string]string
 
 	Runner NavRunner         // runs each step's form; nil runs RunNav on the terminal (SPEC-TUIUX-001)
 	Resume *InitWizardResult // non-nil starts at the last step with these answers (SPEC-TUIUX-001)
@@ -99,7 +103,7 @@ func buildStepList(opts InitWizardOpts) []stepBuilder {
 
 	if opts.Quality == "" {
 		entries = append(entries, entry{"quality", func(idx, total int, r *InitWizardResult) *huh.Form {
-			return buildQualityStep(idx, total, r)
+			return buildQualityStep(idx, total, r, opts.QualityLabels)
 		}})
 	}
 
@@ -160,41 +164,63 @@ func buildLangStep(num, total int, r *InitWizardResult) *huh.Form {
 const QualityRoleGroups = "role-groups"
 
 // buildQualityStep creates the quality mode selection step.
-func buildQualityStep(num, total int, r *InitWizardResult) *huh.Form {
+func buildQualityStep(num, total int, r *InitWizardResult, labels map[string]string) *huh.Form {
 	title := fmt.Sprintf("[%d/%d] Quality Mode", num, total)
 
 	return huh.NewForm(
 		huh.NewGroup(
 			huh.NewSelect[string]().
 				Title(title).
-				Options(qualityOptions(DetectSystemLang())...).
+				Options(qualityOptions(DetectSystemLang(), labels)...).
 				Value(&r.Quality),
 		),
 	).WithTheme(AutopusTheme()).WithWidth(bannerWidth + 10)
 }
 
-// qualityOptions lists the quality step's choices. The role-group label is
-// Korean for ko and English for every other locale, as the composition step
-// that follows it is.
-func qualityOptions(lang string) []huh.Option[string] {
+// qualityOptions lists the quality step's choices. labels holds the caller's
+// line for each preset, naming the tier it sets per agent; a preset without
+// one is named only. The role-group label is Korean for ko and English for
+// every other locale, as the composition step that follows it is.
+func qualityOptions(lang string, labels map[string]string) []huh.Option[string] {
 	roleGroups := "Compose by role — choose a tier for each role group"
 	if lang == "ko" {
 		roleGroups = "역할별 직접 구성 — 역할 그룹마다 등급을 고릅니다"
 	}
+	label := func(preset, name string) string {
+		if line := labels[preset]; line != "" {
+			return line
+		}
+		return name
+	}
 	return []huh.Option[string]{
-		huh.NewOption("Ultra — strict review, high coverage", "ultra"),
-		huh.NewOption("Balanced — pragmatic defaults", "balanced"),
+		huh.NewOption(label("ultra", "Ultra"), "ultra"),
+		huh.NewOption(label("balanced", "Balanced"), "balanced"),
 		huh.NewOption(roleGroups, QualityRoleGroups),
+	}
+}
+
+// knownReviewCLIs names the review CLIs init looks for, as the no-CLI line
+// lists them.
+const knownReviewCLIs = "claude, codex, agy"
+
+// reviewGateDescription says what the review gate enables, review by every
+// detected CLI on its own, and which CLIs init found.
+func reviewGateDescription(providers []string) string {
+	const lead = "Multi-CLI review: each detected review CLI reviews independently. "
+	switch len(providers) {
+	case 0:
+		return lead + "No review CLI detected (" + knownReviewCLIs + ") — enable anyway?"
+	case 1:
+		return lead + "Detected: " + providers[0] + " (2 or more needed) — enable anyway?"
+	default:
+		return lead + "Detected: " + strings.Join(providers, ", ") + " — enable?"
 	}
 }
 
 // buildReviewGateStep creates the review gate confirmation step.
 func buildReviewGateStep(num, total int, r *InitWizardResult, opts InitWizardOpts) *huh.Form {
 	title := fmt.Sprintf("[%d/%d] Review Gate", num, total)
-	desc := "Require human review before merging"
-	if len(opts.Providers) > 0 {
-		desc = fmt.Sprintf("Providers detected: %d — enable review gate?", len(opts.Providers))
-	}
+	desc := reviewGateDescription(opts.Providers)
 
 	return huh.NewForm(
 		huh.NewGroup(

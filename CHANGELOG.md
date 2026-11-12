@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **모델 선택 화면에서 은퇴한 역할·명령을 걷어내고 문구를 사실대로 고친다** (2026-11-12): `auto init`의 Quality
+  Mode 선택지는 이제 각 preset이 4개 에이전트에 주는 tier를 설정에서 읽어 보여 준다(예: `Balanced — reviewer,
+  qa-explorer: opus · frontend-specialist, ux-validator: sonnet`). 예전 "strict review, high coverage"는 preset이
+  하지 않는 일이었다. Review Gate 단계는 "Require human review before merging" 대신 여러 CLI 리뷰를 켠다고 말하고
+  감지한 CLI를 보여 준다. balanced 설명의 "UX 검증은 경량 모델"은 사실(Sonnet)대로 고쳤다. `orchestra.commands`
+  기본값에서 은퇴한 `plan`·`brainstorm`을 뺐다. 두 명령은 그대로 돌고, brainstorm은 설정이 없어도 debate를 쓴다.
+  `auto update`는 ADK가 쓴 값 그대로 남은 두 항목만 지우고 한 줄로 알린다. 리뷰 탭에서 끈 provider는 orchestra
+  review·secure와 `auto spec review --multi`에서 계속 돈다. OMP 역할-모델 표와 balanced rung 표에서는 아무도 부르지
+  않는 여섯 역할(architect, debugger, deep-worker, devops, perf-engineer, spec-writer)을 뺐다. 그 이름으로 쓴
+  `role_model_policy` 핀은 task(planner 행)로 해석돼 계속 유효하다.
+
 - **릴리즈 좌표 이동을 측정 한 번과 적용 한 번으로 끝낸다** (2026-11-11): A44, A45, A46 이동은 매번 한 시간쯤
   손으로 고쳤다. `advance-release-coordinate.sh`가 바꾸는 파일은 replace 대상 16개와 receipt 표뿐이었고, 나머지 26개 파일
   (validate-source.sh의 phase 행과 ancestor 핀, 계보 선언 핀 11개와 분기, phase 목록, upgrade canary·preflight·

@@ -82,7 +82,7 @@ func TestReviewTab_S1TurnOffChangesTheReviewListOnly(t *testing.T) {
 	assert.Contains(t, run.out, reviewTabR3)
 	assert.Contains(t, run.out, "gemini 리뷰 참여 \n"+reviewKeepOn)
 	assert.Contains(t, run.out, "바뀌는 설정:\n  spec.review_gate.providers [claude, codex, gemini] → [claude, codex]\n"+
-		"꺼진 provider도 orchestra 명령(brainstorm·plan·review·secure)과 auto spec review --multi에서는 계속 돕니다\n확인 호출 \n")
+		"꺼진 provider도 orchestra 명령(review·secure)과 auto spec review --multi에서는 계속 돕니다\n확인 호출 \n")
 	assert.NotContains(t, run.out, "gemini model")
 	assert.Contains(t, run.out, "구성을 적용했습니다.\n")
 	assert.Len(t, reviewFileDiff(t, before, readReviewFile(t, dir)), 1)
@@ -93,7 +93,7 @@ func TestReviewTab_S1TurnOffChangesTheReviewListOnly(t *testing.T) {
 	loaded := reviewLoaderValue(t, dir)
 	assert.Equal(t, []string{"claude", "codex"}, loaded.Spec.ReviewGate.Providers)
 	assert.Equal(t, "claude", loaded.Spec.ReviewGate.Judge)
-	for _, command := range []string{"brainstorm", "plan", "review", "secure"} {
+	for _, command := range []string{"review", "secure"} {
 		assert.Equal(t, []string{"claude", "codex", "gemini"}, loaded.Orchestra.Commands[command].Providers, command)
 	}
 	names, _ := selectSpecReviewProviderNames(loaded, nil, false)

@@ -34,24 +34,19 @@ var ompNativeThinkingLevels = map[string]struct{}{
 }
 
 // capabilityBySourceAgent is the SPEC-OMP-005 Policy Contract: every generated
-// agent owns exactly one provider-neutral capability and one role derived by
-// OMPAgentRoleName.
+// agent, and every legacy role the binary still dispatches
+// (dispatchedLegacyRoles), owns exactly one provider-neutral capability and
+// one role derived by OMPAgentRoleName.
 var capabilityBySourceAgent = map[string]string{
 	"annotator":           CapabilityFastValidation,
-	"architect":           CapabilityDeepReasoning,
-	"debugger":            CapabilityCodingToolUse,
-	"deep-worker":         CapabilityCodingToolUse,
-	"devops":              CapabilityCodingToolUse,
 	"executor":            CapabilityCodingToolUse,
 	"explorer":            CapabilityFastValidation,
 	"frontend-specialist": CapabilityVisionDesign,
-	"perf-engineer":       CapabilityCodingToolUse,
 	"planner":             CapabilityDeepReasoning,
 	"qa-explorer":         CapabilityIndependentDissent,
 	"reverse-engineer":    CapabilityDeepReasoning,
 	"reviewer":            CapabilityIndependentDissent,
 	"security-auditor":    CapabilityIndependentDissent,
-	"spec-writer":         CapabilityDeepReasoning,
 	"tester":              CapabilityCodingToolUse,
 	"ux-validator":        CapabilityVisionDesign,
 	"validator":           CapabilityDeterministicTransform,
@@ -177,7 +172,7 @@ func ValidateRoleCapabilityPair(role, capability string) error {
 	return nil
 }
 
-// ValidateOMPAgentRoleSet requires exact equality with the 17 generated agents.
+// ValidateOMPAgentRoleSet requires exact equality with the matrix roles.
 func ValidateOMPAgentRoleSet(agents []string) error {
 	seen := make(map[string]bool, len(agents))
 	for _, agent := range agents {

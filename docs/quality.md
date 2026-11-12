@@ -211,8 +211,8 @@ effort as written, and the judge. The tab sets:
   (`backend: omp` and `model`);
 - the judge (`spec.review_gate.judge`), and optionally the judge's own model.
 
-Turning a provider off changes only `auto spec review`: orchestra commands (brainstorm, plan,
-review, secure) and `auto spec review --multi` keep every provider. An optional live check sends
+Turning a provider off changes only `auto spec review`: orchestra commands (review,
+secure) and `auto spec review --multi` keep every provider. An optional live check sends
 one request to each of n review providers (at most 3n model calls with retries) and writes
 nothing. The preview shows changed CLI values as written and never other args; a value taken from
 `${NAME}` is left alone. Only the changed values are rewritten, so comments and layout stay.
