@@ -59,7 +59,7 @@ func TestComposeLabels_AllToolsGroupOptionsNameEachToolsCells(t *testing.T) {
 		"fable — Claude Code: fable-5-1 · max | Codex: 6-astra · max",
 		"opus — Claude Code: opus-5-5 · high | Codex: 6.1-sol · xhigh",
 		"sonnet — Claude Code: sonnet-5-5 · max | Codex: 6-luna · max",
-		"haiku — Claude Code: haiku-4-5 · - | Codex: 6-luna · medium",
+		"haiku — Claude Code: haiku-5-5 · - | Codex: 6-luna · medium",
 	}, composeOptionLabels(options))
 	assert.Equal(t, []string{"", "fable", "opus", "sonnet", "haiku"}, composeOptionValues(options))
 }
@@ -101,7 +101,7 @@ func TestComposeLabels_ClaudeToolAgentListAndValues(t *testing.T) {
 		"fable-5-1 · max  [fable]",
 		"opus-5-5 · high  [opus]",
 		"sonnet-5-5 · max  [sonnet]",
-		"haiku-4-5 · -  [haiku]",
+		"haiku-5-5 · -  [haiku]",
 	}, composeOptionLabels(labeler.agentOptions(working, "frontend-specialist", "그대로")))
 
 	working["frontend-specialist"] = "opus"

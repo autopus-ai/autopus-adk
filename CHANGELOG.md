@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **Claude haiku 등급을 Haiku 5.5로 올리고 effort를 받게 한다** (2026-11-12): haiku 등급의 모델은
+  `claude-haiku-4-5`에서 현행 `claude-haiku-5-5`로 바뀐다. Haiku 5.5는 effort `low`~`max`를 받으므로 haiku
+  에이전트도 Claude Code effort Select에 나오고, 고른 effort는 에이전트 파일의 `effort:` 줄로 쓰인다. 리뷰 탭과
+  `auto quality review model claude claude-haiku-5-5`, judge 모델도 effort를 유지한다. 고르지 않으면 지금처럼
+  effort 줄을 쓰지 않아 모델 기본값(medium)을 따른다. `claude-haiku-4-5`를 직접 지정하면 예전처럼 effort를 뺀다.
+  비용 추정 단가는 Haiku 5.5 기준(100K 토큰 이하 $0.10/$0.50 per MTok)이다.
+
 - **모델 선택 화면에서 은퇴한 역할·명령을 걷어내고 문구를 사실대로 고친다** (2026-11-12): `auto init`의 Quality
   Mode 선택지는 이제 각 preset이 4개 에이전트에 주는 tier를 설정에서 읽어 보여 준다(예: `Balanced — reviewer,
   qa-explorer: opus · frontend-specialist, ux-validator: sonnet`). 예전 "strict review, high coverage"는 preset이

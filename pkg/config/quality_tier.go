@@ -8,7 +8,7 @@ const (
 	ClaudeFableModel  = "claude-fable-5-1"
 	ClaudeOpusModel   = "claude-opus-5-5"
 	ClaudeSonnetModel = "claude-sonnet-5-5"
-	ClaudeHaikuModel  = "claude-haiku-4-5"
+	ClaudeHaikuModel  = "claude-haiku-5-5"
 )
 
 // canonicalAgentNames lists the generated source agents in stable order. This

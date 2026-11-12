@@ -16,7 +16,7 @@ const initCmdLong = "코딩 CLI에 Autopus 하네스를 설치합니다. autopus
 	"정하고 init이 파일 생성 때 함께 씁니다. OMP catalog를 읽지 못하면 안내 뒤 init을 계속합니다. 폼에서 Ctrl+C는\n" +
 	"init cancelled.를 쓰고 아무 파일도 만들지 않습니다. 파이프나 스크립트 입력은 줄 질문 그대로입니다.\n\n" +
 	"Claude Code·Codex 탭은 등급 Select마다 그 도구의 effort Select를 이어 묻습니다(기본 그대로, Claude는 haiku\n" +
-	"에이전트 제외, Codex는 catalog가 보고하는 단계만). 자동과 다른 effort는 quality.presets.<provider>-custom.efforts에\n" +
+	"에이전트 포함, Codex는 catalog가 보고하는 단계만). 자동과 다른 effort는 quality.presets.<provider>-custom.efforts에\n" +
 	"넣고, 이 key가 있는 파일은 v0.50.127보다 오래된 auto가 읽지 못합니다. omp를 고르면 Autopus 에이전트 4개를\n" +
 	".omp/agents에 만들고 task를 뺀 OMP 기본 에이전트(scout·security-reviewer·sonic·designer·librarian·seance)를\n" +
 	"task.disabledAgents로 끕니다. 프로필이 없으면 세션 모델을 상속합니다. role_model_policy.agent_source: native는\n" +

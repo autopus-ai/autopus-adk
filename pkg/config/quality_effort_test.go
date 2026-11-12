@@ -209,9 +209,9 @@ func TestClaudeAndCodexAgentProfile_B1PlannerAtHigh(t *testing.T) {
 }
 
 // S2 (B2): claude-custom with executor on opus at xhigh and annotator on
-// haiku at high. Claude writes no effort for haiku; Codex, which follows
+// haiku at high. Haiku 5.5 takes the chosen effort; Codex, which follows
 // balanced, is untouched by claude-custom.
-func TestClaudeAndCodexAgentProfile_B2HaikuTakesNoClaudeEffort(t *testing.T) {
+func TestClaudeAndCodexAgentProfile_B2HaikuTakesClaudeEffort(t *testing.T) {
 	t.Parallel()
 	q := DefaultFullConfig("p").Quality
 	custom := withComposeD(q.Presets["balanced"].Agents)
@@ -222,7 +222,7 @@ func TestClaudeAndCodexAgentProfile_B2HaikuTakesNoClaudeEffort(t *testing.T) {
 	model, effort := q.ClaudeAgentProfile("executor", "sonnet")
 	assert.Equal(t, []string{"opus", "xhigh"}, []string{model, effort})
 	model, effort = q.ClaudeAgentProfile("annotator", "sonnet")
-	assert.Equal(t, []string{"haiku", ""}, []string{model, effort})
+	assert.Equal(t, []string{"haiku", "high"}, []string{model, effort})
 	model, effort = q.ClaudeAgentProfile("planner", "opus")
 	assert.Equal(t, []string{ClaudeOpusModel, "max"}, []string{model, effort}, "an agent without an effort keeps the top-rung automatic one")
 	assert.Equal(t, CodexProfile{Model: CodexLunaModel, Effort: "max"}, q.CodexAgentProfile("executor", "sonnet", "medium"))

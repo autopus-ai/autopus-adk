@@ -49,8 +49,8 @@ func TestQualityEffortApply_B1ReviewerAtHigh(t *testing.T) {
 }
 
 // B2: claude-custom with frontend-specialist on opus at xhigh and
-// ux-validator on haiku at high: the haiku agent writes no effort line.
-func TestQualityEffortApply_B2HaikuWritesNoEffortLine(t *testing.T) {
+// ux-validator on haiku at high: Haiku 5.5 writes its effort line too.
+func TestQualityEffortApply_B2HaikuWritesItsEffortLine(t *testing.T) {
 	cfg := composeFixtureConfig("claude-code", "codex")
 	agents := maps.Clone(cfg.Quality.Presets["balanced"].Agents)
 	agents["frontend-specialist"], agents["ux-validator"] = "opus", "haiku"
@@ -64,8 +64,8 @@ func TestQualityEffortApply_B2HaikuWritesNoEffortLine(t *testing.T) {
 	dir := applyEffortFixture(t, cfg)
 
 	assert.Equal(t, composeTableClaudeCell{model: "opus", effort: "xhigh"}, readComposeTableClaudeProfile(t, dir, "frontend-specialist"))
-	assert.Equal(t, composeTableClaudeCell{model: "haiku"}, readComposeTableClaudeProfile(t, dir, "ux-validator"))
+	assert.Equal(t, composeTableClaudeCell{model: "haiku", effort: "high"}, readComposeTableClaudeProfile(t, dir, "ux-validator"))
 	data, err := os.ReadFile(filepath.Join(dir, ".claude", "agents", "autopus", "ux-validator.md"))
 	require.NoError(t, err)
-	assert.NotContains(t, string(data), "\neffort:")
+	assert.Contains(t, string(data), "\nmodel: haiku\neffort: high\n")
 }

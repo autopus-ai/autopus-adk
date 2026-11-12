@@ -15,7 +15,7 @@ const (
 	EffortXHigh EffortValue = "xhigh"
 	// EffortMax is the strongest Claude Code tier for Fable and max-capable Opus models.
 	EffortMax EffortValue = "max"
-	// EffortStripped signals that effort must be omitted (Haiku 4.5).
+	// EffortStripped signals that effort must be omitted (Haiku 4.5; Haiku 5.5 takes effort).
 	EffortStripped EffortValue = ""
 )
 

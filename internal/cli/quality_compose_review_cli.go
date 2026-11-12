@@ -24,7 +24,7 @@ func reviewArgsRowFor(binary string) reviewArgsRow {
 }
 
 // reviewCLIModel is one model a CLI row offers: the value written, the
-// efforts it takes (none for haiku and for agy ids, which carry theirs), and
+// efforts it takes (none for agy ids, which carry theirs), and
 // for agy the group it belongs to and its display name.
 type reviewCLIModel struct {
 	ID      string
@@ -35,15 +35,11 @@ type reviewCLIModel struct {
 }
 
 // reviewClaudeModels is the claude row: the Claude tab's model of every tier,
-// with the low–max efforts for every model but haiku (REQ-RVM-21).
+// with the low–max efforts for every model, Haiku 5.5 included (REQ-RVM-21).
 func reviewClaudeModels() []reviewCLIModel {
 	models := make([]reviewCLIModel, 0, 4)
 	for _, tier := range []string{"fable", "opus", "sonnet", "haiku"} {
-		model := reviewCLIModel{ID: config.ClaudeModelForTier(tier)}
-		if tier != "haiku" {
-			model.Efforts = config.QualityEfforts()
-		}
-		models = append(models, model)
+		models = append(models, reviewCLIModel{ID: config.ClaudeModelForTier(tier), Efforts: config.QualityEfforts()})
 	}
 	return models
 }

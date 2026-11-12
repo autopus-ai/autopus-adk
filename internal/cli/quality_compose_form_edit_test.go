@@ -44,7 +44,7 @@ func TestComposeForms_AllToolsGroupEditBindsCustom(t *testing.T) {
 		"2. fable — Claude Code: fable-5-1 · max | Codex: 6-astra · max\n"+
 		"3. opus — Claude Code: opus-5-5 · high | Codex: 6.1-sol · xhigh\n"+
 		"4. sonnet — Claude Code: sonnet-5-5 · max | Codex: 6-luna · max\n"+
-		"5. haiku — Claude Code: haiku-4-5 · - | Codex: 6-luna · medium\n")
+		"5. haiku — Claude Code: haiku-5-5 · - | Codex: 6-luna · medium\n")
 	assert.Equal(t, 3, composeFormMarks(t, out, "Claude Code"))
 	assert.Equal(t, 1, composeFormMarks(t, out, "Codex"))
 	assert.Contains(t, out, "바뀌는 설정:\n"+
@@ -80,7 +80,7 @@ func TestComposeForms_ClaudeAgentEditBindsClaudeCustom(t *testing.T) {
 	assert.Contains(t, lists[1], "3. reviewer — opus-5-5 · max\n")
 	assert.Contains(t, lists[1], "5. ux-validator — sonnet-5-5 · high\n")
 	assert.Contains(t, out, "1. 그대로 — sonnet-5-5 · max\n2. fable-5-1 · max  [fable]\n"+
-		"3. opus-5-5 · high  [opus]\n4. sonnet-5-5 · max  [sonnet]\n5. haiku-4-5 · -  [haiku]\n")
+		"3. opus-5-5 · high  [opus]\n4. sonnet-5-5 · max  [sonnet]\n5. haiku-5-5 · -  [haiku]\n")
 	assert.Contains(t, lists[2], "2. frontend-specialist — opus-5-5 · high\n")
 	assert.Contains(t, lists[2], "5. ux-validator — sonnet-5-5 · medium\n")
 	// reviewer keeps the top-rung cell under claude-custom.
