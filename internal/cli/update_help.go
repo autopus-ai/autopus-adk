@@ -10,8 +10,13 @@ const updateCmdLong = "설치된 하네스 파일을 업데이트합니다.\n\n"
 	"    덮어쓰기 전 원본은 .autopus/backup/<timestamp>/transaction/<platform>/<경로>에 복사됩니다.\n" +
 	"  - 사용자가 삭제한 생성 파일: 다시 만들지 않고 건너뜁니다.\n\n" +
 	"--preview(--plan/--dry-run)로 변경 예정 파일과 각 파일의 처리 방식을 먼저 확인할 수 있습니다.\n\n" +
-	"에이전트 모델 구성: 대화형 터미널에서는 프로젝트 설정 질문 뒤, 플랫폼 파일 생성 전에 에이전트×플랫폼\n" +
-	"표와 프리셋 상태를 보여 주고 매번 \"구성을 바꿀까요?\"를 묻습니다. Enter, 입력 끝, 잘못된 답 3번은\n" +
+	"에이전트 모델 구성: 대화형 터미널의 update는 기본으로 바뀐 모델 기본값만 보이고 한 번 묻습니다. 예를 들어\n" +
+	"\"claude 리뷰 model claude-opus-5-5 · max → claude-fable-5-1 · max (preset의 reviewer model)\"이나 ADK가 쓴\n" +
+	"orchestra review provider 목록을 review gate 목록(spec.review_gate.providers)으로 바꾸는 줄이 나오고, 적용을\n" +
+	"골라야만 그 값만 바꿔 씁니다. 직접 고른 model과 목록은 줄에 나오지 않습니다. 바뀐 것이 없으면 묻지 않습니다.\n" +
+	"--yes·CI·TTY가 아닌 입력은 같은 줄을 안내로만 씁니다. 아래의 전체 편집 화면은 --configure-models로 엽니다.\n\n" +
+	"--configure-models: 프로젝트 설정 질문 뒤, 플랫폼 파일 생성 전에 에이전트×플랫폼\n" +
+	"표와 프리셋 상태를 보여 주고 \"구성을 바꿀까요?\"를 묻습니다. Enter, 입력 끝, 잘못된 답 3번은\n" +
 	"autopus.yaml을 그대로 둡니다. u는 이전 버전 기본 프리셋 갱신, g는 역할 그룹 2개, a는 에이전트별 등급이고\n" +
 	"(auto quality --help), 바뀐 칸에 *가 붙은 미리보기를 y로 확인해야만 쓰며 같은 실행의 생성 파일이 그 미리보기와\n" +
 	"같습니다. --yes(-y), --auto, --check, CI(비어 있지 않고 0·false가 아닌 값), TTY가 아닌 입력, --workspace는\n" +
@@ -54,7 +59,7 @@ const updateCmdLong = "설치된 하네스 파일을 업데이트합니다.\n\n"
 	"id(--model)를 고르고 args에서는 그 값만 바뀝니다. omp가 그 family의 model을 증명하면 모든 CLI provider를 OMP\n" +
 	"backend로 전환할 수 있습니다(backend: omp와 model). 미리보기는 바뀐 CLI 값만 autopus.yaml 글자로 보이고 다른 args는 보이지\n" +
 	"않으며, ${NAME}에서 오는 값은 바꾸지 않습니다. 그 값만 바꿔 써서 주석과 서식이 그대로입니다. 끈 provider도\n" +
-	"orchestra 명령(review·secure)과 auto spec review --multi에서는 계속 돕니다. 확인 호출을 고르면\n" +
+	"orchestra secure와 auto spec review --multi에서는 계속 돕니다. 확인 호출을 고르면\n" +
 	"provider n개에 요청 1회씩(재시도 포함 최대 3n회 model 호출) 보내고 결과 줄만 쓰며 아무것도 저장하지 않습니다. 탭을\n" +
 	"적용하거나 취소하면 그 결과 줄이 다시 그린 표의 요약 줄 아래에 한 번 더 나옵니다. 탭이 없는 실행(--yes, TTY가 아닌\n" +
 	"입력, CI 등)은 이 탭이 나올 설정이면 리뷰 model을 바꾸는 곳(터미널의 auto quality, 또는 auto quality review model\n" +

@@ -19,6 +19,9 @@ type composeFormOptions struct {
 	// BackOut makes Esc on the menu leave the step with tui.ErrNavBack, as
 	// init's goes back to its wizard; otherwise the menu is a first form.
 	BackOut bool
+	// NoReviewTab leaves the review tab out of the tool tab, for init, whose
+	// reviewer step asks it after every quality choice.
+	NoReviewTab bool
 }
 
 // composeFormChoice is one menu choice.

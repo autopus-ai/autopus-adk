@@ -236,7 +236,7 @@ func TestWizardAnswerLines_StepsTheWizardAsked(t *testing.T) {
 	w.Quality = tui.QualityRoleGroups
 	opts := tui.InitWizardOpts{ExistingProfile: "developer", NoReviewGate: true, Platforms: []string{"opencode"}}
 	assert.Equal(t, []string{
-		"  Language Settings: comments en · commits ko · AI responses ko", "  Quality Mode: Compose by role", "  Methodology: TDD",
+		"  Language Settings: comments en · commits ko · AI responses ko", "  Quality Mode: Advanced", "  Methodology: TDD",
 	}, tui.WizardAnswerLines(opts, w, "en"))
 }
 

@@ -142,7 +142,9 @@ func DefaultFullConfig(projectName string) *HarnessConfig {
 				"codex":  DefaultCodexProviderEntry(),
 			},
 			Commands: map[string]CommandEntry{
-				"review": {Strategy: "debate", Providers: []string{"claude", "codex", "gemini"}},
+				// review names no providers: it reviews with the review gate's
+				// list (spec.review_gate.providers), the one review list.
+				"review": {Strategy: "debate"},
 				"secure": {Strategy: "consensus", Providers: []string{"claude", "codex", "gemini"}},
 			},
 		},

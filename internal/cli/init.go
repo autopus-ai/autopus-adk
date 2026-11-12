@@ -145,6 +145,8 @@ func newInitCmd() *cobra.Command {
 				if quality != "" {
 					cfg.Quality.Default = quality
 				}
+				// The claude review model follows the preset's reviewer.
+				config.ApplyClaudeReviewFollow(cfg)
 				if noReviewGate {
 					cfg.Spec.ReviewGate.Enabled = false
 				} else {

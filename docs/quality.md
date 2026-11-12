@@ -194,6 +194,25 @@ auto platform omp explain
 separate from the agent presets: `auto quality show` names the claude review provider model on
 its own line.
 
+Multi-CLI review keeps one source of truth:
+
+| What | Key |
+|------|-----|
+| a review CLI's model and effort | `orchestra.providers.<p>` (args, `model`, `backend`) |
+| which CLIs review | `spec.review_gate.providers` |
+| who judges | `spec.review_gate.judge` (plus `judge_model`, `judge_effort`) |
+
+`auto orchestra review` and `auto spec review` both read the review gate's list and judge. A
+fresh config writes no `orchestra.commands.review.providers`; one you write is an explicit
+override, and `orchestra.judge` stays the judge of the other orchestra commands. `auto update`
+offers to drop a review list ADK wrote (the shipped list or every provider) so review follows
+the review gate.
+
+The claude review provider defaults to the reviewer agent's model under the chosen preset:
+balanced reviews on `claude-opus-5-5`, ultra on `claude-fable-5-1`, both at `max`. `auto init`
+sets it with the preset; `auto update` offers the move when the preset changed. A model you
+chose yourself is never moved.
+
 The **Multi-provider review** tab ends the tool tab while `spec.review_gate.enabled` is true,
 autopus.yaml holds at least two `orchestra.providers` entries, and `CI` is not set
 (SPEC-REVMODEL-001). A summary line under the table names each review provider with its model and
@@ -211,8 +230,8 @@ effort as written, and the judge. The tab sets:
   (`backend: omp` and `model`);
 - the judge (`spec.review_gate.judge`), and optionally the judge's own model.
 
-Turning a provider off changes only `auto spec review`: orchestra commands (review,
-secure) and `auto spec review --multi` keep every provider. An optional live check sends
+Turning a provider off changes `auto spec review` and `auto orchestra review`: orchestra
+secure and `auto spec review --multi` keep every provider. An optional live check sends
 one request to each of n review providers (at most 3n model calls with retries) and writes
 nothing. The preview shows changed CLI values as written and never other args; a value taken from
 `${NAME}` is left alone. Only the changed values are rewritten, so comments and layout stay.

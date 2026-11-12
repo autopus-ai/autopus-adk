@@ -194,6 +194,12 @@ func TestDefaultFullConfig_AllCommandsIncludeCodex(t *testing.T) {
 	cfg := DefaultFullConfig("test-project")
 
 	for cmdName, cmd := range cfg.Orchestra.Commands {
+		if cmdName == "review" {
+			// review takes the review gate's list, which names codex.
+			assert.Empty(t, cmd.Providers)
+			assert.Contains(t, cfg.Spec.ReviewGate.Providers, "codex")
+			continue
+		}
 		assert.Contains(t, cmd.Providers, "codex",
 			"command %q must include codex in providers", cmdName)
 		assert.NotContains(t, cmd.Providers, "opencode",

@@ -107,7 +107,15 @@ func (r composeUpdateRun) adapterProbed(t *testing.T) bool {
 }
 
 // runComposeUpdate executes the real root command with in as its input.
+// The composition tests drive the full editor, which an interactive update
+// opens only with --configure-models; runDefaultUpdate runs without it.
 func runComposeUpdate(t *testing.T, in io.Reader, args ...string) (string, error) {
+	t.Helper()
+	return runDefaultUpdate(t, in, append([]string{"--configure-models"}, args...)...)
+}
+
+// runDefaultUpdate executes `auto update` with args as given.
+func runDefaultUpdate(t *testing.T, in io.Reader, args ...string) (string, error) {
 	t.Helper()
 	root := NewRootCmd()
 	var out bytes.Buffer

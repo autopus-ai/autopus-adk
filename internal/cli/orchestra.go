@@ -84,6 +84,10 @@ func runOrchestraCommand(
 		providers = buildProviderConfigsForRuntime(names, runtimeFlags.Quality, runtimeFlags.Effort)
 	} else {
 		orchConf = &harnessCfg.Orchestra
+		if commandName == "review" {
+			// Review reads the review gate's list and judge (config.ReviewGateOrchestraView).
+			orchConf = config.ReviewGateOrchestraView(harnessCfg)
+		}
 		strategyStr = resolveStrategy(orchConf, commandName, flagStrategy)
 		providers = resolveProviders(orchConf, commandName, flagProviders)
 		if judge == "" {

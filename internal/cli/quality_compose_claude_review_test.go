@@ -110,20 +110,23 @@ func TestClaudeReviewFormerDefaultNotice_NamesModelDefaultAndCommand(t *testing.
 	}
 }
 
-// A non-preview update over the former Fable default keeps the stored argv
-// and prints the notice once; a preview prints nothing of it.
+// A non-preview, non-interactive update over the former Fable default keeps
+// the stored argv and names the move to the balanced reviewer model once,
+// which replaces the former-default notice; a preview prints nothing of it.
 func TestUpdate_FormerDefaultClaudeReviewModel_NoticesAndKeepsFable(t *testing.T) {
 	newComposeUpdateRun(t, false, "")
 	dir, cfg := composeSessionProject(t, "D")
 	require.NoError(t, config.Save(dir, withClaudeArgs(cfg, claudeFormerDefaultArgs)))
+	const move = "claude 리뷰 model claude-fable-5-1 · max → claude-opus-5-5 · max (preset의 reviewer model)"
 
 	preview, err := runComposeUpdate(t, driverFailingReader{t}, "--dir", dir, "--plan")
 	require.NoError(t, err, preview)
-	assert.NotContains(t, preview, claudeFormerDefaultNotice)
+	assert.NotContains(t, preview, move)
 
 	out, err := runComposeUpdate(t, driverFailingReader{t}, "--dir", dir, "--yes")
 	require.NoError(t, err, out)
-	assert.Equal(t, 1, strings.Count(out, claudeFormerDefaultNotice), out)
+	assert.Equal(t, 1, strings.Count(out, move), out)
+	assert.NotContains(t, out, claudeFormerDefaultNotice)
 
 	updated, err := config.Load(dir)
 	require.NoError(t, err)
@@ -132,7 +135,7 @@ func TestUpdate_FormerDefaultClaudeReviewModel_NoticesAndKeepsFable(t *testing.T
 
 	again, err := runComposeUpdate(t, driverFailingReader{t}, "--dir", dir, "--yes")
 	require.NoError(t, err, again)
-	assert.Equal(t, 1, strings.Count(again, claudeFormerDefaultNotice), "the notice repeats while the model stays")
+	assert.Equal(t, 1, strings.Count(again, move), "the notice repeats while the model stays")
 }
 
 // An interactive update draws the review model line under the table.

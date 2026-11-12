@@ -49,7 +49,7 @@ func TestUpdateComposeStep_RunEndingErrorWithoutAbortIsWarned(t *testing.T) {
 		require.NoError(t, err)
 		cmd, out := newComposeTestCommand()
 		cmd.SetIn(formInput())
-		gate := composeGate{}
+		gate := composeGate{ConfigureModels: true}
 		var abort error
 		if withAbort {
 			gate.Abort = &abort

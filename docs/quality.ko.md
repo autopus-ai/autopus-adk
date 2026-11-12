@@ -182,6 +182,23 @@ auto platform omp explain
 `auto spec review`와 orchestra 명령은 `orchestra.providers`로 돕니다. 이 model은 에이전트 프리셋과
 따로이며, `auto quality show`는 claude 리뷰 provider model을 별도 줄로 보입니다.
 
+여러 CLI 리뷰의 설정은 한 곳에만 있습니다.
+
+| 무엇 | key |
+|------|-----|
+| 리뷰 CLI의 model과 effort | `orchestra.providers.<p>`(args, `model`, `backend`) |
+| 어떤 CLI가 리뷰하나 | `spec.review_gate.providers` |
+| 누가 판정하나 | `spec.review_gate.judge`(그리고 `judge_model`, `judge_effort`) |
+
+`auto orchestra review`와 `auto spec review`는 둘 다 review gate의 목록과 judge를 읽습니다. 새 설정은
+`orchestra.commands.review.providers`를 쓰지 않습니다. 직접 쓴 값은 명시적 override이고,
+`orchestra.judge`는 다른 orchestra 명령의 judge로 남습니다. `auto update`는 ADK가 쓴 리뷰 목록(출하 목록이나
+provider 전체)을 지워 review gate를 따르게 할지 묻습니다.
+
+claude 리뷰 provider의 기본 model은 고른 preset에서 reviewer 에이전트가 쓰는 model입니다. balanced는
+`claude-opus-5-5`, ultra는 `claude-fable-5-1`이고 둘 다 `max`입니다. `auto init`은 preset과 함께 정하고,
+`auto update`는 preset이 바뀌었을 때 옮길지 묻습니다. 직접 고른 model은 옮기지 않습니다.
+
 **멀티프로바이더 리뷰** 탭은 `spec.review_gate.enabled`가 켜져 있고 autopus.yaml에
 `orchestra.providers` 항목이 둘 이상이며 `CI`가 아닐 때 도구 탭 마지막에 나옵니다(SPEC-REVMODEL-001).
 표 아래 요약 줄이 리뷰 provider마다 원문의 model·effort와 judge를 보입니다. 탭이 정하는 것은 다음과
@@ -197,7 +214,7 @@ auto platform omp explain
   수 있습니다.
 - judge(`spec.review_gate.judge`)와, 원하면 judge만 쓰는 model.
 
-provider를 끄면 `auto spec review`만 바뀌고, orchestra 명령(review·secure)과
+provider를 끄면 `auto spec review`와 `auto orchestra review`가 바뀌고, orchestra secure와
 `auto spec review --multi`는 모든 provider를 계속 씁니다. 확인 호출을 고르면 리뷰 provider n개에
 요청 1회씩(재시도 포함 최대 3n회 model 호출) 보내고 아무것도 쓰지 않습니다. 미리보기는 바뀐 CLI 값만
 원문 그대로 보이고 다른 args는 보이지 않으며, `${NAME}`에서 오는 값은 바꾸지 않습니다. 바뀐 값만

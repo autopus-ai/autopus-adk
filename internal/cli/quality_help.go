@@ -104,7 +104,7 @@ change. When omp attests a model of its family, any CLI provider can switch
 to the OMP backend (backend: omp and model). The preview shows changed CLI
 values as written in autopus.yaml and never other args; a value taken from
 ${NAME} is left alone. Only those values are rewritten, so comments and
-layout stay. Orchestra commands (review, secure) and
+layout stay. Orchestra secure and
 auto spec review --multi keep every provider. An optional live check sends
 one request to each of n review providers (at most 3n model calls with
 retries) and writes nothing. After the tab applies or cancels, its result

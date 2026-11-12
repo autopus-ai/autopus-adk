@@ -111,6 +111,6 @@ func runInitComposeDriver(cmd *cobra.Command, session composeDriverSession) (com
 		return result, false, err
 	}
 	tab := &composeOMPTab{deps: normalizeOMPPlatformDependencies(initComposeOMPDeps), memory: true}
-	result, err := session.runForms(cmd, composeFormOptions{OMP: tab, BackOut: true})
+	result, err := session.runForms(cmd, composeFormOptions{OMP: tab, BackOut: true, NoReviewTab: true})
 	return result, true, err
 }

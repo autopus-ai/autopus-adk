@@ -3,13 +3,13 @@ package cli
 // initCmdLong is the help of `auto init`; the composition step it describes
 // is SPEC-MODELUX-001 and SPEC-MODELUX-002.
 const initCmdLong = "코딩 CLI에 Autopus 하네스를 설치합니다. autopus.yaml을 생성하고 플랫폼 파일을 설치합니다.\n\n" +
-	"대화형 wizard의 품질 단계는 Ultra, Balanced, 역할별 직접 구성 중 하나를 고르고, 어느 쪽이든\n" +
-	"플랫폼 파일을 쓰기 전에 에이전트×플랫폼 구성 표를 보여 줍니다. 역할별 직접 구성은 balanced\n" +
+	"대화형 wizard의 품질 단계는 Ultra, Balanced(각 preset이 에이전트마다 주는 tier를 함께 보입니다), 고급 중 하나를 고르고, 어느 쪽이든\n" +
+	"플랫폼 파일을 쓰기 전에 에이전트×플랫폼 구성 표를 보여 줍니다. 고급은 balanced\n" +
 	"기본값에서 시작해 역할 그룹 2개(g: 구현, 검증·리뷰)나 에이전트별(a)\n" +
 	"등급을 고르고, 미리보기를 y로 확인하면 그 구성을 autopus.yaml에 쓰고 같은 표대로 생성합니다.\n" +
 	"유지하거나 취소하면 balanced로 진행합니다. --yes, TTY가 아닌 입력, --quality <preset>은\n" +
 	"이 단계를 건너뜁니다.\n\n" +
-	"대화형 터미널에서는 역할별 직접 구성이 화살표와 Enter 폼입니다. 메뉴의 구성 편집은 도구 탭(모든 도구 같게,\n" +
+	"대화형 터미널에서는 고급이 화살표와 Enter 폼입니다. 메뉴의 구성 편집은 도구 탭(모든 도구 같게,\n" +
 	"Claude Code, Codex, 이번 init에서 고른 platforms에 omp가 있으면 OMP)을 열고, 선택지는 그 도구의 실제 모델과\n" +
 	"effort를 보여 줍니다(Claude 라벨은 slug opus-5-5, 표 칸은 frontmatter 값 opus). Claude Code·Codex 탭은\n" +
 	"quality.presets.<provider>-custom과 quality.providers.<provider>를, OMP 탭은 init 설정의 role_model_policy를\n" +
@@ -24,13 +24,15 @@ const initCmdLong = "코딩 CLI에 Autopus 하네스를 설치합니다. autopus
 	"OMP 탭은 프로필·계열을 묻지 않고 생성 에이전트가 있는 역할 그룹이나 에이전트별로 그대로 · OMP 세션 모델 그대로 ·\n" +
 	"모든 provider의 증명된 설치 model을 고르며, thinking은 고른 model이 보고한 단계만 보입니다. 결과는 프로필 없는\n" +
 	"pin(role_model_policy: {version: v1, agents: …})이고 task는 자기 pin이 없으면 OMP 세션 모델을 씁니다.\n\n" +
-	"wizard의 Review Gate가 예이고 orchestra.providers가 둘 이상이며 CI가 아니면 도구 탭 마지막에 멀티프로바이더\n" +
-	"리뷰가 나옵니다(SPEC-REVMODEL-001). Review Gate 답과 감지한 provider는 구성 단계 전에 들어가고, 탭은 auto spec\n" +
-	"review에 참여하는 provider(spec.review_gate.providers), provider마다 model과 effort, judge(spec.review_gate.judge)를\n" +
+	"wizard의 Review Gate가 예이고 orchestra.providers가 둘 이상이며 CI가 아니면 품질 단계에서 무엇을 골랐든 구성 단계\n" +
+	"뒤에 리뷰어 단계가 나옵니다(SPEC-REVMODEL-001 멀티프로바이더 리뷰 탭). claude 리뷰 model은 먼저 고른 preset의\n" +
+	"reviewer model을 따릅니다(balanced는 claude-opus-5-5, ultra는 claude-fable-5-1). Review Gate 답과 감지한 provider는\n" +
+	"구성 단계 전에 들어가고, 이 단계는 auto spec review와 auto orchestra review에 참여하는 provider\n" +
+	"(spec.review_gate.providers), provider마다 model과 effort, judge(spec.review_gate.judge)를\n" +
 	"init 설정에 넣어 init이 함께 씁니다. backend: omp provider는 증명된 model과 thinking(orchestra.providers.<p>.model),\n" +
 	"CLI backend의 claude는 --model·--effort, codex는 Codex catalog model의 -m·model_reasoning_effort와 model_policy:\n" +
 	"pinned, agy는 agy models가 보인 id의 --model만 바꾸고, omp가 그 family의 model을 증명하면 OMP backend로 전환할 수\n" +
-	"있습니다. 끈 provider도 orchestra 명령(review·secure)과 auto spec review --multi에서는 계속\n" +
+	"있습니다. 끈 provider도 orchestra secure와 auto spec review --multi에서는 계속\n" +
 	"돕니다. 확인 호출을 고르면 provider n개에 요청 1회씩(재시도 포함 최대 3n회 model 호출) 보내고 결과 줄만 씁니다.\n" +
 	"--yes나 TTY가 아닌 입력의 init은 Review Gate가 켜지고 provider가 둘 이상이면 요약 표 뒤에 리뷰 model을 바꾸는 곳\n" +
 	"(터미널의 auto quality, 또는 auto quality review model <provider> <model>)을 한 줄로 알립니다." +

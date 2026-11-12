@@ -114,7 +114,7 @@ func TestQualityReview_OnOffFollowTheTabRules(t *testing.T) {
 	dir := writeReviewR3(t)
 	b0 := readReviewFile(t, dir)
 	offGemini := "Settings that change:\n  spec.review_gate.providers [claude, codex, gemini] → [claude, codex]\n" +
-		"Turned-off providers still run in orchestra commands (review, secure) and in auto spec review --multi\n"
+		"Turned-off providers still run in orchestra secure and in auto spec review --multi\n"
 
 	out, _, err := runQualityReview(t, dir, nil, "off", "gemini", "--dry-run")
 	require.NoError(t, err, out)

@@ -55,24 +55,30 @@ const reviewInitTab = "어느 도구를 바꿀까요? \n1. 모든 도구 같게\
 func TestInitComposeReview_S10TabEditSurvivesInit(t *testing.T) {
 	t.Run("(a) gemini off", func(t *testing.T) {
 		newReviewInitRun(t, true)
-		// 구성 편집, 멀티프로바이더 리뷰, claude·codex Enter, gemini 끄기, claude·codex
-		// model Enter, judge Enter, 확인 호출 Enter, 적용, 유지.
-		dir, out, err := runComposeInit(t, formInput("2\n", "4\n", "\n", "\n", "2\n", "\n", "\n", "\n", "\n", "2\n", "\n"))
+		// 유지, then the reviewer step: claude·codex Enter, gemini 끄기, claude·codex
+		// model Enter, judge Enter, 확인 호출 Enter, 적용, and init's 적용.
+		dir, out, err := runComposeInit(t, formInput("\n", "\n", "\n", "2\n", "\n", "\n", "\n", "\n", "2\n", "\n"))
 
 		require.NoError(t, err, out)
-		assert.Contains(t, out, reviewInitTab+"4. 멀티프로바이더 리뷰\n")
+		assert.NotContains(t, out, reviewInitTab+"4. 멀티프로바이더 리뷰\n", "init asks review in its own step")
+		assert.Contains(t, out, "리뷰어 — 리뷰할 CLI, 각 CLI의 model, judge를 고릅니다")
 		assert.Contains(t, out, "claude model \n1. 그대로 — claude-opus-5-5 · max\n")
 		assert.Contains(t, out, "구성을 적용했습니다.\n")
 		saved := reviewInitSaved(t, dir)
 		assert.True(t, saved.Spec.ReviewGate.Enabled)
 		assert.Equal(t, []string{"claude", "codex"}, saved.Spec.ReviewGate.Providers)
 		for name, command := range saved.Orchestra.Commands {
+			if name == "review" {
+				// review reviews with the review gate's list.
+				assert.Empty(t, command.Providers)
+				continue
+			}
 			assert.Contains(t, command.Providers, "gemini", name)
 		}
 	})
-	t.Run("(b) tab not opened", func(t *testing.T) {
+	t.Run("(b) reviewer step kept", func(t *testing.T) {
 		newReviewInitRun(t, true)
-		dir, out, err := runComposeInit(t, formInput("\n"))
+		dir, out, err := runComposeInit(t, formInput("\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n"))
 
 		require.NoError(t, err, out)
 		assert.Equal(t, []string{"claude", "codex", "gemini"}, reviewInitSaved(t, dir).Spec.ReviewGate.Providers)
