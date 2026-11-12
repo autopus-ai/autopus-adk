@@ -179,7 +179,10 @@ if [[ "$release_present" -eq 0 ]]; then
   scripts/companion-release/verify-release-tag-ruleset.sh --armed ||
     fail 'exact armed v0.51.6 tag ruleset or environment is unavailable'
   ruleset_state=armed
-elif scripts/companion-release/verify-release-tag-ruleset.sh --sealed; then
+# A committed tag is either already sealed or still armed awaiting the seal.
+# The sealed probe failing is the expected armed case, so its diagnostic is
+# muted; the armed check below reports the real reason when both fail.
+elif scripts/companion-release/verify-release-tag-ruleset.sh --sealed 2>/dev/null; then
   ruleset_state=sealed
 elif scripts/companion-release/verify-release-tag-ruleset.sh --armed; then
   ruleset_state=armed-reconciliation-required

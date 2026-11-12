@@ -52,6 +52,13 @@ contains "$prep" 'verify-release-tag-ruleset.sh --armed'
 contains "$prep" 'verify-release-tag-ruleset.sh --sealed'
 contains "$publisher" 'verify-release-tag-ruleset.sh --armed'
 contains "$publisher" 'verify-release-tag-ruleset.sh --sealed'
+# The sealed probe ahead of the seal fails by design; a loud probe printed
+# 'differs from exact sealed authority policy' on every successful release.
+contains "$prep" 'elif scripts/companion-release/verify-release-tag-ruleset.sh --sealed 2>/dev/null; then'
+contains "$publisher" '  if scripts/companion-release/verify-release-tag-ruleset.sh --sealed 2>/dev/null; then'
+# Only the probe is muted: the post-seal check must stay loud.
+[[ $(grep -c -- '--sealed 2>/dev/null' "$publisher") == 1 ]] ||
+  fail 'publisher mutes a sealed check other than the pre-seal probe'
 contains "$tag_ruleset_gate" "ruleset_name='autopus-v0.51.6-release-authority'"
 contains "$tag_ruleset_gate" "release_ref='refs/tags/v0.51.6'"
 contains "$tag_ruleset_gate" 'usage: verify-release-tag-ruleset.sh --armed|--sealed|--sealed-runtime'
