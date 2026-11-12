@@ -216,7 +216,7 @@ func TestCIWorkflow_JobBudgetsOutliveTheirGoTestTimeouts(t *testing.T) {
 	workflow := readCIStabilityWorkflow(t, ".github/workflows/ci.yaml")
 	timeout := regexp.MustCompile(`-timeout=(\d+)m`)
 	const setupAndTeardownMinutes = 5
-	for _, id := range []string{"test-isolated", "test-packages", "test-cli", "lineage-integration"} {
+	for _, id := range []string{"test-isolated", "test-packages", "test-cli", "lineage-integration", "integration-packages"} {
 		job := workflow.Jobs[id]
 		total, binaries := 0, 0
 		for _, step := range job.Steps {
