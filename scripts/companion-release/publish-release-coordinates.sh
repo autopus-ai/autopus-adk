@@ -125,7 +125,10 @@ seal_release_tag_ruleset() {
 }
 ensure_committed_release_tag_is_sealed() {
   verify_remote_release || return 1
-  if scripts/companion-release/verify-release-tag-ruleset.sh --sealed; then
+  # Right after the tag push the ruleset is still armed, so this probe fails
+  # by design. Mute it; the armed check and the post-seal --sealed check
+  # still print their reason when the state is genuinely wrong.
+  if scripts/companion-release/verify-release-tag-ruleset.sh --sealed 2>/dev/null; then
     return 0
   fi
   scripts/companion-release/verify-release-tag-ruleset.sh --armed &&
