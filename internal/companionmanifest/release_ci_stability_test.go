@@ -109,6 +109,20 @@ func TestCIWorkflow_StableChecksHaveBoundedTimeouts(t *testing.T) {
 			t.Fatalf("non-lineage integration lane missing %q", required)
 		}
 	}
+	// Each lineage shard builds only its own coordinates, so the matrix must
+	// number its shards 1..N and hand each its index over the total; a shard
+	// list with a gap would leave coordinates unbuilt and still pass.
+	lineageJob := workflow.Jobs["lineage-integration"]
+	shards, _ := lineageJob.Strategy.Matrix["shard"].([]any)
+	for i, shard := range shards {
+		if number, ok := shard.(int); !ok || number != i+1 {
+			t.Fatalf("lineage-integration shards = %v, want 1..N in order", shards)
+		}
+	}
+	if len(shards) < 1 || lineageJob.Env["AUTOPUS_LINEAGE_SHARD"] != "${{ matrix.shard }}/${{ strategy.job-total }}" {
+		t.Fatalf("lineage-integration must pass AUTOPUS_LINEAGE_SHARD=<shard>/<total>, got shards=%v env=%q",
+			shards, lineageJob.Env["AUTOPUS_LINEAGE_SHARD"])
+	}
 	lineageRun := ciStepRun(t, workflow.Jobs["lineage-integration"], "Test release lineage integration")
 	for _, required := range []string{"-tags integration", "./pkg/companionmanifest"} {
 		if !strings.Contains(lineageRun, required) {

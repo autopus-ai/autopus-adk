@@ -435,12 +435,24 @@ jobs:
           go test -count=1 -timeout=15m -tags integration "${packages[@]}"
 
   lineage-integration:
-    name: lineage-integration
+    name: lineage-integration (${{ matrix.shard }}/${{ strategy.job-total }})
     runs-on: ubuntu-latest
     # The non-lineage integration packages run in integration-packages beside
     # this job. Run in sequence the two steps were 8.5 + 12.2 minutes of one
     # job, the longest pole of every PR (19-23 minutes on #325 and #326).
+    #
+    # The lineage step itself was 55% fixture warm-up: 22 GoReleaser builds of
+    # about a minute each, two at a time saturating the four cores. Only more
+    # runners shrink that, so each shard builds and checks the coordinates
+    # AUTOPUS_LINEAGE_SHARD assigns it (pkg/companionmanifest/
+    # release_lineage_shard_test.go), every coordinate in exactly one shard.
     timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    env:
+      AUTOPUS_LINEAGE_SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
