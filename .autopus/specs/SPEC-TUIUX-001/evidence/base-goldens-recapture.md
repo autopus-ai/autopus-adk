@@ -417,3 +417,10 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 기록: `go run ./cmd/generate-templates` 뒤 `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run 'TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6'`. `go test ./internal/cli -run TestComposeLineInput_MatchesTheSPECMODELUX001Output -update-compose-table`은 아무것도 바꾸지 않았다.
 - 차이: NPD 일곱 개(init-in, init-pipe, init-yes, quality-line-b, quality-no-tty, update-ci, update-yes)에서 `autopus.yaml` checksum 한 줄씩만 바뀌었다. stdout golden은 그대로다.
 - 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.
+
+## 기본 allow 목록과 관리 MCP 실행 인자 (fix/default-permission-hardening, 2026-11-12)
+
+- 원인: `pkg/content/permissions.go`의 기본 allow 목록을 읽기 전용 하위 명령으로 좁혔고, `templates/claude/mcp.json.tmpl`·`templates/codex/config.toml.tmpl`·`templates/gemini/settings/settings.json.tmpl`의 관리 MCP 실행 인자에 `--prefix=/`와 고정 버전을 넣었다.
+- 기록: `go run ./cmd/generate-templates`(변경 없음) 뒤 `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run 'TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6'`.
+- 차이: NPD 다섯 개(init-in, init-pipe, init-yes, update-ci, update-yes)에서 `.claude/settings.json`·`.mcp.json`·`.codex/config.toml`·`.autopus/claude-code-permissions.json`과 manifest·journal checksum만 바뀌었다. stdout golden은 그대로다.
+- 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.
