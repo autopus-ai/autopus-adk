@@ -2,7 +2,6 @@ package content
 
 import (
 	"os"
-	"path/filepath"
 
 	"github.com/insajin/autopus-adk/pkg/adapter"
 	"github.com/insajin/autopus-adk/pkg/config"
@@ -207,70 +206,6 @@ func sameHookConfig(a, b adapter.HookConfig) bool {
 		}
 	}
 	return true
-}
-
-// DetectPermissions는 프로젝트 루트를 분석하여 기본 권한을 생성한다.
-func DetectPermissions(projectRoot string, extra config.PermissionsConf) *adapter.PermissionSet {
-	allow := []string{
-		// Common: always included
-		"Bash(auto *)",
-		"Bash(auto:*)",
-		"Bash(git *)",
-		"Bash(git:*)",
-		"Bash(make:*)",
-		"Bash(ls:*)",
-		"Bash(cat:*)",
-		"Bash(find:*)",
-		"Bash(grep:*)",
-		"Bash(wc:*)",
-		"Bash(sort:*)",
-		"Bash(mkdir:*)",
-		"Bash(echo:*)",
-		"Bash(gh:*)",
-		"mcp__sequential-thinking__sequentialthinking",
-		"WebSearch",
-
-		// Pipeline: current Claude orchestration tools.
-		"Agent",
-		"AskUserQuestion",
-		"TaskCreate",
-		"TaskGet",
-		"TaskList",
-		"TaskUpdate",
-		"SendMessage",
-		"Workflow",
-		"ToolSearch",
-	}
-
-	// Go project detection
-	if fileExists(filepath.Join(projectRoot, "go.mod")) {
-		allow = append(allow,
-			"Bash(go build:*)", "Bash(go test:*)", "Bash(go vet:*)",
-			"Bash(go run:*)", "Bash(go mod:*)", "Bash(go tool:*)",
-			"Bash(go get:*)", "Bash(go install:*)", "Bash(go version:*)",
-			"Bash(go env:*)", "Bash(go clean:*)",
-			"Bash(golangci-lint:*)", "Bash(gofmt:*)",
-		)
-	}
-
-	// Node project detection
-	if fileExists(filepath.Join(projectRoot, "package.json")) {
-		allow = append(allow,
-			"Bash(npm *)", "Bash(npx *)", "Bash(node *)",
-			"Bash(pnpm *)", "Bash(yarn *)",
-		)
-	}
-
-	// Merge extra permissions from autopus.yaml
-	allow = append(allow, extra.ExtraAllow...)
-
-	var deny []string
-	deny = append(deny, extra.ExtraDeny...)
-
-	return &adapter.PermissionSet{
-		Allow: allow,
-		Deny:  deny,
-	}
 }
 
 func fileExists(path string) bool {

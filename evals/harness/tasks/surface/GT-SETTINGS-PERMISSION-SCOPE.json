@@ -4,7 +4,7 @@
   "kind": "surface",
   "category": "hooks_settings",
   "intent": "The pre-approved tool list lets the harness run its own CLI and coordination tools without granting blanket or destructive shell access.",
-  "outcome": "Claude and Antigravity allow `Bash(auto *)`, AskUserQuestion, TaskCreate, and ToolSearch, and allow no `Bash(*)`, `Bash(sudo`, or `Bash(rm` entry.",
+  "outcome": "Claude and Antigravity allow `Bash(auto status:*)`, AskUserQuestion, TaskCreate, and ToolSearch, and allow no `Bash(*)`, `Bash(sudo`, or `Bash(rm` entry.",
   "variants": [],
   "assertions": [
     {
@@ -12,7 +12,7 @@
       "platform": "claude-code",
       "path": ".claude/settings.json",
       "json_path": "permissions.allow[*]",
-      "value_contains": "Bash(auto *)"
+      "value_contains": "Bash(auto status:*)"
     },
     {
       "kind": "json_path_present",
@@ -61,7 +61,7 @@
       "platform": "antigravity-cli",
       "path": ".gemini/settings.json",
       "json_path": "permissions.allow[*]",
-      "value_contains": "Bash(auto *)"
+      "value_contains": "Bash(auto status:*)"
     },
     {
       "kind": "json_path_present",
