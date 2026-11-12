@@ -48,7 +48,7 @@ func upgradeCanaryStepNamed(t *testing.T, workflow upgradeCanaryWorkflow, name s
 	return upgradeCanaryStep{}
 }
 
-func TestUpgradeCanary_ManualExactPublicSignedA45ToA46(t *testing.T) {
+func TestUpgradeCanary_ManualExactPublicSignedA46ToA47(t *testing.T) {
 	raw, workflow := readUpgradeCanaryWorkflow(t)
 	dispatch, ok := workflow.On["workflow_dispatch"]
 	if len(workflow.On) != 1 || !ok || len(dispatch.Inputs) != 0 {
@@ -61,11 +61,11 @@ func TestUpgradeCanary_ManualExactPublicSignedA45ToA46(t *testing.T) {
 	if job.RunsOn != "macos-15" || len(job.Permissions) != 0 {
 		t.Fatalf("upgrade canary job boundary = runner %q permissions %#v", job.RunsOn, job.Permissions)
 	}
-	admission := upgradeCanaryStepNamed(t, workflow, "Admit exact public signed A45 to A46 upgrade")
+	admission := upgradeCanaryStepNamed(t, workflow, "Admit exact public signed A46 to A47 upgrade")
 	for _, required := range []string{
-		"posix-upgrade-canary.sh live 0.51.4 0.51.5",
-		`.previous_public_version == "0.51.4"`,
-		`.candidate_public_version == "0.51.5"`,
+		"posix-upgrade-canary.sh live 0.51.5 0.51.6",
+		`.previous_public_version == "0.51.5"`,
+		`.candidate_public_version == "0.51.6"`,
 		`.actual_release_executables_verified == true`,
 		`.public_signed_installers_verified == true`,
 	} {
@@ -89,12 +89,12 @@ func TestUpgradeCanary_BindsAvailablePublicPredecessorAndCandidateProvenance(t *
 	_, workflow := readUpgradeCanaryWorkflow(t)
 	step := upgradeCanaryStepNamed(t, workflow, "Bind public release and workflow provenance")
 	for _, required := range []string{
-		"releases/441368606",
-		"9130626401937001ccb2366faf62f0f4184534d9",
-		"4312105591a74f79ed3f62a7023423d49a2944f0",
-		"77458576f6e16a10312d5222e08a04e35000efc6",
-		"sha256:97d26ea4da3df491e79d0e338eb0ae8d5ef7c529fc09172ebc148dc13464ab92",
-		"releases/tags/v0.51.5", "git/ref/tags/v0.51.4",
+		"releases/441700303",
+		"12941460a548c4bf09014a1c2486937121c14d7a",
+		"8ab8b182c425ab8a68112293e8ab272ff3765dcb",
+		"cc3d28854ecf838a391092162e38d196b955a9c4",
+		"sha256:d2d70469de12a18c10057880c2c054ce6221632758633ae44d7393ee02b4f56b",
+		"releases/tags/v0.51.6", "git/ref/tags/v0.51.5",
 		`schema_version:"autopus-upgrade-canary-provenance.v1"`,
 		"GITHUB_WORKFLOW_REF", "GITHUB_WORKFLOW_SHA", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT",
 	} {
@@ -124,7 +124,7 @@ func TestUpgradeCanary_PinsActionsAndUploadsDiagnosticReceipt(t *testing.T) {
 	}
 	upload := upgradeCanaryStepNamed(t, workflow, "Upload public asset admission receipt")
 	if upload.Uses != "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02" ||
-		upload.With["name"] != "upgrade-canary-0.51.4-to-0.51.5" || upload.With["retention-days"] != 30 {
+		upload.With["name"] != "upgrade-canary-0.51.5-to-0.51.6" || upload.With["retention-days"] != 30 {
 		t.Fatalf("upgrade canary receipt upload = %#v", upload)
 	}
 	if !strings.Contains(raw, "not a\n      # substitute for the immutable public release") {
@@ -156,7 +156,7 @@ func TestUpgradeCanary_ModelsPublicV109WithoutManagedOMPConfig(t *testing.T) {
 		t.Fatal("the previous fixture check does not verify the previous OMP surface")
 	}
 	if strings.Contains(raw+omp, `cat "$PROJECT/.omp/config.yml"`) {
-		t.Fatal("upgrade canary still reads the absent v0.51.4 OMP config")
+		t.Fatal("upgrade canary still reads the absent v0.51.5 OMP config")
 	}
 	if !strings.Contains(
 		raw,
