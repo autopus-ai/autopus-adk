@@ -5,18 +5,23 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/insajin/autopus-adk/pkg/privatedir"
 )
 
 // PolicyCache provides file-based storage for SecurityPolicy objects.
-// Policies are stored in a per-user temp directory for isolation.
+// Policies are stored in a private per-user directory for isolation.
 type PolicyCache struct {
 	dir string
 }
 
+// PolicyCacheDir is the private per-user directory that holds the cached
+// SecurityPolicy files of worker tasks and their signature sidecars.
+func PolicyCacheDir() string { return privatedir.Path("worker-policy") }
+
 // NewPolicyCache creates a PolicyCache using a secure per-user directory.
 func NewPolicyCache() *PolicyCache {
-	dir := filepath.Join(os.TempDir(), fmt.Sprintf("autopus-%d", os.Getuid()))
-	return &PolicyCache{dir: dir}
+	return &PolicyCache{dir: PolicyCacheDir()}
 }
 
 // Write atomically writes a SecurityPolicy to disk with mode 0600.
@@ -46,36 +51,13 @@ func (c *PolicyCache) WriteWithLstatGuard(taskID string, policy SecurityPolicy) 
 		return fmt.Errorf("marshal policy: %w", err)
 	}
 
-	if err := os.MkdirAll(c.dir, 0700); err != nil {
+	// The directory must be a private directory of the current user; the
+	// file goes through a temp file and a rename, so it is never followed.
+	if err := privatedir.Ensure(c.dir); err != nil {
 		return fmt.Errorf("create policy dir: %w", err)
 	}
-
-	tmp, err := os.CreateTemp(c.dir, "policy-*.json")
-	if err != nil {
-		return fmt.Errorf("create temp policy file: %w", err)
-	}
-	tmpPath := tmp.Name()
-
-	// Explicitly set restrictive permissions on the temp policy file.
-	if err := os.Chmod(tmpPath, 0600); err != nil {
-		_ = tmp.Close()
-		removeIfExists(tmpPath)
-		return fmt.Errorf("chmod policy file: %w", err)
-	}
-
-	if _, err := tmp.Write(data); err != nil {
-		_ = tmp.Close()
-		removeIfExists(tmpPath)
+	if err := privatedir.WriteFile(c.dir, filepath.Base(target), data); err != nil {
 		return fmt.Errorf("write policy: %w", err)
-	}
-	if err := tmp.Close(); err != nil {
-		removeIfExists(tmpPath)
-		return fmt.Errorf("close policy file: %w", err)
-	}
-
-	if err := os.Rename(tmpPath, target); err != nil {
-		removeIfExists(tmpPath)
-		return fmt.Errorf("rename policy file: %w", err)
 	}
 	return nil
 }
@@ -98,7 +80,7 @@ func checkSymlink(path string) error {
 // Read loads a SecurityPolicy from disk for the given task ID.
 // Returns an error if the file does not exist or cannot be parsed.
 func (c *PolicyCache) Read(taskID string) (*SecurityPolicy, error) {
-	data, err := os.ReadFile(c.PolicyPath(taskID))
+	data, err := privatedir.ReadFile(c.dir, filepath.Base(c.PolicyPath(taskID)))
 	if err != nil {
 		return nil, fmt.Errorf("read policy for %s: %w", taskID, err)
 	}
@@ -121,8 +103,4 @@ func (c *PolicyCache) Delete(taskID string) {
 func (c *PolicyCache) PolicyPath(taskID string) string {
 	safe := filepath.Base(taskID)
 	return filepath.Join(c.dir, fmt.Sprintf("autopus-policy-%s.json", safe))
-}
-
-func removeIfExists(path string) {
-	_ = os.Remove(path)
 }

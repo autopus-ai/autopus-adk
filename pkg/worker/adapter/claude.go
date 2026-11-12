@@ -35,6 +35,8 @@ func (a *ClaudeAdapter) BuildCommand(ctx context.Context, task TaskConfig) *exec
 		"--print",
 		"--output-format", "stream-json",
 		"--verbose",
+		// No tool-call hook is installed: SecurityPolicy command fields do
+		// not confine this task (see security.SecurityPolicy).
 		"--dangerously-skip-permissions",
 	}
 

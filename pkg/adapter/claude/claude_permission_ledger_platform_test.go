@@ -128,7 +128,7 @@ func TestPermissionLedger_ClaimedButGoneIsRebuilt(t *testing.T) {
 	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
 	fresh := readJSONObject(t, ledger)
 	claimed := toStringSlice(fresh["allow"])
-	assert.Contains(t, claimed, "Bash(git:*)")
+	assert.Contains(t, claimed, "Bash(git status:*)")
 	assert.Contains(t, claimed, "Agent")
 	assert.NotContains(t, claimed, "UserAllow")
 	assert.NotContains(t, fresh, "deny")

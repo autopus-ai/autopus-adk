@@ -38,6 +38,29 @@ func terminateOMPRPCProcessGroup(cmd *exec.Cmd) error {
 	return err
 }
 
+// ompRPCProcessGroupReapTimeout bounds how long a cleanup waits for a killed
+// group's members to disappear before the test's TempDir removal runs.
+const ompRPCProcessGroupReapTimeout = 2 * time.Second
+
+// reapOMPRPCProcessGroup kills whatever is left of the command's process group
+// and waits until no member remains. A cleanly exited omp parent can leave
+// task children that still write into the profile, which races the TempDir
+// cleanup, so every live helper calls this after Wait whatever the outcome.
+func reapOMPRPCProcessGroup(cmd *exec.Cmd) {
+	if cmd.Process == nil || cmd.Process.Pid <= 0 {
+		return
+	}
+	pgid := cmd.Process.Pid
+	deadline := time.Now().Add(ompRPCProcessGroupReapTimeout)
+	for {
+		// ESRCH means the group is gone; any other error cannot improve.
+		if syscall.Kill(-pgid, syscall.SIGKILL) != nil || time.Now().After(deadline) {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
 func TestOMPRPCProcessGroup_TerminationKillsDescendant(t *testing.T) {
 	cmd := exec.Command("/bin/sh", "-c", "sleep 30 & echo $!; wait")
 	require.NoError(t, configureOMPRPCProcessGroup(cmd))
@@ -60,6 +83,23 @@ func TestOMPRPCProcessGroup_TerminationKillsDescendant(t *testing.T) {
 	_ = cmd.Wait()
 	cleaned = true
 	requireOMPTestProcessGone(t, descendantPID)
+}
+
+func TestOMPRPCProcessGroup_ReapAfterCleanExitKillsDescendant(t *testing.T) {
+	// The parent exits 0 while its background child keeps running, as an omp
+	// parent does when a task child outlives the RPC turn.
+	cmd := exec.Command("/bin/sh", "-c", "sleep 30 >/dev/null 2>&1 & echo $!")
+	require.NoError(t, configureOMPRPCProcessGroup(cmd))
+	output, err := cmd.Output()
+	require.NoError(t, err)
+	descendantPID, err := strconv.Atoi(strings.TrimSpace(string(output)))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = syscall.Kill(descendantPID, syscall.SIGKILL) })
+	require.NoError(t, syscall.Kill(descendantPID, 0), "descendant must outlive the parent")
+
+	reapOMPRPCProcessGroup(cmd)
+	requireOMPTestProcessGone(t, descendantPID)
+	require.ErrorIs(t, syscall.Kill(-cmd.Process.Pid, 0), syscall.ESRCH)
 }
 
 func TestOMPRPCProcessGroup_RunTimeoutKillsDescendant(t *testing.T) {

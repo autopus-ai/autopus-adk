@@ -12,34 +12,34 @@
       "platform": "claude-code",
       "path": ".mcp.json",
       "json_path": "mcpServers.context7.args[*]",
-      "value_contains": "exec npx -y @upstash/context7-mcp@latest"
+      "value_contains": "exec npx -y --prefix=/ @upstash/context7-mcp@"
     },
     {
       "kind": "json_path_present",
       "platform": "claude-code",
       "path": ".mcp.json",
       "json_path": "mcpServers.sequential-thinking.args[*]",
-      "value_contains": "exec npx -y @modelcontextprotocol/server-sequential-thinking"
+      "value_contains": "exec npx -y --prefix=/ @modelcontextprotocol/server-sequential-thinking@"
     },
     {
       "kind": "json_path_present",
       "platform": "antigravity-cli",
       "path": ".gemini/settings.json",
       "json_path": "mcpServers.context7.args[*]",
-      "value_contains": "exec npx -y @upstash/context7-mcp@latest"
+      "value_contains": "exec npx -y --prefix=/ @upstash/context7-mcp@"
     },
     {
       "kind": "json_path_present",
       "platform": "antigravity-cli",
       "path": ".gemini/settings.json",
       "json_path": "mcpServers.sequential-thinking.args[*]",
-      "value_contains": "exec npx -y @modelcontextprotocol/server-sequential-thinking"
+      "value_contains": "exec npx -y --prefix=/ @modelcontextprotocol/server-sequential-thinking@"
     },
     {
       "kind": "contains",
       "platform": "codex",
       "path": ".codex/config.toml",
-      "needle": "[mcp_servers.context7]\ncommand = \"npx\"\nargs = [\"-y\", \"@upstash/context7-mcp@latest\"]"
+      "needle": "[mcp_servers.context7]\ncommand = \"npx\"\nargs = [\"-y\", \"--prefix=/\", \"@upstash/context7-mcp@"
     },
     {
       "kind": "json_path_present",

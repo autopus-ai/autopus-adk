@@ -104,7 +104,7 @@ const (
 // scanned quadratically.
 func detect(s string) []span {
 	var spans []span
-	for _, d := range detectors {
+	for _, d := range scanDetectors {
 		spans = d.collect(s, spans)
 	}
 	return spans
@@ -113,7 +113,7 @@ func detect(s string) []span {
 // detectAlphabet returns the spans the fixed-alphabet detectors select in s.
 func detectAlphabet(s string) []span {
 	var spans []span
-	for _, d := range detectors {
+	for _, d := range scanDetectors {
 		if d.alphabet {
 			spans = d.collect(s, spans)
 		}
@@ -237,10 +237,18 @@ func pemBlock(s string, m []int) (int, int) { return pemBlocks(s)(s, m) }
 // starting at or after its end, the one a search from there finds, instead of
 // searching the rest of the text again: that made many headers without a
 // footer quadratic.
-func pemBlocks(s string) selector {
+func pemBlocks(s string) selector { return blocksUntil(pemFooter)(s) }
+
+// blocksUntil returns the block selector builder for footer: the pemBlocks
+// scheme with another footer, the header lines and body bounded alike.
+func blocksUntil(footer *regexp.Regexp) func(s string) selector {
+	return func(s string) selector { return blockSelector(s, footer) }
+}
+
+func blockSelector(s string, footer *regexp.Regexp) selector {
 	var footers [][2]int
 	for from := 0; ; {
-		loc := pemFooter.FindStringIndex(s[from:])
+		loc := footer.FindStringIndex(s[from:])
 		if loc == nil {
 			break
 		}

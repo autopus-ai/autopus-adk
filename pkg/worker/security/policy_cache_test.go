@@ -110,7 +110,8 @@ func TestNewPolicyCache(t *testing.T) {
 
 	cache := NewPolicyCache()
 	assert.NotEmpty(t, cache.dir)
-	assert.Contains(t, cache.dir, "autopus-")
+	assert.Equal(t, PolicyCacheDir(), cache.dir)
+	assert.Contains(t, cache.dir, "worker-policy")
 }
 
 func TestPolicyCacheWriteInvalidDir(t *testing.T) {

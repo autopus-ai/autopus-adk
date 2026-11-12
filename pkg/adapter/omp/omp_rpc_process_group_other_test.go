@@ -17,3 +17,7 @@ func terminateOMPRPCProcessGroup(cmd *exec.Cmd) error {
 	}
 	return cmd.Process.Kill()
 }
+
+// reapOMPRPCProcessGroup has no group to reap where process groups are
+// unsupported; configureOMPRPCProcessGroup already refuses those platforms.
+func reapOMPRPCProcessGroup(_ *exec.Cmd) {}

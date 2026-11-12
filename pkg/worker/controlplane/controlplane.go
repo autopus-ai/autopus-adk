@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"github.com/insajin/autopus-adk/pkg/privatedir"
 )
 
 const PolicySigningSecretEnv = "AUTOPUS_A2A_POLICY_SIGNING_SECRET"
@@ -132,7 +134,12 @@ func WritePolicySignature(policyPath, signature string) error {
 		return nil
 	}
 	path := PolicySignaturePath(policyPath)
-	if err := os.WriteFile(path, []byte(signature+"\n"), 0o600); err != nil {
+	// The sidecar joins a policy file already written; it never creates the
+	// policy directory on its own.
+	if _, err := os.Stat(filepath.Dir(path)); err != nil {
+		return fmt.Errorf("write policy signature: %w", err)
+	}
+	if err := privatedir.WriteFile(filepath.Dir(path), filepath.Base(path), []byte(signature+"\n")); err != nil {
 		return fmt.Errorf("write policy signature: %w", err)
 	}
 	return nil

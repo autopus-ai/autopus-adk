@@ -19,7 +19,9 @@ const panermCommitO = "c447badc28e393b19984d2eeea159a81d609acd9"
 
 // BuildPanermBinaryO returns the path of binary O. AUTOPUS_PANERM_O_BIN names
 // a prebuilt one; otherwise O is built from this repository's git object store
-// with the module cache only (go.mod and go.sum equal those of c447badc).
+// with the module cache only. Once this tree's dependencies move past O's, the
+// cache may lack O's module set; O's own go.mod and go.sum then fetch it once
+// through the caller's GOPROXY, checksum-verified, and the build reruns offline.
 // Without git or the commit (a shallow clone) it logs why and returns "", and
 // the O steps skip once the assertions before them have run.
 func BuildPanermBinaryO(t *testing.T) string {
@@ -38,17 +40,26 @@ func BuildPanermBinaryO(t *testing.T) string {
 	src, bin := t.TempDir(), filepath.Join(t.TempDir(), "auto-o")
 	runPanermStep(t, repo, nil, "git", "archive", "--format=tar", "-o", archive, panermCommitO)
 	runPanermStep(t, src, nil, "tar", "-xf", archive)
-	runPanermStep(t, src, []string{"GOPROXY=off", "GOWORK=off", "GOFLAGS=-mod=readonly"},
-		"go", "build", "-trimpath", "-o", bin, "./cmd/auto")
+	offline := []string{"GOPROXY=off", "GOWORK=off", "GOFLAGS=-mod=readonly"}
+	build := []string{"build", "-trimpath", "-o", bin, "./cmd/auto"}
+	if out, err := panermStepOutput(src, offline, "go", build...); err != nil {
+		t.Logf("offline build of binary O failed; fetching O's modules: %v\n%s", err, out)
+		runPanermStep(t, src, []string{"GOWORK=off"}, "go", "mod", "download")
+		runPanermStep(t, src, offline, "go", build...)
+	}
 	return bin
+}
+
+func panermStepOutput(dir string, env []string, name string, args ...string) ([]byte, error) {
+	cmd := exec.Command(name, args...)
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), env...)
+	return cmd.CombinedOutput()
 }
 
 func runPanermStep(t *testing.T, dir string, env []string, name string, args ...string) {
 	t.Helper()
-	cmd := exec.Command(name, args...)
-	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), env...)
-	out, err := cmd.CombinedOutput()
+	out, err := panermStepOutput(dir, env, name, args...)
 	require.NoError(t, err, "%s %v:\n%s", name, args, out)
 }
 

@@ -203,7 +203,7 @@ func TestGenerateConfig_MCPServers(t *testing.T) {
 	assert.NotContains(t, content, `args = ["mcp", "server"]`)
 	assert.Contains(t, content, "[mcp_servers.context7]")
 	assert.Contains(t, content, `command = "npx"`)
-	assert.Contains(t, content, `args = ["-y", "@upstash/context7-mcp@latest"]`)
+	assert.Contains(t, content, `args = ["-y", "--prefix=/", "@upstash/context7-mcp@4.5.1"]`)
 	assert.NotContains(t, content, "@anthropic-ai/context7-mcp")
 	assert.NotContains(t, strings.SplitN(content, "[features]", 2)[0], "\nmodel =")
 	assert.Contains(t, content, `approval_policy = "on-request"`)

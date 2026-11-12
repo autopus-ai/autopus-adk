@@ -85,7 +85,7 @@ unlock exit 1 means the fix is not complete either.
 The guard is not a sandbox against an agent with shell access.
 
 - Writes through a shell tool (Bash, Codex `exec_command`, and the like) bypass the hook. The unlock verdict and the commit-time drift gate stay the backstop.
-- The agent can run `auto fix unlock` itself, because `Bash(auto *)` is auto-approved. The workflow forbids it before verification; nothing enforces that.
+- The agent can run `auto fix unlock` itself once the user approves the command or allowlists it; the default allowlist approves only read-only `auto` subcommands. The workflow forbids it before verification; nothing enforces that.
 - The agent can turn the hook off: hook settings files such as `.claude/settings.json` are `merge` files the guard allows, and a settings edit or `disableAllHooks: true` takes effect mid-session in Claude Code.
 - The unlock verdict reports only changes still present at unlock, so a test weakened and then restored reads `unchanged`.
 - A hard link that outlives the deleted locked path is not matched; recreating the locked path is still denied.

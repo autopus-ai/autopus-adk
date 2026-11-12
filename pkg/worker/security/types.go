@@ -8,6 +8,14 @@ import (
 
 // SecurityPolicy defines extended security constraints for task execution.
 // This extends the basic a2a.SecurityPolicy with command validation and directory restrictions.
+//
+// What the legacy `auto worker` loop enforces: TimeoutSec bounds a task's
+// execution, and a Codex task runs in Codex's own OS sandbox. A Claude task
+// runs with permission prompts bypassed and no tool-call hook, so
+// AllowedCommands, DeniedPatterns, and AllowedDirs are checked only when
+// ValidateCommand is called, for example by `auto worker validate`; they do
+// not confine the tools a provider runs. The A2A cache does not carry those
+// fields either, so a cached policy holds no command allowlist.
 type SecurityPolicy struct {
 	AllowNetwork    bool     `json:"allow_network"`
 	AllowFS         bool     `json:"allow_fs"`

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -14,6 +13,7 @@ import (
 	"github.com/insajin/autopus-adk/pkg/worker/controlplane"
 	"github.com/insajin/autopus-adk/pkg/worker/parallel"
 	"github.com/insajin/autopus-adk/pkg/worker/pidlock"
+	"github.com/insajin/autopus-adk/pkg/worker/security"
 	"github.com/insajin/autopus-adk/pkg/worker/tui"
 )
 
@@ -72,8 +72,7 @@ func (wl *WorkerLoop) Close() error {
 
 // cleanupPolicy removes the cached SecurityPolicy file for the given task.
 func cleanupPolicy(taskID string) {
-	dir := filepath.Join(os.TempDir(), fmt.Sprintf("autopus-%d", os.Getuid()))
-	path := filepath.Join(dir, fmt.Sprintf("autopus-policy-%s.json", taskID))
+	path := security.NewPolicyCache().PolicyPath(taskID)
 	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 		log.Printf("[worker] cleanup policy file: %v", err)
 	}

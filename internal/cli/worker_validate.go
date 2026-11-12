@@ -54,6 +54,8 @@ func newWorkerValidateSubCmd() *cobra.Command {
 // runWorkerValidate loads the policy and validates the command.
 // Prints "PASS" or "DENY: <reason>" to stdout.
 // Exit code: 0 for PASS, 1 for DENY (fail-closed on missing policy, REQ-SEC-03).
+// It is a policy check for a caller to run, not a Claude Code hook: nothing
+// installs it as one, and a hook blocks a tool call only on exit code 2.
 func runWorkerValidate(cmd *cobra.Command, policyPath, command, workDir string) error {
 	data, err := os.ReadFile(policyPath)
 	if err != nil {

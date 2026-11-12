@@ -1,7 +1,7 @@
 {
   "schema_version": "harness_eval_baseline.v1",
   "set_version": "1",
-  "set_digest": "73e5a8c52dcaa3a47c92173e1b5986c1d70384993bdc1376b202251f1e1c901e",
+  "set_digest": "c0df83aced82953dcd8766d5c5f5524bd984b9a70f7dae37ae3aff3942b67c4a",
   "rows": [
     {
       "id": "GT-AGENT-A01",
@@ -298,14 +298,14 @@
       "kind": "surface",
       "state": "active",
       "result": "pass",
-      "expectation_digest": "11e17f5b123e885428ed4670f5cb4a0317efc03f16d76fa023c812e008dbdc91"
+      "expectation_digest": "7c99c07278e04bb802568349a2681e2add63b466d4c601099b57d8d974fb5c06"
     },
     {
       "id": "GT-SETTINGS-PERMISSION-SCOPE",
       "kind": "surface",
       "state": "active",
       "result": "pass",
-      "expectation_digest": "ba9a309b3b004b4fa444887cc7a533f96ee574b9b1ebdbfd5836dfa5ffa20ae8"
+      "expectation_digest": "f917f0fe8a766085e69b3a99fe45b5c5f50c6cc2e3b5dae1d1ffa2b72d0515d3"
     },
     {
       "id": "GT-SKILL-CLAUDE-NATIVE-ORCHESTRATION",

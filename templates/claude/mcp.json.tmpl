@@ -4,12 +4,12 @@
     "context7": {
       "$comment": "Up-to-date documentation and code examples via Context7",
       "command": "/bin/bash",
-      "args": ["-l", "-c", "exec npx -y @upstash/context7-mcp@latest"]
+      "args": ["-l", "-c", "exec npx -y --prefix=/ @upstash/context7-mcp@4.5.1"]
     }{{if .IsFullMode}},
     "sequential-thinking": {
       "$comment": "Step-by-step reasoning for complex problems (--think flag)",
       "command": "/bin/bash",
-      "args": ["-l", "-c", "exec npx -y @modelcontextprotocol/server-sequential-thinking"]
+      "args": ["-l", "-c", "exec npx -y --prefix=/ @modelcontextprotocol/server-sequential-thinking@2.1.1"]
     }{{end}}
   }
 }

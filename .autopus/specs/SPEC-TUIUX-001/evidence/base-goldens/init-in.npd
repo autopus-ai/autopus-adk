@@ -2,9 +2,9 @@
 .agents/plugins/
 .agents/plugins/marketplace.json 7bac9f0f7c15eecf46023308f334e2122d112d03aa7b498f9e01adabd48ac03c
 .autopus/
-.autopus/claude-code-manifest.json e9e11edcb010b5ac3f17abc0c0764bec7abc011c3649da099588d937e130d3c2
-.autopus/claude-code-permissions.json b9fd4dd0824fb98d4ff3403c011a56b0b66f398788f2dfb24220c1aed87df4e8
-.autopus/codex-manifest.json 5927757998d38e602da18e866557246e99327212be61224ef8b058f2cc8bf389
+.autopus/claude-code-manifest.json f5e4d5f222efbc51cfc1c2c596fe39236f33f951ebd616e81feb28d72850ce89
+.autopus/claude-code-permissions.json 1f67bb93d7f5d12c791be89828931e8f7ef57710c2ead761fe38e38f7361a296
+.autopus/codex-manifest.json 68fa8265863b30c7e19f566ad44a214373da937c2ac89cc561aa76770ed6587c
 .autopus/context/
 .autopus/context/constraints.yaml d8b3a0714389a30b7aca1986fbb71235900e14c9dddfe50fdbbb758698d0b26e
 .autopus/plugins/
@@ -16,9 +16,9 @@
 .autopus/plugins/auto/skills/auto/SKILL.md be3dca9114ec39861a0112ef57f94b4495b748cf6ffa02fb50ad1a004d501a7c
 .autopus/txns/
 .autopus/txns/<TX>-claude-code/
-.autopus/txns/<TX>-claude-code/journal.json eccaee0de706e4e7e3d113cdb1e1a362eb395aa781e3038554aefbce2aab5ce3
+.autopus/txns/<TX>-claude-code/journal.json 6e825876c6f680799cb9c1a0a6a66a05f8b7fe026f3081f2f20098811c884c61
 .autopus/txns/<TX>-codex/
-.autopus/txns/<TX>-codex/journal.json 906b0d5db942097d74fb61a091e4c08c3f5a9c3b35f91366d65f8fb21faeef2f
+.autopus/txns/<TX>-codex/journal.json 7b9f8d905409a241d6523a9752e5621395fc66177863e40d51f29ebae7512ff7
 .claude/
 .claude/agents/
 .claude/agents/autopus/
@@ -42,7 +42,7 @@
 .claude/rules/autopus/autonomy.md 2a9890b2e87346db402e766c01e461c70fa37d2e382728a5f49e990222d6a428
 .claude/rules/autopus/file-size-limit.md c4250d144ef919d17b6edb7ee3f28b9bfa4902bfb5e5fdf0c0e13f0c9a29751c
 .claude/rules/autopus/language-policy.md 7da1d2d97e862b6250d06bbbdba503cccb2faa38b6fc59585a25ea91c5e593c3
-.claude/settings.json 7050087b9016acd33de7ee76846c2edf963f9b296382ff098e4199fbfa2a11cf
+.claude/settings.json 104fa016675bbe86953e7d7a3c5b36efbcda6b0633777f06cb3f52d5b387857a
 .claude/skills/
 .claude/skills/auto-doctor/
 .claude/skills/auto-doctor/SKILL.md 9796d1b85cf212c04b25af789c6b67febd53a933c791b78e22d9b83b713443ee
@@ -97,7 +97,7 @@
 .codex/agents/qa-explorer.toml cd205b88f3ed94a720b0057b7f46813975c3a19c2cf45162b18df6e62a769e2a
 .codex/agents/reviewer.toml 84738e13b41c8aff8d7f345b19965c72de18fc7f725a20d13e3add0a0c2dfe56
 .codex/agents/ux-validator.toml 63287213bbabcab30a4fa186bd8eb97b9db4faf430beae52e6bd3c187b0e6be3
-.codex/config.toml 8848ee167404b36e4b3a29658cc3ca1e66a647b82dd9720730e0dde15f5202b5
+.codex/config.toml 0879138f199dc7492f0d479ec0506de116679faa266992d52266eea006f9b57e
 .codex/hooks.json e983dc7d9a9e68af37fed258e9d249c495b6f1b632cb1ea32e3654a69b6289d6
 .codex/skills/
 .codex/skills/codex-auto-doctor/
@@ -145,7 +145,7 @@
 .codex/skills/codex-verification/
 .codex/skills/codex-verification/SKILL.md 2d893cfa631e3133b81b7277cb51e6a58ba168ae8aecab0334c6086d3bc1c468
 .gitignore f4bcb68a8b040f2884b7ad368238a8efcfc2ad56cd66730b6a8b43c4a53bda20
-.mcp.json c0f8556919cf30b0f10d1fcf91bcd0d346eee5593c54bf2f3497a727bfa137d4
+.mcp.json 8bf68a364a9f18063f8ea3538c81ba49fffbaa1d00af69bc670a44acaf548fdb
 AGENTS.md 3bccf0f9af97957bae70ee71b41b750a1e74ce74d0bc8d0bd85b84d8ee88a7dc
 CLAUDE.md c545ddc92863f8c297a39249698361a128cb1699921531c583adca7813478dc8
 DESIGN.md b3b2dd95d090a98d487007abf90ecefafe0db03d32d455ce35037707a563b54f
