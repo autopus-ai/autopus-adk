@@ -79,6 +79,23 @@ func (r *initInteractive) run() (driftGenerationSnapshot, bool, error) {
 				place = initAtWizard
 				continue
 			}
+			// The claude review model follows the chosen preset's reviewer
+			// before the reviewer step shows it.
+			config.ApplyClaudeReviewFollow(r.cfg)
+			if initReviewerWanted(r.cmd, r.cfg) {
+				err := runInitReviewerStep(r.cmd, r.dir, r.cfg, stage.snapshot)
+				switch initReviewerOutcome(err) {
+				case initStageCancelled:
+					return stage.snapshot, true, nil
+				case initStageBack:
+					place = initAtWizard
+					continue
+				}
+				if err != nil {
+					warnUpdateCompose(r.cmd.OutOrStdout(), composeLanguage(), err)
+				}
+				stage.asked = true
+			}
 			r.applyMethodology(result)
 			r.rea.decideInit(r.cmd, r.cfg, result.Rea)
 			if !composeFormsProbe(r.cmd) {

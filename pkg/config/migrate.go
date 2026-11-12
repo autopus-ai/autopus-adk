@@ -31,8 +31,8 @@ func defaultProviderEntryForQuality(providerName string, quality QualityConf) (P
 //     default; `auto update` reports that one instead (ClaudeProviderFormerDefault).
 //  4. For each platform that maps to a known orchestra provider,
 //     add the provider entry if it is missing.
-//  5. For each orchestra command, ensure every provider in orchestra.Providers
-//     is listed in the command's Providers slice.
+//  5. For each orchestra command with a provider list, ensure every provider
+//     in orchestra.Providers is listed in it. An empty list stays empty.
 func MigrateOrchestraConfig(cfg *HarnessConfig) (bool, error) {
 	if !cfg.Orchestra.Enabled {
 		return false, nil
@@ -77,6 +77,11 @@ func MigrateOrchestraConfig(cfg *HarnessConfig) (bool, error) {
 		return changed, nil
 	}
 	for cmdName, cmd := range cfg.Orchestra.Commands {
+		if len(cmd.Providers) == 0 {
+			// An empty list is derived, not missing: review takes the
+			// review gate's list, any other command every provider.
+			continue
+		}
 		for providerName := range cfg.Orchestra.Providers {
 			if !containsString(cmd.Providers, providerName) {
 				cmd.Providers = append(cmd.Providers, providerName)

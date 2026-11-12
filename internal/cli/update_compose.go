@@ -45,14 +45,34 @@ func runUpdateComposeStep(
 		withDetected(gate.Detected).withReaFallbackNotice(cmd.Context())
 	// REQ-MUX-20 applies to every editing entry point, not only `auto quality`.
 	session = withComposeOverrideQuestion(cmd, session)
-	result, err := runUpdateComposeDriver(cmd, gate, session)
+	var result composeDriverResult
+	if gate.mode() == composeModeAsk && !gate.ConfigureModels {
+		// The default interactive update names what changed and asks once;
+		// the full editor is behind --configure-models.
+		writeComposeNotice(cmd.OutOrStdout(), cfg.Quality, session.text())
+		err = runUpdateModelChanges(cmd, dir, cfg, lang)
+	} else {
+		result, err = runUpdateComposeDriver(cmd, gate, session)
+	}
 	if hint := reviewHint(cfg, lang); hint != "" && gate.mode() == composeModeNotice {
 		fmt.Fprintln(cmd.OutOrStdout(), hint)
 	}
-	// A former default review model is reported, never moved (see
-	// config.ClaudeProviderFormerDefault); a preview never reaches this step.
-	if gate.mode() != composeModeSilent {
-		writeClaudeReviewFormerDefaultNotice(cmd.OutOrStdout(), dir, cfg, composeTextFor(lang))
+	// A model change ADK owns is named, and moved only on a confirm; a
+	// former default the change step does not cover is reported, never
+	// moved (see config.ClaudeProviderFormerDefault). A preview never
+	// reaches this step.
+	former := func() {
+		if _, moves := config.ClaudeReviewFollowFor(cfg); !moves {
+			writeClaudeReviewFormerDefaultNotice(cmd.OutOrStdout(), dir, cfg, composeTextFor(lang))
+		}
+	}
+	switch {
+	case gate.mode() == composeModeNotice:
+		if !writeUpdateModelNotice(cmd.OutOrStdout(), dir, cfg, lang) {
+			former()
+		}
+	case gate.mode() == composeModeAsk && gate.ConfigureModels:
+		former()
 	}
 	// A run-ending error goes to the gate's Abort slot; a caller without one
 	// still gets the warning line instead of losing the error.

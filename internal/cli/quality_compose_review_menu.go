@@ -14,7 +14,7 @@ const composeReviewTabValue = "\x00review"
 // composeReviewTabOption lists the review tab as the last tool tab option
 // (REQ-RVM-01).
 func (f *composeFormRun) composeReviewTabOption() []composeOption[string] {
-	if !f.reviewTabListed() {
+	if f.options.NoReviewTab || !f.reviewTabListed() {
 		return nil
 	}
 	return []composeOption[string]{{f.reviewText().Tab, composeReviewTabValue}}

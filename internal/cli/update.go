@@ -16,7 +16,7 @@ import (
 // @AX:REASON: [AUTO] Freshness re-exec, self-update, workspace detection, preview, platform updates, and rollback paths converge in its RunE handler.
 func newUpdateCmd() *cobra.Command {
 	var dir string
-	var selfFlag, checkOnly, force, yesFlag, previewMode, workspaceFlag, localFlag, reaOn, reaOff bool
+	var selfFlag, checkOnly, force, yesFlag, previewMode, workspaceFlag, localFlag, reaOn, reaOff, configureModels bool
 	var targetVersion, statusLine, workspaceOnly string
 	var freshnessReexec updateFreshnessNonceFlag
 	freshnessGate := newUpdateFreshnessGate()
@@ -212,7 +212,7 @@ func newUpdateCmd() *cobra.Command {
 
 			// The composition step, before the supervisor migration saves cfg (SPEC-MODELUX-001 REQ-MUX-13).
 			var composeAbort error
-			snapshot := updateComposeStep(cmd, dir, cfg, composeGate{Yes: yesFlag, Check: checkOnly, Detected: addedPlatforms, Abort: &composeAbort})
+			snapshot := updateComposeStep(cmd, dir, cfg, composeGate{Yes: yesFlag, Check: checkOnly, Detected: addedPlatforms, Abort: &composeAbort, ConfigureModels: configureModels})
 			if composeAbort != nil {
 				return composeAbort
 			}
@@ -290,6 +290,7 @@ func newUpdateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&targetVersion, "version", "", "특정 버전 설치 (기본값: 최신 버전)")
 	cmd.Flags().BoolVarP(&yesFlag, "yes", "y", false, "모든 프롬프트를 기본값으로 자동 수락")
 	cmd.Flags().StringVar(&statusLine, "statusline-mode", "", "Claude statusLine handling: keep, merge, replace")
+	cmd.Flags().BoolVar(&configureModels, "configure-models", false, "모델 구성 전체 편집 화면을 연다 (기본은 바뀐 기본값만 보이고 한 번 확인)")
 	cmd.Flags().BoolVar(&previewMode, "plan", false, "변경 예정 파일만 계산하고 쓰지 않음")
 	cmd.Flags().BoolVar(&previewMode, "preview", false, "변경 예정 파일만 계산하고 쓰지 않음")
 	cmd.Flags().BoolVar(&previewMode, "dry-run", false, "변경 예정 파일만 계산하고 쓰지 않음")
