@@ -88,6 +88,7 @@ func runActualOMPNativeRPC(
 		if !waited {
 			_ = cmd.Wait()
 		}
+		reapOMPRPCProcessGroup(cmd)
 	}()
 
 	frames, scanDone := scanOMPRPCFrames(stdout)

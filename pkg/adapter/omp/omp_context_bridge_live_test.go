@@ -168,6 +168,7 @@ func runOMPContextBridgeStartup(
 			_ = terminateOMPRPCProcessGroup(cmd)
 			_ = cmd.Wait()
 		}
+		reapOMPRPCProcessGroup(cmd)
 	}()
 
 	stream, done := scanOMPRPCFrames(stdout)

@@ -243,6 +243,7 @@ func runOMPAgentSurfaceRPC(ctx context.Context, executable, scratch, profile, ov
 		if !waited {
 			_ = cmd.Wait()
 		}
+		reapOMPRPCProcessGroup(cmd)
 	}()
 	frames, scanDone := scanOMPRPCFrames(stdout)
 	for ready := false; !ready; {
