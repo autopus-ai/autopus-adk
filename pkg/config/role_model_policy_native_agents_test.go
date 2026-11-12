@@ -75,7 +75,7 @@ func TestOMPAgentRoute_CustomProfileOverridesAreOperatorIntent(t *testing.T) {
 	policy := validRoleModelPolicyFixture()
 	profile := policy.Profiles["p1"]
 	profile.Agents = map[string]RoleAgentOverrideConf{
-		"tester":   {Candidates: []RoleModelCandidateConf{fast}},
+		"tester":    {Candidates: []RoleModelCandidateConf{fast}},
 		"validator": {Candidates: []RoleModelCandidateConf{slow}},
 	}
 	policy.Profiles["p1"] = profile

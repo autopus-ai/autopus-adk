@@ -131,12 +131,9 @@ func resolveProviderNames(conf *config.OrchestraConf, commandName string, flagPr
 		return cmd.Providers
 	}
 
-	// Collect all configured provider names
-	names := make([]string, 0, len(conf.Providers))
-	for name := range conf.Providers {
-		names = append(names, name)
-	}
-	return names
+	// Every configured provider, in name order so a run's lead provider does
+	// not depend on map iteration.
+	return sortedProviderKeys(conf.Providers)
 }
 
 // resolveJudge determines the judge provider to use for debate strategy.
