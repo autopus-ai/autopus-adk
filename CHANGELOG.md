@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **비밀값 가림 범위를 넓히고, 런타임 상태를 사용자 전용 디렉터리에 둔다** (2026-11-12):
+  - `pkg/secretscan`이 따옴표 안 공백이 있는 값, Authorization 헤더의 scheme 뒤 자격 증명, Cookie 헤더 전체,
+    curl 사용자 자격 증명, OpenPGP 개인 키 블록, Slack·Stripe·Google API·GitLab·npm 토큰과 JWT를 가린다.
+    upstream 탐지 표는 그대로 두고 별도 표로 더했다. 선형 시간 테스트는 1배와 4배 입력을 비교해 부하에 덜 흔들린다.
+  - `auto verify stop`의 세션 상태와 worker 정책 캐시가 공용 temp 대신 사용자 cache 디렉터리(`autopus/verify-stop`,
+    `autopus/worker-policy`)를 쓴다. 디렉터리는 0700, 현재 사용자 소유, symlink 아님을 확인한 뒤 쓰고, 파일은 임시 파일과
+    rename으로 쓰며 symlink를 따라 읽지 않는다.
+  - 호출하는 곳이 없던 legacy worker의 PreToolUse hook 설치 코드를 지웠다. legacy `auto worker`가 실제로 적용하는 정책은
+    TimeoutSec과 Codex OS sandbox이며, AllowedCommands·DeniedPatterns·AllowedDirs는 `auto worker validate`로 검사할 때만
+    쓰인다는 점을 `SecurityPolicy` 주석에 적었다.
+
 - **Claude haiku 등급을 Haiku 5.5로 올리고 effort를 받게 한다** (2026-11-12): haiku 등급의 모델은
   `claude-haiku-4-5`에서 현행 `claude-haiku-5-5`로 바뀐다. Haiku 5.5는 effort `low`~`max`를 받으므로 haiku
   에이전트도 Claude Code effort Select에 나오고, 고른 effort는 에이전트 파일의 `effort:` 줄로 쓰인다. 리뷰 탭과

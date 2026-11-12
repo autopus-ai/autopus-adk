@@ -14,6 +14,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/insajin/autopus-adk/pkg/privatedir"
 	"github.com/insajin/autopus-adk/pkg/verifygate"
 )
 
@@ -165,25 +166,30 @@ func verifyChanged(cmd *cobra.Command, in stopHookInput, root string, changed []
 
 var unsafeSessionChars = regexp.MustCompile(`[^A-Za-z0-9_-]`)
 
-// stopStateFile is per-session gate state: the block count, and the
-// fingerprint of the last tree that passed.
-func stopStateFile(session, kind string) string {
+// stopStateDir holds per-session gate state in a private per-user
+// directory: the block count, and the fingerprint of the last tree that
+// passed.
+var stopStateDir = privatedir.Path("verify-stop")
+
+// stopStateName is the file name of one kind of state for a session.
+func stopStateName(session, kind string) string {
 	if session == "" {
 		session = "unknown"
 	}
-	return filepath.Join(os.TempDir(), "autopus-verify-stop", unsafeSessionChars.ReplaceAllString(session, "_")+"."+kind)
+	return unsafeSessionChars.ReplaceAllString(session, "_") + "." + kind
+}
+
+func stopStateFile(session, kind string) string {
+	return filepath.Join(stopStateDir, stopStateName(session, kind))
 }
 
 func readStopState(session, kind string) string {
-	data, _ := os.ReadFile(stopStateFile(session, kind))
+	data, _ := privatedir.ReadFile(stopStateDir, stopStateName(session, kind))
 	return strings.TrimSpace(string(data))
 }
 
 func writeStopState(session, kind, value string) {
-	path := stopStateFile(session, kind)
-	if os.MkdirAll(filepath.Dir(path), 0o700) == nil {
-		_ = os.WriteFile(path, []byte(value), 0o600)
-	}
+	_ = privatedir.WriteFile(stopStateDir, stopStateName(session, kind), []byte(value))
 }
 
 // countStopBlock records one more block for the session and returns the total.

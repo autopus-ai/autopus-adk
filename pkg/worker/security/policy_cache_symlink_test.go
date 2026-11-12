@@ -4,6 +4,7 @@ package security
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -71,4 +72,24 @@ func TestPolicyCache_LstatCheckBeforeWrite(t *testing.T) {
 	content, readErr := os.ReadFile(realFile)
 	require.NoError(t, readErr)
 	assert.Equal(t, "real", string(content), "real file must not be overwritten")
+}
+
+// TestPolicyCache_LooseDirIsTightened covers a cache directory that exists
+// with a group- or world-accessible mode: the write tightens it to 0700.
+func TestPolicyCache_LooseDirIsTightened(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX modes")
+	}
+	cacheDir := filepath.Join(t.TempDir(), "cache")
+	require.NoError(t, os.Mkdir(cacheDir, 0o700))
+	require.NoError(t, os.Chmod(cacheDir, 0o777))
+	cache := &PolicyCache{dir: cacheDir}
+	require.NoError(t, cache.Write("task-loose", SecurityPolicy{TimeoutSec: 5}))
+	info, err := os.Stat(cacheDir)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0o700), info.Mode().Perm())
+	got, err := cache.Read("task-loose")
+	require.NoError(t, err)
+	assert.Equal(t, 5, got.TimeoutSec)
 }

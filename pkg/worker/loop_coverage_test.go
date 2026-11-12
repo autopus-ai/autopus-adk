@@ -5,11 +5,11 @@ import (
 	"bytes"
 	"io"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/insajin/autopus-adk/pkg/worker/a2a"
 	"github.com/insajin/autopus-adk/pkg/worker/budget"
+	"github.com/insajin/autopus-adk/pkg/worker/security"
 	"github.com/insajin/autopus-adk/pkg/worker/workspace"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -59,19 +59,14 @@ func TestCleanupPolicy_NoFile(t *testing.T) {
 func TestCleanupPolicy_FileExists(t *testing.T) {
 	t.Parallel()
 
-	dir := filepath.Join(os.TempDir(), "autopus-"+itoa(os.Getuid()))
-	_ = os.MkdirAll(dir, 0o755)
 	taskID := "test-cleanup-task"
-	path := filepath.Join(dir, "autopus-policy-"+taskID+".json")
-
-	// Create the file.
-	err := os.WriteFile(path, []byte(`{"policy":"test"}`), 0o644)
-	require.NoError(t, err)
+	require.NoError(t, security.NewPolicyCache().Write(taskID, security.SecurityPolicy{TimeoutSec: 1}))
+	path := security.NewPolicyCache().PolicyPath(taskID)
 
 	cleanupPolicy(taskID)
 
 	// File should be removed.
-	_, err = os.Stat(path)
+	_, err := os.Stat(path)
 	assert.True(t, os.IsNotExist(err), "policy file should be removed")
 }
 
@@ -153,24 +148,3 @@ type nopWriteCloser struct {
 }
 
 func (nopWriteCloser) Close() error { return nil }
-
-// itoa avoids importing strconv for a single int conversion.
-func itoa(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	s := ""
-	neg := false
-	if n < 0 {
-		neg = true
-		n = -n
-	}
-	for n > 0 {
-		s = string(rune('0'+n%10)) + s
-		n /= 10
-	}
-	if neg {
-		s = "-" + s
-	}
-	return s
-}
