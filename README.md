@@ -503,6 +503,25 @@ Turn it off with `disk.reclaim.auto: false` or `AUTOPUS_DISK_AUTO_RECLAIM=off`. 
 (core, installed by default) walks an agent through the same steps and tells it what to ask you before deleting:
 other sessions' work, backups, VM disks, and caches other builds are using.
 
+## Leftover wait loops
+
+An agent that waits with `until ! pgrep -f "job"; do sleep 10; done` never finishes: `pgrep -f` matches the
+waiting shell's own command line. A `until grep -q DONE log` loop with no deadline waits forever when the text
+never appears. Each such shell costs little, but they pile up across sessions. The always-on autonomy rule tells
+agents to give every loop a deadline and to wait on a PID instead. `auto proc reap` cleans up the ones that exist:
+
+```bash
+auto proc reap                         # dry run: idle polling shells older than 2h, with the reason
+auto proc reap --older-than 30m --json
+auto proc reap --apply                 # SIGTERM each shell and its sleep child, SIGKILL after --grace (3s)
+auto proc reap --session-pid <pid>     # only descendants of one session
+```
+
+A candidate is a sh/bash/zsh/dash/ksh process of the current user running an `until`/`while` + `sleep` loop
+whose only live descendants are `sleep`. The reason is `self-matching pgrep` or `no deadline, waiting <age>`.
+Other users' processes, shells running anything but sleep (a build or test), and the command's own ancestors
+are never touched.
+
 ## CI: measure first, then share the host
 
 `auto ci report` measures a GitHub Actions repository before anything is changed. It reads through your
