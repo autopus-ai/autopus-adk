@@ -110,7 +110,8 @@ func (a *Adapter) prepareSettingsMapping(hooks []adapter.HookConfig, perms *adap
 			permMap[k] = v
 		}
 		existingAllow := toStringSlice(permMap["allow"])
-		filteredAllow := withoutObsoleteClaudePermissions(existingAllow)
+		filteredAllow := content.WithoutRetiredDefaultAllows(
+			withoutObsoleteClaudePermissions(existingAllow), perms.Allow, a.ledgerClaimedAllows())
 		if len(perms.Allow) > 0 || len(filteredAllow) != len(existingAllow) {
 			permMap["allow"] = mergeUnique(filteredAllow, perms.Allow)
 		}

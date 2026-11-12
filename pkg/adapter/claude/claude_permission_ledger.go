@@ -8,6 +8,7 @@ import (
 	"runtime"
 
 	"github.com/insajin/autopus-adk/pkg/adapter"
+	"github.com/insajin/autopus-adk/pkg/content"
 )
 
 const (
@@ -47,6 +48,9 @@ func (a *Adapter) preparePermissionLedgerMapping(perms *adapter.PermissionSet) (
 		return adapter.FileMapping{}, err
 	}
 	if perms != nil {
+		// A retired default leaves settings.json on this update, so the ledger
+		// stops claiming it: a later hand-added copy then belongs to the user.
+		ledger.Allow = withoutRetiredUndesired(ledger.Allow, perms.Allow)
 		ledger.Allow = appendUniqueStrings(ledger.Allow, missingStrings(perms.Allow, allow)...)
 		if gone {
 			// The claimed ledger took its record along: re-claim the allows
@@ -206,4 +210,33 @@ func readClaudePermissionPreimage(root string) ([]string, []string, error) {
 	}
 	permissions, _ := settings["permissions"].(map[string]any)
 	return toStringSlice(permissions["allow"]), toStringSlice(permissions["deny"]), nil
+}
+
+// ledgerClaimedAllows returns the allow entries a trusted ledger claims, or
+// none when the ledger is absent or fails its ownership checks: retraction
+// then falls back to the retired-block fingerprints alone.
+func (a *Adapter) ledgerClaimedAllows() []string {
+	manifest, err := loadClaudeManifestSafely(a.root)
+	if err != nil {
+		return nil
+	}
+	ledger, _, err := loadClaudePermissionLedger(a.root, manifest)
+	if err != nil || ledger == nil {
+		return nil
+	}
+	return ledger.Allow
+}
+
+func withoutRetiredUndesired(values, desired []string) []string {
+	keep := make(map[string]bool, len(desired))
+	for _, value := range desired {
+		keep[value] = true
+	}
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		if keep[value] || !content.IsRetiredDefaultAllow(value) {
+			result = append(result, value)
+		}
+	}
+	return result
 }

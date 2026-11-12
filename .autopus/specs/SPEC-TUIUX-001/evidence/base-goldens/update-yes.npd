@@ -9,8 +9,8 @@
 .autopus/backup/<TS>/transaction/
 .autopus/backup/<TS>/transaction/claude-code/
 .autopus/backup/<TS>/transaction/claude-code/.autopus/
-.autopus/backup/<TS>/transaction/claude-code/.autopus/claude-code-manifest.json 60ea5a79502d0e4dee3e44b9332320c2f6797f2f9225639499e2b9f66d739a3d
-.autopus/backup/<TS>/transaction/claude-code/.autopus/claude-code-permissions.json b9fd4dd0824fb98d4ff3403c011a56b0b66f398788f2dfb24220c1aed87df4e8
+.autopus/backup/<TS>/transaction/claude-code/.autopus/claude-code-manifest.json 33b717f0d1f3ab0c1feb1da1d98db35943afd737dd0397b3ce5da262fe0b01e3
+.autopus/backup/<TS>/transaction/claude-code/.autopus/claude-code-permissions.json 1f67bb93d7f5d12c791be89828931e8f7ef57710c2ead761fe38e38f7361a296
 .autopus/backup/<TS>/transaction/claude-code/.claude/
 .autopus/backup/<TS>/transaction/claude-code/.claude/agents/
 .autopus/backup/<TS>/transaction/claude-code/.claude/agents/autopus/
@@ -34,7 +34,7 @@
 .autopus/backup/<TS>/transaction/claude-code/.claude/rules/autopus/autonomy.md 8338f1c915ed6dec12d1bd399e3e35f58d7e846b73d93406a5dc58a8250f7334
 .autopus/backup/<TS>/transaction/claude-code/.claude/rules/autopus/file-size-limit.md c4250d144ef919d17b6edb7ee3f28b9bfa4902bfb5e5fdf0c0e13f0c9a29751c
 .autopus/backup/<TS>/transaction/claude-code/.claude/rules/autopus/language-policy.md 7da1d2d97e862b6250d06bbbdba503cccb2faa38b6fc59585a25ea91c5e593c3
-.autopus/backup/<TS>/transaction/claude-code/.claude/settings.json 7050087b9016acd33de7ee76846c2edf963f9b296382ff098e4199fbfa2a11cf
+.autopus/backup/<TS>/transaction/claude-code/.claude/settings.json 104fa016675bbe86953e7d7a3c5b36efbcda6b0633777f06cb3f52d5b387857a
 .autopus/backup/<TS>/transaction/claude-code/.claude/skills/
 .autopus/backup/<TS>/transaction/claude-code/.claude/skills/auto-doctor/
 .autopus/backup/<TS>/transaction/claude-code/.claude/skills/auto-doctor/SKILL.md 9796d1b85cf212c04b25af789c6b67febd53a933c791b78e22d9b83b713443ee
@@ -83,14 +83,14 @@
 .autopus/backup/<TS>/transaction/claude-code/.claude/statusline-combined.sh 62219cb455d52cdc2ebcaeacc6e085da074a2c3409410ce152bba93e0d26f01b
 .autopus/backup/<TS>/transaction/claude-code/.claude/statusline-user-command.txt e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
 .autopus/backup/<TS>/transaction/claude-code/.claude/statusline.sh 98814d06f77ac9f7d0edffbd7977ca9fe06617eda0b964e10c7b6306f41bba94
-.autopus/backup/<TS>/transaction/claude-code/.mcp.json 67ad967ed8ce3d15639cf4d9e96e3cb18848415649037fcabbdd14c116cf5193
+.autopus/backup/<TS>/transaction/claude-code/.mcp.json 1f22bf268cf4a1da19c1f70a80a5e4383569e1ff23a999a6563073ef2d74d7f4
 .autopus/backup/<TS>/transaction/claude-code/CLAUDE.md c545ddc92863f8c297a39249698361a128cb1699921531c583adca7813478dc8
 .autopus/backup/<TS>/transaction/codex/
 .autopus/backup/<TS>/transaction/codex/.agents/
 .autopus/backup/<TS>/transaction/codex/.agents/plugins/
 .autopus/backup/<TS>/transaction/codex/.agents/plugins/marketplace.json 7bac9f0f7c15eecf46023308f334e2122d112d03aa7b498f9e01adabd48ac03c
 .autopus/backup/<TS>/transaction/codex/.autopus/
-.autopus/backup/<TS>/transaction/codex/.autopus/codex-manifest.json 327dabf2b399bee0baef124a219da41ece61fdb85c49c338a2f059d04d483804
+.autopus/backup/<TS>/transaction/codex/.autopus/codex-manifest.json 1fe9b74424878481a09078be402032b4d238f8f866ec5ac14d949bf3d259673b
 .autopus/backup/<TS>/transaction/codex/.autopus/plugins/
 .autopus/backup/<TS>/transaction/codex/.autopus/plugins/auto/
 .autopus/backup/<TS>/transaction/codex/.autopus/plugins/auto/.codex-plugin/
@@ -104,7 +104,7 @@
 .autopus/backup/<TS>/transaction/codex/.codex/agents/qa-explorer.toml cd205b88f3ed94a720b0057b7f46813975c3a19c2cf45162b18df6e62a769e2a
 .autopus/backup/<TS>/transaction/codex/.codex/agents/reviewer.toml 84738e13b41c8aff8d7f345b19965c72de18fc7f725a20d13e3add0a0c2dfe56
 .autopus/backup/<TS>/transaction/codex/.codex/agents/ux-validator.toml 63287213bbabcab30a4fa186bd8eb97b9db4faf430beae52e6bd3c187b0e6be3
-.autopus/backup/<TS>/transaction/codex/.codex/config.toml b42a92847a2ad7afe9eef356eae0fd372eec1a5c92cfeee64aebb0c5853fb8c4
+.autopus/backup/<TS>/transaction/codex/.codex/config.toml c84d7fc9676780de25a8fd9e8b43f634a0bc914b7b462773bd70b408276d67bd
 .autopus/backup/<TS>/transaction/codex/.codex/hooks.json e983dc7d9a9e68af37fed258e9d249c495b6f1b632cb1ea32e3654a69b6289d6
 .autopus/backup/<TS>/transaction/codex/.codex/skills/
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-auto-doctor/
@@ -152,9 +152,9 @@
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-verification/
 .autopus/backup/<TS>/transaction/codex/.codex/skills/codex-verification/SKILL.md 2d893cfa631e3133b81b7277cb51e6a58ba168ae8aecab0334c6086d3bc1c468
 .autopus/backup/<TS>/transaction/codex/AGENTS.md 3bccf0f9af97957bae70ee71b41b750a1e74ce74d0bc8d0bd85b84d8ee88a7dc
-.autopus/claude-code-manifest.json 60ea5a79502d0e4dee3e44b9332320c2f6797f2f9225639499e2b9f66d739a3d
-.autopus/claude-code-permissions.json b9fd4dd0824fb98d4ff3403c011a56b0b66f398788f2dfb24220c1aed87df4e8
-.autopus/codex-manifest.json c7c8246a137a0e7721ddce742d003576ca659c4019c8b94d2535096c6f27f1d8
+.autopus/claude-code-manifest.json 33b717f0d1f3ab0c1feb1da1d98db35943afd737dd0397b3ce5da262fe0b01e3
+.autopus/claude-code-permissions.json 1f67bb93d7f5d12c791be89828931e8f7ef57710c2ead761fe38e38f7361a296
+.autopus/codex-manifest.json 75406950846175407ffe9525407c6c16f0102a85e07d030c2992a4ec6cbf4738
 .autopus/context/
 .autopus/context/constraints.yaml d8b3a0714389a30b7aca1986fbb71235900e14c9dddfe50fdbbb758698d0b26e
 .autopus/plugins/
@@ -167,12 +167,12 @@
 .autopus/txns/
 .autopus/txns/<TX>-claude-code/
 .autopus/txns/<TX>-claude-code/
-.autopus/txns/<TX>-claude-code/journal.json a7e9b02f49f54b752c7153330d25426bc09a530f1e26fcc042a5ebda4b78ca72
-.autopus/txns/<TX>-claude-code/journal.json cc956a5e1426ac40ea431ca0f222a95c48aab33df11c7dd79252948e44e59315
+.autopus/txns/<TX>-claude-code/journal.json 08e97d7dd8ec5b46b5e34c273a0daffd0e3ece4a9755976f8581da28acae60ba
+.autopus/txns/<TX>-claude-code/journal.json fa28ad99e0b9bfffca27507829a42c6ad0a15845e99a25bb16157701cf3c87b2
 .autopus/txns/<TX>-codex/
 .autopus/txns/<TX>-codex/
-.autopus/txns/<TX>-codex/journal.json 3baa0be56160ddd5bac9ac0ee40b92acee32d1d182ab5806d9fa10a8ef14bd42
-.autopus/txns/<TX>-codex/journal.json 8172312a8db869cfbd141e7cc423a6c8747213bc9d737aa73ba737da25ef3fe3
+.autopus/txns/<TX>-codex/journal.json 265a6eb9a47ba5dfb75dc5a9f8be18b23202d18045e3ec5b5e63b6b37d487734
+.autopus/txns/<TX>-codex/journal.json 31037687f8631e03f23f0bd36b04119def2888b1a0890e9d60d798790c3c81c6
 .claude/
 .claude/agents/
 .claude/agents/autopus/
@@ -196,7 +196,7 @@
 .claude/rules/autopus/autonomy.md 8338f1c915ed6dec12d1bd399e3e35f58d7e846b73d93406a5dc58a8250f7334
 .claude/rules/autopus/file-size-limit.md c4250d144ef919d17b6edb7ee3f28b9bfa4902bfb5e5fdf0c0e13f0c9a29751c
 .claude/rules/autopus/language-policy.md 7da1d2d97e862b6250d06bbbdba503cccb2faa38b6fc59585a25ea91c5e593c3
-.claude/settings.json 7050087b9016acd33de7ee76846c2edf963f9b296382ff098e4199fbfa2a11cf
+.claude/settings.json 104fa016675bbe86953e7d7a3c5b36efbcda6b0633777f06cb3f52d5b387857a
 .claude/skills/
 .claude/skills/auto-doctor/
 .claude/skills/auto-doctor/SKILL.md 9796d1b85cf212c04b25af789c6b67febd53a933c791b78e22d9b83b713443ee
@@ -251,7 +251,7 @@
 .codex/agents/qa-explorer.toml cd205b88f3ed94a720b0057b7f46813975c3a19c2cf45162b18df6e62a769e2a
 .codex/agents/reviewer.toml 84738e13b41c8aff8d7f345b19965c72de18fc7f725a20d13e3add0a0c2dfe56
 .codex/agents/ux-validator.toml 63287213bbabcab30a4fa186bd8eb97b9db4faf430beae52e6bd3c187b0e6be3
-.codex/config.toml b42a92847a2ad7afe9eef356eae0fd372eec1a5c92cfeee64aebb0c5853fb8c4
+.codex/config.toml c84d7fc9676780de25a8fd9e8b43f634a0bc914b7b462773bd70b408276d67bd
 .codex/hooks.json e983dc7d9a9e68af37fed258e9d249c495b6f1b632cb1ea32e3654a69b6289d6
 .codex/skills/
 .codex/skills/codex-auto-doctor/
@@ -299,7 +299,7 @@
 .codex/skills/codex-verification/
 .codex/skills/codex-verification/SKILL.md 2d893cfa631e3133b81b7277cb51e6a58ba168ae8aecab0334c6086d3bc1c468
 .gitignore f4bcb68a8b040f2884b7ad368238a8efcfc2ad56cd66730b6a8b43c4a53bda20
-.mcp.json 67ad967ed8ce3d15639cf4d9e96e3cb18848415649037fcabbdd14c116cf5193
+.mcp.json 1f22bf268cf4a1da19c1f70a80a5e4383569e1ff23a999a6563073ef2d74d7f4
 AGENTS.md 3bccf0f9af97957bae70ee71b41b750a1e74ce74d0bc8d0bd85b84d8ee88a7dc
 CLAUDE.md c545ddc92863f8c297a39249698361a128cb1699921531c583adca7813478dc8
 DESIGN.md b3b2dd95d090a98d487007abf90ecefafe0db03d32d455ce35037707a563b54f

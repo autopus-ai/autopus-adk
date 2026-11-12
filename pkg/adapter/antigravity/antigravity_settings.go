@@ -149,7 +149,7 @@ func applyAntigravityHooksAndPermissions(settings map[string]any, hooks []adapte
 			permMap[k] = v
 		}
 		if len(perms.Allow) > 0 {
-			existing := toStringSlice(permMap["allow"])
+			existing := content.WithoutRetiredDefaultAllows(toStringSlice(permMap["allow"]), perms.Allow, nil)
 			permMap["allow"] = mergeUnique(existing, perms.Allow)
 		}
 		if len(perms.Deny) > 0 {
