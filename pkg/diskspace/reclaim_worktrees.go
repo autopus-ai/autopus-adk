@@ -50,6 +50,11 @@ func ScanWorktreeReclaim(ctx context.Context, in WorktreeReclaimInput) WorktreeR
 	dirs := []string{in.ProjectDir}
 	for _, entry := range in.Ledger {
 		if entry.Kind == LedgerKindWorktree && entry.Live() {
+			if entry.Released() && !entry.ReleaseHolds() {
+				// The worktree moved after its release: it is registered,
+				// not released.
+				entry.ReleasedAt = nil
+			}
 			registered[canonicalOrSelf(entry.Path)] = entry
 			dirs = append(dirs, entry.Path)
 		}
@@ -109,7 +114,7 @@ func ScanWorktreeReclaim(ctx context.Context, in WorktreeReclaimInput) WorktreeR
 				IdleMinutes: int64(in.Now.Sub(activity) / time.Minute),
 				MainPath:    scan.Root.Path, ID: pathID(path), Head: item.Head, BaseRef: baseRefOf(scan.Base),
 				Cutoff: in.Now.Add(-time.Duration(in.IdleMinutes) * time.Minute),
-				Unlock: unlock, LockReason: item.LockReason, cwds: in.Cwds, alive: in.Alive,
+				Unlock: unlock, LockReason: item.LockReason, cwds: in.Cwds, alive: in.Alive, guardIgnored: wide,
 			}
 			c.agentPID, c.agentStart, _ = parseAgentLock(item.LockReason)
 			out.Candidates = append(out.Candidates, c)
@@ -242,8 +247,9 @@ func recheckWorktree(ctx context.Context, run Runner, c ReclaimCandidate, state 
 	return outcomeDeleted
 }
 
-// stillReleased re-reads the ledger: the entry must still be live, released,
-// and name the same directory.
+// stillReleased re-reads the ledger: the entry must still be live (identity
+// token included), released at the worktree's current HEAD, and name the
+// same directory.
 func stillReleased(state *StateDir, c ReclaimCandidate) bool {
 	if state == nil {
 		return false
@@ -253,7 +259,7 @@ func stillReleased(state *StateDir, c ReclaimCandidate) bool {
 		return false
 	}
 	for _, e := range entries {
-		if canonicalOrSelf(e.Path) == c.Path && e.Released() && e.Live() && (FileID{Dev: e.Dev, Ino: e.Ino}) == c.ID {
+		if canonicalOrSelf(e.Path) == c.Path && e.ReleaseHolds() && e.Live() && (FileID{Dev: e.Dev, Ino: e.Ino}) == c.ID {
 			return true
 		}
 	}

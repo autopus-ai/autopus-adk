@@ -93,6 +93,14 @@ func (in WorktreeReclaimInput) wideVerdict(ctx context.Context, item Worktree, w
 	case cwd == path || strings.HasPrefix(cwd, path+"/"):
 		return "", false, SkipCwd, true
 	}
+	if wide {
+		switch ignoredFiles(ctx, in.Run, path) {
+		case Unknown:
+			return "", false, SkipUnknown, true
+		case True:
+			return "", false, SkipIgnored, true
+		}
+	}
 	if item.Locked && !in.alive(ctx, pid, start) {
 		return ReasonAgentDead, true, "", true
 	}
@@ -155,10 +163,14 @@ func removeCandidate(ctx context.Context, run Runner, c ReclaimCandidate) error 
 	return err
 }
 
-// recheckWide re-reads what the wider rules selected on: no process may
-// have entered the worktree since the scan, and an agent worktree must still
+// recheckWide re-reads what the wider rules selected on: a worktree outside
+// the harness directories must still hold no ignored files beyond build
+// output, no process may have entered the worktree since the scan, and an agent worktree must still
 // carry the same lock, whose process must still be gone for agent_dead.
 func recheckWide(ctx context.Context, run Runner, c ReclaimCandidate) outcome {
+	if c.guardIgnored && ignoredFiles(ctx, run, c.Path) != False {
+		return outcomeChanged
+	}
 	needsCwds := c.Reason == ReasonMergedLinked || c.Reason == ReasonAgentIdle
 	if c.cwds != nil {
 		listed, err := c.cwds(ctx)

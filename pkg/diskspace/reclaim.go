@@ -55,6 +55,9 @@ type ReclaimCandidate struct {
 	LockReason string `json:"-"`
 	agentPID   int
 	agentStart string
+	// guardIgnored marks a worktree neither in the harness directories nor
+	// registered, re-checked for ignored files right before its removal.
+	guardIgnored bool
 	// recheck re-reads, right before removal, the facts only the CLI can
 	// list: process working directories and the locking process.
 	cwds  CwdLister

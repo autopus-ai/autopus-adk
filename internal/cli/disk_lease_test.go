@@ -151,3 +151,19 @@ func TestDiskLease_ShortageReclaimsOnce(t *testing.T) {
 	}
 	assert.Equal(t, []string{diskspace.EventTrimApply, diskspace.EventReclaimApply, diskspace.EventLeaseReclaimed, diskspace.EventLeaseRefused}, kinds)
 }
+
+// A shortage reclaim runs unattended, so it removes only the automatic
+// subset: the merged harness worktree goes, the resumable session
+// scratchpad stays.
+func TestDiskLease_ShortageReclaimKeepsSessions(t *testing.T) {
+	rf := newReclaimFixture(t)
+	prevSleep, prevSampler := diskLeaseSleep, leaseMachineSampler
+	diskLeaseSleep, leaseMachineSampler = func(context.Context, time.Duration) {}, idleMachine
+	t.Cleanup(func() { diskLeaseSleep, leaseMachineSampler = prevSleep, prevSampler })
+	holdLease(t, gib(30))
+
+	out := runDiskCLI(t, "disk", "lease", "--dir", rf.repo, "--need", "15", "--wait", "0s", "--", "true")
+	assert.Equal(t, 3, out.code, out.stderr)
+	assert.NoDirExists(t, rf.harness)
+	assert.DirExists(t, rf.session, "a session scratchpad is left to a person")
+}

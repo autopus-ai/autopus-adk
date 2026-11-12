@@ -483,8 +483,9 @@ that changed since the scan is skipped. `auto disk reclaim` removes:
 
 - linked worktrees anywhere whose HEAD is in the default remote branch (`origin/HEAD` or `origin/main`),
   clean with no untracked files, idle beyond `disk.reclaim.worktree_idle_minutes` (default 360), and not
-  the working directory of any running process. `git worktree remove` runs without `--force`; the branch
-  is kept.
+  the working directory of any running process. `git worktree remove` runs without `--force`, which still
+  deletes git-ignored files, so such a worktree is kept while it holds any ignored file outside the
+  regenerable build directories below (a `.env`, a local database). The branch is kept.
 - Claude Code agent worktrees, locked as `claude agent agent-<id> (pid N start T)`, when they are clean and
   merged: right away when the locking process is gone (pid and start time checked), or, while it runs,
   once the worktree is idle and holds no process. They are unlocked, then removed. A dirty or unmerged

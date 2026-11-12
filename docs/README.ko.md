@@ -513,7 +513,9 @@ status는 이 표본으로 소비자를 증가량 순서로 보여 주고(예: `
 
 - 위치와 상관없이, HEAD가 기본 원격 브랜치(`origin/HEAD` 또는 `origin/main`)에 들어 있고, 추적하지 않은 파일
   없이 깨끗하며, `disk.reclaim.worktree_idle_minutes`(기본 360)보다 오래 쉬었고, 실행 중인 어떤 프로세스의
-  작업 디렉터리도 아닌 linked worktree. `git worktree remove`를 `--force` 없이 쓰고 branch는 남깁니다.
+  작업 디렉터리도 아닌 linked worktree. `git worktree remove`를 `--force` 없이 쓰지만 git이 무시하는 파일은
+  그래도 지워지므로, 아래의 재생성 가능한 빌드 디렉터리 밖에 무시된 파일(`.env`, 로컬 DB 등)이 하나라도 있으면
+  그 worktree는 남깁니다. branch는 남깁니다.
 - `claude agent agent-<id> (pid N start T)`로 잠긴 Claude Code agent worktree 중 깨끗하고 merge된 것. 잠근
   프로세스가 사라졌으면(pid와 시작 시각으로 확인) 바로, 살아 있으면 worktree가 쉬고 있고 그 안에 프로세스가
   없을 때 잠금을 풀고 지웁니다. dirty하거나 merge되지 않은 worktree는 지우지 않습니다.
