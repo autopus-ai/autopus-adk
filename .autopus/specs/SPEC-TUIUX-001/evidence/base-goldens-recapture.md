@@ -410,3 +410,10 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 기록: `go run ./cmd/generate-templates` 뒤 `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run 'TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6'`, 그리고 `go test ./internal/cli -run TestComposeLineInput_MatchesTheSPECMODELUX001Output -update-compose-table`.
 - 차이: NPD 일곱 개(init-in, init-pipe, init-yes, quality-line-b, quality-no-tty, update-ci, update-yes)에서 `autopus.yaml` checksum 한 줄씩만 바뀌었다. `line-quality-D-global.golden`은 preset 설명 두 줄만 바뀌었다. stdout golden은 그대로다.
 - 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`·`TestComposeLineInput_MatchesTheSPECMODELUX001Output`가 통과한다.
+
+## 리뷰 목록 한 곳과 리뷰어 단계 (feat/model-ux-flow, 2026-11-12)
+
+- 원인: `orchestra.commands.review`가 provider 목록 없이 출하된다(review는 `spec.review_gate.providers`를 읽는다, `pkg/config/defaults.go`). 새로 쓰는 `autopus.yaml`이 바뀐다.
+- 기록: `go run ./cmd/generate-templates` 뒤 `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run 'TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6'`. `go test ./internal/cli -run TestComposeLineInput_MatchesTheSPECMODELUX001Output -update-compose-table`은 아무것도 바꾸지 않았다.
+- 차이: NPD 일곱 개(init-in, init-pipe, init-yes, quality-line-b, quality-no-tty, update-ci, update-yes)에서 `autopus.yaml` checksum 한 줄씩만 바뀌었다. stdout golden은 그대로다.
+- 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.

@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **리뷰어 단계는 모든 품질 선택 뒤에, update는 바뀐 기본값만 한 번 묻는다** (2026-11-12): 여러 CLI 리뷰의 model은
+  `auto init`에서 "고급 → 구성 편집 → 멀티프로바이더 리뷰"를 지나야만 닿았고 Ultra·Balanced에서는 보이지 않았다. 이제
+  review gate가 켜져 있고 provider가 둘 이상이면 품질을 무엇으로 골랐든 리뷰어 단계가 나와 CLI마다 참여 여부, 지금
+  model과 바꾸기, judge를 묻는다. claude 리뷰 model은 고른 preset의 reviewer model을 따른다(balanced
+  `claude-opus-5-5`, ultra `claude-fable-5-1`, 둘 다 max). 리뷰 설정은 한 곳에만 둔다: model은
+  `orchestra.providers.<p>`, 참여 CLI는 `spec.review_gate.providers`, judge는 `spec.review_gate.judge`이고, `auto
+  orchestra review`도 review gate의 목록과 judge를 읽는다. 그래서 리뷰어 단계에서 끈 CLI는 `/auto review`에서도
+  빠진다. 새 설정은 `orchestra.commands.review.providers`를 쓰지 않는다. `auto update`는 대화형 터미널에서 바뀐
+  기본값(예: `claude 리뷰 model claude-opus-5-5 · max → claude-fable-5-1 · max`, ADK가 쓴 orchestra review 목록)만
+  줄로 보이고 한 번 묻는다. 전체 편집 화면은 새 `--configure-models`로 연다. `--yes`·CI·TTY가 아닌 입력은 같은
+  줄을 안내로만 쓴다. 직접 고른 model·목록·judge는 줄에 나오지 않고 옮기지 않는다.
+
 - **모델 선택 화면에서 은퇴한 역할·명령을 걷어내고 문구를 사실대로 고친다** (2026-11-12): `auto init`의 Quality
   Mode 선택지는 이제 각 preset이 4개 에이전트에 주는 tier를 설정에서 읽어 보여 준다(예: `Balanced — reviewer,
   qa-explorer: opus · frontend-specialist, ux-validator: sonnet`). 예전 "strict review, high coverage"는 preset이

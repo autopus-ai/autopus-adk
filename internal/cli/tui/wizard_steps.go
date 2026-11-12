@@ -182,9 +182,9 @@ func buildQualityStep(num, total int, r *InitWizardResult, labels map[string]str
 // one is named only. The role-group label is Korean for ko and English for
 // every other locale, as the composition step that follows it is.
 func qualityOptions(lang string, labels map[string]string) []huh.Option[string] {
-	roleGroups := "Compose by role — choose a tier for each role group"
+	roleGroups := "Advanced — choose models per tool and per agent"
 	if lang == "ko" {
-		roleGroups = "역할별 직접 구성 — 역할 그룹마다 등급을 고릅니다"
+		roleGroups = "고급 — 도구·에이전트별로 model을 직접 고릅니다"
 	}
 	label := func(preset, name string) string {
 		if line := labels[preset]; line != "" {

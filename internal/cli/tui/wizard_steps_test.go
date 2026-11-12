@@ -117,9 +117,9 @@ func TestQualityOptions_OfferRoleGroupsThird(t *testing.T) {
 	assert.Equal(t, "role-groups", tui.QualityRoleGroups)
 
 	labels := map[string]string{
-		"ko": "역할별 직접 구성 — 역할 그룹마다 등급을 고릅니다",
-		"en": "Compose by role — choose a tier for each role group",
-		"ja": "Compose by role — choose a tier for each role group",
+		"ko": "고급 — 도구·에이전트별로 model을 직접 고릅니다",
+		"en": "Advanced — choose models per tool and per agent",
+		"ja": "Advanced — choose models per tool and per agent",
 	}
 	presets := map[string]string{
 		"ultra":    "Ultra — reviewer, qa-explorer: fable · frontend-specialist, ux-validator: opus",

@@ -44,6 +44,10 @@ type composeGate struct {
 	// detection order (SPEC-MODELUX-002 Platform View Contract). The table,
 	// the tool tab, and the run's Codex snapshot see them; no write does.
 	Detected []string
+	// ConfigureModels is `auto update --configure-models`: an interactive
+	// update opens the full composition forms instead of naming only what
+	// changed and asking one confirm.
+	ConfigureModels bool
 	// Abort, when set, receives the error that ends the whole update
 	// (REQ-MUX2-14, REQ-MUX2-11): Ctrl+C in a form, or an OMP write the step
 	// could not read back. The update returns it before its supervisor

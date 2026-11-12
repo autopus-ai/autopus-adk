@@ -112,7 +112,7 @@ func TestInitHelp_LongDocumentsTheRoleGroupChoice(t *testing.T) {
 	for _, group := range composeRoleGroups {
 		assert.Contains(t, help, group.Label("ko"))
 	}
-	for _, want := range []string{"역할별 직접 구성", "balanced", "y로 확인", "--yes", "--quality"} {
+	for _, want := range []string{"고급", "balanced", "y로 확인", "--yes", "--quality"} {
 		assert.Contains(t, help, want)
 	}
 	found := initCmd.Flags().Lookup("yes") != nil && initCmd.InheritedFlags().Lookup("quality") != nil
