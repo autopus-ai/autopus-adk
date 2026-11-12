@@ -5,19 +5,23 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/insajin/autopus-adk/pkg/privatedir"
+	"github.com/insajin/autopus-adk/pkg/worker/security"
 )
 
-// policyDir returns a secure directory for caching policy files.
-// Uses a per-user subdirectory under os.TempDir to avoid symlink attacks (SEC-001).
+// policyDir returns the private per-user directory for cached policy files,
+// created with mode 0700 and verified to be the current user's own directory.
 func policyDir() (string, error) {
-	dir := filepath.Join(os.TempDir(), fmt.Sprintf("autopus-%d", os.Getuid()))
-	if err := os.MkdirAll(dir, 0700); err != nil {
+	dir := security.PolicyCacheDir()
+	if err := privatedir.Ensure(dir); err != nil {
 		return "", fmt.Errorf("create policy dir: %w", err)
 	}
 	return dir, nil
 }
 
-// cacheSecurityPolicy writes the security policy to a secure temp file for subprocess access.
+// cacheSecurityPolicy writes the security policy to the private policy
+// directory for subprocess access: a temp file renamed into place (SEC-001).
 func cacheSecurityPolicy(taskID string, policy SecurityPolicy, signature string) error {
 	data, err := json.MarshalIndent(policy, "", "  ")
 	if err != nil {
@@ -28,33 +32,11 @@ func cacheSecurityPolicy(taskID string, policy SecurityPolicy, signature string)
 	if err != nil {
 		return err
 	}
-
-	// Write to a temp file then rename for atomic creation (SEC-001).
-	tmp, err := os.CreateTemp(dir, "policy-*.json")
-	if err != nil {
-		return fmt.Errorf("create temp policy file: %w", err)
-	}
-	tmpPath := tmp.Name()
-
-	if _, err := tmp.Write(data); err != nil {
-		_ = tmp.Close()
-		removeIfExists(tmpPath)
+	name := fmt.Sprintf("autopus-policy-%s.json", taskID)
+	if err := privatedir.WriteFile(dir, name, data); err != nil {
 		return fmt.Errorf("write policy: %w", err)
 	}
-	if err := tmp.Close(); err != nil {
-		removeIfExists(tmpPath)
-		return fmt.Errorf("close policy file: %w", err)
-	}
-
-	target := filepath.Join(dir, fmt.Sprintf("autopus-policy-%s.json", taskID))
-	if err := os.Rename(tmpPath, target); err != nil {
-		removeIfExists(tmpPath)
-		return fmt.Errorf("rename policy file: %w", err)
-	}
-	if err := writePolicySignature(target, signature); err != nil {
-		return err
-	}
-	return nil
+	return writePolicySignature(filepath.Join(dir, name), signature)
 }
 
 func removeIfExists(path string) {

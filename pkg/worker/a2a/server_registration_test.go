@@ -11,6 +11,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/insajin/autopus-adk/pkg/worker/security"
 )
 
 func TestPolicyDir_CreatesSecureDir(t *testing.T) {
@@ -19,14 +21,13 @@ func TestPolicyDir_CreatesSecureDir(t *testing.T) {
 	dir, err := policyDir()
 	require.NoError(t, err)
 
-	expected := filepath.Join(os.TempDir(), fmt.Sprintf("autopus-%d", os.Getuid()))
-	assert.Equal(t, expected, dir)
+	assert.Equal(t, security.PolicyCacheDir(), dir)
 
 	info, err := os.Stat(dir)
 	require.NoError(t, err)
 	assert.True(t, info.IsDir())
 	mode := info.Mode().Perm()
-	assert.True(t, mode&0700 == 0700, "expected at least 0700, got %o", mode)
+	assert.Equal(t, os.FileMode(0o700), mode, "the policy dir is private to the user")
 }
 
 func TestCacheSecurityPolicy_AtomicWrite(t *testing.T) {
@@ -67,7 +68,7 @@ func TestCacheSecurityPolicy_WritesFile(t *testing.T) {
 
 	require.NoError(t, cacheSecurityPolicy(taskID, policy, ""))
 
-	path := filepath.Join(os.TempDir(), fmt.Sprintf("autopus-%d", os.Getuid()), fmt.Sprintf("autopus-policy-%s.json", taskID))
+	path := filepath.Join(security.PolicyCacheDir(), fmt.Sprintf("autopus-policy-%s.json", taskID))
 	defer func() { _ = os.Remove(path) }()
 
 	data, err := os.ReadFile(path)
