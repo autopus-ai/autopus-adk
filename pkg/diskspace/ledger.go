@@ -52,16 +52,23 @@ func (e ledgerError) Error() string {
 func (e ledgerError) Is(target error) bool { return target == ErrLedgerUnreadable }
 
 // LedgerEntry is one registered worktree. Dev and Ino are the identity of the
-// path when it was registered; an entry whose path now names anything else
-// is stale.
+// path when it was registered, and Token the identity token written into the
+// worktree's git administrative directory; an entry whose path now names
+// anything else is stale. Inode numbers alone are reused by some
+// filesystems, so an entry without a token (written before tokens existed)
+// is never live and must be registered again. ReleasedHead is the worktree's
+// HEAD when it was released; a release whose worktree has since moved to
+// another branch or commit no longer applies.
 type LedgerEntry struct {
 	Path         string     `json:"path"`
 	Kind         string     `json:"kind"`
 	Owner        string     `json:"owner,omitempty"`
 	RegisteredAt time.Time  `json:"registered_at"`
 	ReleasedAt   *time.Time `json:"released_at,omitempty"`
+	ReleasedHead string     `json:"released_head,omitempty"`
 	Dev          uint64     `json:"dev"`
 	Ino          uint64     `json:"ino"`
+	Token        string     `json:"token,omitempty"`
 }
 
 type ledgerDoc struct {
@@ -75,11 +82,20 @@ func (e LedgerEntry) Live() bool {
 	if err != nil || !info.IsDir() {
 		return false
 	}
-	return statOf(info).id == FileID{Dev: e.Dev, Ino: e.Ino}
+	if statOf(info).id != (FileID{Dev: e.Dev, Ino: e.Ino}) || !validToken(e.Token) {
+		return false
+	}
+	return readWorktreeToken(e.Path) == e.Token
 }
 
 // Released reports whether the owner released the entry.
 func (e LedgerEntry) Released() bool { return e.ReleasedAt != nil }
+
+// ReleaseHolds reports whether the entry is released and the worktree's HEAD
+// is still the one recorded at release.
+func (e LedgerEntry) ReleaseHolds() bool {
+	return e.Released() && e.ReleasedHead != "" && worktreeHead(e.Path) == e.ReleasedHead
+}
 
 // LoadLedger reads the ledger; a missing file is an empty ledger.
 func LoadLedger(state StateDir) ([]LedgerEntry, error) {
@@ -151,17 +167,21 @@ func RegisterWorktree(ctx context.Context, state StateDir, path, owner string, n
 		// able to own it either (REQ-DISK2-REG-01).
 		return fmt.Errorf("%s %w", path, ErrNotOwnedWorktree)
 	}
+	token, err := ensureWorktreeToken(path)
+	if err != nil {
+		return err
+	}
 	id := statOf(info).id
 	entry := LedgerEntry{Path: path, Kind: LedgerKindWorktree, Owner: cleanOwner(owner),
-		RegisteredAt: now.UTC(), Dev: id.Dev, Ino: id.Ino}
+		RegisteredAt: now.UTC(), Dev: id.Dev, Ino: id.Ino, Token: token}
 	return updateLedger(ctx, state, func(entries []LedgerEntry) []LedgerEntry {
 		entries = slices.DeleteFunc(entries, func(e LedgerEntry) bool { return e.Path == path })
 		return append(entries, entry)
 	})
 }
 
-// ReleaseWorktree marks the live entry of path released and reports whether
-// one existed.
+// ReleaseWorktree marks the live entry of path released, recording its HEAD,
+// and reports whether one existed.
 func ReleaseWorktree(ctx context.Context, state StateDir, path string, now time.Time) (bool, error) {
 	found := false
 	stamp := now.UTC()
@@ -169,6 +189,7 @@ func ReleaseWorktree(ctx context.Context, state StateDir, path string, now time.
 		for i := range entries {
 			if entries[i].Path == path && entries[i].Live() {
 				entries[i].ReleasedAt = &stamp
+				entries[i].ReleasedHead = worktreeHead(path)
 				found = true
 			}
 		}

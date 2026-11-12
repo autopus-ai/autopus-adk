@@ -255,7 +255,9 @@ func leaseRefused(cmd *cobra.Command, dc diskContext, req leaseRequest, a disksp
 
 // leaseShortageReclaim runs the trim and reclaim applies once and returns
 // the bytes they freed. Their own output is not printed: the lease's
-// stdout belongs to the command it wraps.
+// stdout belongs to the command it wraps. Nobody watches this reclaim, so
+// it removes only what the automatic reclaim may: released worktrees,
+// resumable session scratchpads, and large files stay for a person.
 func leaseShortageReclaim(ctx context.Context, dc diskContext) int64 {
 	var freed int64
 	if s := surveyTrim(ctx, dc, ""); !s.plan.Inactive && s.refused() == nil {
@@ -264,9 +266,9 @@ func leaseShortageReclaim(ctx context.Context, dc diskContext) int64 {
 		recordDiskEvent(diskspace.Event{Kind: diskspace.EventTrimApply, FreeBytes: dc.space.AvailBytes,
 			ReclaimedBytes: result.Total.DeletedBytes, Count: result.Total.Deleted})
 	}
-	result := planReclaim(ctx, dc).apply(ctx)
+	result := planReclaim(ctx, dc).automatic().apply(ctx)
 	recordDiskEvent(diskspace.Event{Kind: diskspace.EventReclaimApply, FreeBytes: dc.space.AvailBytes,
-		ReclaimedBytes: result.DeletedBytes, Count: result.Worktrees + result.Scratchpads})
+		ReclaimedBytes: result.DeletedBytes, Count: result.Worktrees + result.Scratchpads + result.Regenerable})
 	return freed + result.DeletedBytes
 }
 

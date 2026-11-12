@@ -201,6 +201,16 @@ changed is skipped as `skipped_changed`. Git removes the worktree without
 `--force`, so it refuses a dirty or locked one on its own; the branch is
 always kept.
 
+A linked worktree that is neither in those directories nor registered is
+removed only by the automatic rules (`merged_linked`, and agent worktrees
+outside the harness directories): merged into `origin/HEAD` or
+`origin/main`, clean, idle, and held by no process. Because
+`git worktree remove` deletes git-ignored files even without `--force`, such
+a worktree is also kept (`ignored_files`) while it holds any ignored file
+outside a regenerable build directory (`node_modules`, `.next`, or `dist`
+beside a `package.json`, `target` beside a `Cargo.toml`); this is checked at
+scan time and again right before removal.
+
 Register a worktree you create anywhere else, and release it when its work is
 merged or abandoned:
 
@@ -210,6 +220,15 @@ auto disk register ../wt/fix-x --owner "session 0646"
 # ... work, push, merge ...
 auto disk release ../wt/fix-x
 ```
+
+Registration writes an identity token into the worktree's git administrative
+directory (`$GIT_DIR/worktrees/<id>/autopus-disk-token`) and records it in the
+ledger. Git deletes that directory with the worktree, so a new worktree later
+created at the same path is never mistaken for the registered one, even on a
+filesystem that reuses the inode number. Release records the worktree's
+`HEAD`; a released worktree checked out on another branch or commit
+afterwards is treated as registered, not released. Ledger entries written
+before tokens existed are no longer trusted: register those worktrees again.
 
 **Scratchpads.** A Claude Code session directory
 `/tmp/claude-<uid>/<project slug>/<session uuid>` whose newest entry is idle
@@ -231,7 +250,9 @@ auto disk lease --for release --wait 30m -- make release
 ```
 
 When space is short it runs `auto disk trim --apply` and
-`auto disk reclaim --apply` once (`lease.reclaim_on_shortage`), then waits,
+`auto disk reclaim --auto --apply` once (`lease.reclaim_on_shortage`): nobody
+watches it, so released worktrees, session scratchpads, and large files are
+left for a person. Then it waits,
 re-checking every 5 seconds, up to `--wait` (default `lease.wait_minutes`), and
 exits 3 if space never came. A refusal because `lease.max_concurrent` leases
 already run does not reclaim anything. The reservation is a locked file that

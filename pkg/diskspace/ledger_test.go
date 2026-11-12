@@ -2,6 +2,7 @@ package diskspace
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -86,6 +87,10 @@ func TestLedger_RegisterReleaseStale(t *testing.T) {
 	gitT(t, repo, "worktree", "add", "-b", "feat2", wt, "main")
 	entries, _ = LoadLedger(state)
 	require.Len(t, entries, 1)
+	// Some filesystems (ext4) hand the recreated directory the freed inode
+	// number; emulate that so the identity token alone must tell them apart.
+	reuseInode(t, state, wt)
+	entries, _ = LoadLedger(state)
 	assert.False(t, entries[0].Live(), "a recreated path is a different directory")
 
 	other := filepath.Join(filepath.Dir(wt), "wt2")
@@ -98,6 +103,23 @@ func TestLedger_RegisterReleaseStale(t *testing.T) {
 	require.NoError(t, ForgetWorktree(ctx, state, other))
 	entries, _ = LoadLedger(state)
 	assert.Empty(t, entries)
+}
+
+// reuseInode rewrites every ledger entry of path to the device and inode
+// path has now, as a filesystem that reuses freed inode numbers would.
+func reuseInode(t *testing.T, state StateDir, path string) {
+	t.Helper()
+	entries, err := LoadLedger(state)
+	require.NoError(t, err)
+	id := pathID(path)
+	for i := range entries {
+		if entries[i].Path == path {
+			entries[i].Dev, entries[i].Ino = id.Dev, id.Ino
+		}
+	}
+	data, err := json.Marshal(ledgerDoc{Version: ledgerVersion, Entries: entries})
+	require.NoError(t, err)
+	require.NoError(t, state.WriteFileAtomic(ledgerFile, data))
 }
 
 // SPEC-DISK-002 S3: a corrupted ledger is refused and left byte-identical.
