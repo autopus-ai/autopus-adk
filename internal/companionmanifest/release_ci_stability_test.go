@@ -48,7 +48,7 @@ func TestCIWorkflow_StableChecksHaveBoundedTimeouts(t *testing.T) {
 	// 상한은 "이 job이 이보다 오래 걸리면 무언가 잘못됐다"는 뜻이다.
 	ceilings := map[string]int{
 		"build": 30, "test-isolated": 30, "test-packages": 60, "test-cli": 60,
-		"test": 20, "lineage-integration": 60, "e2e": 20, "lint": 20,
+		"test": 20, "lineage-integration": 60, "integration-packages": 30, "e2e": 20, "lint": 20,
 		"static-contracts": 20, "macos-runtime": 30,
 		"omp-native-smoke": 15,
 	}
@@ -77,17 +77,23 @@ func TestCIWorkflow_StableChecksHaveBoundedTimeouts(t *testing.T) {
 
 	// The GoReleaser fixtures download their pinned module; a transient
 	// checksum-database error there must be retried before the tests run.
-	prefetch := ciStepRun(t, workflow.Jobs["lineage-integration"], "Prefetch pinned GoReleaser module")
-	if !strings.Contains(prefetch, "go run "+productionGoReleaserModule+" --version") ||
-		!strings.Contains(prefetch, "for attempt in 1 2 3") {
-		t.Fatalf("GoReleaser prefetch must retry the exact fixture module %s:\n%s", productionGoReleaserModule, prefetch)
-	}
-	if ciStepIndex(t, workflow.Jobs["lineage-integration"], "Prefetch pinned GoReleaser module") >=
-		ciStepIndex(t, workflow.Jobs["lineage-integration"], "Test non-lineage integration packages") {
-		t.Fatal("GoReleaser prefetch must run before the integration tests")
+	// Both integration jobs run GoReleaser fixtures (pkg/ and internal/
+	// companionmanifest), so each prefetches before its tests.
+	for id, testStep := range map[string]string{
+		"lineage-integration":  "Test release lineage integration",
+		"integration-packages": "Test non-lineage integration packages",
+	} {
+		prefetch := ciStepRun(t, workflow.Jobs[id], "Prefetch pinned GoReleaser module")
+		if !strings.Contains(prefetch, "go run "+productionGoReleaserModule+" --version") ||
+			!strings.Contains(prefetch, "for attempt in 1 2 3") {
+			t.Fatalf("%s: GoReleaser prefetch must retry the exact fixture module %s:\n%s", id, productionGoReleaserModule, prefetch)
+		}
+		if ciStepIndex(t, workflow.Jobs[id], "Prefetch pinned GoReleaser module") >= ciStepIndex(t, workflow.Jobs[id], testStep) {
+			t.Fatalf("%s: GoReleaser prefetch must run before the integration tests", id)
+		}
 	}
 
-	nonLineageRun := ciStepRun(t, workflow.Jobs["lineage-integration"], "Test non-lineage integration packages")
+	nonLineageRun := ciStepRun(t, workflow.Jobs["integration-packages"], "Test non-lineage integration packages")
 	// 이 레인의 계약은 "lineage 패키지와 internal/cli를 각각 정확히 하나씩 빼고
 	// 나머지를 돈다"이다 (internal/cli는 test-cli shard가 integration 태그로 돈다).
 	// 스크립트 문면을 베끼는 대신 그 성질을 확인한다.
@@ -102,6 +108,20 @@ func TestCIWorkflow_StableChecksHaveBoundedTimeouts(t *testing.T) {
 		if !strings.Contains(nonLineageRun, required) {
 			t.Fatalf("non-lineage integration lane missing %q", required)
 		}
+	}
+	// Each lineage shard builds only its own coordinates, so the matrix must
+	// number its shards 1..N and hand each its index over the total; a shard
+	// list with a gap would leave coordinates unbuilt and still pass.
+	lineageJob := workflow.Jobs["lineage-integration"]
+	shards, _ := lineageJob.Strategy.Matrix["shard"].([]any)
+	for i, shard := range shards {
+		if number, ok := shard.(int); !ok || number != i+1 {
+			t.Fatalf("lineage-integration shards = %v, want 1..N in order", shards)
+		}
+	}
+	if len(shards) < 1 || lineageJob.Env["AUTOPUS_LINEAGE_SHARD"] != "${{ matrix.shard }}/${{ strategy.job-total }}" {
+		t.Fatalf("lineage-integration must pass AUTOPUS_LINEAGE_SHARD=<shard>/<total>, got shards=%v env=%q",
+			shards, lineageJob.Env["AUTOPUS_LINEAGE_SHARD"])
 	}
 	lineageRun := ciStepRun(t, workflow.Jobs["lineage-integration"], "Test release lineage integration")
 	for _, required := range []string{"-tags integration", "./pkg/companionmanifest"} {
@@ -124,7 +144,7 @@ func TestCIWorkflow_StableChecksHaveBoundedTimeouts(t *testing.T) {
 
 func TestCIWorkflow_StaticAndMacOSContractsArePullRequestSafe(t *testing.T) {
 	workflow := readCIStabilityWorkflow(t, ".github/workflows/ci.yaml")
-	for _, id := range []string{"test-isolated", "test-packages", "test-cli", "test", "lineage-integration", "macos-runtime"} {
+	for _, id := range []string{"test-isolated", "test-packages", "test-cli", "test", "lineage-integration", "integration-packages", "macos-runtime"} {
 		checkout := ciUsesStep(t, workflow.Jobs[id], "actions/checkout@")
 		if checkout.With["fetch-depth"] != 0 {
 			t.Fatalf("CI job %s checkout fetch-depth = %v, want 0 for release ancestry checks",

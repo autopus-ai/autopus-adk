@@ -69,6 +69,9 @@ func produceGoReleaserFixtureEvidence(
 ) *goReleaserA0Evidence {
 	t.Helper()
 	requireExecutableLineageIntegration(t)
+	if shard := activeLineageShard(t); !shard.holds(releaseTag) {
+		t.Skipf("GoReleaser coordinate %s runs in another lineage shard than %d/%d", releaseTag, shard.index, shard.count)
+	}
 	cache, ok := goReleaserLineageCaches[releaseTag]
 	if !ok || cache.version != releaseVersion || cache.annotated != annotated {
 		t.Fatalf("unsupported GoReleaser lineage cache coordinate %s/%s annotated=%t",
@@ -95,7 +98,11 @@ func cloneGoReleaserEvidence(source *goReleaserA0Evidence) *goReleaserA0Evidence
 
 func TestGoReleaserLineageFixtures_ProcessCacheBuildsEachCoordinateOnce(t *testing.T) {
 	tools := newExecutableLineageTools(t)
+	shard := activeLineageShard(t)
 	for _, test := range goReleaserLineageCoordinates {
+		if !shard.holds(test.tag) {
+			continue
+		}
 		first := produceGoReleaserFixtureEvidence(t, tools, test.tag, test.version, test.annotated)
 		second := produceGoReleaserFixtureEvidence(t, tools, test.tag, test.version, test.annotated)
 		if first == second || !bytes.Equal(first.checksums, second.checksums) {

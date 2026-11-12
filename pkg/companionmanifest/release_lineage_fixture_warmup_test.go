@@ -15,8 +15,12 @@ func ensureGoReleaserLineageFixtures(t *testing.T, tools executableLineageTools)
 	goReleaserLineageWarmupOnce.Do(func() {
 		if !t.Run("bounded-fixture-warmup", func(t *testing.T) {
 			slots := make(chan struct{}, lineageFixtureWarmupParallelism)
+			shard := activeLineageShard(t)
 			for _, coordinate := range goReleaserLineageCoordinates {
 				coordinate := coordinate
+				if !shard.holds(coordinate.tag) {
+					continue
+				}
 				t.Run(coordinate.tag, func(t *testing.T) {
 					t.Parallel()
 					slots <- struct{}{}
