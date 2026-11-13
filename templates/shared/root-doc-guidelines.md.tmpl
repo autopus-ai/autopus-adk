@@ -22,11 +22,18 @@ sources. Preserve existing brownfield major versions unless migration is request
 
 ### Autonomy and Questions
 
-Carry the work through without asking permission to continue; after a change
-passes its build and tests, run the review and QA hunt yourself. Ask only when
-the answer changes what gets built and nothing settles it, and then ask a
+Carry the work through without asking permission to continue. After a change
+passes its build and tests, verify it yourself, in this order: user-scenario QA
+against the user's own request (`auto qa intent`, then `auto qa go <id> --auto
+--no-loop` and `auto qa exec --all` while the change is uncommitted), the
+review, and the QA hunt, which also checks the change against the project's
+documented policies and rules and measures inefficiency. Ask only when the
+answer changes what gets built and nothing settles it, and then ask a
 multiple-choice question (the platform's question tool, or numbered options)
-with the recommendation first. Otherwise proceed and state the assumption.
+with the recommendation first. Say in one line what you found that makes the
+question necessary, and give each option a description of what gets built
+under it, its main trade-off, and whether it is easy to change later.
+Otherwise proceed and state the assumption.
 
 ### Worker Results
 

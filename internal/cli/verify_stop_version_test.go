@@ -97,6 +97,7 @@ func newManifestRepo(t *testing.T, base, edits map[string]string) string {
 }
 
 func freshSession(t *testing.T) string {
+	isolateStop(t) // before any state is seeded, so the stop reads the same directory
 	session := "version-" + strings.ReplaceAll(t.Name(), "/", "_")
 	resetStopState(session) // a crashed earlier run may have left state behind
 	t.Cleanup(func() { resetStopState(session) })
@@ -214,4 +215,15 @@ func TestVerifyStop_VersionRespectsTheBlockLimit(t *testing.T) {
 	got := runStopReply(t, dir, session, "done")
 	assert.Empty(t, got.Decision)
 	assert.Contains(t, got.SystemMessage, "still behind")
+}
+
+// The version warning is recorded as shown before it is returned, so a stop
+// the verification round blocks must still carry it.
+func TestVerifyStop_VersionWarningSurvivesTheVerificationRound(t *testing.T) {
+	session := freshSession(t)
+	optInFollowup(t, "")
+	dir := newManifestRepo(t, nil, map[string]string{"docker-compose.yml": oldCompose, "run.sh": "echo hi\n"})
+	got := runStopReply(t, dir, session, "done")
+	assert.Equal(t, "block", got.Decision, "run.sh is new product code")
+	assert.Contains(t, got.SystemMessage, "could not check the latest version of image postgres:13")
 }

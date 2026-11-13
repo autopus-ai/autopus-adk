@@ -134,6 +134,9 @@ func writeQAIntentText(out io.Writer, payload qaIntentPayload) {
 				mark = "*"
 			}
 			fmt.Fprintf(out, "    %s %d. %s\n", mark, i+1, option)
+			if i < len(q.Details) {
+				fmt.Fprintf(out, "         %s\n", q.Details[i])
+			}
 		}
 	}
 	for _, step := range payload.NextSteps {

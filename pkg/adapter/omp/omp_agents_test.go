@@ -83,7 +83,7 @@ func TestOMPGenerate_WritesTheFourAutopusAgents(t *testing.T) {
 
 	explorer := readOMPAgentFrontmatter(t, root, "qa-explorer")
 	assert.Equal(t, "qa-explorer", explorer["name"])
-	assert.Equal(t, "만든 것을 실제로 실행·조작하며 버그를 찾는 탐색형 QA 에이전트. 재현 스크립트로 확인된 버그만 보고하고 제품 코드는 고치지 않는다.",
+	assert.Equal(t, "만든 것을 실제로 실행·조작하며 버그·정책 불일치·비효율을 찾는 탐색형 QA 에이전트. 재현 스크립트로 확인된 것만 보고하고 제품 코드는 고치지 않는다.",
 		explorer["description"])
 	assert.Equal(t, "high", explorer["thinkingLevel"])
 	assert.Equal(t, []any{

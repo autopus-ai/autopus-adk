@@ -90,7 +90,10 @@ export default function autopusStopGate(pi) {
     for (const check of CHECKS) {
       const result = await runCheck(check, payload, cwd)
       if (result.decision === "block" && result.reason) reasons.push(result.reason)
-      else if (result.systemMessage) ctx?.ui?.notify?.(result.systemMessage, "warning")
+      // A warning can ride on a blocking result too (the verification round
+      // blocks while the version check warns once per session), so it is
+      // shown either way instead of being lost.
+      if (result.systemMessage) ctx?.ui?.notify?.(result.systemMessage, "warning")
     }
     if (reasons.length === 0) return
     answering = true

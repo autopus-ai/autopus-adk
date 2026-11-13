@@ -138,7 +138,7 @@ func nodeManager(root, declared string) string {
 var nodeExts = []string{".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".vue", ".svelte"}
 
 // IsSource reports whether a changed file belongs to a toolchain the gate
-// verifies. Only these files count toward the size of a change.
+// verifies.
 func IsSource(file string) bool {
 	return hasExt([]string{file}, append([]string{".go", ".py", ".rs"}, nodeExts...)...)
 }

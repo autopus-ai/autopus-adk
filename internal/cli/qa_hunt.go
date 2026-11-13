@@ -13,10 +13,12 @@ import (
 func newQAHuntCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "hunt",
-		Short: "Verify the bugs an exploring QA agent reported, by rerunning their repro scripts",
-		Long: "Exploratory QA writes each suspected bug to .autopus/qa/hunt/findings/<id>/ as finding.json and " +
-			"repro.sh (exit 1 while the bug is present, 0 when fixed). `auto qa hunt verify` reruns every repro " +
-			"and records confirmed, flaky, not_reproduced, or broken_repro.",
+		Short: "Verify the findings an exploring QA agent reported, by rerunning their repro scripts",
+		Long: "Exploratory QA writes each suspected bug, policy mismatch or inefficiency to " +
+			".autopus/qa/hunt/findings/<id>/ as finding.json and repro.sh (exit 1 while the problem is present, " +
+			"0 when fixed). A policy_mismatch finding must quote a rule that is really written in its policy.source, " +
+			"and an inefficiency finding must carry a numeric measure with its basis; otherwise it is invalid. " +
+			"`auto qa hunt verify` reruns every repro and records confirmed, flaky, not_reproduced, or broken_repro.",
 	}
 	cmd.AddCommand(newQAHuntVerifyCmd())
 	return cmd
@@ -33,7 +35,7 @@ func newQAHuntVerifyCmd() *cobra.Command {
 	)
 	cmd := &cobra.Command{
 		Use:   "verify",
-		Short: "Rerun each finding's repro and record whether the bug is real",
+		Short: "Rerun each finding's repro and record whether the problem is real",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if runs < 1 {
@@ -76,16 +78,16 @@ func newQAHuntVerifyCmd() *cobra.Command {
 				fmt.Fprintf(cmd.OutOrStdout(), "%d confirmed, %d invalid. Report: %s\n", confirmed, len(bad), report)
 			}
 			if failOnConfirmed && confirmed > 0 {
-				return fmt.Errorf("%d confirmed bug(s)", confirmed)
+				return fmt.Errorf("%d confirmed finding(s)", confirmed)
 			}
 			return nil
 		},
 	}
 	cmd.Flags().StringVar(&dir, "dir", ".", "Project root")
 	cmd.Flags().StringVar(&only, "id", "", "Verify only this finding")
-	cmd.Flags().IntVar(&runs, "runs", 2, "Times to run each repro; a confirmed bug fails every time")
+	cmd.Flags().IntVar(&runs, "runs", 2, "Times to run each repro; a confirmed finding fails every time")
 	cmd.Flags().DurationVar(&timeout, "timeout", 2*time.Minute, "Time limit per repro run")
 	cmd.Flags().BoolVar(&asJSON, "json", false, "Print results as JSON")
-	cmd.Flags().BoolVar(&failOnConfirmed, "fail-on-confirmed", false, "Exit 1 when any bug is confirmed (CI)")
+	cmd.Flags().BoolVar(&failOnConfirmed, "fail-on-confirmed", false, "Exit 1 when any finding is confirmed (CI)")
 	return cmd
 }

@@ -72,8 +72,12 @@ func newVerifyStopCmd() *cobra.Command {
 			"once, naming file:line and rule but never the value (AUTOPUS_SECRET_STOP=off or hooks.secret_stop: false " +
 			"turns that off). Dependency, toolchain and image pins this turn adds or bumps that are a full release line behind " +
 			"the latest stable block the stop once, unless the reply has a `version-pin: <name> <reason>` line " +
-			"(AUTOPUS_VERSION_STOP=off or hooks.version_stop: false turns that off). Opt-in with AUTOPUS_FOLLOWUP=on or --followup: once the build passes, " +
-			"a change of 40 or more lines is sent on to the reviewer and qa-explorer agents, once per session.",
+			"(AUTOPUS_VERSION_STOP=off or hooks.version_stop: false turns that off). Once the build passes (or when no build toolchain covers the changed files), a change that alters product code " +
+			"in any language the file-size limit counts is sent on to verification, once per session " +
+			"(AUTOPUS_FOLLOWUP=off turns it off). Tests, comments, docs, configuration and generated files alone get no round. " +
+			"Fewer than 40 changed product code lines get the light round (existing scenarios via auto qa exec --all, the reviewer, " +
+			"and qa-explorer in verify mode); 40 or more lines or a new product file get the full round (auto qa intent, " +
+			"auto qa go --no-loop, auto qa exec --all, the reviewer, and the qa-explorer hunt).",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			out := runVerifyStop(cmd, cmd.InOrStdin(), budget, followup)
@@ -86,7 +90,7 @@ func newVerifyStopCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().DurationVar(&budget, "budget", 8*time.Minute, "Total time for all verification commands")
-	cmd.Flags().BoolVar(&followup, "followup", false, "After a passing build, send a large enough change on to review and QA hunt, once per session (also AUTOPUS_FOLLOWUP=on)")
+	cmd.Flags().BoolVar(&followup, "followup", false, "Kept for older settings; the verification round is on by default (AUTOPUS_FOLLOWUP=off turns it off)")
 	return cmd
 }
 
@@ -123,12 +127,17 @@ func runVerifyStop(cmd *cobra.Command, stdin io.Reader, budget time.Duration, fo
 // test-first and follow-up rounds.
 func verifyChanged(cmd *cobra.Command, in stopHookInput, root string, changed []string, budget time.Duration, followup bool) stopHookOutput {
 	steps := verifygate.Plan(root, changed)
-	if len(steps) == 0 {
-		return stopHookOutput{}
-	}
 	if n := backgroundWriters(in); n > 0 {
+		if len(steps) == 0 {
+			return stopHookOutput{}
+		}
 		return stopHookOutput{SystemMessage: fmt.Sprintf(
 			"auto verify stop: %d background agent task(s) may still be changing the work tree; verification runs at the next stop", n)}
+	}
+	if len(steps) == 0 {
+		// Nothing to build, but a changed shell script or Java class is
+		// still behavior the user will run.
+		return followupRound(cmd, in, root, followup, false)
 	}
 	fingerprint := verifygate.Fingerprint(root, changed)
 	if readStopState(in.SessionID, "pass") == fingerprint {
@@ -149,12 +158,7 @@ func verifyChanged(cmd *cobra.Command, in stopHookInput, root string, changed []
 		}
 		resetStopBlocks(in.SessionID)
 		writeStopState(in.SessionID, "pass", fingerprint)
-		if followupEnabled(followup) {
-			if lines := verifygate.ChangedLines(cmd.Context(), root, changed); nextFollowup(in.SessionID, lines) {
-				return followupOutput(lines)
-			}
-		}
-		return stopHookOutput{}
+		return followupRound(cmd, in, root, followup, true)
 	}
 	summary := fmt.Sprintf("Verification failed: `%s` (%s).\n%s", strings.Join(failure.Step.Argv, " "), failure.Reason, failure.Output)
 	if countStopBlock(in.SessionID) > verifyStopMaxBlocks {
@@ -189,7 +193,13 @@ func readStopState(session, kind string) string {
 }
 
 func writeStopState(session, kind, value string) {
-	_ = privatedir.WriteFile(stopStateDir, stopStateName(session, kind), []byte(value))
+	_ = saveStopState(session, kind, value)
+}
+
+// saveStopState is writeStopState for a caller that must know the write
+// landed, such as a round that would otherwise repeat on every stop.
+func saveStopState(session, kind, value string) error {
+	return privatedir.WriteFile(stopStateDir, stopStateName(session, kind), []byte(value))
 }
 
 // countStopBlock records one more block for the session and returns the total.

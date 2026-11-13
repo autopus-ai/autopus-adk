@@ -77,6 +77,23 @@ func TestParseOutput_RejectsDraftsThatCannotBeAnOracle(t *testing.T) {
 	assert.Empty(t, draft.Questions)
 }
 
+func TestParseOutput_KeepsOptionDetailsForTheAsker(t *testing.T) {
+	out := strings.Replace(goodOutput, "recommended: 0",
+		"details: [\"The [table] header stays, so round-trips are exact.\", \"Output is shorter, but the table vanishes on decode.\"]\n  recommended: 0", 1)
+	draft, err := ParseOutput(out)
+	require.NoError(t, err)
+	require.Len(t, draft.Questions, 1)
+	assert.Equal(t, []string{"The [table] header stays, so round-trips are exact.", "Output is shorter, but the table vanishes on decode."},
+		draft.Questions[0].Details)
+	assert.Contains(t, BuildPrompt("x"), "`details`")
+
+	for name, details := range map[string]string{"short": `["only one"]`, "blank": `["kept", " "]`} {
+		draft, err := ParseOutput(strings.Replace(goodOutput, "recommended: 0", "details: "+details+"\n  recommended: 0", 1))
+		require.NoError(t, err, name)
+		assert.Nil(t, draft.Questions[0].Details, "malformed details are dropped, not fatal: %s", name)
+	}
+}
+
 // The agent runs in an empty directory, never the project: criteria written
 // from the code would agree with whatever the code does.
 func TestRun_AgentSeesOnlyTheRequest(t *testing.T) {

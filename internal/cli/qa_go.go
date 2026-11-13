@@ -27,6 +27,7 @@ type qaGoOptions struct {
 	JSONOut       bool
 	Format        string
 	Resume        bool
+	NoLoop        bool
 }
 
 func newQAGoCmd() *cobra.Command {
@@ -51,7 +52,9 @@ func newQAGoCmdWith(deps autopilot.Deps) *cobra.Command {
 Without a SPEC-ID, generation and promotion are skipped: the scenarios
 already in place are compiled and the loop runs over them. --resume starts
 the loop branch from the latest earlier loop branch instead, so its scenarios
-and fixes carry over. --agent defaults to the first installed CLI
+and fixes carry over. The loop refuses uncommitted tracked changes;
+--no-loop stops after compile so the scenarios can run on the working tree
+with auto qa exec --all (and auto qa run for GUI scenarios). --agent defaults to the first installed CLI
 (claude, codex, agy, opencode); --lane defaults to browser-staging when a
 Journey Pack declares it.`,
 		Args:         cobra.MaximumNArgs(1),
@@ -71,6 +74,7 @@ Journey Pack declares it.`,
 	flags.IntVar(&opts.MaxIterations, "max-iterations", qaloop.DefaultMaxIterations, "Maximum fix iterations")
 	flags.DurationVar(&opts.AgentTimeout, "agent-timeout", qaloop.DefaultAgentTimeout, "Timeout for one agent run")
 	flags.BoolVar(&opts.Resume, "resume", false, "Start from the latest loop branch with scenarios, keeping its fixes (no SPEC-ID)")
+	flags.BoolVar(&opts.NoLoop, "no-loop", false, "Stop after compile, for uncommitted changes; then run auto qa exec --all on the working tree")
 	addJSONFlags(cmd, &opts.JSONOut, &opts.Format)
 	return cmd
 }
@@ -103,7 +107,7 @@ func runQAGo(cmd *cobra.Command, spec string, opts qaGoOptions, deps autopilot.D
 	unattended := globalFlagsFromContext(ctx).AutoMode || jsonMode
 	report, err := autopilot.Run(ctx, autopilot.Options{
 		ProjectDir: opts.ProjectDir, SpecID: spec, Agent: target, Lane: opts.Lane,
-		Auto: unattended, MaxIterations: opts.MaxIterations, AgentTimeout: opts.AgentTimeout, Resume: opts.Resume,
+		Auto: unattended, MaxIterations: opts.MaxIterations, AgentTimeout: opts.AgentTimeout, Resume: opts.Resume, NoLoop: opts.NoLoop,
 		OnGenerated: func(gen generate.Report) { writeQAGenerateCoverage(out, gen) },
 		Confirm: func(generate.Report) bool {
 			return confirmIssue(cmd, "promote these candidates and run the loop? [y/N] ")
@@ -125,6 +129,11 @@ func runQAGo(cmd *cobra.Command, spec string, opts qaGoOptions, deps autopilot.D
 		return writeJSONResult(cmd, jsonStatusOK, report, nil, nil)
 	}
 	switch {
+	case opts.NoLoop:
+		fmt.Fprintln(out, "next: auto qa exec --all")
+		if report.Compiled > 0 {
+			fmt.Fprintf(out, "next: auto qa run --lane %s\n", report.Lane)
+		}
 	case report.Loop == nil || report.Loop.Branch == "":
 	case !report.Loop.BranchDeleted:
 		fmt.Fprintf(out, "next: review and merge %s\n", report.Loop.Branch)

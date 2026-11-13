@@ -12,16 +12,27 @@ description: >
 
 Project-level QA를 QAMESH evidence와 feedback bundle로 연결합니다. 이 스킬은 `auto qa` namespace의 thin routing guidance이며, 실제 결과는 CLI 실행으로만 확인합니다.
 
-## Bug Hunt (default)
+## Default Flow: User Scenarios, Then the Hunt
 
-Use the hunt when the request is to find bugs, test or playtest what was built, or `/auto qa` arrives with no subcommand or with natural language. QAMESH below is for declared journeys and release evidence.
+Use this flow when the request is to find bugs, test or playtest what was built, verify a finished change, or `/auto qa` arrives with no subcommand or with natural language. Run both phases yourself, without asking the user to start them. QAMESH below is for declared journeys and release evidence.
 
-1. Run the hunt yourself, without asking the user to start it: follow the `qa-hunt` skill in this session (or a `qa-explorer` subagent when available) with the request, the mode (`explore`, `hunt`, `verify`, or `goal`), and the changed scope (`git diff HEAD --stat`). The `qa-hunt` skill holds the procedure: read `.autopus/qa/hunt/memory.md`, write a driver under `.autopus/qa/hunt/drivers/`, drive the running product, and file each suspicion as `.autopus/qa/hunt/findings/<id>/finding.json` plus `repro.sh` (exit 1 while the bug is present, 0 once fixed).
-2. Judge with `auto qa hunt verify`. Only `confirmed` findings are bugs; report `flaky`, `not_reproduced`, and `broken_repro` apart as suspicions.
-3. Fix each confirmed bug in product code, rerun the project tests, and rerun `auto qa hunt verify` until each fixed finding reports `not_reproduced`. Never edit a repro to make it pass.
-4. Finish with confirmed / fixed / remaining counts and the report path `.autopus/qa/hunt/report.md`.
+### Phase 1: User scenarios
 
-When a fix needs a decision only the user can make, ask it as a multiple-choice question (numbered options), recommendation first. Otherwise proceed and state the assumption.
+Run the change the way its user would, against criteria that do not come from the implementer.
+
+1. If a SPEC or an earlier intent covers this change (`.autopus/specs/<id>/acceptance.md`), use its id.
+2. Otherwise save the user's original request verbatim to a file (their words, not your summary and not the code), run `auto qa intent --request-file <file> --format json`, ask each entry of `questions` as a multiple-choice question with numbered options: each option followed by its `details` entry (when `details` is missing, write one line yourself from the criterion: what the user would observe under that reading), recommended option first, record the answers with `auto qa intent answer <id> Q1=<n> ...` (options numbered from 1; do not edit acceptance.md), and use that id.
+3. Run the scenarios on the change as it stands. Right after implementing, the change is uncommitted, and the loop inside `auto qa go` refuses uncommitted tracked changes, so run `auto qa go <id> --auto --no-loop` (generate, promote, compile), then `auto qa exec --all`, plus `auto qa run --lane <lane>` when it compiled GUI scenarios. Fix each failing scenario in the working tree and rerun until they pass. Never change a scenario's expected value to make it pass; if an expectation contradicts the request, say so instead. When the change is already committed and the tree is clean, `auto qa go <id> --auto` runs the scenarios and fixes failures on its own loop branch instead.
+4. Skip Phase 1 only when the change has nothing a user can run (documentation, comments, CI configuration), and say that you skipped it and why.
+
+### Phase 2: Hunt for bugs, policy mismatches and inefficiency
+
+1. Follow the `qa-hunt` skill in this session (or a `qa-explorer` subagent when available) with the request, the mode (`explore`, `hunt`, `verify`, or `goal`), the changed scope (`git diff HEAD --stat`), and the SPEC or intent id from Phase 1. The `qa-hunt` skill holds the procedure: read `.autopus/qa/hunt/memory.md`, list the product policies (SPEC, docs, help, business rules) and project rules (`CLAUDE.md`, `AGENTS.md`, rules) the change touches as verbatim quotes, write a driver under `.autopus/qa/hunt/drivers/`, drive the running product, and file each suspicion as `.autopus/qa/hunt/findings/<id>/finding.json` plus `repro.sh` (exit 1 while the problem is present, 0 once fixed). A `policy_mismatch` finding cites the rule it breaks; an `inefficiency` finding carries the measured number and the basis of its threshold. Anything that cannot be quoted or measured goes to `.autopus/qa/hunt/observations.md`.
+2. Judge with `auto qa hunt verify`. Only `confirmed` findings count; report `flaky`, `not_reproduced`, and `broken_repro` apart as suspicions.
+3. Fix each confirmed finding (bug, policy mismatch, inefficiency) in product code, rerun the project tests, and rerun `auto qa hunt verify` until each fixed finding reports `not_reproduced`. Never edit a repro, a quoted policy or a threshold to make it pass. Observations are not fixed automatically.
+4. Finish with: scenarios passed / total from Phase 1; confirmed / fixed / remaining per oracle (bugs, `policy_mismatch`, `inefficiency`); the observation count; and the report path `.autopus/qa/hunt/report.md`.
+
+When a fix needs a decision only the user can make (which of a policy and the behavior is right, or a performance trade-off), ask it as a multiple-choice question (numbered options, each with one line on what it changes), recommendation first. Otherwise proceed and state the assumption.
 
 ## Runner Boundary
 
@@ -78,8 +89,8 @@ When a fix needs a decision only the user can make, ask it as a multiple-choice 
 - `auto qa run`: deterministic project QA를 실행하고 run index, QAMESH evidence, 선택된 feedback bundle을 생성합니다.
 - `auto qa explore`: explicit GUI Journey Pack만 대상으로 실제 UI 탐색 evidence를 생성합니다. 먼저 `--dry-run`으로 allowed origins, forbidden actions, artifact retention, setup gap을 확인합니다.
 - `auto qa scenario`: 프로젝트가 선언한 user scenario를 runner spec으로 컴파일합니다. `init`은 편집할 예시 시나리오를 만들고, `compile`은 `.autopus/qa/scenarios/*.yaml`을 프로젝트 Playwright `testDir` 아래 `autopus-generated/<id>.spec.ts`로 렌더링합니다. `--dry-run`은 검증과 렌더링만 하고 파일을 쓰지 않습니다.
-- `auto qa go <SPEC-ID>`는 전체 체인을 한 명령으로 실행합니다: 생성 → 커버리지 확인(`--auto`면 생략) → 승격 → 컴파일 → `auto qa loop`. `--agent`는 설치된 첫 CLI, `--lane`은 pack이 선언한 `browser-staging`이 기본값이고, 생성된 QA 파일은 루프 브랜치의 첫 커밋이 됩니다. SPEC-ID 없이 실행하면 기존 시나리오를 컴파일하고 루프만 돕니다.
-- SPEC이 없는 변경은 사용자 의도에서 시작합니다: 사용자의 원래 요청을 그대로(요약도 코드도 아닌 사용자 문장) 파일에 저장하고 `auto qa intent --request-file <file> --format json`을 실행한 뒤, `questions`의 각 항목을 객관식으로 묻고(주어진 선택지, 권장안 먼저), 답은 `auto qa intent answer <id> Q1=<n> ...`로 기록하고(선택지 번호는 1부터, acceptance.md는 고치지 않음) `auto qa go <id>`로 이어 갑니다. 답 없는 질문이 있으면 `qa go`는 멈춥니다. intent 에이전트는 빈 디렉터리에서 돌아 기준이 코드가 아니라 요청에서 나옵니다. 큰 변경은 구현 전에 `auto qa intent`를 먼저 돌립니다.
+- `auto qa go <SPEC-ID>`는 전체 체인을 한 명령으로 실행합니다: 생성 → 커버리지 확인(`--auto`면 생략) → 승격 → 컴파일 → `auto qa loop`. 루프는 커밋하지 않은 추적 파일 변경이 있으면 거부하므로, `--no-loop`으로 컴파일까지만 하고 `auto qa exec --all`로 작업 트리에서 시나리오를 돌릴 수 있습니다. `--agent`는 설치된 첫 CLI, `--lane`은 pack이 선언한 `browser-staging`이 기본값이고, 생성된 QA 파일은 루프 브랜치의 첫 커밋이 됩니다. SPEC-ID 없이 실행하면 기존 시나리오를 컴파일하고 루프만 돕니다.
+- SPEC이 없는 변경은 사용자 의도에서 시작합니다: 사용자의 원래 요청을 그대로(요약도 코드도 아닌 사용자 문장) 파일에 저장하고 `auto qa intent --request-file <file> --format json`을 실행한 뒤, `questions`의 각 항목을 객관식으로 묻고(주어진 선택지마다 `details` 설명을 붙여, 권장안 먼저), 답은 `auto qa intent answer <id> Q1=<n> ...`로 기록하고(선택지 번호는 1부터, acceptance.md는 고치지 않음) `auto qa go <id>`로 이어 갑니다. 답 없는 질문이 있으면 `qa go`는 멈춥니다. intent 에이전트는 빈 디렉터리에서 돌아 기준이 코드가 아니라 요청에서 나옵니다. 큰 변경은 구현 전에 `auto qa intent`를 먼저 돌립니다.
 - `auto qa scenario generate --spec <SPEC-ID> --agent <claude|codex|gemini|opencode> --format json`으로 SPEC 수락 기준에서 테스트 시나리오(`.autopus/qa/test-scenarios/`)와 v2 사용자 시나리오 후보를 `candidates/`에 만듭니다. 모든 기대값은 수락 기준에서 와야 하고, 다루지 못한 기준은 지어내지 않고 uncovered로 보고합니다. `auto qa scenario promote --all`이 검증된 후보를 제자리로 옮깁니다.
 - `auto qa record --origin <url> --id <id>`(Playwright codegen)나 `auto qa record import --from <file.js|file.jsonl>`로 녹화를 `recording` 후보로 만들고, `auto qa discover --origin <url>`로 읽기 전용 크롤 `baseline` 후보를 만듭니다. baseline은 회귀 기준일 뿐 정답 증명이 아닙니다.
 - `auto qa loop --lane <lane> --agent <platform> --format json`은 실행, 실패 1회 재실행(flaky 판별), 분류(`environment | flaky | test_drift | test_defect | product_defect | unknown`), 수정을 `autopus/qa-loop/<run-id>` 브랜치에서 반복합니다. diff guard는 분류별 허용 경로 밖의 수정과 기대값 변경을 거부합니다. 루프 브랜치를 리뷰해 병합하고, 거부된 수정을 손으로 다시 적용하지 않습니다.

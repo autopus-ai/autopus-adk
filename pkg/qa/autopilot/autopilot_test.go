@@ -117,3 +117,17 @@ func TestDetectLane(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, "fast", DetectLane(t.TempDir()))
 }
+
+func TestRun_NoLoopStopsAfterCompileWithoutTouchingGit(t *testing.T) {
+	t.Parallel()
+	c := &calls{}
+	dir := project(t)
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".autopus/specs/SPEC-X"), 0o755))
+	report, err := Run(context.Background(), Options{
+		ProjectDir: dir, SpecID: "SPEC-X", Agent: agentexec.TargetClaude, Auto: true, NoLoop: true,
+	}, fakeDeps(c, nil))
+	require.NoError(t, err)
+	assert.Equal(t, []string{"generate:SPEC-X", "promote", "compile"}, c.order, "the loop, which needs a clean tree, never runs")
+	assert.Nil(t, report.Loop)
+	assert.Equal(t, 1, report.Compiled)
+}

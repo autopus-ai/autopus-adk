@@ -60,10 +60,15 @@ func describeSecretHits(hits []verifygate.SecretHit) string {
 	return strings.Join(parts, ", ")
 }
 
-// withSecretWarning carries a secret warning onto an output that does not
-// already block, so it is not lost when the build passes.
+// withSecretWarning carries a warning onto the output as a system message,
+// also when the output blocks: the version warning is recorded as shown once
+// per session before it is returned, so a block that dropped it (the
+// verification round, say) would lose it for good.
 func withSecretWarning(out stopHookOutput, warning string) stopHookOutput {
-	if warning == "" || out.Decision == "block" {
+	if warning == "" {
+		return out
+	}
+	if out.Decision == "block" && strings.Contains(out.Reason, warning) {
 		return out
 	}
 	if out.SystemMessage == "" {

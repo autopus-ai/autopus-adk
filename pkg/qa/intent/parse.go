@@ -12,10 +12,15 @@ import (
 // Question is one ambiguity the user resolves. Recommended indexes Options
 // and names the reading the criterion was written with.
 type Question struct {
-	ID          string   `yaml:"id" json:"id"`
-	Criterion   string   `yaml:"criterion" json:"criterion"`
-	Question    string   `yaml:"question" json:"question"`
-	Options     []string `yaml:"options" json:"options"`
+	ID        string   `yaml:"id" json:"id"`
+	Criterion string   `yaml:"criterion" json:"criterion"`
+	Question  string   `yaml:"question" json:"question"`
+	Options   []string `yaml:"options" json:"options"`
+	// Details holds, per option, what the user would observe if that reading
+	// is chosen. It is what turns a bare label into a decision the user can
+	// make without reading the criteria. Optional; when present it pairs
+	// with Options one to one.
+	Details     []string `yaml:"details" json:"details,omitempty"`
 	Recommended int      `yaml:"recommended" json:"recommended"`
 	// Answer indexes Options once the question is resolved. The yaml tag is
 	// "-" so an agent's draft can never arrive pre-answered.
@@ -71,7 +76,23 @@ func ParseOutput(stdout string) (Draft, error) {
 		}
 		seen[q.ID] = true
 	}
+	for i := range questions {
+		// Details only describe the options; a malformed list is dropped
+		// rather than failing a draft whose criteria and options are sound.
+		if len(questions[i].Details) != len(questions[i].Options) || hasBlank(questions[i].Details) {
+			questions[i].Details = nil
+		}
+	}
 	return Draft{Acceptance: strings.TrimSpace(body) + "\n", Criteria: criteria, Questions: questions}, nil
+}
+
+func hasBlank(items []string) bool {
+	for _, s := range items {
+		if strings.TrimSpace(s) == "" {
+			return true
+		}
+	}
+	return false
 }
 
 // fencedBlock returns the body of the first ```lang fence in text.

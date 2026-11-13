@@ -24,6 +24,7 @@ func tddProject(t *testing.T, dir string, mode string, enforce bool) {
 
 func runStopReply(t *testing.T, dir, session, reply string) stopHookOutput {
 	t.Helper()
+	isolateStop(t)
 	cmd := newVerifyStopCmd()
 	payload, _ := json.Marshal(stopHookInput{SessionID: session, Cwd: dir, LastAssistantMessage: reply})
 	cmd.SetIn(bytes.NewReader(payload))
