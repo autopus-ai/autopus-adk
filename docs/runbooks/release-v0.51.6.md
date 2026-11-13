@@ -1,5 +1,20 @@
 # Release v0.51.6 (A47)
 
+**Published 2026-11-12.** Immutable release `443543192` (15 assets, Latest: yes),
+published 2026-11-12T22:03:53Z, tag object
+`dd14ac35c7e1c66c0f2da2d64450c6a507b23a32`, source commit
+`ea183465fa5955c683cca89f9b5e2bd5e2c8ed09`, tree
+`57343b01666226b9d339ef49edd691ba1905b236`.
+
+Release run `43312917326` concluded `success`. The Homebrew tap head is
+`98a963dc` ("Publish signed Cask for v0.51.6", parent `80f72b6d`), and its Cask
+carries the four `checksums.txt` archive digests. Upgrade Canary
+`43316609104` (0.51.5 -> 0.51.6) concluded `success`. Ruleset
+`27158343` is sealed (no bypass actor), tag policy `66510148`.
+
+The next coordinate is A48 = `v0.51.7`; see
+[release-v0.51.7.md](release-v0.51.7.md).
+
 Status: prepared 2026-11-12, not published. A47 is `v0.51.6`. A46 is
 `v0.51.5`, immutable release `441700303`; see
 [release-v0.51.5.md](release-v0.51.5.md).
