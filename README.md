@@ -123,8 +123,10 @@ ends on an environment problem (a toolchain that could not run) or a test-first 
 | 40 or more lines, or a new (added or untracked) product source file | **Full**: `auto qa intent` on the user's own request (or the covering SPEC), `auto qa go <id> --auto --no-loop` and `auto qa exec --all` on the uncommitted working tree, the `reviewer`, then the `qa-explorer` hunt |
 
 Either round ends with the agent fixing every failing scenario, blocker and confirmed finding,
-re-running the tests, and summarizing what was checked. A session gets at most one round, so fixing
-the round's findings does not start another. The tree a session last stops on after its round is
+re-running the tests, and summarizing what was checked. A session gets one round, so fixing the
+round's findings does not start another, with one exception: a session whose light round came early
+(an interactive session growing a feature over several turns) is escalated once to the full round
+when its change grows by another 40 product code lines or gains a product file. The tree a session last stops on after its round is
 recorded, so a later session that only asks a question is not sent round on it; the next session
 that changes product code gets a round over the whole uncommitted diff, which includes that work. If the hook cannot record the round, it skips it rather than block every stop.
 
@@ -134,6 +136,13 @@ Claude Code already solved, with no change in pass rate; on a harder task it fou
 confirmed robustness bugs that the hidden tests did not cover, at about 12x the cost. The light round
 exists so a small edit is still checked against the request and the written policies without that
 cost. Turn the round off with `AUTOPUS_FOLLOWUP=off` where that trade is not worth it.
+
+The 40-line line between the two was checked against 600 recent merged PRs from three repositories.
+Moving it barely changes cost: at 40 lines 60% of PRs get the full round, at 150 lines 49%, about a
+5-7% saving in round cost, because the reviewer both rounds share dominates it. Raising it would
+send 17-27% of feature PRs to the light round and skip the scenarios generated from the request,
+which is what the full round is for. PR size does not separate features from fixes well enough to
+justify that, so the line stays at 40.
 
 **Opting out.**
 
