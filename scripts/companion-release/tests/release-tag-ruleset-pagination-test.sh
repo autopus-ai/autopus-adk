@@ -17,12 +17,12 @@ state="$temp/state"
 export MOCK_RELEASE_PREP_STATE="$state" PATH="$temp/bin:$PATH"
 printf '0\n' >"$state/write-count"; : >"$state/calls.log"
 printf 'armed\n' >"$state/ruleset-state"
-jq -n '[{id: 596, type: "tag", name: "v0.51.7"}]' >"$state/deployment-policies.json"
+jq -n '[{id: 596, type: "tag", name: "v0.51.8"}]' >"$state/deployment-policies.json"
 
 # 150 tag rulesets; the release ruleset is the last one, past both the
 # default page of 30 and a page of 100.
 jq -n '[range(0; 149) | {id: (2000 + .), name: "older-\(.)", target: "tag"}] +
-  [{id: 777, name: "autopus-v0.51.7-release-authority", target: "tag"}]' \
+  [{id: 777, name: "autopus-v0.51.8-release-authority", target: "tag"}]' \
   >"$state/rulesets.json"
 endpoint='repos/autopus-ai/autopus-adk/rulesets?includes_parents=true&targets=tag'
 
