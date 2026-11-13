@@ -1,5 +1,27 @@
 # Release v0.51.7 (A48)
 
+**Published 2026-11-13.** Immutable release `444197313` (15 assets, Latest: yes),
+published 2026-11-13T14:32:07Z, tag object
+`44552def24fd5a4f9925ab168f92903a7b8571ce`, source commit
+`61306bee7b8d8202a398780de34551e90360fd06`, tree
+`76778718caa58917b5830d85574b1172dfb93d63`.
+
+Release run `43424599768` concluded `success`. The Homebrew tap head is
+`880cfc45` ("Publish signed Cask for v0.51.7", parent `98a963dc`), and its Cask
+carries the four `checksums.txt` archive digests. Upgrade Canary
+`43443763415` (0.51.6 -> 0.51.7) concluded `success`. Ruleset
+`27198908` is sealed (no bypass actor), tag policy `66580627`.
+
+The release job needed four attempts on the same tag. Attempts 1 and 2 failed
+at notarization with HTTP 403 ("A required agreement is missing or has
+expired"); the developer.apple.com agreement and the App Store Connect
+agreements were then accepted. Attempt 3 notarized and failed signing
+`checksums.txt` when Sigstore Rekor returned 502; the release was still a draft
+with no assets. Attempt 4 succeeded once Rekor answered 200 again.
+
+The next coordinate is A49 = `v0.51.8`; see
+[release-v0.51.8.md](release-v0.51.8.md).
+
 Status: prepared 2026-11-13, not published. A48 is `v0.51.7`. A47 is
 `v0.51.6`, immutable release `443543192`; see
 [release-v0.51.6.md](release-v0.51.6.md).
