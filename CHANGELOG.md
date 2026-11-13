@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **light 라운드를 일찍 받은 세션은 기능이 커지면 full 라운드로 한 번 승급한다** (2026-11-13): 검증 라운드는 세션당 한 번이라,
+  여러 턴에 걸쳐 기능을 키우는 대화형 세션은 첫 턴의 작은 변경으로 light 라운드를 쓰고 나면 커진 기능이 full 라운드(요청 기반
+  시나리오)를 받지 못했다. 이제 light 라운드 뒤 제품 코드가 40줄 이상 더 늘거나 제품 파일이 생기면 full 라운드를 한 번 더 받는다.
+  light 라운드의 지적을 고친 것만으로는 승급하지 않는다. 세션 상태는 `<tier> <lines> <newfiles>`로 기록하고, 예전 형식(`1 light`)은
+  이미 라운드를 받은 것으로 본다. full 기준 40줄은 세 저장소의 최근 머지 PR 600개로 확인해 유지한다(150줄로 올리면 라운드 비용은
+  5~7%만 줄고 기능 추가 PR의 17~27%가 시나리오 생성을 건너뛴다).
+
 - **QA가 정책 일치와 비효율을 검증하고, 사용자 시나리오부터 돌리며, 검증 라운드가 기본으로 켜진다** (2026-11-13):
   - qa-hunt에 `policy_mismatch`와 `inefficiency` oracle을 더했다. `policy_mismatch`는 제품 정책(SPEC·문서·`--help`·비즈니스 규칙)이나
     프로젝트 규칙(`CLAUDE.md`·`AGENTS.md`·rules)을 `policy.source`·`policy.quote`로 원문 그대로 인용해야 하고, `auto qa hunt verify`가

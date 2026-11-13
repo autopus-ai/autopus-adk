@@ -19,10 +19,13 @@ import (
 // happens.
 const followupFullLines = 40
 
-// followupMaxRounds bounds the review and QA rounds one session runs. Pilot C
-// (2026-11-07) measured a second round costing about $10 on a 360-line change
-// without fixing anything the first round had not, so one round is the cap.
-const followupMaxRounds = 1
+// A session gets one round, with one exception: a session whose light round
+// came early (an interactive session that grows a feature over several
+// turns) is escalated once to the full round when its change grows by
+// another followupFullLines product code lines or gains a product file.
+// Pilot C (2026-11-07) measured a repeated round on the same change costing
+// about $10 without fixing anything the first round had not, so fixes made
+// after a round never start another one on their own.
 
 type followupTier string
 
@@ -81,34 +84,72 @@ func followupEnabled(_ bool) bool {
 }
 
 // nextFollowup decides whether this tree goes on to review and QA, and how
-// deep. A session runs at most followupMaxRounds rounds, so fixing the
-// round's findings does not start another; a tree another session already
-// sent round is not sent again, so a fresh session that only asks a question
-// is not blocked by someone else's uncommitted work. When the round cannot
-// be recorded the hook fails open: an unrecorded round would block every
-// stop forever.
-func nextFollowup(session, root, fingerprint string, tier followupTier) followupTier {
+// deep. Fixing a round's findings does not start another; a tree another
+// session already sent round is not sent again, so a fresh session that only
+// asks a question is not blocked by someone else's uncommitted work. When
+// the round cannot be recorded the hook fails open: an unrecorded round
+// would block every stop forever.
+func nextFollowup(session, root, fingerprint string, b verifygate.Behavior) followupTier {
+	tier := followupTierFor(b)
 	if tier == followupNone {
 		return followupNone
 	}
-	rounds := sessionRounds(session)
-	tree := followupTreeKey(root)
-	if rounds >= followupMaxRounds || (fingerprint != "" && readStopState(tree, "followup") == fingerprint) {
+	prev := readSessionRound(session)
+	switch {
+	case prev.tier == followupFull:
+		return followupNone
+	case prev.tier == followupLight && !prev.escalates(b):
+		return followupNone
+	case fingerprint != "" && readStopState(followupTreeKey(root), "followup") == fingerprint:
 		return followupNone
 	}
-	if err := saveStopState(session, "followup", fmt.Sprintf("%d %s", rounds+1, tier)); err != nil {
+	if prev.tier == followupLight {
+		tier = followupFull
+	}
+	round := sessionRound{tier: tier, lines: b.Lines, newFiles: len(b.NewFiles)}
+	if err := saveStopState(session, "followup", round.String()); err != nil {
 		return followupNone
 	}
-	_ = saveStopState(tree, "followup", fingerprint)
+	_ = saveStopState(followupTreeKey(root), "followup", fingerprint)
 	return tier
 }
 
-// sessionRounds is how many rounds the session has run. An empty or
-// unreadable state means none.
-func sessionRounds(session string) int {
-	rounds := 0
-	_, _ = fmt.Sscanf(readStopState(session, "followup"), "%d", &rounds)
-	return rounds
+// sessionRound is the round a session last ran and the size it was run on.
+type sessionRound struct {
+	tier     followupTier
+	lines    int
+	newFiles int
+}
+
+func (r sessionRound) String() string {
+	return fmt.Sprintf("%s %d %d", r.tier, r.lines, r.newFiles)
+}
+
+// escalates reports whether a change that already had the light round has
+// grown enough since to need the full one: another followupFullLines code
+// lines, or a product file it did not have.
+func (r sessionRound) escalates(b verifygate.Behavior) bool {
+	return followupTierFor(b) == followupFull &&
+		(b.Unmeasured || b.Lines >= r.lines+followupFullLines || len(b.NewFiles) > r.newFiles)
+}
+
+// readSessionRound reads the session's last round. A record from the
+// one-round format ("1 light") or one it cannot read counts as a full round
+// already run, so an upgrade never sends a session round twice.
+func readSessionRound(session string) sessionRound {
+	f := strings.Fields(readStopState(session, "followup"))
+	if len(f) == 0 {
+		return sessionRound{}
+	}
+	if len(f) == 3 && followupTier(f[0]) == followupLight {
+		r := sessionRound{tier: followupLight}
+		_, errL := fmt.Sscanf(f[1], "%d", &r.lines)
+		_, errN := fmt.Sscanf(f[2], "%d", &r.newFiles)
+		if errL == nil && errN == nil {
+			return r
+		}
+	}
+	return sessionRound{tier: followupFull}
 }
 
 // followupTreeKey names the per-repository record of the last tree a round
@@ -118,6 +159,14 @@ func followupTreeKey(root string) string {
 	return "tree-" + hex.EncodeToString(sum[:8])
 }
 
+// recordSessionTree marks the tree a session stops on after its round as
+// that session's: its fixes, and work it added after the round, are not sent
+// round again to the next session. The next session that changes product
+// code gets a round over the whole uncommitted diff, which includes them.
+func recordSessionTree(root string, paths []string) {
+	_ = saveStopState(followupTreeKey(root), "followup", verifygate.Fingerprint(root, paths))
+}
+
 // followupRound runs after a passing build, or after a change no build
 // toolchain covers (shell, Java, Swift ...), whose behavior still needs the
 // user's eyes even though nothing could be compiled.
@@ -125,27 +174,22 @@ func followupRound(cmd *cobra.Command, in stopHookInput, root string, flag, buil
 	if !followupEnabled(flag) {
 		return stopHookOutput{}
 	}
-	if sessionRounds(in.SessionID) >= followupMaxRounds {
-		// The round told this session to fix what it found, so the tree it
-		// now stops on is recorded as this session's: its fixes, and any
-		// work it added after the round, are not sent round again to the
-		// next session; the next session that changes product code gets a
-		// round over the whole uncommitted diff, which includes them.
-		_ = saveStopState(followupTreeKey(root), "followup", verifygate.Fingerprint(root, verifygate.ProductPaths(cmd.Context(), root)))
+	prev := readSessionRound(in.SessionID)
+	if prev.tier == followupFull {
+		recordSessionTree(root, verifygate.ProductPaths(cmd.Context(), root))
 		return stopHookOutput{}
 	}
 	b := verifygate.BehaviorChange(cmd.Context(), root)
-	tier := followupTierFor(b)
-	if tier == followupNone {
-		return stopHookOutput{}
+	if tier := nextFollowup(in.SessionID, root, verifygate.Fingerprint(root, b.Paths), b); tier != followupNone {
+		return followupOutput(b, tier, built, prev.tier == followupLight)
 	}
-	if tier = nextFollowup(in.SessionID, root, verifygate.Fingerprint(root, b.Paths), tier); tier != followupNone {
-		return followupOutput(b, tier, built)
+	if prev.tier != followupNone {
+		recordSessionTree(root, b.Paths)
 	}
 	return stopHookOutput{}
 }
 
-func followupOutput(b verifygate.Behavior, tier followupTier, built bool) stopHookOutput {
+func followupOutput(b verifygate.Behavior, tier followupTier, built, escalated bool) stopHookOutput {
 	status := "The build and tests pass."
 	if !built {
 		status = "No build or test toolchain covers these files, so nothing was compiled or tested."
@@ -157,6 +201,9 @@ func followupOutput(b verifygate.Behavior, tier followupTier, built bool) stopHo
 	head := fmt.Sprintf("%d changed product code lines", b.Lines)
 	if len(b.NewFiles) > 0 {
 		head += fmt.Sprintf(", %d new product file(s)", len(b.NewFiles))
+	}
+	if escalated {
+		head += " (grown since this session's light round)"
 	}
 	return stopHookOutput{Decision: "block", Reason: fmt.Sprintf("%s; %s verification round. %s %s", head, tier, status, reason)}
 }
