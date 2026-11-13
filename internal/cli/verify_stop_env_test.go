@@ -17,6 +17,7 @@ import (
 
 func runStopPayload(t *testing.T, payload map[string]any) stopHookOutput {
 	t.Helper()
+	isolateStop(t)
 	data, err := json.Marshal(payload)
 	require.NoError(t, err)
 	cmd := &cobra.Command{}

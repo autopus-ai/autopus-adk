@@ -69,6 +69,11 @@ type Options struct {
 	// Resume starts the loop from the latest loop branch that carries
 	// scenarios, so its scenarios and the fixes made there carry over.
 	Resume bool
+	// NoLoop stops after compile. The loop needs a clean tree because it
+	// fixes on its own branch; right after implementing, the change is still
+	// uncommitted, so the caller runs the scenarios on the working tree
+	// itself (auto qa exec --all, auto qa run) and fixes failures in place.
+	NoLoop bool
 }
 
 // Deps are the steps autopilot calls; nil fields use the real packages.
@@ -169,6 +174,10 @@ func Run(ctx context.Context, opts Options, deps Deps) (Report, error) {
 		return report, &Error{Stage: StageCompile, Code: "qa_go_compile_failed", Err: err}
 	}
 	report.Compiled = len(compiled.Compiled)
+	if opts.NoLoop {
+		progress(StageCompile, "stopping before the loop (--no-loop); run the scenarios on the working tree")
+		return report, nil
+	}
 	progress(StageLoop, fmt.Sprintf("running lane %s; failures are triaged and fixed on a loop branch", opts.Lane))
 	lr, err := deps.Loop(ctx, qaloop.Options{
 		ProjectDir: opts.ProjectDir, Lane: opts.Lane, Agent: opts.Agent,

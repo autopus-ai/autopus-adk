@@ -432,3 +432,10 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 차이: NPD 다섯 개(init-in, init-pipe, init-yes, update-ci, update-yes)에서 `.claude/rules/autopus/autonomy.md`, `.claude/skills/disk-triage/SKILL.md`, `.codex/skills/codex-disk-triage/SKILL.md`의 checksum, 두 manifest와 journal checksum, update 흐름의 backup 사본만 바뀌었다. stdout golden은 그대로다.
 - 검증: 두 test가 이 golden으로 통과한다.
 - main 병합: 같은 날 fix/default-permission-hardening(#331)이 같은 NPD 다섯 개를 다시 기록해서, main을 병합한 tree에서 같은 명령으로 다시 기록했다. 두 변경의 checksum이 함께 들어 있다.
+
+## QA 정책·비효율 검증과 사용자 시나리오 우선 (feat/qa-policy-efficiency, 2026-11-13)
+
+- 원인: `content/skills/qa-hunt.md`·`content/agents/qa-explorer.md`에 정책 대조(`policy_mismatch`)와 비효율 측정(`inefficiency`) 절차를, `content/rules/autonomy.md`에 질문 선택지 상세화와 검증 순서(사용자 시나리오 → 리뷰 → 헌트)를 더했고, `templates/*/auto-qa`의 Bug Hunt 절을 두 단계 기본 흐름으로 바꿨다. `templates/shared/root-doc-guidelines.md.tmpl`의 Autonomy 절에도 같은 순서와 선택지 설명 규칙을 넣었다.
+- 기록: `go run ./cmd/generate-templates`(추가 변경 없음) 뒤 `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run '^(TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6ShowsTheSettingsBeforeAnyWrite)$'`.
+- 차이: NPD 다섯 개(init-in, init-pipe, init-yes, update-ci, update-yes)에서 `.claude/agents/autopus/qa-explorer.md`, `.claude/rules/autopus/autonomy.md`, `.claude/skills/auto-qa/SKILL.md`, `.claude/skills/qa-hunt/SKILL.md`, `.codex/agents/qa-explorer.toml`, `.codex/skills/codex-auto-qa/SKILL.md`, `.codex/skills/codex-qa-hunt/SKILL.md`, `AGENTS.md`의 checksum, 두 manifest와 journal checksum, update 흐름의 backup 사본만 바뀌었다. stdout golden은 그대로다.
+- 검증: 두 test가 이 golden으로 통과한다.

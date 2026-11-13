@@ -79,6 +79,6 @@ func TestWriteReport_ConfirmedFirstAndSuspicionsApart(t *testing.T) {
 	data, err := os.ReadFile(path)
 	require.NoError(t, err)
 	text := string(data)
-	assert.Less(t, strings.Index(text, "Confirmed bugs (1)"), strings.Index(text, "Not reproduced"))
+	assert.Less(t, strings.Index(text, "Confirmed findings (1)"), strings.Index(text, "Not reproduced"))
 	assert.Contains(t, text, "bash .autopus/qa/hunt/findings/a/repro.sh")
 }

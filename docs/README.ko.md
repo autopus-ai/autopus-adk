@@ -52,13 +52,14 @@ $37는 하한입니다. 작은 Go 변경 4건(n=4)이라 벤치마크가 아니�
 | 단계 | 무엇이 도는가 | 언제 |
 | --- | --- | --- |
 | 빌드·테스트 | `auto verify stop`: 바뀐 파일이 속한 toolchain만 | Claude Code 세션이 바뀐 작업 트리를 둔 채 끝나려 할 때마다 |
-| 리뷰 | `reviewer` 에이전트가 `git diff HEAD`를 검토 | `/auto review`로 직접, 또는 opt-in 후속 라운드에서 |
-| QA 버그 헌트 | `qa-explorer` 에이전트가 제품을 조작하고, `auto qa hunt verify`가 repro를 다시 돌림 | `/auto qa`로 직접, 또는 opt-in 후속 라운드에서 실행할 수 있는 동작이 있을 때 |
-| 수정 | 작업하던 에이전트가 blocker와 확인된 버그를 고치고 테스트를 다시 돌림 | 같은 라운드 |
+| 사용자 시나리오 | `auto qa intent`가 요청에서 수락 기준을 쓰고, `auto qa go --no-loop`와 `auto qa exec --all`이 작업 트리에서 실행 | `/auto qa`로 직접, 또는 full 검증 라운드의 첫 단계 |
+| 리뷰 | `reviewer` 에이전트가 `git diff HEAD`를 검토 | `/auto review`로 직접, 또는 모든 검증 라운드에서 |
+| QA 버그 헌트 | `qa-explorer` 에이전트가 제품을 조작하며 버그·정책 불일치·측정된 비효율을 찾고, `auto qa hunt verify`가 repro를 다시 돌림 | `/auto qa`로 직접, 또는 모든 검증 라운드에서(light는 verify 모드, full은 hunt 모드) |
+| 수정 | 작업하던 에이전트가 실패한 시나리오, blocker, 확인된 finding을 고치고 테스트를 다시 돌림 | 같은 라운드 |
 
-빌드·테스트 게이트는 사용자가 시작하라고 말할 필요가 없습니다. 리뷰와 QA는 비용이 훨씬 커서, 직접
-부르거나 후속 라운드를 켰을 때만 자동으로 돕니다. 어느 쪽이든 에이전트는 정말 사용자가 정해야 하는
-결정만 객관식으로 묻도록 지시받습니다.
+빌드·테스트 게이트도, 변경이 제품 코드를 건드렸을 때 그 뒤에 이어지는 검증 라운드(아래)도 사용자가 시작하라고
+말할 필요가 없습니다. 어느 쪽이든 에이전트는 정말 사용자가 정해야 하는 결정만, 선택지마다 설명을 붙인
+객관식으로 묻도록 지시받습니다.
 
 <a id="stop-hook"></a>
 ## Stop hook: 세션이 끝나기 전에 빌드하고 테스트한다
@@ -86,20 +87,32 @@ $37는 하한입니다. 작은 Go 변경 4건(n=4)이라 벤치마크가 아니�
 않아 환경을 고친 뒤 다시 검사합니다. 작업 트리를 바꿀 수 있는 백그라운드 서브에이전트·workflow·teammate가 아직
 돌고 있으면 검증을 다음 종료로 미룹니다.
 
-**후속 라운드(opt-in).** `AUTOPUS_FOLLOWUP=on`(또는 `auto verify stop --followup`)일 때, 빌드가 통과했고 바뀐 소스가 40줄 이상이면(`HEAD` 대비 추가와 삭제의 합, 추적되지 않은
-새 소스 파일 포함) hook이 한 번 더 종료를 막고 다음을 지시합니다.
+**검증 라운드(기본으로 켜짐).** 빌드가 통과하거나, 바뀐 파일을 빌드할 도구가 없으면 hook은 변경 가운데 사용자가 실행하는 동작을 바꿀 수 있는 부분,
+즉 `HEAD` 대비 제품 소스 파일의 바뀐 코드 줄을 셉니다. 파일 크기 한도가 세는 모든 언어(Go, Python,
+JavaScript/TypeScript, Rust, Java, Kotlin, Swift, C/C++/C#, Ruby, PHP, 셸, CSS)가 대상이고, 게이트가 빌드할 도구가 없는
+언어도 포함합니다. 테스트 파일(언어별 관례로 판정), 줄 주석으로 시작하는 줄과 빈 줄, 문서, 설정, 생성 파일
+(`Code generated ... DO NOT EDIT.` 또는 ADK 생성 헤더), 하네스 디렉터리(`.autopus/`, `.claude/`, `.omp/` 등)는 세지 않고,
+권한 변경·순수 이름 변경·줄바꿈 변환도 세지 않습니다. 한 줄 수정은 두 줄(삭제와 추가)로 셉니다. 크기는 라운드를 얼마나
+깊게 할지를 정하고, 세어진 동작 변경은 크기와 상관없이 최소한 light 라운드를 받습니다. 한 줄짜리 로직 수정도 큰 변경만큼
+쓰여 있는 정책을 깰 수 있기 때문입니다. 환경 문제(도구를 실행하지 못함)나 test-first 안내로 끝나는 종료에서는 라운드가
+돌지 않습니다.
 
-1. `reviewer` 에이전트로 `git diff HEAD`를 검토하고 blocker만 보고한다.
-2. 변경에 실행할 수 있는 동작이 있으면 `qa-explorer`를 hunt 모드로 돌리고, 발견한 것을
-   `auto qa hunt verify`로 판정한다.
-3. 모든 blocker와 확인된 버그를 고치고, 테스트를 다시 돌린 뒤 무엇을 확인했는지 요약한다.
+| 변경 | 라운드 |
+| --- | --- |
+| 테스트·주석·문서·설정·생성 파일만 | 없음. 빌드가 통과하면 끝납니다 |
+| 제품 코드 1~39줄 | **light**: 기존 시나리오 재실행(`auto qa exec --all`), `reviewer`, 바뀐 동작에 대한 `qa-explorer` verify 모드(그 동작을 말하는 정책·규칙 대조 포함) |
+| 40줄 이상, 또는 새(추가되었거나 추적되지 않은) 제품 소스 파일 | **full**: 사용자 요청 원문(또는 해당 SPEC)으로 `auto qa intent`, 커밋하지 않은 작업 트리에서 `auto qa go <id> --auto --no-loop`와 `auto qa exec --all`, `reviewer`, 그다음 `qa-explorer` 헌트 |
 
-후속 라운드는 세션당 한 번이라, 리뷰 지적을 고친 것만으로 다음 라운드가 열리지는 않습니다.
+어느 라운드든 마지막에 에이전트가 실패한 시나리오, blocker, 확인된 finding을 고치고 테스트를 다시 돌린 뒤 무엇을
+확인했는지 요약합니다. 라운드는 세션당 한 번이라, 라운드에서 나온 지적을 고친 것만으로 다음 라운드가 열리지는 않습니다. 라운드를 받은 세션이
+마지막으로 멈춘 트리를 기록해서, 질문만 하는 다음 세션은 그 트리로 다시 라운드를 받지 않습니다. 제품 코드를 바꾸는 다음
+세션은 그 작업까지 포함한 미커밋 diff 전체로 라운드를 받습니다. 라운드를 기록하지 못하면 매 종료를 막는 대신 건너뜁니다.
 
-비용이 커서 기본으로 꺼 둡니다. 실제 업스트림 Go PR로 돌린 작은 파일럿(두 arm 모두 돈 과제 5개, 과제당 한 번)에서 기본
-Claude Code가 이미 푸는 네 과제는 통과율 변화 없이 비용만 약 14배였습니다. 더 어려운 과제에서는 숨은
-테스트가 다루지 않는 확인된 견고성 버그 3개를 찾아 고쳤고, 비용은 약 12배였습니다. 그 거래가 맞는 곳에서
-켜세요.
+비용이 큰 것은 full 라운드입니다. 실제 업스트림 Go PR로 돌린 작은 파일럿(두 arm 모두 돈 과제 5개, 과제당 한 번)에서
+이전 버전의 full 라운드는 기본 Claude Code가 이미 푸는 네 과제에서 통과율 변화 없이 비용만 약 14배였고, 더 어려운
+과제에서는 숨은 테스트가 다루지 않는 확인된 견고성 버그 3개를 찾아 고치며 비용이 약 12배였습니다. light 라운드는 작은
+수정도 그 비용 없이 요청과 쓰여 있는 정책에 맞는지 확인하려고 둡니다. 그 거래가 맞지 않는 곳에서는
+`AUTOPUS_FOLLOWUP=off`로 끄세요.
 
 **omp 세션.** omp에는 Claude Code의 Stop hook이 없어서, `platforms`에 omp가 있으면 `auto update`가 프로젝트 확장
 `.omp/extensions/autopus-stop-gate.ts`를 씁니다. 리드 에이전트의 실행이 끝날 때(`agent_end`, subagent 제외)
@@ -147,8 +160,7 @@ Claude Code가 이미 푸는 네 과제는 통과율 변화 없이 비용만 약
 | 한 세션이나 셸에서만 끄기 | `AUTOPUS_VERIFY_STOP=off` |
 | 자격 증명 확인만 끄기 | `hooks.secret_stop: false`, 또는 `AUTOPUS_SECRET_STOP=off` |
 | 버전 확인만 끄기 | `hooks.version_stop: false`, 또는 `AUTOPUS_VERSION_STOP=off`. N 라인까지 허용하려면 `hooks.version_stop: {max_major_behind: N}` |
-| 후속 라운드 켜기 | `AUTOPUS_FOLLOWUP=on`(예: `.claude/settings.json`의 `env` 블록), 또는 `auto verify stop --followup` |
-| 켠 곳에서도 강제로 끄기 | `AUTOPUS_FOLLOWUP=off` |
+| 검증 라운드만 끄기 | `AUTOPUS_FOLLOWUP=off`(예: `.claude/settings.json`의 `env` 블록) |
 
 **응답 언어 확인.** `language.ai_responses`가 `ko`·`ja`·`zh`이면 `auto update`가 Stop hook
 `auto verify language`도 등록합니다. 그 턴에 쓴 응답의 산문(코드 블록·인라인 코드·URL 제외)이 그 언어로 쓰이지
@@ -158,15 +170,29 @@ Claude Code가 이미 푸는 네 과제는 통과율 변화 없이 비용만 약
 한 세션에서만 끄려면 `AUTOPUS_LANGUAGE_STOP=off`. Claude Code는 hook 설정을 세션을 시작할 때 읽으므로,
 `auto update`로 hook을 새로 등록했으면 세션을 다시 시작하거나 `/hooks`에서 확인해야 적용됩니다.
 
-Stop hook은 Claude Code에만 있습니다. 다른 플랫폼에서는 `/auto review`와 `/auto qa`(아래의 플랫폼별
-문법)를 직접 실행하세요.
+Stop hook은 Claude Code에서, 그리고 확장을 통해 omp에서 돕니다. omp에서 라운드를 끄려면 omp를 시작하는 환경에
+`AUTOPUS_FOLLOWUP=off`를 두세요. 다른 플랫폼에서는 `/auto review`와 `/auto qa`(아래의 플랫폼별 문법)를 직접 실행하세요.
 
 <a id="qa-hunt"></a>
 ## QA 버그 헌트
 
-`/auto qa`를 하위 명령 없이 부르거나 자연어로 요청하면 **Bug Hunt** 섹션이 시작됩니다. AI 플레이테스터가
-게임 버그를 찾듯이 움직입니다. `qa-explorer` 에이전트는 제품을 어떻게 조작하는지 알아내려고만 코드를 읽고,
-실제로 제품(CLI, 서버, UI, 라이브러리 API)을 실행하고 조작하면서 작성자가 떠올리지 못한 실패를 찾습니다.
+`/auto qa`를 하위 명령 없이 부르거나 자연어로 요청하면 두 단계가 돕니다.
+
+1. **사용자 시나리오.** 사용자 요청만으로 쓴 수락 기준에 따라, 사용자가 쓰는 방식 그대로 변경을 실행합니다:
+   `auto qa intent`(질문의 선택지마다 설명이 붙습니다)나 해당 SPEC으로 기준을 정하고, 커밋하지 않은 변경이면
+   `auto qa go <id> --auto --no-loop` 뒤 `auto qa exec --all`로 작업 트리를 돌립니다. 커밋된 깨끗한 트리에서는
+   `auto qa go <id> --auto`가 자체 loop 브랜치에서 시나리오를 돌리고 실패를 고칩니다.
+2. **헌트.** AI 플레이테스터가 게임 버그를 찾듯이 움직입니다. `qa-explorer` 에이전트는 제품을 어떻게
+   조작하는지 알아내려고만 코드를 읽고, 실제로 제품(CLI, 서버, UI, 라이브러리 API)을 실행하고 조작하면서
+   작성자가 떠올리지 못한 실패를 찾습니다. 버그 말고도 두 종류를 더 찾습니다.
+   - `policy_mismatch`: 제품 정책(SPEC, 문서, `--help`, 비즈니스 규칙)이나 프로젝트 규칙(`CLAUDE.md`,
+     `AGENTS.md`, rules)을 어기는 동작. 규칙 원문을 `policy.source`와 `policy.quote`에 그대로 인용하고,
+     `auto qa hunt verify`가 인용이 그 파일에 실제로 있는지 확인합니다.
+   - `inefficiency`: 같은 결과를 필요 이상의 일로 내는 것(중복 호출, N+1 쿼리, 불필요한 재빌드, 명시된
+     예산 초과). 잰 숫자와 기준의 근거를 `measure`에 적습니다.
+
+   `auto qa hunt verify`는 근거가 빠진 두 종류의 finding을 받지 않습니다. 인용하거나 잴 수 없는 것은
+   `.autopus/qa/hunt/observations.md`에 관찰로만 남고, 버그로 치지 않으며 자동으로 고치지 않습니다.
 
 - 의심 하나마다 `.autopus/qa/hunt/findings/<id>/finding.json`과 `repro.sh`를 남깁니다. `repro.sh`는 버그가
   있으면 exit 1, 고쳐졌으면 exit 0으로 끝납니다.
@@ -181,7 +207,7 @@ Stop hook은 Claude Code에만 있습니다. 다른 플랫폼에서는 `/auto re
 | `not_reproduced` | repro가 통과한다. 처음부터 버그가 아니었거나 고쳐졌다. |
 | `broken_repro` | repro 자체가 제대로 돌지 못했다. |
 
-버그로 치는 것은 `confirmed`뿐이고, 나머지는 의심으로 따로 보고합니다. 작업하던 에이전트는 확인된 버그를
+인정하는 것은 `confirmed`뿐이고, 나머지는 의심으로 따로 보고합니다. 작업하던 에이전트는 확인된 finding을
 고치고 `auto qa hunt verify`가 `not_reproduced`를 낼 때까지 다시 돌립니다. 통과시키려고 repro를 고치지는
 않습니다.
 

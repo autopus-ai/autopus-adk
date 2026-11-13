@@ -8,7 +8,7 @@ import (
 )
 
 // WriteReport renders the verified findings to .autopus/qa/hunt/report.md.
-// Confirmed bugs come first; a finding the gate could not confirm is listed
+// Confirmed findings come first; a finding the gate could not confirm is listed
 // apart, so nobody acts on a suspicion as if it were a bug.
 func WriteReport(root string, findings []Finding, bad map[string]error) (string, error) {
 	var b strings.Builder
@@ -17,7 +17,7 @@ func WriteReport(root string, findings []Finding, bad map[string]error) (string,
 		status Status
 		title  string
 	}{
-		{Confirmed, "Confirmed bugs"},
+		{Confirmed, "Confirmed findings"},
 		{Flaky, "Flaky (fails on some runs)"},
 		{Broken, "Repro could not run"},
 		{NotReproduced, "Not reproduced (wrong or already fixed)"},
@@ -36,9 +36,11 @@ func WriteReport(root string, findings []Finding, bad map[string]error) (string,
 		for _, f := range rows {
 			fmt.Fprintf(&b, "### %s — %s [%s, %s]\n\n", f.ID, f.Title, f.Severity, f.Oracle)
 			fmt.Fprintf(&b, "- Expected: %s\n- Actual: %s\n", f.Expected, f.Actual)
+			writePremise(&b, f)
 			fmt.Fprintf(&b, "- Repro: `bash %s`\n\n", filepath.ToSlash(filepath.Join(Dir, "findings", f.ID, ReproFile)))
 		}
 	}
+	writeObservations(&b, root)
 	if len(bad) > 0 {
 		fmt.Fprintf(&b, "## Invalid findings (%d)\n\n", len(bad))
 		for id, err := range bad {

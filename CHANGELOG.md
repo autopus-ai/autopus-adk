@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **QA가 정책 일치와 비효율을 검증하고, 사용자 시나리오부터 돌리며, 검증 라운드가 기본으로 켜진다** (2026-11-13):
+  - qa-hunt에 `policy_mismatch`와 `inefficiency` oracle을 더했다. `policy_mismatch`는 제품 정책(SPEC·문서·`--help`·비즈니스 규칙)이나
+    프로젝트 규칙(`CLAUDE.md`·`AGENTS.md`·rules)을 `policy.source`·`policy.quote`로 원문 그대로 인용해야 하고, `auto qa hunt verify`가
+    인용이 그 파일에 실제로 있는지 확인한다. `inefficiency`는 숫자로 된 `measure`(metric·threshold·observed·basis)가 있어야 한다.
+    근거가 빠지면 invalid다. 잴 수 없는 지적은 `.autopus/qa/hunt/observations.md`에 남고 report에는 링크만 실린다.
+  - `/auto qa` 기본 흐름이 사용자 시나리오(`auto qa intent` → 시나리오 실행) 다음 헌트의 두 단계가 됐다. `auto qa go --no-loop`는
+    컴파일까지만 해서, 커밋하지 않은 작업 트리에서 `auto qa exec --all`로 시나리오를 돌릴 수 있다(loop는 dirty tree를 거부한다).
+  - `auto qa intent` 질문의 선택지마다 `details` 설명이 붙고, autonomy 규칙은 질문할 때 선택지마다 무엇이 만들어지는지·장단점·되돌리기
+    쉬운지를 적게 한다. Codex·OpenCode의 `AGENTS.md` 사본도 같다.
+  - `auto verify stop`의 검증 라운드가 기본으로 켜진다(`AUTOPUS_FOLLOWUP=off`로 끔). 줄 수 대신 제품 코드의 바뀐 코드 줄(파일 크기 한도가 세는 모든 언어,
+    테스트·주석·빈 줄·문서·설정·생성 파일 제외)을 세어, 없으면 라운드가 없고, 1~39줄이면 light(기존 시나리오 재실행·리뷰·verify 모드), 40줄 이상이나 새
+    제품 파일이면 full(intent·시나리오·리뷰·헌트)이다. 빌드 도구가 없는 언어의 변경도 라운드를 받는다. 경로는 git의 NUL 구분
+    목록에서 얻어 rename(`git mv`든 그냥 `mv`든)·권한 변경·줄바꿈 변환·공백/비ASCII 경로·`diff.mnemonicPrefix`가 새 파일로 잘못 세지 않고, 테스트 판정은 언어별
+    관례를 따른다(Go는 `_test.go`만). 세션당 한 번이고, 다른 세션이 이미 라운드를 돌린 같은 트리는 건너뛰며, 상태를 기록하지 못하면
+    라운드를 건너뛴다. git이 diff를 내지 못하면 0줄이 아니라 full로 본다. 라운드가 막을 때도 버전·secret 경고가 system
+    message로 남고, omp 확장도 block일 때 경고를 알린다.
+
 - **비밀값 가림 범위를 넓히고, 런타임 상태를 사용자 전용 디렉터리에 둔다** (2026-11-12):
   - `pkg/secretscan`이 따옴표 안 공백이 있는 값, Authorization 헤더의 scheme 뒤 자격 증명, Cookie 헤더 전체,
     curl 사용자 자격 증명, OpenPGP 개인 키 블록, Slack·Stripe·Google API·GitLab·npm 토큰과 JWT를 가린다.

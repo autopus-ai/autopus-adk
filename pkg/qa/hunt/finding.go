@@ -31,17 +31,19 @@ const ReproFile = "repro.sh"
 // Finding is one suspected bug as the agent reported it, plus the verdict
 // Verify last recorded.
 type Finding struct {
-	Schema   string   `json:"schema"`
-	ID       string   `json:"id"`
-	Title    string   `json:"title"`
-	Severity string   `json:"severity"` // critical | major | minor
-	Oracle   string   `json:"oracle"`   // crash | error_output | hang | http_5xx | invariant | spec_mismatch | visual | other
-	Expected string   `json:"expected"`
-	Actual   string   `json:"actual"`
-	Steps    []string `json:"steps,omitempty"`
-	Evidence []string `json:"evidence,omitempty"`
-	Status   Status   `json:"status,omitempty"`
-	Checked  string   `json:"checked_at,omitempty"`
+	Schema   string     `json:"schema"`
+	ID       string     `json:"id"`
+	Title    string     `json:"title"`
+	Severity string     `json:"severity"` // critical | major | minor
+	Oracle   string     `json:"oracle"`   // crash | error_output | hang | http_5xx | invariant | spec_mismatch | policy_mismatch | inefficiency | visual | other
+	Expected string     `json:"expected"`
+	Actual   string     `json:"actual"`
+	Policy   *PolicyRef `json:"policy,omitempty"`  // required when Oracle is policy_mismatch
+	Measure  *Measure   `json:"measure,omitempty"` // required when Oracle is inefficiency
+	Steps    []string   `json:"steps,omitempty"`
+	Evidence []string   `json:"evidence,omitempty"`
+	Status   Status     `json:"status,omitempty"`
+	Checked  string     `json:"checked_at,omitempty"`
 }
 
 var idPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,63}$`)
@@ -59,7 +61,7 @@ func (f Finding) Validate() error {
 	case !severities[f.Severity]:
 		return fmt.Errorf("severity %q must be critical, major or minor", f.Severity)
 	}
-	return nil
+	return f.validatePremise()
 }
 
 // FindingDir is where one finding lives.
@@ -84,6 +86,9 @@ func Load(root string) (findings []Finding, bad map[string]error, err error) {
 			continue
 		}
 		f, err := readFinding(filepath.Join(base, entry.Name()))
+		if err == nil {
+			err = f.checkQuote(root)
+		}
 		if err == nil && f.ID != entry.Name() {
 			err = fmt.Errorf("id %q does not match its directory", f.ID)
 		}

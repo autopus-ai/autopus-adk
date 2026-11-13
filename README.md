@@ -52,13 +52,14 @@ the change, and it sends the agent back when the change does not hold up.
 | Stage | What runs | When |
 | --- | --- | --- |
 | Build and test | `auto verify stop`: the toolchains of the changed files only | Every time a Claude Code session tries to stop with a changed tree |
-| Review | The `reviewer` agent on `git diff HEAD` | On demand with `/auto review`, or in the opt-in follow-up round |
-| QA bug hunt | The `qa-explorer` agent drives the product; `auto qa hunt verify` re-runs each repro | On demand with `/auto qa`, or in the opt-in follow-up round when the change has runnable behavior |
-| Fix | The working agent fixes blockers and confirmed bugs, then re-runs the tests | Same round |
+| User scenarios | `auto qa intent` writes criteria from your request; `auto qa go --no-loop` and `auto qa exec --all` run them on the working tree | On demand with `/auto qa`, or first in the full verification round |
+| Review | The `reviewer` agent on `git diff HEAD` | On demand with `/auto review`, or in every verification round |
+| QA bug hunt | The `qa-explorer` agent drives the product looking for bugs, policy mismatches and measured inefficiency; `auto qa hunt verify` re-runs each repro | On demand with `/auto qa`, or in every verification round (verify mode in the light round, hunt mode in the full round) |
+| Fix | The working agent fixes failing scenarios, blockers and confirmed findings, then re-runs the tests | Same round |
 
-The build and test gate needs no prompt from you. Review and QA cost far more, so they run when you
-ask for them, or automatically once you opt in to the follow-up round. Either way the agent is told
-to ask you only for decisions that are really yours, as a multiple-choice question.
+The build and test gate needs no prompt from you, and neither does the verification round that follows
+it when a change touches product code (below). Either way the agent is told to ask you only for
+decisions that are really yours, as a multiple-choice question with a description per option.
 
 ## The Stop hook: build and test before the session ends
 
@@ -102,23 +103,37 @@ pins only warn. A deliberate pin passes with a reply line `version-pin: <name> <
 `version-pin: <reason>` comment on the manifest line where the format allows comments. Lookups share a
 10-second deadline; an offline, private, or slow registry leaves a warning and never blocks.
 
-**Follow-up round (opt-in).** With `AUTOPUS_FOLLOWUP=on` (or `auto verify stop --followup`), when
-the build passes and the change has 40 or more changed source lines
-(added plus deleted against `HEAD`, untracked source files included), the hook blocks once more with
-instructions to:
+**Verification round (on by default).** Once the build passes, or when no build toolchain covers the
+changed files, the hook measures how much of the
+change can alter what a user runs: changed code lines in product source files, against `HEAD`, in
+any language the file-size limit counts (Go, Python, JavaScript/TypeScript, Rust, Java, Kotlin, Swift,
+C/C++/C#, Ruby, PHP, shell, CSS), including those with no build toolchain for the gate to run.
+Test files (by each language's own layout), lines that start a line comment, blank lines,
+documentation, configuration, generated files (`Code generated ... DO NOT EDIT.` or the ADK's own
+header) and harness directories (`.autopus/`, `.claude/`, `.omp/` ...) do not count; neither do a mode
+change, a pure rename or a line-ending conversion. A one-line edit counts as two lines (removed and
+added). Size decides how deep the round goes: any counted behavior change gets at least the light
+round, because a one-line logic edit can break a written policy as surely as a large one. A stop that
+ends on an environment problem (a toolchain that could not run) or a test-first notice gets no round.
 
-1. run the `reviewer` agent on `git diff HEAD` and report only blockers;
-2. if the change has runnable behavior, run `qa-explorer` in hunt mode and judge the findings with
-   `auto qa hunt verify`;
-3. fix every blocker and confirmed bug, re-run the tests, and summarize what was checked.
+| Change | Round |
+| --- | --- |
+| Only tests, comments, docs, configuration or generated files | None; the session ends at green |
+| 1 to 39 changed product code lines | **Light**: rerun existing scenarios (`auto qa exec --all`), the `reviewer`, and `qa-explorer` in verify mode on the changed behavior, including the policies and rules that mention it |
+| 40 or more lines, or a new (added or untracked) product source file | **Full**: `auto qa intent` on the user's own request (or the covering SPEC), `auto qa go <id> --auto --no-loop` and `auto qa exec --all` on the uncommitted working tree, the `reviewer`, then the `qa-explorer` hunt |
 
-A session gets at most one follow-up round, so fixing the review's findings does not start another.
+Either round ends with the agent fixing every failing scenario, blocker and confirmed finding,
+re-running the tests, and summarizing what was checked. A session gets at most one round, so fixing
+the round's findings does not start another. The tree a session last stops on after its round is
+recorded, so a later session that only asks a question is not sent round on it; the next session
+that changes product code gets a round over the whole uncommitted diff, which includes that work. If the hook cannot record the round, it skips it rather than block every stop.
 
-It is off by default because it is expensive. In a small pilot on real upstream Go PRs (5 tasks run on
-both arms, one run each), it multiplied cost about 14x on the four tasks plain Claude Code already
-solved, with no change in pass rate. On a harder task it found and fixed three confirmed robustness bugs
-that the hidden tests did not cover, at about 12x the cost. The build/test gate never had to block.
-Turn the round on where that trade is worth it.
+The full round is the expensive one. In a small pilot on real upstream Go PRs (5 tasks run on both
+arms, one run each), an earlier version of it multiplied cost about 14x on the four tasks plain
+Claude Code already solved, with no change in pass rate; on a harder task it found and fixed three
+confirmed robustness bugs that the hidden tests did not cover, at about 12x the cost. The light round
+exists so a small edit is still checked against the request and the written policies without that
+cost. Turn the round off with `AUTOPUS_FOLLOWUP=off` where that trade is not worth it.
 
 **Opting out.**
 
@@ -128,18 +143,36 @@ Turn the round on where that trade is worth it.
 | Disable for one session or shell | `AUTOPUS_VERIFY_STOP=off` |
 | Turn off only the credential check | `hooks.secret_stop: false`, or `AUTOPUS_SECRET_STOP=off` |
 | Turn off only the version check | `hooks.version_stop: false`, or `AUTOPUS_VERSION_STOP=off`; allow N lines behind with `hooks.version_stop: {max_major_behind: N}` |
-| Turn the follow-up round on | `AUTOPUS_FOLLOWUP=on` (for example in the `env` block of `.claude/settings.json`), or `auto verify stop --followup` |
-| Force it off even where it is on | `AUTOPUS_FOLLOWUP=off` |
+| Turn off only the verification round | `AUTOPUS_FOLLOWUP=off` (for example in the `env` block of `.claude/settings.json`) |
 
-The Stop hook is Claude Code only. On the other platforms, run `/auto review` and `/auto qa`
-(or the platform's equivalent, below) yourself.
+The Stop hook runs in Claude Code and, through its extension, in omp; set `AUTOPUS_FOLLOWUP=off`
+in the environment omp starts in to turn the round off there. On the other platforms, run
+`/auto review` and `/auto qa` (or the platform's equivalent, below) yourself.
 
 ## QA bug hunt
 
-`/auto qa` with no subcommand, or with a plain-language request, starts the **Bug Hunt** section.
-It works the way an AI playtester hunts game bugs: the `qa-explorer` agent reads the code only to
-learn how to operate the product, then actually runs and drives it (CLI, server, UI, library API)
-looking for failures the author did not think of.
+`/auto qa` with no subcommand, or with a plain-language request, runs two phases.
+
+1. **User scenarios.** The change is run the way its user would run it, against acceptance criteria
+   written from the user's request alone: `auto qa intent` (its questions come with a description
+   per option) or the covering SPEC, then `auto qa go <id> --auto --no-loop` and
+   `auto qa exec --all` while the change is uncommitted. On a clean, committed tree,
+   `auto qa go <id> --auto` runs the scenarios and fixes failures on its own loop branch.
+2. **Hunt.** It works the way an AI playtester hunts game bugs: the `qa-explorer` agent reads the
+   code only to learn how to operate the product, then actually runs and drives it (CLI, server, UI,
+   library API) looking for failures the author did not think of. Besides bugs it looks for two
+   more kinds of finding:
+   - `policy_mismatch`: behavior that breaks a product policy (SPEC, docs, `--help`, business rules)
+     or a project rule (`CLAUDE.md`, `AGENTS.md`, rules). The finding quotes the rule verbatim in
+     `policy.source` and `policy.quote`, and `auto qa hunt verify` checks that the quote is really
+     written in that file.
+   - `inefficiency`: the same result produced with more work than needed (duplicate calls, N+1
+     queries, needless rebuilds, a stated budget exceeded). The finding carries the number in
+     `measure` with the basis of its threshold.
+
+   `auto qa hunt verify` rejects either kind without its premise. What cannot be quoted or measured
+   goes to `.autopus/qa/hunt/observations.md` as a note; it is not a bug and is not fixed
+   automatically.
 
 - Every suspicion is filed as `.autopus/qa/hunt/findings/<id>/finding.json` plus `repro.sh`.
   `repro.sh` exits 1 while the bug is present and 0 once it is fixed.
@@ -154,8 +187,8 @@ looking for failures the author did not think of.
 | `not_reproduced` | The repro passes. Either it never was a bug, or it is fixed. |
 | `broken_repro` | The repro itself could not run correctly. |
 
-Only `confirmed` findings count as bugs; the rest are reported as suspicions. The working agent
-fixes each confirmed bug and re-runs `auto qa hunt verify` until it reports `not_reproduced`. It
+Only `confirmed` findings count; the rest are reported as suspicions. The working agent
+fixes each confirmed finding and re-runs `auto qa hunt verify` until it reports `not_reproduced`. It
 never edits a repro to make it pass.
 
 ```bash
