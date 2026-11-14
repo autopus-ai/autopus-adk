@@ -69,7 +69,7 @@ const diskLeaseLong = "Runs a heavy command only while free space minus the rese
 	"waiter rises one class every disk.lease.aging_minutes (default 10) so none starves; running holders are never " +
 	"preempted. The head waiter also waits while the 1-minute load average, counting grants it does not show yet, is " +
 	"above disk.lease.max_load_ratio (default 0.85) × logical CPUs, while available memory minus the --mem " +
-	"reservations of running leases is below --mem plus disk.lease.min_free_mem_gb (default 8), and on macOS while " +
+	"reservations of running leases is below --mem plus disk.lease.min_free_mem_gb (default 8, capped at an eighth of total memory when unset), and on macOS while " +
 	"memory pressure is critical; AUTOPUS_LEASE_MAX_LOAD_RATIO and AUTOPUS_LEASE_MIN_FREE_MEM_GB override the keys. " +
 	"When no lease runs and load alone has held the head waiter for disk.lease.max_load_wait_minutes (default 10), " +
 	"it starts anyway, one at a time. The command runs " +

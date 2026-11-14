@@ -58,6 +58,7 @@ func TestLeaseLoadPolicy_Sources(t *testing.T) {
 	assert.InDelta(t, 0.5, p.MaxLoadRatio, 1e-9)
 	assert.Equal(t, 16, p.LogicalCPUs)
 	assert.Equal(t, 4*diskspace.GiB, p.MinFreeMemBytes)
+	assert.False(t, p.ScaleFloorToMemory, "an explicit floor is not scaled")
 	assert.Equal(t, 3*time.Minute, p.MaxLoadWait)
 
 	t.Setenv("AUTOPUS_LEASE_MAX_LOAD_RATIO", "1.25")
@@ -65,9 +66,20 @@ func TestLeaseLoadPolicy_Sources(t *testing.T) {
 	p = leaseLoadPolicy(lease)
 	assert.InDelta(t, 1.25, p.MaxLoadRatio, 1e-9)
 	assert.Equal(t, 5*diskspace.GiB/2, p.MinFreeMemBytes)
+	assert.False(t, p.ScaleFloorToMemory, "an environment floor is not scaled")
 
 	t.Setenv("AUTOPUS_LEASE_MAX_LOAD_RATIO", "-3")
 	assert.InDelta(t, 0.5, leaseLoadPolicy(lease).MaxLoadRatio, 1e-9)
+}
+
+// Without the key or the environment the default floor scales to the machine.
+func TestLeaseLoadPolicy_DefaultFloorScales(t *testing.T) {
+	dir := cpuLeaseProject(t, "", 16)
+	cfg, err := config.LoadPreview(dir)
+	require.NoError(t, err)
+	p := leaseLoadPolicy(cfg.Disk.Effective().Lease)
+	assert.Equal(t, 8*diskspace.GiB, p.MinFreeMemBytes)
+	assert.True(t, p.ScaleFloorToMemory)
 }
 
 // A busy machine holds a lease with free slots; the timeout line says why.

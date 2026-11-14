@@ -30,21 +30,22 @@ var leaseMachineSampler = diskspace.SystemSampler()
 // scales with the logical CPUs, not the slots: the load average counts
 // every process on the machine, leased or not.
 func leaseLoadPolicy(lease config.DiskLeaseEffective) diskspace.LoadPolicy {
-	ratio, floorGB := lease.MaxLoadRatio, float64(lease.MinFreeMemGB)
+	ratio, floorGB, scale := lease.MaxLoadRatio, float64(lease.MinFreeMemGB), lease.ScaleMinFreeMem
 	if v, err := strconv.ParseFloat(strings.TrimSpace(os.Getenv(envLeaseMaxLoadRatio)), 64); err == nil &&
 		v >= 0 && v <= config.DiskMaxLeaseLoadRatio {
 		ratio = v
 	}
 	if v, err := strconv.ParseFloat(strings.TrimSpace(os.Getenv(envLeaseMinFreeMemGB)), 64); err == nil &&
 		v >= 0 && v <= config.DiskMaxLeaseMinFreeMemGB {
-		floorGB = v
+		floorGB, scale = v, false
 	}
 	return diskspace.LoadPolicy{
-		Sampler:         leaseMachineSampler,
-		MaxLoadRatio:    ratio,
-		LogicalCPUs:     max(leaseNumCPU(), 1),
-		MinFreeMemBytes: int64(math.Ceil(floorGB * float64(diskspace.GiB))),
-		MaxLoadWait:     time.Duration(lease.MaxLoadWaitMinutes) * time.Minute,
+		Sampler:            leaseMachineSampler,
+		MaxLoadRatio:       ratio,
+		LogicalCPUs:        max(leaseNumCPU(), 1),
+		MinFreeMemBytes:    int64(math.Ceil(floorGB * float64(diskspace.GiB))),
+		ScaleFloorToMemory: scale,
+		MaxLoadWait:        time.Duration(lease.MaxLoadWaitMinutes) * time.Minute,
 	}
 }
 

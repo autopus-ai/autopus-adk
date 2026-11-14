@@ -116,6 +116,9 @@ type DiskLeaseEffective struct {
 	MaxLoadRatio       float64
 	MinFreeMemGB       int
 	MaxLoadWaitMinutes int
+	// ScaleMinFreeMem is true when min_free_mem_gb is not set: the default
+	// floor then shrinks to fit a small machine (see diskspace.LoadPolicy).
+	ScaleMinFreeMem bool
 }
 
 func (r DiskReclaimConf) effective() DiskReclaimEffective {
@@ -160,6 +163,7 @@ func (l DiskLeaseConf) effective() DiskLeaseEffective {
 		MaxLoadRatio:       ratio,
 		MinFreeMemGB:       diskInt(l.MinFreeMemGB, DefaultDiskLeaseMinFreeMemGB),
 		MaxLoadWaitMinutes: diskInt(l.MaxLoadWaitMinutes, DefaultDiskLeaseMaxLoadWaitMinutes),
+		ScaleMinFreeMem:    l.MinFreeMemGB == nil,
 	}
 }
 

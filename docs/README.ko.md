@@ -621,7 +621,7 @@ class를 정합니다(기본 `ci`. GitHub Actions 안에서는 `GITHUB_EVENT_NAM
 여유가 있으면 무거운 작업을 병렬로 돌리고, 여유가 없으면 우선순위대로 들여보냅니다. 맨 앞 대기자는 슬롯이 비어도
 다음 동안 기다립니다. 1분 load average가 `disk.lease.max_load_ratio` × 논리 CPU 수(기본 0.85)를 넘는 동안(아직
 average에 드러나지 않은 최근 허가분을 더해 세므로 한꺼번에 들어가도 넘치지 않습니다), 가용 메모리에서 도는
-lease들의 `--mem` 예약을 뺀 값이 자기 `--mem SIZE`(예: `8G`, 기본 없음)와 `disk.lease.min_free_mem_gb`(기본 8)의
+lease들의 `--mem` 예약을 뺀 값이 자기 `--mem SIZE`(예: `8G`, 기본 없음)와 `disk.lease.min_free_mem_gb`(기본 8, 키를 두지 않으면 전체 메모리의 1/8까지로 제한해 16 GiB 기계는 2 GiB)의
 합보다 작은 동안, 그리고 macOS에서 커널이 메모리 압력을 critical로 알리는 동안입니다. 값은 프로세스를 띄우지 않고
 읽고(macOS는 `sysctl`, Linux는 `/proc`) 2초 안팎마다 다시 봅니다. 기계별로는 `AUTOPUS_LEASE_MAX_LOAD_RATIO`와
 `AUTOPUS_LEASE_MIN_FREE_MEM_GB`가 키를 덮어씁니다. `auto disk status`는 맨 앞 대기자를 붙잡은 이유를 보여
