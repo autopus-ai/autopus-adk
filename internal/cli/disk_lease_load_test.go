@@ -80,6 +80,14 @@ func TestLeaseLoadPolicy_DefaultFloorScales(t *testing.T) {
 	p := leaseLoadPolicy(cfg.Disk.Effective().Lease)
 	assert.Equal(t, 8*diskspace.GiB, p.MinFreeMemBytes)
 	assert.True(t, p.ScaleFloorToMemory)
+
+	// An environment floor without the key is the machine's explicit choice:
+	// a 16 GiB machine keeps the 10 GiB it asked for, not an eighth.
+	t.Setenv("AUTOPUS_LEASE_MIN_FREE_MEM_GB", "10")
+	p = leaseLoadPolicy(cfg.Disk.Effective().Lease)
+	assert.False(t, p.ScaleFloorToMemory)
+	small := diskspace.MachineSample{HasMem: true, AvailMemBytes: 12 * diskspace.GiB, TotalMemBytes: 16 * diskspace.GiB}
+	assert.Equal(t, 10*diskspace.GiB, p.Gate(small, nil, 6*diskspace.GiB, time.Now()).FloorMemBytes)
 }
 
 // A busy machine holds a lease with free slots; the timeout line says why.
