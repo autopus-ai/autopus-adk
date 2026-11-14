@@ -53,6 +53,11 @@ type LoadPolicy struct {
 	// MinFreeMemBytes is the memory that stays free after every --mem
 	// reservation, the waiter's included.
 	MinFreeMemBytes int64
+	// ScaleFloorToMemory caps the floor at an eighth of the machine's total
+	// memory. The default floor is sized for a large shared machine; on a
+	// 16 GiB runner it alone plus a modest --mem exceeds what is ever
+	// available, so every such lease waited out its whole --wait.
+	ScaleFloorToMemory bool
 	// MaxLoadWait admits the head waiter despite load once it has waited
 	// this long while no lease runs; 0 turns forced admission off.
 	MaxLoadWait time.Duration
@@ -141,11 +146,20 @@ func (p LoadPolicy) Gate(s MachineSample, live []LeaseInfo, memBytes int64, now 
 			g.ReservedMemBytes = satAdd(g.ReservedMemBytes, info.MemBytes)
 		}
 		g.FreeMemBytes = s.AvailMemBytes - g.ReservedMemBytes
-		g.FloorMemBytes, g.NeedMemBytes = max(p.MinFreeMemBytes, 0), max(memBytes, 0)
+		g.FloorMemBytes, g.NeedMemBytes = p.floorFor(s), max(memBytes, 0)
 		g.MemLimited = g.FreeMemBytes < satAdd(g.FloorMemBytes, g.NeedMemBytes)
 	}
 	g.PressureCritical = s.PressureCritical
 	return g
+}
+
+// floorFor is the free-memory floor on the sampled machine.
+func (p LoadPolicy) floorFor(s MachineSample) int64 {
+	floor := max(p.MinFreeMemBytes, 0)
+	if p.ScaleFloorToMemory && s.TotalMemBytes > 0 {
+		floor = min(floor, s.TotalMemBytes/8)
+	}
+	return floor
 }
 
 // sample reads the machine; a sampler error reads as nothing known, so a
@@ -169,9 +183,10 @@ func (p LoadPolicy) NeverFits(memBytes int64) string {
 	if !ok || !s.HasMem || s.TotalMemBytes <= 0 || memBytes <= 0 {
 		return ""
 	}
-	if want := satAdd(memBytes, max(p.MinFreeMemBytes, 0)); want > s.TotalMemBytes {
+	floor := p.floorFor(s)
+	if want := satAdd(memBytes, floor); want > s.TotalMemBytes {
 		return fmt.Sprintf("--mem %s GiB plus the %s GiB free-memory floor exceeds the machine's %s GiB of memory",
-			compactGiB(memBytes), compactGiB(p.MinFreeMemBytes), compactGiB(s.TotalMemBytes))
+			compactGiB(memBytes), compactGiB(floor), compactGiB(s.TotalMemBytes))
 	}
 	return ""
 }

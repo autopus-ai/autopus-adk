@@ -172,3 +172,31 @@ func TestSystemSampler_Answers(t *testing.T) {
 		assert.GreaterOrEqual(t, s.Load1, 0.0)
 	}
 }
+
+// The default floor shrinks to an eighth of a small machine's memory, so a
+// 16 GiB runner admits a 6 GiB lease that the fixed 8 GiB floor never could;
+// a large machine keeps the configured floor, and an explicit floor is not
+// scaled.
+func TestLoadGate_FloorScalesToSmallMachines(t *testing.T) {
+	t.Parallel()
+	small := MachineSample{HasMem: true, AvailMemBytes: 12 * GiB, TotalMemBytes: 16 * GiB}
+	scaled := LoadPolicy{MinFreeMemBytes: 8 * GiB, ScaleFloorToMemory: true}
+	g := scaled.Gate(small, nil, 6*GiB, time.Now())
+	assert.False(t, g.MemLimited)
+	assert.Equal(t, 2*GiB, g.FloorMemBytes)
+
+	fixed := LoadPolicy{MinFreeMemBytes: 8 * GiB}
+	assert.Equal(t, "mem 12.0 GiB < 8+6 GiB", fixed.Gate(small, nil, 6*GiB, time.Now()).Reason())
+
+	large := MachineSample{HasMem: true, AvailMemBytes: 60 * GiB, TotalMemBytes: 128 * GiB}
+	assert.Equal(t, 8*GiB, scaled.Gate(large, nil, 0, time.Now()).FloorMemBytes)
+
+	unknownTotal := MachineSample{HasMem: true, AvailMemBytes: 12 * GiB}
+	assert.Equal(t, 8*GiB, scaled.Gate(unknownTotal, nil, 0, time.Now()).FloorMemBytes)
+
+	never := LoadPolicy{Sampler: fixedSampler(MachineSample{HasMem: true, TotalMemBytes: 16 * GiB}),
+		MinFreeMemBytes: 8 * GiB, ScaleFloorToMemory: true}
+	assert.Empty(t, never.NeverFits(14*GiB))
+	assert.Equal(t, "--mem 15 GiB plus the 2 GiB free-memory floor exceeds the machine's 16 GiB of memory",
+		never.NeverFits(15*GiB))
+}

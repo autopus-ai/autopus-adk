@@ -607,7 +607,7 @@ otherwise: the head waiter also waits while the 1-minute load average is above
 `disk.lease.max_load_ratio` × logical CPUs (default 0.85), counting grants the average does not show yet
 so a burst of admissions cannot overshoot; while available memory minus the `--mem` reservations of
 running leases is below its own `--mem SIZE` (such as `8G`, default none) plus `disk.lease.min_free_mem_gb`
-(default 8); and on macOS while the kernel reports critical memory pressure. Readings are taken without
+(default 8, capped at an eighth of total memory while unset, so a 16 GiB machine keeps 2 GiB); and on macOS while the kernel reports critical memory pressure. Readings are taken without
 spawning a process (`sysctl` on macOS, `/proc` on Linux) and re-checked about every 2 seconds;
 `AUTOPUS_LEASE_MAX_LOAD_RATIO` and `AUTOPUS_LEASE_MIN_FREE_MEM_GB` override the keys per machine. `auto disk
 status` names what holds the head waiter (`waiting: load 22.1 > 20.4`, `waiting: mem 6.2 GiB < 8+4 GiB`).

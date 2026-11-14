@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **lease의 기본 여유 메모리 기준이 작은 기계에 맞춰 줄어든다** (2026-11-15): `disk.lease.min_free_mem_gb`의 기본값 8 GiB는
+  큰 공용 기계를 기준으로 정한 값이라, 16 GiB runner에서는 기준과 `--mem 6G`의 합이 실제 가용 메모리(유휴 때 약 12.6 GiB)를
+  넘었다. 그래서 그런 lease가 매번 `--wait` 15분을 다 기다린 뒤 lease 없이 실행됐다. 이제 키와 `AUTOPUS_LEASE_MIN_FREE_MEM_GB`가
+  둘 다 없으면 기준을 전체 메모리의 1/8로 제한한다(16 GiB → 2 GiB, 64 GiB 이상은 8 GiB 그대로). 명시한 값은 그대로 쓴다.
+
 - **light 라운드를 일찍 받은 세션은 기능이 커지면 full 라운드로 한 번 승급한다** (2026-11-13): 검증 라운드는 세션당 한 번이라,
   여러 턴에 걸쳐 기능을 키우는 대화형 세션은 첫 턴의 작은 변경으로 light 라운드를 쓰고 나면 커진 기능이 full 라운드(요청 기반
   시나리오)를 받지 못했다. 이제 light 라운드 뒤 제품 코드가 40줄 이상 더 늘거나 제품 파일이 생기면 full 라운드를 한 번 더 받는다.

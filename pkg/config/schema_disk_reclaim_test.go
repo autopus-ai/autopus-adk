@@ -21,7 +21,7 @@ func TestDiskConf_ReclaimAndLeaseDefaults(t *testing.T) {
 
 	assert.Equal(t, config.DiskReclaimEffective{WorktreeIdleMinutes: 360, ScratchpadIdleMinutes: 1440, Auto: true, AutoIntervalMinutes: 30, LargeFileIdleMinutes: 1440}, eff.Reclaim)
 	assert.Equal(t, config.DiskLeaseEffective{MaxConcurrent: 0, WaitMinutes: 10, ReclaimOnShortage: true, AgingMinutes: 10,
-		MaxLoadRatio: 0.85, MinFreeMemGB: 8, MaxLoadWaitMinutes: 10}, eff.Lease)
+		MaxLoadRatio: 0.85, MinFreeMemGB: 8, MaxLoadWaitMinutes: 10, ScaleMinFreeMem: true}, eff.Lease)
 
 	require.NoError(t, config.Save(dir, cfg))
 	assert.NotRegexp(t, diskTopLevelKey, readDiskConfig(t, dir))
@@ -38,7 +38,7 @@ func TestDiskConf_ReclaimAndLeaseExplicitValues(t *testing.T) {
 
 	assert.Equal(t, config.DiskReclaimEffective{WorktreeIdleMinutes: 60, ScratchpadIdleMinutes: 90, Auto: true, AutoIntervalMinutes: 30, LargeFileIdleMinutes: 1440}, eff.Reclaim)
 	assert.Equal(t, config.DiskLeaseEffective{MaxConcurrent: 2, WaitMinutes: 0, ReclaimOnShortage: false, AgingMinutes: 10,
-		MaxLoadRatio: 0.85, MinFreeMemGB: 8, MaxLoadWaitMinutes: 10}, eff.Lease)
+		MaxLoadRatio: 0.85, MinFreeMemGB: 8, MaxLoadWaitMinutes: 10, ScaleMinFreeMem: true}, eff.Lease)
 }
 
 // SPEC-DISK-002 S1: each out-of-bound value fails the load naming the key.

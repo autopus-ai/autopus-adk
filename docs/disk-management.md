@@ -92,7 +92,7 @@ disk:
     dir: ""                       # absolute shared lease dir for several users; "" = your state dir
     aging_minutes: 10             # a CPU waiter rises one priority class per interval; 0 = no aging
     max_load_ratio: 0.85          # admit a CPU waiter while 1-min load <= this x logical CPUs; 0 = off
-    min_free_mem_gb: 8            # memory left free after every --mem reservation; 0 = no floor
+    min_free_mem_gb: 8            # memory left free after every --mem reservation; 0 = no floor; unset = 8 capped at 1/8 of RAM
     max_load_wait_minutes: 10     # with no lease running, load alone holds the head waiter this long; 0 = never force
 ```
 
@@ -303,7 +303,9 @@ of the queue, with its slots free, is also held while any of these holds:
   for five minutes: a burst of admissions cannot overshoot before the
   average catches up;
 - available memory minus the `--mem` reservations of the running leases is
-  below the waiter's own `--mem` plus `lease.min_free_mem_gb` (default 8).
+  below the waiter's own `--mem` plus `lease.min_free_mem_gb` (default 8; while the key and
+  `AUTOPUS_LEASE_MIN_FREE_MEM_GB` are unset it is capped at an eighth of the
+  machine's memory, so a 16 GiB machine keeps 2 GiB free).
   `--mem SIZE` takes `8G`, `512M`, or a bare number of GiB, needs `--cpu`,
   and defaults to none, so only the floor applies;
 - on macOS, `kern.memorystatus_vm_pressure_level` is critical.
