@@ -439,3 +439,10 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 기록: `go run ./cmd/generate-templates`(추가 변경 없음) 뒤 `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run '^(TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6ShowsTheSettingsBeforeAnyWrite)$'`.
 - 차이: NPD 다섯 개(init-in, init-pipe, init-yes, update-ci, update-yes)에서 `.claude/agents/autopus/qa-explorer.md`, `.claude/rules/autopus/autonomy.md`, `.claude/skills/auto-qa/SKILL.md`, `.claude/skills/qa-hunt/SKILL.md`, `.codex/agents/qa-explorer.toml`, `.codex/skills/codex-auto-qa/SKILL.md`, `.codex/skills/codex-qa-hunt/SKILL.md`, `AGENTS.md`의 checksum, 두 manifest와 journal checksum, update 흐름의 backup 사본만 바뀌었다. stdout golden은 그대로다.
 - 검증: 두 test가 이 golden으로 통과한다.
+
+## 기존 게이트 목록·실제 진입점 증거·권한 경로 위협 (docs/verification-gate-inventory, 2026-11-17)
+
+- 원인: `content/checklists/spec-quality.md`에 Q-CORR-05(바뀐 입력을 받는 기존 게이트 목록)를 더하고, 런타임·경로·보안 lean SPEC에서 Q-COMP-08을 생략할 수 없게 했다. `content/skills/review.md`·`secure-hunt.md`·`testing-strategy.md`에 게이트를 건너뛰는 테스트 대역과 권한 있는 코드가 덜 신뢰받는 쪽이 쓸 수 있는 경로를 소비하는 위협을 더했다.
+- 기록: `go run ./cmd/generate-templates` 뒤 `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run '^(TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6ShowsTheSettingsBeforeAnyWrite)$'`.
+- 차이: NPD 다섯 개(init-in, init-pipe, init-yes, update-ci, update-yes)에서 바뀐 skill 파일의 checksum, 두 manifest와 journal checksum, update 흐름의 backup 사본만 바뀌었다. stdout golden은 그대로다.
+- 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.
