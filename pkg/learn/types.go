@@ -50,7 +50,9 @@ type LearningEntry struct {
 	// read as project scope with unspecified evidence.
 	Scope    string    `json:"scope,omitempty"`
 	Evidence *Evidence `json:"evidence,omitempty"`
-	Line     int       `json:"-"`
+	// Escape is set on escape lessons only.
+	Escape *Escape `json:"escape,omitempty"`
+	Line   int     `json:"-"`
 }
 
 // entryIDRegex matches L-{NNN} format (one or more digits after L-).
@@ -105,6 +107,8 @@ type RecordOpts struct {
 	EvidenceCommand    string
 	EvidenceBeforeExit *int
 	EvidenceAfterExit  *int
+	// Escape carries the escape lesson fields.
+	Escape *Escape
 }
 
 // PatternStat tracks reuse frequency of a pattern.

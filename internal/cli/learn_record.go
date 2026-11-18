@@ -18,6 +18,7 @@ var recordFuncs = map[string]func(*learn.Store, learn.RecordOpts) error{
 	"review_issue":   learn.RecordReviewIssue,
 	"executor_error": learn.RecordExecutorError,
 	"fix_pattern":    learn.RecordFixPattern,
+	"escape":         learn.RecordEscape,
 }
 
 // newLearnRecordCmd returns the `auto learn record` subcommand.
@@ -39,6 +40,7 @@ func newLearnRecordCmd() *cobra.Command {
 		evidCmd    string
 		beforeExit int
 		afterExit  int
+		escape     escapeFlags
 	)
 
 	cmd := &cobra.Command{
@@ -48,7 +50,7 @@ func newLearnRecordCmd() *cobra.Command {
 			recordFn, ok := recordFuncs[entryType]
 			if !ok {
 				shown, _ := secretscan.Redact(entryType)
-				return fmt.Errorf("unknown type %q: must be one of gate_fail, coverage_gap, review_issue, executor_error, fix_pattern", shown)
+				return fmt.Errorf("unknown type %q: must be one of gate_fail, coverage_gap, review_issue, executor_error, fix_pattern, escape", shown)
 			}
 			opts := learn.RecordOpts{
 				Phase:      phase,
@@ -66,6 +68,7 @@ func newLearnRecordCmd() *cobra.Command {
 				// counts only when its flag was given.
 				EvidenceCommand: evidCmd,
 			}
+			opts.Escape = escape.toEscape(entryType)
 			if cmd.Flags().Changed("evidence-before-exit") {
 				opts.EvidenceBeforeExit = &beforeExit
 			}
@@ -104,7 +107,7 @@ func newLearnRecordCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&entryType, "type", "", "Entry type (gate_fail|coverage_gap|review_issue|executor_error|fix_pattern)")
+	cmd.Flags().StringVar(&entryType, "type", "", "Entry type (gate_fail|coverage_gap|review_issue|executor_error|fix_pattern|escape)")
 	cmd.Flags().StringVar(&pattern, "pattern", "", "Pattern description")
 	cmd.Flags().StringVar(&phase, "phase", "", "Pipeline phase")
 	cmd.Flags().StringVar(&specID, "spec-id", "", "Related SPEC ID")
@@ -120,6 +123,7 @@ func newLearnRecordCmd() *cobra.Command {
 	cmd.Flags().IntVar(&afterExit, "evidence-after-exit", 0, "Exit code of --evidence-command after the change; a non-zero before and zero after make the evidence deterministic")
 	cmd.Flags().StringVar(&repro, "repro", "", "Reproduction command stored as data and never executed; at most 512 bytes after secret redaction")
 
+	escape.register(cmd)
 	_ = cmd.MarkFlagRequired("type")
 	_ = cmd.MarkFlagRequired("pattern")
 
