@@ -79,7 +79,7 @@ func newChecklistRefuteCmd() *cobra.Command {
 				return err
 			}
 			out := cmd.OutOrStdout()
-			ran := 0
+			ran, skipped := 0, 0
 			for _, c := range cands {
 				// --all takes pending candidates; a named one may also be
 				// re-refuted while it waits for approval, e.g. on the
@@ -97,6 +97,7 @@ func newChecklistRefuteCmd() *cobra.Command {
 				}
 				if err != nil {
 					fmt.Fprintf(out, "%s 건너뜀 — %v\n", c.ID, err)
+					skipped++
 					continue
 				}
 				fmt.Fprintf(out, "%s %s\n", got.ID, got.State.Label())
@@ -106,6 +107,9 @@ func newChecklistRefuteCmd() *cobra.Command {
 			}
 			if ran == 0 {
 				fmt.Fprintln(out, "반증 검토 대기 중인 후보가 없습니다")
+			}
+			if skipped > 0 {
+				return fmt.Errorf("후보 %d개를 반증하지 못했습니다", skipped)
 			}
 			return nil
 		},

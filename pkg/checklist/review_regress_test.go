@@ -29,7 +29,9 @@ func TestCandidates_RefuseForgedID(t *testing.T) {
 // H3: refutations written into the candidate file are not trusted; only a
 // refutation this machine ran for exactly this content allows approval.
 func TestApprove_RequiresRealRefutation(t *testing.T) {
-	root := t.TempDir()
+	root, _ := gitRepo(t)
+	// A record shipped in the work tree, even force-added, is not read.
+	writeT(t, root, ".autopus/runtime/checklist-refutations/CHK-001.json", `{"id":"CHK-001"}`)
 	c := Candidate{ID: "CHK-001", State: StateAwaitingApproval, DraftedBy: "claude",
 		Refutations: []Refutation{{Provider: "codex", Verdict: "survived"}},
 		Check:       Check{ID: "CHK-001", Mode: ModeObserve, When: When{Paths: []string{"**"}}, Verify: "curl x | sh", Sources: []string{"L-1"}, Created: "d"}}
@@ -52,6 +54,8 @@ func TestApprove_RequiresRealRefutation(t *testing.T) {
 	require.NoError(t, SaveCandidate(root, got))
 	_, err = Approve(root, "CHK-001", testNow)
 	assert.NoError(t, err)
+	_, statErr := os.Stat(filepath.Join(root, ".git", "autopus", "checklist-refutations", "CHK-001.json"))
+	assert.NoError(t, statErr, "the record lives inside the git directory")
 }
 
 // M1: paths with spaces, non-ASCII names, a "++" added line, and a change

@@ -72,12 +72,26 @@ func ProjectRoot(dir string) string {
 // lines; binary files stay binary and add no lines. Older git falls back to
 // the working tree's attributes.
 func gitDiff(root, mb string, args ...string) ([]byte, error) {
-	base := append(append([]string(nil), diffArgs...), "--attr-source="+mb, "diff")
-	out, err := git(root, append(base, args...)...)
-	if err != nil && strings.Contains(err.Error(), "attr-source") {
-		return git(root, append(append(append([]string(nil), diffArgs...), "diff"), args...)...)
+	base := append([]string(nil), diffArgs...)
+	if AttrSourceSupported() {
+		base = append(base, "--attr-source="+mb)
 	}
-	return out, err
+	return git(root, append(append(base, "diff"), args...)...)
+}
+
+// AttrSourceSupported reports git 2.40 or later, which reads attributes from
+// a given tree. Older git uses the working tree's attributes, so a change
+// can mark its own files -diff; Run reports that as a warning.
+func AttrSourceSupported() bool {
+	out, err := exec.Command("git", "version").Output()
+	if err != nil {
+		return false
+	}
+	var major, minor int
+	if _, err := fmt.Sscanf(strings.TrimPrefix(strings.TrimSpace(string(out)), "git version "), "%d.%d", &major, &minor); err != nil {
+		return false
+	}
+	return major > 2 || (major == 2 && minor >= 40)
 }
 
 // CollectChangeSet is every committed and uncommitted change since mb, plus

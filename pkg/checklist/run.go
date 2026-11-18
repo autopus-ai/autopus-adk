@@ -2,9 +2,11 @@ package checklist
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -79,7 +81,10 @@ func ShellRunner(ctx context.Context, root, command string) (int, string, error)
 	case <-ctx.Done():
 		killProcessGroup(cmd)
 		<-done
-		return 0, tail(out.String()), fmt.Errorf("verify timed out after %s", VerifyTimeout)
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return 0, tail(out.String()), fmt.Errorf("verify timed out after %s", VerifyTimeout)
+		}
+		return 0, tail(out.String()), fmt.Errorf("verify interrupted")
 	}
 	if exitErr, ok := err.(*exec.ExitError); ok {
 		code := exitErr.ExitCode()
@@ -144,6 +149,9 @@ func Run(ctx context.Context, root, base string, run Runner, now time.Time) (Rep
 	}
 	sort.Slice(checks, func(i, j int) bool { return checks[i].ID < checks[j].ID })
 	rep := Report{Base: mb, Invalid: invalid, ChangedChecks: ChangedChecks(root, cs, checks)}
+	if !AttrSourceSupported() {
+		rep.Warning = "git older than 2.40: attributes come from the working tree, so a change can hide its own lines with -diff"
+	}
 	for _, c := range checks {
 		if c.Mode == ModeRetired {
 			continue
@@ -162,7 +170,7 @@ func Run(ctx context.Context, root, base string, run Runner, now time.Time) (Rep
 		rep.Outcomes = append(rep.Outcomes, o)
 	}
 	if err := RecordHits(root, rep, now); err != nil {
-		rep.Warning = "hit log not written: " + err.Error()
+		rep.Warning = strings.TrimPrefix(rep.Warning+"; hit log not written: "+err.Error(), "; ")
 	}
 	return rep, nil
 }

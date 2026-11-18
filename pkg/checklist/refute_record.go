@@ -4,14 +4,17 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"path"
+	"os"
+	"path/filepath"
+	"strings"
 )
 
-// RefutationsDir holds the refutations this machine actually ran. It lives
-// under the gitignored runtime tree, so a change cannot ship a forged one
-// the way it can edit a candidate file's own refutations field.
-const RefutationsDir = ".autopus/runtime/checklist-refutations"
+// refutationsGitPath is where this machine keeps the refutations it ran:
+// inside the git directory, which no commit can write and no clone copies,
+// so a change cannot ship a forged record the way it can a tracked file.
+const refutationsGitPath = "autopus/checklist-refutations"
 
 type refutationRecord struct {
 	ID          string       `json:"id"`
@@ -31,18 +34,44 @@ func candidateDigest(c Candidate) string {
 	return hex.EncodeToString(sum[:])
 }
 
+var errNoGitDir = errors.New("refutation records need a git repository")
+
+// refutationsDir is the absolute record directory inside the git directory.
+func refutationsDir(root string) (string, error) {
+	out, err := git(root, "rev-parse", "--git-path", refutationsGitPath)
+	if err != nil {
+		return "", errNoGitDir
+	}
+	dir := strings.TrimSpace(string(out))
+	if !filepath.IsAbs(dir) {
+		dir = filepath.Join(root, dir)
+	}
+	return dir, nil
+}
+
 func saveRefutationRecord(root string, c Candidate) error {
+	dir, err := refutationsDir(root)
+	if err != nil {
+		return err
+	}
 	data, err := json.MarshalIndent(refutationRecord{ID: c.ID, Digest: candidateDigest(c), DraftedBy: c.DraftedBy, Refutations: c.Refutations}, "", "  ")
 	if err != nil {
 		return err
 	}
-	return writeFile(root, path.Join(RefutationsDir, c.ID+".json"), append(data, '\n'))
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	return writeFile(dir, c.ID+".json", append(data, '\n'))
 }
 
 // verifiedRefutations returns the refutations this machine ran for exactly
 // this candidate content, or an error saying how to get them.
 func verifiedRefutations(root string, c Candidate) (Candidate, error) {
-	data, err := readFile(root, path.Join(RefutationsDir, c.ID+".json"))
+	dir, err := refutationsDir(root)
+	if err != nil {
+		return c, err
+	}
+	data, err := readFile(dir, c.ID+".json")
 	if err != nil {
 		return c, fmt.Errorf("%s: no refutation run on this machine; run `auto checklist refute %s` first", c.ID, c.ID)
 	}
