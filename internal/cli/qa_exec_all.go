@@ -25,7 +25,7 @@ func runQAExecAll(cmd *cobra.Command, projectDir string) (int, error) {
 		ctx = context.Background()
 	}
 	out := cmd.OutOrStdout()
-	passed, failed, broken := 0, 0, 0
+	passed, failed, broken, notExec := 0, 0, 0, 0
 	for _, path := range paths {
 		rel, _ := filepath.Rel(projectDir, path)
 		doc, err := testscenario.LoadFile(path)
@@ -36,6 +36,7 @@ func runQAExecAll(cmd *cobra.Command, projectDir string) (int, error) {
 		}
 		for _, c := range doc.Cases {
 			if c.Automation.Type != testscenario.AutomationExec || c.Automation.Exec == nil {
+				notExec++
 				continue
 			}
 			res, err := execcheck.Run(ctx, projectDir, *c.Automation.Exec)
@@ -52,6 +53,11 @@ func runQAExecAll(cmd *cobra.Command, projectDir string) (int, error) {
 		}
 	}
 	fmt.Fprintf(out, "qa exec --all: %d passed, %d failed, %d could not run\n", passed, failed, broken)
+	if passed+failed+broken == 0 && notExec > 0 {
+		// Zero exec cases is not a pass: the command and manual cases this
+		// does not run would otherwise hide behind a green summary.
+		fmt.Fprintf(out, "qa exec --all: no exec cases ran, so nothing was checked; %d command or manual case(s) are not run by this command\n", notExec)
+	}
 	switch {
 	case failed > 0:
 		return qaExecExitMismatch, nil

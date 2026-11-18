@@ -47,3 +47,44 @@ func TestQAExecCmd_AllSeparatesCannotRunFromPassing(t *testing.T) {
 	_, err = runQAExecCLI(t, t.TempDir(), "--all", "--case", "greets")
 	assert.Equal(t, qaExecExitError, exitCodeForError(err), "--all takes no --case")
 }
+
+// A project whose cases are all command or manual cases runs nothing; the
+// summary must say so instead of reading as a pass. With no cases at all,
+// the line stays the plain summary.
+func TestQAExecCmd_AllSaysWhenNothingRan(t *testing.T) {
+	cases := `schema_version: qamesh.test-scenarios.v1
+spec: SPEC-X-001
+cases:
+  - id: wraps-unit-tests
+    ac: AC-1
+    kind: happy
+    title: t
+    given: g
+    when: w
+    then: th
+    automation:
+      type: command
+      check:
+        argv: [go, test, ./...]
+        cwd: .
+        timeout: 1m
+  - id: needs-a-person
+    ac: AC-1
+    kind: edge
+    title: t
+    given: g
+    when: w
+    then: th
+    automation:
+      type: manual
+      reason: a person judges it
+`
+	out, err := runQAExecCLI(t, qaExecProject(t, cases), "--all")
+	require.NoError(t, err, out)
+	assert.Contains(t, out, "qa exec --all: 0 passed, 0 failed, 0 could not run")
+	assert.Contains(t, out, "no exec cases ran, so nothing was checked; 2 command or manual case(s) are not run by this command")
+
+	out, err = runQAExecCLI(t, t.TempDir(), "--all")
+	require.NoError(t, err, out)
+	assert.NotContains(t, out, "nothing was checked")
+}

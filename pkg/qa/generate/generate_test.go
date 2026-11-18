@@ -164,3 +164,11 @@ func TestEvaluate_ActionStepAc_DoesNotCountAsCoverage(t *testing.T) {
 	assert.Equal(t, CoveredByUserScenario, out.Coverage[0].Status)
 	assert.Equal(t, CriterionCoverage{ID: "AC-X-003", Status: Uncovered, Refs: []string{}}, out.Coverage[2])
 }
+
+// A multi-step flow still gets an exec case driven by a script, and a
+// command case wrapping the project's own tests is not user evidence.
+func TestBuildPrompt_MultiStepFlowsStayExec(t *testing.T) {
+	prompt := BuildPrompt(PromptInput{SpecID: "SPEC-X-001"})
+	assert.Contains(t, prompt, "argv is [python3, <script>, $BIN/<name>]")
+	assert.Contains(t, prompt, "A command case that only runs the project's own unit tests is not evidence")
+}
