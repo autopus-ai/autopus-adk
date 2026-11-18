@@ -1,0 +1,94 @@
+package cli
+
+import (
+	"bytes"
+	"context"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/insajin/autopus-adk/pkg/checklist"
+)
+
+func runAuto(t *testing.T, args ...string) (string, error) {
+	t.Helper()
+	root := NewRootCmd()
+	var out bytes.Buffer
+	root.SetOut(&out)
+	root.SetErr(&out)
+	root.SetArgs(args)
+	err := root.Execute()
+	return out.String(), err
+}
+
+// The loop through the real commands: record, propose, refute with a
+// different provider, approve, then run in observe and enforce.
+func TestChecklistCommands_EndToEnd(t *testing.T) {
+	dir := t.TempDir()
+	git := func(args ...string) {
+		cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+		cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
+		out, err := cmd.CombinedOutput()
+		require.NoError(t, err, string(out))
+	}
+	git("init", "-q")
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "src"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "src", "a.go"), []byte("ok\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "guard.sh"), []byte("#!/bin/sh\ngrep -q BUG src/a.go && exit 1; exit 0\n"), 0o755))
+	git("add", "-A")
+	git("commit", "-qm", "init")
+	t.Chdir(dir)
+
+	prevP, prevA := checklistProviders, checklistAsker
+	checklistProviders = func() ([]string, error) { return []string{"claude", "codex"}, nil }
+	checklistAsker = func(string) checklist.Asker {
+		return func(context.Context, string, string) (string, error) {
+			return "VERDICT: survived\nREASON: specific", nil
+		}
+	}
+	t.Cleanup(func() { checklistProviders, checklistAsker = prevP, prevA })
+
+	out, err := runAuto(t, "learn", "record", "--type", "escape", "--pattern", "guard regressed", "--missed-by", "unit tests",
+		"--when-path", "src/**", "--evidence-command", "./guard.sh", "--evidence-before-exit", "1", "--evidence-after-exit", "0")
+	require.NoError(t, err, out)
+	_, err = runAuto(t, "learn", "record", "--type", "escape", "--pattern", "p")
+	assert.Error(t, err, "escape needs its fields")
+
+	out, err = runAuto(t, "checklist", "propose")
+	require.NoError(t, err, out)
+	assert.Contains(t, out, "CHK-001 반증 검토 대기")
+
+	out, err = runAuto(t, "checklist", "refute", "--all")
+	require.NoError(t, err, out)
+	assert.Contains(t, out, "CHK-001 승인 대기")
+	assert.Contains(t, out, "codex: 반증 실패")
+	assert.NotContains(t, out, "claude:")
+
+	out, err = runAuto(t, "checklist", "approve", "CHK-001")
+	require.NoError(t, err, out)
+	assert.Contains(t, out, "관찰 모드로 추가")
+	git("add", "-A")
+	git("commit", "-qm", "approve")
+
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "src", "a.go"), []byte("BUG\n"), 0o644))
+	out, err = runAuto(t, "checklist", "run")
+	require.NoError(t, err, out)
+	assert.Contains(t, out, "관찰: 문제를 잡았습니다")
+
+	out, err = runAuto(t, "checklist", "promote", "CHK-001")
+	require.NoError(t, err, out)
+	git("add", ".autopus/checklist")
+	git("commit", "-qm", "promote", "--", ".autopus/checklist")
+	out, err = runAuto(t, "checklist", "run")
+	assert.ErrorIs(t, err, errChecklistFailed, out)
+	assert.Contains(t, out, "CHK-001 [강제 모드] 실패")
+
+	out, err = runAuto(t, "checklist", "status")
+	require.NoError(t, err, out)
+	assert.Contains(t, out, "적용 2회, 잡음 2회")
+	assert.Contains(t, out, "승인 대기열: 0개")
+}

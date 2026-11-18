@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **검사를 통과하고도 놓친 결함이 조건부 점검으로 자라는 순환** (2026-11-18): 세션에서 나온 사고 교훈은 지금까지 사람이 세션
+  사이에서 전달할 때만, 그리고 항상 켜진 skill 문장으로만 하네스에 들어갔다. 이제 다음 순환이 돈다.
+  - 기록: `auto learn record --type escape`가 놓친 검사(`--missed-by`)와 diff 조건(`--when-path`/`--when-keyword`)을 남긴다.
+    검증 라운드 안내가 세션에 이 기록을 맡긴다.
+  - 후보: `auto checklist propose`가 서로 다른 커밋에서 반복됐거나, 재현 명령이 수정 전 실패·수정 후 통과한 교훈만 관찰 모드
+    후보로 만든다. 나머지는 `후보 조건 미충족` 또는 `재현 실패`로 보고한다.
+  - 반증: `auto checklist refute`가 초안을 쓴 provider와 다른 review provider에게 반증을 묻는다. 반증된 후보는 승인 대기열에서
+    빠진다. 다른 provider가 없으면 후보는 대기 상태로 남는다.
+  - 결정: `approve`·`reject`·`promote`·`retire`는 사람의 결정이다. 승인된 점검은 관찰 모드로 들어간다.
+  - 적용: `auto checklist run`은 기준 커밋 트리의 점검만, diff 조건에 맞을 때만 적용한다. 그래서 변경이 자신을 평가하는 점검을
+    바꿀 수 없다. 관찰 모드는 잡아도 실패시키지 않고, 강제 모드는 실패시킨다.
+  - 정리: `auto checklist status`가 승인 대기열, 승격 제안, 그리고 최근 50번 적용되는 동안 잡은 것이 없는 퇴역 후보를 보고한다.
 - **설치된 하네스가 실행 중인 auto보다 오래되면 세션에 알린다** (2026-11-18): 새 릴리스의 규칙은 각 프로젝트에서 `auto update`를
   돌려야 설치되는데, 이를 알려 주는 것은 손으로 돌리는 `auto doctor`뿐이었다. 그래서 v0.51.7의 규칙이 설치되지 않은 세션이 그
   규칙을 모른 채 일했다. 이제 manifest가 생성한 auto 버전(`generator`)을 기록하고, Claude Code의 UserPromptSubmit hook이 그 값을

@@ -167,6 +167,7 @@ func newEntry(id string, entryType EntryType, opts RecordOpts) LearningEntry {
 		Severity:   opts.Severity,
 		Scope:      opts.Scope,
 		Evidence:   evidenceFromOpts(opts),
+		Escape:     opts.Escape,
 	}
 }
 
@@ -202,6 +203,9 @@ func redactEntry(entry LearningEntry) (LearningEntry, error) {
 		entry.Evidence = &evidence
 	}
 	if err := checkVerbatim(entry); err != nil {
+		return LearningEntry{}, err
+	}
+	if err := redactEscape(&entry); err != nil {
 		return LearningEntry{}, err
 	}
 	for _, text := range []*string{&entry.Pattern, &entry.Resolution, &entry.Phase, &entry.SpecID} {

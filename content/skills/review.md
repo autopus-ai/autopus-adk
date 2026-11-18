@@ -88,6 +88,10 @@ TRUST 5 기준으로 코드를 체계적으로 검토하는 스킬입니다.
 `git log <fixed-point>..HEAD --oneline`. 진행 전에 ref가 해석되고(`git rev-parse`) diff가
 비어 있지 않은지 확인한다 — 잘못된 ref는 병렬 서브에이전트 안이 아니라 여기서 실패해야 한다.
 
+프로젝트에 `.autopus/checklist/`가 있으면 `auto checklist run --base <fixed-point>`를 한 번 실행한다. 점검은
+고정점 트리에서 읽으므로 이번 변경이 자신을 평가하는 점검을 바꿀 수 없다. 강제 모드 점검의 실패는 blocker이고,
+"리뷰 기준" 줄은 두 축 브리프에 그대로 넣는다. 관찰 모드 점검이 잡은 것은 판정과 따로 `would-flag`로만 적는다.
+
 ### 2. Spec 출처 찾기
 
 사용자가 SPEC/REQ 범위를 지정했으면 그것이 최우선이고 커밋 참조는 일치 확인에만 쓴다. 지정이

@@ -48,6 +48,13 @@ func followupTierFor(b verifygate.Behavior) followupTier {
 	return followupLight
 }
 
+// followupChecklist closes the harness lesson loop: the project's approved
+// conditional checks run on the change, and a defect the earlier checks
+// passed becomes a lesson without the user writing it down.
+const followupChecklist = `
+
+Also run ` + "`auto checklist run`" + ` (skip it when the project has no .autopus/checklist): an enforce check that fails is a blocker, and each "리뷰 기준" line is a criterion for the reviewer. When this round or the user found a defect that the earlier checks (tests, review, a SPEC) had passed, record it with ` + "`auto learn record --type escape --pattern <defect> --missed-by <the check that passed> --when-path <glob> [--when-keyword <added text>]`" + ` plus ` + "`--evidence-command <repro> --evidence-before-exit <n> --evidence-after-exit 0`" + ` when a repro script failed before the fix and passes after it, then run ` + "`auto checklist propose`" + ` and ` + "`auto checklist refute --all`" + `. Approving a candidate is the user's decision; do not run approve, promote or retire yourself.`
+
 const followupAsk = `
 
 If a fix needs a decision only the user can make (product behavior, scope, a policy conflict), ask it with AskUserQuestion as a multiple-choice question: say what you found, give each option a description of what it changes and what it costs, and put your recommendation first. Do not ask an open question. Otherwise do not ask; proceed and state your assumption.`
@@ -59,7 +66,7 @@ const followupFullReason = `Before finishing, verify this change the way a separ
 1. Check it against the user's request first. Use the SPEC id that covers it, or save the user's original request verbatim, run ` + "`auto qa intent --request-file <file> --format json`" + `, ask its questions, and record the answers with ` + "`auto qa intent answer`" + `. The change is uncommitted, so run ` + "`auto qa go <id> --auto --no-loop`" + ` and then ` + "`auto qa exec --all`" + ` (plus ` + "`auto qa run --lane <lane>`" + ` when GUI scenarios were compiled) on the working tree; the loop without --no-loop refuses uncommitted changes.
 2. Run the reviewer agent on ` + "`git diff HEAD`" + ` (and new files) against what the user asked for. Report only blockers: wrong behavior, missing cases, security or data-loss risk, each with file, line and a failing case.
 3. Run the qa-explorer agent in hunt mode on the changed behavior, then ` + "`auto qa hunt verify`" + `. The hunt covers bugs, behavior that breaks a quoted product policy or project rule (policy_mismatch), and measured inefficiency.
-4. Fix every failing scenario, reviewer blocker and confirmed finding, rerun the tests, and finish with a short summary of what was checked and fixed.` + followupAsk
+4. Fix every failing scenario, reviewer blocker and confirmed finding, rerun the tests, and finish with a short summary of what was checked and fixed.` + followupChecklist + followupAsk
 
 // followupLightReason is the round for a small behavior change: no new
 // scenarios are generated, but existing ones rerun and the changed behavior
@@ -69,7 +76,7 @@ const followupLightReason = `This is a small behavior change; before finishing, 
 1. Rerun the existing user scenarios on the working tree: ` + "`auto qa exec --all`" + ` (skip this step when the project has none).
 2. Run the reviewer agent on ` + "`git diff HEAD`" + ` against what the user asked for. Report only blockers, each with file, line and a failing case.
 3. Run the qa-explorer agent in verify mode on the changed behavior only: does it do what the user asked, and does it still match the product policies and project rules that mention it (policy_mismatch, quoted verbatim)? Judge with ` + "`auto qa hunt verify`" + `.
-4. Fix every failing scenario, reviewer blocker and confirmed finding, rerun the tests, and finish with a short summary of what was checked and fixed.` + followupAsk
+4. Fix every failing scenario, reviewer blocker and confirmed finding, rerun the tests, and finish with a short summary of what was checked and fixed.` + followupChecklist + followupAsk
 
 // followupEnabled reports whether the follow-up round runs. It is on by
 // default: the harness's job is verification, and the tiers keep a change

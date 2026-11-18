@@ -447,6 +447,13 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 차이: NPD 다섯 개(init-in, init-pipe, init-yes, update-ci, update-yes)에서 바뀐 skill 파일의 checksum, 두 manifest와 journal checksum, update 흐름의 backup 사본만 바뀌었다. stdout golden은 그대로다.
 - 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.
 
+## 하네스 교훈 순환 (feat/harness-evolve, 2026-11-18)
+
+- 원인: `content/skills/review.md`·`qa-hunt.md`·`secure-hunt.md`에 `auto checklist run`과 escape 교훈 기록 단락을 더했다.
+- 기록: `go run ./cmd/generate-templates` 뒤 `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run '^(TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6ShowsTheSettingsBeforeAnyWrite)$'`.
+- 차이: NPD 다섯 개(init-in, init-pipe, init-yes, update-ci, update-yes)에서 바뀐 skill 파일의 checksum, 두 manifest와 journal checksum, update 흐름의 backup 사본만 바뀌었다. stdout golden은 그대로다.
+- 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.
+- main 병합: #341이 먼저 main에 들어가 같은 NPD 다섯 개를 다시 기록했으므로, main을 병합한 tree에서 같은 명령으로 다시 기록했다. 두 변경의 checksum이 함께 들어 있다.
 ## 낡은 표면 경고와 intent 우선 규칙 (fix/stale-surface-and-intent-first, 2026-11-18)
 
 - 원인: `pkg/adapter/manifest.go`가 manifest에 `generator`(생성한 auto 버전)를 기록한다. `content/rules/autonomy.md`, `templates/*/auto-router`·`templates/codex/prompts/auto.md.tmpl`, `templates/shared/root-doc-guidelines.md.tmpl`에 새 작업은 `auto qa intent`로 시작한다는 문장을 더했다.
