@@ -5,12 +5,17 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"strings"
 )
 
 // turnTranscriptTail bounds how much of the transcript the language check
 // reads: a turn's replies sit at the end of a file that can grow to
 // hundreds of megabytes over a long session.
 const turnTranscriptTail = 8 << 20
+
+// stopHookFeedbackPrefix starts the meta entry Claude Code writes when a Stop
+// hook blocks and feeds its reason back to the session.
+const stopHookFeedbackPrefix = "Stop hook feedback:"
 
 type transcriptEntry struct {
 	Type        string `json:"type"`
@@ -75,7 +80,10 @@ func turnReplies(path string) []string {
 func entryTexts(entry transcriptEntry) (texts []string, prompt bool) {
 	var plain string
 	if json.Unmarshal(entry.Message.Content, &plain) == nil {
-		return nil, entry.Type == "user" && !entry.IsMeta
+		// A Stop hook's feedback is a meta entry, but the reply to it starts
+		// a new round: without this boundary a note the session already
+		// explained stays in range and blocks every later stop.
+		return nil, entry.Type == "user" && (!entry.IsMeta || strings.HasPrefix(plain, stopHookFeedbackPrefix))
 	}
 	var parts []transcriptPart
 	if json.Unmarshal(entry.Message.Content, &parts) != nil {

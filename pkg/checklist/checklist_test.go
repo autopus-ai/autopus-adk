@@ -187,7 +187,7 @@ func TestPropose_Eligibility(t *testing.T) {
 // refuted candidates leave the queue, no other provider keeps it pending,
 // and only approval writes a check.
 func TestRefuteApproveReject(t *testing.T) {
-	root := t.TempDir()
+	root, _ := gitRepo(t)
 	entries := []learn.LearningEntry{
 		escapeEntry("L-001", "a", "c1", exits("./a.sh", 1, 0)),
 		escapeEntry("L-002", "b", "c2", exits("./b.sh", 1, 0)),
@@ -238,7 +238,7 @@ func TestRefuteApproveReject(t *testing.T) {
 func TestStatus_RetireAndPromote(t *testing.T) {
 	root := t.TempDir()
 	for _, id := range []string{"CHK-001", "CHK-002", "CHK-003"} {
-		c := Check{ID: id, Mode: ModeObserve, When: When{Paths: []string{"**"}}, Sources: []string{"L-1"}, Created: "2026-11-18", Body: "b"}
+		c := Check{ID: id, Mode: ModeObserve, When: When{Paths: []string{"**"}}, Verify: "./guard.sh", Sources: []string{"L-1"}, Created: "2026-11-18", Body: "b"}
 		data, _ := c.Format()
 		writeT(t, root, filepath.Join(ChecksDir, id+".md"), string(data))
 	}

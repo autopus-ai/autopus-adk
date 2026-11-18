@@ -107,7 +107,9 @@ func checkStatus(c Check, hits []Hit, retireAfter int) CheckStatus {
 			flaggedInWindow++
 		}
 	}
-	s.Retire = c.Mode != ModeRetired && len(window) >= retireAfter && flaggedInWindow == 0
+	// A check without a verify command is judged by the reviewer and never
+	// records a flag, so its silence says nothing; a person retires it.
+	s.Retire = c.Mode != ModeRetired && c.Verify != "" && len(window) >= retireAfter && flaggedInWindow == 0
 	s.Promote = c.Mode == ModeObserve && s.Flagged >= DefaultPromoteAfter
 	return s
 }

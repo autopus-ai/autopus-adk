@@ -74,7 +74,8 @@ func groupEscapes(entries []learn.LearningEntry) []*lessonGroup {
 // the fix and passed after it.
 func (g *lessonGroup) repro() *Repro {
 	for _, e := range g.entries {
-		if e.Evidence != nil && e.EvidenceKindOf() == learn.EvidenceDeterministic {
+		if e.Evidence != nil && e.EvidenceKindOf() == learn.EvidenceDeterministic &&
+			e.Evidence.BeforeExit != nil && e.Evidence.AfterExit != nil {
 			return &Repro{Command: e.Evidence.Command, BeforeExit: *e.Evidence.BeforeExit, AfterExit: *e.Evidence.AfterExit}
 		}
 	}

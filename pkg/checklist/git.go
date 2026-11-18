@@ -5,8 +5,10 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"os/exec"
 	"path"
+	"strconv"
 	"strings"
 )
 
@@ -31,7 +33,7 @@ func git(root string, args ...string) ([]byte, error) {
 // against base. A change cannot alter the checks that judge it.
 func MergeBase(root, base string) (string, error) {
 	if base == "" {
-		base = "HEAD"
+		base = DefaultBase(root)
 	}
 	out, err := git(root, "merge-base", base, "HEAD")
 	if err != nil {
@@ -40,67 +42,141 @@ func MergeBase(root, base string) (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
+// diffArgs pin the output format against user and repository config: no
+// quoting of non-ASCII paths and fixed a/ b/ prefixes.
+var diffArgs = []string{
+	"-c", "core.quotePath=false", "-c", "diff.mnemonicPrefix=false", "-c", "diff.noprefix=false",
+}
+
+// DefaultBase is the remote default branch when the checkout knows it, so a
+// branch is judged by the checks on main, not by ones its own commits
+// changed; otherwise HEAD, which covers only uncommitted changes.
+func DefaultBase(root string) string {
+	if _, err := git(root, "rev-parse", "--verify", "--quiet", "origin/HEAD"); err == nil {
+		return "origin/HEAD"
+	}
+	return "HEAD"
+}
+
+// ProjectRoot is the top of the git work tree holding dir, or dir outside git.
+func ProjectRoot(dir string) string {
+	out, err := git(dir, "rev-parse", "--show-toplevel")
+	if err != nil {
+		return dir
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// gitDiff runs git diff with the attributes of the base tree (git 2.40+), so
+// a change cannot add a -diff or filter attribute that hides its own added
+// lines; binary files stay binary and add no lines. Older git falls back to
+// the working tree's attributes.
+func gitDiff(root, mb string, args ...string) ([]byte, error) {
+	base := append([]string(nil), diffArgs...)
+	if AttrSourceSupported() {
+		base = append(base, "--attr-source="+mb)
+	}
+	return git(root, append(append(base, "diff"), args...)...)
+}
+
+// AttrSourceSupported reports git 2.40 or later, which reads attributes from
+// a given tree. Older git uses the working tree's attributes, so a change
+// can mark its own files -diff; Run reports that as a warning.
+func AttrSourceSupported() bool {
+	out, err := exec.Command("git", "version").Output()
+	if err != nil {
+		return false
+	}
+	var major, minor int
+	if _, err := fmt.Sscanf(strings.TrimPrefix(strings.TrimSpace(string(out)), "git version "), "%d.%d", &major, &minor); err != nil {
+		return false
+	}
+	return major > 2 || (major == 2 && minor >= 40)
+}
+
 // CollectChangeSet is every committed and uncommitted change since mb, plus
 // untracked files with all their lines counted as added.
 func CollectChangeSet(root, mb string) (ChangeSet, error) {
 	cs := ChangeSet{Added: map[string][]string{}}
 	seen := map[string]bool{}
 	add := func(p string) {
-		if loopState(p) {
+		if p == "" || loopState(p) || seen[p] {
 			return
 		}
-		if p != "" && !seen[p] {
-			seen[p] = true
-			cs.Paths = append(cs.Paths, p)
-		}
+		seen[p] = true
+		cs.Paths = append(cs.Paths, p)
 	}
-	names, err := git(root, "diff", "--name-only", "--no-renames", mb)
+	names, err := gitDiff(root, mb, "--name-only", "-z", "--no-renames", "--no-ext-diff", mb)
 	if err != nil {
 		return cs, err
 	}
-	for _, p := range strings.Split(strings.TrimSpace(string(names)), "\n") {
+	for _, p := range strings.Split(string(names), "\x00") {
 		add(p)
 	}
-	diff, err := git(root, "diff", "-U0", "--no-color", "--no-renames", mb)
+	diff, err := gitDiff(root, mb, "-U0", "--no-color", "--no-renames", "--no-ext-diff",
+		"--src-prefix=a/", "--dst-prefix=b/", mb)
 	if err != nil {
 		return cs, err
 	}
-	parseAddedLines(diff, cs.Added)
-	others, err := git(root, "ls-files", "--others", "--exclude-standard")
+	if err := parseAddedLines(diff, cs.Added); err != nil {
+		return cs, err
+	}
+	others, err := git(root, "ls-files", "-z", "--others", "--exclude-standard")
 	if err != nil {
 		return cs, err
 	}
-	for _, p := range strings.Split(strings.TrimSpace(string(others)), "\n") {
-		if p == "" {
+	for _, p := range strings.Split(string(others), "\x00") {
+		if p == "" || loopState(p) {
 			continue
 		}
 		add(p)
-		if loopState(p) {
-			continue
-		}
-		if data, err := readFile(root, p); err == nil && len(data) <= maxUntrackedBytes {
+		if data, ok := readSmallFile(root, p, maxUntrackedBytes); ok {
 			cs.Added[p] = strings.Split(string(data), "\n")
 		}
 	}
 	return cs, nil
 }
 
-func parseAddedLines(diff []byte, added map[string][]string) {
-	current := ""
-	sc := bufio.NewScanner(bytes.NewReader(diff))
-	sc.Buffer(make([]byte, 64*1024), 4*1024*1024)
-	for sc.Scan() {
-		line := sc.Text()
-		switch {
-		case strings.HasPrefix(line, "+++ "):
-			current = strings.TrimPrefix(strings.TrimPrefix(line, "+++ "), "b/")
-			if current == "/dev/null" {
-				current = ""
+// parseAddedLines collects the added lines per file. A "+++ " line is a
+// file header only right after its "--- " line; inside a hunk it is an added
+// line that starts with "++".
+func parseAddedLines(diff []byte, added map[string][]string) error {
+	current, prevOld := "", false
+	r := bufio.NewReader(bytes.NewReader(diff))
+	for {
+		line, err := r.ReadString('\n')
+		if len(line) > 0 {
+			line = strings.TrimSuffix(line, "\n")
+			switch {
+			case prevOld && strings.HasPrefix(line, "+++ "):
+				current = headerPath(strings.TrimPrefix(line, "+++ "))
+			case strings.HasPrefix(line, "+") && current != "":
+				added[current] = append(added[current], line[1:])
 			}
-		case strings.HasPrefix(line, "+") && current != "":
-			added[current] = append(added[current], line[1:])
+			prevOld = strings.HasPrefix(line, "--- ")
+		}
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
 		}
 	}
+}
+
+// headerPath turns a "+++ b/<path>" header value into the path: git appends
+// a tab to a path with spaces and C-quotes one with special characters.
+func headerPath(v string) string {
+	v = strings.TrimSuffix(v, "\t")
+	if strings.HasPrefix(v, `"`) {
+		if u, err := strconv.Unquote(v); err == nil {
+			v = u
+		}
+	}
+	if v == "/dev/null" {
+		return ""
+	}
+	return strings.TrimPrefix(v, "b/")
 }
 
 // BaseChecks loads the checks stored in commit mb. Files that do not parse

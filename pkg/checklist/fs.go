@@ -123,3 +123,19 @@ func listDir(root, rel, suffix string) ([]string, error) {
 	}
 	return names, nil
 }
+
+// readSmallFile reads a regular file at rel no larger than limit, checking the
+// size before reading so a huge untracked file is never loaded.
+func readSmallFile(root, rel string, limit int64) ([]byte, bool) {
+	r, err := os.OpenRoot(root)
+	if err != nil {
+		return nil, false
+	}
+	defer func() { _ = r.Close() }()
+	info, err := r.Lstat(rel)
+	if err != nil || !info.Mode().IsRegular() || info.Size() > limit {
+		return nil, false
+	}
+	data, err := r.ReadFile(rel)
+	return data, err == nil
+}

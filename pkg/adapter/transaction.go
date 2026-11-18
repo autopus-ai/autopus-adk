@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/insajin/autopus-adk/pkg/version"
 )
 
 const (
@@ -234,6 +236,7 @@ func (tx *transaction) removePath(remove TransactionRemove) error {
 
 func (tx *transaction) writeManifest(m *Manifest) error {
 	m.GeneratedAt = time.Now().Format(time.RFC3339)
+	m.Generator = version.Version()
 	data, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {
 		return fmt.Errorf("manifest serialize: %w", err)

@@ -53,7 +53,7 @@ func followupTierFor(b verifygate.Behavior) followupTier {
 // passed becomes a lesson without the user writing it down.
 const followupChecklist = `
 
-Also run ` + "`auto checklist run`" + ` (skip it when the project has no .autopus/checklist): an enforce check that fails is a blocker, and each "리뷰 기준" line is a criterion for the reviewer. When this round or the user found a defect that the earlier checks (tests, review, a SPEC) had passed, record it with ` + "`auto learn record --type escape --pattern <defect> --missed-by <the check that passed> --when-path <glob> [--when-keyword <added text>]`" + ` plus ` + "`--evidence-command <repro> --evidence-before-exit <n> --evidence-after-exit 0`" + ` when a repro script failed before the fix and passes after it, then run ` + "`auto checklist propose`" + ` and ` + "`auto checklist refute --all`" + `. Approving a candidate is the user's decision; do not run approve, promote or retire yourself.`
+Also run ` + "`auto checklist run`" + ` (skip it when the project has no .autopus/checklist): an enforce check that fails is a blocker, and each "리뷰 기준" line is a criterion for the reviewer. When this round or the user found a defect that the earlier checks (tests, review, a SPEC) had passed, record it with ` + "`auto checklist record --pattern <defect> --missed-by <the check that passed> --when-path <glob> [--when-keyword <added text>]`" + ` plus ` + "`--evidence-command <repro> --evidence-before-exit <n> --evidence-after-exit 0`" + ` when a repro script failed before the fix and passes after it, then run ` + "`auto checklist propose`" + ` and ` + "`auto checklist refute --all`" + `. Approving a candidate is the user's decision; do not run approve, promote or retire yourself.`
 
 const followupAsk = `
 

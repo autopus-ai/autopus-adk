@@ -4,9 +4,25 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **릴리스 전 리뷰에서 나온 교훈 순환과 낡은 하네스 경고의 결함을 고친다** (2026-11-18):
+  - 낡은 하네스 경고: manifest를 실제로 쓰는 경로가 생성 버전을 기록하지 않아, 릴리스 빌드에서는 `auto update` 뒤에도 경고가 사라지지
+    않을 뻔했다. manifest는 일반 파일만 상한을 두고 읽고, `0.51.8-3-g…` 같은 빌드는 비교하지 않는다.
+  - 후보 id: id가 파일 이름과 다르거나 형식이 틀린 후보는 거부한다. 이전에는 `../`가 든 id로 프로젝트 파일을 덮어쓸 수 있었다.
+  - 승인 확인: 파일에 적힌 상태만 믿지 않고, 초안 작성자가 아닌 provider의 `survived` 판정이 있고 `refuted`가 없는지 확인한다.
+    승인 대기열은 승인하면 실행될 verify 명령을 보여 준다.
+  - diff 읽기: 공백·한글 경로, `diff.mnemonicPrefix`, 변경이 넣은 `-diff` 속성, `++`로 시작하는 추가 줄, 아주 긴 줄을 견딘다.
+  - 실행 기준과 위치: `run`의 기본 기준은 `origin/HEAD`(없으면 HEAD)이다. 어느 하위 폴더에서 실행해도 작업 트리 최상위를 쓴다.
+  - verify 명령: 시간이 다 되면 자식 프로세스까지 끝낸다. 출력은 64KiB까지 받는다. 시간 초과와 실행 불가(exit 126/127)는 오류로
+    분류한다. 적중 기록을 쓰지 못하면 경고만 하고 결과는 그대로 둔다.
+  - 기록 단계: 생성된 안내는 숨김 명령 `auto learn` 대신 `auto checklist record`를 부른다. 초안 provider는 세션 환경에서 감지한다.
+    verify 없는 점검은 침묵을 이유로 퇴역 후보가 되지 않는다. 반증 중에 사람이 내린 결정은 덮어쓰지 않는다. 반증 프롬프트는 교훈
+    텍스트를 데이터로 구분해 넘긴다.
+  - 문서: README와 docs/README.ko.md에 순환을 설명하는 절을 더했다. `ci-optimize` 스킬은 lease 메모리 기준의 1/8 축소를 반영한다.
+
 - **검사를 통과하고도 놓친 결함이 조건부 점검으로 자라는 순환** (2026-11-18): 세션에서 나온 사고 교훈은 지금까지 사람이 세션
   사이에서 전달할 때만, 그리고 항상 켜진 skill 문장으로만 하네스에 들어갔다. 이제 다음 순환이 돈다.
-  - 기록: `auto learn record --type escape`가 놓친 검사(`--missed-by`)와 diff 조건(`--when-path`/`--when-keyword`)을 남긴다.
+  - 기록: `auto checklist record`가 놓친 검사(`--missed-by`)와 diff 조건(`--when-path`/`--when-keyword`)을 남긴다.
+    숨김 명령 `auto learn record --type escape`도 같은 저장소에 쓰지만, 생성된 안내는 `auto checklist record`만 부른다.
     검증 라운드 안내가 세션에 이 기록을 맡긴다.
   - 후보: `auto checklist propose`가 서로 다른 커밋에서 반복됐거나, 재현 명령이 수정 전 실패·수정 후 통과한 교훈만 관찰 모드
     후보로 만든다. 나머지는 `후보 조건 미충족` 또는 `재현 실패`로 보고한다.

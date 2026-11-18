@@ -112,7 +112,7 @@ self-hosted의 **기계 점유**로 나눕니다. self-hosted 분은 청구되�
 - 슬롯만으로는 기계가 한가한지 알 수 없고, lease 없이 도는 세션과 runner도 기계를 씁니다. 그래서 기계에 여유가
   있으면 무거운 단계를 병렬로 돌리고, 없으면 우선순위대로 들여보냅니다. 맨 앞 대기자는 1분 load가
   `disk.lease.max_load_ratio` × 논리 CPU(기본 0.85)를 넘거나, 가용 메모리에서 도는 lease의 `--mem` 예약을 뺀 값이
-  자기 `--mem`과 `disk.lease.min_free_mem_gb`(기본 8)의 합보다 작으면 기다립니다. 메모리를 많이 쓰는 단계에는
+  자기 `--mem`과 `disk.lease.min_free_mem_gb`(기본 8, 키를 정하지 않으면 전체 메모리의 1/8까지 줄어듦)의 합보다 작으면 기다립니다. 메모리를 많이 쓰는 단계에는
   `--mem 8G`처럼 최대 사용량을 줍니다. `auto disk status`가 `waiting: load 22.1 > 20.4`처럼 이유를 보여 줍니다.
   lease가 하나도 없는데 load만으로 `disk.lease.max_load_wait_minutes`(기본 10) 넘게 막히면 하나씩 그냥 들어가므로
   `--wait`는 그보다 길게 잡습니다. 무거운 job을 lock 하나로 줄 세우는 셸 wrapper는

@@ -211,6 +211,36 @@ Other flags: `--dir` (project root), `--timeout` (per repro run, default 2m).
 The rest of `auto qa` (QAMESH journeys, `auto qa run`, `auto qa release`, `auto qa report`, and
 so on) is still available for declared journeys and release evidence. See `auto qa --help`.
 
+## Lessons become conditional checks
+
+A defect that every check passed (tests, review, a SPEC) and a later real run exposed is an *escape*.
+The verification round records each one, and the project grows checks from them. A person decides
+every step that changes what verification enforces.
+
+```bash
+auto checklist record --pattern "publish-back follows a provider-writable symlink" \
+  --missed-by "unit tests with a stub provider" --when-path "internal/publish/**" \
+  --evidence-command ./repro.sh --evidence-before-exit 1 --evidence-after-exit 0
+auto checklist propose        # repeated on two commits, or reproduced → an observe-mode candidate
+auto checklist refute --all   # a provider other than the drafter tries to refute each candidate
+auto checklist status         # lessons, candidates, the approval queue, and check health
+auto checklist approve CHK-001   # a person: adds the check in observe mode
+auto checklist run            # applies the checks whose diff condition matches
+```
+
+- A lesson becomes a candidate only when it repeats across distinct commits or its repro failed
+  before the fix and passed after it. Other lessons are reported as `후보 조건 미충족` or `재현 실패`.
+- A refuted candidate leaves the approval queue but stays on file. With no provider other than the
+  drafter, a candidate waits.
+- `run` reads checks from the merge-base tree, so a change cannot alter the checks that judge it.
+  A check applies only when the diff matches its `when` (path globs or added-line keywords; both
+  set means the keyword must be in a matched file).
+  - An observe check that flags is recorded and does not fail the run.
+  - After `auto checklist promote`, an enforce check that flags exits 1.
+  - A check with no `verify` command becomes a criterion for the reviewer.
+- `status` suggests promoting an observe check that flagged twice. It reports a check for retirement
+  after 50 applications without a flag (`--retire-after`), and `retire` keeps the file.
+
 ## Routes
 
 Run these in your coding agent's chat.

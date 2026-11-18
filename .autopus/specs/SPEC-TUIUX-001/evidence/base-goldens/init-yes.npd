@@ -2,9 +2,9 @@
 .agents/plugins/
 .agents/plugins/marketplace.json 7bac9f0f7c15eecf46023308f334e2122d112d03aa7b498f9e01adabd48ac03c
 .autopus/
-.autopus/claude-code-manifest.json 1f3fdaaacffa54e0a63a08037197f24cd48f5e59a086766d474c8cf4dde97042
+.autopus/claude-code-manifest.json 82685bffbc03133900fb872e56d9b0b660a6bc899e0a3cc830683a69b1be2126
 .autopus/claude-code-permissions.json 1f67bb93d7f5d12c791be89828931e8f7ef57710c2ead761fe38e38f7361a296
-.autopus/codex-manifest.json f063e8fc49ea5650383bb3bfa18ccef0babb95f5c3aa821ca5c60ae3aa39aaff
+.autopus/codex-manifest.json 96d34cb3a0410ce430f5a8c711de5137eb18cd12e87dc4b58381738692fc2173
 .autopus/context/
 .autopus/context/constraints.yaml d8b3a0714389a30b7aca1986fbb71235900e14c9dddfe50fdbbb758698d0b26e
 .autopus/plugins/
@@ -16,9 +16,9 @@
 .autopus/plugins/auto/skills/auto/SKILL.md 6f29e4b9baa300865f114e0affa5872691e3136d50f9bea40d84c70e40e9d311
 .autopus/txns/
 .autopus/txns/<TX>-claude-code/
-.autopus/txns/<TX>-claude-code/journal.json f2e054f194aed031213aa692c413ad2992b8991290e1d281b4b8570dd440db89
+.autopus/txns/<TX>-claude-code/journal.json 08acb776ca7a9a3d6355cf13d18d876710bf71abe38a33c9e9a43222c07d080b
 .autopus/txns/<TX>-codex/
-.autopus/txns/<TX>-codex/journal.json 78705ef9d13d8b7ddb040a20fe159354010b5504d85cfecca1e74261de2608f6
+.autopus/txns/<TX>-codex/journal.json e4839e5fff14ad443033435f315fa3ce0b3017cc6f3c51d4e4f1dbbee0c8af7f
 .claude/
 .claude/agents/
 .claude/agents/autopus/
@@ -65,7 +65,7 @@
 .claude/skills/browser-automation/
 .claude/skills/browser-automation/SKILL.md 908527aba77bd48be4b6089762abaaae52bb456cd7a7fb0e30300c2446a21efa
 .claude/skills/ci-optimize/
-.claude/skills/ci-optimize/SKILL.md bf5aaafb1efc2c7be05cbe9ca9b37fbc18568f690b221a817e69d5e74676d430
+.claude/skills/ci-optimize/SKILL.md d44c3a40fedc98223c4b82ea76d7b797d0d79fe375fd35c6599b6871f537216b
 .claude/skills/disk-triage/
 .claude/skills/disk-triage/SKILL.md c4f4dda6bf18b1fae8e6877fa2af5e38e45f114d44772cd0653298fd52409f90
 .claude/skills/frontend-verify/
@@ -77,11 +77,11 @@
 .claude/skills/qa-autopilot/
 .claude/skills/qa-autopilot/SKILL.md 72a27191ace587a2c60e22037afdc75611bdb3e3e3d28367a0bf9083b85b39dc
 .claude/skills/qa-hunt/
-.claude/skills/qa-hunt/SKILL.md 5ada9cbcfb4642b9a1f0b0247a27324148fbf63a89b3c91203b7fd6b4b036ef2
+.claude/skills/qa-hunt/SKILL.md 8613cc644392173b061caff1e4d4f918b71259605558f38ae64804d272dfc24d
 .claude/skills/review/
 .claude/skills/review/SKILL.md 658642e6c66d26222bbf6dc929863a0b7fe15b1aee8578093f3925ade5a79404
 .claude/skills/secure-hunt/
-.claude/skills/secure-hunt/SKILL.md c19fc78db0377d40449b2d220788dd2cf004b4c1dc6d14bcef2795ef877a3d37
+.claude/skills/secure-hunt/SKILL.md 8c853e389976ac0ac00281dcab4c0214f1decc47968148320b2d397273dc2a8b
 .claude/skills/stack-freshness/
 .claude/skills/stack-freshness/SKILL.md 99138f5cfc3bc4cd303ae1049d56df200d301c5a361043eff567104a75e68454
 .claude/skills/testing-strategy/
@@ -121,7 +121,7 @@
 .codex/skills/codex-browser-automation/
 .codex/skills/codex-browser-automation/SKILL.md b9286c86848cbdc6ec2edba3f49574d7217ea7e185b0e8599b739a56aca4a4b8
 .codex/skills/codex-ci-optimize/
-.codex/skills/codex-ci-optimize/SKILL.md a35745c68f6cd1cc31417535aeeaeafa76e09114ebb6eee24bdb5d6d8dbf71f9
+.codex/skills/codex-ci-optimize/SKILL.md f6adb57396ead9b531aff76550efdb65b51eeb0da060469813fdf5282cee6256
 .codex/skills/codex-disk-triage/
 .codex/skills/codex-disk-triage/SKILL.md d7c5c5946b8cfe530f2cc3c611e83c6184b22aef0183f19055a3d0b8667acde8
 .codex/skills/codex-frontend-verify/
@@ -133,11 +133,11 @@
 .codex/skills/codex-qa-autopilot/
 .codex/skills/codex-qa-autopilot/SKILL.md 201e645466b4c2fc9384d032ac54a0f30ce178ba861310a47fe07ce8fd112e4b
 .codex/skills/codex-qa-hunt/
-.codex/skills/codex-qa-hunt/SKILL.md eb1bfa5baa54c586a9e22f2c00779f8b0f9ae9ef0233c05e465ffe7fa84bf534
+.codex/skills/codex-qa-hunt/SKILL.md 53cac4062561cccf1777c885d061ff2141bd7414e3c18db9f08211e0175b253c
 .codex/skills/codex-review/
 .codex/skills/codex-review/SKILL.md 21436a1bec0d82db1a2a4e732dffea23416fd4560e1526c0208792f5d13bdee5
 .codex/skills/codex-secure-hunt/
-.codex/skills/codex-secure-hunt/SKILL.md 052c347697da22448550658ce3270df50fae8c55431b7c03848e0fe1a6454285
+.codex/skills/codex-secure-hunt/SKILL.md 3fb9b08ba9a5fb4e7d57294e59d0a89e668339666751b67e62f963edd641e088
 .codex/skills/codex-stack-freshness/
 .codex/skills/codex-stack-freshness/SKILL.md 9448320120e25cf8f772188db3a8974c427738a91d560dd0c744e20826724c18
 .codex/skills/codex-testing-strategy/
