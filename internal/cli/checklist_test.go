@@ -53,8 +53,10 @@ func TestChecklistCommands_EndToEnd(t *testing.T) {
 	}
 	t.Cleanup(func() { checklistProviders, checklistAsker = prevP, prevA })
 
+	// The drafter is named so the result does not depend on whether the test
+	// itself runs inside an agent session (CLAUDECODE and friends).
 	out, err := runAuto(t, "checklist", "record", "--pattern", "guard regressed", "--missed-by", "unit tests",
-		"--when-path", "src/**", "--evidence-command", "./guard.sh", "--evidence-before-exit", "1", "--evidence-after-exit", "0")
+		"--provider", "claude", "--when-path", "src/**", "--evidence-command", "./guard.sh", "--evidence-before-exit", "1", "--evidence-after-exit", "0")
 	require.NoError(t, err, out)
 	assert.Contains(t, out, "next: auto checklist propose")
 	_, err = runAuto(t, "checklist", "record", "--pattern", "p", "--missed-by", "lint")
