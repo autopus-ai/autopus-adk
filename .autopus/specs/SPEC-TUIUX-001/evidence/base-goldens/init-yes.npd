@@ -2,23 +2,23 @@
 .agents/plugins/
 .agents/plugins/marketplace.json 7bac9f0f7c15eecf46023308f334e2122d112d03aa7b498f9e01adabd48ac03c
 .autopus/
-.autopus/claude-code-manifest.json 4f6bb2241bcdbea2a30bba20e60f7d06c6fdcf5239616940c7dc9dfaaa1b6168
+.autopus/claude-code-manifest.json e2517ae19b24b8b57dee7a953aaf2763fe2655ea6b7a948ac059d536add42d75
 .autopus/claude-code-permissions.json 1f67bb93d7f5d12c791be89828931e8f7ef57710c2ead761fe38e38f7361a296
-.autopus/codex-manifest.json 408d25907f46818feba4375b86408dc5a77cc7be178d13636d1107a89add1ded
+.autopus/codex-manifest.json f5f1a9cd6344bdb6a9b35b34ba5839027f1bcdd2ec441c0398b079a962dc7a98
 .autopus/context/
 .autopus/context/constraints.yaml d8b3a0714389a30b7aca1986fbb71235900e14c9dddfe50fdbbb758698d0b26e
 .autopus/plugins/
 .autopus/plugins/auto/
 .autopus/plugins/auto/.codex-plugin/
-.autopus/plugins/auto/.codex-plugin/plugin.json 300ddf189f1de038992924b50fe492d68f0f0768435669a3b56f891fe1a3fcea
+.autopus/plugins/auto/.codex-plugin/plugin.json 0ad5de8f077bbbdce1b8cc2a33c797d49d28d7c1f81c36ba52f84d879d36a246
 .autopus/plugins/auto/skills/
 .autopus/plugins/auto/skills/auto/
-.autopus/plugins/auto/skills/auto/SKILL.md be3dca9114ec39861a0112ef57f94b4495b748cf6ffa02fb50ad1a004d501a7c
+.autopus/plugins/auto/skills/auto/SKILL.md 6f29e4b9baa300865f114e0affa5872691e3136d50f9bea40d84c70e40e9d311
 .autopus/txns/
 .autopus/txns/<TX>-claude-code/
-.autopus/txns/<TX>-claude-code/journal.json 94879e224015785c46a5bcfadc01227908c6f40f701d04e20062f3f39e726ddd
+.autopus/txns/<TX>-claude-code/journal.json 9ab54489a6c4071c8120fdf651d481e7f8c2f9fb8eb36156d94607954e18205d
 .autopus/txns/<TX>-codex/
-.autopus/txns/<TX>-codex/journal.json 79c3f568e0790f003a15d8fcec387709133880277090ff3a0f1cde87cc6c436e
+.autopus/txns/<TX>-codex/journal.json c39b3c04887a949af347679f4a2147363ea969b85855fb1a2ebe3a0d2e8496a1
 .claude/
 .claude/agents/
 .claude/agents/autopus/
@@ -39,7 +39,7 @@
 .claude/hooks/task-created-validate.sh 8f388b7993fd0deaa3795b614484ec873ad05bf6f0eb108770ad177e18f1b595
 .claude/rules/
 .claude/rules/autopus/
-.claude/rules/autopus/autonomy.md 35f10148f7213c6fdb8550946d253708b34aa145642c15701d56bfe356056965
+.claude/rules/autopus/autonomy.md ca9f7f08d0e7552572484a9cccc679268791a2f519b8bc1d14a4848c8d00ce19
 .claude/rules/autopus/file-size-limit.md c4250d144ef919d17b6edb7ee3f28b9bfa4902bfb5e5fdf0c0e13f0c9a29751c
 .claude/rules/autopus/language-policy.md 7da1d2d97e862b6250d06bbbdba503cccb2faa38b6fc59585a25ea91c5e593c3
 .claude/settings.json 104fa016675bbe86953e7d7a3c5b36efbcda6b0633777f06cb3f52d5b387857a
@@ -61,7 +61,7 @@
 .claude/skills/auto-verify/
 .claude/skills/auto-verify/SKILL.md 8370225db074b023fa773ec7c437b5b5e849502910218d42ac330ab1749c9688
 .claude/skills/auto/
-.claude/skills/auto/SKILL.md d41148be604eee91236caf41fdd74444d1426a11cf21419c7b33f272ccb0079a
+.claude/skills/auto/SKILL.md 40774ce7a69161d6c90735fb18008d94b8b40749897d6cdde38a752e060eed15
 .claude/skills/browser-automation/
 .claude/skills/browser-automation/SKILL.md 908527aba77bd48be4b6089762abaaae52bb456cd7a7fb0e30300c2446a21efa
 .claude/skills/ci-optimize/
@@ -117,7 +117,7 @@
 .codex/skills/codex-auto-verify/
 .codex/skills/codex-auto-verify/SKILL.md 676a517a2fa1ec2d026a115d178a6d28968994efbca3ba07104ce7814a84663a
 .codex/skills/codex-auto/
-.codex/skills/codex-auto/SKILL.md fa256c219054a5535e9684fa655d6438281c3076b9bfbd1a9173ce7ef5fdfce8
+.codex/skills/codex-auto/SKILL.md 4af9b8270c5df12bd9909f2182ca24b0ca8058b37b7be4aa4a815b73b53506ab
 .codex/skills/codex-browser-automation/
 .codex/skills/codex-browser-automation/SKILL.md b9286c86848cbdc6ec2edba3f49574d7217ea7e185b0e8599b739a56aca4a4b8
 .codex/skills/codex-ci-optimize/
@@ -146,7 +146,7 @@
 .codex/skills/codex-verification/SKILL.md 2d893cfa631e3133b81b7277cb51e6a58ba168ae8aecab0334c6086d3bc1c468
 .gitignore f4bcb68a8b040f2884b7ad368238a8efcfc2ad56cd66730b6a8b43c4a53bda20
 .mcp.json 1f22bf268cf4a1da19c1f70a80a5e4383569e1ff23a999a6563073ef2d74d7f4
-AGENTS.md 0750fdca83b1f726a103cf936757dace24bc1320eff9aa7b117beefa296a9642
+AGENTS.md 13eb86e6c265a28941e68032f681f2f8705376dfb09f25a9a701351c5016995a
 CLAUDE.md c545ddc92863f8c297a39249698361a128cb1699921531c583adca7813478dc8
 DESIGN.md b3b2dd95d090a98d487007abf90ecefafe0db03d32d455ce35037707a563b54f
 autopus.yaml d861739a9a05732dfecd8f6809f6ca8a9c9353ec2f501d82361cc74abeee0e10

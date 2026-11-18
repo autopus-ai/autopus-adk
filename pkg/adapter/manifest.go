@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/insajin/autopus-adk/pkg/version"
 )
 
 const (
@@ -18,10 +20,13 @@ const (
 
 // Manifest는 autopus-adk가 관리하는 파일 목록이다.
 type Manifest struct {
-	Version     string                  `json:"version"`
-	Platform    string                  `json:"platform"`
-	GeneratedAt string                  `json:"generated_at"`
-	Files       map[string]ManifestFile `json:"files"`
+	Version     string `json:"version"`
+	Platform    string `json:"platform"`
+	GeneratedAt string `json:"generated_at"`
+	// Generator is the auto version that wrote the manifest. A session hook
+	// compares it with the running binary to flag a stale installed surface.
+	Generator string                  `json:"generator,omitempty"`
+	Files     map[string]ManifestFile `json:"files"`
 }
 
 // ManifestFile은 매니페스트에 기록된 단일 파일 정보이다.
@@ -95,6 +100,7 @@ func (m *Manifest) Save(root string) error {
 	}
 
 	m.GeneratedAt = time.Now().Format(time.RFC3339)
+	m.Generator = version.Version()
 	data, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {
 		return fmt.Errorf("매니페스트 직렬화 실패: %w", err)

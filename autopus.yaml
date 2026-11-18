@@ -96,12 +96,6 @@ orchestra:
                 output_format: text
                 timeout: 900
     commands:
-        brainstorm:
-            strategy: debate
-            providers: [claude, codex, gemini]
-        plan:
-            strategy: consensus
-            providers: [claude, codex, gemini]
         review:
             strategy: debate
             providers: [claude, codex, gemini]
