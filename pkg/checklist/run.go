@@ -1,7 +1,6 @@
 package checklist
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"os/exec"
@@ -92,24 +91,27 @@ func ShellRunner(ctx context.Context, root, command string) (int, string, error)
 	return 0, tail(out.String()), err
 }
 
-// cappedBuffer keeps the first limit bytes and drops the rest.
+// cappedBuffer keeps the last limit bytes: a failing command's verdict is
+// usually its final lines.
 type cappedBuffer struct {
-	buf   bytes.Buffer
+	buf   []byte
 	limit int
 }
 
 func (c *cappedBuffer) Write(p []byte) (int, error) {
-	if room := c.limit - c.buf.Len(); room > 0 {
-		if len(p) > room {
-			c.buf.Write(p[:room])
-		} else {
-			c.buf.Write(p)
-		}
+	c.buf = append(c.buf, p...)
+	if len(c.buf) > 2*c.limit {
+		c.buf = append([]byte(nil), c.buf[len(c.buf)-c.limit:]...)
 	}
 	return len(p), nil
 }
 
-func (c *cappedBuffer) String() string { return c.buf.String() }
+func (c *cappedBuffer) String() string {
+	if len(c.buf) > c.limit {
+		return string(c.buf[len(c.buf)-c.limit:])
+	}
+	return string(c.buf)
+}
 
 func tail(s string) string {
 	const max = 2000

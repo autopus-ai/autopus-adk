@@ -18,7 +18,11 @@ func Approve(root, id string, now time.Time) (Check, error) {
 	}
 	// The state is a field in a working-tree file anyone can edit, so it is
 	// checked against the refutations that are supposed to have produced it.
-	if !c.refutationsAllowApproval() {
+	verified, err := verifiedRefutations(root, c)
+	if err != nil {
+		return Check{}, err
+	}
+	if !verified.refutationsAllowApproval() {
 		return Check{}, fmt.Errorf("%s has no surviving refutation by another provider, or one refuted it; refute it first", id)
 	}
 	rel := path.Join(ChecksDir, id+".md")

@@ -72,14 +72,16 @@ func detectAgentProvider(environ []string) string {
 			return v
 		}
 	}
+	// Only variables a CLI sets for its own child processes count: a user can
+	// export CODEX_HOME or similar in any shell.
 	switch {
 	case has("CLAUDECODE="):
 		return "claude"
-	case has("CODEX_"):
-		return "codex"
 	case has("GEMINI_CLI="):
 		return "gemini"
-	case has("OPENCODE"):
+	case has("CODEX_SANDBOX=") || has("CODEX_SANDBOX_NETWORK_DISABLED="):
+		return "codex"
+	case has("OPENCODE=") || has("OPENCODE_CLIENT="):
 		return "opencode"
 	}
 	return ""

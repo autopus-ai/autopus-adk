@@ -43,8 +43,7 @@ func MergeBase(root, base string) (string, error) {
 }
 
 // diffArgs pin the output format against user and repository config: no
-// quoting of non-ASCII paths, fixed a/ b/ prefixes, no external diff driver,
-// and text diffs even for paths a change marks binary in .gitattributes.
+// quoting of non-ASCII paths and fixed a/ b/ prefixes.
 var diffArgs = []string{
 	"-c", "core.quotePath=false", "-c", "diff.mnemonicPrefix=false", "-c", "diff.noprefix=false",
 }
@@ -68,6 +67,19 @@ func ProjectRoot(dir string) string {
 	return strings.TrimSpace(string(out))
 }
 
+// gitDiff runs git diff with the attributes of the base tree (git 2.40+), so
+// a change cannot add a -diff or filter attribute that hides its own added
+// lines; binary files stay binary and add no lines. Older git falls back to
+// the working tree's attributes.
+func gitDiff(root, mb string, args ...string) ([]byte, error) {
+	base := append(append([]string(nil), diffArgs...), "--attr-source="+mb, "diff")
+	out, err := git(root, append(base, args...)...)
+	if err != nil && strings.Contains(err.Error(), "attr-source") {
+		return git(root, append(append(append([]string(nil), diffArgs...), "diff"), args...)...)
+	}
+	return out, err
+}
+
 // CollectChangeSet is every committed and uncommitted change since mb, plus
 // untracked files with all their lines counted as added.
 func CollectChangeSet(root, mb string) (ChangeSet, error) {
@@ -80,15 +92,15 @@ func CollectChangeSet(root, mb string) (ChangeSet, error) {
 		seen[p] = true
 		cs.Paths = append(cs.Paths, p)
 	}
-	names, err := git(root, append(diffArgs, "diff", "--name-only", "-z", "--no-renames", "--no-ext-diff", mb)...)
+	names, err := gitDiff(root, mb, "--name-only", "-z", "--no-renames", "--no-ext-diff", mb)
 	if err != nil {
 		return cs, err
 	}
 	for _, p := range strings.Split(string(names), "\x00") {
 		add(p)
 	}
-	diff, err := git(root, append(diffArgs, "diff", "-U0", "--no-color", "--no-renames", "--no-ext-diff", "--text",
-		"--src-prefix=a/", "--dst-prefix=b/", mb)...)
+	diff, err := gitDiff(root, mb, "-U0", "--no-color", "--no-renames", "--no-ext-diff",
+		"--src-prefix=a/", "--dst-prefix=b/", mb)
 	if err != nil {
 		return cs, err
 	}

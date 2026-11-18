@@ -107,4 +107,6 @@ func TestDetectAgentProvider(t *testing.T) {
 	assert.Equal(t, "gemini", detectAgentProvider([]string{"GEMINI_CLI=1"}))
 	assert.Equal(t, "x", detectAgentProvider([]string{"AUTOPUS_PROVIDER=x", "CLAUDECODE=1"}))
 	assert.Equal(t, "", detectAgentProvider([]string{"HOME=/h"}))
+	assert.Equal(t, "", detectAgentProvider([]string{"CODEX_HOME=/h"}), "a user export is not a session")
+	assert.Equal(t, "gemini", detectAgentProvider([]string{"CODEX_HOME=/h", "GEMINI_CLI=1"}))
 }

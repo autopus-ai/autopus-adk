@@ -4,7 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"os/signal"
 	"sort"
+	"syscall"
 
 	"github.com/spf13/cobra"
 
@@ -27,7 +30,11 @@ func newChecklistRunCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			rep, err := checklist.Run(cmd.Context(), root, base, checklist.ShellRunner, checklistNow())
+			// Ctrl-C or a TERM from a tool timeout cancels the context, so the
+			// verify command's process group is stopped instead of orphaned.
+			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
+			defer stop()
+			rep, err := checklist.Run(ctx, root, base, checklist.ShellRunner, checklistNow())
 			if err != nil {
 				return err
 			}
