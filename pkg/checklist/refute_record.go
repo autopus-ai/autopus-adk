@@ -38,14 +38,17 @@ var errNoGitDir = errors.New("refutation records need a git repository")
 
 // refutationsDir is the absolute record directory inside the git directory.
 func refutationsDir(root string) (string, error) {
-	out, err := git(root, "rev-parse", "--git-path", refutationsGitPath)
+	// The common git directory is shared by every linked worktree, so a
+	// refutation run in one worktree counts when approving from another.
+	out, err := git(root, "rev-parse", "--git-common-dir")
 	if err != nil {
 		return "", errNoGitDir
 	}
-	dir := strings.TrimSpace(string(out))
-	if !filepath.IsAbs(dir) {
-		dir = filepath.Join(root, dir)
+	common := strings.TrimSpace(string(out))
+	if !filepath.IsAbs(common) {
+		common = filepath.Join(root, common)
 	}
+	dir := filepath.Join(common, filepath.FromSlash(refutationsGitPath))
 	return dir, nil
 }
 

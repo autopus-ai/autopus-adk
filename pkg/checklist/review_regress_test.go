@@ -156,3 +156,17 @@ func TestCollectChangeSet_AttributesFromBase(t *testing.T) {
 	assert.Empty(t, cs.Added["blob.bin"])
 	assert.Contains(t, cs.Paths, "blob.bin")
 }
+
+// A refutation run in the main checkout counts in a linked worktree.
+func TestRefutationRecord_SharedAcrossWorktrees(t *testing.T) {
+	root, git := gitRepo(t)
+	wt := filepath.Join(t.TempDir(), "wt")
+	git("worktree", "add", "-q", "--detach", wt)
+	a, err := refutationsDir(root)
+	require.NoError(t, err)
+	b, err := refutationsDir(wt)
+	require.NoError(t, err)
+	ra, _ := filepath.EvalSymlinks(filepath.Dir(a))
+	rb, _ := filepath.EvalSymlinks(filepath.Dir(b))
+	assert.Equal(t, ra, rb)
+}

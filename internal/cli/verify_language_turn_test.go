@@ -71,6 +71,16 @@ func TestTurnReplies_CollectsOnlyThisTurnsAssistantText(t *testing.T) {
 		assistantText("알림을 받고 이어서 진행합니다."),
 	)
 	assert.Equal(t, []string{"알림을 받고 이어서 진행합니다."}, turnReplies(notified), "a notification starts a new turn")
+
+	// The session answered the hook's feedback in Korean; the explained note
+	// must not block the next stop again.
+	explained := writeTranscript(t,
+		userEntry("릴리스 전에 살펴봐줘", false),
+		assistantText(englishNote),
+		userEntry("Stop hook feedback:\nautopus.yaml sets language.ai_responses to ko, ...", true),
+		assistantText("앞의 영어 메모는 같은 리뷰 에이전트에게 다시 맡긴다는 뜻이었습니다."),
+	)
+	assert.Equal(t, []string{"앞의 영어 메모는 같은 리뷰 에이전트에게 다시 맡긴다는 뜻이었습니다."}, turnReplies(explained))
 	assert.Nil(t, turnReplies(filepath.Join(t.TempDir(), "missing.jsonl")))
 }
 
