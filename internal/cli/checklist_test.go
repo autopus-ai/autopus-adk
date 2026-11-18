@@ -46,7 +46,9 @@ func TestChecklistCommands_EndToEnd(t *testing.T) {
 	prevP, prevA := checklistProviders, checklistAsker
 	checklistProviders = func() ([]string, error) { return []string{"claude", "codex"}, nil }
 	checklistAsker = func(string) checklist.Asker {
-		return func(context.Context, string, string) (string, error) { return "VERDICT: survived\nREASON: specific", nil }
+		return func(context.Context, string, string) (string, error) {
+			return "VERDICT: survived\nREASON: specific", nil
+		}
 	}
 	t.Cleanup(func() { checklistProviders, checklistAsker = prevP, prevA })
 

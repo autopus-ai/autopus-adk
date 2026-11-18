@@ -42,7 +42,7 @@ func withSafeFile(root, rel string, flag int, use func(*os.File) error) error {
 	if err != nil {
 		return err
 	}
-	defer r.Close()
+	defer func() { _ = r.Close() }()
 	if err := ensureDirs(r, path.Dir(rel)); err != nil {
 		return err
 	}
@@ -90,7 +90,7 @@ func readFile(root, rel string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer r.Close()
+	defer func() { _ = r.Close() }()
 	info, err := r.Lstat(rel)
 	if err != nil {
 		return nil, err
@@ -107,7 +107,7 @@ func listDir(root, rel, suffix string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer r.Close()
+	defer func() { _ = r.Close() }()
 	entries, err := fs.ReadDir(r.FS(), rel)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
