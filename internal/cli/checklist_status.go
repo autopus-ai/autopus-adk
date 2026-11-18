@@ -54,7 +54,10 @@ func printStatus(out io.Writer, st checklist.Status, retireAfter int) {
 	queue := st.ApprovalQueue()
 	fmt.Fprintf(out, "승인 대기열: %d개\n", len(queue))
 	for _, c := range queue {
-		fmt.Fprintf(out, "  %s: %s (auto checklist approve %s | reject %s)\n", c.ID, firstLineOf(c.Check.Body), c.ID, c.ID)
+		fmt.Fprintf(out, "  %s: %s (auto checklist approve %s | reject %s)\n", c.ID, intakePrintable(firstLineOf(c.Check.Body)), c.ID, c.ID)
+		if c.Check.Verify != "" {
+			fmt.Fprintf(out, "    승인하면 조건에 맞는 diff에서 실행할 명령: %s\n", intakePrintable(c.Check.Verify))
+		}
 	}
 	fmt.Fprintln(out, "점검:")
 	for _, c := range st.Checks {

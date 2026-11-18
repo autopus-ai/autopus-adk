@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/insajin/autopus-adk/pkg/checklist"
+	"github.com/insajin/autopus-adk/pkg/learn"
 )
 
 func runAuto(t *testing.T, args ...string) (string, error) {
@@ -52,11 +53,14 @@ func TestChecklistCommands_EndToEnd(t *testing.T) {
 	}
 	t.Cleanup(func() { checklistProviders, checklistAsker = prevP, prevA })
 
-	out, err := runAuto(t, "learn", "record", "--type", "escape", "--pattern", "guard regressed", "--missed-by", "unit tests",
+	out, err := runAuto(t, "checklist", "record", "--pattern", "guard regressed", "--missed-by", "unit tests",
 		"--when-path", "src/**", "--evidence-command", "./guard.sh", "--evidence-before-exit", "1", "--evidence-after-exit", "0")
 	require.NoError(t, err, out)
+	assert.Contains(t, out, "next: auto checklist propose")
+	_, err = runAuto(t, "checklist", "record", "--pattern", "p", "--missed-by", "lint")
+	assert.ErrorIs(t, err, learn.ErrEscapeIncomplete, "an escape needs a diff condition")
 	_, err = runAuto(t, "learn", "record", "--type", "escape", "--pattern", "p")
-	assert.Error(t, err, "escape needs its fields")
+	assert.Error(t, err, "the hidden learn entry checks the same fields")
 
 	out, err = runAuto(t, "checklist", "propose")
 	require.NoError(t, err, out)
@@ -75,7 +79,10 @@ func TestChecklistCommands_EndToEnd(t *testing.T) {
 	git("commit", "-qm", "approve")
 
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "src", "a.go"), []byte("BUG\n"), 0o644))
+	// M3: run from a subdirectory still finds the project's checks.
+	t.Chdir(filepath.Join(dir, "src"))
 	out, err = runAuto(t, "checklist", "run")
+	t.Chdir(dir)
 	require.NoError(t, err, out)
 	assert.Contains(t, out, "관찰: 문제를 잡았습니다")
 
@@ -91,4 +98,13 @@ func TestChecklistCommands_EndToEnd(t *testing.T) {
 	require.NoError(t, err, out)
 	assert.Contains(t, out, "적용 2회, 잡음 2회")
 	assert.Contains(t, out, "승인 대기열: 0개")
+}
+
+// M9: the drafter comes from the session environment; unknown stays empty.
+func TestDetectAgentProvider(t *testing.T) {
+	assert.Equal(t, "claude", detectAgentProvider([]string{"CLAUDECODE=1"}))
+	assert.Equal(t, "codex", detectAgentProvider([]string{"CODEX_SANDBOX=seatbelt"}))
+	assert.Equal(t, "gemini", detectAgentProvider([]string{"GEMINI_CLI=1"}))
+	assert.Equal(t, "x", detectAgentProvider([]string{"AUTOPUS_PROVIDER=x", "CLAUDECODE=1"}))
+	assert.Equal(t, "", detectAgentProvider([]string{"HOME=/h"}))
 }

@@ -16,6 +16,11 @@ func Approve(root, id string, now time.Time) (Check, error) {
 	if c.State != StateAwaitingApproval {
 		return Check{}, fmt.Errorf("%s is %s; only a candidate in %s can be approved", id, c.State.Label(), StateAwaitingApproval.Label())
 	}
+	// The state is a field in a working-tree file anyone can edit, so it is
+	// checked against the refutations that are supposed to have produced it.
+	if !c.refutationsAllowApproval() {
+		return Check{}, fmt.Errorf("%s has no surviving refutation by another provider, or one refuted it; refute it first", id)
+	}
 	rel := path.Join(ChecksDir, id+".md")
 	if _, err := readFile(root, rel); err == nil {
 		return Check{}, fmt.Errorf("%s already exists", rel)
@@ -70,4 +75,19 @@ func SetMode(root, id string, mode Mode) (Check, error) {
 		return Check{}, err
 	}
 	return check, writeFile(root, rel, out)
+}
+
+// refutationsAllowApproval reports at least one survived verdict from a
+// provider other than the drafter and no refuted verdict.
+func (c Candidate) refutationsAllowApproval() bool {
+	survived := false
+	for _, r := range c.Refutations {
+		switch {
+		case r.Verdict == "refuted":
+			return false
+		case r.Verdict == "survived" && r.Provider != c.DraftedBy:
+			survived = true
+		}
+	}
+	return survived
 }

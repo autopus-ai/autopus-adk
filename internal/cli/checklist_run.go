@@ -46,7 +46,7 @@ func newChecklistRunCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&base, "base", "HEAD", "Ref whose merge-base with HEAD holds the checks")
+	cmd.Flags().StringVar(&base, "base", "", "Ref whose merge-base with HEAD holds the checks (default: origin/HEAD when known, else HEAD)")
 	cmd.Flags().StringVar(&format, "format", "text", "Output format (text|json)")
 	return cmd
 }
@@ -73,6 +73,9 @@ func printRunReport(out io.Writer, rep checklist.Report) {
 	}
 	for _, p := range sortedStringKeys(rep.Invalid) {
 		fmt.Fprintf(out, "  형식 오류로 제외 %s: %s\n", p, rep.Invalid[p])
+	}
+	if rep.Warning != "" {
+		fmt.Fprintf(out, "  경고: %s\n", rep.Warning)
 	}
 }
 

@@ -81,6 +81,8 @@ func (c Check) Validate() error {
 		return fmt.Errorf("unknown mode: %s", c.Mode)
 	case c.When.Empty():
 		return errors.New("when needs paths or keywords")
+	case containsEmpty(c.When.Paths) || containsEmpty(c.When.Keywords):
+		return errors.New("when holds an empty path or keyword")
 	case len(c.Sources) == 0:
 		return errors.New("sources required")
 	case c.Body == "" && c.Verify == "":
@@ -99,4 +101,13 @@ func (c Check) Format() ([]byte, error) {
 	}
 	_ = enc.Close()
 	return []byte("---\n" + head.String() + "---\n\n" + c.Body + "\n"), nil
+}
+
+func containsEmpty(list []string) bool {
+	for _, s := range list {
+		if s == "" {
+			return true
+		}
+	}
+	return false
 }

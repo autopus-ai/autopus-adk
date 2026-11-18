@@ -86,6 +86,11 @@ func LoadCandidates(root string) ([]Candidate, error) {
 		if err := json.Unmarshal(data, &c); err != nil {
 			return nil, fmt.Errorf("%s: %w", n, err)
 		}
+		// The id becomes a write path; a file whose id is malformed or does
+		// not match its own name is refused rather than trusted.
+		if !ValidID(c.ID) || n != c.ID+".json" {
+			return nil, fmt.Errorf("%s: candidate id %q does not match its file", n, c.ID)
+		}
 		out = append(out, c)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
@@ -102,11 +107,20 @@ func LoadCandidate(root, id string) (Candidate, error) {
 		return Candidate{}, fmt.Errorf("candidate %s: %w", id, err)
 	}
 	var c Candidate
-	return c, json.Unmarshal(data, &c)
+	if err := json.Unmarshal(data, &c); err != nil {
+		return Candidate{}, err
+	}
+	if c.ID != id {
+		return Candidate{}, fmt.Errorf("candidate %s: file holds id %q", id, c.ID)
+	}
+	return c, nil
 }
 
 // SaveCandidate writes c.
 func SaveCandidate(root string, c Candidate) error {
+	if !ValidID(c.ID) {
+		return fmt.Errorf("candidate id %q is not CHK-NNN", c.ID)
+	}
 	data, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
 		return err

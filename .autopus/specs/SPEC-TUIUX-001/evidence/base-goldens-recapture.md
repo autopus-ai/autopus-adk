@@ -460,3 +460,10 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 기록: `go run ./cmd/generate-templates` 뒤 `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run '^(TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6ShowsTheSettingsBeforeAnyWrite)$'`.
 - 차이: NPD 다섯 개(init-in, init-pipe, init-yes, update-ci, update-yes)에서 manifest·router·rule·root doc·plugin 파일의 checksum과 journal checksum, update 흐름의 backup 사본만 바뀌었다. stdout golden은 그대로다.
 - 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.
+
+## 릴리스 전 리뷰 반영 (fix/checklist-release-polish, 2026-11-18)
+
+- 원인: manifest를 쓰는 transaction 경로가 `generator`를 기록한다. `qa-hunt`·`secure-hunt`·`ci-optimize` 스킬과 검증 라운드 안내가 `auto checklist record`와 lease 메모리 기준의 1/8 축소를 반영한다.
+- 기록: `go run ./cmd/generate-templates` 뒤 `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run '^(TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6ShowsTheSettingsBeforeAnyWrite)$'`.
+- 차이: NPD 다섯 개에서 바뀐 skill과 manifest의 checksum, journal checksum, update 흐름의 backup 사본만 바뀌었다. stdout golden은 그대로다.
+- 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.

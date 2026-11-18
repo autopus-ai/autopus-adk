@@ -43,6 +43,8 @@ func TestStickyStaleSurfaceAlert(t *testing.T) {
 		{name: "dev build", running: "dev", generator: "0.51.7", want: ""},
 		{name: "dirty build", running: "0.51.8-dirty", generator: "0.51.7", want: ""},
 		{name: "no manifest", running: "0.51.8", noManifest: true, want: ""},
+		{name: "describe build", running: "0.51.8-3-gabc1234", generator: "0.51.7", want: ""},
+		{name: "v prefix matches", running: "v0.51.8", generator: "0.51.8", want: ""},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

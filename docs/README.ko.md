@@ -238,6 +238,34 @@ auto qa mutate --max 50 --min-score 0.7   # CI: 잡은 비율이 70% 미만이�
 릴리스 근거용으로 그대로 있습니다. `auto qa --help`를 보세요.
 
 <a id="routes"></a>
+## 교훈이 조건부 점검이 된다
+
+테스트·리뷰·SPEC을 모두 통과했는데 나중에 실제 실행에서 드러난 결함을 *escape*라고 부릅니다. 검증 라운드가 이것을
+기록하고, 프로젝트는 그 기록에서 점검을 키웁니다. 검증이 강제하는 내용을 바꾸는 단계는 모두 사람이 정합니다.
+
+```bash
+auto checklist record --pattern "publish-back이 provider가 쓸 수 있는 심볼릭 링크를 따라감" \
+  --missed-by "stub provider로 돈 단위 테스트" --when-path "internal/publish/**" \
+  --evidence-command ./repro.sh --evidence-before-exit 1 --evidence-after-exit 0
+auto checklist propose        # 두 커밋에서 반복됐거나 재현됨 → 관찰 모드 후보
+auto checklist refute --all   # 초안을 쓴 provider와 다른 provider가 후보마다 반증을 시도
+auto checklist status         # 교훈, 후보, 승인 대기열, 점검 상태
+auto checklist approve CHK-001   # 사람: 관찰 모드로 점검 추가
+auto checklist run            # diff 조건에 맞는 점검만 적용
+```
+
+- 교훈은 서로 다른 커밋에서 반복됐거나, 재현 명령이 수정 전 실패·수정 후 통과했을 때만 후보가 됩니다. 나머지는
+  `후보 조건 미충족` 또는 `재현 실패`로 보고됩니다.
+- 반증된 후보는 승인 대기열에서 빠지지만 기록은 남습니다. 초안을 쓴 provider 말고 쓸 수 있는 provider가 없으면 후보는
+  대기 상태로 남습니다.
+- `run`은 기준 커밋 트리에서 점검을 읽습니다. 그래서 변경이 자신을 평가하는 점검을 바꿀 수 없습니다. 점검은 diff가
+  `when`(경로 glob 또는 추가된 줄의 키워드, 둘 다 있으면 맞은 파일 안의 키워드)에 맞을 때만 적용됩니다.
+  - 관찰 모드 점검이 문제를 잡으면 기록만 하고 실패시키지 않습니다.
+  - `auto checklist promote`로 강제 모드가 된 점검이 문제를 잡으면 exit 1입니다.
+  - `verify` 명령이 없는 점검은 리뷰어의 기준이 됩니다.
+- `status`는 관찰 모드에서 두 번 잡은 점검의 승격을 제안합니다. 50번 적용되는 동안 잡은 것이 없는 점검은 퇴역 후보로
+  보고합니다(`--retire-after`). `retire`해도 파일은 남습니다.
+
 ## 라우트
 
 코딩 에이전트의 채팅창에서 실행합니다.

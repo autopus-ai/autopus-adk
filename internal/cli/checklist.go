@@ -20,12 +20,12 @@ func newChecklistCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "checklist",
 		Short: "Turn escape lessons into conditional checks a person approves",
-		Long: "The harness lesson loop. `auto learn record --type escape` records a defect every check passed; " +
+		Long: "The harness lesson loop. record writes a defect every check passed (an escape lesson); " +
 			"propose turns repeated or reproduced lessons into observe-mode candidates; refute asks a different provider " +
 			"to refute each one; approve, reject, promote and retire are a person's decisions; run applies the checks " +
 			"whose diff condition matches; status reports lessons, the approval queue, and retirement candidates.",
 	}
-	cmd.AddCommand(newChecklistProposeCmd(), newChecklistRefuteCmd(), newChecklistDecideCmd("approve"),
+	cmd.AddCommand(newChecklistRecordCmd(), newChecklistProposeCmd(), newChecklistRefuteCmd(), newChecklistDecideCmd("approve"),
 		newChecklistDecideCmd("reject"), newChecklistDecideCmd("promote"), newChecklistDecideCmd("retire"),
 		newChecklistRunCmd(), newChecklistStatusCmd())
 	return cmd
@@ -36,7 +36,9 @@ func checklistRoot() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("get working directory: %w", err)
 	}
-	return cwd, nil
+	// Run from any subdirectory: checks, candidates and lessons live at the
+	// top of the work tree.
+	return checklist.ProjectRoot(cwd), nil
 }
 
 // readLessons returns the project's learning entries; no store is no lessons.

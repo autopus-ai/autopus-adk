@@ -3,6 +3,7 @@ package checklist
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"os/exec"
 	"sort"
 	"time"
@@ -38,6 +39,9 @@ type Report struct {
 	Outcomes      []Outcome         `json:"outcomes"`
 	Invalid       map[string]string `json:"invalid,omitempty"`
 	ChangedChecks map[string]string `json:"changed_checks,omitempty"`
+	// Warning reports a problem that did not change any outcome, such as a
+	// hit log that could not be written.
+	Warning string `json:"warning,omitempty"`
 }
 
 // Failed reports an enforce check that flagged the change. Observe checks
@@ -54,18 +58,58 @@ func (r Report) Failed() bool {
 // Runner executes a verify command; tests replace it.
 type Runner func(ctx context.Context, root, command string) (exit int, output string, err error)
 
-// ShellRunner runs command with sh in root.
+// maxVerifyOutput bounds what one verify command may print into a report.
+const maxVerifyOutput = 64 << 10
+
+// ShellRunner runs command with sh in root, in its own process group so a
+// timeout stops the children too, with its output capped.
 func ShellRunner(ctx context.Context, root, command string) (int, string, error) {
-	cmd := exec.CommandContext(ctx, "sh", "-c", command)
+	cmd := exec.Command("sh", "-c", command)
 	cmd.Dir = root
-	var out bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &out, &out
-	err := cmd.Run()
+	out := &cappedBuffer{limit: maxVerifyOutput}
+	cmd.Stdout, cmd.Stderr = out, out
+	setProcessGroup(cmd)
+	if err := cmd.Start(); err != nil {
+		return 0, "", err
+	}
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+	var err error
+	select {
+	case err = <-done:
+	case <-ctx.Done():
+		killProcessGroup(cmd)
+		<-done
+		return 0, tail(out.String()), fmt.Errorf("verify timed out after %s", VerifyTimeout)
+	}
 	if exitErr, ok := err.(*exec.ExitError); ok {
-		return exitErr.ExitCode(), tail(out.String()), nil
+		code := exitErr.ExitCode()
+		if code == 126 || code == 127 {
+			return code, tail(out.String()), fmt.Errorf("verify command could not run (exit %d)", code)
+		}
+		return code, tail(out.String()), nil
 	}
 	return 0, tail(out.String()), err
 }
+
+// cappedBuffer keeps the first limit bytes and drops the rest.
+type cappedBuffer struct {
+	buf   bytes.Buffer
+	limit int
+}
+
+func (c *cappedBuffer) Write(p []byte) (int, error) {
+	if room := c.limit - c.buf.Len(); room > 0 {
+		if len(p) > room {
+			c.buf.Write(p[:room])
+		} else {
+			c.buf.Write(p)
+		}
+	}
+	return len(p), nil
+}
+
+func (c *cappedBuffer) String() string { return c.buf.String() }
 
 func tail(s string) string {
 	const max = 2000
@@ -80,6 +124,12 @@ func tail(s string) string {
 func Run(ctx context.Context, root, base string, run Runner, now time.Time) (Report, error) {
 	mb, err := MergeBase(root, base)
 	if err != nil {
+		// Without checks in the working tree there is nothing a base could
+		// hold that matters: a repo with no commits, or one that never used
+		// the loop, gets an empty report instead of an error.
+		if names, _ := listDir(root, ChecksDir, ".md"); len(names) == 0 {
+			return Report{}, nil
+		}
 		return Report{}, err
 	}
 	cs, err := CollectChangeSet(root, mb)
@@ -109,7 +159,10 @@ func Run(ctx context.Context, root, base string, run Runner, now time.Time) (Rep
 		}
 		rep.Outcomes = append(rep.Outcomes, o)
 	}
-	return rep, RecordHits(root, rep, now)
+	if err := RecordHits(root, rep, now); err != nil {
+		rep.Warning = "hit log not written: " + err.Error()
+	}
+	return rep, nil
 }
 
 func verify(ctx context.Context, root, command string, run Runner) (Result, string) {

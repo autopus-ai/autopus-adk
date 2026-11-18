@@ -55,6 +55,13 @@ func checkEscapeRequired(e *Escape) error {
 	if e == nil || e.MissedBy == "" || (len(e.WhenPaths) == 0 && len(e.WhenKeywords) == 0) {
 		return ErrEscapeIncomplete
 	}
+	for _, list := range [][]string{e.WhenPaths, e.WhenKeywords} {
+		for _, item := range list {
+			if item == "" {
+				return ErrEscapeIncomplete
+			}
+		}
+	}
 	return nil
 }
 
