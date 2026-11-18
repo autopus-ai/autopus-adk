@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **설치된 하네스가 실행 중인 auto보다 오래되면 세션에 알린다** (2026-11-18): 새 릴리스의 규칙은 각 프로젝트에서 `auto update`를
+  돌려야 설치되는데, 이를 알려 주는 것은 손으로 돌리는 `auto doctor`뿐이었다. 그래서 v0.51.7의 규칙이 설치되지 않은 세션이 그
+  규칙을 모른 채 일했다. 이제 manifest가 생성한 auto 버전(`generator`)을 기록하고, Claude Code의 UserPromptSubmit hook이 그 값을
+  실행 중인 버전과 비교해 다르면 `auto update`를 권하는 한 문단을 붙인다. 개발·dirty 빌드에서는 비교하지 않는다.
+- **새 작업은 문서 묶음이 아니라 사용자 요청에서 시작한다** (2026-11-18): router의 `planned` 경로와 autonomy 규칙이 이제 구현 전에
+  `auto qa intent`로 요청에서 인수 기준을 쓰고 필요한 설계 결정만 적으라고 말한다. 전체 SPEC(`auto spec new`, `auto spec review`)은
+  사용자가 요청할 때만 쓴다. "설계부터" 요청에서 세션이 네 문서 SPEC과 세 provider 토론 리뷰로 가던 경로를 막는다.
+
 - **SPEC 품질 검사와 리뷰가 바뀐 입력을 받는 기존 게이트와 실제 진입점 증거를 묻는다** (2026-11-17): SPEC·리뷰·단위 테스트가 모두
   통과한 변경이 깨끗한 기계의 첫 실제 실행에서 모든 작업을 거부당한 사례가 있었다. 요구사항이 정한 값을 기존 정책 게이트가
   거부했는데, 리뷰는 코드를 SPEC에 대어 보고 테스트는 그 게이트에 닿지 않는 대역을 썼다. 이제 spec-quality의 Q-CORR-05가 바뀐

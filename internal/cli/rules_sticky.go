@@ -83,6 +83,7 @@ func fireStickyRules(event string, stdin io.Reader, stdout, stderr io.Writer) {
 	if diskOK {
 		opts.Alert = stickyDiskAlert(root, disk)
 	}
+	opts.Alert = joinStickyAlerts(opts.Alert, stickyStaleSurfaceAlert(root))
 	_ = rulecond.StickyFireWithOptions(root, event, cadence, opts, stdin, stdout, stderr)
 }
 
