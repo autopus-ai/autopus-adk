@@ -1,5 +1,5 @@
 ---
-description: 보안 감사 — OWASP Top 10 관점에서 변경 범위를 점검합니다
+description: 보안 헌트 — 스캐너 단서, 변경 범위 위협 모델, 재현 스크립트로 확인된 취약점만 보고합니다
 agent: build
 ---
 

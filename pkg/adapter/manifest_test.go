@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/insajin/autopus-adk/pkg/version"
 )
 
 func TestNewManifest(t *testing.T) {
@@ -201,4 +203,14 @@ func TestCreateBackupDir(t *testing.T) {
 	assert.DirExists(t, dir)
 	// Dir should be inside .autopus/backup/
 	assert.Contains(t, dir, filepath.Join(tmp, manifestDir, "backup"))
+}
+
+func TestManifestSave_RecordsGenerator(t *testing.T) {
+	dir := t.TempDir()
+	m := NewManifest("claude-code")
+	require.NoError(t, m.Save(dir))
+	loaded, err := LoadManifest(dir, "claude-code")
+	require.NoError(t, err)
+	assert.Equal(t, version.Version(), loaded.Generator)
+	assert.NotEmpty(t, loaded.Generator)
 }
