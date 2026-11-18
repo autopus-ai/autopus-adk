@@ -65,7 +65,7 @@ func TestChecklistCommands_EndToEnd(t *testing.T) {
 	out, err = runAuto(t, "checklist", "refute", "--all")
 	require.NoError(t, err, out)
 	assert.Contains(t, out, "CHK-001 승인 대기")
-	assert.Contains(t, out, "codex: survived")
+	assert.Contains(t, out, "codex: 반증 실패")
 	assert.NotContains(t, out, "claude:")
 
 	out, err = runAuto(t, "checklist", "approve", "CHK-001")

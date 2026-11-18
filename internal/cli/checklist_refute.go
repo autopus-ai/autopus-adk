@@ -95,7 +95,7 @@ func newChecklistRefuteCmd() *cobra.Command {
 				}
 				fmt.Fprintf(out, "%s %s\n", got.ID, got.State.Label())
 				for _, r := range got.Refutations {
-					fmt.Fprintf(out, "  %s: %s — %s\n", r.Provider, r.Verdict, intakePrintable(r.Reason))
+					fmt.Fprintf(out, "  %s: %s — %s\n", r.Provider, verdictLabel(r.Verdict), intakePrintable(r.Reason))
 				}
 			}
 			if ran == 0 {
@@ -106,4 +106,20 @@ func newChecklistRefuteCmd() *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&all, "all", false, "Refute every candidate waiting for refutation")
 	return cmd
+}
+
+// verdictLabel is a refutation verdict as the reports print it; JSON keeps
+// the stored value.
+func verdictLabel(v string) string {
+	switch v {
+	case "refuted":
+		return "반증됨"
+	case "survived":
+		return "반증 실패"
+	case "unparsed":
+		return "판정을 읽지 못함"
+	case "error":
+		return "오류"
+	}
+	return v
 }

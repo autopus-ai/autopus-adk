@@ -48,7 +48,7 @@ func printStatus(out io.Writer, st checklist.Status, retireAfter int) {
 	for _, c := range st.Candidates {
 		fmt.Fprintf(out, "  %s %s — 반복 %d회%s\n", c.ID, c.State.Label(), c.Repeats, reproSuffix(c))
 		for _, r := range c.Refutations {
-			fmt.Fprintf(out, "    반증 %s: %s — %s\n", r.Provider, r.Verdict, intakePrintable(r.Reason))
+			fmt.Fprintf(out, "    반증 %s: %s — %s\n", r.Provider, verdictLabel(r.Verdict), intakePrintable(r.Reason))
 		}
 	}
 	queue := st.ApprovalQueue()
