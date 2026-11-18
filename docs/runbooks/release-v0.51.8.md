@@ -1,6 +1,21 @@
 # Release v0.51.8 (A49)
 
-Status: published 2026-11-18 (release `449766415`, tag object `953260bf`, source `8994d90f`; Release run 44277266603 and Upgrade Canary 44280827305 passed on the first attempt). A49 is `v0.51.8`. A48 is
+**Published 2026-11-18.** Immutable release `449766415` (15 assets, Latest: yes),
+published 2026-11-18T09:56:57Z, tag object
+`953260bfdf18e0ca70905ad13eb3bef3065c539e`, source commit
+`8994d90fce86befdf7b97ce53a0b25519ff26cab`, tree
+`9b0c27abbd1f56f66c488d949289bf14cf37b30c`.
+
+Release run `44277266603` concluded `success`. The Homebrew tap head is
+`cc869c80` ("Publish signed Cask for v0.51.8", parent `880cfc45`), and its Cask
+carries the four `checksums.txt` archive digests. Upgrade Canary
+`44280827305` (0.51.7 -> 0.51.8) concluded `success`. Ruleset
+`27536668` is sealed (no bypass actor), tag policy `67248289`.
+
+The next coordinate is A50 = `v0.51.9`; see
+[release-v0.51.9.md](release-v0.51.9.md).
+
+Status: published. The release job and the Upgrade Canary passed on the first attempt. A49 is `v0.51.8`. A48 is
 `v0.51.7`, immutable release `444197313`; see
 [release-v0.51.7.md](release-v0.51.7.md).
 
