@@ -1,6 +1,6 @@
 # Release v0.51.8 (A49)
 
-Status: prepared 2026-11-14, not published. A49 is `v0.51.8`. A48 is
+Status: published 2026-11-18 (release `449766415`, tag object `953260bf`, source `8994d90f`; Release run 44277266603 and Upgrade Canary 44280827305 passed on the first attempt). A49 is `v0.51.8`. A48 is
 `v0.51.7`, immutable release `444197313`; see
 [release-v0.51.7.md](release-v0.51.7.md).
 

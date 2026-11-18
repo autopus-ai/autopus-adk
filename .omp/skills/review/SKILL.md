@@ -16,6 +16,7 @@ TRUST 5 기준으로 코드를 체계적으로 검토하는 스킬입니다.
 - [ ] 레이스/동시성 테스트 (Go: `go test -race`, Python: `pytest-asyncio`, etc.)
 - [ ] 특성 테스트 존재 (기존 코드 변경 시)
 - [ ] 경계 통합 검증: 패키지/모듈 간 호출이 실제로 연결됨 (스텁 아님)
+- [ ] 테스트 대역(stub·fake·mock)이 이번 변경이 영향을 주는 검증 게이트를 건너뛰지 않음. 건너뛴다면 그 게이트를 실제로 통과하는 테스트가 따로 있음
 - [ ] CLI/API entry point가 실제 실행 가능 (smoke test)
 
 ### R — Readable (가독성)
@@ -34,6 +35,7 @@ TRUST 5 기준으로 코드를 체계적으로 검토하는 스킬입니다.
 ### S — Secured (보안)
 - [ ] SQL 인젝션 방지
 - [ ] 입력 검증 존재
+- [ ] 권한 있는 코드가 덜 신뢰받는 쪽이 쓸 수 있는 경로를 따라가지 않음 (심볼릭 링크 교체, 검사와 사용 사이 경쟁)
 - [ ] 인증/인가 확인
 - [ ] 민감 정보 하드코딩 없음
 - [ ] OWASP Top 10 고려
@@ -78,6 +80,10 @@ TRUST 5 기준으로 코드를 체계적으로 검토하는 스킬입니다.
 `git diff <fixed-point>...HEAD`(세 점: merge-base 기준), 커밋 목록은
 `git log <fixed-point>..HEAD --oneline`. 진행 전에 ref가 해석되고(`git rev-parse`) diff가
 비어 있지 않은지 확인한다 — 잘못된 ref는 병렬 서브에이전트 안이 아니라 여기서 실패해야 한다.
+
+프로젝트에 `.autopus/checklist/`가 있으면 `auto checklist run --base <fixed-point>`를 한 번 실행한다. 점검은
+고정점 트리에서 읽으므로 이번 변경이 자신을 평가하는 점검을 바꿀 수 없다. 강제 모드 점검의 실패는 blocker이고,
+"리뷰 기준" 줄은 두 축 브리프에 그대로 넣는다. 관찰 모드 점검이 잡은 것은 판정과 따로 `would-flag`로만 적는다.
 
 ### 2. Spec 출처 찾기
 

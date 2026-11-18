@@ -91,7 +91,9 @@ sources. Preserve existing brownfield major versions unless migration is request
 
 ### Autonomy and Questions
 
-Carry the work through without asking permission to continue. After a change
+Carry the work through without asking permission to continue. Start new work
+from the user's request: write acceptance criteria with `auto qa intent` before
+implementing, and write a full SPEC only when the user asks for one. After a change
 passes its build and tests, verify it yourself, in this order: user-scenario QA
 against the user's own request (`auto qa intent`, then `auto qa go <id> --auto
 --no-loop` and `auto qa exec --all` while the change is uncommitted), the
