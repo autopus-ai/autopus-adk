@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **SPEC 품질 검사와 리뷰가 바뀐 입력을 받는 기존 게이트와 실제 진입점 증거를 묻는다** (2026-11-17): SPEC·리뷰·단위 테스트가 모두
+  통과한 변경이 깨끗한 기계의 첫 실제 실행에서 모든 작업을 거부당한 사례가 있었다. 요구사항이 정한 값을 기존 정책 게이트가
+  거부했는데, 리뷰는 코드를 SPEC에 대어 보고 테스트는 그 게이트에 닿지 않는 대역을 썼다. 이제 spec-quality의 Q-CORR-05가 바뀐
+  입력을 소비하는 기존 게이트 목록을 요구하고, 런타임·경로·보안 SPEC은 lean이어도 Risk-First Integration Probe를 생략하지 못하며
+  stub만으로 얻은 증거는 PASS가 되지 않는다. review·testing-strategy는 게이트를 건너뛰는 테스트 대역을, secure-hunt와 review는
+  권한 있는 코드가 덜 신뢰받는 쪽이 쓸 수 있는 경로를 따라가는 위협(심볼릭 링크 교체, TOCTOU)을 점검한다.
+
 - **lease의 기본 여유 메모리 기준이 작은 기계에 맞춰 줄어든다** (2026-11-15): `disk.lease.min_free_mem_gb`의 기본값 8 GiB는
   큰 공용 기계를 기준으로 정한 값이라, 16 GiB runner에서는 기준과 `--mem 6G`의 합이 실제 가용 메모리(유휴 때 약 12.6 GiB)를
   넘었다. 그래서 그런 lease가 매번 `--wait` 15분을 다 기다린 뒤 lease 없이 실행됐다. 이제 키와 `AUTOPUS_LEASE_MIN_FREE_MEM_GB`가

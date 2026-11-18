@@ -45,7 +45,7 @@ A `profile: lean` SPEC whose change class and surface qualify is a four-document
 
 - Lean floor: spec.md `## Outcome Boundary`, `## Requirements`, `## Traceability Matrix`; plan.md `## Tasks`; acceptance.md `## Test Scenarios`; research.md `## Outcome Lock`, `## Reviewer Brief`.
 - Lean allowed omissions: plan.md `## Implementation Strategy`, `## Visual Planning Brief`, `## Feature Completion Scope`, `## Risk-First Integration Probe`; acceptance.md `## Oracle Acceptance Notes`; research.md `## Visual Planning Brief`, `## Semantic Invariant Inventory`, `## Minimality Decision Matrix`, `## Feature Coverage Map`, `## Completion Debt`, `## Evolution Ideas`, `## Reference Discipline`, `## Self-Verify Summary`.
-- Q-COMP-08 (Risk-First Integration Probe), Q-COMP-07 (Completion Debt and Evolution Ideas), and Q-CORR-04 (Reference Discipline) are `N/A` while the section they check is absent; a lean SPEC that wrote the section is checked as usual. Q-COMP-05 is judged on concrete acceptance only: an absent Semantic Invariant Inventory is not a FAIL, structural-only acceptance still is.
+- A lean SPEC that changes runtime behavior, path or file access, or a permission or security boundary keeps `## Risk-First Integration Probe` and is checked against Q-COMP-08; for it the probe is not an allowed omission. In every other lean SPEC, Q-COMP-08 (Risk-First Integration Probe), Q-COMP-07 (Completion Debt and Evolution Ideas), and Q-CORR-04 (Reference Discipline) are `N/A` while the section they check is absent; a lean SPEC that wrote the section is checked as usual. Q-COMP-05 is judged on concrete acceptance only: an absent Semantic Invariant Inventory is not a FAIL, structural-only acceptance still is.
 - A lean SPEC keeps no `## Self-Verify Summary`; a FAIL that remains after the retries still goes to `## Open Issues`.
 - Every correctness, security, and data-loss item applies unchanged. A `profile: lean` SPEC that does not qualify is held to the full checklist.
 
@@ -92,6 +92,13 @@ Every `N/A` entry carries a non-empty reason, concise enough to survive the 200-
 - PASS 기준: 실제 코드베이스에 존재하는 path/symbol/config는 `rg`/Read 등으로 확인했고, 아직 만들 항목은 `[NEW]` planned addition으로 표시한다. generated surface와 source of truth도 구분한다.
 - FAIL 기준: 존재하지 않는 파일, 함수, CLI flag, generated copy를 기존 구현처럼 단정하거나, `[NEW]` 표시 없이 future reference를 품질 근거로 사용한다.
 - Example: `internal/cli/spec_review_loop.go`는 existing reference로 검증하고, 새 테스트 파일/함수는 `[NEW] internal/cli/spec_review_loop_convergence_test.go::Test...`처럼 표시한다.
+
+### Q-CORR-05 — Existing gates that consume a changed input are inventoried
+
+- PASS 기준: 요구사항이 기존 validator·guard·policy가 받는 입력(경로, root, ID, session, 권한, 설정 키)의 모양을 바꾸면, 그 입력을 소비하는 기존 게이트를 하나씩 적고 새 모양이 각 게이트를 어떻게 통과하는지(또는 게이트도 함께 바뀌는지) 적는다. 목록은 `rg` 같은 실제 탐색으로 얻는다.
+- FAIL 기준: 바뀐 입력을 받는 기존 게이트가 있는데 목록이 없거나, 요구사항이 정한 값을 기존 게이트가 거부한다. 리뷰는 코드를 SPEC에 대어 보므로 SPEC 자체가 게이트와 어긋나면 리뷰를 통과한다.
+- N/A 기준: 기존 게이트가 소비하는 입력을 바꾸지 않는다.
+- Example: 작업 디렉터리를 provider root 밖으로 옮기는 요구사항이면, root/work_dir 쌍을 검사하는 기존 정책이 새 쌍을 받아들이는지 적는다. 받아들이지 않으면 요구사항이나 정책 중 하나를 같은 SPEC에서 바꾼다.
 
 ## completeness
 
@@ -140,9 +147,9 @@ Every `N/A` entry carries a non-empty reason, concise enough to survive the 200-
 ### Q-COMP-08 — Risk-First Integration Probe records honest verdicts
 
 - PASS 기준: `plan.md`에 `## Risk-First Integration Probe`가 있고, 1-3개 행이 각각 `PASS` / `FAIL` / `not-run` status와 non-empty reason을 갖는다. `PASS` 행은 실제 실행에서 얻은 evidence ref를 참조하고, plan 진술은 `requirement_invariant` / `implementation_assumption` / `verified_fact`로 분류된다.
-- FAIL 기준: 섹션이 없거나, `not-run`을 이유 없이 남기거나 PASS로 승격하거나, evidence 없는 행을 `PASS`로 표기하거나, 구현 가정을 요구사항이나 검증된 사실과 섞어 서술한다.
+- FAIL 기준: 섹션이 없거나, `not-run`을 이유 없이 남기거나 PASS로 승격하거나, evidence 없는 행을 `PASS`로 표기하거나, 바뀌는 게이트를 건너뛰는 stand-in(stub provider, fake, mock)으로만 얻은 evidence로 `PASS`를 주거나, 구현 가정을 요구사항이나 검증된 사실과 섞어 서술한다.
 - Fix guidance: 지금 실행 가능한 probe는 `Phase 1.9: Risk-First Probe Gate`에서 실행해 evidence를 남기고, 실행 불가한 행은 `not-run` + 이유로 유지한다. 각 게이트의 적용 여부는 `required | not_applicable | blocked` + 이유로 기록한다.
-- Example: doc-only SPEC은 섹션을 유지하고 `not-run | no integration boundary` 한 행만 남긴다. composition-root boot, browser -> BFF -> API round trip, logout/cancel/account-switch 같은 in-flight 상태 경계는 fan-out 전에 실제로 probe해야 한다.
+- Example: doc-only SPEC은 섹션을 유지하고 `not-run | no integration boundary` 한 행만 남긴다. 런타임·경로·보안 SPEC은 최소 한 행이 production entrypoint를 기본 설정과 실제 의존성으로 통과한다. composition-root boot, browser -> BFF -> API round trip, logout/cancel/account-switch 같은 in-flight 상태 경계는 fan-out 전에 실제로 probe해야 한다.
 
 ## feasibility
 
