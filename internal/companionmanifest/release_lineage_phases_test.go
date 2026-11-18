@@ -58,7 +58,7 @@ func (p releasePhase) priorPhase(t *testing.T) string {
 	return "A" + strconv.Itoa(index-1)
 }
 
-var releasePhases = slices.Concat(frozenReleasePhases, settledReleasePhases, shippedReleasePhases)
+var releasePhases = slices.Concat(frozenReleasePhases, settledReleasePhases, publishedReleasePhases, shippedReleasePhases)
 
 var frozenReleasePhases = []releasePhase{
 	{
