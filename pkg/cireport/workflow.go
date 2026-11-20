@@ -11,8 +11,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// maxWorkflowBytes bounds one workflow file read by the lint.
-const maxWorkflowBytes = 1 << 20
+// MaxWorkflowBytes bounds one workflow file read by the lint.
+const MaxWorkflowBytes = 1 << 20
 
 // workflow is the part of a workflow file the lint reads.
 type workflow struct {
@@ -50,7 +50,7 @@ func LoadWorkflows(dir string) (map[string][]byte, error) {
 			continue
 		}
 		info, err := e.Info()
-		if err != nil || info.Size() > maxWorkflowBytes {
+		if err != nil || info.Size() > MaxWorkflowBytes {
 			continue
 		}
 		data, err := os.ReadFile(filepath.Join(dir, e.Name()))
