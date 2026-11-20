@@ -5,8 +5,9 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 - **공유 기계에서 lease 밖의 무거운 명령을 load로 막는 `hooks.cpu_gate`** (2026-11-20): 기본 꺼짐. 켜면 disk gate hook이
-  1분 load가 `disk.lease.max_load_ratio` × 논리 CPU를 넘는 동안 lease 없이 시작하는 빌드·테스트·설치와 린터·타입 검사기·
-  테스트 러너를 막고 `auto disk lease --cpu N -- <command>`로 안내한다. 기준은 lease가 입장시키는 기준과 같다. `cpu_gate`만
+  lease의 입장 검사가 대기자를 세울 동안 CPU lease 밖에서 CPU를 쓰는 명령을 막고 `auto disk lease --cpu N -- <command>`로
+  안내한다. 입장 검사는 1분 load에 최근 grant 몫을 더한 값을 `disk.lease.max_load_ratio` × 논리 CPU와 비교한다. 막는 명령은
+  컴파일·테스트, 린터·타입 검사기·테스트 러너, `--cpu` 없는 lease이다. 설치와 checkout은 막지 않는다. `cpu_gate`만
   켜도 hook이 등록되고, `disk_gate: false`면 디스크 검사만 빠진다.
 
 - **릴리스 전 리뷰에서 나온 교훈 순환과 낡은 하네스 경고의 결함을 고친다** (2026-11-18):
