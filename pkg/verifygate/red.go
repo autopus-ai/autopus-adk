@@ -61,20 +61,8 @@ func IsTest(file string) bool {
 // They must fail before the change; the normal gate already showed they pass
 // after it.
 func CheckRed(ctx context.Context, root string, changed []string, budget time.Duration) RedResult {
-	var res RedResult
-	for _, f := range changed {
-		switch {
-		case IsTest(f):
-			res.Tests = append(res.Tests, f)
-		case hasExt([]string{f}, redLanguages...):
-			res.Sources = append(res.Sources, f)
-		}
-	}
-	if len(res.Sources) == 0 {
-		return res
-	}
-	if len(res.Tests) == 0 {
-		res.Verdict = RedNoTest
+	res, decided := PrecheckRed(changed)
+	if decided {
 		return res
 	}
 	scratch, err := os.MkdirTemp("", "autopus-red-")
@@ -187,4 +175,28 @@ func copyFile(src, dst string) error {
 		return err
 	}
 	return os.WriteFile(dst, data, 0o644)
+}
+
+// PrecheckRed is the part of CheckRed that runs nothing: it sorts the
+// changed files into sources and tests, and decides RedNotApplicable (no
+// product source changed) or RedNoTest (no test changed). decided is false
+// when the tests have to be run against HEAD to know.
+func PrecheckRed(changed []string) (RedResult, bool) {
+	var res RedResult
+	for _, f := range changed {
+		switch {
+		case IsTest(f):
+			res.Tests = append(res.Tests, f)
+		case hasExt([]string{f}, redLanguages...):
+			res.Sources = append(res.Sources, f)
+		}
+	}
+	if len(res.Sources) == 0 {
+		return res, true
+	}
+	if len(res.Tests) == 0 {
+		res.Verdict = RedNoTest
+		return res, true
+	}
+	return res, false
 }
