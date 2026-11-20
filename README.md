@@ -550,6 +550,14 @@ is not matched by default; add heavy targets with `hooks.disk_gate.extra_command
 Turn the gate off with `hooks.disk_gate: false` or `AUTOPUS_DISK_GATE=off`. OMP has no pre-tool hook, and
 the other platforms do not register the gate yet; run `auto disk check` before heavy steps there.
 
+On a machine several sessions share, `hooks.cpu_gate: true` (off by default) makes the same hook gate on
+CPU too. While the lease's own admission check would hold a waiter (the 1-minute load plus recent grants
+the average does not show yet, above `disk.lease.max_load_ratio` × the logical CPUs), it denies commands
+that load the CPU outside a CPU lease and points the agent at `auto disk lease --cpu N -- <command>`.
+That covers compiles and tests, linters, type checkers, and test runners (eslint, vitest, jest, tsc,
+pytest, go vet, golangci-lint, cargo clippy, lint/typecheck/test scripts), and `auto disk lease` without
+`--cpu`; installs and `git worktree add` pass. `AUTOPUS_DISK_GATE=off` turns both checks off.
+
 **Reclaim.** Everything is a dry run unless `--apply` is given, symlinks are never followed, and anything
 that changed since the scan is skipped. `auto disk reclaim` removes:
 

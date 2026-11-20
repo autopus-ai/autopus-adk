@@ -205,6 +205,11 @@ type HooksConf struct {
 	// shell commands while free space is below disk.min_free_gb. Read it
 	// through IsDiskGateEnabled.
 	DiskGate *DiskGateConf `yaml:"disk_gate,omitempty"`
+	// CPUGate lets the disk gate hook also deny heavy shell commands started
+	// outside a lease while the machine's load is above the lease limit. It
+	// is off unless set: it pays off on a machine shared by several sessions.
+	// Read it through IsCPUGateEnabled.
+	CPUGate *bool `yaml:"cpu_gate,omitempty"`
 	// VersionStop lets `auto verify stop` send a session back once when its
 	// changes add or bump a dependency, toolchain or image pin a full release
 	// line behind the latest stable. Read it through IsVersionStopEnabled.
