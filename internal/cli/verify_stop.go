@@ -65,7 +65,9 @@ func newVerifyStopCmd() *cobra.Command {
 		Use:   "stop",
 		Short: "Stop hook: build and test the changed files before the session ends",
 		Long: "Reads the Claude Code Stop hook payload on stdin. When the work tree has changes, runs the " +
-			"build and tests that cover them and blocks the stop with the failure output. Under methodology: tdd with " +
+			"build and tests that cover them and blocks the stop with the failure output. Go runs the tests the change " +
+			"edited first (with at most half the budget), then the changed packages whole; a suite that outlasts the " +
+			"budget with nothing failed does not block, and that tree is not run again. Under methodology: tdd with " +
 			"enforce: true, the changed tests must also fail against the code before the change (HEAD); a source change " +
 			"without a test change is blocked unless the reply has a `TDD-exempt: <reason>` line. Set " +
 			"AUTOPUS_VERIFY_STOP=off to disable. Before the build, added lines that look like credentials block the stop " +
@@ -140,11 +142,21 @@ func verifyChanged(cmd *cobra.Command, in stopHookInput, root string, changed []
 		return followupRound(cmd, in, root, followup, false)
 	}
 	fingerprint := verifygate.Fingerprint(root, changed)
-	if readStopState(in.SessionID, "pass") == fingerprint {
+	if readStopState(in.SessionID, "pass") == fingerprint || readStopState(in.SessionID, "budget") == fingerprint {
 		return stopHookOutput{}
 	}
 	started := time.Now()
 	failure, skipped := verifygate.Run(cmd.Context(), steps, budget)
+	if failure == nil && len(skipped) > 0 && onlyBudgetSkips(skipped) {
+		// The suite is longer than the budget and nothing had failed when it
+		// ran out. Rerunning the same tree at every stop would spend the
+		// budget again for the same answer, so the tree is recorded; any edit
+		// changes the fingerprint and runs it again.
+		writeStopState(in.SessionID, "budget", fingerprint)
+		return stopHookOutput{SystemMessage: "auto verify stop: " + describeSkips(skipped) +
+			"; nothing failed within the budget, so the stop is not blocked. Run the rest with a longer " +
+			"-timeout (or leave it to CI) before calling the change verified"}
+	}
 	if failure == nil && len(skipped) > 0 {
 		// Nothing failed, but not everything ran: that is the machine, not
 		// the change, so the stop is not blocked. The tree is not recorded as
@@ -218,6 +230,16 @@ func resetStopState(session string) {
 	_ = os.Remove(stopStateFile(session, "secrets"))
 	_ = os.Remove(stopStateFile(session, "versions"))
 	_ = os.Remove(stopStateFile(session, "versions-warn"))
+	_ = os.Remove(stopStateFile(session, "budget"))
+}
+
+func onlyBudgetSkips(skipped []verifygate.Skip) bool {
+	for _, s := range skipped {
+		if !s.Budget {
+			return false
+		}
+	}
+	return true
 }
 
 func describeSkips(skipped []verifygate.Skip) string {

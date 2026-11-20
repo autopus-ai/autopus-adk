@@ -23,6 +23,16 @@ type Step struct {
 	// UnavailableExit lists exit statuses that mean the step could not run at
 	// all (127: a command inside it was not found), not that the code failed.
 	UnavailableExit []int
+	// GoTestJSON marks a `go test -json` step: its output is rendered back
+	// to text, and the tests that failed are known before it finishes.
+	GoTestJSON bool
+	// BudgetBound marks a step that may legitimately outlast the budget. If
+	// time runs out before it reports a failure, it is skipped (Skip.Budget)
+	// instead of failing the gate.
+	BudgetBound bool
+	// Share caps the step at that fraction of the whole budget, so a slow
+	// step cannot starve the ones after it; 0 lets it use all that is left.
+	Share float64
 }
 
 // Plan picks the build and test commands that cover the changed files. It
@@ -31,11 +41,7 @@ type Step struct {
 func Plan(root string, changed []string) []Step {
 	var steps []Step
 	if fileExists(filepath.Join(root, "go.mod")) {
-		if pkgs := goPackages(root, changed); len(pkgs) > 0 {
-			steps = append(steps,
-				Step{Name: "go build", Argv: []string{"go", "build", "./..."}, Dir: root},
-				Step{Name: "go test", Argv: append([]string{"go", "test"}, pkgs...), Dir: root})
-		}
+		steps = append(steps, goSteps(root, changed)...)
 	}
 	if hasExt(changed, nodeExts...) {
 		steps = append(steps, nodeSteps(root)...)
