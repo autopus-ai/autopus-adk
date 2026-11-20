@@ -78,3 +78,10 @@ func (h HooksConf) DiskGateExtraCommands() []string {
 	}
 	return h.DiskGate.ExtraCommands
 }
+
+// IsCPUGateEnabled reports whether the disk gate also gates on CPU load.
+// Unset means off: on a machine one session uses alone, its own build would
+// push the next command into a lease queue for nothing.
+func (h HooksConf) IsCPUGateEnabled() bool {
+	return h.CPUGate != nil && *h.CPUGate
+}

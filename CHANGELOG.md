@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **공유 기계에서 lease 밖의 무거운 명령을 load로 막는 `hooks.cpu_gate`** (2026-11-20): 기본 꺼짐. 켜면 disk gate hook이
+  1분 load가 `disk.lease.max_load_ratio` × 논리 CPU를 넘는 동안 lease 없이 시작하는 빌드·테스트·설치와 린터·타입 검사기·
+  테스트 러너를 막고 `auto disk lease --cpu N -- <command>`로 안내한다. 기준은 lease가 입장시키는 기준과 같다. `cpu_gate`만
+  켜도 hook이 등록되고, `disk_gate: false`면 디스크 검사만 빠진다.
+
 - **릴리스 전 리뷰에서 나온 교훈 순환과 낡은 하네스 경고의 결함을 고친다** (2026-11-18):
   - 낡은 하네스 경고: manifest를 실제로 쓰는 경로가 생성 버전을 기록하지 않아, 릴리스 빌드에서는 `auto update` 뒤에도 경고가 사라지지
     않을 뻔했다. manifest는 일반 파일만 상한을 두고 읽고, `0.51.8-3-g…` 같은 빌드는 비교하지 않는다.

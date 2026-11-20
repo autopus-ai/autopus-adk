@@ -41,7 +41,9 @@ func newDiskGateCmd() *cobra.Command {
 			"the file system of the payload's cwd is below disk.min_free_gb, prints a deny decision telling the agent to " +
 			"pause and run `auto disk status`. Every `auto` command passes, `auto disk lease -- <command>` included. " +
 			"It costs one statfs and walks nothing. It always exits 0 and prints nothing when it allows. " +
-			"AUTOPUS_DISK_GATE=off or hooks.disk_gate: false turns it off.",
+			"AUTOPUS_DISK_GATE=off or hooks.disk_gate: false turns it off. With hooks.cpu_gate: true it also denies a heavy " +
+			"command, linters and test runners included, while the 1-minute load is above disk.lease.max_load_ratio × " +
+			"the logical CPUs, and points the agent at `auto disk lease --cpu N -- <command>`.",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -79,15 +81,15 @@ func diskGateReason(stdin io.Reader) string {
 		disk, hooks = harness.Disk.Effective(), harness.Hooks
 	}
 	if !hooks.IsDiskGateEnabled() {
-		return ""
+		return cpuGateReason(in.ToolInput.Command, hooks, disk)
 	}
 	verdict := diskgate.Classify(in.ToolInput.Command, hooks.DiskGateExtraCommands()...)
 	if !verdict.Heavy {
-		return ""
+		return cpuGateReason(in.ToolInput.Command, hooks, disk)
 	}
 	space, err := diskFree(dir)
 	if err != nil || space.AvailBytes >= disk.FloorBytes() {
-		return ""
+		return cpuGateReason(in.ToolInput.Command, hooks, disk)
 	}
 	return terminalSafe(fmt.Sprintf("Disk gate: %s GiB free on %s, below the floor of %s GiB (disk.min_free_gb), so this "+
 		"`%s` step was not started. Pause heavy work: run `auto disk status` to see which consumer grew, then free space "+

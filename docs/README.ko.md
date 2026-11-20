@@ -569,6 +569,11 @@ status는 이 표본으로 소비자를 증가량 순서로 보여 주고(예: `
 `hooks.disk_gate: false` 또는 `AUTOPUS_DISK_GATE=off`를 씁니다. OMP에는 pre-tool hook이 없고, 다른 플랫폼에는
 아직 게이트를 등록하지 않습니다. 그 플랫폼에서는 무거운 단계 전에 `auto disk check`를 실행합니다.
 
+여러 세션이 함께 쓰는 기계에서는 `hooks.cpu_gate: true`(기본 꺼짐)로 같은 hook이 CPU도 봅니다. 1분 load가
+lease의 입장 기준인 `disk.lease.max_load_ratio` × 논리 CPU를 넘는 동안, lease 밖에서 시작하는 무거운 명령을
+막습니다. 린터, 타입 검사기, 테스트 러너(eslint, vitest, jest, tsc, golangci-lint, cargo clippy)도 포함합니다.
+그리고 에이전트에게 `auto disk lease --cpu N -- <command>`를 안내합니다. `AUTOPUS_DISK_GATE=off`는 두 검사를 모두 끕니다.
+
 **회수.** `--apply`를 주지 않으면 모두 dry run이고, 심볼릭 링크는 따라가지 않으며, 스캔 뒤에 바뀐 항목은
 건너뜁니다. `auto disk reclaim`이 지우는 것:
 
