@@ -10,17 +10,19 @@ import (
 
 // goTestEvent is the part of a `go test -json` event the gate reads.
 type goTestEvent struct {
-	Action  string
-	Package string
-	Test    string
-	Output  string
+	Action     string
+	Package    string
+	ImportPath string
+	Test       string
+	Output     string
 }
 
 // renderGoTestJSON turns `go test -json` output back into the text a plain
 // `go test` prints on failure: package-level lines and the output of failed
 // tests, without the -v chatter of passing ones. It also returns the failed
-// tests as "pkg.Test" in order, so a run cut short by the budget still
-// reports what had already failed. Lines that are not JSON events (build
+// tests as "pkg.Test" in order, or the bare package when it failed with no
+// failed test (a build failure, TestMain, os.Exit), so a run cut short by
+// the budget still reports what had already failed. Lines that are not JSON events (build
 // errors on stderr) are kept as they are.
 func renderGoTestJSON(out []byte) (string, []string) {
 	var text strings.Builder
@@ -38,6 +40,18 @@ func renderGoTestJSON(out []byte) (string, []string) {
 		}
 		if ev.Test == "" {
 			text.WriteString(ev.Output)
+			// A package fails without a failed test when its tests do not
+			// compile, TestMain fails, or a test calls os.Exit.
+			pkg := ev.Package
+			if pkg == "" {
+				// build-fail names the test binary: "m/b [m/b.test]".
+				pkg, _, _ = strings.Cut(ev.ImportPath, " ")
+			}
+			if (ev.Action == "fail" || ev.Action == "build-fail") && pkg != "" &&
+				!slices.Contains(failed, pkg) &&
+				!slices.ContainsFunc(failed, func(k string) bool { return strings.HasPrefix(k, pkg+".") }) {
+				failed = append(failed, pkg)
+			}
 			continue
 		}
 		key := ev.Package + "." + ev.Test

@@ -138,3 +138,73 @@ func TestRun_StepShareRunsOutButLaterStepsStillRun(t *testing.T) {
 	require.Len(t, skipped, 1)
 	assert.Contains(t, skipped[0].Reason, "its share")
 }
+
+func TestRenderGoTestJSON_PackageFailuresWithoutAFailedTestCount(t *testing.T) {
+	t.Parallel()
+	out := strings.Join([]string{
+		`{"ImportPath":"m/b [m/b.test]","Action":"build-output","Output":"b/b_test.go:3:27: undefined: x\n"}`,
+		`{"ImportPath":"m/b [m/b.test]","Action":"build-fail"}`,
+		`{"Action":"fail","Package":"m/b","FailedBuild":"m/b [m/b.test]"}`,
+		`{"Action":"output","Package":"m/c","Output":"exit status 3\n"}`,
+		`{"Action":"fail","Package":"m/c"}`,
+		`{"Action":"fail","Package":"m/d","Test":"TestD"}`,
+		`{"Action":"fail","Package":"m/d"}`,
+	}, "\n")
+
+	text, failed := renderGoTestJSON([]byte(out))
+
+	assert.Equal(t, []string{"m/b", "m/c", "m/d.TestD"}, failed, "a package with a failed test is named by the test")
+	assert.Contains(t, text, "undefined: x")
+	assert.Contains(t, text, "exit status 3")
+}
+
+func TestRun_CoveredStepShareRecordsNothing(t *testing.T) {
+	dir := t.TempDir()
+	first := sleepyStep(dir, `{}`, true)
+	first.Share, first.CoveredLater = 0.25, true
+	failure, skipped := Run(context.Background(),
+		[]Step{first, {Name: "whole", Argv: []string{"sh", "-c", "exit 0"}, Dir: dir}}, 8*time.Second)
+
+	require.Nil(t, failure)
+	assert.Empty(t, skipped, "the whole-package step ran the same tests and passed")
+}
+
+func TestRun_CleanExitWithALingeringChildPasses(t *testing.T) {
+	dir := t.TempDir()
+	step := Step{Name: "detached", Argv: []string{"sh", "-c", "sleep 30 & exit 0"}, Dir: dir}
+	start := time.Now()
+	failure, _ := Run(context.Background(), []Step{step}, time.Minute)
+
+	assert.Nil(t, failure)
+	assert.Less(t, time.Since(start), 20*time.Second)
+}
+
+func TestPlan_WholeGoPackagesRunAfterOtherToolchains(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{"go.mod": "module x\n", "a.go": "package x\n", "Cargo.toml": "", "src/x.rs": ""})
+
+	steps := Plan(root, []string{"a.go", "src/x.rs"})
+
+	var names []string
+	for _, s := range steps {
+		names = append(names, s.Name)
+	}
+	assert.Equal(t, []string{"go build", "cargo test", "go test"}, names)
+}
+
+func TestPlan_TooManyChangedTestsSkipTheRunPattern(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	var body strings.Builder
+	body.WriteString("package b\nimport \"testing\"\n")
+	for i := 0; i < 400; i++ {
+		body.WriteString("func TestAVeryLongNameThatTakesRoom" + strconv.Itoa(i) + "(t *testing.T) {}\n")
+	}
+	writeFiles(t, root, map[string]string{"go.mod": "module x\n", "b/b.go": "package b\n", "b/b_test.go": body.String()})
+
+	steps := Plan(root, []string{"b/b_test.go"})
+
+	require.Len(t, steps, 2, "build and the whole package; the pattern would exceed the argument limit")
+	assert.Equal(t, []string{"go", "test", "-json", "./b"}, steps[1].Argv)
+}

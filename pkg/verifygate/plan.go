@@ -33,15 +33,20 @@ type Step struct {
 	// Share caps the step at that fraction of the whole budget, so a slow
 	// step cannot starve the ones after it; 0 lets it use all that is left.
 	Share float64
+	// CoveredLater marks a step whose tests a later step runs again, so
+	// running out of its share leaves nothing unchecked.
+	CoveredLater bool
 }
 
 // Plan picks the build and test commands that cover the changed files. It
 // only runs a toolchain whose own sources changed: an edited README asks for
 // nothing, an edited Go file asks for the build and the tests of its package.
 func Plan(root string, changed []string) []Step {
-	var steps []Step
+	var steps, goWhole []Step
 	if fileExists(filepath.Join(root, "go.mod")) {
-		steps = append(steps, goSteps(root, changed)...)
+		var goFirst []Step
+		goFirst, goWhole = goSteps(root, changed)
+		steps = append(steps, goFirst...)
 	}
 	if hasExt(changed, nodeExts...) {
 		steps = append(steps, nodeSteps(root)...)
@@ -52,6 +57,9 @@ func Plan(root string, changed []string) []Step {
 	if hasExt(changed, ".rs") && fileExists(filepath.Join(root, "Cargo.toml")) {
 		steps = append(steps, Step{Name: "cargo test", Argv: []string{"cargo", "test", "--quiet"}, Dir: root})
 	}
+	// The whole Go packages may spend the rest of the budget, so they run
+	// after every other toolchain's checks instead of starving them.
+	steps = append(steps, goWhole...)
 	if len(steps) > 0 {
 		if step, ok := qaStep(root); ok {
 			steps = append(steps, step)

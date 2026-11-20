@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
@@ -50,4 +51,29 @@ func TestVerifyStop_SuiteLongerThanTheBudgetDoesNotBlock(t *testing.T) {
 	edited, _ := runStopWithin(t, dir, session, 30*time.Second)
 	assert.Equal(t, "block", edited.Decision, "an edit is verified again, and TestAdd fails inside the budget")
 	assert.Contains(t, edited.Reason, "Add(1, 2) != 3")
+}
+
+// Under methodology: tdd, a source change with no test change is sent back
+// even when the package's suite outlasts the budget: that verdict needs no
+// test run.
+func TestVerifyStop_BudgetSkipStillAppliesTestFirst(t *testing.T) {
+	session := "budget-tdd"
+	t.Cleanup(func() { resetStopState(session) })
+	dir := newStopRepo(t, "")
+	slow := "package stopgate\n\nimport (\n\t\"testing\"\n\t\"time\"\n)\n\nfunc TestSlow(t *testing.T) { time.Sleep(2 * time.Minute) }\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "slow_test.go"), []byte(slow), 0o644))
+	for _, args := range [][]string{{"add", "-A"}, {"-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "slow"}} {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null")
+		out, err := cmd.CombinedOutput()
+		require.NoError(t, err, string(out))
+	}
+	tddProject(t, dir, "tdd", true)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "add.go"), []byte("package stopgate\n\n// Add sums.\nfunc Add(a, b int) int { return b + a }\n"), 0o644))
+
+	got, _ := runStopWithin(t, dir, session, 20*time.Second)
+	assert.Equal(t, "block", got.Decision)
+	assert.Contains(t, got.Reason, "no test changed")
+	assert.Empty(t, readStopState(session, "budget"), "a blocked tree is not recorded")
 }

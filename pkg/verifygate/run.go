@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"slices"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -44,6 +46,10 @@ type Skip struct {
 func Run(ctx context.Context, steps []Step, budget time.Duration) (*Failure, []Skip) {
 	ctx, cancel := context.WithTimeout(ctx, budget)
 	defer cancel()
+	// Each step runs in its own process group, so a Ctrl-C or SIGTERM sent
+	// to the hook's group no longer reaches it: cancel it ourselves.
+	ctx, stopSignals := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	defer stopSignals()
 	var skipped []Skip
 	for i, step := range steps {
 		if _, err := exec.LookPath(step.Argv[0]); err != nil {
@@ -72,12 +78,19 @@ func Run(ctx context.Context, steps []Step, budget time.Duration) (*Failure, []S
 			text, failedTests = renderGoTestJSON(out.Bytes())
 		}
 		var exitErr *exec.ExitError
-		if err == nil || (errors.As(err, &exitErr) && slices.Contains(step.PassExit, exitErr.ExitCode())) {
+		// ErrWaitDelay after a clean exit only means a child kept the pipes
+		// open; the step itself passed.
+		exitedClean := errors.Is(err, exec.ErrWaitDelay) && cmd.ProcessState != nil && cmd.ProcessState.Success()
+		if err == nil || exitedClean || (errors.As(err, &exitErr) && slices.Contains(step.PassExit, exitErr.ExitCode())) {
 			continue
 		}
 		timedOut := errors.Is(stepCtx.Err(), context.DeadlineExceeded)
 		if timedOut && step.BudgetBound && len(failedTests) == 0 && ctx.Err() == nil {
-			// Only the step's own share ran out; the rest still has time.
+			// Only the step's own share ran out; the rest still has time. A
+			// step a later one covers leaves no gap, so it records nothing.
+			if step.CoveredLater {
+				continue
+			}
 			skipped = append(skipped, Skip{Name: step.Name, Budget: true,
 				Reason: fmt.Sprintf("did not finish within its share of %s and no test had failed by then", budget)})
 			continue

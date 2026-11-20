@@ -152,10 +152,19 @@ func verifyChanged(cmd *cobra.Command, in stopHookInput, root string, changed []
 		// ran out. Rerunning the same tree at every stop would spend the
 		// budget again for the same answer, so the tree is recorded; any edit
 		// changes the fingerprint and runs it again.
+		note := "auto verify stop: " + describeSkips(skipped) + "; nothing failed within the budget, so the stop is " +
+			"not blocked. Run the rest with a longer -timeout (or leave it to CI) before calling the change verified"
+		// Test-first and the verification round still apply: a missing test
+		// is known without running anything, and the round is the agent's.
+		if out := redGate(cmd.Context(), in, root, changed, budget-time.Since(started)); out != nil {
+			if out.Decision == "block" {
+				return withSecretWarning(*out, note)
+			}
+			note = joinWarnings(note, out.SystemMessage)
+		}
+		resetStopBlocks(in.SessionID)
 		writeStopState(in.SessionID, "budget", fingerprint)
-		return stopHookOutput{SystemMessage: "auto verify stop: " + describeSkips(skipped) +
-			"; nothing failed within the budget, so the stop is not blocked. Run the rest with a longer " +
-			"-timeout (or leave it to CI) before calling the change verified"}
+		return withSecretWarning(followupRound(cmd, in, root, followup, true), note)
 	}
 	if failure == nil && len(skipped) > 0 {
 		// Nothing failed, but not everything ran: that is the machine, not
@@ -172,7 +181,7 @@ func verifyChanged(cmd *cobra.Command, in stopHookInput, root string, changed []
 		writeStopState(in.SessionID, "pass", fingerprint)
 		return followupRound(cmd, in, root, followup, true)
 	}
-	summary := fmt.Sprintf("Verification failed: `%s` (%s).\n%s", strings.Join(failure.Step.Argv, " "), failure.Reason, failure.Output)
+	summary := fmt.Sprintf("Verification failed: `%s` (%s).\n%s", shortCommand(failure.Step.Argv), failure.Reason, failure.Output)
 	if countStopBlock(in.SessionID) > verifyStopMaxBlocks {
 		return stopHookOutput{SystemMessage: fmt.Sprintf("auto verify stop: still failing after %d attempts; ending without a passing build. %s",
 			verifyStopMaxBlocks, firstLine(summary))}
@@ -253,4 +262,15 @@ func describeSkips(skipped []verifygate.Skip) string {
 func firstLine(s string) string {
 	line, _, _ := strings.Cut(s, "\n")
 	return line
+}
+
+// shortCommand renders argv for a message, eliding a long middle such as a
+// -run pattern of many test names.
+func shortCommand(argv []string) string {
+	const max = 300
+	line := strings.Join(argv, " ")
+	if len(line) <= max {
+		return line
+	}
+	return strings.ToValidUTF8(line[:max/2], "") + " … " + strings.ToValidUTF8(line[len(line)-max/2:], "")
 }

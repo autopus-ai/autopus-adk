@@ -11,28 +11,37 @@ import (
 	"strings"
 )
 
-// goSteps builds the module, runs the tests the change edited, then runs
-// the changed packages whole. A large package (one CI splits into shards)
-// can outlast the budget, compiling its test binary included, so both test
-// steps are BudgetBound: a failure seen in time blocks, running out of time
-// without one skips instead of blocking every stop. The changed tests run
-// first so their verdict arrives inside the budget, but with at most half of
-// it: a slow new test must not keep the whole package from running.
-func goSteps(root string, changed []string) []Step {
+// goSteps returns the Go steps that run first, the build and the tests the
+// change edited, and the whole changed packages, which Plan runs after every
+// other toolchain. A large package (one CI splits into shards) can outlast
+// the budget, compiling its test binary included, so both test steps are
+// BudgetBound: a failure seen in time blocks, running out of time without
+// one skips instead of blocking every stop. The changed tests get at most
+// half the budget, so a slow new test cannot keep the package from running;
+// the whole-package step runs them again, so their share running out leaves
+// nothing unchecked.
+func goSteps(root string, changed []string) (first, whole []Step) {
 	pkgs := goPackages(root, changed)
 	if len(pkgs) == 0 {
-		return nil
+		return nil, nil
 	}
-	steps := []Step{{Name: "go build", Argv: []string{"go", "build", "./..."}, Dir: root}}
-	if names, testPkgs := changedGoTests(root, changed); len(names) > 0 {
-		steps = append(steps, Step{Name: "go test (changed tests)",
-			Argv: append([]string{"go", "test", "-json", "-run", "^(" + strings.Join(names, "|") + ")$"}, testPkgs...),
-			Dir:  root, GoTestJSON: true, BudgetBound: true, Share: 0.5})
+	first = []Step{{Name: "go build", Argv: []string{"go", "build", "./..."}, Dir: root}}
+	names, testPkgs := changedGoTests(root, changed)
+	if pattern := "^(" + strings.Join(names, "|") + ")$"; len(names) > 0 && len(pattern) <= maxRunPattern {
+		first = append(first, Step{Name: "go test (changed tests)",
+			Argv: append([]string{"go", "test", "-json", "-run", pattern}, testPkgs...),
+			Dir:  root, GoTestJSON: true, BudgetBound: true, Share: 0.5, CoveredLater: true})
 	}
-	steps = append(steps, Step{Name: "go test", Argv: append([]string{"go", "test", "-json"}, pkgs...), Dir: root,
-		GoTestJSON: true, BudgetBound: true})
-	return steps
+	whole = []Step{{Name: "go test", Argv: append([]string{"go", "test", "-json"}, pkgs...), Dir: root,
+		GoTestJSON: true, BudgetBound: true}}
+	return first, whole
 }
+
+// maxRunPattern bounds the -run argument: one argument may not exceed 128
+// KiB on Linux and a whole command line 32 KiB on Windows. A change that
+// touches more tests than fit (a module rename) skips straight to the whole
+// packages, which run the same tests.
+const maxRunPattern = 4096
 
 var goTestName = regexp.MustCompile(`^Test([A-Z0-9_].*)?$`)
 
