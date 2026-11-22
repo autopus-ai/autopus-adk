@@ -2,7 +2,6 @@ package codex
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -156,12 +155,8 @@ func ensureCodexSkillFrontmatter(targetPath, name, description, body string) str
 
 // logTransformReport prints a summary of skill transformation results.
 func logTransformReport(report *pkgcontent.TransformReport) {
-	summary := pkgcontent.FormatTransformReport(report)
-	if summary == "" {
-		return
-	}
 	// Diagnostics go to stderr so JSON consumers reading stdout stay parseable.
-	fmt.Fprintln(os.Stderr, summary)
+	pkgcontent.PrintDiagnosticOnce(pkgcontent.FormatTransformReport(report))
 }
 
 func skillCompilerExplicitlySelects(cfg *config.HarnessConfig, name string) bool {

@@ -15,6 +15,7 @@
 
 - UserPromptSubmit에 `Disk alert:`가 붙었을 때
 - PreToolUse 디스크 게이트가 명령을 막고 `Disk gate:` 사유를 돌려줬을 때
+- 같은 hook이 CPU 게이트로 명령을 막고 `CPU gate:` 사유를 돌려줬을 때(아래 "CPU 게이트")
 - 빌드나 테스트가 ENOSPC, `No space left on device`, `disk quota exceeded`로 실패했을 때
 - 작업을 시작하기 전에 큰 빌드, 새 worktree, 병렬 에이전트가 필요할 때
 
@@ -140,3 +141,20 @@ hooks:
 끄려면 `hooks.disk_gate: false` 또는 `AUTOPUS_DISK_GATE=off`를 씁니다. OMP에는 PreToolUse hook이 없어서
 게이트가 적용되지 않습니다. Codex, Gemini, OpenCode, Antigravity에도 아직 등록하지 않습니다. 그
 플랫폼에서는 무거운 작업 전에 `auto disk check`를 직접 실행합니다.
+
+## CPU 게이트
+
+여러 세션이 함께 쓰는 기계에서는 `AUTOPUS_CPU_GATE=on`(기본 꺼짐)으로 같은 hook이 CPU도 봅니다. CPU lease가
+돌거나 기다리는 동안 load가 lease의 입장 기준(`disk.lease.max_load_ratio` × 논리 CPU)을 넘으면, lease 밖에서
+CPU를 쓰는 명령(컴파일·테스트, 린터·타입 검사기·테스트 러너, `auto qa run` 같은 스위트 실행)을 막습니다. CPU
+lease도 대기자도 없으면 load가 높아도 통과시킵니다. `CPU gate:` 사유를 받으면 다음 순서로 합니다.
+
+1. 같은 명령을 `auto disk lease --cpu 4 -- <command>`로 다시 실행합니다. `&&`나 `|`가 든 명령은
+   `auto disk lease --cpu 4 -- bash -c '<command>'`로 감쌉니다.
+2. lease는 자리와 load를 기다리느라 Bash 도구의 기본 제한 시간 2분을 넘길 수 있습니다. `run_in_background`나
+   긴 timeout으로 실행합니다.
+3. 종료 코드 3은 대기 시간(`disk.lease.wait_minutes`)이 끝나 명령이 돌지 않았다는 뜻입니다. 잠시 뒤 다시
+   시도합니다.
+
+설정 키 `hooks.cpu_gate: true`도 쓸 수 있지만 환경 변수가 이깁니다. 이 키를 모르는 오래된 `auto`는 키가 든
+`autopus.yaml`을 거부하므로, 그 파일을 읽는 모든 `auto`가 새 버전이 된 뒤에만 씁니다.

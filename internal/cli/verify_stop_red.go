@@ -36,10 +36,15 @@ func redGate(ctx context.Context, in stopHookInput, root string, changed []strin
 	if !tddEnforced(root) || tddExempt.MatchString(in.LastAssistantMessage) {
 		return nil
 	}
-	if budget < minRedBudget {
-		return &stopHookOutput{SystemMessage: "auto verify stop: no time left to run the changed tests against the code before the change; test-first was not checked"}
+	// A missing test is known without running anything, so it is judged
+	// even when the build and tests spent the whole budget.
+	res, decided := verifygate.PrecheckRed(changed)
+	if !decided {
+		if budget < minRedBudget {
+			return &stopHookOutput{SystemMessage: "auto verify stop: no time left to run the changed tests against the code before the change; test-first was not checked"}
+		}
+		res = verifygate.CheckRed(ctx, root, changed, budget)
 	}
-	res := verifygate.CheckRed(ctx, root, changed, budget)
 	var reason string
 	switch res.Verdict {
 	case verifygate.RedNotApplicable, verifygate.RedProven:

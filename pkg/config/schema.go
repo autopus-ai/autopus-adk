@@ -194,6 +194,11 @@ type HooksConf struct {
 	// VerifyStop registers the Claude Code Stop hook that builds and tests the
 	// changed files before a session ends. Read it through IsVerifyStopEnabled.
 	VerifyStop *bool `yaml:"verify_stop,omitempty"`
+	// VerifyStopBudget is the Stop hook's verification budget, a Go duration
+	// such as "15m". Read it through VerifyStopBudgetDuration; unset is
+	// DefaultVerifyStopBudget and is never written, so older binaries that
+	// reject unknown keys keep loading a default config.
+	VerifyStopBudget string `yaml:"verify_stop_budget,omitempty"`
 	// LanguageStop registers the Claude Code Stop hook that sends a reply
 	// back when it is not in language.ai_responses. Read it through
 	// IsLanguageStopEnabled.
@@ -205,6 +210,13 @@ type HooksConf struct {
 	// shell commands while free space is below disk.min_free_gb. Read it
 	// through IsDiskGateEnabled.
 	DiskGate *DiskGateConf `yaml:"disk_gate,omitempty"`
+	// CPUGate lets the disk gate hook also deny heavy shell commands started
+	// outside a lease while the machine's load is above the lease limit. It
+	// is off unless set: it pays off on a machine shared by several sessions.
+	// AUTOPUS_CPU_GATE=on|off overrides it per machine and is the preferred
+	// switch, because an auto binary that predates this key refuses a config
+	// carrying it. Read it through IsCPUGateEnabled.
+	CPUGate *bool `yaml:"cpu_gate,omitempty"`
 	// VersionStop lets `auto verify stop` send a session back once when its
 	// changes add or bump a dependency, toolchain or image pin a full release
 	// line behind the latest stable. Read it through IsVersionStopEnabled.
@@ -302,6 +314,9 @@ func (c *HarnessConfig) Validate() error {
 		return err
 	}
 	if err := c.Hooks.VersionStop.validate(); err != nil {
+		return err
+	}
+	if _, err := c.Hooks.VerifyStopBudgetDuration(); err != nil {
 		return err
 	}
 	return c.Disk.Validate()

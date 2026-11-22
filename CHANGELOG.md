@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **예산보다 긴 Go 패키지가 Stop hook을 매번 막지 않고, 끝나지 않은 테스트를 통과로 보고하지 않는다** (2026-11-22):
+  - 예산 안에 실패가 없고 테스트가 계속 끝나는 스위트는 막지 않는다. 같은 트리는 다시 돌리지 않고 노트만 다시 보낸다.
+    검증 라운드는 "tests did not finish within the budget"라고 말한다.
+  - 마지막 단계 창의 절반 동안 진척이 없는 테스트나 패키지는 hang 의심으로 트리마다 한 번만 막는다. 가장 오래 멈춘 것을
+    먼저 보여 준다. 같은 트리의 다음 stop은 막지 않고, 통과로 기록하지 않는다. 끝난 테스트가 없는 패키지, 취소(SIGINT/SIGTERM),
+    확인하지 못한 test-first도 기록하지 않는다.
+  - 새 설정 키 `hooks.verify_stop_budget`(1m~30m, 기본 8m): `auto update`가 Claude Code hook과 omp extension에 `--budget`으로
+    넘기고, timeout(예산 + 90초, 최소 600초)도 함께 옮긴다. 다음 세션부터 적용된다. `--budget` 없이 실행된 게이트는 이 키로
+    예산을 줄이기만 한다. 이 키를 모르는 예전 `auto`는 `autopus.yaml`을 읽지 못하므로, 키를 쓰기 전에 그 파일을 읽는 모든
+    기계의 `auto`를 올린다.
+- **공유 기계에서 lease 밖의 무거운 명령을 load로 막는 CPU gate** (2026-11-20): 기본 꺼짐. 기계 단위 환경 변수
+  `AUTOPUS_CPU_GATE=on`으로 켜는 것을 권한다. 설정 키 `hooks.cpu_gate: true`도 쓸 수 있지만(환경 변수가 이긴다), 이 키를
+  모르는 오래된 `auto`는 키가 든 `autopus.yaml`을 거부하므로 그 파일을 읽는 모든 `auto`가 새 버전일 때만 쓴다. 켜면 disk
+  gate hook이, CPU lease가 돌거나 기다리는 동안 lease의 입장 검사가 대기자를 세울 상황이면 CPU lease 밖에서 CPU를 쓰는
+  명령을 막고 `auto disk lease --cpu N -- <command>`로 안내한다. CPU lease도 대기자도 없으면 load가 높아도 통과시킨다.
+  입장 검사는 1분 load에 최근 grant 몫을 더한 값을 `disk.lease.max_load_ratio` × 논리 CPU와 비교한다. 막는 명령은
+  컴파일·테스트, 린터·타입 검사기·테스트 러너, 스위트를 돌리는 `auto qa`·`auto checklist run`·`auto workflow gate`,
+  `--cpu` 없는 lease이다. 패키지 설치, `npx playwright install`, checkout은 막지 않고 here-document 본문은 명령으로 읽지
+  않는다. 설정은 cwd에서 위로 가장 가까운 `autopus.yaml`에서 읽는다. `cpu_gate`만 켜도 hook이 등록되고,
+  `disk_gate: false`면 디스크 검사만 빠진다.
+
 - **릴리스 전 리뷰에서 나온 교훈 순환과 낡은 하네스 경고의 결함을 고친다** (2026-11-18):
   - 낡은 하네스 경고: manifest를 실제로 쓰는 경로가 생성 버전을 기록하지 않아, 릴리스 빌드에서는 `auto update` 뒤에도 경고가 사라지지
     않을 뻔했다. manifest는 일반 파일만 상한을 두고 읽고, `0.51.8-3-g…` 같은 빌드는 비교하지 않는다.

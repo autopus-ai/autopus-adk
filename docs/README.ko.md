@@ -168,6 +168,15 @@ PR 크기로는 기능 추가와 버그 수정이 충분히 갈리지 않아 기
 | 자격 증명 확인만 끄기 | `hooks.secret_stop: false`, 또는 `AUTOPUS_SECRET_STOP=off` |
 | 버전 확인만 끄기 | `hooks.version_stop: false`, 또는 `AUTOPUS_VERSION_STOP=off`. N 라인까지 허용하려면 `hooks.version_stop: {max_major_behind: N}` |
 | 검증 라운드만 끄기 | `AUTOPUS_FOLLOWUP=off`(예: `.claude/settings.json`의 `env` 블록) |
+| 게이트에 시간을 더 주기 | `hooks.verify_stop_budget: 15m`(1m~30m, 기본 8m)을 두고 `auto update`. Claude Code hook과 omp extension이 이 값을 `--budget`으로 넘기고, timeout(예산 + 90초, 최소 600초)도 따라갑니다. Claude Code는 세션을 시작할 때 hook을 읽으므로 다음 세션부터 적용됩니다. `--budget` 없이 실행되면 게이트는 이 키로 예산을 줄이기만 합니다. 예전 `auto`는 이 키를 거부하므로 이 파일을 읽는 모든 기계를 먼저 올리세요 |
+
+**시간이 모자랄 때.** 예산을 넘긴 스위트는 테스트가 계속 끝나고 실패가 없으면 막지 않습니다. 그 트리는 끝나지 않은 것으로
+기록하고, 통과로 기록하지 않습니다. 마지막 단계 창의 절반 동안 진척이 없는 테스트나 패키지는 hang 의심입니다. 교착이나
+끝없이 기다리는 `TestMain`일 수도, 그냥 느린 테스트일 수도 있습니다. 밖에서 보면 둘이 같기 때문입니다. hang 의심은 트리마다
+한 번만 막고, 가장 오래 멈춘 테스트를 먼저 보여 줍니다. 같은 트리에서 다시 stop하면 노트만 남기고 세션을 끝내며, 그 트리는
+검증되지 않은 채로 남습니다. 내용을 고치면 다시 막습니다. 느린 테스트가 이번 변경이 고친 테스트이면 바뀐 테스트가 먼저
+돌아 마지막 단계는 예산의 절반 정도만 받습니다. 설정 파일의 `--budget`을 손으로 고치면 `auto update`가 hook을 다시 써서
+되돌립니다.
 
 **응답 언어 확인.** `language.ai_responses`가 `ko`·`ja`·`zh`이면 `auto update`가 Stop hook
 `auto verify language`도 등록합니다. 그 턴에 쓴 응답의 산문(코드 블록·인라인 코드·URL 제외)이 그 언어로 쓰이지
@@ -430,6 +439,7 @@ architecture:
 
 hooks:
   verify_stop: true     # Claude Code Stop hook (없으면 켜짐)
+  verify_stop_budget: 8m # Stop hook 검증 예산, 1m~30m (없으면 8m)
   secret_stop: true     # Stop hook 안의 자격 증명 확인 (없으면 켜짐)
   version_stop: true    # Stop hook 안의 버전 확인. {max_major_behind: N}도 가능 (없으면 켜짐, N=0)
   language_stop: true   # 응답 언어 Stop hook (없으면 켜짐, ai_responses가 ko·ja·zh일 때만)
@@ -568,6 +578,28 @@ status는 이 표본으로 소비자를 증가량 순서로 보여 주고(예: `
 기본으로 막지 않습니다. 무거운 대상은 `hooks.disk_gate.extra_commands: ["make release"]`로 더합니다. 끄려면
 `hooks.disk_gate: false` 또는 `AUTOPUS_DISK_GATE=off`를 씁니다. OMP에는 pre-tool hook이 없고, 다른 플랫폼에는
 아직 게이트를 등록하지 않습니다. 그 플랫폼에서는 무거운 단계 전에 `auto disk check`를 실행합니다.
+
+여러 세션이 함께 쓰는 기계에서는 `AUTOPUS_CPU_GATE=on`(기본 꺼짐)으로 같은 hook이 CPU도 봅니다. CPU lease가
+돌거나 기다리는 동안 lease 자신의 입장 검사가 대기자를 세울 상황이면, CPU lease 밖에서 CPU를 쓰는 명령을 막고
+`auto disk lease --cpu N -- <command>`를 안내합니다. 그 상황은 1분 load에 아직 평균에 드러나지 않은 최근 grant를
+더한 값이 `disk.lease.max_load_ratio` × 논리 CPU를 넘는 때입니다. CPU lease도 대기자도 없으면 통과시킵니다.
+그때의 load는 lease 밖에서 온 것이라 줄을 세워도 줄지 않기 때문입니다. 막는 명령은 다음과 같습니다.
+
+- 컴파일과 테스트
+- 린터, 타입 검사기, 테스트 러너: eslint, vitest, jest, tsc, pytest, mypy, playwright test, go vet,
+  golangci-lint, cargo clippy와 nextest, turbo, lint/typecheck/test script
+- 스위트를 돌리는 `auto` 단계: `auto qa exec|run|loop|mutate`, `auto checklist run`, `auto workflow gate`
+- `--cpu` 없는 `auto disk lease`
+
+패키지 설치, `npx playwright install`, `git worktree add`는 통과하고, here-document 본문은 명령이 아니라 데이터로
+읽습니다. lease로 감싼 단계는 Bash 도구의 기본 제한 시간 2분보다 오래 기다릴 수 있으니 백그라운드나 긴 timeout으로
+실행합니다. 종료 코드 3은 대기 시간이 끝났다는 뜻입니다.
+
+모든 세션이 물려받는 곳에 환경 변수를 두는 방법을 권합니다. 설정 키 `hooks.cpu_gate: true`도 동작하고 환경 변수가
+있으면 환경 변수가 이깁니다. 다만 이 키보다 오래된 `auto`는 키가 든 `autopus.yaml`을 거부하므로, 그 파일을 읽는 모든
+`auto`가 새 버전이 된 뒤에만 키를 씁니다. 게이트는 disk gate hook 안에서 돌기 때문에 `hooks.cpu_gate` 없이
+`hooks.disk_gate: false`만 두면 환경 변수가 동작할 hook이 없습니다. 설정은 세션 cwd에서 위로 가장 가까운
+`autopus.yaml`에서 읽습니다. `AUTOPUS_DISK_GATE=off`는 두 검사를 모두 끕니다.
 
 **회수.** `--apply`를 주지 않으면 모두 dry run이고, 심볼릭 링크는 따라가지 않으며, 스캔 뒤에 바뀐 항목은
 건너뜁니다. `auto disk reclaim`이 지우는 것:

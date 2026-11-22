@@ -6,29 +6,44 @@ import (
 	"strings"
 )
 
+// nodeFlagsWithValue are package-manager options followed by a value.
+var nodeFlagsWithValue = []string{"--prefix", "-C", "--dir", "--filter", "-F", "--cwd", "-w", "--workspace"}
+
+// nodeArgs drops `yarn workspace <name>`, which runs the rest in one
+// workspace, so `yarn workspace web test` reads as `yarn test`.
+func nodeArgs(name string, args []string) []string {
+	if name != "yarn" {
+		return args
+	}
+	if sub, rest := subcommand(args, nodeFlagsWithValue...); sub == "workspace" && len(rest) > 1 {
+		return rest[1:]
+	}
+	return args
+}
+
 // nodeStep classifies npm, pnpm, yarn, and bun: installs, tests, and build
-// scripts.
-func nodeStep(name string, args []string) string {
-	sub, rest := subcommand(args, "--prefix", "-C", "--dir", "--filter", "-F", "--cwd", "-w", "--workspace")
+// scripts. Installs and adds wait on the network and disk; tests, rebuilds,
+// and builds load the CPU.
+func nodeStep(name string, args []string) step {
+	sub, rest := subcommand(nodeArgs(name, args), nodeFlagsWithValue...)
 	if sub == "" {
 		if name == "yarn" {
-			return "yarn install"
+			return ioKind("yarn install")
 		}
-		return ""
+		return step{}
 	}
-	installs := []string{"install", "i", "ci", "add", "test", "t", "rebuild"}
-	if name != "npm" {
-		installs = append(installs, "build")
+	if slices.Contains([]string{"install", "i", "ci", "add"}, sub) {
+		return ioKind(name + " " + sub)
 	}
-	if slices.Contains(installs, sub) {
-		return name + " " + sub
+	if slices.Contains([]string{"test", "t", "rebuild"}, sub) || (name != "npm" && sub == "build") {
+		return cpuKind(name + " " + sub)
 	}
 	if sub == "run" || sub == "run-script" {
 		if script, _ := subcommand(rest); strings.HasPrefix(script, "build") || strings.HasPrefix(script, "test") {
-			return name + " run " + script
+			return cpuKind(name + " run " + script)
 		}
 	}
-	return ""
+	return step{}
 }
 
 // pythonStep classifies package installs and environment syncs: pip

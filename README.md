@@ -153,6 +153,16 @@ justify that, so the line stays at 40.
 | Turn off only the credential check | `hooks.secret_stop: false`, or `AUTOPUS_SECRET_STOP=off` |
 | Turn off only the version check | `hooks.version_stop: false`, or `AUTOPUS_VERSION_STOP=off`; allow N lines behind with `hooks.version_stop: {max_major_behind: N}` |
 | Turn off only the verification round | `AUTOPUS_FOLLOWUP=off` (for example in the `env` block of `.claude/settings.json`) |
+| Give the gate more time | `hooks.verify_stop_budget: 15m` (1m-30m, default 8m), then `auto update`: the Claude Code hook and the omp extension pass it as `--budget`, and their timeouts (budget + 90s, at least 600s) follow it. Claude Code reads hooks when a session starts, so it applies from the next session. Without `--budget` the gate only ever lowers its budget from the key. Older `auto` binaries reject the key, so upgrade every machine that loads the file first |
+
+**Running out of time.** A suite that outlasts the budget with tests still finishing and none failed
+does not block; the tree is recorded as unfinished, never as passed. A test, or a whole package, with
+no progress for half of the final step's window is a suspected hang (a deadlock, a `TestMain` waiting
+forever, or just a slow test: from outside they look the same). A suspected hang blocks once per tree,
+naming the longest-idle tests first; stopping again on the same tree lets the session end with the
+note and leaves the tree unverified, and any edit re-arms the block. When the slow test is one the
+change edited, the changed tests run first and the final step gets about half the budget. Editing
+`--budget` in the settings file by hand does not last: `auto update` rewrites the hook.
 
 The Stop hook runs in Claude Code and, through its extension, in omp; set `AUTOPUS_FOLLOWUP=off`
 in the environment omp starts in to turn the round off there. On the other platforms, run
@@ -406,6 +416,7 @@ architecture:
 
 hooks:
   verify_stop: true     # Claude Code Stop hook (default on when unset)
+  verify_stop_budget: 8m # Stop hook verification budget, 1m-30m (default 8m when unset)
   secret_stop: true     # credential check inside the Stop hook (default on when unset)
   version_stop: true    # version check inside the Stop hook; or {max_major_behind: N} (default on, N=0)
   pre_commit_lore: true # Lore commit-msg hook
@@ -549,6 +560,26 @@ too. Every `auto` command passes, so `auto disk lease -- <command>` is how heavy
 is not matched by default; add heavy targets with `hooks.disk_gate.extra_commands: ["make release"]`.
 Turn the gate off with `hooks.disk_gate: false` or `AUTOPUS_DISK_GATE=off`. OMP has no pre-tool hook, and
 the other platforms do not register the gate yet; run `auto disk check` before heavy steps there.
+
+On a machine several sessions share, `AUTOPUS_CPU_GATE=on` (off by default) makes the same hook gate on
+CPU too. While a CPU lease runs or waits and the lease's own admission check would hold a waiter (the
+1-minute load plus recent grants the average does not show yet, above `disk.lease.max_load_ratio` × the
+logical CPUs), it denies commands that load the CPU outside a CPU lease and points the agent at
+`auto disk lease --cpu N -- <command>`. With no CPU lease and no waiter it allows: that load comes from
+outside the lease system, and queueing cannot reduce it. That covers compiles and tests, linters, type
+checkers, and test runners (eslint, vitest, jest, tsc, pytest, mypy, playwright test, go vet,
+golangci-lint, cargo clippy and nextest, turbo and lint/typecheck/test scripts), the `auto` steps that run
+suites (`auto qa exec|run|loop|mutate`, `auto checklist run`, `auto workflow gate`), and `auto disk lease`
+without `--cpu`; package installs, `npx playwright install`, and `git worktree add` pass, and a
+here-document body is data, not a command. A leased step can queue past the Bash tool's 2-minute default
+timeout, so run it in the background or with a long timeout; exit 3 means the wait expired.
+
+Prefer the environment variable, set where every session inherits it: the config key `hooks.cpu_gate: true`
+works too (the variable wins when set), but an `auto` binary older than the key refuses an `autopus.yaml`
+that carries it, so set the key only once every `auto` that reads the file is new enough. The gate runs
+inside the disk gate hook, so `hooks.disk_gate: false` without `hooks.cpu_gate` leaves no hook for the
+variable to act in. The config is read from the nearest `autopus.yaml` at or above the session's cwd.
+`AUTOPUS_DISK_GATE=off` turns both checks off.
 
 **Reclaim.** Everything is a dry run unless `--apply` is given, symlinks are never followed, and anything
 that changed since the scan is skipped. `auto disk reclaim` removes:

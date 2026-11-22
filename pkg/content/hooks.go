@@ -2,6 +2,7 @@ package content
 
 import (
 	"os"
+	"time"
 
 	"github.com/insajin/autopus-adk/pkg/adapter"
 	"github.com/insajin/autopus-adk/pkg/config"
@@ -71,7 +72,10 @@ func generateCLIHooks(cfg config.HooksConf, platform string) ([]adapter.HookConf
 		hooks = appendEditGuardHook(hooks, platform)
 	}
 
-	if cfg.IsDiskGateEnabled() {
+	// One hook serves both checks: hooks.cpu_gate alone still needs it. The
+	// AUTOPUS_CPU_GATE switch is read when the hook runs, so it acts through
+	// this same hook, which disk_gate's default-on registers.
+	if cfg.IsDiskGateEnabled() || cfg.IsCPUGateEnabled() {
 		hooks = appendDiskGateHook(hooks, platform)
 	}
 
@@ -106,12 +110,26 @@ func generateCLIHooks(cfg config.HooksConf, platform string) ([]adapter.HookConf
 const verifyStopCommand = "auto verify stop"
 
 // generateVerifyStopHook registers the verification gate on Claude Code's
-// Stop event. The timeout covers the command's own default budget.
+// Stop event. A set hooks.verify_stop_budget becomes the command's --budget,
+// and the hook timeout follows it (config.VerifyStopHookTimeout), so a larger
+// budget is not killed by Claude Code before it returns a verdict. Unset
+// keeps the bare command and the 600s timeout it always had.
 func generateVerifyStopHook(cfg config.HooksConf, platform string) []adapter.HookConfig {
 	if (platform != "claude" && platform != "claude-code") || !cfg.IsVerifyStopEnabled() {
 		return nil
 	}
-	return []adapter.HookConfig{{Event: "Stop", Type: "command", Command: verifyStopCommand, Timeout: 600}}
+	budget, err := cfg.VerifyStopBudgetDuration()
+	if err != nil {
+		budget = config.DefaultVerifyStopBudget
+	}
+	command := verifyStopCommand
+	if cfg.VerifyStopBudget != "" && err == nil {
+		// Explicit whenever the key is set: the gate alone may only lower a
+		// budget it is not given, so the timeout and budget move together.
+		command += " --budget " + budget.String()
+	}
+	timeout := int(config.VerifyStopHookTimeout(budget) / time.Second)
+	return []adapter.HookConfig{{Event: "Stop", Type: "command", Command: command, Timeout: timeout}}
 }
 
 // languageStopCommand is the Stop hook that sends a reply back when it is not

@@ -171,7 +171,8 @@ func TestRunDoctorText_ContextWeight_NonBlocking(t *testing.T) {
 	}
 	verdict := func(out string) string {
 		for _, line := range strings.Split(out, "\n") {
-			if strings.Contains(line, "All checks passed") || strings.Contains(line, "Issues found") {
+			if strings.Contains(line, "All checks passed") || strings.Contains(line, "Issues found") ||
+				strings.Contains(line, "Warnings found") {
 				return strings.TrimSpace(line)
 			}
 		}

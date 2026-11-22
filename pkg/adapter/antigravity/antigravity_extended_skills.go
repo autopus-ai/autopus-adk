@@ -2,7 +2,6 @@ package antigravity
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"github.com/insajin/autopus-adk/content"
@@ -55,10 +54,6 @@ func (a *Adapter) renderExtendedSkills(cfg *config.HarnessConfig) ([]adapter.Fil
 
 // logTransformReport prints a summary of skill transformation results.
 func logTransformReport(report *pkgcontent.TransformReport) {
-	summary := pkgcontent.FormatTransformReport(report)
-	if summary == "" {
-		return
-	}
 	// Diagnostics go to stderr so JSON consumers reading stdout stay parseable.
-	fmt.Fprintln(os.Stderr, summary)
+	pkgcontent.PrintDiagnosticOnce(pkgcontent.FormatTransformReport(report))
 }
