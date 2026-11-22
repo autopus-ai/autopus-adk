@@ -20,39 +20,57 @@ var workflowSpecs = []string{":(glob)" + workflowsRel + "/*.yml", ":(glob)" + wo
 // --workflows-dir was given. The runs come from GitHub, so a checkout that
 // is only behind its remote default branch would lint files that no longer
 // run there: in that case it returns the remote branch's files. A checkout
-// with its own commits or uncommitted workflow edits keeps the local files,
-// with a note when they differ from the remote. It returns nil files when
-// the local checkout should be linted.
+// whose own commits or uncommitted edits touch the workflows keeps the local
+// files, with a note when they differ from the remote. It returns nil files
+// when the local checkout should be linted, and an empty non-nil map when the
+// remote default branch has no workflow files, so there is nothing to lint.
+//
+// The command is documented as read-only, so every git call here leaves
+// .git/index alone: a diff against the work tree and a plain status both
+// refresh and rewrite the index under its lock, which fails a concurrent
+// `git commit` in the same repository.
 func remoteWorkflows(top string) (map[string][]byte, string) {
 	ref, err := ciGit(top, "rev-parse", "--abbrev-ref", "origin/HEAD")
 	if err != nil || ref == "" || ref == "origin/HEAD" {
 		if _, err := ciGit(top, "remote", "get-url", "origin"); err != nil {
-			return nil, ""
+			if remotes, _ := ciGit(top, "remote"); remotes == "" {
+				return nil, ""
+			}
+			return nil, "the repository has no remote named origin, so the workflow lint read the local " +
+				"checkout without comparing it to the remote default branch"
 		}
-		// fetch never repairs a missing or dangling origin/HEAD, so say
-		// the comparison was skipped instead of linting a stale checkout
-		// silently.
 		return nil, "origin/HEAD does not resolve, so the workflow lint read the local checkout " +
-			"without comparing it to the remote default branch; `git remote set-head origin --auto` fixes this"
+			"without comparing it to the remote default branch; `git fetch origin` or " +
+			"`git remote set-head origin --auto` fixes this"
 	}
-	changed, err := ciGit(top, append([]string{"diff", "--name-only", ref, "--"}, workflowSpecs...)...)
+	// HEAD against ref compares two commits and never touches the index; the
+	// status below covers the work tree.
+	changed, err := ciGit(top, append([]string{"diff", "--name-only", "HEAD", ref, "--"}, workflowSpecs...)...)
 	if err != nil {
 		return nil, ""
 	}
-	dirty, errD := ciGit(top, append([]string{"status", "--porcelain", "--untracked-files=all", "--"}, workflowSpecs...)...)
+	dirty, errD := ciGit(top, append([]string{"--no-optional-locks", "status", "--porcelain",
+		"--untracked-files=all", "--"}, workflowSpecs...)...)
 	if changed == "" && (errD != nil || dirty == "") {
 		return nil, ""
 	}
-	ahead, errA := ciGit(top, "rev-list", "--count", ref+"..HEAD")
+	// Only local commits that touch the workflows make the checkout an edit
+	// in progress. Counting commits instead kept every feature branch, and
+	// every squash-merged [gone] branch, on its stale workflow files.
+	localEdits, errL := ciGit(top, append([]string{"diff", "--name-only", ref + "...HEAD", "--"}, workflowSpecs...)...)
 	behind, errB := ciGit(top, "rev-list", "--count", "HEAD.."+ref)
-	if errA != nil || errB != nil || errD != nil || ahead != "0" || dirty != "" {
+	if errL != nil || errB != nil || errD != nil || localEdits != "" || dirty != "" {
 		return nil, fmt.Sprintf("the workflow lint read the local %s, which differs from %s; "+
 			"findings may not match the workflows that ran", workflowsRel, ref)
 	}
 	files, err := gitWorkflowFiles(top, ref)
-	if err != nil || len(files) == 0 {
+	if err != nil {
 		return nil, fmt.Sprintf("the local %s is %s commits behind %s and its files could not be read; "+
 			"the lint read the stale checkout", workflowsRel, behind, ref)
+	}
+	if len(files) == 0 {
+		return map[string][]byte{}, fmt.Sprintf("%s has no workflow files in %s, so the workflow lint was skipped",
+			ref, workflowsRel)
 	}
 	return files, fmt.Sprintf("the checkout is %s commits behind %s, so the workflow lint read %s's %s",
 		behind, ref, ref, workflowsRel)
@@ -71,7 +89,8 @@ func gitWorkflowFiles(top, ref string) (map[string][]byte, error) {
 		// "<mode> blob <sha> <size>\t<path>"
 		meta, p, ok := strings.Cut(entry, "\t")
 		fields := strings.Fields(meta)
-		if !ok || len(fields) != 4 || fields[1] != "blob" {
+		// A symlink is a blob too; LoadWorkflows reads regular files only.
+		if !ok || len(fields) != 4 || fields[1] != "blob" || (fields[0] != "100644" && fields[0] != "100755") {
 			continue
 		}
 		if ext := path.Ext(p); ext != ".yml" && ext != ".yaml" {

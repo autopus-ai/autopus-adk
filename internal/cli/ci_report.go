@@ -164,6 +164,10 @@ func lintCheckout(r *cireport.Report, dir, top, origin, repo string, public *boo
 			}
 		}
 	}
+	if files != nil && len(files) == 0 {
+		// The remote default branch has no workflows; its note says so.
+		return nil
+	}
 	if files == nil {
 		files, err = cireport.LoadWorkflows(dir)
 	}

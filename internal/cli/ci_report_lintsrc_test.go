@@ -127,11 +127,10 @@ func TestLintCheckout_UpToDateHasNoNote(t *testing.T) {
 	clone, _ := staleCheckout(t)
 	gitRun(t, clone, "merge", "-q", "--ff-only", "origin/main")
 	var r cireport.Report
-	lintCheckout(&r, "", clone, "o/r", "o/r", nil)
-	for _, n := range r.Notes {
-		if strings.Contains(n, "origin/main") {
-			t.Fatalf("unexpected note %q", n)
-		}
+	public := true
+	lintCheckout(&r, "", clone, "o/r", "o/r", &public)
+	if len(r.Notes) != 0 {
+		t.Fatalf("an up-to-date checkout needs no note, got %q", r.Notes)
 	}
 }
 
