@@ -115,6 +115,7 @@ def run(ctx: dict, task: dict, arm: str, replicate: int) -> dict:
     trial = ctx['output'] / 'trials' / ('%s-%s-k%d' % (task['id'], arm, replicate))
     trial.mkdir(parents=True)
     plan = prepare(ctx, task, arm, trial)
+    source = ctx['sources'][task['heads']['base']]
     warm = execute_exact(plan['warm'], plan['work'], plan['env'], trial / 'warm.log', trial / 'warm.err', 1800)
     before = hashes(plan['work'])
     agent = execute_exact(plan['argv'], plan['work'], plan['env'], trial / 'events.jsonl', trial / 'stderr.log',
@@ -126,6 +127,8 @@ def run(ctx: dict, task: dict, arm: str, replicate: int) -> dict:
                    'agent_exit' if agent['exit_code'] else 'agent_error' if observation['is_error'] else None)
     row = {'task_id': task['id'], 'arm': arm, 'replicate': replicate, 'operational_error': operational,
            'warm': warm, 'agent': agent, 'observation': observation, 'scope': scope, 'oracle': graded,
-           'prompt_hash': digest(plan['prompt'].encode()), 'human_interventions': 0}
+           'prompt_hash': digest(plan['prompt'].encode()), 'human_interventions': 0,
+           'harness_revision': source['harness_revision'],
+           'surface_hash': source['generated']['surface_hash'] if arm != 'native' else None}
     (trial / 'result.json').write_text(json.dumps(row, indent=2))
     return row

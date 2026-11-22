@@ -433,11 +433,20 @@ stored result bytes.
 Design and gates: [harness-pilot-c-design.md](../../../docs/benchmarks/harness-pilot-c-design.md).
 Arms: `native` (no project harness), `instructions` (generated claude-code
 surface, `--settings` with `"disableAllHooks": true`) and `full` (the same
-surface, generated hooks as-is). The surface comes from the trial base
-revision's own `auto`: `go build ./cmd/auto` from the snapshot, then
+surface, generated hooks as-is). The harness under test and the code a task
+starts from are separate inputs: `auto` is built from a snapshot of
+`--harness-revision` (default `origin/main`, resolved to a SHA at run start
+and recorded in the protocol and in every trial record with the surface
+hash), and generates into a copy of the task's `base` checkout with
 `auto init --platforms claude-code --yes`, `hooks.language_stop: false`,
-`auto update`. That binary is first on the agent's PATH, so the generated
-hooks call it. Every arm gets the same `--model` and `--effort`,
+`auto update`. The task code stays at its base. That binary is first on the
+agent's PATH, so the generated hooks call it.
+
+Run pilot C only after #348 (the `auto verify stop` time budget for large Go
+packages) is on main, or pass `--harness-revision` at the #348 head. Before
+it, a change under `internal/cli` (~32 min of tests) blocks every stop, and
+c01 and c02 both change `internal/cli`, so the `full` arm would measure that
+bug as timeouts. Every arm gets the same `--model` and `--effort`,
 `--permission-mode bypassPermissions`, `--setting-sources project`,
 `--strict-mcp-config`, `--no-session-persistence`, a 1800 s deadline with a
 process-group kill, and a fresh checkout with its own Git history.
@@ -457,7 +466,7 @@ python3 scripts/benchmarks/harness/run_c.py --repo "$PWD" --output /absolute/new
   --model opus --effort high --dry-run
 # Real trials (spends quota). The token comes from `claude setup-token`, mode 0600.
 nohup python3 scripts/benchmarks/harness/run_c.py --repo "$PWD" --output /absolute/new/run \
-  --tasks c01,c02 --model opus --effort high --timeout 1800 \
+  --tasks c01,c02 --harness-revision origin/main --model opus --effort high --timeout 1800 \
   --credential-file /absolute/token > /absolute/new/run.log 2>&1 &
 ```
 

@@ -1,4 +1,6 @@
 """Pilot C runner contracts: schedule, report, surface config edit and the deadline kill."""
+import os
+import subprocess
 import tempfile
 import time
 import unittest
@@ -30,6 +32,20 @@ class ScheduleTests(unittest.TestCase):
         plan = run_c.schedule([{'id': 'c01'}, {'id': 'c02'}], ('a', 'b', 'c'), 2)
         self.assertEqual([k for _, _, k in plan], [1] * 6 + [2] * 6)
         self.assertNotEqual([a for _, a, _ in plan[:3]], [a for _, a, _ in plan[6:9]])
+
+
+class RevisionTests(unittest.TestCase):
+    def test_harness_revision_resolves_to_a_commit_sha(self):
+        with tempfile.TemporaryDirectory() as d:
+            env = {'PATH': '/usr/bin:/bin', 'HOME': d, 'GIT_CONFIG_GLOBAL': os.devnull, 'GIT_AUTHOR_NAME': 't',
+                   'GIT_AUTHOR_EMAIL': 't@example.invalid', 'GIT_COMMITTER_NAME': 't',
+                   'GIT_COMMITTER_EMAIL': 't@example.invalid'}
+            for args in (['init', '-q', '-b', 'main'], ['commit', '-q', '--allow-empty', '-m', 'one']):
+                subprocess.run(['git', *args], cwd=d, env=env, check=True)
+            head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=d, env=env, text=True).strip()
+            self.assertEqual(run_c.resolve_revision(Path(d), 'main'), head)
+            with self.assertRaises(subprocess.CalledProcessError):
+                run_c.resolve_revision(Path(d), 'no-such-branch')
 
 
 class ReportTests(unittest.TestCase):

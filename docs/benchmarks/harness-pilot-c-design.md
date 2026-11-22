@@ -108,8 +108,11 @@ Command lines and the isolation boundary are in the
    `HOME`/`CLAUDE_CONFIG_DIR`, `claude -p --output-format stream-json
    --verbose --include-hook-events` argv, stream observation including
    Stop-hook blocks), `claude_agent.sb` (write and read confinement, keychain
-   denied), `surface_c.py` (the base revision's own `auto` generates the
-   claude-code surface with `hooks.language_stop: false`), `trial_c.py` and
+   denied), `surface_c.py` (`auto` built from `--harness-revision`, default
+   `origin/main` resolved to a SHA and recorded per trial, generates the
+   claude-code surface into the task's base checkout with
+   `hooks.language_stop: false`; the harness version and the task's code
+   revision are separate inputs), `trial_c.py` and
    `run_c.py` (serial schedule, deadline with process-group kill, grading,
    report, `--dry-run` without a model call). The login is never copied:
    the trial's only credential is a `claude setup-token` token or an API key
@@ -127,6 +130,12 @@ Command lines and the isolation boundary are in the
 3. The launch stays a maintainer `nohup` line, because an agent session's
    permission classifier may refuse `claude -p` and `go test` on generated
    trial checkouts.
+
+Run pilot C only after #348 is on main, or with `--harness-revision` at the
+#348 head. Before #348, `auto verify stop` blocks every stop after a change
+under `internal/cli`, whose tests take about 32 minutes. c01 and c02 both
+change `internal/cli`, so the `full` arm would measure that bug as timeouts,
+not the verification layer.
 
 Primary measure per arm: `review` cases passed. `feature` and `guard` cases
 are reported with it.

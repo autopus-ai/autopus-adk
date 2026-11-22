@@ -1,7 +1,9 @@
-"""Pilot C harness surface: the claude-code surface the trial base revision's own `auto` generates.
+"""Pilot C harness surface: the claude-code surface a pinned harness revision's `auto` generates.
 
-`auto` is built from the trial source snapshot, so the surface (instructions, skills, rules,
-settings and hook registrations) is what a user of that revision gets from `auto init`. The config
+`auto` is built from a snapshot of the harness revision (run_c.py --harness-revision), not from the
+task's base, and generates into a copy of the task's base checkout: the surface (instructions,
+skills, rules, settings and hook registrations) is what a user of that `auto` gets from `auto init`
+in that code. The config
 is the init default for claude-code with one pinned change: hooks.language_stop is false, because
 the prompts are English and a language retry would measure the policy, not verification.
 """

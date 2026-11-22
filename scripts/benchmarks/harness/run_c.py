@@ -82,21 +82,34 @@ def sha(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def resolve_revision(repo: Path, revision: str) -> str:
+    """The commit SHA a revision names in repo, resolved once at run start."""
+    return subprocess.check_output(['git', 'rev-parse', '--verify', '--end-of-options', revision + '^{commit}'],
+                                   cwd=repo, text=True).strip()
+
+
 def prepare_sources(ctx: dict, tasks: list, repo: Path) -> dict:
-    """Per distinct base: snapshot, `auto` built from it, and the surface it generates."""
+    """Build `auto` once from the harness revision, then per distinct task base: snapshot the code and
+    generate the surface into a copy of it with that binary. The harness under test and the code
+    revision a task starts from are separate inputs."""
     sources = {}
     ctx['tools'] = surface_c.link_tools(ctx['tools_dir'], ctx['tool_names'], ctx['base_env'].get('PATH', ''))
+    harness = ctx['harness_revision']
+    harness_root = ctx['output'] / 'harness' / harness[:12]
+    snapshot(repo, harness, harness_root / 'tree')
+    bin_dir = ctx['output'] / 'bin' / ('harness-' + harness[:12])
+    env = surface_c.generation_env(ctx['base_env'], harness_root / 'home', bin_dir, ctx['tools_dir'])
+    env.update(trial_c.go_env(harness_root, ctx['go_cache']))
+    surface_c.build_auto(harness_root / 'tree', bin_dir / 'auto', env)
     for base in sorted({task['heads']['base'] for task in tasks}):
         root = ctx['output'] / 'sources' / base[:12]
         tree = root / 'tree'
         snapshot(repo, base, tree)
-        bin_dir = ctx['output'] / 'bin' / base[:12]
         env = surface_c.generation_env(ctx['base_env'], root / 'home', bin_dir, ctx['tools_dir'])
         env.update(trial_c.go_env(root, ctx['go_cache']))
-        surface_c.build_auto(tree, bin_dir / 'auto', env)
         generated = surface_c.generate_surface(bin_dir / 'auto', tree, root, env)
         sources[base] = {'tree': tree, 'surface': root / 'surface', 'bin_dir': bin_dir, 'tools_dir': ctx['tools_dir'],
-                         'generated': generated}
+                         'generated': generated, 'harness_revision': harness}
     return sources
 
 
@@ -107,6 +120,8 @@ def main(argv=None) -> int:
     ap.add_argument('--tasks', default='', help='comma-separated task ids (default: all of corpus_c.json)')
     ap.add_argument('--arms', default=','.join(claude_agent.ARMS))
     ap.add_argument('--replicates', type=int, default=1)
+    ap.add_argument('--harness-revision', default='origin/main',
+                    help='revision whose auto generates the surface and runs the hooks (resolved to a SHA)')
     ap.add_argument('--model', required=True)
     ap.add_argument('--effort', default='high', choices=('low', 'medium', 'high', 'xhigh', 'max'))
     ap.add_argument('--timeout', type=int, default=1800, help='agent deadline in seconds per trial')
@@ -137,6 +152,7 @@ def main(argv=None) -> int:
            'account_home': str(Path.home()), 'credential_kind': args.credential_kind,
            'credential': claude_agent.read_credential(args.credential_file) if args.credential_file else 'DRY-RUN'}
     ctx['go_cache'].mkdir(exist_ok=True)
+    ctx['harness_revision'] = resolve_revision(repo, args.harness_revision)
     ctx['sources'] = prepare_sources(ctx, tasks, repo)
     plan = schedule(tasks, arms, args.replicates)
     if 'claude' not in ctx['tools']:
@@ -149,6 +165,7 @@ def main(argv=None) -> int:
                 'timeout_seconds': args.timeout, 'permission_mode': args.permission_mode, 'sandbox': ctx['sandbox'],
                 'credential_kind': args.credential_kind, 'claude_version': version, 'tools': ctx['tools'],
                 'go_version': subprocess.check_output(['go', 'version'], text=True).strip(),
+                'harness_revision': {'requested': args.harness_revision, 'sha': ctx['harness_revision']},
                 'surfaces': {b[:12]: {k: v for k, v in s['generated'].items() if k != 'manifest'}
                              for b, s in ctx['sources'].items()}, 'dry_run': args.dry_run}
     if args.dry_run:
