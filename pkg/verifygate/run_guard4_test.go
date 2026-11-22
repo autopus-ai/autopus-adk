@@ -50,7 +50,10 @@ func TestRun_DeadlockInABusyPackageIsSuspectedAndNamedFirst(t *testing.T) {
 
 	require.NotNil(t, failure, "skipped: %v", skipped)
 	assert.True(t, failure.Hung)
-	assert.True(t, strings.HasPrefix(failure.Reason, "m.TestDead "), failure.Reason)
+	// Named, not necessarily first: on a stalled runner other tests can tie
+	// TestDead's idle time, and a tie has no defined order. The ordering rule
+	// itself is pinned by TestSuspects_OrderedByIdleLongestFirst.
+	assert.Contains(t, failure.Reason, "m.TestDead (", failure.Reason)
 }
 
 // F3: a package-level fail that go prints after the step was killed is the

@@ -190,7 +190,9 @@ func TestVerifyStop_DeadlockInABusyPackageBlocksOnce(t *testing.T) {
 	got, _ := runStopWithin(t, dir, session, 45*time.Second)
 	assert.Equal(t, "block", got.Decision, got.SystemMessage)
 	evidence, _, _ := strings.Cut(got.Reason, "\n")
-	assert.Contains(t, evidence, "(stopgate.TestDead ", "the deadlocked test is named first")
+	// Named, not necessarily first: a stalled runner can tie other tests with
+	// TestDead's idle time (ordering is pinned by a pkg/verifygate unit test).
+	assert.Contains(t, evidence, "stopgate.TestDead (", "the deadlocked test is named")
 	assertSuspicionBlocksOnce(t, dir, session, 45*time.Second)
 }
 
