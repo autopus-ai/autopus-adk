@@ -72,7 +72,7 @@ func TestLearnRecord_EvidenceFlags_StoredInEntry(t *testing.T) {
 	require.NoError(t, err)
 
 	got := storeLine(t, path, 3)
-	assert.Equal(t, "L-004", got["id"])
+	assert.Regexp(t, `^L-004-[0-9a-f]{6}$`, got["id"])
 	assert.Equal(t, "hooks.json lists the guard", got["expected"])
 	assert.Equal(t, "hooks.json is empty", got["actual"])
 	assert.Equal(t, "auto init", got["repro"])

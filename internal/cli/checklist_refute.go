@@ -59,7 +59,7 @@ func defaultChecklistAsker(root string) checklist.Asker {
 func newChecklistRefuteCmd() *cobra.Command {
 	var all bool
 	cmd := &cobra.Command{
-		Use:   "refute [CHK-NNN]",
+		Use:   "refute [CHK-NNN[-xxxxxx]]",
 		Short: "Ask a provider other than the drafter to refute pending candidates",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

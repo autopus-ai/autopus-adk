@@ -59,7 +59,7 @@ func Reject(root, id string, now time.Time) error {
 // retired a retirement. Both are a person's decision.
 func SetMode(root, id string, mode Mode) (Check, error) {
 	if !ValidID(id) {
-		return Check{}, fmt.Errorf("id %q is not CHK-NNN", id)
+		return Check{}, fmt.Errorf("id %q is not %s", id, idForm)
 	}
 	rel := path.Join(ChecksDir, id+".md")
 	data, err := readFile(root, rel)

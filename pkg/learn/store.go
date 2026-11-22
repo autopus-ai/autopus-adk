@@ -8,7 +8,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -109,7 +108,7 @@ func (s *Store) ReadTolerant() ([]LearningEntry, []SkipRecord, error) {
 	if err := scanner.Err(); err != nil {
 		return nil, nil, fmt.Errorf("scan file: %w", err)
 	}
-	return entries, skips, nil
+	return dedupeEntries(entries), skips, nil
 }
 
 // Read reads all valid entries from the JSONL file.
@@ -118,7 +117,8 @@ func (s *Store) Read() ([]LearningEntry, error) {
 	return entries, err
 }
 
-// NextID generates the next L-{NNN} ID based on existing entries.
+// NextID returns L-NNN, one past the highest sequence number in the store,
+// counting ids with and without a suffix. AppendAtomic adds the suffix.
 func (s *Store) NextID() (string, error) {
 	entries, err := s.Read()
 	if err != nil {
@@ -127,26 +127,27 @@ func (s *Store) NextID() (string, error) {
 
 	maxNum := 0
 	for _, e := range entries {
-		if strings.HasPrefix(e.ID, "L-") {
-			numStr := e.ID[2:]
-			if n, err := strconv.Atoi(numStr); err == nil && n > maxNum {
-				maxNum = n
-			}
+		if n, _, ok := ParseEntryID(e.ID); ok && n > maxNum {
+			maxNum = n
 		}
 	}
 	return fmt.Sprintf("L-%03d", maxNum+1), nil
 }
 
 // AppendAtomic atomically generates an ID and appends a new learning entry.
+// The id is NextID plus a suffix of the entry's own content and timestamp, so
+// two branches recording from the same base do not write the same id.
 func (s *Store) AppendAtomic(entryType EntryType, opts RecordOpts) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	id, err := s.NextID()
+	seq, err := s.NextID()
 	if err != nil {
 		return fmt.Errorf("next id: %w", err)
 	}
-	return s.appendUnlocked(newEntry(id, entryType, opts))
+	entry := newEntry("", entryType, opts)
+	entry.ID = seq + "-" + entrySuffix(entry)
+	return s.appendUnlocked(entry)
 }
 
 // newEntry is the entry AppendAtomic writes for opts, stamped now.

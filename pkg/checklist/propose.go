@@ -116,7 +116,7 @@ func Propose(root string, entries []learn.LearningEntry, now time.Time) ([]Candi
 		id, exists := byFP[g.fingerprint]
 		eligible := len(g.commits) >= 2 || repro != nil
 		if eligible && !exists {
-			c := draftCandidate(g, nextID(checks, append(cands, created...)), repro, now)
+			c := draftCandidate(g, nextID(checks, append(cands, created...), g.fingerprint), repro, now)
 			if err := SaveCandidate(root, c); err != nil {
 				return created, statuses, err
 			}

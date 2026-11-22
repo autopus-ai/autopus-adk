@@ -4,3 +4,9 @@ scripts/release-signing/*.sh text eol=lf
 scripts/release-signing/**/*.ps1 text eol=lf
 scripts/release-signing/**/*.sh text eol=lf
 scripts/release-signing/tests/fixtures/** text eol=lf
+
+# The learning store is append-mostly JSONL: two branches that each record a
+# lesson append at EOF and would always conflict. A union merge keeps both
+# lines; pkg/learn's reader keeps one entry per id, so a line kept twice, or
+# two versions of a rewritten entry, reads as one (the higher reuse_count).
+.autopus/learnings/pipeline.jsonl merge=union
