@@ -5,6 +5,9 @@ on the pre-review head, the defect the review found; (3) on base, with the pinne
 when base lacks it, the oracle fails, and every `feature` case fails there. A `guard` case passes on
 fixed and on base: behaviour the feature must keep, scored apart from defects. A case that fails its
 gate is reported for dropping; this script never edits the corpus.
+
+Every head is graded exactly as a trial is (grade_c.run_graded: grader.sb, a clone of a build cache
+warmed on base), and gates.json records the corpus and oracle hash that run_c.py --gates checks.
 """
 import argparse
 import json
@@ -12,7 +15,8 @@ from pathlib import Path
 import shutil
 import sys
 
-from oracle_c import install_oracle, oracle_env, run_oracle
+import grade_c
+from oracle_c import ORACLES, frozen_hash
 from workspace import snapshot
 
 HERE = Path(__file__).resolve().parent
@@ -63,20 +67,19 @@ def judge(task: dict, runs: dict) -> dict:
             'build': {h: runs[h]['build'] for h in runs}}
 
 
-def check_task(repo: Path, task: dict, work: Path, go_cache: Path) -> dict:
+def check_task(repo: Path, task: dict, work: Path, cache: Path) -> dict:
     runs = {}
     for head in ('fixed', 'pre_review', 'base'):
         root = work / task['id'] / head
         tree = root / 'tree'
         snapshot(repo, task['heads'][head], tree)
         if head == 'base' and task['oracle'].get('base_stub'):
-            stub = HERE / 'oracles' / task['id'] / task['oracle']['base_stub']
+            stub = ORACLES / task['id'] / task['oracle']['base_stub']
             shutil.copyfile(stub, tree / task['oracle']['package'] / stub.name.removesuffix('.oracle'))
-        install_oracle(tree, task)
-        env = oracle_env(root, go_cache)
         print(json.dumps({'stage': 'oracle', 'task': task['id'], 'head': head}), flush=True)
-        runs[head] = run_oracle(tree, task, root / 'logs', env)
-        shutil.rmtree(tree)
+        runs[head] = grade_c.run_graded(tree, task, root, work / 'logs' / task['id'] / head, cache,
+                                        grade_c.grader.PROFILE, ORACLES)
+        shutil.rmtree(root)
     return judge(task, runs)
 
 
@@ -97,21 +100,26 @@ def main(argv=None) -> int:
     parser.add_argument('--work', type=Path, required=True, help='new empty directory for snapshots and logs')
     parser.add_argument('--tasks', default='', help='comma-separated task ids (default: all)')
     parser.add_argument('--corpus', type=Path, default=HERE / 'corpus_c.json')
-    parser.add_argument('--go-cache', type=Path, help='existing Go build cache to reuse (default: a fresh one)')
     args = parser.parse_args(argv)
     work = args.work.resolve()
     if work.exists() and any(work.iterdir()):
         raise SystemExit('--work must be new or empty')
     work.mkdir(parents=True, exist_ok=True)
-    cache = args.go_cache.resolve() if args.go_cache else work / 'go-cache'
-    cache.mkdir(exist_ok=True)
+    tasks = load_corpus(args.corpus, [i for i in args.tasks.split(',') if i])
     verdicts = []
-    for task in load_corpus(args.corpus, [i for i in args.tasks.split(',') if i]):
+    for task in tasks:
+        cache = work / 'warm-cache' / task['heads']['base'][:12]
+        if not cache.exists():
+            base = work / 'warm-src'
+            snapshot(args.repo.resolve(), task['heads']['base'], base)
+            grade_c.warm(base, [t['oracle']['package'] for t in tasks], cache, work / 'warm-tmp')
+            shutil.rmtree(base)
         verdict = check_task(args.repo.resolve(), task, work, cache)
         verdicts.append(verdict)
         print(table(verdict), flush=True)
-    (work / 'gates.json').write_text(json.dumps(verdicts, indent=2))
     ok = all(v['gate1'] and v['gate2'] and v['gate3'] and not v['drop'] for v in verdicts)
+    (work / 'gates.json').write_text(json.dumps({'passed': ok, 'frozen_hash': frozen_hash(tasks, ORACLES),
+                                                 'tasks': [t['id'] for t in tasks], 'verdicts': verdicts}, indent=2))
     print('GATES_PASSED' if ok else 'GATES_FAILED', flush=True)
     return 0 if ok else 1
 

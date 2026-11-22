@@ -104,38 +104,58 @@ expected 4-6. K=2 doubles it; decide after K=1 shows whether any arm differs.
 Command lines and the isolation boundary are in the
 [harness README](../../scripts/benchmarks/harness/README.md#pilot-c-verification-layer-on-claude-code).
 
-1. Claude Code driver: `claude_agent.py` (arm settings, isolated
-   `HOME`/`CLAUDE_CONFIG_DIR`, `claude -p --output-format stream-json
-   --verbose --include-hook-events` argv, stream observation including
-   Stop-hook blocks), `claude_agent.sb` (write and read confinement, keychain
-   denied), `surface_c.py` (`auto` built from `--harness-revision`, default
-   `origin/main` resolved to a SHA and recorded per trial, generates the
-   claude-code surface into the task's base checkout with
-   `hooks.language_stop: false`; the harness version and the task's code
-   revision are separate inputs), `trial_c.py` and
-   `run_c.py` (serial schedule, deadline with process-group kill, grading,
-   report, `--dry-run` without a model call). The login is never copied:
-   the trial's only credential is a `claude setup-token` token or an API key
-   from a mode-0600 file.
+1. Claude Code driver: `claude_agent.py` (arm settings, also written as the
+   isolated user settings so nested sessions follow the arm; isolated
+   `HOME`/`CLAUDE_CONFIG_DIR`; an allowlisted environment; the
+   `claude -p --output-format stream-json --verbose --include-hook-events`
+   argv), `stream_c.py` (usage, Stop outcomes and blocks, contamination,
+   arm validity), `claude_agent.sb` (writes only in the trial; reads closed
+   below the homes, temp roots, run output and checkouts except the trial,
+   module cache, pinned bin and tool installs; Unix sockets, the keychain and
+   signals to other processes closed), `sources_c.py` and `surface_c.py`
+   (`auto` built from `--harness-revision`, resolved to a SHA and recorded per
+   trial, generates the claude-code surface into the task's base with
+   `hooks.language_stop: false`; hook commands are pinned to it by absolute
+   path), `guard_c.py` (refusals below; frozen copy of profiles, corpus and
+   oracles), `trial_c.py`, `grade_c.py`, `report_c.py` and `run_c.py`
+   (serial schedule, deadline, whole-tree kill, sandboxed grading, per-trial
+   exception records, `--resume`, `--dry-run` without a model call). The
+   login is never copied: the trial's only credential is a
+   `claude setup-token` token or an API key from a mode-0600 file.
 2. `corpus_c.json` with c01 and c02, `oracles/c01/`, `oracles/c02/`, and
-   `gate_c.py`, which checks the gates without a model call. Each case has a
-   kind: `review` (a review-confirmed defect; gate 2 against the pre-review
-   head), `feature` (the feature's own test; must fail on base) or `guard`
-   (behaviour base already had and the feature must keep; must pass on base).
-   Five c01 cases passed on the pre-review head or on base, so they moved from
-   `review`/`feature` to `guard` before any trial; they are scored apart from
-   escaped defects. c02 uses PR #350: pre-review head eb26e657, fixed head
-   dcda6485. Its `review` cases are what dcda6485 fixed; its `feature` cases
-   are the defects eb26e657 already fixed relative to base.
+   `gate_c.py`, which checks the gates without a model call, grading each
+   head exactly as a trial is graded, and records the corpus and oracle hash
+   in `gates.json`. A real run refuses to start without a passing `gates.json`
+   for that hash. Each case has a kind: `review` (a review-confirmed defect;
+   gate 2 against the pre-review head), `feature` (the feature's own test;
+   must fail on base) or `guard` (behaviour base already had and the feature
+   must keep; must pass on base). Five c01 cases passed on the pre-review head
+   or on base, so they moved from `review`/`feature` to `guard` before any
+   trial; c01 keeps 5 `review` cases, c02 has 2. c02 uses PR #350: pre-review
+   head eb26e657, fixed head dcda6485. Its `review` cases are what dcda6485
+   fixed; its `feature` cases are the defects eb26e657 already fixed relative
+   to base.
 3. The launch stays a maintainer `nohup` line, because an agent session's
    permission classifier may refuse `claude -p` and `go test` on generated
    trial checkouts.
 
-Run pilot C only after #348 is on main, or with `--harness-revision` at the
-#348 head. Before #348, `auto verify stop` blocks every stop after a change
-under `internal/cli`, whose tests take about 32 minutes. c01 and c02 both
-change `internal/cli`, so the `full` arm would measure that bug as timeouts,
-not the verification layer.
+Grading. The graded tree is the task's base plus only the candidate's
+regular non-test files under `allowed_paths`; the oracle build and every case
+run under grader.sb with a grading build cache no agent can read, in a grade
+root outside every trial, and only after the trial's process tree is empty.
+
+Refusals. A run does not start when its harness revision has any task's
+pre-review or fixed head as an ancestor (that `auto` would carry the answer),
+when `--output` lies below a `CLAUDE.md`, `CLAUDE.local.md` or `.claude/`
+(parent instructions load into every arm), or without passing gates.
+
+Harness revision. `origin/main` already contains the c01 and c02 heads, so
+for these tasks the valid harness revision is the PR #348 head, branched from
+7b017f17. #348 is needed in any case: before it, `auto verify stop` blocks
+every stop after a change under `internal/cli`, whose tests take about 32
+minutes, and c01 and c02 both change `internal/cli`, so the `full` arm would
+measure that bug as timeouts, not the verification layer. #348's branch is
+still moving; the runner records the SHA it used.
 
 Primary measure per arm: `review` cases passed. `feature` and `guard` cases
 are reported with it.

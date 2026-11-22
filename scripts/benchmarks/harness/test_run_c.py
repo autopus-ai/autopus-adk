@@ -1,22 +1,25 @@
-"""Pilot C runner contracts: schedule, report, surface config edit and the deadline kill."""
-import os
-import subprocess
+"""Pilot C runner contracts: schedule, report, surface config edit, the deadline kill and overlay grading."""
+import sys
 import tempfile
 import time
 import unittest
 from pathlib import Path
 
+import grade_c
+import report_c
 import run_c
 import surface_c
 import trial_c
 
 
-def row(arm, passed, review, tokens, timed_out=False, error=None, blocks=0, scope=True):
-    return {'task_id': 'c01', 'arm': arm, 'replicate': 1, 'operational_error': error,
+def row(arm, review, tokens, timed_out=False, error=None, blocks=0, scope=True, oracle=True, contaminated=False):
+    graded = {'review_passed': review, 'review_total': 2, 'feature_passed': 1, 'feature_total': 1,
+              'guard_passed': 1, 'guard_total': 1} if oracle else None
+    return {'task_id': 'c01', 'arm': arm, 'replicate': 1, 'operational_error': error, 'arm_valid': True,
             'agent': {'timed_out': timed_out, 'elapsed_seconds': 10.0, 'exit_code': 0},
-            'observation': {'total_tokens': tokens, 'stop_hook_blocks': [{}] * blocks},
-            'scope': {'accepted_scope': scope},
-            'oracle': {'passed': passed, 'total': 4, 'review_passed': review, 'review_total': 2}}
+            'observation': {'total_tokens': tokens, 'stop_hook_blocks': [{}] * blocks,
+                            'contamination': ['gh pr view'] if contaminated else []},
+            'scope': {'accepted_scope': scope}, 'oracle': graded}
 
 
 class ScheduleTests(unittest.TestCase):
@@ -34,34 +37,19 @@ class ScheduleTests(unittest.TestCase):
         self.assertNotEqual([a for _, a, _ in plan[:3]], [a for _, a, _ in plan[6:9]])
 
 
-class RevisionTests(unittest.TestCase):
-    def test_harness_revision_resolves_to_a_commit_sha(self):
-        with tempfile.TemporaryDirectory() as d:
-            env = {'PATH': '/usr/bin:/bin', 'HOME': d, 'GIT_CONFIG_GLOBAL': os.devnull, 'GIT_AUTHOR_NAME': 't',
-                   'GIT_AUTHOR_EMAIL': 't@example.invalid', 'GIT_COMMITTER_NAME': 't',
-                   'GIT_COMMITTER_EMAIL': 't@example.invalid'}
-            for args in (['init', '-q', '-b', 'main'], ['commit', '-q', '--allow-empty', '-m', 'one']):
-                subprocess.run(['git', *args], cwd=d, env=env, check=True)
-            head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=d, env=env, text=True).strip()
-            self.assertEqual(run_c.resolve_revision(Path(d), 'main'), head)
-            with self.assertRaises(subprocess.CalledProcessError):
-                run_c.resolve_revision(Path(d), 'no-such-branch')
-
-
 class ReportTests(unittest.TestCase):
-    def test_unknown_usage_is_counted_apart_and_failures_stay(self):
-        records = [row('full', 4, 2, 100, blocks=2), row('full', 1, 0, None, timed_out=True, error='agent_timeout'),
-                   row('native', 2, 0, 50, scope=False)]
-        summary = run_c.summarize(records)
-        self.assertEqual(summary['full']['known_tokens'], 100)
-        self.assertEqual(summary['full']['usage_unknown'], 1)
-        self.assertEqual(summary['full']['timed_out'], 1)
-        self.assertEqual(summary['full']['cases_passed'], 5)
+    def test_unknown_usage_ungraded_and_failures_stay(self):
+        records = [row('full', 2, 100, blocks=2), row('full', 0, None, timed_out=True, error='agent_timeout'),
+                   row('native', 1, 50, scope=False, oracle=False, contaminated=True)]
+        summary = report_c.summarize(records)
+        self.assertEqual((summary['full']['known_tokens'], summary['full']['usage_unknown']), (100, 1))
+        self.assertEqual((summary['full']['review_passed'], summary['full']['review_total']), (2, 4))
         self.assertEqual(summary['full']['stop_hook_blocks'], 2)
+        self.assertEqual((summary['native']['ungraded'], summary['native']['contaminated']), (1, 1))
         self.assertEqual(summary['native']['scope_violations'], 1)
-        text = run_c.to_markdown(summary, records)
-        self.assertIn('| full | 2 | 5/8 | 2/4 | 1 | 1 | 0 |', text)
-        self.assertIn('agent_timeout', text)
+        text = report_c.to_markdown(summary, records)
+        self.assertIn('| full | 2 | 2/4 | 2/2 | 2/2 | 0 | 1 | 1 | 0 | 0 | 0 |', text)
+        self.assertIn('| c01-native-k1 | - | - | - |', text)
 
 
 class SurfaceTests(unittest.TestCase):
@@ -76,34 +64,63 @@ class SurfaceTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             surface_c.disable_language_stop('mode: full\n')
 
-    def test_stop_hooks_are_read_from_generated_settings(self):
-        with tempfile.TemporaryDirectory() as d:
-            settings = Path(d) / '.claude' / 'settings.json'
-            settings.parent.mkdir()
-            settings.write_text('{"hooks": {"Stop": [{"hooks": [{"type": "command", "command": "auto verify stop"}]}]}}')
-            self.assertEqual(surface_c.stop_hooks(Path(d)), ['auto verify stop'])
-            self.assertEqual(surface_c.stop_hooks(Path(d) / 'none'), [])
-
 
 class DeadlineTests(unittest.TestCase):
-    def test_deadline_kills_the_whole_group_and_keeps_output(self):
+    def test_deadline_kills_setsid_descendants_and_keeps_output(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
-            marker = root / 'child-survived'
-            script = 'sleep 3 && touch %s & echo started; sleep 30' % marker
+            marker = root / 'detached-survived'
+            # A tool shell in its own session, as Claude Code's Bash tool starts it.
+            agent = [sys.executable, '-c', (
+                'import subprocess, sys, time\n'
+                'subprocess.Popen(["/bin/sh", "-c", "sleep 3; touch %s"], start_new_session=True)\n'
+                'print("started", flush=True)\n'
+                'time.sleep(60)\n') % marker]
             started = time.monotonic()
-            result = trial_c.execute_exact(['/bin/sh', '-c', script], root, {'PATH': '/usr/bin:/bin'},
-                                           root / 'out', root / 'err', 0.5)
+            result = trial_c.execute_tree(agent, root, {'PATH': '/usr/bin:/bin'}, root / 'out', root / 'err', 1.0)
             self.assertTrue(result['timed_out'])
-            self.assertLess(time.monotonic() - started, 15)
+            self.assertTrue(result['stragglers'])
+            self.assertFalse(result['leftover'])
+            self.assertLess(time.monotonic() - started, 20)
             self.assertIn('started', (root / 'out').read_text())
             time.sleep(3.5)
             self.assertFalse(marker.exists())
 
-    def test_prompt_names_allowed_paths_but_no_oracle(self):
+    def test_prompt_names_allowed_paths_and_the_test_reset_but_no_oracle(self):
         prompt = trial_c.prompt_for({'prompt': 'Do X.', 'allowed_paths': ['internal/cli/*']})
         self.assertIn('internal/cli/*', prompt)
+        self.assertIn('existing tests are restored', prompt)
         self.assertNotIn('oracle', prompt.lower())
+
+
+class OverlayTests(unittest.TestCase):
+    def test_only_allowed_regular_production_files_reach_the_graded_tree(self):
+        with tempfile.TemporaryDirectory() as d:
+            base, work, dest = Path(d) / 'base', Path(d) / 'work', Path(d) / 'dest'
+            for root in (base, work):
+                (root / 'internal' / 'cli').mkdir(parents=True)
+                (root / 'docs').mkdir()
+                (root / 'internal' / 'cli' / 'a.go').write_text('base a')
+                (root / 'internal' / 'cli' / 'gone.go').write_text('base gone')
+                (root / 'internal' / 'cli' / 'a_test.go').write_text('base test')
+                (root / 'docs' / 'x.md').write_text('base doc')
+            (work / 'internal' / 'cli' / 'a.go').write_text('candidate a')
+            (work / 'internal' / 'cli' / 'gone.go').unlink()
+            (work / 'internal' / 'cli' / 'new.go').write_text('candidate new')
+            (work / 'internal' / 'cli' / 'a_test.go').write_text('agent test edit')
+            (work / 'internal' / 'cli' / 'b_test.go').write_text('agent test')
+            (work / 'internal' / 'cli' / 'link.go').symlink_to('/etc/hosts')
+            (work / 'docs' / 'x.md').write_text('agent doc')
+            (work / 'CLAUDE.md').write_text('harness')
+            record = grade_c.overlay(base, work, ['internal/cli/*'], dest)
+            self.assertEqual(sorted(record['copied']), ['internal/cli/a.go', 'internal/cli/new.go'])
+            self.assertEqual(record['deleted'], ['internal/cli/gone.go'])
+            self.assertEqual(record['rejected_symlinks'], ['internal/cli/link.go'])
+            self.assertEqual((dest / 'internal' / 'cli' / 'a_test.go').read_text(), 'base test')
+            self.assertFalse((dest / 'internal' / 'cli' / 'b_test.go').exists())
+            self.assertFalse((dest / 'internal' / 'cli' / 'link.go').exists())
+            self.assertEqual((dest / 'docs' / 'x.md').read_text(), 'base doc')
+            self.assertFalse((dest / 'CLAUDE.md').exists())
 
 
 if __name__ == '__main__':

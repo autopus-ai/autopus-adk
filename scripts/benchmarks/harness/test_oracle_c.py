@@ -46,24 +46,6 @@ class InstallTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 oracle_c.install_oracle(tree, task)
 
-    def test_restore_tests_drops_agent_tests_and_restores_base_tests(self):
-        with tempfile.TemporaryDirectory() as d:
-            source, candidate = Path(d) / 'source', Path(d) / 'candidate'
-            for root in (source, candidate):
-                (root / 'pkg').mkdir(parents=True)
-                (root / 'pkg' / 'a.go').write_text('package pkg\n')
-            (source / 'pkg' / 'a_test.go').write_text('base')
-            (source / 'pkg' / 'gone_test.go').write_text('kept')
-            (candidate / 'pkg' / 'a_test.go').write_text('edited by agent')
-            (candidate / 'pkg' / 'new_test.go').write_text('agent test')
-            (candidate / 'pkg' / 'a.go').write_text('package pkg // candidate\n')
-            reset = oracle_c.restore_tests(candidate, source)
-            self.assertEqual(reset, {'removed': ['pkg/new_test.go'], 'restored': ['pkg/a_test.go', 'pkg/gone_test.go']})
-            self.assertEqual((candidate / 'pkg' / 'a_test.go').read_text(), 'base')
-            self.assertEqual((candidate / 'pkg' / 'gone_test.go').read_text(), 'kept')
-            self.assertFalse((candidate / 'pkg' / 'new_test.go').exists())
-            self.assertIn('candidate', (candidate / 'pkg' / 'a.go').read_text())
-
 
 class VerdictTests(unittest.TestCase):
     def test_case_verdicts(self):

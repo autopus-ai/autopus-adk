@@ -89,6 +89,23 @@ def generate_surface(auto: Path, source: Path, dest: Path, env: dict) -> dict:
     return {'files': len(changed), 'surface_hash': digest, 'stop_hooks': hooks, 'manifest': manifest}
 
 
+AUTO_COMMAND = re.compile(r'(?<![\w./-])auto(?=\s)')
+
+
+def pin_hooks(surface: Path, auto: Path) -> dict:
+    """Point every hook command at the pinned binary by absolute path, so no `auto` the agent builds
+    or puts first on PATH answers a hook. Returns the hash of the pinned surface settings."""
+    settings = surface / '.claude' / 'settings.json'
+    data = json.loads(settings.read_text())
+    for groups in (data.get('hooks') or {}).values():
+        for group in groups:
+            for hook in group.get('hooks') or []:
+                if isinstance(hook.get('command'), str):
+                    hook['command'] = AUTO_COMMAND.sub(str(auto).replace('\\', '\\\\'), hook['command'])
+    settings.write_text(json.dumps(data, indent=2) + '\n')
+    return {'pinned_settings_hash': hashlib.sha256(settings.read_bytes()).hexdigest()}
+
+
 def stop_hooks(surface: Path) -> list:
     """Commands registered on the Stop event in the generated .claude/settings.json."""
     settings = surface / '.claude' / 'settings.json'

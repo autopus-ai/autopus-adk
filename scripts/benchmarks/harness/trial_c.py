@@ -1,23 +1,33 @@
-"""One pilot C trial: prepare the checkout, run the agent under its deadline, grade with the oracle."""
+"""One pilot C trial: prepare the checkout, run the agent under its deadline, grade with the oracle.
+
+Layout below the run output: trials/<name>/ is the only tree the agent may touch (workspace, isolated
+home, temp, its own clone of the warm build cache); measure/<name>/ holds what the runner records
+(transcript, stderr, warm-up logs, result) and grading/<name>/ the sandboxed grade root. Neither of
+the latter is readable inside the agent's sandbox.
+"""
 import hashlib
 import json
-import os
 from pathlib import Path
-import shutil
 import signal
+import os
 import subprocess
 import time
 
 import claude_agent
+import grade_c
+import guard_c
 import oracle_c
+import process_tree
+import stream_c
 import surface_c
 from workspace import hashes, initialize
 
 PROMPT_SUFFIX = (
     '\n\nWork only inside this checkout (the current directory). Production edits belong under: {paths}; '
     'you may add new files and tests there. Do not commit, push, or use the network beyond your own model. '
-    'Hidden tests will exercise the pinned interface, and the existing tests must keep compiling and passing. '
-    'Finish without asking for clarification.')
+    'Hidden tests will exercise the pinned interface. At grading the existing tests are restored to their '
+    'original versions and only production files under the paths above are kept, so the existing tests must '
+    'keep compiling and passing against your code. Finish without asking for clarification.')
 
 
 def prompt_for(task: dict) -> str:
@@ -28,35 +38,41 @@ def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def execute_exact(argv: list, cwd: Path, env: dict, stdout: Path, stderr: Path, seconds: float,
-                  stdin: str | None = None) -> dict:
-    """Run with exactly env (nothing inherited) in a new process group; on the deadline SIGTERM the
-    group, then SIGKILL it after 10 s. The group is emptied after a normal exit too."""
+def execute_tree(argv: list, cwd: Path, env: dict, stdout: Path, stderr: Path, seconds: float,
+                 stdin: str | None = None, scratch: Path | None = None) -> dict:
+    """Run with exactly env in a new session. On the deadline SIGTERM the group and wait 10 s; then
+    always sweep the whole descendant tree (process_tree.Tree: setsid shells, orphans and every
+    process the sandbox instance writing `scratch` confines) until it is empty."""
     started = time.monotonic()
     with open(stdout, 'wb') as out, open(stderr, 'wb') as err:
         process = subprocess.Popen(argv, cwd=cwd, env=env, stdin=subprocess.PIPE if stdin is not None else
                                    subprocess.DEVNULL, stdout=out, stderr=err, start_new_session=True)
-        timed_out = False
+    tree = process_tree.Tree(process.pid, scratch).watch()
+    timed_out = False
+    try:
+        if stdin is not None:
+            try:
+                process.stdin.write(stdin.encode())
+                process.stdin.close()
+            except BrokenPipeError:
+                pass
         try:
-            process.communicate(stdin.encode() if stdin is not None else None, timeout=seconds)
+            process.wait(timeout=seconds)
         except subprocess.TimeoutExpired:
             timed_out = True
-            _signal_group(process.pid, signal.SIGTERM)
+            try:
+                os.killpg(process.pid, signal.SIGTERM)
+            except (ProcessLookupError, PermissionError):
+                pass
             try:
                 process.wait(timeout=10)
             except subprocess.TimeoutExpired:
                 pass
-        _signal_group(process.pid, signal.SIGKILL)
+    finally:
+        stragglers, leftover = tree.sweep()
         process.wait()
-    return {'exit_code': process.returncode, 'timed_out': timed_out,
-            'elapsed_seconds': round(time.monotonic() - started, 3)}
-
-
-def _signal_group(group: int, sig: int) -> None:
-    try:
-        os.killpg(group, sig)
-    except (ProcessLookupError, PermissionError):
-        pass
+    return {'exit_code': process.returncode, 'timed_out': timed_out, 'stragglers': stragglers,
+            'leftover': leftover, 'elapsed_seconds': round(time.monotonic() - started, 3)}
 
 
 def go_env(trial: Path, go_cache: Path) -> dict:
@@ -70,65 +86,66 @@ def go_env(trial: Path, go_cache: Path) -> dict:
             'GOPATH': gopath, 'GOMODCACHE': modcache}
 
 
-def prepare(ctx: dict, task: dict, arm: str, trial: Path) -> dict:
-    """Workspace, settings, isolated home and the sandboxed argv of one trial (no model call)."""
+def names(ctx: dict, name: str) -> tuple:
+    out = ctx['output']
+    return out / 'trials' / name, out / 'measure' / name, out / 'grading' / name
+
+
+def prepare(ctx: dict, task: dict, arm: str, name: str) -> dict:
+    """Workspace, isolated home, build cache clone, environment and sandboxed argv (no model call)."""
+    trial, measure, _ = names(ctx, name)
+    trial.mkdir(parents=True)
+    measure.mkdir(parents=True)
     source = ctx['sources'][task['heads']['base']]
     work = trial / 'workspace'
-    shutil.copytree(source['tree'], work, symlinks=True)
+    grade_c.clone_tree(source['tree'], work)
     if arm != 'native':
         surface_c.install(work, source['surface'])
     initialize(work)
-    settings = trial / 'settings.json'
-    settings.write_text(json.dumps(claude_agent.arm_settings(arm), indent=2))
-    home = claude_agent.isolated_home(trial)
-    env = claude_agent.agent_env(ctx['base_env'], home, ctx['credential_kind'], ctx['credential'],
-                                 [source['bin_dir'], source['tools_dir']])
-    env.update(go_env(trial, ctx['go_cache']))
-    argv = claude_agent.claude_argv(settings, ctx['model'], ctx['effort'], ctx['permission_mode'], ctx['claude'])
+    home = claude_agent.isolated_home(trial, arm, work)
+    grade_c.clone_tree(source['warm_cache'], trial / 'gocache')
+    env = claude_agent.agent_env(ctx['base_env'], home, trial / 'tmp', ctx['credential_kind'], ctx['credential'],
+                                 [source['bin_dir'], ctx['tools_dir']])
+    env.update(go_env(trial, trial / 'gocache'))
+    argv = claude_agent.claude_argv(arm, ctx['model'], ctx['effort'], ctx['permission_mode'], ctx['claude'])
     warm = ['go', 'test', '-count=1', '-run', '^$', './' + task['oracle']['package']]
     if ctx['sandbox']:
-        wrap = lambda command: claude_agent.sandboxed(command, trial, ctx['output'], ctx['go_cache'],
-                                                      ctx['protected'], ctx['account_home'])
+        def wrap(command):
+            return claude_agent.sandboxed(command, trial, ctx['output'], ctx['output'] / 'bin', env['GOMODCACHE'],
+                                          ctx['tools'], ctx['account_home'], ctx['protected'],
+                                          ctx['frozen']['agent_profile'])
         argv, warm = wrap(argv), wrap(warm)
-    return {'work': work, 'env': env, 'argv': argv, 'warm': warm, 'prompt': prompt_for(task),
-            'settings': claude_agent.arm_settings(arm)}
-
-
-def grade(ctx: dict, task: dict, trial: Path, work: Path) -> dict:
-    """Grade a copy of the candidate with the base tests restored and the hidden oracle added."""
-    source = ctx['sources'][task['heads']['base']]
-    tree = trial / 'grade' / 'tree'
-    shutil.copytree(work, tree, symlinks=True, ignore=shutil.ignore_patterns('.git'))
-    reset = oracle_c.restore_tests(tree, source['tree'])
-    oracle_c.install_oracle(tree, task)
-    env = oracle_c.oracle_env(trial / 'grade', ctx['go_cache'])
-    result = oracle_c.run_oracle(tree, task, trial / 'grade' / 'logs', env)
-    shutil.rmtree(tree)
-    kinds = {case['name']: case['kind'] for case in task['oracle']['cases']}
-    passed = [name for name, verdict in result['cases'].items() if verdict == 'pass']
-    return {**result, 'tests_reset': reset, 'passed': len(passed), 'total': len(kinds),
-            'review_passed': sum(1 for name in passed if kinds[name] == 'review'),
-            'review_total': sum(1 for kind in kinds.values() if kind == 'review')}
+    return {'trial': trial, 'measure': measure, 'work': work, 'env': env, 'argv': argv, 'warm': warm,
+            'prompt': prompt_for(task), 'source': source}
 
 
 def run(ctx: dict, task: dict, arm: str, replicate: int) -> dict:
-    trial = ctx['output'] / 'trials' / ('%s-%s-k%d' % (task['id'], arm, replicate))
-    trial.mkdir(parents=True)
-    plan = prepare(ctx, task, arm, trial)
-    source = ctx['sources'][task['heads']['base']]
-    warm = execute_exact(plan['warm'], plan['work'], plan['env'], trial / 'warm.log', trial / 'warm.err', 1800)
+    name = '%s-%s-k%d' % (task['id'], arm, replicate)
+    plan = prepare(ctx, task, arm, name)
+    trial, measure, grading = names(ctx, name)
+    load_start = guard_c.loadavg()
+    warm = execute_tree(plan['warm'], plan['work'], plan['env'], measure / 'warm.log', measure / 'warm.err', 1800,
+                        scratch=trial)
     before = hashes(plan['work'])
-    agent = execute_exact(plan['argv'], plan['work'], plan['env'], trial / 'events.jsonl', trial / 'stderr.log',
-                          ctx['timeout'], plan['prompt'])
-    observation = claude_agent.parse_stream(trial / 'events.jsonl')
+    agent = execute_tree(plan['argv'], plan['work'], plan['env'], measure / 'events.jsonl', measure / 'stderr.log',
+                         ctx['timeout'], plan['prompt'], scratch=trial)
+    load_end = guard_c.loadavg()
+    observation = stream_c.parse_stream(measure / 'events.jsonl')
     scope = oracle_c.audit_globs(before, hashes(plan['work']), task['allowed_paths'])
-    graded = grade(ctx, task, trial, plan['work'])
-    operational = ('warmup_failed' if warm['exit_code'] else 'agent_timeout' if agent['timed_out'] else
-                   'agent_exit' if agent['exit_code'] else 'agent_error' if observation['is_error'] else None)
+    valid = stream_c.arm_valid(arm, observation)
+    graded = None
+    if not agent['leftover']:
+        graded = grade_c.grade_candidate(task, plan['source']['tree'], plan['work'], grading, measure / 'grade',
+                                         plan['source']['warm_cache'], ctx['frozen']['grader_profile'],
+                                         ctx['frozen']['oracles'])
+    operational = ('warmup_failed' if warm['exit_code'] else 'leftover_processes' if agent['leftover'] else
+                   'agent_timeout' if agent['timed_out'] else 'agent_exit' if agent['exit_code'] else
+                   'agent_error' if observation['is_error'] else 'arm_invalid' if not valid else None)
     row = {'task_id': task['id'], 'arm': arm, 'replicate': replicate, 'operational_error': operational,
-           'warm': warm, 'agent': agent, 'observation': observation, 'scope': scope, 'oracle': graded,
+           'warm': warm, 'agent': agent, 'observation': observation, 'arm_valid': valid, 'scope': scope,
+           'oracle': graded, 'loadavg': {'start': load_start, 'end': load_end},
            'prompt_hash': digest(plan['prompt'].encode()), 'human_interventions': 0,
-           'harness_revision': source['harness_revision'],
-           'surface_hash': source['generated']['surface_hash'] if arm != 'native' else None}
-    (trial / 'result.json').write_text(json.dumps(row, indent=2))
+           'harness_revision': plan['source']['harness_revision'],
+           'surface_hash': plan['source']['generated']['surface_hash'] if arm != 'native' else None}
+    (measure / 'result.json').write_text(json.dumps(row, indent=2))
     return row

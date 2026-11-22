@@ -432,75 +432,119 @@ stored result bytes.
 
 Design and gates: [harness-pilot-c-design.md](../../../docs/benchmarks/harness-pilot-c-design.md).
 Arms: `native` (no project harness), `instructions` (generated claude-code
-surface, `--settings` with `"disableAllHooks": true`) and `full` (the same
-surface, generated hooks as-is). The harness under test and the code a task
-starts from are separate inputs: `auto` is built from a snapshot of
-`--harness-revision` (default `origin/main`, resolved to a SHA at run start
-and recorded in the protocol and in every trial record with the surface
-hash), and generates into a copy of the task's `base` checkout with
-`auto init --platforms claude-code --yes`, `hooks.language_stop: false`,
-`auto update`. The task code stays at its base. That binary is first on the
-agent's PATH, so the generated hooks call it.
+surface, `"disableAllHooks": true`) and `full` (the same surface, generated
+hooks as-is). The arm's settings go to `--settings` as inline JSON and into
+the trial's `CLAUDE_CONFIG_DIR/settings.json`, because a nested `claude -p`
+the harness starts (pkg/qa/agentexec) reads user settings, not the top-level
+flag. `stream_c.arm_valid` checks each trial: `full` must show hook events,
+the other arms none.
 
-Run pilot C only after #348 (the `auto verify stop` time budget for large Go
-packages) is on main, or pass `--harness-revision` at the #348 head. Before
-it, a change under `internal/cli` (~32 min of tests) blocks every stop, and
-c01 and c02 both change `internal/cli`, so the `full` arm would measure that
-bug as timeouts. Every arm gets the same `--model` and `--effort`,
+Harness revision. The harness under test and the code a task starts from are
+separate inputs: `auto` is built from a snapshot of `--harness-revision`
+(default `origin/main`, resolved to a SHA at run start and recorded in the
+protocol and in every trial record with the surface hash) and generates into
+a copy of the task's `base` (`auto init --platforms claude-code --yes`,
+`hooks.language_stop: false`, `auto update`); every hook command is then
+pinned to that binary by absolute path. The run refuses a harness revision
+that has any task's pre-review or fixed head as an ancestor: that `auto` would
+put the reviewed code (the answer) on the agent's PATH. `origin/main` already
+contains both c01 and c02 heads, so for them the valid harness revision is the
+PR #348 head (the `auto verify stop` time budget for large Go packages,
+branched from 7b017f17). Before #348 a change under `internal/cli` (~32 min of
+tests) blocks every stop, and c01 and c02 both change `internal/cli`, so the
+`full` arm would measure that bug as timeouts. #348's branch is still moving;
+pass the SHA you mean, the runner records it.
+
+Every arm gets the same `--model` and `--effort`,
 `--permission-mode bypassPermissions`, `--setting-sources project`,
-`--strict-mcp-config`, `--no-session-persistence`, a 1800 s deadline with a
-process-group kill, and a fresh checkout with its own Git history.
-`--strict-mcp-config` without `--mcp-config` means the generated `.mcp.json`
-servers (npx packages fetched at start) load in no arm. The trial PATH is
-`auto`, symlinks to `--tools` (default `go,gofmt,claude,node`) and
-`/usr/bin:/bin:/usr/sbin:/sbin` only: other agent CLIs on the host PATH would
-be detected by `auto update` as platforms and could be called by a review
-step on another account, so the generated review providers other than Claude
-fail inside a trial.
+`--strict-mcp-config` (the generated `.mcp.json` npx servers load in no arm),
+`--disallowedTools WebFetch WebSearch`, `--no-session-persistence`, a 1800 s
+deadline, and a fresh checkout with its own Git history, marked trusted in the
+isolated `.claude.json` (an untrusted workspace ignores the generated
+permissions). On the deadline the session gets SIGTERM, and after every trial
+`process_tree.Tree` kills the whole descendant tree, including the Bash tool's
+setsid shells and anything the trial's sandbox instance confines; a trial is
+graded only once that tree is empty. The trial PATH is the pinned `auto`,
+symlinks to `--tools` (default `go,gofmt,claude,node`) and
+`/usr/bin:/bin:/usr/sbin:/sbin`: other agent CLIs on the host PATH would be
+detected by `auto update` as platforms and could be called by a review step on
+another account. The environment is an allowlist (`LANG`, `USER`, `TERM`, the
+isolated `HOME`, `CLAUDE_CONFIG_DIR`, `TMPDIR`, Go settings, the token);
+`SSH_AUTH_SOCK` and every other host key are dropped.
 
 ```sh
-# No model call: validity gates for every task (go test on snapshots; slow).
+# No model call: validity gates, graded exactly as trials are (go test on snapshots; slow).
 python3 scripts/benchmarks/harness/gate_c.py --repo "$PWD" --work /absolute/new/gates
 # No model call: build auto, generate the surface, prepare one trial per arm, warm up.
 python3 scripts/benchmarks/harness/run_c.py --repo "$PWD" --output /absolute/new/dry \
-  --model opus --effort high --dry-run
+  --harness-revision <PR #348 head SHA> --model opus --effort high --dry-run
 # Real trials (spends quota). The token comes from `claude setup-token`, mode 0600.
 nohup python3 scripts/benchmarks/harness/run_c.py --repo "$PWD" --output /absolute/new/run \
-  --tasks c01,c02 --harness-revision origin/main --model opus --effort high --timeout 1800 \
-  --credential-file /absolute/token > /absolute/new/run.log 2>&1 &
+  --tasks c01,c02 --harness-revision <PR #348 head SHA> --gates /absolute/new/gates/gates.json \
+  --model opus --effort high --timeout 1800 --credential-file /absolute/token > /absolute/new/run.log 2>&1 &
+# Continue a run that stopped (finished trials are kept, a partial one is moved to aborted/).
+python3 scripts/benchmarks/harness/run_c.py ... --output /absolute/new/run --resume
 ```
+
+`--output` must be new, outside both checkouts and below no directory that
+holds `CLAUDE.md`, `CLAUDE.local.md` or `.claude/`: Claude Code loads parent
+instructions into every arm, so an output under your home (which holds
+`~/.claude`) is refused. A real run needs `--gates`: the `gates.json` of a
+passing `gate_c.py` run whose recorded hash matches the corpus and oracles.
+The profiles, oracles and corpus are copied into `<output>/frozen` first, so a
+branch switch mid-run changes nothing. Layout: `trials/<name>/` is all the
+agent can touch (workspace, isolated home, temp, its own clone of the warm
+build cache); `measure/<name>/` holds the transcript, stderr, warm-up logs and
+`result.json`; `grading/<name>/` the grade root; `cache/` and `sources/` the
+inputs. Each trial records its load average at start and end, and the protocol
+records `go version` as trials run it (`GOTOOLCHAIN=local`).
 
 Isolation. On macOS Claude Code keeps its login in the login keychain under a
 service name derived from the config directory, so a fresh `HOME` and
 `CLAUDE_CONFIG_DIR` below the trial start logged out (`claude auth status`
 says so). The only credential is `CLAUDE_CODE_OAUTH_TOKEN` (or
 `ANTHROPIC_API_KEY` with `--credential-kind api_key`) read from
-`--credential-file`. `claude_agent.sb` confines writes to the trial, the Go
-cache and the system temporary roots; it denies reads of the rest of the run
-output, both checkouts (the oracles live in this one), the account's
-`~/.claude`, `~/.claude.json`, `~/.codex` and the keychain files, and the
-keychain Mach services. It does not cover managed policy settings or anything
-the account or organisation serves remotely (the same in every arm), the
-network, which stays open, or reads of the system, toolchain and module cache.
+`--credential-file`. `claude_agent.sb` follows grader.sb: writes only below
+the trial; file contents below `/Users`, `/Volumes`, `/private/var/folders`,
+`/private/tmp`, `/private/var/tmp`, the run output and both checkouts are
+closed, and only the trial, the module cache, `<output>/bin` and the linked
+tools' install directories are reopened (so `~/.ssh`, `~/.aws`, `~/.config`,
+shell history, `~/.claude*`, other trials and the oracles are unreadable).
+Unix sockets are closed except mDNSResponder's (a Docker or colima socket
+would hand out the host), the keychain is closed as files and as Mach
+services, and signals reach only the same sandbox instance. One fallback:
+files directly in `/private/tmp` named `claude-*` stay writable, for the Bash
+tool's cwd files should it ignore `CLAUDE_CODE_TMPDIR`. Not covered: managed
+policy settings and anything the account or organisation serves remotely (the
+same in every arm), TCP (the model is remote), and reads of the system and
+toolchain.
 
-Observation (`claude_agent.parse_stream`): the `result` event's usage (input,
+Observation (`stream_c.parse_stream`): the `result` event's usage (input,
 output, cache read and cache creation tokens; unknown stays null), turns,
 cost, terminal reason and final text; tool uses and `Task`/`Agent` uses. With
 `--include-hook-events` every hook emits `system` `hook_started` and
-`hook_response` events; a Stop `hook_response` that exits 2 or prints
-`{"decision":"block"}` is recorded as a block with its reason.
+`hook_response` events. Every Stop response is recorded as an outcome (exit
+code, decision, `systemMessage` such as a verify-stop budget or skip note),
+and as a block when it exits 2 or prints `{"decision":"block"}`. A Bash command
+that reaches GitHub or fetches from the network (`gh`, `git fetch`, `curl`,
+...) is flagged as contamination, since the fixed heads are public.
 
-Oracles. `oracles/<id>/*_test.go.oracle` carry a suffix the go tool ignores,
-so `go test ./...` never compiles them. Grading copies the candidate, resets
-its `*_test.go` files to the base revision's, adds the oracle, compiles the
-package's test binary once and runs each case in its own process. `review`
-cases are the review-confirmed defects and must fail on the pre-review head
-(gate 2); `feature` cases are the feature's own tests and must fail on base
-(gate 3); `guard` cases are behaviour base already had that the feature must
-keep, so they must pass on base. c01 pins the internal `lintCheckout` signature, because the
-report's API half cannot run offline, so no black-box CLI test can reach the
-lint; its tests are those of 10220e08 with identifiers prefixed and two
-note-phrase assertions relaxed to behaviour. c02 is black-box: the `doctor`
-command through `cli.NewRootCmd()` with every external CLI stubbed on a
-scratch PATH. Grading runs without a sandbox, in a scrubbed environment.
-Tests: `test_claude_agent.py`, `test_oracle_c.py`, `test_run_c.py`.
+Oracles and grading. `oracles/<id>/*_test.go.oracle` carry a suffix the go
+tool ignores, so `go test ./...` never compiles them. The graded tree is the
+task's base snapshot plus only the candidate's regular non-test files under
+`allowed_paths` (and deletions there); tests, the harness surface and
+symlinks never enter. The oracle is added, the package's test binary is
+compiled once, and each case runs in its own process; the build and every
+case run under grader.sb (`grader.sandbox_argv`: no network, writes only to
+the grade root, reads closed below the homes and temp roots) with a clone of a
+grading build cache the agents cannot read. `gate_c.py` grades every head the
+same way. `review` cases are the review-confirmed defects and must fail on the
+pre-review head (gate 2); `feature` cases are the feature's own tests and must
+fail on base (gate 3); `guard` cases are behaviour base already had that the
+feature must keep, so they must pass on base. c01 pins the internal
+`lintCheckout` signature, because the report's API half cannot run offline, so
+no black-box CLI test can reach the lint; its tests are those of 10220e08 with
+identifiers prefixed and two note-phrase assertions relaxed to behaviour. c02
+is black-box: the `doctor` command through `cli.NewRootCmd()` with every
+external CLI stubbed on a scratch PATH. Tests: `test_claude_agent.py`,
+`test_stream_c.py`, `test_guard_c.py`, `test_oracle_c.py`, `test_run_c.py`.

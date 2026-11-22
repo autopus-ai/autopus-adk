@@ -24,8 +24,8 @@ OWNED_PREFIXES = ('.claude/', '.autopus/', '.agents/', '.codex/', '.gemini/', '.
 OWNED_FILES = {'CLAUDE.md', 'AGENTS.md', 'GEMINI.md', 'autopus.yaml', 'opencode.json', '.mcp.json'}
 
 
-def oracle_files(task: dict) -> list:
-    root = ORACLES / task['id']
+def oracle_files(task: dict, oracles: Path = ORACLES) -> list:
+    root = Path(oracles) / task['id']
     files = [root / name for name in task['oracle']['files']]
     for path in files:
         if not path.name.endswith('_test.go' + SUFFIX) or not path.is_file():
@@ -33,62 +33,17 @@ def oracle_files(task: dict) -> list:
     return files
 
 
-def install_oracle(tree: Path, task: dict) -> list:
+def install_oracle(tree: Path, task: dict, oracles: Path = ORACLES) -> list:
     """Copy the oracle files into tree/<package> without their suffix; refuse to overwrite a file."""
     package = Path(tree) / task['oracle']['package']
     installed = []
-    for source in oracle_files(task):
+    for source in oracle_files(task, oracles):
         target = package / source.name[:-len(SUFFIX)]
         if target.exists() or target.is_symlink():
             raise ValueError('oracle file would overwrite a tree file: ' + str(target))
         shutil.copyfile(source, target)
         installed.append(target)
     return installed
-
-
-def restore_tests(candidate: Path, source: Path) -> dict:
-    """Make every *_test.go in candidate equal to source: delete added ones, restore changed ones.
-
-    Grading uses the base tests plus the oracle, never the agent's own tests, so an agent test that
-    does not compile cannot hide or fake an oracle result. Returns what was reset.
-    """
-    candidate, source = Path(candidate), Path(source)
-    reset = {'removed': [], 'restored': []}
-    for path in sorted(candidate.rglob('*_test.go')):
-        rel = path.relative_to(candidate)
-        if rel.parts[0] == '.git':
-            continue
-        original = source / rel
-        if not original.is_file():
-            path.unlink()
-            reset['removed'].append(rel.as_posix())
-        elif path.is_symlink() or path.read_bytes() != original.read_bytes():
-            path.unlink()
-            shutil.copyfile(original, path)
-            reset['restored'].append(rel.as_posix())
-    for original in sorted(source.rglob('*_test.go')):
-        rel = original.relative_to(source)
-        if not (candidate / rel).exists():
-            (candidate / rel).parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(original, candidate / rel)
-            reset['restored'].append(rel.as_posix())
-    return reset
-
-
-def oracle_env(root: Path, go_cache: Path, extra_path: list = ()) -> dict:
-    """A scrubbed environment: no inherited credentials, a scratch HOME and temp, the shared Go cache."""
-    go = shutil.which('go')
-    if not go:
-        raise RuntimeError('go is not on PATH')
-    home, temp = Path(root) / 'home', Path(root) / 'tmp'
-    home.mkdir(parents=True, exist_ok=True)
-    temp.mkdir(parents=True, exist_ok=True)
-    modcache = subprocess.check_output([go, 'env', 'GOMODCACHE'], text=True).strip()
-    paths = [str(Path(os.path.realpath(go)).parent), *map(str, extra_path), '/usr/bin', '/bin']
-    return {'PATH': os.pathsep.join(paths), 'HOME': str(home), 'TMPDIR': str(temp), 'GOTMPDIR': str(temp),
-            'GOCACHE': str(go_cache), 'GOMODCACHE': modcache, 'GOFLAGS': '-mod=mod', 'GOPROXY': 'off',
-            'GOSUMDB': 'off', 'GOTOOLCHAIN': 'local', 'GOTELEMETRY': 'off', 'GOMAXPROCS': '4',
-            'GIT_CONFIG_NOSYSTEM': '1', 'LANG': 'C.UTF-8'}
 
 
 def _run(argv: list, cwd: Path, env: dict, log: Path, timeout: float) -> tuple:
@@ -122,8 +77,10 @@ def case_verdict(output: str, name: str, code: int, timed_out: bool) -> str:
     return 'fail' if code else 'no_result'
 
 
-def run_oracle(tree: Path, task: dict, logs: Path, env: dict, timeout: float = 2400) -> dict:
-    """Compile the package's test binary once, then run each case alone. A build failure fails all."""
+def run_oracle(tree: Path, task: dict, logs: Path, env: dict, wrap=None, timeout: float = 2400) -> dict:
+    """Compile the package's test binary once, then run each case alone. A build failure fails all.
+    wrap(argv, cwd) returns the argv that actually runs (grade_c wraps every run in grader.sb)."""
+    wrap = wrap or (lambda argv, cwd: argv)
     oracle = task['oracle']
     names = [case['name'] for case in oracle['cases']]
     if not names or any(not CASE_NAME.match(name) for name in names):
@@ -132,20 +89,31 @@ def run_oracle(tree: Path, task: dict, logs: Path, env: dict, timeout: float = 2
     logs.mkdir(parents=True, exist_ok=True)
     package = Path(tree) / oracle['package']
     binary = Path(env['TMPDIR']) / 'oracle.test'
-    code, timed_out, seconds = _run(['go', 'test', '-c', '-o', str(binary), './' + oracle['package']], tree, env,
-                                    logs / 'build.log', timeout)
+    code, timed_out, seconds = _run(wrap(['go', 'test', '-c', '-o', str(binary), './' + oracle['package']], tree),
+                                    tree, env, logs / 'build.log', timeout)
     result = {'build': {'exit_code': code, 'timed_out': timed_out, 'seconds': seconds}, 'cases': {}}
     if code or timed_out or not binary.is_file():
         result['cases'] = {name: 'build_failed' for name in names}
         return result
     for name in names:
         log = logs / (name + '.log')
-        code, timed_out, _ = _run([str(binary), '-test.run', '^' + name + '$', '-test.count=1', '-test.v',
-                                   '-test.timeout=' + str(int(oracle.get('case_timeout', 900))) + 's'],
-                                  package, env, log, oracle.get('case_timeout', 900) + 60)
+        argv = [str(binary), '-test.run', '^' + name + '$', '-test.count=1', '-test.v',
+                '-test.timeout=' + str(int(oracle.get('case_timeout', 900))) + 's']
+        code, timed_out, _ = _run(wrap(argv, package), package, env, log, oracle.get('case_timeout', 900) + 60)
         result['cases'][name] = case_verdict(log.read_text(errors='replace'), name, code, timed_out)
     binary.unlink(missing_ok=True)
     return result
+
+
+def frozen_hash(tasks: list, oracles: Path = ORACLES) -> str:
+    """One hash over the task definitions and the bytes of every oracle file they name."""
+    import hashlib
+    import json
+    digest = hashlib.sha256(json.dumps(tasks, sort_keys=True).encode())
+    for task in sorted(tasks, key=lambda t: t['id']):
+        for path in oracle_files(task, oracles):
+            digest.update(task['id'].encode() + b'\0' + path.name.encode() + b'\0' + path.read_bytes())
+    return digest.hexdigest()
 
 
 def owned(path: str) -> bool:
