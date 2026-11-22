@@ -31,11 +31,9 @@ type Status struct {
 	Candidates []Candidate       `json:"candidates"`
 	Checks     []CheckStatus     `json:"checks"`
 	Invalid    map[string]string `json:"invalid,omitempty"`
-	// DuplicateFingerprints maps a lesson fingerprint to the candidates that
-	// share it, when there is more than one: two branches drafted the same
-	// defect under different sequence numbers. Only the first is linked to
-	// its lessons, so a person rejects the others.
-	DuplicateFingerprints map[string][]string `json:"duplicate_fingerprints,omitempty"`
+	// DuplicateDefects is the defects more than one live candidate holds,
+	// with the candidate to keep and the ones a person settles.
+	DuplicateDefects []DuplicateDefect `json:"duplicate_defects,omitempty"`
 	// LessonIDConflicts is the ids more than one distinct lesson holds.
 	LessonIDConflicts []learn.IDConflict `json:"lesson_id_conflicts,omitempty"`
 }
@@ -62,23 +60,13 @@ func BuildStatus(root string, entries []learn.LearningEntry, retireAfter int) (S
 	if err != nil {
 		return Status{}, err
 	}
+	reps := representatives(cands)
 	byFP := map[string]string{}
-	sharing := map[string][]string{}
-	for _, c := range cands {
-		if _, seen := byFP[c.Fingerprint]; !seen {
-			byFP[c.Fingerprint] = c.ID
-		}
-		sharing[c.Fingerprint] = append(sharing[c.Fingerprint], c.ID)
+	for fp, c := range reps {
+		byFP[fp] = c.ID
 	}
-	st := Status{Candidates: cands, LessonIDConflicts: learn.IDConflicts(entries)}
-	for fp, ids := range sharing {
-		if len(ids) > 1 {
-			if st.DuplicateFingerprints == nil {
-				st.DuplicateFingerprints = map[string][]string{}
-			}
-			st.DuplicateFingerprints[fp] = ids
-		}
-	}
+	st := Status{Candidates: cands, LessonIDConflicts: learn.IDConflicts(entries),
+		DuplicateDefects: duplicateDefects(cands, reps)}
 	for _, g := range groupEscapes(entries) {
 		id, ok := byFP[g.fingerprint]
 		for _, e := range g.entries {

@@ -105,7 +105,7 @@ func outcomeLabel(o checklist.Outcome) string {
 	return string(o.Result)
 }
 
-func sortedStringKeys[V any](m map[string]V) []string {
+func sortedStringKeys(m map[string]string) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)

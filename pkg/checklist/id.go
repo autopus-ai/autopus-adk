@@ -14,7 +14,7 @@ import (
 // it under the same sequence number; then the merge conflicts on that one
 // file. When the sequences differ (one branch drafted another candidate
 // first), both candidates survive the merge under different ids, and
-// BuildStatus reports them as DuplicateFingerprints. Ids without a suffix
+// BuildStatus reports them as DuplicateDefects. Ids without a suffix
 // (CHK-001) remain valid.
 var checkIDPattern = regexp.MustCompile(`^CHK-(\d{3,})(?:-([0-9a-f]{6}))?$`)
 

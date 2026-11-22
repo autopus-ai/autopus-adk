@@ -83,10 +83,16 @@ func printStatus(out io.Writer, st checklist.Status, retireAfter int) {
 // printMergeWarnings reports what a merge of two branches can leave behind:
 // one defect drafted as two candidates, and one id held by two lessons.
 func printMergeWarnings(out io.Writer, st checklist.Status) {
-	for _, fp := range sortedStringKeys(st.DuplicateFingerprints) {
-		ids := st.DuplicateFingerprints[fp]
-		fmt.Fprintf(out, "경고: 후보 %s는 같은 결함(지문 %s)입니다. 하나만 남기고 나머지는 거절하세요 (auto checklist reject %s)\n",
-			strings.Join(ids, ", "), fp, ids[len(ids)-1])
+	for _, d := range st.DuplicateDefects {
+		others := append(append([]string{}, d.Reject...), d.Retire...)
+		fmt.Fprintf(out, "경고: 후보 %s와 %s는 같은 결함(지문 %s)입니다. %s를 남기세요", d.Keep, strings.Join(others, ", "), d.Fingerprint, d.Keep)
+		for _, id := range d.Reject {
+			fmt.Fprintf(out, " (auto checklist reject %s)", id)
+		}
+		for _, id := range d.Retire {
+			fmt.Fprintf(out, " (auto checklist retire %s)", id)
+		}
+		fmt.Fprintln(out)
 	}
 	for _, c := range st.LessonIDConflicts {
 		fmt.Fprintf(out, "경고: 교훈 id %s를 서로 다른 교훈 %d개가 쓰고 있습니다 (pipeline.jsonl %v번째 줄). 이 id를 지정하는 명령은 모두에 적용됩니다\n",

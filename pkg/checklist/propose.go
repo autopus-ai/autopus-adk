@@ -105,13 +105,11 @@ func Propose(root string, entries []learn.LearningEntry, now time.Time) ([]Candi
 	if err != nil {
 		return nil, nil, err
 	}
+	// A fingerprint two branches drafted under different sequence numbers
+	// links to its representative candidate (see representatives).
 	byFP := map[string]string{}
-	for _, c := range cands {
-		// Candidates are sorted by id, so a fingerprint two branches drafted
-		// under different sequence numbers links to the lower id.
-		if _, seen := byFP[c.Fingerprint]; !seen {
-			byFP[c.Fingerprint] = c.ID
-		}
+	for fp, c := range representatives(cands) {
+		byFP[fp] = c.ID
 	}
 	var created []Candidate
 	var statuses []LessonStatus

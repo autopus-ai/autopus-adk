@@ -92,7 +92,13 @@ func TestChecklistStatus_WarnsAboutMergeLeftovers(t *testing.T) {
 
 	out, err := runAuto(t, "checklist", "status")
 	require.NoError(t, err, out)
-	assert.Contains(t, out, "경고: 후보 CHK-001-abcdef, CHK-002-abcdef는 같은 결함")
+	assert.Contains(t, out, "경고: 후보 CHK-001-abcdef와 CHK-002-abcdef는 같은 결함")
 	assert.Contains(t, out, "auto checklist reject CHK-002-abcdef")
 	assert.Contains(t, out, "경고: 교훈 id L-004를 서로 다른 교훈 2개가 쓰고 있습니다")
+
+	out, err = runAuto(t, "checklist", "reject", "CHK-002-abcdef")
+	require.NoError(t, err, out)
+	out, err = runAuto(t, "checklist", "status")
+	require.NoError(t, err, out)
+	assert.NotContains(t, out, "경고: 후보", "the advised reject settles the duplicate")
 }
