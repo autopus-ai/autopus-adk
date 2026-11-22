@@ -326,6 +326,7 @@ auto eval harness baseline --update
 2. **Intake.** `--all-eligible` takes every entry that has `expected` and
    `actual` and whose fingerprint is not already an open candidate, a promoted
    link, a rejection, or an active incident task. `--learning L-NNN[,L-MMM]`
+   (ids recorded since the branch suffix read `L-NNN-xxxxxx`)
    names entries and reports each one it skips. Entries with the same
    fingerprint (type, pattern, files, and packages, normalized) form one
    candidate, `candidates/GTC-<12 hex>.json`, whose evidence comes from the

@@ -46,6 +46,7 @@ func newMemRebuildCmd() *cobra.Command {
 				return writeJSONResult(cmd, jsonStatusOK, result, nil, nil)
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "rebuilt %s\n", memDisplayPath(opts.ProjectDir, result.IndexPath))
+			printMemSkips(cmd.OutOrStdout(), result.SkippedCountsByReason)
 			return nil
 		},
 	}
@@ -178,6 +179,7 @@ func newMemStatusCmd() *cobra.Command {
 				return writeJSONResult(cmd, jsonStatusOK, result, nil, nil)
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "index: %s rebuild_recommended=%t\n", memDisplayPath(opts.ProjectDir, result.IndexPath), result.RebuildRecommended)
+			printMemSkips(cmd.OutOrStdout(), result.SkippedCountsByReason)
 			return nil
 		},
 	}

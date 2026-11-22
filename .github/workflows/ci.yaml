@@ -906,6 +906,29 @@ jobs:
             exit 1
           fi
 
+      - name: Test Windows step process-tree cleanup (job object)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # pkg/procgroup is what verifygate (auto verify stop) and qa/execcheck
+          # cancel steps and servers through; on Windows it is a Job Object, so
+          # only this job exercises it. Same listed-vs-passed guard as above.
+          filter='^TestGroupWindows_'
+          minimum=3
+          log="$(mktemp)"
+          listed="$(go test -list "$filter" ./pkg/procgroup | awk '/^TestGroupWindows_/' | sort -u | tr '\n' ' ')"
+          read -ra listed_tests <<<"$listed"
+          if [[ "${#listed_tests[@]}" -lt "$minimum" ]]; then
+            echo "::error::-run '${filter}' lists ${#listed_tests[@]} test(s) in ./pkg/procgroup, below the declared ${minimum}: [${listed}]"
+            exit 1
+          fi
+          go test -count=2 -timeout=3m -v ./pkg/procgroup -run "$filter" 2>&1 | tee "$log"
+          observed="$(sed -n 's/^--- PASS: \([^ ]*\).*/\1/p' "$log" | sort -u | tr '\n' ' ')"
+          if [[ "$observed" != "$listed" ]]; then
+            echo "::error::-run '${filter}' listed [${listed}] but only [${observed}] reported PASS; the difference skipped or never ran"
+            exit 1
+          fi
+
       - name: Test Windows self-update CLI failure boundaries
         shell: bash
         run: |

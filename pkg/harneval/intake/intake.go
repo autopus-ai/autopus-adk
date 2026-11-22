@@ -198,7 +198,7 @@ func (req Request) selection() (map[string]bool, error) {
 	for _, raw := range req.LearningIDs {
 		id := strings.TrimSpace(raw)
 		if !learn.IsValidEntryID(id) {
-			return nil, &RunError{Reason: ReasonSelectionInvalid, Detail: "learning ids must match L-NNN"}
+			return nil, &RunError{Reason: ReasonSelectionInvalid, Detail: "learning ids must match L-NNN or L-NNN-xxxxxx"}
 		}
 		ids[id] = true
 	}
@@ -253,14 +253,14 @@ func selectEntries(req Request, ids map[string]bool) []selected {
 	return items
 }
 
-// idLess orders two valid L-NNN ids by number, so L-999 precedes L-1000.
+// idLess orders two valid ids by sequence number, so L-999 precedes L-1000,
+// then by suffix, so L-004 precedes L-004-3fa9c1.
 func idLess(a, b string) bool {
-	digitsA, digitsB := strings.TrimLeft(a[2:], "0"), strings.TrimLeft(b[2:], "0")
-	if len(digitsA) != len(digitsB) {
-		return len(digitsA) < len(digitsB)
+	if learn.EntryIDLess(a, b) {
+		return true
 	}
-	if digitsA != digitsB {
-		return digitsA < digitsB
+	if learn.EntryIDLess(b, a) {
+		return false
 	}
 	return a < b
 }

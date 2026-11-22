@@ -234,7 +234,7 @@ auto checklist record --pattern "publish-back follows a provider-writable symlin
 auto checklist propose        # repeated on two commits, or reproduced → an observe-mode candidate
 auto checklist refute --all   # a provider other than the drafter tries to refute each candidate
 auto checklist status         # lessons, candidates, the approval queue, and check health
-auto checklist approve CHK-001   # a person: adds the check in observe mode
+auto checklist approve CHK-001-3fa9c1   # a person: adds the check in observe mode (ids from before the suffix, CHK-001, still work)
 auto checklist run            # applies the checks whose diff condition matches
 ```
 

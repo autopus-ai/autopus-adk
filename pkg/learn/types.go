@@ -2,7 +2,6 @@ package learn
 
 import (
 	"encoding/json"
-	"regexp"
 	"strings"
 	"time"
 )
@@ -53,14 +52,6 @@ type LearningEntry struct {
 	// Escape is set on escape lessons only.
 	Escape *Escape `json:"escape,omitempty"`
 	Line   int     `json:"-"`
-}
-
-// entryIDRegex matches L-{NNN} format (one or more digits after L-).
-var entryIDRegex = regexp.MustCompile(`^L-\d{3,}$`)
-
-// IsValidEntryID checks whether id matches the L-{NNN} format.
-func IsValidEntryID(id string) bool {
-	return entryIDRegex.MatchString(id)
 }
 
 // RelevanceQuery holds parameters for relevance matching (R13).

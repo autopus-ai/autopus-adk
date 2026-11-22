@@ -26,11 +26,12 @@ func TestStore_ConcurrentAppendAndUpdateReuseCount(t *testing.T) {
 		Severity: SeverityLow,
 	}))
 
-	// Sanity: the seed is exactly L-001.
+	// Sanity: the seed is sequence 1.
 	seeded, err := store.Read()
 	require.NoError(t, err)
 	require.Len(t, seeded, 1)
-	require.Equal(t, "L-001", seeded[0].ID)
+	seedID := seeded[0].ID
+	require.Regexp(t, `^L-001-[0-9a-f]{6}$`, seedID)
 
 	const n = 50
 
@@ -53,7 +54,7 @@ func TestStore_ConcurrentAppendAndUpdateReuseCount(t *testing.T) {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
-			updateErrs[idx] = store.UpdateReuseCount("L-001")
+			updateErrs[idx] = store.UpdateReuseCount(seedID)
 		}(i)
 	}
 	wg.Wait()
@@ -74,7 +75,7 @@ func TestStore_ConcurrentAppendAndUpdateReuseCount(t *testing.T) {
 	// And: L-001's ReuseCount is exactly 50.
 	var seed *LearningEntry
 	for i := range final {
-		if final[i].ID == "L-001" {
+		if final[i].ID == seedID {
 			seed = &final[i]
 			break
 		}

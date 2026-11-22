@@ -147,7 +147,7 @@ func Run(ctx context.Context, root, base string, run Runner, now time.Time) (Rep
 	if err != nil {
 		return Report{}, err
 	}
-	sort.Slice(checks, func(i, j int) bool { return checks[i].ID < checks[j].ID })
+	sort.Slice(checks, func(i, j int) bool { return idLess(checks[i].ID, checks[j].ID) })
 	rep := Report{Base: mb, Invalid: invalid, ChangedChecks: ChangedChecks(root, cs, checks)}
 	if !AttrSourceSupported() {
 		rep.Warning = "git older than 2.40: attributes come from the working tree, so a change can hide its own lines with -diff"

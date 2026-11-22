@@ -1,14 +1,14 @@
 package memindex
 
 import (
-	"bufio"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/insajin/autopus-adk/pkg/learn"
 )
 
 func hashBytes(data []byte) string {
@@ -56,24 +56,16 @@ func hashLearningLine(path, id string) (string, error) {
 		return "", err
 	}
 	defer f.Close()
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" {
-			continue
-		}
-		var payload struct {
-			ID string `json:"id"`
-		}
-		if err := json.Unmarshal([]byte(line), &payload); err != nil {
-			continue
-		}
-		if payload.ID == id {
-			return hashBytes([]byte(line)), nil
-		}
-	}
-	if err := scanner.Err(); err != nil {
+	// The same merged view scanLearning indexes: the first lesson holding id,
+	// with the copies a union merge left resolved to one line.
+	lines, _, err := learn.ScanStore(f)
+	if err != nil {
 		return "", err
+	}
+	for _, l := range lines {
+		if l.Entry.ID == id {
+			return hashBytes([]byte(l.Raw)), nil
+		}
 	}
 	return "", fmt.Errorf("%w: %s#%s", os.ErrNotExist, path, id)
 }
