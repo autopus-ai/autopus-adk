@@ -149,11 +149,15 @@ func verifyChanged(cmd *cobra.Command, in stopHookInput, root string, changed []
 	if readStopState(in.SessionID, "pass") == fingerprint {
 		return stopHookOutput{}
 	}
-	for _, kind := range []string{"budget", "hang"} {
-		if note, ok := recordedNote(in.SessionID, kind, fingerprint); ok {
-			// Not run again, but not passed either: the note is repeated.
-			return stopHookOutput{SystemMessage: note}
-		}
+	if note, ok := recordedNote(in.SessionID, "budget", fingerprint); ok {
+		// Not run again, but not passed either: the note is repeated.
+		return stopHookOutput{SystemMessage: note}
+	}
+	if note, ok := recordedNote(in.SessionID, "hang", fingerprint); ok {
+		// The stop that lets a hang-suspected tree through: not run again,
+		// not passed, and the verification round the block withheld is due
+		// now (once per session, like every round).
+		return withBudgetNote(followupRound(cmd, in, root, followup, statusHangSuspected), note)
 	}
 	started := time.Now()
 	failure, skipped := verifygate.Run(cmd.Context(), steps, budget)

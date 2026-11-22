@@ -202,6 +202,9 @@ func followupRound(cmd *cobra.Command, in stopHookInput, root string, flag bool,
 const (
 	statusPassed  = "The build and tests pass."
 	statusUnbuilt = "No build or test toolchain covers these files, so nothing was compiled or tested."
+	// statusHangSuspected is the round after a suspected hang was let through.
+	statusHangSuspected = "The build passes; the tests were suspected hung when the budget ran out and are not verified: " +
+		"run them in full (a longer -timeout, or CI) before calling the change verified."
 )
 
 func followupOutput(b verifygate.Behavior, tier followupTier, status string, escalated bool) stopHookOutput {

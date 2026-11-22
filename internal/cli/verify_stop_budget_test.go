@@ -137,6 +137,34 @@ func TestVerifyStop_SlowTestBlocksOncePerTree(t *testing.T) {
 	assert.Equal(t, "block", edited.Decision, "a changed tree re-arms the block")
 }
 
+// B1: a product change whose slow test was suspected hung still gets the
+// verification round, once, on the stop that lets the tree through; the
+// round says the tests were not verified, never that they pass.
+func TestVerifyStop_HangSuspectedTreeStillGetsTheRoundOnce(t *testing.T) {
+	optInFollowup(t, "")
+	session := "budget-hang-round"
+	t.Cleanup(func() { resetStopState(session); _ = os.Remove(stopStateFile(session, "followup")) })
+	dir := newStopRepo(t, largeStopChange())
+	slow := "package stopgate\n\nimport (\n\t\"testing\"\n\t\"time\"\n)\n\nfunc TestSlow(t *testing.T) { time.Sleep(2 * time.Minute) }\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "slow_test.go"), []byte(slow), 0o644))
+
+	first, _ := runStopWithin(t, dir, session, 30*time.Second)
+	require.Equal(t, "block", first.Decision)
+	assert.Contains(t, first.Reason, "TestSlow")
+
+	second, took := runStopWithin(t, dir, session, 30*time.Second)
+	assert.Equal(t, "block", second.Decision, "the verification round: %s", second.SystemMessage)
+	assert.Contains(t, second.Reason, "verification round")
+	assert.Contains(t, second.Reason, "not verified")
+	assert.NotContains(t, second.Reason, "The build and tests pass")
+	assert.Less(t, took, 10*time.Second, "the tree is not run again")
+
+	third, _ := runStopWithin(t, dir, session, 30*time.Second)
+	assert.Empty(t, third.Decision, "the round fires once per session: %s", third.Reason)
+	assert.Contains(t, third.SystemMessage, "not verified")
+	assert.Empty(t, readStopState(session, "pass"))
+}
+
 // RG3 end to end: a deadlocked parallel test in a busy package is named
 // first, blocks once, and is never recorded as a pass.
 func TestVerifyStop_DeadlockInABusyPackageBlocksOnce(t *testing.T) {
