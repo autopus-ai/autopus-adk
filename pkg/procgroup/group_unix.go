@@ -18,9 +18,13 @@ const (
 	sweepRounds = 3
 )
 
-// platformState is the process group the command leads: its PID, which
-// stays the group's ID after the leader itself has exited.
-type platformState struct{ pgid int }
+// platformState is the process group the command leads (its PID, which
+// stays the group's ID after the leader itself has exited), and what a
+// Terminate or Kill has found of its tree so far.
+type platformState struct {
+	pgid int
+	tree *tree
+}
 
 func (g *Group) prepare() {
 	if g.cmd.SysProcAttr == nil {
@@ -39,21 +43,31 @@ func (g *Group) start() error {
 
 func (g *Group) close() error { return nil }
 
+// walk returns the tree found so far, refreshed from the process table.
+func (g *Group) walk() *tree {
+	if g.state.tree == nil {
+		g.state.tree = newTree(g.state.pgid)
+	}
+	g.state.tree.refresh()
+	return g.state.tree
+}
+
+// terminate walks the tree before signaling anything, while every parent is
+// still alive, and sends SIGTERM to all of it.
 func (g *Group) terminate() {
-	_ = syscall.Kill(-g.state.pgid, syscall.SIGTERM)
+	_ = g.walk().signal(syscall.SIGTERM)
 }
 
 // kill takes the tree down in three bounded phases. It reads the process
 // table before signaling anything, while every parent is still alive, so a
 // descendant in its own session is linked to the root by its parent PID
 // before its parent dies and it is reparented to init.
-func (g *Group) kill() error {
-	t := newTree(g.state.pgid)
-	t.refresh()
+func (g *Group) kill(grace time.Duration) error {
+	t := g.walk()
 	var termErr error = syscall.ESRCH
-	if g.grace > 0 {
+	if grace > 0 {
 		termErr = t.signal(syscall.SIGTERM)
-		deadline := time.Now().Add(g.grace)
+		deadline := time.Now().Add(grace)
 		for time.Now().Before(deadline) {
 			time.Sleep(pollInterval)
 			if !t.refresh() {

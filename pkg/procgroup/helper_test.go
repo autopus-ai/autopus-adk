@@ -23,6 +23,8 @@ import (
 //	escaper waits forever
 //	trap    on SIGTERM writes "cleaned" next to pidEnv and exits
 //	stubborn ignores SIGTERM and waits forever
+//	termparent starts a detached "stubborn" (which writes its own PID) and
+//	        exits 0 on SIGTERM, leaving it behind
 const (
 	helperEnv = "PROCGROUP_TEST_HELPER"
 	pidEnv    = "PROCGROUP_TEST_PIDFILE"
@@ -43,6 +45,17 @@ func TestMain(m *testing.M) {
 		if os.WriteFile(os.Getenv(pidEnv), []byte(pid), 0o600) != nil {
 			os.Exit(4)
 		}
+	case "termparent":
+		sig := make(chan os.Signal, 1)
+		signal.Notify(sig, syscall.SIGTERM)
+		child := exec.Command(os.Args[0])
+		child.Env = append(os.Environ(), helperEnv+"=stubborn")
+		detach(child)
+		if err := child.Start(); err != nil {
+			os.Exit(3)
+		}
+		<-sig
+		os.Exit(0)
 	case "trap":
 		sig := make(chan os.Signal, 1)
 		signal.Notify(sig, syscall.SIGTERM)

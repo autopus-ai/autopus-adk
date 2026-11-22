@@ -110,6 +110,39 @@ func TestTree_FollowsParentsAndLedGroups(t *testing.T) {
 
 	tr.extend([]row{{pid: 300, ppid: 1, pgid: 200}})
 	assert.Equal(t, map[int]bool{300: true}, tr.tracked, "processes that are gone are no longer signaled")
+	assert.Equal(t, map[int]bool{200: true}, tr.live, "only groups with a live member are signaled")
+}
+
+// A server that exits on SIGTERM can leave a child in its own session behind;
+// exec no longer cancels anything then, so Kill after the exit must still
+// reach the child that Terminate found while its parent was alive.
+func TestKill_AfterTheCommandExitedReachesWhatTerminateFound(t *testing.T) {
+	cmd, pidFile := helperCommand(t, t.Context(), "termparent")
+	g := New(cmd, Options{Grace: DefaultGrace})
+	require.NoError(t, g.Start())
+	escaper := readPID(t, pidFile)
+	reapOnFailure(t, escaper)
+
+	g.Terminate()
+	require.NoError(t, cmd.Wait(), "the parent exits 0 on SIGTERM")
+	require.True(t, alive(escaper), "the escaper ignores SIGTERM and outlives its parent")
+	_ = g.KillNow()
+
+	assert.True(t, gone(escaper), "Kill after the exit left the escaper running")
+}
+
+// Start sets the group's process attributes itself, so a SysProcAttr set
+// after New does not drop them.
+func TestStart_SetsTheGroupAfterALateSysProcAttr(t *testing.T) {
+	cmd := exec.CommandContext(t.Context(), "sleep", "30")
+	g := New(cmd, Options{})
+	cmd.SysProcAttr = &syscall.SysProcAttr{}
+	require.NoError(t, g.Start())
+	defer func() { _ = g.KillNow(); _ = cmd.Wait() }()
+
+	pgid, err := syscall.Getpgid(cmd.Process.Pid)
+	require.NoError(t, err)
+	assert.Equal(t, cmd.Process.Pid, pgid)
 }
 
 func TestParsePS_SkipsZombiesAndBadRows(t *testing.T) {

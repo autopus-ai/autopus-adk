@@ -26,6 +26,10 @@ type tree struct {
 	self    int
 	tracked map[int]bool
 	groups  map[int]bool
+	// live is the set of tracked groups that had a member in the latest
+	// snapshot, the only ones signaled; nil when there is no snapshot, and
+	// then only the root group is.
+	live map[int]bool
 }
 
 func newTree(root int) *tree {
@@ -33,24 +37,31 @@ func newTree(root int) *tree {
 		tracked: map[int]bool{root: true}, groups: map[int]bool{root: true}}
 }
 
-// refresh reads the process table, adds every child of a tracked process and
-// every member of a tracked group (to a fixed point), drops tracked processes
-// that are gone, and reports whether any tracked process is still alive.
+// refresh reads the process table, drops tracked processes that are gone,
+// adds every child of a tracked process and every member of a tracked group
+// (to a fixed point), and reports whether anything tracked is still alive.
 // Without a process table (no ps) it falls back to the root group alone.
 func (t *tree) refresh() bool {
 	rows, err := snapshot()
 	if err != nil {
+		t.live = nil
 		return syscall.Kill(-t.root, 0) == nil
 	}
 	t.extend(rows)
 	return len(t.tracked) > 0
 }
 
-// extend is refresh over a given snapshot.
+// extend is refresh over a given snapshot. Pruning comes first, so a PID
+// that is gone, or was reused by an unrelated process, links nothing.
 func (t *tree) extend(rows []row) {
 	live := make(map[int]bool, len(rows))
 	for _, r := range rows {
 		live[r.pid] = true
+	}
+	for pid := range t.tracked {
+		if !live[pid] {
+			delete(t.tracked, pid)
+		}
 	}
 	for grew := true; grew; {
 		grew = false
@@ -66,18 +77,23 @@ func (t *tree) extend(rows []row) {
 			}
 		}
 	}
-	for pid := range t.tracked {
-		if !live[pid] {
-			delete(t.tracked, pid)
+	t.live = map[int]bool{}
+	for _, r := range rows {
+		if t.groups[r.pgid] {
+			t.live[r.pgid] = true
 		}
 	}
 }
 
-// signal sends sig to every tracked group and process. It returns the result
-// for the root group, the one exec.Cmd.Cancel reports on.
+// signal sends sig to every tracked process and every tracked group that
+// had a member in the latest snapshot. It returns the result for the root
+// group, the one exec.Cmd.Cancel reports on: ESRCH when it had no member.
 func (t *tree) signal(sig syscall.Signal) error {
-	err := syscall.Kill(-t.root, sig)
-	for pgid := range t.groups {
+	err := error(syscall.ESRCH)
+	if t.live == nil || t.live[t.root] {
+		err = syscall.Kill(-t.root, sig)
+	}
+	for pgid := range t.live {
 		if pgid != t.root {
 			_ = syscall.Kill(-pgid, sig)
 		}

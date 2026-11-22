@@ -99,19 +99,34 @@ func Run(parent context.Context, steps []Step, budget time.Duration) (*Failure, 
 		// test binaries (and the servers they start) running when only `go`
 		// is killed.
 		group := procgroup.New(cmd, procgroup.Options{Grace: procgroup.DefaultGrace})
+		cmd.Cancel = func() error {
+			if interrupted(ctx) {
+				// Ctrl-C wants the gate gone now; no verdict needs a clean exit.
+				return group.KillNow()
+			}
+			return group.Kill()
+		}
 		// A child that outlives the kill must not hold Run on the pipes.
 		cmd.WaitDelay = waitDelay
 		var out bytes.Buffer
 		cmd.Stdout, cmd.Stderr = &out, &out
 		started := time.Now()
-		err := group.Start()
-		if err == nil {
-			err = cmd.Wait()
-			_ = group.Close()
+		if err := group.Start(); err != nil {
+			stepCancel()
+			skipped = append(skipped, Skip{Name: step.Name, Reason: "it could not be started: " + err.Error()})
+			continue
 		}
+		err := cmd.Wait()
+		_ = group.Close()
 		timedOut := errors.Is(stepCtx.Err(), context.DeadlineExceeded)
-		killedAt, ran := time.Now(), time.Since(started).Round(100*time.Millisecond)
 		deadline, _ := stepCtx.Deadline()
+		// A step cut off at its deadline is judged as of the deadline: the
+		// kill's grace and sweeps after it are not time the step had.
+		killedAt := time.Now()
+		if timedOut {
+			killedAt = deadline
+		}
+		ran := killedAt.Sub(started).Round(100 * time.Millisecond)
 		stepCancel()
 		text, failedTests := out.String(), []string(nil)
 		if step.GoTestJSON {
@@ -125,7 +140,10 @@ func Run(parent context.Context, steps []Step, budget time.Duration) (*Failure, 
 		// ErrWaitDelay after a clean exit only means a child kept the pipes
 		// open; the step itself passed.
 		exitedClean := errors.Is(err, exec.ErrWaitDelay) && cmd.ProcessState != nil && cmd.ProcessState.Success()
-		if err == nil || exitedClean || (errors.As(err, &exitErr) && slices.Contains(step.PassExit, exitErr.ExitCode())) {
+		// An exit status the step accepts only counts when the step ended on
+		// its own: a kill can end it with any status.
+		cut := timedOut || interrupted(ctx)
+		if err == nil || exitedClean || (errors.As(err, &exitErr) && !cut && slices.Contains(step.PassExit, exitErr.ExitCode())) {
 			continue
 		}
 		if interrupted(ctx) {
