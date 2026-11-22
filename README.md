@@ -571,7 +571,9 @@ checkers, and test runners (eslint, vitest, jest, tsc, pytest, mypy, playwright 
 golangci-lint, cargo clippy and nextest, turbo and lint/typecheck/test scripts), the `auto` steps that run
 suites (`auto qa exec|run|loop|mutate`, `auto checklist run`, `auto workflow gate`), and `auto disk lease`
 without `--cpu`; package installs, `npx playwright install`, and `git worktree add` pass, and a
-here-document body is data, not a command. A leased step can queue past the Bash tool's 2-minute default
+here-document body is data, not a command, unless a local shell reads it as its script (`bash <<EOF`,
+`cat <<EOF | sh`). Help flags (`auto qa exec --help`) and lookups (`command -v pytest`, `which tsc`) pass.
+In a subdirectory the gate and `auto disk` read the nearest `autopus.yaml` above it. A leased step can queue past the Bash tool's 2-minute default
 timeout, so run it in the background or with a long timeout; exit 3 means the wait expired.
 
 Prefer the environment variable, set where every session inherits it: the config key `hooks.cpu_gate: true`

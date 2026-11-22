@@ -67,7 +67,8 @@ func classifyWords(words []string, extra [][]string, depth int) step {
 	switch name {
 	case "auto":
 		return step{}
-	case "sh", "bash", "zsh", "dash":
+	}
+	if isShell(name) {
 		if script, ok := shellScript(args); ok && depth < maxShellDepth {
 			if v := classify(script, extra, depth+1); v.Heavy {
 				return step{match: v.Match}
@@ -85,6 +86,13 @@ func classifyWords(words []string, extra [][]string, depth int) step {
 	}
 	return step{}
 }
+
+// shells are the shells whose -c script, or here-document script, is
+// classified.
+var shells = []string{"sh", "bash", "zsh", "dash"}
+
+// isShell reports whether name is one of shells.
+func isShell(name string) bool { return slices.Contains(shells, name) }
 
 // shellScript returns the script of `sh -c script`, the -c possibly in a
 // cluster of short options such as -lc or -ec.
@@ -127,6 +135,9 @@ func stripPrefixes(words []string) []string {
 		switch base := filepath.Base(w); {
 		case w == "!" || w == "{" || w == "}" || envAssign.MatchString(w):
 			words = words[1:]
+		case base == "command" && lookupOnly(words[1:]):
+			// `command -v` and `-V` look a name up; nothing runs.
+			return nil
 		case slices.Contains([]string{"env", "command", "exec", "nohup", "time", "sudo", "caffeinate"}, base):
 			words = words[1:]
 			for len(words) > 0 && (strings.HasPrefix(words[0], "-") || envAssign.MatchString(words[0])) {
@@ -146,6 +157,20 @@ func stripPrefixes(words []string) []string {
 		}
 	}
 	return nil
+}
+
+// lookupOnly reports whether the options of `command` ask only to describe
+// the name (-v or -V, possibly clustered as in -pv), not to run it.
+func lookupOnly(args []string) bool {
+	for _, a := range args {
+		if a == "--" || !strings.HasPrefix(a, "-") {
+			return false
+		}
+		if strings.ContainsAny(a[1:], "vV") {
+			return true
+		}
+	}
+	return false
 }
 
 // skipOptions drops the leading options of words, and the value of each

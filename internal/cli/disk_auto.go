@@ -23,11 +23,13 @@ var diskSpawnAutoReclaim = spawnAutoReclaim
 // the user, it starts `auto disk reclaim --auto --apply` detached and
 // returns. The turn waits for one config read, one lock, and one stamp
 // write, never for the reclaim itself. It reports whether it started one.
+// The settings are read at diskConfigRoot(dir), but the reclaim runs in dir,
+// the session's cwd, so it keeps protecting the worktree that holds it.
 func maybeStartAutoReclaim(dir string) bool {
 	if strings.EqualFold(os.Getenv("AUTOPUS_DISK_AUTO_RECLAIM"), "off") || dir == "" {
 		return false
 	}
-	harness, err := config.LoadPreview(dir)
+	harness, err := config.LoadPreview(diskConfigRoot(dir))
 	if err != nil {
 		return false
 	}
@@ -53,11 +55,20 @@ func spawnAutoReclaim(dir string) error {
 	if err != nil {
 		return err
 	}
-	cmd := exec.Command(exe, "disk", "reclaim", "--auto", "--apply", "--dir", dir)
-	cmd.Dir = dir
+	cmd := autoReclaimCommand(exe, dir)
 	cmd.SysProcAttr = detachedProcAttr()
 	if err := cmd.Start(); err != nil {
 		return err
 	}
 	return cmd.Process.Release()
+}
+
+// autoReclaimCommand is the automatic reclaim run in dir, the session's cwd,
+// with no --dir: its cwd stays the base of the scan and of the protection of
+// the worktree holding the session, while its config is read at the project
+// root as for any `auto disk` command run without --dir.
+func autoReclaimCommand(exe, dir string) *exec.Cmd {
+	cmd := exec.Command(exe, "disk", "reclaim", "--auto", "--apply")
+	cmd.Dir = dir
+	return cmd
 }

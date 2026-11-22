@@ -33,7 +33,8 @@ func classifyCPU(line string, extra [][]string, depth int) Verdict {
 				return Verdict{Heavy: true, Match: match}
 			}
 			continue
-		case "sh", "bash", "zsh", "dash":
+		}
+		if isShell(name) {
 			if script, ok := shellScript(args); ok && depth < maxShellDepth {
 				if v := classifyCPU(script, extra, depth+1); v.Heavy {
 					return v
@@ -74,12 +75,30 @@ func leaseWithoutCPU(words []string) ([]string, bool) {
 func autoCPUStep(args []string) string {
 	sub, rest := subcommand(args)
 	next, _ := subcommand(rest)
+	if hasHelpFlag(args) {
+		return ""
+	}
 	switch {
 	case sub == "qa" && slices.Contains([]string{"exec", "run", "loop", "mutate"}, next),
 		sub == "checklist" && next == "run", sub == "workflow" && next == "gate":
 		return "auto " + sub + " " + next
 	}
 	return ""
+}
+
+// hasHelpFlag reports whether args, before any `--`, hold -h, --help or
+// --version: cobra then prints and exits without running the step,
+// wherever the flag stands.
+func hasHelpFlag(args []string) bool {
+	for _, a := range args {
+		if a == "--" {
+			return false
+		}
+		if a == "-h" || a == "--help" || a == "--version" {
+			return true
+		}
+	}
+	return false
 }
 
 // uvRunValued are the `uv run` and `poetry run` options followed by a value.
