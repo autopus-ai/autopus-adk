@@ -177,20 +177,21 @@ func TestVerifyStop_DeadlockInABusyPackageBlocksOnce(t *testing.T) {
 	// Every test gets a slot at once, so TestDead's start does not depend on
 	// which paused test the scheduler resumes first (with -parallel 2 it often
 	// never started inside the window, a correct budget skip but not this
-	// scenario). The sleeps spread pass events over 20s, keeping the package
-	// busy while TestDead sits idle from the start.
+	// scenario). Sleeps of at most ~3s keep the package busy early and stay far
+	// below half the window even on a starved runner: a 20s sleep that never
+	// finished tied TestDead's idle time on CI, and a tie has no defined order.
 	t.Setenv("GOFLAGS", "-parallel=4096")
 	for i := 0; i < 2000; i++ {
-		fmt.Fprintf(&b, "func TestQ%d(t *testing.T) { t.Parallel(); time.Sleep(%d * time.Millisecond) }\n", i, (i%400)*50)
+		fmt.Fprintf(&b, "func TestQ%d(t *testing.T) { t.Parallel(); time.Sleep(%d * time.Millisecond) }\n", i, (i%60)*50)
 	}
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "busy_test.go"), []byte(b.String()), 0o644))
 	warmStopBuild(t, dir)
 
-	got, _ := runStopWithin(t, dir, session, 30*time.Second)
+	got, _ := runStopWithin(t, dir, session, 45*time.Second)
 	assert.Equal(t, "block", got.Decision, got.SystemMessage)
 	evidence, _, _ := strings.Cut(got.Reason, "\n")
 	assert.Contains(t, evidence, "(stopgate.TestDead ", "the deadlocked test is named first")
-	assertSuspicionBlocksOnce(t, dir, session, 30*time.Second)
+	assertSuspicionBlocksOnce(t, dir, session, 45*time.Second)
 }
 
 // warmStopBuild compiles the repo's tests once, so the hook's window is spent
