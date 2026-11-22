@@ -61,6 +61,7 @@ v0.51.6 0.51.6 A47
 v0.51.7 0.51.7 A48
 v0.51.8 0.51.8 A49
 v0.51.9 0.51.9 A50
+v0.51.10 0.51.10 A51
 '
 
 resolve_public_key_receipt_release_phase() {
