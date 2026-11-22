@@ -119,10 +119,10 @@ func renderOMPDoctorReadinessText(
 	out io.Writer,
 	root string,
 	findings []adapter.ValidationError,
-) bool {
+) (healthy, failed bool) {
 	checks := probeAndProjectOMPDoctorChecks(ctx, root, findings)
 	renderOMPDoctorChecksText(out, checks)
-	return ompDoctorChecksHealthy(checks)
+	return ompDoctorChecksHealthy(checks), ompDoctorChecksFailed(checks)
 }
 
 func (r *doctorJSONReport) collectOMPReadinessChecks(
@@ -174,6 +174,17 @@ func ompDoctorChecksHealthy(checks []jsonCheck) bool {
 		}
 	}
 	return true
+}
+
+// ompDoctorChecksFailed reports whether any check failed outright, as
+// opposed to a degraded check that only warns.
+func ompDoctorChecksFailed(checks []jsonCheck) bool {
+	for _, check := range checks {
+		if check.Status == "fail" {
+			return true
+		}
+	}
+	return false
 }
 
 func ompDoctorLevel(level string) (string, string) {

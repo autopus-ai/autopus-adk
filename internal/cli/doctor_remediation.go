@@ -54,3 +54,15 @@ func doctorRemediationAdvice(platformFailed, depsMissing bool) string {
 		return "Issues found — review the warnings above"
 	}
 }
+
+// doctorWarningAdvice summarises a report with warnings and no failure. The
+// banner used to say "Issues found — the managed surface is missing or
+// stale; run 'auto update'" over a page whose only findings were degraded OMP
+// model routing: no ERROR line said what failed, and `auto update` does not
+// repair routing. Naming the sections points the reader at the lines to read.
+func doctorWarningAdvice(sections []string) string {
+	if len(sections) == 0 {
+		return "Warnings found, nothing failed — review the [WARN] lines above"
+	}
+	return "Warnings found, nothing failed — review the [WARN] lines in: " + strings.Join(sections, ", ")
+}

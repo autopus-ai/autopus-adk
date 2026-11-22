@@ -89,6 +89,7 @@ func OK(w io.Writer, msg string) {
 
 // FAIL prints a compact FAIL status for checklist items.
 func FAIL(w io.Writer, msg string) {
+	countError(w)
 	label := ErrorLabelStyle.Render("ERROR")
 	text := ErrorStyle.Render(msg)
 	fmt.Fprintf(w, "  [%s] %s\n", label, text)
