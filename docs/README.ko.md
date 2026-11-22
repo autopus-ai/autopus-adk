@@ -569,17 +569,27 @@ status는 이 표본으로 소비자를 증가량 순서로 보여 주고(예: `
 `hooks.disk_gate: false` 또는 `AUTOPUS_DISK_GATE=off`를 씁니다. OMP에는 pre-tool hook이 없고, 다른 플랫폼에는
 아직 게이트를 등록하지 않습니다. 그 플랫폼에서는 무거운 단계 전에 `auto disk check`를 실행합니다.
 
-여러 세션이 함께 쓰는 기계에서는 `hooks.cpu_gate: true`(기본 꺼짐)로 같은 hook이 CPU도 봅니다. lease 자신의
-입장 검사가 대기자를 세울 상황이면 CPU lease 밖에서 CPU를 쓰는 명령을 막고 `auto disk lease --cpu N -- <command>`를
-안내합니다. 그 상황은 1분 load에 아직 평균에 드러나지 않은 최근 grant를 더한 값이
-`disk.lease.max_load_ratio` × 논리 CPU를 넘는 때입니다. 막는 명령은 다음과 같습니다.
+여러 세션이 함께 쓰는 기계에서는 `AUTOPUS_CPU_GATE=on`(기본 꺼짐)으로 같은 hook이 CPU도 봅니다. CPU lease가
+돌거나 기다리는 동안 lease 자신의 입장 검사가 대기자를 세울 상황이면, CPU lease 밖에서 CPU를 쓰는 명령을 막고
+`auto disk lease --cpu N -- <command>`를 안내합니다. 그 상황은 1분 load에 아직 평균에 드러나지 않은 최근 grant를
+더한 값이 `disk.lease.max_load_ratio` × 논리 CPU를 넘는 때입니다. CPU lease도 대기자도 없으면 통과시킵니다.
+그때의 load는 lease 밖에서 온 것이라 줄을 세워도 줄지 않기 때문입니다. 막는 명령은 다음과 같습니다.
 
 - 컴파일과 테스트
-- 린터, 타입 검사기, 테스트 러너: eslint, vitest, jest, tsc, pytest, go vet, golangci-lint, cargo clippy,
-  lint/typecheck/test script
+- 린터, 타입 검사기, 테스트 러너: eslint, vitest, jest, tsc, pytest, mypy, playwright test, go vet,
+  golangci-lint, cargo clippy와 nextest, turbo, lint/typecheck/test script
+- 스위트를 돌리는 `auto` 단계: `auto qa exec|run|loop|mutate`, `auto checklist run`, `auto workflow gate`
 - `--cpu` 없는 `auto disk lease`
 
-설치와 `git worktree add`는 통과합니다. `AUTOPUS_DISK_GATE=off`는 두 검사를 모두 끕니다.
+패키지 설치, `npx playwright install`, `git worktree add`는 통과하고, here-document 본문은 명령이 아니라 데이터로
+읽습니다. lease로 감싼 단계는 Bash 도구의 기본 제한 시간 2분보다 오래 기다릴 수 있으니 백그라운드나 긴 timeout으로
+실행합니다. 종료 코드 3은 대기 시간이 끝났다는 뜻입니다.
+
+모든 세션이 물려받는 곳에 환경 변수를 두는 방법을 권합니다. 설정 키 `hooks.cpu_gate: true`도 동작하고 환경 변수가
+있으면 환경 변수가 이깁니다. 다만 이 키보다 오래된 `auto`는 키가 든 `autopus.yaml`을 거부하므로, 그 파일을 읽는 모든
+`auto`가 새 버전이 된 뒤에만 키를 씁니다. 게이트는 disk gate hook 안에서 돌기 때문에 `hooks.cpu_gate` 없이
+`hooks.disk_gate: false`만 두면 환경 변수가 동작할 hook이 없습니다. 설정은 세션 cwd에서 위로 가장 가까운
+`autopus.yaml`에서 읽습니다. `AUTOPUS_DISK_GATE=off`는 두 검사를 모두 끕니다.
 
 **회수.** `--apply`를 주지 않으면 모두 dry run이고, 심볼릭 링크는 따라가지 않으며, 스캔 뒤에 바뀐 항목은
 건너뜁니다. `auto disk reclaim`이 지우는 것:

@@ -12,6 +12,7 @@ import (
 	"github.com/insajin/autopus-adk/pkg/config"
 	"github.com/insajin/autopus-adk/pkg/diskgate"
 	"github.com/insajin/autopus-adk/pkg/diskspace"
+	"github.com/insajin/autopus-adk/pkg/editguard"
 	"github.com/insajin/autopus-adk/pkg/rulecond"
 )
 
@@ -41,9 +42,11 @@ func newDiskGateCmd() *cobra.Command {
 			"the file system of the payload's cwd is below disk.min_free_gb, prints a deny decision telling the agent to " +
 			"pause and run `auto disk status`. Every `auto` command passes, `auto disk lease -- <command>` included. " +
 			"It costs one statfs and walks nothing. It always exits 0 and prints nothing when it allows. " +
-			"AUTOPUS_DISK_GATE=off or hooks.disk_gate: false turns it off. With hooks.cpu_gate: true it also denies a heavy " +
-			"command, linters and test runners included, while the 1-minute load is above disk.lease.max_load_ratio × " +
-			"the logical CPUs, and points the agent at `auto disk lease --cpu N -- <command>`.",
+			"AUTOPUS_DISK_GATE=off turns the whole hook off; hooks.disk_gate: false turns the disk check off. With " +
+			"AUTOPUS_CPU_GATE=on (or hooks.cpu_gate: true; the env var wins) it also denies a heavy command, linters and " +
+			"test runners included, while a CPU lease runs or waits and the 1-minute load is above " +
+			"disk.lease.max_load_ratio × the logical CPUs, and points the agent at `auto disk lease --cpu N -- <command>`. " +
+			"The config is read from the nearest autopus.yaml at or above the payload's cwd.",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -76,8 +79,15 @@ func diskGateReason(stdin io.Reader) string {
 	if dir == "" {
 		dir, _ = os.Getwd()
 	}
+	// The config is read at the project root, the nearest autopus.yaml at or
+	// above cwd, as the edit guard reads it, so a session working in a
+	// subdirectory keeps its gates. Free space is still measured at cwd.
+	root := dir
+	if found, err := editguard.FindProjectRoot(dir); err == nil {
+		root = found
+	}
 	disk, hooks := config.DiskConf{}.Effective(), config.HooksConf{}
-	if harness, err := config.LoadPreview(dir); err == nil {
+	if harness, err := config.LoadPreview(root); err == nil {
 		disk, hooks = harness.Disk.Effective(), harness.Hooks
 	}
 	if !hooks.IsDiskGateEnabled() {

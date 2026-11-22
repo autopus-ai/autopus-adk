@@ -550,13 +550,25 @@ is not matched by default; add heavy targets with `hooks.disk_gate.extra_command
 Turn the gate off with `hooks.disk_gate: false` or `AUTOPUS_DISK_GATE=off`. OMP has no pre-tool hook, and
 the other platforms do not register the gate yet; run `auto disk check` before heavy steps there.
 
-On a machine several sessions share, `hooks.cpu_gate: true` (off by default) makes the same hook gate on
-CPU too. While the lease's own admission check would hold a waiter (the 1-minute load plus recent grants
-the average does not show yet, above `disk.lease.max_load_ratio` × the logical CPUs), it denies commands
-that load the CPU outside a CPU lease and points the agent at `auto disk lease --cpu N -- <command>`.
-That covers compiles and tests, linters, type checkers, and test runners (eslint, vitest, jest, tsc,
-pytest, go vet, golangci-lint, cargo clippy, lint/typecheck/test scripts), and `auto disk lease` without
-`--cpu`; installs and `git worktree add` pass. `AUTOPUS_DISK_GATE=off` turns both checks off.
+On a machine several sessions share, `AUTOPUS_CPU_GATE=on` (off by default) makes the same hook gate on
+CPU too. While a CPU lease runs or waits and the lease's own admission check would hold a waiter (the
+1-minute load plus recent grants the average does not show yet, above `disk.lease.max_load_ratio` × the
+logical CPUs), it denies commands that load the CPU outside a CPU lease and points the agent at
+`auto disk lease --cpu N -- <command>`. With no CPU lease and no waiter it allows: that load comes from
+outside the lease system, and queueing cannot reduce it. That covers compiles and tests, linters, type
+checkers, and test runners (eslint, vitest, jest, tsc, pytest, mypy, playwright test, go vet,
+golangci-lint, cargo clippy and nextest, turbo and lint/typecheck/test scripts), the `auto` steps that run
+suites (`auto qa exec|run|loop|mutate`, `auto checklist run`, `auto workflow gate`), and `auto disk lease`
+without `--cpu`; package installs, `npx playwright install`, and `git worktree add` pass, and a
+here-document body is data, not a command. A leased step can queue past the Bash tool's 2-minute default
+timeout, so run it in the background or with a long timeout; exit 3 means the wait expired.
+
+Prefer the environment variable, set where every session inherits it: the config key `hooks.cpu_gate: true`
+works too (the variable wins when set), but an `auto` binary older than the key refuses an `autopus.yaml`
+that carries it, so set the key only once every `auto` that reads the file is new enough. The gate runs
+inside the disk gate hook, so `hooks.disk_gate: false` without `hooks.cpu_gate` leaves no hook for the
+variable to act in. The config is read from the nearest `autopus.yaml` at or above the session's cwd.
+`AUTOPUS_DISK_GATE=off` turns both checks off.
 
 **Reclaim.** Everything is a dry run unless `--apply` is given, symlinks are never followed, and anything
 that changed since the scan is skipped. `auto disk reclaim` removes:

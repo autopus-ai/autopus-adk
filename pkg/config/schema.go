@@ -208,7 +208,9 @@ type HooksConf struct {
 	// CPUGate lets the disk gate hook also deny heavy shell commands started
 	// outside a lease while the machine's load is above the lease limit. It
 	// is off unless set: it pays off on a machine shared by several sessions.
-	// Read it through IsCPUGateEnabled.
+	// AUTOPUS_CPU_GATE=on|off overrides it per machine and is the preferred
+	// switch, because an auto binary that predates this key refuses a config
+	// carrying it. Read it through IsCPUGateEnabled.
 	CPUGate *bool `yaml:"cpu_gate,omitempty"`
 	// VersionStop lets `auto verify stop` send a session back once when its
 	// changes add or bump a dependency, toolchain or image pin a full release

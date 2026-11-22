@@ -8,40 +8,41 @@ import (
 
 // ClassifyCPU reports whether a simple command in line would load the CPU:
 // the disk gate's compiles and tests, less the installs and checkouts that
-// mostly wait on the network and disk, plus linters, type checkers and test
-// runners. `auto disk lease` without --cpu reserves no CPU, so the command
-// after its `--` is classified; every other `auto` command passes. extra
-// adds word prefixes, as in Classify.
+// mostly wait on the network and disk, plus linters, type checkers, test
+// runners, and the `auto` steps that run suites. `auto disk lease` without
+// --cpu reserves no CPU, so the command after its `--` is classified; every
+// other `auto` command passes. extra adds word prefixes, as in Classify;
+// they count as CPU work, so `make ci` added there is gated.
 func ClassifyCPU(line string, extra ...string) Verdict {
-	var prefixes [][]string
-	for _, command := range extra {
-		if words := strings.Fields(command); len(words) > 0 {
-			prefixes = append(prefixes, words)
-		}
-	}
-	return classifyCPU(line, prefixes, 0)
+	return classifyCPU(line, parsePrefixes(extra), 0)
 }
 
 func classifyCPU(line string, extra [][]string, depth int) Verdict {
 	for _, words := range segments(lex(line)) {
 		words = stripPrefixes(words)
 		if inner, ok := leaseWithoutCPU(words); ok {
-			words = inner
+			words = stripPrefixes(inner)
 		}
 		if len(words) == 0 {
 			continue
 		}
 		name, args := filepath.Base(words[0]), words[1:]
-		if (name == "sh" || name == "bash" || name == "zsh" || name == "dash") && depth < maxShellDepth {
-			if i := slices.Index(args, "-c"); i >= 0 && i+1 < len(args) {
-				if v := classifyCPU(args[i+1], extra, depth+1); v.Heavy {
+		switch name {
+		case "auto":
+			if match := autoCPUStep(args); match != "" {
+				return Verdict{Heavy: true, Match: match}
+			}
+			continue
+		case "sh", "bash", "zsh", "dash":
+			if script, ok := shellScript(args); ok && depth < maxShellDepth {
+				if v := classifyCPU(script, extra, depth+1); v.Heavy {
 					return v
 				}
 			}
 			continue
 		}
-		if v := classifyWords(words, extra, depth); v.Heavy && !ioBound(v.Match) {
-			return v
+		if s := classifyWords(words, extra, depth); s.match != "" && !s.io {
+			return Verdict{Heavy: true, Match: s.match}
 		}
 		if match := cpuStep(name, args); match != "" {
 			return Verdict{Heavy: true, Match: match}
@@ -68,48 +69,44 @@ func leaseWithoutCPU(words []string) ([]string, bool) {
 	return words[sep+1:], true
 }
 
-// ioBound names the disk gate's heavy steps that wait on the network and
-// disk rather than the CPU: package installs and syncs, and checkouts. go
-// install and cargo install compile, so they stay heavy.
-func ioBound(match string) bool {
-	if match == "git worktree add" || match == "yarn install" {
-		return true
+// autoCPUStep names the `auto` subcommands that run whole suites: the QA
+// runners, checklist runs, and workflow gates.
+func autoCPUStep(args []string) string {
+	sub, rest := subcommand(args)
+	next, _ := subcommand(rest)
+	switch {
+	case sub == "qa" && slices.Contains([]string{"exec", "run", "loop", "mutate"}, next),
+		sub == "checklist" && next == "run", sub == "workflow" && next == "gate":
+		return "auto " + sub + " " + next
 	}
-	if tool, _, _ := strings.Cut(match, " "); tool == "go" || tool == "cargo" {
-		return false
-	}
-	for _, sub := range []string{" install", " i", " ci", " add", " sync"} {
-		if strings.HasSuffix(match, sub) {
-			return true
-		}
-	}
-	return false
+	return ""
 }
 
-// cpuTools are linters, type checkers and test runners run directly.
-var cpuTools = []string{"eslint", "vitest", "jest", "tsc", "pytest", "mocha", "playwright"}
-
-// nodeFlagsWithValue are package-manager options followed by a value.
-var nodeFlagsWithValue = []string{"--prefix", "-C", "--dir", "--filter", "-F", "--cwd", "-w", "--workspace"}
+// uvRunValued are the `uv run` and `poetry run` options followed by a value.
+var uvRunValued = []string{"--with", "-w", "--with-requirements", "--with-editable", "--python", "-p",
+	"--directory", "--project", "-P", "-C", "--package", "--extra", "--group", "--only-group", "--no-group",
+	"--env-file", "--index", "--default-index", "--index-url", "-i", "--extra-index-url", "--find-links", "-f",
+	"--cache-dir", "--config-file"}
 
 // cpuStep names the CPU-heavy step that is not on the disk gate's list.
 func cpuStep(name string, args []string) string {
 	switch {
 	case slices.Contains(cpuTools, name):
-		if onlyInfoFlags(args) {
-			return ""
+		if cpuToolRun(name, args) {
+			return name
 		}
-		return name
 	case name == "npx" || name == "bunx":
-		if tool, rest := subcommand(args, "-p", "--package"); slices.Contains(cpuTools, tool) && !onlyInfoFlags(rest) {
-			return name + " " + tool
+		if tool, rest := subcommand(args, "-p", "--package"); tool != "" {
+			if match := cpuStep(filepath.Base(tool), rest); match != "" {
+				return name + " " + match
+			}
 		}
 	case name == "npm" || name == "pnpm" || name == "yarn" || name == "bun":
 		return nodeCPUStep(name, args)
 	case name == "uv" || name == "poetry":
-		if sub, rest := subcommand(args, "--directory", "--project", "-C"); sub == "run" {
-			if tool, _ := subcommand(rest); tool != "" {
-				return cpuStep(filepath.Base(tool), rest[1:])
+		if sub, rest := subcommand(args, "--directory", "--project", "-C", "-P"); sub == "run" {
+			if tool, toolArgs := subcommand(rest, uvRunValued...); tool != "" {
+				return cpuStep(filepath.Base(tool), toolArgs)
 			}
 		}
 	case name == "python" || name == "python3":
@@ -117,8 +114,14 @@ func cpuStep(name string, args []string) string {
 			return name + " -m " + args[1]
 		}
 	case name == "go":
-		if sub, _ := subcommand(args, "-C"); sub == "vet" {
+		sub, rest := subcommand(args, "-C")
+		if sub == "vet" {
 			return "go vet"
+		}
+		if tool, toolArgs := subcommand(rest); sub == "tool" && tool != "" {
+			if match := cpuStep(filepath.Base(tool), toolArgs); match != "" {
+				return "go tool " + match
+			}
 		}
 	case name == "cargo":
 		if sub, _ := subcommand(args, "-C", "--manifest-path", "--config", "-Z"); sub == "clippy" || sub == "check" {
@@ -128,59 +131,8 @@ func cpuStep(name string, args []string) string {
 		if sub, _ := subcommand(args); sub == "run" {
 			return "golangci-lint run"
 		}
+	case name == "turbo":
+		return turboStep(args)
 	}
 	return ""
-}
-
-// nodeCPUStep catches lint, typecheck and test scripts with options in
-// front (`pnpm -r lint`, `npm --prefix web run lint:fix`) and package
-// binaries run through the manager (`pnpm exec vitest`, `pnpm vitest`).
-func nodeCPUStep(name string, args []string) string {
-	sub, rest := subcommand(args, nodeFlagsWithValue...)
-	if sub == "run" || sub == "run-script" {
-		sub, _ = subcommand(rest, nodeFlagsWithValue...)
-		if cpuScript(sub) {
-			return name + " run " + sub
-		}
-		return ""
-	}
-	if sub == "exec" || sub == "dlx" || slices.Contains(cpuTools, sub) {
-		tool := sub
-		if sub == "exec" || sub == "dlx" {
-			tool, rest = subcommand(rest)
-		}
-		if slices.Contains(cpuTools, tool) && !onlyInfoFlags(rest) {
-			return strings.TrimSpace(name + " " + strings.TrimPrefix(sub+" ", tool+" ") + tool)
-		}
-		return ""
-	}
-	if cpuScript(sub) {
-		return name + " " + sub
-	}
-	return ""
-}
-
-// cpuScript reports whether a package script name is a lint, type check or
-// test script, variants such as lint:fix and test:unit included.
-func cpuScript(script string) bool {
-	for _, prefix := range []string{"lint", "typecheck", "type-check", "check-types", "test"} {
-		if script == prefix || strings.HasPrefix(script, prefix+":") || strings.HasPrefix(script, prefix+"-") {
-			return true
-		}
-	}
-	return false
-}
-
-// onlyInfoFlags reports whether args only ask a tool for its version or
-// help, which ends at once.
-func onlyInfoFlags(args []string) bool {
-	if len(args) == 0 {
-		return false
-	}
-	for _, a := range args {
-		if !slices.Contains([]string{"--version", "-v", "-V", "--help", "-h"}, a) {
-			return false
-		}
-	}
-	return true
 }
