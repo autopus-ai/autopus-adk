@@ -174,16 +174,33 @@ func TestVerifyStop_DeadlockInABusyPackageBlocksOnce(t *testing.T) {
 	var b strings.Builder
 	b.WriteString("package stopgate\n\nimport (\n\t\"sync\"\n\t\"testing\"\n\t\"time\"\n)\n\n" +
 		"func TestDead(t *testing.T) {\n\tt.Parallel()\n\tvar mu sync.Mutex\n\tmu.Lock()\n\tmu.Lock()\n}\n\n")
+	// Every test gets a slot at once, so TestDead's start does not depend on
+	// which paused test the scheduler resumes first (with -parallel 2 it often
+	// never started inside the window, a correct budget skip but not this
+	// scenario). The sleeps spread pass events over 20s, keeping the package
+	// busy while TestDead sits idle from the start.
+	t.Setenv("GOFLAGS", "-parallel=4096")
 	for i := 0; i < 2000; i++ {
-		fmt.Fprintf(&b, "func TestQ%d(t *testing.T) { t.Parallel(); time.Sleep(500 * time.Millisecond) }\n", i)
+		fmt.Fprintf(&b, "func TestQ%d(t *testing.T) { t.Parallel(); time.Sleep(%d * time.Millisecond) }\n", i, (i%400)*50)
 	}
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "busy_test.go"), []byte(b.String()), 0o644))
+	warmStopBuild(t, dir)
 
 	got, _ := runStopWithin(t, dir, session, 30*time.Second)
 	assert.Equal(t, "block", got.Decision, got.SystemMessage)
 	evidence, _, _ := strings.Cut(got.Reason, "\n")
 	assert.Contains(t, evidence, "(stopgate.TestDead ", "the deadlocked test is named first")
 	assertSuspicionBlocksOnce(t, dir, session, 30*time.Second)
+}
+
+// warmStopBuild compiles the repo's tests once, so the hook's window is spent
+// running them rather than compiling 2000 test functions on a loaded runner.
+func warmStopBuild(t *testing.T, dir string) {
+	t.Helper()
+	cmd := exec.Command("go", "test", "-count=1", "-run", "^$", "./...")
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, string(out))
 }
 
 // The verification round must not tell the agent the tests passed when they
