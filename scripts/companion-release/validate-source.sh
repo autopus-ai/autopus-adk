@@ -51,6 +51,7 @@ readonly A47_A46_ANCESTOR_SHA='8ab8b182c425ab8a68112293e8ab272ff3765dcb'
 readonly A48_A47_ANCESTOR_SHA='ea183465fa5955c683cca89f9b5e2bd5e2c8ed09'
 readonly A49_A48_ANCESTOR_SHA='61306bee7b8d8202a398780de34551e90360fd06'
 readonly A50_A49_ANCESTOR_SHA='8994d90fce86befdf7b97ce53a0b25519ff26cab'
+readonly A51_A50_ANCESTOR_SHA='7b017f1751a16a3651913abd4e86a35c43c3ecd6'
 
 fail() {
   printf 'companion release source: %s\n' "$1" >&2
@@ -113,7 +114,8 @@ case "$GITHUB_REF_NAME" in
   v0.51.7) release_phase='A48' ;;
   v0.51.8) release_phase='A49' ;;
   v0.51.9) release_phase='A50' ;;
-  *) fail 'release tag is outside the frozen A0/A1/A2/A3/A4/A5/A6/A7/A8/A9/A10/A11/A12/A13/A14/A15/A16/A17/A18/A19/A20/A21/A22/A23/A24/A25/A26/A27/A28/A29/A30/A31/A32/A33/A34/A35/A36/A37/A38/A39/A40/A41/A42/A43/A44/A45/A46/A47/A48/A49/A50 policy' ;;
+  v0.51.10) release_phase='A51' ;;
+  *) fail 'release tag is outside the frozen A0/A1/A2/A3/A4/A5/A6/A7/A8/A9/A10/A11/A12/A13/A14/A15/A16/A17/A18/A19/A20/A21/A22/A23/A24/A25/A26/A27/A28/A29/A30/A31/A32/A33/A34/A35/A36/A37/A38/A39/A40/A41/A42/A43/A44/A45/A46/A47/A48/A49/A50/A51 policy' ;;
 esac
 [[ "$GITHUB_REF_TYPE" == 'tag' ]] || fail 'release ref is not a tag'
 [[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]] || fail 'source commit is not exact 40-hex'
@@ -143,7 +145,7 @@ if [[ "$release_phase" == 'A2' || "$release_phase" == 'A3' ||
       "$release_phase" == 'A28' || "$release_phase" == 'A29' ||
       "$release_phase" == 'A30' || "$release_phase" == 'A31' ||
       "$release_phase" == 'A32' || "$release_phase" == 'A33' ||
-      "$release_phase" == 'A34' || "$release_phase" == 'A35' || "$release_phase" == 'A36' || "$release_phase" == 'A37' || "$release_phase" == 'A38' || "$release_phase" == 'A39' || "$release_phase" == 'A40' || "$release_phase" == 'A41' || "$release_phase" == 'A42' || "$release_phase" == 'A43' || "$release_phase" == 'A44' || "$release_phase" == 'A45' || "$release_phase" == 'A46' || "$release_phase" == 'A47' || "$release_phase" == 'A48' || "$release_phase" == 'A49' || "$release_phase" == 'A50' ]]; then
+      "$release_phase" == 'A34' || "$release_phase" == 'A35' || "$release_phase" == 'A36' || "$release_phase" == 'A37' || "$release_phase" == 'A38' || "$release_phase" == 'A39' || "$release_phase" == 'A40' || "$release_phase" == 'A41' || "$release_phase" == 'A42' || "$release_phase" == 'A43' || "$release_phase" == 'A44' || "$release_phase" == 'A45' || "$release_phase" == 'A46' || "$release_phase" == 'A47' || "$release_phase" == 'A48' || "$release_phase" == 'A49' || "$release_phase" == 'A50' || "$release_phase" == 'A51' ]]; then
   tag_object_type=$(git cat-file -t "refs/tags/$GITHUB_REF_NAME" 2>/dev/null) \
     || fail "cannot resolve exact ${release_phase} tag object"
   [[ "$tag_object_type" == 'tag' ]] \
@@ -211,6 +213,7 @@ if [[ "$release_phase" == 'A2' || "$release_phase" == 'A3' ||
     A48) git merge-base --is-ancestor "$A48_A47_ANCESTOR_SHA" "$GITHUB_SHA" >/dev/null 2>&1 || fail 'A48 source does not contain the immutable A47 release' ;;
     A49) git merge-base --is-ancestor "$A49_A48_ANCESTOR_SHA" "$GITHUB_SHA" >/dev/null 2>&1 || fail 'A49 source does not contain the immutable A48 release' ;;
     A50) git merge-base --is-ancestor "$A50_A49_ANCESTOR_SHA" "$GITHUB_SHA" >/dev/null 2>&1 || fail 'A50 source does not contain the immutable A49 release' ;;
+    A51) git merge-base --is-ancestor "$A51_A50_ANCESTOR_SHA" "$GITHUB_SHA" >/dev/null 2>&1 || fail 'A51 source does not contain the immutable A50 release' ;;
     *) fail "${release_phase} predecessor ancestry pin is not provisioned" ;;
   esac
   # A24 signs with R2 like its predecessors. An earlier commit removed it from
@@ -222,7 +225,7 @@ if [[ "$release_phase" == 'A2' || "$release_phase" == 'A3' ||
         "$release_phase" == 'A28' || "$release_phase" == 'A29' ||
         "$release_phase" == 'A30' || "$release_phase" == 'A31' ||
         "$release_phase" == 'A32' || "$release_phase" == 'A33' ||
-        "$release_phase" == 'A34' || "$release_phase" == 'A35' || "$release_phase" == 'A36' || "$release_phase" == 'A37' || "$release_phase" == 'A38' || "$release_phase" == 'A39' || "$release_phase" == 'A40' || "$release_phase" == 'A41' || "$release_phase" == 'A42' || "$release_phase" == 'A43' || "$release_phase" == 'A44' || "$release_phase" == 'A45' || "$release_phase" == 'A46' || "$release_phase" == 'A47' || "$release_phase" == 'A48' || "$release_phase" == 'A49' || "$release_phase" == 'A50' ]]; then
+        "$release_phase" == 'A34' || "$release_phase" == 'A35' || "$release_phase" == 'A36' || "$release_phase" == 'A37' || "$release_phase" == 'A38' || "$release_phase" == 'A39' || "$release_phase" == 'A40' || "$release_phase" == 'A41' || "$release_phase" == 'A42' || "$release_phase" == 'A43' || "$release_phase" == 'A44' || "$release_phase" == 'A45' || "$release_phase" == 'A46' || "$release_phase" == 'A47' || "$release_phase" == 'A48' || "$release_phase" == 'A49' || "$release_phase" == 'A50' || "$release_phase" == 'A51' ]]; then
     if [[ "$release_phase" == 'A22' &&
           "${COMPANION_RELEASE_TAG_SIGNATURE_REQUIRED-0}" == '1' ]]; then
       [[ "${ADK_KEY_ROTATION_VERIFIED-}" == '1' ]] ||
