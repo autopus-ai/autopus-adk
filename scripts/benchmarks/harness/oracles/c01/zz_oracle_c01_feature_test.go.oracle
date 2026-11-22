@@ -1,0 +1,198 @@
+package cli
+
+// Pilot C oracle c01, feature cases (hidden from the agent): the tests of
+// 10220e08 internal/cli/ci_report_lintsrc_test.go (the PR's original tests as
+// amended by the review) with identifiers prefixed so they cannot collide
+// with tests the agent writes.
+
+import (
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/insajin/autopus-adk/pkg/cireport"
+)
+
+// Cancels every event: the lint flags it.
+const oc01CancelsAll = `on: [pull_request, push]
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps: [{run: "true"}]
+`
+
+// Cancels only pull requests, but its job has no timeout: only this version
+// yields missing-timeout, so a finding proves it was the file linted.
+const oc01CancelsPR = `on: [pull_request, push]
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps: [{run: "true"}]
+`
+
+func oc01Git(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+	cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@example.invalid",
+		"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@example.invalid", "GIT_CONFIG_GLOBAL=/dev/null")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git %v: %v\n%s", args, err, out)
+	}
+}
+
+func oc01WriteWF(t *testing.T, repo, body string) { t.Helper(); oc01WriteWFNamed(t, repo, "ci.yml", body) }
+
+func oc01WriteWFNamed(t *testing.T, repo, name, body string) {
+	t.Helper()
+	dir := filepath.Join(repo, ".github", "workflows")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// oc01StaleCheckout returns a clone whose workflow still cancels every event
+// while its origin's default branch already fixed it.
+func oc01StaleCheckout(t *testing.T) (clone, upstream string) {
+	t.Helper()
+	root := t.TempDir()
+	upstream = filepath.Join(root, "up")
+	oc01Git(t, root, "init", "-q", "-b", "main", upstream)
+	oc01WriteWF(t, upstream, oc01CancelsAll)
+	oc01Git(t, upstream, "add", ".")
+	oc01Git(t, upstream, "commit", "-qm", "one")
+	clone = filepath.Join(root, "clone")
+	oc01Git(t, root, "clone", "-q", upstream, clone)
+	oc01WriteWF(t, upstream, oc01CancelsPR)
+	oc01Git(t, upstream, "commit", "-qam", "two")
+	oc01Git(t, clone, "fetch", "-q", "origin")
+	return clone, upstream
+}
+
+func oc01LintIDs(fs []cireport.LintFinding) string {
+	var ids []string
+	for _, f := range fs {
+		ids = append(ids, f.Rule)
+	}
+	return strings.Join(ids, ",")
+}
+
+func TestOracleC01_BehindCheckoutLintsRemoteDefaultBranch(t *testing.T) {
+	clone, _ := oc01StaleCheckout(t)
+	var r cireport.Report
+	got := lintCheckout(&r, "", clone, "o/r", "o/r", nil)
+	oc01AssertLintedRemote(t, got, r.Notes)
+	if !strings.Contains(strings.Join(r.Notes, "\n"), "1 commits behind origin/main") {
+		t.Fatalf("notes = %q", r.Notes)
+	}
+	// An explicit directory is linted as given.
+	var r2 cireport.Report
+	got = lintCheckout(&r2, filepath.Join(clone, ".github", "workflows"), clone, "o/r", "o/r", nil)
+	if !strings.Contains(oc01LintIDs(got), "concurrency-cancels-other-events") {
+		t.Fatalf("explicit dir not linted: %v", oc01LintIDs(got))
+	}
+}
+
+func TestOracleC01_LocalWorkflowEditsStayLocal(t *testing.T) {
+	clone, _ := oc01StaleCheckout(t)
+	oc01WriteWF(t, clone, oc01CancelsAll+"# local edit\n")
+	var r cireport.Report
+	got := lintCheckout(&r, "", clone, "o/r", "o/r", nil)
+	if !strings.Contains(oc01LintIDs(got), "concurrency-cancels-other-events") {
+		t.Fatalf("local edit not linted: %v", oc01LintIDs(got))
+	}
+	if !strings.Contains(strings.Join(r.Notes, "\n"), "differs from origin/main") {
+		t.Fatalf("notes = %q", r.Notes)
+	}
+}
+
+func TestOracleC01_LocalCommitsStayLocal(t *testing.T) {
+	clone, _ := oc01StaleCheckout(t)
+	oc01WriteWF(t, clone, oc01CancelsAll+"# committed\n")
+	oc01Git(t, clone, "commit", "-qam", "local")
+	var r cireport.Report
+	got := lintCheckout(&r, "", clone, "o/r", "o/r", nil)
+	if !strings.Contains(oc01LintIDs(got), "concurrency-cancels-other-events") {
+		t.Fatalf("local commit not linted: %v", oc01LintIDs(got))
+	}
+}
+
+func TestOracleC01_UpToDateHasNoNote(t *testing.T) {
+	clone, _ := oc01StaleCheckout(t)
+	oc01Git(t, clone, "merge", "-q", "--ff-only", "origin/main")
+	var r cireport.Report
+	public := true
+	lintCheckout(&r, "", clone, "o/r", "o/r", &public)
+	if len(r.Notes) != 0 {
+		t.Fatalf("an up-to-date checkout needs no note, got %q", r.Notes)
+	}
+}
+
+// oc01AssertLintedRemote proves the remote file was parsed and linted: only it
+// lacks timeout-minutes, and only the stale one cancels every event.
+func oc01AssertLintedRemote(t *testing.T, got []cireport.LintFinding, notes []string) {
+	t.Helper()
+	ids := oc01LintIDs(got)
+	if !strings.Contains(ids, "missing-timeout") || strings.Contains(ids, "concurrency-cancels-other-events") {
+		t.Fatalf("did not lint the remote file: %v", ids)
+	}
+	if strings.Contains(strings.Join(notes, "\n"), "not parsed") {
+		t.Fatalf("notes = %q", notes)
+	}
+}
+
+func TestOracleC01_StrayNonYAMLFileStillLintsRemote(t *testing.T) {
+	clone, _ := oc01StaleCheckout(t)
+	oc01WriteWFNamed(t, clone, ".DS_Store", "x")
+	var r cireport.Report
+	oc01AssertLintedRemote(t, lintCheckout(&r, "", clone, "o/r", "o/r", nil), r.Notes)
+}
+
+func TestOracleC01_UntrackedWorkflowStaysLocalEvenIfHidden(t *testing.T) {
+	clone, _ := oc01StaleCheckout(t)
+	oc01Git(t, clone, "config", "status.showUntrackedFiles", "no")
+	oc01WriteWFNamed(t, clone, "new.yml", oc01CancelsAll)
+	var r cireport.Report
+	got := lintCheckout(&r, "", clone, "o/r", "o/r", nil)
+	if !strings.Contains(oc01LintIDs(got), "concurrency-cancels-other-events") {
+		t.Fatalf("untracked workflow not linted: %v", oc01LintIDs(got))
+	}
+}
+
+func TestOracleC01_RemoteNonASCIIWorkflowIsRead(t *testing.T) {
+	clone, upstream := oc01StaleCheckout(t)
+	oc01WriteWFNamed(t, upstream, "배포.yml", oc01CancelsAll)
+	oc01Git(t, upstream, "add", ".")
+	oc01Git(t, upstream, "commit", "-qm", "three")
+	oc01Git(t, clone, "fetch", "-q", "origin")
+	var r cireport.Report
+	got := lintCheckout(&r, "", clone, "o/r", "o/r", nil)
+	found := false
+	for _, f := range got {
+		found = found || (f.File == "배포.yml" && f.Rule == "concurrency-cancels-other-events")
+	}
+	if !found {
+		t.Fatalf("non-ASCII remote workflow skipped: %+v", got)
+	}
+}
+
+func TestOracleC01_DanglingOriginHEADIsNoted(t *testing.T) {
+	clone, _ := oc01StaleCheckout(t)
+	oc01Git(t, clone, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/gone")
+	var r cireport.Report
+	lintCheckout(&r, "", clone, "o/r", "o/r", nil)
+	if !strings.Contains(strings.Join(r.Notes, "\n"), "origin/HEAD does not resolve") {
+		t.Fatalf("notes = %q", r.Notes)
+	}
+}

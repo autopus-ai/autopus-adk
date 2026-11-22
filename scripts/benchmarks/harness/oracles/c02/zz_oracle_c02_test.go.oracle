@@ -1,0 +1,200 @@
+package cli_test
+
+// Pilot C oracle c02 (hidden from the agent): black-box checks of the
+// `auto doctor` text output through the root command. Every external tool is
+// a stub on a scratch PATH, so the report depends on the fixture, not the host.
+
+import (
+	"bytes"
+	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/insajin/autopus-adk/internal/cli"
+	"github.com/insajin/autopus-adk/pkg/config"
+)
+
+var oracleC02Tools = []string{"node", "claude", "codex", "agy", "gemini", "sg", "agent-browser", "gh", "omp", "opencode"}
+
+// oracleC02Env pins HOME and PATH: stub CLIs that print a version, the real
+// git behind a wrapper, and /bin for the shell. No brew or npm is reachable,
+// so `--fix` cannot install anything.
+func oracleC02Env(t *testing.T) {
+	t.Helper()
+	bin := t.TempDir()
+	for _, name := range oracleC02Tools {
+		if err := os.WriteFile(filepath.Join(bin, name), []byte("#!/bin/sh\necho 1.0.0\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	git, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("git unavailable")
+	}
+	wrapper := "#!/bin/sh\nexec " + git + " \"$@\"\n"
+	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(wrapper), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+"/bin")
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+}
+
+// oracleC02Run executes the root command and returns stdout and everything
+// written to the process stderr while it ran.
+func oracleC02Run(t *testing.T, args ...string) (string, string) {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved := os.Stderr
+	os.Stderr = w
+	captured := make(chan []byte)
+	go func() { data, _ := io.ReadAll(r); captured <- data }()
+	var out, errOut bytes.Buffer
+	root := cli.NewRootCmd()
+	root.SetOut(&out)
+	root.SetErr(&errOut)
+	root.SetArgs(args)
+	runErr := root.Execute()
+	w.Close()
+	os.Stderr = saved
+	stderr := errOut.String() + string(<-captured)
+	if runErr != nil {
+		t.Fatalf("auto %v: %v\n%s\n%s", args, runErr, out.String(), stderr)
+	}
+	return out.String(), stderr
+}
+
+// oracleC02Project returns a git work tree holding a generated harness.
+func oracleC02Project(t *testing.T, platforms ...string) string {
+	t.Helper()
+	dir := t.TempDir()
+	cmd := exec.Command("git", "init", "-q", dir)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git init: %v\n%s", err, out)
+	}
+	cfg := config.DefaultFullConfig("oracle-c02")
+	cfg.Platforms = platforms
+	if err := config.Save(dir, cfg); err != nil {
+		t.Fatal(err)
+	}
+	oracleC02Run(t, "update", "--dir", dir, "--yes", "--local")
+	return dir
+}
+
+// oracleC02Box returns the verdict label and the joined message of the last
+// result box: "PASS", "WARN" or "FAIL", or "" when no box was printed.
+func oracleC02Box(out string) (string, string) {
+	lines := strings.Split(out, "\n")
+	start := -1
+	for i, line := range lines {
+		if strings.Contains(line, "╭") {
+			start = i
+		}
+	}
+	if start < 0 {
+		return "", ""
+	}
+	var parts []string
+	for _, line := range lines[start+1:] {
+		if strings.Contains(line, "╰") {
+			break
+		}
+		parts = append(parts, strings.TrimSpace(strings.Trim(strings.TrimSpace(line), "│")))
+	}
+	msg := strings.Join(strings.Fields(strings.Join(parts, " ")), " ")
+	for _, label := range []string{"PASS", "WARN", "FAIL"} {
+		if strings.Contains(msg, label) {
+			return label, msg
+		}
+	}
+	return "", msg
+}
+
+// A page whose lines hold warnings and no ERROR line is not a failure, and
+// its summary does not send the reader to a command that repairs nothing.
+func TestOracleC02_WarningOnlyPageIsNotAFailure(t *testing.T) {
+	oracleC02Env(t)
+	dir := oracleC02Project(t, "claude-code")
+	// A stray non-repository makes the hygiene diagnostic warn.
+	if err := os.RemoveAll(filepath.Join(dir, ".git")); err != nil {
+		t.Fatal(err)
+	}
+	out, _ := oracleC02Run(t, "doctor", "--dir", dir)
+	if strings.Contains(out, "[ERROR]") {
+		t.Fatalf("fixture precondition: the page must hold no ERROR line:\n%s", out)
+	}
+	if !strings.Contains(out, "[WARN]") {
+		t.Fatalf("fixture precondition: the page must hold a WARN line:\n%s", out)
+	}
+	label, msg := oracleC02Box(out)
+	if label == "" || label == "FAIL" {
+		t.Fatalf("a page without an ERROR line got verdict %q (%s):\n%s", label, msg, out)
+	}
+	if label == "WARN" && strings.Contains(msg, "auto update") {
+		t.Fatalf("no warning on this page is repaired by auto update, the summary says %q", msg)
+	}
+}
+
+// When the report prints an ERROR line the verdict is FAIL, including an
+// ERROR printed by a failed `--fix` install of an optional dependency.
+func TestOracleC02_ErrorLineAlwaysFails(t *testing.T) {
+	oracleC02Env(t)
+	dir := oracleC02Project(t, "claude-code")
+	out, _ := oracleC02Run(t, "doctor", "--dir", dir, "--fix", "--yes")
+	if !strings.Contains(out, "[ERROR]") {
+		t.Fatalf("fixture precondition: the failed install must print an ERROR line:\n%s", out)
+	}
+	label, msg := oracleC02Box(out)
+	if label != "FAIL" {
+		t.Fatalf("an ERROR line sits above verdict %q (%s):\n%s", label, msg, out)
+	}
+	if strings.Contains(msg, "review the warnings") {
+		t.Fatalf("a FAIL summary must point at what failed, not at warnings: %q", msg)
+	}
+}
+
+// A warning that `auto update` does repair is named in the summary.
+func TestOracleC02_WarningRepairedByUpdateNamesUpdate(t *testing.T) {
+	oracleC02Env(t)
+	dir := oracleC02Project(t, "claude-code")
+	stale := filepath.Join(dir, ".claude", "hooks", "autopus", "hook-claude-stop.sh")
+	if err := os.MkdirAll(filepath.Dir(stale), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(stale, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	out, _ := oracleC02Run(t, "doctor", "--dir", dir)
+	if strings.Contains(out, "[ERROR]") {
+		t.Fatalf("fixture precondition: the page must hold no ERROR line:\n%s", out)
+	}
+	label, msg := oracleC02Box(out)
+	if label != "WARN" || !strings.Contains(msg, "auto update") {
+		t.Fatalf("a stale completion hook warns and auto update removes it; verdict %q (%s):\n%s", label, msg, out)
+	}
+}
+
+// One doctor run regenerates the same adapters several times; a generation
+// diagnostic line is printed at most once.
+func TestOracleC02_RepeatedDiagnosticsPrintOnce(t *testing.T) {
+	oracleC02Env(t)
+	dir := oracleC02Project(t, "claude-code", "codex", "antigravity-cli")
+	_, stderr := oracleC02Run(t, "doctor", "--dir", dir)
+	seen := map[string]int{}
+	for _, line := range strings.Split(stderr, "\n") {
+		if strings.Contains(line, "extended skills") {
+			seen[strings.TrimSpace(line)]++
+		}
+	}
+	for line, n := range seen {
+		if n > 1 {
+			t.Fatalf("diagnostic printed %d times: %q\n%s", n, line, stderr)
+		}
+	}
+}

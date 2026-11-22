@@ -1,0 +1,73 @@
+;; Agent profile for pilot C trials (claude_agent.py, trial_c.py).
+;;
+;;   sandbox-exec -f claude_agent.sb -D TRIAL=<trial dir> -D OUTPUT=<run output root>
+;;     -D BIN=<run output>/bin -D ACCOUNT_HOME=<account home> -D MODCACHE=<go module cache>
+;;     -D PROTECTED0/1=<source and runner checkouts> -D TOOL0..TOOL3=<install dirs of the linked tools>
+;;     <claude -p ...>
+;;
+;; The model is remote, so TCP stays open; Unix sockets are closed (a Docker
+;; or colima socket would hand out the host). Writes are confined to the
+;; trial: its workspace, isolated HOME and CLAUDE_CONFIG_DIR, temp and its own
+;; copy of the Go build cache. Reads follow grader.sb: file contents below the
+;; homes and temporary roots are closed and only the trial, the module cache,
+;; the pinned bin directory and the tools' install directories are reopened.
+;; So the rest of the run output (other trials, measurements, grading, the
+;; frozen oracles), both checkouts, ~/.ssh, ~/.aws, ~/.config, shell history
+;; and the account's Claude state are unreadable. The keychain is closed both
+;; as files and as Mach services. Signals reach only this sandbox instance.
+;; LaunchServices opens and preference writes through cfprefsd are denied:
+;; both would act outside the sandbox. Nothing outside the trial is writable,
+;; /private/tmp included: Claude Code 2.1.322 writes its Bash cwd file to
+;; CLAUDE_CODE_TMPDIR, which agent_env sets inside the trial.
+(version 1)
+(allow default)
+
+(deny file-write*)
+(allow file-write*
+  (subpath (param "TRIAL"))
+  (literal "/dev/null")
+  (literal "/dev/tty")
+  (regex #"^/dev/(fd/|ttys)"))
+
+;; A rule on a named operation beats a file-read* rule whatever their order,
+;; and among rules on the same operation the later one wins (grader.sb).
+(deny file-read-data file-read-xattr
+  (subpath (param "OUTPUT"))
+  (subpath (param "PROTECTED0"))
+  (subpath (param "PROTECTED1"))
+  (subpath (param "ACCOUNT_HOME"))
+  (subpath "/Users")
+  (subpath "/Volumes")
+  (subpath "/private/var/folders")
+  (subpath "/private/tmp")
+  (subpath "/private/var/tmp"))
+(allow file-read-data file-read-xattr
+  (subpath (param "TRIAL"))
+  (subpath (param "MODCACHE"))
+  (subpath (param "BIN"))
+  (subpath (param "TOOL0"))
+  (subpath (param "TOOL1"))
+  (subpath (param "TOOL2"))
+  (subpath (param "TOOL3")))
+(deny file-read-data file-read-xattr file-read-metadata
+  (subpath (string-append (param "ACCOUNT_HOME") "/Library/Keychains"))
+  (subpath "/Library/Keychains"))
+
+(deny network-outbound (remote unix-socket))
+;; Name resolution goes through mDNSResponder's socket.
+(allow network-outbound (remote unix-socket (path-literal "/private/var/run/mDNSResponder")))
+(deny network-bind (local unix-socket))
+(deny mach-lookup
+  (global-name "com.apple.SecurityServer")
+  (global-name "com.apple.securityd.xpc")
+  (global-name "com.apple.security.agent"))
+
+(deny signal)
+(allow signal (target same-sandbox))
+
+;; LaunchServices would start an app the trial builds outside this sandbox (open -g -j -n x.app),
+;; and cfprefsd writes ~/Library/Preferences on the trial's behalf (defaults write).
+(deny lsopen)
+(deny user-preference-write)
+;; The pasteboard can hold anything the maintainer copied.
+(deny mach-lookup (global-name "com.apple.pasteboard.1"))

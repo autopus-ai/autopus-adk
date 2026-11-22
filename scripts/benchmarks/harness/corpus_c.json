@@ -1,0 +1,134 @@
+[
+  {
+    "id": "c01",
+    "title": "auto ci report lints the remote default branch's workflows when the checkout is behind",
+    "source": "PR #347 (fix/ci-report-lint-remote-workflows)",
+    "heads": {
+      "base": "7b017f1751a16a3651913abd4e86a35c43c3ecd6",
+      "pre_review": "19721f08e6858a924c49846ad09994b019886776",
+      "fixed": "10220e08585c5f1703c7424725d1503665c97025"
+    },
+    "prompt": "`auto ci report` measures a repository's runs from the GitHub jobs API, but its workflow lint reads the `.github/workflows` files of the local checkout. When the checkout is behind the remote default branch, the report flags workflow defects that are already fixed there, so the measured runs and the linted files describe different points in time. Make the workflow lint read the remote default branch's workflow files when the local checkout is only behind it, and keep linting the local files when the checkout carries its own workflow changes. `auto ci report` is documented as read-only: it must not modify the repository.\n\nPinned interface (hidden tests call it directly; keep this signature and meaning):\n- In package `internal/cli`: `func lintCheckout(r *cireport.Report, dir, top, origin, repo string, public *bool) []cireport.LintFinding`. `dir` is the `--workflows-dir` value (empty when not given; a given directory is linted as given), `top` is the checkout root, `origin` is the owner/name of the checkout's origin remote (may be empty), `repo` is the measured owner/name. It returns the lint findings (`Rule`, and `File` = the workflow file's base name) and appends explanations to `r.Notes`.\n- The remote default branch is the ref `origin/HEAD` points to, for example `origin/main`.\n- Notes: when the remote branch's files were linted, one note contains `<N> commits behind <ref>` (for example `1 commits behind origin/main`); when the local files were linted because they differ from the remote branch, one note contains `differs from <ref>`; when `origin/HEAD` does not resolve, one note contains `origin/HEAD does not resolve`. An up-to-date checkout with known visibility adds no note.",
+    "allowed_paths": [
+      "internal/cli/*",
+      "pkg/cireport/*"
+    ],
+    "oracle": {
+      "package": "internal/cli",
+      "files": [
+        "zz_oracle_c01_feature_test.go.oracle",
+        "zz_oracle_c01_review_test.go.oracle"
+      ],
+      "case_timeout": 600,
+      "cases": [
+        {
+          "name": "TestOracleC01_BehindCheckoutLintsRemoteDefaultBranch",
+          "kind": "feature"
+        },
+        {
+          "name": "TestOracleC01_LocalWorkflowEditsStayLocal",
+          "kind": "feature"
+        },
+        {
+          "name": "TestOracleC01_LocalCommitsStayLocal",
+          "kind": "guard"
+        },
+        {
+          "name": "TestOracleC01_UpToDateHasNoNote",
+          "kind": "guard"
+        },
+        {
+          "name": "TestOracleC01_StrayNonYAMLFileStillLintsRemote",
+          "kind": "feature"
+        },
+        {
+          "name": "TestOracleC01_UntrackedWorkflowStaysLocalEvenIfHidden",
+          "kind": "guard"
+        },
+        {
+          "name": "TestOracleC01_RemoteNonASCIIWorkflowIsRead",
+          "kind": "feature"
+        },
+        {
+          "name": "TestOracleC01_DanglingOriginHEADIsNoted",
+          "kind": "feature"
+        },
+        {
+          "name": "TestOracleC01_UnrelatedLocalCommitStillLintsRemote",
+          "kind": "review"
+        },
+        {
+          "name": "TestOracleC01_LeavesTheIndexAlone",
+          "kind": "review"
+        },
+        {
+          "name": "TestOracleC01_OtherRepositoryReadsLocalWithNote",
+          "kind": "guard"
+        },
+        {
+          "name": "TestOracleC01_RemoteNotNamedOriginIsNoted",
+          "kind": "review"
+        },
+        {
+          "name": "TestOracleC01_NoRemoteAtAllHasNoComparisonNote",
+          "kind": "guard"
+        },
+        {
+          "name": "TestOracleC01_RemoteWithoutWorkflowsSkipsTheLint",
+          "kind": "review"
+        },
+        {
+          "name": "TestOracleC01_RemoteSymlinkIsNotAWorkflow",
+          "kind": "review"
+        }
+      ]
+    },
+    "harness_requires": [
+      "30722ad9a9933ade33027144872fc0687b89787c"
+    ]
+  },
+  {
+    "id": "c02",
+    "title": "auto doctor text verdict matches what it printed",
+    "source": "PR #350 (fix/doctor-verdict)",
+    "heads": {
+      "base": "7b017f1751a16a3651913abd4e86a35c43c3ecd6",
+      "pre_review": "eb26e65713422106f30ce677849232707e70f6aa",
+      "fixed": "dcda6485f58d78c55ec961916420857afbbd7e18"
+    },
+    "prompt": "`auto doctor` ends its text report with a result box whose verdict does not always match the lines above it. In one workspace it printed `✗ FAIL  Issues found — the managed surface is missing or stale; run 'auto update'` although no line on the page was an `[ERROR]` line, and `auto doctor --json` reported the same run as status warn: the only findings were warnings (degraded OMP model routing), which `auto update` cannot repair. The same generation diagnostic lines were also printed to stderr two or three times in one run, which reads like several problems. Make the text verdict agree with what the report printed, make the summary advice name the command that actually repairs what was reported, and print each repeated diagnostic line once.\n\nPinned interface (hidden tests run the `doctor` command through `cli.NewRootCmd()` with its existing flags and read the text output; keep it):\n- The text report ends with one result box whose verdict is one of `✓ PASS`, `⚠ WARN` or `✗ FAIL`, followed by the advice message, inside the box.\n- Report lines keep their existing `[OK]`, `[WARN]` and `[ERROR]` prefixes.\n- `auto doctor` keeps exiting 0, and `--json` output is unchanged.",
+    "allowed_paths": [
+      "internal/cli/*",
+      "pkg/content/*",
+      "pkg/adapter/*"
+    ],
+    "oracle": {
+      "package": "internal/cli",
+      "files": [
+        "zz_oracle_c02_test.go.oracle"
+      ],
+      "case_timeout": 600,
+      "cases": [
+        {
+          "name": "TestOracleC02_WarningOnlyPageIsNotAFailure",
+          "kind": "feature"
+        },
+        {
+          "name": "TestOracleC02_RepeatedDiagnosticsPrintOnce",
+          "kind": "feature"
+        },
+        {
+          "name": "TestOracleC02_ErrorLineAlwaysFails",
+          "kind": "review"
+        },
+        {
+          "name": "TestOracleC02_WarningRepairedByUpdateNamesUpdate",
+          "kind": "review"
+        }
+      ]
+    },
+    "harness_requires": [
+      "30722ad9a9933ade33027144872fc0687b89787c"
+    ]
+  }
+]
