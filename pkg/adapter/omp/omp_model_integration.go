@@ -3,12 +3,12 @@ package omp
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/insajin/autopus-adk/pkg/adapter"
 	"github.com/insajin/autopus-adk/pkg/config"
+	pkgcontent "github.com/insajin/autopus-adk/pkg/content"
 )
 
 type ompModelIntegration struct {
@@ -90,7 +90,7 @@ func (a *Adapter) reportDegradedModelRoutes(notice string) {
 		return
 	}
 	a.modelDegradationReported = true
-	fmt.Fprintln(os.Stderr, notice)
+	pkgcontent.PrintDiagnosticOnce(notice)
 }
 
 func isOwnerOnlyOMPModelPath(path string) bool {

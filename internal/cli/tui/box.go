@@ -51,22 +51,23 @@ func ErrorBox(w io.Writer, title, content string) {
 
 // ResultBox prints a summary result box (e.g., doctor diagnosis).
 func ResultBox(w io.Writer, passed bool, message string) {
-	var borderColor lipgloss.Color
-	var icon, label string
-
 	if passed {
-		borderColor = ColorSuccess
-		icon = SuccessLabelStyle.Render("✓")
-		label = SuccessLabelStyle.Render("PASS")
-	} else {
-		borderColor = ColorError
-		icon = ErrorLabelStyle.Render("✗")
-		label = ErrorLabelStyle.Render("FAIL")
+		resultBox(w, ColorSuccess, SuccessLabelStyle.Render("✓"), SuccessLabelStyle.Render("PASS"), message)
+		return
 	}
+	resultBox(w, ColorError, ErrorLabelStyle.Render("✗"), ErrorLabelStyle.Render("FAIL"), message)
+}
 
+// WarnResultBox prints the summary box for a report whose lines hold
+// warnings but no failure.
+func WarnResultBox(w io.Writer, message string) {
+	resultBox(w, ColorWarning, WarningLabelStyle.Render("⚠"), WarningLabelStyle.Render("WARN"), message)
+}
+
+func resultBox(w io.Writer, border lipgloss.Color, icon, label, message string) {
 	style := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(borderColor).
+		BorderForeground(border).
 		Padding(0, 1).
 		Width(bannerWidth)
 
