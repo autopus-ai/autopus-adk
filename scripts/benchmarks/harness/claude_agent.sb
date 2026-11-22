@@ -1,0 +1,47 @@
+;; Agent profile for pilot C trials (claude_agent.py, run_c.py).
+;;
+;;   sandbox-exec -f claude_agent.sb -D TRIAL=<trial dir> -D OUTPUT=<run output root>
+;;     -D GOCACHE=<shared go build cache> -D ACCOUNT_HOME=<account home>
+;;     -D PROTECTED0=<source checkout> -D PROTECTED1=<runner checkout> claude -p ...
+;;
+;; The model is remote, so the network stays open. Writes are confined to the
+;; trial (its workspace, isolated HOME and CLAUDE_CONFIG_DIR, temp) and the
+;; shared Go build cache. Reads are closed for the rest of the run output
+;; (other trials, the frozen protocol, grading trees), both checkouts (the
+;; hidden oracles live in the runner checkout) and the account's own Claude
+;; and Codex state. The keychain service is denied, so the account login can
+;; never stand in for the trial's token.
+(version 1)
+(allow default)
+
+(deny file-write*)
+(allow file-write*
+  (subpath (param "TRIAL"))
+  (subpath (param "GOCACHE"))
+  (subpath "/dev")
+  (subpath "/private/var/folders")
+  (subpath "/private/tmp"))
+
+(deny file-read* file-write*
+  (subpath (param "OUTPUT"))
+  (subpath (param "PROTECTED0"))
+  (subpath (param "PROTECTED1"))
+  (subpath (string-append (param "ACCOUNT_HOME") "/.claude"))
+  (literal (string-append (param "ACCOUNT_HOME") "/.claude.json"))
+  (subpath (string-append (param "ACCOUNT_HOME") "/.codex"))
+  (subpath (string-append (param "ACCOUNT_HOME") "/Library/Keychains"))
+  (subpath "/Library/Keychains"))
+;; Later rules win: reopen the trial and the cache inside the closed output root.
+(allow file-read* file-write*
+  (subpath (param "TRIAL"))
+  (subpath (param "GOCACHE")))
+;; The output root's bin holds the pinned `auto` the generated hooks call.
+(allow file-read*
+  (subpath (string-append (param "OUTPUT") "/bin")))
+;; Path resolution needs metadata of the parents of the trial.
+(allow file-read-metadata)
+
+(deny mach-lookup
+  (global-name "com.apple.SecurityServer")
+  (global-name "com.apple.securityd.xpc")
+  (global-name "com.apple.security.agent"))
