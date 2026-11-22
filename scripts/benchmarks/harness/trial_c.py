@@ -39,6 +39,15 @@ def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def write_json(path: Path, data) -> None:
+    """Write JSON through a temporary file and os.replace: an interrupted write leaves either no file
+    or the whole one, never a truncated result.json that --resume's json.loads would trip over."""
+    path = Path(path)
+    temp = path.with_name('.' + path.name + '.tmp')
+    temp.write_text(json.dumps(data, indent=2))
+    os.replace(temp, path)
+
+
 def execute_tree(argv: list, cwd: Path, env: dict, stdout: Path, stderr: Path, seconds: float,
                  stdin: str | None = None, scratch: Path | None = None) -> dict:
     """Run with exactly env in a new session. On the deadline SIGTERM the group and wait 10 s; then
@@ -164,5 +173,5 @@ def run(ctx: dict, task: dict, arm: str, replicate: int) -> dict:
            'prompt_hash': digest(plan['prompt'].encode()), 'human_interventions': 0,
            'harness_revision': plan['source']['harness_revision'],
            'surface_hash': plan['source']['generated']['surface_hash'] if arm != 'native' else None}
-    (measure / 'result.json').write_text(json.dumps(row, indent=2))
+    write_json(measure / 'result.json', row)
     return row

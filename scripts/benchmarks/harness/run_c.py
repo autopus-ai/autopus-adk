@@ -44,17 +44,24 @@ class Interrupted(BaseException):
         self.signum = signum
 
 
-def install_stop_handlers() -> None:
+def install_stop_handlers() -> list:
     """SIGTERM, SIGINT and SIGHUP raise Interrupted once; later ones are ignored so the sweep finishes.
 
-    The agent runs in its own session, so `kill -TERM -- -<runner pgid>` alone never reaches it.
+    The agent runs in its own session, so `kill -TERM -- -<runner pgid>` alone never reaches it. A
+    signal the runner inherited as ignored stays ignored: under `nohup` (README) SIGHUP is SIG_IGN, and
+    closing the terminal must not stop an unattended run. Returns the signals that got the handler.
     """
     def handler(signum, _frame):
         for stop in STOP_SIGNALS:
             signal.signal(stop, signal.SIG_IGN)
         raise Interrupted(signum)
+    installed = []
     for stop in STOP_SIGNALS:
+        if signal.getsignal(stop) is signal.SIG_IGN:
+            continue
         signal.signal(stop, handler)
+        installed.append(stop)
+    return installed
 
 
 def schedule(tasks: list, arms: tuple, replicates: int) -> list:
@@ -189,7 +196,7 @@ def run_plan(ctx: dict, plan: list) -> int:
             row = {'task_id': task['id'], 'arm': arm, 'replicate': replicate, 'operational_error': 'runner_exception',
                    'traceback': traceback.format_exc()[-4000:], 'oracle': None}
             measure.mkdir(parents=True, exist_ok=True)
-            (measure / 'result.json').write_text(json.dumps(row, indent=2))
+            trial_c.write_json(measure / 'result.json', row)
         records.append(row)
         (output / 'records.json').write_text(json.dumps(records, indent=2))
         summary = report_c.summarize(records)

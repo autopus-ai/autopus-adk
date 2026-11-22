@@ -567,7 +567,11 @@ Stopping. SIGTERM, SIGINT or SIGHUP to the runner (`kill -TERM -- -<pgid>`
 included; the agent runs in its own session, so the signal never reaches it)
 sweeps the running stage's whole tree, as at the deadline, writes
 `measure/<name>/aborted.json` without `result.json`, and exits 128+signal;
-`--resume` sets the partial trial aside and reruns it.
+`--resume` sets the partial trial aside and reruns it. A signal the runner
+inherited as ignored keeps no handler: under `nohup` SIGHUP stays ignored, so
+closing the terminal does not stop the run. `result.json` is written through a
+temporary file and `os.replace`, so an interrupted write never leaves a torn
+file for `--resume` to read.
 
 Observation (`stream_c.parse_stream`): the `result` event's usage (input,
 output, cache read and cache creation tokens; unknown stays null), turns,
