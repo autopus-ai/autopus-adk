@@ -3,6 +3,7 @@ package verifygate
 import (
 	"context"
 	"fmt"
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -18,7 +19,8 @@ func busyDeadlockSuite() string {
 	b.WriteString("package m\n\nimport (\n\t\"sync\"\n\t\"testing\"\n\t\"time\"\n)\n\n" +
 		"func TestDead(t *testing.T) {\n\tt.Parallel()\n\tvar mu sync.Mutex\n\tmu.Lock()\n\tmu.Lock()\n}\n\n")
 	for i := 0; i < 960; i++ {
-		fmt.Fprintf(&b, "func TestQ%d(t *testing.T) { t.Parallel(); time.Sleep(500 * time.Millisecond) }\n", i)
+		// Sleeps spread over ~10s keep pass events coming for most of the window.
+		fmt.Fprintf(&b, "func TestQ%d(t *testing.T) { t.Parallel(); time.Sleep(%d * time.Millisecond) }\n", i, (i%240)*40)
 	}
 	return b.String()
 }
@@ -27,6 +29,16 @@ func busyDeadlockSuite() string {
 // evidence is ordered by idle time, so the deadlocked test is named first.
 func TestRun_DeadlockInABusyPackageIsSuspectedAndNamedFirst(t *testing.T) {
 	step := goPackageStep(t, map[string]string{"m_test.go": busyDeadlockSuite()})
+	// Every test gets a slot at once: with -parallel 2 (a small CI runner)
+	// TestDead's start depended on which paused test the scheduler resumed
+	// first, and it often never started inside the window -- a correct
+	// budget skip, but not the scenario under test. Compile first so the
+	// window is spent running.
+	step.Argv = []string{"go", "test", "-json", "-parallel=2048", "."}
+	warm := exec.Command("go", "test", "-count=1", "-run", "^$", ".")
+	warm.Dir = step.Dir
+	out, err := warm.CombinedOutput()
+	require.NoError(t, err, string(out))
 
 	failure, skipped := Run(context.Background(), []Step{step}, 14*time.Second)
 
