@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os/exec"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -29,34 +30,36 @@ func (g *Group) prepare() {
 	g.cmd.SysProcAttr.CreationFlags |= windows.CREATE_SUSPENDED
 }
 
+// start starts the process suspended, puts it in a new job and resumes it.
+// When the job cannot be made or joined (a parent job that forbids nesting,
+// for one) it runs without one: Kill then reaches the direct child only, as
+// exec's default cancel did. That is a weaker cleanup, not a reason the
+// command cannot run.
 func (g *Group) start() error {
-	job, err := windows.CreateJobObject(nil, nil)
-	if err != nil {
-		return fmt.Errorf("create job object: %w", err)
-	}
-	if err := setKillOnClose(job); err != nil {
-		_ = windows.CloseHandle(job)
-		return err
-	}
 	if err := g.cmd.Start(); err != nil {
-		_ = windows.CloseHandle(job)
 		return err
 	}
-	g.state.job = job
-	if err := assign(job, g.cmd); err != nil {
-		return g.abort(err, false)
+	job, err := newJob()
+	if err == nil {
+		if err = assign(job, g.cmd); err != nil {
+			_ = windows.CloseHandle(job)
+		}
+	}
+	if err == nil {
+		g.state.job = job
 	}
 	if err := resumeProcess(g.cmd.Process.Pid); err != nil {
-		return g.abort(err, true)
+		// A process that cannot be resumed never runs: take it down.
+		return g.abort(err)
 	}
 	return nil
 }
 
-// abort takes down a process that started but could not be put to work in
-// its job. Start reaps it once the lock is released (see abortedStart).
-func (g *Group) abort(cause error, assigned bool) error {
+// abort takes down a process that started but could not be resumed. Start
+// reaps it once the lock is released (see abortedStart).
+func (g *Group) abort(cause error) error {
 	var killErr error
-	if assigned {
+	if g.state.job != 0 {
 		killErr = windows.TerminateJobObject(g.state.job, terminationCode)
 	} else {
 		killErr = g.cmd.Process.Kill()
@@ -64,8 +67,9 @@ func (g *Group) abort(cause error, assigned bool) error {
 	return &abortedStart{err: errors.Join(cause, killErr)}
 }
 
-// kill terminates every process in the job, however it was started.
-func (g *Group) kill() error {
+// kill terminates every process in the job, however it was started. There
+// is no SIGTERM to give a grace to.
+func (g *Group) kill(time.Duration) error {
 	if g.state.job == 0 {
 		return g.cmd.Process.Kill()
 	}
@@ -89,6 +93,19 @@ func (g *Group) close() error {
 		return fmt.Errorf("close job object: %w", err)
 	}
 	return nil
+}
+
+// newJob creates a Job Object that kills its processes when it is closed.
+func newJob() (windows.Handle, error) {
+	job, err := windows.CreateJobObject(nil, nil)
+	if err != nil {
+		return 0, fmt.Errorf("create job object: %w", err)
+	}
+	if err := setKillOnClose(job); err != nil {
+		_ = windows.CloseHandle(job)
+		return 0, err
+	}
+	return job, nil
 }
 
 func setKillOnClose(job windows.Handle) error {
@@ -116,7 +133,8 @@ func assign(job windows.Handle, cmd *exec.Cmd) error {
 	return nil
 }
 
-// resumeProcess resumes the primary thread of a process created suspended.
+// resumeProcess resumes the primary thread of a process created suspended:
+// the thread of pid whose suspend count was not zero.
 func resumeProcess(pid int) error {
 	snap, err := windows.CreateToolhelp32Snapshot(windows.TH32CS_SNAPTHREAD, 0)
 	if err != nil {
@@ -128,18 +146,31 @@ func resumeProcess(pid int) error {
 		if entry.OwnerProcessID != uint32(pid) {
 			continue
 		}
-		thread, err := windows.OpenThread(windows.THREAD_SUSPEND_RESUME, false, entry.ThreadID)
+		resumed, err := resumeThread(entry.ThreadID)
 		if err != nil {
-			return fmt.Errorf("open thread: %w", err)
+			return err
 		}
-		defer func() { _ = windows.CloseHandle(thread) }()
-		if _, err := windows.ResumeThread(thread); err != nil {
-			return fmt.Errorf("resume thread: %w", err)
+		if resumed {
+			return nil
 		}
-		return nil
 	}
 	if !errors.Is(err, windows.ERROR_NO_MORE_FILES) {
 		return fmt.Errorf("enumerate threads: %w", err)
 	}
-	return fmt.Errorf("resume process %d: primary thread not found", pid)
+	return fmt.Errorf("resume process %d: no suspended thread found", pid)
+}
+
+// resumeThread resumes one thread and reports whether it had been suspended;
+// a thread that was not (previous count 0) is not the one to resume.
+func resumeThread(id uint32) (bool, error) {
+	thread, err := windows.OpenThread(windows.THREAD_SUSPEND_RESUME, false, id)
+	if err != nil {
+		return false, fmt.Errorf("open thread: %w", err)
+	}
+	defer func() { _ = windows.CloseHandle(thread) }()
+	prev, err := windows.ResumeThread(thread)
+	if err != nil {
+		return false, fmt.Errorf("resume thread: %w", err)
+	}
+	return prev > 0, nil
 }

@@ -50,7 +50,7 @@ func TestRun_BudgetTimeoutWithNoFinishedTestIsNotABudgetSkip(t *testing.T) {
 	require.Nil(t, failure)
 	require.Len(t, skipped, 1)
 	assert.False(t, skipped[0].Budget, "no test finished, so nothing may be recorded")
-	assert.Contains(t, skipped[0].Reason, "2s")
+	assert.Contains(t, skipped[0].Reason, "within the 2s it had")
 }
 
 // The budget skip says what was still running when time ran out.
