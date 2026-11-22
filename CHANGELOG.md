@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **공유 기계에서 lease 밖의 무거운 명령을 load로 막는 CPU gate** (2026-11-20): 기본 꺼짐. 기계 단위 환경 변수
+  `AUTOPUS_CPU_GATE=on`으로 켜는 것을 권한다. 설정 키 `hooks.cpu_gate: true`도 쓸 수 있지만(환경 변수가 이긴다), 이 키를
+  모르는 오래된 `auto`는 키가 든 `autopus.yaml`을 거부하므로 그 파일을 읽는 모든 `auto`가 새 버전일 때만 쓴다. 켜면 disk
+  gate hook이, CPU lease가 돌거나 기다리는 동안 lease의 입장 검사가 대기자를 세울 상황이면 CPU lease 밖에서 CPU를 쓰는
+  명령을 막고 `auto disk lease --cpu N -- <command>`로 안내한다. CPU lease도 대기자도 없으면 load가 높아도 통과시킨다.
+  입장 검사는 1분 load에 최근 grant 몫을 더한 값을 `disk.lease.max_load_ratio` × 논리 CPU와 비교한다. 막는 명령은
+  컴파일·테스트, 린터·타입 검사기·테스트 러너, 스위트를 돌리는 `auto qa`·`auto checklist run`·`auto workflow gate`,
+  `--cpu` 없는 lease이다. 패키지 설치, `npx playwright install`, checkout은 막지 않고 here-document 본문은 명령으로 읽지
+  않는다. 설정은 cwd에서 위로 가장 가까운 `autopus.yaml`에서 읽는다. `cpu_gate`만 켜도 hook이 등록되고,
+  `disk_gate: false`면 디스크 검사만 빠진다.
+
 - **릴리스 전 리뷰에서 나온 교훈 순환과 낡은 하네스 경고의 결함을 고친다** (2026-11-18):
   - 낡은 하네스 경고: manifest를 실제로 쓰는 경로가 생성 버전을 기록하지 않아, 릴리스 빌드에서는 `auto update` 뒤에도 경고가 사라지지
     않을 뻔했다. manifest는 일반 파일만 상한을 두고 읽고, `0.51.8-3-g…` 같은 빌드는 비교하지 않는다.
