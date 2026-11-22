@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/insajin/autopus-adk/pkg/procgroup"
 	"github.com/insajin/autopus-adk/pkg/qa/testscenario"
 )
 
@@ -94,7 +95,7 @@ func runService(ctx context.Context, timeout time.Duration, work string, argv []
 
 // server is one run of the product's server process.
 type server struct {
-	cmd    *exec.Cmd
+	group  *procgroup.Group
 	cancel context.CancelFunc
 	exited chan struct{}
 }
@@ -108,17 +109,20 @@ func startServer(parent context.Context, client *http.Client, work string, argv 
 	cmd.Dir = work
 	cmd.Env = append(os.Environ(), "PORT="+port)
 	cmd.Stdout, cmd.Stderr = output, output
-	killGroupOnCancel(cmd)
-	if err := cmd.Start(); err != nil {
+	// Stopping the server stops what it spawned too (`npm start` runs
+	// node), so no child is left holding the port.
+	group := procgroup.New(cmd, procgroup.Options{Grace: procgroup.DefaultGrace})
+	if err := group.Start(); err != nil {
 		cancel()
 		return nil, Result{}, fmt.Errorf("start %s: %w", argv[0], err)
 	}
 	// exited is closed once the server is gone and waitErr is set, so both
 	// the readiness wait and the teardown can observe it.
-	srv := &server{cmd: cmd, cancel: cancel, exited: make(chan struct{})}
+	srv := &server{group: group, cancel: cancel, exited: make(chan struct{})}
 	var waitErr error
 	go func() {
 		waitErr = cmd.Wait()
+		_ = group.Close()
 		close(srv.exited)
 	}()
 	if err := waitReady(ctx, client, base, ready, srv.exited, func() error { return waitErr }); err != nil {
@@ -136,7 +140,7 @@ func startServer(parent context.Context, client *http.Client, work string, argv 
 // stop asks the server to shut down the way a person or a supervisor would,
 // and kills its process group if it has not exited within five seconds.
 func (s *server) stop() {
-	terminateGroup(s.cmd)
+	s.group.Terminate()
 	select {
 	case <-s.exited:
 	case <-time.After(5 * time.Second):

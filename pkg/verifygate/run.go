@@ -11,6 +11,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/insajin/autopus-adk/pkg/procgroup"
 )
 
 // Failure is the first step that did not pass. TimedOut marks a step that
@@ -101,14 +103,21 @@ func Run(parent context.Context, steps []Step, budget time.Duration) (*Failure, 
 		stepCtx, stepCancel := newStepContext(ctx, window)
 		cmd := exec.CommandContext(stepCtx, step.Argv[0], step.Argv[1:]...)
 		cmd.Dir = step.Dir
-		killGroupOnCancel(cmd)
+		// Running out of budget stops the whole tree: `go test` leaves its
+		// test binaries (and the servers they start) running when only `go`
+		// is killed.
+		group := procgroup.New(cmd, procgroup.Options{Grace: procgroup.DefaultGrace})
 		// A child that outlives the kill must not hold Run on the pipes.
 		cmd.WaitDelay = waitDelay
 		var out lockedBuffer
 		cmd.Stdout, cmd.Stderr = &out, &out
 		watchFailures(stepCtx, step, &out, window)
 		started := time.Now()
-		err := cmd.Run()
+		err := group.Start()
+		if err == nil {
+			err = cmd.Wait()
+			_ = group.Close()
+		}
 		timedOut := errors.Is(stepCtx.Err(), context.DeadlineExceeded)
 		killedAt, ran := time.Now(), time.Since(started).Round(100*time.Millisecond)
 		deadline, _ := stepCtx.Deadline()
