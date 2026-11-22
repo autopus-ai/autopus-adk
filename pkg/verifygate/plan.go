@@ -36,6 +36,9 @@ type Step struct {
 	// CoveredLater marks a step whose tests a later step runs again, so
 	// running out of its share leaves nothing unchecked.
 	CoveredLater bool
+	// GoPackages are the import paths a Go test step was given, so a
+	// package that never started a test before time ran out is named.
+	GoPackages []string
 }
 
 // Plan picks the build and test commands that cover the changed files. It

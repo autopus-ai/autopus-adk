@@ -20,22 +20,28 @@ type runningTest struct {
 }
 
 // testProgress is what a cut-off `go test -json` run shows about itself.
+// Packages maps each package seen to its finished test count; Done lists
+// the packages that ended (passed, failed, or had no tests).
 type testProgress struct {
 	Finished int
 	Running  []runningTest
+	Packages map[string]int
+	Done     []string
 }
 
 type testState struct {
-	running  bool
-	activity time.Time
-	output   strings.Builder
+	started, running, done bool
+	activity               time.Time
+	output                 strings.Builder
 }
 
 // goTestProgress reads `go test -json` output at kill time: how many tests
-// finished, and which were still running. A parent whose subtest is still
-// running is not listed itself; the subtest is.
+// finished, per package too, and which were still running. Only a test that
+// is running (not paused waiting for a parallel slot) and has no unfinished
+// subtest is listed: a parent waiting on its subtests, running or queued,
+// is not stuck itself.
 func goTestProgress(out []byte, now time.Time) testProgress {
-	var prog testProgress
+	prog := testProgress{Packages: map[string]int{}}
 	tests := map[string]*testState{}
 	var order []string
 	get := func(key string) *testState {
@@ -55,7 +61,16 @@ func goTestProgress(out []byte, now time.Time) testProgress {
 			Action, Package, Test, Output string
 		}
 		line := sc.Bytes()
-		if len(line) == 0 || line[0] != '{' || json.Unmarshal(line, &ev) != nil || ev.Test == "" {
+		if len(line) == 0 || line[0] != '{' || json.Unmarshal(line, &ev) != nil || ev.Package == "" {
+			continue
+		}
+		if _, ok := prog.Packages[ev.Package]; !ok {
+			prog.Packages[ev.Package] = 0
+		}
+		if ev.Test == "" {
+			if slices.Contains([]string{"pass", "fail", "skip"}, ev.Action) && !slices.Contains(prog.Done, ev.Package) {
+				prog.Done = append(prog.Done, ev.Package)
+			}
 			continue
 		}
 		key := ev.Package + "." + ev.Test
@@ -65,12 +80,13 @@ func goTestProgress(out []byte, now time.Time) testProgress {
 			s.output.WriteString(ev.Output)
 			continue
 		case "run", "cont":
-			s.running = true
+			s.started, s.running = true, true
 		case "pause":
-			s.running = false
+			s.started, s.running = true, false
 		case "pass", "fail", "skip":
-			s.running = false
+			s.running, s.done = false, true
 			prog.Finished++
+			prog.Packages[ev.Package]++
 		default:
 			continue
 		}
@@ -89,7 +105,7 @@ func goTestProgress(out []byte, now time.Time) testProgress {
 	for _, key := range order {
 		s := tests[key]
 		if !s.running || slices.ContainsFunc(order, func(k string) bool {
-			return strings.HasPrefix(k, key+"/") && tests[k].running
+			return strings.HasPrefix(k, key+"/") && tests[k].started && !tests[k].done
 		}) {
 			continue
 		}
@@ -100,6 +116,26 @@ func goTestProgress(out []byte, now time.Time) testProgress {
 		prog.Running = append(prog.Running, rt)
 	}
 	return prog
+}
+
+// unchecked returns the packages, of those seen and those the step was
+// given, that ended no test and did not end themselves: they were still
+// building, or waiting to start, when time ran out.
+func (p testProgress) unchecked(given []string) []string {
+	var out []string
+	pkgs := append([]string{}, given...)
+	for pkg := range p.Packages {
+		if !slices.Contains(pkgs, pkg) {
+			pkgs = append(pkgs, pkg)
+		}
+	}
+	slices.Sort(pkgs)
+	for _, pkg := range pkgs {
+		if p.Packages[pkg] == 0 && !slices.Contains(p.Done, pkg) {
+			out = append(out, pkg)
+		}
+	}
+	return out
 }
 
 // hung returns the running tests idle for at least limit.

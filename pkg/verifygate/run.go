@@ -16,12 +16,15 @@ import (
 
 // Failure is the first step that did not pass. TimedOut marks a step that
 // ran out of time with nothing failed by then: it shows the step did not
-// finish, not that the code is wrong.
+// finish, not that the code is wrong. Hung marks a test judged hung at the
+// end of the step's Window.
 type Failure struct {
 	Step     Step
 	Output   string
 	Reason   string
 	TimedOut bool
+	Hung     bool
+	Window   time.Duration
 }
 
 // tailLines bounds the output handed back to the agent.
@@ -79,6 +82,10 @@ func Run(parent context.Context, steps []Step, budget time.Duration) (*Failure, 
 		}
 		window := stepWindow(ctx, step, steps[i+1:], budget)
 		if step.BudgetBound && window < minBoundWindow {
+			if step.CoveredLater {
+				// A later step runs the same tests: nothing goes unchecked.
+				continue
+			}
 			skipped = append(skipped, Skip{Name: step.Name, Reason: "no time was left for it after reserving time for the steps after it"})
 			continue
 		}
@@ -176,6 +183,11 @@ func stepWindow(ctx context.Context, step Step, rest []Step, budget time.Duratio
 // is an ordinary skip, never recorded. Otherwise it is a budget skip, or
 // nothing at all when a later step runs the same tests again.
 func budgetOutcome(step Step, out []byte, text string, killedAt time.Time, ran time.Duration) (*Failure, *Skip) {
+	if step.CoveredLater {
+		// Only the step that runs these tests last, with the most time,
+		// judges a hang; this one ran them with a share of the budget.
+		return nil, nil
+	}
 	prog := goTestProgress(out, killedAt)
 	if hung := prog.hung(ran / 2); len(hung) > 0 {
 		var output strings.Builder
@@ -186,14 +198,16 @@ func budgetOutcome(step Step, out []byte, text string, killedAt time.Time, ran t
 		return &Failure{Step: step, Output: tail(output.String(), tailLines), Reason: fmt.Sprintf(
 			"%s was still running when the step's %s window ran out, with no progress for at least half of it; "+
 				"a test that holds the step that long is treated as hung (a deadlock, a wait that never ends)",
-			describeRunning(hung), ran)}, nil
-	}
-	if step.CoveredLater {
-		return nil, nil
+			describeRunning(hung), ran), Hung: true, Window: ran}, nil
 	}
 	if prog.Finished == 0 {
 		return nil, &Skip{Name: step.Name, Reason: fmt.Sprintf(
 			"no test finished within the %s it had (the time went to building the tests), so nothing was checked", ran)}
+	}
+	if pkgs := prog.unchecked(step.GoPackages); len(pkgs) > 0 {
+		return nil, &Skip{Name: step.Name, Reason: fmt.Sprintf(
+			"no test of %s finished within the %s it had (still building or waiting to start), so that was not checked",
+			strings.Join(pkgs, ", "), ran)}
 	}
 	reason := fmt.Sprintf("did not finish within the %s it had; %d test(s) finished and none failed", ran, prog.Finished)
 	if len(prog.Running) > 0 {

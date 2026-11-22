@@ -181,7 +181,13 @@ func verifyChanged(cmd *cobra.Command, in stopHookInput, root string, changed []
 		return stopHookOutput{SystemMessage: fmt.Sprintf("auto verify stop: still failing after %d attempts; ending without a passing build. %s",
 			verifyStopMaxBlocks, firstLine(summary))}
 	}
-	return stopHookOutput{Decision: "block", Reason: summary + "\n\nFix the failure, or explain why it is not caused by this change, before finishing."}
+	hint := ""
+	if failure.Hung {
+		hint = fmt.Sprintf("\n\nThe step had %s of the %s budget. If the test is slow rather than stuck, raise the budget "+
+			"with `auto verify stop --budget <duration>` in the Stop hook command (keep it under the hook's 600s timeout).",
+			failure.Window, budget)
+	}
+	return stopHookOutput{Decision: "block", Reason: summary + hint + "\n\nFix the failure, or explain why it is not caused by this change, before finishing."}
 }
 
 var unsafeSessionChars = regexp.MustCompile(`[^A-Za-z0-9_-]`)

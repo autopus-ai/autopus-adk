@@ -30,6 +30,7 @@ func TestPlan_ChangedTestsRunFirstAndBothTestStepsAreBudgetBound(t *testing.T) {
 	assert.Equal(t, []string{"go", "test", "-json", "-run", "^(TestB|TestB_Two)$", "./pkg/b"}, steps[1].Argv,
 		"Testable and helper are not tests")
 	assert.Equal(t, []string{"go", "test", "-json", "./c", "./pkg/b"}, steps[2].Argv)
+	assert.Equal(t, []string{"x/c", "x/pkg/b"}, steps[2].GoPackages, "import paths, to name a package that never started")
 	for _, s := range steps[1:] {
 		assert.True(t, s.GoTestJSON && s.BudgetBound, s.Name)
 	}

@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"os"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -33,8 +34,36 @@ func goSteps(root string, changed []string) (first, whole []Step) {
 			Dir:  root, GoTestJSON: true, BudgetBound: true, Share: 0.5, CoveredLater: true})
 	}
 	whole = []Step{{Name: "go test", Argv: append([]string{"go", "test", "-json"}, pkgs...), Dir: root,
-		GoTestJSON: true, BudgetBound: true}}
+		GoTestJSON: true, BudgetBound: true, GoPackages: importPaths(root, pkgs)}}
 	return first, whole
+}
+
+// importPaths turns ./dir patterns into import paths under the module
+// go.mod declares; nil when it declares none.
+func importPaths(root string, patterns []string) []string {
+	data, err := os.ReadFile(filepath.Join(root, "go.mod"))
+	if err != nil {
+		return nil
+	}
+	var module string
+	for _, line := range strings.Split(string(data), "\n") {
+		if fields := strings.Fields(line); len(fields) >= 2 && fields[0] == "module" {
+			module = strings.Trim(fields[1], "\"`")
+			break
+		}
+	}
+	if module == "" {
+		return nil
+	}
+	out := make([]string, 0, len(patterns))
+	for _, p := range patterns {
+		if p == "." {
+			out = append(out, module)
+		} else {
+			out = append(out, module+"/"+strings.TrimPrefix(p, "./"))
+		}
+	}
+	return out
 }
 
 // maxRunPattern bounds the -run argument: one argument may not exceed 128
