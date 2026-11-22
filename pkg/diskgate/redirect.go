@@ -27,7 +27,8 @@ func readRedirection(line string, i int) int {
 	for i < len(line) && (line[i] == ' ' || line[i] == '\t') {
 		i++
 	}
-	for ; i < len(line) && strings.IndexByte(" \t\n;&|()<>", line[i]) < 0; i++ {
+	// A backquote ends the target, so the command it runs is lexed.
+	for ; i < len(line) && strings.IndexByte(" \t\n;&|()<>`", line[i]) < 0; i++ {
 		switch line[i] {
 		case '\'':
 			end := strings.IndexByte(line[i+1:], '\'')

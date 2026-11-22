@@ -75,6 +75,13 @@ func lex(line string) []token {
 			end := arithmeticEnd(line, i+3)
 			inWord, quoted = true, true
 			word.WriteString(line[i:end])
+			// Command substitutions inside the expression still run.
+			for _, command := range substitutions(line[i+3 : end-2]) {
+				flush()
+				out = append(out, token{text: "$(", op: true})
+				out = append(out, lex(command)...)
+				out = append(out, token{text: ")", op: true})
+			}
 			i = end - 1
 		case c == '$' && i+1 < len(line) && line[i+1] == '(':
 			op("$(")

@@ -40,6 +40,14 @@ func TestClassify_ShellSyntaxReReview(t *testing.T) {
 		">/tmp/log go build ./...":                "go build",
 		"go test ./... &>/dev/null":               "go test",
 		"bash > /tmp/log 2>&1 <<EOF\npytest\nEOF": "pytest",
+		// A backquote in a redirection target runs its command.
+		"echo hi >`go build ./...`":  "go build",
+		"echo hi > `go test ./...`":  "go test",
+		">`go build -o x ./...`.log": "go build",
+		// Command substitutions inside arithmetic run.
+		"echo $(( $(go test ./... | wc -l) + 1 ))": "go test",
+		"echo $(( `go build ./... | wc -l` * 2 ))": "go build",
+		"n=$(( $(echo $(go build ./...)) + 0 ))":   "go build",
 	}
 	for line, match := range heavy {
 		v := Classify(line)
