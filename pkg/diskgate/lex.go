@@ -20,19 +20,21 @@ type token struct {
 // so it is skipped through its terminator line, unless a shell reads it as
 // its script (heredocIsScript): then its lines are lexed as commands.
 // Arithmetic expansion $(( ... )) is one word, so its << is a shift, not a
-// here-document. An unterminated quote or here-document ends at the end of
+// here-document. Unquoted redirections and their targets are dropped, and
+// a backslash-newline is removed. An unterminated quote or here-document ends at the end of
 // the input.
 func lex(line string) []token {
 	var out []token
 	var pending []heredoc
 	var word strings.Builder
-	inWord, lineStart := false, 0
+	inWord, quoted, lineStart := false, false, 0
 	flush := func() {
 		if inWord {
 			out = append(out, token{text: word.String()})
 			word.Reset()
 			inWord = false
 		}
+		quoted = false
 	}
 	op := func(text string) {
 		flush()
@@ -42,7 +44,7 @@ func lex(line string) []token {
 		c := line[i]
 		switch {
 		case c == '\'':
-			inWord = true
+			inWord, quoted = true, true
 			end := strings.IndexByte(line[i+1:], '\'')
 			if end < 0 {
 				word.WriteString(line[i+1:])
@@ -52,13 +54,14 @@ func lex(line string) []token {
 			word.WriteString(line[i+1 : i+1+end])
 			i += end + 1
 		case c == '"':
-			inWord = true
+			inWord, quoted = true, true
 			i = readDouble(line, i+1, &word)
+		case c == '\\' && i+1 < len(line) && line[i+1] == '\n':
+			// A line continuation is removed; it adds nothing to the word.
+			i++
 		case c == '\\' && i+1 < len(line):
-			inWord = true
-			if line[i+1] != '\n' {
-				word.WriteByte(line[i+1])
-			}
+			inWord, quoted = true, true
+			word.WriteByte(line[i+1])
 			i++
 		case c == ' ' || c == '\t':
 			flush()
@@ -68,17 +71,27 @@ func lex(line string) []token {
 				i++
 			}
 			i--
-		case strings.HasPrefix(line[i:], "$(("):
-			inWord = true
+		case strings.HasPrefix(line[i:], "$((") && arithmeticEnd(line, i+3) > 0:
 			end := arithmeticEnd(line, i+3)
+			inWord, quoted = true, true
 			word.WriteString(line[i:end])
 			i = end - 1
 		case c == '$' && i+1 < len(line) && line[i+1] == '(':
 			op("$(")
 			i++
-		case c == '&' && word.Len() > 0 && strings.ContainsAny(word.String()[word.Len()-1:], "<>"):
-			// A descriptor duplication such as 2>&1 is one redirection word.
-			word.WriteByte(c)
+		case c == '&' && strings.HasPrefix(line[i+1:], ">"):
+			// &>file and &>>file redirect both streams.
+			flush()
+			i = readRedirection(line, i+1) - 1
+		case redirectionAt(line, i):
+			// A redirection and its target are not words of the command; an
+			// unquoted descriptor number right before it belongs to it.
+			if inWord && !quoted && strings.Trim(word.String(), "0123456789") == "" {
+				word.Reset()
+				inWord = false
+			}
+			flush()
+			i = readRedirection(line, i) - 1
 		case c == '&' || c == '|':
 			if i+1 < len(line) && line[i+1] == c {
 				op(string([]byte{c, c}))

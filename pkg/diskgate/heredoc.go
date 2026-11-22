@@ -2,8 +2,6 @@ package diskgate
 
 import (
 	"path/filepath"
-	"regexp"
-	"slices"
 	"strings"
 )
 
@@ -103,14 +101,12 @@ func heredocIsScript(tokens []token, at int) bool {
 	}
 }
 
-// redirection is a word that starts a redirection, such as >log, 2>&1 or >.
-var redirection = regexp.MustCompile(`^[0-9]*[<>]`)
-
 // stdinShell reports whether words run a shell that reads its script from
-// stdin: no -c and no script file operand, or -s, or a lone `-`.
+// stdin: no -c and no script file operand, or -s, or a lone `-`. The
+// redirections are already gone from words (the lexer drops them).
 func stdinShell(words []string) bool {
 	words = stripPrefixes(words)
-	if len(words) == 0 || !slices.Contains([]string{"sh", "bash", "zsh", "dash"}, filepath.Base(words[0])) {
+	if len(words) == 0 || !isShell(filepath.Base(words[0])) {
 		return false
 	}
 	args := words[1:]
@@ -120,19 +116,18 @@ func stdinShell(words []string) bool {
 			return true
 		case a == "--":
 			return i+1 == len(args)
-		case a == "-o" || a == "+o":
-			i++ // the option name
-		case redirection.MatchString(a):
-			if strings.TrimLeft(a, "0123456789<>&|") == "" {
-				i++ // the redirection target is the next word
-			}
-		case strings.HasPrefix(a, "--") || strings.HasPrefix(a, "+"):
-		case strings.HasPrefix(a, "-"):
-			if strings.ContainsRune(a[1:], 'c') {
+		case a == "--rcfile" || a == "--init-file":
+			i++ // the file
+		case strings.HasPrefix(a, "--"):
+		case strings.HasPrefix(a, "-") || strings.HasPrefix(a, "+"):
+			if a[0] == '-' && strings.ContainsRune(a[1:], 'c') {
 				return false
 			}
-			if strings.ContainsRune(a[1:], 's') {
+			if a[0] == '-' && strings.ContainsRune(a[1:], 's') {
 				return true
+			}
+			if strings.HasSuffix(a, "o") || strings.HasSuffix(a, "O") {
+				i++ // -o, -euo, +O and the like take an option name
 			}
 		default:
 			return false // a script file reads the here-document as data
@@ -142,17 +137,24 @@ func stdinShell(words []string) bool {
 }
 
 // arithmeticEnd returns the index just past the `))` that closes the
-// arithmetic expansion whose `$((` ends before i, or the end of the input.
+// arithmetic expansion whose `$((` ends before i, or -1 when the text is not
+// one: `$((cmd) 2>&1)` is a command substitution of a subshell, told apart
+// by the `)` that closes the inner parenthesis not being followed by `)`.
 func arithmeticEnd(line string, i int) int {
-	for depth := 2; i < len(line); i++ {
+	for depth := 0; i < len(line); i++ {
 		switch line[i] {
 		case '(':
 			depth++
 		case ')':
-			if depth--; depth == 0 {
-				return i + 1
+			if depth > 0 {
+				depth--
+				continue
 			}
+			if i+1 < len(line) && line[i+1] == ')' {
+				return i + 2
+			}
+			return -1
 		}
 	}
-	return len(line)
+	return -1
 }

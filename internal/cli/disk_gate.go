@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -110,15 +109,11 @@ func diskGateReason(stdin io.Reader) string {
 // nearest one at or above dir, as the edit guard finds it, or dir itself when
 // there is none. The gate, `auto disk` without --dir, and the automatic
 // reclaim all read the config there, so a command run in a subdirectory sees
-// the same floor and lease settings the gate enforced. When dir is the root
-// itself, it is returned as given, not in its symlink-resolved spelling.
+// the same floor and lease settings the gate enforced. It names only where
+// the config is read; the commands keep dir as their working directory.
 func diskConfigRoot(dir string) string {
-	found, err := editguard.FindProjectRoot(dir)
-	if err != nil {
-		return dir
+	if found, err := editguard.FindProjectRoot(dir); err == nil {
+		return found
 	}
-	if resolved, err := filepath.EvalSymlinks(dir); err == nil && resolved == found {
-		return dir
-	}
-	return found
+	return dir
 }

@@ -30,10 +30,40 @@ func TestDiskSubdir_ReadsProjectRootConfig(t *testing.T) {
 	explicit := runDiskCLI(t, "disk", "check", "--dir", sub)
 	assert.Equal(t, 0, explicit.code, explicit.stdout+explicit.stderr)
 
-	// The automatic reclaim reads and reclaims the root project too.
+	// The automatic reclaim reads its settings at the root but runs in the
+	// session's cwd.
 	spawned := withAutoSpawn(t)
 	require.True(t, maybeStartAutoReclaim(sub))
-	want, err := filepath.EvalSymlinks(root)
-	require.NoError(t, err)
-	assert.Equal(t, []string{want}, *spawned)
+	assert.Equal(t, []string{sub}, *spawned)
+}
+
+// The automatic reclaim of a session whose cwd is inside a harness worktree
+// that has no autopus.yaml of its own (the file is untracked in the main
+// checkout) runs there, without --dir, so the worktree holding the session
+// is never a candidate, though the config comes from the main checkout.
+func TestDiskSubdir_AutoReclaimKeepsTheSessionWorktree(t *testing.T) {
+	rf := newReclaimFixture(t)
+	withTempDiskState(t)
+	diskGitT(t, rf.repo, "update-ref", "refs/remotes/origin/main", "main")
+	require.NoError(t, os.WriteFile(filepath.Join(rf.repo, "autopus.yaml"),
+		[]byte("mode: full\nproject_name: rr\nplatforms:\n  - claude-code\n"), 0o600))
+	require.NoFileExists(t, filepath.Join(rf.harness, "autopus.yaml"))
+	sub := filepath.Join(rf.harness, "sub")
+	require.NoError(t, os.Mkdir(sub, 0o755))
+
+	spawned := withAutoSpawn(t)
+	require.True(t, maybeStartAutoReclaim(sub))
+	require.Equal(t, []string{sub}, *spawned, "the reclaim runs in the session's cwd")
+	cmd := autoReclaimCommand("auto", sub)
+	assert.Equal(t, sub, cmd.Dir)
+	assert.Equal(t, []string{"auto", "disk", "reclaim", "--auto", "--apply"}, cmd.Args, "no --dir")
+
+	// What the spawned child does: run in the session's cwd without --dir.
+	t.Chdir(sub)
+	prevGetwd := diskGetwd
+	diskGetwd = func() (string, error) { return sub, nil }
+	t.Cleanup(func() { diskGetwd = prevGetwd })
+	out := runDiskCLI(t, "disk", "reclaim", "--auto", "--apply")
+	require.Equal(t, 0, out.code, out.stderr+out.stdout)
+	assert.DirExists(t, rf.harness, "the worktree holding the session is kept")
 }

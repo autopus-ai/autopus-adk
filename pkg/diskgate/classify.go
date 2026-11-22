@@ -67,7 +67,8 @@ func classifyWords(words []string, extra [][]string, depth int) step {
 	switch name {
 	case "auto":
 		return step{}
-	case "sh", "bash", "zsh", "dash":
+	}
+	if isShell(name) {
 		if script, ok := shellScript(args); ok && depth < maxShellDepth {
 			if v := classify(script, extra, depth+1); v.Heavy {
 				return step{match: v.Match}
@@ -85,6 +86,13 @@ func classifyWords(words []string, extra [][]string, depth int) step {
 	}
 	return step{}
 }
+
+// shells are the shells whose -c script, or here-document script, is
+// classified.
+var shells = []string{"sh", "bash", "zsh", "dash"}
+
+// isShell reports whether name is one of shells.
+func isShell(name string) bool { return slices.Contains(shells, name) }
 
 // shellScript returns the script of `sh -c script`, the -c possibly in a
 // cluster of short options such as -lc or -ec.
