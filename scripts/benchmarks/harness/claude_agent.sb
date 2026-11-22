@@ -1,7 +1,7 @@
 ;; Agent profile for pilot C trials (claude_agent.py, trial_c.py).
 ;;
 ;;   sandbox-exec -f claude_agent.sb -D TRIAL=<trial dir> -D OUTPUT=<run output root>
-;;     -D BIN=<run output>/bin -D ACCOUNT_HOME=<account home> -D MODCACHE=<go module cache>
+;;     -D BIN=<run output>/bin -D ACCOUNT_HOME=<account home> -D MODCACHE=<the trial's module cache>
 ;;     -D PROTECTED0/1=<source and runner checkouts> -D TOOL0..TOOL3=<install dirs of the linked tools>
 ;;     <claude -p ...>
 ;;
@@ -18,7 +18,11 @@
 ;; LaunchServices opens and preference writes through cfprefsd are denied:
 ;; both would act outside the sandbox. Nothing outside the trial is writable,
 ;; /private/tmp included: Claude Code 2.1.322 writes its Bash cwd file to
-;; CLAUDE_CODE_TMPDIR, which agent_env sets inside the trial.
+;; CLAUDE_CODE_TMPDIR, which agent_env sets inside the trial. The per-user temp
+;; (/var/folders/.../T) stays closed as well: xcrun, behind /usr/bin/git and cc,
+;; keeps its database at $xcrun_db and zsh its here-documents at $TMPPREFIX, both
+;; inside the trial's temp, and the module cache is the trial's own APFS clone of
+;; the run-level cache, so go's stat-cache writes stay in the trial (trial_env_c).
 (version 1)
 (allow default)
 

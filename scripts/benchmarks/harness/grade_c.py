@@ -16,6 +16,7 @@ import subprocess
 
 import grader
 import oracle_c
+import trial_env_c
 
 
 def clone_tree(source: Path, dest: Path) -> None:
@@ -66,29 +67,36 @@ def overlay(base: Path, work: Path, allowed: list, dest: Path) -> dict:
 
 
 def sandbox_env(root: Path, prepared: dict) -> dict:
-    """grader.allowlist with /usr/bin and /bin added (the oracles run git and sh)."""
+    """grader.allowlist with /usr/bin and /bin added (the oracles run git and sh) and the xcrun and zsh temp."""
     env = grader.allowlist(root, Path(prepared['go']), Path(prepared['modcache']))
     env['PATH'] = os.pathsep.join([env['PATH'], '/usr/bin', '/bin'])
     env.update(GOTELEMETRY='off', LANG='C.UTF-8', GIT_CONFIG_NOSYSTEM='1')
+    # /usr/bin/git is an xcrun shim: without xcrun_db its database write is denied and the error lands
+    # in the output the cases compare (trial_env_c).
+    env.update(trial_env_c.temp_env(root / 'tmp'))
     return env
 
 
-def toolchain() -> dict:
+def toolchain(modcache: Path | None = None) -> dict:
+    """The go binary, its GOROOT and the module cache: modcache when given (pilot C's run-level cache,
+    trial_env_c), else the host GOMODCACHE."""
     found = grader.toolchain()
     if not found:
         raise RuntimeError('go is not on PATH')
     go, goroot = found
-    modcache = subprocess.check_output([str(go), 'env', 'GOMODCACHE'], text=True).strip()
+    if modcache is None:
+        modcache = subprocess.check_output([str(go), 'env', 'GOMODCACHE'], text=True).strip()
     return {'go': str(go), 'goroot': str(goroot), 'modcache': os.path.realpath(modcache)}
 
 
-def warm(base_tree: Path, packages: list, cache: Path, scratch: Path) -> None:
+def warm(base_tree: Path, packages: list, cache: Path, scratch: Path, modcache: Path | None = None) -> None:
     """Fill a build cache by compiling the tests of the task packages on a trusted base snapshot."""
-    prepared = toolchain()
+    prepared = toolchain(modcache)
     scratch.mkdir(parents=True, exist_ok=True)
     env = {'PATH': os.pathsep.join([str(Path(prepared['go']).parent), '/usr/bin', '/bin']), 'HOME': str(scratch),
            'TMPDIR': str(scratch), 'GOTMPDIR': str(scratch), 'GOCACHE': str(cache), 'GOMODCACHE': prepared['modcache'],
-           'GOFLAGS': '-mod=mod', 'GOPROXY': 'off', 'GOSUMDB': 'off', 'GOTOOLCHAIN': 'local', 'GOTELEMETRY': 'off'}
+           'GOFLAGS': '-mod=mod', 'GOPROXY': 'off', 'GOSUMDB': 'off', 'GOTOOLCHAIN': 'local', 'GOTELEMETRY': 'off',
+           **trial_env_c.temp_env(scratch)}
     cache.mkdir(parents=True, exist_ok=True)
     for package in sorted(set(packages)):
         subprocess.run([prepared['go'], 'test', '-count=1', '-run', '^$', './' + package], cwd=base_tree, env=env,
@@ -96,7 +104,7 @@ def warm(base_tree: Path, packages: list, cache: Path, scratch: Path) -> None:
 
 
 def run_graded(tree: Path, task: dict, root: Path, logs: Path, cache: Path, profile: Path,
-               oracles: Path) -> dict:
+               oracles: Path, modcache: Path | None = None) -> dict:
     """Install the oracle into tree (below root) and run it under grader.sb with a clone of cache."""
     root = Path(os.path.realpath(root))
     for name in ('home', 'tmp', 'gopath'):
@@ -104,7 +112,7 @@ def run_graded(tree: Path, task: dict, root: Path, logs: Path, cache: Path, prof
     grader.telemetry_off(root / 'home')
     clone_tree(cache, root / 'gocache')
     oracle_c.install_oracle(tree, task, oracles)
-    prepared = toolchain()
+    prepared = toolchain(modcache)
     env = sandbox_env(root, prepared)
 
     def wrap(argv: list, cwd: Path) -> list:
@@ -115,11 +123,11 @@ def run_graded(tree: Path, task: dict, root: Path, logs: Path, cache: Path, prof
 
 
 def grade_candidate(task: dict, base_tree: Path, work: Path, root: Path, logs: Path, cache: Path,
-                    profile: Path, oracles: Path) -> dict:
+                    profile: Path, oracles: Path, modcache: Path | None = None) -> dict:
     """Overlay, sandboxed oracle, and the pass counts by case kind."""
     tree = Path(root) / 'tree'
     record = overlay(base_tree, work, task['allowed_paths'], tree)
-    result = run_graded(tree, task, root, logs, cache, profile, oracles)
+    result = run_graded(tree, task, root, logs, cache, profile, oracles, modcache)
     kinds = {case['name']: case['kind'] for case in task['oracle']['cases']}
     passed = [name for name, verdict in result['cases'].items() if verdict == 'pass']
     counts = {kind + '_' + key: value for kind in ('review', 'feature', 'guard') for key, value in

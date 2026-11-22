@@ -4,13 +4,16 @@ With --include-hook-events every hook emits `system` `hook_started` and `hook_re
 carrying hook_event, exit_code, stdout, stderr and outcome. A Stop response is recorded as an
 outcome (exit code, decision, systemMessage such as a verify-stop budget or skip note) and as a block
 when it exits 2 or prints {"decision": "block"}. Bash commands that reach GitHub or fetch from the
-network are flagged as possible contamination: the fixed heads are public.
+network are flagged as possible contamination: the fixed heads are public. Bash commands that set
+GOCACHE, TMPDIR, CGO_ENABLED, GOMODCACHE or GOFLAGS are recorded as env_overrides, a friction signal:
+an agent that replaces the trial's environment is working around it (and leaves the warm cache).
 """
 import json
 from pathlib import Path
 import re
 
 from observe import count, reject_json_constant, unique_object
+from trial_env_c import env_overrides
 
 MAX_LINE_BYTES = 8 * 1024 * 1024
 CONTAMINATION = re.compile(r'github\.com|\bgh\s|\bgit\s+(fetch|clone|pull|ls-remote)\b|\bcurl\b|\bwget\b|'
@@ -34,11 +37,11 @@ def _stop_outcome(event: dict) -> dict:
 
 
 def empty() -> dict:
-    return {'schema_version': 'claude_stream_observation.v2', 'result_seen': False, 'is_error': None,
+    return {'schema_version': 'claude_stream_observation.v3', 'result_seen': False, 'is_error': None,
             'terminal_reason': None, 'num_turns': None, 'duration_ms': None, 'total_cost_usd': None,
             **{key: None for key in USAGE_KEYS}, 'total_tokens': None, 'model': None, 'permission_mode': None,
             'tool_uses': 0, 'subagent_tool_uses': 0, 'hook_events': 0, 'stop_hook_runs': 0, 'stop_outcomes': [],
-            'stop_hook_blocks': [], 'contamination': [], 'final_text': None, 'incomplete_reasons': []}
+            'stop_hook_blocks': [], 'contamination': [], 'env_overrides': [], 'final_text': None, 'incomplete_reasons': []}
 
 
 def parse_stream(path: Path) -> dict:
@@ -88,8 +91,13 @@ def _observe(event: dict, result: dict) -> None:
         result['subagent_tool_uses'] += sum(1 for c in uses if c.get('name') in ('Task', 'Agent'))
         for use in uses:
             command = (use.get('input') or {}).get('command') if isinstance(use.get('input'), dict) else None
-            if use.get('name') == 'Bash' and isinstance(command, str) and CONTAMINATION.search(command):
+            if use.get('name') != 'Bash' or not isinstance(command, str):
+                continue
+            if CONTAMINATION.search(command):
                 result['contamination'].append(command[:500])
+            overridden = env_overrides(command)
+            if overridden:
+                result['env_overrides'].append({'vars': overridden, 'command': command[:500]})
     elif kind == 'result':
         _observe_result(event, result)
 
