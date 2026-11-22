@@ -69,7 +69,7 @@ A case that fails gate 2 is dropped, not rewritten after seeing results.
 | ID | Feature (base) | Oracle source | Size |
 | --- | --- | --- | --- |
 | c01 | `auto ci report` lints the remote default branch's workflows when the checkout is behind (#347, base 7b017f17) | 10220e08: unrelated local commit, index not rewritten, remote not named origin, remote without workflows, remote symlink, other-repository guard | ~300 lines |
-| c02 | `auto doctor` text verdict matches what it printed (branch fix/doctor-verdict-and-sticky-dedup, base 7b017f17) | verdict invariant: FAIL box only under an ERROR line; warn-only OMP degradation does not advise `auto update`; repeated diagnostics print once | ~100 lines |
+| c02 | `auto doctor` text verdict matches what it printed (#350, base 7b017f17, pre-review eb26e657, fixed dcda6485) | verdict invariant: FAIL box only under an ERROR line; warn-only OMP degradation does not advise `auto update`; repeated diagnostics print once | ~100 lines |
 | c03 | `cpu_gate` refuses CPU-heavy Bash commands outside a lease under load (#349, base 7b017f17) | #349 review fixes: heredoc body not classified, `mvn install`/`pytest -v`/`uv run --frozen` classified, env switch, no-lease-to-protect allows | ~450 lines |
 | c04 | `auto verify stop` time budget for large Go packages (#348, base 7b017f17) | #348 review fixes: deadlock blocks, signal is not a verdict, unrun non-bound step not recorded, agent not told tests passed | ~650 lines |
 | c05 | checklist candidate ids and approval (#344 subset) | b828883f H2: `../` in a candidate id must not escape; H3: approve shows the verify that will run | subset |
@@ -99,16 +99,34 @@ Deadline 30 minutes per trial (the verify-stop budget alone is 8 minutes).
 7 tasks x 3 arms x K=1 = 21 trials, serial: up to ~10 hours wall time,
 expected 4-6. K=2 doubles it; decide after K=1 shows whether any arm differs.
 
-## What must be built
+## What is built
 
-1. A Claude Code agent driver for `scripts/benchmarks/harness` (today
-   `golden_agent.py` and `run.py` drive `codex exec` only): `claude -p`
-   with `--output-format stream-json`, a per-arm `--settings` file, an
-   isolated `HOME`/`CLAUDE_CONFIG_DIR` with only the credential, and
-   observation of hook blocks from the stream.
-2. Corpus file `corpus_c.json` and `oracles/<id>/` with the gates above as
-   a runnable check.
-3. The launch: an agent session's permission classifier may refuse to run
-   `claude -p` and `go test` on generated trial checkouts, so the maintainer
-   starts the run from a terminal with one `nohup` line and the report is
-   read back afterwards.
+Command lines and the isolation boundary are in the
+[harness README](../../scripts/benchmarks/harness/README.md#pilot-c-verification-layer-on-claude-code).
+
+1. Claude Code driver: `claude_agent.py` (arm settings, isolated
+   `HOME`/`CLAUDE_CONFIG_DIR`, `claude -p --output-format stream-json
+   --verbose --include-hook-events` argv, stream observation including
+   Stop-hook blocks), `claude_agent.sb` (write and read confinement, keychain
+   denied), `surface_c.py` (the base revision's own `auto` generates the
+   claude-code surface with `hooks.language_stop: false`), `trial_c.py` and
+   `run_c.py` (serial schedule, deadline with process-group kill, grading,
+   report, `--dry-run` without a model call). The login is never copied:
+   the trial's only credential is a `claude setup-token` token or an API key
+   from a mode-0600 file.
+2. `corpus_c.json` with c01 and c02, `oracles/c01/`, `oracles/c02/`, and
+   `gate_c.py`, which checks the gates without a model call. Each case has a
+   kind: `review` (a review-confirmed defect; gate 2 against the pre-review
+   head), `feature` (the feature's own test; must fail on base) or `guard`
+   (behaviour base already had and the feature must keep; must pass on base).
+   Five c01 cases passed on the pre-review head or on base, so they moved from
+   `review`/`feature` to `guard` before any trial; they are scored apart from
+   escaped defects. c02 uses PR #350: pre-review head eb26e657, fixed head
+   dcda6485. Its `review` cases are what dcda6485 fixed; its `feature` cases
+   are the defects eb26e657 already fixed relative to base.
+3. The launch stays a maintainer `nohup` line, because an agent session's
+   permission classifier may refuse `claude -p` and `go test` on generated
+   trial checkouts.
+
+Primary measure per arm: `review` cases passed. `feature` and `guard` cases
+are reported with it.

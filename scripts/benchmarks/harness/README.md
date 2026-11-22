@@ -427,3 +427,71 @@ the offline build, the self-check under `oracle.sb`) and the stage runner;
 `test_golden_blackbox_session.py` runs whole signed-lane sessions on the
 fixture world, one trial per table row, and re-derives every record from its
 stored result bytes.
+
+## Pilot C: verification layer on Claude Code
+
+Design and gates: [harness-pilot-c-design.md](../../../docs/benchmarks/harness-pilot-c-design.md).
+Arms: `native` (no project harness), `instructions` (generated claude-code
+surface, `--settings` with `"disableAllHooks": true`) and `full` (the same
+surface, generated hooks as-is). The surface comes from the trial base
+revision's own `auto`: `go build ./cmd/auto` from the snapshot, then
+`auto init --platforms claude-code --yes`, `hooks.language_stop: false`,
+`auto update`. That binary is first on the agent's PATH, so the generated
+hooks call it. Every arm gets the same `--model` and `--effort`,
+`--permission-mode bypassPermissions`, `--setting-sources project`,
+`--strict-mcp-config`, `--no-session-persistence`, a 1800 s deadline with a
+process-group kill, and a fresh checkout with its own Git history.
+`--strict-mcp-config` without `--mcp-config` means the generated `.mcp.json`
+servers (npx packages fetched at start) load in no arm. The trial PATH is
+`auto`, symlinks to `--tools` (default `go,gofmt,claude,node`) and
+`/usr/bin:/bin:/usr/sbin:/sbin` only: other agent CLIs on the host PATH would
+be detected by `auto update` as platforms and could be called by a review
+step on another account, so the generated review providers other than Claude
+fail inside a trial.
+
+```sh
+# No model call: validity gates for every task (go test on snapshots; slow).
+python3 scripts/benchmarks/harness/gate_c.py --repo "$PWD" --work /absolute/new/gates
+# No model call: build auto, generate the surface, prepare one trial per arm, warm up.
+python3 scripts/benchmarks/harness/run_c.py --repo "$PWD" --output /absolute/new/dry \
+  --model opus --effort high --dry-run
+# Real trials (spends quota). The token comes from `claude setup-token`, mode 0600.
+nohup python3 scripts/benchmarks/harness/run_c.py --repo "$PWD" --output /absolute/new/run \
+  --tasks c01,c02 --model opus --effort high --timeout 1800 \
+  --credential-file /absolute/token > /absolute/new/run.log 2>&1 &
+```
+
+Isolation. On macOS Claude Code keeps its login in the login keychain under a
+service name derived from the config directory, so a fresh `HOME` and
+`CLAUDE_CONFIG_DIR` below the trial start logged out (`claude auth status`
+says so). The only credential is `CLAUDE_CODE_OAUTH_TOKEN` (or
+`ANTHROPIC_API_KEY` with `--credential-kind api_key`) read from
+`--credential-file`. `claude_agent.sb` confines writes to the trial, the Go
+cache and the system temporary roots; it denies reads of the rest of the run
+output, both checkouts (the oracles live in this one), the account's
+`~/.claude`, `~/.claude.json`, `~/.codex` and the keychain files, and the
+keychain Mach services. It does not cover managed policy settings or anything
+the account or organisation serves remotely (the same in every arm), the
+network, which stays open, or reads of the system, toolchain and module cache.
+
+Observation (`claude_agent.parse_stream`): the `result` event's usage (input,
+output, cache read and cache creation tokens; unknown stays null), turns,
+cost, terminal reason and final text; tool uses and `Task`/`Agent` uses. With
+`--include-hook-events` every hook emits `system` `hook_started` and
+`hook_response` events; a Stop `hook_response` that exits 2 or prints
+`{"decision":"block"}` is recorded as a block with its reason.
+
+Oracles. `oracles/<id>/*_test.go.oracle` carry a suffix the go tool ignores,
+so `go test ./...` never compiles them. Grading copies the candidate, resets
+its `*_test.go` files to the base revision's, adds the oracle, compiles the
+package's test binary once and runs each case in its own process. `review`
+cases are the review-confirmed defects and must fail on the pre-review head
+(gate 2); `feature` cases are the feature's own tests and must fail on base
+(gate 3); `guard` cases are behaviour base already had that the feature must
+keep, so they must pass on base. c01 pins the internal `lintCheckout` signature, because the
+report's API half cannot run offline, so no black-box CLI test can reach the
+lint; its tests are those of 10220e08 with identifiers prefixed and two
+note-phrase assertions relaxed to behaviour. c02 is black-box: the `doctor`
+command through `cli.NewRootCmd()` with every external CLI stubbed on a
+scratch PATH. Grading runs without a sandbox, in a scrubbed environment.
+Tests: `test_claude_agent.py`, `test_oracle_c.py`, `test_run_c.py`.
