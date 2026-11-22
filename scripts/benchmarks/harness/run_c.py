@@ -10,6 +10,7 @@ import itertools
 import json
 import os
 from pathlib import Path
+import signal
 import subprocess
 import sys
 import time
@@ -20,10 +21,47 @@ import guard_c
 import report_c
 import sources_c
 import trial_c
+import trial_env_c
 from gate_c import load_corpus
 from oracle_c import frozen_hash
 
 HERE = Path(__file__).resolve().parent
+STOP_SIGNALS = (signal.SIGTERM, signal.SIGINT, signal.SIGHUP)
+TRIAL_ENVIRONMENT = {
+    'module_cache': 'per-trial APFS clone (trial/gomodcache) of output/cache/modcache, filled from the host '
+                    'download cache with GOPROXY=file:// and -mod=readonly; grading reads output/cache/modcache',
+    'xcrun_db': '<stage temp>/xcrun_db', 'TMPPREFIX': '<stage temp>/zsh', 'GOPATH': '<trial>/gopath',
+    'CGO_ENABLED': 'go default (1), identical for warm-up, agent and grading',
+    'warm_up': 'go build ./... && go test -count=1 -run ^$ ./<oracle package>, sandboxed, before the agent clock'}
+
+
+class Interrupted(BaseException):
+    """A stop signal reached the runner. Not an Exception, so a trial's runner_exception handler cannot
+    swallow it; execute_tree sweeps the running stage's tree while it propagates."""
+
+    def __init__(self, signum: int):
+        super().__init__(signum)
+        self.signum = signum
+
+
+def install_stop_handlers() -> list:
+    """SIGTERM, SIGINT and SIGHUP raise Interrupted once; later ones are ignored so the sweep finishes.
+
+    The agent runs in its own session, so `kill -TERM -- -<runner pgid>` alone never reaches it. A
+    signal the runner inherited as ignored stays ignored: under `nohup` (README) SIGHUP is SIG_IGN, and
+    closing the terminal must not stop an unattended run. Returns the signals that got the handler.
+    """
+    def handler(signum, _frame):
+        for stop in STOP_SIGNALS:
+            signal.signal(stop, signal.SIG_IGN)
+        raise Interrupted(signum)
+    installed = []
+    for stop in STOP_SIGNALS:
+        if signal.getsignal(stop) is signal.SIG_IGN:
+            continue
+        signal.signal(stop, handler)
+        installed.append(stop)
+    return installed
 
 
 def schedule(tasks: list, arms: tuple, replicates: int) -> list:
@@ -82,6 +120,7 @@ def main(argv=None) -> int:
     oracles = guard_c.frozen_paths(output)['oracles'] if args.resume else HERE / 'oracles'
     tasks = load_corpus(corpus, [i for i in args.tasks.split(',') if i])
     guard_c.preflight(repo, output, harness, tasks, args.gates, oracles, args.dry_run)
+    install_stop_handlers()
     output.mkdir(parents=True, exist_ok=True)
     frozen = guard_c.frozen_paths(output) if args.resume else guard_c.freeze(output, corpus)
     ctx = {'output': output, 'base_env': dict(os.environ), 'model': args.model, 'effort': args.effort,
@@ -107,7 +146,8 @@ def main(argv=None) -> int:
                 'harness_revision': {'requested': args.harness_revision, 'sha': harness},
                 'gates': str(args.gates) if args.gates else None,
                 'surfaces': {b[:12]: {k: v for k, v in s['generated'].items() if k != 'manifest'}
-                             for b, s in ctx['sources'].items()}, 'dry_run': args.dry_run}
+                             for b, s in ctx['sources'].items()}, 'dry_run': args.dry_run,
+                'trial_environment': TRIAL_ENVIRONMENT, 'modcache': modcache_size(ctx['modcache'])}
     if args.dry_run:
         return dry_run(ctx, plan, protocol)
     if args.resume:
@@ -120,7 +160,7 @@ def main(argv=None) -> int:
 def check_resume(output: Path, protocol: dict) -> None:
     frozen = json.loads((output / 'protocol.json').read_text())
     for key in ('frozen_hash', 'tasks', 'arms', 'order', 'model', 'effort', 'timeout_seconds', 'harness_revision',
-                'surfaces', 'sandbox', 'permission_mode'):
+                'surfaces', 'sandbox', 'permission_mode', 'trial_environment'):
         if frozen.get(key) != protocol.get(key):
             raise SystemExit('--resume with a different protocol: ' + key)
 
@@ -143,12 +183,20 @@ def run_plan(ctx: dict, plan: list) -> int:
               flush=True)
         try:
             row = trial_c.run(ctx, task, arm, replicate)
+        except Interrupted as stop:
+            # The trial's tree is already swept; without result.json --resume sets it aside and reruns it.
+            name = signal.Signals(stop.signum).name
+            measure.mkdir(parents=True, exist_ok=True)
+            (measure / 'aborted.json').write_text(json.dumps({'signal': name, 'started': stamp}))
+            print(json.dumps({'stage': 'aborted', 'index': index, 'task': task['id'], 'arm': arm, 'signal': name}),
+                  flush=True)
+            return 128 + stop.signum
         except Exception:
             # A runner failure is an observation of this trial, not the end of the run.
             row = {'task_id': task['id'], 'arm': arm, 'replicate': replicate, 'operational_error': 'runner_exception',
                    'traceback': traceback.format_exc()[-4000:], 'oracle': None}
             measure.mkdir(parents=True, exist_ok=True)
-            (measure / 'result.json').write_text(json.dumps(row, indent=2))
+            trial_c.write_json(measure / 'result.json', row)
         records.append(row)
         (output / 'records.json').write_text(json.dumps(records, indent=2))
         summary = report_c.summarize(records)
@@ -164,10 +212,11 @@ def run_plan(ctx: dict, plan: list) -> int:
 
 
 def dry_run(ctx: dict, plan: list, protocol: dict) -> int:
-    """Prepare the first trial of each arm and run its sandboxed warm-up, never the agent."""
+    """Prepare the first trial of each arm, run its sandboxed warm-up and the environment self-test
+    (trial_env_c.selftest), never the agent. Fails when a warm-up or a self-test step fails."""
     print(json.dumps({k: v for k, v in protocol.items() if k != 'order'}, indent=2))
     print('order:', ' '.join('%s/%s/k%d' % entry for entry in protocol['order']))
-    seen = set()
+    seen, failed = set(), []
     for task, arm, _ in plan:
         if arm in seen:
             continue
@@ -178,14 +227,33 @@ def dry_run(ctx: dict, plan: list, protocol: dict) -> int:
                                     'warm.log', prepared['measure'] / 'warm.err', 1800, scratch=prepared['trial'])
         resolved = subprocess.run(prepared['path_probe'], cwd=prepared['work'], env=prepared['env'],
                                   capture_output=True, text=True, timeout=120).stdout.split()
+        check = trial_env_c.selftest(prepared, task['oracle']['package'], trial_c.execute_tree)
+        if warm['exit_code'] or not check['ok']:
+            failed.append(name)
         print(json.dumps({'trial': name, 'argv': prepared['argv'], 'env_keys': sorted(prepared['env']),
                           'bash_tool_resolves': resolved,
                           'prompt_sha256': trial_c.digest(prepared['prompt'].encode()), 'warm': warm,
+                          'modcache_clone': prepared['modcache_clone'], 'selftest': check,
                           'harness_files': sorted(p.name for p in prepared['work'].iterdir()
                                                   if p.name in ('CLAUDE.md', '.claude', 'autopus.yaml'))}, indent=2))
+        print('SELFTEST %s %s go_test_compile=%.1fs warm=%.1fs' % (
+            name, 'ok' if check['ok'] and not warm['exit_code'] else 'FAILED ' + ','.join(check['failed']),
+            check['steps'].get('go_test_compile', {}).get('seconds', -1), warm['elapsed_seconds']), flush=True)
+    if failed:
+        print('DRY_RUN_FAILED (environment self-test): ' + ', '.join(failed))
+        return 1
     print('DRY_RUN_COMPLETE (no agent started)')
     return 0
 
+
+def modcache_size(path: Path) -> dict:
+    """Files and apparent bytes of the run-level module cache (a trial's APFS clone shares the blocks)."""
+    files = size = 0
+    for directory, _dirs, names in os.walk(path):
+        for entry in names:
+            files += 1
+            size += os.lstat(os.path.join(directory, entry)).st_size
+    return {'files': files, 'apparent_bytes': size}
 
 if __name__ == '__main__':
     sys.exit(main())

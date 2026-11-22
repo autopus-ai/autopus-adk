@@ -110,6 +110,9 @@ class SandboxTests(unittest.TestCase):
                 claude_agent.sandboxed(['claude'], root / 'elsewhere', out, out / 'bin', str(mod), {}, d, [])
             with self.assertRaises(ValueError):
                 claude_agent.sandboxed(['claude'], trial, out, out / 'bin', str(out / 'mod'), {}, d, [])
+            # The trial's own module cache clone lies inside the trial and is accepted.
+            own = claude_agent.sandboxed(['claude'], trial, out, out / 'bin', str(trial / 'gomodcache'), {}, d, [])
+            self.assertIn('MODCACHE=' + str(trial / 'gomodcache'), own)
 
     def test_profile_closes_reads_sockets_and_signals(self):
         profile = claude_agent.PROFILE.read_text()

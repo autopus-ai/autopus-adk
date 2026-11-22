@@ -51,16 +51,18 @@ def _run(argv: list, cwd: Path, env: dict, log: Path, timeout: float) -> tuple:
     with open(log, 'wb') as sink:
         process = subprocess.Popen(argv, cwd=cwd, env=env, stdin=subprocess.DEVNULL, stdout=sink,
                                    stderr=subprocess.STDOUT, start_new_session=True)
+        timed_out = False
         try:
             process.wait(timeout=timeout)
-            timed_out = False
         except subprocess.TimeoutExpired:
             timed_out = True
-        try:
-            os.killpg(process.pid, signal.SIGKILL)
-        except (ProcessLookupError, PermissionError):
-            pass
-        process.wait()
+        finally:
+            # Also when a stop signal to the runner interrupts the wait (run_c).
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except (ProcessLookupError, PermissionError):
+                pass
+            process.wait()
     return process.returncode, timed_out, round(time.monotonic() - started, 3)
 
 

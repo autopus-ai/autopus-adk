@@ -511,8 +511,8 @@ works. A real run needs `--gates`: the `gates.json` of a
 passing `gate_c.py` run whose recorded hash matches the corpus and oracles.
 The profiles, oracles and corpus are copied into `<output>/frozen` first, so a
 branch switch mid-run changes nothing. Layout: `trials/<name>/` is all the
-agent can touch (workspace, isolated home, temp, its own clone of the warm
-build cache); `measure/<name>/` holds the transcript, stderr, warm-up logs and
+agent can touch (workspace, isolated home, temp, its own clones of the warm
+build cache and the module cache); `measure/<name>/` holds the transcript, stderr, warm-up logs and
 `result.json`; `grading/<name>/` the grade root; `cache/` and `sources/` the
 inputs. Each trial records its load average at start and end, and the protocol
 records `go version` as trials run it (`GOTOOLCHAIN=local`).
@@ -539,6 +539,40 @@ policy settings and anything the account or organisation serves remotely (the
 same in every arm), TCP (the model is remote), and reads of the system and
 toolchain.
 
+Trial environment (`trial_env_c.py`). The sandbox must not break the agent's
+own builds, or every trial measures workarounds. `/usr/bin/git`, `cc` and the
+other developer shims run xcrun, which writes its database to the per-user
+temp (`confstr(_CS_DARWIN_USER_TEMP_DIR)`, not `$TMPDIR`) unless `xcrun_db`
+names a file; the trial sets `xcrun_db=<trial>/tmp/xcrun_db`, so the profile
+keeps `/var/folders` closed. zsh writes here-documents to `$TMPPREFIX`
+(default `/tmp/zsh`), set to `<trial>/tmp/zsh` (the shell wrapper derives it
+from `TMPDIR` when a caller dropped it); bash uses `TMPDIR`. The module cache
+is `<output>/cache/modcache`, filled once from the host cache's download
+directory (`GOPROXY=file://`, `-mod=readonly`) with what the harness snapshot
+and the task bases need; each trial gets its own APFS clone at
+`<trial>/gomodcache` (about 6 s, metadata only), readable and writable by that
+trial alone, so the go command's stat-cache and lock files reach no other
+trial. Grading and the warm caches read `<output>/cache/modcache`, which no
+agent can open. cgo stays on (pkg/qa/run uses it), identically for warm-up,
+agent and grading. Because the build cache keys packages by directory, the
+sandboxed warm-up runs `go build ./...` and the oracle package's test compile
+at the trial's own paths before the agent's clock starts. `--dry-run` also runs
+an environment self-test per arm inside the sandbox (`go build ./...`, the
+oracle package's test compile, a zsh and a bash here-document, `git status`, a
+`cc` compile, `go env GOCACHE GOMODCACHE GOTMPDIR CGO_ENABLED`) and fails when
+a step fails or prints a sandbox denial; it prints `SELFTEST <trial> ok
+go_test_compile=<s>`.
+
+Stopping. SIGTERM, SIGINT or SIGHUP to the runner (`kill -TERM -- -<pgid>`
+included; the agent runs in its own session, so the signal never reaches it)
+sweeps the running stage's whole tree, as at the deadline, writes
+`measure/<name>/aborted.json` without `result.json`, and exits 128+signal;
+`--resume` sets the partial trial aside and reruns it. A signal the runner
+inherited as ignored keeps no handler: under `nohup` SIGHUP stays ignored, so
+closing the terminal does not stop the run. `result.json` is written through a
+temporary file and `os.replace`, so an interrupted write never leaves a torn
+file for `--resume` to read.
+
 Observation (`stream_c.parse_stream`): the `result` event's usage (input,
 output, cache read and cache creation tokens; unknown stays null), turns,
 cost, terminal reason and final text; tool uses and `Task`/`Agent` uses. With
@@ -547,7 +581,9 @@ cost, terminal reason and final text; tool uses and `Task`/`Agent` uses. With
 code, decision, `systemMessage` such as a verify-stop budget or skip note),
 and as a block when it exits 2 or prints `{"decision":"block"}`. A Bash command
 that reaches GitHub or fetches from the network (`gh`, `git fetch`, `curl`,
-...) is flagged as contamination, since the fixed heads are public.
+...) is flagged as contamination, since the fixed heads are public. A Bash
+command that sets `GOCACHE`, `TMPDIR`, `CGO_ENABLED`, `GOMODCACHE` or `GOFLAGS`
+is recorded in `env_overrides`, a friction signal counted per arm in the report.
 
 Oracles and grading. `oracles/<id>/*_test.go.oracle` carry a suffix the go
 tool ignores, so `go test ./...` never compiles them. The graded tree is the
@@ -568,4 +604,5 @@ no black-box CLI test can reach the lint; its tests are those of 10220e08 with
 identifiers prefixed and two note-phrase assertions relaxed to behaviour. c02
 is black-box: the `doctor` command through `cli.NewRootCmd()` with every
 external CLI stubbed on a scratch PATH. Tests: `test_claude_agent.py`,
-`test_stream_c.py`, `test_guard_c.py`, `test_oracle_c.py`, `test_run_c.py`.
+`test_stream_c.py`, `test_guard_c.py`, `test_oracle_c.py`, `test_run_c.py`,
+`test_trial_env_c.py`, `test_stop_c.py`.

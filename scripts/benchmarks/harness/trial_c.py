@@ -1,7 +1,7 @@
 """One pilot C trial: prepare the checkout, run the agent under its deadline, grade with the oracle.
 
 Layout below the run output: trials/<name>/ is the only tree the agent may touch (workspace, isolated
-home, temp, its own clone of the warm build cache); measure/<name>/ holds what the runner records
+home, temp, its own clones of the warm build cache and of the run's module cache); measure/<name>/ holds what the runner records
 (transcript, stderr, warm-up logs, result) and grading/<name>/ the sandboxed grade root. Neither of
 the latter is readable inside the agent's sandbox.
 """
@@ -20,6 +20,7 @@ import oracle_c
 import process_tree
 import stream_c
 import surface_c
+import trial_env_c
 from workspace import hashes, initialize
 
 PROMPT_SUFFIX = (
@@ -38,18 +39,28 @@ def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def write_json(path: Path, data) -> None:
+    """Write JSON through a temporary file and os.replace: an interrupted write leaves either no file
+    or the whole one, never a truncated result.json that --resume's json.loads would trip over."""
+    path = Path(path)
+    temp = path.with_name('.' + path.name + '.tmp')
+    temp.write_text(json.dumps(data, indent=2))
+    os.replace(temp, path)
+
+
 def execute_tree(argv: list, cwd: Path, env: dict, stdout: Path, stderr: Path, seconds: float,
                  stdin: str | None = None, scratch: Path | None = None) -> dict:
     """Run with exactly env in a new session. On the deadline SIGTERM the group and wait 10 s; then
     always sweep the whole descendant tree (process_tree.Tree: setsid shells, orphans and every
-    process the sandbox instance writing `scratch` confines) until it is empty."""
+    process the sandbox instance writing `scratch` confines) until it is empty. An exception raised
+    meanwhile (run_c's stop signals raise one) sweeps the same way before it propagates."""
     started = time.monotonic()
-    with open(stdout, 'wb') as out, open(stderr, 'wb') as err:
-        process = subprocess.Popen(argv, cwd=cwd, env=env, stdin=subprocess.PIPE if stdin is not None else
-                                   subprocess.DEVNULL, stdout=out, stderr=err, start_new_session=True)
-    tree = process_tree.Tree(process.pid, scratch).watch()
-    timed_out = False
+    process, tree, timed_out = None, None, False
     try:
+        with open(stdout, 'wb') as out, open(stderr, 'wb') as err:
+            process = subprocess.Popen(argv, cwd=cwd, env=env, stdin=subprocess.PIPE if stdin is not None else
+                                       subprocess.DEVNULL, stdout=out, stderr=err, start_new_session=True)
+        tree = process_tree.Tree(process.pid, scratch).watch()
         if stdin is not None:
             try:
                 process.stdin.write(stdin.encode())
@@ -69,8 +80,9 @@ def execute_tree(argv: list, cwd: Path, env: dict, stdout: Path, stderr: Path, s
             except subprocess.TimeoutExpired:
                 pass
     finally:
-        stragglers, leftover = tree.sweep()
-        process.wait()
+        if process is not None:
+            stragglers, leftover = (tree or process_tree.Tree(process.pid, scratch)).sweep()
+            process.wait()
     if scratch is None:
         # Without a sandbox instance to count, a process that left the tree before the first walk is
         # invisible: an empty sweep proves nothing, so leftover is unknown, not False.
@@ -79,15 +91,14 @@ def execute_tree(argv: list, cwd: Path, env: dict, stdout: Path, stderr: Path, s
             'leftover': leftover, 'elapsed_seconds': round(time.monotonic() - started, 3)}
 
 
-def go_env(trial: Path, go_cache: Path) -> dict:
-    """Go settings of a trial. GOPATH and GOMODCACHE are the host's, read once: with a scratch HOME
-    their defaults would point at an empty module cache, and GOPROXY is off."""
+def go_env(trial: Path, go_cache: Path, modcache: Path) -> dict:
+    """Go settings of a stage rooted at trial: its build cache, module cache (trial_env_c), GOPATH and
+    temp, and where xcrun and zsh write. GOPROXY is off; cgo keeps the go default."""
     temp = trial / 'tmp'
     temp.mkdir(exist_ok=True)
-    gopath, modcache = subprocess.check_output(['go', 'env', 'GOPATH', 'GOMODCACHE'], text=True).split('\n')[:2]
     return {'GOCACHE': str(go_cache), 'GOTMPDIR': str(temp), 'TMPDIR': str(temp), 'GOFLAGS': '-mod=mod',
             'GOPROXY': 'off', 'GOSUMDB': 'off', 'GOTELEMETRY': 'off', 'GOTOOLCHAIN': 'local',
-            'GOPATH': gopath, 'GOMODCACHE': modcache}
+            'GOPATH': str(trial / 'gopath'), 'GOMODCACHE': str(modcache), **trial_env_c.temp_env(temp)}
 
 
 def names(ctx: dict, name: str) -> tuple:
@@ -108,23 +119,28 @@ def prepare(ctx: dict, task: dict, arm: str, name: str) -> dict:
     initialize(work)
     home = claude_agent.isolated_home(trial, arm, work)
     grade_c.clone_tree(source['warm_cache'], trial / 'gocache')
+    modcache = trial_env_c.clone_modcache(ctx['modcache'], trial / 'gomodcache')
     env = claude_agent.agent_env(ctx['base_env'], home, trial / 'tmp', ctx['credential_kind'], ctx['credential'],
                                  [source['bin_dir'], ctx['tools_dir']], ctx['shell'])
-    env.update(go_env(trial, trial / 'gocache'))
+    env.update(go_env(trial, trial / 'gocache', trial / 'gomodcache'))
     argv = claude_agent.claude_argv(arm, ctx['model'], ctx['effort'], ctx['permission_mode'], ctx['claude'])
-    warm = ['go', 'test', '-count=1', '-run', '^$', './' + task['oracle']['package']]
-    if ctx['sandbox']:
-        def wrap(command):
-            return claude_agent.sandboxed(command, trial, ctx['output'], ctx['output'] / 'bin', env['GOMODCACHE'],
-                                          ctx['tools'], ctx['account_home'], ctx['protected'],
-                                          ctx['frozen']['agent_profile'])
+    # The build cache keys packages by directory, and this trial's workspace and module cache paths are
+    # its own: the warm-up compiles them here, before the agent's clock, for `go build ./...` and the
+    # oracle package's tests.
+    warm = ['/bin/sh', '-c', 'go build ./... && go test -count=1 -run "^$" "./$1"', 'warm', task['oracle']['package']]
+
+    def wrap(command):
+        if not ctx['sandbox']:
+            return command
+        return claude_agent.sandboxed(command, trial, ctx['output'], ctx['output'] / 'bin', env['GOMODCACHE'],
+                                      ctx['tools'], ctx['account_home'], ctx['protected'],
+                                      ctx['frozen']['agent_profile'])
     # What the Bash tool resolves: Claude Code snapshots its environment with `$SHELL -c -l`.
     probe = [str(ctx['shell']), '-c', '-l', 'for t in auto go claude codex gemini gh omp opencode; do '
              'printf "%s=%s\\n" "$t" "$(command -v $t || echo none)"; done; echo "PATH=$PATH"']
-    if ctx['sandbox']:
-        argv, warm, probe = wrap(argv), wrap(warm), wrap(probe)
-    return {'trial': trial, 'measure': measure, 'work': work, 'env': env, 'argv': argv, 'warm': warm,
-            'path_probe': probe, 'prompt': prompt_for(task), 'source': source}
+    return {'trial': trial, 'measure': measure, 'work': work, 'env': env, 'argv': wrap(argv), 'warm': wrap(warm),
+            'path_probe': wrap(probe), 'prompt': prompt_for(task), 'source': source, 'wrap': wrap,
+            'sandboxed': ctx['sandbox'], 'modcache_clone': modcache}
 
 
 def run(ctx: dict, task: dict, arm: str, replicate: int) -> dict:
@@ -147,15 +163,15 @@ def run(ctx: dict, task: dict, arm: str, replicate: int) -> dict:
     if not agent['leftover']:
         graded = grade_c.grade_candidate(task, plan['source']['tree'], plan['work'], grading, measure / 'grade',
                                          plan['source']['warm_cache'], ctx['frozen']['grader_profile'],
-                                         ctx['frozen']['oracles'])
+                                         ctx['frozen']['oracles'], modcache=ctx['modcache'])
     operational = ('warmup_failed' if warm['exit_code'] else 'leftover_processes' if agent['leftover'] else
                    'agent_timeout' if agent['timed_out'] else 'agent_exit' if agent['exit_code'] else
                    'agent_error' if observation['is_error'] else 'arm_invalid' if not valid else None)
     row = {'task_id': task['id'], 'arm': arm, 'replicate': replicate, 'operational_error': operational,
            'warm': warm, 'agent': agent, 'observation': observation, 'arm_valid': valid, 'scope': scope,
-           'oracle': graded, 'loadavg': {'start': load_start, 'end': load_end},
+           'oracle': graded, 'modcache_clone': plan['modcache_clone'], 'loadavg': {'start': load_start, 'end': load_end},
            'prompt_hash': digest(plan['prompt'].encode()), 'human_interventions': 0,
            'harness_revision': plan['source']['harness_revision'],
            'surface_hash': plan['source']['generated']['surface_hash'] if arm != 'native' else None}
-    (measure / 'result.json').write_text(json.dumps(row, indent=2))
+    write_json(measure / 'result.json', row)
     return row

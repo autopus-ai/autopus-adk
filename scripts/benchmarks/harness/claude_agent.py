@@ -51,8 +51,14 @@ def user_settings(arm: str) -> dict:
 
 # Claude Code snapshots the Bash tool's environment with `$SHELL -c -l`; a login zsh runs
 # /etc/zprofile (path_helper), which puts /usr/local/bin and /opt/homebrew/bin before the pinned
-# bin. This wrapper drops the login flags and starts zsh with no startup files (-f).
+# bin. This wrapper drops the login flags and starts zsh with no startup files (-f). zsh writes
+# here-documents to $TMPPREFIX (default /tmp/zsh), outside the trial; the trial sets it inside its
+# temp (trial_env_c), and the wrapper derives it from TMPDIR when a caller dropped it.
 SHELL_WRAPPER = '''#!/bin/sh
+if [ -z "${TMPPREFIX:-}" ] && [ -n "${TMPDIR:-}" ]; then
+  TMPPREFIX="${TMPDIR%/}/zsh"
+  export TMPPREFIX
+fi
 for arg; do
   shift
   case "$arg" in
@@ -146,7 +152,11 @@ def sandboxed(argv: list, trial: Path, output: Path, bin_dir: Path, modcache: st
         if path == trial or path in trial.parents:
             raise ValueError('a protected checkout must not contain the trial: ' + str(path))
     dirs = tool_dirs(tools)
-    for path in [*map(Path, dirs), Path(modcache)]:
+    modcache = Path(modcache).resolve()
+    # The trial's own module cache clone lies inside the trial; any other reopened directory must
+    # stay out of the run output and the checkouts.
+    outside = [] if trial in modcache.parents else [modcache]
+    for path in [*map(Path, dirs), *outside]:
         if any(path == Path(p).resolve() or Path(p).resolve() in path.parents for p in [output, *protected]):
             raise ValueError('a reopened directory lies inside a protected tree: ' + str(path))
     dirs += [str(trial / '.unused-slot')] * (TOOL_SLOTS - len(dirs))
@@ -155,7 +165,7 @@ def sandboxed(argv: list, trial: Path, output: Path, bin_dir: Path, modcache: st
     params = ['-D', 'TRIAL=' + str(trial), '-D', 'OUTPUT=' + str(output),
               '-D', 'PROTECTED0=' + checkouts[0], '-D', 'PROTECTED1=' + checkouts[1],
               '-D', 'ACCOUNT_HOME=' + os.path.realpath(account_home),
-              '-D', 'MODCACHE=' + str(Path(modcache).resolve()), '-D', 'BIN=' + str(Path(bin_dir).resolve())]
+              '-D', 'MODCACHE=' + str(modcache), '-D', 'BIN=' + str(Path(bin_dir).resolve())]
     for index, path in enumerate(dirs):
         params += ['-D', 'TOOL%d=%s' % (index, path)]
     return [SANDBOX, '-f', str(profile), *params, *argv]
