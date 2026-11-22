@@ -39,7 +39,8 @@ func TestPlan_QAExecCasesFollowAProductChange(t *testing.T) {
 
 	steps := Plan(root, []string{"main.go"})
 	require.Len(t, steps, 3)
-	qa := steps[2]
+	qa := steps[1]
+	assert.Equal(t, "go test", steps[2].Name, "the whole packages run last")
 	assert.Equal(t, "qa exec --all", qa.Name)
 	assert.Equal(t, []string{"auto", "qa", "exec", "--all", "--project-dir", root}, qa.Argv)
 	assert.Equal(t, []int{2}, qa.PassExit)

@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 )
@@ -61,20 +62,8 @@ func IsTest(file string) bool {
 // They must fail before the change; the normal gate already showed they pass
 // after it.
 func CheckRed(ctx context.Context, root string, changed []string, budget time.Duration) RedResult {
-	var res RedResult
-	for _, f := range changed {
-		switch {
-		case IsTest(f):
-			res.Tests = append(res.Tests, f)
-		case hasExt([]string{f}, redLanguages...):
-			res.Sources = append(res.Sources, f)
-		}
-	}
-	if len(res.Sources) == 0 {
-		return res
-	}
-	if len(res.Tests) == 0 {
-		res.Verdict = RedNoTest
+	res, decided := PrecheckRed(changed)
+	if decided {
 		return res
 	}
 	scratch, err := os.MkdirTemp("", "autopus-red-")
@@ -98,6 +87,9 @@ func CheckRed(ctx context.Context, root string, changed []string, budget time.Du
 	}
 	failure, skipped := Run(ctx, steps, budget)
 	switch {
+	case failure != nil && failure.TimedOut:
+		// Running out of time is not the tests failing.
+		res.Verdict, res.Detail = RedUnavailable, failure.Step.Name+": "+failure.Reason
 	case failure != nil:
 		res.Verdict = RedProven
 	case len(skipped) > 0:
@@ -108,12 +100,19 @@ func CheckRed(ctx context.Context, root string, changed []string, budget time.Du
 	return res
 }
 
-// redSteps runs only the tests that changed: the Go packages that hold them,
-// the node test script, or pytest on the changed files.
+// redSteps runs only the tests that changed: the Test functions of the
+// changed Go test files (their whole packages when a changed file declares
+// none, such as a helper, or the names do not fit one argument), the node
+// test script, or pytest on the changed files.
 func redSteps(scratch string, tests []string) []Step {
 	var steps []Step
 	if pkgs := goPackages(scratch, tests); len(pkgs) > 0 {
-		steps = append(steps, Step{Name: "go test (before the change)", Argv: append([]string{"go", "test"}, pkgs...), Dir: scratch})
+		argv := []string{"go", "test"}
+		names, testPkgs := changedGoTests(scratch, tests)
+		if pattern := "^(" + strings.Join(names, "|") + ")$"; len(names) > 0 && len(pattern) <= maxRunPattern && slices.Equal(testPkgs, pkgs) {
+			argv = append(argv, "-run", pattern)
+		}
+		steps = append(steps, Step{Name: "go test (before the change)", Argv: append(argv, pkgs...), Dir: scratch})
 	}
 	if hasExt(tests, nodeExts...) {
 		for _, step := range nodeSteps(scratch) {
@@ -187,4 +186,28 @@ func copyFile(src, dst string) error {
 		return err
 	}
 	return os.WriteFile(dst, data, 0o644)
+}
+
+// PrecheckRed is the part of CheckRed that runs nothing: it sorts the
+// changed files into sources and tests, and decides RedNotApplicable (no
+// product source changed) or RedNoTest (no test changed). decided is false
+// when the tests have to be run against HEAD to know.
+func PrecheckRed(changed []string) (RedResult, bool) {
+	var res RedResult
+	for _, f := range changed {
+		switch {
+		case IsTest(f):
+			res.Tests = append(res.Tests, f)
+		case hasExt([]string{f}, redLanguages...):
+			res.Sources = append(res.Sources, f)
+		}
+	}
+	if len(res.Sources) == 0 {
+		return res, true
+	}
+	if len(res.Tests) == 0 {
+		res.Verdict = RedNoTest
+		return res, true
+	}
+	return res, false
 }

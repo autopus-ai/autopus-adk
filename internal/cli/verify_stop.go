@@ -14,6 +14,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/insajin/autopus-adk/pkg/config"
 	"github.com/insajin/autopus-adk/pkg/privatedir"
 	"github.com/insajin/autopus-adk/pkg/verifygate"
 )
@@ -65,7 +66,11 @@ func newVerifyStopCmd() *cobra.Command {
 		Use:   "stop",
 		Short: "Stop hook: build and test the changed files before the session ends",
 		Long: "Reads the Claude Code Stop hook payload on stdin. When the work tree has changes, runs the " +
-			"build and tests that cover them and blocks the stop with the failure output. Under methodology: tdd with " +
+			"build and tests that cover them and blocks the stop with the failure output. Go runs the tests the change " +
+			"edited first (with at most half the budget), then the changed packages whole; a suite that outlasts the " +
+			"budget with tests finishing and nothing failed does not block, and that tree is not run again (its note is repeated); " +
+			"a test still running after half of its step's window is treated as hung and blocks. An interrupted run " +
+			"(Ctrl-C, SIGTERM) records nothing and does not block. Under methodology: tdd with " +
 			"enforce: true, the changed tests must also fail against the code before the change (HEAD); a source change " +
 			"without a test change is blocked unless the reply has a `TDD-exempt: <reason>` line. Set " +
 			"AUTOPUS_VERIFY_STOP=off to disable. Before the build, added lines that look like credentials block the stop " +
@@ -120,6 +125,7 @@ func runVerifyStop(cmd *cobra.Command, stdin io.Reader, budget time.Duration, fo
 		return withSecretWarning(*versionBlock, warning)
 	}
 	warning = joinWarnings(warning, versionWarn)
+	budget = stopBudget(cmd, root, budget)
 	return withSecretWarning(verifyChanged(cmd, in, root, changed, budget, followup), warning)
 }
 
@@ -137,14 +143,32 @@ func verifyChanged(cmd *cobra.Command, in stopHookInput, root string, changed []
 	if len(steps) == 0 {
 		// Nothing to build, but a changed shell script or Java class is
 		// still behavior the user will run.
-		return followupRound(cmd, in, root, followup, false)
+		return followupRound(cmd, in, root, followup, statusUnbuilt)
 	}
 	fingerprint := verifygate.Fingerprint(root, changed)
 	if readStopState(in.SessionID, "pass") == fingerprint {
 		return stopHookOutput{}
 	}
+	if note, ok := recordedNote(in.SessionID, "budget", fingerprint); ok {
+		// Not run again, but not passed either: the note is repeated.
+		return stopHookOutput{SystemMessage: note}
+	}
+	if note, ok := recordedNote(in.SessionID, "hang", fingerprint); ok {
+		// The stop that lets a hang-suspected tree through: not run again,
+		// not passed, and the verification round the block withheld is due
+		// now (once per session, like every round).
+		return withBudgetNote(followupRound(cmd, in, root, followup, statusHangSuspected), note)
+	}
 	started := time.Now()
 	failure, skipped := verifygate.Run(cmd.Context(), steps, budget)
+	if failure == nil && slices.ContainsFunc(skipped, func(s verifygate.Skip) bool { return s.Interrupted }) {
+		// A signal is not a verdict: no block, no block count, no record.
+		return stopHookOutput{SystemMessage: "auto verify stop: interrupted before verification finished; " +
+			"nothing was recorded, so the next stop checks this tree again"}
+	}
+	if failure == nil && len(skipped) > 0 && onlyBudgetSkips(skipped) {
+		return budgetSkipped(cmd, in, root, changed, fingerprint, skipped, budget-time.Since(started), followup)
+	}
 	if failure == nil && len(skipped) > 0 {
 		// Nothing failed, but not everything ran: that is the machine, not
 		// the change, so the stop is not blocked. The tree is not recorded as
@@ -158,14 +182,35 @@ func verifyChanged(cmd *cobra.Command, in stopHookInput, root string, changed []
 		}
 		resetStopBlocks(in.SessionID)
 		writeStopState(in.SessionID, "pass", fingerprint)
-		return followupRound(cmd, in, root, followup, true)
+		return followupRound(cmd, in, root, followup, statusPassed)
 	}
-	summary := fmt.Sprintf("Verification failed: `%s` (%s).\n%s", strings.Join(failure.Step.Argv, " "), failure.Reason, failure.Output)
+	summary := fmt.Sprintf("Verification failed: `%s` (%s).\n%s", shortCommand(failure.Step.Argv), failure.Reason, failure.Output)
+	if failure.Hung {
+		return suspectedHang(in.SessionID, fingerprint, summary, failure.Window, budget)
+	}
 	if countStopBlock(in.SessionID) > verifyStopMaxBlocks {
 		return stopHookOutput{SystemMessage: fmt.Sprintf("auto verify stop: still failing after %d attempts; ending without a passing build. %s",
 			verifyStopMaxBlocks, firstLine(summary))}
 	}
 	return stopHookOutput{Decision: "block", Reason: summary + "\n\nFix the failure, or explain why it is not caused by this change, before finishing."}
+}
+
+// suspectedHang blocks once per tree on a suspected hang. No threshold over
+// the events seen at kill time tells a slow test from a stuck one, so the
+// agent is told once; the tree is recorded as unverified (kind "hang"), and
+// the next stop on it repeats the note without blocking or running again.
+// Any edit changes the fingerprint and re-arms the block.
+func suspectedHang(session, fingerprint, summary string, window, budget time.Duration) stopHookOutput {
+	note := "auto verify stop: a suspected hang was reported for this tree and it was not run again; it is not verified. " +
+		firstLine(summary)
+	writeStopState(session, "hang", fingerprint+"\n"+note)
+	hint := fmt.Sprintf("\n\nThe step had %s of the %s budget; when the slow test is one this change edited, the changed "+
+		"tests run first and the final step gets only about half the budget. If this is a legitimately slow test, stopping "+
+		"again will not block this tree again (it stays unverified). To give it more time, set `hooks.verify_stop_budget` in "+
+		"autopus.yaml (for example \"15m\", at most %s) and run `auto update`; Claude Code reads hooks when a session starts, "+
+		"so the new budget applies from the next session on.", window, budget, config.MaxVerifyStopBudget)
+	return stopHookOutput{Decision: "block", Reason: summary + hint +
+		"\n\nIf it is stuck, fix it, or explain why it is not caused by this change, before finishing."}
 }
 
 var unsafeSessionChars = regexp.MustCompile(`[^A-Za-z0-9_-]`)
@@ -218,17 +263,22 @@ func resetStopState(session string) {
 	_ = os.Remove(stopStateFile(session, "secrets"))
 	_ = os.Remove(stopStateFile(session, "versions"))
 	_ = os.Remove(stopStateFile(session, "versions-warn"))
-}
-
-func describeSkips(skipped []verifygate.Skip) string {
-	parts := make([]string, 0, len(skipped))
-	for _, s := range skipped {
-		parts = append(parts, fmt.Sprintf("`%s` (%s)", s.Name, s.Reason))
-	}
-	return strings.Join(parts, ", ")
+	_ = os.Remove(stopStateFile(session, "budget"))
+	_ = os.Remove(stopStateFile(session, "hang"))
 }
 
 func firstLine(s string) string {
 	line, _, _ := strings.Cut(s, "\n")
 	return line
+}
+
+// shortCommand renders argv for a message, eliding a long middle such as a
+// -run pattern of many test names.
+func shortCommand(argv []string) string {
+	const max = 300
+	line := strings.Join(argv, " ")
+	if len(line) <= max {
+		return line
+	}
+	return strings.ToValidUTF8(line[:max/2], "") + " … " + strings.ToValidUTF8(line[len(line)-max/2:], "")
 }

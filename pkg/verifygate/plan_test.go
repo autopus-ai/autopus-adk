@@ -30,7 +30,7 @@ func TestPlan_GoPackagesOfChangedFiles(t *testing.T) {
 
 	require.Len(t, steps, 2)
 	assert.Equal(t, []string{"go", "build", "./..."}, steps[0].Argv)
-	assert.Equal(t, []string{"go", "test", ".", "./pkg/b"}, steps[1].Argv, "testdata and deleted dirs are not packages")
+	assert.Equal(t, []string{"go", "test", "-json", ".", "./pkg/b"}, steps[1].Argv, "testdata and deleted dirs are not packages")
 }
 
 func TestPlan_NothingForDocsOnly(t *testing.T) {

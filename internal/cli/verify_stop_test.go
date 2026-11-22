@@ -90,7 +90,7 @@ func TestVerifyStop_BlocksOnFailingTestThenGivesUp(t *testing.T) {
 	for i := 0; i < verifyStopMaxBlocks; i++ {
 		got := runStop(t, dir, session)
 		assert.Equal(t, "block", got.Decision)
-		assert.Contains(t, got.Reason, "go test .")
+		assert.Contains(t, got.Reason, "go test -json .")
 		assert.Contains(t, got.Reason, "Add(1, 2) != 3")
 	}
 	last := runStop(t, dir, session)
