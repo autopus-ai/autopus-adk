@@ -51,7 +51,7 @@ func doctorRemediationAdvice(platformFailed, depsMissing bool) string {
 	case depsMissing:
 		return "Issues found — run 'auto doctor --fix' to install missing dependencies"
 	default:
-		return "Issues found — review the warnings above"
+		return "Issues found — review the [ERROR] lines above"
 	}
 }
 
@@ -60,9 +60,50 @@ func doctorRemediationAdvice(platformFailed, depsMissing bool) string {
 // stale; run 'auto update'" over a page whose only findings were degraded OMP
 // model routing: no ERROR line said what failed, and `auto update` does not
 // repair routing. Naming the sections points the reader at the lines to read.
-func doctorWarningAdvice(sections []string) string {
-	if len(sections) == 0 {
-		return "Warnings found, nothing failed — review the [WARN] lines above"
+func doctorWarningAdvice(sections []string, updateFixes bool) string {
+	msg := "Warnings found, nothing failed — review the [WARN] lines above"
+	if len(sections) > 0 {
+		msg = "Warnings found, nothing failed — review the [WARN] lines in: " + strings.Join(sections, ", ")
 	}
-	return "Warnings found, nothing failed — review the [WARN] lines in: " + strings.Join(sections, ", ")
+	if updateFixes {
+		msg += "; 'auto update' removes the retired orchestra surface"
+	}
+	return msg
+}
+
+type doctorVerdictKind int
+
+const (
+	doctorVerdictPass doctorVerdictKind = iota
+	doctorVerdictWarn
+	doctorVerdictFail
+)
+
+type doctorVerdictInput struct {
+	allOK              bool
+	errorLines         int
+	unhealthy          []string
+	updateFixes        bool
+	depsMissing        bool
+	retiredUpdateFixes bool
+}
+
+type doctorVerdict struct {
+	kind    doctorVerdictKind
+	message string
+}
+
+// decideDoctorVerdict derives the result box from what the report printed.
+// An ERROR line the reader saw always wins, even when no check marked the
+// report unhealthy (a failed --fix install prints one and returns nil), so a
+// PASS box can never sit under an ERROR line and a FAIL box always has one.
+func decideDoctorVerdict(in doctorVerdictInput) doctorVerdict {
+	switch {
+	case in.errorLines > 0:
+		return doctorVerdict{doctorVerdictFail, doctorRemediationAdvice(in.updateFixes, in.depsMissing)}
+	case in.allOK:
+		return doctorVerdict{doctorVerdictPass, "All checks passed"}
+	default:
+		return doctorVerdict{doctorVerdictWarn, doctorWarningAdvice(in.unhealthy, in.retiredUpdateFixes)}
+	}
 }

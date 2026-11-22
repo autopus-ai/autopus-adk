@@ -112,8 +112,9 @@ func runDoctorText(cmd *cobra.Command, opts doctorOptions) error {
 			missingDeps = filterRequired(missingDeps)
 		}
 		if len(missingDeps) > 0 {
-			if err := runDoctorFix(cmd.OutOrStdout(), missingDeps, opts.yes); err != nil {
+			if err := runDoctorFix(out, missingDeps, opts.yes); err != nil {
 				tui.FAIL(out, fmt.Sprintf("Auto-install failed: %v", err))
+				markUnhealthy("Dependencies")
 			}
 		}
 	}
@@ -188,8 +189,8 @@ func runDoctorText(cmd *cobra.Command, opts doctorOptions) error {
 	checkReaText(ctx, out, opts.dir, cfg)
 
 	// Legacy orchestra keys and stale completion hooks are what `auto update`
-	// removes, so they share the managed-surface remediation unless every
-	// remaining member is one that update keeps.
+	// removes, so the result box names it unless every remaining member is one
+	// that update keeps.
 	retiredHealthy, retiredUpdateFixes := checkRetiredOrchestraText(out, opts.dir, cfg)
 	if !retiredHealthy {
 		markUnhealthy("Retired Orchestra Surface")
@@ -215,13 +216,18 @@ func runDoctorText(cmd *cobra.Command, opts doctorOptions) error {
 	renderEvidenceFreshnessText(out, opts.dir, cfg)
 
 	fmt.Fprintln(out)
-	switch {
-	case allOK:
-		tui.ResultBox(out, true, "All checks passed")
-	case tally.Errors() > 0:
-		tui.ResultBox(out, false, doctorRemediationAdvice(platformFailed || retiredUpdateFixes, depsMissing))
+	verdict := decideDoctorVerdict(doctorVerdictInput{
+		allOK: allOK, errorLines: tally.Errors(), unhealthy: unhealthy,
+		updateFixes: platformFailed || retiredUpdateFixes, depsMissing: depsMissing,
+		retiredUpdateFixes: retiredUpdateFixes,
+	})
+	switch verdict.kind {
+	case doctorVerdictPass:
+		tui.ResultBox(out, true, verdict.message)
+	case doctorVerdictFail:
+		tui.ResultBox(out, false, verdict.message)
 	default:
-		tui.WarnResultBox(out, doctorWarningAdvice(unhealthy))
+		tui.WarnResultBox(out, verdict.message)
 	}
 
 	return nil

@@ -30,8 +30,8 @@ func TestDoctorRemediationAdvice_NamesTheEffectiveCommand(t *testing.T) {
 			wantNotContains: "auto update",
 		},
 		{
-			name:            "warnings alone advertise no repair command",
-			wantContains:    "review the warnings",
+			name:            "errors without a known repair advertise no command",
+			wantContains:    "review the [ERROR] lines",
 			wantNotContains: "auto",
 		},
 	} {

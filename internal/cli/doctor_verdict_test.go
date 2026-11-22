@@ -1,25 +1,63 @@
 package cli
 
 import (
-	"bytes"
-	"strings"
 	"testing"
 
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
-	"github.com/insajin/autopus-adk/pkg/config"
+	"github.com/insajin/autopus-adk/pkg/adapter/omp"
 )
 
-func TestDoctorWarningAdvice_NamesSections(t *testing.T) {
-	got := doctorWarningAdvice([]string{"omp", "Hygiene"})
-	assert.Contains(t, got, "nothing failed")
-	assert.Contains(t, got, "omp, Hygiene")
-	assert.NotContains(t, got, "auto update",
-		"a warning-only report must not send the reader to the installer")
-
-	assert.Contains(t, doctorWarningAdvice(nil), "[WARN] lines above")
+func TestDecideDoctorVerdict(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		in          doctorVerdictInput
+		want        doctorVerdictKind
+		contains    []string
+		notContains []string
+	}{
+		{
+			name: "clean report passes",
+			in:   doctorVerdictInput{allOK: true},
+			want: doctorVerdictPass, contains: []string{"All checks passed"},
+		},
+		{
+			// The original defect: degraded OMP routing set the platform
+			// failure flag, so the box said FAIL and advised `auto update`
+			// over a page with no ERROR line.
+			name: "warnings without an ERROR line warn and name their sections",
+			in:   doctorVerdictInput{unhealthy: []string{"omp", "Hygiene"}},
+			want: doctorVerdictWarn, contains: []string{"nothing failed", "omp, Hygiene"},
+			notContains: []string{"auto update", "FAIL"},
+		},
+		{
+			name: "an ERROR line fails even when no check marked the report unhealthy",
+			in:   doctorVerdictInput{allOK: true, errorLines: 1},
+			want: doctorVerdictFail, contains: []string{"review the [ERROR] lines"},
+		},
+		{
+			name: "a platform ERROR names the installer",
+			in:   doctorVerdictInput{errorLines: 2, updateFixes: true, unhealthy: []string{"claude-code"}},
+			want: doctorVerdictFail, contains: []string{"auto update"},
+		},
+		{
+			name: "a warn-only retired surface still names its repair",
+			in: doctorVerdictInput{unhealthy: []string{"Retired Orchestra Surface"},
+				updateFixes: true, retiredUpdateFixes: true},
+			want: doctorVerdictWarn, contains: []string{"auto update", "Retired Orchestra Surface"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := decideDoctorVerdict(tc.in)
+			assert.Equal(t, tc.want, got.kind)
+			for _, s := range tc.contains {
+				assert.Contains(t, got.message, s)
+			}
+			for _, s := range tc.notContains {
+				assert.NotContains(t, got.message, s)
+			}
+		})
+	}
 }
 
 func TestOMPDoctorChecksFailed_DistinguishesWarnFromFail(t *testing.T) {
@@ -32,28 +70,9 @@ func TestOMPDoctorChecksFailed_DistinguishesWarnFromFail(t *testing.T) {
 	assert.True(t, ompDoctorChecksFailed(broken))
 }
 
-// TestRunDoctorText_FailBoxRequiresAnErrorLine pins the invariant the result
-// box used to break: it said FAIL over a page with no ERROR line, so nobody
-// could tell what failed. Whatever this fixture produces, a FAIL box must sit
-// under at least one ERROR line and a WARN box under none.
-func TestRunDoctorText_FailBoxRequiresAnErrorLine(t *testing.T) {
-	dir := t.TempDir()
-	require.NoError(t, config.Save(dir, config.DefaultFullConfig("verdict-proj")))
-
-	var buf bytes.Buffer
-	cmd := &cobra.Command{}
-	cmd.SetOut(&buf)
-	require.NoError(t, runDoctorText(cmd, doctorOptions{dir: dir}))
-	out := buf.String()
-
-	hasError := strings.Contains(out, "[ERROR]")
-	switch {
-	case strings.Contains(out, "FAIL"):
-		assert.True(t, hasError, "a FAIL verdict must name what failed:\n%s", out)
-	case strings.Contains(out, "Warnings found"):
-		assert.False(t, hasError, "an ERROR line must not be summarised as a warning:\n%s", out)
-	default:
-		require.Contains(t, out, "All checks passed", "the result box prints one of three verdicts")
-		assert.False(t, hasError)
-	}
+func TestOMPModelDoctorCheckLevel_SessionModelIsNotAFailure(t *testing.T) {
+	_, status := ompModelDoctorCheckLevel(omp.OMPReaSessionModelStatus)
+	assert.Equal(t, "pass", status)
+	_, status = ompModelDoctorCheckLevel("blocked")
+	assert.Equal(t, "fail", status)
 }
