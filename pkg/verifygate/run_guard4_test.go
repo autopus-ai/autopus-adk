@@ -19,8 +19,11 @@ func busyDeadlockSuite() string {
 	b.WriteString("package m\n\nimport (\n\t\"sync\"\n\t\"testing\"\n\t\"time\"\n)\n\n" +
 		"func TestDead(t *testing.T) {\n\tt.Parallel()\n\tvar mu sync.Mutex\n\tmu.Lock()\n\tmu.Lock()\n}\n\n")
 	for i := 0; i < 960; i++ {
-		// Sleeps spread over ~10s keep pass events coming for most of the window.
-		fmt.Fprintf(&b, "func TestQ%d(t *testing.T) { t.Parallel(); time.Sleep(%d * time.Millisecond) }\n", i, (i%240)*40)
+		// Sleeps of at most ~3s keep pass events coming early in the window and
+		// stay far below half of it even on a starved runner, where a 9.6s
+		// sleep never finished and tied TestDead's idle time (CI on main,
+		// 2026-11-22). A tie has no defined order.
+		fmt.Fprintf(&b, "func TestQ%d(t *testing.T) { t.Parallel(); time.Sleep(%d * time.Millisecond) }\n", i, (i%60)*50)
 	}
 	return b.String()
 }
@@ -40,7 +43,10 @@ func TestRun_DeadlockInABusyPackageIsSuspectedAndNamedFirst(t *testing.T) {
 	out, err := warm.CombinedOutput()
 	require.NoError(t, err, string(out))
 
-	failure, skipped := Run(context.Background(), []Step{step}, 14*time.Second)
+	// 40s, not less: on a starved runner the test binary itself took most of
+	// a 14s window to start, so no test ran and the package stall was the
+	// (correct) suspicion instead of TestDead.
+	failure, skipped := Run(context.Background(), []Step{step}, 40*time.Second)
 
 	require.NotNil(t, failure, "skipped: %v", skipped)
 	assert.True(t, failure.Hung)
