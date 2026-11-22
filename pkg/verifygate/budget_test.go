@@ -75,19 +75,22 @@ func sleepyStep(dir, events string, bound bool) Step {
 	return Step{Name: "slow", Argv: []string{"sh", "-c", script}, Dir: dir, GoTestJSON: true, BudgetBound: bound}
 }
 
-func TestRun_BudgetBoundTimeoutWithoutFailureSkipsTheRest(t *testing.T) {
+// A BudgetBound step that runs out of its window leaves the reserved time to
+// the unbound step after it, which still runs and fails the gate.
+func TestRun_BudgetBoundTimeoutStillRunsTheUnboundStepAfterIt(t *testing.T) {
 	dir := t.TempDir()
 	steps := []Step{
 		sleepyStep(dir, `{"Action":"pass","Package":"x","Test":"TestOK"}`, true),
 		{Name: "after", Argv: []string{"sh", "-c", "exit 1"}, Dir: dir},
 	}
 	start := time.Now()
-	failure, skipped := Run(context.Background(), steps, 2*time.Second)
+	failure, skipped := Run(context.Background(), steps, 4*time.Second)
 
-	require.Nil(t, failure)
-	require.Len(t, skipped, 2)
-	assert.True(t, skipped[0].Budget && skipped[1].Budget)
-	assert.Contains(t, skipped[0].Reason, "no test had failed")
+	require.NotNil(t, failure, "the unbound step ran")
+	assert.Equal(t, "after", failure.Step.Name)
+	require.Len(t, skipped, 1)
+	assert.True(t, skipped[0].Budget)
+	assert.Contains(t, skipped[0].Reason, "none failed")
 	assert.Less(t, time.Since(start), 20*time.Second, "a lingering grandchild must not hold Run")
 	assertGrandchildGone(t, dir)
 }
@@ -136,7 +139,7 @@ func TestRun_StepShareRunsOutButLaterStepsStillRun(t *testing.T) {
 	require.NotNil(t, failure, "the later step ran and its failure counts")
 	assert.Equal(t, "after", failure.Step.Name)
 	require.Len(t, skipped, 1)
-	assert.Contains(t, skipped[0].Reason, "its share")
+	assert.Contains(t, skipped[0].Reason, "no test finished")
 }
 
 func TestRenderGoTestJSON_PackageFailuresWithoutAFailedTestCount(t *testing.T) {

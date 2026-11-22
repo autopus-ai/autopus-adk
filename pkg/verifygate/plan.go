@@ -57,15 +57,15 @@ func Plan(root string, changed []string) []Step {
 	if hasExt(changed, ".rs") && fileExists(filepath.Join(root, "Cargo.toml")) {
 		steps = append(steps, Step{Name: "cargo test", Argv: []string{"cargo", "test", "--quiet"}, Dir: root})
 	}
-	// The whole Go packages may spend the rest of the budget, so they run
-	// after every other toolchain's checks instead of starving them.
-	steps = append(steps, goWhole...)
-	if len(steps) > 0 {
+	if len(steps) > 0 || len(goWhole) > 0 {
 		if step, ok := qaStep(root); ok {
 			steps = append(steps, step)
 		}
 	}
-	return steps
+	// The whole Go packages may spend the rest of the budget, so they run
+	// after every other check, the exec scenarios included, instead of
+	// starving them.
+	return append(steps, goWhole...)
 }
 
 // goPackages returns the ./dir patterns of changed Go files whose directory

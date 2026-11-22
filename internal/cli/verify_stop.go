@@ -67,7 +67,9 @@ func newVerifyStopCmd() *cobra.Command {
 		Long: "Reads the Claude Code Stop hook payload on stdin. When the work tree has changes, runs the " +
 			"build and tests that cover them and blocks the stop with the failure output. Go runs the tests the change " +
 			"edited first (with at most half the budget), then the changed packages whole; a suite that outlasts the " +
-			"budget with nothing failed does not block, and that tree is not run again. Under methodology: tdd with " +
+			"budget with tests finishing and nothing failed does not block, and that tree is not run again (its note is repeated); " +
+			"a test still running after half of its step's window is treated as hung and blocks. An interrupted run " +
+			"(Ctrl-C, SIGTERM) records nothing and does not block. Under methodology: tdd with " +
 			"enforce: true, the changed tests must also fail against the code before the change (HEAD); a source change " +
 			"without a test change is blocked unless the reply has a `TDD-exempt: <reason>` line. Set " +
 			"AUTOPUS_VERIFY_STOP=off to disable. Before the build, added lines that look like credentials block the stop " +
@@ -139,32 +141,25 @@ func verifyChanged(cmd *cobra.Command, in stopHookInput, root string, changed []
 	if len(steps) == 0 {
 		// Nothing to build, but a changed shell script or Java class is
 		// still behavior the user will run.
-		return followupRound(cmd, in, root, followup, false)
+		return followupRound(cmd, in, root, followup, statusUnbuilt)
 	}
 	fingerprint := verifygate.Fingerprint(root, changed)
-	if readStopState(in.SessionID, "pass") == fingerprint || readStopState(in.SessionID, "budget") == fingerprint {
+	if readStopState(in.SessionID, "pass") == fingerprint {
 		return stopHookOutput{}
+	}
+	if note, ok := recordedBudgetNote(in.SessionID, fingerprint); ok {
+		// Not run again, but not passed either: the note is repeated.
+		return stopHookOutput{SystemMessage: note}
 	}
 	started := time.Now()
 	failure, skipped := verifygate.Run(cmd.Context(), steps, budget)
+	if failure == nil && slices.ContainsFunc(skipped, func(s verifygate.Skip) bool { return s.Interrupted }) {
+		// A signal is not a verdict: no block, no block count, no record.
+		return stopHookOutput{SystemMessage: "auto verify stop: interrupted before verification finished; " +
+			"nothing was recorded, so the next stop checks this tree again"}
+	}
 	if failure == nil && len(skipped) > 0 && onlyBudgetSkips(skipped) {
-		// The suite is longer than the budget and nothing had failed when it
-		// ran out. Rerunning the same tree at every stop would spend the
-		// budget again for the same answer, so the tree is recorded; any edit
-		// changes the fingerprint and runs it again.
-		note := "auto verify stop: " + describeSkips(skipped) + "; nothing failed within the budget, so the stop is " +
-			"not blocked. Run the rest with a longer -timeout (or leave it to CI) before calling the change verified"
-		// Test-first and the verification round still apply: a missing test
-		// is known without running anything, and the round is the agent's.
-		if out := redGate(cmd.Context(), in, root, changed, budget-time.Since(started)); out != nil {
-			if out.Decision == "block" {
-				return withSecretWarning(*out, note)
-			}
-			note = joinWarnings(note, out.SystemMessage)
-		}
-		resetStopBlocks(in.SessionID)
-		writeStopState(in.SessionID, "budget", fingerprint)
-		return withSecretWarning(followupRound(cmd, in, root, followup, true), note)
+		return budgetSkipped(cmd, in, root, changed, fingerprint, skipped, budget-time.Since(started), followup)
 	}
 	if failure == nil && len(skipped) > 0 {
 		// Nothing failed, but not everything ran: that is the machine, not
@@ -179,7 +174,7 @@ func verifyChanged(cmd *cobra.Command, in stopHookInput, root string, changed []
 		}
 		resetStopBlocks(in.SessionID)
 		writeStopState(in.SessionID, "pass", fingerprint)
-		return followupRound(cmd, in, root, followup, true)
+		return followupRound(cmd, in, root, followup, statusPassed)
 	}
 	summary := fmt.Sprintf("Verification failed: `%s` (%s).\n%s", shortCommand(failure.Step.Argv), failure.Reason, failure.Output)
 	if countStopBlock(in.SessionID) > verifyStopMaxBlocks {
@@ -240,23 +235,6 @@ func resetStopState(session string) {
 	_ = os.Remove(stopStateFile(session, "versions"))
 	_ = os.Remove(stopStateFile(session, "versions-warn"))
 	_ = os.Remove(stopStateFile(session, "budget"))
-}
-
-func onlyBudgetSkips(skipped []verifygate.Skip) bool {
-	for _, s := range skipped {
-		if !s.Budget {
-			return false
-		}
-	}
-	return true
-}
-
-func describeSkips(skipped []verifygate.Skip) string {
-	parts := make([]string, 0, len(skipped))
-	for _, s := range skipped {
-		parts = append(parts, fmt.Sprintf("`%s` (%s)", s.Name, s.Reason))
-	}
-	return strings.Join(parts, ", ")
 }
 
 func firstLine(s string) string {

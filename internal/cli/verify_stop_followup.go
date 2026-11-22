@@ -176,8 +176,10 @@ func recordSessionTree(root string, paths []string) {
 
 // followupRound runs after a passing build, or after a change no build
 // toolchain covers (shell, Java, Swift ...), whose behavior still needs the
-// user's eyes even though nothing could be compiled.
-func followupRound(cmd *cobra.Command, in stopHookInput, root string, flag, built bool) stopHookOutput {
+// user's eyes even though nothing could be compiled. status is the sentence
+// the round tells the agent about what the gate ran: statusPassed,
+// statusUnbuilt, or what did not finish within the budget.
+func followupRound(cmd *cobra.Command, in stopHookInput, root string, flag bool, status string) stopHookOutput {
 	if !followupEnabled(flag) {
 		return stopHookOutput{}
 	}
@@ -188,7 +190,7 @@ func followupRound(cmd *cobra.Command, in stopHookInput, root string, flag, buil
 	}
 	b := verifygate.BehaviorChange(cmd.Context(), root)
 	if tier := nextFollowup(in.SessionID, root, verifygate.Fingerprint(root, b.Paths), b); tier != followupNone {
-		return followupOutput(b, tier, built, prev.tier == followupLight)
+		return followupOutput(b, tier, status, prev.tier == followupLight)
 	}
 	if prev.tier != followupNone {
 		recordSessionTree(root, b.Paths)
@@ -196,11 +198,13 @@ func followupRound(cmd *cobra.Command, in stopHookInput, root string, flag, buil
 	return stopHookOutput{}
 }
 
-func followupOutput(b verifygate.Behavior, tier followupTier, built, escalated bool) stopHookOutput {
-	status := "The build and tests pass."
-	if !built {
-		status = "No build or test toolchain covers these files, so nothing was compiled or tested."
-	}
+// The status sentences of a verification round.
+const (
+	statusPassed  = "The build and tests pass."
+	statusUnbuilt = "No build or test toolchain covers these files, so nothing was compiled or tested."
+)
+
+func followupOutput(b verifygate.Behavior, tier followupTier, status string, escalated bool) stopHookOutput {
 	reason := followupLightReason
 	if tier == followupFull {
 		reason = followupFullReason
