@@ -40,8 +40,8 @@ func remoteWorkflows(top string) (map[string][]byte, string) {
 				"checkout without comparing it to the remote default branch"
 		}
 		return nil, "origin/HEAD does not resolve, so the workflow lint read the local checkout " +
-			"without comparing it to the remote default branch; `git fetch origin` or " +
-			"`git remote set-head origin --auto` fixes this"
+			"without comparing it to the remote default branch; `git remote set-head origin --auto` " +
+			"(or `git fetch origin` on git 2.48+) fixes this"
 	}
 	// HEAD against ref compares two commits and never touches the index; the
 	// status below covers the work tree.
