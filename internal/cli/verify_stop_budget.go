@@ -41,17 +41,19 @@ func budgetSkipped(cmd *cobra.Command, in stopHookInput, root string, changed []
 	return withBudgetNote(followupRound(cmd, in, root, followup, status), note)
 }
 
-// stopBudget is the --budget flag when it was given, else
-// hooks.verify_stop_budget from the project's autopus.yaml, else the flag's
-// default. A gate started without the flag (the omp extension, a hook line
-// written before the key existed) still honors the project's budget.
+// stopBudget is the --budget flag when it was given. Without it,
+// hooks.verify_stop_budget may only lower the default: whatever started the
+// gate bare (a hook line written before the key, a runner that passes no
+// flag) has a kill timer sized for the default, and a larger budget would be
+// killed with no verdict. The generators pass --budget whenever the key is
+// set, so budget and timer move together.
 func stopBudget(cmd *cobra.Command, root string, flag time.Duration) time.Duration {
 	if cmd.Flags().Changed("budget") {
 		return flag
 	}
 	if cfg := nearestConfig(root); cfg != nil {
 		if d, err := cfg.Hooks.VerifyStopBudgetDuration(); err == nil {
-			return d
+			return min(d, flag)
 		}
 	}
 	return flag
@@ -68,10 +70,11 @@ func withBudgetNote(out stopHookOutput, note string) stopHookOutput {
 	return withSecretWarning(out, note)
 }
 
-// recordedBudgetNote returns the note recorded with a budget skip of this
-// exact tree, so a later stop repeats it instead of reporting nothing.
-func recordedBudgetNote(session, fingerprint string) (string, bool) {
-	recorded, note, _ := strings.Cut(readStopState(session, "budget"), "\n")
+// recordedNote returns the note recorded with a budget skip or a suspected
+// hang (kind) of this exact tree, so a later stop repeats it instead of
+// reporting nothing; neither is a pass.
+func recordedNote(session, kind, fingerprint string) (string, bool) {
+	recorded, note, _ := strings.Cut(readStopState(session, kind), "\n")
 	if recorded == "" || recorded != fingerprint {
 		return "", false
 	}

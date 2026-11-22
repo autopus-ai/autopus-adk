@@ -9,19 +9,23 @@ import (
 	"github.com/insajin/autopus-adk/pkg/config"
 )
 
-// The extension's kill timer outlasts hooks.verify_stop_budget the way the
-// Claude Code hook timeout does; the default leaves the file unchanged.
-func TestPrepareStopGateMappings_TimeoutFollowsTheVerifyStopBudget(t *testing.T) {
+// With hooks.verify_stop_budget set, the extension passes --budget to the
+// gate and its kill timer outlasts it, so the two always move together; the
+// default leaves the file unchanged.
+func TestPrepareStopGateMappings_BudgetAndTimeoutFollowTheConfig(t *testing.T) {
 	t.Parallel()
-	for budget, want := range map[string]string{
-		"":    ompStopGateTimeoutLine,
-		"15m": "const TIMEOUT_MS = 990 * 1000",
+	for budget, want := range map[string][]string{
+		"":    {ompStopGateTimeoutLine, ompStopGateSpawnArgs},
+		"15m": {"const TIMEOUT_MS = 990 * 1000", `["--budget", "15m0s"]`},
+		"5m":  {ompStopGateTimeoutLine, `["--budget", "5m0s"]`},
 	} {
 		cfg := config.DefaultFullConfig("demo")
 		cfg.Hooks.VerifyStopBudget = budget
 		files, err := prepareStopGateMappings(cfg)
 		require.NoError(t, err)
 		require.Len(t, files, 1)
-		assert.Contains(t, string(files[0].Content), want, budget)
+		for _, w := range want {
+			assert.Contains(t, string(files[0].Content), w, budget)
+		}
 	}
 }

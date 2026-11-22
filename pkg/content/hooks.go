@@ -107,10 +107,10 @@ func generateCLIHooks(cfg config.HooksConf, platform string) ([]adapter.HookConf
 const verifyStopCommand = "auto verify stop"
 
 // generateVerifyStopHook registers the verification gate on Claude Code's
-// Stop event. hooks.verify_stop_budget becomes the command's --budget, and
-// the hook timeout follows it (config.VerifyStopHookTimeout), so a larger
-// budget is not killed by Claude Code before it returns a verdict. The
-// default budget keeps the bare command and the 600s timeout it always had.
+// Stop event. A set hooks.verify_stop_budget becomes the command's --budget,
+// and the hook timeout follows it (config.VerifyStopHookTimeout), so a larger
+// budget is not killed by Claude Code before it returns a verdict. Unset
+// keeps the bare command and the 600s timeout it always had.
 func generateVerifyStopHook(cfg config.HooksConf, platform string) []adapter.HookConfig {
 	if (platform != "claude" && platform != "claude-code") || !cfg.IsVerifyStopEnabled() {
 		return nil
@@ -120,7 +120,9 @@ func generateVerifyStopHook(cfg config.HooksConf, platform string) []adapter.Hoo
 		budget = config.DefaultVerifyStopBudget
 	}
 	command := verifyStopCommand
-	if budget != config.DefaultVerifyStopBudget {
+	if cfg.VerifyStopBudget != "" && err == nil {
+		// Explicit whenever the key is set: the gate alone may only lower a
+		// budget it is not given, so the timeout and budget move together.
 		command += " --budget " + budget.String()
 	}
 	timeout := int(config.VerifyStopHookTimeout(budget) / time.Second)

@@ -19,10 +19,12 @@ const ompStopGateTarget = ".omp/extensions/autopus-stop-gate.ts"
 var ompStopGateSource string
 
 // ompStopGateTimeoutLine is the extension's kill timer as embedded, and
-// ompStopGateDefaultTimeout its value.
+// ompStopGateDefaultTimeout its value; ompStopGateSpawnArgs the arguments it
+// runs each check with.
 const (
 	ompStopGateTimeoutLine    = "const TIMEOUT_MS = 10 * 60 * 1000"
 	ompStopGateDefaultTimeout = 10 * time.Minute
+	ompStopGateSpawnArgs      = `["verify", check]`
 )
 
 // ompStopGateChecks lists the `auto verify` checks the extension runs, with
@@ -59,10 +61,13 @@ func prepareStopGateMappings(cfg *config.HarnessConfig) ([]adapter.FileMapping, 
 		return nil, err
 	}
 	rendered := strings.Replace(ompStopGateSource, "__AUTOPUS_STOP_CHECKS__", string(list), 1)
-	// `auto verify stop` reads hooks.verify_stop_budget itself; the kill
-	// timer must outlast it the way the Claude Code hook timeout does. The
-	// default budget keeps the file as it always was.
-	if budget, err := cfg.Hooks.VerifyStopBudgetDuration(); err == nil {
+	// A set hooks.verify_stop_budget is passed to `auto verify stop` as
+	// --budget (the gate alone may only lower it), and the kill timer
+	// outlasts it the way the Claude Code hook timeout does, so the two move
+	// together. Unset keeps the file as it always was.
+	if budget, err := cfg.Hooks.VerifyStopBudgetDuration(); err == nil && cfg.Hooks.VerifyStopBudget != "" {
+		rendered = strings.Replace(rendered, ompStopGateSpawnArgs, fmt.Sprintf(
+			`["verify", check, ...(check === "stop" ? ["--budget", %q] : [])]`, budget.String()), 1)
 		if timeout := config.VerifyStopHookTimeout(budget); timeout > ompStopGateDefaultTimeout {
 			rendered = strings.Replace(rendered, ompStopGateTimeoutLine,
 				fmt.Sprintf("const TIMEOUT_MS = %d * 1000", int(timeout/time.Second)), 1)

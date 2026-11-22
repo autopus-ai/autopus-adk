@@ -100,9 +100,62 @@ func TestVerifyStop_DeadlockedTestBlocks(t *testing.T) {
 	assert.Equal(t, "block", got.Decision, got.SystemMessage)
 	assert.Contains(t, got.Reason, "TestDeadlock")
 	assert.Contains(t, got.Reason, "hooks.verify_stop_budget", "a legitimately slow test needs a budget change that lasts")
-	assert.Contains(t, got.Reason, "about half the budget")
+	assert.Contains(t, got.Reason, "next session")
 	assert.Empty(t, readStopState(session, "budget"), "a hung tree is not recorded")
 	assert.Empty(t, readStopState(session, "pass"))
+	assertSuspicionBlocksOnce(t, dir, session, 40*time.Second)
+}
+
+// A suspected hang blocks once per tree: stopping again on the same tree
+// lets the session end with the note, runs nothing, and records no pass.
+func assertSuspicionBlocksOnce(t *testing.T, dir, session string, budget time.Duration) {
+	t.Helper()
+	again, took := runStopWithin(t, dir, session, budget)
+	assert.Empty(t, again.Decision, again.Reason)
+	assert.Contains(t, again.SystemMessage, "not verified")
+	assert.Less(t, took, 10*time.Second, "the same tree is not run again")
+	assert.Empty(t, readStopState(session, "pass"))
+	assert.Empty(t, readStopState(session, "budget"))
+}
+
+// RG1d/P1: a legitimately slow test looks like a hang from outside. It
+// blocks once; the next stop lets it through; an edit re-arms the block.
+func TestVerifyStop_SlowTestBlocksOncePerTree(t *testing.T) {
+	session := "budget-slow-once"
+	t.Cleanup(func() { resetStopState(session) })
+	dir := newStopRepo(t, "")
+	slow := "package stopgate\n\nimport (\n\t\"testing\"\n\t\"time\"\n)\n\nfunc TestSlow(t *testing.T) { time.Sleep(2 * time.Minute) }\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "slow_test.go"), []byte(slow), 0o644))
+
+	first, _ := runStopWithin(t, dir, session, 30*time.Second)
+	assert.Equal(t, "block", first.Decision, first.SystemMessage)
+	assert.Contains(t, first.Reason, "TestSlow")
+	assertSuspicionBlocksOnce(t, dir, session, 30*time.Second)
+
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "add.go"), []byte(addSwapped), 0o644))
+	edited, _ := runStopWithin(t, dir, session, 30*time.Second)
+	assert.Equal(t, "block", edited.Decision, "a changed tree re-arms the block")
+}
+
+// RG3 end to end: a deadlocked parallel test in a busy package is named
+// first, blocks once, and is never recorded as a pass.
+func TestVerifyStop_DeadlockInABusyPackageBlocksOnce(t *testing.T) {
+	session := "budget-busy-deadlock"
+	t.Cleanup(func() { resetStopState(session) })
+	dir := newStopRepo(t, "")
+	var b strings.Builder
+	b.WriteString("package stopgate\n\nimport (\n\t\"sync\"\n\t\"testing\"\n\t\"time\"\n)\n\n" +
+		"func TestDead(t *testing.T) {\n\tt.Parallel()\n\tvar mu sync.Mutex\n\tmu.Lock()\n\tmu.Lock()\n}\n\n")
+	for i := 0; i < 2000; i++ {
+		fmt.Fprintf(&b, "func TestQ%d(t *testing.T) { t.Parallel(); time.Sleep(500 * time.Millisecond) }\n", i)
+	}
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "busy_test.go"), []byte(b.String()), 0o644))
+
+	got, _ := runStopWithin(t, dir, session, 30*time.Second)
+	assert.Equal(t, "block", got.Decision, got.SystemMessage)
+	evidence, _, _ := strings.Cut(got.Reason, "\n")
+	assert.Contains(t, evidence, "(stopgate.TestDead ", "the deadlocked test is named first")
+	assertSuspicionBlocksOnce(t, dir, session, 30*time.Second)
 }
 
 // The verification round must not tell the agent the tests passed when they

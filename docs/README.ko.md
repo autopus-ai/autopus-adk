@@ -168,13 +168,15 @@ PR 크기로는 기능 추가와 버그 수정이 충분히 갈리지 않아 기
 | 자격 증명 확인만 끄기 | `hooks.secret_stop: false`, 또는 `AUTOPUS_SECRET_STOP=off` |
 | 버전 확인만 끄기 | `hooks.version_stop: false`, 또는 `AUTOPUS_VERSION_STOP=off`. N 라인까지 허용하려면 `hooks.version_stop: {max_major_behind: N}` |
 | 검증 라운드만 끄기 | `AUTOPUS_FOLLOWUP=off`(예: `.claude/settings.json`의 `env` 블록) |
-| 게이트에 시간을 더 주기 | `hooks.verify_stop_budget: 15m`(1m~30m, 기본 8m)을 두고 `auto update`. hook의 `--budget`과 timeout(예산 + 90초, 최소 600초)이 따라갑니다. 예전 `auto`는 이 키를 거부하므로 이 파일을 읽는 모든 기계를 먼저 올리세요 |
+| 게이트에 시간을 더 주기 | `hooks.verify_stop_budget: 15m`(1m~30m, 기본 8m)을 두고 `auto update`. Claude Code hook과 omp extension이 이 값을 `--budget`으로 넘기고, timeout(예산 + 90초, 최소 600초)도 따라갑니다. Claude Code는 세션을 시작할 때 hook을 읽으므로 다음 세션부터 적용됩니다. `--budget` 없이 실행되면 게이트는 이 키로 예산을 줄이기만 합니다. 예전 `auto`는 이 키를 거부하므로 이 파일을 읽는 모든 기계를 먼저 올리세요 |
 
-**시간이 모자랄 때.** 예산을 넘긴 스위트는 테스트가 계속 끝나고 실패가 없으면 막지 않습니다. 마지막 단계 창의 절반 동안
-테스트가 시작도 끝도 하지 않은 패키지(교착, 끝없이 기다리는 `TestMain`)는 hang으로 보고 막습니다. 느린 테스트가 이번 변경이
-고친 테스트이면 바뀐 테스트가 먼저 돌아 마지막 단계는 예산의 절반 정도만 받습니다. 그래서 정상이지만 느린 테스트 하나도
-세 번까지는 막힐 수 있습니다. 그때는 `hooks.verify_stop_budget`을 늘리세요. 설정 파일의 `--budget`을 손으로 고치면
-`auto update`가 hook을 다시 써서 되돌립니다.
+**시간이 모자랄 때.** 예산을 넘긴 스위트는 테스트가 계속 끝나고 실패가 없으면 막지 않습니다. 그 트리는 끝나지 않은 것으로
+기록하고, 통과로 기록하지 않습니다. 마지막 단계 창의 절반 동안 진척이 없는 테스트나 패키지는 hang 의심입니다. 교착이나
+끝없이 기다리는 `TestMain`일 수도, 그냥 느린 테스트일 수도 있습니다. 밖에서 보면 둘이 같기 때문입니다. hang 의심은 트리마다
+한 번만 막고, 가장 오래 멈춘 테스트를 먼저 보여 줍니다. 같은 트리에서 다시 stop하면 노트만 남기고 세션을 끝내며, 그 트리는
+검증되지 않은 채로 남습니다. 내용을 고치면 다시 막습니다. 느린 테스트가 이번 변경이 고친 테스트이면 바뀐 테스트가 먼저
+돌아 마지막 단계는 예산의 절반 정도만 받습니다. 설정 파일의 `--budget`을 손으로 고치면 `auto update`가 hook을 다시 써서
+되돌립니다.
 
 **응답 언어 확인.** `language.ai_responses`가 `ko`·`ja`·`zh`이면 `auto update`가 Stop hook
 `auto verify language`도 등록합니다. 그 턴에 쓴 응답의 산문(코드 블록·인라인 코드·URL 제외)이 그 언어로 쓰이지

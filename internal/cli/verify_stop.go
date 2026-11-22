@@ -149,9 +149,11 @@ func verifyChanged(cmd *cobra.Command, in stopHookInput, root string, changed []
 	if readStopState(in.SessionID, "pass") == fingerprint {
 		return stopHookOutput{}
 	}
-	if note, ok := recordedBudgetNote(in.SessionID, fingerprint); ok {
-		// Not run again, but not passed either: the note is repeated.
-		return stopHookOutput{SystemMessage: note}
+	for _, kind := range []string{"budget", "hang"} {
+		if note, ok := recordedNote(in.SessionID, kind, fingerprint); ok {
+			// Not run again, but not passed either: the note is repeated.
+			return stopHookOutput{SystemMessage: note}
+		}
 	}
 	started := time.Now()
 	failure, skipped := verifygate.Run(cmd.Context(), steps, budget)
@@ -179,19 +181,32 @@ func verifyChanged(cmd *cobra.Command, in stopHookInput, root string, changed []
 		return followupRound(cmd, in, root, followup, statusPassed)
 	}
 	summary := fmt.Sprintf("Verification failed: `%s` (%s).\n%s", shortCommand(failure.Step.Argv), failure.Reason, failure.Output)
+	if failure.Hung {
+		return suspectedHang(in.SessionID, fingerprint, summary, failure.Window, budget)
+	}
 	if countStopBlock(in.SessionID) > verifyStopMaxBlocks {
 		return stopHookOutput{SystemMessage: fmt.Sprintf("auto verify stop: still failing after %d attempts; ending without a passing build. %s",
 			verifyStopMaxBlocks, firstLine(summary))}
 	}
-	hint := ""
-	if failure.Hung {
-		hint = fmt.Sprintf("\n\nThe step had %s of the %s budget; when the slow test is one this change edited, the "+
-			"changed tests run first and the final step gets only about half the budget. If the test is slow rather than "+
-			"stuck, set `hooks.verify_stop_budget` in autopus.yaml (for example \"15m\", at most %s) and run `auto update`: "+
-			"the Stop hook's --budget and timeout follow it. Editing --budget in the settings file by hand does not last, "+
-			"since `auto update` rewrites the hook.", failure.Window, budget, config.MaxVerifyStopBudget)
-	}
-	return stopHookOutput{Decision: "block", Reason: summary + hint + "\n\nFix the failure, or explain why it is not caused by this change, before finishing."}
+	return stopHookOutput{Decision: "block", Reason: summary + "\n\nFix the failure, or explain why it is not caused by this change, before finishing."}
+}
+
+// suspectedHang blocks once per tree on a suspected hang. No threshold over
+// the events seen at kill time tells a slow test from a stuck one, so the
+// agent is told once; the tree is recorded as unverified (kind "hang"), and
+// the next stop on it repeats the note without blocking or running again.
+// Any edit changes the fingerprint and re-arms the block.
+func suspectedHang(session, fingerprint, summary string, window, budget time.Duration) stopHookOutput {
+	note := "auto verify stop: a suspected hang was reported for this tree and it was not run again; it is not verified. " +
+		firstLine(summary)
+	writeStopState(session, "hang", fingerprint+"\n"+note)
+	hint := fmt.Sprintf("\n\nThe step had %s of the %s budget; when the slow test is one this change edited, the changed "+
+		"tests run first and the final step gets only about half the budget. If this is a legitimately slow test, stopping "+
+		"again will not block this tree again (it stays unverified). To give it more time, set `hooks.verify_stop_budget` in "+
+		"autopus.yaml (for example \"15m\", at most %s) and run `auto update`; Claude Code reads hooks when a session starts, "+
+		"so the new budget applies from the next session on.", window, budget, config.MaxVerifyStopBudget)
+	return stopHookOutput{Decision: "block", Reason: summary + hint +
+		"\n\nIf it is stuck, fix it, or explain why it is not caused by this change, before finishing."}
 }
 
 var unsafeSessionChars = regexp.MustCompile(`[^A-Za-z0-9_-]`)
@@ -245,6 +260,7 @@ func resetStopState(session string) {
 	_ = os.Remove(stopStateFile(session, "versions"))
 	_ = os.Remove(stopStateFile(session, "versions-warn"))
 	_ = os.Remove(stopStateFile(session, "budget"))
+	_ = os.Remove(stopStateFile(session, "hang"))
 }
 
 func firstLine(s string) string {

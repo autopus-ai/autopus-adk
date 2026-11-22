@@ -16,8 +16,9 @@ import (
 
 // Failure is the first step that did not pass. TimedOut marks a step that
 // ran out of time with nothing failed by then: it shows the step did not
-// finish, not that the code is wrong. Hung marks a test judged hung at the
-// end of the step's Window.
+// finish, not that the code is wrong. Hung marks a suspected hang at the end
+// of the step's Window: evidence, not proof, so the caller may treat it more
+// leniently than a failed test.
 type Failure struct {
 	Step     Step
 	Output   string
@@ -101,10 +102,15 @@ func Run(parent context.Context, steps []Step, budget time.Duration) (*Failure, 
 		err := cmd.Run()
 		timedOut := errors.Is(stepCtx.Err(), context.DeadlineExceeded)
 		killedAt, ran := time.Now(), time.Since(started).Round(100*time.Millisecond)
+		deadline, _ := stepCtx.Deadline()
 		stepCancel()
 		text, failedTests := out.String(), []string(nil)
 		if step.GoTestJSON {
 			text, failedTests = renderGoTestJSON(out.Bytes())
+			if timedOut && onlyLatePackageFails(out.Bytes(), deadline) {
+				// go reported the binary the kill took down; no test failed.
+				failedTests = nil
+			}
 		}
 		var exitErr *exec.ExitError
 		// ErrWaitDelay after a clean exit only means a child kept the pipes
@@ -181,9 +187,10 @@ func stepWindow(ctx context.Context, step Step, rest []Step, budget time.Duratio
 }
 
 // budgetOutcome judges a BudgetBound step killed at the end of its window
-// with no failed test. A package that started and then emitted no test event
-// for at least half the window has stalled (a deadlocked test, a TestMain
-// waiting forever): a hang the gate could see, so it fails. A step with no
+// with no failed test. A test or a package without progress for at least
+// half the window is a suspected hang (see suspects): a Hung failure, which
+// the hook blocks on once per tree, since no threshold over a cut-off event
+// stream can tell a slow test from a stuck one. A step with no
 // finished test proved nothing (the deadline came while compiling), so it
 // is an ordinary skip, never recorded. Otherwise it is a budget skip, or
 // nothing at all when a later step runs the same tests again.
@@ -194,16 +201,16 @@ func budgetOutcome(step Step, out []byte, text string, killedAt time.Time, ran t
 		return nil, nil
 	}
 	prog := goTestProgress(out, killedAt)
-	if stalled := prog.stalled(killedAt, ran/2); len(stalled) > 0 {
+	if suspects := prog.suspects(killedAt, ran/2); len(suspects) > 0 {
 		var output strings.Builder
 		output.WriteString(text)
-		for _, pkg := range stalled {
-			output.WriteString("--- stalled: " + pkg.Name + "\n" + pkg.output.String())
+		for _, s := range suspects {
+			output.WriteString("--- suspected: " + s.Label + "\n" + s.Output)
 		}
 		return &Failure{Step: step, Output: tail(output.String(), tailLines), Reason: fmt.Sprintf(
-			"%s: silent for at least half of the step's %s window; a package whose tests stop "+
-				"starting and ending that long is treated as hung (a deadlock, a wait that never ends)",
-			describeStalled(stalled, killedAt), ran), Hung: true, Window: ran}, nil
+			"%s: no progress for at least half of the step's %s window; this looks like a hang (a deadlock, "+
+				"a wait that never ends) but may be a slow test", describeSuspects(suspects), ran),
+			Hung: true, Window: ran}, nil
 	}
 	if prog.Finished == 0 {
 		return nil, &Skip{Name: step.Name, Reason: fmt.Sprintf(

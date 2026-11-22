@@ -20,7 +20,7 @@ func TestGenerateProjectHookConfigs_VerifyStopBudget(t *testing.T) {
 		timeout         int
 	}{
 		{"", "auto verify stop", 600},
-		{"8m", "auto verify stop", 600},
+		{"8m", "auto verify stop --budget 8m0s", 600},
 		{"5m", "auto verify stop --budget 5m0s", 600},
 		{"15m", "auto verify stop --budget 15m0s", 990},
 	} {

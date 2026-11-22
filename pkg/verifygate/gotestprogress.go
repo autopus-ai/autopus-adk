@@ -193,6 +193,8 @@ func describeStalled(pkgs []*packageState, now time.Time) string {
 			part += "; still open: " + strings.Join(pkg.Open[:5], ", ") + fmt.Sprintf(" and %d more", len(pkg.Open)-5)
 		case len(pkg.Open) > 0:
 			part += "; still open: " + strings.Join(pkg.Open, ", ")
+		case pkg.Finished > 0:
+			part += "; no test open: the package is waiting after its tests (TestMain teardown)"
 		default:
 			part += "; no test started: TestMain or package init is waiting"
 		}
