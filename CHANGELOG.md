@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **예산보다 긴 Go 패키지가 Stop hook을 매번 막지 않고, 끝나지 않은 테스트를 통과로 보고하지 않는다** (2026-11-22):
+  - 예산 안에 실패가 없고 테스트가 계속 끝나는 스위트는 막지 않는다. 같은 트리는 다시 돌리지 않고 노트만 다시 보낸다.
+    검증 라운드는 "tests did not finish within the budget"라고 말한다.
+  - 마지막 단계 창의 절반 동안 테스트 이벤트가 없는 패키지(교착, 끝없이 기다리는 `TestMain`)는 hang으로 막는다.
+    끝난 테스트가 없는 패키지, 취소(SIGINT/SIGTERM), 확인하지 못한 test-first는 기록하지 않는다.
+  - 새 설정 키 `hooks.verify_stop_budget`(1m~30m, 기본 8m): `auto update`가 hook의 `--budget`과 timeout(예산 + 90초, 최소
+    600초)으로 옮기고, omp extension의 종료 타이머도 따라간다. 이 키를 모르는 예전 `auto`는 `autopus.yaml`을 읽지 못하므로,
+    키를 쓰기 전에 그 파일을 읽는 모든 기계의 `auto`를 올린다.
+
 - **릴리스 전 리뷰에서 나온 교훈 순환과 낡은 하네스 경고의 결함을 고친다** (2026-11-18):
   - 낡은 하네스 경고: manifest를 실제로 쓰는 경로가 생성 버전을 기록하지 않아, 릴리스 빌드에서는 `auto update` 뒤에도 경고가 사라지지
     않을 뻔했다. manifest는 일반 파일만 상한을 두고 읽고, `0.51.8-3-g…` 같은 빌드는 비교하지 않는다.

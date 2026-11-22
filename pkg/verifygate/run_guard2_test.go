@@ -21,14 +21,16 @@ func TestGoTestProgress_ParentWaitingOnPausedSubtestsIsNotHung(t *testing.T) {
 	ev := func(action, test string) string {
 		return fmt.Sprintf(`{"Time":%q,"Action":%q,"Package":"m","Test":%q}`, t0, action, test)
 	}
+	recent := fmt.Sprintf(`{"Time":%q,"Action":"pass","Package":"m","Test":"TestQ1"}`, time.Now().UTC().Format(time.RFC3339Nano))
 	out := strings.Join([]string{
 		ev("run", "TestP0"), ev("pause", "TestP0"), ev("cont", "TestP0"),
-		ev("run", "TestP0/sub"), ev("pause", "TestP0/sub"),
+		ev("run", "TestP0/sub"), ev("pause", "TestP0/sub"), recent,
 	}, "\n")
 
 	prog := goTestProgress([]byte(out), time.Now())
 
-	assert.Empty(t, prog.hung(6*time.Second), "TestP0 waits on its paused subtest")
+	assert.Empty(t, prog.stalled(time.Now(), 6*time.Second), "the package's other tests keep finishing")
+	assert.Empty(t, prog.Running, "TestP0 waits on its paused subtest, which is paused itself")
 }
 
 // The P2' shape end to end: many parallel tests, and parents whose single
@@ -79,10 +81,12 @@ func TestRun_PackageWithNoFinishedTestIsNotRecorded(t *testing.T) {
 	events := eventsAt(
 		`{"Action":"start","Package":"x/a"}`,
 		`{"Action":"pass","Package":"x/a","Test":"TestA"}`,
-		`{"Action":"start","Package":"x/b"}`,
+		`{"Action":"pass","Package":"x/a"}`,
 	)
+	step := sleepyStep(dir, events, true)
+	step.GoPackages = []string{"x/a", "x/b"}
 
-	failure, skipped := Run(context.Background(), []Step{sleepyStep(dir, events, true)}, 2*time.Second)
+	failure, skipped := Run(context.Background(), []Step{step}, 2*time.Second)
 
 	require.Nil(t, failure)
 	require.Len(t, skipped, 1)

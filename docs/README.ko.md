@@ -168,6 +168,13 @@ PR 크기로는 기능 추가와 버그 수정이 충분히 갈리지 않아 기
 | 자격 증명 확인만 끄기 | `hooks.secret_stop: false`, 또는 `AUTOPUS_SECRET_STOP=off` |
 | 버전 확인만 끄기 | `hooks.version_stop: false`, 또는 `AUTOPUS_VERSION_STOP=off`. N 라인까지 허용하려면 `hooks.version_stop: {max_major_behind: N}` |
 | 검증 라운드만 끄기 | `AUTOPUS_FOLLOWUP=off`(예: `.claude/settings.json`의 `env` 블록) |
+| 게이트에 시간을 더 주기 | `hooks.verify_stop_budget: 15m`(1m~30m, 기본 8m)을 두고 `auto update`. hook의 `--budget`과 timeout(예산 + 90초, 최소 600초)이 따라갑니다. 예전 `auto`는 이 키를 거부하므로 이 파일을 읽는 모든 기계를 먼저 올리세요 |
+
+**시간이 모자랄 때.** 예산을 넘긴 스위트는 테스트가 계속 끝나고 실패가 없으면 막지 않습니다. 마지막 단계 창의 절반 동안
+테스트가 시작도 끝도 하지 않은 패키지(교착, 끝없이 기다리는 `TestMain`)는 hang으로 보고 막습니다. 느린 테스트가 이번 변경이
+고친 테스트이면 바뀐 테스트가 먼저 돌아 마지막 단계는 예산의 절반 정도만 받습니다. 그래서 정상이지만 느린 테스트 하나도
+세 번까지는 막힐 수 있습니다. 그때는 `hooks.verify_stop_budget`을 늘리세요. 설정 파일의 `--budget`을 손으로 고치면
+`auto update`가 hook을 다시 써서 되돌립니다.
 
 **응답 언어 확인.** `language.ai_responses`가 `ko`·`ja`·`zh`이면 `auto update`가 Stop hook
 `auto verify language`도 등록합니다. 그 턴에 쓴 응답의 산문(코드 블록·인라인 코드·URL 제외)이 그 언어로 쓰이지
@@ -430,6 +437,7 @@ architecture:
 
 hooks:
   verify_stop: true     # Claude Code Stop hook (없으면 켜짐)
+  verify_stop_budget: 8m # Stop hook 검증 예산, 1m~30m (없으면 8m)
   secret_stop: true     # Stop hook 안의 자격 증명 확인 (없으면 켜짐)
   version_stop: true    # Stop hook 안의 버전 확인. {max_major_behind: N}도 가능 (없으면 켜짐, N=0)
   language_stop: true   # 응답 언어 Stop hook (없으면 켜짐, ai_responses가 ko·ja·zh일 때만)

@@ -99,7 +99,8 @@ func TestVerifyStop_DeadlockedTestBlocks(t *testing.T) {
 	got, _ := runStopWithin(t, dir, session, 40*time.Second)
 	assert.Equal(t, "block", got.Decision, got.SystemMessage)
 	assert.Contains(t, got.Reason, "TestDeadlock")
-	assert.Contains(t, got.Reason, "--budget", "a legitimately slow test needs to know how to get more time")
+	assert.Contains(t, got.Reason, "hooks.verify_stop_budget", "a legitimately slow test needs a budget change that lasts")
+	assert.Contains(t, got.Reason, "about half the budget")
 	assert.Empty(t, readStopState(session, "budget"), "a hung tree is not recorded")
 	assert.Empty(t, readStopState(session, "pass"))
 }

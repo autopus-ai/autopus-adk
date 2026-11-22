@@ -153,6 +153,15 @@ justify that, so the line stays at 40.
 | Turn off only the credential check | `hooks.secret_stop: false`, or `AUTOPUS_SECRET_STOP=off` |
 | Turn off only the version check | `hooks.version_stop: false`, or `AUTOPUS_VERSION_STOP=off`; allow N lines behind with `hooks.version_stop: {max_major_behind: N}` |
 | Turn off only the verification round | `AUTOPUS_FOLLOWUP=off` (for example in the `env` block of `.claude/settings.json`) |
+| Give the gate more time | `hooks.verify_stop_budget: 15m` (1m-30m, default 8m), then `auto update`: the hook's `--budget` and timeout (budget + 90s, at least 600s) follow it. Older `auto` binaries reject the key, so upgrade every machine that loads the file first |
+
+**Running out of time.** A suite that outlasts the budget with tests still finishing and none failed
+does not block. A package whose tests stop starting and ending for half of the final step's window
+(a deadlock, a `TestMain` waiting forever) is treated as hung and blocks. When the slow test is one the
+change edited, the changed tests run first and the final step gets about half the budget, so a
+single legitimately slow test can block too, up to the three-block cap; raise
+`hooks.verify_stop_budget` for it. Editing `--budget` in the settings file by hand does not last:
+`auto update` rewrites the hook.
 
 The Stop hook runs in Claude Code and, through its extension, in omp; set `AUTOPUS_FOLLOWUP=off`
 in the environment omp starts in to turn the round off there. On the other platforms, run
@@ -406,6 +415,7 @@ architecture:
 
 hooks:
   verify_stop: true     # Claude Code Stop hook (default on when unset)
+  verify_stop_budget: 8m # Stop hook verification budget, 1m-30m (default 8m when unset)
   secret_stop: true     # credential check inside the Stop hook (default on when unset)
   version_stop: true    # version check inside the Stop hook; or {max_major_behind: N} (default on, N=0)
   pre_commit_lore: true # Lore commit-msg hook

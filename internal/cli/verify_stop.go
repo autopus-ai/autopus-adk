@@ -14,6 +14,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/insajin/autopus-adk/pkg/config"
 	"github.com/insajin/autopus-adk/pkg/privatedir"
 	"github.com/insajin/autopus-adk/pkg/verifygate"
 )
@@ -124,6 +125,7 @@ func runVerifyStop(cmd *cobra.Command, stdin io.Reader, budget time.Duration, fo
 		return withSecretWarning(*versionBlock, warning)
 	}
 	warning = joinWarnings(warning, versionWarn)
+	budget = stopBudget(cmd, root, budget)
 	return withSecretWarning(verifyChanged(cmd, in, root, changed, budget, followup), warning)
 }
 
@@ -183,9 +185,11 @@ func verifyChanged(cmd *cobra.Command, in stopHookInput, root string, changed []
 	}
 	hint := ""
 	if failure.Hung {
-		hint = fmt.Sprintf("\n\nThe step had %s of the %s budget. If the test is slow rather than stuck, raise the budget "+
-			"with `auto verify stop --budget <duration>` in the Stop hook command (keep it under the hook's 600s timeout).",
-			failure.Window, budget)
+		hint = fmt.Sprintf("\n\nThe step had %s of the %s budget; when the slow test is one this change edited, the "+
+			"changed tests run first and the final step gets only about half the budget. If the test is slow rather than "+
+			"stuck, set `hooks.verify_stop_budget` in autopus.yaml (for example \"15m\", at most %s) and run `auto update`: "+
+			"the Stop hook's --budget and timeout follow it. Editing --budget in the settings file by hand does not last, "+
+			"since `auto update` rewrites the hook.", failure.Window, budget, config.MaxVerifyStopBudget)
 	}
 	return stopHookOutput{Decision: "block", Reason: summary + hint + "\n\nFix the failure, or explain why it is not caused by this change, before finishing."}
 }

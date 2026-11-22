@@ -2,6 +2,7 @@ package content
 
 import (
 	"os"
+	"time"
 
 	"github.com/insajin/autopus-adk/pkg/adapter"
 	"github.com/insajin/autopus-adk/pkg/config"
@@ -106,12 +107,24 @@ func generateCLIHooks(cfg config.HooksConf, platform string) ([]adapter.HookConf
 const verifyStopCommand = "auto verify stop"
 
 // generateVerifyStopHook registers the verification gate on Claude Code's
-// Stop event. The timeout covers the command's own default budget.
+// Stop event. hooks.verify_stop_budget becomes the command's --budget, and
+// the hook timeout follows it (config.VerifyStopHookTimeout), so a larger
+// budget is not killed by Claude Code before it returns a verdict. The
+// default budget keeps the bare command and the 600s timeout it always had.
 func generateVerifyStopHook(cfg config.HooksConf, platform string) []adapter.HookConfig {
 	if (platform != "claude" && platform != "claude-code") || !cfg.IsVerifyStopEnabled() {
 		return nil
 	}
-	return []adapter.HookConfig{{Event: "Stop", Type: "command", Command: verifyStopCommand, Timeout: 600}}
+	budget, err := cfg.VerifyStopBudgetDuration()
+	if err != nil {
+		budget = config.DefaultVerifyStopBudget
+	}
+	command := verifyStopCommand
+	if budget != config.DefaultVerifyStopBudget {
+		command += " --budget " + budget.String()
+	}
+	timeout := int(config.VerifyStopHookTimeout(budget) / time.Second)
+	return []adapter.HookConfig{{Event: "Stop", Type: "command", Command: command, Timeout: timeout}}
 }
 
 // languageStopCommand is the Stop hook that sends a reply back when it is not

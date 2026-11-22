@@ -41,6 +41,22 @@ func budgetSkipped(cmd *cobra.Command, in stopHookInput, root string, changed []
 	return withBudgetNote(followupRound(cmd, in, root, followup, status), note)
 }
 
+// stopBudget is the --budget flag when it was given, else
+// hooks.verify_stop_budget from the project's autopus.yaml, else the flag's
+// default. A gate started without the flag (the omp extension, a hook line
+// written before the key existed) still honors the project's budget.
+func stopBudget(cmd *cobra.Command, root string, flag time.Duration) time.Duration {
+	if cmd.Flags().Changed("budget") {
+		return flag
+	}
+	if cfg := nearestConfig(root); cfg != nil {
+		if d, err := cfg.Hooks.VerifyStopBudgetDuration(); err == nil {
+			return d
+		}
+	}
+	return flag
+}
+
 // withBudgetNote carries the note where the reader of the output sees it:
 // in the reason the agent gets when the stop is blocked, as a system message
 // otherwise.

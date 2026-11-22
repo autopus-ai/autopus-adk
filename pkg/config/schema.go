@@ -194,6 +194,11 @@ type HooksConf struct {
 	// VerifyStop registers the Claude Code Stop hook that builds and tests the
 	// changed files before a session ends. Read it through IsVerifyStopEnabled.
 	VerifyStop *bool `yaml:"verify_stop,omitempty"`
+	// VerifyStopBudget is the Stop hook's verification budget, a Go duration
+	// such as "15m". Read it through VerifyStopBudgetDuration; unset is
+	// DefaultVerifyStopBudget and is never written, so older binaries that
+	// reject unknown keys keep loading a default config.
+	VerifyStopBudget string `yaml:"verify_stop_budget,omitempty"`
 	// LanguageStop registers the Claude Code Stop hook that sends a reply
 	// back when it is not in language.ai_responses. Read it through
 	// IsLanguageStopEnabled.
@@ -302,6 +307,9 @@ func (c *HarnessConfig) Validate() error {
 		return err
 	}
 	if err := c.Hooks.VersionStop.validate(); err != nil {
+		return err
+	}
+	if _, err := c.Hooks.VerifyStopBudgetDuration(); err != nil {
 		return err
 	}
 	return c.Disk.Validate()

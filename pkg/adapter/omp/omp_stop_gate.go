@@ -3,7 +3,9 @@ package omp
 import (
 	_ "embed"
 	"encoding/json"
+	"fmt"
 	"strings"
+	"time"
 
 	"github.com/insajin/autopus-adk/pkg/adapter"
 	"github.com/insajin/autopus-adk/pkg/config"
@@ -15,6 +17,13 @@ const ompStopGateTarget = ".omp/extensions/autopus-stop-gate.ts"
 
 //go:embed stop_gate/autopus-stop-gate.ts
 var ompStopGateSource string
+
+// ompStopGateTimeoutLine is the extension's kill timer as embedded, and
+// ompStopGateDefaultTimeout its value.
+const (
+	ompStopGateTimeoutLine    = "const TIMEOUT_MS = 10 * 60 * 1000"
+	ompStopGateDefaultTimeout = 10 * time.Minute
+)
 
 // ompStopGateChecks lists the `auto verify` checks the extension runs, with
 // the same switches that decide the Claude Code Stop hooks.
@@ -50,6 +59,15 @@ func prepareStopGateMappings(cfg *config.HarnessConfig) ([]adapter.FileMapping, 
 		return nil, err
 	}
 	rendered := strings.Replace(ompStopGateSource, "__AUTOPUS_STOP_CHECKS__", string(list), 1)
+	// `auto verify stop` reads hooks.verify_stop_budget itself; the kill
+	// timer must outlast it the way the Claude Code hook timeout does. The
+	// default budget keeps the file as it always was.
+	if budget, err := cfg.Hooks.VerifyStopBudgetDuration(); err == nil {
+		if timeout := config.VerifyStopHookTimeout(budget); timeout > ompStopGateDefaultTimeout {
+			rendered = strings.Replace(rendered, ompStopGateTimeoutLine,
+				fmt.Sprintf("const TIMEOUT_MS = %d * 1000", int(timeout/time.Second)), 1)
+		}
+	}
 	return []adapter.FileMapping{{
 		TargetPath:      ompStopGateTarget,
 		OverwritePolicy: adapter.OverwriteAlways,

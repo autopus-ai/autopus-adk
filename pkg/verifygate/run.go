@@ -159,12 +159,16 @@ func interruptedSkips(steps []Step) []Skip {
 // stepWindow is the time a step may run: what is left of the budget, capped
 // at its Share of the whole budget. A BudgetBound step also leaves a tenth
 // of the budget for each unbound step after it, so a slow suite cannot keep
-// a later check from running at all.
+// a later check from running at all. A CoveredLater step takes at most half
+// of what is left, so the step that covers it always runs.
 func stepWindow(ctx context.Context, step Step, rest []Step, budget time.Duration) time.Duration {
 	deadline, _ := ctx.Deadline()
 	window := time.Until(deadline)
 	if step.Share > 0 {
 		window = min(window, time.Duration(float64(budget)*step.Share))
+	}
+	if step.CoveredLater {
+		window = min(window, time.Until(deadline)/2)
 	}
 	if step.BudgetBound {
 		for _, r := range rest {
@@ -177,8 +181,9 @@ func stepWindow(ctx context.Context, step Step, rest []Step, budget time.Duratio
 }
 
 // budgetOutcome judges a BudgetBound step killed at the end of its window
-// with no failed test. A test running for at least half the window without
-// progress is a hang the gate could see, so it fails. A step with no
+// with no failed test. A package that started and then emitted no test event
+// for at least half the window has stalled (a deadlocked test, a TestMain
+// waiting forever): a hang the gate could see, so it fails. A step with no
 // finished test proved nothing (the deadline came while compiling), so it
 // is an ordinary skip, never recorded. Otherwise it is a budget skip, or
 // nothing at all when a later step runs the same tests again.
@@ -189,16 +194,16 @@ func budgetOutcome(step Step, out []byte, text string, killedAt time.Time, ran t
 		return nil, nil
 	}
 	prog := goTestProgress(out, killedAt)
-	if hung := prog.hung(ran / 2); len(hung) > 0 {
+	if stalled := prog.stalled(killedAt, ran/2); len(stalled) > 0 {
 		var output strings.Builder
 		output.WriteString(text)
-		for _, h := range hung {
-			output.WriteString("--- still running: " + h.Name + "\n" + h.Output)
+		for _, pkg := range stalled {
+			output.WriteString("--- stalled: " + pkg.Name + "\n" + pkg.output.String())
 		}
 		return &Failure{Step: step, Output: tail(output.String(), tailLines), Reason: fmt.Sprintf(
-			"%s was still running when the step's %s window ran out, with no progress for at least half of it; "+
-				"a test that holds the step that long is treated as hung (a deadlock, a wait that never ends)",
-			describeRunning(hung), ran), Hung: true, Window: ran}, nil
+			"%s: silent for at least half of the step's %s window; a package whose tests stop "+
+				"starting and ending that long is treated as hung (a deadlock, a wait that never ends)",
+			describeStalled(stalled, killedAt), ran), Hung: true, Window: ran}, nil
 	}
 	if prog.Finished == 0 {
 		return nil, &Skip{Name: step.Name, Reason: fmt.Sprintf(
