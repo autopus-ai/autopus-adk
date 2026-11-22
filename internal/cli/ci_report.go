@@ -148,13 +148,29 @@ func runCIReport(cmd *cobra.Command, opts ciReportOptions) error {
 	return nil
 }
 
-// lintCheckout lints the local workflow files, noting when they are missing
-// or belong to another repository than the one measured.
+// lintCheckout lints the local workflow files, noting when they are missing,
+// belong to another repository than the one measured, or lag the remote
+// default branch (see remoteWorkflows).
 func lintCheckout(r *cireport.Report, dir, top, origin, repo string, public *bool) []cireport.LintFinding {
+	var files map[string][]byte
+	var err error
 	if dir == "" {
 		dir = filepath.Join(top, ".github", "workflows")
+		// Only a checkout of the measured repository can stand in for it.
+		if origin == "" || strings.EqualFold(origin, repo) {
+			var note string
+			if files, note = remoteWorkflows(top); note != "" {
+				r.Notes = append(r.Notes, note)
+			}
+		}
 	}
-	files, err := cireport.LoadWorkflows(dir)
+	if files != nil && len(files) == 0 {
+		// The remote default branch has no workflows; its note says so.
+		return nil
+	}
+	if files == nil {
+		files, err = cireport.LoadWorkflows(dir)
+	}
 	if errors.Is(err, fs.ErrNotExist) || (err == nil && len(files) == 0) {
 		r.Notes = append(r.Notes, "no workflow files in "+dir+"; the workflow lint was skipped")
 		return nil
