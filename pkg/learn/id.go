@@ -64,30 +64,3 @@ func entrySuffix(e LearningEntry) string {
 	}
 	return hex.EncodeToString(h.Sum(nil))[:6]
 }
-
-// dedupeEntries keeps one entry per id. The store merges with `merge=union`,
-// which keeps both sides of a conflicting hunk: the same line twice, or two
-// versions of an entry that a branch rewrote (reuse_count). The version with
-// the highest reuse count wins, the first on a tie, at the position of the
-// id's first line. Entries without an id are kept as they are.
-func dedupeEntries(entries []LearningEntry) []LearningEntry {
-	at := make(map[string]int, len(entries))
-	out := entries[:0]
-	for _, e := range entries {
-		if e.ID == "" {
-			out = append(out, e)
-			continue
-		}
-		i, seen := at[e.ID]
-		if !seen {
-			at[e.ID] = len(out)
-			out = append(out, e)
-			continue
-		}
-		if e.ReuseCount > out[i].ReuseCount {
-			e.Line = out[i].Line
-			out[i] = e
-		}
-	}
-	return out
-}

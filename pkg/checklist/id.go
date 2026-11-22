@@ -9,9 +9,13 @@ import (
 // A check id is CHK-<sequence>, optionally followed by -<6 hex>. Checks and
 // candidates are committed, so two branches cut from the same main draft the
 // same next number; the suffix is the head of the candidate's lesson
-// fingerprint, so different defects get different ids, and the same defect
-// drafted on both branches gets the same id, which a merge then shows as one
-// file. Ids without a suffix (CHK-001) remain valid.
+// fingerprint, so different defects get different ids. The same defect
+// drafted on two branches gets the same id only when both branches drafted
+// it under the same sequence number; then the merge conflicts on that one
+// file. When the sequences differ (one branch drafted another candidate
+// first), both candidates survive the merge under different ids, and
+// BuildStatus reports them as DuplicateFingerprints. Ids without a suffix
+// (CHK-001) remain valid.
 var checkIDPattern = regexp.MustCompile(`^CHK-(\d{3,})(?:-([0-9a-f]{6}))?$`)
 
 // idForm names the accepted id forms in error messages.

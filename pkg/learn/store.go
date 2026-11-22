@@ -1,14 +1,12 @@
 package learn
 
 import (
-	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -52,6 +50,11 @@ func (s *Store) appendUnlocked(entry LearningEntry) error {
 	if err != nil {
 		return err
 	}
+	return s.writeRedacted(entry)
+}
+
+// writeRedacted appends an entry that already passed redactEntry.
+func (s *Store) writeRedacted(entry LearningEntry) error {
 	data, err := json.Marshal(entry)
 	if err != nil {
 		return fmt.Errorf("marshal entry: %w", err)
@@ -82,33 +85,15 @@ func (s *Store) ReadTolerant() ([]LearningEntry, []SkipRecord, error) {
 	}
 	defer f.Close()
 
-	var entries []LearningEntry
-	var skips []SkipRecord
-	scanner := bufio.NewScanner(f)
-	lineNum := 0
-	for scanner.Scan() {
-		lineNum++
-		line := scanner.Text()
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" {
-			continue
-		}
-		var entry LearningEntry
-		if err := json.Unmarshal([]byte(trimmed), &entry); err != nil {
-			skips = append(skips, SkipRecord{
-				Line:   lineNum,
-				Raw:    line,
-				Reason: err.Error(),
-			})
-			continue
-		}
-		entry.Line = lineNum
-		entries = append(entries, entry)
-	}
-	if err := scanner.Err(); err != nil {
+	lines, skips, err := ScanStore(f)
+	if err != nil {
 		return nil, nil, fmt.Errorf("scan file: %w", err)
 	}
-	return dedupeEntries(entries), skips, nil
+	var entries []LearningEntry
+	for _, l := range lines {
+		entries = append(entries, l.Entry)
+	}
+	return entries, skips, nil
 }
 
 // Read reads all valid entries from the JSONL file.
@@ -136,7 +121,9 @@ func (s *Store) NextID() (string, error) {
 
 // AppendAtomic atomically generates an ID and appends a new learning entry.
 // The id is NextID plus a suffix of the entry's own content and timestamp, so
-// two branches recording from the same base do not write the same id.
+// two branches recording from the same base do not write the same id. The
+// suffix is computed from the redacted entry: a hash of the raw text would
+// persist a guessable fingerprint of a secret the store never writes.
 func (s *Store) AppendAtomic(entryType EntryType, opts RecordOpts) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -145,9 +132,12 @@ func (s *Store) AppendAtomic(entryType EntryType, opts RecordOpts) error {
 	if err != nil {
 		return fmt.Errorf("next id: %w", err)
 	}
-	entry := newEntry("", entryType, opts)
+	entry, err := redactEntry(newEntry("", entryType, opts))
+	if err != nil {
+		return err
+	}
 	entry.ID = seq + "-" + entrySuffix(entry)
-	return s.appendUnlocked(entry)
+	return s.writeRedacted(entry)
 }
 
 // newEntry is the entry AppendAtomic writes for opts, stamped now.

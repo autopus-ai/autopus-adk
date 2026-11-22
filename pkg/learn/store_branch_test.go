@@ -31,8 +31,12 @@ func unionMerge(t *testing.T, base, ours, theirs string) []byte {
 	data, err := os.ReadFile(base)
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(baseCopy, data, 0o600))
-	out, err := exec.Command("git", "merge-file", "-p", "--union", ours, baseCopy, theirs).Output()
-	require.NoError(t, err, "a union merge of two appends never conflicts")
+	// merge-file exits with the number of conflicting hunks even under
+	// --union, so the merged text itself is what is checked.
+	out, _ := exec.Command("git", "merge-file", "-p", "--union", ours, baseCopy, theirs).Output()
+	for _, marker := range []string{"<<<<<<<", "=======", ">>>>>>>"} {
+		require.NotContains(t, string(out), marker, "a union merge leaves no conflict markers")
+	}
 	return out
 }
 

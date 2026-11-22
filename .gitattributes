@@ -7,6 +7,17 @@ scripts/release-signing/tests/fixtures/** text eol=lf
 
 # The learning store is append-mostly JSONL: two branches that each record a
 # lesson append at EOF and would always conflict. A union merge keeps both
-# lines; pkg/learn's reader keeps one entry per id, so a line kept twice, or
-# two versions of a rewritten entry, reads as one (the higher reuse_count).
+# sides of every conflicting hunk instead. Costs of that choice:
+# - Only readers that go through learn.ScanStore (pkg/learn and
+#   pkg/memindex) merge the copies: a line kept twice, or two versions of a
+#   rewritten lesson (same id and timestamp), read as one, the version with
+#   the higher reuse_count. Anything that reads the file raw, such as a
+#   prompt context profile, sees the duplicated lines.
+# - Prune resurrection: a lesson one branch pruned comes back when the other
+#   branch rewrote the same line (MarkReused).
+# - Reuse undercount: when both branches incremented the same lesson, the
+#   higher count wins rather than the sum.
+# - Two lessons with the same old-form id (L-NNN from an `auto` older than
+#   the id suffix) and different timestamps are both kept; `auto checklist
+#   status` warns about them.
 .autopus/learnings/pipeline.jsonl merge=union

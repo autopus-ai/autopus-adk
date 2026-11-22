@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -69,4 +70,29 @@ func TestChecklistCommands_OldAndNewIDs(t *testing.T) {
 	require.NoError(t, err, out)
 	_, err = runAuto(t, "checklist", "approve", "CHK-002-0A1B2C")
 	assert.Error(t, err, "an id outside both forms is refused")
+}
+
+// What a merge of two branches can leave behind is reported by status: one
+// defect drafted as two candidates, and one old-form id held by two lessons.
+func TestChecklistStatus_WarnsAboutMergeLeftovers(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	for _, id := range []string{"CHK-001-abcdef", "CHK-002-abcdef"} {
+		c := checklist.Candidate{ID: id, State: checklist.StatePendingRefutation, Fingerprint: "abcdef012345",
+			DraftedBy: "claude", Lessons: []string{"L-001"}, Created: time.Now(),
+			Check: checklist.Check{ID: id, Mode: checklist.ModeObserve, When: checklist.When{Paths: []string{"src/**"}},
+				Sources: []string{"L-001"}, Created: "2026-11-22", Body: "criterion"}}
+		require.NoError(t, checklist.SaveCandidate(dir, c))
+	}
+	store := filepath.Join(dir, ".autopus", "learnings", "pipeline.jsonl")
+	require.NoError(t, os.MkdirAll(filepath.Dir(store), 0o755))
+	require.NoError(t, os.WriteFile(store, []byte(
+		`{"id":"L-004","timestamp":"2026-11-22T09:00:00Z","type":"escape","pattern":"lesson A"}`+"\n"+
+			`{"id":"L-004","timestamp":"2026-11-22T09:00:01Z","type":"escape","pattern":"lesson B"}`+"\n"), 0o644))
+
+	out, err := runAuto(t, "checklist", "status")
+	require.NoError(t, err, out)
+	assert.Contains(t, out, "경고: 후보 CHK-001-abcdef, CHK-002-abcdef는 같은 결함")
+	assert.Contains(t, out, "auto checklist reject CHK-002-abcdef")
+	assert.Contains(t, out, "경고: 교훈 id L-004를 서로 다른 교훈 2개가 쓰고 있습니다")
 }

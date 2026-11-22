@@ -1,7 +1,6 @@
 package memindex
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -184,17 +183,25 @@ func scanLearning(projectDir string) ([]Record, []Skip, error) {
 	defer f.Close()
 	records := make([]Record, 0)
 	skips := make([]Skip, 0)
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" {
+	// learn.ScanStore merges the copies a union merge leaves, so the indexed
+	// line is the one hashLearningLine hashes.
+	lines, invalid, err := learn.ScanStore(f)
+	if err != nil {
+		return nil, nil, err
+	}
+	for range invalid {
+		skips = append(skips, Skip{Path: ".autopus/learnings/pipeline.jsonl", Reason: "invalid_learning_jsonl"})
+	}
+	indexed := map[string]bool{}
+	for _, l := range lines {
+		entry, line := l.Entry, l.Raw
+		// Two distinct lessons that share an old-form id: source_ref is
+		// unique, so only the first is indexed and the rest are reported.
+		if indexed[entry.ID] {
+			skips = append(skips, Skip{Path: ".autopus/learnings/pipeline.jsonl#" + entry.ID, Reason: "duplicate_learning_id"})
 			continue
 		}
-		var entry learn.LearningEntry
-		if err := json.Unmarshal([]byte(line), &entry); err != nil {
-			skips = append(skips, Skip{Path: ".autopus/learnings/pipeline.jsonl", Reason: "invalid_learning_jsonl"})
-			continue
-		}
+		indexed[entry.ID] = true
 		rel := ".autopus/learnings/pipeline.jsonl#" + entry.ID
 		metadata := learningMetadata(entry)
 		text := learningSearchText(entry, metadata)
@@ -218,9 +225,6 @@ func scanLearning(projectDir string) ([]Record, []Skip, error) {
 			Content:         safeText(text),
 			SourceMetadata:  metadata,
 		})
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, nil, err
 	}
 	return records, skips, nil
 }
