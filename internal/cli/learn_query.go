@@ -66,11 +66,11 @@ func newLearnQueryCmd() *cobra.Command {
 				return nil
 			}
 
-			fmt.Fprintf(out, "%-10s %-16s %-8s %s\n", "ID", "Type", "Score", "Pattern")
-			fmt.Fprintf(out, "%-10s %-16s %-8s %s\n", "----------", "----------------", "--------", "-------")
+			fmt.Fprintf(out, "%-12s %-16s %-8s %s\n", "ID", "Type", "Score", "Pattern")
+			fmt.Fprintf(out, "%-12s %-16s %-8s %s\n", "------------", "----------------", "--------", "-------")
 			ids := make([]string, 0, len(entries))
 			for _, e := range entries {
-				fmt.Fprintf(out, "%-10s %-16s %-8.2f %s\n", e.Entry.ID, string(e.Entry.Type), e.Score, e.Entry.Pattern)
+				fmt.Fprintf(out, "%-12s %-16s %-8.2f %s\n", e.Entry.ID, string(e.Entry.Type), e.Score, e.Entry.Pattern)
 				ids = append(ids, e.Entry.ID)
 			}
 			if markReused {

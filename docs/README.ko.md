@@ -259,7 +259,7 @@ auto checklist record --pattern "publish-back이 provider가 쓸 수 있는 심�
 auto checklist propose        # 두 커밋에서 반복됐거나 재현됨 → 관찰 모드 후보
 auto checklist refute --all   # 초안을 쓴 provider와 다른 provider가 후보마다 반증을 시도
 auto checklist status         # 교훈, 후보, 승인 대기열, 점검 상태
-auto checklist approve CHK-001   # 사람: 관찰 모드로 점검 추가
+auto checklist approve CHK-001-3fa9c1   # 사람: 관찰 모드로 점검 추가 (접미사 이전 id인 CHK-001도 그대로 동작)
 auto checklist run            # diff 조건에 맞는 점검만 적용
 ```
 

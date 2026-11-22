@@ -162,8 +162,8 @@ func TestRecordGateFail_AutoGeneratesID(t *testing.T) {
 	// Then: IDs are auto-incremented
 	entries, err := store.Read()
 	require.NoError(t, err)
-	assert.Equal(t, "L-001", entries[0].ID)
-	assert.Equal(t, "L-002", entries[1].ID)
+	assert.Regexp(t, `^L-001-[0-9a-f]{6}$`, entries[0].ID)
+	assert.Regexp(t, `^L-002-[0-9a-f]{6}$`, entries[1].ID)
 }
 
 func TestRecordGateFail_NilStore(t *testing.T) {

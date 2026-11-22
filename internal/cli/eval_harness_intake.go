@@ -68,7 +68,8 @@ var intakeSkipHints = map[string]string{
 
 const intakeLong = `Turn learning entries into quarantined golden-task candidates (SPEC-HARNEVAL-002).
 
-Select entries with exactly one of --learning L-NNN[,L-MMM] or --all-eligible. An
+Select entries with exactly one of --learning L-NNN[,L-MMM] (an id may carry its
+branch suffix, L-NNN-xxxxxx) or --all-eligible. An
 entry is eligible when it has expected and actual and its fingerprint is not
 already an open candidate, a promoted link, a rejection, or an active incident
 task. Entries with equal fingerprints form one candidate whose evidence comes
@@ -138,7 +139,7 @@ func newEvalHarnessIntakeCmd(dir *string) *cobra.Command {
 		},
 	}
 	flags := cmd.Flags()
-	flags.StringSliceVar(&req.LearningIDs, "learning", nil, "learning entry ids to take in, such as L-002,L-999")
+	flags.StringSliceVar(&req.LearningIDs, "learning", nil, "learning entry ids to take in, such as L-002,L-999 or L-006-3fa9c1")
 	flags.BoolVar(&req.AllEligible, "all-eligible", false, "take in every eligible learning entry")
 	flags.StringVar(&req.Expected, "expected", "", "expected behaviour for a single --learning id; needs --actual")
 	flags.StringVar(&req.Actual, "actual", "", "observed behaviour for a single --learning id; needs --expected")

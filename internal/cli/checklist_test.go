@@ -66,15 +66,20 @@ func TestChecklistCommands_EndToEnd(t *testing.T) {
 
 	out, err = runAuto(t, "checklist", "propose")
 	require.NoError(t, err, out)
-	assert.Contains(t, out, "CHK-001 반증 검토 대기")
+	cands, err := checklist.LoadCandidates(dir)
+	require.NoError(t, err)
+	require.Len(t, cands, 1)
+	id := cands[0].ID
+	assert.Regexp(t, `^CHK-001-[0-9a-f]{6}$`, id, "a new candidate carries the branch-unique suffix")
+	assert.Contains(t, out, id+" 반증 검토 대기")
 
 	out, err = runAuto(t, "checklist", "refute", "--all")
 	require.NoError(t, err, out)
-	assert.Contains(t, out, "CHK-001 승인 대기")
+	assert.Contains(t, out, id+" 승인 대기")
 	assert.Contains(t, out, "codex: 반증 실패")
 	assert.NotContains(t, out, "claude:")
 
-	out, err = runAuto(t, "checklist", "approve", "CHK-001")
+	out, err = runAuto(t, "checklist", "approve", id)
 	require.NoError(t, err, out)
 	assert.Contains(t, out, "관찰 모드로 추가")
 	git("add", "-A")
@@ -88,13 +93,13 @@ func TestChecklistCommands_EndToEnd(t *testing.T) {
 	require.NoError(t, err, out)
 	assert.Contains(t, out, "관찰: 문제를 잡았습니다")
 
-	out, err = runAuto(t, "checklist", "promote", "CHK-001")
+	out, err = runAuto(t, "checklist", "promote", id)
 	require.NoError(t, err, out)
 	git("add", ".autopus/checklist")
 	git("commit", "-qm", "promote", "--", ".autopus/checklist")
 	out, err = runAuto(t, "checklist", "run")
 	assert.ErrorIs(t, err, errChecklistFailed, out)
-	assert.Contains(t, out, "CHK-001 [강제 모드] 실패")
+	assert.Contains(t, out, id+" [강제 모드] 실패")
 
 	out, err = runAuto(t, "checklist", "status")
 	require.NoError(t, err, out)

@@ -105,9 +105,11 @@ func Propose(root string, entries []learn.LearningEntry, now time.Time) ([]Candi
 	if err != nil {
 		return nil, nil, err
 	}
+	// A fingerprint two branches drafted under different sequence numbers
+	// links to its representative candidate (see representatives).
 	byFP := map[string]string{}
-	for _, c := range cands {
-		byFP[c.Fingerprint] = c.ID
+	for fp, c := range representatives(cands) {
+		byFP[fp] = c.ID
 	}
 	var created []Candidate
 	var statuses []LessonStatus
@@ -116,7 +118,7 @@ func Propose(root string, entries []learn.LearningEntry, now time.Time) ([]Candi
 		id, exists := byFP[g.fingerprint]
 		eligible := len(g.commits) >= 2 || repro != nil
 		if eligible && !exists {
-			c := draftCandidate(g, nextID(checks, append(cands, created...)), repro, now)
+			c := draftCandidate(g, nextID(checks, append(cands, created...), g.fingerprint), repro, now)
 			if err := SaveCandidate(root, c); err != nil {
 				return created, statuses, err
 			}

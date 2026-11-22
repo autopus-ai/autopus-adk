@@ -17,7 +17,7 @@ var checklistDecideShort = map[string]string{
 
 func newChecklistDecideCmd(action string) *cobra.Command {
 	return &cobra.Command{
-		Use:   action + " CHK-NNN",
+		Use:   action + " CHK-NNN[-xxxxxx]",
 		Short: checklistDecideShort[action],
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

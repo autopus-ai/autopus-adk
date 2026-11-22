@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"regexp"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -47,11 +46,6 @@ type Check struct {
 	Body string `yaml:"-" json:"body"`
 }
 
-var checkIDPattern = regexp.MustCompile(`^CHK-\d{3,}$`)
-
-// ValidID reports a well-formed check id.
-func ValidID(id string) bool { return checkIDPattern.MatchString(id) }
-
 var errNoFrontMatter = errors.New("missing front matter")
 
 // ParseCheck decodes a check file and validates it.
@@ -76,7 +70,7 @@ func ParseCheck(data []byte) (Check, error) {
 func (c Check) Validate() error {
 	switch {
 	case !ValidID(c.ID):
-		return fmt.Errorf("id %q is not CHK-NNN", c.ID)
+		return fmt.Errorf("id %q is not %s", c.ID, idForm)
 	case c.Mode != ModeObserve && c.Mode != ModeEnforce && c.Mode != ModeRetired:
 		return fmt.Errorf("unknown mode: %s", c.Mode)
 	case c.When.Empty():

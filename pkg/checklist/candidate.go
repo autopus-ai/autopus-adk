@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"path"
 	"sort"
-	"strconv"
-	"strings"
 	"time"
 )
 
@@ -93,14 +91,14 @@ func LoadCandidates(root string) ([]Candidate, error) {
 		}
 		out = append(out, c)
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	sort.Slice(out, func(i, j int) bool { return idLess(out[i].ID, out[j].ID) })
 	return out, nil
 }
 
 // LoadCandidate reads one candidate by id.
 func LoadCandidate(root, id string) (Candidate, error) {
 	if !ValidID(id) {
-		return Candidate{}, fmt.Errorf("id %q is not CHK-NNN", id)
+		return Candidate{}, fmt.Errorf("id %q is not %s", id, idForm)
 	}
 	data, err := readFile(root, candidatePath(id))
 	if err != nil {
@@ -119,7 +117,7 @@ func LoadCandidate(root, id string) (Candidate, error) {
 // SaveCandidate writes c.
 func SaveCandidate(root string, c Candidate) error {
 	if !ValidID(c.ID) {
-		return fmt.Errorf("candidate id %q is not CHK-NNN", c.ID)
+		return fmt.Errorf("candidate id %q is not %s", c.ID, idForm)
 	}
 	data, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
@@ -150,23 +148,6 @@ func WorkingChecks(root string) ([]Check, map[string]string, error) {
 		}
 		out = append(out, c)
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	sort.Slice(out, func(i, j int) bool { return idLess(out[i].ID, out[j].ID) })
 	return out, invalid, nil
-}
-
-// nextID is one past the highest id used by any check or candidate.
-func nextID(checks []Check, cands []Candidate) string {
-	maxN := 0
-	bump := func(id string) {
-		if n, err := strconv.Atoi(strings.TrimPrefix(id, "CHK-")); err == nil && n > maxN {
-			maxN = n
-		}
-	}
-	for _, c := range checks {
-		bump(c.ID)
-	}
-	for _, c := range cands {
-		bump(c.ID)
-	}
-	return fmt.Sprintf("CHK-%03d", maxN+1)
 }

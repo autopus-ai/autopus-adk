@@ -31,6 +31,11 @@ type Status struct {
 	Candidates []Candidate       `json:"candidates"`
 	Checks     []CheckStatus     `json:"checks"`
 	Invalid    map[string]string `json:"invalid,omitempty"`
+	// DuplicateDefects is the defects more than one live candidate holds,
+	// with the candidate to keep and the ones a person settles.
+	DuplicateDefects []DuplicateDefect `json:"duplicate_defects,omitempty"`
+	// LessonIDConflicts is the ids more than one distinct lesson holds.
+	LessonIDConflicts []learn.IDConflict `json:"lesson_id_conflicts,omitempty"`
 }
 
 // ApprovalQueue is the candidates a person can approve now.
@@ -55,11 +60,13 @@ func BuildStatus(root string, entries []learn.LearningEntry, retireAfter int) (S
 	if err != nil {
 		return Status{}, err
 	}
+	reps := representatives(cands)
 	byFP := map[string]string{}
-	for _, c := range cands {
-		byFP[c.Fingerprint] = c.ID
+	for fp, c := range reps {
+		byFP[fp] = c.ID
 	}
-	st := Status{Candidates: cands}
+	st := Status{Candidates: cands, LessonIDConflicts: learn.IDConflicts(entries),
+		DuplicateDefects: duplicateDefects(cands, reps)}
 	for _, g := range groupEscapes(entries) {
 		id, ok := byFP[g.fingerprint]
 		for _, e := range g.entries {
