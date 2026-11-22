@@ -1,6 +1,7 @@
 """Claude Code driver contracts: arm settings, isolation, environment, argv and the sandbox wrapper."""
 import json
 import os
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -75,6 +76,8 @@ class IsolationTests(unittest.TestCase):
 
 
 class ShellWrapperTests(unittest.TestCase):
+    # The wrapper execs zsh, which pilot C's macOS hosts ship and Linux CI runners lack.
+    @unittest.skipUnless(shutil.which('zsh'), 'zsh is not installed')
     def test_login_flags_are_dropped_and_no_startup_file_runs(self):
         with tempfile.TemporaryDirectory() as d:
             shell = claude_agent.write_shell_wrapper(Path(d) / 'bin' / 'zsh')

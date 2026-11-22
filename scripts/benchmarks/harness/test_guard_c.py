@@ -2,6 +2,7 @@
 import json
 import os
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -61,6 +62,8 @@ class OutputTests(unittest.TestCase):
             self.assertEqual(len(guard_c.parent_instructions(out)), 2)
 
 
+    # /tmp and /var/tmp resolve into /private only on macOS, the one host pilot C runs on.
+    @unittest.skipUnless(sys.platform == 'darwin', 'macOS temporary-root layout')
     def test_shared_temporary_roots_are_refused(self):
         self.assertEqual(guard_c.shared_temp(Path('/private/tmp/claude-502/run')), ['/private/tmp'])
         self.assertEqual(guard_c.shared_temp(Path('/tmp/run')), ['/private/tmp'])
