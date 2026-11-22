@@ -71,6 +71,10 @@ def execute_tree(argv: list, cwd: Path, env: dict, stdout: Path, stderr: Path, s
     finally:
         stragglers, leftover = tree.sweep()
         process.wait()
+    if scratch is None:
+        # Without a sandbox instance to count, a process that left the tree before the first walk is
+        # invisible: an empty sweep proves nothing, so leftover is unknown, not False.
+        leftover = leftover or None
     return {'exit_code': process.returncode, 'timed_out': timed_out, 'stragglers': stragglers,
             'leftover': leftover, 'elapsed_seconds': round(time.monotonic() - started, 3)}
 
@@ -105,7 +109,7 @@ def prepare(ctx: dict, task: dict, arm: str, name: str) -> dict:
     home = claude_agent.isolated_home(trial, arm, work)
     grade_c.clone_tree(source['warm_cache'], trial / 'gocache')
     env = claude_agent.agent_env(ctx['base_env'], home, trial / 'tmp', ctx['credential_kind'], ctx['credential'],
-                                 [source['bin_dir'], ctx['tools_dir']])
+                                 [source['bin_dir'], ctx['tools_dir']], ctx['shell'])
     env.update(go_env(trial, trial / 'gocache'))
     argv = claude_agent.claude_argv(arm, ctx['model'], ctx['effort'], ctx['permission_mode'], ctx['claude'])
     warm = ['go', 'test', '-count=1', '-run', '^$', './' + task['oracle']['package']]
@@ -114,9 +118,13 @@ def prepare(ctx: dict, task: dict, arm: str, name: str) -> dict:
             return claude_agent.sandboxed(command, trial, ctx['output'], ctx['output'] / 'bin', env['GOMODCACHE'],
                                           ctx['tools'], ctx['account_home'], ctx['protected'],
                                           ctx['frozen']['agent_profile'])
-        argv, warm = wrap(argv), wrap(warm)
+    # What the Bash tool resolves: Claude Code snapshots its environment with `$SHELL -c -l`.
+    probe = [str(ctx['shell']), '-c', '-l', 'for t in auto go claude codex gemini gh omp opencode; do '
+             'printf "%s=%s\\n" "$t" "$(command -v $t || echo none)"; done; echo "PATH=$PATH"']
+    if ctx['sandbox']:
+        argv, warm, probe = wrap(argv), wrap(warm), wrap(probe)
     return {'trial': trial, 'measure': measure, 'work': work, 'env': env, 'argv': argv, 'warm': warm,
-            'prompt': prompt_for(task), 'source': source}
+            'path_probe': probe, 'prompt': prompt_for(task), 'source': source}
 
 
 def run(ctx: dict, task: dict, arm: str, replicate: int) -> dict:
@@ -124,15 +132,17 @@ def run(ctx: dict, task: dict, arm: str, replicate: int) -> dict:
     plan = prepare(ctx, task, arm, name)
     trial, measure, grading = names(ctx, name)
     load_start = guard_c.loadavg()
+    scratch = trial if ctx['sandbox'] else None
     warm = execute_tree(plan['warm'], plan['work'], plan['env'], measure / 'warm.log', measure / 'warm.err', 1800,
-                        scratch=trial)
+                        scratch=scratch)
     before = hashes(plan['work'])
     agent = execute_tree(plan['argv'], plan['work'], plan['env'], measure / 'events.jsonl', measure / 'stderr.log',
-                         ctx['timeout'], plan['prompt'], scratch=trial)
+                         ctx['timeout'], plan['prompt'], scratch=scratch)
     load_end = guard_c.loadavg()
     observation = stream_c.parse_stream(measure / 'events.jsonl')
     scope = oracle_c.audit_globs(before, hashes(plan['work']), task['allowed_paths'])
     valid = stream_c.arm_valid(arm, observation)
+    agent['tree_coverage'] = 'sandbox_instance_and_descendants' if ctx['sandbox'] else 'descendants_only'
     graded = None
     if not agent['leftover']:
         graded = grade_c.grade_candidate(task, plan['source']['tree'], plan['work'], grading, measure / 'grade',

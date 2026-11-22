@@ -447,28 +447,43 @@ a copy of the task's `base` (`auto init --platforms claude-code --yes`,
 `hooks.language_stop: false`, `auto update`); every hook command is then
 pinned to that binary by absolute path. The run refuses a harness revision
 that has any task's pre-review or fixed head as an ancestor: that `auto` would
-put the reviewed code (the answer) on the agent's PATH. `origin/main` already
-contains both c01 and c02 heads, so for them the valid harness revision is the
-PR #348 head (the `auto verify stop` time budget for large Go packages,
-branched from 7b017f17). Before #348 a change under `internal/cli` (~32 min of
-tests) blocks every stop, and c01 and c02 both change `internal/cli`, so the
-`full` arm would measure that bug as timeouts. #348's branch is still moving;
-pass the SHA you mean, the runner records it.
+put the reviewed code (the answer) on the agent's PATH. It also refuses one
+that lacks a commit the task lists in `harness_requires`. For c01 and c02 that
+is 30722ad9, the last commit of PR #348 (the `auto verify stop` time budget for
+large Go packages) before main was merged into its branch: without #348 a
+change under `internal/cli` (~32 min of tests) blocks every stop, and c01 and
+c02 both change `internal/cli`, so the `full` arm would measure that bug as
+timeouts. So for c01/c02 pass `--harness-revision 30722ad9a9933ade33027144872fc0687b89787c`:
+#348 is merged now, and both its branch head fcfbeff4 (which merged main
+with #347, #349 and #350) and `origin/main` contain the c01/c02 heads and are
+refused; 7b017f17 lacks #348 and is refused too.
 
 Every arm gets the same `--model` and `--effort`,
 `--permission-mode bypassPermissions`, `--setting-sources project`,
-`--strict-mcp-config` (the generated `.mcp.json` npx servers load in no arm),
-`--disallowedTools WebFetch WebSearch`, `--no-session-persistence`, a 1800 s
+`--strict-mcp-config` (the generated `.mcp.json` npx servers load in no arm,
+and the file is left out of the installed surface so a nested session cannot
+start them either), `--disallowedTools WebFetch WebSearch` (also as
+`permissions.deny` in the trial's user settings, with
+`enableAllProjectMcpServers: false`, for nested sessions), `--no-session-persistence`, a 1800 s
 deadline, and a fresh checkout with its own Git history, marked trusted in the
 isolated `.claude.json` (an untrusted workspace ignores the generated
 permissions). On the deadline the session gets SIGTERM, and after every trial
 `process_tree.Tree` kills the whole descendant tree, including the Bash tool's
 setsid shells and anything the trial's sandbox instance confines; a trial is
-graded only once that tree is empty. The trial PATH is the pinned `auto`,
+graded only once that tree is empty. With `--no-sandbox` (debug only) there
+is no sandbox instance to count, so a process that left the tree before the
+first walk is invisible: `leftover` is then recorded as unknown (null), never
+as false. The trial PATH is the pinned `auto`,
 symlinks to `--tools` (default `go,gofmt,claude,node`) and
 `/usr/bin:/bin:/usr/sbin:/sbin`: other agent CLIs on the host PATH would be
 detected by `auto update` as platforms and could be called by a review step on
-another account. The environment is an allowlist (`LANG`, `USER`, `TERM`, the
+another account. Claude Code snapshots the Bash tool's environment with
+`$SHELL -c -l`, and a login zsh runs `/etc/zprofile` (path_helper), which would
+put `/usr/local/bin` and `/opt/homebrew/bin` (an installed `auto`, codex, gh,
+...) first; `SHELL` is therefore `<output>/bin/shell/zsh`, a wrapper that drops
+the login flags and starts `zsh -f`. The dry run records what the Bash tool
+resolves (`command -v auto go claude codex gemini gh omp opencode`) from inside
+the trial. The environment is an allowlist (`LANG`, `USER`, `TERM`, the
 isolated `HOME`, `CLAUDE_CONFIG_DIR`, `TMPDIR`, Go settings, the token);
 `SSH_AUTH_SOCK` and every other host key are dropped.
 
@@ -477,10 +492,10 @@ isolated `HOME`, `CLAUDE_CONFIG_DIR`, `TMPDIR`, Go settings, the token);
 python3 scripts/benchmarks/harness/gate_c.py --repo "$PWD" --work /absolute/new/gates
 # No model call: build auto, generate the surface, prepare one trial per arm, warm up.
 python3 scripts/benchmarks/harness/run_c.py --repo "$PWD" --output /absolute/new/dry \
-  --harness-revision <PR #348 head SHA> --model opus --effort high --dry-run
+  --harness-revision 30722ad9a9933ade33027144872fc0687b89787c --model opus --effort high --dry-run
 # Real trials (spends quota). The token comes from `claude setup-token`, mode 0600.
 nohup python3 scripts/benchmarks/harness/run_c.py --repo "$PWD" --output /absolute/new/run \
-  --tasks c01,c02 --harness-revision <PR #348 head SHA> --gates /absolute/new/gates/gates.json \
+  --tasks c01,c02 --harness-revision 30722ad9a9933ade33027144872fc0687b89787c --gates /absolute/new/gates/gates.json \
   --model opus --effort high --timeout 1800 --credential-file /absolute/token > /absolute/new/run.log 2>&1 &
 # Continue a run that stopped (finished trials are kept, a partial one is moved to aborted/).
 python3 scripts/benchmarks/harness/run_c.py ... --output /absolute/new/run --resume
@@ -489,7 +504,10 @@ python3 scripts/benchmarks/harness/run_c.py ... --output /absolute/new/run --res
 `--output` must be new, outside both checkouts and below no directory that
 holds `CLAUDE.md`, `CLAUDE.local.md` or `.claude/`: Claude Code loads parent
 instructions into every arm, so an output under your home (which holds
-`~/.claude`) is refused. A real run needs `--gates`: the `gates.json` of a
+`~/.claude`) is refused. It must not lie in a shared temporary root either
+(`/private/tmp`, `/private/var/tmp`, `$TMPDIR`), where other sessions keep
+files such as Claude Code's `/private/tmp/claude-*`; `/Users/Shared/pilot-c/`
+works. A real run needs `--gates`: the `gates.json` of a
 passing `gate_c.py` run whose recorded hash matches the corpus and oracles.
 The profiles, oracles and corpus are copied into `<output>/frozen` first, so a
 branch switch mid-run changes nothing. Layout: `trials/<name>/` is all the
@@ -512,9 +530,11 @@ tools' install directories are reopened (so `~/.ssh`, `~/.aws`, `~/.config`,
 shell history, `~/.claude*`, other trials and the oracles are unreadable).
 Unix sockets are closed except mDNSResponder's (a Docker or colima socket
 would hand out the host), the keychain is closed as files and as Mach
-services, and signals reach only the same sandbox instance. One fallback:
-files directly in `/private/tmp` named `claude-*` stay writable, for the Bash
-tool's cwd files should it ignore `CLAUDE_CODE_TMPDIR`. Not covered: managed
+services, signals reach only the same sandbox instance, and LaunchServices
+opens (`open x.app` would start it outside the sandbox) and preference writes
+through cfprefsd (`defaults write`) and the pasteboard are denied. Nothing outside the trial is
+writable, `/private/tmp` included: Claude Code 2.1.322 writes the Bash tool's
+cwd file to `CLAUDE_CODE_TMPDIR`, which is set inside the trial. Not covered: managed
 policy settings and anything the account or organisation serves remotely (the
 same in every arm), TCP (the model is remote), and reads of the system and
 toolchain.
@@ -532,8 +552,9 @@ that reaches GitHub or fetches from the network (`gh`, `git fetch`, `curl`,
 Oracles and grading. `oracles/<id>/*_test.go.oracle` carry a suffix the go
 tool ignores, so `go test ./...` never compiles them. The graded tree is the
 task's base snapshot plus only the candidate's regular non-test files under
-`allowed_paths` (and deletions there); tests, the harness surface and
-symlinks never enter. The oracle is added, the package's test binary is
+`allowed_paths` (and deletions there); tests, the harness surface,
+symlinks and other non-regular files (a FIFO would block the copy) never
+enter, and the overlay records what it rejected. The oracle is added, the package's test binary is
 compiled once, and each case runs in its own process; the build and every
 case run under grader.sb (`grader.sandbox_argv`: no network, writes only to
 the grade root, reads closed below the homes and temp roots) with a clone of a

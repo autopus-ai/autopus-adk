@@ -111,8 +111,10 @@ Command lines and the isolation boundary are in the
    argv), `stream_c.py` (usage, Stop outcomes and blocks, contamination,
    arm validity), `claude_agent.sb` (writes only in the trial; reads closed
    below the homes, temp roots, run output and checkouts except the trial,
-   module cache, pinned bin and tool installs; Unix sockets, the keychain and
-   signals to other processes closed), `sources_c.py` and `surface_c.py`
+   module cache, pinned bin and tool installs; Unix sockets, the keychain,
+   signals to other processes, LaunchServices opens and cfprefsd writes
+   closed; the Bash tool's login shell replaced by a wrapper so the host
+   PATH never comes back), `sources_c.py` and `surface_c.py`
    (`auto` built from `--harness-revision`, resolved to a SHA and recorded per
    trial, generates the claude-code surface into the task's base with
    `hooks.language_stop: false`; hook commands are pinned to it by absolute
@@ -145,17 +147,19 @@ run under grader.sb with a grading build cache no agent can read, in a grade
 root outside every trial, and only after the trial's process tree is empty.
 
 Refusals. A run does not start when its harness revision has any task's
-pre-review or fixed head as an ancestor (that `auto` would carry the answer),
-when `--output` lies below a `CLAUDE.md`, `CLAUDE.local.md` or `.claude/`
-(parent instructions load into every arm), or without passing gates.
+pre-review or fixed head as an ancestor (that `auto` would carry the answer)
+or lacks a commit the task lists in `harness_requires`, when `--output` lies
+below a `CLAUDE.md`, `CLAUDE.local.md` or `.claude/` (parent instructions load
+into every arm) or in a shared temporary root, or without passing gates.
 
-Harness revision. `origin/main` already contains the c01 and c02 heads, so
-for these tasks the valid harness revision is the PR #348 head, branched from
-7b017f17. #348 is needed in any case: before it, `auto verify stop` blocks
-every stop after a change under `internal/cli`, whose tests take about 32
-minutes, and c01 and c02 both change `internal/cli`, so the `full` arm would
-measure that bug as timeouts, not the verification layer. #348's branch is
-still moving; the runner records the SHA it used.
+Harness revision. For c01 and c02 it is 30722ad9: the last commit of PR #348,
+branched from 7b017f17, before main was merged into that branch. #348 is
+needed: before it, `auto verify stop` blocks every stop after a change under
+`internal/cli`, whose tests take about 32 minutes, and c01 and c02 both change
+`internal/cli`, so the `full` arm would measure that bug as timeouts, not the
+verification layer. Both tasks list 30722ad9 in `harness_requires`, so
+7b017f17 is refused. #348 is merged; its branch head fcfbeff4 and `origin/main`
+contain the c01 and c02 heads and are refused. The runner records the SHA.
 
 Primary measure per arm: `review` cases passed. `feature` and `guard` cases
 are reported with it.

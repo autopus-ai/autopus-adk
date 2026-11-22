@@ -39,6 +39,39 @@ def arm_settings(arm: str) -> dict:
     return settings
 
 
+def user_settings(arm: str) -> dict:
+    """The trial's user settings: the arm's settings plus what nested sessions must not get either.
+
+    A nested `claude -p` (pkg/qa/agentexec) does not inherit the top-level --strict-mcp-config or
+    --disallowedTools, so web tools are denied and project MCP servers stay off here as well.
+    """
+    return {**arm_settings(arm), 'permissions': {'deny': ['WebFetch', 'WebSearch']},
+            'enableAllProjectMcpServers': False}
+
+
+# Claude Code snapshots the Bash tool's environment with `$SHELL -c -l`; a login zsh runs
+# /etc/zprofile (path_helper), which puts /usr/local/bin and /opt/homebrew/bin before the pinned
+# bin. This wrapper drops the login flags and starts zsh with no startup files (-f).
+SHELL_WRAPPER = '''#!/bin/sh
+for arg; do
+  shift
+  case "$arg" in
+    -l|--login) ;;
+    -lc|-cl) set -- "$@" -c ;;
+    *) set -- "$@" "$arg" ;;
+  esac
+done
+exec /bin/zsh -f "$@"
+'''
+
+
+def write_shell_wrapper(path: Path) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(SHELL_WRAPPER)
+    path.chmod(0o755)
+    return path
+
+
 def isolated_home(trial: Path, arm: str, workspace: Path) -> dict:
     """A HOME and CLAUDE_CONFIG_DIR below the trial holding no login.
 
@@ -53,7 +86,7 @@ def isolated_home(trial: Path, arm: str, workspace: Path) -> dict:
     state = {'hasCompletedOnboarding': True, 'bypassPermissionsModeAccepted': True,
              'projects': {str(Path(workspace).resolve()): {'hasTrustDialogAccepted': True}}}
     (config / '.claude.json').write_text(json.dumps(state))
-    (config / 'settings.json').write_text(json.dumps(arm_settings(arm)))
+    (config / 'settings.json').write_text(json.dumps(user_settings(arm)))
     return {'HOME': str(home), 'CLAUDE_CONFIG_DIR': str(config)}
 
 
@@ -68,11 +101,12 @@ def read_credential(path: Path) -> str:
     return value
 
 
-def agent_env(base: dict, home: dict, temp: Path, credential_kind: str, credential: str, path: list) -> dict:
+def agent_env(base: dict, home: dict, temp: Path, credential_kind: str, credential: str, path: list,
+              shell: str = '/bin/zsh') -> dict:
     """The whole environment of the agent process: an allowlist, never the host's environment."""
     env = {key: base[key] for key in INHERITED if key in base}
     env.update(home)
-    env.update(TMPDIR=str(temp), CLAUDE_CODE_TMPDIR=str(temp), SHELL='/bin/zsh',
+    env.update(TMPDIR=str(temp), CLAUDE_CODE_TMPDIR=str(temp), SHELL=str(shell),
                PATH=os.pathsep.join([*map(str, path), *SYSTEM_PATH]))
     env[TOKEN_ENV[credential_kind]] = credential
     env.update(DISABLE_AUTOUPDATER='1', CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC='1', DISABLE_TELEMETRY='1',

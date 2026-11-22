@@ -1,6 +1,7 @@
 """Claude Code driver contracts: arm settings, isolation, environment, argv and the sandbox wrapper."""
 import json
 import os
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -36,8 +37,12 @@ class IsolationTests(unittest.TestCase):
             home = claude_agent.isolated_home(Path(d), 'instructions', work)
             config = Path(home['CLAUDE_CONFIG_DIR'])
             self.assertEqual(sorted(p.name for p in config.iterdir()), ['.claude.json', 'settings.json'])
-            # A nested `claude -p` reads user settings, so the arm's hook switch must be there too.
-            self.assertTrue(json.loads((config / 'settings.json').read_text())['disableAllHooks'])
+            # A nested `claude -p` reads user settings, so the arm's hook switch must be there too,
+            # with the web tools denied and project MCP servers off.
+            user = json.loads((config / 'settings.json').read_text())
+            self.assertTrue(user['disableAllHooks'])
+            self.assertEqual(user['permissions']['deny'], ['WebFetch', 'WebSearch'])
+            self.assertIs(user['enableAllProjectMcpServers'], False)
             state = json.loads((config / '.claude.json').read_text())
             self.assertTrue(state['projects'][str(work.resolve())]['hasTrustDialogAccepted'])
             with self.assertRaises(FileExistsError):
@@ -69,6 +74,19 @@ class IsolationTests(unittest.TestCase):
                 claude_agent.read_credential(path)
 
 
+class ShellWrapperTests(unittest.TestCase):
+    def test_login_flags_are_dropped_and_no_startup_file_runs(self):
+        with tempfile.TemporaryDirectory() as d:
+            shell = claude_agent.write_shell_wrapper(Path(d) / 'bin' / 'zsh')
+            env = {'PATH': '/pinned:/usr/bin:/bin', 'HOME': d, 'ZDOTDIR': d}
+            Path(d, '.zshrc').write_text('export PATH=/from-zshrc:$PATH\n')
+            Path(d, '.zprofile').write_text('export PATH=/from-zprofile:$PATH\n')
+            for args in (['-c', '-l', 'echo "$PATH"'], ['-l', '-c', 'echo "$PATH"'], ['-lc', 'echo "$PATH"'],
+                         ['--login', '-c', 'echo "$PATH"']):
+                out = subprocess.run([str(shell), *args], env=env, capture_output=True, text=True, check=True)
+                self.assertEqual(out.stdout.strip(), '/pinned:/usr/bin:/bin', args)
+
+
 class SandboxTests(unittest.TestCase):
     def test_wrapper_params_and_refusals(self):
         with tempfile.TemporaryDirectory() as d:
@@ -94,11 +112,12 @@ class SandboxTests(unittest.TestCase):
         profile = claude_agent.PROFILE.read_text()
         for rule in ('(deny file-write*)', '(deny network-outbound (remote unix-socket))', '(deny signal)',
                      '(allow signal (target same-sandbox))', '(subpath "/Users")', '(subpath "/private/var/folders")',
-                     '(global-name "com.apple.SecurityServer")'):
+                     '(global-name "com.apple.SecurityServer")', '(deny lsopen)', '(deny user-preference-write)'):
             self.assertIn(rule, profile)
         writes = profile.split('(allow file-write*')[1].split('\n\n')[0]
         self.assertNotIn('/private/var/folders', writes)
         self.assertNotIn('(subpath "/private/tmp")', writes)
+        self.assertNotIn('/private/tmp/claude-', profile)
 
 
 if __name__ == '__main__':

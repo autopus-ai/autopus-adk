@@ -42,6 +42,9 @@ class AncestryTests(unittest.TestCase):
             merged = git(d, 'rev-parse', 'HEAD')
             self.assertEqual(len(guard_c.contains_task_head(Path(d), merged, [task])), 2)
             self.assertEqual(sources_c.resolve_revision(Path(d), 'harness'), harness)
+            needs = dict(task, harness_requires=[harness])
+            self.assertEqual(guard_c.missing_requirements(Path(d), harness, [needs]), [])
+            self.assertEqual(len(guard_c.missing_requirements(Path(d), base, [needs])), 1)
             unknown = dict(task, heads=dict(task['heads'], fixed='0' * 40))
             self.assertIn('unknown', guard_c.contains_task_head(Path(d), harness, [unknown])[0])
 
@@ -56,6 +59,13 @@ class OutputTests(unittest.TestCase):
             (Path(d) / 'a' / 'b').mkdir()
             (Path(d) / 'a' / 'b' / 'CLAUDE.md').write_text('x')
             self.assertEqual(len(guard_c.parent_instructions(out)), 2)
+
+
+    def test_shared_temporary_roots_are_refused(self):
+        self.assertEqual(guard_c.shared_temp(Path('/private/tmp/claude-502/run')), ['/private/tmp'])
+        self.assertEqual(guard_c.shared_temp(Path('/tmp/run')), ['/private/tmp'])
+        self.assertEqual(guard_c.shared_temp(Path('/private/var/tmp/x')), ['/private/var/tmp'])
+        self.assertEqual(guard_c.shared_temp(Path('/Users/Shared/pilot-c/run')), [])
 
 
 class GatesTests(unittest.TestCase):
@@ -89,11 +99,14 @@ class PinTests(unittest.TestCase):
                          {'type': 'command', 'command': 'out=$(auto disk gate) && echo "$out"; exit 0'},
                          {'type': 'command', 'command': 'autopus-other run'}]}]}
             settings.write_text(json.dumps({'hooks': hooks}))
-            surface_c.pin_hooks(Path(d), Path('/run/bin/auto'))
+            (Path(d) / '.mcp.json').write_text('{}')
+            pinned = surface_c.pin_hooks(Path(d), Path('/run dir/bin/auto'))
+            self.assertTrue(pinned['mcp_json_removed'])
+            self.assertFalse((Path(d) / '.mcp.json').exists())
             data = json.loads(settings.read_text())['hooks']
-            self.assertEqual(data['Stop'][0]['hooks'][0]['command'], '/run/bin/auto verify stop')
+            self.assertEqual(data['Stop'][0]['hooks'][0]['command'], "'/run dir/bin/auto' verify stop")
             self.assertEqual(data['PreToolUse'][0]['hooks'][0]['command'],
-                             'out=$(/run/bin/auto disk gate) && echo "$out"; exit 0')
+                             'out=$(\'/run dir/bin/auto\' disk gate) && echo "$out"; exit 0')
             self.assertEqual(data['PreToolUse'][0]['hooks'][1]['command'], 'autopus-other run')
 
 

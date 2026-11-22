@@ -15,15 +15,16 @@
 ;; frozen oracles), both checkouts, ~/.ssh, ~/.aws, ~/.config, shell history
 ;; and the account's Claude state are unreadable. The keychain is closed both
 ;; as files and as Mach services. Signals reach only this sandbox instance.
+;; LaunchServices opens and preference writes through cfprefsd are denied:
+;; both would act outside the sandbox. Nothing outside the trial is writable,
+;; /private/tmp included: Claude Code 2.1.322 writes its Bash cwd file to
+;; CLAUDE_CODE_TMPDIR, which agent_env sets inside the trial.
 (version 1)
 (allow default)
 
 (deny file-write*)
 (allow file-write*
   (subpath (param "TRIAL"))
-  ;; Fallback for Claude Code's Bash tool cwd files (/tmp/claude-<id>-cwd) should it ignore
-  ;; CLAUDE_CODE_TMPDIR: single files directly in /tmp with that prefix, nothing below them.
-  (regex #"^/private/tmp/claude-[^/]+$")
   (literal "/dev/null")
   (literal "/dev/tty")
   (regex #"^/dev/(fd/|ttys)"))
@@ -42,7 +43,6 @@
   (subpath "/private/var/tmp"))
 (allow file-read-data file-read-xattr
   (subpath (param "TRIAL"))
-  (regex #"^/private/tmp/claude-[^/]+$")
   (subpath (param "MODCACHE"))
   (subpath (param "BIN"))
   (subpath (param "TOOL0"))
@@ -64,3 +64,10 @@
 
 (deny signal)
 (allow signal (target same-sandbox))
+
+;; LaunchServices would start an app the trial builds outside this sandbox (open -g -j -n x.app),
+;; and cfprefsd writes ~/Library/Preferences on the trial's behalf (defaults write).
+(deny lsopen)
+(deny user-preference-write)
+;; The pasteboard can hold anything the maintainer copied.
+(deny mach-lookup (global-name "com.apple.pasteboard.1"))

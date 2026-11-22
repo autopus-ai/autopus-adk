@@ -12,6 +12,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shlex
 import shutil
 import subprocess
 
@@ -101,9 +102,14 @@ def pin_hooks(surface: Path, auto: Path) -> dict:
         for group in groups:
             for hook in group.get('hooks') or []:
                 if isinstance(hook.get('command'), str):
-                    hook['command'] = AUTO_COMMAND.sub(str(auto).replace('\\', '\\\\'), hook['command'])
+                    hook['command'] = AUTO_COMMAND.sub(lambda _: shlex.quote(str(auto)), hook['command'])
     settings.write_text(json.dumps(data, indent=2) + '\n')
-    return {'pinned_settings_hash': hashlib.sha256(settings.read_bytes()).hexdigest()}
+    # Project MCP servers load in no arm (--strict-mcp-config); the file would still let a nested
+    # session start them through `bash -l`, so it does not enter the trial.
+    mcp = surface / '.mcp.json'
+    removed = mcp.is_file()
+    mcp.unlink(missing_ok=True)
+    return {'pinned_settings_hash': hashlib.sha256(settings.read_bytes()).hexdigest(), 'mcp_json_removed': removed}
 
 
 def stop_hooks(surface: Path) -> list:

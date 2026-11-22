@@ -1,4 +1,5 @@
 """Pilot C runner contracts: schedule, report, surface config edit, the deadline kill and overlay grading."""
+import os
 import sys
 import tempfile
 import time
@@ -80,7 +81,8 @@ class DeadlineTests(unittest.TestCase):
             result = trial_c.execute_tree(agent, root, {'PATH': '/usr/bin:/bin'}, root / 'out', root / 'err', 1.0)
             self.assertTrue(result['timed_out'])
             self.assertTrue(result['stragglers'])
-            self.assertFalse(result['leftover'])
+            # No sandbox instance to count: an empty sweep cannot prove the tree empty.
+            self.assertIsNone(result['leftover'])
             self.assertLess(time.monotonic() - started, 20)
             self.assertIn('started', (root / 'out').read_text())
             time.sleep(3.5)
@@ -102,20 +104,25 @@ class OverlayTests(unittest.TestCase):
                 (root / 'docs').mkdir()
                 (root / 'internal' / 'cli' / 'a.go').write_text('base a')
                 (root / 'internal' / 'cli' / 'gone.go').write_text('base gone')
+                (root / 'internal' / 'cli' / 'dropped.go').write_text('base dropped')
                 (root / 'internal' / 'cli' / 'a_test.go').write_text('base test')
                 (root / 'docs' / 'x.md').write_text('base doc')
             (work / 'internal' / 'cli' / 'a.go').write_text('candidate a')
             (work / 'internal' / 'cli' / 'gone.go').unlink()
+            (work / 'internal' / 'cli' / 'dropped.go').unlink()
             (work / 'internal' / 'cli' / 'new.go').write_text('candidate new')
             (work / 'internal' / 'cli' / 'a_test.go').write_text('agent test edit')
             (work / 'internal' / 'cli' / 'b_test.go').write_text('agent test')
             (work / 'internal' / 'cli' / 'link.go').symlink_to('/etc/hosts')
+            os.mkfifo(work / 'internal' / 'cli' / 'gone.go')  # a FIFO where a base file was
             (work / 'docs' / 'x.md').write_text('agent doc')
             (work / 'CLAUDE.md').write_text('harness')
             record = grade_c.overlay(base, work, ['internal/cli/*'], dest)
             self.assertEqual(sorted(record['copied']), ['internal/cli/a.go', 'internal/cli/new.go'])
-            self.assertEqual(record['deleted'], ['internal/cli/gone.go'])
+            self.assertEqual(record['deleted'], ['internal/cli/dropped.go'])
             self.assertEqual(record['rejected_symlinks'], ['internal/cli/link.go'])
+            self.assertEqual(record['rejected_special'], ['internal/cli/gone.go'])
+            self.assertEqual((dest / 'internal' / 'cli' / 'gone.go').read_text(), 'base gone')
             self.assertEqual((dest / 'internal' / 'cli' / 'a_test.go').read_text(), 'base test')
             self.assertFalse((dest / 'internal' / 'cli' / 'b_test.go').exists())
             self.assertFalse((dest / 'internal' / 'cli' / 'link.go').exists())

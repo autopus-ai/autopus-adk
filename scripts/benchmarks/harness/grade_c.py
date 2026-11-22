@@ -11,6 +11,7 @@ import fnmatch
 import os
 from pathlib import Path
 import shutil
+import stat
 import subprocess
 
 import grader
@@ -31,7 +32,7 @@ def _allowed(rel: str, allowed: list) -> bool:
 def overlay(base: Path, work: Path, allowed: list, dest: Path) -> dict:
     """dest = base + the candidate's regular non-test files under allowed_paths; see module doc."""
     shutil.copytree(base, dest, symlinks=True)
-    record = {'copied': [], 'deleted': [], 'rejected_symlinks': []}
+    record = {'copied': [], 'deleted': [], 'rejected_symlinks': [], 'rejected_special': []}
     for directory, dirs, files in os.walk(work):
         dirs[:] = [d for d in dirs if d != '.git']
         for name in files + [d for d in dirs if (Path(directory) / d).is_symlink()]:
@@ -39,11 +40,16 @@ def overlay(base: Path, work: Path, allowed: list, dest: Path) -> dict:
             rel = path.relative_to(work).as_posix()
             if rel.endswith('_test.go') or oracle_c.owned(rel) or not _allowed(rel, allowed):
                 continue
-            if path.is_symlink():
+            mode = os.lstat(path).st_mode
+            if stat.S_ISLNK(mode):
                 record['rejected_symlinks'].append(rel)
                 continue
+            if not stat.S_ISREG(mode):
+                # A FIFO or device would block or mislead the copy; it is never a production file.
+                record['rejected_special'].append(rel)
+                continue
             target = dest / rel
-            if target.is_file() and target.read_bytes() == path.read_bytes():
+            if target.is_file() and not target.is_symlink() and target.read_bytes() == path.read_bytes():
                 continue
             target.parent.mkdir(parents=True, exist_ok=True)
             if target.is_symlink() or target.exists():
@@ -53,7 +59,7 @@ def overlay(base: Path, work: Path, allowed: list, dest: Path) -> dict:
     for path in sorted(Path(base).rglob('*')):
         rel = path.relative_to(base).as_posix()
         if (path.is_file() and not rel.endswith('_test.go') and _allowed(rel, allowed)
-                and not (Path(work) / rel).exists() and not (Path(work) / rel).is_symlink()):
+                and not os.path.lexists(Path(work) / rel)):
             (dest / rel).unlink()
             record['deleted'].append(rel)
     return record

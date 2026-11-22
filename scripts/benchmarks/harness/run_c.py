@@ -88,6 +88,7 @@ def main(argv=None) -> int:
            'timeout': args.timeout, 'permission_mode': args.permission_mode, 'frozen': frozen,
            'tools_dir': output / 'bin' / 'tools', 'tool_names': [t for t in args.tools.split(',') if t],
            'claude': str(output / 'bin' / 'tools' / 'claude'), 'sandbox': not args.no_sandbox,
+           'shell': output / 'bin' / 'shell' / 'zsh',
            'protected': [repo, HERE.parents[2]], 'account_home': str(Path.home()), 'harness_revision': harness,
            'credential_kind': args.credential_kind,
            'credential': claude_agent.read_credential(args.credential_file) if args.credential_file else 'DRY-RUN'}
@@ -175,7 +176,10 @@ def dry_run(ctx: dict, plan: list, protocol: dict) -> int:
         prepared = trial_c.prepare(ctx, task, arm, name)
         warm = trial_c.execute_tree(prepared['warm'], prepared['work'], prepared['env'], prepared['measure'] /
                                     'warm.log', prepared['measure'] / 'warm.err', 1800, scratch=prepared['trial'])
+        resolved = subprocess.run(prepared['path_probe'], cwd=prepared['work'], env=prepared['env'],
+                                  capture_output=True, text=True, timeout=120).stdout.split()
         print(json.dumps({'trial': name, 'argv': prepared['argv'], 'env_keys': sorted(prepared['env']),
+                          'bash_tool_resolves': resolved,
                           'prompt_sha256': trial_c.digest(prepared['prompt'].encode()), 'warm': warm,
                           'harness_files': sorted(p.name for p in prepared['work'].iterdir()
                                                   if p.name in ('CLAUDE.md', '.claude', 'autopus.yaml'))}, indent=2))

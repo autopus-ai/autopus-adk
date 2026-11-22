@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 import subprocess
 
+import claude_agent
 import grade_c
 import surface_c
 import trial_c
@@ -42,6 +43,7 @@ def prepare_sources(ctx: dict, tasks: list, repo: Path) -> dict:
     else:
         ctx['tools'] = {p.name: os.path.realpath(p) for p in sorted(ctx['tools_dir'].iterdir())}
     bin_dir = build_harness(ctx, repo)
+    claude_agent.write_shell_wrapper(ctx['shell'])
     sources = {}
     for base in sorted({task['heads']['base'] for task in tasks}):
         root = ctx['output'] / 'sources' / base[:12]

@@ -5,6 +5,9 @@ A run refuses to start when its result could not mean what it claims:
     on the agent's PATH would carry the reviewed code (the answer);
   * the output directory has an ancestor holding CLAUDE.md, CLAUDE.local.md or .claude/: Claude Code
     loads parent instructions and rules into every arm, native included;
+  * the harness revision lacks a commit a task names in harness_requires (for c01/c02 the #348
+    verify-stop budget fix, without which every stop after an internal/cli change blocks);
+  * the output lies in a shared temporary root (/private/tmp, /private/var/tmp, $TMPDIR);
   * no passing gates.json (gate_c.py) for exactly this corpus and these oracles.
 The profiles, oracles and corpus are copied into the output first, so switching the runner's branch
 mid-run changes nothing.
@@ -32,6 +35,28 @@ def contains_task_head(repo: Path, harness: str, tasks: list) -> list:
             if code != 1:
                 found.append('%s %s %s (%s)' % (task['id'], kind, head[:12], 'ancestor' if code == 0 else 'unknown'))
     return found
+
+
+def missing_requirements(repo: Path, harness: str, tasks: list) -> list:
+    """Commits a task needs in the harness (task['harness_requires']) that harness does not contain."""
+    missing = []
+    for task in tasks:
+        for commit in task.get('harness_requires', []):
+            code = subprocess.run(['git', 'merge-base', '--is-ancestor', commit, harness], cwd=repo,
+                                  capture_output=True).returncode
+            if code != 0:
+                missing.append('%s needs %s' % (task['id'], commit[:12]))
+    return missing
+
+
+def shared_temp(output: Path) -> list:
+    """Temporary roots other sessions write into (Claude Code keeps its cwd files and scratchpads in
+    /private/tmp/claude-*); an output there could meet another session's files or symlinks."""
+    output = Path(os.path.realpath(output))
+    roots = [Path('/private/tmp'), Path('/private/var/tmp')]
+    if os.environ.get('TMPDIR'):
+        roots.append(Path(os.path.realpath(os.environ['TMPDIR'])))
+    return [str(root) for root in roots if root == output or root in output.parents]
 
 
 def parent_instructions(output: Path) -> list:
@@ -73,7 +98,13 @@ def preflight(repo: Path, output: Path, harness: str, tasks: list, gates: Path |
     leaked = contains_task_head(repo, harness, tasks)
     if leaked:
         raise SystemExit('the harness revision contains task heads (choose one branched before them, e.g. the '
-                         'PR #348 head for c01/c02): ' + '; '.join(leaked))
+                         'last PR #348 commit 30722ad9 for c01/c02): ' + '; '.join(leaked))
+    missing = missing_requirements(repo, harness, tasks)
+    if missing:
+        raise SystemExit('the harness revision lacks commits the tasks need: ' + '; '.join(missing))
+    temp = shared_temp(output)
+    if temp:
+        raise SystemExit('--output must not lie in a shared temporary root: ' + ', '.join(temp))
     found = parent_instructions(output)
     if found:
         raise SystemExit('--output lies below Claude Code instructions that every arm would load: ' + ', '.join(found))
