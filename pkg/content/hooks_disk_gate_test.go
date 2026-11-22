@@ -37,3 +37,11 @@ func TestDiskGateHook_ClaudeOnlyAndOptOut(t *testing.T) {
 	assert.Contains(t, diskGateCommandLine, "auto disk gate")
 	assert.Contains(t, diskGateCommandLine, "exit 0", "a gate fault never blocks a call")
 }
+
+func TestDiskGateHook_CPUGateAloneStillRegistersIt(t *testing.T) {
+	t.Parallel()
+	off, on := false, true
+	both := config.HooksConf{DiskGate: &config.DiskGateConf{Enabled: &off}, CPUGate: &on}
+	assert.Equal(t, 1, diskGateHooks(t, both, "claude-code"), "cpu_gate needs the hook even with disk_gate off")
+	assert.Equal(t, 1, diskGateHooks(t, config.HooksConf{CPUGate: &on}, "claude-code"), "registered once, not twice")
+}

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -13,7 +14,10 @@ import (
 // @AX:WARN [AUTO] @AX:SPEC: SPEC-CONTEXT-ENGINEERING-001: this doctor orchestrator contains more than eight conditional branches.
 // @AX:REASON [AUTO]: platform validation, dependency repair, health gates, and advisory checks converge on the final verdict.
 func runDoctorText(cmd *cobra.Command, opts doctorOptions) error {
-	out := cmd.OutOrStdout()
+	// The tally counts the ERROR lines this report prints, so the result box
+	// says FAIL only when the reader can see what failed.
+	tally := tui.NewTally(cmd.OutOrStdout())
+	var out io.Writer = tally
 
 	// The banner follows the config load so it can name the project actually
 	// being diagnosed. It used to print the literal "autopus-adk" regardless of
@@ -30,6 +34,16 @@ func runDoctorText(cmd *cobra.Command, opts doctorOptions) error {
 
 	ctx := doctorCommandContext(cmd)
 	allOK := true
+	var unhealthy []string
+	markUnhealthy := func(section string) {
+		allOK = false
+		for _, seen := range unhealthy {
+			if seen == section {
+				return
+			}
+		}
+		unhealthy = append(unhealthy, section)
+	}
 	// `--fix` only installs missing dependencies. A missing or invalid managed
 	// surface is installed by `auto update`, so the two failure classes are
 	// tracked apart: a fresh clone of a repo that gitignores its harness fails
@@ -42,13 +56,18 @@ func runDoctorText(cmd *cobra.Command, opts doctorOptions) error {
 
 		if validateErr != nil {
 			tui.FAIL(out, fmt.Sprintf("%s 검증 실패: %v", p, validateErr))
-			allOK = false
+			markUnhealthy(p)
 			platformFailed = true
 			continue
 		}
 		if p == "omp" {
-			if !renderOMPDoctorReadinessText(ctx, out, opts.dir, validationErrs) {
-				allOK = false
+			// Degraded OMP readiness is a warning: `auto update` cannot repair
+			// model routing, so only a failed check names the managed surface.
+			healthy, failed := renderOMPDoctorReadinessText(ctx, out, opts.dir, validationErrs)
+			if !healthy {
+				markUnhealthy(p)
+			}
+			if failed {
 				platformFailed = true
 			}
 			continue
@@ -62,7 +81,7 @@ func runDoctorText(cmd *cobra.Command, opts doctorOptions) error {
 				switch strings.ToUpper(strings.TrimSpace(ve.Level)) {
 				case "ERROR":
 					tui.FAIL(out, detail)
-					allOK = false
+					markUnhealthy(p)
 					platformFailed = true
 				case "WARN":
 					tui.SKIP(out, detail)
@@ -80,7 +99,7 @@ func runDoctorText(cmd *cobra.Command, opts doctorOptions) error {
 			tui.OK(out, s.Name)
 		} else if s.Required {
 			tui.FAIL(out, fmt.Sprintf("%s not installed (install: %s)", s.Name, s.InstallCmd))
-			allOK = false
+			markUnhealthy("Dependencies")
 			depsMissing = true
 		} else {
 			tui.SKIP(out, fmt.Sprintf("%s not installed (optional, install: %s)", s.Name, s.InstallCmd))
@@ -93,14 +112,15 @@ func runDoctorText(cmd *cobra.Command, opts doctorOptions) error {
 			missingDeps = filterRequired(missingDeps)
 		}
 		if len(missingDeps) > 0 {
-			if err := runDoctorFix(cmd.OutOrStdout(), missingDeps, opts.yes); err != nil {
+			if err := runDoctorFix(out, missingDeps, opts.yes); err != nil {
 				tui.FAIL(out, fmt.Sprintf("Auto-install failed: %v", err))
+				markUnhealthy("Dependencies")
 			}
 		}
 	}
 
 	if !checkRuntimeProcessesText(out, opts) {
-		allOK = false
+		markUnhealthy("Runtime Processes")
 	}
 
 	// Parent-rule conflicts are a Claude Code concern: only that runtime walks
@@ -118,7 +138,7 @@ func runDoctorText(cmd *cobra.Command, opts doctorOptions) error {
 			} else {
 				tui.SKIP(out, fmt.Sprintf("Parent rules: %s/.claude/rules/%s/", c.ParentDir, c.Namespace))
 				tui.Bullet(out, "Run 'auto init' or 'auto update' to configure rule isolation.")
-				allOK = false
+				markUnhealthy("Rule Conflicts")
 			}
 		}
 	}
@@ -137,29 +157,31 @@ func runDoctorText(cmd *cobra.Command, opts doctorOptions) error {
 	// so it never touches allOK.
 	checkDesktopShimText(out, diagnoseDesktopShim())
 	if !checkHomebrewTrustText(out, diagnoseHomebrewTrust(ctx)) {
-		allOK = false
+		markUnhealthy("Homebrew Tap Trust")
 	}
 
 	tui.SectionHeader(out, "Quality Gate")
 	if !checkQualityGate(out, cfg) {
-		allOK = false
+		markUnhealthy("Quality Gate")
 	}
 	if !checkCodexModelOwnershipText(out, opts.dir, cfg) {
-		allOK = false
+		markUnhealthy("Codex Model Ownership")
 	}
 	// Codex agent concurrency is advisory: a drifted worker ceiling is worth
 	// reporting but never marks the harness unhealthy.
 	checkCodexAgentConcurrencyText(out, opts.dir, cfg)
 
 	if !checkProviderTransportSmokeText(out, cfg, opts) {
-		allOK = false
+		markUnhealthy("Provider Transport")
 	}
-	allOK = checkProviderReadinessText(ctx, out, cfg) && allOK
+	if !checkProviderReadinessText(ctx, out, cfg) {
+		markUnhealthy("Provider Readiness")
+	}
 
 	if configuresClaudeCode(cfg) {
 		tui.SectionHeader(out, "Hooks & Permissions")
 		if !checkHooksPermissions(out, opts.dir) {
-			allOK = false
+			markUnhealthy("Hooks & Permissions")
 		}
 	}
 	// The edit-guard registration report is advisory and never touches allOK.
@@ -167,11 +189,11 @@ func runDoctorText(cmd *cobra.Command, opts doctorOptions) error {
 	checkReaText(ctx, out, opts.dir, cfg)
 
 	// Legacy orchestra keys and stale completion hooks are what `auto update`
-	// removes, so they share the managed-surface remediation unless every
-	// remaining member is one that update keeps.
+	// removes, so the result box names it unless every remaining member is one
+	// that update keeps.
 	retiredHealthy, retiredUpdateFixes := checkRetiredOrchestraText(out, opts.dir, cfg)
 	if !retiredHealthy {
-		allOK = false
+		markUnhealthy("Retired Orchestra Surface")
 	}
 
 	// Context weight is advisory: it warns on an over-weight context catalog
@@ -184,7 +206,7 @@ func runDoctorText(cmd *cobra.Command, opts doctorOptions) error {
 	hygiene := collectStatusHygiene(opts.dir)
 	renderHygieneText(out, hygiene)
 	if hygiene.hasWarning() {
-		allOK = false
+		markUnhealthy("Hygiene")
 	}
 
 	// Drift observation is advisory: it mirrors the JSON drift checks but never
@@ -194,12 +216,19 @@ func runDoctorText(cmd *cobra.Command, opts doctorOptions) error {
 	renderEvidenceFreshnessText(out, opts.dir, cfg)
 
 	fmt.Fprintln(out)
-	tui.ResultBox(out, allOK, func() string {
-		if allOK {
-			return "All checks passed"
-		}
-		return doctorRemediationAdvice(platformFailed || retiredUpdateFixes, depsMissing)
-	}())
+	verdict := decideDoctorVerdict(doctorVerdictInput{
+		allOK: allOK, errorLines: tally.Errors(), unhealthy: unhealthy,
+		updateFixes: platformFailed || retiredUpdateFixes, depsMissing: depsMissing,
+		retiredUpdateFixes: retiredUpdateFixes,
+	})
+	switch verdict.kind {
+	case doctorVerdictPass:
+		tui.ResultBox(out, true, verdict.message)
+	case doctorVerdictFail:
+		tui.ResultBox(out, false, verdict.message)
+	default:
+		tui.WarnResultBox(out, verdict.message)
+	}
 
 	return nil
 }

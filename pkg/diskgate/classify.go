@@ -17,6 +17,14 @@ type Verdict struct {
 	Match string
 }
 
+// step is one heavy step heavyStep recognised. io marks a step that mostly
+// waits on the network and disk, an install or a checkout, which the CPU
+// classification leaves out.
+type step struct {
+	match string
+	io    bool
+}
+
 // envAssign is a NAME=value prefix word.
 var envAssign = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*=`)
 
@@ -26,49 +34,70 @@ var envAssign = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*=`)
 // word prefixes such as "make release" to the built-in list; make itself is
 // not heavy by default, because most of its targets are not.
 func Classify(line string, extra ...string) Verdict {
+	return classify(line, parsePrefixes(extra), 0)
+}
+
+// parsePrefixes splits each extra command into its words, dropping blanks.
+func parsePrefixes(extra []string) [][]string {
 	var prefixes [][]string
 	for _, command := range extra {
 		if words := strings.Fields(command); len(words) > 0 {
 			prefixes = append(prefixes, words)
 		}
 	}
-	return classify(line, prefixes, 0)
+	return prefixes
 }
 
 func classify(line string, extra [][]string, depth int) Verdict {
 	for _, words := range segments(lex(line)) {
-		if v := classifyWords(words, extra, depth); v.Heavy {
-			return v
+		if s := classifyWords(words, extra, depth); s.match != "" {
+			return Verdict{Heavy: true, Match: s.match}
 		}
 	}
 	return Verdict{}
 }
 
-func classifyWords(words []string, extra [][]string, depth int) Verdict {
+func classifyWords(words []string, extra [][]string, depth int) step {
 	words = stripPrefixes(words)
 	if len(words) == 0 {
-		return Verdict{}
+		return step{}
 	}
 	name := filepath.Base(words[0])
 	args := words[1:]
 	switch name {
 	case "auto":
-		return Verdict{}
+		return step{}
 	case "sh", "bash", "zsh", "dash":
-		if i := slices.Index(args, "-c"); i >= 0 && i+1 < len(args) && depth < maxShellDepth {
-			return classify(args[i+1], extra, depth+1)
+		if script, ok := shellScript(args); ok && depth < maxShellDepth {
+			if v := classify(script, extra, depth+1); v.Heavy {
+				return step{match: v.Match}
+			}
 		}
-		return Verdict{}
+		return step{}
 	}
-	if match := heavyStep(name, args); match != "" {
-		return Verdict{Heavy: true, Match: match}
+	if s := heavyStep(name, args); s.match != "" {
+		return s
 	}
 	for _, prefix := range extra {
 		if matchesPrefix(name, args, prefix) {
-			return Verdict{Heavy: true, Match: strings.Join(prefix, " ")}
+			return step{match: strings.Join(prefix, " ")}
 		}
 	}
-	return Verdict{}
+	return step{}
+}
+
+// shellScript returns the script of `sh -c script`, the -c possibly in a
+// cluster of short options such as -lc or -ec.
+func shellScript(args []string) (string, bool) {
+	for i, a := range args {
+		if !strings.HasPrefix(a, "-") || strings.HasPrefix(a, "--") {
+			continue
+		}
+		if strings.ContainsRune(a[1:], 'c') && i+1 < len(args) {
+			return args[i+1], true
+		}
+	}
+	return "", false
 }
 
 // matchesPrefix reports whether the command name args starts with the words
@@ -85,30 +114,30 @@ func matchesPrefix(name string, args, prefix []string) bool {
 	return true
 }
 
+// xargsValued are the xargs options followed by a value.
+var xargsValued = []string{"-n", "-P", "-I", "-L", "-s", "-E", "-d", "-a", "-J", "-R", "-S"}
+
 // stripPrefixes drops what runs before the command proper: `!`, NAME=value
 // assignments, and wrappers such as env, time, nice, nohup, command, exec,
-// sudo, and timeout, with their options.
+// sudo, timeout, and xargs, with their options. Wrappers are compared by
+// base name, so /usr/bin/time counts.
 func stripPrefixes(words []string) []string {
 	for len(words) > 0 {
 		w := words[0]
-		switch {
+		switch base := filepath.Base(w); {
 		case w == "!" || w == "{" || w == "}" || envAssign.MatchString(w):
 			words = words[1:]
-		case w == "env" || w == "command" || w == "exec" || w == "nohup" || w == "time" || w == "sudo" || w == "caffeinate":
+		case slices.Contains([]string{"env", "command", "exec", "nohup", "time", "sudo", "caffeinate"}, base):
 			words = words[1:]
 			for len(words) > 0 && (strings.HasPrefix(words[0], "-") || envAssign.MatchString(words[0])) {
 				words = words[1:]
 			}
-		case w == "nice":
-			words = words[1:]
-			if len(words) > 1 && words[0] == "-n" {
-				words = words[2:]
-			}
-		case w == "timeout":
-			words = words[1:]
-			for len(words) > 0 && strings.HasPrefix(words[0], "-") {
-				words = words[1:]
-			}
+		case base == "nice":
+			words = skipOptions(words[1:], "-n", "--adjustment")
+		case base == "xargs":
+			words = skipOptions(words[1:], xargsValued...)
+		case base == "timeout":
+			words = skipOptions(words[1:], "-s", "--signal", "-k", "--kill-after")
 			if len(words) > 0 {
 				words = words[1:] // the duration
 			}
@@ -117,6 +146,18 @@ func stripPrefixes(words []string) []string {
 		}
 	}
 	return nil
+}
+
+// skipOptions drops the leading options of words, and the value of each
+// option listed in valued.
+func skipOptions(words []string, valued ...string) []string {
+	for len(words) > 0 && strings.HasPrefix(words[0], "-") {
+		if slices.Contains(valued, words[0]) && len(words) > 1 {
+			words = words[1:]
+		}
+		words = words[1:]
+	}
+	return words
 }
 
 // subcommand returns the first argument that is not an option, skipping the
@@ -134,66 +175,4 @@ func subcommand(args []string, valued ...string) (string, []string) {
 		return a, args[i+1:]
 	}
 	return "", nil
-}
-
-// heavyStep names the heavy step name and args run, or returns "".
-func heavyStep(name string, args []string) string {
-	switch name {
-	case "go":
-		sub, _ := subcommand(args, "-C")
-		if slices.Contains([]string{"build", "test", "install", "run"}, sub) {
-			return "go " + sub
-		}
-	case "cargo":
-		sub, _ := subcommand(args, "-C", "--manifest-path", "--config", "-Z")
-		if slices.Contains([]string{"build", "b", "test", "t", "run", "r", "bench", "install"}, sub) {
-			return "cargo " + sub
-		}
-	case "npm", "pnpm", "yarn", "bun":
-		return nodeStep(name, args)
-	case "pip", "pip3", "uv", "poetry", "python", "python3":
-		return pythonStep(name, args)
-	case "gradle", "gradlew", "mvn", "mvnw":
-		return jvmStep(name, args)
-	case "podman":
-		sub, rest := subcommand(args, "--connection", "-c", "--url", "--log-level")
-		next, _ := subcommand(rest, "-f", "--file", "-p", "--project-name")
-		switch {
-		case sub == "build":
-			return "podman build"
-		case sub == "compose" && (next == "up" || next == "build"):
-			return "podman compose " + next
-		}
-	case "podman-compose":
-		if sub, _ := subcommand(args, "-f", "--file", "-p", "--project-name"); sub == "up" || sub == "build" {
-			return "podman-compose " + sub
-		}
-	case "docker":
-		sub, rest := subcommand(args, "--context", "-c", "-H", "--host", "--config", "-l", "--log-level")
-		switch sub {
-		case "build":
-			return "docker build"
-		case "buildx", "compose":
-			if next, _ := subcommand(rest, "-f", "--file", "-p", "--project-name", "--builder"); next == "build" || (sub == "compose" && next == "up") {
-				return "docker " + sub + " " + next
-			}
-		}
-	case "docker-compose":
-		if sub, _ := subcommand(args, "-f", "--file", "-p", "--project-name"); sub == "up" || sub == "build" {
-			return "docker-compose " + sub
-		}
-	case "xcodebuild":
-		for _, a := range args {
-			if slices.Contains([]string{"-version", "-list", "-showsdks", "-showBuildSettings", "-help", "-usage"}, a) {
-				return ""
-			}
-		}
-		return "xcodebuild"
-	case "git":
-		sub, rest := subcommand(args, "-C", "-c", "--git-dir", "--work-tree", "--namespace")
-		if next, _ := subcommand(rest); sub == "worktree" && next == "add" {
-			return "git worktree add"
-		}
-	}
-	return ""
 }

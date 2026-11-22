@@ -2,9 +2,10 @@ package content
 
 import "github.com/insajin/autopus-adk/pkg/adapter"
 
-// diskGateTimeoutSeconds bounds the disk gate. It reads one config and makes
-// one statfs; a timed-out pre-tool command does not block, so a hung gate
-// stays fail-open.
+// diskGateTimeoutSeconds bounds the disk gate. It finds and reads one
+// config, makes one statfs, and with the CPU gate on reads the load and the
+// lease directory; a timed-out pre-tool command does not block, so a hung
+// gate stays fail-open.
 const diskGateTimeoutSeconds = 5
 
 // DiskGateCommand is the bare disk gate invocation.

@@ -71,6 +71,10 @@ func ompModelDoctorCheckLevel(value string) (string, string) {
 		return "info", "pass"
 	case "degraded":
 		return "warning", "warn"
+	case omp.OMPReaSessionModelStatus:
+		// SPEC-REA-001 S11: running on the session model is the intended
+		// fallback for a REA role, not a blocked route.
+		return "info", "pass"
 	default:
 		return "error", "fail"
 	}
