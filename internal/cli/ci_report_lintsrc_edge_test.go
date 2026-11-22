@@ -47,6 +47,27 @@ func TestLintCheckout_LeavesTheIndexAlone(t *testing.T) {
 	if !os.SameFile(before, after) || !before.ModTime().Equal(after.ModTime()) {
 		t.Fatalf("the lint rewrote .git/index")
 	}
+
+	// Up to date with a stale stat cache: a work-tree diff refreshes the
+	// index only when a stat-dirty file matches the ref, which the behind
+	// case above never has. This is the common state and pins the
+	// commit-to-commit diff, not just the status call.
+	gitRun(t, clone, "merge", "-q", "--ff-only", "origin/main")
+	if err := os.Chtimes(wf, timeAgo(), timeAgo()); err != nil {
+		t.Fatal(err)
+	}
+	before, err = os.Stat(index)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lintCheckout(&cireport.Report{}, "", clone, "o/r", "o/r", nil)
+	after, err = os.Stat(index)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !os.SameFile(before, after) || !before.ModTime().Equal(after.ModTime()) {
+		t.Fatalf("the lint rewrote .git/index on an up-to-date checkout")
+	}
 }
 
 // A checkout of another repository than the one measured is never compared
@@ -97,6 +118,11 @@ func TestLintCheckout_RemoteWithoutWorkflowsSkipsTheLint(t *testing.T) {
 	notes := strings.Join(r.Notes, "\n")
 	if !strings.Contains(notes, "origin/main has no workflow files") || strings.Contains(notes, "could not be read") {
 		t.Fatalf("notes = %q", r.Notes)
+	}
+	// Exactly one note: the local ci.yml still exists, so a second "no
+	// workflow files in <local dir>" note would contradict the first.
+	if len(r.Notes) != 1 {
+		t.Fatalf("want only the remote note, got %q", r.Notes)
 	}
 }
 
