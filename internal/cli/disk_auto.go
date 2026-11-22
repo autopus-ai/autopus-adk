@@ -27,6 +27,7 @@ func maybeStartAutoReclaim(dir string) bool {
 	if strings.EqualFold(os.Getenv("AUTOPUS_DISK_AUTO_RECLAIM"), "off") || dir == "" {
 		return false
 	}
+	dir = diskConfigRoot(dir)
 	harness, err := config.LoadPreview(dir)
 	if err != nil {
 		return false

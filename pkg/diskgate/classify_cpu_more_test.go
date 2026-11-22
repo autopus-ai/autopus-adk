@@ -90,3 +90,50 @@ func TestClassify_HeredocBodyIsData(t *testing.T) {
 		assert.Equal(t, match, v.Match, line)
 	}
 }
+
+// Follow-ups to the CPU gate review: help flags after an `auto` suite step,
+// lookups of a tool's path, and here-documents a shell reads as its script.
+func TestClassifyCPU_FollowupCases(t *testing.T) {
+	t.Parallel()
+	for _, line := range []string{
+		"auto qa exec --help", "auto qa run --help", "auto workflow gate --help", "auto checklist run --help",
+		"auto qa loop -h", "auto qa mutate --version",
+		"command -v pytest", "command -v tsc", "command -V eslint", "command -pv mypy", "type pytest",
+		"which tsc", "hash eslint", "command -v pytest && pytest --version",
+		"ssh host <<EOF\ngo test ./...\nEOF", "cat <<EOF | ssh host\npytest\nEOF",
+		"bash script.sh <<EOF\ngo test ./...\nEOF",
+		"echo $((1<<4))", "echo $((1 << 4)) && ls",
+	} {
+		assert.False(t, ClassifyCPU(line).Heavy, line)
+	}
+	heavy := map[string]string{
+		"auto qa exec --all":                       "auto qa exec",
+		"command -v pytest && pytest":              "pytest",
+		"command pytest -q":                        "pytest",
+		"bash <<'EOF'\ngo test ./...\nEOF":         "go test",
+		"sh -s <<EOF\npnpm test\nEOF":              "pnpm test",
+		"cat <<'EOF' | bash\ncargo build\nEOF":     "cargo build",
+		"cat <<EOF | sudo bash -s\npytest\nEOF":    "pytest",
+		"zsh <<-EOF\n\ttsc --noEmit\n\tEOF":        "tsc",
+		"echo $((1<<4)) && go test ./...":          "go test",
+		"echo $((1<<4))\ngo test ./...":            "go test",
+		"bash > /tmp/log 2>&1 <<EOF\npytest\nEOF":  "pytest",
+		"bash -s -- arg <<EOF\nmypy .\nEOF\nls":    "mypy",
+		"cat <<A | bash\ngo vet ./...\nA\necho ok": "go vet",
+	}
+	for line, match := range heavy {
+		v := ClassifyCPU(line)
+		assert.True(t, v.Heavy, line)
+		assert.Equal(t, match, v.Match, line)
+	}
+	// The disk gate reads a heredoc script the same way.
+	for line, match := range map[string]string{
+		"bash <<'EOF'\ngo test ./...\nEOF":     "go test",
+		"cat <<'EOF' | bash\ncargo build\nEOF": "cargo build",
+	} {
+		v := Classify(line)
+		assert.True(t, v.Heavy, line)
+		assert.Equal(t, match, v.Match, line)
+	}
+	assert.False(t, Classify("ssh host <<EOF\ngo test ./...\nEOF").Heavy)
+}

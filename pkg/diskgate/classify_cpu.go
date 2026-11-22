@@ -73,13 +73,30 @@ func leaseWithoutCPU(words []string) ([]string, bool) {
 // runners, checklist runs, and workflow gates.
 func autoCPUStep(args []string) string {
 	sub, rest := subcommand(args)
-	next, _ := subcommand(rest)
+	next, after := subcommand(rest)
+	if onlyHelpFlags(after) {
+		return ""
+	}
 	switch {
 	case sub == "qa" && slices.Contains([]string{"exec", "run", "loop", "mutate"}, next),
 		sub == "checklist" && next == "run", sub == "workflow" && next == "gate":
 		return "auto " + sub + " " + next
 	}
 	return ""
+}
+
+// onlyHelpFlags reports whether args are nothing but -h, --help and
+// --version, which print and exit without running the step.
+func onlyHelpFlags(args []string) bool {
+	if len(args) == 0 {
+		return false
+	}
+	for _, a := range args {
+		if a != "-h" && a != "--help" && a != "--version" {
+			return false
+		}
+	}
+	return true
 }
 
 // uvRunValued are the `uv run` and `poetry run` options followed by a value.

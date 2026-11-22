@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -79,15 +80,11 @@ func diskGateReason(stdin io.Reader) string {
 	if dir == "" {
 		dir, _ = os.Getwd()
 	}
-	// The config is read at the project root, the nearest autopus.yaml at or
-	// above cwd, as the edit guard reads it, so a session working in a
-	// subdirectory keeps its gates. Free space is still measured at cwd.
-	root := dir
-	if found, err := editguard.FindProjectRoot(dir); err == nil {
-		root = found
-	}
+	// The config is read at the project root (diskConfigRoot), so a session
+	// working in a subdirectory keeps its gates. Free space is still measured
+	// at cwd.
 	disk, hooks := config.DiskConf{}.Effective(), config.HooksConf{}
-	if harness, err := config.LoadPreview(root); err == nil {
+	if harness, err := config.LoadPreview(diskConfigRoot(dir)); err == nil {
 		disk, hooks = harness.Disk.Effective(), harness.Hooks
 	}
 	if !hooks.IsDiskGateEnabled() {
@@ -107,4 +104,21 @@ func diskGateReason(stdin io.Reader) string {
 		"To run it anyway under a machine-wide reservation, use `auto disk lease --need <GiB> -- <command>`. "+
 		"If you lead other agents, tell each of them to pause heavy work too.",
 		diskspace.GiBString(space.AvailBytes), diskspace.DisplayPath(space.Mount), diskspace.GiBString(disk.FloorBytes()), verdict.Match))
+}
+
+// diskConfigRoot returns the directory whose autopus.yaml governs dir: the
+// nearest one at or above dir, as the edit guard finds it, or dir itself when
+// there is none. The gate, `auto disk` without --dir, and the automatic
+// reclaim all read the config there, so a command run in a subdirectory sees
+// the same floor and lease settings the gate enforced. When dir is the root
+// itself, it is returned as given, not in its symlink-resolved spelling.
+func diskConfigRoot(dir string) string {
+	found, err := editguard.FindProjectRoot(dir)
+	if err != nil {
+		return dir
+	}
+	if resolved, err := filepath.EvalSymlinks(dir); err == nil && resolved == found {
+		return dir
+	}
+	return found
 }

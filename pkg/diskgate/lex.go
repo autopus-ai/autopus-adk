@@ -17,13 +17,16 @@ type token struct {
 // substitution $( ... ) and backquotes outside quotes are treated as
 // operators too, so the command they run is classified on its own. The body
 // of a here-document (<<WORD, <<-WORD, quoted or not) is data, not commands,
-// so it is skipped through its terminator line. An unterminated quote or
-// here-document ends at the end of the input.
+// so it is skipped through its terminator line, unless a shell reads it as
+// its script (heredocIsScript): then its lines are lexed as commands.
+// Arithmetic expansion $(( ... )) is one word, so its << is a shift, not a
+// here-document. An unterminated quote or here-document ends at the end of
+// the input.
 func lex(line string) []token {
 	var out []token
 	var pending []heredoc
 	var word strings.Builder
-	inWord := false
+	inWord, lineStart := false, 0
 	flush := func() {
 		if inWord {
 			out = append(out, token{text: word.String()})
@@ -65,9 +68,17 @@ func lex(line string) []token {
 				i++
 			}
 			i--
+		case strings.HasPrefix(line[i:], "$(("):
+			inWord = true
+			end := arithmeticEnd(line, i+3)
+			word.WriteString(line[i:end])
+			i = end - 1
 		case c == '$' && i+1 < len(line) && line[i+1] == '(':
 			op("$(")
 			i++
+		case c == '&' && word.Len() > 0 && strings.ContainsAny(word.String()[word.Len()-1:], "<>"):
+			// A descriptor duplication such as 2>&1 is one redirection word.
+			word.WriteByte(c)
 		case c == '&' || c == '|':
 			if i+1 < len(line) && line[i+1] == c {
 				op(string([]byte{c, c}))
@@ -84,15 +95,24 @@ func lex(line string) []token {
 			flush()
 			doc, next := readHeredocWord(line, i+2)
 			if doc.delim != "" {
+				doc.at = len(out)
 				pending = append(pending, doc)
 			}
 			i = next - 1
 		case c == '\n':
 			op("\n")
 			if len(pending) > 0 {
-				i = skipHeredocs(line, i+1, pending) - 1
-				pending = nil
+				bodies, next := readHeredocs(line, i+1, pending)
+				head := out[lineStart : len(out)-1]
+				for k, doc := range pending {
+					if heredocIsScript(head, doc.at-lineStart) {
+						out = append(out, lex(bodies[k])...)
+						out = append(out, token{text: "\n", op: true})
+					}
+				}
+				i, pending = next-1, nil
 			}
+			lineStart = len(out)
 		case c == ';' || c == '(' || c == ')' || c == '`':
 			op(string(c))
 		default:
@@ -102,70 +122,6 @@ func lex(line string) []token {
 	}
 	flush()
 	return out
-}
-
-// heredoc is a here-document whose body starts at the next newline.
-type heredoc struct {
-	delim     string
-	stripTabs bool
-}
-
-// readHeredocWord reads the delimiter word after `<<` at i, an optional `-`
-// and blanks before it, and returns the index just past it. Quotes and
-// backslashes in the word are removed, as the shell removes them.
-func readHeredocWord(line string, i int) (heredoc, int) {
-	var doc heredoc
-	if i < len(line) && line[i] == '-' {
-		doc.stripTabs = true
-		i++
-	}
-	for i < len(line) && (line[i] == ' ' || line[i] == '\t') {
-		i++
-	}
-	var word strings.Builder
-	for ; i < len(line) && strings.IndexByte(" \t\n;&|<>()", line[i]) < 0; i++ {
-		switch c := line[i]; c {
-		case '\'', '"':
-			end := strings.IndexByte(line[i+1:], c)
-			if end < 0 {
-				word.WriteString(line[i+1:])
-				i = len(line)
-				continue
-			}
-			word.WriteString(line[i+1 : i+1+end])
-			i += end + 1
-		case '\\':
-			if i+1 < len(line) {
-				word.WriteByte(line[i+1])
-				i++
-			}
-		default:
-			word.WriteByte(c)
-		}
-	}
-	doc.delim = word.String()
-	return doc, i
-}
-
-// skipHeredocs returns the index just past the terminator line of the last
-// of docs, whose bodies follow one another from i.
-func skipHeredocs(line string, i int, docs []heredoc) int {
-	for _, doc := range docs {
-		for i < len(line) {
-			text, next := line[i:], len(line)
-			if end := strings.IndexByte(line[i:], '\n'); end >= 0 {
-				text, next = line[i:i+end], i+end+1
-			}
-			if doc.stripTabs {
-				text = strings.TrimLeft(text, "\t")
-			}
-			i = next
-			if text == doc.delim {
-				break
-			}
-		}
-	}
-	return i
 }
 
 // readDouble reads a double-quoted span starting after the opening quote and

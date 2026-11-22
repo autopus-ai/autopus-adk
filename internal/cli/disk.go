@@ -82,16 +82,18 @@ type diskContext struct {
 
 // loadDiskContext resolves the project directory, loads its disk budget
 // through LoadPreview, which never writes autopus.yaml (REQ-DISK-CFG-03), and
-// measures free space on the file system that holds the project. sub names
-// the command in its failure lines.
+// measures free space on the file system that holds the project. Without
+// --dir the budget is read at diskConfigRoot of cwd, where the disk gate
+// reads it, while the project directory stays cwd. sub names the command in
+// its failure lines.
 func loadDiskContext(cmd *cobra.Command, flags diskFlags, jsonMode bool, sub string) (diskContext, error) {
-	dir := flags.dir
+	dir, configDir := flags.dir, ""
 	if dir == "" {
 		cwd, err := os.Getwd()
 		if err != nil {
 			return diskContext{}, diskFail(cmd, jsonMode, 1, diskCodeProjectInvalid, fmt.Sprintf("disk %s: current directory is unavailable: %v", sub, err), nil)
 		}
-		dir = cwd
+		dir, configDir = cwd, diskConfigRoot(cwd)
 	}
 	abs, err := filepath.Abs(dir)
 	if err == nil {
@@ -103,7 +105,10 @@ func loadDiskContext(cmd *cobra.Command, flags diskFlags, jsonMode bool, sub str
 	if err != nil {
 		return diskContext{}, diskFail(cmd, jsonMode, 1, diskCodeProjectInvalid, fmt.Sprintf("disk %s: project directory %s: %v", sub, dir, err), nil)
 	}
-	harness, err := config.LoadPreview(abs)
+	if configDir == "" {
+		configDir = abs
+	}
+	harness, err := config.LoadPreview(configDir)
 	if err != nil {
 		return diskContext{}, diskFail(cmd, jsonMode, 1, diskCodeConfigInvalid, fmt.Sprintf("disk %s: %v", sub, err), nil)
 	}

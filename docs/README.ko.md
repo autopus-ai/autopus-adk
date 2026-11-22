@@ -592,7 +592,9 @@ status는 이 표본으로 소비자를 증가량 순서로 보여 주고(예: `
 - `--cpu` 없는 `auto disk lease`
 
 패키지 설치, `npx playwright install`, `git worktree add`는 통과하고, here-document 본문은 명령이 아니라 데이터로
-읽습니다. lease로 감싼 단계는 Bash 도구의 기본 제한 시간 2분보다 오래 기다릴 수 있으니 백그라운드나 긴 timeout으로
+읽습니다. 다만 로컬 셸이 본문을 스크립트로 읽으면(`bash <<EOF`, `cat <<EOF | sh`) 명령으로 분류합니다. 도움말
+플래그(`auto qa exec --help`)와 경로 조회(`command -v pytest`, `which tsc`)는 통과합니다. 하위 디렉터리에서는 게이트와
+`auto disk`가 모두 그 위의 가장 가까운 `autopus.yaml`을 읽습니다. lease로 감싼 단계는 Bash 도구의 기본 제한 시간 2분보다 오래 기다릴 수 있으니 백그라운드나 긴 timeout으로
 실행합니다. 종료 코드 3은 대기 시간이 끝났다는 뜻입니다.
 
 모든 세션이 물려받는 곳에 환경 변수를 두는 방법을 권합니다. 설정 키 `hooks.cpu_gate: true`도 동작하고 환경 변수가
