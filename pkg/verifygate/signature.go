@@ -122,7 +122,7 @@ func normalized(runs []testRun, dir string) []testRun {
 			for _, p := range prefixes {
 				l = strings.ReplaceAll(l, p, "$ROOT")
 			}
-			lines = append(lines, l)
+			lines = append(lines, normalizeTemp(l))
 		}
 		out = append(out, testRun{Failed: r.Failed, Lines: lines})
 	}
