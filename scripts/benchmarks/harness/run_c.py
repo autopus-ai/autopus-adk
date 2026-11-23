@@ -7,6 +7,7 @@ stopped can be continued with --resume: finished trials are kept and a partial o
 """
 import argparse
 import itertools
+import shutil
 import json
 import os
 from pathlib import Path
@@ -98,6 +99,8 @@ def parse(argv) -> argparse.Namespace:
                     help='host tools linked onto the trial PATH (with /usr/bin:/bin:/usr/sbin:/sbin and auto)')
     ap.add_argument('--no-sandbox', action='store_true', help='debug only; recorded in the protocol')
     ap.add_argument('--resume', action='store_true', help='continue the run already in --output')
+    ap.add_argument('--keep-trials', action='store_true',
+                    help='keep each graded trial workspace and grading tree (default: prune them, keeping measure/)')
     ap.add_argument('--dry-run', action='store_true')
     return ap.parse_args(argv)
 
@@ -124,7 +127,8 @@ def main(argv=None) -> int:
     install_stop_handlers()
     output.mkdir(parents=True, exist_ok=True)
     frozen = guard_c.frozen_paths(output) if args.resume else guard_c.freeze(output, corpus)
-    ctx = {'output': output, 'base_env': dict(os.environ), 'model': args.model, 'effort': args.effort,
+    ctx = {'output': output, 'keep_trials': args.keep_trials, 'base_env': dict(os.environ), 'model': args.model,
+           'effort': args.effort,
            'timeout': args.timeout, 'permission_mode': args.permission_mode, 'frozen': frozen,
            'tools_dir': output / 'bin' / 'tools', 'tool_names': [t for t in args.tools.split(',') if t],
            'claude': str(output / 'bin' / 'tools' / 'claude'), 'sandbox': not args.no_sandbox,
@@ -168,6 +172,30 @@ def check_resume(output: Path, protocol: dict) -> None:
             raise SystemExit('--resume with a different protocol: ' + key)
 
 
+def prune_trial(row: dict, trial: Path, measure: Path, grading: Path) -> None:
+    """Keep the graded candidate files under measure/, then drop the trial and grading trees.
+
+    A full run clones a module cache, a build cache and a workspace per trial; kept, 30 trials need far
+    more disk than a shared machine has. The candidate's production edits are copied from the grading
+    tree (built by the runner from a base snapshot), never read through the trial's own .git, which the
+    agent controls: a git command there could run its hooks or fsmonitor outside the sandbox.
+    """
+    tree = grading / 'tree'
+    copied = ((row.get('oracle') or {}).get('overlay') or {}).get('copied') or []
+    for rel in copied:
+        source = tree / rel
+        if source.is_file() and not source.is_symlink():
+            target = measure / 'candidate' / rel
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source, target)
+    for path in (trial, grading):
+        if path.exists():
+            for sub in path.rglob('*'):
+                if sub.is_dir() and not sub.is_symlink():
+                    sub.chmod(0o700)
+            shutil.rmtree(path, ignore_errors=True)
+
+
 def run_plan(ctx: dict, plan: list) -> int:
     output = ctx['output']
     records = []
@@ -201,6 +229,8 @@ def run_plan(ctx: dict, plan: list) -> int:
             measure.mkdir(parents=True, exist_ok=True)
             trial_c.write_json(measure / 'result.json', row)
         records.append(row)
+        if not ctx.get('keep_trials'):
+            prune_trial(row, trial, measure, grading)
         (output / 'records.json').write_text(json.dumps(records, indent=2))
         summary = report_c.summarize(records)
         (output / 'report.json').write_text(json.dumps(summary, indent=2))
