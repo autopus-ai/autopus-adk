@@ -35,10 +35,13 @@ var tempPath = sync.OnceValue(func() *regexp.Regexp {
 	return regexp.MustCompile(`(?:` + strings.Join(alts, "|") + `)((?:/[^\s:'"(),]*)?)`)
 })
 
-// volatileRun is what changes from run to run inside a temporary path: a
-// run of five or more digits (os.MkdirTemp and t.TempDir suffixes), and
-// the three-digit sequence directory t.TempDir makes (/001).
-var volatileRun = regexp.MustCompile(`\d{5,}|/\d{3}\b`)
+// volatileRun is what changes from run to run in the first component
+// under a temporary root: the random suffix os.MkdirTemp and t.TempDir add
+// (harneval-surface-3151427053, TestFoo3087128865), five digits or more.
+// Below that component every name is the test's own (t.TempDir's /001
+// sequence, srv-50000.sock, 002.json) and may be the value under test, so
+// it is kept.
+var volatileRun = regexp.MustCompile(`\d{5,}`)
 
 // normalizeTemp rewrites the temporary paths of a failure line as
 // <TMP>/..., with their volatile digit runs as <N>, so the same failure
@@ -57,12 +60,14 @@ func normalizeTemp(line string) string {
 		if start > 0 && isPathChar(line[start-1]) {
 			continue
 		}
-		rest := volatileRun.ReplaceAllStringFunc(line[m[2]:m[3]], func(s string) string {
-			if strings.HasPrefix(s, "/") {
-				return "/<N>"
+		rest := line[m[2]:m[3]]
+		first, below, _ := strings.Cut(strings.TrimPrefix(rest, "/"), "/")
+		if rest != "" {
+			rest = "/" + volatileRun.ReplaceAllString(first, "<N>")
+			if strings.Contains(strings.TrimPrefix(line[m[2]:m[3]], "/"), "/") {
+				rest += "/" + below
 			}
-			return "<N>"
-		})
+		}
 		b.WriteString(line[last:start])
 		b.WriteString("<TMP>" + rest)
 		last = end

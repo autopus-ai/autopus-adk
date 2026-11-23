@@ -89,8 +89,8 @@ func TestNormalizeTemp(t *testing.T) {
 	cases := map[string]string{
 		"mkdir /tmp/harneval-surface-3151427053: operation not permitted":         "mkdir <TMP>/harneval-surface-<N>: operation not permitted",
 		"open /private/tmp/x-654279641/a.json: denied":                            "open <TMP>/x-<N>/a.json: denied",
-		"/var/folders/ab/cd123/T/TestFoo123456789/001/out: bad":                   "<TMP>/TestFoo<N>/<N>/out: bad",
-		filepath.Join(tmp, "TestBar987654321", "002") + ": got 12345, want 54321": "<TMP>/TestBar<N>/<N>: got 12345, want 54321",
+		"/var/folders/ab/cd123/T/TestFoo123456789/001/out: bad":                   "<TMP>/TestFoo<N>/001/out: bad",
+		filepath.Join(tmp, "TestBar987654321", "002") + ": got 12345, want 54321": "<TMP>/TestBar<N>/002: got 12345, want 54321",
 		"/home/u/src/12345678/a.go: got 1234567":                                  "/home/u/src/12345678/a.go: got 1234567",
 		"/tmpfoo/123456: x":                                                       "/tmpfoo/123456: x",
 	}
