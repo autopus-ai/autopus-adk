@@ -90,6 +90,7 @@ func RunCharged(ctx context.Context, root string, changed []string, steps []Step
 					return ChargedRun{Skipped: append(res.Skipped, interruptedSkips(rest)...)}
 				}
 				why = head.unavailable
+				head.runs = movedRuns(head.runs, fileMoves(ctx, root))
 			}
 			if why == "" {
 				var charged []string
