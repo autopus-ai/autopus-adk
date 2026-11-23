@@ -585,6 +585,13 @@ closing the terminal does not stop the run. `result.json` is written through a
 temporary file and `os.replace`, so an interrupted write never leaves a torn
 file for `--resume` to read.
 
+Disk. Each trial clones a module cache, a build cache and a workspace. After a
+trial is graded the runner copies the candidate's graded production files to
+`measure/<name>/candidate/` and removes `trials/<name>` and `grading/<name>`;
+`measure/` (events, result, grade logs) stays. The copy comes from the grading
+tree the runner built, never through the trial's `.git`, which the agent
+controls. Pass `--keep-trials` to keep both trees for debugging.
+
 Observation (`stream_c.parse_stream`): the `result` event's usage (input,
 output, cache read and cache creation tokens; unknown stays null), turns,
 cost, terminal reason and final text; tool uses and `Task`/`Agent` uses. With
