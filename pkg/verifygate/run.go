@@ -1,7 +1,6 @@
 package verifygate
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -28,6 +27,12 @@ type Failure struct {
 	TimedOut bool
 	Hung     bool
 	Window   time.Duration
+	// FailedTests are the failed tests of a go test -json step, as
+	// "pkg.Test" (or the bare package for a package-level failure).
+	FailedTests []string
+	// Partial marks a step cut off at its window with failures already
+	// seen: the tests after them did not run.
+	Partial bool
 }
 
 // tailLines bounds the output handed back to the agent.
@@ -92,7 +97,7 @@ func Run(parent context.Context, steps []Step, budget time.Duration) (*Failure, 
 			skipped = append(skipped, Skip{Name: step.Name, Reason: "no time was left for it after reserving time for the steps after it"})
 			continue
 		}
-		stepCtx, stepCancel := context.WithTimeout(ctx, window)
+		stepCtx, stepCancel := newStepContext(ctx, window)
 		cmd := exec.CommandContext(stepCtx, step.Argv[0], step.Argv[1:]...)
 		cmd.Dir = step.Dir
 		// Running out of budget stops the whole tree: `go test` leaves its
@@ -108,8 +113,9 @@ func Run(parent context.Context, steps []Step, budget time.Duration) (*Failure, 
 		}
 		// A child that outlives the kill must not hold Run on the pipes.
 		cmd.WaitDelay = waitDelay
-		var out bytes.Buffer
+		var out lockedBuffer
 		cmd.Stdout, cmd.Stderr = &out, &out
+		watchFailures(stepCtx, step, &out, window)
 		started := time.Now()
 		if err := group.Start(); err != nil {
 			stepCancel()
@@ -172,7 +178,8 @@ func Run(parent context.Context, steps []Step, budget time.Duration) (*Failure, 
 			reason = fmt.Sprintf("did not finish within the %s it had of the %s budget", ran, budget)
 		}
 		return &Failure{Step: step, Output: tail(text, tailLines), Reason: reason,
-			TimedOut: timedOut && len(failedTests) == 0}, skipped
+			TimedOut: timedOut && len(failedTests) == 0, FailedTests: withoutLatePackageFails(failedTests, out.Bytes(), deadline, timedOut),
+			Partial: timedOut && len(failedTests) > 0}, skipped
 	}
 	return nil, skipped
 }

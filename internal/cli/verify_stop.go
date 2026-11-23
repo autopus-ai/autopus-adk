@@ -69,7 +69,10 @@ func newVerifyStopCmd() *cobra.Command {
 			"build and tests that cover them and blocks the stop with the failure output. Go runs the tests the change " +
 			"edited first (with at most half the budget), then the changed packages whole; a suite that outlasts the " +
 			"budget with tests finishing and nothing failed does not block, and that tree is not run again (its note is repeated); " +
-			"a test still running after half of its step's window is treated as hung and blocks. An interrupted run " +
+			"a test still running after half of its step's window is treated as hung and blocks. Failed Go tests are run again " +
+			"on HEAD (at most 50; a whole-package step with a failure ends at two thirds of its window to leave time for it): " +
+			"those that fail there too, and that the change did not edit, are reported but do not block; when HEAD cannot " +
+			"be checked the failure blocks and the note says why. An interrupted run " +
 			"(Ctrl-C, SIGTERM) records nothing and does not block. Under methodology: tdd with " +
 			"enforce: true, the changed tests must also fail against the code before the change (HEAD); a source change " +
 			"without a test change is blocked unless the reply has a `TDD-exempt: <reason>` line. Set " +
@@ -160,7 +163,19 @@ func verifyChanged(cmd *cobra.Command, in stopHookInput, root string, changed []
 		return withBudgetNote(followupRound(cmd, in, root, followup, statusHangSuspected), note)
 	}
 	started := time.Now()
-	failure, skipped := verifygate.Run(cmd.Context(), steps, budget)
+	// Go test failures that HEAD has too are not charged to the change; the
+	// note says which, or why they could not be checked.
+	run := verifygate.RunCharged(cmd.Context(), root, changed, steps, budget)
+	out := judgeRun(cmd, in, root, changed, fingerprint, run.Failure, run.Skipped, started, budget, followup)
+	if note := run.Note(); note != "" {
+		return withBudgetNote(out, note)
+	}
+	return out
+}
+
+// judgeRun turns the outcome of the run into the hook's output.
+func judgeRun(cmd *cobra.Command, in stopHookInput, root string, changed []string, fingerprint string,
+	failure *verifygate.Failure, skipped []verifygate.Skip, started time.Time, budget time.Duration, followup bool) stopHookOutput {
 	if failure == nil && slices.ContainsFunc(skipped, func(s verifygate.Skip) bool { return s.Interrupted }) {
 		// A signal is not a verdict: no block, no block count, no record.
 		return stopHookOutput{SystemMessage: "auto verify stop: interrupted before verification finished; " +
