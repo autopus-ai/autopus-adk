@@ -10,17 +10,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func firstVarSpec(t *testing.T, decl string) ast.Spec {
+// stdImports is the import block the hasCall cases are parsed under.
+const stdImports = "import (\n\t\"errors\"\n\t\"fmt\"\n\t\"os\"\n\t\"path/filepath\"\n\t\"regexp\"\n\t\"strings\"\n\t\"time\"\n)\n\n"
+
+// varHasCall parses decl under imports and reports hasCall for its var.
+func varHasCall(t *testing.T, imports, decl string) bool {
 	t.Helper()
-	file, err := parser.ParseFile(token.NewFileSet(), "", "package p\n\n"+decl+"\n", 0)
+	file, err := parser.ParseFile(token.NewFileSet(), "", "package p\n\n"+imports+decl+"\n", 0)
 	require.NoError(t, err)
 	for _, d := range file.Decls {
 		if g, ok := d.(*ast.GenDecl); ok && g.Tok == token.VAR {
-			return g.Specs[0]
+			return hasCall(g.Specs[0], fileImports(file))
 		}
 	}
 	t.Fatal("no var")
-	return nil
+	return false
 }
 
 func TestHasCall_OnlySideEffectsAreInitLike(t *testing.T) {
@@ -40,17 +44,49 @@ func TestHasCall_OnlySideEffectsAreInitLike(t *testing.T) {
 		"var w = func() int { counter++; return 1 }()":                        true,
 		"var e = fmt.Errorf(\"x %d\", setMode())":                             true,
 		"var v = func() []int { s := []int{}; s = append(s, 1); return s }()": false,
+		// Conversions are not calls.
+		"var payload = []byte(`{\"a\":1}`)":      false,
+		"var n = int64(5)":                       false,
+		"var s = string(rune(65))":               false,
+		"var m = map[string]int(nil)":            false,
+		"var u = userType(5)":                    true,
+		"var b2 = []byte(fmt.Sprint(setMode()))": true,
+		// A callback runs inside the call it is passed to.
+		"var up = strings.Map(func(r rune) rune { setMode(); return r }, \"a\")":      true,
+		"var ok = strings.FieldsFunc(\"a b\", func(r rune) bool { return r == ' ' })": false,
+		// Channel operations block or wake other goroutines.
+		"var got = func() int { ch <- 1; return 0 }()": true,
+		"var recv = <-ch":                       true,
+		"var r2 = func() int { return <-ch }()": true,
+		// An IIFE that gets an outer value may write through it.
+		"var reg = func(r map[string]int) int { r[\"k\"] = 1; return 0 }(registry)": true,
+		"var alias = func() int { r := registry; r[\"k\"] = 1; return 0 }()":        true,
+		"var pure = func(n int) int { return n * 2 }(3)":                            false,
 	} {
-		assert.Equal(t, want, hasCall(firstVarSpec(t, decl)), decl)
+		assert.Equal(t, want, varHasCall(t, stdImports, decl), decl)
 	}
+}
+
+// The allowlist is the standard package, not any package named like it.
+func TestHasCall_AllowlistResolvesImports(t *testing.T) {
+	assert.True(t, varHasCall(t, "import strings \"example.com/m/strings\"\n\n", "var s = strings.ToUpper(\"a\")"))
+	assert.True(t, varHasCall(t, "", "var s = strings.ToUpper(\"a\")"), "no import: a local name")
+	assert.False(t, varHasCall(t, "import str \"strings\"\n\n", "var s = str.ToUpper(\"a\")"))
 }
 
 // The c01 shape end to end: a new test file whose var is a pure IIFE does
 // not charge the package's failures HEAD already had.
 func TestRunCharged_APureVarInitializerIsNotAnEdit(t *testing.T) {
-	file := "package basegate\n\nimport \"testing\"\n\nvar ciPublic = func() *bool { b := true; return &b }()\n\n" +
-		"func TestPublic(t *testing.T) {\n\tif !*ciPublic {\n\t\tt.Fatal(\"not public\")\n\t}\n}\n"
-	res := runCharged(t, redRepo(t, baselineBase(), map[string]string{"public_test.go": file}))
-	assert.Nil(t, res.Failure, "edited: %v", res.Edited)
-	assert.Equal(t, []string{"basegate.TestNeedsTool"}, res.Preexisting)
+	for name, decl := range map[string]string{
+		"pure IIFE":  "var ciPublic = func() *bool { b := true; return &b }()",
+		"conversion": "var payload = []byte(`{\"a\":1}`)",
+	} {
+		t.Run(name, func(t *testing.T) {
+			file := "package basegate\n\nimport \"testing\"\n\n" + decl + "\n\n" +
+				"func TestPublic(t *testing.T) {}\n"
+			res := runCharged(t, redRepo(t, baselineBase(), map[string]string{"public_test.go": file}))
+			assert.Nil(t, res.Failure, "edited: %v", res.Edited)
+			assert.Equal(t, []string{"basegate.TestNeedsTool"}, res.Preexisting)
+		})
+	}
 }

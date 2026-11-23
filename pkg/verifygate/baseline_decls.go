@@ -121,7 +121,7 @@ func (d *testDecls) add(src []byte) {
 			for _, spec := range dl.Specs {
 				key, names := specKey(dl.Tok, spec)
 				all = append(all, names...)
-				put(key, text(spec), declInfo{names: names, calls: dl.Tok == token.VAR && hasCall(spec)})
+				put(key, text(spec), declInfo{names: names, calls: dl.Tok == token.VAR && hasCall(spec, fileImports(file))})
 			}
 			if dl.Tok == token.CONST && dl.Lparen.IsValid() {
 				put("const block "+strings.Join(all, ","), text(dl), declInfo{})
