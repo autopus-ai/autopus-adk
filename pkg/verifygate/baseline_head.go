@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -24,12 +25,18 @@ func splitTestKey(key string) (pkg, top string, ok bool) {
 	return m[1], m[2], true
 }
 
-// headResult is what the failed tests did on HEAD. failed holds the keys
-// that failed there; brokenPkgs the packages that failed there with no test
-// failed (they do not build, or TestMain failed), so their tests could not
-// be compared; partial marks a run cut off before every test ran.
+// headCount is how often HEAD runs each failed test. A failure is only
+// pre-existing when HEAD fails it every time: a test that is flaky on HEAD
+// would otherwise vouch for a deterministic break.
+const headCount = 2
+
+// headResult is what the failed tests did on HEAD. runs holds each key's
+// runs there, paths normalized; brokenPkgs the packages that failed there
+// with no test failed (they do not build, or TestMain failed), so their
+// tests could not be compared; partial marks a run cut off before every
+// test ran.
 type headResult struct {
-	failed      map[string]bool
+	runs        map[string][]testRun
 	brokenPkgs  map[string]bool
 	partial     bool
 	unavailable string
@@ -79,7 +86,7 @@ func headFailures(ctx context.Context, root string, keys []string, budget time.D
 	if err := exportHead(ctx, root, scratch); err != nil {
 		return headResult{unavailable: "exporting HEAD: " + err.Error()}
 	}
-	step := Step{Name: "go test (on HEAD)", Argv: append([]string{"go", "test", "-json", "-run", pattern}, dirs...),
+	step := Step{Name: "go test (on HEAD)", Argv: append([]string{"go", "test", "-json", "-count", strconv.Itoa(headCount), "-run", pattern}, dirs...),
 		Dir: scratch, GoTestJSON: true}
 	failure, skipped := Run(ctx, []Step{step}, budget)
 	switch {
@@ -88,15 +95,17 @@ func headFailures(ctx context.Context, root string, keys []string, budget time.D
 	case len(skipped) > 0:
 		return headResult{unavailable: skipped[0].Reason}
 	case failure == nil:
-		return headResult{failed: map[string]bool{}}
+		return headResult{runs: map[string][]testRun{}}
 	case failure.TimedOut:
 		return headResult{unavailable: "the run on HEAD " + failure.Reason}
 	case len(failure.FailedTests) == 0:
 		return headResult{unavailable: "go test on HEAD failed without a test result: " + lastLine(failure.Output)}
 	}
-	res := headResult{failed: map[string]bool{}, brokenPkgs: map[string]bool{}, partial: failure.Partial}
+	res := headResult{runs: map[string][]testRun{}, brokenPkgs: map[string]bool{}, partial: failure.Partial}
+	for key, runs := range failure.Runs {
+		res.runs[key] = normalized(runs, scratch)
+	}
 	for _, key := range failure.FailedTests {
-		res.failed[key] = true
 		if _, _, ok := splitTestKey(key); !ok {
 			res.brokenPkgs[key] = true
 		}
@@ -104,18 +113,26 @@ func headFailures(ctx context.Context, root string, keys []string, budget time.D
 	return res
 }
 
-// judge returns the keys that are the change's failures: they passed on
-// HEAD. A key HEAD could not answer for (its package is broken there, or
-// the run was cut off before it) makes the comparison unavailable.
-func (h headResult) judge(keys []string) (charged []string, unavailable string) {
+// judge returns the keys that are the change's failures: HEAD did not fail
+// them every time with the same failure lines (current holds this tree's
+// runs, paths normalized). A package-level failure needs one matching
+// package failure on HEAD. A key HEAD could not answer for (its package is
+// broken there, or the run was cut off before it) makes the comparison
+// unavailable.
+func (h headResult) judge(keys []string, current map[string][]testRun) (charged []string, unavailable string) {
 	for _, key := range keys {
-		if h.failed[key] {
+		_, _, isTest := splitTestKey(key)
+		want := 1
+		if isTest {
+			want = headCount
+		}
+		if sameFailure(current[key], h.runs[key], want) {
 			continue
 		}
 		if pkg, _, ok := splitTestKey(key); ok && h.brokenPkgs[pkg] {
 			return nil, pkg + " does not build or run its tests on HEAD"
 		}
-		if h.partial {
+		if h.partial && len(h.runs[key]) < want {
 			return nil, "the run on HEAD was cut off before " + key + " finished"
 		}
 		charged = append(charged, key)

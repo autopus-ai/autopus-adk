@@ -81,11 +81,23 @@ func TestRunCharged_AnEditedFailingTestIsCharged(t *testing.T) {
 	assert.Contains(t, res.Note(), "were edited by this change")
 }
 
-func TestRunCharged_AnEditedHelperBesideAnUnchangedTestIsCompared(t *testing.T) {
+// Test support beside an unchanged test (a helper, a case table) can change
+// what the test does, so its package's failures are the change's.
+func TestRunCharged_AnEditedHelperChargesItsPackage(t *testing.T) {
 	helper := baseEnv + "\nfunc helper() int { return 1 }\n"
 	base := baselineBase()
 	base["env_test.go"] = helper
 	root := redRepo(t, base, map[string]string{"env_test.go": baseEnv + "\nfunc helper() int { return 2 }\n"})
+	res := runCharged(t, root)
+	require.NotNil(t, res.Failure)
+	assert.Equal(t, []string{"basegate.TestNeedsTool"}, res.Edited)
+}
+
+// Only an import added beside an unchanged test is not an edit.
+func TestRunCharged_AnAddedImportIsNotAnEdit(t *testing.T) {
+	// The new import shares the import line, so the failure stays on line 6.
+	edit := "package basegate\n\nimport (\"testing\"; _ \"strings\")\n\nfunc TestNeedsTool(t *testing.T) {\n\tt.Fatal(\"the tool is not installed\")\n}\n"
+	root := redRepo(t, baselineBase(), map[string]string{"env_test.go": edit})
 	res := runCharged(t, root)
 	assert.Nil(t, res.Failure)
 	assert.Equal(t, []string{"basegate.TestNeedsTool"}, res.Preexisting)

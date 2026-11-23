@@ -33,6 +33,9 @@ type Failure struct {
 	// Partial marks a step cut off at its window with failures already
 	// seen: the tests after them did not run.
 	Partial bool
+	// Runs are the ended runs of each test (and package) of a go test
+	// -json step, with the failure lines each failed run printed.
+	Runs map[string][]testRun
 }
 
 // tailLines bounds the output handed back to the agent.
@@ -179,7 +182,7 @@ func Run(parent context.Context, steps []Step, budget time.Duration) (*Failure, 
 		}
 		return &Failure{Step: step, Output: tail(text, tailLines), Reason: reason,
 			TimedOut: timedOut && len(failedTests) == 0, FailedTests: withoutLatePackageFails(failedTests, out.Bytes(), deadline, timedOut),
-			Partial: timedOut && len(failedTests) > 0}, skipped
+			Partial: timedOut && len(failedTests) > 0, Runs: testRuns(out.Bytes())}, skipped
 	}
 	return nil, skipped
 }
