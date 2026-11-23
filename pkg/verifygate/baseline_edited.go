@@ -1,14 +1,11 @@
 package verifygate
 
 import (
+	"bytes"
 	"context"
-	"go/ast"
-	"go/parser"
-	"go/token"
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 )
@@ -16,18 +13,22 @@ import (
 // editedTestFuncs returns what the change edited of the tests, keyed
 // "dir\x00Name" for a top-level test function (Test, Example, Fuzz,
 // Benchmark) whose source differs from HEAD's or that HEAD does not have,
-// and "dir\x00" for a package whose test support changed: any other
-// declaration of a changed _test.go file (a case table, a helper, a type,
-// init), or a file under its testdata. dir is as path.Dir gives it.
+// and "dir\x00" for a package whose existing test support changed (see
+// supportEdited) or that had a file under its testdata changed. dir is as
+// path.Dir gives it.
 //
 // A failing test the change edited is the change's failure even when HEAD's
 // version failed too: HEAD runs the old version, which says nothing about
 // the new one. Edited support can change what every test of the package
 // does (a table row moves under the same subtest name), so it charges all
-// of the package's failures.
+// of the package's failures. Declarations are compared across the
+// package's changed and deleted test files together, so a helper moved
+// between them is not an edit, and a deleted file's support is deleted.
 func editedTestFuncs(ctx context.Context, root string, changed []string) map[string]bool {
 	edited := map[string]bool{}
-	for _, f := range changed {
+	before, after := map[string]*testDecls{}, map[string]*testDecls{}
+	files := append(slices.Clone(changed), deletedPaths(ctx, root)...)
+	for _, f := range files {
 		if strings.HasPrefix(f, "vendor/") {
 			continue
 		}
@@ -42,65 +43,60 @@ func editedTestFuncs(ctx context.Context, root string, changed []string) map[str
 		if !strings.HasSuffix(f, "_test.go") {
 			continue
 		}
-		now, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(f)))
-		if err != nil {
-			// Deleted: none of its tests can fail.
-			continue
+		dir := path.Dir(f)
+		if before[dir] == nil {
+			before[dir], after[dir] = newTestDecls(), newTestDecls()
 		}
-		var before testDecls
 		if old, err := gitOutput(ctx, root, "show", "HEAD:"+f); err == nil {
-			before = parseTestDecls(old)
+			before[dir].add(old)
 		}
-		after := parseTestDecls(now)
-		for name, src := range after.tests {
-			if old, ok := before.tests[name]; !ok || old != src {
-				edited[path.Dir(f)+"\x00"+name] = true
+		// A deleted file adds nothing: its support counts as deleted.
+		if now, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(f))); err == nil {
+			after[dir].add(now)
+		}
+	}
+	for dir, now := range after {
+		old := before[dir]
+		for name, src := range now.tests {
+			if prev, ok := old.tests[name]; !ok || prev != src {
+				edited[dir+"\x00"+name] = true
 			}
 		}
-		if !slices.Equal(before.support, after.support) {
-			edited[path.Dir(f)+"\x00"] = true
+		if supportEdited(old, now) {
+			edited[dir+"\x00"] = true
 		}
 	}
 	return edited
 }
 
-// testFuncName is a function go test runs by name.
-var testFuncName = regexp.MustCompile(`^(Test|Example|Fuzz|Benchmark)([A-Z0-9_].*)?$`)
-
-// testDecls is a Go test file's top-level test functions by name, and the
-// sorted source of every other declaration except imports.
-type testDecls struct {
-	tests   map[string]string
-	support []string
-}
-
-// parseTestDecls splits a test file's declarations. A file that does not
-// parse yields nothing; the build reports the parse error, and a package
-// that does not build is never pre-existing unless HEAD fails it the same.
-func parseTestDecls(src []byte) testDecls {
-	out := testDecls{tests: map[string]string{}}
-	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "", src, parser.SkipObjectResolution)
+// deletedPaths lists the tracked paths the work tree no longer has: deleted
+// files and the sources of renames. ChangedFiles leaves them out, since
+// nothing there can be built, but a deleted test file can still change
+// how the tests left beside it behave.
+func deletedPaths(ctx context.Context, root string) []string {
+	out, err := gitOutput(ctx, root, "status", "--porcelain=v1", "-z", "--untracked-files=no")
 	if err != nil {
-		return out
+		return nil
 	}
-	for _, decl := range file.Decls {
-		text := string(src[fset.Position(decl.Pos()).Offset:fset.Position(decl.End()).Offset])
-		switch d := decl.(type) {
-		case *ast.FuncDecl:
-			if d.Recv == nil && testFuncName.MatchString(d.Name.Name) {
-				out.tests[d.Name.Name] = text
-				continue
-			}
-		case *ast.GenDecl:
-			if d.Tok == token.IMPORT {
-				continue
-			}
+	var paths []string
+	fields := bytes.Split(out, []byte{0})
+	for i := 0; i < len(fields); i++ {
+		entry := fields[i]
+		if len(entry) < 4 {
+			continue
 		}
-		out.support = append(out.support, text)
+		status, p := string(entry[:2]), string(entry[3:])
+		switch {
+		case status[0] == 'R' && i+1 < len(fields):
+			i++
+			paths = append(paths, string(fields[i]))
+		case status[0] == 'C':
+			i++
+		case status[0] == 'D' || status[1] == 'D':
+			paths = append(paths, p)
+		}
 	}
-	slices.Sort(out.support)
-	return out
+	return paths
 }
 
 // isEditedTest reports whether a failed key's top-level test, or its
