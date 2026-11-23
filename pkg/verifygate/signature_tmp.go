@@ -2,6 +2,7 @@ package verifygate
 
 import (
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -61,10 +62,12 @@ func normalizeTemp(line string) string {
 			continue
 		}
 		rest := line[m[2]:m[3]]
-		first, below, _ := strings.Cut(strings.TrimPrefix(rest, "/"), "/")
-		if rest != "" {
+		first, below, isDir := strings.Cut(strings.TrimPrefix(rest, "/"), "/")
+		// Only a directory, or a name without an extension, is one that
+		// MkdirTemp or TempDir made; srv-50000.sock is the test's own.
+		if rest != "" && (isDir || path.Ext(first) == "") {
 			rest = "/" + volatileRun.ReplaceAllString(first, "<N>")
-			if strings.Contains(strings.TrimPrefix(line[m[2]:m[3]], "/"), "/") {
+			if isDir {
 				rest += "/" + below
 			}
 		}
