@@ -24,7 +24,7 @@ var predeclared = strings.Fields("any bool byte comparable complex64 complex128 
 type declInfo struct {
 	names []string
 	recv  string // the receiver type of a method
-	calls bool   // a var initializer that calls a function: it runs at init
+	calls bool   // a var initializer that may have a side effect at init (see hasCall)
 }
 
 // testDecls is a package's top-level test functions by name, and the
@@ -51,8 +51,8 @@ func newTestDecls() *testDecls {
 //     set, so a promoted method or an interface match can change;
 //   - a new declaration named like a predeclared identifier (len, min,
 //     error ...), which changes what every use of it means;
-//   - a new named var whose initializer calls a function, which runs at
-//     package init like init does.
+//   - a new named var whose initializer may have a side effect (hasCall:
+//     a call outside the pure allowlist), which runs at package init.
 //
 // Any other new helper, type, var or const cannot change how a test HEAD
 // already had behaves: redefining a name does not compile.
@@ -121,7 +121,7 @@ func (d *testDecls) add(src []byte) {
 			for _, spec := range dl.Specs {
 				key, names := specKey(dl.Tok, spec)
 				all = append(all, names...)
-				put(key, text(spec), declInfo{names: names, calls: dl.Tok == token.VAR && hasCall(spec)})
+				put(key, text(spec), declInfo{names: names, calls: dl.Tok == token.VAR && hasCall(spec, fileImports(file))})
 			}
 			if dl.Tok == token.CONST && dl.Lparen.IsValid() {
 				put("const block "+strings.Join(all, ","), text(dl), declInfo{})
@@ -142,28 +142,6 @@ func specKey(tok token.Token, spec ast.Spec) (string, []string) {
 		return tok.String() + " " + strings.Join(names, ","), names
 	}
 	return tok.String(), nil
-}
-
-// hasCall reports a function call in a var spec's initializer, outside a
-// function literal (which only runs when called).
-func hasCall(spec ast.Spec) bool {
-	vs, ok := spec.(*ast.ValueSpec)
-	if !ok {
-		return false
-	}
-	found := false
-	for _, v := range vs.Values {
-		ast.Inspect(v, func(n ast.Node) bool {
-			switch n.(type) {
-			case *ast.FuncLit:
-				return false
-			case *ast.CallExpr:
-				found = true
-			}
-			return !found
-		})
-	}
-	return found
 }
 
 func recvName(recv *ast.FieldList) string {
