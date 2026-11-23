@@ -69,7 +69,10 @@ func newVerifyStopCmd() *cobra.Command {
 			"build and tests that cover them and blocks the stop with the failure output. Go runs the tests the change " +
 			"edited first (with at most half the budget), then the changed packages whole; a suite that outlasts the " +
 			"budget with tests finishing and nothing failed does not block, and that tree is not run again (its note is repeated); " +
-			"a test still running after half of its step's window is treated as hung and blocks. An interrupted run " +
+			"a test still running after half of its step's window is treated as hung and blocks. Failed Go tests are run again " +
+			"on HEAD (at most 50; a whole-package step with a failure ends at two thirds of its window to leave time for it): " +
+			"those that fail there too, and that the change did not edit, are reported but do not block; when HEAD cannot " +
+			"be checked the failure blocks and the note says why. An interrupted run " +
 			"(Ctrl-C, SIGTERM) records nothing and does not block. Under methodology: tdd with " +
 			"enforce: true, the changed tests must also fail against the code before the change (HEAD); a source change " +
 			"without a test change is blocked unless the reply has a `TDD-exempt: <reason>` line. Set " +
@@ -153,6 +156,10 @@ func verifyChanged(cmd *cobra.Command, in stopHookInput, root string, changed []
 		// Not run again, but not passed either: the note is repeated.
 		return stopHookOutput{SystemMessage: note}
 	}
+	if note, ok := recordedNote(in.SessionID, "baseline", fingerprint); ok {
+		// Passed except for failures HEAD has too: not run again, not passed.
+		return stopHookOutput{SystemMessage: note}
+	}
 	if note, ok := recordedNote(in.SessionID, "hang", fingerprint); ok {
 		// The stop that lets a hang-suspected tree through: not run again,
 		// not passed, and the verification round the block withheld is due
@@ -160,14 +167,27 @@ func verifyChanged(cmd *cobra.Command, in stopHookInput, root string, changed []
 		return withBudgetNote(followupRound(cmd, in, root, followup, statusHangSuspected), note)
 	}
 	started := time.Now()
-	failure, skipped := verifygate.Run(cmd.Context(), steps, budget)
+	// Go test failures that HEAD has too are not charged to the change; the
+	// note says which, or why they could not be checked.
+	run := verifygate.RunCharged(cmd.Context(), root, changed, steps, budget)
+	out := judgeRun(cmd, in, root, changed, fingerprint, run, started, budget, followup)
+	if note := run.Note(); note != "" {
+		return withBudgetNote(out, note)
+	}
+	return out
+}
+
+// judgeRun turns the outcome of the run into the hook's output.
+func judgeRun(cmd *cobra.Command, in stopHookInput, root string, changed []string, fingerprint string,
+	run verifygate.ChargedRun, started time.Time, budget time.Duration, followup bool) stopHookOutput {
+	failure, skipped := run.Failure, run.Skipped
 	if failure == nil && slices.ContainsFunc(skipped, func(s verifygate.Skip) bool { return s.Interrupted }) {
 		// A signal is not a verdict: no block, no block count, no record.
 		return stopHookOutput{SystemMessage: "auto verify stop: interrupted before verification finished; " +
 			"nothing was recorded, so the next stop checks this tree again"}
 	}
 	if failure == nil && len(skipped) > 0 && onlyBudgetSkips(skipped) {
-		return budgetSkipped(cmd, in, root, changed, fingerprint, skipped, budget-time.Since(started), followup)
+		return budgetSkipped(cmd, in, root, changed, fingerprint, skipped, run.Preexisting, budget-time.Since(started), followup)
 	}
 	if failure == nil && len(skipped) > 0 {
 		// Nothing failed, but not everything ran: that is the machine, not
@@ -175,6 +195,9 @@ func verifyChanged(cmd *cobra.Command, in stopHookInput, root string, changed []
 		// passing, so it is checked again once the environment is fixed.
 		return stopHookOutput{SystemMessage: "auto verify stop: could not run " + describeSkips(skipped) +
 			"; this is an environment problem, not a verdict on the change"}
+	}
+	if failure == nil && len(run.Preexisting) > 0 {
+		return baselinePassed(cmd, in, root, changed, fingerprint, run, budget-time.Since(started), followup)
 	}
 	if failure == nil {
 		if out := redGate(cmd.Context(), in, root, changed, budget-time.Since(started)); out != nil {
@@ -265,6 +288,7 @@ func resetStopState(session string) {
 	_ = os.Remove(stopStateFile(session, "versions-warn"))
 	_ = os.Remove(stopStateFile(session, "budget"))
 	_ = os.Remove(stopStateFile(session, "hang"))
+	_ = os.Remove(stopStateFile(session, "baseline"))
 }
 
 func firstLine(s string) string {
