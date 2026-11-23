@@ -15,6 +15,36 @@ import (
 type testRun struct {
 	Failed bool
 	Lines  []string
+	// open marks a failure line that indented continuation lines extend;
+	// skipping marks a continuation under a label that is left out.
+	open, skipping bool
+}
+
+// continuationLabel is a testify field label: "Error:", "Error Trace:",
+// "Messages:". Its unlabeled continuation lines belong to it.
+var continuationLabel = regexp.MustCompile(`^([A-Z][A-Za-z ]*):(\s|$)`)
+
+// continueLine appends an indented line that follows a failure line to it:
+// testify prints only "file_test.go:10: " there and the values below it
+// ("Error: Not equal:", "expected: 3", "actual  : -1"). The Error Trace and
+// Test fields are left out (a path, the test's own name); a framing line
+// ("=== RUN", "--- FAIL") or an unindented line ends the failure line.
+func (r *testRun) continueLine(text string) {
+	content := strings.TrimSpace(text)
+	if !r.open || content == "" {
+		return
+	}
+	if text == strings.TrimLeft(text, " \t") || strings.HasPrefix(content, "--- ") || strings.HasPrefix(content, "=== ") {
+		r.open = false
+		return
+	}
+	if m := continuationLabel.FindStringSubmatch(content); m != nil {
+		r.skipping = m[1] == "Error Trace" || m[1] == "Test"
+	}
+	if r.skipping {
+		return
+	}
+	r.Lines[len(r.Lines)-1] += " | " + strings.Join(strings.Fields(content), " ")
 }
 
 // failureLine matches what t.Error, t.Fatal and the compiler print:
@@ -56,9 +86,13 @@ func testRuns(out []byte) map[string][]testRun {
 			text := strings.TrimRight(ev.Output, "\n")
 			if m := failureLine.FindStringSubmatch(text); m != nil {
 				run.Lines = append(run.Lines, m[1])
+				run.open, run.skipping = true, false
 			} else if t := strings.TrimSpace(text); strings.HasPrefix(t, "panic: ") && !panicked[key] {
 				panicked[key] = true
 				run.Lines = append(run.Lines, t)
+				run.open = false
+			} else {
+				run.continueLine(text)
 			}
 		case "fail", "build-fail":
 			run.Failed = true
@@ -104,6 +138,22 @@ func normalized(runs []testRun, dir string) []testRun {
 func sameFailure(current, head []testRun, want int) bool {
 	if len(head) < want {
 		return false
+	}
+	// A failure that printed nothing (t.FailNow, t.Fail) is only the same
+	// as HEAD's when HEAD's printed nothing either: an empty signature is
+	// contained in every other.
+	silent := true
+	for _, c := range current {
+		if c.Failed && len(c.Lines) > 0 {
+			silent = false
+		}
+	}
+	if silent {
+		for _, h := range head {
+			if len(h.Lines) > 0 {
+				return false
+			}
+		}
 	}
 	for _, h := range head {
 		if !h.Failed {

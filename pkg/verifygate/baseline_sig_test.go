@@ -40,6 +40,27 @@ func TestRunCharged_ADifferentFailureOnHEADDoesNotHideABreak(t *testing.T) {
 			edit: map[string]string{"cases.go": "package basegate\n\n// Cases are sums to check.\nvar Cases = [][3]int{{2, 2, 5}}\n"},
 			key:  "basegate.TestTable/0",
 		},
+		// T1: testify prints the values on lines under "file.go:N: ", which
+		// read the same failure location with another actual value.
+		"another value under a testify-style failure": {
+			base: map[string]string{
+				"add.go": "package basegate\n\n// Add sums.\nfunc Add(a, b int) int { return a + b + 1 }\n",
+				"eq_test.go": sumTest + "func equal(t *testing.T, want, got int) {\n\tt.Helper()\n\tif want != got {\n" +
+					"\t\tt.Fatalf(\"\\n\\tError Trace:\\t/x/eq_test.go:14\\n\\tError:      \\tNot equal: \\n" +
+					"\\t            \\texpected: %d\\n\\t            \\tactual  : %d\\n\\tTest:       \\t%s\", want, got, t.Name())\n" +
+					"\t}\n}\n\nfunc TestEq(t *testing.T) {\n\tequal(t, 3, Add(1, 2))\n}\n",
+			},
+			edit: map[string]string{"add.go": baseAddBad},
+			key:  "basegate.TestEq",
+		},
+		// T5: the change fails a new path that prints nothing; HEAD failed
+		// with a message.
+		"a silent failure against a printed one": {
+			base: map[string]string{"svc_test.go": sumTest + "func TestSvc(t *testing.T) {\n\tif Add(1, 2) != 3 {\n" +
+				"\t\tt.FailNow()\n\t}\n\tt.Fatal(\"env: service not ready\")\n}\n"},
+			edit: map[string]string{"add.go": baseAddBad},
+			key:  "basegate.TestSvc",
+		},
 		// S6: the HEAD snapshot has no .git, so the test fails there for a
 		// reason the work tree does not have.
 		"an environment only the snapshot lacks": {
@@ -85,4 +106,24 @@ func TestSameFailure(t *testing.T) {
 	assert.False(t, sameFailure(cur, []testRun{same, {}}, 2), "a HEAD run passed")
 	other := testRun{Failed: true, Lines: []string{"a_test.go:9: env: missing tool"}}
 	assert.False(t, sameFailure(cur, []testRun{other, other}, 2))
+	silent := []testRun{{Failed: true}}
+	assert.False(t, sameFailure(silent, []testRun{other, other}, 2), "an empty signature matched a printed one")
+	assert.True(t, sameFailure(silent, []testRun{{Failed: true}, {Failed: true}}, 2))
+}
+
+// A testify failure keeps its values, without the trace path and test name.
+func TestTestRuns_KeepsTestifyValues(t *testing.T) {
+	out := "" +
+		`{"Action":"run","Package":"m","Test":"TestEq"}` + "\n" +
+		`{"Action":"output","Package":"m","Test":"TestEq","Output":"    eq_test.go:10: \n"}` + "\n" +
+		`{"Action":"output","Package":"m","Test":"TestEq","Output":"        \tError Trace:\t/tmp/x/eq_test.go:10\n"}` + "\n" +
+		`{"Action":"output","Package":"m","Test":"TestEq","Output":"        \tError:      \tNot equal: \n"}` + "\n" +
+		`{"Action":"output","Package":"m","Test":"TestEq","Output":"        \t            \texpected: 3\n"}` + "\n" +
+		`{"Action":"output","Package":"m","Test":"TestEq","Output":"        \t            \tactual  : -1\n"}` + "\n" +
+		`{"Action":"output","Package":"m","Test":"TestEq","Output":"        \tTest:       \tTestEq\n"}` + "\n" +
+		`{"Action":"output","Package":"m","Test":"TestEq","Output":"--- FAIL: TestEq (0.00s)\n"}` + "\n" +
+		`{"Action":"fail","Package":"m","Test":"TestEq"}` + "\n"
+	runs := testRuns([]byte(out))["m.TestEq"]
+	require.Len(t, runs, 1)
+	assert.Equal(t, []string{"eq_test.go:10:  | Error: Not equal: | expected: 3 | actual : -1"}, runs[0].Lines)
 }
