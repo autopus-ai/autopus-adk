@@ -4,20 +4,21 @@ With --include-hook-events every hook emits `system` `hook_started` and `hook_re
 carrying hook_event, exit_code, stdout, stderr and outcome. A Stop response is recorded as an
 outcome (exit code, decision, systemMessage such as a verify-stop budget or skip note) and as a block
 when it exits 2 or prints {"decision": "block"}. Bash commands that reach GitHub or fetch from the
-network are flagged as possible contamination: the fixed heads are public. Bash commands that set
+network are flagged as possible contamination: the fixed heads are public. Only commands that run count
+(network_c), so a Go import path in a here-document or a sed edit is not GitHub access; a web tool use
+(WebFetch, WebSearch, disallowed in every arm) is flagged too. Bash commands that set
 GOCACHE, TMPDIR, CGO_ENABLED, GOMODCACHE or GOFLAGS are recorded as env_overrides, a friction signal:
 an agent that replaces the trial's environment is working around it (and leaves the warm cache).
 """
 import json
 from pathlib import Path
-import re
 
+from network_c import network_reason
 from observe import count, reject_json_constant, unique_object
 from trial_env_c import env_overrides
 
 MAX_LINE_BYTES = 8 * 1024 * 1024
-CONTAMINATION = re.compile(r'github\.com|\bgh\s|\bgit\s+(fetch|clone|pull|ls-remote)\b|\bcurl\b|\bwget\b|'
-                           r'raw\.githubusercontent|api\.github')
+WEB_TOOLS = ('WebFetch', 'WebSearch')
 USAGE_KEYS = ('input_tokens', 'output_tokens', 'cache_read_input_tokens', 'cache_creation_input_tokens')
 
 
@@ -90,10 +91,12 @@ def _observe(event: dict, result: dict) -> None:
         result['tool_uses'] += len(uses)
         result['subagent_tool_uses'] += sum(1 for c in uses if c.get('name') in ('Task', 'Agent'))
         for use in uses:
+            if use.get('name') in WEB_TOOLS:
+                result['contamination'].append(str(use.get('name')) + ' ' + json.dumps(use.get('input'))[:400])
             command = (use.get('input') or {}).get('command') if isinstance(use.get('input'), dict) else None
             if use.get('name') != 'Bash' or not isinstance(command, str):
                 continue
-            if CONTAMINATION.search(command):
+            if network_reason(command):
                 result['contamination'].append(command[:500])
             overridden = env_overrides(command)
             if overridden:

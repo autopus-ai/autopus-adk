@@ -1,0 +1,90 @@
+//go:build unix
+
+package verifygate
+
+// Pilot C oracle c05, pkg/verifygate cases (hidden from the agent): the tests
+// of a7f5d43e run_window_unix_test.go through Run, identifiers prefixed; the
+// reason-text assertions are relaxed to the duration the reason reports.
+// 52e6c55c's descendant-in-its-own-session test is left out: finding that
+// descendant needs ps, which a sandboxed grader cannot run (setuid). The PassExit case is the review
+// finding a7f5d43e fixed without a test of its own.
+
+import (
+	"context"
+	"regexp"
+	"testing"
+	"time"
+)
+
+// oc05StubbornScript ignores SIGTERM for itself and everything it starts, so
+// a kill that asks first has to wait out its whole grace.
+const oc05StubbornScript = "trap '' TERM; "
+
+var oc05Had = regexp.MustCompile(`within the (\S+) it had`)
+
+// oc05AssertHadAtMost checks the time a reason says the step had.
+func oc05AssertHadAtMost(t *testing.T, reason string, limit time.Duration) {
+	t.Helper()
+	m := oc05Had.FindStringSubmatch(reason)
+	if m == nil {
+		t.Fatalf("reason does not say how long the step had: %q", reason)
+	}
+	had, err := time.ParseDuration(m[1])
+	if err != nil {
+		t.Fatalf("reason %q: %v", reason, err)
+	}
+	if had > limit {
+		t.Fatalf("reason %q counts %s, more than the %s the step had", reason, had, limit)
+	}
+}
+
+// The time a step is judged by is the time it had, not that plus the time
+// the kill took.
+func TestOracleC05_KillGraceIsNotCountedAsTimeTheStepHad(t *testing.T) {
+	step := Step{Name: "stubborn", Dir: t.TempDir(), Argv: []string{"sh", "-c", oc05StubbornScript + "sleep 30"}}
+
+	failure, _ := Run(context.Background(), []Step{step}, 3*time.Second)
+
+	if failure == nil || !failure.TimedOut {
+		t.Fatalf("failure = %+v, want a timed-out step", failure)
+	}
+	oc05AssertHadAtMost(t, failure.Reason, 3*time.Second+500*time.Millisecond)
+}
+
+// A test idle for less than half the window when the deadline came is not a
+// suspected hang, however long the kill takes afterwards.
+func TestOracleC05_IdleUnderHalfTheWindowStaysABudgetSkip(t *testing.T) {
+	t0 := time.Now().UTC()
+	at := func(d time.Duration, ev string) string {
+		return `{"Time":"` + t0.Add(d).Format(time.RFC3339Nano) + `",` + ev[1:]
+	}
+	first := at(0, `{"Action":"run","Package":"x","Test":"TestA"}`)
+	second := at(2500*time.Millisecond, `{"Action":"pass","Package":"x","Test":"TestA"}`) + "\n" +
+		at(2500*time.Millisecond, `{"Action":"run","Package":"x","Test":"TestB"}`)
+	// TestB starts 2.5s in and is 1.5s idle at the 4s deadline: under half.
+	script := oc05StubbornScript + "printf '%s\\n' '" + first + "'; sleep 2.5; printf '%s\\n' '" + second + "'; sleep 30"
+	step := Step{Name: "slow", Dir: t.TempDir(), GoTestJSON: true, BudgetBound: true, Argv: []string{"sh", "-c", script}}
+
+	failure, skipped := Run(context.Background(), []Step{step}, 4*time.Second)
+
+	if failure != nil {
+		t.Fatalf("a 1.5s idle test in a 4s window is not a hang: %+v", failure)
+	}
+	if len(skipped) != 1 || !skipped[0].Budget {
+		t.Fatalf("skipped = %+v, want one budget skip", skipped)
+	}
+}
+
+// An exit status the step accepts (PassExit) is the step's own verdict; a
+// step killed at its deadline did not give one, whatever status the kill
+// left it with.
+func TestOracleC05_AcceptedExitStatusDoesNotPassAKilledStep(t *testing.T) {
+	step := Step{Name: "killed", Dir: t.TempDir(), PassExit: []int{1},
+		Argv: []string{"sh", "-c", "trap 'exit 1' TERM; sleep 30 & wait"}}
+
+	failure, skipped := Run(context.Background(), []Step{step}, 2*time.Second)
+
+	if failure == nil || !failure.TimedOut {
+		t.Fatalf("failure = %+v, skipped = %+v: a step cut off at its deadline passed", failure, skipped)
+	}
+}

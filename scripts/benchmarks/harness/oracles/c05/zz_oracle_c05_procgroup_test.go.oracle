@@ -1,0 +1,160 @@
+//go:build unix
+
+package procgroup
+
+// Pilot C oracle c05, pkg/procgroup cases (hidden from the agent): the Unix
+// tests of 52e6c55c and a7f5d43e pkg/procgroup/group_unix_test.go through the
+// exported API only (New, Options, DefaultGrace, Start, Kill, Terminate,
+// Close), identifiers prefixed. Tests of unexported tree internals are left
+// out, and so are the cases that find a descendant in its own session: they
+// need ps, which a sandboxed grader cannot run (setuid). KillNow, which only
+// the fixed head has, is replaced by Kill.
+
+import (
+	"context"
+	"errors"
+	"os"
+	"os/exec"
+	"os/signal"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"syscall"
+	"testing"
+	"time"
+)
+
+// The test binary doubles as the processes under test, chosen by oc05Helper:
+//
+//	trap     on SIGTERM writes "cleaned" next to the PID file and exits
+//	stubborn ignores SIGTERM, writes its PID and waits
+const (
+	oc05Helper  = "OC05_PROCGROUP_HELPER"
+	oc05PIDFile = "OC05_PROCGROUP_PIDFILE"
+)
+
+// init, not TestMain: the package may already have a TestMain of its own.
+func init() {
+	switch os.Getenv(oc05Helper) {
+	case "":
+		return
+	case "trap":
+		sig := make(chan os.Signal, 1)
+		signal.Notify(sig, syscall.SIGTERM)
+		_ = os.WriteFile(os.Getenv(oc05PIDFile), []byte(strconv.Itoa(os.Getpid())), 0o600)
+		<-sig
+		_ = os.WriteFile(filepath.Join(filepath.Dir(os.Getenv(oc05PIDFile)), "cleaned"), nil, 0o600)
+		os.Exit(0)
+	case "stubborn":
+		signal.Ignore(syscall.SIGTERM)
+		_ = os.WriteFile(os.Getenv(oc05PIDFile), []byte(strconv.Itoa(os.Getpid())), 0o600)
+	}
+	time.Sleep(time.Hour)
+	os.Exit(0)
+}
+
+func oc05Command(t *testing.T, ctx context.Context, helper string) (*exec.Cmd, string) {
+	t.Helper()
+	pidFile := filepath.Join(t.TempDir(), "pid")
+	cmd := exec.CommandContext(ctx, os.Args[0])
+	cmd.Env = append(os.Environ(), oc05Helper+"="+helper, oc05PIDFile+"="+pidFile)
+	return cmd, pidFile
+}
+
+func oc05ReadPID(t *testing.T, path string) int {
+	t.Helper()
+	deadline := time.Now().Add(20 * time.Second)
+	for time.Now().Before(deadline) {
+		if b, err := os.ReadFile(path); err == nil && len(b) > 0 {
+			pid, err := strconv.Atoi(strings.TrimSpace(string(b)))
+			if err != nil {
+				t.Fatalf("pid file %s: %v", path, err)
+			}
+			t.Cleanup(func() { _ = syscall.Kill(pid, syscall.SIGKILL) })
+			return pid
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatalf("helper never wrote %s", path)
+	return 0
+}
+
+// oc05Gone waits a little for pid to disappear: init reaps an orphan
+// asynchronously after the kill.
+func oc05Gone(pid int) bool {
+	for range 250 {
+		if errors.Is(syscall.Kill(pid, 0), syscall.ESRCH) {
+			return true
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	return false
+}
+
+func oc05Must(t *testing.T, err error, what string) {
+	t.Helper()
+	if err != nil {
+		t.Fatalf("%s: %v", what, err)
+	}
+}
+
+func TestOracleC05_GraceLetsTheTreeCleanUp(t *testing.T) {
+	cmd, pidFile := oc05Command(t, t.Context(), "trap")
+	g := New(cmd, Options{Grace: 10 * time.Second})
+	oc05Must(t, g.Start(), "start")
+	oc05ReadPID(t, pidFile)
+	start := time.Now()
+	oc05Must(t, g.Kill(), "kill")
+	_ = cmd.Wait()
+	if _, err := os.Stat(filepath.Join(filepath.Dir(pidFile), "cleaned")); err != nil {
+		t.Fatalf("the tree got no SIGTERM to clean up on: %v", err)
+	}
+	if elapsed := time.Since(start); elapsed >= 8*time.Second {
+		t.Fatalf("a tree that exits on SIGTERM must end the grace early; Kill took %s", elapsed)
+	}
+}
+
+func TestOracleC05_IgnoredSIGTERMIsKilledAfterTheGrace(t *testing.T) {
+	cmd, pidFile := oc05Command(t, t.Context(), "stubborn")
+	g := New(cmd, Options{Grace: 300 * time.Millisecond})
+	oc05Must(t, g.Start(), "start")
+	pid := oc05ReadPID(t, pidFile)
+	start := time.Now()
+	oc05Must(t, g.Kill(), "kill")
+	err := cmd.Wait()
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) || exitErr.Sys().(syscall.WaitStatus).Signal() != syscall.SIGKILL {
+		t.Fatalf("wait = %v, want death by SIGKILL", err)
+	}
+	if elapsed := time.Since(start); elapsed > 15*time.Second {
+		t.Fatalf("Kill took %s", elapsed)
+	}
+	if !oc05Gone(pid) {
+		t.Fatal("the stubborn process survived")
+	}
+}
+
+func TestOracleC05_KillAfterExitReportsProcessDone(t *testing.T) {
+	cmd := exec.CommandContext(t.Context(), "true")
+	g := New(cmd, Options{})
+	oc05Must(t, g.Start(), "start")
+	oc05Must(t, cmd.Wait(), "wait")
+	if err := g.Kill(); !errors.Is(err, os.ErrProcessDone) {
+		t.Fatalf("Kill after exit = %v, want os.ErrProcessDone", err)
+	}
+}
+
+// Start sets the group's process attributes itself, so a SysProcAttr set
+// after New does not drop them.
+func TestOracleC05_StartSetsTheGroupAfterALateSysProcAttr(t *testing.T) {
+	cmd := exec.CommandContext(t.Context(), "sleep", "30")
+	g := New(cmd, Options{})
+	cmd.SysProcAttr = &syscall.SysProcAttr{}
+	oc05Must(t, g.Start(), "start")
+	defer func() { _ = g.Kill(); _ = cmd.Wait() }()
+	pgid, err := syscall.Getpgid(cmd.Process.Pid)
+	oc05Must(t, err, "getpgid")
+	if pgid != cmd.Process.Pid {
+		t.Fatalf("the command does not lead its own group: pgid %d, pid %d", pgid, cmd.Process.Pid)
+	}
+}

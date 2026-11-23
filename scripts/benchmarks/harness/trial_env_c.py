@@ -73,11 +73,11 @@ def env_overrides(command: str) -> list:
     return sorted(set(ENV_OVERRIDE.findall(command)))
 
 
-def selftest_steps(shell: str, package: str) -> list:
+def selftest_steps(shell: str, packages: list) -> list:
     """(name, argv, expected stdout fragment) of the no-model environment self-test."""
     return [
         ('go_build', ['go', 'build', './...'], None),
-        ('go_test_compile', ['go', 'test', '-count=1', '-run', '^$', './' + package], None),
+        ('go_test_compile', ['go', 'test', '-count=1', '-run', '^$', *('./' + p for p in packages)], None),
         ('zsh_heredoc', [shell, '-c', 'cat <<EOF\nzsh-heredoc-ok\nEOF'], 'zsh-heredoc-ok'),
         ('bash_heredoc', ['/bin/bash', '-c', 'cat <<EOF\nbash-heredoc-ok\nEOF'], 'bash-heredoc-ok'),
         ('git_status', ['git', 'status', '--short'], None),
@@ -102,7 +102,7 @@ def judge(name: str, result: dict, out: str, err: str, expected: str | None, env
     return problems
 
 
-def selftest(plan: dict, package: str, execute) -> dict:
+def selftest(plan: dict, packages: list, execute) -> dict:
     """Run every step inside the trial's sandbox (plan['wrap']) with the trial's environment.
 
     execute is trial_c.execute_tree. Logs go to measure/selftest/<step>.{out,err}.
@@ -110,7 +110,7 @@ def selftest(plan: dict, package: str, execute) -> dict:
     logs = plan['measure'] / 'selftest'
     logs.mkdir(parents=True, exist_ok=True)
     steps, failed = {}, []
-    for name, argv, expected in selftest_steps(plan['env']['SHELL'], package):
+    for name, argv, expected in selftest_steps(plan['env']['SHELL'], packages):
         out_path, err_path = logs / (name + '.out'), logs / (name + '.err')
         result = execute(plan['wrap'](argv), plan['work'], plan['env'], out_path, err_path, 1800,
                          scratch=plan['trial'] if plan['sandboxed'] else None)

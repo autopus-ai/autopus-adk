@@ -2,7 +2,7 @@ package cli
 
 // Pilot C oracle c01, review cases (hidden from the agent): the tests of
 // 10220e08 internal/cli/ci_report_lintsrc_edge_test.go with identifiers
-// prefixed and two note-text assertions relaxed to behaviour, so that a
+// prefixed and the note-text assertions relaxed to behaviour, so that a
 // differently worded note is not counted as a defect (README.md, Pilot C).
 
 import (
@@ -55,7 +55,8 @@ func TestOracleC01_LeavesTheIndexAlone(t *testing.T) {
 }
 
 // A checkout of another repository than the one measured is never compared
-// with its own remote; the note says whose files were read.
+// with its own remote: its local files are linted and no note reports a
+// comparison. Behaviour only; the wording of the explanatory note is free.
 func TestOracleC01_OtherRepositoryReadsLocalWithNote(t *testing.T) {
 	clone, _ := oc01StaleCheckout(t)
 	var r cireport.Report
@@ -63,10 +64,7 @@ func TestOracleC01_OtherRepositoryReadsLocalWithNote(t *testing.T) {
 	if !strings.Contains(oc01LintIDs(got), "concurrency-cancels-other-events") {
 		t.Fatalf("local checkout not linted: %v", oc01LintIDs(got))
 	}
-	notes := strings.Join(r.Notes, "\n")
-	if !strings.Contains(notes, "local checkout of o/other, not o/r") || strings.Contains(notes, "behind") {
-		t.Fatalf("notes = %q", r.Notes)
-	}
+	oc01AssertNoComparisonNote(t, r.Notes)
 }
 
 func TestOracleC01_RemoteNotNamedOriginIsNoted(t *testing.T) {
@@ -84,13 +82,27 @@ func TestOracleC01_RemoteNotNamedOriginIsNoted(t *testing.T) {
 	}
 }
 
+// Without any remote the local files are linted and nothing claims a
+// comparison with a remote branch. A note that origin/HEAD does not resolve is
+// allowed: the pinned interface asks for it whenever origin/HEAD is missing.
 func TestOracleC01_NoRemoteAtAllHasNoComparisonNote(t *testing.T) {
 	clone, _ := oc01StaleCheckout(t)
 	oc01Git(t, clone, "remote", "remove", "origin")
 	var r cireport.Report
-	lintCheckout(&r, "", clone, "", "o/r", nil)
-	if notes := strings.Join(r.Notes, "\n"); strings.Contains(notes, "origin") {
-		t.Fatalf("notes = %q", r.Notes)
+	got := lintCheckout(&r, "", clone, "", "o/r", nil)
+	if !strings.Contains(oc01LintIDs(got), "concurrency-cancels-other-events") {
+		t.Fatalf("local checkout not linted: %v", oc01LintIDs(got))
+	}
+	oc01AssertNoComparisonNote(t, r.Notes)
+}
+
+// oc01AssertNoComparisonNote fails when a note reports the checkout as behind
+// or as differing from a remote branch.
+func oc01AssertNoComparisonNote(t *testing.T, notes []string) {
+	t.Helper()
+	joined := strings.Join(notes, "\n")
+	if strings.Contains(joined, "commits behind") || strings.Contains(joined, "differs from") {
+		t.Fatalf("comparison note without a comparison: %q", notes)
 	}
 }
 

@@ -18,6 +18,7 @@ import traceback
 
 import claude_agent
 import guard_c
+import oracle_c
 import report_c
 import sources_c
 import trial_c
@@ -89,7 +90,7 @@ def parse(argv) -> argparse.Namespace:
     ap.add_argument('--gates', type=Path, help='gates.json from gate_c.py for this corpus (required unless --dry-run)')
     ap.add_argument('--model', required=True)
     ap.add_argument('--effort', default='high', choices=('low', 'medium', 'high', 'xhigh', 'max'))
-    ap.add_argument('--timeout', type=int, default=1800, help='agent deadline in seconds per trial')
+    ap.add_argument('--timeout', type=int, default=5400, help='agent deadline in seconds per trial')
     ap.add_argument('--credential-file', type=Path, help='mode-0600 file with the token (not needed for --dry-run)')
     ap.add_argument('--credential-kind', choices=tuple(claude_agent.TOKEN_ENV), default='oauth')
     ap.add_argument('--permission-mode', default='bypassPermissions')
@@ -212,22 +213,23 @@ def run_plan(ctx: dict, plan: list) -> int:
 
 
 def dry_run(ctx: dict, plan: list, protocol: dict) -> int:
-    """Prepare the first trial of each arm, run its sandboxed warm-up and the environment self-test
-    (trial_env_c.selftest), never the agent. Fails when a warm-up or a self-test step fails."""
+    """Prepare one trial per task and arm, run its sandboxed warm-up and the environment self-test
+    (trial_env_c.selftest), never the agent. Fails when a warm-up or a self-test step fails. Every task
+    is covered because bases differ: each base has its own snapshot, surface and warm cache."""
     print(json.dumps({k: v for k, v in protocol.items() if k != 'order'}, indent=2))
     print('order:', ' '.join('%s/%s/k%d' % entry for entry in protocol['order']))
     seen, failed = set(), []
     for task, arm, _ in plan:
-        if arm in seen:
+        if (task['id'], arm) in seen:
             continue
-        seen.add(arm)
+        seen.add((task['id'], arm))
         name = 'dry-%s-%s' % (task['id'], arm)
         prepared = trial_c.prepare(ctx, task, arm, name)
         warm = trial_c.execute_tree(prepared['warm'], prepared['work'], prepared['env'], prepared['measure'] /
                                     'warm.log', prepared['measure'] / 'warm.err', 1800, scratch=prepared['trial'])
         resolved = subprocess.run(prepared['path_probe'], cwd=prepared['work'], env=prepared['env'],
                                   capture_output=True, text=True, timeout=120).stdout.split()
-        check = trial_env_c.selftest(prepared, task['oracle']['package'], trial_c.execute_tree)
+        check = trial_env_c.selftest(prepared, oracle_c.present_packages(prepared['work'], task), trial_c.execute_tree)
         if warm['exit_code'] or not check['ok']:
             failed.append(name)
         print(json.dumps({'trial': name, 'argv': prepared['argv'], 'env_keys': sorted(prepared['env']),

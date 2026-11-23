@@ -130,5 +130,425 @@
     "harness_requires": [
       "30722ad9a9933ade33027144872fc0687b89787c"
     ]
+  },
+  {
+    "id": "c03",
+    "title": "cpu_gate refuses CPU-heavy Bash commands outside a lease while the machine is loaded",
+    "source": "PR #349 (feat/cpu-gate)",
+    "heads": {
+      "base": "7b017f1751a16a3651913abd4e86a35c43c3ecd6",
+      "pre_review": "32debe26d9c488750a9fd53631ca432d234fd957",
+      "fixed": "3b194190634e159f605cf6e38c85ba5e59becb57"
+    },
+    "prompt": "When several sessions share one machine, test runners, linters and type checkers (vitest, eslint, go test, ...) started outside `auto disk lease` pile up: the load reaches the core count and slows the work that did take a lease, and the CI jobs on the same machine. The disk gate only refuses heavy commands when disk space is short, so it does nothing here. Add an opt-in CPU gate: while the machine's 1-minute load is above the lease's own admission limit (`disk.lease.max_load_ratio`, or `AUTOPUS_LEASE_MAX_LOAD_RATIO`, times the logical CPUs; a lease grant the load average has not caught up with yet counts, as it does for the lease), refuse CPU-heavy Bash commands that do not run under a CPU lease and point the agent to the lease instead, so the refused command waits for the same condition the gate saw. The gate exists to protect work that holds or waits for a CPU lease. CPU-heavy means the disk gate's heavy commands plus test runners, linters and type checkers, however they are invoked. If measuring fails, allow. It is off by default: on a machine used by one session, its own build load alone would make the next command wait.\n\nPinned interface (hidden tests call it directly; keep these names and meanings):\n- Config `hooks.cpu_gate: true` in `autopus.yaml` turns the gate on; unset is off. The environment variable `AUTOPUS_CPU_GATE=on|off` turns it on or off for the machine and, when set, wins over the config. The gate runs in the existing `auto disk gate` PreToolUse hook; with `hooks.disk_gate: false` only the disk check is skipped, and `AUTOPUS_DISK_GATE=off` turns off both checks. The hook keeps exiting 0, prints nothing to allow, and prints its existing deny decision JSON to refuse.\n- The deny reason starts with `CPU gate:`, contains the 1-minute load and the limit with one decimal (for example `load 21.0 > 20.4`), and suggests `auto disk lease --cpu <N> -- <command>`. A command already under `auto disk lease --cpu ...` is allowed.\n- In package `pkg/diskgate`: `func ClassifyCPU(line string, extra ...string) Verdict` reports whether a Bash command line contains a CPU-heavy command, with the same `Verdict` (`Heavy`, and a non-empty `Match` naming the heavy step when `Heavy`) and the same `extra` command prefixes as the existing `Classify`.\n- In package `internal/cli` the gate reads the machine's load and CPU count through the existing lease seams `leaseMachineSampler` and `leaseNumCPU`, and the CPU leases and waiters in the directory `openLeaseDir` opens.",
+    "allowed_paths": [
+      "internal/cli/*",
+      "pkg/diskgate/*",
+      "pkg/config/*",
+      "pkg/content/*"
+    ],
+    "oracle": {
+      "package": "internal/cli",
+      "files": [
+        "zz_oracle_c03_gate_test.go.oracle",
+        {
+          "name": "zz_oracle_c03_classify_test.go.oracle",
+          "package": "pkg/diskgate"
+        }
+      ],
+      "base_stub": {
+        "name": "zz_oracle_c03_base_stub.go.oracle",
+        "package": "pkg/diskgate"
+      },
+      "case_timeout": 600,
+      "cases": [
+        {
+          "name": "TestOracleC03_ClassifiesLintersTypeCheckersAndTestRunners",
+          "kind": "feature",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC03_CompilingInstallsAreCPUWork",
+          "kind": "review",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC03_VersionFlagsArePerTool",
+          "kind": "review",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC03_RunnerOptionsAreSkipped",
+          "kind": "review",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC03_WrappersAreSeenThrough",
+          "kind": "review",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC03_SuiteToolsAreCPUWork",
+          "kind": "review",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC03_AutoSuiteCommandsAreCPUWork",
+          "kind": "review",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC03_HeredocBodyIsData",
+          "kind": "review",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC03_CommandAfterHeredocStillHeavy",
+          "kind": "guard",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC03_DeniesUnleasedHeavyCommandsAboveTheLoadLimit",
+          "kind": "feature"
+        },
+        {
+          "name": "TestOracleC03_AllowsWhenNoLeaseOrWaiterIsProtected",
+          "kind": "review"
+        },
+        {
+          "name": "TestOracleC03_CountsRecentGrantsLikeTheLease",
+          "kind": "feature"
+        },
+        {
+          "name": "TestOracleC03_AllowsAtOrBelowTheLimitAndWhenOff",
+          "kind": "guard"
+        },
+        {
+          "name": "TestOracleC03_EnvSwitchWinsOverTheConfig",
+          "kind": "review"
+        },
+        {
+          "name": "TestOracleC03_ReadsTheConfigAtTheProjectRoot",
+          "kind": "review"
+        },
+        {
+          "name": "TestOracleC03_FollowsTheLeaseLoadRatio",
+          "kind": "feature"
+        },
+        {
+          "name": "TestOracleC03_WorksWithTheDiskGateOff",
+          "kind": "feature"
+        }
+      ]
+    },
+    "harness_requires": [
+      "30722ad9a9933ade33027144872fc0687b89787c"
+    ]
+  },
+  {
+    "id": "c04",
+    "title": "lesson and checklist ids stay unique across branches and the lesson store merges cleanly",
+    "source": "PR #354 (fix/lesson-id-collision)",
+    "heads": {
+      "base": "a93c471726051573ef5ef563829f7114c42f6198",
+      "pre_review": "aca0228d7e1518f54e9bef0cbf6e5b7f447e0f21",
+      "fixed": "c9149d98e01f8da649578ad2dbb2953e59425af3"
+    },
+    "prompt": "Two branches cut from the same main that each record a lesson with `auto checklist record` both get `L-004`: the lesson id is the highest id in the committed `.autopus/learnings/pipeline.jsonl` plus one. Merging the branches then leaves a duplicate id, and because both branches append to the end of the file, the merge also always ends in a text conflict. Checklist candidate ids (`CHK-NNN`) are allocated the same way, so two different defects drafted on two branches claim the same `CHK-001.json` file name. Make lesson ids and checklist candidate ids unique across branches, make the lesson store merge between branches without a text conflict (git's `merge=union` driver for that file is the intended mechanism), and keep the store and everything that reads it working on a merged file. Ids already written (`L-001`, `CHK-001`) must stay valid and addressable.\n\nPinned interface (hidden tests call it directly; keep these signatures and meanings):\n- Lesson ids: new ids have the form `L-NNN-xxxxxx` (`NNN` the sequence, at least three digits, one above the highest sequence in the store; `xxxxxx` six lowercase hex characters). The old form `L-NNN` stays valid. `learn.IsValidEntryID(id string) bool` accepts exactly these two forms.\n- Lesson store, package `pkg/learn`: `NewStore(projectDir)` (the file is `<projectDir>/.autopus/learnings/pipeline.jsonl`), `(*Store).Append`, `AppendAtomic(EntryType, RecordOpts)` (assigns the next id), `Read`, `ReadTolerant`, `MarkReused([]string)`; `Read` returns one entry per lesson.\n- Checklist candidate ids, package `pkg/checklist`: new ids have the form `CHK-NNN-xxxxxx`, where `xxxxxx` is the first six characters of the candidate's `Fingerprint`; the old form `CHK-NNN` stays valid; `ValidID(id string) bool` accepts exactly these two forms (lowercase hex only). `Propose`, `SaveCandidate`, `LoadCandidates`, `Refute`, `Approve`, `Reject`, `SetMode` and `WorkingChecks` keep their signatures and accept both forms.\n- `auto checklist refute|approve|reject|promote <id>` accept both forms and refuse any other id.\n- The memory index (package `pkg/memindex`, `Rebuild(Options)` and `Status(Options)`, behind `auto mem rebuild` and `auto mem status`) keeps indexing the lesson store.",
+    "allowed_paths": [
+      "pkg/learn/*",
+      "pkg/checklist/*",
+      "pkg/memindex/*",
+      "pkg/harneval/*",
+      "internal/cli/*",
+      ".gitattributes"
+    ],
+    "oracle": {
+      "package": "pkg/learn",
+      "files": [
+        "zz_oracle_c04_learn_test.go.oracle",
+        {
+          "name": "zz_oracle_c04_checklist_test.go.oracle",
+          "package": "pkg/checklist"
+        },
+        {
+          "name": "zz_oracle_c04_memindex_test.go.oracle",
+          "package": "pkg/memindex"
+        },
+        {
+          "name": "zz_oracle_c04_cli_test.go.oracle",
+          "package": "internal/cli"
+        }
+      ],
+      "case_timeout": 600,
+      "cases": [
+        {
+          "name": "TestOracleC04_TwoBranchesRecordFromSameBase",
+          "kind": "feature"
+        },
+        {
+          "name": "TestOracleC04_EntryIDForms",
+          "kind": "feature"
+        },
+        {
+          "name": "TestOracleC04_ReadDedupesMergedDuplicates",
+          "kind": "feature"
+        },
+        {
+          "name": "TestOracleC04_GitMergeRewriteAndAppend",
+          "kind": "feature"
+        },
+        {
+          "name": "TestOracleC04_GitMergeOldFormIDCollisionKeepsBoth",
+          "kind": "review"
+        },
+        {
+          "name": "TestOracleC04_ProposeTwoBranchesFromSameBase",
+          "kind": "feature",
+          "package": "pkg/checklist"
+        },
+        {
+          "name": "TestOracleC04_CheckIDForms",
+          "kind": "feature",
+          "package": "pkg/checklist"
+        },
+        {
+          "name": "TestOracleC04_DecisionsTakeOldAndNewIDs",
+          "kind": "feature",
+          "package": "pkg/checklist"
+        },
+        {
+          "name": "TestOracleC04_SameDefectSameSequenceSameID",
+          "kind": "guard",
+          "package": "pkg/checklist"
+        },
+        {
+          "name": "TestOracleC04_MergedDuplicateIsNotDraftedAgain",
+          "kind": "feature",
+          "package": "pkg/checklist"
+        },
+        {
+          "name": "TestOracleC04_RebuildUnionMergedLearningStore",
+          "kind": "review",
+          "package": "pkg/memindex"
+        },
+        {
+          "name": "TestOracleC04_ChecklistCommandsTakeOldAndNewIDs",
+          "kind": "feature",
+          "package": "internal/cli"
+        }
+      ]
+    },
+    "harness_requires": [
+      "30722ad9a9933ade33027144872fc0687b89787c"
+    ]
+  },
+  {
+    "id": "c05",
+    "title": "auto verify stop step cancellation also stops descendants that left the step's process group",
+    "source": "PR #355 (fix/verifygate-process-cleanup)",
+    "heads": {
+      "base": "a93c471726051573ef5ef563829f7114c42f6198",
+      "pre_review": "52e6c55c5c18fcb1c6e86d3b5bb40e17644b155d",
+      "fixed": "a7f5d43e65f82f64fecc21733def5870afbdf49a"
+    },
+    "prompt": "When `auto verify stop` cuts a step off at its budget or deadline (`pkg/verifygate`), processes survive. On Unix the step runs in its own process group and is killed with a group SIGKILL, which never reaches a descendant that left the group with setsid or Setpgid (the test servers `pkg/qa/execcheck` starts are an example); on Windows the cancel is a no-op, so only `go.exe` dies and the `*.test.exe` keeps running. Make stopping a step stop what it started. On Unix, read the process table with `ps` before signalling, link descendants by parent PID while their parents are alive, and follow the process groups those descendants lead; then send SIGTERM, wait up to a grace period (ending early when the tree is gone), send SIGKILL, and re-read the table a few times to catch what is left. Fall back to the plain group kill when `ps` is unavailable. On Windows, create the step suspended, put it in a Job Object with KILL_ON_JOB_CLOSE, then resume it, and terminate the job on cancel. The same `process_*.go` code is copied in `pkg/verifygate` and `pkg/qa/execcheck`; merge it into one new package, `pkg/procgroup`, and use it from both (including execcheck's SIGTERM on restart).\n\nPinned interface (hidden tests call it directly; keep these names and meanings):\n- Package `pkg/procgroup` (import path `github.com/insajin/autopus-adk/pkg/procgroup`):\n  - `const DefaultGrace time.Duration` = 2s, the default time between SIGTERM and SIGKILL.\n  - `type Options struct { Grace time.Duration }`: Grace is the time between SIGTERM and SIGKILL; zero kills at once.\n  - `func New(cmd *exec.Cmd, opts Options) *Group`: cmd comes from `exec.CommandContext` and has not been started; New sets `cmd.Cancel` so the context's cancellation stops the whole tree.\n  - `func (g *Group) Start() error`: starts the command inside its group; callers start the command only this way, never with `cmd.Start`. On Unix the command leads its own process group.\n  - `func (g *Group) Kill() error`: stops the command and every descendant it can find within a bounded time (SIGTERM, up to Grace, then SIGKILL). It returns `os.ErrProcessDone` when nothing was left to signal. It may be called after the command exited.\n  - `func (g *Group) Terminate()`: asks the command's tree to shut down (SIGTERM on Unix) without waiting.\n  - `func (g *Group) Close() error`: releases the group after the command was waited for.\n- `pkg/verifygate`: keep `Run(ctx, steps, budget) (*Failure, []Skip)`, `Step`, `Failure` and `Skip` as they are. A step that did not finish in time keeps its Failure reason form `did not finish within the <time it had> it had of the <budget> budget`.",
+    "allowed_paths": [
+      "pkg/procgroup/*",
+      "pkg/verifygate/*",
+      "pkg/qa/execcheck/*"
+    ],
+    "oracle": {
+      "package": "pkg/procgroup",
+      "files": [
+        "zz_oracle_c05_procgroup_test.go.oracle",
+        {
+          "name": "zz_oracle_c05_verifygate_test.go.oracle",
+          "package": "pkg/verifygate"
+        }
+      ],
+      "case_timeout": 300,
+      "cases": [
+        {
+          "name": "TestOracleC05_GraceLetsTheTreeCleanUp",
+          "kind": "feature"
+        },
+        {
+          "name": "TestOracleC05_IgnoredSIGTERMIsKilledAfterTheGrace",
+          "kind": "feature"
+        },
+        {
+          "name": "TestOracleC05_KillAfterExitReportsProcessDone",
+          "kind": "feature"
+        },
+        {
+          "name": "TestOracleC05_StartSetsTheGroupAfterALateSysProcAttr",
+          "kind": "review"
+        },
+        {
+          "name": "TestOracleC05_KillGraceIsNotCountedAsTimeTheStepHad",
+          "kind": "review",
+          "package": "pkg/verifygate"
+        },
+        {
+          "name": "TestOracleC05_IdleUnderHalfTheWindowStaysABudgetSkip",
+          "kind": "review",
+          "package": "pkg/verifygate"
+        },
+        {
+          "name": "TestOracleC05_AcceptedExitStatusDoesNotPassAKilledStep",
+          "kind": "review",
+          "package": "pkg/verifygate"
+        }
+      ],
+      "base_stub": {
+        "name": "zz_oracle_c05_base_stub.go.oracle",
+        "package": "pkg/procgroup"
+      }
+    },
+    "harness_requires": [
+      "30722ad9a9933ade33027144872fc0687b89787c"
+    ]
+  },
+  {
+    "id": "c06",
+    "title": "disk gate follow-ups: subdirectory config and here-document scripts",
+    "source": "PR #356 (fix/cpu-gate-followups)",
+    "heads": {
+      "base": "a93c471726051573ef5ef563829f7114c42f6198",
+      "pre_review": "ded4a2f5a99393dbe90bc19232e48a606e513e4f",
+      "fixed": "25530eb779009a84270805953eaf4046ad4a8aae"
+    },
+    "prompt": "Follow-ups to the `cpu_gate` work (PR #349) in the disk gate and `auto disk`.\n\n1. Subdirectory config mismatch: the disk/CPU gate hook reads the nearest `autopus.yaml` above the working directory, but the `auto disk` subcommands read only the config in the current directory. So in a subdirectory a lease ignored the project root's `disk.lease.max_load_ratio`, `cpu_slots`, `min_free_gb` and `lease.dir`, and never joined the shared queue. Without `--dir`, `auto disk` commands and the automatic reclaim the Stop hook starts must read their settings from the same project root the gate uses; free space is still measured at the current directory. With `--dir`, the config of that directory is read as given.\n2. `auto qa exec --help`, `auto workflow gate --help`, `auto qa loop -h`: an `auto` suite step followed only by `-h`/`--help`/`--version` is not heavy work.\n3. Here-document bypass: when the local shell reads a here-document body as its script (`bash <<EOF`, `sh -s <<EOF`, `cat <<EOF | bash`, `| sudo bash -s`), classify the body lines as commands. `ssh host <<EOF` and `bash script.sh <<EOF` stay data. `$((1<<4))` is one arithmetic-expansion word, not a here-document, and `2>&1` is one redirection word (today the command is cut at the `&`).\n4. `command -v`/`command -V` (including `-pv`) only look a tool up and are not heavy; `type`, `which` and `hash` are lookups too.\n\nPinned interface (hidden tests call it directly; keep these signatures and meanings):\n- In package `pkg/diskgate`: `func Classify(line string, extra ...string) Verdict` (the disk gate's classifier) and `func ClassifyCPU(line string, extra ...string) Verdict` (the CPU gate's), with `type Verdict struct { Heavy bool; Match string }`. `line` is the whole Bash command text; `Match` keeps naming the heavy step the way it does today (for example `go test`, `go build`, `pytest`, `pnpm test`, `npm run build`, `auto qa exec`).\n- In package `internal/cli`: the `auto disk lease`, `auto disk check` and `auto disk reclaim` commands through `NewRootCmd()` with their existing flags and exit codes; `func maybeStartAutoReclaim(dir string) bool`, the Stop hook's automatic reclaim for a session whose working directory is `dir`, which starts the reclaim through the package variable `diskSpawnAutoReclaim func(dir string) error`, whose argument is the directory the reclaim runs in. The existing package-level test seams (`diskGetwd`, `diskFree`, `diskStatePath`, `diskNow`, `diskScratchpad`, `leaseNumCPU`, `leaseMachineSampler`, `diskLeaseSleep`) keep their names and meaning.",
+    "allowed_paths": [
+      "internal/cli/*",
+      "pkg/diskgate/*",
+      "pkg/config/*"
+    ],
+    "oracle": {
+      "package": "internal/cli",
+      "files": [
+        "zz_oracle_c06_subdir_test.go.oracle",
+        {
+          "name": "zz_oracle_c06_classify_test.go.oracle",
+          "package": "pkg/diskgate"
+        }
+      ],
+      "case_timeout": 600,
+      "cases": [
+        {
+          "name": "TestOracleC06_HelpAfterASuiteStepIsLight",
+          "kind": "feature",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC06_SuiteStepWithoutHelpStaysHeavy",
+          "kind": "guard",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC06_HelpFlagAnywhereIsLight",
+          "kind": "review",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC06_ToolLookupsAreLight",
+          "kind": "feature",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC06_CommandRunsItsTool",
+          "kind": "guard",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC06_HeredocReadByAShellIsAScript",
+          "kind": "feature",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC06_HeredocToARemoteOrAScriptFileIsData",
+          "kind": "guard",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC06_ArithmeticShiftIsNotAHeredoc",
+          "kind": "feature",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC06_SubshellInACommandSubstitutionRuns",
+          "kind": "review",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC06_ArithmeticStaysLight",
+          "kind": "guard",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC06_ShellOptionValuesDoNotEndTheOptions",
+          "kind": "review",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC06_QuotedAngleBeforeAmpersandIsNotARedirection",
+          "kind": "review",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC06_LineContinuationsJoinTheCommand",
+          "kind": "review",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC06_RedirectionsDoNotHideTheCommand",
+          "kind": "review",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC06_RedirectedShellWithAScriptFileReadsNoHeredoc",
+          "kind": "review",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC06_BackquoteInARedirectionTargetRuns",
+          "kind": "guard",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC06_CommandSubstitutionInArithmeticRuns",
+          "kind": "review",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC06_LeaseInASubdirectoryReadsTheRootSlots",
+          "kind": "feature"
+        },
+        {
+          "name": "TestOracleC06_CheckInASubdirectoryReadsTheRootFloor",
+          "kind": "feature"
+        },
+        {
+          "name": "TestOracleC06_ExplicitDirReadsThatDirectory",
+          "kind": "guard"
+        },
+        {
+          "name": "TestOracleC06_AutoReclaimHonoursTheRootSettings",
+          "kind": "feature"
+        },
+        {
+          "name": "TestOracleC06_AutoReclaimRunsInTheSessionCwd",
+          "kind": "review"
+        },
+        {
+          "name": "TestOracleC06_AutoReclaimKeepsTheSessionWorktree",
+          "kind": "review"
+        }
+      ]
+    },
+    "harness_requires": [
+      "30722ad9a9933ade33027144872fc0687b89787c"
+    ]
   }
 ]

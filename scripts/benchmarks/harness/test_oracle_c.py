@@ -14,7 +14,7 @@ HERE = Path(__file__).resolve().parent
 class CorpusTests(unittest.TestCase):
     def test_every_case_is_a_test_in_its_oracle_and_hidden_from_the_prompt(self):
         tasks = load_corpus()
-        self.assertEqual([t['id'] for t in tasks], ['c01', 'c02'])
+        self.assertEqual([t['id'] for t in tasks], ['c01', 'c02', 'c03', 'c04', 'c05', 'c06'])
         for task in tasks:
             source = ''.join(p.read_text() for p in oracle_c.oracle_files(task))
             defined = set(re.findall(r'^func (Test\w+)\(t \*testing\.T\)', source, re.M))
@@ -45,6 +45,28 @@ class InstallTests(unittest.TestCase):
             self.assertEqual([p.name for p in installed], ['zz_oracle_c02_test.go'])
             with self.assertRaises(ValueError):
                 oracle_c.install_oracle(tree, task)
+
+    def test_files_and_cases_can_name_other_packages(self):
+        with tempfile.TemporaryDirectory() as d:
+            oracles, tree = Path(d) / 'oracles', Path(d) / 'tree'
+            (oracles / 't').mkdir(parents=True)
+            for name in ('a_test.go.oracle', 'b_test.go.oracle', 'stub.go.oracle'):
+                (oracles / 't' / name).write_text('package x\n')
+            task = {'id': 't', 'oracle': {'package': 'internal/cli', 'files': [
+                'a_test.go.oracle', {'name': 'b_test.go.oracle', 'package': 'pkg/x'}],
+                'base_stub': {'name': 'stub.go.oracle', 'package': 'pkg/x'},
+                'cases': [{'name': 'TestA', 'kind': 'review'}, {'name': 'TestB', 'kind': 'review', 'package': 'pkg/x'}]}}
+            self.assertEqual(oracle_c.packages(task), ['internal/cli', 'pkg/x'])
+            self.assertEqual([oracle_c.case_package(task, c) for c in task['oracle']['cases']], ['internal/cli', 'pkg/x'])
+            self.assertEqual([p for _, p in oracle_c.stub_specs(task, oracles)], ['pkg/x'])
+            (tree / 'internal' / 'cli').mkdir(parents=True)
+            self.assertEqual(oracle_c.present_packages(tree, task), ['internal/cli'], 'pkg/x is new')
+            installed = oracle_c.install_oracle(tree, task, oracles)
+            self.assertEqual([p.relative_to(tree).as_posix() for p in installed],
+                             ['internal/cli/a_test.go', 'pkg/x/b_test.go'])
+            before = oracle_c.frozen_hash([task], oracles)
+            (oracles / 't' / 'stub.go.oracle').write_text('package y\n')
+            self.assertNotEqual(before, oracle_c.frozen_hash([task], oracles), 'a stub edit changes the hash')
 
 
 class VerdictTests(unittest.TestCase):

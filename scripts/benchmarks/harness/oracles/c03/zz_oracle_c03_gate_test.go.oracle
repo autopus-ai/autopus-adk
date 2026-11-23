@@ -1,0 +1,185 @@
+package cli
+
+// Pilot C oracle c03, CPU gate cases (hidden from the agent): the TestCPUGate
+// tests of 3b194190 internal/cli/disk_gate_cpu_test.go (and their 32debe26
+// versions) through `auto disk gate`, identifiers prefixed and the reason
+// text relaxed to what the prompt pins: the "CPU gate:" prefix, the load and
+// the limit, and the lease command (README.md, Pilot C).
+
+import (
+	"context"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/insajin/autopus-adk/pkg/config"
+	"github.com/insajin/autopus-adk/pkg/diskspace"
+)
+
+// oc03MachineLoad fixes the lease sampler's 1-minute load and the CPU count,
+// gives the test its own lease directory, and clears the ambient lease and
+// gate environment.
+func oc03MachineLoad(t *testing.T, load1 float64, cpus int) {
+	t.Helper()
+	prevSampler, prevCPU, prevState := leaseMachineSampler, leaseNumCPU, diskStatePath
+	leaseMachineSampler = diskspace.SamplerFunc(func() (diskspace.MachineSample, error) {
+		return diskspace.MachineSample{Load1: load1, HasLoad: true}, nil
+	})
+	leaseNumCPU = func() int { return cpus }
+	state := filepath.Join(t.TempDir(), "state", "autopus", "disk")
+	diskStatePath = func() string { return state }
+	for _, key := range []string{"AUTOPUS_LEASE_DIR", "AUTOPUS_LEASE_MAX_LOAD_RATIO", "AUTOPUS_LEASE_MIN_FREE_MEM_GB",
+		"AUTOPUS_CPU_GATE", "AUTOPUS_DISK_GATE"} {
+		t.Setenv(key, "")
+		if err := os.Unsetenv(key); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Cleanup(func() { leaseMachineSampler, leaseNumCPU, diskStatePath = prevSampler, prevCPU, prevState })
+}
+
+// oc03HoldLease holds a CPU lease of cpus slots granted long enough ago that
+// the 1-minute load already shows it.
+func oc03HoldLease(t *testing.T, cpus int) {
+	t.Helper()
+	oc03Admit(t, cpus, time.Now().Add(-10*time.Minute))
+}
+
+func oc03Admit(t *testing.T, cpus int, now time.Time) {
+	t.Helper()
+	leases, err := openLeaseDir(config.DiskConf{}.Effective().Lease)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := diskspace.AdmitIn(context.Background(), leases, diskspace.AdmitRequest{CPUs: cpus, CPUSlots: 24,
+		Label: "holder", PID: os.Getpid(), Now: now})
+	if err != nil || !a.Admitted() {
+		t.Fatalf("lease not admitted: %v", err)
+	}
+	t.Cleanup(a.Lease.Release)
+}
+
+func oc03Gate(t *testing.T, dir, command string) string {
+	t.Helper()
+	return gateReason(t, runDiskGate(t, gatePayload(t, dir, "Bash", command, nil)))
+}
+
+func oc03Denied(t *testing.T, reason, command string, parts ...string) {
+	t.Helper()
+	for _, part := range append([]string{"CPU gate:"}, parts...) {
+		if !strings.Contains(reason, part) {
+			t.Errorf("%q: reason %q lacks %q", command, reason, part)
+		}
+	}
+}
+
+const oc03On = "hooks:\n  cpu_gate: true\n"
+
+func TestOracleC03_DeniesUnleasedHeavyCommandsAboveTheLoadLimit(t *testing.T) {
+	dir := writeDiskProject(t, oc03On)
+	withDiskFree(t, gib(500), "/fixture")
+	oc03MachineLoad(t, 21, 24) // limit 0.85 x 24 = 20.4
+	oc03HoldLease(t, 8)
+	for _, command := range []string{"pnpm test", "npx vitest run", "cd web && eslint . --max-warnings=0", "go test ./...",
+		"pnpm -r lint", "golangci-lint run ./...", "auto disk lease --need 8 -- go test ./..."} {
+		oc03Denied(t, oc03Gate(t, dir, command), command, "21.0", "20.4", "auto disk lease --cpu")
+	}
+	for _, command := range []string{"auto disk lease --cpu 4 -- pnpm test", "git status", "ls -la",
+		"heavy-lock.sh evo go test ./...", "npm i left-pad", "git worktree add ../x", "tsc --version"} {
+		if reason := oc03Gate(t, dir, command); reason != "" {
+			t.Errorf("%q denied: %q", command, reason)
+		}
+	}
+}
+
+// Load from outside the lease system cannot be reduced by queueing: with no
+// CPU lease and no waiter the gate allows; a queued waiter is protected.
+func TestOracleC03_AllowsWhenNoLeaseOrWaiterIsProtected(t *testing.T) {
+	dir := writeDiskProject(t, oc03On)
+	withDiskFree(t, gib(500), "/fixture")
+	oc03MachineLoad(t, 60, 24)
+	if reason := oc03Gate(t, dir, "go test ./..."); reason != "" {
+		t.Fatalf("denied with nothing to protect: %q", reason)
+	}
+	leases, err := openLeaseDir(config.DiskConf{}.Effective().Lease)
+	if err != nil {
+		t.Fatal(err)
+	}
+	refused, err := diskspace.AdmitIn(context.Background(), leases, diskspace.AdmitRequest{CPUs: 1, CPUSlots: 24,
+		Load: leaseLoadPolicy(config.DiskConf{}.Effective().Lease), PID: os.Getpid(), Now: time.Now()})
+	if err != nil || refused.Ticket == nil {
+		t.Fatalf("the load should queue the request: %v", err)
+	}
+	t.Cleanup(refused.Ticket.Release)
+	oc03Denied(t, oc03Gate(t, dir, "go test ./..."), "go test ./...")
+}
+
+// A CPU grant the 1-minute load average has not caught up with counts.
+func TestOracleC03_CountsRecentGrantsLikeTheLease(t *testing.T) {
+	dir := writeDiskProject(t, oc03On)
+	withDiskFree(t, gib(500), "/fixture")
+	oc03MachineLoad(t, 15, 24)
+	oc03Admit(t, 8, time.Now())
+	oc03Denied(t, oc03Gate(t, dir, "go test ./..."), "go test ./...", "20.4")
+}
+
+func TestOracleC03_AllowsAtOrBelowTheLimitAndWhenOff(t *testing.T) {
+	withDiskFree(t, gib(500), "/fixture")
+	oc03MachineLoad(t, 20.4, 24)
+	oc03HoldLease(t, 4)
+	if reason := oc03Gate(t, writeDiskProject(t, oc03On), "pnpm test"); reason != "" {
+		t.Errorf("a load at the limit is admitted: %q", reason)
+	}
+	oc03MachineLoad(t, 40, 24)
+	oc03HoldLease(t, 4)
+	if reason := oc03Gate(t, writeDiskProject(t, ""), "pnpm test"); reason != "" {
+		t.Errorf("unset cpu_gate is off: %q", reason)
+	}
+	t.Setenv("AUTOPUS_DISK_GATE", "off")
+	if reason := oc03Gate(t, writeDiskProject(t, oc03On), "pnpm test"); reason != "" {
+		t.Errorf("the hook's off switch covers both checks: %q", reason)
+	}
+}
+
+// AUTOPUS_CPU_GATE switches the gate per machine and wins over the config.
+func TestOracleC03_EnvSwitchWinsOverTheConfig(t *testing.T) {
+	withDiskFree(t, gib(500), "/fixture")
+	oc03MachineLoad(t, 30, 24)
+	oc03HoldLease(t, 4)
+	t.Setenv("AUTOPUS_CPU_GATE", "on")
+	oc03Denied(t, oc03Gate(t, writeDiskProject(t, ""), "pnpm test"), "pnpm test")
+	t.Setenv("AUTOPUS_CPU_GATE", "off")
+	if reason := oc03Gate(t, writeDiskProject(t, oc03On), "pnpm test"); reason != "" {
+		t.Errorf("env off overrides hooks.cpu_gate: true: %q", reason)
+	}
+}
+
+// A session working in a subdirectory keeps the project's gate.
+func TestOracleC03_ReadsTheConfigAtTheProjectRoot(t *testing.T) {
+	withDiskFree(t, gib(500), "/fixture")
+	oc03MachineLoad(t, 30, 24)
+	oc03HoldLease(t, 4)
+	sub := filepath.Join(writeDiskProject(t, oc03On), "web", "src")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	oc03Denied(t, oc03Gate(t, sub, "pnpm test"), "pnpm test")
+}
+
+func TestOracleC03_FollowsTheLeaseLoadRatio(t *testing.T) {
+	withDiskFree(t, gib(500), "/fixture")
+	oc03MachineLoad(t, 13, 24)
+	oc03HoldLease(t, 4)
+	dir := writeDiskProject(t, oc03On+"disk:\n  lease:\n    max_load_ratio: 0.5\n")
+	oc03Denied(t, oc03Gate(t, dir, "vitest run"), "vitest run", "13.0", "12.0")
+}
+
+func TestOracleC03_WorksWithTheDiskGateOff(t *testing.T) {
+	withDiskFree(t, gib(1), "/fixture")
+	oc03MachineLoad(t, 30, 24)
+	oc03HoldLease(t, 4)
+	dir := writeDiskProject(t, "hooks:\n  disk_gate: false\n  cpu_gate: true\n")
+	oc03Denied(t, oc03Gate(t, dir, "go build ./..."), "go build ./...")
+}

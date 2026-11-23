@@ -1,0 +1,5 @@
+package diskgate
+
+// Pilot C oracle c03 base stub, added to base only for gate 3: base has no
+// CPU classifier, so this one finds nothing heavy.
+func ClassifyCPU(line string, extra ...string) Verdict { return Verdict{} }

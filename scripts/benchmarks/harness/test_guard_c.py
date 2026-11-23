@@ -50,6 +50,37 @@ class AncestryTests(unittest.TestCase):
             self.assertIn('unknown', guard_c.contains_task_head(Path(d), harness, [unknown])[0])
 
 
+    def test_a_cherry_picked_fix_on_the_required_revision_is_accepted(self):
+        """The pilot C topology: harness = R (30722ad9) + one cherry-picked fix; tasks branch from a later
+        main that merged R's branch, so they are not ancestors of the harness, while main contains them."""
+        with tempfile.TemporaryDirectory() as d:
+            git(d, 'init', '-q', '-b', 'main')
+            git(d, 'commit', '-q', '--allow-empty', '-m', 'base')
+            git(d, 'checkout', '-q', '-b', 'r')
+            git(d, 'commit', '-q', '--allow-empty', '-m', 'required')
+            required = git(d, 'rev-parse', 'HEAD')
+            git(d, 'checkout', '-q', 'main')
+            git(d, 'merge', '-q', '--no-ff', '-m', 'merge r', 'r')
+            later_base = git(d, 'rev-parse', 'HEAD')
+            git(d, 'checkout', '-q', '-b', 'task', later_base)
+            git(d, 'commit', '-q', '--allow-empty', '-m', 'pre')
+            pre = git(d, 'rev-parse', 'HEAD')
+            git(d, 'commit', '-q', '--allow-empty', '-m', 'fixed')
+            fixed = git(d, 'rev-parse', 'HEAD')
+            git(d, 'checkout', '-q', 'main')
+            git(d, 'merge', '-q', '--no-ff', '-m', 'merge task', 'task')
+            git(d, 'commit', '-q', '--allow-empty', '-m', 'verify-stop fix')
+            fix = git(d, 'rev-parse', 'HEAD')
+            git(d, 'checkout', '-q', '-b', 'harness', required)
+            git(d, 'cherry-pick', '--allow-empty', fix)
+            harness = git(d, 'rev-parse', 'HEAD')
+            task = {'id': 't', 'heads': {'base': later_base, 'pre_review': pre, 'fixed': fixed},
+                    'harness_requires': [required]}
+            self.assertEqual(guard_c.contains_task_head(Path(d), harness, [task]), [])
+            self.assertEqual(guard_c.missing_requirements(Path(d), harness, [task]), [])
+            self.assertEqual(len(guard_c.contains_task_head(Path(d), 'main', [task])), 2, 'main is refused')
+
+
 class OutputTests(unittest.TestCase):
     def test_parent_instructions_are_found(self):
         with tempfile.TemporaryDirectory() as d:
@@ -76,7 +107,7 @@ class GatesTests(unittest.TestCase):
         tasks = load_corpus()
         with tempfile.TemporaryDirectory() as d:
             path = Path(d) / 'gates.json'
-            good = {'passed': True, 'frozen_hash': frozen_hash(tasks), 'tasks': ['c01', 'c02']}
+            good = {'passed': True, 'frozen_hash': frozen_hash(tasks), 'tasks': [t['id'] for t in tasks]}
             path.write_text(json.dumps(good))
             guard_c.check_gates(path, tasks, guard_c.HERE / 'oracles')
             for bad in (dict(good, passed=False), dict(good, frozen_hash='0'), dict(good, tasks=['c01'])):

@@ -1,0 +1,42 @@
+package memindex
+
+// Pilot C oracle c04, pkg/memindex case (hidden from the agent): the test of
+// c9149d98 memindex_union_merge_test.go through the exported Rebuild and
+// Status only; which line of a duplicated lesson is indexed is not asserted.
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// A store after a union merge: L-001 in a rewritten and the base version, the
+// same L-002 line twice, and two lessons sharing the old-form id L-003. The
+// index is rebuilt from it and is fresh afterwards.
+func TestOracleC04_RebuildUnionMergedLearningStore(t *testing.T) {
+	dir := t.TempDir()
+	l1old := `{"id":"L-001","timestamp":"2026-06-14T14:31:55Z","type":"gate_fail","pattern":"index lock","reuse_count":1}`
+	l1new := `{"id":"L-001","timestamp":"2026-06-14T14:31:55Z","type":"gate_fail","pattern":"index lock","reuse_count":3}`
+	l2 := `{"id":"L-002","timestamp":"2026-06-15T10:00:00Z","type":"gate_fail","pattern":"symlink write"}`
+	l3a := `{"id":"L-003","timestamp":"2026-06-16T10:00:00Z","type":"escape","pattern":"lesson A"}`
+	l3b := `{"id":"L-003","timestamp":"2026-06-16T10:00:01Z","type":"escape","pattern":"lesson B"}`
+	store := filepath.Join(dir, ".autopus", "learnings", "pipeline.jsonl")
+	require.NoError(t, os.MkdirAll(filepath.Dir(store), 0o755))
+	body := strings.Join([]string{l1old, l2, l3a, l2, l1new, l3b}, "\n") + "\n"
+	require.NoError(t, os.WriteFile(store, []byte(body), 0o644))
+
+	opts := Options{ProjectDir: dir, IndexPath: "mem-merge.sqlite"}
+	result, err := Rebuild(opts)
+	require.NoError(t, err, "a union-merged store rebuilds")
+	for _, id := range []string{"L-001", "L-002", "L-003"} {
+		assert.NotEmpty(t, result.SourceHashes[id], id)
+	}
+	status, err := Status(opts)
+	require.NoError(t, err)
+	assert.Empty(t, status.StaleRefs, "every indexed lesson is fresh right after the rebuild")
+	assert.False(t, status.RebuildRecommended)
+}

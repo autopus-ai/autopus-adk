@@ -98,7 +98,7 @@ def warm(base_tree: Path, packages: list, cache: Path, scratch: Path, modcache: 
            'GOFLAGS': '-mod=mod', 'GOPROXY': 'off', 'GOSUMDB': 'off', 'GOTOOLCHAIN': 'local', 'GOTELEMETRY': 'off',
            **trial_env_c.temp_env(scratch)}
     cache.mkdir(parents=True, exist_ok=True)
-    for package in sorted(set(packages)):
+    for package in sorted(p for p in set(packages) if (Path(base_tree) / p).is_dir()):
         subprocess.run([prepared['go'], 'test', '-count=1', '-run', '^$', './' + package], cwd=base_tree, env=env,
                        check=True, capture_output=True, timeout=3600)
 

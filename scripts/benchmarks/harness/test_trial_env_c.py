@@ -51,7 +51,7 @@ class SelftestVerdictTests(unittest.TestCase):
         self.assertTrue(trial_env_c.judge('go_env', {'exit_code': 1, 'timed_out': False}, good, '', None, self.ENV))
 
     def test_steps_cover_the_required_checks(self):
-        names = [name for name, _, _ in trial_env_c.selftest_steps('/bin/zsh', 'internal/cli')]
+        names = [name for name, _, _ in trial_env_c.selftest_steps('/bin/zsh', ['internal/cli'])]
         self.assertEqual(names, ['go_build', 'go_test_compile', 'zsh_heredoc', 'bash_heredoc', 'git_status',
                                  'cc_compile', 'go_env'])
 

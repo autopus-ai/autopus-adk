@@ -127,7 +127,8 @@ def prepare(ctx: dict, task: dict, arm: str, name: str) -> dict:
     # The build cache keys packages by directory, and this trial's workspace and module cache paths are
     # its own: the warm-up compiles them here, before the agent's clock, for `go build ./...` and the
     # oracle package's tests.
-    warm = ['/bin/sh', '-c', 'go build ./... && go test -count=1 -run "^$" "./$1"', 'warm', task['oracle']['package']]
+    warm = ['/bin/sh', '-c', 'go build ./... && go test -count=1 -run "^$" "$@"', 'warm',
+            *('./' + package for package in oracle_c.present_packages(source['tree'], task))]
 
     def wrap(command):
         if not ctx['sandbox']:
