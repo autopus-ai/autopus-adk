@@ -17,12 +17,21 @@ import (
 // with the note; any edit changes the fingerprint and runs it again. The
 // agent is never told the tests passed.
 func budgetSkipped(cmd *cobra.Command, in stopHookInput, root string, changed []string, fingerprint string,
-	skipped []verifygate.Skip, left time.Duration, followup bool) stopHookOutput {
+	skipped []verifygate.Skip, preexisting []string, left time.Duration, followup bool) stopHookOutput {
 	unfinished := describeSkips(skipped)
-	note := "auto verify stop: " + unfinished + "; nothing failed within the budget, so the stop is " +
+	failed := "nothing failed within the budget"
+	statusFailed := "Nothing had failed when time ran out"
+	if len(preexisting) > 0 {
+		// The step was stopped early to check its failures against HEAD.
+		failed = fmt.Sprintf("%d test(s) failed as they do on HEAD (not charged to this change) and the tests after them did not run",
+			len(preexisting))
+		statusFailed = fmt.Sprintf("%d test(s) failed as they do on HEAD and were not charged to this change: %s; the tests after them did not run",
+			len(preexisting), strings.Join(preexisting, ", "))
+	}
+	note := "auto verify stop: " + unfinished + "; " + failed + ", so the stop is " +
 		"not blocked. Run the rest with a longer -timeout (or leave it to CI) before calling the change verified"
 	status := "The build passes; tests did not finish within the budget: " + unfinished +
-		". Nothing had failed when time ran out; run them in full (a longer -timeout, or CI) before calling the change verified."
+		". " + statusFailed + "; run them in full (a longer -timeout, or CI) before calling the change verified."
 	// Test-first and the verification round still apply: a missing test is
 	// known without running anything, and the round is the agent's.
 	record := true

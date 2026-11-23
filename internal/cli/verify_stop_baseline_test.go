@@ -42,6 +42,28 @@ func TestVerifyStop_APreexistingFailureDoesNotBlock(t *testing.T) {
 	assert.Contains(t, got.SystemMessage, "also fail on HEAD")
 	assert.Contains(t, got.SystemMessage, "stopgate.TestNeedsTool")
 	assert.Empty(t, readStopState(session, "blocks"))
+
+	// Not a pass: the next stop on the same tree repeats the note.
+	assert.Empty(t, readStopState(session, "pass"))
+	again := runStopReply(t, dir, session, "끝났습니다.")
+	assert.Empty(t, again.Decision, again.Reason)
+	assert.Contains(t, again.SystemMessage, "stopgate.TestNeedsTool")
+	assert.Contains(t, again.SystemMessage, "this tree was not run again")
+}
+
+// The verification round is told the tests still fail, never that they pass.
+func TestVerifyStop_APreexistingFailureIsNotCalledAPass(t *testing.T) {
+	optInFollowup(t, "")
+	session := "baseline-round"
+	t.Cleanup(func() { resetStopState(session) })
+	dir := newBrokenBaseRepo(t, "package stopgate\n\nfunc Add(a, b int) int { return a + b }\n\n"+
+		"// Sub subtracts.\nfunc Sub(a, b int) int { return a - b }\n")
+
+	got := runStopReply(t, dir, session, "Sub를 더했습니다.")
+	assert.Equal(t, "block", got.Decision)
+	assert.Contains(t, got.Reason, "verification round")
+	assert.Contains(t, got.Reason, "1 failing test(s) fail as they do on HEAD and were not charged to this change: stopgate.TestNeedsTool")
+	assert.NotContains(t, got.Reason, statusPassed)
 }
 
 // A failure the change caused still blocks, and the pre-existing one is

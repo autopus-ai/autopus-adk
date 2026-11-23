@@ -93,7 +93,7 @@ func RunCharged(ctx context.Context, root string, changed []string, steps []Step
 			}
 			if why == "" {
 				var charged []string
-				charged, why = head.judge(fresh)
+				charged, why = head.judge(fresh, currentRuns(failure, root))
 				if len(charged) > 0 && why == "" {
 					res.Failure = failure
 					res.Preexisting = append(res.Preexisting, without(fresh, charged)...)
@@ -126,7 +126,7 @@ func RunCharged(ctx context.Context, root string, changed []string, steps []Step
 func (r ChargedRun) Note() string {
 	var parts []string
 	if len(r.Edited) > 0 {
-		parts = append(parts, fmt.Sprintf("the failing test(s) %s were edited by this change, so they count as its failures "+
+		parts = append(parts, fmt.Sprintf("the failing test(s) %s were edited by this change (the test or its package's test code), so they count as its failures "+
 			"even if they failed before it", listKeys(r.Edited)))
 	}
 	if len(r.Preexisting) > 0 {
@@ -149,6 +149,15 @@ func listKeys(keys []string) string {
 		return strings.Join(keys[:shown], ", ") + fmt.Sprintf(" and %d more", len(keys)-shown)
 	}
 	return strings.Join(keys, ", ")
+}
+
+// currentRuns is the failing step's runs per key, paths normalized.
+func currentRuns(f *Failure, root string) map[string][]testRun {
+	out := make(map[string][]testRun, len(f.Runs))
+	for key, runs := range f.Runs {
+		out[key] = normalized(runs, root)
+	}
+	return out
 }
 
 func sameStep(a, b Step) bool {
