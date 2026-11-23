@@ -24,21 +24,60 @@ OWNED_PREFIXES = ('.claude/', '.autopus/', '.agents/', '.codex/', '.gemini/', '.
 OWNED_FILES = {'CLAUDE.md', 'AGENTS.md', 'GEMINI.md', 'autopus.yaml', 'opencode.json', '.mcp.json'}
 
 
-def oracle_files(task: dict, oracles: Path = ORACLES) -> list:
-    root = Path(oracles) / task['id']
-    files = [root / name for name in task['oracle']['files']]
-    for path in files:
+def file_specs(task: dict, oracles: Path = ORACLES) -> list:
+    """(path, package) per oracle file. A file entry is a name (in oracle.package) or
+    {"name": ..., "package": ...}, so one task can grade cases in several packages."""
+    root, default = Path(oracles) / task['id'], task['oracle']['package']
+    specs = []
+    for entry in task['oracle']['files']:
+        name, package = (entry, default) if isinstance(entry, str) else (entry['name'], entry['package'])
+        path = root / name
         if not path.name.endswith('_test.go' + SUFFIX) or not path.is_file():
             raise ValueError('oracle file must be an existing *_test.go.oracle: ' + str(path))
-    return files
+        specs.append((path, package))
+    return specs
+
+
+def oracle_files(task: dict, oracles: Path = ORACLES) -> list:
+    return [path for path, _ in file_specs(task, oracles)]
+
+
+def stub_specs(task: dict, oracles: Path = ORACLES) -> list:
+    """(path, package) of the base stubs gate 3 adds to base: oracle.base_stub is a name (in
+    oracle.package), a {"name", "package"} entry, or a list of either."""
+    stub = task['oracle'].get('base_stub')
+    entries = [] if not stub else stub if isinstance(stub, list) else [stub]
+    default = task['oracle']['package']
+    return [(Path(oracles) / task['id'] / (e if isinstance(e, str) else e['name']),
+             default if isinstance(e, str) else e['package']) for e in entries]
+
+
+def case_package(task: dict, case: dict) -> str:
+    return case.get('package', task['oracle']['package'])
+
+
+def packages(task: dict) -> list:
+    """Every package the oracle compiles: oracle.package first, then the others in file order."""
+    found = [task['oracle']['package']]
+    for entry in task['oracle']['files']:
+        if not isinstance(entry, str) and entry['package'] not in found:
+            found.append(entry['package'])
+    return found
+
+
+def present_packages(tree: Path, task: dict) -> list:
+    """The oracle packages that exist in tree: a package the feature adds is absent from base, so the
+    warm-ups and the self-test compile only the others there."""
+    return [package for package in packages(task) if (Path(tree) / package).is_dir()]
 
 
 def install_oracle(tree: Path, task: dict, oracles: Path = ORACLES) -> list:
     """Copy the oracle files into tree/<package> without their suffix; refuse to overwrite a file."""
-    package = Path(tree) / task['oracle']['package']
     installed = []
-    for source in oracle_files(task, oracles):
-        target = package / source.name[:-len(SUFFIX)]
+    for source, package in file_specs(task, oracles):
+        target = Path(tree) / package / source.name[:-len(SUFFIX)]
+        # A package the feature adds is missing from base and from a candidate that never made it.
+        target.parent.mkdir(parents=True, exist_ok=True)
         if target.exists() or target.is_symlink():
             raise ValueError('oracle file would overwrite a tree file: ' + str(target))
         shutil.copyfile(source, target)
@@ -80,30 +119,44 @@ def case_verdict(output: str, name: str, code: int, timed_out: bool) -> str:
 
 
 def run_oracle(tree: Path, task: dict, logs: Path, env: dict, wrap=None, timeout: float = 2400) -> dict:
-    """Compile the package's test binary once, then run each case alone. A build failure fails all.
-    wrap(argv, cwd) returns the argv that actually runs (grade_c wraps every run in grader.sb)."""
+    """Compile each oracle package's test binary once, then run each case alone. A package whose build
+    fails fails its own cases (build_failed). wrap(argv, cwd) returns the argv that actually runs
+    (grade_c wraps every run in grader.sb). build is the first failing package's build, else the
+    default package's; builds holds every package's."""
     wrap = wrap or (lambda argv, cwd: argv)
     oracle = task['oracle']
     names = [case['name'] for case in oracle['cases']]
     if not names or any(not CASE_NAME.match(name) for name in names):
         raise ValueError('oracle cases must be plain test names')
+    known = packages(task)
+    if any(case_package(task, case) not in known for case in oracle['cases']):
+        raise ValueError('an oracle case names a package no oracle file is in')
     logs = Path(logs)
     logs.mkdir(parents=True, exist_ok=True)
-    package = Path(tree) / oracle['package']
-    binary = Path(env['TMPDIR']) / 'oracle.test'
-    code, timed_out, seconds = _run(wrap(['go', 'test', '-c', '-o', str(binary), './' + oracle['package']], tree),
-                                    tree, env, logs / 'build.log', timeout)
-    result = {'build': {'exit_code': code, 'timed_out': timed_out, 'seconds': seconds}, 'cases': {}}
-    if code or timed_out or not binary.is_file():
-        result['cases'] = {name: 'build_failed' for name in names}
-        return result
-    for name in names:
+    builds, binaries = {}, {}
+    for index, package in enumerate(known):
+        binary = Path(env['TMPDIR']) / ('oracle-%d.test' % index)
+        log = logs / ('build.log' if index == 0 else 'build-%d.log' % index)
+        code, timed_out, seconds = _run(wrap(['go', 'test', '-c', '-o', str(binary), './' + package], tree),
+                                        tree, env, log, timeout)
+        builds[package] = {'exit_code': code, 'timed_out': timed_out, 'seconds': seconds}
+        if not (code or timed_out or not binary.is_file()):
+            binaries[package] = binary
+    failing = [package for package in known if package not in binaries]
+    result = {'build': builds[failing[0] if failing else known[0]], 'builds': builds, 'cases': {}}
+    for case in oracle['cases']:
+        name, package = case['name'], case_package(task, case)
+        if package not in binaries:
+            result['cases'][name] = 'build_failed'
+            continue
         log = logs / (name + '.log')
-        argv = [str(binary), '-test.run', '^' + name + '$', '-test.count=1', '-test.v',
+        argv = [str(binaries[package]), '-test.run', '^' + name + '$', '-test.count=1', '-test.v',
                 '-test.timeout=' + str(int(oracle.get('case_timeout', 900))) + 's']
-        code, timed_out, _ = _run(wrap(argv, package), package, env, log, oracle.get('case_timeout', 900) + 60)
+        cwd = Path(tree) / package
+        code, timed_out, _ = _run(wrap(argv, cwd), cwd, env, log, oracle.get('case_timeout', 900) + 60)
         result['cases'][name] = case_verdict(log.read_text(errors='replace'), name, code, timed_out)
-    binary.unlink(missing_ok=True)
+    for binary in binaries.values():
+        binary.unlink(missing_ok=True)
     return result
 
 
@@ -113,7 +166,7 @@ def frozen_hash(tasks: list, oracles: Path = ORACLES) -> str:
     import json
     digest = hashlib.sha256(json.dumps(tasks, sort_keys=True).encode())
     for task in sorted(tasks, key=lambda t: t['id']):
-        for path in oracle_files(task, oracles):
+        for path in oracle_files(task, oracles) + [p for p, _ in stub_specs(task, oracles)]:
             digest.update(task['id'].encode() + b'\0' + path.name.encode() + b'\0' + path.read_bytes())
     return digest.hexdigest()
 

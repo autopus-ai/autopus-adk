@@ -1,0 +1,92 @@
+package cli
+
+// Pilot C oracle c06, subdirectory cases (hidden from the agent): the tests
+// of ded4a2f5 and 3529cade internal/cli/disk_subdir_test.go, split into one
+// case per defect. They run `auto disk` through NewRootCmd (runDiskCLI) and
+// the Stop hook's maybeStartAutoReclaim with the existing internal/cli test
+// seams; output wording is not asserted beyond the floor's value.
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// oc06RootWithSub is a project whose root autopus.yaml sets a 60 GiB floor
+// and 4 CPU slots, on a 16-CPU machine with 50 GiB free, and its "web"
+// subdirectory, which has no autopus.yaml of its own.
+func oc06RootWithSub(t *testing.T, extra string) (root, sub string) {
+	t.Helper()
+	root = cpuLeaseProject(t, "  min_free_gb: 60\n  lease: {cpu_slots: 4}\n"+extra, 16)
+	sub = filepath.Join(root, "web")
+	require.NoError(t, os.Mkdir(sub, 0o755))
+	return root, sub
+}
+
+func TestOracleC06_LeaseInASubdirectoryReadsTheRootSlots(t *testing.T) {
+	_, sub := oc06RootWithSub(t, "")
+	t.Chdir(sub)
+	lease := runDiskCLI(t, "disk", "lease", "--cpu", "16", "--", "sh", "-c", printLeaseEnv)
+	assert.Equal(t, 0, lease.code, lease.stderr)
+	assert.Equal(t, "4 4\n", lease.stdout, "the root's disk.lease.cpu_slots clamps the grant")
+}
+
+func TestOracleC06_CheckInASubdirectoryReadsTheRootFloor(t *testing.T) {
+	_, sub := oc06RootWithSub(t, "")
+	t.Chdir(sub)
+	check := runDiskCLI(t, "disk", "check")
+	assert.Equal(t, 3, check.code, check.stdout+check.stderr)
+	assert.Contains(t, check.stdout+check.stderr, "60.0 GiB", "the floor named is the root's")
+}
+
+func TestOracleC06_ExplicitDirReadsThatDirectory(t *testing.T) {
+	_, sub := oc06RootWithSub(t, "")
+	t.Chdir(sub)
+	explicit := runDiskCLI(t, "disk", "check", "--dir", sub)
+	assert.Equal(t, 0, explicit.code, explicit.stdout+explicit.stderr)
+}
+
+// The Stop hook's automatic reclaim reads its settings at the project root.
+func TestOracleC06_AutoReclaimHonoursTheRootSettings(t *testing.T) {
+	_, sub := oc06RootWithSub(t, "  reclaim: {auto: false}\n")
+	spawned := withAutoSpawn(t)
+	assert.False(t, maybeStartAutoReclaim(sub), "disk.reclaim.auto: false at the root turns it off")
+	assert.Empty(t, *spawned)
+}
+
+// It reads its settings at the root but runs in the session's cwd.
+func TestOracleC06_AutoReclaimRunsInTheSessionCwd(t *testing.T) {
+	_, sub := oc06RootWithSub(t, "")
+	spawned := withAutoSpawn(t)
+	require.True(t, maybeStartAutoReclaim(sub))
+	assert.Equal(t, []string{sub}, *spawned)
+}
+
+// A session whose cwd is inside a harness worktree with no autopus.yaml of
+// its own (the file is untracked in the main checkout): the reclaim starts
+// there, and a reclaim run from there keeps the worktree holding the session.
+func TestOracleC06_AutoReclaimKeepsTheSessionWorktree(t *testing.T) {
+	rf := newReclaimFixture(t)
+	withTempDiskState(t)
+	diskGitT(t, rf.repo, "update-ref", "refs/remotes/origin/main", "main")
+	require.NoError(t, os.WriteFile(filepath.Join(rf.repo, "autopus.yaml"),
+		[]byte("mode: full\nproject_name: rr\nplatforms:\n  - claude-code\n"), 0o600))
+	require.NoFileExists(t, filepath.Join(rf.harness, "autopus.yaml"))
+	sub := filepath.Join(rf.harness, "sub")
+	require.NoError(t, os.Mkdir(sub, 0o755))
+
+	spawned := withAutoSpawn(t)
+	require.True(t, maybeStartAutoReclaim(sub))
+	require.Equal(t, []string{sub}, *spawned, "the reclaim runs in the session's cwd")
+
+	t.Chdir(sub)
+	prevGetwd := diskGetwd
+	diskGetwd = func() (string, error) { return sub, nil }
+	t.Cleanup(func() { diskGetwd = prevGetwd })
+	out := runDiskCLI(t, "disk", "reclaim", "--auto", "--apply")
+	require.Equal(t, 0, out.code, out.stderr+out.stdout)
+	assert.DirExists(t, rf.harness, "the worktree holding the session is kept")
+}

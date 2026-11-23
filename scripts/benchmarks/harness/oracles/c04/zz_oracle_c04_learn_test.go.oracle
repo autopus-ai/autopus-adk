@@ -1,0 +1,218 @@
+package learn
+
+// Pilot C oracle c04, pkg/learn cases (hidden from the agent): the tests of
+// aca0228d store_branch_test.go and c9149d98 store_merge_git_test.go through
+// the exported Store API and IsValidEntryID only. Helpers are the oracle's
+// own; assertions on functions the fix introduced were dropped.
+
+import (
+	"os"
+	"os/exec"
+	"path/filepath"
+	"regexp"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+var oc04NewID = regexp.MustCompile(`^L-(\d{3,})-([0-9a-f]{6})$`)
+
+// oc04Seq is the sequence number of an old- or new-form lesson id.
+func oc04Seq(t *testing.T, id string) int {
+	t.Helper()
+	m := regexp.MustCompile(`^L-(\d{3,})(?:-[0-9a-f]{6})?$`).FindStringSubmatch(id)
+	require.NotNil(t, m, "id %q", id)
+	n, err := strconv.Atoi(m[1])
+	require.NoError(t, err)
+	return n
+}
+
+func oc04StorePath(dir string) string { return filepath.Join(dir, ".autopus", "learnings", "pipeline.jsonl") }
+
+// oc04BranchStore is a fresh project whose store file holds base, as a branch
+// checked out from the same main sees it.
+func oc04BranchStore(t *testing.T, base []byte) (*Store, string) {
+	t.Helper()
+	dir := t.TempDir()
+	store, err := NewStore(dir)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(oc04StorePath(dir), base, 0o600))
+	return store, oc04StorePath(dir)
+}
+
+func oc04UnionMerge(t *testing.T, base, ours, theirs string) []byte {
+	t.Helper()
+	baseCopy := filepath.Join(t.TempDir(), "base.jsonl")
+	data, err := os.ReadFile(base)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(baseCopy, data, 0o600))
+	out, err := exec.Command("git", "merge-file", "-p", "--union", ours, baseCopy, theirs).Output()
+	require.NoError(t, err)
+	return out
+}
+
+func oc04Escape(pattern string) RecordOpts {
+	return RecordOpts{Phase: "checklist", Pattern: pattern,
+		Escape: &Escape{MissedBy: "unit tests", WhenPaths: []string{"src/**"}, Provider: "claude"}}
+}
+
+func TestOracleC04_TwoBranchesRecordFromSameBase(t *testing.T) {
+	seed, seedPath := oc04BranchStore(t, nil)
+	for _, id := range []string{"L-001", "L-002", "L-003"} {
+		require.NoError(t, seed.Append(LearningEntry{ID: id, Type: EntryTypeGateFail, Pattern: "seed " + id}))
+	}
+	base, err := os.ReadFile(seedPath)
+	require.NoError(t, err)
+	storeA, pathA := oc04BranchStore(t, base)
+	storeB, pathB := oc04BranchStore(t, base)
+	require.NoError(t, storeA.AppendAtomic(EntryTypeEscape, oc04Escape("branch A defect")))
+	require.NoError(t, storeB.AppendAtomic(EntryTypeEscape, oc04Escape("branch B defect")))
+
+	merged, _ := oc04BranchStore(t, oc04UnionMerge(t, seedPath, pathA, pathB))
+	entries, skips, err := merged.ReadTolerant()
+	require.NoError(t, err)
+	assert.Empty(t, skips)
+	require.Len(t, entries, 5, "both branch lessons survive the merge")
+	seen := map[string]bool{}
+	for _, e := range entries {
+		assert.True(t, IsValidEntryID(e.ID), "id %q", e.ID)
+		assert.False(t, seen[e.ID], "duplicate id %s after merge", e.ID)
+		seen[e.ID] = true
+	}
+	a, b := entries[3].ID, entries[4].ID
+	assert.Regexp(t, oc04NewID, a)
+	assert.Regexp(t, oc04NewID, b)
+	assert.Equal(t, 4, oc04Seq(t, a))
+	assert.Equal(t, 4, oc04Seq(t, b))
+
+	require.NoError(t, merged.AppendAtomic(EntryTypeEscape, oc04Escape("after merge")))
+	after, err := merged.Read()
+	require.NoError(t, err)
+	require.Len(t, after, 6)
+	assert.Equal(t, 5, oc04Seq(t, after[5].ID))
+	require.NoError(t, merged.MarkReused([]string{a, b, "L-001"}), "both merged ids are addressable")
+}
+
+func TestOracleC04_EntryIDForms(t *testing.T) {
+	for id, want := range map[string]bool{
+		"L-001": true, "L-1000": true, "L-006-3fa9c1": true,
+		"L-01": false, "L-006-": false, "L-006-XYZ123": false, "L-006-3fa9c1-x": false, "CHK-001": false,
+	} {
+		assert.Equal(t, want, IsValidEntryID(id), id)
+	}
+}
+
+// A union merge that keeps the same line twice, or two versions of one
+// rewritten entry, reads as one entry per id.
+func TestOracleC04_ReadDedupesMergedDuplicates(t *testing.T) {
+	line1 := `{"id":"L-001","timestamp":"2026-06-14T14:31:55Z","pattern":"a","reuse_count":1}`
+	line1b := `{"id":"L-001","timestamp":"2026-06-14T14:31:55Z","pattern":"a","reuse_count":3}`
+	line2 := `{"id":"L-002","timestamp":"2026-06-14T14:31:55Z","pattern":"b"}`
+	store, path := oc04BranchStore(t, []byte(line1+"\n"+line2+"\n"+line2+"\n"+line1b+"\n"))
+	entries, err := store.Read()
+	require.NoError(t, err)
+	require.Len(t, entries, 2)
+	assert.Equal(t, "L-001", entries[0].ID)
+	assert.Equal(t, 3, entries[0].ReuseCount, "the highest reuse count wins")
+	assert.Equal(t, "L-002", entries[1].ID)
+
+	require.NoError(t, store.MarkReused([]string{"L-002"}))
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, 2, strings.Count(string(data), "\n"), "a rewrite drops the merged duplicates")
+}
+
+// oc04Project is a repository whose .gitattributes union-merges the store.
+type oc04Project struct {
+	t   *testing.T
+	dir string
+}
+
+func oc04NewProject(t *testing.T) oc04Project {
+	t.Helper()
+	p := oc04Project{t: t, dir: t.TempDir()}
+	p.git("init", "-q", "-b", "main")
+	require.NoError(t, os.WriteFile(filepath.Join(p.dir, ".gitattributes"),
+		[]byte(".autopus/learnings/pipeline.jsonl merge=union\n"), 0o644))
+	at := time.Date(2026, 6, 14, 10, 0, 0, 0, time.UTC)
+	for i, id := range []string{"L-001", "L-002", "L-003"} {
+		require.NoError(t, p.store().Append(LearningEntry{ID: id, Timestamp: at.Add(time.Duration(i) * time.Hour),
+			Type: EntryTypeGateFail, Pattern: "seed " + id}))
+	}
+	p.git("add", "-A")
+	p.git("commit", "-qm", "base")
+	return p
+}
+
+func (p oc04Project) git(args ...string) {
+	p.t.Helper()
+	cmd := exec.Command("git", append([]string{"-C", p.dir}, args...)...)
+	cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t", "GIT_COMMITTER_NAME=t",
+		"GIT_COMMITTER_EMAIL=t@t", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1")
+	out, err := cmd.CombinedOutput()
+	require.NoError(p.t, err, "git %v: %s", args, out)
+}
+
+func (p oc04Project) store() *Store {
+	s, err := NewStore(p.dir)
+	require.NoError(p.t, err)
+	return s
+}
+
+func (p oc04Project) branch(name string, fn func(*Store)) {
+	p.t.Helper()
+	p.git("checkout", "-q", "-b", name, "main")
+	fn(p.store())
+	p.git("commit", "-qam", name)
+}
+
+// One branch rewrites a line (MarkReused) while the other appends: a real
+// merge under the union attribute merges cleanly, and the reader sees each
+// lesson once with the rewritten reuse count.
+func TestOracleC04_GitMergeRewriteAndAppend(t *testing.T) {
+	p := oc04NewProject(t)
+	p.branch("a", func(s *Store) { require.NoError(t, s.MarkReused([]string{"L-003"})) })
+	p.branch("b", func(s *Store) { require.NoError(t, s.AppendAtomic(EntryTypeEscape, oc04Escape("branch B defect"))) })
+	p.git("checkout", "-q", "a")
+	p.git("merge", "--no-edit", "b")
+
+	entries, err := p.store().Read()
+	require.NoError(t, err)
+	require.Len(t, entries, 4)
+	assert.Equal(t, "L-003", entries[2].ID)
+	assert.Equal(t, 1, entries[2].ReuseCount)
+	assert.Regexp(t, `^L-004-[0-9a-f]{6}$`, entries[3].ID)
+}
+
+// Two writers that predate the suffix give different lessons the same id on
+// two branches. Both lessons survive the merge, a rewrite, and MarkReused.
+func TestOracleC04_GitMergeOldFormIDCollisionKeepsBoth(t *testing.T) {
+	p := oc04NewProject(t)
+	at := time.Date(2026, 11, 22, 9, 0, 0, 0, time.UTC)
+	p.branch("a", func(s *Store) {
+		require.NoError(t, s.Append(LearningEntry{ID: "L-004", Timestamp: at, Type: EntryTypeEscape, Pattern: "lesson A"}))
+	})
+	p.branch("b", func(s *Store) {
+		require.NoError(t, s.Append(LearningEntry{ID: "L-004", Timestamp: at.Add(time.Second), Type: EntryTypeEscape, Pattern: "lesson B"}))
+	})
+	p.git("checkout", "-q", "a")
+	p.git("merge", "--no-edit", "b")
+
+	store := p.store()
+	require.NoError(t, store.MarkReused([]string{"L-001"}))
+	require.NoError(t, store.MarkReused([]string{"L-004"}))
+	entries, err := store.Read()
+	require.NoError(t, err)
+	var patterns []string
+	for _, e := range entries {
+		if e.ID == "L-004" {
+			patterns = append(patterns, e.Pattern)
+			assert.Equal(t, 1, e.ReuseCount)
+		}
+	}
+	assert.Equal(t, []string{"lesson A", "lesson B"}, patterns)
+}

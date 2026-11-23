@@ -448,15 +448,18 @@ a copy of the task's `base` (`auto init --platforms claude-code --yes`,
 pinned to that binary by absolute path. The run refuses a harness revision
 that has any task's pre-review or fixed head as an ancestor: that `auto` would
 put the reviewed code (the answer) on the agent's PATH. It also refuses one
-that lacks a commit the task lists in `harness_requires`. For c01 and c02 that
+that lacks a commit the task lists in `harness_requires`. For every task (c01-c06) that
 is 30722ad9, the last commit of PR #348 (the `auto verify stop` time budget for
 large Go packages) before main was merged into its branch: without #348 a
 change under `internal/cli` (~32 min of tests) blocks every stop, and c01 and
 c02 both change `internal/cli`, so the `full` arm would measure that bug as
-timeouts. So for c01/c02 pass `--harness-revision 30722ad9a9933ade33027144872fc0687b89787c`:
-#348 is merged now, and both its branch head fcfbeff4 (which merged main
-with #347, #349 and #350) and `origin/main` contain the c01/c02 heads and are
-refused; 7b017f17 lacks #348 and is refused too.
+timeouts. So pass `--harness-revision 30722ad9a9933ade33027144872fc0687b89787c`, or a
+commit that is 30722ad9 plus cherry-picked harness fixes (still no task head among its
+ancestors): #348 is merged now, and both its branch head fcfbeff4 (which merged main
+with #347, #349 and #350) and `origin/main` contain the task heads and are
+refused; 7b017f17 lacks #348 and is refused too. Tasks whose fixed head is an
+ancestor of 30722ad9 cannot be in the corpus at all (the design doc lists the
+dropped candidates).
 
 Every arm gets the same `--model` and `--effort`,
 `--permission-mode bypassPermissions`, `--setting-sources project`,
@@ -464,8 +467,9 @@ Every arm gets the same `--model` and `--effort`,
 and the file is left out of the installed surface so a nested session cannot
 start them either), `--disallowedTools WebFetch WebSearch` (also as
 `permissions.deny` in the trial's user settings, with
-`enableAllProjectMcpServers: false`, for nested sessions), `--no-session-persistence`, a 1800 s
-deadline, and a fresh checkout with its own Git history, marked trusted in the
+`enableAllProjectMcpServers: false`, for nested sessions), `--no-session-persistence`, a 5400 s
+deadline (default `--timeout`; agents run the ~32-minute `internal/cli` suite, and at 1800 s every
+smoke trial timed out), and a fresh checkout with its own Git history, marked trusted in the
 isolated `.claude.json` (an untrusted workspace ignores the generated
 permissions). On the deadline the session gets SIGTERM, and after every trial
 `process_tree.Tree` kills the whole descendant tree, including the Bash tool's
@@ -490,13 +494,14 @@ isolated `HOME`, `CLAUDE_CONFIG_DIR`, `TMPDIR`, Go settings, the token);
 ```sh
 # No model call: validity gates, graded exactly as trials are (go test on snapshots; slow).
 python3 scripts/benchmarks/harness/gate_c.py --repo "$PWD" --work /absolute/new/gates
-# No model call: build auto, generate the surface, prepare one trial per arm, warm up.
+# No model call: build auto, generate the surfaces, prepare one trial per task and arm, warm up, self-test.
 python3 scripts/benchmarks/harness/run_c.py --repo "$PWD" --output /absolute/new/dry \
-  --harness-revision 30722ad9a9933ade33027144872fc0687b89787c --model opus --effort high --dry-run
+  --harness-revision 30722ad9a9933ade33027144872fc0687b89787c --gates /absolute/new/gates/gates.json \
+  --model opus --effort high --dry-run
 # Real trials (spends quota). The token comes from `claude setup-token`, mode 0600.
 nohup python3 scripts/benchmarks/harness/run_c.py --repo "$PWD" --output /absolute/new/run \
-  --tasks c01,c02 --harness-revision 30722ad9a9933ade33027144872fc0687b89787c --gates /absolute/new/gates/gates.json \
-  --model opus --effort high --timeout 1800 --credential-file /absolute/token > /absolute/new/run.log 2>&1 &
+  --harness-revision 30722ad9a9933ade33027144872fc0687b89787c --gates /absolute/new/gates/gates.json \
+  --model opus --effort high --timeout 5400 --credential-file /absolute/token > /absolute/new/run.log 2>&1 &
 # Continue a run that stopped (finished trials are kept, a partial one is moved to aborted/).
 python3 scripts/benchmarks/harness/run_c.py ... --output /absolute/new/run --resume
 ```
@@ -530,7 +535,11 @@ tools' install directories are reopened (so `~/.ssh`, `~/.aws`, `~/.config`,
 shell history, `~/.claude*`, other trials and the oracles are unreadable).
 Unix sockets are closed except mDNSResponder's (a Docker or colima socket
 would hand out the host), the keychain is closed as files and as Mach
-services, signals reach only the same sandbox instance, and LaunchServices
+services, signals and proc_info (`proc_pidinfo`, `proc_pidpath`) reach only the same sandbox
+instance, the `kern.procargs` sysctls are denied (they hand out another same-user process's
+environment: a sibling's, and the runner's parent shell with the maintainer's tokens;
+`test_agent_isolation_c.py` reads a canary from both without these rules and is refused with them,
+while the agent still inspects and signals its own children), and LaunchServices
 opens (`open x.app` would start it outside the sandbox) and preference writes
 through cfprefsd (`defaults write`) and the pasteboard are denied. Nothing outside the trial is
 writable, `/private/tmp` included: Claude Code 2.1.322 writes the Bash tool's
@@ -557,11 +566,14 @@ agent can open. cgo stays on (pkg/qa/run uses it), identically for warm-up,
 agent and grading. Because the build cache keys packages by directory, the
 sandboxed warm-up runs `go build ./...` and the oracle package's test compile
 at the trial's own paths before the agent's clock starts. `--dry-run` also runs
-an environment self-test per arm inside the sandbox (`go build ./...`, the
+an environment self-test per task and arm inside the sandbox (`go build ./...`, the
 oracle package's test compile, a zsh and a bash here-document, `git status`, a
 `cc` compile, `go env GOCACHE GOMODCACHE GOTMPDIR CGO_ENABLED`) and fails when
 a step fails or prints a sandbox denial; it prints `SELFTEST <trial> ok
-go_test_compile=<s>`.
+go_test_compile=<s>`. The dry run covers every task and arm, because tasks start from different
+bases (7b017f17 for c01-c03, a93c4717 for c04-c06), each with its own snapshot, surface and warm
+cache. A package the feature adds (c05's `pkg/procgroup`) is absent from base, so the warm-ups and
+the self-test compile only the oracle packages that exist there.
 
 Stopping. SIGTERM, SIGINT or SIGHUP to the runner (`kill -TERM -- -<pgid>`
 included; the agent runs in its own session, so the signal never reaches it)
@@ -581,7 +593,15 @@ cost, terminal reason and final text; tool uses and `Task`/`Agent` uses. With
 code, decision, `systemMessage` such as a verify-stop budget or skip note),
 and as a block when it exits 2 or prints `{"decision":"block"}`. A Bash command
 that reaches GitHub or fetches from the network (`gh`, `git fetch`, `curl`,
-...) is flagged as contamination, since the fixed heads are public. A Bash
+...) is flagged as contamination, since the fixed heads are public. `network_c.network_reason` judges
+only commands that run: a Go import path such as `github.com/insajin/...` inside a here-document, a
+sed expression or a quoted argument is source text, not GitHub access (the 2026-11-23 smoke flagged
+every trial for that). It splits the line into simple commands (separators, subshells, command
+substitutions, `bash -c`, a here-document fed to a shell), strips assignments and wrappers, and flags
+network tools (`gh`, `curl`, `wget`, `nc`, `ssh`, ...), git subcommands that talk to a remote
+(`fetch`, `pull`, `push`, `ls-remote`, `remote update`, `submodule update`, and `clone` of a
+non-local source), `go get`/`go mod download`/`go install pkg@version`, and an interpreter program
+that opens an http(s) URL. A WebFetch or WebSearch tool use is flagged too. A Bash
 command that sets `GOCACHE`, `TMPDIR`, `CGO_ENABLED`, `GOMODCACHE` or `GOFLAGS`
 is recorded in `env_overrides`, a friction signal counted per arm in the report.
 
@@ -601,8 +621,22 @@ fail on base (gate 3); `guard` cases are behaviour base already had that the
 feature must keep, so they must pass on base. c01 pins the internal
 `lintCheckout` signature, because the report's API half cannot run offline, so
 no black-box CLI test can reach the lint; its tests are those of 10220e08 with
-identifiers prefixed and two note-phrase assertions relaxed to behaviour. c02
+identifiers prefixed and the note-phrase assertions relaxed to behaviour. c02
 is black-box: the `doctor` command through `cli.NewRootCmd()` with every
-external CLI stubbed on a scratch PATH. Tests: `test_claude_agent.py`,
+external CLI stubbed on a scratch PATH. c03-c06 grade cases in several packages: an
+`oracle.files` entry may be `{"name": ..., "package": ...}` and a case may name its `package`
+(default `oracle.package`); each package's test binary is compiled once, and a package that does
+not build fails only its own cases. `oracle.base_stub` (a name, an entry or a list) is added to
+base by gate 3 only, so a case of a package or function base lacks compiles there and fails
+instead of not building; stub bytes are part of the frozen hash. grader.sb lets a graded process
+signal and inspect only its own sandbox instance (itself and the children it started, which a
+process-group test must reach); siblings stay closed. Tests: `test_claude_agent.py`,
 `test_stream_c.py`, `test_guard_c.py`, `test_oracle_c.py`, `test_run_c.py`,
-`test_trial_env_c.py`, `test_stop_c.py`.
+`test_trial_env_c.py`, `test_stop_c.py`, `test_agent_isolation_c.py`.
+
+Review cases that already pass on base. Some review-confirmed defects came with the feature, so
+base passes them (c04 1 of 2, c05 3 of 4, c06 6 of 10) and an unchanged candidate would too. Each
+graded record carries `review_base_passing` (from the `--gates` file) and `review_new_passed` /
+`review_new_total` without those cases; `report.md` shows review raw and excluding them (unknown
+without `--gates`, never zero). `/bin/ps` is setuid root and never runs inside either profile; `pgrep`
+still lists process names, but not another process's arguments or environment.

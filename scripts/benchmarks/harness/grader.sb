@@ -61,14 +61,16 @@
 ;; environment, which on the live runner holds the agent credential, is
 ;; readable through the kern.procargs2 sysctl, and its state through
 ;; proc_info and the kern.proc sysctls; a signal could stop or kill it. So
-;; proc_info and signals reach this process only, and sysctl reads are the
+;; proc_info and signals reach only this sandbox instance (the graded process
+;; and the children it started, which a process-group test must signal and
+;; wait for; one sandbox-exec per build or case), and sysctl reads are the
 ;; hardware, kernel-version and clock names a Go program, the go command and
 ;; a test binary read (the App Sandbox container profile's list, without any
 ;; kern.proc or kern.procargs name).
 (deny process-info*)
-(allow process-info* (target self))
+(allow process-info* (target same-sandbox))
 (deny signal)
-(allow signal (target self))
+(allow signal (target same-sandbox))
 (deny sysctl-read)
 (allow sysctl-read
   (sysctl-name

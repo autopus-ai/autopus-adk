@@ -49,6 +49,23 @@ class StreamTests(unittest.TestCase):
         self.assertEqual(obs['hook_events'], 5)
         self.assertEqual(obs['incomplete_reasons'], [])
 
+    def test_contamination_flags_network_commands_not_module_paths(self):
+        flagged = ['gh pr view 347', 'git -C x fetch -q origin', 'curl -s https://example.invalid', 'cd a && wget x',
+                   'echo $(curl x)', 'bash -c "gh api repos"', 'cat <<EOF | bash\ngh api x\nEOF', 'timeout 30 git push',
+                   'git clone https://github.com/o/r', 'git status && git ls-remote origin', 'go get github.com/o/r@v1',
+                   'python3 - <<EOF\nimport urllib.request\nurllib.request.urlopen("https://github.com/o/r")\nEOF']
+        source = ['cat > internal/cli/x_test.go <<\'EOF\'\nimport "github.com/insajin/autopus-adk/pkg/cireport"\n'
+                  'curl https://x\nEOF', "sed -i '' 's#github.com/insajin/autopus-adk/pkg/a#github.com/insajin/b#' f.go",
+                  'grep -rn github.com/insajin .', 'go build ./... && go test ./internal/cli', 'git clone -q o.git s',
+                  'python3 - <<\'EOF\'\ns = "github.com/insajin/autopus-adk"\nEOF', 'go install ./cmd/auto', 'git log -1']
+        events = [bash(c) for c in flagged + source]
+        events.append({'type': 'assistant', 'message': {'content': [{'type': 'tool_use', 'name': 'WebFetch',
+                                                                     'input': {'url': 'https://x'}}]}})
+        with tempfile.TemporaryDirectory() as d:
+            obs = stream_c.parse_stream(write_events(Path(d), events))
+        self.assertEqual(obs['contamination'][:-1], flagged)
+        self.assertTrue(obs['contamination'][-1].startswith('WebFetch '))
+
     def test_unknown_usage_is_never_zero(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)

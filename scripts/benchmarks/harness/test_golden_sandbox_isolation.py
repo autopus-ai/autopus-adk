@@ -4,7 +4,7 @@ On the live runner the golden step's environment holds the Codex credential, and
 process can read another one's environment through the kern.procargs2 sysctl. A probe built here
 tries exactly that against a sibling that holds a canary variable, and also signals it and reads its
 kern.proc entry. Outside any profile it succeeds, so the probe is not vacuous; under each profile all
-three are refused while the probe's own signals still work, and `go test` still grades under
+three are refused while the probe's signals to itself and its children still work, and `go test` still grades under
 grader.sb. macOS only; no credential file is read (CODEX_HOME is an empty directory).
 """
 import os
@@ -144,6 +144,10 @@ class ProcessIsolationTests(unittest.TestCase):
         argv = grader.sandbox_argv(root, Path(self.prepared['modcache']), Path(self.prepared['goroot']), env,
                                    [str(root / 'probe'), *self.ops()])
         self.assert_isolated(self.run_stage('grader-probe', argv, root / 'ws'))
+        # Its own children stay reachable: a process-group test signals what it started (pilot C c05).
+        child = grader.sandbox_argv(root, Path(self.prepared['modcache']), Path(self.prepared['goroot']), env,
+                                    ['/bin/sh', '-c', 'sleep 30 & kill -TERM $!; wait $!; echo "PROBE child $?"'])
+        self.assertEqual(self.run_stage('grader-child', child, root / 'ws'), ['143'])
         logs = self.base / 'logs' / 'grade'
         logs.mkdir(parents=True)
         graded = grader.grade(root, ['go', 'test', '-count=1', './...'], ['TestRuns'], self.prepared, logs / 'out',

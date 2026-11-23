@@ -1,0 +1,176 @@
+package diskgate
+
+// Pilot C oracle c06, classifier cases (hidden from the agent): the tests of
+// ded4a2f5 (classify_cpu_more_test.go TestClassifyCPU_FollowupCases) and of
+// 3529cade/25530eb7 (classify_shell_test.go), split into one case per defect
+// and called only through the pinned Classify and ClassifyCPU.
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+// Which classifier a heavy case is checked against.
+const (
+	oc06CPU  = 1
+	oc06Disk = 2
+	oc06Both = oc06CPU | oc06Disk
+)
+
+func oc06Light(t *testing.T, lines ...string) {
+	t.Helper()
+	for _, line := range lines {
+		assert.False(t, ClassifyCPU(line).Heavy, "ClassifyCPU %q", line)
+	}
+}
+
+func oc06LightBoth(t *testing.T, lines ...string) {
+	t.Helper()
+	for _, line := range lines {
+		assert.False(t, Classify(line).Heavy, "Classify %q", line)
+		assert.False(t, ClassifyCPU(line).Heavy, "ClassifyCPU %q", line)
+	}
+}
+
+func oc06Heavy(t *testing.T, which int, cases map[string]string) {
+	t.Helper()
+	for line, match := range cases {
+		if which&oc06CPU != 0 {
+			v := ClassifyCPU(line)
+			assert.True(t, v.Heavy, "ClassifyCPU %q", line)
+			assert.Equal(t, match, v.Match, "ClassifyCPU %q", line)
+		}
+		if which&oc06Disk != 0 {
+			v := Classify(line)
+			assert.True(t, v.Heavy, "Classify %q", line)
+			assert.Equal(t, match, v.Match, "Classify %q", line)
+		}
+	}
+}
+
+func TestOracleC06_HelpAfterASuiteStepIsLight(t *testing.T) {
+	oc06Light(t, "auto qa exec --help", "auto qa run --help", "auto workflow gate --help",
+		"auto checklist run --help", "auto qa loop -h", "auto qa mutate --version")
+}
+
+func TestOracleC06_SuiteStepWithoutHelpStaysHeavy(t *testing.T) {
+	oc06Heavy(t, oc06CPU, map[string]string{"auto qa exec --all": "auto qa exec"})
+	assert.True(t, ClassifyCPU("auto qa exec --all 2>&1 | tail -5").Heavy)
+	assert.True(t, ClassifyCPU("auto disk lease --need 5 -- auto qa run --verbose").Heavy)
+}
+
+func TestOracleC06_HelpFlagAnywhereIsLight(t *testing.T) {
+	oc06Light(t, "auto qa exec --help 2>&1 | head -40", "auto qa exec -h > /tmp/h.txt", "auto qa exec --all --help",
+		"auto qa --help exec", "auto workflow gate --help 2>/dev/null")
+}
+
+func TestOracleC06_ToolLookupsAreLight(t *testing.T) {
+	oc06Light(t, "command -v pytest", "command -v tsc", "command -V eslint", "command -pv mypy", "type pytest",
+		"which tsc", "hash eslint", "command -v pytest && pytest --version")
+}
+
+func TestOracleC06_CommandRunsItsTool(t *testing.T) {
+	oc06Heavy(t, oc06CPU, map[string]string{"command -v pytest && pytest": "pytest", "command pytest -q": "pytest"})
+}
+
+func TestOracleC06_HeredocReadByAShellIsAScript(t *testing.T) {
+	oc06Heavy(t, oc06CPU, map[string]string{
+		"sh -s <<EOF\npnpm test\nEOF":              "pnpm test",
+		"cat <<EOF | sudo bash -s\npytest\nEOF":    "pytest",
+		"zsh <<-EOF\n\ttsc --noEmit\n\tEOF":        "tsc",
+		"bash -s -- arg <<EOF\nmypy .\nEOF\nls":    "mypy",
+		"bash > /tmp/log 2>&1 <<EOF\npytest\nEOF":  "pytest",
+		"cat <<A | bash\ngo vet ./...\nA\necho ok": "go vet",
+	})
+	oc06Heavy(t, oc06Both, map[string]string{
+		"bash <<'EOF'\ngo test ./...\nEOF":     "go test",
+		"cat <<'EOF' | bash\ncargo build\nEOF": "cargo build",
+	})
+}
+
+func TestOracleC06_HeredocToARemoteOrAScriptFileIsData(t *testing.T) {
+	oc06Light(t, "ssh host <<EOF\ngo test ./...\nEOF", "cat <<EOF | ssh host\npytest\nEOF",
+		"bash script.sh <<EOF\ngo test ./...\nEOF")
+	assert.False(t, Classify("ssh host <<EOF\ngo test ./...\nEOF").Heavy)
+}
+
+func TestOracleC06_ArithmeticShiftIsNotAHeredoc(t *testing.T) {
+	oc06Light(t, "echo $((1<<4))", "echo $((1 << 4)) && ls")
+	oc06Heavy(t, oc06CPU, map[string]string{
+		"echo $((1<<4)) && go test ./...": "go test",
+		"echo $((1<<4))\ngo test ./...":   "go test",
+	})
+}
+
+func TestOracleC06_SubshellInACommandSubstitutionRuns(t *testing.T) {
+	oc06Heavy(t, oc06Disk, map[string]string{
+		"out=$((cd web && npm run build) 2>&1)": "npm run build",
+		"res=$((go test ./... 2>&1) | tail -5)": "go test",
+		"x=$((go build ./...) )":                "go build",
+	})
+}
+
+func TestOracleC06_ArithmeticStaysLight(t *testing.T) {
+	oc06LightBoth(t, "echo $(( (1+2) * 3 ))", "echo $(( $(nproc) * 2 ))", "echo $((1<<4))\nls")
+}
+
+func TestOracleC06_ShellOptionValuesDoNotEndTheOptions(t *testing.T) {
+	oc06Heavy(t, oc06Disk, map[string]string{
+		"bash -euo pipefail <<'EOF'\ngo test ./...\nEOF":       "go test",
+		"bash -eo pipefail <<EOF\ngo test ./...\nEOF":          "go test",
+		"bash -euo pipefail -s <<EOF\ngo test ./...\nEOF":      "go test",
+		"cat <<'EOF' | bash -euo pipefail\ngo test ./...\nEOF": "go test",
+		"bash -O extglob <<EOF\ngo build ./...\nEOF":           "go build",
+		"bash --rcfile f <<EOF\ngo build ./...\nEOF":           "go build",
+		"bash --init-file f <<EOF\ngo build ./...\nEOF":        "go build",
+		"bash -o pipefail -eu <<EOF\ngo test ./...\nEOF":       "go test",
+	})
+}
+
+func TestOracleC06_QuotedAngleBeforeAmpersandIsNotARedirection(t *testing.T) {
+	oc06Heavy(t, oc06Disk, map[string]string{
+		"echo \"done ->\"& go test ./...": "go test",
+		"echo '<'& go build ./...":        "go build",
+		"echo \\>& go test ./...":         "go test",
+		"printf '%s>' x& go build ./...":  "go build",
+	})
+}
+
+func TestOracleC06_LineContinuationsJoinTheCommand(t *testing.T) {
+	oc06Heavy(t, oc06Disk, map[string]string{
+		"cd /x && \\\n  go test ./...":                          "go test",
+		"GOFLAGS=-count=1 \\\n  go test ./...":                  "go test",
+		"GOTMPDIR=$TMPDIR \\\n  go test ./pkg/... -timeout 40m": "go test",
+		"go test \\\n  ./...":                                   "go test",
+	})
+}
+
+func TestOracleC06_RedirectionsDoNotHideTheCommand(t *testing.T) {
+	oc06Heavy(t, oc06Disk, map[string]string{
+		"go test ./... > /tmp/out 2>&1": "go test",
+		">/tmp/log go build ./...":      "go build",
+		"go test ./... &>/dev/null":     "go test",
+	})
+}
+
+func TestOracleC06_RedirectedShellWithAScriptFileReadsNoHeredoc(t *testing.T) {
+	oc06LightBoth(t, "bash 2>&1 script.sh <<EOF\ngo test ./...\nEOF",
+		"bash -x 2>&1 script.sh <<EOF\ngo test ./...\nEOF", "bash >&2 script.sh <<EOF\ngo test ./...\nEOF")
+}
+
+func TestOracleC06_BackquoteInARedirectionTargetRuns(t *testing.T) {
+	oc06Heavy(t, oc06Disk, map[string]string{
+		"echo hi >`go build ./...`":  "go build",
+		"echo hi > `go test ./...`":  "go test",
+		">`go build -o x ./...`.log": "go build",
+	})
+}
+
+func TestOracleC06_CommandSubstitutionInArithmeticRuns(t *testing.T) {
+	oc06Heavy(t, oc06Disk, map[string]string{
+		"echo $(( $(go test ./... | wc -l) + 1 ))": "go test",
+		"echo $(( `go build ./... | wc -l` * 2 ))": "go build",
+		"n=$(( $(echo $(go build ./...)) + 0 ))":   "go build",
+	})
+}

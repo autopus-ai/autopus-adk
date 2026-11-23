@@ -48,9 +48,27 @@ class ReportTests(unittest.TestCase):
         self.assertEqual(summary['full']['stop_hook_blocks'], 2)
         self.assertEqual((summary['native']['ungraded'], summary['native']['contaminated']), (1, 1))
         self.assertEqual(summary['native']['scope_violations'], 1)
+        self.assertEqual(summary['full']['review_new_unknown'], 2, 'no gates: unknown, not zero')
         text = report_c.to_markdown(summary, records)
         self.assertIn('| full | 2 | 2/4 | 2/2 | 2/2 | 0 | 1 | 1 | 0 | 0 | 0 |', text)
         self.assertIn('| c01-native-k1 | - | - | - |', text)
+
+
+    def test_review_is_also_shown_without_cases_that_pass_on_base(self):
+        gates = {'verdicts': [{'task': 'c04', 'cases': [
+            {'case': 'R1', 'kind': 'review', 'base': 'pass'}, {'case': 'R2', 'kind': 'review', 'base': 'fail'},
+            {'case': 'F1', 'kind': 'feature', 'base': 'fail'}]}]}
+        names = report_c.base_passing(gates)
+        self.assertEqual(names, {'c04': ['R1']})
+        unchanged = {'cases': {'R1': 'pass', 'R2': 'fail'}, 'review_passed': 1, 'review_total': 2}
+        self.assertEqual(report_c.review_beyond_base(unchanged, names['c04']),
+                         {'review_base_passing': 1, 'review_new_passed': 0, 'review_new_total': 1})
+        self.assertIsNone(report_c.review_beyond_base(unchanged, None)['review_new_total'])
+        graded = dict(row('full', 1, 10)['oracle'], **report_c.review_beyond_base(unchanged, names['c04']))
+        records = [dict(row('full', 1, 10), task_id='c04', oracle=graded)]
+        text = report_c.to_markdown(report_c.summarize(records), records)
+        self.assertIn('| 0 | 0/1 |', text)
+        self.assertIn('| c04-full-k1 | 1/2 | 0/1 |', text)
 
 
 class SurfaceTests(unittest.TestCase):

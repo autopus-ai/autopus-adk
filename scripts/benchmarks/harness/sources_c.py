@@ -12,6 +12,7 @@ import subprocess
 
 import claude_agent
 import grade_c
+import oracle_c
 import surface_c
 import trial_c
 import trial_env_c
@@ -60,7 +61,7 @@ def prepare_sources(ctx: dict, tasks: list, repo: Path) -> dict:
             env.update(trial_c.go_env(root, ctx['output'] / 'cache' / 'build', ctx['modcache']))
             generated = surface_c.generate_surface(bin_dir / 'auto', tree, root, env)
             generated.update(surface_c.pin_hooks(root / 'surface', bin_dir / 'auto'))
-            packages = [t['oracle']['package'] for t in tasks if t['heads']['base'] == base]
+            packages = [p for t in tasks if t['heads']['base'] == base for p in oracle_c.packages(t)]
             grade_c.warm(tree, packages, root / 'warm-cache', root / 'warm-tmp', ctx['modcache'])
             meta.write_text(json.dumps(generated, indent=2))
         generated = json.loads(meta.read_text())

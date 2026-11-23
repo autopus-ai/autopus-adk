@@ -1,0 +1,29 @@
+package procgroup
+
+// Pilot C c05 base stub (gate 3 only, never graded with a candidate): the
+// pinned pkg/procgroup API with no process-group handling, so the oracle
+// compiles on base and its procgroup cases fail there instead of not
+// building. Kill reports that it did nothing rather than signalling, so no
+// case waits on a process the stub left running.
+
+import (
+	"errors"
+	"os/exec"
+	"time"
+)
+
+const DefaultGrace = 2 * time.Second
+
+type Options struct{ Grace time.Duration }
+
+type Group struct{ cmd *exec.Cmd }
+
+func New(cmd *exec.Cmd, opts Options) *Group { return &Group{cmd: cmd} }
+
+func (g *Group) Start() error { return g.cmd.Start() }
+
+func (g *Group) Kill() error { return errors.New("procgroup stub: Kill is not implemented") }
+
+func (g *Group) Terminate() {}
+
+func (g *Group) Close() error { return nil }

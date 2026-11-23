@@ -16,7 +16,7 @@ import shutil
 import sys
 
 import grade_c
-from oracle_c import ORACLES, frozen_hash
+from oracle_c import ORACLES, frozen_hash, packages, stub_specs
 from workspace import snapshot
 
 HERE = Path(__file__).resolve().parent
@@ -73,9 +73,10 @@ def check_task(repo: Path, task: dict, work: Path, cache: Path) -> dict:
         root = work / task['id'] / head
         tree = root / 'tree'
         snapshot(repo, task['heads'][head], tree)
-        if head == 'base' and task['oracle'].get('base_stub'):
-            stub = ORACLES / task['id'] / task['oracle']['base_stub']
-            shutil.copyfile(stub, tree / task['oracle']['package'] / stub.name.removesuffix('.oracle'))
+        if head == 'base':
+            for stub, package in stub_specs(task, ORACLES):
+                (tree / package).mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(stub, tree / package / stub.name.removesuffix('.oracle'))
         print(json.dumps({'stage': 'oracle', 'task': task['id'], 'head': head}), flush=True)
         runs[head] = grade_c.run_graded(tree, task, root, work / 'logs' / task['id'] / head, cache,
                                         grade_c.grader.PROFILE, ORACLES)
@@ -112,7 +113,7 @@ def main(argv=None) -> int:
         if not cache.exists():
             base = work / 'warm-src'
             snapshot(args.repo.resolve(), task['heads']['base'], base)
-            grade_c.warm(base, [t['oracle']['package'] for t in tasks], cache, work / 'warm-tmp')
+            grade_c.warm(base, [p for t in tasks for p in packages(t)], cache, work / 'warm-tmp')
             shutil.rmtree(base)
         verdict = check_task(args.repo.resolve(), task, work, cache)
         verdicts.append(verdict)
