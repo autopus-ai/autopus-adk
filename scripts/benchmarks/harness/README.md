@@ -535,7 +535,11 @@ tools' install directories are reopened (so `~/.ssh`, `~/.aws`, `~/.config`,
 shell history, `~/.claude*`, other trials and the oracles are unreadable).
 Unix sockets are closed except mDNSResponder's (a Docker or colima socket
 would hand out the host), the keychain is closed as files and as Mach
-services, signals reach only the same sandbox instance, and LaunchServices
+services, signals and proc_info (`proc_pidinfo`, `proc_pidpath`) reach only the same sandbox
+instance, the `kern.procargs` sysctls are denied (they hand out another same-user process's
+environment: a sibling's, and the runner's parent shell with the maintainer's tokens;
+`test_agent_isolation_c.py` reads a canary from both without these rules and is refused with them,
+while the agent still inspects and signals its own children), and LaunchServices
 opens (`open x.app` would start it outside the sandbox) and preference writes
 through cfprefsd (`defaults write`) and the pasteboard are denied. Nothing outside the trial is
 writable, `/private/tmp` included: Claude Code 2.1.322 writes the Bash tool's
@@ -628,4 +632,11 @@ instead of not building; stub bytes are part of the frozen hash. grader.sb lets 
 signal and inspect only its own sandbox instance (itself and the children it started, which a
 process-group test must reach); siblings stay closed. Tests: `test_claude_agent.py`,
 `test_stream_c.py`, `test_guard_c.py`, `test_oracle_c.py`, `test_run_c.py`,
-`test_trial_env_c.py`, `test_stop_c.py`.
+`test_trial_env_c.py`, `test_stop_c.py`, `test_agent_isolation_c.py`.
+
+Review cases that already pass on base. Some review-confirmed defects came with the feature, so
+base passes them (c04 1 of 2, c05 3 of 4, c06 6 of 10) and an unchanged candidate would too. Each
+graded record carries `review_base_passing` (from the `--gates` file) and `review_new_passed` /
+`review_new_total` without those cases; `report.md` shows review raw and excluding them (unknown
+without `--gates`, never zero). `/bin/ps` is setuid root and never runs inside either profile; `pgrep`
+still lists process names, but not another process's arguments or environment.

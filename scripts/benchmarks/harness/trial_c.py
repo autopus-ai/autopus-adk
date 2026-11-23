@@ -18,6 +18,7 @@ import grade_c
 import guard_c
 import oracle_c
 import process_tree
+import report_c
 import stream_c
 import surface_c
 import trial_env_c
@@ -165,6 +166,7 @@ def run(ctx: dict, task: dict, arm: str, replicate: int) -> dict:
         graded = grade_c.grade_candidate(task, plan['source']['tree'], plan['work'], grading, measure / 'grade',
                                          plan['source']['warm_cache'], ctx['frozen']['grader_profile'],
                                          ctx['frozen']['oracles'], modcache=ctx['modcache'])
+        graded.update(report_c.review_beyond_base(graded, ctx.get('base_passing', {}).get(task['id'])))
     operational = ('warmup_failed' if warm['exit_code'] else 'leftover_processes' if agent['leftover'] else
                    'agent_timeout' if agent['timed_out'] else 'agent_exit' if agent['exit_code'] else
                    'agent_error' if observation['is_error'] else 'arm_invalid' if not valid else None)

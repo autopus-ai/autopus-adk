@@ -69,6 +69,15 @@
 (deny signal)
 (allow signal (target same-sandbox))
 
+;; Other processes stay closed, as in grader.sb (SPEC-HARNEVAL-003 S1): a same-user process's
+;; environment is readable through the kern.procargs2 sysctl, and that includes the runner's own
+;; parent (the maintainer's shell, with its tokens) and any sibling outside this sandbox. proc_info
+;; (proc_pidinfo, proc_pidpath) reaches only this sandbox instance: the trial's own process tree,
+;; which the agent still inspects and signals.
+(deny sysctl-read (sysctl-name-prefix "kern.procargs"))
+(deny process-info*)
+(allow process-info* (target same-sandbox))
+
 ;; LaunchServices would start an app the trial builds outside this sandbox (open -g -j -n x.app),
 ;; and cfprefsd writes ~/Library/Preferences on the trial's behalf (defaults write).
 (deny lsopen)

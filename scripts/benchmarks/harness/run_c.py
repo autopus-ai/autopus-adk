@@ -132,6 +132,8 @@ def main(argv=None) -> int:
            'protected': [repo, HERE.parents[2]], 'account_home': str(Path.home()), 'harness_revision': harness,
            'credential_kind': args.credential_kind,
            'credential': claude_agent.read_credential(args.credential_file) if args.credential_file else 'DRY-RUN'}
+    # Review cases that pass on base, so the report can show review without them (report_c).
+    ctx['base_passing'] = report_c.base_passing(json.loads(args.gates.read_text())) if args.gates else {}
     ctx['sources'] = sources_c.prepare_sources(ctx, tasks, repo)
     if 'claude' not in ctx['tools']:
         raise SystemExit('--tools must include claude')

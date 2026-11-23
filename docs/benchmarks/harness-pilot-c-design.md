@@ -193,8 +193,13 @@ verification layer. Every task lists 30722ad9 in `harness_requires`, so
 7b017f17 is refused. #348 is merged; its branch head fcfbeff4 and `origin/main`
 contain the task heads and are refused. The runner records the SHA.
 
-Primary measure per arm: `review` cases passed. `feature` and `guard` cases
-are reported with it.
+Primary measure per arm: `review` cases passed, reported raw and without the review cases that
+already pass on base (c04 1/2, c05 3/4, c06 6/10; the defect came with the feature, so an
+unchanged candidate passes them). `feature` and `guard` cases are reported with it.
+
+Agent sandbox. Since PR #364 review, claude_agent.sb also denies the `kern.procargs` sysctls and
+limits proc_info to its own sandbox instance, as grader.sb does: before, an agent could read the
+environment of a sibling process and of the runner's parent shell (the maintainer's tokens).
 
 ## Smoke 2026-11-23
 
