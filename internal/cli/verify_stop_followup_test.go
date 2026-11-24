@@ -60,6 +60,9 @@ func TestVerifyStop_LargePassingChangeGetsTheFullRoundOnce(t *testing.T) {
 	assert.Contains(t, first.Reason, "auto qa intent", "user scenarios come before the hunt")
 	assert.Contains(t, first.Reason, "--no-loop", "the tree is dirty when the hook fires, and the loop refuses a dirty tree")
 	assert.Contains(t, first.Reason, "policy_mismatch")
+	assert.Contains(t, first.Reason, "in the foreground")
+	assert.Contains(t, first.Reason, "Only if the change touches something a user can run", "scenario QA and the hunt are conditional")
+	assert.Less(t, strings.Index(first.Reason, "reviewer"), strings.Index(first.Reason, "auto qa intent"), "the review comes first")
 
 	assert.Equal(t, stopHookOutput{}, runStop(t, dir, session), "the same tree is not sent round again")
 
@@ -68,7 +71,7 @@ func TestVerifyStop_LargePassingChangeGetsTheFullRoundOnce(t *testing.T) {
 }
 
 // A one-line logic change is exactly where a written policy breaks, so it is
-// verified too, only less deeply.
+// verified too, by the review alone.
 func TestVerifyStop_SmallBehaviorChangeGetsTheLightRound(t *testing.T) {
 	optInFollowup(t, "")
 	session := "small"
@@ -78,8 +81,11 @@ func TestVerifyStop_SmallBehaviorChangeGetsTheLightRound(t *testing.T) {
 	out := runStop(t, dir, session)
 	assert.Equal(t, "block", out.Decision)
 	assert.Contains(t, out.Reason, "light verification round")
-	assert.Contains(t, out.Reason, "auto qa exec --all")
-	assert.NotContains(t, out.Reason, "auto qa intent", "a small change does not generate new scenarios")
+	assert.Contains(t, out.Reason, "in the foreground", "a reviewer still running when the turn ends loses its findings")
+	assert.Contains(t, out.Reason, "runs the real program on the same inputs")
+	for _, qa := range []string{"auto qa intent", "auto qa exec", "qa-explorer", "auto qa hunt"} {
+		assert.NotContains(t, out.Reason, qa, "the light round is the review only")
+	}
 }
 
 func TestVerifyStop_CommentOnlyChangeEndsAtGreen(t *testing.T) {

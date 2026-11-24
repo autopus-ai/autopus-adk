@@ -14,9 +14,9 @@ import (
 
 // followupFullLines is the size, in changed product code lines, from which a
 // change gets the full round. Below it a behavior change still gets the light
-// round: a one-line logic edit can break a written policy as surely as a
-// large one, so size decides how deep verification goes, never whether it
-// happens.
+// round, the review alone: a one-line logic edit can break a written policy
+// as surely as a large one, so size decides how deep verification goes,
+// never whether it happens.
 const followupFullLines = 40
 
 // A session gets one round, with one exception: a session whose light round
@@ -37,7 +37,8 @@ const (
 
 // followupTierFor picks the round for a passing change. Tests, comments,
 // documentation, configuration and generated files get none; new product
-// files or a large change get the full round.
+// files or a large change get the full round, whose scenario QA and hunt
+// still run only for a user-runnable, security or data-loss change.
 func followupTierFor(b verifygate.Behavior) followupTier {
 	switch {
 	case b.None():
@@ -59,24 +60,29 @@ const followupAsk = `
 
 If a fix needs a decision only the user can make (product behavior, scope, a policy conflict), ask it with AskUserQuestion as a multiple-choice question: say what you found, give each option a description of what it changes and what it costs, and put your recommendation first. Do not ask an open question. Otherwise do not ask; proceed and state your assumption.`
 
-// followupFullReason runs the whole verification half of the harness: user
-// scenarios from the request, then review, then the hunt.
-const followupFullReason = `Before finishing, verify this change the way a separate user, reviewer and tester would, without asking the user to start it:
+// followupReview is the step every round starts with. Pilot C measured the
+// independent review as the only step that changed results, and found most
+// of its misses in code that models an external program; the reviewer found
+// them only by running that program. Findings were lost when the agent ended
+// its turn while the reviewer still ran, so the review runs in the foreground.
+const followupReview = `1. Run the reviewer agent on ` + "`git diff HEAD`" + ` (and new files) against what the user asked for, in the foreground: wait for its result in this turn, and do not end the turn while it runs. Require differential checking: where the changed code models or parses an external program or format (shell grammar, CLI flags, git, file formats, protocols), the reviewer runs the real program on the same inputs and compares it with the new code. It reports only blockers reproduced by execution (wrong behavior, missing cases, security or data-loss risk), each with file, line and the command that shows it.`
 
-1. Check it against the user's request first. Use the SPEC id that covers it, or save the user's original request verbatim, run ` + "`auto qa intent --request-file <file> --format json`" + `, ask its questions, and record the answers with ` + "`auto qa intent answer`" + `. The change is uncommitted, so run ` + "`auto qa go <id> --auto --no-loop`" + ` and then ` + "`auto qa exec --all`" + ` (plus ` + "`auto qa run --lane <lane>`" + ` when GUI scenarios were compiled) on the working tree; the loop without --no-loop refuses uncommitted changes.
-2. Run the reviewer agent on ` + "`git diff HEAD`" + ` (and new files) against what the user asked for. Report only blockers: wrong behavior, missing cases, security or data-loss risk, each with file, line and a failing case.
-3. Run the qa-explorer agent in hunt mode on the changed behavior, then ` + "`auto qa hunt verify`" + `. The hunt covers bugs, behavior that breaks a quoted product policy or project rule (policy_mismatch), and measured inefficiency.
-4. Fix every failing scenario, reviewer blocker and confirmed finding, rerun the tests, and finish with a short summary of what was checked and fixed.` + followupChecklist + followupAsk
+const followupFix = ` Apply every confirmed finding, rerun the affected tests, and finish with a short summary of what was checked and fixed. The fixes do not get another review.`
 
-// followupLightReason is the round for a small behavior change: no new
-// scenarios are generated, but existing ones rerun and the changed behavior
-// is checked against the request and the written policies.
-const followupLightReason = `This is a small behavior change; before finishing, verify it without asking the user to start it:
+// followupFullReason is the round for a large change: the review, and
+// scenario QA plus the hunt only when the change has something a user runs.
+const followupFullReason = `This is a large change. Before finishing, verify it without asking the user to start it:
 
-1. Rerun the existing user scenarios on the working tree: ` + "`auto qa exec --all`" + ` (skip this step when the project has none).
-2. Run the reviewer agent on ` + "`git diff HEAD`" + ` against what the user asked for. Report only blockers, each with file, line and a failing case.
-3. Run the qa-explorer agent in verify mode on the changed behavior only: does it do what the user asked, and does it still match the product policies and project rules that mention it (policy_mismatch, quoted verbatim)? Judge with ` + "`auto qa hunt verify`" + `.
-4. Fix every failing scenario, reviewer blocker and confirmed finding, rerun the tests, and finish with a short summary of what was checked and fixed.` + followupChecklist + followupAsk
+` + followupReview + `
+2. Only if the change touches something a user can run (a command, UI or API), a security or data-loss path, or the user asked for QA: check it against the user's request too. Use the SPEC id that covers it, or save the user's original request verbatim, run ` + "`auto qa intent --request-file <file> --format json`" + `, ask its questions, and record the answers with ` + "`auto qa intent answer`" + `. The change is uncommitted, so run ` + "`auto qa go <id> --auto --no-loop`" + ` and then ` + "`auto qa exec --all`" + ` (plus ` + "`auto qa run --lane <lane>`" + ` when GUI scenarios were compiled) on the working tree; the loop without --no-loop refuses uncommitted changes. Then run the qa-explorer agent in hunt mode on the changed behavior and ` + "`auto qa hunt verify`" + ` (bugs, policy_mismatch with a quoted policy, measured inefficiency). Otherwise skip this step.
+3.` + followupFix + followupChecklist + followupAsk
+
+// followupLightReason is the round for a small behavior change: the review
+// alone.
+const followupLightReason = `This is a small behavior change; before finishing, review it without asking the user to start it:
+
+` + followupReview + `
+2.` + followupFix + followupChecklist + followupAsk
 
 // followupEnabled reports whether the follow-up round runs. It is on by
 // default: the harness's job is verification, and the tiers keep a change
