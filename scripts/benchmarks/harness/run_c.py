@@ -168,7 +168,8 @@ def check_resume(output: Path, protocol: dict) -> None:
     frozen = json.loads((output / 'protocol.json').read_text())
     for key in ('frozen_hash', 'tasks', 'arms', 'order', 'model', 'effort', 'timeout_seconds', 'harness_revision',
                 'surfaces', 'sandbox', 'permission_mode', 'trial_environment'):
-        if frozen.get(key) != protocol.get(key):
+        # protocol.json stores tuples as lists, so compare both through the same JSON round trip.
+        if frozen.get(key) != json.loads(json.dumps(protocol.get(key))):
             raise SystemExit('--resume with a different protocol: ' + key)
 
 
