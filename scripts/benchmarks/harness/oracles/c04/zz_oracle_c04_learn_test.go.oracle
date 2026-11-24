@@ -116,9 +116,14 @@ func TestOracleC04_ReadDedupesMergedDuplicates(t *testing.T) {
 	entries, err := store.Read()
 	require.NoError(t, err)
 	require.Len(t, entries, 2)
-	assert.Equal(t, "L-001", entries[0].ID)
-	assert.Equal(t, 3, entries[0].ReuseCount, "the highest reuse count wins")
-	assert.Equal(t, "L-002", entries[1].ID)
+	// The prompt pins one entry per lesson, not their order.
+	byID := map[string]LearningEntry{}
+	for _, entry := range entries {
+		byID[entry.ID] = entry
+	}
+	require.Contains(t, byID, "L-001")
+	require.Contains(t, byID, "L-002")
+	assert.Equal(t, 3, byID["L-001"].ReuseCount, "the highest reuse count wins")
 
 	require.NoError(t, store.MarkReused([]string{"L-002"}))
 	data, err := os.ReadFile(path)

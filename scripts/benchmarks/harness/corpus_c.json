@@ -154,6 +154,10 @@
         {
           "name": "zz_oracle_c03_classify_test.go.oracle",
           "package": "pkg/diskgate"
+        },
+        {
+          "name": "zz_oracle_c03_classify_more_test.go.oracle",
+          "package": "pkg/diskgate"
         }
       ],
       "base_stub": {
@@ -163,42 +167,172 @@
       "case_timeout": 600,
       "cases": [
         {
-          "name": "TestOracleC03_ClassifiesLintersTypeCheckersAndTestRunners",
+          "name": "TestOracleC03_TestRunnersAreCPUWork",
           "kind": "feature",
           "package": "pkg/diskgate"
         },
         {
-          "name": "TestOracleC03_CompilingInstallsAreCPUWork",
+          "name": "TestOracleC03_LintersAndTypeCheckersAreCPUWork",
+          "kind": "feature",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC03_DiskGateCompilesAreCPUWork",
+          "kind": "feature",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC03_OnlyACPULeaseCoversTheCommand",
+          "kind": "feature",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC03_ExtraPrefixesAreCPUWork",
+          "kind": "feature",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC03_LookupsAndLightCommandsAreLight",
+          "kind": "guard",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC03_JVMInstallsAreCPUWork",
           "kind": "review",
           "package": "pkg/diskgate"
         },
         {
-          "name": "TestOracleC03_VersionFlagsArePerTool",
+          "name": "TestOracleC03_ExtraCICommandsAreCPUWork",
           "kind": "review",
           "package": "pkg/diskgate"
         },
         {
-          "name": "TestOracleC03_RunnerOptionsAreSkipped",
+          "name": "TestOracleC03_VerboseFlagRunsTheTool",
           "kind": "review",
           "package": "pkg/diskgate"
         },
         {
-          "name": "TestOracleC03_WrappersAreSeenThrough",
+          "name": "TestOracleC03_VersionFlagsAreLight",
+          "kind": "guard",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC03_UvRunOptionsAreSkipped",
           "kind": "review",
           "package": "pkg/diskgate"
         },
         {
-          "name": "TestOracleC03_SuiteToolsAreCPUWork",
+          "name": "TestOracleC03_PoetryRunOptionsAreSkipped",
           "kind": "review",
           "package": "pkg/diskgate"
         },
         {
-          "name": "TestOracleC03_AutoSuiteCommandsAreCPUWork",
+          "name": "TestOracleC03_RunnerOfALightProgramIsLight",
+          "kind": "guard",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC03_ShellOptionsBeforeTheScriptAreSeenThrough",
           "kind": "review",
           "package": "pkg/diskgate"
         },
         {
-          "name": "TestOracleC03_HeredocBodyIsData",
+          "name": "TestOracleC03_TimeIsSeenThrough",
+          "kind": "review",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC03_NiceIsSeenThrough",
+          "kind": "review",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC03_XargsIsSeenThrough",
+          "kind": "review",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC03_WrappersOfLightCommandsAreLight",
+          "kind": "guard",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC03_CargoNextestRunIsCPUWork",
+          "kind": "review",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC03_TurboTasksAreCPUWork",
+          "kind": "review",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC03_TurboDevIsLight",
+          "kind": "guard",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC03_YarnWorkspaceScriptsAreCPUWork",
+          "kind": "review",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC03_GoToolLinterIsCPUWork",
+          "kind": "review",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC03_TypeCheckersAreCPUWork",
+          "kind": "review",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC03_PlaywrightTestIsCPUWork",
+          "kind": "feature",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC03_PlaywrightInstallIsLight",
+          "kind": "review",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC03_AutoQASuitesAreCPUWork",
+          "kind": "review",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC03_AutoChecklistRunAndWorkflowGateAreCPUWork",
+          "kind": "review",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC03_AutoSuiteUnderALeaseWithoutCPUIsCPUWork",
+          "kind": "review",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC03_OtherAutoCommandsAreLight",
+          "kind": "guard",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC03_QuotedHeredocBodyIsData",
+          "kind": "review",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC03_UnquotedHeredocBodyIsData",
+          "kind": "review",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC03_TabStrippedHeredocBodyIsData",
+          "kind": "review",
+          "package": "pkg/diskgate"
+        },
+        {
+          "name": "TestOracleC03_SeveralHeredocBodiesAreData",
           "kind": "review",
           "package": "pkg/diskgate"
         },
@@ -210,6 +344,10 @@
         {
           "name": "TestOracleC03_DeniesUnleasedHeavyCommandsAboveTheLoadLimit",
           "kind": "feature"
+        },
+        {
+          "name": "TestOracleC03_AllowsLeasedAndLightCommandsAboveTheLoadLimit",
+          "kind": "guard"
         },
         {
           "name": "TestOracleC03_AllowsWhenNoLeaseOrWaiterIsProtected",

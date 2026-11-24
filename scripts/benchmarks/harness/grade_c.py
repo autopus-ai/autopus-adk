@@ -128,9 +128,14 @@ def grade_candidate(task: dict, base_tree: Path, work: Path, root: Path, logs: P
     tree = Path(root) / 'tree'
     record = overlay(base_tree, work, task['allowed_paths'], tree)
     result = run_graded(tree, task, root, logs, cache, profile, oracles, modcache)
+    return {**score(task, result), 'overlay': record}
+
+
+def score(task: dict, result: dict) -> dict:
+    """A run_oracle result with the pass counts, overall and by case kind (regrade_c reuses it)."""
     kinds = {case['name']: case['kind'] for case in task['oracle']['cases']}
     passed = [name for name, verdict in result['cases'].items() if verdict == 'pass']
     counts = {kind + '_' + key: value for kind in ('review', 'feature', 'guard') for key, value in
               (('passed', sum(1 for n in passed if kinds[n] == kind)),
                ('total', sum(1 for k in kinds.values() if k == kind)))}
-    return {**result, 'overlay': record, 'passed': len(passed), 'total': len(kinds), **counts}
+    return {**result, 'passed': len(passed), 'total': len(kinds), **counts}

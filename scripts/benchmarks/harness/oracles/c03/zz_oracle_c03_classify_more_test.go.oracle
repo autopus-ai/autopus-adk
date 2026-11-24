@@ -1,0 +1,91 @@
+package diskgate
+
+// Pilot C oracle c03, more classifier cases (hidden from the agent): suite
+// tools, auto suite steps and here-documents, one case per command group.
+// The helpers live in zz_oracle_c03_classify_test.go.
+
+import (
+	"testing"
+)
+
+// Monorepo runners and suite tools run tests, lint or type checks.
+func TestOracleC03_CargoNextestRunIsCPUWork(t *testing.T) {
+	oc03Heavy(t, ClassifyCPU, "cargo nextest run")
+}
+
+func TestOracleC03_TurboTasksAreCPUWork(t *testing.T) {
+	oc03Heavy(t, ClassifyCPU, "turbo run test", "turbo run build --filter web", "turbo lint", "npx turbo run test")
+}
+
+func TestOracleC03_TurboDevIsLight(t *testing.T) {
+	oc03Light(t, ClassifyCPU, "turbo run dev")
+}
+
+func TestOracleC03_YarnWorkspaceScriptsAreCPUWork(t *testing.T) {
+	oc03Heavy(t, ClassifyCPU, "yarn workspace web test", "yarn workspace web lint")
+}
+
+func TestOracleC03_GoToolLinterIsCPUWork(t *testing.T) {
+	oc03Heavy(t, ClassifyCPU, "go tool golangci-lint run ./...")
+}
+
+func TestOracleC03_TypeCheckersAreCPUWork(t *testing.T) {
+	oc03Heavy(t, ClassifyCPU, "mypy .", "pnpm exec tsc --noEmit")
+}
+
+func TestOracleC03_PlaywrightTestIsCPUWork(t *testing.T) {
+	oc03Heavy(t, ClassifyCPU, "npx playwright test")
+}
+
+func TestOracleC03_PlaywrightInstallIsLight(t *testing.T) {
+	oc03Light(t, ClassifyCPU, "npx playwright install", "npx playwright install --with-deps chromium")
+}
+
+// auto subcommands that run a project's test suite are CPU work; the others,
+// and anything already under a CPU lease, are not.
+func TestOracleC03_AutoQASuitesAreCPUWork(t *testing.T) {
+	oc03Heavy(t, ClassifyCPU, "auto qa exec --all", "auto qa run", "auto qa loop", "auto qa mutate")
+}
+
+func TestOracleC03_AutoChecklistRunAndWorkflowGateAreCPUWork(t *testing.T) {
+	oc03Heavy(t, ClassifyCPU, "auto checklist run", "auto workflow gate")
+}
+
+func TestOracleC03_AutoSuiteUnderALeaseWithoutCPUIsCPUWork(t *testing.T) {
+	oc03Heavy(t, ClassifyCPU, "auto disk lease --need 8 -- auto qa run")
+}
+
+func TestOracleC03_OtherAutoCommandsAreLight(t *testing.T) {
+	oc03Light(t, ClassifyCPU, "auto qa intent", "auto checklist list", "auto disk lease --cpu 4 -- auto qa run",
+		"auto workflow status")
+}
+
+// A here-document body is data: the command words in it are not run.
+func oc03Data(t *testing.T, lines ...string) {
+	t.Helper()
+	oc03Light(t, Classify, lines...)
+	oc03Light(t, ClassifyCPU, lines...)
+}
+
+func TestOracleC03_QuotedHeredocBodyIsData(t *testing.T) {
+	oc03Data(t, "cat > /tmp/m.txt <<'EOF'\ngo test ./...\nnpm ci\nEOF", "cat <<\"END\"\npytest -q\nEND")
+}
+
+func TestOracleC03_UnquotedHeredocBodyIsData(t *testing.T) {
+	oc03Data(t, "cat <<EOF > /tmp/m.txt\ngo build ./...\nEOF\nls", "cat<<EOF\ngo test\nEOF",
+		"git commit -F - <<EOF\nfix: go test passes\nEOF")
+}
+
+func TestOracleC03_TabStrippedHeredocBodyIsData(t *testing.T) {
+	oc03Data(t, "cat <<-EOF\n\tgo test ./...\n\tEOF\necho done")
+}
+
+func TestOracleC03_SeveralHeredocBodiesAreData(t *testing.T) {
+	oc03Data(t, "cat <<A <<B\ngo test\nA\ncargo build\nB")
+}
+
+// A command after the here-document, or beside it, still runs.
+func TestOracleC03_CommandAfterHeredocStillHeavy(t *testing.T) {
+	oc03Heavy(t, Classify, "cat > /tmp/m.txt <<'EOF'\nignored\nEOF\ngo test ./...", "cat <<EOF && go build ./...\nbody\nEOF",
+		"cat <<-EOF\n\tbody\n\tEOF\ncargo build", "cat <<<'go test' && go test ./...")
+}

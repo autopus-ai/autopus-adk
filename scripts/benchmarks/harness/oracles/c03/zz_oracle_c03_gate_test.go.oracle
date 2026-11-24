@@ -77,17 +77,28 @@ func oc03Denied(t *testing.T, reason, command string, parts ...string) {
 
 const oc03On = "hooks:\n  cpu_gate: true\n"
 
-func TestOracleC03_DeniesUnleasedHeavyCommandsAboveTheLoadLimit(t *testing.T) {
+func oc03LoadedProject(t *testing.T) string {
+	t.Helper()
 	dir := writeDiskProject(t, oc03On)
 	withDiskFree(t, gib(500), "/fixture")
 	oc03MachineLoad(t, 21, 24) // limit 0.85 x 24 = 20.4
 	oc03HoldLease(t, 8)
+	return dir
+}
+
+func TestOracleC03_DeniesUnleasedHeavyCommandsAboveTheLoadLimit(t *testing.T) {
+	dir := oc03LoadedProject(t)
 	for _, command := range []string{"pnpm test", "npx vitest run", "cd web && eslint . --max-warnings=0", "go test ./...",
 		"pnpm -r lint", "golangci-lint run ./...", "auto disk lease --need 8 -- go test ./..."} {
 		oc03Denied(t, oc03Gate(t, dir, command), command, "21.0", "20.4", "auto disk lease --cpu")
 	}
+}
+
+// Installs and checkouts are pinned neither way (the classifier oracle says why).
+func TestOracleC03_AllowsLeasedAndLightCommandsAboveTheLoadLimit(t *testing.T) {
+	dir := oc03LoadedProject(t)
 	for _, command := range []string{"auto disk lease --cpu 4 -- pnpm test", "git status", "ls -la",
-		"heavy-lock.sh evo go test ./...", "npm i left-pad", "git worktree add ../x", "tsc --version"} {
+		"heavy-lock.sh evo go test ./...", "tsc --version"} {
 		if reason := oc03Gate(t, dir, command); reason != "" {
 			t.Errorf("%q denied: %q", command, reason)
 		}
