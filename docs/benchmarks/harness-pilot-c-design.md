@@ -70,7 +70,7 @@ A case that fails gate 2 is dropped, not rewritten after seeing results.
 | --- | --- | --- | --- |
 | c01 | `auto ci report` lints the remote default branch's workflows when the checkout is behind (#347, base 7b017f17) | 19721f08, 10220e08 | 5 / 5 / 5 |
 | c02 | `auto doctor` text verdict matches what it printed (#350, base 7b017f17) | eb26e657, dcda6485 | 2 / 2 / 0 |
-| c03 | opt-in `cpu_gate` refuses unleased CPU-heavy Bash commands under load (#349, base 7b017f17) | 32debe26, 3b194190 | 10 / 5 / 2 |
+| c03 | opt-in `cpu_gate` refuses unleased CPU-heavy Bash commands under load (#349, base 7b017f17) | 32debe26, 3b194190 | 25 / 10 / 9 (one case per command group) |
 | c04 | lesson and checklist ids stay unique across branches, union-merged store reads back (#354, base a93c4717) | aca0228d, c9149d98 | 2 / 9 / 1 |
 | c05 | `pkg/procgroup`: verify-stop step cancellation reaches the whole tree (#355, base a93c4717) | 52e6c55c, a7f5d43e | 4 / 3 / 0 |
 | c06 | disk gate follow-ups: subdirectory config, `--help`, here-document scripts, lookups (#356, base a93c4717) | ded4a2f5, 25530eb7 | 10 / 7 / 6 |

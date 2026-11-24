@@ -639,11 +639,47 @@ instead of not building; stub bytes are part of the frozen hash. grader.sb lets 
 signal and inspect only its own sandbox instance (itself and the children it started, which a
 process-group test must reach); siblings stay closed. Tests: `test_claude_agent.py`,
 `test_stream_c.py`, `test_guard_c.py`, `test_oracle_c.py`, `test_run_c.py`,
-`test_trial_env_c.py`, `test_stop_c.py`, `test_agent_isolation_c.py`.
+`test_trial_env_c.py`, `test_stop_c.py`, `test_agent_isolation_c.py`, `test_regrade_c.py`.
 
 Review cases that already pass on base. Some review-confirmed defects came with the feature, so
-base passes them (c04 1 of 2, c05 3 of 4, c06 6 of 10) and an unchanged candidate would too. Each
+base passes them (c03 1 of 25, c04 1 of 2, c05 3 of 4, c06 6 of 10) and an unchanged candidate would too. Each
 graded record carries `review_base_passing` (from the `--gates` file) and `review_new_passed` /
 `review_new_total` without those cases; `report.md` shows review raw and excluding them (unknown
 without `--gates`, never zero). `/bin/ps` is setuid root and never runs inside either profile; `pgrep`
 still lists process names, but not another process's arguments or environment.
+
+Oracle validity. An oracle assertion pins only what the prompt states and the fixed head does. Where
+the two disagree, the assertion is dropped rather than pinned either way, because an oracle that
+follows the prompt fails gate 1 and one that follows the fixed head scores arms for reading the prompt
+correctly. c03 therefore no longer pins installs and checkouts (`npm i`, `pnpm install`, `uv sync`,
+`pip install`, `git worktree add`, `yarn workspace ... add`) as CPU-light (the prompt: "CPU-heavy
+means the disk gate's heavy commands plus ..."; 3b194190 leaves them out) nor `cargo nextest list`
+(it compiles the test binaries). c06 no longer pins `auto qa exec --all --help` or
+`auto qa --help exec` (the prompt covers a step "followed only by" a help flag), and c04 no longer
+pins the order `Read` returns lessons in (the prompt pins one entry per lesson). c03 cases are one
+command group each (44 cases instead of 17), so one wrong line fails one group, not a whole case.
+
+Saturated tasks. In the 2026-11-23 k1 trials every arm passed every c02 and c04 case, so those tasks
+cannot tell arms apart. They stay in the corpus (a regression would show there); leave them out of
+the arm comparison with `regrade_c.py --exclude-from-comparison c02,c04`, which adds an arm table
+without them to `report.md` and keeps every trial in the per-trial table.
+
+Re-grading a finished run (`regrade_c.py`, no agent and no model call). A changed oracle can be
+measured on the candidates a run already produced: each graded trial's production edits are kept in
+`measure/<trial>/candidate/` and the overlay in its `result.json`, so the graded tree is rebuilt
+(base snapshot, kept files, recorded deletions) and the current oracles run on it as in a trial
+(grader.sb, a build cache warmed on base, the host module cache). The source run is only read;
+every tree, log, `result.json` (with the source verdict under `regrade`) and report goes to the new
+`--output`. A task whose prompt, heads or `allowed_paths` differ from the run's frozen corpus is
+refused; a trial whose kept files do not match its recorded overlay (still being pruned, or a
+`--keep-trials` run) and a trial the run could not grade count as ungraded. Regenerate the gates
+first and pass them, so the report can show review excluding base-passing cases:
+
+```sh
+python3 scripts/benchmarks/harness/gate_c.py --repo "$PWD" --work "$TMPDIR/gates-new"
+python3 scripts/benchmarks/harness/regrade_c.py --repo "$PWD" --run /Users/Shared/pilot-c/<run> \
+  --output /absolute/new/regrade --gates "$TMPDIR/gates-new/gates.json" --exclude-from-comparison c02,c04
+# Only the report with the exclusion, from the run's own verdicts:
+python3 scripts/benchmarks/harness/regrade_c.py --repo "$PWD" --run /Users/Shared/pilot-c/<run> \
+  --output /absolute/new/report --report-only --exclude-from-comparison c02,c04
+```

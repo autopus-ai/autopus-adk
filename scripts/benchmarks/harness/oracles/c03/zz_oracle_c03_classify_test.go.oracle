@@ -2,9 +2,14 @@ package diskgate
 
 // Pilot C oracle c03, classifier cases (hidden from the agent): the tests of
 // c7f50103/32debe26 pkg/diskgate/classify_cpu_test.go and of 3b194190
-// pkg/diskgate/classify_cpu_more_test.go, split into one case per defect,
-// identifiers prefixed, and the normalised Match text relaxed to "non-empty"
-// so a differently spelled match is not counted as a defect (README.md, Pilot C).
+// pkg/diskgate/classify_cpu_more_test.go, split into one case per command
+// group, identifiers prefixed, and the normalised Match text relaxed to
+// "non-empty" so a differently spelled match is not counted as a defect
+// (README.md, Pilot C). Installs and checkouts (npm i, pnpm install, uv sync,
+// pip install, git worktree add, yarn workspace ... add) are pinned neither
+// way: the prompt calls the disk gate's heavy commands CPU-heavy, the fixed
+// head treats them as light. cargo nextest list compiles the test binaries,
+// so it is not pinned light either.
 
 import (
 	"testing"
@@ -28,23 +33,45 @@ func oc03Light(t *testing.T, classify func(string, ...string) Verdict, lines ...
 	}
 }
 
-func TestOracleC03_ClassifiesLintersTypeCheckersAndTestRunners(t *testing.T) {
-	oc03Heavy(t, ClassifyCPU, "go test ./...", "go install ./cmd/x", "go vet ./...", "cargo clippy --all", "pnpm test",
-		"pnpm -r lint", "pnpm --filter web typecheck", "npm --prefix web run lint", "npm run lint:fix",
-		"pnpm exec vitest run", "pnpm vitest", "npx eslint .", "eslint . --max-warnings=0", "pytest -q",
-		"uv run pytest -x", "python3 -m pytest", "golangci-lint run ./...", "auto disk lease --need 8 -- go test ./...",
-		"cd web && CI=1 vitest run", "bash -c 'pnpm -r lint'", "npm run build:docs")
-	oc03Light(t, ClassifyCPU, "auto disk lease --cpu 4 -- go test ./...", "auto disk lease --cpu=4 --need 8 -- pnpm test",
-		"auto disk status", "npm i left-pad", "pnpm install", "uv sync", "python -m pip install x",
-		"git worktree add ../w", "tsc --version", "eslint --help", "git status", "pnpm run dev", "heavy-lock.sh x go test")
+func TestOracleC03_TestRunnersAreCPUWork(t *testing.T) {
+	oc03Heavy(t, ClassifyCPU, "go test ./...", "pnpm test", "pnpm exec vitest run", "pnpm vitest", "pytest -q",
+		"uv run pytest -x", "python3 -m pytest", "cd web && CI=1 vitest run")
+}
+
+func TestOracleC03_LintersAndTypeCheckersAreCPUWork(t *testing.T) {
+	oc03Heavy(t, ClassifyCPU, "go vet ./...", "cargo clippy --all", "pnpm -r lint", "pnpm --filter web typecheck",
+		"npm --prefix web run lint", "npm run lint:fix", "npx eslint .", "eslint . --max-warnings=0",
+		"golangci-lint run ./...", "bash -c 'pnpm -r lint'")
+}
+
+// The disk gate's compiles stay heavy for the CPU gate.
+func TestOracleC03_DiskGateCompilesAreCPUWork(t *testing.T) {
+	oc03Heavy(t, ClassifyCPU, "go install ./cmd/x", "npm run build:docs")
+}
+
+// A lease without --cpu reserves no CPU; one with --cpu is the way out.
+func TestOracleC03_OnlyACPULeaseCoversTheCommand(t *testing.T) {
+	oc03Heavy(t, ClassifyCPU, "auto disk lease --need 8 -- go test ./...")
+	oc03Light(t, ClassifyCPU, "auto disk lease --cpu 4 -- go test ./...", "auto disk lease --cpu=4 --need 8 -- pnpm test")
+}
+
+func TestOracleC03_ExtraPrefixesAreCPUWork(t *testing.T) {
 	if v := ClassifyCPU("make release", "make release"); !v.Heavy {
 		t.Errorf("an extra prefix is CPU work too: %+v", v)
 	}
 }
 
+func TestOracleC03_LookupsAndLightCommandsAreLight(t *testing.T) {
+	oc03Light(t, ClassifyCPU, "auto disk status", "tsc --version", "eslint --help", "git status", "pnpm run dev",
+		"heavy-lock.sh x go test")
+}
+
 // A build that compiles is CPU work, also when it is spelled as an install.
-func TestOracleC03_CompilingInstallsAreCPUWork(t *testing.T) {
+func TestOracleC03_JVMInstallsAreCPUWork(t *testing.T) {
 	oc03Heavy(t, ClassifyCPU, "mvn clean install", "./mvnw -B install", "gradle install")
+}
+
+func TestOracleC03_ExtraCICommandsAreCPUWork(t *testing.T) {
 	for _, extra := range []string{"make ci", "just ci"} {
 		if v := ClassifyCPU(extra, extra); !v.Heavy {
 			t.Errorf("an extra command ending in ci is CPU work: %q %+v", extra, v)
@@ -53,60 +80,45 @@ func TestOracleC03_CompilingInstallsAreCPUWork(t *testing.T) {
 }
 
 // A verbose flag runs the tool; only a version flag of that tool does not.
-func TestOracleC03_VersionFlagsArePerTool(t *testing.T) {
+func TestOracleC03_VerboseFlagRunsTheTool(t *testing.T) {
 	oc03Heavy(t, ClassifyCPU, "pytest -v", "uv run pytest -v")
+}
+
+func TestOracleC03_VersionFlagsAreLight(t *testing.T) {
 	oc03Light(t, ClassifyCPU, "pytest -V", "mypy --version", "eslint -v")
 }
 
 // Options and their values in front of the tool a runner runs are skipped.
-func TestOracleC03_RunnerOptionsAreSkipped(t *testing.T) {
+func TestOracleC03_UvRunOptionsAreSkipped(t *testing.T) {
 	oc03Heavy(t, ClassifyCPU, "uv run --frozen python -m pytest", "uv run --with pytest-cov pytest",
-		"uv --directory api run --python 3.12 mypy .", "poetry run -C api pytest")
+		"uv --directory api run --python 3.12 mypy .")
+}
+
+func TestOracleC03_PoetryRunOptionsAreSkipped(t *testing.T) {
+	oc03Heavy(t, ClassifyCPU, "poetry run -C api pytest")
+}
+
+func TestOracleC03_RunnerOfALightProgramIsLight(t *testing.T) {
 	oc03Light(t, ClassifyCPU, "uv run --frozen python -c 'print(1)'")
 }
 
 // Shells, timers, nice and xargs run the command they are given.
-func TestOracleC03_WrappersAreSeenThrough(t *testing.T) {
-	oc03Heavy(t, ClassifyCPU, "bash -lc 'go test ./...'", "zsh -ec 'pnpm -r lint'", "/usr/bin/time go test ./...",
-		"nice -10 go test ./...", "nice -n 5 pytest", "find . -name '*.go' | xargs go test", "xargs -n 1 -P 4 pytest")
+func TestOracleC03_ShellOptionsBeforeTheScriptAreSeenThrough(t *testing.T) {
+	oc03Heavy(t, ClassifyCPU, "bash -lc 'go test ./...'", "zsh -ec 'pnpm -r lint'")
+}
+
+func TestOracleC03_TimeIsSeenThrough(t *testing.T) {
+	oc03Heavy(t, ClassifyCPU, "/usr/bin/time go test ./...")
+}
+
+func TestOracleC03_NiceIsSeenThrough(t *testing.T) {
+	oc03Heavy(t, ClassifyCPU, "nice -10 go test ./...", "nice -n 5 pytest")
+}
+
+func TestOracleC03_XargsIsSeenThrough(t *testing.T) {
+	oc03Heavy(t, ClassifyCPU, "find . -name '*.go' | xargs go test", "xargs -n 1 -P 4 pytest")
+}
+
+func TestOracleC03_WrappersOfLightCommandsAreLight(t *testing.T) {
 	oc03Light(t, ClassifyCPU, "bash -l", "nice -10 ls", "xargs rm")
-}
-
-// Monorepo runners and suite tools run tests, lint or type checks.
-func TestOracleC03_SuiteToolsAreCPUWork(t *testing.T) {
-	oc03Heavy(t, ClassifyCPU, "cargo nextest run", "turbo run test", "turbo run build --filter web", "turbo lint",
-		"yarn workspace web test", "yarn workspace web lint", "go tool golangci-lint run ./...", "mypy .",
-		"npx playwright test", "npx turbo run test", "pnpm exec tsc --noEmit")
-	oc03Light(t, ClassifyCPU, "npx playwright install", "npx playwright install --with-deps chromium", "turbo run dev",
-		"yarn workspace web add left-pad", "cargo nextest list")
-}
-
-// auto subcommands that run a project's test suite are CPU work; the others,
-// and anything already under a CPU lease, are not.
-func TestOracleC03_AutoSuiteCommandsAreCPUWork(t *testing.T) {
-	oc03Heavy(t, ClassifyCPU, "auto qa exec --all", "auto qa run", "auto qa loop", "auto qa mutate", "auto checklist run",
-		"auto workflow gate", "auto disk lease --need 8 -- auto qa run")
-	oc03Light(t, ClassifyCPU, "auto qa intent", "auto checklist list", "auto disk lease --cpu 4 -- auto qa run",
-		"auto workflow status")
-}
-
-// A here-document body is data: the command words in it are not run.
-func TestOracleC03_HeredocBodyIsData(t *testing.T) {
-	lines := []string{
-		"cat > /tmp/m.txt <<'EOF'\ngo test ./...\nnpm ci\nEOF",
-		"cat <<EOF > /tmp/m.txt\ngo build ./...\nEOF\nls",
-		"cat <<\"END\"\npytest -q\nEND",
-		"cat <<-EOF\n\tgo test ./...\n\tEOF\necho done",
-		"git commit -F - <<EOF\nfix: go test passes\nEOF",
-		"cat <<A <<B\ngo test\nA\ncargo build\nB",
-		"cat<<EOF\ngo test\nEOF",
-	}
-	oc03Light(t, Classify, lines...)
-	oc03Light(t, ClassifyCPU, lines...)
-}
-
-// A command after the here-document, or beside it, still runs.
-func TestOracleC03_CommandAfterHeredocStillHeavy(t *testing.T) {
-	oc03Heavy(t, Classify, "cat > /tmp/m.txt <<'EOF'\nignored\nEOF\ngo test ./...", "cat <<EOF && go build ./...\nbody\nEOF",
-		"cat <<-EOF\n\tbody\n\tEOF\ncargo build", "cat <<<'go test' && go test ./...")
 }

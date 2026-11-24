@@ -70,19 +70,18 @@ def _new(o: dict | None) -> str:
     return '%d/%d' % (o['review_new_passed'], o['review_new_total'])
 
 
-def to_markdown(summary: dict, records: list) -> str:
-    lines = ['# Pilot C report', '',
-             '| arm | trials | review | feature | guard | ungraded | timeouts | op errors | scope | invalid arm |'
-             ' contaminated | elapsed s | known tokens | usage unknown | stop blocks | env overrides | review excl. base |',
-             '|' + '---|' * 17]
-    for arm, s in summary.items():
-        lines.append('| %s | %d | %d/%d | %d/%d | %d/%d | %d | %d | %d | %d | %d | %d | %.0f | %d | %d | %d | %d | %s |' % (
-            arm, s['trials'], s['review_passed'], s['review_total'], s['feature_passed'], s['feature_total'],
-            s['guard_passed'], s['guard_total'], s['ungraded'], s['timed_out'], s['operational_errors'],
-            s['scope_violations'], s['arm_invalid'], s['contaminated'], s['elapsed_seconds'], s['known_tokens'],
-            s['usage_unknown'], s['stop_hook_blocks'], s['env_override_trials'],
-            '%d/%d%s' % (s['review_new_passed'], s['review_new_total'],
-                         ' (+%d unknown)' % s['review_new_unknown'] if s['review_new_unknown'] else '')))
+def without(records: list, excluded) -> list:
+    """The records of every task not in excluded. A saturated task (every arm passes all of it, or none
+    does) cannot tell arms apart, so the arm comparison may leave it out; the per-trial table keeps it."""
+    excluded = set(excluded)
+    return [row for row in records if row['task_id'] not in excluded]
+
+
+def to_markdown(summary: dict, records: list, excluded=()) -> str:
+    lines = ['# Pilot C report', ''] + _arm_table(summary)
+    if excluded:
+        lines += ['', '## Arm comparison without saturated tasks (%s)' % ', '.join(sorted(excluded)), '']
+        lines += _arm_table(summarize(without(records, excluded)))
     lines += ['', '| trial | review | review excl. base | feature | guard | elapsed s | tokens | error | env overrides |',
               '|' + '---|' * 9]
     for row in records:
@@ -94,3 +93,18 @@ def to_markdown(summary: dict, records: list) -> str:
             (row.get('observation') or {}).get('total_tokens'), row.get('operational_error'),
             ', '.join(overrides) or '-'))
     return '\n'.join(lines) + '\n'
+
+
+def _arm_table(summary: dict) -> list:
+    lines = ['| arm | trials | review | feature | guard | ungraded | timeouts | op errors | scope | invalid arm |'
+             ' contaminated | elapsed s | known tokens | usage unknown | stop blocks | env overrides | review excl. base |',
+             '|' + '---|' * 17]
+    for arm, s in summary.items():
+        lines.append('| %s | %d | %d/%d | %d/%d | %d/%d | %d | %d | %d | %d | %d | %d | %.0f | %d | %d | %d | %d | %s |' % (
+            arm, s['trials'], s['review_passed'], s['review_total'], s['feature_passed'], s['feature_total'],
+            s['guard_passed'], s['guard_total'], s['ungraded'], s['timed_out'], s['operational_errors'],
+            s['scope_violations'], s['arm_invalid'], s['contaminated'], s['elapsed_seconds'], s['known_tokens'],
+            s['usage_unknown'], s['stop_hook_blocks'], s['env_override_trials'],
+            '%d/%d%s' % (s['review_new_passed'], s['review_new_total'],
+                         ' (+%d unknown)' % s['review_new_unknown'] if s['review_new_unknown'] else '')))
+    return lines

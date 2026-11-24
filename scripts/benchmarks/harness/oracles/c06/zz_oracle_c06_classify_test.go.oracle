@@ -60,9 +60,12 @@ func TestOracleC06_SuiteStepWithoutHelpStaysHeavy(t *testing.T) {
 	assert.True(t, ClassifyCPU("auto disk lease --need 5 -- auto qa run --verbose").Heavy)
 }
 
+// Only a help flag follows the step; a redirection is not an argument of it.
+// `auto qa exec --all --help` and `auto qa --help exec` are not pinned: the
+// prompt says only what a step followed only by -h/--help/--version is.
 func TestOracleC06_HelpFlagAnywhereIsLight(t *testing.T) {
-	oc06Light(t, "auto qa exec --help 2>&1 | head -40", "auto qa exec -h > /tmp/h.txt", "auto qa exec --all --help",
-		"auto qa --help exec", "auto workflow gate --help 2>/dev/null")
+	oc06Light(t, "auto qa exec --help 2>&1 | head -40", "auto qa exec -h > /tmp/h.txt",
+		"auto workflow gate --help 2>/dev/null")
 }
 
 func TestOracleC06_ToolLookupsAreLight(t *testing.T) {
