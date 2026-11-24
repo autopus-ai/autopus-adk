@@ -87,12 +87,18 @@ func TestVerifyStop_BlocksOnFailingTestThenGivesUp(t *testing.T) {
 	session := "test-" + strings.ReplaceAll(t.Name(), "/", "_")
 	t.Cleanup(func() { resetStopState(session) })
 
+	// Each attempt is a different tree: the same tree is blocked only once.
+	wrong := []string{"a - b", "a * b", "a + b + 1", "0"}
 	for i := 0; i < verifyStopMaxBlocks; i++ {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "add.go"),
+			[]byte("package stopgate\n\nfunc Add(a, b int) int { return "+wrong[i]+" }\n"), 0o644))
 		got := runStop(t, dir, session)
 		assert.Equal(t, "block", got.Decision)
 		assert.Contains(t, got.Reason, "go test -json .")
 		assert.Contains(t, got.Reason, "Add(1, 2) != 3")
 	}
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "add.go"),
+		[]byte("package stopgate\n\nfunc Add(a, b int) int { return "+wrong[verifyStopMaxBlocks]+" }\n"), 0o644))
 	last := runStop(t, dir, session)
 	assert.Empty(t, last.Decision, "the session may end after the block limit")
 	assert.Contains(t, last.SystemMessage, "still failing")

@@ -128,6 +128,7 @@ func TestRun_AFailingWholeStepIsCutEarly(t *testing.T) {
 	failure, _ := Run(context.Background(), []Step{step}, window)
 	require.NotNil(t, failure)
 	assert.True(t, failure.Partial)
+	assert.True(t, failure.EarlyCut)
 	assert.Equal(t, []string{"basegate.TestAFails"}, failure.FailedTests)
 	assert.Less(t, time.Since(started), window-2*time.Second, "the step ran to the end of its window")
 }

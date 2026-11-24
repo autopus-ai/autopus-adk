@@ -61,6 +61,7 @@ func newVerifyStopCmd() *cobra.Command {
 	var (
 		budget   time.Duration
 		followup bool
+		last     bool
 	)
 	cmd := &cobra.Command{
 		Use:   "stop",
@@ -72,7 +73,12 @@ func newVerifyStopCmd() *cobra.Command {
 			"a test still running after half of its step's window is treated as hung and blocks. Failed Go tests are run again " +
 			"on HEAD (at most 50; a whole-package step with a failure ends at two thirds of its window to leave time for it): " +
 			"those that fail there too, and that the change did not edit, are reported but do not block; when HEAD cannot " +
-			"be checked the failure blocks and the note says why. An interrupted run " +
+			"be checked the failure blocks and the note says why. HEAD's answer for each failed test is cached per HEAD commit and " +
+			"Go environment (a \"fails on HEAD\" answer only for the session that asked, for 20 minutes), and a step whose failures a " +
+			"recent HEAD shared is not stopped early. A tree (HEAD, every git status entry with its mode and contents, the Go " +
+			"environment and the budget; ignored files and untracked harness state are not compared) is blocked at most once, except a test-first block, which " +
+			"stands until a TDD-exempt line or the block limit: a later stop on the same tree does not run the tests again (a pass or " +
+			"an unverified result only in the session that ran it; a block in any session, as a note). --last prints the last result. An interrupted run " +
 			"(Ctrl-C, SIGTERM) records nothing and does not block. Under methodology: tdd with " +
 			"enforce: true, the changed tests must also fail against the code before the change (HEAD); a source change " +
 			"without a test change is blocked unless the reply has a `TDD-exempt: <reason>` line. Set " +
@@ -88,6 +94,10 @@ func newVerifyStopCmd() *cobra.Command {
 			"auto qa exec --all and the qa-explorer hunt when it has a user-runnable, security or data-loss surface or the user asks.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if last {
+				dir, _ := os.Getwd()
+				return printLastRun(cmd, cmd.OutOrStdout(), dir)
+			}
 			out := runVerifyStop(cmd, cmd.InOrStdin(), budget, followup)
 			data, err := json.Marshal(out)
 			if err != nil {
@@ -98,6 +108,7 @@ func newVerifyStopCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().DurationVar(&budget, "budget", 8*time.Minute, "Total time for all verification commands")
+	cmd.Flags().BoolVar(&last, "last", false, "Print the gate's last result for this repository (no tests run)")
 	cmd.Flags().BoolVar(&followup, "followup", false, "Kept for older settings; the verification round is on by default (AUTOPUS_FOLLOWUP=off turns it off)")
 	return cmd
 }
@@ -148,7 +159,7 @@ func verifyChanged(cmd *cobra.Command, in stopHookInput, root string, changed []
 		// still behavior the user will run.
 		return followupRound(cmd, in, root, followup, statusUnbuilt)
 	}
-	fingerprint := verifygate.Fingerprint(root, changed)
+	fingerprint := verifygate.TreeHash(cmd.Context(), root, budget.String())
 	if readStopState(in.SessionID, "pass") == fingerprint {
 		return stopHookOutput{}
 	}
@@ -166,15 +177,21 @@ func verifyChanged(cmd *cobra.Command, in stopHookInput, root string, changed []
 		// now (once per session, like every round).
 		return withBudgetNote(followupRound(cmd, in, root, followup, statusHangSuspected), note)
 	}
+	if out, ok := reuseLastRun(cmd, in, root, changed, fingerprint, budget, followup); ok {
+		return out
+	}
 	started := time.Now()
+	verifygate.BaselineCacheDir, verifygate.BaselineCacheSession = stopStateDir, in.SessionID
 	// Go test failures that HEAD has too are not charged to the change; the
 	// note says which, or why they could not be checked.
 	run := verifygate.RunCharged(cmd.Context(), root, changed, steps, budget)
 	out := judgeRun(cmd, in, root, changed, fingerprint, run, started, budget, followup)
 	if note := run.Note(); note != "" {
-		return withBudgetNote(out, note)
+		out = withBudgetNote(out, note)
 	}
-	return out
+	// A tree edited while it ran is not the tree that was judged.
+	same := verifygate.TreeHash(cmd.Context(), root, budget.String()) == fingerprint
+	return recordLastRun(in.SessionID, root, fingerprint, budget, run, out, same)
 }
 
 // judgeRun turns the outcome of the run into the hook's output.

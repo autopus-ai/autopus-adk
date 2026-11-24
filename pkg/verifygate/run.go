@@ -36,6 +36,9 @@ type Failure struct {
 	// Runs are the ended runs of each test (and package) of a go test
 	// -json step, with the failure lines each failed run printed.
 	Runs map[string][]testRun
+	// EarlyCut marks a Partial step that watchFailures stopped before its
+	// window ended, to leave time for the HEAD check.
+	EarlyCut bool
 }
 
 // tailLines bounds the output handed back to the agent.
@@ -57,6 +60,10 @@ type Skip struct {
 	Reason      string
 	Budget      bool
 	Interrupted bool
+	// Baseline marks a budget skip caused only by stopping the step early to
+	// check failures on HEAD that all turned out to fail there too: the
+	// tests after them are still owed, so the tree is not recorded.
+	Baseline bool
 }
 
 // Run executes steps in order within budget and stops at the first failure.
@@ -128,6 +135,7 @@ func Run(parent context.Context, steps []Step, budget time.Duration) (*Failure, 
 		err := cmd.Wait()
 		_ = group.Close()
 		timedOut := errors.Is(stepCtx.Err(), context.DeadlineExceeded)
+		early := stepCtx.wasCut()
 		deadline, _ := stepCtx.Deadline()
 		// A step cut off at its deadline is judged as of the deadline: the
 		// kill's grace and sweeps after it are not time the step had.
@@ -182,7 +190,8 @@ func Run(parent context.Context, steps []Step, budget time.Duration) (*Failure, 
 		}
 		return &Failure{Step: step, Output: tail(text, tailLines), Reason: reason,
 			TimedOut: timedOut && len(failedTests) == 0, FailedTests: withoutLatePackageFails(failedTests, out.Bytes(), deadline, timedOut),
-			Partial: timedOut && len(failedTests) > 0, Runs: testRuns(out.Bytes())}, skipped
+			Partial: timedOut && len(failedTests) > 0, EarlyCut: early && timedOut && len(failedTests) > 0,
+			Runs: testRuns(out.Bytes())}, skipped
 	}
 	return nil, skipped
 }
