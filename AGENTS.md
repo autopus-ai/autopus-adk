@@ -94,11 +94,14 @@ sources. Preserve existing brownfield major versions unless migration is request
 Carry the work through without asking permission to continue. Start new work
 from the user's request: write acceptance criteria with `auto qa intent` before
 implementing, and write a full SPEC only when the user asks for one. After a change
-passes its build and tests, verify it yourself, in this order: user-scenario QA
-against the user's own request (`auto qa intent`, then `auto qa go <id> --auto
---no-loop` and `auto qa exec --all` while the change is uncommitted), the
-review, and the QA hunt, which also checks the change against the project's
-documented policies and rules and measures inefficiency. Ask only when the
+passes its build and tests, run one independent review in the foreground and
+wait for it in the same turn. The reviewer runs the real program on the same
+inputs wherever the change models an external program or format (shell, CLI
+flags, git, file formats, protocols) and reports only reproduced findings;
+apply them and rerun the affected tests. Run user-scenario QA (`auto qa
+intent`, `auto qa go <id> --auto --no-loop`, `auto qa exec --all`) and the QA
+hunt only for a large change (40+ product code lines or a new product file)
+that a user can run, a security or data-loss change, or when asked. Ask only when the
 answer changes what gets built and nothing settles it, and then ask a
 multiple-choice question (the platform's question tool, or numbered options)
 with the recommendation first. Say in one line what you found that makes the
