@@ -74,9 +74,9 @@ func newVerifyStopCmd() *cobra.Command {
 			"on HEAD (at most 50; a whole-package step with a failure ends at two thirds of its window to leave time for it): " +
 			"those that fail there too, and that the change did not edit, are reported but do not block; when HEAD cannot " +
 			"be checked the failure blocks and the note says why. HEAD's answer for each failed test is cached per HEAD commit and " +
-			"Go environment (a \"fails on HEAD\" answer only for the session that asked, for an hour), and a step whose failures a " +
+			"Go environment (a \"fails on HEAD\" answer only for the session that asked, for 20 minutes), and a step whose failures a " +
 			"recent HEAD shared is not stopped early. A tree (HEAD, every git status entry with its mode and contents, the Go " +
-			"environment and the budget; ignored files are not compared) is blocked at most once, except a test-first block, which " +
+			"environment and the budget; ignored files and untracked harness state are not compared) is blocked at most once, except a test-first block, which " +
 			"stands until a TDD-exempt line or the block limit: a later stop on the same tree does not run the tests again (a pass or " +
 			"an unverified result only in the session that ran it; a block in any session, as a note). --last prints the last result. An interrupted run " +
 			"(Ctrl-C, SIGTERM) records nothing and does not block. Under methodology: tdd with " +

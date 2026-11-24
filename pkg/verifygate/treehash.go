@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -19,7 +20,8 @@ import (
 // TreeHash identifies what the gate judged: the HEAD commit, every entry of
 // `git status` (deletions, renames and their sources, and the harness
 // directories the plan leaves out, which tests may still read), each
-// present path's mode, symlink target and contents, the Go environment, and
+// present path's mode, symlink target and contents (untracked files under the
+// harness directories excepted), the Go environment, and
 // extra (the hook's budget). Files git ignores are not included: hashing
 // them would mean walking build output, so a stop that reuses a result says
 // they were not compared. When git cannot list the tree the hash is unique
@@ -40,6 +42,13 @@ func TreeHash(ctx context.Context, root, extra string) string {
 			continue
 		}
 		status, path := string(entry[:2]), string(entry[3:])
+		if status == "??" && isHarnessPath(path) {
+			// The harness writes untracked state there at every stop (QA
+			// journeys and scenarios are deliberately not ignored); hashing
+			// it would rerun, and reblock, a tree nothing else changed in.
+			// Tracked harness files a test may read are still hashed.
+			continue
+		}
 		field(h, status)
 		field(h, path)
 		if (status[0] == 'R' || status[0] == 'C') && i+1 < len(fields) {
@@ -79,6 +88,10 @@ func pathState(h hash.Hash, path string) {
 		}
 		field(h, "content:"+hex.EncodeToString(sum.Sum(nil)))
 	}
+}
+
+func isHarnessPath(path string) bool {
+	return slices.ContainsFunc(harnessDirs, func(dir string) bool { return strings.HasPrefix(path, dir) })
 }
 
 // field writes one length-prefixed value, so no two sequences of values

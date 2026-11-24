@@ -77,7 +77,8 @@ func reuseLastRun(cmd *cobra.Command, in stopHookInput, root string, changed []s
 	switch {
 	case last.Kind == lastBlock:
 		return stopHookOutput{SystemMessage: "auto verify stop: this tree was blocked at an earlier stop and no tracked or untracked " +
-			"file changed since (ignored files are not compared), so this stop is not blocked again; the tree is not verified. " +
+			"file changed since (files git ignores, files outside the repository and environment variables other than the Go " +
+			"settings are not compared), so this stop is not blocked again; the tree is not verified. " +
 			"Earlier result: " + clip(firstLine(last.Result), 300) + " (`auto verify stop --last` prints it in full)"}, true
 	case last.Kind == lastTestFirst && last.Run != nil &&
 		!(tddExempt.MatchString(in.LastAssistantMessage) && last.Session != in.SessionID):
