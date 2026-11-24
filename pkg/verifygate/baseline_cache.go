@@ -17,14 +17,50 @@ import (
 // the cache off. The hook points it at its private state directory.
 var BaselineCacheDir string
 
+// BaselineCacheSession names the agent session the run belongs to. A
+// "fails on HEAD" answer only excuses failures in the session that asked.
+var BaselineCacheSession string
+
 // baselineCacheMaxAge is how long a commit's file is kept after its last
 // write; HEAD has usually moved on by then.
 const baselineCacheMaxAge = 7 * 24 * time.Hour
 
-// baselineEntry is what one key did on HEAD: its runs there, paths
+// baselineFailTTL is how long, within the session that asked, a "fails on
+// HEAD" answer may excuse a failure.
+// A failure HEAD has can be the machine's (a service down, a tool missing)
+// and go away; an old answer would then excuse a real regression with the
+// same failure line. A "passes on HEAD" answer only ever charges the change,
+// so it is kept as long as the file.
+const baselineFailTTL = time.Hour
+
+// baselineEntry is what one key did on HEAD and when: its runs there, paths
 // normalized. No runs means HEAD ran the test and it did not fail.
 type baselineEntry struct {
-	Runs []testRun `json:"runs"`
+	Runs    []testRun `json:"runs"`
+	At      time.Time `json:"at"`
+	Session string    `json:"session,omitempty"`
+}
+
+// failed reports whether HEAD failed the key every time it ran it, enough
+// times to compare.
+func (e baselineEntry) failed(key string) bool {
+	n := 0
+	for _, r := range e.Runs {
+		if r.Failed {
+			n++
+		}
+	}
+	return n > 0 && n == len(e.Runs) && n >= wantRuns(key)
+}
+
+// usable reports whether the entry may answer for HEAD now, in session.
+func (e baselineEntry) usable(now time.Time, session string) bool {
+	for _, r := range e.Runs {
+		if r.Failed {
+			return e.Session == session && now.Sub(e.At) <= baselineFailTTL
+		}
+	}
+	return true
 }
 
 // baselineCache is the cache file of one HEAD commit.
@@ -43,32 +79,52 @@ func loadBaselineCache(ctx context.Context, root string) *baselineCache {
 	if head == "" {
 		return nil
 	}
-	c := &baselineCache{dir: BaselineCacheDir, name: "baseline-" + head + ".json", entries: map[string]baselineEntry{}}
-	if data, err := privatedir.ReadFile(c.dir, c.name); err == nil {
-		_ = json.Unmarshal(data, &c.entries)
-	}
+	c := &baselineCache{dir: BaselineCacheDir, name: "baseline-" + head + "-" + EnvDigest(ctx, root) + ".json"}
+	c.entries = readBaselineFile(c.dir, c.name)
 	return c
 }
 
-// knownFailing lists the keys HEAD failed every time it ran them: a step
-// that sees one of them fail again need not stop early to check it.
+func readBaselineFile(dir, name string) map[string]baselineEntry {
+	entries := map[string]baselineEntry{}
+	if data, err := privatedir.ReadFile(dir, name); err == nil {
+		_ = json.Unmarshal(data, &entries)
+	}
+	if entries == nil {
+		// A file holding null.
+		entries = map[string]baselineEntry{}
+	}
+	return entries
+}
+
+// knownFailing lists the keys a recent HEAD failed every time it ran them,
+// from every cache file, whatever its commit or age: a step that sees one of
+// them fail again need not stop early to check it. It only moves the cut
+// point; whether the failure is charged is still judged on this HEAD. Without
+// the other commits a HEAD that moves at every stop would cut every run early.
 func (c *baselineCache) knownFailing() map[string]bool {
 	if c == nil {
 		return nil
 	}
 	out := map[string]bool{}
-	for key, e := range c.entries {
-		failed := 0
-		for _, r := range e.Runs {
-			if r.Failed {
-				failed++
+	add := func(entries map[string]baselineEntry) {
+		for key, e := range entries {
+			if e.failed(key) {
+				out[key] = true
 			}
 		}
-		if failed > 0 && failed == len(e.Runs) && failed >= wantRuns(key) {
-			out[key] = true
+	}
+	add(c.entries)
+	files, _ := os.ReadDir(c.dir)
+	for _, f := range files {
+		if name := f.Name(); name != c.name && isBaselineFile(name) {
+			add(readBaselineFile(c.dir, name))
 		}
 	}
 	return out
+}
+
+func isBaselineFile(name string) bool {
+	return strings.HasPrefix(name, "baseline-") && strings.HasSuffix(name, ".json")
 }
 
 // wantRuns is how many HEAD runs a key needs to be compared.
@@ -89,8 +145,9 @@ func (c *baselineCache) headFailures(ctx context.Context, root string, keys []st
 	}
 	res := headResult{runs: map[string][]testRun{}, brokenPkgs: map[string]bool{}, decided: map[string]bool{}}
 	var missing []string
+	now := time.Now()
 	for _, key := range keys {
-		if e, ok := c.entries[key]; ok {
+		if e, ok := c.entries[key]; ok && e.usable(now, BaselineCacheSession) {
 			res.runs[key], res.decided[key] = e.Runs, true
 			continue
 		}
@@ -113,14 +170,23 @@ func (c *baselineCache) headFailures(ctx context.Context, root string, keys []st
 	}
 	res.partial = head.partial
 	for _, key := range missing {
-		pkg, _, isTest := splitTestKey(key)
-		if (isTest && head.brokenPkgs[pkg]) || (head.partial && len(head.runs[key]) < wantRuns(key)) {
-			continue
+		if head.answered(key) {
+			c.entries[key] = baselineEntry{Runs: head.runs[key], At: now, Session: BaselineCacheSession}
 		}
-		c.entries[key] = baselineEntry{Runs: head.runs[key]}
 	}
 	c.save()
 	return res
+}
+
+// answered reports whether the HEAD run settled key: its package built and
+// ran there, and the run was not cut off before key ran enough times. Only a
+// settled key may be cached; another is asked again next time.
+func (h headResult) answered(key string) bool {
+	pkg, _, isTest := splitTestKey(key)
+	if isTest && h.brokenPkgs[pkg] {
+		return false
+	}
+	return !h.partial || len(h.runs[key]) >= wantRuns(key)
 }
 
 // save writes the cache and drops the files of commits not written for
@@ -133,7 +199,7 @@ func (c *baselineCache) save() {
 	files, _ := os.ReadDir(c.dir)
 	for _, f := range files {
 		name := f.Name()
-		if name == c.name || !strings.HasPrefix(name, "baseline-") || !strings.HasSuffix(name, ".json") {
+		if name == c.name || !isBaselineFile(name) {
 			continue
 		}
 		if info, err := f.Info(); err == nil && time.Since(info.ModTime()) > baselineCacheMaxAge {

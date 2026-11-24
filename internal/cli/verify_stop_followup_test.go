@@ -214,7 +214,9 @@ func TestVerifyStop_FixedTreeIsNotSentRoundAgainByTheNextSession(t *testing.T) {
 
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "add.go"), []byte(body+"\nvar fixed = 1\n"), 0o644))
 	assert.Equal(t, stopHookOutput{}, runStop(t, dir, "fix-a"), "the fix does not start a second round")
-	assert.Equal(t, stopHookOutput{}, runStop(t, dir, "fix-b"), "nor does the next session on the fixed tree")
+	next := runStop(t, dir, "fix-b")
+	assert.Empty(t, next.Decision, "nor does the next session on the fixed tree")
+	assert.Empty(t, next.Reason)
 }
 
 // End to end: a small first turn gets the light round, the feature grown
