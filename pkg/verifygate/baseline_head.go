@@ -41,6 +41,9 @@ type headResult struct {
 	partial     bool
 	unavailable string
 	interrupted bool
+	// decided marks keys answered from the cache: complete, whatever
+	// partial says about the run that filled the rest.
+	decided map[string]bool
 }
 
 // headFailures runs the top-level tests of the failed keys, and the
@@ -127,6 +130,10 @@ func (h headResult) judge(keys []string, current map[string][]testRun) (charged 
 			want = headCount
 		}
 		if sameFailure(current[key], h.runs[key], want) {
+			continue
+		}
+		if h.decided[key] {
+			charged = append(charged, key)
 			continue
 		}
 		if pkg, _, ok := splitTestKey(key); ok && h.brokenPkgs[pkg] {

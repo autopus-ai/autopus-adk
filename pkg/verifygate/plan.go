@@ -39,6 +39,10 @@ type Step struct {
 	// GoPackages are the import paths a Go test step was given, so a
 	// package that never started a test before time ran out is named.
 	GoPackages []string
+	// KnownFailing are failed-test keys HEAD is known to fail every time
+	// (see BaselineCacheDir): seeing one of them fail does not stop the step
+	// early, since checking it on HEAD costs nothing.
+	KnownFailing map[string]bool
 }
 
 // Plan picks the build and test commands that cover the changed files. It

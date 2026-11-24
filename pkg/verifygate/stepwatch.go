@@ -63,6 +63,13 @@ func (c *stepContext) cut() {
 	c.cancel()
 }
 
+// wasCut reports whether cut ended the step before its window did.
+func (c *stepContext) wasCut() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return !c.cutAt.IsZero()
+}
+
 // lockedBuffer is a bytes.Buffer the step's output can be read from while
 // the step still writes it.
 type lockedBuffer struct {
@@ -104,7 +111,7 @@ func watchFailures(ctx *stepContext, step Step, out *lockedBuffer, window time.D
 				return
 			case <-timer.C:
 			}
-			if _, failed := renderGoTestJSON(out.Bytes()); hasTestFailure(failed) {
+			if _, failed := renderGoTestJSON(out.Bytes()); hasTestFailure(unknownFailures(failed, step.KnownFailing)) {
 				ctx.cut()
 				return
 			}
@@ -140,6 +147,20 @@ func withoutLatePackageFails(failed []string, out []byte, deadline time.Time, cu
 		}
 	}
 	return kept
+}
+
+// unknownFailures drops the keys HEAD is known to fail.
+func unknownFailures(failed []string, known map[string]bool) []string {
+	if len(known) == 0 {
+		return failed
+	}
+	var out []string
+	for _, key := range failed {
+		if !known[key] {
+			out = append(out, key)
+		}
+	}
+	return out
 }
 
 // hasTestFailure reports a failed test, not only a failed package: a
