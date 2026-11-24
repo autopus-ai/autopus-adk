@@ -31,7 +31,7 @@ const baselineCacheMaxAge = 7 * 24 * time.Hour
 // and go away; an old answer would then excuse a real regression with the
 // same failure line. A "passes on HEAD" answer only ever charges the change,
 // so it is kept as long as the file.
-const baselineFailTTL = time.Hour
+const baselineFailTTL = 20 * time.Minute
 
 // baselineEntry is what one key did on HEAD and when: its runs there, paths
 // normalized. No runs means HEAD ran the test and it did not fail.
