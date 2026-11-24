@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -17,15 +18,17 @@ import (
 
 const addMinus = "package stopgate\n\nfunc Add(a, b int) int { return a - b }\n"
 
-// withoutGo leaves only git on PATH, so a stop that ran the tests again
-// would report go as not installed instead of reusing the result.
+// withoutGo puts a go first on PATH that answers `go env` (part of the tree
+// hash) and nothing else: any other go command, a rerun of the tests, prints
+// "not installed" and fails.
 func withoutGo(t *testing.T) {
 	t.Helper()
-	git, err := exec.LookPath("git")
+	realGo, err := exec.LookPath("go")
 	require.NoError(t, err)
 	bin := t.TempDir()
-	require.NoError(t, os.Symlink(git, filepath.Join(bin, "git")))
-	t.Setenv("PATH", bin)
+	script := "#!/bin/sh\nif [ \"$1\" = env ]; then exec " + realGo + " \"$@\"; fi\necho 'go is not installed (test stub)'\nexit 1\n"
+	require.NoError(t, os.WriteFile(filepath.Join(bin, "go"), []byte(script), 0o755))
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 }
 
 // Pilot C c01: three blocks of about 5.5 minutes each on a tree nothing
@@ -62,7 +65,10 @@ func TestVerifyStop_ASecondSessionReusesTheResult(t *testing.T) {
 	dir := newStopRepo(t, addSwapped)
 	require.Equal(t, stopHookOutput{}, runStop(t, dir, "first"))
 	withoutGo(t)
-	assert.Equal(t, stopHookOutput{}, runStop(t, dir, "second"), "a rerun would say go is not installed")
+	second := runStop(t, dir, "second")
+	assert.Empty(t, second.Decision)
+	assert.Contains(t, second.SystemMessage, "passed at", "a rerun would say go is not installed")
+	assert.Contains(t, second.SystemMessage, "not compared", "the note says what the hash does not cover")
 }
 
 // The agent reads the hook's result instead of rerunning the package.
@@ -94,7 +100,7 @@ func TestVerifyStop_TestsOwedAfterABaselineCheckAreRunNextStop(t *testing.T) {
 	root, changed, ok := verifygate.ChangedFiles(context.Background(), dir)
 	require.True(t, ok)
 	session := "owed"
-	tree := verifygate.TreeHash(context.Background(), root, changed)
+	tree := verifygate.TreeHash(context.Background(), root, "1m0s")
 	run := verifygate.ChargedRun{Preexisting: []string{"stopgate.TestEnv"}, Skipped: []verifygate.Skip{{Name: "go test", Budget: true,
 		Baseline: true, Reason: "stopped early to check its 1 failed test(s) against HEAD"}}}
 	cmd := newVerifyStopCmd()
@@ -107,8 +113,37 @@ func TestVerifyStop_TestsOwedAfterABaselineCheckAreRunNextStop(t *testing.T) {
 	assert.NotContains(t, out.SystemMessage, "did not finish within the budget")
 	assert.Empty(t, readStopState(session, "budget"), "the tree is not recorded, so the next stop runs the rest")
 
-	recordLastRun(session, root, tree, run, stopHookOutput{Decision: "block", Reason: "round"})
+	recordLastRun(session, root, tree, time.Minute, run, stopHookOutput{Decision: "block", Reason: "round"}, true)
 	last, found := readLastRun(root)
 	require.True(t, found)
 	assert.Equal(t, lastPartial, last.Kind, "a round block here is not the tree's one block")
+}
+
+// Review B1: deleting a tracked file the change used breaks the build; that
+// is a new tree, not the one blocked before.
+func TestVerifyStop_DeletingATrackedFileIsANewTree(t *testing.T) {
+	dir := newStopRepo(t, "")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "helper.go"), []byte("package stopgate\n\nfunc Helper() int { return 0 }\n"), 0o644))
+	commitAll(t, dir, "helper")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "add.go"), []byte("package stopgate\n\nfunc Add(a, b int) int { return a - b + Helper() }\n"), 0o644))
+	require.Equal(t, "block", runStop(t, dir, "del").Decision)
+	require.NoError(t, os.Remove(filepath.Join(dir, "helper.go")))
+	again := runStop(t, dir, "del")
+	assert.Equal(t, "block", again.Decision, again.SystemMessage)
+	assert.Contains(t, again.Reason, "Helper")
+}
+
+// Review B1: a pass is reused across sessions only while it is recent.
+func TestVerifyStop_AnOldPassIsNotReused(t *testing.T) {
+	dir := newStopRepo(t, addSwapped)
+	require.Equal(t, stopHookOutput{}, runStop(t, dir, "old-a"))
+	root, _, _ := verifygate.ChangedFiles(context.Background(), dir)
+	last, ok := readLastRun(root)
+	require.True(t, ok)
+	last.At = last.At.Add(-2 * lastReuseMaxAge)
+	data, _ := json.Marshal(last)
+	require.NoError(t, saveStopState(followupTreeKey(root), "last", string(data)))
+	withoutGo(t)
+	again := runStop(t, dir, "old-b")
+	assert.Contains(t, again.Reason+again.SystemMessage, "not installed", "an old pass is run again")
 }

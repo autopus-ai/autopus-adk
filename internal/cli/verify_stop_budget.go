@@ -90,8 +90,11 @@ func recordedNote(session, kind, fingerprint string) (string, bool) {
 	if recorded == "" || recorded != fingerprint {
 		return "", false
 	}
-	return note + " (this tree was not run again)", true
+	return note + recordedSuffix, true
 }
+
+// recordedSuffix ends a repeated note.
+const recordedSuffix = " (this tree was not run again)"
 
 func onlyBudgetSkips(skipped []verifygate.Skip) bool {
 	for _, s := range skipped {

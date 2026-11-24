@@ -73,10 +73,12 @@ func newVerifyStopCmd() *cobra.Command {
 			"a test still running after half of its step's window is treated as hung and blocks. Failed Go tests are run again " +
 			"on HEAD (at most 50; a whole-package step with a failure ends at two thirds of its window to leave time for it): " +
 			"those that fail there too, and that the change did not edit, are reported but do not block; when HEAD cannot " +
-			"be checked the failure blocks and the note says why. HEAD's answer for each failed test is cached per HEAD commit, so " +
-			"it is checked once, and a step whose failures HEAD is known to share is not stopped early. A tree (HEAD plus the " +
-			"changed contents) is blocked at most once: a later stop on the same tree, from any session, reuses the last " +
-			"result without running the tests, as a note when it was a block. --last prints that result. An interrupted run " +
+			"be checked the failure blocks and the note says why. HEAD's answer for each failed test is cached per HEAD commit and " +
+			"Go environment (a \"fails on HEAD\" answer only for the session that asked, for an hour), and a step whose failures a " +
+			"recent HEAD shared is not stopped early. A tree (HEAD, every git status entry with its mode and contents, the Go " +
+			"environment and the budget; ignored files are not compared) is blocked at most once, except a test-first block, which " +
+			"stands until a TDD-exempt line or the block limit: a later stop on the same tree reuses the last result without " +
+			"running the tests (a pass or an unverified result only within an hour). --last prints that result. An interrupted run " +
 			"(Ctrl-C, SIGTERM) records nothing and does not block. Under methodology: tdd with " +
 			"enforce: true, the changed tests must also fail against the code before the change (HEAD); a source change " +
 			"without a test change is blocked unless the reply has a `TDD-exempt: <reason>` line. Set " +
@@ -157,7 +159,7 @@ func verifyChanged(cmd *cobra.Command, in stopHookInput, root string, changed []
 		// still behavior the user will run.
 		return followupRound(cmd, in, root, followup, statusUnbuilt)
 	}
-	fingerprint := verifygate.TreeHash(cmd.Context(), root, changed)
+	fingerprint := verifygate.TreeHash(cmd.Context(), root, budget.String())
 	if readStopState(in.SessionID, "pass") == fingerprint {
 		return stopHookOutput{}
 	}
@@ -175,11 +177,11 @@ func verifyChanged(cmd *cobra.Command, in stopHookInput, root string, changed []
 		// now (once per session, like every round).
 		return withBudgetNote(followupRound(cmd, in, root, followup, statusHangSuspected), note)
 	}
-	if out, ok := reuseLastRun(cmd, in, root, fingerprint, followup); ok {
+	if out, ok := reuseLastRun(cmd, in, root, changed, fingerprint, budget, followup); ok {
 		return out
 	}
 	started := time.Now()
-	verifygate.BaselineCacheDir = stopStateDir
+	verifygate.BaselineCacheDir, verifygate.BaselineCacheSession = stopStateDir, in.SessionID
 	// Go test failures that HEAD has too are not charged to the change; the
 	// note says which, or why they could not be checked.
 	run := verifygate.RunCharged(cmd.Context(), root, changed, steps, budget)
@@ -187,7 +189,9 @@ func verifyChanged(cmd *cobra.Command, in stopHookInput, root string, changed []
 	if note := run.Note(); note != "" {
 		out = withBudgetNote(out, note)
 	}
-	return recordLastRun(in.SessionID, root, fingerprint, run, out)
+	// A tree edited while it ran is not the tree that was judged.
+	same := verifygate.TreeHash(cmd.Context(), root, budget.String()) == fingerprint
+	return recordLastRun(in.SessionID, root, fingerprint, budget, run, out, same)
 }
 
 // judgeRun turns the outcome of the run into the hook's output.
