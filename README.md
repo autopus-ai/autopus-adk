@@ -52,9 +52,9 @@ the change, and it sends the agent back when the change does not hold up.
 | Stage | What runs | When |
 | --- | --- | --- |
 | Build and test | `auto verify stop`: the toolchains of the changed files only | Every time a Claude Code session tries to stop with a changed tree |
-| User scenarios | `auto qa intent` writes criteria from your request; `auto qa go --no-loop` and `auto qa exec --all` run them on the working tree | On demand with `/auto qa`, or first in the full verification round |
-| Review | The `reviewer` agent on `git diff HEAD` | On demand with `/auto review`, or in every verification round |
-| QA bug hunt | The `qa-explorer` agent drives the product looking for bugs, policy mismatches and measured inefficiency; `auto qa hunt verify` re-runs each repro | On demand with `/auto qa`, or in every verification round (verify mode in the light round, hunt mode in the full round) |
+| User scenarios | `auto qa intent` writes criteria from your request; `auto qa go --no-loop` and `auto qa exec --all` run them on the working tree | On demand with `/auto qa`, or in the full verification round when the change has a user-runnable, security or data-loss surface |
+| Review | The `reviewer` agent on `git diff HEAD` | On demand with `/auto review`, or in every verification round, in the foreground, checking by running the real program |
+| QA bug hunt | The `qa-explorer` agent drives the product looking for bugs, policy mismatches and measured inefficiency; `auto qa hunt verify` re-runs each repro | On demand with `/auto qa`, or in the full verification round under the same condition as user scenarios |
 | Fix | The working agent fixes failing scenarios, blockers and confirmed findings, then re-runs the tests | Same round |
 
 The build and test gate needs no prompt from you, and neither does the verification round that follows
@@ -119,11 +119,12 @@ ends on an environment problem (a toolchain that could not run) or a test-first 
 | Change | Round |
 | --- | --- |
 | Only tests, comments, docs, configuration or generated files | None; the session ends at green |
-| 1 to 39 changed product code lines | **Light**: rerun existing scenarios (`auto qa exec --all`), the `reviewer`, and `qa-explorer` in verify mode on the changed behavior, including the policies and rules that mention it |
-| 40 or more lines, or a new (added or untracked) product source file | **Full**: `auto qa intent` on the user's own request (or the covering SPEC), `auto qa go <id> --auto --no-loop` and `auto qa exec --all` on the uncommitted working tree, the `reviewer`, then the `qa-explorer` hunt |
+| 1 to 39 changed product code lines | **Light**: the review. One `reviewer` in the foreground; where the change models an external program or format (shell, CLI flags, git, file formats, protocols) it runs the real program on the same inputs and reports only reproduced findings. The agent adds scenario QA and the hunt only when the change touches a security or data-loss path or the user asked (the rule text says so; the hook message does not) |
+| 40 or more lines, or a new (added or untracked) product source file | **Full**: the same review, then, only when the change touches something a user can run, a security or data-loss path, or the user asked: `auto qa intent` on the user's own request (or the covering SPEC), `auto qa go <id> --auto --no-loop` and `auto qa exec --all` on the uncommitted working tree, and the `qa-explorer` hunt |
 
-Either round ends with the agent fixing every failing scenario, blocker and confirmed finding,
-re-running the tests, and summarizing what was checked. A session gets one round, so fixing the
+Either round ends with the agent applying the confirmed findings, re-running the affected tests, and
+summarizing what was checked. The agent waits for the reviewer in the same turn: a pilot lost findings
+when the turn ended while the reviewer still ran. A session gets one round, so fixing the
 round's findings does not start another, with one exception: a session whose light round came early
 (an interactive session growing a feature over several turns) is escalated once to the full round
 when its change grows by another 40 product code lines or gains a product file. The tree a session last stops on after its round is
@@ -134,8 +135,11 @@ The full round is the expensive one. In a small pilot on real upstream Go PRs (5
 arms, one run each), an earlier version of it multiplied cost about 14x on the four tasks plain
 Claude Code already solved, with no change in pass rate; on a harder task it found and fixed three
 confirmed robustness bugs that the hidden tests did not cover, at about 12x the cost. The light round
-exists so a small edit is still checked against the request and the written policies without that
-cost. Turn the round off with `AUTOPUS_FOLLOWUP=off` where that trade is not worth it.
+exists so a small edit is still checked against the request without that
+cost. In Pilot C the independent review was the only step that changed results: most of the defects
+it caught needed an external tool's semantics and were found by running that tool, while scenario QA
+failed 3 of 3 runs and the hunt changed nothing, so both are now conditional. Turn the round off with
+`AUTOPUS_FOLLOWUP=off` where that trade is not worth it.
 
 The 40-line line between the two was checked against 600 recent merged PRs from three repositories.
 Moving it barely changes cost: at 40 lines 60% of PRs get the full round, at 150 lines 49%, about a

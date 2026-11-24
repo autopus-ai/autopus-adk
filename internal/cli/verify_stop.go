@@ -83,9 +83,9 @@ func newVerifyStopCmd() *cobra.Command {
 			"(AUTOPUS_VERSION_STOP=off or hooks.version_stop: false turns that off). Once the build passes (or when no build toolchain covers the changed files), a change that alters product code " +
 			"in any language the file-size limit counts is sent on to verification, once per session " +
 			"(AUTOPUS_FOLLOWUP=off turns it off). Tests, comments, docs, configuration and generated files alone get no round. " +
-			"Fewer than 40 changed product code lines get the light round (existing scenarios via auto qa exec --all, the reviewer, " +
-			"and qa-explorer in verify mode); 40 or more lines or a new product file get the full round (auto qa intent, " +
-			"auto qa go --no-loop, auto qa exec --all, the reviewer, and the qa-explorer hunt).",
+			"Fewer than 40 changed product code lines get the light round: one foreground reviewer that checks by executing. " +
+			"40 or more lines or a new product file get the full round: the same review, plus auto qa intent, auto qa go --no-loop, " +
+			"auto qa exec --all and the qa-explorer hunt when it has a user-runnable, security or data-loss surface or the user asks.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			out := runVerifyStop(cmd, cmd.InOrStdin(), budget, followup)

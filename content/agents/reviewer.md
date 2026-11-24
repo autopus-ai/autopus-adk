@@ -52,6 +52,8 @@ SPEC, plan, sync, 또는 review gate 산출물을 볼 때는 `Outcome Lock` 기�
 
 Stack Profile이 주입되면 그 명령을, 없으면 프로젝트 표준 테스트/린트 명령을 실행해 판정 근거로 사용합니다.
 
+변경된 코드가 외부 프로그램이나 형식(셸 문법, CLI 플래그, git, 파일 형식, 프로토콜)의 동작을 흉내 내거나 파싱하면, 같은 입력으로 실제 프로그램을 실행해 새 코드의 결과와 비교합니다(differential check). 실행으로 재현한 finding만 blocker로 보고하고, 재현 명령을 함께 적습니다.
+
 ### 5단계: @AX Compliance 검증 (opt-in)
 
 @AX annotation gate가 명시적으로 켜진 경우(`auto spec gates --annotation`)에만 수행합니다. 기본값은 `not_applicable`이며 태그 부재 자체는 finding이 아닙니다. 태그 규칙은 ax-annotation skill이 소유합니다.

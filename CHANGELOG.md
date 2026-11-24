@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **검증 라운드는 기본으로 리뷰만 돌린다** (2026-11-24): Pilot C에서 결과를 바꾼 단계는 독립 리뷰뿐이었고, 놓친 결함
+  18개 중 11개는 외부 도구의 의미가 필요해 리뷰어가 실제 프로그램을 실행해서야 찾았다. 시나리오 QA는 3번 모두 실패했고
+  헌트는 결과를 바꾸지 못했다.
+  - light 라운드의 hook 메시지는 리뷰만 지시한다. reviewer는 포그라운드로 돌고, 메인 에이전트는 같은 턴에서 결과를 기다린다. 변경이 외부
+    프로그램이나 형식(셸, CLI 플래그, git, 파일 형식, 프로토콜)을 흉내 내면 같은 입력으로 실제 프로그램을 돌려 비교하고,
+    실행으로 재현한 finding만 보고한다. 보안·데이터 손실 경로나 사용자 요청이면 규칙에 따라 크기와 관계없이 시나리오 QA와
+    헌트를 더한다.
+  - full 라운드(40줄 이상 또는 새 제품 파일)는 같은 리뷰에, 사용자가 실행할 수 있거나 보안·데이터 손실 경로에 닿는 변경이거나
+    사용자가 요청했을 때만 시나리오 QA(`auto qa intent` → `auto qa go --no-loop` → `auto qa exec --all`)와 헌트를 더한다.
+  - autonomy 규칙, 루트 안내 문서, reviewer 에이전트(Claude·Codex·Gemini)를 같은 내용으로 바꿨다. `AUTOPUS_FOLLOWUP=off`와
+    세션당 한 라운드는 그대로다.
 - **예산보다 긴 Go 패키지가 Stop hook을 매번 막지 않고, 끝나지 않은 테스트를 통과로 보고하지 않는다** (2026-11-22):
   - 예산 안에 실패가 없고 테스트가 계속 끝나는 스위트는 막지 않는다. 같은 트리는 다시 돌리지 않고 노트만 다시 보낸다.
     검증 라운드는 "tests did not finish within the budget"라고 말한다.
