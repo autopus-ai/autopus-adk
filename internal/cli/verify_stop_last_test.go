@@ -3,7 +3,6 @@ package cli
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -60,15 +59,15 @@ func TestVerifyStop_AnEditThatStillFailsBlocksAgain(t *testing.T) {
 	assert.Equal(t, "block", runStop(t, dir, session).Decision)
 }
 
-// A tree another session already ran is not run again.
-func TestVerifyStop_ASecondSessionReusesTheResult(t *testing.T) {
+// Another session runs a passed tree again: the hash cannot see ignored
+// files or environment variables, which may differ for it (review of #371).
+func TestVerifyStop_AnotherSessionRunsAPassedTreeAgain(t *testing.T) {
 	dir := newStopRepo(t, addSwapped)
 	require.Equal(t, stopHookOutput{}, runStop(t, dir, "first"))
 	withoutGo(t)
 	second := runStop(t, dir, "second")
-	assert.Empty(t, second.Decision)
-	assert.Contains(t, second.SystemMessage, "passed at", "a rerun would say go is not installed")
-	assert.Contains(t, second.SystemMessage, "not compared", "the note says what the hash does not cover")
+	assert.Equal(t, "block", second.Decision, "the stub go fails, so the tests were run again")
+	assert.Contains(t, second.Reason, "not installed")
 }
 
 // The agent reads the hook's result instead of rerunning the package.
@@ -131,19 +130,4 @@ func TestVerifyStop_DeletingATrackedFileIsANewTree(t *testing.T) {
 	again := runStop(t, dir, "del")
 	assert.Equal(t, "block", again.Decision, again.SystemMessage)
 	assert.Contains(t, again.Reason, "Helper")
-}
-
-// Review B1: a pass is reused across sessions only while it is recent.
-func TestVerifyStop_AnOldPassIsNotReused(t *testing.T) {
-	dir := newStopRepo(t, addSwapped)
-	require.Equal(t, stopHookOutput{}, runStop(t, dir, "old-a"))
-	root, _, _ := verifygate.ChangedFiles(context.Background(), dir)
-	last, ok := readLastRun(root)
-	require.True(t, ok)
-	last.At = last.At.Add(-2 * lastReuseMaxAge)
-	data, _ := json.Marshal(last)
-	require.NoError(t, saveStopState(followupTreeKey(root), "last", string(data)))
-	withoutGo(t)
-	again := runStop(t, dir, "old-b")
-	assert.Contains(t, again.Reason+again.SystemMessage, "not installed", "an old pass is run again")
 }

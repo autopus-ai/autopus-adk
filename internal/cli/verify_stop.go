@@ -77,8 +77,8 @@ func newVerifyStopCmd() *cobra.Command {
 			"Go environment (a \"fails on HEAD\" answer only for the session that asked, for an hour), and a step whose failures a " +
 			"recent HEAD shared is not stopped early. A tree (HEAD, every git status entry with its mode and contents, the Go " +
 			"environment and the budget; ignored files are not compared) is blocked at most once, except a test-first block, which " +
-			"stands until a TDD-exempt line or the block limit: a later stop on the same tree reuses the last result without " +
-			"running the tests (a pass or an unverified result only within an hour). --last prints that result. An interrupted run " +
+			"stands until a TDD-exempt line or the block limit: a later stop on the same tree does not run the tests again (a pass or " +
+			"an unverified result only in the session that ran it; a block in any session, as a note). --last prints the last result. An interrupted run " +
 			"(Ctrl-C, SIGTERM) records nothing and does not block. Under methodology: tdd with " +
 			"enforce: true, the changed tests must also fail against the code before the change (HEAD); a source change " +
 			"without a test change is blocked unless the reply has a `TDD-exempt: <reason>` line. Set " +

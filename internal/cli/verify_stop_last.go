@@ -23,6 +23,9 @@ type lastRun struct {
 	// Budget is the hook's budget, part of the tree hash, so --last can
 	// tell whether the tree is still the one judged.
 	Budget string `json:"budget"`
+	// Session is the session that ran it: only that session may turn a
+	// recorded run into a pass.
+	Session string `json:"session"`
 	// Kind is pass, unverified (budget, baseline or hang: not run again,
 	// not passed), block, testfirst (tests ran, test-first was not shown),
 	// or partial (owed another run, never reused).
@@ -41,18 +44,8 @@ const (
 	lastPartial    = "partial"
 )
 
-// lastReuseMaxAge bounds how old a pass or an unverified result may be when
-// it is reused: environment variables, services and ignored files the tests
-// read are not part of the tree hash.
-const lastReuseMaxAge = time.Hour
-
 // lastHint goes under every block the gate's own run produced.
 const lastHint = "\n\n`auto verify stop --last` prints this result again; read it there instead of rerunning the whole package."
-
-// statusReused is the round status for a tree another session ran and left
-// unverified.
-const statusReused = "The build passes; the tests did not fully run on this tree (see the note): " +
-	"run them in full (a longer -timeout, or CI) before calling the change verified."
 
 // testFirstPrefix starts every test-first block reason (see redGate).
 const testFirstPrefix = "Test-first (methodology: tdd)"
@@ -65,31 +58,29 @@ func readLastRun(root string) (lastRun, bool) {
 	return r, true
 }
 
-// reuseLastRun answers a stop on the tree the last run judged. A tree that
-// was blocked is not blocked again for the same result: the stop goes
-// through with the result as a note, unverified. A test-first block stands
-// until the reply carries a TDD-exempt line, which is then judged on the
-// recorded run. Any edit, a new HEAD or another Go environment changes the
-// tree and runs it again.
+// reuseLastRun answers a stop on the tree the last run blocked. The block
+// is not repeated for the same result, from any session: the stop goes
+// through with the result as a note, unverified (failing closed: the tree
+// never passes this way). A test-first block stands until the reply carries
+// a TDD-exempt line, which the session that ran the tree judges on the
+// recorded run. Passes and unverified results are reused only by the session
+// that recorded them (its own state, checked before this): the tree hash
+// cannot see ignored files or environment variables, so another session
+// runs the tree again. Any edit, a new HEAD or another Go environment
+// changes the tree.
 func reuseLastRun(cmd *cobra.Command, in stopHookInput, root string, changed []string, tree string,
 	budget time.Duration, followup bool) (stopHookOutput, bool) {
 	last, ok := readLastRun(root)
 	if !ok || last.Tree != tree {
 		return stopHookOutput{}, false
 	}
-	fresh := time.Since(last.At) <= lastReuseMaxAge
 	switch {
-	case last.Kind == lastPass && fresh:
-		writeStopState(in.SessionID, "pass", tree)
-		return withBudgetNote(followupRound(cmd, in, root, followup, statusPassed), "auto verify stop: this tree passed at "+
-			last.At.Local().Format(time.Kitchen)+" and was not run again (files git ignores and environment variables are not compared)"), true
-	case last.Kind == lastUnverified && fresh:
-		return withBudgetNote(followupRound(cmd, in, root, followup, statusReused), last.Result+" (this tree was not run again)"), true
 	case last.Kind == lastBlock:
 		return stopHookOutput{SystemMessage: "auto verify stop: this tree was blocked at an earlier stop and no tracked or untracked " +
 			"file changed since (ignored files are not compared), so this stop is not blocked again; the tree is not verified. " +
 			"Earlier result: " + clip(firstLine(last.Result), 300) + " (`auto verify stop --last` prints it in full)"}, true
-	case last.Kind == lastTestFirst && last.Run != nil:
+	case last.Kind == lastTestFirst && last.Run != nil &&
+		!(tddExempt.MatchString(in.LastAssistantMessage) && last.Session != in.SessionID):
 		return reuseTestFirst(cmd, in, root, changed, tree, last, budget, followup), true
 	}
 	return stopHookOutput{}, false
@@ -128,7 +119,7 @@ func recordLastRun(session, root, tree string, budget time.Duration, run verifyg
 }
 
 func saveLastRun(session, root, tree string, budget time.Duration, run verifygate.ChargedRun, out stopHookOutput) {
-	r := lastRun{Tree: tree, At: time.Now().UTC(), Budget: budget.String(), Kind: lastPartial, Result: out.Reason}
+	r := lastRun{Tree: tree, At: time.Now().UTC(), Budget: budget.String(), Session: session, Kind: lastPartial, Result: out.Reason}
 	if out.Decision != "block" {
 		r.Result = out.SystemMessage
 	}
