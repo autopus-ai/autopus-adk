@@ -96,8 +96,13 @@ def _observe(event: dict, result: dict) -> None:
             command = (use.get('input') or {}).get('command') if isinstance(use.get('input'), dict) else None
             if use.get('name') != 'Bash' or not isinstance(command, str):
                 continue
-            if network_reason(command):
-                result['contamination'].append(command[:500])
+            try:
+                reached = network_reason(command)
+            except ValueError:
+                # Never lose a trial's observation to one unparseable line; flag it for a person.
+                reached = 'unparsed'
+            if reached:
+                result['contamination'].append(('UNPARSED ' if reached == 'unparsed' else '') + command[:500])
             overridden = env_overrides(command)
             if overridden:
                 result['env_overrides'].append({'vars': overridden, 'command': command[:500]})

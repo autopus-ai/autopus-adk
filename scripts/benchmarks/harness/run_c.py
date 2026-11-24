@@ -229,7 +229,8 @@ def run_plan(ctx: dict, plan: list) -> int:
             measure.mkdir(parents=True, exist_ok=True)
             trial_c.write_json(measure / 'result.json', row)
         records.append(row)
-        if not ctx.get('keep_trials'):
+        # A runner exception leaves the trees for diagnosis and a re-grade; only graded trials are pruned.
+        if not ctx.get('keep_trials') and row.get('operational_error') != 'runner_exception':
             prune_trial(row, trial, measure, grading)
         (output / 'records.json').write_text(json.dumps(records, indent=2))
         summary = report_c.summarize(records)

@@ -161,5 +161,12 @@ def _tokens_or_empty(text: str) -> list:
     try:
         return _tokens(text)
     except ValueError:
-        # An unbalanced quote: drop quoted spans so their text is never read as a command.
-        return _tokens(re.sub(r'"[^"]*"|\'[^\']*\'', ' ', text).replace('"', ' ').replace("'", ' '))
+        pass
+    # An unbalanced quote: drop quoted spans so their text is never read as a command. A trailing
+    # backslash ("No escaped character") still fails shlex after that, so the last resort is a plain
+    # whitespace split: never an exception, which would lose the whole trial's observation.
+    unquoted = re.sub(r'"[^"]*"|\'[^\']*\'', ' ', text).replace('"', ' ').replace("'", ' ')
+    try:
+        return _tokens(unquoted)
+    except ValueError:
+        return unquoted.replace('\\', ' ').split()
