@@ -21,6 +21,9 @@ func budgetSkipped(cmd *cobra.Command, in stopHookInput, root string, changed []
 	unfinished := describeSkips(skipped)
 	failed := "nothing failed within the budget"
 	statusFailed := "Nothing had failed when time ran out"
+	if baselineOwed(skipped) {
+		return baselineOwedRun(cmd, in, root, changed, unfinished, preexisting, left, followup)
+	}
 	if len(preexisting) > 0 {
 		// The step was stopped early to check its failures against HEAD.
 		failed = fmt.Sprintf("%d test(s) failed as they do on HEAD (not charged to this change) and the tests after them did not run",
@@ -105,4 +108,24 @@ func describeSkips(skipped []verifygate.Skip) string {
 		parts = append(parts, fmt.Sprintf("`%s` (%s)", s.Name, s.Reason))
 	}
 	return strings.Join(parts, ", ")
+}
+
+// baselineOwedRun handles a run that stopped a step early only to check its
+// failures on HEAD, all of which fail there too. That is not the suite
+// outlasting the budget: nothing is charged, the stop is not blocked for it,
+// and the tree is not recorded, so the next stop runs the tests after them
+// (HEAD's answers are cached, so that run is not stopped early again).
+func baselineOwedRun(cmd *cobra.Command, in stopHookInput, root string, changed []string, unfinished string,
+	preexisting []string, left time.Duration, followup bool) stopHookOutput {
+	note := fmt.Sprintf("auto verify stop: %s; %d test(s) fail as they do on HEAD and were not charged to this change, "+
+		"so the stop is not blocked; the tests after them run at the next stop", unfinished, len(preexisting))
+	status := fmt.Sprintf("The build passes; %d test(s) fail as they do on HEAD and were not charged to this change: %s; "+
+		"the tests after them were not run yet and run at the next stop.", len(preexisting), strings.Join(preexisting, ", "))
+	if out := redGate(cmd.Context(), in, root, changed, left); out != nil {
+		if out.Decision == "block" {
+			return withBudgetNote(*out, note)
+		}
+		note = joinWarnings(note, out.SystemMessage)
+	}
+	return withBudgetNote(followupRound(cmd, in, root, followup, status), note)
 }
