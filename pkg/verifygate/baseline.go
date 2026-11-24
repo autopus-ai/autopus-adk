@@ -42,7 +42,8 @@ func RunCharged(ctx context.Context, root string, changed []string, steps []Step
 	var res ChargedRun
 	known := map[string]bool{}
 	var edited map[string]bool
-	rest, left := steps, budget
+	cache := loadBaselineCache(ctx, root)
+	rest, left := withKnownFailing(steps, cache.knownFailing()), budget
 	for {
 		failure, skipped := Run(ctx, rest, left)
 		res.Skipped = append(res.Skipped, skipped...)
@@ -85,7 +86,7 @@ func RunCharged(ctx context.Context, root string, changed []string, steps []Step
 			}
 			var head headResult
 			if why == "" {
-				head = headFailures(ctx, root, fresh, window)
+				head = cache.headFailures(ctx, root, fresh, window)
 				if head.interrupted {
 					return ChargedRun{Skipped: append(res.Skipped, interruptedSkips(rest)...)}
 				}
@@ -111,9 +112,7 @@ func RunCharged(ctx context.Context, root string, changed []string, steps []Step
 			res.Preexisting = append(res.Preexisting, fresh...)
 		}
 		if failure.Partial && !failure.Step.CoveredLater {
-			res.Skipped = append(res.Skipped, Skip{Name: failure.Step.Name, Budget: true, Reason: fmt.Sprintf(
-				"stopped early to check its %d failed test(s) against HEAD, where they fail too; the tests after them did not run",
-				len(failure.FailedTests))})
+			res.Skipped = append(res.Skipped, partialSkip(failure))
 		}
 		if idx < 0 || idx == len(rest)-1 {
 			return res
@@ -159,6 +158,19 @@ func currentRuns(f *Failure, root string) map[string][]testRun {
 		out[key] = normalized(runs, root)
 	}
 	return out
+}
+
+// partialSkip is the budget skip of a step cut off with only failures HEAD
+// shares. Cut early for the HEAD check, the rest of its tests are still owed
+// (Baseline); cut at its window's end, it is the size of the suite.
+func partialSkip(f *Failure) Skip {
+	if f.EarlyCut {
+		return Skip{Name: f.Step.Name, Budget: true, Baseline: true, Reason: fmt.Sprintf(
+			"stopped early to check its %d failed test(s) against HEAD, where they fail too; the tests after them run at the next stop",
+			len(f.FailedTests))}
+	}
+	return Skip{Name: f.Step.Name, Budget: true, Reason: fmt.Sprintf(
+		"did not finish within the window it had; its only failures were %d test(s) that fail on HEAD too", len(f.FailedTests))}
 }
 
 func sameStep(a, b Step) bool {
