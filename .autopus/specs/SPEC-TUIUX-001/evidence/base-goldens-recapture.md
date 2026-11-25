@@ -474,3 +474,10 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 기록: `go run ./cmd/generate-templates` 뒤 `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run '^(TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6ShowsTheSettingsBeforeAnyWrite)$'`.
 - 차이: NPD 다섯 개(init-in, init-pipe, init-yes, update-ci, update-yes)에서 rule·reviewer·qa-autopilot·root doc 파일의 checksum, 두 manifest와 journal checksum, update 흐름의 backup 사본만 바뀌었다. stdout golden은 그대로다.
 - 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.
+
+## 외부 프로그램을 모델링하기 전 실물 probe 규칙 (bench/harness-pilot-c-v3a, 2026-11-25)
+
+- 원인: `content/rules/autonomy.md`에 외부 프로그램·CLI·형식의 동작을 모델링하거나 파싱하는 변경은 먼저 도구의 help·man·문서를 읽고 실제 프로그램을 edge case에 돌려 보며, test의 기대값은 실제 출력을 쓴다는 항목을 더했다.
+- 기록: `go run ./cmd/generate-templates` 뒤 `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run '^(TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6ShowsTheSettingsBeforeAnyWrite)$'`.
+- 차이: NPD 다섯 개(init-in, init-pipe, init-yes, update-ci, update-yes)에서 autonomy rule의 checksum, manifest·journal checksum, update 흐름의 backup 사본만 바뀌었다. stdout golden은 그대로다.
+- 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.
