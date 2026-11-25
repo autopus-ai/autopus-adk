@@ -18,6 +18,7 @@ import time
 import traceback
 
 import claude_agent
+import codex_c
 import guard_c
 import oracle_c
 import report_c
@@ -97,6 +98,7 @@ def parse(argv) -> argparse.Namespace:
     ap.add_argument('--permission-mode', default='bypassPermissions')
     ap.add_argument('--tools', default='go,gofmt,claude,node',
                     help='host tools linked onto the trial PATH (with /usr/bin:/bin:/usr/sbin:/sbin and auto)')
+    codex_c.add_arguments(ap)
     ap.add_argument('--no-sandbox', action='store_true', help='debug only; recorded in the protocol')
     ap.add_argument('--resume', action='store_true', help='continue the run already in --output')
     ap.add_argument('--keep-trials', action='store_true',
@@ -128,13 +130,13 @@ def main(argv=None) -> int:
     output.mkdir(parents=True, exist_ok=True)
     frozen = guard_c.frozen_paths(output) if args.resume else guard_c.freeze(output, corpus)
     ctx = {'output': output, 'keep_trials': args.keep_trials, 'base_env': dict(os.environ), 'model': args.model,
-           'effort': args.effort,
-           'timeout': args.timeout, 'permission_mode': args.permission_mode, 'frozen': frozen,
-           'tools_dir': output / 'bin' / 'tools', 'tool_names': [t for t in args.tools.split(',') if t],
+           'effort': args.effort, 'timeout': args.timeout, 'permission_mode': args.permission_mode, 'frozen': frozen,
+           'tools_dir': output / 'bin' / 'tools', 'tool_names': codex_c.tool_names(args),
            'claude': str(output / 'bin' / 'tools' / 'claude'), 'sandbox': not args.no_sandbox,
            'shell': output / 'bin' / 'shell' / 'zsh',
            'protected': [repo, HERE.parents[2]], 'account_home': str(Path.home()), 'harness_revision': harness,
            'credential_kind': args.credential_kind,
+           'codex': codex_c.trial_settings(args),
            'credential': claude_agent.read_credential(args.credential_file) if args.credential_file else 'DRY-RUN'}
     # Review cases that pass on base, so the report can show review without them (report_c).
     ctx['base_passing'] = report_c.base_passing(json.loads(args.gates.read_text())) if args.gates else {}
@@ -147,6 +149,7 @@ def main(argv=None) -> int:
                 'order': [(t['id'], a, k) for t, a, k in plan], 'model': args.model, 'effort': args.effort,
                 'timeout_seconds': args.timeout, 'permission_mode': args.permission_mode, 'sandbox': ctx['sandbox'],
                 'credential_kind': args.credential_kind, 'tools': ctx['tools'],
+                'codex': codex_c.settings(args),
                 'claude_version': subprocess.run([ctx['claude'], '--version'], capture_output=True,
                                                  text=True).stdout.strip(),
                 'go_version_in_trials': sources_c.trial_go_version(ctx),
@@ -155,6 +158,7 @@ def main(argv=None) -> int:
                 'surfaces': {b[:12]: {k: v for k, v in s['generated'].items() if k != 'manifest'}
                              for b, s in ctx['sources'].items()}, 'dry_run': args.dry_run,
                 'trial_environment': TRIAL_ENVIRONMENT, 'modcache': modcache_size(ctx['modcache'])}
+    codex_c.prepare_run(protocol, ctx)
     if args.dry_run:
         return dry_run(ctx, plan, protocol)
     if args.resume:
@@ -167,7 +171,7 @@ def main(argv=None) -> int:
 def check_resume(output: Path, protocol: dict) -> None:
     frozen = json.loads((output / 'protocol.json').read_text())
     for key in ('frozen_hash', 'tasks', 'arms', 'order', 'model', 'effort', 'timeout_seconds', 'harness_revision',
-                'surfaces', 'sandbox', 'permission_mode', 'trial_environment'):
+                'surfaces', 'sandbox', 'permission_mode', 'trial_environment', 'codex'):
         # protocol.json stores tuples as lists, so compare both through the same JSON round trip.
         if frozen.get(key) != json.loads(json.dumps(protocol.get(key))):
             raise SystemExit('--resume with a different protocol: ' + key)
@@ -207,6 +211,7 @@ def run_plan(ctx: dict, plan: list) -> int:
             records.append(json.loads((measure / 'result.json').read_text()))
             continue
         stamp = time.strftime('%Y%m%d-%H%M%S')
+        codex_c.scrub_partial(ctx, trial, arm)
         for partial in (trial, measure, grading):
             if partial.exists():
                 (output / 'aborted').mkdir(exist_ok=True)
@@ -226,9 +231,12 @@ def run_plan(ctx: dict, plan: list) -> int:
         except Exception:
             # A runner failure is an observation of this trial, not the end of the run.
             row = {'task_id': task['id'], 'arm': arm, 'replicate': replicate, 'operational_error': 'runner_exception',
-                   'traceback': traceback.format_exc()[-4000:], 'oracle': None}
+                   'traceback': traceback.format_exc()[-4000:], 'oracle': None,
+                   'codex_auth_rotated': codex_c.last_rotation(ctx, arm)}
             measure.mkdir(parents=True, exist_ok=True)
             trial_c.write_json(measure / 'result.json', row)
+        finally:
+            codex_c.scrub_partial(ctx, trial, arm)
         records.append(row)
         # A runner exception leaves the trees for diagnosis and a re-grade; only graded trials are pruned.
         if not ctx.get('keep_trials') and row.get('operational_error') != 'runner_exception':
@@ -237,6 +245,8 @@ def run_plan(ctx: dict, plan: list) -> int:
         summary = report_c.summarize(records)
         (output / 'report.json').write_text(json.dumps(summary, indent=2))
         (output / 'report.md').write_text(report_c.to_markdown(summary, records))
+        if codex_c.stop_for_rotation(row):
+            return 3
         oracle = row.get('oracle')
         print(json.dumps({'stage': 'done', 'index': index, 'task': task['id'], 'arm': arm,
                           'review': None if oracle is None else '%d/%d' % (oracle['review_passed'], oracle['review_total']),

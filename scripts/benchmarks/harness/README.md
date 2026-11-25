@@ -479,7 +479,7 @@ is no sandbox instance to count, so a process that left the tree before the
 first walk is invisible: `leftover` is then recorded as unknown (null), never
 as false. The trial PATH is the pinned `auto`,
 symlinks to `--tools` (default `go,gofmt,claude,node`) and
-`/usr/bin:/bin:/usr/sbin:/sbin`: other agent CLIs on the host PATH would be
+`/usr/bin:/bin:/usr/sbin:/sbin` (plus `codex` with `--codex-auth-file`, below): other agent CLIs on the host PATH would be
 detected by `auto update` as platforms and could be called by a review step on
 another account. Claude Code snapshots the Bash tool's environment with
 `$SHELL -c -l`, and a login zsh runs `/etc/zprofile` (path_helper), which would
@@ -547,6 +547,70 @@ cwd file to `CLAUDE_CODE_TMPDIR`, which is set inside the trial. Not covered: ma
 policy settings and anything the account or organisation serves remotely (the
 same in every arm), TCP (the model is remote), and reads of the system and
 toolchain.
+
+Codex review (`codex_c.py`, `codex_observe_c.py`, opt-in). For a harness variant whose review step
+also asks Codex (OpenAI) for a second review. Make a dedicated login for the run, in its own home, never
+`~/.codex` (the runner refuses a file below it), pass its `auth.json`, and log it out after the run:
+
+```sh
+CODEX_HOME=$HOME/pilot-c/codex-login codex login          # dedicated login, only for this run
+chmod 600 $HOME/pilot-c/codex-login/auth.json
+python3 scripts/benchmarks/harness/run_c.py ... --codex-auth-file $HOME/pilot-c/codex-login/auth.json
+CODEX_HOME=$HOME/pilot-c/codex-login codex logout         # after the run
+```
+
+`codex` is linked into `<output>/bin/tools-codex`, apart from the shared tools. Only the arms whose
+harness uses it (every arm but `native`) get that directory on PATH, the `@openai/codex` package
+directory in the sandbox's tool slots and a `CODEX_HOME`. The npm entry point is a node script that
+runs on the linked `node`. The node install directory, which every arm reopens for reading, already
+contains the codex package, so a `native` agent could still start `node <that dir>/.../codex.js`; it has
+no home or login there, and a `native` trial whose Bash commands run codex is `arm_invalid`. A codex
+arm's trial gets `CODEX_HOME=<trial>/codex-home` (mode 0700, outside the workspace, so the scope audit
+and the candidate overlay never see it) with a 0600 copy of the login (a placeholder in `--dry-run`)
+and a `config.toml` that sets `--codex-model` (default `gpt-6.2-sol`, priority 1 in the 0.170 catalog)
+at `--codex-effort` (default `high`, the agent's default effort), turns web search (`web_search =
+"disabled"`, legacy `[tools] web_search = false`), browser, computer use, apps, plugins, connectors,
+memories, image generation and subagents off, keeps the login in the file
+(`cli_auth_credentials_store = "file"`, no keychain) and disables analytics and feedback. Every key is
+checked with `codex exec --strict-config` (0.170.0). Codex's own seatbelt cannot nest inside
+`claude_agent.sb` (`sandbox_apply: Operation not permitted`), so the harness runs it with
+`-s danger-full-access` and the trial profile confines it as it confines the agent. Inside the profile
+codex's default TLS trust path fails every connect while curl succeeds, so `CODEX_CA_CERTIFICATE`
+points at `/etc/ssl/cert.pem` (read only by codex).
+
+The login. The runner only reads `--codex-auth-file`, never writes it. A ChatGPT refresh token is single
+use: when a trial's copy refreshed (its refresh token is no longer the installed one) or cannot be read
+back, the trial records `codex_auth_rotated` and the run stops with `CODEX_AUTH_ROTATED`; log the
+dedicated login in again and continue with `--resume`. A runner exception keeps the verdict; a trial
+that failed before the check counts an unreadable copy as rotated. Right after the check, and before
+grading, every regular file below the trial that holds the copy's bytes is deleted, so a copy the agent
+wrote under an allowed path never reaches the overlay or `measure/`. The sweep uses `os.fwalk` and
+never follows a link. The copy is deleted again on every way out of a trial: normal end, runner
+exception, a stop signal, `--keep-trials`, or a partial trial that `--resume` sets aside. A
+reformatted copy (same tokens, other bytes) is not found by the sweep. Residual risk, plainly: the
+agent and codex can read the copy, the network is open, and `measure/` keeps the transcript, so a token
+the agent printed stays there. That is why the login is dedicated and logged out after the run.
+
+Observation, fail-closed. stream_c counts the codex sessions the agent's Bash commands start
+(`--help` and `--version` are not sessions). Detection uses network_c's command reading, so codex is
+found behind wrappers (`timeout`, `gtimeout`, `perl -e 'alarm N; exec @ARGV'`, `env`, `nohup`,
+`caffeinate`, `script`, `npx` including `@openai/codex@<version>`, `node .../codex.js`), inside `sh -c`
+and `eval`, and never in here-document text. Not seen there: codex started indirectly, by a name held in
+a variable (`C=codex; $C exec`), through a script file, another language's subprocess or a command
+substitution such as `node $(which codex)`. Such sessions still appear in the rollouts, and a trial
+whose observed sessions do not match is flagged. stream_c also records flags that leave the frozen
+config as `CODEX_BYPASS`: `--ephemeral`, `--ignore-user-config`, `--search`, `--enable`, `--profile`,
+`-c` or `-m` unless they only repeat the frozen model or effort, and an assigned (not merely named)
+`CODEX_HOME`. It also records web search markers in a codex call's output. The rollouts below the home are walked without following links. Only regular
+`*.jsonl` files up to 64 MiB are read, with O_NOFOLLOW and O_NONBLOCK (a FIFO cannot block the runner),
+and any other `*.jsonl*` counts as unscanned. From them the runner takes web search events,
+network-reaching shell commands and OpenAI usage (each session's last `token_count`). Contamination
+flags cover all of these: a replaced home (`CODEX_HOME_REPLACED`) or sessions directory
+(`CODEX_SESSIONS_REPLACED`), a non-empty `archived_sessions` (`CODEX_ARCHIVED_SESSIONS`), a changed
+`config.toml` (`CODEX_CONFIG_CHANGED`), unscanned rollouts and more sessions started than observed
+(`CODEX_UNOBSERVED`). In all those cases the trial's usage is unknown, never a partial sum. `report.md` adds a Codex (OpenAI) usage table per arm and per trial, since this
+cost is not in the Claude token totals. The protocol records the model, effort, config hash, codex
+target and `codex --version`, and `--resume` refuses a change to them.
 
 Trial environment (`trial_env_c.py`). The sandbox must not break the agent's
 own builds, or every trial measures workarounds. `/usr/bin/git`, `cc` and the

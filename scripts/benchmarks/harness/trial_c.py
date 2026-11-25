@@ -14,6 +14,8 @@ import subprocess
 import time
 
 import claude_agent
+import codex_c
+import codex_observe_c
 import grade_c
 import guard_c
 import oracle_c
@@ -121,9 +123,14 @@ def prepare(ctx: dict, task: dict, arm: str, name: str) -> dict:
     home = claude_agent.isolated_home(trial, arm, work)
     grade_c.clone_tree(source['warm_cache'], trial / 'gocache')
     modcache = trial_env_c.clone_modcache(ctx['modcache'], trial / 'gomodcache')
+    codex = codex_c.arm_uses(ctx, arm)
+    path = [source['bin_dir'], ctx['tools_dir']] + ([ctx['codex']['tools_dir']] if codex else [])
     env = claude_agent.agent_env(ctx['base_env'], home, trial / 'tmp', ctx['credential_kind'], ctx['credential'],
-                                 [source['bin_dir'], ctx['tools_dir']], ctx['shell'])
+                                 path, ctx['shell'])
     env.update(go_env(trial, trial / 'gocache', trial / 'gomodcache'))
+    tools = {**ctx['tools'], **ctx['codex']['tools']} if codex else ctx['tools']
+    if codex:
+        env.update(codex_c.install_home(trial, ctx['codex']))
     argv = claude_agent.claude_argv(arm, ctx['model'], ctx['effort'], ctx['permission_mode'], ctx['claude'])
     # The build cache keys packages by directory, and this trial's workspace and module cache paths are
     # its own: the warm-up compiles them here, before the agent's clock, for `go build ./...` and the
@@ -135,7 +142,7 @@ def prepare(ctx: dict, task: dict, arm: str, name: str) -> dict:
         if not ctx['sandbox']:
             return command
         return claude_agent.sandboxed(command, trial, ctx['output'], ctx['output'] / 'bin', env['GOMODCACHE'],
-                                      ctx['tools'], ctx['account_home'], ctx['protected'],
+                                      tools, ctx['account_home'], ctx['protected'],
                                       ctx['frozen']['agent_profile'])
     # What the Bash tool resolves: Claude Code snapshots its environment with `$SHELL -c -l`.
     probe = [str(ctx['shell']), '-c', '-l', 'for t in auto go claude codex gemini gh omp opencode; do '
@@ -146,7 +153,24 @@ def prepare(ctx: dict, task: dict, arm: str, name: str) -> dict:
 
 
 def run(ctx: dict, task: dict, arm: str, replicate: int) -> dict:
+    """One trial. A codex arm's login copy is deleted on every way out (codex_c.scrub), a stop signal
+    and a runner exception included."""
     name = '%s-%s-k%d' % (task['id'], arm, replicate)
+    codex = ctx['codex'] if codex_c.arm_uses(ctx, arm) else None
+    if codex:
+        codex.update(installed=None, last_rotated=None)
+    try:
+        return _run(ctx, task, arm, replicate, name)
+    finally:
+        if codex and codex.get('installed'):
+            trial = names(ctx, name)[0]
+            if codex['last_rotated'] is None:
+                # Failed before the check: a copy that cannot be shown unspent counts as rotated.
+                codex['last_rotated'] = codex_c.auth_rotated(trial, codex)
+            codex_c.scrub(trial, codex)
+
+
+def _run(ctx: dict, task: dict, arm: str, replicate: int, name: str) -> dict:
     plan = prepare(ctx, task, arm, name)
     trial, measure, grading = names(ctx, name)
     load_start = guard_c.loadavg()
@@ -160,6 +184,14 @@ def run(ctx: dict, task: dict, arm: str, replicate: int) -> dict:
     observation = stream_c.parse_stream(measure / 'events.jsonl')
     scope = oracle_c.audit_globs(before, hashes(plan['work']), task['allowed_paths'])
     valid = stream_c.arm_valid(arm, observation)
+    codex = rotated = None
+    if codex_c.arm_uses(ctx, arm):
+        codex = codex_observe_c.observe(trial, ctx['codex']['config_sha256'])
+        observation['contamination'] += codex_observe_c.reconcile(codex, observation, ctx['codex'])
+        rotated = ctx['codex']['last_rotated'] = codex_c.auth_rotated(trial, ctx['codex'])
+        if not agent['leftover']:
+            # Before grading: a copy the agent wrote under an allowed path must not reach the overlay.
+            codex_c.scrub(trial, ctx['codex'])
     agent['tree_coverage'] = 'sandbox_instance_and_descendants' if ctx['sandbox'] else 'descendants_only'
     graded = None
     if not agent['leftover']:
@@ -172,7 +204,8 @@ def run(ctx: dict, task: dict, arm: str, replicate: int) -> dict:
                    'agent_error' if observation['is_error'] else 'arm_invalid' if not valid else None)
     row = {'task_id': task['id'], 'arm': arm, 'replicate': replicate, 'operational_error': operational,
            'warm': warm, 'agent': agent, 'observation': observation, 'arm_valid': valid, 'scope': scope,
-           'oracle': graded, 'modcache_clone': plan['modcache_clone'], 'loadavg': {'start': load_start, 'end': load_end},
+           'oracle': graded, 'codex': codex, 'codex_auth_rotated': rotated, 'modcache_clone': plan['modcache_clone'],
+           'loadavg': {'start': load_start, 'end': load_end},
            'prompt_hash': digest(plan['prompt'].encode()), 'human_interventions': 0,
            'harness_revision': plan['source']['harness_revision'],
            'surface_hash': plan['source']['generated']['surface_hash'] if arm != 'native' else None}

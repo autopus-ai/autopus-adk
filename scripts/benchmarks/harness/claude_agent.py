@@ -12,6 +12,10 @@ What the isolation does not cover: managed (policy) settings and anything the ac
 organisation serves remotely (for example organisation skills or plugins) still apply, identically
 in every arm; TCP is open, since the model is remote; the system, toolchain and module cache stay
 readable. Stream observation lives in stream_c.py.
+
+With --codex-auth-file (codex_c) the arms that use codex also hold a copy of a codex login in the
+trial, which the agent can read like any trial file while TCP is open. That is a residual risk this
+profile does not remove: use a login made only for the run and log it out afterwards.
 """
 import json
 import os
