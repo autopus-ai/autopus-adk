@@ -69,7 +69,8 @@ def _add_codex(arm: dict, codex: dict | None) -> None:
         return
     arm['codex_sessions'] += codex.get('sessions', 0)
     arm['codex_tokens'] += (codex.get('tokens') or {}).get('total_tokens', 0)
-    arm['codex_usage_unknown'] += codex.get('sessions_without_usage', 0)
+    # A trial whose usage cannot be whole (codex_observe_c.reconcile) counts as unknown, never as a sum.
+    arm['codex_usage_unknown'] += int(bool(codex.get('usage_unknown')))
 
 
 def _codex_table(summary: dict, records: list) -> list:
@@ -77,14 +78,14 @@ def _codex_table(summary: dict, records: list) -> list:
     rows = [row for row in records if row.get('codex')]
     if not rows:
         return []
-    lines = ['', '## Codex (OpenAI) usage', '', '| arm | sessions | total tokens | sessions without usage |',
+    lines = ['', '## Codex (OpenAI) usage', '', '| arm | sessions | total tokens (known) | trials usage unknown |',
              '|' + '---|' * 4]
     lines += ['| %s | %d | %d | %d |' % (arm, s['codex_sessions'], s['codex_tokens'], s['codex_usage_unknown'])
               for arm, s in summary.items() if s['codex_sessions'] or s['codex_usage_unknown']]
     lines += ['', '| trial | sessions | input | cached input | output | reasoning | total | flags |', '|' + '---|' * 8]
     for row in rows:
         codex, tokens = row['codex'], row['codex'].get('tokens') or {}
-        flags = len(codex.get('web_search') or []) + len(codex.get('network_commands') or [])
+        flags = sum(1 for flag in (row.get('observation') or {}).get('contamination') or [] if 'CODEX' in flag)
         lines.append('| %s-%s-k%d | %d | %s | %s | %s | %s | %s | %d |' % (
             row['task_id'], row['arm'], row['replicate'], codex.get('sessions', 0),
             *(tokens.get(key, '-') for key in ('input_tokens', 'cached_input_tokens', 'output_tokens',

@@ -15,6 +15,7 @@ import time
 
 import claude_agent
 import codex_c
+import codex_observe_c
 import grade_c
 import guard_c
 import oracle_c
@@ -152,7 +153,17 @@ def prepare(ctx: dict, task: dict, arm: str, name: str) -> dict:
 
 
 def run(ctx: dict, task: dict, arm: str, replicate: int) -> dict:
+    """One trial. A codex arm's login copy is deleted on every way out (codex_c.scrub), a stop signal
+    and a runner exception included."""
     name = '%s-%s-k%d' % (task['id'], arm, replicate)
+    try:
+        return _run(ctx, task, arm, replicate, name)
+    finally:
+        if codex_c.arm_uses(ctx, arm) and ctx['codex'].get('installed'):
+            codex_c.scrub(names(ctx, name)[0], ctx['codex'])
+
+
+def _run(ctx: dict, task: dict, arm: str, replicate: int, name: str) -> dict:
     plan = prepare(ctx, task, arm, name)
     trial, measure, grading = names(ctx, name)
     load_start = guard_c.loadavg()
@@ -166,10 +177,11 @@ def run(ctx: dict, task: dict, arm: str, replicate: int) -> dict:
     observation = stream_c.parse_stream(measure / 'events.jsonl')
     scope = oracle_c.audit_globs(before, hashes(plan['work']), task['allowed_paths'])
     valid = stream_c.arm_valid(arm, observation)
-    codex = codex_c.observe(trial)
-    if codex is not None:
-        observation['contamination'] += codex_c.contamination(codex)
-        codex['auth'] = codex_c.write_back(trial, ctx['codex']['auth_file'])
+    codex = rotated = None
+    if codex_c.arm_uses(ctx, arm):
+        codex = codex_observe_c.observe(trial, ctx['codex']['config_sha256'])
+        observation['contamination'] += codex_observe_c.reconcile(codex, observation)
+        rotated = codex_c.auth_rotated(trial, ctx['codex'])
     agent['tree_coverage'] = 'sandbox_instance_and_descendants' if ctx['sandbox'] else 'descendants_only'
     graded = None
     if not agent['leftover']:
@@ -182,7 +194,7 @@ def run(ctx: dict, task: dict, arm: str, replicate: int) -> dict:
                    'agent_error' if observation['is_error'] else 'arm_invalid' if not valid else None)
     row = {'task_id': task['id'], 'arm': arm, 'replicate': replicate, 'operational_error': operational,
            'warm': warm, 'agent': agent, 'observation': observation, 'arm_valid': valid, 'scope': scope,
-           'oracle': graded, 'codex': codex, 'modcache_clone': plan['modcache_clone'],
+           'oracle': graded, 'codex': codex, 'codex_auth_rotated': rotated, 'modcache_clone': plan['modcache_clone'],
            'loadavg': {'start': load_start, 'end': load_end},
            'prompt_hash': digest(plan['prompt'].encode()), 'human_interventions': 0,
            'harness_revision': plan['source']['harness_revision'],

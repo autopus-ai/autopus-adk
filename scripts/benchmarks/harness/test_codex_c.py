@@ -1,28 +1,35 @@
-"""Opt-in codex plumbing for pilot C (codex_c, run_c options, stream_c flags); no network, no model call."""
+"""Opt-in codex plumbing for pilot C: options, the dedicated login, the per-trial home, rotation and
+scrub on every exit path, and which arms get codex; no network, no model call."""
 import json
 import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import codex_c
-import report_c
 import run_c
-import stream_c
 
 ARGS = ['--repo', '/r', '--output', '/o', '--model', 'opus']
 
 
-def auth(account='acct-1', refreshed='2026-11-01T00:00:00Z', token='t0'):
-    return json.dumps({'OPENAI_API_KEY': None, 'auth_mode': 'chatgpt', 'last_refresh': refreshed,
-                       'tokens': {'account_id': account, 'access_token': token, 'refresh_token': 'r-' + token,
+def auth(account='acct-1', refresh='r0', token='t0'):
+    return json.dumps({'OPENAI_API_KEY': None, 'auth_mode': 'chatgpt', 'last_refresh': '2026-11-01T00:00:00Z',
+                       'tokens': {'account_id': account, 'access_token': token, 'refresh_token': refresh,
                                   'id_token': 'i'}}).encode()
 
 
 def private(path: Path, data: bytes) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(data)
     path.chmod(0o600)
     return path
+
+
+def codex_ctx(source: Path, dry_run=False) -> dict:
+    return {'auth_file': source, 'model': 'm1', 'effort': 'high', 'dry_run': dry_run,
+            'config_sha256': codex_c.settings(run_c.parse(ARGS + ['--codex-auth-file', str(source), '--codex-model',
+                                                                  'm1']))['config_sha256']}
 
 
 class OptionTests(unittest.TestCase):
@@ -32,33 +39,38 @@ class OptionTests(unittest.TestCase):
         self.assertIsNone(codex_c.trial_settings(args))
         self.assertIsNone(codex_c.settings(args))
 
-    def test_auth_file_links_codex_once_and_records_no_secret(self):
+    def test_codex_is_kept_out_of_the_shared_tools_and_only_codex_arms_use_it(self):
         with tempfile.TemporaryDirectory() as d:
             path = private(Path(d) / 'auth.json', auth(token='SECRET-TOKEN'))
-            args = run_c.parse(ARGS + ['--codex-auth-file', str(path)])
-            # codex gets its own directory (prepare_run), never the shared tools every arm sees.
-            self.assertEqual(codex_c.tool_names(args), ['go', 'gofmt', 'claude', 'node'])
-            args = run_c.parse(ARGS + ['--codex-auth-file', str(path), '--tools', 'go,codex,node'])
+            args = run_c.parse(ARGS + ['--codex-auth-file', str(path), '--tools', 'go,codex,node', '--dry-run'])
             self.assertEqual(codex_c.tool_names(args), ['go', 'node'])
-            ctx = {'codex': codex_c.trial_settings(args)}
+            settings = codex_c.trial_settings(args)
+            self.assertTrue(settings['dry_run'])
+            self.assertEqual(settings['auth_file'], path.resolve())
+            self.assertNotIn('SECRET', json.dumps(codex_c.settings(args)))
+            ctx = {'codex': settings}
             self.assertEqual([codex_c.arm_uses(ctx, a) for a in ('native', 'instructions', 'full')],
                              [False, True, True])
             self.assertFalse(codex_c.arm_uses({'codex': None}, 'full'))
-            recorded = codex_c.settings(args)
-            self.assertEqual((recorded['model'], recorded['effort']), (codex_c.MODEL, codex_c.EFFORT))
-            self.assertNotIn('SECRET', json.dumps(recorded))
-            self.assertEqual(codex_c.trial_settings(args)['auth_file'], path.resolve())
 
-    def test_readable_or_foreign_auth_file_is_refused(self):
+    def test_account_login_loose_or_foreign_files_are_refused(self):
         with tempfile.TemporaryDirectory() as d:
-            loose = Path(d) / 'loose.json'
-            loose.write_bytes(auth())
-            loose.chmod(0o644)
-            with self.assertRaises(ValueError):
-                codex_c.read_auth(loose)
-            with self.assertRaises(ValueError) as caught:
-                codex_c.read_auth(private(Path(d) / 'other.json', b'{"x": "SECRET"}'))
-            self.assertNotIn('SECRET', str(caught.exception))
+            home = Path(d) / 'home'
+            account = private(home / '.codex' / 'auth.json', auth())
+            link = Path(d) / 'looks-dedicated.json'
+            link.symlink_to(account)
+            with mock.patch.object(codex_c, '_account_homes', lambda: [(home / '.codex').resolve()]):
+                for path in (account, link):
+                    with self.assertRaisesRegex(ValueError, 'dedicated'):
+                        codex_c.read_auth(path)
+                loose = private(Path(d) / 'loose.json', auth())
+                loose.chmod(0o644)
+                with self.assertRaises(ValueError):
+                    codex_c.read_auth(loose)
+                with self.assertRaises(ValueError) as caught:
+                    codex_c.read_auth(private(Path(d) / 'other.json', b'{"x": "SECRET"}'))
+                self.assertNotIn('SECRET', str(caught.exception))
+                self.assertEqual(codex_c.read_auth(private(Path(d) / 'ok.json', auth())), auth())
 
 
 class PrepareRunTests(unittest.TestCase):
@@ -80,148 +92,93 @@ class PrepareRunTests(unittest.TestCase):
             ctx['codex'] = {'model': 'm'}
             codex_c.prepare_run(protocol, ctx)
             self.assertEqual(ctx['codex']['tools'], {'codex': os.path.realpath(fake)}, 'a resume reuses the link')
-            codex_c.prepare_run(protocol, {'codex': None})
+
+    def test_resume_refuses_a_codex_change(self):
+        with tempfile.TemporaryDirectory() as d:
+            frozen = {'codex': {'model': 'a', 'effort': 'high'}}
+            Path(d, 'protocol.json').write_text(json.dumps(frozen))
+            run_c.check_resume(Path(d), dict(frozen))
+            for changed in ({'codex': {'model': 'b', 'effort': 'high'}}, {'codex': None}):
+                with self.assertRaisesRegex(SystemExit, 'codex'):
+                    run_c.check_resume(Path(d), changed)
 
 
 class HomeTests(unittest.TestCase):
-    def test_trial_home_holds_a_private_copy_and_a_closed_config(self):
-        with tempfile.TemporaryDirectory() as d:
-            trial = Path(d) / 'trial'
-            trial.mkdir()
-            source = private(Path(d) / 'auth.json', auth())
-            env = codex_c.install_home(trial, {'auth_file': source, 'model': 'm1', 'effort': 'high'})
-            home = Path(env['CODEX_HOME'])
-            self.assertEqual(home, trial / 'codex-home')
-            self.assertEqual(env['CODEX_CA_CERTIFICATE'], codex_c.CA_BUNDLE)
-            self.assertNotIn(trial / 'workspace', home.parents)
-            self.assertEqual(sorted(p.name for p in home.iterdir()), ['auth.json', 'config.toml'])
-            self.assertEqual((home / 'auth.json').stat().st_mode & 0o777, 0o600)
-            self.assertEqual((home / 'auth.json').read_bytes(), source.read_bytes())
-            config = (home / 'config.toml').read_text()
-            for line in ('model = "m1"', 'web_search = "disabled"', 'cli_auth_credentials_store = "file"',
-                         'web_search = false', 'browser_use = false', 'apps = false', 'plugins = false'):
-                self.assertIn(line, config)
-            with self.assertRaises(FileExistsError):
-                codex_c.install_home(trial, {'auth_file': source, 'model': 'm1', 'effort': 'high'})
-
-
-class WriteBackTests(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.TemporaryDirectory()
-        root = Path(self.dir.name)
-        self.trial = root / 'trial'
-        (self.trial / 'codex-home').mkdir(parents=True)
-        self.source = private(root / 'auth.json', auth())
-        self.copy = self.trial / 'codex-home' / 'auth.json'
+        self.root = Path(self.dir.name)
+        self.trial = self.root / 'trial'
+        self.trial.mkdir()
+        self.source = private(self.root / 'auth.json', auth())
+        self.codex = codex_ctx(self.source)
 
     def tearDown(self):
         self.dir.cleanup()
 
-    def test_refresh_reaches_the_next_trial(self):
-        private(self.copy, auth(refreshed='2026-11-20T00:00:00Z', token='t1'))
-        self.assertEqual(codex_c.write_back(self.trial, self.source), 'refreshed')
-        self.assertEqual(self.source.read_bytes(), self.copy.read_bytes())
-        self.assertEqual(self.source.stat().st_mode & 0o777, 0o600)
+    def test_private_home_with_the_copy_and_the_closed_config(self):
+        env = codex_c.install_home(self.trial, self.codex)
+        home = Path(env['CODEX_HOME'])
+        self.assertEqual(home, self.trial / 'codex-home')
+        self.assertEqual(env['CODEX_CA_CERTIFICATE'], codex_c.CA_BUNDLE)
+        self.assertEqual(home.stat().st_mode & 0o777, 0o700)
+        self.assertEqual((home / 'auth.json').stat().st_mode & 0o777, 0o600)
+        self.assertEqual((home / 'auth.json').read_bytes(), self.source.read_bytes())
+        config = (home / 'config.toml').read_text()
+        for line in ('model = "m1"', 'web_search = "disabled"', 'cli_auth_credentials_store = "file"',
+                     'browser_use = false', 'apps = false', 'plugins = false'):
+            self.assertIn(line, config)
+        with self.assertRaises(FileExistsError):
+            codex_c.install_home(self.trial, self.codex)
 
-    def test_unchanged_other_account_older_or_garbage_is_kept_out(self):
-        original = self.source.read_bytes()
-        private(self.copy, original)
-        self.assertEqual(codex_c.write_back(self.trial, self.source), 'unchanged')
-        for data in (auth(account='acct-2', refreshed='2026-11-20T00:00:00Z'), auth(refreshed='2026-10-01T00:00:00Z',
-                                                                                    token='t9'), b'not json'):
-            private(self.copy, data)
-            self.assertEqual(codex_c.write_back(self.trial, self.source), 'rejected')
-        self.copy.unlink()
-        os.symlink(self.source, self.copy)
-        self.assertEqual(codex_c.write_back(self.trial, self.source), 'unchanged')
-        self.assertEqual(self.source.read_bytes(), original)
+    def test_dry_run_gets_a_placeholder_never_the_login(self):
+        codex_c.install_home(self.trial, codex_ctx(self.source, dry_run=True))
+        self.assertEqual((self.trial / 'codex-home' / 'auth.json').read_bytes(), codex_c.PLACEHOLDER)
 
+    def test_rotation_is_detected_and_an_unreadable_copy_is_not_trusted(self):
+        codex_c.install_home(self.trial, self.codex)
+        copy = self.trial / 'codex-home' / 'auth.json'
+        self.assertIs(codex_c.auth_rotated(self.trial, self.codex), False)
+        private(copy, auth(token='t1'))
+        self.assertIs(codex_c.auth_rotated(self.trial, self.codex), False, 'a new access token alone is not a spend')
+        private(copy, auth(refresh='r1', token='t1'))
+        self.assertIs(codex_c.auth_rotated(self.trial, self.codex), True)
+        # A link, as the file or as the home directory, is never followed out of the trial.
+        outside = private(self.root / 'outside' / 'auth.json', self.source.read_bytes())
+        copy.unlink()
+        copy.symlink_to(outside)
+        self.assertEqual(codex_c.auth_rotated(self.trial, self.codex), 'unknown')
+        copy.unlink()
+        (self.trial / 'codex-home').rename(self.trial / 'moved')
+        (self.trial / 'codex-home').symlink_to(outside.parent)
+        self.assertEqual(codex_c.auth_rotated(self.trial, self.codex), 'unknown')
+        (self.trial / 'codex-home').unlink()
+        self.assertEqual(codex_c.auth_rotated(self.trial, self.codex), 'unknown')
 
-def usage(inputs, cached, output):
-    total = {'input_tokens': inputs, 'cached_input_tokens': cached, 'output_tokens': output,
-             'reasoning_output_tokens': 0, 'total_tokens': inputs + output}
-    return {'type': 'event_msg', 'payload': {'type': 'token_count', 'info': {'total_token_usage': total}}}
+    def test_scrub_removes_every_copy_below_the_trial_and_nothing_outside(self):
+        codex_c.install_home(self.trial, self.codex)
+        stash = self.trial / 'workspace' / 'deep' / 'note.txt'
+        private(stash, self.source.read_bytes())
+        locked = self.trial / 'locked'
+        private(locked / 'x', self.source.read_bytes())
+        locked.chmod(0o500)
+        outside = private(self.root / 'outside' / 'auth.json', self.source.read_bytes())
+        (self.trial / 'link-to-outside').symlink_to(outside)
+        removed = codex_c.scrub(self.trial, self.codex)
+        self.assertEqual(removed, 3)
+        self.assertFalse((self.trial / 'codex-home' / 'auth.json').exists())
+        self.assertFalse(stash.exists())
+        self.assertFalse((locked / 'x').exists())
+        self.assertEqual(outside.read_bytes(), self.source.read_bytes(), 'a link target outside stays')
+        self.assertEqual(self.source.read_bytes(), auth(), 'the given login is never written')
 
-
-class ObservationTests(unittest.TestCase):
-    def test_rollout_web_search_and_network_commands_are_contamination(self):
-        with tempfile.TemporaryDirectory() as d:
-            trial = Path(d)
-            self.assertIsNone(codex_c.observe(trial))
-            day = trial / 'codex-home' / 'sessions' / '2026' / '11' / '25'
-            day.mkdir(parents=True)
-            events = [{'type': 'response_item', 'payload': {'type': 'function_call', 'name': 'exec',
-                                                            'arguments': json.dumps({'cmd': 'go test ./...'})}},
-                      {'type': 'response_item', 'payload': {'type': 'function_call', 'name': 'exec',
-                                                            'arguments': json.dumps({'cmd': 'gh pr view 12'})}},
-                      {'type': 'response_item', 'payload': {'type': 'web_search_call', 'action': {'query': 'q'}}},
-                      {'type': 'event_msg', 'payload': {'type': 'agent_message', 'message': 'web_search is off'}},
-                      usage(100, 40, 5), usage(300, 120, 9)]
-            (day / 'rollout-1.jsonl').write_text('\n'.join(map(json.dumps, events)) + '\nnot json\n')
-            (day / 'rollout-2.jsonl').write_text(json.dumps(usage(50, 0, 1)) + '\n')
-            (day / 'rollout-3.jsonl').write_text('{}\n')
-            seen = codex_c.observe(trial)
-            self.assertEqual((seen['sessions'], seen['commands']), (3, 2))
-            # token_count is cumulative within a session: the last one counts, sessions add up.
-            self.assertEqual(seen['tokens'], {'input_tokens': 350, 'cached_input_tokens': 120, 'output_tokens': 10,
-                                              'reasoning_output_tokens': 0, 'total_tokens': 360})
-            self.assertEqual(seen['sessions_without_usage'], 1)
-            self.assertEqual(seen['network_commands'], ['gh pr view 12'])
-            self.assertEqual(len(seen['web_search']), 1)
-            flags = codex_c.contamination(seen)
-            self.assertEqual(len(flags), 2)
-            self.assertTrue(flags[0].startswith('CODEX_WEB_SEARCH'))
-
-    def test_stream_flags_web_search_only_in_codex_tool_output(self):
-        def use(uid, command):
-            return {'type': 'assistant', 'message': {'content': [
-                {'type': 'tool_use', 'id': uid, 'name': 'Bash', 'input': {'command': command}}]}}
-
-        def output(uid, text):
-            return {'type': 'user', 'message': {'content': [
-                {'type': 'tool_result', 'tool_use_id': uid, 'content': [{'type': 'text', 'text': text}]}]}}
-        events = [use('a', 'grep -rn web_search .'), output('a', 'config.go: web_search = "disabled"'),
-                  use('b', 'git diff | codex exec --skip-git-repo-check -s danger-full-access - </dev/null'),
-                  output('b', 'web search: golang context cancel\nfinding 1'),
-                  use('c', 'codex exec "review" </dev/null'), output('c', 'no findings'),
-                  {'type': 'result', 'is_error': False, 'usage': {}}]
-        with tempfile.TemporaryDirectory() as d:
-            path = Path(d) / 'events.jsonl'
-            path.write_text(''.join(json.dumps(e) + '\n' for e in events))
-            seen = stream_c.parse_stream(path)
-        self.assertEqual(seen['codex_calls'], 2)
-        self.assertEqual(seen['contamination'], ['CODEX_WEB_SEARCH in output of tool use b'])
-        json.dumps(seen)
-        # native has no codex and no harness that asks for it: running it makes the trial invalid.
-        self.assertFalse(stream_c.arm_valid('native', seen))
-        self.assertTrue(stream_c.arm_valid('native', dict(seen, codex_calls=0)))
-        self.assertTrue(stream_c.arm_valid('full', dict(seen, hook_events=1)))
-
-    def test_codex_command_position_only(self):
-        runs = ['codex exec "x" </dev/null', "perl -e 'alarm 480; exec @ARGV' codex exec -s danger-full-access 'b'",
-                'git diff | codex exec -', 'timeout 900 codex exec x', 'cd w && /opt/bin/codex review']
-        mentions = ['grep -rn codex .', 'grep codex exec f', 'ls ~/.codex', 'echo codex exec', 'cat codex_c.py']
-        self.assertEqual([bool(stream_c.CODEX_COMMAND.search(c)) for c in runs], [True] * 5)
-        self.assertEqual([bool(stream_c.CODEX_COMMAND.search(c)) for c in mentions], [False] * 5)
-
-
-class ReportTests(unittest.TestCase):
-    def test_openai_usage_is_reported_per_arm_and_trial(self):
-        base = {'task_id': 'c03', 'replicate': 1, 'operational_error': None, 'arm_valid': True,
-                'agent': {'elapsed_seconds': 1.0}, 'observation': {'total_tokens': 10}, 'scope': {}, 'oracle': None}
-        tokens = {'input_tokens': 350, 'cached_input_tokens': 120, 'output_tokens': 10,
-                  'reasoning_output_tokens': 4, 'total_tokens': 360}
-        records = [dict(base, arm='native', codex=None),
-                   dict(base, arm='full', codex={'sessions': 2, 'tokens': tokens, 'sessions_without_usage': 1,
-                                                 'web_search': [], 'network_commands': ['gh pr view']})]
-        summary = report_c.summarize(records)
-        self.assertEqual((summary['full']['codex_tokens'], summary['full']['codex_usage_unknown']), (360, 1))
-        self.assertEqual(summary['native']['codex_tokens'], 0)
-        text = report_c.to_markdown(summary, records)
-        self.assertIn('| full | 2 | 360 | 1 |', text)
-        self.assertIn('| c03-full-k1 | 2 | 350 | 120 | 10 | 4 | 360 | 1 |', text)
-        self.assertNotIn('c03-native-k1 | 0', text)
-        self.assertNotIn('Codex (OpenAI)', report_c.to_markdown(summary, records[:1]))
+    def test_scrub_does_not_reach_through_a_replaced_home(self):
+        codex_c.install_home(self.trial, self.codex)
+        (self.trial / 'codex-home').rename(self.trial / 'moved')
+        outside = private(self.root / 'account' / 'auth.json', auth(refresh='ACCOUNT'))
+        (self.trial / 'codex-home').symlink_to(outside.parent)
+        codex_c.scrub(self.trial, self.codex)
+        self.assertEqual(outside.read_bytes(), auth(refresh='ACCOUNT'))
+        self.assertFalse((self.trial / 'moved' / 'auth.json').exists(), 'the moved copy is found by its bytes')
 
 
 if __name__ == '__main__':

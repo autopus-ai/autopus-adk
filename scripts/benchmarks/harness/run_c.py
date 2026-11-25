@@ -212,6 +212,7 @@ def run_plan(ctx: dict, plan: list) -> int:
             records.append(json.loads((measure / 'result.json').read_text()))
             continue
         stamp = time.strftime('%Y%m%d-%H%M%S')
+        codex_c.scrub_partial(ctx, trial, arm)
         for partial in (trial, measure, grading):
             if partial.exists():
                 (output / 'aborted').mkdir(exist_ok=True)
@@ -234,6 +235,8 @@ def run_plan(ctx: dict, plan: list) -> int:
                    'traceback': traceback.format_exc()[-4000:], 'oracle': None}
             measure.mkdir(parents=True, exist_ok=True)
             trial_c.write_json(measure / 'result.json', row)
+        finally:
+            codex_c.scrub_partial(ctx, trial, arm)
         records.append(row)
         # A runner exception leaves the trees for diagnosis and a re-grade; only graded trials are pruned.
         if not ctx.get('keep_trials') and row.get('operational_error') != 'runner_exception':
@@ -242,6 +245,8 @@ def run_plan(ctx: dict, plan: list) -> int:
         summary = report_c.summarize(records)
         (output / 'report.json').write_text(json.dumps(summary, indent=2))
         (output / 'report.md').write_text(report_c.to_markdown(summary, records))
+        if codex_c.stop_for_rotation(row):
+            return 3
         oracle = row.get('oracle')
         print(json.dumps({'stage': 'done', 'index': index, 'task': task['id'], 'arm': arm,
                           'review': None if oracle is None else '%d/%d' % (oracle['review_passed'], oracle['review_total']),

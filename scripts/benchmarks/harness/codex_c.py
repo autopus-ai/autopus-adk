@@ -1,32 +1,38 @@
 """Opt-in Codex CLI for pilot C trials (`run_c.py --codex-auth-file`), for harness variants whose review
-step also asks Codex (OpenAI) for a second review.
+step also asks Codex (OpenAI) for a second review. What codex did is read by codex_observe_c.
 
-The `codex` npm entry point is a node script (`#!/usr/bin/env node`); linked by --tools next to `node`,
-it resolves node from the trial PATH and its native binary from the package's own directory, which
-claude_agent.tool_dirs reopens for reading. Every trial gets its own CODEX_HOME below the trial
-(`<trial>/codex-home`, outside the workspace, so neither the scope audit, the candidate overlay nor
-measure/ ever sees it) holding a copy of the maintainer's auth file (mode 0600) and CONFIG. Codex's own
-seatbelt sandbox is not used: the harness runs it with `-s danger-full-access`, and claude_agent.sb
-confines it exactly as it confines the agent (writes only below the trial, no keychain, no Unix sockets).
+PATH. `codex` is linked into <output>/bin/tools-codex, apart from the shared tools, and only arms whose
+harness uses it (every arm but native, arm_uses) get that directory on PATH, the package directory in
+the sandbox's tool slots and a CODEX_HOME. The npm entry point is a node script; it runs on the linked
+`node`. The node install directory every arm reopens for reading already contains the codex package, so
+a native agent could still run `node <that dir>/.../codex.js`; it has no CODEX_HOME and no login, and
+stream_c makes a native trial that runs codex invalid.
 
-Auth. A ChatGPT login refreshes its tokens in CODEX_HOME/auth.json, and a refresh token is single use:
-two homes refreshing from the same copy log each other out. After each trial a refreshed, well-formed
-auth.json for the same account is written back to --codex-auth-file, so the next trial starts from the
-newest tokens. The maintainer's own ~/.codex login is a separate copy and is never touched; refresh it
-(any `codex` call) before copying it, so a run inside the token lifetime never refreshes at all.
+Home. A codex arm's trial gets <trial>/codex-home (mode 0700, outside the workspace, so the scope audit
+and the candidate overlay never see it) holding CONFIG and a copy (0600) of the login. Codex's own
+seatbelt cannot nest inside claude_agent.sb, so the harness runs it with `-s danger-full-access` and the
+trial profile confines it as it confines the agent: writes only below the trial, no keychain.
 
-Contamination. CONFIG turns web search and every browser, app, plugin and connector tool off; the
-rollouts the trial's codex wrote (CODEX_HOME/sessions) are still scanned after the trial for any web
-search event and for shell commands that reach the network (network_c), and stream_c flags web search
-markers in the output of a Bash call that ran codex.
+Login. Use a dedicated login, made only for the run in its own CODEX_HOME
+(`CODEX_HOME=$HOME/pilot-c/codex-login codex login`, then pass $HOME/pilot-c/codex-login/auth.json),
+never ~/.codex (refused), and log it out after the run. The runner never writes the file it was given.
+A ChatGPT refresh token is single use: when a trial's copy refreshes, the given file holds a spent token,
+so the trial records codex_auth_rotated and the run stops (log in again, then --resume). Every exit
+path of a trial (normal, runner exception, a stop signal, --keep-trials, a partial trial set aside by
+--resume) deletes the copy and any byte-identical copy below the trial (scrub); a --dry-run trial gets
+PLACEHOLDER instead of the login. Residual risk, stated plainly: the agent can read its copy (and so
+can codex), the network is open, and the transcript in measure/ keeps whatever the agent printed, so a
+token it printed stays there; that is why the login is dedicated and logged out after the run.
 """
 import hashlib
 import json
 import os
 from pathlib import Path
+import pwd
+import stat
 import subprocess
 
-from network_c import network_reason
+from codex_observe_c import real_dir
 import surface_c
 
 MODEL = 'gpt-6.2-sol'
@@ -70,8 +76,11 @@ tool_suggest = false
 # every TLS connect (`is_connect=true`), while curl in the same sandbox succeeds; the macOS bundle loaded
 # through CODEX_CA_CERTIFICATE, which only codex reads, works. Other tools keep their own trust path.
 CA_BUNDLE = '/etc/ssl/cert.pem'
-TOKEN_KEYS = ('input_tokens', 'cached_input_tokens', 'output_tokens', 'reasoning_output_tokens', 'total_tokens')
-WEB_SEARCH_MARKERS = ('web_search', 'websearch', 'web search:')
+
+
+# What a --dry-run trial gets instead of the login: the dry run never starts codex.
+PLACEHOLDER = b'{"auth_mode": "dry-run-placeholder"}\n'
+MAX_AUTH_BYTES = 1 << 20
 
 
 def config_text(model: str = MODEL, effort: str = EFFORT) -> str:
@@ -81,7 +90,8 @@ def config_text(model: str = MODEL, effort: str = EFFORT) -> str:
 def add_arguments(ap) -> None:
     ap.add_argument('--codex-auth-file', type=Path,
                     help='mode-0600 copy of a codex auth.json: links codex onto the trial PATH with a per-trial '
-                         'CODEX_HOME (codex_c); refreshed logins are written back to this file')
+                         'CODEX_HOME (codex_c) for the arms that use it; a dedicated login, never ~/.codex, '
+                         'is only read, never written')
     ap.add_argument('--codex-model', default=MODEL)
     ap.add_argument('--codex-effort', default=EFFORT)
 
@@ -104,7 +114,8 @@ def arm_uses(ctx: dict, arm: str) -> bool:
 def trial_settings(args) -> dict | None:
     if not args.codex_auth_file:
         return None
-    return {'auth_file': Path(args.codex_auth_file).resolve(), 'model': args.codex_model, 'effort': args.codex_effort}
+    return {'auth_file': Path(args.codex_auth_file).resolve(), 'model': args.codex_model, 'effort': args.codex_effort,
+            'dry_run': bool(args.dry_run), 'config_sha256': settings(args)['config_sha256']}
 
 
 def settings(args) -> dict | None:
@@ -142,12 +153,21 @@ def _auth_object(data: bytes) -> dict:
     return auth
 
 
+def _account_homes() -> list:
+    """The account's own codex homes: ~/.codex under $HOME and under the passwd home."""
+    homes = {Path.home(), Path(pwd.getpwuid(os.getuid()).pw_dir)}
+    return [(home / '.codex').resolve() for home in homes]
+
+
 def read_auth(path: Path) -> bytes:
-    """The auth file's bytes; refuse a group- or world-readable file or one that is not a codex login."""
-    path = Path(path)
-    if path.stat().st_mode & 0o077:
+    """The login's bytes; refuse a file below ~/.codex, a group- or world-readable one or a non-login."""
+    resolved = Path(path).resolve()
+    for home in _account_homes():
+        if resolved == home or home in resolved.parents:
+            raise ValueError('use a dedicated codex login, not the account login below %s' % home)
+    if resolved.stat().st_mode & 0o077:
         raise ValueError('codex auth file must be mode 0600: ' + str(path))
-    data = path.read_bytes()
+    data = resolved.read_bytes()
     try:
         _auth_object(data)
     except ValueError as error:
@@ -155,128 +175,104 @@ def read_auth(path: Path) -> bytes:
     return data
 
 
-def _write_private(path: Path, data: bytes) -> None:
-    temp = path.with_name('.' + path.name + '.tmp')
-    descriptor = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(descriptor, 'wb') as out:
-        out.write(data)
-    os.chmod(temp, 0o600)
-    os.replace(temp, path)
+def _refresh_token(data: bytes | None):
+    try:
+        return (_auth_object(data).get('tokens') or {}).get('refresh_token')
+    except (TypeError, ValueError):
+        return None
 
 
 def install_home(trial: Path, codex: dict) -> dict:
-    """<trial>/codex-home with the auth copy and CONFIG; returns the agent env entries (CODEX_HOME, CA)."""
+    """<trial>/codex-home with CONFIG and the login copy (PLACEHOLDER in a dry run); returns the agent
+    env entries (CODEX_HOME, CA) and keeps the installed bytes in codex['installed'] for check and scrub."""
     home = Path(trial) / 'codex-home'
     home.mkdir(mode=0o700, parents=False, exist_ok=False)
-    _write_private(home / 'auth.json', read_auth(codex['auth_file']))
+    home.chmod(0o700)
+    data = PLACEHOLDER if codex.get('dry_run') else read_auth(codex['auth_file'])
+    descriptor = os.open(home / 'auth.json', os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(descriptor, 'wb') as out:
+        out.write(data)
     (home / 'config.toml').write_text(config_text(codex['model'], codex['effort']))
+    codex['installed'] = data
     return {'CODEX_HOME': str(home), 'CODEX_CA_CERTIFICATE': CA_BUNDLE}
 
 
-def write_back(trial: Path, auth_file: Path) -> str:
-    """Carry a refreshed login from the trial's home to auth_file; the trial controls that file, so only
-    a well-formed login for the same account replaces it. Returns unchanged, refreshed or rejected."""
-    copy = Path(trial) / 'codex-home' / 'auth.json'
-    try:
-        data = copy.read_bytes() if copy.is_file() and not copy.is_symlink() else None
-        current = Path(auth_file).read_bytes()
-        if data is None or data == current:
-            return 'unchanged'
-        new, old = _auth_object(data), _auth_object(current)
-    except (OSError, ValueError):
-        return 'rejected'
-    account = lambda auth: (auth.get('tokens') or {}).get('account_id')
-    if account(new) != account(old) or str(new.get('last_refresh') or '') < str(old.get('last_refresh') or ''):
-        return 'rejected'
-    _write_private(Path(auth_file), data)
-    return 'refreshed'
-
-
-def _commands(payload: dict) -> list:
-    """Shell commands in one rollout function call (exec / shell / local_shell argument shapes)."""
-    found = []
-    args = payload.get('arguments')
-    if isinstance(args, str):
-        try:
-            args = json.loads(args)
-        except ValueError:
-            args = {'cmd': args}
-    for source in (args, payload.get('action')):
-        if not isinstance(source, dict):
-            continue
-        for key in ('cmd', 'command', 'code', 'input'):
-            value = source.get(key)
-            if isinstance(value, list):
-                value = ' '.join(map(str, value))
-            if isinstance(value, str):
-                found.append(value)
-    return found
-
-
-def observe(trial: Path) -> dict | None:
-    """Sessions, web search events and network-reaching commands in the trial's codex rollouts."""
-    sessions = Path(trial) / 'codex-home' / 'sessions'
-    if not (Path(trial) / 'codex-home').is_dir():
+def _read_copy(trial: Path) -> bytes | None:
+    """The trial's login copy, read without following any link (home or file) out of the trial."""
+    home = Path(trial) / 'codex-home'
+    if not real_dir(home, trial):
         return None
-    result = {'sessions': 0, 'commands': 0, 'web_search': [], 'network_commands': [], 'tokens': None,
-              'sessions_without_usage': 0}
-    # The trial controls this tree: only regular files that really lie below it are read.
-    inside = sessions.is_dir() and Path(trial).resolve() in sessions.resolve().parents
-    for rollout in sorted(sessions.rglob('*.jsonl')) if inside else []:
-        if rollout.is_symlink():
-            continue
-        result['sessions'] += 1
-        usage = None
-        for line in rollout.read_text(errors='replace').splitlines():
+    try:
+        descriptor = os.open(home / 'auth.json', os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except OSError:
+        return None
+    with os.fdopen(descriptor, 'rb') as source:
+        info = os.fstat(source.fileno())
+        return source.read(MAX_AUTH_BYTES) if stat.S_ISREG(info.st_mode) else None
+
+
+def auth_rotated(trial: Path, codex: dict):
+    """True when the copy's refresh token is no longer the installed one, 'unknown' when the copy cannot
+    be read (deleted, replaced, a link): either way the given login may be spent. False otherwise."""
+    installed = _refresh_token(codex.get('installed'))
+    current = _read_copy(trial)
+    if current is None:
+        return 'unknown'
+    if current == codex.get('installed'):
+        return False
+    return _refresh_token(current) != installed
+
+
+def scrub(trial: Path, codex: dict) -> int:
+    """Delete <trial>/codex-home/auth.json (the entry itself, never a link's target) and every regular
+    file below the trial that holds exactly the installed bytes. Returns how many were deleted."""
+    trial, data, removed = Path(trial), codex.get('installed'), 0
+    home = trial / 'codex-home'
+    if real_dir(home, trial):
+        try:
+            os.unlink(home / 'auth.json')
+            removed += 1
+        except OSError:
+            pass
+    if not data or not real_dir(trial, trial.parent):
+        return removed
+    for directory, dirs, files in os.walk(trial, followlinks=False):
+        for name in dirs:
+            path = os.path.join(directory, name)
+            if stat.S_ISDIR(os.lstat(path).st_mode):
+                os.chmod(path, 0o700)
+        for name in files:
+            path = os.path.join(directory, name)
             try:
-                event = json.loads(line)
-            except ValueError:
+                info = os.lstat(path)
+                if not stat.S_ISREG(info.st_mode) or info.st_size != len(data):
+                    continue
+                descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+                with os.fdopen(descriptor, 'rb') as source:
+                    same = source.read(len(data) + 1) == data
+                if same:
+                    os.unlink(path)
+                    removed += 1
+            except OSError:
                 continue
-            payload = event.get('payload') if isinstance(event, dict) else None
-            if not isinstance(payload, dict):
-                continue
-            kind = str(payload.get('type') or '')
-            if kind == 'token_count':
-                # Cumulative per session: the last event holds the session's total.
-                usage = (payload.get('info') or {}).get('total_token_usage') or usage
-            if 'web_search' in kind.lower() or 'websearch' in kind.lower():
-                result['web_search'].append(json.dumps(payload)[:400])
-            if kind not in ('function_call', 'custom_tool_call', 'local_shell_call'):
-                continue
-            for command in _commands(payload):
-                result['commands'] += 1
-                try:
-                    reached = network_reason(command)
-                except ValueError:
-                    reached = 'unparsed'
-                if reached:
-                    result['network_commands'].append(command[:500])
-        _add_usage(result, usage)
-    return result
+    return removed
 
 
-def _add_usage(result: dict, usage) -> None:
-    """Sum one session's OpenAI usage into result['tokens']; a session without any stays None-free but
-    is counted in sessions_without_usage, so a partial total is never mistaken for the whole."""
-    if not isinstance(usage, dict):
-        result['sessions_without_usage'] += 1
-        return
-    totals = result['tokens'] or dict.fromkeys(TOKEN_KEYS, 0)
-    for key in TOKEN_KEYS:
-        value = usage.get(key)
-        if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
-            totals[key] += value
-    result['tokens'] = totals
+def scrub_partial(ctx: dict, trial: Path, arm: str) -> None:
+    """run_c's own sweep, after every trial whatever ended it and before --resume sets a partial trial
+    aside: scrub the trial of a codex arm against the login as it is now (a no-op once it is pruned)."""
+    codex = ctx.get('codex')
+    if arm_uses(ctx, arm) and Path(trial).exists():
+        scrub(trial, {**codex, 'installed': PLACEHOLDER if codex.get('dry_run') else read_auth(codex['auth_file'])})
 
 
-def contamination(observed: dict | None) -> list:
-    """The observation's flags in stream_c's contamination format."""
-    if not observed:
-        return []
-    return (['CODEX_WEB_SEARCH ' + entry for entry in observed['web_search']] +
-            ['CODEX ' + command for command in observed['network_commands']])
-
-
-def web_search_in_output(text: str) -> bool:
-    lowered = text.lower()
-    return any(marker in lowered for marker in WEB_SEARCH_MARKERS)
+def stop_for_rotation(row: dict) -> bool:
+    """Print why the run stops when this trial's login copy refreshed or could not be checked."""
+    if row.get('codex_auth_rotated') in (None, False):
+        return False
+    print('CODEX_AUTH_ROTATED: the codex login copy of %s-%s-k%d %s; the dedicated login given by '
+          '--codex-auth-file may now hold a spent refresh token. Log it in again (CODEX_HOME=<dir> codex '
+          'login), then continue with --resume.' % (row['task_id'], row['arm'], row['replicate'],
+                                                   'refreshed' if row['codex_auth_rotated'] is True else
+                                                   'could not be read back'), flush=True)
+    return True

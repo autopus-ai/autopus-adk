@@ -7,26 +7,21 @@ when it exits 2 or prints {"decision": "block"}. Bash commands that reach GitHub
 network are flagged as possible contamination: the fixed heads are public. Only commands that run count
 (network_c), so a Go import path in a here-document or a sed edit is not GitHub access; a web tool use
 (WebFetch, WebSearch, disallowed in every arm) is flagged too, and so is a web search marker in the output
-of a Bash call that ran codex (codex_c: a cross-model review step; its web search is configured off). Bash commands that set
-GOCACHE, TMPDIR, CGO_ENABLED, GOMODCACHE or GOFLAGS are recorded as env_overrides, a friction signal:
+of a Bash call that ran codex (codex_observe_c: a cross-model review step; its web search is configured
+off); codex sessions started and flags that leave its frozen configuration are counted too. Bash
+commands that set GOCACHE, TMPDIR, CGO_ENABLED, GOMODCACHE or GOFLAGS are recorded as env_overrides, a friction signal:
 an agent that replaces the trial's environment is working around it (and leaves the warm cache).
 """
 import json
 from pathlib import Path
-import re
 
-from codex_c import web_search_in_output
-
+from codex_observe_c import codex_runs, web_search_in_output
 from network_c import network_reason
 from observe import count, reject_json_constant, unique_object
 from trial_env_c import env_overrides
 
 MAX_LINE_BYTES = 8 * 1024 * 1024
 WEB_TOOLS = ('WebFetch', 'WebSearch')
-# codex in command position (start, after a separator or a wrapper such as perl's alarm exec, timeout,
-# nice or env, optionally by path) running a session: `grep codex exec` or a path mentioning codex is not one.
-CODEX_COMMAND = re.compile(r'(?:^|[;&|\n(`]|\$\(|\bexec\s+@ARGV\'|\btimeout\s+\d+|\bnice|\benv)\s*'
-                           r'(?:\'[^\']*\'\s*)?(?:[\w./-]*/)?codex\s+(?:exec|e|review)\b')
 USAGE_KEYS = ('input_tokens', 'output_tokens', 'cache_read_input_tokens', 'cache_creation_input_tokens')
 
 
@@ -51,7 +46,7 @@ def empty() -> dict:
             **{key: None for key in USAGE_KEYS}, 'total_tokens': None, 'model': None, 'permission_mode': None,
             'tool_uses': 0, 'subagent_tool_uses': 0, 'hook_events': 0, 'stop_hook_runs': 0, 'stop_outcomes': [],
             'stop_hook_blocks': [], 'contamination': [], 'env_overrides': [], 'final_text': None, 'incomplete_reasons': [],
-            'codex_calls': 0}
+            'codex_calls': 0, 'codex_bypass': []}
 
 
 def parse_stream(path: Path) -> dict:
@@ -105,9 +100,14 @@ def _observe(event: dict, result: dict, codex_ids: set) -> None:
             command = (use.get('input') or {}).get('command') if isinstance(use.get('input'), dict) else None
             if use.get('name') != 'Bash' or not isinstance(command, str):
                 continue
-            if CODEX_COMMAND.search(command):
-                result['codex_calls'] += 1
+            try:
+                runs = codex_runs(command)
+            except ValueError:
+                runs = []
+            if runs:
                 codex_ids.add(use.get('id'))
+            result['codex_calls'] += sum(1 for run in runs if run['session'])
+            result['codex_bypass'] += ['%s: %s' % (flag, command[:300]) for run in runs for flag in run['bypass']]
             try:
                 reached = network_reason(command)
             except ValueError:

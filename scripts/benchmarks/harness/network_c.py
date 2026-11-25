@@ -21,8 +21,8 @@ GIT_REMOTE = {'fetch', 'clone', 'pull', 'push', 'ls-remote'}
 GIT_OPTIONS_WITH_VALUE = {'-C', '-c', '--git-dir', '--work-tree', '--namespace', '--exec-path', '--config-env'}
 SHELLS = {'sh', 'bash', 'zsh', 'dash', 'ksh'}
 INTERPRETERS = {'python', 'python3', 'node', 'ruby', 'perl', 'deno', 'bun'}
-WRAPPERS = {'env', 'sudo', 'command', 'builtin', 'exec', 'time', 'nice', 'nohup', 'timeout', 'xargs', 'then',
-            'do', 'else', 'elif', '!', '{', 'if', 'while', 'until'}
+WRAPPERS = {'env', 'sudo', 'command', 'builtin', 'exec', 'time', 'nice', 'nohup', 'timeout', 'gtimeout', 'xargs',
+            'then', 'do', 'else', 'elif', '!', '{', 'if', 'while', 'until'}
 SEPARATORS = {';', '&&', '||', '|', '&', '(', ')', ';;', '|&', '\n'}
 ASSIGNMENT = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*=')
 HEREDOC = re.compile(r'<<(-?)[ \t]*(["\']?)([A-Za-z_][A-Za-z0-9_]*)\2')
@@ -80,7 +80,7 @@ def _strip_wrappers(words: list) -> list:
         if ASSIGNMENT.match(word) or word in WRAPPERS:
             i += 1
             # Wrapper options and their values (timeout 30, nice -n 5, env -u X, sudo -u user).
-            while i < len(words) and (words[i].startswith('-') or words[i - 1] in ('timeout', '-n', '-u')
+            while i < len(words) and (words[i].startswith('-') or words[i - 1] in ('timeout', 'gtimeout', '-n', '-u')
                                       and re.match(r'^[\w.]+$', words[i]) and words[i] not in NETWORK_TOOLS):
                 i += 1
             continue
@@ -155,6 +155,35 @@ def network_reason(command: str) -> str | None:
         if found:
             return found
     return None
+
+
+def simple_commands(command: str) -> list:
+    """Every simple command that runs in a Bash command line, as words with leading assignments and
+    wrappers still in place: the line itself, command substitutions, here-documents fed to a shell and
+    `sh -c` programs, the same reading network_reason uses. Here-document data fed to anything else and
+    quoted arguments are not commands (codex_observe_c reads codex runs from this)."""
+    text, bodies = _split_heredocs(command)
+    found = []
+    for opener, body in bodies:
+        heads = [_strip_wrappers(words)[:1] for words in _simple_commands(_tokens_or_empty(opener))]
+        if any(head and head[0].lstrip('`$(').rsplit('/', 1)[-1] in SHELLS for head in heads):
+            found += simple_commands(body)
+    for match in SUBSTITUTION.finditer(text):
+        found += simple_commands(match.group(1) or match.group(2) or '')
+    for words in _simple_commands(_tokens_or_empty(text)):
+        found.append(words)
+        stripped = _strip_wrappers(words)
+        if stripped and stripped[0].lstrip('`$(').rsplit('/', 1)[-1] in SHELLS:
+            for flag, program in zip(stripped[1:], stripped[2:]):
+                if flag.startswith('-') and 'c' in flag:
+                    found += simple_commands(program)
+                    break
+    return found
+
+
+def strip_wrappers(words: list) -> list:
+    """The words of one simple command without leading VAR=value assignments and wrappers."""
+    return _strip_wrappers(words)
 
 
 def _tokens_or_empty(text: str) -> list:
