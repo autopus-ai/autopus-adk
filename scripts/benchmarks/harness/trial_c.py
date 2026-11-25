@@ -122,10 +122,13 @@ def prepare(ctx: dict, task: dict, arm: str, name: str) -> dict:
     home = claude_agent.isolated_home(trial, arm, work)
     grade_c.clone_tree(source['warm_cache'], trial / 'gocache')
     modcache = trial_env_c.clone_modcache(ctx['modcache'], trial / 'gomodcache')
+    codex = codex_c.arm_uses(ctx, arm)
+    path = [source['bin_dir'], ctx['tools_dir']] + ([ctx['codex']['tools_dir']] if codex else [])
     env = claude_agent.agent_env(ctx['base_env'], home, trial / 'tmp', ctx['credential_kind'], ctx['credential'],
-                                 [source['bin_dir'], ctx['tools_dir']], ctx['shell'])
+                                 path, ctx['shell'])
     env.update(go_env(trial, trial / 'gocache', trial / 'gomodcache'))
-    if ctx.get('codex'):
+    tools = {**ctx['tools'], **ctx['codex']['tools']} if codex else ctx['tools']
+    if codex:
         env.update(codex_c.install_home(trial, ctx['codex']))
     argv = claude_agent.claude_argv(arm, ctx['model'], ctx['effort'], ctx['permission_mode'], ctx['claude'])
     # The build cache keys packages by directory, and this trial's workspace and module cache paths are
@@ -138,7 +141,7 @@ def prepare(ctx: dict, task: dict, arm: str, name: str) -> dict:
         if not ctx['sandbox']:
             return command
         return claude_agent.sandboxed(command, trial, ctx['output'], ctx['output'] / 'bin', env['GOMODCACHE'],
-                                      ctx['tools'], ctx['account_home'], ctx['protected'],
+                                      tools, ctx['account_home'], ctx['protected'],
                                       ctx['frozen']['agent_profile'])
     # What the Bash tool resolves: Claude Code snapshots its environment with `$SHELL -c -l`.
     probe = [str(ctx['shell']), '-c', '-l', 'for t in auto go claude codex gemini gh omp opencode; do '

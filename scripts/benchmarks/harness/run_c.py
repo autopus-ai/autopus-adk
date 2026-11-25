@@ -159,7 +159,7 @@ def main(argv=None) -> int:
                 'surfaces': {b[:12]: {k: v for k, v in s['generated'].items() if k != 'manifest'}
                              for b, s in ctx['sources'].items()}, 'dry_run': args.dry_run,
                 'trial_environment': TRIAL_ENVIRONMENT, 'modcache': modcache_size(ctx['modcache'])}
-    codex_c.record_version(protocol, ctx)
+    codex_c.prepare_run(protocol, ctx)
     if args.dry_run:
         return dry_run(ctx, plan, protocol)
     if args.resume:

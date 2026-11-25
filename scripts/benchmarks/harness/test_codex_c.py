@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 
 import codex_c
+import report_c
 import run_c
 import stream_c
 
@@ -35,9 +36,14 @@ class OptionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             path = private(Path(d) / 'auth.json', auth(token='SECRET-TOKEN'))
             args = run_c.parse(ARGS + ['--codex-auth-file', str(path)])
-            self.assertEqual(codex_c.tool_names(args), ['go', 'gofmt', 'claude', 'node', 'codex'])
+            # codex gets its own directory (prepare_run), never the shared tools every arm sees.
+            self.assertEqual(codex_c.tool_names(args), ['go', 'gofmt', 'claude', 'node'])
             args = run_c.parse(ARGS + ['--codex-auth-file', str(path), '--tools', 'go,codex,node'])
-            self.assertEqual(codex_c.tool_names(args), ['go', 'codex', 'node'])
+            self.assertEqual(codex_c.tool_names(args), ['go', 'node'])
+            ctx = {'codex': codex_c.trial_settings(args)}
+            self.assertEqual([codex_c.arm_uses(ctx, a) for a in ('native', 'instructions', 'full')],
+                             [False, True, True])
+            self.assertFalse(codex_c.arm_uses({'codex': None}, 'full'))
             recorded = codex_c.settings(args)
             self.assertEqual((recorded['model'], recorded['effort']), (codex_c.MODEL, codex_c.EFFORT))
             self.assertNotIn('SECRET', json.dumps(recorded))
@@ -53,6 +59,28 @@ class OptionTests(unittest.TestCase):
             with self.assertRaises(ValueError) as caught:
                 codex_c.read_auth(private(Path(d) / 'other.json', b'{"x": "SECRET"}'))
             self.assertNotIn('SECRET', str(caught.exception))
+
+
+class PrepareRunTests(unittest.TestCase):
+    def test_codex_is_linked_apart_and_its_version_recorded(self):
+        with tempfile.TemporaryDirectory() as d:
+            host = Path(d) / 'host'
+            host.mkdir()
+            fake = host / 'codex'
+            fake.write_text('#!/bin/sh\necho codex-cli 9.9.9\n')
+            fake.chmod(0o755)
+            ctx = {'codex': {'model': 'm'}, 'output': Path(d) / 'out', 'tools_dir': Path(d) / 'out' / 'bin' / 'tools',
+                   'base_env': {'PATH': str(host)}}
+            protocol = {'codex': {}}
+            codex_c.prepare_run(protocol, ctx)
+            self.assertEqual(ctx['codex']['tools_dir'], Path(d) / 'out' / 'bin' / 'tools-codex')
+            self.assertEqual(ctx['codex']['tools'], {'codex': os.path.realpath(fake)})
+            self.assertEqual(protocol['codex']['version'], 'codex-cli 9.9.9')
+            self.assertFalse(ctx['tools_dir'].exists(), 'the shared tools stay without codex')
+            ctx['codex'] = {'model': 'm'}
+            codex_c.prepare_run(protocol, ctx)
+            self.assertEqual(ctx['codex']['tools'], {'codex': os.path.realpath(fake)}, 'a resume reuses the link')
+            codex_c.prepare_run(protocol, {'codex': None})
 
 
 class HomeTests(unittest.TestCase):
@@ -109,6 +137,12 @@ class WriteBackTests(unittest.TestCase):
         self.assertEqual(self.source.read_bytes(), original)
 
 
+def usage(inputs, cached, output):
+    total = {'input_tokens': inputs, 'cached_input_tokens': cached, 'output_tokens': output,
+             'reasoning_output_tokens': 0, 'total_tokens': inputs + output}
+    return {'type': 'event_msg', 'payload': {'type': 'token_count', 'info': {'total_token_usage': total}}}
+
+
 class ObservationTests(unittest.TestCase):
     def test_rollout_web_search_and_network_commands_are_contamination(self):
         with tempfile.TemporaryDirectory() as d:
@@ -121,10 +155,17 @@ class ObservationTests(unittest.TestCase):
                       {'type': 'response_item', 'payload': {'type': 'function_call', 'name': 'exec',
                                                             'arguments': json.dumps({'cmd': 'gh pr view 12'})}},
                       {'type': 'response_item', 'payload': {'type': 'web_search_call', 'action': {'query': 'q'}}},
-                      {'type': 'event_msg', 'payload': {'type': 'agent_message', 'message': 'web_search is off'}}]
+                      {'type': 'event_msg', 'payload': {'type': 'agent_message', 'message': 'web_search is off'}},
+                      usage(100, 40, 5), usage(300, 120, 9)]
             (day / 'rollout-1.jsonl').write_text('\n'.join(map(json.dumps, events)) + '\nnot json\n')
+            (day / 'rollout-2.jsonl').write_text(json.dumps(usage(50, 0, 1)) + '\n')
+            (day / 'rollout-3.jsonl').write_text('{}\n')
             seen = codex_c.observe(trial)
-            self.assertEqual((seen['sessions'], seen['commands']), (1, 2))
+            self.assertEqual((seen['sessions'], seen['commands']), (3, 2))
+            # token_count is cumulative within a session: the last one counts, sessions add up.
+            self.assertEqual(seen['tokens'], {'input_tokens': 350, 'cached_input_tokens': 120, 'output_tokens': 10,
+                                              'reasoning_output_tokens': 0, 'total_tokens': 360})
+            self.assertEqual(seen['sessions_without_usage'], 1)
             self.assertEqual(seen['network_commands'], ['gh pr view 12'])
             self.assertEqual(len(seen['web_search']), 1)
             flags = codex_c.contamination(seen)
@@ -151,6 +192,36 @@ class ObservationTests(unittest.TestCase):
         self.assertEqual(seen['codex_calls'], 2)
         self.assertEqual(seen['contamination'], ['CODEX_WEB_SEARCH in output of tool use b'])
         json.dumps(seen)
+        # native has no codex and no harness that asks for it: running it makes the trial invalid.
+        self.assertFalse(stream_c.arm_valid('native', seen))
+        self.assertTrue(stream_c.arm_valid('native', dict(seen, codex_calls=0)))
+        self.assertTrue(stream_c.arm_valid('full', dict(seen, hook_events=1)))
+
+    def test_codex_command_position_only(self):
+        runs = ['codex exec "x" </dev/null', "perl -e 'alarm 480; exec @ARGV' codex exec -s danger-full-access 'b'",
+                'git diff | codex exec -', 'timeout 900 codex exec x', 'cd w && /opt/bin/codex review']
+        mentions = ['grep -rn codex .', 'grep codex exec f', 'ls ~/.codex', 'echo codex exec', 'cat codex_c.py']
+        self.assertEqual([bool(stream_c.CODEX_COMMAND.search(c)) for c in runs], [True] * 5)
+        self.assertEqual([bool(stream_c.CODEX_COMMAND.search(c)) for c in mentions], [False] * 5)
+
+
+class ReportTests(unittest.TestCase):
+    def test_openai_usage_is_reported_per_arm_and_trial(self):
+        base = {'task_id': 'c03', 'replicate': 1, 'operational_error': None, 'arm_valid': True,
+                'agent': {'elapsed_seconds': 1.0}, 'observation': {'total_tokens': 10}, 'scope': {}, 'oracle': None}
+        tokens = {'input_tokens': 350, 'cached_input_tokens': 120, 'output_tokens': 10,
+                  'reasoning_output_tokens': 4, 'total_tokens': 360}
+        records = [dict(base, arm='native', codex=None),
+                   dict(base, arm='full', codex={'sessions': 2, 'tokens': tokens, 'sessions_without_usage': 1,
+                                                 'web_search': [], 'network_commands': ['gh pr view']})]
+        summary = report_c.summarize(records)
+        self.assertEqual((summary['full']['codex_tokens'], summary['full']['codex_usage_unknown']), (360, 1))
+        self.assertEqual(summary['native']['codex_tokens'], 0)
+        text = report_c.to_markdown(summary, records)
+        self.assertIn('| full | 2 | 360 | 1 |', text)
+        self.assertIn('| c03-full-k1 | 2 | 350 | 120 | 10 | 4 | 360 | 1 |', text)
+        self.assertNotIn('c03-native-k1 | 0', text)
+        self.assertNotIn('Codex (OpenAI)', report_c.to_markdown(summary, records[:1]))
 
 
 if __name__ == '__main__':

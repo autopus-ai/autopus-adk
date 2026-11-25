@@ -27,6 +27,7 @@ from pathlib import Path
 import subprocess
 
 from network_c import network_reason
+import surface_c
 
 MODEL = 'gpt-6.2-sol'
 EFFORT = 'high'
@@ -69,6 +70,7 @@ tool_suggest = false
 # every TLS connect (`is_connect=true`), while curl in the same sandbox succeeds; the macOS bundle loaded
 # through CODEX_CA_CERTIFICATE, which only codex reads, works. Other tools keep their own trust path.
 CA_BUNDLE = '/etc/ssl/cert.pem'
+TOKEN_KEYS = ('input_tokens', 'cached_input_tokens', 'output_tokens', 'reasoning_output_tokens', 'total_tokens')
 WEB_SEARCH_MARKERS = ('web_search', 'websearch', 'web search:')
 
 
@@ -85,12 +87,18 @@ def add_arguments(ap) -> None:
 
 
 def tool_names(args) -> list:
-    """--tools, plus codex when --codex-auth-file is given (whose file is checked here, before any work)."""
+    """--tools for every arm. With --codex-auth-file (checked here, before any work) codex is left out:
+    prepare_run links it into its own directory, which only arms that use it get (arm_uses)."""
     names = [name for name in args.tools.split(',') if name]
     if args.codex_auth_file:
         read_auth(args.codex_auth_file)
-        names += [] if 'codex' in names else ['codex']
+        names = [name for name in names if name != 'codex']
     return names
+
+
+def arm_uses(ctx: dict, arm: str) -> bool:
+    """native has no project harness, so nothing in it calls codex: it gets no codex, home or package dir."""
+    return bool(ctx.get('codex')) and arm != 'native'
 
 
 def trial_settings(args) -> dict | None:
@@ -109,13 +117,22 @@ def settings(args) -> dict | None:
             'sandbox': 'codex -s danger-full-access inside claude_agent.sb'}
 
 
-def record_version(protocol: dict, ctx: dict) -> None:
-    """`codex --version` as a trial resolves it: the linked entry point run by the linked node."""
-    if ctx.get('codex'):
-        tools = ctx['tools_dir']
-        protocol['codex']['version'] = subprocess.run(
-            [str(tools / 'codex'), '--version'], capture_output=True, text=True,
-            env={'PATH': '%s:/usr/bin:/bin' % tools, 'HOME': str(ctx['output'])}).stdout.strip()
+def prepare_run(protocol: dict, ctx: dict) -> None:
+    """Link codex into <output>/bin/tools-codex (once; a resumed run reuses it) and record its target and
+    `codex --version` as a trial resolves it: the linked entry point run by the linked node."""
+    codex = ctx.get('codex')
+    if not codex:
+        return
+    codex['tools_dir'] = ctx['output'] / 'bin' / 'tools-codex'
+    if codex['tools_dir'].exists():
+        codex['tools'] = {'codex': os.path.realpath(codex['tools_dir'] / 'codex')}
+    else:
+        codex['tools'] = surface_c.link_tools(codex['tools_dir'], ['codex'], ctx['base_env'].get('PATH', ''))
+    path = '%s:%s:/usr/bin:/bin' % (codex['tools_dir'], ctx['tools_dir'])
+    protocol['codex']['target'] = codex['tools']['codex']
+    protocol['codex']['version'] = subprocess.run(
+        [str(codex['tools_dir'] / 'codex'), '--version'], capture_output=True, text=True,
+        env={'PATH': path, 'HOME': str(ctx['output'])}).stdout.strip()
 
 
 def _auth_object(data: bytes) -> dict:
@@ -201,13 +218,15 @@ def observe(trial: Path) -> dict | None:
     sessions = Path(trial) / 'codex-home' / 'sessions'
     if not (Path(trial) / 'codex-home').is_dir():
         return None
-    result = {'sessions': 0, 'commands': 0, 'web_search': [], 'network_commands': []}
+    result = {'sessions': 0, 'commands': 0, 'web_search': [], 'network_commands': [], 'tokens': None,
+              'sessions_without_usage': 0}
     # The trial controls this tree: only regular files that really lie below it are read.
     inside = sessions.is_dir() and Path(trial).resolve() in sessions.resolve().parents
     for rollout in sorted(sessions.rglob('*.jsonl')) if inside else []:
         if rollout.is_symlink():
             continue
         result['sessions'] += 1
+        usage = None
         for line in rollout.read_text(errors='replace').splitlines():
             try:
                 event = json.loads(line)
@@ -217,6 +236,9 @@ def observe(trial: Path) -> dict | None:
             if not isinstance(payload, dict):
                 continue
             kind = str(payload.get('type') or '')
+            if kind == 'token_count':
+                # Cumulative per session: the last event holds the session's total.
+                usage = (payload.get('info') or {}).get('total_token_usage') or usage
             if 'web_search' in kind.lower() or 'websearch' in kind.lower():
                 result['web_search'].append(json.dumps(payload)[:400])
             if kind not in ('function_call', 'custom_tool_call', 'local_shell_call'):
@@ -229,7 +251,22 @@ def observe(trial: Path) -> dict | None:
                     reached = 'unparsed'
                 if reached:
                     result['network_commands'].append(command[:500])
+        _add_usage(result, usage)
     return result
+
+
+def _add_usage(result: dict, usage) -> None:
+    """Sum one session's OpenAI usage into result['tokens']; a session without any stays None-free but
+    is counted in sessions_without_usage, so a partial total is never mistaken for the whole."""
+    if not isinstance(usage, dict):
+        result['sessions_without_usage'] += 1
+        return
+    totals = result['tokens'] or dict.fromkeys(TOKEN_KEYS, 0)
+    for key in TOKEN_KEYS:
+        value = usage.get(key)
+        if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+            totals[key] += value
+    result['tokens'] = totals
 
 
 def contamination(observed: dict | None) -> list:

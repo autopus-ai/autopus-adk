@@ -31,7 +31,9 @@ def summarize(records: list) -> dict:
                                            'scope_violations': 0, 'arm_invalid': 0, 'contaminated': 0,
                                            'elapsed_seconds': 0.0, 'known_tokens': 0, 'usage_unknown': 0,
                                            'stop_hook_blocks': 0, 'env_override_trials': 0, 'review_new_passed': 0,
-                                           'review_new_total': 0, 'review_new_unknown': 0, **{k + '_passed': 0 for k in KINDS},
+                                           'review_new_total': 0, 'review_new_unknown': 0, 'codex_sessions': 0,
+                                           'codex_tokens': 0, 'codex_usage_unknown': 0,
+                                           **{k + '_passed': 0 for k in KINDS},
                                            **{k + '_total': 0 for k in KINDS}})
         arm['trials'] += 1
         agent, observation, oracle = row.get('agent') or {}, row.get('observation') or {}, row.get('oracle')
@@ -53,11 +55,41 @@ def summarize(records: list) -> dict:
         arm['elapsed_seconds'] = round(arm['elapsed_seconds'] + agent.get('elapsed_seconds', 0.0), 3)
         arm['stop_hook_blocks'] += len(observation.get('stop_hook_blocks') or [])
         arm['env_override_trials'] += int(bool(observation.get('env_overrides')))
+        _add_codex(arm, row.get('codex'))
         if observation.get('total_tokens') is None:
             arm['usage_unknown'] += 1
         else:
             arm['known_tokens'] += observation['total_tokens']
     return arms
+
+
+def _add_codex(arm: dict, codex: dict | None) -> None:
+    """OpenAI usage of the trial's codex sessions (codex_c.observe); a session without usage is unknown."""
+    if not codex:
+        return
+    arm['codex_sessions'] += codex.get('sessions', 0)
+    arm['codex_tokens'] += (codex.get('tokens') or {}).get('total_tokens', 0)
+    arm['codex_usage_unknown'] += codex.get('sessions_without_usage', 0)
+
+
+def _codex_table(summary: dict, records: list) -> list:
+    """OpenAI (codex) usage per arm and per trial; empty when no trial ran with codex."""
+    rows = [row for row in records if row.get('codex')]
+    if not rows:
+        return []
+    lines = ['', '## Codex (OpenAI) usage', '', '| arm | sessions | total tokens | sessions without usage |',
+             '|' + '---|' * 4]
+    lines += ['| %s | %d | %d | %d |' % (arm, s['codex_sessions'], s['codex_tokens'], s['codex_usage_unknown'])
+              for arm, s in summary.items() if s['codex_sessions'] or s['codex_usage_unknown']]
+    lines += ['', '| trial | sessions | input | cached input | output | reasoning | total | flags |', '|' + '---|' * 8]
+    for row in rows:
+        codex, tokens = row['codex'], row['codex'].get('tokens') or {}
+        flags = len(codex.get('web_search') or []) + len(codex.get('network_commands') or [])
+        lines.append('| %s-%s-k%d | %d | %s | %s | %s | %s | %s | %d |' % (
+            row['task_id'], row['arm'], row['replicate'], codex.get('sessions', 0),
+            *(tokens.get(key, '-') for key in ('input_tokens', 'cached_input_tokens', 'output_tokens',
+                                                'reasoning_output_tokens', 'total_tokens')), flags))
+    return lines
 
 
 def _cases(o: dict | None, kind: str) -> str:
@@ -92,6 +124,7 @@ def to_markdown(summary: dict, records: list, excluded=()) -> str:
             _cases(o, 'guard'), (row.get('agent') or {}).get('elapsed_seconds', 0.0),
             (row.get('observation') or {}).get('total_tokens'), row.get('operational_error'),
             ', '.join(overrides) or '-'))
+    lines += _codex_table(summary, records)
     return '\n'.join(lines) + '\n'
 
 

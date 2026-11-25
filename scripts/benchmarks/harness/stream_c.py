@@ -23,7 +23,10 @@ from trial_env_c import env_overrides
 
 MAX_LINE_BYTES = 8 * 1024 * 1024
 WEB_TOOLS = ('WebFetch', 'WebSearch')
-CODEX_COMMAND = re.compile(r'(^|[\s;&|(/`])codex(\s|$)')
+# codex in command position (start, after a separator or a wrapper such as perl's alarm exec, timeout,
+# nice or env, optionally by path) running a session: `grep codex exec` or a path mentioning codex is not one.
+CODEX_COMMAND = re.compile(r'(?:^|[;&|\n(`]|\$\(|\bexec\s+@ARGV\'|\btimeout\s+\d+|\bnice|\benv)\s*'
+                           r'(?:\'[^\']*\'\s*)?(?:[\w./-]*/)?codex\s+(?:exec|e|review)\b')
 USAGE_KEYS = ('input_tokens', 'output_tokens', 'cache_read_input_tokens', 'cache_creation_input_tokens')
 
 
@@ -158,5 +161,8 @@ def _observe_result(event: dict, result: dict) -> None:
 
 
 def arm_valid(arm: str, observation: dict) -> bool:
-    """full must show hook events; native and instructions must show none."""
+    """full must show hook events; native and instructions must show none. native has no harness that
+    asks codex for a review (and no codex on its PATH), so a native trial that runs codex is invalid."""
+    if arm == 'native' and observation.get('codex_calls'):
+        return False
     return observation['hook_events'] > 0 if arm == 'full' else observation['hook_events'] == 0

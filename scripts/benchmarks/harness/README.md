@@ -550,9 +550,11 @@ toolchain.
 
 Codex review (`codex_c.py`, opt-in). For a harness variant whose review step also asks Codex
 (OpenAI) for a second review, `--codex-auth-file /absolute/codex-auth.json` (a mode-0600 copy of a
-`codex` login's `auth.json`) links `codex` onto the trial PATH (the npm entry point is a node script;
-it runs on the linked `node`, and its package directory is reopened like any tool's) and gives every
-trial its own `CODEX_HOME=<trial>/codex-home` with a copy of the login and a `config.toml` that sets
+`codex` login's `auth.json`) links `codex` into `<output>/bin/tools-codex`, apart from the shared
+tools, and puts it on the PATH of the arms whose harness uses it, every arm but `native` (the npm entry
+point is a node script; it runs on the linked `node`, and its package directory is reopened like any
+tool's in those arms only). A `native` trial that still runs `codex exec` or `codex review` is
+`arm_invalid`. Each of those trials gets its own `CODEX_HOME=<trial>/codex-home` with a copy of the login and a `config.toml` that sets
 `--codex-model` (default `gpt-6.2-sol`, priority 1 in the 0.170 catalog) at `--codex-effort` (default
 `high`, the agent's default effort), turns web search (`web_search = "disabled"`, legacy
 `[tools] web_search = false`), browser, computer use, apps, plugins, connectors, memories, image
@@ -567,7 +569,9 @@ points at `/etc/ssl/cert.pem` (read only by codex). After the trial the runner s
 rollouts (`CODEX_HOME/sessions`) for web search events and network-reaching shell commands
 (`network_c`), stream_c flags web search markers in the output of any Bash call that ran codex, and
 both land in `observation.contamination`; `result.json` gets a `codex` summary (sessions, commands,
-flags, auth). A ChatGPT login rotates its refresh token on refresh, and two copies refreshing from the
+flags, auth, and OpenAI usage summed over the sessions from each rollout's last `token_count`, with
+sessions that recorded none counted apart), and `report.md` adds a Codex (OpenAI) usage table per arm
+and per trial, since this cost is not in the Claude token totals. A ChatGPT login rotates its refresh token on refresh, and two copies refreshing from the
 same token log each other out: a refreshed, well-formed login for the same account is written back to
 `--codex-auth-file` after each trial, but the login it was copied from is not updated. Refresh that
 login (any `codex` call) right before copying it, so a run inside the token lifetime never refreshes.
