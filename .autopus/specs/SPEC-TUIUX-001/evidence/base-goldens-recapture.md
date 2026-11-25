@@ -480,4 +480,5 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 원인: `content/rules/autonomy.md`, reviewer 에이전트(content·codex·gemini), 검증 라운드 안내에 reviewer 뒤 codex가 있으면 같은 brief로 Codex 리뷰를 한 번 더 받는다는 문장을 더했다.
 - 기록: `go run ./cmd/generate-templates` 뒤 `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run '^(TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6ShowsTheSettingsBeforeAnyWrite)$'`. 쓰기 모드가 stdout golden을 비워서 stdout 파일은 HEAD로 되돌렸다.
 - 차이: NPD 다섯 개(init-in, init-pipe, init-yes, update-ci, update-yes)에서 rule·reviewer 파일의 checksum, 두 manifest와 journal checksum, update 흐름의 backup 사본만 바뀌었다. stdout golden은 그대로다.
+- 후속: Codex 리뷰 상한을 8분(`perl -e 'alarm 480; exec @ARGV'`)으로 줄인 autonomy 규칙에 맞춰 같은 명령으로 다시 기록했다.
 - 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.
