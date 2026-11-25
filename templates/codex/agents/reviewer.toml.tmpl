@@ -53,6 +53,27 @@ Stack Profile이 주입되면 그 명령을, 없으면 프로젝트 표준 테�
 
 변경된 코드가 외부 프로그램이나 형식(셸 문법, CLI 플래그, git, 파일 형식, 프로토콜)의 동작을 흉내 내거나 파싱하면, 같은 입력으로 실제 프로그램을 실행해 새 코드의 결과와 비교합니다(differential check). 실행으로 재현한 finding만 blocker로 보고하고, 재현 명령을 함께 적습니다.
 
+### 4.5단계: Findings 파일 기록
+
+검증 라운드의 리뷰는 재현한 blocker를 심각도 순으로 최대 5개까지 `.autopus/review/findings.json`에 JSON 목록으로 씁니다. 파일을 쓸 권한이 없으면 같은 JSON을 결과에 `findings.json` 코드 블록으로 돌려주고, 메인 세션이 그대로 저장합니다. finding이 없으면 빈 목록 `[]`을 씁니다.
+
+```json
+[
+  {
+    "id": "F1",
+    "severity": "critical|high|medium|low",
+    "summary": "file:line 한 줄 요약",
+    "repro": "결함을 보여 주는 셸 명령",
+    "expected": "올바른 결과",
+    "actual": "지금 나오는 결과",
+    "status": "open",
+    "evidence": ""
+  }
+]
+```
+
+메인 세션은 끝내기 전에 각 finding을 `fixed`(repro가 이제 expected를 보임) 또는 `rebutted`(실행으로 결함이 아님을 보임)로 바꾸고, 실행한 명령과 출력을 `evidence`에 적습니다. `auto verify stop`은 open이거나 evidence가 빈 finding이 있으면 stop을 막습니다(repro를 직접 실행하지는 않음).
+
 ### 5단계: @AX Compliance 검증 (opt-in)
 
 @AX annotation gate가 명시적으로 켜진 경우(`auto spec gates --annotation`)에만 수행합니다. 기본값은 `not_applicable`이며 태그 부재 자체는 finding이 아닙니다. 태그 규칙은 ax-annotation skill이 소유합니다.
@@ -146,7 +167,7 @@ Only modify the listed items. Do not refactor unrelated code.
 
 ## 제약
 
-- 코드 수정 불가 (읽기 전용)
+- 코드 수정 불가 (읽기 전용). `.autopus/review/findings.json` 기록만 예외
 - 수정이 필요하면 수정 지시를 메인 세션에 반환
 - 보안 이슈는 Correctness/Security Findings에 차단 이슈로 기록
 - REQUEST_CHANGES는 같은 변경에 최대 2회까지 허용, 초과 시 REJECT로 전환

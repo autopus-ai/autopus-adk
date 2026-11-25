@@ -30,6 +30,7 @@ __pycache__/
 .autopus/qa/feedback/
 .autopus/qa/evidence/
 .autopus/qa/releases/
+.autopus/review/
 .autopus/runtime/
 .autopus/state.json
 .autopus/omp-model-resolution-v1.json

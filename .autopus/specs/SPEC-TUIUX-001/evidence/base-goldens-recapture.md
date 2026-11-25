@@ -474,3 +474,10 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 기록: `go run ./cmd/generate-templates` 뒤 `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run '^(TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6ShowsTheSettingsBeforeAnyWrite)$'`.
 - 차이: NPD 다섯 개(init-in, init-pipe, init-yes, update-ci, update-yes)에서 rule·reviewer·qa-autopilot·root doc 파일의 checksum, 두 manifest와 journal checksum, update 흐름의 backup 사본만 바뀌었다. stdout golden은 그대로다.
 - 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.
+
+## 리뷰 finding 해소 게이트 (bench/harness-pilot-c-v3b, 2026-11-25)
+
+- 원인: `content/rules/autonomy.md`와 reviewer 에이전트(content·codex·gemini)에 리뷰어가 `.autopus/review/findings.json`을 쓰고, 메인 세션이 끝내기 전에 각 finding을 evidence와 함께 fixed/rebutted로 바꾼다는 문장을 더했다.
+- 기록: `go run ./cmd/generate-templates` 뒤 `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run '^(TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6ShowsTheSettingsBeforeAnyWrite)$'`.
+- 차이: NPD 다섯 개(init-in, init-pipe, init-yes, update-ci, update-yes)에서 rule·reviewer 파일의 checksum, 두 manifest와 journal checksum, update 흐름의 backup 사본만 바뀌었다. stdout golden은 그대로다.
+- 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.

@@ -91,7 +91,10 @@ func newVerifyStopCmd() *cobra.Command {
 			"(AUTOPUS_FOLLOWUP=off turns it off). Tests, comments, docs, configuration and generated files alone get no round. " +
 			"Fewer than 40 changed product code lines get the light round: one foreground reviewer that checks by executing. " +
 			"40 or more lines or a new product file get the full round: the same review, plus auto qa intent, auto qa go --no-loop, " +
-			"auto qa exec --all and the qa-explorer hunt when it has a user-runnable, security or data-loss surface or the user asks.",
+			"auto qa exec --all and the qa-explorer hunt when it has a user-runnable, security or data-loss surface or the user asks. " +
+			"While .autopus/review/findings.json (the reviewer's findings, the five most severe enforced) has a finding that is open, " +
+			"or fixed or rebutted without evidence, a stop that would otherwise go through is blocked with each one's id, summary and " +
+			"repro (the hook never runs a repro), also on the same tree, at most 3 times per session; after that they are a note.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if last {
@@ -140,7 +143,8 @@ func runVerifyStop(cmd *cobra.Command, stdin io.Reader, budget time.Duration, fo
 	}
 	warning = joinWarnings(warning, versionWarn)
 	budget = stopBudget(cmd, root, budget)
-	return withSecretWarning(verifyChanged(cmd, in, root, changed, budget, followup), warning)
+	out := withFindings(in, root, verifyChanged(cmd, in, root, changed, budget, followup))
+	return withSecretWarning(out, warning)
 }
 
 // verifyChanged builds and tests the changed files, then applies the
@@ -306,6 +310,7 @@ func resetStopState(session string) {
 	_ = os.Remove(stopStateFile(session, "budget"))
 	_ = os.Remove(stopStateFile(session, "hang"))
 	_ = os.Remove(stopStateFile(session, "baseline"))
+	_ = os.Remove(stopStateFile(session, "findings"))
 }
 
 func firstLine(s string) string {

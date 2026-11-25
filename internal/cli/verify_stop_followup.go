@@ -65,9 +65,13 @@ If a fix needs a decision only the user can make (product behavior, scope, a pol
 // of its misses in code that models an external program; the reviewer found
 // them only by running that program. Findings were lost when the agent ended
 // its turn while the reviewer still ran, so the review runs in the foreground.
-const followupReview = `1. Run the reviewer agent on ` + "`git diff HEAD`" + ` (and new files) against what the user asked for, in the foreground: wait for its result in this turn, and do not end the turn while it runs. Require differential checking: where the changed code models or parses an external program or format (shell grammar, CLI flags, git, file formats, protocols), the reviewer runs the real program on the same inputs and compares it with the new code. It reports only blockers reproduced by execution (wrong behavior, missing cases, security or data-loss risk), each with file, line and the command that shows it.`
+const followupReview = `1. Run the reviewer agent on ` + "`git diff HEAD`" + ` (and new files) against what the user asked for, in the foreground: wait for its result in this turn, and do not end the turn while it runs. Require differential checking: where the changed code models or parses an external program or format (shell grammar, CLI flags, git, file formats, protocols), the reviewer runs the real program on the same inputs and compares it with the new code. It reports only blockers reproduced by execution (wrong behavior, missing cases, security or data-loss risk), each with file, line and the command that shows it, and records the five most severe in ` + "`" + reviewFindingsPath + "`" + ` (` + findingsFormat + `); if it cannot write files, save the list it returns there unchanged before fixing anything.`
 
-const followupFix = ` Apply every confirmed finding, rerun the affected tests, and finish with a short summary of what was checked and fixed. The fixes do not get another review.`
+// findingsFormat is the findings file format the round asks for, the one
+// withFindings reads.
+const findingsFormat = `a JSON list of {"id", "severity": critical|high|medium|low, "summary", "repro": a shell command that shows the defect, "expected", "actual", "status": "open", "evidence": ""}`
+
+const followupFix = ` Resolve every finding in ` + "`" + reviewFindingsPath + "`" + ` before finishing: fix it, rerun its repro until it shows the expected result, and set "status": "fixed", or show by execution that it is not a defect and set "status": "rebutted"; in both cases put the command you ran and its output in "evidence". The stop is blocked while a finding is open or lacks evidence. Rerun the affected tests and finish with a short summary of what was checked and fixed. The fixes do not get another review.`
 
 // followupFullReason is the round for a large change: the review, and
 // scenario QA plus the hunt only when the change has something a user runs.
