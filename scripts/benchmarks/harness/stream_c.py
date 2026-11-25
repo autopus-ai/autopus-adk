@@ -107,7 +107,7 @@ def _observe(event: dict, result: dict, codex_ids: set) -> None:
             if runs:
                 codex_ids.add(use.get('id'))
             result['codex_calls'] += sum(1 for run in runs if run['session'])
-            result['codex_bypass'] += ['%s: %s' % (flag, command[:300]) for run in runs for flag in run['bypass']]
+            result['codex_bypass'] += [dict(entry, command=command[:300]) for run in runs for entry in run['bypass']]
             try:
                 reached = network_reason(command)
             except ValueError:

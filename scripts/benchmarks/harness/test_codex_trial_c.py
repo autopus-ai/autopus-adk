@@ -15,7 +15,7 @@ import trial_c
 from test_codex_c import auth, codex_ctx, private
 
 
-def stub_trial(ctx, agent_action, arm='full', fail=None):
+def stub_trial(ctx, agent_action, arm='full', fail=None, plan=False, at_grade=None):
     """trial_c.run with every stage stubbed; the agent acts only below its own trial."""
     out = ctx['output']
     trial, measure, _ = trial_c.names(ctx, 'c01-%s-k1' % arm)
@@ -38,6 +38,8 @@ def stub_trial(ctx, agent_action, arm='full', fail=None):
         return {'exit_code': 0, 'timed_out': False, 'stragglers': 0, 'leftover': False, 'elapsed_seconds': 1.0}
 
     def fake_grade(*_args, **_kwargs):
+        if at_grade:
+            at_grade(trial)
         if fail:
             raise fail
         return {'review_passed': 0, 'review_total': 0}
@@ -48,7 +50,12 @@ def stub_trial(ctx, agent_action, arm='full', fail=None):
             mock.patch.object(trial_c.guard_c, 'loadavg', lambda: 0), \
             mock.patch.object(trial_c.grade_c, 'grade_candidate', fake_grade), \
             mock.patch.object(trial_c.report_c, 'review_beyond_base', lambda *a: {}):
-        return trial_c.run(ctx, {'id': 'c01', 'allowed_paths': ['pkg/']}, arm, 1), trial
+        task = {'id': 'c01', 'allowed_paths': ['pkg/']}
+        if plan:
+            ctx.setdefault('keep_trials', True)
+            with contextlib.redirect_stdout(io.StringIO()) as printed:
+                return run_c.run_plan(ctx, [(task, arm, 1)]), printed.getvalue()
+        return trial_c.run(ctx, task, arm, 1), trial
 
 
 def rollout(trial: Path, events: list) -> None:
@@ -99,13 +106,51 @@ class TrialRunTests(unittest.TestCase):
         self.assertFalse(codex_c.stop_for_rotation(dict(row, codex_auth_rotated=False)))
 
     def test_the_copy_is_deleted_on_an_exception_and_a_stop_signal(self):
-        for failure in (RuntimeError('grading blew up'), run_c.Interrupted(signal.SIGTERM)):
-            with self.subTest(failure=type(failure).__name__):
-                ctx = {'output': self.root / type(failure).__name__, 'codex': codex_ctx(self.source)}
-                with self.assertRaises(type(failure)):
-                    stub_trial(ctx, lambda trial, _: None, fail=failure)
-                left = list((ctx['output']).rglob('auth.json'))
-                self.assertEqual(left, [])
+        def raising(failure):
+            def agent(trial, _events):
+                # A copy outside the home too, so only a sweep on the way out can find it.
+                private(trial / 'tmp' / 'stash.json', (trial / 'codex-home' / 'auth.json').read_bytes())
+                raise failure
+            return agent
+        for stage in ('agent', 'grading'):
+            for failure in (RuntimeError('blew up'), run_c.Interrupted(signal.SIGTERM)):
+                with self.subTest(stage=stage, failure=type(failure).__name__):
+                    ctx = {'output': self.root / stage / type(failure).__name__, 'codex': codex_ctx(self.source)}
+                    with self.assertRaises(type(failure)):
+                        if stage == 'agent':
+                            stub_trial(ctx, raising(failure))
+                        else:
+                            stub_trial(ctx, lambda trial, _: None, fail=failure)
+                    self.assertEqual(list((ctx['output']).rglob('auth.json')), [])
+                    self.assertEqual(list((ctx['output']).rglob('stash.json')), [])
+
+    def test_a_copy_under_an_allowed_path_is_gone_before_grading(self):
+        seen = []
+
+        def agent(trial, _events):
+            private(trial / 'workspace' / 'pkg' / 'leak.json', (trial / 'codex-home' / 'auth.json').read_bytes())
+        row, trial = stub_trial(self.ctx(), agent, at_grade=lambda t: seen.append(
+            (t / 'workspace' / 'pkg' / 'leak.json').exists()))
+        self.assertEqual(seen, [False], 'the overlay must never see the copy')
+        self.assertEqual(list((self.root / 'out').rglob('leak.json')), [])
+
+    def test_a_runner_exception_keeps_the_rotation_and_still_stops(self):
+        code, printed = stub_trial(self.ctx(), lambda trial, _: private(trial / 'codex-home' / 'auth.json',
+                                                                        auth(refresh='r1')),
+                                   fail=RuntimeError('grading blew up'), plan=True)
+        self.assertEqual(code, 3)
+        self.assertIn('CODEX_AUTH_ROTATED', printed)
+        result = json.loads((self.root / 'out' / 'measure' / 'c01-full-k1' / 'result.json').read_text())
+        self.assertEqual((result['operational_error'], result['codex_auth_rotated']), ('runner_exception', True))
+
+    def test_an_exception_before_the_check_counts_an_unreadable_copy_as_rotated(self):
+        def agent(trial, _events):
+            (trial / 'codex-home' / 'auth.json').unlink()
+            raise RuntimeError('agent stage blew up')
+        ctx = self.ctx()
+        with self.assertRaises(RuntimeError):
+            stub_trial(ctx, agent)
+        self.assertEqual(ctx['codex']['last_rotated'], 'unknown')
 
     def test_native_never_gets_a_home(self):
         row, trial = stub_trial(self.ctx(), lambda trial, _: None, arm='native')

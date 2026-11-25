@@ -130,8 +130,7 @@ def main(argv=None) -> int:
     output.mkdir(parents=True, exist_ok=True)
     frozen = guard_c.frozen_paths(output) if args.resume else guard_c.freeze(output, corpus)
     ctx = {'output': output, 'keep_trials': args.keep_trials, 'base_env': dict(os.environ), 'model': args.model,
-           'effort': args.effort,
-           'timeout': args.timeout, 'permission_mode': args.permission_mode, 'frozen': frozen,
+           'effort': args.effort, 'timeout': args.timeout, 'permission_mode': args.permission_mode, 'frozen': frozen,
            'tools_dir': output / 'bin' / 'tools', 'tool_names': codex_c.tool_names(args),
            'claude': str(output / 'bin' / 'tools' / 'claude'), 'sandbox': not args.no_sandbox,
            'shell': output / 'bin' / 'shell' / 'zsh',
@@ -232,7 +231,8 @@ def run_plan(ctx: dict, plan: list) -> int:
         except Exception:
             # A runner failure is an observation of this trial, not the end of the run.
             row = {'task_id': task['id'], 'arm': arm, 'replicate': replicate, 'operational_error': 'runner_exception',
-                   'traceback': traceback.format_exc()[-4000:], 'oracle': None}
+                   'traceback': traceback.format_exc()[-4000:], 'oracle': None,
+                   'codex_auth_rotated': codex_c.last_rotation(ctx, arm)}
             measure.mkdir(parents=True, exist_ok=True)
             trial_c.write_json(measure / 'result.json', row)
         finally:

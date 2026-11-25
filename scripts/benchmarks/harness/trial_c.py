@@ -156,11 +156,18 @@ def run(ctx: dict, task: dict, arm: str, replicate: int) -> dict:
     """One trial. A codex arm's login copy is deleted on every way out (codex_c.scrub), a stop signal
     and a runner exception included."""
     name = '%s-%s-k%d' % (task['id'], arm, replicate)
+    codex = ctx['codex'] if codex_c.arm_uses(ctx, arm) else None
+    if codex:
+        codex.update(installed=None, last_rotated=None)
     try:
         return _run(ctx, task, arm, replicate, name)
     finally:
-        if codex_c.arm_uses(ctx, arm) and ctx['codex'].get('installed'):
-            codex_c.scrub(names(ctx, name)[0], ctx['codex'])
+        if codex and codex.get('installed'):
+            trial = names(ctx, name)[0]
+            if codex['last_rotated'] is None:
+                # Failed before the check: a copy that cannot be shown unspent counts as rotated.
+                codex['last_rotated'] = codex_c.auth_rotated(trial, codex)
+            codex_c.scrub(trial, codex)
 
 
 def _run(ctx: dict, task: dict, arm: str, replicate: int, name: str) -> dict:
@@ -180,8 +187,11 @@ def _run(ctx: dict, task: dict, arm: str, replicate: int, name: str) -> dict:
     codex = rotated = None
     if codex_c.arm_uses(ctx, arm):
         codex = codex_observe_c.observe(trial, ctx['codex']['config_sha256'])
-        observation['contamination'] += codex_observe_c.reconcile(codex, observation)
-        rotated = codex_c.auth_rotated(trial, ctx['codex'])
+        observation['contamination'] += codex_observe_c.reconcile(codex, observation, ctx['codex'])
+        rotated = ctx['codex']['last_rotated'] = codex_c.auth_rotated(trial, ctx['codex'])
+        if not agent['leftover']:
+            # Before grading: a copy the agent wrote under an allowed path must not reach the overlay.
+            codex_c.scrub(trial, ctx['codex'])
     agent['tree_coverage'] = 'sandbox_instance_and_descendants' if ctx['sandbox'] else 'descendants_only'
     graded = None
     if not agent['leftover']:

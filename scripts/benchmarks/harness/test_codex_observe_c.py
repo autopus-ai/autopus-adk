@@ -47,7 +47,11 @@ class DetectionTests(unittest.TestCase):
                  'cat > n.md <<EOF\ncodex exec is not here\nEOF']
         for command in texts:
             self.assertEqual(observe_c.codex_runs(command), [], command)
-        self.assertEqual(observe_c.codex_runs('codex --version'), [{'session': False, 'bypass': []}])
+        for command in ('codex --version', 'codex exec --help', 'codex review --help'):
+            self.assertEqual(observe_c.codex_runs(command), [{'session': False, 'bypass': []}], command)
+        for command in ('npx -y @openai/codex@0.170.0 exec x', 'eval "codex exec x"', 'script -q /dev/null codex exec x',
+                        'caffeinate -i codex exec x'):
+            self.assertEqual([r['session'] for r in observe_c.codex_runs(command)], [True], command)
 
     def test_flags_that_leave_the_frozen_config_are_bypasses(self):
         cases = {'codex exec --ephemeral x': '--ephemeral', 'codex exec --ignore-user-config x': '--ignore-user-config',
@@ -56,7 +60,17 @@ class DetectionTests(unittest.TestCase):
                  'CODEX_HOME=/t/h codex exec x': 'CODEX_HOME', 'env CODEX_HOME=/t/h codex exec x': 'CODEX_HOME',
                  'export CODEX_HOME=/x; codex exec y': 'CODEX_HOME'}
         for command, flag in cases.items():
-            self.assertIn(flag, observe_c.codex_runs(command)[0]['bypass'], command)
+            self.assertIn(flag, [e['flag'] for e in observe_c.codex_runs(command)[0]['bypass']], command)
+        self.assertEqual(observe_c.codex_runs('ls $CODEX_HOME/sessions; codex exec x')[0]['bypass'], [],
+                         'naming the home is not assigning it')
+        frozen = {'model': 'gpt-6.2-sol', 'effort': 'high'}
+        stream = {'codex_bypass': [dict(e, command='c') for c in ('codex exec -m gpt-6.2-sol x',
+                                                                   'codex exec -c model_reasoning_effort=high x',
+                                                                   'codex exec -m gpt-5 x')
+                                   for e in observe_c.codex_runs(c)[0]['bypass']]}
+        seen = {'web_search': [], 'network_commands': [], 'home_intact': True, 'config_intact': True,
+                'sessions_intact': True, 'archived': False, 'unscanned': 0, 'sessions': 0, 'sessions_without_usage': 0}
+        self.assertEqual(observe_c.reconcile(seen, stream, frozen), ['CODEX_BYPASS -m=gpt-5: c'])
         brief = "perl -e 'alarm 480; exec @ARGV' codex exec --skip-git-repo-check -s danger-full-access " \
                 "-o \"${TMPDIR:-/tmp}/codex-review.md\" \"<brief>\" </dev/null 2>&1"
         self.assertEqual(observe_c.codex_runs(brief), [{'session': True, 'bypass': []}], 'the v3c brief')
@@ -112,12 +126,30 @@ class RolloutTests(unittest.TestCase):
             day = home(trial)
             (day / 'rollout-1.jsonl').write_text(json.dumps(usage(10, 0, 1)) + '\n')
             seen = observe_c.observe(trial, CONFIG_SHA)
-            flags = observe_c.reconcile(seen, {'codex_calls': 2, 'codex_bypass': ['--ephemeral: codex exec']})
+            bypass = [{'flag': '--ephemeral', 'value': '', 'command': 'codex exec'}]
+            flags = observe_c.reconcile(seen, {'codex_calls': 2, 'codex_bypass': bypass})
             self.assertIn('CODEX_UNOBSERVED 2 started, 1 observed', flags)
             self.assertIn('CODEX_BYPASS --ephemeral: codex exec', flags)
             self.assertIsNone(seen['tokens'])
             (trial / 'codex-home' / 'config.toml').write_text('web_search = "live"\n')
-            self.assertIn('CODEX_CONFIG_CHANGED', observe_c.reconcile(observe_c.observe(trial, CONFIG_SHA), {}))
+            seen = observe_c.observe(trial, CONFIG_SHA)
+            self.assertIn('CODEX_CONFIG_CHANGED', observe_c.reconcile(seen, {}))
+            self.assertTrue(seen['usage_unknown'])
+            (trial / 'codex-home' / 'config.toml').write_text(codex_c.config_text())
+            archived = trial / 'codex-home' / 'archived_sessions'
+            archived.mkdir()
+            (archived / 'rollout-old.jsonl').write_text('{}\n')
+            self.assertIn('CODEX_ARCHIVED_SESSIONS', observe_c.reconcile(observe_c.observe(trial, CONFIG_SHA), {}))
+            (archived / 'rollout-old.jsonl').unlink()
+            archived.rmdir()
+            sessions = trial / 'codex-home' / 'sessions'
+            sessions.rename(Path(d) / 'moved-sessions')
+            sessions.symlink_to(Path(d) / 'moved-sessions')
+            seen = observe_c.observe(trial, CONFIG_SHA)
+            self.assertIn('CODEX_SESSIONS_REPLACED', observe_c.reconcile(seen, {'codex_calls': 0}))
+            self.assertTrue(seen['usage_unknown'])
+            sessions.unlink()
+            (Path(d) / 'moved-sessions').rename(sessions)
             (trial / 'codex-home').rename(Path(d) / 'elsewhere')
             (trial / 'codex-home').symlink_to(Path(d) / 'elsewhere')
             seen = observe_c.observe(trial, CONFIG_SHA)
@@ -145,7 +177,7 @@ class StreamTests(unittest.TestCase):
             seen = stream_c.parse_stream(path)
         self.assertEqual(seen['codex_calls'], 2)
         self.assertEqual(seen['contamination'], ['CODEX_WEB_SEARCH in output of tool use b'])
-        self.assertEqual([flag.split(':')[0] for flag in seen['codex_bypass']], ['--ephemeral'])
+        self.assertEqual([entry['flag'] for entry in seen['codex_bypass']], ['--ephemeral'])
         json.dumps(seen)
         self.assertFalse(stream_c.arm_valid('native', seen))
         self.assertTrue(stream_c.arm_valid('native', dict(seen, codex_calls=0)))

@@ -225,7 +225,10 @@ def auth_rotated(trial: Path, codex: dict):
 
 def scrub(trial: Path, codex: dict) -> int:
     """Delete <trial>/codex-home/auth.json (the entry itself, never a link's target) and every regular
-    file below the trial that holds exactly the installed bytes. Returns how many were deleted."""
+    file below the trial that holds exactly the installed bytes. os.fwalk works on directory file
+    descriptors without following links, so a link the agent swaps in mid-walk cannot lead the sweep
+    out of the trial. Never raises: it runs in finally blocks, where an error would mask a stop signal.
+    Returns how many entries were deleted."""
     trial, data, removed = Path(trial), codex.get('installed'), 0
     home = trial / 'codex-home'
     if real_dir(home, trial):
@@ -236,34 +239,54 @@ def scrub(trial: Path, codex: dict) -> int:
             pass
     if not data or not real_dir(trial, trial.parent):
         return removed
-    for directory, dirs, files in os.walk(trial, followlinks=False):
-        for name in dirs:
-            path = os.path.join(directory, name)
-            if stat.S_ISDIR(os.lstat(path).st_mode):
-                os.chmod(path, 0o700)
-        for name in files:
-            path = os.path.join(directory, name)
-            try:
-                info = os.lstat(path)
-                if not stat.S_ISREG(info.st_mode) or info.st_size != len(data):
+    try:
+        for _path, dirs, files, root in os.fwalk(trial, follow_symlinks=False):
+            for name in dirs:
+                try:
+                    if stat.S_ISDIR(os.lstat(name, dir_fd=root).st_mode):
+                        os.chmod(name, 0o700, dir_fd=root, follow_symlinks=False)
+                except (OSError, NotImplementedError):
                     continue
-                descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
-                with os.fdopen(descriptor, 'rb') as source:
-                    same = source.read(len(data) + 1) == data
-                if same:
-                    os.unlink(path)
-                    removed += 1
-            except OSError:
-                continue
+            for name in files:
+                removed += _remove_if_copy(name, root, data)
+    except OSError:
+        pass
     return removed
+
+
+def _remove_if_copy(name: str, root: int, data: bytes) -> int:
+    try:
+        info = os.lstat(name, dir_fd=root)
+        if not stat.S_ISREG(info.st_mode) or info.st_size != len(data):
+            return 0
+        descriptor = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=root)
+        with os.fdopen(descriptor, 'rb') as source:
+            same = source.read(len(data) + 1) == data
+        if same:
+            os.unlink(name, dir_fd=root)
+            return 1
+    except OSError:
+        pass
+    return 0
+
+
+def last_rotation(ctx: dict, arm: str):
+    """The rotation verdict of the arm's latest trial (trial_c.run records it before grading, or in its
+    finally when the trial failed earlier), so a runner exception still stops the run."""
+    return ctx['codex'].get('last_rotated') if arm_uses(ctx, arm) else None
 
 
 def scrub_partial(ctx: dict, trial: Path, arm: str) -> None:
     """run_c's own sweep, after every trial whatever ended it and before --resume sets a partial trial
     aside: scrub the trial of a codex arm against the login as it is now (a no-op once it is pruned)."""
     codex = ctx.get('codex')
-    if arm_uses(ctx, arm) and Path(trial).exists():
-        scrub(trial, {**codex, 'installed': PLACEHOLDER if codex.get('dry_run') else read_auth(codex['auth_file'])})
+    if not (arm_uses(ctx, arm) and Path(trial).exists()):
+        return
+    try:
+        data = PLACEHOLDER if codex.get('dry_run') else read_auth(codex['auth_file'])
+    except (OSError, ValueError):
+        data = codex.get('installed')
+    scrub(trial, {**codex, 'installed': data})
 
 
 def stop_for_rotation(row: dict) -> bool:

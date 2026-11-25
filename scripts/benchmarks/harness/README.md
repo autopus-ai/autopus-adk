@@ -581,24 +581,34 @@ points at `/etc/ssl/cert.pem` (read only by codex).
 The login. The runner only reads `--codex-auth-file`, never writes it. A ChatGPT refresh token is single
 use: when a trial's copy refreshed (its refresh token is no longer the installed one) or cannot be read
 back, the trial records `codex_auth_rotated` and the run stops with `CODEX_AUTH_ROTATED`; log the
-dedicated login in again and continue with `--resume`. The copy is deleted on every way out of a trial
-(normal end, runner exception, a stop signal, `--keep-trials`, a partial trial `--resume` sets aside),
-together with any regular file below the trial that holds the same bytes. Residual risk, plainly: the
+dedicated login in again and continue with `--resume`. A runner exception keeps the verdict; a trial
+that failed before the check counts an unreadable copy as rotated. Right after the check, and before
+grading, every regular file below the trial that holds the copy's bytes is deleted, so a copy the agent
+wrote under an allowed path never reaches the overlay or `measure/`. The sweep uses `os.fwalk` and
+never follows a link. The copy is deleted again on every way out of a trial: normal end, runner
+exception, a stop signal, `--keep-trials`, or a partial trial that `--resume` sets aside. A
+reformatted copy (same tokens, other bytes) is not found by the sweep. Residual risk, plainly: the
 agent and codex can read the copy, the network is open, and `measure/` keeps the transcript, so a token
 the agent printed stays there. That is why the login is dedicated and logged out after the run.
 
-Observation, fail-closed. stream_c counts the codex sessions the agent's Bash commands start. Detection
-uses network_c's command reading, so codex is found behind wrappers (`timeout`, `perl -e 'alarm N;
-exec @ARGV'`, `env`, `nohup`, `npx`) and inside `sh -c`, never in here-document text. stream_c also
-records flags that leave the frozen config (`--ephemeral`, `--ignore-user-config`, `--search`, `-c`,
-`--enable`, `--profile`, `--model`, a `CODEX_HOME` override) as `CODEX_BYPASS`, and web search markers in
-a codex call's output. The rollouts below the home are walked without following links. Only regular
+Observation, fail-closed. stream_c counts the codex sessions the agent's Bash commands start
+(`--help` and `--version` are not sessions). Detection uses network_c's command reading, so codex is
+found behind wrappers (`timeout`, `gtimeout`, `perl -e 'alarm N; exec @ARGV'`, `env`, `nohup`,
+`caffeinate`, `script`, `npx` including `@openai/codex@<version>`, `node .../codex.js`), inside `sh -c`
+and `eval`, and never in here-document text. Not seen there: codex started indirectly, by a name held in
+a variable (`C=codex; $C exec`), through a script file, another language's subprocess or a command
+substitution such as `node $(which codex)`. Such sessions still appear in the rollouts, and a trial
+whose observed sessions do not match is flagged. stream_c also records flags that leave the frozen
+config as `CODEX_BYPASS`: `--ephemeral`, `--ignore-user-config`, `--search`, `--enable`, `--profile`,
+`-c` or `-m` unless they only repeat the frozen model or effort, and an assigned (not merely named)
+`CODEX_HOME`. It also records web search markers in a codex call's output. The rollouts below the home are walked without following links. Only regular
 `*.jsonl` files up to 64 MiB are read, with O_NOFOLLOW and O_NONBLOCK (a FIFO cannot block the runner),
 and any other `*.jsonl*` counts as unscanned. From them the runner takes web search events,
 network-reaching shell commands and OpenAI usage (each session's last `token_count`). Contamination
-flags cover all of these: a replaced home, a changed `config.toml`, unscanned rollouts and more
-sessions started than observed (`CODEX_UNOBSERVED`). In all those cases the trial's usage is unknown,
-never a partial sum. `report.md` adds a Codex (OpenAI) usage table per arm and per trial, since this
+flags cover all of these: a replaced home (`CODEX_HOME_REPLACED`) or sessions directory
+(`CODEX_SESSIONS_REPLACED`), a non-empty `archived_sessions` (`CODEX_ARCHIVED_SESSIONS`), a changed
+`config.toml` (`CODEX_CONFIG_CHANGED`), unscanned rollouts and more sessions started than observed
+(`CODEX_UNOBSERVED`). In all those cases the trial's usage is unknown, never a partial sum. `report.md` adds a Codex (OpenAI) usage table per arm and per trial, since this
 cost is not in the Claude token totals. The protocol records the model, effort, config hash, codex
 target and `codex --version`, and `--resume` refuses a change to them.
 

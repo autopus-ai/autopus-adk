@@ -171,6 +171,13 @@ class HomeTests(unittest.TestCase):
         self.assertEqual(outside.read_bytes(), self.source.read_bytes(), 'a link target outside stays')
         self.assertEqual(self.source.read_bytes(), auth(), 'the given login is never written')
 
+    def test_scrub_never_follows_a_directory_link_out_of_the_trial(self):
+        codex_c.install_home(self.trial, self.codex)
+        outside = private(self.root / 'outside' / 'auth.json', self.source.read_bytes())
+        (self.trial / 'x').symlink_to(outside.parent)
+        codex_c.scrub(self.trial, self.codex)
+        self.assertTrue(outside.exists(), 'a same-bytes file behind a directory link stays')
+
     def test_scrub_does_not_reach_through_a_replaced_home(self):
         codex_c.install_home(self.trial, self.codex)
         (self.trial / 'codex-home').rename(self.trial / 'moved')
