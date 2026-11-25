@@ -53,6 +53,8 @@ Stack Profile이 주입되면 그 명령을, 없으면 프로젝트 표준 테�
 
 변경된 코드가 외부 프로그램이나 형식(셸 문법, CLI 플래그, git, 파일 형식, 프로토콜)의 동작을 흉내 내거나 파싱하면, 같은 입력으로 실제 프로그램을 실행해 새 코드의 결과와 비교합니다(differential check). 실행으로 재현한 finding만 blocker로 보고하고, 재현 명령을 함께 적습니다.
 
+호출한 세션은 이 리뷰가 끝난 뒤, Codex CLI(`codex`)가 PATH에 있으면 같은 brief로 다른 모델의 리뷰를 한 번 더 받아 두 finding 목록을 합칩니다. 합칠 수 있도록 각 finding에 파일, 줄, 재현 명령을 빠짐없이 적습니다. codex가 없으면 이 단계는 조용히 생략되며, 리뷰어가 codex를 직접 실행하지는 않습니다.
+
 ### 5단계: @AX Compliance 검증 (opt-in)
 
 @AX annotation gate가 명시적으로 켜진 경우(`auto spec gates --annotation`)에만 수행합니다. 기본값은 `not_applicable`이며 태그 부재 자체는 finding이 아닙니다. 태그 규칙은 ax-annotation skill이 소유합니다.

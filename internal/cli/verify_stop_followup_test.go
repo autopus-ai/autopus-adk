@@ -83,6 +83,11 @@ func TestVerifyStop_SmallBehaviorChangeGetsTheLightRound(t *testing.T) {
 	assert.Contains(t, out.Reason, "light verification round")
 	assert.Contains(t, out.Reason, "in the foreground", "a reviewer still running when the turn ends loses its findings")
 	assert.Contains(t, out.Reason, "runs the real program on the same inputs")
+	// A second review by another vendor's model, only where its CLI exists.
+	assert.Contains(t, out.Reason, "command -v codex")
+	assert.Contains(t, out.Reason, "</dev/null", "a non-interactive review must not wait on stdin")
+	assert.Contains(t, out.Reason, "skip this without mentioning it")
+	assert.Less(t, strings.Index(out.Reason, "reviewer agent"), strings.Index(out.Reason, "codex exec"), "codex reviews after the reviewer")
 	for _, qa := range []string{"auto qa intent", "auto qa exec", "qa-explorer", "auto qa hunt"} {
 		assert.NotContains(t, out.Reason, qa, "the light round is the review only")
 	}
