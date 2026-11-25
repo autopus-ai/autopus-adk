@@ -14,6 +14,7 @@ import subprocess
 import time
 
 import claude_agent
+import codex_c
 import grade_c
 import guard_c
 import oracle_c
@@ -124,6 +125,8 @@ def prepare(ctx: dict, task: dict, arm: str, name: str) -> dict:
     env = claude_agent.agent_env(ctx['base_env'], home, trial / 'tmp', ctx['credential_kind'], ctx['credential'],
                                  [source['bin_dir'], ctx['tools_dir']], ctx['shell'])
     env.update(go_env(trial, trial / 'gocache', trial / 'gomodcache'))
+    if ctx.get('codex'):
+        env.update(codex_c.install_home(trial, ctx['codex']))
     argv = claude_agent.claude_argv(arm, ctx['model'], ctx['effort'], ctx['permission_mode'], ctx['claude'])
     # The build cache keys packages by directory, and this trial's workspace and module cache paths are
     # its own: the warm-up compiles them here, before the agent's clock, for `go build ./...` and the
@@ -160,6 +163,10 @@ def run(ctx: dict, task: dict, arm: str, replicate: int) -> dict:
     observation = stream_c.parse_stream(measure / 'events.jsonl')
     scope = oracle_c.audit_globs(before, hashes(plan['work']), task['allowed_paths'])
     valid = stream_c.arm_valid(arm, observation)
+    codex = codex_c.observe(trial)
+    if codex is not None:
+        observation['contamination'] += codex_c.contamination(codex)
+        codex['auth'] = codex_c.write_back(trial, ctx['codex']['auth_file'])
     agent['tree_coverage'] = 'sandbox_instance_and_descendants' if ctx['sandbox'] else 'descendants_only'
     graded = None
     if not agent['leftover']:
@@ -172,7 +179,8 @@ def run(ctx: dict, task: dict, arm: str, replicate: int) -> dict:
                    'agent_error' if observation['is_error'] else 'arm_invalid' if not valid else None)
     row = {'task_id': task['id'], 'arm': arm, 'replicate': replicate, 'operational_error': operational,
            'warm': warm, 'agent': agent, 'observation': observation, 'arm_valid': valid, 'scope': scope,
-           'oracle': graded, 'modcache_clone': plan['modcache_clone'], 'loadavg': {'start': load_start, 'end': load_end},
+           'oracle': graded, 'codex': codex, 'modcache_clone': plan['modcache_clone'],
+           'loadavg': {'start': load_start, 'end': load_end},
            'prompt_hash': digest(plan['prompt'].encode()), 'human_interventions': 0,
            'harness_revision': plan['source']['harness_revision'],
            'surface_hash': plan['source']['generated']['surface_hash'] if arm != 'native' else None}

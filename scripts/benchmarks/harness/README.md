@@ -479,7 +479,7 @@ is no sandbox instance to count, so a process that left the tree before the
 first walk is invisible: `leftover` is then recorded as unknown (null), never
 as false. The trial PATH is the pinned `auto`,
 symlinks to `--tools` (default `go,gofmt,claude,node`) and
-`/usr/bin:/bin:/usr/sbin:/sbin`: other agent CLIs on the host PATH would be
+`/usr/bin:/bin:/usr/sbin:/sbin` (plus `codex` with `--codex-auth-file`, below): other agent CLIs on the host PATH would be
 detected by `auto update` as platforms and could be called by a review step on
 another account. Claude Code snapshots the Bash tool's environment with
 `$SHELL -c -l`, and a login zsh runs `/etc/zprofile` (path_helper), which would
@@ -547,6 +547,32 @@ cwd file to `CLAUDE_CODE_TMPDIR`, which is set inside the trial. Not covered: ma
 policy settings and anything the account or organisation serves remotely (the
 same in every arm), TCP (the model is remote), and reads of the system and
 toolchain.
+
+Codex review (`codex_c.py`, opt-in). For a harness variant whose review step also asks Codex
+(OpenAI) for a second review, `--codex-auth-file /absolute/codex-auth.json` (a mode-0600 copy of a
+`codex` login's `auth.json`) links `codex` onto the trial PATH (the npm entry point is a node script;
+it runs on the linked `node`, and its package directory is reopened like any tool's) and gives every
+trial its own `CODEX_HOME=<trial>/codex-home` with a copy of the login and a `config.toml` that sets
+`--codex-model` (default `gpt-6.2-sol`, priority 1 in the 0.170 catalog) at `--codex-effort` (default
+`high`, the agent's default effort), turns web search (`web_search = "disabled"`, legacy
+`[tools] web_search = false`), browser, computer use, apps, plugins, connectors, memories, image
+generation and subagents off, keeps the login in the file (`cli_auth_credentials_store = "file"`, no
+keychain) and disables analytics and feedback; every key is checked with `codex exec --strict-config`
+(0.170.0). The home lies outside the workspace, so the scope audit, the candidate overlay and
+`measure/` never see it, and it is pruned with the trial. Codex's own seatbelt cannot nest inside
+`claude_agent.sb` (`sandbox_apply: Operation not permitted`), so the harness runs it with
+`-s danger-full-access` and the trial profile confines it as it confines the agent. Inside the profile
+codex's default TLS trust path fails every connect while curl succeeds, so `CODEX_CA_CERTIFICATE`
+points at `/etc/ssl/cert.pem` (read only by codex). After the trial the runner scans the trial's
+rollouts (`CODEX_HOME/sessions`) for web search events and network-reaching shell commands
+(`network_c`), stream_c flags web search markers in the output of any Bash call that ran codex, and
+both land in `observation.contamination`; `result.json` gets a `codex` summary (sessions, commands,
+flags, auth). A ChatGPT login rotates its refresh token on refresh, and two copies refreshing from the
+same token log each other out: a refreshed, well-formed login for the same account is written back to
+`--codex-auth-file` after each trial, but the login it was copied from is not updated. Refresh that
+login (any `codex` call) right before copying it, so a run inside the token lifetime never refreshes.
+The protocol records the model, effort, config hash and `codex --version`, and `--resume` refuses a
+change to them.
 
 Trial environment (`trial_env_c.py`). The sandbox must not break the agent's
 own builds, or every trial measures workarounds. `/usr/bin/git`, `cc` and the
