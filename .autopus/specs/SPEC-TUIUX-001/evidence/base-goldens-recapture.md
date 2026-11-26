@@ -481,3 +481,10 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 기록: `go run ./cmd/generate-templates` 뒤 `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run '^(TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6ShowsTheSettingsBeforeAnyWrite)$'`.
 - 차이: NPD 다섯 개(init-in, init-pipe, init-yes, update-ci, update-yes)에서 rule·reviewer·qa-autopilot·root doc 파일의 checksum, 두 manifest와 journal checksum, update 흐름의 backup 사본만 바뀌었다. stdout golden은 그대로다.
 - 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.
+
+## 좁은 테스트 범위와 verify plan (feat/verify-scope-cost, 2026-11-26)
+
+- 원인: `content/rules/autonomy.md`, reviewer 에이전트(content·codex·gemini), `review`·`verification` 스킬에 변경을 덮는 가장 좁은 테스트만 돌리고 전체 패키지 실행은 Stop hook에 맡긴다(`auto verify plan`, `auto verify stop --last`)는 문장을 더했다.
+- 기록: `go run ./cmd/generate-templates` 뒤 `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run '^(TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6ShowsTheSettingsBeforeAnyWrite)$'`.
+- 차이: NPD 다섯 개(init-in, init-pipe, init-yes, update-ci, update-yes)에서 rule·reviewer·review·verification 파일의 checksum, 두 manifest와 journal checksum, update 흐름의 backup 사본만 바뀌었다. stdout golden은 그대로다.
+- 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.

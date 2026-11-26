@@ -51,7 +51,7 @@ SPEC, plan, sync, 또는 review gate 산출물을 볼 때는 `Outcome Lock` 기�
 
 ### 4단계: 자동화 검증
 
-Stack Profile이 주입되면 그 명령을, 없으면 프로젝트 표준 테스트/린트 명령을 실행해 판정 근거로 사용합니다.
+Stack Profile이 주입되면 그 명령을, 없으면 프로젝트 표준 테스트/린트 명령을 실행해 판정 근거로 사용합니다. 테스트는 변경을 덮는 가장 좁은 범위만 돌립니다(`auto verify plan`이 바뀐 테스트의 `-run`과 바뀐 패키지를 보여 줍니다). 큰 패키지나 전체 스위트를 긴 timeout으로 직접 돌리고 기다리지 않습니다. 그 실행은 Stop hook 몫이고 결과는 `auto verify stop --last`로 읽습니다.
 
 변경된 코드가 외부 프로그램이나 형식(셸 문법, CLI 플래그, git, 파일 형식, 프로토콜)의 동작을 흉내 내거나 파싱하면, 같은 입력으로 실제 프로그램을 실행해 새 코드의 결과와 비교합니다(differential check). 실행으로 재현한 finding만 blocker로 보고하고, 재현 명령을 함께 적습니다.
 

@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // Review M1: RunCharged hands the cached failures to the step. The step
@@ -21,9 +20,9 @@ func TestRunCharged_PassesKnownFailuresToTheStep(t *testing.T) {
 	dir := useBaselineCache(t)
 	root := redRepo(t, map[string]string{"go.mod": baseModule, "add.go": baseAdd}, map[string]string{"add.go": baseAddFix})
 	writeEntries(t, filepath.Join(dir, "baseline-0000-x.json"), map[string]baselineEntry{
-		"basegate.TestAFails": {Runs: []testRun{{Failed: true}, {Failed: true}}, At: time.Now()}})
+		"basegate.TestAFails": {Runs: []testRun{{Failed: true, Lines: brokenLines}, {Failed: true, Lines: brokenLines}}, At: time.Now()}})
 	script := `echo '{"Action":"run","Package":"basegate","Test":"TestAFails"}'
-echo '{"Action":"output","Package":"basegate","Test":"TestAFails","Output":"    a_test.go:1: broken\n"}'
+echo '{"Action":"output","Package":"basegate","Test":"TestAFails","Output":"    a_test.go:1: broken"}'
 echo '{"Action":"fail","Package":"basegate","Test":"TestAFails"}'
 echo '{"Action":"run","Package":"basegate","Test":"TestBSlow"}'
 sleep 24
@@ -37,8 +36,9 @@ exit 1
 	res := RunCharged(context.Background(), root, []string{"add.go"}, []Step{step}, 30*time.Second)
 	assert.False(t, slices.ContainsFunc(res.Skipped, func(s Skip) bool { return s.Baseline }),
 		"the step was cut early for a failure the cache already knew: %+v", res.Skipped)
-	// No time is left to ask HEAD, so the failure stays charged; what matters
-	// is that the step ran to its end.
-	require.NotNil(t, res.Failure)
-	assert.False(t, res.Failure.Partial, "the step was cut before TestBSlow finished")
+	// No time is left to ask HEAD; the earlier HEAD answer with the same
+	// failure line excuses it, and the step ran to its end (no partial skip).
+	assert.Nil(t, res.Failure, "a failure HEAD was seen to share was charged because the budget ran out")
+	assert.Equal(t, []string{"basegate.TestAFails"}, res.Recalled)
+	assert.Empty(t, res.Skipped, "the step was cut before TestBSlow finished")
 }

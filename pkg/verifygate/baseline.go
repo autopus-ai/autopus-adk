@@ -19,13 +19,17 @@ const minBaselineBudget = 30 * time.Second
 // Go test also fails on HEAD. Preexisting lists those tests ("pkg.Test");
 // Edited the failed tests this change edited, which are its failures
 // whatever HEAD does; Unavailable says why the failures could not be
-// checked against HEAD, so they stay charged to the change.
+// checked against HEAD, so they stay charged to the change. Recalled are
+// the Preexisting tests HEAD could not be asked about at this stop
+// (RecallWhy says why) that an earlier HEAD run failed with the same lines.
 type ChargedRun struct {
 	Failure     *Failure
 	Skipped     []Skip
 	Preexisting []string
 	Edited      []string
 	Unavailable string
+	Recalled    []string
+	RecallWhy   string
 }
 
 // RunCharged is Run that charges a change only with the Go test failures it
@@ -36,7 +40,9 @@ type ChargedRun struct {
 // run. Then the steps after the failing one run as usual. A failure that
 // passes on HEAD, a new or edited test, a package-level failure HEAD does
 // not share, or a baseline that could not be run (no HEAD, no time left, a
-// HEAD that does not build) is the change's failure, as with Run.
+// HEAD that does not build) is the change's failure, as with Run, unless an
+// earlier HEAD run failed every one of those tests with the same failure
+// lines (see recall).
 func RunCharged(ctx context.Context, root string, changed []string, steps []Step, budget time.Duration) ChargedRun {
 	started := time.Now()
 	var res ChargedRun
@@ -81,7 +87,8 @@ func RunCharged(ctx context.Context, root string, changed []string, steps []Step
 			switch {
 			case len(fresh) > maxBaselineTests:
 				why = fmt.Sprintf("%d failed tests is more than the %d checked", len(fresh), maxBaselineTests)
-			case window < minBaselineBudget:
+			case window < minBaselineBudget && len(cache.unanswered(fresh)) > 0:
+				// Keys the cache answers need no time on HEAD.
 				why = "no time was left in the " + budget.String() + " budget to run them"
 			}
 			var head headResult
@@ -103,8 +110,11 @@ func RunCharged(ctx context.Context, root string, changed []string, steps []Step
 				}
 			}
 			if why != "" {
-				res.Failure, res.Unavailable = failure, why
-				return res
+				if !cache.recall(fresh, currentRuns(failure, root), fileMoves(ctx, root)) {
+					res.Failure, res.Unavailable = failure, why
+					return res
+				}
+				res.Recalled, res.RecallWhy = append(res.Recalled, fresh...), why
 			}
 			for _, key := range fresh {
 				known[key] = true
@@ -132,6 +142,10 @@ func (r ChargedRun) Note() string {
 	if len(r.Preexisting) > 0 {
 		parts = append(parts, fmt.Sprintf("%d failing test(s) also fail on HEAD (before this change) and were not charged to it: %s",
 			len(r.Preexisting), listKeys(r.Preexisting)))
+	}
+	if len(r.Recalled) > 0 {
+		parts = append(parts, fmt.Sprintf("%d of them were not run on HEAD at this stop (%s), but an earlier run on HEAD failed them "+
+			"with the same failure lines: %s", len(r.Recalled), r.RecallWhy, listKeys(r.Recalled)))
 	}
 	if r.Unavailable != "" {
 		parts = append(parts, "the failing tests could not be checked against HEAD ("+r.Unavailable+

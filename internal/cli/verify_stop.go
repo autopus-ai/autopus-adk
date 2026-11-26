@@ -73,7 +73,8 @@ func newVerifyStopCmd() *cobra.Command {
 			"a test still running after half of its step's window is treated as hung and blocks. Failed Go tests are run again " +
 			"on HEAD (at most 50; a whole-package step with a failure ends at two thirds of its window to leave time for it): " +
 			"those that fail there too, and that the change did not edit, are reported but do not block; when HEAD cannot " +
-			"be checked the failure blocks and the note says why. HEAD's answer for each failed test is cached per HEAD commit and " +
+			"be checked the failure blocks and the note says why, unless an earlier run on HEAD failed every one of those tests " +
+			"with the same failure lines. `auto verify plan` prints the steps without running them. HEAD's answer for each failed test is cached per HEAD commit and " +
 			"Go environment (a \"fails on HEAD\" answer only for the session that asked, for 20 minutes), and a step whose failures a " +
 			"recent HEAD shared is not stopped early. A tree (HEAD, every git status entry with its mode and contents, the Go " +
 			"environment and the budget; ignored files and untracked harness state are not compared) is blocked at most once, except a test-first block, which " +

@@ -223,3 +223,65 @@ func withKnownFailing(steps []Step, known map[string]bool) []Step {
 	}
 	return out
 }
+
+// unanswered lists the keys the cache cannot answer for HEAD now: only they
+// need time on HEAD.
+func (c *baselineCache) unanswered(keys []string) []string {
+	if c == nil {
+		return keys
+	}
+	now := time.Now()
+	var out []string
+	for _, key := range keys {
+		if e, ok := c.entries[key]; !ok || !e.usable(now, BaselineCacheSession) {
+			out = append(out, key)
+		}
+	}
+	return out
+}
+
+// recall is the fallback for a stop that could not ask HEAD (no time was
+// left, the run there was cut off): each key is answered by the most recent
+// cached "fails on HEAD" entry of any commit, session or age, and counts as
+// pre-existing only when this tree fails it with the same failure lines. It
+// reports true only when every key is answered that way; one key HEAD was
+// never seen failing, or that fails differently now, keeps the failures
+// charged. A stop that can ask HEAD always does: an old answer is weaker
+// evidence than a fresh run (see baselineFailTTL), but charging a failure
+// HEAD was already seen to share, unchanged, only because the budget ran
+// out blocks on the tree's own breakage instead of the change.
+func (c *baselineCache) recall(keys []string, current map[string][]testRun, moves map[string]string) bool {
+	if c == nil || len(keys) == 0 {
+		return false
+	}
+	latest := map[string]baselineEntry{}
+	add := func(entries map[string]baselineEntry) {
+		for key, e := range entries {
+			if e.failed(key) && e.At.After(latest[key].At) {
+				latest[key] = e
+			}
+		}
+	}
+	add(c.entries)
+	files, _ := os.ReadDir(c.dir)
+	for _, f := range files {
+		if name := f.Name(); name != c.name && isBaselineFile(name) {
+			add(readBaselineFile(c.dir, name))
+		}
+	}
+	runs := map[string][]testRun{}
+	for _, key := range keys {
+		e, ok := latest[key]
+		if !ok {
+			return false
+		}
+		runs[key] = e.Runs
+	}
+	runs = movedRuns(runs, moves)
+	for _, key := range keys {
+		if !sameFailure(current[key], runs[key], wantRuns(key)) {
+			return false
+		}
+	}
+	return true
+}
