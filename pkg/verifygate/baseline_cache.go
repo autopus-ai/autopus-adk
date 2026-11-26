@@ -39,6 +39,9 @@ type baselineEntry struct {
 	Runs    []testRun `json:"runs"`
 	At      time.Time `json:"at"`
 	Session string    `json:"session,omitempty"`
+	// Root is the work tree that asked; another tree at the same commit
+	// shares the file but not its fallback (see recallable).
+	Root string `json:"root,omitempty"`
 }
 
 // failed reports whether HEAD failed the key every time it ran it, enough
@@ -65,8 +68,8 @@ func (e baselineEntry) usable(now time.Time, session string) bool {
 
 // baselineCache is the cache file of one HEAD commit.
 type baselineCache struct {
-	dir, name string
-	entries   map[string]baselineEntry
+	dir, name, root string
+	entries         map[string]baselineEntry
 }
 
 // loadBaselineCache reads the cache of root's HEAD; nil when the cache is
@@ -79,7 +82,7 @@ func loadBaselineCache(ctx context.Context, root string) *baselineCache {
 	if head == "" {
 		return nil
 	}
-	c := &baselineCache{dir: BaselineCacheDir, name: "baseline-" + head + "-" + EnvDigest(ctx, root) + ".json"}
+	c := &baselineCache{dir: BaselineCacheDir, root: root, name: "baseline-" + head + "-" + EnvDigest(ctx, root) + ".json"}
 	c.entries = readBaselineFile(c.dir, c.name)
 	return c
 }
@@ -96,28 +99,20 @@ func readBaselineFile(dir, name string) map[string]baselineEntry {
 	return entries
 }
 
-// knownFailing lists the keys a recent HEAD failed every time it ran them,
-// from every cache file, whatever its commit or age: a step that sees one of
-// them fail again need not stop early to check it. It only moves the cut
-// point; whether the failure is charged is still judged on this HEAD. Without
-// the other commits a HEAD that moves at every stop would cut every run early.
+// knownFailing lists the keys this tree's HEAD (same commit and Go
+// environment) failed every time it ran them, within recallMaxAge: a step
+// that sees one of them fail again need not stop early to check it, since
+// the cache or recall answers it without time on HEAD. It only moves the
+// cut point; whether the failure is charged is still judged on this HEAD.
 func (c *baselineCache) knownFailing() map[string]bool {
 	if c == nil {
 		return nil
 	}
 	out := map[string]bool{}
-	add := func(entries map[string]baselineEntry) {
-		for key, e := range entries {
-			if e.failed(key) {
-				out[key] = true
-			}
-		}
-	}
-	add(c.entries)
-	files, _ := os.ReadDir(c.dir)
-	for _, f := range files {
-		if name := f.Name(); name != c.name && isBaselineFile(name) {
-			add(readBaselineFile(c.dir, name))
+	now := time.Now()
+	for key := range c.entries {
+		if c.recallable(key, now) {
+			out[key] = true
 		}
 	}
 	return out
@@ -171,7 +166,7 @@ func (c *baselineCache) headFailures(ctx context.Context, root string, keys []st
 	res.partial = head.partial
 	for _, key := range missing {
 		if head.answered(key) {
-			c.entries[key] = baselineEntry{Runs: head.runs[key], At: now, Session: BaselineCacheSession}
+			c.entries[key] = baselineEntry{Runs: head.runs[key], At: now, Session: BaselineCacheSession, Root: c.root}
 		}
 	}
 	c.save()
@@ -222,4 +217,62 @@ func withKnownFailing(steps []Step, known map[string]bool) []Step {
 		out[i] = s
 	}
 	return out
+}
+
+// unanswered lists the keys the cache cannot answer for HEAD now: only they
+// need time on HEAD.
+func (c *baselineCache) unanswered(keys []string) []string {
+	if c == nil {
+		return keys
+	}
+	now := time.Now()
+	var out []string
+	for _, key := range keys {
+		if e, ok := c.entries[key]; !ok || !e.usable(now, BaselineCacheSession) {
+			out = append(out, key)
+		}
+	}
+	return out
+}
+
+// recallMaxAge bounds how old a "fails on HEAD" answer recall may use.
+const recallMaxAge = 4 * time.Hour
+
+// recallable reports whether key's entry, the latest HEAD answer for this
+// commit and Go environment, is a failure this work tree recorded within
+// recallMaxAge. A later "passes on HEAD" answer replaces the entry, so it
+// wins; an answer for another commit, environment or tree never counts.
+func (c *baselineCache) recallable(key string, now time.Time) bool {
+	e, ok := c.entries[key]
+	return ok && e.failed(key) && e.Root == c.root && now.Sub(e.At) <= recallMaxAge
+}
+
+// recall is the fallback for a stop that ran out of time to ask HEAD (no
+// time was left, or the run there was cut off). Each key counts as
+// pre-existing only when it is recallable and this tree fails it with the
+// same failure lines; it reports true only when every key is. The session
+// and baselineFailTTL limits are what it relaxes: the same tree's HEAD
+// answer for the same commit, a few hours old, is weaker evidence than a
+// fresh run, but charging an unchanged failure HEAD was seen to share only
+// because the budget ran out blocks on the tree's breakage, not the change.
+// A stop that can ask HEAD always does.
+func (c *baselineCache) recall(keys []string, current map[string][]testRun, moves map[string]string) bool {
+	if c == nil || len(keys) == 0 {
+		return false
+	}
+	now := time.Now()
+	runs := map[string][]testRun{}
+	for _, key := range keys {
+		if !c.recallable(key, now) {
+			return false
+		}
+		runs[key] = c.entries[key].Runs
+	}
+	runs = movedRuns(runs, moves)
+	for _, key := range keys {
+		if !sameFailure(current[key], runs[key], wantRuns(key)) {
+			return false
+		}
+	}
+	return true
 }

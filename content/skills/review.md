@@ -198,6 +198,8 @@ Correctness/Security와 Complexity에 배정한다.
 | 린트 | `golangci-lint run && go vet ./...` | `ruff check .` | `eslint .` | `cargo clippy` |
 | 스텁 검사 | `grep -rn 'TODO\|stub\|placeholder' {changed}` | 동일 | 동일 | `grep -rn 'todo!\|unimplemented!' {changed}` |
 
+테스트 행은 프로젝트 전체가 아니라 변경을 덮는 가장 좁은 범위로 돌립니다. Autopus Stop hook이 도는 세션에서는 `auto verify plan`이 hook이 돌릴 단계(바뀐 테스트 `-run`, 바뀐 패키지)를 보여 주고, 바뀐 패키지 전체 실행은 hook이 세션 종료 때 하므로 결과를 `auto verify stop --last`로 읽습니다. 큰 패키지·전체 스위트를 긴 timeout으로 직접 돌리고 polling하지 않습니다. hook이 없으면 바뀐 패키지를 한 번 돌립니다. race·커버리지 수치는 바뀐 패키지에 한해 재거나 CI 결과로 판정합니다. 실제 프로그램과 비교하는 차분 실행은 줄이지 않습니다.
+
 스택은 `.autopus/project/tech.md` 또는 프로젝트 루트의 매니페스트(`go.mod`, `package.json`, `pyproject.toml`, `Cargo.toml`)에서 자동 감지합니다.
 
 두 축 리뷰와 smell baseline은 mattpocock/skills `code-review`(MIT)에서 가져와 다듬었다.

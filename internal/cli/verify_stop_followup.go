@@ -65,9 +65,9 @@ If a fix needs a decision only the user can make (product behavior, scope, a pol
 // of its misses in code that models an external program; the reviewer found
 // them only by running that program. Findings were lost when the agent ended
 // its turn while the reviewer still ran, so the review runs in the foreground.
-const followupReview = `1. Run the reviewer agent on ` + "`git diff HEAD`" + ` (and new files) against what the user asked for, in the foreground: wait for its result in this turn, and do not end the turn while it runs. Require differential checking: where the changed code models or parses an external program or format (shell grammar, CLI flags, git, file formats, protocols), the reviewer runs the real program on the same inputs and compares it with the new code. It reports only blockers reproduced by execution (wrong behavior, missing cases, security or data-loss risk), each with file, line and the command that shows it.`
+const followupReview = `1. Run the reviewer agent on ` + "`git diff HEAD`" + ` (and new files) against what the user asked for, in the foreground: wait for its result in this turn, and do not end the turn while it runs. Require differential checking: where the changed code models or parses an external program or format (shell grammar, CLI flags, git, file formats, protocols), the reviewer runs the real program on the same inputs and compares it with the new code. It reports only blockers reproduced by execution (wrong behavior, missing cases, security or data-loss risk), each with file, line and the command that shows it. You and the reviewer run only the narrowest tests that cover the change (` + "`auto verify plan`" + ` prints them); never start a whole package or suite run with a long timeout and poll it: the Stop hook already ran the changed packages, and ` + "`auto verify stop --last`" + ` prints that result.`
 
-const followupFix = ` Apply every confirmed finding, rerun the affected tests, and finish with a short summary of what was checked and fixed. The fixes do not get another review.`
+const followupFix = ` Apply every confirmed finding, rerun the narrowest tests that cover the fixes (the next stop runs the packages whole), and finish with a short summary of what was checked and fixed. The fixes do not get another review.`
 
 // followupFullReason is the round for a large change: the review, and
 // scenario QA plus the hunt only when the change has something a user runs.
@@ -210,7 +210,7 @@ const (
 	statusUnbuilt = "No build or test toolchain covers these files, so nothing was compiled or tested."
 	// statusHangSuspected is the round after a suspected hang was let through.
 	statusHangSuspected = "The build passes; the tests were suspected hung when the budget ran out and are not verified: " +
-		"run them in full (a longer -timeout, or CI) before calling the change verified."
+		"leave the full run to CI rather than starting it yourself with a longer -timeout, and do not call the change verified before it passes."
 )
 
 func followupOutput(b verifygate.Behavior, tier followupTier, status string, escalated bool) stopHookOutput {

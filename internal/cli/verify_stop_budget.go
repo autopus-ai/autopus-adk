@@ -32,9 +32,9 @@ func budgetSkipped(cmd *cobra.Command, in stopHookInput, root string, changed []
 			len(preexisting), strings.Join(preexisting, ", "))
 	}
 	note := "auto verify stop: " + unfinished + "; " + failed + ", so the stop is " +
-		"not blocked. Run the rest with a longer -timeout (or leave it to CI) before calling the change verified"
+		"not blocked. Leave the rest to CI rather than starting it yourself with a longer -timeout, and do not call the change verified before it passes"
 	status := "The build passes; tests did not finish within the budget: " + unfinished +
-		". " + statusFailed + "; run them in full (a longer -timeout, or CI) before calling the change verified."
+		". " + statusFailed + "; leave the full run to CI rather than starting it yourself with a longer -timeout, and do not call the change verified before it passes."
 	// Test-first and the verification round still apply: a missing test is
 	// known without running anything, and the round is the agent's.
 	record := true

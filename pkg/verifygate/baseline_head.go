@@ -40,6 +40,9 @@ type headResult struct {
 	brokenPkgs  map[string]bool
 	partial     bool
 	unavailable string
+	// timeShort marks an unavailable answer caused only by time: the run
+	// on HEAD had none left, or was cut off. Only then may recall answer.
+	timeShort   bool
 	interrupted bool
 	// decided marks keys answered from the cache: complete, whatever
 	// partial says about the run that filled the rest.
@@ -96,18 +99,17 @@ func headFailures(ctx context.Context, root string, keys []string, budget time.D
 	case slices.ContainsFunc(skipped, func(s Skip) bool { return s.Interrupted }):
 		return headResult{interrupted: true}
 	case len(skipped) > 0:
-		return headResult{unavailable: skipped[0].Reason}
+		return headResult{unavailable: skipped[0].Reason, timeShort: strings.HasPrefix(skipped[0].Reason, noTimeLeft)}
 	case failure == nil:
 		return headResult{runs: map[string][]testRun{}}
 	case failure.TimedOut:
-		return headResult{unavailable: "the run on HEAD " + failure.Reason}
+		// Its runs still count: a pass seen before the cut rules out recall.
+		return headResult{unavailable: "the run on HEAD " + failure.Reason, timeShort: true,
+			runs: normalizedRuns(failure.Runs, scratch)}
 	case len(failure.FailedTests) == 0:
 		return headResult{unavailable: "go test on HEAD failed without a test result: " + lastLine(failure.Output)}
 	}
-	res := headResult{runs: map[string][]testRun{}, brokenPkgs: map[string]bool{}, partial: failure.Partial}
-	for key, runs := range failure.Runs {
-		res.runs[key] = normalized(runs, scratch)
-	}
+	res := headResult{runs: normalizedRuns(failure.Runs, scratch), brokenPkgs: map[string]bool{}, partial: failure.Partial}
 	for _, key := range failure.FailedTests {
 		if _, _, ok := splitTestKey(key); !ok {
 			res.brokenPkgs[key] = true
@@ -116,13 +118,34 @@ func headFailures(ctx context.Context, root string, keys []string, budget time.D
 	return res
 }
 
+func normalizedRuns(runs map[string][]testRun, dir string) map[string][]testRun {
+	out := make(map[string][]testRun, len(runs))
+	for key, r := range runs {
+		out[key] = normalized(r, dir)
+	}
+	return out
+}
+
+// disagrees reports whether this HEAD run, cut off or not, ran one of keys
+// and did not fail it the way the tree does (current) every time: a pass, or
+// other failure lines. That is newer evidence than any stored answer, so no
+// older answer may excuse the failure (see sameFailure).
+func (h headResult) disagrees(keys []string, current map[string][]testRun) bool {
+	for _, key := range keys {
+		if runs := h.runs[key]; len(runs) > 0 && !sameFailure(current[key], runs, len(runs)) {
+			return true
+		}
+	}
+	return false
+}
+
 // judge returns the keys that are the change's failures: HEAD did not fail
 // them every time with the same failure lines (current holds this tree's
 // runs, paths normalized). A package-level failure needs one matching
 // package failure on HEAD. A key HEAD could not answer for (its package is
 // broken there, or the run was cut off before it) makes the comparison
-// unavailable.
-func (h headResult) judge(keys []string, current map[string][]testRun) (charged []string, unavailable string) {
+// unavailable; cutOff says it was the cut-off run.
+func (h headResult) judge(keys []string, current map[string][]testRun) (charged []string, unavailable string, cutOff bool) {
 	for _, key := range keys {
 		_, _, isTest := splitTestKey(key)
 		want := 1
@@ -137,14 +160,14 @@ func (h headResult) judge(keys []string, current map[string][]testRun) (charged 
 			continue
 		}
 		if pkg, _, ok := splitTestKey(key); ok && h.brokenPkgs[pkg] {
-			return nil, pkg + " does not build or run its tests on HEAD"
+			return nil, pkg + " does not build or run its tests on HEAD", false
 		}
 		if h.partial && len(h.runs[key]) < want {
-			return nil, "the run on HEAD was cut off before " + key + " finished"
+			return nil, "the run on HEAD was cut off before " + key + " finished", true
 		}
 		charged = append(charged, key)
 	}
-	return charged, ""
+	return charged, "", false
 }
 
 // goModule is the module go.mod at root declares; "" when it declares none.

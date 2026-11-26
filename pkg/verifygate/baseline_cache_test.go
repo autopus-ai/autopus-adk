@@ -134,14 +134,21 @@ func TestHeadResult_OnlySettledKeysAreAnswered(t *testing.T) {
 	assert.False(t, h.answered("m/z.TestZ"))
 }
 
-// Review A2: a failure another commit's file knows (HEAD moved since) still
-// moves the cut point.
-func TestKnownFailing_ReadsEveryCommitsFile(t *testing.T) {
+// Review A2 is narrowed by the #376 review: only this HEAD's file, written
+// by this tree within recallMaxAge, moves the cut point, the same scope
+// recall answers from. Another commit's failure would let the step burn its
+// window on a failure recall then may not excuse.
+func TestKnownFailing_IsScopedLikeRecall(t *testing.T) {
 	dir := t.TempDir()
+	fail := []testRun{{Failed: true}, {Failed: true}}
 	writeEntries(t, filepath.Join(dir, "baseline-old-x.json"), map[string]baselineEntry{
-		"m.TestA": {Runs: []testRun{{Failed: true}, {Failed: true}}, At: time.Now().Add(-48 * time.Hour)},
-		"m.TestB": {Runs: []testRun{{Failed: false}}}})
-	c := &baselineCache{dir: dir, name: "baseline-new-x.json", entries: map[string]baselineEntry{}}
+		"m.TestOld": {Runs: fail, At: time.Now(), Root: "/r"}})
+	c := &baselineCache{dir: dir, name: "baseline-new-x.json", root: "/r", entries: map[string]baselineEntry{
+		"m.TestA":     {Runs: fail, At: time.Now().Add(-time.Hour), Root: "/r"},
+		"m.TestPass":  {Runs: []testRun{{}, {}}, At: time.Now(), Root: "/r"},
+		"m.TestOther": {Runs: fail, At: time.Now(), Root: "/elsewhere"},
+		"m.TestStale": {Runs: fail, At: time.Now().Add(-recallMaxAge - time.Minute), Root: "/r"},
+	}}
 	assert.Equal(t, map[string]bool{"m.TestA": true}, c.knownFailing())
 }
 
