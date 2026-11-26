@@ -47,6 +47,9 @@ const tailLines = 60
 // waitDelay bounds how long Run waits for a killed step's output pipes.
 const waitDelay = 5 * time.Second
 
+// noTimeLeft starts the reason of a step that had no time left to run.
+const noTimeLeft = "no time was left in the "
+
 // minBoundWindow is the least time worth giving a BudgetBound step.
 const minBoundWindow = time.Second
 
@@ -87,7 +90,7 @@ func Run(parent context.Context, steps []Step, budget time.Duration) (*Failure, 
 		}
 		if ctx.Err() != nil {
 			// A step that never ran checked nothing, bound or not.
-			skipped = append(skipped, Skip{Name: step.Name, Reason: "no time was left in the " + budget.String() + " budget to run it"})
+			skipped = append(skipped, Skip{Name: step.Name, Reason: noTimeLeft + budget.String() + " budget to run it"})
 			continue
 		}
 		if _, err := exec.LookPath(step.Argv[0]); err != nil {

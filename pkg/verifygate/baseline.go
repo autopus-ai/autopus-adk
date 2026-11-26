@@ -84,12 +84,15 @@ func RunCharged(ctx context.Context, root string, changed []string, steps []Step
 				window = left / 2
 			}
 			var why string
+			// timeShort: HEAD could not be asked only for lack of time,
+			// the one case recall may answer.
+			timeShort := false
 			switch {
 			case len(fresh) > maxBaselineTests:
 				why = fmt.Sprintf("%d failed tests is more than the %d checked", len(fresh), maxBaselineTests)
 			case window < minBaselineBudget && len(cache.unanswered(fresh)) > 0:
 				// Keys the cache answers need no time on HEAD.
-				why = "no time was left in the " + budget.String() + " budget to run them"
+				why, timeShort = noTimeLeft+budget.String()+" budget to run them", true
 			}
 			var head headResult
 			if why == "" {
@@ -97,12 +100,12 @@ func RunCharged(ctx context.Context, root string, changed []string, steps []Step
 				if head.interrupted {
 					return ChargedRun{Skipped: append(res.Skipped, interruptedSkips(rest)...)}
 				}
-				why = head.unavailable
+				why, timeShort = head.unavailable, head.timeShort
 				head.runs = movedRuns(head.runs, fileMoves(ctx, root))
 			}
 			if why == "" {
 				var charged []string
-				charged, why = head.judge(fresh, currentRuns(failure, root))
+				charged, why, timeShort = head.judge(fresh, currentRuns(failure, root))
 				if len(charged) > 0 && why == "" {
 					res.Failure = failure
 					res.Preexisting = append(res.Preexisting, without(fresh, charged)...)
@@ -110,7 +113,7 @@ func RunCharged(ctx context.Context, root string, changed []string, steps []Step
 				}
 			}
 			if why != "" {
-				if !cache.recall(fresh, currentRuns(failure, root), fileMoves(ctx, root)) {
+				if !timeShort || !cache.recall(fresh, currentRuns(failure, root), fileMoves(ctx, root)) {
 					res.Failure, res.Unavailable = failure, why
 					return res
 				}

@@ -15,7 +15,7 @@ import (
 )
 
 // verifyPlanStep is one step of the Stop hook's plan. Scope says how much it
-// runs: "build", "changed-tests" (only the tests the change edited, at most
+// runs: "build", "typecheck", "changed-tests" (only the tests the change edited, at most
 // half the budget), "scenarios" (the project's exec QA cases) or "whole"
 // (the changed packages or the project's whole suite). Argv is exactly what
 // the hook runs; Run is the same command for a person or agent to read (Go
@@ -40,7 +40,7 @@ type verifyPlanOutput struct {
 // verifyPlanNote tells agents which steps are theirs: Pilot C measured
 // 48-76% of a session's wall time waiting on whole-package test runs the
 // agent and its reviewers started themselves, the same runs the hook does.
-const verifyPlanNote = "Run the build and changed-tests steps yourself (or a narrower -run / test file) while you work. " +
+const verifyPlanNote = "Run the build, typecheck and changed-tests steps yourself (or a narrower -run / test file) while you work. " +
 	"The Stop hook runs every step, the whole changed packages included, under its %s budget when the session stops; " +
 	"do not start a whole package or suite run yourself with a long timeout and poll it: read the hook's result with " +
 	"`auto verify stop --last`."
@@ -66,7 +66,7 @@ func newVerifyPlanCmd() *cobra.Command {
 			if !ok {
 				return fmt.Errorf("auto verify plan: %s is not inside a git work tree", dir)
 			}
-			out := buildVerifyPlan(root, changed, stopBudget(cmd, root, budget))
+			out := buildVerifyPlan(root, changed, planBudget(cmd, root, budget))
 			if asJSON {
 				enc := json.NewEncoder(cmd.OutOrStdout())
 				enc.SetIndent("", "  ")
@@ -79,6 +79,21 @@ func newVerifyPlanCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&asJSON, "json", false, "Print the plan as JSON")
 	cmd.Flags().DurationVar(&budget, "budget", 8*time.Minute, "The Stop hook's budget (hooks.verify_stop_budget may lower it)")
 	return cmd
+}
+
+// planBudget is the budget the generated Stop hook runs with: the flag when
+// given, else a valid hooks.verify_stop_budget (the generator passes it as
+// --budget), else the default.
+func planBudget(cmd *cobra.Command, root string, flag time.Duration) time.Duration {
+	if cmd.Flags().Changed("budget") {
+		return flag
+	}
+	if cfg := nearestConfig(root); cfg != nil && cfg.Hooks.VerifyStopBudget != "" {
+		if d, err := cfg.Hooks.VerifyStopBudgetDuration(); err == nil {
+			return d
+		}
+	}
+	return flag
 }
 
 func buildVerifyPlan(root string, changed []string, budget time.Duration) verifyPlanOutput {
@@ -108,6 +123,8 @@ func planScope(s verifygate.Step) string {
 		return "changed-tests"
 	case len(s.Argv) > 1 && s.Argv[0] == "go" && s.Argv[1] == "build":
 		return "build"
+	case strings.HasSuffix(s.Name, " run typecheck"):
+		return "typecheck"
 	case slices.Contains(s.Argv, "qa") && slices.Contains(s.Argv, "exec"):
 		return "scenarios"
 	}

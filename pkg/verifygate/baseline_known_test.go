@@ -2,7 +2,6 @@ package verifygate
 
 import (
 	"context"
-	"path/filepath"
 	"slices"
 	"testing"
 	"time"
@@ -12,15 +11,16 @@ import (
 
 // Review M1: RunCharged hands the cached failures to the step. The step
 // is a script that prints go test -json events (no compile, so the timing is
-// the script's own): TestAFails fails at once, which an earlier commit's
-// cache file says HEAD fails too, and TestBSlow ends at 24s of a 30s window,
+// the script's own): TestAFails fails at once, which this HEAD's cache
+// file says HEAD failed an hour ago (past the 20-minute TTL), and TestBSlow ends at 24s of a 30s window,
 // past the 20s early cut. Given the known failure the step is not cut, so it
 // ends on its own instead of Partial.
 func TestRunCharged_PassesKnownFailuresToTheStep(t *testing.T) {
 	dir := useBaselineCache(t)
 	root := redRepo(t, map[string]string{"go.mod": baseModule, "add.go": baseAdd}, map[string]string{"add.go": baseAddFix})
-	writeEntries(t, filepath.Join(dir, "baseline-0000-x.json"), map[string]baselineEntry{
-		"basegate.TestAFails": {Runs: []testRun{{Failed: true, Lines: brokenLines}, {Failed: true, Lines: brokenLines}}, At: time.Now()}})
+	writeEntries(t, cacheFile(t, dir, root), map[string]baselineEntry{
+		"basegate.TestAFails": {Runs: []testRun{{Failed: true, Lines: brokenLines}, {Failed: true, Lines: brokenLines}},
+			At: time.Now().Add(-time.Hour), Root: root}})
 	script := `echo '{"Action":"run","Package":"basegate","Test":"TestAFails"}'
 echo '{"Action":"output","Package":"basegate","Test":"TestAFails","Output":"    a_test.go:1: broken"}'
 echo '{"Action":"fail","Package":"basegate","Test":"TestAFails"}'

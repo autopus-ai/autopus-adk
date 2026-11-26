@@ -33,6 +33,10 @@ func TestBuildVerifyPlan(t *testing.T) {
 			wantScope: []string{"build", "changed-tests", "whole"},
 			wantRun:   []string{"go build ./...", "go test -run '^(TestAdd|TestSub)$' .", "go test ."},
 			wantNote:  "do not start a whole package"},
+		{name: "node typecheck is narrow", files: map[string]string{
+			"package.json": `{"scripts":{"typecheck":"tsc","test":"vitest"}}`, "a.ts": "export const a = 1\n"},
+			wantScope: []string{"typecheck", "whole"}, wantRun: []string{"npm run typecheck", "npm run test"},
+			wantNote: "typecheck"},
 		{name: "docs only", files: map[string]string{"README.md": "# x\n"}, wantNote: "runs nothing"},
 	}
 	for _, tc := range cases {
@@ -68,4 +72,16 @@ func TestVerifyPlanCmd_JSONKeepsTheHookArgv(t *testing.T) {
 	assert.Contains(t, buf.String(), `"-json"`)
 	assert.Contains(t, buf.String(), `"scope": "whole"`)
 	assert.Contains(t, buf.String(), `"budget": "8m0s"`)
+}
+
+// A set hooks.verify_stop_budget is the generated hook's --budget, so the
+// plan reports it, above the 8m default too.
+func TestPlanBudget_FollowsTheGeneratedHook(t *testing.T) {
+	assert.Equal(t, 15*time.Minute, planBudget(newVerifyPlanCmd(), budgetProject(t, "15m"), 8*time.Minute))
+	assert.Equal(t, 5*time.Minute, planBudget(newVerifyPlanCmd(), budgetProject(t, "5m"), 8*time.Minute))
+	assert.Equal(t, 8*time.Minute, planBudget(newVerifyPlanCmd(), budgetProject(t, ""), 8*time.Minute), "unset")
+	assert.Equal(t, 8*time.Minute, planBudget(newVerifyPlanCmd(), t.TempDir(), 8*time.Minute), "no autopus.yaml")
+	cmd := newVerifyPlanCmd()
+	require.NoError(t, cmd.Flags().Set("budget", "3m"))
+	assert.Equal(t, 3*time.Minute, planBudget(cmd, budgetProject(t, "15m"), 3*time.Minute), "an explicit flag wins")
 }
