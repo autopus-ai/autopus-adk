@@ -126,12 +126,13 @@ func normalizedRuns(runs map[string][]testRun, dir string) map[string][]testRun 
 	return out
 }
 
-// passedAny reports whether this HEAD run passed any of keys at least once:
-// a failure HEAD passes even once is not one HEAD shares deterministically
-// (see sameFailure), so no older answer may excuse it.
-func (h headResult) passedAny(keys []string) bool {
+// disagrees reports whether this HEAD run, cut off or not, ran one of keys
+// and did not fail it the way the tree does (current) every time: a pass, or
+// other failure lines. That is newer evidence than any stored answer, so no
+// older answer may excuse the failure (see sameFailure).
+func (h headResult) disagrees(keys []string, current map[string][]testRun) bool {
 	for _, key := range keys {
-		if slices.ContainsFunc(h.runs[key], func(r testRun) bool { return !r.Failed }) {
+		if runs := h.runs[key]; len(runs) > 0 && !sameFailure(current[key], runs, len(runs)) {
 			return true
 		}
 	}
