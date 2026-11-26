@@ -103,20 +103,39 @@ func headFailures(ctx context.Context, root string, keys []string, budget time.D
 	case failure == nil:
 		return headResult{runs: map[string][]testRun{}}
 	case failure.TimedOut:
-		return headResult{unavailable: "the run on HEAD " + failure.Reason, timeShort: true}
+		// Its runs still count: a pass seen before the cut rules out recall.
+		return headResult{unavailable: "the run on HEAD " + failure.Reason, timeShort: true,
+			runs: normalizedRuns(failure.Runs, scratch)}
 	case len(failure.FailedTests) == 0:
 		return headResult{unavailable: "go test on HEAD failed without a test result: " + lastLine(failure.Output)}
 	}
-	res := headResult{runs: map[string][]testRun{}, brokenPkgs: map[string]bool{}, partial: failure.Partial}
-	for key, runs := range failure.Runs {
-		res.runs[key] = normalized(runs, scratch)
-	}
+	res := headResult{runs: normalizedRuns(failure.Runs, scratch), brokenPkgs: map[string]bool{}, partial: failure.Partial}
 	for _, key := range failure.FailedTests {
 		if _, _, ok := splitTestKey(key); !ok {
 			res.brokenPkgs[key] = true
 		}
 	}
 	return res
+}
+
+func normalizedRuns(runs map[string][]testRun, dir string) map[string][]testRun {
+	out := make(map[string][]testRun, len(runs))
+	for key, r := range runs {
+		out[key] = normalized(r, dir)
+	}
+	return out
+}
+
+// passedAny reports whether this HEAD run passed any of keys at least once:
+// a failure HEAD passes even once is not one HEAD shares deterministically
+// (see sameFailure), so no older answer may excuse it.
+func (h headResult) passedAny(keys []string) bool {
+	for _, key := range keys {
+		if slices.ContainsFunc(h.runs[key], func(r testRun) bool { return !r.Failed }) {
+			return true
+		}
+	}
+	return false
 }
 
 // judge returns the keys that are the change's failures: HEAD did not fail

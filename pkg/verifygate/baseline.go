@@ -113,7 +113,7 @@ func RunCharged(ctx context.Context, root string, changed []string, steps []Step
 				}
 			}
 			if why != "" {
-				if !timeShort || !cache.recall(fresh, currentRuns(failure, root), fileMoves(ctx, root)) {
+				if !timeShort || head.passedAny(fresh) || !cache.recall(fresh, currentRuns(failure, root), fileMoves(ctx, root)) {
 					res.Failure, res.Unavailable = failure, why
 					return res
 				}
