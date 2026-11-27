@@ -173,6 +173,15 @@ func TestVerifyStop_StartsHarnessObservation(t *testing.T) {
 	t.Setenv(harnessFeedbackEnv, "off")
 	off := stop()
 	assert.Len(t, spawned, 1, "off starts nothing")
+
+	// A Codex stop (turn_id) hands over a Codex rollout: nothing is recorded.
+	t.Setenv(harnessFeedbackEnv, "")
+	cmd := newVerifyStopCmd()
+	payload, _ := json.Marshal(stopHookInput{SessionID: "s2", Cwd: dir, TranscriptPath: "/x/rollout.jsonl", TurnID: "t1"})
+	cmd.SetIn(bytes.NewReader(payload))
+	cmd.SetOut(&bytes.Buffer{})
+	require.NoError(t, cmd.Execute())
+	assert.Len(t, spawned, 1, "a Codex stop is not observed")
 	assert.Equal(t, off, on, "a failed spawn does not change the hook's answer")
 }
 

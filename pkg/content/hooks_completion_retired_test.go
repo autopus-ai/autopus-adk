@@ -6,6 +6,7 @@ package content_test
 
 import (
 	"io/fs"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -47,6 +48,9 @@ func TestGenerateProjectHookConfigs_EmitsNoOrchestraCompletionOrReadyHook(t *tes
 			if hook.Event == "Stop" && (hook.Command == "auto verify stop" || hook.Command == "auto verify language") &&
 				(platform == "claude-code" || platform == "claude" || platform == "codex") {
 				continue // the verification gates, not a completion hook
+			}
+			if platform == "codex" && strings.HasPrefix(hook.Command, "auto verify stop --subagent ") {
+				continue // the gate's sub-agent tracking
 			}
 			assert.NotContains(t, []string{"Stop", "SessionStart", "AfterAgent"}, hook.Event, "%s: %+v", platform, hook)
 			assert.NotRegexp(t, `hook-(claude|codex|gemini|opencode)-`, hook.Command, "%s: %+v", platform, hook)

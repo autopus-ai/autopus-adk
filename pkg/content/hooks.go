@@ -143,7 +143,16 @@ func generateVerifyStopHook(cfg config.HooksConf, platform string) []adapter.Hoo
 		command += " --budget " + budget.String()
 	}
 	timeout := int(config.VerifyStopHookTimeout(budget) / time.Second)
-	return []adapter.HookConfig{{Event: "Stop", Type: "command", Command: command, Timeout: timeout}}
+	hooks := []adapter.HookConfig{{Event: "Stop", Type: "command", Command: command, Timeout: timeout}}
+	if platform == "codex" {
+		// Codex's Stop payload has no background_tasks; these record its
+		// running sub-agents, so the gate waits instead of judging a tree
+		// one of them is still writing.
+		hooks = append(hooks,
+			adapter.HookConfig{Event: "SubagentStart", Type: "command", Command: verifyStopCommand + " --subagent start", Timeout: 5},
+			adapter.HookConfig{Event: "SubagentStop", Type: "command", Command: verifyStopCommand + " --subagent stop", Timeout: 5})
+	}
+	return hooks
 }
 
 // languageStopCommand is the Stop hook that sends a reply back when it is not

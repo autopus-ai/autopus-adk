@@ -79,6 +79,12 @@ func TestGenerateProjectHookConfigs_VerifyStopOnClaudeAndCodexAndSwitchable(t *t
 	require.NoError(t, err)
 	require.NotNil(t, findHook(codex, "Stop"), "Codex's Stop payload and block decision are Claude Code's")
 	assert.Equal(t, "auto verify stop", findHook(codex, "Stop").Command)
+	require.NotNil(t, findHook(codex, "SubagentStart"), "Codex has no background_tasks: sub-agents are tracked")
+	assert.Equal(t, "auto verify stop --subagent start", findHook(codex, "SubagentStart").Command)
+	assert.Equal(t, "auto verify stop --subagent stop", findHook(codex, "SubagentStop").Command)
+	claudeHooks, _, err := content.GenerateProjectHookConfigs(cfg, "claude-code", true)
+	require.NoError(t, err)
+	assert.Nil(t, findHook(claudeHooks, "SubagentStart"), "Claude Code reports background_tasks itself")
 
 	// Antigravity's Stop speaks another dialect; OpenCode has no blocking Stop.
 	for _, platform := range []string{"opencode", "antigravity-cli"} {
