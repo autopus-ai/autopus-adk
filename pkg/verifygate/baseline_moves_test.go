@@ -1,6 +1,7 @@
 package verifygate
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -53,4 +54,27 @@ func TestMovedRuns(t *testing.T) {
 	runs := map[string][]testRun{"m.T": {{Failed: true, Lines: []string{"pre_test.go:6: x", "./pre_test.go:3:2: y", "other.go:1: z"}}}}
 	got := movedRuns(runs, map[string]string{"pre_test.go": "pre2_test.go"})
 	assert.Equal(t, []string{"pre2_test.go:6: x", "./pre2_test.go:3:2: y", "other.go:1: z"}, got["m.T"][0].Lines)
+}
+
+// A helper deleted from one package's test file and added unchanged to
+// another package's is not a move: declarations are compared per
+// directory, so the package that lost it is charged and the one that
+// gained it is not.
+func TestRunCharged_AHelperMovedToAnotherPackageIsADeletion(t *testing.T) {
+	const helper = "\nfunc unused() int { return 1 }\n"
+	const other = "package other\n\nimport \"testing\"\n\nfunc TestOther(t *testing.T) {}\n"
+	base := baselineBase()
+	base["sum_test.go"] = newTestFile + helper
+	base["other/other_test.go"] = other
+	root := redRepo(t, base, map[string]string{"sum_test.go": newTestFile, "other/other_test.go": other + helper})
+
+	_, changed, ok := ChangedFiles(context.Background(), root)
+	require.True(t, ok)
+	edited := editedTestFuncs(context.Background(), root, changed)
+	assert.True(t, edited[".\x00"], "the package that lost the helper: %v", edited)
+	assert.False(t, edited["other\x00"], "the package that gained it: %v", edited)
+
+	res := runCharged(t, root)
+	require.NotNil(t, res.Failure, "the deletion was hidden; pre-existing: %v", res.Preexisting)
+	assert.Equal(t, []string{"basegate.TestNeedsTool"}, res.Edited)
 }
