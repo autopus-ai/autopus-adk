@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **큰 기능은 설계 결정을 1쪽 노트로 남긴다** (2026-11-27): autonomy 규칙에 새 명령·패키지·하위 시스템이면
+  `docs/design/<feature>.md`에 결정, 이유, 기각한 대안을 적으라는 문장을 더했다. 작은 변경은 지금처럼 커밋과 PR에 남긴다.
+  sticky 규칙 본문 4000바이트 상한에 맞춰 다른 문장을 줄였다. 첫 노트는 `docs/design/harness-feedback.md`.
+- **다른 언어로 쓴 진행 메모를 턴이 끝나기 전에 바로 알린다** (2026-11-27): `auto verify language --note`를 Claude Code
+  PostToolUse hook(모든 도구)으로 등록한다. 방금 쓴 진행 메모가 `language.ai_responses`가 아니면 다음 메모부터 그 언어로
+  쓰라고 맥락에 한 번 더한다. 막지 않고, 메모 하나에 한 번만 알린다. Stop hook의 언어 검사는 그대로 마지막 안전망이다.
+  한 세션에서 Stop hook이 언어로 막은 일이 20번 넘게 있었다: 첫 영어 메모 뒤에 이어지는 메모가 모두 영어였다.
 - **Codex에도 Stop hook 검증을 건다** (2026-11-27): `auto verify stop`과 `auto verify language`를 `.codex/hooks.json`의 Stop
   이벤트에 등록한다. Codex의 Stop 입력(`session_id`, `cwd`, `stop_hook_active`, `last_assistant_message`)과 `{"decision":"block"}`
   응답이 Claude Code와 같다. Codex는 백그라운드 작업을 알려 주지 않아 `SubagentStart`/`SubagentStop` hook(`auto verify

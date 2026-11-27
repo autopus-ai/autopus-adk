@@ -2,7 +2,7 @@
 .agents/plugins/
 .agents/plugins/marketplace.json 7bac9f0f7c15eecf46023308f334e2122d112d03aa7b498f9e01adabd48ac03c
 .autopus/
-.autopus/claude-code-manifest.json c11933869ad3dcdbc3f37488b60c709f38eb6ec6ad35875a51dd15dc987dd2af
+.autopus/claude-code-manifest.json 94ac26edce31487dba7708ae02efe8fd9a80e9219e238998b6c1549cf3d38230
 .autopus/claude-code-permissions.json 1f67bb93d7f5d12c791be89828931e8f7ef57710c2ead761fe38e38f7361a296
 .autopus/codex-manifest.json 2661e77cf5bbed899aa81de587d597593347b02b5697fb42f90166436da46081
 .autopus/context/
@@ -16,7 +16,7 @@
 .autopus/plugins/auto/skills/auto/SKILL.md 6f29e4b9baa300865f114e0affa5872691e3136d50f9bea40d84c70e40e9d311
 .autopus/txns/
 .autopus/txns/<TX>-claude-code/
-.autopus/txns/<TX>-claude-code/journal.json 88e6bbcf19d7259ac4d41795f3c817adfc628e0b3d6a350f6cc4fef731bc7219
+.autopus/txns/<TX>-claude-code/journal.json 845933036a4e95bea32adcd2b001b0817a519eb70ff5d42daeb61b7ffa5274ca
 .autopus/txns/<TX>-codex/
 .autopus/txns/<TX>-codex/journal.json 59341f3a00db6ad0c733fe827a7ae31f23e52c50a23154abc84d5e18c0eadfc5
 .claude/
@@ -39,10 +39,10 @@
 .claude/hooks/task-created-validate.sh 8f388b7993fd0deaa3795b614484ec873ad05bf6f0eb108770ad177e18f1b595
 .claude/rules/
 .claude/rules/autopus/
-.claude/rules/autopus/autonomy.md 799767189d77f384fcc0626d986549bfc735cb6313a373acc9b2e4991c114b52
+.claude/rules/autopus/autonomy.md 654048316168a8bef1bf5e0e7c49949632c3baab3c39740fb88010ce7457a4e6
 .claude/rules/autopus/file-size-limit.md c4250d144ef919d17b6edb7ee3f28b9bfa4902bfb5e5fdf0c0e13f0c9a29751c
 .claude/rules/autopus/language-policy.md 7da1d2d97e862b6250d06bbbdba503cccb2faa38b6fc59585a25ea91c5e593c3
-.claude/settings.json 104fa016675bbe86953e7d7a3c5b36efbcda6b0633777f06cb3f52d5b387857a
+.claude/settings.json ede0e89a09f962e921f1c3b440b9e8acf885386c6cba9a19f5949a4aaaa856b6
 .claude/skills/
 .claude/skills/auto-doctor/
 .claude/skills/auto-doctor/SKILL.md 9796d1b85cf212c04b25af789c6b67febd53a933c791b78e22d9b83b713443ee

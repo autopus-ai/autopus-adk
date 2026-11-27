@@ -176,6 +176,7 @@ func TestIsManagedClaudeHookCommand_GeneratedShapesStayOwned(t *testing.T) {
 		"AUTOPUS_TASKCREATED_DEFAULT_MODE=enforce .claude/hooks/task-created-validate.sh",
 		".claude/hooks/task-created-validate.sh",
 		guardCommandLine,
+		`out=$(auto verify language --note) && [ -n "$out" ] && printf '%s\n' "$out"; exit 0`,
 	} {
 		assert.True(t, isManagedClaudeHookCommand(command), "generated command: %q", command)
 	}
