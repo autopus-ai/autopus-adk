@@ -94,7 +94,7 @@ func Run(parent context.Context, steps []Step, budget time.Duration) (*Failure, 
 			continue
 		}
 		if _, err := exec.LookPath(step.Argv[0]); err != nil {
-			skipped = append(skipped, Skip{Name: step.Name, Reason: step.Argv[0] + " is not installed"})
+			skipped = append(skipped, lookPathSkip(step, err))
 			continue
 		}
 		if missing := firstMissing(step.Requires); missing != "" {
@@ -132,7 +132,10 @@ func Run(parent context.Context, steps []Step, budget time.Duration) (*Failure, 
 		started := time.Now()
 		if err := group.Start(); err != nil {
 			stepCancel()
-			skipped = append(skipped, Skip{Name: step.Name, Reason: "it could not be started: " + err.Error()})
+			if interrupted(ctx) {
+				return nil, append(skipped, interruptedSkips(steps[i:])...)
+			}
+			skipped = append(skipped, startSkip(step, err, budget))
 			continue
 		}
 		err := cmd.Wait()
