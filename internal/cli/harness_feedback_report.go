@@ -29,10 +29,15 @@ func newHarnessReportCmd() *cobra.Command {
 				return err
 			}
 			patterns := harnessfb.Detect(sessions)
+			effects, err := harnessEffects(root)
+			if err != nil {
+				return err
+			}
 			if asJSON {
-				return printJSON(cmd.OutOrStdout(), map[string]any{"sessions": sessions, "patterns": patterns})
+				return printJSON(cmd.OutOrStdout(), map[string]any{"sessions": sessions, "patterns": patterns, "effects": effects})
 			}
 			printHarnessReport(cmd.OutOrStdout(), sessions, patterns)
+			printHarnessEffects(cmd.OutOrStdout(), effects)
 			return nil
 		},
 	}

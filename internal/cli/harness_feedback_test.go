@@ -205,3 +205,100 @@ func TestUsageTokens(t *testing.T) {
 	assert.Equal(t, int64(-1), usageTokens(&orchestra.ProviderResponse{}))
 	assert.Equal(t, int64(120), usageTokens(&orchestra.ProviderResponse{Usage: []telemetry.UsageEnvelope{{InputTokensTotal: &in, OutputTokensTotal: &out}}}))
 }
+
+// transcriptAt is a session on day that spends reviewSecs of 1500 s in
+// one review.
+func transcriptAt(t *testing.T, dir, name string, day time.Time, reviewSecs int) string {
+	t.Helper()
+	at := func(s int) string { return day.Add(time.Duration(s) * time.Second).Format(time.RFC3339) }
+	lines := []string{
+		fmt.Sprintf(`{"type":"user","timestamp":%q,"message":{"role":"user","content":"fix it"}}`, at(0)),
+		fmt.Sprintf(`{"type":"assistant","timestamp":%q,"message":{"content":[{"type":"tool_use","id":"r1","name":"Agent","input":{"subagent_type":"reviewer"}}]}}`, at(1)),
+		fmt.Sprintf(`{"type":"user","timestamp":%q,"message":{"content":[{"type":"tool_result","tool_use_id":"r1","content":"ok"}]}}`, at(1+reviewSecs)),
+		fmt.Sprintf(`{"type":"user","timestamp":%q,"message":{"role":"user","content":"next"}}`, at(1500)),
+	}
+	path := filepath.Join(dir, name+".jsonl")
+	require.NoError(t, os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o600))
+	return path
+}
+
+// After approval the report compares the rule's pattern before and after
+// it, and says when it has not helped.
+func TestHarnessReport_ApprovedRuleEffect(t *testing.T) {
+	harnessRepo(t)
+	t.Setenv(harnessFeedbackEnv, "")
+	stubHarnessProviders(t, "survived")
+	day := time.Date(2026, 11, 20, 9, 0, 0, 0, time.UTC)
+	old := harnessNow
+	harnessNow = func() time.Time { return day.Add(3 * 24 * time.Hour) }
+	t.Cleanup(func() { harnessNow = old })
+	tdir := t.TempDir()
+	observe := func(id string, at time.Time, reviewSecs int) {
+		t.Helper()
+		_, err := runAuto(t, "harness", "observe", "--session-id", id, "--transcript", transcriptAt(t, tdir, id, at, reviewSecs))
+		require.NoError(t, err)
+		t.Setenv(harnessFeedbackEnv, "")
+	}
+	for i := 0; i < 3; i++ {
+		observe(fmt.Sprint("b", i), day.Add(time.Duration(i)*24*time.Hour), 999)
+	}
+	_, err := runAuto(t, "harness", "approve", "HL-001")
+	require.NoError(t, err)
+
+	for i := 0; i < 5; i++ {
+		observe(fmt.Sprint("a", i), day.Add(time.Duration(4+i)*24*time.Hour), 100)
+	}
+	harnessNow = func() time.Time { return day.Add(10 * 24 * time.Hour) }
+	out, err := runAuto(t, "harness", "report")
+	require.NoError(t, err)
+	assert.Contains(t, out, "승인한 규칙의 효과")
+	assert.Contains(t, out, "HL-001 (review-heavy): 나온 세션 100% → 0%")
+	assert.Contains(t, out, "줄었음 (전 3개, 후 5개 세션)")
+}
+
+// An old approval keeps its "before" sessions: they are read from before
+// the approval, not from a window ending now.
+func TestHarnessEffects_OldApprovalKeepsItsBaseline(t *testing.T) {
+	harnessRepo(t)
+	t.Setenv(harnessFeedbackEnv, "")
+	stubHarnessProviders(t, "survived")
+	day := time.Date(2026, 6, 1, 9, 0, 0, 0, time.UTC)
+	old := harnessNow
+	harnessNow = func() time.Time { return day.Add(3 * 24 * time.Hour) }
+	t.Cleanup(func() { harnessNow = old })
+	tdir := t.TempDir()
+	for i := 0; i < 3; i++ {
+		id := fmt.Sprint("b", i)
+		_, err := runAuto(t, "harness", "observe", "--session-id", id, "--transcript", transcriptAt(t, tdir, id, day.Add(time.Duration(i)*24*time.Hour), 999))
+		require.NoError(t, err)
+		t.Setenv(harnessFeedbackEnv, "")
+	}
+	_, err := runAuto(t, "harness", "approve", "HL-001")
+	require.NoError(t, err)
+	harnessNow = func() time.Time { return day.Add(200 * 24 * time.Hour) }
+	effects, err := harnessEffects(".")
+	require.NoError(t, err)
+	require.Len(t, effects, 1)
+	assert.Equal(t, 3, effects[0].Before.Sessions)
+}
+
+func TestHarnessProviderDir(t *testing.T) {
+	t.Setenv("TMPDIR", t.TempDir())
+	stale := filepath.Join(os.TempDir(), harnessDirPrefix+"stale")
+	fresh := filepath.Join(os.TempDir(), harnessDirPrefix+"fresh")
+	require.NoError(t, os.MkdirAll(stale, 0o755))
+	require.NoError(t, os.MkdirAll(fresh, 0o755))
+	past := time.Now().Add(-2 * time.Hour)
+	require.NoError(t, os.Chtimes(stale, past, past))
+
+	dir, cleanup, err := harnessProviderDir(context.Background())
+	require.NoError(t, err)
+	out, err := exec.Command("git", "-C", dir, "rev-parse", "--show-toplevel").Output()
+	require.NoError(t, err, "codex exec runs only in a git repository")
+	real, _ := filepath.EvalSymlinks(dir)
+	assert.Equal(t, real, strings.TrimSpace(string(out)))
+	assert.NoDirExists(t, stale, "a leftover from a killed run is removed")
+	assert.DirExists(t, fresh, "one a running call may be using is kept")
+	cleanup()
+	assert.NoDirExists(t, dir)
+}
