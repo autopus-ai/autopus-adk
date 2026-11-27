@@ -39,7 +39,8 @@ func recordSubagent(stdin io.Reader, stdout io.Writer, event string) error {
 	_ = json.NewDecoder(stdin).Decode(&in)
 	switch event {
 	case "start":
-		writeStopState(in.SessionID, subagentKind(in.AgentID), time.Now().UTC().Format(time.RFC3339))
+		// The file holds one line per stop the marker deferred.
+		writeStopState(in.SessionID, subagentKind(in.AgentID), "")
 	case "stop":
 		_ = os.Remove(stopStateFile(in.SessionID, subagentKind(in.AgentID)))
 	default:
@@ -49,8 +50,16 @@ func recordSubagent(stdin io.Reader, stdout io.Writer, event string) error {
 	return err
 }
 
-// runningSubagents counts the session's sub-agents still running, removing
-// markers too old to be live.
+// subagentMaxDefers is how many stops one sub-agent marker may defer. Codex
+// sends no SubagentStop for a sub-agent turn that was interrupted or ended
+// on an error, so a marker can outlive its sub-agent; past this many stops
+// it is taken as gone and the tree is verified.
+const subagentMaxDefers = 2
+
+// runningSubagents counts the session's sub-agents still taken as running,
+// and charges each one stop it defers. A marker older than
+// subagentMarkerAge, or that already deferred subagentMaxDefers stops, is
+// removed instead.
 func runningSubagents(session string) int {
 	if session == "" || privatedir.Ensure(stopStateDir) != nil {
 		return 0
@@ -65,16 +74,20 @@ func runningSubagents(session string) int {
 		if !strings.HasPrefix(e.Name(), prefix) {
 			continue
 		}
+		path := filepath.Join(stopStateDir, e.Name())
 		info, err := e.Info()
 		if err != nil {
 			continue
 		}
-		if time.Since(info.ModTime()) > subagentMarkerAge {
-			if err := os.Remove(filepath.Join(stopStateDir, e.Name())); err != nil && !errors.Is(err, os.ErrNotExist) {
+		data, _ := os.ReadFile(path)
+		defers := strings.Count(string(data), "\n")
+		if time.Since(info.ModTime()) > subagentMarkerAge || defers >= subagentMaxDefers {
+			if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
 				continue
 			}
 			continue
 		}
+		_ = privatedir.WriteFile(stopStateDir, e.Name(), append(data, '\n'))
 		n++
 	}
 	return n

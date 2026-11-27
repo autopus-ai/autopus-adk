@@ -170,7 +170,7 @@ change edited, the changed tests run first and the final step gets about half th
 
 The Stop hook runs in Claude Code, in Codex (`.codex/hooks.json`: its Stop payload and
 `{"decision":"block"}` reply are Claude Code's; it reports no background tasks, so `SubagentStart`/`SubagentStop`
-hooks record running sub-agents and the gate waits for them), and, through its extension, in omp; set `AUTOPUS_FOLLOWUP=off`
+hooks record running sub-agents and the gate waits for them, for at most two stops per sub-agent: Codex sends no SubagentStop for an interrupted one and no SubagentStart for a sub-agent's later turns), and, through its extension, in omp; set `AUTOPUS_FOLLOWUP=off`
 in the environment omp starts in to turn the round off there. Codex runs a project hook only after you
 trust it: approve it in `/hooks` after `auto init`, and again after an `auto update` that changes it. On Codex
 the language check reads only the final reply and `auto harness` does not measure the session (its transcript is

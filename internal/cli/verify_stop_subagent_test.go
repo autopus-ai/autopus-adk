@@ -56,3 +56,20 @@ func TestRunningSubagents_ForgetsStaleMarkers(t *testing.T) {
 	var out bytes.Buffer
 	assert.Error(t, recordSubagent(strings.NewReader(`{}`), &out, "pause"))
 }
+
+// A sub-agent whose SubagentStop never came (interrupted, or ended on an
+// error) defers at most subagentMaxDefers stops, then the tree is verified.
+func TestVerifyStop_ALostCodexSubagentStopsDeferring(t *testing.T) {
+	isolateStop(t)
+	session := "cx-lost"
+	resetStopState(session)
+	t.Cleanup(func() { resetStopState(session) })
+	dir := newStopRepo(t, "package stopgate\n\nfunc Add(a, b int) int { return a - b }\n")
+	codex := map[string]any{"session_id": session, "cwd": dir, "turn_id": "t1", "last_assistant_message": "done"}
+	subagentEvent(t, "start", session, "interrupted")
+	for i := 0; i < subagentMaxDefers; i++ {
+		assert.Empty(t, runStopPayload(t, codex).Decision, "stop %d waits", i+1)
+	}
+	assert.Equal(t, "block", runStopPayload(t, codex).Decision, "then the failing build blocks")
+	assert.NoFileExists(t, stopStateFile(session, subagentKind("interrupted")))
+}
