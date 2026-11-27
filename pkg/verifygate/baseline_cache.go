@@ -256,7 +256,7 @@ func (c *baselineCache) recallable(key string, now time.Time) bool {
 // fresh run, but charging an unchanged failure HEAD was seen to share only
 // because the budget ran out blocks on the tree's breakage, not the change.
 // A stop that can ask HEAD always does.
-func (c *baselineCache) recall(keys []string, current map[string][]testRun, moves map[string]string) bool {
+func (c *baselineCache) recall(keys []string, current map[string][]testRun, view headView) bool {
 	if c == nil || len(keys) == 0 {
 		return false
 	}
@@ -268,7 +268,7 @@ func (c *baselineCache) recall(keys []string, current map[string][]testRun, move
 		}
 		runs[key] = c.entries[key].Runs
 	}
-	runs = movedRuns(runs, moves)
+	runs = view.runs(runs)
 	for _, key := range keys {
 		if !sameFailure(current[key], runs[key], wantRuns(key)) {
 			return false
