@@ -18,6 +18,7 @@ const turnTranscriptTail = 8 << 20
 const stopHookFeedbackPrefix = "Stop hook feedback:"
 
 type transcriptEntry struct {
+	UUID        string `json:"uuid"`
 	Type        string `json:"type"`
 	IsMeta      bool   `json:"isMeta"`
 	IsSidechain bool   `json:"isSidechain"`

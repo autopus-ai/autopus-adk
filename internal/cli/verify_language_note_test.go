@@ -144,3 +144,37 @@ func TestTurnReplies_SkipsSyntheticMessages(t *testing.T) {
 	require.NoError(t, os.WriteFile(path, []byte(b.String()), 0o600))
 	assert.Empty(t, turnReplies(path))
 }
+
+// The same words written again in a later turn are a new note and remind
+// again; the marker is the transcript entry, not the text.
+func TestRunLanguageNote_SameWordsLaterRemindAgain(t *testing.T) {
+	isolateStop(t)
+	cwd := languageProject(t, "ko", nil)
+	session := "note-again-" + strings.ReplaceAll(t.Name(), "/", "_")
+	t.Cleanup(func() { resetStopState(session) })
+	note := "Running the tests again now."
+	write := func(lines ...map[string]any) string {
+		var b strings.Builder
+		for _, l := range lines {
+			data, _ := json.Marshal(l)
+			b.Write(data)
+			b.WriteByte('\n')
+		}
+		path := filepath.Join(t.TempDir(), "s.jsonl")
+		require.NoError(t, os.WriteFile(path, []byte(b.String()), 0o600))
+		return path
+	}
+	prompt := func(text string) map[string]any {
+		return map[string]any{"type": "user", "message": map[string]any{"role": "user", "content": text}}
+	}
+	reply := func(uuid string) map[string]any {
+		return map[string]any{"type": "assistant", "uuid": uuid, "message": map[string]any{"content": []any{
+			map[string]any{"type": "text", "text": note},
+			map[string]any{"type": "tool_use", "id": uuid, "name": "Bash", "input": map[string]any{"command": "go test"}}}}}
+	}
+	first := write(prompt("첫 요청"), reply("u1"))
+	assert.NotEmpty(t, runLanguageNote(noteInput(t, session, cwd, first)))
+	assert.Empty(t, runLanguageNote(noteInput(t, session, cwd, first)), "the same entry reminds once")
+	later := write(prompt("첫 요청"), reply("u1"), prompt("다음 요청"), reply("u2"))
+	assert.NotEmpty(t, runLanguageNote(noteInput(t, session, cwd, later)), "a new entry with the same words")
+}

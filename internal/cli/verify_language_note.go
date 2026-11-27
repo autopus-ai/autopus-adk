@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -50,19 +51,16 @@ func runLanguageNote(stdin io.Reader) string {
 	if cfg == nil || !cfg.Hooks.IsLanguageStopEnabled() || !langgate.Supported(cfg.Language.AIResponses) {
 		return ""
 	}
-	replies := turnRepliesTail(in.TranscriptPath, noteTranscriptTail)
-	if len(replies) == 0 {
-		return ""
-	}
-	last := replies[len(replies)-1]
+	last, entry := latestNote(in.TranscriptPath)
 	lang := cfg.Language.AIResponses
 	if strings.TrimSpace(last) == "" || langgate.Check(lang, last) {
 		return ""
 	}
-	sum := sha256.Sum256([]byte(last))
-	// One marker per note, made with O_EXCL: tool calls run in parallel
-	// fire this check together, and only the one that creates the marker
-	// reminds.
+	// One marker per transcript entry, made with O_EXCL: tool calls run in
+	// parallel fire this check together on the same entry, and only the one
+	// that creates the marker reminds. The same words written again later
+	// are a new entry and remind again.
+	sum := sha256.Sum256([]byte(entry + "\x00" + last))
 	if !claimStopMarker(in.SessionID, "langnote-"+hex.EncodeToString(sum[:8])) {
 		return ""
 	}
@@ -70,6 +68,46 @@ func runLanguageNote(stdin io.Reader) string {
 	return fmt.Sprintf("autopus.yaml sets language.ai_responses to %s, and the note you just wrote is not in %s: %q. "+
 		"The user reads notes as you write them. Write the next note, and every later one, in %s; keep code, "+
 		"commands, paths, and identifiers as they are.", lang, name, excerpt(last), name)
+}
+
+// latestNote returns the agent's latest text in the current turn and the
+// id of the transcript entry it is in, or "" when the turn has none yet.
+func latestNote(path string) (text, entry string) {
+	if path == "" {
+		return "", ""
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return "", ""
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		return "", ""
+	}
+	offset := max(info.Size()-noteTranscriptTail, 0)
+	data, err := io.ReadAll(io.NewSectionReader(f, offset, info.Size()-offset))
+	if err != nil {
+		return "", ""
+	}
+	lines := bytes.Split(data, []byte("\n"))
+	if offset > 0 && len(lines) > 0 {
+		lines = lines[1:] // cut by the offset
+	}
+	for i := len(lines) - 1; i >= 0; i-- {
+		var e transcriptEntry
+		if json.Unmarshal(lines[i], &e) != nil || e.IsSidechain {
+			continue
+		}
+		texts, prompt := entryTexts(e)
+		if prompt {
+			return "", ""
+		}
+		if e.Type == "assistant" && e.Message.Model != "<synthetic>" && len(texts) > 0 {
+			return texts[len(texts)-1], e.UUID
+		}
+	}
+	return "", ""
 }
 
 // claimStopMarker creates the session's marker kind once; it reports true
