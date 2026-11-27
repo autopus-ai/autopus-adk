@@ -106,6 +106,20 @@ func generateCLIHooks(cfg config.HooksConf, platform string) ([]adapter.HookConf
 	return appendConditionalDispatcher(hooks, platform)
 }
 
+// stopHookPlatform reports a CLI whose Stop event takes the gate as it is:
+// Claude Code, and Codex, whose Stop payload carries the same session_id,
+// cwd, stop_hook_active and last_assistant_message and whose
+// {"decision":"block","reason":...} sends the reason back as the next
+// prompt. Antigravity's Stop speaks another dialect (camelCase fields,
+// "continue"), and OpenCode has no blocking Stop event.
+func stopHookPlatform(platform string) bool {
+	switch platform {
+	case "claude", "claude-code", "codex":
+		return true
+	}
+	return false
+}
+
 // verifyStopCommand is the Stop hook that builds and tests the changed files.
 const verifyStopCommand = "auto verify stop"
 
@@ -115,7 +129,7 @@ const verifyStopCommand = "auto verify stop"
 // budget is not killed by Claude Code before it returns a verdict. Unset
 // keeps the bare command and the 600s timeout it always had.
 func generateVerifyStopHook(cfg config.HooksConf, platform string) []adapter.HookConfig {
-	if (platform != "claude" && platform != "claude-code") || !cfg.IsVerifyStopEnabled() {
+	if !stopHookPlatform(platform) || !cfg.IsVerifyStopEnabled() {
 		return nil
 	}
 	budget, err := cfg.VerifyStopBudgetDuration()
@@ -140,7 +154,7 @@ const languageStopCommand = "auto verify language"
 // Code's Stop event, whose payload carries the final reply. It is skipped when
 // the configured language is one the check cannot judge, English included.
 func generateLanguageStopHook(cfg *config.HarnessConfig, platform string) []adapter.HookConfig {
-	if (platform != "claude" && platform != "claude-code") || !cfg.Hooks.IsLanguageStopEnabled() ||
+	if !stopHookPlatform(platform) || !cfg.Hooks.IsLanguageStopEnabled() ||
 		!langgate.Supported(cfg.Language.AIResponses) {
 		return nil
 	}

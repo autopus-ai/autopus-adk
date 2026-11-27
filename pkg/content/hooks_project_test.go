@@ -49,7 +49,7 @@ func TestGenerateProjectHookConfigs_TaskCreatedDisabledOutsideClaude(t *testing.
 	cfg := config.DefaultFullConfig("demo")
 	// The edit guard, on by default, is a Codex PreToolUse entry of its own
 	// (hooks_edit_guard_test.go); off here, only TaskCreated is under test.
-	cfg.Hooks = config.HooksConf{EditGuard: new(false)}
+	cfg.Hooks = config.HooksConf{EditGuard: new(false), VerifyStop: new(false), LanguageStop: new(false)}
 	cfg.Features.CC21 = config.CC21FeaturesConf{
 		Enabled:            true,
 		TaskCreatedEnabled: true,
@@ -59,12 +59,13 @@ func TestGenerateProjectHookConfigs_TaskCreatedDisabledOutsideClaude(t *testing.
 	hooks, gitHooks, err := content.GenerateProjectHookConfigs(cfg, "codex", true)
 	require.NoError(t, err)
 	// TaskCreated is disabled outside claude, and the retired completion and
-	// readiness hooks (SPEC-PANERM-001) leave Codex with no native hook here.
+	// readiness hooks (SPEC-PANERM-001) leave Codex with no native hook here
+	// once its Stop gates are switched off.
 	assert.Empty(t, hooks, "no hook expected for codex: %v", eventNames(hooks))
 	assert.Empty(t, gitHooks)
 }
 
-func TestGenerateProjectHookConfigs_VerifyStopIsClaudeOnlyAndSwitchable(t *testing.T) {
+func TestGenerateProjectHookConfigs_VerifyStopOnClaudeAndCodexAndSwitchable(t *testing.T) {
 	t.Parallel()
 
 	cfg := config.DefaultFullConfig("demo")
@@ -74,7 +75,13 @@ func TestGenerateProjectHookConfigs_VerifyStopIsClaudeOnlyAndSwitchable(t *testi
 	require.NotNil(t, stop, "on by default")
 	assert.Equal(t, 600, stop.Timeout)
 
-	for _, platform := range []string{"codex", "opencode", "antigravity-cli"} {
+	codex, _, err := content.GenerateProjectHookConfigs(cfg, "codex", true)
+	require.NoError(t, err)
+	require.NotNil(t, findHook(codex, "Stop"), "Codex's Stop payload and block decision are Claude Code's")
+	assert.Equal(t, "auto verify stop", findHook(codex, "Stop").Command)
+
+	// Antigravity's Stop speaks another dialect; OpenCode has no blocking Stop.
+	for _, platform := range []string{"opencode", "antigravity-cli"} {
 		other, _, err := content.GenerateProjectHookConfigs(cfg, platform, true)
 		require.NoError(t, err)
 		assert.Nil(t, findHook(other, "Stop"), platform)
@@ -109,7 +116,10 @@ func TestGenerateProjectHookConfigs_LanguageStopFollowsAIResponses(t *testing.T)
 
 	codex, _, err := content.GenerateProjectHookConfigs(cfg, "codex", true)
 	require.NoError(t, err)
-	assert.Nil(t, languageStop(codex), "the payload it reads is Claude Code's")
+	assert.NotNil(t, languageStop(codex), "Codex's Stop payload carries last_assistant_message")
+	opencode, _, err := content.GenerateProjectHookConfigs(cfg, "opencode", true)
+	require.NoError(t, err)
+	assert.Nil(t, languageStop(opencode), "no blocking Stop event")
 
 	cfg.Language.AIResponses = "en"
 	hooks, _, err = content.GenerateProjectHookConfigs(cfg, "claude-code", true)
