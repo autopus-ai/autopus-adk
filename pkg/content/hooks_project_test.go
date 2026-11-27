@@ -87,12 +87,16 @@ func TestGenerateProjectHookConfigs_VerifyStopOnClaudeAndCodexAndSwitchable(t *t
 	require.NoError(t, err)
 	assert.Nil(t, findHook(claudeHooks, "SubagentStart"), "Claude Code reports background_tasks itself")
 
-	// Antigravity's Stop speaks another dialect; OpenCode has no blocking Stop.
-	for _, platform := range []string{"opencode", "antigravity-cli"} {
-		other, _, err := content.GenerateProjectHookConfigs(cfg, platform, true)
-		require.NoError(t, err)
-		assert.Nil(t, findHook(other, "Stop"), platform)
-	}
+	// Antigravity's Stop speaks another dialect, which the gate translates.
+	agy, _, err := content.GenerateProjectHookConfigs(cfg, "antigravity-cli", true)
+	require.NoError(t, err)
+	require.NotNil(t, findHook(agy, "Stop"))
+	assert.Equal(t, "auto verify stop --dialect agy", findHook(agy, "Stop").Command)
+	assert.Equal(t, 600, findHook(agy, "Stop").Timeout, "Antigravity's default timeout is 30 s")
+	// OpenCode has no blocking Stop.
+	opencodeHooks, _, err := content.GenerateProjectHookConfigs(cfg, "opencode", true)
+	require.NoError(t, err)
+	assert.Nil(t, findHook(opencodeHooks, "Stop"))
 
 	off := false
 	cfg.Hooks.VerifyStop = &off

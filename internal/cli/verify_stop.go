@@ -71,6 +71,7 @@ func newVerifyStopCmd() *cobra.Command {
 		followup bool
 		last     bool
 		subagent string
+		dialect  string
 	)
 	cmd := &cobra.Command{
 		Use:   "stop",
@@ -108,6 +109,12 @@ func newVerifyStopCmd() *cobra.Command {
 				dir, _ := os.Getwd()
 				return printLastRun(cmd, cmd.OutOrStdout(), dir)
 			}
+			if dialect == "agy" {
+				return runVerifyStopAgy(cmd, budget, followup)
+			}
+			if dialect != "" {
+				return fmt.Errorf("--dialect takes agy, not %q", dialect)
+			}
 			if subagent != "" {
 				return recordSubagent(cmd.InOrStdin(), cmd.OutOrStdout(), subagent)
 			}
@@ -122,6 +129,7 @@ func newVerifyStopCmd() *cobra.Command {
 	}
 	cmd.Flags().DurationVar(&budget, "budget", 8*time.Minute, "Total time for all verification commands")
 	cmd.Flags().BoolVar(&last, "last", false, "Print the gate's last result for this repository (no tests run)")
+	cmd.Flags().StringVar(&dialect, "dialect", "", "Hook payload dialect: agy for the Antigravity CLI Stop event (camelCase fields, \"continue\" decision)")
 	cmd.Flags().StringVar(&subagent, "subagent", "", "Codex SubagentStart/SubagentStop hook: start or stop (records the running sub-agents the gate waits for)")
 	cmd.Flags().BoolVar(&followup, "followup", false, "Kept for older settings; the verification round is on by default (AUTOPUS_FOLLOWUP=off turns it off)")
 	return cmd

@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **Antigravity CLI에도 Stop hook 검증을 건다** (2026-11-27): `.agents/hooks.json`의 Stop에 `auto verify stop --dialect agy`를
+  등록한다. agy의 camelCase 입력(`conversationId`, `cwd`, `fullyIdle`, `terminationReason`)을 게이트 입력으로 바꾸고, 막을 때는
+  `{"decision":"continue","reason"}`로 답한다. `fullyIdle`이 false이면 기다리고, `NO_TOOL_CALL`(정상 종료)이 아닌 종료는 판단하지
+  않는다. agy 1.5.18을 LLM gateway와 가짜 모델 서버로 실제 실행해, 실패한 테스트를 `continue`로 돌려보내고 다음 stop에서 끝나는
+  것을 확인했다. 입력에 마지막 응답이 없어 언어 검사와 응답 줄 표식은 적용되지 않는다.
 - **큰 기능은 설계 결정을 1쪽 노트로 남긴다** (2026-11-27): autonomy 규칙에 새 명령·패키지·하위 시스템이면
   `docs/design/<feature>.md`에 결정, 이유, 기각한 대안을 적으라는 문장을 더했다. 작은 변경은 지금처럼 커밋과 PR에 남긴다.
   sticky 규칙 본문 4000바이트 상한에 맞춰 다른 문장을 줄였다. 첫 노트는 `docs/design/harness-feedback.md`.

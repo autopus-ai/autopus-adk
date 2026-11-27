@@ -76,8 +76,13 @@ func TestGenerate_InstallsNoOrchestraCompletionHook(t *testing.T) {
 	assert.NotEmpty(t, agyHooks, "the other native hooks stay")
 	for _, event := range []string{"AfterAgent", "Stop", "SessionStart"} {
 		assert.NotContains(t, legacyHooks, event)
+	}
+	for _, event := range []string{"AfterAgent", "SessionStart"} {
 		assert.NotContains(t, agyHooks, event)
 	}
+	// The only Stop entry is the verification gate in Antigravity's dialect.
+	require.Equal(t, []any{map[string]any{"type": "command", "command": "auto verify stop --dialect agy", "timeout": float64(600)}},
+		agyHooks["Stop"])
 	assert.NoDirExists(t, filepath.Join(dir, ".gemini", "hooks"))
 	for _, file := range []string{filepath.Join(".gemini", "settings.json"), filepath.Join(".agents", "hooks.json")} {
 		data, err := os.ReadFile(filepath.Join(dir, file))
