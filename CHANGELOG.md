@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **큰 기능은 설계 결정을 1쪽 노트로 남긴다** (2026-11-27): autonomy 규칙에 새 명령·패키지·하위 시스템이면
+  `docs/design/<feature>.md`에 결정, 이유, 기각한 대안을 적으라는 문장을 더했다. 작은 변경은 지금처럼 커밋과 PR에 남긴다.
+  sticky 규칙 본문 4000바이트 상한에 맞춰 다른 문장을 줄였다. 첫 노트는 `docs/design/harness-feedback.md`.
 - **`auto harness report`가 승인한 규칙의 효과를 보여 주고, 초안 비용을 줄인다** (2026-11-27):
   - 승인한 규칙마다 그 패턴이 나온 세션 비율과 세션당 시간을 승인 전후로 비교한다. 승인 뒤 세션 5개부터 판정하고,
     5분의 1 이상 줄지 않으면 retire 후보로 표시한다.
