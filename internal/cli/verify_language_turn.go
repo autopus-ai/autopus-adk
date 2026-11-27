@@ -35,7 +35,10 @@ type transcriptPart struct {
 // current turn, oldest first: every text block after the last prompt, so
 // progress notes between tool calls are checked as well as the final reply.
 // A missing or unreadable transcript yields nil.
-func turnReplies(path string) []string {
+func turnReplies(path string) []string { return turnRepliesTail(path, turnTranscriptTail) }
+
+// turnRepliesTail is turnReplies over the last tail bytes of the file.
+func turnRepliesTail(path string, tail int64) []string {
 	if path == "" {
 		return nil
 	}
@@ -48,7 +51,7 @@ func turnReplies(path string) []string {
 	if err != nil {
 		return nil
 	}
-	offset := max(info.Size()-turnTranscriptTail, 0)
+	offset := max(info.Size()-tail, 0)
 	data, err := io.ReadAll(io.NewSectionReader(f, offset, info.Size()-offset))
 	if err != nil {
 		return nil
