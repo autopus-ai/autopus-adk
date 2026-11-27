@@ -3,6 +3,7 @@ package codex
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -28,8 +29,9 @@ func TestGenerateHooks(t *testing.T) {
 	// SPEC-PANERM-001 REQ-12: the orchestra completion and ready hooks and
 	// their .codex/hooks/autopus scripts are retired with the pane backend.
 	assert.NotContains(t, string(files[0].Content), "SessionStart")
-	assert.NotContains(t, string(files[0].Content), `"Stop"`)
 	assert.NotContains(t, string(files[0].Content), "hook-codex-")
+	// The Stop event carries the verification gate, not a completion hook.
+	assert.Contains(t, string(files[0].Content), `"command": "auto verify stop"`)
 	assert.NoDirExists(t, filepath.Join(dir, ".codex", "hooks", "autopus"))
 	var doc hooksDoc
 	require.NoError(t, json.Unmarshal(files[0].Content, &doc))
@@ -149,9 +151,13 @@ func TestGenerateHooks_ValidJSON(t *testing.T) {
 	require.True(t, ok, "should have hooks key")
 	assert.Contains(t, hooks, "PreToolUse")
 	assert.Contains(t, hooks, "PostToolUse")
-	// SPEC-PANERM-001 REQ-12: no orchestra completion or ready hook.
+	// SPEC-PANERM-001 REQ-12: no orchestra completion or ready hook; Stop
+	// holds only the verification gate.
 	assert.NotContains(t, hooks, "SessionStart")
-	assert.NotContains(t, hooks, "Stop")
+	stop, ok := hooks["Stop"].([]interface{})
+	require.True(t, ok)
+	require.Len(t, stop, 1)
+	assert.Contains(t, fmt.Sprint(stop[0]), "auto verify stop")
 }
 
 func TestNativeSkillRoutingInAgentsMD(t *testing.T) {

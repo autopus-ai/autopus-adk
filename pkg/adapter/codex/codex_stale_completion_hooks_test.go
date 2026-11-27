@@ -57,7 +57,9 @@ func TestCodexUpdate_RetractsGroupSHandlersAndScripts(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal(written, &got))
 	assert.Empty(t, got.Hooks["SessionStart"])
-	require.Len(t, got.Hooks["Stop"], 2)
+	// The user entries stay first; the verification gate follows them.
+	require.Len(t, got.Hooks["Stop"], 3)
+	assert.Equal(t, "auto verify stop", got.Hooks["Stop"][2]["hooks"].([]any)[0].(map[string]any)["command"])
 	assert.Equal(t, "user-stop", got.Hooks["Stop"][0]["matcher"], "the user entry stays first")
 	assert.Equal(t, []any{map[string]any{"type": "command", "command": "./scripts/notify.sh", "timeout": float64(10)}},
 		got.Hooks["Stop"][1]["hooks"], "the mixed entry keeps only the user handler")
@@ -142,7 +144,7 @@ func TestCodexUpdate_KeepsCompoundUserHandlersAndTheirScripts(t *testing.T) {
 		Hooks map[string][]map[string]any `json:"hooks"`
 	}
 	require.NoError(t, json.Unmarshal(written, &got))
-	require.Len(t, got.Hooks["Stop"], 1)
+	require.Len(t, got.Hooks["Stop"], 2, "the user's entry and the verification gate")
 	assert.Equal(t, "audit", got.Hooks["Stop"][0]["matcher"])
 	assert.Equal(t, []any{compound}, got.Hooks["Stop"][0]["hooks"], "the compound handler stays as written")
 	assert.Empty(t, got.Hooks["SessionStart"], "the exact group S handler is still retracted")

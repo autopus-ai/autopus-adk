@@ -168,9 +168,15 @@ note and leaves the tree unverified, and any edit re-arms the block. When the sl
 change edited, the changed tests run first and the final step gets about half the budget. Editing
 `--budget` in the settings file by hand does not last: `auto update` rewrites the hook.
 
-The Stop hook runs in Claude Code and, through its extension, in omp; set `AUTOPUS_FOLLOWUP=off`
-in the environment omp starts in to turn the round off there. On the other platforms, run
-`/auto review` and `/auto qa` (or the platform's equivalent, below) yourself.
+The Stop hook runs in Claude Code, in Codex (`.codex/hooks.json`: its Stop payload and
+`{"decision":"block"}` reply are Claude Code's; it reports no background tasks, so `SubagentStart`/`SubagentStop`
+hooks record running sub-agents and the gate waits for them, for at most two stops per sub-agent: Codex sends no SubagentStop for an interrupted one and no SubagentStart for a sub-agent's later turns), and, through its extension, in omp; set `AUTOPUS_FOLLOWUP=off`
+in the environment omp starts in to turn the round off there. Codex runs a project hook only after you
+trust it: approve it in `/hooks` after `auto init`, and again after an `auto update` that changes it. On Codex
+the language check reads only the final reply and `auto harness` does not measure the session (its transcript is
+not Claude Code's). Codex merges every `.codex` layer from the project root to the cwd, so a second ADK install
+in a subdirectory runs the gate twice. On Antigravity CLI and
+OpenCode, run `/auto review` and `/auto qa` (or the platform's equivalent, below) yourself.
 
 ## QA bug hunt
 

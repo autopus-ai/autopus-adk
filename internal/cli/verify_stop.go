@@ -31,6 +31,9 @@ type stopHookInput struct {
 	// TranscriptPath is the session's transcript, which the harness
 	// feedback loop reads in the background (see maybeStartHarnessObserve).
 	TranscriptPath string `json:"transcript_path"`
+	// TurnID is in Codex's Stop payload only: its transcript is a Codex
+	// rollout, which the harness feedback loop cannot read.
+	TurnID string `json:"turn_id"`
 	// BackgroundTasks lists tasks still in flight when the session stops.
 	BackgroundTasks []struct {
 		Type string `json:"type"`
@@ -44,7 +47,9 @@ type stopHookInput struct {
 var treeWriters = []string{"subagent", "workflow", "teammate"}
 
 func backgroundWriters(in stopHookInput) int {
-	n := 0
+	// Codex reports no background tasks; its SubagentStart/SubagentStop
+	// hooks leave one marker per running sub-agent instead.
+	n := runningSubagents(in.SessionID)
 	for _, task := range in.BackgroundTasks {
 		if slices.Contains(treeWriters, task.Type) {
 			n++
@@ -65,6 +70,7 @@ func newVerifyStopCmd() *cobra.Command {
 		budget   time.Duration
 		followup bool
 		last     bool
+		subagent string
 	)
 	cmd := &cobra.Command{
 		Use:   "stop",
@@ -102,6 +108,9 @@ func newVerifyStopCmd() *cobra.Command {
 				dir, _ := os.Getwd()
 				return printLastRun(cmd, cmd.OutOrStdout(), dir)
 			}
+			if subagent != "" {
+				return recordSubagent(cmd.InOrStdin(), cmd.OutOrStdout(), subagent)
+			}
 			out := runVerifyStop(cmd, cmd.InOrStdin(), budget, followup)
 			data, err := json.Marshal(out)
 			if err != nil {
@@ -113,6 +122,7 @@ func newVerifyStopCmd() *cobra.Command {
 	}
 	cmd.Flags().DurationVar(&budget, "budget", 8*time.Minute, "Total time for all verification commands")
 	cmd.Flags().BoolVar(&last, "last", false, "Print the gate's last result for this repository (no tests run)")
+	cmd.Flags().StringVar(&subagent, "subagent", "", "Codex SubagentStart/SubagentStop hook: start or stop (records the running sub-agents the gate waits for)")
 	cmd.Flags().BoolVar(&followup, "followup", false, "Kept for older settings; the verification round is on by default (AUTOPUS_FOLLOWUP=off turns it off)")
 	return cmd
 }
@@ -253,7 +263,7 @@ func suspectedHang(session, fingerprint, summary string, window, budget time.Dur
 		"tests run first and the final step gets only about half the budget. If this is a legitimately slow test, stopping "+
 		"again will not block this tree again (it stays unverified). To give it more time, set `hooks.verify_stop_budget` in "+
 		"autopus.yaml (for example \"15m\", at most %s) and run `auto update`; Claude Code reads hooks when a session starts, "+
-		"so the new budget applies from the next session on.", window, budget, config.MaxVerifyStopBudget)
+		"so the new budget applies from the next session on. Codex runs a changed hook only after it is approved again in /hooks.", window, budget, config.MaxVerifyStopBudget)
 	return stopHookOutput{Decision: "block", Reason: summary + hint +
 		"\n\nIf it is stuck, fix it, or explain why it is not caused by this change, before finishing."}
 }

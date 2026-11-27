@@ -15,6 +15,12 @@ All notable changes to this project will be documented in this file.
   PostToolUse hook(모든 도구)으로 등록한다. 방금 쓴 진행 메모가 `language.ai_responses`가 아니면 다음 메모부터 그 언어로
   쓰라고 맥락에 한 번 더한다. 막지 않고, 메모 하나에 한 번만 알린다. Stop hook의 언어 검사는 그대로 마지막 안전망이다.
   한 세션에서 Stop hook이 언어로 막은 일이 20번 넘게 있었다: 첫 영어 메모 뒤에 이어지는 메모가 모두 영어였다.
+- **Codex에도 Stop hook 검증을 건다** (2026-11-27): `auto verify stop`과 `auto verify language`를 `.codex/hooks.json`의 Stop
+  이벤트에 등록한다. Codex의 Stop 입력(`session_id`, `cwd`, `stop_hook_active`, `last_assistant_message`)과 `{"decision":"block"}`
+  응답이 Claude Code와 같다. Codex는 백그라운드 작업을 알려 주지 않아 `SubagentStart`/`SubagentStop` hook(`auto verify
+  stop --subagent start|stop`)으로 실행 중인 하위 에이전트를 기록하고, 게이트는 그동안 기다린다(2시간 지난 기록은 버린다).
+  Codex 세션은 `auto harness` 측정에 넣지 않는다. Codex는 프로젝트 hook을 `/hooks`에서 신뢰해야 실행하고, hook이 바뀌면 다시
+  승인해야 한다. 언어 검사는 마지막 응답만 본다. Antigravity(다른 입출력 형식)와 OpenCode(차단형 Stop 없음)는 아직 아니다.
 - **`auto harness report`가 승인한 규칙의 효과를 보여 주고, 초안 비용을 줄인다** (2026-11-27):
   - 승인한 규칙마다 그 패턴이 나온 세션 비율과 세션당 시간을 승인 전후로 비교한다. 승인 뒤 세션 5개부터 판정하고,
     5분의 1 이상 줄지 않으면 retire 후보로 표시한다.

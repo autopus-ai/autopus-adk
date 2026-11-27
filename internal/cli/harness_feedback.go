@@ -57,7 +57,11 @@ func harnessRoot(ctx context.Context) (string, error) {
 // maybeStartHarnessObserve starts the observation of a stopping session in
 // the background. The Stop hook's own result never depends on it.
 func maybeStartHarnessObserve(in stopHookInput, dir string) {
-	if strings.EqualFold(os.Getenv(harnessFeedbackEnv), "off") || in.SessionID == "" || in.TranscriptPath == "" || dir == "" {
+	// A Codex stop (turn_id set) hands over a Codex rollout, not a Claude
+	// Code transcript: recorded, it would be an empty session that only
+	// grows the denominators.
+	if strings.EqualFold(os.Getenv(harnessFeedbackEnv), "off") || in.SessionID == "" || in.TranscriptPath == "" || dir == "" ||
+		in.TurnID != "" {
 		return
 	}
 	_ = harnessSpawn(in.SessionID, in.TranscriptPath, dir)
