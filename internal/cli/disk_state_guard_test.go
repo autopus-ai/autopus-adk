@@ -28,4 +28,6 @@ func init() {
 	}
 	// A spawned reclaim would start the test binary itself.
 	diskSpawnAutoReclaim = func(string) error { return nil }
+	// A spawned harness observation would start the test binary too.
+	harnessSpawn = func(string, string, string) error { return nil }
 }

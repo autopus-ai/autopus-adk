@@ -255,6 +255,28 @@ auto checklist run            # applies the checks whose diff condition matches
 - `status` suggests promoting an observe check that flagged twice. It reports a check for retirement
   after 50 applications without a flag (`--retire-after`), and `retire` keeps the file.
 
+## Session waste becomes harness rules
+
+The Claude Code Stop hook also measures where each session's time went, in the background and with
+no model call: test waits, reviews, a change reviewed again with nothing fixed after, Stop hook
+blocks by reason, and timeouts. Records live under `.autopus/runtime/harness/`.
+
+```bash
+auto harness report           # time shares and the waste patterns seen in 3+ sessions (last 30 days)
+auto harness status           # candidates: the approval queue, then the rest by state, with model cost
+auto harness approve HL-001   # a person: writes the rule into .claude/rules/harness-lessons.md
+auto harness retire HL-001    # takes it back out
+```
+
+- When a pattern first reaches 3 sessions, the same background run drafts one rule for it with a
+  review provider and asks another provider to refute it. A refuted candidate stays out of the
+  approval queue; with no provider other than the drafter, a candidate waits.
+- Approval checks the refutation record kept inside the git directory, so an edited candidate file
+  cannot claim a verdict. Approvals are recorded per machine, so the loop only rewrites a rule file it
+  wrote itself and never one git tracks. `auto update` neither writes nor prunes the rule file.
+- `AUTOPUS_HARNESS_FEEDBACK=off` turns the loop off. Only Claude Code sessions are measured: it is
+  the platform whose Stop hook hands over the transcript.
+
 ## Routes
 
 Run these in your coding agent's chat.
