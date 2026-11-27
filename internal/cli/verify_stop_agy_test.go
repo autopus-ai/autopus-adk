@@ -60,6 +60,13 @@ func TestVerifyStopAgy(t *testing.T) {
 	got := runAgyStop(t, payload(map[string]any{"cwd": ""}))
 	assert.Equal(t, "continue", got.Decision)
 	assert.Contains(t, got.Reason, "Verification failed")
+
+	// A payload without the field (a later agy) still runs the gate.
+	other := newStopRepo(t, "package stopgate\n\nfunc Add(a, b int) int { return a * b }\n")
+	noField := payload(map[string]any{"cwd": other, "conversationId": session + "-nf"})
+	delete(noField, "lastUserInput")
+	t.Cleanup(func() { resetStopState(session + "-nf") })
+	assert.Equal(t, "continue", runAgyStop(t, noField).Decision)
 }
 
 // The final reply comes from agy's transcript: the last model reply after

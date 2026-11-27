@@ -22,8 +22,10 @@ type agyStopInput struct {
 	// LastUserInput is empty in a sub-agent's conversation: agy sends a
 	// Stop for every invoke_subagent run, with fullyIdle covering only that
 	// sub-agent's own work.
-	LastUserInput  string `json:"lastUserInput"`
-	TranscriptPath string `json:"transcriptPath"`
+	// A pointer: only a field that is there and empty marks a sub-agent, so
+	// a later agy that drops the field does not turn the gate off.
+	LastUserInput  *string `json:"lastUserInput"`
+	TranscriptPath string  `json:"transcriptPath"`
 	// FullyIdle is false while background commands or async work still run.
 	FullyIdle *bool `json:"fullyIdle"`
 }
@@ -58,7 +60,8 @@ func runVerifyStopAgy(cmd *cobra.Command, budget time.Duration, followup bool) e
 	var in agyStopInput
 	_ = json.NewDecoder(cmd.InOrStdin()).Decode(&in)
 	out := agyStopOutput{Decision: "stop"}
-	if (in.FullyIdle == nil || *in.FullyIdle) && in.Error == "" && agyFinished(in.TerminationReason) && in.LastUserInput != "" {
+	if (in.FullyIdle == nil || *in.FullyIdle) && in.Error == "" && agyFinished(in.TerminationReason) &&
+		(in.LastUserInput == nil || *in.LastUserInput != "") {
 		mapped := stopHookInput{SessionID: in.ConversationID, Cwd: in.Cwd,
 			LastAssistantMessage: agyLastReply(in.TranscriptPath)}
 		if mapped.Cwd == "" && len(in.WorkspacePaths) > 0 {
