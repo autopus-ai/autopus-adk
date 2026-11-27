@@ -87,7 +87,16 @@ func runningSubagents(session string) int {
 			}
 			continue
 		}
-		_ = privatedir.WriteFile(stopStateDir, e.Name(), append(data, '\n'))
+		// Append to the marker only while it exists: a SubagentStop that
+		// removes it meanwhile must not be undone by this write.
+		f, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND, 0)
+		if err != nil {
+			continue
+		}
+		_, werr := f.Write([]byte{'\n'})
+		if errors.Join(werr, f.Close()) != nil {
+			continue
+		}
 		n++
 	}
 	return n
