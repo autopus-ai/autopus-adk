@@ -31,6 +31,17 @@ var coreSkillSet = map[string]bool{
 	"verification":       true,
 }
 
+// machineOpsSkillSet are the core skills that serve a machine many agent
+// sessions share. With machine_ops off they leave the default surface and
+// come back through the "ops" bundle or explicit_skills.
+var machineOpsSkillSet = map[string]bool{
+	"ci-optimize": true,
+	"disk-triage": true,
+}
+
+// IsMachineOpsSkill reports a skill machine_ops: false leaves out.
+func IsMachineOpsSkill(name string) bool { return machineOpsSkillSet[name] }
+
 // routeSkillPrefix marks the generated `/auto <command>` routes. Routes are the
 // only way a user discovers harness commands, so they stay on the native
 // surface in every compiler mode regardless of bundle selection.
@@ -63,6 +74,9 @@ var categoryBundles = map[string][]string{
 func bundlesForSkill(name, category string) []string {
 	if bundles, ok := bundleOverrides[name]; ok {
 		return bundles
+	}
+	if machineOpsSkillSet[name] {
+		return []string{"core", "ops"}
 	}
 	if coreSkillSet[name] || IsRouteSkill(name) {
 		return []string{"core"}

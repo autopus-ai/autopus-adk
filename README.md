@@ -311,7 +311,7 @@ Platform syntax:
 | --- | --- |
 | Agents (4) | `reviewer`, `qa-explorer`, `frontend-specialist`, `ux-validator` |
 | Rules (4) | `language-policy`, `lore-commit`, `file-size-limit`, `autonomy` |
-| Skills (13) | `review`, `verification`, `qa-hunt`, `secure-hunt`, `disk-triage`, `ci-optimize`, `stack-freshness`, `qa-autopilot`, `frontend-verify`, `browser-automation`, `playwright-cli`, `testing-strategy`, `lore-commit` |
+| Skills (11, +2) | `review`, `verification`, `qa-hunt`, `secure-hunt`, `stack-freshness`, `qa-autopilot`, `frontend-verify`, `browser-automation`, `playwright-cli`, `testing-strategy`, `lore-commit`; with `machine_ops` on, also `disk-triage` and `ci-optimize` |
 | Routes | `review`, `qa`, `secure`, `verify`, `test`, `sync`, `update`, `doctor`, plus the `browse` alias |
 | Hooks | Claude Code Stop hook `auto verify stop`; a Lore `commit-msg` git hook |
 
@@ -544,6 +544,16 @@ registry other than Docker Hub, digests, and variables are skipped. Requests tim
 four at a time. Answers are cached for 24h in `$XDG_STATE_HOME/autopus/deps` (or
 `~/.local/state/autopus/deps`; `AUTOPUS_DEPS_CACHE_DIR` overrides), and `AUTOPUS_DEPS_OFFLINE=1` answers
 from the cache only. The `stack-freshness` skill tells the agent when to look up and how to pin on purpose.
+
+## Machine operations (`machine_ops`)
+
+A project `auto init` creates writes `machine_ops: false`: it installs the verification core only. Set
+`machine_ops: true` on a machine many agent sessions share (a CI host, a shared workstation) to add the
+disk gate, the automatic disk reclaim, and the `disk-triage` and `ci-optimize` skills. A project whose
+`autopus.yaml` has no `machine_ops` key (written before it existed) keeps them all, as before. An explicit
+`hooks.disk_gate` or `disk.reclaim.auto` wins either way, and `skills.compiler.bundles: [ops]` brings the two
+skills back alone. The `auto disk` commands work in every project. Older `auto` binaries reject the key, so
+upgrade every machine that reads the file first.
 
 ## Disk space
 

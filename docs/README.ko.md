@@ -331,7 +331,7 @@ auto harness retire HL-001    # 규칙을 다시 뺌
 | --- | --- |
 | 에이전트 (4) | `reviewer`, `qa-explorer`, `frontend-specialist`, `ux-validator` |
 | 규칙 (4) | `language-policy`, `lore-commit`, `file-size-limit`, `autonomy` |
-| 스킬 (13) | `review`, `verification`, `qa-hunt`, `secure-hunt`, `disk-triage`, `ci-optimize`, `stack-freshness`, `qa-autopilot`, `frontend-verify`, `browser-automation`, `playwright-cli`, `testing-strategy`, `lore-commit` |
+| 스킬 (11, +2) | `review`, `verification`, `qa-hunt`, `secure-hunt`, `stack-freshness`, `qa-autopilot`, `frontend-verify`, `browser-automation`, `playwright-cli`, `testing-strategy`, `lore-commit`; `machine_ops`가 켜져 있으면 `disk-triage`, `ci-optimize`도 |
 | 라우트 | `review`, `qa`, `secure`, `verify`, `test`, `sync`, `update`, `doctor`, 그리고 `browse` 별칭 |
 | Hook | Claude Code Stop hook `auto verify stop`, Lore `commit-msg` git hook |
 
@@ -559,6 +559,15 @@ Docker Hub가 아닌 registry의 이미지, digest, 변수는 보지 않습니�
 24시간 캐시합니다. `AUTOPUS_DEPS_OFFLINE=1`이면 캐시로만 답합니다. 언제 조회하고 어떻게 의도적으로 고정하는지는
 `stack-freshness` 스킬이 알려 줍니다.
 
+## 머신 운영 도구 (`machine_ops`)
+
+`auto init`으로 새로 만든 프로젝트에는 `machine_ops: false`가 들어가고, 검증 핵심만 설치됩니다. 여러 에이전트 세션이
+함께 쓰는 머신(CI 호스트, 공용 작업 머신)에서는 `machine_ops: true`로 디스크 게이트, 자동 디스크 회수, `disk-triage`·
+`ci-optimize` 스킬을 더하세요. `autopus.yaml`에 이 키가 없는 프로젝트(키가 생기기 전에 만든 것)는 지금처럼 모두
+켜져 있습니다. `hooks.disk_gate`나 `disk.reclaim.auto`를 직접 적으면 어느 쪽이든 그 값이 이기고,
+`skills.compiler.bundles: [ops]`로 두 스킬만 다시 넣을 수 있습니다. `auto disk` 명령은 모든 프로젝트에서 동작합니다.
+이 키를 모르는 오래된 `auto`는 파일을 거부하므로, 그 파일을 읽는 모든 머신의 `auto`를 먼저 올리세요.
+
 ## 디스크 공간
 
 에이전트는 빌드하고, 테스트하고, 패키지를 설치하고, worktree를 만듭니다. 한 머신에서 세션 여러 개가 함께
@@ -649,7 +658,7 @@ status는 이 표본으로 소비자를 증가량 순서로 보여 주고(예: `
 `disk.reclaim.auto_interval_minutes`(기본 30)마다 한 번까지 `auto disk reclaim --auto --apply`를
 백그라운드로 시작합니다. merge되고 깨끗한 worktree와 쉬고 있는 재생성 가능 디렉터리만 지우고, scratchpad와
 대용량 파일은 건드리지 않으며, 턴을 늦추지 않습니다. 끄려면 `disk.reclaim.auto: false` 또는
-`AUTOPUS_DISK_AUTO_RECLAIM=off`를 씁니다. `disk-triage` 스킬(core, 기본 설치)은 에이전트에게 같은 순서를
+`AUTOPUS_DISK_AUTO_RECLAIM=off`를 씁니다. `disk-triage` 스킬(`machine_ops`가 켜져 있을 때 설치)은 에이전트에게 같은 순서를
 안내하고, 다른 세션의 작업, 백업, VM 디스크, 다른 빌드가 쓰는 캐시처럼 지우기 전에 사용자에게 물어야 할 것을
 알려 줍니다.
 

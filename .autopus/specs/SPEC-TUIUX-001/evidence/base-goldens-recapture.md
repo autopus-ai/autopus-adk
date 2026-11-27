@@ -501,3 +501,10 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 기록: `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run '^(TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6ShowsTheSettingsBeforeAnyWrite)$'`.
 - 차이: NPD 다섯 개에서 settings.json, manifest, journal checksum과 update 흐름의 backup 사본만 바뀌었다. stdout golden은 그대로다.
 - 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.
+
+## 새 프로젝트의 machine_ops: false (feat/core-profile, 2026-11-27)
+
+- 원인: `auto init`이 새 프로젝트에 `machine_ops: false`를 써서 디스크 게이트 hook과 `disk-triage`·`ci-optimize` 스킬이 빠진다.
+- 기록: `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run '^(TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6ShowsTheSettingsBeforeAnyWrite)$'`.
+- 차이: NPD 다섯 개에서 `autopus.yaml`, `.claude/settings.json`, 두 manifest와 journal checksum이 바뀌고, `.claude/skills`와 `.codex/skills`의 두 스킬 항목이 빠졌다. stdout golden은 그대로다.
+- 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.

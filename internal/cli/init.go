@@ -3,6 +3,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -72,6 +73,13 @@ func newInitCmd() *cobra.Command {
 
 			cfg := config.DefaultFullConfig(project)
 			cfg.Platforms = platformList
+			// A new project starts with the verification core; the helpers
+			// for a shared machine stay one key away (machine_ops: true). A
+			// project that already has autopus.yaml keeps what it had.
+			if _, err := os.Stat(filepath.Join(dir, "autopus.yaml")); errors.Is(err, os.ErrNotExist) {
+				machineOps := false
+				cfg.MachineOps = &machineOps
+			}
 			rea := prepareInitRea(dir, cfg, reaOn, reaOff)
 
 			// Detect and set stack and framework for stack-aware rule generation.

@@ -25,7 +25,7 @@ func GenerateProjectHookConfigs(cfg *config.HarnessConfig, platform string, supp
 		return GenerateHookConfigs(config.HooksConf{}, platform, supportsHooks)
 	}
 	if supportsHooks {
-		hooks, err := generateCLIHooks(cfg.Hooks, platform)
+		hooks, err := generateCLIHooks(cfg.EffectiveHooks(), platform)
 		if err != nil {
 			return nil, nil, err
 		}
