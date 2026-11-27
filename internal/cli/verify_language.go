@@ -27,7 +27,8 @@ type languageStopInput struct {
 }
 
 func newVerifyLanguageCmd() *cobra.Command {
-	return &cobra.Command{
+	var note bool
+	cmd := &cobra.Command{
 		Use:   "language",
 		Short: "Stop hook: send a reply back when it is not in language.ai_responses",
 		Long: "Reads the Claude Code Stop hook payload on stdin and checks the final reply against " +
@@ -37,6 +38,9 @@ func newVerifyLanguageCmd() *cobra.Command {
 			"Set AUTOPUS_LANGUAGE_STOP=off or hooks.language_stop: false to disable.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if note {
+				return writeLanguageNote(cmd.OutOrStdout(), runLanguageNote(cmd.InOrStdin()))
+			}
 			data, err := json.Marshal(runVerifyLanguage(cmd.InOrStdin()))
 			if err != nil {
 				return err
@@ -45,6 +49,8 @@ func newVerifyLanguageCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().BoolVar(&note, "note", false, "PostToolUse hook: remind the agent at once when the note it just wrote is in another language")
+	return cmd
 }
 
 func runVerifyLanguage(stdin io.Reader) stopHookOutput {

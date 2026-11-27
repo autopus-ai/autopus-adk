@@ -4,6 +4,7 @@ package content_test
 // TaskCreated hook from the CC21 features of the whole harness config.
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -106,6 +107,15 @@ func TestGenerateProjectHookConfigs_LanguageStopFollowsAIResponses(t *testing.T)
 	require.NotNil(t, got, "ko responses register the check")
 	assert.Equal(t, 10, got.Timeout)
 	assert.NotNil(t, findHook(hooks, "Stop"), "the verification Stop hook stays")
+	var note *adapter.HookConfig
+	for i := range hooks {
+		if hooks[i].Event == "PostToolUse" && strings.Contains(hooks[i].Command, "auto verify language --note") {
+			note = &hooks[i]
+		}
+	}
+	require.NotNil(t, note, "the note check runs after every tool call")
+	assert.Empty(t, note.Matcher, "every tool, not only Bash")
+	assert.True(t, strings.HasSuffix(note.Command, "exit 0"), "a failing check never becomes a tool error")
 
 	codex, _, err := content.GenerateProjectHookConfigs(cfg, "codex", true)
 	require.NoError(t, err)

@@ -495,4 +495,9 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 원인: `content/rules/autonomy.md`에 큰 기능은 `docs/design/<feature>.md` 한 쪽에 결정·이유·기각을 남긴다는 문장을 더하고, sticky 본문 4000바이트 상한에 맞춰 다른 문장 셋을 줄였다.
 - 기록: `go run ./cmd/generate-templates` 뒤 `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run '^(TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6ShowsTheSettingsBeforeAnyWrite)$'`.
 - 차이: NPD 다섯 개(init-in, init-pipe, init-yes, update-ci, update-yes)에서 autonomy 규칙 파일의 checksum, claude-code manifest와 journal checksum, update 흐름의 backup 사본만 바뀌었다. stdout golden은 그대로다.
+## feat/language-note (2026-11-27)
+
+- 원인: Claude Code PostToolUse hook(auto verify language --note)을 더해 .claude/settings.json의 내용이 바뀌었다.
+- 기록: `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run '^(TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6ShowsTheSettingsBeforeAnyWrite)$'`.
+- 차이: NPD 다섯 개에서 settings.json, manifest, journal checksum과 update 흐름의 backup 사본만 바뀌었다. stdout golden은 그대로다.
 - 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.

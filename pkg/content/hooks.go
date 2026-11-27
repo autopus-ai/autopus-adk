@@ -144,8 +144,18 @@ func generateLanguageStopHook(cfg *config.HarnessConfig, platform string) []adap
 		!langgate.Supported(cfg.Language.AIResponses) {
 		return nil
 	}
-	return []adapter.HookConfig{{Event: "Stop", Type: "command", Command: languageStopCommand, Timeout: 10}}
+	return []adapter.HookConfig{
+		{Event: "Stop", Type: "command", Command: languageStopCommand, Timeout: 10},
+		// The note check runs after every tool call and reminds at the first
+		// note in another language, before the rest of the turn follows it.
+		{Event: "PostToolUse", Type: "command", Command: languageNoteCommandLine, Timeout: 5},
+	}
 }
+
+// languageNoteCommandLine forwards the note check's output only after it
+// exited 0 and always exits 0 itself, like diskGateCommandLine: a failing or
+// panicking check must never turn into a tool error.
+const languageNoteCommandLine = "out=$(" + languageStopCommand + ` --note) && [ -n "$out" ] && printf '%s\n' "$out"; exit 0`
 
 func generateCC21Hooks(cfg config.CC21FeaturesConf, platform string) []adapter.HookConfig {
 	if platform != "claude" && platform != "claude-code" {
