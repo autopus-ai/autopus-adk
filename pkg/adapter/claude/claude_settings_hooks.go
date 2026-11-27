@@ -27,6 +27,10 @@ const claudeEditGuardCommandPrefix = "out=$(auto guard edit "
 // owned the same way.
 const claudeDiskGateCommandPrefix = "out=$(auto disk gate)"
 
+// claudeLanguageNoteCommandPrefix is the response-language note check's
+// exit-masking command line, owned the same way.
+const claudeLanguageNoteCommandPrefix = "out=$(auto verify language --note)"
+
 // The TaskCreated hook (features.cc21) runs this script, bare in earlier
 // releases and behind the default-mode assignment since then.
 const (
@@ -68,7 +72,8 @@ func isManagedClaudeHookCommand(command string) bool {
 	switch {
 	case adapter.IsStaleCompletionHookCommand(adapterName, trimmed):
 		return true
-	case strings.HasPrefix(trimmed, claudeEditGuardCommandPrefix), strings.HasPrefix(trimmed, claudeDiskGateCommandPrefix):
+	case strings.HasPrefix(trimmed, claudeEditGuardCommandPrefix), strings.HasPrefix(trimmed, claudeDiskGateCommandPrefix),
+		strings.HasPrefix(trimmed, claudeLanguageNoteCommandPrefix):
 		return true
 	case adapter.HasShellOperator(trimmed):
 		return false

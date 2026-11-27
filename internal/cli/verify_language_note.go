@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/insajin/autopus-adk/pkg/langgate"
+	"github.com/insajin/autopus-adk/pkg/privatedir"
 )
 
 // noteTranscriptTail bounds the read of the note check, which runs after
@@ -21,6 +23,9 @@ type languageNoteInput struct {
 	SessionID      string `json:"session_id"`
 	Cwd            string `json:"cwd"`
 	TranscriptPath string `json:"transcript_path"`
+	// AgentID is set when a sub-agent made the tool call. The payload still
+	// names the parent's transcript, so its note is not the sub-agent's.
+	AgentID string `json:"agent_id"`
 }
 
 // runLanguageNote returns a reminder when the latest progress note of the
@@ -34,6 +39,9 @@ func runLanguageNote(stdin io.Reader) string {
 	}
 	var in languageNoteInput
 	_ = json.NewDecoder(stdin).Decode(&in)
+	if in.AgentID != "" {
+		return ""
+	}
 	dir := in.Cwd
 	if dir == "" {
 		dir, _ = os.Getwd()
@@ -52,15 +60,30 @@ func runLanguageNote(stdin io.Reader) string {
 		return ""
 	}
 	sum := sha256.Sum256([]byte(last))
-	key := hex.EncodeToString(sum[:8])
-	if readStopState(in.SessionID, "langnote") == key {
+	// One marker per note, made with O_EXCL: tool calls run in parallel
+	// fire this check together, and only the one that creates the marker
+	// reminds.
+	if !claimStopMarker(in.SessionID, "langnote-"+hex.EncodeToString(sum[:8])) {
 		return ""
 	}
-	writeStopState(in.SessionID, "langnote", key)
 	name := langgate.Name(lang)
 	return fmt.Sprintf("autopus.yaml sets language.ai_responses to %s, and the note you just wrote is not in %s: %q. "+
 		"The user reads notes as you write them. Write the next note, and every later one, in %s; keep code, "+
 		"commands, paths, and identifiers as they are.", lang, name, excerpt(last), name)
+}
+
+// claimStopMarker creates the session's marker kind once; it reports true
+// only to the caller that created it. A state directory that cannot be
+// used reports false, so the check stays quiet rather than repeating.
+func claimStopMarker(session, kind string) bool {
+	if privatedir.Ensure(stopStateDir) != nil {
+		return false
+	}
+	f, err := os.OpenFile(filepath.Join(stopStateDir, stopStateName(session, kind)), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return false
+	}
+	return f.Close() == nil
 }
 
 // writeLanguageNote prints the PostToolUse output that adds the reminder to

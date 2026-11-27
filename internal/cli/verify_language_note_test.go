@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -86,4 +87,60 @@ func TestVerifyLanguageNote_Command(t *testing.T) {
 	require.NoError(t, json.Unmarshal(out.Bytes(), &got), out.String())
 	assert.Equal(t, "PostToolUse", got.HookSpecificOutput.HookEventName)
 	assert.Contains(t, got.HookSpecificOutput.AdditionalContext, "Korean")
+}
+
+// A sub-agent's tool call carries the parent's transcript; the reminder is
+// left for the parent's own call.
+func TestRunLanguageNote_SkipsSubAgentCalls(t *testing.T) {
+	isolateStop(t)
+	cwd := languageProject(t, "ko", nil)
+	transcript := noteTranscript(t, "Handing the parser check to a sub-agent now.")
+	session := "note-sub-" + strings.ReplaceAll(t.Name(), "/", "_")
+	t.Cleanup(func() { resetStopState(session) })
+	data, err := json.Marshal(languageNoteInput{SessionID: session, Cwd: cwd, TranscriptPath: transcript, AgentID: "a1"})
+	require.NoError(t, err)
+	assert.Empty(t, runLanguageNote(strings.NewReader(string(data))))
+	assert.NotEmpty(t, runLanguageNote(noteInput(t, session, cwd, transcript)), "the parent's call still gets it")
+}
+
+// Parallel tool calls fire the check together; one reminds.
+func TestClaimStopMarker_OneWinner(t *testing.T) {
+	isolateStop(t)
+	session := "note-race-" + strings.ReplaceAll(t.Name(), "/", "_")
+	results := make(chan bool, 16)
+	var wg sync.WaitGroup
+	for i := 0; i < 16; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			results <- claimStopMarker(session, "langnote-abc")
+		}()
+	}
+	wg.Wait()
+	close(results)
+	won := 0
+	for r := range results {
+		if r {
+			won++
+		}
+	}
+	assert.Equal(t, 1, won)
+}
+
+// Claude Code's own notices (model "<synthetic>") are not the agent's notes.
+func TestTurnReplies_SkipsSyntheticMessages(t *testing.T) {
+	lines := []map[string]any{
+		{"type": "user", "message": map[string]any{"role": "user", "content": "작업해 줘"}},
+		{"type": "assistant", "message": map[string]any{"model": "<synthetic>", "content": []any{
+			map[string]any{"type": "text", "text": "API Error: Request timed out."}}}},
+	}
+	var b strings.Builder
+	for _, l := range lines {
+		data, _ := json.Marshal(l)
+		b.Write(data)
+		b.WriteByte('\n')
+	}
+	path := filepath.Join(t.TempDir(), "s.jsonl")
+	require.NoError(t, os.WriteFile(path, []byte(b.String()), 0o600))
+	assert.Empty(t, turnReplies(path))
 }

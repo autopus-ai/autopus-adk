@@ -22,6 +22,7 @@ type transcriptEntry struct {
 	IsMeta      bool   `json:"isMeta"`
 	IsSidechain bool   `json:"isSidechain"`
 	Message     struct {
+		Model   string          `json:"model"`
 		Content json.RawMessage `json:"content"`
 	} `json:"message"`
 }
@@ -70,7 +71,9 @@ func turnRepliesTail(path string, tail int64) []string {
 		if prompt {
 			break
 		}
-		if entry.Type == "assistant" {
+		// A "<synthetic>" assistant entry is Claude Code's own notice (an
+		// API error), not something the agent wrote.
+		if entry.Type == "assistant" && entry.Message.Model != "<synthetic>" {
 			replies = append(texts, replies...)
 		}
 	}
