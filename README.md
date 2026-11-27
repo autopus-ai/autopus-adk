@@ -609,7 +609,7 @@ Turn the gate off with `hooks.disk_gate: false` or `AUTOPUS_DISK_GATE=off`. OMP 
 the other platforms do not register the gate yet; run `auto disk check` before heavy steps there.
 
 On a machine several sessions share, `AUTOPUS_CPU_GATE=on` (off by default) makes the same hook gate on
-CPU too. While a CPU lease runs or waits and the lease's own admission check would hold a waiter (the
+CPU too (the hook is there when the disk gate is, by default with `machine_ops` on, or with `hooks.cpu_gate: true`). While a CPU lease runs or waits and the lease's own admission check would hold a waiter (the
 1-minute load plus recent grants the average does not show yet, above `disk.lease.max_load_ratio` × the
 logical CPUs), it denies commands that load the CPU outside a CPU lease and points the agent at
 `auto disk lease --cpu N -- <command>`. With no CPU lease and no waiter it allows: that load comes from

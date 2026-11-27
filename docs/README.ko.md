@@ -619,7 +619,7 @@ status는 이 표본으로 소비자를 증가량 순서로 보여 주고(예: `
 `hooks.disk_gate: false` 또는 `AUTOPUS_DISK_GATE=off`를 씁니다. OMP에는 pre-tool hook이 없고, 다른 플랫폼에는
 아직 게이트를 등록하지 않습니다. 그 플랫폼에서는 무거운 단계 전에 `auto disk check`를 실행합니다.
 
-여러 세션이 함께 쓰는 기계에서는 `AUTOPUS_CPU_GATE=on`(기본 꺼짐)으로 같은 hook이 CPU도 봅니다. CPU lease가
+여러 세션이 함께 쓰는 기계에서는 `AUTOPUS_CPU_GATE=on`(기본 꺼짐)으로 같은 hook이 CPU도 봅니다(이 hook은 디스크 게이트가 있을 때, 즉 기본으로는 `machine_ops`가 켜져 있을 때, 또는 `hooks.cpu_gate: true`일 때 등록됩니다). CPU lease가
 돌거나 기다리는 동안 lease 자신의 입장 검사가 대기자를 세울 상황이면, CPU lease 밖에서 CPU를 쓰는 명령을 막고
 `auto disk lease --cpu N -- <command>`를 안내합니다. 그 상황은 1분 load에 아직 평균에 드러나지 않은 최근 grant를
 더한 값이 `disk.lease.max_load_ratio` × 논리 CPU를 넘는 때입니다. CPU lease도 대기자도 없으면 통과시킵니다.

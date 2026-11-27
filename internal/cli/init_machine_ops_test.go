@@ -32,6 +32,10 @@ func TestInitMachineOps(t *testing.T) {
 	require.NotNil(t, got)
 	assert.False(t, *got, "a re-init keeps false")
 
+	unreadable := t.TempDir()
+	write(unreadable, "future_key_x: 1\n")
+	assert.Nil(t, initMachineOps(unreadable), "a file this binary cannot load is not a new project")
+
 	mono := t.TempDir()
 	write(mono, "machine_ops: true\n")
 	pkg := filepath.Join(mono, "packages", "web")
@@ -46,6 +50,7 @@ func TestInitMachineOps(t *testing.T) {
 func TestMachineOpsOff_DiskGateAndReclaim(t *testing.T) {
 	dir := writeDiskProject(t, "machine_ops: false\nhooks:\n  cpu_gate: true\n")
 	withDiskFree(t, gib(4), "/fixture")
+	withMachineLoad(t, 0, 24) // the CPU half of the hook must not read this machine
 	assert.Empty(t, runDiskGate(t, gatePayload(t, dir, "Bash", "go test ./...", nil)),
 		"the disk check is off with machine_ops off")
 
