@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **큰 기능은 설계 결정을 1쪽 노트로 남긴다** (2026-11-27): autonomy 규칙에 새 명령·패키지·하위 시스템이면
+  `docs/design/<feature>.md`에 결정, 이유, 기각한 대안을 적으라는 문장을 더했다. 작은 변경은 지금처럼 커밋과 PR에 남긴다.
+  sticky 규칙 본문 4000바이트 상한에 맞춰 다른 문장을 줄였다. 첫 노트는 `docs/design/harness-feedback.md`.
 - **다른 언어로 쓴 진행 메모를 턴이 끝나기 전에 바로 알린다** (2026-11-27): `auto verify language --note`를 Claude Code
   PostToolUse hook(모든 도구)으로 등록한다. 방금 쓴 진행 메모가 `language.ai_responses`가 아니면 다음 메모부터 그 언어로
   쓰라고 맥락에 한 번 더한다. 막지 않고, 메모 하나에 한 번만 알린다. Stop hook의 언어 검사는 그대로 마지막 안전망이다.
