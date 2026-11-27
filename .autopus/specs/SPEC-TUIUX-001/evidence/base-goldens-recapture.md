@@ -489,3 +489,10 @@ RC에 TUIUX 밖의 생성 내용 변경이 더 들어오면 golden은 다시 깨
 - 차이: NPD 다섯 개(init-in, init-pipe, init-yes, update-ci, update-yes)에서 rule·reviewer·review·verification 파일의 checksum, 두 manifest와 journal checksum, update 흐름의 backup 사본만 바뀌었다. stdout golden은 그대로다.
 - 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.
 - 리뷰 반영(같은 날): autonomy 규칙·reviewer·review 스킬 문구를 Stop hook이 도는 세션으로 한정하고 다시 같은 명령으로 기록했다. 차이는 같은 파일들의 checksum뿐이다.
+
+## feat/codex-stop (2026-11-27)
+
+- 원인: Codex hooks.json의 Stop 이벤트에 auto verify stop을 더해 .codex/hooks.json의 내용이 바뀌었다.
+- 기록: `TUIUX_WRITE_GOLDENS=1 go test ./internal/cli -run '^(TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput|TestInitReview_S6ShowsTheSettingsBeforeAnyWrite)$'`.
+- 차이: NPD 다섯 개에서 hooks.json, manifest, journal checksum과 update 흐름의 backup 사본만 바뀌었다. stdout golden은 그대로다.
+- 검증: `TestTUIUXBaseGoldens_FormlessPlacesKeepTheBaseOutput`·`TestInitReview_*`가 통과한다.
