@@ -34,7 +34,7 @@ func maybeStartAutoReclaim(dir string) bool {
 		return false
 	}
 	reclaim := harness.Disk.Effective().Reclaim
-	if !reclaim.Auto {
+	if !harness.AutoReclaimEnabled() {
 		return false
 	}
 	state, err := openDiskState()

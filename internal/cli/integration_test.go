@@ -42,8 +42,6 @@ func TestInit_CreatesCorrectFiles(t *testing.T) {
 		".claude/skills/qa-hunt/SKILL.md",
 		".claude/skills/auto-secure/SKILL.md",
 		".claude/skills/secure-hunt/SKILL.md",
-		".claude/skills/disk-triage/SKILL.md",
-		".claude/skills/ci-optimize/SKILL.md",
 		".claude/skills/stack-freshness/SKILL.md",
 		".claude/agents/autopus/reviewer.md",
 		".claude/agents/autopus/qa-explorer.md",
@@ -52,8 +50,11 @@ func TestInit_CreatesCorrectFiles(t *testing.T) {
 	for _, path := range requiredFiles {
 		assert.FileExists(t, filepath.Join(dir, filepath.FromSlash(path)))
 	}
-	// The implementation harness is no longer installed.
+	// A new project has machine_ops off: the shared-machine skills are not
+	// installed, and neither is the implementation harness.
 	for _, path := range []string{
+		".claude/skills/disk-triage/SKILL.md",
+		".claude/skills/ci-optimize/SKILL.md",
 		".claude/skills/auto-go/SKILL.md",
 		".claude/skills/planning/SKILL.md",
 		".claude/agents/autopus/executor.md",

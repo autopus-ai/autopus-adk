@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **새 프로젝트는 검증 핵심만 설치한다** (2026-11-27): 새 최상위 키 `machine_ops`. `auto init`이 새 프로젝트에
+  `machine_ops: false`를 쓰고, 그러면 디스크 게이트, 자동 디스크 회수, `disk-triage`·`ci-optimize` 스킬이 빠진다. 키가
+  없는 기존 프로젝트는 지금처럼 모두 켜져 있다. `hooks.disk_gate`·`disk.reclaim.auto`를 직접 적으면 그 값이 이기고,
+  `skills.compiler.bundles: [ops]`로 두 스킬만 다시 넣을 수 있다. 이 키를 모르는 오래된 `auto`는 파일을 거부한다.
 - **큰 기능은 설계 결정을 1쪽 노트로 남긴다** (2026-11-27): autonomy 규칙에 새 명령·패키지·하위 시스템이면
   `docs/design/<feature>.md`에 결정, 이유, 기각한 대안을 적으라는 문장을 더했다. 작은 변경은 지금처럼 커밋과 PR에 남긴다.
   sticky 규칙 본문 4000바이트 상한에 맞춰 다른 문장을 줄였다. 첫 노트는 `docs/design/harness-feedback.md`.

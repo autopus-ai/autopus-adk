@@ -92,7 +92,14 @@ type HarnessConfig struct {
 	Workflow         WorkflowConf         `yaml:"workflow,omitempty"`
 	HealthBand       HealthBandConf       `yaml:"health_band,omitempty"`
 	Disk             DiskConf             `yaml:"disk,omitempty"`
-	Runtime          RuntimeConf          `yaml:"-"`
+	// MachineOps turns on the helpers for a machine many agent sessions
+	// share: the disk gate, the automatic disk reclaim, and the disk-triage
+	// and ci-optimize skills. Unset is on, so a project written before the
+	// key keeps them; `auto init` writes false for a new project, which then
+	// installs the verification core only. An explicit hooks.disk_gate or
+	// disk.reclaim.auto setting wins either way.
+	MachineOps *bool       `yaml:"machine_ops,omitempty"`
+	Runtime    RuntimeConf `yaml:"-"`
 }
 
 // FeaturesConf holds feature-flag namespaces.

@@ -7,9 +7,10 @@ import "strings"
 // because every project needs it eagerly listed, never because its category or
 // filename looked important. The verification harness ships only review, QA,
 // and verification skills, and every one of them is core. disk-triage is
-// verification hygiene: a full disk turns every build and test the Stop gate
-// runs into an ENOSPC failure that looks like a code failure, and the disk
-// gate and low-space alert, on by default, point the agent at it.
+// verification hygiene on a shared machine: a full disk turns every build and
+// test the Stop gate runs into an ENOSPC failure that looks like a code
+// failure. It and ci-optimize leave the default surface with machine_ops off
+// (machineOpsSkillSet).
 // stack-freshness is verification too: the version Stop gate, on by default,
 // blocks newly added pins a release line behind and points the agent at the
 // skill for the lookup and the `version-pin:` way out. Everything
@@ -30,6 +31,17 @@ var coreSkillSet = map[string]bool{
 	"testing-strategy":   true,
 	"verification":       true,
 }
+
+// machineOpsSkillSet are the core skills that serve a machine many agent
+// sessions share. With machine_ops off they leave the default surface and
+// come back through the "ops" bundle or explicit_skills.
+var machineOpsSkillSet = map[string]bool{
+	"ci-optimize": true,
+	"disk-triage": true,
+}
+
+// IsMachineOpsSkill reports a skill machine_ops: false leaves out.
+func IsMachineOpsSkill(name string) bool { return machineOpsSkillSet[name] }
 
 // routeSkillPrefix marks the generated `/auto <command>` routes. Routes are the
 // only way a user discovers harness commands, so they stay on the native
@@ -63,6 +75,9 @@ var categoryBundles = map[string][]string{
 func bundlesForSkill(name, category string) []string {
 	if bundles, ok := bundleOverrides[name]; ok {
 		return bundles
+	}
+	if machineOpsSkillSet[name] {
+		return []string{"core", "ops"}
 	}
 	if coreSkillSet[name] || IsRouteSkill(name) {
 		return []string{"core"}
