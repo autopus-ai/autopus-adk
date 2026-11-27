@@ -84,7 +84,7 @@ func diskGateReason(stdin io.Reader) string {
 	// at cwd.
 	disk, hooks := config.DiskConf{}.Effective(), config.HooksConf{}
 	if harness, err := config.LoadPreview(diskConfigRoot(dir)); err == nil {
-		disk, hooks = harness.Disk.Effective(), harness.Hooks
+		disk, hooks = harness.Disk.Effective(), harness.EffectiveHooks()
 	}
 	if !hooks.IsDiskGateEnabled() {
 		return cpuGateReason(in.ToolInput.Command, hooks, disk)

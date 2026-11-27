@@ -552,7 +552,7 @@ A project `auto init` creates writes `machine_ops: false`: it installs the verif
 disk gate, the automatic disk reclaim, and the `disk-triage` and `ci-optimize` skills. A project whose
 `autopus.yaml` has no `machine_ops` key (written before it existed) keeps them all, as before. An explicit
 `hooks.disk_gate` or `disk.reclaim.auto` wins either way, and `skills.compiler.bundles: [ops]` brings the two
-skills back alone. The `auto disk` commands work in every project. Older `auto` binaries reject the key, so
+skills back alone. The `auto disk` commands work in every project. The CPU gate (`AUTOPUS_CPU_GATE=on`) acts through the disk gate's hook, so with `machine_ops` off it also needs `hooks.cpu_gate: true`. Older `auto` binaries reject the key, so
 upgrade every machine that reads the file first.
 
 ## Disk space

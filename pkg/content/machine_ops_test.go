@@ -1,6 +1,7 @@
 package content_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -18,7 +19,7 @@ func TestGenerateProjectHookConfigs_MachineOpsOffDropsTheDiskGate(t *testing.T) 
 		hooks, _, err := content.GenerateProjectHookConfigs(cfg, "claude-code", true)
 		require.NoError(t, err)
 		for _, h := range hooks {
-			if h.Event == "PreToolUse" && h.Command != "" && contains(h.Command, "auto disk gate") {
+			if h.Event == "PreToolUse" && strings.Contains(h.Command, "auto disk gate") {
 				return true
 			}
 		}
@@ -39,15 +40,6 @@ func TestIsMachineOpsSkill(t *testing.T) {
 	assert.True(t, content.IsMachineOpsSkill("ci-optimize"))
 	assert.False(t, content.IsMachineOpsSkill("review"))
 	assert.False(t, content.IsMachineOpsSkill("stack-freshness"), "the version gate is on by default and points at it")
-}
-
-func contains(s, sub string) bool {
-	for i := 0; i+len(sub) <= len(s); i++ {
-		if s[i:i+len(sub)] == sub {
-			return true
-		}
-	}
-	return false
 }
 
 // machine_ops: false keeps disk-triage and ci-optimize off the surface; the

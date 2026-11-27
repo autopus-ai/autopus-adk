@@ -565,7 +565,7 @@ Docker Hub가 아닌 registry의 이미지, digest, 변수는 보지 않습니�
 함께 쓰는 머신(CI 호스트, 공용 작업 머신)에서는 `machine_ops: true`로 디스크 게이트, 자동 디스크 회수, `disk-triage`·
 `ci-optimize` 스킬을 더하세요. `autopus.yaml`에 이 키가 없는 프로젝트(키가 생기기 전에 만든 것)는 지금처럼 모두
 켜져 있습니다. `hooks.disk_gate`나 `disk.reclaim.auto`를 직접 적으면 어느 쪽이든 그 값이 이기고,
-`skills.compiler.bundles: [ops]`로 두 스킬만 다시 넣을 수 있습니다. `auto disk` 명령은 모든 프로젝트에서 동작합니다.
+`skills.compiler.bundles: [ops]`로 두 스킬만 다시 넣을 수 있습니다. `auto disk` 명령은 모든 프로젝트에서 동작합니다. CPU 게이트(`AUTOPUS_CPU_GATE=on`)는 디스크 게이트의 hook을 통해 돌므로, `machine_ops`가 꺼져 있으면 `hooks.cpu_gate: true`도 필요합니다.
 이 키를 모르는 오래된 `auto`는 파일을 거부하므로, 그 파일을 읽는 모든 머신의 `auto`를 먼저 올리세요.
 
 ## 디스크 공간

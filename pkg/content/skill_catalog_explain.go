@@ -22,6 +22,8 @@ func ExplainSkillSelection(skill CatalogSkill, platform string, cfg *config.Harn
 	case !state.Compiled:
 	case containsString(cfg.Skills.Compiler.ExplicitSkills, skill.Name):
 		reason = "opt_in"
+	case machineOpsSkillSet[skill.Name] && !cfg.MachineOpsEnabled():
+		reason = "opt_in" // back through the ops bundle
 	case coreSkillSet[skill.Name]:
 		reason = "core"
 	case IsRouteSkill(skill.Name):

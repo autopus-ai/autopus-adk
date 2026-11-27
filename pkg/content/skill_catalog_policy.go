@@ -7,9 +7,10 @@ import "strings"
 // because every project needs it eagerly listed, never because its category or
 // filename looked important. The verification harness ships only review, QA,
 // and verification skills, and every one of them is core. disk-triage is
-// verification hygiene: a full disk turns every build and test the Stop gate
-// runs into an ENOSPC failure that looks like a code failure, and the disk
-// gate and low-space alert, on by default, point the agent at it.
+// verification hygiene on a shared machine: a full disk turns every build and
+// test the Stop gate runs into an ENOSPC failure that looks like a code
+// failure. It and ci-optimize leave the default surface with machine_ops off
+// (machineOpsSkillSet).
 // stack-freshness is verification too: the version Stop gate, on by default,
 // blocks newly added pins a release line behind and points the agent at the
 // skill for the lookup and the `version-pin:` way out. Everything

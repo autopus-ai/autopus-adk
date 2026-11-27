@@ -74,7 +74,8 @@ func generateCLIHooks(cfg config.HooksConf, platform string) ([]adapter.HookConf
 
 	// One hook serves both checks: hooks.cpu_gate alone still needs it. The
 	// AUTOPUS_CPU_GATE switch is read when the hook runs, so it acts through
-	// this same hook, which disk_gate's default-on registers.
+	// this same hook, which is registered when the disk gate is on (by
+	// default when machine_ops is) or hooks.cpu_gate is set.
 	if cfg.IsDiskGateEnabled() || cfg.IsCPUGateEnabled() {
 		hooks = appendDiskGateHook(hooks, platform)
 	}
