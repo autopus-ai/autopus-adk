@@ -74,6 +74,18 @@ def _peel(words: list) -> list | None:
     return None
 
 
+def _option(word: str) -> tuple:
+    """(flag, value, attached) for one argv word: `--model=x`, `-c=x` and clap's attached short form
+    `-mgpt-5` / `-cweb_search=live` carry their value in the word itself."""
+    if word.startswith('--'):
+        flag, eq, inline = word.partition('=')
+        return flag, inline, bool(eq)
+    if len(word) > 2 and word[0] == '-' and word[:2] in VALUE_OPTIONS:
+        value = word[2:]
+        return word[:2], value[1:] if value.startswith('=') else value, True
+    return word, '', False
+
+
 def codex_runs(command: str) -> list:
     """[{'session': bool, 'bypass': [{'flag', 'value'}]}] for every codex the Bash command line runs.
     `eval` programs are read too; a codex name held in a variable, a script or another language's
@@ -88,17 +100,21 @@ def codex_runs(command: str) -> list:
         if argv is None:
             continue
         bypass = [{'flag': 'CODEX_HOME', 'value': w.split('=', 1)[1]} for w in raw if w.startswith('CODEX_HOME=')]
-        positional, i = None, 1
+        positional, help_only, i = None, False, 1
         while i < len(argv):
             word = argv[i]
-            flag, _, inline = word.partition('=')
+            if word == '--':
+                # Everything after `--` is prompt text, never an option or a subcommand.
+                positional = '' if positional is None else positional
+                break
+            flag, inline, attached = _option(word)
             if flag in BYPASS_OPTIONS:
-                value = inline or (argv[i + 1] if flag in VALUE_OPTIONS and i + 1 < len(argv) else '')
+                value = inline if attached else (argv[i + 1] if flag in VALUE_OPTIONS and i + 1 < len(argv) else '')
                 bypass.append({'flag': flag, 'value': value})
+            help_only = help_only or word in HELP
             if positional is None and (word in NOT_SESSIONS or not word.startswith('-')):
                 positional = word
-            i += 2 if word in VALUE_OPTIONS else 1
-        help_only = any(word in HELP for word in argv[1:])
+            i += 2 if flag in VALUE_OPTIONS and not attached else 1
         runs.append({'session': positional not in NOT_SESSIONS and not help_only, 'bypass': bypass})
     if ASSIGNED_HOME.search(command):
         # `export CODEX_HOME=...` before the run: another home, whichever run uses it.
