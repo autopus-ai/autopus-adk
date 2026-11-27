@@ -283,7 +283,7 @@ Claude Code Stop hook은 세션 시간이 어디에 쓰였는지도 잽니다. �
 다시 리뷰했지만 그 뒤에 고친 것이 없는 변경, 이유별 Stop hook 차단, timeout을 `.autopus/runtime/harness/`에 기록합니다.
 
 ```bash
-auto harness report           # 시간 비중과 세션 3개 이상에서 나온 낭비 패턴 (최근 30일)
+auto harness report           # 시간 비중, 세션 3개 이상에서 나온 낭비 패턴, 승인한 규칙의 효과
 auto harness status           # 후보: 승인 대기열 먼저, 나머지는 상태별, 모델 비용 포함
 auto harness approve HL-001   # 사람: 규칙을 .claude/rules/harness-lessons.md에 씀
 auto harness retire HL-001    # 규칙을 다시 뺌
@@ -295,6 +295,10 @@ auto harness retire HL-001    # 규칙을 다시 뺌
 - 승인할 때 git 디렉터리 안에 남긴 반증 기록을 확인합니다. 그래서 후보 파일을 고쳐 판정을 꾸밀 수 없습니다.
   승인 기록은 기계마다 따로 남기 때문에, 이 순환은 자기가 쓴 규칙 파일만 고치고 git이 추적하는 파일은 건드리지 않습니다.
   `auto update`는 규칙 파일을 쓰지도 지우지도 않습니다.
+- 보고서는 승인한 규칙마다 그 패턴을 승인 전후로 비교합니다(패턴이 나온 세션 비율, 세션당 분). 승인 뒤 세션이 5개 쌓이면
+  낭비가 5분의 1 이상 줄었는지 판정하고, 줄지 않았으면 retire 후보로 표시합니다.
+- provider는 빈 임시 저장소에서 초안을 쓰고 반증합니다. 프롬프트에 측정값이 다 들어 있어 둘러볼 파일이 필요 없기 때문입니다
+  (claude 초안이 프로젝트 안에서는 약 5.1만 토큰, 빈 저장소에서는 1.1만~2만 토큰).
 - `AUTOPUS_HARNESS_FEEDBACK=off`로 끕니다. Stop hook이 세션 기록을 넘겨 주는 Claude Code 세션만 잽니다.
 
 ## 라우트

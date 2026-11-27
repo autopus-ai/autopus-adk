@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **`auto harness report`가 승인한 규칙의 효과를 보여 주고, 초안 비용을 줄인다** (2026-11-27):
+  - 승인한 규칙마다 그 패턴이 나온 세션 비율과 세션당 시간을 승인 전후로 비교한다. 승인 뒤 세션 5개부터 판정하고,
+    5분의 1 이상 줄지 않으면 retire 후보로 표시한다.
+  - provider가 빈 임시 git 저장소에서 초안을 쓰고 반증한다. claude 초안이 약 5.1만에서 1.1만~2만 토큰으로 줄었다. codex는
+    git 저장소 밖에서 실행을 거부하므로 저장소로 만든다.
 - **하네스가 자기 시간 낭비를 재고 규칙 후보로 만든다** (2026-11-27): `auto harness`.
   - Claude Code Stop hook이 세션 기록을 백그라운드로 읽어 테스트 대기, 리뷰, 고친 것 없는 반복 리뷰, 이유별 Stop hook 차단,
     timeout을 `.autopus/runtime/harness/`에 쌓는다. 모델 호출이 없고 hook의 결과를 바꾸지 않는다. 400MB 넘는 기록도

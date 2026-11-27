@@ -262,7 +262,7 @@ no model call: test waits, reviews, a change reviewed again with nothing fixed a
 blocks by reason, and timeouts. Records live under `.autopus/runtime/harness/`.
 
 ```bash
-auto harness report           # time shares and the waste patterns seen in 3+ sessions (last 30 days)
+auto harness report           # time shares, waste patterns seen in 3+ sessions, and each approved rule's effect
 auto harness status           # candidates: the approval queue, then the rest by state, with model cost
 auto harness approve HL-001   # a person: writes the rule into .claude/rules/harness-lessons.md
 auto harness retire HL-001    # takes it back out
@@ -274,6 +274,11 @@ auto harness retire HL-001    # takes it back out
 - Approval checks the refutation record kept inside the git directory, so an edited candidate file
   cannot claim a verdict. Approvals are recorded per machine, so the loop only rewrites a rule file it
   wrote itself and never one git tracks. `auto update` neither writes nor prunes the rule file.
+- The report compares each approved rule's pattern before and after its approval (share of sessions
+  showing it, minutes per session). After 5 sessions it says whether the waste fell by a fifth or more;
+  a rule that did not is marked as a retire candidate.
+- Providers draft and refute in an empty temporary repository: the prompt carries the measurements, so
+  there is nothing to browse (a claude draft measured ~51k tokens in the project, 11-20k there).
 - `AUTOPUS_HARNESS_FEEDBACK=off` turns the loop off. Only Claude Code sessions are measured: it is
   the platform whose Stop hook hands over the transcript.
 

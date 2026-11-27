@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -182,9 +183,17 @@ func defaultHarnessAsker(root string) harnessfb.Asker {
 			return harnessfb.Reply{Tokens: -1}, fmt.Errorf("provider %s: %v", name, err)
 		}
 		p := providers[0]
+		// The prompt carries everything the provider needs; in an empty
+		// repository the CLI has no project files to browse with its read
+		// tools (measured: a claude draft fell from ~51k to 11-19k tokens).
+		dir, cleanup, err := harnessProviderDir(ctx)
+		if err != nil {
+			return harnessfb.Reply{Tokens: -1}, err
+		}
+		defer cleanup()
 		cfg := orchestra.OrchestraConfig{
 			Providers: []orchestra.ProviderConfig{p}, TimeoutSeconds: 600,
-			WorkingDir: root, ProviderWorkDir: root, ReadOnly: true,
+			WorkingDir: dir, ProviderWorkDir: dir, ReadOnly: true,
 		}
 		resp, err := orchestra.RunSingleProvider(ctx, cfg, p, prompt)
 		if resp == nil {
@@ -192,6 +201,39 @@ func defaultHarnessAsker(root string) harnessfb.Asker {
 		}
 		return harnessfb.Reply{Output: resp.Output, Seconds: resp.Duration.Seconds(), Tokens: usageTokens(resp)}, err
 	}
+}
+
+// harnessDirPrefix names the empty repositories providers run in.
+const harnessDirPrefix = "autopus-harness-"
+
+// harnessProviderDir makes an empty git repository for one provider call
+// and returns how to remove it. A run killed before its cleanup leaves one
+// behind, so repositories older than an hour are removed first.
+func harnessProviderDir(ctx context.Context) (string, func(), error) {
+	tmp := os.TempDir()
+	if entries, err := os.ReadDir(tmp); err == nil {
+		for _, e := range entries {
+			if !e.IsDir() || !strings.HasPrefix(e.Name(), harnessDirPrefix) {
+				continue
+			}
+			// An hour is well past a call's 600 s timeout (set below), so
+			// no running call's directory is this old.
+			if info, err := e.Info(); err == nil && time.Since(info.ModTime()) > time.Hour {
+				_ = os.RemoveAll(filepath.Join(tmp, e.Name()))
+			}
+		}
+	}
+	dir, err := os.MkdirTemp(tmp, harnessDirPrefix)
+	if err != nil {
+		return "", nil, err
+	}
+	cleanup := func() { _ = os.RemoveAll(dir) }
+	// Some CLIs (codex exec) refuse to run outside a git repository.
+	if out, err := exec.CommandContext(ctx, "git", "init", "-q", dir).CombinedOutput(); err != nil {
+		cleanup()
+		return "", nil, fmt.Errorf("git init %s: %v: %s", dir, err, out)
+	}
+	return dir, cleanup, nil
 }
 
 // usageTokens sums the input and output tokens a provider reported, or -1

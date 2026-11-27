@@ -53,6 +53,37 @@ var detectors = []detector{
 	}},
 }
 
+// namedHit is one session's hit of one pattern.
+type namedHit struct {
+	id, title string
+	Hit
+}
+
+// sessionHits are the waste signals session m shows.
+func sessionHits(m Metrics) []namedHit {
+	var out []namedHit
+	for _, d := range detectors {
+		if h, ok := d.hit(m); ok {
+			h.SessionID, h.Active = m.SessionID, m.ActiveSeconds
+			out = append(out, namedHit{d.id, d.title, h})
+		}
+	}
+	kinds := make([]string, 0, len(m.StopBlockKinds))
+	for k := range m.StopBlockKinds {
+		kinds = append(kinds, k)
+	}
+	sort.Strings(kinds)
+	for _, k := range kinds {
+		if n := m.StopBlockKinds[k]; n >= 2 {
+			secs := m.StopBlockSeconds[k]
+			out = append(out, namedHit{"stop-block:" + k, fmt.Sprintf("Stop hook이 같은 이유(%s)로 한 세션에서 두 번 이상 막음", k),
+				Hit{SessionID: m.SessionID, Count: n, Seconds: secs, Share: share(secs, m.ActiveSeconds),
+					Active: m.ActiveSeconds, Sample: m.StopBlockSample[k]}})
+		}
+	}
+	return out
+}
+
 // Detect finds every waste signal in sessions. A signal is Repeated when
 // at least MinSessions distinct sessions show it. Repeated patterns come
 // first, then by how many sessions show them.
@@ -69,24 +100,8 @@ func Detect(sessions []Metrics) []Pattern {
 		p.Hits = append(p.Hits, h)
 	}
 	for _, m := range sessions {
-		for _, d := range detectors {
-			if h, ok := d.hit(m); ok {
-				h.SessionID, h.Active = m.SessionID, m.ActiveSeconds
-				add(d.id, d.title, h)
-			}
-		}
-		kinds := make([]string, 0, len(m.StopBlockKinds))
-		for k := range m.StopBlockKinds {
-			kinds = append(kinds, k)
-		}
-		sort.Strings(kinds)
-		for _, k := range kinds {
-			if n := m.StopBlockKinds[k]; n >= 2 {
-				secs := m.StopBlockSeconds[k]
-				add("stop-block:"+k, fmt.Sprintf("Stop hook이 같은 이유(%s)로 한 세션에서 두 번 이상 막음", k),
-					Hit{SessionID: m.SessionID, Count: n, Seconds: secs, Share: share(secs, m.ActiveSeconds),
-						Active: m.ActiveSeconds, Sample: m.StopBlockSample[k]})
-			}
+		for _, h := range sessionHits(m) {
+			add(h.id, h.title, h.Hit)
 		}
 	}
 	out := make([]Pattern, 0, len(order))
