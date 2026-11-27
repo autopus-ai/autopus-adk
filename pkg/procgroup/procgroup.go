@@ -13,7 +13,9 @@
 //
 // On Windows the command runs in a Job Object created with
 // KILL_ON_JOB_CLOSE, and Kill terminates the job; every descendant inherits
-// the job unless it was created with breakaway permission.
+// the job unless it was created with breakaway permission. When no job can
+// be made or joined, the command runs without one and Kill reaches the
+// direct child only.
 package procgroup
 
 import (

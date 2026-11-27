@@ -31,36 +31,39 @@ func (g *Group) prepare() {
 }
 
 // start starts the process suspended, puts it in a new job and resumes it.
-// When the job cannot be made or joined (a parent job that forbids nesting,
-// for one) it runs without one: Kill then reaches the direct child only, as
-// exec's default cancel did. That is a weaker cleanup, not a reason the
-// command cannot run.
+// A job that cannot be made or joined leaves it running without one (see
+// jobStart.run).
 func (g *Group) start() error {
-	if err := g.cmd.Start(); err != nil {
-		return err
-	}
+	job, err := jobStart[windows.Handle]{
+		start:  g.cmd.Start,
+		join:   func() (windows.Handle, error) { return joinNewJob(g.cmd) },
+		resume: func() error { return resumeProcess(g.cmd.Process.Pid) },
+		abort:  g.abort,
+	}.run()
+	g.state.job = job
+	return err
+}
+
+// joinNewJob creates a job and assigns the process to it, closing the job
+// again when the process cannot join it.
+func joinNewJob(cmd *exec.Cmd) (windows.Handle, error) {
 	job, err := newJob()
-	if err == nil {
-		if err = assign(job, g.cmd); err != nil {
-			_ = windows.CloseHandle(job)
-		}
+	if err != nil {
+		return 0, err
 	}
-	if err == nil {
-		g.state.job = job
+	if err := assign(job, cmd); err != nil {
+		_ = windows.CloseHandle(job)
+		return 0, err
 	}
-	if err := resumeProcess(g.cmd.Process.Pid); err != nil {
-		// A process that cannot be resumed never runs: take it down.
-		return g.abort(err)
-	}
-	return nil
+	return job, nil
 }
 
 // abort takes down a process that started but could not be resumed. Start
 // reaps it once the lock is released (see abortedStart).
-func (g *Group) abort(cause error) error {
+func (g *Group) abort(job windows.Handle, cause error) error {
 	var killErr error
-	if g.state.job != 0 {
-		killErr = windows.TerminateJobObject(g.state.job, terminationCode)
+	if job != 0 {
+		killErr = windows.TerminateJobObject(job, terminationCode)
 	} else {
 		killErr = g.cmd.Process.Kill()
 	}
