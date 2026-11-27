@@ -3,6 +3,8 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -51,9 +53,41 @@ func TestVerifyStopAgy(t *testing.T) {
 		assert.Equal(t, agyStopOutput{Decision: "stop"}, runAgyStop(t, payload(map[string]any{"terminationReason": reason})), reason)
 	}
 
-	got := runAgyStop(t, payload(nil))
+	// A sub-agent's stop (no user input) is left to the parent's.
+	assert.Equal(t, agyStopOutput{Decision: "stop"}, runAgyStop(t, payload(map[string]any{"lastUserInput": ""})))
+
+	// Without cwd, the first workspace path is the tree.
+	got := runAgyStop(t, payload(map[string]any{"cwd": ""}))
 	assert.Equal(t, "continue", got.Decision)
 	assert.Contains(t, got.Reason, "Verification failed")
+}
+
+// The final reply comes from agy's transcript: the last model reply after
+// the last user input.
+func TestAgyLastReply(t *testing.T) {
+	lines := []map[string]any{
+		{"step_index": 0, "source": "USER_EXPLICIT", "type": "USER_INPUT", "content": "<USER_REQUEST>old</USER_REQUEST>"},
+		{"step_index": 1, "source": "MODEL", "type": "PLANNER_RESPONSE", "content": "old reply"},
+		{"step_index": 2, "source": "USER_EXPLICIT", "type": "USER_INPUT", "content": "<USER_REQUEST>refactor</USER_REQUEST>"},
+		{"step_index": 3, "source": "MODEL", "type": "PLANNER_RESPONSE", "content": "working"},
+		{"step_index": 4, "source": "SYSTEM", "type": "SYSTEM_MESSAGE", "content": "notice"},
+		{"step_index": 5, "source": "MODEL", "type": "PLANNER_RESPONSE", "content": "Done.\nTDD-exempt: pure refactor"},
+	}
+	var b strings.Builder
+	for _, l := range lines {
+		data, _ := json.Marshal(l)
+		b.Write(data)
+		b.WriteByte('\n')
+	}
+	path := filepath.Join(t.TempDir(), "transcript_full.jsonl")
+	require.NoError(t, os.WriteFile(path, []byte(b.String()), 0o600))
+	assert.Equal(t, "Done.\nTDD-exempt: pure refactor", agyLastReply(path))
+
+	require.NoError(t, os.WriteFile(path, []byte(`{"type":"USER_INPUT","source":"USER_EXPLICIT","content":"x"}`+"\n"), 0o600))
+	assert.Empty(t, agyLastReply(path), "no reply yet in this turn")
+	assert.Empty(t, agyLastReply(filepath.Join(t.TempDir(), "missing")))
+	assert.Empty(t, agyLastReply(t.TempDir()), "a directory is not the transcript")
+	assert.Empty(t, agyLastReply(""))
 }
 
 func TestVerifyStop_RejectsAnUnknownDialect(t *testing.T) {
