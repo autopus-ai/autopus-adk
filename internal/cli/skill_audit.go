@@ -130,7 +130,9 @@ func buildSkillAudit(root, platform string) (skillAuditReport, error) {
 		return skillAuditReport{}, err
 	}
 	report := skillAuditReport{SchemaVersion: 1, TokenEstimateBasis: "heuristic ceil(UTF-8 bytes/4) per item, summed in summary; not measured provider tokens", Scope: "builtin_catalog_and_project_files_only; generated_route_selection_runtime_and_external_plugins_unobserved", SessionLoaded: "UNKNOWN", Platform: platform, ConfigSource: source, EstimateBasis: "UTF-8 bytes; canonical catalog and actual local files measured separately; not tokenizer counts", Catalog: []skillAuditEntry{}, Missing: []string{}}
-	defaults := &config.HarnessConfig{Platforms: cfg.Platforms}
+	// The default is what `auto init` gives a new project: machine_ops off.
+	machineOpsOff := false
+	defaults := &config.HarnessConfig{Platforms: cfg.Platforms, MachineOps: &machineOpsOff}
 	full := &config.HarnessConfig{Platforms: cfg.Platforms}
 	full.Skills.Compiler.Mode = config.SkillCompilerModeFull
 	for _, s := range catalog.List() {

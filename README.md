@@ -317,7 +317,7 @@ Platform syntax:
 | --- | --- |
 | Agents (4) | `reviewer`, `qa-explorer`, `frontend-specialist`, `ux-validator` |
 | Rules (4) | `language-policy`, `lore-commit`, `file-size-limit`, `autonomy` |
-| Skills (13) | `review`, `verification`, `qa-hunt`, `secure-hunt`, `disk-triage`, `ci-optimize`, `stack-freshness`, `qa-autopilot`, `frontend-verify`, `browser-automation`, `playwright-cli`, `testing-strategy`, `lore-commit` |
+| Skills (11, +2) | `review`, `verification`, `qa-hunt`, `secure-hunt`, `stack-freshness`, `qa-autopilot`, `frontend-verify`, `browser-automation`, `playwright-cli`, `testing-strategy`, `lore-commit`; with `machine_ops` on, also `disk-triage` and `ci-optimize` |
 | Routes | `review`, `qa`, `secure`, `verify`, `test`, `sync`, `update`, `doctor`, plus the `browse` alias |
 | Hooks | Claude Code Stop hook `auto verify stop`; a Lore `commit-msg` git hook |
 
@@ -551,6 +551,16 @@ four at a time. Answers are cached for 24h in `$XDG_STATE_HOME/autopus/deps` (or
 `~/.local/state/autopus/deps`; `AUTOPUS_DEPS_CACHE_DIR` overrides), and `AUTOPUS_DEPS_OFFLINE=1` answers
 from the cache only. The `stack-freshness` skill tells the agent when to look up and how to pin on purpose.
 
+## Machine operations (`machine_ops`)
+
+A project `auto init` creates writes `machine_ops: false`: it installs the verification core only. Set
+`machine_ops: true` on a machine many agent sessions share (a CI host, a shared workstation) to add the
+disk gate, the automatic disk reclaim, and the `disk-triage` and `ci-optimize` skills. A project whose
+`autopus.yaml` has no `machine_ops` key (written before it existed) keeps them all, as before. An explicit
+`hooks.disk_gate` or `disk.reclaim.auto` wins either way, and `skills.compiler.bundles: [ops]` brings the two
+skills back alone. The `auto disk` commands work in every project. The CPU gate (`AUTOPUS_CPU_GATE=on`) acts through the disk gate's hook, so with `machine_ops` off it also needs `hooks.cpu_gate: true`. Older `auto` binaries reject the key, so
+upgrade every machine that reads the file first.
+
 ## Disk space
 
 Agents build, test, install packages, and create worktrees, and several sessions on one machine can move
@@ -599,7 +609,7 @@ Turn the gate off with `hooks.disk_gate: false` or `AUTOPUS_DISK_GATE=off`. OMP 
 the other platforms do not register the gate yet; run `auto disk check` before heavy steps there.
 
 On a machine several sessions share, `AUTOPUS_CPU_GATE=on` (off by default) makes the same hook gate on
-CPU too. While a CPU lease runs or waits and the lease's own admission check would hold a waiter (the
+CPU too (the hook is there when the disk gate is, by default with `machine_ops` on, or with `hooks.cpu_gate: true`). While a CPU lease runs or waits and the lease's own admission check would hold a waiter (the
 1-minute load plus recent grants the average does not show yet, above `disk.lease.max_load_ratio` × the
 logical CPUs), it denies commands that load the CPU outside a CPU lease and points the agent at
 `auto disk lease --cpu N -- <command>`. With no CPU lease and no waiter it allows: that load comes from

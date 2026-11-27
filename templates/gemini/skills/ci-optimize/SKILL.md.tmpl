@@ -107,7 +107,7 @@ self-hosted의 **기계 점유**로 나눕니다. self-hosted 분은 청구되�
   `--wait`는 그보다 길게 잡습니다. 무거운 job을 lock 하나로 줄 세우는 셸 wrapper는
   `auto disk lease --cpu N --mem SIZE --priority … -- cmd`로 바꿉니다.
 - 디스크: runner 작업 디렉터리와 캐시가 같은 볼륨이면 여유 공간 부족이 컴파일 오류나 timeout으로 위장합니다.
-  `disk-triage` 스킬로 소비처를 확인합니다. 캐시를 통째로 지우는 정리는 콜드 빌드를 만듭니다.
+  `auto disk status`로 소비처를 확인합니다(`machine_ops`가 켜져 있으면 `disk-triage` 스킬이 순서를 안내합니다). 캐시를 통째로 지우는 정리는 콜드 빌드를 만듭니다.
 
 **위생**
 - 모든 job에 `timeout-minutes`(측정 p90 × 약 2). 없으면 멈춘 job이 기본 상한까지 runner를 점유합니다.

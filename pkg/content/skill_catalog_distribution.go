@@ -60,7 +60,7 @@ func shouldCompileCatalogSkill(skill CatalogSkill, platform string, cfg *config.
 	if containsString(compiler.ExplicitSkills, skill.Name) {
 		return true
 	}
-	if IsCoreSkill(skill.Name) {
+	if IsCoreSkill(skill.Name) && (cfg.MachineOpsEnabled() || !IsMachineOpsSkill(skill.Name)) {
 		return true
 	}
 	if len(compiler.Bundles) == 0 {

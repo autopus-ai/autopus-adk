@@ -37,10 +37,6 @@ const (
 	s11GuardEntry = `{"matcher":"Edit|Write|MultiEdit","hooks":[{"type":"command",
 		"command":"out=$(auto guard edit --platform claude-code) && [ -n \"$out\" ] && printf '%s\\n' \"$out\"; exit 0",
 		"timeout":5}]}`
-	// s11DiskGateEntry is the disk gate, on by default beside the guard.
-	s11DiskGateEntry = `{"matcher":"Bash","hooks":[{"type":"command",
-		"command":"out=$(auto disk gate) && [ -n \"$out\" ] && printf '%s\\n' \"$out\"; exit 0",
-		"timeout":5}]}`
 )
 
 // TestUpdateCmd_EditGuardHandlerIsOwnedAloneAndRetractedByTheFlag is S11: with
@@ -52,6 +48,7 @@ func TestUpdateCmd_EditGuardHandlerIsOwnedAloneAndRetractedByTheFlag(t *testing.
 	t.Parallel()
 
 	dir := t.TempDir()
+	// A new project has machine_ops off, so no disk gate sits beside the guard.
 	runEditGuardCLI(t, "init", "--dir", dir, "--project", "guard", "--platforms", "claude-code")
 	settings := filepath.Join(dir, ".claude", "settings.json")
 	prependPreToolUse(t, settings, s11UserEntry, s11MixedEntry)
@@ -62,7 +59,7 @@ func TestUpdateCmd_EditGuardHandlerIsOwnedAloneAndRetractedByTheFlag(t *testing.
 	second := readEditGuardFile(t, settings)
 
 	assert.Equal(t, string(first), string(second), "two consecutive updates must write identical bytes")
-	assert.JSONEq(t, "["+s11UserKept+","+s11ArchEntry+","+s11GuardEntry+","+s11DiskGateEntry+","+s11DispatcherEntry+"]",
+	assert.JSONEq(t, "["+s11UserKept+","+s11ArchEntry+","+s11GuardEntry+","+s11DispatcherEntry+"]",
 		preToolUseOf(t, second))
 
 	cfg, err := loadConfigFromDir(dir)
@@ -73,7 +70,7 @@ func TestUpdateCmd_EditGuardHandlerIsOwnedAloneAndRetractedByTheFlag(t *testing.
 	off := readEditGuardFile(t, settings)
 
 	assert.NotContains(t, string(off), "auto guard edit", "the flag retracts every guard handler")
-	assert.JSONEq(t, "["+s11UserKept+","+s11ArchEntry+","+s11DiskGateEntry+","+s11DispatcherEntry+"]", preToolUseOf(t, off))
+	assert.JSONEq(t, "["+s11UserKept+","+s11ArchEntry+","+s11DispatcherEntry+"]", preToolUseOf(t, off))
 }
 
 func runEditGuardCLI(t *testing.T, args ...string) {

@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **새 프로젝트는 검증 핵심만 설치한다** (2026-11-27): 새 최상위 키 `machine_ops`. `auto init`이 새 프로젝트에
+  `machine_ops: false`를 쓰고, 그러면 디스크 게이트, 자동 디스크 회수, `disk-triage`·`ci-optimize` 스킬이 빠진다. 키가
+  없는 기존 프로젝트는 지금처럼 모두 켜져 있다. `hooks.disk_gate`·`disk.reclaim.auto`를 직접 적으면 그 값이 이기고,
+  `skills.compiler.bundles: [ops]`로 두 스킬만 다시 넣을 수 있다. 이 키를 모르는 오래된 `auto`는 파일을 거부한다.
 - **Antigravity CLI에도 Stop hook 검증을 건다** (2026-11-27): `.agents/hooks.json`의 Stop에 `auto verify stop --dialect agy`를
   등록한다. agy의 camelCase 입력(`conversationId`, `cwd`, `fullyIdle`, `terminationReason`)을 게이트 입력으로 바꾸고, 막을 때는
   `{"decision":"continue","reason"}`로 답한다. `fullyIdle`이 false이면 기다리고, `NO_TOOL_CALL`(정상 종료)이 아닌 종료는 판단하지

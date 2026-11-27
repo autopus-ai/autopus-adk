@@ -72,6 +72,7 @@ func newInitCmd() *cobra.Command {
 
 			cfg := config.DefaultFullConfig(project)
 			cfg.Platforms = platformList
+			cfg.MachineOps = initMachineOps(dir)
 			rea := prepareInitRea(dir, cfg, reaOn, reaOff)
 
 			// Detect and set stack and framework for stack-aware rule generation.
