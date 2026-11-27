@@ -3,6 +3,8 @@ package verifygate
 import (
 	"bytes"
 	"context"
+	"go/parser"
+	"go/token"
 	"os"
 	"path"
 	"path/filepath"
@@ -24,6 +26,10 @@ import (
 // of the package's failures. Declarations are compared across the
 // package's changed and deleted test files together, so a helper moved
 // between them is not an edit, and a deleted file's support is deleted.
+// A package and its external test package (x and x_test) in one directory
+// are compared apart: they are two packages, so a helper moved from one to
+// the other is a deletion from the first, and a test moved from one to the
+// other is a new test there (its names can resolve to other declarations).
 func editedTestFuncs(ctx context.Context, root string, changed []string) map[string]bool {
 	edited := map[string]bool{}
 	before, after := map[string]*testDecls{}, map[string]*testDecls{}
@@ -44,19 +50,25 @@ func editedTestFuncs(ctx context.Context, root string, changed []string) map[str
 			continue
 		}
 		dir := path.Dir(f)
-		if before[dir] == nil {
-			before[dir], after[dir] = newTestDecls(), newTestDecls()
-		}
 		if old, err := gitOutput(ctx, root, "show", "HEAD:"+f); err == nil {
-			before[dir].add(old)
+			declsFor(before, dir, old).add(old)
 		}
 		// A deleted file adds nothing: its support counts as deleted.
 		if now, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(f))); err == nil {
-			after[dir].add(now)
+			declsFor(after, dir, now).add(now)
 		}
 	}
-	for dir, now := range after {
-		old := before[dir]
+	for group := range before {
+		if after[group] == nil {
+			after[group] = newTestDecls()
+		}
+	}
+	for group, now := range after {
+		dir, _, _ := strings.Cut(group, "\x00")
+		old := before[group]
+		if old == nil {
+			old = newTestDecls()
+		}
 		for name, src := range now.tests {
 			if prev, ok := old.tests[name]; !ok || prev != src {
 				edited[dir+"\x00"+name] = true
@@ -67,6 +79,26 @@ func editedTestFuncs(ctx context.Context, root string, changed []string) map[str
 		}
 	}
 	return edited
+}
+
+// declsFor returns the declarations of the package a test file's source
+// declares in dir, keyed "dir\x00package", creating them on first use.
+func declsFor(groups map[string]*testDecls, dir string, src []byte) *testDecls {
+	key := dir + "\x00" + packageName(src)
+	if groups[key] == nil {
+		groups[key] = newTestDecls()
+	}
+	return groups[key]
+}
+
+// packageName is the package clause of a Go source, or "" when it does not
+// parse.
+func packageName(src []byte) string {
+	file, err := parser.ParseFile(token.NewFileSet(), "", src, parser.PackageClauseOnly)
+	if err != nil {
+		return ""
+	}
+	return file.Name.Name
 }
 
 // deletedPaths lists the tracked paths the work tree no longer has: deleted

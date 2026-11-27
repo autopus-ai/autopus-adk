@@ -78,3 +78,46 @@ func TestRunCharged_AHelperMovedToAnotherPackageIsADeletion(t *testing.T) {
 	require.NotNil(t, res.Failure, "the deletion was hidden; pre-existing: %v", res.Preexisting)
 	assert.Equal(t, []string{"basegate.TestNeedsTool"}, res.Edited)
 }
+
+// x and x_test in one directory are two packages: a helper moved from the
+// package's tests to its external tests is deleted from the first.
+func TestEditedTestFuncs_AHelperMovedToTheExternalTestPackageIsADeletion(t *testing.T) {
+	const helper = "\nfunc unused() int { return 1 }\n"
+	const ext = "package basegate_test\n\nimport \"testing\"\n\nfunc TestExt(t *testing.T) {}\n"
+	base := baselineBase()
+	base["sum_test.go"] = newTestFile + helper
+	base["ext_test.go"] = ext
+	root := redRepo(t, base, map[string]string{"sum_test.go": newTestFile, "ext_test.go": ext + helper})
+
+	_, changed, ok := ChangedFiles(context.Background(), root)
+	require.True(t, ok)
+	assert.True(t, editedTestFuncs(context.Background(), root, changed)[".\x00"])
+}
+
+// A helper moved between two files of the same package is still not an
+// edit.
+func TestEditedTestFuncs_AHelperMovedWithinThePackageIsNotAnEdit(t *testing.T) {
+	const helper = "\nfunc unused() int { return 1 }\n"
+	const two = "package basegate\n\nimport \"testing\"\n\nfunc TestTwo(t *testing.T) {}\n"
+	base := baselineBase()
+	base["sum_test.go"] = newTestFile + helper
+	base["two_test.go"] = two
+	root := redRepo(t, base, map[string]string{"sum_test.go": newTestFile, "two_test.go": two + helper})
+
+	_, changed, ok := ChangedFiles(context.Background(), root)
+	require.True(t, ok)
+	assert.Empty(t, editedTestFuncs(context.Background(), root, changed))
+}
+
+// A test whose file changed only its package clause is a new test of the
+// external test package.
+func TestEditedTestFuncs_ATestMovedToTheExternalTestPackageIsEdited(t *testing.T) {
+	const body = "\n\nimport \"testing\"\n\nfunc TestMoved(t *testing.T) {}\n"
+	base := baselineBase()
+	base["moved_test.go"] = "package basegate" + body
+	root := redRepo(t, base, map[string]string{"moved_test.go": "package basegate_test" + body})
+
+	_, changed, ok := ChangedFiles(context.Background(), root)
+	require.True(t, ok)
+	assert.True(t, editedTestFuncs(context.Background(), root, changed)[".\x00TestMoved"])
+}

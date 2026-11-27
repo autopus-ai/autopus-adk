@@ -95,13 +95,14 @@ func RunCharged(ctx context.Context, root string, changed []string, steps []Step
 				why, timeShort = noTimeLeft+budget.String()+" budget to run them", true
 			}
 			var head headResult
+			view := headViewOf(ctx, root)
 			if why == "" {
 				head = cache.headFailures(ctx, root, fresh, window)
 				if head.interrupted {
 					return ChargedRun{Skipped: append(res.Skipped, interruptedSkips(rest)...)}
 				}
 				why, timeShort = head.unavailable, head.timeShort
-				head.runs = movedRuns(head.runs, fileMoves(ctx, root))
+				head.runs = view.runs(head.runs)
 			}
 			if why == "" {
 				var charged []string
@@ -114,7 +115,7 @@ func RunCharged(ctx context.Context, root string, changed []string, steps []Step
 			}
 			if why != "" {
 				current := currentRuns(failure, root)
-				if !timeShort || head.disagrees(fresh, current) || !cache.recall(fresh, current, fileMoves(ctx, root)) {
+				if !timeShort || head.disagrees(fresh, current) || !cache.recall(fresh, current, view) {
 					res.Failure, res.Unavailable = failure, why
 					return res
 				}

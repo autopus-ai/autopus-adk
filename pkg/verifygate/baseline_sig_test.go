@@ -29,6 +29,16 @@ func TestRunCharged_ADifferentFailureOnHEADDoesNotHideABreak(t *testing.T) {
 			edit: map[string]string{"add.go": baseAddBad},
 			key:  "basegate.TestTool",
 		},
+		// S7: the change breaks an assertion that prints the same message
+		// as the one HEAD fails at, on another line of an untouched file.
+		"another assertion with the same message": {
+			base: map[string]string{"check_test.go": sumTest + "func TestCheck(t *testing.T) {\n" +
+				"\tif !toolPresent() {\n\t\tt.Error(\"check failed\")\n\t}\n" +
+				"\tif Add(1, 2) != 3 {\n\t\tt.Error(\"check failed\")\n\t}\n}\n\n" +
+				"func toolPresent() bool { return false }\n"},
+			edit: map[string]string{"add.go": baseAddBad},
+			key:  "basegate.TestCheck",
+		},
 		// S5: the subtest name is the same, the row under it is not.
 		"another row under the same subtest": {
 			base: map[string]string{
@@ -96,6 +106,19 @@ func TestRunCharged_AnEditedCaseTableIsCharged(t *testing.T) {
 	res := runCharged(t, redRepo(t, base, map[string]string{"cases_test.go": table("{1, 2, 3}, {2, 2, 5}")}))
 	require.NotNil(t, res.Failure)
 	assert.Equal(t, []string{"basegate.TestCases"}, res.Edited)
+}
+
+// A test added above a pre-existing failure moves its line down; the
+// failure is still HEAD's.
+func TestRunCharged_AFailureMovedDownItsFileIsPreexisting(t *testing.T) {
+	const head = "package basegate\n\nimport \"testing\"\n\n"
+	const pre = "func TestPre(t *testing.T) {\n\tt.Fatal(\"env: missing tool\")\n}\n"
+	const added = "func TestAdded(t *testing.T) {\n\tif Add(1, 2) != 3 {\n\t\tt.Fatal(\"wrong sum\")\n\t}\n}\n\n"
+	base := baselineBase()
+	base["pre_test.go"] = head + pre
+	res := runCharged(t, redRepo(t, base, map[string]string{"add.go": baseAddFix, "pre_test.go": head + added + pre}))
+	assert.Nil(t, res.Failure, "edited: %v, unavailable: %s", res.Edited, res.Unavailable)
+	assert.Contains(t, res.Preexisting, "basegate.TestPre")
 }
 
 func TestSameFailure(t *testing.T) {
