@@ -75,6 +75,32 @@ class DetectionTests(unittest.TestCase):
                 "-o \"${TMPDIR:-/tmp}/codex-review.md\" \"<brief>\" </dev/null 2>&1"
         self.assertEqual(observe_c.codex_runs(brief), [{'session': True, 'bypass': []}], 'the v3c brief')
 
+    def test_attached_short_values_are_bypasses(self):
+        cases = {'codex -cweb_search=live exec x': ('-c', 'web_search=live'),
+                 'codex exec -mgpt-5 x': ('-m', 'gpt-5'), 'codex -c=web_search=live exec x': ('-c', 'web_search=live'),
+                 'codex --config=web_search=live exec x': ('--config', 'web_search=live'),
+                 'codex exec --model=gpt-5 x': ('--model', 'gpt-5'), 'codex -pwork exec x': ('-p', 'work')}
+        for command, (flag, value) in cases.items():
+            runs = observe_c.codex_runs(command)
+            self.assertEqual(runs, [{'session': True, 'bypass': [{'flag': flag, 'value': value}]}], command)
+        # An attached value does not swallow the next word: the prompt stays positional.
+        self.assertEqual(observe_c.codex_runs('codex -sdanger-full-access review'),
+                         [{'session': True, 'bypass': []}])
+        frozen = {'model': 'gpt-6.2-sol', 'effort': 'high'}
+        stream = {'codex_bypass': [dict(e, command='c') for e in observe_c.codex_runs('codex exec -mgpt-6.2-sol x')[0]['bypass']]}
+        seen = {'web_search': [], 'network_commands': [], 'home_intact': True, 'config_intact': True,
+                'sessions_intact': True, 'archived': False, 'unscanned': 0, 'sessions': 0, 'sessions_without_usage': 0}
+        self.assertEqual(observe_c.reconcile(seen, stream, frozen), [], 'an attached frozen model is not a bypass')
+
+    def test_words_after_double_dash_are_prompt_text(self):
+        for command in ('codex exec -- "explain" --help', 'codex exec -- -c web_search=live', 'codex exec -- -mgpt-5',
+                        'codex exec -- --search -h', 'codex -- --version', 'codex exec -- help'):
+            self.assertEqual(observe_c.codex_runs(command), [{'session': True, 'bypass': []}], command)
+        # Options before `--` are still read.
+        self.assertEqual(observe_c.codex_runs('codex exec -m gpt-5 -- -c x'),
+                         [{'session': True, 'bypass': [{'flag': '-m', 'value': 'gpt-5'}]}])
+        self.assertEqual(observe_c.codex_runs('codex exec --help -- x'), [{'session': False, 'bypass': []}])
+
 
 class RolloutTests(unittest.TestCase):
     def test_usage_network_and_web_search_are_read_from_regular_rollouts(self):
