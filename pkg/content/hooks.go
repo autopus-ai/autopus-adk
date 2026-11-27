@@ -112,7 +112,9 @@ func generateCLIHooks(cfg config.HooksConf, platform string) ([]adapter.HookConf
 // cwd, stop_hook_active and last_assistant_message and whose
 // {"decision":"block","reason":...} sends the reason back as the next
 // prompt. Antigravity's Stop speaks another dialect (camelCase fields,
-// "continue"), and OpenCode has no blocking Stop event.
+// "continue"; `auto verify stop --dialect agy` translates it, and its payload
+// has no final reply for the language check), and OpenCode has no blocking
+// Stop event.
 func stopHookPlatform(platform string) bool {
 	switch platform {
 	case "claude", "claude-code", "codex":
@@ -130,7 +132,7 @@ const verifyStopCommand = "auto verify stop"
 // budget is not killed by Claude Code before it returns a verdict. Unset
 // keeps the bare command and the 600s timeout it always had.
 func generateVerifyStopHook(cfg config.HooksConf, platform string) []adapter.HookConfig {
-	if !stopHookPlatform(platform) || !cfg.IsVerifyStopEnabled() {
+	if (!stopHookPlatform(platform) && platform != "antigravity-cli") || !cfg.IsVerifyStopEnabled() {
 		return nil
 	}
 	budget, err := cfg.VerifyStopBudgetDuration()
@@ -144,6 +146,9 @@ func generateVerifyStopHook(cfg config.HooksConf, platform string) []adapter.Hoo
 		command += " --budget " + budget.String()
 	}
 	timeout := int(config.VerifyStopHookTimeout(budget) / time.Second)
+	if platform == "antigravity-cli" {
+		command += " --dialect agy"
+	}
 	hooks := []adapter.HookConfig{{Event: "Stop", Type: "command", Command: command, Timeout: timeout}}
 	if platform == "codex" {
 		// Codex's Stop payload has no background_tasks; these record its

@@ -49,6 +49,9 @@ func TestGenerateProjectHookConfigs_EmitsNoOrchestraCompletionOrReadyHook(t *tes
 				(platform == "claude-code" || platform == "claude" || platform == "codex") {
 				continue // the verification gates, not a completion hook
 			}
+			if platform == "antigravity-cli" && hook.Event == "Stop" && hook.Command == "auto verify stop --dialect agy" {
+				continue // the verification gate in Antigravity's dialect
+			}
 			if platform == "codex" && strings.HasPrefix(hook.Command, "auto verify stop --subagent ") {
 				continue // the gate's sub-agent tracking
 			}
