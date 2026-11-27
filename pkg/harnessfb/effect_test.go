@@ -49,8 +49,10 @@ func TestEffects(t *testing.T) {
 	assert.Empty(t, Effects(sessions, []Candidate{{ID: "HL-002", Pattern: "x"}}), "a rule with no approval time")
 }
 
-// Time is counted from the pattern's own measure: a review time that fell
-// 9% but crossed the detection threshold is not "reduced".
+// Time is counted from the pattern's own measure, not only in sessions
+// past the detection threshold: a review time that fell 9% reads as 9%. A
+// fall across the threshold still counts as reduced, through the share of
+// sessions showing the pattern.
 func TestEffects_TimeIsTheRawMeasure(t *testing.T) {
 	approvedAt := t0.Add(10 * 24 * time.Hour)
 	rule := Candidate{ID: "HL-001", Pattern: "review-heavy", State: StateApproved, Decided: &approvedAt}

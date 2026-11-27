@@ -216,7 +216,9 @@ func harnessProviderDir(ctx context.Context) (string, func(), error) {
 			if !e.IsDir() || !strings.HasPrefix(e.Name(), harnessDirPrefix) {
 				continue
 			}
-			if info, err := e.Info(); err == nil && harnessNow().Sub(info.ModTime()) > time.Hour {
+			// An hour is well past a call's 600 s timeout (set below), so
+			// no running call's directory is this old.
+			if info, err := e.Info(); err == nil && time.Since(info.ModTime()) > time.Hour {
 				_ = os.RemoveAll(filepath.Join(tmp, e.Name()))
 			}
 		}
