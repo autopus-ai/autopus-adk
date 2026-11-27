@@ -188,8 +188,13 @@ PR 크기로는 기능 추가와 버그 수정이 충분히 갈리지 않아 기
 한 세션에서만 끄려면 `AUTOPUS_LANGUAGE_STOP=off`. Claude Code는 hook 설정을 세션을 시작할 때 읽으므로,
 `auto update`로 hook을 새로 등록했으면 세션을 다시 시작하거나 `/hooks`에서 확인해야 적용됩니다.
 
-Stop hook은 Claude Code에서, 그리고 확장을 통해 omp에서 돕니다. omp에서 라운드를 끄려면 omp를 시작하는 환경에
-`AUTOPUS_FOLLOWUP=off`를 두세요. 다른 플랫폼에서는 `/auto review`와 `/auto qa`(아래의 플랫폼별 문법)를 직접 실행하세요.
+Stop hook은 Claude Code, Codex(`.codex/hooks.json`; Stop 입력과 `{"decision":"block"}` 응답이 같습니다. Codex는 백그라운드
+작업을 알려 주지 않아 `SubagentStart`/`SubagentStop` hook으로 실행 중인 하위 에이전트를 기록하고, 게이트는 그동안 기다립니다. 중단된 하위 에이전트에는 SubagentStop이 오지 않으므로 하위 에이전트 하나당 stop 두 번까지만 기다리고, 하위 에이전트의 두 번째 턴부터는 SubagentStart가 오지 않아 추적하지 못합니다),
+그리고 확장을 통해 omp에서 돕니다. omp에서 라운드를 끄려면 omp를 시작하는 환경에 `AUTOPUS_FOLLOWUP=off`를 두세요. Codex는 프로젝트
+hook을 신뢰한 뒤에만 실행합니다. `auto init` 뒤, 그리고 hook을 바꾼 `auto update` 뒤에 `/hooks`에서 승인하세요. Codex에서
+언어 검사는 마지막 응답만 보고, `auto harness`는 그 세션을 재지 않습니다(세션 기록 형식이 Claude Code와 다릅니다). Codex는
+프로젝트 루트부터 cwd까지의 `.codex`를 모두 합치므로, 하위 디렉터리에 ADK를 따로 설치하면 게이트가 두 번 돕니다. Antigravity CLI와 OpenCode에서는 `/auto review`와
+`/auto qa`(아래의 플랫폼별 문법)를 직접 실행하세요.
 
 <a id="qa-hunt"></a>
 ## QA 버그 헌트

@@ -58,7 +58,7 @@ Also run ` + "`auto checklist run`" + ` (skip it when the project has no .autopu
 
 const followupAsk = `
 
-If a fix needs a decision only the user can make (product behavior, scope, a policy conflict), ask it with AskUserQuestion as a multiple-choice question: say what you found, give each option a description of what it changes and what it costs, and put your recommendation first. Do not ask an open question. Otherwise do not ask; proceed and state your assumption.`
+If a fix needs a decision only the user can make (product behavior, scope, a policy conflict), ask it as a multiple-choice question (in Claude Code with AskUserQuestion; elsewhere as numbered options, then end the turn): say what you found, give each option a description of what it changes and what it costs, and put your recommendation first. Do not ask an open question. Otherwise do not ask; proceed and state your assumption.`
 
 // followupReview is the step every round starts with. Pilot C measured the
 // independent review as the only step that changed results, and found most

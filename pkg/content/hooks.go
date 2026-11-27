@@ -106,6 +106,20 @@ func generateCLIHooks(cfg config.HooksConf, platform string) ([]adapter.HookConf
 	return appendConditionalDispatcher(hooks, platform)
 }
 
+// stopHookPlatform reports a CLI whose Stop event takes the gate as it is:
+// Claude Code, and Codex, whose Stop payload carries the same session_id,
+// cwd, stop_hook_active and last_assistant_message and whose
+// {"decision":"block","reason":...} sends the reason back as the next
+// prompt. Antigravity's Stop speaks another dialect (camelCase fields,
+// "continue"), and OpenCode has no blocking Stop event.
+func stopHookPlatform(platform string) bool {
+	switch platform {
+	case "claude", "claude-code", "codex":
+		return true
+	}
+	return false
+}
+
 // verifyStopCommand is the Stop hook that builds and tests the changed files.
 const verifyStopCommand = "auto verify stop"
 
@@ -115,7 +129,7 @@ const verifyStopCommand = "auto verify stop"
 // budget is not killed by Claude Code before it returns a verdict. Unset
 // keeps the bare command and the 600s timeout it always had.
 func generateVerifyStopHook(cfg config.HooksConf, platform string) []adapter.HookConfig {
-	if (platform != "claude" && platform != "claude-code") || !cfg.IsVerifyStopEnabled() {
+	if !stopHookPlatform(platform) || !cfg.IsVerifyStopEnabled() {
 		return nil
 	}
 	budget, err := cfg.VerifyStopBudgetDuration()
@@ -129,7 +143,16 @@ func generateVerifyStopHook(cfg config.HooksConf, platform string) []adapter.Hoo
 		command += " --budget " + budget.String()
 	}
 	timeout := int(config.VerifyStopHookTimeout(budget) / time.Second)
-	return []adapter.HookConfig{{Event: "Stop", Type: "command", Command: command, Timeout: timeout}}
+	hooks := []adapter.HookConfig{{Event: "Stop", Type: "command", Command: command, Timeout: timeout}}
+	if platform == "codex" {
+		// Codex's Stop payload has no background_tasks; these record its
+		// running sub-agents, so the gate waits instead of judging a tree
+		// one of them is still writing.
+		hooks = append(hooks,
+			adapter.HookConfig{Event: "SubagentStart", Type: "command", Command: verifyStopCommand + " --subagent start", Timeout: 5},
+			adapter.HookConfig{Event: "SubagentStop", Type: "command", Command: verifyStopCommand + " --subagent stop", Timeout: 5})
+	}
+	return hooks
 }
 
 // languageStopCommand is the Stop hook that sends a reply back when it is not
@@ -140,16 +163,19 @@ const languageStopCommand = "auto verify language"
 // Code's Stop event, whose payload carries the final reply. It is skipped when
 // the configured language is one the check cannot judge, English included.
 func generateLanguageStopHook(cfg *config.HarnessConfig, platform string) []adapter.HookConfig {
-	if (platform != "claude" && platform != "claude-code") || !cfg.Hooks.IsLanguageStopEnabled() ||
+	if !stopHookPlatform(platform) || !cfg.Hooks.IsLanguageStopEnabled() ||
 		!langgate.Supported(cfg.Language.AIResponses) {
 		return nil
 	}
-	return []adapter.HookConfig{
-		{Event: "Stop", Type: "command", Command: languageStopCommand, Timeout: 10},
-		// The note check runs after every tool call and reminds at the first
-		// note in another language, before the rest of the turn follows it.
-		{Event: "PostToolUse", Type: "command", Command: languageNoteCommandLine, Timeout: 5},
+	hooks := []adapter.HookConfig{{Event: "Stop", Type: "command", Command: languageStopCommand, Timeout: 10}}
+	if platform == "codex" {
+		// The note check reads a Claude Code transcript; on Codex it would
+		// cost every tool call and find nothing.
+		return hooks
 	}
+	// The note check runs after every tool call and reminds at the first
+	// note in another language, before the rest of the turn follows it.
+	return append(hooks, adapter.HookConfig{Event: "PostToolUse", Type: "command", Command: languageNoteCommandLine, Timeout: 5})
 }
 
 // languageNoteCommandLine forwards the note check's output only after it
