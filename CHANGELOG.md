@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- **하네스가 자기 시간 낭비를 재고 규칙 후보로 만든다** (2026-11-27): `auto harness`.
+  - Claude Code Stop hook이 세션 기록을 백그라운드로 읽어 테스트 대기, 리뷰, 고친 것 없는 반복 리뷰, 이유별 Stop hook 차단,
+    timeout을 `.autopus/runtime/harness/`에 쌓는다. 모델 호출이 없고 hook의 결과를 바꾸지 않는다. 400MB 넘는 기록도
+    매번 새로 붙은 부분만 읽는다.
+  - 세션 3개 이상에서 나온 패턴은 같은 백그라운드 실행이 provider 하나로 규칙 초안을 쓰고 다른 provider에게 반증을 맡긴다.
+    그 provider들의 세션은 다시 기록되지 않는다.
+  - `approve`(사람)는 git 디렉터리 안의 반증 기록을 확인한 뒤 `.claude/rules/harness-lessons.md`를 다시 쓴다. `retire`는
+    규칙을 뺀다. `AUTOPUS_HARNESS_FEEDBACK=off`로 끈다.
 - **검증 라운드는 기본으로 리뷰만 돌린다** (2026-11-24): Pilot C에서 결과를 바꾼 단계는 독립 리뷰뿐이었고, 놓친 결함
   18개 중 11개는 외부 도구의 의미가 필요해 리뷰어가 실제 프로그램을 실행해서야 찾았다. 시나리오 QA는 3번 모두 실패했고
   헌트는 결과를 바꾸지 못했다.

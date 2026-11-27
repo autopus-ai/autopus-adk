@@ -28,6 +28,9 @@ type stopHookInput struct {
 	SessionID            string `json:"session_id"`
 	Cwd                  string `json:"cwd"`
 	LastAssistantMessage string `json:"last_assistant_message"`
+	// TranscriptPath is the session's transcript, which the harness
+	// feedback loop reads in the background (see maybeStartHarnessObserve).
+	TranscriptPath string `json:"transcript_path"`
 	// BackgroundTasks lists tasks still in flight when the session stops.
 	BackgroundTasks []struct {
 		Type string `json:"type"`
@@ -124,6 +127,7 @@ func runVerifyStop(cmd *cobra.Command, stdin io.Reader, budget time.Duration, fo
 	// The automatic disk reclaim rides the per-turn Stop hook: rate limited
 	// and detached, it never adds a build or a walk to the turn.
 	maybeStartAutoReclaim(dir)
+	maybeStartHarnessObserve(in, dir)
 	if strings.EqualFold(os.Getenv("AUTOPUS_VERIFY_STOP"), "off") {
 		return stopHookOutput{}
 	}

@@ -110,6 +110,7 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(newConnectCmd())
 	root.AddCommand(newLearnCmd())
 	root.AddCommand(newChecklistCmd())
+	root.AddCommand(newHarnessCmd())
 	// @AX:NOTE [AUTO] @AX:SPEC: SPEC-CODEOPS-ADK-001: registers the public `auto delivery` namespace for supervised delivery contract checks.
 	// @AX:REASON: Backend/Desktop delivery gates and CLI tests depend on local dry-run planning and envelope validation staying reachable.
 	root.AddCommand(newDeliveryCmd())

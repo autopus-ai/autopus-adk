@@ -277,6 +277,26 @@ auto checklist run            # diff 조건에 맞는 점검만 적용
 - `status`는 관찰 모드에서 두 번 잡은 점검의 승격을 제안합니다. 50번 적용되는 동안 잡은 것이 없는 점검은 퇴역 후보로
   보고합니다(`--retire-after`). `retire`해도 파일은 남습니다.
 
+## 세션의 낭비가 하네스 규칙이 된다
+
+Claude Code Stop hook은 세션 시간이 어디에 쓰였는지도 잽니다. 백그라운드에서, 모델 호출 없이 잽니다. 테스트 대기, 리뷰,
+다시 리뷰했지만 그 뒤에 고친 것이 없는 변경, 이유별 Stop hook 차단, timeout을 `.autopus/runtime/harness/`에 기록합니다.
+
+```bash
+auto harness report           # 시간 비중과 세션 3개 이상에서 나온 낭비 패턴 (최근 30일)
+auto harness status           # 후보: 승인 대기열 먼저, 나머지는 상태별, 모델 비용 포함
+auto harness approve HL-001   # 사람: 규칙을 .claude/rules/harness-lessons.md에 씀
+auto harness retire HL-001    # 규칙을 다시 뺌
+```
+
+- 패턴이 처음 세션 3개에 이르면, 같은 백그라운드 실행이 review provider 하나로 규칙 초안을 쓰고 다른 provider에게
+  반증을 맡깁니다. 반증된 후보는 승인 대기열에 오르지 않습니다. 초안을 쓴 provider 말고 쓸 수 있는 provider가 없으면
+  후보는 대기 상태로 남습니다.
+- 승인할 때 git 디렉터리 안에 남긴 반증 기록을 확인합니다. 그래서 후보 파일을 고쳐 판정을 꾸밀 수 없습니다.
+  승인 기록은 기계마다 따로 남기 때문에, 이 순환은 자기가 쓴 규칙 파일만 고치고 git이 추적하는 파일은 건드리지 않습니다.
+  `auto update`는 규칙 파일을 쓰지도 지우지도 않습니다.
+- `AUTOPUS_HARNESS_FEEDBACK=off`로 끕니다. Stop hook이 세션 기록을 넘겨 주는 Claude Code 세션만 잽니다.
+
 ## 라우트
 
 코딩 에이전트의 채팅창에서 실행합니다.
