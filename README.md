@@ -279,6 +279,14 @@ auto harness retire HL-001    # takes it back out
 - When a pattern first reaches 3 sessions, the same background run drafts one rule for it with a
   review provider and asks another provider to refute it. A refuted candidate stays out of the
   approval queue; with no provider other than the drafter, a candidate waits.
+- Review findings are a source too. The same background run reads each reviewer's report (a synchronous
+  result or a background reviewer's message) for `file:line` findings, skipping paths outside the project,
+  fenced reproduction commands and re-review status tables. Findings in one area (the first two directories
+  of the path) in 3+ sessions make a `review-area:<area>` pattern. Its draft must name one recurring mistake
+  a lint rule, type check or test could catch, or answer NONE, which makes no candidate and waits like a
+  failed draft. Paths are resolved against the repository's worktrees and files, secrets in findings are redacted
+  when recorded, and a review-area lesson is never offered for retirement. Such a lesson is meant to go through
+  `encode` into a check.
 - Approval checks the refutation record kept inside the git directory, so an edited candidate file
   cannot claim a verdict. Approvals are recorded per machine, so the loop only rewrites a rule file it
   wrote itself and never one git tracks. `auto update` neither writes nor prunes the rule file.

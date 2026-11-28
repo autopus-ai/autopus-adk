@@ -66,4 +66,27 @@ Limits:
   `auto harness status` shows them for a person to read.
 - The proof applies to every worktree. If the check exists only on the branch where it was proven (shown in
   `status`) and that branch is abandoned, the lesson is enforced nowhere; retire and re-approve it, or prove it again.
-- The next step adds repeated review findings as a lesson source, since those are the mistakes lint rules usually catch.
+
+## Review findings as a lesson source
+
+Acceptance criteria: `.autopus/specs/INTENT-harness-review-findings/`. The mistakes a lint rule catches are usually the
+ones reviews keep flagging; `auto learn record --type review_issue` exists but nothing records with it (one entry in
+this repository).
+
+| Decision | Why |
+| --- | --- |
+| Read `file:line` lines from reviewer reports in the transcript, no model call | The observe run already sees every review span. A synchronous review's report is its tool result; a background reviewer's arrives later as a meta user record (`<agent-message from=…>`), matched by the reviewer ids the parser already keeps. |
+| Skip paths outside the project, fenced code blocks and table rows | On this machine's own transcript the first cut counted reproduction commands and re-review status tables (`\| C1 \| 해소 \|`) as findings. |
+| Resolve paths against the repository at observe time: strip the longest worktree root from an absolute path, map a bare file name to its one tracked file (drop it when several share the name), strip `.claude/worktrees/<name>/` from a path under a removed worktree, drop a one-level alias directory the repository does not have when the rest is a tracked file, drop `...` abbreviations | Relative to the session's last cwd, every finding under `.claude/worktrees/<name>/` fell into one area, and a session's cwd changes hundreds of times. |
+| Read teammate reviewers (`<teammate-message teammate_id=…>`, one record can carry several) and reports queued as `queued_command` attachments | Measured on this machine's large sessions: up to a third of reviewers were teammates, and a few reports arrived only as queued commands. |
+| Keep the latest five findings per area, in at most 60 areas | A session-wide cap of 60 filled in the first day or two of a weeks-long session and dropped hundreds of later findings. |
+| Redact secrets and strip markup when a finding is recorded | Findings go into session records, provider prompts and candidate files; review findings otherwise stay local. |
+| Prompts take findings one per session in turn, most recent first | Five per session in order showed only the three oldest sessions. |
+| The draft decides whether the findings are one mistake, or answers NONE (alone or with punctuation and a reason; "None of …" is a rule) | Grouping by area is coarse; a hot package is reviewed every session. NONE costs one draft and backs off like a failed one (three automatic tries). |
+| A review-area lesson is never a retire candidate; its effect reads "영역 지적 계속" when the area still draws findings | An area keeps being reviewed after the mistake is gone; its share of sessions with findings cannot show the lesson failed. |
+| The background run exits 0 when drafting fails and does nothing when no provider is installed | Failures are logged (a failed draft also backs off); the exit status only reached a detached process. A person's `auto harness propose` still fails. |
+
+Limits: an area reviewed in every session will reach three sessions with unrelated findings; the NONE answer and the
+refuter carry that. A finding without a `file:line` reference is not seen, and a line that cites a file to confirm it is
+fine is counted like a defect. A relative path the repository does not have is kept (it may be on another branch), so a
+session that reviews a second repository adds its areas too.

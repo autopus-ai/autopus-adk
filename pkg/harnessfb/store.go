@@ -78,6 +78,7 @@ func Observe(ctx context.Context, root, id, transcript string) (Session, error) 
 	if data, err := readFile(root, rel); err == nil {
 		_ = json.Unmarshal(data, &s)
 	}
+	s.Paths = LoadPathIndex(ctx, root)
 	if err := ReadClaudeTranscript(transcript, &s); err != nil {
 		return s, err
 	}

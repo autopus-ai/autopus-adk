@@ -3,7 +3,9 @@ package cli
 import (
 	"fmt"
 	"io"
+	"strings"
 	"time"
+	"unicode"
 
 	"github.com/insajin/autopus-adk/pkg/harnessfb"
 )
@@ -46,8 +48,22 @@ func printHarnessEffects(w io.Writer, effects []harnessfb.Effect) {
 			fmt.Fprintf(w, "- %s (%s): %s (전 %d개, 후 %d개 세션)\n", e.ID, e.Pattern, e.Verdict, e.Before.Sessions, e.After.Sessions)
 			continue
 		}
-		fmt.Fprintf(w, "- %s (%s): 나온 세션 %.0f%% → %.0f%%, 세션당 %.1f분 → %.1f분 — %s (전 %d개, 후 %d개 세션)\n",
-			e.ID, e.Pattern, 100*e.Before.Rate(), 100*e.After.Rate(), e.Before.PerSession()/60, e.After.PerSession()/60,
-			e.Verdict, e.Before.Sessions, e.After.Sessions)
+		minutes := ""
+		if e.Before.Seconds > 0 || e.After.Seconds > 0 {
+			minutes = fmt.Sprintf(", 세션당 %.1f분 → %.1f분", e.Before.PerSession()/60, e.After.PerSession()/60)
+		}
+		fmt.Fprintf(w, "- %s (%s): 나온 세션 %.0f%% → %.0f%%%s — %s (전 %d개, 후 %d개 세션)\n",
+			e.ID, e.Pattern, 100*e.Before.Rate(), 100*e.After.Rate(), minutes, e.Verdict, e.Before.Sessions, e.After.Sessions)
 	}
+}
+
+// controlFree drops control characters, so recorded text cannot move the
+// terminal's cursor or change its colors.
+func controlFree(s string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) {
+			return -1
+		}
+		return r
+	}, s)
 }

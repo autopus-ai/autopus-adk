@@ -70,7 +70,7 @@ func isEdit(tool, command string) bool {
 // notPrompt are the user-role texts the harness writes, not the user.
 var notPrompt = []string{"Stop hook feedback", "<task-notification", "[SYSTEM", "<system-reminder",
 	"Caveat:", "<command-", "<local-command", "[Request interrupted", "<agent-message", "This session is being continued",
-	"Another Claude session sent a message", "[Cross-session delivery notice]", "Base directory for this skill"}
+	"Another Claude session sent a message", "[Cross-session delivery notice]", "Base directory for this skill", "<teammate-message"}
 
 // isPrompt reports a user-role text the user typed.
 func isPrompt(text string) bool {

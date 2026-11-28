@@ -31,6 +31,10 @@ const (
 	EffectReduced    = "줄었음"
 	EffectNone       = "효과 없음 · retire 후보"
 	EffectNoBaseline = "판정 불가 · 승인 전 기준 없음"
+	// EffectAreaStill is a review-area lesson whose area still draws
+	// findings: the area keeps being reviewed, so this alone does not show
+	// the lesson failed, and it is not offered for retirement.
+	EffectAreaStill = "영역 지적 계속 · 교훈의 실수가 남았는지는 사람이 판단"
 )
 
 // Effect compares an approved rule's pattern before and after approval.
@@ -77,6 +81,9 @@ func Effects(sessions []Metrics, approved []Candidate) []Effect {
 			w.Seconds += patternSeconds(m, c.Pattern)
 		}
 		e.Verdict = verdict(e.Before, e.After)
+		if isReviewArea(c.Pattern) && e.Verdict == EffectNone {
+			e.Verdict = EffectAreaStill
+		}
 		out = append(out, e)
 	}
 	return out

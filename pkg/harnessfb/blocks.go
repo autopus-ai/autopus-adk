@@ -40,6 +40,7 @@ func (s *Session) foldAttachment(rec record) {
 			s.stopBlock(a.BlockingError.Command, a.BlockingError.BlockingError, a.ToolUseID, rec.Timestamp)
 		}
 	case a.Type == "queued_command":
+		s.readReports(a.Prompt)
 		if id, ok := notification(a.Prompt); ok {
 			s.close(id, rec.Timestamp)
 		} else if isPrompt(a.Prompt) {

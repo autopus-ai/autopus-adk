@@ -3,6 +3,7 @@ package harnessfb
 import (
 	"fmt"
 	"sort"
+	"time"
 )
 
 // MinSessions is how many sessions a waste signal must show up in before
@@ -19,6 +20,10 @@ type Hit struct {
 	Active float64 `json:"active_seconds"`
 	// Sample is an example of what the signal said (a block reason).
 	Sample string `json:"sample,omitempty"`
+	// Findings are a review-area hit's file:line findings (up to five).
+	Findings []string `json:"findings,omitempty"`
+	// End is when the session last ran, to show recent sessions first.
+	End time.Time `json:"end,omitzero"`
 }
 
 // Pattern is a waste signal and the sessions that showed it.
@@ -81,7 +86,7 @@ func sessionHits(m Metrics) []namedHit {
 					Active: m.ActiveSeconds, Sample: m.StopBlockSample[k]}})
 		}
 	}
-	return out
+	return append(out, findingHits(m)...)
 }
 
 // Detect finds every waste signal in sessions. A signal is Repeated when

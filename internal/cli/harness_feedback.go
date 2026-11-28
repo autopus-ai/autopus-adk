@@ -156,7 +156,14 @@ func proposeAndRefute(ctx context.Context, root string, say func(string), auto b
 	}
 	providers, err := harnessProviders()
 	if err != nil {
+		if auto {
+			say("review provider 설정을 읽지 못해 후보를 쓰지 않았습니다: " + err.Error())
+			return nil
+		}
 		return err
+	}
+	if len(providers) == 0 && auto {
+		return nil // no provider on this machine: the patterns wait, as for a refuter
 	}
 	created, errs := harnessfb.Propose(ctx, root, patterns, providers, harnessAsker(root), harnessNow(), harnessfb.Options{Auto: auto})
 	for _, e := range errs {
@@ -171,7 +178,10 @@ func proposeAndRefute(ctx context.Context, root string, say func(string), auto b
 		}
 		say(fmt.Sprintf("%s %s", got.ID, got.State.Label()))
 	}
-	if len(errs) > 0 {
+	// The background run logged each failure (a failed draft also backs off)
+	// and nothing reads its exit status; only a person's own propose ends in
+	// an error.
+	if len(errs) > 0 && !auto {
 		return fmt.Errorf("후보 %d개를 만들지 못했습니다", len(errs))
 	}
 	return nil

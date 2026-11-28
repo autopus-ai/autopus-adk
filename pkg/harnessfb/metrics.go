@@ -42,6 +42,8 @@ type Metrics struct {
 	Timeouts        int               `json:"timeouts"`
 	// TimeoutSeconds is how long the commands that timed out had run.
 	TimeoutSeconds float64 `json:"timeout_seconds"`
+	// Findings are the file:line findings of the session's reviews.
+	Findings []Finding `json:"review_findings,omitempty"`
 }
 
 // share is part/whole clamped to [0, 1]: spans can overlap (a background
