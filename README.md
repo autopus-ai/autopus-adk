@@ -270,7 +270,9 @@ blocks by reason, and timeouts. Records live under `.autopus/runtime/harness/`.
 ```bash
 auto harness report           # time shares, waste patterns seen in 3+ sessions, and each approved rule's effect
 auto harness status           # candidates: the approval queue, then the rest by state, with model cost
-auto harness approve HL-001   # a person: writes the rule into .claude/rules/harness-lessons.md
+auto harness approve HL-001   # a person: writes a temporary rule into .claude/rules/harness-lessons.md
+auto harness encode HL-001    # how to turn the lesson into a check in this repository
+auto harness encode HL-001 --layer lint --check 'sh scripts/lint-timers.sh' --repro "$p"
 auto harness retire HL-001    # takes it back out
 ```
 
@@ -280,6 +282,17 @@ auto harness retire HL-001    # takes it back out
 - Approval checks the refutation record kept inside the git directory, so an edited candidate file
   cannot claim a verdict. Approvals are recorded per machine, so the loop only rewrites a rule file it
   wrote itself and never one git tracks. `auto update` neither writes nor prunes the rule file.
+- An approved lesson is a temporary text rule. Approval prints a brief for the work agent, which reads the
+  codebase and enforces the lesson at the strongest layer it can: an API that makes the mistake impossible,
+  then lint or type checks, tests, hooks, and text only when nothing else fits. `encode` runs the check
+  itself on the current tree (must pass), on a snapshot copy of it (must pass), and on the copy with a patch
+  that reproduces the mistake committed (must fail). The copy is a throwaway repository that borrows the
+  project's objects, so the current tree, index, worktree list, stash and hooks are untouched. It has no
+  gitignored files (node_modules, venv, build output), so a check that needs them must prepare them. A patch
+  that edits the script the check runs (directly, through an interpreter, or behind env, time, timeout and similar), or leaves the check unable to start, is refused; a patch that edits a
+  config file the check reads is not detected, so `status` shows the files each patch touched. Only that proof
+  takes the lesson out of the rule file; the record sits in the git directory next to the approval.
+  `--layer text --reason` keeps the text rule and records why no check fits; a later proof replaces it.
 - The report compares each approved rule's pattern before and after its approval (share of sessions
   showing it, minutes per session). After 5 sessions it says whether the waste fell by a fifth or more;
   a rule that did not is marked as a retire candidate.

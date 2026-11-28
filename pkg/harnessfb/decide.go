@@ -156,6 +156,7 @@ func Retire(root, id string, now time.Time) (Candidate, []string, error) {
 	if git, err := GitDir(root); err == nil {
 		_ = removeFile(git, path.Join(approvalsGitPath, id+".json"))
 	}
+	removeEncoding(root, id)
 	written, err := RenderRules(root)
 	return c, written, err
 }
@@ -185,7 +186,8 @@ description: Rules approved from this project's own session measurements (auto h
 
 ` + "`auto harness`" + ` writes this file from approved lessons; change them with ` + "`auto harness approve|retire`" + `, not here.
 Each rule came from waste measured in several sessions of this project, survived another provider's
-refutation, and was approved by a person.
+refutation, and was approved by a person. A lesson leaves this file once ` + "`auto harness encode`" + ` has
+proven a check in the repository that enforces it.
 
 `
 
@@ -201,8 +203,20 @@ func rules(root string) (string, error) {
 	}
 	var b strings.Builder
 	b.WriteString(ruleHeader)
+	kept := 0
 	for _, c := range approved {
-		fmt.Fprintf(&b, "- %s (%s, %d sessions): %s\n", c.ID, c.Pattern, len(c.Evidence), strings.Join(strings.Fields(c.Lesson), " "))
+		note := "temporary until a check enforces it"
+		if e, ok := LoadEncoding(root, c); ok {
+			if e.Structural() {
+				continue // a proven check enforces it; the text would only repeat it
+			}
+			note = "no check fits: " + e.Reason
+		}
+		kept++
+		fmt.Fprintf(&b, "- %s (%s, %d sessions; %s): %s\n", c.ID, c.Pattern, len(c.Evidence), note, strings.Join(strings.Fields(c.Lesson), " "))
+	}
+	if kept == 0 {
+		return "", nil
 	}
 	return b.String(), nil
 }

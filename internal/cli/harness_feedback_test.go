@@ -113,7 +113,7 @@ func TestHarnessCommands_EndToEnd(t *testing.T) {
 	assert.Contains(t, out, filepath.Join(filepath.Base(dir), harnessfb.RuleFile)+"를 다시 썼습니다")
 	rule, err := os.ReadFile(filepath.Join(dir, harnessfb.RuleFile))
 	require.NoError(t, err)
-	assert.Contains(t, string(rule), "HL-001 (review-heavy, 3 sessions): Review once per change.")
+	assert.Contains(t, string(rule), "HL-001 (review-heavy, 3 sessions; temporary until a check enforces it): Review once per change.")
 
 	*calls = nil
 	_, err = runAuto(t, "harness", "observe", "--session-id", "s4", "--transcript", reviewHeavyTranscript(t, tdir, "s4"))

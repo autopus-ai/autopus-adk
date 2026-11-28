@@ -39,10 +39,11 @@ func newHarnessCmd() *cobra.Command {
 			"hook blocks and timeouts under .autopus/runtime/harness (no model call). When a waste pattern shows up in " +
 			fmt.Sprintf("%d or more sessions, the same background run drafts a rule for it with one review provider and asks ", harnessfb.MinSessions) +
 			"another to refute it. approve writes a surviving rule into " + harnessfb.RuleFile + "; that is a person's decision. " +
+			"encode then proves a check in the repository that enforces the lesson, and the text rule leaves the file. " +
 			harnessFeedbackEnv + "=off turns the loop off.",
 	}
 	cmd.AddCommand(newHarnessObserveCmd(), newHarnessReportCmd(), newHarnessProposeCmd(), newHarnessRefuteCmd(),
-		newHarnessStatusCmd(), newHarnessDecideCmd("approve"), newHarnessDecideCmd("reject"), newHarnessDecideCmd("retire"))
+		newHarnessStatusCmd(), newHarnessDecideCmd("approve"), newHarnessDecideCmd("reject"), newHarnessDecideCmd("retire"), newHarnessEncodeCmd())
 	return cmd
 }
 
