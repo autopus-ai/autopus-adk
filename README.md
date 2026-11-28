@@ -103,6 +103,22 @@ pins only warn. A deliberate pin passes with a reply line `version-pin: <name> <
 `version-pin: <reason>` comment on the manifest line where the format allows comments. Lookups share a
 10-second deadline; an offline, private, or slow registry leaves a warning and never blocks.
 
+**Technical-debt ratchet.** Agents add code faster than anyone removes it, and a workaround left in place
+reads to the next agent as the project's convention. `auto debt` lists debt as items code can count:
+TODO/FIXME/HACK/XXX comments without an issue reference (`TODO(#123)` or a link is tracked debt), product
+files within a tenth of `architecture.max_file_lines`, and runs of code lines repeated in several places.
+Tests, docs, generated files and harness directories are not counted. `auto debt baseline` records the
+current items in `.autopus/debt/baseline.json`; commit it. From then on the hook compares item by item (an
+item that only moved keeps its identity; deleting one and adding another is still new): an item the baseline
+lacks blocks the stop once, naming `file:line` and kind, and the same set again only warns. A file near the
+size limit only warns. Without a baseline the hook suggests one and never blocks. The scan reads only files
+that changed since the last one (an index under `.autopus/runtime/debt/`) and stops after 0.8 s; a first
+scan of a large repository finishes over a few stops. `auto debt baseline` refuses to accept new items
+unless `--force`, so the baseline only shrinks on its own; `auto debt check` exits 1 on new items for CI;
+`auto debt cleanup` prints the largest items first with what to do, for a weekly cleanup session that ends
+with `auto debt baseline` and one pull request a person merges. Turn the ratchet off with
+`AUTOPUS_DEBT_STOP=off` or `hooks.debt_stop: false`.
+
 **Verification round (on by default).** Once the build passes, or when no build toolchain covers the
 changed files, the hook measures how much of the
 change can alter what a user runs: changed code lines in product source files, against `HEAD`, in

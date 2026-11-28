@@ -1,0 +1,104 @@
+[
+  {
+    "id": "Q1",
+    "criterion": "AC-4",
+    "question": "How close to the file-size limit counts as 'near the limit'?",
+    "options": [
+      "Within 10% (e.g. 270+ of 300)",
+      "Within 20% (e.g. 240+ of 300)",
+      "User-configurable, default 10%"
+    ],
+    "details": [
+      "Only files that are really about to hit the limit show up, so the list stays short, but there is less warning time before the hard limit.",
+      "Warnings come earlier, but many more files get listed and the list gets noisier.",
+      "Each repository can tune the threshold, at the cost of one more setting to understand."
+    ],
+    "recommended": 0,
+    "answer": 0,
+    "answered_by": "recommended"
+  },
+  {
+    "id": "Q2",
+    "criterion": "AC-9",
+    "question": "When the working tree has new debt, should rewriting the baseline refuse, or accept the new items?",
+    "options": [
+      "Refuse unless an explicit override is given",
+      "Always accept the current state"
+    ],
+    "details": [
+      "An agent cannot get around the ratchet just by rewriting the baseline, but a person who really wants to accept new debt has to pass an extra flag.",
+      "Rewriting is simpler, but an agent can erase the ratchet by rewriting the baseline with its new debt included."
+    ],
+    "recommended": 0,
+    "answer": 0,
+    "answered_by": "recommended"
+  },
+  {
+    "id": "Q3",
+    "criterion": "AC-16",
+    "question": "If an existing item only moves to a different line number (because code was added above it), is it a new item?",
+    "options": [
+      "No, a moved item with the same content is not new",
+      "Yes, any file:line not in the baseline is new"
+    ],
+    "details": [
+      "Ordinary edits near old TODOs don't cause false blocks, but an item counts as the same one by content, not by its exact line.",
+      "The rule is simplest, but almost any edit above an existing TODO or duplicate block causes a false block."
+    ],
+    "recommended": 0,
+    "answer": 0,
+    "answered_by": "recommended"
+  },
+  {
+    "id": "Q4",
+    "criterion": "AC-18",
+    "question": "What should the Stop hook do when there is no baseline file yet?",
+    "options": [
+      "Don't block; suggest creating a baseline",
+      "Treat every current item as new and block once",
+      "Create the baseline automatically"
+    ],
+    "details": [
+      "Installing the harness causes no surprise block, but the ratchet does nothing until someone creates a baseline.",
+      "The ratchet starts working right away, but the first stop in every existing repository blocks on all old debt at once.",
+      "The ratchet starts with no user step, but a baseline file appears that nobody chose to create or commit."
+    ],
+    "recommended": 0,
+    "answer": 0,
+    "answered_by": "recommended"
+  },
+  {
+    "id": "Q5",
+    "criterion": "AC-21",
+    "question": "What counts as 'not noticeably slower' for the Stop hook?",
+    "options": [
+      "At most 1 second added on a typical repository",
+      "At most 3 seconds added",
+      "Only changed files are checked, with no fixed time limit"
+    ],
+    "details": [
+      "Stopping stays snappy, but the debt check has to stay very light.",
+      "Allows more thorough duplicate detection, but every stop has a delay you can feel.",
+      "Cost grows with the size of the change rather than the repository, but there is no stated number to test against."
+    ],
+    "recommended": 0,
+    "answer": 0,
+    "answered_by": "recommended"
+  },
+  {
+    "id": "Q6",
+    "criterion": "AC-19",
+    "question": "How should 'largest item' be measured for the weekly cleanup order?",
+    "options": [
+      "By number of lines involved",
+      "Duplicates first, then near-limit files, then TODOs"
+    ],
+    "details": [
+      "One order across all kinds that is easy to understand, but a big near-limit file can outrank a duplication problem that is worse.",
+      "Duplicated code always gets cleaned first, but small duplicates can come ahead of very large files."
+    ],
+    "recommended": 0,
+    "answer": 0,
+    "answered_by": "recommended"
+  }
+]

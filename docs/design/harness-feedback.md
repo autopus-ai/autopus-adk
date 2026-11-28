@@ -90,3 +90,20 @@ Limits: an area reviewed in every session will reach three sessions with unrelat
 refuter carry that. A finding without a `file:line` reference is not seen, and a line that cites a file to confirm it is
 fine is counted like a defect. A relative path the repository does not have is kept (it may be on another branch), so a
 session that reviews a second repository adds its areas too.
+
+## Technical-debt ratchet (`auto debt`)
+
+Acceptance criteria: `.autopus/specs/INTENT-debt-ratchet/`. Agents keep adding code; the user asked for debt to be
+removed continuously, by a ratchet plus a weekly cleanup.
+
+| Decision | Why |
+| --- | --- |
+| Debt is three item kinds code can count in any language: untracked markers, files near the size limit, repeated code runs | A count is the same every time; a model judging "debt" is not. Dead code is left to each language's linter (golangci `unused` here). |
+| Items have keys apart from their lines (marker text, file, hash of the repeated run) | Code added above an item must not make it new; deleting one marker and adding another must. |
+| A committed baseline, compared item by item; a rewrite refuses new items without `--force` | The baseline only shrinks on its own, and a deliberate addition shows up in review as a baseline diff. |
+| The Stop hook blocks once per set of new items, like the credential gate; near-limit only warns | A block the agent cannot satisfy must not loop; a file near the limit is not yet a mistake. |
+| A per-file index keyed by size and mtime, 64-bit window hashes, and a 0.8 s budget per stop | A full scan took 10 s on this repository and 15 s on a large monorepo; with the index a stop takes 0.13 s and 0.3 s. A first scan finishes over several stops and does not block until then. |
+| Weekly cleanup is a command that orders items by lines involved, not a scheduler | Every project schedules differently (CI cron, a Claude Code routine); the instruction and the baseline update are what ADK owns. |
+
+Limits: the duplicate measure compares normalized lines, so renamed copies are not found; markers are found after a
+comment opener, so a marker inside a string that looks like a comment counts.

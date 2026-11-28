@@ -233,6 +233,25 @@ func hunkCodeLines(diff []byte, hash bool) int {
 	return lines
 }
 
+// IsProductSource reports a file the verification round counts as product
+// code: a source file in any language the file-size limit knows that is not
+// a test, generated code or harness output.
+func IsProductSource(root, file string) bool { return productSource(root, file, false) }
+
+// IsMaintainedCode reports a file of code a person maintains in a language
+// the file-size limit does not measure (SQL, Lua, Perl, Scala ...): not a
+// test, generated code or harness output. Debt markers in it still count.
+func IsMaintainedCode(root, file string) bool {
+	switch strings.ToLower(path.Ext(file)) {
+	case ".sql", ".lua", ".pl", ".pm", ".r", ".scala", ".sc", ".dart", ".ex", ".exs", ".erl", ".hs",
+		".clj", ".groovy", ".ps1", ".bat", ".vb", ".fs", ".ml", ".nim", ".zig", ".jl", ".m", ".mm":
+	default:
+		return false
+	}
+	return !slices.ContainsFunc(harnessDirs, func(dir string) bool { return strings.HasPrefix(file, dir) }) &&
+		!testPath(file) && !generated(root, file)
+}
+
 // productSource is a code file in any language the file-size limit knows,
 // plus the toolchains the build gate runs, that is neither a test, generated
 // code, nor harness output. A Java or shell project's logic change is
