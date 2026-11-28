@@ -54,12 +54,13 @@ func debtStopEnabled(root string) bool {
 	return cfg == nil || cfg.Hooks.IsDebtStopEnabled()
 }
 
-// debtMaxLines is the project's size limit for the near-limit measure.
+// debtMaxLines is the project's declared size limit for the near-limit
+// measure; zero (none declared) leaves size advisory, so nothing is near.
 func debtMaxLines(root string) int {
 	if cfg := nearestConfig(root); cfg != nil && cfg.Architecture.MaxFileLines > 0 {
 		return cfg.Architecture.MaxFileLines
 	}
-	return debt.DefaultMaxLines
+	return 0
 }
 
 // debtMaxBlocks caps the debt blocks of one session, apart from the build
@@ -98,22 +99,24 @@ func debtGate(ctx context.Context, in stopHookInput, root string, changed []stri
 	added := verifygate.AddedLines(ctx, root)
 	isMine := func(it debt.Item) bool { _, ok := inChange(it, added); return ok }
 	blocking, warn := debt.Blocking(debt.Unknown(items, base, isMine))
-	var mine []debt.Item
-	elsewhere := 0
+	var mine, others []debt.Item
 	for _, it := range blocking {
 		if at, ok := inChange(it, added); ok {
 			mine = append(mine, at)
 		} else {
-			elsewhere++
+			others = append(others, it)
 		}
 	}
+	elsewhere := len(others)
 	if len(warn) > 0 {
 		warning = "auto verify stop: near the file-size limit: " + describeDebt(warn) + "; split before the next change pushes it over"
 	}
 	if elsewhere > 0 && readStopState(session, "debt-stale") != strconv.Itoa(elsewhere) {
 		writeStopState(session, "debt-stale", strconv.Itoa(elsewhere))
-		warning = joinWarnings(warning, fmt.Sprintf("auto verify stop: %d technical-debt item(s) outside this change are not in the baseline; "+
-			"it is stale: run `auto debt baseline` (and commit it) when they are meant to stay", elsewhere))
+		shown := others[:min(len(others), 3)]
+		warning = joinWarnings(warning, fmt.Sprintf("auto verify stop: %d technical-debt item(s) outside this change are not in the "+
+			"baseline (%s); it is stale. Clean them up, or record them with `auto debt baseline --force` and commit it",
+			elsewhere, describeDebt(shown)))
 	}
 	if len(mine) == 0 {
 		return nil, warning
@@ -158,13 +161,19 @@ func inChange(it debt.Item, added verifygate.Added) (debt.Item, bool) {
 		return it, added.Has(it.File, it.Line)
 	}
 	span := it.Lines / max(len(it.Places()), 1)
-	if added.Touches(it.File, it.Line, it.Line+span-1) {
+	end := func(i, start int) int { // i: place index (0 = File)
+		if i < len(it.Ends) {
+			return it.Ends[i]
+		}
+		return start + span - 1
+	}
+	if added.Touches(it.File, it.Line, end(0, it.Line)) {
 		return it, true
 	}
 	for i, a := range it.Also {
 		f, l, _ := strings.Cut(a, ":")
 		line, _ := strconv.Atoi(l)
-		if added.Touches(f, line, line+span-1) {
+		if added.Touches(f, line, end(i+1, line)) {
 			moved := it
 			moved.Also = append(append([]string{fmt.Sprintf("%s:%d", it.File, it.Line)}, it.Also[:i]...), it.Also[i+1:]...)
 			moved.File, moved.Line = f, line
@@ -183,7 +192,7 @@ func debtNoBaseline(ctx context.Context, session, root string, changed []string)
 	}
 	added := verifygate.AddedLines(ctx, root)
 	for _, f := range changed {
-		if !verifygate.IsProductSource(root, f) && !verifygate.IsMaintainedCode(root, f) {
+		if debt.IsThirdParty(f) || (!verifygate.IsProductSource(root, f) && !verifygate.IsMaintainedCode(root, f)) {
 			continue
 		}
 		data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(f)))

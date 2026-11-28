@@ -55,7 +55,8 @@ func Unknown(items []Item, base Baseline, inChange InChange) []Item {
 	known := map[string]bool{}
 	markerCount := map[string]int{}
 	baseWins := map[string]bool{}
-	baseSets := map[string]int{}
+	setCount := map[string]int{}
+	setLines := map[string]int{}
 	for _, b := range base.Items {
 		switch b.Kind {
 		case KindMarker:
@@ -64,27 +65,45 @@ func Unknown(items []Item, base Baseline, inChange InChange) []Item {
 			for _, w := range b.Wins {
 				baseWins[w] = true
 			}
-			baseSets[placeSet(b)] = max(baseSets[placeSet(b)], b.Lines)
+			setCount[placeSet(b)]++
+			setLines[placeSet(b)] = max(setLines[placeSet(b)], b.Lines)
 		}
 		known[b.Key] = true
 	}
 	var out []Item
 	byText := map[string][]Item{}
+	var dups []Item
 	for _, it := range items {
 		switch it.Kind {
 		case KindMarker:
 			byText[it.Key] = append(byText[it.Key], it)
 		case KindDuplicate:
-			grownOrNew := baseSets[placeSet(it)] == 0 || it.Lines > baseSets[placeSet(it)]
-			if known[it.Key] || !grownOrNew || (len(it.Wins) > 0 && allIn(it.Wins, baseWins)) {
-				continue
-			}
-			out = append(out, it)
+			dups = append(dups, it)
 		default:
 			if !known[it.Key] {
 				out = append(out, it)
 			}
 		}
+	}
+	// A duplicate is known by its windows; failing that, by the files it
+	// spans, but only as many duplicates per set of files as the baseline
+	// had there and none larger (an edited or renamed copy, not a new one).
+	used := map[string]int{}
+	var byFiles []Item
+	for _, it := range dups {
+		if known[it.Key] || (len(it.Wins) > 0 && allIn(it.Wins, baseWins)) {
+			used[placeSet(it)]++
+			continue
+		}
+		byFiles = append(byFiles, it)
+	}
+	for _, it := range byFiles {
+		set := placeSet(it)
+		if it.Lines <= setLines[set] && used[set] < setCount[set] {
+			used[set]++
+			continue
+		}
+		out = append(out, it)
 	}
 	for key, same := range byText {
 		extra := len(same) - markerCount[key]
@@ -143,8 +162,11 @@ func WriteBaseline(root string, items []Item, force bool) (added, removed int, e
 	old, err := LoadBaseline(root)
 	switch {
 	case errors.Is(err, ErrNoBaseline):
+	case err != nil && force:
+		// An unreadable baseline (a merge conflict in it) is rewritten from
+		// the tree, by a person who says so.
 	case err != nil:
-		return 0, 0, err
+		return 0, 0, fmt.Errorf("%w; fix the file, or rewrite it from the tree with --force", err)
 	default:
 		blockNew, _ := Blocking(New(items, old))
 		if len(blockNew) > 0 && !force {

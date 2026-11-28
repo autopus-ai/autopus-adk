@@ -27,6 +27,15 @@ func TestMarkers_OnlyRealComments(t *testing.T) {
 		{"a.go", "// TODO see https://github.com/x/y/issues/9", false},
 		{"a.go", "// TODO keep UTF-8 output", true},
 		{"a.go", "// TODO JIRA-42 tracked", false},
+		{"a.go", "// TODO(ABC-7) tracked", false},
+		{"a.go", "// TODO: drop the IE-11 workaround", true},
+		{"a.go", "// TODO: ship before Q3-2027", true},
+		{"a.go", `println("can't open") // TODO handle`, true},
+		{"a.py", `print("user's file")  # TODO close it`, true},
+		{"run.sh", `echo "don't" # HACK for now`, true},
+		{"v.m", "// TODO objc", true},
+		{"v.m", "% TODO matlab", true},
+		{"a.ml", "(* TODO ocaml *)", true},
 	}
 	for _, tc := range cases {
 		got := len(markers(tc.file, []string{tc.line})) == 1

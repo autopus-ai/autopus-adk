@@ -33,6 +33,7 @@ type fileEntry struct {
 	Markers   []Item
 	Wins      []win // one per code-line position; H is 0 for a window too small to count
 	Physical  int
+	Counted   int // the size-limit line count, -1 until measured
 }
 
 type index struct {
@@ -42,7 +43,7 @@ type index struct {
 }
 
 // indexVersion changes whenever what an entry holds changes.
-const indexVersion = 2
+const indexVersion = 3
 
 // minScanPerCall is how many changed files a scan reads past its deadline.
 var minScanPerCall = 64
@@ -53,6 +54,10 @@ const maxScanBytes = 2 << 20
 
 // thirdParty are directories of code a project carries but does not write.
 var thirdParty = []string{"vendor/", "node_modules/", "third_party/", "third-party/", "external/"}
+
+// IsThirdParty reports a path in a directory of code the project carries
+// but does not write.
+func IsThirdParty(f string) bool { return isThirdParty(f) }
 
 func isThirdParty(f string) bool {
 	for _, d := range thirdParty {
@@ -160,7 +165,7 @@ func (x *index) refresh(ctx context.Context, root string, deadline time.Time) ([
 }
 
 func scanFile(root, f string, fi os.FileInfo) *fileEntry {
-	e := &fileEntry{Size: fi.Size(), Mod: fi.ModTime().UnixNano()}
+	e := &fileEntry{Size: fi.Size(), Mod: fi.ModTime().UnixNano(), Counted: -1}
 	product := verifygate.IsProductSource(root, f)
 	if !product && !verifygate.IsMaintainedCode(root, f) {
 		return e

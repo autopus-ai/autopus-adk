@@ -311,7 +311,9 @@ func testPath(file string) bool {
 // header here would also hide the ADK's own template sources.
 func generated(root, file string) bool {
 	base := path.Base(file)
-	if strings.HasSuffix(base, ".pb.go") || strings.HasPrefix(base, "zz_generated") || strings.Contains(base, ".gen.") {
+	if strings.HasSuffix(base, ".pb.go") || strings.HasPrefix(base, "zz_generated") || strings.Contains(base, ".gen.") ||
+		strings.HasSuffix(base, "_pb2.py") || strings.HasSuffix(base, "_pb2_grpc.py") || strings.HasSuffix(base, ".g.dart") ||
+		strings.Contains(base, ".generated.") {
 		return true
 	}
 	f, err := os.Open(filepath.Join(root, filepath.FromSlash(file)))
@@ -322,7 +324,8 @@ func generated(root, file string) bool {
 	head := make([]byte, 1024)
 	n, _ := f.Read(head)
 	text := string(head[:n])
-	return strings.Contains(text, "Code generated") && strings.Contains(text, "DO NOT EDIT")
+	lower := strings.ToLower(text)
+	return strings.Contains(lower, "do not edit") && strings.Contains(lower, "generated")
 }
 
 func hashComments(file string) bool {

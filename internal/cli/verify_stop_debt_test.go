@@ -77,6 +77,8 @@ func TestDebtGate_NoBaselineSuggestsOnce(t *testing.T) {
 
 func TestDebtGate_NearLimitOnlyWarns(t *testing.T) {
 	dir := debtStopRepo(t)
+	cfg := "mode: full\nproject_name: g\nplatforms:\n  - claude-code\narchitecture:\n  max_file_lines: 300\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "autopus.yaml"), []byte(cfg), 0o644))
 	session := "debt-near"
 	t.Cleanup(func() { resetStopState(session) })
 	var b strings.Builder
@@ -88,4 +90,42 @@ func TestDebtGate_NearLimitOnlyWarns(t *testing.T) {
 	block, warning := gate(t, session, dir)
 	assert.Nil(t, block)
 	assert.Contains(t, warning, "big.go:1 near-limit (281 of 300 lines)")
+}
+
+// Without a declared size limit, size is advisory: nothing is near a limit.
+func TestDebtGate_NoDeclaredLimitNoNearLimit(t *testing.T) {
+	dir := debtStopRepo(t)
+	session := "debt-nolimit"
+	t.Cleanup(func() { resetStopState(session) })
+	var b strings.Builder
+	b.WriteString("package stopgate\n")
+	for i := 0; i < 280; i++ {
+		fmt.Fprintf(&b, "var v%d = %d\n", i, i)
+	}
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "big.go"), []byte(b.String()), 0o644))
+	block, warning := gate(t, session, dir)
+	assert.Nil(t, block)
+	assert.NotContains(t, warning, "near-limit")
+}
+
+// A debt marker in a path with a space is attributed to the change.
+func TestDebtGate_SpacedPathIsInTheChange(t *testing.T) {
+	dir := debtStopRepo(t)
+	session := "debt-space"
+	t.Cleanup(func() { resetStopState(session); _ = os.Remove(stopStateFile(session, "debt")) })
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "my pkg"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "my pkg", "c.go"), []byte("package c\n"), 0o644))
+	cmd := exec.Command("git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qam", "base")
+	cmd.Dir = dir
+	_ = cmd.Run()
+	cmd = exec.Command("git", "-c", "user.name=t", "-c", "user.email=t@t", "add", "-A")
+	cmd.Dir = dir
+	require.NoError(t, cmd.Run())
+	cmd = exec.Command("git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "space")
+	cmd.Dir = dir
+	require.NoError(t, cmd.Run())
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "my pkg", "c.go"), []byte("package c\n// TODO spaced\n"), 0o644))
+	block, _ := debtGate(context.Background(), stopHookInput{SessionID: session}, dir, []string{"my pkg/c.go"})
+	require.NotNil(t, block)
+	assert.Contains(t, block.Reason, "my pkg/c.go:2")
 }

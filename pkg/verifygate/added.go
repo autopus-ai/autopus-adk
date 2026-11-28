@@ -1,8 +1,6 @@
 package verifygate
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"strings"
 )
@@ -37,33 +35,12 @@ func AddedLines(ctx context.Context, root string) Added {
 	a := Added{Lines: map[string]map[int]bool{}, Whole: map[string]bool{}}
 	if diff, err := gitOutput(ctx, root, "-c", "core.quotePath=false", "diff", "--unified=0", "--no-color",
 		"--no-ext-diff", "--no-renames", "HEAD"); err == nil {
-		var file string
-		var line int
-		inHunk := false
-		scanner := bufio.NewScanner(bytes.NewReader(diff))
-		scanner.Buffer(make([]byte, 0, 64*1024), maxUntrackedBytes)
-		for scanner.Scan() {
-			text := scanner.Text()
-			switch {
-			case strings.HasPrefix(text, "diff --git "):
-				file, inHunk = "", false
-			case !inHunk && strings.HasPrefix(text, "+++ "):
-				file = diffPath(strings.TrimPrefix(text, "+++ "))
-				if len(withoutHarnessPaths([]string{file})) == 0 {
-					file = ""
-				}
-			case strings.HasPrefix(text, "@@ "):
-				inHunk, line = true, hunkStart(text)
-			case inHunk && strings.HasPrefix(text, "+"):
-				if file != "" {
-					if a.Lines[file] == nil {
-						a.Lines[file] = map[int]bool{}
-					}
-					a.Lines[file][line] = true
-				}
-				line++
+		walkAdded(diff, int(^uint(0)>>1), func(file string, line int, _ string) {
+			if a.Lines[file] == nil {
+				a.Lines[file] = map[int]bool{}
 			}
-		}
+			a.Lines[file][line] = true
+		})
 	}
 	if out, err := gitOutput(ctx, root, "ls-files", "--others", "--exclude-standard", "-z"); err == nil {
 		for _, f := range withoutHarnessPaths(strings.Split(strings.TrimRight(string(out), "\x00"), "\x00")) {

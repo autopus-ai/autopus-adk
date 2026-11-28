@@ -44,6 +44,9 @@ type Item struct {
 	// Wins are a duplicate's window hashes: a run that only lost windows
 	// (one copy edited, part extracted) is the same debt, not new debt.
 	Wins []string `json:"wins,omitempty"`
+	// Ends are the last line of each place (File first, then Also): copies
+	// with comments in between span different lines.
+	Ends []int `json:"ends,omitempty"`
 }
 
 // Places are the files an item is in: a duplicate's every copy.
@@ -69,16 +72,13 @@ func (i Item) String() string {
 	return s
 }
 
-// DefaultMaxLines is the size limit when the project sets none.
-const DefaultMaxLines = 300
-
 var (
 	// markerWord is a debt word after a comment opener and optional spaces.
 	markerWord = regexp.MustCompile(`^\s*(TODO|FIXME|HACK|XXX)\b[:(\s-]*(.*)`)
-	// issueRef is tracked debt: an issue number, a ticket id or a link.
-	issueRef = regexp.MustCompile(`#\d+|\b[A-Z][A-Z0-9]+-\d+\b|https?://`)
-	// notTicket are standard names shaped like a ticket id.
-	notTicket = regexp.MustCompile(`\b(UTF|SHA|ISO|RFC|MD|AES|HTTP|TLS|IPV)-\d+\b`)
+	// issueRef is tracked debt: an issue number, a link, or a ticket id the
+	// marker names in parentheses or right after it (TODO(ABC-12), TODO
+	// ABC-12:); a ticket-shaped word later in the text (IE-11, Q3-2027) is not.
+	issueRef = regexp.MustCompile(`#\d+|https?://|^\(?\s*[A-Z][A-Z0-9]+-\d+\b`)
 )
 
 // openers are the line-comment and block-comment starts of each language;
@@ -91,8 +91,12 @@ func openers(file string) []string {
 		return []string{"--"}
 	case ".clj", ".lisp", ".el", ".scm", ".asm", ".s":
 		return []string{";"}
-	case ".erl", ".tex", ".m":
+	case ".erl", ".tex":
 		return []string{"%"}
+	case ".m": // Objective-C or MATLAB
+		return []string{"//", "/*", "%"}
+	case ".ml", ".mli":
+		return []string{"(*"}
 	case ".html", ".xml", ".vue", ".svelte":
 		return []string{"<!--", "//", "/*"}
 	case ".php":
@@ -134,32 +138,31 @@ func commentAt(line string, opens []string) (word, rest string, ok bool) {
 	return "", "", false
 }
 
-// inString reports whether position len(prefix) is inside a quoted string,
-// by counting the unescaped quotes before it.
+// inString reports whether position len(prefix) is inside a quoted string:
+// it follows the quote that opened, so an apostrophe inside "can't" opens
+// nothing.
 func inString(prefix string) bool {
-	for _, q := range []byte{'"', '\'', '`'} {
-		n := 0
-		for i := 0; i < len(prefix); i++ {
-			if prefix[i] == '\\' {
-				i++
-				continue
-			}
-			if prefix[i] == q {
-				n++
-			}
-		}
-		if n%2 == 1 {
-			return true
+	var open byte
+	for i := 0; i < len(prefix); i++ {
+		c := prefix[i]
+		switch {
+		case open != 0 && c == '\\' && open != '`':
+			i++
+		case open != 0 && c == open:
+			open = 0
+		case open == 0 && (c == '"' || c == '\'' || c == '`'):
+			open = c
 		}
 	}
-	return false
+	return open != 0
 }
 
-// Options narrow a scan. MaxLines is the size limit (zero means
-// DefaultMaxLines). SizeOf, when set, limits the near-limit count (the one
+// Options narrow a scan. SizeOf, when set, limits the near-limit count (the one
 // costly measure) to the files it accepts: the Stop hook passes the changed
 // files, since a near-limit file only warns.
 type Options struct {
+	// MaxLines is the project's declared size limit; zero means none, and
+	// then nothing is near a limit (an undeclared ceiling is advisory).
 	MaxLines int
 	SizeOf   func(file string) bool
 	// Deadline bounds the reading of changed files (zero means none);
@@ -167,7 +170,8 @@ type Options struct {
 	Deadline time.Time
 }
 
-// Scan measures every debt item of root.
+// Scan measures every debt item of root; maxLines is the declared size
+// limit (zero: none).
 func Scan(ctx context.Context, root string, maxLines int) ([]Item, error) {
 	return ScanWith(ctx, root, Options{MaxLines: maxLines})
 }
@@ -176,9 +180,6 @@ func Scan(ctx context.Context, root string, maxLines int) ([]Item, error) {
 // repeated scan reads only what changed.
 func ScanWith(ctx context.Context, root string, opt Options) ([]Item, error) {
 	maxLines := opt.MaxLines
-	if maxLines <= 0 {
-		maxLines = DefaultMaxLines
-	}
 	x := loadIndex(root)
 	files, err := x.refresh(ctx, root, opt.Deadline)
 	if errors.Is(err, ErrIncomplete) {
@@ -194,18 +195,25 @@ func ScanWith(ctx context.Context, root string, opt Options) ([]Item, error) {
 		items = append(items, e.Markers...)
 		// Counted lines never exceed physical lines, so only a file long
 		// enough to be near the limit pays for the comment-aware count.
-		if 10*e.Physical < 9*maxLines || (opt.SizeOf != nil && !opt.SizeOf(f)) {
+		if maxLines <= 0 || 10*e.Physical < 9*maxLines || (opt.SizeOf != nil && !opt.SizeOf(f)) {
 			continue
 		}
-		data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(f)))
-		if err != nil {
-			continue
+		if e.Counted < 0 {
+			data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(f)))
+			if err != nil {
+				continue
+			}
+			c, err := linecount.Source(f, data)
+			if err != nil {
+				continue
+			}
+			e.Counted, x.dirty = c.Counted, true // kept until the file changes
 		}
-		if c, err := linecount.Source(f, data); err == nil && 10*c.Counted >= 9*maxLines {
+		if 10*e.Counted >= 9*maxLines {
 			// Lines is how far into the last tenth it is: near the limit is
 			// not yet a mistake, so it must not crowd the cleanup order.
 			items = append(items, Item{Kind: KindNearLimit, Key: string(KindNearLimit) + "\x00" + strings.ToValidUTF8(f, "?"), File: f, Line: 1,
-				Lines: c.Counted - (9*maxLines+9)/10 + 1, Text: fmt.Sprintf("%d of %d lines", c.Counted, maxLines)})
+				Lines: e.Counted - (9*maxLines+9)/10 + 1, Text: fmt.Sprintf("%d of %d lines", e.Counted, maxLines)})
 		}
 	}
 	items = append(items, duplicates(files, x.Files)...)
@@ -232,7 +240,7 @@ func Markers(file string, lines []string) []Item {
 		if !ok {
 			continue
 		}
-		if issueRef.MatchString(notTicket.ReplaceAllString(rest, "")) {
+		if issueRef.MatchString(strings.TrimSpace(rest)) {
 			continue
 		}
 		text := strings.Join(strings.Fields(strings.TrimSuffix(strings.TrimSpace(rest), "*/")), " ")

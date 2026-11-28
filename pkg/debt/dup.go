@@ -111,13 +111,17 @@ func duplicates(files []string, entries map[string]*fileEntry) []Item {
 			seen[key] = true
 			at := places[ws[i].H]
 			var also []string
+			ends := []int{ws[end].End}
 			for _, p := range at {
 				if p.file != f || p.line != i {
-					also = append(also, fmt.Sprintf("%s:%d", p.file, entries[p.file].Wins[p.line].Start))
+					pw := entries[p.file].Wins
+					also = append(also, fmt.Sprintf("%s:%d", p.file, pw[p.line].Start))
+					last := min(p.line+end-i, len(pw)-1)
+					ends = append(ends, pw[last].End)
 				}
 			}
 			n := ws[end].End - ws[i].Start + 1
-			out = append(out, Item{Kind: KindDuplicate, Key: key, File: f, Line: ws[i].Start, Lines: n * len(at), Also: also, Wins: hashes})
+			out = append(out, Item{Kind: KindDuplicate, Key: key, File: f, Line: ws[i].Start, Lines: n * len(at), Also: also, Wins: hashes, Ends: ends})
 		}
 	}
 	return out

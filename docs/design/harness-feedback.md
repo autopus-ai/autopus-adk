@@ -107,5 +107,7 @@ removed continuously, by a ratchet plus a weekly cleanup.
 | A per-file index keyed by size and mtime, 64-bit window hashes, and a 0.8 s budget per stop | A full scan took 10 s on this repository and 15 s on a large monorepo; with the index a stop takes 0.13 s and 0.3 s. A first scan finishes over several stops and does not block until then. |
 | Weekly cleanup is a command that orders items by lines involved, not a scheduler | Every project schedules differently (CI cron, a Claude Code routine); the instruction and the baseline update are what ADK owns. |
 
-Limits: the duplicate measure compares normalized lines, so renamed copies are not found; markers are found after a
-comment opener, so a marker inside a string that looks like a comment counts.
+Limits: the duplicate measure compares normalized lines, so renamed copies are not found. The hook sees the change
+against `HEAD`, so debt committed within the turn is caught only by `auto debt check` in CI. Near-limit is measured
+only where `architecture.max_file_lines` is declared (an undeclared ceiling is advisory). The diff walk shared with the
+credential gate reads lines of any length; a scanner stopped at a 1 MiB line used to drop every later file.

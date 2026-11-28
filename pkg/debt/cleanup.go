@@ -23,8 +23,11 @@ func CleanupBrief(items []Item, top int) string {
 	if len(items) == 0 {
 		return "No technical-debt items to clean up.\n"
 	}
+	if top <= 0 || top > len(items) {
+		top = len(items)
+	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "Clean up technical debt, largest first (%d of %d items). Change behavior nowhere; tests must pass before and after.\n\n", min(top, len(items)), len(items))
+	fmt.Fprintf(&b, "Clean up technical debt, largest first (%d of %d items). Change behavior nowhere; tests must pass before and after.\n\n", top, len(items))
 	for i, it := range Largest(items, top) {
 		fmt.Fprintf(&b, "%d. %s\n   %s\n", i+1, it, action(it.Kind))
 	}
