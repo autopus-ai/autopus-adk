@@ -324,8 +324,7 @@ func generated(root, file string) bool {
 	head := make([]byte, 1024)
 	n, _ := f.Read(head)
 	text := string(head[:n])
-	lower := strings.ToLower(text)
-	return strings.Contains(lower, "do not edit") && strings.Contains(lower, "generated")
+	return strings.Contains(text, "Code generated") && strings.Contains(text, "DO NOT EDIT")
 }
 
 func hashComments(file string) bool {
