@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -87,18 +88,33 @@ func printHarnessReport(w io.Writer, sessions []harnessfb.Metrics, patterns []ha
 			if h.Seconds > 0 {
 				fmt.Fprintf(w, ", %.1f분, 세션 시간의 %.1f%%", h.Seconds/60, 100*h.Share)
 			}
+			if len(h.Findings) > 0 {
+				// Already redacted when recorded; intakePrintable would read
+				// a file:line such as token.go:20 as a secret.
+				fmt.Fprintf(w, " — %s", controlFree(h.Findings[0]))
+			}
 			fmt.Fprintln(w)
 		}
 	}
 	if !printed {
 		fmt.Fprintf(w, "반복 패턴이 없습니다 (세션 %d개 이상에서 나온 낭비 신호가 없음).\n", harnessfb.MinSessions)
 	}
-	var below []string
+	var below, areas []string
 	for _, p := range patterns {
-		if !p.Repeated {
+		switch {
+		case p.Repeated:
+		case strings.HasPrefix(p.ID, "review-area:"):
+			areas = append(areas, fmt.Sprintf("%s(세션 %d개)", p.ID, len(p.Hits)))
+		default:
 			below = append(below, fmt.Sprintf("%s(세션 %d개)", p.ID, len(p.Hits)))
 		}
 	}
+	// Many areas each have a finding or two: past a handful, show the
+	// closest (patterns come most sessions first) and count the rest.
+	if len(areas) > 8 {
+		areas = append(areas[:5], fmt.Sprintf("그 밖의 review-area 영역 %d개", len(areas)-5))
+	}
+	below = append(below, areas...)
 	if len(below) > 0 {
 		fmt.Fprintf(w, "아직 기준 미달: %v\n", below)
 	}

@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"regexp"
-	"strings"
 	"time"
 )
 
@@ -41,6 +40,9 @@ type Session struct {
 	TurnRevs  int             `json:"change_reviews"` // finished reviews of the current change
 	Pending   []pendingRepeat `json:"pending,omitempty"`
 	LastEdit  time.Time       `json:"last_edit"`
+	Cwd       string          `json:"cwd,omitempty"`
+	// Paths resolves cited paths against the repository; Observe sets it.
+	Paths *PathIndex `json:"-"`
 	// Blocked is the Stop block whose redo runs until the next Stop event.
 	Blocked *openBlock `json:"blocked,omitempty"`
 }
@@ -51,6 +53,7 @@ type record struct {
 	Timestamp     time.Time       `json:"timestamp"`
 	IsSidechain   bool            `json:"isSidechain"`
 	IsMeta        bool            `json:"isMeta"`
+	Cwd           string          `json:"cwd"`
 	Message       json.RawMessage `json:"message"`
 	Attachment    json.RawMessage `json:"attachment"`
 	ToolUseResult json.RawMessage `json:"toolUseResult"`
@@ -77,7 +80,7 @@ func ReadClaudeTranscript(path string, s *Session) error {
 	}
 	defer f.Close()
 	if st, err := f.Stat(); err == nil && st.Size() < s.Offset {
-		*s = Session{Metrics: Metrics{SessionID: s.SessionID}}
+		*s = Session{Metrics: Metrics{SessionID: s.SessionID}, Paths: s.Paths}
 	}
 	if s.Platform == "" {
 		s.Platform = "claude-code"
@@ -104,6 +107,9 @@ func ReadClaudeTranscript(path string, s *Session) error {
 }
 
 func (s *Session) fold(rec record) {
+	if rec.Cwd != "" {
+		s.Cwd = rec.Cwd
+	}
 	if !rec.Timestamp.IsZero() {
 		if s.Start.IsZero() {
 			s.Start = rec.Timestamp
@@ -122,6 +128,8 @@ func (s *Session) fold(rec record) {
 	case "user":
 		if !rec.IsMeta {
 			s.foldUser(rec)
+		} else {
+			s.foldMeta(rec)
 		}
 	case "attachment":
 		s.foldAttachment(rec)
@@ -208,6 +216,7 @@ func (s *Session) foldAssistant(rec record) {
 func (s *Session) foldUser(rec record) {
 	text, list := blocks(rec.Message)
 	if text != "" {
+		s.readReports(text)
 		if id, ok := notification(text); ok {
 			s.close(id, rec.Timestamp)
 		} else if isPrompt(text) {
@@ -221,6 +230,7 @@ func (s *Session) foldUser(rec record) {
 		case "tool_result":
 			s.result(b, rec.Timestamp)
 		case "text":
+			s.readReports(b.Text)
 			if id, ok := notification(b.Text); ok {
 				s.close(id, rec.Timestamp)
 			} else if isPrompt(b.Text) {
@@ -230,71 +240,6 @@ func (s *Session) foldUser(rec record) {
 	}
 	if prompt {
 		s.newTurn()
-	}
-}
-
-var agentIDLine = regexp.MustCompile(`agentId: ([A-Za-z0-9_-]+)`)
-
-func (s *Session) result(b block, at time.Time) {
-	var text string
-	if json.Unmarshal(b.Content, &text) != nil {
-		var parts []block
-		_ = json.Unmarshal(b.Content, &parts)
-		for _, p := range parts {
-			text += p.Text
-		}
-	}
-	sp, ok := s.Open[b.ToolUseID]
-	if !ok {
-		return
-	}
-	if m := timedOut.FindStringSubmatch(text); m != nil && (sp.Kind == "test" || sp.Kind == "bash") {
-		s.Timeouts++
-		s.TimeoutSeconds += timeoutSeconds(m)
-	}
-	if sp.Kind == "review" {
-		if m := agentIDLine.FindStringSubmatch(text); m != nil {
-			if s.Reviewers == nil {
-				s.Reviewers = map[string]bool{}
-			}
-			s.Reviewers[m[1]] = true
-		}
-	}
-	// A background command or agent ends when its notification arrives.
-	if strings.Contains(text, "running in background with ID") || strings.Contains(text, "Async agent launched") ||
-		strings.Contains(text, `"resumedAgentId"`) {
-		return
-	}
-	s.close(b.ToolUseID, at)
-}
-
-func (s *Session) close(id string, at time.Time) {
-	sp, ok := s.Open[id]
-	if !ok {
-		return
-	}
-	delete(s.Open, id)
-	secs := at.Sub(sp.Start).Seconds()
-	if secs < 0 {
-		secs = 0
-	}
-	switch sp.Kind {
-	case "test":
-		s.TestRuns++
-
-	case "agent":
-		// A sub-agent's own edits are not in this transcript; one that
-		// ran may have fixed what a review found.
-		s.LastEdit = at
-	case "review":
-		s.TurnRevs++
-		s.Reviews++
-
-		if sp.Repeat {
-			s.RepeatReviews++
-			s.RepeatReviewSeconds += secs
-			s.Pending = append(s.Pending, pendingRepeat{End: at, Seconds: secs})
-		}
 	}
 }
 
