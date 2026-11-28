@@ -290,7 +290,9 @@ Claude Code Stop hook은 세션 시간이 어디에 쓰였는지도 잽니다. �
 ```bash
 auto harness report           # 시간 비중, 세션 3개 이상에서 나온 낭비 패턴, 승인한 규칙의 효과
 auto harness status           # 후보: 승인 대기열 먼저, 나머지는 상태별, 모델 비용 포함
-auto harness approve HL-001   # 사람: 규칙을 .claude/rules/harness-lessons.md에 씀
+auto harness approve HL-001   # 사람: 임시 규칙을 .claude/rules/harness-lessons.md에 씀
+auto harness encode HL-001    # 교훈을 이 저장소의 검사로 바꾸는 방법
+auto harness encode HL-001 --layer lint --check 'sh scripts/lint-timers.sh' --repro "$p"
 auto harness retire HL-001    # 규칙을 다시 뺌
 ```
 
@@ -300,6 +302,14 @@ auto harness retire HL-001    # 규칙을 다시 뺌
 - 승인할 때 git 디렉터리 안에 남긴 반증 기록을 확인합니다. 그래서 후보 파일을 고쳐 판정을 꾸밀 수 없습니다.
   승인 기록은 기계마다 따로 남기 때문에, 이 순환은 자기가 쓴 규칙 파일만 고치고 git이 추적하는 파일은 건드리지 않습니다.
   `auto update`는 규칙 파일을 쓰지도 지우지도 않습니다.
+- 승인한 교훈은 임시 글 규칙입니다. 승인하면 작업 에이전트용 지시가 나오고, 에이전트가 코드베이스를 읽어 가장 강한 층에서
+  교훈을 막습니다. 층의 순서는 실수 자체를 쓸 수 없게 하는 API, lint·타입 검사, 테스트, hook이고, 어느 것도 맞지 않을 때만
+  글로 남깁니다. `encode`는 검사를 직접 세 번 실행합니다. 지금 트리에서 통과해야 하고, 그 복사본에서 통과해야 하고, 복사본에
+  실수를 재현한 patch를 커밋하면 실패해야 합니다. 복사본은 프로젝트의 object만 빌려 쓰는 임시 저장소라서 지금 트리, index,
+  worktree 목록, stash, hook을 건드리지 않습니다. 복사본에는 git이 무시하는 파일(node_modules, venv, 빌드 산출물)이 없으니,
+  그것이 필요한 검사는 직접 준비해야 합니다. 검사가 실행하는 스크립트를 고치는 patch나, 적용하면 검사가 아예 시작되지 않는
+  patch는 거부합니다. 검사가 읽는 설정 파일을 고친 patch는 잡지 못하므로, `status`가 patch마다 바꾼 파일을 보여 줍니다. 이 증명이 있어야 교훈이 규칙 파일에서 빠지고, 기록은 승인 기록 옆 git 디렉터리에 남습니다.
+  `--layer text --reason`은 글 규칙을 남기고 검사가 맞지 않는 이유를 기록합니다. 나중에 증명하면 그 기록을 대신합니다.
 - 보고서는 승인한 규칙마다 그 패턴을 승인 전후로 비교합니다(패턴이 나온 세션 비율, 세션당 분). 승인 뒤 세션이 5개 쌓이면
   낭비가 5분의 1 이상 줄었는지 판정하고, 줄지 않았으면 retire 후보로 표시합니다.
 - provider는 빈 임시 저장소에서 초안을 쓰고 반증합니다. 프롬프트에 측정값이 다 들어 있어 둘러볼 파일이 필요 없기 때문입니다

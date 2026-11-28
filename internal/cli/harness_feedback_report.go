@@ -204,6 +204,9 @@ func newHarnessStatusCmd() *cobra.Command {
 						first = false
 					}
 					printHarnessCandidate(out, c)
+					if group == harnessfb.StateApproved {
+						printHarnessEncoding(out, root, c)
+					}
 				}
 			}
 			return nil
@@ -254,18 +257,25 @@ func newHarnessDecideCmd(action string) *cobra.Command {
 			default:
 				c, err = harnessfb.Reject(root, args[0], harnessNow())
 			}
-			for _, w := range written {
-				verb := "다시 썼습니다"
-				if _, statErr := os.Stat(w); statErr != nil {
-					verb = "지웠습니다 (승인된 규칙 없음)"
-				}
-				fmt.Fprintf(cmd.OutOrStdout(), "%s를 %s\n", w, verb)
-			}
+			reportRuleFiles(cmd.OutOrStdout(), written)
 			if err != nil {
 				return err
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n", c.ID, c.State.Label())
+			if action == "approve" {
+				fmt.Fprintf(cmd.OutOrStdout(), "\n%s", harnessfb.Brief(c))
+			}
 			return nil
 		},
+	}
+}
+
+func reportRuleFiles(w io.Writer, written []string) {
+	for _, f := range written {
+		verb := "다시 썼습니다"
+		if _, statErr := os.Stat(f); statErr != nil {
+			verb = "지웠습니다 (남은 글 규칙 없음)"
+		}
+		fmt.Fprintf(w, "%s를 %s\n", f, verb)
 	}
 }

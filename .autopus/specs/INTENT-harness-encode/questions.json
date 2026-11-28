@@ -1,0 +1,50 @@
+[
+  {
+    "id": "Q1",
+    "criterion": "AC-10",
+    "question": "When the agent says a lesson can't become a check, is its reason enough to keep the lesson as a permanent text rule, or does a person need to approve that too?",
+    "options": [
+      "Agent's reason is enough",
+      "A person must approve the fallback"
+    ],
+    "details": [
+      "The lesson becomes a permanent text rule as soon as the agent gives a reason. This is fast, but the agent can skip hard checks without anyone pushing back.",
+      "The lesson stays temporary until a person accepts the reason. This catches lazy fallbacks, but costs one more approval step per lesson."
+    ],
+    "recommended": 0,
+    "answer": 0,
+    "answered_by": "recommended"
+  },
+  {
+    "id": "Q2",
+    "criterion": "AC-5",
+    "question": "After a failed proof, what happens to the lesson?",
+    "options": [
+      "Stays pending and can be retried",
+      "Marked failed, needs re-approval to retry"
+    ],
+    "details": [
+      "The temporary text rule stays and the agent can submit a new check at any time. This is the least friction, but a lesson can sit unproven forever.",
+      "The lesson is marked failed and a person has to approve again before another try. This gives more control, at the cost of extra human steps."
+    ],
+    "recommended": 0,
+    "answer": 0,
+    "answered_by": "recommended"
+  },
+  {
+    "id": "Q3",
+    "criterion": "AC-4",
+    "question": "Once a lesson is proven, is its text rule removed from harness-lessons.md automatically, or only after a person confirms?",
+    "options": [
+      "Removed automatically",
+      "Removed after a person confirms"
+    ],
+    "details": [
+      "The rule leaves the file as soon as the harness proves the check. No extra step is needed, and the harness's own run is what guarantees the check.",
+      "The user reviews the proven check before the text rule is removed. This is safer for odd checks, but adds one more approval per lesson."
+    ],
+    "recommended": 0,
+    "answer": 0,
+    "answered_by": "recommended"
+  }
+]
