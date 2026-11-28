@@ -21,10 +21,24 @@ type loc struct {
 }
 
 // codeLines are a file's lines that can take part in a duplicate, with
-// their line indexes.
+// their line indexes. Imports and package clauses repeat in every file
+// without being debt.
 func codeLines(lines []string) (text []string, at []int) {
+	inImport := false
 	for i, l := range lines {
 		t := strings.Join(strings.Fields(l), " ")
+		switch {
+		case inImport:
+			if strings.HasPrefix(t, ")") {
+				inImport = false
+			}
+			continue
+		case t == "import (":
+			inImport = true
+			continue
+		case isImportLine(t):
+			continue
+		}
 		if len(t) < dupMinLine || isCommentLine(t) {
 			continue
 		}
@@ -32,6 +46,19 @@ func codeLines(lines []string) (text []string, at []int) {
 		at = append(at, i)
 	}
 	return text, at
+}
+
+// importLine are the import, include and module lines of common languages.
+var importPrefixes = []string{"package ", "import ", "from ", "use ", "using ", "#include", "require ", "require(",
+	"const ", "extern crate", "mod ", "@import"}
+
+func isImportLine(t string) bool {
+	for _, p := range importPrefixes {
+		if strings.HasPrefix(t, p) && (p != "const " || strings.Contains(t, "require(")) {
+			return true
+		}
+	}
+	return strings.Contains(t, "= require(")
 }
 
 func isCommentLine(t string) bool {
@@ -72,8 +99,10 @@ func duplicates(files []string, entries map[string]*fileEntry) []Item {
 				end++
 			}
 			var sig strings.Builder
+			var hashes []string
 			for _, w := range ws[i : end+1] {
 				fmt.Fprintf(&sig, "%x.", w.H)
+				hashes = append(hashes, fmt.Sprintf("%x", w.H))
 			}
 			key := string(KindDuplicate) + "\x00" + digest(sig.String())
 			if seen[key] {
@@ -88,7 +117,7 @@ func duplicates(files []string, entries map[string]*fileEntry) []Item {
 				}
 			}
 			n := ws[end].End - ws[i].Start + 1
-			out = append(out, Item{Kind: KindDuplicate, Key: key, File: f, Line: ws[i].Start, Lines: n * len(at), Also: also})
+			out = append(out, Item{Kind: KindDuplicate, Key: key, File: f, Line: ws[i].Start, Lines: n * len(at), Also: also, Wins: hashes})
 		}
 	}
 	return out

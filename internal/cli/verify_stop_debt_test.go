@@ -31,7 +31,7 @@ func debtStopRepo(t *testing.T) string {
 
 func gate(t *testing.T, session, dir string) (*stopHookOutput, string) {
 	t.Helper()
-	return debtGate(context.Background(), session, dir, []string{"add.go", "big.go"})
+	return debtGate(context.Background(), stopHookInput{SessionID: session}, dir, []string{"add.go", "big.go"})
 }
 
 func TestDebtGate_BlocksOnceThenWarnsThenBlocksOnANewItem(t *testing.T) {

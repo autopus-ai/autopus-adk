@@ -38,9 +38,27 @@ type fileEntry struct {
 type index struct {
 	Version int
 	Files   map[string]*fileEntry
+	dirty   bool
 }
 
-const indexVersion = 1
+// indexVersion changes whenever what an entry holds changes.
+const indexVersion = 2
+
+// maxScanBytes skips files too large to be hand-written code (bundles,
+// fixtures): one would blow the stop's time budget on its own.
+const maxScanBytes = 2 << 20
+
+// thirdParty are directories of code a project carries but does not write.
+var thirdParty = []string{"vendor/", "node_modules/", "third_party/", "third-party/", "external/"}
+
+func isThirdParty(f string) bool {
+	for _, d := range thirdParty {
+		if strings.HasPrefix(f, d) || strings.Contains(f, "/"+d) {
+			return true
+		}
+	}
+	return false
+}
 
 func loadIndex(root string) *index {
 	x := &index{Version: indexVersion, Files: map[string]*fileEntry{}}
@@ -57,6 +75,9 @@ func loadIndex(root string) *index {
 }
 
 func (x *index) save(root string) {
+	if !x.dirty {
+		return
+	}
 	dst := filepath.Join(root, filepath.FromSlash(indexPath))
 	if os.MkdirAll(filepath.Dir(dst), 0o755) != nil {
 		return
@@ -81,9 +102,12 @@ var ErrIncomplete = errors.New("debt: scan did not finish within its time; the n
 // product files in order. Past deadline (zero means none) it stops reading
 // files and returns ErrIncomplete.
 func (x *index) refresh(ctx context.Context, root string, deadline time.Time) ([]string, error) {
-	out, err := exec.CommandContext(ctx, "git", "-C", root, "ls-files", "-z", "--cached", "--others", "--exclude-standard").Output()
+	cmd := exec.CommandContext(ctx, "git", "-C", root, "ls-files", "-z", "--cached", "--others", "--exclude-standard")
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("debt: git ls-files: %w", err)
+		return nil, fmt.Errorf("debt: git ls-files: %w: %s", err, strings.TrimSpace(stderr.String()))
 	}
 	live := map[string]bool{}
 	var files []string
@@ -94,8 +118,11 @@ func (x *index) refresh(ctx context.Context, root string, deadline time.Time) ([
 		}
 		live[f] = true
 		fi, err := os.Lstat(filepath.Join(root, filepath.FromSlash(f)))
-		if err != nil || !fi.Mode().IsRegular() {
-			delete(x.Files, f)
+		if err != nil || !fi.Mode().IsRegular() || fi.Size() > maxScanBytes || isThirdParty(f) {
+			if _, had := x.Files[f]; had {
+				delete(x.Files, f)
+				x.dirty = true
+			}
 			continue
 		}
 		e := x.Files[f]
@@ -106,6 +133,7 @@ func (x *index) refresh(ctx context.Context, root string, deadline time.Time) ([
 			}
 			e = scanFile(root, f, fi)
 			x.Files[f] = e
+			x.dirty = true
 		}
 		if e.Product {
 			files = append(files, f)
@@ -114,6 +142,7 @@ func (x *index) refresh(ctx context.Context, root string, deadline time.Time) ([
 	for f := range x.Files {
 		if !live[f] {
 			delete(x.Files, f)
+			x.dirty = true
 		}
 	}
 	sort.Strings(files)

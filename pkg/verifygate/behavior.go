@@ -245,11 +245,9 @@ func IsMaintainedCode(root, file string) bool {
 	switch strings.ToLower(path.Ext(file)) {
 	case ".sql", ".lua", ".pl", ".pm", ".r", ".scala", ".sc", ".dart", ".ex", ".exs", ".erl", ".hs",
 		".clj", ".groovy", ".ps1", ".bat", ".vb", ".fs", ".ml", ".nim", ".zig", ".jl", ".m", ".mm":
-	default:
-		return false
+		return ownCode(root, file, false)
 	}
-	return !slices.ContainsFunc(harnessDirs, func(dir string) bool { return strings.HasPrefix(file, dir) }) &&
-		!testPath(file) && !generated(root, file)
+	return false
 }
 
 // productSource is a code file in any language the file-size limit knows,
@@ -258,10 +256,16 @@ func IsMaintainedCode(root, file string) bool {
 // behavior too. A deleted file cannot be read, so it is not checked for a
 // generated-code marker.
 func productSource(root, file string, deleted bool) bool {
-	if slices.ContainsFunc(harnessDirs, func(dir string) bool { return strings.HasPrefix(file, dir) }) {
+	if _, known := linecount.Language(path.Ext(file)); !known && !IsSource(file) {
 		return false
 	}
-	if _, known := linecount.Language(path.Ext(file)); !known && !IsSource(file) {
+	return ownCode(root, file, deleted)
+}
+
+// ownCode is code the project writes: not harness output, a test, or
+// generated code.
+func ownCode(root, file string, deleted bool) bool {
+	if slices.ContainsFunc(harnessDirs, func(dir string) bool { return strings.HasPrefix(file, dir) }) {
 		return false
 	}
 	return !testPath(file) && (deleted || !generated(root, file))

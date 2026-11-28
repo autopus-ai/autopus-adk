@@ -9,8 +9,10 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -39,6 +41,19 @@ type Item struct {
 	Lines int      `json:"lines"` // the lines involved: the cleanup order
 	Text  string   `json:"text,omitempty"`
 	Also  []string `json:"also,omitempty"` // the other places of a duplicate
+	// Wins are a duplicate's window hashes: a run that only lost windows
+	// (one copy edited, part extracted) is the same debt, not new debt.
+	Wins []string `json:"wins,omitempty"`
+}
+
+// Places are the files an item is in: a duplicate's every copy.
+func (i Item) Places() []string {
+	out := []string{i.File}
+	for _, a := range i.Also {
+		f, _, _ := strings.Cut(a, ":")
+		out = append(out, f)
+	}
+	return out
 }
 
 func (i Item) String() string {
@@ -58,16 +73,86 @@ func (i Item) String() string {
 const DefaultMaxLines = 300
 
 var (
-	// marker is a debt word right after a comment opener, in any language.
-	marker = regexp.MustCompile(`(?://+|#+|/\*+|^\s*\*+|--|;+|<!--|%|\bREM\b)\s*(TODO|FIXME|HACK|XXX)\b[:(\s-]*(.*)`)
+	// markerWord is a debt word after a comment opener and optional spaces.
+	markerWord = regexp.MustCompile(`^\s*(TODO|FIXME|HACK|XXX)\b[:(\s-]*(.*)`)
 	// issueRef is tracked debt: an issue number, a ticket id or a link.
 	issueRef = regexp.MustCompile(`#\d+|\b[A-Z][A-Z0-9]+-\d+\b|https?://`)
+	// notTicket are standard names shaped like a ticket id.
+	notTicket = regexp.MustCompile(`\b(UTF|SHA|ISO|RFC|MD|AES|HTTP|TLS|IPV)-\d+\b`)
 )
 
-// Files lists the product source files of root's work tree: tracked and
-// untracked files that are not ignored.
-func Files(ctx context.Context, root string) ([]string, error) {
-	return loadIndex(root).refresh(ctx, root, time.Time{})
+// openers are the line-comment and block-comment starts of each language;
+// a debt word counts only right after one of its file's openers.
+func openers(file string) []string {
+	switch strings.ToLower(path.Ext(file)) {
+	case ".py", ".rb", ".sh", ".bash", ".zsh", ".pl", ".pm", ".r", ".yaml", ".yml", ".toml", ".ex", ".exs", ".jl", ".nim", ".ps1", ".tf":
+		return []string{"#"}
+	case ".sql", ".lua", ".hs":
+		return []string{"--"}
+	case ".clj", ".lisp", ".el", ".scm", ".asm", ".s":
+		return []string{";"}
+	case ".erl", ".tex", ".m":
+		return []string{"%"}
+	case ".html", ".xml", ".vue", ".svelte":
+		return []string{"<!--", "//", "/*"}
+	case ".php":
+		return []string{"//", "#", "/*"}
+	case ".bat":
+		return []string{"REM ", "::"}
+	case ".vb":
+		return []string{"'"}
+	}
+	return []string{"//", "/*", "*"}
+}
+
+// commentAt finds a debt marker in line: after one of the file's comment
+// openers that is not inside a string literal or part of a URL.
+func commentAt(line string, opens []string) (word, rest string, ok bool) {
+	for _, op := range opens {
+		for from := 0; from < len(line); {
+			i := strings.Index(line[from:], op)
+			if i < 0 {
+				break
+			}
+			i += from
+			from = i + len(op)
+			if op == "*" && strings.TrimSpace(line[:i]) != "" {
+				continue // a block-comment continuation starts the line
+			}
+			if op == "//" && i > 0 && line[i-1] == ':' {
+				continue // a URL, not a comment
+			}
+			if inString(line[:i]) {
+				continue
+			}
+			m := markerWord.FindStringSubmatch(strings.TrimLeft(line[from:], op[len(op)-1:]))
+			if m != nil {
+				return m[1], m[2], true
+			}
+		}
+	}
+	return "", "", false
+}
+
+// inString reports whether position len(prefix) is inside a quoted string,
+// by counting the unescaped quotes before it.
+func inString(prefix string) bool {
+	for _, q := range []byte{'"', '\'', '`'} {
+		n := 0
+		for i := 0; i < len(prefix); i++ {
+			if prefix[i] == '\\' {
+				i++
+				continue
+			}
+			if prefix[i] == q {
+				n++
+			}
+		}
+		if n%2 == 1 {
+			return true
+		}
+	}
+	return false
 }
 
 // Options narrow a scan. MaxLines is the size limit (zero means
@@ -96,10 +181,13 @@ func ScanWith(ctx context.Context, root string, opt Options) ([]Item, error) {
 	}
 	x := loadIndex(root)
 	files, err := x.refresh(ctx, root, opt.Deadline)
-	defer x.save(root)
+	if errors.Is(err, ErrIncomplete) {
+		x.save(root) // keep what was read for the next scan
+	}
 	if err != nil {
 		return nil, err
 	}
+	defer x.save(root)
 	var items []Item
 	for _, f := range files {
 		e := x.Files[f]
@@ -114,8 +202,10 @@ func ScanWith(ctx context.Context, root string, opt Options) ([]Item, error) {
 			continue
 		}
 		if c, err := linecount.Source(f, data); err == nil && 10*c.Counted >= 9*maxLines {
-			items = append(items, Item{Kind: KindNearLimit, Key: string(KindNearLimit) + "\x00" + f, File: f, Line: 1,
-				Lines: c.Counted, Text: fmt.Sprintf("%d of %d lines", c.Counted, maxLines)})
+			// Lines is how far into the last tenth it is: near the limit is
+			// not yet a mistake, so it must not crowd the cleanup order.
+			items = append(items, Item{Kind: KindNearLimit, Key: string(KindNearLimit) + "\x00" + strings.ToValidUTF8(f, "?"), File: f, Line: 1,
+				Lines: c.Counted - (9*maxLines+9)/10 + 1, Text: fmt.Sprintf("%d of %d lines", c.Counted, maxLines)})
 		}
 	}
 	items = append(items, duplicates(files, x.Files)...)
@@ -128,20 +218,23 @@ func ScanWith(ctx context.Context, root string, opt Options) ([]Item, error) {
 	return items, nil
 }
 
-// markers are the untracked debt markers of one file. A marker's key is its
-// file and its normalized text, so it keeps its identity when it moves.
+// markers are the untracked debt markers of one file. A marker's key is
+// its normalized text alone, so it keeps its identity when its line or its
+// file moves; identical markers are counted (see Unknown).
 func markers(file string, lines []string) []Item {
 	var out []Item
-	seen := map[string]int{}
+	opens := openers(file)
 	for i, line := range lines {
-		m := marker.FindStringSubmatch(line)
-		if m == nil || issueRef.MatchString(m[0]) {
+		word, rest, ok := commentAt(line, opens)
+		if !ok {
 			continue
 		}
-		text := strings.Join(strings.Fields(strings.TrimSuffix(strings.TrimSpace(m[2]), "*/")), " ")
-		norm := m[1] + " " + text
-		seen[norm]++
-		out = append(out, Item{Kind: KindMarker, Key: fmt.Sprintf("%s\x00%s\x00%s\x00%d", KindMarker, file, norm, seen[norm]),
+		if issueRef.MatchString(notTicket.ReplaceAllString(rest, "")) {
+			continue
+		}
+		text := strings.Join(strings.Fields(strings.TrimSuffix(strings.TrimSpace(rest), "*/")), " ")
+		norm := strings.ToValidUTF8(word+" "+text, "?")
+		out = append(out, Item{Kind: KindMarker, Key: string(KindMarker) + "\x00" + digest(norm),
 			File: file, Line: i + 1, Lines: 1, Text: truncate(norm, 80)})
 	}
 	return out

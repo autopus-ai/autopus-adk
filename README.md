@@ -106,18 +106,22 @@ pins only warn. A deliberate pin passes with a reply line `version-pin: <name> <
 **Technical-debt ratchet.** Agents add code faster than anyone removes it, and a workaround left in place
 reads to the next agent as the project's convention. `auto debt` lists debt as items code can count:
 TODO/FIXME/HACK/XXX comments without an issue reference (`TODO(#123)` or a link is tracked debt), product
-files within a tenth of `architecture.max_file_lines`, and runs of code lines repeated in several places.
-Tests, docs, generated files and harness directories are not counted. `auto debt baseline` records the
+files within a tenth of `architecture.max_file_lines`, and runs of code lines repeated in several places
+(imports excluded). Tests, docs, generated files, harness directories, `vendor/`-style third-party code and
+files over 2 MiB are not counted. A marker is identified by its text, so moving it, or its file, keeps it known;
+a duplicate stays known when a copy is edited or part of it is extracted. `auto debt baseline` records the
 current items in `.autopus/debt/baseline.json`; commit it. From then on the hook compares item by item (an
 item that only moved keeps its identity; deleting one and adding another is still new): an item the baseline
-lacks blocks the stop once, naming `file:line` and kind, and the same set again only warns. A file near the
+lacks blocks the stop, naming `file:line` and kind; it blocks again only for an item not blocked before in
+the session, at most twice. A file near the
 size limit only warns. Without a baseline the hook suggests one and never blocks. The scan reads only files
 that changed since the last one (an index under `.autopus/runtime/debt/`) and stops after 0.8 s; a first
 scan of a large repository finishes over a few stops. `auto debt baseline` refuses to accept new items
 unless `--force`, so the baseline only shrinks on its own; `auto debt check` exits 1 on new items for CI;
 `auto debt cleanup` prints the largest items first with what to do, for a weekly cleanup session that ends
-with `auto debt baseline` and one pull request a person merges. Turn the ratchet off with
-`AUTOPUS_DEBT_STOP=off` or `hooks.debt_stop: false`.
+with `auto debt baseline` and one pull request a person merges. Only items in the files a change touched block; debt elsewhere means the
+baseline is stale and only warns. Turn the ratchet off with `AUTOPUS_DEBT_STOP=off`, or `hooks.debt_stop: false`
+once every `auto` that reads the config knows the key (an older binary refuses unknown keys).
 
 **Verification round (on by default).** Once the build passes, or when no build toolchain covers the
 changed files, the hook measures how much of the
