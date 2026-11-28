@@ -44,6 +44,9 @@ type index struct {
 // indexVersion changes whenever what an entry holds changes.
 const indexVersion = 2
 
+// minScanPerCall is how many changed files a scan reads past its deadline.
+var minScanPerCall = 64
+
 // maxScanBytes skips files too large to be hand-written code (bundles,
 // fixtures): one would blow the stop's time budget on its own.
 const maxScanBytes = 2 << 20
@@ -112,6 +115,7 @@ func (x *index) refresh(ctx context.Context, root string, deadline time.Time) ([
 	live := map[string]bool{}
 	var files []string
 	incomplete := false
+	scanned := 0
 	for _, f := range strings.Split(string(out), "\x00") {
 		if f == "" || live[f] {
 			continue
@@ -127,10 +131,13 @@ func (x *index) refresh(ctx context.Context, root string, deadline time.Time) ([
 		}
 		e := x.Files[f]
 		if e == nil || e.Size != fi.Size() || e.Mod != fi.ModTime().UnixNano() {
-			if !deadline.IsZero() && time.Now().After(deadline) {
+			// Every scan reads at least minScanPerCall files, so a slow git
+			// listing that eats the budget cannot keep the index from filling.
+			if !deadline.IsZero() && scanned >= minScanPerCall && time.Now().After(deadline) {
 				incomplete = true
 				continue
 			}
+			scanned++
 			e = scanFile(root, f, fi)
 			x.Files[f] = e
 			x.dirty = true

@@ -221,7 +221,10 @@ func ScanWith(ctx context.Context, root string, opt Options) ([]Item, error) {
 // markers are the untracked debt markers of one file. A marker's key is
 // its normalized text alone, so it keeps its identity when its line or its
 // file moves; identical markers are counted (see Unknown).
-func markers(file string, lines []string) []Item {
+func markers(file string, lines []string) []Item { return Markers(file, lines) }
+
+// Markers are the untracked debt markers of one file's lines.
+func Markers(file string, lines []string) []Item {
 	var out []Item
 	opens := openers(file)
 	for i, line := range lines {

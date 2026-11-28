@@ -137,9 +137,61 @@ func TestCleanupBrief_LargestFirst(t *testing.T) {
 // A scan past its deadline keeps what it read and says it did not finish.
 func TestScanWith_DeadlineIndexesOverSeveralScans(t *testing.T) {
 	root := debtRepo(t)
+	old := minScanPerCall
+	minScanPerCall = 1
+	t.Cleanup(func() { minScanPerCall = old })
 	_, err := ScanWith(context.Background(), root, Options{Deadline: time.Now().Add(-time.Second)})
 	assert.ErrorIs(t, err, ErrIncomplete)
 	items, err := ScanWith(context.Background(), root, Options{})
 	require.NoError(t, err)
 	assert.NotEmpty(t, items)
+}
+
+func TestScan_SkipsThirdPartyAndHugeFiles(t *testing.T) {
+	root := debtRepo(t)
+	write(t, root, "vendor/x/y.go", "package y\n// TODO upstream\n")
+	write(t, root, "web/node_modules/z/i.js", "// FIXME upstream\n")
+	write(t, root, "huge.go", "package a\n// TODO in a bundle\n"+strings.Repeat("var x = 1\n", (2<<20)/10+10))
+	items, err := Scan(context.Background(), root, 300)
+	require.NoError(t, err)
+	for _, it := range items {
+		assert.NotContains(t, it.File, "vendor/")
+		assert.NotContains(t, it.File, "node_modules/")
+		assert.NotEqual(t, "huge.go", it.File)
+	}
+}
+
+// The cleanup flow: extracting part of a repeated block leaves a smaller
+// duplicate that the baseline accepts without --force.
+func TestBaseline_PartialExtractionShrinksWithoutForce(t *testing.T) {
+	root := debtRepo(t)
+	items, err := Scan(context.Background(), root, 300)
+	require.NoError(t, err)
+	_, _, err = WriteBaseline(root, items, false)
+	require.NoError(t, err)
+	var kept strings.Builder
+	for i := 0; i < 7; i++ {
+		if i == 3 {
+			kept.WriteString("\tshared(input)\n")
+			continue
+		}
+		fmt.Fprintf(&kept, "\tresult%d := computeSomethingLong(input%d, options.Threshold, options.Limit)\n", i, i)
+	}
+	write(t, root, "b.go", "package a\n\nfunc B() {\n"+kept.String()+"}\n")
+	write(t, root, "c.go", "package a\n\nfunc C() {\n"+kept.String()+"}\n")
+	items, err = Scan(context.Background(), root, 300)
+	require.NoError(t, err)
+	added, _, err := WriteBaseline(root, items, false)
+	require.NoError(t, err, "a partly extracted duplicate is the same debt")
+	assert.Zero(t, added)
+}
+
+// A duplicate that grew between the same files is new debt.
+func TestUnknown_GrownDuplicateIsNew(t *testing.T) {
+	base := Baseline{Items: []Item{{Kind: KindDuplicate, Key: "duplicate\x00a", File: "x.go", Line: 1, Lines: 24, Also: []string{"y.go:1"}, Wins: []string{"1"}}}}
+	same := Item{Kind: KindDuplicate, Key: "duplicate\x00b", File: "x.go", Line: 1, Lines: 24, Also: []string{"y.go:5"}, Wins: []string{"9"}}
+	grown := same
+	grown.Lines = 36
+	assert.Empty(t, New([]Item{same}, base), "renamed in both, same size")
+	assert.Len(t, New([]Item{grown}, base), 1, "grown between the same files")
 }

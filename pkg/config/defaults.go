@@ -43,8 +43,8 @@ func (h HooksConf) IsSecretStopEnabled() bool {
 }
 
 // IsDebtStopEnabled reports whether the verification Stop hook checks the
-// change for new technical-debt items. Unset means on; it acts only where a
-// debt baseline is committed.
+// change for new technical-debt items. Unset means on; without a committed
+// baseline it only suggests one when a change adds a debt marker.
 func (h HooksConf) IsDebtStopEnabled() bool {
 	return h.DebtStop == nil || *h.DebtStop
 }

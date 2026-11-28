@@ -87,9 +87,11 @@ When `auto verify stop` runs
 Then it neither blocks nor warns about debt, and its other checks (build, tests, secrets, file-size limit) still run as before
 
 ### AC-18: Without a baseline file, the hook does not block
-Given a repository with debt items and no baseline file
+Given a repository with debt items and no baseline file, and a change that adds a debt marker
 When `auto verify stop` runs
 Then it does not block because of debt, and its output tells the user to create a baseline with `auto debt`
+(once a session; a change that adds no debt hears nothing, so a project that never uses the ratchet pays no scan and sees no notice —
+decided after review of #392, where an unconditional notice reached every session of every project)
 
 ### AC-19: The weekly cleanup command gives ordered instructions, largest item first
 Given a committed baseline with several items of different sizes

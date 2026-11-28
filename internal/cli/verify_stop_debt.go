@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/insajin/autopus-adk/pkg/debt"
+	"github.com/insajin/autopus-adk/pkg/verifygate"
 )
 
 // preBuildGates run before the build, cheapest first: credentials, version
@@ -79,12 +80,11 @@ func debtGate(ctx context.Context, in stopHookInput, root string, changed []stri
 		return nil, ""
 	}
 	base, err := debt.LoadBaseline(root)
-	noBase := errors.Is(err, debt.ErrNoBaseline)
-	if err != nil && !noBase {
-		return nil, "auto verify stop: debt baseline unreadable: " + err.Error()
+	if errors.Is(err, debt.ErrNoBaseline) {
+		return nil, debtNoBaseline(ctx, session, root, changed)
 	}
-	if noBase && readStopState(session, "debt-nobase") == "1" {
-		return nil, ""
+	if err != nil {
+		return nil, "auto verify stop: debt baseline unreadable: " + err.Error()
 	}
 	touched := map[string]bool{}
 	for _, f := range changed {
@@ -95,23 +95,13 @@ func debtGate(ctx context.Context, in stopHookInput, root string, changed []stri
 	if err != nil {
 		return nil, "" // still indexing, or git could not list the tree: no verdict this stop
 	}
-	if noBase {
-		// A project that never recorded its debt hears about the ratchet only
-		// when a change of its own adds an item, once a session.
-		for _, it := range items {
-			if _, mine := inChange(it, touched); mine && it.Kind != debt.KindNearLimit {
-				writeStopState(session, "debt-nobase", "1")
-				return nil, "auto verify stop: this change touches technical debt (" + it.String() + "), and no debt baseline is " +
-					"committed here, so new debt is not checked; run `auto debt baseline` and commit " + debt.BaselinePath
-			}
-		}
-		return nil, ""
-	}
-	blocking, warn := debt.Blocking(debt.Unknown(items, base, touched))
+	added := verifygate.AddedLines(ctx, root)
+	isMine := func(it debt.Item) bool { _, ok := inChange(it, added); return ok }
+	blocking, warn := debt.Blocking(debt.Unknown(items, base, isMine))
 	var mine []debt.Item
 	elsewhere := 0
 	for _, it := range blocking {
-		if at, ok := inChange(it, touched); ok {
+		if at, ok := inChange(it, added); ok {
 			mine = append(mine, at)
 		} else {
 			elsewhere++
@@ -120,7 +110,8 @@ func debtGate(ctx context.Context, in stopHookInput, root string, changed []stri
 	if len(warn) > 0 {
 		warning = "auto verify stop: near the file-size limit: " + describeDebt(warn) + "; split before the next change pushes it over"
 	}
-	if elsewhere > 0 {
+	if elsewhere > 0 && readStopState(session, "debt-stale") != strconv.Itoa(elsewhere) {
+		writeStopState(session, "debt-stale", strconv.Itoa(elsewhere))
 		warning = joinWarnings(warning, fmt.Sprintf("auto verify stop: %d technical-debt item(s) outside this change are not in the baseline; "+
 			"it is stale: run `auto debt baseline` (and commit it) when they are meant to stay", elsewhere))
 	}
@@ -158,23 +149,56 @@ func debtGate(ctx context.Context, in stopHookInput, root string, changed []stri
 		"`auto debt baseline --force`; the baseline is committed, so a person sees it in review."}, warning
 }
 
-// inChange reports whether an item is in a file the change touched, and
-// names it there: a duplicate is reported at its touched copy.
-func inChange(it debt.Item, touched map[string]bool) (debt.Item, bool) {
-	if touched[it.File] {
+// inChange reports whether the change added or edited a line of the item
+// (a marker's line, any line of a duplicate's copy), and names it there: a
+// duplicate is reported at the copy the change touched. Lines the change
+// left alone are not its debt, even in a file it edited.
+func inChange(it debt.Item, added verifygate.Added) (debt.Item, bool) {
+	if it.Kind != debt.KindDuplicate {
+		return it, added.Has(it.File, it.Line)
+	}
+	span := it.Lines / max(len(it.Places()), 1)
+	if added.Touches(it.File, it.Line, it.Line+span-1) {
 		return it, true
 	}
 	for i, a := range it.Also {
-		f, line, _ := strings.Cut(a, ":")
-		if touched[f] {
+		f, l, _ := strings.Cut(a, ":")
+		line, _ := strconv.Atoi(l)
+		if added.Touches(f, line, line+span-1) {
 			moved := it
 			moved.Also = append(append([]string{fmt.Sprintf("%s:%d", it.File, it.Line)}, it.Also[:i]...), it.Also[i+1:]...)
-			moved.File = f
-			moved.Line, _ = strconv.Atoi(line)
+			moved.File, moved.Line = f, line
 			return moved, true
 		}
 	}
 	return it, false
+}
+
+// debtNoBaseline is the gate in a project that never recorded its debt: no
+// scan and no index, only the markers on the lines this change adds, and a
+// suggestion once a session when there is one.
+func debtNoBaseline(ctx context.Context, session, root string, changed []string) string {
+	if readStopState(session, "debt-nobase") == "1" {
+		return ""
+	}
+	added := verifygate.AddedLines(ctx, root)
+	for _, f := range changed {
+		if !verifygate.IsProductSource(root, f) && !verifygate.IsMaintainedCode(root, f) {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(f)))
+		if err != nil || len(data) > 2<<20 {
+			continue
+		}
+		for _, it := range debt.Markers(f, strings.Split(string(data), "\n")) {
+			if added.Has(f, it.Line) {
+				writeStopState(session, "debt-nobase", "1")
+				return "auto verify stop: this change adds technical debt (" + it.String() + "), and no debt baseline is committed here, " +
+					"so new debt is not checked; run `auto debt baseline` and commit " + debt.BaselinePath
+			}
+		}
+	}
+	return ""
 }
 
 // debtID names an item for the session's record of what it blocked.
