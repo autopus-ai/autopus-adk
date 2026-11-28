@@ -65,13 +65,16 @@ If a fix needs a decision only the user can make (product behavior, scope, a pol
 // of its misses in code that models an external program; the reviewer found
 // them only by running that program. Findings were lost when the agent ended
 // its turn while the reviewer still ran, so the review runs in the foreground.
-// Pilot C v4 (2026-11-26) found the agent reviewing on its own, as the
-// autonomy rule asks, and then a second time when this round arrived: the
-// second pass was 41-58% of trial wall time and fixed nothing new, so a
-// review already run on the same change counts as this step.
-const followupReview = `1. If an independent review of this same change already ran in this session and the diff changed since only by its fixes, do not start another review: state its result and go on. Otherwise run the reviewer agent on ` + "`git diff HEAD`" + ` (and new files) against what the user asked for, in the foreground: wait for its result in this turn, and do not end the turn while it runs. (Where sub-agents run only in the background, as in Antigravity, end the turn instead and act on the review when its result arrives.) Require differential checking: where the changed code models or parses an external program or format (shell grammar, CLI flags, git, file formats, protocols), the reviewer runs the real program on the same inputs and compares it with the new code. It reports only blockers reproduced by execution (wrong behavior, missing cases, security or data-loss risk), each with file, line and the command that shows it. You and the reviewer run only the narrowest tests that cover the change (` + "`auto verify plan`" + ` prints them); never start a whole package or suite run with a long timeout and poll it: the Stop hook already ran the changed packages, and ` + "`auto verify stop --last`" + ` prints that result.`
+// A change gets at most two independent reviews: a second, fresh one only
+// when the first requested changes, since the fixes are code nobody has
+// reviewed. #377 had cut the second review on the belief that it fixed
+// nothing new; the v4 transcripts show it found new reproduced blockers in
+// 3 of 4 trials (15, 5 and 5), every first review requested changes, and
+// Pilot C v5 without it fell from 39 to 31 of 56 review cases, next to the
+// plain agent's 28.
+const followupReview = `1. Count the independent reviews this change already had in this session. If the last one approved it and the diff has not changed since, or two have already run, do not start another review: state the result and go on. If one ran, requested changes and you fixed them, run one fresh review of the fixed diff now: the fixes are code nobody has reviewed. Otherwise run the reviewer agent on ` + "`git diff HEAD`" + ` (and new files) against what the user asked for, in the foreground: wait for its result in this turn, and do not end the turn while it runs. (Where sub-agents run only in the background, as in Antigravity, end the turn instead and act on the review when its result arrives.) Require differential checking: where the changed code models or parses an external program or format (shell grammar, CLI flags, git, file formats, protocols), the reviewer runs the real program on the same inputs and compares it with the new code. It reports only blockers reproduced by execution (wrong behavior, missing cases, security or data-loss risk), each with file, line and the command that shows it. You and the reviewer run only the narrowest tests that cover the change (` + "`auto verify plan`" + ` prints them); never start a whole package or suite run with a long timeout and poll it: the Stop hook already ran the changed packages, and ` + "`auto verify stop --last`" + ` prints that result.`
 
-const followupFix = ` Apply every confirmed finding, rerun the narrowest tests that cover the fixes (the next stop runs the packages whole), and finish with a short summary of what was checked and fixed. The fixes do not get another review.`
+const followupFix = ` Apply every confirmed finding, rerun the narrowest tests that cover the fixes (the next stop runs the packages whole), and finish with a short summary of what was checked and fixed. When this was the change's first review and it requested changes, run one fresh review of the fixed diff the same way; after a second review the fixes do not get another.`
 
 // followupFullReason is the round for a large change: the review, and
 // scenario QA plus the hunt only when the change has something a user runs.

@@ -83,7 +83,9 @@ func TestVerifyStop_SmallBehaviorChangeGetsTheLightRound(t *testing.T) {
 	assert.Contains(t, out.Reason, "light verification round")
 	assert.Contains(t, out.Reason, "in the foreground", "a reviewer still running when the turn ends loses its findings")
 	assert.Contains(t, out.Reason, "runs the real program on the same inputs")
-	assert.Contains(t, out.Reason, "do not start another review", "a review the agent already ran on this change counts as the round's review")
+	assert.Contains(t, out.Reason, "do not start another review", "an approved, unchanged change is not reviewed again")
+	assert.Contains(t, out.Reason, "run one fresh review of the fixed diff", "fixes after a review that requested changes get one fresh review")
+	assert.Contains(t, out.Reason, "after a second review the fixes do not get another", "a change gets at most two reviews")
 	for _, qa := range []string{"auto qa intent", "auto qa exec", "qa-explorer", "auto qa hunt"} {
 		assert.NotContains(t, out.Reason, qa, "the light round is the review only")
 	}
