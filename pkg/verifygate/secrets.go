@@ -1,7 +1,6 @@
 package verifygate
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"crypto/sha256"
@@ -65,46 +64,13 @@ func AddedSecrets(ctx context.Context, dir string) []SecretHit {
 
 // diffSecrets reads `git diff --unified=0` output and matches each added line.
 func diffSecrets(diff []byte) []SecretHit {
-	var (
-		hits   []SecretHit
-		file   string
-		line   int
-		inHunk bool
-	)
-	scanner := bufio.NewScanner(bytes.NewReader(diff))
-	scanner.Buffer(make([]byte, 0, 64*1024), maxUntrackedBytes)
-	for scanner.Scan() {
-		text := scanner.Text()
-		switch {
-		case strings.HasPrefix(text, "diff --git "):
-			file, inHunk = "", false
-		case !inHunk && strings.HasPrefix(text, "+++ "):
-			file = diffPath(strings.TrimPrefix(text, "+++ "))
-			if len(withoutHarnessPaths([]string{file})) == 0 {
-				file = ""
-			}
-		case strings.HasPrefix(text, "@@ "):
-			inHunk, line = true, hunkStart(text)
-		case inHunk && strings.HasPrefix(text, "+"):
-			if file != "" {
-				for _, rule := range securityscan.MatchSecrets(text[1:]) {
-					hits = append(hits, SecretHit{File: file, Line: line, Rule: rule})
-				}
-			}
-			line++
+	var hits []SecretHit
+	walkAdded(diff, maxUntrackedBytes, func(file string, line int, text string) {
+		for _, rule := range securityscan.MatchSecrets(text) {
+			hits = append(hits, SecretHit{File: file, Line: line, Rule: rule})
 		}
-	}
+	})
 	return hits
-}
-
-// diffPath turns a `+++ b/path` header into the repository path; /dev/null
-// (a deletion) yields "".
-func diffPath(header string) string {
-	header = strings.Trim(header, "\"")
-	if !strings.HasPrefix(header, "b/") {
-		return ""
-	}
-	return strings.TrimPrefix(header, "b/")
 }
 
 // hunkStart reads the new-file start line from `@@ -a,b +c,d @@`.

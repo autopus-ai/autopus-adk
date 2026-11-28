@@ -139,6 +139,22 @@ PR 크기로는 기능 추가와 버그 수정이 충분히 갈리지 않아 기
 보지 않습니다. 일부러 둔 테스트 fixture는 그 줄에 `autopus:allow-secret`(또는 `gitleaks:allow`) 주석을 달거나
 `.gitleaksignore`에 `file:rule:line`을 적으면 통과합니다.
 
+**기술부채 래칫.** 에이전트는 코드를 지우는 속도보다 빨리 더하고, 남겨 둔 우회 코드는 다음 에이전트에게 이 프로젝트의 관례로
+읽힙니다. `auto debt`는 부채를 코드로 셀 수 있는 항목으로 보여 줍니다. 이슈 참조가 없는 TODO/FIXME/HACK/XXX 주석(`TODO(#123)`나
+링크가 붙은 것은 추적 중인 부채), `architecture.max_file_lines`의 10% 안까지 찬 제품 파일(프로젝트가 한도를 선언한 경우만), 여러 곳에 반복된 코드 줄 묶음입니다.
+import 줄은 중복에서 빼고, 테스트·문서·생성 파일·하네스 디렉터리·`vendor/` 같은 외부 코드·2MiB가 넘는 파일은 세지 않습니다. 주석은 내용으로
+식별해서 줄이나 파일을 옮겨도 그대로이고, 중복은 한 사본을 고치거나 일부를 추출해도 아는 항목으로 남습니다. `auto debt baseline`이 지금 항목을 `.autopus/debt/baseline.json`에
+기록하고, 이 파일을 커밋합니다. 그 뒤로 hook은 항목 단위로 비교합니다(위치만 옮긴 항목은 그대로, 하나 지우고 하나 더하면 새
+항목). 기준선에 없는 항목이 생기면 `파일:줄`과 종류를 밝혀 막고, 세션에서 아직 막지 않은 항목이 생길 때만 다시 막으며 최대 두 번입니다. 크기 한도 근접은 경고만
+합니다. 기준선이 없으면 만들 것을 제안할 뿐 막지 않습니다. 측정은 지난번 이후 바뀐 파일만 읽고(`.autopus/runtime/debt/`의
+색인) 0.8초에서 멈추며, 큰 저장소의 첫 측정은 몇 번의 멈춤에 걸쳐 끝납니다. `auto debt baseline`은 `--force` 없이는 새 항목을
+받아들이지 않아 기준선은 스스로 줄어들기만 합니다. `auto debt check`는 CI용으로 새 항목이 있으면 exit 1이고, `auto debt
+cleanup`은 큰 항목부터 할 일을 출력합니다. 주간 정리는 이 지시대로 정리한 뒤 `auto debt baseline`과 사람이 병합하는 PR 하나로
+끝납니다. 막는 것은 이번 변경이 추가하거나 고친 줄에 걸친 항목뿐이고, 다른 곳의 부채는 기준선이 낡았다는 경고만 합니다. hook은 `HEAD`
+대비 변경만 보므로, 에이전트가 같은 턴 안에 커밋한 부채는 CI에서 `auto debt check`로 잡아야 합니다.
+`AUTOPUS_DEBT_STOP=off`로 끄고, `hooks.debt_stop: false`는 그 설정을 읽는 모든 `auto`가 이 키를 알게 된 뒤에 씁니다(예전 바이너리는 모르는
+키를 거부합니다).
+
 **버전 확인.** 에이전트는 현재 버전이 아니라 학습 때 기억한 버전(`postgres:13`, `"react": "^18"`, `go 1.22`,
 `node:20-alpine`)을 고정합니다. 빌드를 돌리기 전에, 이번 턴이 바꾸거나 새로 만든 manifest(`go.mod`, `package.json`,
 `requirements*.txt`, `pyproject.toml`, `Cargo.toml`, `.nvmrc`, `.python-version`, `.tool-versions`, Dockerfile, YAML의

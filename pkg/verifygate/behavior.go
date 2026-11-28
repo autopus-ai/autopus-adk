@@ -233,16 +233,39 @@ func hunkCodeLines(diff []byte, hash bool) int {
 	return lines
 }
 
+// IsProductSource reports a file the verification round counts as product
+// code: a source file in any language the file-size limit knows that is not
+// a test, generated code or harness output.
+func IsProductSource(root, file string) bool { return productSource(root, file, false) }
+
+// IsMaintainedCode reports a file of code a person maintains in a language
+// the file-size limit does not measure (SQL, Lua, Perl, Scala ...): not a
+// test, generated code or harness output. Debt markers in it still count.
+func IsMaintainedCode(root, file string) bool {
+	switch strings.ToLower(path.Ext(file)) {
+	case ".sql", ".lua", ".pl", ".pm", ".r", ".scala", ".sc", ".dart", ".ex", ".exs", ".erl", ".hs",
+		".clj", ".groovy", ".ps1", ".bat", ".vb", ".fs", ".ml", ".nim", ".zig", ".jl", ".m", ".mm":
+		return ownCode(root, file, false)
+	}
+	return false
+}
+
 // productSource is a code file in any language the file-size limit knows,
 // plus the toolchains the build gate runs, that is neither a test, generated
 // code, nor harness output. A Java or shell project's logic change is
 // behavior too. A deleted file cannot be read, so it is not checked for a
 // generated-code marker.
 func productSource(root, file string, deleted bool) bool {
-	if slices.ContainsFunc(harnessDirs, func(dir string) bool { return strings.HasPrefix(file, dir) }) {
+	if _, known := linecount.Language(path.Ext(file)); !known && !IsSource(file) {
 		return false
 	}
-	if _, known := linecount.Language(path.Ext(file)); !known && !IsSource(file) {
+	return ownCode(root, file, deleted)
+}
+
+// ownCode is code the project writes: not harness output, a test, or
+// generated code.
+func ownCode(root, file string, deleted bool) bool {
+	if slices.ContainsFunc(harnessDirs, func(dir string) bool { return strings.HasPrefix(file, dir) }) {
 		return false
 	}
 	return !testPath(file) && (deleted || !generated(root, file))
@@ -288,7 +311,9 @@ func testPath(file string) bool {
 // header here would also hide the ADK's own template sources.
 func generated(root, file string) bool {
 	base := path.Base(file)
-	if strings.HasSuffix(base, ".pb.go") || strings.HasPrefix(base, "zz_generated") || strings.Contains(base, ".gen.") {
+	if strings.HasSuffix(base, ".pb.go") || strings.HasPrefix(base, "zz_generated") || strings.Contains(base, ".gen.") ||
+		strings.HasSuffix(base, "_pb2.py") || strings.HasSuffix(base, "_pb2_grpc.py") || strings.HasSuffix(base, ".g.dart") ||
+		strings.Contains(base, ".generated.") {
 		return true
 	}
 	f, err := os.Open(filepath.Join(root, filepath.FromSlash(file)))

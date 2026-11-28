@@ -213,6 +213,11 @@ type HooksConf struct {
 	// SecretStop lets `auto verify stop` send a session back once when its
 	// changes add a credential-shaped line. Read it through IsSecretStopEnabled.
 	SecretStop *bool `yaml:"secret_stop,omitempty"`
+	// DebtStop lets `auto verify stop` send a session back once when its
+	// change adds a technical-debt item the committed baseline does not
+	// have. AUTOPUS_DEBT_STOP=off overrides it per machine. Read it through
+	// IsDebtStopEnabled.
+	DebtStop *bool `yaml:"debt_stop,omitempty"`
 	// DiskGate registers the Claude Code PreToolUse hook that blocks heavy
 	// shell commands while free space is below disk.min_free_gb. Read it
 	// through IsDiskGateEnabled.

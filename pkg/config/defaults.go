@@ -42,6 +42,13 @@ func (h HooksConf) IsSecretStopEnabled() bool {
 	return h.SecretStop == nil || *h.SecretStop
 }
 
+// IsDebtStopEnabled reports whether the verification Stop hook checks the
+// change for new technical-debt items. Unset means on; without a committed
+// baseline it only suggests one when a change adds a debt marker.
+func (h HooksConf) IsDebtStopEnabled() bool {
+	return h.DebtStop == nil || *h.DebtStop
+}
+
 // IsEditGuardEnabled reports whether hook generation registers the edit guard.
 // An explicit value wins; nil means unset and resolves to DefaultEditGuard.
 func (h HooksConf) IsEditGuardEnabled() bool {

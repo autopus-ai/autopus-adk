@@ -153,15 +153,10 @@ func runVerifyStop(cmd *cobra.Command, stdin io.Reader, budget time.Duration, fo
 	if !ok || len(changed) == 0 {
 		return stopHookOutput{}
 	}
-	block, warning := secretGate(cmd.Context(), in.SessionID, root)
+	block, warning := preBuildGates(cmd.Context(), in, root, changed)
 	if block != nil {
 		return *block
 	}
-	versionBlock, versionWarn := versionGate(cmd.Context(), in, root)
-	if versionBlock != nil {
-		return withSecretWarning(*versionBlock, warning)
-	}
-	warning = joinWarnings(warning, versionWarn)
 	budget = stopBudget(cmd, root, budget)
 	return withSecretWarning(verifyChanged(cmd, in, root, changed, budget, followup), warning)
 }

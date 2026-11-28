@@ -90,3 +90,24 @@ Limits: an area reviewed in every session will reach three sessions with unrelat
 refuter carry that. A finding without a `file:line` reference is not seen, and a line that cites a file to confirm it is
 fine is counted like a defect. A relative path the repository does not have is kept (it may be on another branch), so a
 session that reviews a second repository adds its areas too.
+
+## Technical-debt ratchet (`auto debt`)
+
+Acceptance criteria: `.autopus/specs/INTENT-debt-ratchet/`. Agents keep adding code; the user asked for debt to be
+removed continuously, by a ratchet plus a weekly cleanup.
+
+| Decision | Why |
+| --- | --- |
+| Debt is three item kinds code can count in any language: untracked markers, files near the size limit, repeated code runs | A count is the same every time; a model judging "debt" is not. Dead code is left to each language's linter (golangci `unused` here). |
+| Markers are identified by their text and counted; a duplicate is known when its windows are a subset of a baseline duplicate's or it spans the same files | Moving a line or a file must not make debt new, nor may editing one copy or extracting part of a run (the cleanup flow would otherwise need `--force`); deleting one marker and adding another must still count. |
+| A committed baseline; a rewrite refuses new items without `--force` | The baseline only shrinks on its own, and a deliberate addition shows up in review as a baseline diff. |
+| The Stop hook blocks only for items in the files the change touched; debt elsewhere warns that the baseline is stale | Review of #392: a baseline is stale between cleanups, and blocking every session for a teammate's merge sends agents to unrelated files. |
+| A block repeats only for an item not blocked before in the session, at most twice, on its own counter; it waits while a background agent edits | Removing one of two blocked items must not block again (AC-11), and debt must not use up the build failures' block budget. |
+| Imports, `vendor/`-style directories and files over 2 MiB are left out | Import lists repeat in every file; third-party code is not the project's debt; one bundle file blew the time budget. |
+| A per-file index keyed by size and mtime, 64-bit window hashes, and a 0.8 s budget per stop | A full scan took 10 s on this repository and 15 s on a large monorepo; with the index a stop takes 0.13 s and 0.3 s. A first scan finishes over several stops and does not block until then. |
+| Weekly cleanup is a command that orders items by lines involved, not a scheduler | Every project schedules differently (CI cron, a Claude Code routine); the instruction and the baseline update are what ADK owns. |
+
+Limits: the duplicate measure compares normalized lines, so renamed copies are not found. The hook sees the change
+against `HEAD`, so debt committed within the turn is caught only by `auto debt check` in CI. Near-limit is measured
+only where `architecture.max_file_lines` is declared (an undeclared ceiling is advisory). The diff walk shared with the
+credential gate reads lines of any length; a scanner stopped at a 1 MiB line used to drop every later file.
